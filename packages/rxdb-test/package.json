@@ -1,0 +1,65 @@
+{
+  "name": "@aiao/rxdb-test",
+  "version": "0.0.24",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./entities": {
+      "types": "./dist/entities/index.d.ts",
+      "import": "./dist/entities/index.js"
+    },
+    "./shop": {
+      "types": "./dist/shop/index.d.ts",
+      "import": "./dist/shop/index.js"
+    },
+    "./encrypted": {
+      "types": "./dist/encrypted/index.d.ts",
+      "import": "./dist/encrypted/index.js",
+      "default": "./dist/encrypted/index.js"
+    },
+    "./tree-unique": {
+      "types": "./dist/tree-unique/index.d.ts",
+      "import": "./dist/tree-unique/index.js",
+      "default": "./dist/tree-unique/index.js"
+    },
+    "./transaction": {
+      "types": "./dist/transaction/index.d.ts",
+      "import": "./dist/transaction/index.js",
+      "default": "./dist/transaction/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "nx": {
+    "name": "rxdb-test",
+    "tags": [
+      "js-lib"
+    ]
+  },
+  "dependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "rxjs": "^7.8.2",
+    "vitest": "4.1.5"
+  },
+  "devDependencies": {
+    "@aiao/rxdb-client-generator": "workspace:*"
+  }
+}

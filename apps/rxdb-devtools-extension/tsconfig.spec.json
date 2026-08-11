@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc",
+    "types": ["chrome", "node", "vitest/globals"],
+    "rootDir": "."
+  },
+  "exclude": [],
+  "extends": "./tsconfig.app.json",
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "manifest.config.ts"]
+}

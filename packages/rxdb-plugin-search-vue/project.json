@@ -1,0 +1,17 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-plugin-search-vue",
+  "projectType": "library",
+  "sourceRoot": "packages/rxdb-plugin-search-vue/src",
+  "tags": ["vue-lib"],
+  "targets": {
+    "audit": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "node scripts/audit/package-runtime-condition.mjs packages/rxdb-plugin-search-vue",
+        "cwd": "."
+      }
+    }
+  }
+}

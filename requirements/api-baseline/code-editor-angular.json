@@ -1,0 +1,16 @@
+{
+  "exports": [
+    {
+      "name": "CodeEditor",
+      "kind": "both"
+    },
+    {
+      "name": "CodeEditorSetup",
+      "kind": "type"
+    },
+    {
+      "name": "CodeEditorTheme",
+      "kind": "type"
+    }
+  ]
+}

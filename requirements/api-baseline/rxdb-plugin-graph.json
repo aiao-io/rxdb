@@ -1,0 +1,164 @@
+{
+  "exports": [
+    {
+      "name": "CountNeighborsQuery",
+      "kind": "type"
+    },
+    {
+      "name": "createGraphQueryResult",
+      "kind": "value"
+    },
+    {
+      "name": "EdgeFilterOptions",
+      "kind": "type"
+    },
+    {
+      "name": "EdgeFilterOptionsFull",
+      "kind": "type"
+    },
+    {
+      "name": "EdgeFilterOptionsWithProperties",
+      "kind": "type"
+    },
+    {
+      "name": "EdgeFilterOptionsWithWeight",
+      "kind": "type"
+    },
+    {
+      "name": "EdgeInfo",
+      "kind": "type"
+    },
+    {
+      "name": "EdgeInfoFull",
+      "kind": "type"
+    },
+    {
+      "name": "EdgeInfoWithProperties",
+      "kind": "type"
+    },
+    {
+      "name": "EdgeInfoWithWeight",
+      "kind": "type"
+    },
+    {
+      "name": "FindNeighborsOptions",
+      "kind": "type"
+    },
+    {
+      "name": "FindNeighborsQuery",
+      "kind": "type"
+    },
+    {
+      "name": "FindPathsOptions",
+      "kind": "type"
+    },
+    {
+      "name": "FindPathsQuery",
+      "kind": "type"
+    },
+    {
+      "name": "GRAPH_DEFAULT_MAX_DEPTH",
+      "kind": "value"
+    },
+    {
+      "name": "GRAPH_DEFAULT_RESULT_LIMIT",
+      "kind": "value"
+    },
+    {
+      "name": "GRAPH_ENTITY_BASE_OPTIONS",
+      "kind": "value"
+    },
+    {
+      "name": "GRAPH_MAX_DEPTH",
+      "kind": "value"
+    },
+    {
+      "name": "GRAPH_MAX_LEVEL",
+      "kind": "value"
+    },
+    {
+      "name": "GRAPH_MAX_PATH_EXPANSIONS",
+      "kind": "value"
+    },
+    {
+      "name": "GRAPH_MAX_RESULT_LIMIT",
+      "kind": "value"
+    },
+    {
+      "name": "GRAPH_QUERY_TYPES",
+      "kind": "value"
+    },
+    {
+      "name": "GraphEdgeInfoType",
+      "kind": "type"
+    },
+    {
+      "name": "GraphEdgeProperties",
+      "kind": "type"
+    },
+    {
+      "name": "GraphEdgePropertiesRecord",
+      "kind": "type"
+    },
+    {
+      "name": "GraphEdgePropertyValue",
+      "kind": "type"
+    },
+    {
+      "name": "GraphEntity",
+      "kind": "value"
+    },
+    {
+      "name": "GraphEntityBase",
+      "kind": "both"
+    },
+    {
+      "name": "GraphEntityType",
+      "kind": "type"
+    },
+    {
+      "name": "GraphPath",
+      "kind": "type"
+    },
+    {
+      "name": "GraphQueryResult",
+      "kind": "type"
+    },
+    {
+      "name": "GraphRepository",
+      "kind": "both"
+    },
+    {
+      "name": "GraphWhere",
+      "kind": "type"
+    },
+    {
+      "name": "IGraphEntity",
+      "kind": "type"
+    },
+    {
+      "name": "IGraphRepository",
+      "kind": "type"
+    },
+    {
+      "name": "NeighborResult",
+      "kind": "type"
+    },
+    {
+      "name": "normalizeNeighborsOptions",
+      "kind": "value"
+    },
+    {
+      "name": "normalizePathsOptions",
+      "kind": "value"
+    },
+    {
+      "name": "rxDBPluginGraph",
+      "kind": "value"
+    },
+    {
+      "name": "RxDBPluginGraph",
+      "kind": "both"
+    }
+  ]
+}

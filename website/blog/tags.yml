@@ -1,0 +1,24 @@
+hello:
+  label: Hello
+  permalink: /hello
+  description: Hello tag description
+
+rxdb:
+  label: RxDB
+  permalink: /rxdb
+  description: RxDB 项目相关更新与思考
+
+Local-first:
+  label: Local-first
+  permalink: /local-first
+  description: Local-first 架构、同步与离线优先实践
+
+WebAssembly:
+  label: WebAssembly
+  permalink: /webassembly
+  description: WebAssembly 在浏览器端数据库与应用能力中的实践
+
+前端开发:
+  label: 前端开发
+  permalink: /frontend
+  description: 面向复杂数据应用的前端工程实践

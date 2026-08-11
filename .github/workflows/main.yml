@@ -1,0 +1,27 @@
+name: main
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-all:
+    uses: ./.github/workflows/test-template.yml
+    with:
+      run_mode: run-many
+      include_e2e: false
+      need_supabase: true
+      is_pr: false
+    secrets:
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

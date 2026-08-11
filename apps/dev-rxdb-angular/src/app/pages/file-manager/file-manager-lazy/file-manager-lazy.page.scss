@@ -1,0 +1,39 @@
+@use '../../../../styles/view-transitions';
+@use '../../../../styles/tree-drag';
+
+.tree-list {
+  padding: 0 12px;
+}
+
+.tree-node {
+  z-index: 1;
+
+  &:hover {
+    z-index: 2;
+  }
+}
+
+.virtual-scroll-viewport {
+  min-height: 400px;
+  width: 100%;
+  overflow-x: visible !important;
+  padding: 0 4px;
+
+  .cdk-virtual-scroll-content-wrapper {
+    width: 100%;
+  }
+}
+
+.card {
+  overflow: visible;
+}
+
+.root-drop-zone {
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    border-color: var(--color-primary);
+    background: color-mix(in oklch, var(--color-primary), transparent 95%);
+  }
+}

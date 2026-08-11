@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>RxDB Demo - React</title>
+    <meta content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" name="viewport" />
+    <meta content="yes" name="mobile-web-app-capable" />
+    <meta content="yes" name="apple-mobile-web-app-capable" />
+    <meta content="Local-first RxDB demo with React - Offline-first database for web apps" name="description" />
+    <meta content="light dark" name="color-scheme" />
+    <link href="./favicon.ico" rel="icon" type="image/x-icon" />
+    <script>
+      try {
+        let theme = localStorage.getItem('theme') || 'auto';
+        if (theme === 'auto') theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="/src/main.tsx" type="module"></script>
+  </body>
+</html>

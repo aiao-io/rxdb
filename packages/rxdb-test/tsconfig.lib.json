@@ -1,0 +1,73 @@
+{
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+    "emitDeclarationOnly": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node", "vite/client"],
+    "paths": {
+      "@aiao/code-editor": ["./packages/code-editor/src/index.ts"],
+      "@aiao/code-editor-angular": ["./packages/code-editor-angular/src/index.ts"],
+      "@aiao/code-editor-react": ["./packages/code-editor-react/src/index.ts"],
+      "@aiao/code-editor-vue": ["./packages/code-editor-vue/src/index.ts"],
+      "@aiao/rxdb": ["./packages/rxdb/src/index.ts"],
+      "@aiao/rxdb-devtools": ["./packages/rxdb-devtools/src/index.ts"],
+      "@aiao/rxdb-adapter-pglite": ["./packages/rxdb-adapter-pglite/src/index.ts"],
+      "@aiao/rxdb-adapter-wa-sqlite": ["./packages/rxdb-adapter-wa-sqlite/src/index.ts"],
+      "@aiao/rxdb-adapter-sqlite-wasm": ["./packages/rxdb-adapter-sqlite-wasm/src/index.ts"],
+      "@aiao/rxdb-adapter-sqlite-core": ["./packages/rxdb-adapter-sqlite-core/src/index.ts"],
+      "@aiao/rxdb-adapter-sqlite-core/testing": ["./packages/rxdb-adapter-sqlite-core/src/testing.ts"],
+      "@aiao/rxdb-adapter-sqlite": ["./packages/rxdb-adapter-sqlite/src/index.ts"],
+      "@aiao/rxdb-adapter-sqliteai": ["./packages/rxdb-adapter-sqliteai/src/index.ts"],
+      "@aiao/rxdb-adapter-supabase": ["./packages/rxdb-adapter-supabase/src/index.ts"],
+      "@aiao/rxdb-angular": ["./packages/rxdb-angular/src/index.ts"],
+      "@aiao/rxdb-client-generator": ["./packages/rxdb-client-generator/src/index.ts"],
+      "@aiao/rxdb-plugin-graph": ["./packages/rxdb-plugin-graph/src/index.ts"],
+      "@aiao/rxdb-plugin-graph/sqlite": ["./packages/rxdb-plugin-graph/src/sqlite.ts"],
+      "@aiao/rxdb-plugin-search": ["./packages/rxdb-plugin-search/src/index.ts"],
+      "@aiao/rxdb-plugin-search-angular": ["./packages/rxdb-plugin-search-angular/src/index.ts"],
+      "@aiao/rxdb-plugin-search-react": ["./packages/rxdb-plugin-search-react/src/index.ts"],
+      "@aiao/rxdb-plugin-search-vue": ["./packages/rxdb-plugin-search-vue/src/index.ts"],
+      "@aiao/rxdb-plugin-storage": ["./packages/rxdb-plugin-storage/src/index.ts"],
+      "@aiao/rxdb-plugin-workspace": ["./packages/rxdb-plugin-workspace/src/index.ts"],
+      "@aiao/rxdb-react": ["./packages/rxdb-react/src/index.ts"],
+      "@aiao/rxdb-test": ["./packages/rxdb-test/src/index.ts"],
+      "@aiao/rxdb-test/entities": ["./packages/rxdb-test/dist/entities/index"],
+      "@aiao/rxdb-test/shop": ["./packages/rxdb-test/shop/index.ts"],
+      "@aiao/rxdb-vue": ["./packages/rxdb-vue/src/index.ts"],
+      "@aiao/utils": ["./packages/utils/src/index.ts"],
+      "@modules/angular": ["./modules/angular/src/index.ts"],
+      "@modules/angular-todo": ["./modules/angular-todo/src/index.ts"],
+      "@modules/angular-todo/todo-page": ["./modules/angular-todo/todo-page/index.ts"],
+      "@modules/angular-todo/todo-cursor-page": ["./modules/angular-todo/todo-cursor-page/index.ts"]
+    }
+  },
+  "exclude": [
+    "vite.config.ts",
+    "vite.config.mts",
+    "vitest.config.ts",
+    "vitest.config.mts",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.tsx",
+    "src/**/*.test.js",
+    "src/**/*.spec.js",
+    "src/**/*.test.jsx",
+    "src/**/*.spec.jsx"
+  ],
+  "extends": "../../tsconfig.base.json",
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../rxdb-client-generator/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "./tsconfig.shop.json"
+    }
+  ]
+}

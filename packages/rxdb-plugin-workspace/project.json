@@ -1,0 +1,23 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project rxdb-plugin-workspace --web",
+  "name": "rxdb-plugin-workspace",
+  "projectType": "library",
+  "sourceRoot": "packages/rxdb-plugin-workspace/src",
+  "tags": ["js-lib"],
+  "targets": {
+    "test-browser": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-plugin-workspace",
+        "command": "vitest run",
+        "env": {
+          "VITEST_BROWSER": "true"
+        }
+      },
+      "metadata": {
+        "description": "Run the browser (real chromium) vitest project: real IndexedDB, real BroadcastChannel and real Entity proxies. Gated by VITEST_BROWSER=true in vite.config.mts; without this target these specs never run in CI."
+      }
+    }
+  }
+}

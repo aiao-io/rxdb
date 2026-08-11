@@ -1,0 +1,23 @@
+{
+  "configurations": [
+    {
+      "name": "dev-rxdb-angular",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["nx", "serve", "dev-rxdb-angular"],
+      "port": 4200
+    },
+    {
+      "name": "dev-rxdb-react",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["nx", "serve", "dev-rxdb-react"],
+      "port": 4201
+    },
+    {
+      "name": "dev-rxdb-vue",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["nx", "serve", "dev-rxdb-vue"],
+      "port": 4203
+    }
+  ],
+  "version": "0.0.1"
+}

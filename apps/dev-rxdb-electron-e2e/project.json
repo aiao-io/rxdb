@@ -1,0 +1,14 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project dev-rxdb-electron-e2e --web",
+  "implicitDependencies": ["dev-rxdb-electron"],
+  "name": "dev-rxdb-electron-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-electron-e2e/src",
+  "targets": {
+    "e2e": {
+      "// dependsOn": "ELEC-10：必须依赖真实产物（electron-builder --dir），而不是 build —— 只有打包后才能验 file: 协议下的 CSP、路由与 WASM。",
+      "dependsOn": ["dev-rxdb-electron:electron-package-dir"]
+    }
+  }
+}

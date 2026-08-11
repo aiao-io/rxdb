@@ -1,0 +1,101 @@
+import type { HistoryItem, HistoryScopeType } from '@aiao/rxdb';
+import { ScrollingModule } from '@angular/cdk/scrolling';
+import { DatePipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { LucideDynamicIcon, LucideX } from '@lucide/angular';
+
+@Component({
+  selector: 'ao-history-sidebar',
+  imports: [DatePipe, LucideDynamicIcon, ScrollingModule],
+  standalone: true,
+  template: `
+    @let show = this.show();
+    @let scope = this.scopeType();
+    @let histories = this.histories();
+    @let hasHistories = histories.length > 0;
+    <aside
+      class="bg-base-100 border-base-300 flex h-full flex-col overflow-hidden shadow-lg transition-all duration-300"
+      [class.border-l]="borderSide() === 'left'"
+      [class.border-r]="borderSide() === 'right'"
+      [class.w-0]="!show"
+      [class.w-48]="show"
+    >
+      <div class="flex h-full min-w-48 flex-col">
+        <div class="border-base-300 border-b px-4 py-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <h2 class="text-sm font-semibold">操作历史</h2>
+              @if (scope === 'database') {
+                <span class="badge badge-xs badge-primary">数据库</span>
+              } @else if (scope === 'repository') {
+                <span class="badge badge-xs badge-secondary">仓库</span>
+              } @else if (scope === 'entity') {
+                <span class="badge badge-xs badge-accent">实体</span>
+              }
+            </div>
+            <button class="btn btn-circle btn-ghost btn-xs" (click)="closeClick.emit()" aria-label="关闭历史">
+              <svg [lucideIcon]="closeIcon" size="14"></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-hidden">
+          @if (hasHistories) {
+            <cdk-virtual-scroll-viewport class="h-full" [itemSize]="80">
+              <ol class="border-base-300 relative border-l-2 px-3">
+                <li
+                  class="relative h-20 overflow-hidden pt-3 pb-2 pl-4"
+                  *cdkVirtualFor="let item of histories; trackBy: trackByFn"
+                >
+                  <div
+                    class="ring-base-100 absolute top-4 -left-[5px] h-2.5 w-2.5 rounded-full ring-2"
+                    [class.bg-error]="item.type === 'DELETE'"
+                    [class.bg-info]="item.type === 'UPDATE'"
+                    [class.bg-primary]="item.type === 'TRANSACTION'"
+                    [class.bg-success]="item.type === 'INSERT'"
+                    [class.opacity-40]="item.reverted"
+                  ></div>
+                  <div [class.opacity-50]="item.reverted">
+                    <time class="text-base-content/50 mb-1 block text-[10px]">
+                      {{ item.createdAt | date: 'y-MM-dd HH:mm:ss.SSS' }}
+                    </time>
+                    <p class="text-base-content mb-1.5 truncate text-xs" [class.line-through]="item.redoInvalidated">
+                      <span>#{{ item.changeId }}</span>
+                      {{ item.description }}
+                    </p>
+                    <div class="flex flex-wrap gap-1">
+                      @switch (scope) {
+                        @case ('database') {
+                          <span class="badge badge-xs badge-soft badge-ghost">{{ item.namespace }}</span>
+                          <span class="badge badge-xs badge-soft badge-primary">{{ item.entity }}</span>
+                        }
+                      }
+                      @if (item.reverted && !item.redoInvalidated) {
+                        <span class="badge badge-xs badge-soft badge-warning">已撤销</span>
+                      }
+                      @if (item.redoInvalidated) {
+                        <span class="badge badge-xs badge-soft badge-error">已失效</span>
+                      }
+                    </div>
+                  </div>
+                </li>
+              </ol>
+            </cdk-virtual-scroll-viewport>
+          } @else {
+            <div class="text-base-content/40 flex min-h-40 items-center justify-center text-xs">暂无操作历史</div>
+          }
+        </div>
+      </div>
+    </aside>
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class HistorySidebarComponent {
+  readonly closeIcon = LucideX;
+  readonly show = input.required<boolean>();
+  readonly histories = input.required<HistoryItem[]>();
+  readonly scopeType = input.required<HistoryScopeType>();
+  readonly borderSide = input<'left' | 'right'>('left');
+  readonly closeClick = output<void>();
+  readonly trackByFn = (_index: number, item: HistoryItem) => item.fingerprint;
+}

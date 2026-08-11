@@ -1,0 +1,161 @@
+{
+  "results": [
+    {
+      "name": "单条写入 (500 次)",
+      "duration": 1187.469999998808,
+      "memory": 963628,
+      "expectation": "≥1000 ops/sec",
+      "extra": "421 ops/sec | 平均 2.37ms | min 1.12ms | max 6.46ms"
+    },
+    {
+      "name": "批量写入 batch=10 (5,000 条)",
+      "duration": 1761.780000001192,
+      "memory": 27646024,
+      "expectation": "≥5000 ops/sec",
+      "extra": "2838 ops/sec (比单条快 6.7x) | 平均 3.52ms | min 2.18ms | max 5.76ms"
+    },
+    {
+      "name": "批量写入 batch=100 (5,000 条)",
+      "duration": 2878.7600000202656,
+      "memory": 57110180,
+      "expectation": "≥10000 ops/sec",
+      "extra": "1737 ops/sec (比单条快 4.1x) | 平均 57.57ms | min 9.21ms | max 217.08ms"
+    },
+    {
+      "name": "批量写入 batch=1000 (5,000 条)",
+      "duration": 813.4200000166893,
+      "memory": 37635584,
+      "expectation": "≥20000 ops/sec",
+      "extra": "6147 ops/sec (比单条快 14.6x) | 平均 162.68ms | min 140.97ms | max 240.30ms"
+    },
+    {
+      "name": "查询吞吐量 (100 次全表查询)",
+      "duration": 704.0649999976158,
+      "memory": 36864312,
+      "expectation": "≥5000 ops/sec",
+      "extra": "142 ops/sec"
+    },
+    {
+      "name": "索引查询 P50 (completed 字段)",
+      "duration": 3.4224999994039536,
+      "memory": 34432832,
+      "expectation": "≤5ms",
+      "extra": "100 次采样 | min=3.28ms, max=88.34ms"
+    },
+    {
+      "name": "索引查询 P95 (completed 字段)",
+      "duration": 3.887249989807606,
+      "expectation": "≤10ms",
+      "extra": "avg=5.46ms | 95% 请求低于此值"
+    },
+    {
+      "name": "索引查询 P99 (completed 字段)",
+      "duration": 86.5679500117898,
+      "expectation": "≤20ms",
+      "extra": "99% 请求低于此值 | 最坏情况性能"
+    },
+    {
+      "name": "全表扫描 P50 (title contains)",
+      "duration": 5.262500002980232,
+      "expectation": "≤50ms",
+      "extra": "100 次采样 | min=4.91ms, max=120.69ms"
+    },
+    {
+      "name": "全表扫描 P95 (title contains)",
+      "duration": 12.076249982416629,
+      "expectation": "≤100ms",
+      "extra": "avg=7.26ms | 无索引查询"
+    },
+    {
+      "name": "全表扫描 P99 (title contains)",
+      "duration": 15.517300013006277,
+      "expectation": "≤200ms",
+      "extra": "99% 请求低于此值 | 无索引最坏情况"
+    },
+    {
+      "name": "索引 vs 全表扫描对比",
+      "duration": -1,
+      "expectation": "≥10x 提升",
+      "extra": "索引查询比全表扫描快 3.1x (P95 对比)"
+    },
+    {
+      "name": "插入 1K 条数据",
+      "duration": 66.93000000715256,
+      "memory": 2145852,
+      "expectation": "≤100ms",
+      "extra": "批量插入 1K 条记录"
+    },
+    {
+      "name": "查询 1K 条数据",
+      "duration": 6.925000011920929,
+      "expectation": "≤10ms",
+      "extra": "全表查询 1K 条记录"
+    },
+    {
+      "name": "插入 10K 条数据",
+      "duration": 459.1350000202656,
+      "memory": 41970788,
+      "expectation": "≤500ms",
+      "extra": "批量插入 10K 条记录"
+    },
+    {
+      "name": "查询 10K 条数据",
+      "duration": 456.55000001192093,
+      "memory": 27713684,
+      "expectation": "≤50ms",
+      "extra": "全表查询 10K 条记录"
+    },
+    {
+      "name": "插入 100K 条数据",
+      "duration": 4259.729999989271,
+      "memory": 402298111,
+      "expectation": "≤3000ms",
+      "extra": "批量插入 100K 条记录"
+    },
+    {
+      "name": "查询 100K 条数据",
+      "duration": 614.8649999797344,
+      "memory": 49452821,
+      "expectation": "≤200ms",
+      "extra": "全表查询 100K 条记录"
+    },
+    {
+      "name": "插入操作时间复杂度分析",
+      "duration": -1,
+      "expectation": "线性或更好",
+      "extra": "linear 增长 | 拟合优度 R²=1.000"
+    },
+    {
+      "name": "查询操作时间复杂度分析",
+      "duration": -1,
+      "expectation": "对数或更好",
+      "extra": "linear 增长 | 拟合优度 R²=0.574"
+    },
+    {
+      "name": "内存增长模式分析",
+      "duration": -1,
+      "memory": 4910.170634440765,
+      "expectation": "线性增长",
+      "extra": "✓ 线性增长 | 每条记录 4.80KB"
+    },
+    {
+      "name": "并发写入 10 个操作",
+      "duration": 24.7049999833107,
+      "expectation": "≤200ms",
+      "extra": "10 个写操作同时执行"
+    },
+    {
+      "name": "混合负载测试 (70% 读 + 30% 写)",
+      "duration": 20.530000001192093,
+      "expectation": "≤500ms",
+      "extra": "20 个操作 | 模拟真实读写比例"
+    },
+    {
+      "name": "串行 vs 并发对比 (10 个操作)",
+      "duration": 23.17500001192093,
+      "expectation": "≥1.5x 提升",
+      "extra": "并发快 1.33x (串行: 31ms) | 验证并发优势"
+    }
+  ],
+  "timestamp": "2026-03-18T17:56:30.469Z"
+}

@@ -1,0 +1,200 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "dev-rxdb-electron",
+  "prefix": "app",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-electron/src",
+  "tags": ["angular-app", "electron-app"],
+  "targets": {
+    "build": {
+      "//": "ELEC-21：真正的构建在 ng-build；这层只为把 NG_BUILD_OPTIMIZE_CHUNKS=0 传进去。该开关是 @angular/build 的环境变量，没有对应的 builder 选项，所以只能包一层。理由见 renderer-shell.spec.ts 的同名用例。",
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "corepack pnpm exec nx run dev-rxdb-electron:ng-build",
+        "env": {
+          "NG_BUILD_OPTIMIZE_CHUNKS": "0"
+        }
+      }
+    },
+    "ng-build": {
+      "defaultConfiguration": "production",
+      "executor": "@angular/build:application",
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"],
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "allowedCommonJsDependencies": [
+          "ms",
+          "path-browserify",
+          "ts-morph",
+          "object-hash",
+          "@supabase/postgrest-js",
+          "gifuct-js",
+          "lodash",
+          "eventemitter3",
+          "lottie-web",
+          "cssfontparser",
+          "geojson-dissolve",
+          "simplify-geojson",
+          "geobuf",
+          "pbf"
+        ],
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/dev-rxdb-electron/public"
+          },
+          {
+            "glob": "**/*.wasm",
+            "input": "./node_modules/wa-sqlite/dist",
+            "output": "./wa-sqlite/"
+          }
+        ],
+        "browser": "apps/dev-rxdb-electron/src/main.ts",
+        "index": "apps/dev-rxdb-electron/src/index.html",
+        "inlineStyleLanguage": "scss",
+        "outputPath": "dist/apps/dev-rxdb-electron",
+        "polyfills": [],
+        "stylePreprocessorOptions": {
+          "sass": {
+            "silenceDeprecations": ["color-functions", "global-builtin", "import"]
+          }
+        },
+        "styles": ["apps/dev-rxdb-electron/src/styles.scss"],
+        "tsConfig": "apps/dev-rxdb-electron/tsconfig.app.json",
+        "webWorkerTsConfig": "apps/dev-rxdb-electron/tsconfig.worker.json"
+      },
+      "configurations": {
+        "development": {
+          "extractLicenses": false,
+          "optimization": false,
+          "sourceMap": true
+        },
+        "production": {
+          "budgets": [
+            {
+              "maximumError": "2mb",
+              "maximumWarning": "1mb",
+              "type": "initial"
+            },
+            {
+              "maximumError": "8kb",
+              "maximumWarning": "4kb",
+              "type": "anyComponentStyle"
+            }
+          ],
+          "index": {
+            "input": "apps/dev-rxdb-electron/src/index.prod.html",
+            "output": "index.html"
+          },
+          "optimization": {
+            "styles": {
+              "inlineCritical": false
+            }
+          },
+          "outputHashing": "all"
+        }
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["prepare-electron-package"],
+      "continuous": true,
+      "options": {
+        "command": "corepack pnpm exec electron dist/apps/dev-rxdb-electron --serve"
+      }
+    },
+    "electron-build": {
+      "dependsOn": ["build"],
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "tsc -p tsconfig.serve.json",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "cp package.json ../../dist/apps/dev-rxdb-electron/",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "electron-builder build --publish=never --config electron-builder.json",
+            "forwardAllArgs": false
+          }
+        ],
+        "cwd": "apps/dev-rxdb-electron",
+        "parallel": false
+      }
+    },
+    "electron-package-dir": {
+      "//": "ELEC-10：只解包不做安装器（--dir），给 e2e 一个可直接启动的真实产物。使用 electron-builder.dir.json 禁用签名（--dir 无需签名）。electron-builder 自带下载缓存，无需手动管理。",
+      "dependsOn": ["build"],
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/dev-rxdb-electron/release"],
+      "options": {
+        "commands": [
+          {
+            "command": "tsc -p tsconfig.serve.json",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "cp package.json ../../dist/apps/dev-rxdb-electron/",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "electron-builder build --dir --publish=never --config electron-builder.dir.json",
+            "forwardAllArgs": false
+          }
+        ],
+        "cwd": "apps/dev-rxdb-electron",
+        "env": {
+          "CSC_IDENTITY_AUTO_DISCOVERY": "false"
+        },
+        "parallel": false
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "defaultConfiguration": "development",
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4120
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "dev-rxdb-electron:ng-build:development",
+          "host": "127.0.0.1"
+        },
+        "production": {
+          "buildTarget": "dev-rxdb-electron:ng-build:production"
+        }
+      }
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "dev-rxdb-electron:build",
+        "port": 4120,
+        "spa": true,
+        "staticFilePath": "dist/apps/dev-rxdb-electron/browser"
+      }
+    },
+    "watch-main": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "options": {
+        "command": "corepack pnpm exec tsc -p apps/dev-rxdb-electron/tsconfig.serve.json --watch"
+      }
+    },
+    "prepare-electron-package": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["serve", "watch-main"],
+      "options": {
+        "command": "corepack pnpm exec wait-on tcp:4120 dist/apps/dev-rxdb-electron/src-electron/main.js && mkdir -p dist/apps/dev-rxdb-electron && cp apps/dev-rxdb-electron/package.json dist/apps/dev-rxdb-electron/"
+      }
+    }
+  }
+}

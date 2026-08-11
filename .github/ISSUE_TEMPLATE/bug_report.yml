@@ -1,0 +1,71 @@
+name: 🐛 Bug 报告
+description: 报告一个可复现的缺陷，帮助我们修复问题
+title: '[Bug]: '
+labels: ['bug', 'triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请尽量提供可复现步骤与环境信息，这能显著加快定位。
+        提交前请先搜索[已有 Issue](https://github.com/aiao-io/aiao/issues) 避免重复。
+
+  - type: input
+    id: package
+    attributes:
+      label: 受影响的包
+      description: 例如 `@aiao/rxdb`、`@aiao/rxdb-adapter-pglite`、`@aiao/rxdb-react`
+      placeholder: '@aiao/rxdb'
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 问题描述
+      description: 清晰描述发生了什么，以及你期望的行为。
+      placeholder: 调用 X 时抛出 Y，但预期应返回 Z。
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤
+      description: 最小可复现代码或步骤。可提供 StackBlitz / 仓库链接。
+      placeholder: |
+        1. 定义实体 ...
+        2. 执行查询 ...
+        3. 观察到 ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 运行环境
+      description: 版本、运行时与存储后端。
+      value: |
+        - Aiao 版本:
+        - 框架 (Angular/React/Vue + 版本):
+        - 存储适配器 (wa-sqlite / PGlite / Supabase / sqliteai):
+        - 运行时 (浏览器 / Node / Electron / Tauri + 版本):
+        - Node.js 版本:
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志 / 报错栈
+      description: 粘贴控制台输出或报错栈（会自动格式化为代码块）。
+      render: shell
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 确认项
+      options:
+        - label: 我已搜索过现有 Issue，确认这不是重复问题
+          required: true
+        - label: 我提供了可复现步骤或最小复现示例
+          required: true

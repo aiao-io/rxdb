@@ -1,0 +1,267 @@
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+}
+
+/* 超大屏幕 */
+@media (min-width: 1600px) {
+  .container {
+    max-width: 1600px;
+    padding: 4rem 3rem;
+  }
+}
+
+/* 中等屏幕 */
+@media (max-width: 991px) {
+  .container {
+    padding: 2.5rem 1.5rem;
+  }
+}
+
+/* 小屏幕 */
+@media (max-width: 768px) {
+  .container {
+    padding: 2rem 1rem;
+  }
+
+  .header h1 {
+    font-size: 2.5rem;
+  }
+
+  .features {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cardsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  margin-bottom: 5rem;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.header h1 {
+  font-size: 3.5rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, var(--ifm-color-primary) 0%, var(--ifm-color-primary-dark) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 超大屏幕标题 */
+@media (min-width: 1600px) {
+  .header h1 {
+    font-size: 4rem;
+  }
+}
+
+.subtitle {
+  font-size: 1.25rem;
+  color: var(--ifm-color-emphasis-700);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* 大屏幕：3列 */
+@media (min-width: 1200px) {
+  .cardsGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2.5rem;
+  }
+}
+
+/* 中等屏幕：2列 */
+@media (max-width: 1199px) and (min-width: 769px) {
+  .cardsGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+  }
+}
+
+/* 小屏幕：1列 */
+@media (max-width: 768px) {
+  .cardsGrid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 16px;
+  background: var(--ifm-card-background-color);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  position: relative;
+  overflow: visible;
+}
+
+.card:hover {
+  border-color: var(--demo-color);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.06),
+    0 0 0 1px var(--demo-color),
+    0 0 20px -5px var(--demo-color);
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.cardIcon {
+  width: 3rem;
+  height: 3rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.cardTitle {
+  font-size: 2rem;
+  margin: 0;
+  color: var(--demo-color);
+  font-weight: 700;
+}
+
+.cardDescription {
+  font-size: 1rem;
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+  flex-grow: 1;
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.featureBadge {
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-800);
+  padding: 0.5rem 0.75rem;
+  background: var(--ifm-color-emphasis-100);
+  border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardFooter {
+  margin-top: auto;
+  padding-top: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.viewDemo {
+  color: var(--demo-color);
+  font-weight: 600;
+  font-size: 1.125rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.card:hover .viewDemo {
+  gap: 1rem;
+}
+
+/* 核心特性区域 */
+.commonFeatures {
+  margin-bottom: 4rem;
+}
+
+.commonFeatures h2 {
+  text-align: center;
+  font-size: 2rem;
+  margin-bottom: 3rem;
+}
+
+.featuresGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
+/* 超大屏幕：3列 */
+@media (min-width: 1400px) {
+  .featuresGrid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 2rem;
+  }
+}
+
+/* 大屏幕：3列 */
+@media (max-width: 1399px) and (min-width: 992px) {
+  .featuresGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+}
+
+/* 中等屏幕：2列 */
+@media (max-width: 991px) and (min-width: 577px) {
+  .featuresGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+/* 小屏幕：1列 */
+@media (max-width: 576px) {
+  .featuresGrid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+.featureItem {
+  text-align: center;
+  padding: 2rem;
+  border-radius: 12px;
+  background: var(--ifm-color-emphasis-50);
+  transition: all 0.3s;
+}
+
+.featureItem:hover {
+  background: var(--ifm-color-emphasis-100);
+  transform: translateY(-4px);
+}
+
+.featureIcon {
+  font-size: 3rem;
+  display: block;
+  margin: 0 auto 1rem auto;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.featureItem h3 {
+  font-size: 1.25rem;
+  margin: 0.5rem 0;
+  color: var(--ifm-color-primary);
+}
+
+.featureItem p {
+  margin: 0;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.95rem;
+}

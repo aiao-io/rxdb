@@ -1,0 +1,42 @@
+{
+  "name": "@aiao/rxdb-plugin-search",
+  "version": "0.0.24",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "nx": {
+    "name": "rxdb-plugin-search",
+    "tags": [
+      "js-lib"
+    ]
+  },
+  "dependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
+    "rxjs": "^7.8.2"
+  },
+  "peerDependencies": {
+    "@aiao/rxdb-adapter-sqlite-wasm": "workspace:*"
+  }
+}

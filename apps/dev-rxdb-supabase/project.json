@@ -1,0 +1,127 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// serve-e2e": "Playwright 的 webServer 专用：只服务产物，不带 buildTarget。产物由 e2e target 的 dependsOn 保证已存在；带上 buildTarget 会在 playwright 进程里再起一个 NX_DAEMON=false、与外层 nx 互不协调的 nx 进程重建整条依赖链，和并行跑的其它 e2e 抢同一份包 dist，vite 的 emptyOutDir 与另一进程的写入相撞后报 ENOTEMPTY —— 这就是 rxdb-test:build / rxdb:build 被标记为 flaky 的根因。serve-static 保持带 buildTarget，供人手动使用。",
+  "name": "dev-rxdb-supabase",
+  "prefix": "app",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-supabase/src",
+  "tags": ["angular-app"],
+  "targets": {
+    "build": {
+      "defaultConfiguration": "production",
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "allowedCommonJsDependencies": ["@supabase/postgrest-js", "ms"],
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/dev-rxdb-supabase/public"
+          },
+          {
+            "glob": "**/*.wasm",
+            "input": "./node_modules/wa-sqlite/dist",
+            "output": "./wa-sqlite/"
+          },
+          {
+            "glob": "**/pglite.{wasm,data}",
+            "input": "./node_modules/@electric-sql/pglite/dist",
+            "output": "./pglite/"
+          }
+        ],
+        "browser": "apps/dev-rxdb-supabase/src/main.ts",
+        "inlineStyleLanguage": "scss",
+        "outputPath": "dist/apps/dev-rxdb-supabase",
+        "polyfills": [],
+        "stylePreprocessorOptions": {
+          "sass": {
+            "silenceDeprecations": ["color-functions", "global-builtin", "import"]
+          }
+        },
+        "styles": ["apps/dev-rxdb-supabase/src/styles.scss"],
+        "tsConfig": "apps/dev-rxdb-supabase/tsconfig.app.json"
+      },
+      "configurations": {
+        "development": {
+          "extractLicenses": false,
+          "optimization": false,
+          "sourceMap": true
+        },
+        "production": {
+          "budgets": [
+            {
+              "maximumError": "2mb",
+              "maximumWarning": "1mb",
+              "type": "initial"
+            },
+            {
+              "maximumError": "8kb",
+              "maximumWarning": "4kb",
+              "type": "anyComponentStyle"
+            }
+          ],
+          "define": {
+            "import.meta.env": "{\"MODE\":\"production\",\"BASE_URL\":\"/\",\"DEV\":false,\"PROD\":true,\"SSR\":false}"
+          },
+          "outputHashing": "all"
+        }
+      }
+    },
+    "audit-secrets": {
+      "dependsOn": ["build"],
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node apps/dev-rxdb-supabase/scripts/audit-build-credentials.mjs dist/apps/dev-rxdb-supabase/browser"
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "defaultConfiguration": "development",
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4203
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "dev-rxdb-supabase:build:development",
+          "host": "0.0.0.0"
+        }
+      }
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "dev-rxdb-supabase:build",
+        "port": 4203,
+        "spa": true,
+        "staticFilePath": "dist/apps/dev-rxdb-supabase/browser",
+        "watch": false
+      }
+    },
+    "serve-e2e": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "port": 4203,
+        "spa": true,
+        "staticFilePath": "dist/apps/dev-rxdb-supabase/browser",
+        "watch": false
+      }
+    },
+    "serve-local": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node apps/dev-rxdb-supabase/scripts/serve.mjs local"
+      }
+    },
+    "serve-remote": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node apps/dev-rxdb-supabase/scripts/serve.mjs remote"
+      }
+    }
+  }
+}

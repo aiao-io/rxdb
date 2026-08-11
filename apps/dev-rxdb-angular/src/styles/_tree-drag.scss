@@ -1,0 +1,75 @@
+// Tree 节点拖拽样式 — menu/* 与 file-manager/* 共享。
+// 由各页面 .scss 通过 `@use '../../../../styles/tree-drag';` 引入。
+// class 命名统一为短形式：drop-before / drop-after / drop-into / drop-highlighted / drop-invalid。
+
+.tree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tree-node {
+  position: relative;
+  cursor: grab;
+  transition: opacity 0.2s;
+
+  &-content {
+    position: relative;
+    transition: background 0.15s;
+
+    &:hover .actions {
+      opacity: 1;
+    }
+  }
+
+  &.dragging {
+    opacity: 0.4;
+    cursor: grabbing;
+  }
+}
+
+.actions {
+  transition: opacity 0.15s;
+}
+
+// Drag & Drop indicators
+.drop-before > .tree-node-content::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--color-primary);
+  box-shadow: 0 0 8px var(--color-primary);
+}
+
+.drop-after > .tree-node-content::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--color-primary);
+  box-shadow: 0 0 8px var(--color-primary);
+}
+
+// 用 :where() 降低基础特异性，避免被 hover 状态覆盖时还要 !important
+.drop-into > :where(.tree-node-content) {
+  background: color-mix(in oklch, var(--color-primary), transparent 85%);
+  outline: 2px dashed var(--color-primary);
+  outline-offset: -2px;
+  border-radius: 0.5rem;
+}
+
+.drop-highlighted > :where(.tree-node-content) {
+  background: color-mix(in oklch, var(--color-primary), transparent 92%);
+}
+
+.drop-invalid > :where(.tree-node-content) {
+  background: oklch(from var(--color-error) l c h / 0.1);
+  border: 2px dashed var(--color-error);
+  border-radius: 0.5rem;
+  cursor: not-allowed;
+}

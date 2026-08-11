@@ -1,0 +1,153 @@
+<div class="mx-auto max-w-5xl space-y-6 p-4">
+  <header class="space-y-2">
+    <h1 class="flex items-center gap-3 text-3xl font-bold">
+      <svg [lucideIcon]="Monitor" aria-hidden="true" size="30"></svg>
+      桌面状态
+    </h1>
+    <p class="text-base-content/70">RxDB 桌面运行时、数据连接与存储能力概览</p>
+  </header>
+
+  <div class="grid gap-4 md:grid-cols-2">
+    <section class="card bg-base-200" aria-labelledby="runtime-heading">
+      <div class="card-body">
+        <h2 class="card-title" id="runtime-heading">
+          <svg [lucideIcon]="Monitor" aria-hidden="true" size="20"></svg>
+          运行环境
+        </h2>
+        @if (isTauri()) {
+          <div class="badge badge-success gap-2">
+            <svg [lucideIcon]="CircleCheck" aria-hidden="true" size="14"></svg>
+            Tauri 桌面运行时
+          </div>
+          <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+            <dt class="font-medium">平台</dt>
+            <dd>{{ platform() }}</dd>
+            @if (versions(); as appVersions) {
+              <dt class="font-medium">Tauri</dt>
+              <dd>{{ appVersions.tauri }}</dd>
+            }
+          </dl>
+        } @else {
+          <div class="badge badge-warning gap-2">
+            <svg [lucideIcon]="CircleAlert" aria-hidden="true" size="14"></svg>
+            浏览器预览
+          </div>
+          <p class="text-sm opacity-70">桌面 API 不可用，请通过 Tauri 客户端运行。</p>
+        }
+      </div>
+    </section>
+
+    <section class="card bg-base-200" aria-labelledby="database-heading">
+      <div class="card-body">
+        <h2 class="card-title" id="database-heading">
+          <svg [lucideIcon]="Database" aria-hidden="true" size="20"></svg>
+          数据库状态
+        </h2>
+        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+          <dt class="font-medium">数据库</dt>
+          <dd>RxDB</dd>
+          <dt class="font-medium">本地适配器</dt>
+          <dd>wa-sqlite</dd>
+        </dl>
+        @switch (databaseStatus()) {
+          @case ('ready') {
+            <div class="badge badge-success gap-2">
+              <svg [lucideIcon]="CircleCheck" aria-hidden="true" size="14"></svg>
+              已连接
+            </div>
+          }
+          @case ('error') {
+            <div class="alert alert-error">
+              <svg [lucideIcon]="CircleAlert" aria-hidden="true" size="18"></svg>
+              <span>{{ databaseError() }}</span>
+            </div>
+          }
+          @default {
+            <div class="badge badge-ghost gap-2">
+              <span class="loading loading-spinner loading-xs"></span>
+              正在连接
+            </div>
+          }
+        }
+      </div>
+    </section>
+
+    <section class="card bg-base-200" aria-labelledby="ipc-heading">
+      <div class="card-body">
+        <h2 class="card-title" id="ipc-heading">
+          <svg [lucideIcon]="PlugZap" aria-hidden="true" size="20"></svg>
+          IPC 状态
+        </h2>
+        @switch (ipcStatus()) {
+          @case ('ready') {
+            <div class="badge badge-success gap-2">
+              <svg [lucideIcon]="CircleCheck" aria-hidden="true" size="14"></svg>
+              Rust 后端已连接
+            </div>
+          }
+          @case ('unavailable') {
+            <div class="badge badge-warning gap-2">
+              <svg [lucideIcon]="CircleAlert" aria-hidden="true" size="14"></svg>
+              桌面 API 不可用
+            </div>
+          }
+          @case ('error') {
+            <div class="alert alert-error">
+              <svg [lucideIcon]="CircleAlert" aria-hidden="true" size="18"></svg>
+              <span>{{ ipcError() }}</span>
+            </div>
+          }
+          @default {
+            <div class="badge badge-ghost gap-2">
+              <span class="loading loading-spinner loading-xs"></span>
+              正在检查
+            </div>
+          }
+        }
+        <div class="card-actions">
+          <button class="btn btn-primary btn-sm" [disabled]="ipcStatus() === 'checking'" (click)="refreshStatus()">
+            <svg [lucideIcon]="RefreshCw" aria-hidden="true" size="16"></svg>
+            重新检查
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card bg-base-200" aria-labelledby="storage-heading">
+      <div class="card-body">
+        <h2 class="card-title" id="storage-heading">
+          <svg [lucideIcon]="HardDrive" aria-hidden="true" size="20"></svg>
+          存储后端
+        </h2>
+        @switch (storageBackend()) {
+          @case ('OPFSCoopSyncVFS') {
+            <div class="badge badge-success gap-2">
+              <svg [lucideIcon]="CircleCheck" aria-hidden="true" size="14"></svg>
+              OPFSCoopSyncVFS
+            </div>
+            <p class="text-sm opacity-70">使用 OPFS 同步访问模式。</p>
+          }
+          @case ('IDBBatchAtomicVFS') {
+            <div class="badge badge-info gap-2">
+              <svg [lucideIcon]="CircleCheck" aria-hidden="true" size="14"></svg>
+              IDBBatchAtomicVFS
+            </div>
+            <p class="text-sm opacity-70">OPFS 不可用，使用 SharedWorker 回退后端。</p>
+          }
+          @case ('unavailable') {
+            <div class="alert alert-error">
+              <svg [lucideIcon]="CircleAlert" aria-hidden="true" size="18"></svg>
+              <span>当前环境不支持 OPFS 或 SharedWorker。</span>
+            </div>
+          }
+          @default {
+            <div class="badge badge-ghost gap-2">
+              <span class="loading loading-spinner loading-xs"></span>
+              正在探测
+            </div>
+          }
+        }
+      </div>
+    </section>
+  </div>
+</div>

@@ -1,0 +1,87 @@
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+/**
+ * `electron-builder --dir` 的产物根目录。
+ *
+ * 与 `apps/dev-rxdb-electron/electron-builder.json` 的 `directories.output` 一致。
+ */
+export const RELEASE_DIR = join(__dirname, '../../../dist/apps/dev-rxdb-electron/release');
+
+/** `productName`，与 electron-builder.json / package.json 一致。 */
+const PRODUCT_NAME = 'DevRxDBElectron';
+
+/**
+ * 按平台列出可执行文件的候选路径。
+ *
+ * electron-builder 的目录名依 `--dir` 的目标平台与架构而变
+ * （`mac-arm64` / `mac` / `linux-unpacked` / `win-unpacked`），
+ * 且 linux 的可执行名取自 `package.json` 的 `name` 而非 `productName`，
+ * 所以这里穷举而不是猜一个。
+ */
+function candidates(): string[] {
+  switch (process.platform) {
+    case 'darwin':
+      return ['mac-arm64', 'mac', 'mac-universal'].map(dir =>
+        join(RELEASE_DIR, dir, `${PRODUCT_NAME}.app`, 'Contents', 'MacOS', PRODUCT_NAME)
+      );
+    case 'win32':
+      return [join(RELEASE_DIR, 'win-unpacked', `${PRODUCT_NAME}.exe`)];
+    default:
+      return [
+        join(RELEASE_DIR, 'linux-unpacked', 'dev-rxdb-electron'),
+        join(RELEASE_DIR, 'linux-unpacked', PRODUCT_NAME.toLowerCase()),
+        join(RELEASE_DIR, 'linux-unpacked', PRODUCT_NAME)
+      ];
+  }
+}
+
+/**
+ * 解析已打包应用的可执行文件路径。
+ *
+ * @returns 存在的可执行文件绝对路径
+ * @throws 当产物不存在时抛出，并把找过的候选路径与补救命令一并列出 ——
+ *   这是本套件最常见的失败原因（忘了先跑打包，或打包因网络失败）。
+ */
+export function resolveExecutable(): string {
+  const tried = candidates();
+  const found = tried.find(path => existsSync(path));
+  if (found) return found;
+
+  const listing = existsSync(RELEASE_DIR) ? readdirSync(RELEASE_DIR).join(', ') || '(空)' : '(目录不存在)';
+  throw new Error(
+    [
+      '找不到已打包的 Electron 产物。',
+      `release/ 实际内容：${listing}`,
+      '找过的候选路径：',
+      ...tried.map(path => `  - ${path}`),
+      '',
+      '请先执行：pnpm nx run dev-rxdb-electron:electron-package-dir',
+      '（该命令需要下载 Electron 发行包；离线或网络受限时会以 ETIMEDOUT 失败。）'
+    ].join('\n')
+  );
+}
+
+/**
+ * 启动打包产物时传给子进程的环境变量。
+ *
+ * @remarks
+ * 必须显式传入，不能让 Playwright 继承 `process.env`：**任何 Electron 宿主都会给自己
+ * 派生的子进程设 `ELECTRON_RUN_AS_NODE=1`**（VS Code 的集成终端、扩展宿主是最常见的一个）。
+ * `_electron.launch()` 不过滤这个变量，于是打包产物以纯 Node 启动 —— 没有 BrowserWindow，
+ * Chromium 参数被 Node 的命令行解析器拒绝，报出来的是
+ * `bad option: --remote-debugging-port=0` / `bad option: --user-data-dir=...`，
+ * 和真正的原因（"这个终端是 Electron 派生的"）毫无关系。
+ *
+ * 症状还有迷惑性：同一份产物在 VS Code 终端里 7 条全红、在系统终端里 7 条全绿，
+ * 于是很容易被归因成打包产物本身有问题。剥掉这个变量，结论就不再取决于从哪里启动。
+ *
+ * @returns 去掉 `ELECTRON_RUN_AS_NODE` 后的当前进程环境变量
+ */
+export function launchEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (key !== 'ELECTRON_RUN_AS_NODE' && value !== undefined) env[key] = value;
+  }
+  return env;
+}

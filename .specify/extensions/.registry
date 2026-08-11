@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "extensions": {
+    "git": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:89711dec9716473fba4afc54f7224bcb28ebd3c55fb5aaa30df854ab02b07a75",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "codex": [
+          "speckit.git.feature",
+          "speckit.git.validate",
+          "speckit.git.remote",
+          "speckit.git.initialize",
+          "speckit.git.commit"
+        ],
+        "claude": [
+          "speckit.git.feature",
+          "speckit.git.validate",
+          "speckit.git.remote",
+          "speckit.git.initialize",
+          "speckit.git.commit"
+        ],
+        "copilot": [
+          "speckit.git.feature",
+          "speckit.git.validate",
+          "speckit.git.remote",
+          "speckit.git.initialize",
+          "speckit.git.commit"
+        ]
+      },
+      "registered_skills": [
+        "speckit-git-feature",
+        "speckit-git-validate",
+        "speckit-git-remote",
+        "speckit-git-initialize",
+        "speckit-git-commit"
+      ],
+      "installed_at": "2026-08-09T12:51:57.898656+00:00"
+    }
+  }
+}

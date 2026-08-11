@@ -1,0 +1,46 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - v*.*.*
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          filter: tree:0
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4.4.0
+        name: Install pnpm
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm nx report
+      - name: Test migration release gate
+        run: pnpm nx run @aiao/source:migration-release-gate-test
+      - name: Check migration release gate
+        run: pnpm nx run @aiao/source:migration-release-gate --args="--release-tag=${GITHUB_REF_NAME}"
+      - run: pnpm exec nx run-many -t build --projects=packages/*
+      - name: Publish packages
+        run: pnpm nx release publish
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true

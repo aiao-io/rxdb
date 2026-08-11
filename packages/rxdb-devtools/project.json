@@ -1,0 +1,9 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project rxdb-devtools --web",
+  "name": "rxdb-devtools",
+  "projectType": "library",
+  "sourceRoot": "packages/rxdb-devtools/src",
+  "tags": ["js-lib"],
+  "targets": {}
+}

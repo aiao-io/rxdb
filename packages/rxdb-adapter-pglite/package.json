@@ -1,0 +1,65 @@
+{
+  "name": "@aiao/rxdb-adapter-pglite",
+  "version": "0.0.24",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "nx": {
+    "name": "rxdb-adapter-pglite",
+    "targets": {
+      "audit": {
+        "executor": "nx:run-commands",
+        "dependsOn": [
+          "build"
+        ],
+        "options": {
+          "command": "node scripts/audit/pglite-readme-consumer.mjs",
+          "cwd": "."
+        }
+      },
+      "test": {
+        "parallelism": false
+      }
+    },
+    "tags": [
+      "js-lib"
+    ]
+  },
+  "dependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-adapter-encrypted": "workspace:*",
+    "@aiao/utils": "workspace:*",
+    "@electric-sql/pglite": "^0.5.4",
+    "rxjs": "^7.8.2",
+    "type-fest": "^5.8.0"
+  },
+  "devDependencies": {
+    "@aiao/rxdb-test": "workspace:*"
+  }
+}

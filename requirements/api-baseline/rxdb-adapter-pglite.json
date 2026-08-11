@@ -1,0 +1,244 @@
+{
+  "exports": [
+    {
+      "name": "ADAPTER_NAME",
+      "kind": "value"
+    },
+    {
+      "name": "AdapterEncryptionFacade",
+      "kind": "type"
+    },
+    {
+      "name": "buildCreateFtsTableSql",
+      "kind": "value"
+    },
+    {
+      "name": "buildFtsTriggersSql",
+      "kind": "value"
+    },
+    {
+      "name": "chunkByPgParamLimit",
+      "kind": "value"
+    },
+    {
+      "name": "create_tables_sql",
+      "kind": "value"
+    },
+    {
+      "name": "create_tables_statements",
+      "kind": "value"
+    },
+    {
+      "name": "DEFAULT_FTS_ARRAY_KIND",
+      "kind": "value"
+    },
+    {
+      "name": "DEFAULT_FTS_REGCONFIG",
+      "kind": "value"
+    },
+    {
+      "name": "deserializeFromEnvelope",
+      "kind": "value"
+    },
+    {
+      "name": "EncryptionContext",
+      "kind": "type"
+    },
+    {
+      "name": "ForeignKey",
+      "kind": "type"
+    },
+    {
+      "name": "FTS_COLUMN",
+      "kind": "value"
+    },
+    {
+      "name": "FtsArrayKind",
+      "kind": "type"
+    },
+    {
+      "name": "FtsField",
+      "kind": "type"
+    },
+    {
+      "name": "FtsOptions",
+      "kind": "type"
+    },
+    {
+      "name": "generate_trigger_sql",
+      "kind": "value"
+    },
+    {
+      "name": "generateNotifyFunctionSQL",
+      "kind": "value"
+    },
+    {
+      "name": "generateNotifyInfrastructureSQL",
+      "kind": "value"
+    },
+    {
+      "name": "generateNotifyTriggerSQL",
+      "kind": "value"
+    },
+    {
+      "name": "getEntityObjectFromResult",
+      "kind": "value"
+    },
+    {
+      "name": "getMonotonicUpdatedAt",
+      "kind": "value"
+    },
+    {
+      "name": "getSqlValue",
+      "kind": "value"
+    },
+    {
+      "name": "getSqlWithParams",
+      "kind": "value"
+    },
+    {
+      "name": "getSwitchUpdatedAt",
+      "kind": "value"
+    },
+    {
+      "name": "getTableColumnIndexName",
+      "kind": "value"
+    },
+    {
+      "name": "getTableName",
+      "kind": "value"
+    },
+    {
+      "name": "getTableNameByMetadata",
+      "kind": "value"
+    },
+    {
+      "name": "IPGliteClient",
+      "kind": "type"
+    },
+    {
+      "name": "ISqlDialect",
+      "kind": "type"
+    },
+    {
+      "name": "normalizeCreateEntity",
+      "kind": "value"
+    },
+    {
+      "name": "normalizeEntity",
+      "kind": "value"
+    },
+    {
+      "name": "PG_MAX_PARAMS",
+      "kind": "value"
+    },
+    {
+      "name": "pgDialect",
+      "kind": "value"
+    },
+    {
+      "name": "PGliteChangeEvent",
+      "kind": "type"
+    },
+    {
+      "name": "PGliteChangeType",
+      "kind": "both"
+    },
+    {
+      "name": "PGliteClient",
+      "kind": "both"
+    },
+    {
+      "name": "PGliteClientEvents",
+      "kind": "type"
+    },
+    {
+      "name": "PGliteClientOptions",
+      "kind": "type"
+    },
+    {
+      "name": "PGliteNotifyPayload",
+      "kind": "type"
+    },
+    {
+      "name": "PgliteTableColumn",
+      "kind": "type"
+    },
+    {
+      "name": "PostgreSQLDialect",
+      "kind": "both"
+    },
+    {
+      "name": "quoteIdentifier",
+      "kind": "value"
+    },
+    {
+      "name": "quoteLiteral",
+      "kind": "value"
+    },
+    {
+      "name": "remove_all_triggers_sql",
+      "kind": "value"
+    },
+    {
+      "name": "remove_trigger_sql",
+      "kind": "value"
+    },
+    {
+      "name": "removeNotifyTriggerSQL",
+      "kind": "value"
+    },
+    {
+      "name": "resolvePGliteInitOptions",
+      "kind": "value"
+    },
+    {
+      "name": "RxDBAdapterPGlite",
+      "kind": "both"
+    },
+    {
+      "name": "RxdbAdapterPGliteError",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBChangePipelineTimeoutDiagnostics",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBChangePipelineTimeoutError",
+      "kind": "both"
+    },
+    {
+      "name": "rxDBColumnTypeToPGliteType",
+      "kind": "value"
+    },
+    {
+      "name": "rxDBColumnTypeToPGliteTypeIndexName",
+      "kind": "value"
+    },
+    {
+      "name": "serializeForEnvelope",
+      "kind": "value"
+    },
+    {
+      "name": "shouldUsePGliteWorker",
+      "kind": "value"
+    },
+    {
+      "name": "transformEntityValuePGliteToJs",
+      "kind": "value"
+    },
+    {
+      "name": "transformEntityValueToSql",
+      "kind": "value"
+    },
+    {
+      "name": "transformValueJsToPGlite",
+      "kind": "value"
+    },
+    {
+      "name": "transformValuePGliteToJs",
+      "kind": "value"
+    }
+  ]
+}

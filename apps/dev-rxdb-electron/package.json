@@ -1,0 +1,16 @@
+{
+  "name": "dev-rxdb-electron",
+  "productName": "DevRxDBElectron",
+  "version": "0.1.0",
+  "description": "Aiao RxDB Electron Development App",
+  "main": "src-electron/main.js",
+  "author": {
+    "name": "Aiao Team"
+  },
+  "license": "MIT",
+  "private": true,
+  "devDependencies": {
+    "@aiao/rxdb-test": "workspace:*",
+    "electron": "43.3.0"
+  }
+}

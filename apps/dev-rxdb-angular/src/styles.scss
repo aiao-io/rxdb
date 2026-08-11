@@ -1,0 +1,193 @@
+@use 'tailwindcss';
+
+/* Sass 的 `@use` 会把 tailwindcss 入口**内联**进来，于是 Tailwind 拿到的是
+   展开后的 `@layer utilities { @tailwind utilities }`，而不是 `@import "tailwindcss"`。
+   自动源码探测是挂在那条 `@import` 上的，`@import` 没了，扫描范围就是空集，
+   `@tailwind utilities` 编译出来一条工具类都没有（`@apply` 不受影响，所以很难被发现）。
+   因此必须显式声明扫描范围。路径相对本文件。 */
+@source '.';
+@source '../../../modules';
+
+@plugin 'daisyui' {
+  themes:
+    light --default,
+    dark --prefersdark;
+}
+
+/* CDK Dialog 样式 */
+.cdk-overlay-container {
+  z-index: 100;
+}
+
+.cdk-dialog-container {
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.entity-detail-dialog {
+  background: var(--color-base-100);
+  border-radius: var(--radius-box);
+  box-shadow: 0 20px 60px -15px rgba(0, 0, 0, 0.3);
+  overflow: visible;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+
+  .cdk-dialog-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border-bottom: 1px solid var(--color-base-300);
+  }
+
+  .cdk-dialog-content {
+    padding: 1rem;
+    max-height: calc(80vh - 140px);
+    overflow-y: auto;
+  }
+
+  .cdk-dialog-actions {
+    padding: 1rem;
+    border-top: 1px solid var(--color-base-300);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+}
+
+/* 全屏模式 */
+.entity-detail-dialog-fullscreen.entity-detail-dialog {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  border-radius: 0;
+  transform: none !important;
+}
+
+/* Loading bar 样式 */
+#ngx-loading-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  z-index: 9999;
+
+  .ngx-bar {
+    background: var(--color-primary);
+    box-shadow:
+      0 0 10px var(--color-primary),
+      0 0 5px var(--color-primary);
+  }
+
+  .ngx-spinner {
+    display: none;
+  }
+}
+
+@utility hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Opera */
+}
+
+/* Page host 工具类：让 component 通过 host: { class: 'page-host' } 直接占满路由可用区，
+   替代各页 SCSS 中重复的 :host { position: absolute; inset: 0; overflow: hidden; } 块。 */
+@utility page-host {
+  @apply absolute inset-0 overflow-hidden;
+}
+
+html,
+body {
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+}
+
+input::placeholder {
+  color: oklch(from var(--color-base-content) l c h / 0.5);
+}
+
+/* WCAG 2 AA：daisyUI 默认 inactive tab 用 50% base-content 透明度，对 bg-base-200/60
+   只有 ~3.4:1 对比度。统一抬到 75% 以满足 AA。 */
+.tab:not(.tab-active) {
+  color: oklch(from var(--color-base-content) l c h / 0.75);
+}
+
+/* WCAG 2 AA：daisyUI light 主题 error 色（oklch 71%）作为文本时在 base-100 上对比度仅 2.86，
+   加深明度至约 5.4:1（如 .text-error 删除按钮）。仅作用于 light 主题；
+   dark 主题 error 在深色 base-100 上已达 5.5:1，保持原值不变。 */
+[data-theme='light'] .text-error {
+  color: oklch(0.55 0.21 13.428);
+}
+
+app-header {
+  @apply sticky top-0 z-50;
+}
+
+#layout-content {
+  @apply relative grow;
+}
+
+// Header floating mode - overlay on content
+.header-floating {
+  #layout-container {
+    @apply relative;
+  }
+
+  app-header {
+    @apply absolute top-0 right-0 left-0;
+    position: absolute !important;
+  }
+}
+
+// Mobile sidebar overlay
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: oklch(from var(--color-base-content) l c h / 0.4);
+  z-index: 99;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+// Mobile responsive adjustments
+@media (max-width: 768px) {
+  #layout-main {
+    position: relative;
+  }
+
+  #layout-container {
+    width: 100%;
+  }
+
+  #layout-content {
+    padding: 0.5rem;
+  }
+
+  // Ensure content is scrollable on mobile
+  .overflow-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}

@@ -1,0 +1,30 @@
+[package]
+name = "dev-rxdb-tauri"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["you"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "dev_rxdb_tauri_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.6.3", features = [] }
+
+[dependencies]
+tauri = { version = "=2.11.2", features = [] }
+# serde_json 已移除：全 crate 零引用（`#[derive(serde::Serialize)]` 只需要 serde 本身，
+# 序列化由 tauri 的 IPC 层完成）。它带着一整棵依赖树进编译，却没有任何调用点。
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+# 只在 `#[cfg(test)]` 里用：把 IPC 命令**序列化之后的 JSON 形状**钉住。
+# 光断言结构体字段拦不住 `#[serde(rename)]` 或字段改名 —— 而前端解析的正是 JSON 的键。
+serde_json = "1"
+

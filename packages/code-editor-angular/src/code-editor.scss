@@ -1,0 +1,15 @@
+:host {
+  display: block;
+  height: 100%;
+
+  ::ng-deep {
+    .cm-editor {
+      height: 100%;
+    }
+
+    .cm-editor.cm-focused {
+      outline: 2px solid Highlight;
+      outline-offset: -2px;
+    }
+  }
+}

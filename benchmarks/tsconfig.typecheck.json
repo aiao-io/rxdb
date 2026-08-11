@@ -1,0 +1,17 @@
+{
+  "// purpose": "Real type-check for the whole package (src + root *.bench.ts). Non-composite + noEmit so it can include cross-package source fixtures without the -b rootDir constraints. Used by the `typecheck` script.",
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2024", "DOM", "DOM.Iterable", "WebWorker"],
+    "types": ["node", "vite/client", "@nx/react/typings/cssmodule.d.ts", "@nx/react/typings/image.d.ts"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "*.bench.ts"]
+}

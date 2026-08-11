@@ -1,0 +1,56 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-adapter-supabase",
+  "tags": ["js-lib"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-adapter-supabase",
+        "command": "tsc --build tsconfig.lib.json --emitDeclarationOnly"
+      }
+    },
+    "test-env": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "parallelism": false,
+      "options": {
+        "cwd": "docker",
+        "command": "docker compose -f docker-compose.ci.yml up -d && ./init-db.sh"
+      },
+      "metadata": {
+        "description": "Start and initialize the CI Supabase test environment"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "^build",
+        {
+          "target": "test-env",
+          "params": "ignore"
+        }
+      ],
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "outputs": ["{workspaceRoot}/coverage/packages/rxdb-adapter-supabase"],
+      "options": {
+        "cwd": "packages/rxdb-adapter-supabase",
+        "command": "VITE_SUPABASE_URL=http://localhost:54331 VITE_SUPABASE_KEY=$(grep 'SUPABASE_ANON_KEY:' ../../docker/docker-compose.ci.yml | head -1 | sed 's/.*SUPABASE_ANON_KEY:[[:space:]]*//') vitest"
+      },
+      "metadata": {
+        "technologies": ["vite", "vitest", "supabase"],
+        "description": "Run Vitest tests against the CI Supabase test environment",
+        "help": {
+          "command": "pnpm exec vitest --help",
+          "example": {
+            "options": {
+              "bail": 1,
+              "coverage": true
+            }
+          }
+        }
+      }
+    }
+  }
+}

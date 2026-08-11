@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "emitDeclarationOnly": false,
+    "outDir": "../../dist/out-tsc/angular-todo/spec",
+    "types": ["vitest/globals"],
+    "rootDir": "."
+  },
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "todo-page/**/*.ts", "todo-cursor-page/**/*.ts"],
+  "references": [
+    {
+      "path": "../angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-test/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+import { generateKeyBetween, randomString } from '@aiao/utils';
+
+export interface MenuNode {
+  id: string;
+  parentId?: string | null;
+  sortOrder?: string | null;
+}
+
+export interface MenuEntity<T extends MenuEntity<T>> extends MenuNode {
+  title: string;
+  parent$: { set: (parent: T | null) => void };
+}
+
+/**
+ * 每批一个的标题 token，保证跨批次的标题不重复。
+ *
+ * @remarks
+ * `MenuLarge` / `MenuSimple` 上有唯一索引 `parent_title = (parentId, title)`，
+ * 且 `normalized: true` 让 `parentId IS NULL` 的根节点也进入比较。
+ * 原来每批都从 `Batch 0` 起编号，而 `i = 0` 那一条**必然是根**
+ * （`parentIds` 初始只有 `['root']`），于是第二批必定撞上第一批的 `(null, 'Batch 0')`，
+ * 整批 INSERT 回滚 —— demo 页上连点两次「添加 100 条」，第二次真的不生效。
+ *
+ * token 取随机而不是「扫描现有标题挑个没用过的编号」：本端的
+ * `useTreeMenuLazyStore.addManyMenus` 只把**最后一个根**传进 `existingRoots`，
+ * 任何依赖入参完整性的编号方案在这里立刻失效。
+ */
+const BATCH_TOKEN_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyz';
+
+const newBatchToken = () => randomString(6, BATCH_TOKEN_ALPHABET);
+
+/**
+ * 批量生成菜单数据（带随机层级）
+ */
+export function generateBatchMenus<T extends MenuEntity<T>>(
+  total: number,
+  EntityClass: new (data: { title: string; sortOrder: string }) => T,
+  existingRoots: T[]
+): T[] {
+  const batchToken = newBatchToken();
+  const maxDepth = 7;
+  const menus: T[] = [];
+  const depths = new Map<string, number>();
+  depths.set('root', 0);
+
+  const newChildrenMap = new Map<string, T[]>();
+  const parentIds: string[] = ['root'];
+  const createdMenusMap = new Map<string, T>();
+
+  for (let i = 0; i < total; i++) {
+    let parentId = parentIds[Math.floor(Math.random() * parentIds.length)];
+    let depth = depths.get(parentId) ?? 0;
+
+    if (depth >= maxDepth) {
+      parentId = 'root';
+      depth = 0;
+    }
+
+    const menu = new EntityClass({
+      title: `Batch ${batchToken}-${i}`,
+      sortOrder: ''
+    });
+
+    createdMenusMap.set(menu.id, menu);
+    if (parentId !== 'root') {
+      const parent = createdMenusMap.get(parentId);
+      if (parent) {
+        menu.parent$.set(parent);
+      }
+    }
+
+    menus.push(menu);
+    if (menu.id) {
+      depths.set(menu.id, depth + 1);
+      parentIds.push(menu.id);
+    }
+
+    const key = parentId;
+    if (!newChildrenMap.has(key)) {
+      newChildrenMap.set(key, []);
+    }
+    newChildrenMap.get(key)!.push(menu);
+  }
+
+  // Calculate SortOrder
+  const lastRootSort = existingRoots[existingRoots.length - 1]?.sortOrder ?? null;
+
+  for (const [parentId, children] of newChildrenMap.entries()) {
+    let lastSort: string | null = parentId === 'root' ? lastRootSort : null;
+
+    for (const child of children) {
+      const newSort = generateKeyBetween(lastSort, null);
+      child.sortOrder = newSort;
+      lastSort = newSort;
+    }
+  }
+
+  return menus;
+}

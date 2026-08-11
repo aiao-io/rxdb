@@ -1,0 +1,28 @@
+[mcp_servers.angular-cli]
+command = "npx"
+args = [
+    "-y",
+    "@angular/cli",
+    "mcp",
+]
+
+[mcp_servers.context7]
+command = "npx"
+args = [
+    "-y",
+    "@upstash/context7-mcp@latest",
+]
+
+[mcp_servers.nx-mcp]
+command = "npx"
+args = [
+    "nx",
+    "mcp",
+]
+
+[mcp_servers.playwright]
+command = "npx"
+args = [
+    "-y",
+    "@playwright/mcp@latest",
+]

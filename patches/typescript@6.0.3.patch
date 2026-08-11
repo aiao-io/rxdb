@@ -1,0 +1,18 @@
+diff --git a/lib/typescript.js b/lib/typescript.js
+index 3ba0ce46aad370919b20e29429b3bc72011151a2..10abe4ae3ce359cd2705bace3f985f0c16bb4ecd 100644
+--- a/lib/typescript.js
++++ b/lib/typescript.js
+@@ -127307,7 +127307,12 @@ function getReferencedFileLocation(program, ref) {
+       end = importLiteral.end;
+       break;
+     case 4 /* ReferenceFile */:
+-      ({ pos, end } = file.referencedFiles[index]);
++      if (file.referencedFiles[index]) {
++        ({ pos, end } = file.referencedFiles[index]);
++      } else {
++        pos = 0;
++        end = 0;
++      }
+       break;
+     case 5 /* TypeReferenceDirective */:
+       ({ pos, end } = file.typeReferenceDirectives[index]);

@@ -1,0 +1,5 @@
+# Demo 应用构建输出目录
+# 三个框架的 demo 应用构建文件将复制到此目录的子文件夹中：
+# - angular/ - dev-rxdb-angular 构建输出
+# - react/ - dev-rxdb-react 构建输出  
+# - vue/ - dev-rxdb-vue 构建输出

@@ -1,0 +1,63 @@
+# Netlify 部署配置
+# https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+# 构建命令
+command = "pnpm nx build website"
+# 发布目录
+publish = "website/build"
+# Node.js 版本
+NODE_VERSION = "26"
+
+[build.environment]
+# 禁用 pnpm 缓存，强制重新安装依赖
+PNPM_FLAGS = "--no-frozen-lockfile"
+# 使用 HTTPS 协议克隆 Git 依赖
+GIT_SSH_COMMAND = "true"
+# 禁用 Nx Cloud（免费额度用完时构建会失败）
+NX_NO_CLOUD = "true"
+
+# 生产环境配置
+[context.production]
+command = "pnpm nx build website"
+
+# 预览部署配置（PR/分支）
+[context.deploy-preview]
+command = "pnpm nx build website"
+
+# 分支部署配置
+[context.branch-deploy]
+command = "pnpm nx build website"
+
+# 重定向规则（如果 _redirects 文件不够用）
+# SPA 路由回退已在 website/static/_redirects 中配置
+
+# HTTP 头部配置
+[[headers]]
+for = "/demo/*"
+[headers.values]
+# 缓存策略 - demo 应用的静态资源
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "/demo/*/index.html"
+[headers.values]
+# index.html 不缓存，确保用户总是获取最新版本
+Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+for = "/*"
+[headers.values]
+# 安全头部
+X-Frame-Options = "SAMEORIGIN"
+X-Content-Type-Options = "nosniff"
+X-XSS-Protection = "1; mode=block"
+Referrer-Policy = "strict-origin-when-cross-origin"
+# WASM 支持
+Cross-Origin-Embedder-Policy = "require-corp"
+Cross-Origin-Opener-Policy = "same-origin"
+
+# 插件配置
+[[plugins]]
+# 自动优化图片
+package = "@netlify/plugin-sitemap"

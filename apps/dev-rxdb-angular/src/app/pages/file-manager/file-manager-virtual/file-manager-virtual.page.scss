@@ -1,0 +1,41 @@
+@use '../../../../styles/view-transitions';
+@use '../../../../styles/tree-drag';
+
+.tree-list {
+  padding: 0 12px; // 左右 padding 确保 outline 不被裁剪
+}
+
+.tree-node {
+  z-index: 1;
+
+  &:hover {
+    z-index: 2;
+  }
+}
+
+// 虚拟滚动容器：允许横向溢出，避免遮挡 hover 元素
+.virtual-scroll-viewport {
+  min-height: 400px;
+  width: 100%;
+  overflow-x: visible !important;
+  padding: 0 4px;
+
+  .cdk-virtual-scroll-content-wrapper {
+    width: 100%;
+  }
+}
+
+// 确保 card 不会裁剪内容
+.card {
+  overflow: visible;
+}
+
+.root-drop-zone {
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    border-color: var(--color-primary);
+    background: color-mix(in oklch, var(--color-primary), transparent 95%);
+  }
+}

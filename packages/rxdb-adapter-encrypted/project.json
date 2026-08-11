@@ -1,0 +1,17 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-adapter-encrypted",
+  "tags": ["js-lib"],
+  "targets": {
+    "lint": {
+      "options": {
+        "command": "eslint . --max-warnings=0"
+      }
+    },
+    "build": {
+      "options": {
+        "command": "vite build && node ../../scripts/audit/package-api-docs.mjs ."
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+# /assets folder contain Webpack processed assets with a file hash
+# They are safe for immutable caching, as filename change when content change
+
+/assets/*
+  Cache-Control: public
+  Cache-Control: max-age=365000000
+  Cache-Control: immutable
+
+/benchmarks
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+
+/benchmarks/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+
+/benchmarks-app
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+
+/benchmarks-app/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp

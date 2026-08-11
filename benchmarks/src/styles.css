@@ -1,0 +1,412 @@
+@import 'tailwindcss';
+@plugin 'daisyui/index.js';
+
+/* ---------------------------------------------------------------- *
+ * Custom themes mirroring the RxDB "in-browser data infrastructure"
+ * landing: acid-lime accent, cream text, near-black canvas, and a
+ * mono typographic register for technical labels.
+ * ---------------------------------------------------------------- */
+
+@plugin 'daisyui/theme' {
+  name: 'light';
+  default: true;
+  color-scheme: light;
+  --color-base-100: oklch(98.5% 0.006 95);
+  --color-base-200: oklch(96% 0.006 95);
+  --color-base-300: oklch(92% 0.006 95);
+  --color-base-content: oklch(18% 0.015 250);
+  --color-primary: oklch(58% 0.18 140);
+  --color-primary-content: oklch(99% 0.004 95);
+  --color-secondary: oklch(22% 0.02 250);
+  --color-secondary-content: oklch(97% 0.008 95);
+  --color-accent: oklch(82% 0.2 125);
+  --color-accent-content: oklch(15% 0.015 250);
+  --color-neutral: oklch(25% 0.015 250);
+  --color-neutral-content: oklch(96% 0.008 95);
+  --color-info: oklch(70% 0.15 220);
+  --color-info-content: oklch(15% 0.02 220);
+  --color-success: oklch(68% 0.18 155);
+  --color-success-content: oklch(15% 0.02 155);
+  --color-warning: oklch(78% 0.16 75);
+  --color-warning-content: oklch(15% 0.02 75);
+  --color-error: oklch(62% 0.22 28);
+  --color-error-content: oklch(99% 0.004 95);
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.375rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@plugin 'daisyui/theme' {
+  name: 'dark';
+  prefersdark: true;
+  color-scheme: dark;
+  --color-base-100: oklch(17% 0.008 260);
+  --color-base-200: oklch(14% 0.008 260);
+  --color-base-300: oklch(21% 0.01 260);
+  --color-base-content: oklch(96% 0.008 95);
+  --color-primary: oklch(93% 0.22 125);
+  --color-primary-content: oklch(15% 0.01 260);
+  --color-secondary: oklch(24% 0.012 260);
+  --color-secondary-content: oklch(96% 0.008 95);
+  --color-accent: oklch(93% 0.22 125);
+  --color-accent-content: oklch(15% 0.01 260);
+  --color-neutral: oklch(21% 0.01 260);
+  --color-neutral-content: oklch(96% 0.008 95);
+  --color-info: oklch(78% 0.15 220);
+  --color-info-content: oklch(15% 0.02 260);
+  --color-success: oklch(82% 0.18 150);
+  --color-success-content: oklch(15% 0.02 260);
+  --color-warning: oklch(85% 0.16 75);
+  --color-warning-content: oklch(15% 0.02 260);
+  --color-error: oklch(72% 0.22 28);
+  --color-error-content: oklch(15% 0.02 260);
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.375rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* ---------------------------------------------------------------- *
+ * Base typography
+ * ---------------------------------------------------------------- */
+
+:root {
+  --mono-font:
+    'JetBrains Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono',
+    monospace;
+  --grid-line: color-mix(in oklab, var(--color-base-content) 8%, transparent);
+}
+
+[data-theme='dark'] {
+  --grid-line: rgba(255, 255, 255, 0.06);
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-feature-settings:
+    'ss01' on,
+    'cv02' on,
+    'cv11' on;
+}
+
+body {
+  background: var(--color-base-100);
+  color: var(--color-base-content);
+}
+
+html[data-theme='dark'] body {
+  background:
+    radial-gradient(circle at 80% -10%, color-mix(in oklab, var(--color-primary) 12%, transparent) 0%, transparent 50%),
+    radial-gradient(circle at 10% 110%, color-mix(in oklab, var(--color-primary) 6%, transparent) 0%, transparent 55%),
+    var(--color-base-100);
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-attachment: fixed;
+}
+
+/* Subtle grid backdrop for the main shell */
+.bench-shell {
+  position: relative;
+}
+
+.bench-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 70%);
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bench-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------------------------------------------------------------- *
+ * Mono labels, eyebrows, and chips
+ * ---------------------------------------------------------------- */
+
+.mono {
+  font-family: var(--mono-font);
+  letter-spacing: 0.02em;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono-font);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+}
+
+.eyebrow::before {
+  content: '';
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--color-primary);
+  border-radius: 1px;
+}
+
+.eyebrow--plain::before {
+  display: none;
+}
+
+.mono-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.18rem 0.55rem;
+  font-family: var(--mono-font);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--color-base-content) 65%, transparent);
+  background: color-mix(in oklab, var(--color-base-content) 4%, transparent);
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 14%, transparent);
+  border-radius: 999px;
+}
+
+.mono-chip--primary {
+  color: var(--color-primary);
+  background: color-mix(in oklab, var(--color-primary) 12%, transparent);
+  border-color: color-mix(in oklab, var(--color-primary) 30%, transparent);
+}
+
+.data-cube {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 20%, transparent);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.data-cube::after {
+  content: '';
+  width: 50%;
+  height: 50%;
+  background: var(--color-primary);
+}
+
+/* ---------------------------------------------------------------- *
+ * Override daisyUI surface primitives for a flatter, bordered feel
+ * ---------------------------------------------------------------- */
+
+.navbar {
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  background: color-mix(in oklab, var(--color-base-100) 80%, transparent) !important;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent) !important;
+  box-shadow: none !important;
+  min-height: 2.75rem !important;
+}
+
+.card {
+  background: color-mix(in oklab, var(--color-base-200) 60%, transparent) !important;
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent);
+  border-radius: 0.5rem !important;
+  box-shadow: none !important;
+}
+
+.stats {
+  background: color-mix(in oklab, var(--color-base-200) 40%, transparent) !important;
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent);
+  border-radius: 0.5rem !important;
+  box-shadow: none !important;
+  transition: border-color 0.2s ease;
+}
+
+.stats:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--color-primary) 40%, transparent);
+  box-shadow: 0 8px 24px -12px color-mix(in oklab, var(--color-primary) 40%, transparent);
+}
+
+.stat {
+  padding: 1.25rem 1.5rem;
+}
+
+.stat-title {
+  font-family: var(--mono-font);
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--color-base-content) 55%, transparent) !important;
+}
+
+.stat-value {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.stat-desc {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+/* Buttons — flat + lime glow on primary */
+.btn {
+  border-radius: 0.25rem;
+  font-weight: 500;
+  box-shadow: none !important;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-primary-content);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary) !important;
+  transition:
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: color-mix(in oklab, var(--color-primary) 90%, var(--color-primary-content));
+  box-shadow: 0 0 24px -4px var(--color-primary) !important;
+}
+
+.btn-ghost:hover {
+  background: color-mix(in oklab, var(--color-base-content) 8%, transparent);
+}
+
+/* Select — borderless, mono */
+.select {
+  background: color-mix(in oklab, var(--color-base-200) 60%, transparent);
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 12%, transparent);
+  border-radius: 0.25rem;
+  font-family: var(--mono-font);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.select .label {
+  font-family: var(--mono-font);
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+/* Dropdown menu */
+.dropdown-content {
+  background: color-mix(in oklab, var(--color-base-100) 96%, var(--color-base-content));
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 12%, transparent);
+  box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.5);
+  border-radius: 0.375rem !important;
+}
+
+/* ---------------------------------------------------------------- *
+ * Table — terminal-style results grid
+ * ---------------------------------------------------------------- */
+
+.table {
+  font-size: 0.875rem;
+}
+
+.table thead th {
+  font-family: var(--mono-font);
+  font-size: 0.65rem !important;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+  background: transparent !important;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-base-content) 14%, transparent);
+  padding-top: 0.9rem;
+  padding-bottom: 0.9rem;
+}
+
+.table tbody td {
+  border-bottom: 1px solid color-mix(in oklab, var(--color-base-content) 6%, transparent);
+  padding: 0.75rem 1rem;
+}
+
+.table tbody tr:hover td {
+  background: color-mix(in oklab, var(--color-primary) 4%, transparent);
+}
+
+.table tbody tr.section-header td {
+  background: color-mix(in oklab, var(--color-primary) 8%, transparent) !important;
+  border-top: 1px solid color-mix(in oklab, var(--color-primary) 20%, transparent);
+  border-bottom: 1px solid color-mix(in oklab, var(--color-primary) 20%, transparent);
+  padding: 0.75rem 1rem;
+}
+
+.table tbody tr.section-header:hover td {
+  background: color-mix(in oklab, var(--color-primary) 14%, transparent) !important;
+}
+
+.table .tabular-nums {
+  font-family: var(--mono-font);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------- *
+ * Badges & alerts
+ * ---------------------------------------------------------------- */
+
+.badge {
+  border-radius: 0.25rem;
+  font-family: var(--mono-font);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.alert {
+  border: 1px solid color-mix(in oklab, var(--color-error) 40%, transparent);
+  background: color-mix(in oklab, var(--color-error) 10%, transparent);
+  border-radius: 0.375rem;
+  box-shadow: none;
+}
+
+/* Progress — squared and flat */
+.progress {
+  border-radius: 1px !important;
+  background: color-mix(in oklab, var(--color-base-content) 6%, transparent);
+}
+
+.progress::-webkit-progress-bar {
+  background: color-mix(in oklab, var(--color-base-content) 6%, transparent);
+}
+
+/* ---------------------------------------------------------------- *
+ * Footer
+ * ---------------------------------------------------------------- */
+
+.footer {
+  font-family: var(--mono-font);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  border-top: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent);
+  background: transparent !important;
+}
+
+.link-hover:hover {
+  color: var(--color-primary);
+}

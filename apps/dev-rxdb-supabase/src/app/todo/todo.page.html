@@ -1,0 +1,327 @@
+@let undo_count = (history.undoCount$ | async) ?? 0;
+@let redo_count = (history.redoCount$ | async) ?? 0;
+@let pushable_count = (pushableCount$ | async) ?? 0;
+@let pullable_count = (pullableCount$ | async) ?? 0;
+@let undo_disabled = undo_count === 0;
+@let redo_disabled = redo_count === 0;
+@let push_disabled = pushable_count === 0;
+@let current_tab = $current_tab();
+<div class="flex h-full">
+  <!-- History Sidebar -->
+  <ao-history-sidebar
+    [borderSide]="'left'"
+    [histories]="(history.histories$ | async) ?? []"
+    [scopeType]="history.type"
+    [show]="$show_history()"
+    (closeClick)="toggle_history()"
+  />
+
+  <main class="h-full min-w-0 flex-1 overflow-auto" #mainContainer cdkVirtualScrollingElement>
+    <!-- Sticky Header (简化版) -->
+    @if ($show_sticky_header()) {
+      <div class="border-base-300 bg-base-100 sticky top-0 z-10 border-b px-4 py-2 shadow-sm">
+        <div class="mx-auto flex max-w-4xl items-center justify-between">
+          <div class="flex items-center gap-3">
+            <!-- P2-3：与 :64 的 <h1> 同名同文案，e2e 只能靠 `.first()` 区分。补 testid 让两者可辨。 -->
+            <h2 class="text-lg font-semibold" data-testid="todo-sticky-title">Todos</h2>
+            <div class="badge badge-primary badge-sm">{{ $todo_count_left() }} 待办</div>
+          </div>
+          <div class="tabs tabs-boxed tabs-xs" role="tablist">
+            <button
+              class="tab"
+              [class.tab-active]="current_tab === 'all'"
+              (click)="sticky_tab_click('all')"
+              type="button"
+            >
+              全部
+            </button>
+            <button
+              class="tab"
+              [class.tab-active]="current_tab === 'active'"
+              (click)="sticky_tab_click('active')"
+              type="button"
+            >
+              进行中
+            </button>
+            <button
+              class="tab"
+              [class.tab-active]="current_tab === 'completed'"
+              (click)="sticky_tab_click('completed')"
+              type="button"
+            >
+              已完成
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Full Header -->
+    <div class="border-base-300 flex-none border-b p-4" #fullHeader>
+      <div class="mx-auto flex max-w-4xl flex-col gap-3">
+        <!-- Title Bar -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <h1 class="text-2xl font-bold" data-testid="todo-title">Todos</h1>
+            <div class="badge badge-primary">{{ $todo_count_left() }} 待办</div>
+
+            <!-- Batch Add Dropdown -->
+            <div class="dropdown dropdown-end">
+              <button class="btn btn-circle btn-sm" aria-label="批量添加" tabindex="0">
+                <svg [lucideIcon]="Plus" size="16"></svg>
+              </button>
+              <ul class="menu dropdown-content rounded-box bg-base-200 z-[1] w-40 p-2 shadow">
+                <li>
+                  <button [disabled]="add_1.isPending()" (click)="add_1.execute(1)">
+                    @if (add_1.isPending()) {
+                      <span class="loading loading-spinner loading-xs"></span>
+                    }
+                    添加 1 条
+                  </button>
+                </li>
+                <li>
+                  <button [disabled]="add_2.isPending()" (click)="add_2.execute(10)">
+                    @if (add_2.isPending()) {
+                      <span class="loading loading-spinner loading-xs"></span>
+                    }
+                    添加 10 条
+                  </button>
+                </li>
+                <li>
+                  <button [disabled]="add_3.isPending()" (click)="add_3.execute(100)">
+                    @if (add_3.isPending()) {
+                      <span class="loading loading-spinner loading-xs"></span>
+                    }
+                    添加 100 条
+                  </button>
+                </li>
+                <li>
+                  <button [disabled]="add_4.isPending()" (click)="add_4.execute(1000)">
+                    @if (add_4.isPending()) {
+                      <span class="loading loading-spinner loading-xs"></span>
+                    }
+                    添加 1000 条
+                  </button>
+                </li>
+                <li>
+                  <button [disabled]="add_5.isPending()" (click)="add_5.execute(10000)">
+                    @if (add_5.isPending()) {
+                      <span class="loading loading-spinner loading-xs"></span>
+                    }
+                    添加 10000 条
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <!-- Undo/Redo -->
+            <div class="join">
+              <button
+                class="btn btn-sm join-item"
+                [disabled]="!remoteSync.$connected() || $syncPending()"
+                [title]="remoteSync.$connected() ? 'Pull' : '未连接远端（纯本地模式）'"
+                (click)="pull()"
+                aria-label="Pull"
+              >
+                <svg [lucideIcon]="ArrowDown" size="16"></svg>
+                @if (pullable_count) {
+                  <span class="badge badge-xs">{{ pullable_count }}</span>
+                } @else {
+                  <span class="badge badge-xs">pull</span>
+                }
+              </button>
+              <button
+                class="btn btn-sm join-item"
+                [disabled]="!remoteSync.$connected() || push_disabled || $syncPending()"
+                [title]="remoteSync.$connected() ? 'Push' : '未连接远端（纯本地模式）'"
+                (click)="push()"
+                aria-label="Push"
+              >
+                <svg [lucideIcon]="ArrowUp" size="16"></svg>
+                @if (pushable_count) {
+                  <span class="badge badge-xs">{{ pushable_count }}</span>
+                } @else {
+                  <span class="badge badge-xs">push</span>
+                }
+              </button>
+              <button class="btn btn-sm join-item" [disabled]="undo_disabled" (click)="undo()" aria-label="Undo">
+                <svg [lucideIcon]="Undo2" size="16"></svg>
+                @if (undo_count) {
+                  <span class="badge badge-xs">{{ undo_count }}</span>
+                }
+              </button>
+              <button class="btn btn-sm join-item" [disabled]="redo_disabled" (click)="redo()" aria-label="Redo">
+                <svg [lucideIcon]="Redo2" size="16"></svg>
+                @if (redo_count) {
+                  <span class="badge badge-xs">{{ redo_count }}</span>
+                }
+              </button>
+            </div>
+
+            <!-- History Toggle -->
+            <button
+              class="btn btn-sm"
+              [class.btn-primary]="$show_history()"
+              (click)="toggle_history()"
+              aria-label="历史记录"
+            >
+              <svg [lucideIcon]="History" size="16"></svg>
+            </button>
+          </div>
+          @if ($syncError()) {
+            <div class="alert alert-error py-2 text-sm" role="alert">{{ $syncError() }}</div>
+          }
+        </div>
+
+        <!-- Tabs and Action Buttons -->
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="tabs tabs-boxed tabs-sm" role="tablist">
+            <button class="tab" [class.tab-active]="current_tab === 'all'" (click)="set_current_tab('all')" role="tab">
+              全部
+            </button>
+            <button
+              class="tab"
+              [class.tab-active]="current_tab === 'active'"
+              (click)="set_current_tab('active')"
+              role="tab"
+            >
+              进行中
+            </button>
+            <button
+              class="tab"
+              [class.tab-active]="current_tab === 'completed'"
+              (click)="set_current_tab('completed')"
+              role="tab"
+            >
+              已完成
+            </button>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              class="btn btn-sm"
+              [disabled]="$disabled_toggle_all_btn()"
+              (click)="toggle_all()"
+              aria-label="全选/取消全选"
+            >
+              全选
+            </button>
+            <button
+              class="btn btn-sm"
+              [disabled]="$disabled_clear_completed_btn()"
+              (click)="clear_completed()"
+              aria-label="清除已完成"
+            >
+              清除已完成
+            </button>
+            <button class="btn btn-sm" (click)="toggle_complete_sort()" aria-label="排序">
+              <svg [lucideIcon]="$completed_sort() === 'asc' ? ArrowUp : ArrowDown" size="16"></svg>
+              排序
+            </button>
+          </div>
+        </div>
+
+        <!-- Add Todo Input -->
+        <div class="flex w-full gap-2">
+          <input
+            class="input input-bordered input-sm flex-1"
+            [(ngModel)]="title"
+            (keyup.enter)="add_todo($event)"
+            aria-label="添加新任务"
+            placeholder="添加新任务..."
+            type="text"
+          />
+          <button class="btn btn-primary btn-sm" [disabled]="!title()" (click)="add_todo($event)" aria-label="添加">
+            <svg [lucideIcon]="Plus" size="16"></svg>
+            添加
+          </button>
+        </div>
+      </div>
+    </div>
+
+    @if ($crudError()) {
+      <div class="alert alert-error mx-auto mb-3 max-w-4xl py-2 text-sm">{{ $crudError() }}</div>
+    }
+
+    <!-- Todo List -->
+    <!-- P2-3：原先 e2e 只能写 `cdk-virtual-scroll-viewport li`（拿 CDK 的实现细节当选择器）
+         和 `input.todo-input`（页面级、不限定行）。补上 viewport 与行级 testid。 -->
+    <cdk-virtual-scroll-viewport class="mx-auto min-h-60 max-w-4xl" [itemSize]="itemSize" data-testid="todo-viewport">
+      @if (todo_resource.isEmpty()) {
+        <div class="hero min-h-60">
+          <div class="hero-content text-center">
+            <div>
+              <p class="text-base-content/60">暂无任务</p>
+              <p class="text-base-content/40 text-sm">添加一个新任务开始吧</p>
+            </div>
+          </div>
+        </div>
+      } @else if (todo_resource.isLoading()) {
+        <div class="hero min-h-60">
+          <div class="hero-content text-center">
+            <span class="loading loading-spinner loading-md"></span>
+          </div>
+        </div>
+      }
+
+      <ul class="divide-base-200 divide-y">
+        <li
+          class="group border-base-200 hover:bg-base-200/50 flex items-center border-b px-4 py-2 transition-colors"
+          *cdkVirtualFor="let todo of todo_resource.value(); let i = index; trackBy: trackByFn"
+          [style.height.px]="itemSize"
+          data-testid="todo-item"
+        >
+          @let isEditing = is_todo_editing(todo);
+          <div class="flex w-full flex-1 items-center gap-3" #liEle>
+            @if (isEditing) {
+              <input
+                class="todo-input input input-bordered input-sm flex-1"
+                #inputEle
+                [(ngModel)]="todo.title"
+                (blur)="todo_cancel_edit(todo)"
+                (keyup.enter)="todo_save($event, inputEle, todo)"
+                (keyup.escape)="todo_cancel_edit(todo)"
+                data-testid="todo-edit-input"
+                placeholder="任务名称..."
+                type="text"
+              />
+              <button
+                class="btn btn-sm"
+                (click)="todo_save($event, inputEle, todo)"
+                (mousedown)="$event.preventDefault()"
+                aria-label="保存"
+              >
+                保存
+              </button>
+            } @else {
+              <input
+                class="checkbox"
+                [checked]="todo.completed"
+                (change)="toggle_todo_completed($event, todo)"
+                type="checkbox"
+              />
+              <div
+                class="flex-1 cursor-pointer truncate select-none"
+                [class.line-through]="todo.completed"
+                [class.opacity-50]="todo.completed"
+                (dblclick)="todo_edit($event, liEle, todo)"
+              >
+                {{ todo.title }}
+              </div>
+              <div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <button class="btn btn-ghost btn-xs" (click)="todo_edit($event, liEle, todo)" aria-label="编辑">
+                  <svg [lucideIcon]="Pen" size="14"></svg>
+                </button>
+                <button class="btn btn-ghost btn-xs text-error" (click)="todo_remove($event, todo)" aria-label="删除">
+                  <svg [lucideIcon]="X" size="14"></svg>
+                </button>
+              </div>
+            }
+          </div>
+        </li>
+      </ul>
+    </cdk-virtual-scroll-viewport>
+  </main>
+</div>

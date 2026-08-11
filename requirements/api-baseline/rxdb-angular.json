@@ -1,0 +1,132 @@
+{
+  "exports": [
+    {
+      "name": "ActionResource",
+      "kind": "type"
+    },
+    {
+      "name": "GraphPath",
+      "kind": "type"
+    },
+    {
+      "name": "GraphQueryResult",
+      "kind": "type"
+    },
+    {
+      "name": "InfiniteScrollingList",
+      "kind": "both"
+    },
+    {
+      "name": "InfiniteScrollOptions",
+      "kind": "type"
+    },
+    {
+      "name": "InfiniteScrollResource",
+      "kind": "type"
+    },
+    {
+      "name": "NamespacedState",
+      "kind": "type"
+    },
+    {
+      "name": "NeighborResult",
+      "kind": "type"
+    },
+    {
+      "name": "PersistedState",
+      "kind": "type"
+    },
+    {
+      "name": "provideRxDB",
+      "kind": "value"
+    },
+    {
+      "name": "RxDBEntityChangeDirective",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBResource",
+      "kind": "type"
+    },
+    {
+      "name": "useAction",
+      "kind": "value"
+    },
+    {
+      "name": "useCount",
+      "kind": "value"
+    },
+    {
+      "name": "useCountAncestors",
+      "kind": "value"
+    },
+    {
+      "name": "useCountDescendants",
+      "kind": "value"
+    },
+    {
+      "name": "useCountNeighbors",
+      "kind": "value"
+    },
+    {
+      "name": "useFind",
+      "kind": "value"
+    },
+    {
+      "name": "useFindAll",
+      "kind": "value"
+    },
+    {
+      "name": "useFindAncestors",
+      "kind": "value"
+    },
+    {
+      "name": "useFindByCursor",
+      "kind": "value"
+    },
+    {
+      "name": "useFindDescendants",
+      "kind": "value"
+    },
+    {
+      "name": "useFindOne",
+      "kind": "value"
+    },
+    {
+      "name": "useFindOneOrFail",
+      "kind": "value"
+    },
+    {
+      "name": "useGet",
+      "kind": "value"
+    },
+    {
+      "name": "useGraphNeighbors",
+      "kind": "value"
+    },
+    {
+      "name": "useGraphPaths",
+      "kind": "value"
+    },
+    {
+      "name": "useInfiniteScroll",
+      "kind": "value"
+    },
+    {
+      "name": "UseOptions",
+      "kind": "type"
+    },
+    {
+      "name": "usePersistedState",
+      "kind": "value"
+    },
+    {
+      "name": "useRepositoryQuery",
+      "kind": "value"
+    },
+    {
+      "name": "useState",
+      "kind": "value"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project dev-rxdb-supabase-e2e --web",
+  "implicitDependencies": ["dev-rxdb-supabase"],
+  "name": "dev-rxdb-supabase-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-supabase-e2e/src",
+  "targets": {
+    "e2e": {
+      "dependsOn": ["dev-rxdb-supabase:build"]
+    },
+    "e2e-remote": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["dev-rxdb-supabase:build"],
+      "options": {
+        "cwd": "apps/dev-rxdb-supabase-e2e",
+        "command": "REMOTE_E2E=true NX_DAEMON=false pnpm exec playwright test src/remote-sync.spec.ts"
+      }
+    }
+  }
+}

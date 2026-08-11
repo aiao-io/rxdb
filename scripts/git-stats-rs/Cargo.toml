@@ -1,0 +1,9 @@
+[package]
+name = "git-stats"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rayon = "1.10"
+colored = "2.1"
+gix = { version = "0.86.0", features = ["blame"] }

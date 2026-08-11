@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      生产态 CSP。产物由 Electron 以 `file:` 协议 loadFile 加载，不存在 dev server，
+      因此 connect-src 收成 'self'。其余指令与 src/index.html 逐字一致，
+      由 src-electron/renderer-shell.spec.ts 钉住两者不漂移。
+    -->
+    <meta
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-src 'none'; form-action 'none'"
+      http-equiv="Content-Security-Policy"
+    />
+    <title>RxDB Demo - Electron</title>
+    <!--
+      ELEC-10：这里**不能**有 `<base href="./">`。它会把文档 base URL 从
+      `…/browser/index.html` 改成目录 `…/browser/`，于是 hash 路由的
+      `replaceState('#/home')` 解析成 `…/browser/#/home` —— 与当前文档不同，
+      Chromium 判跨文档并抛 SecurityError，首次导航中断、内容区空白。
+      去掉后 base URL 即文档自身，`#/home` 同文档解析，实测导航正常。
+      资源路径全是相对的，同样按文档目录解析，不受影响。
+    -->
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <meta content="Local-first RxDB demo with Electron - Offline-first database for desktop apps" name="description" />
+    <link href="icons/favicon.ico" rel="icon" type="image/x-icon" />
+  </head>
+  <body>
+    <app-root>Loading...</app-root>
+  </body>
+</html>

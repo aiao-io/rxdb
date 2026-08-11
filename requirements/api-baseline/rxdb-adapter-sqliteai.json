@@ -1,0 +1,64 @@
+{
+  "exports": [
+    {
+      "name": "BATCH_TIMEOUT",
+      "kind": "value"
+    },
+    {
+      "name": "buildRuleGroup",
+      "kind": "value"
+    },
+    {
+      "name": "createSqliteClient",
+      "kind": "value"
+    },
+    {
+      "name": "GenerateSqlResult",
+      "kind": "type"
+    },
+    {
+      "name": "ROWID",
+      "kind": "value"
+    },
+    {
+      "name": "RxDBAdapterSqliteai",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBAdapterSqliteError",
+      "kind": "both"
+    },
+    {
+      "name": "SqliteaiClient",
+      "kind": "both"
+    },
+    {
+      "name": "sqliteaiLoad",
+      "kind": "value"
+    },
+    {
+      "name": "SqliteaiLoadOptions",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteaiOptions",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteaiRepositoryConstructor",
+      "kind": "type"
+    },
+    {
+      "name": "sqliteGetTableName",
+      "kind": "value"
+    },
+    {
+      "name": "sqliteGetTableNameByMetadata",
+      "kind": "value"
+    },
+    {
+      "name": "SqliteRepository",
+      "kind": "both"
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "compilerOptions": {
+    "outDir": "dist/test",
+    "types": ["vitest/globals", "vite/client", "node"],
+    "rootDir": "src",
+    "tsBuildInfoFile": "dist/tsconfig.spec.tsbuildinfo",
+    "module": "preserve",
+    "moduleResolution": "bundler"
+  },
+  "extends": "../../tsconfig.base.json",
+  "include": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/**/*.d.ts", "src/**/*.ts", "src/**/*.vue"],
+  "references": [
+    {
+      "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-sqlite-wasm/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-vue/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-test/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-workspace/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-storage/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-search-vue/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-search/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-client-generator/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/code-editor-vue/tsconfig.lib.json"
+    }
+  ]
+}

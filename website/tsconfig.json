@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+    "types": ["@docusaurus/module-type-aliases"]
+  },
+  "exclude": [".docusaurus", "build", "public"],
+  // This file is not used in compilation. It is here just for a nice editor experience.
+  "extends": "@docusaurus/tsconfig",
+  "references": [
+    {
+      "path": "../packages/rxdb-adapter-wa-sqlite"
+    },
+    {
+      "path": "../packages/code-editor-react"
+    }
+  ]
+}

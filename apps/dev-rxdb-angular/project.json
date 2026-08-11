@@ -1,0 +1,190 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// serve-e2e": "Playwright 的 webServer 专用：只服务产物，不带 buildTarget。产物由 e2e target 的 dependsOn 保证已存在；带上 buildTarget 会在 playwright 进程里再起一个 NX_DAEMON=false、与外层 nx 互不协调的 nx 进程重建整条依赖链，和并行跑的其它 e2e 抢同一份包 dist，vite 的 emptyOutDir 与另一进程的写入相撞后报 ENOTEMPTY —— 这就是 rxdb-test:build / rxdb:build 被标记为 flaky 的根因。serve-static 保持带 buildTarget，供人手动使用。",
+  "cli": {
+    "cache": {
+      "enabled": false
+    }
+  },
+  "name": "dev-rxdb-angular",
+  "prefix": "app",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-angular/src",
+  "tags": ["angular-app"],
+  "targets": {
+    "spec-typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "inputs": ["default", "^production"],
+      "options": {
+        "cwd": "apps/dev-rxdb-angular",
+        "command": "tsc --build tsconfig.spec.json --pretty false"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-angular",
+        "command": "eslint . --max-warnings=0"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build", "spec-typecheck"],
+      "inputs": ["default", "^production"],
+      "outputs": ["{projectRoot}/test-output/vitest/coverage"],
+      "options": {
+        "cwd": "apps/dev-rxdb-angular",
+        "command": "vitest"
+      }
+    },
+    "build": {
+      "defaultConfiguration": "production",
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "allowedCommonJsDependencies": [
+          "expect-type",
+          "@supabase/postgrest-js",
+          "cssfontparser",
+          "cron-parser",
+          "eventemitter3",
+          "geobuf",
+          "geojson-dissolve",
+          "gifuct-js",
+          "lodash",
+          "lottie-web",
+          "mousetrap",
+          "ms",
+          "object-hash",
+          "path-browserify",
+          "pbf",
+          "simplify-geojson",
+          "ts-morph",
+          "@babel/runtime/regenerator"
+        ],
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/dev-rxdb-angular/public"
+          },
+          {
+            "glob": "wa-sqlite.wasm",
+            "input": "./packages/rxdb-adapter-sqlite-wasm/node_modules/@subframe7536/sqlite-wasm/dist",
+            "output": "./sqlite-wasm/",
+            "followSymlinks": true
+          },
+          {
+            "glob": "wa-sqlite-async.wasm",
+            "input": "./packages/rxdb-adapter-sqlite-wasm/node_modules/@subframe7536/sqlite-wasm/dist",
+            "output": "./sqlite-wasm/",
+            "followSymlinks": true
+          },
+          {
+            "glob": "**/*.wasm",
+            "input": "./node_modules/wa-sqlite/dist",
+            "output": "./wa-sqlite/"
+          },
+          {
+            "glob": "**/pglite.{wasm,data}",
+            "input": "./node_modules/@electric-sql/pglite/dist",
+            "output": "./pglite/"
+          },
+          {
+            "glob": "**/*",
+            "input": "./node_modules/@sqliteai/sqlite-wasm/sqlite-wasm/jswasm",
+            "output": "./sqliteai/"
+          },
+          {
+            "glob": "**/*",
+            "input": "./packages/rxdb-adapter-sqlite/node_modules/@sqlite.org/sqlite-wasm/dist",
+            "output": "./official-sqlite-wasm/"
+          }
+        ],
+        "browser": "apps/dev-rxdb-angular/src/main.ts",
+        "inlineStyleLanguage": "scss",
+        "outputPath": "dist/apps/dev-rxdb-angular",
+        "polyfills": [],
+        "stylePreprocessorOptions": {
+          "sass": {
+            "silenceDeprecations": ["color-functions", "global-builtin", "import"]
+          }
+        },
+        "styles": ["apps/dev-rxdb-angular/src/styles.scss"],
+        "tsConfig": "apps/dev-rxdb-angular/tsconfig.app.json",
+        "webWorkerTsConfig": "apps/dev-rxdb-angular/tsconfig.worker.json",
+        "externalDependencies": ["pyodide", "node:crypto"]
+      },
+      "configurations": {
+        "development": {
+          "extractLicenses": false,
+          "optimization": false,
+          "sourceMap": true
+        },
+        "production": {
+          "budgets": [
+            {
+              "maximumError": "2mb",
+              "maximumWarning": "1.6mb",
+              "type": "initial"
+            },
+            {
+              "maximumError": "8kb",
+              "maximumWarning": "4kb",
+              "type": "anyComponentStyle"
+            }
+          ],
+          "fileReplacements": [
+            {
+              "replace": "apps/dev-rxdb-angular/src/environments/environment.ts",
+              "with": "apps/dev-rxdb-angular/src/environments/environment.prod.ts"
+            }
+          ],
+          "outputHashing": "all",
+          "serviceWorker": "apps/dev-rxdb-angular/ngsw-config.json"
+        }
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "defaultConfiguration": "development",
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4200
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "dev-rxdb-angular:build:development",
+          "host": "0.0.0.0",
+          "headers": {
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Embedder-Policy": "require-corp"
+          }
+        },
+        "production": {
+          "buildTarget": "dev-rxdb-angular:build:production"
+        }
+      }
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "dev-rxdb-angular:build",
+        "port": 4200,
+        "spa": true,
+        "staticFilePath": "dist/apps/dev-rxdb-angular/browser"
+      }
+    },
+    "serve-e2e": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "port": 4200,
+        "spa": true,
+        "staticFilePath": "dist/apps/dev-rxdb-angular/browser",
+        "watch": false
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "utils",
+  "tags": ["js-lib"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/utils",
+        "command": "eslint . --max-warnings=0"
+      }
+    }
+  }
+}

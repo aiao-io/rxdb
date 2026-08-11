@@ -1,0 +1,12 @@
+:host {
+  position: absolute;
+  overflow: hidden;
+  inset: 0;
+  background-color: var(--color-base-100);
+
+  ::ng-deep {
+    .cdk-virtual-scroll-content-wrapper {
+      width: 100%;
+    }
+  }
+}

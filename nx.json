@@ -1,0 +1,171 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "analytics": false,
+  "generators": {
+    "@nx/angular:application": {
+      "e2eTestRunner": "playwright",
+      "linter": "eslint",
+      "style": "scss",
+      "unitTestRunner": "vitest-angular"
+    },
+    "@nx/angular:component": {
+      "style": "scss"
+    },
+    "@nx/angular:library": {
+      "linter": "eslint",
+      "unitTestRunner": "vitest-angular"
+    },
+    "@nx/react": {
+      "application": {
+        "babel": true,
+        "style": "scss",
+        "linter": "eslint",
+        "bundler": "vite"
+      },
+      "component": {
+        "style": "scss"
+      },
+      "library": {
+        "style": "scss",
+        "linter": "eslint",
+        "unitTestRunner": "vitest"
+      }
+    }
+  },
+  "migrate": {
+    "agentic": false
+  },
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "production": [
+      "default",
+      "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
+      "!{projectRoot}/tsconfig.spec.json",
+      "!{projectRoot}/src/**/__tests__/**/*",
+      "!{projectRoot}/src/**/test-utils.ts",
+      "!{projectRoot}/src/test-setup.[jt]s"
+    ],
+    "sharedGlobals": []
+  },
+  "nxCloudId": "695a1e4ab22d04e5ce988dd4",
+  "plugins": [
+    {
+      "options": {
+        "build": {
+          "buildDepsName": "build-deps",
+          "configName": "tsconfig.lib.json",
+          "targetName": "build",
+          "watchDepsName": "watch-deps"
+        },
+        "typecheck": {
+          "targetName": "typecheck"
+        }
+      },
+      "plugin": "@nx/js/typescript"
+    },
+    {
+      "options": {
+        "buildDepsTargetName": "build-deps",
+        "buildTargetName": "build",
+        "devTargetName": "dev",
+        "previewTargetName": "preview",
+        "serveStaticTargetName": "serve-static",
+        "serveTargetName": "serve",
+        "typecheckTargetName": "typecheck",
+        "watchDepsTargetName": "watch-deps"
+      },
+      "plugin": "@nx/vite/plugin"
+    },
+    {
+      "options": {
+        "targetName": "lint"
+      },
+      "plugin": "@nx/eslint/plugin"
+    },
+    {
+      "options": {
+        "testTargetName": "test"
+      },
+      "plugin": "@nx/vitest"
+    },
+    {
+      "options": {
+        "targetName": "e2e"
+      },
+      "plugin": "@nx/playwright/plugin"
+    }
+  ],
+  "release": {
+    "projects": ["packages/*"],
+    "releaseTag": {
+      "pattern": "v{version}"
+    },
+    "version": {
+      "conventionalCommits": true,
+      "preVersionCommand": "npx nx run-many -t build --projects='packages/*'",
+      "generatorOptions": {
+        "updateDependents": "auto"
+      }
+    }
+  },
+  "targetDefaults": {
+    "build": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
+    },
+    "lint": {
+      "cache": true,
+      "inputs": ["default", "^production"]
+    },
+    "test": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["default", "^production"]
+    },
+    "audit": {
+      "cache": false,
+      "inputs": ["default"]
+    },
+    "@nx/angular:ng-packagr-lite": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
+    },
+    "@nx/angular:unit-test": {
+      "cache": true,
+      "inputs": ["default", "^production"]
+    },
+    "@angular/build:application": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
+    },
+    "@angular/build:unit-test": {
+      "cache": true,
+      "inputs": ["default", "^production"]
+    },
+    "@nx/angular:package": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
+    },
+    "@nx/vite:build": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
+    },
+    "@nx/vite:preview": {
+      "cache": true
+    },
+    "@nx/js:tsc": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
+    }
+  },
+  "tui": {
+    "enabled": false,
+    "autoExit": true
+  }
+}

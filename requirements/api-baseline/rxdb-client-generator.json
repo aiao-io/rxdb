@@ -1,0 +1,48 @@
+{
+  "exports": [
+    {
+      "name": "EntitySourceGetter",
+      "kind": "type"
+    },
+    {
+      "name": "GeneratorContext",
+      "kind": "type"
+    },
+    {
+      "name": "IRepositoryGenerator",
+      "kind": "type"
+    },
+    {
+      "name": "NAMESPACE_PUBLIC",
+      "kind": "value"
+    },
+    {
+      "name": "REPOSITORY_TYPE_GRAPH_REPOSITORY",
+      "kind": "value"
+    },
+    {
+      "name": "REPOSITORY_TYPE_REPOSITORY",
+      "kind": "value"
+    },
+    {
+      "name": "REPOSITORY_TYPE_TREE_REPOSITORY",
+      "kind": "value"
+    },
+    {
+      "name": "RepositoryGeneratorBase",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBClientGenerator",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBClientGeneratorOptions",
+      "kind": "type"
+    },
+    {
+      "name": "SourceFile",
+      "kind": "type"
+    }
+  ]
+}

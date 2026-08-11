@@ -1,0 +1,7 @@
+@use '../../../../styles/view-transitions';
+@use '../../../../styles/tree-drag';
+
+.virtual-scroll-viewport {
+  min-height: 400px;
+  width: 100%;
+}

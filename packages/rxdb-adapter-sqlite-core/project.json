@@ -1,0 +1,46 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-adapter-sqlite-core",
+  "namedInputs": {
+    "production": [
+      "default",
+      "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
+      "!{projectRoot}/tsconfig.spec.json",
+      "!{projectRoot}/src/test-setup.[jt]s"
+    ]
+  },
+  "tags": ["js-lib"],
+  "targets": {
+    "consumer": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build", "^build"],
+      "options": {
+        "command": "node scripts/audit/sqlite-core-testing-consumer.mjs"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-adapter-sqlite-core",
+        "command": "tsc --build tsconfig.lib.json --emitDeclarationOnly"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "cwd": "packages/rxdb-adapter-sqlite-core",
+        "command": "node ../../node_modules/vite/bin/vite.js build"
+      }
+    },
+    "coverage-acceptance": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "outputs": ["{workspaceRoot}/coverage/packages/rxdb-adapter-sqlite-core"],
+      "options": {
+        "cwd": "packages/rxdb-adapter-sqlite-core",
+        "command": "node scripts/run-coverage-acceptance.mjs"
+      }
+    }
+  }
+}

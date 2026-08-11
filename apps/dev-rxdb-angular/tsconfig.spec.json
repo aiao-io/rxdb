@@ -1,0 +1,86 @@
+{
+  "compilerOptions": {
+    "outDir": "./out-tsc/vitest",
+    "emitDeclarationOnly": false,
+    "types": ["vitest/globals", "vitest/importMeta", "vite/client", "node", "vitest"],
+    "module": "preserve",
+    "moduleResolution": "bundler"
+  },
+  "extends": "../../tsconfig.base.json",
+  "files": ["src/test-setup.ts"],
+  "include": [
+    "vite.config.ts",
+    "vite.config.mts",
+    "vitest.config.ts",
+    "vitest.config.mts",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.tsx",
+    "src/**/*.test.js",
+    "src/**/*.spec.js",
+    "src/**/*.test.jsx",
+    "src/**/*.spec.jsx",
+    "src/**/*.d.ts",
+    "src/**/*.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/rxdb-adapter-sqliteai/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-search/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-sqlite-wasm/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-workspace/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-search-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-storage/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-client-generator/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/code-editor-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-test/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../modules/angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../modules/angular-todo/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-angular/tsconfig.lib.json"
+    }
+  ]
+}

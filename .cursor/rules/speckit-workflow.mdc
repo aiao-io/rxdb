@@ -1,0 +1,53 @@
+---
+description: Spec Kit 工作流与斜杠命令（Cursor）
+alwaysApply: false
+---
+
+# Spec Kit（Cursor）
+
+本仓库已安装 `cursor-agent` 集成。在 Cursor Agent 对话中通过 **Skills** 或斜杠命令驱动（命令名中的 `.` 换成 `-`）。
+
+## 核心流程
+
+| 命令 | 用途 |
+| ---- | ---- |
+| `/speckit-specify` | 从自然语言创建/更新 `specs/<feature>/spec.md` |
+| `/speckit-clarify` | 澄清 spec 模糊点（建议在 plan 之前） |
+| `/speckit-plan` | 生成 `plan.md` |
+| `/speckit-tasks` | 生成 `tasks.md` |
+| `/speckit-implement` | 按 `tasks.md` 实现 |
+| `/speckit-analyze` | spec / plan / tasks 一致性分析 |
+| `/speckit-checklist` | 生成功能检查清单 |
+| `/speckit-constitution` | 维护项目 constitution |
+| `/speckit-taskstoissues` | 将 tasks 同步到 GitHub Issues |
+
+## Git 扩展（hooks）
+
+| 命令 | 用途 |
+| ---- | ---- |
+| `/speckit-git-feature` | 创建功能分支 |
+| `/speckit-git-commit` | 按 hook 自动提交 |
+| `/speckit-git-validate` | 校验分支命名 |
+| `/speckit-git-remote` | 检测 remote |
+| `/speckit-git-initialize` | 初始化仓库 |
+
+Skills 目录：`.cursor/skills/`（核心）+ `.agents/skills/`（Git 扩展，已链到 `.cursor/skills/`）。
+
+## 目录
+
+- `specs/<编号>-<feature>/` — spec、plan、tasks
+- `.specify/` — 模板与脚本
+- `.cursor/rules/specify-rules.mdc` — 当前 feature 技术上下文（由 `update-agent-context.sh` 更新）
+
+## 维护
+
+```bash
+# 安装/升级 Cursor 集成
+specify integration install cursor-agent
+specify integration upgrade cursor-agent
+
+# 从当前 feature 的 plan.md 刷新 Cursor 规则
+.specify/scripts/bash/update-agent-context.sh cursor-agent
+```
+
+遵循 [AGENTS.md](../../AGENTS.md) 与 [CLAUDE.md](../../CLAUDE.md) 中的 TDD、三框架对称等铁律。

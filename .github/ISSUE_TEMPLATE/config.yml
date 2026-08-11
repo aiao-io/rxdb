@@ -1,0 +1,9 @@
+blank_issues_enabled: false
+contact_links:
+  # Discussions 尚未开启（开源发布时启用后再恢复入口）：
+  #   - name: 💬 提问与讨论
+  #     url: https://github.com/aiao-io/aiao/discussions
+  #     about: 使用问题、用法咨询、设计讨论请前往 Discussions
+  - name: 📖 文档
+    url: https://github.com/aiao-io/aiao/blob/main/README.md
+    about: 在提交 Issue 前，先查阅文档与路线图

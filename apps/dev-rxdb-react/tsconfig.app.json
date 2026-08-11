@@ -1,0 +1,80 @@
+{
+  "compilerOptions": {
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
+    "jsx": "react-jsx",
+    "lib": ["dom", "es2024"],
+    "types": ["node", "@nx/react/typings/cssmodule.d.ts", "@nx/react/typings/image.d.ts", "vite/client"],
+    "rootDir": "src",
+    "module": "esnext",
+    "moduleResolution": "bundler"
+  },
+  "exclude": [
+    "out-tsc",
+    "dist",
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "src/**/*.spec.tsx",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.js",
+    "src/**/*.test.js",
+    "src/**/*.spec.jsx",
+    "src/**/*.test.jsx",
+    "eslint.config.js",
+    "eslint.config.cjs",
+    "eslint.config.mjs",
+    "vite.config.ts",
+    "vite.config.mts",
+    "vitest.config.ts",
+    "vitest.config.mts"
+  ],
+  "extends": "../../tsconfig.base.json",
+  "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
+  "references": [
+    {
+      "path": "../../packages/rxdb-adapter-sqlite-wasm/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-test/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-react/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-workspace/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-storage/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-search-react/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-search/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-client-generator/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/code-editor-react/tsconfig.lib.json"
+    }
+  ]
+}

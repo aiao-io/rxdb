@@ -1,0 +1,139 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "ignoreDeprecations": "6.0"
+  },
+  "extends": "./tsconfig.base.json",
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/utils"
+    },
+    {
+      "path": "./packages/rxdb"
+    },
+    {
+      "path": "./packages/rxdb-adapter-pglite"
+    },
+    {
+      "path": "./packages/rxdb-adapter-wa-sqlite"
+    },
+    {
+      "path": "./packages/rxdb-adapter-sqlite-wasm"
+    },
+    {
+      "path": "./packages/rxdb-client-generator"
+    },
+    {
+      "path": "./packages/rxdb-plugin-workspace"
+    },
+    {
+      "path": "./packages/rxdb-plugin-graph"
+    },
+    {
+      "path": "./packages/rxdb-test"
+    },
+    {
+      "path": "./packages/rxdb-react"
+    },
+    {
+      "path": "./packages/rxdb-devtools"
+    },
+    {
+      "path": "./packages/rxdb-vue"
+    },
+    {
+      "path": "./packages/code-editor"
+    },
+    {
+      "path": "./packages/rxdb-adapter-supabase"
+    },
+    {
+      "path": "./packages/code-editor-react"
+    },
+    {
+      "path": "./packages/code-editor-vue"
+    },
+    {
+      "path": "./packages/code-editor-angular"
+    },
+    {
+      "path": "./apps/dev-rxdb-supabase-e2e"
+    },
+    {
+      "path": "./apps/dev-rxdb-angular-e2e"
+    },
+    {
+      "path": "./apps/dev-rxdb-electron"
+    },
+    {
+      "path": "./apps/dev-rxdb-supabase"
+    },
+    {
+      "path": "./apps/dev-rxdb-angular"
+    },
+    {
+      "path": "./packages/rxdb-angular"
+    },
+    {
+      "path": "./modules/angular-todo"
+    },
+    {
+      "path": "./apps/dev-rxdb-tauri"
+    },
+    {
+      "path": "./modules/angular"
+    },
+    {
+      "path": "./benchmarks"
+    },
+    {
+      "path": "./packages/rxdb-plugin-storage"
+    },
+    {
+      "path": "./apps/rxdb-devtools-extension"
+    },
+    {
+      "path": "./packages/rxdb-adapter-sqlite-core"
+    },
+    {
+      "path": "./packages/rxdb-adapter-sqliteai"
+    },
+    {
+      "path": "./packages/rxdb-adapter-sqlite"
+    },
+    {
+      "path": "./packages/rxdb-plugin-search-angular"
+    },
+    {
+      "path": "./packages/rxdb-plugin-search-react"
+    },
+    {
+      "path": "./packages/rxdb-plugin-search-vue"
+    },
+    {
+      "path": "./packages/rxdb-plugin-search"
+    },
+    {
+      "path": "./apps/dev-rxdb-react-e2e"
+    },
+    {
+      "path": "./apps/dev-rxdb-vue-e2e"
+    },
+    {
+      "path": "./apps/dev-rxdb-react"
+    },
+    {
+      "path": "./apps/dev-rxdb-vue"
+    },
+    {
+      "path": "./packages/rxdb-adapter-encrypted"
+    },
+    {
+      "path": "./apps/dev-rxdb-electron-e2e"
+    },
+    {
+      "path": "./packages/rxdb-adapter-miniprogram"
+    }
+  ]
+}

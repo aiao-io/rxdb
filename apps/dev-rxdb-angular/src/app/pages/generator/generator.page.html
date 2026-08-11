@@ -1,0 +1,39 @@
+<as-split direction="horizontal">
+  <as-split-area [size]="40">
+    <div class="flex h-full flex-col overflow-hidden">
+      <div class="tabs tabs-border" role="tablist">
+        @for (demo of demos; track $index) {
+          <a
+            class="tab"
+            [class.tab-active]="$selected_demo_index() === $index"
+            (click)="select_demo_tab($index)"
+            aria-hidden="true"
+            role="tab"
+          >
+            {{ demo.name }}
+          </a>
+        }
+      </div>
+      <div class="flex-1" data-testid="generator-input-editor">
+        <ao-code-editor [formControl]="json" [theme]="theme()" language="JSON"></ao-code-editor>
+      </div>
+    </div>
+  </as-split-area>
+  <as-split-area [size]="60">
+    <button class="btn btn-sm btn-primary absolute top-2 right-2" (click)="download()" data-testid="generator-download">
+      生成并下载
+    </button>
+    <div class="tabs tabs-lift h-full overflow-hidden p-2" data-testid="generator-output-editor">
+      @for (source of $sources(); track $index) {
+        @let path = source.getFilePath();
+        @let text = source.getText();
+        @let is_checked = $selected_source_index() === $index;
+        @let language = path.endsWith('.ts') ? 'ts' : 'js';
+        <input class="tab" [aria-label]="path" [checked]="is_checked" name="my_tabs_3" type="radio" />
+        <div class="tab-content bg-base-100 border-base-300">
+          <ao-code-editor [language]="language" [theme]="theme()" [value]="text"></ao-code-editor>
+        </div>
+      }
+    </div>
+  </as-split-area>
+</as-split>

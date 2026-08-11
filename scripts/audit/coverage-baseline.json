@@ -1,0 +1,161 @@
+{
+  "generatedBy": "coverage-check.mjs --update",
+  "packages": {
+    "code-editor": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "code-editor-angular": {
+      "statements": 90,
+      "branches": 88,
+      "functions": 90,
+      "lines": 92
+    },
+    "code-editor-react": {
+      "statements": 96,
+      "branches": 92,
+      "functions": 100,
+      "lines": 100
+    },
+    "code-editor-vue": {
+      "statements": 95,
+      "branches": 88,
+      "functions": 100,
+      "lines": 100
+    },
+    "rxdb": {
+      "statements": 95,
+      "branches": 90,
+      "functions": 96,
+      "lines": 96
+    },
+    "rxdb-adapter-encrypted": {
+      "statements": 95,
+      "branches": 90,
+      "functions": 98,
+      "lines": 97
+    },
+    "rxdb-adapter-pglite": {
+      "statements": 99,
+      "branches": 93,
+      "functions": 98,
+      "lines": 99
+    },
+    "rxdb-adapter-sqlite": {
+      "statements": 97,
+      "branches": 100,
+      "functions": 100,
+      "lines": 97
+    },
+    "rxdb-adapter-sqlite-core": {
+      "statements": 98,
+      "branches": 95,
+      "functions": 100,
+      "lines": 99
+    },
+    "rxdb-adapter-sqlite-wasm": {
+      "statements": 96,
+      "branches": 90,
+      "functions": 95,
+      "lines": 97
+    },
+    "rxdb-adapter-sqliteai": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "rxdb-adapter-supabase": {
+      "statements": 94,
+      "branches": 81,
+      "functions": 97,
+      "lines": 94
+    },
+    "rxdb-adapter-wa-sqlite": {
+      "statements": 89,
+      "branches": 84,
+      "functions": 83,
+      "lines": 92
+    },
+    "rxdb-angular": {
+      "statements": 100,
+      "branches": 95,
+      "functions": 100,
+      "lines": 100
+    },
+    "rxdb-client-generator": {
+      "statements": 94,
+      "branches": 86,
+      "functions": 94,
+      "lines": 95
+    },
+    "rxdb-devtools": {
+      "statements": 96,
+      "branches": 91,
+      "functions": 98,
+      "lines": 98
+    },
+    "rxdb-plugin-graph": {
+      "statements": 95,
+      "branches": 84,
+      "functions": 96,
+      "lines": 96
+    },
+    "rxdb-plugin-search": {
+      "statements": 88,
+      "branches": 82,
+      "functions": 88,
+      "lines": 91
+    },
+    "rxdb-plugin-search-angular": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "rxdb-plugin-search-react": {
+      "statements": 100,
+      "branches": 96,
+      "functions": 100,
+      "lines": 100
+    },
+    "rxdb-plugin-search-vue": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "rxdb-plugin-storage": {
+      "statements": 91,
+      "branches": 84,
+      "functions": 91,
+      "lines": 92
+    },
+    "rxdb-plugin-workspace": {
+      "statements": 95,
+      "branches": 87,
+      "functions": 100,
+      "lines": 98
+    },
+    "rxdb-react": {
+      "statements": 99,
+      "branches": 93,
+      "functions": 100,
+      "lines": 100
+    },
+    "rxdb-vue": {
+      "statements": 98,
+      "branches": 91,
+      "functions": 100,
+      "lines": 98
+    },
+    "utils": {
+      "statements": 95,
+      "branches": 92,
+      "functions": 96,
+      "lines": 96
+    }
+  }
+}

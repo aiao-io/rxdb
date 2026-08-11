@@ -1,0 +1,533 @@
+@let undoCount = (history.undoCount$ | async) ?? 0;
+@let redoCount = (history.redoCount$ | async) ?? 0;
+@let undoDisabled = undoCount === 0;
+@let redoDisabled = redoCount === 0;
+@let fileCount = fileResource.value().length;
+@let keyword = searchKeyword();
+@let matchedCount = matchedFileIds().size;
+@let selectedFolder = selectedFolderId();
+@let showHistory = $show_history();
+
+<div class="flex h-full">
+  <ao-history-sidebar
+    [borderSide]="'right'"
+    [histories]="(history.histories$ | async) ?? []"
+    [scopeType]="history.type"
+    [show]="showHistory"
+    (closeClick)="toggle_history()"
+  />
+
+  <main
+    class="h-full min-w-0 flex-1 overflow-auto"
+    #mainContainer
+    (scroll)="onScroll($event)"
+    cdkVirtualScrollingElement
+  >
+    @if ($show_sticky_header()) {
+      <div class="border-base-300 bg-base-100 sticky top-0 z-10 border-b px-4 py-2 shadow-sm">
+        <div class="mx-auto flex max-w-4xl items-center justify-between">
+          <div class="flex items-center gap-3">
+            <h2
+              class="cursor-pointer text-lg font-semibold"
+              (click)="scroll_to_top()"
+              (keydown.enter)="scroll_to_top()"
+              (keydown.space)="scroll_to_top()"
+              role="button"
+              tabindex="0"
+            >
+              File Manager - Lazy Load
+            </h2>
+            @if (keyword) {
+              <div class="badge badge-warning badge-sm">搜索: {{ matchedCount }} 项</div>
+            } @else {
+              <div class="badge badge-primary" data-testid="file-count-sticky">{{ fileCount }} 项</div>
+            }
+
+            <!-- 批量添加 -->
+            <div class="dropdown dropdown-end" [class.dropdown-open]="add_many.isPending()">
+              <button class="btn btn-sm btn-circle" aria-label="批量添加" data-testid="file-batch-add-sticky">
+                <svg [lucideIcon]="Plus" [size]="16" />
+              </button>
+              <ul class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                @for (option of batchAddOptions; track option.count) {
+                  <li>
+                    <button
+                      [attr.data-testid]="'file-batch-option-' + option.count"
+                      [disabled]="add_many.isPending()"
+                      (click)="add_many.execute(option.count); $event.stopPropagation()"
+                    >
+                      @if (add_many.isPending()) {
+                        <span class="loading loading-spinner loading-xs"></span>
+                      }
+                      添加 {{ option.label }}
+                    </button>
+                  </li>
+                }
+              </ul>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="join">
+              <button class="btn btn-sm join-item" [disabled]="undoDisabled" (click)="undo()" aria-label="撤销">
+                <svg [lucideIcon]="Undo2" size="16"></svg>
+                @if (undoCount) {
+                  <span class="badge badge-xs" data-testid="file-undo-count">{{ undoCount }}</span>
+                }
+              </button>
+              <button class="btn btn-sm join-item" [disabled]="redoDisabled" (click)="redo()" aria-label="重做">
+                <svg [lucideIcon]="Redo2" size="16"></svg>
+                @if (redoCount) {
+                  <span class="badge badge-xs" data-testid="file-redo-count">{{ redoCount }}</span>
+                }
+              </button>
+            </div>
+            <button
+              class="btn btn-sm"
+              [class.btn-primary]="showHistory"
+              (click)="toggle_history()"
+              aria-label="历史记录"
+            >
+              <svg [lucideIcon]="History" size="16"></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <div class="border-base-300 bg-base-100 flex-none border-b p-4" #fullHeader>
+      <div class="mx-auto flex max-w-4xl flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <h1 class="text-2xl font-bold">File Manager - Lazy Load</h1>
+            @if (keyword) {
+              <div class="badge badge-warning badge-sm">搜索: {{ matchedCount }} 项</div>
+            } @else {
+              <div class="badge badge-primary" data-testid="file-count">{{ fileCount }} 项</div>
+            }
+
+            <!-- 批量添加 -->
+            <div class="dropdown dropdown-end" [class.dropdown-open]="add_many.isPending()">
+              <button class="btn btn-sm btn-circle" aria-label="批量添加" data-testid="file-batch-add">
+                <svg [lucideIcon]="Plus" [size]="16" />
+              </button>
+              <ul class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                @for (option of batchAddOptions; track option.count) {
+                  <li>
+                    <button
+                      [attr.data-testid]="'file-batch-option-' + option.count"
+                      [disabled]="add_many.isPending()"
+                      (click)="add_many.execute(option.count); $event.stopPropagation()"
+                    >
+                      @if (add_many.isPending()) {
+                        <span class="loading loading-spinner loading-xs"></span>
+                      }
+                      添加 {{ option.label }}
+                    </button>
+                  </li>
+                }
+              </ul>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <div class="join">
+              <button class="btn btn-sm join-item" [disabled]="undoDisabled" (click)="undo()" aria-label="撤销">
+                <svg [lucideIcon]="Undo2" size="16"></svg>
+                @if (undoCount) {
+                  <span class="badge badge-xs" data-testid="file-undo-count">{{ undoCount }}</span>
+                }
+              </button>
+              <button class="btn btn-sm join-item" [disabled]="redoDisabled" (click)="redo()" aria-label="重做">
+                <svg [lucideIcon]="Redo2" size="16"></svg>
+                @if (redoCount) {
+                  <span class="badge badge-xs" data-testid="file-redo-count">{{ redoCount }}</span>
+                }
+              </button>
+            </div>
+            <button
+              class="btn btn-sm"
+              [class.btn-primary]="showHistory"
+              (click)="toggle_history()"
+              aria-label="历史记录"
+            >
+              <svg [lucideIcon]="History" size="16"></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <div class="bg-base-100 border-base-200 flex items-center gap-2 rounded-lg border px-3 py-1 shadow-sm">
+              <span class="text-xs opacity-70">已展开</span>
+              <span class="font-mono text-lg font-bold" data-testid="file-expanded-count">{{ expandedCount() }}</span>
+            </div>
+            <button
+              class="btn btn-sm btn-ghost btn-square"
+              [title]="isAllExpanded() ? '折叠全部' : '展开全部'"
+              (click)="toggleExpandAll()"
+              data-testid="file-toggle-all"
+            >
+              <svg [lucideIcon]="isAllExpanded() ? ChevronsUp : ChevronsDown" [size]="20" />
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              class="btn btn-sm btn-error btn-outline"
+              [disabled]="delete_all.isPending()"
+              (click)="delete_all.execute()"
+              data-testid="file-delete-all"
+            >
+              @if (delete_all.isPending()) {
+                <span class="loading loading-spinner loading-xs"></span>
+              } @else {
+                <svg [lucideIcon]="Trash2" [size]="16" />
+              }
+              删除所有数据
+            </button>
+          </div>
+        </div>
+
+        <!-- 搜索框和排序 -->
+        <div class="flex gap-2">
+          <div class="relative flex-1">
+            <svg
+              class="text-base-content/40 absolute top-1/2 left-3 -translate-y-1/2"
+              [lucideIcon]="Search"
+              [size]="16"
+            />
+            <input
+              class="input input-bordered input-sm w-full pl-10"
+              [(ngModel)]="$search_keyword"
+              data-testid="file-search-input"
+              placeholder="搜索文件或文件夹..."
+              type="text"
+            />
+          </div>
+
+          <!-- 排序下拉框 -->
+          <select
+            class="select select-bordered select-sm w-44"
+            [value]="sortMode()"
+            (change)="onSortModeChange($event)"
+            data-testid="file-sort-select"
+          >
+            <option value="manual">自由排序</option>
+            <option value="name-asc">名称 A→Z</option>
+            <option value="name-desc">名称 Z→A</option>
+            <option value="type-asc">文件夹优先</option>
+            <option value="type-desc">文件优先</option>
+            <option value="ext-asc">扩展名 A→Z</option>
+            <option value="ext-desc">扩展名 Z→A</option>
+            <option value="size-asc">大小 小→大</option>
+            <option value="size-desc">大小 大→小</option>
+          </select>
+
+          @if (keyword) {
+            <button class="btn btn-ghost btn-sm" (click)="clearSearch()" data-testid="file-clear-search" type="button">
+              <svg [lucideIcon]="X" [size]="16" />
+              清除
+            </button>
+          }
+        </div>
+
+        <!-- 添加文件/文件夹表单 -->
+        @let isAddingFile = $is_adding_file();
+        <div class="flex flex-col gap-2">
+          <!-- 父文件夹选择提示 -->
+          @if (selectedFolder) {
+            <div class="bg-info/10 flex items-center gap-2 rounded px-3 py-1 text-sm">
+              <svg class="text-info" [lucideIcon]="Folder" [size]="14" />
+              <span class="flex-1">
+                将添加到:
+                <span class="font-semibold">{{ getSelectedFolderTitle() }}</span>
+              </span>
+              <button class="btn btn-ghost btn-xs" (click)="cancelSelectFolder()" aria-label="取消选择">
+                <svg [lucideIcon]="X" [size]="14" />
+              </button>
+            </div>
+          }
+
+          <div class="flex gap-2">
+            <!-- 文件/文件夹模式切换 -->
+            <button
+              class="btn btn-sm"
+              [class.btn-info]="isAddingFile"
+              [class.btn-warning]="!isAddingFile"
+              (click)="toggleAddingMode()"
+              aria-label="切换模式"
+              type="button"
+            >
+              <svg [lucideIcon]="isAddingFile ? File : Folder" [size]="16" />
+              {{ isAddingFile ? '文件' : '文件夹' }}
+            </button>
+
+            <!-- 扩展名选择器 (仅文件模式) -->
+            @if (isAddingFile) {
+              <select
+                class="select select-bordered select-sm w-24"
+                [(ngModel)]="$new_file_extension"
+                data-testid="file-extension-select"
+              >
+                @for (opt of extensionOptions; track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+            }
+
+            <input
+              class="input input-bordered input-sm flex-1"
+              id="file-name-input"
+              [(ngModel)]="$new_file_name"
+              [placeholder]="
+                isAddingFile ?
+                  '添加文件' + (selectedFolder ? '' : ' (根目录)') + '...'
+                : '添加文件夹' + (selectedFolder ? '' : ' (根目录)') + '...'
+              "
+              (keyup.enter)="onFormSubmit($event)"
+              autocomplete="off"
+              data-testid="file-name-input"
+              type="text"
+            />
+
+            <button
+              class="btn btn-neutral btn-sm"
+              [disabled]="isSubmitDisabled()"
+              (click)="onFormSubmit($event)"
+              data-testid="file-submit"
+              type="button"
+            >
+              <svg [lucideIcon]="Plus" [size]="16" />
+              添加
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="p-6">
+      <div class="mx-auto max-w-4xl space-y-6">
+        @if (store.searchWarning(); as warning) {
+          <div class="alert alert-info">
+            <svg [lucideIcon]="TriangleAlert" [size]="20" />
+            <div class="flex-1">
+              <div class="font-semibold">搜索范围限制</div>
+              <div class="text-sm">
+                {{ warning.message }}
+                <span class="ml-2 opacity-70">已加载: {{ warning.loadedCount }} 个节点</span>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (pathConflictWarning()) {
+          <div class="alert alert-warning">
+            <svg [lucideIcon]="TriangleAlert" [size]="20" />
+            <div class="flex-1">
+              <div class="font-semibold">路径冲突警告</div>
+              <div class="text-sm">
+                已存在同名文件/文件夹：
+                <strong>{{ pathConflictWarning()?.conflictPath }}</strong>
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-sm btn-circle" (click)="clearPathWarning()">
+              <svg [lucideIcon]="X" [size]="16" />
+            </button>
+          </div>
+        }
+
+        <div class="card bg-base-100 shadow-sm">
+          <div class="card-body p-0">
+            @if (treeNodes().length === 0) {
+              <div class="empty-state text-base-content/60 py-8 text-center">
+                <p class="mb-2 text-lg">暂无文件</p>
+                <p class="text-sm">点击上方"添加根文件夹"按钮创建第一个文件夹</p>
+              </div>
+            } @else {
+              <cdk-virtual-scroll-viewport class="virtual-scroll-viewport" #virtualScrollViewport [itemSize]="44">
+                <ul class="tree-list">
+                  <li
+                    class="tree-node"
+                    *cdkVirtualFor="let node of treeNodes(); trackBy: trackByFileId"
+                    [attr.data-file-id]="node.node.id"
+                    [attr.data-parent-id]="node.node.parentId"
+                    [attr.draggable]="true"
+                    [class.dragging]="isDragging(node.node.id)"
+                    [class.drop-after]="getDragState(node.node.id) === 'drop-after'"
+                    [class.drop-before]="getDragState(node.node.id) === 'drop-before'"
+                    [class.drop-highlighted]="isHighlighted(node.node.id)"
+                    [class.drop-into]="getDragState(node.node.id) === 'drop-into'"
+                    [class.drop-invalid]="isInvalidTarget(node.node.id)"
+                    [class.z-10]="selectedFolderId() === node.node.id"
+                    [style.padding-left.px]="node.level * 24"
+                    (dragend)="onDragEnd($event)"
+                    (dragleave)="onDragLeave($event)"
+                    (dragover)="onDragOver($event, node.node)"
+                    (dragstart)="onDragStart($event, node.node)"
+                    (drop)="onDrop($event, node.node)"
+                    data-testid="file-row"
+                  >
+                    <div
+                      class="tree-node-content hover:bg-base-200 group flex items-center gap-2 rounded px-2 py-2"
+                      [class.ring-2]="selectedFolderId() === node.node.id"
+                      [class.ring-inset]="selectedFolderId() === node.node.id"
+                      [class.ring-primary]="selectedFolderId() === node.node.id"
+                    >
+                      <button
+                        class="btn btn-ghost btn-xs btn-square"
+                        [class.invisible]="!node.hasChildren"
+                        [disabled]="isNodeLoading(node.node.id)"
+                        (click)="toggleExpand(node.node)"
+                        data-testid="file-node-toggle"
+                      >
+                        @if (isNodeLoading(node.node.id)) {
+                          <span class="loading loading-spinner loading-xs"></span>
+                        } @else if (node.isExpanded) {
+                          <svg [lucideIcon]="ChevronDown" [size]="16" />
+                        } @else {
+                          <svg [lucideIcon]="ChevronRight" [size]="16" />
+                        }
+                      </button>
+
+                      <div class="flex-shrink-0">
+                        @if (node.node.type === 'folder') {
+                          @if (node.isExpanded) {
+                            <svg class="text-yellow-500" [lucideIcon]="FolderOpen" [size]="18" />
+                          } @else {
+                            <svg class="text-yellow-500" [lucideIcon]="Folder" [size]="18" />
+                          }
+                        } @else {
+                          @let iconName = getFileIconName(node.node);
+                          @if (iconName === 'file-text') {
+                            <svg class="text-blue-500" [lucideIcon]="FileText" [size]="18" />
+                          } @else if (iconName === 'file-code') {
+                            <svg class="text-green-500" [lucideIcon]="FileCode" [size]="18" />
+                          } @else if (iconName === 'file-image') {
+                            <svg class="text-purple-500" [lucideIcon]="FileImage" [size]="18" />
+                          } @else if (iconName === 'file-video') {
+                            <svg class="text-red-500" [lucideIcon]="FileVideo" [size]="18" />
+                          } @else if (iconName === 'file-audio') {
+                            <svg class="text-pink-500" [lucideIcon]="FileAudio" [size]="18" />
+                          } @else if (iconName === 'file-archive') {
+                            <svg class="text-orange-500" [lucideIcon]="FileArchive" [size]="18" />
+                          } @else {
+                            <svg class="text-gray-500" [lucideIcon]="File" [size]="18" />
+                          }
+                        }
+                      </div>
+
+                      @if (editingFileId() === node.node.id) {
+                        <form class="flex flex-1 gap-2" (submit)="saveEdit($event)">
+                          <input
+                            class="input input-bordered input-sm flex-1"
+                            [(ngModel)]="$edit_file_name"
+                            (keydown.escape)="cancelEdit()"
+                            (keyup.enter)="saveEdit($event)"
+                            type="text"
+                          />
+                          <button class="btn btn-primary btn-sm" type="submit">确认</button>
+                          <button class="btn btn-ghost btn-sm" (click)="cancelEdit()" type="button">取消</button>
+                        </form>
+                      } @else {
+                        <span
+                          class="flex-1 text-sm"
+                          [attr.data-testid]="node.isMatched ? 'file-search-match' : 'file-name'"
+                          [class.bg-yellow-200]="node.isMatched"
+                          [class.cursor-pointer]="node.node.type === 'folder'"
+                          [class.font-semibold]="selectedFolderId() === node.node.id"
+                          [class.px-1]="node.isMatched"
+                          [class.rounded]="node.isMatched"
+                          [class.text-primary]="selectedFolderId() === node.node.id"
+                          (click)="node.node.type === 'folder' ? selectFolder(node.node.id) : null"
+                          aria-hidden="true"
+                        >
+                          {{ getDisplayName(node.node) }}
+                        </span>
+
+                        @if (getNodeError(node.node.id); as error) {
+                          <button
+                            class="btn btn-error btn-xs"
+                            (click)="retryLoadChildren(node.node.id)"
+                            title="加载失败，点击重试"
+                          >
+                            <svg [lucideIcon]="TriangleAlert" [size]="14" />
+                            重试
+                          </button>
+                        }
+
+                        <div
+                          class="actions flex gap-1 opacity-0 transition-opacity group-hover:opacity-100"
+                          data-testid="file-actions"
+                        >
+                          @if (node.node.type === 'folder') {
+                            <button
+                              class="btn btn-ghost btn-xs"
+                              (click)="selectFolder(node.node.id)"
+                              title="添加子文件夹"
+                            >
+                              <svg [lucideIcon]="Plus" [size]="14" />
+                            </button>
+                          }
+                          <button class="btn btn-ghost btn-xs" (click)="startEdit($event, node.node)" title="重命名">
+                            <svg [lucideIcon]="Pen" [size]="14" />
+                          </button>
+                          <button
+                            class="btn btn-ghost btn-xs text-error"
+                            (click)="deleteFile($event, node.node)"
+                            title="删除"
+                          >
+                            <svg [lucideIcon]="Trash2" [size]="14" />
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  </li>
+                </ul>
+              </cdk-virtual-scroll-viewport>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+@if (fileToDelete(); as file) {
+  <dialog class="modal modal-open" role="dialog">
+    <div class="modal-box">
+      <h3 class="text-lg font-bold">确认删除</h3>
+      <div class="py-4">
+        <p class="mb-3">
+          确定要删除
+          <span class="text-primary font-semibold">"{{ getDisplayName(file) }}"</span>
+          吗？
+        </p>
+        @let impact = deleteImpact();
+        @if (impact.childrenCount > 0) {
+          <div class="alert alert-warning">
+            <svg [lucideIcon]="TriangleAlert" [size]="20" />
+            <div class="flex flex-col gap-1 text-sm">
+              <p class="font-medium">此操作将级联删除：</p>
+              <ul class="ml-4 list-disc">
+                <li>{{ impact.childrenCount }} 个直接子项</li>
+                @if (impact.descendantsCount > impact.childrenCount) {
+                  <li>共 {{ impact.descendantsCount }} 个所有后代节点</li>
+                }
+              </ul>
+            </div>
+          </div>
+        }
+      </div>
+      <div class="modal-action">
+        <button class="btn btn-ghost" (click)="cancelDelete()" type="button">取消</button>
+        <button class="btn btn-error" (click)="executeCascadeDelete()" type="button">
+          <svg [lucideIcon]="Trash2" [size]="16" />
+          {{ impact.childrenCount > 0 ? '级联删除' : '确认删除' }}
+        </button>
+      </div>
+    </div>
+    <form class="modal-backdrop" (click)="cancelDelete()" (keydown.escape)="cancelDelete()" method="dialog">
+      <button aria-label="关闭对话框" type="button">close</button>
+    </form>
+  </dialog>
+}

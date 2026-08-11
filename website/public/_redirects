@@ -1,0 +1,13 @@
+# SPA 路由回退规则
+# 所有 demo 应用都需要支持客户端路由
+
+# Angular demo - 所有路由回退到 index.html
+/demo/angular/*  /demo/angular/index.html  200
+
+# React demo - 所有路由回退到 index.html
+/demo/react/*  /demo/react/index.html  200
+
+# Vue demo - 所有路由回退到 index.html
+/demo/vue/*  /demo/vue/index.html  200
+
+# 文档站点本身由 Docusaurus 处理，不需要额外配置
