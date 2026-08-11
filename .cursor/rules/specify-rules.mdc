@@ -1,0 +1,15 @@
+---
+alwaysApply: true
+---
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
+
+## Active Technologies
+- TypeScript 5.9+ strict, ESM-only, `target: ES2022`. (004-local-field-encryption)
+- SQLite (wa-sqlite OPFS / sqlite-wasm OPFS / sqliteai) + PGlite (IDB / OPFS / Node FS). Encrypted column DDL is forced to `TEXT` (SQLite) / `text` (PGlite) regardless of logical `PropertyType`. (004-local-field-encryption)
+
+## Recent Changes
+- 004-local-field-encryption: Added TypeScript 5.9+ strict, ESM-only, `target: ES2022`.

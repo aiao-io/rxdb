@@ -1,0 +1,25 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "angular-todo",
+  "prefix": "ao",
+  "projectType": "library",
+  "sourceRoot": "modules/angular-todo/src",
+  "tags": ["angular-lib"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:ng-packagr-lite",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "project": "modules/angular-todo/ng-package.json",
+        "tsConfig": "modules/angular-todo/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": {
+          "tsConfig": "modules/angular-todo/tsconfig.lib.prod.json"
+        },
+        "development": {}
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+// View Transition API 动画定义
+// 可以在任何组件中 @use 使用
+
+// View Transition 动画定义
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.25s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+::view-transition-old(root) {
+  animation-name: fade-scale-out;
+}
+
+::view-transition-new(root) {
+  animation-name: fade-scale-in;
+}
+
+@keyframes fade-scale-out {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@keyframes fade-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}

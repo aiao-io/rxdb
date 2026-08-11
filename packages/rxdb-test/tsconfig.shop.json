@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "rootDir": "shop",
+    "outDir": "dist/shop",
+    "tsBuildInfoFile": "dist/tsconfig.shop.tsbuildinfo",
+    "emitDeclarationOnly": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node", "vite/client"]
+  },
+  "extends": "../../tsconfig.base.json",
+  "include": ["shop/**/*.ts"],
+  "references": [
+    {
+      "path": "../rxdb/tsconfig.lib.json"
+    }
+  ]
+}

@@ -1,0 +1,190 @@
+codecov:
+  max_report_age: off
+
+# 全局忽略：测试相关文件不参与覆盖率统计（各包 vitest 配置之外的兜底守卫）
+ignore:
+  - '**/__tests__/**'
+  - '**/*.spec.*'
+  - '**/*.test.*'
+
+coverage:
+  precision: 2 # 覆盖率精度（小数点后位数）
+  round: down # 向下取整
+  range: 70..100 # 覆盖率颜色范围
+
+  status:
+    # 项目整体覆盖率
+    project:
+      default:
+        target: 75% # 项目目标覆盖率
+        threshold: 5% # 允许下降的阈值
+        base: auto # 与哪个分支比较 (auto/parent/pr)
+        if_ci_failed: error # CI 失败时的行为
+        only_pulls: false # 也对非 PR 提交进行检查
+        paths:
+          - 'packages/**'
+
+    # 补丁（新增代码）覆盖率
+    patch:
+      default:
+        target: 80% # 新代码的目标覆盖率（要求更高）
+        threshold: 50% # 允许下降的阈值
+        base: auto
+        if_ci_failed: error
+        only_pulls: false
+
+comment:
+  layout: 'condensed_header, diff, flags, components'
+  behavior: default # 评论行为：default, once, new, or off
+  require_changes: false # 只有覆盖率变化时才评论
+  require_base: false # 需要基础分支覆盖率数据
+  require_head: true # 需要当前分支覆盖率数据
+  require_bundle_changes: true # 只有 bundle 大小变化时才评论
+  bundle_change_threshold: '1Kb' # bundle 变化阈值
+
+# Bundle Analysis 配置
+bundle_analysis:
+  warning_threshold: '5%' # 超过 5% 的增长会显示警告
+  status: 'informational' # 信息性状态（不会阻塞 PR）
+
+component_management:
+  individual_components:
+    - component_id: code-editor
+      name: '@aiao/code-editor'
+      paths:
+        - packages/code-editor
+
+    - component_id: code-editor-angular
+      name: '@aiao/code-editor-angular'
+      paths:
+        - packages/code-editor-angular
+
+    - component_id: code-editor-react
+      name: '@aiao/code-editor-react'
+      paths:
+        - packages/code-editor-react
+
+    - component_id: code-editor-vue
+      name: '@aiao/code-editor-vue'
+      paths:
+        - packages/code-editor-vue
+
+    - component_id: rxdb
+      name: '@aiao/rxdb'
+      paths:
+        - packages/rxdb
+
+    - component_id: rxdb-adapter-encrypted
+      name: '@aiao/rxdb-adapter-encrypted'
+      paths:
+        - packages/rxdb-adapter-encrypted
+
+    - component_id: rxdb-adapter-miniprogram
+      name: '@aiao/rxdb-adapter-miniprogram'
+      paths:
+        - packages/rxdb-adapter-miniprogram
+
+    - component_id: rxdb-adapter-pglite
+      name: '@aiao/rxdb-adapter-pglite'
+      paths:
+        - packages/rxdb-adapter-pglite
+
+    - component_id: rxdb-adapter-sqlite
+      name: '@aiao/rxdb-adapter-sqlite'
+      paths:
+        - packages/rxdb-adapter-sqlite
+
+    - component_id: rxdb-adapter-sqlite-core
+      name: '@aiao/rxdb-adapter-sqlite-core'
+      paths:
+        - packages/rxdb-adapter-sqlite-core
+
+    - component_id: rxdb-adapter-sqlite-wasm
+      name: '@aiao/rxdb-adapter-sqlite-wasm'
+      paths:
+        - packages/rxdb-adapter-sqlite-wasm
+
+    - component_id: rxdb-adapter-sqliteai
+      name: '@aiao/rxdb-adapter-sqliteai'
+      paths:
+        - packages/rxdb-adapter-sqliteai
+
+    - component_id: rxdb-adapter-supabase
+      name: '@aiao/rxdb-adapter-supabase'
+      paths:
+        - packages/rxdb-adapter-supabase
+
+    - component_id: rxdb-adapter-wa-sqlite
+      name: '@aiao/rxdb-adapter-wa-sqlite'
+      paths:
+        - packages/rxdb-adapter-wa-sqlite
+
+    - component_id: rxdb-angular
+      name: '@aiao/rxdb-angular'
+      paths:
+        - packages/rxdb-angular
+
+    - component_id: rxdb-client-generator
+      name: '@aiao/rxdb-client-generator'
+      paths:
+        - packages/rxdb-client-generator
+
+    - component_id: rxdb-devtools
+      name: '@aiao/rxdb-devtools'
+      paths:
+        - packages/rxdb-devtools
+
+    - component_id: rxdb-plugin-graph
+      name: '@aiao/rxdb-plugin-graph'
+      paths:
+        - packages/rxdb-plugin-graph
+
+    - component_id: rxdb-plugin-search
+      name: '@aiao/rxdb-plugin-search'
+      paths:
+        - packages/rxdb-plugin-search
+
+    - component_id: rxdb-plugin-search-angular
+      name: '@aiao/rxdb-plugin-search-angular'
+      paths:
+        - packages/rxdb-plugin-search-angular
+
+    - component_id: rxdb-plugin-search-react
+      name: '@aiao/rxdb-plugin-search-react'
+      paths:
+        - packages/rxdb-plugin-search-react
+
+    - component_id: rxdb-plugin-search-vue
+      name: '@aiao/rxdb-plugin-search-vue'
+      paths:
+        - packages/rxdb-plugin-search-vue
+
+    - component_id: rxdb-plugin-storage
+      name: '@aiao/rxdb-plugin-storage'
+      paths:
+        - packages/rxdb-plugin-storage
+
+    - component_id: rxdb-plugin-workspace
+      name: '@aiao/rxdb-plugin-workspace'
+      paths:
+        - packages/rxdb-plugin-workspace
+
+    - component_id: rxdb-react
+      name: '@aiao/rxdb-react'
+      paths:
+        - packages/rxdb-react
+
+    - component_id: rxdb-test
+      name: '@aiao/rxdb-test'
+      paths:
+        - packages/rxdb-test
+
+    - component_id: rxdb-vue
+      name: '@aiao/rxdb-vue'
+      paths:
+        - packages/rxdb-vue
+
+    - component_id: utils
+      name: '@aiao/utils'
+      paths:
+        - packages/utils

@@ -1,0 +1,607 @@
+<main class="mx-auto flex w-full max-w-4xl flex-col gap-3 p-4" data-testid="search-page">
+  <header class="flex items-baseline gap-3">
+    <h1 class="text-xl font-semibold">全局搜索</h1>
+    <span class="text-base-content/60 text-xs">仅搜索当前 RxDB 中由你创建的数据</span>
+  </header>
+
+  <div class="relative w-full max-w-md">
+    <span class="text-base-content/50 pointer-events-none absolute top-1/2 left-3 -translate-y-1/2" aria-hidden="true">
+      @if (displayState() === 'loading') {
+        <span class="loading loading-spinner loading-xs"></span>
+      } @else {
+        <svg
+          fill="none"
+          height="16"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="16"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+      }
+    </span>
+    <input
+      class="input input-bordered w-full pr-24 pl-9 [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
+      #searchInputEl
+      [attr.aria-busy]="displayState() === 'loading' ? 'true' : 'false'"
+      [value]="search.query()"
+      (input)="onInput($event)"
+      (keydown.escape)="clearSearch()"
+      aria-label="Global search"
+      data-testid="search-input"
+      placeholder="搜索…（⌘K 或 /）"
+      role="searchbox"
+      type="search"
+    />
+    <div class="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5">
+      @if (search.query().trim() || simulatedError()) {
+        <button
+          class="btn btn-ghost btn-xs btn-circle"
+          (click)="clearSearch()"
+          aria-label="清空"
+          data-testid="search-clear"
+          title="清空 (Esc)"
+          type="button"
+        >
+          <svg
+            fill="none"
+            height="14"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="14"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path d="M18 6 6 18"></path>
+            <path d="m6 6 12 12"></path>
+          </svg>
+        </button>
+      }
+      <button
+        class="btn btn-ghost btn-xs btn-circle text-warning"
+        [disabled]="!search.query().trim()"
+        (click)="simulateError()"
+        aria-label="模拟错误"
+        data-testid="search-simulate-error"
+        title="模拟错误"
+        type="button"
+      >
+        <svg
+          fill="none"
+          height="14"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="14"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path>
+          <path d="M12 9v4"></path>
+          <path d="M12 17h.01"></path>
+        </svg>
+      </button>
+      <kbd class="kbd kbd-xs mr-1 hidden sm:inline-flex">⌘K</kbd>
+    </div>
+  </div>
+
+  <section class="card bg-base-200/60 p-3" data-testid="search-scope-panel">
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="text-sm font-medium">范围</span>
+      <button
+        class="btn btn-xs"
+        [class.btn-outline]="scopeMode() !== 'global'"
+        [class.btn-primary]="scopeMode() === 'global'"
+        (click)="setScopeMode('global')"
+        data-testid="search-scope-mode-global"
+        type="button"
+      >
+        全部
+      </button>
+      <button
+        class="btn btn-xs"
+        [class.btn-outline]="scopeMode() !== 'custom'"
+        [class.btn-primary]="scopeMode() === 'custom'"
+        (click)="setScopeMode('custom')"
+        data-testid="search-scope-mode-custom"
+        type="button"
+      >
+        自定义
+      </button>
+      @if (scopeMode() === 'custom') {
+        @for (collection of scopeCollections; track collection) {
+          <label class="label cursor-pointer gap-1 py-0">
+            <input
+              class="checkbox checkbox-xs"
+              [attr.data-testid]="'search-scope-' + collection"
+              [checked]="customScope()[collection]"
+              (change)="toggleCollection(collection, $event)"
+              type="checkbox"
+            />
+            <span class="label-text text-xs">{{ scopeCollectionLabel(collection) }}</span>
+          </label>
+        }
+      }
+      <span class="text-base-content/60 ml-auto text-xs" data-testid="search-scope-summary">
+        {{ scopeSummary() }}
+      </span>
+    </div>
+  </section>
+
+  <section class="card bg-base-200/60" data-testid="search-records-panel">
+    <button
+      class="flex w-full items-center justify-between gap-2 p-3 text-left"
+      [attr.aria-expanded]="!recordsCollapsed()"
+      (click)="toggleRecordsPanel()"
+      data-testid="search-records-toggle"
+      type="button"
+    >
+      <span class="flex items-center gap-2 text-sm font-medium">
+        <svg
+          class="transition-transform"
+          [class.rotate-90]="!recordsCollapsed()"
+          fill="none"
+          height="14"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="14"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path d="m9 18 6-6-6-6"></path>
+        </svg>
+        数据记录
+        <span class="text-base-content/60 text-xs font-normal">
+          文章 {{ articleRecords().length }} · 评论 {{ commentRecords().length }}
+        </span>
+      </span>
+    </button>
+
+    @if (!recordsCollapsed()) {
+      <div class="px-3 pb-3">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div class="tabs tabs-border w-full sm:w-auto" role="tablist">
+            <button
+              [attr.aria-selected]="activeRecordTab() === 'article'"
+              [class]="'tab text-base-content' + (activeRecordTab() === 'article' ? ' tab-active' : '')"
+              (click)="selectRecordTab('article')"
+              data-testid="search-tab-article"
+              role="tab"
+              type="button"
+            >
+              文章 ({{ articleRecords().length }})
+            </button>
+            <button
+              [attr.aria-selected]="activeRecordTab() === 'comment'"
+              [class]="'tab text-base-content' + (activeRecordTab() === 'comment' ? ' tab-active' : '')"
+              (click)="selectRecordTab('comment')"
+              data-testid="search-tab-comment"
+              role="tab"
+              type="button"
+            >
+              评论 ({{ commentRecords().length }})
+            </button>
+          </div>
+
+          <button
+            class="btn btn-sm btn-primary gap-1 self-start sm:self-center"
+            [attr.aria-label]="'新建' + (activeRecordTab() === 'article' ? '文章' : '评论')"
+            [attr.data-testid]="activeRecordTab() === 'article' ? 'search-create-article' : 'search-create-comment'"
+            [disabled]="mutationBusy()"
+            (click)="openCreateModal(activeRecordTab())"
+            type="button"
+          >
+            <svg
+              fill="none"
+              height="14"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="14"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M5 12h14"></path>
+              <path d="M12 5v14"></path>
+            </svg>
+            新建{{ activeRecordTab() === 'article' ? '文章' : '评论' }}
+          </button>
+        </div>
+
+        @if (activeRecordTab() === 'article') {
+          @if (articleRecords().length === 0) {
+            <p class="text-base-content/60 mt-3 text-sm italic">暂无文章</p>
+          } @else {
+            <ul class="divide-base-300 rounded-box bg-base-100 mt-3 max-h-96 divide-y overflow-y-auto">
+              @for (article of articleRecords(); track article.id) {
+                <li
+                  class="flex items-start justify-between gap-3 px-4 py-3"
+                  [attr.data-testid]="'search-record-article-' + article.id"
+                >
+                  <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="font-medium">{{ article.title }}</span>
+                      <span class="badge badge-primary badge-sm">{{ article.category }}</span>
+                      <span class="text-base-content/55 text-xs">#{{ article.id }}</span>
+                    </div>
+                    <p class="text-base-content/80 mt-1 text-sm">{{ article.body }}</p>
+                    <div class="mt-2 flex flex-wrap gap-1">
+                      @for (tag of article.tags; track tag) {
+                        <span class="badge badge-outline badge-xs">{{ tag }}</span>
+                      }
+                    </div>
+                    <p class="text-base-content/55 mt-2 text-xs">
+                      {{ article.authorId }} · {{ article.viewCount }} 次浏览
+                    </p>
+                  </div>
+                  <button
+                    class="btn btn-xs btn-ghost text-error"
+                    [attr.data-testid]="'search-delete-article-' + article.id"
+                    [disabled]="mutationBusy()"
+                    (click)="removeListedRecord('article', article.id)"
+                    type="button"
+                  >
+                    删除
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        } @else {
+          @if (commentRecords().length === 0) {
+            <p class="text-base-content/60 mt-3 text-sm italic">暂无评论</p>
+          } @else {
+            <ul class="divide-base-300 rounded-box bg-base-100 mt-3 max-h-96 divide-y overflow-y-auto">
+              @for (comment of commentRecords(); track comment.id) {
+                <li
+                  class="flex items-start justify-between gap-3 px-4 py-3"
+                  [attr.data-testid]="'search-record-comment-' + comment.id"
+                >
+                  <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="font-medium">{{ comment.authorName }}</span>
+                      <span class="text-base-content/55 text-xs">文章 {{ comment.articleId }}</span>
+                      <span class="text-base-content/55 text-xs">#{{ comment.id }}</span>
+                    </div>
+                    <p class="text-base-content/80 mt-1 text-sm">{{ comment.content }}</p>
+                  </div>
+                  <button
+                    class="btn btn-xs btn-ghost text-error"
+                    [attr.data-testid]="'search-delete-comment-' + comment.id"
+                    [disabled]="mutationBusy()"
+                    (click)="removeListedRecord('comment', comment.id)"
+                    type="button"
+                  >
+                    删除
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        }
+
+        @if (mutationMessage(); as message) {
+          <p class="text-base-content/70 mt-3 text-xs" data-testid="search-mutation-message" role="status">
+            {{ message }}
+          </p>
+        }
+      </div>
+    }
+  </section>
+
+  <div class="flex items-center gap-3 text-xs">
+    <span class="text-base-content/60" data-testid="search-seed-count">数据：{{ seedLabel() }}</span>
+    <button
+      class="btn btn-sm btn-ghost"
+      [disabled]="seeding()"
+      (click)="seed()"
+      data-testid="search-reseed"
+      type="button"
+    >
+      {{ seeding() ? '写入中…' : '重新写入' }}
+    </button>
+  </div>
+
+  @if (createModalOpen()) {
+    <div
+      class="modal modal-open"
+      (keydown.control.enter)="submitCreateModal()"
+      (keydown.escape)="closeCreateModal()"
+      (keydown.meta.enter)="submitCreateModal()"
+      data-testid="search-create-modal"
+      tabindex="-1"
+    >
+      <div class="modal-box max-w-2xl" aria-labelledby="search-create-title" aria-modal="true" role="dialog">
+        <div class="flex items-start justify-between gap-3">
+          <h2 class="text-lg font-semibold" id="search-create-title">
+            新建{{ createModalType() === 'article' ? '文章' : '评论' }}
+          </h2>
+          <button class="btn btn-ghost btn-sm btn-circle" (click)="closeCreateModal()" aria-label="关闭" type="button">
+            <svg
+              fill="none"
+              height="14"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="14"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </div>
+
+        @if (createModalType() === 'article') {
+          <div class="mt-4 grid gap-3 sm:grid-cols-2">
+            <label class="floating-label sm:col-span-2">
+              <input
+                class="input input-bordered w-full"
+                #articleTitleInput
+                [value]="articleDraft().title"
+                (input)="updateArticleDraftField('title', $any($event.target).value)"
+                placeholder="标题"
+                type="text"
+              />
+              <span>标题</span>
+            </label>
+
+            <label class="floating-label sm:col-span-2">
+              <textarea
+                class="textarea textarea-bordered min-h-28 w-full"
+                (input)="updateArticleDraftField('body', $any($event.target).value)"
+                placeholder="正文"
+                >{{ articleDraft().body }}</textarea>
+              <span>正文</span>
+            </label>
+
+            <label class="floating-label">
+              <select
+                class="select select-bordered w-full"
+                [value]="articleDraft().category"
+                (change)="updateArticleDraftField('category', $any($event.target).value)"
+              >
+                <option value="tech">tech</option>
+                <option value="life">life</option>
+                <option value="travel">travel</option>
+              </select>
+              <span>分类</span>
+            </label>
+
+            <label class="floating-label">
+              <input
+                class="input input-bordered w-full"
+                [value]="articleDraft().viewCount"
+                (input)="updateArticleDraftField('viewCount', toNumber($any($event.target).value))"
+                placeholder="浏览数"
+                type="number"
+              />
+              <span>浏览数</span>
+            </label>
+
+            <label class="floating-label">
+              <input
+                class="input input-bordered w-full"
+                [value]="articleDraft().authorId"
+                (input)="updateArticleDraftField('authorId', $any($event.target).value)"
+                placeholder="作者 ID"
+                type="text"
+              />
+              <span>作者 ID</span>
+            </label>
+
+            <label class="floating-label">
+              <input
+                class="input input-bordered w-full"
+                [value]="articleDraft().tagsText"
+                (input)="updateArticleDraftField('tagsText', $any($event.target).value)"
+                placeholder="标签1, 标签2"
+                type="text"
+              />
+              <span>标签（逗号分隔）</span>
+            </label>
+          </div>
+        } @else {
+          <div class="mt-4 grid gap-3">
+            <label class="floating-label">
+              <input
+                class="input input-bordered w-full"
+                #commentArticleIdInput
+                [value]="commentDraft().articleId"
+                (input)="updateCommentDraftField('articleId', $any($event.target).value)"
+                placeholder="文章 ID"
+                type="text"
+              />
+              <span>文章 ID</span>
+            </label>
+
+            <label class="floating-label">
+              <input
+                class="input input-bordered w-full"
+                [value]="commentDraft().authorName"
+                (input)="updateCommentDraftField('authorName', $any($event.target).value)"
+                placeholder="作者"
+                type="text"
+              />
+              <span>作者</span>
+            </label>
+
+            <label class="floating-label">
+              <textarea
+                class="textarea textarea-bordered min-h-28 w-full"
+                (input)="updateCommentDraftField('content', $any($event.target).value)"
+                placeholder="内容"
+                >{{ commentDraft().content }}</textarea>
+              <span>内容</span>
+            </label>
+          </div>
+        }
+
+        <div class="modal-action">
+          <button class="btn btn-ghost" (click)="closeCreateModal()" type="button">取消</button>
+          <button
+            class="btn btn-primary"
+            [disabled]="mutationBusy() || !canSubmitCreateModal()"
+            (click)="submitCreateModal()"
+            data-testid="search-create-submit"
+            type="button"
+          >
+            创建
+          </button>
+        </div>
+      </div>
+      <button class="modal-backdrop" (click)="closeCreateModal()" aria-label="关闭" type="button"></button>
+    </div>
+  }
+
+  <section class="flex flex-col gap-2" aria-live="polite" data-testid="search-results">
+    <div
+      class="rounded-box border-base-300 bg-base-100 flex items-center gap-2 border px-3 py-2 text-sm"
+      [class.border-primary]="displayState() === 'loading'"
+      [class.border-warning]="displayState() === 'error'"
+    >
+      @switch (displayState()) {
+        @case ('loading') {
+          <span class="loading loading-spinner loading-xs text-primary"></span>
+        }
+        @case ('error') {
+          <span class="text-warning">⚠</span>
+        }
+        @case ('empty') {
+          <span class="text-base-content/50">∅</span>
+        }
+        @case ('success') {
+          <span class="text-success">✓</span>
+        }
+        @default {
+          <span class="text-base-content/50">⌕</span>
+        }
+      }
+      <span class="text-base-content/80" data-testid="search-results-count" role="status">
+        {{ resultAnnouncement() }}
+      </span>
+      <span class="text-base-content/50 text-xs">·</span>
+      <span class="text-base-content/60 text-xs" data-testid="search-state">{{ displayState() }}</span>
+      @if (displayError(); as err) {
+        <span class="text-warning text-xs">— {{ err }}</span>
+      }
+    </div>
+
+    @if (displayState() === 'empty' && search.query().trim()) {
+      <p class="text-sm italic" data-testid="search-empty">未找到 "{{ search.query() }}" 相关结果</p>
+    }
+
+    <ul class="flex flex-col gap-2">
+      @for (r of search.results(); track r.collection + ':' + r.id) {
+        <li
+          class="group card bg-base-200 hover:bg-base-300 relative p-3 transition-colors"
+          [attr.data-collection]="r.collection"
+          [attr.data-id]="r.id"
+          [attr.data-rank]="r.rank"
+          data-testid="search-result"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-1.5 text-xs">
+                <span [class]="'badge badge-sm ' + collectionBadgeClass(r.collection)">
+                  {{ localizeCollection(r.collection) }}
+                </span>
+                <span class="text-base-content/70 font-mono">#{{ r.id }}</span>
+                <span class="text-base-content/30">·</span>
+                <span class="text-base-content/60">
+                  匹配：
+                  <span class="text-base-content/90 font-medium">{{ localizeField(r.matchedField) }}</span>
+                </span>
+                <span class="text-base-content/30">·</span>
+                <!-- FTS5 bm25() 返回负值，越负越相关；取反后展示为正数，数值越大相关度越高 -->
+                <span class="badge badge-outline badge-sm font-mono">相关度 {{ (-r.rank).toFixed(4) }}</span>
+              </div>
+              <p class="mt-1.5 text-sm leading-relaxed break-words">{{ r.snippet }}</p>
+            </div>
+
+            @if (r.collection === 'article' || r.collection === 'comment') {
+              <div
+                class="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
+              >
+                <button
+                  class="btn btn-xs btn-ghost"
+                  [attr.data-testid]="'search-result-update-' + r.collection"
+                  [disabled]="mutationBusy()"
+                  (click)="updateResultRecord(r)"
+                  aria-label="更新"
+                  title="更新"
+                  type="button"
+                >
+                  <svg
+                    fill="none"
+                    height="12"
+                    stroke="currentColor"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    viewBox="0 0 24 24"
+                    width="12"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                    <path d="M3 3v5h5"></path>
+                    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
+                    <path d="M16 16h5v5"></path>
+                  </svg>
+                </button>
+                <button
+                  class="btn btn-xs btn-ghost text-error"
+                  [attr.data-testid]="'search-result-delete-' + r.collection"
+                  [disabled]="mutationBusy()"
+                  (click)="removeResultRecord(r)"
+                  aria-label="删除"
+                  title="删除"
+                  type="button"
+                >
+                  <svg
+                    fill="none"
+                    height="12"
+                    stroke="currentColor"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    viewBox="0 0 24 24"
+                    width="12"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M3 6h18"></path>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+
+    @if (search.hasMore()) {
+      <button class="btn btn-sm" (click)="loadMore()" data-testid="search-load-more" type="button">加载更多</button>
+    }
+
+    @if (displayState() === 'error') {
+      <button class="btn btn-sm btn-warning" (click)="retrySearch()" data-testid="search-retry" type="button">
+        重试
+      </button>
+    }
+  </section>
+</main>

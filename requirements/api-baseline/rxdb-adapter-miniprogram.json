@@ -1,0 +1,100 @@
+{
+  "exports": [
+    {
+      "name": "ADAPTER_NAME",
+      "kind": "value"
+    },
+    {
+      "name": "assertMiniProgramRuntimeCapabilities",
+      "kind": "value"
+    },
+    {
+      "name": "checkMiniProgramRuntimeCapabilities",
+      "kind": "value"
+    },
+    {
+      "name": "createWaSqliteMiniProgramClient",
+      "kind": "value"
+    },
+    {
+      "name": "createWechatFileVFS",
+      "kind": "value"
+    },
+    {
+      "name": "DEFAULT_WASM_PATH",
+      "kind": "value"
+    },
+    {
+      "name": "loadWaSqliteMiniProgramModule",
+      "kind": "value"
+    },
+    {
+      "name": "MiniProgramFileSystemManager",
+      "kind": "type"
+    },
+    {
+      "name": "MiniProgramRuntimeCapability",
+      "kind": "type"
+    },
+    {
+      "name": "MiniProgramWasmInstance",
+      "kind": "type"
+    },
+    {
+      "name": "MiniProgramWasmRuntime",
+      "kind": "type"
+    },
+    {
+      "name": "MiniProgramWechatApi",
+      "kind": "type"
+    },
+    {
+      "name": "ReceiveWasmInstance",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBAdapterWaSqliteMiniprogram",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBAdapterWaSqliteMiniProgram",
+      "kind": "both"
+    },
+    {
+      "name": "WaSqliteEmscriptenModule",
+      "kind": "type"
+    },
+    {
+      "name": "WaSqliteMiniProgramClient",
+      "kind": "both"
+    },
+    {
+      "name": "WaSqliteMiniprogramOptions",
+      "kind": "type"
+    },
+    {
+      "name": "WaSqliteMiniProgramOptions",
+      "kind": "type"
+    },
+    {
+      "name": "WaSqliteMiniProgramRepositoryConstructor",
+      "kind": "type"
+    },
+    {
+      "name": "WaSqliteModuleFactory",
+      "kind": "type"
+    },
+    {
+      "name": "WaSqliteModuleFactoryOptions",
+      "kind": "type"
+    },
+    {
+      "name": "WechatFileVFS",
+      "kind": "type"
+    },
+    {
+      "name": "WechatFileVFSOptions",
+      "kind": "type"
+    }
+  ]
+}

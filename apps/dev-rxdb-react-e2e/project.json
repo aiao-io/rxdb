@@ -1,0 +1,14 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project dev-rxdb-react-e2e --web",
+  "implicitDependencies": ["dev-rxdb-react"],
+  "name": "dev-rxdb-react-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-react-e2e/src",
+  "tags": [],
+  "targets": {
+    "e2e": {
+      "dependsOn": ["dev-rxdb-react:build"]
+    }
+  }
+}

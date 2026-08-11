@@ -1,0 +1,100 @@
+{
+  "exports": [
+    {
+      "name": "BATCH_TIMEOUT",
+      "kind": "value"
+    },
+    {
+      "name": "buildRuleGroup",
+      "kind": "value"
+    },
+    {
+      "name": "createSqliteClient",
+      "kind": "value"
+    },
+    {
+      "name": "GenerateSqlResult",
+      "kind": "type"
+    },
+    {
+      "name": "resetSqliteLoadCache",
+      "kind": "value"
+    },
+    {
+      "name": "resetSqliteOfficialLoadCache",
+      "kind": "value"
+    },
+    {
+      "name": "ROWID",
+      "kind": "value"
+    },
+    {
+      "name": "RxDBAdapterSqlite",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBAdapterSqliteBase",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBAdapterSqliteError",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBAdapterSqliteOfficial",
+      "kind": "both"
+    },
+    {
+      "name": "SqliteClient",
+      "kind": "both"
+    },
+    {
+      "name": "sqliteGetTableName",
+      "kind": "value"
+    },
+    {
+      "name": "sqliteGetTableNameByMetadata",
+      "kind": "value"
+    },
+    {
+      "name": "sqliteLoad",
+      "kind": "value"
+    },
+    {
+      "name": "SqliteLoadOptions",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteOfficialClient",
+      "kind": "both"
+    },
+    {
+      "name": "sqliteOfficialLoad",
+      "kind": "value"
+    },
+    {
+      "name": "SqliteOfficialLoadOptions",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteOfficialOptions",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteOfficialRepositoryConstructor",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteOptions",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteRepository",
+      "kind": "both"
+    },
+    {
+      "name": "SqliteRepositoryConstructor",
+      "kind": "type"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project dev-rxdb-vue-e2e --web",
+  "implicitDependencies": ["dev-rxdb-vue"],
+  "name": "dev-rxdb-vue-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-vue-e2e/src",
+  "targets": {
+    "e2e": {
+      "dependsOn": ["dev-rxdb-vue:build"]
+    }
+  }
+}

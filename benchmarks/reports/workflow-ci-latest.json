@@ -1,0 +1,54 @@
+{
+  "date": "2026-05-09T03:54:58.827Z",
+  "machine": "darwin/arm64",
+  "metrics": {
+    "validation100Node": {
+      "avgMs": 1.5148792500000012,
+      "p50Ms": 1.2404170000000079,
+      "p95Ms": 2.350875000000002
+    },
+    "expressionAnalysis": {
+      "avgMs": 0.22103120000000018,
+      "p50Ms": 0.026416000000011763,
+      "p95Ms": 0.2119169999999997
+    },
+    "expressionSuggestionRepaint": {
+      "avgMs": 0.022685449999998754,
+      "p50Ms": 0.016707999999994172,
+      "p95Ms": 0.045874999999995225
+    },
+    "editorVisibleFeedback": {
+      "avgMs": 0.9272457500000002,
+      "p50Ms": 0.8502499999999884,
+      "p95Ms": 1.211749999999995
+    },
+    "autosavePersistence": {
+      "avgMs": 1.5502313500000056,
+      "p50Ms": 1.0685840000000155,
+      "p95Ms": 2.764958000000007
+    },
+    "runHistoryFirstScreen": {
+      "avgMs": 2.9098874999999964,
+      "p50Ms": 1.3962080000000014,
+      "p95Ms": 6.522583999999995
+    },
+    "hostedSync": {
+      "avgMs": 0.08637090000000854,
+      "p50Ms": 0.04216700000000628,
+      "p95Ms": 0.4137920000000008
+    },
+    "packageGzipBytes": 107213
+  },
+  "notes": {
+    "packageGzipBytes": "Full package bundle gzip size is recorded as a reproducible proxy; a true delta requires a baseline artifact."
+  },
+  "sampleCount": 20,
+  "thresholds": {
+    "validationP50Ms": 50,
+    "expressionAnalysisP95Ms": 150,
+    "editorVisibleFeedbackP95Ms": 100,
+    "autosavePersistenceP95Ms": 500,
+    "runHistoryFirstScreenP95Ms": 300,
+    "hostedSyncP95Ms": 5000
+  }
+}

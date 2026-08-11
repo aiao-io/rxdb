@@ -1,0 +1,38 @@
+name: PR
+
+on:
+  pull_request:
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # lint / typecheck / test / build / 覆盖率 / API 表面门禁。不含 e2e。
+  test-all:
+    uses: ./.github/workflows/test-template.yml
+    with:
+      run_mode: affected
+      # e2e 拆到下面的独立 job：原本 e2e 和 build/lint 共用同一条
+      # `nx ... --nxBail`，一次 Playwright flake 就把整个检查染红，
+      # 分不清是代码问题还是 e2e 抖。
+      include_e2e: false
+      need_supabase: true
+      is_pr: true
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  # 上面全绿之后才跑。复用 test-all 落盘的 .nx/cache，被测应用不必重建。
+  # 分支保护的 required status checks 里对应的名字是 `e2e / e2e`。
+  e2e:
+    needs: test-all
+    uses: ./.github/workflows/e2e-template.yml
+    with:
+      run_mode: affected
+      is_pr: true

@@ -1,0 +1,43 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project rxdb-plugin-storage --web",
+  "name": "rxdb-plugin-storage",
+  "projectType": "library",
+  "sourceRoot": "packages/rxdb-plugin-storage/src",
+  "tags": ["js-lib"],
+  "targets": {
+    "coverage": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/coverage/packages/rxdb-plugin-storage"],
+      "options": {
+        "cwd": "packages/rxdb-plugin-storage",
+        "command": "vitest run --coverage",
+        "env": {
+          "VITEST_BROWSER": "false"
+        }
+      },
+      "metadata": {
+        "description": "Run Node tests with coverage before the browser coverage merge."
+      }
+    },
+    "build": {
+      "options": {
+        "command": "vite build && node ../../scripts/audit/package-api-docs.mjs . --members"
+      }
+    },
+    "test-browser": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["coverage"],
+      "options": {
+        "cwd": "packages/rxdb-plugin-storage",
+        "command": "vitest run --coverage && node ../../scripts/merge-vitest-reports.mjs --node=../../coverage/packages/rxdb-plugin-storage --browser=../../coverage/packages/rxdb-plugin-storage-browser --output=../../coverage/packages/rxdb-plugin-storage",
+        "env": {
+          "VITEST_BROWSER": "true"
+        }
+      },
+      "metadata": {
+        "description": "Run the browser (real chromium) vitest project. Gated by VITEST_BROWSER=true in vite.config.mts; without this target these specs never run in CI."
+      }
+    }
+  }
+}

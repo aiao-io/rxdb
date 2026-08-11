@@ -1,0 +1,19 @@
+{
+  "$schemaVersion": 1,
+  "bridge": {
+    "tag": null,
+    "version": null
+  },
+  "oldBundlePolicy": {
+    "strategy": null,
+    "minimumVersion": null,
+    "enforced": false
+  },
+  "release": {
+    "kind": "bridge",
+    "version": "0.0.25",
+    "protocolVersion": 1,
+    "systemSchemaUpgrade": false,
+    "changeCodecUpgrade": false
+  }
+}

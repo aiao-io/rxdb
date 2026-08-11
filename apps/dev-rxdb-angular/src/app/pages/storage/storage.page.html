@@ -1,0 +1,459 @@
+<div class="flex h-full flex-col" [attr.data-testid]="TESTID.PAGE">
+  <div class="border-base-300 flex items-center justify-between border-b px-3 py-2">
+    <div class="flex items-center gap-3">
+      <span class="text-sm font-bold">{{ LABELS.PAGE_TITLE }}</span>
+      <div class="flex items-center gap-1.5">
+        <div
+          class="h-2 w-2 rounded-full"
+          [class.bg-error]="!opfsAvailable()"
+          [class.bg-success]="opfsAvailable()"
+        ></div>
+        <span class="text-base-content/60 text-xs">{{ opfsAvailable() ? 'Connected' : 'Disconnected' }}</span>
+      </div>
+    </div>
+    <div class="tabs tabs-boxed tabs-xs" role="tablist">
+      <button class="tab gap-1" [class.tab-active]="viewMode() === 'list'" (click)="viewMode.set('list')" role="tab">
+        <svg [lucideIcon]="List" size="12"></svg>
+        List
+      </button>
+      <button class="tab gap-1" [class.tab-active]="viewMode() === 'grid'" (click)="viewMode.set('grid')" role="tab">
+        <svg [lucideIcon]="Grid3x3" size="12"></svg>
+        Grid
+      </button>
+    </div>
+  </div>
+
+  <div class="border-base-300 flex items-center gap-2 border-b p-2">
+    <button class="btn btn-xs btn-ghost" (click)="navigateTo('/')" title="Root">
+      <svg [lucideIcon]="Home" size="16"></svg>
+    </button>
+    <button class="btn btn-xs btn-ghost" (click)="refresh()" title="Refresh">
+      <svg [class.animate-spin]="loading()" [lucideIcon]="RefreshCw" size="16"></svg>
+    </button>
+    <div class="divider divider-horizontal m-0"></div>
+    <button class="btn btn-xs btn-primary" [attr.data-testid]="TESTID.UPLOAD_BTN" (click)="fileInputRef?.click()">
+      <svg [lucideIcon]="Upload" size="16"></svg>
+      {{ LABELS.UPLOAD }}
+    </button>
+    <button
+      class="btn btn-xs btn-primary"
+      [attr.data-testid]="TESTID.UPLOAD_FOLDER_BTN"
+      (click)="folderInputRef?.click()"
+    >
+      <svg [lucideIcon]="Folder" size="16"></svg>
+      Upload Folder
+    </button>
+    <button
+      class="btn btn-xs btn-secondary"
+      [attr.data-testid]="TESTID.NEW_FOLDER_BTN"
+      (click)="showNewFolder.set(true)"
+    >
+      <svg [lucideIcon]="FolderPlus" size="16"></svg>
+      New Folder
+    </button>
+    @if (selectedPaths().size > 0) {
+      <div class="divider divider-horizontal m-0"></div>
+      <span class="text-base-content/60 text-xs">Selected {{ selectedPaths().size }} items</span>
+      <button
+        class="btn btn-xs btn-ghost"
+        [attr.data-testid]="TESTID.CLEAR_SELECTION_BTN"
+        (click)="clearSelection()"
+        title="Clear selection"
+      >
+        <svg [lucideIcon]="X" size="14"></svg>
+      </button>
+      <button
+        class="btn btn-xs btn-info"
+        [attr.data-testid]="TESTID.BATCH_DOWNLOAD_BTN"
+        (click)="handleBatchDownload()"
+        title="Batch download"
+      >
+        <svg [lucideIcon]="Download" size="16"></svg>
+        Download
+      </button>
+      <button
+        class="btn btn-xs btn-error"
+        [attr.data-testid]="TESTID.BATCH_DELETE_BTN"
+        (click)="handleBatchDelete()"
+        title="Batch delete"
+      >
+        <svg [lucideIcon]="Trash2" size="16"></svg>
+        Delete
+      </button>
+    }
+    @if (currentPath() === '/' && allFiles().length > 0) {
+      <div class="divider divider-horizontal m-0"></div>
+      <button class="btn btn-xs btn-error btn-outline" [attr.data-testid]="TESTID.CLEAR_BTN" (click)="onClearAll()">
+        <svg [lucideIcon]="Trash2" size="16"></svg>
+        {{ LABELS.CLEAR_ALL }}
+      </button>
+    }
+  </div>
+
+  <div class="border-base-300 flex items-center gap-1 border-b px-3 py-2 text-sm">
+    <button class="hover:underline" (click)="navigateTo('/')">Root</button>
+    @for (segment of pathSegments; track segment.path) {
+      <div class="flex items-center gap-1">
+        <svg class="text-base-content/40" [lucideIcon]="ChevronRight" size="14"></svg>
+        <button class="hover:underline" (click)="navigateTo(segment.path)">
+          {{ segment.name }}
+        </button>
+      </div>
+    }
+  </div>
+
+  <div
+    class="relative flex-1 overflow-auto"
+    #gridContainer
+    (dragenter)="isDragging.set(true); $event.preventDefault()"
+    (dragleave)="isDragging.set(false); $event.preventDefault()"
+    (dragover)="$event.preventDefault()"
+    (drop)="isDragging.set(false); handleDrop($event); $event.preventDefault()"
+    (mousedown)="handleMouseDown($event)"
+  >
+    @if (entries().length === 0) {
+      <div class="flex h-full items-center justify-center" [attr.data-testid]="TESTID.EMPTY_STATE">
+        <div class="text-center">
+          <svg class="text-base-content/30 mx-auto mb-4" [lucideIcon]="Database" size="48"></svg>
+          <p class="text-base-content/60 text-sm">
+            {{ currentPath() === '/' ? LABELS.NO_FILES : 'This folder is empty' }}
+          </p>
+        </div>
+      </div>
+    } @else if (viewMode() === 'list') {
+      <app-storage-file-list
+        [currentPath]="currentPath()"
+        [entries]="entries()"
+        [selectedPaths]="selectedPaths()"
+        (contextMenu)="handleContextMenu($event.event, $event.entry)"
+        (delete)="handleDelete($event)"
+        (download)="handleDownload($event)"
+        (entryClick)="handleEntryClick($event.entry, $event.event)"
+        (navigate)="handleNavigate($event)"
+        (preview)="previewEntry.set($event)"
+      ></app-storage-file-list>
+    } @else {
+      <app-storage-file-grid
+        [currentPath]="currentPath()"
+        [entries]="entries()"
+        [selectedPaths]="selectedPaths()"
+        (contextMenu)="handleContextMenu($event.event, $event.entry)"
+        (delete)="handleDelete($event)"
+        (download)="handleDownload($event)"
+        (entryClick)="handleEntryClick($event.entry, $event.event)"
+        (navigate)="handleNavigate($event)"
+        (preview)="previewEntry.set($event)"
+      ></app-storage-file-grid>
+    }
+
+    @if (selectionBox()?.active) {
+      <div
+        class="border-primary bg-primary/10 pointer-events-none absolute border-2"
+        [style.height.px]="Math.abs(selectionBox()!.currentY - selectionBox()!.startY)"
+        [style.left.px]="Math.min(selectionBox()!.startX, selectionBox()!.currentX)"
+        [style.top.px]="Math.min(selectionBox()!.startY, selectionBox()!.currentY)"
+        [style.width.px]="Math.abs(selectionBox()!.currentX - selectionBox()!.startX)"
+      ></div>
+    }
+
+    @if (isDragging()) {
+      <div
+        class="bg-primary/10 border-primary pointer-events-none absolute inset-0 z-50 flex items-center justify-center border-2 border-dashed"
+      >
+        <div class="bg-base-100 rounded-lg p-8 shadow-lg">
+          <svg class="text-primary mx-auto mb-2" [lucideIcon]="Upload" size="48"></svg>
+          <p class="text-primary text-lg font-semibold">Drop files here to upload</p>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="border-base-300 text-base-content/60 flex items-center gap-4 border-t px-3 py-1 text-xs">
+    <span>{{ entries().length }} items ({{ dirCount }} folders, {{ fileCount }} files)</span>
+  </div>
+
+  <app-storage-file-preview [entry]="previewEntry()" (closed)="previewEntry.set(null)"></app-storage-file-preview>
+
+  @if (showNewFolder()) {
+    <div
+      class="modal modal-open"
+      [attr.data-testid]="TESTID.NEW_FOLDER_DIALOG"
+      (click)="$event.target === $event.currentTarget && showNewFolder.set(false)"
+      (keydown.escape)="showNewFolder.set(false)"
+      aria-modal="true"
+      role="dialog"
+      tabindex="-1"
+    >
+      <div
+        class="modal-box"
+        (click)="$event.target === $event.currentTarget && $event.stopPropagation()"
+        (keydown.enter)="$event.stopPropagation()"
+        tabindex="-1"
+      >
+        <h3 class="mb-4 text-base font-bold">New Folder</h3>
+        <input
+          class="input input-bordered w-full"
+          [attr.data-testid]="TESTID.NEW_FOLDER_INPUT"
+          [value]="newFolderName()"
+          (input)="onNewFolderNameInput($event)"
+          (keydown.enter)="handleCreateFolder()"
+          placeholder="Folder name"
+          type="text"
+        />
+        <div class="modal-action">
+          <button class="btn btn-sm" (click)="showNewFolder.set(false)">Cancel</button>
+          <button
+            class="btn btn-sm btn-primary"
+            [attr.data-testid]="TESTID.NEW_FOLDER_CONFIRM"
+            (click)="handleCreateFolder()"
+          >
+            Create
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (overwriteConfirm().show && overwriteConfirm().file && overwriteConfirm().existingEntry) {
+    <div
+      class="modal modal-open"
+      (click)="handleOverwriteResponse(false)"
+      (keydown.escape)="handleOverwriteResponse(false)"
+      aria-modal="true"
+      role="dialog"
+      tabindex="-1"
+    >
+      <div class="modal-box">
+        <h3 class="mb-4 flex items-center gap-2 text-base font-bold">
+          <svg class="text-warning" [lucideIcon]="AlertTriangle" size="18"></svg>
+          File Already Exists
+        </h3>
+        <p class="mb-4">
+          File
+          <span class="font-semibold">{{ overwriteConfirm().file!.name }}</span>
+          already exists. Overwrite it?
+        </p>
+        <div class="bg-base-200 mb-4 space-y-2 rounded-lg p-3">
+          <div class="flex justify-between text-sm">
+            <span class="text-base-content/60">Existing file:</span>
+            <span class="font-mono">{{ formatFileSize(overwriteConfirm().existingEntry!.size || 0) }}</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-base-content/60">New file:</span>
+            <span class="font-mono">{{ formatFileSize(overwriteConfirm().file!.size) }}</span>
+          </div>
+        </div>
+        <div class="modal-action">
+          <button class="btn btn-sm" (click)="handleOverwriteResponse(false)">Cancel</button>
+          <button class="btn btn-sm btn-warning" (click)="handleOverwriteResponse(true)">Overwrite</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (contextMenu().show && contextMenu().entry) {
+    <div
+      class="menu border-base-content/10 bg-base-300/95 fixed z-50 w-40 rounded-lg border p-1.5 text-sm shadow-2xl"
+      [attr.data-testid]="TESTID.CONTEXT_MENU"
+      [style.left.px]="contextMenu().x"
+      [style.top.px]="contextMenu().y"
+      role="menu"
+      style="backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px)"
+      tabindex="-1"
+    >
+      <li>
+        <button
+          class="gap-2 px-2 py-1.5"
+          [attr.data-testid]="TESTID.CONTEXT_VIEW"
+          (click)="handleContextMenuAction('view')"
+          type="button"
+        >
+          @if (contextMenu().entry!.kind === 'file') {
+            <svg [lucideIcon]="Eye" size="14"></svg>
+            <span>View</span>
+          } @else {
+            <svg [lucideIcon]="FolderOpen" size="14"></svg>
+            <span>Open</span>
+          }
+        </button>
+      </li>
+      <li>
+        <button
+          class="gap-2 px-2 py-1.5"
+          [attr.data-testid]="TESTID.CONTEXT_DOWNLOAD"
+          (click)="handleContextMenuAction('download')"
+          type="button"
+        >
+          <svg [lucideIcon]="Download" size="14"></svg>
+          <span>{{ contextMenu().entry!.kind === 'file' ? 'Download' : 'Download ZIP' }}</span>
+        </button>
+      </li>
+      <li>
+        <button
+          class="gap-2 px-2 py-1.5"
+          [attr.data-testid]="TESTID.CONTEXT_RENAME"
+          (click)="handleContextMenuAction('rename')"
+          type="button"
+        >
+          <svg [lucideIcon]="Edit3" size="14"></svg>
+          <span>Rename</span>
+        </button>
+      </li>
+      <li>
+        <button
+          class="text-error gap-2 px-2 py-1.5"
+          [attr.data-testid]="TESTID.CONTEXT_DELETE"
+          (click)="handleContextMenuAction('delete')"
+          type="button"
+        >
+          <svg [lucideIcon]="Trash2" size="14"></svg>
+          <span>Delete</span>
+        </button>
+      </li>
+    </div>
+  }
+
+  @let deleteTarget = deleteConfirm().target;
+  @if (deleteConfirm().show && deleteTarget) {
+    <div
+      class="modal modal-open"
+      [attr.data-testid]="TESTID.CONFIRM_DIALOG"
+      (click)="$event.target === $event.currentTarget && handleDeleteResponse(false)"
+      (keydown.escape)="handleDeleteResponse(false)"
+      aria-modal="true"
+      role="dialog"
+      tabindex="-1"
+    >
+      <div
+        class="modal-box"
+        (click)="$event.target === $event.currentTarget && $event.stopPropagation()"
+        (keydown.enter)="$event.stopPropagation()"
+        tabindex="-1"
+      >
+        <h3 class="mb-4 flex items-center gap-2 text-base font-bold">
+          <svg class="text-error" [lucideIcon]="Trash2" size="18"></svg>
+          Confirm Delete
+        </h3>
+        @if (deleteTarget.type === 'batch') {
+          <p class="mb-4">
+            Are you sure you want to delete
+            <span class="text-error font-semibold">{{ deleteTarget.count }} items</span>
+            ?
+          </p>
+        } @else {
+          <p class="mb-4">
+            Are you sure you want to delete
+            <span class="font-semibold">{{ deleteTarget.entry.kind === 'file' ? 'file' : 'folder' }}</span>
+            <span class="text-error font-semibold">{{ deleteTarget.entry.name }}</span>
+            ?
+          </p>
+          @if (deleteTarget.entry.kind === 'directory') {
+            <p class="text-warning mb-4 flex items-center gap-1 text-sm">
+              <svg [lucideIcon]="AlertTriangle" size="16"></svg>
+              This will delete the folder and all of its contents.
+            </p>
+          }
+        }
+        <div class="modal-action">
+          <button class="btn btn-sm" [attr.data-testid]="TESTID.CONFIRM_NO" (click)="handleDeleteResponse(false)">
+            Cancel
+          </button>
+          <button
+            class="btn btn-sm btn-error"
+            [attr.data-testid]="TESTID.CONFIRM_YES"
+            (click)="handleDeleteResponse(true)"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (renameDialog().show && renameDialog().entry) {
+    <div
+      class="modal modal-open"
+      [attr.data-testid]="TESTID.RENAME_DIALOG"
+      (click)="renameDialog.set({ show: false, entry: null, newName: '' })"
+      (keydown.escape)="renameDialog.set({ show: false, entry: null, newName: '' })"
+      aria-modal="true"
+      role="dialog"
+      tabindex="-1"
+    >
+      <div
+        class="modal-box"
+        (click)="$event.target === $event.currentTarget && $event.stopPropagation()"
+        (keydown.enter)="$event.stopPropagation()"
+        tabindex="-1"
+      >
+        <h3 class="mb-4 text-base font-bold">Rename {{ renameDialog().entry!.kind === 'file' ? 'File' : 'Folder' }}</h3>
+        <input
+          class="input input-bordered w-full"
+          [attr.data-testid]="TESTID.RENAME_INPUT"
+          [placeholder]="renameDialog().entry!.kind === 'file' ? 'File name' : 'Folder name'"
+          [value]="renameDialog().newName"
+          (input)="onRenameInput($event)"
+          (keydown.enter)="handleRename()"
+          type="text"
+        />
+        <div class="modal-action">
+          <button class="btn btn-sm" (click)="renameDialog.set({ show: false, entry: null, newName: '' })">
+            Cancel
+          </button>
+          <button class="btn btn-sm btn-primary" [attr.data-testid]="TESTID.RENAME_CONFIRM" (click)="handleRename()">
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (confirmDialog().show) {
+    <div
+      class="modal modal-open"
+      [attr.data-testid]="TESTID.CONFIRM_DIALOG"
+      (click)="resolveConfirm(false)"
+      (keydown.escape)="resolveConfirm(false)"
+      aria-modal="true"
+      role="dialog"
+      tabindex="-1"
+    >
+      <div class="modal-box">
+        <h3 class="mb-4 flex items-center gap-2 text-base font-bold">
+          <svg class="text-warning" [lucideIcon]="AlertTriangle" size="18"></svg>
+          Confirm Action
+        </h3>
+        <p class="mb-4">{{ confirmDialog().message }}</p>
+        <div class="modal-action">
+          <button class="btn btn-sm" [attr.data-testid]="TESTID.CONFIRM_NO" (click)="resolveConfirm(false)">
+            Cancel
+          </button>
+          <button class="btn btn-sm btn-error" [attr.data-testid]="TESTID.CONFIRM_YES" (click)="resolveConfirm(true)">
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (toast().show) {
+    <div class="toast toast-top toast-end">
+      <div
+        class="alert"
+        [attr.data-testid]="
+          toast().type === 'success' ? TESTID.SUCCESS_TOAST
+          : toast().type === 'error' ? TESTID.ERROR_TOAST
+          : null
+        "
+        [class.alert-error]="toast().type === 'error'"
+        [class.alert-info]="toast().type === 'info'"
+        [class.alert-success]="toast().type === 'success'"
+      >
+        <span>{{ toast().message }}</span>
+        <button class="btn btn-sm btn-ghost" (click)="closeToast()">
+          <svg [lucideIcon]="X" size="14"></svg>
+        </button>
+      </div>
+    </div>
+  }
+</div>

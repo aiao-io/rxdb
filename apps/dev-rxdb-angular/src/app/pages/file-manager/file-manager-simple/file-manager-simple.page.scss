@@ -1,0 +1,12 @@
+@use '../../../../styles/view-transitions';
+@use '../../../../styles/tree-drag';
+
+.root-drop-zone {
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    border-color: var(--color-primary);
+    background: color-mix(in oklch, var(--color-primary), transparent 95%);
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+    "noEmit": true,
+    "types": ["node", "vite/client", "vitest/globals", "vitest/importMeta"]
+  },
+  "exclude": ["coverage*/**", "dist/**", "out-tsc/**"],
+  "extends": "../../tsconfig.base.json",
+  "include": [
+    "src/**/*.ts",
+    "entities/**/*.ts",
+    "shop/**/*.ts",
+    "rxdb.config.ts",
+    "vite.config.mts",
+    "vitest.coverage-acceptance.*.config.mts"
+  ]
+}

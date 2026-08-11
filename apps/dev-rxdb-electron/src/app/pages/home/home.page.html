@@ -1,0 +1,131 @@
+<div class="mx-auto max-w-4xl space-y-6 p-4">
+  <h1 class="text-4xl font-bold">Electron + Angular Demo</h1>
+
+  <!-- 运行环境 -->
+  <div class="card bg-base-200">
+    <div class="card-body">
+      <h2 class="card-title">🖥️ 运行环境</h2>
+      @if (isElectron()) {
+        <div class="badge badge-success gap-2">✅ 运行在 Electron 环境</div>
+      } @else {
+        <div class="badge badge-warning gap-2">⚠️ 运行在浏览器环境</div>
+      }
+    </div>
+  </div>
+
+  <!-- ELEC-11：本地数据库连接状态。失败此前只进控制台，页面看起来一切正常。 -->
+  <div class="card bg-base-200" data-testid="rxdb-status-card">
+    <div class="card-body">
+      <h2 class="card-title">🗄️ 本地数据库（wa-sqlite）</h2>
+      @switch (rxdbStatus()) {
+        @case ('connected') {
+          <div class="badge badge-success gap-2" data-testid="rxdb-status">✅ 已连接</div>
+        }
+        @case ('failed') {
+          <div class="badge badge-error gap-2" data-testid="rxdb-status">❌ 连接失败</div>
+          <p class="text-error mt-2 text-sm" data-testid="rxdb-error">{{ rxdbErrorMessage() }}</p>
+        }
+        @default {
+          <div class="badge badge-ghost gap-2" data-testid="rxdb-status">
+            <span class="loading loading-spinner loading-xs"></span>
+            连接中...
+          </div>
+        }
+      }
+    </div>
+  </div>
+
+  @if (isElectron()) {
+    <!-- 版本信息 -->
+    <div class="card bg-base-200">
+      <div class="card-body">
+        <h2 class="card-title">📦 版本信息</h2>
+        <div class="overflow-x-auto">
+          <table class="table">
+            <tbody>
+              <tr>
+                <td class="font-medium">平台</td>
+                <td>{{ platform() }}</td>
+              </tr>
+              <tr>
+                <td class="font-medium">Node.js</td>
+                <td>{{ versions().node }}</td>
+              </tr>
+              <tr>
+                <td class="font-medium">Chrome</td>
+                <td>{{ versions().chrome }}</td>
+              </tr>
+              <tr>
+                <td class="font-medium">Electron</td>
+                <td>{{ versions().electron }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- IPC 通信演示 -->
+    <div class="card bg-base-200">
+      <div class="card-body">
+        <h2 class="card-title">🔌 IPC 通信演示</h2>
+        <p class="text-sm opacity-70">点击按钮测试渲染进程与主进程的 IPC 通信</p>
+
+        <div class="card-actions">
+          <button class="btn btn-primary" [disabled]="ipcLoading()" (click)="testIPC()" data-testid="ipc-run">
+            @if (ipcLoading()) {
+              <span class="loading loading-spinner"></span>
+              调用中...
+            } @else {
+              🚀 测试 IPC 调用
+            }
+          </button>
+        </div>
+
+        @if (ipcResult()) {
+          <div class="alert alert-success mt-4" data-testid="ipc-result">
+            <svg
+              class="h-6 w-6 shrink-0 stroke-current"
+              fill="none"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+              />
+            </svg>
+            <div class="w-full">
+              <h3 class="font-bold">调用成功</h3>
+              <pre class="mt-2 overflow-x-auto text-xs">{{ ipcResult() | json }}</pre>
+            </div>
+          </div>
+        }
+
+        @if (ipcError()) {
+          <div class="alert alert-error mt-4" data-testid="ipc-error">
+            <svg
+              class="h-6 w-6 shrink-0 stroke-current"
+              fill="none"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+              />
+            </svg>
+            <div>
+              <h3 class="font-bold">调用失败</h3>
+              <p class="text-sm">{{ ipcError() }}</p>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

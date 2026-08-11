@@ -1,0 +1,38 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-test",
+  "tags": ["js-lib"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "syncGenerators": [],
+      "cache": true,
+      "options": {
+        "cwd": "packages/rxdb-test",
+        "command": "tsc --project tsconfig.check.json"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "syncGenerators": [],
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "cwd": "packages/rxdb-test",
+        "command": "vite build && node scripts/verify-public-contract.mjs && tsc --build tsconfig.publish.json"
+      }
+    },
+    "test": {
+      "outputs": ["{workspaceRoot}/coverage/packages/rxdb-test"]
+    },
+    "coverage-acceptance": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "outputs": ["{workspaceRoot}/coverage/packages/rxdb-test"],
+      "options": {
+        "cwd": "packages/rxdb-test",
+        "command": "node scripts/run-coverage-acceptance.mjs"
+      }
+    }
+  }
+}

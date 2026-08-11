@@ -1,0 +1,15 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-client-generator",
+  "tags": ["js-lib"],
+  "targets": {
+    "consumer": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build", "^build"],
+      "options": {
+        "cwd": "packages/rxdb-client-generator",
+        "command": "node scripts/consumer-gate.mjs"
+      }
+    }
+  }
+}

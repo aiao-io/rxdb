@@ -1,0 +1,38 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-devtools-extension",
+  "prefix": "app",
+  "projectType": "application",
+  "sourceRoot": "apps/rxdb-devtools-extension/src",
+  "tags": [],
+  "targets": {
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vite",
+        "cwd": "apps/rxdb-devtools-extension"
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vite",
+        "cwd": "apps/rxdb-devtools-extension"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vite build",
+        "cwd": "apps/rxdb-devtools-extension"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p tsconfig.app.json",
+        "cwd": "apps/rxdb-devtools-extension"
+      }
+    }
+  }
+}

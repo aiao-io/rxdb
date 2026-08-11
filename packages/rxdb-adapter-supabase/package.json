@@ -1,0 +1,44 @@
+{
+  "name": "@aiao/rxdb-adapter-supabase",
+  "version": "0.0.24",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "nx": {
+    "name": "rxdb-adapter-supabase",
+    "tags": [
+      "js-lib"
+    ]
+  },
+  "peerDependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@supabase/supabase-js": "^2.88.0",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
+    "@aiao/rxdb-test": "workspace:*",
+    "dotenv": "^17.4.2"
+  }
+}

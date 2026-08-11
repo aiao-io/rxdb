@@ -1,0 +1,10 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-adapter-miniprogram",
+  "projectType": "library",
+  "sourceRoot": "packages/rxdb-adapter-miniprogram/src",
+  "tags": ["js-lib"],
+  "targets": {
+    "lint": {}
+  }
+}

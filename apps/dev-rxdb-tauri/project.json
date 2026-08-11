@@ -1,0 +1,171 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "dev-rxdb-tauri",
+  "prefix": "app",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-tauri/src",
+  "tags": ["angular-app"],
+  "targets": {
+    "build": {
+      "defaultConfiguration": "production",
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/dev-rxdb-tauri/public"
+          },
+          {
+            "glob": "**/*.wasm",
+            "input": "./node_modules/wa-sqlite/dist",
+            "output": "./wa-sqlite/"
+          }
+        ],
+        "browser": "apps/dev-rxdb-tauri/src/main.ts",
+        "inlineStyleLanguage": "scss",
+        "outputPath": "dist/apps/dev-rxdb-tauri",
+        "polyfills": [],
+        "stylePreprocessorOptions": {
+          "sass": {
+            "silenceDeprecations": ["color-functions", "global-builtin", "import"]
+          }
+        },
+        "styles": ["apps/dev-rxdb-tauri/src/styles.scss"],
+        "tsConfig": "apps/dev-rxdb-tauri/tsconfig.app.json",
+        "webWorkerTsConfig": "apps/dev-rxdb-tauri/tsconfig.worker.json",
+        "allowedCommonJsDependencies": ["ms"]
+      },
+      "configurations": {
+        "development": {
+          "extractLicenses": false,
+          "optimization": false,
+          "sourceMap": true
+        },
+        "production": {
+          "budgets": [
+            {
+              "maximumError": "2mb",
+              "maximumWarning": "1mb",
+              "type": "initial"
+            },
+            {
+              "maximumError": "8kb",
+              "maximumWarning": "4kb",
+              "type": "anyComponentStyle"
+            }
+          ],
+          "outputHashing": "all"
+        }
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["tauri dev"],
+        "parallel": false
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "defaultConfiguration": "development",
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 1420
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "dev-rxdb-tauri:build:development",
+          "host": "127.0.0.1",
+          "port": 1420
+        },
+        "production": {
+          "buildTarget": "dev-rxdb-tauri:build:production"
+        }
+      }
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "dev-rxdb-tauri:build",
+        "port": 1420,
+        "spa": true,
+        "staticFilePath": "dist/apps/dev-rxdb-tauri/browser"
+      }
+    },
+    "tauri-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["tauri build --ci"],
+        "parallel": false
+      },
+      "dependsOn": ["cargo-check", "cargo-clippy", "cargo-test"]
+    },
+    "tauri-update": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["cargo update"],
+        "cwd": "apps/dev-rxdb-tauri/src-tauri",
+        "parallel": false
+      }
+    },
+    "cargo-check": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src-tauri/**/*.rs",
+        "{projectRoot}/src-tauri/Cargo.toml",
+        "{projectRoot}/src-tauri/Cargo.lock",
+        "{projectRoot}/src-tauri/tauri.conf.json",
+        "{projectRoot}/src-tauri/capabilities/**/*.json"
+      ],
+      "options": {
+        "cwd": "apps/dev-rxdb-tauri/src-tauri",
+        "command": "cargo check --locked --all-targets",
+        "parallel": false
+      },
+      "metadata": {
+        "description": "TAURI-FRESH-01：Rust 侧的类型/编译门禁"
+      }
+    },
+    "cargo-clippy": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src-tauri/**/*.rs",
+        "{projectRoot}/src-tauri/Cargo.toml",
+        "{projectRoot}/src-tauri/Cargo.lock",
+        "{projectRoot}/src-tauri/tauri.conf.json",
+        "{projectRoot}/src-tauri/capabilities/**/*.json"
+      ],
+      "options": {
+        "cwd": "apps/dev-rxdb-tauri/src-tauri",
+        "command": "cargo clippy --locked --all-targets -- -D warnings",
+        "parallel": false
+      },
+      "metadata": {
+        "description": "TAURI-FRESH-01：Rust 侧的 lint 门禁（零警告）"
+      }
+    },
+    "cargo-test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src-tauri/**/*.rs",
+        "{projectRoot}/src-tauri/Cargo.toml",
+        "{projectRoot}/src-tauri/Cargo.lock",
+        "{projectRoot}/src-tauri/tauri.conf.json",
+        "{projectRoot}/src-tauri/capabilities/**/*.json"
+      ],
+      "options": {
+        "cwd": "apps/dev-rxdb-tauri/src-tauri",
+        "command": "cargo test --locked",
+        "parallel": false
+      },
+      "metadata": {
+        "description": "TAURI-FRESH-01：Rust 单元测试"
+      }
+    }
+  }
+}

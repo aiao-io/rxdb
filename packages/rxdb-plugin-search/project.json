@@ -1,0 +1,35 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-plugin-search",
+  "tags": ["js-lib"],
+  "targets": {
+    "coverage": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/coverage/packages/rxdb-plugin-search"],
+      "options": {
+        "cwd": "packages/rxdb-plugin-search",
+        "command": "vitest run --coverage",
+        "env": {
+          "VITEST_BROWSER": "false"
+        }
+      },
+      "metadata": {
+        "description": "Run Node tests with coverage before the browser coverage merge."
+      }
+    },
+    "test-browser": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["coverage"],
+      "options": {
+        "cwd": "packages/rxdb-plugin-search",
+        "command": "vitest run --coverage && node ../../scripts/merge-vitest-reports.mjs --node=../../coverage/packages/rxdb-plugin-search --browser=../../coverage/packages/rxdb-plugin-search-browser --output=../../coverage/packages/rxdb-plugin-search",
+        "env": {
+          "VITEST_BROWSER": "true"
+        }
+      },
+      "metadata": {
+        "description": "Run the browser (real chromium) vitest project. Gated by VITEST_BROWSER=true in vite.config.mts; without this target these specs never run in CI."
+      }
+    }
+  }
+}

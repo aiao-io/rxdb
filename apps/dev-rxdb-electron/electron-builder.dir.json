@@ -1,0 +1,34 @@
+{
+  "appId": "com.aiao.dev-rxdb-electron",
+  "asar": true,
+  "buildDependenciesFromSource": false,
+  "directories": {
+    "app": "../../dist/apps/dev-rxdb-electron",
+    "output": "../../dist/apps/dev-rxdb-electron/release/",
+    "buildResources": "public"
+  },
+  "extraResources": [
+    {
+      "from": "../../dist/apps/dev-rxdb-electron/browser",
+      "to": "browser",
+      "filter": ["**/*"]
+    }
+  ],
+  "files": ["!node_modules", "package.json", "src-electron/**/*.js", "src-electron/**/*.js.map"],
+  "linux": {
+    "icon": "../../dist/apps/dev-rxdb-electron/browser/icons/favicon.ico",
+    "target": ["dir"]
+  },
+  "mac": {
+    "icon": "../../dist/apps/dev-rxdb-electron/browser/icons/favicon.icns",
+    "identity": null,
+    "target": ["dir"]
+  },
+  "nodeGypRebuild": false,
+  "npmRebuild": false,
+  "productName": "DevRxDBElectron",
+  "win": {
+    "icon": "../../dist/apps/dev-rxdb-electron/browser/icons/favicon.ico",
+    "target": ["dir"]
+  }
+}

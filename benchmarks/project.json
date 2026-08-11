@@ -1,0 +1,44 @@
+{
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project benchmarks --web",
+  "name": "benchmarks",
+  "projectType": "application",
+  "sourceRoot": "benchmarks/src",
+  "tags": ["react-app"],
+  "targets": {
+    "build-website": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "benchmarks",
+        "commands": [
+          "pnpm run typecheck",
+          "pnpm exec vite build --base=/benchmarks-app/ --outDir=../website/public/benchmarks-app"
+        ],
+        "parallel": false
+      }
+    },
+    "search-ci": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "benchmarks",
+        "command": "node scripts/search-ci.mjs"
+      }
+    },
+    "bench-encryption": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["typecheck", "^build"],
+      "options": {
+        "cwd": "benchmarks",
+        "command": "node --experimental-strip-types encryption.bench.ts"
+      }
+    },
+    "bench-hot-path": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["typecheck", "^build"],
+      "options": {
+        "cwd": "benchmarks",
+        "command": "node --experimental-strip-types non-encrypted-hot-path.bench.ts"
+      }
+    }
+  }
+}

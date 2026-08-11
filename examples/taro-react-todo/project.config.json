@@ -1,0 +1,124 @@
+{
+  "miniprogramRoot": "dist/",
+  "projectname": "taro-react-todo",
+  "description": "taro-react-todo",
+  "appid": "wx0c6a68673e0872fe",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "compileHotReLoad": false,
+    "postcss": false,
+    "minified": true,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": false,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "compileType": "miniprogram",
+  "simulatorPluginLibVersion": {},
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "folder",
+        "value": ".swc"
+      },
+      {
+        "type": "folder",
+        "value": "node_modules"
+      },
+      {
+        "type": "folder",
+        "value": "src"
+      },
+      {
+        "type": "folder",
+        "value": "config"
+      },
+      {
+        "type": "folder",
+        "value": ".husky"
+      },
+      {
+        "type": "folder",
+        "value": "types"
+      },
+      {
+        "type": "file",
+        "value": ".DS_Store"
+      },
+      {
+        "type": "file",
+        "value": "pnpm-lock.yaml"
+      },
+      {
+        "type": "file",
+        "value": "pnpm-workspace.yaml"
+      },
+      {
+        "type": "file",
+        "value": "package.json"
+      },
+      {
+        "type": "file",
+        "value": "tsconfig.json"
+      },
+      {
+        "type": "file",
+        "value": "babel.config.js"
+      },
+      {
+        "type": "file",
+        "value": "commitlint.config.mjs"
+      },
+      {
+        "type": "file",
+        "value": "stylelint.config.mjs"
+      },
+      {
+        "type": "file",
+        "value": ".editorconfig"
+      },
+      {
+        "type": "file",
+        "value": ".eslintrc"
+      },
+      {
+        "type": "file",
+        "value": ".npmrc"
+      },
+      {
+        "type": "file",
+        "value": ".env.development"
+      },
+      {
+        "type": "file",
+        "value": ".env.production"
+      },
+      {
+        "type": "file",
+        "value": ".env.test"
+      },
+      {
+        "type": "file",
+        "value": ".gitignore"
+      }
+    ],
+    "include": []
+  },
+  "editorSetting": {}
+}

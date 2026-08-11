@@ -1,0 +1,17 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project rxdb --web",
+  "name": "rxdb",
+  "projectType": "library",
+  "sourceRoot": "packages/rxdb/src",
+  "tags": ["js-lib"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb",
+        "command": "eslint . --max-warnings=0"
+      }
+    }
+  }
+}

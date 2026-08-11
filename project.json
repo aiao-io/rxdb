@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/nx/schemas/project-schema.json",
+  "name": "@aiao/source",
+  "targets": {
+    "local-registry": {
+      "executor": "@nx/js:verdaccio",
+      "options": {
+        "port": 4873,
+        "config": ".verdaccio/config.yml",
+        "storage": "tmp/local-registry/storage"
+      }
+    },
+    "migration-release-gate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node scripts/check-migration-release-gate.mjs --check"
+      }
+    },
+    "migration-release-gate-test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --test scripts/check-migration-release-gate.spec.mjs"
+      }
+    }
+  }
+}

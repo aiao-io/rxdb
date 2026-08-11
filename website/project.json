@@ -1,0 +1,59 @@
+{
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": [],
+  "name": "website",
+  "projectType": "application",
+  "sourceRoot": "website/src",
+  "tags": [],
+  "targets": {
+    "lint": {},
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "website",
+        "command": "node --test scripts/*.test.mjs"
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "website",
+        "command": "node scripts/serve-website.mjs"
+      }
+    },
+    "preview": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "website",
+        "command": "node scripts/preview-with-redirects.mjs"
+      }
+    },
+    "build": {
+      "dependsOn": [],
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node website/scripts/build-website.mjs"
+      }
+    },
+    "check-doc-code": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node scripts/check-doc-code.mjs"
+      }
+    },
+    "api-docs": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "website",
+        "command": "pnpm exec typedoc --options typedoc.config.cjs && node scripts/flatten-api-docs.mjs"
+      }
+    },
+    "site-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "website",
+        "command": "pnpm docusaurus build"
+      }
+    }
+  }
+}

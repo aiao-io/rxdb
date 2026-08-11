@@ -1,0 +1,38 @@
+{
+  "name": "@aiao/dev-rxdb-vue",
+  "version": "0.0.1",
+  "type": "module",
+  "sideEffects": false,
+  "nx": {
+    "name": "dev-rxdb-vue",
+    "tags": [
+      "vue-app"
+    ]
+  },
+  "dependencies": {
+    "@aiao/code-editor-vue": "workspace:*",
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-adapter-sqlite-wasm": "workspace:*",
+    "@aiao/rxdb-client-generator": "workspace:*",
+    "@aiao/rxdb-devtools": "workspace:*",
+    "@aiao/rxdb-plugin-graph": "workspace:*",
+    "@aiao/rxdb-plugin-search": "workspace:*",
+    "@aiao/rxdb-plugin-search-vue": "workspace:*",
+    "@aiao/rxdb-plugin-storage": "workspace:*",
+    "@aiao/rxdb-plugin-workspace": "workspace:*",
+    "@aiao/rxdb-test": "workspace:*",
+    "@aiao/rxdb-vue": "workspace:*",
+    "@aiao/utils": "workspace:*",
+    "@lucide/vue": "^1.28.0",
+    "@tanstack/vue-virtual": "^3.13.35",
+    "@vueuse/rxjs": "^14.4.0",
+    "ag-grid-community": "^36.1.0",
+    "ag-grid-enterprise": "^36.1.0",
+    "clsx": "^2.1.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "daisyui": "^5.7.16",
+    "tailwindcss": "^4.3.3"
+  }
+}

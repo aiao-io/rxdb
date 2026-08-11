@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "outDir": "../../dist/apps/dev-rxdb-electron",
+    "rootDir": ".",
+    "sourceMap": true,
+    "moduleResolution": "NodeNext",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "target": "ES2022",
+    "module": "NodeNext",
+    "esModuleInterop": true,
+    "types": ["node"],
+    "lib": ["ES2022"],
+    "noUncheckedSideEffectImports": false,
+
+    // 基线是给库用的（composite + 只出声明），主进程要的是真正可执行的 JS。
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+
+    // **不要打开 importHelpers**（基线是 true）。主进程是逐文件 tsc 产物、无 bundle 步骤，
+    // 而 electron-builder 的 `files` 白名单显式排除 node_modules ——
+    // 一旦 emit 出 `require("tslib")`，打包后的应用启动即 `Cannot find module 'tslib'`，
+    // 且该失败只在真实打包后才暴露（typecheck / 单测 / dev 模式全绿）。
+    // 关掉后 helper 内联，产物与继承基线前逐字节一致。见 tsconfig-serve.spec.ts。
+    "importHelpers": false,
+
+    // 主进程不消费 workspace 的 @aiao/* 源码，清掉基线为库解析准备的这两项。
+    "customConditions": [],
+    "paths": {}
+  },
+  "exclude": ["node_modules", "**/*.spec.ts"],
+  // ELEC-14：继承仓库基线，而不是重新声明一套宽松开关。
+  // 基线额外带来 forceConsistentCasingInFileNames / isolatedModules /
+  // noFallthroughCasesInSwitch / noImplicitOverride / noImplicitReturns / noUnusedLocals。
+  "extends": "../../tsconfig.base.json",
+  "include": ["src-electron/**/*.ts"]
+}

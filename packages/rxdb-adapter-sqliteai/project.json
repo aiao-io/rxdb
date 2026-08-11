@@ -1,0 +1,24 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-adapter-sqliteai",
+  "tags": ["js-lib"],
+  "targets": {
+    "consumer": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build", "^build"],
+      "options": {
+        "command": "node scripts/audit/sqlite-adapter-consumer.mjs rxdb-adapter-sqliteai"
+      }
+    },
+    "build": {
+      "options": {
+        "command": "vite build && node ../../scripts/audit/package-api-docs.mjs . && node scripts/verify-public-contract.mjs && tsc --build tsconfig.publish.json"
+      }
+    },
+    "lint": {
+      "options": {
+        "args": ["--max-warnings=0"]
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": false,
+    "outDir": "../../dist/out-tsc/code-editor-angular/lib",
+    "types": [],
+    "rootDir": "."
+  },
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../code-editor/tsconfig.lib.json"
+    }
+  ]
+}

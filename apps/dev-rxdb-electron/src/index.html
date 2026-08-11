@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      开发态 CSP。与 src/index.prod.html 唯一的差异是 connect-src 放行了 dev server 与 HMR
+      （http://localhost:* / ws://localhost:*）——删掉它们 dev server 会直接断连。
+      其余指令两份必须逐字一致，由 src-electron/renderer-shell.spec.ts 钉住。
+    -->
+    <meta
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:* ws://localhost:*; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-src 'none'; form-action 'none'"
+      http-equiv="Content-Security-Policy"
+    />
+    <title>RxDB Demo - Electron</title>
+    <!-- ELEC-10：刻意不放 `<base>`，与 src/index.prod.html 保持一致，理由见那边的注释。 -->
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <meta content="Local-first RxDB demo with Electron - Offline-first database for desktop apps" name="description" />
+    <link href="icons/favicon.ico" rel="icon" type="image/x-icon" />
+  </head>
+  <body>
+    <app-root>Loading...</app-root>
+  </body>
+</html>

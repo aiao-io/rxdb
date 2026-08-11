@@ -1,0 +1,44 @@
+{
+  "name": "@aiao/rxdb-adapter-encrypted",
+  "version": "0.0.24",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "nx": {
+    "name": "rxdb-adapter-encrypted",
+    "tags": [
+      "js-lib"
+    ]
+  },
+  "peerDependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "rxjs": "^7.8.0"
+  }
+}

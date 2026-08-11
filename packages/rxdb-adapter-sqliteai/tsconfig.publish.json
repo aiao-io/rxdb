@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "skipLibCheck": false,
+    "strict": true,
+    "target": "ES2022",
+    "types": ["node"],
+    "paths": {},
+    "tsBuildInfoFile": "dist/tsconfig.publish.tsbuildinfo"
+  },
+  "include": ["public-contract/**/*.mjs"]
+}

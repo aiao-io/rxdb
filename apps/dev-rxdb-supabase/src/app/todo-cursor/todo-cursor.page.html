@@ -1,0 +1,181 @@
+@let current_tab = $current_tab();
+@let todo_count_left = $todo_count_left.value();
+
+<div class="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
+  <!-- header -->
+  <div class="mx-auto flex w-full max-w-sm shrink-0 flex-col gap-2 pt-4">
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold">
+        Todo
+        <div class="badge badge-outline badge-primary badge-sm">{{ todo_count_left }} left</div>
+      </h1>
+    </div>
+    <!-- tabs -->
+    <div class="tabs tabs-box tabs-sm">
+      <input
+        class="tab"
+        [checked]="current_tab === 'all'"
+        (click)="set_current_tab('all')"
+        aria-label="all"
+        name="my_tabs"
+        type="radio"
+      />
+      <input
+        class="tab"
+        [checked]="current_tab === 'active'"
+        (click)="set_current_tab('active')"
+        aria-label="Active"
+        name="my_tabs"
+        type="radio"
+      />
+      <input
+        class="tab"
+        [checked]="current_tab === 'completed'"
+        (click)="set_current_tab('completed')"
+        aria-label="Completed"
+        name="my_tabs"
+        type="radio"
+      />
+    </div>
+
+    <!-- feature buttons -->
+    <div class="flex flex-wrap gap-2">
+      <button class="btn btn-sm" (click)="toggle_complete_sort()" aria-label="Toggle Complete Sort">
+        @if ($completed_sort() === 'asc') {
+          <svg [lucideIcon]="ArrowUp" size="16"></svg>
+        } @else {
+          <svg [lucideIcon]="ArrowDown" size="16"></svg>
+        }
+        Completed
+      </button>
+      <button class="btn btn-sm" [disabled]="add_1.isPending()" (click)="add_1.execute(1)">
+        @if (add_1.isPending()) {
+          <span class="loading loading-spinner loading-xs absolute"></span>
+        }
+        add 1
+      </button>
+      <button class="btn btn-sm" [disabled]="add_2.isPending()" (click)="add_2.execute(10)">
+        @if (add_2.isPending()) {
+          <span class="loading loading-spinner loading-xs absolute"></span>
+        }
+        add 10
+      </button>
+      <button class="btn btn-sm" [disabled]="add_3.isPending()" (click)="add_3.execute(100)">
+        @if (add_3.isPending()) {
+          <span class="loading loading-spinner loading-xs absolute"></span>
+        }
+        add 100
+      </button>
+      <button class="btn btn-sm" [disabled]="add_4.isPending()" (click)="add_4.execute(1000)">
+        @if (add_4.isPending()) {
+          <span class="loading loading-spinner loading-xs absolute"></span>
+        }
+        add 1000
+      </button>
+      <button class="btn btn-sm" [disabled]="add_5.isPending()" (click)="add_5.execute(10000)">
+        @if (add_5.isPending()) {
+          <span class="loading loading-spinner loading-xs absolute"></span>
+        }
+        add 10000
+      </button>
+    </div>
+
+    <!-- add todo -->
+    <div class="flex w-full gap-2">
+      <input
+        class="input input-sm flex-1"
+        [(ngModel)]="title"
+        (keyup.enter)="add_todo($event)"
+        aria-label="What needs to be done?"
+        placeholder="What needs to be done?"
+        type="text"
+      />
+      <button class="btn btn-neutral btn-sm" [disabled]="!title()" (click)="add_todo($event)" aria-label="Add Todo">
+        <svg [lucideIcon]="Plus" size="16"></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Todo List -->
+  @if ($crudError()) {
+    <div class="alert alert-error mx-auto mb-2 max-w-sm py-2 text-xs">{{ $crudError() }}</div>
+  }
+
+  <cdk-virtual-scroll-viewport
+    class="mx-auto min-h-0 w-full max-w-sm flex-1"
+    [attr.data-loaded-count]="resource.value().length"
+    [attr.data-page-size]="pageSize"
+    [itemSize]="itemSize"
+    data-testid="todo-cursor-viewport"
+  >
+    @if (resource.isEmpty()) {
+      <div class="hero min-h-40">
+        <div class="hero-content text-center">
+          <h1 class="text-sm font-bold">What needs to be done?</h1>
+        </div>
+      </div>
+    } @else if (resource.isLoading()) {
+      <div class="absolute min-h-40 w-full">
+        <div class="hero-content text-center text-xs">
+          <span class="loading loading-spinner loading-xs"></span>
+          loading...
+        </div>
+      </div>
+    }
+    <ul class="mb-4 divide-y divide-gray-200">
+      <li
+        class="flex items-center px-1 py-2"
+        *cdkVirtualFor="let todo of resource.value(); let i = index; trackBy: trackByFn"
+        [style.height.px]="itemSize"
+      >
+        @let isEditing = is_todo_editing(todo);
+        <div class="flex w-full flex-1 cursor-pointer select-none" #liEle aria-label="What needs to be done?">
+          @if (isEditing) {
+            <input
+              class="todo-input input input-sm m-2 h-8 w-full"
+              #inputEle
+              [(ngModel)]="todo.title"
+              (blur)="todo_cancel_edit(todo)"
+              (keyup.enter)="todo_save($event, inputEle, todo)"
+              (keyup.escape)="todo_cancel_edit(todo)"
+              placeholder="What needs to be done?"
+              type="text"
+            />
+          } @else {
+            <input
+              class="checkbox checkbox-sm"
+              [checked]="todo.completed"
+              (change)="toggle_todo_completed($event, todo)"
+              type="checkbox"
+            />
+            <div
+              class="flex-1 truncate px-1"
+              [class.line-through]="todo.completed"
+              [class.opacity-50]="todo.completed"
+              (dblclick)="todo_edit($event, liEle, todo)"
+            >
+              {{ todo.title }}
+            </div>
+            <button
+              class="btn btn-xs btn-ghost text-primary px-0"
+              (click)="todo_edit($event, liEle, todo)"
+              aria-label="Edit"
+            >
+              <svg [lucideIcon]="Pen" size="16"></svg>
+            </button>
+            <button
+              class="btn btn-xs btn-ghost text-error px-0"
+              (click)="todo_remove($event, todo)"
+              aria-label="Remove"
+            >
+              <svg [lucideIcon]="X" size="16"></svg>
+            </button>
+          }
+        </div>
+      </li>
+    </ul>
+  </cdk-virtual-scroll-viewport>
+
+  <!-- footer -->
+  <div class="mx-auto flex h-32 w-full max-w-sm shrink-0 flex-col"><div class="divider">footer</div></div>
+</div>

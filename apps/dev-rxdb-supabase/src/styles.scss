@@ -1,0 +1,47 @@
+@use 'tailwindcss';
+
+@plugin 'daisyui' {
+  themes:
+    light --default,
+    dark --prefersdark;
+}
+
+@source './app/';
+
+@utility hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+html,
+body {
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+}
+
+input::placeholder {
+  color: #9ca3af;
+}
+
+app-header {
+  @apply sticky top-0 z-50;
+}
+
+#layout-content {
+  @apply relative grow;
+}
+
+.header-floating {
+  #layout-container {
+    @apply relative;
+  }
+
+  app-header {
+    @apply absolute top-0 right-0 left-0;
+  }
+}

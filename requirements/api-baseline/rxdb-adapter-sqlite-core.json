@@ -1,0 +1,640 @@
+{
+  "exports": [
+    {
+      "name": "AdapterEncryptionFacade",
+      "kind": "type"
+    },
+    {
+      "name": "assertLoadOptionsTransferable",
+      "kind": "value"
+    },
+    {
+      "name": "assertOo1Static",
+      "kind": "value"
+    },
+    {
+      "name": "BATCH_TIMEOUT",
+      "kind": "value"
+    },
+    {
+      "name": "build_order_by",
+      "kind": "value"
+    },
+    {
+      "name": "build_rule",
+      "kind": "value"
+    },
+    {
+      "name": "build_rule_group_join",
+      "kind": "value"
+    },
+    {
+      "name": "build_substring_condition",
+      "kind": "value"
+    },
+    {
+      "name": "buildCreateFtsTableSql",
+      "kind": "value"
+    },
+    {
+      "name": "buildFtsTriggersSql",
+      "kind": "value"
+    },
+    {
+      "name": "buildOo1InitOptions",
+      "kind": "value"
+    },
+    {
+      "name": "buildRuleGroup",
+      "kind": "value"
+    },
+    {
+      "name": "ChangeRecordEvent",
+      "kind": "type"
+    },
+    {
+      "name": "compileCjkToken",
+      "kind": "value"
+    },
+    {
+      "name": "convertSwitchResultToSql",
+      "kind": "value"
+    },
+    {
+      "name": "count_sql",
+      "kind": "value"
+    },
+    {
+      "name": "create_table_sql",
+      "kind": "value"
+    },
+    {
+      "name": "create_tables_sql",
+      "kind": "value"
+    },
+    {
+      "name": "CreateSqliteClientOptions",
+      "kind": "type"
+    },
+    {
+      "name": "DEFAULT_BATCH_TIMEOUT",
+      "kind": "value"
+    },
+    {
+      "name": "DEFAULT_CACHE_SIZE_KB",
+      "kind": "value"
+    },
+    {
+      "name": "defaultPrintErr",
+      "kind": "value"
+    },
+    {
+      "name": "defaultWarn",
+      "kind": "value"
+    },
+    {
+      "name": "deserializeFromEnvelope",
+      "kind": "value"
+    },
+    {
+      "name": "dispatch_switch_events",
+      "kind": "value"
+    },
+    {
+      "name": "EncryptionContext",
+      "kind": "type"
+    },
+    {
+      "name": "envelopePlaintextPatches",
+      "kind": "value"
+    },
+    {
+      "name": "execute_switch_actions",
+      "kind": "value"
+    },
+    {
+      "name": "executeOo1Helper",
+      "kind": "value"
+    },
+    {
+      "name": "ExistsSubquery",
+      "kind": "type"
+    },
+    {
+      "name": "find_by_row_ids_sql",
+      "kind": "value"
+    },
+    {
+      "name": "find_sql",
+      "kind": "value"
+    },
+    {
+      "name": "format_table_alias",
+      "kind": "value"
+    },
+    {
+      "name": "FTS_BIGRAM_SQL_FUNCTION",
+      "kind": "value"
+    },
+    {
+      "name": "FtsField",
+      "kind": "type"
+    },
+    {
+      "name": "FtsTriggerOptions",
+      "kind": "type"
+    },
+    {
+      "name": "generate_entity_count_ancestors_sql",
+      "kind": "value"
+    },
+    {
+      "name": "generate_entity_count_descendants_sql",
+      "kind": "value"
+    },
+    {
+      "name": "generate_entity_delete_sql",
+      "kind": "value"
+    },
+    {
+      "name": "generate_entity_deletes_sql",
+      "kind": "value"
+    },
+    {
+      "name": "generate_entity_find_ancestors_sql",
+      "kind": "value"
+    },
+    {
+      "name": "generate_entity_find_descendants_sql",
+      "kind": "value"
+    },
+    {
+      "name": "generate_entity_insert_sql",
+      "kind": "value"
+    },
+    {
+      "name": "generate_entity_inserts_sql",
+      "kind": "value"
+    },
+    {
+      "name": "generate_sql",
+      "kind": "value"
+    },
+    {
+      "name": "generate_table_trigger_sql",
+      "kind": "value"
+    },
+    {
+      "name": "generate_tree_sql",
+      "kind": "value"
+    },
+    {
+      "name": "GenerateSqlResult",
+      "kind": "type"
+    },
+    {
+      "name": "generateSwitchBranchSql",
+      "kind": "value"
+    },
+    {
+      "name": "get_cached_regexp",
+      "kind": "value"
+    },
+    {
+      "name": "get_field_sql",
+      "kind": "value"
+    },
+    {
+      "name": "get_init_sql",
+      "kind": "value"
+    },
+    {
+      "name": "get_or_create_relation_alias",
+      "kind": "value"
+    },
+    {
+      "name": "get_persistent_db_file_name",
+      "kind": "value"
+    },
+    {
+      "name": "get_relation_key",
+      "kind": "value"
+    },
+    {
+      "name": "get_rule_value",
+      "kind": "value"
+    },
+    {
+      "name": "get_sql_operator",
+      "kind": "value"
+    },
+    {
+      "name": "get_sql_value",
+      "kind": "value"
+    },
+    {
+      "name": "get_sql_with_params",
+      "kind": "value"
+    },
+    {
+      "name": "get_table_name",
+      "kind": "value"
+    },
+    {
+      "name": "get_table_name_by_entity_type",
+      "kind": "value"
+    },
+    {
+      "name": "get_table_name_by_metadata",
+      "kind": "value"
+    },
+    {
+      "name": "get_table_name_info",
+      "kind": "value"
+    },
+    {
+      "name": "getEntityObjectFromResult",
+      "kind": "value"
+    },
+    {
+      "name": "getRxDBChangeEventType",
+      "kind": "value"
+    },
+    {
+      "name": "getTableColumnIndexName",
+      "kind": "value"
+    },
+    {
+      "name": "handle_array_in",
+      "kind": "value"
+    },
+    {
+      "name": "handle_exists",
+      "kind": "value"
+    },
+    {
+      "name": "handle_flatmap_contains",
+      "kind": "value"
+    },
+    {
+      "name": "handle_rxdb_change",
+      "kind": "value"
+    },
+    {
+      "name": "hasCjk",
+      "kind": "value"
+    },
+    {
+      "name": "indexTextForFts",
+      "kind": "value"
+    },
+    {
+      "name": "InsertSqlOptions",
+      "kind": "type"
+    },
+    {
+      "name": "IRxDBAdapterDataChange",
+      "kind": "type"
+    },
+    {
+      "name": "isSameOo1LoadConfig",
+      "kind": "value"
+    },
+    {
+      "name": "isSqlResultEmpty",
+      "kind": "value"
+    },
+    {
+      "name": "isTableExistedSql",
+      "kind": "value"
+    },
+    {
+      "name": "JoinContext",
+      "kind": "type"
+    },
+    {
+      "name": "MAIN_TABLE_ALIAS",
+      "kind": "value"
+    },
+    {
+      "name": "MAX_BATCH_WAIT_MS",
+      "kind": "value"
+    },
+    {
+      "name": "normalizeCreateEntity",
+      "kind": "value"
+    },
+    {
+      "name": "normalizeSingleStatementSql",
+      "kind": "value"
+    },
+    {
+      "name": "normalizeUpdateEntity",
+      "kind": "value"
+    },
+    {
+      "name": "Oo1Capi",
+      "kind": "type"
+    },
+    {
+      "name": "Oo1ClientBase",
+      "kind": "both"
+    },
+    {
+      "name": "Oo1ClientEvents",
+      "kind": "type"
+    },
+    {
+      "name": "Oo1ClientLoadOptions",
+      "kind": "type"
+    },
+    {
+      "name": "Oo1Database",
+      "kind": "type"
+    },
+    {
+      "name": "Oo1LoadFingerprint",
+      "kind": "type"
+    },
+    {
+      "name": "Oo1LoadOptions",
+      "kind": "type"
+    },
+    {
+      "name": "Oo1PreparedStatement",
+      "kind": "type"
+    },
+    {
+      "name": "Oo1Static",
+      "kind": "type"
+    },
+    {
+      "name": "OpfsFallback",
+      "kind": "type"
+    },
+    {
+      "name": "process_relation_joins",
+      "kind": "value"
+    },
+    {
+      "name": "quote_sql_identifier",
+      "kind": "value"
+    },
+    {
+      "name": "RelationPair",
+      "kind": "type"
+    },
+    {
+      "name": "releaseComlinkProxy",
+      "kind": "value"
+    },
+    {
+      "name": "remove_all_triggers_sql",
+      "kind": "value"
+    },
+    {
+      "name": "remove_entity_ids_from_cache",
+      "kind": "value"
+    },
+    {
+      "name": "resolve_column_name",
+      "kind": "value"
+    },
+    {
+      "name": "resolveLocateFile",
+      "kind": "value"
+    },
+    {
+      "name": "rewriteOpfsProxyWorkerUrl",
+      "kind": "value"
+    },
+    {
+      "name": "RowId",
+      "kind": "type"
+    },
+    {
+      "name": "ROWID",
+      "kind": "value"
+    },
+    {
+      "name": "RuleGroupJoinOptions",
+      "kind": "type"
+    },
+    {
+      "name": "rxdb_adapter_mutations",
+      "kind": "value"
+    },
+    {
+      "name": "RxDBAdapterSqliteBase",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBAdapterSqliteError",
+      "kind": "both"
+    },
+    {
+      "name": "rxDBColumnTypeToSqliteType",
+      "kind": "value"
+    },
+    {
+      "name": "serializeForEnvelope",
+      "kind": "value"
+    },
+    {
+      "name": "shouldIgnoreSqliteMessage",
+      "kind": "value"
+    },
+    {
+      "name": "shouldUsePreparedStatementPath",
+      "kind": "value"
+    },
+    {
+      "name": "SQLITE_MAX_BIND_VARIABLES",
+      "kind": "value"
+    },
+    {
+      "name": "SqliteBackend",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteBackendOptions",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteBaseOptions",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteChangeErrorEvent",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteChangeErrorListener",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteChangeErrorPhase",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteChangeEvent",
+      "kind": "type"
+    },
+    {
+      "name": "SQLiteChangeType",
+      "kind": "both"
+    },
+    {
+      "name": "SqliteClientLike",
+      "kind": "type"
+    },
+    {
+      "name": "SQLiteCompatibleType",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteCoreKeyringStorage",
+      "kind": "both"
+    },
+    {
+      "name": "SqliteData",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteDataType",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteExecResult",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteRepository",
+      "kind": "both"
+    },
+    {
+      "name": "SqliteRepositoryBase",
+      "kind": "both"
+    },
+    {
+      "name": "SqliteResult",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteStatement",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteSuccessResult",
+      "kind": "type"
+    },
+    {
+      "name": "SqliteTransactionExecutor",
+      "kind": "both"
+    },
+    {
+      "name": "SqliteTreeRepository",
+      "kind": "both"
+    },
+    {
+      "name": "switch_branch",
+      "kind": "value"
+    },
+    {
+      "name": "switch_transaction_id",
+      "kind": "value"
+    },
+    {
+      "name": "SwitchVersionSqlItem",
+      "kind": "type"
+    },
+    {
+      "name": "SwitchVersionSqlResult",
+      "kind": "type"
+    },
+    {
+      "name": "toOo1LoadFingerprint",
+      "kind": "value"
+    },
+    {
+      "name": "transaction_sqlite_result",
+      "kind": "value"
+    },
+    {
+      "name": "TransactionFun",
+      "kind": "type"
+    },
+    {
+      "name": "transformEntityValueSqliteToJs",
+      "kind": "value"
+    },
+    {
+      "name": "transformEntityValueToSql",
+      "kind": "value"
+    },
+    {
+      "name": "transformValueJsToSqlite",
+      "kind": "value"
+    },
+    {
+      "name": "transformValueSqliteToJs",
+      "kind": "value"
+    },
+    {
+      "name": "try_process_relation_flatmap",
+      "kind": "value"
+    },
+    {
+      "name": "try_resolve_relation_path",
+      "kind": "value"
+    },
+    {
+      "name": "unenvelopePlaintextPatches",
+      "kind": "value"
+    },
+    {
+      "name": "update_entity_from_sqlite_result",
+      "kind": "value"
+    },
+    {
+      "name": "update_sql",
+      "kind": "value"
+    },
+    {
+      "name": "UpdateHookCallback",
+      "kind": "type"
+    },
+    {
+      "name": "validateSqliteNumericOption",
+      "kind": "value"
+    },
+    {
+      "name": "WAL_AUTOCHECKPOINT_PAGES",
+      "kind": "value"
+    },
+    {
+      "name": "WATCH_TABLES",
+      "kind": "value"
+    },
+    {
+      "name": "withGlobalOo1LoadLock",
+      "kind": "value"
+    },
+    {
+      "name": "withPatchedOpfsProxyWorker",
+      "kind": "value"
+    },
+    {
+      "name": "withSqliteApiConfig",
+      "kind": "value"
+    },
+    {
+      "name": "wrapWithComlink",
+      "kind": "value"
+    },
+    {
+      "name": "wrapWithComlinkEndpoint",
+      "kind": "value"
+    }
+  ]
+}

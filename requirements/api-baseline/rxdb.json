@@ -1,0 +1,1512 @@
+{
+  "exports": [
+    {
+      "name": "__decorateClass",
+      "kind": "value"
+    },
+    {
+      "name": "AbstractEntityType",
+      "kind": "type"
+    },
+    {
+      "name": "AdapterFactory",
+      "kind": "type"
+    },
+    {
+      "name": "AdapterRepositoryConstructor",
+      "kind": "type"
+    },
+    {
+      "name": "assertRxDBUpgradeClaimable",
+      "kind": "value"
+    },
+    {
+      "name": "assertSupportedRxDBSystemVersions",
+      "kind": "value"
+    },
+    {
+      "name": "assertTreeLevel",
+      "kind": "value"
+    },
+    {
+      "name": "BigIntProperty",
+      "kind": "type"
+    },
+    {
+      "name": "BigIntRules",
+      "kind": "type"
+    },
+    {
+      "name": "BinaryProperty",
+      "kind": "type"
+    },
+    {
+      "name": "BinaryRules",
+      "kind": "type"
+    },
+    {
+      "name": "BooleanProperty",
+      "kind": "type"
+    },
+    {
+      "name": "BooleanRules",
+      "kind": "type"
+    },
+    {
+      "name": "CheckRepositoryUpdatesResult",
+      "kind": "type"
+    },
+    {
+      "name": "cleanupExpired",
+      "kind": "value"
+    },
+    {
+      "name": "CleanupExpiredOptions",
+      "kind": "type"
+    },
+    {
+      "name": "CleanupExpiredResult",
+      "kind": "type"
+    },
+    {
+      "name": "compactChanges",
+      "kind": "value"
+    },
+    {
+      "name": "Conflict",
+      "kind": "type"
+    },
+    {
+      "name": "CONFLICT_DETECTED_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "CONFLICT_PENDING_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "ConflictDetectedEvent",
+      "kind": "both"
+    },
+    {
+      "name": "ConflictPendingEvent",
+      "kind": "both"
+    },
+    {
+      "name": "ConflictResolution",
+      "kind": "type"
+    },
+    {
+      "name": "ConflictResolver",
+      "kind": "type"
+    },
+    {
+      "name": "CountOptions",
+      "kind": "type"
+    },
+    {
+      "name": "createRxDBActiveWriterLeaseError",
+      "kind": "value"
+    },
+    {
+      "name": "DateProperty",
+      "kind": "type"
+    },
+    {
+      "name": "DateRules",
+      "kind": "type"
+    },
+    {
+      "name": "decodeRxDBChangeEntityId",
+      "kind": "value"
+    },
+    {
+      "name": "decodeRxDBChangePatch",
+      "kind": "value"
+    },
+    {
+      "name": "decodeRxDBEntityIdentity",
+      "kind": "value"
+    },
+    {
+      "name": "deterministicStringify",
+      "kind": "value"
+    },
+    {
+      "name": "diffMetadata",
+      "kind": "value"
+    },
+    {
+      "name": "DiffResult",
+      "kind": "type"
+    },
+    {
+      "name": "encodeRxDBChangeEntityId",
+      "kind": "value"
+    },
+    {
+      "name": "encodeRxDBChangePatch",
+      "kind": "value"
+    },
+    {
+      "name": "encodeRxDBEntityIdentity",
+      "kind": "value"
+    },
+    {
+      "name": "Entity",
+      "kind": "value"
+    },
+    {
+      "name": "ENTITY_BASE_METADATA_OPTIONS",
+      "kind": "value"
+    },
+    {
+      "name": "ENTITY_LOCAL_CREATE_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "ENTITY_LOCAL_NEW_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "ENTITY_LOCAL_REMOVE_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "ENTITY_LOCAL_UPDATE_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "ENTITY_REMOTE_CREATE_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "ENTITY_REMOTE_REMOVE_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "ENTITY_REMOTE_UPDATE_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "ENTITY_STATIC_TYPES",
+      "kind": "value"
+    },
+    {
+      "name": "EntityBase",
+      "kind": "both"
+    },
+    {
+      "name": "EntityBaseType",
+      "kind": "type"
+    },
+    {
+      "name": "EntityData",
+      "kind": "type"
+    },
+    {
+      "name": "EntityFieldConfig",
+      "kind": "type"
+    },
+    {
+      "name": "EntityFieldType",
+      "kind": "type"
+    },
+    {
+      "name": "EntityFieldTypeName",
+      "kind": "type"
+    },
+    {
+      "name": "EntityForeignKeyMetadata",
+      "kind": "type"
+    },
+    {
+      "name": "EntityForeignKeyMetadataOptions",
+      "kind": "type"
+    },
+    {
+      "name": "EntityIndexMetadataOptions",
+      "kind": "type"
+    },
+    {
+      "name": "EntityLocalCreatedEvent",
+      "kind": "both"
+    },
+    {
+      "name": "EntityLocalNewEvent",
+      "kind": "both"
+    },
+    {
+      "name": "EntityLocalRemovedEvent",
+      "kind": "both"
+    },
+    {
+      "name": "EntityLocalUpdatedEvent",
+      "kind": "both"
+    },
+    {
+      "name": "EntityMetadata",
+      "kind": "type"
+    },
+    {
+      "name": "EntityMetadataFeatures",
+      "kind": "type"
+    },
+    {
+      "name": "EntityMetadataOptions",
+      "kind": "type"
+    },
+    {
+      "name": "EntityMetadataTreeFeatures",
+      "kind": "type"
+    },
+    {
+      "name": "EntityPropertyMetadata",
+      "kind": "type"
+    },
+    {
+      "name": "EntityPropertyMetadataOptions",
+      "kind": "type"
+    },
+    {
+      "name": "EntityRelationManyToManyMetadata",
+      "kind": "type"
+    },
+    {
+      "name": "EntityRelationManyToOneMetadata",
+      "kind": "type"
+    },
+    {
+      "name": "EntityRelationMetadata",
+      "kind": "type"
+    },
+    {
+      "name": "EntityRelationMetadataOptions",
+      "kind": "type"
+    },
+    {
+      "name": "EntityRelationOneToManyMetadata",
+      "kind": "type"
+    },
+    {
+      "name": "EntityRelationOneToOneMetadata",
+      "kind": "type"
+    },
+    {
+      "name": "EntityRemoteCreatedEvent",
+      "kind": "both"
+    },
+    {
+      "name": "EntityRemoteRemovedEvent",
+      "kind": "both"
+    },
+    {
+      "name": "EntityRemoteUpdatedEvent",
+      "kind": "both"
+    },
+    {
+      "name": "EntityStaticType",
+      "kind": "type"
+    },
+    {
+      "name": "EntityType",
+      "kind": "type"
+    },
+    {
+      "name": "EntityUpdateData",
+      "kind": "type"
+    },
+    {
+      "name": "EnumProperty",
+      "kind": "type"
+    },
+    {
+      "name": "EnumRules",
+      "kind": "type"
+    },
+    {
+      "name": "EventOrigin",
+      "kind": "type"
+    },
+    {
+      "name": "extractEntityFields",
+      "kind": "value"
+    },
+    {
+      "name": "extractSystemFields",
+      "kind": "value"
+    },
+    {
+      "name": "FieldValidationError",
+      "kind": "type"
+    },
+    {
+      "name": "fillDefaultValue",
+      "kind": "value"
+    },
+    {
+      "name": "fillInitValue",
+      "kind": "value"
+    },
+    {
+      "name": "FindAllOptions",
+      "kind": "type"
+    },
+    {
+      "name": "FindByCursorOptions",
+      "kind": "type"
+    },
+    {
+      "name": "FindOneOptions",
+      "kind": "type"
+    },
+    {
+      "name": "FindOneOrFailOptions",
+      "kind": "type"
+    },
+    {
+      "name": "FindOptions",
+      "kind": "type"
+    },
+    {
+      "name": "FindTreeOptions",
+      "kind": "type"
+    },
+    {
+      "name": "formatEntityFieldValue",
+      "kind": "value"
+    },
+    {
+      "name": "getEntityColumnName",
+      "kind": "value"
+    },
+    {
+      "name": "getEntityMetadata",
+      "kind": "value"
+    },
+    {
+      "name": "getEntityMutations",
+      "kind": "value"
+    },
+    {
+      "name": "getEntityStatus",
+      "kind": "value"
+    },
+    {
+      "name": "getEntityType",
+      "kind": "value"
+    },
+    {
+      "name": "getNeedRemoveEntities",
+      "kind": "value"
+    },
+    {
+      "name": "getNeedSaveEntities",
+      "kind": "value"
+    },
+    {
+      "name": "getRxDBChangeKey",
+      "kind": "value"
+    },
+    {
+      "name": "getRxDBEntityIdentityKey",
+      "kind": "value"
+    },
+    {
+      "name": "getRxDBSystemVersionState",
+      "kind": "value"
+    },
+    {
+      "name": "getSyncableRepositories",
+      "kind": "value"
+    },
+    {
+      "name": "getSyncCapability",
+      "kind": "value"
+    },
+    {
+      "name": "getSyncConfig",
+      "kind": "value"
+    },
+    {
+      "name": "getSyncType",
+      "kind": "value"
+    },
+    {
+      "name": "groupBySyncType",
+      "kind": "value"
+    },
+    {
+      "name": "HistoryItem",
+      "kind": "type"
+    },
+    {
+      "name": "HistoryScope",
+      "kind": "type"
+    },
+    {
+      "name": "HistoryScopeAPI",
+      "kind": "type"
+    },
+    {
+      "name": "HistoryScopeType",
+      "kind": "type"
+    },
+    {
+      "name": "ICascadeOptions",
+      "kind": "type"
+    },
+    {
+      "name": "IEntity",
+      "kind": "type"
+    },
+    {
+      "name": "IEntityStaticType",
+      "kind": "type"
+    },
+    {
+      "name": "IMutationContext",
+      "kind": "type"
+    },
+    {
+      "name": "IntegerProperty",
+      "kind": "type"
+    },
+    {
+      "name": "IntegerRules",
+      "kind": "type"
+    },
+    {
+      "name": "IQueryContext",
+      "kind": "type"
+    },
+    {
+      "name": "IRepository",
+      "kind": "type"
+    },
+    {
+      "name": "IRepositoryConfig",
+      "kind": "type"
+    },
+    {
+      "name": "IRxDBAdapter",
+      "kind": "type"
+    },
+    {
+      "name": "IRxDBAdapterOptions",
+      "kind": "type"
+    },
+    {
+      "name": "IRxDBChange",
+      "kind": "type"
+    },
+    {
+      "name": "IRxDBPlugin",
+      "kind": "type"
+    },
+    {
+      "name": "isAdapterShutdownError",
+      "kind": "value"
+    },
+    {
+      "name": "isCrossTabEvent",
+      "kind": "value"
+    },
+    {
+      "name": "isCurrentRxDBSystemVersion",
+      "kind": "value"
+    },
+    {
+      "name": "isEntityInternalName",
+      "kind": "value"
+    },
+    {
+      "name": "isNoSync",
+      "kind": "value"
+    },
+    {
+      "name": "ISortableTreeEntity",
+      "kind": "type"
+    },
+    {
+      "name": "isRepositorySyncEnabled",
+      "kind": "value"
+    },
+    {
+      "name": "isRuleGroup",
+      "kind": "value"
+    },
+    {
+      "name": "isRxDBEntity",
+      "kind": "value"
+    },
+    {
+      "name": "isUniqueConstraintViolation",
+      "kind": "value"
+    },
+    {
+      "name": "ITreeEntity",
+      "kind": "type"
+    },
+    {
+      "name": "ITreeRepository",
+      "kind": "type"
+    },
+    {
+      "name": "JSONProperty",
+      "kind": "type"
+    },
+    {
+      "name": "KeyValue",
+      "kind": "type"
+    },
+    {
+      "name": "KeyValueProperty",
+      "kind": "type"
+    },
+    {
+      "name": "KeyValuePropertyMetadata",
+      "kind": "type"
+    },
+    {
+      "name": "KeyValueRules",
+      "kind": "type"
+    },
+    {
+      "name": "KeyValueSchemaEntry",
+      "kind": "type"
+    },
+    {
+      "name": "LWWConflictResolver",
+      "kind": "both"
+    },
+    {
+      "name": "MERGE_BRANCH_BEGIN",
+      "kind": "value"
+    },
+    {
+      "name": "MERGE_BRANCH_COMMIT",
+      "kind": "value"
+    },
+    {
+      "name": "MERGE_BRANCH_FAILED",
+      "kind": "value"
+    },
+    {
+      "name": "MergeBranchBeginEvent",
+      "kind": "both"
+    },
+    {
+      "name": "MergeBranchCommitEvent",
+      "kind": "both"
+    },
+    {
+      "name": "MergeBranchEventBase",
+      "kind": "both"
+    },
+    {
+      "name": "MergeBranchFailedEvent",
+      "kind": "both"
+    },
+    {
+      "name": "MergeBranchOptions",
+      "kind": "type"
+    },
+    {
+      "name": "MergeBranchResult",
+      "kind": "type"
+    },
+    {
+      "name": "MergeStrategy",
+      "kind": "type"
+    },
+    {
+      "name": "MigrationType",
+      "kind": "type"
+    },
+    {
+      "name": "needsPull",
+      "kind": "value"
+    },
+    {
+      "name": "needsPush",
+      "kind": "value"
+    },
+    {
+      "name": "NetworkOfflineError",
+      "kind": "both"
+    },
+    {
+      "name": "normalizeUpdateEntity",
+      "kind": "value"
+    },
+    {
+      "name": "NumberArrayProperty",
+      "kind": "type"
+    },
+    {
+      "name": "NumberArrayRules",
+      "kind": "type"
+    },
+    {
+      "name": "NumberProperty",
+      "kind": "type"
+    },
+    {
+      "name": "NumberRules",
+      "kind": "type"
+    },
+    {
+      "name": "OnDeleteAction",
+      "kind": "both"
+    },
+    {
+      "name": "OnUpdateAction",
+      "kind": "both"
+    },
+    {
+      "name": "OperatorName",
+      "kind": "type"
+    },
+    {
+      "name": "OrderBy",
+      "kind": "type"
+    },
+    {
+      "name": "parseEntityFieldValue",
+      "kind": "value"
+    },
+    {
+      "name": "parseRxDBChangeKey",
+      "kind": "value"
+    },
+    {
+      "name": "parseRxDBEntityIdentityKey",
+      "kind": "value"
+    },
+    {
+      "name": "Plugin",
+      "kind": "type"
+    },
+    {
+      "name": "PrimaryAdapterKind",
+      "kind": "type"
+    },
+    {
+      "name": "PropertyType",
+      "kind": "both"
+    },
+    {
+      "name": "PullBatchRequest",
+      "kind": "type"
+    },
+    {
+      "name": "PullOptions",
+      "kind": "type"
+    },
+    {
+      "name": "PullRepositoryOptions",
+      "kind": "type"
+    },
+    {
+      "name": "PullRepositoryResult",
+      "kind": "type"
+    },
+    {
+      "name": "PullResult",
+      "kind": "type"
+    },
+    {
+      "name": "PushOptions",
+      "kind": "type"
+    },
+    {
+      "name": "PushRepositoryOptions",
+      "kind": "type"
+    },
+    {
+      "name": "PushRepositoryResult",
+      "kind": "type"
+    },
+    {
+      "name": "PushResult",
+      "kind": "type"
+    },
+    {
+      "name": "QueryCacheEntity",
+      "kind": "type"
+    },
+    {
+      "name": "QueryCacheEntityMetadata",
+      "kind": "type"
+    },
+    {
+      "name": "QueryCacheFindOptions",
+      "kind": "type"
+    },
+    {
+      "name": "QueryCacheLocalAdapter",
+      "kind": "type"
+    },
+    {
+      "name": "QueryCacheRemoteAdapter",
+      "kind": "type"
+    },
+    {
+      "name": "QueryCacheRepository",
+      "kind": "both"
+    },
+    {
+      "name": "queryNeedRefreshCreate",
+      "kind": "value"
+    },
+    {
+      "name": "queryNeedRefreshRemove",
+      "kind": "value"
+    },
+    {
+      "name": "queryNeedRefreshUpdate",
+      "kind": "value"
+    },
+    {
+      "name": "QueryTask",
+      "kind": "both"
+    },
+    {
+      "name": "QueryTaskOptions",
+      "kind": "type"
+    },
+    {
+      "name": "RawQueryResult",
+      "kind": "type"
+    },
+    {
+      "name": "readRxDBUpgradeGuard",
+      "kind": "value"
+    },
+    {
+      "name": "readRxDBWriterLease",
+      "kind": "value"
+    },
+    {
+      "name": "RefreshMatchRules",
+      "kind": "type"
+    },
+    {
+      "name": "RelationBigIntRules",
+      "kind": "type"
+    },
+    {
+      "name": "RelationBooleanRules",
+      "kind": "type"
+    },
+    {
+      "name": "RelationDateRules",
+      "kind": "type"
+    },
+    {
+      "name": "RelationEntitiesObservable",
+      "kind": "type"
+    },
+    {
+      "name": "RelationEntityObservable",
+      "kind": "type"
+    },
+    {
+      "name": "RelationExistsRules",
+      "kind": "type"
+    },
+    {
+      "name": "RelationKind",
+      "kind": "both"
+    },
+    {
+      "name": "RelationNumberRules",
+      "kind": "type"
+    },
+    {
+      "name": "RelationStringRules",
+      "kind": "type"
+    },
+    {
+      "name": "RelationUUIDRules",
+      "kind": "type"
+    },
+    {
+      "name": "REMOTE_CHANGES_PENDING_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "RemoteBranchInfo",
+      "kind": "type"
+    },
+    {
+      "name": "RemoteChange",
+      "kind": "type"
+    },
+    {
+      "name": "RemoteMergeResult",
+      "kind": "type"
+    },
+    {
+      "name": "RemoteSyncOptions",
+      "kind": "type"
+    },
+    {
+      "name": "Repository",
+      "kind": "both"
+    },
+    {
+      "name": "REPOSITORY_SYNC_BEGIN_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "REPOSITORY_SYNC_COMPLETE_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "REPOSITORY_SYNC_ERROR_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "RepositoryBase",
+      "kind": "both"
+    },
+    {
+      "name": "RepositoryConstructor",
+      "kind": "type"
+    },
+    {
+      "name": "RepositoryIdentifier",
+      "kind": "type"
+    },
+    {
+      "name": "RepositoryInstance",
+      "kind": "type"
+    },
+    {
+      "name": "repositoryKey",
+      "kind": "value"
+    },
+    {
+      "name": "RepositoryQueryExtensions",
+      "kind": "type"
+    },
+    {
+      "name": "RepositorySyncBeginEvent",
+      "kind": "both"
+    },
+    {
+      "name": "RepositorySyncCapability",
+      "kind": "type"
+    },
+    {
+      "name": "RepositorySyncCompleteEvent",
+      "kind": "both"
+    },
+    {
+      "name": "RepositorySyncDirection",
+      "kind": "type"
+    },
+    {
+      "name": "RepositorySyncErrorEvent",
+      "kind": "both"
+    },
+    {
+      "name": "RepositorySyncSwitch",
+      "kind": "type"
+    },
+    {
+      "name": "RepositorySyncType",
+      "kind": "type"
+    },
+    {
+      "name": "resolveRxDBWriterEpoch",
+      "kind": "value"
+    },
+    {
+      "name": "RestoreEntityOptions",
+      "kind": "type"
+    },
+    {
+      "name": "Rule",
+      "kind": "type"
+    },
+    {
+      "name": "RuleGroup",
+      "kind": "type"
+    },
+    {
+      "name": "RuleGroupBase",
+      "kind": "type"
+    },
+    {
+      "name": "RxDB",
+      "kind": "both"
+    },
+    {
+      "name": "RXDB_CHANGE_CODEC_VERSION",
+      "kind": "value"
+    },
+    {
+      "name": "RXDB_CHANGE_CODEC_WATERMARK",
+      "kind": "value"
+    },
+    {
+      "name": "RXDB_CHANGE_CODEC_WATERMARK_PREFIX",
+      "kind": "value"
+    },
+    {
+      "name": "RXDB_CHANGE_ENTITY_ID_PREFIX",
+      "kind": "value"
+    },
+    {
+      "name": "RXDB_CHANGE_SCHEMA_VERSION",
+      "kind": "value"
+    },
+    {
+      "name": "RXDB_CHANGE_VALUE_ENVELOPE_KEY",
+      "kind": "value"
+    },
+    {
+      "name": "RXDB_SYSTEM_SCHEMA_VERSION",
+      "kind": "value"
+    },
+    {
+      "name": "RXDB_SYSTEM_SCHEMA_WATERMARK",
+      "kind": "value"
+    },
+    {
+      "name": "RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX",
+      "kind": "value"
+    },
+    {
+      "name": "RXDB_UPGRADE_GUARD_TABLE_NAME",
+      "kind": "value"
+    },
+    {
+      "name": "RXDB_UPGRADE_OWNER_TTL_MS",
+      "kind": "value"
+    },
+    {
+      "name": "RXDB_WRITER_HEARTBEAT_INTERVAL_MS",
+      "kind": "value"
+    },
+    {
+      "name": "RXDB_WRITER_LEASE_TABLE_NAME",
+      "kind": "value"
+    },
+    {
+      "name": "RXDB_WRITER_LEASE_TTL_MS",
+      "kind": "value"
+    },
+    {
+      "name": "RXDB_WRITER_PROTOCOL_VERSION",
+      "kind": "value"
+    },
+    {
+      "name": "RxDBAdapterBase",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBAdapterLocalBase",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBAdapterName",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBAdapterRemoteBase",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBAdapters",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBBranch",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBBranchInitData",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBBranchOrderByField",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBBranchRuleGroup",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBBranchStaticTypes",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBBranchTreeRuleGroup",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBChange",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBChangeInitData",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBChangeOrderByField",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBChangeRuleGroup",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBChangeStaticTypes",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBContext",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBCrossScopeTransactionError",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBDependencyFailedError",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBEntityEvent",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBEntityEventMap",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBEntityId",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBEntityLocalCreatedEventData",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBEntityLocalEventData",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBEntityLocalNewEventData",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBEntityLocalRemovedEventData",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBEntityLocalUpdatedEventData",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBEntityRemoteCreatedEventData",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBEntityRemoteEventData",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBEntityRemoteRemovedEventData",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBEntityRemoteUpdatedEventData",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBError",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBEvent",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBEventMap",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBMigration",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBMigrationClaimConflictError",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBMigrationInitData",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBMigrationOrderByField",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBMigrationRuleGroup",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBMigrationStaticTypes",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBMissingPrimaryAdapterError",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBMixedPrimaryAdapterError",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBMutationsMap",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBOptions",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBPartialSyncError",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBPluginBase",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBScalar",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBSync",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBSyncInitData",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBSyncOrderByField",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBSyncRuleGroup",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBSyncStaticTypes",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBSystemMigrationLockError",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBSystemVersionState",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBUpgradeGuardSnapshot",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBUpgradeGuardState",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBWriterLeaseError",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBWriterLeaseErrorCode",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBWriterLeaseSnapshot",
+      "kind": "type"
+    },
+    {
+      "name": "SchemaManager",
+      "kind": "both"
+    },
+    {
+      "name": "setRuntimeObjectGetter",
+      "kind": "value"
+    },
+    {
+      "name": "setRuntimeObjectKey",
+      "kind": "value"
+    },
+    {
+      "name": "setSafeObjectKey",
+      "kind": "value"
+    },
+    {
+      "name": "setSafeObjectKeyLazyInitOnce",
+      "kind": "value"
+    },
+    {
+      "name": "setSafeObjectWritableKey",
+      "kind": "value"
+    },
+    {
+      "name": "StringArrayProperty",
+      "kind": "type"
+    },
+    {
+      "name": "StringArrayRules",
+      "kind": "type"
+    },
+    {
+      "name": "StringProperty",
+      "kind": "type"
+    },
+    {
+      "name": "StringRules",
+      "kind": "type"
+    },
+    {
+      "name": "SWITCH_BRANCH_BEGIN",
+      "kind": "value"
+    },
+    {
+      "name": "SWITCH_BRANCH_COMMIT",
+      "kind": "value"
+    },
+    {
+      "name": "SWITCH_BRANCH_ROLLBACK",
+      "kind": "value"
+    },
+    {
+      "name": "SwitchBranchBeginEvent",
+      "kind": "both"
+    },
+    {
+      "name": "SwitchBranchCommitEvent",
+      "kind": "both"
+    },
+    {
+      "name": "SwitchBranchEventBase",
+      "kind": "both"
+    },
+    {
+      "name": "SwitchBranchOptions",
+      "kind": "type"
+    },
+    {
+      "name": "SwitchBranchRollbackEvent",
+      "kind": "both"
+    },
+    {
+      "name": "SwitchVersionActions",
+      "kind": "type"
+    },
+    {
+      "name": "SwitchVersionChange",
+      "kind": "type"
+    },
+    {
+      "name": "SYNC_BEGIN_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "SYNC_COMPLETE_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "SYNC_DISABLED_REASON",
+      "kind": "value"
+    },
+    {
+      "name": "SYNC_ERROR_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "SyncAdapterOptions",
+      "kind": "type"
+    },
+    {
+      "name": "SyncBeginEvent",
+      "kind": "both"
+    },
+    {
+      "name": "syncBranches",
+      "kind": "value"
+    },
+    {
+      "name": "SyncBranchesResult",
+      "kind": "type"
+    },
+    {
+      "name": "SyncCompleteEvent",
+      "kind": "both"
+    },
+    {
+      "name": "SyncDirection",
+      "kind": "type"
+    },
+    {
+      "name": "SyncErrorEvent",
+      "kind": "both"
+    },
+    {
+      "name": "SyncFailure",
+      "kind": "type"
+    },
+    {
+      "name": "SyncOptions",
+      "kind": "type"
+    },
+    {
+      "name": "SyncProgress",
+      "kind": "type"
+    },
+    {
+      "name": "SyncRepositoryOptions",
+      "kind": "type"
+    },
+    {
+      "name": "SyncRepositoryResult",
+      "kind": "type"
+    },
+    {
+      "name": "SyncResult",
+      "kind": "type"
+    },
+    {
+      "name": "SyncStats",
+      "kind": "type"
+    },
+    {
+      "name": "SyncStatus",
+      "kind": "both"
+    },
+    {
+      "name": "SyncType",
+      "kind": "both"
+    },
+    {
+      "name": "syncTypeIneligibility",
+      "kind": "value"
+    },
+    {
+      "name": "TRANSACTION_BEGIN",
+      "kind": "value"
+    },
+    {
+      "name": "TRANSACTION_COMMIT",
+      "kind": "value"
+    },
+    {
+      "name": "TRANSACTION_ROLLBACK",
+      "kind": "value"
+    },
+    {
+      "name": "TransactionBeginEvent",
+      "kind": "both"
+    },
+    {
+      "name": "TransactionCommitEvent",
+      "kind": "both"
+    },
+    {
+      "name": "TransactionExecutor",
+      "kind": "type"
+    },
+    {
+      "name": "TransactionExecutorFun",
+      "kind": "type"
+    },
+    {
+      "name": "TransactionExecutorState",
+      "kind": "type"
+    },
+    {
+      "name": "TransactionFun",
+      "kind": "type"
+    },
+    {
+      "name": "TransactionOptions",
+      "kind": "type"
+    },
+    {
+      "name": "TransactionRollbackEvent",
+      "kind": "both"
+    },
+    {
+      "name": "transitionMetadata",
+      "kind": "value"
+    },
+    {
+      "name": "TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS",
+      "kind": "value"
+    },
+    {
+      "name": "TREE_MAX_LEVEL",
+      "kind": "value"
+    },
+    {
+      "name": "TreeAdjacencyListEntityBase",
+      "kind": "both"
+    },
+    {
+      "name": "TreeEntity",
+      "kind": "value"
+    },
+    {
+      "name": "TreeEntityType",
+      "kind": "type"
+    },
+    {
+      "name": "tryGetEntityMetadata",
+      "kind": "value"
+    },
+    {
+      "name": "tryGetEntityStatus",
+      "kind": "value"
+    },
+    {
+      "name": "UnsupportedRxDBChangeVersionError",
+      "kind": "both"
+    },
+    {
+      "name": "UnsupportedRxDBSystemVersionError",
+      "kind": "both"
+    },
+    {
+      "name": "uuid",
+      "kind": "value"
+    },
+    {
+      "name": "UUID",
+      "kind": "type"
+    },
+    {
+      "name": "UUIDProperty",
+      "kind": "type"
+    },
+    {
+      "name": "UUIDRules",
+      "kind": "type"
+    },
+    {
+      "name": "validateEntityFieldValue",
+      "kind": "value"
+    }
+  ]
+}

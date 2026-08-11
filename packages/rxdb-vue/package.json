@@ -1,0 +1,46 @@
+{
+  "name": "@aiao/rxdb-vue",
+  "version": "0.0.24",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/utils": "workspace:*"
+  },
+  "peerDependencies": {
+    "@aiao/rxdb-plugin-graph": "*",
+    "rxjs": "^7.8.0",
+    "vue": "^3.5.40"
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "nx": {
+    "name": "rxdb-vue",
+    "tags": [
+      "vue-lib"
+    ]
+  },
+  "devDependencies": {
+    "@aiao/rxdb-plugin-graph": "workspace:*"
+  }
+}

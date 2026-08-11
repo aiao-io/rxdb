@@ -1,0 +1,22 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": ["!rxdb-test"],
+  "name": "rxdb-adapter-pglite",
+  "tags": ["js-lib"],
+  "targets": {
+    "test": {
+      "dependsOn": ["^build", { "target": "test-node", "params": "ignore" }],
+      "parallelism": false
+    },
+    "test-node": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "executor": "nx:run-commands",
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest src/__tests__/system-schema-migration.spec.ts --browser.enabled=false --reporter=default",
+        "cwd": "packages/rxdb-adapter-pglite"
+      }
+    }
+  }
+}

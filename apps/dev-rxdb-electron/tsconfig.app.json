@@ -1,0 +1,52 @@
+{
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc",
+    "types": ["node"]
+  },
+  "exclude": [
+    "jest.config.ts",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "vite.config.ts",
+    "vite.config.mts",
+    "vitest.config.ts",
+    "vitest.config.mts",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.tsx",
+    "src/**/*.test.js",
+    "src/**/*.spec.js",
+    "src/**/*.test.jsx",
+    "src/**/*.spec.jsx",
+    "src/test-setup.ts"
+  ],
+  "extends": "./tsconfig.json",
+  // ELEC-05：renderer 以 type-only 方式引用 IPC 契约的唯一事实源；
+  // composite 项目要求显式列出该文件（类型在编译期擦除，不进 renderer 包体）
+  "include": ["src/**/*.ts", "src-electron/ipc-contract.ts"],
+  "references": [
+    {
+      "path": "../../packages/rxdb-test/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../modules/angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../modules/angular-todo/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-angular/tsconfig.lib.json"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc/angular-todo/lib",
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": false,
+    "types": [],
+    "rootDir": "."
+  },
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+  "extends": "./tsconfig.json",
+  "include": ["**/*.ts"],
+  "references": [
+    {
+      "path": "../angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-test/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
+    }
+  ]
+}

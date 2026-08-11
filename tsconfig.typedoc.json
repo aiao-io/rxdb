@@ -1,0 +1,13 @@
+{
+  "exclude": [
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/__tests__/**",
+    "**/test-utils.ts",
+    "node_modules",
+    "dist",
+    "apps",
+    "website"
+  ],
+  "extends": "./tsconfig.base.json"
+}

@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc/dev-rxdb-electron-test",
+    "types": ["vitest/globals", "node"],
+    "rootDir": ".",
+    "tsBuildInfoFile": "../../dist/out-tsc/dev-rxdb-electron-test.tsbuildinfo"
+  },
+  "extends": "./tsconfig.json",
+  "include": [
+    "src-electron/**/*.spec.ts",
+    "src-electron/**/*.ts",
+    "src/app/connect-wa-sqlite-adapter.ts",
+    "src/app/locale.ts",
+    "src/app/rxdb-connection.ts"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "emitDeclarationOnly": false,
+    "outDir": "../../dist/out-tsc/code-editor-angular/spec",
+    "types": ["vitest/globals", "node"],
+    "emitDeclarationOnly": false,
+    "rootDir": "."
+  },
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
+  "references": [
+    {
+      "path": "../code-editor/tsconfig.lib.json"
+    }
+  ]
+}

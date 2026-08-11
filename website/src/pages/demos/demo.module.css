@@ -1,0 +1,125 @@
+/* 满屏 iframe 样式 */
+.fullscreenIframe {
+  position: fixed;
+  top: var(--ifm-navbar-height);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: calc(100vh - var(--ifm-navbar-height));
+  border: none;
+  overflow: auto;
+  /* 使用 Docusaurus 主题背景色，避免加载时白色闪烁 */
+  background-color: var(--ifm-background-color);
+}
+
+/* 旧样式保留以防需要 */
+.demoContainer {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.demoHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: var(--ifm-background-surface-color);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.titleSection {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.icon {
+  font-size: 2.5rem;
+}
+
+.title {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.description {
+  margin: 0.25rem 0 0 0;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.95rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.openButton,
+.reloadButton {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.openButton {
+  background: var(--ifm-color-primary);
+  color: white;
+  border: none;
+}
+
+.openButton:hover {
+  background: var(--ifm-color-primary-dark);
+  text-decoration: none;
+  color: white;
+}
+
+.reloadButton {
+  background: transparent;
+  color: var(--ifm-color-primary);
+  border: 1px solid var(--ifm-color-primary);
+}
+
+.reloadButton:hover {
+  background: var(--ifm-color-primary);
+  color: white;
+}
+
+.iframeWrapper {
+  flex: 1;
+  width: 100%;
+  overflow: hidden;
+}
+
+.demoIframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+@media (max-width: 768px) {
+  .demoHeader {
+    padding: 1rem;
+  }
+
+  .titleSection {
+    width: 100%;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .openButton,
+  .reloadButton {
+    flex: 1;
+  }
+}

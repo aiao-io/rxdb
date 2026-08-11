@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link href="/favicon.svg" rel="icon" type="image/svg+xml" />
+    <meta content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" name="viewport" />
+    <meta content="yes" name="mobile-web-app-capable" />
+    <meta content="yes" name="apple-mobile-web-app-capable" />
+    <meta content="Local-first RxDB demo with Vue - Offline-first database for web apps" name="description" />
+    <meta content="light dark" name="color-scheme" />
+    <title>RxDB Demo - Vue</title>
+    <script>
+      try {
+        let theme = localStorage.getItem('theme') || 'auto';
+        if (theme === 'auto') theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="/src/main.ts" type="module"></script>
+  </body>
+</html>

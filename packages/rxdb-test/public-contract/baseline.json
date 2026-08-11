@@ -1,0 +1,70 @@
+{
+  ".": {
+    "SEARCH_PARITY_ARTICLES": "array",
+    "SEARCH_PARITY_COMMENTS": "array",
+    "cleanupSqliteTestAdapter": "function",
+    "clearEntityRecords": "function",
+    "createLockedSeeder": "function",
+    "expectObservableSequence": "function",
+    "generateTestDbName": "function",
+    "getE2eDbName": "function",
+    "installSearchDemoTestApi": "function",
+    "makeSearchParityArticles": "function",
+    "makeSearchParityComments": "function",
+    "version": "string",
+    "withSeedLock": "function"
+  },
+  "./encrypted": {
+    "ENCRYPTED_SENTINELS": "array",
+    "EncryptedAuditedUser": "function",
+    "EncryptedUser": "function",
+    "SENTINEL_API": "string",
+    "SENTINEL_CC": "string",
+    "SENTINEL_CC_ROTATED": "string",
+    "SENTINEL_JSON": "string",
+    "runBigIntBinaryEncryptedSuite": "function",
+    "runChangeLogSuite": "function",
+    "runCrudSuite": "function",
+    "runLifecycleSuite": "function",
+    "runQueryValidationSuite": "function",
+    "runTamperSuite": "function"
+  },
+  "./entities": {
+    "Article": "function",
+    "Comment": "function",
+    "ENTITIES": "array",
+    "FileLarge": "function",
+    "FileNode": "function",
+    "MenuLarge": "function",
+    "MenuSimple": "function",
+    "Todo": "function",
+    "TypeDemo": "function"
+  },
+  "./shop": {
+    "Attribute": "function",
+    "AttributeValue": "function",
+    "Category": "function",
+    "ENTITIES": "array",
+    "IdCard": "function",
+    "Order": "function",
+    "OrderItem": "function",
+    "Product": "function",
+    "SKU": "function",
+    "SKUAttributes": "function",
+    "User": "function"
+  },
+  "./transaction": {
+    "TransactionContractFailure": "function",
+    "TransactionContractNote": "function",
+    "createUnexecutedMigrations": "function",
+    "freshDbName": "function",
+    "runBootstrapAtomicitySuite": "function",
+    "runReadinessSuite": "function",
+    "runTransactionIsolationSuite": "function"
+  },
+  "./tree-unique": {
+    "TreeFile": "function",
+    "TreeMenu": "function",
+    "runTreeSiblingUniqueSuite": "function"
+  }
+}

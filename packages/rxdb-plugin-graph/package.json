@@ -1,0 +1,64 @@
+{
+  "name": "@aiao/rxdb-plugin-graph",
+  "version": "0.0.24",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./sqlite": {
+      "import": "./dist/sqlite.js",
+      "types": "./dist/sqlite.d.ts"
+    },
+    "./generator": {
+      "import": "./dist/generator.js",
+      "types": "./dist/generator/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "nx": {
+    "name": "rxdb-plugin-graph",
+    "tags": [
+      "js-lib"
+    ],
+    "targets": {
+      "consumer": {
+        "executor": "nx:run-commands",
+        "dependsOn": [
+          "build",
+          "^build"
+        ],
+        "options": {
+          "cwd": "packages/rxdb-plugin-graph",
+          "command": "node scripts/generated-consumer-gate.mjs"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
+    "@aiao/rxdb-client-generator": "workspace:*",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@aiao/rxdb-adapter-wa-sqlite": "workspace:*"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "outDir": "./out-tsc/vitest",
+    // TAURI-06：base 里的 `emitDeclarationOnly: true` 会让 @analogjs/vite-plugin-angular
+    // 的 TS program 只产出 .d.ts，而插件的 writeFileCallback 恰好丢弃 .d.ts —— 于是
+    // 没有任何文件拿到 JIT resource transform，`templateUrl` 不会被内联，
+    // TestBed 渲染时报 "Component is not resolved"。内联模板的组件碰巧不受影响，
+    // 所以这个坑只有在给 templateUrl 组件写渲染测试时才会暴露。
+    "emitDeclarationOnly": false,
+    "types": ["vitest/globals", "vitest/importMeta", "vite/client", "node", "vitest"],
+    "module": "preserve",
+    "moduleResolution": "bundler"
+  },
+  "extends": "../../tsconfig.base.json",
+  "files": ["src/test-setup.ts"],
+  "include": ["vite.config.mts", "src/**/*.test.ts", "src/**/*.spec.ts", "src/**/*.d.ts", "src/**/*.ts"],
+  "references": [
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-test/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../../modules/angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../modules/angular-todo/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/utils/tsconfig.lib.json"
+    }
+  ]
+}

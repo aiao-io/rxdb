@@ -1,0 +1,24 @@
+{
+  "exports": [
+    {
+      "name": "CodeEditor",
+      "kind": "value"
+    },
+    {
+      "name": "CodeEditorHandle",
+      "kind": "type"
+    },
+    {
+      "name": "CodeEditorProps",
+      "kind": "type"
+    },
+    {
+      "name": "CodeEditorSetup",
+      "kind": "type"
+    },
+    {
+      "name": "CodeEditorTheme",
+      "kind": "type"
+    }
+  ]
+}

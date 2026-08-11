@@ -1,0 +1,113 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/tsdoc/v0/tsdoc.schema.json",
+  "tagDefinitions": [
+    {
+      "tagName": "@note",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@warning",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@export",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@minimum",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@maximum",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@constant",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@Entity",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@requires",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@param",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@returns",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@remarks",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@privateRemarks",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@deprecated",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@defaultValue",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@example",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@throws",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@typeParam",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@inheritDoc",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@label",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@beta",
+      "syntaxKind": "modifier"
+    },
+    {
+      "tagName": "@alpha",
+      "syntaxKind": "modifier"
+    },
+    {
+      "tagName": "@experimental",
+      "syntaxKind": "modifier"
+    },
+    {
+      "tagName": "@internal",
+      "syntaxKind": "modifier"
+    },
+    {
+      "tagName": "@override",
+      "syntaxKind": "modifier"
+    },
+    {
+      "tagName": "@sealed",
+      "syntaxKind": "modifier"
+    },
+    {
+      "tagName": "@virtual",
+      "syntaxKind": "modifier"
+    },
+    {
+      "tagName": "@eventProperty",
+      "syntaxKind": "modifier"
+    }
+  ]
+}

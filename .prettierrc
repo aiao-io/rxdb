@@ -1,0 +1,49 @@
+{
+  "arrowParens": "avoid",
+  "attributeSort": "ASC",
+  "experimentalTernaries": true,
+  "overrides": [
+    {
+      "files": "website/blog/**/*.md",
+      "options": {
+        "parser": "mdx"
+      }
+    },
+    {
+      "files": ["*.html", "*.html.template"],
+      "options": {
+        "htmlWhitespaceSensitivity": "ignore",
+        "parser": "angular"
+      }
+    },
+    {
+      "files": "*.vue",
+      "options": {
+        "htmlWhitespaceSensitivity": "strict",
+        "singleAttributePerLine": true
+      }
+    },
+    {
+      "files": "*.yaml",
+      "options": {
+        "bracketSpacing": false
+      }
+    },
+    {
+      "files": "*.tsx",
+      "options": {
+        "jsxSingleQuote": true
+      }
+    }
+  ],
+  "plugins": [
+    "prettier-plugin-organize-attributes",
+    "prettier-plugin-organize-imports",
+    "prettier-plugin-sort-json",
+    "prettier-plugin-tailwindcss"
+  ],
+  "printWidth": 120,
+  "semi": true,
+  "singleQuote": true,
+  "trailingComma": "none"
+}

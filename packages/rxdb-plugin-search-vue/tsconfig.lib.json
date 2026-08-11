@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "outDir": "dist",
+    "types": ["vite/client"],
+    "rootDir": "src",
+    "jsx": "preserve",
+    "jsxImportSource": "vue",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo"
+  },
+  "exclude": [
+    "out-tsc",
+    "dist",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "vite.config.ts",
+    "vite.config.mts",
+    "vitest.config.ts",
+    "vitest.config.mts",
+    "eslint.config.js",
+    "eslint.config.cjs",
+    "eslint.config.mjs"
+  ],
+  "extends": "../../tsconfig.base.json",
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "references": [
+    {
+      "path": "../rxdb-plugin-search/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb/tsconfig.lib.json"
+    }
+  ]
+}

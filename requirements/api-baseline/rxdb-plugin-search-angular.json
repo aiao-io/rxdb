@@ -1,0 +1,36 @@
+{
+  "exports": [
+    {
+      "name": "SearchExecutionError",
+      "kind": "both"
+    },
+    {
+      "name": "SearchHandle",
+      "kind": "type"
+    },
+    {
+      "name": "SearchOptions",
+      "kind": "type"
+    },
+    {
+      "name": "SearchResult",
+      "kind": "type"
+    },
+    {
+      "name": "SearchSourceLike",
+      "kind": "type"
+    },
+    {
+      "name": "SearchState",
+      "kind": "type"
+    },
+    {
+      "name": "useSearch",
+      "kind": "value"
+    },
+    {
+      "name": "UseSearchReturn",
+      "kind": "type"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "@aiao/dev-rxdb-electron-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "name": "dev-rxdb-electron-e2e"
+  }
+}

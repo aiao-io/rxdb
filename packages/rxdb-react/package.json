@@ -1,0 +1,49 @@
+{
+  "name": "@aiao/rxdb-react",
+  "version": "0.0.24",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
+    "@aiao/rxdb-plugin-graph": "workspace:*"
+  },
+  "peerDependencies": {
+    "@aiao/rxdb-plugin-graph": "*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "rxjs": "^7.8.0"
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "nx": {
+    "name": "rxdb-react",
+    "tags": [
+      "react-lib"
+    ]
+  }
+}

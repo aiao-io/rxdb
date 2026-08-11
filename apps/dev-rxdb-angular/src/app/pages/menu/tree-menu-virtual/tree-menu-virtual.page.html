@@ -1,0 +1,397 @@
+@let undo_count = (history.undoCount$ | async) ?? 0;
+@let redo_count = (history.redoCount$ | async) ?? 0;
+@let undo_disabled = undo_count === 0;
+@let redo_disabled = redo_count === 0;
+@let menuCount = menuResource.value().length;
+@let state = dragDropState();
+@let parentId = selectedParentId();
+@let showHistory = $show_history();
+@let keyword = searchKeyword();
+@let showStickyHeader = $show_sticky_header();
+@let matchedCount = matchedMenuIds().size;
+<div class="flex h-full">
+  <!-- 历史侧边栏 -->
+  <ao-history-sidebar
+    [borderSide]="'right'"
+    [histories]="(history.histories$ | async) ?? []"
+    [scopeType]="history.type"
+    [show]="showHistory"
+    (closeClick)="toggle_history()"
+  />
+
+  <main class="h-full min-w-0 flex-1 overflow-auto" #mainContainer cdkVirtualScrollingElement>
+    <!-- Sticky Header (简化版) -->
+    @if (showStickyHeader) {
+      <div class="border-base-300 bg-base-100 sticky top-0 z-10 border-b px-4 py-2 shadow-sm">
+        <div class="mx-auto flex max-w-4xl items-center justify-between">
+          <div class="flex items-center gap-3">
+            <h2
+              class="cursor-pointer text-lg font-semibold"
+              (click)="scroll_to_top()"
+              (keydown.enter)="scroll_to_top()"
+              (keydown.space)="scroll_to_top()"
+              role="button"
+              tabindex="0"
+            >
+              Tree Menu - Virtual Scroll
+            </h2>
+            @if (keyword) {
+              <div class="badge badge-warning badge-sm">搜索: {{ matchedCount }} 项</div>
+            } @else {
+              <div class="badge badge-primary badge-sm">{{ menuCount }} 项</div>
+            }
+          </div>
+          <div class="flex items-center gap-2">
+            <!-- History Toggle -->
+            <button
+              class="btn btn-sm"
+              [class.btn-primary]="$show_history()"
+              (click)="toggle_history()"
+              aria-label="历史记录"
+            >
+              <svg [lucideIcon]="History" size="16"></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Full Header -->
+    <div class="border-base-300 bg-base-100 flex-none border-b p-4" #fullHeader>
+      <div class="mx-auto flex max-w-4xl flex-col gap-3">
+        <!-- Title Bar -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <h1 class="text-2xl font-bold">Tree Menu - Virtual Scroll</h1>
+            <div class="badge badge-primary">{{ menuCount }} 项</div>
+
+            <!-- 批量添加 -->
+            <div class="dropdown dropdown-end">
+              <button class="btn btn-sm btn-circle" aria-label="批量添加">
+                <svg [lucideIcon]="Plus" [size]="16" />
+              </button>
+              <ul class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                @for (option of batchAddOptions; track option.count) {
+                  <li>
+                    <button [disabled]="option.action.isPending()" (click)="option.action.execute(option.count)">
+                      @if (option.action.isPending()) {
+                        <span class="loading loading-spinner loading-xs"></span>
+                      }
+                      {{ option.label }}
+                    </button>
+                  </li>
+                }
+              </ul>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <!-- Undo/Redo -->
+            <div class="join">
+              <button class="btn btn-sm join-item" [disabled]="undo_disabled" (click)="undo()" aria-label="撤销">
+                <svg [lucideIcon]="Undo2" size="16"></svg>
+                @if (undo_count) {
+                  <span class="badge badge-xs">{{ undo_count }}</span>
+                }
+              </button>
+              <button class="btn btn-sm join-item" [disabled]="redo_disabled" (click)="redo()" aria-label="重做">
+                <svg [lucideIcon]="Redo2" size="16"></svg>
+                @if (redo_count) {
+                  <span class="badge badge-xs">{{ redo_count }}</span>
+                }
+              </button>
+            </div>
+            <!-- History Toggle -->
+            <button
+              class="btn btn-sm"
+              [class.btn-primary]="showHistory"
+              (click)="toggle_history()"
+              aria-label="历史记录"
+            >
+              <svg [lucideIcon]="History" size="16"></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- 统计信息 & 操作栏 -->
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <div class="bg-base-100 border-base-200 flex items-center gap-2 rounded-lg border px-3 py-1 shadow-sm">
+              <span class="text-xs opacity-70">已展开</span>
+              <span class="font-mono text-lg font-bold">{{ expandedCount() }}</span>
+            </div>
+            <button
+              class="btn btn-sm btn-ghost btn-square"
+              [title]="isAllExpanded() ? '折叠全部' : '展开全部'"
+              (click)="toggleExpandAll()"
+            >
+              <svg [lucideIcon]="isAllExpanded() ? ChevronsUp : ChevronsDown" [size]="20" />
+            </button>
+          </div>
+
+          <button
+            class="btn btn-sm btn-error btn-outline"
+            [disabled]="delete_all.isPending()"
+            (click)="delete_all.execute()"
+          >
+            @if (delete_all.isPending()) {
+              <span class="loading loading-spinner loading-xs"></span>
+            } @else {
+              <svg [lucideIcon]="Trash2" [size]="16" />
+            }
+            删除所有数据
+          </button>
+        </div>
+
+        <!-- 添加菜单 (根/子) -->
+        <div class="flex gap-2">
+          <div class="join flex-1">
+            @if (parentId) {
+              <div class="join-item bg-base-200 border-base-300 flex items-center border border-r-0 px-3 text-sm">
+                <span class="mr-1 opacity-70">父节点:</span>
+                <span class="max-w-[8rem] truncate font-medium">{{ getSelectedParentTitle() }}</span>
+                <button
+                  class="btn btn-ghost btn-xs btn-circle ml-1 h-5 min-h-0 w-5"
+                  (click)="cancelSelectParent()"
+                  title="取消选择父节点"
+                  type="button"
+                >
+                  <svg [lucideIcon]="X" [size]="14" />
+                </button>
+              </div>
+            }
+            <input
+              class="input input-bordered input-sm join-item min-w-0 flex-1"
+              id="menu-title-input"
+              [(ngModel)]="$new_menu_title"
+              [placeholder]="parentId ? '输入子菜单标题...' : '输入根菜单标题...'"
+              (keyup.enter)="parentId ? addChildMenu($event) : addRootMenu($event)"
+              autocomplete="off"
+              type="text"
+            />
+          </div>
+          <button
+            class="btn btn-primary btn-sm"
+            (click)="parentId ? addChildMenu($event) : addRootMenu($event)"
+            type="button"
+          >
+            <svg [lucideIcon]="Plus" [size]="16" />
+            {{ parentId ? '添加子菜单' : '添加根菜单' }}
+          </button>
+        </div>
+
+        <!-- 搜索框 -->
+        <div class="flex gap-2">
+          <div class="relative flex-1">
+            <svg
+              class="text-base-content/40 absolute top-1/2 left-3 -translate-y-1/2"
+              [lucideIcon]="Search"
+              [size]="16"
+            />
+            <input
+              class="input input-bordered input-sm w-full pl-10"
+              [(ngModel)]="$search_keyword"
+              placeholder="搜索菜单..."
+              type="text"
+            />
+          </div>
+          @if (keyword) {
+            <button class="btn btn-ghost btn-sm" (click)="clearSearch()" type="button">
+              <svg [lucideIcon]="X" [size]="16" />
+              清除
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="p-6">
+      <div class="mx-auto max-w-4xl space-y-6">
+        <!-- 路径冲突警告 -->
+        @if (pathConflictWarning()) {
+          <div class="alert alert-warning">
+            <svg [lucideIcon]="TriangleAlert" [size]="20" />
+            <div class="flex-1">
+              <div class="font-semibold">路径冲突警告</div>
+              <div class="text-sm">
+                已存在同名菜单：
+                <strong>{{ pathConflictWarning()?.conflictPath }}</strong>
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-sm btn-circle" (click)="clearPathWarning()">
+              <svg [lucideIcon]="X" [size]="16" />
+            </button>
+          </div>
+        }
+
+        <!-- 树形列表（虚拟滚动） -->
+        <div class="card bg-base-100 shadow-sm">
+          <div class="card-body p-0">
+            @if (treeNodes().length === 0) {
+              <div class="empty-state text-base-content/60 py-8 text-center">
+                <p class="mb-2 text-lg">暂无菜单</p>
+                <p class="text-sm">点击上方“添加根菜单”按钮创建第一个菜单</p>
+              </div>
+            } @else {
+              <!-- 虚拟滚动容器 -->
+              <cdk-virtual-scroll-viewport class="virtual-scroll-viewport" #virtualScrollViewport [itemSize]="44">
+                <ul class="tree-list">
+                  <li
+                    class="tree-node"
+                    *cdkVirtualFor="let node of treeNodes(); trackBy: trackByMenuId"
+                    [attr.data-menu-id]="node.menu.id"
+                    [attr.draggable]="true"
+                    [class.dragging]="state.draggedItemId === node.menu.id"
+                    [class.drop-after]="
+                      state.targetItemId === node.menu.id && state.dropMode === 'after' && state.isValidTarget
+                    "
+                    [class.drop-before]="
+                      state.targetItemId === node.menu.id && state.dropMode === 'before' && state.isValidTarget
+                    "
+                    [class.drop-highlighted]="highlightedMenuIds().has(node.menu.id)"
+                    [class.drop-into]="
+                      state.targetItemId === node.menu.id && state.dropMode === 'into' && state.isValidTarget
+                    "
+                    [class.drop-invalid]="state.targetItemId === node.menu.id && !state.isValidTarget"
+                    [style.padding-left.px]="node.level * 24"
+                    (dragend)="onDragEnd()"
+                    (dragleave)="onDragLeave($event)"
+                    (dragover)="onDragOver($event, node.menu)"
+                    (dragstart)="onDragStart($event, node.menu)"
+                    (drop)="onDrop($event, node.menu)"
+                    data-testid="menu-row"
+                  >
+                    <div class="tree-node-content hover:bg-base-200 group flex items-center gap-2 rounded px-2 py-2">
+                      <!-- 拖拽手柄 -->
+                      <button
+                        class="btn btn-ghost btn-xs btn-square drag-handle opacity-0 transition-opacity group-hover:opacity-100"
+                        title="拖拽排序"
+                      >
+                        <svg [lucideIcon]="GripVertical" [size]="14" />
+                      </button>
+
+                      <!-- 展开/折叠按钮 -->
+                      <button
+                        class="btn btn-ghost btn-xs btn-square"
+                        [class.invisible]="!node.hasChildren"
+                        (click)="toggleExpand(node.menu)"
+                      >
+                        @if (node.isExpanded) {
+                          <svg [lucideIcon]="ChevronDown" [size]="16" />
+                        } @else {
+                          <svg [lucideIcon]="ChevronRight" [size]="16" />
+                        }
+                      </button>
+
+                      <!-- 菜单标题（编辑模式） -->
+                      @if (editingMenuId() === node.menu.id) {
+                        <div class="flex flex-1 gap-2">
+                          <input
+                            class="input input-bordered input-sm flex-1"
+                            [(ngModel)]="$edit_menu_title"
+                            (keydown.escape)="cancelEdit()"
+                            (keyup.enter)="saveEdit($event)"
+                            type="text"
+                          />
+                          <button class="btn btn-primary btn-sm" (click)="saveEdit($event)" type="button">确认</button>
+                          <button class="btn btn-ghost btn-sm" (click)="cancelEdit()" type="button">取消</button>
+                        </div>
+                      } @else {
+                        <!-- 菜单标题（显示模式） -->
+                        <span
+                          class="flex-1 text-sm"
+                          [class.bg-yellow-200]="isMenuMatched(node.menu.id)"
+                          [class.font-semibold]="isMenuMatched(node.menu.id)"
+                        >
+                          {{ node.menu.title }}
+                        </span>
+
+                        <!-- 操作按钮 -->
+                        <div class="actions flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                          <!-- 添加子菜单 -->
+                          <button class="btn btn-ghost btn-xs" (click)="selectParent(node.menu.id)" title="添加子菜单">
+                            <svg [lucideIcon]="Plus" [size]="14" />
+                          </button>
+
+                          <!-- 编辑 -->
+                          <button class="btn btn-ghost btn-xs" (click)="startEdit($event, node.menu)" title="编辑">
+                            <svg [lucideIcon]="Pen" [size]="14" />
+                          </button>
+
+                          <!-- 删除 -->
+                          <button
+                            class="btn btn-ghost btn-xs text-error"
+                            (click)="deleteMenu($event, node.menu)"
+                            title="删除"
+                          >
+                            <svg [lucideIcon]="Trash2" [size]="14" />
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  </li>
+                </ul>
+              </cdk-virtual-scroll-viewport>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- 删除确认对话框 -->
+@if (menuToDelete(); as menu) {
+  <dialog class="modal modal-open" role="dialog">
+    <div class="modal-box">
+      <h3 class="text-lg font-bold">确认删除</h3>
+
+      <div class="py-4">
+        <p class="mb-3">
+          确定要删除菜单
+          <span class="text-primary font-semibold">"{{ menu.title }}"</span>
+          吗？
+        </p>
+
+        @let impact = deleteImpact();
+        @if (impact.childrenCount > 0) {
+          <div class="alert alert-warning">
+            <svg [lucideIcon]="TriangleAlert" [size]="20" />
+            <div class="flex flex-col gap-1 text-sm">
+              <p class="font-medium">此操作将级联删除：</p>
+              <ul class="ml-4 list-disc">
+                <li>{{ impact.childrenCount }} 个直接子节点</li>
+                @if (impact.descendantsCount > impact.childrenCount) {
+                  <li>共 {{ impact.descendantsCount }} 个所有后代节点</li>
+                }
+              </ul>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="modal-action flex-col gap-2 sm:flex-row">
+        <button class="btn btn-ghost" (click)="cancelDelete()" type="button">取消</button>
+
+        @if (impact.childrenCount > 0) {
+          <button class="btn btn-warning" (click)="executePromoteChildrenDelete()" type="button">
+            <svg [lucideIcon]="Trash2" [size]="16" />
+            删除父节点 (子节点提升)
+          </button>
+          <button class="btn btn-error" (click)="executeCascadeDelete()" type="button">
+            <svg [lucideIcon]="Trash2" [size]="16" />
+            级联删除 (删除所有)
+          </button>
+        } @else {
+          <button class="btn btn-error" (click)="executeCascadeDelete()" type="button">
+            <svg [lucideIcon]="Trash2" [size]="16" />
+            确认删除
+          </button>
+        }
+      </div>
+    </div>
+    <form class="modal-backdrop" (click)="cancelDelete()" (keydown.escape)="cancelDelete()" method="dialog">
+      <button aria-label="关闭对话框" type="button">close</button>
+    </form>
+  </dialog>
+}

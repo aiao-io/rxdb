@@ -1,0 +1,24 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-adapter-sqlite",
+  "tags": ["js-lib"],
+  "targets": {
+    "consumer": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build", "^build"],
+      "options": {
+        "command": "node scripts/audit/sqlite-adapter-consumer.mjs rxdb-adapter-sqlite"
+      }
+    },
+    "build": {
+      "options": {
+        "command": "vite build && node ../../scripts/audit/package-api-docs.mjs ."
+      }
+    },
+    "lint": {
+      "options": {
+        "args": ["--max-warnings=0"]
+      }
+    }
+  }
+}

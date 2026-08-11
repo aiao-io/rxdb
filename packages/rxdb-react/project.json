@@ -1,0 +1,20 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-react",
+  "tags": ["react-lib"],
+  "targets": {
+    "test-browser": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-react",
+        "command": "vitest run",
+        "env": {
+          "VITEST_BROWSER": "true"
+        }
+      },
+      "metadata": {
+        "description": "Run the browser (real chromium) vitest project: real RxDB entities/repositories on wa-sqlite plus React layout/passive commit timing. Gated by VITEST_BROWSER=true in vite.config.mts; without this target these specs never run in CI."
+      }
+    }
+  }
+}

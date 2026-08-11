@@ -1,0 +1,225 @@
+@let current_tab = $current_tab();
+@let todo_count_left = $todo_count_left.value();
+
+<div
+  class="min-h-full w-full flex-1 overflow-auto"
+  [attr.data-loaded-count]="resource.value().length"
+  cdkVirtualScrollingElement
+  data-page-size="50"
+  data-testid="todo-cursor-viewport"
+>
+  <!-- header -->
+  <div class="mx-auto flex max-w-sm flex-col gap-2 pt-4">
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold">
+        Todo
+        <div class="badge badge-outline badge-primary badge-sm" data-testid="todo-cursor-count">
+          {{ todo_count_left }} left
+        </div>
+      </h1>
+    </div>
+    <!-- tabs -->
+    <div class="tabs tabs-box tabs-sm">
+      <input
+        class="tab"
+        [checked]="current_tab === 'all'"
+        (click)="set_current_tab('all')"
+        aria-label="all"
+        data-testid="todo-cursor-tab-all"
+        name="my_tabs"
+        type="radio"
+      />
+      <input
+        class="tab"
+        [checked]="current_tab === 'active'"
+        (click)="set_current_tab('active')"
+        aria-label="Active"
+        data-testid="todo-cursor-tab-active"
+        name="my_tabs"
+        type="radio"
+      />
+      <input
+        class="tab"
+        [checked]="current_tab === 'completed'"
+        (click)="set_current_tab('completed')"
+        aria-label="Completed"
+        data-testid="todo-cursor-tab-completed"
+        name="my_tabs"
+        type="radio"
+      />
+    </div>
+
+    <!-- feature buttons -->
+    <div class="flex flex-wrap gap-2">
+      <button
+        class="btn btn-sm"
+        (click)="toggle_complete_sort()"
+        aria-label="Toggle Complete Sort"
+        data-testid="todo-cursor-sort"
+      >
+        @if ($completed_sort() === 'asc') {
+          <svg [lucideIcon]="ArrowUp" size="16"></svg>
+        } @else {
+          <svg [lucideIcon]="ArrowDown" size="16"></svg>
+        }
+        Completed
+      </button>
+      <button
+        class="btn btn-sm"
+        [disabled]="add_1.isPending()"
+        (click)="add_1.execute(1)"
+        data-testid="todo-cursor-add-1"
+      >
+        @if (add_1.isPending()) {
+          <span class="loading loading-spinner loading-xs absolute"></span>
+        }
+        add 1
+      </button>
+      <button
+        class="btn btn-sm"
+        [disabled]="add_2.isPending()"
+        (click)="add_2.execute(10)"
+        data-testid="todo-cursor-add-10"
+      >
+        @if (add_2.isPending()) {
+          <span class="loading loading-spinner loading-xs absolute"></span>
+        }
+        add 10
+      </button>
+      <button
+        class="btn btn-sm"
+        [disabled]="add_3.isPending()"
+        (click)="add_3.execute(100)"
+        data-testid="todo-cursor-add-100"
+      >
+        @if (add_3.isPending()) {
+          <span class="loading loading-spinner loading-xs absolute"></span>
+        }
+        add 100
+      </button>
+      <button
+        class="btn btn-sm"
+        [disabled]="add_4.isPending()"
+        (click)="add_4.execute(1000)"
+        data-testid="todo-cursor-add-1000"
+      >
+        @if (add_4.isPending()) {
+          <span class="loading loading-spinner loading-xs absolute"></span>
+        }
+        add 1000
+      </button>
+      <button
+        class="btn btn-sm"
+        [disabled]="add_5.isPending()"
+        (click)="add_5.execute(10000)"
+        data-testid="todo-cursor-add-10000"
+      >
+        @if (add_5.isPending()) {
+          <span class="loading loading-spinner loading-xs absolute"></span>
+        }
+        add 10000
+      </button>
+    </div>
+
+    <!-- add todo -->
+    <div class="flex w-full gap-2">
+      <input
+        class="input input-sm flex-1"
+        [(ngModel)]="title"
+        (keyup.enter)="add_todo($event)"
+        aria-label="What needs to be done?"
+        data-testid="todo-cursor-title-input"
+        placeholder="What needs to be done?"
+        type="text"
+      />
+      <button
+        class="btn btn-neutral btn-sm"
+        [disabled]="!title()"
+        (click)="add_todo($event)"
+        aria-label="Add Todo"
+        data-testid="todo-cursor-add"
+      >
+        <svg [lucideIcon]="Plus" size="16"></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Todo List -->
+  <cdk-virtual-scroll-viewport class="mx-auto min-h-40 max-w-sm" [itemSize]="itemSize">
+    @if (resource.isEmpty()) {
+      <div class="hero min-h-40">
+        <div class="hero-content text-center">
+          <h1 class="text-sm font-bold">What needs to be done?</h1>
+        </div>
+      </div>
+    } @else if (resource.isLoading()) {
+      <div class="absolute min-h-40 w-full">
+        <div class="hero-content text-center text-xs">
+          <span class="loading loading-spinner loading-xs"></span>
+          loading...
+        </div>
+      </div>
+    }
+    <ul class="mb-4 divide-y divide-gray-200">
+      <li
+        class="flex items-center px-1 py-2"
+        *cdkVirtualFor="let todo of resource.value(); let i = index; trackBy: trackByFn"
+        [style.height.px]="itemSize"
+        data-testid="todo-cursor-row"
+      >
+        @let state = get_todo_state_signal(todo)();
+        <div class="flex w-full flex-1 cursor-pointer select-none" #liEle aria-label="What needs to be done?">
+          @if (state.isEditing) {
+            <input
+              class="todo-input input input-sm m-2 h-8 w-full"
+              #inputEle
+              [(ngModel)]="todo.title"
+              (blur)="todo_cancel_edit(todo)"
+              (keyup.enter)="todo_save($event, inputEle, todo)"
+              (keyup.escape)="todo_cancel_edit(todo)"
+              data-testid="todo-cursor-edit-input"
+              placeholder="What needs to be done?"
+              type="text"
+            />
+          } @else {
+            <input
+              class="checkbox checkbox-sm"
+              [checked]="todo.completed"
+              (change)="toggle_todo_completed($event, todo)"
+              data-testid="todo-cursor-completed"
+              type="checkbox"
+            />
+            <div
+              class="flex-1 truncate px-1"
+              [class.line-through]="todo.completed"
+              [class.opacity-50]="todo.completed"
+              (dblclick)="todo_edit($event, liEle, todo)"
+              data-testid="todo-cursor-title"
+            >
+              {{ todo.title }}
+            </div>
+            <button
+              class="btn btn-xs btn-ghost text-primary px-0"
+              (click)="todo_edit($event, liEle, todo)"
+              aria-label="Edit"
+              data-testid="todo-cursor-edit"
+            >
+              <svg [lucideIcon]="Pen" size="16"></svg>
+            </button>
+            <button
+              class="btn btn-xs btn-ghost text-error px-0"
+              (click)="todo_remove($event, todo)"
+              aria-label="Remove"
+              data-testid="todo-cursor-delete"
+            >
+              <svg [lucideIcon]="X" size="16"></svg>
+            </button>
+          }
+        </div>
+      </li>
+    </ul>
+  </cdk-virtual-scroll-viewport>
+
+  <!-- footer -->
+  <div class="mx-auto flex h-32 w-full max-w-sm flex-col"><div class="divider">footer</div></div>
+</div>
