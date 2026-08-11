@@ -19,7 +19,7 @@ playwright-report/
 # Add files here to ignore them from prettier formatting
 
 # Docker volumes config - double quotes are required in YAML for variable substitution
-docker/volumes/
+docker/
 
 # Instruction/Memory markdown files (preserve manual formatting)
 .github/**/*.md

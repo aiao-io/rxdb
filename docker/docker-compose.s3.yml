@@ -1,4 +1,5 @@
 services:
+
   minio:
     image: cgr.dev/chainguard/minio
     #ports:
@@ -9,7 +10,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     command: server --console-address ":9001" /data
     healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
+      test: [ "CMD", "mc", "ready", "local" ]
       interval: 2s
       timeout: 10s
       retries: 5
