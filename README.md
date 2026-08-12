@@ -8,9 +8,9 @@
 
 </div>
 
-RxDB 是一套面向 Local-first 应用的 TypeScript 基建。
+RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。
 
-它整合了数据库、响应式数据流、模型定义和前端集成，通过装饰器驱动的实体定义自动生成类型安全的 Repository 和查询 API，让你可以在浏览器中直接运行 SQLite，用接近原生 App 的方式构建离线优先、数据驱动的 Web 应用。
+围绕装饰器定义的实体模型，自动生成类型安全的 Repository 和查询 API —— 一份模型声明同时驱动数据库 schema、TypeScript 类型和响应式数据流。浏览器里直接跑 SQLite，用接近原生 App 的体验构建离线优先应用。
 
 ## Demo
 
@@ -22,33 +22,35 @@ RxDB 是一套面向 Local-first 应用的 TypeScript 基建。
 
 ## 技术栈
 
-| 层        | 技术                                                   |
-| --------- | ------------------------------------------------------ |
-| 语言      | TypeScript 6.0+ strict, ESM                            |
-| 构建      | Nx 23 + pnpm 10                                        |
-| 框架      | Angular 22+ / React 19+ / Vue 3.5+                     |
-| 状态/响应 | RxJS 7.8+                                              |
-| 存储      | wa-sqlite / sqlite-wasm / PGlite / Supabase / sqliteai |
-| 测试      | Vitest (unit/integration) + Playwright (e2e/a11y)      |
-| 运行时    | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri        |
+| 层     | 技术                                                   |
+| ------ | ------------------------------------------------------ |
+| 语言   | TypeScript 6.0+ strict, ESM                            |
+| 构建   | Nx 23 + pnpm 10                                        |
+| 框架   | Angular 22+ / React 19+ / Vue 3.5+                     |
+| 响应式 | RxJS 7.8+                                              |
+| 存储   | wa-sqlite / sqlite-wasm / PGlite / Supabase / sqliteai |
+| 测试   | Vitest (unit/integration) + Playwright (e2e/a11y)      |
+| 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri        |
 
 > [!NOTE]
 > ⚠️ 核心 MVP 已完成（[32/37 stories](requirements/status-overview.md)），当前处于 1.0 发布冲刺阶段。API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。
 
 ## RxDB 解决什么问题？
 
-- 传统 Web 应用里，数据库 schema、TypeScript 类型、状态管理、前后端通信、离线能力往往需要分别维护，一处改动需要同步多处代码，维护成本高。
-- RxDB 试图把这些基础能力统一起来：同一份模型定义，驱动数据库、查询、变更、客户端代码和 UI 集成。
-- 如果你在做离线优先、复杂数据结构、强类型协作应用，这套方案会更顺手。
+传统 Web 应用中，数据库 schema、TypeScript 类型、状态管理、前后端通信、离线能力往往各自维护 —— 改一处就要同步多处，维护成本高。
+
+RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同时驱动数据库、查询、变更、客户端代码和 UI 集成。对离线优先、复杂数据结构和强类型协作场景，这套方案会让你更顺手。
 
 ## 核心特点
 
-- 响应式：数据变化自动驱动 UI 更新，减少手写状态同步。
-- Local-first：浏览器内运行数据库，弱网和离线场景体验更稳定。
-- 强类型：从模型定义出发，生成类型安全的查询、变更和客户端代码。
-- 数据驱动：适合树、图、地理信息等复杂结构，并支持围绕模型生成基础 CRUD 能力。
-- 跨框架：提供 Angular、React、Vue 三端集成，保持 API 风格一致。
-- 可协作：围绕数据版本与同步演进，目标是支持多端一致性和多人协作。
+| 特点            | 说明                                             |
+| --------------- | ------------------------------------------------ |
+| **响应式**      | 数据变更自动驱动 UI，无需手动同步状态            |
+| **Local-first** | 浏览器内运行数据库，弱网离线同样稳定             |
+| **强类型**      | 从模型定义推导出类型安全的查询、变更和客户端代码 |
+| **数据驱动**    | 原生支持树、图等复杂结构，围绕模型自动生成 CRUD  |
+| **跨框架**      | Angular / React / Vue 三端集成，API 风格一致     |
+| **可协作**      | 围绕数据版本与同步演进，目标多端一致、多人协作   |
 
 参考生态：
 
@@ -64,7 +66,7 @@ RxDB 是一套面向 Local-first 应用的 TypeScript 基建。
 **核心引擎**
 
 - 装饰器驱动模型定义：`@Entity`、`@Property`、`@Relation`，自动生成 DDL 与 TypeScript 类型
-- 客户端代码生成：ts-morph 驱动的 Repository + 查询构建器，类型安全、零手写样板
+- 客户端代码生成：ts-morph 驱动的 Repository + 查询构建器，类型安全、零样板代码
 - 响应式查询：RxJS Observable → Angular Signals / React Hooks / Vue Composables
 - CRUD + 事务：原子批量操作、upsert、乐观锁、嵌套 save
 - 关系映射：1:1 / 1:N / N:1 / M:N 自动中间表，级联查询与变更
@@ -187,23 +189,25 @@ aiao/
 
 ## 当前进展
 
-### 已验证的典型场景
+32/37 个 story 已交付。核心引擎、六种存储适配器、三框架集成、插件体系和协作能力均已就绪。
 
-- Todo List：增删改、历史记录、撤销/重做
-- 树结构文件管理：增删改、拖拽移动、路径唯一性校验、撤销/重做、搜索
-- 树结构菜单管理：增删改、同路径告警、拖拽排序、撤销/重做、搜索
-- Supabase 同步：本地优先的远端同步 demo（PostgREST + Realtime + RPC 推送）
+### 已验证场景
 
-### 正在推进
+- **Todo List** — 增删改、历史记录、撤销/重做
+- **树结构文件管理** — 增删改、拖拽移动、路径唯一性校验、撤销/重做、搜索
+- **树结构菜单管理** — 增删改、同路径告警、拖拽排序、撤销/重做、搜索
+- **Supabase 同步** — 本地优先远端同步，PostgREST + Realtime + RPC 推送
 
-- 🚧 **Writer lease 与迁移 fencing**（[US-304](requirements/stories/collaboration/US-304-writer-lease-migration-fencing.md)）：跨 Tab/Worker/进程安全迁移，防止旧连接写入不兼容格式
+### 进行中
+
+- 🚧 **Writer lease 与迁移 fencing**（[US-304](requirements/stories/collaboration/US-304-writer-lease-migration-fencing.md)）— 跨 Tab / Worker / 进程的安全迁移协议，防止旧连接在升级后写入不兼容格式
 
 ### 待办
 
-- ⬜ **字段语义元数据**（[US-012](requirements/stories/core/US-012-field-semantic-metadata.md)）：`PropertyType + format` 契约，版本化前端 DTO
-- ⬜ **桌面本地数据库**（[US-207](requirements/stories/adapter/US-207-desktop-local-database.md)）：Electron / Tauri 原生 SQLite/PGlite 持久化
-- ⬜ **持久化 Git 式工作区提交**（[US-305](requirements/stories/collaboration/US-305-persistent-workspace-commits.md)）：独立命名空间的 commit 存储
-- ⬜ **PGlite 原生全文搜索**（[US-703](requirements/stories/future/US-703-pglite-full-text-search.md)）：tsvector / GIN / trigger，补齐适配器能力对称
+- ⬜ **字段语义元数据**（[US-012](requirements/stories/core/US-012-field-semantic-metadata.md)）— `PropertyType + format` 统一契约，版本化前端 DTO
+- ⬜ **桌面本地数据库**（[US-207](requirements/stories/adapter/US-207-desktop-local-database.md)）— Electron / Tauri 原生 SQLite / PGlite 持久化
+- ⬜ **持久化 Git 式工作区提交**（[US-305](requirements/stories/collaboration/US-305-persistent-workspace-commits.md)）— 独立命名空间的 commit 存储
+- ⬜ **PGlite 原生全文搜索**（[US-703](requirements/stories/future/US-703-pglite-full-text-search.md)）— tsvector / GIN / trigger，补齐与 SQLite FTS5 的能力对称
 
 ## 路线图
 
@@ -211,7 +215,7 @@ aiao/
 
 ### 阶段 1 → 1.0 发布
 
-把现有 32 个已完成 story 推到稳定可发版状态。剩余阻塞项：
+将已完成能力推到稳定可发版状态。阻塞项：
 
 - 🚧 **US-304** writer lease：跨 realm 安全迁移的最后一道门禁
 - ⬜ **US-012** 字段语义元数据：统一前端 DTO 与校验契约
