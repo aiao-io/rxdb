@@ -106,8 +106,8 @@
     "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/b9ddadce32480857cde28e7b1512cf45fa08ab73"
   },
   "devDependencies": {
-    "@analogjs/vite-plugin-angular": "2.6.4",
-    "@analogjs/vitest-angular": "2.6.4",
+    "@analogjs/vite-plugin-angular": "^2.7.0",
+    "@analogjs/vitest-angular": "^2.7.0",
     "@angular-devkit/core": "22.0.5",
     "@angular-devkit/schematics": "22.0.5",
     "@angular/build": "22.0.5",

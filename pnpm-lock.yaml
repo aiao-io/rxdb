@@ -221,11 +221,11 @@ importers:
         version: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/b9ddadce32480857cde28e7b1512cf45fa08ab73
     devDependencies:
       '@analogjs/vite-plugin-angular':
-        specifier: 2.6.4
-        version: 2.6.4(@angular/build@22.0.5(80989bebd1dda4772a2e74cf4a818825))(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0))
+        specifier: ^2.7.0
+        version: 2.7.0(@angular/build@22.0.5(80989bebd1dda4772a2e74cf4a818825))(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0))
       '@analogjs/vitest-angular':
-        specifier: 2.6.4
-        version: 2.6.4(@analogjs/vite-plugin-angular@2.6.4(@angular/build@22.0.5(80989bebd1dda4772a2e74cf4a818825))(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0)))(@angular-devkit/architect@0.2201.3(chokidar@5.0.0))(@angular-devkit/schematics@22.0.5(chokidar@5.0.0))(vitest@4.1.5)
+        specifier: ^2.7.0
+        version: 2.7.0(@analogjs/vite-plugin-angular@2.7.0(@angular/build@22.0.5(80989bebd1dda4772a2e74cf4a818825))(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0)))(@angular-devkit/architect@0.2201.3(chokidar@5.0.0))(@angular-devkit/schematics@22.0.5(chokidar@5.0.0))(vitest@4.1.5)
       '@angular-devkit/core':
         specifier: 22.0.5
         version: 22.0.5(chokidar@5.0.0)
@@ -711,8 +711,8 @@ importers:
         specifier: ^2.7.0
         version: 2.7.0(@angular/build@22.0.5(80989bebd1dda4772a2e74cf4a818825))(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0))
       '@analogjs/vitest-angular':
-        specifier: 2.6.4
-        version: 2.6.4(@analogjs/vite-plugin-angular@2.7.0(@angular/build@22.0.5(80989bebd1dda4772a2e74cf4a818825))(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0)))(@angular-devkit/architect@0.2201.3(chokidar@5.0.0))(@angular-devkit/schematics@22.0.5(chokidar@5.0.0))(vitest@4.1.5)
+        specifier: ^2.7.0
+        version: 2.7.0(@analogjs/vite-plugin-angular@2.7.0(@angular/build@22.0.5(80989bebd1dda4772a2e74cf4a818825))(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0)))(@angular-devkit/architect@0.2201.3(chokidar@5.0.0))(@angular-devkit/schematics@22.0.5(chokidar@5.0.0))(vitest@4.1.5)
       '@crxjs/vite-plugin':
         specifier: ^2.7.1
         version: 2.7.1(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0))
@@ -1728,20 +1728,6 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@analogjs/vite-plugin-angular@2.6.4':
-    resolution: {integrity: sha512-HK9XEhFMcF8WkSg2xKQIpC4S4nwkCRzodpXX6xo6AI7Wt6B2SpMyQBFtCHNRuQg0vi8XsJSYOPHiGouTqMJb5g==}
-    peerDependencies:
-      '@angular-devkit/build-angular': ^17.0.0 || ^18.0.0 || ^19.0.0 || ^20.0.0 || ^21.0.0 || ^22.0.0
-      '@angular/build': ^18.0.0 || ^19.0.0 || ^20.0.0 || ^21.0.0 || ^22.0.0
-      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
-    peerDependenciesMeta:
-      '@angular-devkit/build-angular':
-        optional: true
-      '@angular/build':
-        optional: true
-      vite:
-        optional: true
-
   '@analogjs/vite-plugin-angular@2.7.0':
     resolution: {integrity: sha512-KhFC9wiIxD4vi0p3Iyd6tPXyvV9J8GF1eLTkANtBcUbuLkdCRFtbqp/U08cDt+Ae+mVOiSZliBO+JSr66YCqFA==}
     peerDependencies:
@@ -1756,8 +1742,8 @@ packages:
       vite:
         optional: true
 
-  '@analogjs/vitest-angular@2.6.4':
-    resolution: {integrity: sha512-Q58VipnfncenMBKM0EZIUBrcjvG2f6cVde+8eebF5gjwoYd6Eb/c7ffDZsjT6mq0GvDEoI7F1M2YHh2jamoSEQ==}
+  '@analogjs/vitest-angular@2.7.0':
+    resolution: {integrity: sha512-39qs+o5zGJ0xtzubNpy89t2/kwnYTl03US/z7YD1vss2Tb//R38ymjaLrUtirDW/X9nk5NdFGi8nasbctSDOrw==}
     peerDependencies:
       '@analogjs/vite-plugin-angular': '*'
       '@angular-devkit/architect': '>=0.1700.0 < 0.2300.0 || >=0.2200.0 < 0.2300.0'
@@ -4674,6 +4660,13 @@ packages:
       '@emnapi/core': ^1.7.1 || ^2.0.0-alpha.3
       '@emnapi/runtime': ^1.7.1 || ^2.0.0-alpha.3
 
+  '@napi-rs/wasm-runtime@1.2.3':
+    resolution: {integrity: sha512-UMduMbqO5s5zF2NkNacMT/yK5Y5QiKvWr2+50bzIIxFDwVJ2h49b+oyjaCGPhJxd2/gC2x39EHv/gHVuu36x2Q==}
+    engines: {node: ^20.19.0 || ^22.13.0 || >=23.5.0}
+    peerDependencies:
+      '@emnapi/core': ^1.7.1 || ^2.0.0-alpha.4
+      '@emnapi/runtime': ^1.7.1 || ^2.0.0-alpha.4
+
   '@ngx-loading-bar/core@7.0.1':
     resolution: {integrity: sha512-myVfxA+BI9lXtNMNcM3uYCS8jVg9aAc37CY77f0W31p/skY9Js254fARB0UtI8PWv4YTFI/NANShK5/tlZPqNg==}
     peerDependencies:
@@ -7266,9 +7259,6 @@ packages:
     resolution: {integrity: sha512-/67zpWDBLV+oYAEL682s1ktXL0HgqX76f6gaVGkGnVZlBbm1zd0v4Bz8MFF2GGhoX9rvfq3KSQHubFHwa6w6/Q==}
     engines: {node: '>=12'}
 
-  '@ts-morph/common@0.22.0':
-    resolution: {integrity: sha512-HqNBuV/oIlMKdkLshXd1zKBqNQCsuPEsgQOkfFQ/eUKjRlwndXW1AjN9LVkBEIukm00gGXSRmfkl0Wv5VXLnlw==}
-
   '@ts-morph/common@0.29.0':
     resolution: {integrity: sha512-35oUmphHbJvQ/+UTwFNme/t2p3FoKiGJ5auTjjpNTop2dyREspirjMy82PLSC1pnDJ8ah1GU98hwpVt64YXQsg==}
 
@@ -9161,9 +9151,6 @@ packages:
   co@4.6.0:
     resolution: {integrity: sha512-QVb0dM5HvG+uaxitm8wONl7jltx8dqhfU33DcqtOZcLSVIKSDDLDi7+0LbAKiyI8hD9u42m2YxXSkMGWThaecQ==}
     engines: {iojs: '>= 1.0.0', node: '>= 0.12.0'}
-
-  code-block-writer@12.0.0:
-    resolution: {integrity: sha512-q4dMFMlXtKR3XNBHyMHt/3pwYNA69EDk00lloMOaaUMKPUXBw6lpXtbu3MMVG6/uOihGnRDOlkyqsONEUj60+w==}
 
   code-block-writer@13.0.3:
     resolution: {integrity: sha512-Oofo0pq3IKnsFtuHqSF7TqBfr71aeyZDVJ0HpmqB7FBM2qEigL0iPONSCZSO9pE9dZTAxANe5XHG9Uy0YMv8cg==}
@@ -13139,11 +13126,6 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
-  mkdirp@3.0.1:
-    resolution: {integrity: sha512-+NsyUUAZDmo6YVHzL/stxSu3t9YS1iljliy3BSDrXJ/dkn1KYdmtZODGGjLcc9XLgVVpH4KshHB8XmZgMhaBXg==}
-    engines: {node: '>=10'}
-    hasBin: true
-
   mlly@1.8.2:
     resolution: {integrity: sha512-d+ObxMQFmbt10sretNDytwt85VrbkhhUA/JBGm1MPaWJ65Cl4wOgLaB1NYvJSZ0Ef03MMEU/0xpPMXUIQ29UfA==}
 
@@ -16472,9 +16454,6 @@ packages:
       loader-utils:
         optional: true
 
-  ts-morph@21.0.1:
-    resolution: {integrity: sha512-dbDtVdEAncKctzrVZ+Nr7kHpHkv+0JDJb2MjjpBaj8bFeCkePU9rHfMklmhuLFnpeq/EJZk2IhStY6NzqgjOkg==}
-
   ts-morph@28.0.0:
     resolution: {integrity: sha512-Wp3tnZ2bzwxyTZMtgWVzXDfm7lB1Drz+y9DmmYH/L702PQhPyVrp3pkou3yIz4qjS14GY9kcpmLiOOMvl8oG1g==}
 
@@ -17889,20 +17868,6 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/trace-mapping': 0.3.31
 
-  '@analogjs/vite-plugin-angular@2.6.4(@angular/build@22.0.5(80989bebd1dda4772a2e74cf4a818825))(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0))':
-    dependencies:
-      magic-string: 0.30.21
-      obug: 2.1.4
-      oxc-parser: 0.121.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)
-      tinyglobby: 0.2.17
-      ts-morph: 21.0.1
-    optionalDependencies:
-      '@angular/build': 22.0.5(80989bebd1dda4772a2e74cf4a818825)
-      vite: 8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0)
-    transitivePeerDependencies:
-      - '@emnapi/core'
-      - '@emnapi/runtime'
-
   '@analogjs/vite-plugin-angular@2.7.0(@angular/build@22.0.5(80989bebd1dda4772a2e74cf4a818825))(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0))':
     dependencies:
       magic-string: 0.30.21
@@ -17916,14 +17881,7 @@ snapshots:
       - '@emnapi/core'
       - '@emnapi/runtime'
 
-  '@analogjs/vitest-angular@2.6.4(@analogjs/vite-plugin-angular@2.6.4(@angular/build@22.0.5(80989bebd1dda4772a2e74cf4a818825))(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0)))(@angular-devkit/architect@0.2201.3(chokidar@5.0.0))(@angular-devkit/schematics@22.0.5(chokidar@5.0.0))(vitest@4.1.5)':
-    dependencies:
-      '@analogjs/vite-plugin-angular': 2.6.4(@angular/build@22.0.5(80989bebd1dda4772a2e74cf4a818825))(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0))
-      '@angular-devkit/architect': 0.2201.3(chokidar@5.0.0)
-      '@angular-devkit/schematics': 22.0.5(chokidar@5.0.0)
-      vitest: 4.1.5(@types/node@26.2.0)(@vitest/browser-playwright@4.1.5)(@vitest/coverage-istanbul@4.1.5)(@vitest/coverage-v8@4.1.5)(@vitest/ui@4.1.5)(happy-dom@20.11.2)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0))
-
-  '@analogjs/vitest-angular@2.6.4(@analogjs/vite-plugin-angular@2.7.0(@angular/build@22.0.5(80989bebd1dda4772a2e74cf4a818825))(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0)))(@angular-devkit/architect@0.2201.3(chokidar@5.0.0))(@angular-devkit/schematics@22.0.5(chokidar@5.0.0))(vitest@4.1.5)':
+  '@analogjs/vitest-angular@2.7.0(@analogjs/vite-plugin-angular@2.7.0(@angular/build@22.0.5(80989bebd1dda4772a2e74cf4a818825))(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0)))(@angular-devkit/architect@0.2201.3(chokidar@5.0.0))(@angular-devkit/schematics@22.0.5(chokidar@5.0.0))(vitest@4.1.5)':
     dependencies:
       '@analogjs/vite-plugin-angular': 2.7.0(@angular/build@22.0.5(80989bebd1dda4772a2e74cf4a818825))(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.1)(sass-embedded@1.100.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0))
       '@angular-devkit/architect': 0.2201.3(chokidar@5.0.0)
@@ -22293,13 +22251,6 @@ snapshots:
       '@tybys/wasm-util': 0.10.3
     optional: true
 
-  '@napi-rs/wasm-runtime@1.2.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
-    dependencies:
-      '@emnapi/core': 1.10.0
-      '@emnapi/runtime': 1.10.0
-      '@tybys/wasm-util': 0.10.3
-    optional: true
-
   '@napi-rs/wasm-runtime@1.2.2(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)':
     dependencies:
       '@emnapi/core': 1.11.2
@@ -22307,7 +22258,14 @@ snapshots:
       '@tybys/wasm-util': 0.10.3
     optional: true
 
-  '@napi-rs/wasm-runtime@1.2.2(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)':
+  '@napi-rs/wasm-runtime@1.2.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
+    dependencies:
+      '@emnapi/core': 1.10.0
+      '@emnapi/runtime': 1.10.0
+      '@tybys/wasm-util': 0.10.3
+    optional: true
+
+  '@napi-rs/wasm-runtime@1.2.3(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)':
     dependencies:
       '@emnapi/core': 1.11.3
       '@emnapi/runtime': 1.11.3
@@ -23231,7 +23189,7 @@ snapshots:
 
   '@oxc-parser/binding-wasm32-wasi@0.121.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)':
     dependencies:
-      '@napi-rs/wasm-runtime': 1.2.2(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)
+      '@napi-rs/wasm-runtime': 1.2.3(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -24871,13 +24829,6 @@ snapshots:
       magic-string: 0.30.21
       string.prototype.matchall: 4.0.12
 
-  '@ts-morph/common@0.22.0':
-    dependencies:
-      fast-glob: 3.3.3
-      minimatch: 9.0.9
-      mkdirp: 3.0.1
-      path-browserify: 1.0.1
-
   '@ts-morph/common@0.29.0':
     dependencies:
       minimatch: 10.2.6
@@ -25511,7 +25462,7 @@ snapshots:
     dependencies:
       '@emnapi/core': 1.10.0
       '@emnapi/runtime': 1.10.0
-      '@napi-rs/wasm-runtime': 1.2.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
+      '@napi-rs/wasm-runtime': 1.2.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
     optional: true
 
   '@unrs/resolver-binding-win32-arm64-msvc@1.12.2':
@@ -27310,8 +27261,6 @@ snapshots:
   clsx@2.1.1: {}
 
   co@4.6.0: {}
-
-  code-block-writer@12.0.0: {}
 
   code-block-writer@13.0.3: {}
 
@@ -32328,8 +32277,6 @@ snapshots:
 
   mkdirp@1.0.4: {}
 
-  mkdirp@3.0.1: {}
-
   mlly@1.8.2:
     dependencies:
       acorn: 8.18.0
@@ -36252,11 +36199,6 @@ snapshots:
       webpack: 5.109.2(@swc/core@1.15.33(@swc/helpers@0.5.21))(esbuild@0.28.1)(lightningcss@1.33.0)(postcss@8.5.26)
     optionalDependencies:
       loader-utils: 2.0.4
-
-  ts-morph@21.0.1:
-    dependencies:
-      '@ts-morph/common': 0.22.0
-      code-block-writer: 12.0.0
 
   ts-morph@28.0.0:
     dependencies:

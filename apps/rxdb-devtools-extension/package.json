@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@analogjs/vite-plugin-angular": "^2.7.0",
-    "@analogjs/vitest-angular": "2.6.4",
+    "@analogjs/vitest-angular": "^2.7.0",
     "@crxjs/vite-plugin": "^2.7.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/chrome": "^0.2.5",
