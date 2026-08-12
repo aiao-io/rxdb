@@ -27,11 +27,11 @@ INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接
 > INV-1～INV-6 与 D1～D13 是唯一真相源，子故事不得各自复述或改写；需要变更时改本文件，再同步子故事。
 > 本文件的 `status` 是子故事的汇总视图：三个子故事全部 `Done` 时才置 `Done`。
 >
-> | 子故事                                                            | 交付                                                  |
-> | ----------------------------------------------------------------- | ----------------------------------------------------- |
-> | [US-012a](./US-012a-field-format-declaration.md)                  | `format` 声明层 + `validateEntityMetadata()` 注册期校验 |
-> | [US-012b](./US-012b-entity-fields-dto.md)                         | `describeEntityFields()` / DTO / 严格解析器            |
-> | [US-012c](./US-012c-field-value-validation-codegen.md)            | `validateFieldValue()` + 生成器透传 + 三框架契约回归    |
+> | 子故事                                                 | 交付                                                    |
+> | ------------------------------------------------------ | ------------------------------------------------------- |
+> | [US-012a](./US-012a-field-format-declaration.md)       | `format` 声明层 + `validateEntityMetadata()` 注册期校验 |
+> | [US-012b](./US-012b-entity-fields-dto.md)              | `describeEntityFields()` / DTO / 严格解析器             |
+> | [US-012c](./US-012c-field-value-validation-codegen.md) | `validateFieldValue()` + 生成器透传 + 三框架契约回归    |
 
 ## 作为/我想要/以便
 
@@ -189,12 +189,12 @@ export function parseEntityFieldsDescriptor(value: unknown): EntityFieldsDescrip
 库 v2 在同一个 `dtoVersion: 1` 里加了一个可选键，版本检查放行，严格解析器却会因为"多了一个键"报错，
 于是"不升版本"这条承诺立刻作废。因此解析器的行为按键分三档定死：
 
-| 输入情况                                          | 解析器行为                       | 理由                                       |
-| ------------------------------------------------- | -------------------------------- | ------------------------------------------ |
-| `dtoVersion` 不等于 `ENTITY_FIELDS_DTO_VERSION`   | 显式失败                         | 语义可能已变，无法安全解释                 |
-| **未知键**（顶层或字段对象上）                    | 忽略并从返回值中丢弃，不报错     | 这是「新增可选字段不升版本」成立的唯一前提 |
-| **已知键**缺失、类型错误、取值越界、违反 INV-5/6 | 显式失败                         | 已知键的语义是契约的一部分                 |
-| 非 JSON-safe 值（函数、`Date`、`Uint8Array` 等）  | 显式失败                         | DTO 的 JSON-safe 是硬约束                  |
+| 输入情况                                         | 解析器行为                   | 理由                                       |
+| ------------------------------------------------ | ---------------------------- | ------------------------------------------ |
+| `dtoVersion` 不等于 `ENTITY_FIELDS_DTO_VERSION`  | 显式失败                     | 语义可能已变，无法安全解释                 |
+| **未知键**（顶层或字段对象上）                   | 忽略并从返回值中丢弃，不报错 | 这是「新增可选字段不升版本」成立的唯一前提 |
+| **已知键**缺失、类型错误、取值越界、违反 INV-5/6 | 显式失败                     | 已知键的语义是契约的一部分                 |
+| 非 JSON-safe 值（函数、`Date`、`Uint8Array` 等） | 显式失败                     | DTO 的 JSON-safe 是硬约束                  |
 
 推论：**「往返无损」的口径限定为同一库版本内的生产与解析**。跨版本只保证已知键无损，
 新版本新增的可选键在旧解析器处会被丢弃——这是有意的，不是 bug，消费方不得依赖解析器透传未知键。
@@ -222,10 +222,7 @@ export interface EntityRelationResolutionError extends Omit<EntityMetadataValida
   targetNamespace: string;
 }
 
-export function describeEntityFields(
-  metadata: EntityMetadata,
-  resolve: EntityMetadataResolver
-): EntityFieldsDescriptor;
+export function describeEntityFields(metadata: EntityMetadata, resolve: EntityMetadataResolver): EntityFieldsDescriptor;
 ```
 
 **`resolve` 是必填参数，不是 `resolve?`。** 早期草案写成可选，理由是"实体无关系时可省略"——
@@ -612,19 +609,19 @@ export function parseEntityFieldsDescriptor(value: unknown): EntityFieldsDescrip
 **本故事自身不再持有 AC。** 原 24 条 AC 已按下表分派到三个子故事；本文件只保留 INV / D1～D13 契约。
 落地判定一律看子故事的 AC 表，不看这里。
 
-| 原 AC                                | 去向                                                             |
-| ------------------------------------ | ---------------------------------------------------------------- |
-| 1、2、2b、3、7、9、9b、10、10b、12b、17 | [US-012a](./US-012a-field-format-declaration.md) — 声明层与注册期校验 |
-| 4、6、11、12、12c、12d、13、13b、13c、14、16 | [US-012b](./US-012b-entity-fields-dto.md) — 字段描述 DTO             |
-| 5、8、15、18                          | [US-012c](./US-012c-field-value-validation-codegen.md) — 值校验、生成器与三框架契约 |
+| 原 AC                                        | 去向                                                                                |
+| -------------------------------------------- | ----------------------------------------------------------------------------------- |
+| 1、2、2b、3、7、9、9b、10、10b、12b、17      | [US-012a](./US-012a-field-format-declaration.md) — 声明层与注册期校验               |
+| 4、6、11、12、12c、12d、13、13b、13c、14、16 | [US-012b](./US-012b-entity-fields-dto.md) — 字段描述 DTO                            |
+| 5、8、15、18                                 | [US-012c](./US-012c-field-value-validation-codegen.md) — 值校验、生成器与三框架契约 |
 
 分派时做了三处口径修正，子故事采用修正后的版本（原文已在 D6.1 / D7 更新）：
 
-| 修正                                                                     | 原问题                                                                                       |
-| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| 修正                                                                          | 原问题                                                                                        |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | AC#12c 改为「`resolve` 在类型层不可省略」+「`resolve` 返回 `undefined` 抛错」 | 原 AC 承认「不传 `resolve`」是一种合法调用，与 D7 的必填签名冲突                              |
-| AC#16 增加「未知键被忽略且不出现在解析结果中」                            | 原 AC 只说「未知版本或非法字段显式失败」，未定义未知键，与 D6「新增可选字段不升版本」互相拆台 |
-| AC#14 的「逐字节一致」改为可执行口径（见 US-012b AC 表脚注）             | 「逐字节」对 JS 对象不可直接判定，且未说明基线快照何时入库                                    |
+| AC#16 增加「未知键被忽略且不出现在解析结果中」                                | 原 AC 只说「未知版本或非法字段显式失败」，未定义未知键，与 D6「新增可选字段不升版本」互相拆台 |
+| AC#14 的「逐字节一致」改为可执行口径（见 US-012b AC 表脚注）                  | 「逐字节」对 JS 对象不可直接判定，且未说明基线快照何时入库                                    |
 
 ## 技术笔记
 
@@ -648,16 +645,16 @@ export function parseEntityFieldsDescriptor(value: unknown): EntityFieldsDescrip
 
 按子故事归属，避免三条线同时改同一个文件：
 
-| 文件                                                              | 归属                                                                      |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `packages/rxdb/src/entity/metadata-options.interface.ts`          | US-012a — `format` 判别联合、逐属性窄类型 `format?`、`StringArrayProperty.enum` / `options` |
-| `packages/rxdb/src/entity/metadata-validate.ts`（新增）           | US-012a — `validateEntityMetadata` 与规则表                               |
-| `packages/rxdb/src/entity/entity-manager.ts`                      | US-012a — `init()` 跨实体聚合校验并抛错（D3）                             |
-| `packages/rxdb/src/entity/entity-field.utils.ts`                  | US-012b — `describeEntityFields()` / `parseEntityFieldsDescriptor()` / `ENTITY_FIELDS_DTO_VERSION`；既有导出冻结 + `@deprecated` |
-| `packages/rxdb/src/entity/entity-value.utils.ts`                  | US-012c — `validateFieldValue()`；旧 `validateEntityFieldValue` 冻结 + `@deprecated` |
-| `packages/rxdb-client-generator/src/`                             | US-012c — 生成器 `default` 语义保留与显式失败                             |
-| `packages/rxdb-{angular,react,vue}/`                              | US-012c — 三框架复用同一组 DTO fixture 的契约回归                         |
-| `requirements/api-baseline/rxdb.json`                             | 三个子故事各自追加，不集中一次改完                                        |
+| 文件                                                     | 归属                                                                                                                             |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/rxdb/src/entity/metadata-options.interface.ts` | US-012a — `format` 判别联合、逐属性窄类型 `format?`、`StringArrayProperty.enum` / `options`                                      |
+| `packages/rxdb/src/entity/metadata-validate.ts`（新增）  | US-012a — `validateEntityMetadata` 与规则表                                                                                      |
+| `packages/rxdb/src/entity/entity-manager.ts`             | US-012a — `init()` 跨实体聚合校验并抛错（D3）                                                                                    |
+| `packages/rxdb/src/entity/entity-field.utils.ts`         | US-012b — `describeEntityFields()` / `parseEntityFieldsDescriptor()` / `ENTITY_FIELDS_DTO_VERSION`；既有导出冻结 + `@deprecated` |
+| `packages/rxdb/src/entity/entity-value.utils.ts`         | US-012c — `validateFieldValue()`；旧 `validateEntityFieldValue` 冻结 + `@deprecated`                                             |
+| `packages/rxdb-client-generator/src/`                    | US-012c — 生成器 `default` 语义保留与显式失败                                                                                    |
+| `packages/rxdb-{angular,react,vue}/`                     | US-012c — 三框架复用同一组 DTO fixture 的契约回归                                                                                |
+| `requirements/api-baseline/rxdb.json`                    | 三个子故事各自追加，不集中一次改完                                                                                               |
 
 ## References
 

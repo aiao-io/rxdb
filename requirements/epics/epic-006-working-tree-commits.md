@@ -22,12 +22,12 @@ owner: jimmy
 
 本 Epic 定死：
 
-| 概念                | 中文     | 导出前缀        | 归属                              |
-| ------------------- | -------- | --------------- | --------------------------------- |
-| Git working tree    | 工作树   | `WorkingTree*`  | 本 Epic 新契约                    |
-| index / staging     | 缓存区   | `Index*`        | 本 Epic 新契约                    |
-| commit / commit 图  | 提交     | `Commit*`       | 本 Epic 新契约                    |
-| NEW 草稿本地缓存    | 草稿缓存 | `Workspace*`    | 既有 `@aiao/rxdb-plugin-workspace` |
+| 概念               | 中文     | 导出前缀       | 归属                               |
+| ------------------ | -------- | -------------- | ---------------------------------- |
+| Git working tree   | 工作树   | `WorkingTree*` | 本 Epic 新契约                     |
+| index / staging    | 缓存区   | `Index*`       | 本 Epic 新契约                     |
+| commit / commit 图 | 提交     | `Commit*`      | 本 Epic 新契约                     |
+| NEW 草稿本地缓存   | 草稿缓存 | `Workspace*`   | 既有 `@aiao/rxdb-plugin-workspace` |
 
 新契约里**不得**出现 `Workspace` 前缀的新导出；文档与 story 正文中"工作区"一词只指草稿缓存。
 
