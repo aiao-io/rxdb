@@ -3,6 +3,9 @@
   "name": "rxdb-adapter-wa-sqlite",
   "tags": ["js-lib"],
   "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    },
     "lint": {
       "options": {
         "args": ["--max-warnings=0"]

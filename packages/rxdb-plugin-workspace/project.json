@@ -6,6 +6,9 @@
   "sourceRoot": "packages/rxdb-plugin-workspace/src",
   "tags": ["js-lib"],
   "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    },
     "test-browser": {
       "executor": "nx:run-commands",
       "options": {

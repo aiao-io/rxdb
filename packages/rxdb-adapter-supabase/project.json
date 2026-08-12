@@ -4,6 +4,7 @@
   "tags": ["js-lib"],
   "targets": {
     "typecheck": {
+      "dependsOn": ["build", "^typecheck"],
       "executor": "nx:run-commands",
       "options": {
         "cwd": "packages/rxdb-adapter-supabase",

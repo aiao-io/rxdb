@@ -3,6 +3,9 @@
   "name": "rxdb-client-generator",
   "tags": ["js-lib"],
   "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    },
     "consumer": {
       "executor": "nx:run-commands",
       "dependsOn": ["build", "^build"],

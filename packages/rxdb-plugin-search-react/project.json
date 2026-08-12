@@ -4,5 +4,9 @@
   "projectType": "library",
   "sourceRoot": "packages/rxdb-plugin-search-react/src",
   "tags": ["react-lib"],
-  "targets": {}
+  "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    }
+  }
 }

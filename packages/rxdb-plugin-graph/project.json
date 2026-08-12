@@ -1,5 +1,10 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "name": "rxdb-plugin-graph",
-  "tags": ["js-lib"]
+  "tags": ["js-lib"],
+  "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    }
+  }
 }

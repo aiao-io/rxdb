@@ -3,6 +3,9 @@
   "name": "rxdb-react",
   "tags": ["react-lib"],
   "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    },
     "test-browser": {
       "executor": "nx:run-commands",
       "options": {
