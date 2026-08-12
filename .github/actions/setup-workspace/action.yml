@@ -1,0 +1,45 @@
+name: Setup workspace
+description: pnpm + Node + 依赖安装。CI 里每个 job 的固定开销，抽出来避免十几处复制粘贴各自漂移。
+
+inputs:
+  free-disk:
+    description: >
+      是否删除 runner 预装但本仓库用不到的工具链（约 16-19GB，耗时约 60s）。
+      只有会写大量产物的 job 需要：全量 build、Supabase lane、e2e。
+      普通 test lane 不开 —— 那 60s 是白交的税。
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    # 根分区写满曾导致两类事故：Chromium 因 /tmp 共享内存归零而崩溃、
+    # rolldown 报 ENOSPC（os error 28）。删的都是 runner 预装、本仓库不碰的东西。
+    - name: Free disk space
+      if: inputs.free-disk == 'true'
+      shell: bash
+      run: |
+        df -h / | tail -1
+        sudo rm -rf \
+          /usr/local/lib/android \
+          /usr/share/dotnet \
+          /opt/hostedtoolcache/CodeQL \
+          /usr/local/.ghcup
+        df -h / | tail -1
+
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4.4.0
+      with:
+        run_install: false
+
+    - uses: actions/setup-node@v6
+      with:
+        node-version-file: .nvmrc
+        cache: 'pnpm'
+        cache-dependency-path: |
+          pnpm-lock.yaml
+          .nvmrc
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile

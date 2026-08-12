@@ -2,8 +2,8 @@
   "name": "@modules/angular",
   "version": "0.0.1",
   "peerDependencies": {
-    "@angular/common": "22.0.5",
-    "@angular/core": "22.0.5",
+    "@angular/common": "^22.0.0",
+    "@angular/core": "^22.0.0",
     "@aiao/rxdb": ">=0.0.9",
     "@angular/cdk": ">=21.0.5",
     "@lucide/angular": "^1.16.0",

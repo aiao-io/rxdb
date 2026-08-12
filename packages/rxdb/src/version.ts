@@ -10,7 +10,7 @@
  * 必须与 `package.json` 的 `version` 保持一致，由 `__tests__/version.spec.ts` 断言防漂移。
  * 发版改动 `package.json` 时同步改这里。
  */
-export const RXDB_VERSION = '0.0.24';
+export const RXDB_VERSION = '0.0.25';
 
 /**
  * 本地数据库名后缀（`<dbName>@<suffix>`）。

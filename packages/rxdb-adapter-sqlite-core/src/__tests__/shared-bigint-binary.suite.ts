@@ -5,6 +5,7 @@ import type { AdapterFactory } from './adapter-factory.js';
 const SIGNED_64_MIN = -(1n << 63n);
 const SIGNED_64_MAX = (1n << 63n) - 1n;
 
+/** bigint/binary client 契约测试：验证 client 层对 64 位整数与二进制数据的往返。 */
 export function bigintBinaryClientSuite(factory: AdapterFactory) {
   describe(`bigint/binary client contract [${factory.name}]`, () => {
     it('round-trips signed 64-bit bounds and the current Uint8Array view', async () => {

@@ -1,7 +1,12 @@
 {
   "name": "@aiao/rxdb-plugin-search-vue",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-plugin-search-vue"
+  },
   "files": [
     "dist",
     "src",
@@ -25,8 +30,8 @@
   "peerDependencies": {
     "@aiao/rxdb": "*",
     "@aiao/rxdb-plugin-search": "*",
-    "vue": ">=3.5.0",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "vue": "^3.5.41"
   },
   "devDependencies": {
     "@aiao/rxdb-plugin-search": "workspace:*"

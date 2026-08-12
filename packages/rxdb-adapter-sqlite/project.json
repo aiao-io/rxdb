@@ -3,12 +3,8 @@
   "name": "rxdb-adapter-sqlite",
   "tags": ["js-lib"],
   "targets": {
-    "consumer": {
-      "executor": "nx:run-commands",
-      "dependsOn": ["build", "^build"],
-      "options": {
-        "command": "node scripts/audit/sqlite-adapter-consumer.mjs rxdb-adapter-sqlite"
-      }
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
     },
     "build": {
       "options": {

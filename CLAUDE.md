@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-**aiao** — Local-first RxDB monorepo（开源版），核心 RxDB 引擎、三框架绑定（Angular 22 / React 19 / Vue 3.5）、多存储适配器与开发者工具。
+**rxdb** — Local-first RxDB monorepo（开源版），核心 RxDB 引擎、三框架绑定（Angular 22 / React 19 / Vue 3.5）、多存储适配器与开发者工具。
 
 核心能力：装饰器驱动实体 → 类型安全 Repository → RxDB 响应式查询 → 多存储后端（wa-sqlite / PGlite / Supabase / sqliteai）。
 

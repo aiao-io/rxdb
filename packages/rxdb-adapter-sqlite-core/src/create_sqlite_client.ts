@@ -38,6 +38,9 @@ const releasedProxies = new WeakSet<object>();
 const isReference = (value: unknown): value is object =>
   (typeof value === 'object' && value !== null) || typeof value === 'function';
 
+/**
+ * 校验 Comlink 传输选项的组合合法性：worker / workerInstance / sharedWorker 必须成对出现。
+ */
 export function validateComlinkTransportOptions(options: CreateSqliteClientOptions): void {
   const hasWorkerFlag = options.worker === true;
   const hasWorkerInstance = options.workerInstance !== undefined;

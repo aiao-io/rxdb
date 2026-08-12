@@ -3,6 +3,9 @@
   "name": "code-editor-vue",
   "tags": ["vue-lib"],
   "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    },
     "lint": {
       "executor": "nx:run-commands",
       "options": {

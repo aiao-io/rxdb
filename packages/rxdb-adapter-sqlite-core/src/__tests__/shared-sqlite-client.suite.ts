@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SqliteClientLike } from '../RxDBAdapterSqliteBase.js';
 import type { AdapterFactory } from './adapter-factory.js';
 
+/** SqliteClient 测试：执行、断开连接等基础契约。 */
 export function sqliteClientSuite(factory: AdapterFactory) {
   describe(`SqliteClient [${factory.name}]`, () => {
     it('execute() 应该在断开连接后抛出错误', async () => {

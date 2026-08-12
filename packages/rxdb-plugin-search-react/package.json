@@ -1,7 +1,12 @@
 {
   "name": "@aiao/rxdb-plugin-search-react",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-plugin-search-react"
+  },
   "files": [
     "dist",
     "src",
@@ -25,7 +30,7 @@
   "peerDependencies": {
     "@aiao/rxdb": "*",
     "@aiao/rxdb-plugin-search": "*",
-    "react": "^19.2.0",
+    "react": "^19.2.8",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {

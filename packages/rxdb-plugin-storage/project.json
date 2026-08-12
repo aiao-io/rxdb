@@ -6,6 +6,9 @@
   "sourceRoot": "packages/rxdb-plugin-storage/src",
   "tags": ["js-lib"],
   "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    },
     "coverage": {
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/coverage/packages/rxdb-plugin-storage"],

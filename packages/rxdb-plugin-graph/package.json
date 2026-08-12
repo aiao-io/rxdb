@@ -1,7 +1,12 @@
 {
   "name": "@aiao/rxdb-plugin-graph",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-plugin-graph"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -37,20 +42,7 @@
     "name": "rxdb-plugin-graph",
     "tags": [
       "js-lib"
-    ],
-    "targets": {
-      "consumer": {
-        "executor": "nx:run-commands",
-        "dependsOn": [
-          "build",
-          "^build"
-        ],
-        "options": {
-          "cwd": "packages/rxdb-plugin-graph",
-          "command": "node scripts/generated-consumer-gate.mjs"
-        }
-      }
-    }
+    ]
   },
   "dependencies": {
     "@aiao/rxdb": "workspace:*",

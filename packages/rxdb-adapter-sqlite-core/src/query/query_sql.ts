@@ -16,6 +16,9 @@ interface GenerateSqlOptions {
   metadata: EntityMetadata;
 }
 
+/**
+ * SQL 生成结果：完整的 SQL 语句与可选的参数绑定。
+ */
 export interface GenerateSqlResult {
   sql: string;
   params?: SQLiteCompatibleType[];

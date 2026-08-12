@@ -9,20 +9,20 @@ importers:
   .:
     dependencies:
       '@aiao/rxdb':
-        specifier: ^0.0.23
-        version: 0.0.23
+        specifier: ^0.0.24
+        version: 0.0.24
       '@aiao/rxdb-adapter-wa-sqlite':
-        specifier: ^0.0.23
-        version: 0.0.23(vitest@4.1.10(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3)))
+        specifier: ^0.0.24
+        version: 0.0.24(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3))(vitest@4.1.10(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3)))
       '@aiao/rxdb-angular':
-        specifier: ^0.0.23
-        version: 0.0.23(@aiao/rxdb-plugin-graph@0.0.23(vitest@4.1.10(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3))))(@aiao/rxdb@0.0.23)(@aiao/utils@0.0.23)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(ngxtension@7.3.0(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(rxjs@7.8.2)
+        specifier: ^0.0.24
+        version: 0.0.24(@aiao/rxdb-plugin-graph@0.0.23(vitest@4.1.10(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3))))(@aiao/rxdb@0.0.24)(@aiao/utils@0.0.24)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(ngxtension@7.3.0(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(rxjs@7.8.2)
       '@aiao/rxdb-test':
-        specifier: ^0.0.23
-        version: 0.0.23(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3))
+        specifier: ^0.0.24
+        version: 0.0.24(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3))
       '@aiao/utils':
-        specifier: ^0.0.23
-        version: 0.0.23
+        specifier: ^0.0.24
+        version: 0.0.24
       '@angular/cdk':
         specifier: ^21.2.2
         version: 21.2.14(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(rxjs@7.8.2)
@@ -60,8 +60,8 @@ importers:
         specifier: ^2.8.1
         version: 2.8.1
       wa-sqlite:
-        specifier: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/b9ddadce32480857cde28e7b1512cf45fa08ab73
-        version: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/b9ddadce32480857cde28e7b1512cf45fa08ab73
+        specifier: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994
+        version: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994
     devDependencies:
       '@angular/build':
         specifier: ^21.2.2
@@ -96,8 +96,22 @@ packages:
       '@aiao/rxdb': 0.0.23
       rxjs: ^7.8.0
 
+  '@aiao/rxdb-adapter-encrypted@0.0.24':
+    resolution: {integrity: sha512-50H5vOGN/9TGEE6+iZqFXypYMVWBu6T31mNo2wbzDJL5XdQoxuq0/84EsaDX+yBm4jNDwRfwBJOmh8fdECD1Lw==}
+    peerDependencies:
+      '@aiao/rxdb': 0.0.24
+      rxjs: ^7.8.0
+
   '@aiao/rxdb-adapter-sqlite-core@0.0.23':
     resolution: {integrity: sha512-YDDn/R+P0p4enhn/HVwcwmwJIJKeLGTnlpw8mivCtMPhuA4xfg3cYhi4FIY7QLuCCm4mAee/sH+Tfh0BX1j84w==}
+    peerDependencies:
+      vitest: '>=4.0.0'
+    peerDependenciesMeta:
+      vitest:
+        optional: true
+
+  '@aiao/rxdb-adapter-sqlite-core@0.0.24':
+    resolution: {integrity: sha512-thsQ0k05z1z1UdRldHxw7g3rvLCl9U4f2sEa4uMTL18WFas1/ppyjrOlZZJzAv7pyhmogNRiRroTgXYfeWH2pg==}
     peerDependencies:
       vitest: '>=4.0.0'
     peerDependenciesMeta:
@@ -107,8 +121,11 @@ packages:
   '@aiao/rxdb-adapter-wa-sqlite@0.0.23':
     resolution: {integrity: sha512-XTqrgR8ewPaa29c4z5PeQ0UiiUaEaxRS9x9dttlOCSuTerZGY0PHL1F1dMzHERJ6ngSjOQprHxyxKqZ/rTmfPQ==}
 
-  '@aiao/rxdb-angular@0.0.23':
-    resolution: {integrity: sha512-m3OlYXFUsruw4kM1uvpS30t0ZpaEqyZOcJCvDDjR/uxadw9drTULg7ekAku+B6NrrBMPeZtoxymP6o23173QCQ==}
+  '@aiao/rxdb-adapter-wa-sqlite@0.0.24':
+    resolution: {integrity: sha512-UEC72e0rraPhFYKv35/bud4DX2uzjQA8gA/q9erSPn6KbTji+B8nUFLRbQrISS0JXGV0mTqACx5xpz50ugutyw==}
+
+  '@aiao/rxdb-angular@0.0.24':
+    resolution: {integrity: sha512-CXskSYtB2ZcHQFjmdnr28bzL/jjwTqpWqs9KlbaVe+h43UpOVEwjpTln62S1lyYioAPN4puhgtHCK0TjsCfVAA==}
     peerDependencies:
       '@aiao/rxdb': '*'
       '@aiao/rxdb-plugin-graph': '*'
@@ -125,14 +142,20 @@ packages:
   '@aiao/rxdb-plugin-graph@0.0.23':
     resolution: {integrity: sha512-e9CaWRcGRi8YK1sVVgfCcEMpbKvan+rel9czvXykCLy7EdAOn/GyD4uVkO3HCgSWz/yUqL1SNNpBFBHNqcFibQ==}
 
-  '@aiao/rxdb-test@0.0.23':
-    resolution: {integrity: sha512-7pWW8sluRDCiKHcgfFGaffhrCuWRPrcOIRPyDWVjJKDx9cvnMl+L7TeV9q4NDGSRDvZyZl942DAfEoLI9jF2+g==}
+  '@aiao/rxdb-test@0.0.24':
+    resolution: {integrity: sha512-j2jZBvFGq1BQIZzztGaGboL4p0QFimqe3yD0JAXjZlIfpLoqQp9PdDL3eduu2IQLLR2wuffK6cgquUM3plgtdg==}
 
   '@aiao/rxdb@0.0.23':
     resolution: {integrity: sha512-80jOgicKHlbucr2Vjo9hUJGKpOvf4uZuXOxrOCHTT8SeHRF9pMxn0cUWXfvsJXH/Yl4/BCU52O0ljlLt/jphsQ==}
 
+  '@aiao/rxdb@0.0.24':
+    resolution: {integrity: sha512-fkT+dADyf+IMNsXgVN6q9yiArnvN6MSG3tqXH+48NWhNTT3y8jGmikcDw1B5le2LQjpvLlTISmsBzigAzkRZWw==}
+
   '@aiao/utils@0.0.23':
     resolution: {integrity: sha512-lkLDXQVCyLlK3zTlzyRGC4TuqxyZQGvITDv5iIZ3PfZoGREDisqb1DpiiCB+CPvkRv+WqgIdzEEQPwDLxCSy1Q==}
+
+  '@aiao/utils@0.0.24':
+    resolution: {integrity: sha512-prz3NqBeKENyBjqvlAka437Lcs+m7hYpFyMYARAKQ2NHACh60nR9RPc6AFOys1/acK1Fea1+rCwCFXfmg7bwSw==}
 
   '@algolia/abtesting@1.14.1':
     resolution: {integrity: sha512-Dkj0BgPiLAaim9sbQ97UKDFHJE/880wgStAM18U++NaJ/2Cws34J5731ovJifr6E3Pv4T2CqvMXf8qLCC417Ew==}
@@ -2870,6 +2893,10 @@ packages:
       jsdom:
         optional: true
 
+  wa-sqlite@https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994:
+    resolution: {tarball: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994}
+    version: 1.1.1
+
   wa-sqlite@https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/b9ddadce32480857cde28e7b1512cf45fa08ab73:
     resolution: {tarball: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/b9ddadce32480857cde28e7b1512cf45fa08ab73}
     version: 1.1.1
@@ -2960,6 +2987,11 @@ snapshots:
       '@aiao/rxdb': 0.0.23
       rxjs: 7.8.2
 
+  '@aiao/rxdb-adapter-encrypted@0.0.24(@aiao/rxdb@0.0.24)(rxjs@7.8.2)':
+    dependencies:
+      '@aiao/rxdb': 0.0.24
+      rxjs: 7.8.2
+
   '@aiao/rxdb-adapter-sqlite-core@0.0.23(vitest@4.1.10(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3)))':
     dependencies:
       '@aiao/rxdb': 0.0.23
@@ -2969,6 +3001,31 @@ snapshots:
       rxjs: 7.8.2
     optionalDependencies:
       vitest: 4.1.10(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3))
+
+  '@aiao/rxdb-adapter-sqlite-core@0.0.24(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3))(vitest@4.1.10(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3)))':
+    dependencies:
+      '@aiao/rxdb': 0.0.24
+      '@aiao/rxdb-adapter-encrypted': 0.0.24(@aiao/rxdb@0.0.24)(rxjs@7.8.2)
+      '@aiao/rxdb-test': 0.0.24(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3))
+      '@aiao/utils': 0.0.24
+      comlink: 4.4.2
+      rxjs: 7.8.2
+    optionalDependencies:
+      vitest: 4.1.10(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3))
+    transitivePeerDependencies:
+      - '@edge-runtime/vm'
+      - '@opentelemetry/api'
+      - '@types/node'
+      - '@vitest/browser-playwright'
+      - '@vitest/browser-preview'
+      - '@vitest/browser-webdriverio'
+      - '@vitest/coverage-istanbul'
+      - '@vitest/coverage-v8'
+      - '@vitest/ui'
+      - happy-dom
+      - jsdom
+      - msw
+      - vite
 
   '@aiao/rxdb-adapter-wa-sqlite@0.0.23(vitest@4.1.10(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3)))':
     dependencies:
@@ -2980,11 +3037,33 @@ snapshots:
     transitivePeerDependencies:
       - vitest
 
-  '@aiao/rxdb-angular@0.0.23(@aiao/rxdb-plugin-graph@0.0.23(vitest@4.1.10(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3))))(@aiao/rxdb@0.0.23)(@aiao/utils@0.0.23)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(ngxtension@7.3.0(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(rxjs@7.8.2)':
+  '@aiao/rxdb-adapter-wa-sqlite@0.0.24(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3))(vitest@4.1.10(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3)))':
     dependencies:
-      '@aiao/rxdb': 0.0.23
+      '@aiao/rxdb': 0.0.24
+      '@aiao/rxdb-adapter-sqlite-core': 0.0.24(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3))(vitest@4.1.10(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3)))
+      '@aiao/utils': 0.0.24
+      wa-sqlite: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/b9ddadce32480857cde28e7b1512cf45fa08ab73
+    transitivePeerDependencies:
+      - '@edge-runtime/vm'
+      - '@opentelemetry/api'
+      - '@types/node'
+      - '@vitest/browser-playwright'
+      - '@vitest/browser-preview'
+      - '@vitest/browser-webdriverio'
+      - '@vitest/coverage-istanbul'
+      - '@vitest/coverage-v8'
+      - '@vitest/ui'
+      - happy-dom
+      - jsdom
+      - msw
+      - vite
+      - vitest
+
+  '@aiao/rxdb-angular@0.0.24(@aiao/rxdb-plugin-graph@0.0.23(vitest@4.1.10(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3))))(@aiao/rxdb@0.0.24)(@aiao/utils@0.0.24)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(ngxtension@7.3.0(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(rxjs@7.8.2)':
+    dependencies:
+      '@aiao/rxdb': 0.0.24
       '@aiao/rxdb-plugin-graph': 0.0.23(vitest@4.1.10(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3)))
-      '@aiao/utils': 0.0.23
+      '@aiao/utils': 0.0.24
       '@angular/core': 21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)
       '@angular/platform-browser': 21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))
       ngxtension: 7.3.0(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -3009,11 +3088,10 @@ snapshots:
     transitivePeerDependencies:
       - vitest
 
-  '@aiao/rxdb-test@0.0.23(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3))':
+  '@aiao/rxdb-test@0.0.24(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3))':
     dependencies:
-      '@aiao/rxdb': 0.0.23
+      '@aiao/rxdb': 0.0.24
       rxjs: 7.8.2
-      tslib: 2.8.1
       vitest: 4.1.5(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.97.3))
     transitivePeerDependencies:
       - '@edge-runtime/vm'
@@ -3037,6 +3115,13 @@ snapshots:
       type-fest: 5.8.0
       uuid: 14.0.1
 
+  '@aiao/rxdb@0.0.24':
+    dependencies:
+      '@aiao/utils': 0.0.24
+      rxjs: 7.8.2
+      type-fest: 5.8.0
+      uuid: 14.0.1
+
   '@aiao/utils@0.0.23':
     dependencies:
       fastest-levenshtein: 1.0.16
@@ -3044,6 +3129,13 @@ snapshots:
       rxjs: 7.8.2
       ts-xor: 1.3.0
       type-fest: 5.8.0
+
+  '@aiao/utils@0.0.24':
+    dependencies:
+      fastest-levenshtein: 1.0.16
+      ms: 2.1.3
+      rxjs: 7.8.2
+      ts-xor: 1.3.0
 
   '@algolia/abtesting@1.14.1':
     dependencies:
@@ -5642,6 +5734,8 @@ snapshots:
       why-is-node-running: 2.3.0
     transitivePeerDependencies:
       - msw
+
+  wa-sqlite@https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994: {}
 
   wa-sqlite@https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/b9ddadce32480857cde28e7b1512cf45fa08ab73: {}
 

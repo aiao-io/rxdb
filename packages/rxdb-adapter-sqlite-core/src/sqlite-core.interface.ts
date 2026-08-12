@@ -1,6 +1,6 @@
 /**
- * SQLite adapter 共享的核心类型。
- * 与后端无关的类型，wa-sqlite 与 sqliteai adapter 都会用到。
+ * SQLite 适配器共享的核心类型。
+ * 与后端无关的类型，wa-sqlite 与 sqliteai 适配器都会用到。
  *
  * @module sqlite-core.interface
  */
@@ -17,11 +17,8 @@ export type SQLiteCompatibleType = number | string | Uint8Array | Array<number> 
 export interface SqliteSuccessResult {
   /** 已执行的 SQL */
   sql: string;
-  /** 受影响的行数 */
   rowsAffected: number;
-  /** 执行耗时（毫秒） */
   elapsed: number;
-  /** 结果集 */
   results: SqliteData[];
 }
 

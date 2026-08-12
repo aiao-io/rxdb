@@ -128,6 +128,7 @@ interface SqlcTreeNodeRepository {
   findDescendants(options: FindTreeOptions<typeof SqlcTreeNode, SqlcTreeNodeTreeRuleGroup>): Observable<SqlcTreeNode[]>;
 }
 
+/** query_sql 测试：buildRuleGroup 规则构建与查询 SQL 生成。 */
 export function querySqlSuite(factory: AdapterFactory) {
   describe(`query_sql [${factory.name}]`, () => {
     describe('buildRuleGroup 规则构建', () => {

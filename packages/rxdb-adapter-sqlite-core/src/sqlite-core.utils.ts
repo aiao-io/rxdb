@@ -16,12 +16,18 @@ import type { SQLiteCompatibleType, SqliteDataType, SqliteResult } from './sqlit
 export { normalizeUpdateEntity } from '@aiao/rxdb';
 export { deserializeFromEnvelope, serializeForEnvelope } from '@aiao/rxdb-adapter-encrypted';
 
+/**
+ * 加密上下文：密钥环、命名空间与实体元数据解析器。
+ */
 export interface EncryptionContext {
   keyring: Keyring | null;
   namespace: string;
   resolveEntityMetadata?: (entity: string, namespace: string) => EntityMetadata | undefined;
 }
 
+/**
+ * 一行实体的原始数据：列名到 SQLite 兼容值的映射。
+ */
 export type SQLiteEntityData = Record<string, SQLiteCompatibleType | undefined>;
 
 const SIGNED_64_MIN = -(1n << 63n);
@@ -635,7 +641,6 @@ export const getEntityObjectFromResult = async <T extends object = EntityData>(
   const { propertyMap, columnNameToPropertyName, computedPropertyMap, encryptedPropertyMap, name: metaName } = metadata;
   const hasEncryption = encryptedPropertyMap && encryptedPropertyMap.size > 0;
 
-  // 第一遍：构建骨架并收集加密单元格的解密任务。
   const decryptJobs: Array<{
     propertyName: string;
     property: EntityPropertyMetadata;

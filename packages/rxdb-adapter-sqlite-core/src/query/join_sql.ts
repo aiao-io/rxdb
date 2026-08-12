@@ -30,6 +30,9 @@ interface JoinOptions {
   on: string;
 }
 
+/**
+ * JOIN 规划过程中的共享上下文：别名表、关系别名与字段别名映射。
+ */
 export interface JoinContext {
   /**
    * 查询根表的别名
@@ -45,9 +48,6 @@ export interface JoinContext {
   relationAliasMap: Map<string, string>;
 }
 
-/**
- * 获取或创建关系别名
- */
 export const get_or_create_relation_alias = (context: JoinContext, relationKey: string): string => {
   const existing = context.relationAliasMap.get(relationKey);
   if (existing !== undefined) return existing;
@@ -57,9 +57,6 @@ export const get_or_create_relation_alias = (context: JoinContext, relationKey: 
   return alias;
 };
 
-/**
- * 尝试解析关系路径
- */
 export const try_resolve_relation_path = (
   adapter: RxDBAdapterSqliteBase,
   entityMetadata: EntityMetadata,

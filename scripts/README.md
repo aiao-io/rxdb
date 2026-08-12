@@ -6,39 +6,45 @@
 
 阅读顺序建议：先看 [§1 一览表](#1-一览表) 找到目标脚本，再跳到对应小节看使用细节。
 
+本目录下的 `*.spec.mjs` 由 `pnpm test-scripts`（= `node --test "scripts/**/*.spec.mjs"`）统一跑，
+CI 的 `setup` job 每轮都会执行。表格里各 spec 那一行写的 `node --test <单个文件>` 是本地调试用的窄入口。
+新增 spec 只要放在 `scripts/` 下并以 `.spec.mjs` 结尾就会被自动纳入，不需要改 workflow。
+
 ---
 
 ## 1. 一览表
 
-| 脚本                                                                  | 触发场景                                     | 一句话用途                                                                      | npm script / 调用方式                                                         |
-| --------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| [audit/wa-sqlite-integrity.mjs](#auditwa-sqlite-integritymjs)         | `pnpm install` 钩子 / `pnpm audit:wa-sqlite` | 校验 `wa-sqlite` 不可变 tarball + SHA-512 完整性                                | `preinstall` 首段 + `audit:wa-sqlite`                                         |
-| [preinstall.mjs](#preinstallmjs)                                      | `pnpm install` 钩子                          | 检查 Node ≥ 26 / pnpm ≥ 10，清理冲突子包                                        | `preinstall` 末段                                                             |
-| [check-workspace.mjs](#check-workspacemjs)                            | `pnpm install` 后                            | 复制 `.env.example` → `.env`，预构建依赖库                                      | `postinstall` → `check-workspace`                                             |
-| [clean.mjs](#cleanmjs)                                                | 想彻底清盘                                   | 递归删除 `dist` / `tmp` / `coverage` / 构建产物                                 | `pnpm clean`                                                                  |
-| [commitizen.mjs](#commitizenmjs)                                      | 交互式写 commit                              | 定义 cz-gui 的 scope/type 选项                                                  | `pnpm commit`（czg）                                                          |
-| [commit-lint.mjs](#commit-lintmjs)                                    | `pre-commit` / `pre-push` / main 分支        | 校验最新 commit 是否符合 `<type>(<scope>): subject`                             | `pre-commit` / `pre-push` / `pnpm check-commit`                               |
-| [check-doc-code.mjs](#check-doc-codemjs)                              | 改 `website/docs/**` 后                      | 抽取文档代码块里的 `@aiao/*` import，验证指向真实包                             | `node scripts/check-doc-code.mjs [--strict]`                                  |
-| [check-externals.mjs](#check-externalsmjs)                            | 新增/删除包依赖后                            | 检查 `vite.config.mts` 的 `external` 是否覆盖 `dependencies + peerDependencies` | `node scripts/check-externals.mjs`                                            |
-| [check-migration-release-gate.mjs](#check-migration-release-gatemjs)  | 发 bridge / migration release 前             | 校验 `requirements/migration-release.json` 字段语义                             | `pnpm check-migration-release-gate` / `check-migration-release-gate.spec.mjs` |
-| [git-stats.mjs](#git-statsmjs)                                        | 统计代码归属                                 | 跑 `git blame` 汇总各项目 / 作者的代码 / 测试 / 注释 / 文档行数                 | `node scripts/git-stats.mjs`                                                  |
-| [git-stats-worker.mjs](#git-stats-workermjs)                          | 同上                                         | 真正的 worker：解析 `git blame --line-porcelain` 并累加统计                     | 由 `git-stats.mjs` 通过 `worker_threads` 拉起                                 |
-| [git-stats-worker.test.mjs](#git-stats-worker-testmjs)                | 改 worker 后                                 | Node test runner，覆盖 blame 解析逻辑                                           | `node --test scripts/git-stats-worker.test.mjs`                               |
-| [git-stats-rs/](#git-stats-rs)                                        | 大仓库统计太慢                               | Rust 版 git-stats，Rayon 并发 `git blame`                                       | `cargo run --release --manifest-path scripts/git-stats-rs/Cargo.toml`         |
-| [coverage-serve.mjs](#coverage-servemjs)                              | 本地查覆盖率                                 | 起一个静态 HTTP 服务，把 Istanbul HTML 报告渲染出来                             | `pnpm coverage:serve`                                                         |
-| [merge-vitest-reports.mjs](#merge-vitest-reportsmjs)                  | browser 覆盖跑完                             | 把 Node 与 browser 的 Istanbul JSON + JUnit testsuite 合并到唯一门禁目录        | `rxdb-plugin-search:test-browser`                                             |
-| [merge-vitest-reports.spec.mjs](#merge-vitest-reports-specmjs)        | 改 merger 后                                 | Node test runner，覆盖 coverage union + JUnit 计数累加                          | `node --test scripts/merge-vitest-reports.spec.mjs`                           |
-| [test-all-log.mjs](#test-all-logmjs)                                  | 跑 `test-all` 想留档                         | 包一层 Nx affected，跑后写结构化报告（耗时/缓存/失败/跳过）到日志               | `pnpm test-all:log`                                                           |
-| [test-all-log.spec.mjs](#test-all-log-specmjs)                        | 改 test-all-log 后                           | Node test runner，覆盖 `formatNxLog` / `parseNxLog` / `renderReport`            | `node --test scripts/test-all-log.spec.mjs`                                   |
-| [runner.mjs](#runnermjs)                                              | 内部依赖                                     | `spawn` 封装：彩色错误打印、参数透传                                            | `import { run } from './runner.mjs'`                                          |
-| [workspace.mjs](#workspacemjs)                                        | 内部依赖                                     | 共享常量：NPM scope、需预构建的库名、需校验的分支                               | `import { NPM_SCOPE, NEED_BUILDS } from './workspace.mjs'`                    |
-| [audit/api-surface.mjs](#auditapi-surfacemjs)                         | PR 改动公共 API                              | 对比基线，捕捉公开包导出符号的增删/种类变化                                     | `pnpm audit:api-surface` / `:update`                                          |
-| [audit/package-api-docs.mjs](#auditpackage-apidocsmjs)                | 受保护包的 build                             | TS 编译器检查根 export；`--members` 递归检查公开成员                            | storage / encrypted / sqlite / sqliteai `:build`                              |
-| `audit/package-api-docs.spec.mjs`                                     | 改公开 API 文档门禁后                        | pass/fail fixture 验证成员路径、非零退出及排除规则                              | `node --test scripts/audit/package-api-docs.spec.mjs`                         |
-| [audit/sqlite-adapter-consumer.mjs](#auditsqlite-adapter-consumermjs) | `pnpm audit` 触发                            | `pnpm pack` + 真 tarball consumer 编译，包内导入即真编译                        | `rxdb-adapter-sqlite/sqliteai:audit`                                          |
-| [audit/wa-sqlite-integrity.mjs](#auditwa-sqlite-integritymjs)         | 同上 / `preinstall`                          | 锁仓库 `wa-sqlite` 到固定 commit + SHA-512，并校验小程序 vendored WASM/CJS 资产 | `preinstall` / `audit:wa-sqlite`                                              |
-| [audit/coverage-check.mjs](#auditcoverage-checkmjs)                   | CI 门禁                                      | 聚合 `coverage-summary.json`，按核心 90% / 其余 80% 卡线                        | `pnpm audit:coverage` / `:update`                                             |
-| [audit/coverage-baseline.json](#auditcoverage-baselinejson)           | 上次 `:update` 写入                          | 覆盖率历史趋势快照                                                              | 由 `coverage-check.mjs --update` 维护                                         |
+| 脚本                                                                        | 触发场景                                     | 一句话用途                                                                      | npm script / 调用方式                                                         |
+| --------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| [audit/wa-sqlite-integrity.mjs](#auditwa-sqlite-integritymjs)               | `pnpm install` 钩子 / `pnpm audit:wa-sqlite` | 校验 `wa-sqlite` 不可变 tarball + SHA-512 完整性                                | `preinstall` 首段 + `audit:wa-sqlite`                                         |
+| [preinstall.mjs](#preinstallmjs)                                            | `pnpm install` 钩子                          | 检查 Node ≥ 26 / pnpm ≥ 10，清理冲突子包                                        | `preinstall` 末段                                                             |
+| [check-workspace.mjs](#check-workspacemjs)                                  | `pnpm install` 后                            | 复制 `.env.example` → `.env`，预构建依赖库                                      | `postinstall` → `check-workspace`                                             |
+| [clean.mjs](#cleanmjs)                                                      | 想彻底清盘                                   | 递归删除 `dist` / `tmp` / `coverage` / 构建产物                                 | `pnpm clean`                                                                  |
+| [commitizen.mjs](#commitizenmjs)                                            | 交互式写 commit                              | 定义 cz-gui 的 scope/type 选项                                                  | `pnpm commit`（czg）                                                          |
+| [commit-lint.mjs](#commit-lintmjs)                                          | `pre-commit` / `pre-push` / main 分支        | 校验最新 commit 是否符合 `<type>(<scope>): subject`                             | `pre-commit` / `pre-push` / `pnpm check-commit`                               |
+| [check-doc-code.mjs](#check-doc-codemjs)                                    | 改 `website/docs/**` 后                      | 抽取文档代码块里的 `@aiao/*` import，验证指向真实包                             | `node scripts/check-doc-code.mjs [--strict]`                                  |
+| [check-externals.mjs](#check-externalsmjs)                                  | 新增/删除包依赖后                            | 检查 `vite.config.mts` 的 `external` 是否覆盖 `dependencies + peerDependencies` | `node scripts/check-externals.mjs`                                            |
+| [check-migration-release-gate.mjs](#check-migration-release-gatemjs)        | 发 bridge / migration release 前             | 校验 `requirements/migration-release.json` 字段语义                             | `pnpm check-migration-release-gate` / `check-migration-release-gate.spec.mjs` |
+| [git-stats.mjs](#git-statsmjs)                                              | 统计代码归属                                 | 跑 `git blame` 汇总各项目 / 作者的代码 / 测试 / 注释 / 文档行数                 | `node scripts/git-stats.mjs`                                                  |
+| [git-stats-worker.mjs](#git-stats-workermjs)                                | 同上                                         | 真正的 worker：解析 `git blame --line-porcelain` 并累加统计                     | 由 `git-stats.mjs` 通过 `worker_threads` 拉起                                 |
+| [git-stats-worker.test.mjs](#git-stats-worker-testmjs)                      | 改 worker 后                                 | Node test runner，覆盖 blame 解析逻辑                                           | `node --test scripts/git-stats-worker.test.mjs`                               |
+| [git-stats-rs/](#git-stats-rs)                                              | 大仓库统计太慢                               | Rust 版 git-stats，Rayon 并发 `git blame`                                       | `cargo run --release --manifest-path scripts/git-stats-rs/Cargo.toml`         |
+| [coverage-serve.mjs](#coverage-servemjs)                                    | 本地查覆盖率                                 | 起一个静态 HTTP 服务，把 Istanbul HTML 报告渲染出来                             | `pnpm coverage:serve`                                                         |
+| [merge-vitest-reports.mjs](#merge-vitest-reportsmjs)                        | browser 覆盖跑完                             | 把 Node 与 browser 的 Istanbul JSON + JUnit testsuite 合并到唯一门禁目录        | `rxdb-plugin-search:test-browser`                                             |
+| [merge-vitest-reports.spec.mjs](#merge-vitest-reports-specmjs)              | 改 merger 后                                 | Node test runner，覆盖 coverage union + JUnit 计数累加                          | `node --test scripts/merge-vitest-reports.spec.mjs`                           |
+| [test-all-log.mjs](#test-all-logmjs)                                        | 跑 `test-all` 想留档                         | 包一层 Nx affected，跑后写结构化报告（耗时/缓存/失败/跳过）到日志               | `pnpm test-all:log`                                                           |
+| [test-all-log.spec.mjs](#test-all-log-specmjs)                              | 改 test-all-log 后                           | Node test runner，覆盖 `formatNxLog` / `parseNxLog` / `renderReport`            | `node --test scripts/test-all-log.spec.mjs`                                   |
+| [ci/plan-test-lanes.mjs](#ciplan-test-lanesmjs)                             | CI `setup` job                               | 按实测耗时把 test 项目 LPT 装箱成并行 lane，输出 `strategy.matrix` JSON         | `node scripts/ci/plan-test-lanes.mjs --projects=a,b,c`                        |
+| [ci/plan-test-lanes.spec.mjs](#ciplan-test-lanesspecmjs)                    | 改分桶算法后                                 | Node test runner，覆盖不丢不重 / 可复现 / Supabase 独立 lane / 新包告警         | `node --test scripts/ci/plan-test-lanes.spec.mjs`                             |
+| [runner.mjs](#runnermjs)                                                    | 内部依赖                                     | `spawn` 封装：彩色错误打印、参数透传                                            | `import { run } from './runner.mjs'`                                          |
+| [workspace.mjs](#workspacemjs)                                              | 内部依赖                                     | 共享常量：NPM scope、需预构建的库名、需校验的分支                               | `import { NPM_SCOPE, NEED_BUILDS } from './workspace.mjs'`                    |
+| [audit/api-surface.mjs](#auditapi-surfacemjs)                               | PR 改动公共 API                              | 对比基线，捕捉公开包导出符号的增删/种类变化                                     | `pnpm audit:api-surface` / `:update`                                          |
+| [audit/package-api-docs.mjs](#auditpackage-apidocsmjs)                      | 受保护包的 build                             | TS 编译器检查根 export；`--members` 递归检查公开成员                            | storage / encrypted / sqlite / sqliteai `:build`                              |
+| `audit/package-api-docs.spec.mjs`                                           | 改公开 API 文档门禁后                        | pass/fail fixture 验证成员路径、非零退出及排除规则                              | `node --test scripts/audit/package-api-docs.spec.mjs`                         |
+| [audit/package-runtime-conditions.mjs](#auditpackage-runtime-conditionsmjs) | 改包 `exports` 后                            | 静态扫 `packages/*/package.json`，揪出指向源码的非可执行 export condition       | `pnpm audit:conditions`                                                       |
+| [audit/wa-sqlite-integrity.mjs](#auditwa-sqlite-integritymjs)               | 同上 / `preinstall`                          | 锁仓库 `wa-sqlite` 到固定 commit + SHA-512，并校验小程序 vendored WASM/CJS 资产 | `preinstall` / `audit:wa-sqlite`                                              |
+| [audit/coverage-check.mjs](#auditcoverage-checkmjs)                         | CI 门禁                                      | 聚合 `coverage-summary.json`，按核心 90% / 其余 80% 卡线                        | `pnpm audit:coverage` / `:update`                                             |
+| [audit/coverage-baseline.json](#auditcoverage-baselinejson)                 | 上次 `:update` 写入                          | 覆盖率历史趋势快照                                                              | 由 `coverage-check.mjs --update` 维护                                         |
 
 ---
 
@@ -56,7 +62,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 - **触发**：`package.json#preinstall` 第一段（包管理器解析前硬失败）；也可手动 `pnpm audit:wa-sqlite`。CI 上同样会跑（无 CI 跳过逻辑）。
 - **做什么**：
-  1. 读 `package.json / benchmarks/package.json / examples/angular-todo/package.json / packages/rxdb-adapter-wa-sqlite/package.json / packages/rxdb-adapter-miniprogram/package.json`，断言 `dependencies.wa-sqlite` 都锁定到 `https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/b9ddadce32480857cde28e7b1512cf45fa08ab73`；
+  1. 读 `package.json / benchmarks/package.json / examples/angular-todo/package.json / packages/rxdb-adapter-wa-sqlite/package.json / packages/rxdb-adapter-miniprogram/package.json`，断言 `dependencies.wa-sqlite` 都锁定到 `https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994`；
   2. 解析 `pnpm-lock.yaml` 中 `wa-sqlite@<url>` 段，断言 `tarball / integrity` 字段与上面的固定值一致，并扫掉任何 `codeload.github.com/.../refs/tags/`（即可变 tag URL）形态的残留；
   3. 对 `packages/rxdb-adapter-miniprogram/assets/wa-sqlite.cjs` 和 `.wasm` 校验固定 SHA-256；
   4. 传 `--archive <path-to-tgz>` 时，对下载的本地 tarball 再算一次 `sha512-<base64>`，与上面硬编码的完整性指纹对齐。
@@ -130,13 +136,17 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 ### `check-migration-release-gate.mjs`
 
 - **触发**：
-  - `pnpm check-migration-release-gate`（CI 上由 Nx release 流水线调用）；
-  - `pnpm test-migration-release-gate` → 跑 `check-migration-release-gate.spec.mjs`，用 Node 自带 test runner 覆盖 `validateManifest` 的所有分支。
+  - `pnpm check-migration-release-gate`（手工发布前自行执行——**没有任何 CI 会自动跑它**）；
+  - `pnpm test-scripts` → 连同其它脚本 spec 一起跑 `check-migration-release-gate.spec.mjs`，用 Node 自带 test runner 覆盖 `validateManifest` 的所有分支。
 - **做什么**：纯函数 `validateManifest(manifest, options)` 校验 `requirements/migration-release.json`：
-  - `$schemaVersion`、`release.kind`（bridge / migration）、`release.version`（semver）、`protocolVersion`、schema/codec upgrade 布尔位；
+  - `$schemaVersion`、`release.kind`（normal / bridge / migration）、`release.version`（semver）、`protocolVersion`、schema/codec upgrade 布尔位；
+  - `release.version` 必须同时等于发布 tag（去掉 `v`）与 `packages/rxdb/package.json` 的 `version`——两处任一漂移即 fail；
+  - `normal` 与 `bridge` 都禁止升级系统 schema / change codec；`normal` 额外要求 `bridge.tag` / `bridge.version` 为 null（不进入 bridge 链）；
   - migration 必须有 `bridge.tag`、bridge 与 release 的协议兼容性、bridge tag 必须存在且是 release 的祖先；
   - `oldBundlePolicy` 不能用被淘汰的 `force-update / cache-invalidation / server-version / database-namespace` 策略；
-  - 通过注入 `bridgeTagExists / bridgeTagIsAncestor / bridgeTagSupportsProtocol` 三个钩子，纯函数可在测试里无网络跑通。
+  - 通过注入 `bridgeTagExists / bridgeTagIsAncestor / bridgeTagSupportsProtocol` 三个钩子和 `packageVersion`，纯函数可在测试里无网络跑通。
+- **三种 kind 怎么选**：日常发布一律 `normal`；只有真正发布 writer lease/upgrade guard 协议的那一次写 `bridge`（它才能被后续 migration 引用为 `bridge.tag`）；带系统 schema 或 change codec 升级的写 `migration`。
+- **清单何时改**：`release.version` 跟着 `packages/rxdb/package.json` 走，**在版本 bump 的同一个提交里更新**；`nx release` 不会替你改清单，漏改会被门禁拦下。
 - **何时手动跑**：改了 `requirements/migration-release.json` 想确认字段没写歪；写 release 流程前 dry-run。
 
 ---
@@ -247,6 +257,34 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 - **做什么**：Node 自带 test runner，覆盖 `parseArgs`（参数校验 / 边界）、`formatNxLog`（ANSI 剥离 + `\r` 合并 + 空行压缩 + 超长截断）、`parseNxLog`（scheduled / succeeded / cached / failed / skipped / flaky / 缓存百分比 / Nx 时长 / Playwright trace）、`renderReport`（失败任务 / 不稳定任务两段的字段排版）。
 - **何时手动跑**：改了 `test-all-log.mjs` 的解析或报告样式。
 
+### `ci/plan-test-lanes.mjs`
+
+- **触发**：`.github/workflows/ci-template.yml` 的 `setup` job；本地调试用
+  `node scripts/ci/plan-test-lanes.mjs --projects=a,b,c [--lanes=4]`。
+- **做什么**：把「本次要跑 `test` 的项目」按实测耗时做 LPT 装箱，分到若干条 CI lane
+  （一条 lane = 一个并行 GitHub job），输出可直接喂给 `strategy.matrix` 的 JSON。
+  需要本地 Supabase 栈的项目（`SUPABASE_PROJECTS`）钉在独立 lane —— 起一次 Supabase 约 60s，
+  散在多条 lane 上就要交多次这笔税。
+- **`lane` 与 `label` 是两个字段，别合并**：`lane`（`t1`…/`supabase`）是机器用的稳定 id，
+  进 artifact 名 `coverage-lane-<lane>`，必须文件名安全；`label`（`rxdb-adapter-pglite +8`）
+  只进 job 名 `test (<label>)`，报出这条 lane 最重的项目 + 还有几个 —— `test (t1)` 在 PR 的
+  checks 列表里等于没说，红了得点进去才知道是哪个包。两者的映射打进 `setup` 的 job summary。
+- **为什么不在 workflow 里写死项目名**：写死的清单会在新增包时静默漏测。这里从
+  `nx show projects` 的实际输出分桶，权重表里没有的新包按 60s 估算并**打印告警**。
+- **改它要同步改什么**：`WEIGHTS` 是 CI 冷跑（全部 Cache Miss）的实测秒数，只影响分桶是否均衡，
+  不影响正确性；跑一轮 CI 后把偏差大的值补回来即可，**别拿本地耗时填**（本地 M 系列比 runner 快 3 倍）。
+  `LANE_COUNT` 受 GitHub 免费额度的 20 并发 job 约束。
+- **当前瓶颈**：`rxdb-adapter-pglite` 261s，是第二名（76s）的 3.4 倍，LPT 会单独给它一条 lane，
+  其余三条各 ~174s。也就是说 test 阶段的下界就是它一个包 —— 想再压只能拆它自己的用例，加 lane 没用。
+
+### `ci/plan-test-lanes.spec.mjs`
+
+- **触发**：`node --test scripts/ci/plan-test-lanes.spec.mjs`。
+- **做什么**：Node 自带 test runner，覆盖「不丢不重」「Supabase 项目独立成 lane」
+  「重任务被拆散」「同输入同输出（matrix 必须可复现）」「输入顺序无关」「lane 名唯一」
+  「未登记权重的新包照常调度且必须告警」「`label` 报出最重项目 +N 且唯一」。
+- **何时手动跑**：改了装箱算法、lane 数、Supabase 项目清单或 lane 展示名。
+
 ---
 
 ## 8. API 表面
@@ -278,19 +316,16 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
   6. 任一缺失都以非零状态退出。`package-api-docs.spec.mjs` 的故意缺成员 fixture 固定验证失败路径，pass fixture 固定验证私有成员和外部基类不会误报。
 - **何时手动跑**：新增 / 重命名 export 后忘了写 TSDoc；storage 新增公开 option / method / field 后运行 `node scripts/audit/package-api-docs.mjs packages/rxdb-plugin-storage --members`；改扫描规则后运行 `node --test scripts/audit/package-api-docs.spec.mjs`。
 
-### `audit/sqlite-adapter-consumer.mjs`
+### `audit/package-runtime-conditions.mjs`
 
-- **触发**：`packages/rxdb-adapter-sqlite` 与 `packages/rxdb-adapter-sqliteai` 的 `audit` target：`pnpm audit` 会按 `tag:js-lib` 一起跑。
-- **做什么**：
-  1. 拿适配器目录名（`rxdb-adapter-sqlite` 或 `rxdb-adapter-sqliteai`）作为 CLI 参数，从内嵌的 `contracts` 表里取出该包对应的导出形状（`adapter` / `client` / `load` / `loadOptions` / `options` / `repository`）；
-  2. 在临时目录里：
-     - `pnpm pack` 把包打成 tarball，断言恰好产生一个新 tgz；
-     - 写一份 TypeScript consumer 源码，把上面那一组符号 `import { ... } from '<pkg>'` 全部拉进来并喂给类型注解；
-     - `pnpm add ./<tarball>` 安装，验证 `customConditions` 在 consumer 端能跑通。
-  3. 任何一步产物错位或 import 形状与 contract 不符，即 `assert.ok`/`assert.deepEqual` 失败退出。
-- **何时手动跑**：新加一个 SQLite 系 adapter；改了 `exports` / 条件出口；怀疑 `pnpm pack` 产物在某条 install 条件下被解析错误。**注意：跑 `pnpm audit` 就会自动跑它**，不需要手动触发。
-
----
+- **触发**：`pnpm audit:conditions`，手动。**没有任何 CI 会自动跑它**。
+  （脚本名不能占用 `audit` —— `pnpm audit` 是 pnpm 的内置漏洞扫描命令，会把同名 npm script 遮蔽掉。）
+- **做什么**：遍历 `packages/*/package.json` 的 `exports`，找出指向 `.ts` 等**非可执行**文件的
+  condition。这类 condition 在 workspace 里靠 tsconfig paths 能解析，装进用户项目后就是死链。
+- **现状**：当前**是红的**，报 3 条 `@aiao/source -> ./src/*.ts`
+  （`rxdb-adapter-miniprogram` 2 条、`rxdb-adapter-wa-sqlite` 1 条）。
+  这是既有状态，不是回归——`@aiao/source` 是内部消费的源码 condition，
+  要么给它加豁免、要么从发布清单里摘掉，尚未决策。
 
 ## 9. 内部依赖（不可直接执行）
 
@@ -316,7 +351,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 - 所有脚本统一用 **Node ESM**（`import ... from`，无构建产物），最低 Node 26（由 `preinstall.mjs` 强制）；
 - 工作目录默认是仓库根（用 `process.cwd()` 或 `import.meta.dirname` 解析相对路径），所以从根目录直接 `node scripts/<x>.mjs` 即可；
 - 错误约定：
-  - **硬失败**（CI 阻断）：`audit/wa-sqlite-integrity` 锁漂移、`check-doc-code` import 无效、`check-externals` 漏配、`check-migration-release-gate` 字段错、`audit/coverage-check` 低于阈值、`audit/api-surface` removed/kind changed、`audit/package-api-docs` 缺 TSDoc、`audit/sqlite-adapter-consumer` 真 tarball 解析失败；
+  - **硬失败（阻断 PR）**：`audit/wa-sqlite-integrity` 锁漂移、`check-doc-code` import 无效、`check-externals` 漏配、`check-migration-release-gate` 字段错、`audit/coverage-check` 低于阈值、`audit/api-surface` removed/kind changed、`audit/package-api-docs` 缺 TSDoc；
   - **软警告**（仅打印）：`audit/coverage-check` 低于历史 baseline、`audit/api-surface` 仅新增；
   - **覆盖率基线更新**总是覆写（含下降），无需显式 `--force`，防止漏声明的「基线外降」被悄悄吞掉；
 - 没在 `package.json` 注册为 npm script 的脚本（`check-doc-code`、`check-externals`、`git-stats*`、`push-docs`）通常是临时排查用，懒得加命令。
@@ -340,7 +375,7 @@ pnpm test-packages    # 跑 packages/* 的 lint/typecheck/test/build/e2e
 pnpm audit:coverage         # 先看 90/80 硬门槛过没过
 pnpm audit:api-surface      # 再看导出表面有没有未声明变化
 pnpm check-migration-release-gate   # 若动的是 bridge / migration manifest
-pnpm audit                  # 顺带跑 rxdb-adapter-sqlite/sqliteai 的真实 consumer 门禁
+pnpm audit:conditions       # packages/ 的 exports conditions 静态审计
 pnpm audit:wa-sqlite        # 怀疑 wa-sqlite 供应链完整性时定位
 ```
 

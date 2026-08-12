@@ -34,16 +34,25 @@ const decryptEntityDataForApply = async (
   return { ...plain, id };
 };
 
+/**
+ * 一条待执行的 SQL 语句及其绑定参数。
+ */
 export interface SqliteStatement {
   sql: string;
   params: SQLiteCompatibleType[];
 }
 
+/**
+ * 版本切换过程中一条变更的 patch 与 inversePatch。
+ */
 export interface SwitchVersionChangeData {
   patch: Record<string, unknown> | null;
   inversePatch: Record<string, unknown> | null;
 }
 
+/**
+ * 版本切换中某一类操作（删除/插入/更新）的 SQL 集合及其变更记录。
+ */
 export interface SwitchVersionSqlItem {
   metadata: EntityMetadata;
   ids: Set<RxDBEntityId>;
@@ -53,6 +62,9 @@ export interface SwitchVersionSqlItem {
   changes: Map<RxDBEntityId, SwitchVersionChangeData>;
 }
 
+/**
+ * 版本切换生成的完整 SQL 结果：按删除/插入/更新三类分组。
+ */
 export interface SwitchVersionSqlResult {
   deletes: SwitchVersionSqlItem[];
   inserts: SwitchVersionSqlItem[];

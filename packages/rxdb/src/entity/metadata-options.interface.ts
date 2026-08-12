@@ -418,16 +418,18 @@ interface EntityRelationMetadataBase extends ISortable, ICascadeOptions {
  *
  * @example
  * ```typescript
- * @Relation({
- *   name: 'profile',
- *   kind: RelationKind.ONE_TO_ONE,
- *   mappedEntity: 'Profile',
- *   mappedProperty: 'user',
- *   nullable: false
- *   // onDelete 默认为 CASCADE
- *   // onUpdate 默认为 RESTRICT
- * })
- * profile!: Profile;
+ * // 写在 @Entity() 的 relations 数组里
+ * relations: [
+ *   {
+ *     name: 'profile',
+ *     kind: RelationKind.ONE_TO_ONE,
+ *     mappedEntity: 'Profile',
+ *     mappedProperty: 'user',
+ *     nullable: false
+ *     // onDelete 默认为 CASCADE
+ *     // onUpdate 默认为 RESTRICT
+ *   }
+ * ]
  * ```
  */
 interface EntityRelationOneToOneMetadataOptions extends EntityRelationMetadataBase, IEntityObject {
@@ -448,15 +450,17 @@ interface EntityRelationOneToOneMetadataOptions extends EntityRelationMetadataBa
  *
  * @example
  * ```typescript
- * @Relation({
- *   name: 'items',
- *   kind: RelationKind.ONE_TO_MANY,
- *   mappedEntity: 'OrderItem',
- *   mappedProperty: 'order'
- *   // onDelete 默认为 CASCADE（删除订单时删除所有订单项）
- *   // onUpdate 默认为 RESTRICT
- * })
- * items!: OrderItem[];
+ * // 写在 @Entity() 的 relations 数组里
+ * relations: [
+ *   {
+ *     name: 'items',
+ *     kind: RelationKind.ONE_TO_MANY,
+ *     mappedEntity: 'OrderItem',
+ *     mappedProperty: 'order'
+ *     // onDelete 默认为 CASCADE（删除订单时删除所有订单项）
+ *     // onUpdate 默认为 RESTRICT
+ *   }
+ * ]
  * ```
  */
 interface EntityRelationOneToManyMetadataOptions extends EntityRelationMetadataBase {
@@ -477,29 +481,29 @@ interface EntityRelationOneToManyMetadataOptions extends EntityRelationMetadataB
  *
  * @example
  * ```typescript
- * // nullable: false（默认）
- * @Relation({
- *   name: 'order',
- *   kind: RelationKind.MANY_TO_ONE,
- *   mappedEntity: 'Order',
- *   mappedProperty: 'items',
- *   nullable: false
- *   // onDelete 默认为 RESTRICT（订单有订单项时不允许删除）
- *   // onUpdate 默认为 RESTRICT
- * })
- * order!: Order;
- *
- * // nullable: true
- * @Relation({
- *   name: 'category',
- *   kind: RelationKind.MANY_TO_ONE,
- *   mappedEntity: 'Category',
- *   mappedProperty: 'products',
- *   nullable: true
- *   // onDelete 默认为 SET_NULL（删除分类时产品保留但分类ID设为NULL）
- *   // onUpdate 默认为 RESTRICT
- * })
- * category?: Category;
+ * // 写在 @Entity() 的 relations 数组里
+ * relations: [
+ *   // nullable: false（默认）
+ *   {
+ *     name: 'order',
+ *     kind: RelationKind.MANY_TO_ONE,
+ *     mappedEntity: 'Order',
+ *     mappedProperty: 'items',
+ *     nullable: false
+ *     // onDelete 默认为 RESTRICT（订单有订单项时不允许删除）
+ *     // onUpdate 默认为 RESTRICT
+ *   },
+ *   // nullable: true
+ *   {
+ *     name: 'category',
+ *     kind: RelationKind.MANY_TO_ONE,
+ *     mappedEntity: 'Category',
+ *     mappedProperty: 'products',
+ *     nullable: true
+ *     // onDelete 默认为 SET_NULL（删除分类时产品保留但分类ID设为NULL）
+ *     // onUpdate 默认为 RESTRICT
+ *   }
+ * ]
  * ```
  */
 interface EntityRelationManyToOneMetadataOptions extends EntityRelationMetadataBase, IEntityObject {
@@ -524,16 +528,18 @@ interface EntityRelationManyToOneMetadataOptions extends EntityRelationMetadataB
  *
  * @example
  * ```typescript
- * @Relation({
- *   name: 'courses',
- *   kind: RelationKind.MANY_TO_MANY,
- *   mappedEntity: 'Course',
- *   mappedProperty: 'students',
- *   junctionEntityType: StudentCourse
- *   // onDelete 默认为 RESTRICT（删除学生前需要先删除选课记录）
- *   // onUpdate 默认为 RESTRICT
- * })
- * courses!: Course[];
+ * // 写在 @Entity() 的 relations 数组里
+ * relations: [
+ *   {
+ *     name: 'courses',
+ *     kind: RelationKind.MANY_TO_MANY,
+ *     mappedEntity: 'Course',
+ *     mappedProperty: 'students',
+ *     junctionEntityType: StudentCourse
+ *     // onDelete 默认为 RESTRICT（删除学生前需要先删除选课记录）
+ *     // onUpdate 默认为 RESTRICT
+ *   }
+ * ]
  * ```
  */
 interface EntityRelationManyToManyMetadataOptions extends EntityRelationMetadataBase {

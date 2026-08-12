@@ -136,6 +136,7 @@ class BigIntEntityContractTag extends EntityBase<bigint> {
 
 const emptyWhere = { combinator: 'and', rules: [] } as const;
 
+/** bigint/binary 实体契约测试：通过实体 CRUD 验证 64 位整数与二进制往返。 */
 export function bigintBinaryEntitySuite(factory: AdapterFactory): void {
   describe.sequential(`bigint/binary entity contract [${factory.name}]`, () => {
     let adapter: RxDBAdapterSqliteBase;

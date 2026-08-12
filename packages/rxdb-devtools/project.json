@@ -5,5 +5,9 @@
   "projectType": "library",
   "sourceRoot": "packages/rxdb-devtools/src",
   "tags": ["js-lib"],
-  "targets": {}
+  "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    }
+  }
 }

@@ -16,9 +16,6 @@ import {
   ROWID
 } from './sqlite-core.utils.js';
 
-/**
- * 批量修改实体（创建/更新/删除）
- */
 export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
   adapter: RxDBAdapterSqliteBase,
   mutations: RxDBMutationsMap<T>

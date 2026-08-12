@@ -17,6 +17,19 @@ const bridgeManifest = () => ({
   }
 });
 
+const normalManifest = () => ({
+  $schemaVersion: 1,
+  bridge: { tag: null, version: null },
+  oldBundlePolicy: { strategy: null, minimumVersion: null, enforced: false },
+  release: {
+    kind: 'normal',
+    version: '0.0.25',
+    protocolVersion: 1,
+    systemSchemaUpgrade: false,
+    changeCodecUpgrade: false
+  }
+});
+
 const migrationManifest = () => ({
   $schemaVersion: 1,
   bridge: { tag: 'v0.0.24', version: '0.0.24' },
@@ -61,11 +74,64 @@ test('release 缺失时短路返回', () => {
   assert.deepEqual(validateManifest({ $schemaVersion: 1 }), ['release must be an object']);
 });
 
-test('release.kind 只接受 bridge 或 migration', () => {
+test('release.kind 只接受 normal / bridge / migration', () => {
   const manifest = bridgeManifest();
   manifest.release.kind = 'patch';
 
-  assert.ok(validateManifest(manifest).includes('release.kind must be bridge or migration'));
+  assert.ok(validateManifest(manifest).includes('release.kind must be normal, bridge or migration'));
+});
+
+test('合法的 normal 清单没有错误', () => {
+  assert.deepEqual(validateManifest(normalManifest()), []);
+});
+
+// normal 是为了让普通 patch 发布不必自称 bridge：bridge 的语义是「发布了 writer lease
+// 协议、可被后续 migration 引用为 bridge.tag」，普通发布不该混进这条链。
+test('normal 发布不得声明系统 schema 或 change codec 升级', () => {
+  for (const field of ['systemSchemaUpgrade', 'changeCodecUpgrade']) {
+    const manifest = normalManifest();
+    manifest.release[field] = true;
+
+    assert.ok(
+      validateManifest(manifest).includes('normal releases cannot upgrade system schema or change codec'),
+      `expected ${field} to be rejected`
+    );
+  }
+});
+
+test('normal 发布不得进入 bridge 链', () => {
+  const expected = 'normal releases must leave bridge.tag and bridge.version null';
+
+  for (const bridge of [
+    { tag: 'v0.0.24', version: '0.0.24' },
+    { tag: 'v0.0.24', version: null },
+    { tag: null, version: '0.0.24' }
+  ]) {
+    const manifest = normalManifest();
+    manifest.bridge = bridge;
+
+    assert.ok(validateManifest(manifest).includes(expected), `expected ${JSON.stringify(bridge)} to be rejected`);
+  }
+});
+
+test('normal 发布不校验 oldBundlePolicy 内容', () => {
+  const manifest = normalManifest();
+  manifest.oldBundlePolicy = { strategy: 'ignore', minimumVersion: null, enforced: false };
+
+  assert.deepEqual(validateManifest(manifest), []);
+});
+
+// 0.0.24 事故的同类形态：清单长期停在陈旧版本而无人察觉。清单版本必须与
+// `packages/rxdb/package.json` 同步推进，不允许只改其中一处。
+test('release.version 必须与 packages/rxdb/package.json 一致', () => {
+  const manifest = bridgeManifest();
+
+  assert.deepEqual(validateManifest(manifest, { packageVersion: '0.0.25' }), []);
+  assert.ok(
+    validateManifest(manifest, { packageVersion: '0.0.24' }).includes(
+      'release.version 0.0.25 does not match packages/rxdb/package.json version 0.0.24'
+    )
+  );
 });
 
 test('release.version 必须是严格 semver', () => {
@@ -243,6 +309,7 @@ test('签入的 migration-release.json 通过结构校验', async () => {
   const manifest = JSON.parse(
     await readFile(new URL('../requirements/migration-release.json', import.meta.url), 'utf8')
   );
+  const { version } = JSON.parse(await readFile(new URL('../packages/rxdb/package.json', import.meta.url), 'utf8'));
 
-  assert.deepEqual(validateManifest(manifest, passingHooks), []);
+  assert.deepEqual(validateManifest(manifest, { ...passingHooks, packageVersion: version }), []);
 });

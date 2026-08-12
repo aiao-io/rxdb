@@ -1,1 +1,5 @@
 examples/*
+# 门禁脚本的 fixture 里有成套的假 package.json / project.json，Nx 会把它们当成真项目
+# 收进图里（2026-08-15 实测：fixture 的 `apf` 变成了一个真会被 `nx affected -t build`
+# 调度的项目，且必然失败）。这些目录只该被 `node --test` 读，不该进项目图。
+scripts/audit/__fixtures__/*

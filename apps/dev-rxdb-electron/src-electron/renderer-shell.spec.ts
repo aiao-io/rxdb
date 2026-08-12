@@ -189,6 +189,30 @@ describe('ELEC-10 file: 协议下的生产外壳', () => {
   });
 });
 
+describe('US-207 桌面 SQLite 在渲染进程一侧的接线', () => {
+  // 同一个包分两个入口：包根是 renderer 侧（只说协议），`/host` 才 import `node:sqlite`。
+  // renderer 误导入 `/host` 时 Angular 解析不了 `node:` 内建，构建直接失败；
+  // 真正危险的是被某个 polyfill 接住的情形 —— 那就成了一份跑在渲染进程里的空壳库，
+  // 写入落在内存、重启即失，而 US-207 的全部意义正是「别再只存在于 WebView 里」。
+  it('renderer 只用包根入口，不碰 /host 子路径', () => {
+    const source = read('src/app/services/desktop-database.service.ts');
+    expect(source).toContain("from '@aiao/rxdb-adapter-desktop'");
+    expect(source).not.toContain('@aiao/rxdb-adapter-desktop/host');
+  });
+
+  // 与 ELEC-11 同一个坑的另一种形态：`providedIn: 'root'` 的服务同样是惰性的，
+  // 没有组件注入它就永远不构造 —— 卡片停在「连接中…」，且没有 worker、没有请求、没有报错。
+  it('首页注入桌面数据库服务，连接才真的会发生', () => {
+    expect(read('src/app/pages/home/home.page.ts')).toMatch(/inject\(DesktopDatabaseService\)/);
+  });
+
+  // AC#8 的打包 e2e 靠这三个 testid 断言「重启后计数 +1」。
+  // 改名不会让 e2e 变红，只会让它在等待选择器时超时 —— 排查成本远高于这条断言。
+  it.each(['desktop-status', 'desktop-error', 'desktop-launch-count'])('首页暴露 %s', testId => {
+    expect(read('src/app/pages/home/home.page.html')).toContain(`data-testid="${testId}"`);
+  });
+});
+
 describe('ELEC-21 worker 共享 chunk 不能被 chunk optimizer 删掉', () => {
   // @angular/build 22.0.5 的 `optimizeChunks`（懒加载 chunk ≥ 3 时默认启用）只把
   // **main 这一个入口**交给 rollup 重新打包，然后把被 rollup 吃掉的原 chunk

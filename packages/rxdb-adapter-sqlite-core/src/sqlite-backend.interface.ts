@@ -1,7 +1,7 @@
 /**
  * SqliteBackend —— SQLite WASM 后端实现的抽象接口。
  *
- * 定义共享 adapter 逻辑（rxdb-adapter-sqlite-core）与具体 SQLite 后端实现
+ * 定义共享适配器逻辑（rxdb-adapter-sqlite-core）与具体 SQLite 后端实现
  * （wa-sqlite、@sqliteai/sqlite-wasm 等）之间的契约。
  *
  * @module sqlite-backend.interface
@@ -11,27 +11,20 @@ import type { SQLiteCompatibleType } from './sqlite-core.interface.js';
 
 /** 通过后端执行 SQL 的结果 */
 export interface SqliteExecResult {
-  /** 结果集数组 */
   results: SqliteData[];
-  /** 受影响的行数 */
   rowsAffected: number;
 }
 
 /** 单个结果集，包含列名与行数据 */
 export interface SqliteData {
-  /** 列名 */
   columns: string[];
-  /** 行数据数组 */
   rows: SQLiteCompatibleType[][];
 }
 
 /** 与 C API 一致的 SQLite 变更类型常量 */
 export enum SQLiteChangeType {
-  /** SQLITE_DELETE (9) */
   SQLITE_DELETE = 9,
-  /** SQLITE_INSERT (18) */
   SQLITE_INSERT = 18,
-  /** SQLITE_UPDATE (23) */
   SQLITE_UPDATE = 23
 }
 
@@ -40,7 +33,7 @@ export type UpdateHookCallback = (type: SQLiteChangeType, dbName: string, tableN
 
 /** 打开 SQLite 后端的选项 */
 export interface SqliteBackendOptions {
-  /** 虚拟文件系统名（与后端相关） */
+  /** 虚拟文件系统名 */
   vfs?: string;
   /** 启用 OPFS 持久化（仅 Worker） */
   opfs?: boolean;

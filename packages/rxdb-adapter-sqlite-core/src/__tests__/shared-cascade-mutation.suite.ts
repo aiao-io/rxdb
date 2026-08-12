@@ -34,6 +34,7 @@ async function removeWithSuppressedConstraintError<T>(remove: () => Promise<T>):
   }
 }
 
+/** 级联与批量操作测试：级联创建/删除及批量修改（create/update/delete）行为。 */
 export function cascadeMutationSuite(factory: AdapterFactory) {
   describe(`级联与批量操作 [${factory.name}]`, () => {
     // ==================== Block 1: 级联操作默认行为测试 ====================

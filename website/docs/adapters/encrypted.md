@@ -16,23 +16,28 @@ peer 依赖任意本地 SQLite 系适配器之一：`@aiao/rxdb-adapter-wa-sqlit
 
 ### 1. 标注加密字段
 
-在 `@Property` 上加 `encrypted: true`：
+在 `@Entity()` 的 `properties` 里给字段加 `encrypted: true`：
 
 ```typescript
-import { Entity, Property, PropertyType } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
 
-@Entity({ tableName: 'users' })
-class User {
-  @Property({ primaryKey: true }) id!: string;
-  @Property({ propertyType: PropertyType.string }) displayName!: string;
-
-  @Property({ propertyType: PropertyType.string, encrypted: true })
+@Entity({
+  name: 'User',
+  tableName: 'users',
+  properties: [
+    { name: 'displayName', type: PropertyType.string },
+    { name: 'email', type: PropertyType.string, encrypted: true },
+    { name: 'phoneNumber', type: PropertyType.string, encrypted: true }
+  ]
+})
+class User extends EntityBase {
+  displayName!: string;
   email!: string;
-
-  @Property({ propertyType: PropertyType.string, encrypted: true })
   phoneNumber!: string;
 }
 ```
+
+> `id` 由 `EntityBase` 提供，不需要也不应该自己声明主键属性。
 
 ### 2. 初始化数据库并解锁密钥环
 
@@ -63,18 +68,29 @@ await adapter.encryption.unlock({
 });
 
 // 现在可以正常读写加密字段
-await rxdb.repository(User).create({
-  id: 'u1',
-  displayName: 'Ada',
-  email: 'ada@example.com' // 写入时自动加密
-});
+await rxdb.entityManager.getRepository(User).create(
+  new User({
+    displayName: 'Ada',
+    email: 'ada@example.com' // 写入时自动加密
+  })
+);
 ```
 
 ### 3. 读取时自动解密
 
 ```typescript
-const user = await rxdb.repository(User).findOne('u1');
-console.log(user.email); // 'ada@example.com'，读取时自动解密
+import { firstValueFrom } from 'rxjs';
+
+const user = await firstValueFrom(
+  User.findOne({
+    where: {
+      combinator: 'and',
+      rules: [{ field: 'displayName', operator: '=', value: 'Ada' }]
+    }
+  })
+);
+
+console.log(user?.email); // 'ada@example.com'，读取时自动解密
 ```
 
 ## 解锁方式

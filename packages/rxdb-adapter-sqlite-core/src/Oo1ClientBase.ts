@@ -129,8 +129,7 @@ export abstract class Oo1ClientBase<TLoadOptions extends Oo1ClientLoadOptions = 
       await this.#init_promise;
       this.#init_promise = undefined;
     } catch (error) {
-      // 失败路径由 #cleanup_after_init_failure 复位 #init_promise 与状态，
-      // 让调用方可以带合法参数重试
+      // 失败路径由 #cleanup_after_init_failure 复位状态，调用方可带合法参数重试。
       await this.#cleanup_after_init_failure();
       throw error;
     }

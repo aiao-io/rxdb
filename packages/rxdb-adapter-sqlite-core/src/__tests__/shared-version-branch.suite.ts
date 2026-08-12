@@ -15,6 +15,7 @@ import { generateSwitchBranchSql } from '../version/switch_branch.js';
 import type { AdapterFactory } from './adapter-factory.js';
 import { cleanup_db } from './test-utils.js';
 
+/** Version Branch 测试：分支切换动作的生成与执行。 */
 export function versionBranchSuite(factory: AdapterFactory) {
   describe.sequential(`Version Branch [${factory.name}]`, () => {
     let adapter: RxDBAdapterSqliteBase;

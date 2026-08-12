@@ -418,9 +418,10 @@ export class HistoryManager {
 
     // undo session 按分支隔离：跟住活跃分支，把视图切到它自己的那一份
     this.#subscriptions.push(
-      current_branch$
-        .pipe(takeUntil(this.#destroy$))
-        .subscribe(branch => this.#switchUndoSessionBranch(branch?.id ?? null))
+      current_branch$.pipe(takeUntil(this.#destroy$)).subscribe({
+        next: branch => this.#switchUndoSessionBranch(branch?.id ?? null),
+        error: error => this.#reportBranchStreamError('undo session 分支跟随', error)
+      })
     );
 
     // 初始化变更流：基于 firstConnectedAt 过滤 session 内的变更
@@ -577,9 +578,12 @@ export class HistoryManager {
             .pipe(catchError(() => EMPTY));
         })
       )
-      .subscribe(() => {
-        // 任何变更都触发重新计算
-        this.#updatePushableCount();
+      .subscribe({
+        next: () => {
+          // 任何变更都触发重新计算
+          this.#updatePushableCount();
+        },
+        error: error => this.#reportBranchStreamError('pushableCount 重算', error)
       });
     this.#subscriptions.push(pushableCountSub);
 
@@ -1159,6 +1163,32 @@ export class HistoryManager {
       this.#undoSessions.set(this.#currentUndoBranchId, session);
     }
     this.#undoSession$.next(session);
+  }
+
+  /**
+   * 活跃分支流断掉时的上报口。
+   *
+   * @remarks
+   * 这两条订阅是 HistoryManager 自己开的，没有调用方可以把错误交回去。不给 `error` 回调，
+   * RxJS 会走 `reportUnhandledError` —— 浏览器里是 `window.onerror`，Electron 里直接是一次
+   * 未捕获异常，足以把宿主应用打崩。而这里最常见的错误来源恰恰是 `RxDB.connect()` 失败：
+   * 活查询在适配器的就绪门上等的就是那个 promise，连接失败它就跟着 error。那个错误
+   * 调用方已经从 `connect()` 拿到过一次，再把进程崩一次不提供任何新信息。
+   *
+   * 不是吞掉：错误照样落日志，并推给 {@link HistoryManager.errors$} 的订阅者，
+   * 与 `#updatePushableCount` 的降级口径一致。
+   *
+   * 已知局限：流在 error 之后即终止，分支跟随与 pushableCount 不会自行恢复。
+   * 失败的连接重试成功后，这两条流仍是死的，需要重建 RxDB 实例。
+   *
+   * @param source - 出错的流，用于日志定位
+   * @param error - 原始错误
+   */
+  #reportBranchStreamError(source: string, error: unknown): void {
+    // 关机竞态：destroy 后仍在 in-flight 的查询会撞到断连的 adapter，属预期行为
+    if (this.#destroyed || isAdapterShutdownError(error)) return;
+    console.error(`[HistoryManager] ${source} 的活跃分支流已中断:`, error);
+    this.errors$.next(error instanceof Error ? error : new Error(String(error)));
   }
 
   /**

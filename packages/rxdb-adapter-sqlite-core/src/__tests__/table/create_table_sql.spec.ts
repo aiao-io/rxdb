@@ -13,10 +13,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { create_table_sql } from '../../index.js';
 import { RxDBAdapterSqliteBase, type SqliteClientLike } from '../../RxDBAdapterSqliteBase.js';
 
-// --------------------------------------------------------------------------
-// 测试实体
-// --------------------------------------------------------------------------
-
 @Entity({
   name: 'CtIntParent',
   properties: [
@@ -105,10 +101,6 @@ const funParentDefault = vi.fn(() => 7);
   ]
 })
 class CtChild extends EntityBase {}
-
-// --------------------------------------------------------------------------
-// 测试辅助
-// --------------------------------------------------------------------------
 
 class CreateTableTestAdapter extends RxDBAdapterSqliteBase {
   readonly name = 'sqlite-core-create-table-test';

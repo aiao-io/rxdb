@@ -119,9 +119,17 @@ export interface SearchSourceLike {
  * @public
  */
 export class SearchError extends Error {
-  constructor(message: string) {
+  /**
+   * @param message - 错误信息
+   * @param name - 该错误类的稳定公开标识，**必须**是字面量。
+   *
+   *   这里不能写 `new.target.name`：那读的是构造函数身份，minify 一过就退化成
+   *   `"b"` / `"x"` 这种单字母。源码单测对此免疫（源码不会被 mangle），
+   *   退化只在装进用户项目的产物里才现形。
+   */
+  constructor(message: string, name = 'SearchError') {
     super(message);
-    this.name = new.target.name;
+    this.name = name;
   }
 }
 
@@ -141,7 +149,10 @@ export class SearchSchemaMismatchError extends SearchError {
     /** 数据库中已存在的、与 expected 冲突的旧字段签名 */
     public readonly actual: string
   ) {
-    super(`[rxdb-plugin-search] FTS5 schema mismatch on table "${table}": expected="${expected}", actual="${actual}"`);
+    super(
+      `[rxdb-plugin-search] FTS5 schema mismatch on table "${table}": expected="${expected}", actual="${actual}"`,
+      'SearchSchemaMismatchError'
+    );
   }
 }
 
@@ -154,9 +165,10 @@ export class SearchExecutionError extends SearchError {
   constructor(
     message: string,
     /** 触发错误的原始异常 */
-    public override readonly cause?: unknown
+    public override readonly cause?: unknown,
+    name = 'SearchExecutionError'
   ) {
-    super(`[rxdb-plugin-search] ${message}`);
+    super(`[rxdb-plugin-search] ${message}`, name);
   }
 }
 
@@ -170,7 +182,7 @@ export class SearchQueryLimitError extends SearchExecutionError {
     public readonly max: number,
     public readonly actual: number
   ) {
-    super(`search query ${kind} exceeds maximum ${max} (actual ${actual})`);
+    super(`search query ${kind} exceeds maximum ${max} (actual ${actual})`, undefined, 'SearchQueryLimitError');
   }
 }
 
@@ -186,7 +198,8 @@ export class SearchUnsupportedAdapterError extends SearchError {
     public readonly adapter: string
   ) {
     super(
-      `[rxdb-plugin-search] Unsupported adapter "${adapter}". Only @aiao/rxdb-adapter-sqlite-wasm is supported in this version.`
+      `[rxdb-plugin-search] Unsupported adapter "${adapter}". Only @aiao/rxdb-adapter-sqlite-wasm is supported in this version.`,
+      'SearchUnsupportedAdapterError'
     );
   }
 }
@@ -207,7 +220,8 @@ export class SearchEncryptedFieldError extends SearchError {
     public readonly column: string
   ) {
     super(
-      `[rxdb-plugin-search] FTS cannot index encrypted column "${column}" on table "${table}". Remove either \`encrypted: true\` or \`searchable: true\` from this property.`
+      `[rxdb-plugin-search] FTS cannot index encrypted column "${column}" on table "${table}". Remove either \`encrypted: true\` or \`searchable: true\` from this property.`,
+      'SearchEncryptedFieldError'
     );
   }
 }

@@ -1,8 +1,22 @@
 codecov:
   max_report_age: off
 
-# 全局忽略：测试相关文件不参与覆盖率统计（各包 vitest 配置之外的兜底守卫）
+# 全局忽略：只有 packages/**（可发布库）参与覆盖率统计。
+#
+# CI 上报的产物是 `coverage/**/lcov.info` 全量合并的结果，里面还含 apps/（演示应用）、
+# modules/（内部共享模块）、benchmarks/ 等非发布物。它们进统计会稀释总覆盖率与徽章，
+# 也会让「只改了个 demo 页面」被要求补到 80% 补丁覆盖率。这里在 Codecov 侧直接剔除，
+# 剔除后的文件不进任何报表 —— total / badge / project / patch / components 同一口径。
 ignore:
+  - 'apps/**'
+  - 'benchmarks/**'
+  - 'docker/**'
+  - 'examples/**'
+  - 'modules/**'
+  - 'scripts/**'
+  - 'tools/**'
+  - 'website/**'
+  # 测试相关文件（各包 vitest 配置之外的兜底守卫）
   - '**/__tests__/**'
   - '**/*.spec.*'
   - '**/*.test.*'
@@ -32,6 +46,11 @@ coverage:
         base: auto
         if_ci_failed: error
         only_pulls: false
+        # 与 project 同口径。顶部 ignore 已经把 packages/ 以外的文件全部剔除，
+        # 这里再限定一次是防配置漂移：新增顶层目录忘了加 ignore 时，
+        # 状态检查的口径不会跟着变。
+        paths:
+          - 'packages/**'
 
 comment:
   layout: 'condensed_header, diff, flags, components'

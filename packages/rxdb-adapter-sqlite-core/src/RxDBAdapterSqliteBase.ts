@@ -81,7 +81,7 @@ import { switch_branch } from './version/switch_branch.js';
 import { switch_transaction_id } from './version/switch_transaction_id.js';
 
 /**
- * SQLite adapter 的最小客户端接口。
+ * SQLite 适配器的最小客户端接口。
  * wa-sqlite 的 SqliteClient 与 sqliteai 的 SqliteaiClient 都满足该契约。
  */
 export interface SqliteClientLike {
@@ -107,7 +107,7 @@ export interface SqliteClientLike {
 }
 
 /**
- * SQLite adapter 的基础选项（与后端无关）。
+ * SQLite 适配器的基础选项（与后端无关）。
  */
 export interface SqliteBaseOptions {
   repositories?: Record<string, AdapterRepositoryConstructor<RxDBAdapterSqliteBase>>;
@@ -921,8 +921,6 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       )
     };
   }
-
-  // 私有方法
 
   /**
    * 读当前分支 id，供事务日志的 `switch_transaction_id` 使用。

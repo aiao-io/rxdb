@@ -15,12 +15,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-all:
-    uses: ./.github/workflows/test-template.yml
+  # 全量跑（run-many），不走 affected —— main 上的绿必须代表整仓都过。
+  ci:
+    uses: ./.github/workflows/ci-template.yml
     with:
       run_mode: run-many
-      include_e2e: false
-      need_supabase: true
       is_pr: false
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

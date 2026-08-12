@@ -1,7 +1,12 @@
 {
   "name": "@aiao/rxdb-adapter-wa-sqlite",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-adapter-wa-sqlite"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -41,7 +46,7 @@
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
     "@aiao/utils": "workspace:*",
-    "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/b9ddadce32480857cde28e7b1512cf45fa08ab73"
+    "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994"
   },
   "devDependencies": {
     "@aiao/rxdb-test": "workspace:*",

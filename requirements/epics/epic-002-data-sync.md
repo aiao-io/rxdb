@@ -24,6 +24,9 @@ owner: jimmy
 
 - ✅ [US-301 版本控制](../stories/collaboration/US-301-version-control.md) (Medium)
 - ✅ [US-302 撤销/重做](../stories/collaboration/US-302-undo-redo.md) (Medium)
-- ⬜ [US-305 持久化 Git 式工作区提交](../stories/collaboration/US-305-persistent-workspace-commits.md) (High)
 - ✅ [US-203 Supabase 适配器](../stories/adapter/US-203-supabase-adapter.md) (High)
 - ✅ [US-803 本地数据加密](../stories/future/US-803-local-encryption.md) (Medium) — `@aiao/rxdb-adapter-encrypted` 透明加密包装层
+
+> 原挂在本 Epic 下的 US-305「持久化 Git 式工作区提交」已升级为
+> [epic-006 本地工作树与提交历史](./epic-006-working-tree-commits.md) 并拆成 US-305～US-308。
+> 本 Epic 的 `status: Done` 因此成立——它不再持有未完成故事。

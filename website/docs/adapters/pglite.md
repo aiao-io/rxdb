@@ -122,7 +122,7 @@ const settings = await firstValueFrom(
 
 ### 3. 全文搜索
 
-PGlite 原生支持 PostgreSQL 的 `tsvector` / GIN 索引；当前 aiao 元数据 API 暂未直接暴露这些扩展字段，需要通过 raw SQL 自行创建索引。结构化字段的全文搜索请优先使用 [`@aiao/rxdb-plugin-search`](../plugins/rxdb-plugin-search/README.md)（基于 SQLite FTS5，仅兼容 sqlite-wasm 适配器）。
+PGlite 原生支持 PostgreSQL 的 `tsvector` / GIN 索引；当前 rxdb 元数据 API 暂未直接暴露这些扩展字段，需要通过 raw SQL 自行创建索引。结构化字段的全文搜索请优先使用 [`@aiao/rxdb-plugin-search`](../plugins/rxdb-plugin-search/README.md)（基于 SQLite FTS5，仅兼容 sqlite-wasm 适配器）。
 
 ### 4. 数组类型
 

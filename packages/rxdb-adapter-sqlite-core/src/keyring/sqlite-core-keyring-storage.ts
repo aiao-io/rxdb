@@ -37,7 +37,7 @@ const SELECT_SQL = `SELECT id, createdAt, kdf, salt, kid, verifier FROM rxdb_db_
 const INSERT_SQL = `INSERT OR FAIL INTO rxdb_db_keyring (id, createdAt, kdf, salt, kid, verifier) VALUES (?, ?, ?, ?, ?, ?)`;
 
 /**
- * 把 keyring 单例行持久化到 adapter 自带的 SQLite 数据库。
+ * 把密钥环单例行持久化到适配器自带的 SQLite 数据库。
  * wa-sqlite 与 sqliteai 两个继承类都会用到。
  */
 export class SqliteCoreKeyringStorage implements KeyringStorageBinding {
@@ -67,7 +67,7 @@ export class SqliteCoreKeyringStorage implements KeyringStorageBinding {
     try {
       await this.adapter.writeQuery(INSERT_SQL, [row.id, row.createdAt, row.kdf, row.salt, row.kid, row.verifier]);
     } catch (cause) {
-      // 只有真正的唯一约束冲突才是 singleton conflict。把磁盘满、表不存在、权限错误、
+      // 只有真正的唯一约束冲突才是单例冲突。把磁盘满、表不存在、权限错误、
       // 连接已断开一律报成「已存在单例行」会让调用方按错误的方向排查，
       // 也会让重试逻辑对一个根本不会自愈的故障反复重试（SQLC-029）
       if (!isUniqueConstraintViolation(cause)) throw cause;

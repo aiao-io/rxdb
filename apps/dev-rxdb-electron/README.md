@@ -66,6 +66,70 @@ corepack pnpm nx run dev-rxdb-electron:electron-build
 
 这只切换构建工具下载源，不改变应用产物或运行时行为。其他平台产物仍必须在对应平台完成实际构建后再宣称可用。
 
+## 本地数据库位置
+
+桌面适配器的库文件由主进程决定落点：`main.ts` 把 `app.getPath('userData')` 交给
+`desktop-sqlite-bridge.ts` 的 `createDatabasePathResolver()`，后者在其下再开一层
+`rxdb-data/`（常量 `DESKTOP_DATABASE_DIRECTORY`）。demo 的完整路径是：
+
+```text
+<userData>/rxdb-data/desktop_demo@0_1.sqlite3
+```
+
+文件名三段各有出处，改任意一段都会挪动落点：
+
+- `desktop_demo` —— demo 传给 RxDB 的 `dbName`（`src/app/services/desktop-database.service.ts` 的 `DESKTOP_DEMO_DB_NAME`）
+- `@0_1` —— RxDB 给物理库名加的 `RXDB_DB_NAME_SUFFIX`（`packages/rxdb/src/version.ts`，已永久冻结）
+- `.sqlite3` —— 桌面适配器的 `DEFAULT_DATABASE_SUFFIX`
+
+`<userData>` 由 Electron 按平台推导，目录名取 `package.json` 的 `productName`（`DevRxDBElectron`），
+dev 与打包产物一致：
+
+| 平台    | 路径                                                       |
+| ------- | ---------------------------------------------------------- |
+| macOS   | `~/Library/Application Support/DevRxDBElectron/rxdb-data/` |
+| Windows | `%APPDATA%\DevRxDBElectron\rxdb-data\`                     |
+| Linux   | `~/.config/DevRxDBElectron/rxdb-data/`                     |
+
+引擎按 WAL + `synchronous=NORMAL` 打开，因此运行期同目录下还会有 `-wal` 和 `-shm` 两个侧车文件；
+拷贝或备份必须连它们一起，或先正常关闭应用（会做 WAL checkpoint）。
+
+子目录名**不能**改成 `databases`：那是 Chromium 在 `userData` 下自用的 WebSQL 目录，它启动时会把没登记过的文件全部删掉，
+数据会静默丢失且不报错。完整实测记录见 `desktop-sqlite-bridge.ts` 中 `DESKTOP_DATABASE_DIRECTORY` 的注释，
+守门用例在 `desktop-sqlite-bridge.spec.ts`。
+
+需要换一个干净的数据目录（或不想污染日常开发库）时，用 Electron 自带的开关：
+
+```bash
+corepack pnpm exec electron dist/apps/dev-rxdb-electron --serve --user-data-dir=/tmp/rxdb-electron-scratch
+```
+
+e2e 就是这么做的：每次启动新建临时目录并在结束时删掉，重启持久化用例则对两次启动传同一个目录。
+
+renderer 单独用 `nx serve` 跑在浏览器里时走的是另一条路径 —— wa-sqlite 的 OPFS VFS（不可用时降级到 IndexedDB），
+数据落在浏览器 profile 里，与上面的 `rxdb-data/` 无关。
+
+## 打包 e2e
+
+```bash
+corepack pnpm nx e2e dev-rxdb-electron-e2e
+```
+
+该 target 依赖 `electron-package-dir`（`--dir` 解包产物），Playwright 直接拉起真实可执行文件。
+
+跑一轮会把产物连开三次，因此**窗口默认隐藏**：`packaged-app.ts` 的 `launchEnv()` 会传入
+`DEV_RXDB_ELECTRON_HIDE_WINDOW=1`，主进程据此以 `show: false` 建窗，并关掉后台节流
+（不关的话 Chromium 会把不可见页面的 rAF 停掉，Playwright 的可操作性检查会全部超时）。
+macOS 上同时调用 `app.dock.hide()`，避免应用启动时切走焦点与菜单栏。
+
+排查失败用例需要肉眼看窗口时，显式关掉这个开关：
+
+```bash
+DEV_RXDB_ELECTRON_HIDE_WINDOW=0 corepack pnpm nx e2e dev-rxdb-electron-e2e
+```
+
+该变量只影响窗口是否显示，不改变加载路径、协议与存储位置。
+
 ## 项目结构
 
 ```text

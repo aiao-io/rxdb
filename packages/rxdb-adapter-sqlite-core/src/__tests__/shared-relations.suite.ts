@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { AdapterFactory } from './adapter-factory.js';
 
+/** 关系集成测试：多实体间关系（one-to-many/many-to-one）的读写与查询。 */
 export function relationIntegrationSuite(factory: AdapterFactory) {
   describe(`关系集成测试 [${factory.name}]`, () => {
     let adapter: RxDBAdapterSqliteBase;

@@ -58,7 +58,7 @@ docker compose logs -f
 
 # 查看指定服务日志
 docker compose logs -f db
-docker compose logs -f kong
+docker compose logs -f api-gw
 
 # 查看服务状态
 docker compose ps
@@ -87,11 +87,11 @@ docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml up -d
 
 ```text
 sql/
+├── 00-realtime-schema.sql
 ├── 01-rxdb-system-tables.sql
 ├── 02-rxdb-sync-functions.sql
 ├── 03-business-tables.sql
-├── 04-rxdb-utils-functions.sql
-└── 99-cleanup-tables.sql
+└── 04-rxdb-utils-functions.sql
 ```
 
 其中 `03-business-tables.sql` 会创建适配器测试需要的业务表，例如 `Todo`、`TypeDemo`、`User`、`Order`、`OrderItem`、`Category`、`MenuLarge` 等。
@@ -99,7 +99,7 @@ sql/
 ## 服务结构
 
 ```text
-Kong (8000/8443)
+Envoy / api-gw (8000)
 ├── Auth
 ├── REST
 ├── Realtime
@@ -107,6 +107,9 @@ Kong (8000/8443)
 └── PostgreSQL (5432)
     └── Supavisor (6543)
 ```
+
+> 上游默认网关已从 Kong 切换为 Envoy（`api-gw` 服务）。Kong 作为网络别名仍然可用，
+> 也可以通过 `docker compose -f docker-compose.yml -f docker-compose.kong.yml up -d` 显式启用。
 
 ## 故障排除
 
@@ -119,10 +122,12 @@ Kong (8000/8443)
 直接改 `docker/.env`，常见变量如下：
 
 ```bash
-KONG_HTTP_PORT=8001
+API_GW_HTTP_PORT=8001
 POSTGRES_PORT=5433
 POOLER_PROXY_PORT_TRANSACTION=6544
 ```
+
+> `start.sh` 兼容旧变量：如果没设 `API_GW_HTTP_PORT`，会自动回退到 `KONG_HTTP_PORT`。
 
 ### 数据库没起来
 
@@ -151,25 +156,57 @@ docker/
 ├── .env
 ├── .env.example
 ├── docker-compose.yml
+├── docker-compose.caddy.yml
+├── docker-compose.ci.yml          # CI 精简版（仅测试必需服务）
+├── docker-compose.envoy.yml       # Envoy API 网关覆盖
+├── docker-compose.kong.yml        # Kong API 网关覆盖
+├── docker-compose.logs.yml        # 日志/分析服务
+├── docker-compose.nginx.yml
+├── docker-compose.pg15.yml        # Postgres 15 兼容覆盖
+├── docker-compose.pg17.yml        # Postgres 17 覆盖
+├── docker-compose.rustfs.yml
 ├── docker-compose.s3.yml
-├── docker-compose.ci.yml
-├── start.sh
+├── run.sh                         # 上游入口脚本
+├── setup.sh                       # 上游一键部署
+├── update.sh                      # 上游升级脚本
+├── versions.md                    # 上游镜像版本清单
+├── upgrades.json                  # 上游升级路径配置
+├── start.sh                       # rxdb 测试环境启动
 ├── stop.sh
 ├── reset.sh
 ├── init-db.sh
 ├── dev/
 │   ├── docker-compose.dev.yml
 │   └── data.sql
+├── ci/                            # CI 专用配置
+│   ├── kong.yml
+│   └── roles.sql
 ├── sql/
+│   ├── 00-realtime-schema.sql
 │   ├── 01-rxdb-system-tables.sql
 │   ├── 02-rxdb-sync-functions.sql
 │   ├── 03-business-tables.sql
-│   ├── 04-rxdb-utils-functions.sql
-│   └── 99-cleanup-tables.sql
+│   └── 04-rxdb-utils-functions.sql
+├── tests/                         # 环境测试脚本
+├── utils/                         # 密钥/升级工具脚本
+│   ├── add-new-auth-keys.sh
+│   ├── db-passwd.sh
+│   ├── generate-keys.sh
+│   ├── reassign-owner.sh
+│   ├── rotate-new-api-keys.sh
+│   └── upgrade-pg17.sh
 └── volumes/
-    ├── logs/              # 日志配置
-    ├── pooler/            # 连接池配置
-    └── storage/           # 存储配置
+    ├── api/
+    │   ├── envoy/                 # Envoy 网关配置
+    │   ├── kong.yml
+    │   └── kong-entrypoint.sh
+    ├── db/                        # 数据库初始化 SQL
+    ├── functions/                 # Edge Functions
+    ├── logs/                      # 日志配置
+    ├── pooler/                    # 连接池配置
+    ├── proxy/                     # Caddy/Nginx 反向代理
+    ├── snippets/                  # Studio SQL 片段
+    └── storage/                   # 本地文件存储
 ```
 
 ## 与远程 Supabase 对比

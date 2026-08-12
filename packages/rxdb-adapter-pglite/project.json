@@ -1,12 +1,13 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "implicitDependencies": ["!rxdb-test"],
   "name": "rxdb-adapter-pglite",
   "tags": ["js-lib"],
   "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    },
     "test": {
-      "dependsOn": ["^build", { "target": "test-node", "params": "ignore" }],
-      "parallelism": false
+      "dependsOn": ["^build", { "target": "test-node", "params": "ignore" }]
     },
     "test-node": {
       "cache": true,

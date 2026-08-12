@@ -11,14 +11,8 @@
   },
   "tags": ["js-lib"],
   "targets": {
-    "consumer": {
-      "executor": "nx:run-commands",
-      "dependsOn": ["build", "^build"],
-      "options": {
-        "command": "node scripts/audit/sqlite-core-testing-consumer.mjs"
-      }
-    },
     "typecheck": {
+      "dependsOn": ["build", "^typecheck"],
       "executor": "nx:run-commands",
       "options": {
         "cwd": "packages/rxdb-adapter-sqlite-core",

@@ -9,6 +9,7 @@ const TODO_ID_1: UUID = '00000000-0000-0000-0000-000000000001';
 const TODO_ID_2: UUID = '00000000-0000-0000-0000-000000000002';
 const MISSING_TODO_ID: UUID = '00000000-0000-0000-0000-000000000099';
 
+/** transaction_sqlite_result 测试：事务结果的实体更新与缓存移除。 */
 export function transactionSqliteResultSuite(factory: AdapterFactory) {
   describe(`transaction_sqlite_result [${factory.name}]`, () => {
     let adapter: RxDBAdapterSqliteBase;

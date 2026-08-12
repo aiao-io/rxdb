@@ -73,7 +73,7 @@
     "build": { "cache": true, "dependsOn": ["^build"], "inputs": ["production", "^production"] },
     "lint": { "cache": true, "inputs": ["default", "^production"] },
     "test": { "cache": true, "dependsOn": ["^build"], "inputs": ["default", "^production"] },
-    "audit": { "cache": false, "inputs": ["default"] },
+    "coverage-acceptance": { "dependsOn": ["^build"] },
     "@nx/angular:ng-packagr-lite": { "cache": true, "dependsOn": ["^build"], "inputs": ["production", "^production"] },
     "@nx/angular:unit-test": { "cache": true, "inputs": ["default", "^production"] },
     "@angular/build:application": { "cache": true, "dependsOn": ["^build"], "inputs": ["production", "^production"] },

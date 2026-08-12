@@ -17,6 +17,7 @@ const createHistoryReadyFactory = (baseFactory: AdapterFactory): AdapterFactory 
   }
 });
 
+/** Undo-Redo 测试：版本切换动作的撤销与重做。 */
 export function undoRedoSuite(baseFactory: AdapterFactory) {
   const factory = createHistoryReadyFactory(baseFactory);
   describe.sequential(`Undo-Redo [${factory.name}]`, () => {
@@ -288,13 +289,11 @@ export function undoRedoSuite(baseFactory: AdapterFactory) {
 
     // ================================================================
     // 6b. P1-011 —— undo/redo 写出的 updatedAt 必须单调
-    //
     // 缺陷：undo 走 `get_switch_version_actions(changes, false)`，UPDATE 分支把
     // `patch = change.inversePatch`——**inversePatch 里带着旧的 `updatedAt`**（trigger 按
     // `OLD IS NOT NEW` 逐列记录，而每次 save 都会改 updatedAt，所以它必然在里面）。
     // 适配器侧 `switch-result.utils.ts` 又直接 `entityData['updatedAt']` 取出来喂给
     // `update_sql`，于是 undo 把行的 updatedAt **原样倒退**到上一版本。
-    //
     // 为什么是缺陷而不是「精确还原」：`updatedAt` 是**写入时刻**，不是用户的逻辑状态。
     // 倒退会让 ① LWW 同步（supabase）把 undo 判成旧写而丢弃 ② 查询缓存的单调性前提失效
     // （`EntityStatus.fingerprint` = `id@updatedAt`，P0-004 的守卫正是建立在这个前提上）。
@@ -1497,7 +1496,7 @@ export function undoRedoSuite(baseFactory: AdapterFactory) {
                     .getRepository(Todo)
                     .find({ where: { combinator: 'and', rules: [] } })
                     .then(() => {
-                      //
+                      // 无操作。
                     });
                   sub.unsubscribe();
                   setTimeout(resolve, 50);

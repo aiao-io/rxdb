@@ -70,7 +70,7 @@ export default defineConfig(() => ({
     },
     coverage: {
       enabled: true,
-      reportsDirectory: './node_modules/.cache/coverage',
+      reportsDirectory: '../../coverage/packages/rxdb-devtools',
       provider: 'v8' as const,
       reporter: ['text', 'json-summary', 'lcovonly', 'html'],
       include: ['src/**/*'],

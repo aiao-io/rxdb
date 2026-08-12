@@ -1,0 +1,90 @@
+name: Start Supabase
+description: 拉起 docker/docker-compose.ci.yml 的本地 Supabase 栈，灌入初始化 SQL，等到 REST API 真正可用。
+
+inputs:
+  anon-key:
+    description: 'PostgREST 就绪探测用的 anon JWT'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # 这里曾经有一步 `actions/cache` 缓存 /var/lib/docker，用来省掉镜像 pull 的时间。
+    # 它从来没生效过：/var/lib/docker 属 root，runner 用户打包时 post 步骤必然
+    # `EACCES: permission denied, scandir '/var/lib/docker'`，于是永远存不下来，
+    # 每一轮的 restore 也就永远 miss（run 31579171814 的两个 job 都是这样）。
+    # 就算权限通了也没用 —— 在 dockerd 运行中把文件塞回它的数据目录，daemon 不会
+    # 重新扫描，镜像照样不认。要缓存镜像只能 `docker save/load` tar 包。
+    # 与其留一步每轮报 warning 的空操作，不如删掉，让「pull 很慢」这件事显式可见。
+    - name: Start Supabase
+      shell: bash
+      working-directory: docker
+      env:
+        ANON_KEY: ${{ inputs.anon-key }}
+      run: |
+        set -euo pipefail
+
+        docker compose -f docker-compose.ci.yml pull
+        docker compose -f docker-compose.ci.yml up -d
+
+        echo "⏳ Waiting for PostgreSQL..."
+        timeout 60 bash -c 'until docker exec supabase-db pg_isready -U postgres -q; do sleep 1; done'
+
+        dump_and_fail() {
+          echo "❌ $1"
+          docker ps -a --format "table {{.Names}}\t{{.Status}}" | grep -E 'supabase|realtime' || true
+          for c in supabase-kong supabase-rest realtime-dev.supabase-realtime; do
+            echo "--- $c ---"
+            docker logs "$c" --tail 30 2>&1 || true
+          done
+          exit 1
+        }
+
+        # `-v ON_ERROR_STOP=1`：psql 非交互执行脚本时默认「报错继续、exit 0」，
+        # 不加这个开关，建表失败的库会带着绿色的 setup 进入测试。
+        #
+        # 这里没有 sql/00-realtime-schema.sql：它必须比 realtime 容器更早执行，
+        # 而本步骤跑在 `up -d` 之后，来不及。改由 docker-compose.ci.yml 把它挂进
+        # db 的 /docker-entrypoint-initdb.d/migrations/ 里，在 initdb 阶段建好。
+        echo "🔧 Initializing database..."
+        docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < sql/01-rxdb-system-tables.sql
+        docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < sql/02-rxdb-sync-functions.sql
+        docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < sql/03-business-tables.sql
+        docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < sql/04-rxdb-utils-functions.sql
+
+        # pg_isready 只说明数据库起来了，Kong/PostgREST 还要几秒才接得住请求。
+        echo "⏳ Waiting for REST API..."
+        rest_ready=""
+        for i in $(seq 1 60); do
+          if curl -sf -H "apikey: $ANON_KEY" http://localhost:54331/rest/v1/ >/dev/null 2>&1; then
+            echo "✅ REST ready (${i}s)"
+            rest_ready=1
+            break
+          fi
+          sleep 1
+        done
+        [ -n "$rest_ready" ] || dump_and_fail "REST API failed to start after 60s"
+
+        # realtime 不在 Kong 的就绪路径上，此前它整轮 CI 死着也没人发现：容器
+        # migrate 失败会直接退出，测试只会报一堆莫名其妙的订阅超时。这里复用
+        # compose 里已定义的 healthcheck 结论，容器一旦退出立即失败而不是干等 60s。
+        echo "⏳ Waiting for Realtime..."
+        realtime_ready=""
+        for i in $(seq 1 60); do
+          # 容器不存在时 docker inspect 会先往 stdout 吐一个空行再以非零码退出，
+          # 用 `|| echo` 兜底会拼出带前导换行的值、把报错信息断成两行 —— 取末行 + 判空。
+          state=$(docker inspect -f '{{.State.Status}}/{{.State.Health.Status}}' realtime-dev.supabase-realtime 2>/dev/null | tail -n1)
+          [ -n "$state" ] || state='missing/missing'
+          if [ "$state" = 'running/healthy' ]; then
+            echo "✅ Realtime ready (${i}s)"
+            realtime_ready=1
+            break
+          fi
+          case "$state" in
+            running/*) sleep 1 ;;
+            *) dump_and_fail "Realtime container is not running ($state)" ;;
+          esac
+        done
+        [ -n "$realtime_ready" ] || dump_and_fail "Realtime failed to become healthy after 60s ($state)"
+
+        echo "✅ Supabase ready"

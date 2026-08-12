@@ -273,7 +273,7 @@ describe('sqlite.utils', () => {
       const result = transformValueJsToSqlite(value, property);
       const parsed = parseRecord(String(result));
       expect(parsed.flag).toBe(1); // true 应该转换为 1
-      expect(parsed.other).toBe('value'); // 未定义的属性保持原值
+      expect(parsed.other).toBe('value');
     });
 
     it('应该递归转换 keyValue 中的嵌套 Date 属性', () => {
@@ -308,7 +308,7 @@ describe('sqlite.utils', () => {
       const parsed = parseRecord(String(result));
       expect(parsed.active).toBe(1);
       expect(parsed.timestamp).toBe('2025-06-15T12:30:00.000Z');
-      expect(parsed.count).toBe(42); // integer 保持原值
+      expect(parsed.count).toBe(42);
       expect(parsed.extra).toBe('data');
     });
 
@@ -328,7 +328,7 @@ describe('sqlite.utils', () => {
       const result = transformValueJsToSqlite(value, property);
       // 没有 properties 定义，不进行递归转换
       const parsed = parseRecord(String(result));
-      expect(parsed.flag).toBe(true); // 保持原值
+      expect(parsed.flag).toBe(true);
     });
 
     it('其他类型应该保持原值', () => {
