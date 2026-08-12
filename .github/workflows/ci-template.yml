@@ -10,12 +10,12 @@ name: CI Template (Reusable)
 #
 # 依赖关系（除 setup 外全部并行，没有中间 barrier）：
 #
-#   setup ─┬─ lint ────────────────┐
-#          ├─ build ───────────────┤
-#          ├─ test (t1..t4, supabase) ─┬─ coverage ─┤
-#          ├─ acceptance ──────────────┘            ├─ gate
-#          ├─ e2e (每个 app / target 一个 job) ─────┤
-#          └─ benchmark ───────────────────────────┘
+#   setup ─┬─ lint ─────────────────────────────┐
+#          ├─ build ────────────────────────────┤
+#          ├─ test (N 条 lane) ─┬─ coverage ────┤
+#          ├─ acceptance ───────┘               ├─ gate
+#          ├─ e2e (每个 app / target 一个 job) ─┤
+#          └─ benchmark ────────────────────────┘
 #
 #   test / e2e **不等 build**：它们各自只需要自己那棵依赖子树的产物，
 #   等全量 build 反而是净亏。跨 job 复用靠 Nx Cloud 远端缓存 + actions/cache 的
@@ -137,10 +137,18 @@ jobs:
 
           # 每个 (项目, target) 一个 e2e job。不写死清单：新增 e2e 应用自动进矩阵。
           # e2e-remote 需要本地 Supabase 栈，本地 e2e 不需要。
-          E2E_MATRIX=$(jq -c -n --argjson e "$E2E_JSON" --argjson r "$E2E_REMOTE_JSON" '{
-            include: (($e | sort | map({project: ., target: "e2e", supabase: false}))
-                    + ($r | sort | map({project: ., target: "e2e-remote", supabase: true})))
-          }')
+          #
+          # label 只是 job 名：`dev-rxdb-angular-e2e / e2e` 里三处都在说 e2e，
+          # 在 PR 的 checks 列表（前缀已经占掉 `ci / e2e (`）里会被截断成 `…e2e)`，
+          # 剩下的字全是废话。剥掉共有的 `dev-rxdb-` 前缀和 `-e2e` 后缀，
+          # 只留真正区分彼此的那一段：angular / electron / react / supabase / vue。
+          # 不匹配这套命名的新应用会原样保留全名 —— 名字长点，不会认错。
+          E2E_MATRIX=$(jq -c -n --argjson e "$E2E_JSON" --argjson r "$E2E_REMOTE_JSON" '
+            def short_name: sub("^dev-rxdb-"; "") | sub("-e2e$"; "");
+            {
+              include: (($e | sort | map({project: ., target: "e2e", label: short_name, supabase: false}))
+                      + ($r | sort | map({project: ., target: "e2e-remote", label: (short_name + " remote"), supabase: true})))
+            }')
 
           TEST_MATRIX=$(node scripts/ci/plan-test-lanes.mjs --projects="$TEST")
 
@@ -183,10 +191,15 @@ jobs:
             echo "| coverage-acceptance | $(jq -r 'length' <<<"$ACCEPTANCE_JSON") | \`$ACCEPTANCE\` |"
             echo "| e2e | $(jq -r '.include | length' <<<"$E2E_MATRIX") | \`$(jq -r '.include | map(.project + ":" + .target) | join(", ")' <<<"$E2E_MATRIX")\` |"
             echo
+
+            # job 名里只有 label（`test (rxdb-adapter-pglite +8)`），lane 序号只在
+            # artifact 名里（`coverage-lane-t1`）。这张表是两者唯一的映射，
+            # 少了它就没法从一个红 job 找到它的覆盖率产物。
             echo "test lane 划分："
-            echo '```json'
-            jq . <<<"$TEST_MATRIX"
-            echo '```'
+            echo
+            echo "| job | lane | 项目 |"
+            echo "| --- | --- | --- |"
+            jq -r '.include[] | "| test (" + .label + ") | `" + .lane + "` | `" + .projects + "` |"' <<<"$TEST_MATRIX"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------------
@@ -248,7 +261,9 @@ jobs:
   # 多 worker 并行（见 rxdb-adapter-pglite 的 maxWorkers=4），再叠一层 Nx 并行
   # 只会在 4 vCPU 上互相抢核。
   test:
-    name: test (${{ matrix.lane }})
+    # 名字用 label 不用 lane：`test (t1)` 在 checks 列表里说不出任何信息。
+    # lane ↔ label 的映射见 setup 的 job summary。
+    name: test (${{ matrix.label }})
     needs: setup
     if: needs.setup.outputs.has_tests == 'true'
     runs-on: ubuntu-latest
@@ -357,7 +372,9 @@ jobs:
   # 早先 e2e 和 build/lint 挤在同一条 `nx ... --nxBail` 里，一次 Playwright flake
   # 就把整个 PR 检查染红，看不出「代码是过的，只是 e2e 抖」。
   e2e:
-    name: e2e (${{ matrix.project }} / ${{ matrix.target }})
+    # label 见 setup 的 E2E_MATRIX：`e2e (angular)` / `e2e (supabase remote)`。
+    # artifact 名仍用完整的 project + target —— 下载下来的目录不该靠上下文猜。
+    name: e2e (${{ matrix.label }})
     needs: setup
     if: needs.setup.outputs.has_e2e == 'true'
     runs-on: ubuntu-latest
