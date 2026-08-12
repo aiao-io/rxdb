@@ -165,6 +165,37 @@ jobs:
         if: steps.check-e2e.outputs.need_e2e == 'true' && steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
+      # Electron 没有 headless 模式。`dev-rxdb-electron-e2e` 拉起的是 electron-builder 的真实产物，
+      # 主进程一定要连上一个 X server —— ubuntu-latest 上没有，于是 Ozone 后端直接放弃：
+      #   ERROR:ozone_platform_x11.cc: Missing X server or $DISPLAY
+      #   ERROR:aura/env.cc: The platform failed to initialize.  Exiting.
+      #   <process did exit: exitCode=null, signal=SIGSEGV>
+      # Playwright 把这一串收敛成 `electron.launch: Process failed to launch!`，
+      # 看上去像产物坏了，实际只是没有显示后端。Chromium 的 headless 覆盖不到这里。
+      #
+      # 用常驻 Xvfb + 写 $GITHUB_ENV，而不是把 `xvfb-run` 套在 nx 命令外面：
+      # nx 会派生多层子进程（run-commands → playwright → electron），DISPLAY 靠环境继承传下去
+      # 比 wrapper 稳；而且写进 $GITHUB_ENV 后，后续步骤（重跑、trace 复现）也都有显示可用。
+      # 无条件跑：headless Chromium 在 Xvfb 下行为不变，代价只有几百毫秒。
+      - name: Start Xvfb (Electron 需要真实 X server)
+        if: steps.check-e2e.outputs.need_e2e == 'true'
+        run: |
+          set -e
+          command -v Xvfb >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y xvfb; }
+          nohup Xvfb :99 -screen 0 1280x1024x24 -nolisten tcp >/tmp/xvfb.log 2>&1 &
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+          # 用 socket 文件判就绪，不用 xdpyinfo —— x11-utils 不保证装了，多一个依赖就多一个失败点。
+          for i in {1..30}; do
+            if [ -S /tmp/.X11-unix/X99 ]; then
+              echo "✅ Xvfb ready on :99"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "❌ Xvfb 未能在 30s 内就绪"
+          cat /tmp/xvfb.log || true
+          exit 1
+
       - name: Start Supabase for remote E2E
         if: steps.check-e2e.outputs.need_remote == 'true'
         working-directory: docker

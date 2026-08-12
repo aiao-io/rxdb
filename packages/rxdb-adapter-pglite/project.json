@@ -4,8 +4,7 @@
   "tags": ["js-lib"],
   "targets": {
     "test": {
-      "dependsOn": ["^build", { "target": "test-node", "params": "ignore" }],
-      "parallelism": false
+      "dependsOn": ["^build", { "target": "test-node", "params": "ignore" }]
     },
     "test-node": {
       "cache": true,

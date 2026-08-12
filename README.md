@@ -10,7 +10,9 @@
 
 RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。
 
-围绕装饰器定义的实体模型，自动生成类型安全的 Repository 和查询 API —— 一份模型声明同时驱动数据库 schema、TypeScript 类型和响应式数据流。浏览器里直接跑 SQLite，用接近原生 App 的体验构建离线优先应用。
+- 使用装饰器定义的实体模型，自动生成类型安全的 Repository 和查询 API
+- 一份模型声明同时驱动数据库 schema、TypeScript 类型和响应式数据流。
+- 浏览器里直接跑 SQLite，用接近原生 App 的体验构建离线优先应用。
 
 ## Demo
 
