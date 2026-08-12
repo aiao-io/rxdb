@@ -1,0 +1,581 @@
+name: CI Template (Reusable)
+
+# 一次 CI 的全部门禁：lint / typecheck / build / test / coverage / e2e。
+#
+# 为什么是矩阵而不是一个大 job：
+#   旧的 test-template.yml 把 build+lint+test+coverage 塞进**同一个 step** 串行跑，
+#   冷跑 28 分钟，其中最后 8 分钟只有 `rxdb-adapter-pglite:test` 一个任务在跑，
+#   4 个核里闲着 3 个。公开仓库的 Actions 分钟数不要钱，稀缺的是墙钟时间和
+#   免费额度里的 20 个并发 job —— 横向铺开是唯一免费的加速手段。
+#
+# 依赖关系（除 setup 外全部并行，没有中间 barrier）：
+#
+#   setup ─┬─ lint ────────────────┐
+#          ├─ build ───────────────┤
+#          ├─ test (t1..t4, supabase) ─┬─ coverage ─┤
+#          ├─ acceptance ──────────────┘            ├─ gate
+#          ├─ e2e (每个 app / target 一个 job) ─────┤
+#          └─ benchmark ───────────────────────────┘
+#
+#   test / e2e **不等 build**：它们各自只需要自己那棵依赖子树的产物，
+#   等全量 build 反而是净亏。跨 job 复用靠 Nx Cloud 远端缓存 + actions/cache 的
+#   restore-keys 回退（能暖到上一轮 run 的本地缓存）。
+#
+# 分支保护只需要挂一个 required status check：`gate`。
+# 它 needs 上面所有 job，任何一个不是 success/skipped 就红。
+# 新增 job 时**必须**同步加进 gate 的 needs 和断言列表，否则新门禁形同虚设。
+
+on:
+  workflow_call:
+    inputs:
+      run_mode:
+        description: 'Nx 运行模式: affected（仅受影响）或 run-many（全部）'
+        required: true
+        type: string
+      is_pr:
+        description: '是否为 PR 环境'
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      CODECOV_TOKEN:
+        required: true
+
+env:
+  CI: true
+  NX_DAEMON: false
+  NX_TUI: false
+  NODE_OPTIONS: '--max-old-space-size=6144'
+  VITE_SUPABASE_URL: http://localhost:54331
+  VITE_SUPABASE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # setup：affected 计算的**唯一**入口 + 最便宜的两个 fail-fast 门禁。
+  # 下游 job 一律拿显式项目名跑 `run-many`，不再各自算一遍 affected ——
+  # 既省掉 N 次 project graph 构建，也保证所有 job 看到的是同一个比较区间。
+  # ---------------------------------------------------------------------------
+  setup:
+    name: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      check_projects: ${{ steps.plan.outputs.check_projects }}
+      build_projects: ${{ steps.plan.outputs.build_projects }}
+      test_projects: ${{ steps.plan.outputs.test_projects }}
+      acceptance_projects: ${{ steps.plan.outputs.acceptance_projects }}
+      test_matrix: ${{ steps.plan.outputs.test_matrix }}
+      e2e_matrix: ${{ steps.plan.outputs.e2e_matrix }}
+      has_checks: ${{ steps.plan.outputs.has_checks }}
+      has_builds: ${{ steps.plan.outputs.has_builds }}
+      has_tests: ${{ steps.plan.outputs.has_tests }}
+      has_acceptance: ${{ steps.plan.outputs.has_acceptance }}
+      has_e2e: ${{ steps.plan.outputs.has_e2e }}
+      need_benchmark: ${{ steps.plan.outputs.need_benchmark }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          filter: tree:0
+          fetch-depth: 0
+
+      - name: Fetch main
+        if: ${{ inputs.is_pr }}
+        run: git fetch origin main:main
+
+      - uses: ./.github/actions/setup-workspace
+
+      - uses: nrwl/nx-set-shas@v5
+
+      # project graph 构建失败要在这里就炸，而不是让 8 个下游 job 各炸一次。
+      - name: Validate Nx project graph
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          if ! pnpm exec nx show projects >/dev/null; then
+            echo "❌ Project graph 构建失败"
+            pnpm exec nx report || true
+            exit 1
+          fi
+          echo "✅ Project graph OK"
+
+      # 公开包导出发生未声明变化时失败。放最前面：不用等 build/test 就能出结果。
+      - name: API surface gate
+        run: node scripts/audit/api-surface.mjs --check
+
+      - name: Plan jobs
+        id: plan
+        run: |
+          set -euo pipefail
+
+          if [ "${{ inputs.run_mode }}" = "affected" ]; then SEL=(--affected); else SEL=(); fi
+
+          # 注意必须走 --json：`nx show projects` 在非 TTY 下输出 JSON 数组，
+          # 空集是字面量 `[]` 而不是空串，用 `[ -z ... ]` 判空会永远为假。
+          projects_json() {
+            pnpm exec nx show projects "${SEL[@]}" --withTarget="$1" --exclude=website,benchmarks --json
+          }
+
+          LINT_JSON=$(projects_json lint)
+          TYPECHECK_JSON=$(projects_json typecheck)
+          BUILD_JSON=$(projects_json build)
+          TEST_JSON=$(projects_json test)
+          ACCEPTANCE_JSON=$(projects_json coverage-acceptance)
+          E2E_JSON=$(projects_json e2e)
+          E2E_REMOTE_JSON=$(projects_json e2e-remote)
+
+          # lint 与 typecheck 合成一个 job 跑，项目集取并集（两者的 target 归属并不总是重合）。
+          CHECK=$(jq -r -n --argjson a "$LINT_JSON" --argjson b "$TYPECHECK_JSON" '($a + $b) | unique | join(",")')
+          BUILD=$(jq -r 'sort | join(",")' <<<"$BUILD_JSON")
+          TEST=$(jq -r 'sort | join(",")' <<<"$TEST_JSON")
+          ACCEPTANCE=$(jq -r 'sort | join(",")' <<<"$ACCEPTANCE_JSON")
+
+          # 每个 (项目, target) 一个 e2e job。不写死清单：新增 e2e 应用自动进矩阵。
+          # e2e-remote 需要本地 Supabase 栈，本地 e2e 不需要。
+          E2E_MATRIX=$(jq -c -n --argjson e "$E2E_JSON" --argjson r "$E2E_REMOTE_JSON" '{
+            include: (($e | sort | map({project: ., target: "e2e", supabase: false}))
+                    + ($r | sort | map({project: ., target: "e2e-remote", supabase: true})))
+          }')
+
+          TEST_MATRIX=$(node scripts/ci/plan-test-lanes.mjs --projects="$TEST")
+
+          # PR 且改动落在 packages/ 或 benchmarks/ 时才跑基准门禁。
+          # 在这里判定而不是在 benchmark job 里判定：不需要时整个 job 直接 skip，
+          # 省一次 pnpm install，也不占免费额度里的并发位。
+          NEED_BENCHMARK=false
+          if [ "${{ inputs.is_pr }}" = "true" ] && \
+             [ -n "$(git diff --name-only origin/main...HEAD -- 'packages/' 'benchmarks/')" ]; then
+            NEED_BENCHMARK=true
+          fi
+
+          nonempty() { [ -n "$1" ] && echo true || echo false; }
+
+          {
+            echo "check_projects=$CHECK"
+            echo "build_projects=$BUILD"
+            echo "test_projects=$TEST"
+            echo "acceptance_projects=$ACCEPTANCE"
+            echo "test_matrix=$TEST_MATRIX"
+            echo "e2e_matrix=$E2E_MATRIX"
+            echo "has_checks=$(nonempty "$CHECK")"
+            echo "has_builds=$(nonempty "$BUILD")"
+            echo "has_tests=$(nonempty "$TEST")"
+            echo "has_acceptance=$(nonempty "$ACCEPTANCE")"
+            echo "has_e2e=$(jq -r '.include | length > 0' <<<"$E2E_MATRIX")"
+            echo "need_benchmark=$NEED_BENCHMARK"
+          } >> "$GITHUB_OUTPUT"
+
+          # 写进 job summary：某个 job 显示 skipped 时，能一眼看出是「真的没受影响」
+          # 还是「affected 算错了」。这是 gate 之外唯一能发现静默漏测的地方。
+          {
+            echo "### CI plan (\`${{ inputs.run_mode }}\`)"
+            echo
+            echo "| job | 项目数 | 项目 |"
+            echo "| --- | --- | --- |"
+            echo "| lint + typecheck | $(jq -r 'length' <<<"$LINT_JSON") | \`$CHECK\` |"
+            echo "| build | $(jq -r 'length' <<<"$BUILD_JSON") | \`$BUILD\` |"
+            echo "| test | $(jq -r 'length' <<<"$TEST_JSON") | \`$TEST\` |"
+            echo "| coverage-acceptance | $(jq -r 'length' <<<"$ACCEPTANCE_JSON") | \`$ACCEPTANCE\` |"
+            echo "| e2e | $(jq -r '.include | length' <<<"$E2E_MATRIX") | \`$(jq -r '.include | map(.project + ":" + .target) | join(", ")' <<<"$E2E_MATRIX")\` |"
+            echo
+            echo "test lane 划分："
+            echo '```json'
+            jq . <<<"$TEST_MATRIX"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  lint:
+    name: lint + typecheck
+    needs: setup
+    if: needs.setup.outputs.has_checks == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          filter: tree:0
+      - uses: ./.github/actions/setup-workspace
+      - uses: ./.github/actions/nx-cache-restore
+
+      # 不加 --nxBail：一次跑完能看到全部 lint/typecheck 错误，
+      # 而不是修一个再发现下一个。
+      - name: Lint and typecheck
+        env:
+          PROJECTS: ${{ needs.setup.outputs.check_projects }}
+        run: pnpm exec nx run-many -t lint typecheck -p "$PROJECTS" --output-style=stream --parallel=4
+
+  # ---------------------------------------------------------------------------
+  # build 是唯一回写 actions cache 的 job：多个 job 用同一个 key 写入只有第一个生效，
+  # 其余会打 warning。挑 build 是因为它的产物对下游（e2e、后续 run）最值钱。
+  build:
+    name: build
+    needs: setup
+    if: needs.setup.outputs.has_builds == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          filter: tree:0
+      - uses: ./.github/actions/setup-workspace
+        with:
+          free-disk: 'true'
+
+      - name: Cache Nx
+        uses: actions/cache@v5
+        with:
+          path: .nx/cache
+          key: nx-cache-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            nx-cache-${{ runner.os }}-
+
+      # --parallel=3：4 vCPU 上留一个核给 IO。Angular 生产构建吃内存，
+      # 16GB 下 3 路并行有余量（旧 7GB runner 上 4 路会 OOM kill）。
+      - name: Build
+        env:
+          PROJECTS: ${{ needs.setup.outputs.build_projects }}
+        run: pnpm exec nx run-many -t build -p "$PROJECTS" --output-style=stream --parallel=3
+
+  # ---------------------------------------------------------------------------
+  # test lane：一条 lane = 一个 job，项目划分由 scripts/ci/plan-test-lanes.mjs
+  # 按实测耗时做 LPT 装箱。lane 内 `--parallel=1` —— 各 vitest 任务自己已经
+  # 多 worker 并行（见 rxdb-adapter-pglite 的 maxWorkers=4），再叠一层 Nx 并行
+  # 只会在 4 vCPU 上互相抢核。
+  test:
+    name: test (${{ matrix.lane }})
+    needs: setup
+    if: needs.setup.outputs.has_tests == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      # 一条 lane 挂掉不掐断其它 lane：一轮就能看到全部失败，而不是修一个发现一个。
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.test_matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          filter: tree:0
+      - uses: ./.github/actions/setup-workspace
+        with:
+          # Supabase lane 要拉 Docker 镜像，其余 lane 不值得交那 60s。
+          free-disk: ${{ matrix.supabase }}
+      - uses: ./.github/actions/nx-cache-restore
+      - uses: ./.github/actions/playwright-chromium
+
+      - uses: ./.github/actions/supabase
+        if: matrix.supabase
+        with:
+          anon-key: ${{ env.VITE_SUPABASE_KEY }}
+
+      # final + summary 必须同时生成：覆盖率门禁会从 final 重算原始计数，
+      # 拒绝损坏或跨代的 summary（见 scripts/coverage-artifacts.mjs）。
+      - name: Test
+        env:
+          PROJECTS: ${{ matrix.projects }}
+        run: |
+          pnpm exec nx run-many -t test -p "$PROJECTS" --output-style=stream --parallel=1 \
+            --coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=lcovonly
+
+      # 只传门禁和 Codecov 真正要读的四种文件。html 报告有几百 MB，
+      # 传上去除了拖慢 CI 没人看。
+      - name: Upload coverage
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          # 名字前缀 `coverage-lane-` 是有意的：coverage job 要先合并所有 lane，
+          # 再单独把 `coverage-acceptance` 盖上去（两者的项目集有重叠，acceptance 才是权威值）。
+          name: coverage-lane-${{ matrix.lane }}
+          path: |
+            coverage/packages/*/coverage-final.json
+            coverage/packages/*/coverage-summary.json
+            coverage/packages/*/lcov.info
+            coverage/packages/*/junit.xml
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Stop Supabase
+        if: ${{ always() && matrix.supabase }}
+        working-directory: docker
+        run: docker compose -f docker-compose.ci.yml down -v
+
+  # ---------------------------------------------------------------------------
+  # coverage-acceptance 必须独立于 test 跑：它自己驱动多段 vitest 并合并 blob，
+  # 不能接收 test 那行的 `--coverage.*` 参数（RXT-031）。
+  acceptance:
+    name: coverage-acceptance
+    needs: setup
+    if: needs.setup.outputs.has_acceptance == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          filter: tree:0
+      - uses: ./.github/actions/setup-workspace
+      - uses: ./.github/actions/nx-cache-restore
+      - uses: ./.github/actions/playwright-chromium
+
+      - name: Run coverage acceptance
+        env:
+          PROJECTS: ${{ needs.setup.outputs.acceptance_projects }}
+        run: pnpm exec nx run-many -t coverage-acceptance -p "$PROJECTS" --output-style=stream --parallel=1
+
+      - name: Upload coverage
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-acceptance
+          path: |
+            coverage/packages/*/coverage-final.json
+            coverage/packages/*/coverage-summary.json
+            coverage/packages/*/lcov.info
+            coverage/packages/*/junit.xml
+          retention-days: 7
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # E2E 每个 (应用, target) 一个 job。
+  #
+  # 刻意不等 build job：e2e target `dependsOn: <app>:build`，只需要自己那棵子树，
+  # 等全量 build 是净亏。跨 job 复用靠 Nx Cloud 远端缓存 + 上一轮 run 的本地缓存。
+  #
+  # 也刻意不加 --nxBail、fail-fast: false：各 e2e 相互独立，一轮要看到全部结果。
+  # 早先 e2e 和 build/lint 挤在同一条 `nx ... --nxBail` 里，一次 Playwright flake
+  # 就把整个 PR 检查染红，看不出「代码是过的，只是 e2e 抖」。
+  e2e:
+    name: e2e (${{ matrix.project }} / ${{ matrix.target }})
+    needs: setup
+    if: needs.setup.outputs.has_e2e == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.e2e_matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          filter: tree:0
+      - uses: ./.github/actions/setup-workspace
+        with:
+          free-disk: 'true'
+      - uses: ./.github/actions/nx-cache-restore
+      - uses: ./.github/actions/playwright-chromium
+
+      # Electron 没有 headless 模式。`dev-rxdb-electron-e2e` 拉起的是 electron-builder
+      # 的真实产物，主进程一定要连上一个 X server —— ubuntu-latest 上没有，于是
+      # Ozone 后端直接放弃：
+      #   ERROR:ozone_platform_x11.cc: Missing X server or $DISPLAY
+      #   ERROR:aura/env.cc: The platform failed to initialize.  Exiting.
+      #   <process did exit: exitCode=null, signal=SIGSEGV>
+      # Playwright 把这一串收敛成 `electron.launch: Process failed to launch!`，
+      # 看上去像产物坏了，实际只是没有显示后端。Chromium 的 headless 覆盖不到这里。
+      #
+      # 用常驻 Xvfb + 写 $GITHUB_ENV，而不是把 `xvfb-run` 套在 nx 命令外面：
+      # nx 会派生多层子进程（run-commands → playwright → electron），DISPLAY 靠环境
+      # 继承传下去比 wrapper 稳；而且写进 $GITHUB_ENV 后，后续步骤（重跑、trace 复现）
+      # 也都有显示可用。无条件跑：headless Chromium 在 Xvfb 下行为不变，代价几百毫秒。
+      - name: Start Xvfb (Electron 需要真实 X server)
+        run: |
+          set -e
+          command -v Xvfb >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y xvfb; }
+          nohup Xvfb :99 -screen 0 1280x1024x24 -nolisten tcp >/tmp/xvfb.log 2>&1 &
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+          # 用 socket 文件判就绪，不用 xdpyinfo —— x11-utils 不保证装了，多一个依赖就多一个失败点。
+          for i in {1..30}; do
+            if [ -S /tmp/.X11-unix/X99 ]; then
+              echo "✅ Xvfb ready on :99"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "❌ Xvfb 未能在 30s 内就绪"
+          cat /tmp/xvfb.log || true
+          exit 1
+
+      - uses: ./.github/actions/supabase
+        if: matrix.supabase
+        with:
+          anon-key: ${{ env.VITE_SUPABASE_KEY }}
+
+      - name: Run E2E
+        env:
+          PROJECT: ${{ matrix.project }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -e
+          pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream
+          # 确保 webServer / vite preview 这类后台进程被清理
+          jobs -p | xargs -r kill 2>/dev/null || true
+
+      # 失败复盘用。`trace: 'on-first-retry'` 在各 config 里都开着，重试产生的
+      # trace.zip 落在 test-output/playwright/output/ 下：
+      #   pnpm exec playwright show-trace <zip>
+      # 第二条 path 是为了兜住 dev-rxdb-react-e2e —— 它覆写了 reporter，
+      # html 报告落在 playwright-report/ 而不是 preset 的 test-output/playwright/report/。
+      - name: Upload Playwright artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-${{ matrix.project }}-${{ matrix.target }}
+          path: |
+            apps/${{ matrix.project }}/test-output/playwright/**
+            apps/${{ matrix.project }}/playwright-report/**
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Stop Supabase
+        if: ${{ always() && matrix.supabase }}
+        working-directory: docker
+        run: docker compose -f docker-compose.ci.yml down -v
+
+  # ---------------------------------------------------------------------------
+  benchmark:
+    name: search benchmark
+    needs: setup
+    if: needs.setup.outputs.need_benchmark == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          filter: tree:0
+      - uses: ./.github/actions/setup-workspace
+      - uses: ./.github/actions/nx-cache-restore
+      - run: pnpm exec nx run benchmarks:search-ci
+
+  # ---------------------------------------------------------------------------
+  # 覆盖率汇总：把各 lane 的 artifact 合回一个 coverage/ 目录，跑阈值门禁 + 上报 Codecov。
+  # 门禁脚本只读已生成的 summary/final，不跑测试，所以这个 job 不需要 pnpm install。
+  coverage:
+    name: coverage
+    needs: [setup, test, acceptance]
+    if: ${{ !cancelled() && needs.setup.result == 'success' && needs.setup.outputs.has_tests == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          filter: tree:0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      # 各 artifact 内部路径都是 coverage/packages/<pkg>/...，合并到仓库根就还原成
+      # 一个完整的 coverage/ 目录。
+      - name: Download lane coverage
+        uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-lane-*
+          merge-multiple: true
+          path: .
+
+      # 必须在 lane 之后单独下载：`rxdb-test` / `rxdb-adapter-sqlite-core` 既有 test
+      # 也有 coverage-acceptance，两边都会写同一个 coverage/packages/<pkg>/。
+      # acceptance 自己驱动多段 vitest 并合并 blob，它的值才是权威的 —— 旧的单 job
+      # 流程里靠「acceptance 跑在 test 之后」天然覆盖，这里靠下载顺序显式复现。
+      - name: Download acceptance coverage
+        if: needs.acceptance.result == 'success'
+        uses: actions/download-artifact@v8
+        with:
+          name: coverage-acceptance
+          path: .
+
+      - name: Coverage gate
+        run: |
+          set -euo pipefail
+
+          # 上游没全绿 ⇒ coverage/ 是残缺的，此时跑阈值判定只会给出误导性的
+          # 「某某包缺 summary」。直接失败并说清原因，不做任何兜底。
+          for result in "${{ needs.test.result }}" "${{ needs.acceptance.result }}"; do
+            case "$result" in
+              success | skipped) ;;
+              *)
+                echo "❌ 上游 test/acceptance 未全绿（$result），覆盖率数据不完整，不做阈值判定。"
+                exit 1
+                ;;
+            esac
+          done
+
+          node scripts/audit/coverage-check.mjs --check --projects="${{ needs.setup.outputs.test_projects }}"
+
+      - name: Upload coverage to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: aiao-io/rxdb
+          codecov_yml_path: .github/codecov.yml
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: aiao-io/rxdb
+          codecov_yml_path: .github/codecov.yml
+          report_type: test_results
+
+  # ---------------------------------------------------------------------------
+  # 分支保护唯一的 required status check。
+  # 新增 job 时必须同步加进 needs 和下面的断言列表 —— 漏加 = 那个门禁不再拦任何东西。
+  gate:
+    name: gate
+    needs: [setup, lint, build, test, acceptance, e2e, benchmark, coverage]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Assert all jobs green
+        run: |
+          set -uo pipefail
+
+          failed=()
+          check() {
+            case "$2" in
+              success | skipped) printf '  %-22s %s\n' "$1" "$2" ;;
+              *)
+                printf '  %-22s %s  ⟵\n' "$1" "$2"
+                failed+=("$1")
+                ;;
+            esac
+          }
+
+          echo "job 结果："
+          check setup      "${{ needs.setup.result }}"
+          check lint       "${{ needs.lint.result }}"
+          check build      "${{ needs.build.result }}"
+          check test       "${{ needs.test.result }}"
+          check acceptance "${{ needs.acceptance.result }}"
+          check e2e        "${{ needs.e2e.result }}"
+          check benchmark  "${{ needs.benchmark.result }}"
+          check coverage   "${{ needs.coverage.result }}"
+
+          if [ ${#failed[@]} -gt 0 ]; then
+            echo
+            echo "❌ 未通过：${failed[*]}"
+            exit 1
+          fi
+
+          # skipped 在 affected 模式下是正常的（没受影响），但 run-many 模式下
+          # 一个 test 项目都没有只可能是项目图或过滤条件出了问题 —— 那会让 CI
+          # 一片绿却什么都没测。这里显式拦住。
+          if [ "${{ inputs.run_mode }}" = "run-many" ]; then
+            for flag in has_checks has_builds has_tests has_e2e; do
+              case "$flag" in
+                has_checks) value="${{ needs.setup.outputs.has_checks }}" ;;
+                has_builds) value="${{ needs.setup.outputs.has_builds }}" ;;
+                has_tests) value="${{ needs.setup.outputs.has_tests }}" ;;
+                has_e2e) value="${{ needs.setup.outputs.has_e2e }}" ;;
+              esac
+              if [ "$value" != "true" ]; then
+                echo "❌ run-many 模式下 $flag=false —— 项目图或 --exclude 过滤出问题了，本次 CI 实际什么都没跑。"
+                exit 1
+              fi
+            done
+          fi
+
+          echo
+          echo "✅ 全绿"

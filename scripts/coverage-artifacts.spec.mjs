@@ -152,7 +152,7 @@ test('真实 Vitest 只为成功运行发布 coverage 文件对', async () => {
 });
 
 test('CI 同时产出 final 与 summary 供一致性门禁校验', async () => {
-  const workflow = await readFile(new URL('../.github/workflows/test-template.yml', import.meta.url), 'utf8');
+  const workflow = await readFile(new URL('../.github/workflows/ci-template.yml', import.meta.url), 'utf8');
   assert.match(workflow, /--coverage\.reporter=json(?:\s|\\)/);
   assert.match(workflow, /--coverage\.reporter=json-summary/);
 });

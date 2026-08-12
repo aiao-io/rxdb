@@ -67,7 +67,7 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 
 **核心引擎**
 
-- 装饰器驱动模型定义：`@Entity`、`@Property`、`@Relation`，自动生成 DDL 与 TypeScript 类型
+- 装饰器驱动模型定义：`@Entity` / `@TreeEntity` 一处声明 `properties` / `relations` / `indexes`，自动生成 DDL 与 TypeScript 类型
 - 客户端代码生成：ts-morph 驱动的 Repository + 查询构建器，类型安全、零样板代码
 - 响应式查询：RxJS Observable → Angular Signals / React Hooks / Vue Composables
 - CRUD + 事务：原子批量操作、upsert、乐观锁、嵌套 save
@@ -75,6 +75,7 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 - 变更追踪：patch / inversePatch，支撑撤销/重做与版本控制
 - 跨 Tab 同步：BroadcastChannel + leader election，多 Tab 数据一致
 - 高级类型：bigint（64 位有符号）与 binary（Uint8Array），全链路无损
+- 树形数据：`@TreeEntity` + TreeRepository（路径唯一性、拖拽排序），核心包内建
 
 **存储适配器**
 
@@ -87,7 +88,6 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 
 **插件生态**
 
-- 树形数据：`@TreeEntity` + TreeRepository（路径唯一性、拖拽排序）
 - 图数据：`@GraphEntity` + GraphRepository（节点/边管理、拓扑遍历）
 - 全文搜索：FTS5 + reactive refresh + adapter guard，Angular / React / Vue 三端绑定
 - 文件存储：OPFS 文件管理，元数据由 RxDB 托管，上传/下载/预览/watch

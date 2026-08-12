@@ -45,7 +45,8 @@ services:
       # 刻意避开 Supabase 默认的 54321：aiao-enterprise 的本地开发栈占用该端口，
       # 两仓同机开发时端口相撞 → kong 发布不出去，测试会打到 enterprise 的库并报
       # "Could not find the table 'public.rxdb_branch'"。改端口须同步：
-      # packages/rxdb-adapter-supabase/project.json、.github/workflows/test-template.yml、相关 README。
+      # packages/rxdb-adapter-supabase/project.json、.github/workflows/ci-template.yml、
+      # .github/actions/supabase/action.yml、相关 README。
       - '54331:8000'
     depends_on:
       db:

@@ -7,9 +7,15 @@ import { LANE_COUNT, SUPABASE_PROJECTS, planTestLanes } from './plan-test-lanes.
 const weights = { heavy: 400, mid: 100, light: 10, 'rxdb-adapter-supabase': 30 };
 
 const plan = (projects, options = {}) =>
-  planTestLanes({ projects, laneCount: 2, weights, warn: () => {
-    //
-  }, ...options });
+  planTestLanes({
+    projects,
+    laneCount: 2,
+    weights,
+    warn: () => {
+      //
+    },
+    ...options
+  });
 
 const allProjects = result => result.include.flatMap(lane => lane.projects.split(','));
 
