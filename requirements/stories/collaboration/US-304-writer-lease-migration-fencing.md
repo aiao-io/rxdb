@@ -59,14 +59,14 @@ INVEST 检查清单:
 | 1   | 桥接版本打开旧格式数据库                     | 初始化 writer lease 与 upgrade guard | 不改变旧 change 格式；旧 writer 可读；协议版本可查询                                 | ⚠️   |
 | 2   | 两个 Tab、Worker 或进程连接同一数据库        | 注册并持续写入 lease                 | 每个 writer 有唯一身份；心跳使用数据库时间；重复注册不覆盖其他 writer                | ⚠️   |
 | 3   | 存在仍有效的空闲旧 writer lease              | 新版本请求迁移                       | 进入 `draining` 后无法确认 writer 已退出则 fail-fast；业务 trigger 不启动            | ✅   |
-| 4   | writer 写事务与 upgrader 同时竞争            | 执行写入和升级                       | guard/epoch 校验与实际写入在同一事务内，不存在检查后竞态窗口                         | ⚠️   |
+| 4   | writer 写事务与 upgrader 同时竞争            | 执行写入和升级                       | guard/epoch 校验与实际写入在同一事务内，不存在检查后竞态窗口；四个 SQLite 后端通过同一套 `rowsAffected` conformance 套件 | ⚠️   |
 | 5   | writer 被杀死或 lease 超时                   | 等待保守的 lease TTL 后重试升级      | 旧 writer 被视为失效，升级可重新获取 fencing 并继续                                  | ✅   |
 | 6   | 已迁移后暂停的旧桥接 writer 恢复             | 尝试写入                             | epoch/fencing 校验失败，连接转为只读或要求重连，不产生旧格式 change                  | ⚠️   |
 | 7   | lease drain 成功                             | 执行系统 DDL/DML 与 watermark 提交   | guard、schema、watermark、epoch 和业务 trigger 在同一原子提交中完成                  | ✅   |
 | 8   | 迁移任意步骤失败或 upgrader 崩溃             | 重新连接并重试                       | 无半迁移状态；过期升级者不能清除其他 owner 的 guard；重试成功且不重复改写历史        | ⚠️   |
 | 9   | lease/guard 表不存在、协议版本过低或状态未知 | 尝试升级                             | 明确报错并中止，不猜测安全、不启用业务 trigger                                       | ✅   |
 | 10  | 真实 SQLite 多进程和 PGlite Worker/Tab 场景  | 运行共享迁移套件                     | 空闲 writer、竞态、崩溃恢复和 stale writer fencing 均通过                            | ✅   |
-| 11  | 仍有桥接版本之前的离线旧 bundle              | 发布迁移版本                         | 发布门禁阻止升级，或通过强制更新/缓存失效/新数据库命名空间隔离；不得声称 AC13 已完成 | ⚠️   |
+| 11  | 仍有桥接版本之前的离线旧 bundle              | 发布迁移版本                         | 发布门禁阻止升级，或通过强制更新/缓存失效/新数据库命名空间隔离；本仓库须存在位于 HEAD 祖先链上的桥接 tag；不得声称 AC13 已完成 | ⚠️   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -84,15 +84,61 @@ INVEST 检查清单:
 - 至今没有任何 tag 被声明为桥接版本，`oldBundlePolicy` 也从未启用，AC11 列出的三条替代路径（强制更新 / 缓存失效 / 新数据库命名空间）一条都没生效。
 - 现清单已改为 `kind=bridge` / `0.0.25`，`pnpm nx run @aiao/source:migration-release-gate` 与 `migration-release-gate-test` 本地均通过。该桥接版本实际发布后，AC11 才能重新评估。
 
+### 阻塞项：本仓库当前零 tag，门禁的 bridge 检查无法满足
+
+门禁的 `bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` 全部走 git tag
+（[`check-migration-release-gate.mjs`](../../../scripts/check-migration-release-gate.mjs) 的 `git rev-parse refs/tags/…`、
+`git merge-base --is-ancestor`、`git cat-file -e <tag>:<file>`）。开源抽取时历史被重写，本仓库
+`git tag --list` 为空、`git rev-list --count HEAD` 为 5。因此清单一旦切到 `kind=migration`，门禁必然
+报 `bridge.tag … does not exist in the repository`。
+
+结论：AC1/AC11 的前提**不是“发到 npm”，而是“在本仓库打出并推送 tag，且该 tag 位于发布提交的祖先链上”**。
+仅发布 npm 包不满足门禁。
+
+### AC11 关闭条件（按序执行，缺一不可）
+
+1. 在本仓库对桥接提交打 `v0.0.25` 并推送；`git merge-base --is-ancestor v0.0.25 HEAD` 必须成立。
+2. 用该 tag 跑 `bridgeTagSupportsProtocol` 冒烟：`gitTagSupportsProtocol` 列出的 5 个文件
+   （`packages/rxdb/src/RxDB.ts`、`packages/rxdb/src/rxdb-adapter.ts`、`packages/rxdb/src/system/writer-lease.ts`、
+   `packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts`、`packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts`）
+   在 `v0.0.25` 上全部存在。
+3. 上述两步通过后，清单才允许切 `kind=migration`，并同时填 `bridge.tag=v0.0.25`、`bridge.version=0.0.25`、
+   `oldBundlePolicy.strategy`（白名单四选一）、`oldBundlePolicy.minimumVersion≥0.0.25`、`enforced=true`。
+
+### 门禁自身的两处缺口（阻塞 AC11 判定，需在切 migration 前修）
+
+| 缺口                                                                                                                                                                                                                                   | 影响                                                                                                                                                          |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `release.kind` 只接受 `bridge \| migration`，没有 `normal`                                                                                                                                                                             | 普通 patch 发布被迫自称 `bridge`，「桥接版本」语义被稀释；将来切 `kind=migration` 时无法判断 `bridge.tag` 该指向哪一次发布。需新增 `normal`（禁止 schema/codec 升级、不进入 bridge 链） |
+| 门禁只把 `release.version` 与 git tag 名对比，不校验 `packages/rxdb/package.json` 的 `version`                                                                                                                                          | 清单可长期停在陈旧值而无人察觉（当前清单 `0.0.25`，`packages/rxdb/package.json` 仍为 `0.0.24`），正是 0.0.24 事故的同类形态。需加一条 `release.version === packages/rxdb/package.json.version` |
+
 ### ⚠️ 项的剩余条件
 
-| AC  | 剩余条件                                                                                                                      |
-| --- | ----------------------------------------------------------------------------------------------------------------------------- |
-| 1   | 协议常量与建表已就位，但“桥接版本已发布”这一前提要等 `0.0.25` 真正发布后才成立                                                |
-| 2   | 唯一 writerId、按 `(databaseId, writerId)` 冲突更新与数据库时间心跳已实现，待在真实多 Tab/Worker/进程下复核并发注册不互相覆盖 |
-| 4   | 校验与写入已在同一事务内，待逐一确认四个 SQLite 后端（wa-sqlite / sqlite-wasm / sqliteai / node）的 `rowsAffected` 语义一致   |
-| 6   | 现有用例通过模拟 epoch 提升验证 fencing，待补长时间挂起的浏览器 Tab 恢复后的真实表现                                          |
-| 8   | 回滚与过期 owner 保护已有用例，但 `failed` 是需要人工恢复的终态，恢复步骤尚未写入 `website/docs/migration/schema.md`          |
+| AC  | 剩余条件                                                                                                                                                                                                                                                                                                                             |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 协议常量与建表已就位；「桥接版本已发布」的判定基准是**本仓库存在 `v0.0.25` tag 且为 HEAD 祖先**，不是 npm dist-tag                                                                                                                                                                                                                   |
+| 2   | 唯一 writerId、按 `(databaseId, writerId)` 冲突更新与数据库时间心跳已实现，待在真实多 Tab/Worker/进程下复核并发注册不互相覆盖                                                                                                                                                                                                       |
+| 4   | 已升级为交付项，见下方「AC4 backend conformance 测试」：`rowsAffected` 语义在 sqlite-core 已有既知事故类（SQLC-030），不能只靠人工复核确认                                                                                                                                                                                          |
+| 6   | 现有用例通过模拟 epoch 提升验证 fencing，待补长时间挂起的浏览器 Tab 恢复后的真实表现；[US-207](../adapter/US-207-desktop-local-database.md) 的桌面多窗口/重启场景可作为该证据来源                                                                                                                                                    |
+| 8   | 回滚与过期 owner 保护已有用例，但 `failed` 是需要人工恢复的终态，恢复步骤尚未写入 `website/docs/migration/schema.md`（该文件当前 `failed` 零命中）                                                                                                                                                                                  |
+
+### AC4 backend conformance 测试（替代人工复核）
+
+lease 续租与 guard 校验的唯一判据是 `rowsAffected !== 1`
+（[`RxDBAdapterSqliteBase.ts`](../../../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts) 的 L507 / L556 / L618 / L1237）。
+而 sqlite-core 内部已记录同类事故：SELECT 会读到**上一条写语句**遗留的计数
+（[`execute-sql.utils.ts`](../../../packages/rxdb-adapter-sqlite-core/src/execute-sql.utils.ts) 的说明与
+[`execute_oo1_helper.ts`](../../../packages/rxdb-adapter-sqlite-core/src/execute_oo1_helper.ts) 的 SQLC-030 兜底）。
+在这种前提下「待逐一确认四个后端语义一致」不是可验收条件。
+
+定死：AC4 交付一套挂在 `SqliteBackend` 契约上的 conformance 套件，四个 SQLite 后端
+（wa-sqlite / sqlite-wasm / sqliteai / node）跑同一组断言：
+
+- 条件 UPSERT 命中 1 行时 `rowsAffected === 1`，未命中时为 `0`
+- 紧随写语句之后的 SELECT，其 `rowsAffected` 必须为 `0`，不得继承上一条写语句的计数
+- 事务回滚后重放同一 UPSERT，计数不累积
+
+任一后端不满足即视为 AC4 未通过，不允许用后端专属分支绕过。
 
 ## 技术约束
 
@@ -131,9 +177,11 @@ open -> draining -> migrating -> open
 - `packages/rxdb/src/system/` — lease/guard 类型、协议版本和错误
 - `packages/rxdb/src/RxDB.ts` — drain 顺序、fencing 和迁移前置检查
 - `packages/rxdb-adapter-sqlite-core/src/` — SQLite lease 表、事务锁和 writer guard
+- `packages/rxdb-adapter-sqlite-core/src/sqlite-backend.interface.ts` — `rowsAffected` conformance 契约（AC4）
 - `packages/rxdb-adapter-pglite/src/` — PGlite lease 表、行锁/表锁和 writer guard
-- `packages/rxdb-test/src/testing/` — 多 realm、崩溃恢复和 stale writer 套件
-- `website/docs/migration/schema.md` — 发布顺序、单向迁移和旧 bundle 限制
+- `packages/rxdb-test/src/testing/` — 多 realm、崩溃恢复、stale writer 与四后端 `rowsAffected` conformance 套件
+- `scripts/check-migration-release-gate.mjs` — 新增 `kind=normal`、清单与 `packages/rxdb/package.json` 版本绑定
+- `website/docs/migration/schema.md` — 发布顺序、单向迁移、旧 bundle 限制与 `failed` 终态的人工恢复步骤（AC8）
 
 ## References
 
