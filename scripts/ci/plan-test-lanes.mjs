@@ -15,7 +15,12 @@
  *
  * 用法：
  *   node scripts/ci/plan-test-lanes.mjs --projects=a,b,c [--lanes=4]
- *   → {"include":[{"lane":"supabase","projects":"...","supabase":true},...]}
+ *   → {"include":[{"lane":"supabase","label":"supabase","projects":"...","supabase":true},...]}
+ *
+ * `lane` 与 `label` 是两个东西，别合并：
+ *   lane  —— 机器用的稳定 id（`t1`…/`supabase`），进 artifact 名 `coverage-lane-<lane>`，
+ *            必须是文件名安全字符。
+ *   label —— 人看的 job 名（`test (<label>)`），允许空格和 `+`。
  */
 
 import { pathToFileURL } from 'node:url';
@@ -110,6 +115,18 @@ const packLanes = (projects, laneCount, weightOf) => {
 };
 
 /**
+ * lane 的展示名：最重的那个项目 + 「还有几个」，例如 `rxdb-adapter-pglite +8`。
+ *
+ * 为什么不直接用 `t1`：序号在 PR 的 checks 列表里等于没说 —— 红了必须点进去
+ * 才知道是哪个包。最重的项目既是这条 lane 的耗时主因，也是它最可能红的地方。
+ * 序号仍留在 `lane` 字段里（artifact 名要用），两者的映射写进 job summary。
+ *
+ * @param {string[]} names 按权重降序排列的项目名（packLanes 的插入顺序）
+ * @returns {string}
+ */
+const laneLabel = names => (names.length > 1 ? `${names[0]} +${names.length - 1}` : names[0]);
+
+/**
  * 把项目分到 lane 上，产出 GitHub Actions matrix。
  *
  * @param {object} options
@@ -118,7 +135,7 @@ const packLanes = (projects, laneCount, weightOf) => {
  * @param {Record<string, number>} [options.weights] 项目名 → 实测耗时（秒）
  * @param {string[]} [options.supabaseProjects] 需要 Supabase 栈、钉在独立 lane 的项目
  * @param {(names: string[]) => void} [options.warn] 权重缺失时的告警出口（测试里可替换）
- * @returns {{ include: { lane: string, projects: string, supabase: boolean }[] }}
+ * @returns {{ include: { lane: string, label: string, projects: string, supabase: boolean }[] }}
  */
 export function planTestLanes({
   projects,
@@ -137,12 +154,14 @@ export function planTestLanes({
 
   const include = packLanes(rest, laneCount, weightOf).map((lane, index) => ({
     lane: `t${index + 1}`,
+    label: laneLabel(lane.names),
     projects: [...lane.names].sort().join(','),
     supabase: false
   }));
 
+  // Supabase lane 不套 laneLabel：它的看点不是最重的包，而是「这条要起 Docker」。
   if (needsSupabase.length > 0) {
-    include.unshift({ lane: 'supabase', projects: needsSupabase.join(','), supabase: true });
+    include.unshift({ lane: 'supabase', label: 'supabase', projects: needsSupabase.join(','), supabase: true });
   }
 
   return { include };

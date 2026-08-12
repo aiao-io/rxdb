@@ -83,6 +83,35 @@ test('lane 名唯一，可直接当 job 名用', () => {
   assert.equal(new Set(lanes).size, lanes.length);
 });
 
+test('label 报出最重的项目 +「还有几个」—— checks 列表里要看得出这条 lane 在跑什么', () => {
+  const result = plan(['heavy', 'mid', 'light'], { laneCount: 1 });
+
+  assert.deepEqual(
+    result.include.map(lane => lane.label),
+    ['heavy +2']
+  );
+});
+
+test('lane 只有一个项目时 label 不带 +N', () => {
+  assert.deepEqual(
+    plan(['light'], { laneCount: 4 }).include.map(lane => lane.label),
+    ['light']
+  );
+});
+
+test('Supabase lane 的 label 是 supabase —— 要能一眼看出是那条起 Docker 的', () => {
+  const result = plan(['rxdb-adapter-supabase', 'heavy', 'light']);
+  const supabaseLane = result.include.find(lane => lane.supabase);
+
+  assert.equal(supabaseLane.label, 'supabase');
+});
+
+test('label 唯一：每条 lane 的最重项目互不相同', () => {
+  const labels = plan(['rxdb-adapter-supabase', 'heavy', 'mid', 'light', 'a', 'b']).include.map(lane => lane.label);
+
+  assert.equal(new Set(labels).size, labels.length);
+});
+
 test('权重表里没有的项目照常调度，但必须报出来 —— 不能让新包静默失衡', () => {
   const unweighted = [];
   const result = plan(['heavy', 'brand-new-package'], { warn: names => unweighted.push(...names) });

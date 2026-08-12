@@ -261,6 +261,10 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
   （一条 lane = 一个并行 GitHub job），输出可直接喂给 `strategy.matrix` 的 JSON。
   需要本地 Supabase 栈的项目（`SUPABASE_PROJECTS`）钉在独立 lane —— 起一次 Supabase 约 60s，
   散在多条 lane 上就要交多次这笔税。
+- **`lane` 与 `label` 是两个字段，别合并**：`lane`（`t1`…/`supabase`）是机器用的稳定 id，
+  进 artifact 名 `coverage-lane-<lane>`，必须文件名安全；`label`（`rxdb-adapter-pglite +8`）
+  只进 job 名 `test (<label>)`，报出这条 lane 最重的项目 + 还有几个 —— `test (t1)` 在 PR 的
+  checks 列表里等于没说，红了得点进去才知道是哪个包。两者的映射打进 `setup` 的 job summary。
 - **为什么不在 workflow 里写死项目名**：写死的清单会在新增包时静默漏测。这里从
   `nx show projects` 的实际输出分桶，权重表里没有的新包按 60s 估算并**打印告警**。
 - **改它要同步改什么**：`WEIGHTS` 是 CI 冷跑（全部 Cache Miss）的实测秒数，只影响分桶是否均衡，
@@ -274,8 +278,8 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 - **触发**：`node --test scripts/ci/plan-test-lanes.spec.mjs`。
 - **做什么**：Node 自带 test runner，覆盖「不丢不重」「Supabase 项目独立成 lane」
   「重任务被拆散」「同输入同输出（matrix 必须可复现）」「输入顺序无关」「lane 名唯一」
-  「未登记权重的新包照常调度且必须告警」。
-- **何时手动跑**：改了装箱算法、lane 数或 Supabase 项目清单。
+  「未登记权重的新包照常调度且必须告警」「`label` 报出最重项目 +N 且唯一」。
+- **何时手动跑**：改了装箱算法、lane 数、Supabase 项目清单或 lane 展示名。
 
 ---
 
