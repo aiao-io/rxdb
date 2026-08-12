@@ -19,6 +19,7 @@
     },
     "search-ci": {
       "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
       "options": {
         "cwd": "benchmarks",
         "command": "node scripts/search-ci.mjs"

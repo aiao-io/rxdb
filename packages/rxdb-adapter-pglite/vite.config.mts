@@ -154,8 +154,13 @@ export default defineConfig(() => {
       //   maxWorkers=1 → 178s，峰值内存 +2.3GB
       //   maxWorkers=4 →  72s，峰值内存 +4.5GB
       // 公开仓库的 runner 现在是 4vCPU/16GB，4.5GB 有充足余量。
-      // 前提：本包在 CI 里独占一个 job（见 ci-template.yml 的 test lane 划分），
-      // 不与其它 Nx 任务抢核。改动这里请同步复核那边的 lane 划分。
+      // 前提：CI 的 test lane 内是 `--parallel=1`（见 .github/workflows/ci-template.yml），
+      // 轮到本包时整台 runner 归它，4 个 worker 不与其它 Nx 任务抢核。
+      // CI 实测（run 85622186464，4vCPU runner）：455s → 261s，比本地慢得多，
+      // scripts/ci/plan-test-lanes.mjs 的 WEIGHTS 记的是 261s 这个真值。
+      // 本包是 test 阶段唯一的长尾（第二名 76s），LPT 会单独给它一条 lane ——
+      // 也就是说这里的耗时直接等于整个 test 阶段的下界。
+      // 改这里的 maxWorkers 请同步复核那两处。
       fileParallelism: true,
       maxWorkers: 4,
       browser:

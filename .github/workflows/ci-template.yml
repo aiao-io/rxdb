@@ -429,6 +429,9 @@ jobs:
         run: docker compose -f docker-compose.ci.yml down -v
 
   # ---------------------------------------------------------------------------
+  # benchmarks/scripts/search-ci.mjs 自己起 vite dev server 再用 Playwright 驱动页面，
+  # 所以这个 job 和 test/e2e 一样需要 chromium —— 旧流程里它和别的任务同 job，
+  # 白蹭了前面装好的浏览器，拆出来后必须自己装。
   benchmark:
     name: search benchmark
     needs: setup
@@ -441,6 +444,7 @@ jobs:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
       - uses: ./.github/actions/nx-cache-restore
+      - uses: ./.github/actions/playwright-chromium
       - run: pnpm exec nx run benchmarks:search-ci
 
   # ---------------------------------------------------------------------------

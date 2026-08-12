@@ -32,48 +32,54 @@ export const SUPABASE_PROJECTS = ['rxdb-adapter-supabase', 'dev-rxdb-supabase'];
 /**
  * 各项目 test 任务的实测耗时（秒），用于装箱时估算 lane 负载。
  *
- * 数据来源：main 分支冷跑 run 31514195382 的 Nx 汇总表。
- * 只影响**分桶是否均衡**，不影响正确性 —— 估歪了顶多某条 lane 慢一点。
- * `rxdb-adapter-pglite` 记的是开启 fileParallelism 之后的预期值（456s → ~180s），
- * 见 packages/rxdb-adapter-pglite/vite.config.mts 里的实测记录。
+ * 数据来源：并行化改造后第一轮 CI（run 85622186464）5 条 lane 的 Nx 汇总表，
+ * 全部 Cache Miss，即冷跑真值。只影响**分桶是否均衡**，不影响正确性。
+ *
+ * `rxdb-adapter-pglite` 是唯一的长尾：开 fileParallelism 后从 455s 降到 261s，
+ * 但仍比第二名（76s）大 3.4 倍 —— 它一个人就是 test 阶段的下界，LPT 会给它单独一条
+ * lane。想再压只能继续拆它自己的用例，调 lane 数没用。
+ * （本地 M 系列上同样配置只要 72s，别拿本地数据填这张表。）
+ *
+ * 少数几个当轮命中远端缓存、拿不到真实耗时的项目（utils / code-editor*），
+ * 保留改造前的旧估值，不填 0 —— 填 0 会让它们在冷跑时被当成免费的。
  */
 export const WEIGHTS = {
-  'rxdb-adapter-pglite': 180,
-  'dev-rxdb-angular': 184,
-  'rxdb-client-generator': 114,
-  'rxdb-devtools-extension': 85,
-  rxdb: 81,
-  'dev-rxdb-supabase': 75,
-  'dev-rxdb-tauri': 55,
-  'rxdb-adapter-wa-sqlite': 55,
-  'rxdb-adapter-sqlite-core': 47,
-  'rxdb-adapter-sqlite-wasm': 44,
-  'rxdb-plugin-graph': 36,
-  'angular-todo': 36,
-  'rxdb-adapter-sqlite': 34,
-  'rxdb-adapter-supabase': 29,
-  'rxdb-adapter-sqliteai': 29,
-  'rxdb-angular': 12,
-  'rxdb-plugin-search': 11,
-  'dev-rxdb-react': 10,
-  'dev-rxdb-vue': 10,
-  'rxdb-plugin-workspace': 8,
-  'rxdb-test': 8,
-  'rxdb-adapter-miniprogram': 7,
+  'rxdb-adapter-pglite': 261,
+  'rxdb-client-generator': 76,
+  'dev-rxdb-angular': 55,
+  'dev-rxdb-tauri': 47,
+  'dev-rxdb-supabase': 45,
+  rxdb: 41,
+  'rxdb-adapter-wa-sqlite': 38,
+  'rxdb-adapter-sqlite-wasm': 37,
+  'rxdb-devtools-extension': 34,
+  'rxdb-adapter-supabase': 32,
+  'rxdb-adapter-sqlite-core': 28,
+  'rxdb-adapter-sqliteai': 25,
+  'rxdb-plugin-graph': 21,
+  'rxdb-adapter-sqlite': 20,
+  'angular-todo': 16,
+  'rxdb-angular': 10,
+  'dev-rxdb-react': 8,
   angular: 7,
   'code-editor-angular': 7,
-  'rxdb-adapter-encrypted': 6,
+  'rxdb-plugin-search': 6,
+  'rxdb-plugin-workspace': 6,
   'rxdb-react': 5,
+  'dev-rxdb-vue': 5,
   'code-editor-vue': 4,
-  'rxdb-vue': 3,
+  'rxdb-adapter-miniprogram': 3,
   'rxdb-devtools': 3,
   'code-editor': 2,
   'code-editor-react': 2,
-  'rxdb-plugin-storage': 2,
+  'dev-rxdb-electron': 2,
+  'rxdb-adapter-encrypted': 2,
   'rxdb-plugin-search-angular': 2,
   'rxdb-plugin-search-react': 2,
-  'dev-rxdb-electron': 2,
+  'rxdb-test': 2,
+  'rxdb-vue': 2,
   'rxdb-plugin-search-vue': 1,
+  'rxdb-plugin-storage': 1,
   utils: 1
 };
 
