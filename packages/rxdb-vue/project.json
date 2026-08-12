@@ -3,6 +3,9 @@
   "name": "rxdb-vue",
   "tags": ["vue-lib"],
   "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    },
     "lint": {
       "cache": true,
       "executor": "nx:run-commands",

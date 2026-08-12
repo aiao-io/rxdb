@@ -1,0 +1,39 @@
+name: Playwright chromium
+description: 装 Playwright chromium（含系统依赖），带缓存。
+
+# 只装 chromium，不装全套。
+# 理由：全仓 16 处 `browser:` 声明里，firefox / webkit 那 3 处都是注释掉的
+# （packages/rxdb、rxdb-plugin-graph、rxdb-adapter-wa-sqlite），四个 e2e config 同理。
+# 旧 CI 在 test job 里 `playwright install --with-deps` 装全套、e2e job 只装 chromium，
+# 两边被迫用不同的 cache key 才不会互相污染。现在统一成一个 key，缓存复用率也上来了。
+# 将来若真放开 firefox/webkit：改这里的安装参数**和** key，两者必须同时改。
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve Playwright version
+      id: version
+      shell: bash
+      run: |
+        VERSION=$(node -p "require('./node_modules/@playwright/test/package.json').version" 2>/dev/null) \
+          || VERSION=$(node -p "require('./node_modules/playwright/package.json').version")
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "Playwright $VERSION"
+
+    - name: Cache Playwright browsers
+      id: cache
+      uses: actions/cache@v5
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-chromium-${{ runner.os }}-${{ steps.version.outputs.version }}
+
+    - name: Install chromium
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: pnpm exec playwright install --with-deps chromium
+
+    # 缓存只覆盖 ~/.cache/ms-playwright 里的浏览器二进制，apt 装的系统库不在里面。
+    - name: Install system dependencies
+      if: steps.cache.outputs.cache-hit == 'true'
+      shell: bash
+      run: pnpm exec playwright install-deps chromium

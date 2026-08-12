@@ -23,21 +23,33 @@ Not needed for Supabase or remote-only adapters.
 ## Quickstart
 
 ```ts
-import { Entity, Property, PropertyType } from '@aiao/rxdb';
-import { WaSqliteAdapter } from '@aiao/rxdb-adapter-wa-sqlite';
-import { RxDB } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
+import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 
-@Entity({ tableName: 'users' })
-class User {
-  @Property({ primaryKey: true }) id!: string;
-  @Property({ propertyType: PropertyType.STRING }) displayName!: string;
-
-  @Property({ propertyType: PropertyType.STRING, encrypted: true })
+@Entity({
+  name: 'User',
+  tableName: 'users',
+  properties: [
+    { name: 'displayName', type: PropertyType.string },
+    { name: 'email', type: PropertyType.string, encrypted: true }
+  ]
+})
+class User extends EntityBase {
+  displayName!: string;
   email!: string;
 }
 
-const adapter = await WaSqliteAdapter.create({ name: 'app.db' });
-const db = await RxDB.create({ adapter, entities: [User] });
+const rxdb = new RxDB({
+  dbName: 'app.db',
+  context: { userId: 'current-user' },
+  entities: [User],
+  sync: { local: { adapter: 'wa-sqlite' }, type: SyncType.None }
+});
+
+rxdb.adapter('wa-sqlite', async db => new RxDBAdapterWaSqlite(db, { vfs: 'OPFSAdaptiveVFS' }));
+await rxdb.connect('wa-sqlite');
+
+const adapter = await rxdb.getAdapter('wa-sqlite');
 
 await adapter.encryption.unlock({
   passphrase: 'correct horse battery staple'
@@ -45,11 +57,12 @@ await adapter.encryption.unlock({
   // idleTimeoutMs: 0            // disable auto-lock
 });
 
-await db.repository(User).create({
-  id: 'u1',
-  displayName: 'Ada',
-  email: 'ada@example.com' // encrypted at rest
-});
+await rxdb.entityManager.getRepository(User).create(
+  new User({
+    displayName: 'Ada',
+    email: 'ada@example.com' // encrypted at rest
+  })
+);
 ```
 
 ---

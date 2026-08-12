@@ -1,16 +1,17 @@
 services:
+
   rustfs:
-    image: rustfs/rustfs
+    image: rustfs/rustfs:1.0.0-beta.11
     environment:
       RUSTFS_ACCESS_KEY: ${MINIO_ROOT_USER}
       RUSTFS_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
-      RUSTFS_CORS_ALLOWED_ORIGINS: '*'
-      RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS: '*'
+      RUSTFS_CORS_ALLOWED_ORIGINS: "*"
+      RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS: "*"
     security_opt:
-      - 'no-new-privileges:true'
+      - "no-new-privileges:true"
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://rustfs:9000/health']
+      test: [ "CMD", "curl", "-f", "http://rustfs:9000/health" ]
       interval: 2s
       timeout: 10s
       retries: 5

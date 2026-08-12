@@ -3,6 +3,9 @@
   "name": "utils",
   "tags": ["js-lib"],
   "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    },
     "lint": {
       "executor": "nx:run-commands",
       "options": {

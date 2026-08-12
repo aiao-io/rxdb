@@ -23,10 +23,10 @@
     "@aiao/utils": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
     "comlink": "^4.4.2",
-    "lucide-react": "^1.28.0",
+    "lucide-react": "^1.31.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "simple-statistics": "^7.9.3",
+    "simple-statistics": "^7.10.0",
     "tailwindcss": "^4.3.3",
     "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/b9ddadce32480857cde28e7b1512cf45fa08ab73"
   },

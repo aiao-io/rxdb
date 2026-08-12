@@ -1,0 +1,85 @@
+{
+  "$schema": null,
+  "description": "上游 supabase/docker 同步元数据。下次同步时从这里读取上次的 commit SHA 做增量 diff。",
+  "lastSync": "2026-08-12T01:18:00+08:00",
+  "upstream": {
+    "repo": "https://github.com/supabase/supabase",
+    "path": "docker",
+    "commit": "241bb11c0627f2981746d37033f57dbfa81d29b0",
+    "date": "2026-08-11T11:55:43+02:00",
+    "message": "chore(self-hosted): update 2026-08-11 - 0.8.0 (#48899)",
+    "version": "0.8.0"
+  },
+  "imageVersions": {
+    "studio": "supabase/studio:2026.08.03-sha-022b374",
+    "api-gw": "envoyproxy/envoy:v1.39.0",
+    "auth": "supabase/gotrue:v2.189.0",
+    "rest": "postgrest/postgrest:v14.12",
+    "realtime": "supabase/realtime:v2.102.3",
+    "storage": "supabase/storage-api:v1.60.4",
+    "imgproxy": "darthsim/imgproxy:v3.30.1",
+    "meta": "supabase/postgres-meta:v0.96.6",
+    "functions": "supabase/edge-runtime:v1.74.0",
+    "db": "supabase/postgres:17.6.1.136",
+    "supavisor": "supabase/supavisor:2.9.5"
+  },
+  "rxdbOnlyFiles": [
+    "start.sh",
+    "stop.sh",
+    "init-db.sh",
+    "reset.sh",
+    "README.md",
+    "docker-compose.ci.yml",
+    "ci/",
+    "sql/",
+    "tests/"
+  ],
+  "syncPattern": {
+    "fullCopy": [
+      "docker-compose.yml",
+      "docker-compose.caddy.yml",
+      "docker-compose.nginx.yml",
+      "docker-compose.s3.yml",
+      "docker-compose.rustfs.yml",
+      "docker-compose.envoy.yml",
+      "docker-compose.kong.yml",
+      "docker-compose.logs.yml",
+      "docker-compose.pg15.yml",
+      "docker-compose.pg17.yml",
+      "run.sh",
+      "setup.sh",
+      "update.sh",
+      "versions.md",
+      "upgrades.json",
+      ".env.example",
+      ".gitignore",
+      "dev/docker-compose.dev.yml",
+      "volumes/api/kong.yml",
+      "volumes/api/kong-entrypoint.sh",
+      "volumes/api/envoy/",
+      "volumes/logs/vector.yml",
+      "volumes/pooler/pooler.exs",
+      "volumes/proxy/caddy/Caddyfile",
+      "volumes/proxy/nginx/supabase-nginx.conf.tpl",
+      "utils/generate-keys.sh",
+      "utils/add-new-auth-keys.sh",
+      "utils/rotate-new-api-keys.sh",
+      "utils/db-passwd.sh",
+      "utils/reassign-owner.sh",
+      "utils/upgrade-pg17.sh"
+    ],
+    "versionBumpOnly": [
+      "docker-compose.ci.yml"
+    ],
+    "neverOverwrite": [
+      "start.sh",
+      "stop.sh",
+      "init-db.sh",
+      "reset.sh",
+      "README.md",
+      "sql/",
+      "ci/",
+      "tests/"
+    ]
+  }
+}

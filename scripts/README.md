@@ -30,6 +30,8 @@
 | [merge-vitest-reports.spec.mjs](#merge-vitest-reports-specmjs)        | 改 merger 后                                 | Node test runner，覆盖 coverage union + JUnit 计数累加                          | `node --test scripts/merge-vitest-reports.spec.mjs`                           |
 | [test-all-log.mjs](#test-all-logmjs)                                  | 跑 `test-all` 想留档                         | 包一层 Nx affected，跑后写结构化报告（耗时/缓存/失败/跳过）到日志               | `pnpm test-all:log`                                                           |
 | [test-all-log.spec.mjs](#test-all-log-specmjs)                        | 改 test-all-log 后                           | Node test runner，覆盖 `formatNxLog` / `parseNxLog` / `renderReport`            | `node --test scripts/test-all-log.spec.mjs`                                   |
+| [ci/plan-test-lanes.mjs](#ciplan-test-lanesmjs)                       | CI `setup` job                               | 按实测耗时把 test 项目 LPT 装箱成并行 lane，输出 `strategy.matrix` JSON         | `node scripts/ci/plan-test-lanes.mjs --projects=a,b,c`                        |
+| [ci/plan-test-lanes.spec.mjs](#ciplan-test-lanesspecmjs)              | 改分桶算法后                                 | Node test runner，覆盖不丢不重 / 可复现 / Supabase 独立 lane / 新包告警         | `node --test scripts/ci/plan-test-lanes.spec.mjs`                             |
 | [runner.mjs](#runnermjs)                                              | 内部依赖                                     | `spawn` 封装：彩色错误打印、参数透传                                            | `import { run } from './runner.mjs'`                                          |
 | [workspace.mjs](#workspacemjs)                                        | 内部依赖                                     | 共享常量：NPM scope、需预构建的库名、需校验的分支                               | `import { NPM_SCOPE, NEED_BUILDS } from './workspace.mjs'`                    |
 | [audit/api-surface.mjs](#auditapi-surfacemjs)                         | PR 改动公共 API                              | 对比基线，捕捉公开包导出符号的增删/种类变化                                     | `pnpm audit:api-surface` / `:update`                                          |
@@ -246,6 +248,30 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 - **触发**：`node --test scripts/test-all-log.spec.mjs`。
 - **做什么**：Node 自带 test runner，覆盖 `parseArgs`（参数校验 / 边界）、`formatNxLog`（ANSI 剥离 + `\r` 合并 + 空行压缩 + 超长截断）、`parseNxLog`（scheduled / succeeded / cached / failed / skipped / flaky / 缓存百分比 / Nx 时长 / Playwright trace）、`renderReport`（失败任务 / 不稳定任务两段的字段排版）。
 - **何时手动跑**：改了 `test-all-log.mjs` 的解析或报告样式。
+
+### `ci/plan-test-lanes.mjs`
+
+- **触发**：`.github/workflows/ci-template.yml` 的 `setup` job；本地调试用
+  `node scripts/ci/plan-test-lanes.mjs --projects=a,b,c [--lanes=4]`。
+- **做什么**：把「本次要跑 `test` 的项目」按实测耗时做 LPT 装箱，分到若干条 CI lane
+  （一条 lane = 一个并行 GitHub job），输出可直接喂给 `strategy.matrix` 的 JSON。
+  需要本地 Supabase 栈的项目（`SUPABASE_PROJECTS`）钉在独立 lane —— 起一次 Supabase 约 60s，
+  散在多条 lane 上就要交多次这笔税。
+- **为什么不在 workflow 里写死项目名**：写死的清单会在新增包时静默漏测。这里从
+  `nx show projects` 的实际输出分桶，权重表里没有的新包按 60s 估算并**打印告警**。
+- **改它要同步改什么**：`WEIGHTS` 是 CI 冷跑（全部 Cache Miss）的实测秒数，只影响分桶是否均衡，
+  不影响正确性；跑一轮 CI 后把偏差大的值补回来即可，**别拿本地耗时填**（本地 M 系列比 runner 快 3 倍）。
+  `LANE_COUNT` 受 GitHub 免费额度的 20 并发 job 约束。
+- **当前瓶颈**：`rxdb-adapter-pglite` 261s，是第二名（76s）的 3.4 倍，LPT 会单独给它一条 lane，
+  其余三条各 ~174s。也就是说 test 阶段的下界就是它一个包 —— 想再压只能拆它自己的用例，加 lane 没用。
+
+### `ci/plan-test-lanes.spec.mjs`
+
+- **触发**：`node --test scripts/ci/plan-test-lanes.spec.mjs`。
+- **做什么**：Node 自带 test runner，覆盖「不丢不重」「Supabase 项目独立成 lane」
+  「重任务被拆散」「同输入同输出（matrix 必须可复现）」「输入顺序无关」「lane 名唯一」
+  「未登记权重的新包照常调度且必须告警」。
+- **何时手动跑**：改了装箱算法、lane 数或 Supabase 项目清单。
 
 ---
 

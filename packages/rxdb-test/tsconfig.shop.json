@@ -1,8 +1,12 @@
 {
+  // 只做类型校验，不产出对外声明：`dist/shop` 归 rxdb-client-generator 所有
+  // （关系访问器 `xxx$`、`*RuleGroup` 等只有生成器会写）。
+  // 这里若沿用 `dist/shop`，任何 `tsc --build` 都会用裸类声明覆盖生成结果，
+  // 导致下游 adapter 的 typecheck 失败。
   "compilerOptions": {
     "rootDir": "shop",
-    "outDir": "dist/shop",
-    "tsBuildInfoFile": "dist/tsconfig.shop.tsbuildinfo",
+    "outDir": "out-tsc/shop",
+    "tsBuildInfoFile": "out-tsc/tsconfig.shop.tsbuildinfo",
     "emitDeclarationOnly": true,
     "forceConsistentCasingInFileNames": true,
     "types": ["node", "vite/client"]

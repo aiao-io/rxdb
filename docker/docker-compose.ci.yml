@@ -7,7 +7,7 @@ name: supabase-ci
 services:
   db:
     container_name: supabase-db
-    image: supabase/postgres:15.8.1.085
+    image: supabase/postgres:17.6.1.136
     healthcheck:
       test: ['CMD', 'pg_isready', '-U', 'postgres', '-h', 'localhost']
       interval: 5s
@@ -35,7 +35,7 @@ services:
 
   kong:
     container_name: supabase-kong
-    image: kong/kong:3.9.1
+    image: kong/kong:3.9.3
     healthcheck:
       test: ['CMD', 'kong', 'health']
       interval: 5s
@@ -45,7 +45,8 @@ services:
       # 刻意避开 Supabase 默认的 54321：aiao-enterprise 的本地开发栈占用该端口，
       # 两仓同机开发时端口相撞 → kong 发布不出去，测试会打到 enterprise 的库并报
       # "Could not find the table 'public.rxdb_branch'"。改端口须同步：
-      # packages/rxdb-adapter-supabase/project.json、.github/workflows/test-template.yml、相关 README。
+      # packages/rxdb-adapter-supabase/project.json、.github/workflows/ci-template.yml、
+      # .github/actions/supabase/action.yml、相关 README。
       - '54331:8000'
     depends_on:
       db:
@@ -64,7 +65,7 @@ services:
 
   auth:
     container_name: supabase-auth
-    image: supabase/gotrue:v2.186.0
+    image: supabase/gotrue:v2.189.0
     depends_on:
       db:
         condition: service_healthy
@@ -93,7 +94,7 @@ services:
 
   rest:
     container_name: supabase-rest
-    image: postgrest/postgrest:v14.6
+    image: postgrest/postgrest:v14.12
     depends_on:
       db:
         condition: service_healthy
@@ -112,7 +113,7 @@ services:
 
   realtime:
     container_name: realtime-dev.supabase-realtime
-    image: supabase/realtime:v2.76.5
+    image: supabase/realtime:v2.102.3
     depends_on:
       db:
         condition: service_healthy

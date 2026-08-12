@@ -5,6 +5,9 @@
   "sourceRoot": "packages/rxdb-plugin-search-vue/src",
   "tags": ["vue-lib"],
   "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    },
     "audit": {
       "executor": "nx:run-commands",
       "dependsOn": ["build"],

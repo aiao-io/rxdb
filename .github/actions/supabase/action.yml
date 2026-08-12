@@ -1,0 +1,54 @@
+name: Start Supabase
+description: 拉起 docker/docker-compose.ci.yml 的本地 Supabase 栈，灌入初始化 SQL，等到 REST API 真正可用。
+
+inputs:
+  anon-key:
+    description: 'PostgREST 就绪探测用的 anon JWT'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Cache Supabase Docker images
+      uses: actions/cache@v5
+      with:
+        path: /var/lib/docker
+        key: docker-supabase-${{ runner.os }}-${{ hashFiles('docker/docker-compose.ci.yml') }}
+        restore-keys: |
+          docker-supabase-${{ runner.os }}-
+
+    - name: Start Supabase
+      shell: bash
+      working-directory: docker
+      env:
+        ANON_KEY: ${{ inputs.anon-key }}
+      run: |
+        set -euo pipefail
+
+        docker compose -f docker-compose.ci.yml pull
+        docker compose -f docker-compose.ci.yml up -d
+
+        echo "⏳ Waiting for PostgreSQL..."
+        timeout 60 bash -c 'until docker exec supabase-db pg_isready -U postgres -q; do sleep 1; done'
+
+        echo "🔧 Initializing database..."
+        docker exec -i supabase-db psql -U postgres -d postgres < sql/01-rxdb-system-tables.sql
+        docker exec -i supabase-db psql -U postgres -d postgres < sql/02-rxdb-sync-functions.sql
+        docker exec -i supabase-db psql -U postgres -d postgres < sql/03-business-tables.sql
+        docker exec -i supabase-db psql -U postgres -d postgres < sql/04-rxdb-utils-functions.sql
+
+        # pg_isready 只说明数据库起来了，Kong/PostgREST 还要几秒才接得住请求。
+        echo "⏳ Waiting for REST API..."
+        for i in $(seq 1 60); do
+          if curl -sf -H "apikey: $ANON_KEY" http://localhost:54331/rest/v1/ >/dev/null 2>&1; then
+            echo "✅ Supabase ready (${i}s)"
+            exit 0
+          fi
+          sleep 1
+        done
+
+        echo "❌ Supabase failed to start after 60s"
+        docker ps -a --format "table {{.Names}}\t{{.Status}}" | grep supabase || true
+        docker logs supabase-kong --tail 20 2>&1 || true
+        docker logs supabase-rest --tail 20 2>&1 || true
+        exit 1

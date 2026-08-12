@@ -5,6 +5,9 @@
   "sourceRoot": "packages/rxdb-adapter-miniprogram/src",
   "tags": ["js-lib"],
   "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    },
     "lint": {}
   }
 }
