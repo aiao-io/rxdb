@@ -17,6 +17,14 @@ export default defineConfig({
     environment: 'happy-dom',
     include: ['src/**/*.{test,spec}.ts'],
     setupFiles: ['src/test-setup.ts'],
-    reporters: ['default']
+    reporters: ['default'],
+    // reportsDirectory 必须显式指向仓库根：Vitest 默认写 `<config root>/coverage`，
+    // 而 Nx 推断的 test target 声明的 outputs 是 `{workspaceRoot}/coverage/{projectRoot}`。
+    // 不一致 ⇒ CI 的 `coverage/**` 上传步骤找不到文件、门禁与 Codecov 也看不到本项目。
+    coverage: {
+      include: ['src/app/**/*.ts'],
+      reportsDirectory: '../../coverage/apps/dev-rxdb-tauri',
+      provider: 'v8'
+    }
   }
 });

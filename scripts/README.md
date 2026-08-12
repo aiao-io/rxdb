@@ -6,6 +6,10 @@
 
 阅读顺序建议：先看 [§1 一览表](#1-一览表) 找到目标脚本，再跳到对应小节看使用细节。
 
+本目录下的 `*.spec.mjs` 由 `pnpm test-scripts`（= `node --test "scripts/**/*.spec.mjs"`）统一跑，
+CI 的 `setup` job 每轮都会执行。表格里各 spec 那一行写的 `node --test <单个文件>` 是本地调试用的窄入口。
+新增 spec 只要放在 `scripts/` 下并以 `.spec.mjs` 结尾就会被自动纳入，不需要改 workflow。
+
 ---
 
 ## 1. 一览表
@@ -133,7 +137,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 - **触发**：
   - `pnpm check-migration-release-gate`（CI 上由 Nx release 流水线调用）；
-  - `pnpm test-migration-release-gate` → 跑 `check-migration-release-gate.spec.mjs`，用 Node 自带 test runner 覆盖 `validateManifest` 的所有分支。
+  - `pnpm test-scripts` → 连同其它脚本 spec 一起跑 `check-migration-release-gate.spec.mjs`，用 Node 自带 test runner 覆盖 `validateManifest` 的所有分支。
 - **做什么**：纯函数 `validateManifest(manifest, options)` 校验 `requirements/migration-release.json`：
   - `$schemaVersion`、`release.kind`（bridge / migration）、`release.version`（semver）、`protocolVersion`、schema/codec upgrade 布尔位；
   - migration 必须有 `bridge.tag`、bridge 与 release 的协议兼容性、bridge tag 必须存在且是 release 的祖先；

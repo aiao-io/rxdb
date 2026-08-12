@@ -102,6 +102,12 @@ jobs:
       - name: API surface gate
         run: node scripts/audit/api-surface.mjs --check
 
+      # scripts/ 下的工具脚本自己也有单测（lane 装箱、覆盖率产物合并、release gate…），
+      # 但它们不属于任何 Nx 项目，`nx run-many -t test` 永远碰不到。挂在这里跑：
+      # 这些脚本正是 CI 自身的地基，坏了会以「CI 一片绿但什么都没测」的形式表现出来。
+      - name: Script unit tests
+        run: pnpm test-scripts
+
       - name: Plan jobs
         id: plan
         run: |
@@ -278,6 +284,14 @@ jobs:
 
       # 只传门禁和 Codecov 真正要读的四种文件。html 报告有几百 MB，
       # 传上去除了拖慢 CI 没人看。
+      #
+      # 通配符必须从 `coverage/` 这一层开始：upload-artifact 把 artifact 的根定在
+      # **第一个通配符之前**的路径上，写成 `coverage/packages/*/…` 根就是
+      # `coverage/packages`，包内路径退化成 `<pkg>/coverage-final.json`，下游解开后
+      # 落不回 `coverage/packages/<pkg>/`，门禁一个包都读不到却照样绿（已在
+      # run 31579171814 上复现：31 个包全部「本次无 summary，跳过」）。
+      # 用 `coverage/**` 把根钉在 `coverage/`，包内路径才是 `packages/<pkg>/…`，
+      # 也才容得下 `apps/` 与 `modules/` 两组。
       - name: Upload coverage
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
@@ -286,10 +300,10 @@ jobs:
           # 再单独把 `coverage-acceptance` 盖上去（两者的项目集有重叠，acceptance 才是权威值）。
           name: coverage-lane-${{ matrix.lane }}
           path: |
-            coverage/packages/*/coverage-final.json
-            coverage/packages/*/coverage-summary.json
-            coverage/packages/*/lcov.info
-            coverage/packages/*/junit.xml
+            coverage/**/coverage-final.json
+            coverage/**/coverage-summary.json
+            coverage/**/lcov.info
+            coverage/**/junit.xml
           retention-days: 7
           if-no-files-found: error
 
@@ -326,10 +340,10 @@ jobs:
         with:
           name: coverage-acceptance
           path: |
-            coverage/packages/*/coverage-final.json
-            coverage/packages/*/coverage-summary.json
-            coverage/packages/*/lcov.info
-            coverage/packages/*/junit.xml
+            coverage/**/coverage-final.json
+            coverage/**/coverage-summary.json
+            coverage/**/lcov.info
+            coverage/**/junit.xml
           retention-days: 7
           if-no-files-found: error
 
@@ -465,14 +479,14 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      # 各 artifact 内部路径都是 coverage/packages/<pkg>/...，合并到仓库根就还原成
-      # 一个完整的 coverage/ 目录。
+      # artifact 的根是 `coverage/`（见上传步骤的注释），内部路径形如
+      # `packages/<pkg>/coverage-final.json`，所以要解到 `coverage/` 而不是仓库根。
       - name: Download lane coverage
         uses: actions/download-artifact@v8
         with:
           pattern: coverage-lane-*
           merge-multiple: true
-          path: .
+          path: coverage
 
       # 必须在 lane 之后单独下载：`rxdb-test` / `rxdb-adapter-sqlite-core` 既有 test
       # 也有 coverage-acceptance，两边都会写同一个 coverage/packages/<pkg>/。
@@ -483,7 +497,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: coverage-acceptance
-          path: .
+          path: coverage
 
       - name: Coverage gate
         run: |
@@ -503,8 +517,11 @@ jobs:
 
           node scripts/audit/coverage-check.mjs --check --projects="${{ needs.setup.outputs.test_projects }}"
 
+      # 只在门禁跑完且数据完整时上报。上一步失败时 coverage/ 可能只有部分 lane 的产物，
+      # 把残缺数据推给 Codecov 会在 PR 上留一条「覆盖率暴跌」的假告警，
+      # 掩盖掉「其实是某条 lane 没跑完」这个真问题。
       - name: Upload coverage to Codecov
-        if: ${{ !cancelled() }}
+        if: success()
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
@@ -513,7 +530,7 @@ jobs:
           codecov_yml_path: .github/codecov.yml
 
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
+        if: success()
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true

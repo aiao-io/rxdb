@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { LANE_COUNT, SUPABASE_PROJECTS, planTestLanes } from './plan-test-lanes.mjs';
+
+const cliPath = fileURLToPath(new URL('./plan-test-lanes.mjs', import.meta.url));
+
+/** 直接跑 CLI：`--lanes` 的校验发生在 `main()` 里，只测导出的纯函数覆盖不到。 */
+const runCli = (...args) => spawnSync(process.execPath, [cliPath, ...args], { encoding: 'utf8' });
 
 /** 测试用权重表：故意与真实 WEIGHTS 解耦，避免真实测量值变动时用例跟着抖。 */
 const weights = { heavy: 400, mid: 100, light: 10, 'rxdb-adapter-supabase': 30 };
@@ -87,4 +94,28 @@ test('权重表里没有的项目照常调度，但必须报出来 —— 不能
 test('真实常量自洽：Supabase 项目非空、lane 数为正', () => {
   assert.ok(SUPABASE_PROJECTS.length > 0);
   assert.ok(LANE_COUNT > 0);
+});
+
+test('CLI：--lanes 非正整数直接失败，不产出空 matrix', () => {
+  for (const bad of ['abc', '0', '-1', '2.5', '']) {
+    const result = runCli('--projects=rxdb', `--lanes=${bad}`);
+
+    assert.equal(result.status, 1, `--lanes=${bad} 应该以 1 退出`);
+    assert.equal(result.stdout, '', `--lanes=${bad} 不应该产出 matrix`);
+    assert.match(result.stderr, /--lanes 必须是正整数/);
+  }
+});
+
+test('CLI：--lanes 合法时按给定数量分桶', () => {
+  const result = runCli('--projects=a,b,c,d', '--lanes=2');
+
+  assert.equal(result.status, 0);
+  assert.equal(JSON.parse(result.stdout).include.length, 2);
+});
+
+test('CLI：缺 --projects 时给出用法并失败', () => {
+  const result = runCli();
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /用法/);
 });

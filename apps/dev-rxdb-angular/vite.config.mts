@@ -21,7 +21,7 @@ export default defineConfig(() => ({
     reporters: ['default'],
     coverage: {
       include: ['src/app/**/*.ts'],
-      reportsDirectory: './test-output/vitest/coverage',
+      reportsDirectory: '../../coverage/apps/dev-rxdb-angular',
       provider: 'v8' as const
     }
   }

@@ -7,12 +7,27 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# 从 .env 读取端口配置（安全方式，只提取特定变量）
-API_PORT=$(grep -E '^API_GW_HTTP_PORT=' .env 2>/dev/null | cut -d'=' -f2 || grep -E '^KONG_HTTP_PORT=' .env 2>/dev/null | cut -d'=' -f2 || echo "8000")
-POSTGRES_PORT=$(grep -E '^POSTGRES_PORT=' .env 2>/dev/null | cut -d'=' -f2 || echo "5432")
-POOLER_PORT=$(grep -E '^POOLER_PROXY_PORT_TRANSACTION=' .env 2>/dev/null | cut -d'=' -f2 || echo "6543")
-ANON_KEY=$(grep -E '^ANON_KEY=' .env 2>/dev/null | cut -d'=' -f2)
-SERVICE_ROLE_KEY=$(grep -E '^SERVICE_ROLE_KEY=' .env 2>/dev/null | cut -d'=' -f2)
+# 从 .env 读取端口配置（安全方式，只提取特定变量）。
+#
+# 不能写成 `grep A .env | cut ... || grep B .env | cut ...`：`||` 看的是整条管道的
+# 退出码，而末端的 `cut` 读到空输入照样返回 0，后面的分支永远不会执行 ——
+# 缺 API_GW_HTTP_PORT 时 API_PORT 会静默变成空串，健康检查去请求
+# `http://localhost//rest/v1/` 并一路超时，报错信息与真实原因毫无关系。
+# 用函数取值 + `${VAR:-默认}` 做回退，判据落在「值是否为空」上。
+read_env() {
+    grep -E "^$1=" .env 2>/dev/null | head -1 | cut -d'=' -f2-
+}
+
+API_PORT=$(read_env API_GW_HTTP_PORT)
+# Kong → Envoy 迁移期间两个变量名并存，旧 .env 只有 KONG_HTTP_PORT。
+API_PORT=${API_PORT:-$(read_env KONG_HTTP_PORT)}
+API_PORT=${API_PORT:-8000}
+POSTGRES_PORT=$(read_env POSTGRES_PORT)
+POSTGRES_PORT=${POSTGRES_PORT:-5432}
+POOLER_PORT=$(read_env POOLER_PROXY_PORT_TRANSACTION)
+POOLER_PORT=${POOLER_PORT:-6543}
+ANON_KEY=$(read_env ANON_KEY)
+SERVICE_ROLE_KEY=$(read_env SERVICE_ROLE_KEY)
 
 echo "🚀 Starting Supabase test environment..."
 

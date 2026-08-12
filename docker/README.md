@@ -186,8 +186,7 @@ docker/
 │   ├── 01-rxdb-system-tables.sql
 │   ├── 02-rxdb-sync-functions.sql
 │   ├── 03-business-tables.sql
-│   ├── 04-rxdb-utils-functions.sql
-│   └── 99-cleanup-tables.sql
+│   └── 04-rxdb-utils-functions.sql
 ├── tests/                         # 环境测试脚本
 ├── utils/                         # 密钥/升级工具脚本
 │   ├── add-new-auth-keys.sh
