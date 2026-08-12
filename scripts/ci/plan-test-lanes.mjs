@@ -153,6 +153,23 @@ const readFlag = (argv, name) => {
   return hit === undefined ? undefined : hit.slice(name.length + 3);
 };
 
+/**
+ * 解析 `--lanes`。必须显式校验：`Number('abc')` 是 NaN，
+ * `Array.from({ length: NaN })` 是空数组 —— 打错一个字就会静默产出空 matrix，
+ * CI 上表现为「test job 一个都没起，但全绿」。
+ * @param {string | undefined} raw
+ * @returns {number}
+ */
+const parseLaneCount = raw => {
+  if (raw === undefined) return LANE_COUNT;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1) {
+    console.error(`--lanes 必须是正整数，收到 ${JSON.stringify(raw)}`);
+    process.exit(1);
+  }
+  return value;
+};
+
 const main = argv => {
   const raw = readFlag(argv, 'projects');
   if (raw === undefined) {
@@ -160,10 +177,9 @@ const main = argv => {
     process.exit(1);
   }
 
-  const lanes = readFlag(argv, 'lanes');
   const plan = planTestLanes({
     projects: raw.split(',').map(name => name.trim()),
-    laneCount: lanes === undefined ? LANE_COUNT : Number(lanes)
+    laneCount: parseLaneCount(readFlag(argv, 'lanes'))
   });
 
   process.stdout.write(`${JSON.stringify(plan)}\n`);

@@ -32,6 +32,10 @@ coverage:
         base: auto
         if_ci_failed: error
         only_pulls: false
+        # 与 project 同口径。上报的产物含 apps/ 与 modules/（演示应用与内部模块），
+        # 不限定 paths 的话，改一个 demo 页面就会被要求 80% 补丁覆盖率。
+        paths:
+          - 'packages/**'
 
 comment:
   layout: 'condensed_header, diff, flags, components'

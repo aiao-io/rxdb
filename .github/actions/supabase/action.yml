@@ -9,14 +9,13 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Cache Supabase Docker images
-      uses: actions/cache@v5
-      with:
-        path: /var/lib/docker
-        key: docker-supabase-${{ runner.os }}-${{ hashFiles('docker/docker-compose.ci.yml') }}
-        restore-keys: |
-          docker-supabase-${{ runner.os }}-
-
+    # 这里曾经有一步 `actions/cache` 缓存 /var/lib/docker，用来省掉镜像 pull 的时间。
+    # 它从来没生效过：/var/lib/docker 属 root，runner 用户打包时 post 步骤必然
+    # `EACCES: permission denied, scandir '/var/lib/docker'`，于是永远存不下来，
+    # 每一轮的 restore 也就永远 miss（run 31579171814 的两个 job 都是这样）。
+    # 就算权限通了也没用 —— 在 dockerd 运行中把文件塞回它的数据目录，daemon 不会
+    # 重新扫描，镜像照样不认。要缓存镜像只能 `docker save/load` tar 包。
+    # 与其留一步每轮报 warning 的空操作，不如删掉，让「pull 很慢」这件事显式可见。
     - name: Start Supabase
       shell: bash
       working-directory: docker
@@ -31,11 +30,13 @@ runs:
         echo "⏳ Waiting for PostgreSQL..."
         timeout 60 bash -c 'until docker exec supabase-db pg_isready -U postgres -q; do sleep 1; done'
 
+        # `-v ON_ERROR_STOP=1`：psql 非交互执行脚本时默认「报错继续、exit 0」，
+        # 不加这个开关，建表失败的库会带着绿色的 setup 进入测试。
         echo "🔧 Initializing database..."
-        docker exec -i supabase-db psql -U postgres -d postgres < sql/01-rxdb-system-tables.sql
-        docker exec -i supabase-db psql -U postgres -d postgres < sql/02-rxdb-sync-functions.sql
-        docker exec -i supabase-db psql -U postgres -d postgres < sql/03-business-tables.sql
-        docker exec -i supabase-db psql -U postgres -d postgres < sql/04-rxdb-utils-functions.sql
+        docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < sql/01-rxdb-system-tables.sql
+        docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < sql/02-rxdb-sync-functions.sql
+        docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < sql/03-business-tables.sql
+        docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < sql/04-rxdb-utils-functions.sql
 
         # pg_isready 只说明数据库起来了，Kong/PostgREST 还要几秒才接得住请求。
         echo "⏳ Waiting for REST API..."

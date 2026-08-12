@@ -42,7 +42,8 @@ import { readVerifiedCoverageTotals, writeFileAtomically } from '../coverage-art
  * 说明：
  * - 本脚本只**读取**已生成的 summary，不负责运行测试。请先跑覆盖率
  *   （`nx run-many -t test --coverage ...` 或各包 coverage-acceptance target）。
- * - summary 位置在各包间不统一，故按已知候选路径逐一探测，避免改动 vite 配置。
+ * - summary 只认 `coverage/packages/<pkg>/coverage-summary.json` 一个位置；
+ *   传了 `--projects` 时，范围内的包缺 summary 直接失败（见下方 missing 的说明）。
  * - `--projects` 接收 Nx 项目名（本仓库中与 packages/ 目录名一一对应）；
  *   传了但值为空 = 本次无受影响的包，评估 0 个；未传 = 全量。
  * - `--update` 时无 summary 或不在 `--projects` 范围内的包**保留旧记录**，
@@ -183,6 +184,8 @@ let failed = 0;
 let dropped = 0;
 let measured = 0;
 let filteredOut = 0;
+/** 在 `--projects` 范围内、却没产出 summary 的包。见下方判定处的说明。 */
+const missing = [];
 
 for (const pkg of packages) {
   if (projectsFilter && !projectsFilter.has(pkg)) {
@@ -193,7 +196,16 @@ for (const pkg of packages) {
   const summaryPath = findSummary(pkg);
   const previous = baseline.packages?.[pkg];
   if (!summaryPath) {
-    // 缺 summary 一律跳过而非失败：affected 模式下未受影响的包本就不测试。
+    if (projectsFilter) {
+      // 传了 `--projects` 就等于声明「这些项目本轮跑过 test」。跑过却没有 summary，
+      // 只可能是产物没落到 coverage/packages/<pkg>/ —— CI 里 artifact 的根写错就是这样
+      // （run 31579171814：31 个包全部「无 summary」，门禁评估 0 个包却报绿）。
+      // 这里静默跳过就等于把门禁本身关掉，必须红。
+      missing.push(pkg);
+      console.log(`❌ ${pkg}: 在 --projects 范围内却没有 coverage-summary.json`);
+      continue;
+    }
+    // 未传 `--projects` 属于本地手跑，允许只测了一部分包。
     console.log(`⚪ ${pkg}: 本次无 summary，跳过（未测试或未采集覆盖率）`);
     continue;
   }
@@ -226,6 +238,13 @@ for (const pkg of packages) {
 
 const filterNote = projectsFilter ? `（--projects 过滤掉 ${filteredOut} 个）` : '';
 console.log(`\n📊 已评估 ${measured} 个包${filterNote}：${failed} 个低于门禁，${dropped} 个达标但比上次低。`);
+
+if (missing.length > 0) {
+  console.log(`\n❌ ${missing.length} 个包在评估范围内却没有 coverage-summary.json：${missing.join(', ')}`);
+  console.log('   期望位置：coverage/packages/<pkg>/coverage-summary.json');
+  console.log('   本地请先跑 `nx run-many -t test -p <pkg> --coverage`；CI 上通常是覆盖率 artifact 的路径不对。');
+  process.exit(1);
+}
 
 if (failed > 0) {
   console.log(`\n覆盖率不得低于门禁阈值（核心 ${targetFor('rxdb')}% / 其余 80%）。请补测试把覆盖率提回去。`);
