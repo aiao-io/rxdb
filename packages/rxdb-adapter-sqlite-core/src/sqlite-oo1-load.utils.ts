@@ -9,7 +9,7 @@ const IGNORED_STDERR_MESSAGES = [
  * `oo1` WASM 加载选项，所有 sqlite/sqliteai 适配器共享。
  *
  * `oo1` 指上游官方 SQLite WASM 的 **Object Oriented API v1**
- * （`sqlite3.oo1.DB`），不是 aiao 自创缩写；本文件只服务走该面的
+ * （`sqlite3.oo1.DB`），不是 rxdb 自创缩写；本文件只服务走该面的
  * `@sqlite.org/sqlite-wasm` / `@sqliteai/sqlite-wasm` 加载路径。
  *
  * - `opfs`：是否启用 OPFS 持久化（需要 Worker / Atomics 支持）

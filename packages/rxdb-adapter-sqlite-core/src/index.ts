@@ -179,7 +179,7 @@ export type { FtsField, FtsTriggerOptions } from './fts5/index.js';
 
 // 共享 oo1 加载工具。
 // oo1 = 上游官方 SQLite WASM 的 Object Oriented API v1（sqlite3.oo1.DB），
-// 不是 aiao 自创缩写；走该面的是 sqlite / sqliteai，wa-sqlite 不走这里。
+// 不是 rxdb 自创缩写；走该面的是 sqlite / sqliteai，wa-sqlite 不走这里。
 export {
   buildOo1InitOptions,
   defaultPrintErr,

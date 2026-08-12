@@ -4,7 +4,7 @@
  *
  * ## 命名来源
  *
- * `oo1` **不是** aiao 自创缩写，而是上游官方 SQLite WASM 的 API 命名：
+ * `oo1` **不是** rxdb 自创缩写，而是上游官方 SQLite WASM 的 API 命名：
  * - `oo` = **Object Oriented**（面向对象封装）
  * - `1` = **第 1 代** OO API
  *
