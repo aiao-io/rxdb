@@ -33,7 +33,7 @@ RxDB 是一套面向 Local-first 应用的 TypeScript 基建。
 | 运行时    | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri        |
 
 > [!NOTE]
-> ⚠️ 本项目仍处于早期阶段，目前正在积极开发中，不建议直接用于生产环境，请关注更新并等待 1.0 的发布
+> ⚠️ 核心 MVP 已完成（[32/37 stories](requirements/status-overview.md)），当前处于 1.0 发布冲刺阶段。API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。
 
 ## RxDB 解决什么问题？
 
@@ -61,34 +61,46 @@ RxDB 是一套面向 Local-first 应用的 TypeScript 基建。
 
 当前仓库已经包含以下核心模块：
 
-**核心**
+**核心引擎**
 
-- RxDB 核心：模型定义、查询、变更、关系映射、响应式查询、事务、跨 Tab 同步
-- 客户端代码生成：基于 ts-morph，从模型产出类型安全的 Repository 与查询构建器
-- 存储适配器：wa-sqlite / sqlite-wasm（subframe + 官方）/ sqliteai（向量 + AI 函数）/ PGlite（WASM PostgreSQL）/ Supabase（PostgREST + Realtime）/ miniprogram（微信/Alipay 小程序），通过 `rxdb-adapter-sqlite-core` 共享 SQLite 系核心
-- 框架集成：Angular (Signals)、React (Hooks)、Vue (Composables)，三端 API 对称
+- 装饰器驱动模型定义：`@Entity`、`@Property`、`@Relation`，自动生成 DDL 与 TypeScript 类型
+- 客户端代码生成：ts-morph 驱动的 Repository + 查询构建器，类型安全、零手写样板
+- 响应式查询：RxJS Observable → Angular Signals / React Hooks / Vue Composables
+- CRUD + 事务：原子批量操作、upsert、乐观锁、嵌套 save
+- 关系映射：1:1 / 1:N / N:1 / M:N 自动中间表，级联查询与变更
+- 变更追踪：patch / inversePatch，支撑撤销/重做与版本控制
+- 跨 Tab 同步：BroadcastChannel + leader election，多 Tab 数据一致
+- 高级类型：bigint（64 位有符号）与 binary（Uint8Array），全链路无损
 
-**插件**
+**存储适配器**
 
-- 树形数据：`@TreeEntity` + TreeRepository
-- 图数据：`@GraphEntity` + GraphRepository
-- 全文搜索：`@aiao/rxdb-plugin-search` 基于 SQLite FTS5,三端绑定 + reactive refresh + adapter guard
-- 文件存储：OPFS 文件存储,元数据由 RxDB 管理,支持上传/下载/预览/watch
+- wa-sqlite / sqlite-wasm / sqlite（官方）：浏览器端 SQLite，共享 `sqlite-core` 抽象
+- sqliteai：向量存储 + AI 内建函数（embedding、相似度）
+- PGlite：WASM PostgreSQL，完整 PG 生态
+- Supabase：PostgREST + Realtime + RPC 推送，远程同步
+- 加密包装器：AES-GCM-256 + WebCrypto，透明字段级加解密
+- 小程序：微信 / Alipay 本地持久化与响应式查询
+
+**插件生态**
+
+- 树形数据：`@TreeEntity` + TreeRepository（路径唯一性、拖拽排序）
+- 图数据：`@GraphEntity` + GraphRepository（节点/边管理、拓扑遍历）
+- 全文搜索：FTS5 + reactive refresh + adapter guard，Angular / React / Vue 三端绑定
+- 文件存储：OPFS 文件管理，元数据由 RxDB 托管，上传/下载/预览/watch
 - 工作区：staging / commit / restore 工作流
 
 **协作与安全**
 
 - 版本控制：Git-like 分支、合并、切换，变更压缩
-- 撤销/重做：基于 inversePatch + transactionId 分组
-- Supabase 同步：RPC 推送、PostgREST、Realtime 订阅
-- 字段级加密：`@aiao/rxdb-adapter-encrypted`，AES-GCM-256 + WebCrypto，透明加解密
-- 小程序适配：`@aiao/rxdb-adapter-miniprogram`，微信/Alipay 小程序存储适配，支持本地持久化与响应式查询
+- 撤销/重做：inversePatch + transactionId 分组，跨 session 持久化
+- Supabase 同步：RPC 推送 + PostgREST + Realtime 订阅，本地优先远端同步
+- 字段级加密：透明加解密，加密字段不进 FTS 索引，历史快照自动脱敏
 
 **UI 与工具**
 
-- code-editor：基于 CodeMirror 6 的跨框架编辑器
-- Devtools：运行时调试包与 Chrome 扩展
-- 多端演示：Web、Supabase、Electron、Tauri
+- Code Editor：CodeMirror 6 跨框架编辑器，Angular / React / Vue 三端
+- DevTools：运行时调试面板 + Chrome 扩展，实体浏览、查询监控、变更回放
+- 多端演示：Web / Supabase / Electron / Tauri，覆盖全部运行时
 
 对应文档（线上站：[rxdb.netlify.app](https://rxdb.netlify.app)）：
 
@@ -184,26 +196,28 @@ aiao/
 
 ### 正在推进
 
-- Headless 组件：只负责数据计算和状态管理，UI 交由业务侧实现
-- PG 全文搜索路径：FTS5 已落地，PGlite 的 `tsvector` 路径补齐
-- 工作区工作流：staging / commit / restore 的进一步打磨
+- 🚧 **Writer lease 与迁移 fencing**（[US-304](requirements/stories/collaboration/US-304-writer-lease-migration-fencing.md)）：跨 Tab/Worker/进程安全迁移，防止旧连接写入不兼容格式
+
+### 待办
+
+- ⬜ **字段语义元数据**（[US-012](requirements/stories/core/US-012-field-semantic-metadata.md)）：`PropertyType + format` 契约，版本化前端 DTO
+- ⬜ **桌面本地数据库**（[US-207](requirements/stories/adapter/US-207-desktop-local-database.md)）：Electron / Tauri 原生 SQLite/PGlite 持久化
+- ⬜ **持久化 Git 式工作区提交**（[US-305](requirements/stories/collaboration/US-305-persistent-workspace-commits.md)）：独立命名空间的 commit 存储
+- ⬜ **PGlite 原生全文搜索**（[US-703](requirements/stories/future/US-703-pglite-full-text-search.md)）：tsvector / GIN / trigger，补齐适配器能力对称
 
 ## 路线图
 
-路线图分阶段推进，当前以阶段 1 收尾为主。所有阶段遵守相同的横向原则：跨框架 API 对称（Angular / React / Vue 三端齐全）、Local-first 优先（先有无网络可用路径再做远端增强）、模型驱动（装饰器 + 客户端生成）、适配器无关（插件不绑定特定后端）。
+路线图按 Epic 组织，已完成 [Epic 1（核心 MVP）](requirements/epics/epic-001-core-mvp.md) 与 [Epic 2（数据同步）](requirements/epics/epic-002-data-sync.md)，[Epic 5（类型系统演进）](requirements/epics/epic-005-type-system-evolution.md) 收尾中。所有阶段遵守相同的横向原则：跨框架 API 对称、Local-first 优先、模型驱动、适配器无关。
 
-### 阶段 1 收尾（约 6–8 周）
+### 阶段 1 → 1.0 发布
 
-把现有代码推到稳定可发版状态。
+把现有 32 个已完成 story 推到稳定可发版状态。剩余阻塞项：
 
-- **真实意见**：开源并收集真实用户反馈，验证设计假设，调整优先级
-  - 🚧 反馈入口（Issue / PR 模板、贡献指南）已就绪；开源与反馈闭环进行中
-- **API 冻结**：核心 / 适配器 / 框架集成的对外类型与导出锁定，进入 semver 维护
-  - 🚧 API 表面基线 + [稳定性策略](https://rxdb.netlify.app/docs/versioning) + conventional-commits 版本决策已建立；0.x → 1.0 正式冻结待发布
-- **测试覆盖率提升**：核心包 ≥ 90%、其余 ≥ 80% 的覆盖率门禁，补齐边界与降级路径
-  - 🚧 覆盖率门禁已接入 CI（先测量再棘轮，按包分级判定）；边界与降级路径补齐进行中
-- **1.0 文档冲刺**：API 参考、迁移指南、版本兼容表、跨框架示例对齐
-  - 🚧 API 参考（26 包）、[迁移指南](https://rxdb.netlify.app/docs/migration/)、[兼容矩阵](https://rxdb.netlify.app/docs/compatibility)、跨框架示例骨架已完成；内容持续补齐
+- 🚧 **US-304** writer lease：跨 realm 安全迁移的最后一道门禁
+- ⬜ **US-012** 字段语义元数据：统一前端 DTO 与校验契约
+- **API 冻结**：核心 / 适配器 / 框架集成锁定对外类型，进入 semver
+- **覆盖率门禁**：核心包 ≥ 90%，其余 ≥ 80%（已接入 CI，棘轮式推进）
+- **1.0 文档**：API 参考（26 包）、迁移指南、兼容矩阵已完成骨架，内容补齐中
 
 ### 阶段 2 生产可靠性
 
