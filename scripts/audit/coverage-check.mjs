@@ -108,15 +108,14 @@ function listPackages() {
     .sort();
 }
 
-/** summary 在各包间落点不一，按候选路径探测。 */
+/**
+ * 覆盖率产物的唯一落点：`coverage/packages/<pkg>/`。
+ * 全仓 vite/vitest 配置的 `reportsDirectory` 都指向这里，CI 的 artifact glob 也只收这一层。
+ * 这里不做多路径探测 —— 包写偏了就应该在门禁上红，而不是被兜底路径悄悄捞回来。
+ */
 function findSummary(pkg) {
-  const candidates = [
-    join(root, 'coverage', 'packages', pkg, 'coverage-summary.json'),
-    join(packagesDir, pkg, 'coverage', 'coverage-summary.json'),
-    join(packagesDir, pkg, 'test-output', 'vitest', 'coverage', 'coverage-summary.json'),
-    join(packagesDir, pkg, 'node_modules', '.cache', 'coverage', 'coverage-summary.json')
-  ];
-  return candidates.find(p => existsSync(p)) ?? null;
+  const summaryPath = join(root, 'coverage', 'packages', pkg, 'coverage-summary.json');
+  return existsSync(summaryPath) ? summaryPath : null;
 }
 
 /**

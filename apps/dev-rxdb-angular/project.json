@@ -32,7 +32,7 @@
       "executor": "nx:run-commands",
       "dependsOn": ["^build", "spec-typecheck"],
       "inputs": ["default", "^production"],
-      "outputs": ["{projectRoot}/test-output/vitest/coverage"],
+      "outputs": ["{workspaceRoot}/coverage/apps/dev-rxdb-angular"],
       "options": {
         "cwd": "apps/dev-rxdb-angular",
         "command": "vitest"

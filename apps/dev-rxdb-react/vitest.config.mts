@@ -12,6 +12,11 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
-    reporters: ['default']
+    reporters: ['default'],
+    coverage: {
+      reportsDirectory: '../../coverage/apps/dev-rxdb-react',
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}']
+    }
   }
 });
