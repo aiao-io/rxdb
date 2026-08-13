@@ -82,6 +82,7 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 - wa-sqlite / sqlite-wasm / sqlite（官方）：浏览器端 SQLite，共享 `sqlite-core` 抽象
 - sqliteai：向量存储 + AI 内建函数（embedding、相似度）
 - PGlite：WASM PostgreSQL，完整 PG 生态
+- desktop：Electron 应用私有目录里的真实 SQLite 文件，`node:sqlite` 落在特权侧，renderer 零文件系统权限
 - Supabase：PostgREST + Realtime + RPC 推送，远程同步
 - 加密包装器：AES-GCM-256 + WebCrypto，透明字段级加解密
 - 小程序：微信 / Alipay 本地持久化与响应式查询
@@ -148,6 +149,7 @@ aiao/
 │   ├── rxdb-adapter-sqlite-core/    # SQLite 核心共享代码
 │   ├── rxdb-adapter-sqlite-wasm/    # SQLite WASM 适配器
 │   ├── rxdb-adapter-sqliteai/       # SQLite AI 适配器（向量 + AI 函数）
+│   ├── rxdb-adapter-desktop/        # 桌面适配器（Electron + node:sqlite 文件）
 │   ├── rxdb-adapter-encrypted/      # 字段级加密（AES-GCM-256）
 │   ├── rxdb-adapter-miniprogram/    # 小程序适配器（微信/Alipay）
 │   ├── rxdb-adapter-pglite/         # PGlite 适配器（PostgreSQL）
@@ -191,7 +193,7 @@ aiao/
 
 ## 当前进展
 
-32/37 个 story 已交付。核心引擎、六种存储适配器、三框架集成、插件体系和协作能力均已就绪。
+32/46 个 story 已交付。核心引擎、七种本地存储适配器、三框架集成、插件体系和协作能力均已就绪。
 
 ### 已验证场景
 
@@ -203,12 +205,13 @@ aiao/
 ### 进行中
 
 - 🚧 **Writer lease 与迁移 fencing**（[US-304](requirements/stories/collaboration/US-304-writer-lease-migration-fencing.md)）— 跨 Tab / Worker / 进程的安全迁移协议，防止旧连接在升级后写入不兼容格式
+- 🚧 **桌面本地数据库**（[US-207](requirements/stories/adapter/US-207-desktop-local-database.md)）— Electron 主进程持有 `node:sqlite` 文件，适配器与主进程 host 已落地（含多窗口 writer lease），剩余加密字段覆盖与三平台打包矩阵
 
 ### 待办
 
 - ⬜ **字段语义元数据**（[US-012](requirements/stories/core/US-012-field-semantic-metadata.md)）— `PropertyType + format` 统一契约，版本化前端 DTO
-- ⬜ **桌面本地数据库**（[US-207](requirements/stories/adapter/US-207-desktop-local-database.md)）— Electron / Tauri 原生 SQLite / PGlite 持久化
-- ⬜ **持久化 Git 式工作区提交**（[US-305](requirements/stories/collaboration/US-305-persistent-workspace-commits.md)）— 独立命名空间的 commit 存储
+- ⬜ **Tauri 应用作用域 SQLite**（[US-210](requirements/stories/adapter/US-210-tauri-sqlite-local-database.md)）— 从 US-207 拆出，`tauri-plugin-sql` 的单物理连接事务语义待验证
+- ⬜ **提交图与 HEAD 持久化**（[US-305](requirements/stories/collaboration/US-305-commit-graph-head.md)）— 独立命名空间的 commit 存储
 - ⬜ **PGlite 原生全文搜索**（[US-703](requirements/stories/future/US-703-pglite-full-text-search.md)）— tsvector / GIN / trigger，补齐与 SQLite FTS5 的能力对称
 
 ## 路线图

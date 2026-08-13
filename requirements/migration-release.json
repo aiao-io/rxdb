@@ -10,8 +10,8 @@
     "enforced": false
   },
   "release": {
-    "kind": "bridge",
-    "version": "0.0.25",
+    "kind": "normal",
+    "version": "0.0.24",
     "protocolVersion": 1,
     "systemSchemaUpgrade": false,
     "changeCodecUpgrade": false

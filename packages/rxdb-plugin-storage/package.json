@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-plugin-storage",
-  "version": "0.0.25",
+  "version": "0.0.24",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
