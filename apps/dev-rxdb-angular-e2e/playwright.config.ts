@@ -74,11 +74,25 @@ export default defineConfig({
    * 就是 `ENOTEMPTY: packages/rxdb/dist/entity`。
    * Nx 把 `rxdb-test:build` / `rxdb:build` 标成 flaky（同 hash 既有 success 又有 failure）
    * 根因就在这里。`serve-e2e` 不带 buildTarget，只 serve 产物，不碰 dist。
+   *
+   * `reuseExistingServer` 恒为 false，与 `dev-rxdb-react-e2e` / `dev-rxdb-vue-e2e` 对齐。
+   * 曾经是 `!isCI`，而 `serve-e2e` 是 continuous target，它的 file-server 常在本次运行结束后
+   * 存活下来（被 reparent 到 init）。下次跑 e2e 时 8200 还占着，Playwright 于是**直接复用那个旧进程**，
+   * 而它 serve 的是上一次的 `staticFilePath` —— 目录若已被 `rm -rf dist` 清掉，
+   * 每个请求都落到一个空壳页面上。表现是**整套 109 条全红**、无一例外都是
+   * "element(s) not found"，而 `page.goto()` 不报错（服务器有响应，只是没有应用）。
+   *
+   * 这不是理论风险：2026-08-13 的全量门禁就是这样红的，且随后单跑同一套件 109 条全绿，
+   * Nx 因此把它标成 flaky —— 一条把真实失效模式盖成「偶发」的假信号。
+   * 复现只需在 8200 上挂一个返回空 HTML 的服务器再跑本套件，症状逐字一致。
+   *
+   * 改成 false 后端口被占会**当场显式报错**（"8200 is already used"），
+   * 而不是静默跑在一个不知道是什么的服务器上：一个显式失败，好过一次说明不了任何事的绿。
    */
   webServer: {
     command: `${nxCommandPrefix}pnpm exec nx run dev-rxdb-angular:serve-e2e --port 8200`,
     url: 'http://localhost:8200',
-    reuseExistingServer: !isCI,
+    reuseExistingServer: false,
     cwd: workspaceRoot,
     timeout: isCI ? 180000 : 120000
   },
