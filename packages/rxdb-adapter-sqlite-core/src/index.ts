@@ -196,7 +196,11 @@ export {
 export type { Oo1LoadFingerprint, Oo1LoadOptions } from './sqlite-oo1-load.utils.js';
 
 // 共享 SQL 执行工具
-export { normalizeSingleStatementSql, shouldUsePreparedStatementPath } from './execute-sql.utils.js';
+export {
+  isReadOnlyStatement,
+  normalizeSingleStatementSql,
+  shouldUsePreparedStatementPath
+} from './execute-sql.utils.js';
 
 // 共享 oo1 运行时类型与边界校验（oo1 = 上游面向对象 API v1）
 export { assertOo1Static } from './oo1-types.js';

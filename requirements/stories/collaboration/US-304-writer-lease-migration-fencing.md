@@ -57,7 +57,7 @@ INVEST 检查清单:
 | #   | 前置条件                                     | 操作                                 | 预期结果                                                                                                                       | 状态 |
 | --- | -------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ---- |
 | 1   | 桥接版本打开旧格式数据库                     | 初始化 writer lease 与 upgrade guard | 不改变旧 change 格式；旧 writer 可读；协议版本可查询                                                                           | ⚠️   |
-| 2   | 两个 Tab、Worker 或进程连接同一数据库        | 注册并持续写入 lease                 | 每个 writer 有唯一身份；心跳使用数据库时间；重复注册不覆盖其他 writer                                                          | ⚠️   |
+| 2   | 两个 Tab、Worker 或进程连接同一数据库        | 注册并持续写入 lease                 | 每个 writer 有唯一身份；心跳使用数据库时间；重复注册不覆盖其他 writer                                                          | ✅   |
 | 3   | 存在仍有效的空闲旧 writer lease              | 新版本请求迁移                       | 进入 `draining` 后无法确认 writer 已退出则 fail-fast；业务 trigger 不启动                                                      | ✅   |
 | 4   | writer 写事务与 upgrader 同时竞争            | 执行写入和升级                       | guard/epoch 校验与实际写入在同一事务内，不存在检查后竞态窗口；四个 SQLite 后端通过同一套 `rowsAffected` conformance 套件       | ✅   |
 | 5   | writer 被杀死或 lease 超时                   | 等待保守的 lease TTL 后重试升级      | 旧 writer 被视为失效，升级可重新获取 fencing 并继续                                                                            | ✅   |
@@ -70,7 +70,7 @@ INVEST 检查清单:
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-## 复核记录（2026-08-11 初版，2026-08-13 更新 AC4、AC8、门禁缺口与 bridge tag 依据）
+## 复核记录（2026-08-11 初版，2026-08-13 更新 AC2、AC4、AC8、门禁缺口与 bridge tag 依据）
 
 ### 已交付的部分
 
@@ -80,7 +80,8 @@ INVEST 检查清单:
 
 ### AC11 由 ✅ 降级为 ⚠️ 的依据
 
-- `v0.0.24` 上的 `requirements/migration-release.json` 声明 `kind=migration`、`bridge.tag=null`、`oldBundlePolicy.enforced=false`，门禁对该清单判定 fail-closed；而 `@aiao/rxdb@0.0.24` 已经是 npm `latest`。门禁没有拦住那次发布，所以“发布门禁阻止升级”从未被真实发布验证过。
+- **本条前一版记载有误，2026-08-13 实测更正**：`v0.0.24` 上的清单不是 `kind=migration`，而是 `kind=bridge` / `release.version=0.0.25`，而同 tag 的 `packages/rxdb/package.json` 是 `0.0.24`。用 `v0.0.24` 当时的门禁脚本校验该清单，唯一报错是 `release.version 0.0.25 does not match tag v0.0.24`——**是版本漂移，不是 migration 字段缺失**。
+- 同样更正：`v0.0.24` 的 `publish.yml` 已经把门禁两步排在 build 与 `nx release publish` 之前，所以「门禁没装」不成立。但 `@aiao/rxdb@0.0.24` 仍是 npm `latest`，而 `v0.0.24` tag 指向的提交是 `init`——本仓库是重新初始化的历史，npm 上那次发布不是经这条流水线发出的。准确说法是**门禁没机会跑**，而非拦不住。结论不变：“发布门禁阻止升级”从未被真实发布验证过。
 - 至今没有任何 tag 被声明为桥接版本，`oldBundlePolicy` 也从未启用，AC11 列出的三条替代路径（强制更新 / 缓存失效 / 新数据库命名空间）一条都没生效。
 - 现清单为 `kind=normal` / `0.0.24`（见下文「门禁自身的两处缺口」），`pnpm nx run @aiao/source:migration-release-gate` 与 `migration-release-gate-test` 本地均通过。桥接版本实际发布后，AC11 才能重新评估。
 
@@ -100,9 +101,12 @@ INVEST 检查清单:
 | `bridgeTagSupportsProtocol(v0.0.24)`          | 通过，`gitTagSupportsProtocol` 列出的 5 个文件在 `v0.0.24` 上全部存在 |
 | `v0.0.24` 是否真的含 lease 集成（非仅文件在） | 是：`writer_fenced` 1 处、`rowsAffected !== 1` 4 处、协议模块 229 行  |
 
-即 `v0.0.24` 事实上已经携带完整的 writer lease/guard 协议，只是**从未被声明为桥接版本**——
-它的清单写的是 `kind=migration` / `bridge.tag=null`。所以真正的阻塞不是「没有 tag 可用」，
-而是**桥接 tag 该指向 `v0.0.24`（追认既成事实）还是另打 `v0.0.25`（重新声明）尚未决策**。
+即 `v0.0.24` 事实上已经携带完整的 writer lease/guard 协议，只是**从未被有效声明为桥接版本**——
+它的清单虽然写着 `kind=bridge`，但 `release.version` 与包版本漂移，门禁对该 tag 判定 fail-closed，
+这份声明从未通过校验。所以真正的阻塞不是「没有 tag 可用」，而是桥接 tag 该指向哪一次发布。
+
+**该决策已于 2026-08-13 作出：另打 `v0.0.25`，不追认 `v0.0.24`。**
+发布顺序与关闭判据见 [`requirements/README.md` 的「下一次发布计划」](../../README.md#下一次发布计划v0025-桥接版本)。
 
 同时注意 `bridgeTagSupportsProtocol` 只用 `git cat-file -e` 校验文件存在，不校验文件内容，
 因此它单独并不能证明 tag 含协议实现；上表第 4 行是手工补的证据，不是门禁给的。
@@ -112,16 +116,20 @@ INVEST 检查清单:
 
 ### AC11 关闭条件（按序执行，缺一不可）
 
-0. **先决策桥接 tag（记 `<bridge>`）**：追认 `v0.0.24`，还是另打 `v0.0.25` 重新声明。
-   两者对「离线旧 bundle」的判定边界不同——选 `v0.0.24` 意味着 0.0.24 之前的 bundle 全部算旧 bundle，
-   选 `v0.0.25` 则把已在生产的 0.0.24 也划进旧 bundle。该决策不属于本 story 的实现范围。
-1. `<bridge>` 必须已推送，且 `git merge-base --is-ancestor <bridge> HEAD` 成立。
+0. ~~先决策桥接 tag~~ **已决策：`<bridge>` = `v0.0.25`**（2026-08-13）。已在生产的 `0.0.24` 因此被划进「离线旧 bundle」。
+1. `v0.0.25` 必须已推送，且 `git merge-base --is-ancestor v0.0.25 HEAD` 成立。
+   前置是清单切 `kind=bridge` 且 `release.version` 与 `packages/rxdb/package.json` 同步推进到 `0.0.25`——
+   `v0.0.24` 正是栽在这一步。
 2. 用该 tag 跑 `bridgeTagSupportsProtocol` 冒烟：`gitTagSupportsProtocol` 列出的 5 个文件
    （`packages/rxdb/src/RxDB.ts`、`packages/rxdb/src/rxdb-adapter.ts`、`packages/rxdb/src/system/writer-lease.ts`、
    `packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts`、`packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts`）
    在 `<bridge>` 上全部存在；因该检查只验存在不验内容，需另行确认该 tag 确含 lease 集成。
-3. 上述各步通过后，清单才允许切 `kind=migration`，并同时填 `bridge.tag=<bridge>`、对应 `bridge.version`、
-   `oldBundlePolicy.strategy`（白名单四选一）、`oldBundlePolicy.minimumVersion≥bridge.version`、`enforced=true`。
+3. 上述各步通过后，清单才允许切 `kind=migration`，并同时填 `bridge.tag=v0.0.25`、`bridge.version=0.0.25`、
+   `oldBundlePolicy.strategy`（白名单四选一）、`oldBundlePolicy.minimumVersion≥0.0.25`、`enforced=true`。
+4. **但第 3 步不会发生在 `0.0.25` 这一版**：实测 HEAD 与 `v0.0.24` 的 `RXDB_SYSTEM_SCHEMA_VERSION`（`3`）、
+   `RXDB_WRITER_PROTOCOL_VERSION`（`1`）、`RXDB_CHANGE_CODEC_VERSION`（`1`）完全相同，没有任何东西要迁移，
+   清单切 `kind=migration` 会被 `migration releases must upgrade system schema or change codec` 拒绝。
+   AC11 要等下一次真正抬升系统版本的发布，按现有排期是 [US-305](./US-305-commit-graph-head.md)（含「一次性迁移」）。
 
 ### 门禁自身的两处缺口（已修复，2026-08-13）
 
@@ -144,8 +152,40 @@ package.json 绑定上线后立刻抓到了它要抓的东西：签入清单 `0.
 | AC  | 剩余条件                                                                                                                                                                          |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | 协议常量与建表已就位；「桥接版本已发布」的判定基准是**本仓库存在被声明为桥接的 tag 且为 HEAD 祖先**，不是 npm dist-tag；该 tag 选 `v0.0.24` 还是 `v0.0.25` 见上文关闭条件第 0 步  |
-| 2   | 唯一 writerId、按 `(databaseId, writerId)` 冲突更新与数据库时间心跳已实现，待在真实多 Tab/Worker/进程下复核并发注册不互相覆盖                                                     |
 | 6   | 现有用例通过模拟 epoch 提升验证 fencing，待补长时间挂起的浏览器 Tab 恢复后的真实表现；[US-207](../adapter/US-207-desktop-local-database.md) 的桌面多窗口/重启场景可作为该证据来源 |
+
+### AC2 并发注册测试（已交付，2026-08-13）
+
+剩余条件为「待在真实多 realm 下复核并发注册不互相覆盖」。交付物是
+[`system-schema-migration.multiprocess.spec.ts`](../../../packages/rxdb-adapter-sqlite-core/src/__tests__/system-schema-migration.multiprocess.spec.ts)
+新增的 `SQLite multiprocess writer lease registration`，让**三个各自独立的 writer** 落到同一个数据库文件上：
+
+| writer    | 隔离级别                             | 注册路径                                     |
+| --------- | ------------------------------------ | -------------------------------------------- |
+| adapter A | 独立连接 + 独立 uuid `#writer_id`    | 生产 `startWriterLease()`                    |
+| adapter B | 同上                                 | 同上                                         |
+| 子进程    | 独立 OS 进程、独立地址空间与事件循环 | 复刻生产条件 UPSERT 的 `writerProcessSource` |
+
+断言分三组：
+
+1. **唯一身份**：三行、三个不同 `writerId`，`protocolVersion` 与 `epoch` 一致。逐个注册，靠「新出现的那一行」认出各自的 `writerId`（`#writer_id` 是私有的），顺带就地验证后注册者不顶掉先注册者。
+2. **数据库时间**：`expiresAt - lastSeenAt` 与 `lastSeenAt <= now` 全部交给数据库时钟（`julianday()`）判定。子进程按 `+1 second` 续租、适配器按 `RXDB_WRITER_LEASE_TTL_MS`（30 秒）续租，两个跨度在同一次查询里同时成立——这正是「TTL 由各 writer 自己的 SQL 在数据库侧算出」而非共享 JS 常量的证据。
+3. **不覆盖**：双向各验一次。适配器 A 重续后子进程与 B 的行逐列不变；子进程重续后两个适配器的行逐列不变。逐列比对而非只比 `writerId`——只比 id 会漏掉别人的 epoch 或时间戳被改写。
+
+**变异检验**（证明用例非空跑，三次均只有新用例变红、其余 4 例照常通过）：
+
+| 变异                                                             | 结果                                                                     |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `#writer_id` 由 `uuid()` 改为常量（两个 realm 撞成一行）         | `expected [ [ 'MUTANT-SHARED-ID', … ] ] to have a length of 2 but got 1` |
+| `#renewWriterLease` 续租前 `DELETE` 掉本库全部 lease（互相覆盖） | 同上，行数塌成 1                                                         |
+| lease TTL 由 `+30 seconds` 改为 `+31 seconds`                    | `expected 31000 to be 30000`                                             |
+
+两点如实记录的边界：
+
+- **Tab/Worker 未逐一复现**，用「独立 OS 进程」代替。被验证的机制是「唯一 `writerId` + `ON CONFLICT ("databaseId","writerId")`」，它只认连接与 id，对 realm 种类无感知；进程是三者中隔离最强的一种，Tab/Worker 在此机制上是更弱的形态。SQLite 侧 Tab/Worker 共享 VFS 属存储层问题，由 AC10 覆盖。
+- **单机测不出「用了 JS 时钟」**：同一台机器上 `Date.now()` 与数据库时间只差毫秒，本用例的时钟断言无法区分二者。跨时钟的真实证据来自既有的 stale writer 用例（子进程用不同 TTL 续租后被数据库时间判定过期）。
+
+顺带修掉的 harness 问题：`afterEach` 原先 `Promise.all` 并发 `disconnect()`。`node:sqlite` 是同步 API——先拿到写锁的一方在 `await` 处让出后，另一方的 `BEGIN` 会同步阻塞整个事件循环直到 `busy_timeout` 耗尽，持锁方根本排不上 `COMMIT`，必然报 `database is locked`（耗时恰为 2000ms 的 busy_timeout）。改为逐个断开。这是同进程同步驱动的局限，不是产品缺陷；真正的跨 realm 并发由子进程 writer 覆盖。
 
 ### AC8 恢复文档（已交付，2026-08-13）——`failed` 并不可达，本条剩余条件的前提有误
 
@@ -242,6 +282,7 @@ open -> draining -> migrating -> open
 - `packages/rxdb-adapter-sqlite-core/src/` — SQLite lease 表、事务锁和 writer guard
 - `packages/rxdb-adapter-sqlite-core/src/sqlite-backend.interface.ts` — `rowsAffected` conformance 契约（AC4）
 - `packages/rxdb-adapter-sqlite-core/src/__tests__/shared-rows-affected-conformance.suite.ts` — 四后端 `rowsAffected` conformance 套件（AC4，经 `testing.ts` 导出）
+- `packages/rxdb-adapter-sqlite-core/src/__tests__/system-schema-migration.multiprocess.spec.ts` — 真实多进程 + 双 realm 的 lease 注册、数据库时间与不覆盖复核（AC2/3/5/10）
 - `packages/rxdb-adapter-pglite/src/` — PGlite lease 表、行锁/表锁和 writer guard
 - `packages/rxdb-test/src/testing/` — 多 realm、崩溃恢复与 stale writer 套件
 - `scripts/check-migration-release-gate.mjs` — 新增 `kind=normal`、清单与 `packages/rxdb/package.json` 版本绑定

@@ -1,0 +1,118 @@
+import { describe, expect, it } from 'vitest';
+import { RxDBAdapterDesktopError } from '../desktop-error.js';
+import {
+  assertSupportedDesktopStorage,
+  assertValidDesktopDatabaseName,
+  isDesktopSqliteFileStorage
+} from '../desktop-storage.js';
+
+const sqliteStorage = { engine: 'sqlite', databaseName: 'app.sqlite3' } as const;
+const pgliteStorage = { engine: 'pglite', dataDirectoryName: 'app-pgdata' } as const;
+
+describe('assertValidDesktopDatabaseName', () => {
+  it.each(['app.sqlite3', 'a', 'my-db_2.sqlite3', 'A1'])('accepts app-scoped logical name %s', name => {
+    expect(() => assertValidDesktopDatabaseName(name)).not.toThrow();
+  });
+
+  // AC#5/AC#6：名字来自 renderer，必须无法越出应用作用域，也不得被当成文件系统路径
+  it.each([
+    ['empty', ''],
+    ['posix traversal', '../escape.sqlite3'],
+    ['windows traversal', '..\\escape.sqlite3'],
+    ['posix separator', 'nested/app.sqlite3'],
+    ['windows separator', 'nested\\app.sqlite3'],
+    ['posix absolute', '/etc/passwd'],
+    ['windows absolute', 'C:\\app.sqlite3'],
+    ['leading dot', '.hidden'],
+    ['current dir', '.'],
+    ['parent dir', '..'],
+    ['null byte', 'app\u0000.sqlite3'],
+    ['url scheme', 'file://app.sqlite3'],
+    ['home expansion', '~/app.sqlite3'],
+    ['whitespace only', '   ']
+  ])('rejects %s', (_label, name) => {
+    expect(() => assertValidDesktopDatabaseName(name)).toThrowError(RxDBAdapterDesktopError);
+    expect(() => assertValidDesktopDatabaseName(name)).toThrowError(/invalid_database_name/);
+  });
+
+  it('rejects a name longer than 128 characters', () => {
+    expect(() => assertValidDesktopDatabaseName(`${'a'.repeat(129)}`)).toThrowError(/invalid_database_name/);
+  });
+
+  it('rejects non-string input arriving from an untrusted renderer', () => {
+    expect(() => assertValidDesktopDatabaseName(42 as unknown as string)).toThrowError(/invalid_database_name/);
+  });
+
+  it('reports the offending code on the error instance', () => {
+    try {
+      assertValidDesktopDatabaseName('../x');
+      expect.unreachable('should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(RxDBAdapterDesktopError);
+      expect((error as RxDBAdapterDesktopError).code).toBe('invalid_database_name');
+    }
+  });
+});
+
+describe('assertSupportedDesktopStorage', () => {
+  it('accepts electron + sqlite', () => {
+    expect(() => assertSupportedDesktopStorage('electron', sqliteStorage)).not.toThrow();
+  });
+
+  it('accepts tauri + sqlite', () => {
+    expect(() => assertSupportedDesktopStorage('tauri', sqliteStorage)).not.toThrow();
+  });
+
+  // 能力矩阵：Tauri 没有 Node 主进程，PGlite 的同步 filesystem 契约无法异步代理
+  it('rejects tauri + pglite with a discriminable code', () => {
+    try {
+      assertSupportedDesktopStorage('tauri', pgliteStorage);
+      expect.unreachable('should have thrown');
+    } catch (error) {
+      expect((error as RxDBAdapterDesktopError).code).toBe('unsupported_runtime_engine');
+    }
+  });
+
+  // US-208 未落地前，Electron + PGlite 也必须显式报缺失能力，而不是悄悄当成 sqlite
+  it('rejects electron + pglite until US-208 lands', () => {
+    try {
+      assertSupportedDesktopStorage('electron', pgliteStorage);
+      expect.unreachable('should have thrown');
+    } catch (error) {
+      expect((error as RxDBAdapterDesktopError).code).toBe('unsupported_runtime_engine');
+    }
+  });
+
+  it('rejects an unknown runtime', () => {
+    expect(() =>
+      assertSupportedDesktopStorage('web' as unknown as 'electron', sqliteStorage)
+    ).toThrowError(/unsupported_runtime_engine/);
+  });
+
+  it('rejects an unknown engine', () => {
+    expect(() =>
+      assertSupportedDesktopStorage('electron', { engine: 'mysql' } as unknown as typeof sqliteStorage)
+    ).toThrowError(/unsupported_runtime_engine/);
+  });
+
+  it('validates the database name of a sqlite storage', () => {
+    expect(() =>
+      assertSupportedDesktopStorage('electron', { engine: 'sqlite', databaseName: '../escape' })
+    ).toThrowError(/invalid_database_name/);
+  });
+});
+
+describe('isDesktopSqliteFileStorage', () => {
+  it('narrows sqlite storage', () => {
+    expect(isDesktopSqliteFileStorage(sqliteStorage)).toBe(true);
+  });
+
+  // PGlite data directory 是目录不是单文件，不能被当成 sqlite 单文件配置
+  it('does not treat a pglite data directory as a single file database', () => {
+    expect(isDesktopSqliteFileStorage(pgliteStorage)).toBe(false);
+  });
+
+  it.each([null, undefined, 'sqlite', 7, {}, { engine: 'sqlite' }])('rejects %s', value => {
+    expect(isDesktopSqliteFileStorage(value)).toBe(false);
+  });
+});
