@@ -14,7 +14,7 @@ export type DesktopRuntime = 'electron' | 'tauri';
  *
  * @remarks
  * `databaseName` 是**应用作用域内的逻辑名**，不是文件系统路径：renderer 无从得知、
- * 也不需要得知物理根目录。物理位置由 host 在自己的应用数据目录内解析（AC#5）。
+ * 也不需要得知物理根目录。物理位置由 host 在自己的应用数据目录内解析（AC#3）。
  */
 export interface DesktopSqliteFileStorage {
   readonly engine: 'sqlite';
@@ -123,7 +123,7 @@ const SUPPORTED_RUNTIMES: readonly DesktopRuntime[] = ['electron', 'tauri'];
  *
  * @remarks
  * 不受支持时直接抛错，**不回退**到 memory/OPFS/IndexedDB，也不静默切换引擎：
- * 用户必须能确信数据确实写进了他指定的那个后端（AC#6）。
+ * 用户必须能确信数据确实写进了他指定的那个后端（AC#4）。
  *
  * 当前矩阵：Electron + SQLite ✅、Tauri + SQLite ✅、PGlite ❌（Electron 侧见 US-208，Tauri 侧永不支持）。
  *

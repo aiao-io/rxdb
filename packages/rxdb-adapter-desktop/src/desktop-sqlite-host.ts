@@ -18,14 +18,14 @@ import {
   type DesktopHostRequest,
   type DesktopHostResponse
 } from './desktop-host-protocol.js';
-import { NodeSqliteEngine } from './node-sqlite-engine.js';
+import { NodeSqliteEngine, type NodeSqliteEngineOptions } from './node-sqlite-engine.js';
 
 /**
  * 逻辑位置的 scheme。
  *
  * @remarks
  * `open` 回给 renderer 的 `resolvedLocation` 用它拼装，只表达「应用作用域内的某个库」，
- * 不含物理根目录（AC#5）。
+ * 不含物理根目录（AC#3）。
  */
 const LOGICAL_LOCATION_SCHEME = 'desktop-sqlite://app-scope';
 
@@ -59,6 +59,14 @@ export interface DesktopSqliteHostOptions {
   readonly onDeliveryError?: (error: unknown) => void;
   /** SQLite page cache 大小（KB）。 */
   readonly cacheSizeKb?: number;
+  /**
+   * 遇到锁冲突时的重试窗口（毫秒），默认 {@link DEFAULT_BUSY_TIMEOUT_MS}。
+   *
+   * @remarks
+   * 每个窗口一条连接，撞锁是桌面路径的常态而非异常，详见
+   * {@link NodeSqliteEngineOptions.busyTimeoutMs}。
+   */
+  readonly busyTimeoutMs?: number;
 }
 
 /** 桌面 SQLite host 实例。 */
@@ -99,7 +107,7 @@ const toErrorResponse = (error: unknown): DesktopHostResponse => {
  * 多个窗口共用连接时它们的 `BEGIN` 块会互相穿插，事务隔离直接失效。
  * 各持连接后，跨窗口并发交由 SQLite 自己的文件锁与
  * [US-304](../../../requirements/stories/collaboration/US-304-writer-lease-migration-fencing.md)
- * 的 writer lease 处理（AC#7）。
+ * 的 writer lease 处理（AC#5）。
  *
  * @param options - host 配置
  * @returns host 实例
@@ -143,6 +151,7 @@ export function createDesktopSqliteHost(options: DesktopSqliteHostOptions): Desk
       dbName: databaseName,
       onChange: event => deliver(sessionId, event),
       cacheSizeKb: options.cacheSizeKb,
+      busyTimeoutMs: options.busyTimeoutMs,
       batchTimeout: request.batchTimeout
     });
     sessions.set(sessionId, engine);

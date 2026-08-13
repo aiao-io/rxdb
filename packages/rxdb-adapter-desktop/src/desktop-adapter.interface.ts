@@ -35,7 +35,7 @@ export interface DesktopOptions extends IRxDBAdapterOptions, SqliteBaseOptions {
    *
    * @remarks
    * 省略时按 `${rxdb.config.dbName}${DEFAULT_DATABASE_SUFFIX}` 推导。
-   * 它是**应用作用域内的逻辑名**，不是路径；物理位置只有 host 知道（AC#5）。
+   * 它是**应用作用域内的逻辑名**，不是路径；物理位置只有 host 知道（AC#3）。
    * 接管一个已存在的库、或多个 RxDB 实例要共用同一个文件时才需要显式指定。
    */
   databaseName?: string;

@@ -1,5 +1,5 @@
 import { MAX_BATCH_WAIT_MS, SQLiteChangeType, type SqliteChangeEvent } from '@aiao/rxdb-adapter-sqlite-core';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -67,7 +67,7 @@ describe('NodeSqliteEngine.open', () => {
     expect(engine.execute('PRAGMA foreign_keys').results[0]?.rows[0]?.[0]).toBe(1);
   });
 
-  // AC#6：打不开就报错，绝不静默降级到内存库让用户以为数据落了盘
+  // AC#4：打不开就报错，绝不静默降级到内存库让用户以为数据落了盘
   it('reports open_failed without leaving an empty database behind', () => {
     const filePath = join(workspace, 'missing-dir', 'app.sqlite3');
     expect(() => NodeSqliteEngine.open({ filePath, dbName: 'app.sqlite3', onChange: () => undefined })).toThrowError(
@@ -180,7 +180,7 @@ describe('NodeSqliteEngine.execute', () => {
   });
 
   // 分支切换发出的就是这个形状：先重建触发器，最后一条 UPDATE ... RETURNING。node:sqlite 的 exec()
-  // 会把 RETURNING 的行整个吞掉，上层于是收到空结果集，误以为没有任何行被切换（AC#4）。
+  // 会把 RETURNING 的行整个吞掉，上层于是收到空结果集，误以为没有任何行被切换（AC#2）。
   it('returns the result set of a row producing statement inside a script', () => {
     const engine = openEngine();
     engine.execute('CREATE TABLE t (id INTEGER PRIMARY KEY, activated INTEGER)');
@@ -232,7 +232,7 @@ describe('NodeSqliteEngine.execute', () => {
 
 describe('NodeSqliteEngine change notification', () => {
   // 事件必须在语句返回之后的任务里派发：同步派发会让订阅者在事务还开着、行还没提交时就去读库，
-  // 而 wasm 后端从来是防抖派发的，跟着它才谈得上「桌面路径行为一致」（AC#4）
+  // 而 wasm 后端从来是防抖派发的，跟着它才谈得上「桌面路径行为一致」（AC#2）
   it('does not dispatch inside the execute call that produced the change', () => {
     const engine = openEngine();
     createChangeTable(engine);
@@ -337,7 +337,7 @@ describe('NodeSqliteEngine change notification', () => {
     expect(events.length).toBeGreaterThan(0);
   });
 
-  // AC#8：通知机制不得污染用户的库文件
+  // AC#6：通知机制不得污染用户的库文件
   it('keeps its notify triggers out of the persisted schema', () => {
     const engine = openEngine();
     createChangeTable(engine);
@@ -390,15 +390,26 @@ describe('NodeSqliteEngine.close', () => {
     expect(second.execute('SELECT name FROM t').results[0]?.rows).toEqual([['kept']]);
   });
 
-  // AC#9：句柄释放后文件必须可以被重命名，说明没有残留的 WAL/SHM 占用
+  // AC#7：句柄释放后文件必须可以被重命名，说明没有残留的 WAL/SHM 占用
   it('releases the file handle so the database can be renamed', () => {
     const engine = openEngine();
-    engine.execute('CREATE TABLE t (id INTEGER PRIMARY KEY)');
+    engine.execute('CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)');
+    engine.execute('INSERT INTO t (name) VALUES (?)', ['kept']);
     engine.close();
+
+    // 先查 sidecar 再改名：POSIX 上句柄还开着 rename 也照样成功，光靠改名在 macOS/Linux 上
+    // 验不出占用；残留的 -wal/-shm 才是「没收干净」的直接证据。改名本身是 Windows 那一半断言。
     expect(existsSync(join(workspace, 'app.sqlite3-wal'))).toBe(false);
+    expect(existsSync(join(workspace, 'app.sqlite3-shm'))).toBe(false);
+
+    renameSync(join(workspace, 'app.sqlite3'), join(workspace, 'renamed.sqlite3'));
+
+    // 改完还能打开并读回数据，说明搬走的是一份自洽的库；否则就是已提交数据还压在
+    // 没 checkpoint 的 WAL 里，单独搬主文件等于丢数据。
+    expect(openEngine('renamed.sqlite3').execute('SELECT name FROM t').results[0]?.rows).toEqual([['kept']]);
   });
 
-  // AC#9：未提交的事务在断开时回滚，不能留下半截状态给下次启动
+  // AC#7：未提交的事务在断开时回滚，不能留下半截状态给下次启动
   it('rolls back an open transaction instead of committing it', () => {
     const first = openEngine();
     first.execute('CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)');

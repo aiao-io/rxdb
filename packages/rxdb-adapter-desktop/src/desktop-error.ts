@@ -67,7 +67,7 @@ export function isRxDBAdapterDesktopErrorCode(value: unknown): value is RxDBAdap
  *
  * @remarks
  * 错误消息以 `[code]` 前缀开头，便于日志检索；程序分支请读 {@link RxDBAdapterDesktopError.code}
- * 而不是匹配文本。原始原因通过 `cause` 原样透传，不做包装或吞并（AC#6）。
+ * 而不是匹配文本。原始原因通过 `cause` 原样透传，不做包装或吞并（AC#4）。
  */
 export class RxDBAdapterDesktopError extends Error {
   override readonly name = 'RxDBAdapterDesktopError';

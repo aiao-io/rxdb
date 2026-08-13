@@ -406,6 +406,9 @@ importers:
       electron-reloader:
         specifier: ^1.2.3
         version: 1.2.3
+      esbuild:
+        specifier: ^0.28.1
+        version: 0.28.1
       eslint:
         specifier: ^10.8.0
         version: 10.8.1(jiti@2.7.0)
@@ -522,6 +525,9 @@ importers:
 
   apps/dev-rxdb-electron:
     devDependencies:
+      '@aiao/rxdb-adapter-desktop':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-adapter-desktop
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../../packages/rxdb-test

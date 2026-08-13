@@ -4,7 +4,7 @@
  * @remarks
  * 本入口引用 `node:sqlite`，只能在有 Node 运行时的地方加载——Electron 主进程，
  * 或它自己拥有的 `worker_threads` worker。**不要**把它打进 renderer bundle：
- * 那等于把文件系统能力还给了渲染进程，AC#5 的隔离随之作废。
+ * 那等于把文件系统能力还给了渲染进程，AC#3 的隔离随之作废。
  *
  * renderer 侧请用 `@aiao/rxdb-adapter-desktop`。
  *

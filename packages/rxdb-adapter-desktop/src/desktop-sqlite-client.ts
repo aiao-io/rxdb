@@ -121,7 +121,7 @@ export class DesktopSqliteClient implements SqliteClientLike {
   private constructor(
     transport: DesktopHostTransport,
     sessionId: string,
-    /** host 解析出的逻辑位置，仅供诊断（AC#5）。 */
+    /** host 解析出的逻辑位置，仅供诊断（AC#3）。 */
     readonly resolvedLocation: string,
     beginTransactionSql: string,
     beginSystemMigrationTransactionSql: string
@@ -239,7 +239,7 @@ export class DesktopSqliteClient implements SqliteClientLike {
    * 断开会话。
    *
    * @remarks
-   * 顺序即 AC#9 的语义：先置关闭标记**停止接受新任务**，再等在途请求跑完，
+   * 顺序即 AC#7 的语义：先置关闭标记**停止接受新任务**，再等在途请求跑完，
    * 最后才让 host 释放句柄。等待用 `allSettled`——某条在途查询失败不该把句柄一直挂住。
    *
    * 重复调用是安全的。

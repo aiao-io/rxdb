@@ -12,8 +12,13 @@ let changes: DesktopHostChangeEventMessage[];
 
 const sqliteStorage = { engine: 'sqlite', databaseName: 'app.sqlite3' } as const;
 
+// 变更事件是防抖派发的；`batchTimeout: 0` 把窗口压到「下一个宏任务」，用例才不用等真实毫秒。
 const openSessionOn = async (target: DesktopSqliteHost, databaseName = 'app.sqlite3'): Promise<string> => {
-  const response = await target.handle({ kind: 'open', storage: { engine: 'sqlite', databaseName } });
+  const response = await target.handle({
+    kind: 'open',
+    storage: { engine: 'sqlite', databaseName },
+    batchTimeout: 0
+  });
   if (response.kind !== 'open') throw new Error(`expected an open response, got ${response.kind}`);
   return response.result.sessionId;
 };
@@ -53,7 +58,7 @@ describe('open', () => {
     });
   });
 
-  // AC#5：renderer 拿到物理根目录等于白拿一份文件系统情报，而它并不需要这份情报
+  // AC#3：renderer 拿到物理根目录等于白拿一份文件系统情报，而它并不需要这份情报
   it('reports a logical location that leaks no filesystem path', async () => {
     const response = await host.handle({ kind: 'open', storage: sqliteStorage });
     if (response.kind !== 'open') throw new Error('expected an open response');
@@ -87,7 +92,7 @@ describe('open', () => {
 });
 
 describe('request validation', () => {
-  // AC#6：错误码要跨 IPC 活着到达 renderer，所以失败走返回值而不是 reject
+  // AC#4：错误码要跨 IPC 活着到达 renderer，所以失败走返回值而不是 reject
   it.each([
     ['a malformed request', { kind: 'drop' }, 'protocol_violation'],
     [
@@ -161,7 +166,9 @@ describe('change notification', () => {
     const sessionId = await openSession();
     await execute(sessionId, 'CREATE TABLE "rxdb$rxdb_change" (id INTEGER PRIMARY KEY, payload TEXT)');
     await execute(sessionId, 'INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
-    expect(changes).toHaveLength(1);
+    await vi.waitFor(() => {
+      expect(changes).toHaveLength(1);
+    });
     expect(changes[0]).toMatchObject({
       kind: 'change',
       sessionId,
@@ -177,6 +184,9 @@ describe('change notification', () => {
     await host.handle({ kind: 'close', sessionId: first });
     changes.length = 0;
     await execute(second, 'INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
+    await vi.waitFor(() => {
+      expect(changes).toHaveLength(1);
+    });
     expect(changes.map(change => change.sessionId)).toEqual([second]);
   });
 
@@ -202,8 +212,49 @@ describe('change notification', () => {
       sql: `INSERT INTO "rxdb$rxdb_change" (payload) VALUES ('x')`
     });
     expect(write.kind).toBe('execute');
-    expect(onDeliveryError).toHaveBeenCalledOnce();
+    await vi.waitFor(() => {
+      expect(onDeliveryError).toHaveBeenCalledOnce();
+    });
     failing.closeAll();
+  });
+
+  // 上报回调自己再抛错时，异常是从定时器回调里冒出来的：不隔离就是主进程的未捕获异常，
+  // 一个订阅者的缺陷会把整个 Electron 应用带走，而此刻写入其实早已落库。
+  it('survives an error reporter that is itself broken', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const failing = createDesktopSqliteHost({
+      resolveDatabasePath: databaseName => join(workspace, databaseName),
+      postChange: () => {
+        throw new Error('renderer window was destroyed');
+      },
+      onDeliveryError: () => {
+        throw new Error('the application error reporter is itself broken');
+      }
+    });
+    const sessionId = await openSessionOn(failing);
+    await failing.handle({
+      kind: 'execute',
+      sessionId,
+      sql: 'CREATE TABLE "rxdb$rxdb_change" (id INTEGER PRIMARY KEY, payload TEXT)'
+    });
+    const write = await failing.handle({
+      kind: 'execute',
+      sessionId,
+      sql: `INSERT INTO "rxdb$rxdb_change" (payload) VALUES ('x')`
+    });
+    expect(write.kind).toBe('execute');
+    await vi.waitFor(() => {
+      expect(logged).toHaveBeenCalledOnce();
+    });
+    // 会话没被这次异常打坏，后续请求照常受理
+    const next = await failing.handle({
+      kind: 'execute',
+      sessionId,
+      sql: `SELECT count(*) FROM "rxdb$rxdb_change"`
+    });
+    expect(next).toMatchObject({ kind: 'execute', result: { results: [{ rows: [[1]] }] } });
+    failing.closeAll();
+    logged.mockRestore();
   });
 });
 
@@ -236,7 +287,7 @@ describe('close', () => {
     expect(await host.handle({ kind: 'version', sessionId: second })).toMatchObject({ code: 'session_closed' });
   });
 
-  // AC#8：Aiao 只动自己的系统对象，用户原有的业务表必须原样留着
+  // AC#6：Aiao 只动自己的系统对象，用户原有的业务表必须原样留着
   it('preserves unknown business tables that already live in the file', async () => {
     const seed = await openSession();
     await execute(seed, 'CREATE TABLE legacy_invoices (id INTEGER PRIMARY KEY, total REAL)');
@@ -249,29 +300,18 @@ describe('close', () => {
 });
 
 describe('host_internal_error', () => {
-  // 应用自己的错误上报回调又抛错属于缺陷，不该被贴上 statement_failed 之类似是而非的码
+  // host 自己的缺陷不该被贴上 statement_failed 之类似是而非的码：那会把排查方向从一开始就带偏，
+  // 让人去查一条完全正常的 SQL。归不了类就如实说归不了类。
   it('surfaces an unclassifiable host failure as a bug instead of mislabelling it', async () => {
-    const failing = createDesktopSqliteHost({
-      resolveDatabasePath: databaseName => join(workspace, databaseName),
-      postChange: () => {
-        throw new Error('renderer window was destroyed');
-      },
-      onDeliveryError: () => {
-        throw new Error('the application error reporter is itself broken');
+    const hostile = {
+      get kind(): string {
+        throw new Error('the payload is not what it claims to be');
       }
+    };
+    expect(await host.handle(hostile)).toEqual({
+      kind: 'error',
+      code: 'host_internal_error',
+      message: 'the payload is not what it claims to be'
     });
-    const sessionId = await openSessionOn(failing);
-    await failing.handle({
-      kind: 'execute',
-      sessionId,
-      sql: 'CREATE TABLE "rxdb$rxdb_change" (id INTEGER PRIMARY KEY, payload TEXT)'
-    });
-    const response = await failing.handle({
-      kind: 'execute',
-      sessionId,
-      sql: `INSERT INTO "rxdb$rxdb_change" (payload) VALUES ('x')`
-    });
-    expect(response).toMatchObject({ kind: 'error', code: 'host_internal_error' });
-    failing.closeAll();
   });
 });

@@ -15,7 +15,7 @@ import { assertValidDesktopDatabaseName } from './desktop-storage.js';
  *
  * @remarks
  * 数据落在特权侧的 `node:sqlite` 连接里，renderer 只通过一条窄传输层发请求，
- * 因此它既拿不到文件系统句柄，也拿不到物理路径（AC#5）。
+ * 因此它既拿不到文件系统句柄，也拿不到物理路径（AC#3）。
  *
  * 适配器本身没有自己的查询实现：它复用 {@link RxDBAdapterSqliteBase} 的全套 SQL、事务、
  * 分支切换与 writer lease 逻辑，只把「客户端从哪来」换成了桌面 host。

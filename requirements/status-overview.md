@@ -13,13 +13,14 @@
 | ✅ Done        | 32   |
 | 👀 In Review   | 1    |
 | 📝 Backlog     | 11   |
-| 🚧 In Progress | 1    |
+| 🚧 In Progress | 2    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 45   |
+| **合计**       | 46   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，请勿手写维护。
 > 2026-08-13 的评审把 US-012 拆成 US-012a/b/c、US-207 拆出 US-208、US-305 升级为 epic-006 并拆成 US-305～US-308，Backlog 因此从 4 增至 11；这是拆分而不是新增范围。
 > 同日补写了 [US-209](stories/adapter/US-209-miniprogram-adapter.md)（微信小程序适配器），适配器实现早已合并，故直接记为 `In Review` 而非 `Backlog`。
+> 同日 US-207 二次拆分：Tauri 半边迁至 [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)（Backlog），US-207 收敛到 Electron 并转 `In Progress`。Backlog 一进一出仍为 11，合计 45 → 46。
 
 ## 项目统计
 
@@ -95,8 +96,9 @@
 
 - ✅ [US-702 全文搜索](stories/future/US-702-full-text-search.md)
 - ⬜ [US-703 PGlite 全文搜索](stories/future/US-703-pglite-full-text-search.md)
-- ⬜ [US-207 Electron/Tauri 连接本地数据库](stories/adapter/US-207-desktop-local-database.md) — 桌面 SQLite 文件路径
+- 🚧 [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md) — `@aiao/rxdb-adapter-desktop` 与主进程 host 已落地，AC#1/#2 待打包 e2e 与加密解锁覆盖收口
 - ⬜ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md) — 从 US-207 拆出，PGlite callback transaction 不能跨 IPC 序列化
+- ⬜ [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) — 从 US-207 二次拆出，`tauri-plugin-sql` 的单物理连接事务语义未验证
 - 👀 [US-209 微信小程序 wa-sqlite 适配器](stories/adapter/US-209-miniprogram-adapter.md) — 实验性，适配器已合并，剩余为覆盖率门禁登记与文档收尾
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)

@@ -20,7 +20,7 @@ describe('assertValidDesktopDatabaseName', () => {
     expect(() => assertValidDesktopDatabaseName('notes@0_1.sqlite3')).not.toThrow();
   });
 
-  // AC#5/AC#6：名字来自 renderer，必须无法越出应用作用域，也不得被当成文件系统路径
+  // AC#3/AC#4：名字来自 renderer，必须无法越出应用作用域，也不得被当成文件系统路径
   it.each([
     ['empty', ''],
     ['posix traversal', '../escape.sqlite3'],

@@ -86,7 +86,7 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 |   P0   | 跨 realm writer lease 与迁移 fencing | [US-304](stories/collaboration/US-304-writer-lease-migration-fencing.md) | 直接影响迁移期间的数据一致性；旧 writer 失效前不能允许发布类型系统升级                | lease/guard 表、drain barrier、epoch fencing、崩溃恢复、多进程/Worker 回归套件                                     |
 |   P1   | 字段 format 声明与注册期校验         | [US-012a](stories/core/US-012a-field-format-declaration.md)              | US-012 系列的地基：`FieldFormat` 判别联合不冻结，DTO 和值校验都无从落地               | 16 个 format 接口、`PropertyType × format` 相容表、注册期聚合校验                                                  |
 |   P1   | 实体字段描述 DTO                     | [US-012b](stories/core/US-012b-entity-fields-dto.md)                     | 让生成器、三框架和 DevTools 使用同一份字段语义，避免按字段名猜测展示规则              | 派生 `cardinality/source`、`ENTITY_FIELDS_DTO_VERSION`、`describeEntityFields()` / `parseEntityFieldsDescriptor()` |
-|   P1   | Electron/Tauri 桌面本地 SQLite       | [US-207](stories/adapter/US-207-desktop-local-database.md)               | 补齐桌面端文件持久化和重启恢复，扩大 Local-first 的实际使用场景                       | Electron/Tauri **SQLite 文件**路径、共享桌面 host 契约、类型化 IPC、真实文件 smoke test                            |
+|   P1   | Electron 桌面本地 SQLite             | [US-207](stories/adapter/US-207-desktop-local-database.md)               | 补齐桌面端文件持久化和重启恢复，扩大 Local-first 的实际使用场景                       | Electron **SQLite 文件**路径、共享桌面 host 契约、类型化 IPC、真实文件 smoke test                                  |
 |   P2   | 提交图与 HEAD 持久化                 | [US-305](stories/collaboration/US-305-commit-graph-head.md)              | 旧暂存导出已在 `0.0.24` 删除，能力缺口现在完全敞开，但需要 US-304 的 fencing 打底     | 独立命名空间的新契约、commit 存储布局、baseline commit 与一次性迁移                                                |
 |   P2   | 字段值校验与生成器透传               | [US-012c](stories/core/US-012c-field-value-validation-codegen.md)        | 有了 DTO 才谈得上运行时校验；单独成条以免和 DTO 一起变成不可验收的大块                | `validateFieldValue()`、D12 归一化、生成器透传、三框架 fixture 复用                                                |
 |   P2   | Electron PGlite 数据目录与事务宿主   | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)       | PGlite callback transaction 不能跨 IPC 序列化，需要 SQLite 路径不需要的事务 host 协议 | 主进程 data directory、事务 ID 协议或主进程托管 adapter、跨进程类型保真                                            |
@@ -101,8 +101,9 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 1. 先完成 US-304，再允许涉及系统 schema 或 change codec 的新迁移进入发布分支。
 2. US-012 系列可与 US-304 并行设计，但其 DTO 不得重新定义 `bigint/binary` 的值 wire codec。
    系列内部必须按 **US-012a → US-012b → US-012c** 顺序交付；`US-012` 本体自 2026-08-13 起降级为共享契约文档，不直接交付。
-3. US-207 必须先锁定 Tauri/Electron SQLite 的真实连接语义并抽出共享桌面 host 契约；无法保证单连接事务时应 fail-fast，不得降级成伪事务。
-4. US-208 排在 US-207 之后，复用其抽出的 host 契约；两种事务 host 方案（IPC 事务 ID 协议 / adapter 完整托管在主进程）必须先通过同一套事务与事件测试再冻结选择。
+3. US-207 必须先锁定 Electron SQLite 的真实连接语义并抽出共享桌面 host 契约；无法保证单连接事务时应 fail-fast，不得降级成伪事务。
+4. US-208 与 US-210 均排在 US-207 之后，复用其抽出的 host 契约。US-208 的两种事务 host 方案（IPC 事务 ID 协议 /
+   adapter 完整托管在主进程）、US-210 的两种事务方案（配置单连接池 / Rust command 持有事务）都必须先通过同一套事务与事件测试再冻结选择。
 5. US-305 必须排在 US-304 之后：其跨 realm 提交校验建立在 writer lease / epoch fencing 之上，不允许另起一套协调协议。
    epic-006 内部顺序为 **US-305 → US-306 → US-307 → US-308**，后一个依赖前一个的存储布局；US-308 额外要求 US-304 已 Done。
 6. US-703 应复用现有搜索公开 API 和跨框架 parity fixture，不为 PGlite 增加 SQLite 专属 fallback。

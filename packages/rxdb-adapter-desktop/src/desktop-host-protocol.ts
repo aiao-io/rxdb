@@ -87,7 +87,7 @@ export type DesktopHostRequest =
 export interface DesktopHostOpenResult {
   readonly sessionId: string;
   /**
-   * 已解析的**逻辑**位置，仅供诊断与日志（AC#5）。
+   * 已解析的**逻辑**位置，仅供诊断与日志（AC#3）。
    *
    * @remarks
    * 刻意不是物理绝对路径：renderer 拿到物理根目录等于拿到了额外的文件系统情报，
@@ -114,7 +114,7 @@ export interface DesktopHostChangeEventMessage {
  * @remarks
  * 失败也走**正常返回值**而不是 reject：Electron 的 `ipcRenderer.invoke` 在 reject 时只把
  * 错误序列化成字符串，自定义 `Error` 子类与它的 `code` 字段全部丢失。把错误码放进返回值里，
- * AC#6 承诺的「稳定、可判别的错误码」才能真的跨过进程边界活着到达调用方。
+ * AC#4 承诺的「稳定、可判别的错误码」才能真的跨过进程边界活着到达调用方。
  */
 export type DesktopHostResponse =
   | { readonly kind: 'open'; readonly result: DesktopHostOpenResult }

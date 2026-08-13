@@ -72,7 +72,7 @@ describe('DesktopSqliteClient.connect', () => {
     await expect(DesktopSqliteClient.connect(skewed, sqliteStorage)).rejects.toThrowError(/protocol_violation/);
   });
 
-  // AC#6：错误码要跨传输层活着到达调用方，而不是被压平成一句字符串
+  // AC#4：错误码要跨传输层活着到达调用方，而不是被压平成一句字符串
   it('rebuilds the host error code on this side of the transport', async () => {
     const failing = createDesktopSqliteHost({
       resolveDatabasePath: () => {
@@ -213,7 +213,7 @@ describe('DesktopSqliteClient.disconnect', () => {
     await expect(client.execute('SELECT 1')).rejects.toThrowError(/session_closed/);
   });
 
-  // AC#9：在途查询必须先跑完，句柄才能释放
+  // AC#7：在途查询必须先跑完，句柄才能释放
   it('waits for in flight work before releasing the handle', async () => {
     const client = await DesktopSqliteClient.connect(transport, sqliteStorage);
     await client.execute('CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)');

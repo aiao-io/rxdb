@@ -10,6 +10,7 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
+    "@aiao/rxdb-adapter-desktop": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
     "electron": "43.4.0"
   }

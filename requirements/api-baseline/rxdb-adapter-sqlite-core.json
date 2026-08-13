@@ -297,6 +297,10 @@
       "kind": "type"
     },
     {
+      "name": "isReadOnlyStatement",
+      "kind": "value"
+    },
+    {
       "name": "isSameOo1LoadConfig",
       "kind": "value"
     },

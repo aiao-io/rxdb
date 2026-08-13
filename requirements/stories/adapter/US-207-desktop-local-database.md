@@ -1,12 +1,12 @@
 ---
 id: US-207
-title: Electron/Tauri 连接本地数据库
-status: Backlog
+title: Electron 连接本地 SQLite 文件
+status: In Progress
 priority: High
 epic: epic-004-future-features
 created: 2026-08-08
 updated: 2026-08-13
-tags: [adapter, desktop, electron, tauri, sqlite]
+tags: [adapter, desktop, electron, sqlite]
 ---
 
 <!--
@@ -14,23 +14,25 @@ INVEST 检查清单:
 - [x] Independent (独立): 不依赖远程同步或 UI 功能即可交付
 - [x] Negotiable (可协商): 桌面 host 与 renderer 的传输实现可替换
 - [x] Valuable (有价值): 数据落在可备份、可迁移的原生本地存储中
-- [x] Estimable (可估算): 仅覆盖能力矩阵中明确支持的两个 SQLite 组合
-- [x] Small (小): Electron PGlite 已拆至 US-208，本故事收敛为纯 SQLite 路径
-- [x] Testable (可测试): 每个运行时/引擎组合都有持久化、事务和失败路径 AC
+- [x] Estimable (可估算): 单一运行时（Electron）+ 单一引擎（SQLite）
+- [x] Small (小): Electron PGlite 已拆至 US-208、Tauri 已拆至 US-210，本故事收敛为 Electron SQLite
+- [x] Testable (可测试): 持久化、事务、失败路径与打包 smoke test 均有独立 AC
 -->
 
-# 用户故事：Electron/Tauri 连接本地 SQLite 文件
+# 用户故事：Electron 连接本地 SQLite 文件
 
 ## 作为/我想要/以便
 
-**作为** 使用 Aiao 构建 Electron 或 Tauri 桌面应用的开发者
+**作为** 使用 Aiao 构建 Electron 桌面应用的开发者
 **我想要** 将 RxDB 连接到应用本地的 SQLite 文件
 **以便** 数据可以跨应用重启持久化，并能通过桌面系统的文件备份和迁移机制管理，而不是只存在于 WebView 的 OPFS 或 IndexedDB 中
 
-## 拆分说明（2026-08-13）
+## 拆分说明
+
+### 2026-08-13（第一次）：拆出 US-208
 
 本故事原先把 Electron PGlite data directory 与 SQLite 混编，导致 INVEST「Small」不成立：
-PGlite 需要一套 SQLite 路径不需要的 IPC 事务 host。现已按下表完成拆分，本故事收敛为**纯 SQLite**。
+PGlite 需要一套 SQLite 路径不需要的 IPC 事务 host。拆分后本故事收敛为**纯 SQLite**。
 
 | 原 AC        | 归属                                                              |
 | ------------ | ----------------------------------------------------------------- |
@@ -40,63 +42,93 @@ PGlite 需要一套 SQLite 路径不需要的 IPC 事务 host。现已按下表�
 | 11（SQLite） | 本故事                                                            |
 | 11（PGlite） | [US-208](./US-208-electron-pglite-data-directory.md) AC#10        |
 
-桌面 host 契约（renderer client / host protocol / 安全基线）在本故事先抽出，US-208 复用后补 PGlite 事务与事件契约。
+### 2026-08-13（第二次）：拆出 US-210
+
+第一次拆分后 Electron 与 Tauri 仍并列在一条故事里，而两者的**风险量级不对等**：
+Electron 侧只是工程量，Tauri 侧卡在一个尚未验证的外部前提——`@tauri-apps/plugin-sql`
+的 JavaScript API 没有事务对象，无从确认 BEGIN / 业务语句 / COMMIT 是否落在同一物理连接
+（原 AC#3）。该前提为否时 Tauri 侧要回到 plan 阶段重定方案，而 Electron 侧完全不受影响。
+绑在一起等于让已可交付的一半陪着另一半停在 Backlog，因此按下表二次拆分。
+
+| 上一版 AC | 归属                                                                       |
+| --------- | -------------------------------------------------------------------------- |
+| 1         | 本故事 AC#1（Electron SQLite 持久化）                                      |
+| 2 / 3     | [US-210](./US-210-tauri-sqlite-local-database.md) AC#1 / AC#2              |
+| 4 ~ 9     | 本故事，重述为 Electron 单一运行时；US-210 有对应的 Tauri 版               |
+| 10        | 按运行时对半：Electron 三平台留在本故事，Tauri 三平台归 US-210 AC#9        |
+
+桌面 host 契约（renderer client / host protocol / 安全基线）在本故事抽出，US-208 与 US-210 复用。
 
 ## 范围边界
 
 ### In Scope
 
 - 提供明确的桌面存储配置，使用可辨识联合区分存储引擎；配置的联合形状必须能在不破坏现有取值的前提下容纳 [US-208](./US-208-electron-pglite-data-directory.md) 的 PGlite data directory，且不得把 PGlite 描述成单文件数据库。
-- 抽出可被桌面 host 实现的 renderer client / host protocol 契约与 Electron 安全基线，供 US-208 复用。
-- Tauri 使用 `tauri-plugin-sql` 的 SQLite feature 连接应用作用域内的 SQLite 文件，并仅开放 `sql:default` 与写入所需的 `sql:allow-execute` 权限。
+- 抽出可被桌面 host 实现的 renderer client / host protocol 契约与 Electron 安全基线，供 [US-208](./US-208-electron-pglite-data-directory.md) 与 [US-210](./US-210-tauri-sqlite-local-database.md) 复用。
 - Electron 在主进程中打开 SQLite 文件，renderer 只通过类型化、参数校验后的 IPC 使用数据库能力；不得开启 `nodeIntegration` 或关闭 `contextIsolation`/`sandbox`。
-- 两个受支持的 SQLite 组合必须保持现有 RxDB 的查询、事务、变更通知、系统 schema 迁移、writer lease 与加密能力，不允许用功能降级换取文件持久化。
+- 必须保持现有 RxDB 的查询、事务、变更通知、系统 schema 迁移、writer lease 与加密能力，不允许用功能降级换取文件持久化。
 - `disconnect()` 必须等待在途事务和持久化刷新完成，再释放数据库句柄；同一路径允许在当前进程内安全断开并重连。
-- `dev-rxdb-electron` 与 `dev-rxdb-tauri` 提供最小接入示例，并用真实临时文件验证重启后的数据恢复。
+- `dev-rxdb-electron` 提供最小接入示例，并用真实临时文件验证重启后的数据恢复。
 
 ### 能力矩阵
 
-| 运行时   | SQLite 文件 | PGlite data directory                                      |
-| -------- | ----------- | ---------------------------------------------------------- |
-| Electron | 本故事      | [US-208](./US-208-electron-pglite-data-directory.md)       |
-| Tauri    | 本故事      | 不支持（无 Node 主进程，同步 filesystem 契约无法异步代理） |
+| 运行时   | SQLite 文件                                             | PGlite data directory                                      |
+| -------- | ------------------------------------------------------- | ---------------------------------------------------------- |
+| Electron | 本故事                                                  | [US-208](./US-208-electron-pglite-data-directory.md)       |
+| Tauri    | [US-210](./US-210-tauri-sqlite-local-database.md)       | 不支持（无 Node 主进程，同步 filesystem 契约无法异步代理） |
 
 ### Out of Scope
 
 - **Electron PGlite data directory**：整条迁至 [US-208](./US-208-electron-pglite-data-directory.md)，因为它需要一套 SQLite 路径不需要的 IPC 事务 host。
+- **Tauri SQLite 文件**：整条迁至 [US-210](./US-210-tauri-sqlite-local-database.md)，因为 `tauri-plugin-sql` 能否保证单物理连接事务是本故事无法承担的未知量。
 - Tauri 直接打开 PGlite data directory。`tauri-plugin-sql` 的 PostgreSQL feature 是数据库客户端，不是本地 PGlite 引擎；PGlite 自定义 filesystem 又要求同步文件 API，普通异步 Tauri command 无法直接实现。若未来引入 Node/Bun sidecar，必须另立 story 评估打包体积、进程生命周期和 IPC 事务语义。
 - 将 PGlite data directory 打包或伪装成单个 `.pglite` 文件。
 - 连接 MySQL、远程 PostgreSQL 或其他网络数据库。
-- 让用户通过系统文件选择器打开应用数据目录之外的任意数据库；Tauri SQL 的 SQLite 路径基于应用作用域目录，此能力需要独立的路径授权与安全模型。
+- 让用户通过系统文件选择器打开应用数据目录之外的任意数据库；此能力需要独立的路径授权与安全模型。
 - 数据库导入、导出、热备份、损坏修复和格式转换。
 - 监听其他进程直接写入同一 SQLite 文件所产生的实时变更。
 - 浏览器、PWA、移动端与 WebView 内 OPFS/IndexedDB 存储；这些行为继续由现有 adapter 负责。
 
 ## 验收标准
 
-| #   | 前置条件                                                                                    | 操作                                                                  | 预期结果                                                                                                                                                   | 状态 |
-| --- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | Electron 应用配置 SQLite 文件存储                                                           | 首次连接、写入实体、断开并重启应用后再次连接                          | 在同一文件中读回数据；连接期间现有 RxDB 标准 adapter suite 全部通过                                                                                        | ⬜   |
-| 2   | Tauri 应用已启用 `tauri-plugin-sql` 的 SQLite feature、`sql:default` 与 `sql:allow-execute` | 通过应用作用域内的 `sqlite:<name>.sqlite3` 连接、写入、断开并重启应用 | 在同一 SQLite 文件中读回数据；未授予额外 shell 或全文件系统权限                                                                                            | ⬜   |
-| 3   | Tauri SQLite 已连接                                                                         | 在一次 RxDB 事务中执行至少两次写入，并分别测试 commit 与中途抛错      | 所有语句固定在同一物理连接；commit 全部可见，rollback 后全部不可见。若 `tauri-plugin-sql` 的连接池不能保证该语义，连接必须失败并报告能力缺失，不得伪造事务 | ⬜   |
-| 4   | 任一受支持的 SQLite 组合已连接                                                              | 执行查询、变更、事务、分支切换、加密字段解锁与响应式订阅              | 用户可见行为与对应现有 SQLite adapter 一致，标准测试套件无跳过项                                                                                           | ⬜   |
-| 5   | SQLite 文件路径不存在                                                                       | 首次连接                                                              | 仅在已授权的应用作用域中创建存储；返回已解析的逻辑位置用于诊断，不向 renderer 暴露额外文件系统能力                                                         | ⬜   |
-| 6   | 路径无权限、SQLite 文件损坏或 runtime/engine 组合不受支持                                   | 发起连接                                                              | 返回稳定、可判别的错误码与原始原因；不创建同名空库，不回退到 memory/OPFS/IndexedDB                                                                         | ⬜   |
-| 7   | 同一 SQLite 文件已有有效 writer lease 或迁移 owner                                          | 第二个窗口或进程尝试以 writer 身份连接                                | 沿用 [US-304](../collaboration/US-304-writer-lease-migration-fencing.md) 的 writer lease/fencing 契约拒绝冲突写入，不绕过保护或静默切换到另一份数据库      | ⬜   |
-| 8   | SQLite 文件存在应用未知的普通业务表                                                         | Aiao 首次连接并初始化系统 schema                                      | 保留未知表和数据；只创建或迁移 Aiao 自有系统对象，失败时事务回滚                                                                                           | ⬜   |
-| 9   | 存在未提交事务或在途查询                                                                    | 调用 `disconnect()` 或关闭窗口                                        | 停止接受新任务，等待或回滚在途工作，刷新持久化数据并关闭句柄；随后可重命名该 SQLite 文件                                                                   | ⬜   |
-| 10  | 构建打包后的 Electron/Tauri 应用                                                            | 在 macOS、Windows、Linux CI 中运行桌面持久化 smoke test               | Electron SQLite 与 Tauri SQLite 三平台均通过；测试使用真实临时文件而非 mock 或浏览器存储                                                                   | ⬜   |
+| #   | 前置条件                                                 | 操作                                                     | 预期结果                                                                                                                                              | 状态 |
+| --- | -------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | Electron 应用配置 SQLite 文件存储                        | 首次连接、写入实体、断开并重启应用后再次连接             | 在同一文件中读回数据；连接期间现有 RxDB 标准 adapter suite 全部通过                                                                                   | ⚠️   |
+| 2   | Electron SQLite 已连接                                   | 执行查询、变更、事务、分支切换、加密字段解锁与响应式订阅 | 用户可见行为与现有 SQLite adapter 一致，标准测试套件无跳过项                                                                                          | ⚠️   |
+| 3   | SQLite 文件路径不存在                                    | 首次连接                                                 | 仅在已授权的应用作用域中创建存储；返回已解析的逻辑位置用于诊断，不向 renderer 暴露额外文件系统能力                                                    | ✅   |
+| 4   | 路径无权限、SQLite 文件损坏或 runtime/engine 组合不受支持 | 发起连接                                                 | 返回稳定、可判别的错误码与原始原因；不创建同名空库，不回退到 memory/OPFS/IndexedDB                                                                    | ✅   |
+| 5   | 同一 SQLite 文件已有有效 writer lease 或迁移 owner       | 第二个窗口或进程尝试以 writer 身份连接                   | 沿用 [US-304](../collaboration/US-304-writer-lease-migration-fencing.md) 的 writer lease/fencing 契约拒绝冲突写入，不绕过保护或静默切换到另一份数据库 | ⬜   |
+| 6   | SQLite 文件存在应用未知的普通业务表                      | Aiao 首次连接并初始化系统 schema                         | 保留未知表和数据；只创建或迁移 Aiao 自有系统对象，失败时事务回滚                                                                                      | ✅   |
+| 7   | 存在未提交事务或在途查询                                 | 调用 `disconnect()` 或关闭窗口                           | 停止接受新任务，等待或回滚在途工作，刷新持久化数据并关闭句柄；随后可重命名该 SQLite 文件                                                              | ✅   |
+| 8   | 构建打包后的 Electron 应用                               | 在 macOS、Windows、Linux CI 中运行桌面持久化 smoke test  | 三平台均通过；测试使用真实临时文件而非 mock 或浏览器存储                                                                                              | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-> AC#3（Tauri 事务门禁）是本故事最大的未知量，应最先验证；结论为「插件无法保证单连接事务」时，
-> 本故事的 Tauri 部分需要回到 plan 阶段重新定方案，而不是降级为假事务。
->
-> AC#7 依赖 [US-304](../collaboration/US-304-writer-lease-migration-fencing.md) 的 AC2/AC6 收敛。
+### 当前证据
+
+`packages/rxdb-adapter-desktop/src/__tests__/setup.spec.ts` 把 `@aiao/rxdb-adapter-sqlite-core/testing`
+的 21 个共享套件原样跑在桌面工厂上（只排除 `createSqliteClientSuite`，它校验的是 wasm 后端的
+worker 选项组合，桌面客户端不接受任何 worker 选项）。AC#3 / #4 / #6 / #7 另有 host 与 engine 层的直接用例：
+
+| AC  | 证据                                                                                                          |
+| --- | ------------------------------------------------------------------------------------------------------------- |
+| 3   | `desktop-sqlite-host.spec.ts` 「reports a logical location that leaks no filesystem path」                     |
+| 4   | `node-sqlite-engine.spec.ts` 「reports open_failed without leaving an empty database behind」/「database_corrupted」 |
+| 6   | `desktop-sqlite-host.spec.ts` 「preserves unknown business tables that already live in the file」              |
+| 7   | `node-sqlite-engine.spec.ts` 「flushes the pending batch synchronously on close」/「persists committed data across a reopen」/「releases the file handle so the database can be renamed」 |
+
+两条保留项：
+
+- **AC#1** 的共享套件已全绿，但「重启后仍在」目前只有 `apps/dev-rxdb-electron-e2e/src/desktop-persistence.spec.ts`
+  这一条打包 e2e 能证明，而它依赖 `electron-package-dir` 的真实产物 —— 该产物在本地网络受限时会以
+  ETIMEDOUT 失败（见 `packaged-app.ts` 的注释）。产物跑通即可转 ✅。
+- **AC#2** 的「加密字段解锁」不在共享套件覆盖范围内：加密是 `@aiao/rxdb-adapter-encrypted` 的包裹层，
+  与桌面 adapter 的组合尚无用例。其余五项（查询 / 变更 / 事务 / 分支切换 / 响应式订阅）全绿且无跳过。
+
+> AC#5 依赖 [US-304](../collaboration/US-304-writer-lease-migration-fencing.md) 的 AC2/AC6 收敛。
 > 反过来，桌面多窗口与应用重启场景可作为 US-304 AC6「长时间挂起后恢复」缺失证据的来源，两者建议协同排期。
 >
-> AC#10 需要 `apps/dev-rxdb-tauri-e2e`（当前不存在，见「实现文件」）与三平台打包 CI 矩阵。
-> 打包 smoke test 成本高，应只在 release 分支或 tag 触发，不进 PR 门禁。
+> AC#8 需要三平台打包 CI 矩阵。打包 smoke test 成本高，应只在 release 分支或 tag 触发，不进 PR 门禁。
 
 ## 技术笔记
 

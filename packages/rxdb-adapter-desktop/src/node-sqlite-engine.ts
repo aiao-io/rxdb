@@ -37,12 +37,26 @@ export interface NodeSqliteEngineOptions {
    *
    * @remarks
    * 在产生变更的语句返回**之后**的任务里调用（批处理见 {@link NodeSqliteEngineOptions.batchTimeout}），
-   * 唯一的例外是 {@link NodeSqliteEngine.close} 里的收尾 flush。实现方不得抛错：
-   * 此刻写入早已落库，抛错会让调用方误以为这次写失败而重试。
+   * 唯一的例外是 {@link NodeSqliteEngine.close} 里的收尾 flush。实现方不该抛错——
+   * 此刻写入早已落库，没有任何调用方还能对失败做出反应；真抛了也只会被隔离并 log，
+   * 既不会中断同批次的其余分组，也不会传播给写入方。
    */
   readonly onChange: (event: SqliteChangeEvent) => void;
   /** SQLite page cache 大小（KB），默认 {@link DEFAULT_CACHE_SIZE_KB}。 */
   readonly cacheSizeKb?: number;
+  /**
+   * 遇到锁冲突时的重试窗口（毫秒），默认 {@link DEFAULT_BUSY_TIMEOUT_MS}。
+   *
+   * @remarks
+   * 桌面路径上「一个文件多条连接」是常态：每个窗口一条（见 `createDesktopSqliteHost`）。
+   * wasm 后端每个库只有一条连接，从来撞不上锁，所以 sqlite 核心的 `get_init_sql` 里没有这条
+   * pragma——桌面必须自己补，否则第二个窗口的 `BEGIN EXCLUSIVE` 会当场 `database is locked`，
+   * 连 [US-304](../../../requirements/stories/collaboration/US-304-writer-lease-migration-fencing.md)
+   * 的 lease 检查都轮不上跑（AC#5）。
+   *
+   * 0 表示不等待、立刻返回 busy。
+   */
+  readonly busyTimeoutMs?: number;
   /**
    * 变更事件的防抖窗口（毫秒），默认 {@link DEFAULT_BATCH_TIMEOUT}。
    *
@@ -51,6 +65,16 @@ export interface NodeSqliteEngineOptions {
    */
   readonly batchTimeout?: number;
 }
+
+/**
+ * 锁冲突默认重试 5 秒。
+ *
+ * @remarks
+ * 取值要盖住「另一个窗口正在跑一次系统 schema 迁移」这段最长的持锁时间，又不能长到让用户
+ * 觉得应用卡死。迁移在 `BEGIN EXCLUSIVE` 里完成，实测秒级；5 秒留了一个量级的余量，
+ * 超过它基本可以断定对方不是在正常干活，此时报错比继续等更有用。
+ */
+export const DEFAULT_BUSY_TIMEOUT_MS = 5_000;
 
 /** 注册给 SQLite 的通知函数名；触发器体内调用它把行变更捎回 JS。 */
 const NOTIFY_FUNCTION_NAME = 'rxdb_desktop_notify';
@@ -185,7 +209,7 @@ export class NodeSqliteEngine {
    *
    * @remarks
    * 打不开就抛错，**绝不**回退到内存库或另一个位置：用户必须能确信数据确实写进了
-   * 他指定的那个文件（AC#6）。初始化中途失败时会把已开的句柄关掉，不留悬挂连接。
+   * 他指定的那个文件（AC#4）。初始化中途失败时会把已开的句柄关掉，不留悬挂连接。
    *
    * @param options - 引擎配置
    * @returns 已完成初始化、已装好变更通知的引擎
@@ -206,7 +230,7 @@ export class NodeSqliteEngine {
     try {
       // 构造也在 try 里：选项校验失败同样必须把刚开的句柄关掉，否则文件被一直锁住。
       const engine = new NodeSqliteEngine(db, options);
-      engine.#initialize(options.cacheSizeKb ?? DEFAULT_CACHE_SIZE_KB);
+      engine.#initialize(options.cacheSizeKb ?? DEFAULT_CACHE_SIZE_KB, options.busyTimeoutMs ?? DEFAULT_BUSY_TIMEOUT_MS);
       return engine;
     } catch (error) {
       db.close();
@@ -222,7 +246,7 @@ export class NodeSqliteEngine {
    * 执行一条或一组 SQL。
    *
    * @remarks
-   * 结果形状与 `executeOo1Helper` 逐字对齐（AC#4）：至多一个结果集，且只在语句真的产出列时才有；
+   * 结果形状与 `executeOo1Helper` 逐字对齐（AC#2）：至多一个结果集，且只在语句真的产出列时才有；
    * 只读语句的 `rowsAffected` 恒为 0，不泄漏上一条写语句遗留的计数。
    *
    * 多语句脚本逐条 prepare 执行（切分见 {@link splitSqliteScript}），但**不接受绑定参数**：
@@ -267,7 +291,7 @@ export class NodeSqliteEngine {
    * 断开连接并释放文件句柄。
    *
    * @remarks
-   * 关闭前回滚尚未提交的事务并做一次 TRUNCATE checkpoint（AC#9）：前者避免把半截状态留给下次启动，
+   * 关闭前回滚尚未提交的事务并做一次 TRUNCATE checkpoint（AC#7）：前者避免把半截状态留给下次启动，
    * 后者把 WAL 内容并回主库文件，使调用方随后可以直接重命名/备份这个 `.sqlite3`，
    * 而不必额外搬运 `-wal` / `-shm` 旁文件。
    *
@@ -289,7 +313,7 @@ export class NodeSqliteEngine {
     }
   }
 
-  #initialize(cacheSizeKb: number): void {
+  #initialize(cacheSizeKb: number, busyTimeoutMs: number): void {
     this.#db.function(
       NOTIFY_FUNCTION_NAME,
       // directOnly:false 是关键——默认值会禁止在触发器体内调用本函数。
@@ -301,6 +325,9 @@ export class NodeSqliteEngine {
         return null;
       }
     );
+    // 必须排在 get_init_sql 之前：`PRAGMA journal_mode = WAL` 自己就要短暂拿排他锁，
+    // 另一个窗口正在写时它就是第一条会撞锁的语句。放在后面等于让初始化自己裸奔。
+    this.#db.exec(`PRAGMA busy_timeout = ${Math.trunc(busyTimeoutMs)};`);
     // 单文件数据库始终按持久化档位配置：WAL + synchronous=NORMAL。
     this.#db.exec(get_init_sql(cacheSizeKb, true));
     this.#ensureNotifyTriggers();
@@ -379,7 +406,7 @@ export class NodeSqliteEngine {
    * 本方法是在**触发器体内**被调用的——此刻语句还在执行，事务还开着，行还没提交。
    * 早先在 `execute()` 末尾同步 flush，订阅者因此会在提交前就被叫醒去回查这些 rowid，
    * 回查请求排在写入之后，事件相对后续写入整体晚一拍；wasm 后端从来是把事件推到之后的
-   * 宏任务里的，桌面端跟着做，同一份上层代码在两个后端上才会有同样的时序（AC#4）。
+   * 宏任务里的，桌面端跟着做，同一份上层代码在两个后端上才会有同样的时序（AC#2）。
    *
    * `#batchTimer` 每来一个事件就重置（合并连续写入），`#maxWaitTimer` 只在批次首个事件时
    * 启动一次且不再重置，保证持续写入下最多 {@link MAX_BATCH_WAIT_MS} 必定强制发一次。
@@ -403,11 +430,14 @@ export class NodeSqliteEngine {
   }
 
   /**
-   * 派发并清空当前批次。
+   * 派发并清空当前批次，与 `Oo1ClientBase.#flush_pending_events` 同一套语义。
    *
    * @remarks
    * 队列必须在派发**之前**原子换出：留到派发之后再清，任一监听器抛错都会把整批留在
    * `#pendingChanges` 里，下次 flush 连同新事件一起重发，上层把同一条变更处理两遍。
+   *
+   * 回调异常逐分组隔离并 log：调用点是定时器回调，异常逃出去就是主进程的未捕获异常，
+   * 一个订阅者的 bug 会连带整个 Electron 应用一起崩，而此刻写入其实早已落库。
    */
   #flushChanges(): void {
     if (this.#pendingChanges.size === 0) return;
@@ -415,7 +445,11 @@ export class NodeSqliteEngine {
     this.#pendingChanges.clear();
     const recordAt = new Date();
     for (const { type, tableName, rowIds } of batch) {
-      this.#onChange({ type, dbName: 'main', tableName, rowIds, recordAt });
+      try {
+        this.#onChange({ type, dbName: 'main', tableName, rowIds, recordAt });
+      } catch (error) {
+        console.error(`[NodeSqliteEngine] change event listener failed for ${tableName}:`, error);
+      }
     }
   }
 
@@ -432,7 +466,7 @@ export class NodeSqliteEngine {
    * 适配器的建表与写入分属不同 `execute()`，不会踩到。
    *
    * 用 TEMP 触发器而非普通触发器：TEMP 对象只活在本连接的 temp schema 里，永远不会写进用户的
-   * 库文件，因此不会污染他自己的 schema（AC#8），也不会被别的程序看见。
+   * 库文件，因此不会污染他自己的 schema（AC#6），也不会被别的程序看见。
    */
   #ensureNotifyTriggers(): void {
     if (this.#watchedTables.size === WATCH_TABLES.size) return;

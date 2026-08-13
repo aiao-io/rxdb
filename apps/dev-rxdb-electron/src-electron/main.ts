@@ -1,7 +1,15 @@
 import { app, BrowserWindow, ipcMain, net, protocol } from 'electron';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { DEMO_RUN_CHANNEL, parseDemoRequest, type DemoResult } from './ipc-contract';
+// ELEC-23：加载 esbuild 打出来的那份，不是 tsc 的逐文件产物 —— 后者留着一句
+// `require("@aiao/rxdb-adapter-desktop/host")`，而打包后的应用里没有 node_modules。
+// 完整缘由与门禁见 desktop-sqlite-bridge.spec.ts。
+import {
+  createDatabasePathResolver,
+  createDesktopSqliteBridge,
+  type DesktopSqliteBridge
+} from './desktop-sqlite-bridge.bundle.js';
+import { DEMO_RUN_CHANNEL, DESKTOP_HOST_REQUEST_CHANNEL, parseDemoRequest, type DemoResult } from './ipc-contract';
 import {
   APP_ENTRY_URL,
   APP_SCHEME,
@@ -13,6 +21,20 @@ import {
 let win: BrowserWindow | null = null;
 const args = process.argv.slice(1);
 const serve = args.some(val => val === '--serve');
+
+/**
+ * 桌面 SQLite host，首次被 renderer 请求时才建。
+ *
+ * 惰性是有意的：`setupIPC()` 在 app ready 之前就跑，而库目录挂在
+ * `app.getPath('userData')` 下 —— 等到真有请求进来时，ready 早已完成。
+ */
+let desktopSqlite: DesktopSqliteBridge | null = null;
+
+const requireDesktopSqlite = (): DesktopSqliteBridge =>
+  (desktopSqlite ??= createDesktopSqliteBridge({
+    resolveDatabasePath: createDatabasePathResolver(app.getPath('userData')),
+    onDeliveryError: error => console.error('[dev-rxdb-electron] 数据库变更事件送达失败：', error)
+  }));
 
 /** 生产产物根目录：electron-builder 把 `browser/` 放进 Resources。 */
 const rendererRoot = (): string => path.join(process.resourcesPath, 'browser');
@@ -42,6 +64,16 @@ function setupIPC(): void {
       timestamp: Date.now(),
       message: `Hello from main process! Received: ${request.data}`
     };
+  });
+
+  // US-207：桌面 SQLite host。ELEC-08 那句「将来加入有副作用的操作」在这里兑现了 ——
+  // 这条通道能读写真实库文件，少了发起方校验就等于把数据库开放给任意被嵌入的 frame。
+  // 入参本身不在这里验：协议校验、SQL 与绑定值的边界全在 host 内部完成。
+  ipcMain.handle(DESKTOP_HOST_REQUEST_CHANNEL, (event, payload: unknown) => {
+    if (event.senderFrame !== win?.webContents.mainFrame) {
+      throw new Error(`[${DESKTOP_HOST_REQUEST_CHANNEL}] 拒绝来自非主 frame 的调用`);
+    }
+    return requireDesktopSqlite().handle(event.sender, payload);
   });
 }
 
@@ -105,6 +137,14 @@ function createWindow(): BrowserWindow {
     void win.loadURL(APP_ENTRY_URL).catch(reportLoadFailure);
   }
 
+  // AC#7：窗口没了，它开的库句柄必须跟着放。留着的话文件一直被占，
+  // 用户重开窗口会撞上另一份连接的 WAL 锁，症状看着却像「数据库坏了」。
+  // 这里捕获 webContents 而不是读 `win`：'destroyed' 触发时 `win` 已被下面的 'closed' 置空。
+  const contents = win.webContents;
+  contents.on('destroyed', () => {
+    desktopSqlite?.releaseTarget(contents);
+  });
+
   win.on('closed', () => {
     win = null;
   });
@@ -125,6 +165,12 @@ void app
     createWindow();
   })
   .catch(reportLoadFailure);
+
+// 退出前把还开着的连接收干净：SQLite 的 WAL 需要一次 checkpoint 才算落定，
+// 进程被直接杀掉会留下 -wal / -shm，下次启动多一轮恢复。
+app.on('will-quit', () => {
+  desktopSqlite?.closeAll();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

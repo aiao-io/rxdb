@@ -45,7 +45,7 @@ describe('renderer entry', () => {
     expectTypeOf<DesktopHostTransport>().toMatchTypeOf<object>();
   });
 
-  // AC#5：renderer bundle 里出现 node:sqlite 就等于把文件系统能力还给了渲染进程
+  // AC#3：renderer bundle 里出现 node:sqlite 就等于把文件系统能力还给了渲染进程
   it('never reaches node:sqlite from the renderer entry', () => {
     expect([...collectSpecifiers(resolve(SOURCE_ROOT, 'index.ts'))]).not.toContain('node:sqlite');
   });

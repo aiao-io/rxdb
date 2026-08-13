@@ -22,7 +22,8 @@ export {
   DesktopSqliteClient,
   DESKTOP_HOST_TRANSPORT_KEY,
   resolveDesktopHostTransport,
-  type DesktopHostTransport
+  type DesktopHostTransport,
+  type DesktopSqliteClientOptions
 } from './desktop-sqlite-client.js';
 
 export {
