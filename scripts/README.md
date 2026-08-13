@@ -139,10 +139,14 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
   - `pnpm check-migration-release-gate`（CI 上由 Nx release 流水线调用）；
   - `pnpm test-scripts` → 连同其它脚本 spec 一起跑 `check-migration-release-gate.spec.mjs`，用 Node 自带 test runner 覆盖 `validateManifest` 的所有分支。
 - **做什么**：纯函数 `validateManifest(manifest, options)` 校验 `requirements/migration-release.json`：
-  - `$schemaVersion`、`release.kind`（bridge / migration）、`release.version`（semver）、`protocolVersion`、schema/codec upgrade 布尔位；
+  - `$schemaVersion`、`release.kind`（normal / bridge / migration）、`release.version`（semver）、`protocolVersion`、schema/codec upgrade 布尔位；
+  - `release.version` 必须同时等于发布 tag（去掉 `v`）与 `packages/rxdb/package.json` 的 `version`——两处任一漂移即 fail；
+  - `normal` 与 `bridge` 都禁止升级系统 schema / change codec；`normal` 额外要求 `bridge.tag` / `bridge.version` 为 null（不进入 bridge 链）；
   - migration 必须有 `bridge.tag`、bridge 与 release 的协议兼容性、bridge tag 必须存在且是 release 的祖先；
   - `oldBundlePolicy` 不能用被淘汰的 `force-update / cache-invalidation / server-version / database-namespace` 策略；
-  - 通过注入 `bridgeTagExists / bridgeTagIsAncestor / bridgeTagSupportsProtocol` 三个钩子，纯函数可在测试里无网络跑通。
+  - 通过注入 `bridgeTagExists / bridgeTagIsAncestor / bridgeTagSupportsProtocol` 三个钩子和 `packageVersion`，纯函数可在测试里无网络跑通。
+- **三种 kind 怎么选**：日常发布一律 `normal`；只有真正发布 writer lease/upgrade guard 协议的那一次写 `bridge`（它才能被后续 migration 引用为 `bridge.tag`）；带系统 schema 或 change codec 升级的写 `migration`。
+- **清单何时改**：`release.version` 跟着 `packages/rxdb/package.json` 走，**在版本 bump 的同一个提交里更新**；`nx release` 不会替你改清单，漏改会被门禁拦下。
 - **何时手动跑**：改了 `requirements/migration-release.json` 想确认字段没写歪；写 release 流程前 dry-run。
 
 ---

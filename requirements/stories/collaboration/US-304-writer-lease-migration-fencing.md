@@ -63,14 +63,14 @@ INVEST 检查清单:
 | 5   | writer 被杀死或 lease 超时                   | 等待保守的 lease TTL 后重试升级      | 旧 writer 被视为失效，升级可重新获取 fencing 并继续                                                                            | ✅   |
 | 6   | 已迁移后暂停的旧桥接 writer 恢复             | 尝试写入                             | epoch/fencing 校验失败，连接转为只读或要求重连，不产生旧格式 change                                                            | ⚠️   |
 | 7   | lease drain 成功                             | 执行系统 DDL/DML 与 watermark 提交   | guard、schema、watermark、epoch 和业务 trigger 在同一原子提交中完成                                                            | ✅   |
-| 8   | 迁移任意步骤失败或 upgrader 崩溃             | 重新连接并重试                       | 无半迁移状态；过期升级者不能清除其他 owner 的 guard；重试成功且不重复改写历史                                                  | ⚠️   |
+| 8   | 迁移任意步骤失败或 upgrader 崩溃             | 重新连接并重试                       | 无半迁移状态；过期升级者不能清除其他 owner 的 guard；重试成功且不重复改写历史                                                  | ✅   |
 | 9   | lease/guard 表不存在、协议版本过低或状态未知 | 尝试升级                             | 明确报错并中止，不猜测安全、不启用业务 trigger                                                                                 | ✅   |
 | 10  | 真实 SQLite 多进程和 PGlite Worker/Tab 场景  | 运行共享迁移套件                     | 空闲 writer、竞态、崩溃恢复和 stale writer fencing 均通过                                                                      | ✅   |
 | 11  | 仍有桥接版本之前的离线旧 bundle              | 发布迁移版本                         | 发布门禁阻止升级，或通过强制更新/缓存失效/新数据库命名空间隔离；本仓库须存在位于 HEAD 祖先链上的桥接 tag；不得声称 AC13 已完成 | ⚠️   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-## 复核记录（2026-08-11 初版，2026-08-13 更新 AC4 与 bridge tag 依据）
+## 复核记录（2026-08-11 初版，2026-08-13 更新 AC4、AC8、门禁缺口与 bridge tag 依据）
 
 ### 已交付的部分
 
@@ -82,7 +82,7 @@ INVEST 检查清单:
 
 - `v0.0.24` 上的 `requirements/migration-release.json` 声明 `kind=migration`、`bridge.tag=null`、`oldBundlePolicy.enforced=false`，门禁对该清单判定 fail-closed；而 `@aiao/rxdb@0.0.24` 已经是 npm `latest`。门禁没有拦住那次发布，所以“发布门禁阻止升级”从未被真实发布验证过。
 - 至今没有任何 tag 被声明为桥接版本，`oldBundlePolicy` 也从未启用，AC11 列出的三条替代路径（强制更新 / 缓存失效 / 新数据库命名空间）一条都没生效。
-- 现清单已改为 `kind=bridge` / `0.0.25`，`pnpm nx run @aiao/source:migration-release-gate` 与 `migration-release-gate-test` 本地均通过。该桥接版本实际发布后，AC11 才能重新评估。
+- 现清单为 `kind=normal` / `0.0.24`（见下文「门禁自身的两处缺口」），`pnpm nx run @aiao/source:migration-release-gate` 与 `migration-release-gate-test` 本地均通过。桥接版本实际发布后，AC11 才能重新评估。
 
 ### 阻塞项：桥接 tag 指向哪一次发布尚未决策（2026-08-13 复核，前一版依据已失效）
 
@@ -123,12 +123,21 @@ INVEST 检查清单:
 3. 上述各步通过后，清单才允许切 `kind=migration`，并同时填 `bridge.tag=<bridge>`、对应 `bridge.version`、
    `oldBundlePolicy.strategy`（白名单四选一）、`oldBundlePolicy.minimumVersion≥bridge.version`、`enforced=true`。
 
-### 门禁自身的两处缺口（阻塞 AC11 判定，需在切 migration 前修）
+### 门禁自身的两处缺口（已修复，2026-08-13）
 
-| 缺口                                                                                           | 影响                                                                                                                                                                                           |
-| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `release.kind` 只接受 `bridge \| migration`，没有 `normal`                                     | 普通 patch 发布被迫自称 `bridge`，「桥接版本」语义被稀释；将来切 `kind=migration` 时无法判断 `bridge.tag` 该指向哪一次发布。需新增 `normal`（禁止 schema/codec 升级、不进入 bridge 链）        |
-| 门禁只把 `release.version` 与 git tag 名对比，不校验 `packages/rxdb/package.json` 的 `version` | 清单可长期停在陈旧值而无人察觉（当前清单 `0.0.25`，`packages/rxdb/package.json` 仍为 `0.0.24`），正是 0.0.24 事故的同类形态。需加一条 `release.version === packages/rxdb/package.json.version` |
+| 缺口                                                                                           | 影响                                                                                                                          | 修复                                                                                                                                                |
+| ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `release.kind` 只接受 `bridge \| migration`，没有 `normal`                                     | 普通 patch 发布被迫自称 `bridge`，「桥接版本」语义被稀释；将来切 `kind=migration` 时无法判断 `bridge.tag` 该指向哪一次发布    | 新增 `normal`：与 `bridge` 一样禁止 schema/codec 升级，但强制 `bridge.tag`/`bridge.version` 为 `null`，不进入 bridge 链                             |
+| 门禁只把 `release.version` 与 git tag 名对比，不校验 `packages/rxdb/package.json` 的 `version` | 清单可长期停在陈旧值而无人察觉（修复前清单 `0.0.25`，`packages/rxdb/package.json` 仍为 `0.0.24`），正是 0.0.24 事故的同类形态 | 新增 `release.version === packages/rxdb/package.json.version`，且**常态生效**而非仅发布时——tag 时两者必然相等，这条校验的全部价值就在于平时发现漂移 |
+
+两条校验各配红测试（`scripts/check-migration-release-gate.spec.mjs` 现 28 例全绿）。
+package.json 绑定上线后立刻抓到了它要抓的东西：签入清单 `0.0.25` 与包 `0.0.24` 不一致，`签入的 migration-release.json 通过结构校验` 转红。
+
+**因此改动了发布产物** `requirements/migration-release.json`：`kind` 由 `bridge` 改为 `normal`、`version` 由 `0.0.25` 改为 `0.0.24`。
+理由是绑定要求清单与 `packages/rxdb/package.json`（`0.0.24`）一致，而 `normal` 是不预设立场的取值——
+它既不追认 `v0.0.24` 为桥接版本，也不预先声明 `v0.0.25` 是桥接版本，把关闭条件第 0 步的决策原样留给发布方。
+副作用是原先「下一版是 bridge」的意图从清单里消失了，该意图现记录在关闭条件第 0 步。
+之所以不保留原值，是因为让门禁长期恒红正是本 story 记录的 0.0.24 失效形态。
 
 ### ⚠️ 项的剩余条件
 
@@ -137,7 +146,26 @@ INVEST 检查清单:
 | 1   | 协议常量与建表已就位；「桥接版本已发布」的判定基准是**本仓库存在被声明为桥接的 tag 且为 HEAD 祖先**，不是 npm dist-tag；该 tag 选 `v0.0.24` 还是 `v0.0.25` 见上文关闭条件第 0 步  |
 | 2   | 唯一 writerId、按 `(databaseId, writerId)` 冲突更新与数据库时间心跳已实现，待在真实多 Tab/Worker/进程下复核并发注册不互相覆盖                                                     |
 | 6   | 现有用例通过模拟 epoch 提升验证 fencing，待补长时间挂起的浏览器 Tab 恢复后的真实表现；[US-207](../adapter/US-207-desktop-local-database.md) 的桌面多窗口/重启场景可作为该证据来源 |
-| 8   | 回滚与过期 owner 保护已有用例，但 `failed` 是需要人工恢复的终态，恢复步骤尚未写入 `website/docs/migration/schema.md`（该文件当前 `failed` 零命中）                                |
+
+### AC8 恢复文档（已交付，2026-08-13）——`failed` 并不可达，本条剩余条件的前提有误
+
+本条剩余条件原写作「`failed` 是需要人工恢复的终态，恢复步骤尚未写入文档」。实测这个前提不成立：
+
+| 状态        | 是否有生产代码写入                                                                                                                                        | 失败后是否滞留                                                                                                                     |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `failed`    | **没有**。在 `packages/rxdb/src/system/`、`rxdb-adapter-sqlite-core/src/`、`rxdb-adapter-pglite/src/` 内只有三处类型级出现（状态联合、错误码、docstring） | —                                                                                                                                  |
+| `migrating` | 有                                                                                                                                                        | **不会**。整个 `migrateSystemSchema()` 在单事务内（SQLite `BEGIN EXCLUSIVE` L446–L623 / ROLLBACK L628；PGlite 同形），异常整体回滚 |
+| `draining`  | 有                                                                                                                                                        | **会**。排空遇到活动 lease 时**故意先提交再抛错**（SQLite L544–L548；PGlite L856 `return 'active-writer'` + L965 throw）           |
+
+即真正需要恢复说明的不是 `failed` 而是 `draining`：该窗口内所有 writer（含挡住升级的那个）都拿 `writer_guard_draining`，
+且 TTL 到期只让 guard 可被重新认领（`assertRxDBUpgradeClaimable` 在 `ownerActive === false` 时放行），
+必须有一次成功的 `connect()` 才会真正写回 `open`——纯等待不会自愈。
+
+因此 [`website/docs/migration/schema.md`](../../../website/docs/migration/schema.md) 新增「升级 guard 状态与恢复」一节，
+如实写四个状态的写入方与滞留性、`draining` 的自愈路径、两张表的巡检 SQL，以及手工复位的前置确认和「不要改 `epoch`/`minProtocol`」的红线，
+而**不**为不可达的 `failed` 编造恢复流程——只说明它是协议预留状态，若真读到则不是 RxDB 写的。
+
+若日后有代码路径开始写 `failed`，需回来补该状态的真实恢复步骤。
 
 ### AC4 backend conformance 测试（已交付，2026-08-13）
 
@@ -217,7 +245,7 @@ open -> draining -> migrating -> open
 - `packages/rxdb-adapter-pglite/src/` — PGlite lease 表、行锁/表锁和 writer guard
 - `packages/rxdb-test/src/testing/` — 多 realm、崩溃恢复与 stale writer 套件
 - `scripts/check-migration-release-gate.mjs` — 新增 `kind=normal`、清单与 `packages/rxdb/package.json` 版本绑定
-- `website/docs/migration/schema.md` — 发布顺序、单向迁移、旧 bundle 限制与 `failed` 终态的人工恢复步骤（AC8）
+- `website/docs/migration/schema.md` — 发布顺序、单向迁移、旧 bundle 限制，以及「升级 guard 状态与恢复」（`draining` 滞留自愈、手工复位红线、`failed` 为协议预留状态）（AC8）
 
 ## References
 

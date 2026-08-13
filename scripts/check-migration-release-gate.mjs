@@ -5,8 +5,10 @@
  * 输入：`requirements/migration-release.json`（由 release 流程维护）。
  *
  * 校验项：
- *   - $schemaVersion、release.kind、release.version（semver）、protocolVersion；
- *   - systemSchemaUpgrade / changeCodecUpgrade 布尔位；
+ *   - $schemaVersion、release.kind（normal / bridge / migration）、release.version（semver）、protocolVersion；
+ *   - release.version 必须同时匹配发布 tag 与 `packages/rxdb/package.json` 的 version；
+ *   - systemSchemaUpgrade / changeCodecUpgrade 布尔位；normal 与 bridge 一律禁止升级；
+ *   - normal 不进入 bridge 链（bridge.tag / bridge.version 必须为 null）；
  *   - migration 必须指向已发布的 bridge tag，且协议兼容；
  *   - migration 的 oldBundlePolicy 必须启用，且 strategy 取自受支持白名单
  *     （force-update / cache-invalidation / server-version / database-namespace）。
@@ -25,6 +27,17 @@ const DEFAULT_MANIFEST_PATH = fileURLToPath(new URL('../requirements/migration-r
 
 // 严格 semver（不允许前导 0，允许预发布 / 构建号）。
 const SEMVER_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/;
+
+/**
+ * 发布种类。`normal` 是普通发布：与 `bridge` 一样禁止 schema/codec 升级，
+ * 但**不进入 bridge 链**——它不发布 writer lease 协议，不能被后续 migration
+ * 引用为 `bridge.tag`。缺了 `normal` 时普通 patch 只能自称 `bridge`，
+ * 「桥接版本」语义会被稀释到无法判断 `bridge.tag` 该指向哪一次发布。
+ */
+const RELEASE_KINDS = ['normal', 'bridge', 'migration'];
+
+// 禁止升级系统 schema / change codec 的发布种类。
+const NON_MIGRATION_KINDS = new Set(['normal', 'bridge']);
 
 // 旧 bundle 处置策略白名单：migration 发布必须从中选一项，未列出的值一律拒绝。
 const SUPPORTED_OLD_BUNDLE_STRATEGIES = new Set([
@@ -62,7 +75,7 @@ const compareVersions = (left, right) => {
 /**
  * Validate the checked-in release manifest without making network calls.
  * @param {unknown} manifest
- * @param {{ bridgeTagExists?: (tag: string) => boolean, bridgeTagIsAncestor?: (tag: string) => boolean, bridgeTagSupportsProtocol?: (tag: string) => boolean, releaseTag?: string }} [options]
+ * @param {{ bridgeTagExists?: (tag: string) => boolean, bridgeTagIsAncestor?: (tag: string) => boolean, bridgeTagSupportsProtocol?: (tag: string) => boolean, releaseTag?: string, packageVersion?: string }} [options]
  * @returns {string[]}
  */
 export const validateManifest = (manifest, options = {}) => {
@@ -72,12 +85,18 @@ export const validateManifest = (manifest, options = {}) => {
 
   const release = manifest.release;
   if (!isRecord(release)) return ['release must be an object'];
-  if (release.kind !== 'bridge' && release.kind !== 'migration') {
-    errors.push('release.kind must be bridge or migration');
+  if (!RELEASE_KINDS.includes(release.kind)) {
+    errors.push(`release.kind must be ${RELEASE_KINDS.slice(0, -1).join(', ')} or ${RELEASE_KINDS.at(-1)}`);
   }
   if (!isSemver(release.version)) errors.push('release.version must be a semver version');
   if (options.releaseTag && options.releaseTag !== `v${release.version}`) {
     errors.push(`release.version ${release.version} does not match tag ${options.releaseTag}`);
+  }
+  // 清单版本必须与发布产物同步推进；只改其一会让清单长期停在陈旧值而无人察觉。
+  if (options.packageVersion && options.packageVersion !== release.version) {
+    errors.push(
+      `release.version ${release.version} does not match packages/rxdb/package.json version ${options.packageVersion}`
+    );
   }
   if (!Number.isInteger(release.protocolVersion) || release.protocolVersion < 1) {
     errors.push('release.protocolVersion must be a positive integer');
@@ -120,6 +139,8 @@ export const validateManifest = (manifest, options = {}) => {
     ) {
       errors.push(`bridge.tag ${bridge.tag} does not contain the writer lease protocol`);
     }
+  } else if (release.kind === 'normal' && (bridge.tag !== null || bridge.version !== null)) {
+    errors.push('normal releases must leave bridge.tag and bridge.version null');
   }
 
   const policy = manifest.oldBundlePolicy;
@@ -141,8 +162,8 @@ export const validateManifest = (manifest, options = {}) => {
     }
   }
 
-  if (release.kind === 'bridge' && (release.systemSchemaUpgrade || release.changeCodecUpgrade)) {
-    errors.push('bridge releases cannot upgrade system schema or change codec');
+  if (NON_MIGRATION_KINDS.has(release.kind) && (release.systemSchemaUpgrade || release.changeCodecUpgrade)) {
+    errors.push(`${release.kind} releases cannot upgrade system schema or change codec`);
   }
   if (release.kind === 'migration' && !release.systemSchemaUpgrade && !release.changeCodecUpgrade) {
     errors.push('migration releases must upgrade system schema or change codec');
@@ -189,6 +210,10 @@ const gitTagSupportsProtocol = tag => {
 
 const loadManifest = async manifestPath => JSON.parse(await readFile(manifestPath, 'utf8'));
 
+// 清单声明的版本必须与真正被发布的 `@aiao/rxdb` 版本一致。
+const PACKAGE_JSON_PATH = fileURLToPath(new URL('../packages/rxdb/package.json', import.meta.url));
+const loadPackageVersion = async () => JSON.parse(await readFile(PACKAGE_JSON_PATH, 'utf8')).version;
+
 const run = async () => {
   const args = process.argv.slice(2);
   if (!args.includes('--check')) {
@@ -203,7 +228,8 @@ const run = async () => {
     bridgeTagExists: gitTagExists,
     bridgeTagIsAncestor: gitTagIsAncestor,
     bridgeTagSupportsProtocol: gitTagSupportsProtocol,
-    releaseTag
+    releaseTag,
+    packageVersion: await loadPackageVersion()
   });
   if (errors.length > 0) {
     console.error(`Migration release gate blocked ${manifestPath}:`);
