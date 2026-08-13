@@ -2,7 +2,7 @@ import { ElectronApplication, Page, _electron as electron, expect, test } from '
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { launchEnv, resolveExecutable } from './packaged-app';
+import { HIDE_WINDOW_ENV, launchEnv, resolveExecutable } from './packaged-app';
 
 /**
  * ELEC-10：对 `electron-builder --dir` 真实产物的打包 smoke。
@@ -69,6 +69,16 @@ test.describe('打包产物 smoke', () => {
     const url = page.url();
     expect(url).toMatch(/^app:\/\/-\//);
     expect(url).toContain('index.html');
+  });
+
+  // 窗口不显示是这套件的运行前提，不是锦上添花：一轮 e2e 要把产物连开三次，
+  // 每次弹窗都会在 macOS 上抢走焦点与菜单栏。接线（launchEnv 写变量、主进程读变量）
+  // 一旦漂移，其余用例全都照样绿 —— 症状只是窗口又开始弹，没人会因此去查代码。
+  // 这条断言把「没弹窗」变成可判定的事实；显式 =0 时跳过，那是排查用的逃生口。
+  test('窗口隐藏运行，不抢焦点', async () => {
+    test.skip(process.env[HIDE_WINDOW_ENV] === '0', '本次显式要求显示窗口');
+    const visible = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map(w => w.isVisible()));
+    expect(visible).toEqual([false]);
   });
 
   // handler 的越界判定（resolveAppAssetPath）有单测，但「注册没生效 / 根目录指错」

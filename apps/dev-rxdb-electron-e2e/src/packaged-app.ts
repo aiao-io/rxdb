@@ -63,9 +63,26 @@ export function resolveExecutable(): string {
 }
 
 /**
+ * 让主进程隐藏窗口的环境变量名，与 `main.utils.ts` 的 `HIDE_WINDOW_ENV` 一致。
+ *
+ * @remarks
+ * 写死而不 import：本文件跑在打包产物之外的纯 Node 进程里，import 主进程模块要把
+ * 整条 electron 依赖链拖进 e2e 的 tsconfig 里。名字漂移不会让用例变红，只会让窗口
+ * 重新弹出来 —— 所以两侧各有一条钉字面量的用例：主进程侧在 `main.utils.spec.ts`，
+ * 本侧在 `electron-smoke.spec.ts` 的「窗口不显示」。
+ */
+export const HIDE_WINDOW_ENV = 'DEV_RXDB_ELECTRON_HIDE_WINDOW';
+
+/**
  * 启动打包产物时传给子进程的环境变量。
  *
  * @remarks
+ * **窗口默认隐藏**：一轮 e2e 要把产物连开三次，每次都会在 macOS 上抢焦点、切菜单栏。
+ * 隐藏后渲染进程照常加载，Playwright 走 CDP 也照常操作（主进程那侧同时关掉了
+ * 后台节流，否则 rAF 停摆会让可操作性检查全部超时）。
+ * 用 `??=` 而不是直接赋值：`DEV_RXDB_ELECTRON_HIDE_WINDOW=0 pnpm nx e2e dev-rxdb-electron-e2e`
+ * 就是「这次我要看着窗口跑」的逃生口，排查失败用例时用得上。
+ *
  * 必须显式传入，不能让 Playwright 继承 `process.env`：**任何 Electron 宿主都会给自己
  * 派生的子进程设 `ELECTRON_RUN_AS_NODE=1`**（VS Code 的集成终端、扩展宿主是最常见的一个）。
  * `_electron.launch()` 不过滤这个变量，于是打包产物以纯 Node 启动 —— 没有 BrowserWindow，
@@ -76,12 +93,13 @@ export function resolveExecutable(): string {
  * 症状还有迷惑性：同一份产物在 VS Code 终端里 7 条全红、在系统终端里 7 条全绿，
  * 于是很容易被归因成打包产物本身有问题。剥掉这个变量，结论就不再取决于从哪里启动。
  *
- * @returns 去掉 `ELECTRON_RUN_AS_NODE` 后的当前进程环境变量
+ * @returns 去掉 `ELECTRON_RUN_AS_NODE`、补上隐藏窗口开关后的当前进程环境变量
  */
 export function launchEnv(): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
     if (key !== 'ELECTRON_RUN_AS_NODE' && value !== undefined) env[key] = value;
   }
+  env[HIDE_WINDOW_ENV] ??= '1';
   return env;
 }

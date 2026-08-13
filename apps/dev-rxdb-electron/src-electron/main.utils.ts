@@ -135,6 +135,33 @@ export const isAllowedNavigation = (targetUrl: string, currentUrl: string | unde
   return target.origin === current.origin;
 };
 
+/**
+ * 让窗口以隐藏方式启动的环境变量名。
+ *
+ * @remarks
+ * 给 e2e 用的。打包 e2e 要把真实产物连开好几次（`electron-smoke` 一次、
+ * `desktop-persistence` 两次），每一次都会在 macOS 上抢走焦点、切走菜单栏 ——
+ * 跑一轮下来键盘敲到哪个应用里全凭运气。
+ *
+ * 这是**跨进程契约**：主进程在这里读，e2e 的 `packaged-app.ts` 里的 `launchEnv()` 写。
+ * 两侧各写一份字面量（理由同该文件里 `BRIDGE_KEY` 的注释：e2e 跑在打包产物之外的
+ * 纯 Node 进程里，import 主进程模块要把整条依赖链拖进去），因此
+ * `main.utils.spec.ts` 里有一条把字面量钉死的用例 —— 改名不会让任何行为变红，
+ * 只会让窗口重新弹出来。
+ *
+ * 取值只认 `'1'`，于是 `DEV_RXDB_ELECTRON_HIDE_WINDOW=0` 天然就是「这次我要看着窗口跑」
+ * 的逃生口（见 `launchEnv()` 的 `??=`）。
+ */
+export const HIDE_WINDOW_ENV = 'DEV_RXDB_ELECTRON_HIDE_WINDOW';
+
+/**
+ * 本次启动是否隐藏窗口。
+ *
+ * @param env - `process.env`
+ * @returns 需要隐藏则 `true`
+ */
+export const shouldHideWindow = (env: Record<string, string | undefined>): boolean => env[HIDE_WINDOW_ENV] === '1';
+
 /** 端口取值范围（TCP 端口号，排除 0）。 */
 const MIN_PORT = 1;
 const MAX_PORT = 65535;

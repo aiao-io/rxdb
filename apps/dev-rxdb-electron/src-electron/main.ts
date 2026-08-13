@@ -15,12 +15,15 @@ import {
   APP_SCHEME,
   isAllowedNavigation,
   resolveAppAssetPath,
-  resolveDevServerPort
+  resolveDevServerPort,
+  shouldHideWindow
 } from './main.utils';
 
 let win: BrowserWindow | null = null;
 const args = process.argv.slice(1);
 const serve = args.some(val => val === '--serve');
+/** e2e 专用：窗口照常创建与加载，只是不显示。见 {@link shouldHideWindow}。 */
+const hideWindow = shouldHideWindow(process.env);
 
 /**
  * 桌面 SQLite host，首次被 renderer 请求时才建。
@@ -100,10 +103,18 @@ function createWindow(): BrowserWindow {
   win = new BrowserWindow({
     width: 900,
     height: 670,
+    // 隐藏模式下窗口从不 show()：渲染进程照常加载、照常跑，Playwright 走 CDP 也照常操作。
+    show: !hideWindow,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // 关掉后台节流是隐藏窗口的**必要条件**，不是顺手加的优化：
+      // Chromium 把不可见的页面当后台页 —— rAF 完全停摆、定时器降到约 1s 一次。
+      // Playwright 的可操作性检查（元素稳定性）就是靠 rAF 轮询的，停摆后
+      // 每一次 click() 都只会等到超时，报出来的样子却像是应用挂了。
+      // 置 false 后 Electron 让该窗口始终按「可见」对待，帧照常绘制与交换。
+      backgroundThrottling: !hideWindow,
       preload: path.join(__dirname, 'preload.js')
     }
   });
@@ -160,6 +171,10 @@ setupIPC();
 void app
   .whenReady()
   .then(() => {
+    // 隐藏模式下连 Dock 图标一起收掉：macOS 上应用一启动就会切走焦点与菜单栏，
+    // 哪怕窗口不可见 —— 对着 e2e 跑一整轮的人来说，这和弹窗一样打断输入。
+    // 非 macOS 上 `app.dock` 是 undefined，可选链把它变成空操作。
+    if (hideWindow) app.dock?.hide();
     // handler 必须先于 loadURL 注册，否则入口文档本身就 404
     if (!serve) serveRendererOverAppScheme();
     createWindow();

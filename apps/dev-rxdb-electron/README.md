@@ -66,6 +66,27 @@ corepack pnpm nx run dev-rxdb-electron:electron-build
 
 这只切换构建工具下载源，不改变应用产物或运行时行为。其他平台产物仍必须在对应平台完成实际构建后再宣称可用。
 
+## 打包 e2e
+
+```bash
+corepack pnpm nx e2e dev-rxdb-electron-e2e
+```
+
+该 target 依赖 `electron-package-dir`（`--dir` 解包产物），Playwright 直接拉起真实可执行文件。
+
+跑一轮会把产物连开三次，因此**窗口默认隐藏**：`packaged-app.ts` 的 `launchEnv()` 会传入
+`DEV_RXDB_ELECTRON_HIDE_WINDOW=1`，主进程据此以 `show: false` 建窗，并关掉后台节流
+（不关的话 Chromium 会把不可见页面的 rAF 停掉，Playwright 的可操作性检查会全部超时）。
+macOS 上同时调用 `app.dock.hide()`，避免应用启动时切走焦点与菜单栏。
+
+排查失败用例需要肉眼看窗口时，显式关掉这个开关：
+
+```bash
+DEV_RXDB_ELECTRON_HIDE_WINDOW=0 corepack pnpm nx e2e dev-rxdb-electron-e2e
+```
+
+该变量只影响窗口是否显示，不改变加载路径、协议与存储位置。
+
 ## 项目结构
 
 ```text
