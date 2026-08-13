@@ -46,7 +46,7 @@
   },
   "devDependencies": {
     "ms": "^2.1.3",
-    "vitest": "4.1.5"
+    "vitest": "4.1.10"
   },
   "peerDependencies": {
     "vitest": ">=4.0.0"

@@ -28,7 +28,7 @@
     "react-dom": "^19.2.8",
     "simple-statistics": "^7.10.0",
     "tailwindcss": "^4.3.3",
-    "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/b9ddadce32480857cde28e7b1512cf45fa08ab73"
+    "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",

@@ -8,10 +8,10 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '../..');
-const WA_SQLITE_COMMIT = 'b9ddadce32480857cde28e7b1512cf45fa08ab73';
+const WA_SQLITE_COMMIT = '2bf1c59d89eb6497535a4217bc62fec68a0bb994';
 const WA_SQLITE_TARBALL = `https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/${WA_SQLITE_COMMIT}`;
 const WA_SQLITE_INTEGRITY =
-  'sha512-BJz302d7tvcbe83MUepicweNgNo330Y4rENDo9C5SeNXkAGGhMwaQRXqkp2lJmlxUcOnOHL7B9SwcaYo4Tv7mw==';
+  'sha512-aF923cT8vn7YQ/DuEqconOCe47peo8CmG0Cp28pFqASwYznZhidx5E5w8f0UkhfNjEaM7rNxmykIDrqtL7kC4g==';
 const VENDORED_ASSET_INTEGRITY = [
   {
     path: 'packages/rxdb-adapter-miniprogram/assets/wa-sqlite.cjs',

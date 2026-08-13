@@ -62,7 +62,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 - **触发**：`package.json#preinstall` 第一段（包管理器解析前硬失败）；也可手动 `pnpm audit:wa-sqlite`。CI 上同样会跑（无 CI 跳过逻辑）。
 - **做什么**：
-  1. 读 `package.json / benchmarks/package.json / examples/angular-todo/package.json / packages/rxdb-adapter-wa-sqlite/package.json / packages/rxdb-adapter-miniprogram/package.json`，断言 `dependencies.wa-sqlite` 都锁定到 `https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/b9ddadce32480857cde28e7b1512cf45fa08ab73`；
+  1. 读 `package.json / benchmarks/package.json / examples/angular-todo/package.json / packages/rxdb-adapter-wa-sqlite/package.json / packages/rxdb-adapter-miniprogram/package.json`，断言 `dependencies.wa-sqlite` 都锁定到 `https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994`；
   2. 解析 `pnpm-lock.yaml` 中 `wa-sqlite@<url>` 段，断言 `tarball / integrity` 字段与上面的固定值一致，并扫掉任何 `codeload.github.com/.../refs/tags/`（即可变 tag URL）形态的残留；
   3. 对 `packages/rxdb-adapter-miniprogram/assets/wa-sqlite.cjs` 和 `.wasm` 校验固定 SHA-256；
   4. 传 `--archive <path-to-tgz>` 时，对下载的本地 tarball 再算一次 `sha512-<base64>`，与上面硬编码的完整性指纹对齐。

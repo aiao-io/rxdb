@@ -40,7 +40,7 @@
     "daisyui": "^5.5.19",
     "rxjs": "~7.8.2",
     "tslib": "^2.8.1",
-    "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/b9ddadce32480857cde28e7b1512cf45fa08ab73"
+    "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994"
   },
   "devDependencies": {
     "@angular/build": "^21.2.2",
