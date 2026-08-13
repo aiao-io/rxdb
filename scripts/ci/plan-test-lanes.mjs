@@ -47,6 +47,11 @@ export const SUPABASE_PROJECTS = ['rxdb-adapter-supabase', 'dev-rxdb-supabase'];
  *
  * 少数几个当轮命中远端缓存、拿不到真实耗时的项目（utils / code-editor*），
  * 保留改造前的旧估值，不填 0 —— 填 0 会让它们在冷跑时被当成免费的。
+ *
+ * `rxdb-adapter-desktop` 是那轮 CI 之后才建的包，表里没有它的真值。它的 21 是换算来的：
+ * 本地同一次冷跑（`--skip-nx-cache`）里，它与 `rxdb-adapter-sqlite-core` 的 test 任务耗时之比
+ * 约为 0.74，而后者在 CI 上是 28s。两者同为 node 环境下的 SQLite 适配器套件，工作量构成相近，
+ * 这个比值才有意义 —— 换成浏览器或 Docker 打头的项目就不能这么推。等它进过一轮冷跑 CI 就用真值覆盖。
  */
 export const WEIGHTS = {
   'rxdb-adapter-pglite': 261,
@@ -61,6 +66,7 @@ export const WEIGHTS = {
   'rxdb-adapter-supabase': 32,
   'rxdb-adapter-sqlite-core': 28,
   'rxdb-adapter-sqliteai': 25,
+  'rxdb-adapter-desktop': 21,
   'rxdb-plugin-graph': 21,
   'rxdb-adapter-sqlite': 20,
   'angular-todo': 16,

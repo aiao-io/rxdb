@@ -52,7 +52,7 @@ describe('open', () => {
       kind: 'open',
       result: {
         protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION,
-        beginTransactionSql: 'BEGIN;',
+        beginTransactionSql: 'BEGIN IMMEDIATE;',
         beginSystemMigrationTransactionSql: 'BEGIN EXCLUSIVE;'
       }
     });
@@ -149,6 +149,65 @@ describe('execute', () => {
     const [row] = (await execute(sessionId, 'SELECT big, blob FROM t')).results[0]?.rows ?? [];
     expect(row?.[0]).toBe(9007199254740993n);
     expect(Array.from(row?.[1] as Uint8Array)).toEqual([7, 8]);
+  });
+});
+
+// 两个窗口 = 同一个文件上的两条连接，撞锁是常态。等待必须发生在异步层：
+// 所有连接共享 Electron 主进程的那一条线程，同步等锁会把持锁方的 COMMIT 一起卡死。
+describe('busy retry', () => {
+  it('waits for the holder to commit instead of failing the transaction start', async () => {
+    const holder = await openSession();
+    const waiter = await openSession();
+    await execute(holder, 'CREATE TABLE t (id INTEGER PRIMARY KEY)');
+    await execute(holder, 'BEGIN IMMEDIATE;');
+    await execute(holder, 'INSERT INTO t (id) VALUES (1)');
+
+    const started = execute(waiter, 'BEGIN IMMEDIATE;\nPRAGMA defer_foreign_keys = ON;');
+    // 只有让出事件循环，持锁方的 COMMIT 才轮得到——这正是同步等锁做不到的那一步。
+    await execute(holder, 'COMMIT;');
+    await started;
+
+    await execute(waiter, 'INSERT INTO t (id) VALUES (2)');
+    await execute(waiter, 'COMMIT;');
+    expect((await execute(holder, 'SELECT id FROM t ORDER BY id')).results[0]?.rows).toEqual([[1], [2]]);
+  });
+
+  it('reports database_busy once the retry budget runs out', async () => {
+    const impatient = createDesktopSqliteHost({
+      resolveDatabasePath: databaseName => join(workspace, databaseName),
+      postChange: message => changes.push(message),
+      busyRetryBudgetMs: 20
+    });
+    try {
+      const holder = await openSessionOn(impatient);
+      const waiter = await openSessionOn(impatient);
+      await impatient.handle({ kind: 'execute', sessionId: holder, sql: 'BEGIN IMMEDIATE;', bindings: [] });
+      await impatient.handle({ kind: 'execute', sessionId: holder, sql: 'CREATE TABLE t (id INTEGER)', bindings: [] });
+
+      // 持锁方一直不提交：等到预算耗尽必须报 `database_busy` 而不是 `statement_failed`，
+      // 调用方要凭这个码分辨「稍后重试」和「这条 SQL 本身是错的」。
+      expect(
+        await impatient.handle({ kind: 'execute', sessionId: waiter, sql: 'BEGIN IMMEDIATE;', bindings: [] })
+      ).toMatchObject({ kind: 'error', code: 'database_busy' });
+    } finally {
+      impatient.closeAll();
+    }
+  });
+
+  it('does not retry statements inside an open transaction', async () => {
+    const holder = await openSession();
+    const waiter = await openSession();
+    await execute(holder, 'CREATE TABLE t (id INTEGER PRIMARY KEY)');
+    await execute(waiter, 'BEGIN;');
+    await execute(holder, 'BEGIN IMMEDIATE;');
+    await execute(holder, 'INSERT INTO t (id) VALUES (1)');
+
+    // 事务中途撞锁不该被 host 悄悄重发：此刻快照已经作废，重来与否只有调用方知道。
+    const start = performance.now();
+    expect(await host.handle({ kind: 'execute', sessionId: waiter, sql: 'INSERT INTO t (id) VALUES (2)' })).toMatchObject(
+      { kind: 'error', code: 'database_busy' }
+    );
+    expect(performance.now() - start).toBeLessThan(1_000);
   });
 });
 

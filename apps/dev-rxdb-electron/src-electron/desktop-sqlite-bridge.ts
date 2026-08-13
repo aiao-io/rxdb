@@ -28,8 +28,18 @@ import { DESKTOP_HOST_CHANGE_CHANNEL } from './ipc-contract';
  * @remarks
  * 单独一层而不是直接铺在 `userData` 根下：那里还躺着 Chromium 的 Cache、Local Storage 等一堆东西，
  * 混在一起时「哪些文件是应用数据」这个问题没法回答，备份和迁移也就无从下手。
+ *
+ * 名字**不能**叫 `databases`：那是 Chromium 自己在 userData 下的 WebSQL 目录，
+ * 它的存储层启动时会把目录里没有登记过的文件全部删掉 —— 我们的库文件正是「没登记过的」。
+ * 实测（打包产物，macOS，同一个 `--user-data-dir` 连开两次）：
+ * 第一次启动写入的行、连同手工放进去的 `MARKER.txt` 与一份 `.sqlite3` 拷贝，
+ * 在第二次启动时被整体清空；同一层级另建的 `rxdb-data/MARKER.txt` 毫发无损。
+ * 全程没有任何报错：应用照常显示「已连接」，照常写入，只是上一次的数据没了。
+ *
+ * 因此这个名字不是随便取的，改动前先看 `desktop-sqlite-bridge.spec.ts`
+ * 「库目录名不与 Chromium 在 userData 下自用的目录重名」那条 —— 撞名单即红。
  */
-export const DESKTOP_DATABASE_DIRECTORY = 'databases';
+export const DESKTOP_DATABASE_DIRECTORY = 'rxdb-data';
 
 /**
  * 造一个把逻辑库名解析成绝对路径的函数。

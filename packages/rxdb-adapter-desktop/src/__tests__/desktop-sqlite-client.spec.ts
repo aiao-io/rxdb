@@ -49,7 +49,7 @@ describe('DesktopSqliteClient.connect', () => {
 
   it('takes the transaction SQL from the host rather than hard coding it', async () => {
     const client = await DesktopSqliteClient.connect(transport, sqliteStorage);
-    expect(client.beginTransactionSql()).toBe('BEGIN;');
+    expect(client.beginTransactionSql()).toBe('BEGIN IMMEDIATE;');
     expect(client.beginSystemMigrationTransactionSql()).toBe('BEGIN EXCLUSIVE;');
   });
 

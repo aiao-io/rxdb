@@ -56,6 +56,32 @@ describe('createDatabasePathResolver', () => {
     expect(() => resolvePath('../../escape.sqlite3')).toThrowError(RxDBAdapterDesktopError);
     expect(existsSync(join(workspace, DESKTOP_DATABASE_DIRECTORY))).toBe(false);
   });
+
+  // AC#1：目录名撞车 = 静默丢数据。Chromium 自己也在 userData 下开目录，
+  // 而且会在启动时清掉它不认识的文件 —— 我们的库文件在它眼里正是「不认识的文件」。
+  // 实测（见下方常量注释）：`databases/` 里的内容每次启动都被整体删掉，进程不报一个字，
+  // 应用照常连上、照常写入，只是上一次的数据没了。
+  //
+  // 这条断言没法从行为上验（要真跑一个 Electron 才看得到），因此退而守住名字本身：
+  // 名单里的任何一个都不许用。改名字改到名单里去，这里当场红。
+  it('库目录名不与 Chromium 在 userData 下自用的目录重名', () => {
+    // 取自 Chromium profile 布局中会被其存储层主动清理或接管的目录名，小写比较。
+    const chromiumOwned = [
+      'databases',
+      'blob_storage',
+      'cache',
+      'code cache',
+      'gpucache',
+      'indexeddb',
+      'local storage',
+      'network',
+      'service worker',
+      'session storage',
+      'shared proto db',
+      'webstorage'
+    ];
+    expect(chromiumOwned).not.toContain(DESKTOP_DATABASE_DIRECTORY.toLowerCase());
+  });
 });
 
 describe('createDesktopSqliteBridge', () => {

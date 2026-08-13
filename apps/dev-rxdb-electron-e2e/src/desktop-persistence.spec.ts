@@ -19,8 +19,21 @@ import { launchEnv, resolveExecutable } from './packaged-app';
  * `apps/dev-rxdb-electron/src-electron/renderer-shell.spec.ts`，那套不依赖打包，先于本套件失败。
  */
 
-/** 库文件在 userData 下的相对位置，与 `desktop-sqlite-bridge.ts` 的 `DESKTOP_DATABASE_DIRECTORY` 一致。 */
-const DATABASE_FILE = join('databases', 'desktop_demo');
+/**
+ * 库文件在 userData 下的相对位置。
+ *
+ * @remarks
+ * 由四段拼成，少一段就指到一个不存在的路径上：
+ * - `rxdb-data/` —— `desktop-sqlite-bridge.ts` 的 `DESKTOP_DATABASE_DIRECTORY`，
+ *   **不叫 `databases`**：那个名字归 Chromium，里面的文件每次启动都会被它清掉（详见该常量的注释）
+ * - `desktop_demo` —— demo 传给 `RxDB` 的 `dbName`（`desktop-database.service.ts`）
+ * - `@0_1` —— `RxDB` 给物理库名加的 `RXDB_DB_NAME_SUFFIX`，**已永久冻结**（`packages/rxdb/src/version.ts`）
+ * - `.sqlite3` —— 桌面适配器的 `DEFAULT_DATABASE_SUFFIX`
+ *
+ * 写死而不 import：本文件跑在打包产物之外的纯 Node 进程里，import 这几个常量要把
+ * `@aiao/rxdb` 拖进 e2e 的依赖里。写死也不会悄悄放行 —— 值一旦对不上，这条用例直接红。
+ */
+const DATABASE_FILE = join('rxdb-data', 'desktop_demo@0_1.sqlite3');
 
 /**
  * preload 暴露传输层用的全局键，与 `preload.ts` 的 `DESKTOP_HOST_BRIDGE_KEY` 一致。
@@ -86,8 +99,10 @@ test.describe('打包产物的桌面 SQLite 持久化', () => {
         // AC#3 顺路验在这里：拉起打包产物是本套件最贵的一步，为两个断言启动两次不划算。
         // 暴露面必须恰好是这两个方法 —— 多出任何一个带路径或文件能力的成员，
         // 就等于把「渲染进程不该知道库在哪」这条约束又打开了。
+        // 双重断言不是偷懒：`typeof globalThis` 自带 `NaN: number` 这类非对象成员，
+        // 与 `Record<string, object>` 不构成重叠，tsc 会直接拒掉单次断言（TS2352）。
         bridgeKeys: await page.evaluate(
-          key => Object.keys((globalThis as Record<string, object>)[key] ?? {}).sort(),
+          key => Object.keys((globalThis as unknown as Record<string, object>)[key] ?? {}).sort(),
           BRIDGE_KEY
         )
       }));

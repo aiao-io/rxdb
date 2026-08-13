@@ -80,7 +80,7 @@ describe('RxDBAdapterDesktop', () => {
 
   it('takes the transaction SQL from the host it connected to', async () => {
     const client = await createAdapter('notes').createTestClient();
-    expect(client.beginTransactionSql()).toBe('BEGIN;');
+    expect(client.beginTransactionSql()).toBe('BEGIN IMMEDIATE;');
     expect(client.beginSystemMigrationTransactionSql()).toBe('BEGIN EXCLUSIVE;');
   });
 });

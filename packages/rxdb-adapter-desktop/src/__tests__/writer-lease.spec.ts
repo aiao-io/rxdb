@@ -23,9 +23,10 @@ import {
   getEntityMetadata
 } from '@aiao/rxdb';
 import { get_table_name_by_metadata, quote_sql_identifier } from '@aiao/rxdb-adapter-sqlite-core';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ADAPTER_NAME } from '../desktop-adapter.interface.js';
 import type { DesktopHostTransport } from '../desktop-sqlite-client.js';
@@ -86,6 +87,28 @@ async function openWindow(dbName: string): Promise<RxDBAdapterDesktop> {
   return (await rxdb.connect(ADAPTER_NAME)) as RxDBAdapterDesktop;
 }
 
+/**
+ * 抹掉系统 schema 水位，制造一次「待迁移」。
+ *
+ * @remarks
+ * 走裸连接而不是某个窗口的 `internalQuery`：变更触发器是每条连接自己的 TEMP 对象，
+ * 从窗口里删，那个窗口会收到自己的变更事件并跟着发起一次迁移——本用例要看的是
+ * 第二个窗口撞上第一个窗口的 lease，不是两个窗口同时抢着迁移。
+ */
+function expireSystemSchemaWatermarks(): void {
+  const [fileName] = readdirSync(workspace).filter(name => name.endsWith('.sqlite3'));
+  if (!fileName) throw new Error(`no database file was created in ${workspace}`);
+  const migrationTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
+  const db = new DatabaseSync(join(workspace, fileName));
+  try {
+    db.prepare(`DELETE FROM ${migrationTable} WHERE "name" IN (${WATERMARKS.map(() => '?').join(', ')})`).run(
+      ...WATERMARKS
+    );
+  } finally {
+    db.close();
+  }
+}
+
 describe('两个窗口打开同一个桌面库', () => {
   // AC#5：两个窗口必须各自登记 lease。少登记一条，迁移侧就看不见对方，fencing 无从谈起。
   it('registers one live lease per window', async () => {
@@ -93,13 +116,17 @@ describe('两个窗口打开同一个桌面库', () => {
     const first = await openWindow(dbName);
     const second = await openWindow(dbName);
 
+    // 不按 databaseId 过滤：它是 `<dbName>@<branch>_<version>`，把拼法写进断言只会让
+    // 分支/版本策略一变就红。本用例一个临时目录一个库文件，表里本来就只有这一个库的行。
     const rows = await second.internalQuery(
-      `SELECT "writerId" FROM "${LEASE_TABLE}" WHERE "databaseId" = ? AND julianday("expiresAt") > julianday('now')`,
-      [dbName]
+      `SELECT "writerId", "databaseId" FROM "${LEASE_TABLE}" WHERE julianday("expiresAt") > julianday('now')`
     );
-    const writerIds = rows.results.flatMap(result => result.rows).map(row => row[0]);
-    expect(writerIds).toHaveLength(2);
-    expect(new Set(writerIds).size).toBe(2);
+    const leases = rows.results.flatMap(result => result.rows);
+    expect(new Set(leases.map(row => row[0])).size).toBe(2);
+    // 两条 lease 必须落在同一个 databaseId 上，否则它们各写各的，谈不上互相看见。
+    const databaseIds = [...new Set(leases.map(row => String(row[1])))];
+    expect(databaseIds).toHaveLength(1);
+    expect(databaseIds[0]).toMatch(new RegExp(`^${dbName}@`));
     void first;
   });
 
@@ -109,12 +136,10 @@ describe('两个窗口打开同一个桌面库', () => {
     const dbName = 'lease-migration-fencing';
     const first = await openWindow(dbName);
 
-    // 抹掉水位，制造一次「待迁移」：下一个连上来的窗口会试图取得 upgrade owner 并改表。
-    const migrationTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
-    await first.internalQuery(
-      `DELETE FROM ${migrationTable} WHERE "name" IN (${WATERMARKS.map(() => '?').join(', ')})`,
-      [...WATERMARKS]
-    );
+    // 制造一次「待迁移」：下一个连上来的窗口会试图取得 upgrade owner 并改表。
+    expireSystemSchemaWatermarks();
+    // 第一个窗口自始至终连着，它的 lease 也就一直是活的。
+    expect((await first.internalQuery('SELECT 1')).results[0]?.rows).toEqual([[1]]);
 
     // 报错必须点名 lease —— 换成任何一句泛化的「迁移失败」，
     // 调用方就分不清该等对方退出还是该修数据。

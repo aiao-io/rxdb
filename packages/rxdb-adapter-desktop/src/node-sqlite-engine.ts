@@ -45,19 +45,6 @@ export interface NodeSqliteEngineOptions {
   /** SQLite page cache 大小（KB），默认 {@link DEFAULT_CACHE_SIZE_KB}。 */
   readonly cacheSizeKb?: number;
   /**
-   * 遇到锁冲突时的重试窗口（毫秒），默认 {@link DEFAULT_BUSY_TIMEOUT_MS}。
-   *
-   * @remarks
-   * 桌面路径上「一个文件多条连接」是常态：每个窗口一条（见 `createDesktopSqliteHost`）。
-   * wasm 后端每个库只有一条连接，从来撞不上锁，所以 sqlite 核心的 `get_init_sql` 里没有这条
-   * pragma——桌面必须自己补，否则第二个窗口的 `BEGIN EXCLUSIVE` 会当场 `database is locked`，
-   * 连 [US-304](../../../requirements/stories/collaboration/US-304-writer-lease-migration-fencing.md)
-   * 的 lease 检查都轮不上跑（AC#5）。
-   *
-   * 0 表示不等待、立刻返回 busy。
-   */
-  readonly busyTimeoutMs?: number;
-  /**
    * 变更事件的防抖窗口（毫秒），默认 {@link DEFAULT_BATCH_TIMEOUT}。
    *
    * @remarks
@@ -65,16 +52,6 @@ export interface NodeSqliteEngineOptions {
    */
   readonly batchTimeout?: number;
 }
-
-/**
- * 锁冲突默认重试 5 秒。
- *
- * @remarks
- * 取值要盖住「另一个窗口正在跑一次系统 schema 迁移」这段最长的持锁时间，又不能长到让用户
- * 觉得应用卡死。迁移在 `BEGIN EXCLUSIVE` 里完成，实测秒级；5 秒留了一个量级的余量，
- * 超过它基本可以断定对方不是在正常干活，此时报错比继续等更有用。
- */
-export const DEFAULT_BUSY_TIMEOUT_MS = 5_000;
 
 /** 注册给 SQLite 的通知函数名；触发器体内调用它把行变更捎回 JS。 */
 const NOTIFY_FUNCTION_NAME = 'rxdb_desktop_notify';
@@ -95,7 +72,9 @@ const SQLITE_ERROR_CODES = new Map<number, RxDBAdapterDesktopErrorCode>([
   [23, 'permission_denied'], // SQLITE_AUTH
   [11, 'database_corrupted'], // SQLITE_CORRUPT
   [26, 'database_corrupted'], // SQLITE_NOTADB
-  [14, 'open_failed'] // SQLITE_CANTOPEN
+  [14, 'open_failed'], // SQLITE_CANTOPEN
+  [5, 'database_busy'], // SQLITE_BUSY
+  [6, 'database_busy'] // SQLITE_LOCKED
 ]);
 
 const NO_ACTIVE_TRANSACTION = 'cannot rollback - no transaction is active';
@@ -230,7 +209,7 @@ export class NodeSqliteEngine {
     try {
       // 构造也在 try 里：选项校验失败同样必须把刚开的句柄关掉，否则文件被一直锁住。
       const engine = new NodeSqliteEngine(db, options);
-      engine.#initialize(options.cacheSizeKb ?? DEFAULT_CACHE_SIZE_KB, options.busyTimeoutMs ?? DEFAULT_BUSY_TIMEOUT_MS);
+      engine.#initialize(options.cacheSizeKb ?? DEFAULT_CACHE_SIZE_KB);
       return engine;
     } catch (error) {
       db.close();
@@ -313,7 +292,17 @@ export class NodeSqliteEngine {
     }
   }
 
-  #initialize(cacheSizeKb: number, busyTimeoutMs: number): void {
+  /**
+   * 装好变更通知函数并跑一遍初始化 pragma。
+   *
+   * @remarks
+   * 这里**故意不设** `PRAGMA busy_timeout`：`node:sqlite` 是同步接口，等锁就是同步自旋，
+   * 而桌面路径上所有窗口的连接都活在 Electron 主进程的同一条线程上。持锁那个窗口的
+   * `COMMIT` 是一个还排在事件循环里的 JS 续体——线程被 busy_timeout 占住，它就永远轮不到，
+   * 于是必然等满整个超时再失败，中途整个应用还是冻的。撞锁只能在**异步**层面退让重试，
+   * 见 `createDesktopSqliteHost` 里的 busy 重试。
+   */
+  #initialize(cacheSizeKb: number): void {
     this.#db.function(
       NOTIFY_FUNCTION_NAME,
       // directOnly:false 是关键——默认值会禁止在触发器体内调用本函数。
@@ -325,9 +314,6 @@ export class NodeSqliteEngine {
         return null;
       }
     );
-    // 必须排在 get_init_sql 之前：`PRAGMA journal_mode = WAL` 自己就要短暂拿排他锁，
-    // 另一个窗口正在写时它就是第一条会撞锁的语句。放在后面等于让初始化自己裸奔。
-    this.#db.exec(`PRAGMA busy_timeout = ${Math.trunc(busyTimeoutMs)};`);
     // 单文件数据库始终按持久化档位配置：WAL + synchronous=NORMAL。
     this.#db.exec(get_init_sql(cacheSizeKb, true));
     this.#ensureNotifyTriggers();
