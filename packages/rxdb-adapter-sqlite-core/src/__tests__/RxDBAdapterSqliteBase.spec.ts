@@ -1143,7 +1143,6 @@ describe('RxDBAdapterSqliteBase', () => {
       // C2 语义反转。旧契约是「事务内部调用 QueryCache 写入仍走快路径」——那意味着
       // QueryCache 的写会落进当时正开着的事务并跟着它回滚，正是 `SQLC-001`。
       // 新契约：QueryCache 是外部写入方，一律重新排队，因此它**必然**排在 COMMIT 之后。
-      //
       // 注意不能在事务体内 `await` 它：队列的唯一槽位正被本事务占着，那样写会挂起
       //（这是 C2 明确接受的故障形态——把静默数据损坏换成明确挂起）。
       const { client, order } = createOrderedClient();

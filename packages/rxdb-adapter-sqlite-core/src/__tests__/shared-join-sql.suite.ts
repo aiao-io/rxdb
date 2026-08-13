@@ -94,6 +94,7 @@ class TestEntity4 extends EntityBase {}
 })
 class RelatedEntity4 extends EntityBase {}
 
+/** join_sql 关系处理测试：关系 JOIN、扁平映射与路径解析。 */
 export function joinSqlSuite(factory: AdapterFactory) {
   describe(`join_sql 关系处理 [${factory.name}]`, () => {
     let adapter: RxDBAdapterSqliteBase;

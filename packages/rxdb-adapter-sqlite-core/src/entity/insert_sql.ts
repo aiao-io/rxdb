@@ -10,6 +10,9 @@ import {
   transformEntityValueToSql
 } from '../sqlite-core.utils.js';
 
+/**
+ * 生成插入 SQL 时的选项。
+ */
 export interface InsertSqlOptions extends IMutationContext {
   useReplace?: boolean;
   encryption?: EncryptionContext;

@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { AdapterFactory } from './adapter-factory.js';
 
+/** SqliteRepository 测试：仓库层 CRUD、查询与变更事件。 */
 export function sqliteRepositorySuite(factory: AdapterFactory) {
   describe.sequential(`SqliteRepository [${factory.name}]`, () => {
     let adapter: RxDBAdapterSqliteBase;

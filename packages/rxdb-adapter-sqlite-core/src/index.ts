@@ -23,7 +23,7 @@ export type {
   UpdateHookCallback
 } from './sqlite-backend.interface.js';
 
-// 基础 adapter
+// 基础适配器
 export { RxDBAdapterSqliteBase } from './RxDBAdapterSqliteBase.js';
 export type {
   AdapterEncryptionFacade,
@@ -32,10 +32,10 @@ export type {
   TransactionFun
 } from './RxDBAdapterSqliteBase.js';
 
-// Keyring 存储
+// 密钥环存储
 export { SqliteCoreKeyringStorage } from './keyring/sqlite-core-keyring-storage.js';
 
-// 加密 patch walker
+// 加密补丁遍历
 export { envelopePlaintextPatches, unenvelopePlaintextPatches } from './system/encrypt-patch.js';
 
 // Worker 助手
@@ -145,7 +145,7 @@ export {
   update_entity_from_sqlite_result
 } from './transaction_sqlite_result.js';
 
-// RxDB adapter 批量变更
+// RxDB 适配器批量变更
 export { rxdb_adapter_mutations } from './rxdb_adapter_mutations.js';
 
 // 变更事件处理
@@ -178,7 +178,7 @@ export {
 export type { FtsField, FtsTriggerOptions } from './fts5/index.js';
 
 // 共享 oo1 加载工具。
-// oo1 = 上游官方 SQLite WASM 的 Object Oriented API v1（sqlite3.oo1.DB），
+// oo1 = 上游官方 SQLite WASM 的面向对象 API v1（sqlite3.oo1.DB），
 // 不是 rxdb 自创缩写；走该面的是 sqlite / sqliteai，wa-sqlite 不走这里。
 export {
   buildOo1InitOptions,
@@ -198,7 +198,7 @@ export type { Oo1LoadFingerprint, Oo1LoadOptions } from './sqlite-oo1-load.utils
 // 共享 SQL 执行工具
 export { normalizeSingleStatementSql, shouldUsePreparedStatementPath } from './execute-sql.utils.js';
 
-// 共享 oo1 运行时类型与边界校验（oo1 = 上游 Object Oriented API v1）
+// 共享 oo1 运行时类型与边界校验（oo1 = 上游面向对象 API v1）
 export { assertOo1Static } from './oo1-types.js';
 export type { Oo1Capi, Oo1Database, Oo1PreparedStatement, Oo1Static } from './oo1-types.js';
 
@@ -209,5 +209,4 @@ export { executeOo1Helper } from './execute_oo1_helper.js';
 export { Oo1ClientBase } from './Oo1ClientBase.js';
 export type { Oo1ClientEvents, Oo1ClientLoadOptions, OpfsFallback } from './Oo1ClientBase.js';
 
-//
 export { SqliteTransactionExecutor } from './transaction/SqliteTransactionExecutor.js';

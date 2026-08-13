@@ -33,10 +33,6 @@ import {
 } from '../../index.js';
 import { RxDBAdapterSqliteBase, type SqliteClientLike } from '../../RxDBAdapterSqliteBase.js';
 
-// --------------------------------------------------------------------------
-// 测试实体
-// --------------------------------------------------------------------------
-
 /** 自引用树实体（不注册进 RxDB，用于覆盖 findMappedRelation 未命中时的自引用回退分支） */
 @Entity({
   name: 'JsTree',
@@ -125,10 +121,6 @@ class JsProfile extends EntityBase {}
   ]
 })
 class JsAccount extends EntityBase {}
-
-// --------------------------------------------------------------------------
-// 测试辅助
-// --------------------------------------------------------------------------
 
 class JoinSqlTestAdapter extends RxDBAdapterSqliteBase {
   readonly name = 'sqlite-core-join-sql-test';

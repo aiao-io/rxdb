@@ -29,9 +29,7 @@ export const find_sql = (
     (name, namespace) => adapter.rxdb.schemaManager.getEntityMetadata(name, namespace ?? metadata.namespace)
   );
 
-  // groupBy / projection 在 FindOptions 上是声明出来的，但 generate_sql 从来不消费它们 ——
-  // 调用方拿到的是未聚合 / 未投影的整行结果，且没有任何提示。声明了却静默忽略比不支持更糟，
-  // 在实现之前先 fail-fast。
+  // groupBy / projection 在 FindOptions 上是声明出来的，但 generate_sql 从来不消费它们 —— 先快速失败，避免静默忽略。
   // 必须排在 validateEncryptedQuery **之后**：加密列上的 groupBy/projection 有更精确的
   // 错误码（group_on_encrypted / projection_on_encrypted），不能被这里的通用错误抢先（SQLC-024）
   if (options.groupBy?.length) {

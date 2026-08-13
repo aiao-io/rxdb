@@ -106,6 +106,7 @@ class NormalizedIdx extends EntityBase {
   extension!: string | null;
 }
 
+/** create_table_sql 索引测试：建表 SQL 中的索引生成。 */
 export function tableIndexSuite(factory: AdapterFactory) {
   describe(`create_table_sql - 索引 [${factory.name}]`, () => {
     let adapter: RxDBAdapterSqliteBase;

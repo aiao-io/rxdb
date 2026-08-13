@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { AdapterFactory } from './adapter-factory.js';
 
+/** RxDB SQLite 适配器测试：适配器核心行为（连接、建表、查询）。 */
 export function rxdbAdapterSuite(factory: AdapterFactory) {
   describe(`RxDB SQLite 适配器 [${factory.name}]`, () => {
     let adapter: RxDBAdapterSqliteBase;

@@ -11,9 +11,6 @@ import { quote_sql_identifier } from '../sqlite-core.utils.js';
  * 因此单独抽成一个不依赖任何查询模块的叶子模块。
  */
 
-/**
- * 主表别名
- */
 export const MAIN_TABLE_ALIAS = '_' as const;
 
 /**
@@ -24,15 +21,9 @@ export interface RelationPair {
   relation: EntityRelationMetadata;
 }
 
-/**
- * 格式化表别名
- */
 export const format_table_alias = (alias: string): string =>
   alias === MAIN_TABLE_ALIAS ? alias : quote_sql_identifier(alias);
 
-/**
- * 格式化「表别名.列名」
- */
 export const format_qualified_identifier = (alias: string, column: string): string =>
   `${format_table_alias(alias)}.${quote_sql_identifier(column)}`;
 

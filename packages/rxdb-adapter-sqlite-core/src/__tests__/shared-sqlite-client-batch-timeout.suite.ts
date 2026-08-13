@@ -10,6 +10,7 @@ const WRITE_INTERVAL_MS = 5;
 const SLOW_BATCH_TIMEOUT_MS = 50;
 const WRITE_COUNT = 100;
 
+/** SqliteClient 批处理超时配置测试：batchTimeout 对写入批处理行为的影响。 */
 export function sqliteClientBatchTimeoutSuite(factory: AdapterFactory) {
   describe(`SqliteClient - Batch Timeout Configuration [${factory.name}]`, () => {
     it('应该支持自定义 batchTimeout 配置', async () => {

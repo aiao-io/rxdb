@@ -48,9 +48,7 @@ const createExecutorAdapterFacade = (
         return (EntityType: EntityType): unknown => executor.getRepository(EntityType);
       }
       if (property === 'runInTransaction') {
-        // 已经在本事务里了：复用，绝不新开也绝不入队。翻转后真实适配器的
-        // runInTransaction 一律新开事务 —— 拿着门面的内部 helper（如 execute_switch_actions）
-        // 若走到那条路径，会在自己持槽时再入队，永久挂起。
+        // 已经在本事务里了：复用，绝不新开也绝不入队，否则内部 helper 会在自己持槽时再入队而永久挂起。
         return (fun: (executor: TransactionExecutor) => Promise<unknown>): Promise<unknown> => executor.run(fun);
       }
       if (property === 'mergeChanges') {

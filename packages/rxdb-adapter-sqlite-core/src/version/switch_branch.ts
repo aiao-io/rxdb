@@ -31,7 +31,6 @@ import { convertSwitchResultToSql } from './switch-result.utils.js';
 export const generateSwitchBranchSql = (adapter: RxDBAdapterSqliteBase, branchId: string): string => {
   let sql: string = '';
 
-  // 遍历所有实体，为启用了日志功能的实体重新生成触发器
   adapter.rxdb.config.entities.forEach(EntityType => {
     const metadata = getEntityMetadata(EntityType);
 
@@ -48,7 +47,6 @@ export const generateSwitchBranchSql = (adapter: RxDBAdapterSqliteBase, branchId
     }
   });
 
-  // 获取分支表的元数据和表名
   const metadata = getEntityMetadata(RxDBBranch);
   const tableName = get_table_name_by_metadata(metadata);
 

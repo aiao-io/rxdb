@@ -5,6 +5,7 @@ import type { AdapterFactory } from './adapter-factory.js';
 
 const LISTENER_INIT_ERROR = '[RxDBAdapterSqliteBase] Failed to register event listeners';
 
+/** 适配器构造阶段测试：连接/断开、事件监听器注册与初始化失败清理。 */
 export function adapterConstructionSuite(factory: AdapterFactory) {
   describe(`RxDB SQLite 适配器构造阶段 [${factory.name}]`, () => {
     afterEach(() => {
