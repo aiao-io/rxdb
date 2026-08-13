@@ -131,6 +131,28 @@ INVEST 检查清单:
    清单切 `kind=migration` 会被 `migration releases must upgrade system schema or change codec` 拒绝。
    AC11 要等下一次真正抬升系统版本的发布，按现有排期是 [US-305](./US-305-commit-graph-head.md)（含「一次性迁移」）。
 
+### 上述条件的执行进度（2026-08-13）
+
+`v0.0.25` 已在本地打出，上面四步的实际状态：
+
+| 步骤                               | 状态 | 依据                                                                                                                                                                                                                                                |
+| ---------------------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 决策桥接 tag                     | ✅   | `v0.0.25`；`nx release version` 依 conventional commits 算出的也是 `0.0.25`，与本决策一致，未做人工覆写                                                                                                                                             |
+| 1 tag 已推送且是 HEAD 祖先         | ⚠️   | `git merge-base --is-ancestor v0.0.25 HEAD` 成立；清单已切 `kind=bridge` 且 `release.version` 与 `packages/rxdb/package.json` 同为 `0.0.25`，门禁通过。**但 tag 尚未推送**——见下                                                                    |
+| 2 `bridgeTagSupportsProtocol` 冒烟 | ✅   | 5 个文件在 `v0.0.25` 上全部存在；另按本节要求确认了内容而非仅文件名：`RxDBAdapterPGlite.ts` 与 `RxDBAdapterSqliteBase.ts` 在该 tag 上各有约 30 处 `WriterLease` 引用，含 `RXDB_WRITER_LEASE_TABLE_NAME` / `RXDB_WRITER_PROTOCOL_VERSION` / TTL 常量 |
+| 3 切 `kind=migration`              | ⬜   | 不发生在本版，见第 4 步                                                                                                                                                                                                                             |
+| 4 本版无可迁移内容                 | ✅   | 实测 `v0.0.24` 与 `v0.0.25` 的 `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_WRITER_PROTOCOL_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 均为 `3` / `1` / `1`，两侧完全相同                                                                                       |
+
+**tag 未推送是刻意的**：`publish.yml` 的触发条件是 `v*.*.*`，推送即拉起真实发布流程，
+门禁通过后直接 `nx release publish` 发到 npm。是否发布是发布决策，不是验证步骤的一部分——
+本节上文那条「不要用推一个废弃 tag 试门禁来充当 AC11 证据」的告诫，同样约束这次。
+
+因此 **AC1 仍为 ⚠️**：`kind=bridge` 声明、门禁通过、祖先链三项都成立，只差「已推送」这一项。
+推送后 AC1 方可转 ✅。**AC11 仍为 ⚠️** 且不因本次发布改变，理由是上表第 3/4 步。
+
+门禁的三个 git 钩子已借 `v0.0.25` 首次用真实 tag 验证（正向零报错、伪造 tag 三条全报），
+**门禁本身不需要修**；实测明细见 [`requirements/README.md` 的「门禁三钩子的实测」](../../README.md#门禁三钩子的实测2026-08-13)。
+
 ### 门禁自身的两处缺口（已修复，2026-08-13）
 
 | 缺口                                                                                           | 影响                                                                                                                          | 修复                                                                                                                                                |
