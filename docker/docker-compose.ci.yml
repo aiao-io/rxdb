@@ -26,6 +26,13 @@ services:
     volumes:
       # 初始化数据库角色密码（authenticator 等用户）
       - ./ci/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
+      # _realtime schema 必须在 initdb 阶段建好，不能靠事后的 init-db.sh：
+      # realtime 容器的 DB_AFTER_CONNECT_QUERY 是 `SET search_path TO _realtime`，
+      # 它一起来就跑 /app/bin/migrate，schema 不存在就报
+      # `3F000 invalid_schema_name` 并以非零码退出 → 容器直接停掉、不会自愈。
+      # 挂在 migrations/ 下由镜像的 migrate.sh 以 supabase_admin 执行，
+      # 而 depends_on: db(service_healthy) 保证这一步先于 realtime 启动完成。
+      - ./sql/00-realtime-schema.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
     command:
       - postgres
       - -c
@@ -124,7 +131,9 @@ services:
           'curl -sSfL --head -o /dev/null -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE" http://localhost:4000/api/tenants/realtime-dev/health'
         ]
       timeout: 5s
-      interval: 30s
+      # 与本文件其余服务对齐用 5s：上游 docker-compose.yml 的 30s 是给长跑部署用的，
+      # 放在 CI 里意味着 realtime 要多花近半分钟才被判定 healthy，白等。
+      interval: 5s
       retries: 3
       start_period: 10s
     environment:

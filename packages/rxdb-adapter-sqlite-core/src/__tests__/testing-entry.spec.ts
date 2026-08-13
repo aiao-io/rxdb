@@ -14,6 +14,7 @@ import {
   menuIntegrationSuite,
   querySqlSuite,
   relationIntegrationSuite,
+  rowsAffectedConformanceSuite,
   rxdbAdapterSuite,
   sqliteClientBatchTimeoutSuite,
   sqliteClientSuite,
@@ -38,6 +39,7 @@ const suiteExports = [
   menuIntegrationSuite,
   querySqlSuite,
   relationIntegrationSuite,
+  rowsAffectedConformanceSuite,
   sqliteRepositorySuite,
   rxdbAdapterSuite,
   sqliteClientBatchTimeoutSuite,
@@ -66,7 +68,7 @@ describe('testing subpath', () => {
   });
 
   it('exports every shared suite as a function', () => {
-    expect(suiteExports).toHaveLength(21);
+    expect(suiteExports).toHaveLength(22);
     for (const suite of suiteExports) expect(suite).toBeTypeOf('function');
   });
 
