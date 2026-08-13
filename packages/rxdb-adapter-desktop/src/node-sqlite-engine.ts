@@ -20,7 +20,7 @@ import {
   type SQLiteCompatibleType,
   type SqliteResult
 } from '@aiao/rxdb-adapter-sqlite-core';
-import { DatabaseSync, type StatementSync, type SupportedValueType } from 'node:sqlite';
+import { DatabaseSync, type SQLInputValue, type SQLOutputValue, type StatementSync } from 'node:sqlite';
 import { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from './desktop-error.js';
 
 /** {@link NodeSqliteEngine.open} 的入参。 */
@@ -79,8 +79,29 @@ const classify = (error: unknown, fallback: RxDBAdapterDesktopErrorCode): RxDBAd
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 /** 把绑定参数转成 `node:sqlite` 认识的形状；`number[]` 是 blob 的等价写法。 */
-const toSupportedValue = (binding: SQLiteCompatibleType): SupportedValueType =>
+const toSupportedValue = (binding: SQLiteCompatibleType): SQLInputValue =>
   Array.isArray(binding) ? Uint8Array.from(binding) : binding;
+
+/**
+ * 校验通知函数收到的三个参数。
+ *
+ * @remarks
+ * 调用方只有本文件生成的触发器 SQL，形状对不上只可能是本文件自身的缺陷。宁可让这次写入失败，
+ * 也不能默默丢掉一个变更事件：丢事件会让 renderer 的缓存与库里的真实状态无声分叉。
+ */
+const notifyArguments = (
+  type: SQLOutputValue,
+  tableName: SQLOutputValue,
+  rowId: SQLOutputValue
+): [SQLiteChangeType, string, bigint] => {
+  if (typeof type !== 'bigint' || typeof tableName !== 'string' || typeof rowId !== 'bigint') {
+    throw new RxDBAdapterDesktopError(
+      'host_internal_error',
+      `the notify trigger passed (${typeof type}, ${typeof tableName}, ${typeof rowId}) instead of (bigint, string, bigint)`
+    );
+  }
+  return [Number(type) as SQLiteChangeType, tableName, rowId];
+};
 
 /**
  * 把读回的值归一化成 `SQLiteCompatibleType`。
@@ -238,9 +259,10 @@ export class NodeSqliteEngine {
       NOTIFY_FUNCTION_NAME,
       // directOnly:false 是关键——默认值会禁止在触发器体内调用本函数。
       // useBigIntArguments:true 保证 rowid 原样送达，不会在 2^53 处丢位。
+      // varargs:false 时 node 用 fn.length 决定形参个数，因此这三个形参必须写全，不能改成 rest。
       { deterministic: false, directOnly: false, useBigIntArguments: true, varargs: false },
-      (type: bigint, tableName: string, rowId: bigint) => {
-        this.#recordChange(Number(type) as SQLiteChangeType, tableName, rowId);
+      (type: SQLOutputValue, tableName: SQLOutputValue, rowId: SQLOutputValue): null => {
+        this.#recordChange(...notifyArguments(type, tableName, rowId));
         return null;
       }
     );

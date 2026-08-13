@@ -161,6 +161,17 @@ const isBindingValue = (value: unknown): value is SQLiteCompatibleType => {
   return false;
 };
 
+/**
+ * `undefined` 归一成 SQL NULL。
+ *
+ * @remarks
+ * 「undefined 即 NULL」是既有后端的既成契约：wa-sqlite 的 `bind_collection` 直接跳过 undefined 的位，
+ * 而未绑定的参数在 SQLite 里读作 NULL；oo1 的 `bindOne` 则把 undefined 与 null 并到同一分支显式绑 NULL。
+ * 可空外键（例如根节点的 `parentId`）因此会以 undefined 的形态一路走到这里，而 `node:sqlite` 不认它。
+ * 归一化放在信任边界上，host 内部就只会见到已收敛的值。
+ */
+const normalizeBinding = (value: unknown): unknown => (value === undefined ? null : value);
+
 const readBindings = (record: Record<string, unknown>): readonly SQLiteCompatibleType[] => {
   const bindings = record['bindings'];
   if (bindings === undefined) return [];
@@ -168,11 +179,13 @@ const readBindings = (record: Record<string, unknown>): readonly SQLiteCompatibl
   if (bindings.length > DESKTOP_HOST_MAX_BINDINGS) {
     throw violation(`bindings exceed ${DESKTOP_HOST_MAX_BINDINGS} entries`);
   }
-  const invalidIndex = bindings.findIndex(binding => !isBindingValue(binding));
-  if (invalidIndex !== -1) {
-    throw violation(`binding at index ${invalidIndex} is not a SQLite compatible value within size limits`);
-  }
-  return bindings as readonly SQLiteCompatibleType[];
+  return bindings.map((binding, index) => {
+    const value = normalizeBinding(binding);
+    if (!isBindingValue(value)) {
+      throw violation(`binding at index ${index} is not a SQLite compatible value within size limits`);
+    }
+    return value;
+  });
 };
 
 const parseOpenRequest = (record: Record<string, unknown>): DesktopHostOpenRequest => {

@@ -14,6 +14,12 @@ describe('assertValidDesktopDatabaseName', () => {
     expect(() => assertValidDesktopDatabaseName(name)).not.toThrow();
   });
 
+  // RxDB 的本地库名恒为 `<dbName>@<RXDB_DB_NAME_SUFFIX>`，那个 `@` 被永久冻结（改它=静默清空用户数据），
+  // 所以适配器推导出来的名字必然带 `@`；白名单排除它等于桌面适配器接不上任何真实 RxDB 实例。
+  it('accepts the @-suffixed local database name RxDB always produces', () => {
+    expect(() => assertValidDesktopDatabaseName('notes@0_1.sqlite3')).not.toThrow();
+  });
+
   // AC#5/AC#6：名字来自 renderer，必须无法越出应用作用域，也不得被当成文件系统路径
   it.each([
     ['empty', ''],

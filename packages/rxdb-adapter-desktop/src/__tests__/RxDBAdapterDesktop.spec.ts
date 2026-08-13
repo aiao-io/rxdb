@@ -53,12 +53,15 @@ describe('RxDBAdapterDesktop', () => {
   });
 
   it('derives the database file name from the RxDB database name', async () => {
-    const client = await createAdapter('notes').createTestClient();
-    expect(client.resolvedLocation).toContain('notes.sqlite3');
+    const adapter = createAdapter('notes');
+    expect(adapter.databaseName).toBe('notes.sqlite3');
+    expect((await adapter.createTestClient()).resolvedLocation).toContain('notes.sqlite3');
   });
 
   it('lets an explicit databaseName win over the derived one', async () => {
-    const client = await createAdapter('notes', { databaseName: 'legacy.db' }).createTestClient();
+    const adapter = createAdapter('notes', { databaseName: 'legacy.db' });
+    expect(adapter.databaseName).toBe('legacy.db');
+    const client = await adapter.createTestClient();
     expect(client.resolvedLocation).toContain('legacy.db');
     expect(client.resolvedLocation).not.toContain('notes');
   });

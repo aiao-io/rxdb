@@ -228,7 +228,7 @@ function HeroSection(): ReactNode {
               variants={itemVariants}
               className='text-muted-foreground mt-8 max-w-2xl text-base leading-7 sm:text-lg sm:leading-8'
             >
-              在浏览器内完成结构化数据的查询、写入与持久化，通过 RxJS 响应数据变化，并为 Angular、React、Vue
+              在浏览器内完成结构化数据的查询、写入与持久化，通过 RxJS 响应数据变化为 Angular、React、Vue
               提供一致的模型语义。需要跨设备共享时，再按需连接远端同步。
             </motion.p>
             <motion.div variants={itemVariants} className='mt-10 flex flex-wrap gap-3'>

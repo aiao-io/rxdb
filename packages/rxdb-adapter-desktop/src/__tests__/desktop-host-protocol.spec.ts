@@ -34,6 +34,14 @@ describe('parseDesktopHostRequest', () => {
     expect(parsed).toEqual({ ...executeRequest, bindings });
   });
 
+  // `undefined` 在既有后端里就等于 SQL NULL：wa-sqlite 的 `bind_collection` 直接跳过该位（未绑定的参数
+  // 在 SQLite 里读作 NULL），oo1 的 `bindOne` 把 `undefined` 与 `null` 并到同一分支。可空外键因此会以
+  // `undefined` 的形态一路走到这里，而 `node:sqlite` 不认它——归一化必须发生在信任边界上。
+  it('normalizes an undefined binding to SQL NULL', () => {
+    const parsed = parseDesktopHostRequest({ ...executeRequest, bindings: [1, undefined, 'x'] });
+    expect(parsed).toStrictEqual({ ...executeRequest, bindings: [1, null, 'x'] });
+  });
+
   it('defaults omitted bindings to an empty list', () => {
     const parsed = parseDesktopHostRequest({ kind: 'execute', sessionId, sql: 'SELECT 1' });
     expect(parsed).toEqual({ kind: 'execute', sessionId, sql: 'SELECT 1', bindings: [] });
@@ -82,7 +90,6 @@ describe('parseDesktopHostRequest', () => {
   it.each([
     ['a function', () => 1],
     ['an object', { a: 1 }],
-    ['undefined', undefined],
     ['a boolean', true],
     ['a symbol', Symbol('x')],
     ['a nested non-number array', ['a']]

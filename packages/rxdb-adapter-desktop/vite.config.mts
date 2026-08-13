@@ -44,7 +44,8 @@ export default defineConfig(() => ({
     rolldownOptions: {
       // dts 插件生成声明文件天然比 Rolldown 原生链接阶段慢，抑制误报的 PLUGIN_TIMINGS 警告
       checks: { pluginTimings: false },
-      external: ['@aiao/rxdb', '@aiao/rxdb-adapter-sqlite-core', '@aiao/utils', 'rxjs', 'node:sqlite']
+      // host 入口本来就只在 Node 侧加载，node: 内建必须外置，否则 rolldown 会当浏览器目标去 polyfill
+      external: ['@aiao/rxdb', '@aiao/rxdb-adapter-sqlite-core', '@aiao/utils', 'rxjs', 'node:crypto', 'node:sqlite']
     }
   },
   test: {

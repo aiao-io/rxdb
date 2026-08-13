@@ -51,8 +51,15 @@ export type DesktopStorage = DesktopSqliteFileStorage | DesktopPgliteDirectorySt
 export type SupportedDesktopStorage<TRuntime extends DesktopRuntime> =
   TRuntime extends 'electron' ? DesktopStorage : DesktopSqliteFileStorage;
 
-/** 逻辑数据库名允许的字符：不含任何路径分隔符，因此天然无法做目录穿越。 */
-const DATABASE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+/**
+ * 逻辑数据库名允许的字符：不含任何路径分隔符，因此天然无法做目录穿越。
+ *
+ * @remarks
+ * `@` 必须在集合内：RxDB 的本地库名恒为 `<dbName>@<RXDB_DB_NAME_SUFFIX>`，那个后缀被永久冻结，
+ * 适配器从 `rxdb.config.dbName` 推导出的名字因此一定带 `@`。它既不是路径分隔符，
+ * 也不在 Windows 的保留字符集里，加进来不削弱上面那条性质。
+ */
+const DATABASE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._@-]*$/;
 const DATABASE_NAME_MAX_LENGTH = 128;
 
 /**

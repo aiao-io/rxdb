@@ -98,8 +98,14 @@ export class DesktopSqliteClient implements SqliteClientLike {
   readonly #beginSystemMigrationTransactionSql: string;
   readonly #handlers = new Map<SQLiteChangeType, Set<(event: SqliteChangeEvent) => void>>();
   readonly #inFlight = new Set<Promise<unknown>>();
-  #unsubscribe: () => void = () => undefined;
+  /** 由 {@link DesktopSqliteClient.connect} 在实例构造完成后立即装上。 */
+  #unsubscribe?: () => void;
   #closed = false;
+
+  /** 本客户端在 host 上的会话 ID，用于把推送过来的变更事件对号入座。 */
+  get sessionId(): string {
+    return this.#sessionId;
+  }
 
   private constructor(
     transport: DesktopHostTransport,
@@ -113,11 +119,6 @@ export class DesktopSqliteClient implements SqliteClientLike {
     this.#sessionId = sessionId;
     this.#beginTransactionSql = beginTransactionSql;
     this.#beginSystemMigrationTransactionSql = beginSystemMigrationTransactionSql;
-  }
-
-  /** 本客户端在 host 上的会话 ID，用于把推送过来的变更事件对号入座。 */
-  get sessionId(): string {
-    return this.#sessionId;
   }
 
   /**
@@ -233,7 +234,7 @@ export class DesktopSqliteClient implements SqliteClientLike {
     if (this.#closed) return;
     this.#closed = true;
     await Promise.allSettled([...this.#inFlight]);
-    this.#unsubscribe();
+    this.#unsubscribe?.();
     this.#handlers.clear();
     assertDesktopHostResponse('close', await this.#transport.request({ kind: 'close', sessionId: this.#sessionId }));
   }
