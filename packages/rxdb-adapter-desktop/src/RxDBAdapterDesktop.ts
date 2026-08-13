@@ -45,10 +45,11 @@ export class RxDBAdapterDesktop extends RxDBAdapterSqliteBase {
   }
 
   protected override async createClient(): Promise<DesktopSqliteClient> {
-    return DesktopSqliteClient.connect(this.options.transport ?? resolveDesktopHostTransport(), {
-      engine: 'sqlite',
-      databaseName: this.#databaseName
-    });
+    return DesktopSqliteClient.connect(
+      this.options.transport ?? resolveDesktopHostTransport(),
+      { engine: 'sqlite', databaseName: this.#databaseName },
+      { batchTimeout: this.options.batchTimeout }
+    );
   }
 }
 

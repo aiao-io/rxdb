@@ -46,6 +46,14 @@ export const DESKTOP_HOST_MAX_BLOB_BYTES = 64 * 1024 * 1024;
 export interface DesktopHostOpenRequest {
   readonly kind: 'open';
   readonly storage: DesktopSqliteFileStorage;
+  /**
+   * 变更事件的防抖窗口（毫秒），省略时用 host 的默认值。
+   *
+   * @remarks
+   * 与 wasm 客户端的同名选项同义。批处理落在 host 侧而不是 renderer 侧：
+   * 合并发生在事件跨进程之前，省下的正是本来要一条条搬过 IPC 的那些消息。
+   */
+  readonly batchTimeout?: number;
 }
 
 /** 在已打开的会话上执行 SQL。 */
@@ -188,13 +196,23 @@ const readBindings = (record: Record<string, unknown>): readonly SQLiteCompatibl
   });
 };
 
+/** `batchTimeout` 只接受非负整数；0 表示「下一个宏任务立即派发」，是合法档位。 */
+const readBatchTimeout = (record: Record<string, unknown>): number | undefined => {
+  const batchTimeout = record['batchTimeout'];
+  if (batchTimeout === undefined) return undefined;
+  if (!Number.isInteger(batchTimeout) || (batchTimeout as number) < 0) {
+    throw violation(`batchTimeout must be an integer >= 0, got ${String(batchTimeout)}`);
+  }
+  return batchTimeout as number;
+};
+
 const parseOpenRequest = (record: Record<string, unknown>): DesktopHostOpenRequest => {
   const storage = record['storage'];
   if (typeof storage !== 'object' || storage === null) throw violation('storage must be an object');
   // 这里传 'electron' 只是为了复用同一份矩阵校验；host 侧真实 runtime 由 createDesktopSqliteHost 再断言一次。
   assertSupportedDesktopStorage('electron', storage as DesktopSqliteFileStorage);
   const { engine, databaseName } = storage as DesktopSqliteFileStorage;
-  return { kind: 'open', storage: { engine, databaseName } };
+  return { kind: 'open', storage: { engine, databaseName }, batchTimeout: readBatchTimeout(record) };
 };
 
 /**

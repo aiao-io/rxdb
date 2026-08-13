@@ -1,9 +1,9 @@
-import { SQLiteChangeType, type SqliteChangeEvent } from '@aiao/rxdb-adapter-sqlite-core';
+import { MAX_BATCH_WAIT_MS, SQLiteChangeType, type SqliteChangeEvent } from '@aiao/rxdb-adapter-sqlite-core';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RxDBAdapterDesktopError } from '../desktop-error.js';
 import { NodeSqliteEngine } from '../node-sqlite-engine.js';
 
@@ -11,15 +11,22 @@ let workspace: string;
 let engines: NodeSqliteEngine[];
 let events: SqliteChangeEvent[];
 
-const openEngine = (fileName = 'app.sqlite3'): NodeSqliteEngine => {
+const openEngine = (fileName = 'app.sqlite3', batchTimeout?: number): NodeSqliteEngine => {
   const engine = NodeSqliteEngine.open({
     filePath: join(workspace, fileName),
     dbName: fileName,
-    onChange: event => events.push(event)
+    onChange: event => events.push(event),
+    batchTimeout
   });
   engines.push(engine);
   return engine;
 };
+
+/** 变更事件是防抖派发的，断言前必须先把定时器等出来。 */
+const flushed = (count = 1): Promise<void> =>
+  vi.waitFor(() => {
+    expect(events.length).toBeGreaterThanOrEqual(count);
+  });
 
 /** 建出与核心系统表同名的表，好让通知触发器有落点。 */
 const createChangeTable = (engine: NodeSqliteEngine): void => {
@@ -172,6 +179,33 @@ describe('NodeSqliteEngine.execute', () => {
     expect(names.results[0]?.rows).toEqual([['a'], ['b']]);
   });
 
+  // 分支切换发出的就是这个形状：先重建触发器，最后一条 UPDATE ... RETURNING。node:sqlite 的 exec()
+  // 会把 RETURNING 的行整个吞掉，上层于是收到空结果集，误以为没有任何行被切换（AC#4）。
+  it('returns the result set of a row producing statement inside a script', () => {
+    const engine = openEngine();
+    engine.execute('CREATE TABLE t (id INTEGER PRIMARY KEY, activated INTEGER)');
+    engine.execute('INSERT INTO t (id, activated) VALUES (1, 0)');
+    const result = engine.execute(
+      'CREATE TEMP TRIGGER tr AFTER UPDATE ON t BEGIN SELECT 1; END;' +
+        ' UPDATE t SET activated = 1 RETURNING id, activated;'
+    );
+    expect(result.results).toEqual([{ columns: ['id', 'activated'], rows: [[1, 1]] }]);
+    expect(result.rowsAffected).toBe(1);
+  });
+
+  it('runs every statement in a script even after one produced rows', () => {
+    const engine = openEngine();
+    engine.execute('CREATE TABLE t (id INTEGER PRIMARY KEY)');
+    engine.execute('INSERT INTO t (id) VALUES (1) RETURNING id; INSERT INTO t (id) VALUES (2);');
+    expect(engine.execute('SELECT id FROM t ORDER BY id').results[0]?.rows).toEqual([[1], [2]]);
+  });
+
+  // oo1 与 wa-sqlite 对「没有语句」的脚本都是静默无操作，桌面后端不能独自抛错
+  it('treats a script without any statement as a no-op', () => {
+    const engine = openEngine();
+    expect(engine.execute('-- nothing to do\n').results).toEqual([]);
+  });
+
   // node:sqlite 的 exec() 不接受绑定参数，静默只绑第一条语句会写错数据，因此直接拒绝
   it('rejects a multi statement script that carries bindings', () => {
     const engine = openEngine();
@@ -197,10 +231,20 @@ describe('NodeSqliteEngine.execute', () => {
 });
 
 describe('NodeSqliteEngine change notification', () => {
-  it('emits an insert event for a watched system table', () => {
+  // 事件必须在语句返回之后的任务里派发：同步派发会让订阅者在事务还开着、行还没提交时就去读库，
+  // 而 wasm 后端从来是防抖派发的，跟着它才谈得上「桌面路径行为一致」（AC#4）
+  it('does not dispatch inside the execute call that produced the change', () => {
     const engine = openEngine();
     createChangeTable(engine);
     engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
+    expect(events).toEqual([]);
+  });
+
+  it('emits an insert event for a watched system table', async () => {
+    const engine = openEngine();
+    createChangeTable(engine);
+    engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
+    await flushed();
     expect(events).toEqual([
       {
         type: SQLiteChangeType.SQLITE_INSERT,
@@ -212,10 +256,21 @@ describe('NodeSqliteEngine change notification', () => {
     ]);
   });
 
-  it('groups the row ids written by a single statement into one event', () => {
+  it('groups the row ids written by a single statement into one event', async () => {
     const engine = openEngine();
     createChangeTable(engine);
     engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?), (?)', ['x', 'y']);
+    await flushed();
+    expect(events).toHaveLength(1);
+    expect(events[0]?.rowIds).toEqual([1n, 2n]);
+  });
+
+  it('merges the writes of consecutive statements into one event', async () => {
+    const engine = openEngine();
+    createChangeTable(engine);
+    engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
+    engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['y']);
+    await flushed();
     expect(events).toHaveLength(1);
     expect(events[0]?.rowIds).toEqual([1n, 2n]);
   });
@@ -223,42 +278,63 @@ describe('NodeSqliteEngine change notification', () => {
   it.each([
     ['update', 'UPDATE "rxdb$rxdb_change" SET payload = \'y\'', SQLiteChangeType.SQLITE_UPDATE],
     ['delete', 'DELETE FROM "rxdb$rxdb_change"', SQLiteChangeType.SQLITE_DELETE]
-  ])('emits a %s event', (_label, sql, type) => {
+  ])('emits a %s event', async (_label, sql, type) => {
     const engine = openEngine();
     createChangeTable(engine);
     engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
+    await flushed();
     events.length = 0;
     engine.execute(sql);
+    await flushed();
     expect(events).toHaveLength(1);
     expect(events[0]?.type).toBe(type);
     expect(events[0]?.rowIds).toEqual([1n]);
   });
 
-  it('splits one statement touching two watched tables into one event per table', () => {
+  it('splits one statement touching two watched tables into one event per table', async () => {
     const engine = openEngine();
     createChangeTable(engine);
     engine.execute('CREATE TABLE "rxdb$rxdb_branch" (id INTEGER PRIMARY KEY)');
     engine.execute(
       'INSERT INTO "rxdb$rxdb_change" (payload) VALUES (\'x\'); INSERT INTO "rxdb$rxdb_branch" (id) VALUES (1);'
     );
+    await flushed(2);
     expect(events.map(event => event.tableName).sort()).toEqual(['rxdb$rxdb_branch', 'rxdb$rxdb_change']);
   });
 
   // 业务表的写入通过核心生成的触发器间接落到 rxdb$rxdb_change，不该在这里再抛一次
-  it('ignores writes to tables outside the watch set', () => {
+  it('ignores writes to tables outside the watch set', async () => {
     const engine = openEngine();
     createChangeTable(engine);
     engine.execute('CREATE TABLE "rxdb$user" (id INTEGER PRIMARY KEY)');
     engine.execute('INSERT INTO "rxdb$user" (id) VALUES (1)');
+    await new Promise(resolve => setTimeout(resolve, MAX_BATCH_WAIT_MS * 2));
     expect(events).toEqual([]);
   });
 
-  it('starts watching a system table that is created after the session opened', () => {
+  it('starts watching a system table that is created after the session opened', async () => {
     const engine = openEngine();
     engine.execute('SELECT 1');
     createChangeTable(engine);
     engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
+    await flushed();
     expect(events).toHaveLength(1);
+  });
+
+  /**
+   * 纯防抖会被持续写入饿死：每次写入都重置定时器，事件积到写完才发。
+   * 硬上限保证一批从第一个待发事件起最多 {@link MAX_BATCH_WAIT_MS} 就必定发一次。
+   */
+  it('force flushes within the hard cap while writes keep coming', async () => {
+    const engine = openEngine('app.sqlite3', MAX_BATCH_WAIT_MS * 10);
+    createChangeTable(engine);
+
+    for (let i = 0; i < 30 && events.length === 0; i++) {
+      engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', [`v${i}`]);
+      await new Promise(resolve => setTimeout(resolve, 5));
+    }
+
+    expect(events.length).toBeGreaterThan(0);
   });
 
   // AC#8：通知机制不得污染用户的库文件
@@ -274,13 +350,24 @@ describe('NodeSqliteEngine change notification', () => {
     expect(triggers).toEqual([]);
   });
 
-  it('stops emitting once the engine is closed', () => {
+  // 关闭时同步发掉攒着的事件，否则最后一批写入的通知会随定时器一起被丢掉
+  it('flushes the pending batch synchronously on close', () => {
+    const engine = openEngine();
+    createChangeTable(engine);
+    engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
+    expect(events).toEqual([]);
+    engine.close();
+    expect(events).toHaveLength(1);
+  });
+
+  it('stops emitting once the engine is closed', async () => {
     const engine = openEngine();
     createChangeTable(engine);
     engine.close();
     events.length = 0;
     const other = openEngine();
     other.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
+    await flushed();
     expect(events).toHaveLength(1);
   });
 });

@@ -126,48 +126,63 @@ describe('DesktopSqliteClient change events', () => {
   const createChangeTable = (client: DesktopSqliteClient): Promise<unknown> =>
     client.execute('CREATE TABLE IF NOT EXISTS "rxdb$rxdb_change" (id INTEGER PRIMARY KEY, payload TEXT)');
 
+  /** 变更事件在 host 侧防抖派发；`batchTimeout: 0` 把窗口压到「下一个宏任务」，用例才不用等真实毫秒。 */
+  const connectClient = (): Promise<DesktopSqliteClient> =>
+    DesktopSqliteClient.connect(transport, sqliteStorage, { batchTimeout: 0 });
+
+  /** 让「没收到事件」这类否定断言有意义：先把该派发的都派发完，再断言确实没有。 */
+  const settleChanges = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 10));
+
   it('delivers host changes to the registered handler', async () => {
-    const client = await DesktopSqliteClient.connect(transport, sqliteStorage);
+    const client = await connectClient();
     const received: SqliteChangeEvent[] = [];
     await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, event => received.push(event));
     await createChangeTable(client);
     await client.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
-    expect(received).toHaveLength(1);
+    await vi.waitFor(() => {
+      expect(received).toHaveLength(1);
+    });
     expect(received[0]).toMatchObject({ tableName: 'rxdb$rxdb_change', rowIds: [1n] });
   });
 
   it('only delivers the change type each handler asked for', async () => {
-    const client = await DesktopSqliteClient.connect(transport, sqliteStorage);
+    const client = await connectClient();
     const onDelete = vi.fn();
     await client.addEventListener(SQLiteChangeType.SQLITE_DELETE, onDelete);
     await createChangeTable(client);
     await client.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
+    await settleChanges();
     expect(onDelete).not.toHaveBeenCalled();
     await client.execute('DELETE FROM "rxdb$rxdb_change"');
-    expect(onDelete).toHaveBeenCalledOnce();
+    await vi.waitFor(() => {
+      expect(onDelete).toHaveBeenCalledOnce();
+    });
   });
 
   // 每个窗口只该看到自己那条连接的变更，否则跨窗口事件会被当成本地写入回灌
   it('ignores changes addressed to another session', async () => {
-    const first = await DesktopSqliteClient.connect(transport, sqliteStorage);
-    const second = await DesktopSqliteClient.connect(transport, sqliteStorage);
+    const first = await connectClient();
+    const second = await connectClient();
     const onFirst = vi.fn();
     await first.addEventListener(SQLiteChangeType.SQLITE_INSERT, onFirst);
     await createChangeTable(second);
     await second.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
+    await settleChanges();
     expect(onFirst).not.toHaveBeenCalled();
   });
 
   it('supports several handlers on one change type', async () => {
-    const client = await DesktopSqliteClient.connect(transport, sqliteStorage);
+    const client = await connectClient();
     const first = vi.fn();
     const second = vi.fn();
     await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, first);
     await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, second);
     await createChangeTable(client);
     await client.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
-    expect(first).toHaveBeenCalledOnce();
-    expect(second).toHaveBeenCalledOnce();
+    await vi.waitFor(() => {
+      expect(first).toHaveBeenCalledOnce();
+      expect(second).toHaveBeenCalledOnce();
+    });
   });
 
   // 半个事件流进 RxDB 变更管线会让本地缓存与库里的真实状态悄悄分叉，宁可炸出来

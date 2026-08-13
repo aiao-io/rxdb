@@ -39,4 +39,12 @@ export interface DesktopOptions extends IRxDBAdapterOptions, SqliteBaseOptions {
    * 接管一个已存在的库、或多个 RxDB 实例要共用同一个文件时才需要显式指定。
    */
   databaseName?: string;
+  /**
+   * 变更事件的防抖窗口（毫秒），省略时用 host 的默认值。
+   *
+   * @remarks
+   * 与 wasm 适配器的同名选项同义：窗口内的连续写入合并成一次派发。
+   * 调小它降低响应延迟，调大它减少唤醒次数；无论怎么配，一批最多攒 `MAX_BATCH_WAIT_MS`。
+   */
+  batchTimeout?: number;
 }

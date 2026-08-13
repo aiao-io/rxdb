@@ -118,10 +118,11 @@ export const desktopAdapterFactory: AdapterFactory = {
     return (await createDesktopAdapter(options)) as T;
   },
 
-  async createClient<T = unknown>(dbName: string): Promise<T> {
-    return (await DesktopSqliteClient.connect(ensureHost().transport, {
-      engine: 'sqlite',
-      databaseName: `${dbName}.sqlite3`
-    })) as T;
+  async createClient<T = unknown>(dbName: string, options?: Record<string, unknown>): Promise<T> {
+    return (await DesktopSqliteClient.connect(
+      ensureHost().transport,
+      { engine: 'sqlite', databaseName: `${dbName}.sqlite3` },
+      { batchTimeout: (options as { batchTimeout?: number } | undefined)?.batchTimeout }
+    )) as T;
   }
 };

@@ -45,6 +45,17 @@ export interface DesktopHostTransport {
   subscribe(listener: (message: unknown) => void): () => void;
 }
 
+/** {@link DesktopSqliteClient.connect} 的可选行为参数。 */
+export interface DesktopSqliteClientOptions {
+  /**
+   * 变更事件的防抖窗口（毫秒），省略时用 host 的默认值 `DEFAULT_BATCH_TIMEOUT`。
+   *
+   * @remarks
+   * 与 wasm 客户端的同名选项同义，只是批处理发生在 host 侧——合并在事件跨进程之前完成。
+   */
+  readonly batchTimeout?: number;
+}
+
 /**
  * preload 把传输层挂到 renderer 全局时使用的键。
  *
@@ -126,12 +137,14 @@ export class DesktopSqliteClient implements SqliteClientLike {
    *
    * @param transport - 由 preload 或 worker 桥接提供的传输层
    * @param storage - 桌面存储配置
+   * @param options - 可选行为参数
    * @returns 已连接的客户端
    * @throws {@link RxDBAdapterDesktopError} 未注入传输层、配置非法或 host 打开失败时
    */
   static async connect(
     transport: DesktopHostTransport,
-    storage: DesktopSqliteFileStorage
+    storage: DesktopSqliteFileStorage,
+    options?: DesktopSqliteClientOptions
   ): Promise<DesktopSqliteClient> {
     if (!isDesktopHostTransport(transport)) {
       throw new RxDBAdapterDesktopError(
@@ -142,7 +155,8 @@ export class DesktopSqliteClient implements SqliteClientLike {
     // renderer 侧先校验一次，非法配置连 IPC 都不用发；host 侧还会再校验一次。
     assertSupportedDesktopStorage('electron', storage);
 
-    const response = assertDesktopHostResponse('open', await transport.request({ kind: 'open', storage }));
+    const request = { kind: 'open', storage, batchTimeout: options?.batchTimeout } as const;
+    const response = assertDesktopHostResponse('open', await transport.request(request));
     const opened = parseDesktopHostOpenResult(response.result);
     const client = new DesktopSqliteClient(
       transport,

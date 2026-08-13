@@ -9,11 +9,13 @@
  */
 
 import {
+  DEFAULT_BATCH_TIMEOUT,
   DEFAULT_CACHE_SIZE_KB,
   get_init_sql,
   isReadOnlyStatement,
-  normalizeSingleStatementSql,
+  MAX_BATCH_WAIT_MS,
   SQLiteChangeType,
+  validateSqliteNumericOption,
   WATCH_TABLES,
   type SqliteChangeEvent,
   type SqliteData,
@@ -22,6 +24,7 @@ import {
 } from '@aiao/rxdb-adapter-sqlite-core';
 import { DatabaseSync, type SQLInputValue, type SQLOutputValue, type StatementSync } from 'node:sqlite';
 import { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from './desktop-error.js';
+import { splitSqliteScript } from './sqlite-script.js';
 
 /** {@link NodeSqliteEngine.open} 的入参。 */
 export interface NodeSqliteEngineOptions {
@@ -33,12 +36,20 @@ export interface NodeSqliteEngineOptions {
    * 变更事件回调。
    *
    * @remarks
-   * 在写语句返回**之前**同步调用。实现方不得抛错：此刻写入已经落库，抛错会让调用方
-   * 误以为这次写失败而重试。
+   * 在产生变更的语句返回**之后**的任务里调用（批处理见 {@link NodeSqliteEngineOptions.batchTimeout}），
+   * 唯一的例外是 {@link NodeSqliteEngine.close} 里的收尾 flush。实现方不得抛错：
+   * 此刻写入早已落库，抛错会让调用方误以为这次写失败而重试。
    */
   readonly onChange: (event: SqliteChangeEvent) => void;
   /** SQLite page cache 大小（KB），默认 {@link DEFAULT_CACHE_SIZE_KB}。 */
   readonly cacheSizeKb?: number;
+  /**
+   * 变更事件的防抖窗口（毫秒），默认 {@link DEFAULT_BATCH_TIMEOUT}。
+   *
+   * @remarks
+   * 与 wasm 后端的同名选项同义：窗口内的连续写入合并成一次派发。0 表示下一个宏任务立即派发。
+   */
+  readonly batchTimeout?: number;
 }
 
 /** 注册给 SQLite 的通知函数名；触发器体内调用它把行变更捎回 JS。 */
@@ -125,6 +136,21 @@ const normalizeRow = (row: readonly unknown[]): SQLiteCompatibleType[] => row.ma
 const quoteIdentifier = (name: string): string => `"${name.replaceAll('"', '""')}"`;
 const quoteLiteral = (value: string): string => `'${value.replaceAll("'", "''")}'`;
 
+type BatchTimer = ReturnType<typeof setTimeout> & { unref?: () => void };
+
+/**
+ * 启动一个不阻止宿主进程退出的定时器。
+ *
+ * @remarks
+ * 待发的变更通知不该把 Electron 主进程多吊住几十毫秒；正常关停路径由
+ * {@link NodeSqliteEngine.close} 的同步 flush 兜底，不依赖这个定时器跑到。
+ */
+const startBatchTimer = (callback: () => void, delay: number): BatchTimer => {
+  const timer: BatchTimer = setTimeout(callback, delay);
+  timer.unref?.();
+  return timer;
+};
+
 /**
  * 单个数据库连接。
  *
@@ -136,9 +162,12 @@ export class NodeSqliteEngine {
   readonly #db: DatabaseSync;
   readonly #dbName: string;
   readonly #onChange: (event: SqliteChangeEvent) => void;
+  readonly #batchTimeout: number;
   readonly #watchedTables = new Set<string>();
-  /** 本次 `execute()` 期间累积的行变更，按「变更类型 + 表」分组。 */
+  /** 当前批次累积的行变更，按「变更类型 + 表」分组。 */
   readonly #pendingChanges = new Map<string, { type: SQLiteChangeType; tableName: string; rowIds: bigint[] }>();
+  #batchTimer?: BatchTimer;
+  #maxWaitTimer?: BatchTimer;
   #changesStatement?: StatementSync;
   #closed = false;
 
@@ -146,6 +175,9 @@ export class NodeSqliteEngine {
     this.#db = db;
     this.#dbName = options.dbName;
     this.#onChange = options.onChange;
+    this.#batchTimeout = validateSqliteNumericOption('batchTimeout', options.batchTimeout, DEFAULT_BATCH_TIMEOUT, {
+      allowZero: true
+    });
   }
 
   /**
@@ -171,8 +203,9 @@ export class NodeSqliteEngine {
       );
     }
 
-    const engine = new NodeSqliteEngine(db, options);
     try {
+      // 构造也在 try 里：选项校验失败同样必须把刚开的句柄关掉，否则文件被一直锁住。
+      const engine = new NodeSqliteEngine(db, options);
       engine.#initialize(options.cacheSizeKb ?? DEFAULT_CACHE_SIZE_KB);
       return engine;
     } catch (error) {
@@ -192,8 +225,8 @@ export class NodeSqliteEngine {
    * 结果形状与 `executeOo1Helper` 逐字对齐（AC#4）：至多一个结果集，且只在语句真的产出列时才有；
    * 只读语句的 `rowsAffected` 恒为 0，不泄漏上一条写语句遗留的计数。
    *
-   * 多语句脚本不接受绑定参数：`node:sqlite` 的 `exec()` 无法绑参，逐条 prepare 又需要可靠地
-   * 切分 SQL（字符串字面量里的 `;` 会切错），与其猜不如直接拒绝。
+   * 多语句脚本逐条 prepare 执行（切分见 {@link splitSqliteScript}），但**不接受绑定参数**：
+   * 参数属于其中某一条语句，静默绑到第一条只会把数据写错位；wasm 后端同样拒绝这个组合。
    *
    * @param sql - 待执行的 SQL
    * @param bindings - 位置绑定参数
@@ -203,8 +236,8 @@ export class NodeSqliteEngine {
   execute(sql: string, bindings: readonly SQLiteCompatibleType[] = []): SqliteResult {
     this.#assertOpen();
     const startedAt = performance.now();
-    const isSingleStatement = !normalizeSingleStatementSql(sql).includes(';');
-    if (!isSingleStatement && bindings.length > 0) {
+    const statements = splitSqliteScript(sql);
+    if (statements.length > 1 && bindings.length > 0) {
       throw new RxDBAdapterDesktopError(
         'protocol_violation',
         `multi statement scripts cannot carry bindings, got ${bindings.length} for SQL "${sql}"`
@@ -213,10 +246,9 @@ export class NodeSqliteEngine {
 
     // 前一次是为别的连接刚建好的系统表补装触发器，后一次是为本条语句自己建的表补装。
     this.#ensureNotifyTriggers();
-    const results = isSingleStatement ? this.#runSingleStatement(sql, bindings) : this.#runScript(sql);
+    const results = this.#runStatements(statements, bindings);
     const rowsAffected = isReadOnlyStatement(sql) ? 0 : this.#changes();
     this.#ensureNotifyTriggers();
-    this.#flushChanges();
     return { sql, rowsAffected, elapsed: performance.now() - startedAt, results };
   }
 
@@ -239,17 +271,20 @@ export class NodeSqliteEngine {
    * 后者把 WAL 内容并回主库文件，使调用方随后可以直接重命名/备份这个 `.sqlite3`，
    * 而不必额外搬运 `-wal` / `-shm` 旁文件。
    *
+   * 还攒在批次里的变更事件在这里**同步**发掉，与 `Oo1ClientBase.disconnect` 一致：
+   * 定时器随连接一起消失，不发就等于把最后一批写入的通知悄悄吞掉。
+   *
    * 重复调用是安全的。
    */
   close(): void {
     if (this.#closed) return;
     this.#closed = true;
+    this.#flushNow();
     try {
       this.#rollbackOpenTransaction();
       this.#db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
     } finally {
       this.#changesStatement = undefined;
-      this.#pendingChanges.clear();
       this.#db.close();
     }
   }
@@ -290,13 +325,23 @@ export class NodeSqliteEngine {
     }
   }
 
-  #runScript(sql: string): SqliteData[] {
-    try {
-      this.#db.exec(sql);
-      return [];
-    } catch (error) {
-      throw this.#statementError(sql, error);
+  /**
+   * 逐条执行脚本里的语句，只保留**第一条产出行**的语句的结果集。
+   *
+   * @remarks
+   * 「只留第一条」是照着 oo1 的 `db.exec` 抄的：它遇到第一个 `columnCount > 0` 的语句后就
+   * 不再收集，因此 wasm 后端的一次 `execute()` 至多返回一个 {@link SqliteData}。
+   * 桌面端与之对齐，上层才不必分后端处理。
+   *
+   * 走到这里时 `bindings` 非空即意味着只有一条语句（多语句带参已在 {@link NodeSqliteEngine.execute} 拒绝）。
+   */
+  #runStatements(statements: readonly string[], bindings: readonly SQLiteCompatibleType[]): SqliteData[] {
+    const results: SqliteData[] = [];
+    for (const statement of statements) {
+      const data = this.#runSingleStatement(statement, bindings);
+      if (results.length === 0) results.push(...data);
     }
+    return results;
   }
 
   #statementError(sql: string, error: unknown): RxDBAdapterDesktopError {
@@ -320,15 +365,50 @@ export class NodeSqliteEngine {
   }
 
   #recordChange(type: SQLiteChangeType, tableName: string, rowId: bigint): void {
-    const key = `${type} ${tableName}`;
+    const key = `${type} ${tableName}`;
     const pending = this.#pendingChanges.get(key);
-    if (pending) {
-      pending.rowIds.push(rowId);
-      return;
-    }
-    this.#pendingChanges.set(key, { type, tableName, rowIds: [rowId] });
+    if (pending) pending.rowIds.push(rowId);
+    else this.#pendingChanges.set(key, { type, tableName, rowIds: [rowId] });
+    this.#scheduleFlush();
   }
 
+  /**
+   * 防抖 + 硬上限调度，与 `Oo1ClientBase.#schedule_batch_send` 同一套语义。
+   *
+   * @remarks
+   * 本方法是在**触发器体内**被调用的——此刻语句还在执行，事务还开着，行还没提交。
+   * 早先在 `execute()` 末尾同步 flush，订阅者因此会在提交前就被叫醒去回查这些 rowid，
+   * 回查请求排在写入之后，事件相对后续写入整体晚一拍；wasm 后端从来是把事件推到之后的
+   * 宏任务里的，桌面端跟着做，同一份上层代码在两个后端上才会有同样的时序（AC#4）。
+   *
+   * `#batchTimer` 每来一个事件就重置（合并连续写入），`#maxWaitTimer` 只在批次首个事件时
+   * 启动一次且不再重置，保证持续写入下最多 {@link MAX_BATCH_WAIT_MS} 必定强制发一次。
+   */
+  #scheduleFlush(): void {
+    if (this.#batchTimer) clearTimeout(this.#batchTimer);
+    this.#batchTimer = startBatchTimer(() => this.#flushNow(), this.#batchTimeout);
+    this.#maxWaitTimer ??= startBatchTimer(() => this.#flushNow(), MAX_BATCH_WAIT_MS);
+  }
+
+  #flushNow(): void {
+    this.#clearBatchTimers();
+    this.#flushChanges();
+  }
+
+  #clearBatchTimers(): void {
+    if (this.#batchTimer) clearTimeout(this.#batchTimer);
+    if (this.#maxWaitTimer) clearTimeout(this.#maxWaitTimer);
+    this.#batchTimer = undefined;
+    this.#maxWaitTimer = undefined;
+  }
+
+  /**
+   * 派发并清空当前批次。
+   *
+   * @remarks
+   * 队列必须在派发**之前**原子换出：留到派发之后再清，任一监听器抛错都会把整批留在
+   * `#pendingChanges` 里，下次 flush 连同新事件一起重发，上层把同一条变更处理两遍。
+   */
   #flushChanges(): void {
     if (this.#pendingChanges.size === 0) return;
     const batch = [...this.#pendingChanges.values()];

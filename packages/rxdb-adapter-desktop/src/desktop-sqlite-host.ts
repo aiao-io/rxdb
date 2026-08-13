@@ -142,7 +142,8 @@ export function createDesktopSqliteHost(options: DesktopSqliteHostOptions): Desk
       filePath: resolvePath(databaseName),
       dbName: databaseName,
       onChange: event => deliver(sessionId, event),
-      cacheSizeKb: options.cacheSizeKb
+      cacheSizeKb: options.cacheSizeKb,
+      batchTimeout: request.batchTimeout
     });
     sessions.set(sessionId, engine);
     return {
