@@ -6,8 +6,8 @@
 
 import type {
   SqliteChangeEvent,
-  SqliteClientLike,
   SQLiteChangeType,
+  SqliteClientLike,
   SQLiteCompatibleType,
   SqliteResult
 } from '@aiao/rxdb-adapter-sqlite-core';

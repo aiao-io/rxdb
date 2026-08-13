@@ -25,7 +25,7 @@ describe('splitSqliteScript', () => {
 
   // 分号在字面量/标识符/注释里不是语句边界；naive 的 `split(';')` 会把这些 SQL 拦腰截断
   it.each([
-    ["SELECT ';'", "single quoted literal"],
+    ["SELECT ';'", 'single quoted literal'],
     ["SELECT 'a;b''c;d'", 'escaped quote inside a literal'],
     ['SELECT "a;b"', 'double quoted identifier'],
     ['SELECT [a;b]', 'bracketed identifier'],
@@ -39,8 +39,7 @@ describe('splitSqliteScript', () => {
   // 触发器体内的分号属于 BEGIN...END，把它当边界会生成两条都无法编译的碎片
   it('keeps a trigger body with inner semicolons as one statement', () => {
     const sql =
-      'CREATE TRIGGER t AFTER INSERT ON x BEGIN ' +
-      "INSERT INTO log VALUES (1); UPDATE y SET a = 'b;c'; END;";
+      'CREATE TRIGGER t AFTER INSERT ON x BEGIN ' + "INSERT INTO log VALUES (1); UPDATE y SET a = 'b;c'; END;";
     expect(splitSqliteScript(sql)).toEqual([sql]);
   });
 

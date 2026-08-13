@@ -90,9 +90,9 @@ describe('assertSupportedDesktopStorage', () => {
   });
 
   it('rejects an unknown runtime', () => {
-    expect(() =>
-      assertSupportedDesktopStorage('web' as unknown as 'electron', sqliteStorage)
-    ).toThrowError(/unsupported_runtime_engine/);
+    expect(() => assertSupportedDesktopStorage('web' as unknown as 'electron', sqliteStorage)).toThrowError(
+      /unsupported_runtime_engine/
+    );
   });
 
   it('rejects an unknown engine', () => {

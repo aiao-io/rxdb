@@ -9,18 +9,18 @@
  * @module @aiao/rxdb-adapter-desktop
  */
 
-export { RxDBAdapterDesktop } from './RxDBAdapterDesktop.js';
 export {
   ADAPTER_NAME as DESKTOP_ADAPTER_NAME,
   DEFAULT_DATABASE_SUFFIX as DESKTOP_DEFAULT_DATABASE_SUFFIX,
   type DesktopOptions
 } from './desktop-adapter.interface.js';
+export { RxDBAdapterDesktop } from './RxDBAdapterDesktop.js';
 
 export { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from './desktop-error.js';
 
 export {
-  DesktopSqliteClient,
   DESKTOP_HOST_TRANSPORT_KEY,
+  DesktopSqliteClient,
   resolveDesktopHostTransport,
   type DesktopHostTransport,
   type DesktopSqliteClientOptions
@@ -39,11 +39,11 @@ export {
 } from './desktop-storage.js';
 
 export {
-  assertDesktopHostResponse,
   DESKTOP_HOST_MAX_BINDINGS,
   DESKTOP_HOST_MAX_BLOB_BYTES,
   DESKTOP_HOST_MAX_SQL_LENGTH,
   DESKTOP_HOST_PROTOCOL_VERSION,
+  assertDesktopHostResponse,
   parseDesktopHostChangeEvent,
   parseDesktopHostOpenResult,
   type DesktopHostChangeEventMessage,

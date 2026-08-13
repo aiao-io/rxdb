@@ -182,11 +182,9 @@ export function createDesktopSqliteHost(options: DesktopSqliteHostOptions): Desk
     try {
       return options.resolveDatabasePath(databaseName);
     } catch (error) {
-      throw new RxDBAdapterDesktopError(
-        'open_failed',
-        `the application could not resolve a path for ${databaseName}`,
-        { cause: error }
-      );
+      throw new RxDBAdapterDesktopError('open_failed', `the application could not resolve a path for ${databaseName}`, {
+        cause: error
+      });
     }
   };
 

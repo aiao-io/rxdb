@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { DesktopOptions } from '../desktop-adapter.interface.js';
 import { RxDBAdapterDesktopError } from '../desktop-error.js';
 import {
   DESKTOP_HOST_TRANSPORT_KEY,
@@ -11,7 +12,6 @@ import {
 } from '../desktop-sqlite-client.js';
 import { createDesktopSqliteHost, type DesktopSqliteHost } from '../desktop-sqlite-host.js';
 import { RxDBAdapterDesktop } from '../RxDBAdapterDesktop.js';
-import type { DesktopOptions } from '../desktop-adapter.interface.js';
 
 /** `createClient` 是 protected：测试子类只把它开出来，不改任何行为。 */
 class TestDesktopAdapter extends RxDBAdapterDesktop {

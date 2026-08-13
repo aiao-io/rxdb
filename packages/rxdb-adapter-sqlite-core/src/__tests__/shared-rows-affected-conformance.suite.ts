@@ -114,9 +114,7 @@ export function rowsAffectedConformanceSuite(factory: AdapterFactory) {
         expect(selectAfterInsert.results[0].rows).toEqual([['w1'], ['w2'], ['w3']]);
         expect(selectAfterInsert.rowsAffected).toBe(0);
 
-        const updated = await client.execute(
-          `UPDATE ${LEASE_TABLE} SET "epoch" = 2 WHERE "writerId" IN ('w1', 'w2');`
-        );
+        const updated = await client.execute(`UPDATE ${LEASE_TABLE} SET "epoch" = 2 WHERE "writerId" IN ('w1', 'w2');`);
         expect(updated.rowsAffected).toBe(2);
 
         // 零行结果集同样不得继承上一条 UPDATE 的 2。

@@ -78,10 +78,7 @@ export interface DesktopHostCloseRequest {
 
 /** renderer 可以发给 host 的全部请求。 */
 export type DesktopHostRequest =
-  | DesktopHostOpenRequest
-  | DesktopHostExecuteRequest
-  | DesktopHostVersionRequest
-  | DesktopHostCloseRequest;
+  DesktopHostOpenRequest | DesktopHostExecuteRequest | DesktopHostVersionRequest | DesktopHostCloseRequest;
 
 /** `open` 请求的响应。 */
 export interface DesktopHostOpenResult {

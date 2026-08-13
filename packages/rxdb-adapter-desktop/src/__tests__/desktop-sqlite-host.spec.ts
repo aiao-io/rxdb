@@ -3,8 +3,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDesktopSqliteHost, type DesktopSqliteHost } from '../desktop-sqlite-host.js';
 import { DESKTOP_HOST_PROTOCOL_VERSION, type DesktopHostChangeEventMessage } from '../desktop-host-protocol.js';
+import { createDesktopSqliteHost, type DesktopSqliteHost } from '../desktop-sqlite-host.js';
 
 let workspace: string;
 let host: DesktopSqliteHost;
@@ -204,9 +204,9 @@ describe('busy retry', () => {
 
     // 事务中途撞锁不该被 host 悄悄重发：此刻快照已经作废，重来与否只有调用方知道。
     const start = performance.now();
-    expect(await host.handle({ kind: 'execute', sessionId: waiter, sql: 'INSERT INTO t (id) VALUES (2)' })).toMatchObject(
-      { kind: 'error', code: 'database_busy' }
-    );
+    expect(
+      await host.handle({ kind: 'execute', sessionId: waiter, sql: 'INSERT INTO t (id) VALUES (2)' })
+    ).toMatchObject({ kind: 'error', code: 'database_busy' });
     expect(performance.now() - start).toBeLessThan(1_000);
   });
 });

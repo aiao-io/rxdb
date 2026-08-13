@@ -18,8 +18,8 @@ import {
   validateSqliteNumericOption,
   WATCH_TABLES,
   type SqliteChangeEvent,
-  type SqliteData,
   type SQLiteCompatibleType,
+  type SqliteData,
   type SqliteResult
 } from '@aiao/rxdb-adapter-sqlite-core';
 import { DatabaseSync, type SQLInputValue, type SQLOutputValue, type StatementSync } from 'node:sqlite';

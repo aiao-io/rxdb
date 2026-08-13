@@ -1,19 +1,19 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { describe, expect, expectTypeOf, it } from 'vitest';
+import { createDesktopSqliteHost, NodeSqliteEngine, parseDesktopHostRequest } from '../host.js';
 import {
   DESKTOP_ADAPTER_NAME,
   DESKTOP_DEFAULT_DATABASE_SUFFIX,
   DESKTOP_HOST_PROTOCOL_VERSION,
   DESKTOP_HOST_TRANSPORT_KEY,
   DesktopSqliteClient,
+  resolveDesktopHostTransport,
   RxDBAdapterDesktop,
   RxDBAdapterDesktopError,
-  resolveDesktopHostTransport,
   type DesktopHostTransport,
   type DesktopOptions
 } from '../index.js';
-import { createDesktopSqliteHost, NodeSqliteEngine, parseDesktopHostRequest } from '../host.js';
 
 const SOURCE_ROOT = resolve(import.meta.dirname, '..');
 const IMPORT_PATTERN = /from\s+'([^']+)'/g;
