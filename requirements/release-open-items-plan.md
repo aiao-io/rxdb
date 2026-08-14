@@ -1,9 +1,90 @@
 # 发布开项验证方案
 
-> 状态：**待执行**（2026-08-13 撰写）。执行时逐条勾选文末清单，结果按第 6 节回写。
+> 状态：**待执行**（2026-08-13 撰写，2026-08-14 按 squash 合并决策修订）。
+> 执行时逐条勾选文末清单，结果按第 6 节回写。
 >
-> 背景：桥接版本 `v0.0.25` 已在本地打出，[`README.md` 的「下一次发布计划」](./README.md#下一次发布计划桥接版本)
-> 四步执行完毕、门禁三钩子实测通过且不需要修。本文件只处理**剩下没关掉的六个开项**。
+> 背景：本文件处理 v0.0.25 桥接版本**剩下没关掉的六个开项**。
+>
+> ⚠️ **2026-08-14 更正一条前提**：撰写时写的「桥接版本 `v0.0.25` 已在本地打出、
+> 门禁通过、只差推送」**今天已不成立**。见新增的[第 0 节](#0-2026-08-14-发布路径修订squash-合并到-main)。
+> 第 7.1 节按同一事实一并改写。
+
+## 0. 2026-08-14 发布路径修订：squash 合并到 main
+
+决策：**`new-1` squash 合并进 `main`，在 `main` 上重做 0.0.25 发布，然后验证。**
+本节记录这个改动对原方案的三处影响；第 3 节的分支指令与第 7.1 节按此改写。
+
+### 0.1 版本 bump 已被静默回退 —— 必须重做
+
+原方案假定「`v0.0.25` 已在本地打出、门禁通过、只差推送」。核查后**这句话是错的**：
+
+`7df97fa`（提交信息只说「补 README，并修根 README 的过期条目」）的实际改动里，
+把 29 个 `package.json` 从 `0.0.25` 改回 `0.0.24`，并把 `migration-release.json` 从
+`bridge` / `0.0.25` 改回 `normal` / `0.0.24` —— 等于把 `b65b24f`（`chore(release): v0.0.25 桥接版本`）
+整条撤销，而提交信息一个字没提。当前实测：
+
+```bash
+$ node scripts/check-migration-release-gate.mjs --check
+Migration release gate passed for normal 0.0.24.
+
+$ node scripts/check-migration-release-gate.mjs --check --release-tag=v0.0.25
+Migration release gate blocked:
+- release.version 0.0.24 does not match tag v0.0.25
+```
+
+**含义**：工作树是一棵 0.0.24 的树。合并后要发 0.0.25，得在 `main` 上**重新**做一次
+`b65b24f` 做过的事（29 个版本号 + 清单 `kind`/`version`），不是「推个 tag 就完事」。
+
+### 0.2 本地 tag `v0.0.25` 会被 squash 变成孤儿 —— 先删掉
+
+`git ls-remote --tags origin` 显示远端只有 `v0.0.24`；`v0.0.25` 只存在于本地，指向 `b65b24f`。
+squash 合并会生成一个全新提交，`b65b24f` **不在** `main` 的祖先链上，于是这条 tag 指向一段
+`main` 上不存在的历史 —— 而 [US-304](./stories/collaboration/US-304-writer-lease-migration-fencing.md)
+AC1 的判据恰恰是「已推送**且在祖先链上**」。
+
+因为它从没推送过，`git tag -d v0.0.25` 零成本，不涉及重写公开历史。**必须在合并前删**，
+否则后面在 `main` 上重新打同名 tag 会撞车，而撞车时 git 报的是「已存在」，
+不会提醒你旧的那个指向别处。
+
+### 0.3 squash 换掉了 nx release 的计算基准
+
+`b65b24f` 的提交信息里已经记过：0.0.25 是 patch，因为 v0.0.24 以来 14 个提交中没有一条 `feat:`
+（信息是 `123` / `up` 之类，conventional-commits 解析器看不见），尽管这期间落地了全新可发布包
+`@aiao/rxdb-adapter-desktop`。
+
+squash 把 23 个提交压成一条之后，版本号将**完全由那一条提交信息决定**。0.0.25 作为
+bridge 锚点是人工选定的结果，不是算出来的 —— 这一点要写进 squash 提交的正文，
+否则下一个人无从判断这个号是怎么来的。
+
+### 0.4 「先发布再验证」的代价
+
+原方案第 5 节的 Verdaccio 演练，目的是在**不可逆的** `git push --tags`（`publish.yml` 由
+`push: tags: v*.*.*` 触发，直接走到 `nx release publish`）之前挡住「发出去装不上」。
+改成先发再验，等于把这个顺序倒过来：npm 的版本号用掉不能复用，0.0.25 发坏了只能发 0.0.26。
+
+按本次决策 **C-B（Verdaccio）跳过**，但 **C-A 保留且前移到合并之前**：
+`@aiao/rxdb-adapter-desktop` 是本次唯一的首发包、唯一的双入口包，且既无 `consumer`
+也无 `audit` target。C-A 用 `pnpm pack` + `file:` 装一遍就能验掉双入口解析与 `files` 白名单，
+成本很低，而且它是持久化资产而非一次性演练。
+
+### 0.5 修订后的执行顺序
+
+| 步骤 | 动作                                                                     | 在哪个分支 |
+| ---- | ------------------------------------------------------------------------ | ---------- |
+| 1    | A2（US-207 AC#2 加密套件）、C-A（desktop `consumer` target）             | `new-1`    |
+| 2    | `git tag -d v0.0.25`（删掉将成孤儿的本地 tag）                           | —          |
+| 3    | squash 合并进 `main`，提交信息写明 0.0.25 是人工选定的 bridge 锚点       | `main`     |
+| 4    | 在 `main` 上重做版本 bump：29 个 `package.json` + 清单 `bridge`/`0.0.25` | `main`     |
+| 5    | `check-migration-release-gate.mjs --check --release-tag=v0.0.25` 必须绿  | `main`     |
+| 6    | 在**发布提交**上重新 `git tag v0.0.25`，推送 → `publish.yml` 发 npm      | `main`     |
+| 7    | 验证；A1 / B / 7.2 的 workflow 归入下一版本                              | `main`     |
+
+A1（US-304 AC6）与 B（PR CI 门禁）不阻塞本次发布，可留到 0.0.25 之后。
+US-207 AC#8 三平台矩阵同理 —— 见 7.2，它本来就只在 release 分支或 tag 触发。
+
+> **US-207 仍是 🚧。** 0.0.25 是 bridge 版本、不升 system schema，AC#2 / AC#8 未关
+> 不构成发布阻塞；但要接受一个事实：`@aiao/rxdb-adapter-desktop` 首发时，
+> 若 A2 未做完，则「加密字段 × 桌面 adapter」这个组合在 npm 上是无用例覆盖的。
 
 ## 1. 结论先行
 
@@ -23,22 +104,25 @@ README 是否随包走，这些只有从一个真 tarball 装一次才知道。�
 
 ## 2. 六个开项的分类
 
-| 开项           | 现状                                       | 本质        | 本方案能关掉？               |
-| -------------- | ------------------------------------------ | ----------- | ---------------------------- |
-| US-304 AC1     | 只差「已推送」，其余三项成立               | 发布决策    | ❌ 见 7.1                    |
-| US-304 AC6     | 缺「别的 realm 真的抬了 epoch」这条用例    | 分支代码    | ✅ 阶段 A1                   |
-| US-304 AC11    | 本版无可迁移内容，等 US-305                | 被前置阻塞  | ❌ 见 7.3                    |
-| US-207 AC#2    | 加密字段解锁与桌面 adapter 的组合无用例    | 分支代码    | ✅ 阶段 A2                   |
-| US-207 AC#8    | 只跑过 macOS，缺三平台打包矩阵             | CI 基础设施 | ❌ 见 7.2（可写好等 runner） |
-| PR CI 接入门禁 | `README.md` 执行顺序第 0 步，没做          | CI 配置     | ✅ 阶段 B                    |
-| AC11 归属      | 留 US-304 还是转 US-305 的 `inherited_acs` | 决策        | ❌ 见 7.4                    |
+| 开项           | 现状                                              | 本质        | 本方案能关掉？               |
+| -------------- | ------------------------------------------------- | ----------- | ---------------------------- |
+| US-304 AC1     | ~~只差「已推送」~~ 三项前提全不成立，见 0.1 / 0.2 | 发布决策    | ❌ 见 7.1                    |
+| US-304 AC6     | 缺「别的 realm 真的抬了 epoch」这条用例           | 分支代码    | ✅ 阶段 A1                   |
+| US-304 AC11    | 本版无可迁移内容，等 US-305                       | 被前置阻塞  | ❌ 见 7.3                    |
+| US-207 AC#2    | 加密字段解锁与桌面 adapter 的组合无用例           | 分支代码    | ✅ 阶段 A2                   |
+| US-207 AC#8    | 只跑过 macOS，缺三平台打包矩阵                    | CI 基础设施 | ❌ 见 7.2（可写好等 runner） |
+| PR CI 接入门禁 | `README.md` 执行顺序第 0 步，没做                 | CI 配置     | ✅ 阶段 B                    |
+| AC11 归属      | 留 US-304 还是转 US-305 的 `inherited_acs`        | 决策        | ❌ 见 7.4                    |
 
 「本质」这一列决定了做法。把决策题当测试题做，或者指望 registry 回答 git 的问题，
 都只会产出一份看着很忙、什么也没关掉的记录。
 
 ## 3. 阶段 A：分支里能关掉的两条
 
-新建分支 `chore/release-open-items`（不要在 `main` 上直接改，本仓库 `main` 已领先 origin 16 个提交）。
+在 `new-1` 上做（2026-08-14 修订，见 [0.5](#05-修订后的执行顺序)）。原文写的是「新建分支
+`chore/release-open-items`，不要在 `main` 上直接改，本仓库 `main` 已领先 origin 16 个提交」——
+这句现在过期了：`main` 与 `origin/main` 已同步，工作分支是 `new-1`（领先 `main` 23 个提交，
+且 `main` 是它的祖先，可快进）。A2 与 C-A 落在 `new-1`，随 squash 一并进 `main`。
 
 ### A1 — US-304 AC6：暂停的旧 writer 恢复后被 fence
 
@@ -314,16 +398,24 @@ npm config delete //localhost:4873/:_authToken --location user
 
 ### 7.1 US-304 AC1 — 推送 tag
 
-判据是「已推送且在 HEAD 祖先链上」。`v0.0.25` 已在本地打出、门禁通过、祖先关系成立，
-只差推送这一下。**刻意没推**：`publish.yml` 的触发条件是 `push: tags: v*.*.*`，
+判据是「已推送且在 HEAD 祖先链上」。`publish.yml` 的触发条件是 `push: tags: v*.*.*`，
 推上去就直接走到 `nx release publish`，发到真 npm，不可逆。
 
-要推的话有前置：① 网络（撰写本文时 `git ls-remote` 对 github.com 超时，`curl 28`）；
-② 这是**发布决策**，不是验证步骤。US-304 上文那条「不要用推一个废弃 tag 试门禁来充当 AC11 证据」
-的告诫同样约束这里 —— 不能为了把 AC1 涂绿而推 tag。
+> **2026-08-14 改写。** 原文说「`v0.0.25` 已在本地打出、门禁通过、祖先关系成立，只差推送这一下」，
+> 这三项**今天全都不成立**（详见 [0.1](#01-版本-bump-已被静默回退--必须重做) 与
+> [0.2](#02-本地-tag-v0025-会被-squash-变成孤儿--先删掉)）：
+>
+> - **没打出**：版本 bump 被 `7df97fa` 静默回退，工作树是一棵 0.0.24 的树；
+> - **门禁不过**：`--check --release-tag=v0.0.25` 当场 blocked
+>   （`release.version 0.0.24 does not match tag v0.0.25`）；
+> - **祖先关系将被 squash 打断**：本地 tag 指向 `b65b24f`，squash 后它不在 `main` 祖先链上。
+>
+> 所以 AC1 缺的**不止推送这一下**，而是「删旧 tag → 重做 bump → 门禁转绿 → 在发布提交上重新打 tag
+> → 推送」五步。按 [0.5](#05-修订后的执行顺序) 的步骤 2、4–6 执行。
 
-阶段 A/B 完成后 `main` 会前进，届时 `v0.0.25` 需要重新决定指向哪个提交（或者干脆让 A/B 的成果
-进下一个版本）。这个先后关系在动手前先想清楚。
+推 tag 是**发布决策**，不是验证步骤。US-304 上文那条「不要用推一个废弃 tag 试门禁来充当 AC11 证据」
+的告诫同样约束这里 —— 不能为了把 AC1 涂绿而推 tag。另注：撰写本文时 `git ls-remote` 对
+github.com 超时（`curl 28`）；2026-08-14 复核时远端可达，确认 origin 上只有 `v0.0.24`。
 
 ### 7.2 US-207 AC#8 — 三平台打包矩阵
 
@@ -356,26 +448,46 @@ AC11 说的是「发布**迁移**版本时门禁要拦住旧 bundle」。本版 
 
 ## 8. 演练记录
 
-> 待阶段 C 执行后填写。
+> ~~待阶段 C 执行后填写。~~
+>
+> **2026-08-14 作废**：C-B（Verdaccio）按 [0.4](#04-先发布再验证的代价) 跳过，本节没有内容可填。
+> C-A 是持久化的 `consumer` target 而非一次性演练，它的结果按第 6 节记进 US-207 的「实现文件」，
+> 不记这里。若将来恢复 Verdaccio 演练，本节重新启用。
 
 ## 9. 执行清单
 
-- [ ] 建分支 `chore/release-open-items`
-- [ ] A1 写 AC6 用例（先确认它是红的；若一上来就绿，改为标 ✅ 并留证）
-- [ ] A1 `pnpm nx test rxdb-adapter-sqlite-core` 全绿
+按 [0.5](#05-修订后的执行顺序) 重排。~~删除线~~ 的条目按 2026-08-14 决策移出本次发布。
+
+### 合并前（分支 `new-1`）
+
 - [ ] A2 补 `desktopEncryptedAdapterFactory`
 - [ ] A2 接五套 encrypted 共享套件
 - [ ] A2 `pnpm nx test rxdb-adapter-desktop` 全绿且无跳过项
-- [ ] B 改 `ci-template.yml`（含 `GITHUB_REF_NAME: ''`）
-- [ ] B 本地复验两种 `GITHUB_REF_NAME` 下的行为符合预期
 - [ ] C-A 写 `scripts/audit/desktop-adapter-consumer.mjs`（含 `/host` 入口断言）
 - [ ] C-A 加 `consumer` target，`pnpm nx run rxdb-adapter-desktop:consumer` 通过
-- [ ] C-B（C1–C3）Verdaccio 发布 29 包
-- [ ] C-B（C4）scratch consumer 四问逐条查
-- [ ] C-B（C5）`/host` 真实往返冒烟
-- [ ] C-B（C6–C7）停 registry 并确认 `~/.npmrc` 已还原
-- [ ] 按第 6 节回写 US-304 / US-207 / README / status-overview
-- [ ] 第 8 节填演练记录
+- [ ] 全量验证 `pnpm test-all`
+
+### 合并与发布（`main`）
+
+- [ ] `git tag -d v0.0.25` —— 删掉指向 `b65b24f`、squash 后将成孤儿的本地 tag（[0.2](#02-本地-tag-v0025-会被-squash-变成孤儿--先删掉)）
+- [ ] squash 合并 `new-1` → `main`；提交信息写明 0.0.25 是**人工选定**的 bridge 锚点（[0.3](#03-squash-换掉了-nx-release-的计算基准)）
+- [ ] 在 `main` 重做版本 bump：29 个 `package.json` → `0.0.25`（[0.1](#01-版本-bump-已被静默回退--必须重做)）
+- [ ] 在 `main` 重做清单：`migration-release.json` 的 `kind` → `bridge`、`version` → `0.0.25`
+- [ ] `node scripts/check-migration-release-gate.mjs --check --release-tag=v0.0.25` 通过
+- [ ] 在**发布提交**上 `git tag v0.0.25`，确认 `git merge-base --is-ancestor` 成立
+- [ ] 推送 tag → `publish.yml` 发 npm（**不可逆**，[0.4](#04-先发布再验证的代价)）
+- [ ] 发布后从真 registry 装一次 `@aiao/rxdb-adapter-desktop`，验双入口与 `workspace:*` 替换
+
+### 回写
+
+- [ ] 按第 6 节回写 US-207 / README / status-overview（A2 关掉则 AC#2 转 ✅）
 - [ ] 把 7.4 的决策单独提给决策人
 - [ ] 若 C-0 的 CI 缺口属实，单独立项（不在本方案内改 workflow）
-- [ ] 全量验证 `pnpm test-all`
+- [ ] 单独立项：`7df97fa` 的静默回退说明提交前没有 review 版本号漂移，考虑加一条门禁
+
+### 移出本次发布（下一版本再做）
+
+- ~~[ ] A1 写 AC6 用例 + `pnpm nx test rxdb-adapter-sqlite-core` 全绿~~ —— US-304 AC6 不阻塞 0.0.25
+- ~~[ ] B 改 `ci-template.yml`（含 `GITHUB_REF_NAME: ''`）并本地复验~~ —— PR 门禁不阻塞 0.0.25
+- ~~[ ] C-B（C1–C7）Verdaccio 全套~~ —— 按 [0.4](#04-先发布再验证的代价) 跳过，第 8 节演练记录随之作废
+- ~~[ ] 第 8 节填演练记录~~ —— 同上
