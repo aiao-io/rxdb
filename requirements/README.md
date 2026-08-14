@@ -91,7 +91,6 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 |   P2   | 字段值校验与生成器透传               | [US-012c](stories/core/US-012c-field-value-validation-codegen.md)        | 有了 DTO 才谈得上运行时校验；单独成条以免和 DTO 一起变成不可验收的大块                | `validateFieldValue()`、D12 归一化、生成器透传、三框架 fixture 复用                                                |
 |   P2   | Electron PGlite 数据目录与事务宿主   | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)       | PGlite callback transaction 不能跨 IPC 序列化，需要 SQLite 路径不需要的事务 host 协议 | 主进程 data directory、事务 ID 协议或主进程托管 adapter、跨进程类型保真                                            |
 |   P2   | PGlite 原生全文搜索                  | [US-703](stories/future/US-703-pglite-full-text-search.md)               | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                             | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                       |
-|   P3   | 小程序适配器门禁与文档收尾           | [US-209](stories/adapter/US-209-miniprogram-adapter.md)                  | 包已发布但不在覆盖率 baseline、不在兼容性矩阵，且根 README 声称支持 Alipay 与实现不符 | 覆盖率 baseline 登记、`/runtime` 子路径 API baseline 决策、compatibility.md、README 表述修正                       |
 
 > US-306 / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
 > [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定顺序。
@@ -107,8 +106,11 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 5. US-305 必须排在 US-304 之后：其跨 realm 提交校验建立在 writer lease / epoch fencing 之上，不允许另起一套协调协议。
    epic-006 内部顺序为 **US-305 → US-306 → US-307 → US-308**，后一个依赖前一个的存储布局；US-308 额外要求 US-304 已 Done。
 6. US-703 应复用现有搜索公开 API 和跨框架 parity fixture，不为 PGlite 增加 SQLite 专属 fallback。
-7. US-209 只做门禁与文档收尾，不扩大小程序适配器的能力承诺：WAL、多页面并发、崩溃恢复保证和微信以外的小程序平台都不进入范围；
-   文档必须写明「实验性」而不是把它列成与 wa-sqlite 同级的受支持适配器。
+7. ~~US-209 只做门禁与文档收尾~~ → 2026-08-15 已 Done。约束仍然生效并转为**长期口径**：小程序适配器的能力承诺不得扩大，
+   WAL、多页面并发、崩溃恢复保证和微信以外的小程序平台都不在范围内；文档一律写「实验性」，
+   不得把它列成与 wa-sqlite 同级的受支持适配器（落点见 [compatibility.md](../website/docs/compatibility.md) 的能力边界专节）。
+   US-209 AC#8 顺带留下一个新缺口：`exports` 子路径入口不受 api-surface 门禁保护，见
+   [status-overview.md](status-overview.md) 的「已知的需求覆盖缺口」，尚无故事认领。
 
 ### 建议补充的验收维度
 

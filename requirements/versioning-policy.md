@@ -43,6 +43,12 @@
 - CI 运行 `node scripts/audit/api-surface.mjs --check`；出现未声明的表面变化即失败。
 - 预期内的变更：`node scripts/audit/api-surface.mjs --update` 重新生成基线，PR 标注是否 breaking，必要时补迁移说明。
 
+> **已知不覆盖：子路径入口。** 基线只扫主入口 `src/index.ts`，`exports` 里声明的子路径
+> （`@aiao/rxdb-adapter-miniprogram/runtime`、`@aiao/rxdb-adapter-wa-sqlite/client` 等，
+> 完整清单见 [api-surface.mjs](../scripts/audit/api-surface.mjs) 的 v1 边界注释）**属于第 2 节的公开 API，
+> 但不受本门禁保护**——改动这些子路径的导出必须在 PR 描述里人工声明破坏性。
+> 扩展扫描器覆盖子路径不在 [US-209](stories/adapter/US-209-miniprogram-adapter.md) 范围内。
+
 ## 5. 版本级别决策
 
 - 提交遵循 [Conventional Commits](https://www.conventionalcommits.org/)：`fix:`→补丁，`feat:`→次版本，`feat!:` / `BREAKING CHANGE:`→主版本。

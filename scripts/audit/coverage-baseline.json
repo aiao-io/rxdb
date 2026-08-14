@@ -37,6 +37,12 @@
       "functions": 98,
       "lines": 97
     },
+    "rxdb-adapter-miniprogram": {
+      "statements": 99,
+      "branches": 97,
+      "functions": 100,
+      "lines": 100
+    },
     "rxdb-adapter-pglite": {
       "statements": 99,
       "branches": 93,

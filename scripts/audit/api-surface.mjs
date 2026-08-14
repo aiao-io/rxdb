@@ -40,6 +40,16 @@ import ts from 'typescript';
  *   提取结果一致；无法解析的导出符号直接报错，不降级猜测种类。
  * - 【v1 边界】只扫主入口 `src/index.ts`，不覆盖 package.json `exports` 子路径入口
  *   （如 `@aiao/x/sub`）。子路径表面变化不会被本门禁捕获，需人工审查。
+ *   截至 US-209，下列子路径入口属于**已知不覆盖**（改动它们的导出必须在 PR 里人工声明）：
+ *     @aiao/rxdb-adapter-desktop/host
+ *     @aiao/rxdb-adapter-encrypted/testing
+ *     @aiao/rxdb-adapter-miniprogram/runtime   （prepareMiniProgramRuntime 等 5 个运行时导出）
+ *     @aiao/rxdb-adapter-pglite/testing
+ *     @aiao/rxdb-adapter-sqlite-core/testing
+ *     @aiao/rxdb-adapter-wa-sqlite/client
+ *     @aiao/rxdb-client-generator/{cli,vite}
+ *     @aiao/rxdb-plugin-graph/{sqlite,generator}
+ *   （`@aiao/rxdb-test/*` 不在此列——整包已由 EXCLUDED 排除。）
  * - 通过 TS 编译器解析 `export *` / re-export，得到入口真实可见的导出集合。
  * - 只记录名称与种类（type/value/both），不做完整签名快照 —— 目标是捕获「导出被
  *   增删或改变种类」这类信号，触发人工审查，而非替代类型契约测试。

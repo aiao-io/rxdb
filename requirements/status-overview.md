@@ -4,14 +4,14 @@
 >
 > **完成记录**与 spec 关闭快照已移至 [CHANGELOG.md](CHANGELOG.md)。
 
-**最后同步**: 2026-08-14
+**最后同步**: 2026-08-15
 
 ## 状态汇总
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 32   |
-| 👀 In Review   | 1    |
+| ✅ Done        | 33   |
+| 👀 In Review   | 0    |
 | 📝 Backlog     | 11   |
 | 🚧 In Progress | 2    |
 | 🚫 Blocked     | 0    |
@@ -19,7 +19,7 @@
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，请勿手写维护。
 > 2026-08-13 的评审把 US-012 拆成 US-012a/b/c、US-207 拆出 US-208、US-305 升级为 epic-006 并拆成 US-305～US-308，Backlog 因此从 4 增至 11；这是拆分而不是新增范围。
-> 同日补写了 [US-209](stories/adapter/US-209-miniprogram-adapter.md)（微信小程序适配器），适配器实现早已合并，故直接记为 `In Review` 而非 `Backlog`。
+> 同日补写了 [US-209](stories/adapter/US-209-miniprogram-adapter.md)（微信小程序适配器），适配器实现早已合并，故直接记为 `In Review` 而非 `Backlog`；2026-08-15 收尾项全部关闭，转 `Done`（Done 32 → 33，In Review 1 → 0，合计不变）。
 > 同日 US-207 二次拆分：Tauri 半边迁至 [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)（Backlog），US-207 收敛到 Electron 并转 `In Progress`。Backlog 一进一出仍为 11，合计 45 → 46。
 
 ## 项目统计
@@ -37,7 +37,8 @@
 
 ### 已知的需求覆盖缺口
 
-- ~~`@aiao/rxdb-adapter-miniprogram` 没有任何 story~~ → 2026-08-13 补写 [US-209](stories/adapter/US-209-miniprogram-adapter.md)。适配器实现与 12 个 spec / 92 个用例早已合并，故事按事实把已实现能力标 ✅，只把**门禁与文档缺口**留作 ⬜：本包不在 [coverage-baseline.json](../scripts/audit/coverage-baseline.json) 中（覆盖率不受门禁保护）、`./runtime` 子路径导出不受 API baseline 覆盖（[api-surface.mjs:41](../scripts/audit/api-surface.mjs#L41) 的 v1 边界）、[compatibility.md](../website/docs/compatibility.md) 未列出本包、根 README 仍声称支持 Alipay。
+- ~~`@aiao/rxdb-adapter-miniprogram` 没有任何 story~~ → 2026-08-13 补写 [US-209](stories/adapter/US-209-miniprogram-adapter.md)，2026-08-15 收尾完成转 `Done`：本包已登记进 [coverage-baseline.json](../scripts/audit/coverage-baseline.json)、[compatibility.md](../website/docs/compatibility.md) 补了能力边界专节、根 README 不再声称支持 Alipay、[examples/README.md](../examples/README.md) 声明示例不在 CI 覆盖范围。
+- **`exports` 子路径入口不受 API baseline 保护**（US-209 AC#8 的决策产物）。[api-surface.mjs](../scripts/audit/api-surface.mjs) 的 v1 边界只扫主入口 `src/index.ts`，9 个包的子路径（`rxdb-adapter-miniprogram/runtime`、`rxdb-adapter-wa-sqlite/client`、`rxdb-plugin-graph/{sqlite,generator}` 等）按 [versioning-policy.md](versioning-policy.md) 属于公开 API 但只能人工审查。扩展扫描器覆盖子路径尚无故事认领。
 - **小程序运行时的搜索能力仍无故事覆盖**。`@aiao/rxdb-plugin-search` 只白名单 `sqlite-wasm`，小程序侧能否加载 FTS5 扩展不在 US-209 范围内，见下方跨框架矩阵脚注。
 
 ## 按 Epic 索引
@@ -99,7 +100,7 @@
 - 🚧 [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md) — `@aiao/rxdb-adapter-desktop` 与主进程 host 已落地，AC#1–#7 ✅（2026-08-14 接入 `@aiao/rxdb-test/encrypted` 五套共享套件关闭 AC#2，786 用例全绿）；仅剩 AC#8 三平台打包矩阵
 - ⬜ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md) — 从 US-207 拆出，PGlite callback transaction 不能跨 IPC 序列化
 - ⬜ [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) — 从 US-207 二次拆出，`tauri-plugin-sql` 的单物理连接事务语义未验证
-- 👀 [US-209 微信小程序 wa-sqlite 适配器](stories/adapter/US-209-miniprogram-adapter.md) — 实验性，适配器已合并，剩余为覆盖率门禁登记与文档收尾
+- ✅ [US-209 微信小程序 wa-sqlite 适配器](stories/adapter/US-209-miniprogram-adapter.md) — 实验性；2026-08-15 完成覆盖率门禁登记、子路径 API baseline 决策与文档收尾
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
 
