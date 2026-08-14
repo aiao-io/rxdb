@@ -251,6 +251,7 @@ describe('桌面 host 的 IPC 接线', () => {
 describe('ELEC-23 桌面 host 依赖必须打进主进程产物', () => {
   const project = JSON.parse(read('project.json'));
   const bundleTargets = ['electron-build', 'electron-package-dir'];
+  const BUNDLER_SCRIPT = 'tools/bundle-desktop-host.mjs';
   const commandsOf = (target: string): string[] =>
     (project.targets[target].options.commands as (string | { command: string })[]).map(entry =>
       typeof entry === 'string' ? entry : entry.command
@@ -263,33 +264,51 @@ describe('ELEC-23 桌面 host 依赖必须打进主进程产物', () => {
     expect(source).not.toMatch(/from '\.\/desktop-sqlite-bridge'/);
   });
 
-  it.each(bundleTargets)('%s 在 tsc 之后跑 esbuild', target => {
+  it.each(bundleTargets)('%s 在 tsc 之后跑打包脚本', target => {
     const commands = commandsOf(target);
     const tscAt = commands.findIndex(command => command.includes('tsc -p tsconfig.serve.json'));
-    const esbuildAt = commands.findIndex(command => command.startsWith('esbuild '));
+    const bundleAt = commands.findIndex(command => command.includes(BUNDLER_SCRIPT));
     expect(tscAt).toBeGreaterThanOrEqual(0);
-    expect(esbuildAt).toBeGreaterThan(tscAt);
+    expect(bundleAt).toBeGreaterThan(tscAt);
     expect(project.targets[target].options.parallel).toBe(false);
   });
 
-  // 少一个开关就少打包一层依赖：没有 --bundle 就只是转译，
-  // 没有 --format=cjs 会 emit ESM 而应用 package.json 没有 "type": "module"，
-  // 没有 --platform=node 则 `node:sqlite` 之类的内建被当成待打包的裸模块。
-  it.each(bundleTargets)('%s 的 esbuild 产出自足的 node CJS', target => {
-    const esbuild = commandsOf(target).find(command => command.startsWith('esbuild '));
-    expect(esbuild).toBeDefined();
-    for (const flag of ['--bundle', '--platform=node', '--format=cjs', '--external:electron']) {
-      expect(esbuild).toContain(flag);
-    }
-    expect(esbuild).toContain('src-electron/desktop-sqlite-bridge.bundle.js');
+  // 少一个开关就少打包一层依赖：没有 bundle 就只是转译，
+  // 没有 format: 'cjs' 会 emit ESM 而应用 package.json 没有 "type": "module"，
+  // 没有 platform: 'node' 则 `node:sqlite` 之类的内建被当成待打包的裸模块。
+  // 断言的是脚本导出的配置对象本身，而不是命令行字符串——后者可能与真正生效的配置脱节。
+  it('打包脚本产出自足的 node CJS', async () => {
+    const { bundleOptions } = await import('../tools/bundle-desktop-host.mjs');
+    expect(bundleOptions).toMatchObject({
+      bundle: true,
+      platform: 'node',
+      format: 'cjs',
+      target: 'node22',
+      external: ['electron']
+    });
+    expect(bundleOptions.entryPoints).toHaveLength(1);
+    expect(bundleOptions.entryPoints[0]).toMatch(/src-electron\/desktop-sqlite-bridge\.ts$/);
+    expect(bundleOptions.outfile).toMatch(
+      /dist\/apps\/dev-rxdb-electron\/src-electron\/desktop-sqlite-bridge\.bundle\.js$/
+    );
+  });
+
+  // 三处逐字副本正是 ELEC-23 想消灭的东西：打包路径漏改一处，
+  // typecheck、单测、dev 全绿，只有真实产物启动时才 Cannot find module。
+  it('三个调用点共用同一份打包定义', () => {
+    const callSites = [...bundleTargets, 'watch-main'].map(target =>
+      commandsOf(target).filter(command => command.includes('bundle-desktop-host'))
+    );
+    expect(callSites.every(commands => commands.length === 1)).toBe(true);
+    expect(commandsOf('electron-build')).not.toContainEqual(expect.stringContaining('esbuild '));
   });
 
   // dev 模式加载的是同一份 dist 产物。watch-main 只跑 tsc 的话，
   // `.bundle.js` 根本不存在 —— 应用一启动就 `Cannot find module`。
-  it('watch-main 同时监视 tsc 与 esbuild', () => {
+  it('watch-main 同时监视 tsc 与打包脚本', () => {
     const commands = commandsOf('watch-main');
     expect(commands.some(command => command.includes('tsc -p apps/dev-rxdb-electron/tsconfig.serve.json'))).toBe(true);
-    expect(commands.some(command => command.includes('esbuild ') && command.includes('--watch'))).toBe(true);
+    expect(commands.some(command => command.includes(BUNDLER_SCRIPT) && command.includes('--watch'))).toBe(true);
     expect(project.targets['watch-main'].options.parallel).not.toBe(false);
   });
 });

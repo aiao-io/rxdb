@@ -179,6 +179,14 @@ await rxdb.disconnectAll();
 
 撞锁后按指数退避重试，默认总预算 5 秒（盖住「另一个窗口正在跑一次系统 schema 迁移」这段最长持锁时间），超时报 `database_busy`。可用 host 的 `busyRetryBudgetMs` 调整。
 
+### 变更事件不跨窗口
+
+每个 `open` 得到一条**独立**的 `DatabaseSync` 连接——共享连接会让多个窗口的 `BEGIN` 块互相穿插，事务隔离直接失效。代价是变更通知只在写入所在的那条连接上开火：通知靠 TEMP 触发器实现，而 TEMP 对象是连接私有的。
+
+所以 **A 窗口的写入不会触发 B 窗口的响应式查询**。数据本身是一致的（同一个文件，SQLite 的锁保证了这点），不一致的只是「B 什么时候知道」——B 要等到自己下一次查询才看到新数据。
+
+需要跨窗口实时同步的话，目前得由宿主应用自己广播（例如主进程把 `postChange` 收到的事件转发给其余 `webContents`，各 renderer 收到后主动重查）。
+
 ## 完整示例
 
 参考 [dev-rxdb-electron](https://github.com/aiao-io/rxdb/tree/main/apps/dev-rxdb-electron)：`src-electron/desktop-sqlite-bridge.ts`（主进程接线与窗口归属）、`src-electron/preload.ts`（桥接暴露）、`src/app/services/desktop-database.service.ts`（renderer 侧使用）。

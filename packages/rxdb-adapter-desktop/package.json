@@ -39,8 +39,7 @@
   },
   "dependencies": {
     "@aiao/rxdb": "workspace:*",
-    "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
-    "rxjs": "^7.8.2"
+    "@aiao/rxdb-adapter-sqlite-core": "workspace:*"
   },
   "devDependencies": {
     "@aiao/rxdb-test": "workspace:*"

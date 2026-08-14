@@ -57,7 +57,7 @@ const KEYWORD_TOKENS = new Map<string, number>([
 const WHITESPACE = new Set([' ', '\t', '\n', '\r', '\f']);
 
 /** 与 `complete.c` 的 `IdChar` 同集合：字母数字、`_`、`$`，以及一切非 ASCII 字符。 */
-const ID_CHAR = /[A-Za-z0-9_$-￿]/u;
+const ID_CHAR = /[A-Za-z0-9_$\u0080-\uFFFF]/u;
 
 interface Lexeme {
   readonly token: number;
