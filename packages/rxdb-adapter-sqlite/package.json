@@ -2,6 +2,11 @@
   "name": "@aiao/rxdb-adapter-sqlite",
   "version": "0.0.25",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-adapter-sqlite"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

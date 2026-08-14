@@ -2,6 +2,11 @@
   "name": "@aiao/rxdb-plugin-search-angular",
   "version": "0.0.25",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-plugin-search-angular"
+  },
   "type": "module",
   "peerDependencies": {
     "@aiao/rxdb": "*",
