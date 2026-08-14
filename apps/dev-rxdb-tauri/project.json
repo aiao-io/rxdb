@@ -148,6 +148,45 @@
         "description": "TAURI-FRESH-01：Rust 侧的 lint 门禁（零警告）"
       }
     },
+    "build-test-host": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src-tauri/**/*.rs",
+        "{projectRoot}/src-tauri/Cargo.toml",
+        "{projectRoot}/src-tauri/Cargo.lock"
+      ],
+      "outputs": ["{projectRoot}/src-tauri/target/debug/rxdb_host_stdio"],
+      "options": {
+        "cwd": "apps/dev-rxdb-tauri/src-tauri",
+        "command": "cargo build --locked --bin rxdb_host_stdio",
+        "parallel": false
+      },
+      "metadata": {
+        "description": "US-210：一致性套件驱动的 stdio 宿主二进制（不进产品包）"
+      }
+    },
+    "test-conformance": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "dependsOn": ["build-test-host"],
+      "inputs": [
+        "{projectRoot}/conformance/**/*.ts",
+        "{projectRoot}/vitest.conformance.mts",
+        "{projectRoot}/src-tauri/**/*.rs",
+        "{projectRoot}/src-tauri/Cargo.toml",
+        "{projectRoot}/src-tauri/Cargo.lock",
+        "^production"
+      ],
+      "options": {
+        "cwd": "apps/dev-rxdb-tauri",
+        "command": "vitest run --config vitest.conformance.mts",
+        "parallel": false
+      },
+      "metadata": {
+        "description": "US-210 AC#2/#3/#5/#7：Rust 引擎跑 21 个共享套件 + 5 个加密套件"
+      }
+    },
     "cargo-test": {
       "executor": "nx:run-commands",
       "cache": true,

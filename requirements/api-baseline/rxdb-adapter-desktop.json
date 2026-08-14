@@ -13,6 +13,14 @@
       "kind": "value"
     },
     {
+      "name": "createTauriHostTransport",
+      "kind": "value"
+    },
+    {
+      "name": "decodeDesktopJsonPayload",
+      "kind": "value"
+    },
+    {
       "name": "DESKTOP_ADAPTER_NAME",
       "kind": "value"
     },
@@ -105,6 +113,10 @@
       "kind": "type"
     },
     {
+      "name": "encodeDesktopJsonPayload",
+      "kind": "value"
+    },
+    {
       "name": "isDesktopPgliteDirectoryStorage",
       "kind": "value"
     },
@@ -138,6 +150,18 @@
     },
     {
       "name": "SupportedDesktopStorage",
+      "kind": "type"
+    },
+    {
+      "name": "TAURI_DESKTOP_CHANGE_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "TAURI_DESKTOP_REQUEST_COMMAND",
+      "kind": "value"
+    },
+    {
+      "name": "TauriHostTransportOptions",
       "kind": "type"
     }
   ]
