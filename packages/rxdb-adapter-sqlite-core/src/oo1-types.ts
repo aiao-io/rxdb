@@ -4,7 +4,7 @@
  *
  * ## 命名来源
  *
- * `oo1` **不是** aiao 自创缩写，而是上游官方 SQLite WASM 的 API 命名：
+ * `oo1` **不是** rxdb 自创缩写，而是上游官方 SQLite WASM 的 API 命名：
  * - `oo` = **Object Oriented**（面向对象封装）
  * - `1` = **第 1 代** OO API
  *
@@ -24,6 +24,9 @@ export interface Oo1PreparedStatement {
   finalize(): number | undefined;
 }
 
+/**
+ * `sqlite3.oo1.DB` / `OpfsDb` 的最小契约：执行 SQL、注册函数与关闭连接。
+ */
 export interface Oo1Database {
   pointer?: number;
   prepare?(sql: string): Oo1PreparedStatement;
@@ -39,6 +42,9 @@ export interface Oo1Database {
   createFunction(name: string, func: (...args: unknown[]) => unknown): this;
 }
 
+/**
+ * `sqlite3.capi` 的最小契约：这里只保留注册更新钩子所需的那一部分。
+ */
 export interface Oo1Capi {
   sqlite3_update_hook(
     db: Oo1Database | number,
@@ -47,6 +53,9 @@ export interface Oo1Capi {
   ): number;
 }
 
+/**
+ * sqlite-wasm 模块导出对象的最小契约：capi、oo1 命名空间与版本信息。
+ */
 export interface Oo1Static {
   capi: Oo1Capi;
   config?: {

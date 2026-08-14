@@ -1,4 +1,4 @@
-import { BehaviorSubject, filter, firstValueFrom, Observable, of, skip } from 'rxjs';
+import { BehaviorSubject, config, filter, firstValueFrom, Observable, of, skip, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UUID } from '../../entity/entity.interface.js';
 import { SyncType } from '../../entity/metadata-options.interface.js';
@@ -370,6 +370,38 @@ describe('HistoryManager - Class Methods', () => {
     } as unknown as RxDB;
 
     historyManager = new HistoryManager(mockRxDB);
+  });
+
+  // 活跃分支流会因为 `RxDB.connect()` 失败而 error —— 活查询在就绪门上等的正是那个 promise。
+  // HistoryManager 的两条内部订阅没有调用方可以把错误交回去，缺了 `error` 回调就会走 RxJS 的
+  // `reportUnhandledError`：浏览器里是 window.onerror，Electron 里是一次未捕获异常，能把宿主打崩。
+  describe('活跃分支流 error 时', () => {
+    it('不升级成 RxJS 未捕获异常，但必须留痕', async () => {
+      const reported: unknown[] = [];
+      const originalOnUnhandledError = config.onUnhandledError;
+      config.onUnhandledError = (error: unknown): void => {
+        reported.push(error);
+      };
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const failure = new Error('connect failed');
+      mockBranchRepository.findOne.mockReturnValue(throwError(() => failure));
+
+      // 断言写在 try 里：`mockRestore` 会连着清掉调用记录，搬到 finally 之后就没得断言了。
+      // 断言失败照样先走 finally 恢复现场，不会把 mock 漏给后面的用例。
+      try {
+        const manager = new HistoryManager(mockRxDB);
+        // reportUnhandledError 走 setTimeout，必须让出一次宏任务才看得到
+        await new Promise(resolve => setTimeout(resolve, 0));
+        manager.destroy();
+
+        expect(reported).toEqual([]);
+        // 静默吞掉同样不可接受：连不上的原因必须能在日志里找到。
+        expect(consoleError.mock.calls.flat()).toContain(failure);
+      } finally {
+        config.onUnhandledError = originalOnUnhandledError;
+        consoleError.mockRestore();
+      }
+    });
   });
 
   describe('undo() 入口规则', () => {

@@ -134,6 +134,9 @@
     },
     {
       "path": "./packages/rxdb-adapter-miniprogram"
+    },
+    {
+      "path": "./packages/rxdb-adapter-desktop"
     }
   ]
 }

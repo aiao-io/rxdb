@@ -5,6 +5,7 @@ import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { AdapterFactory } from './adapter-factory.js';
 import { cleanup_db } from './test-utils.js';
 
+/** 树结构集成测试：Menu 实体的树查询与关系遍历。 */
 export function menuIntegrationSuite(factory: AdapterFactory) {
   describe(`树结构 [${factory.name}]`, () => {
     let adapter: RxDBAdapterSqliteBase;

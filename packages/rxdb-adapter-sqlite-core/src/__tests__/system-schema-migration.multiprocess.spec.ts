@@ -1,6 +1,7 @@
 import {
   RXDB_CHANGE_CODEC_WATERMARK,
   RXDB_SYSTEM_SCHEMA_WATERMARK,
+  RXDB_WRITER_LEASE_TTL_MS,
   RXDB_WRITER_PROTOCOL_VERSION,
   RxDB
 } from '@aiao/rxdb';
@@ -274,7 +275,11 @@ afterEach(async () => {
   );
   const activeAdapters = Array.from(adapters);
   adapters.clear();
-  await Promise.all(activeAdapters.map(adapter => adapter.disconnect()));
+  // 逐个断开，不能 Promise.all：node:sqlite 是同步 API，两个连接在同一个事件循环上
+  // 交错释放 lease 时，先拿到写锁的一方在 await 处让出，另一方的 BEGIN 会同步阻塞
+  // 整个循环直到 busy_timeout 耗尽 —— 持锁方根本排不上 COMMIT，锁等待必然超时。
+  // 真正的跨 realm 并发由子进程 writer 覆盖（独立事件循环，能真正并行）。
+  for (const adapter of activeAdapters) await adapter.disconnect();
   const directories = Array.from(temporaryDirectories);
   temporaryDirectories.clear();
   await Promise.all(directories.map(directory => rm(directory, { recursive: true, force: true })));
@@ -372,4 +377,114 @@ describe('SQLite multiprocess migration fencing', () => {
       expect(watermarks.results[0]?.rows).toEqual([]);
     }
   );
+});
+
+// `writerProcessSource` 里的子进程按 '+1 second' 续租，与适配器的 RXDB_WRITER_LEASE_TTL_MS 不同。
+const PROCESS_WRITER_TTL_MS = 1000;
+
+/** 一行 lease：`[writerId, protocolVersion, epoch, lastSeenAt, expiresAt]`。 */
+type LeaseRow = SQLiteCompatibleType[];
+
+/**
+ * 读整张 lease 表。断言「不覆盖别人」必须逐列比对整行 —— 只比 writerId
+ * 会漏掉别人的 epoch 或时间戳被改写的情况。
+ */
+const readLeaseRows = async (adapter: RxDBAdapterSqliteBase, databaseId: string): Promise<LeaseRow[]> => {
+  const result = await adapter.internalQuery(
+    `SELECT "writerId", "protocolVersion", "epoch", "lastSeenAt", "expiresAt"
+     FROM "rxdb$rxdb_writer_lease" WHERE "databaseId" = ? ORDER BY "writerId"`,
+    [databaseId]
+  );
+  return result.results[0]?.rows ?? [];
+};
+
+const writerIdsOf = (rows: LeaseRow[]): string[] => rows.map(row => String(row[0]));
+
+/** 除 `writerId` 外的其余行，保持 `ORDER BY "writerId"` 的次序。 */
+const othersOf = (rows: LeaseRow[], writerId: string): LeaseRow[] => rows.filter(row => String(row[0]) !== writerId);
+
+describe('SQLite multiprocess writer lease registration', () => {
+  it('gives every realm its own row and never overwrites another writer on re-registration', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'aiao-sqlite-lease-registration-'));
+    temporaryDirectories.add(directory);
+    const databasePath = join(directory, 'lease.sqlite');
+    const databaseId = 'lease-registration';
+    initializeLegacyDatabase(databasePath, databaseId);
+
+    // 两个适配器 = 两个 realm（各自的连接、各自 uuid 生成的 writerId），走生产
+    // startWriterLease() 路径；第三个 writer 是真实 OS 进程。
+    const adapterA = new MultiprocessMigrationAdapter(createRxdb(databaseId), new NodeSqliteClient(databasePath));
+    const adapterB = new MultiprocessMigrationAdapter(createRxdb(databaseId), new NodeSqliteClient(databasePath));
+    adapters.add(adapterA);
+    adapters.add(adapterB);
+    await adapterA.connect();
+    await adapterB.connect();
+
+    // 逐个注册，靠"新出现的那一行"认出各自的 writerId —— #writer_id 是私有的，
+    // 顺带就地验证了后注册的 writer 不会顶掉先注册的。
+    await adapterA.startWriterLease();
+    const afterFirst = await readLeaseRows(adapterA, databaseId);
+    expect(afterFirst).toHaveLength(1);
+    const writerIdA = writerIdsOf(afterFirst)[0] ?? '';
+
+    await adapterB.startWriterLease();
+    const afterSecond = await readLeaseRows(adapterA, databaseId);
+    expect(afterSecond).toHaveLength(2);
+    const writerIdB = writerIdsOf(othersOf(afterSecond, writerIdA))[0] ?? '';
+    expect(writerIdB).not.toBe(writerIdA);
+    // A 的行在 B 注册后逐列不变。
+    expect(othersOf(afterSecond, writerIdB)).toEqual(afterFirst);
+
+    const processWriter = await startWriter(databasePath, databaseId, 'process-writer');
+    writers.add(processWriter);
+
+    const registered = await readLeaseRows(adapterA, databaseId);
+    expect(registered).toHaveLength(3);
+    expect(new Set(writerIdsOf(registered))).toEqual(new Set([writerIdA, writerIdB, 'process-writer']));
+    for (const row of registered) {
+      expect(row[1]).toBe(RXDB_WRITER_PROTOCOL_VERSION);
+      expect(row[2]).toBe(1);
+    }
+
+    // 心跳用数据库时间：TTL 跨度与「lastSeenAt 不在未来」都交给数据库时钟判定，
+    // 不引入 JS 的 Date.now()（跨进程的本地时钟本就不可比）。
+    const clock = await adapterA.internalQuery(
+      `SELECT "writerId",
+              CAST(ROUND((julianday("expiresAt") - julianday("lastSeenAt")) * 86400000) AS INTEGER),
+              CASE WHEN julianday("lastSeenAt") <= julianday('now') THEN 1 ELSE 0 END
+       FROM "rxdb$rxdb_writer_lease" WHERE "databaseId" = ? ORDER BY "writerId"`,
+      [databaseId]
+    );
+    expect(clock.results[0]?.rows).toHaveLength(3);
+    for (const row of clock.results[0]?.rows ?? []) {
+      expect(row[1]).toBe(String(row[0]) === 'process-writer' ? PROCESS_WRITER_TTL_MS : RXDB_WRITER_LEASE_TTL_MS);
+      expect(row[2]).toBe(1);
+    }
+
+    // strftime('%f') 是毫秒精度，等一会儿才能让重续的时间戳确实前进。
+    await new Promise(resolve => setTimeout(resolve, 20));
+    await adapterA.transaction(async () => undefined, false);
+
+    const afterRenewA = await readLeaseRows(adapterA, databaseId);
+    // 重复注册走 ON CONFLICT ("databaseId", "writerId")：A 仍是一行，既不新增也不吞掉别人。
+    expect(afterRenewA).toHaveLength(3);
+    expect(othersOf(afterRenewA, writerIdA)).toEqual(othersOf(registered, writerIdA));
+    expect(String(afterRenewA.find(row => String(row[0]) === writerIdA)?.[3])).not.toBe(
+      String(registered.find(row => String(row[0]) === writerIdA)?.[3])
+    );
+
+    // 反向再验一次：真实进程重续，两个适配器的行同样纹丝不动。
+    const stderr: string[] = [];
+    processWriter.stderr?.on('data', chunk => stderr.push(String(chunk)));
+    const renewed = waitForWriterMessage(processWriter, 'renewed', stderr);
+    processWriter.send('resume');
+    await renewed;
+
+    const afterRenewProcess = await readLeaseRows(adapterA, databaseId);
+    expect(afterRenewProcess).toHaveLength(3);
+    expect(othersOf(afterRenewProcess, 'process-writer')).toEqual(othersOf(afterRenewA, 'process-writer'));
+
+    await closeWriter(processWriter);
+    writers.delete(processWriter);
+  }, 15_000);
 });

@@ -4,10 +4,12 @@ import {
   APP_ENTRY_URL,
   APP_ORIGIN,
   APP_SCHEME,
+  HIDE_WINDOW_ENV,
   isAllowedNavigation,
   parseDevServerPort,
   resolveAppAssetPath,
-  resolveDevServerPort
+  resolveDevServerPort,
+  shouldHideWindow
 } from './main.utils';
 
 const APP_INDEX = 'file:///Applications/Demo.app/Contents/Resources/browser/index.html';
@@ -136,6 +138,30 @@ describe('parseDevServerPort', () => {
     ['上界', '65535', 65535]
   ])('接受合法端口：%s', (_name, raw, expected) => {
     expect(parseDevServerPort(raw)).toBe(expected);
+  });
+});
+
+describe('shouldHideWindow', () => {
+  it('显式置 1 时隐藏窗口', () => {
+    expect(shouldHideWindow({ [HIDE_WINDOW_ENV]: '1' })).toBe(true);
+  });
+
+  // 判定只认 `'1'`：这个开关唯一的调用方是 e2e 的 launchEnv()，
+  // 多认几种写法只会让「设了但没生效」多几种排查方向。
+  // 尤其是 `'0'` —— e2e 用它做「这次我要看着窗口跑」的逃生口，绝不能被当成真值。
+  it.each([
+    ['未设置', {}],
+    ['空串', { [HIDE_WINDOW_ENV]: '' }],
+    ['显式关闭', { [HIDE_WINDOW_ENV]: '0' }],
+    ['其它写法一律不认', { [HIDE_WINDOW_ENV]: 'true' }]
+  ])('其余取值照常显示窗口：%s', (_name, env) => {
+    expect(shouldHideWindow(env)).toBe(false);
+  });
+
+  // 变量名是跨进程契约：主进程读它，e2e 的 packaged-app.ts 写它。
+  // 改名不会让任何单测变红，只会让窗口重新弹出来 —— 所以在这里把字面量钉住。
+  it('环境变量名保持不变', () => {
+    expect(HIDE_WINDOW_ENV).toBe('DEV_RXDB_ELECTRON_HIDE_WINDOW');
   });
 });
 

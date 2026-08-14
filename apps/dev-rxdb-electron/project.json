@@ -107,12 +107,17 @@
       }
     },
     "electron-build": {
+      "//": "ELEC-23：tsc 之后必须再跑一次 esbuild，配置见 tools/bundle-desktop-host.mjs（三个调用点共用的唯一定义）。见 desktop-sqlite-bridge.spec.ts。",
       "dependsOn": ["build"],
       "executor": "nx:run-commands",
       "options": {
         "commands": [
           {
             "command": "tsc -p tsconfig.serve.json",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "node tools/bundle-desktop-host.mjs",
             "forwardAllArgs": false
           },
           {
@@ -137,6 +142,10 @@
         "commands": [
           {
             "command": "tsc -p tsconfig.serve.json",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "node tools/bundle-desktop-host.mjs",
             "forwardAllArgs": false
           },
           {
@@ -183,17 +192,27 @@
       }
     },
     "watch-main": {
+      "//": "ELEC-23：dev 模式加载的是同一份 dist 产物，因此 tsc 与 esbuild 必须一起 watch —— 少了后者，main.js 里的 `./desktop-sqlite-bridge.bundle.js` 根本不存在，应用一启动就 Cannot find module。bundle 配置与打包路径共用 tools/bundle-desktop-host.mjs，此处只多传一个 --watch。",
       "executor": "nx:run-commands",
       "continuous": true,
       "options": {
-        "command": "corepack pnpm exec tsc -p apps/dev-rxdb-electron/tsconfig.serve.json --watch"
+        "commands": [
+          {
+            "command": "corepack pnpm exec tsc -p apps/dev-rxdb-electron/tsconfig.serve.json --watch",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "node apps/dev-rxdb-electron/tools/bundle-desktop-host.mjs --watch",
+            "forwardAllArgs": false
+          }
+        ]
       }
     },
     "prepare-electron-package": {
       "executor": "nx:run-commands",
       "dependsOn": ["serve", "watch-main"],
       "options": {
-        "command": "corepack pnpm exec wait-on tcp:4120 dist/apps/dev-rxdb-electron/src-electron/main.js && mkdir -p dist/apps/dev-rxdb-electron && cp apps/dev-rxdb-electron/package.json dist/apps/dev-rxdb-electron/"
+        "command": "corepack pnpm exec wait-on tcp:4120 dist/apps/dev-rxdb-electron/src-electron/main.js dist/apps/dev-rxdb-electron/src-electron/desktop-sqlite-bridge.bundle.js && mkdir -p dist/apps/dev-rxdb-electron && cp apps/dev-rxdb-electron/package.json dist/apps/dev-rxdb-electron/"
       }
     }
   }

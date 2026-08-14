@@ -107,7 +107,6 @@ const BIGINT_QUERY_OPERATORS = new Set([
 
 const BINARY_QUERY_OPERATORS = new Set(['=', '!=', 'in', 'notIn', 'null', 'notNull']);
 
-/** 解析查询字段对应的属性元数据。 */
 export const resolve_query_property = (
   field: string,
   entityMetadata?: EntityMetadata,

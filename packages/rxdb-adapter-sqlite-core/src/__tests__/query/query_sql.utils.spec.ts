@@ -532,7 +532,7 @@ describe('query_sql.utils', () => {
     it('应该移除多余空格', () => {
       const rule = { field: 'name', operator: '=', value: 'test' };
       const result = build_rule(rule, fieldAliasMap);
-      expect(result).not.toContain('  '); // 不应有连续空格
+      expect(result).not.toContain('  ');
     });
 
     it('应该为 keyValue contains 调用特殊处理', () => {
@@ -763,10 +763,6 @@ describe('build_rule - 补充分支', () => {
     );
   });
 });
-
-// ---------------------------------------------------------------------------
-// handle_exists 各关系类型分支
-// ---------------------------------------------------------------------------
 
 const createAdapterMock = (options: {
   relationMetadata?: EntityMetadata;

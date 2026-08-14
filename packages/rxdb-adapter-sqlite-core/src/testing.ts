@@ -1,9 +1,16 @@
 import type { EntityType, RxDB } from '@aiao/rxdb';
 
+/**
+ * 适配器清理的目标对象：清理回调只需拿到 RxDB 实例。
+ */
 export interface AdapterCleanupTarget {
   readonly rxdb: RxDB;
 }
 
+/**
+ * 适配器工厂契约：屏蔽不同后端（wa-sqlite / sqliteai / ...）的构造差异，
+ * 让共享测试套件用同一份代码跑通所有后端。
+ */
 export interface AdapterFactory {
   readonly name: string;
   createAdapter<T = unknown>(options?: Record<string, unknown>): Promise<T>;
@@ -11,6 +18,9 @@ export interface AdapterFactory {
   cleanupAdapter?(adapter: AdapterCleanupTarget): void | Promise<void>;
 }
 
+/**
+ * 共享测试套件的签名：接收一个适配器工厂，用其构造后端并运行全部断言。
+ */
 export type AdapterSuite = (factory: AdapterFactory) => void;
 
 type SuiteExportName =
@@ -25,6 +35,7 @@ type SuiteExportName =
   | 'menuIntegrationSuite'
   | 'querySqlSuite'
   | 'relationIntegrationSuite'
+  | 'rowsAffectedConformanceSuite'
   | 'rxdbAdapterSuite'
   | 'sqliteClientBatchTimeoutSuite'
   | 'sqliteClientSuite'
@@ -73,6 +84,9 @@ const copyStaticProperties = (source: EntityType, target: EntityType, metadataSy
   }
 };
 
+/**
+ * 克隆一组实体类（继承原型并复制静态元数据），隔离跨套件的装饰器元数据变更。
+ */
 export function cloneEntityClasses(entities: EntityType[]): EntityType[] {
   return entities.map(EntityClass => {
     const Clone: EntityType = class extends EntityClass {};
@@ -121,6 +135,10 @@ export const querySqlSuite = getSharedSuite('./__tests__/shared-query-sql.suite.
 export const relationIntegrationSuite = getSharedSuite(
   './__tests__/shared-relations.suite.ts',
   'relationIntegrationSuite'
+);
+export const rowsAffectedConformanceSuite = getSharedSuite(
+  './__tests__/shared-rows-affected-conformance.suite.ts',
+  'rowsAffectedConformanceSuite'
 );
 export const sqliteRepositorySuite = getSharedSuite('./__tests__/shared-repository.suite.ts', 'sqliteRepositorySuite');
 export const systemSchemaMigrationSuite = getSharedSuite(

@@ -8,7 +8,7 @@ import { getMonotonicUpdatedAt, RxDBAdapterSqliteError } from '../sqlite-core.ut
 import { SqliteRepositoryBase } from './SqliteRepositoryBase.js';
 
 /**
- * 操作 entity 仓库
+ * 操作实体仓库
  */
 export class SqliteRepository<T extends EntityType> extends SqliteRepositoryBase<T> implements IRepository<T> {
   async get(id: EntityStaticType<T, 'idType'>): Promise<InstanceType<T>> {

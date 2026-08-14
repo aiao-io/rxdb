@@ -62,7 +62,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 - **触发**：`package.json#preinstall` 第一段（包管理器解析前硬失败）；也可手动 `pnpm audit:wa-sqlite`。CI 上同样会跑（无 CI 跳过逻辑）。
 - **做什么**：
-  1. 读 `package.json / benchmarks/package.json / examples/angular-todo/package.json / packages/rxdb-adapter-wa-sqlite/package.json / packages/rxdb-adapter-miniprogram/package.json`，断言 `dependencies.wa-sqlite` 都锁定到 `https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/b9ddadce32480857cde28e7b1512cf45fa08ab73`；
+  1. 读 `package.json / benchmarks/package.json / examples/angular-todo/package.json / packages/rxdb-adapter-wa-sqlite/package.json / packages/rxdb-adapter-miniprogram/package.json`，断言 `dependencies.wa-sqlite` 都锁定到 `https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994`；
   2. 解析 `pnpm-lock.yaml` 中 `wa-sqlite@<url>` 段，断言 `tarball / integrity` 字段与上面的固定值一致，并扫掉任何 `codeload.github.com/.../refs/tags/`（即可变 tag URL）形态的残留；
   3. 对 `packages/rxdb-adapter-miniprogram/assets/wa-sqlite.cjs` 和 `.wasm` 校验固定 SHA-256；
   4. 传 `--archive <path-to-tgz>` 时，对下载的本地 tarball 再算一次 `sha512-<base64>`，与上面硬编码的完整性指纹对齐。
@@ -139,10 +139,14 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
   - `pnpm check-migration-release-gate`（CI 上由 Nx release 流水线调用）；
   - `pnpm test-scripts` → 连同其它脚本 spec 一起跑 `check-migration-release-gate.spec.mjs`，用 Node 自带 test runner 覆盖 `validateManifest` 的所有分支。
 - **做什么**：纯函数 `validateManifest(manifest, options)` 校验 `requirements/migration-release.json`：
-  - `$schemaVersion`、`release.kind`（bridge / migration）、`release.version`（semver）、`protocolVersion`、schema/codec upgrade 布尔位；
+  - `$schemaVersion`、`release.kind`（normal / bridge / migration）、`release.version`（semver）、`protocolVersion`、schema/codec upgrade 布尔位；
+  - `release.version` 必须同时等于发布 tag（去掉 `v`）与 `packages/rxdb/package.json` 的 `version`——两处任一漂移即 fail；
+  - `normal` 与 `bridge` 都禁止升级系统 schema / change codec；`normal` 额外要求 `bridge.tag` / `bridge.version` 为 null（不进入 bridge 链）；
   - migration 必须有 `bridge.tag`、bridge 与 release 的协议兼容性、bridge tag 必须存在且是 release 的祖先；
   - `oldBundlePolicy` 不能用被淘汰的 `force-update / cache-invalidation / server-version / database-namespace` 策略；
-  - 通过注入 `bridgeTagExists / bridgeTagIsAncestor / bridgeTagSupportsProtocol` 三个钩子，纯函数可在测试里无网络跑通。
+  - 通过注入 `bridgeTagExists / bridgeTagIsAncestor / bridgeTagSupportsProtocol` 三个钩子和 `packageVersion`，纯函数可在测试里无网络跑通。
+- **三种 kind 怎么选**：日常发布一律 `normal`；只有真正发布 writer lease/upgrade guard 协议的那一次写 `bridge`（它才能被后续 migration 引用为 `bridge.tag`）；带系统 schema 或 change codec 升级的写 `migration`。
+- **清单何时改**：`release.version` 跟着 `packages/rxdb/package.json` 走，**在版本 bump 的同一个提交里更新**；`nx release` 不会替你改清单，漏改会被门禁拦下。
 - **何时手动跑**：改了 `requirements/migration-release.json` 想确认字段没写歪；写 release 流程前 dry-run。
 
 ---

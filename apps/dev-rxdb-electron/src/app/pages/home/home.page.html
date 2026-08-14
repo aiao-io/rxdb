@@ -35,6 +35,33 @@
     </div>
   </div>
 
+  <!-- US-207：数据落在主进程持有的真实 SQLite 文件里，而不是 WebView 的 OPFS / IndexedDB。 -->
+  <div class="card bg-base-200" data-testid="desktop-status-card">
+    <div class="card-body">
+      <h2 class="card-title">🗄️ 本地 SQLite 文件（主进程）</h2>
+      @switch (desktopStatus()) {
+        @case ('connected') {
+          <div class="badge badge-success gap-2" data-testid="desktop-status">✅ 已连接</div>
+          <p class="text-sm opacity-70">
+            累计启动次数：
+            <span class="font-mono font-bold" data-testid="desktop-launch-count">{{ desktopLaunchCount() }}</span>
+          </p>
+          <p class="text-xs opacity-50">关闭应用再打开，这个数字应当 +1 —— 数据存活于渲染进程之外。</p>
+        }
+        @case ('failed') {
+          <div class="badge badge-error gap-2" data-testid="desktop-status">❌ 连接失败</div>
+          <p class="text-error mt-2 text-sm" data-testid="desktop-error">{{ desktopErrorMessage() }}</p>
+        }
+        @default {
+          <div class="badge badge-ghost gap-2" data-testid="desktop-status">
+            <span class="loading loading-spinner loading-xs"></span>
+            连接中...
+          </div>
+        }
+      }
+    </div>
+  </div>
+
   @if (isElectron()) {
     <!-- 版本信息 -->
     <div class="card bg-base-200">

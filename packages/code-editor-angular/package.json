@@ -12,14 +12,14 @@
   },
   "peerDependencies": {
     "@aiao/code-editor": ">=0.0.24",
-    "@angular/common": ">=20.0.0",
-    "@angular/core": ">=20.0.0",
-    "@angular/forms": ">=20.0.0",
-    "@angular/platform-browser": ">=20.0.0"
+    "@angular/common": "^22.0.0",
+    "@angular/core": "^22.0.0",
+    "@angular/forms": "^22.0.0",
+    "@angular/platform-browser": "^22.0.0"
   },
   "devDependencies": {
-    "@angular/compiler": "22.0.5",
-    "vitest": "4.1.5"
+    "@angular/compiler": "22.1.2",
+    "vitest": "4.1.10"
   },
   "publishConfig": {
     "access": "public"

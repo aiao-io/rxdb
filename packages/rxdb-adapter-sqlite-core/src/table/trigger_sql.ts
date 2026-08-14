@@ -15,9 +15,6 @@ import {
   quote_sql_identifier
 } from '../sqlite-core.utils.js';
 
-/**
- * 触发器选项
- */
 interface TriggerOptions {
   /**
    * 分支 ID
@@ -180,9 +177,6 @@ export const generate_table_trigger_sql = (entityMetadata: EntityMetadata, optio
     );
   END;`;
 
-  /**
-   * 更新触发器
-   */
   const buildUpdateUnion = (prefix: 'NEW' | 'OLD') =>
     propPairs
       .map(p => {

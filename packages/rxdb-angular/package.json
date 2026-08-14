@@ -7,15 +7,15 @@
     "@aiao/rxdb": "*",
     "@aiao/rxdb-plugin-graph": "*",
     "@aiao/utils": "*",
-    "@angular/core": ">=20.0.0",
-    "@angular/platform-browser": ">=20.0.0",
+    "@angular/core": "^22.0.0",
+    "@angular/platform-browser": "^22.0.0",
     "ngxtension": "^7.0.1",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@aiao/rxdb-plugin-graph": "workspace:*",
-    "@angular/compiler": "22.0.5",
-    "vitest": "4.1.5"
+    "@angular/compiler": "22.1.2",
+    "vitest": "4.1.10"
   },
   "publishConfig": {
     "access": "public"

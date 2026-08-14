@@ -3,7 +3,7 @@ import { RxDBAdapterSqliteError } from './sqlite-core.utils.js';
 
 /**
  * SQLite update_hook 派发的单行变更事件载荷。
- * 由各 backend SqliteClient 收集后批量分发给 RxDB 上层。
+ * 由各后端 SqliteClient 收集后批量分发给 RxDB 上层。
  */
 export interface ChangeRecordEvent {
   type: SQLiteChangeType;
@@ -42,7 +42,7 @@ export const DEFAULT_BATCH_TIMEOUT = BATCH_TIMEOUT.BALANCED;
  */
 export const MAX_BATCH_WAIT_MS = 100;
 
-/** 默认 SQLite page cache 大小（KB），50 MB。 */
+/** 默认 SQLite 页缓存大小（KB），50 MB。 */
 export const DEFAULT_CACHE_SIZE_KB = 50 * 1024;
 
 /**

@@ -6,6 +6,7 @@ import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { AdapterFactory } from './adapter-factory.js';
 import { cleanup_db, expect_observable_sequence } from './test-utils.js';
 
+/** 树结构增量算法测试：树节点的增量更新与关系维护。 */
 export function treeIntegrationSuite(factory: AdapterFactory) {
   describe(`树结构增量算法测试 [${factory.name}]`, () => {
     let adapter: RxDBAdapterSqliteBase;

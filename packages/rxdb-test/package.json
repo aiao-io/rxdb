@@ -57,7 +57,7 @@
   "dependencies": {
     "@aiao/rxdb": "workspace:*",
     "rxjs": "^7.8.2",
-    "vitest": "4.1.5"
+    "vitest": "4.1.10"
   },
   "devDependencies": {
     "@aiao/rxdb-client-generator": "workspace:*"

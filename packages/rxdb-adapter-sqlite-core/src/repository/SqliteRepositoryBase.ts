@@ -13,7 +13,7 @@ const get_result_row_ids = (sqliteResult: SqliteSuccessResult): RowId[] =>
   });
 
 /**
- * 操作 entity 仓库
+ * 操作实体仓库
  */
 export class SqliteRepositoryBase<T extends EntityType> extends RepositoryBase<T> {
   public readonly metadata!: EntityMetadata;

@@ -96,6 +96,7 @@ enum TypeDemoEnum {
   Pending = 'pending'
 }
 
+/** Todo 实体 CRUD 集成测试：create/update/delete 及查询缓存行为。 */
 export function crudIntegrationSuite(factory: AdapterFactory) {
   // ========== test-todo.spec.ts ==========
   describe(`Todo 实体 CRUD [${factory.name}]`, () => {

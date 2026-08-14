@@ -100,8 +100,9 @@ new RxDBAdapterWaSqlite(db, {
 
 ## wa-sqlite 供应链
 
-npm registry 没有本包所需的 wa-sqlite 1.1.1，因此依赖固定到上游不可变 commit
-`b9ddadce32480857cde28e7b1512cf45fa08ab73`，`pnpm-lock.yaml` 同时固定归档 SHA-512。
+npm registry 没有本包所需的 wa-sqlite，因此依赖固定到上游不可变 commit
+`2bf1c59d89eb6497535a4217bc62fec68a0bb994`（上游 `v1.1.2` release；其 `package.json`
+的 `version` 字段仍写作 `1.1.1`，上游未随 tag 升位），`pnpm-lock.yaml` 同时固定归档 SHA-512。
 `pnpm audit:wa-sqlite` 会校验所有直接消费者、commit URL 与 lockfile integrity；升级 commit 时必须
 重新审计 `src/examples/*` 的 9 个 VFS 内部路径和能力矩阵。
 

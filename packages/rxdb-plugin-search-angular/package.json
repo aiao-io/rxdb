@@ -6,16 +6,16 @@
   "peerDependencies": {
     "@aiao/rxdb": "*",
     "@aiao/rxdb-plugin-search": "*",
-    "@angular/core": ">=19.0.0",
+    "@angular/core": "^22.0.0",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@aiao/rxdb-plugin-search": "workspace:*",
-    "@angular/common": "22.0.5",
-    "@angular/compiler": "22.0.5",
-    "@angular/core": "22.0.5",
-    "@angular/platform-browser": "22.0.5",
-    "vitest": "4.1.5"
+    "@angular/common": "22.1.2",
+    "@angular/compiler": "22.1.2",
+    "@angular/core": "22.1.2",
+    "@angular/platform-browser": "22.1.2",
+    "vitest": "4.1.10"
   },
   "publishConfig": {
     "access": "public"

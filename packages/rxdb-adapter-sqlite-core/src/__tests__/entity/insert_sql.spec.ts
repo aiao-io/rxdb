@@ -367,7 +367,7 @@ describe('insert_sql', () => {
     expect(result.sql).toContain('updatedAt');
     expect(result.sql).toContain('createdBy');
     expect(result.sql).toContain('updatedBy');
-    expect(result.params).toContain('user-999'); // 出现两次
+    expect(result.params).toContain('user-999');
     expect(result.params!.filter(p => p === 'user-999')).toHaveLength(2);
   });
 });
