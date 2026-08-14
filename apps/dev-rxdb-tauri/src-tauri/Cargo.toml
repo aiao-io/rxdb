@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
+# 本 crate 有两个二进制（见下方 `[build-dependencies]` 后的说明），
+# 不指定 `default-run` 时 `cargo run`（`tauri dev` 的 DevCommand）会因无法选择而失败。
+default-run = "dev-rxdb-tauri"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
