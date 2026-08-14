@@ -62,11 +62,19 @@ export abstract class EncryptedError extends Error {
   readonly hint?: string;
   override readonly cause?: unknown;
 
-  protected constructor(init: EncryptedErrorInit = {}) {
+  /**
+   * @param name - 该错误类的稳定公开标识，**必须**是字面量。
+   *
+   *   这里不能写 `new.target.name`：那读的是构造函数身份，minify 一过就退化成
+   *   `"n"` / `"r"` 这种单字母。源码单测对此免疫（源码不会被 mangle），
+   *   退化只在装进用户项目的产物里才现形，由
+   *   `scripts/audit/encrypted-errors-consumer.mjs` 在 tarball 层把守。
+   * @param init - 结构化上下文
+   */
+  protected constructor(name: string, init: EncryptedErrorInit = {}) {
     super(init.message);
-    // 按契约保证 name 在跨 realm 时与构造函数名一致。
     Object.defineProperty(this, 'name', {
-      value: new.target.name,
+      value: name,
       configurable: true
     });
     if (init.entity !== undefined) this.entity = init.entity;
@@ -96,7 +104,7 @@ type ConfigurationCode = Extract<
 export class EncryptedConfigurationError extends EncryptedError {
   readonly code: ConfigurationCode;
   constructor(init: EncryptedErrorInit & { code: ConfigurationCode }) {
-    super(init);
+    super('EncryptedConfigurationError', init);
     this.code = init.code;
   }
 }
@@ -105,7 +113,7 @@ export class EncryptedConfigurationError extends EncryptedError {
 export class EncryptedLockedError extends EncryptedError {
   readonly code = 'locked' as const;
   constructor(init: EncryptedErrorInit & { code?: 'locked' } = {}) {
-    super(init);
+    super('EncryptedLockedError', init);
   }
 }
 
@@ -115,7 +123,7 @@ type UnlockCode = Extract<EncryptedErrorCode, 'verifier_mismatch' | 'key_provide
 export class EncryptedUnlockError extends EncryptedError {
   readonly code: UnlockCode;
   constructor(init: EncryptedErrorInit & { code: UnlockCode }) {
-    super(init);
+    super('EncryptedUnlockError', init);
     this.code = init.code;
   }
 }
@@ -134,7 +142,7 @@ type DecryptCode = Extract<
 export class EncryptedDecryptError extends EncryptedError {
   readonly code: DecryptCode;
   constructor(init: EncryptedErrorInit & { code: DecryptCode }) {
-    super(init);
+    super('EncryptedDecryptError', init);
     this.code = init.code;
   }
 }
@@ -148,7 +156,7 @@ type QueryCode = Extract<
 export class EncryptedQueryError extends EncryptedError {
   readonly code: QueryCode;
   constructor(init: EncryptedErrorInit & { code: QueryCode }) {
-    super(init);
+    super('EncryptedQueryError', init);
     this.code = init.code;
   }
 }

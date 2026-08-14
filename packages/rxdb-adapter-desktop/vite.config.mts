@@ -7,6 +7,15 @@ import dts from 'vite-plugin-dts';
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/packages/rxdb-adapter-desktop',
+  // 单测必须打在**源码**上，而不是 workspace 链接指过去的 `dist/`。
+  // 少了这一行，`@aiao/rxdb-adapter-sqlite-core` 会走 node_modules 软链读它的产物，
+  // 再由产物去读 `@aiao/rxdb-adapter-encrypted/dist`（压缩过）—— 于是 `EncryptedError`
+  // 基类靠 `new.target.name` 写入的 `name` 退化成 mangle 后的单字母，
+  // 加密契约套件里对 `name` 的断言全线报假失败。
+  // 兄弟包（wa-sqlite / pglite）本来就是这么配的，这里只是补齐。
+  resolve: {
+    tsconfigPaths: true
+  },
   plugins: [
     dts({
       entryRoot: 'src',

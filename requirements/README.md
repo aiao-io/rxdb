@@ -117,6 +117,26 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 - **发布门禁**：新增公开 API 同步更新 API baseline、TSDoc、覆盖率门禁和跨框架 parity 测试。
 - **可观测性**：连接、迁移、fencing、索引回填失败应提供稳定错误码和可诊断上下文，不静默回退到 memory、OPFS 或 IndexedDB。
 
+### 开项：`consumer` / `audit` target 不在 CI（2026-08-14 确认）
+
+4 个包定义了 `consumer` target（`rxdb-adapter-sqlite` / `rxdb-adapter-sqlite-core` /
+`rxdb-adapter-encrypted` / `rxdb-adapter-desktop`），**没有任何 workflow 在跑它们**：
+`pnpm test-all` 是 `nx affected -t lint typecheck test test-browser build e2e`，
+`ci-template.yml` 只列 lint / typecheck / build / test / coverage-acceptance / e2e / e2e-remote，
+`pnpm audit` 的 `nx run-many -t audit` 也只有两个 search 绑定包定义了 `audit`。
+而 [scripts/README.md](../scripts/README.md) 把 `audit/sqlite-adapter-consumer` 写成「硬失败（CI 阻断）」——
+**文档与事实不符**。
+
+这不是纸面问题：这类脚本守的性质（tarball 能否解析、错误 `name` 会不会被 minify 掉、
+renderer 入口有没有串进 `node:sqlite`）**在 workspace 内测里结构性地测不到**——
+单测走 tsconfig paths 读源码，永远不经过打包。2026-08-14 修的错误 `name` 退化
+（见 [US-207](stories/adapter/US-207-desktop-local-database.md)）就是这个盲区的实例：
+源码单测一直全绿，缺陷只存在于装进用户项目的产物里。
+
+两条出路必居其一：把 `consumer` 接进 CI（注意它要 `pnpm pack` + 真装依赖，耗时不小，
+可能更适合放 release 前的独立 job 而非每个 PR），或者改掉 `scripts/README.md` 那句话、
+明确它是手工门禁。**不要**维持现状。
+
 ## 下一次发布计划（桥接版本）
 
 [US-304](stories/collaboration/US-304-writer-lease-migration-fencing.md) 的 AC1/AC11 卡在「本仓库没有任何 tag 被声明为桥接版本」。

@@ -13,7 +13,8 @@
 
 import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
-import { mkdtempSync, rmSync } from 'node:fs';
+import type { EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ADAPTER_NAME } from '../desktop-adapter.interface.js';
@@ -84,7 +85,26 @@ export function desktopHostDeliveryErrors(): readonly unknown[] {
 
 const uniqueDbName = (): string => `desktop-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-async function createDesktopAdapter(options?: Record<string, unknown>): Promise<RxDBAdapterDesktop> {
+/**
+ * 记录真实 repository 路径发出的 SQL 条数。
+ *
+ * @remarks
+ * 加密套件用它断言「解锁后重复读走的是缓存而不是又一次往返」这类性质，
+ * 计数必须落在**适配器**层而不是 host 层：host 还会看到系统 schema 初始化、
+ * writer lease 心跳这些与被测行为无关的往返。
+ */
+class QueryCountingDesktopAdapter extends RxDBAdapterDesktop {
+  queryCount = 0;
+
+  override query(...args: Parameters<RxDBAdapterDesktop['query']>): ReturnType<RxDBAdapterDesktop['query']> {
+    this.queryCount++;
+    return super.query(...args);
+  }
+}
+
+const encryptedQueryCounts = new WeakMap<object, () => number>();
+
+async function createDesktopAdapter(options?: Record<string, unknown>): Promise<QueryCountingDesktopAdapter> {
   const entities = ((options ?? {}) as { entities?: EntityType[] }).entities?.slice() ?? [];
   const rxdb = new RxDB({
     dbName: uniqueDbName(),
@@ -96,11 +116,11 @@ async function createDesktopAdapter(options?: Record<string, unknown>): Promise<
     }
   });
 
-  let adapter: RxDBAdapterDesktop | undefined;
+  let adapter: QueryCountingDesktopAdapter | undefined;
   // 重连的套件会再次调用本工厂函数：`dbName` 不变 ⇒ 落到同一个物理文件，
   // 桌面适配器没有「非持久化」档位，`persistent` 选项因此不需要分支。
   rxdb.adapter(ADAPTER_NAME, async db => {
-    adapter = new RxDBAdapterDesktop(db, { transport: ensureHost().transport });
+    adapter = new QueryCountingDesktopAdapter(db, { transport: ensureHost().transport });
     return adapter;
   });
 
@@ -126,3 +146,37 @@ export const desktopAdapterFactory: AdapterFactory = {
     )) as T;
   }
 };
+
+/** 驱动 `@aiao/rxdb-test/encrypted` 五套加密契约套件的桌面适配器工厂。 */
+export const desktopEncryptedAdapterFactory: EncryptedAdapterFactory = {
+  name: ADAPTER_NAME,
+  getQueryCount: adapter => encryptedQueryCounts.get(adapter)?.() ?? 0,
+  createAdapter: async options => {
+    const adapter = await createDesktopAdapter(options);
+    encryptedQueryCounts.set(adapter, () => adapter.queryCount);
+    return adapter;
+  }
+};
+
+/**
+ * 读取桌面适配器落盘的**全部**字节，供加密套件扫描明文哨兵。
+ *
+ * @remarks
+ * 必须把 `-wal` 一起读进来。桌面引擎按持久化档位跑 `journal_mode=WAL`
+ * （见 `node-sqlite-engine.ts` 「单文件数据库始终按持久化档位配置」），
+ * 刚写入的行在 checkpoint 之前只存在于 `-wal` 里 —— 只读主库文件的话，
+ * 扫描会在一段**还没有业务数据**的字节上通过，绿得毫无意义。
+ *
+ * 这里不主动 checkpoint 而是把两个文件拼起来：checkpoint 要经过 host 发 PRAGMA，
+ * 等于让被测对象参与准备自己的检材；拼接则是纯旁路读取，且覆盖面严格更大。
+ * `-shm` 不读 —— 它是 WAL 的共享索引，不含行数据。
+ *
+ * @param adapter - 被测适配器，取其 `databaseName` 定位物理文件
+ * @returns 主库文件与 `-wal`（若存在）拼接后的字节
+ */
+export async function readDesktopDatabaseFile(adapter: unknown): Promise<Uint8Array> {
+  const { databaseName } = adapter as RxDBAdapterDesktop;
+  const filePath = join(ensureHost().workspace, databaseName);
+  const chunks = [filePath, `${filePath}-wal`].filter(existsSync).map(path => readFileSync(path));
+  return new Uint8Array(Buffer.concat(chunks));
+}

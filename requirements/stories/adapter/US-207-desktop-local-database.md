@@ -5,7 +5,7 @@ status: In Progress
 priority: High
 epic: epic-004-future-features
 created: 2026-08-08
-updated: 2026-08-13
+updated: 2026-08-14
 tags: [adapter, desktop, electron, sqlite]
 ---
 
@@ -94,7 +94,7 @@ Electron 侧只是工程量，Tauri 侧卡在一个尚未验证的外部前提�
 | #   | 前置条件                                                  | 操作                                                     | 预期结果                                                                                                                                              | 状态 |
 | --- | --------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | 1   | Electron 应用配置 SQLite 文件存储                         | 首次连接、写入实体、断开并重启应用后再次连接             | 在同一文件中读回数据；连接期间现有 RxDB 标准 adapter suite 全部通过                                                                                   | ✅   |
-| 2   | Electron SQLite 已连接                                    | 执行查询、变更、事务、分支切换、加密字段解锁与响应式订阅 | 用户可见行为与现有 SQLite adapter 一致，标准测试套件无跳过项                                                                                          | ⚠️   |
+| 2   | Electron SQLite 已连接                                    | 执行查询、变更、事务、分支切换、加密字段解锁与响应式订阅 | 用户可见行为与现有 SQLite adapter 一致，标准测试套件无跳过项                                                                                          | ✅   |
 | 3   | SQLite 文件路径不存在                                     | 首次连接                                                 | 仅在已授权的应用作用域中创建存储；返回已解析的逻辑位置用于诊断，不向 renderer 暴露额外文件系统能力                                                    | ✅   |
 | 4   | 路径无权限、SQLite 文件损坏或 runtime/engine 组合不受支持 | 发起连接                                                 | 返回稳定、可判别的错误码与原始原因；不创建同名空库，不回退到 memory/OPFS/IndexedDB                                                                    | ✅   |
 | 5   | 同一 SQLite 文件已有有效 writer lease 或迁移 owner        | 第二个窗口或进程尝试以 writer 身份连接                   | 沿用 [US-304](../collaboration/US-304-writer-lease-migration-fencing.md) 的 writer lease/fencing 契约拒绝冲突写入，不绕过保护或静默切换到另一份数据库 | ✅   |
@@ -116,6 +116,7 @@ worker 选项组合，桌面客户端不接受任何 worker 选项）。AC#1 / #
 | 3   | `desktop-sqlite-host.spec.ts` 「reports a logical location that leaks no filesystem path」；上面那条 e2e 顺带断言 preload 暴露面恰为 `request` / `subscribe`                              |
 | 4   | `node-sqlite-engine.spec.ts` 「reports open_failed without leaving an empty database behind」/「database_corrupted」                                                                      |
 | 5   | `writer-lease.spec.ts` 「registers one live lease per window」/「refuses to migrate the system schema while another window holds a live lease」                                           |
+| 2   | `encrypted-{crud,tamper,bigint-binary,change-log,lifecycle}.spec.ts` —— `@aiao/rxdb-test/encrypted` 的五套共享套件跑在桌面工厂上                                                          |
 | 6   | `desktop-sqlite-host.spec.ts` 「preserves unknown business tables that already live in the file」                                                                                         |
 | 7   | `node-sqlite-engine.spec.ts` 「flushes the pending batch synchronously on close」/「persists committed data across a reopen」/「releases the file handle so the database can be renamed」 |
 
@@ -137,10 +138,26 @@ AC#1 的断言形态是**跨进程**的累计启动次数（1 → 2），不是�
 Electron 才看得到，单测里守不住，于是退一步守住名字本身，改回名单里的任何一个都当场红。
 修复后连开三次实测计数为 1 / 2 / 3，库文件里 `public$desktop_launch` 确有 3 行。
 
-一条保留项：
+**AC#2 的加密保留项已关闭。** 此前的缺口是「加密字段解锁」没有用例 —— 加密是
+`@aiao/rxdb-adapter-encrypted` 的包裹层，与桌面 adapter 的组合从未被组合验证过。
+现由 `desktopEncryptedAdapterFactory` 驱动 `@aiao/rxdb-test/encrypted` 的五套共享套件
+（crud + queryValidation / tamper / bigint-binary / change-log / lifecycle），
+点名的「解锁」正是 lifecycle 那一套。`pnpm nx test rxdb-adapter-desktop` 为
+**786 passed / 15 files / 0 skipped**（接线前 734）。
 
-- **AC#2** 的「加密字段解锁」不在共享套件覆盖范围内：加密是 `@aiao/rxdb-adapter-encrypted` 的包裹层，
-  与桌面 adapter 的组合尚无用例。其余五项（查询 / 变更 / 事务 / 分支切换 / 响应式订阅）全绿且无跳过。
+接线过程中有两处值得记下来：
+
+- **落盘扫描必须把 `-wal` 一起读进去。** 加密套件靠扫描物理字节确认明文没有泄漏，
+  而桌面引擎按持久化档位跑 `journal_mode=WAL`，刚写入的行在 checkpoint 之前只存在于
+  `-wal` 里。只读主库文件的话，扫描会在一段**还没有业务数据**的字节上通过 —— 绿得毫无意义。
+  `readDesktopDatabaseFile` 因此把主库与 `-wal` 拼起来读，而不是先发一条 checkpoint PRAGMA：
+  后者等于让被测对象参与准备自己的检材，且覆盖面严格更小。
+- **第一次跑出的 25 条失败不是加密行为的问题，是解析路径的问题。** 失败形态是
+  message 全对、`name` 全错且是单字母（`o` / `r`）。根因是本包的 vitest 配置缺
+  `resolve.tsconfigPaths`（兄弟包 wa-sqlite / pglite 都有），于是
+  `@aiao/rxdb-adapter-sqlite-core` 走 node_modules 软链读产物，再由产物读
+  `@aiao/rxdb-adapter-encrypted/dist` —— 而那是压缩过的。补上配置后全绿。
+  但这暴露的是一个**真缺陷**，见下。
 
 打包这一步在本地网络受限时会以 ETIMEDOUT 失败（见 `packaged-app.ts` 的注释）。
 electron-builder 只认 `ELECTRON_MIRROR` / `ELECTRON_BUILDER_BINARIES_MIRROR` 两个**环境变量**，
@@ -157,6 +174,43 @@ Electron 完全同构（多个 renderer，同一个主进程 host，一库一连
 
 「第二个**进程**」这半边由 `packages/rxdb-adapter-sqlite-core/src/__tests__/system-schema-migration.multiprocess.spec.ts`
 覆盖：它跑的是真正的跨 OS 进程裸连接，中间没有 host 与协议层。
+
+### 接线 AC#2 时顺带发现的发布缺陷：错误 `name` 在产物里退化
+
+上面那 25 条假失败换个角度看是真信号：`EncryptedError` 基类用 `new.target.name` 写 `name`，
+读的是构造函数身份，minify 一过就变成 `"n"` / `"r"`。而 `name` 是被
+`@aiao/rxdb-test/encrypted` 的 `error-contract.ts` 当作**跨包 class 身份契约**用的公开 API。
+也就是说装了 npm 包的用户写 `err.name === 'EncryptedLockedError'` 恒为假。
+`@aiao/rxdb-plugin-search` 的 `SearchError` 有同一个写法，六个 `@public` 子类全中。
+
+源码单测对这类退化天生免疫 —— 源码不会被 mangle，`errors.spec.ts` 里那五条
+`expect(err.name).toBe(...)` 一直是绿的。所以修复配的是**产物层**的用例：
+
+| 项目                                                                         | 修复                                                                                                                                         |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@aiao/rxdb-adapter-encrypted`：5 个错误类 `name` 退化                       | 基类构造器改收字面量 `name` 参数；新增 `scripts/audit/encrypted-errors-consumer.mjs` + `consumer` target，在 tarball 上验 5 个类的 name/code |
+| `@aiao/rxdb-plugin-search`：`SearchError` 及 5 个 `@public` 子类 `name` 退化 | 同样改字面量（`SearchError(message, name)`），已在构建产物上实测 name 正确                                                                   |
+
+### 发布前的 tarball 门禁
+
+`@aiao/rxdb-adapter-desktop` 是本仓库唯一的**双入口**包（`.` 给 renderer、`./host` 给特权侧），
+`scripts/audit/desktop-adapter-consumer.mjs` + `consumer` target 在真 tarball 上守三条
+workspace 内测不到的性质：
+
+1. 两个入口在 NodeNext 与 Bundler 两种解析模式下都能编译；
+2. **renderer 入口的产物里不出现 `node:sqlite`** —— `src/index.ts` 的 TSDoc 把「可以安全地打进
+   renderer bundle」写成了承诺，而单测走 tsconfig paths 读源码，永远不经过 rolldown 的入口切分，
+   真串味只有产物里看得见，且后果是安全退化而非构建报错；
+3. host 入口真能开库、建表、写入、读回、关闭，应答一律经 renderer 入口导出的
+   `assertDesktopHostResponse` 解包 —— 于是这条往返同时证明两个入口的协议是配套的。
+
+> `consumer` target 目前**不在 CI 里**：`.github/workflows/ci-template.yml` 只枚举
+> `lint / typecheck / build / test / coverage-acceptance / e2e`。已有的
+> `rxdb-adapter-sqlite:consumer`、`rxdb-adapter-sqlite-core:consumer` 同样从未被 CI 触发，
+> 尽管 `scripts/README.md` 把 `audit/sqlite-adapter-consumer` 列为「硬失败（CI 阻断）」。
+> 这是先于本故事存在的缺口，需单独决定是接进 CI 还是修正 README 的说法。
+
+### 未关闭项
 
 > 本故事**不**关闭 [US-304](../collaboration/US-304-writer-lease-migration-fencing.md) AC6。
 > AC#5 验的是第二个 writer 在**连接时**被拒，AC#1 的重启 e2e 两次启动之间没有发生迁移；
@@ -201,6 +255,9 @@ Electron 完全同构（多个 renderer，同一个主进程 host，一库一连
 - `apps/dev-rxdb-electron/src/app/` — Electron renderer 接入示例与连接状态
 - `apps/dev-rxdb-electron-e2e/` — 打包 Electron 应用的真实文件持久化测试；AC#8 的三平台矩阵在此扩展
 - `requirements/api-baseline/` — 新增公开桌面 adapter API 基线
+- `packages/rxdb-adapter-desktop/src/__tests__/encrypted-*.spec.ts` — AC#2 的五套 `@aiao/rxdb-test/encrypted` 共享套件接线
+- `scripts/audit/desktop-adapter-consumer.mjs` + `rxdb-adapter-desktop:consumer` — 双入口 tarball 门禁（见[发布前的 tarball 门禁](#发布前的-tarball-门禁)）
+- `scripts/audit/encrypted-errors-consumer.mjs` + `rxdb-adapter-encrypted:consumer` — 错误 `name` 退化的回归门禁
 
 Tauri 侧的实现文件（`apps/dev-rxdb-tauri/`、`apps/dev-rxdb-tauri-e2e/`）随 AC#2 / AC#3
 一并迁至 [US-210](./US-210-tauri-sqlite-local-database.md)，本故事不再涉及。

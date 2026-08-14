@@ -74,6 +74,7 @@ bridge 锚点是人工选定的结果，不是算出来的 —— 这一点要�
 | 1    | A2（US-207 AC#2 加密套件）、C-A（desktop `consumer` target）             | `new-1`    |
 | 2    | `git tag -d v0.0.25`（删掉将成孤儿的本地 tag）                           | —          |
 | 3    | squash 合并进 `main`，提交信息写明 0.0.25 是人工选定的 bridge 锚点       | `main`     |
+| 3.5  | 提交 A2 / C-A（实际发生在合并之后，见下）                                | `main`     |
 | 4    | 在 `main` 上重做版本 bump：29 个 `package.json` + 清单 `bridge`/`0.0.25` | `main`     |
 | 5    | `check-migration-release-gate.mjs --check --release-tag=v0.0.25` 必须绿  | `main`     |
 | 6    | 在**发布提交**上重新 `git tag v0.0.25`，推送 → `publish.yml` 发 npm      | `main`     |
@@ -85,6 +86,12 @@ US-207 AC#8 三平台矩阵同理 —— 见 7.2，它本来就只在 release �
 > **US-207 仍是 🚧。** 0.0.25 是 bridge 版本、不升 system schema，AC#2 / AC#8 未关
 > 不构成发布阻塞；但要接受一个事实：`@aiao/rxdb-adapter-desktop` 首发时，
 > 若 A2 未做完，则「加密字段 × 桌面 adapter」这个组合在 npm 上是无用例覆盖的。
+>
+> **2026-08-14 实际进度**：步骤 2 / 3 已执行（tag 已删，squash 提交 `846970a`），
+> 步骤 1 的 A2 + C-A 随后在 `main` 上完成、目前尚未提交（步骤 3.5）。
+> 顺序与上表不同，但**「A2 / C-A 早于打 tag」这个约束成立**——这才是当初把它们前移的理由。
+> AC#2 已关，上面那条「无用例覆盖」的风险随之消解；US-207 仍 🚧 只因 AC#8。
+> 步骤 4 起未动。
 
 ## 1. 结论先行
 
@@ -377,14 +384,15 @@ npm config delete //localhost:4873/:_authToken --location user
 
 ## 6. 结果记录去向
 
-| 阶段 | 记到哪                                                                         |
-| ---- | ------------------------------------------------------------------------------ |
-| A1   | US-304 AC 表第 6 行状态 + 「复核记录」里补依据（用例路径、断言的错误码）       |
-| A2   | US-207 AC 表第 2 行状态 + 第 142 行那段「不在覆盖范围内」的说明改写或删除      |
-| B    | `requirements/README.md` 执行顺序第 0 步标完成 + 记明 `GITHUB_REF_NAME` 这个坑 |
-| C-A  | US-207「技术笔记 / 涉及文件」补上新脚本与 `consumer` target                    |
-| C-B  | **本文件第 8 节**（「演练记录」），不进任何 AC —— 它不是 AC 依据               |
-| 全部 | `requirements/status-overview.md` 同步；有 story 状态变化时补 `CHANGELOG.md`   |
+| 阶段 | 记到哪                                                                              |
+| ---- | ----------------------------------------------------------------------------------- |
+| A1   | US-304 AC 表第 6 行状态 + 「复核记录」里补依据（用例路径、断言的错误码）            |
+| A2   | US-207 AC 表第 2 行状态 + 第 142 行那段「不在覆盖范围内」的说明改写或删除           |
+| A2′  | A2 衍生的错误 `name` 退化缺陷 → US-207 独立小节 + `rxdb-adapter-encrypted:consumer` |
+| B    | `requirements/README.md` 执行顺序第 0 步标完成 + 记明 `GITHUB_REF_NAME` 这个坑      |
+| C-A  | US-207「技术笔记 / 涉及文件」补上新脚本与 `consumer` target                         |
+| C-B  | **本文件第 8 节**（「演练记录」），不进任何 AC —— 它不是 AC 依据                    |
+| 全部 | `requirements/status-overview.md` 同步；有 story 状态变化时补 `CHANGELOG.md`        |
 
 执行中如果 C-0 那条「`consumer` / `audit` target 不进 CI」被确认属实且无人在管，
 **另开一个开项**记到 `requirements/README.md` 的功能建议里，不要在本方案里顺手改 workflow ——
@@ -458,19 +466,36 @@ AC11 说的是「发布**迁移**版本时门禁要拦住旧 bundle」。本版 
 
 按 [0.5](#05-修订后的执行顺序) 重排。~~删除线~~ 的条目按 2026-08-14 决策移出本次发布。
 
-### 合并前（分支 `new-1`）
+### 合并前（步骤 1）
 
-- [ ] A2 补 `desktopEncryptedAdapterFactory`
-- [ ] A2 接五套 encrypted 共享套件
-- [ ] A2 `pnpm nx test rxdb-adapter-desktop` 全绿且无跳过项
-- [ ] C-A 写 `scripts/audit/desktop-adapter-consumer.mjs`（含 `/host` 入口断言）
-- [ ] C-A 加 `consumer` target，`pnpm nx run rxdb-adapter-desktop:consumer` 通过
-- [ ] 全量验证 `pnpm test-all`
+> **实际落点**：squash 合并（`846970a`）先于 A2 / C-A 完成，因此这批改动落在 `main` 的
+> 工作区、尚未提交，而不是随合并进来的。顺序变了但**约束没变**——它们仍在 0.0.25 打 tag 之前。
+
+- [x] A2 补 `desktopEncryptedAdapterFactory`
+- [x] A2 接五套 encrypted 共享套件（crud + queryValidation / tamper / bigint-binary / change-log / lifecycle）
+- [x] A2 `pnpm nx test rxdb-adapter-desktop` 全绿且无跳过项 —— 786 passed / 15 files / 0 skipped（接线前 734）
+- [x] A2 衍生：修错误 `name` 在压缩产物里退化为单字母（`rxdb-adapter-encrypted` 5 个类 +
+      `rxdb-plugin-search` 基类与 5 个 `@public` 子类），并加 `rxdb-adapter-encrypted:consumer`
+      在 tarball 层守住 —— 详见 US-207「接线 AC#2 时顺带发现的发布缺陷」
+- [x] C-A 写 `scripts/audit/desktop-adapter-consumer.mjs`（含 `/host` 入口断言）
+- [x] C-A 加 `consumer` target，`pnpm nx run rxdb-adapter-desktop:consumer` 通过
+- [~] 全量验证 `pnpm test-all` —— **一次跑不全绿，两个任务被 Nx 判为 flaky，隔离复跑均通过**：
+  - `rxdb-adapter-desktop:test`：`test-all` 里失败一次（Nx 自动重试后通过并打上 flaky 标记）；
+    单跑 `--skipNxCache` 连续 3 次全绿（786 passed / 15 files / 0 skipped）。
+  - `dev-rxdb-angular-e2e:e2e`：`test-all` 里 chromium 大面积失败；单跑 109 passed，Nx 同样判 flaky。
+  - **判断**：两者都不是本次改动引入的回归——改动只碰 `rxdb-adapter-desktop`、
+    `rxdb-adapter-encrypted/src/errors.ts`、`rxdb-plugin-search/src/types.ts` 与 requirements 文档，
+    而 angular e2e 的失败面是整个应用（todo / tree-menu 全挂），形状是应用没起来而不是断言不符。
+  - **一条值得单独立项的观察**（不在本方案内改）：
+    `packages/rxdb-adapter-desktop/vite.config.mts` 的 `testTimeout` 是 `CI ? 30000 : 10000`——
+    本地比 CI 紧 3 倍，而这套用例要拉真实 host 进程。14 分钟的高并发全量跑里超时是合理怀疑，
+    但**没有留下失败详情**（输出被 `tail` 截掉），所以这只是怀疑，不是结论。
 
 ### 合并与发布（`main`）
 
-- [ ] `git tag -d v0.0.25` —— 删掉指向 `b65b24f`、squash 后将成孤儿的本地 tag（[0.2](#02-本地-tag-v0025-会被-squash-变成孤儿--先删掉)）
-- [ ] squash 合并 `new-1` → `main`；提交信息写明 0.0.25 是**人工选定**的 bridge 锚点（[0.3](#03-squash-换掉了-nx-release-的计算基准)）
+- [x] `git tag -d v0.0.25` —— 已删，`git tag -l` 只剩 `v0.0.24`（[0.2](#02-本地-tag-v0025-会被-squash-变成孤儿--先删掉)）
+- [x] squash 合并 `new-1` → `main` —— `846970a feat(aiao): 添加 rxdb-adapter-desktop 包 (#6)`（[0.3](#03-squash-换掉了-nx-release-的计算基准)）
+- [ ] 提交 A2 / C-A 这批工作区改动到 `main`
 - [ ] 在 `main` 重做版本 bump：29 个 `package.json` → `0.0.25`（[0.1](#01-版本-bump-已被静默回退--必须重做)）
 - [ ] 在 `main` 重做清单：`migration-release.json` 的 `kind` → `bridge`、`version` → `0.0.25`
 - [ ] `node scripts/check-migration-release-gate.mjs --check --release-tag=v0.0.25` 通过
@@ -480,9 +505,15 @@ AC11 说的是「发布**迁移**版本时门禁要拦住旧 bundle」。本版 
 
 ### 回写
 
-- [ ] 按第 6 节回写 US-207 / README / status-overview（A2 关掉则 AC#2 转 ✅）
+- [x] 按第 6 节回写 US-207 / status-overview —— AC#2 已转 ✅；US-207 仅剩 AC#8
 - [ ] 把 7.4 的决策单独提给决策人
-- [ ] 若 C-0 的 CI 缺口属实，单独立项（不在本方案内改 workflow）
+- [ ] **C-0 的 CI 缺口已确认属实**，需单独立项（不在本方案内改 workflow）：
+      `pnpm test-all` 是 `nx affected -t lint typecheck test test-browser build e2e`，
+      `ci-template.yml` 只列 lint / typecheck / build / test / coverage-acceptance / e2e / e2e-remote，
+      `pnpm audit` 的 `nx run-many -t audit` 只有两个 search 绑定包定义了 `audit`。
+      于是 4 个 `consumer` target（sqlite / sqlite-core / encrypted / desktop）**没有任何 workflow 在跑**，
+      而 [scripts/README.md](../scripts/README.md) 仍把 `audit/sqlite-adapter-consumer` 写成「硬失败（CI 阻断）」——
+      要么把 `consumer` 接进 CI，要么改掉这句话，两者必居其一。
 - [ ] 单独立项：`7df97fa` 的静默回退说明提交前没有 review 版本号漂移，考虑加一条门禁
 
 ### 移出本次发布（下一版本再做）

@@ -15,6 +15,13 @@
       "options": {
         "command": "vite build && node ../../scripts/audit/package-api-docs.mjs ."
       }
+    },
+    "consumer": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build", "^build"],
+      "options": {
+        "command": "node scripts/audit/desktop-adapter-consumer.mjs"
+      }
     }
   }
 }

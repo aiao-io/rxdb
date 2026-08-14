@@ -4,7 +4,7 @@
 >
 > **完成记录**与 spec 关闭快照已移至 [CHANGELOG.md](CHANGELOG.md)。
 
-**最后同步**: 2026-08-13
+**最后同步**: 2026-08-14
 
 ## 状态汇总
 
@@ -96,7 +96,7 @@
 
 - ✅ [US-702 全文搜索](stories/future/US-702-full-text-search.md)
 - ⬜ [US-703 PGlite 全文搜索](stories/future/US-703-pglite-full-text-search.md)
-- 🚧 [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md) — `@aiao/rxdb-adapter-desktop` 与主进程 host 已落地，AC#1 / #3–#7 ✅（打包产物重启后计数递增，含多窗口 writer lease）；AC#2 待加密字段解锁覆盖，AC#8 待三平台打包矩阵
+- 🚧 [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md) — `@aiao/rxdb-adapter-desktop` 与主进程 host 已落地，AC#1–#7 ✅（2026-08-14 接入 `@aiao/rxdb-test/encrypted` 五套共享套件关闭 AC#2，786 用例全绿）；仅剩 AC#8 三平台打包矩阵
 - ⬜ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md) — 从 US-207 拆出，PGlite callback transaction 不能跨 IPC 序列化
 - ⬜ [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) — 从 US-207 二次拆出，`tauri-plugin-sql` 的单物理连接事务语义未验证
 - 👀 [US-209 微信小程序 wa-sqlite 适配器](stories/adapter/US-209-miniprogram-adapter.md) — 实验性，适配器已合并，剩余为覆盖率门禁登记与文档收尾
