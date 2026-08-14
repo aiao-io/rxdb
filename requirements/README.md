@@ -109,7 +109,8 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 7. ~~US-209 只做门禁与文档收尾~~ → 2026-08-15 已 Done。约束仍然生效并转为**长期口径**：小程序适配器的能力承诺不得扩大，
    WAL、多页面并发、崩溃恢复保证和微信以外的小程序平台都不在范围内；文档一律写「实验性」，
    不得把它列成与 wa-sqlite 同级的受支持适配器（落点见 [compatibility.md](../website/docs/compatibility.md) 的能力边界专节）。
-   US-209 AC#8 顺带留下一个新缺口：`exports` 子路径入口不受 api-surface 门禁保护，见
+   US-209 AC#8 顺带留下一个新缺口：`exports` 子路径入口的**导出表面**不受 api-surface 门禁保护
+   （清单本身已由 `KNOWN_UNCOVERED_SUBPATHS` 核对），见
    [status-overview.md](status-overview.md) 的「已知的需求覆盖缺口」，尚无故事认领。
 
 ### 建议补充的验收维度

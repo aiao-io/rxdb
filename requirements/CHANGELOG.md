@@ -6,6 +6,23 @@
 
 ## Story 状态变更
 
+### 2026-08-15 — US-209 小程序适配器门禁与文档收尾（In Review → Done）
+
+- `@aiao/rxdb-adapter-miniprogram` 登记进 `scripts/audit/coverage-baseline.json`（99/97/100/100，向下取整）。
+  这是**趋势基准**而非门禁开关：`coverage-check.mjs` 的 80%/90% 硬阈值对所有非 private 包一直生效，
+  本包此前已被卡着；登记后才有「比上次低」的回归警告。原 story 里「不受门禁保护」的措辞已修正。
+- AC#8 子路径决策落定为「**导出表面**记录为已知不覆盖」：`api-surface.mjs` 新增 `KNOWN_UNCOVERED_SUBPATHS`
+  （8 个公开包共 12 个入口）作为清单真相源，`subpath-inventory.mjs` 把**清单本身**纳入门禁——
+  新增/删除子路径不同步清单即 CI 红。扫描子路径导出表面仍是未认领缺口。
+- 策略文档双向对齐：`requirements/versioning-policy.md` 与对外的 `website/docs/versioning.md`
+  同时写明子路径属于公开 API 但表面不受基线保护，消除「基线守护全部公开 API」的错误承诺。
+- 文档口径收敛到「实验性、仅微信」：`website/docs/compatibility.md` 新增能力边界专节
+  （平台/并发/日志模式/崩溃恢复/数据量/随机源/全文搜索），原「浏览器能力 × 适配器」表扩为「运行时能力 × 适配器」；
+  根 `README.md` 不再声称支持 Alipay。
+- `examples/README.md` 声明示例目录不在 CI 覆盖范围（独立 pnpm workspace、无 `project.json`、依赖已发布版本），
+  改动后须手工验证。
+- `packages/rxdb-adapter-miniprogram/src/index.ts` 删除逐字重复的 `@packageDocumentation` 块。
+
 ### 2026-08-01 — US-303 / US-304 迁移隔离拆分
 
 - US-303 的 change codec、原子系统迁移、回滚重试、历史/branch/跨 Tab 兼容均已验收，状态转为 Done。

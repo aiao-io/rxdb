@@ -52,20 +52,20 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 前置条件                                         | 操作                                              | 预期结果                                                                                                      | 状态 |
-| --- | ------------------------------------------------ | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 小程序运行时缺少 `BigInt` / `WXWebAssembly` 等   | 调用 `assertMiniProgramRuntimeCapabilities()`     | 抛出列出全部缺失能力名的错误，不进入连接流程                                                                  | ✅   |
-| 2   | 运行时无原生 `crypto.getRandomValues`            | 调用 `prepareMiniProgramRuntime(wx)` 后消耗随机数 | 由 `wx.getRandomValues` 预取的池供给；池耗尽时抛错，**任何情况下都不降级**到 `Math.random`                    | ✅   |
-| 3   | 已注册微信文件 VFS                               | 对同一数据库文件发起第二个连接                    | 抛出「微信文件 VFS 不支持同一数据库的并发连接」，而不是静默共享句柄                                           | ✅   |
-| 4   | 微信 Babel 环境                                  | 注册 `update_hook` / `create_function` 等同步回调 | 回调经 `getPrototypeOf → null` 的 Proxy 包装，不被误判为 `AsyncFunction`                                      | ✅   |
-| 5   | 打包产物含 `wa-sqlite.wasm`                      | 运行 `node scripts/audit/wa-sqlite-integrity.mjs` | `.cjs` 与 `.wasm` 的 SHA-256 与固定值一致                                                                     | ✅   |
-| 6   | CI 测试分道配置                                  | 运行 `pnpm nx test rxdb-adapter-miniprogram`      | 12 个 spec / 92 个用例全绿，且该项目在 `scripts/ci/plan-test-lanes.mjs` 中有明确分道                          | ✅   |
-| 7   | `scripts/audit/coverage-baseline.json`           | 运行 `node scripts/audit/coverage-check.mjs`      | 本包在 baseline 中登记并被校验                                                                                | ✅   |
-| 8   | `exports` 中的 `./runtime` 子路径                | 运行 `node scripts/audit/api-surface.mjs`         | `prepareMiniProgramRuntime` 等 5 个运行时导出要么纳入 baseline，要么在 story 与脚本注释中记录为**已知不覆盖** | ✅   |
-| 9   | `website/docs/compatibility.md`                  | 查阅包表格与运行时/存储表格                       | 出现 `@aiao/rxdb-adapter-miniprogram` 行，并标注实验性、仅微信、单连接、无崩溃恢复保证                        | ✅   |
-| 10  | 根 `README.md` 第 87 行与第 152 行               | 阅读小程序相关表述                                | 不再声称支持 Alipay；与包 README「仅支持微信小程序逻辑层」一致                                                | ✅   |
-| 11  | `packages/rxdb-adapter-miniprogram/src/index.ts` | 阅读文件头                                        | 只有一个 `@packageDocumentation` 块                                                                           | ✅   |
-| 12  | `examples/taro-react-todo/`                      | 查阅其在仓库中的定位说明                          | 要么纳入某条可执行校验（至少 `typecheck`），要么在 examples README 中显式声明「不在 CI 覆盖范围、需手工验证」 | ✅   |
+| #   | 前置条件                                         | 操作                                              | 预期结果                                                                                                        | 状态 |
+| --- | ------------------------------------------------ | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | 小程序运行时缺少 `BigInt` / `WXWebAssembly` 等   | 调用 `assertMiniProgramRuntimeCapabilities()`     | 抛出列出全部缺失能力名的错误，不进入连接流程                                                                    | ✅   |
+| 2   | 运行时无原生 `crypto.getRandomValues`            | 调用 `prepareMiniProgramRuntime(wx)` 后消耗随机数 | 由 `wx.getRandomValues` 预取的池供给；池耗尽时抛错，**任何情况下都不降级**到 `Math.random`                      | ✅   |
+| 3   | 已注册微信文件 VFS                               | 对同一数据库文件发起第二个连接                    | 抛出「微信文件 VFS 不支持同一数据库的并发连接」，而不是静默共享句柄                                             | ✅   |
+| 4   | 微信 Babel 环境                                  | 注册 `update_hook` / `create_function` 等同步回调 | 回调经 `getPrototypeOf → null` 的 Proxy 包装，不被误判为 `AsyncFunction`                                        | ✅   |
+| 5   | 打包产物含 `wa-sqlite.wasm`                      | 运行 `node scripts/audit/wa-sqlite-integrity.mjs` | `.cjs` 与 `.wasm` 的 SHA-256 与固定值一致                                                                       | ✅   |
+| 6   | CI 测试分道配置                                  | 运行 `pnpm nx test rxdb-adapter-miniprogram`      | 12 个 spec / 92 个用例全绿，且该项目在 `scripts/ci/plan-test-lanes.mjs` 中有明确分道                            | ✅   |
+| 7   | `scripts/audit/coverage-baseline.json`           | 运行 `node scripts/audit/coverage-check.mjs`      | 本包在 baseline 中留有趋势基准（硬门槛 80% 本就生效，与登记无关）                                               | ✅   |
+| 8   | `exports` 中的 `./runtime` 子路径                | 运行 `node scripts/audit/api-surface.mjs`         | `./runtime` 的 11 个导出（5 值 + 6 类型）在脚本清单与策略文档中记录为**导出表面已知不覆盖**，清单本身受门禁核对 | ✅   |
+| 9   | `website/docs/compatibility.md`                  | 查阅包表格与运行时/存储表格                       | 出现 `@aiao/rxdb-adapter-miniprogram` 行，并标注实验性、仅微信、单连接、无崩溃恢复保证                          | ✅   |
+| 10  | 根 `README.md` 第 87 行与第 152 行               | 阅读小程序相关表述                                | 不再声称支持 Alipay；与包 README「仅支持微信小程序逻辑层」一致                                                  | ✅   |
+| 11  | `packages/rxdb-adapter-miniprogram/src/index.ts` | 阅读文件头                                        | 只有一个 `@packageDocumentation` 块                                                                             | ✅   |
+| 12  | `examples/taro-react-todo/`                      | 查阅其在仓库中的定位说明                          | 要么纳入某条可执行校验（至少 `typecheck`），要么在 examples README 中显式声明「不在 CI 覆盖范围、需手工验证」   | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -92,13 +92,21 @@ INVEST 检查清单:
 - **AC#7 覆盖率登记**：`node scripts/audit/coverage-check.mjs --update --projects=rxdb-adapter-miniprogram`
   把本包写入 [coverage-baseline.json](../../../scripts/audit/coverage-baseline.json)
   （`statements 99 / branches 97 / functions 100 / lines 100`，baseline 存向下取整值）。
-  本包按「其余公开包」适用 80% 门槛，`--check` 已通过。
-- **AC#8 子路径决策 = 记录为已知不覆盖**：`scripts/audit/api-surface.mjs` 的 v1 边界注释里点名了
-  全部 9 个有子路径导出的包（含本包 `./runtime` 的 5 个运行时导出），
-  [versioning-policy.md](../../versioning-policy.md) 的「基线工作流」补了一段引用块，说明这些子路径
-  **属于公开 API 但不受本门禁保护**，改动必须在 PR 描述里人工声明破坏性。
-  **未选择**扩展扫描器：那会新增约 12 个 baseline 文件并改变 9 个包的门禁行为，属于仓库级改动，
-  超出本故事「门禁与文档收尾」的定位，应另立故事。
+  **修正原 AC 的措辞**：本包此前并非「不受门禁保护」——`coverage-check.mjs` 的硬门槛是固定阈值
+  （核心包 90%、其余 80%），作用于 `packages/` 下所有非 private 包，与是否在 baseline 中无关；
+  本包是公开包、`reportsDirectory` 落点正确、在 `plan-test-lanes.mjs` 有分道，因此一直被卡着。
+  baseline **不是硬门槛**（见脚本头注释），登记的实际收益是：从此有了「比上次低」的趋势回归警告参照值。
+- **AC#8 子路径决策 = 表面记录为已知不覆盖、清单纳入门禁**：
+  `scripts/audit/api-surface.mjs` 新增 `KNOWN_UNCOVERED_SUBPATHS`（**8 个公开包共 12 个入口**，
+  含本包 `./runtime` 的 11 个符号 = 5 值 + 6 类型，以及两个 `./assets/*` 资产入口——后者无导出表面，
+  由 `wa-sqlite-integrity.mjs` 的 SHA-256 守护；`rxdb-test` 的 5 个不计，整包已由 `EXCLUDED` 排除）。
+  [versioning-policy.md](../../versioning-policy.md) 与
+  [website/docs/versioning.md](../../../website/docs/versioning.md) 同步写明这些子路径
+  **属于公开 API 但导出表面不受本门禁保护**，改动必须在 PR 描述里人工声明破坏性。
+  配套的 `subpath-inventory.mjs` 让**清单本身**受门禁保护：新增或删除子路径而不同步清单即 CI 红，
+  避免这份手工清单随包演进静默过期。
+  **未选择**扩展扫描器扫子路径导出表面：那会新增约 12 个 baseline 文件并改变 8 个包的门禁行为，
+  属于仓库级改动，超出本故事「门禁与文档收尾」的定位，应另立故事。
 - **AC#9/#10 文档口径**：[compatibility.md](../../../website/docs/compatibility.md) 新增
   「`@aiao/rxdb-adapter-miniprogram` 的能力边界」专节（平台/并发/日志模式/崩溃恢复/数据量/随机源/全文搜索
   逐项列出），并把原「浏览器能力 × 适配器」表扩为「运行时能力 × 适配器」以容纳非浏览器运行时。
@@ -115,9 +123,11 @@ INVEST 检查清单:
 - `packages/rxdb-adapter-miniprogram/src/runtime.ts` — `/runtime` 子路径入口（随机源引导）
 - `examples/taro-react-todo/` — Taro + React 手工验证 demo（不在 CI 覆盖范围）
 - `scripts/audit/wa-sqlite-integrity.mjs` — wasm/cjs 资产 SHA-256 固定
-- `scripts/audit/coverage-baseline.json` — AC#7 覆盖率登记
-- `scripts/audit/api-surface.mjs` — AC#8 v1 边界注释中的「已知不覆盖」子路径清单
-- `requirements/versioning-policy.md` — AC#8 策略侧记录
+- `scripts/audit/coverage-baseline.json` — AC#7 覆盖率趋势基准
+- `scripts/audit/api-surface.mjs` — AC#8 `KNOWN_UNCOVERED_SUBPATHS` 子路径清单（真相源）
+- `scripts/audit/subpath-inventory.mjs` + `.spec.mjs` — AC#8 清单核对门禁
+- `requirements/versioning-policy.md` — AC#8 策略侧记录（维护者视角）
+- `website/docs/versioning.md` — AC#8 对外警示块（子路径不受基线保护）
 - `website/docs/compatibility.md` — AC#9 能力矩阵与边界专节
 - `README.md` — AC#10 表述修正
 - `examples/README.md` — AC#12 「不在 CI 覆盖范围」声明

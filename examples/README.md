@@ -10,7 +10,9 @@
 
 - 根 [pnpm-workspace.yaml](../pnpm-workspace.yaml) 用 `- '!examples/*'` 排除本目录，
   每个示例自带 `pnpm-workspace.yaml`（`packages: ['.']`）与独立 `pnpm-lock.yaml`，声明自身为 workspace 根；
-- 因此 `pnpm nx show projects` 里**没有**这些项目，`nx affected` / `pnpm test-all` 都扫不到它们；
+- 本目录下**没有任何 `project.json`**，因此 `nx affected` / `pnpm test-all` 都扫不到它们。
+  注意别被重名误导：`pnpm nx show projects` 里的 `angular-todo` 指的是 [modules/angular-todo](../modules/angular-todo/)，
+  与 [examples/angular-todo](./angular-todo/) 无关；`taro-react-todo` 则完全不在 nx 图里；
 - 它们依赖**已发布到 npm** 的 `@aiao/*` 版本，而不是仓库源码，所以仓库内的改动不会自动反映到示例里。
 
 这样做是为了让 Taro 4 / 独立 Angular CLI 这类与 Nx 图不共存的工具链保持可用。
