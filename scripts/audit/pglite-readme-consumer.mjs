@@ -53,15 +53,24 @@ try {
     packed.set(directory, await pack(path.join(workspaceRoot, 'packages', directory), tarballRoot));
   }
 
+  // 每个 `@aiao/*` 都必须**同时**出现在 dependencies 和 pnpm.overrides 里：dependencies
+  // 只管根上这一层，tarball **内部**的 `@aiao/*` 仍按 semver 从 registry 解析，不会与根上
+  // 的 `file:` 去重；而 peerDependency 又会被 auto-install-peers 注入成根的直接依赖、绕过
+  // overrides。只要 registry 上恰好有同号版本，缺失时安装照样成功，验的却是 npm 上那份旧
+  // 代码 —— 门禁看着绿，实际什么也没验。2026-08-14 把版本抬到未发布的 0.0.25 才炸出来。
+  const localOverrides = {
+    '@aiao/utils': `file:${packed.get('utils')}`,
+    '@aiao/rxdb': `file:${packed.get('rxdb')}`,
+    '@aiao/rxdb-adapter-encrypted': `file:${packed.get('rxdb-adapter-encrypted')}`,
+    '@aiao/rxdb-adapter-pglite': `file:${packed.get('rxdb-adapter-pglite')}`
+  };
   const packageJson = {
     name: 'pglite-readme-consumer',
     private: true,
     type: 'module',
-    dependencies: {
-      '@aiao/utils': `file:${packed.get('utils')}`,
-      '@aiao/rxdb': `file:${packed.get('rxdb')}`,
-      '@aiao/rxdb-adapter-encrypted': `file:${packed.get('rxdb-adapter-encrypted')}`,
-      '@aiao/rxdb-adapter-pglite': `file:${packed.get('rxdb-adapter-pglite')}`
+    dependencies: localOverrides,
+    pnpm: {
+      overrides: localOverrides
     },
     devDependencies: {
       '@types/ms': workspacePackageJson.devDependencies['@types/ms'],

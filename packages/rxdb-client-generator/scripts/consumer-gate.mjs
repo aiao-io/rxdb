@@ -178,14 +178,28 @@ const main = async () => {
     const rxdbTarball = await pack(path.join(workspaceRoot, 'packages/rxdb'), tarballs);
     const generatorTarball = await pack(packageRoot, tarballs);
     const utilsTarball = await pack(path.join(workspaceRoot, 'packages/utils'), tarballs);
+    // 每个 `@aiao/*` 都必须**同时**出现在 dependencies 和 pnpm.overrides 里，缺一不可：
+    //
+    // - 只给 dependencies 不够：tarball 内部的依赖按 semver 从 registry 解析，不会与
+    //   根上的 `file:` 去重 —— `@aiao/rxdb` 的 `@aiao/utils` 就会去 npm 上找。
+    // - 只给 overrides 不够：peerDependency 会被 pnpm 的 auto-install-peers 当作根项目的
+    //   直接依赖注入，绕过 overrides。
+    //
+    // 两者都缺时的表现极具迷惑性：只要 registry 上**恰好**有同号版本，安装就成功，
+    // 但被测的其实是 npm 上那份旧代码，不是本地产物 —— 门禁看着绿，实际什么也没验。
+    // 这个坑是 2026-08-14 把版本抬到未发布的 0.0.25 时才炸出来的。
+    const localOverrides = {
+      '@aiao/rxdb': `file:${rxdbTarball}`,
+      '@aiao/rxdb-client-generator': `file:${generatorTarball}`,
+      '@aiao/utils': `file:${utilsTarball}`
+    };
     const packageJson = {
       name: 'rxdb-client-generator-consumer',
       private: true,
       type: 'module',
-      dependencies: {
-        '@aiao/rxdb': `file:${rxdbTarball}`,
-        '@aiao/rxdb-client-generator': `file:${generatorTarball}`,
-        '@aiao/utils': `file:${utilsTarball}`
+      dependencies: localOverrides,
+      pnpm: {
+        overrides: localOverrides
       }
     };
     await writeFile(path.join(root, 'package.json'), JSON.stringify(packageJson, null, 2));

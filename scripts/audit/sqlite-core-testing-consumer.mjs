@@ -12,6 +12,14 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 const workspaceRoot = process.cwd();
 const packageDirectories = ['utils', 'rxdb', 'rxdb-adapter-encrypted', 'rxdb-test', 'rxdb-adapter-sqlite-core'];
+
+// 这份清单是**故意**手写而不是从 `src/testing.ts` 反推的：它要钉住的正是
+// "tarball 的 `/testing` 导出面没有悄悄增删"。新增一套共享套件属于导出面变更，
+// 应当在这里显式登记一行。
+//
+// 2026-08-14：`rowsAffectedConformanceSuite` 随 desktop 分支进来时漏登记，
+// 直到这次手动跑 consumer 才暴露 —— 因为 `consumer` target 根本不在 CI 里
+// （见 requirements/README.md 的 C-0 开项）。
 const suiteNames = [
   'adapterConstructionSuite',
   'bigintBinaryClientSuite',
@@ -24,6 +32,7 @@ const suiteNames = [
   'menuIntegrationSuite',
   'querySqlSuite',
   'relationIntegrationSuite',
+  'rowsAffectedConformanceSuite',
   'rxdbAdapterSuite',
   'sqliteClientBatchTimeoutSuite',
   'sqliteClientSuite',
@@ -116,7 +125,9 @@ try {
   await writeRuntime(consumerRoot);
   await run('pnpm', ['install', '--prefer-offline', '--ignore-scripts', '--no-frozen-lockfile'], consumerRoot);
   await run(process.execPath, ['runtime.mjs'], consumerRoot);
-  process.stdout.write('Published testing consumer passed: 21 shared suites and cloneEntityClasses.\n');
+  process.stdout.write(
+    `Published testing consumer passed: ${suiteNames.length} shared suites and cloneEntityClasses.\n`
+  );
 } finally {
   await rm(consumerRoot, { force: true, recursive: true });
   await rm(tarballRoot, { force: true, recursive: true });

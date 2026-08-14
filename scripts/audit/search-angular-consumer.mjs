@@ -76,9 +76,12 @@ try {
   assert.doesNotMatch(tarListing, /\.(?:spec|test)\.[cm]?[jt]sx?$/m);
 
   const packed = new Map();
+  // `rxdb-test` 在列不是笔误：`@aiao/rxdb-adapter-sqlite-core` 把它声明成了运行时
+  // `dependencies` 而非 `devDependencies`，于是它是每个 sqlite-core 消费者的真实依赖。
   for (const directory of [
     'utils',
     'rxdb',
+    'rxdb-test',
     'rxdb-adapter-encrypted',
     'rxdb-adapter-sqlite-core',
     'rxdb-adapter-sqlite-wasm',
@@ -87,21 +90,33 @@ try {
     packed.set(directory, await pack(path.join(workspaceRoot, 'packages', directory), tarballRoot));
   }
 
+  // 每个 `@aiao/*` 都必须**同时**出现在 dependencies 和 pnpm.overrides 里：dependencies
+  // 只管根上这一层，tarball **内部**的 `@aiao/*` 仍按 semver 从 registry 解析，不会与根上
+  // 的 `file:` 去重；而 peerDependency 又会被 auto-install-peers 注入成根的直接依赖、绕过
+  // overrides。只要 registry 上恰好有同号版本，缺失时安装照样成功，验的却是 npm 上那份旧
+  // 代码 —— 门禁看着绿，实际什么也没验。2026-08-14 把版本抬到未发布的 0.0.25 才炸出来。
+  const localOverrides = {
+    '@aiao/utils': `file:${packed.get('utils')}`,
+    '@aiao/rxdb': `file:${packed.get('rxdb')}`,
+    '@aiao/rxdb-test': `file:${packed.get('rxdb-test')}`,
+    '@aiao/rxdb-adapter-encrypted': `file:${packed.get('rxdb-adapter-encrypted')}`,
+    '@aiao/rxdb-adapter-sqlite-core': `file:${packed.get('rxdb-adapter-sqlite-core')}`,
+    '@aiao/rxdb-adapter-sqlite-wasm': `file:${packed.get('rxdb-adapter-sqlite-wasm')}`,
+    '@aiao/rxdb-plugin-search': `file:${packed.get('rxdb-plugin-search')}`,
+    '@aiao/rxdb-plugin-search-angular': `file:${angularTarball}`
+  };
   const packageJson = {
     name: 'search-angular-consumer',
     private: true,
     type: 'module',
     dependencies: {
-      '@aiao/utils': `file:${packed.get('utils')}`,
-      '@aiao/rxdb': `file:${packed.get('rxdb')}`,
-      '@aiao/rxdb-adapter-encrypted': `file:${packed.get('rxdb-adapter-encrypted')}`,
-      '@aiao/rxdb-adapter-sqlite-core': `file:${packed.get('rxdb-adapter-sqlite-core')}`,
-      '@aiao/rxdb-adapter-sqlite-wasm': `file:${packed.get('rxdb-adapter-sqlite-wasm')}`,
-      '@aiao/rxdb-plugin-search': `file:${packed.get('rxdb-plugin-search')}`,
-      '@aiao/rxdb-plugin-search-angular': `file:${angularTarball}`,
+      ...localOverrides,
       '@angular/core': dependencyVersion('@angular/core'),
       rxjs: dependencyVersion('rxjs'),
       tslib: dependencyVersion('tslib')
+    },
+    pnpm: {
+      overrides: localOverrides
     },
     devDependencies: {
       '@types/node': dependencyVersion('@types/node')

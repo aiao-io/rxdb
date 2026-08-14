@@ -119,23 +119,50 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 
 ### 开项：`consumer` / `audit` target 不在 CI（2026-08-14 确认）
 
-4 个包定义了 `consumer` target（`rxdb-adapter-sqlite` / `rxdb-adapter-sqlite-core` /
-`rxdb-adapter-encrypted` / `rxdb-adapter-desktop`），**没有任何 workflow 在跑它们**：
-`pnpm test-all` 是 `nx affected -t lint typecheck test test-browser build e2e`，
-`ci-template.yml` 只列 lint / typecheck / build / test / coverage-acceptance / e2e / e2e-remote，
-`pnpm audit` 的 `nx run-many -t audit` 也只有两个 search 绑定包定义了 `audit`。
+7 个包定义了 `consumer` target（`rxdb-adapter-sqlite` / `rxdb-adapter-sqliteai` /
+`rxdb-adapter-sqlite-core` / `rxdb-adapter-encrypted` / `rxdb-adapter-desktop` /
+`rxdb-client-generator` / `rxdb-plugin-graph`），另有 3 个包定义了同类的 `audit` target
+（`rxdb-plugin-search-angular` / `rxdb-plugin-search-vue` / `rxdb-adapter-pglite`），
+**没有任何 workflow 在跑它们**：`pnpm test-all` 是
+`nx affected -t lint typecheck test test-browser build e2e`，
+`ci-template.yml` 只列 lint / typecheck / build / test / coverage-acceptance / e2e / e2e-remote。
 而 [scripts/README.md](../scripts/README.md) 把 `audit/sqlite-adapter-consumer` 写成「硬失败（CI 阻断）」——
 **文档与事实不符**。
 
 这不是纸面问题：这类脚本守的性质（tarball 能否解析、错误 `name` 会不会被 minify 掉、
 renderer 入口有没有串进 `node:sqlite`）**在 workspace 内测里结构性地测不到**——
-单测走 tsconfig paths 读源码，永远不经过打包。2026-08-14 修的错误 `name` 退化
-（见 [US-207](stories/adapter/US-207-desktop-local-database.md)）就是这个盲区的实例：
-源码单测一直全绿，缺陷只存在于装进用户项目的产物里。
+单测走 tsconfig paths 读源码，永远不经过打包。2026-08-14 一天之内撞到两个实例：
 
-两条出路必居其一：把 `consumer` 接进 CI（注意它要 `pnpm pack` + 真装依赖，耗时不小，
+1. **错误 `name` 在压缩产物中退化**（见 [US-207](stories/adapter/US-207-desktop-local-database.md)）——
+   源码单测一直全绿，缺陷只存在于装进用户项目的产物里。
+2. **消费者门禁自己在验 npm 上的旧代码**（见下一节）——门禁一直「绿」，但绿得没有意义。
+
+两条出路必居其一：把 `consumer` / `audit` 接进 CI（注意它要 `pnpm pack` + 真装依赖，耗时不小，
 可能更适合放 release 前的独立 job 而非每个 PR），或者改掉 `scripts/README.md` 那句话、
 明确它是手工门禁。**不要**维持现状。
+
+### 开项衍生：消费者门禁的 registry 回落缺陷（2026-08-14 修复）
+
+把版本从 `0.0.24` 抬到尚未发布的 `0.0.25` 后，10 个 tarball 消费者脚本里有 5 个当场炸出
+`ERR_PNPM_NO_MATCHING_VERSION No matching version found for @aiao/xxx@0.0.25`。根因链条：
+
+- `pnpm pack` 会把 `workspace:*` 改写成**确切版本号**写进 tarball 的 package.json；
+- tarball **内部**的 `@aiao/*` 依赖按 semver 去 registry 解析，**不会**与根上的 `file:` 去重；
+- `peerDependencies` 又会被 `auto-install-peers` 注入成根项目的直接依赖，**绕过** `pnpm.overrides`。
+
+于是每个 `@aiao/*` 必须**同时**出现在临时消费者的 `dependencies` 和 `pnpm.overrides` 里，缺一不可。
+
+真正要命的是它此前的表现：`0.0.24` 时 registry 上恰好有同号版本，安装照样成功，
+**被验的是 npm 上那份已发布的旧代码，不是本地产物**。也就是说这些门禁在版本号撞车的窗口里
+一直「绿」，却什么都没验——只有升到一个 npm 上不存在的版本号，谎才说不下去。
+反过来说，现在全部 10 个 target 在 `0.0.25` 下通过，本身就是「确实装的是本地 tarball」的证明。
+
+同一批修复还暴露出 `rxdb-adapter-sqlite-core:consumer` 的 21 套期望清单漏了
+`rowsAffectedConformanceSuite`（随 desktop 分支进来时漏登记，现为 22 套）——
+又一条只有真跑才会发现的漂移。
+
+顺带留一个待复核项（本次未改）：`@aiao/rxdb-adapter-sqlite-core` 把 `@aiao/rxdb-test`
+声明在运行时 `dependencies` 而非 `devDependencies`，于是它是每个 sqlite-core 消费者的真实依赖。
 
 ## 下一次发布计划（桥接版本）
 

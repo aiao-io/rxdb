@@ -384,15 +384,16 @@ npm config delete //localhost:4873/:_authToken --location user
 
 ## 6. 结果记录去向
 
-| 阶段 | 记到哪                                                                              |
-| ---- | ----------------------------------------------------------------------------------- |
-| A1   | US-304 AC 表第 6 行状态 + 「复核记录」里补依据（用例路径、断言的错误码）            |
-| A2   | US-207 AC 表第 2 行状态 + 第 142 行那段「不在覆盖范围内」的说明改写或删除           |
-| A2′  | A2 衍生的错误 `name` 退化缺陷 → US-207 独立小节 + `rxdb-adapter-encrypted:consumer` |
-| B    | `requirements/README.md` 执行顺序第 0 步标完成 + 记明 `GITHUB_REF_NAME` 这个坑      |
-| C-A  | US-207「技术笔记 / 涉及文件」补上新脚本与 `consumer` target                         |
-| C-B  | **本文件第 8 节**（「演练记录」），不进任何 AC —— 它不是 AC 依据                    |
-| 全部 | `requirements/status-overview.md` 同步；有 story 状态变化时补 `CHANGELOG.md`        |
+| 阶段 | 记到哪                                                                                                 |
+| ---- | ------------------------------------------------------------------------------------------------------ |
+| A1   | US-304 AC 表第 6 行状态 + 「复核记录」里补依据（用例路径、断言的错误码）                               |
+| A2   | US-207 AC 表第 2 行状态 + 第 142 行那段「不在覆盖范围内」的说明改写或删除                              |
+| A2′  | A2 衍生的错误 `name` 退化缺陷 → US-207 独立小节 + `rxdb-adapter-encrypted:consumer`                    |
+| B    | `requirements/README.md` 执行顺序第 0 步标完成 + 记明 `GITHUB_REF_NAME` 这个坑                         |
+| C-A  | US-207「技术笔记 / 涉及文件」补上新脚本与 `consumer` target                                            |
+| C-A′ | C-A 衍生的 registry 回落缺陷（10 个 tarball 门禁验的是 npm 旧代码）→ `requirements/README.md` C-0 小节 |
+| C-B  | **本文件第 8 节**（「演练记录」），不进任何 AC —— 它不是 AC 依据                                       |
+| 全部 | `requirements/status-overview.md` 同步；有 story 状态变化时补 `CHANGELOG.md`                           |
 
 执行中如果 C-0 那条「`consumer` / `audit` target 不进 CI」被确认属实且无人在管，
 **另开一个开项**记到 `requirements/README.md` 的功能建议里，不要在本方案里顺手改 workflow ——
@@ -495,10 +496,23 @@ AC11 说的是「发布**迁移**版本时门禁要拦住旧 bundle」。本版 
 
 - [x] `git tag -d v0.0.25` —— 已删，`git tag -l` 只剩 `v0.0.24`（[0.2](#02-本地-tag-v0025-会被-squash-变成孤儿--先删掉)）
 - [x] squash 合并 `new-1` → `main` —— `846970a feat(aiao): 添加 rxdb-adapter-desktop 包 (#6)`（[0.3](#03-squash-换掉了-nx-release-的计算基准)）
-- [ ] 提交 A2 / C-A 这批工作区改动到 `main`
-- [ ] 在 `main` 重做版本 bump：29 个 `package.json` → `0.0.25`（[0.1](#01-版本-bump-已被静默回退--必须重做)）
-- [ ] 在 `main` 重做清单：`migration-release.json` 的 `kind` → `bridge`、`version` → `0.0.25`
-- [ ] `node scripts/check-migration-release-gate.mjs --check --release-tag=v0.0.25` 通过
+- [x] 提交 A2 / C-A 这批工作区改动到 `main` —— `86f8c5f fix(aiao): 修错误 name 在压缩产物中退化，并接入桌面 adapter 加密契约套件`
+- [x] 在 `main` 重做版本 bump：29 个 `package.json` → `0.0.25`（[0.1](#01-版本-bump-已被静默回退--必须重做)）——
+      `pnpm nx release version 0.0.25` 显式钉版本，文件集与被回退的 `b65b24f` 完全一致
+- [x] 在 `main` 重做清单：`migration-release.json` 的 `kind` → `bridge`、`version` → `0.0.25` —— 与上一条同在 `eb4d1a2`
+- [x] `node scripts/check-migration-release-gate.mjs --check --release-tag=v0.0.25` 通过（带与不带 `--release-tag` 均通过）
+- [x] **打 tag 前手工跑一遍全部 tarball 门禁**：`pnpm nx run-many -t consumer audit --skip-nx-cache`
+      —— 10 个 target 全绿。这一步不是例行公事，它当场炸出了下面这个缺陷：
+  - 5 个脚本在 `0.0.25` 下报 `ERR_PNPM_NO_MATCHING_VERSION`（`consumer-gate.mjs` /
+    `encrypted-errors-consumer.mjs` / `desktop-adapter-consumer.mjs` / `sqlite-adapter-consumer.mjs` /
+    `pglite-readme-consumer.mjs` / `search-angular-consumer.mjs`）——临时消费者项目只在
+    `dependencies` 或只在 `pnpm.overrides` 里钉了 `file:`，tarball 内部的 `@aiao/*` 与被
+    `auto-install-peers` 注入的 peer 仍然走 registry。
+  - **它此前一直「绿」，是因为 registry 上恰好有同号的 `0.0.24`——验的是 npm 上的旧代码，不是本地产物。**
+    修法：每个 `@aiao/*` 同时进 `dependencies` 和 `pnpm.overrides`；补齐 `@aiao/rxdb-test`
+    （sqlite-core 把它声明成了运行时依赖）。详见 [requirements/README.md](README.md) 的同名小节。
+  - 同一次跑还发现 `sqlite-core-testing-consumer.mjs` 的期望清单漏登记
+    `rowsAffectedConformanceSuite`（21 → 22 套）。
 - [ ] 在**发布提交**上 `git tag v0.0.25`，确认 `git merge-base --is-ancestor` 成立
 - [ ] 推送 tag → `publish.yml` 发 npm（**不可逆**，[0.4](#04-先发布再验证的代价)）
 - [ ] 发布后从真 registry 装一次 `@aiao/rxdb-adapter-desktop`，验双入口与 `workspace:*` 替换
@@ -510,10 +524,12 @@ AC11 说的是「发布**迁移**版本时门禁要拦住旧 bundle」。本版 
 - [ ] **C-0 的 CI 缺口已确认属实**，需单独立项（不在本方案内改 workflow）：
       `pnpm test-all` 是 `nx affected -t lint typecheck test test-browser build e2e`，
       `ci-template.yml` 只列 lint / typecheck / build / test / coverage-acceptance / e2e / e2e-remote，
-      `pnpm audit` 的 `nx run-many -t audit` 只有两个 search 绑定包定义了 `audit`。
-      于是 4 个 `consumer` target（sqlite / sqlite-core / encrypted / desktop）**没有任何 workflow 在跑**，
+      `pnpm audit` 的 `nx run-many -t audit` 只覆盖 3 个包。
+      于是 7 个 `consumer` + 3 个 `audit` target **没有任何 workflow 在跑**，
       而 [scripts/README.md](../scripts/README.md) 仍把 `audit/sqlite-adapter-consumer` 写成「硬失败（CI 阻断）」——
       要么把 `consumer` 接进 CI，要么改掉这句话，两者必居其一。
+      **本次发布把它从「纸面开项」升级为「已造成实际损害」**：正因为没人跑，registry 回落缺陷
+      和漏登记的第 22 套套件才能一路活到打 tag 前一刻。
 - [ ] 单独立项：`7df97fa` 的静默回退说明提交前没有 review 版本号漂移，考虑加一条门禁
 
 ### 移出本次发布（下一版本再做）

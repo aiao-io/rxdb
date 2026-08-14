@@ -24,9 +24,17 @@ const packageDirectories = ['utils', 'rxdb', 'rxdb-adapter-encrypted'];
 
 /** 每个具体错误类一条：构造参数 → 期望的 `name` 与 `code`。 */
 const errorContract = [
-  { className: 'EncryptedConfigurationError', init: { code: 'no_encrypted_columns', message: 'x' }, name: 'EncryptedConfigurationError' },
+  {
+    className: 'EncryptedConfigurationError',
+    init: { code: 'no_encrypted_columns', message: 'x' },
+    name: 'EncryptedConfigurationError'
+  },
   { className: 'EncryptedLockedError', init: { message: 'x' }, name: 'EncryptedLockedError' },
-  { className: 'EncryptedUnlockError', init: { code: 'verifier_mismatch', message: 'x' }, name: 'EncryptedUnlockError' },
+  {
+    className: 'EncryptedUnlockError',
+    init: { code: 'verifier_mismatch', message: 'x' },
+    name: 'EncryptedUnlockError'
+  },
   { className: 'EncryptedDecryptError', init: { code: 'auth_failure', message: 'x' }, name: 'EncryptedDecryptError' },
   { className: 'EncryptedQueryError', init: { code: 'where_on_encrypted', message: 'x' }, name: 'EncryptedQueryError' }
 ];
@@ -99,8 +107,19 @@ try {
     name: 'encrypted-errors-consumer',
     private: true,
     type: 'module',
+    // 每个 `@aiao/*` 都必须**同时**出现在 dependencies 和 pnpm.overrides 里，缺一不可：
+    //
+    // - 只给 overrides 不够：`@aiao/rxdb` 是 rxdb-adapter-encrypted 的 peerDependency，
+    //   pnpm 的 auto-install-peers 会把它当作**根项目的直接依赖**注入，绕过 overrides，
+    //   于是去 registry 找 `@aiao/rxdb@<本地版本>`。
+    // - 只给 dependencies 不够：tarball 内部的依赖按 semver 从 registry 解析，不会
+    //   与根上的 `file:` 去重。
+    //
+    // 两者都缺时的表现极具迷惑性：只要 registry 上**恰好**有同号版本，安装就成功，
+    // 但被测的其实是 npm 上那份旧代码，不是本地产物 —— 门禁看着绿，实际什么也没验。
+    // 这个坑是 2026-08-14 把版本抬到未发布的 0.0.25 时才炸出来的。
     dependencies: {
-      '@aiao/rxdb-adapter-encrypted': `file:${packed.get('rxdb-adapter-encrypted')}`,
+      ...localOverrides,
       rxjs: encryptedPackageJson.peerDependencies?.rxjs ?? encryptedPackageJson.dependencies?.rxjs ?? '*'
     },
     pnpm: {
@@ -113,7 +132,9 @@ try {
   await writeRuntime(consumerRoot);
   await run('pnpm', ['install', '--prefer-offline', '--ignore-scripts', '--no-frozen-lockfile'], consumerRoot);
   await run(process.execPath, ['runtime.mjs'], consumerRoot);
-  process.stdout.write(`Published encrypted consumer passed: ${errorContract.length} error classes keep their name/code.\n`);
+  process.stdout.write(
+    `Published encrypted consumer passed: ${errorContract.length} error classes keep their name/code.\n`
+  );
 } finally {
   await rm(consumerRoot, { force: true, recursive: true });
   await rm(tarballRoot, { force: true, recursive: true });

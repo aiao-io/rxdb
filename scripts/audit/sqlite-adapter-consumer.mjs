@@ -138,22 +138,47 @@ const writeTsconfig = async root => {
 const root = await mkdtemp(path.join(tmpdir(), `${adapterDirectory}-consumer-`));
 const tarballs = await mkdtemp(path.join(tmpdir(), `${adapterDirectory}-pack-`));
 try {
-  const directories = ['utils', 'rxdb', 'rxdb-adapter-encrypted', 'rxdb-adapter-sqlite-core', adapterDirectory];
+  // 必须覆盖被测包的**整个** `@aiao` 传递闭包，少一个就会从 registry 回落。
+  // `rxdb-test` 在列不是笔误：`@aiao/rxdb-adapter-sqlite-core` 把它声明成了运行时
+  // `dependencies` 而非 `devDependencies`，于是它是每个 sqlite-core 消费者的真实依赖。
+  // （这个声明本身值得单独复核，但那是包元数据问题，不归本脚本管。）
+  const directories = [
+    'utils',
+    'rxdb',
+    'rxdb-test',
+    'rxdb-adapter-encrypted',
+    'rxdb-adapter-sqlite-core',
+    adapterDirectory
+  ];
   const packed = new Map();
   for (const directory of directories) {
     packed.set(directory, await pack(path.join(workspaceRoot, 'packages', directory), tarballs));
   }
 
+  // 每个 `@aiao/*` 都必须**同时**出现在 dependencies 和 pnpm.overrides 里，缺一不可：
+  //
+  // - 只给 dependencies 不够：tarball 内部的依赖按 semver 从 registry 解析，不会与
+  //   根上的 `file:` 去重。
+  // - 只给 overrides 不够：peerDependency 会被 pnpm 的 auto-install-peers 当作根项目的
+  //   直接依赖注入，绕过 overrides。
+  //
+  // 两者都缺时的表现极具迷惑性：只要 registry 上**恰好**有同号版本，安装就成功，
+  // 但被测的其实是 npm 上那份旧代码，不是本地产物 —— 门禁看着绿，实际什么也没验。
+  // 这个坑是 2026-08-14 把版本抬到未发布的 0.0.25 时才炸出来的。
+  const localOverrides = Object.fromEntries(
+    directories.map(directory => [
+      directory === adapterDirectory ? contract.packageName : `@aiao/${directory}`,
+      `file:${packed.get(directory)}`
+    ])
+  );
+
   const packageJson = {
     name: `${adapterDirectory}-consumer`,
     private: true,
     type: 'module',
-    dependencies: {
-      '@aiao/utils': `file:${packed.get('utils')}`,
-      '@aiao/rxdb': `file:${packed.get('rxdb')}`,
-      '@aiao/rxdb-adapter-encrypted': `file:${packed.get('rxdb-adapter-encrypted')}`,
-      '@aiao/rxdb-adapter-sqlite-core': `file:${packed.get('rxdb-adapter-sqlite-core')}`,
-      [contract.packageName]: `file:${packed.get(adapterDirectory)}`
+    dependencies: localOverrides,
+    pnpm: {
+      overrides: localOverrides
     },
     devDependencies: {
       '@types/ms': workspacePackageJson.devDependencies['@types/ms'],
