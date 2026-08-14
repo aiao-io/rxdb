@@ -1,0 +1,13 @@
+{
+  "recommendations": [
+    "nrwl.angular-console",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "ms-playwright.playwright",
+    "DavidAnson.vscode-markdownlint",
+    "cschlosser.doxdocgen",
+    "Gruntfuggly.todo-tree",
+    "vitest.explorer",
+    "deinsoftware.vitest-snippets"
+  ]
+}
