@@ -1,0 +1,210 @@
+<div class="mx-auto max-w-4xl space-y-6 p-4">
+  <h1 class="text-4xl font-bold">本地文件存储（主进程）</h1>
+
+  <!-- US-504：文件内容写在 userData/rxdb-files 下的原生文件里，不在 WebView 的 OPFS。 -->
+  <div class="card bg-base-200" data-testid="storage-status-card">
+    <div class="card-body">
+      <h2 class="card-title">📁 存储状态</h2>
+      @switch (status()) {
+        @case ('ready') {
+          <div class="badge badge-success gap-2" data-testid="storage-status">✅ 就绪</div>
+          <p class="text-xs opacity-50">
+            文件内容与 SQLite 库文件同在应用数据目录下 —— 拷走那一个目录就带走了全部数据。
+          </p>
+        }
+        @case ('failed') {
+          <div class="badge badge-error gap-2" data-testid="storage-status">❌ 初始化失败</div>
+        }
+        @default {
+          <div class="badge badge-ghost gap-2" data-testid="storage-status">
+            <span class="loading loading-spinner loading-xs"></span>
+            初始化中...
+          </div>
+        }
+      }
+
+      @if (busy()) {
+        <div class="badge badge-info gap-2" data-testid="storage-busy">
+          <span class="loading loading-spinner loading-xs"></span>
+          执行中...
+        </div>
+      }
+
+      @if (errorMessage()) {
+        <p class="text-error mt-2 text-sm break-all" data-testid="storage-error">{{ errorMessage() }}</p>
+      }
+    </div>
+  </div>
+
+  <!-- 目录浏览 -->
+  <div class="card bg-base-200">
+    <div class="card-body">
+      <h2 class="card-title">🗂️ 当前目录</h2>
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="font-mono text-sm" data-testid="storage-path">{{ currentPath() }}</span>
+        <button class="btn btn-sm" [disabled]="busy() || atRoot()" (click)="goUp()" data-testid="storage-up">
+          ⬆️ 上一级
+        </button>
+        <button class="btn btn-sm" [disabled]="busy()" (click)="refresh()" data-testid="storage-refresh">🔄 刷新</button>
+      </div>
+
+      <div class="mt-4 flex flex-wrap items-end gap-2">
+        <label class="form-control">
+          <span class="label-text">新建目录名</span>
+          <input class="input input-bordered input-sm" #directoryName data-testid="storage-directory-name" />
+        </label>
+        <button
+          class="btn btn-sm"
+          [disabled]="busy()"
+          (click)="createDirectory(directoryName.value)"
+          data-testid="storage-create-directory"
+        >
+          ➕ 新建目录
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 上传 -->
+  <div class="card bg-base-200">
+    <div class="card-body">
+      <h2 class="card-title">⬆️ 上传</h2>
+
+      <label class="form-control">
+        <span class="label-text">从本机选择文件</span>
+        <input
+          class="file-input file-input-bordered file-input-sm"
+          type="file"
+          multiple
+          [disabled]="busy()"
+          (change)="uploadPicked($event)"
+          data-testid="storage-upload-input"
+        />
+      </label>
+
+      <div class="divider text-xs opacity-50">或就地生成确定性内容（大文件用）</div>
+
+      <div class="flex flex-wrap items-end gap-2">
+        <label class="form-control">
+          <span class="label-text">文件名</span>
+          <input
+            class="input input-bordered input-sm"
+            #generateName
+            value="generated.bin"
+            data-testid="storage-generate-name"
+          />
+        </label>
+        <label class="form-control">
+          <span class="label-text">大小（MiB）</span>
+          <input
+            class="input input-bordered input-sm"
+            type="number"
+            min="0"
+            step="0.5"
+            #generateSize
+            value="1"
+            data-testid="storage-generate-size"
+          />
+        </label>
+        <button
+          class="btn btn-primary btn-sm"
+          [disabled]="busy()"
+          (click)="uploadGenerated(generateName.value, generateSize.value)"
+          data-testid="storage-generate-upload"
+        >
+          🚀 生成并上传
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 条目列表 -->
+  <div class="card bg-base-200">
+    <div class="card-body">
+      <h2 class="card-title">📄 条目</h2>
+      <div class="space-y-2" data-testid="storage-entries">
+        @for (entry of entries(); track entry.path) {
+          <div class="bg-base-100 rounded-box p-3" data-testid="storage-entry" [attr.data-name]="entry.name">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="font-mono text-sm">
+                @if (entry.kind === 'directory') {
+                  📁
+                } @else {
+                  📄
+                }
+                {{ entry.name }}
+              </span>
+
+              @if (entry.kind === 'directory') {
+                <button
+                  class="btn btn-xs"
+                  [disabled]="busy()"
+                  (click)="enter(entry.path)"
+                  data-testid="storage-enter"
+                >
+                  进入
+                </button>
+              } @else {
+                <span class="badge badge-ghost badge-sm font-mono">{{ entry.meta.size }} B</span>
+                <button class="btn btn-xs" [disabled]="busy()" (click)="verify(entry)" data-testid="storage-verify">
+                  校验
+                </button>
+                <button class="btn btn-xs" [disabled]="busy()" (click)="preview(entry)" data-testid="storage-preview">
+                  预览
+                </button>
+                <button class="btn btn-xs" [disabled]="busy()" (click)="download(entry)" data-testid="storage-download">
+                  保存
+                </button>
+                <input
+                  class="input input-bordered input-xs w-40"
+                  #renameName
+                  [value]="entry.name"
+                  data-testid="storage-rename-name"
+                />
+                <button
+                  class="btn btn-xs"
+                  [disabled]="busy()"
+                  (click)="rename(entry, renameName.value)"
+                  data-testid="storage-rename"
+                >
+                  改名
+                </button>
+                <button
+                  class="btn btn-xs btn-error"
+                  [disabled]="busy()"
+                  (click)="remove(entry)"
+                  data-testid="storage-delete"
+                >
+                  删除
+                </button>
+              }
+            </div>
+          </div>
+        } @empty {
+          <p class="text-sm opacity-50" data-testid="storage-empty">此目录为空</p>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- 读回校验：e2e 靠这里的摘要跨重启比对字节 -->
+  @if (verifyResult(); as result) {
+    <div class="card bg-base-200">
+      <div class="card-body">
+        <h2 class="card-title">🔍 读回校验</h2>
+        <p class="font-mono text-xs break-all" data-testid="storage-digest">
+          {{ result.name }} · {{ result.size }} B · {{ result.sha256 }}
+        </p>
+      </div>
+    </div>
+  }
+
+  @if (previewUrl(); as url) {
+    <div class="card bg-base-200">
+      <div class="card-body">
+        <h2 class="card-title">👁️ 预览</h2>
+        <p class="font-mono text-xs break-all" data-testid="storage-preview-url">{{ url }}</p>
+      </div>
+    </div>
+  }
+</div>

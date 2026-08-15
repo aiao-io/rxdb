@@ -34,7 +34,9 @@ const seedOf = (name: string): number => {
 /** 按 {@link patternByte} 生成 `size` 字节的确定性文件。 */
 const createPatternFile = (name: string, size: number): File => {
   const seed = seedOf(name);
-  const blocks: Uint8Array[] = [];
+  // 显式写 `Uint8Array<ArrayBuffer>`：默认推断是 `ArrayBufferLike`，
+  // 其中包含 `SharedArrayBuffer`，而 `BlobPart` 不收 —— 少了这个参数会 TS2345。
+  const blocks: Uint8Array<ArrayBuffer>[] = [];
   for (let offset = 0; offset < size; offset += PATTERN_BLOCK_BYTES) {
     const block = new Uint8Array(Math.min(PATTERN_BLOCK_BYTES, size - offset));
     for (let index = 0; index < block.length; index++) block[index] = patternByte(offset + index, seed);

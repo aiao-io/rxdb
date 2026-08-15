@@ -55,6 +55,13 @@ export class DesktopDatabaseService {
   /** 桌面适配器的连接状态。 */
   readonly status = this.#status.asReadonly();
 
+  /** 失败原因文案；其余状态下为 `null`。 */
+  readonly errorMessage = computed(() => {
+    const error = this.#error();
+    if (error === undefined) return null;
+    return error instanceof Error ? error.message : String(error);
+  });
+
   /**
    * 本实例上的文件存储服务（US-504）。
    *
@@ -65,13 +72,6 @@ export class DesktopDatabaseService {
   get storage(): RxdbFileStorage {
     return this.#db.storage;
   }
-
-  /** 失败原因文案；其余状态下为 `null`。 */
-  readonly errorMessage = computed(() => {
-    const error = this.#error();
-    if (error === undefined) return null;
-    return error instanceof Error ? error.message : String(error);
-  });
 
   constructor() {
     this.#db = new RxDB({
