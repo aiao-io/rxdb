@@ -95,7 +95,7 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 |   P2   | 子路径入口纳入 API 表面基线          | [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)         | 版本策略把子路径承诺为公开 API，门禁却只扫主入口——承诺与门禁的差额只能靠人工审查补    | 源入口声明收敛到单一真相源、基线格式扩到多入口、资产入口白名单跳过、三处文档收口                                   |
 
 > US-306 / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
-> [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定顺序。
+> [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定依赖关系。
 
 ### 排期约束
 

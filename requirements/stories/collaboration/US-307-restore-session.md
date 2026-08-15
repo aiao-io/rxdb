@@ -81,7 +81,7 @@ INVEST 检查清单:
 - **FR-014**：系统 MUST 在恢复前检测 dirty 工作树 / 缓存区；未显式处理未提交变更时，恢复操作必须拒绝并保持原状。
 - **FR-015**：系统 MUST 支持将恢复结果作为普通工作树变更重新 stage/commit；生成的新 commit 不得改写被恢复的历史节点。
 - **FR-026b**（已改口径，见 [epic-006](../../epics/epic-006-working-tree-commits.md)）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit 下包含从 clean HEAD 恢复 `HEAD~1` 的场景。promise resolve 的 p95 MUST 不高于 1 s，且“restore p95 / 同次 control CRUD p95”的归一化比值不得超过校准后冻结的回归阈值。
-- **FR-033**：v1 只允许恢复当前分支 HEAD 沿父链可达，且 schema version 与 change codec version 均与当前客户端兼容的 commit；v1 不提供跨 schema patch 转换。拒绝时所有持久状态 MUST 零变化。
+- **FR-033**：v1 只允许恢复当前分支 HEAD 沿父链可达，且 schema version 与 change codec version 均与当前客户端完全相等的 commit；v1 不提供跨 schema/codec patch 转换。拒绝时所有持久状态 MUST 零变化。
 - **FR-034**：restore / discard MUST 在同一数据库事务内校验 expected head、working tree 与 index revision；CAS 失败时保留现有恢复结果并进入 conflicted 状态，不得自动选择任一 writer 的状态。
 
 ## 关键实体

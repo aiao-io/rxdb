@@ -72,7 +72,7 @@ baseline commit 没有父节点；普通 commit 固定一个父节点。既有 `
 
 - status / diff / stage / unstage / commit 的用户操作面 —— 属 [US-306](./US-306-working-tree-index.md)
 - 历史恢复会话 —— 属 [US-307](./US-307-restore-session.md)
-- 分支切换行为与跨标签页冲突检测 —— 属 [US-308](./US-308-branch-isolation-conflict.md)
+- 分支切换入口、冲突诊断和三端提示 —— 属 [US-308](./US-308-branch-isolation-conflict.md)；底层 head revision CAS 在本故事完成
 - 远程 push/pull、rebase、cherry-pick、任意历史改写
 - 基于时间或大小的 commit 自动清理策略
 - Workspace IndexedDB 草稿的读取、搬迁或隔离；草稿不属于 SQL/PGlite 迁移事务
