@@ -406,13 +406,15 @@ export class RxDB {
     }
 
     // 先入缓存再 init：插件 install 可能同步回呼 connect()，必须命中同一条 Promise。
+    // init() 必须在 connect() 返回前同步跑完，否则同拍 `new Entity()` 会撞上未注册的 EntityManager。
     let startConnect!: () => void;
-    const started = new Promise<void>(resolve => {
+    let failConnect!: (error: unknown) => void;
+    const started = new Promise<void>((resolve, reject) => {
       startConnect = resolve;
+      failConnect = reject;
     });
     const connectPromise = (async () => {
       await started;
-      this.init();
       const adapter = await this.getAdapter(adapterName);
       await adapter.connect();
       if (isLocalAdapter(adapterName, this.#config)) {
@@ -453,6 +455,12 @@ export class RxDB {
       if (this.#connect_promise_map.get(adapterName) === connectPromise) {
         this.#connect_promise_map.delete(adapterName);
       }
+    try {
+      this.init();
+    } catch (error) {
+      failConnect(error);
+      return connectPromise;
+    }
     });
     this.#connect_promise_map.set(adapterName, connectPromise);
     startConnect();

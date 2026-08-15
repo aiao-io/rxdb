@@ -78,7 +78,8 @@ export const runTransactionIsolationSuite = ({ factory }: TransactionSuiteOption
       // 用例在坏实现上也会通过 —— 2026-07-31 实测确认过这个假绿。
       await started.wait;
 
-      const external = new TransactionContractNote();
+      // 类级 `new Entity()` 在多库并存时无法解析目标 manager；本用例测的是事务隔离，不是类级构造。
+      const external = database.rxdb.entityManager.instantiate(TransactionContractNote);
       external.label = 'written-outside-the-transaction';
       const externalSave = external.save();
 

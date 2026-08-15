@@ -72,8 +72,8 @@ function renderTodoPage(todos: Todo[] = []) {
   };
   const rxdb = {
     entityManager: {
-      removeMany: vi.fn<(entities: Todo[]) => Promise<void>>(() => Promise.resolve()),
-      saveMany: vi.fn<(entities: Todo[]) => Promise<void>>(() => Promise.resolve())
+      removeMany: vi.fn((_entities: Todo[]) => Promise.resolve()),
+      saveMany: vi.fn((_entities: Todo[]) => Promise.resolve())
     },
     versionManager: {
       history: vi.fn(() => history)
@@ -220,8 +220,7 @@ describe('TodoPage', () => {
 
     await page.add_many_todo(3);
     expect(rxdb.entityManager.saveMany).toHaveBeenCalledOnce();
-    const [batch] = rxdb.entityManager.saveMany.mock.calls[0];
-    expect(batch).toHaveLength(3);
+    expect(rxdb.entityManager.saveMany.mock.calls[0]?.[0]).toHaveLength(3);
   });
 
   it('switches tabs, sort, history and undo/redo', () => {
