@@ -41,7 +41,8 @@ INVEST 检查清单:
   host permission 与 runtime Port 双向消息
 - 固定 Electron、Chromium、扩展 manifest 与构建版本，保存逐项 supported / unsupported 结果和失败日志
 - 验证开发进程退出后 extension session、service worker 与 Port 均释放
-- 形成 stop/go 结论：只有全部关键项 supported 才解锁 US-904c；平台无关的 US-904b 不受本门禁影响
+- 形成 stop/go 结论：只有全部关键项 supported 才解锁 US-904c；平台无关的 US-904b1/b2/b3 共享链
+  不受本门禁影响
 
 ### Out of Scope
 
@@ -59,7 +60,7 @@ INVEST 检查清单:
 | 3   | fixture 初始未授予目标 origin 权限 | 由扩展请求权限并执行 `chrome.scripting`           | host permission 按需授予，脚本只注入目标页面；拒绝权限时返回可见错误，不扩大 manifest 常驻权限                                  | ⬜   |
 | 4   | runtime Port 已建立                | 刷新 inspected page、关闭 DevTools 和应用         | Port 断开与 service worker/session 清理可观察，不残留能接收下一次启动消息的旧连接                                               | ⬜   |
 | 5   | AC#1～#4 已逐项执行                | 写入 `evidence` 指向的可行性记录并更新 `decision` | 每项都有版本、命令、结果与日志；`decision` 只能从 `pending` 变为 `supported` 或 `unsupported`，不得写“理论可行”或用 mock 补证据 | ⬜   |
-| 6   | 可行性结论已冻结                   | 检查后续排期                                      | `supported` 解锁 US-904c；`unsupported` 时 US-904c 与 US-904 父故事转 `Blocked`，记录替代承载故事；US-904b/US-905 不受影响      | ⬜   |
+| 6   | 可行性结论已冻结                   | 检查后续排期                                      | `supported` 解锁 US-904c；`unsupported` 时 US-904c 与 US-904 父故事转 `Blocked`，记录替代承载故事；US-904b 共享链/US-905 不受影响 | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -71,7 +72,7 @@ INVEST 检查清单:
 
 ## 依赖与排期
 
-- 无 US-207 / US-504 前置依赖；本故事只门禁 US-904c，可与 US-904b 并行。
+- 无 US-207 / US-504 前置依赖；本故事只门禁 US-904c，可与 US-904b1/b2/b3 共享链并行。
 - `supported` 不是本故事关闭的必然结果；可信的 `unsupported` 证据同样可以关闭本故事，但必须填写
   `decision` / `evidence`，并把 US-904c 和父故事转为 `Blocked`，不能让它们永久伪装成普通 Backlog。
 

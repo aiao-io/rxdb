@@ -10,6 +10,7 @@
  * 一旦破掉就是安全问题或「适配器永远找不到 host」，值得用源码断言先拦一道。
  */
 
+import { DESKTOP_HOST_TRANSPORT_KEY } from '@aiao/rxdb-adapter-desktop';
 import { RxDBAdapterDesktopError, type DesktopHostResponse } from '@aiao/rxdb-adapter-desktop/host';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -243,8 +244,11 @@ describe('桌面 host 的 IPC 接线', () => {
   );
 
   // 全局键是适配器与 preload 之间唯一的约定，两边各写一份字符串，改一处不会让另一处变红。
-  it('全局键与适配器包的 DESKTOP_HOST_TRANSPORT_KEY 一致', async () => {
-    const { DESKTOP_HOST_TRANSPORT_KEY } = await import('@aiao/rxdb-adapter-desktop');
+  // 静态 import 而不是 `await import()`：Nx 只要在某个文件里看见一次动态 import，
+  // 就把整个库判为 lazy-loaded，于是**所有**静态引用它的文件一起报
+  // 「Static imports of lazy-loaded libraries are forbidden」——警告落在被牵连的文件上，
+  // 根因却在这一行。
+  it('全局键与适配器包的 DESKTOP_HOST_TRANSPORT_KEY 一致', () => {
     expect(DESKTOP_HOST_BRIDGE_KEY).toBe(DESKTOP_HOST_TRANSPORT_KEY);
   });
 });

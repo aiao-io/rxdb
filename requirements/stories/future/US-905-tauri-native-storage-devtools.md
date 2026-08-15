@@ -38,8 +38,8 @@ INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接
 ## 运行模型
 
 Tauri WebView 不支持安装 Chrome Manifest V3 扩展，因此本故事不承诺“把 CRX 装进 Tauri”。
-正确模型是复用 [US-904b](./US-904b-devtools-shared-protocol-panel.md) 交付的平台无关面板、状态服务、
-provider 协议与组件，在显式开发配置下创建标签固定的 `rxdb-devtools` 调试窗口：
+正确模型是复用 [US-904b](./US-904b-devtools-shared-protocol-panel.md) 共享链交付的控制面、provider
+数据面、面板与状态服务，在显式开发配置下创建标签固定的 `rxdb-devtools` 调试窗口：
 
 ```text
 Tauri main WebView (@aiao/rxdb-devtools connector)
@@ -56,13 +56,14 @@ US-210 SQLite host / US-505 native file host
 
 ### 子故事顺序与启动门禁
 
-- **US-905a：窗口与 transport。** 只依赖 US-904b；实现开发态窗口、定向消息、v2 session 生命周期、
+- **US-905a：窗口与 transport。** 只依赖 US-904b3（传递包含 b1/b2）；实现开发态窗口、定向消息、
+  v2 session 生命周期、
   release capability 产物隔离和共享 fake provider 验收，可与 US-210 / US-505 并行。
-- **US-905b：真实 provider 与三平台证据。** 依赖 US-905a、US-904b conformance suite、US-210、US-505；接入真实
+- **US-905b：真实 provider 与三平台证据。** 依赖 US-905a、US-904b1/b2 conformance、US-210、US-505；接入真实
   SQLite/native files，完成诊断、Settings、重启 E2E 和 macOS / Windows / Linux smoke。
 
-固定关系为 **US-904b → US-905a**，以及
-**US-904b + US-905a + US-210 + US-505 → US-905b**。不得等待全部 native host 完成后才开始
+固定关系为 **US-904b1 → US-904b2 → US-904b3 → US-905a**，以及
+**US-904b2 + US-905a + US-210 + US-505 → US-905b**。不得等待全部 native host 完成后才开始
 US-905a，也不得由 Tauri adapter 复制或反向修改共享 wire。
 
 ## 范围边界
@@ -74,13 +75,13 @@ US-905a，也不得由 Tauri adapter 复制或反向修改共享 wire。
   不包含只服务 `rxdb-devtools` label 的 capability
 - 为 `@aiao/rxdb-devtools` 接入 Tauri transport，承载现有握手、实体查询、全部
   `RXDB_EVENT_TYPES`、branch、Storage metadata 与版本化 provider 消息，不复制第二套业务协议
-- 原样消费 US-904b 冻结的外层版本协商、provider 描述以及 `sessionId` / `requestId` /
-  `transferId`；Tauri 不新增平台私有的错误码或生命周期语义
+- 原样消费 US-904b1 的控制面和 US-904b2 的 provider 数据面；Tauri 不新增平台私有错误码、
+  生命周期、binary 编码或数值 guard
 - provider 只使用 `rxdb`、`opfs`、`native-files`、`idb`、`sqlite`、`unavailable` 等语义 kind；
   `runtime: tauri` 只用于显示，不增加 `tauri-*` kind 或按平台分支
 - 调试窗口通过 US-210 检查当前 Tauri SQLite 的逻辑数据库、实体与事件，通过 US-505 浏览
   插件专用原生文件根
-- 文件页支持与 US-904b 对称的刷新、目录导航、上传、下载、新建目录和删除，原样复用 transfer
+- 文件页支持与 US-904b2 对称的刷新、目录导航、上传、下载、新建目录和删除，原样复用 base64 transfer
   状态机；Storage 页消费在全局独占锁内物化的有界 immutable snapshot。snapshot 未完成或失效时
   不展示确定性诊断，容量超限明确显示 `snapshot_too_large`
 - Settings 数据库下载始终禁用并返回 `export_unsupported`；清理动作只按 provider 明确能力启用，
@@ -131,9 +132,9 @@ files 会在同一 session 同时出现。
 
 ## 技术约束
 
-- 面板组件、状态机、provider 类型和错误分类必须与 US-904b 共用同一实现；Tauri 只新增 transport /
+- 面板组件、状态机、provider 类型和错误分类必须与 US-904b1/b2/b3 共用同一实现；Tauri 只新增 transport /
   bootstrap adapter，统一从 `packages/rxdb-devtools-panel/` 消费
-- Tauri transport 复用 US-904b 的 v2 与“宽外层、严内层”解析；外层必须能返回 `protocol_unsupported`，
+- Tauri transport 复用 US-904b1 的 v2 与“宽外层、严内层”解析；外层必须能返回 `protocol_unsupported`，
   版本匹配后未知消息、额外字段、错误 direction、错误 session 和非预期窗口标签一律拒绝
 - 每次创建窗口都由主 WebView connector/provider owner 在 HANDSHAKE 生成新 `sessionId`，panel 只回显，
   transport 将其绑定主窗口 label、调试窗口 label 和 provider owner；session 不是授权 secret；
@@ -144,36 +145,36 @@ files 会在同一 session 同时出现。
   command 名或 bootstrap 入口
 - 主 WebView 是唯一 RxDB connector 与 provider owner；调试窗口不持有数据库连接、writer lease、
   文件根句柄或业务 service 实例
-- provider operation 继续执行 US-904b 的 capability/descriptor/mutation policy 矩阵；调试窗口 capability
+- provider operation 继续执行 US-904b1/b2 的 capability/descriptor/mutation policy 矩阵；调试窗口 capability
   只限制 Rust/WebView 权限，不能替代业务操作授权
 - Tauri event 与窄 command 两案必须在 plan 阶段用跨窗口定向投递、调用方身份校验、取消语义和
   测试可控性决策；不得暴露通用 `invoke(command, payload)` 或广播未脱敏业务数据
-- 共享面板固定消费 US-904b 生成的内部 Nx library，通过 workspace dependency 正式连接，
+- 共享面板固定消费 US-904b3 生成的 private Nx library，通过 workspace dependency 正式连接，
   不用 tsconfig path 绕过 package 依赖
-- v2 的 ID、32 请求/2 传输、256 KiB chunk、连续 offset、总字节、100/500 分页和超时全部继承
-  US-904b；provider 必须声明 `maxTransferBytes`。Tauri 不放宽限制，也不新增平台私有错误码
-- 诊断 snapshot 使用 100,000 条/32 MiB、单 session 一个活动快照和 60 秒 idle 上限；失效重试耗尽
-  返回 `snapshot_busy`，容量超限返回 `snapshot_too_large`；所有数据库下载均返回 `export_unsupported`
+- v2 的 ID、在途/总预算与 session 轮换继承 US-904b1；RFC 4648 base64、decoded-byte 256 KiB chunk、
+  safe integer、offset、总字节、100/500 分页和穷举错误继承 US-904b2。Tauri 不放宽限制
+- 诊断 snapshot 使用 100,000 条/32 MiB、单 session 一个活动快照和 60 秒 idle 上限；从请求进入起
+  15 秒包含等锁/物化/重试，busy、too-large、expired 原样使用共享错误；数据库下载一律 unsupported
 
 ## 依赖与排期
 
-- [US-904b](./US-904b-devtools-shared-protocol-panel.md)：US-905a 的唯一功能前置，提供平台无关 panel、
-  v2 transport、语义 provider 联合、授权、传输、snapshot 与 native provider conformance suite；
+- [US-904b3](./US-904b3-devtools-shared-panel-chrome-migration.md)：US-905a 的唯一直接功能前置；它已
+  传递依赖 US-904b1/b2，提供 private panel、v2、provider conformance 与真实 Chrome 基准。
   US-905b 不等待 Electron MV3 或 US-904c
 - [US-210](../adapter/US-210-tauri-sqlite-local-database.md)：提供应用作用域 SQLite 与 Tauri host
 - [US-505](../plugin/US-505-tauri-local-file-storage.md)：提供原生文件后端；其本身依赖 US-210
 - [US-601](../tooling/US-601-subpath-api-surface-baseline.md)：新增公开入口必须纳入 API baseline；
   在 US-601 完成前按人工审查流程登记
 
-前置关系：**US-904b → US-905a**；**US-210 → US-505**；
-**US-904b + US-905a + US-505 → US-905b**。US-905a 与 US-210 / US-505 可并行，只有
+前置关系：**US-904b1 → US-904b2 → US-904b3 → US-905a**；**US-210 → US-505**；
+**US-904b2 + US-905a + US-505 → US-905b**。US-905a 与 US-210 / US-505 可并行，只有
 US-905b 等待真实 native host。
 
 ## 实现所有权
 
 | 路径                             | 所有者  | 边界                                                      |
 | -------------------------------- | ------- | --------------------------------------------------------- |
-| `packages/rxdb-devtools-panel/`  | US-904b | 三种 surface 共用面板；US-905a/905b 只消费                |
+| `packages/rxdb-devtools-panel/`  | US-904b3 | 三种 surface 共用 private 面板；US-905a/905b 只消费       |
 | `apps/dev-rxdb-tauri/src/`       | US-905a | DevTools bootstrap、Tauri transport adapter 与开发入口    |
 | `apps/dev-rxdb-tauri/src-tauri/` | US-905a | label/sender 受限窗口、消息桥与 dev-only capability       |
 | `packages/rxdb-adapter-desktop/` | US-905b | Tauri SQLite 只读诊断 provider                            |
@@ -185,5 +186,9 @@ US-905b 等待真实 native host。
 
 - [US-902 DevTools 面板](./US-902-devtools-panel.md)
 - [US-904 DevTools 调试 Electron 原生本地存储](./US-904-electron-native-storage-devtools.md)
+- [US-904b 共享 v2 协议与面板契约](./US-904b-devtools-shared-protocol-panel.md)
+- [US-904b1 v2 控制面](./US-904b1-devtools-v2-control-plane.md)
+- [US-904b2 provider 数据面](./US-904b2-devtools-provider-data-plane.md)
+- [US-904b3 共享面板与 Chrome 迁移](./US-904b3-devtools-shared-panel-chrome-migration.md)
 - [US-210 Tauri 连接应用作用域 SQLite 文件](../adapter/US-210-tauri-sqlite-local-database.md)
 - [US-505 Tauri 本地文件存储](../plugin/US-505-tauri-local-file-storage.md)

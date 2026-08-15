@@ -5,6 +5,10 @@
       "kind": "type"
     },
     {
+      "name": "createOpfsStorageFilesystem",
+      "kind": "value"
+    },
+    {
       "name": "DownloadOptions",
       "kind": "type"
     },
@@ -26,6 +30,10 @@
     },
     {
       "name": "isOpfsPathInsideDirectory",
+      "kind": "value"
+    },
+    {
+      "name": "isStorageNotFoundError",
       "kind": "value"
     },
     {
@@ -53,6 +61,10 @@
       "kind": "both"
     },
     {
+      "name": "OpfsStorageFilesystem",
+      "kind": "both"
+    },
+    {
       "name": "RenameOptions",
       "kind": "type"
     },
@@ -74,6 +86,14 @@
     },
     {
       "name": "RxDBStoragePluginOptions",
+      "kind": "type"
+    },
+    {
+      "name": "StorageBackendError",
+      "kind": "both"
+    },
+    {
+      "name": "StorageBackendErrorCode",
       "kind": "type"
     },
     {
@@ -107,6 +127,26 @@
     {
       "name": "StorageFileMeta",
       "kind": "both"
+    },
+    {
+      "name": "StorageFilesystem",
+      "kind": "type"
+    },
+    {
+      "name": "StorageFilesystemContext",
+      "kind": "type"
+    },
+    {
+      "name": "StorageFilesystemEntry",
+      "kind": "type"
+    },
+    {
+      "name": "StorageFilesystemFactory",
+      "kind": "type"
+    },
+    {
+      "name": "StorageFileWriter",
+      "kind": "type"
     },
     {
       "name": "StorageInvalidPathError",

@@ -85,7 +85,10 @@ const KNOWN_UNCOVERED_SUBPATHS = new Map([
   ['rxdb-adapter-sqlite-core', ['./testing']],
   ['rxdb-adapter-wa-sqlite', ['./client']],
   ['rxdb-client-generator', ['./cli', './vite']],
-  ['rxdb-plugin-graph', ['./generator', './sqlite']]
+  ['rxdb-plugin-graph', ['./generator', './sqlite']],
+  // ./desktop = createDesktopStorageFilesystem + DesktopStorageFilesystemOptions。
+  // 该入口依赖桌面 host 传输层，不能进浏览器 bundle，因此不从主入口导出。
+  ['rxdb-plugin-storage', ['./desktop']]
 ]);
 
 const mode = process.argv.includes('--update') ? 'update' : 'check';

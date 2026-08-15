@@ -29,6 +29,10 @@
       "kind": "value"
     },
     {
+      "name": "DESKTOP_HOST_MAX_FILE_CHUNK_BYTES",
+      "kind": "value"
+    },
+    {
       "name": "DESKTOP_HOST_MAX_SQL_LENGTH",
       "kind": "value"
     },
@@ -50,6 +54,30 @@
     },
     {
       "name": "DesktopHostExecuteRequest",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostFileEntry",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostFileLockMode",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostFileReadResult",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostFileRequest",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostFileResponse",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostFileStat",
       "kind": "type"
     },
     {
