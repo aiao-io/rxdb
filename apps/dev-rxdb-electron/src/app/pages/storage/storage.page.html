@@ -45,7 +45,9 @@
         <button class="btn btn-sm" [disabled]="busy() || atRoot()" (click)="goUp()" data-testid="storage-up">
           ⬆️ 上一级
         </button>
-        <button class="btn btn-sm" [disabled]="busy()" (click)="refresh()" data-testid="storage-refresh">🔄 刷新</button>
+        <button class="btn btn-sm" [disabled]="busy()" (click)="refresh()" data-testid="storage-refresh">
+          🔄 刷新
+        </button>
       </div>
 
       <div class="mt-4 flex flex-wrap items-end gap-2">
@@ -74,11 +76,11 @@
         <span class="label-text">从本机选择文件</span>
         <input
           class="file-input file-input-bordered file-input-sm"
-          type="file"
-          multiple
           [disabled]="busy()"
           (change)="uploadPicked($event)"
           data-testid="storage-upload-input"
+          multiple
+          type="file"
         />
       </label>
 
@@ -90,20 +92,20 @@
           <input
             class="input input-bordered input-sm"
             #generateName
-            value="generated.bin"
             data-testid="storage-generate-name"
+            value="generated.bin"
           />
         </label>
         <label class="form-control">
           <span class="label-text">大小（MiB）</span>
           <input
             class="input input-bordered input-sm"
-            type="number"
+            #generateSize
+            data-testid="storage-generate-size"
             min="0"
             step="0.5"
-            #generateSize
+            type="number"
             value="1"
-            data-testid="storage-generate-size"
           />
         </label>
         <button
@@ -124,7 +126,7 @@
       <h2 class="card-title">📄 条目</h2>
       <div class="space-y-2" data-testid="storage-entries">
         @for (entry of entries(); track entry.path) {
-          <div class="bg-base-100 rounded-box p-3" data-testid="storage-entry" [attr.data-name]="entry.name">
+          <div class="bg-base-100 rounded-box p-3" [attr.data-name]="entry.name" data-testid="storage-entry">
             <div class="flex flex-wrap items-center gap-2">
               <span class="font-mono text-sm">
                 @if (entry.kind === 'directory') {
@@ -136,12 +138,7 @@
               </span>
 
               @if (entry.kind === 'directory') {
-                <button
-                  class="btn btn-xs"
-                  [disabled]="busy()"
-                  (click)="enter(entry.path)"
-                  data-testid="storage-enter"
-                >
+                <button class="btn btn-xs" [disabled]="busy()" (click)="enter(entry.path)" data-testid="storage-enter">
                   进入
                 </button>
               } @else {
