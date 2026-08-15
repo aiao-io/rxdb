@@ -38,25 +38,59 @@ owner: jimmy
 ## v1 状态模型（唯一真相源）
 
 v1 不持久化第二份独立 `HEAD`。当前分支仍由既有 `RxDBBranch.activated` 表示，当前 HEAD 从该分支的
-`CommitBranchRef.headCommitId` 派生：
+`CommitBranchRef.headCommitId` 派生。业务实体表只保存**当前激活分支的物化投影**，不是所有分支工作树的
+唯一持久化副本；非激活分支必须能仅凭 HEAD 与自己的未提交变更单元恢复，不得依赖离开分支时残留在业务表里的值。
 
-| 状态                         | 主键                | 必须持久化的版本                         | 写入规则                                               |
-| ---------------------------- | ------------------- | ---------------------------------------- | ------------------------------------------------------ |
-| `CommitBranchRef`            | database + branch   | `headCommitId`、`headRevision`           | commit 在同一事务内以 `headRevision` 做 CAS 后推进      |
-| `WorkingTreeState`           | database + branch   | `baseHeadCommitId`、`workingTreeRevision` | 任何工作树物化或丢弃都在同一事务内递增 revision        |
-| `IndexState` / `IndexEntry`  | database + branch   | `indexRevision`、staged snapshot         | stage / unstage / commit 以 `indexRevision` 做 CAS      |
-| writer lease / upgrade guard | database + writer   | `epoch`                                  | 只判断 writer 是否被 schema 迁移 fence，不充当业务版本 |
+| 状态                         | 主键                     | 必须持久化的版本/内容                                                     | 写入规则                                                    |
+| ---------------------------- | ------------------------ | ------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `CommitCapabilityState`      | database                 | enabled、protocol/schema/codec version                                    | 首次启用后数据库级生效；所有 writer 连接时协商              |
+| `WorkingTreeActivationState` | database                 | `activationRevision`                                                      | switch branch CAS 成功后递增；不复制第二份 active branch ID |
+| `CommitBranchRef`            | database + branch        | 不可变 `generation`、`headCommitId`、`headRevision`                       | commit 在同一事务内以 generation + revision 做 CAS 后推进   |
+| `WorkingTreeState`           | database + branch        | `baseHeadCommitId`、`workingTreeRevision`、未提交条目数                   | CRUD、commit rebase、restore、discard 改变逻辑工作树时递增  |
+| `WorkingTreeEntry`           | database + branch + unit | 实体/事务身份、操作、patch/inverse patch 或快照、当前指纹、来源 change ID | 与业务 CRUD 同一事务写入；完整事务共享同一 unit             |
+| `IndexState` / `IndexEntry`  | database + branch        | `indexRevision`、完整 staged snapshot、来源 working-tree revision         | stage / unstage / commit 以 `indexRevision` 做 CAS          |
+| writer lease / upgrade guard | database + writer        | `epoch`                                                                   | 只判断 writer 是否被 schema 迁移 fence，不充当业务版本      |
+
+`WorkingTreeEntry` 是逻辑契约，不强制新增物理表；plan 可以证明复用 `RxDBChange` 或不可变派生表满足同一契约。
+但 `WorkingTreeState` 只存计数和 revision 不算完成：必须有可枚举、可重放、按分支隔离的未提交变更单元。
+`CommitChangeSet` 与 `IndexEntry` 必须复制完整的不可变恢复数据，不能只引用可能被 undo、清理或删分支删除的
+`RxDBChange` 行。
 
 正常提交、stage 和恢复不会递增 US-304 的 epoch。跨 realm 正确性由数据库事务内的
 `headRevision` / `workingTreeRevision` / `indexRevision` 条件更新保证；writer lease 只提供 writer 身份和迁移期
 fencing。revision CAS 是领域数据完整性，不是第二套 lease 或跨 realm 协调协议。
 
-分支切换时保存来源分支自己的工作树/index 状态，并恢复目标分支自己的工作树/index；只有目标分支从未产生过
-未提交状态时，才从目标 `CommitBranchRef.headCommitId` 物化。不得把“切到分支”实现成无条件 reset 到 HEAD。
+每个 realm 在读取/实例化实体时捕获 `{ branchId, activationRevision }`。普通 CRUD、stage、commit、restore、
+discard 与分支操作都必须在实际写事务内验证该 token；另一个 realm 已切换分支时，旧 token 的写入返回稳定的
+`stale_active_branch`，不得把旧分支实体写进新分支。`BroadcastChannel`、响应式通知和内存缓存只能用于刷新 UI，
+不能承担该正确性。
+
+分支切换时恢复目标分支自己的 `HEAD + WorkingTreeEntry` 和 index；只有目标分支没有未提交条目时，才只物化
+目标 HEAD。物化投影本身不改变目标分支的逻辑工作树，因此只递增 `activationRevision`，不得平白递增
+`workingTreeRevision`。不得把“切到分支”实现成无条件 reset 到 HEAD。
+
+### revision 校验矩阵
+
+| 操作                      | 同一事务必须校验                                                 | 成功后递增                                    |
+| ------------------------- | ---------------------------------------------------------------- | --------------------------------------------- |
+| 普通 INSERT/UPDATE/DELETE | active branch token、expected working-tree revision              | working-tree revision                         |
+| stage / re-stage          | active branch token、expected working-tree + index revision      | index revision；工作树未变                    |
+| unstage / clear index     | active branch token、expected index revision                     | index revision                                |
+| commit                    | active branch token、expected head + index revision              | head、index、working-tree revision            |
+| restore / discard         | active branch token、expected head + working-tree + index        | working-tree、index revision                  |
+| switch branch             | expected activation revision、来源/目标分支状态快照              | activation revision                           |
+| create branch             | active branch token、来源 head + working-tree revision           | 新 ref/state 从 revision 0 开始；来源状态不变 |
+| remove branch             | expected activation revision、目标 ref/state revision、非 active | 原子删除目标可变状态；revision 不复用         |
+
+commit 不因 stage 后的普通编辑单独失败：staged snapshot 已冻结，commit 在事务内把已提交部分从当前
+`WorkingTreeEntry` 中扣除或 rebase，后续编辑仍作为 unstaged 保留。任何语义 no-op 都不递增 revision。
 
 ## 启用与存储边界
 
-- commit 能力默认不改变既有应用行为；开发者显式启用后才创建系统表并执行首次基线迁移，具体配置名在 plan 阶段冻结。
+- commit 能力在从未启用的数据库上默认零副作用；开发者显式启用后创建系统表并执行首次基线迁移，具体配置名在 plan 阶段冻结。
+- 启用是**数据库级且单向**的协议状态。数据库已经启用后，未声明该能力、协议版本不匹配或试图绕过
+  working-tree trigger 的 writer 必须在业务写入前以 `commit_capability_mismatch` fail-fast 或进入显式只读模式；
+  不允许一个 realm 维护 revision、另一个 realm 继续裸写。旧 bundle 由 US-304/305 的 migration gate 拦截。
 - SQL/PGlite 主库是 commit、工作树元数据和 index 的唯一一致性边界。
 - Workspace 插件的 NEW 草稿仍留在独立 IndexedDB 中，不参与系统 schema 事务，也不进入 baseline commit。
   草稿调用 `save()` 落入主表后，才作为普通 INSERT 进入工作树。
@@ -70,7 +104,9 @@ fencing。revision CAS 是领域数据完整性，不是第二套 lease 或跨 r
 1. **三框架对称**：US-306～308 的用户操作面必须在 Angular / React / Vue 提供语义对称的 API；US-305 是无 UI 的存储底座，只要求核心公开类型、TSDoc 和类型契约测试。
 2. **异步状态**：命令暴露 loading / success / error，查询在无结果时额外暴露 empty；错误说明操作、对象与恢复建议，不给无 empty 语义的命令伪造 empty 状态。
 3. **可访问性**：US-306～308 的 UI 键盘可达、焦点可见、状态与错误可被屏幕阅读器读出，达到 WCAG 2.1 AA；US-305 不适用 UI a11y。
-4. **不复活旧导出**：`stagedChange()`、`unstageChange()`、`commit()`、`stagedCount`、`WorkspaceCacheEntry.staged` 已在 `0.0.24` 删除（提交 `4d2495bdd`），新导出不得与它们同名同签名，也不得使用 `Workspace` 前缀（见上表）。
+4. **不复活旧导出**：`stagedChange()`、`unstageChange()`、`commit()`、`stagedCount`、`WorkspaceCacheEntry.staged` 在可复核的 `v0.0.24` 公开表面中已不存在；新导出不得与它们同名同签名，也不得使用 `Workspace` 前缀（见上表）。
+5. **加密不降级**：支持后端叠加字段加密时，commit、working-tree、index、restore session 中的加密字段仍以
+   versioned envelope 落盘；错误、摘要和 benchmark 报告不得带明文。历史保留风险提示不能代替 at-rest 加密。
 
 ## 依赖顺序
 
@@ -96,9 +132,14 @@ fencing。revision CAS 是领域数据完整性，不是第二套 lease 或跨 r
 
 - 新增 `nx run benchmarks:bench-working-tree`，输出格式与 `benchmarks/reports/` 一致
 - 固定基准环境为 Node + PGlite memory；API promise resolve 定义为操作完成，不把 React/Angular/Vue 首次绘制混入核心 benchmark
+- 固定 `WARMUP = 5`、`SAMPLES = 50`。每个 sample 前在计时外恢复同一 fixture：10,000 条实体、100 个 commit，
+  每个 commit 100 个完整变更单元；当前工作树 100 个 unstaged 单元、index 50 个 staged 单元
+- status 测完整摘要，diff 测无 scope 的完整 `HEAD ↔ working tree` 与 `HEAD ↔ index`，stage 测 50 个完整变更单元；
+  restore 测 clean HEAD 恢复含 100 个变更单元的 `HEAD~1`。fixture 内容与 hash 必须写入 JSON，禁止只固定总行数
 - 绝对门禁保留原产品预算并明确为 p95：status / diff / stage 不高于 100 ms，restore 不高于 1 s
-- 相对门禁比较“被测操作 p95 / 同次运行 control CRUD p95”的归一化比值；阈值须由首次实现连续采样校准后冻结，不照搬 2%
-- 数据规模（10,000 实体 / 100 commit）保留，作为 bench 的固定 fixture
+- 每项 control CRUD 使用相同实体数量和事务边界；相对门禁比较“被测操作 p95 / 同次 control CRUD p95”。
+  首个绿色实现先归档 reference commit 的 10 次独立运行并冻结各项 median ratio，候选版本不得超过该 ratio 的 110%；
+  reference JSON 与阈值必须先于发布候选签入，不能在失败后重算基线
 - 浏览器 OPFS / IDB 不承诺相同绝对数字，但三端 E2E 必须记录首次可见状态耗时，防止核心 promise 很快而 UI 长时间无反馈
 
 具体归属：status / diff / stage 的预算在 US-306，restore 的预算在 US-307。
@@ -109,9 +150,12 @@ fencing。revision CAS 是领域数据完整性，不是第二套 lease 或跨 r
 2. US-305 / US-306 / US-307 / US-308 全部 Done；US-306～308 的三框架对称与 a11y 条件满足
 3. 崩溃与刷新恢复 fixture 全绿：不出现半个 commit、半个事务或半成品 index
 4. PGlite、四个 SQLite 浏览器适配器与 desktop SQLite host 的 `workingTreeCommitConformanceSuite` 全绿
-5. `nx run benchmarks:bench-working-tree` 同时通过绝对 p95 与归一化相对回归门禁
-6. api-baseline 新增导出全部使用 `Commit*` / `WorkingTree*` / `Index*` 前缀，无 `Workspace*` 新导出，也不复用既有 `SwitchBranchOptions`
-7. 公开文档说明显式启用、工作树与草稿缓存的区别、恢复语义、历史保留敏感旧值的风险与不改写历史的承诺
+5. 跨 realm fixture 覆盖 switch 与旧实体 CRUD 竞争、启用/未启用 writer 混用、HEAD/index/working-tree CAS
+6. 支持字段加密的后端通过 commit/index/working-tree/restore 持久化 dump 明文哨兵零命中
+7. `nx run benchmarks:bench-working-tree` 同时通过绝对 p95 与冻结的归一化相对回归门禁
+8. api-baseline 新增导出全部使用 `Commit*` / `WorkingTree*` / `Index*` 前缀，无 `Workspace*` 新导出，也不复用既有 `SwitchBranchOptions`
+9. 公开文档说明数据库级显式启用、工作树与草稿缓存的区别、恢复语义、历史保留敏感旧值的风险、
+   加密边界与不改写历史的承诺
 
 ## 非目标
 

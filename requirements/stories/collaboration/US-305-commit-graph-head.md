@@ -32,7 +32,7 @@ INVEST 检查清单:
 
 当前历史记录可以支持 undo、redo 和从历史恢复实体，但恢复结果与部分状态依赖当前页面会话；刷新后用户看不到上次的结果，也没有一个可以长期引用的提交节点。
 
-早期的 `stagedChange()` / `unstageChange()` / `commit()` / `stagedCount` 已在 `0.0.24` 删除（提交 `4d2495bdd`），因此这是全新设计，没有需要兼容的旧暂存契约。
+早期的 `stagedChange()` / `unstageChange()` / `commit()` / `stagedCount` 在可复核的 `v0.0.24` 公开表面中已不存在，因此这是全新设计，没有需要兼容的旧暂存契约。
 
 本故事只做**底座**：commit 图、HEAD、分支引用的原子一致性、存储布局与一次性迁移。工作树与缓存区的状态机在 [US-306](./US-306-working-tree-index.md)。
 
@@ -52,8 +52,13 @@ INVEST 检查清单:
 | ChangeSet              | commit 的变更单元集合，按实体/事务分组，保留可恢复信息 | 与 commit 同一提交屏障内可见        |
 
 v1 的变更单元粒度为「实体操作或完整事务」。同一事务不能被拆到不同 commit；字段级、代码行级粒度属于后续扩展。
-baseline commit 没有父节点；普通 commit 固定一个父节点。既有 `mergeBranch()` 只把合并结果写成目标分支的普通工作树变更，
+迁移生成的 `kind=baseline` 与兼容历史 `fromChangeId` / remote branch 本地锚定生成的 `kind=branch_baseline`
+都是无父节点的系统根快照；普通 commit 固定一个父节点。既有 `mergeBranch()` 只把合并结果写成目标分支的普通工作树变更，
 不自动创建双父 commit；用户随后提交时仍以目标分支原 HEAD 为唯一父节点。
+
+Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该分支。`log({ branchId })` 必须从该分支
+`CommitBranchRef` 沿父链遍历可达节点，不能用 `originBranchId = branchId` 过滤，否则新分支会丢失继承历史。
+同一父链按拓扑顺序返回，创建时间只用于展示和稳定游标的次级排序；时间取数据库时钟，不信任 realm 本地时钟。
 
 ## 范围边界
 
@@ -65,6 +70,9 @@ baseline commit 没有父节点；普通 commit 固定一个父节点。既有 `
 - ChangeSet 的 patch / inverse patch 存储与实体身份、操作类型、基线版本、当前版本指纹
 - `log(options?)` / `show(commitId)` 查询：按分支、实体、时间排序，返回详情与父子关系
 - 显式启用后的首次初始化：为每个既有分支生成基线 commit、保留旧 change 记录，失败可重试且幂等
+- 数据库级 `CommitCapabilityState`、writer 能力协商与启用/未启用混用拒绝
+- 普通 commit 的 `operationId` 幂等约束、必填作者来源与数据库时间
+- commit/ChangeSet 对字段加密 envelope 的原样持久化与明文泄漏门禁
 - 损坏或不兼容 commit 记录的隔离与诊断
 - 与 `RxDBChange`、undo/redo、`restoreEntity` 的兼容边界
 
@@ -95,6 +103,8 @@ baseline commit 没有父节点；普通 commit 固定一个父节点。既有 `
 4. **Given** 变更单元集合为空，**When** 创建 commit，**Then** 操作被拒绝，不产生空节点，HEAD 不变。
 5. **Given** commit message 为空或只含空白，**When** 创建 commit，**Then** 操作被拒绝并保留调用前状态。
 6. **Given** 两个 writer 从相同 `headRevision` 开始提交，**When** 先后尝试推进同一分支，**Then** 只有一个 CAS 成功；失败方不产生可见 commit，并收到包含 expected/actual revision 的稳定冲突错误。
+7. **Given** commit 已在数据库提交但响应在返回前丢失，**When** 调用方用相同 `operationId`、message、author 和 staged payload 重试，**Then** 返回第一次创建的同一 commit，不推进第二次 HEAD；同一 branch generation 内复用 `operationId` 却携带不同 payload 时返回 `idempotency_key_reused`。
+8. **Given** 普通 commit 缺少 `authorId` 或 `operationId`，**When** 用户提交，**Then** 在写事务前拒绝；不得从空值、设备名或 writer ID 伪造作者。
 
 ### User Story 2 - 已有数据库首次启用（Priority: P1）
 
@@ -113,16 +123,19 @@ baseline commit 没有父节点；普通 commit 固定一个父节点。既有 `
 5. **Given** 数据库已有 A/B 多个分支且指向不同状态，**When** 首次启用完成后依次切换分支，**Then** 每个 `CommitBranchRef` 指向代表该分支原 tip 的 baseline，当前激活分支与业务实体状态不因迁移改变。
 6. **Given** Workspace 插件仍有 NEW 草稿，**When** 首次启用 commit 能力，**Then** baseline 不包含也不删除草稿；草稿 `save()` 后才以普通 INSERT 出现在工作树。
 7. **Given** 应用未显式启用 commit 能力，**When** 打开旧数据库，**Then** 不创建 commit 系统表、不生成 baseline，现有 CRUD、branch、undo/redo 行为不变。
+8. **Given** 既有数据库或其中某个分支没有任何业务实体，**When** 首次启用，**Then** 允许创建确定性的空 `kind=baseline` 根节点；该例外不得放宽普通 commit 的非空要求。
+9. **Given** 数据库已由一个 realm 启用 commit 能力，**When** 另一个 realm 以未启用或不兼容协议连接并尝试写入，**Then** 在业务写入前返回 `commit_capability_mismatch` 或进入调用方明确请求的只读模式，实体表、工作树与 revision 零变化。
+10. **Given** 实体含 `encrypted: true` 字段，**When** 建立 baseline 或普通 commit，**Then** commit 与 ChangeSet 持久化 dump 中只出现 versioned envelope，明文哨兵零命中；解锁后 `show()` 仍返回正确值。
 
 ## 功能需求
 
 - **FR-001**：系统 MUST 为每个数据库/分支维护唯一 `CommitBranchRef`；HEAD MUST 从当前激活分支的 `headCommitId` 派生，不得持久化第二份可漂移的 HEAD 指针。
 - **FR-002**：系统 MUST 持久化 commit 元数据、`CommitBranchRef.headCommitId` 与 `headRevision`；刷新、重启和正常关闭后可恢复。
 - **FR-003**：系统 MUST 把 NEW、UPDATE、DELETE 和完整事务表示为可比较的变更单元，并为每条保留实体身份、操作类型、基线版本和当前版本指纹。
-- **FR-008**：系统 MUST 要求用户 commit 包含非空、可读的消息，并在一次原子操作中写入变更集合、父 commit、作者、时间、摘要和新的分支 HEAD；`kind=baseline` 是唯一无用户作者/消息的系统节点。
-- **FR-009**：系统 MUST 保证 commit 不为空；无变更单元时提交失败且不产生空节点。
+- **FR-008**：系统 MUST 要求普通 commit 包含 trim 后非空的消息、调用方提供的 `authorId` 与 `operationId`，并在一次原子操作中写入变更集合、父 commit、数据库时间、摘要和新的分支 HEAD；`kind=baseline | branch_baseline` 是仅有的无用户作者/消息系统根节点。
+- **FR-009**：系统 MUST 保证普通 commit 不为空；无变更单元时提交失败且不产生空节点。实体数为零的 `kind=baseline | branch_baseline` 是仅有的空 ChangeSet 例外。
 - **FR-010**：系统 MUST 保证 commit 创建失败时恢复提交前状态，不出现可见半状态。
-- **FR-012**：系统 MUST 提供按当前分支、实体和时间排序的历史列表，以及单个 commit 的变更详情和父节点关系。
+- **FR-012**：系统 MUST 提供按 branch ref 父链可达性、实体和数据库时间查询的历史列表，以及单个 commit 的变更详情和父节点关系；`originBranchId` 只用于审计，不得用于截断继承历史。
 - **FR-018**：系统 MUST 与现有 `RxDBChange`、历史 undo/redo 和 `restoreEntity` 保持兼容；已有 API 的行为不能因为 commit 功能而改变。
 - **FR-019**：系统 MUST 明确区分 durable commit 历史与会话级 redo 栈；刷新后 redo 可清空，但 commit 与 HEAD 不得清空。
 - **FR-021**：系统 MUST 在显式启用后为已有数据库提供一次性初始化：按每个既有分支生成 baseline、保留旧 change 记录、保持激活分支与业务实体状态，并支持失败重试；Workspace 草稿不参与迁移。
@@ -130,12 +143,16 @@ baseline commit 没有父节点；普通 commit 固定一个父节点。既有 `
 - **FR-027**：commit 历史 MUST 可审计，至少记录稳定 commit ID、父节点、分支、作者标识、消息、创建时间、变更数量和 schema/数据版本；不得记录无法恢复的数据引用。
 - **FR-029**：普通 commit MUST 在同一数据库事务内以 expected `headRevision` 条件更新 `CommitBranchRef`；CAS 失败时 commit、ChangeSet 与 branch ref 全部不可见。US-304 epoch MUST 只用于迁移 fencing，不得代替 `headRevision`。
 - **FR-030**：本故事作为首个真实系统迁移发布，MUST 承接 US-304 AC11：发布清单使用 `bridge.tag=v0.0.25`、启用明确的 `oldBundlePolicy`，并通过真实 git tag 的 migration release gate。
+- **FR-036**：普通 commit MUST 以 database + immutable branch generation + `operationId` 建立唯一幂等约束。相同请求重试返回原 commit；相同 key 的 message、author、parent 或 ChangeSet 指纹不同则返回稳定错误，不得覆盖原记录。删除并同名重建的分支使用新 generation，不与旧幂等键碰撞。
+- **FR-037**：首次启用 MUST 持久化数据库级 capability/protocol 状态。此后所有 writer 在连接时协商；未启用或不兼容 writer 不得继续裸写业务表。
+- **FR-038**：commit、ChangeSet 与 baseline MUST 保持既有字段加密 at-rest 契约；持久化路径不得先解密再把明文写入新系统表，日志、错误与摘要不得包含加密字段值。
 
 ## 关键实体
 
-- **Commit**：不可变提交；稳定 ID、kind、零或一个父节点、分支、作者、消息、时间、变更集合、摘要、数据/schema 版本。
-- **CommitBranchRef**：分支引用；分支 ID、head commit、head revision、创建来源、更新时间，是分支 HEAD 的唯一真相源。
+- **Commit**：不可变提交；稳定 ID、kind、零或一个父节点、`originBranchId`、`originBranchGeneration`、operation ID、作者、消息、数据库时间、变更集合、摘要、change codec version 与按实体记录的 schema fingerprint。
+- **CommitBranchRef**：分支引用；分支 ID、不可变 generation、head commit、head revision、创建来源、更新时间，是该次分支生命周期 HEAD 的唯一真相源。同名重建必须生成新 generation。
 - **CommitChangeSet**：commit 的变更单元集合；按实体/事务分组，保留 patch、inverse patch 或等价可恢复信息。
+- **CommitCapabilityState**：数据库级启用与协议协商状态；commit protocol、system schema、change codec version、启用迁移 ID 与时间。
 
 > 命名遵守 [epic-006](../../epics/epic-006-working-tree-commits.md) 的术语表：新导出一律 `Commit*` 前缀，
 > **不得**使用 `Workspace*`——该前缀已被 `@aiao/rxdb-plugin-workspace` 的草稿缓存占用。
@@ -145,7 +162,7 @@ baseline commit 没有父节点；普通 commit 固定一个父节点。既有 `
 ### 持久化层次
 
 1. 业务实体表保存当前物化数据，仍沿用现有 CRUD、事务和响应式查询。
-2. 变更日志保存原子变更的 patch/inverse patch；commit 只引用经过校验的变更单元或不可变快照，不能依赖易失的 UI 状态。
+2. 变更日志保存原子变更的 patch/inverse patch；commit 必须复制不可变恢复数据，不能只持有会被 undo、清理或删分支删除的 `RxDBChange` 外键。
 3. commit 元数据、ChangeSet 和 `CommitBranchRef` 必须在同一提交屏障内可恢复；HEAD 只从 branch ref 派生。
 4. commit 图保存父子关系和审计字段；任何 commit 一旦可见就必须可重放到其父节点之后的完整状态。
 
@@ -154,12 +171,16 @@ baseline commit 没有父节点；普通 commit 固定一个父节点。既有 `
 - commit 的父节点固定为提交开始时读取到的当前分支 HEAD；同一事务内执行
   `UPDATE branch_ref ... WHERE headRevision = expected`，受影响行数不为 1 时整个提交失败。writer lease/epoch 仍在写事务内校验，
   但只负责识别迁移 fencing，不参与普通 HEAD 竞争判定。
+- `operationId` 的唯一记录与 commit/ChangeSet/branch ref 同事务写入。数据库提交后响应丢失不属于“提交失败”；
+  调用方只能以相同 operation ID 重试并取回原结果。
+- baseline ID 由数据库、分支、迁移 ID 与 schema/codec manifest 确定性生成；branch baseline 额外绑定来源类型和 `fromChangeId` 或 remote materialization fingerprint。空状态也可生成系统根节点，重复操作必须命中同一 ID。
 - 历史节点永不通过「把旧节点改成当前」实现变更；需要可追踪的动作时必须再创建一个新 commit。
 
 ### 兼容与迁移
 
 - 保留 `RxDBChange` 的现有 ID、transactionId、patch/inversePatch、branchId 和 undo/redo 字段；commit 层不改变旧 API 的过滤规则。
-- commit 能力显式启用；未启用时不建立系统表、不生成 baseline，也不改变既有 API 行为。
+- commit 能力在从未启用的数据库上显式启用；未启用时不建立系统表、不生成 baseline，也不改变既有 API 行为。
+- 数据库一旦启用，后续 writer 不得通过省略配置回到裸写模式；同版本 realm 的配置分歧与旧 bundle 都必须在首笔业务写入前被拒绝或显式只读。
 - 首次启用时按每个既有分支的原 tip 建立 baseline 和 `CommitBranchRef`，并记录迁移版本；迁移前后的激活分支与当前业务实体状态一致，重复启动幂等。
 - Workspace NEW 草稿继续由插件独立恢复；commit 迁移不读取、不搬迁、不删除 IndexedDB 记录，草稿保存后按普通 INSERT 处理。
 
@@ -168,13 +189,14 @@ baseline commit 没有父节点；普通 commit 固定一个父节点。既有 `
 - **一致性**：commit、HEAD 与分支引用遵守全有或全无的可见性；重启恢复不得依赖写入顺序的偶然性。
 - **可靠性**：写入失败、崩溃、标签页关闭和 schema 升级中断后，重试结果可预测且不重复生成 commit。
 - **可诊断性**：错误带稳定类别、对象标识和建议动作；不能静默 fallback 到 memory、空历史或另一种未声明的存储。
-- **安全性**：默认不记录敏感实体字段到 UI 日志或错误文本；作者标识由调用方提供，不能伪造为系统用户。
+- **安全性**：默认不记录敏感实体字段到 UI 日志或错误文本；作者标识由调用方提供，不能伪造为系统用户；加密字段在所有历史系统表中保持 envelope。
 
 ## 测试要求
 
 - 核心包按 TDD 先写崩溃/刷新恢复的失败用例，再实现；覆盖率不低于 90%。
-- PGlite、四个 SQLite 浏览器适配器与 desktop SQLite host 的共享 conformance 套件覆盖事务原子性、head revision CAS 与 schema 迁移。
-- 迁移幂等性、多分支 baseline、未启用零副作用、Workspace 草稿隔离与损坏记录隔离必须有独立 fixture。
+- PGlite、四个 SQLite 浏览器适配器与 desktop SQLite host 的共享 conformance 套件覆盖事务原子性、head revision CAS、operation ID 幂等与 schema 迁移。
+- 迁移幂等性、空/非空多分支 baseline、未启用零副作用、启用状态混用拒绝、Workspace 草稿隔离与损坏记录隔离必须有独立 fixture。
+- 支持字段加密的后端必须扫描 commit/ChangeSet/baseline 原始持久化 dump，断言明文哨兵零命中。
 - 测试文件使用 `*.spec.ts`，不依赖非确定性的固定延时。
 
 ## 实现文件（计划阶段待确认）

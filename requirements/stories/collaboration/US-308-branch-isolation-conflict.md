@@ -32,7 +32,7 @@ INVEST 检查清单:
 ## 前置依赖
 
 跨 realm 写入先经过 [US-304](./US-304-writer-lease-migration-fencing.md) 的 writer lease / epoch fencing，
-再使用 US-305/306 持久化的 head/index/working-tree revision CAS。epoch 只识别 schema 迁移后的 stale writer，
+再使用 Epic 与 US-305/306 持久化的 activation/head/index/working-tree revision CAS。epoch 只识别 schema 迁移后的 stale writer，
 普通提交竞争只看领域 revision；不得用 `BroadcastChannel` 或内存状态承担正确性。US-304、US-305、US-306
 任一未 Done 时本故事不可开工。
 
@@ -56,14 +56,20 @@ INVEST 检查清单:
 4. 无条件切换不等于 reset：来源分支的工作树/index 必须保留，目标分支有未提交状态时恢复自己的状态，
    只有目标分支从未产生未提交状态时才从 HEAD 物化。
 
+`requireClean` 的 clean 固定为：`WorkingTreeEntry` 为空、index 为空、没有 active restore session，也没有
+未解决的派生 conflict。仅 staged、restoring 或 conflicted 都不是 clean；错误必须按实际状态给出
+commit、clear index、discard 或刷新/重新选择建议，不能只检查业务表 diff。
+
 ## 范围边界
 
 ### In Scope
 
 - 分支与工作树 / 缓存区的隔离：切换后恢复目标分支自己的状态；没有未提交状态时才物化目标 HEAD
 - `requireClean` 显式选项与对应的可操作错误
+- 数据库级 `activationRevision`、active branch token 与跨标签页 switch/CRUD 竞争拒绝
 - 跨标签页 / 跨 realm revision CAS 的集成 fixture 与类型化诊断
 - `CommitConflict` 派生值与三端一致的冲突提示语义
+- 既有 `createBranch(branchId, fromChangeId?)`、`removeBranch()`、`syncBranches()` 与 commit/working-tree/index 生命周期集成
 
 ### Out of Scope
 
@@ -83,8 +89,12 @@ INVEST 检查清单:
 1. **Given** 分支 A 和 B 指向不同 commit 且都没有未提交状态，**When** 用户切换分支，**Then** 工作树物化为目标分支 HEAD，缓存区不会串到另一分支。
 2. **Given** 当前工作树 dirty，**When** 用户以 `{ requireClean: true }` 切换分支，**Then** 拒绝切换并保留数据，错误说明可用的处理方式（commit / discard）。
 3. **Given** 当前工作树 dirty，**When** 用户调用不带选项的 `switchBranch(branchId)`，**Then** 行为与本故事实施前**完全一致**（切换成功），现有文档示例与 `dev-rxdb-supabase` demo 无需修改即可通过。
-4. **Given** 创建新分支，**When** 操作完成，**Then** 新分支从当前 HEAD 开始，且分支之间不共享可变的 HEAD / 缓存区状态。
+4. **Given** 当前分支存在未提交工作树，**When** 调用既有一参 `createBranch(branchId)`，**Then** 新分支保持现有“从当前物化状态创建”的用户可见语义：共享当前 HEAD、复制一份独立的未提交工作树快照、index 为空；来源与新分支不得共享可变条目。
 5. **Given** A/B 两个分支各自有 dirty 工作树和 staged 条目，**When** 执行 A → B → A → B，**Then** 每次都恢复目标分支原有工作树/index/revision，任何一端都不被 reset 到 HEAD。
+6. **Given** 当前仅 index 非空、存在 active restore session 或状态 conflicted，**When** 以 `{ requireClean: true }` 切换，**Then** 操作被拒绝且所有状态零变化；错误建议与具体非 clean 原因一致。
+7. **Given** 调用既有 `createBranch(branchId, fromChangeId)`，**When** change 存在，**Then** 新分支切换后的业务状态与本故事实施前从该 changeId 创建的状态一致；commit 图用确定性的 `kind=branch_baseline` 完整快照锚定该状态，不修改来源分支历史。
+8. **Given** 删除非激活且无子分支的分支，**When** `removeBranch()` 成功，**Then** 在同一事务删除 branch ref、工作树、index、restore session 与既有该分支 `RxDBChange`，但不删除可能被其他 ref 共享或按 ID 审计的不可变 commit；同名重建获得新 branch generation，既有 main/active/有子分支拒绝行为不变。
+9. **Given** `syncBranches()` 拉到一个没有本地 commit 图的远端分支，**When** 该分支第一次拥有可完整物化的本地状态，**Then** 建立确定性的本地 `kind=branch_baseline` 和 branch ref；不把它伪装成远端 commit，也不扩大到 remote commit push/pull。
 
 ### User Story 2 - 跨标签页并发（Priority: P2）
 
@@ -96,25 +106,31 @@ INVEST 检查清单:
 2. **Given** commit 已成功写入但 UI 在刷新前关闭，**When** 重新打开任一标签页，**Then** commit、HEAD 和工作树状态最终收敛到同一结果。
 3. **Given** stage 后另一个标签页删除或更新同一实体但未移动 HEAD/index，**When** 本标签页提交原 staged snapshot，**Then** 提交只推进 staged 版本，后续删除/更新继续作为 unstaged 保留，不因 writer 身份产生特殊分支。
 4. **Given** writer 挂起期间发生 schema 迁移并抬升 epoch，**When** stale writer 恢复后提交，**Then** 先走 US-304 的 `writer_fenced` 路径；未发生迁移的普通竞争则只走 revision CAS。
+5. **Given** Tab A 在分支 A 读取实体并捕获 active branch token，Tab B 随后切到 B，**When** Tab A 保存旧实体，**Then** 写事务以 `stale_active_branch` 拒绝，A/B 的业务表投影、WorkingTreeEntry 与 revision 均不被错误修改。
+6. **Given** 两个 realm 从同一 `activationRevision` 同时切换到不同分支，**When** 两个事务竞争，**Then** 只有一个 activation CAS 成功；失败方刷新后读取胜出分支，不重放自己的物化动作。
 
 ## 功能需求
 
-- **FR-017**（已改口径）：系统 MUST 与现有分支操作集成：创建分支从当前 HEAD 开始，分支之间不得共享可变的 HEAD / 工作树 / index。切换 MUST 保存来源分支状态并恢复目标分支状态；clean 检查 MUST 以 `WorkingTreeSwitchBranchOptions.requireClean` 显式提供，`switchBranch(branchId)` 不带选项时仍无条件切换。
-- **FR-020**：系统 MUST 使用 US-305/306 的持久化 revision CAS 阻止跨标签页静默覆盖，并使用 US-304 epoch 拒绝迁移后的 stale writer。两者职责不得混用，也不得只依赖 `BroadcastChannel` 或内存状态。
-- **FR-035**：`CommitConflict` MUST 从失败操作、对象 ID、expected/actual head/index/working-tree revision 与建议动作派生，不得建立第二张可与真实 revision 漂移的冲突状态表。
+- **FR-017**（已改口径）：系统 MUST 与现有分支操作集成。`createBranch(branchId)` 保留从当前物化状态创建的行为，复制独立 working-tree snapshot、共享当前 HEAD 且 index 为空；`createBranch(branchId, fromChangeId)` 保留历史 change 状态并以 `kind=branch_baseline` 锚定。分支不得共享可变 HEAD / 工作树 / index。切换恢复目标分支状态；clean 检查以 `WorkingTreeSwitchBranchOptions.requireClean` 显式提供，不带选项仍无条件切换。
+- **FR-020**：系统 MUST 使用持久化 activation/head/index/working-tree revision CAS 阻止跨标签页静默覆盖，并使用 US-304 epoch 拒绝迁移后的 stale writer。普通 CRUD MUST 校验实体/realm 捕获的 active branch token；不得在事务中重新读取新 active branch 后把旧实体归到新分支，也不得只依赖 `BroadcastChannel` 或内存状态。
+- **FR-035**：`CommitConflict` MUST 从失败操作、对象 ID、expected/actual activation/head/index/working-tree revision 与建议动作派生，不得建立第二张可与真实 revision 漂移的冲突状态表。
+- **FR-044**：`removeBranch()` MUST 原子删除该分支全部可变状态但保留不可变 commit；同名重建 MUST 使用新 branch generation。`syncBranches()` 新增的远端分支 MUST 在首次完整本地物化时建立确定性 local baseline。两者的旧签名、旧拒绝条件与 remote commit 非目标保持不变。
 
 ## 关键实体
 
-- **CommitConflict**：并发或版本校验失败的不可变诊断值；操作、对象、expected/actual revision、受影响变更单元和建议动作。它由持久化状态派生，不是协调锁或独立真相源。
+- **WorkingTreeActivationState**：数据库级单行 revision；当前分支 ID 仍由 `RxDBBranch.activated` 表示，该状态不复制第二份 ID。
+- **CommitConflict**：并发或版本校验失败的不可变诊断值；操作、对象、expected/actual activation/head/index/working-tree revision、受影响变更单元和建议动作。它由持久化状态派生，不是协调锁或独立真相源。
 
 > 命名遵守 [epic-006](../../epics/epic-006-working-tree-commits.md) 的术语表：不得使用 `Workspace*` 前缀。
 
 ## 测试要求
 
-- 必须有跨标签页 / 跨 realm 并发测试，覆盖 HEAD/index CAS、重复 commit、stale writer fencing，以及 stage 后编辑统一保留为 unstaged。
+- 必须有跨标签页 / 跨 realm 并发测试，覆盖 activation/HEAD/index/working-tree CAS、重复 commit、stale writer fencing，以及 stage 后编辑统一保留为 unstaged。
+- 必须有“Tab A 读 A → Tab B 切 B → Tab A 保存旧实体”的真实双 realm fixture，断言稳定 `stale_active_branch` 且两分支零污染。
 - 必须有 A dirty+staged → B dirty+staged → A → B 往返测试，断言每个分支的数据、index 和 revision 均恢复。
 - 必须有一条回归用例专门断言**不带选项**的 `switchBranch(branchId)` 行为未变（AC User Story 1 场景 3）。
 - 必须有 `public-type-compatibility` 用例断言旧的一参调用继续编译、新的可选参数使用 `WorkingTreeSwitchBranchOptions`，适配器层 `SwitchBranchOptions` 签名不变。
+- 必须有 `createBranch(branchId, fromChangeId?)`、`removeBranch()`、`syncBranches()` 的公开签名与既有行为回归；覆盖 dirty current state、历史 change、删分支状态清理和远端分支 local baseline。
 - 三端冲突提示的语义、错误分类与恢复建议必须一致，并有等价测试。
 - 测试文件使用 `*.spec.ts`，不依赖非确定性的固定延时。
 
@@ -122,6 +138,7 @@ INVEST 检查清单:
 
 - `packages/rxdb/src/version/VersionManager.ts` — `switchBranch` 新增可选参数，默认行为不变
 - `packages/rxdb/src/version/` — 分支隔离、revision 冲突派生与错误分类
+- `packages/rxdb/src/system/` — `WorkingTreeActivationState` 与 capability/branch lifecycle 事务
 - `packages/rxdb-{angular,react,vue}/` — 对称的冲突状态与提示
 - `requirements/api-baseline/rxdb.json` — `WorkingTreeSwitchBranchOptions` 与 `CommitConflict`
 - `packages/rxdb/src/__tests__/contracts/` — `switchBranch` 公开方法签名兼容测试

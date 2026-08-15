@@ -34,13 +34,17 @@ INVEST 检查清单:
 
 | 概念                    | 含义                                                                | 持久化要求                     |
 | ----------------------- | ------------------------------------------------------------------- | ------------------------------ |
-| 工作树（`WorkingTree`） | 当前分支上用户实际看到和编辑的实体状态，含已落本地库但未提交的修改  | 按分支持久化；刷新/切回后恢复  |
+| 工作树（`WorkingTree`） | 当前分支 HEAD 叠加未提交 `WorkingTreeEntry` 后的逻辑状态            | 按分支持久化；刷新/切回后恢复  |
 | 缓存区（`Index`）       | 用户明确选择、准备放入下一次 commit 的变更集合                      | 按分支持久化；与工作树分离     |
 | 工作树状态              | `clean`、`modified`、`staged`、`conflicted`、`restoring` 等可见状态 | 状态重建结果稳定，不依赖内存栈 |
 
 变更选择粒度为「实体操作或完整事务」，同一事务不可拆到不同 commit。
 工作树、index 和 HEAD 的唯一真相源及 revision 关系见 Epic 的
 [v1 状态模型](../../epics/epic-006-working-tree-commits.md#v1-状态模型唯一真相源)。
+
+业务实体表只是当前激活分支的物化投影。每次普通 CRUD 必须在同一事务内写入或合并该分支的
+`WorkingTreeEntry` 并递增 `workingTreeRevision`；离开分支后，目标状态只能由 HEAD 与这些条目重建。
+实现可以复用 `RxDBChange`，但不能只存计数、内存 dirty set 或最后一次切换时的业务表内容。
 
 ### 状态关系
 
@@ -58,11 +62,12 @@ INVEST 检查清单:
 ### In Scope
 
 - 工作树与缓存区状态的持久化与刷新后重建
-- `workingTreeRevision` / `indexRevision` 的事务内 CAS；跨 realm 的数据安全在本故事完成，不推迟到 US-308
+- 普通 CRUD、`WorkingTreeEntry` 与 `workingTreeRevision` 的原子双写；active branch token 校验遵守 Epic 矩阵
+- `workingTreeRevision` / `indexRevision` 的事务内 CAS；跨 realm 的数据安全原语在本故事完成，不推迟到 US-308
 - `status()`：至少区分 clean、仅未暂存、仅已暂存、同时存在 staged/unstaged、恢复中、冲突
 - `diff(scope?)`：分别比较 `HEAD ↔ 工作树` 与 `HEAD ↔ 缓存区`
 - `stage` / `unstage` / stage all / `clearIndex`
-- `commit(message, metadata?)`：只提交缓存区内容，保留未暂存修改
+- `commit(message, options)`：`authorId`、`operationId` 必填，只提交缓存区内容，保留未暂存修改
 - `discardWorkingTree()`：回到当前 HEAD
 - stage 后再次编辑时保留 staged 快照，新增部分标记为 unstaged
 - Angular / React / Vue 三端对称 API 与演示
@@ -87,6 +92,7 @@ INVEST 检查清单:
 1. **Given** 当前分支有一个已提交的 HEAD，**When** 用户修改实体但不 commit 后刷新，**Then** 工作树数据、未暂存标记和对应 diff 与刷新前一致。
 2. **Given** 缓存区已有实体变更，**When** 用户刷新或重新打开应用，**Then** 缓存区选择、变更顺序和事务边界保持不变。
 3. **Given** Workspace 插件中只有 NEW 草稿，**When** 应用启动，**Then** 草稿仍按 Workspace 插件规则恢复，不出现在 SQL/PGlite 工作树或 baseline 中；草稿 `save()` 后才作为普通 INSERT 进入工作树。
+4. **Given** A 分支存在未暂存 INSERT/UPDATE/DELETE，**When** 用户切到 B、关闭应用、重新打开并切回 A，**Then** A 的业务数据可仅凭 HEAD 与持久化 `WorkingTreeEntry` 完整重建，变更单元身份和 diff 不变。
 
 ### User Story 2 - 暂存并提交一组变更（Priority: P1）
 
@@ -103,6 +109,11 @@ INVEST 检查清单:
 7. **Given** 空事务、重复 stage、重复 discard，**When** 反复执行，**Then** 幂等，不产生额外 commit 或错误历史。
 8. **Given** stage 后任意 realm 又编辑同一实体，**When** 用户查看 status 或提交原 stage，**Then** staged snapshot 保持不变，后续编辑统一显示为 unstaged；提交不得覆盖或丢弃后续编辑。
 9. **Given** 两个 realm 从相同 index/head revision 开始 stage 或 commit，**When** 它们竞争同一分支，**Then** 条件更新只允许一个操作成功；失败方不留下半成品 index/commit，并返回 expected/actual revision。
+10. **Given** 已 stage 的实体后来又被编辑，**When** 用户再次 stage 同一选择，**Then** staged snapshot 原子替换为当前工作树版本，新增编辑不再显示为 unstaged；工作树未变化时重复 stage 是 no-op 且不递增 revision。
+11. **Given** 用户只选择一个属于多实体事务的实体，**When** stage 或 unstage，**Then** 系统自动扩展到该 `transactionId` 的完整变更单元并返回实际选择列表，不允许把事务拆进不同 commit。
+12. **Given** 另一个 realm 在本次 stage 捕获 token 后修改工作树，**When** stage 尝试落盘，**Then** `workingTreeRevision` CAS 失败，index 零变化；调用方刷新后可重新选择。
+13. **Given** 普通提交缺少 `authorId`、缺少 `operationId` 或 message trim 后为空，**When** 调用 commit，**Then** 在任何持久状态变化前返回类型化校验错误。
+14. **Given** 实体含 `encrypted: true` 字段，**When** CRUD、stage、刷新并 commit，**Then** 原始 WorkingTreeEntry 与 IndexEntry dump 中明文哨兵零命中，解锁后的 status/diff/commit 语义与未加密字段一致。
 
 ### User Story 3 - 丢弃与清空（Priority: P2）
 
@@ -121,18 +132,24 @@ INVEST 检查清单:
 - **FR-011**：系统 MUST 在 commit 成功后只清除已提交的缓存区变更；未暂存变更继续留在工作树并显示准确 diff。
 - **FR-016**：系统 MUST 支持 discard working tree 和 clear index，且两者操作范围明确：前者回到当前 HEAD，后者只清除暂存选择。
 - **FR-023**：系统 MUST 为异步命令提供 loading、success、error，为查询额外提供 empty；错误必须说明操作、对象和恢复建议。
-- **FR-026**（已改口径）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit 下对 status / diff / stage 采样并输出 p50/p95 与 JSON。三项 promise resolve 的 p95 MUST 不高于 100 ms，且“操作 p95 / 同次 control CRUD p95”的归一化比值不得超过校准后冻结的回归阈值。浏览器 OPFS / IDB 不承诺相同绝对数字。
-- **FR-031**：stage、unstage、clear index 和 commit MUST 在同一数据库事务内校验 expected `indexRevision`；会物化数据的操作还 MUST 校验 expected `workingTreeRevision`。CAS 失败时操作全量回滚。
+- **FR-026**（已改口径）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit、100 个 unstaged / 50 个 staged 单元的固定 fixture 下，以 5 次 warmup、50 次采样测完整 status、完整 diff 和批量 stage 50 个单元并输出 p50/p95 与 JSON。三项 promise resolve 的 p95 MUST 不高于 100 ms，且归一化 ratio 不得超过已签入 reference median 的 110%。浏览器 OPFS / IDB 不承诺相同绝对数字。
+- **FR-031**：所有操作 MUST 遵守 Epic revision 矩阵：stage/re-stage 同时校验 expected working-tree 与 index revision；unstage/clear index 校验 index revision；commit 校验 active branch token、head 与 index revision，并在同一事务读取当前工作树完成 residual rebase。commit 不得仅因 stage 后普通编辑改变 working-tree revision 而拒绝，也不得覆盖该编辑。CAS 失败时操作全量回滚。
 - **FR-032**：stage 后发生的实体编辑不按 writer 身份分叉处理；无论来自当前 realm 还是其他 realm，都 MUST 保留为相对 staged snapshot 的 unstaged 变更。writer 身份不得成为提交正确性的必要条件。
+- **FR-039**：每次普通 CRUD MUST 在同一事务内校验 active branch token、写入业务实体、写入或合并完整 `WorkingTreeEntry` 并递增 `workingTreeRevision`。任一步失败全部回滚；禁止只靠内存 dirty set 重建。
+- **FR-040**：stage/re-stage MUST 同时校验 expected working-tree 与 index revision；已暂存选择在工作树变化后再次 stage 时替换为当前快照，未变化的重复调用是 no-op。实体选择命中多实体事务时 MUST 自动扩展整个事务，stage 与 unstage 规则对称。
+- **FR-041**：普通提交 MUST 接收 trim 后非空 message 与必填 `CommitOptions.authorId`、`CommitOptions.operationId`；调用方 metadata 只能放扩展审计字段，不得覆盖 parent、时间、作者、operation ID、schema/codec manifest 或变更数量。
+- **FR-045**：WorkingTreeEntry 与 IndexEntry MUST 延续字段加密 at-rest 契约；读取可在解锁后返回明文业务值，但任何持久化 dump、错误和摘要不得出现加密字段明文。
 
-> FR-026 保留原 100 ms 产品预算，但把环境、数据规模、完成时点和 p95 口径固定下来；相对门禁使用
-> 同次 control CRUD 归一化，不照搬 hot-path bench 的 2%。浏览器首次可见状态由三端 E2E 单独记录。
+> FR-026 保留原 100 ms 产品预算，但把环境、数据分布、完成时点、采样数和 p95 口径固定下来；相对门禁使用
+> 同次 control CRUD 归一化与 Epic 冻结的 reference，不照搬 hot-path bench 的 2%。浏览器首次可见状态由三端 E2E 单独记录。
 
 ## 关键实体
 
 - **WorkingTreeState**：数据库/分支级工作树状态；基于哪个 HEAD、是否恢复中、未提交变更计数、`workingTreeRevision`。
+- **WorkingTreeEntry**：数据库/分支级未提交变更单元；实体或完整事务身份、操作、patch/inverse patch 或等价快照、当前指纹、来源 change ID。
 - **IndexState**：数据库/分支级 index 水位；`indexRevision`、基线 HEAD、条目计数。
 - **IndexEntry**：分支级缓存区条目；变更单元 ID、基线 commit、暂存快照、stage 时工作树 revision、stage 时间。
+- **CommitOptions**：普通提交选项；必填 `authorId`、`operationId`，可选 `metadata`。保留审计字段不能由 metadata 覆盖。
 
 > 命名遵守 [epic-006](../../epics/epic-006-working-tree-commits.md) 的术语表：不得使用 `Workspace*` 前缀。
 
@@ -142,22 +159,25 @@ INVEST 检查清单:
 
 具体导出名在 plan 阶段冻结，语义保持以下边界：
 
-| 操作                         | 语义                                | 是否创建 commit |
-| ---------------------------- | ----------------------------------- | :-------------: |
-| `status()`                   | 返回工作树、缓存区、HEAD 和冲突摘要 |       否        |
-| `diff(scope?)`               | 比较 HEAD、缓存区、工作树的变更     |       否        |
-| `stage(selection)`           | 将实体或事务的当前版本复制进缓存区  |       否        |
-| `unstage(selection)`         | 从缓存区移除选择，工作树不变        |       否        |
-| `commit(message, metadata?)` | 原子写入 commit 并移动当前分支 HEAD |       是        |
-| `discardWorkingTree()`       | 丢弃工作树未提交变更并回到 HEAD     |       否        |
-| `clearIndex()`               | 清空暂存选择                        |       否        |
+| 操作                       | 语义                                                      | 是否创建 commit |
+| -------------------------- | --------------------------------------------------------- | :-------------: |
+| `status()`                 | 返回工作树、缓存区、HEAD 和冲突摘要                       |       否        |
+| `diff(scope?)`             | 比较 HEAD、缓存区、工作树的变更                           |       否        |
+| `stage(selection)`         | 将实体或完整事务的当前版本复制进缓存区；re-stage 刷新快照 |       否        |
+| `unstage(selection)`       | 从缓存区移除实体所属的完整事务单元，工作树不变            |       否        |
+| `commit(message, options)` | 以必填 author/operation ID 原子写入 commit 并移动 HEAD    |       是        |
+| `discardWorkingTree()`     | 丢弃工作树未提交变更并回到 HEAD                           |       否        |
+| `clearIndex()`             | 清空暂存选择                                              |       否        |
 
-所有修改操作接收或内部捕获 expected revision，并在事务内做条件更新。公开 API 是否显式暴露 expected revision
-在 plan 阶段冻结，但冲突错误必须返回 expected/actual，调用方不能靠字符串解析。
+所有修改操作按 Epic 的 revision 矩阵接收或内部捕获 expected revision，并在事务内做条件更新。公开 API 是否显式
+暴露 expected revision 在 plan 阶段冻结，但 active branch token 必须随实体/realm 上下文传入写路径，不能在事务开始后
+重新读取新分支来掩盖 stale writer；冲突错误必须返回 expected/actual，调用方不能靠字符串解析。
 
 ### 边界情况
 
 - stage 后实体被任意 realm 删除或更新：不改写 staged snapshot，变化作为 unstaged 保留；只有 head/index/worktree revision CAS 失败才返回并发冲突。
+- commit staged snapshot 时读取当前 `WorkingTreeEntry` 并原子 rebase：与 staged snapshot 相同的部分删除，后续编辑形成的差量保留；不得用 staged snapshot 覆盖业务表。
+- stage/unstage 的实体选择命中 transactionId 时统一扩展完整事务；错误和返回值列出实际受影响的全部实体。
 - 存储配额不足、浏览器禁用持久化或 schema 升级失败：明确报告持久化不可用，禁止把状态伪装成已保存。
 - undo/redo 与 commit 同时触发时按调用顺序串行化；redo 仍是会话级能力，不能被误报为 durable commit。
 
@@ -165,9 +185,11 @@ INVEST 检查清单:
 
 - 核心包按 TDD 先写刷新恢复的失败用例，再实现；覆盖率不低于 90%。
 - PGlite、四个 SQLite 浏览器适配器与 desktop SQLite host 复用同一套 revision CAS / 崩溃恢复 conformance fixture。
+- 共享 fixture 必须覆盖“CRUD 写入业务表后、写 WorkingTreeEntry 前失败”的回滚，以及旧 active branch token 写入被拒绝。
+- 支持字段加密的后端必须扫描 WorkingTreeEntry 与 IndexEntry 原始 dump，断言明文哨兵零命中。
 - 三端各有等价的单元/组件测试，并用跨框架 E2E 验证 status → stage → commit → refresh 流程。
 - 失败、空状态、键盘可达性和屏幕阅读器名称必须有 UI 回归测试；测试文件使用 `*.spec.ts`，不依赖固定延时。
-- `nx run benchmarks:bench-working-tree` 纳入 CI，报告写入 `benchmarks/reports/`。
+- `nx run benchmarks:bench-working-tree` 按 Epic 固定的 100 dirty / 50 staged fixture、50 次采样与冻结 reference ratio 纳入 CI，报告写入 `benchmarks/reports/`。
 
 ## 实现文件（计划阶段待确认）
 
