@@ -14,7 +14,7 @@ owner: jimmy
 
 ## 为什么是 Epic 而不是一个 Story
 
-原 [US-305](../stories/collaboration/US-305-commit-graph-head.md) 单个故事持有 4 个用户故事、28 条 FR、7 个关键实体，横跨 `packages/rxdb/src/version/`、`packages/rxdb/src/system/`、`rxdb-plugin-workspace`、三个框架包和三个 demo。它的 INVEST 里 `Small` 打了勾，但没有任何一条 FR 可以在不落地存储布局的前提下单独验收——即"要么全做要么全不做"，这正是 Small 不成立的定义。拆分后每个故事都能独立跑通「写入 → 刷新 → 读回」这条最小闭环。
+原 [US-305](../stories/collaboration/US-305-commit-graph-head.md) 单个故事持有 4 个用户故事、28 条 FR、7 个关键实体，横跨 `packages/rxdb/src/version/`、`packages/rxdb/src/system/`、`rxdb-plugin-workspace`、三个框架包和三个 demo。它的 INVEST 里 `Small` 打了勾，但没有任何一条 FR 可以在不落地存储布局的前提下单独验收——即"要么全做要么全不做"，这正是 Small 不成立的定义。首轮拆分后的 US-306 仍同时覆盖全部写入口、Index、三框架和 benchmark，2026-08-15 再拆为 US-306a/b/c。现在每个交付故事都能独立跑通「写入 → 刷新 → 读回」这条最小闭环。
 
 ## 术语（与既有 Workspace 插件的命名冲突处置）
 
@@ -54,6 +54,7 @@ v1 不持久化第二份独立 `HEAD`。当前分支仍由既有 `RxDBBranch.act
 | `WorkingTreeState`           | database + branch        | `baseHeadCommitId`、`workingTreeRevision`、未提交条目数                   | CRUD、commit rebase、restore、discard 改变逻辑工作树时递增  |
 | `WorkingTreeEntry`           | database + branch + unit | 实体/事务身份、操作、patch/inverse patch 或快照、当前指纹、来源 change ID | 与业务 CRUD 同一事务写入；完整事务共享同一 unit             |
 | `IndexState` / `IndexEntry`  | database + branch        | `indexRevision`、完整 staged snapshot、来源 working-tree revision         | stage / unstage / commit 以 `indexRevision` 做 CAS          |
+| branch materialization stage | database + attempt       | 目标分支、冻结远端水位、scope manifest、分页 payload、fingerprint         | 只暂存目标分支快照，不写当前业务投影；成功 switch 后删除    |
 | writer lease / upgrade guard | database + writer        | `epoch`                                                                   | 只判断 writer 是否被 schema 迁移 fence，不充当业务版本      |
 
 `WorkingTreeEntry` 是逻辑契约，不强制新增物理表；plan 可以证明复用 `RxDBChange` 或不可变派生表满足同一契约。
@@ -62,10 +63,14 @@ v1 不持久化第二份独立 `HEAD`。当前分支仍由既有 `RxDBBranch.act
 `RxDBChange` 行。
 
 index 必须满足**独立可重放不变量**：任意时刻，全部 `IndexEntry` 只依赖当前 HEAD 与 index 内其他条目，不能依赖
-仍留在工作树但未 stage 的前置操作。选择一个单元时，系统向前扩展所有触及同一实体的未提交前置单元，再按事务成员
-递归闭包；unstage 一个前置单元时向后移除依赖它的 staged 单元。stage / unstage 都返回实际扩展后的稳定单元列表。
-例如 T1 插入 A/B、T2 更新 A，stage T2 必须同时 stage T1；不得提交一个无法应用到 HEAD 的 UPDATE，也不得静默把
-T1 的效果塞进 T2。闭包计算或 CAS 失败时 index 零变化。
+仍留在工作树但未 stage 的前置操作。选择一个单元时，系统先向前扩展所有触及同一实体的未提交前置单元，再按事务成员
+与实体关系递归闭包：被选行引用、但 HEAD 中不存在或版本不足的父行操作必须纳入；父 DELETE 依赖的子 DELETE、关系键更新
+及跨事务外键前置同样必须纳入。unstage 一个前置单元时反向移除所有失去实体、事务或关系依赖的 staged 单元。
+闭包使用 schema relation graph 与实际行身份计算，并按依赖拓扑稳定排序；循环不能拆开时纳入同一原子单元，无法形成
+可重放闭包时返回 `index_dependency_cycle`。stage / unstage 都返回实际扩展后的稳定单元列表。
+例如 T1 插入 Parent P、T2 插入引用 P 的 Child C，stage T2 必须同时 stage T1；T1 插入 A/B、T2 更新 A 时
+stage T2 也必须包含 T1。不得提交无法应用到 HEAD 的 INSERT/UPDATE/DELETE，也不得静默把前置效果塞进后续单元。
+闭包计算或 CAS 失败时 index 零变化。
 
 正常提交、stage 和恢复不会递增 US-304 的 epoch。跨 realm 正确性由数据库事务内的
 `headRevision` / `workingTreeRevision` / `indexRevision` 条件更新保证；writer lease 只提供 writer 身份和迁移期
@@ -90,13 +95,19 @@ discard 与分支操作都必须在实际写事务内验证该 token；另一个
 | stage / re-stage          | active branch token、expected working-tree + index revision      | index revision；工作树未变                    |
 | unstage / clear index     | active branch token、expected index revision                     | index revision                                |
 | commit                    | active branch token、expected head + index revision              | head、index、working-tree revision            |
-| restore / discard         | active branch token、expected head + working-tree + index        | working-tree、index revision                  |
-| switch branch             | expected activation revision、来源/目标分支状态快照              | activation revision                           |
+| restore                   | active branch token、expected head + working-tree + empty index  | working-tree revision；index 不变             |
+| discard                   | active branch token、expected head + working-tree + index        | working-tree；index 非空时递增 index revision |
+| switch branch             | expected activation revision、来源/目标分支状态或物化快照        | activation revision                           |
 | create branch             | active branch token、来源 head + working-tree revision           | 新 ref/state 从 revision 0 开始；来源状态不变 |
 | remove branch             | expected activation revision、目标 ref/state revision、非 active | 原子删除目标可变状态；revision 不复用         |
 
 commit 不因 stage 后的普通编辑单独失败：staged snapshot 已冻结，commit 在事务内把已提交部分从当前
 `WorkingTreeEntry` 中扣除或 rebase，后续编辑仍作为 unstaged 保留。任何语义 no-op 都不递增 revision。
+
+`CommitConflict` 是一次失败命令的类型化诊断值，不是持久状态。普通 stage/commit/switch CAS 失败只返回该值，
+不得把 `status()` 永久标成 conflicted；刷新后状态按最新持久 revision 重建。`status().conflicted` 只允许由仍存在的
+durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` 的 expected revision 与当前 revision 不一致。
+`requireClean` 同样只检查这种可重建冲突，不得把历史上发生过的一次 CAS 失败当成未解决状态。
 
 ### 写入口语义矩阵
 
@@ -110,6 +121,7 @@ commit 不因 stage 后的普通编辑单独失败：staged snapshot 已冻结�
 | `pull()`、autoSync、`pullRepository()`、`sync()`、`bulkSync()` 的实体应用 | 即使为防回推而关闭 `RxDBChange` trigger，也必须写入来源为 `remote_sync` 的未暂存单元；不生成可 push 的本地 change    |
 | 只更新 remoteId、同步水位或审计时间                                       | 不改变业务表，不创建工作树单元，不递增 working-tree revision                                                         |
 | branch switch、baseline/restore 物化、commit residual rebase              | 由对应领域操作显式维护工作树；底层投影重写不得被 trigger 二次记录                                                    |
+| metadata-only 目标分支的远端预取                                           | 只写 branch materialization staging 与独立水位，不得更新当前分支 `RxDBSync` 或业务表                                |
 | QueryCache 的 upsert/delete/过期清理                                      | QueryCache 实体不进入 baseline、status、diff、stage 或 commit；它仍是可重建缓存，不能与版本化实体混在同一事务单元中  |
 | raw SQL、adapter 直写或其他 trigger bypass                                | 业务表写入前以 `commit_capability_mismatch` 拒绝；只有同时持有内部事务能力并原子维护工作树的受信路径可以关闭 trigger |
 
@@ -119,6 +131,9 @@ commit 不因 stage 后的普通编辑单独失败：staged snapshot 已冻结�
 
 ## 启用与存储边界
 
+- US-305 的 system schema migration 进入发布分支前，必须存在当前候选发布提交的真实 bridge ancestor。
+  历史 `v0.0.25` 因后续 squash 已脱离当前主线，只保留审计意义，不得移动、重打或继续引用；发布流程须先从
+  当前主线产出新的 `kind=bridge` 非迁移版本，再由 migration manifest 读取实际 tag/version。
 - commit 能力在从未启用的数据库上默认零副作用；开发者显式启用后创建系统表并执行首次基线迁移，具体配置名在 plan 阶段冻结。
 - 启用是**数据库级且单向**的协议状态。数据库已经启用后，未声明该能力、协议版本不匹配或试图绕过
   working-tree trigger 的 writer 必须在业务写入前以 `commit_capability_mismatch` fail-fast 或进入显式只读模式；
@@ -129,6 +144,10 @@ commit 不因 stage 后的普通编辑单独失败：staged snapshot 已冻结�
 - 首次迁移只为能仅凭本地主库与旧 `RxDBChange` 完整物化的分支生成 baseline。`local=false, remote=true` 且本地内容
   尚不可完整物化的 metadata-only 分支暂不创建 `CommitBranchRef`，也不得伪造空 baseline；它在 US-308 的首次成功
   物化事务内原子建立 `kind=branch_baseline` 与 branch ref。其他本地分支无法物化时迁移整体失败，不留下部分启用状态。
+- metadata-only 分支预取必须使用独立、可恢复的 staging。开始时冻结目标分支身份、配置 sync scope 与远端终止水位；
+  每页 payload、水位和 fingerprint 原子落盘，崩溃后从 staging 续传。预取期间当前业务投影、active 标记、当前分支
+  `RxDBSync` 与工作树全部不变。最终 switch 事务复核完整 scope、终止水位、fingerprint 与 active token 后一次性物化；
+  网络失败、scope 漂移、配额不足或不收敛只留下可安全重试/清理的 staging，不得留下部分目标投影。
 - v1 支持 PGlite、四个 SQLite 浏览器适配器和 desktop SQLite host；它们必须通过同一套
   `workingTreeCommitConformanceSuite`。实验性的 miniprogram 适配器不承诺崩溃恢复，因此不在 v1 支持矩阵内。
 
@@ -136,9 +155,9 @@ commit 不因 stage 后的普通编辑单独失败：staged snapshot 已冻结�
 
 原 US-305 把三框架对称（FR-024）、a11y（FR-025）、异步状态（FR-023）和禁止复活旧导出（FR-028）各写成一条 FR，读起来像"最后统一补"。适用范围固定如下：
 
-1. **三框架对称**：US-306～308 的用户操作面必须在 Angular / React / Vue 提供语义对称的 API；US-305 是无 UI 的存储底座，只要求核心公开类型、TSDoc 和类型契约测试。
+1. **三框架对称**：US-306c、US-307、US-308 的用户操作面必须在 Angular / React / Vue 提供语义对称的 API；US-305/306a/306b 是无 UI 的核心底座，只要求核心公开类型、TSDoc 和类型契约测试。
 2. **异步状态**：命令暴露 loading / success / error，查询在无结果时额外暴露 empty；错误说明操作、对象与恢复建议，不给无 empty 语义的命令伪造 empty 状态。
-3. **可访问性**：US-306～308 的 UI 键盘可达、焦点可见、状态与错误可被屏幕阅读器读出，达到 WCAG 2.1 AA；US-305 不适用 UI a11y。
+3. **可访问性**：US-306c、US-307、US-308 的 UI 键盘可达、焦点可见、状态与错误可被屏幕阅读器读出，达到 WCAG 2.1 AA；US-305/306a/306b 不适用 UI a11y。
 4. **不复活旧导出**：`stagedChange()`、`unstageChange()`、`commit()`、`stagedCount`、`WorkspaceCacheEntry.staged` 在可复核的 `v0.0.24` 公开表面中已不存在；新导出不得与它们同名同签名，也不得使用 `Workspace` 前缀（见上表）。
 5. **加密不降级**：支持后端叠加字段加密时，commit、working-tree、index、restore session 中的加密字段仍以
    versioned envelope 落盘；错误、摘要和 benchmark 报告不得带明文。历史保留风险提示不能代替 at-rest 加密。
@@ -146,14 +165,19 @@ commit 不因 stage 后的普通编辑单独失败：staged snapshot 已冻结�
 ## 依赖顺序
 
 1. [US-304](../stories/collaboration/US-304-writer-lease-migration-fencing.md) 必须先 Done —— 本 Epic 复用 writer 身份与迁移期 epoch fencing，不复用 epoch 充当提交版本
-2. [US-305](../stories/collaboration/US-305-commit-graph-head.md) 建立 commit 图、branch ref、`headRevision` CAS、存储布局与每分支基线迁移
-3. [US-306](../stories/collaboration/US-306-working-tree-index.md) 在其上实现分支级工作树/index、revision CAS、status/diff/stage/commit
-4. [US-307](../stories/collaboration/US-307-restore-session.md) 与 [US-308](../stories/collaboration/US-308-branch-isolation-conflict.md) 依赖 US-306，可并行；二者复用 US-305/306 已完成的安全原语
+2. 当前发布主线先产生新的非迁移 bridge tag；历史 `v0.0.25` 不在当前 ancestry，不能供下一步引用
+3. [US-305](../stories/collaboration/US-305-commit-graph-head.md) 建立 commit 图、branch ref、`headRevision` CAS、存储布局与每分支基线迁移
+4. [US-306a](../stories/collaboration/US-306a-working-tree-capture.md) 完成全部写入口的持久工作树捕获
+5. [US-306b](../stories/collaboration/US-306b-index-commit-state-machine.md) 在其上实现 index、关系依赖闭包、revision CAS、status/diff/stage/commit
+6. [US-306c](../stories/collaboration/US-306c-cross-framework-working-tree.md)、[US-307](../stories/collaboration/US-307-restore-session.md) 与 [US-308](../stories/collaboration/US-308-branch-isolation-conflict.md) 依赖 US-306b，可并行
 
 ## 故事
 
 - ⬜ [US-305 提交图与 HEAD 持久化](../stories/collaboration/US-305-commit-graph-head.md) (High)
-- ⬜ [US-306 工作树、缓存区与提交操作](../stories/collaboration/US-306-working-tree-index.md) (High)
+- 📄 [US-306 工作树、缓存区与提交操作](../stories/collaboration/US-306-working-tree-index.md)（父故事/共享契约，不直接交付）
+  - ⬜ [US-306a 工作树写入捕获与持久化](../stories/collaboration/US-306a-working-tree-capture.md) (High)
+  - ⬜ [US-306b 缓存区与提交状态机](../stories/collaboration/US-306b-index-commit-state-machine.md) (High)
+  - ⬜ [US-306c 三框架工作树交互面与性能门禁](../stories/collaboration/US-306c-cross-framework-working-tree.md) (High)
 - ⬜ [US-307 历史恢复会话](../stories/collaboration/US-307-restore-session.md) (Medium)
 - ⬜ [US-308 分支隔离与跨 realm 冲突检测](../stories/collaboration/US-308-branch-isolation-conflict.md) (Medium)
 
@@ -165,7 +189,7 @@ commit 不因 stage 后的普通编辑单独失败：staged snapshot 已冻结�
 `non-encrypted-hot-path.bench.ts` 的 2% 是同一进程内 plain / encryption 对照，`encryption.bench.ts` 只归档报告，
 都不能直接证明跨提交的 working-tree 性能可接受。本 Epic 采用双门禁：
 
-- 新增 `nx run benchmarks:bench-working-tree`，输出格式与 `benchmarks/reports/` 一致
+- 新增 `pnpm nx run benchmarks:bench-working-tree`，输出格式与 `benchmarks/reports/` 一致
 - 固定基准环境为 Node + PGlite memory；API promise resolve 定义为操作完成，不把 React/Angular/Vue 首次绘制混入核心 benchmark
 - 固定 `WARMUP = 5`、`SAMPLES = 50`。每个 sample 前在计时外恢复同一 fixture：10,000 条实体、100 个 commit，
   每个 commit 100 个完整变更单元；当前工作树 100 个 unstaged 单元、index 50 个 staged 单元
@@ -181,17 +205,17 @@ commit 不因 stage 后的普通编辑单独失败：staged snapshot 已冻结�
   reference JSON 与阈值必须先于发布候选签入，不能在失败后重算基线
 - 浏览器 OPFS / IDB 不承诺相同绝对数字，但三端 E2E 必须记录首次可见状态耗时，防止核心 promise 很快而 UI 长时间无反馈
 
-具体归属：status / diff / stage 的预算在 US-306，restore 的预算在 US-307。
+具体归属：status / diff / stage 的预算在 US-306c，restore 的预算在 US-307。
 
 ## 发布门禁
 
 1. US-304 Done（前置）
-2. US-305 / US-306 / US-307 / US-308 全部 Done；US-306～308 的三框架对称与 a11y 条件满足
+2. US-305 / US-306a / US-306b / US-306c / US-307 / US-308 全部 Done；父契约 US-306 的 AC/FR 全部被子故事覆盖，US-306c/307/308 的三框架对称与 a11y 条件满足
 3. 崩溃与刷新恢复 fixture 全绿：不出现半个 commit、半个事务或半成品 index
 4. PGlite、四个 SQLite 浏览器适配器与 desktop SQLite host 的 `workingTreeCommitConformanceSuite` 全绿
 5. 跨 realm fixture 覆盖 switch 与旧实体 CRUD 竞争、启用/未启用 writer 混用、HEAD/index/working-tree CAS
 6. 支持字段加密的后端通过 commit/index/working-tree/restore 持久化 dump 明文哨兵零命中
-7. `nx run benchmarks:bench-working-tree` 在普通 CI 通过冻结的归一化相对回归门禁，并在 profile 匹配的固定性能
+7. `pnpm nx run benchmarks:bench-working-tree` 在普通 CI 通过冻结的归一化相对回归门禁，并在 profile 匹配的固定性能
    runner 上同时通过绝对 p95；环境不匹配不得产出绿色发布结论
 8. api-baseline 新增导出全部使用 `Commit*` / `WorkingTree*` / `Index*` 前缀，无 `Workspace*` 新导出，也不复用既有 `SwitchBranchOptions`
 9. 公开文档说明数据库级显式启用、工作树与草稿缓存的区别、恢复语义、历史保留敏感旧值的风险、

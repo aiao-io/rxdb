@@ -94,7 +94,7 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 |   P2   | PGlite 原生全文搜索                  | [US-703](stories/future/US-703-pglite-full-text-search.md)               | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                             | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                       |
 |   P2   | 子路径入口纳入 API 表面基线          | [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)         | 版本策略把子路径承诺为公开 API，门禁却只扫主入口——承诺与门禁的差额只能靠人工审查补    | 源入口声明收敛到单一真相源、基线格式扩到多入口、资产入口白名单跳过、三处文档收口                                   |
 
-> US-306 / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
+> US-306a/b/c / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
 > [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定依赖关系。
 
 ### 排期约束
@@ -106,8 +106,9 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 4. US-208 与 US-210 均排在 US-207 之后，复用其抽出的 host 契约。US-208 的两种事务 host 方案（IPC 事务 ID 协议 /
    adapter 完整托管在主进程）、US-210 的两种事务方案（配置单连接池 / Rust command 持有事务）都必须先通过同一套事务与事件测试再冻结选择。
 5. US-305 必须排在 US-304 之后：写事务复用 writer 身份与迁移期 epoch fencing，普通提交竞争使用独立的
-   `headRevision` CAS，不把 epoch 当业务版本。epic-006 内部顺序为 **US-305 → US-306 → (US-307 ∥ US-308)**；
-   US-305/306 先交付数据安全原语，US-307/308 再并行交付恢复与分支/冲突用户面。
+   `headRevision` CAS，不把 epoch 当业务版本。US-305 的 schema migration 前还必须从当前发布主线产生新的有效
+   bridge ancestor；历史 `v0.0.25` 已脱离当前 ancestry。epic-006 内部顺序为
+   **US-305 → US-306a → US-306b → (US-306c ∥ US-307 ∥ US-308)**。
 6. US-703 应复用现有搜索公开 API 和跨框架 parity fixture，不为 PGlite 增加 SQLite 专属 fallback。
 7. ~~US-209 只做门禁与文档收尾~~ → 2026-08-15 已 Done。约束仍然生效并转为**长期口径**：小程序适配器的能力承诺不得扩大，
    WAL、多页面并发、崩溃恢复保证和微信以外的小程序平台都不在范围内；文档一律写「实验性」，
@@ -139,6 +140,11 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 发布改为手工执行后，这类漂移没有自动门禁兜底——**手工发布前必须先跑绿 `pnpm test-all`**。
 
 ## 下一次发布计划（桥接版本）
+
+> **2026-08-15 主线复核**：下文保留 `v0.0.25` 的历史执行记录，但该 tag 的 commit 已因后续 squash
+> 脱离当前发布主线，`git merge-base --is-ancestor v0.0.25 HEAD` 现为失败。它不得被移动或重打，也不能再作为
+> US-305 的 migration bridge。下一次 schema migration 前，必须从届时的发布主线重新发布一个 `kind=bridge`
+> 的非迁移版本；实际 tag/version 由 release manifest 冻结，不在需求里预猜。
 
 [US-304](stories/collaboration/US-304-writer-lease-migration-fencing.md) 的 AC1/AC11 卡在「本仓库没有任何 tag 被声明为桥接版本」。
 决策已定：**另打一个新 tag 作为桥接版本，不追认 `v0.0.24`**。本节固化发布顺序与关闭判据。
@@ -286,8 +292,8 @@ AC11 的操作列是「发布迁移版本」，而 `0.0.25` 不升级任何系�
 
 按现有排期，第一个带迁移的交付是 [US-305](stories/collaboration/US-305-commit-graph-head.md)（其范围含「每分支 baseline commit 与一次性迁移」）。
 **2026-08-15 已决策转移**：AC11 挂到 US-305 的 `inherited_acs`，US-304 只对桥接协议和迁移 fencing
-本身负责。这样 US-304 可以在补齐 AC6 后 Done，US-305 随后用首个真实迁移发布验收
-`bridge.tag=v0.0.25`、`oldBundlePolicy` 和 migration release gate，不再形成循环依赖。
+本身负责。这样 US-304 可以在补齐 AC6 后 Done；US-305 在 schema 迁移前先验证当前主线存在有效 bridge ancestor，
+随后用首个真实迁移发布验收该 bridge manifest、`oldBundlePolicy` 和 migration release gate，不再形成循环依赖。
 
 （AC6 同样不在此列，但理由不同：它不需要转移，只缺一条自己的用例——
 「writer 挂起 → 别的 realm 完成迁移抬 epoch → 该 writer 恢复后写入被 fence」。

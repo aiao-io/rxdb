@@ -115,7 +115,7 @@ export class RxDB {
 
   #plugin_map = new Map<Plugin, IRxDBPlugin>();
 
-  #plugin_install_promises: Promise<void>[] = [];
+  #plugin_install_promises = new Map<IRxDBPlugin, Promise<void>>();
 
   #connected_sub = new BehaviorSubject<boolean>(false);
 
@@ -405,8 +405,13 @@ export class RxDB {
       return pending;
     }
 
-    // 创建连接 Promise 并缓存
+    // 先入缓存再 init：插件 install 可能同步回呼 connect()，必须命中同一条 Promise。
+    let startConnect!: () => void;
+    const started = new Promise<void>(resolve => {
+      startConnect = resolve;
+    });
     const connectPromise = (async () => {
+      await started;
       this.init();
       const adapter = await this.getAdapter(adapterName);
       await adapter.connect();
@@ -433,8 +438,13 @@ export class RxDB {
         await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
       }
       this.#connected_adapters.add(adapterName);
-      await this.#await_plugin_installs();
       this.#connected_sub.next(true);
+      try {
+        await this.#await_plugin_installs();
+      } catch (error) {
+        this.#connected_sub.next(false);
+        throw error;
+      }
       return adapter;
     })();
 
@@ -445,6 +455,7 @@ export class RxDB {
       }
     });
     this.#connect_promise_map.set(adapterName, connectPromise);
+    startConnect();
     return connectPromise;
   }
 
@@ -596,7 +607,7 @@ export class RxDB {
     this.#local_adapter_sub.next('');
     this.#remote_adapter_sub.next('');
     this.#transaction_stack = [];
-    this.#plugin_install_promises = [];
+    this.#plugin_install_promises.clear();
     this.#rxdb_initialized = false;
     this.#connected_sub.next(false);
   }
@@ -689,7 +700,7 @@ export class RxDB {
       () => undefined,
       () => undefined
     );
-    this.#plugin_install_promises.push(tracked);
+    this.#plugin_install_promises.set(plugin, tracked);
   }
 
   #track_plugin_install(plugin: IRxDBPlugin): Promise<void> {
@@ -712,18 +723,20 @@ export class RxDB {
    * 表就绪后等待插件安装。失败清空记录，允许下一次 `connect()` 重试。
    */
   async #await_plugin_installs(): Promise<void> {
-    if (this.#plugin_install_promises.length === 0) {
-      this.#install_plugin();
+    for (const plugin of this.#plugin_map.values()) {
+      if (!this.#plugin_install_promises.has(plugin)) {
+        this.#install_one_plugin(plugin);
+      }
     }
-    const pending = this.#plugin_install_promises.slice();
-    try {
-      await Promise.all(pending);
-    } catch (error) {
-      this.#plugin_install_promises = [];
-      throw error
-    } catch (err) {
-      console.error(`[RxDB] Plugin '${plugin.name}' install failed:`, err);
+    const entries = [...this.#plugin_install_promises.entries()];
+    const results = await Promise.allSettled(entries.map(([, pending]) => pending));
+    let firstError: unknown;
+    for (const [index, result] of results.entries()) {
+      if (result.status !== 'rejected') continue;
+      this.#plugin_install_promises.delete(entries[index][0]);
+      firstError ??= result.reason;
     }
+    if (firstError !== undefined) throw firstError;
   }
 
   /**

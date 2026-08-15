@@ -6,6 +6,18 @@
 
 ## Story 状态变更
 
+### 2026-08-15 — epic-006 二次评审与 US-306 拆分
+
+- 复核发现历史 bridge `v0.0.25` 的 tagged commit 经后续 squash 脱离当前发布主线，不能通过 migration gate 的
+  ancestor 校验。US-305 改为从 release manifest 读取当前主线上的有效 bridge；禁止移动或重打历史 tag。
+- metadata-only 远端分支首次切换改为 durable materialization staging：冻结终止水位/scope，分页落盘，最终 switch
+  事务一次性物化；现有绑定当前分支并直接写业务表的 pull 路径不能直接复用。
+- Index 独立重放闭包补齐跨事务实体关系依赖，覆盖 Parent→Child INSERT、Child→Parent DELETE、关系键更新与环。
+- `CommitConflict` 收敛为一次性命令诊断；durable `status().conflicted` 只由 restore session 派生。
+- restore 固定为只生成未暂存工作树，流程明确为 `restore → stage → commit`。
+- US-306 保留为父契约并拆出 US-306a/b/c，分别承接写入口捕获、Index/commit 状态机、三框架与性能门禁。
+  派生统计 Backlog 11 → 14，合计 47 → 50；这是既有范围拆分，不是新增产品范围。
+
 ### 2026-08-15 — 新增 US-601 与 epic-007（缺口登记，非新增范围）
 
 - 上一条 US-209 收尾留下的「扫描子路径**导出表面**」缺口由新故事

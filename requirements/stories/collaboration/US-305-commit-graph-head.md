@@ -10,7 +10,7 @@ tags: [collaboration, commit, head, persistence, migration]
 inherited_acs:
   - from: US-304
     ac: 11
-    note: 本故事是首个真实系统迁移发布，负责用 v0.0.25 bridge tag 验证 oldBundlePolicy 与发布门禁。
+    note: 本故事是首个真实系统迁移发布，负责引用当前发布主线祖先上的有效 bridge tag，验证 oldBundlePolicy 与发布门禁。
 ---
 
 <!--
@@ -76,6 +76,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - commit/ChangeSet 对字段加密 envelope 的原样持久化与明文泄漏门禁
 - 损坏或不兼容 commit 记录的隔离与诊断
 - 与 `RxDBChange`、undo/redo、`restoreEntity` 的兼容边界
+- 真实 migration 发布前的 bridge lineage 预检：只接受当前发布提交祖先上的 bridge tag，不接受内容相同但经 squash 脱离祖先链的 tag
 
 ### Out of Scope
 
@@ -145,7 +146,12 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - **FR-022**：系统 MUST 对损坏或不兼容的 commit 记录进行隔离和诊断。不可达孤立记录可单独隔离；HEAD 或可达祖先损坏时该分支 MUST fail-closed 为 `corrupted_read_only`，保留原始 ref 与记录，不得自动回退到较早 commit、空工作树或内存模式。
 - **FR-027**：commit 历史 MUST 可审计，至少记录稳定 commit ID、父节点、分支、作者标识、消息、创建时间、变更数量和 schema/数据版本；不得记录无法恢复的数据引用。
 - **FR-029**：普通 commit MUST 在同一数据库事务内以 expected `headRevision` 条件更新 `CommitBranchRef`；CAS 失败时 commit、ChangeSet 与 branch ref 全部不可见。US-304 epoch MUST 只用于迁移 fencing，不得代替 `headRevision`。
-- **FR-030**：本故事作为首个真实系统迁移发布，MUST 承接 US-304 AC11：发布清单使用 `bridge.tag=v0.0.25`、启用明确的 `oldBundlePolicy`，并通过真实 git tag 的 migration release gate。
+- **FR-030**：本故事作为首个真实系统迁移发布，MUST 承接 US-304 AC11。实现进入发布分支前，发布负责人 MUST 从
+  最近一次已验证、且满足 `git merge-base --is-ancestor <bridge-tag> <release-commit>` 的 bridge manifest 读取
+  `bridge.tag` / `bridge.version`，启用明确的 `oldBundlePolicy`，并通过真实 git tag 的 migration release gate。
+  `v0.0.25` 虽是历史 bridge 发布，但当前主线经 squash 后不再包含其 tagged commit，MUST NOT 作为本故事的迁移锚点；
+  不得重打、移动或伪造已发布 tag。若发布主线没有有效 bridge ancestor，必须先从该主线发布新的非迁移 bridge 版本，
+  再开始本故事的 system schema 迁移发布。
 - **FR-036**：普通 commit MUST 以 database + immutable branch generation + `operationId` 建立唯一幂等约束。相同请求重试返回原 commit；相同 key 的 message、author、parent 或 ChangeSet 指纹不同则返回稳定错误，不得覆盖原记录。删除并同名重建的分支使用新 generation，不与旧幂等键碰撞。
 - **FR-037**：首次启用 MUST 持久化数据库级 capability/protocol 状态。此后所有 writer 在连接时协商；未启用或不兼容 writer 不得继续裸写业务表。
 - **FR-038**：commit、ChangeSet 与 baseline MUST 保持既有字段加密 at-rest 契约；持久化路径不得先解密再把明文写入新系统表，日志、错误与摘要不得包含加密字段值。
@@ -191,6 +197,8 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - 启用事务先收敛 active 分支基数：零 active 沿用 `main` 恢复语义，多 active 直接失败；成功后用数据库约束维持至多一个 active，并在连接时验证至少一个。
 - 启动图校验不得“修复”不可变历史。可达链损坏时保留原 ref 和原始行，把分支标记为派生的只读损坏态；显式历史修复工具不在本 Epic 范围。
 - Workspace NEW 草稿继续由插件独立恢复；commit 迁移不读取、不搬迁、不删除 IndexedDB 记录，草稿保存后按普通 INSERT 处理。
+- migration release 不能按版本号猜 bridge。候选 tag 必须同时满足：manifest 声明 `kind=bridge`、包版本与 tag 一致、
+  含 writer lease 协议、tag commit 是候选发布提交的真实祖先。cherry-pick 或 squash 后内容相同不等于 ancestry 成立。
 
 ## 非功能要求
 

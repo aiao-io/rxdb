@@ -28,5 +28,6 @@ owner: jimmy
 - ✅ [US-803 本地数据加密](../stories/future/US-803-local-encryption.md) (Medium) — `@aiao/rxdb-adapter-encrypted` 透明加密包装层
 
 > 原挂在本 Epic 下的 US-305「持久化 Git 式工作区提交」已升级为
-> [epic-006 本地工作树与提交历史](./epic-006-working-tree-commits.md) 并拆成 US-305～US-308。
+> [epic-006 本地工作树与提交历史](./epic-006-working-tree-commits.md) 并拆成 US-305～US-308；
+> 2026-08-15 又把仍然过大的 US-306 拆为 US-306a/b/c，US-306 本体保留为父契约。
 > 本 Epic 的 `status: Done` 因此成立——它不再持有未完成故事。

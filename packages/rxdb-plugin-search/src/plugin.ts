@@ -13,7 +13,7 @@ import {
     type IRxDBPlugin,
     type Plugin
 } from '@aiao/rxdb';
-import { filter, firstValueFrom, isObservable, type Observable } from 'rxjs';
+import { filter, firstValueFrom, from, ignoreElements, isObservable, merge, type Observable } from 'rxjs';
 
 import type { FtsField } from '@aiao/rxdb-adapter-sqlite-core';
 import { assertSupportedAdapter } from './core/adapter-guard.js';
@@ -353,7 +353,9 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     // 主表由 RxDB 在 connect() 流程中创建。不能 await connect() 本身：
     // connect() 会在 connected$ 之后再 await 插件 install，互相等待会死锁。
     const connecting = this.rxdb.connect(localAdapterName);
-    await Promise.race([firstValueFrom(this.rxdb.connected$.pipe(filter(Boolean))), connecting]);
+    await firstValueFrom(
+      merge(this.rxdb.connected$.pipe(filter(Boolean)), from(connecting).pipe(ignoreElements()))
+    );
 
     const adapter = await firstValueFrom(this.rxdb.localAdapter$);
     if (!adapter.rawQuery) {

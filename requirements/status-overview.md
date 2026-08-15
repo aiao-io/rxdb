@@ -12,10 +12,10 @@
 | :------------- | :--- |
 | ✅ Done        | 33   |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 11   |
+| 📝 Backlog     | 14   |
 | 🚧 In Progress | 3    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 47   |
+| **合计**       | 50   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，请勿手写维护。
 > 2026-08-13 的评审把 US-012 拆成 US-012a/b/c、US-207 拆出 US-208、US-305 升级为 epic-006 并拆成 US-305～US-308，Backlog 因此从 4 增至 11；这是拆分而不是新增范围。
@@ -23,6 +23,8 @@
 > 同日 US-207 二次拆分：Tauri 半边迁至 [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)（Backlog），US-207 收敛到 Electron 并转 `In Progress`。Backlog 一进一出仍为 11，合计 45 → 46。
 > 2026-08-15 新增 [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)（Backlog）认领下方「子路径导出表面」缺口，并为它新建 [epic-007](epics/epic-007-public-api-gates.md) 与 `stories/tooling/`（编号段 US-601~699，此前未分配）。这是把已存在的缺口登记成故事，不是新增范围；Backlog 11 → 12，合计 46 → 47。
 > 同日 [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md) 开工转 `In Progress`（Backlog 12 → 11，In Progress 2 → 3，合计不变）。
+> 同日二次评审确认 US-306 仍同时持有写入口捕获、Index 状态机、三框架与 benchmark，INVEST「Small」仍不成立；
+> 保留 US-306 为父契约并拆出 US-306a/b/c。三个子故事是既有范围的交付切片，Backlog 11 → 14，合计 47 → 50。
 
 ## 项目统计
 
@@ -121,11 +123,14 @@
 
 由 2026-08-13 的评审从原 US-305 升级而来：原故事持有 4 个 user story、28 条 FR、7 个关键实体，
 横跨 `packages/rxdb/src/version/`、`src/system/`、workspace 插件、三个框架包与三个 demo，INVEST「Small」不成立。
-拆分后每个故事都能独立证明「写入 → 刷新 → 读回」。交付顺序为
-**US-305 → US-306 → (US-307 ∥ US-308)**：前两项先完成存储与 revision CAS，后两项可并行。
+拆分后每个交付故事都能独立证明「写入 → 刷新 → 读回」。交付顺序为
+**US-305 → US-306a → US-306b → (US-306c ∥ US-307 ∥ US-308)**。
 
 - ⬜ [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 基础层
-- ⬜ [US-306 工作树、缓存区与提交操作](stories/collaboration/US-306-working-tree-index.md)
+- 📄 [US-306 工作树、缓存区与提交操作](stories/collaboration/US-306-working-tree-index.md) — **父故事/共享契约，不直接交付**
+  - ⬜ [US-306a 工作树写入捕获与持久化](stories/collaboration/US-306a-working-tree-capture.md)
+  - ⬜ [US-306b 缓存区与提交状态机](stories/collaboration/US-306b-index-commit-state-machine.md)
+  - ⬜ [US-306c 三框架工作树交互面与性能门禁](stories/collaboration/US-306c-cross-framework-working-tree.md)
 - ⬜ [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md)
 - ⬜ [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — 依赖 US-304 收敛
 
