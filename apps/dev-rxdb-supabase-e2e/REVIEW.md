@@ -2,7 +2,7 @@
 
 ## 结论
 
-🔴 不通过。项目叫 Supabase E2E，实际只启动 local 模式并验证本地 UI；同步、冲突和 RLS 一条都没测，名称和质量门禁都在制造安全感。
+� 部分通过。本地 UI smoke 与配置门禁已修；`REMOTE_E2E=true` 下已有 push/pull 成功路径和「未 push 不可见」。冲突、重连、RLS 仍缺，且没有隔离 Supabase 实例。不要为了关单去造冲突/RLS UI。
 
 ## 评审基线
 
@@ -16,7 +16,7 @@
 
 | ID               | 级别    | 位置                      | 问题与影响                                                                                                                                                                                | 建议                                                                                                                                    |
 | ---------------- | ------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| SUPABASE-E2E-001 | P1      | `src/home.spec.ts:7`      | 整个 suite 只验证 home、local Todo CRUD 和游标分页，配置又固定启动 `serve-local`。它从未连接 Supabase，也不验证 push/pull、断线重连、冲突、用户隔离或 RLS；核心集成坏掉时该项目仍会全绿。 | 建立隔离 Supabase 测试实例，使用至少两个浏览器上下文验证双向同步、冲突收敛、重连补偿和跨用户 RLS 拒绝；测试结束按唯一命名空间清理数据。 |
+| SUPABASE-E2E-001 | 🟡 部分 | `src/remote-sync.spec.ts` | 默认套件仍是 local UI smoke。`REMOTE_E2E=true` 已覆盖：跨上下文 push/pull 成功路径、未 push 的 Todo 在第二上下文 pull 后不可见。仍缺冲突收敛、重连补偿、跨用户 RLS；无隔离实例时这些路径不可测。 | 有隔离实例再补冲突/重连/RLS。不要在 demo 里造冲突/RLS UI。 |
 | SUPABASE-E2E-002 | ✅ 已修 | `playwright.config.ts:6`  | 设置 `BASE_URL` 只改变 Playwright 导航地址，`webServer` 仍无条件启动并等待 `localhost:8312`。针对已部署环境的 CI 仍会拉起无关本地服务，甚至因本地端口不可用而在访问远端前失败。           | 有 `BASE_URL` 时 `webServer` 置 `undefined`，本地隔离守卫同时跳过。                                                                     |
 | SUPABASE-E2E-003 | ✅ 已修 | `playwright.config.ts:35` | `reuseExistingServer: true` 在 CI 也生效，测试可能复用遗留、错误版本或错误配置的 8312 服务，结果不可复现。                                                                                | 改为 `!isCI`；端口挪到 8313 避开旧 `serve-local` 残留进程（`@nx/web` file-server 端口被占时会静默换端口）。                             |
 
@@ -30,8 +30,12 @@ flaky 的原因（本地 `.env` 指向的 Supabase 一旦活着，绝对数量�
 `import.meta.env` 定死为无 Supabase 配置；`src/home.spec.ts` 加了自动 fixture，任何越过 baseURL
 的 http(s) 请求都会让用例失败。
 
-因此 SUPABASE-E2E-001 **不因本次修复而关闭**：这三条用例被明确定位为确定性的本地 UI smoke，真实的
-push/pull、冲突收敛、重连补偿与 RLS 覆盖仍然为 0，需要独立的、带隔离 Supabase 实例的套件来补。
+因此默认套件仍是确定性的本地 UI smoke。`REMOTE_E2E=true` 之后补了：
+
+- 跨浏览器上下文 push/pull 成功路径
+- 本地创建但未 push 的 Todo，第二上下文 pull 后不可见
+
+仍缺：冲突收敛、重连补偿、跨用户 RLS。没有隔离 Supabase 实例时这些路径不可测，不要为了关单去造冲突/RLS UI。
 
 ## 其余观察与测试缺口
 
