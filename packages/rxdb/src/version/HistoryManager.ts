@@ -276,6 +276,17 @@ export class HistoryManager {
   #firstConnectedAt: Date | null = null;
 
   /**
+   * `rxdb.firstConnectedAt` 不可用时的会话起点：本实例的构造时刻。
+   *
+   * gateway 的 leader 选举在没有 `navigator.locks` 的环境（Node / Tauri 测试宿主）走
+   * BroadcastChannel 降级路径，选举完成前 `rxdb.firstConnectedAt` 一直是 undefined；
+   * `multiInstance: false` 时则永远是。回退值必须在构造时就定格——若等到首次取用
+   * （可能就是 undo 本身）才取 `new Date()`，本会话所有已落库的变更都早于该水位，
+   * undo 会静默变成 no-op。构造发生在连接完成之前，恒早于本会话的任何变更，是安全下界。
+   */
+  readonly #sessionStartedAt = new Date();
+
+  /**
    * 每个分支一份 undo session
    *
    * 同步只改写当前分支的数据，清空 undo 边界自然也只该落在当前分支上。旧实现是单一全局
@@ -1273,7 +1284,7 @@ export class HistoryManager {
 
   #getFirstConnectedAt(): Date {
     if (!this.#firstConnectedAt) {
-      this.#firstConnectedAt = this.rxdb.firstConnectedAt ?? new Date();
+      this.#firstConnectedAt = this.rxdb.firstConnectedAt ?? this.#sessionStartedAt;
     }
     return this.#firstConnectedAt;
   }
