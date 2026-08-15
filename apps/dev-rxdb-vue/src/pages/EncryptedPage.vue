@@ -5,7 +5,7 @@ import { EncryptedUser } from '@aiao/rxdb-test/encrypted';
 import { injectRxDB } from '@aiao/rxdb-vue';
 import { Lock, LockOpen, Plus, RefreshCw, Trash2 } from '@lucide/vue';
 import { firstValueFrom, Subscription } from 'rxjs';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, markRaw, onMounted, onUnmounted, ref } from 'vue';
 
 const rxdb = injectRxDB()!;
 
@@ -30,7 +30,9 @@ async function loadUsers() {
   error.value = null;
   try {
     const repo = rxdb.entityManager.getRepository(EncryptedUser);
-    users.value = await firstValueFrom(repo.findAll({ where: { combinator: 'and', rules: [] } }));
+    users.value = (await firstValueFrom(repo.findAll({ where: { combinator: 'and', rules: [] } }))).map(user =>
+      markRaw(user)
+    );
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
