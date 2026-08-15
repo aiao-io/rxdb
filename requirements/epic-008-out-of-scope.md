@@ -4,14 +4,6 @@
 **状态**：停车。不是故事，没有 AC，**先别做**。  
 **来源**：对照 Cordis 读完 008 后划出的后续；并收口第一轮已标「Epic 008 外」的两项。
 
-对照：
-
-- [Epic 008](epics/epic-008-lifecycle-scope.md)
-- [第二轮评审](epic-008-lifecycle-scope-review-2.md)
-- [第一轮评审](epic-008-lifecycle-scope-review.md)（Provider 绑定 / operation context）
-
----
-
 ## 这份文件是什么
 
 008 的判据只有一条：资源获取与释放被拆成两处、靠人工保持对称。  
