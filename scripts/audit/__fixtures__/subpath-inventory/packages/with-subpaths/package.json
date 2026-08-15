@@ -1,0 +1,9 @@
+{
+  "name": "@fixture/with-subpaths",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./testing": "./src/testing.ts"
+  }
+}

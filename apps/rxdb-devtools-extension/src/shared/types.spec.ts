@@ -94,6 +94,23 @@ describe('isDevToolsMessage —— 严格协议校验（P0-1）', () => {
     expect(isDevToolsMessage({ ...envelope, direction: 'devtools-to-page', type: 'PING', tabId: 7 })).toBe(true);
   });
 
+  it('接受合法 session 字符串', () => {
+    expect(isDevToolsMessage({ ...envelope, direction: 'devtools-to-page', type: 'PING', session: 'tok-1' })).toBe(true);
+    expect(
+      isDevToolsMessage({
+        ...envelope,
+        direction: 'devtools-to-page',
+        type: 'SWITCH_BRANCH',
+        payload: 'main',
+        session: 'tok-1'
+      })
+    ).toBe(true);
+  });
+
+  it.each(['', '   ', 1, null])('拒绝非法 session %#', session => {
+    expect(isDevToolsMessage({ ...envelope, direction: 'devtools-to-page', type: 'PING', session })).toBe(false);
+  });
+
   describe('扩展自有类型（核心库不认识，必须由扩展这侧同等严格地校验）', () => {
     /**
      * P1-4：`INIT` 原先是一个**绕过协议的裸对象** `{ type: 'INIT', tabId }` ——

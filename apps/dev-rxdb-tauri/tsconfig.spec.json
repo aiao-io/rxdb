@@ -28,6 +28,9 @@
       "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-adapter-desktop/tsconfig.lib.json"
+    },
+    {
       "path": "../../modules/angular/tsconfig.lib.json"
     },
     {

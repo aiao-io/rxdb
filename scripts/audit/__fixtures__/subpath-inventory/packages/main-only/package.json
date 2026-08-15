@@ -1,0 +1,7 @@
+{
+  "name": "@fixture/main-only",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/index.ts"
+  }
+}

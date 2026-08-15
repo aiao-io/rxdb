@@ -35,6 +35,7 @@
 | `collaboration/` | 版本控制、撤销/重做、迁移协作                               | US-301~399 |
 | `ui/`            | 代码编辑器等跨框架 UI 组件                                  | US-401~499 |
 | `plugin/`        | RxDB plugin 包（workspace / storage / graph）               | US-501~599 |
+| `tooling/`       | 门禁、基线与发布工具链（不是产品能力）                      | US-601~699 |
 | `future/`        | 中长期规划                                                  | US-700~999 |
 
 ## 状态定义
@@ -91,10 +92,10 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 |   P2   | 字段值校验与生成器透传               | [US-012c](stories/core/US-012c-field-value-validation-codegen.md)        | 有了 DTO 才谈得上运行时校验；单独成条以免和 DTO 一起变成不可验收的大块                | `validateFieldValue()`、D12 归一化、生成器透传、三框架 fixture 复用                                                |
 |   P2   | Electron PGlite 数据目录与事务宿主   | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)       | PGlite callback transaction 不能跨 IPC 序列化，需要 SQLite 路径不需要的事务 host 协议 | 主进程 data directory、事务 ID 协议或主进程托管 adapter、跨进程类型保真                                            |
 |   P2   | PGlite 原生全文搜索                  | [US-703](stories/future/US-703-pglite-full-text-search.md)               | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                             | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                       |
-|   P3   | 小程序适配器门禁与文档收尾           | [US-209](stories/adapter/US-209-miniprogram-adapter.md)                  | 包已发布但不在覆盖率 baseline、不在兼容性矩阵，且根 README 声称支持 Alipay 与实现不符 | 覆盖率 baseline 登记、`/runtime` 子路径 API baseline 决策、compatibility.md、README 表述修正                       |
+|   P2   | 子路径入口纳入 API 表面基线          | [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)         | 版本策略把子路径承诺为公开 API，门禁却只扫主入口——承诺与门禁的差额只能靠人工审查补    | 源入口声明收敛到单一真相源、基线格式扩到多入口、资产入口白名单跳过、三处文档收口                                   |
 
-> US-306a / US-306b / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
-> [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定顺序。
+> US-306a/b/c / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
+> [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定依赖关系。
 
 ### 排期约束
 
@@ -104,11 +105,21 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 3. US-207 必须先锁定 Electron SQLite 的真实连接语义并抽出共享桌面 host 契约；无法保证单连接事务时应 fail-fast，不得降级成伪事务。
 4. US-208 与 US-210 均排在 US-207 之后，复用其抽出的 host 契约。US-208 的两种事务 host 方案（IPC 事务 ID 协议 /
    adapter 完整托管在主进程）、US-210 的两种事务方案（配置单连接池 / Rust command 持有事务）都必须先通过同一套事务与事件测试再冻结选择。
-5. US-305 必须排在 US-304 之后：其跨 realm 提交校验建立在 writer lease / epoch fencing 之上，不允许另起一套协调协议。
-   epic-006 内部顺序为 **US-305 → US-306a → (US-306b ∥ US-307 ∥ US-308)**：US-306a 之后的三个故事以其冻结的导出契约为共同输入，可并行；US-308 额外要求 US-304 已 Done。
+5. US-305 必须排在 US-304 之后：写事务复用 writer 身份与迁移期 epoch fencing，普通提交竞争使用独立的
+   `headRevision` CAS，不把 epoch 当业务版本。US-305 的 schema migration 前还必须从当前发布主线产生新的有效
+   bridge ancestor；历史 `v0.0.25` 已脱离当前 ancestry。epic-006 内部顺序为
+   **US-305 → US-306a → US-306b → US-306c →（US-307 ∥ US-308）**。
+   US-307 / US-308 的核心持久层半边可与 US-306c 并行开工，但三框架入口与 benchmark 采样必须复用
+   US-306c 冻结的 `useWorkingTree()` 契约与 `bench-working-tree` target，排在其后。
 6. US-703 应复用现有搜索公开 API 和跨框架 parity fixture，不为 PGlite 增加 SQLite 专属 fallback。
-7. US-209 只做门禁与文档收尾，不扩大小程序适配器的能力承诺：WAL、多页面并发、崩溃恢复保证和微信以外的小程序平台都不进入范围；
-   文档必须写明「实验性」而不是把它列成与 wa-sqlite 同级的受支持适配器。
+7. ~~US-209 只做门禁与文档收尾~~ → 2026-08-15 已 Done。约束仍然生效并转为**长期口径**：小程序适配器的能力承诺不得扩大，
+   WAL、多页面并发、崩溃恢复保证和微信以外的小程序平台都不在范围内；文档一律写「实验性」，
+   不得把它列成与 wa-sqlite 同级的受支持适配器（落点见 [compatibility.md](../website/docs/compatibility.md) 的能力边界专节）。
+   US-209 AC#8 顺带留下一个新缺口：`exports` 子路径入口的**导出表面**不受 api-surface 门禁保护
+   （清单本身已由 `KNOWN_UNCOVERED_SUBPATHS` 核对），见
+   [status-overview.md](status-overview.md) 的「已知的需求覆盖缺口」。
+   该缺口 2026-08-15 由 [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md) 认领；
+   在它交付之前，改动这 12 个子路径入口的导出**必须在 PR 描述里人工声明破坏性**。
 
 ### 建议补充的验收维度
 
@@ -131,6 +142,11 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 发布改为手工执行后，这类漂移没有自动门禁兜底——**手工发布前必须先跑绿 `pnpm test-all`**。
 
 ## 下一次发布计划（桥接版本）
+
+> **2026-08-15 主线复核**：下文保留 `v0.0.25` 的历史执行记录，但该 tag 的 commit 已因后续 squash
+> 脱离当前发布主线，`git merge-base --is-ancestor v0.0.25 HEAD` 现为失败。它不得被移动或重打，也不能再作为
+> US-305 的 migration bridge。下一次 schema migration 前，必须从届时的发布主线重新发布一个 `kind=bridge`
+> 的非迁移版本；实际 tag/version 由 release manifest 冻结，不在需求里预猜。
 
 [US-304](stories/collaboration/US-304-writer-lease-migration-fencing.md) 的 AC1/AC11 卡在「本仓库没有任何 tag 被声明为桥接版本」。
 决策已定：**另打一个新 tag 作为桥接版本，不追认 `v0.0.24`**。本节固化发布顺序与关闭判据。
@@ -276,11 +292,10 @@ AC11 的操作列是「发布迁移版本」，而 `0.0.25` 不升级任何系�
 清单切 `kind=migration`、`bridge.tag` / `bridge.version` 指向本次桥接版本、`oldBundlePolicy.strategy` 四选一、
 `minimumVersion` 不低于桥接版本、`enforced=true`。
 
-按现有排期，第一个带迁移的交付是 [US-305](stories/collaboration/US-305-commit-graph-head.md)（其范围含「baseline commit 与一次性迁移」）。
-因此有两条路可选，**尚未决策**：
-
-- **等**：AC11 留在 US-304，US-304 维持 `In Progress` 直到下一个迁移周期。诚实，但把整条 story 拖长一个周期。
-- **转**：按[跨故事 AC 转移](#跨故事-ac-转移)把 AC11 挂到 US-305 的 `inherited_acs`，US-304 只对桥接协议本身负责。
+按现有排期，第一个带迁移的交付是 [US-305](stories/collaboration/US-305-commit-graph-head.md)（其范围含「每分支 baseline commit 与一次性迁移」）。
+**2026-08-15 已决策转移**：AC11 挂到 US-305 的 `inherited_acs`，US-304 只对桥接协议和迁移 fencing
+本身负责。这样 US-304 可以在补齐 AC6 后 Done；US-305 在 schema 迁移前先验证当前主线存在有效 bridge ancestor，
+随后用首个真实迁移发布验收该 bridge manifest、`oldBundlePolicy` 和 migration release gate，不再形成循环依赖。
 
 （AC6 同样不在此列，但理由不同：它不需要转移，只缺一条自己的用例——
 「writer 挂起 → 别的 realm 完成迁移抬 epoch → 该 writer 恢复后写入被 fence」。
@@ -317,5 +332,6 @@ PR 描述：
 - [未来功能](epics/epic-004-future-features.md)
 - [类型系统演进](epics/epic-005-type-system-evolution.md)
 - [本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
+- [公开 API 门禁](epics/epic-007-public-api-gates.md)
 - [状态概览](status-overview.md)
 - [完成记录](CHANGELOG.md)

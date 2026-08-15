@@ -85,7 +85,7 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 - desktop：Electron 应用私有目录里的真实 SQLite 文件，`node:sqlite` 落在特权侧，renderer 零文件系统权限
 - Supabase：PostgREST + Realtime + RPC 推送，远程同步
 - 加密包装器：AES-GCM-256 + WebCrypto，透明字段级加解密
-- 小程序：微信 / Alipay 本地持久化与响应式查询
+- 小程序：微信小程序逻辑层本地持久化与响应式查询（**实验性**，仅微信，强制单连接、无崩溃恢复保证）
 
 **插件生态**
 
@@ -151,7 +151,7 @@ aiao/
 │   ├── rxdb-adapter-sqliteai/       # SQLite AI 适配器（向量 + AI 函数）
 │   ├── rxdb-adapter-desktop/        # 桌面适配器（Electron + node:sqlite 文件）
 │   ├── rxdb-adapter-encrypted/      # 字段级加密（AES-GCM-256）
-│   ├── rxdb-adapter-miniprogram/    # 小程序适配器（微信/Alipay）
+│   ├── rxdb-adapter-miniprogram/    # 小程序适配器（仅微信，实验性）
 │   ├── rxdb-adapter-pglite/         # PGlite 适配器（PostgreSQL）
 │   ├── rxdb-adapter-supabase/       # Supabase 适配器
 │   ├── rxdb-angular/                # Angular 集成（signals）

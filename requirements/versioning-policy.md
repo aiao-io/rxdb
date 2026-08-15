@@ -43,6 +43,19 @@
 - CI 运行 `node scripts/audit/api-surface.mjs --check`；出现未声明的表面变化即失败。
 - 预期内的变更：`node scripts/audit/api-surface.mjs --update` 重新生成基线，PR 标注是否 breaking，必要时补迁移说明。
 
+> **已知不覆盖：子路径入口的导出表面。** 基线只扫主入口 `src/index.ts`，`exports` 里声明的子路径
+> （`@aiao/rxdb-adapter-miniprogram/runtime`、`@aiao/rxdb-adapter-wa-sqlite/client` 等，
+> **8 个公开包共 12 个入口**；`@aiao/rxdb-test` 的 5 个不算——整包已排除，非产品 API）
+> **属于第 2 节的公开 API，但导出表面不受本门禁保护**——改动它们的导出必须在 PR 描述里人工声明破坏性。
+>
+> 清单本身**是受保护的**：真相源为 [api-surface.mjs](../scripts/audit/api-surface.mjs) 的
+> `KNOWN_UNCOVERED_SUBPATHS`，每次 `--check` 都逐包核对 `exports`，新增或删除子路径而不同步清单即失败。
+> 这只保证「没有子路径悄悄溜进公开 API 而无人知晓」，不等于它们的导出表面被守住。
+>
+> 扩展扫描器以覆盖子路径**导出表面**由 [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md) 认领
+> （Backlog；不在 [US-209](stories/adapter/US-209-miniprogram-adapter.md) 范围内）。**在它交付之前本条警示继续生效。**
+> 对外呈现见 [website/docs/versioning.md](../website/docs/versioning.md) 的同名警示块。
+
 ## 5. 版本级别决策
 
 - 提交遵循 [Conventional Commits](https://www.conventionalcommits.org/)：`fix:`→补丁，`feat:`→次版本，`feat!:` / `BREAKING CHANGE:`→主版本。

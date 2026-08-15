@@ -114,6 +114,24 @@ describe('NodeSqliteEngine.execute', () => {
     expect(engine.execute('DELETE FROM t').rowsAffected).toBe(2);
   });
 
+  // 与 execute_helper.ts 的 `rowsAffected += sqlite3.changes(db)` 对齐：
+  // changes() 只反映最后一条语句，拿它当整个脚本的答案会漏掉前面几条。
+  it('sums rowsAffected across the statements of a script', () => {
+    const engine = openEngine();
+    engine.execute('CREATE TABLE a (id INTEGER PRIMARY KEY); CREATE TABLE b (id INTEGER PRIMARY KEY);');
+    engine.execute('INSERT INTO a (id) VALUES (1), (2), (3); INSERT INTO b (id) VALUES (1);');
+    expect(engine.execute('DELETE FROM a; DELETE FROM b;').rowsAffected).toBe(4);
+  });
+
+  // SQLC-030 的脚本版：changes() 不被 DDL 重置，一条纯 DDL 脚本会报出上一条写语句的计数。
+  it('does not inherit a stale changes() count for a script that touches no rows', () => {
+    const engine = openEngine();
+    engine.execute('CREATE TABLE t (id INTEGER PRIMARY KEY)');
+    expect(engine.execute('INSERT INTO t (id) VALUES (1), (2)').rowsAffected).toBe(2);
+    expect(engine.execute('CREATE TABLE u (id INTEGER PRIMARY KEY);').rowsAffected).toBe(0);
+    expect(engine.execute('CREATE INDEX ix ON t (id); CREATE INDEX iu ON u (id);').rowsAffected).toBe(0);
+  });
+
   it('omits the result set entirely when a statement returns no columns', () => {
     const engine = openEngine();
     engine.execute('CREATE TABLE t (id INTEGER PRIMARY KEY)');

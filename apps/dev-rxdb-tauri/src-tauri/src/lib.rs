@@ -1,3 +1,7 @@
+pub mod rxdb;
+
+use tauri::Manager;
+
 #[derive(serde::Serialize)]
 struct RuntimeHealth {
     status: &'static str,
@@ -31,16 +35,31 @@ fn check_runtime() -> RuntimeHealth {
     RuntimeHealth { status: "ready" }
 }
 
+/// US-210：退出前必须显式关掉全部会话。
+///
+/// 用 `build(...).run(closure)` 而不是 `run(context)`，就是为了拿到 [`tauri::RunEvent::Exit`]
+/// 这个钩子。放任进程退出的话，SQLite 的文件句柄与 `-wal` / `-shm` 会活到最后一刻，
+/// 库文件在应用关闭后仍被占用——AC#8 要的「关掉应用后能重命名库文件」就不成立。
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             get_platform,
             get_versions,
-            check_runtime
+            check_runtime,
+            rxdb::commands::rxdb_desktop_request
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .setup(|app| {
+            app.manage(rxdb::commands::DesktopHost::new(app.handle())?);
+            Ok(())
+        })
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                app.state::<rxdb::commands::DesktopHost>().close_all();
+            }
+        });
 }
 
 #[cfg(test)]

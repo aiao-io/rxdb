@@ -1,20 +1,20 @@
 import {
-  Entity,
-  ENTITY_LOCAL_CREATE_EVENT,
-  EntityBase,
-  EntityLocalCreatedEvent,
-  getEntityStatus,
-  PropertyType,
-  RxDB,
-  RxDBBranch,
-  RxDBChange,
-  SyncType,
-  TRANSACTION_BEGIN,
-  TRANSACTION_ROLLBACK,
-  type EntityType,
-  type EntityUpdateData,
-  type RxDBMutationsMap,
-  type SwitchVersionActions
+    Entity,
+    ENTITY_LOCAL_CREATE_EVENT,
+    EntityBase,
+    EntityLocalCreatedEvent,
+    getEntityStatus,
+    PropertyType,
+    RxDB,
+    RxDBBranch,
+    RxDBChange,
+    SyncType,
+    TRANSACTION_BEGIN,
+    TRANSACTION_ROLLBACK,
+    type EntityType,
+    type EntityUpdateData,
+    type RxDBMutationsMap,
+    type SwitchVersionActions
 } from '@aiao/rxdb';
 import { EncryptedConfigurationError } from '@aiao/rxdb-adapter-encrypted';
 import { firstValueFrom } from 'rxjs';
@@ -421,6 +421,21 @@ describe('RxDBAdapterSqliteBase', () => {
       await adapter.connect();
 
       await expect(adapter.bootstrapTransaction(async tx => tx.execute('SELECT 1'), false)).resolves.toBeDefined();
+    });
+
+    it('connect 未完成时 rawQuery 不得再等 RxDB.connect()（插件 install 窗口）', async () => {
+      const rxdb = createRxdbMock();
+      vi.mocked(rxdb.connect).mockReturnValue(new Promise<never>(() => undefined) as never);
+      const client = createClient();
+      const adapter = new TestAdapter(rxdb, () => client);
+
+      await adapter.connect();
+
+      await expect(adapter.rawQuery('SELECT 1')).resolves.toEqual({
+        rowsAffected: 0,
+        rows: [],
+        columns: []
+      });
     });
   });
 

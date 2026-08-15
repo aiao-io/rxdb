@@ -4,6 +4,7 @@ import type { DisconnectStatus } from '../types.js';
 import { RXDB_DEVTOOLS_MESSAGE } from '../types.js';
 import type { MockRxDB, MockRxDBShape } from './fixtures/mock-rxdb.js';
 import { createMockRxDB, listenerCount, MOCK_DB_NAME, MOCK_VERSION } from './fixtures/mock-rxdb.js';
+import { createPostMessageSpy, resetSessionFixture, withoutSession, wrapMessageListener } from './fixtures/session-command.js';
 
 type DisconnectResult = { success: boolean; error: string | null; status: DisconnectStatus };
 type GetEntityMetadata = NonNullable<Parameters<DevToolsConnector['init']>[1]>;
@@ -22,7 +23,7 @@ function getMessageHandler(addEventSpy: ReturnType<typeof vi.spyOn>): (event: Me
   const calls = addEventSpy.mock.calls as unknown as unknown[][];
   const listener = calls.find(call => call[0] === 'message')?.[1];
   if (typeof listener !== 'function') throw new Error('message listener not registered');
-  return listener as (event: MessageEvent) => void;
+  return wrapMessageListener(listener as EventListener) as (event: MessageEvent) => void;
 }
 
 function dispatchRaw(handler: (event: MessageEvent) => void, data: unknown): void {
@@ -58,7 +59,8 @@ describe('DevToolsConnector boundaries', () => {
   let addEventSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    postMessageSpy = vi.fn();
+    resetSessionFixture();
+    postMessageSpy = createPostMessageSpy();
     addEventSpy = vi.spyOn(window, 'addEventListener');
     vi.spyOn(window, 'postMessage').mockImplementation(postMessageSpy as unknown as typeof window.postMessage);
     connector = new DevToolsConnector();
@@ -76,6 +78,7 @@ describe('DevToolsConnector boundaries', () => {
   afterEach(() => {
     connector.disconnect();
     while (extraConnectors.length > 0) extraConnectors.pop()?.disconnect();
+    resetSessionFixture();
     vi.restoreAllMocks();
   });
 
@@ -1378,7 +1381,11 @@ describe('DevToolsConnector boundaries', () => {
 
       expect(connector.capabilities).toBe('full');
       const handshake = postedMessages(postMessageSpy, 'HANDSHAKE')[0];
-      expect(handshake?.payload).toEqual({ protocolVersion: 1, capabilities: 'full' });
+      expect(handshake?.payload).toEqual({
+        protocolVersion: 2,
+        capabilities: 'full',
+        sessionToken: expect.stringMatching(/^[0-9a-f]{64}$/)
+      });
     });
 
     it.each(['none', 'readonly', 'full'] as const)('MUST announce the configured %s tier', capabilities => {
@@ -1387,8 +1394,9 @@ describe('DevToolsConnector boundaries', () => {
 
       expect(scoped.capabilities).toBe(capabilities);
       expect(postedMessages(postMessageSpy, 'HANDSHAKE')[0]?.payload).toEqual({
-        protocolVersion: 1,
-        capabilities
+        protocolVersion: 2,
+        capabilities,
+        sessionToken: expect.stringMatching(/^[0-9a-f]{64}$/)
       });
     });
 
@@ -1451,6 +1459,15 @@ describe('DevToolsConnector boundaries', () => {
       dispatchCommand(handler, 'HANDSHAKE_ACK', null);
 
       expect(postedMessages(postMessageSpy, 'EVENT')).toHaveLength(1);
+    });
+
+    it('MUST silently drop session-required commands without a token', () => {
+      const { handler } = initWith('full');
+      postMessageSpy.mockClear();
+
+      withoutSession(() => inspectDb(handler));
+
+      expect(postedMessages(postMessageSpy, 'DB_INFO')).toHaveLength(0);
     });
   });
 

@@ -440,6 +440,60 @@ describe('HistoryManager - Class Methods', () => {
       expect(mockSwitchBranch).not.toHaveBeenCalled();
     });
 
+    // Node 环境没有 navigator.locks，gateway 的 leader 选举走 BroadcastChannel 降级路径，
+    // 500ms 宽限期内 rxdb.firstConnectedAt 一直是 undefined（multiInstance=false 时永远是）。
+    // 此前的回退是「首次取用时刻的 new Date()」——首次取用若发生在 undo 里，
+    // 本会话所有已落库的变更都早于该水位，undo 静默变成 no-op。
+    it('firstConnectedAt 未就绪时，水位回退到构造时刻而非首次取用时刻', async () => {
+      vi.useFakeTimers();
+      try {
+        const constructedAt = new Date('2026-07-10T09:00:00.000Z');
+        vi.setSystemTime(constructedAt);
+        Object.defineProperty(mockRxDB, 'firstConnectedAt', { value: undefined, configurable: true });
+        const manager = new HistoryManager(mockRxDB);
+
+        // 连接后立即写入的变更：晚于构造时刻，早于 undo 时刻
+        const change = createChange({ createdAt: new Date('2026-07-10T09:00:00.100Z') });
+        mockChangeRepository.find.mockImplementation(
+          async (query: { where: { rules: Array<{ field: string; value: unknown }> } }) => {
+            const cutoff = query.where.rules.find(rule => rule.field === 'createdAt')?.value;
+            return cutoff instanceof Date && change.createdAt < cutoff ? [] : [change];
+          }
+        );
+
+        // undo 发生在 10 秒后——水位若取「此刻」，上面那条变更会被过滤掉
+        vi.setSystemTime(new Date('2026-07-10T09:00:10.000Z'));
+        await manager.history().undo();
+        manager.destroy();
+
+        expect(mockSwitchBranch).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // 变更表的 INSERT 通知要经宿主 debounce 与（Tauri 下）跨进程 stdio 传输，
+    // save 的通知可能在 undo() 完成之后才到达。`isExecutingUndoRedo()` 是时间窗守卫，
+    // 挡不住这类迟到者——迟到通知一旦触发 invalidateRedoStack，刚压入的 redo 栈就被清空，
+    // 紧随其后的 redo() 静默空跑。判定必须基于内容：undo 已把 change 序列推进到
+    // `seq + changes.length`，只有 id 越过该水位的事件才是真正的新写入。
+    it('迟到的旧 change 事件不清空 redo 栈，越过水位的新写入才清空', async () => {
+      const change = createChange();
+      mockChangeRepository.find.mockResolvedValue([change]);
+
+      await historyManager.history().undo();
+      expect(mockSwitchBranch).toHaveBeenCalledTimes(1);
+      expect(await firstValueFrom(historyManager.redoHistories$)).toHaveLength(1);
+
+      // save 的迟到通知：id(50) ≤ undo 时的序列水位（seq=100 + 1 条 = 101）
+      await historyManager.invalidateRedoStack([change.id]);
+      expect(await firstValueFrom(historyManager.redoHistories$)).toHaveLength(1);
+
+      // 真正的新写入：id 越过水位
+      await historyManager.invalidateRedoStack([102]);
+      expect(await firstValueFrom(historyManager.redoHistories$)).toHaveLength(0);
+    });
+
     it('repository 水位线必须按 namespace + entity 隔离', async () => {
       mockSyncFind.mockResolvedValue([
         { namespace: 'public', entity: 'User', lastPushedChangeId: 100 },

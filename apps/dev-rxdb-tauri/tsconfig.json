@@ -21,6 +21,9 @@
     },
     {
       "path": "./tsconfig.spec.json"
+    },
+    {
+      "path": "./tsconfig.conformance.json"
     }
   ]
 }

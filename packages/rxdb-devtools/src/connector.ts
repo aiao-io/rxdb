@@ -4,17 +4,17 @@ import { EventBuffer } from './buffer.js';
 import { SequenceGenerator } from './sequence.js';
 import { maskEncryptedFields, serialize, serializeDevToolsValue } from './serializer.js';
 import {
-  createMessage,
-  DEVTOOLS_PROTOCOL_VERSION,
-  isDevToolsCommandMessage,
-  isDevToolsMessage,
-  RXDB_DEVTOOLS_MESSAGE,
-  type AnyDevToolsMessage,
-  type DevToolsCapability,
-  type DevToolsCommandMessage,
-  type DisconnectStatus,
-  type QueryEntityPayload,
-  type SerializedEvent
+    createMessage,
+    DEVTOOLS_PROTOCOL_VERSION,
+    isDevToolsCommandMessage,
+    isDevToolsMessage,
+    RXDB_DEVTOOLS_MESSAGE,
+    type AnyDevToolsMessage,
+    type DevToolsCapability,
+    type DevToolsCommandMessage,
+    type DisconnectStatus,
+    type QueryEntityPayload,
+    type SerializedEvent
 } from './types.js';
 
 /**
@@ -211,6 +211,26 @@ const COMMAND_REQUIRED_CAPABILITY = {
 } as const satisfies Record<DevToolsCommandMessage['type'], DevToolsCapability>;
 
 const CAPABILITY_RANK: Record<DevToolsCapability, number> = { none: 0, readonly: 1, full: 2 };
+
+const SESSION_REQUIRED_COMMAND = {
+  HANDSHAKE_ACK: false,
+  PING: false,
+  CLEAR: false,
+  DISCONNECT: false,
+  INSPECT_DB: true,
+  QUERY_ENTITY: true,
+  GET_BRANCHES: true,
+  DISCONNECT_RXDB: true,
+  SWITCH_BRANCH: true,
+  CREATE_BRANCH: true,
+  DELETE_BRANCH: true
+} as const satisfies Record<DevToolsCommandMessage['type'], boolean>;
+
+function createSessionToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+}
 
 const OPAQUE_ORIGIN = 'null' as const;
 
@@ -417,6 +437,7 @@ export class DevToolsConnector {
   #connected = false;
   #buffer: EventBuffer;
   #sequence: SequenceGenerator;
+  #sessionToken: string;
   #rxdbInstance: DevToolsRxDB | null = null;
   #eventListeners: Map<keyof RxDBEventMap, (event: RxDBEvent) => void> = new Map();
   #messageHandler: ((event: MessageEvent) => void) | null = null;
@@ -468,6 +489,7 @@ export class DevToolsConnector {
   constructor(options: DevToolsOptions = {}) {
     this.#options = { ...DEFAULT_OPTIONS, ...options };
     this.#buffer = new EventBuffer(this.#options.maxBufferSize);
+    this.#sessionToken = createSessionToken();
     this.#sequence = new SequenceGenerator();
   }
 
@@ -632,7 +654,13 @@ export class DevToolsConnector {
     return CAPABILITY_RANK[this.#options.capabilities] >= CAPABILITY_RANK[COMMAND_REQUIRED_CAPABILITY[type]];
   }
 
+  #hasValidSession(message: DevToolsCommandMessage): boolean {
+    if (!SESSION_REQUIRED_COMMAND[message.type]) return true;
+    return message.session === this.#sessionToken;
+  }
+
   #handleMessage(message: DevToolsCommandMessage): void {
+    if (!this.#hasValidSession(message)) return;
     if (!this.#isAllowed(message.type)) return;
 
     switch (message.type) {
@@ -809,19 +837,26 @@ export class DevToolsConnector {
   }
 
   /**
-   * 发一次握手，附带协议版本与本页授予的能力档。
+   * 发一次握手，附带协议版本、本页授予的能力档与会话令牌。
    *
    * @remarks
    * `capabilities` 只是**告知**，不是权限来源 —— 真正的判定在 {@link #isAllowed}，
    * 页面侧独立执行。DevTools 读它是为了把不可用的按钮直接禁掉，
    * 而不是发出去等一个永远不会来的回复。
+   *
+   * `sessionToken` 同样只是告知：扩展必须把它回显在后续数据/变更命令的
+   * envelope `session` 上；真正的比对在 {@link #hasValidSession}。
    */
   #sendHandshake(): void {
     this.#postMessage(
       createMessage(
         'HANDSHAKE',
         'page-to-devtools',
-        { protocolVersion: DEVTOOLS_PROTOCOL_VERSION, capabilities: this.#options.capabilities },
+        {
+          protocolVersion: DEVTOOLS_PROTOCOL_VERSION,
+          capabilities: this.#options.capabilities,
+          sessionToken: this.#sessionToken
+        },
         this.#sequence.next()
       )
     );

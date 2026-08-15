@@ -366,6 +366,8 @@ describe('RxDB coverage', () => {
       synchronousInstallFailure
     );
 
+    await expect(database.connect('local')).rejects.toBe(installFailure);
+
     await disposeDatabase(database);
 
     expect(consoleError).toHaveBeenCalledWith("[RxDB] Plugin 'asyncCoverage' destroy failed:", destroyFailure);
@@ -407,6 +409,32 @@ describe('RxDB coverage', () => {
 
     expect(() => database.use(factory)).not.toThrow();
     expect(consoleError).toHaveBeenCalledWith("[RxDB] Plugin 'lateFailure' install failed:", installFailure);
+    await expect(database.connect('local')).rejects.toBe(installFailure);
+
+    await disposeDatabase(database);
+  });
+
+  it('connect() 在插件安装失败后可重试', async () => {
+    let shouldFail = true;
+    const transient = new Error('transient install failed');
+    const plugin = {
+      name: 'retryCoverage' as const,
+      install: vi.fn(async () => {
+        if (shouldFail) throw transient;
+      }),
+      destroy: vi.fn()
+    };
+    const factory: Plugin = vi.fn(() => plugin);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const database = createDatabase();
+    database.use(factory);
+
+    await expect(database.connect('local')).rejects.toBe(transient);
+    expect(plugin.install).toHaveBeenCalledTimes(1);
+
+    shouldFail = false;
+    await expect(database.connect('local')).resolves.toBeDefined();
+    expect(plugin.install).toHaveBeenCalledTimes(2);
 
     await disposeDatabase(database);
   });

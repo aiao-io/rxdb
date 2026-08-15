@@ -115,6 +115,8 @@ export class RxDB {
 
   #plugin_map = new Map<Plugin, IRxDBPlugin>();
 
+  #plugin_install_promises = new Map<IRxDBPlugin, Promise<void>>();
+
   #connected_sub = new BehaviorSubject<boolean>(false);
 
   #event_map = new Map<keyof RxDBEventMap, Set<EventListener<RxDBEvent>>>();
@@ -278,8 +280,8 @@ export class RxDB {
     if (local) this.#local_adapter_sub.next(local.adapter);
     if (remote) this.#remote_adapter_sub.next(remote.adapter);
     // 安装插件并初始化各个管理器
-    // #install_plugin 内部自行吞掉每个插件的安装错误（见其 JSDoc），故意留在 try 外——
-    // 它不会抛出，不需要参与下面的失败回滚。
+    // #install_plugin 同步不抛（错误记入 #plugin_install_promises），故意留在 try 外——
+    // Schema/Entity 初始化失败仍只回滚管理器；插件失败由 connect() 传播。
     this.#install_plugin();
     try {
       this.schemaManager.init();
@@ -326,7 +328,8 @@ export class RxDB {
    * `init()` 之前注册的插件在 `init()` 时统一安装；
    * `init()` 之后注册的插件立即安装，保证与 `shutdown` 时的 destroy 对称。
    *
-   * 安装失败仅 `console.error`，不 rethrow、不阻断调用方（与 `init()` 期的行为一致）。
+   * 同步 `install()` 失败只 `console.error`，`use()` / `init()` 本身不抛。
+   * 异步或同步失败都会记入安装 Promise，由后续 `connect()` 传播。
    *
    * @param plugin - 插件构造函数
    * @param options - 插件选项
@@ -402,8 +405,13 @@ export class RxDB {
       return pending;
     }
 
-    // 创建连接 Promise 并缓存
+    // 先入缓存再 init：插件 install 可能同步回呼 connect()，必须命中同一条 Promise。
+    let startConnect!: () => void;
+    const started = new Promise<void>(resolve => {
+      startConnect = resolve;
+    });
     const connectPromise = (async () => {
+      await started;
       this.init();
       const adapter = await this.getAdapter(adapterName);
       await adapter.connect();
@@ -431,6 +439,12 @@ export class RxDB {
       }
       this.#connected_adapters.add(adapterName);
       this.#connected_sub.next(true);
+      try {
+        await this.#await_plugin_installs();
+      } catch (error) {
+        this.#connected_sub.next(false);
+        throw error;
+      }
       return adapter;
     })();
 
@@ -441,6 +455,7 @@ export class RxDB {
       }
     });
     this.#connect_promise_map.set(adapterName, connectPromise);
+    startConnect();
     return connectPromise;
   }
 
@@ -592,6 +607,7 @@ export class RxDB {
     this.#local_adapter_sub.next('');
     this.#remote_adapter_sub.next('');
     this.#transaction_stack = [];
+    this.#plugin_install_promises.clear();
     this.#rxdb_initialized = false;
     this.#connected_sub.next(false);
   }
@@ -675,23 +691,52 @@ export class RxDB {
   }
 
   /**
-   * 安装单个插件
-   *
-   * 契约（有意降级，被 `RxDB.coverage.spec.ts` 锁定）：
-   * 同步 throw 与异步 reject 均只 `console.error`，不 rethrow、不聚合、不阻断后续启动流程。
-   * 调用方无法 await 异步 `install()` 的完成。
+   * `use()` / `init()` 保持同步且不抛：同步 throw 转成 rejected Promise。
+   * 异步 reject 不再吞掉，由 {@link RxDB.#await_plugin_installs} 在 `connect()` 里传播。
    */
   #install_one_plugin(plugin: IRxDBPlugin) {
+    const tracked = this.#track_plugin_install(plugin);
+    void tracked.then(
+      () => undefined,
+      () => undefined
+    );
+    this.#plugin_install_promises.set(plugin, tracked);
+  }
+
+  #track_plugin_install(plugin: IRxDBPlugin): Promise<void> {
     try {
       const result = plugin.install();
-      if (result && typeof (result as Promise<void>).then === 'function') {
-        (result as Promise<void>).catch(err => {
+      if (isPromise(result)) {
+        return result.catch(err => {
           console.error(`[RxDB] Plugin '${plugin.name}' install failed:`, err);
+          throw err;
         });
       }
+      return Promise.resolve();
     } catch (err) {
       console.error(`[RxDB] Plugin '${plugin.name}' install failed:`, err);
+      return Promise.reject(err);
     }
+  }
+
+  /**
+   * 表就绪后等待插件安装。失败清空记录，允许下一次 `connect()` 重试。
+   */
+  async #await_plugin_installs(): Promise<void> {
+    for (const plugin of this.#plugin_map.values()) {
+      if (!this.#plugin_install_promises.has(plugin)) {
+        this.#install_one_plugin(plugin);
+      }
+    }
+    const entries = [...this.#plugin_install_promises.entries()];
+    const results = await Promise.allSettled(entries.map(([, pending]) => pending));
+    let firstError: unknown;
+    for (const [index, result] of results.entries()) {
+      if (result.status !== 'rejected') continue;
+      this.#plugin_install_promises.delete(entries[index][0]);
+      firstError ??= result.reason;
+    }
+    if (firstError !== undefined) throw firstError;
   }
 
   /**

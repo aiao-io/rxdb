@@ -6,6 +6,48 @@
 
 ## Story 状态变更
 
+### 2026-08-15 — epic-006 二次评审与 US-306 拆分
+
+- 复核发现历史 bridge `v0.0.25` 的 tagged commit 经后续 squash 脱离当前发布主线，不能通过 migration gate 的
+  ancestor 校验。US-305 改为从 release manifest 读取当前主线上的有效 bridge；禁止移动或重打历史 tag。
+- metadata-only 远端分支首次切换改为 durable materialization staging：冻结终止水位/scope，分页落盘，最终 switch
+  事务一次性物化；现有绑定当前分支并直接写业务表的 pull 路径不能直接复用。
+- Index 独立重放闭包补齐跨事务实体关系依赖，覆盖 Parent→Child INSERT、Child→Parent DELETE、关系键更新与环。
+- `CommitConflict` 收敛为一次性命令诊断；durable `status().conflicted` 只由 restore session 派生。
+- restore 固定为只生成未暂存工作树，流程明确为 `restore → stage → commit`。
+- US-306 保留为父契约并拆出 US-306a/b/c，分别承接写入口捕获、Index/commit 状态机、三框架与性能门禁。
+  派生统计 Backlog 11 → 14，合计 47 → 50；这是既有范围拆分，不是新增产品范围。
+
+### 2026-08-15 — 新增 US-601 与 epic-007（缺口登记，非新增范围）
+
+- 上一条 US-209 收尾留下的「扫描子路径**导出表面**」缺口由新故事
+  [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md) 认领（`Backlog`）。
+  **缺口在它交付前依然敞开**：`KNOWN_UNCOVERED_SUBPATHS` 只守清单，不守表面。
+- 新建 [epic-007 公开 API 门禁](epics/epic-007-public-api-gates.md)：门禁不是产品能力，
+  挂进 epic-001~006 会让那个 epic 的愿景失真。它同时收纳另外两处**尚无故事认领**的门禁缺口
+  （迁移发布的三个 git 钩子只在打 tag 时跑、手工发布无 `pnpm test-all` 前置校验）。
+- 新建 `stories/tooling/`，占用此前未分配的编号段 **US-601~699**。
+- 派生视图同步：`status-overview.md`（Backlog 11 → 12，合计 46 → 47）、`README.md`
+  （目录表、P2 排期建议、约束 7）、`versioning-policy.md` 与 `api-surface.mjs` 的「尚无故事认领」措辞。
+- 顺带修一处派生视图漂移：`epic-004` 的故事列表缺 US-210（`status-overview.md` 一直列着）。
+
+### 2026-08-15 — US-209 小程序适配器门禁与文档收尾（In Review → Done）
+
+- `@aiao/rxdb-adapter-miniprogram` 登记进 `scripts/audit/coverage-baseline.json`（99/97/100/100，向下取整）。
+  这是**趋势基准**而非门禁开关：`coverage-check.mjs` 的 80%/90% 硬阈值对所有非 private 包一直生效，
+  本包此前已被卡着；登记后才有「比上次低」的回归警告。原 story 里「不受门禁保护」的措辞已修正。
+- AC#8 子路径决策落定为「**导出表面**记录为已知不覆盖」：`api-surface.mjs` 新增 `KNOWN_UNCOVERED_SUBPATHS`
+  （8 个公开包共 12 个入口）作为清单真相源，`subpath-inventory.mjs` 把**清单本身**纳入门禁——
+  新增/删除子路径不同步清单即 CI 红。扫描子路径导出表面仍是未认领缺口。
+- 策略文档双向对齐：`requirements/versioning-policy.md` 与对外的 `website/docs/versioning.md`
+  同时写明子路径属于公开 API 但表面不受基线保护，消除「基线守护全部公开 API」的错误承诺。
+- 文档口径收敛到「实验性、仅微信」：`website/docs/compatibility.md` 新增能力边界专节
+  （平台/并发/日志模式/崩溃恢复/数据量/随机源/全文搜索），原「浏览器能力 × 适配器」表扩为「运行时能力 × 适配器」；
+  根 `README.md` 不再声称支持 Alipay。
+- `examples/README.md` 声明示例目录不在 CI 覆盖范围（独立 pnpm workspace、无 `project.json`、依赖已发布版本），
+  改动后须手工验证。
+- `packages/rxdb-adapter-miniprogram/src/index.ts` 删除逐字重复的 `@packageDocumentation` 块。
+
 ### 2026-08-01 — US-303 / US-304 迁移隔离拆分
 
 - US-303 的 change codec、原子系统迁移、回滚重试、历史/branch/跨 Tab 兼容均已验收，状态转为 Done。

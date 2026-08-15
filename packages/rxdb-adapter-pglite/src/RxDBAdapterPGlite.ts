@@ -360,13 +360,20 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     // RxDBChange 的 tableName 为 'rxdb_change'
     const sequenceName = '"rxdb"."rxdb_change_id_seq"';
     const client = await this.#getClient();
-    const result = await client.query<{ last_value: number }>(`SELECT last_value FROM ${sequenceName}`);
+    const result = await client.query<{ last_value: number | string; is_called: boolean }>(
+      `SELECT last_value, is_called FROM ${sequenceName}`
+    );
     if (result.rows.length === 0) {
       return 0;
     }
     // PostgreSQL 返回 string 类型的 bigint，需要转换
-    const value = result.rows[0].last_value;
-    return typeof value === 'string' ? parseInt(value, 10) : value;
+    const { last_value, is_called } = result.rows[0];
+    const lastValue = typeof last_value === 'string' ? parseInt(last_value, 10) : last_value;
+    // 契约（与 sqlite_sequence 对齐）：返回值 = 最后已用 id，下一个 id = 返回值 + 1。
+    // is_called=false 表示 last_value 尚未被 nextval() 消费（序列初建或 setval(..., false) 后），
+    // 此时最后已用 id 是 last_value - 1；不减一会让 HistoryManager 的 redo 失效水位虚高一位，
+    // undo 后首个新写入被误判为迟到通知而跳过清栈。
+    return is_called ? lastValue : lastValue - 1;
   }
 
   /**
@@ -377,11 +384,13 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    * @param sequence - 要设置的序列值
    */
   async setRxDBChangeSequence(sequence: number): Promise<void> {
-    // setval($1::regclass, $2, false)：序列名走参数化避免任何拼接，
-    // ::regclass 显式转换让 PostgreSQL 校验合法性。
-    // 第三个参数 false 表示下一次 nextval() 会返回 sequence + 1。
-    const sql = `SELECT setval($1::regclass, $2, false)`;
-    const params = ['rxdb.rxdb_change_id_seq', sequence];
+    // 契约：sequence = 最后已用 id，下一次 nextval() 必须返回 sequence + 1。
+    // setval 第三参 is_called=true 才有该语义（false 会让 nextval 返回 sequence 本身，
+    // 与 SQLite 端差一位，导致 undo 后的新写入 id 不越过 redo 失效水位）。
+    // 序列名走参数化避免任何拼接，::regclass 显式转换让 PostgreSQL 校验合法性。
+    // sequence < 1 低于序列 minvalue，setval 会报越界，改用 setval(1, false)（下一个 id = 1）。
+    const sql = sequence >= 1 ? `SELECT setval($1::regclass, $2, true)` : `SELECT setval($1::regclass, 1, false)`;
+    const params = sequence >= 1 ? ['rxdb.rxdb_change_id_seq', sequence] : ['rxdb.rxdb_change_id_seq'];
     await this.transaction(executor => executor.query(sql, params), false);
   }
   /**

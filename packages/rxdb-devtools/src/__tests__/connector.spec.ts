@@ -4,6 +4,7 @@ import { DevToolsConnector, getDevToolsConnector, resetDevToolsConnector } from 
 import { RXDB_DEVTOOLS_MESSAGE } from '../types.js';
 import type { MockRxDBShape } from './fixtures/mock-rxdb.js';
 import { createMockRxDB, listenerCount, MOCK_DB_NAME, MOCK_VERSION } from './fixtures/mock-rxdb.js';
+import { createPostMessageSpy, resetSessionFixture, withoutSession, wrapMessageListener } from './fixtures/session-command.js';
 
 type GetEntityMetadata = NonNullable<Parameters<DevToolsConnector['init']>[1]>;
 
@@ -30,7 +31,8 @@ describe('DevToolsConnector', () => {
   let addEventSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    postMessageSpy = vi.fn();
+    resetSessionFixture();
+    postMessageSpy = createPostMessageSpy();
     addEventSpy = vi.spyOn(window, 'addEventListener');
     vi.spyOn(window, 'postMessage').mockImplementation(postMessageSpy as unknown as typeof window.postMessage);
     connector = new DevToolsConnector();
@@ -38,8 +40,15 @@ describe('DevToolsConnector', () => {
 
   afterEach(() => {
     connector.disconnect();
+    resetSessionFixture();
     vi.restoreAllMocks();
   });
+
+  function getHandler(): (event: MessageEvent) => void {
+    const registered = addEventSpy.mock.calls.find(call => call[0] === 'message');
+    if (!registered) throw new Error('message listener not registered');
+    return wrapMessageListener(registered[1] as EventListener) as (event: MessageEvent) => void;
+  }
 
   it('MUST start disconnected', () => {
     expect(connector.connected).toBe(false);
@@ -75,6 +84,11 @@ describe('DevToolsConnector', () => {
       expect(msg.source).toBe(RXDB_DEVTOOLS_MESSAGE);
       expect(msg.type).toBe('HANDSHAKE');
       expect(msg.direction).toBe('page-to-devtools');
+      expect(msg.payload).toEqual({
+        protocolVersion: 2,
+        capabilities: 'full',
+        sessionToken: expect.stringMatching(/^[0-9a-f]{64}$/)
+      });
     });
 
     it('MUST subscribe to RxDB events', () => {
@@ -136,7 +150,7 @@ describe('DevToolsConnector', () => {
       connector.init(rxdb);
 
       // 模拟握手确认。
-      const handler = addEventSpy.mock.calls.find(c => c[0] === 'message')![1];
+      const handler = getHandler();
       handler({
         source: window,
         data: {
@@ -161,7 +175,7 @@ describe('DevToolsConnector', () => {
     beforeEach(() => {
       const rxdb = createMockRxDB();
       connector.init(rxdb);
-      messageHandler = addEventSpy.mock.calls.find(c => c[0] === 'message')![1];
+      messageHandler = getHandler();
     });
 
     function sendDevToolsMessage(type: string, payload: unknown = null) {
@@ -204,14 +218,15 @@ describe('DevToolsConnector', () => {
       connector.disconnect();
       vi.restoreAllMocks();
 
-      postMessageSpy = vi.fn();
+      resetSessionFixture();
+      postMessageSpy = createPostMessageSpy();
       addEventSpy = vi.spyOn(window, 'addEventListener');
       vi.spyOn(window, 'postMessage').mockImplementation(postMessageSpy as unknown as typeof window.postMessage);
       connector = new DevToolsConnector();
 
       const rxdb = createMockRxDB({ disconnectAll });
       connector.init(rxdb);
-      messageHandler = addEventSpy.mock.calls.find(c => c[0] === 'message')![1];
+      messageHandler = getHandler();
       postMessageSpy.mockClear();
 
       sendDevToolsMessage('DISCONNECT_RXDB', { requestId: 'req-1' });
@@ -290,7 +305,7 @@ describe('DevToolsConnector', () => {
       postMessageSpy.mockClear();
 
       // 模拟握手确认。
-      const handler = addEventSpy.mock.calls.find(c => c[0] === 'message')![1];
+      const handler = getHandler();
       handler({
         source: window,
         data: {
@@ -312,7 +327,7 @@ describe('DevToolsConnector', () => {
       connector.init(rxdb);
 
       // 建立连接。
-      const handler = addEventSpy.mock.calls.find(c => c[0] === 'message')![1];
+      const handler = getHandler();
       handler({
         source: window,
         data: {
@@ -338,7 +353,7 @@ describe('DevToolsConnector', () => {
       const rxdb = createMockRxDB();
       connector.init(rxdb);
 
-      const handler = addEventSpy.mock.calls.find(c => c[0] === 'message')![1];
+      const handler = getHandler();
       postMessageSpy.mockClear();
 
       handler({
@@ -365,7 +380,7 @@ describe('DevToolsConnector', () => {
       const rxdb = createMockRxDB({ config: { entities: [UserEntity] } });
 
       connector.init(rxdb, getMetadata);
-      const handler = addEventSpy.mock.calls.find(c => c[0] === 'message')![1];
+      const handler = getHandler();
       postMessageSpy.mockClear();
 
       handler({
@@ -408,7 +423,7 @@ describe('DevToolsConnector', () => {
       const rxdb = createMockRxDB({ config: { entities: [SecretEntity] } });
 
       connector.init(rxdb, getMetadata);
-      const handler = addEventSpy.mock.calls.find(c => c[0] === 'message')![1];
+      const handler = getHandler();
       postMessageSpy.mockClear();
 
       handler({
@@ -434,7 +449,7 @@ describe('DevToolsConnector', () => {
       const rxdb = createMockRxDB();
       connector.init(rxdb);
 
-      const handler = addEventSpy.mock.calls.find(c => c[0] === 'message')![1];
+      const handler = getHandler();
       postMessageSpy.mockClear();
 
       handler({
@@ -458,7 +473,7 @@ describe('DevToolsConnector', () => {
       const rxdb = createMockRxDB();
       connector.init(rxdb);
 
-      const handler = addEventSpy.mock.calls.find(c => c[0] === 'message')![1];
+      const handler = getHandler();
       const send = (type: string, payload: unknown): void => {
         handler({
           source: window,
@@ -516,7 +531,7 @@ describe('DevToolsConnector', () => {
       });
 
       connector.init(rxdb, getMetadata);
-      const handler = addEventSpy.mock.calls.find(c => c[0] === 'message')![1];
+      const handler = getHandler();
 
       postMessageSpy.mockClear();
 
@@ -560,7 +575,7 @@ describe('DevToolsConnector', () => {
       });
 
       connector.init(rxdb, getMetadata);
-      const handler = addEventSpy.mock.calls.find(c => c[0] === 'message')![1];
+      const handler = getHandler();
 
       postMessageSpy.mockClear();
 
@@ -594,7 +609,7 @@ describe('DevToolsConnector', () => {
       });
 
       connector.init(rxdb, entity => (entity === UserEntity ? { name: 'User', namespace: 'public' } : undefined));
-      const handler = addEventSpy.mock.calls.find(c => c[0] === 'message')![1];
+      const handler = getHandler();
       postMessageSpy.mockClear();
 
       handler({
@@ -619,7 +634,7 @@ describe('DevToolsConnector', () => {
       const rxdb = createMockRxDB();
       connector.init(rxdb);
 
-      const handler = addEventSpy.mock.calls.find(c => c[0] === 'message')![1];
+      const handler = getHandler();
       postMessageSpy.mockClear();
 
       handler({
@@ -649,7 +664,7 @@ describe('DevToolsConnector', () => {
     ] as const;
 
     function sendCommand(type: string, payload: unknown): void {
-      const handler = addEventSpy.mock.calls.find(c => c[0] === 'message')![1];
+      const handler = getHandler();
       handler({
         source: window,
         data: {
@@ -697,6 +712,31 @@ describe('DevToolsConnector', () => {
         expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('RxDB 未初始化'));
       }
     );
+  });
+
+  describe('session token', () => {
+    it('MUST silently drop session-required commands without a token', () => {
+      const rxdb = createMockRxDB();
+      connector.init(rxdb);
+      const handler = getHandler();
+      postMessageSpy.mockClear();
+
+      withoutSession(() => {
+        handler({
+          source: window,
+          data: {
+            source: RXDB_DEVTOOLS_MESSAGE,
+            direction: 'devtools-to-page',
+            type: 'INSPECT_DB',
+            payload: null,
+            timestamp: Date.now(),
+            sequence: 1
+          }
+        } as unknown as MessageEvent);
+      });
+
+      expect(postMessageSpy.mock.calls.filter(c => c[0]?.type === 'DB_INFO')).toHaveLength(0);
+    });
   });
 });
 

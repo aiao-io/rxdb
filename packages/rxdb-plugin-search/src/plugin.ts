@@ -1,19 +1,19 @@
 import {
-  ENTITY_LOCAL_CREATE_EVENT,
-  ENTITY_LOCAL_REMOVE_EVENT,
-  ENTITY_LOCAL_UPDATE_EVENT,
-  getEntityMetadata,
-  RxDB,
-  RxDBMigration,
-  RxDBPluginBase,
-  type EntityLocalCreatedEvent,
-  type EntityLocalRemovedEvent,
-  type EntityLocalUpdatedEvent,
-  type IRepository,
-  type IRxDBPlugin,
-  type Plugin
+    ENTITY_LOCAL_CREATE_EVENT,
+    ENTITY_LOCAL_REMOVE_EVENT,
+    ENTITY_LOCAL_UPDATE_EVENT,
+    getEntityMetadata,
+    RxDB,
+    RxDBMigration,
+    RxDBPluginBase,
+    type EntityLocalCreatedEvent,
+    type EntityLocalRemovedEvent,
+    type EntityLocalUpdatedEvent,
+    type IRepository,
+    type IRxDBPlugin,
+    type Plugin
 } from '@aiao/rxdb';
-import { firstValueFrom, isObservable, type Observable } from 'rxjs';
+import { filter, firstValueFrom, from, ignoreElements, isObservable, merge, type Observable } from 'rxjs';
 
 import type { FtsField } from '@aiao/rxdb-adapter-sqlite-core';
 import { assertSupportedAdapter } from './core/adapter-guard.js';
@@ -28,11 +28,11 @@ import { resolveSearchScope } from './core/scope-resolver.js';
 import { createSearchEngine, type SearchEngine } from './core/search-engine.js';
 import { createSearchHandle, type PerformSearch, type SearchPage } from './core/search-handle.js';
 import {
-  SearchError,
-  type SearchHandle,
-  type SearchOptions,
-  type SearchPluginOptions,
-  type SearchResult
+    SearchError,
+    type SearchHandle,
+    type SearchOptions,
+    type SearchPluginOptions,
+    type SearchResult
 } from './types.js';
 
 type EntityChangeEvent = EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent;
@@ -350,8 +350,12 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
       throw new Error('[rxdb-plugin-search] local adapter is not configured; search requires a local SQLite adapter');
     }
 
-    // 主表由 RxDB 在 connect() 流程中创建；必须等该阶段完成后再创建 FTS 外部内容表与 trigger。
-    await this.rxdb.connect(localAdapterName);
+    // 主表由 RxDB 在 connect() 流程中创建。不能 await connect() 本身：
+    // connect() 会在 connected$ 之后再 await 插件 install，互相等待会死锁。
+    const connecting = this.rxdb.connect(localAdapterName);
+    await firstValueFrom(
+      merge(this.rxdb.connected$.pipe(filter(Boolean)), from(connecting).pipe(ignoreElements()))
+    );
 
     const adapter = await firstValueFrom(this.rxdb.localAdapter$);
     if (!adapter.rawQuery) {
@@ -363,12 +367,18 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     // 防御性复制 params：部分 adapter 实现可能在内部修改入参数组，避免与上游共享引用
     const callRaw = (sql: string, params?: readonly unknown[]) => rawQuery(sql, params ? [...params] : undefined);
 
-    const executor: RuntimeSqlExecutor = { rawQuery: callRaw };
-    const store = this.#createMigrationStore(adapter.getRepository(RxDBMigration));
-
-    for (const plan of this.#searchPlans) {
-      await installFtsForEntity(plan, executor, store);
-    }
+    // FTS DDL / 迁移仓必须走 bootstrapTransaction：此时 connected$ 已为 true，
+    // 但 RxDB.connect() 还卡在 #await_plugin_installs。adapter.rawQuery / repo.find
+    // 都会 ready() → 再等 connect()，等于等自己。
+    await adapter.bootstrapTransaction(async tx => {
+      const executor: RuntimeSqlExecutor = {
+        rawQuery: (sql, params?) => tx.query(sql, params ? [...params] : undefined)
+      };
+      const store = this.#createMigrationStore(tx.getRepository(RxDBMigration));
+      for (const plan of this.#searchPlans) {
+        await installFtsForEntity(plan, executor, store);
+      }
+    });
 
     this.#engine = createSearchEngine(async (sql, params) => mapRowsToFtsRows(await callRaw(sql, params)));
 
