@@ -13,6 +13,7 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 **Rationale**: FR-023 要求「任意时刻业务数据能仅凭 HEAD 与工作树条目完整重放」。`rxdb_change` 的行在四种既有路径下会消失或失效：[remove-branch.ts](../../packages/rxdb/src/version/remove-branch.ts) 删分支时级联删除、[compact-changes.ts](../../packages/rxdb/src/version/compact-changes.ts) 压缩合并、`revertChangeId` / `revertChangedAt` 标记回滚、`redoInvalidatedAt` 标记重做失效。任何一条都会让「只引用不复制」的工作树在冷重放时缺项——这正是 FR-023 明令禁止的形态。
 
 **Alternatives rejected**:
+
 - *复用 `rxdb_change` + 加一个 `stagedAt` 列*：最省表，但压缩与删分支会静默吞掉条目，且把「审计历史」与「未提交真相源」两个生命周期不同的概念绑死。
 - *只存 `changeId` 外键*：同上，且外键在压缩后指向被合并掉的行。
 - *只存计数与 revision*：spec Assumptions 已明确「只存计数与版本号不算满足」。
@@ -32,6 +33,7 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 ## R-003 HEAD 的唯一真相源与激活分支基数约束
 
 **Decision**:
+
 - 当前分支继续由既有 [`RxDBBranch.activated`](../../packages/rxdb/src/system/branch.ts) 表示；HEAD 从 `rxdb_commit_branch_ref.headCommitId` 派生。**不**新增任何持久化的第二份 HEAD 或第二份「当前分支 id」。
 - 「至多一个激活分支」用**部分唯一索引**落成数据库约束：`UNIQUE (activated) WHERE activated = TRUE`。
 - 为此扩展 [`EntityIndexMetadataOptions`](../../packages/rxdb/src/entity/metadata-options.interface.ts#L801) 一个窄化、可移植的谓词字段 `where?: { property: string; equals: boolean | null }`，只允许「某布尔列等于某常量」这一种形态。
@@ -39,6 +41,7 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 **Rationale**: 索引列取 `activated` 自身、谓词限定 `activated = TRUE` —— 该索引下所有行的键值恒为 TRUE，唯一性即等价于「至多一行」。这个写法**不需要常量表达式索引**，PostgreSQL 16（PGlite）与 SQLite 3.8+（四个 SQLite 后端）都原生支持，无需任何 per-dialect 特例。谓词形态收窄成 `{property, equals}` 而非任意 SQL 串，保证可静态校验、可跨方言生成，不给注入留口子。
 
 **Alternatives rejected**:
+
 - *`CREATE UNIQUE INDEX ON t ((TRUE)) WHERE activated`*：PG 可用，SQLite **不支持常量表达式索引**，跨后端直接破。
 - *加一个可空的 `activationSlot` 列 + 普通 UNIQUE*：所有后端可用，但 `activated ⟺ activationSlot` 的双向一致性无法用现有装饰器表达（无 CHECK 约束支持），退化为代码纪律 —— 与 spec「不引入会漂移的第二份状态」冲突。
 - *单行 `RxDBWorkingTreeActivationState` 里存当前分支 id*：直接违反 FR-001 / FR-015 的「不复制第二份标识」。
@@ -50,6 +53,7 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 ## R-004 系统 schema 版本与启用迁移
 
 **Decision**:
+
 - `RXDB_SYSTEM_SCHEMA_VERSION` 由 `3` 递增到 `4`，沿用既有 [`migration.ts`](../../packages/rxdb/src/system/migration.ts) 的 watermark + `rxdb_migration` 占坑机制，占坑冲突继续走 `RxDBMigrationClaimConflictError` 重试。
 - 新表的**建表**随 schema 版本 4 一起发生（仅当启用时），**基线生成**是独立的、可重试的幂等步骤，两步在同一迁移事务内。
 - 启用是数据库级、单向、显式的，配置项落在 [`RxDBOptions`](../../packages/rxdb/src/rxdb.interface.ts#L83) 上：`commits?: { enabled: boolean }`。缺省 `undefined` ≡ 未启用 ≡ 零新表零行为差异（FR-011、SC-008）。
@@ -57,6 +61,7 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 **Rationale**: 复用既有机制意味着多标签页占坑竞争、失败重试、幂等重启这三条都已由 [`RxDB.ts`](../../packages/rxdb/src/RxDB.ts) 现成路径覆盖并有测试。命名用 `commits` 而非 `workingTree`，因为启用的是**整个提交能力**（提交图是底座，工作树是它的必然伴生）。
 
 **Alternatives rejected**:
+
 - *建表随包升级自动发生，基线懒加载*：违反 SC-008「未启用数据库新增系统表数量为 0」。
 - *`enableCommits()` 运行时方法*：启用会写系统表，放在 connect 之后意味着存在「已连接但能力状态未定」的窗口，写入方协商（FR-011）无处落脚。
 
@@ -65,6 +70,7 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 ## R-005 revision 的实现与两类校验
 
 **Decision**:
+
 - 所有 revision 是**单调递增整数列**，不是时间戳、不是 UUID、不是哈希。
 - **调用方捕获型**（stage / unstage / commit / restore / discard / switchBranch，以及一律校验的 `activationRevision`）落成条件更新：`UPDATE ... SET rev = rev + 1 WHERE id = :id AND rev = :expected`，用 [`RawQueryResult.rowsAffected`](../../packages/rxdb/src/rxdb-adapter.ts#L60) 判定成败，`0` 即冲突，抛携带 expected/actual 的 `CommitConflict`。
 - **事务内读改写型**（普通 CRUD、远端实体应用的 `workingTreeRevision`）在**同一事务内**先读后写，不接收调用方的 expected 值，因此在串行化的事务边界内不会因并发失败。
@@ -73,6 +79,7 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 **Rationale**: `rowsAffected` 是全部 6 个后端都已实现并有 `rowsAffectedConformanceSuite` 覆盖的既有能力（见 [`shared-rows-affected-conformance.suite.ts`](../../packages/rxdb-adapter-sqlite-core/src/__tests__/shared-rows-affected-conformance.suite.ts)），无需新增跨方言原语。整数列在两种方言下语义完全一致，无时钟依赖。
 
 **Alternatives rejected**:
+
 - *时间戳做 revision*：本地时钟不可信（spec Assumptions 已排除），且同毫秒并发不可分辨。
 - *统一成调用方捕获型*：会让普通 CRUD 在多标签页下随机失败，直接违反 FR-032。
 - *复用 `rxdb_upgrade_guard.epoch`*：FR-008 明令 epoch 只用于迁移 fencing，两者职责混用会让「迁移后滞后写入方」与「普通并发」两类失败无法区分。
@@ -82,14 +89,20 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 ## R-006 写入意图枚举与受信登记
 
 **Decision**:
-- [`TransactionExecutor.mergeChanges`](../../packages/rxdb/src/transaction/transaction-executor.interface.ts#L116) 第三形参由 `disableTriggers?: boolean` 改为 `intent: RxDBWriteIntent`（内部契约，不在公开基线中）。
-- `RxDBWriteIntent` 枚举值：`local` / `remoteSync` / `merge` / `undoRedo` / `restore` / `branchMaterialization` / `baselineMaterialization` / `expiredCleanup`。
-- 受信登记表 `write-intent.ts` 的键是 **`{ file, symbol, intent }` 三元组**，不含行号。
-- 新增静态扫描 `scripts/audit/write-intent-drift.mjs`：解析源码中所有 `mergeChanges(` 调用点，与登记表求双向差集；**排除 `dist/`**、区分同名重载（本地 `(actions, localChanges?, intent)` 在范围内，远端 `(actions, branchId?, changes?)` 不在）。
 
-**Rationale**: 现有 8 个调用点里，`branchMaterialization` 与 `baselineMaterialization` 应当**不**产生工作树条目，其余 6 个必须产生对应来源的条目。当前的布尔参数无法区分这两类——[`merge-branch.ts`](../../packages/rxdb/src/version/merge-branch.ts) 的逐条路径（`executor.mergeChanges`，第 127 行）与 squash 路径（`adapter.mergeChanges`，第 151 行）都传 `false`，而 [`cleanup-expired.ts`](../../packages/rxdb/src/version/cleanup-expired.ts#L201) 与 [`pull-batch.ts`](../../packages/rxdb/src/version/pull-batch.ts#L380) 都传 `true`——按布尔或按函数放行都会把某一类静默吞掉。
+- **两个**适配器级写入口都要携带意图，不止一个：
+  - [`TransactionExecutor.mergeChanges`](../../packages/rxdb/src/transaction/transaction-executor.interface.ts#L116) 第三形参由 `disableTriggers?: boolean` 改为 `intent: RxDBWriteIntent`。
+  - 既有内部类型 [`SwitchBranchOptions`](../../packages/rxdb/src/rxdb-adapter.ts#L55) 追加必填 `intent: RxDBWriteIntent` 字段（这是**内部适配器契约**的扩展，与 FR-054 要求的公开新类型 `WorkingTreeSwitchBranchOptions` 是两回事，不冲突）。
+- `RxDBWriteIntent` 枚举值：`local` / `remoteSync` / `merge` / `undoRedo` / `restore` / `expiredCleanup` / `branchMaterialization` / `baselineMaterialization` / `metadataOnly`。
+- 受信登记表 `write-intent.ts` 的键是 **`{ file, symbol, intent }` 三元组**，不含行号。
+- 新增静态扫描 `scripts/audit/write-intent-drift.mjs`：解析源码中所有 `mergeChanges(` 与 `switchBranch(` 调用点，与登记表求双向差集；**排除 `dist/`** 与测试文件、区分 `mergeChanges` 的同名重载（本地 `(actions, localChanges?, intent)` 在范围内，远端 `(actions, branchId?, changes?)` 不在）。
+
+**Rationale**: 只挂在 `mergeChanges` 上会漏掉一半入口 —— 实测代码里 **undo/redo 走的是 `adapter.switchBranch`**（[`HistoryManager.ts:1472`](../../packages/rxdb/src/version/HistoryManager.ts#L1472)），**切换分支物化也走 `adapter.switchBranch`**（[`VersionManager.ts:769`](../../packages/rxdb/src/version/VersionManager.ts#L769)）。这两者对工作树的语义正好相反（前者必须产生条目、后者必须不产生），而 `SwitchBranchOptions` 当前**连一个可区分的形参都没有**。同样地，`mergeChanges` 的布尔参数也区分不开：[`merge-branch.ts`](../../packages/rxdb/src/version/merge-branch.ts) 的逐条路径（第 127 行）与 squash 路径（第 151 行）都传 `false`，而 [`cleanup-expired.ts:201`](../../packages/rxdb/src/version/cleanup-expired.ts#L201) 与 [`pull-batch.ts:380`](../../packages/rxdb/src/version/pull-batch.ts#L380) 都传 `true`——按布尔或按函数放行都会把某一类静默吞掉。
+
+`metadataOnly` 是实测新增的第 9 个值：[`HistoryManager.ts:948`](../../packages/rxdb/src/version/HistoryManager.ts#L948) 借用 `switchBranch` 机制只写 `RxDBChange.redoInvalidatedAt`，完全不碰业务实体，必须与真正的数据写入区分开。完整登记见 [contracts/adapter-contract.md §4](./contracts/adapter-contract.md#4-写入口受信登记)（共 11 个受信调用点）。
 
 **Alternatives rejected**:
+
 - *保留 boolean，另设旁路事件表补记*：先写业务数据再补记无法保证同一事务原子（FR-018），崩溃窗口产生半状态。
 - *按调用栈自动推断*：不可静态校验，无法支撑 SC-004 的「未登记调用点数量为 0」。
 - *以行号为登记键*：任何无关重排都会让门禁误报，实践中必然被放宽成摆设。
@@ -115,8 +128,9 @@ stage 正向扩展，unstage 反向移除依赖者。不可拆分的关系环整
 ## R-008 提交标识与幂等键
 
 **Decision**:
+
 - 提交 id 用既有 [`uuid()`](../../packages/rxdb/src/rxdb-utils.ts#L153)（**UUID v7**，时间有序），**不用**内容哈希。
-- 幂等唯一约束键 = `(dbName, branchGeneration, operationId)`。`branchGeneration` 是分支引用上的不可变代次，同名重建分支拿到新代次，因此不与旧幂等键碰撞（FR-009、spec Edge Cases）。
+- 幂等唯一约束键 = `(branchId, branchGeneration, operationId)`。`branchGeneration` 是分支引用上的不可变代次，同名重建分支拿到新代次，因此不与旧幂等键碰撞（FR-009、spec Edge Cases）。
 - 相同键 + 相同内容 → 返回原提交、HEAD 不推进；相同键 + 不同内容 → `idempotency_key_reused`，原记录不被覆盖。
 
 **Rationale**: UUID v7 时间有序，既是主键又能当稳定游标，与 FR-007 的「拓扑顺序为主、创建时间为次级排序」天然吻合。内容哈希被否有两个硬理由：加密字段的信封每次加密产生不同密文（nonce 随机），内容哈希不稳定；且内容哈希会让「相同内容不同意图的两次提交」被误判为重试。
@@ -165,6 +179,7 @@ stage 正向扩展，unstage 反向移除依赖者。不可拆分的关系环整
 ## R-012 崩溃恢复与并发的确定性测试手法
 
 **Decision**:
+
 - **崩溃**：在事务回调内的确定性位点抛注入错误 → 断言回滚 → `disconnect()` + 重新 `connect()` → 断言只看到上一次完整一致状态。分页物化的崩溃用「第 N 页后抛错」参数化。
 - **并发**：同一进程内对**同一物理库**建两个 RxDB 实例，按确定性顺序交错调用（A 读取 revision → B 提交 → A 提交），断言恰好一个成功。
 - 全程**不使用** `setTimeout`、不依赖真实时序、不依赖 BroadcastChannel 送达时机。
@@ -178,6 +193,7 @@ stage 正向扩展，unstage 反向移除依赖者。不可拆分的关系环整
 ## R-013 benchmark 报告结构与 runnerProfileHash
 
 **Decision**:
+
 - 新增 Nx target `benchmarks:bench-working-tree`（`benchmarks/project.json`），沿用既有 `bench-encryption` / `bench-hot-path` 的 `node --experimental-strip-types <file>.bench.ts` 形态。
 - `runnerProfileHash` = 对 `{ nodeVersion, pgliteVersion, os, arch, cpuModel, cpuCores, totalMemoryBytes, runnerId, concurrency }` 归一化后取稳定摘要。
 - 报告 JSON 含：p50 / p95、control ratio、fixture 内容摘要与 `fixtureHash`、完整运行环境画像与其 hash。

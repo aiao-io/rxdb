@@ -93,9 +93,14 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 |   P2   | Electron PGlite 数据目录与事务宿主   | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)       | PGlite callback transaction 不能跨 IPC 序列化，需要 SQLite 路径不需要的事务 host 协议 | 主进程 data directory、事务 ID 协议或主进程托管 adapter、跨进程类型保真                                            |
 |   P2   | PGlite 原生全文搜索                  | [US-703](stories/future/US-703-pglite-full-text-search.md)               | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                             | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                       |
 |   P2   | 子路径入口纳入 API 表面基线          | [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)         | 版本策略把子路径承诺为公开 API，门禁却只扫主入口——承诺与门禁的差额只能靠人工审查补    | 源入口声明收敛到单一真相源、基线格式扩到多入口、资产入口白名单跳过、三处文档收口                                   |
+|   P1   | EffectScope 生命周期作用域原语       | [US-013](stories/core/US-013-effect-scope-primitive.md)                  | 同一件「登记副作用 → 拆卸时撤销」的事在仓库里被手工写了九遍，没有两处写法相同         | `@aiao/utils` 侧的类与语义（逆序、幂等、异步、错误隔离、可嵌套），语义由测试冻结                                   |
+|   P1   | 插件作用域契约                       | [US-014](stories/core/US-014-plugin-scope-contract.md)                   | graph 插件的 `destroy()` 是空的且**契约里没有位置可写**——这是既有泄漏，不是待办能力   | `install(scope)` 契约、`unregisterRepository()`、四个插件包迁移、`destroy()` 废弃周期、类型契约测试                |
 
 > US-306a/b/c / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
 > [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定依赖关系。
+>
+> [US-015](stories/core/US-015-plugin-inject-dependency.md) 同理不单列——它是 US-014 的后续交付，
+> 排期跟随 [epic-008](epics/epic-008-lifecycle-scope.md) 内部的固定顺序。
 
 ### 排期约束
 

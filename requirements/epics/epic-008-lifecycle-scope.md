@@ -38,18 +38,18 @@ owner: jimmy
 
 以下九处都在做同一件事——记录「装了什么」以便「拆的时候撤销」——但没有两处的写法相同：
 
-| #   | 位置                                                                                                | 手工机制                                                                    | 已知代价                                                                                        |
-| --- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| 1   | [RxDB.ts:597-613](../../packages/rxdb/src/RxDB.ts#L597-L613) `#shutdown()`                          | 一次手工复位 8 处状态                                                       | 注释自陈「复位是拆卸的一半」；漏一处 = 重连后拿到空壳实例                                        |
-| 2   | [RxDB.ts:142](../../packages/rxdb/src/RxDB.ts#L142) `#event_initialized`                            | 「只装一次」布尔守卫                                                        | 事件监听器**没有**卸载路径，只能靠不重复装来防泄漏                                               |
-| 3   | [RxDB.ts:118](../../packages/rxdb/src/RxDB.ts#L118) `#plugin_install_promises`                      | `Map<IRxDBPlugin, Promise<void>>` 记账 + 失败后删条目允许重试                | 安装态、失败态、重试态三件事挤在一个 Map 里                                                     |
-| 4   | [storage/plugin.ts:19-20](../../packages/rxdb-plugin-storage/src/plugin.ts#L19-L20)                 | `#ownsStorage` + `#registeredEntity` 双布尔                                 | `defineProperty` / `deleteProperty` 与 `entities.push` / `splice` 两对配对散在 install / destroy |
-| 5   | [search/plugin.ts:84,98-100](../../packages/rxdb-plugin-search/src/plugin.ts#L84)                   | `SearchPluginPhase` 五态枚举 + `#installPromise` 身份比对                    | 为了处理「destroy 与异步 install 竞态」自建了一套状态机                                          |
-| 6   | [search/plugin.ts:109,479-480](../../packages/rxdb-plugin-search/src/plugin.ts#L109)                | `Array<{type, listener}>` 手工监听器清单，destroy 时逐个 `removeEventListener` | 新增一处 `addEventListener` 必须记得 push 进同一个数组                                          |
-| 7   | [workspace:173-174,196](../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L173-L174)  | `#installPromise` + `#installFailed` + `#destroyed` 三标志                   | 第三套语义不同的安装状态机；`#destroyed` 需要在每个 `await` 之后重新检查                        |
-| 8   | [workspace:185,412-425](../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L185)       | `Map<CacheId, Subscription>` + 独立的 `#taskSubscription`                    | 两处订阅两套释放路径；`rollback(() => …)`（:295）已经是本原语的临时手写版                       |
-| 9   | [graph/plugin.ts:33-35](../../packages/rxdb-plugin-graph/src/plugin.ts#L33-L35)                     | `destroy()` 空实现，注释只写「注销」                                        | **契约里没有位置可写**：`install()` 调 `rxdb.repository()` 写进 `#repository_config_map`，       |
-|     |                                                                                                     |                                                                             | 而 RxDB 全文只有 `.set`（:310）与 `.get`（:391），**没有反注册 API**——这不是忘写，是写不了      |
+| #   | 位置                                                                                               | 手工机制                                                                       | 已知代价                                                                                         |
+| --- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| 1   | [RxDB.ts:597-613](../../packages/rxdb/src/RxDB.ts#L597-L613) `#shutdown()`                         | 一次手工复位 8 处状态                                                          | 注释自陈「复位是拆卸的一半」；漏一处 = 重连后拿到空壳实例                                        |
+| 2   | [RxDB.ts:142](../../packages/rxdb/src/RxDB.ts#L142) `#event_initialized`                           | 「只装一次」布尔守卫                                                           | 事件监听器**没有**卸载路径，只能靠不重复装来防泄漏                                               |
+| 3   | [RxDB.ts:118](../../packages/rxdb/src/RxDB.ts#L118) `#plugin_install_promises`                     | `Map<IRxDBPlugin, Promise<void>>` 记账 + 失败后删条目允许重试                  | 安装态、失败态、重试态三件事挤在一个 Map 里                                                      |
+| 4   | [storage/plugin.ts:19-20](../../packages/rxdb-plugin-storage/src/plugin.ts#L19-L20)                | `#ownsStorage` + `#registeredEntity` 双布尔                                    | `defineProperty` / `deleteProperty` 与 `entities.push` / `splice` 两对配对散在 install / destroy |
+| 5   | [search/plugin.ts:84,98-100](../../packages/rxdb-plugin-search/src/plugin.ts#L84)                  | `SearchPluginPhase` 五态枚举 + `#installPromise` 身份比对                      | 为了处理「destroy 与异步 install 竞态」自建了一套状态机                                          |
+| 6   | [search/plugin.ts:109,479-480](../../packages/rxdb-plugin-search/src/plugin.ts#L109)               | `Array<{type, listener}>` 手工监听器清单，destroy 时逐个 `removeEventListener` | 新增一处 `addEventListener` 必须记得 push 进同一个数组                                           |
+| 7   | [workspace:173-174,196](../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L173-L174) | `#installPromise` + `#installFailed` + `#destroyed` 三标志                     | 第三套语义不同的安装状态机；`#destroyed` 需要在每个 `await` 之后重新检查                         |
+| 8   | [workspace:185,412-425](../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L185)      | `Map<CacheId, Subscription>` + 独立的 `#taskSubscription`                      | 两处订阅两套释放路径；`rollback(() => …)`（:295）已经是本原语的临时手写版                        |
+| 9   | [graph/plugin.ts:33-35](../../packages/rxdb-plugin-graph/src/plugin.ts#L33-L35)                    | `destroy()` 空实现，注释只写「注销」                                           | **契约里没有位置可写**：`install()` 调 `rxdb.repository()` 写进 `#repository_config_map`，       |
+|     |                                                                                                    |                                                                                | 而 RxDB 全文只有 `.set`（:310）与 `.get`（:391），**没有反注册 API**——这不是忘写，是写不了       |
 
 第 9 条是本 Epic 的直接触发点：它证明「靠自觉写对称的 destroy」在当前契约下**做不到**，
 因为宿主根本没提供撤销入口。补一个 `unregisterRepository()` 只能解决这一处；同样的洞会在
@@ -102,8 +102,8 @@ owner: jimmy
 
 ## 与既有 Epic 的边界
 
-| 相邻 Epic                                       | 边界                                                                                                               |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| [epic-001 核心 MVP](epic-001-core-mvp.md)       | 001 交付的是**能力**（查询、变更、事务）；本 Epic 不新增任何能力，只改这些能力的装卸方式                            |
+| 相邻 Epic                                              | 边界                                                                                                                                                                                                                                            |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [epic-001 核心 MVP](epic-001-core-mvp.md)              | 001 交付的是**能力**（查询、变更、事务）；本 Epic 不新增任何能力，只改这些能力的装卸方式                                                                                                                                                        |
 | [epic-007 公开 API 门禁](epic-007-public-api-gates.md) | 007 管「导出表面被增删改能否被门禁发现」；本 Epic 会**制造**一次这样的变更（`IRxDBPlugin` 成员改动），并暴露一个已知盲区：`api-surface.mjs` 只记录 `{name, kind}`，成员签名变化不触发 diff。该盲区由 US-014 用类型契约测试补，不扩大 007 的范围 |
-| [epic-006 工作树](epic-006-working-tree-commits.md)   | 006 的恢复会话/物化暂存有自己的持久化生命周期，不复用本 Epic 的**进程内**作用域；两者不互为前置                    |
+| [epic-006 工作树](epic-006-working-tree-commits.md)    | 006 的恢复会话/物化暂存有自己的持久化生命周期，不复用本 Epic 的**进程内**作用域；两者不互为前置                                                                                                                                                 |

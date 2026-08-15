@@ -63,22 +63,22 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 前置条件                                            | 操作                                                          | 预期结果                                                                                                                            | 状态 |
-| --- | --------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 1   | 作用域已登记 effect A、B、C（按此顺序）             | `await scope.dispose()`                                       | 清理顺序严格为 C → B → A；`state` 在首个 disposer 执行前已是 `disposing`，全部完成后为 `disposed`                                    | ⬜   |
-| 2   | A、B 的 disposer 均返回 Promise                     | `await scope.dispose()`                                       | **串行**执行：B 的 Promise settle 之后 A 才开始；`dispose()` 返回的 Promise 在全部 settle 后才 resolve                               | ⬜   |
-| 3   | 已登记 effect 并拿到 `effect()` 返回的 disposer     | 调用该 disposer 两次，再 `await scope.dispose()`               | 底层清理只执行 **1** 次；该 effect 已从作用域清单摘除，`dispose()` 不会再次调用它                                                    | ⬜   |
-| 4   | 作用域已 `dispose()`                                | 再次 `await scope.dispose()`（含并发同时调用两次）            | 返回**同一个** Promise，清理总执行次数不变，不抛错                                                                                  | ⬜   |
-| 5   | 作用域处于 `disposing` 或 `disposed`                | 调用 `scope.effect(setup)`                                    | 同步抛 `EffectScopeDisposedError`，且 **`setup` 不被执行**（不产生新副作用）；错误消息含作用域 label 与传入的 effect label           | ⬜   |
-| 6   | 某个 disposer 的实现内部调用 `scope.effect()`       | `await scope.dispose()`                                       | 该调用抛 `EffectScopeDisposedError`；按 AC#8 的隔离规则，其余 disposer 照常跑完                                                      | ⬜   |
-| 7   | `effectAsync(setup)` 的 setup 尚未 settle           | 在 setup pending 期间调用 `scope.dispose()`                    | setup 落地后拿到的 disposer 被**立即执行并等待**（资源不泄漏），随后 `effectAsync` 的 Promise 以 `EffectScopeDisposedError` reject；`dispose()` 的 Promise 在该清理完成后才 resolve | ⬜   |
-| 8   | 三个 disposer 中第 2、3 个抛错                      | `await scope.dispose()`                                       | 三个**全部**被调用（不短路）；`dispose()` 以 `AggregateError` reject，`errors` 按**执行顺序**排列；作用域仍进入 `disposed`           | ⬜   |
-| 9   | 三个 disposer 中恰好 1 个抛错                       | `await scope.dispose()`                                       | `dispose()` 直接以**该原始错误**reject（不包 `AggregateError`），与 [`RxDB.#runIsolated`](../../../packages/rxdb/src/RxDB.ts#L571-L585) 的首错口径一致 | ⬜   |
-| 10  | 父作用域上依次登记 effect A、子作用域 S、effect B   | 在 S 上登记 s1、s2，然后 `await parent.dispose()`             | 顺序为 B → (s2 → s1) → A：子作用域在**它被创建的那个位置**整体释放，不是全部提前或全部推后；S 的 `state` 为 `disposed`               | ⬜   |
-| 11  | 子作用域 S 已独立 `dispose()`                       | 随后 `await parent.dispose()`                                 | S 的 disposer 不被二次调用；S 已从父清单摘除；父的其余 effect 正常释放                                                               | ⬜   |
-| 12  | setup 返回 `undefined`（无需清理的副作用）          | 登记后 `await scope.dispose()`                                | 不抛错、不调用任何东西；该 effect 返回的 disposer 可安全调用且为 no-op                                                               | ⬜   |
-| 13  | setup 自身同步抛错                                  | `scope.effect(setup)`                                         | 错误原样抛给调用方；该 effect **不进入**清单，`dispose()` 时不涉及它；作用域仍为 `active`                                            | ⬜   |
-| 14  | 新增的公开导出                                      | 跑 `node scripts/audit/api-surface.mjs --check` 与 lint / test | 基线 [utils.json](../../api-baseline/utils.json) 已同步含新符号；TSDoc 齐全；`@aiao/utils` 四项覆盖率 ≥ **80%**（非核心包档位）      | ⬜   |
+| #   | 前置条件                                          | 操作                                                           | 预期结果                                                                                                                                                                            | 状态 |
+| --- | ------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | 作用域已登记 effect A、B、C（按此顺序）           | `await scope.dispose()`                                        | 清理顺序严格为 C → B → A；`state` 在首个 disposer 执行前已是 `disposing`，全部完成后为 `disposed`                                                                                   | ⬜   |
+| 2   | A、B 的 disposer 均返回 Promise                   | `await scope.dispose()`                                        | **串行**执行：B 的 Promise settle 之后 A 才开始；`dispose()` 返回的 Promise 在全部 settle 后才 resolve                                                                              | ⬜   |
+| 3   | 已登记 effect 并拿到 `effect()` 返回的 disposer   | 调用该 disposer 两次，再 `await scope.dispose()`               | 底层清理只执行 **1** 次；该 effect 已从作用域清单摘除，`dispose()` 不会再次调用它                                                                                                   | ⬜   |
+| 4   | 作用域已 `dispose()`                              | 再次 `await scope.dispose()`（含并发同时调用两次）             | 返回**同一个** Promise，清理总执行次数不变，不抛错                                                                                                                                  | ⬜   |
+| 5   | 作用域处于 `disposing` 或 `disposed`              | 调用 `scope.effect(setup)`                                     | 同步抛 `EffectScopeDisposedError`，且 **`setup` 不被执行**（不产生新副作用）；错误消息含作用域 label 与传入的 effect label                                                          | ⬜   |
+| 6   | 某个 disposer 的实现内部调用 `scope.effect()`     | `await scope.dispose()`                                        | 该调用抛 `EffectScopeDisposedError`；按 AC#8 的隔离规则，其余 disposer 照常跑完                                                                                                     | ⬜   |
+| 7   | `effectAsync(setup)` 的 setup 尚未 settle         | 在 setup pending 期间调用 `scope.dispose()`                    | setup 落地后拿到的 disposer 被**立即执行并等待**（资源不泄漏），随后 `effectAsync` 的 Promise 以 `EffectScopeDisposedError` reject；`dispose()` 的 Promise 在该清理完成后才 resolve | ⬜   |
+| 8   | 三个 disposer 中第 2、3 个抛错                    | `await scope.dispose()`                                        | 三个**全部**被调用（不短路）；`dispose()` 以 `AggregateError` reject，`errors` 按**执行顺序**排列；作用域仍进入 `disposed`                                                          | ⬜   |
+| 9   | 三个 disposer 中恰好 1 个抛错                     | `await scope.dispose()`                                        | `dispose()` 直接以**该原始错误**reject（不包 `AggregateError`），与 [`RxDB.#runIsolated`](../../../packages/rxdb/src/RxDB.ts#L571-L585) 的首错口径一致                              | ⬜   |
+| 10  | 父作用域上依次登记 effect A、子作用域 S、effect B | 在 S 上登记 s1、s2，然后 `await parent.dispose()`              | 顺序为 B → (s2 → s1) → A：子作用域在**它被创建的那个位置**整体释放，不是全部提前或全部推后；S 的 `state` 为 `disposed`                                                              | ⬜   |
+| 11  | 子作用域 S 已独立 `dispose()`                     | 随后 `await parent.dispose()`                                  | S 的 disposer 不被二次调用；S 已从父清单摘除；父的其余 effect 正常释放                                                                                                              | ⬜   |
+| 12  | setup 返回 `undefined`（无需清理的副作用）        | 登记后 `await scope.dispose()`                                 | 不抛错、不调用任何东西；该 effect 返回的 disposer 可安全调用且为 no-op                                                                                                              | ⬜   |
+| 13  | setup 自身同步抛错                                | `scope.effect(setup)`                                          | 错误原样抛给调用方；该 effect **不进入**清单，`dispose()` 时不涉及它；作用域仍为 `active`                                                                                           | ⬜   |
+| 14  | 新增的公开导出                                    | 跑 `node scripts/audit/api-surface.mjs --check` 与 lint / test | 基线 [utils.json](../../api-baseline/utils.json) 已同步含新符号；TSDoc 齐全；`@aiao/utils` 四项覆盖率 ≥ **80%**（非核心包档位）                                                     | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -93,11 +93,11 @@ INVEST 检查清单:
 
 #### D1 — `EffectScope` 放哪个包
 
-| 方案                             | 主要风险                                                                                             | 结论        |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------- |
-| `@aiao/utils`                    | 扩大 utils 的定位（从「工具函数」到「运行时构件」）                                                     | ✅ **推荐** |
-| `@aiao/rxdb`                     | `code-editor-*` 等非 rxdb 包用不到；`@aiao/utils` 反向依赖 `@aiao/rxdb` 不可接受，只能各写一份         | ❌          |
-| 新建 `@aiao/lifecycle` 包        | 为 ~150 行新增第 30 个公开包，连带 build / 覆盖率 / 基线 / 文档五套配置                                 | ❌          |
+| 方案                      | 主要风险                                                                                       | 结论        |
+| ------------------------- | ---------------------------------------------------------------------------------------------- | ----------- |
+| `@aiao/utils`             | 扩大 utils 的定位（从「工具函数」到「运行时构件」）                                            | ✅ **推荐** |
+| `@aiao/rxdb`              | `code-editor-*` 等非 rxdb 包用不到；`@aiao/utils` 反向依赖 `@aiao/rxdb` 不可接受，只能各写一份 | ❌          |
+| 新建 `@aiao/lifecycle` 包 | 为 ~150 行新增第 30 个公开包，连带 build / 覆盖率 / 基线 / 文档五套配置                        | ❌          |
 
 选 `@aiao/utils` 的实质理由不是「它是杂物箱」，而是**它已经在提供有生命周期的运行时构件**：
 `async/AsyncQueueExecutor`、`@browser/leader-election`、`@browser/broadcast-channel-pool` 都不是纯函数，
@@ -108,11 +108,11 @@ INVEST 检查清单:
 问题：`const res = await open(); scope.effect(() => () => res.close())` —— 如果作用域在 `await` 期间被释放，
 登记会抛错，而 `res` 已经被打开且无人关闭。
 
-| 方案                                                          | 主要风险                                                                     | 结论        |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------ | ----------- |
-| 只有同步 `effect()`，泄漏交给调用方 try/catch                 | 正是本 Epic 要消灭的那类「靠人记得写对称的一半」                              | ❌          |
-| `effect()` 接受 async setup，内部处理竞态                     | 同一个方法两套语义；同步路径也被迫返回 Promise，最常见的用法反而变难用        | ❌          |
-| 独立的 `effectAsync()`，非 active 时自动回收已获取资源        | 多一个 API 名；调用方需要知道该用哪个                                         | ✅ **推荐** |
+| 方案                                                   | 主要风险                                                               | 结论        |
+| ------------------------------------------------------ | ---------------------------------------------------------------------- | ----------- |
+| 只有同步 `effect()`，泄漏交给调用方 try/catch          | 正是本 Epic 要消灭的那类「靠人记得写对称的一半」                       | ❌          |
+| `effect()` 接受 async setup，内部处理竞态              | 同一个方法两套语义；同步路径也被迫返回 Promise，最常见的用法反而变难用 | ❌          |
+| 独立的 `effectAsync()`，非 active 时自动回收已获取资源 | 多一个 API 名；调用方需要知道该用哪个                                  | ✅ **推荐** |
 
 `effectAsync()` 的语义即 AC#7：await setup → 若作用域已非 `active`，立刻执行并等待拿到的 disposer，
 然后 reject。**关键**：这次迟到的清理必须并入当次 `dispose()` 的等待集合，否则 `dispose()` 会在资源
@@ -123,11 +123,11 @@ INVEST 检查清单:
 
 #### D3 — 多个 disposer 同时抛错时抛什么
 
-| 方案                                | 主要风险                                                                 | 结论        |
-| ----------------------------------- | -------------------------------------------------------------------------- | ----------- |
-| 只抛首个（同 `#runIsolated`）       | 丢失后续错误；多插件同时失败时只看得到一个                                | ❌          |
-| 一律 `AggregateError`               | 单错场景下调用方要多剥一层，与既有 `#runIsolated` 手感不一致              | ❌          |
-| 单错原样抛，多错聚合（AC#8 / AC#9） | 调用方需要 `instanceof AggregateError` 分支                              | ✅ **推荐** |
+| 方案                                | 主要风险                                                     | 结论        |
+| ----------------------------------- | ------------------------------------------------------------ | ----------- |
+| 只抛首个（同 `#runIsolated`）       | 丢失后续错误；多插件同时失败时只看得到一个                   | ❌          |
+| 一律 `AggregateError`               | 单错场景下调用方要多剥一层，与既有 `#runIsolated` 手感不一致 | ❌          |
+| 单错原样抛，多错聚合（AC#8 / AC#9） | 调用方需要 `instanceof AggregateError` 分支                  | ✅ **推荐** |
 
 无论哪种方案，**不短路**是硬要求：一个 disposer 抛错绝不能让排在它后面的 disposer 被跳过——
 这正是 [`RxDB.#runIsolated`](../../../packages/rxdb/src/RxDB.ts#L571-L585) 已经确立的口径，

@@ -12,10 +12,10 @@
 | :------------- | :--- |
 | ✅ Done        | 33   |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 14   |
+| 📝 Backlog     | 17   |
 | 🚧 In Progress | 3    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 50   |
+| **合计**       | 53   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，请勿手写维护。
 >
@@ -30,6 +30,10 @@
 > 同日 [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md) 开工转 `In Progress`（Backlog 12 → 11，In Progress 2 → 3，合计不变）。
 > 同日二次评审确认 US-306 仍同时持有写入口捕获、Index 状态机、三框架与 benchmark，INVEST「Small」仍不成立；
 > 保留 US-306 为父契约并拆出 US-306a/b/c。三个子故事是既有范围的交付切片，Backlog 11 → 14，合计 47 → 50。
+> 同日新增 [US-013](stories/core/US-013-effect-scope-primitive.md) / [US-014](stories/core/US-014-plugin-scope-contract.md) / [US-015](stories/core/US-015-plugin-inject-dependency.md) 并为它们新建 [epic-008](epics/epic-008-lifecycle-scope.md)。
+> 这三条是把**已存在的实现债**登记成故事：同一件「登记副作用 → 拆卸时撤销」的事在仓库里被手工写了九遍，
+> 其中 [graph 插件](../packages/rxdb-plugin-graph/src/plugin.ts#L33-L35) 的 `destroy()` 是空的且**契约里没有位置可写**
+> （`#repository_config_map` 只有 `.set` / `.get`，无反注册 API），属既有泄漏而非新增范围。Backlog 14 → 17，合计 50 → 53。
 
 ## 项目统计
 
@@ -161,6 +165,19 @@ US-307 / US-308 的**核心持久层半边**可与 US-306c 并行开工，但两
 不属于产品能力，因此不挂进 epic-001~006 中的任何一个。
 
 - ⬜ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md) — 认领上方「已知的需求覆盖缺口」第 2 条
+
+### [生命周期作用域](epics/epic-008-lifecycle-scope.md)
+
+2026-08-15 新建。横切的实现约束，不是产品能力也不是门禁：把「资源的获取与释放被拆成两处、
+靠人工保持对称」收敛成一个原语。交付顺序固定为 **US-013 → US-014 → US-015**，不可交换。
+
+- ⬜ [US-013 EffectScope 生命周期作用域原语](stories/core/US-013-effect-scope-primitive.md) — `@aiao/utils` 侧的原语，语义由测试冻结
+- ⬜ [US-014 插件作用域契约](stories/core/US-014-plugin-scope-contract.md) — `install(scope)`，四个插件包迁移；直接修掉 graph 插件的既有泄漏
+- ⬜ [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) — `inject` 封闭枚举，依赖未就绪不安装、消失即释放
+
+> 本 Epic 会制造一次 `IRxDBPlugin` 成员签名变更，而 [api-surface.mjs](../scripts/audit/api-surface.mjs)
+> 只记录 `{name, kind}`（见 [rxdb.json](api-baseline/rxdb.json)），**成员怎么改都不产生 diff**。
+> 该盲区由 US-014 用类型契约测试就地补上，不扩大 [epic-007](epics/epic-007-public-api-gates.md) 的范围。
 
 ## 跨框架 API 对称矩阵
 
