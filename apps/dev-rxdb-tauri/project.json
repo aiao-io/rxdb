@@ -172,7 +172,7 @@
     "test-conformance": {
       "executor": "nx:run-commands",
       "cache": true,
-      "dependsOn": ["build-test-host"],
+      "dependsOn": ["build-test-host", "^build"],
       "inputs": [
         "{projectRoot}/conformance/**/*.ts",
         "{projectRoot}/vitest.conformance.mts",
