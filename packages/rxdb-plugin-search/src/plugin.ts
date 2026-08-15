@@ -1,17 +1,17 @@
 import {
-  ENTITY_LOCAL_CREATE_EVENT,
-  ENTITY_LOCAL_REMOVE_EVENT,
-  ENTITY_LOCAL_UPDATE_EVENT,
-  getEntityMetadata,
-  RxDB,
-  RxDBMigration,
-  RxDBPluginBase,
-  type EntityLocalCreatedEvent,
-  type EntityLocalRemovedEvent,
-  type EntityLocalUpdatedEvent,
-  type IRepository,
-  type IRxDBPlugin,
-  type Plugin
+    ENTITY_LOCAL_CREATE_EVENT,
+    ENTITY_LOCAL_REMOVE_EVENT,
+    ENTITY_LOCAL_UPDATE_EVENT,
+    getEntityMetadata,
+    RxDB,
+    RxDBMigration,
+    RxDBPluginBase,
+    type EntityLocalCreatedEvent,
+    type EntityLocalRemovedEvent,
+    type EntityLocalUpdatedEvent,
+    type IRepository,
+    type IRxDBPlugin,
+    type Plugin
 } from '@aiao/rxdb';
 import { filter, firstValueFrom, isObservable, type Observable } from 'rxjs';
 
@@ -28,11 +28,11 @@ import { resolveSearchScope } from './core/scope-resolver.js';
 import { createSearchEngine, type SearchEngine } from './core/search-engine.js';
 import { createSearchHandle, type PerformSearch, type SearchPage } from './core/search-handle.js';
 import {
-  SearchError,
-  type SearchHandle,
-  type SearchOptions,
-  type SearchPluginOptions,
-  type SearchResult
+    SearchError,
+    type SearchHandle,
+    type SearchOptions,
+    type SearchPluginOptions,
+    type SearchResult
 } from './types.js';
 
 type EntityChangeEvent = EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent;
