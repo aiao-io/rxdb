@@ -11,7 +11,7 @@ tags: [collaboration, restore, history, persistence, angular, react, vue]
 
 <!--
 INVEST 检查清单:
-- [x] Independent: 依赖 US-305 的 commit 图与 US-306 的工作树状态，但恢复语义可单独交付与验收
+- [x] Independent: 依赖 US-305 的 commit 图与 US-306a 的工作树状态，但恢复语义可单独交付与验收
 - [x] Negotiable: 恢复会话的存储位置与事件名可在 plan 阶段调整
 - [x] Valuable: 用户可以先看恢复结果，再决定是否落成新 commit，且刷新不丢
 - [x] Estimable: 恢复规则、拒绝条件与性能口径已列出
@@ -43,7 +43,7 @@ INVEST 检查清单:
 ### Out of Scope
 
 - commit 图与 HEAD 存储 —— 属 [US-305](./US-305-commit-graph-head.md)
-- status / diff / stage 的状态机 —— 属 [US-306](./US-306-working-tree-index.md)
+- status / diff / stage 的状态机 —— 属 [US-306a](./US-306a-working-tree-index.md)
 - 跨标签页冲突检测 —— 属 [US-308](./US-308-branch-isolation-conflict.md)
 - rebase、cherry-pick、任意历史改写
 - 把恢复实现成「把旧节点改成当前」
@@ -78,7 +78,7 @@ INVEST 检查清单:
 - **FR-013**：系统 MUST 支持将可达历史 commit 恢复到当前工作树；恢复默认不移动 HEAD、不删除历史，并将恢复会话持久化。
 - **FR-014**：系统 MUST 在恢复前检测 dirty 工作树 / 缓存区；未显式处理未提交变更时，恢复操作必须拒绝并保持原状。
 - **FR-015**：系统 MUST 支持将恢复结果作为普通工作树变更重新 stage/commit；生成的新 commit 不得改写被恢复的历史节点。
-- **FR-029**（原 FR-026b，已改口径与编号，见 [epic-006](../../epics/epic-006-working-tree-commits.md)）：系统 MUST 在 [US-305 FR-037](./US-305-commit-graph-head.md) 建立的 `bench-working-tree` harness 中**补充**「打开已有历史并恢复最近 commit」场景，报告 p50/p95。MUST NOT 重复注册 target 或另起 bench 文件。门禁用**同一次运行内的 A/B 对照**（A = 未启用 commit 能力的等价物化路径，B = 经 restore 的同一操作），判定值 `(B.p50 - A.p50) / A.p50`，阈值随 [US-306 FR-026](./US-306-working-tree-index.md) 一并冻结，并同样需要**实测分布 + 独立论证的上限**两样依据。固定 fixture 为 10,000 条实体记录 / 100 个 commit，基准环境为 Node + PGlite memory。不承诺浏览器 OPFS / IDB 下的同一数字。
+- **FR-029**（原 FR-026b，已改口径与编号，见 [epic-006](../../epics/epic-006-working-tree-commits.md)）：系统 MUST 在 [US-305 FR-037](./US-305-commit-graph-head.md) 建立的 `bench-working-tree` harness 中**补充**「打开已有历史并恢复最近 commit」场景，报告 p50/p95。MUST NOT 重复注册 target 或另起 bench 文件。门禁用**同一次运行内的 A/B 对照**（A = 未启用 commit 能力的等价物化路径，B = 经 restore 的同一操作），判定值 `(B.p50 - A.p50) / A.p50`，阈值随 [US-306a FR-026](./US-306a-working-tree-index.md) 一并冻结，并同样需要**实测分布 + 独立论证的上限**两样依据。固定 fixture 为 10,000 条实体记录 / 100 个 commit，基准环境为 Node + PGlite memory。不承诺浏览器 OPFS / IDB 下的同一数字。
 - **FR-035**（新增）：恢复会话 MUST 是**每分支至多一个**的状态。当前已存在未提交的恢复会话时，再次调用 `restore(commitId)` MUST 按 FR-014 的 dirty 规则拒绝（恢复会话本身即视为 dirty 工作树），并在错误中说明可用出路：commit、discard 恢复会话，或先 `clearIndex()`。MUST NOT 静默覆盖前一个恢复会话的目标 commit。
 
 ## 关键实体
@@ -93,7 +93,7 @@ INVEST 检查清单:
 - restore、discard 均须在事务边界内物化跨实体关系；失败时回滚全部实体和元数据。
 - 历史节点永不通过「把旧节点改成当前」实现恢复；需要可追踪的恢复动作时，用户必须再创建一个新 commit。
 - 恢复会话必须与工作树数据在同一提交屏障内可恢复，否则刷新后会出现「数据是恢复后的、状态却显示 clean」的错配。
-- 恢复会话每分支至多一个，且本身计为 dirty：restore → restore 走拒绝路径而不是"覆盖上一个会话"（FR-035）。恢复会话同样是 per-(database, branch) 的共享状态（[US-306 FR-034](./US-306-working-tree-index.md)），另一标签页看到的 `restoring` 与本标签页一致。
+- 恢复会话每分支至多一个，且本身计为 dirty：restore → restore 走拒绝路径而不是"覆盖上一个会话"（FR-035）。恢复会话同样是 per-(database, branch) 的共享状态（[US-306a FR-034](./US-306a-working-tree-index.md)），另一标签页看到的 `restoring` 与本标签页一致。
 - `restore` 依赖存在可达 commit，因此在 unborn HEAD 下无意义并被拒绝。
 
 ## 测试要求
@@ -116,5 +116,5 @@ INVEST 检查清单:
 
 - [epic-006 本地工作树与提交历史](../../epics/epic-006-working-tree-commits.md)
 - [US-305 提交图与 HEAD 持久化](./US-305-commit-graph-head.md)
-- [US-306 工作树、缓存区与提交操作](./US-306-working-tree-index.md)
+- [US-306a 工作树、缓存区与提交操作](./US-306a-working-tree-index.md)
 - [US-302 撤销/重做](./US-302-undo-redo.md) — 现有 `restoreEntity` 与 durable undo 语义

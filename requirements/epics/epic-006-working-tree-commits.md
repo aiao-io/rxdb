@@ -39,14 +39,24 @@ owner: jimmy
 
 | 编号       | 要求                                                                                                     | 适用范围                                    |
 | ---------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| **FR-023** | 所有异步操作暴露 loading / success / empty / error；错误说明操作、对象与恢复建议                         | 凡暴露异步公开 API 的故事（US-305～US-308） |
-| **FR-024** | 三框架对称：Angular / React / Vue 的命名、参数、状态转换与错误语义一致；任一端缺失该故事不得标 Done      | **仅**暴露框架绑定的故事（US-306/307/308）  |
-| **FR-025** | 可访问性：键盘可达、焦点可见、状态与错误可被屏幕阅读器读出，达到 WCAG 2.1 AA；不得只有图标没有可访问名称 | **仅**交付 UI 的故事（US-306/307/308）      |
+| **FR-023** | 所有异步操作暴露 loading / success / empty / error；错误说明操作、对象与恢复建议                         | 凡暴露异步公开 API 的故事（全部五个）       |
+| **FR-024** | 三框架对称：Angular / React / Vue 的命名、参数、状态转换与错误语义一致；任一端缺失该故事不得标 Done      | **仅**暴露框架绑定的故事（US-306b/307/308） |
+| **FR-025** | 可访问性：键盘可达、焦点可见、状态与错误可被屏幕阅读器读出，达到 WCAG 2.1 AA；不得只有图标没有可访问名称 | **仅**交付 UI 的故事（US-306b/307）         |
 | **FR-028** | 不复活旧导出：新导出不得与已删除导出同名同签名，也不得使用 `Workspace` 前缀（见上表）                    | 全部故事                                    |
 
 FR-028 指的已删除导出是 `stagedChange()` / `unstageChange()` / `commit()` / `stagedCount` 与 `WorkspaceCacheEntry.staged`，已在 `0.0.24` 删除，见 [rxdb-plugin-workspace/README.md 的「已移除 API」](../../packages/rxdb-plugin-workspace/README.md#已移除-api)。
 
-**US-305 的例外**：该故事是纯存储层，实现文件里没有任何框架包也不交付 UI，因此 **FR-024 / FR-025 对它不适用**，发布门禁不得以此卡它。若 plan 阶段决定把 `log()` / `show()` 的三端只读绑定并入 US-305，则必须同时给它补上 `packages/rxdb-{angular,react,vue}` 的实现文件与三端测试，FR-024 随之生效——不允许"要求写在 DoD 里、交付物里没有对应文件"这种空转。
+**适用性的判定规则**：一条横切 FR 只在故事的**实现文件清单里有对应交付面**时才生效。不允许"要求写在 DoD 里、交付物里没有对应文件"这种空转，反向也不允许"有交付面却不受约束"。逐条裁决：
+
+| 故事    | FR-024（三端对称）           | FR-025（a11y） | 依据                                                          |
+| ------- | ---------------------------- | -------------- | ------------------------------------------------------------- |
+| US-305  | 不适用                       | 不适用         | 纯存储层，无框架包、无 UI                                     |
+| US-306a | 不适用                       | 不适用         | 核心状态机与存储，绑定层已拆出到 US-306b                      |
+| US-306b | **适用**（该 FR 的主要落点） | **适用**       | 交付三端绑定 + 三端 demo                                      |
+| US-307  | **适用**                     | **适用**       | 交付三端恢复入口 + `apps/dev-rxdb-{angular,react,vue}/` 演示  |
+| US-308  | **适用**                     | 不适用         | 只交付绑定层冲突状态，实现文件里**没有** `apps/dev-rxdb-*` UI |
+
+发布门禁 MUST NOT 用不适用的 FR 卡对应故事。若 plan 阶段改变了某故事的交付面（例如把 `log()` / `show()` 的三端只读绑定并入 US-305，或给 US-308 补一个冲突提示 demo），MUST 同时更新本表与该故事的实现文件清单，对应 FR 随之生效。
 
 ## 适用的存储后端（正确性口径）
 
@@ -54,42 +64,55 @@ FR-028 指的已删除导出是 `stagedChange()` / `unstageChange()` / `commit()
 
 **判定依据不是「有没有 `transaction()` 实现」**：[rxdb-adapter.ts:139](../../packages/rxdb/src/rxdb-adapter.ts#L139) 的 `transaction()` 是 `abstract` 方法，**每个**适配器都必须实现，supabase 与 miniprogram 也不例外；miniprogram 更是 `extends RxDBAdapterSqliteBase`，它的事务代码与被列入 MUST 档的 sqlite-wasm / wa-sqlite **是同一份**。真正的判定依据是**事务语义与可验证性**：能否提供本地、同步、跨表的 ACID 屏障，且该屏障能在 CI 里被崩溃恢复 fixture 验证。上一节只限定了**性能**基准环境，正确性口径必须单独声明：
 
-| 适配器                                                                             | v1 要求                                                                   | 依据                                                                                                                                                                                |
-| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| pglite                                                                             | MUST 通过全部一致性与崩溃恢复 fixture                                     | 本地 Postgres 事务；现有两个 bench 的基准环境                                                                                                                                       |
-| sqlite-wasm / sqlite（@sqlite.org）/ wa-sqlite / sqliteai / desktop（node-sqlite） | MUST 通过全部一致性与崩溃恢复 fixture                                     | 五者均 `extends RxDBAdapterSqliteBase`，共用 [sqlite-core](../../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts) 的本地事务实现                                     |
-| supabase                                                                           | v1 **不承诺**；启用 commit 能力时 MUST 显式报错拒绝                       | 写入走远端 RPC，无本地跨表提交屏障                                                                                                                                                  |
-| miniprogram                                                                        | v1 **不承诺**；启用 commit 能力时 MUST 显式报错拒绝                       | **不是**因为缺事务实现（见上）；而是实验性 + 微信逻辑层强制单连接，且本包不在 [coverage-baseline.json](../../scripts/audit/coverage-baseline.json) 内、无法在 CI 跑崩溃恢复 fixture |
-| encrypted                                                                          | 装饰层，不单独承诺；guard MUST 先解包到底层适配器的 `ADAPTER_NAME` 再判定 | 包装任意底层适配器，自身无存储语义                                                                                                                                                  |
+| 适配器                                                                             | v1 要求                                             | 依据                                                                                                                                                                                |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| pglite                                                                             | MUST 通过全部一致性与崩溃恢复 fixture               | 本地 Postgres 事务；现有两个 bench 的基准环境                                                                                                                                       |
+| sqlite-wasm / sqlite（@sqlite.org）/ wa-sqlite / sqliteai / desktop（node-sqlite） | MUST 通过全部一致性与崩溃恢复 fixture               | 五者均 `extends RxDBAdapterSqliteBase`，共用 [sqlite-core](../../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts) 的本地事务实现                                     |
+| supabase                                                                           | v1 **不承诺**；启用 commit 能力时 MUST 显式报错拒绝 | 写入走远端 RPC，无本地跨表提交屏障                                                                                                                                                  |
+| `wa-sqlite-miniprogram`（miniprogram 包）                                          | v1 **不承诺**；启用 commit 能力时 MUST 显式报错拒绝 | **不是**因为缺事务实现（见上）；而是实验性 + 微信逻辑层强制单连接，且本包不在 [coverage-baseline.json](../../scripts/audit/coverage-baseline.json) 内、无法在 CI 跑崩溃恢复 fixture |
 
-两条维护约束：
+判定值是**适配器实例的 `name` 属性**（= 各包导出的 `ADAPTER_NAME`），不是包名、也不是注册键，落地口径见 [US-305 FR-032](../stories/collaboration/US-305-commit-graph-head.md)。注意 miniprogram 包的 `ADAPTER_NAME` 是 [`'wa-sqlite-miniprogram'`](../../packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts#L100) 而**不是** `'miniprogram'`——名单按前者书写。
 
-1. 本表 MUST 穷举 `packages/rxdb-adapter-*` 下的**全部**适配器。新增适配器时 MUST 同步补一行显式裁决；在补齐之前，未列出的适配器按 FR-032 走拒绝路径。
+三条维护约束：
+
+1. 本表 MUST 穷举 `packages/rxdb-adapter-*` 下**全部具备 `ADAPTER_NAME` 的**适配器（当前 8 个：`pglite` / `sqlite-wasm` / `sqlite` / `wa-sqlite` / `sqliteai` / `desktop` / `supabase` / `wa-sqlite-miniprogram`）。新增适配器时 MUST 同步补一行显式裁决；在补齐之前，未列出的适配器按 FR-032 走拒绝路径。
+   > `rxdb-adapter-sqlite-core` 与 `rxdb-adapter-encrypted` 是包目录但**不是适配器**：前者是被 5 个 SQLite 系适配器继承的抽象基类，后者不导出任何 `IRxDBAdapter` 实现（其 [index.ts](../../packages/rxdb-adapter-encrypted/src/index.ts) 只导出 `Keyring`、信封编解码与错误类型，由 sqlite-core / pglite **内部消费**）。两者都不出现在 `name` 判定的值域里，因此**不入本表**——旧版本表里"encrypted 是装饰层、guard 需先解包"的说法建立在一个不存在的包装适配器上，已删除。加密开启与否不改变适配器身份，见 [US-305 AC User Story 2 场景 8](../stories/collaboration/US-305-commit-graph-head.md)。
 2. `desktop` 当前**也不在** coverage-baseline 内（[US-207](../stories/adapter/US-207-desktop-local-database.md) 仍 In Progress）。把它留在 MUST 档意味着本 Epic 的适配器矩阵门禁**依赖 US-207 先把该包纳入覆盖率门禁**；若 US-207 未能及时完成，desktop MUST 临时降级到「不承诺」档而不是无门禁地留在 MUST 档。
+3. 本表与 [status-overview 的存储适配器表](../status-overview.md) MUST 保持一致。本 Epic 的适配器裁决**以本表为准**，status-overview 是派生视图；两边不一致时先修 status-overview。（旧版 encrypted 行的错误描述正是从 status-overview 传导进来的。）
 
 按仓库「无 fallback」铁律，在不支持的后端上启用 commit 能力 MUST 拒绝并报错，**不得**静默降级为内存态或"尽力而为"的非事务写入。落地条款见 [US-305 FR-032](../stories/collaboration/US-305-commit-graph-head.md)。
 
 ## 依赖顺序
 
 1. [US-304](../stories/collaboration/US-304-writer-lease-migration-fencing.md) 必须先 Done —— 跨 realm 校验复用其 writer lease / epoch，本 Epic 不允许另起一套协调协议
-2. [US-305](../stories/collaboration/US-305-commit-graph-head.md) 建立 commit 图、HEAD、存储布局、基线迁移，**以及 US-306/307 共用的 bench harness**（FR-037）
-3. [US-306](../stories/collaboration/US-306-working-tree-index.md) 在其上实现工作树、缓存区、status/diff/stage/commit
-4. [US-307](../stories/collaboration/US-307-restore-session.md) 与 [US-308](../stories/collaboration/US-308-branch-isolation-conflict.md) 依赖 US-306，可并行
+2. [US-305](../stories/collaboration/US-305-commit-graph-head.md) 建立 commit 图、HEAD、存储布局、基线迁移，**以及 US-306a/307 共用的 bench harness**（FR-037）与其 CI 接线
+3. [US-306a](../stories/collaboration/US-306a-working-tree-index.md) 在其上实现工作树、缓存区、status/diff/stage/commit，并**冻结导出契约**
+4. [US-306b](../stories/collaboration/US-306b-working-tree-bindings.md)、[US-307](../stories/collaboration/US-307-restore-session.md) 与 [US-308](../stories/collaboration/US-308-branch-isolation-conflict.md) 依赖 US-306a，三者可并行
 
-**排期风险（必须显式承认）**：本 Epic 的 `startDate` / `targetDate` 仍是 `TBD`，而四个故事全部 Backlog、整条链被 US-304 卡着；US-304 当前 In Progress，且它自己的 INVEST `Independent` 未勾选、依赖 US-303。也就是说本 Epic 的**最早开工时间不由本 Epic 决定**。排期落地前不要把这四个故事当成可独立排入迭代的条目。
+**排期风险（必须显式承认）**：本 Epic 的 `startDate` / `targetDate` 仍是 `TBD`，而五个故事全部 Backlog、整条链被 US-304 卡着；US-304 当前 In Progress，且它自己的 INVEST `Independent` 未勾选、依赖 US-303。也就是说本 Epic 的**最早开工时间不由本 Epic 决定**。排期落地前不要把这五个故事当成可独立排入迭代的条目。
 
 ## 故事
 
 - ⬜ [US-305 提交图与 HEAD 持久化](../stories/collaboration/US-305-commit-graph-head.md) (High)
-- ⬜ [US-306 工作树、缓存区与提交操作](../stories/collaboration/US-306-working-tree-index.md) (High)
+- ⬜ [US-306a 工作树、缓存区与提交操作（核心状态机）](../stories/collaboration/US-306a-working-tree-index.md) (High)
+- ⬜ [US-306b 工作树的三框架绑定与演示](../stories/collaboration/US-306b-working-tree-bindings.md) (High)
 - ⬜ [US-307 历史恢复会话](../stories/collaboration/US-307-restore-session.md) (Medium)
 - ⬜ [US-308 分支隔离与跨 realm 冲突检测](../stories/collaboration/US-308-branch-isolation-conflict.md) (Medium)
 
 > `priority` 表示 **Epic 内的交付顺序与风险优先级，不表示「可选」**。US-307 / US-308 标 `Medium`（其 User Story 也标 P2），但它们仍是下方发布门禁第 2 条的组成部分。要把它们排除在 v1 之外，MUST 先修改发布门禁本身，**不得**依据 `priority` 字段自行后置。
 
-### US-306 的体量说明
+### US-306 的拆分记录（2026-08-15 三轮复审）
 
-US-306 仍是四个故事里最大的一个：状态机 + 7 个操作 + 三端对称绑定 + 三端 demo + 跨框架 E2E，适用 FR-023/024/025/026/033/034 六条。2026-08-15 复审已把共用 bench 基建前置到 US-305 以卸掉一部分；**剩余的三端绑定与 demo 未再拆分**，因为它们与状态机共享同一套导出名和状态枚举，先拆会制造一次纯粹为拆而拆的契约冻结。plan 阶段若发现三端绑定确实可以在状态机导出冻结后独立排期，允许再拆出 US-306b，届时 FR-024 / FR-025 随之只对 US-306b 生效。
+原 US-306 是整条依赖链上最长的关键路径节点：状态机 + 7 个操作 + 三端对称绑定 + 三端 demo + 跨框架 E2E，适用 FR-023/024/025/026/033/034 六条。本次复审已将它拆为两个故事：
+
+| 故事    | 承担                                                    | 适用横切 FR                 |
+| ------- | ------------------------------------------------------- | --------------------------- |
+| US-306a | 工作树 / 缓存区状态机、diff、持久化、**导出契约的冻结** | FR-023 / FR-026 / FR-028 等 |
+| US-306b | 三端绑定、三端 demo、a11y、跨框架 E2E                   | FR-023 / 024 / 025 / 028    |
+
+**为什么原先"不拆"的理由不成立**：原文写「三端绑定与状态机共享同一套导出名和状态枚举，先拆会制造一次纯粹为拆而拆的契约冻结」，但同一份 INVEST 清单的 `Negotiable` 项本来就写着「导出名、事件名和 diff 结构可在 plan 阶段冻结」——那次冻结无论拆不拆都要发生，拆分并不额外制造它。现在把冻结**显式列为 US-306a 的交付物**（落进 api-baseline），US-306b 以该冻结契约为唯一输入。
+
+另有两点前置卸载：共用 bench 基建已前置到 US-305（FR-037），bench 场景与阈值留在 US-306a（FR-026）。
 
 ## 性能预算的口径
 
@@ -109,16 +132,16 @@ US-306 仍是四个故事里最大的一个：状态机 + 7 个操作 + 三端�
 - p95 一并输出用于观察抖动，但**不作为门禁**，与现有 bench 保持一致
 - 数据规模（10,000 实体 / 100 commit）保留，作为固定 fixture；基准环境为 Node + PGlite memory（与现有两个 bench 相同），**不承诺**浏览器 OPFS / IDB 下的同一数字
 
-**基建归属**：bench 文件、`bench-working-tree` target 注册与 A/B 采样骨架属 **US-305**（FR-037）。它是 US-306 与 US-307 共用的基础设施，塞进任一消费方都会让那个故事同时背上"建基建"和"用基建"两件事；而 US-305 本来就要跑崩溃恢复 fixture，A/B 骨架与它同一条交付线。
+**基建归属**：bench 文件、`bench-working-tree` target 注册与 A/B 采样骨架属 **US-305**（FR-037）。它是 US-306a 与 US-307 共用的基础设施，塞进任一消费方都会让那个故事同时背上"建基建"和"用基建"两件事；而 US-305 本来就要跑崩溃恢复 fixture，A/B 骨架与它同一条交付线。
 
-**场景与阈值归属**：status / diff / stage 的场景与阈值在 US-306（FR-026），restore 的场景在 US-307（FR-029）。两者都只往 US-305 建好的 harness 里**加场景**，不再重复建 target。
+**场景与阈值归属**：status / diff / stage 的场景与阈值在 US-306a（FR-026），restore 的场景在 US-307（FR-029）。两者都只往 US-305 建好的 harness 里**加场景**，不再重复建 target。
 
 ## 发布门禁
 
 1. US-304 Done（**整个 Epic 的前置**，不只是 US-308；US-304 属 [epic-005](./epic-005-type-system-evolution.md)，当前 In Progress）
-2. US-305 / US-306 / US-307 / US-308 全部 Done，且各自**适用**的横切 FR 满足（FR-024 / FR-025 不适用于 US-305，见上文横切约束表）
+2. US-305 / US-306a / US-306b / US-307 / US-308 全部 Done，且各自**适用**的横切 FR 满足（逐故事裁决见上文横切约束表：FR-024 / FR-025 不适用于 US-305 与 US-306a，FR-025 不适用于 US-308）
 3. 崩溃与刷新恢复 fixture 全绿：不出现半个 commit、半个事务或半成品 index
-4. `nx run benchmarks:bench-working-tree` target 已加入 [benchmarks/project.json](../../benchmarks/project.json) 并在 CI 中无回归（A/B 对照口径见上文；harness 由 US-305 FR-037 建立，场景由 US-306 / US-307 补齐）
+4. `nx run benchmarks:bench-working-tree` target 已加入 [benchmarks/project.json](../../benchmarks/project.json) 并在 CI 中无回归（A/B 对照口径见上文；harness 与 CI 接线由 US-305 FR-037 建立，场景由 US-306a / US-307 补齐）
 5. api-baseline 新增导出全部使用 `Commit*` / `WorkingTree*` / `Index*` 前缀，无 `Workspace*` 新导出；且**未复用适配器层既有的 `SwitchBranchOptions`**（见下）
 6. 受支持适配器矩阵全绿，且不受支持的适配器上启用 commit 能力会显式报错（见「适用的存储后端」）
 7. 「已提交 / 未提交」的判定基准已按 [US-305 FR-036](../stories/collaboration/US-305-commit-graph-head.md) 选定并写入 plan.md，且 `discardWorkingTree()` 后 `status()` 为 clean 的不变式用例通过

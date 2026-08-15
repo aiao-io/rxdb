@@ -93,7 +93,7 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 |   P2   | PGlite 原生全文搜索                  | [US-703](stories/future/US-703-pglite-full-text-search.md)               | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                             | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                       |
 |   P3   | 小程序适配器门禁与文档收尾           | [US-209](stories/adapter/US-209-miniprogram-adapter.md)                  | 包已发布但不在覆盖率 baseline、不在兼容性矩阵，且根 README 声称支持 Alipay 与实现不符 | 覆盖率 baseline 登记、`/runtime` 子路径 API baseline 决策、compatibility.md、README 表述修正                       |
 
-> US-306 / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
+> US-306a / US-306b / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
 > [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定顺序。
 
 ### 排期约束
@@ -105,7 +105,7 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 4. US-208 与 US-210 均排在 US-207 之后，复用其抽出的 host 契约。US-208 的两种事务 host 方案（IPC 事务 ID 协议 /
    adapter 完整托管在主进程）、US-210 的两种事务方案（配置单连接池 / Rust command 持有事务）都必须先通过同一套事务与事件测试再冻结选择。
 5. US-305 必须排在 US-304 之后：其跨 realm 提交校验建立在 writer lease / epoch fencing 之上，不允许另起一套协调协议。
-   epic-006 内部顺序为 **US-305 → US-306 → US-307 → US-308**，后一个依赖前一个的存储布局；US-308 额外要求 US-304 已 Done。
+   epic-006 内部顺序为 **US-305 → US-306a → (US-306b ∥ US-307 ∥ US-308)**：US-306a 之后的三个故事以其冻结的导出契约为共同输入，可并行；US-308 额外要求 US-304 已 Done。
 6. US-703 应复用现有搜索公开 API 和跨框架 parity fixture，不为 PGlite 增加 SQLite 专属 fallback。
 7. US-209 只做门禁与文档收尾，不扩大小程序适配器的能力承诺：WAL、多页面并发、崩溃恢复保证和微信以外的小程序平台都不进入范围；
    文档必须写明「实验性」而不是把它列成与 wa-sqlite 同级的受支持适配器。

@@ -11,17 +11,25 @@ tags: [collaboration, branch, concurrency, writer-lease, conflict]
 
 <!--
 INVEST 检查清单:
-- [x] Independent: 依赖 US-306 的工作树状态与 US-304 的 lease，但冲突协议自成一条交付线
+- [x] Independent: 依赖 US-306a 的工作树状态与 US-304 的 lease，但冲突协议自成一条交付线
 - [x] Negotiable: 冲突记录结构与提示文案可在 plan 阶段调整
 - [x] Valuable: 多标签页/多分支下不会静默丢失另一方的修改
 - [x] Estimable: 现有 switchBranch 行为与 lease 契约都已确认
 - [x] Small: 只做分支隔离与并发校验，不改 commit 存储，不改 restore 语义
 - [x] Testable: 双 realm fixture 可判定「后到的提交被拒绝且无数据丢失」
+- [x] 横切 FR 适用性：FR-024 适用（交付三端绑定层的冲突状态）；**FR-025 不适用**（不交付 demo UI），见下方说明
 -->
 
 # 用户故事：分支隔离与跨 realm 冲突检测
 
 > Epic 级的术语表、横切 DoD 与性能口径见 [epic-006](../../epics/epic-006-working-tree-commits.md)。
+>
+> **横切 FR 的适用性**：本故事交付三端绑定层的冲突状态与错误语义（见实现文件清单中的
+> `packages/rxdb-{angular,react,vue}/`），因此 **FR-024（三框架对称）适用**：任一端缺失即未完成。
+> 但本故事**不交付任何 demo 应用与 UI 组件**（实现文件里没有 `apps/dev-rxdb-*`），
+> 因此 **FR-025（WCAG 2.1 AA）对本故事不适用**——冲突提示的可访问呈现随其消费方落地，
+> 属 [US-306b](./US-306b-working-tree-bindings.md) 与 [US-307](./US-307-restore-session.md) 的 UI 交付面。
+> 发布门禁 MUST NOT 以 a11y 卡本故事。
 
 ## 作为/我想要/以便
 
@@ -62,7 +70,7 @@ INVEST 检查清单:
 
 ### In Scope
 
-- 分支与工作树 / 缓存区的隔离：切换后物化为目标分支 HEAD，缓存区不串分支（跨**分支**隔离；跨**标签页**是共享，见 [US-306 FR-034](./US-306-working-tree-index.md)）
+- 分支与工作树 / 缓存区的隔离：切换后物化为目标分支 HEAD，缓存区不串分支（跨**分支**隔离；跨**标签页**是共享，见 [US-306a FR-034](./US-306a-working-tree-index.md)）
 - `requireClean` 显式选项与对应的可操作错误
 - 提交时的 HEAD 父节点校验与 staged 条目版本指纹重校验，复用 US-304 的 epoch
 - 冲突记录（`CommitConflict`）与三端一致的冲突提示语义
@@ -90,7 +98,7 @@ INVEST 检查清单:
 
 ### User Story 2 - 跨标签页并发（Priority: P2）
 
-> **前提**：工作树与缓存区是 per-(database, branch) 的**共享**资源（[US-306 FR-034](./US-306-working-tree-index.md)），
+> **前提**：工作树与缓存区是 per-(database, branch) 的**共享**资源（[US-306a FR-034](./US-306a-working-tree-index.md)），
 > 同源标签页看到的是同一份数据，而不是各自的副本。因此"另一方的修改丢失"不可能表现为"两份工作树互相覆盖"，
 > 只可能表现为下面两种形式：**提交期间 HEAD 被推进**，或 **staged 快照相对工作树当前版本已过期**。
 > 本故事的 AC 按这两种形式判定，不使用"同时修改同一工作树"这种在共享模型下无法判定的措辞。
@@ -108,7 +116,8 @@ INVEST 检查清单:
 
 - **FR-017**（已改口径）：系统 MUST 与现有分支操作集成：创建分支从当前 HEAD 开始，分支之间不得共享可变的 HEAD / 缓存区状态。分支切换的 clean 检查 MUST 以显式选项提供；`switchBranch(branchId)` 不带选项时的行为 MUST NOT 改变。该选项 MUST 定义为 **VersionManager 层的新导出类型**，MUST NOT 复用或扩展[适配器层的 `SwitchBranchOptions`](../../../packages/rxdb/src/rxdb-adapter.ts#L55)（同名不同层，见上文）；适配器的 `switchBranch(options)` 签名与各适配器的 `switch_branch` 实现 MUST 零改动。
 - **FR-020**（已收窄口径）：系统 MUST 在并发写入时校验两件事，且仅这两件：（a）提交时父节点仍是当前分支 HEAD；（b）每个 staged 条目的版本指纹相对工作树当前版本仍然有效。任一失败 MUST 返回可操作冲突错误并放弃写入，MUST NOT 使用过期快照覆盖。该校验 MUST 建立在 [US-304](./US-304-writer-lease-migration-fencing.md) 的 writer lease / epoch fencing 之上，MUST NOT 另起一套跨 realm 协调协议，也不得只依赖 `BroadcastChannel` 或内存状态。
-  > 收窄原因：工作树与缓存区是跨标签页共享的（[US-306 FR-034](./US-306-working-tree-index.md)），不存在"两份工作树版本"需要比对。原文的"工作树版本"校验在共享模型下没有对应物，会引导实现去发明一个 per-tab 的影子状态——那恰好是 FR-034 禁止的。
+  > 收窄原因：工作树与缓存区是跨标签页共享的（[US-306a FR-034](./US-306a-working-tree-index.md)），不存在"两份工作树版本"需要比对。原文的"工作树版本"校验在共享模型下没有对应物，会引导实现去发明一个 per-tab 的影子状态——那恰好是 FR-034 禁止的。
+- **FR-024**：见 [epic-006 横切约束](../../epics/epic-006-working-tree-commits.md)；适用范围限于本故事交付的**绑定层冲突状态与错误语义**，三端必须一致。本故事不交付 UI，故 FR-025 不适用（见文首说明）。
 
 ## 关键实体
 
@@ -137,6 +146,6 @@ INVEST 检查清单:
 
 - [epic-006 本地工作树与提交历史](../../epics/epic-006-working-tree-commits.md)
 - [US-304 跨 realm writer lease 与迁移 fencing](./US-304-writer-lease-migration-fencing.md) — 本故事复用其 writer 身份与 epoch
-- [US-306 工作树、缓存区与提交操作](./US-306-working-tree-index.md)
+- [US-306a 工作树、缓存区与提交操作](./US-306a-working-tree-index.md)
 - [US-301 版本控制](./US-301-version-control.md) — 现有分支能力
 - [分支文档](../../../website/docs/collaboration/branch.md) — 受 FR-017 口径影响的现有示例

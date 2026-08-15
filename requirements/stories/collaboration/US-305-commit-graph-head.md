@@ -15,7 +15,7 @@ INVEST 检查清单:
 - [x] Negotiable: commit ID 生成方式、存储表名和 ChangeSet 编码可在 plan 阶段调整
 - [x] Valuable: 有了持久 commit 图，历史节点第一次成为可长期引用的锚点
 - [x] Estimable: 存储层次、审计字段和迁移路径已在本文列出
-- [x] Small: 不含 status/diff/stage、不含 restore、不含分支切换改动。2026-08-15 复审新增的 FR-030～032 是**同一存储层**的状态定义与启用校验；二轮复审新增的 FR-036 是同一存储层的判定基准；FR-037 是 bench harness——它是本故事**唯一**的新交付面，接受它的理由是本故事本就要跑崩溃恢复 fixture，且把共用基建留给 US-306 会让那个已经最大的故事同时背上「建基建」和「用基建」
+- [x] Small: 不含 status/diff/stage、不含 restore、不含分支切换改动。2026-08-15 复审新增的 FR-030～032 是**同一存储层**的状态定义与启用校验；二轮复审新增的 FR-036 是同一存储层的判定基准；FR-037 是 bench harness——它是本故事**唯一**的新交付面，接受它的理由是本故事本就要跑崩溃恢复 fixture，且把共用基建留给 US-306a 会让那个已经最大的故事同时背上「建基建」和「用基建」
 - [x] Testable: 最小闭环「写 commit → 刷新 → 读回 log/show」可独立验收
 - [x] 横切 FR 适用性：FR-024 / FR-025 不适用（纯存储层，无框架绑定、无 UI），见 epic-006 横切约束表
 -->
@@ -35,7 +35,7 @@ INVEST 检查清单:
 
 早期的 `stagedChange()` / `unstageChange()` / `commit()` / `stagedCount` 已在 `0.0.24` 删除（见 [rxdb-plugin-workspace/README.md 的「已移除 API」](../../../packages/rxdb-plugin-workspace/README.md#已移除-api)），因此这是全新设计，没有需要兼容的旧暂存契约。
 
-本故事只做**底座**：commit 图、HEAD、分支引用的原子一致性、存储布局与一次性迁移。工作树与缓存区的状态机在 [US-306](./US-306-working-tree-index.md)。
+本故事只做**底座**：commit 图、HEAD、分支引用的原子一致性、存储布局与一次性迁移。工作树与缓存区的状态机在 [US-306a](./US-306a-working-tree-index.md)。
 
 ## 作为/我想要/以便
 
@@ -58,9 +58,9 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 
 ### 两类"没有普通 commit"的合法状态
 
-这两种状态过去被隐式当成异常，现在必须显式建模，否则 US-306 的 `status()` / `diff()` / `discardWorkingTree()` 在这些状态下无定义：
+这两种状态过去被隐式当成异常，现在必须显式建模，否则 US-306a 的 `status()` / `diff()` / `discardWorkingTree()` 在这些状态下无定义：
 
-1. **unborn HEAD**：全新数据库、或新建分支后尚未提交。此时 `HEAD` 为空是**合法**的，不算损坏。US-306 的
+1. **unborn HEAD**：全新数据库、或新建分支后尚未提交。此时 `HEAD` 为空是**合法**的，不算损坏。US-306a 的
    「只有 NEW 草稿、没有 HEAD」场景即属此类。
 2. **baseline commit**：已有数据的数据库首次启用 commit 能力时生成的根节点。它**不携带 ChangeSet**——把
    10,000 条既有实体倒灌成一个巨型 ChangeSet 既没有性能预算，也伪造了从未发生过的变更历史。它的语义由
@@ -80,13 +80,13 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 - 已有数据库的一次性初始化：生成 baseline commit、**登记**仍存在的 NEW 草稿、保留旧 change 记录，失败可重试且幂等
 - 损坏或不兼容 commit 记录的隔离与诊断
 - 与 `RxDBChange`、undo/redo、`restoreEntity` 的兼容边界
-- `bench-working-tree` 的 harness、target 注册与固定 fixture（FR-037），供 US-306 / US-307 复用
+- `bench-working-tree` 的 harness、target 注册与固定 fixture（FR-037），供 US-306a / US-307 复用
 
 ### Out of Scope
 
-- status / diff / stage / unstage / commit 的用户操作面 —— 属 [US-306](./US-306-working-tree-index.md)
-- NEW 草稿**物化进工作树** —— 属 [US-306](./US-306-working-tree-index.md)；本故事只负责登记
-- status / diff / stage / restore 的 bench **场景与阈值** —— 属 US-306 / US-307；本故事只建 harness
+- status / diff / stage / unstage / commit 的用户操作面 —— 属 [US-306a](./US-306a-working-tree-index.md)
+- NEW 草稿**物化进工作树** —— 属 [US-306a](./US-306a-working-tree-index.md)；本故事只负责登记
+- status / diff / stage / restore 的 bench **场景与阈值** —— 属 US-306a / US-307；本故事只建 harness
 - 历史恢复会话 —— 属 [US-307](./US-307-restore-session.md)
 - 分支切换行为与跨标签页冲突检测 —— 属 [US-308](./US-308-branch-isolation-conflict.md)
 - 远程 push/pull、rebase、cherry-pick、任意历史改写
@@ -126,8 +126,9 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 4. **Given** 迁移中途失败，**When** 重试，**Then** 从可验证的一致点继续，不产生重复基线或孤立 commit。
 5. **Given** commit 图或索引记录损坏，**When** 启动，**Then** 隔离损坏记录，保留可验证的 commit，提供错误详情；**不得**静默回退到空库或内存模式。
 6. **Given** 当前适配器不在受支持矩阵内（如 supabase / miniprogram），**When** 启用 commit 能力，**Then** 操作以明确错误拒绝，说明原因与受支持的替代后端，既有数据与既有 API 行为不受影响，**不得**降级启用。
-7. **Given** 底层适配器在受支持矩阵内但被 `@aiao/rxdb-adapter-encrypted` 包装，**When** 启用 commit 能力，**Then** guard 解包到底层 `ADAPTER_NAME` 后放行；反之底层不受支持时，包装后仍然拒绝（FR-032）。
-8. **Given** 数据库中存在 Workspace NEW 草稿，**When** 首次启用 commit 能力，**Then** 这些草稿被登记为「待纳入工作树」，**不被** baseline commit 视为已提交数据，且该登记结果刷新后可查询——本条断言不依赖 US-306 的工作树结构（FR-021）。
+7. **Given** 一个受支持的适配器（如 pglite）被注册在**非默认的注册键**下（如 `rxdb.adapter('main', …)`），**When** 启用 commit 能力，**Then** guard 按适配器实例的 `name`（= `ADAPTER_NAME`）判定并放行，**不得**因注册键不在名单里而误拒（FR-032）。
+8. **Given** 某个受支持的适配器已按 [US-803](../future/US-803-local-encryption.md) 开启字段加密，**When** 启用 commit 能力，**Then** 照常放行——加密不改变适配器身份，`@aiao/rxdb-adapter-encrypted` 不是适配器也不包装适配器（见 FR-032 注）。
+9. **Given** 数据库中存在 Workspace NEW 草稿，**When** 首次启用 commit 能力，**Then** 这些草稿被登记为「待纳入工作树」，**不被** baseline commit 视为已提交数据，且该登记结果刷新后可查询——本条断言不依赖 US-306a 的工作树结构（FR-021）。
 
 ### User Story 3 - 尚无任何提交（Priority: P2）
 
@@ -154,24 +155,42 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 - **FR-012**：系统 MUST 提供按当前分支、实体和时间排序的历史列表，以及单个 commit 的变更详情和父节点关系。
 - **FR-018**：系统 MUST 与现有 `RxDBChange`、历史 undo/redo 和 `restoreEntity` 保持兼容；已有 API 的行为不能因为 commit 功能而改变。
 - **FR-019**：系统 MUST 明确区分 durable commit 历史与会话级 redo 栈；刷新后 redo 可清空，但 commit 与 HEAD 不得清空。
-- **FR-021**（已收窄口径）：系统 MUST 为已有数据库提供一次性初始化和迁移策略：生成 baseline commit、**登记**仍存在的 NEW 草稿（标记为「待纳入工作树」且不被 baseline 视为已提交数据）、保留旧 change 记录，并支持失败重试。草稿**实际物化进工作树**的行为属 [US-306 User Story 1 场景 3](./US-306-working-tree-index.md)，不在本故事。
-  > 收窄原因：原文写「导入仍存在的 NEW 草稿」，而「导入到哪里」是工作树——本故事已把工作树显式 out-of-scope，目标结构在这里根本不存在，导致该子句在本故事内无法验收（原 User Story 2 的 AC 也确实一条都没断言它）。拆成「本故事登记 / US-306 物化」后，两边各自可独立验收。
+- **FR-021**（已收窄口径）：系统 MUST 为已有数据库提供一次性初始化和迁移策略：生成 baseline commit、**登记**仍存在的 NEW 草稿（标记为「待纳入工作树」且不被 baseline 视为已提交数据）、保留旧 change 记录，并支持失败重试。草稿**实际物化进工作树**的行为属 [US-306a User Story 1 场景 3](./US-306a-working-tree-index.md)，不在本故事。
+  > 收窄原因：原文写「导入仍存在的 NEW 草稿」，而「导入到哪里」是工作树——本故事已把工作树显式 out-of-scope，目标结构在这里根本不存在，导致该子句在本故事内无法验收（原 User Story 2 的 AC 也确实一条都没断言它）。拆成「本故事登记 / US-306a 物化」后，两边各自可独立验收。
 - **FR-022**：系统 MUST 对损坏或不兼容的 commit 记录进行隔离和诊断，不得将整个数据库静默降级为空工作树或内存模式。
 - **FR-027**：commit 历史 MUST 可审计，至少记录稳定 commit ID、父节点、分支、作者标识、消息、创建时间、变更数量和 schema/数据版本；不得记录无法恢复的数据引用。
-- **FR-030**（新增）：系统 MUST 把 unborn `HEAD`（分支存在但尚无 commit）建模为合法状态而非损坏状态，并定义该状态下的行为：`log()` 返回空列表而非报错，`show()` 对不存在的 commit 返回明确的 not-found 错误，工作树中的全部数据视为未提交变更。US-306 的 `status()` / `diff()` / `discardWorkingTree()` 在 unborn 下的具体语义由该故事承接，但**状态本身的存储表达**在本故事定义。
+- **FR-030**（新增）：系统 MUST 把 unborn `HEAD`（分支存在但尚无 commit）建模为合法状态而非损坏状态，并定义该状态下的行为：`log()` 返回空列表而非报错，`show()` 对不存在的 commit 返回明确的 not-found 错误，工作树中的全部数据视为未提交变更。US-306a 的 `status()` / `diff()` / `discardWorkingTree()` 在 unborn 下的具体语义由该故事承接，但**状态本身的存储表达**在本故事定义。
 - **FR-031**（新增）：迁移生成的 baseline commit MUST 是一个独立类别的根节点：无父节点、无 ChangeSet、作者标识为迁移来源而非伪造的用户、消息为固定的迁移标记。它的"可重放到完整状态"MUST 通过引用迁移时刻的物化数据实现，MUST NOT 把既有实体倒灌成变更单元。每个数据库 MUST 至多存在一个 baseline commit（配合 FR-021 的幂等）。
 - **FR-032**（新增）：系统 MUST 在启用 commit 能力时校验当前适配器是否支持跨表事务提交屏障；不在 [epic-006 受支持矩阵](../../epics/epic-006-working-tree-commits.md)内的适配器 MUST 显式报错拒绝启用，并说明原因与受支持的替代后端。MUST NOT 静默降级为内存态、非事务写入或"尽力而为"模式。该校验还 MUST 满足三条实现约束：
   - **判定依据 MUST 是 epic-006 矩阵的显式名单**（对齐 `ADAPTER_NAME`），MUST NOT 依据「适配器是否实现 `transaction()`」——[rxdb-adapter.ts:139](../../../packages/rxdb/src/rxdb-adapter.ts#L139) 上它是 `abstract` 方法，**全部**适配器都实现了，包括矩阵里被拒绝的 supabase 与 miniprogram。照这个信号 gate 等于没 gate。
-  - **包装层 MUST 先解包**：`@aiao/rxdb-adapter-encrypted` 装饰任意底层适配器，guard MUST 取到底层的 `ADAPTER_NAME` 再判定。可参照 [SUPPORTED_SEARCH_ADAPTERS](../../../packages/rxdb-plugin-search/src/core/adapter-guard.ts) 的白名单形态，但**不得**直接照抄——那份先例是按 adapter 字符串名直接匹配的，没有解包语义，照抄会让 encrypted 一律撞墙。
+  - **判定值 MUST 读适配器实例的 `name` 属性**，MUST NOT 读注册键或 `config.sync.local.adapter`。[RxDB.ts:318](../../../packages/rxdb/src/RxDB.ts#L318) 的 `adapter(adapterName, factory)` 里 `adapterName` 是**调用方自选的字符串**，`config.sync.local.adapter` 存的就是它；而各适配器实例的 `name` 恒等于本包导出的 `ADAPTER_NAME`（见 [RxDBAdapterPGlite.ts:189](../../../packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts#L189)、[RxDBAdapterDesktop.ts:25](../../../packages/rxdb-adapter-desktop/src/RxDBAdapterDesktop.ts#L25)）。
+    可参照 [SUPPORTED_SEARCH_ADAPTERS](../../../packages/rxdb-plugin-search/src/core/adapter-guard.ts) 的**白名单形态**，但 MUST NOT 照抄它的**取值方式**——那份先例读的正是注册键，把 pglite 注册成 `'main'` 的调用方会被误拒。
   - **未列出的适配器 MUST 走拒绝路径**，且错误信息 MUST 提示「该适配器尚未在 epic-006 矩阵中裁决」，而不是笼统的"不支持"。
-- **FR-036**（新增）：系统 MUST 把「某条工作树数据是否属于未提交变更」的判定基准**显式选定、持久化并写入 plan.md**，且该基准 MUST 满足不变式：**`discardWorkingTree()` 完成后 `status()` 为 clean**。当前 [IRxDBChange](../../../packages/rxdb/src/system/system.interface.ts) 上没有任何 commit 关联字段，因此该基准必须在本故事落地，而不能留给 US-306 边实现边决定。可选方案与各自的约束：
+
+  > **关于加密**：`@aiao/rxdb-adapter-encrypted` **不是适配器，也不包装适配器**——它不导出任何 `IRxDBAdapter` 实现（见 [其 index.ts](../../../packages/rxdb-adapter-encrypted/src/index.ts) 与 [api-baseline](../../api-baseline/rxdb-adapter-encrypted.json)），只导出 `Keyring` / 信封编解码 / 元数据校验器，由 [sqlite-core](../../../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts#L43) 与 [pglite](../../../packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts#L47) **内建消费**（`adapter.encryption.*`）。因此本 FR **不含**"解包"要求：开启加密时注册的仍是 pglite / sqlite-* 本身，其 `name` 已是矩阵内的值，guard 照常放行。
+
+- **FR-036**（新增）：系统 MUST 把「某条工作树数据是否属于未提交变更」的判定基准**显式选定、持久化并写入 plan.md**，且该基准 MUST 满足不变式：**`discardWorkingTree()` 完成后 `status()` 为 clean**。当前 [IRxDBChange](../../../packages/rxdb/src/system/system.interface.ts) 上没有任何 commit 关联字段，因此该基准必须在本故事落地，而不能留给 US-306a 边实现边决定。可选方案与各自的约束：
   - **(a) 物化数据 ↔ HEAD 快照比对**（复用 FR-003 的版本指纹）：不改 `RxDBChange` schema。
   - **(b) 变更日志 + commit 水位线**：MUST 在 `IRxDBChange` 上新增 commit 关联字段，MUST 作为显式 schema 迁移纳入 FR-021，且 MUST 满足 FR-018（既有字段、ID、transactionId、过滤规则行为零变化）。
 
-  MUST NOT 采用「变更日志中晚于最后一次 commit 的全部条目即未提交变更」这类**纯追加顺序推导**：[US-306 FR-033](./US-306-working-tree-index.md) 要求 `discardWorkingTree()` 以**追加反向变更**的方式回到 HEAD，在该推导下 discard 反而会让日志多出一批条目、`status()` 永远回不到 clean——两条需求直接互相否定。基准一经选定即对 US-306 / US-307 生效。
+  MUST NOT 采用「变更日志中晚于最后一次 commit 的全部条目即未提交变更」这类**纯追加顺序推导**：[US-306a FR-033](./US-306a-working-tree-index.md) 要求 `discardWorkingTree()` 以**追加反向变更**的方式回到 HEAD，在该推导下 discard 反而会让日志多出一批条目、`status()` 永远回不到 clean——两条需求直接互相否定。基准一经选定即对 US-306a / US-306b / US-307 生效。
 
-- **FR-037**（新增）：本故事 MUST 交付 US-306 / US-307 共用的 bench 基础设施：`benchmarks/working-tree.bench.ts` 骨架、[benchmarks/project.json](../../../benchmarks/project.json) 中的 `bench-working-tree` target（`dependsOn: ["typecheck", "^build"]`，与既有两个 bench target 一致）、10,000 实体 / 100 commit 的固定 fixture，以及同 run 内 A/B 对照的采样与报告骨架（p50 判定 / p95 仅观察，报告写入 `benchmarks/reports/`）。本故事自身的 A/B 场景为「打开已有 commit 图并查询 `log()` / `show()`」。status / diff / stage 场景与阈值由 [US-306 FR-026](./US-306-working-tree-index.md) 补齐，restore 场景由 [US-307 FR-029](./US-307-restore-session.md) 补齐；两者 MUST NOT 重复注册 target。
-  > 归属理由：bench harness 是 US-306 与 US-307 的共用基建，放进任一消费方都会让那个故事同时背上「建基建」和「用基建」；而本故事本来就要跑崩溃恢复 fixture，A/B 骨架与它同一条交付线。见 [epic-006 性能预算](../../epics/epic-006-working-tree-commits.md)。
+  **所选基准 MUST 在 baseline commit 场景下可判定**，这是与 FR-031 的交叉约束，plan.md MUST 一并回答：FR-031 规定 baseline commit 无 ChangeSet，其完整状态「由迁移时刻的物化数据直接给出」，但没有定义那份数据的**物理形态**，而方案 (a) 恰恰需要一份**不随工作树变化**的 HEAD 侧数据才能比对——
+
+  - 若 baseline 只是指向业务表的**活引用**，用户改完数据后"快照"随之移动，diff 恒为空，`status()` 永远 clean，AC User Story 2 场景 2 之外的全部 US-306a 断言都会失效；
+  - 若 baseline 是**物理副本**，则 FR-031 拒绝把既有实体倒灌成 ChangeSet 的理由（「10,000 条既有实体没有性能预算」）同样适用于复制 10,000 条，该理由自毁。
+
+  因此 plan.md MUST 显式选定 baseline 侧的物理形态（整表副本 / 版本水位 / 仅指纹表）并给出其空间与时间代价；**MUST NOT** 只写"引用迁移时刻的物化数据"就交给实现自行解释。若选定方案 (b)，本条同样要求说明 baseline 之前的既有数据在水位线模型下如何表达为"已提交"。
+
+- **FR-037**（新增）：本故事 MUST 交付 US-306a / US-307 共用的 bench 基础设施：`benchmarks/working-tree.bench.ts` 骨架、[benchmarks/project.json](../../../benchmarks/project.json) 中的 `bench-working-tree` target（`dependsOn: ["typecheck", "^build"]`，与既有两个 bench target 一致）、10,000 实体 / 100 commit 的固定 fixture，以及同 run 内 A/B 对照的采样与报告骨架（p50 判定 / p95 仅观察，报告写入 `benchmarks/reports/`）。status / diff / stage 场景与阈值由 [US-306a FR-026](./US-306a-working-tree-index.md) 补齐，restore 场景由 [US-307 FR-029](./US-307-restore-session.md) 补齐；两者 MUST NOT 重复注册 target。
+
+  > 归属理由：bench harness 是 US-306a 与 US-307 的共用基建，放进任一消费方都会让那个故事同时背上「建基建」和「用基建」；而本故事本来就要跑崩溃恢复 fixture，A/B 骨架与它同一条交付线。见 [epic-006 性能预算](../../epics/epic-006-working-tree-commits.md)。
+
+  本 FR 还 MUST 满足两条约束：
+
+  - **本故事自身的 A/B 场景 MUST 有对应的 A 侧。**「打开已有 commit 图并查询 `log()` / `show()`」**不可用**——commit 能力未启用时 `log()` / `show()` 根本不存在，A 侧无对应物，判定值 `(B.p50 - A.p50) / A.p50` 的分母无定义。本故事的场景 MUST 改为**两侧都存在的同一操作**，量的是 commit 图带来的写放大与打开开销，例如「同一批实体写入：A = 未启用 commit 能力，B = 已启用」与「数据库打开到首次可查询：A = 无 commit 图，B = 有 100 个 commit 的图」。`log()` / `show()` 的绝对耗时 MAY 一并输出到报告，但 MUST NOT 作为门禁值。
+    > 对照：[FR-029](./US-307-restore-session.md) 特意把 A 定义为「未启用 commit 能力的**等价物化路径**」，[US-306a FR-026](./US-306a-working-tree-index.md) 的 status / diff / stage 也各有普通读写路径可对照——只有本故事原先这条漏了 A 侧。
+  - **CI 接线属本故事交付物。** [.github/workflows/ci-template.yml](../../../.github/workflows/ci-template.yml) 当前的 `benchmark` job **只跑 `nx run benchmarks:search-ci`**；`bench-hot-path` 与 `bench-encryption` 从未在 CI 中执行过，它们的 `MAX_REGRESSION_PCT` 只是脚本内部断言，CI 层面并无门禁。因此[发布门禁 #4](../../epics/epic-006-working-tree-commits.md) 要求的「在 CI 中无回归」MUST 由本故事新增一步 `nx run benchmarks:bench-working-tree`（沿用既有 `need_benchmark` 触发条件，即 PR 且改动落在 `packages/` 或 `benchmarks/`）来落地。US-306a / US-307 MUST NOT 改动该文件。
 
 ## 关键实体
 
@@ -201,7 +220,7 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 
 - 保留 `RxDBChange` 的现有 ID、transactionId、patch/inversePatch、branchId 和 undo/redo 字段；commit 层不改变旧 API 的过滤规则。若 FR-036 选定方案 (b) 需要新增 commit 关联字段，该字段只能**追加**，且必须证明既有查询与过滤行为零变化。
 - 首次启用时建立 baseline commit 并记录迁移版本；重复启动幂等。
-- 旧 Workspace NEW 草稿在本故事只被**登记**为「待纳入工作树」并排除在 baseline 之外；把它们物化成工作树里的普通变更属 [US-306](./US-306-working-tree-index.md)。无法识别的旧缓存记录隔离并报告，不静默删除。
+- 旧 Workspace NEW 草稿在本故事只被**登记**为「待纳入工作树」并排除在 baseline 之外；把它们物化成工作树里的普通变更属 [US-306a](./US-306a-working-tree-index.md)。无法识别的旧缓存记录隔离并报告，不静默删除。
 
 ## 非功能要求
 
@@ -218,8 +237,8 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 - unborn HEAD 必须有独立 fixture：空库 `log()` / HEAD 查询、首次 commit 的父节点为空、刷新后状态不变。
 - baseline commit 必须有独立 fixture：断言其无 ChangeSet、迁移后 `status()` 为 clean、重复启动不产生第二个 baseline。
 - FR-032 必须有拒绝路径用例：在不支持的适配器上启用 commit 能力时抛出可识别错误，且既有 API 行为零变化；并**必须包含一条 encrypted 包装用例**，断言 guard 按解包后的底层 `ADAPTER_NAME` 判定（底层受支持则放行、不受支持则仍拒绝）。
-- FR-036 的判定基准必须有独立 fixture：同一组工作树数据的判定结果在刷新前后一致；若选定方案 (b)，迁移用例必须断言既有 `RxDBChange` 的查询与过滤行为零变化。该基准的不变式（discard 后 `status()` 为 clean）由 [US-306](./US-306-working-tree-index.md) 的用例把关，本故事只需保证基准本身可持久化、可重建。
-- FR-021 的草稿登记必须有独立断言：草稿被标记为「待纳入工作树」、不计入 baseline commit、刷新后仍可查询——且该断言不得依赖 US-306 的工作树结构。
+- FR-036 的判定基准必须有独立 fixture：同一组工作树数据的判定结果在刷新前后一致；若选定方案 (b)，迁移用例必须断言既有 `RxDBChange` 的查询与过滤行为零变化。该基准的不变式（discard 后 `status()` 为 clean）由 [US-306a](./US-306a-working-tree-index.md) 的用例把关，本故事只需保证基准本身可持久化、可重建。
+- FR-021 的草稿登记必须有独立断言：草稿被标记为「待纳入工作树」、不计入 baseline commit、刷新后仍可查询——且该断言不得依赖 US-306a 的工作树结构。
 - 测试文件使用 `*.spec.ts`，不依赖非确定性的固定延时。
 
 ## 实现文件（计划阶段待确认）
@@ -237,6 +256,6 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 - [US-301 版本控制](./US-301-version-control.md) — 现有分支、合并和远程同步边界
 - [US-302 撤销/重做](./US-302-undo-redo.md) — 现有 durable undo 与会话级 redo 语义
 - [US-304 跨 realm writer lease 与迁移 fencing](./US-304-writer-lease-migration-fencing.md) — 提交乐观校验复用其 epoch
-- [US-306 工作树、缓存区与提交操作](./US-306-working-tree-index.md)
+- [US-306a 工作树、缓存区与提交操作](./US-306a-working-tree-index.md)
 - [US-501 Workspace 插件](../plugin/US-501-workspace-plugin.md) — NEW 草稿持久化现状与明确限制
 - [版本控制文档](../../../website/docs/versioning.md)

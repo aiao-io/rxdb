@@ -1,28 +1,36 @@
 ---
-id: US-306
-title: 工作树、缓存区与提交操作
+id: US-306a
+title: 工作树、缓存区与提交操作（核心状态机）
 status: Backlog
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-13
 updated: 2026-08-15
-tags: [collaboration, working-tree, staging, diff, angular, react, vue]
+tags: [collaboration, working-tree, staging, diff]
 ---
 
 <!--
 INVEST 检查清单:
-- [x] Independent: 依赖 US-305 的 commit 图，但状态机、diff 与三端 API 自成一条交付线
-- [x] Negotiable: 导出名、事件名和 diff 结构可在 plan 阶段冻结
+- [x] Independent: 依赖 US-305 的 commit 图，但状态机与 diff 自成一条交付线
+- [x] Negotiable: 事件名与 diff 结构可在 plan 阶段调整；导出名本故事**必须**冻结（US-306b 消费它）
 - [x] Valuable: 用户第一次能选择性提交，并在刷新后接着上次干
 - [x] Estimable: 状态集合、操作契约与 bench fixture 已列出
-- [~] Small: **本 Epic 里最大的一个故事，Small 存疑但已有意保留**。不含 restore、不含分支切换、不含跨标签页冲突协议；2026-08-15 二轮复审已把共用 bench 基建前置到 US-305（FR-037）、把判定基准前置到 US-305（FR-036）以卸掉两块。剩余的三端绑定 + demo 未再拆，因为它们与状态机共享同一套导出名和状态枚举，先拆会制造一次纯粹为拆而拆的契约冻结。plan 阶段若确认导出可先冻结，允许再拆出 US-306b 承接三端绑定与 demo，届时 FR-024 / FR-025 随之只对 US-306b 生效。见 [epic-006「US-306 的体量说明」](../../epics/epic-006-working-tree-commits.md)。
-- [x] Testable: 「改 → stage → 刷新 → commit → 查 status」可独立验收
+- [x] Small: 2026-08-15 三轮复审拆分后成立。不含三框架绑定与 demo（→ US-306b）、不含 restore、不含分支切换、不含跨标签页冲突协议；共用 bench 基建（FR-037）与判定基准（FR-036）已前置到 US-305
+- [x] Testable: 「改 → stage → 刷新 → commit → 查 status」在核心包内可独立验收，不需要任何框架包
+- [x] 横切 FR 适用性：FR-024 / FR-025 不适用（核心状态机，无框架绑定、无 UI），见 epic-006 横切约束表
 -->
 
-# 用户故事：工作树、缓存区与提交操作
+# 用户故事：工作树、缓存区与提交操作（核心状态机）
 
 > Epic 级的术语表、横切 DoD 与性能口径见 [epic-006](../../epics/epic-006-working-tree-commits.md)。
 > commit 图与 HEAD 的存储契约见 [US-305](./US-305-commit-graph-head.md)。
+>
+> **横切 FR 的适用性**：本故事只交付 `packages/rxdb` 内的状态机与存储（见下方实现文件清单），
+> 不暴露框架绑定也不交付 UI，因此 **FR-024（三框架对称）与 FR-025（a11y）对本故事不适用**——
+> 它们由 [US-306b](./US-306b-working-tree-bindings.md) 承接。FR-023（异步状态）与 FR-028（不复活旧导出）适用。
+>
+> **导出冻结是本故事的交付物**：US-306b 的全部工作建立在本故事冻结的导出名、状态枚举与错误类型之上，
+> 本故事 Done 时这套契约 MUST 已写入 [api-baseline/rxdb.json](../../api-baseline/rxdb.json)。
 
 ## 作为/我想要/以便
 
@@ -71,7 +79,7 @@ INVEST 检查清单:
 - `discardWorkingTree()`：回到当前 HEAD
 - stage 后再次编辑时保留 staged 快照，新增部分标记为 unstaged
 - 迁移登记的 NEW 草稿物化进工作树（[US-305 FR-021](./US-305-commit-graph-head.md) 的对侧）
-- Angular / React / Vue 三端对称 API 与演示
+- 上述操作的导出名、状态枚举与错误类型的**冻结**，并登记进 api-baseline
 - 在 US-305 建好的 `bench-working-tree` harness 中补 status / diff / stage 场景并冻结阈值
 
 ### Out of Scope
@@ -79,6 +87,7 @@ INVEST 检查清单:
 - commit 图、HEAD、分支引用的存储布局与迁移 —— 属 [US-305](./US-305-commit-graph-head.md)
 - 「已提交 / 未提交」判定基准的**选定** —— 属 [US-305 FR-036](./US-305-commit-graph-head.md)；本故事消费该基准，不自行发明
 - bench harness、target 注册与固定 fixture —— 属 [US-305 FR-037](./US-305-commit-graph-head.md)；本故事只加场景
+- Angular / React / Vue 绑定、三端 demo 与跨框架 E2E —— 属 [US-306b](./US-306b-working-tree-bindings.md)
 - 历史恢复会话 —— 属 [US-307](./US-307-restore-session.md)（本故事只需让 `status()` 能表达 `restoring`）
 - 分支切换与跨标签页冲突检测 —— 属 [US-308](./US-308-branch-isolation-conflict.md)
 - 字段级或代码行级的部分暂存
@@ -131,7 +140,7 @@ INVEST 检查清单:
 - **FR-007**：系统 MUST 在 stage 后再次发生编辑时保留 staged 快照，并把新增部分标记为 unstaged；禁止隐式扩大 stage 范围。
 - **FR-011**：系统 MUST 在 commit 成功后只清除已提交的缓存区变更；未暂存变更继续留在工作树并显示准确 diff。
 - **FR-016**：系统 MUST 支持 discard working tree 和 clear index，且两者操作范围明确：前者回到当前 HEAD，后者只清除暂存选择。
-- **FR-023**：见 [epic-006 横切约束](../../epics/epic-006-working-tree-commits.md)；本故事的全部异步操作（status / diff / stage / unstage / commit / discard）适用。
+- **FR-023**：见 [epic-006 横切约束](../../epics/epic-006-working-tree-commits.md)；本故事的全部异步操作（status / diff / stage / unstage / commit / discard）适用。三端绑定层对同一批状态的暴露由 [US-306b](./US-306b-working-tree-bindings.md) 承接。
 - **FR-026**（已改口径；harness 已前置到 US-305）：系统 MUST 在 [US-305 FR-037](./US-305-commit-graph-head.md) 建立的 `bench-working-tree` harness 中**补充 status / diff / stage 三个 A/B 场景**并冻结其阈值。MUST NOT 重复注册 target 或另起 bench 文件。门禁判定沿用 harness 的口径：同一次运行内 A = 未启用 commit 能力的基线路径、B = 启用工作树/commit 后的同一操作，判定值 `(B.p50 - A.p50) / A.p50`；p95 输出但不作为门禁；固定 fixture 为 10,000 条实体 / 100 个 commit，基准环境 Node + PGlite memory（与 [non-encrypted-hot-path.bench.ts](../../../benchmarks/non-encrypted-hot-path.bench.ts) 一致），**不承诺**浏览器 OPFS / IDB 下的同一数字。
   阈值冻结 MUST 同时给出两样东西：**实测分布**，**以及独立论证的上限**（例如「stage 相对基线的额外写次数理论上限 = N，据此取阈值 X%」）。只把首次实测值直接当阈值是循环论证——验收标准由被它门禁的那个 PR 自己写，抓不到它自己引入的回归。
 - **FR-033**（新增）：`discardWorkingTree()` MUST 以**追加反向变更**的方式回到 HEAD，MUST NOT 删除或改写既有 `RxDBChange` 记录——后者等于改写变更日志，与 [FR-018](./US-305-commit-graph-head.md) 冲突。由此 discard 本身是一次可被 undo 观察到的变更；该行为 MUST 有明确断言的验收用例，不得留给实现自行决定。
@@ -183,24 +192,25 @@ INVEST 检查清单:
 - discard 与变更日志的关系必须有专门用例（FR-033）：断言 `RxDBChange` 记录未被删除、discard 以反向变更追加、undo 行为可预测。
 - **判定基准的不变式必须有一条合并断言的用例**（User Story 3 场景 6）：同一用例内同时断言 discard 后 `status()` 为 clean **且** `RxDBChange` 记录数增加。这是 [US-305 FR-036](./US-305-commit-graph-head.md) 选错基准时唯一会红的用例，拆成两条就测不出来。
 - 工作树/缓存区共享语义必须有跨 realm 用例（FR-034）：两个 realm 打开同一数据库，一端 stage/discard，另一端 `status()` 收敛到同一结果。
-- 三端各有等价的单元/组件测试，并用跨框架 E2E 验证 status → stage → commit → refresh 流程。
-- 失败、空状态、键盘可达性和屏幕阅读器名称必须有 UI 回归测试；测试文件使用 `*.spec.ts`，不依赖固定延时。
-- `nx run benchmarks:bench-working-tree` 的 status / diff / stage 场景纳入 CI（target 本身由 [US-305 FR-037](./US-305-commit-graph-head.md) 注册）。
+- 全部用例在核心包内完成，**不依赖任何框架包**——这是本故事与 [US-306b](./US-306b-working-tree-bindings.md) 可独立验收的判据。
+- 测试文件使用 `*.spec.ts`，不依赖固定延时。
+- `nx run benchmarks:bench-working-tree` 的 status / diff / stage 场景纳入 CI（target 与 CI 接线由 [US-305 FR-037](./US-305-commit-graph-head.md) 交付）。
 
 ## 实现文件（计划阶段待确认）
 
 - `packages/rxdb/src/version/` — 工作树与缓存区状态机、diff
 - `packages/rxdb/src/system/` — 工作树/缓存区元数据表
 - `packages/rxdb-plugin-workspace/` — NEW 草稿与工作树状态的整合边界
-- `packages/rxdb-{angular,react,vue}/` — 对称的 hooks / composables / signals
-- `apps/dev-rxdb-{angular,react,vue}/` — 三端工作树演示
 - `benchmarks/working-tree.bench.ts` — **在 US-305 建好的 harness 中追加** status / diff / stage 场景与阈值常量；本故事**不**新建文件、**不**改 `benchmarks/project.json`
-- `requirements/api-baseline/rxdb.json`
+- `requirements/api-baseline/rxdb.json` — 冻结的导出名、状态枚举与错误类型
+
+> 本故事**不改动** `packages/rxdb-{angular,react,vue}/` 与 `apps/dev-rxdb-*`（列出是为了明确它们在变更范围之外，属 [US-306b](./US-306b-working-tree-bindings.md)）。
 
 ## 依赖与参考
 
 - [epic-006 本地工作树与提交历史](../../epics/epic-006-working-tree-commits.md)
 - [US-305 提交图与 HEAD 持久化](./US-305-commit-graph-head.md)
+- [US-306b 工作树的三框架绑定与演示](./US-306b-working-tree-bindings.md) — 消费本故事冻结的导出契约
 - [US-307 历史恢复会话](./US-307-restore-session.md)
 - [US-308 分支隔离与跨 realm 冲突检测](./US-308-branch-isolation-conflict.md)
 - [US-501 Workspace 插件](../plugin/US-501-workspace-plugin.md)
