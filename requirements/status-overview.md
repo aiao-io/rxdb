@@ -94,8 +94,8 @@
 
 - ✅ [US-402 代码编辑器](stories/ui/US-402-code-editor.md)
 - ✅ [US-902 DevTools 面板](stories/future/US-902-devtools-panel.md)
-- ⬜ [US-904 DevTools 调试 Electron 原生本地存储](stories/future/US-904-electron-native-storage-devtools.md) — Chrome / Electron surface；冻结平台无关面板 transport 与 provider 协议
-- ⬜ [US-905 DevTools 调试 Tauri 原生本地存储](stories/future/US-905-tauri-native-storage-devtools.md) — Tauri 开发态受限调试窗口；复用 US-904 面板与协议
+- ⬜ [US-904 DevTools 调试 Electron 原生本地存储](stories/future/US-904-electron-native-storage-devtools.md) — 先过 Electron 43 MV3 stop/go；再冻结共享面板、版本协商、session 身份与分页 provider 协议
+- ⬜ [US-905 DevTools 调试 Tauri 原生本地存储](stories/future/US-905-tauri-native-storage-devtools.md) — 被 US-904 / US-210 / US-505 前置；仅新增 Tauri 窗口、transport、release capability 隔离与三平台证据
 
 > US-401 / US-701 查询构建器系列已随 PR #251 清理出本仓库，详见 [CHANGELOG](CHANGELOG.md)。
 
