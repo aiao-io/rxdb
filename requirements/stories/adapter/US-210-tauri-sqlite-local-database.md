@@ -66,7 +66,7 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 - 复用 US-207 的桌面存储配置与 renderer client 契约，实现 Tauri 传输层
 - `dev-rxdb-tauri` 的最小接入示例与真实临时文件的重启恢复验证
 - 创建或复用 `apps/dev-rxdb-tauri-e2e`，并增加本故事拥有的 SQLite / 事务 / 三平台打包 smoke specs；
-  与 US-905a 并行时由先开工者用 generator 创建一次，不复制第二个 E2E project
+  与 US-905 阶段 1 并行时由先开工者用 generator 创建一次，不复制第二个 E2E project
 
 ### Out of Scope
 
@@ -104,7 +104,7 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 > 本故事只验「第二个 writer 在**连接时**被 lease 挡住」，不关闭 US-304 AC6（挂起 → 迁移 → 恢复写入），
 > 与 [US-207](./US-207-desktop-local-database.md) 的边界一致。
 >
-> AC#9 需要 `apps/dev-rxdb-tauri-e2e` 与三平台打包 CI 矩阵。该 project 由 US-210 / US-905a
+> AC#9 需要 `apps/dev-rxdb-tauri-e2e` 与三平台打包 CI 矩阵。该 project 由 US-210 / US-905 阶段 1
 > 中先开工者创建一次，但 AC#9 的 SQLite、事务与打包 specs 仍由本故事负责。
 > 打包 smoke test 成本高，应只在 release 分支或 tag 触发，不进 PR 门禁。
 > 本次未做，与 US-207 的同类 AC 保持同一状态；附带原因：macOS 没有官方 WKWebView WebDriver，
@@ -263,7 +263,7 @@ Tauri 的 WebView 不是 Chromium（macOS 上是 WKWebView），但目录名沿�
 - `apps/dev-rxdb-tauri/conformance/` — 共享套件的 Rust 宿主入口与 `writer-lease.spec.ts`
 - `apps/dev-rxdb-tauri/src/app/setup_rxdb.ts` — 运行时选路：Tauri 窗口用 desktop 适配器，
   浏览器预览用 wa-sqlite。适配器名与工厂**成对返回**，避免两处判定漂移
-- `apps/dev-rxdb-tauri-e2e/` — **当前不存在**，AC#9 需要新建；与 US-905a 共享 project，先开工者用
+- `apps/dev-rxdb-tauri-e2e/` — **当前不存在**，AC#9 需要新建；与 US-905 阶段 1 共享 project，先开工者用
   generator 创建一次，本故事只拥有 AC#9 的 SQLite、事务与三平台打包 specs；三平台打包矩阵的 CI 成本
   应在 plan 阶段单独评估
 - `requirements/api-baseline/rxdb-adapter-desktop.json` — 已同步（新增 6 项导出，35 → 41）
