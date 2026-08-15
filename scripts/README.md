@@ -264,7 +264,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
      - `parseNxLog` 抽 `Cache: N/M (P%)` / `Run duration` / `Failed tasks:` / `Tasks not run` / `NX Nx detected K flaky tasks` / Playwright 的 `Error Context:` / `trace.zip`；失败任务再 `findFailureDetails` 反查首个错误行 + 测试名 + 源码位置；
      - `renderReport` 输出 `测试结果 / 任务统计 / 失败任务 / 不稳定任务 / Nx 详细输出` 四段结构化报告，**直接写回** `logPath`，覆盖原始 Nx 输出。
   4. `renderConsoleSummary` 在终端打印一行彩色的 `通过/失败 + 失败列表`，便于一眼判断。
-- **何时手动跑**：长跑 `test-all` 时需要事后回溯失败栈；CI 上 `pnpm test-all` 失败但 Nx TUI 的输出被关了 / 被截断时，重跑 `-log` 版拿到结构化报告。
+- **何时手动跑**：长跑 `test-all` 时需要事后回溯失败栈；CI 上 `pnpm test-all` 失败或输出被截断时，重跑 `-log` 版拿到结构化报告。
 
 ### `test-all-log.spec.mjs`
 

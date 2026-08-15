@@ -21,7 +21,7 @@ $ARGUMENTS
 | 模式           | 命令                                                                                                                       | 用途                            |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
 | `quick`        | `pnpm nx affected -t lint test --parallel=8 --nxBail`                                                                      | TDD 循环中快速反馈              |
-| `full`（默认） | `pnpm nx affected -t lint test build e2e --exclude=website,benchmarks --tui=true --tuiAutoExit=true --parallel=8 --nxBail` | 等价 `pnpm test-all`，PR 前必跑 |
+| `full`（默认） | `pnpm nx affected -t lint typecheck test test-browser build e2e --exclude=website,benchmarks --output-style=static --parallel=8 --nxBail` | 等价 `pnpm test-all`，PR 前必跑 |
 | `coverage`     | `pnpm nx affected -t test --configuration=coverage --parallel=4`                                                           | 覆盖率回归                      |
 | `typecheck`    | `pnpm nx affected -t typecheck --parallel=8`                                                                               | 仅 TS 编译校验                  |
 

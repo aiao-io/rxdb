@@ -13,7 +13,7 @@ import { RxDB, SyncType, uuid, type UUID } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
@@ -56,6 +56,20 @@ describe('Push/Pull 边界行为测试', () => {
       clientId: 'remote-client',
       createdAt: new Date().toISOString()
     });
+  }
+
+  /**
+   * pushableCount$ 是异步重算的：本地写入 → RxDBChange 活查询 → #updatePushableCount()
+   * （connected$ / localAdapter$ / branch / repoSync / count 一串 await）→ 发射。
+   * 固定 sleep 会在高负载下抢在重算落地之前读到上一次的值，必须轮询到收敛。
+   */
+  async function expectPushableCount(expected: number) {
+    await vi.waitFor(
+      async () => {
+        expect(await firstValueFrom(rxdb.versionManager.pushableCount$)).toBe(expected);
+      },
+      { timeout: 5000, interval: 25 }
+    );
   }
 
   beforeAll(async () => {
@@ -258,9 +272,8 @@ describe('Push/Pull 边界行为测试', () => {
   describe('pushableCount$ 精确性', () => {
     it('创建多条数据后 pushableCount$ 应该准确', async () => {
       await rxdb.versionManager.push();
-      await new Promise(resolve => setTimeout(resolve, 50));
-
-      const initialCount = await firstValueFrom(rxdb.versionManager.pushableCount$);
+      // push 推进 lastPushedChangeId，基线必须先归零再计增量
+      await expectPushableCount(0);
 
       // 创建 3 条数据
       for (let i = 0; i < 3; i++) {
@@ -269,11 +282,8 @@ describe('Push/Pull 边界行为测试', () => {
         await todo.save();
       }
 
-      await new Promise(resolve => setTimeout(resolve, 50));
-      const afterCount = await firstValueFrom(rxdb.versionManager.pushableCount$);
-
-      // 应该增加 3（每条数据一个 INSERT change）
-      expect(afterCount).toBe(initialCount + 3);
+      // 应该是 3（每条数据一个 INSERT change）
+      await expectPushableCount(3);
     });
 
     it('更新数据后 pushableCount$ 应该增加', async () => {
@@ -283,16 +293,12 @@ describe('Push/Pull 边界行为测试', () => {
       todo.title = `${testPrefix}-count-update-1`;
       await todo.save();
 
-      await new Promise(resolve => setTimeout(resolve, 50));
-      const count1 = await firstValueFrom(rxdb.versionManager.pushableCount$);
-      expect(count1).toBe(1);
+      await expectPushableCount(1);
 
       todo.title = `${testPrefix}-count-update-2`;
       await todo.save();
 
-      await new Promise(resolve => setTimeout(resolve, 50));
-      const count2 = await firstValueFrom(rxdb.versionManager.pushableCount$);
-      expect(count2).toBe(2); // INSERT + UPDATE（插入 + 更新）
+      await expectPushableCount(2); // INSERT + UPDATE（插入 + 更新）
     });
 
     it('删除数据后 pushableCount$ 应该增加', async () => {
@@ -302,15 +308,11 @@ describe('Push/Pull 边界行为测试', () => {
       todo.title = `${testPrefix}-count-delete-1`;
       await todo.save();
 
-      await new Promise(resolve => setTimeout(resolve, 50));
-      const count1 = await firstValueFrom(rxdb.versionManager.pushableCount$);
-      expect(count1).toBe(1);
+      await expectPushableCount(1);
 
       await todo.remove();
 
-      await new Promise(resolve => setTimeout(resolve, 50));
-      const count2 = await firstValueFrom(rxdb.versionManager.pushableCount$);
-      expect(count2).toBe(2); // INSERT + DELETE（插入 + 删除）
+      await expectPushableCount(2); // INSERT + DELETE（插入 + 删除）
     });
   });
 
