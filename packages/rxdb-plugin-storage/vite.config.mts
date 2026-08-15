@@ -119,7 +119,11 @@ export default defineConfig(() => ({
         : '../../coverage/packages/rxdb-plugin-storage/junit.xml'
     },
     coverage: {
-      enabled: true,
+      // 只由显式带 `--coverage` 的 `coverage` / `test-browser` 两个 target 采集（对齐
+      // `rxdb-plugin-search`）。若在这里默认打开，不带 flag 的 `test` target 也会采集，
+      // 而它与 `coverage` 写同一个目录、启动时先清空 —— 一旦与 `test-browser` 的合并步骤
+      // 撞上，就会读到刚被清掉的 `coverage-final.json`（ENOENT），`test-all` 随之变红。
+      enabled: false,
       reportsDirectory:
         isBrowserTest ?
           '../../coverage/packages/rxdb-plugin-storage-browser'
