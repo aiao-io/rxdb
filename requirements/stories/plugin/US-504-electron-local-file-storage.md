@@ -124,7 +124,9 @@ INVEST 检查清单:
 > 下沉 host 侧，要么以可判别错误拒绝多窗口场景，不得静默单进程化（无 fallback 铁律）。
 > plan 阶段必须决定「继续依赖 Web Locks 并用双窗口 e2e 钉住」还是「临界区下沉 host 侧
 > 兜底」；该决策同时约束 [US-505](./US-505-tauri-local-file-storage.md)（WKWebView 的
-> Web Locks 可用性另算）。
+> Web Locks 可用性另算）。另注意（2026-08-15 三次评审）：现有 e2e
+> （`desktop-persistence.spec.ts`）只有单窗口用例，`dev-rxdb-electron` demo 是否支持
+> 开第二个窗口未验证 —— 选 Web Locks 路线时，双窗口 e2e 的基建成本要计入 plan。
 
 ## 技术笔记
 
@@ -152,15 +154,33 @@ Windows 上非法或有陷阱。两条路：收窄逻辑名字符集（破坏与
 逻辑名→物理名做确定性编码（保留任意逻辑名，**倾向此案**）。plan 阶段冻结；host 白名单
 校验以**物理名**为准。
 
+### 错误判别载体（plan 阶段冻结）
+
+AC#4 / #6 / #9 中的「稳定可判别错误码」指调用方能以编程方式稳定判别失败原因，不预设
+具体载体：`errors.ts` 现有 9 个错误类均**无 `code` 属性**，包内不存在错误码体系，桌面
+host 协议侧也只有 `error` 类响应消息（2026-08-15 三次评审核实）。plan 阶段在「沿用
+错误类判别」与「新增 code 字段」之间二选一并冻结；跨 IPC 传输时错误形状如何保真
+（类实例过不了结构化克隆）是该决策必须一并回答的问题。US-505 的对应
+AC（#4 / #8 / #11）跟随本决策，不另订载体。
+
 ### 传输与协议
 
 - 文件消息复用 `@aiao/rxdb-adapter-desktop` 的 host 协议通道与
-  `DESKTOP_HOST_PROTOCOL_VERSION` 协商；两端版本不一致时按既有拒绝路径处理
+  `DESKTOP_HOST_PROTOCOL_VERSION` 协商；版本不一致按既有拒绝路径处理 —— 注意
+  （2026-08-15 三次评审核实）该路径是**单向**的：客户端在 open 应答里拒绝异版本
+  host（`parseDesktopHostOpenResult`），host 不校验 renderer 声称的版本。文件消息
+  沿用此方向即可，但 renderer 不可信侧的兜底是 host 对消息形状的类型化校验与
+  AC#4 的路径校验，不是版本协商
 - renderer 入口不得出现 `node:fs` —— 同 US-207 对 `node:sqlite` 的承诺。源码层已有自动
   防线：`packages/rxdb-adapter-desktop/src/__tests__/public-api.spec.ts` 的
-  「keeps every Node builtin behind the host entry」import 图断言会自动覆盖新增的文件
-  客户端模块（若客户端落在 storage 插件包内，需为该包补同型断言）；产物层（minify /
-  bundle 后）的自动门禁已移除（见 US-207），发布前手工 `pnpm pack` 验证仍是最后一道
+  「keeps every Node builtin behind the host entry」import 图断言，但（2026-08-15
+  三次评审核实）其机制是**从 `src/index.ts` 出发递归跟随静态 `from '...'` import**，
+  自动覆盖仅限与主入口连边的模块。桌面客户端若按 AC#8 以新**子路径入口**暴露，
+  则不与 index.ts 连边、该图走不到它 —— 为 storage 插件补的同型断言必须以每个
+  renderer 侧入口（含新增子路径）为图根；side-effect import（`import 'node:fs'`）
+  与动态 `import()` 也不被该正则捕获，新增代码避开这两种写法或另加断言。产物层
+  （minify / bundle 后）的自动门禁已移除（见 US-207），发布前手工 `pnpm pack`
+  验证仍是最后一道
 - `download()` 不经 host：Blob 已在 renderer，Chromium 的 `showSaveFilePicker` 与
   `<a download>` 回退照旧
 - `fetch()` 远程缓存逻辑不变：renderer 侧 `globalThis.fetch` → 流式写入改走注入后端

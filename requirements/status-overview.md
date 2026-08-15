@@ -22,7 +22,7 @@
 > 同日补写了 [US-209](stories/adapter/US-209-miniprogram-adapter.md)（微信小程序适配器），适配器实现早已合并，故直接记为 `In Review` 而非 `Backlog`；2026-08-15 收尾项全部关闭，转 `Done`（Done 32 → 33，In Review 1 → 0，合计不变）。
 > 同日 US-207 二次拆分：Tauri 半边迁至 [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)（Backlog），US-207 收敛到 Electron 并转 `In Progress`。Backlog 一进一出仍为 11，合计 45 → 46。
 > 2026-08-15 新增 [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)（Backlog）认领下方「子路径导出表面」缺口，并为它新建 [epic-007](epics/epic-007-public-api-gates.md) 与 `stories/tooling/`（编号段 US-601~699，此前未分配）。这是把已存在的缺口登记成故事，不是新增范围；Backlog 11 → 12，合计 46 → 47。
-> 同日再新增 [US-504](stories/plugin/US-504-electron-local-file-storage.md) / [US-505](stories/plugin/US-505-tauri-local-file-storage.md)（`rxdb-plugin-storage` 桌面原生文件后端的 Electron / Tauri 两半，挂 epic-004）。这是**新增范围**：[US-502](stories/plugin/US-502-storage-plugin.md) 只承诺过 OPFS。可行性评审结论写在 US-504 内——服务的 OPFS 耦合点唯一（`getStorageRootHandle()`），复用 US-207 已发布的 host 契约即可换根。拆分沿 US-207 → US-210 先例：Electron 半边可即刻排期，Tauri 半边被 US-210（meta 的桌面 adapter）前置。Backlog 12 → 14，合计 47 → 49。
+> 同日再新增 [US-504](stories/plugin/US-504-electron-local-file-storage.md) / [US-505](stories/plugin/US-505-tauri-local-file-storage.md)（`rxdb-plugin-storage` 桌面原生文件后端的 Electron / Tauri 两半，挂 epic-004）。这是**新增范围**：[US-502](stories/plugin/US-502-storage-plugin.md) 只承诺过 OPFS。可行性评审结论写在 US-504 内——OPFS 特定入口唯一（`getStorageRootHandle()`），但根句柄之后服务全程直接调用句柄 API，「换根即可、其余零改动」只对 handle shim 案成立（接缝两案 plan 阶段冻结）；host 通道复用 US-207 已发布的契约。拆分沿 US-207 → US-210 先例：Electron 半边可即刻排期，Tauri 半边被 US-210（meta 的桌面 adapter）前置。Backlog 12 → 14，合计 47 → 49。
 
 ## 项目统计
 
