@@ -2,14 +2,22 @@ import { Entity, EntityBase, PropertyType, type RxDB } from '@aiao/rxdb';
 import { BehaviorSubject } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { FtsInstallPlan } from '../core/fts5-installer.js';
+import type { InstallFtsResult, MigrationRecordStore, RuntimeSqlExecutor } from '../core/fts5-runtime.js';
 import type { SearchResult } from '../types.js';
 
 const { installFtsForEntity, engineSearch } = vi.hoisted(() => ({
-  installFtsForEntity: vi.fn(async () => ({
-    tableName: 'article',
-    status: 'installed' as const,
-    fields: [{ name: 'title', isArray: false }]
-  })),
+  installFtsForEntity: vi.fn(
+    async (
+      _plan?: FtsInstallPlan,
+      _executor?: RuntimeSqlExecutor,
+      _store?: MigrationRecordStore
+    ): Promise<InstallFtsResult> => ({
+      tableName: 'article',
+      status: 'installed' as const,
+      fields: [{ name: 'title', isArray: false }]
+    })
+  ),
   engineSearch: vi.fn(async () => [
     {
       entity: 'Article',
