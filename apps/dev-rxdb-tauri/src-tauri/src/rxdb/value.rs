@@ -106,7 +106,7 @@ fn sextet(character: u8) -> HostResult<u32> {
 /// 因此收严只影响手写或被篡改的载荷。
 fn decode_base64(text: &str) -> HostResult<Vec<u8>> {
     let bytes = text.as_bytes();
-    if bytes.len() % 4 != 0 {
+    if !bytes.len().is_multiple_of(4) {
         return Err(violation(format!(
             "{BYTES_TAG} must be padded to a multiple of 4 characters"
         )));

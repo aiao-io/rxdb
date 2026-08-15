@@ -472,6 +472,28 @@ describe('HistoryManager - Class Methods', () => {
       }
     });
 
+    // 变更表的 INSERT 通知要经宿主 debounce 与（Tauri 下）跨进程 stdio 传输，
+    // save 的通知可能在 undo() 完成之后才到达。`isExecutingUndoRedo()` 是时间窗守卫，
+    // 挡不住这类迟到者——迟到通知一旦触发 invalidateRedoStack，刚压入的 redo 栈就被清空，
+    // 紧随其后的 redo() 静默空跑。判定必须基于内容：undo 已把 change 序列推进到
+    // `seq + changes.length`，只有 id 越过该水位的事件才是真正的新写入。
+    it('迟到的旧 change 事件不清空 redo 栈，越过水位的新写入才清空', async () => {
+      const change = createChange();
+      mockChangeRepository.find.mockResolvedValue([change]);
+
+      await historyManager.history().undo();
+      expect(mockSwitchBranch).toHaveBeenCalledTimes(1);
+      expect(await firstValueFrom(historyManager.redoHistories$)).toHaveLength(1);
+
+      // save 的迟到通知：id(50) ≤ undo 时的序列水位（seq=100 + 1 条 = 101）
+      await historyManager.invalidateRedoStack([change.id]);
+      expect(await firstValueFrom(historyManager.redoHistories$)).toHaveLength(1);
+
+      // 真正的新写入：id 越过水位
+      await historyManager.invalidateRedoStack([102]);
+      expect(await firstValueFrom(historyManager.redoHistories$)).toHaveLength(0);
+    });
+
     it('repository 水位线必须按 namespace + entity 隔离', async () => {
       mockSyncFind.mockResolvedValue([
         { namespace: 'public', entity: 'User', lastPushedChangeId: 100 },

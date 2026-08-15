@@ -190,11 +190,13 @@ export class VersionManager {
       if (rxdbChanges.length > 0) {
         // 只有在非 undo/redo 操作时才失效 redo 栈
         if (!this.historyManager.isExecutingUndoRedo()) {
-          this.#runDetachedEventTask(this.historyManager.invalidateRedoStack(), 'invalidateRedoStack');
           const changeIds = rxdbChanges.flatMap(change => {
             const changeId = getRxDBChangeEventId(change);
             return changeId === null ? [] : [changeId];
           });
+          // 带上 id：变更表通知可能跨进程迟到（Tauri stdio 宿主），时间窗守卫挡不住，
+          // 由 invalidateRedoStack 按序列水位判定是否真是 undo 之后的新写入
+          this.#runDetachedEventTask(this.historyManager.invalidateRedoStack(changeIds), 'invalidateRedoStack');
           const recordAt = getEarliestRecordAt(rxdbChanges);
           if (this.#transactionGeneration !== null || recordAt !== null) {
             this.historyManager.resetSyncCleared(changeIds, {
