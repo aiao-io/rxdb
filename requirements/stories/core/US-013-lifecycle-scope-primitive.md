@@ -33,7 +33,7 @@ INVEST 检查清单:
 本故事**只交付原语本身**，一处既有配对都不迁移——迁移在
 [US-014](US-014-plugin-scope-contract.md) 与后续故事里做。
 
-这样切的原因：原语的语义（逆序、幂等、异步、取消、错误隔离、嵌套）一旦被调用方绑住就很难再改，
+这样切的原因：原语的语义（逆序、幂等、异步释放、错误隔离、嵌套）一旦被调用方绑住就很难再改，
 必须先用一批只针对语义的测试把它钉死，再让四个插件依赖它。反过来做的话，插件迁移过程中
 每发现一个语义漏洞都要同时改原语和四个调用方。
 
@@ -73,23 +73,23 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 前置条件                                             | 操作                                                           | 预期结果                                                                                                                                                                                                               | 状态 |
-| --- | ---------------------------------------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 作用域已登记 A、B、C（按此顺序）                     | `await scope.dispose()`                                        | 释放顺序严格为 C → B → A；`state` 在首个 disposer 执行前已是 `disposing`，全部完成后为 `disposed`                                                                                                                      | ⬜   |
-| 2   | A、B 的 disposer 均返回 Promise                      | `await scope.dispose()`                                        | **串行**执行：B 的 Promise settle 之后 A 才开始；`dispose()` 返回的 Promise 在全部 settle 后才 resolve                                                                                                                 | ⬜   |
-| 3   | 已登记条目并拿到 `acquire()` 返回的 disposer         | 调用该 disposer 两次，再 `await scope.dispose()`               | 底层清理只执行 **1** 次；该条目已从作用域清单摘除，`dispose()` 不会再次调用它                                                                                                                                          | ⬜   |
-| 4   | 作用域已 `dispose()`                                 | 再次 `await scope.dispose()`（含并发同时调用两次）             | 返回**同一个** Promise，清理总执行次数不变，不抛错                                                                                                                                                                     | ⬜   |
-| 5   | 作用域处于 `disposing` 或 `disposed`                 | 调用 `scope.acquire(setup)`                                    | 同步抛 `LifecycleScopeDisposedError`，且 **`setup` 不被执行**（不产生新资源）；错误消息含作用域 label 与传入的条目 label                                                                                               | ⬜   |
-| 6   | 某个 disposer 的实现内部调用 `scope.acquire()`       | `await scope.dispose()`                                        | 该调用抛 `LifecycleScopeDisposedError`；按 AC#7 的隔离规则，其余 disposer 照常跑完                                                                                                                                     | ⬜   |
-| 7   | 三个 disposer 中第 2、3 个抛错                       | `await scope.dispose()`                                        | 三个**全部**被调用（不短路）；`dispose()` 以 `AggregateError` reject，`errors` 按**执行顺序**排列；作用域仍进入 `disposed`                                                                                             | ⬜   |
-| 8   | 三个 disposer 中恰好 1 个抛错                        | `await scope.dispose()`                                        | `dispose()` 直接以**该原始错误**reject（不包 `AggregateError`），与 [`RxDB.#runIsolated`](../../../packages/rxdb/src/RxDB.ts#L579-L593) 的首错口径一致                                                                 | ⬜   |
-| 9   | 父作用域上依次登记 A、子作用域 S、B                  | 在 S 上登记 s1、s2，然后 `await parent.dispose()`              | 顺序为 B → (s2 → s1) → A：子作用域在**它被创建的那个位置**整体释放，不是全部提前或全部推后；S 的 `state` 为 `disposed`                                                                                                 | ⬜   |
-| 10  | 子作用域 S 已独立 `dispose()`                        | 随后 `await parent.dispose()`                                  | S 的 disposer 不被二次调用；S 已从父清单摘除；父的其余条目正常释放                                                                                                                                                     | ⬜   |
-| 11  | setup 返回 `undefined`（无需释放的副作用）           | 登记后 `await scope.dispose()`                                 | 不抛错、不调用任何东西；该条目返回的 disposer 可安全调用且为 no-op                                                                                                                                                     | ⬜   |
-| 12  | setup 自身同步抛错                                   | `scope.acquire(setup)`                                         | 错误原样抛给调用方；该条目**不进入**清单，`dispose()` 时不涉及它；作用域仍为 `active`                                                                                                                                  | ⬜   |
-| 13  | 手动调用 `acquire()` 返回的 disposer，底层清理抛错   | 捕获该错误后 `await scope.dispose()`                           | 错误原样抛给手动调用方；该条目在调用底层清理**之前**已摘除并标记已执行，**不回滚**回清单；`dispose()` 不重试它（避免已成功的那半被重复执行）                                                                           | ⬜   |
-| 14  | 子作用域 S 独立 `dispose()` 时其内部 disposer 抛错   | 捕获后 `await parent.dispose()`                                | S 仍进入 `disposed` 并**已从父清单摘除**；父不再释放 S；父的其余条目正常释放                                                                                                                                           | ⬜   |
-| 15  | 新增的公开导出                                       | 跑 `node scripts/audit/api-surface.mjs --check` 与 lint / test | 基线 [utils.json](../../api-baseline/utils.json) 已同步含新符号；TSDoc 齐全；`@aiao/utils` 四项覆盖率 ≥ **80%**（非核心包档位）                                                                                        | ⬜   |
+| #   | 前置条件                                           | 操作                                                           | 预期结果                                                                                                                                               | 状态 |
+| --- | -------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 1   | 作用域已登记 A、B、C（按此顺序）                   | `await scope.dispose()`                                        | 释放顺序严格为 C → B → A；`state` 在首个 disposer 执行前已是 `disposing`，全部完成后为 `disposed`                                                      | ⬜   |
+| 2   | A、B 的 disposer 均返回 Promise                    | `await scope.dispose()`                                        | **串行**执行：B 的 Promise settle 之后 A 才开始；`dispose()` 返回的 Promise 在全部 settle 后才 resolve                                                 | ⬜   |
+| 3   | 已登记条目并拿到 `acquire()` 返回的 disposer       | 调用该 disposer 两次，再 `await scope.dispose()`               | 底层清理只执行 **1** 次；该条目已从作用域清单摘除，`dispose()` 不会再次调用它                                                                          | ⬜   |
+| 4   | 作用域已 `dispose()`                               | 再次 `await scope.dispose()`（含并发同时调用两次）             | 返回**同一个** Promise，清理总执行次数不变，不抛错                                                                                                     | ⬜   |
+| 5   | 作用域处于 `disposing` 或 `disposed`               | 调用 `scope.acquire(setup)`                                    | 同步抛 `LifecycleScopeDisposedError`，且 **`setup` 不被执行**（不产生新资源）；错误消息含作用域 label 与传入的条目 label                               | ⬜   |
+| 6   | 某个 disposer 的实现内部调用 `scope.acquire()`     | `await scope.dispose()`                                        | 该调用抛 `LifecycleScopeDisposedError`；按 AC#7 的隔离规则，其余 disposer 照常跑完                                                                     | ⬜   |
+| 7   | 三个 disposer 中第 2、3 个抛错                     | `await scope.dispose()`                                        | 三个**全部**被调用（不短路）；`dispose()` 以 `AggregateError` reject，`errors` 按**执行顺序**排列；作用域仍进入 `disposed`                             | ⬜   |
+| 8   | 三个 disposer 中恰好 1 个抛错                      | `await scope.dispose()`                                        | `dispose()` 直接以**该原始错误**reject（不包 `AggregateError`），与 [`RxDB.#runIsolated`](../../../packages/rxdb/src/RxDB.ts#L579-L593) 的首错口径一致 | ⬜   |
+| 9   | 父作用域上依次登记 A、子作用域 S、B                | 在 S 上登记 s1、s2，然后 `await parent.dispose()`              | 顺序为 B → (s2 → s1) → A：子作用域在**它被创建的那个位置**整体释放，不是全部提前或全部推后；S 的 `state` 为 `disposed`                                 | ⬜   |
+| 10  | 子作用域 S 已独立 `dispose()`                      | 随后 `await parent.dispose()`                                  | S 的 disposer 不被二次调用；S 已从父清单摘除；父的其余条目正常释放                                                                                     | ⬜   |
+| 11  | setup 返回 `undefined`（无需释放的副作用）         | 登记后 `await scope.dispose()`                                 | 不抛错、不调用任何东西；该条目返回的 disposer 可安全调用且为 no-op                                                                                     | ⬜   |
+| 12  | setup 自身同步抛错                                 | `scope.acquire(setup)`                                         | 错误原样抛给调用方；该条目**不进入**清单，`dispose()` 时不涉及它；作用域仍为 `active`                                                                  | ⬜   |
+| 13  | 手动调用 `acquire()` 返回的 disposer，底层清理抛错 | 捕获该错误后 `await scope.dispose()`                           | 错误原样抛给手动调用方；该条目在调用底层清理**之前**已摘除并标记已执行，**不回滚**回清单；`dispose()` 不重试它（避免已成功的那半被重复执行）           | ⬜   |
+| 14  | 子作用域 S 独立 `dispose()` 时其内部 disposer 抛错 | 捕获后 `await parent.dispose()`                                | S 仍进入 `disposed` 并**已从父清单摘除**；父不再释放 S；父的其余条目正常释放                                                                           | ⬜   |
+| 15  | 新增的公开导出                                     | 跑 `node scripts/audit/api-surface.mjs --check` 与 lint / test | 基线 [utils.json](../../api-baseline/utils.json) 已同步含新符号；TSDoc 齐全；`@aiao/utils` 四项覆盖率 ≥ **80%**（非核心包档位）                        | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
