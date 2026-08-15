@@ -7,13 +7,15 @@ epic: epic-003-ui-developer-tools
 created: 2026-08-15
 updated: 2026-08-15
 tags: [tooling, devtools, desktop, electron, mv3, feasibility]
+decision: pending
+evidence: null
 ---
 
 <!--
 INVEST 检查清单:
 - [x] Independent: 只验证 Electron 43 与现有 unpacked MV3 扩展，不依赖 US-207 / US-504
 - [x] Negotiable: fixture 的页面内容与启动方式可调整，必须保留真实 Electron 进程证据
-- [x] Valuable: 在抽共享面板前关闭最昂贵的运行时未知量
+- [x] Valuable: 在接入 Electron native provider 前关闭最昂贵的运行时未知量
 - [x] Estimable: API 组合、成功判据和 unsupported 分支已列全
 - [x] Small: 不抽面板、不设计 provider、不接 SQLite 或原生文件
 - [x] Testable: supported / unsupported 都有可复现的版本、日志和 stop/go 结论
@@ -28,7 +30,7 @@ INVEST 检查清单:
 
 **作为** 负责桌面 DevTools 的开发者
 **我想要** 在真实 Electron 43 中加载工作区构建的 unpacked MV3 扩展并验证关键 API
-**以便** 在投入共享面板和 native provider 前得到可复现的 supported / unsupported 决策
+**以便** 在投入 Electron native provider 前得到可复现的 supported / unsupported 决策
 
 ## 范围边界
 
@@ -39,7 +41,7 @@ INVEST 检查清单:
   host permission 与 runtime Port 双向消息
 - 固定 Electron、Chromium、扩展 manifest 与构建版本，保存逐项 supported / unsupported 结果和失败日志
 - 验证开发进程退出后 extension session、service worker 与 Port 均释放
-- 形成 stop/go 结论：只有全部关键项 supported 才解锁 US-904b
+- 形成 stop/go 结论：只有全部关键项 supported 才解锁 US-904c；平台无关的 US-904b 不受本门禁影响
 
 ### Out of Scope
 
@@ -50,14 +52,14 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 前置条件                                      | 操作                                      | 预期结果                                                                                                      | 状态 |
-| --- | --------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | Electron 43 与工作区扩展已构建               | 通过 `session.defaultSession.loadExtension` 加载 | 返回有效 extension，MV3 service worker 启动；失败时记录稳定复现步骤、版本和原始错误                           | ⬜   |
-| 2   | 打开 fixture 页面的 DevTools                 | 扩展执行 `chrome.devtools.panels.create`  | RxDB panel 真实出现并能完成一次 panel → service worker → inspected page → panel 往返                         | ⬜   |
-| 3   | fixture 初始未授予目标 origin 权限           | 由扩展请求权限并执行 `chrome.scripting`   | host permission 按需授予，脚本只注入目标页面；拒绝权限时返回可见错误，不扩大 manifest 常驻权限                | ⬜   |
-| 4   | runtime Port 已建立                          | 刷新 inspected page、关闭 DevTools 和应用 | Port 断开与 service worker/session 清理可观察，不残留能接收下一次启动消息的旧连接                             | ⬜   |
-| 5   | AC#1～#4 已逐项执行                           | 写入可行性记录                            | 每项都有版本、命令、结果与日志；结论只有 `supported` 或 `unsupported`，不得写“理论可行”或用 mock 补证据      | ⬜   |
-| 6   | 可行性结论已冻结                             | 检查后续排期                              | 仅 `supported` 解锁 US-904b；`unsupported` 时 US-904b/904c 保持 Backlog，并先修订父契约选择新的承载模型       | ⬜   |
+| #   | 前置条件                           | 操作                                              | 预期结果                                                                                                                        | 状态 |
+| --- | ---------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | Electron 43 与工作区扩展已构建     | 通过 `session.defaultSession.loadExtension` 加载  | 返回有效 extension，MV3 service worker 启动；失败时记录稳定复现步骤、版本和原始错误                                             | ⬜   |
+| 2   | 打开 fixture 页面的 DevTools       | 扩展执行 `chrome.devtools.panels.create`          | RxDB panel 真实出现并能完成一次 panel → service worker → inspected page → panel 往返                                            | ⬜   |
+| 3   | fixture 初始未授予目标 origin 权限 | 由扩展请求权限并执行 `chrome.scripting`           | host permission 按需授予，脚本只注入目标页面；拒绝权限时返回可见错误，不扩大 manifest 常驻权限                                  | ⬜   |
+| 4   | runtime Port 已建立                | 刷新 inspected page、关闭 DevTools 和应用         | Port 断开与 service worker/session 清理可观察，不残留能接收下一次启动消息的旧连接                                               | ⬜   |
+| 5   | AC#1～#4 已逐项执行                | 写入 `evidence` 指向的可行性记录并更新 `decision` | 每项都有版本、命令、结果与日志；`decision` 只能从 `pending` 变为 `supported` 或 `unsupported`，不得写“理论可行”或用 mock 补证据 | ⬜   |
+| 6   | 可行性结论已冻结                   | 检查后续排期                                      | `supported` 解锁 US-904c；`unsupported` 时 US-904c 与 US-904 父故事转 `Blocked`，记录替代承载故事；US-904b/US-905 不受影响      | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -69,8 +71,9 @@ INVEST 检查清单:
 
 ## 依赖与排期
 
-- 无 US-207 / US-504 前置依赖；本故事必须先于 US-904b、US-904c。
-- `supported` 是 US-904b 的硬门禁，不是本故事关闭的必然结果；可信的 `unsupported` 证据同样可以关闭本故事。
+- 无 US-207 / US-504 前置依赖；本故事只门禁 US-904c，可与 US-904b 并行。
+- `supported` 不是本故事关闭的必然结果；可信的 `unsupported` 证据同样可以关闭本故事，但必须填写
+  `decision` / `evidence`，并把 US-904c 和父故事转为 `Blocked`，不能让它们永久伪装成普通 Backlog。
 
 ## 实现文件
 
@@ -82,4 +85,3 @@ INVEST 检查清单:
 
 - [US-904 Electron 原生本地存储 DevTools 契约](./US-904-electron-native-storage-devtools.md)
 - [US-902 DevTools 面板](./US-902-devtools-panel.md)
-

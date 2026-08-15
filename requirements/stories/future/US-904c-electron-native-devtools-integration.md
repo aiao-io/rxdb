@@ -32,7 +32,8 @@ INVEST 检查清单:
 
 ## 启动门禁
 
-- US-904a 已完成且结论为 `supported`，US-904b 已冻结 v2 与共享 panel。
+- US-904a 已完成、`decision: supported` 且 `evidence` 非空；US-904b 已冻结 v2、共享 panel 与
+  provider conformance suite。若 904a 为 `unsupported`，本故事转 `Blocked` 并由新的承载故事替代。
 - [US-207](../adapter/US-207-desktop-local-database.md) 已交付 Electron SQLite 与 desktop host 接缝；
   不等待其无关的三平台打包矩阵。[US-504](../plugin/US-504-electron-local-file-storage.md) 已交付原生文件接缝。
 
@@ -45,8 +46,12 @@ INVEST 检查清单:
 - Electron SQLite provider 通过 connector 的语义 API 查询实体、全部 `RXDB_EVENT_TYPES`、branch 和
   Storage metadata，不向扩展开放任意 SQL
 - Electron native files provider 只暴露插件专用逻辑根，支持浏览、刷新、上传、下载、新建目录和删除
-- 诊断使用 v2 分页快照，覆盖 1001 条以上数据、两类缺失、临时文件/journal/在途上传排除和
-  `snapshot_busy`
+- 三个领域只声明 US-904b 的语义 kind，`runtime: electron` 只用于显示；显式开发 fixture 以
+  `capabilities: full` + `mutationPolicy: allow` 开启文件变更，省略 mutation policy 时保持只读
+- 文件上传/下载原样实现共享 transfer 状态机，provider 声明真实 `maxTransferBytes`，覆盖边界大小、
+  乱序/重复/缺块、取消、超时与断连，不在 renderer 或 main 整体缓存文件
+- 诊断在 storage 全局独占锁内物化有界 immutable snapshot，覆盖 1001 条以上数据、两类缺失、
+  临时文件/journal/在途上传排除、`snapshot_busy` 与 `snapshot_too_large`
 - Settings 数据库下载始终 `export_unsupported`；清理仅按 provider 明确能力启用
 - connector、preload 与 main/host 分层校验 session、请求、传输、操作和逻辑路径；关闭 DevTools、
   页面刷新或应用退出时释放所有资源
@@ -61,17 +66,17 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 前置条件                                                      | 操作                                              | 预期结果                                                                                                                                     | 状态 |
-| --- | ------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 分别构建显式开发配置与 production                            | 检查产物并启动                                    | dev 加载唯一工作区扩展并握手；production 无扩展源码、加载路径、bootstrap 和新增权限                                                           | ⬜   |
-| 2   | 应用使用 US-207 desktop SQLite                              | 查询实体、逐类派发事件并切换 branch               | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与应用一致；不创建或查询 OPFS/IndexedDB fallback                                                      | ⬜   |
-| 3   | 应用使用 US-504 原生文件后端                                | 浏览、上传、下载、新建目录、删除并刷新            | 只操作插件专用存储根，字节一致；UI 标明 Electron native provider，不暴露绝对路径，失败无半写文件或孤儿 metadata                               | ⬜   |
-| 4   | 1001 条以上 metadata/文件、两类缺失和一条在途上传           | 读取完整诊断快照                                  | 不漏尾页，只在 complete 后报告真实差异；临时文件、journal、在途上传不误报；连续失效按 v2 上限返回 `snapshot_busy`                             | ⬜   |
-| 5   | 打开 Settings                                               | 尝试数据库下载和未声明的清理                      | 下载禁用且强制命令返回 `export_unsupported`；未声明清理返回 `provider_unsupported`，不读取 OPFS/SQLite/WAL 或其他目录                          | ⬜   |
-| 6   | renderer/content script 构造绝对路径、越界路径或未知操作    | 通过 DevTools 通道发送                            | connector、preload、host 各自拒绝；其他应用目录无读写，响应不含路径、SQL 绑定值、加密字段或文件内容                                            | ⬜   |
-| 7   | session A 有订阅、迟到响应和未完成传输                     | 关闭/刷新后建立 session B 并投递 A 消息           | A 的 host session 与资源释放；B 拒绝旧身份，不显示旧实体、错误、事件或进度                                                                    | ⬜   |
-| 8   | 真实临时 userData、SQLite 与原生文件后端                    | 跑 E2E，重启应用后重新连接                        | 重启前后同一实体和文件一致；证据经过真实 extension/renderer/preload/main/host，不用 mock 替代                                                 | ⬜   |
-| 9   | Chrome 与 Electron 使用 US-904b 同一 fixture               | 运行共享 panel/provider 回归                      | 同一 descriptor、分页、错误和 session 重建产生相同面板状态；Electron adapter 不复制 UI、wire 或错误码                                        | ⬜   |
+| #   | 前置条件                                                 | 操作                                                   | 预期结果                                                                                                                                         | 状态 |
+| --- | -------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 1   | 分别构建显式开发配置与 production                        | 检查产物并启动                                         | dev 加载唯一工作区扩展并握手；production 无扩展源码、加载路径、bootstrap 和新增权限                                                              | ⬜   |
+| 2   | 应用使用 US-207 desktop SQLite                           | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与应用一致；不创建或查询 OPFS/IndexedDB fallback                                                         | ⬜   |
+| 3   | 应用使用 US-504 原生文件后端并显式允许 mutation          | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件专用根，字节一致；UI 仅用 `runtime: electron` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                              | ⬜   |
+| 4   | 1001 条以上 metadata/files、两类缺失和一条在途上传       | 读取完整诊断 snapshot                                  | 独占锁内物化并稳定排序，不漏尾页；临时状态不误报；连续失效返回 `snapshot_busy`，100,000 条/32 MiB 超限返回 `snapshot_too_large`                  | ⬜   |
+| 5   | 打开 Settings                                            | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明清理返回 `provider_unsupported`，不读取 OPFS/SQLite/WAL 或其他目录                            | ⬜   |
+| 6   | 同源脚本/content script 持有合法 session，或构造越界路径 | 在 none/readonly/full、mutation 开/关组合下伪造操作    | connector、preload、host 各自校验；未授权 provider 调用为 0，未 opt-in mutation 不执行；根外无读写，错误不含路径、SQL 绑定值、加密字段或文件内容 | ⬜   |
+| 7   | session A 有订阅、迟到响应和未完成传输                   | 关闭/刷新后建立 session B 并投递 A 消息                | A 的 host session 与资源释放；B 拒绝旧身份，不显示旧实体、错误、事件或进度                                                                       | ⬜   |
+| 8   | 真实临时 userData、SQLite 与原生文件后端                 | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 extension/renderer/preload/main/host，不用 mock 替代                                                    | ⬜   |
+| 9   | Electron 薄 driver 接入 US-904b conformance suite        | 运行 provider/panel 全部共享断言                       | 语义 descriptor、授权、传输、分页、错误和 session 重建全部通过；不复制 UI、wire、fixture 或错误码                                                | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -80,7 +85,8 @@ INVEST 检查清单:
 - 扩展不得读取 `globalThis.__aiaoRxdbDesktopHost__`、原始 `ipcRenderer` 或应用数据目录句柄。
 - US-207 / US-504 把窄调试能力注册给 connector；connector 统一执行 v2 序列化、脱敏、超时和生命周期。
 - native files provider 只接收逻辑路径和有界分块，host 继续负责路径解析、二次校验与原子落盘。
-- 所有标识、并发、传输、分页与超时限制原样使用 US-904b，不增加 Electron 私有 fallback。
+- session 只做关联，不做授权；capability、descriptor 和 mutation policy 在 connector 与 host 两侧重复校验。
+- 所有标识、并发、传输、snapshot 与超时限制原样使用 US-904b，不增加 Electron 私有 kind/error/fallback。
 
 ## 实现文件
 

@@ -26,8 +26,43 @@ import {
   StorageUnavailableError
 } from './errors.js';
 import { StorageFileMeta } from './file-meta.entity.js';
+import { createOpfsStorageFilesystem } from './filesystem/opfs-filesystem.js';
+import type {
+  StorageFilesystem,
+  StorageFilesystemEntry,
+  StorageFilesystemFactory,
+  StorageFileWriter
+} from './filesystem/storage-filesystem.js';
+import { isStorageNotFoundError } from './filesystem/storage-filesystem.js';
 import { ObjectUrlRegistry, StoragePreviewResult } from './object-url.js';
 import { PathLockManager } from './path-lock.js';
+import {
+  getDirectoryPathFromOpfsPath,
+  getFileNameFromOpfsPath,
+  isOpfsPathInDirectory,
+  isOpfsPathInsideDirectory,
+  joinDirectoryAndFileName,
+  joinDirectoryPath,
+  normalizeDirectoryPath,
+  normalizeRelativeOpfsPath,
+  toAbsoluteStoragePath,
+  validateStorageName
+} from './paths.js';
+
+// 路径工具早先定义在本模块内，`@aiao/rxdb-plugin-storage` 与包内深引用都从这里取用。
+// 为了让后端实现能复用同一套校验而又不反向依赖服务实现，实体已移入 `./paths.js`，
+// 此处原样再导出以保持导入路径不变。
+export {
+  getDirectoryPathFromOpfsPath,
+  getFileNameFromOpfsPath,
+  isOpfsPathInDirectory,
+  isOpfsPathInsideDirectory,
+  joinDirectoryAndFileName,
+  joinDirectoryPath,
+  normalizeDirectoryPath,
+  normalizeRelativeOpfsPath,
+  toAbsoluteStoragePath
+} from './paths.js';
 
 const DEFAULT_PREVIEW_LIMIT_BYTES = 50 * 1024 * 1024;
 type StorageMetaEntityType = typeof StorageFileMeta;
@@ -45,16 +80,6 @@ type StorageFindOptions = {
   offset?: number;
 };
 type LocalAdapterName = Parameters<RxDB['connect']>[0];
-type StorageDirectoryItemHandle = FileSystemDirectoryHandle | FileSystemFileHandle;
-type DirectoryHandleWithEntries = FileSystemDirectoryHandle & {
-  entries(): AsyncIterableIterator<[string, StorageDirectoryItemHandle]>;
-};
-type StorageManagerWithDirectory = StorageManager & {
-  getDirectory(): Promise<FileSystemDirectoryHandle>;
-};
-type MovableFileSystemHandle = FileSystemHandle & {
-  move(name: string): Promise<void>;
-};
 type StorageMetaPatch = Pick<StorageFileMeta, 'name' | 'mimeType' | 'size' | 'opfsPath' | 'contentVersion'>;
 type StorageFileState = { readonly backupPath: string } | null;
 type DirectoryCopyJournal = {
@@ -65,10 +90,17 @@ const EMPTY_WHERE: StorageFindWhere = { combinator: 'and', rules: [] };
 
 /** Storage 插件安装选项。 */
 export interface RxDBStoragePluginOptions {
-  /** OPFS 下的存储根目录名；默认值为 `files`。 */
+  /** 存储根目录名；默认值为 `files`。 */
   rootDir?: string;
   /** 允许创建预览 URL 的最大字节数；默认值为 50 MiB。 */
   previewLimitBytes?: number;
+  /**
+   * 文件内容落盘用的后端工厂；缺省即浏览器 OPFS。
+   *
+   * @remarks
+   * 桌面宿主用它把内容写进应用数据目录（US-504），使 metadata 与文件同属一个备份域。
+   */
+  filesystem?: StorageFilesystemFactory;
 }
 
 /** 文件上传选项。 */
@@ -176,50 +208,6 @@ export interface StorageFileEntry {
 /** {@link RxdbFileStorage.listEntries} 返回的目录或文件条目。 */
 export type StorageBrowserEntry = StorageDirectoryEntry | StorageFileEntry;
 
-const validateStoragePathSegments = (path: string): string[] => {
-  if (path.includes('\\') || path.includes('\0')) {
-    throw new StorageInvalidPathError(path);
-  }
-
-  const rawSegments = path.split('/');
-  const segments: string[] = [];
-
-  for (const [index, segment] of rawSegments.entries()) {
-    const isBoundary = index === 0 || index === rawSegments.length - 1;
-    if (segment === '' && isBoundary) {
-      continue;
-    }
-    if (segment === '' || segment !== segment.trim() || segment === '.' || segment === '..') {
-      throw new StorageInvalidPathError(path);
-    }
-    segments.push(segment);
-  }
-
-  return segments;
-};
-
-const validateStorageName = (name: string): string => {
-  const segments = validateStoragePathSegments(name);
-  if (segments.length !== 1 || name.includes('/')) {
-    throw new StorageInvalidPathError(name);
-  }
-  return segments[0];
-};
-
-/**
- * 把目录路径规范化为以 `/` 开头且不带结尾 `/` 的形式。
- *
- * @throws {@link StorageInvalidPathError} 路径含空段、反斜杠、`.`、`..` 或首尾空白时抛出。
- */
-export const normalizeDirectoryPath = (path?: string): string => {
-  const source = path ?? '/';
-  if (source === '') {
-    return '/';
-  }
-  const segments = validateStoragePathSegments(source);
-  return segments.length === 0 ? '/' : `/${segments.join('/')}`;
-};
-
 /**
  * 等待 `task`，但在 `signal` abort 时**只拒绝本次等待**，不影响 `task` 自身。
  *
@@ -264,122 +252,16 @@ const readStreamChunk = async (
 };
 
 /**
- * 把 storage 路径规范化为不带开头 `/` 的 OPFS 相对路径。
- *
- * @throws {@link StorageInvalidPathError} 路径包含非法段时抛出。
- */
-export const normalizeRelativeOpfsPath = (path: string): string => validateStoragePathSegments(path).join('/');
-
-/** 把 OPFS 相对路径转换成以 `/` 开头的 storage 绝对路径。 */
-export const toAbsoluteStoragePath = (path?: string): string => {
-  const normalized = normalizeRelativeOpfsPath(path ?? '');
-  return normalized ? `/${normalized}` : '/';
-};
-
-/** 返回 OPFS 相对路径的最后一个路径段。 */
-export const getFileNameFromOpfsPath = (opfsPath: string): string => {
-  const normalized = normalizeRelativeOpfsPath(opfsPath);
-  const lastSlashIndex = normalized.lastIndexOf('/');
-  return lastSlashIndex === -1 ? normalized : normalized.slice(lastSlashIndex + 1);
-};
-
-/** 返回 OPFS 相对路径所在的 storage 绝对目录。 */
-export const getDirectoryPathFromOpfsPath = (opfsPath: string): string => {
-  const normalized = normalizeRelativeOpfsPath(opfsPath);
-  const lastSlashIndex = normalized.lastIndexOf('/');
-  return lastSlashIndex === -1 ? '/' : `/${normalized.slice(0, lastSlashIndex)}`;
-};
-
-/**
- * 连接 storage 目录和文件名，返回 OPFS 相对路径。
- *
- * @throws {@link StorageInvalidPathError} 目录或文件名非法时抛出。
- */
-export const joinDirectoryAndFileName = (directoryPath: string | undefined, fileName: string): string => {
-  const normalizedDirectoryPath = normalizeDirectoryPath(directoryPath);
-  const normalizedFileName = validateStorageName(fileName);
-
-  return normalizedDirectoryPath === '/' ? normalizedFileName : (
-      `${normalizedDirectoryPath.slice(1)}/${normalizedFileName}`
-    );
-};
-
-/**
- * 连接父目录和子目录名，返回 storage 绝对路径。
- *
- * @throws {@link StorageInvalidPathError} 任一路径段非法时抛出。
- */
-export const joinDirectoryPath = (directoryPath: string | undefined, directoryName: string): string => {
-  const normalizedDirectoryPath = normalizeDirectoryPath(directoryPath);
-  const normalizedDirectoryName = validateStorageName(directoryName);
-
-  return normalizedDirectoryPath === '/' ?
-      `/${normalizedDirectoryName}`
-    : `${normalizedDirectoryPath}/${normalizedDirectoryName}`;
-};
-
-/** 判断文件是否直属于指定目录。 */
-export const isOpfsPathInDirectory = (opfsPath: string, directoryPath?: string): boolean =>
-  getDirectoryPathFromOpfsPath(opfsPath) === normalizeDirectoryPath(directoryPath);
-
-/** 判断文件是否位于指定目录或其任意子目录中。 */
-export const isOpfsPathInsideDirectory = (opfsPath: string, directoryPath?: string): boolean => {
-  const normalizedDirectoryPath = normalizeDirectoryPath(directoryPath);
-  if (normalizedDirectoryPath === '/') return true;
-
-  const normalizedOpfsPath = normalizeRelativeOpfsPath(opfsPath);
-  const normalizedDirectoryPrefix = `${normalizedDirectoryPath.slice(1)}/`;
-
-  return (
-    normalizedOpfsPath === normalizedDirectoryPath.slice(1) || normalizedOpfsPath.startsWith(normalizedDirectoryPrefix)
-  );
-};
-
-const isNotFoundError = (error: unknown): boolean => {
-  if (error instanceof DOMException) {
-    return error.name === 'NotFoundError';
-  }
-
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'name' in error &&
-    (error as { name?: string }).name === 'NotFoundError'
-  );
-};
-
-const getDirectoryEntries = (
-  handle: FileSystemDirectoryHandle
-): AsyncIterableIterator<[string, StorageDirectoryItemHandle]> => {
-  const entries = (handle as DirectoryHandleWithEntries).entries;
-  if (typeof entries !== 'function') {
-    throw new Error('FileSystemDirectoryHandle.entries is not supported in this environment');
-  }
-
-  return entries.call(handle);
-};
-
-const isStorageManagerWithDirectory = (value: unknown): value is StorageManagerWithDirectory => {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-
-  const candidate = value as { getDirectory?: unknown };
-  return typeof candidate.getDirectory === 'function';
-};
-
-const isMovableFileSystemHandle = (handle: FileSystemHandle): handle is MovableFileSystemHandle =>
-  typeof (handle as { move?: unknown }).move === 'function';
-
-/**
- * 用 OPFS 保存文件、用 RxDB 保存 metadata 的文件存储服务。
+ * 用 {@link StorageFilesystem} 保存文件、用 RxDB 保存 metadata 的文件存储服务。
  *
  * @remarks
+ * 默认后端是浏览器 OPFS；桌面宿主可经 {@link RxDBStoragePluginOptions.filesystem} 换成原生文件。
  * 同一路径写入在当前实例内串行执行。{@link destroy} 会先拒绝新任务、等待已开始的写任务，
- * 再释放对象 URL 和 OPFS 句柄；销毁后的实例不能重新初始化。
+ * 再释放对象 URL 和后端句柄；销毁后的实例不能重新初始化。
  */
 export class RxdbFileStorage {
-  #rootHandle: FileSystemDirectoryHandle | null = null;
+  /** 已创建的后端实例；`destroy()` 后置空。 */
+  #filesystem: StorageFilesystem | null = null;
   readonly #changes$ = new Subject<void>();
   #lifecycle: 'active' | 'destroying' | 'destroyed' = 'active';
   #activeWrites = 0;
@@ -406,8 +288,29 @@ export class RxdbFileStorage {
     return normalizeRelativeOpfsPath(this.options.rootDir || 'files');
   }
 
+  /** 惰性创建的文件后端；根目录在首次访问时确定。 */
+  private get filesystem(): StorageFilesystem {
+    return (this.#filesystem ??= (this.options.filesystem ?? createOpfsStorageFilesystem)(this.rootDir, {
+      localAdapterName: this.rxdb.config.sync.local?.adapter
+    }));
+  }
+
+  /**
+   * 路径锁。
+   *
+   * @remarks
+   * 后端提供 `lockBackend` 时用它仲裁跨上下文临界区（桌面多窗口共用一个 host），
+   * 否则交给 {@link PathLockManager} 自行探测 Web Locks。
+   */
   private get locks(): PathLockManager {
-    return (this.#locks ??= new PathLockManager(`rxdb-storage:${this.rootDir}`));
+    if (this.#locks) {
+      return this.#locks;
+    }
+
+    const scope = `rxdb-storage:${this.rootDir}`;
+    const lockBackend = this.filesystem.lockBackend;
+    this.#locks = lockBackend ? new PathLockManager(scope, lockBackend) : new PathLockManager(scope);
+    return this.#locks;
   }
 
   /** 当前由服务持有、尚未回收的对象 URL 数量。 */
@@ -431,14 +334,14 @@ export class RxdbFileStorage {
   ) {}
 
   /**
-   * 初始化 OPFS 根目录。
+   * 初始化存储根目录。
    *
-   * @throws {@link StorageUnavailableError} 当前环境不支持 OPFS 时抛出。
+   * @throws {@link StorageUnavailableError} 当前环境不支持所选后端时抛出。
    * @throws {@link StorageDestroyedError} 服务已开始销毁时抛出。
    */
   async init(): Promise<void> {
     this.assertActive();
-    await this.getStorageRootHandle();
+    await this.filesystem.ensureRoot();
   }
 
   /**
@@ -461,16 +364,15 @@ export class RxdbFileStorage {
   }
 
   /**
-   * 读取 metadata 对应的 OPFS 文件快照。
+   * 读取 metadata 对应的文件快照。
    *
-   * @throws 文件 ID 不存在、OPFS 文件缺失或服务已销毁时抛出。
+   * @throws 文件 ID 不存在、后端文件缺失或服务已销毁时抛出。
    */
   async read(fileId: string): Promise<Blob> {
     await this.ensureLocalReady();
 
     const meta = await this.getRequiredMeta(fileId);
-    const fileHandle = await this.getFileHandleByOpfsPath(meta.opfsPath);
-    return fileHandle.getFile();
+    return this.filesystem.readBlob(meta.opfsPath);
   }
 
   /**
@@ -653,19 +555,18 @@ export class RxdbFileStorage {
   /**
    * 列出指定目录的直属目录和已被 metadata 跟踪的直属文件。
    *
-   * 孤立 OPFS 文件不会暴露给调用方，结果按目录优先、名称升序排列。
+   * 孤立文件不会暴露给调用方，结果按目录优先、名称升序排列。
    */
   async listEntries(options: ListOptions = {}): Promise<StorageBrowserEntry[]> {
     await this.ensureLocalReady();
 
     const directoryPath = normalizeDirectoryPath(options.path);
-    const directoryHandle = await this.getDirectoryHandleByPath(directoryPath);
     const directFiles = await this.list({ path: directoryPath });
     const fileMap = new Map(directFiles.map(meta => [meta.opfsPath, meta]));
     const entries: StorageBrowserEntry[] = [];
 
-    for await (const [name, handle] of getDirectoryEntries(directoryHandle)) {
-      if (handle.kind === 'directory') {
+    for await (const { name, kind } of this.filesystem.list(directoryPath)) {
+      if (kind === 'directory') {
         entries.push({
           kind: 'directory',
           name,
@@ -709,7 +610,7 @@ export class RxdbFileStorage {
       await this.ensureLocalReady();
 
       const directoryPath = joinDirectoryPath(options.path, name);
-      await this.getDirectoryHandleByPath(directoryPath, true);
+      await this.filesystem.ensureDirectory(directoryPath);
       return directoryPath;
     } finally {
       finishWrite();
@@ -826,7 +727,8 @@ export class RxdbFileStorage {
     this.#destroyPromise = this.waitForWrites().then(() => {
       this.objectUrls.clear();
       this.#changes$.complete();
-      this.#rootHandle = null;
+      this.#filesystem?.dispose();
+      this.#filesystem = null;
       this.#lifecycle = 'destroyed';
     });
     return this.#destroyPromise;
@@ -882,12 +784,10 @@ export class RxdbFileStorage {
     }
     const originalMeta = this.getMetaPatch(meta);
     const previousTarget = await this.readFileIfExists(targetOpfsPath);
-    const sourceHandle = await this.getFileHandleByOpfsPath(originalMeta.opfsPath);
-    if (isMovableFileSystemHandle(sourceHandle)) {
+    if (await this.filesystem.supportsFileMove(originalMeta.opfsPath)) {
       return this.renameFileWithMove(
         meta,
         targetMeta,
-        sourceHandle,
         validateStorageName(newName),
         targetOpfsPath,
         originalMeta,
@@ -903,7 +803,7 @@ export class RxdbFileStorage {
         await this.removeMeta(targetMeta);
         removedTargetMeta = targetMeta;
       }
-      await this.writeBlobToFileHandle(targetOpfsPath, blob);
+      await this.writeBlobToPath(targetOpfsPath, blob);
       updatedMeta = await this.updateMeta(meta, {
         ...originalMeta,
         name: validateStorageName(newName),
@@ -925,7 +825,6 @@ export class RxdbFileStorage {
   private async renameFileWithMove(
     meta: StorageFileMeta,
     targetMeta: StorageFileMeta | null,
-    sourceHandle: MovableFileSystemHandle,
     newName: string,
     targetOpfsPath: string,
     originalMeta: StorageMetaPatch,
@@ -941,7 +840,7 @@ export class RxdbFileStorage {
         removedTargetMeta = targetMeta;
       }
       await this.removeFile(targetOpfsPath);
-      await sourceHandle.move(newName);
+      await this.filesystem.moveFile(originalMeta.opfsPath, targetOpfsPath);
       moved = true;
       updatedMeta = await this.updateMeta(meta, {
         ...originalMeta,
@@ -956,11 +855,7 @@ export class RxdbFileStorage {
         () => (updatedMeta ? this.updateMeta(updatedMeta, originalMeta).then(() => undefined) : Promise.resolve()),
         async () => {
           if (!moved) return;
-          const targetHandle = await this.getFileHandleByOpfsPath(targetOpfsPath);
-          if (!isMovableFileSystemHandle(targetHandle)) {
-            throw new Error('Moved OPFS file no longer supports move()');
-          }
-          await targetHandle.move(originalMeta.name);
+          await this.filesystem.moveFile(targetOpfsPath, originalMeta.opfsPath);
         },
         () => (removedTargetMeta ? this.createMeta(removedTargetMeta).then(() => undefined) : Promise.resolve()),
         () => this.restoreFileState(targetOpfsPath, previousTarget)
@@ -1007,10 +902,10 @@ export class RxdbFileStorage {
       throw new StorageConflictError(targetMetas[0].opfsPath);
     }
 
-    const sourceHandle = await this.getDirectoryHandleByPath(sourcePath);
-    const targetHandle = targetExists ? await this.getDirectoryHandleByPath(targetPath) : null;
-    if (isMovableFileSystemHandle(sourceHandle) && (!targetHandle || isMovableFileSystemHandle(targetHandle))) {
-      return this.renameDirectoryWithMove(sourceHandle, targetHandle, sourcePath, targetPath, moves, targetMetas);
+    const canMoveSource = await this.filesystem.supportsDirectoryMove(sourcePath);
+    const canMoveTarget = targetExists ? await this.filesystem.supportsDirectoryMove(targetPath) : true;
+    if (canMoveSource && canMoveTarget) {
+      return this.renameDirectoryWithMove(targetExists, sourcePath, targetPath, moves, targetMetas);
     }
 
     const backupPath =
@@ -1063,8 +958,7 @@ export class RxdbFileStorage {
   }
 
   private async renameDirectoryWithMove(
-    sourceHandle: MovableFileSystemHandle,
-    targetHandle: MovableFileSystemHandle | null,
+    targetExists: boolean,
     sourcePath: string,
     targetPath: string,
     moves: ReadonlyArray<{
@@ -1074,8 +968,6 @@ export class RxdbFileStorage {
     }>,
     targetMetas: readonly StorageFileMeta[]
   ): Promise<string> {
-    const sourceName = getFileNameFromOpfsPath(sourcePath.slice(1));
-    const targetName = getFileNameFromOpfsPath(targetPath.slice(1));
     const parentPath = getDirectoryPathFromOpfsPath(targetPath.slice(1));
     const backupName = this.createTemporaryFilePath('directory');
     const backupPath = joinDirectoryPath(parentPath, backupName);
@@ -1085,15 +977,15 @@ export class RxdbFileStorage {
     let sourceMoved = false;
 
     try {
-      if (targetHandle) {
-        await targetHandle.move(backupName);
+      if (targetExists) {
+        await this.filesystem.moveDirectory(targetPath, backupPath);
         targetMoved = true;
       }
       for (const targetMeta of targetMetas) {
         await this.removeMeta(targetMeta);
         removedTargetMetas.push(targetMeta);
       }
-      await sourceHandle.move(targetName);
+      await this.filesystem.moveDirectory(sourcePath, targetPath);
       sourceMoved = true;
       for (const move of moves) {
         attemptedMoves.push(move);
@@ -1105,19 +997,11 @@ export class RxdbFileStorage {
         () => this.rollbackMetaMoves(attemptedMoves),
         async () => {
           if (!sourceMoved) return;
-          const movedSource = await this.getDirectoryHandleByPath(targetPath);
-          if (!isMovableFileSystemHandle(movedSource)) {
-            throw new Error('Moved OPFS directory no longer supports move()');
-          }
-          await movedSource.move(sourceName);
+          await this.filesystem.moveDirectory(targetPath, sourcePath);
         },
         async () => {
           if (!targetMoved) return;
-          const movedTarget = await this.getDirectoryHandleByPath(backupPath);
-          if (!isMovableFileSystemHandle(movedTarget)) {
-            throw new Error('Moved OPFS directory backup no longer supports move()');
-          }
-          await movedTarget.move(targetName);
+          await this.filesystem.moveDirectory(backupPath, targetPath);
         },
         () => this.restoreRemovedMetas(removedTargetMetas)
       );
@@ -1157,17 +1041,19 @@ export class RxdbFileStorage {
     }
 
     if (shouldRemoveAll) {
-      const rootHandle = await this.getStorageRootHandle();
-
-      // 先把条目物化成数组再删：边异步迭代 `entries()` 边 `removeEntry` 会打乱迭代器
+      // 先把条目物化成数组再删：边异步迭代目录边删除会打乱迭代器
       // （底层多为按索引推进的游标），删掉当前项后下一项被跳过，导致静默漏删。
-      const entries: Array<[string, { kind: string }]> = [];
-      for await (const entry of getDirectoryEntries(rootHandle)) {
-        entries.push(entry as [string, { kind: string }]);
+      const entries: StorageFilesystemEntry[] = [];
+      for await (const entry of this.filesystem.list('/')) {
+        entries.push(entry);
       }
 
-      for (const [name, handle] of entries) {
-        await rootHandle.removeEntry(name, handle.kind === 'directory' ? { recursive: true } : undefined);
+      for (const entry of entries) {
+        if (entry.kind === 'directory') {
+          await this.filesystem.removeDirectory(joinDirectoryPath('/', entry.name));
+          continue;
+        }
+        await this.filesystem.removeFile(entry.name);
       }
 
       return;
@@ -1184,8 +1070,7 @@ export class RxdbFileStorage {
     const existingMeta = await this.findMetaByOpfsPath(normalizedPath);
 
     if (existingMeta && (await this.hasFile(normalizedPath))) {
-      const fileHandle = await this.getFileHandleByOpfsPath(normalizedPath);
-      const cached = await fileHandle.getFile();
+      const cached = await this.filesystem.readBlob(normalizedPath);
       return options.mimeType ? cached.slice(0, cached.size, options.mimeType) : cached;
     }
 
@@ -1231,7 +1116,7 @@ export class RxdbFileStorage {
         this.commitFetchedFile(normalizedPath, temporaryPath, size, fileName, mimeType)
       );
 
-      const committed = await (await this.getFileHandleByOpfsPath(normalizedPath)).getFile();
+      const committed = await this.filesystem.readBlob(normalizedPath);
       return committed.slice(0, committed.size, mimeType);
     } finally {
       await this.removeFile(temporaryPath);
@@ -1248,9 +1133,9 @@ export class RxdbFileStorage {
     // 锁内重读：排队期间同路径可能已被 upload / rename 改写
     const existingMeta = await this.findMetaByOpfsPath(normalizedPath);
     const previousFile = await this.readFileIfExists(normalizedPath);
-    const temporaryFile = await (await this.getFileHandleByOpfsPath(temporaryPath)).getFile();
+    const temporaryFile = await this.filesystem.readBlob(temporaryPath);
     try {
-      await this.writeBlobToFileHandle(normalizedPath, temporaryFile);
+      await this.writeBlobToPath(normalizedPath, temporaryFile);
     } catch (error) {
       return this.throwAfterRollback(error, () => this.restoreFileState(normalizedPath, previousFile));
     }
@@ -1295,15 +1180,14 @@ export class RxdbFileStorage {
     opfsPath: string,
     signal?: AbortSignal
   ): Promise<number> {
-    const fileHandle = await this.getFileHandleByOpfsPath(opfsPath, true);
-    const writable = await fileHandle.createWritable();
+    const writer = await this.filesystem.openWrite(opfsPath);
     const reader = stream?.getReader();
     let size = 0;
 
     try {
       if (!reader) {
-        await writable.write(new Blob([]));
-        await writable.close();
+        await writer.write(new Blob([]));
+        await writer.close();
         return 0;
       }
 
@@ -1314,14 +1198,14 @@ export class RxdbFileStorage {
         size += chunk.value.byteLength;
         const writableChunk = new Uint8Array(chunk.value.byteLength);
         writableChunk.set(chunk.value);
-        await writable.write(writableChunk);
+        await writer.write(writableChunk);
       }
       signal?.throwIfAborted();
-      await writable.close();
+      await writer.close();
       return size;
     } catch (error) {
       await reader?.cancel(error).catch(() => undefined);
-      await this.cleanupFailedWritable(writable, error);
+      await writer.abort(error);
       throw error;
     }
   }
@@ -1458,53 +1342,8 @@ export class RxdbFileStorage {
     };
   }
 
-  private async getStorageRootHandle(): Promise<FileSystemDirectoryHandle> {
-    if (this.#rootHandle) {
-      return this.#rootHandle;
-    }
-
-    if (typeof navigator === 'undefined' || !('storage' in navigator)) {
-      throw new StorageUnavailableError('navigator.storage is not available');
-    }
-
-    if (!isStorageManagerWithDirectory(navigator.storage)) {
-      throw new StorageUnavailableError('Origin Private File System is not supported in this environment');
-    }
-
-    let currentHandle = await navigator.storage.getDirectory();
-    const rootDirSegments = this.rootDir.split('/').filter(Boolean);
-
-    for (const segment of rootDirSegments) {
-      currentHandle = await currentHandle.getDirectoryHandle(segment, { create: true });
-    }
-
-    this.#rootHandle = currentHandle;
-    return currentHandle;
-  }
-
-  private async getDirectoryHandleByPath(directoryPath: string, create = false): Promise<FileSystemDirectoryHandle> {
-    let currentHandle = await this.getStorageRootHandle();
-
-    for (const segment of normalizeDirectoryPath(directoryPath).split('/').filter(Boolean)) {
-      currentHandle =
-        create ?
-          await currentHandle.getDirectoryHandle(segment, { create: true })
-        : await currentHandle.getDirectoryHandle(segment);
-    }
-
-    return currentHandle;
-  }
-
-  private async getFileHandleByOpfsPath(opfsPath: string, create = false): Promise<FileSystemFileHandle> {
-    const normalizedPath = normalizeRelativeOpfsPath(opfsPath);
-    const directoryPath = getDirectoryPathFromOpfsPath(normalizedPath);
-    const fileName = getFileNameFromOpfsPath(normalizedPath);
-    const directoryHandle = await this.getDirectoryHandleByPath(directoryPath, create);
-
-    return create ? directoryHandle.getFileHandle(fileName, { create: true }) : directoryHandle.getFileHandle(fileName);
-  }
-
-  private async writeBlobToFileHandle(opfsPath: string, blob: Blob): Promise<void> {
+  /** 带快照补偿的整块写入：失败时把目标恢复成写之前的样子。 */
+  private async writeBlobToPath(opfsPath: string, blob: Blob): Promise<void> {
     const previous = await this.readFileIfExists(opfsPath);
     try {
       await this.writeBlobWithoutRollback(opfsPath, blob);
@@ -1515,20 +1354,27 @@ export class RxdbFileStorage {
   }
 
   private async writeBlobWithoutRollback(opfsPath: string, blob: Blob): Promise<void> {
-    let writable: FileSystemWritableFileStream | undefined;
+    let writer: StorageFileWriter | undefined;
     try {
-      const fileHandle = await this.getFileHandleByOpfsPath(opfsPath, true);
-      writable = await fileHandle.createWritable();
-      await writable.write(blob);
-      await writable.close();
+      writer = await this.filesystem.openWrite(opfsPath);
+      await writer.write(blob);
+      await writer.close();
     } catch (error) {
-      if (writable) {
-        await this.cleanupFailedWritable(writable, error);
+      if (writer) {
+        await writer.abort(error);
       }
       throw error;
     }
   }
 
+  /**
+   * 清理 `showSaveFilePicker` 拿到的可写流。
+   *
+   * @remarks
+   * 这条路径上的句柄来自用户选择的**存储根之外**的位置，不经 {@link StorageFilesystem}，
+   * 因此这里保留独立的收尾逻辑。语义与后端写入句柄的 `abort()` 一致：优先 `abort()`，
+   * 没有则 `close()`，两者的异常都吞掉 —— 再抛一次会盖住真正的失败原因。
+   */
   private async cleanupFailedWritable(
     writable: Pick<FileSystemWritableFileStream, 'close'> & {
       abort?: (reason?: unknown) => Promise<void>;
@@ -1577,7 +1423,7 @@ export class RxdbFileStorage {
     }
 
     try {
-      await this.writeBlobToFileHandle(opfsPath, file);
+      await this.writeBlobToPath(opfsPath, file);
     } catch (error) {
       return this.throwAfterRollback(error, () => this.restoreFileState(opfsPath, previousFile));
     }
@@ -1638,26 +1484,26 @@ export class RxdbFileStorage {
   }
 
   /**
-   * 把当前内容流式复制到临时 OPFS 文件，作为可回滚快照。
+   * 把当前内容流式复制到临时文件，作为可回滚快照。
    *
-   * @param opfsPath - OPFS 相对路径
+   * @param opfsPath - 存储根下的相对路径
    * @returns 临时备份路径；文件不存在时返回 `null`
    *
    * @remarks
-   * 不能保留 `getFile()` 返回的 snapshot 后再覆写源文件，也不能用 `arrayBuffer()` 把大文件
-   * 整体复制进 JS 堆。临时文件与源文件状态脱钩，复制过程的内存上限由流 chunk 大小决定。
+   * 不能保留 {@link StorageFilesystem.readBlob} 返回的 snapshot 后再覆写源文件，也不能用
+   * `arrayBuffer()` 把大文件整体复制进 JS 堆。临时文件与源文件状态脱钩，
+   * 复制过程的内存上限由流 chunk 大小决定。
    */
   private async readFileIfExists(opfsPath: string): Promise<StorageFileState> {
     let backupPath: string | null = null;
     try {
-      const fileHandle = await this.getFileHandleByOpfsPath(opfsPath);
-      const file = await fileHandle.getFile();
+      const source = await this.filesystem.openRead(opfsPath);
       backupPath = this.createTemporaryFilePath('rollback');
-      await this.streamReadableToFile(file.stream(), backupPath);
+      await this.streamReadableToFile(source, backupPath);
       return { backupPath };
     } catch (error) {
       if (backupPath) await this.removeFile(backupPath);
-      if (isNotFoundError(error)) {
+      if (isStorageNotFoundError(error)) {
         return null;
       }
       throw error;
@@ -1666,8 +1512,8 @@ export class RxdbFileStorage {
 
   private async restoreFileState(opfsPath: string, previous: StorageFileState): Promise<void> {
     if (previous) {
-      const backup = await (await this.getFileHandleByOpfsPath(previous.backupPath)).getFile();
-      await this.streamReadableToFile(backup.stream(), opfsPath);
+      const backup = await this.filesystem.openRead(previous.backupPath);
+      await this.streamReadableToFile(backup, opfsPath);
       await this.removeFile(previous.backupPath);
       return;
     }
@@ -1724,7 +1570,7 @@ export class RxdbFileStorage {
 
     for (const directoryPath of [...journal.createdDirectories].reverse()) {
       try {
-        await this.removeEmptyDirectoryPath(directoryPath);
+        await this.removeDirectoryPath(directoryPath);
       } catch (error) {
         rollbackErrors.push(error);
       }
@@ -1747,66 +1593,32 @@ export class RxdbFileStorage {
     if (errors.length > 0) throw new AggregateError(errors, 'Failed to clean storage rollback journal');
   }
 
-  private async removeEmptyDirectoryPath(directoryPath: string): Promise<void> {
-    try {
-      const normalizedDirectoryPath = normalizeDirectoryPath(directoryPath);
-      const relativePath = normalizedDirectoryPath.slice(1);
-      const parentDirectoryPath = getDirectoryPathFromOpfsPath(relativePath);
-      const directoryName = getFileNameFromOpfsPath(relativePath);
-      const parentHandle = await this.getDirectoryHandleByPath(parentDirectoryPath);
-      await parentHandle.removeEntry(directoryName, { recursive: true });
-    } catch (error) {
-      if (!isNotFoundError(error)) {
-        throw error;
-      }
-    }
+  private hasFile(opfsPath: string): Promise<boolean> {
+    return this.filesystem.fileExists(opfsPath);
   }
 
-  private async hasFile(opfsPath: string): Promise<boolean> {
-    try {
-      await this.getFileHandleByOpfsPath(opfsPath);
-      return true;
-    } catch (error) {
-      if (isNotFoundError(error)) {
-        return false;
-      }
-
-      throw error;
-    }
-  }
-
-  private async hasDirectory(directoryPath: string): Promise<boolean> {
-    try {
-      await this.getDirectoryHandleByPath(directoryPath);
-      return true;
-    } catch (error) {
-      if (isNotFoundError(error)) {
-        return false;
-      }
-
-      throw error;
-    }
+  private hasDirectory(directoryPath: string): Promise<boolean> {
+    return this.filesystem.directoryExists(directoryPath);
   }
 
   private async copyDirectory(sourcePath: string, targetPath: string, journal: DirectoryCopyJournal): Promise<void> {
-    const sourceHandle = await this.getDirectoryHandleByPath(sourcePath);
     const targetExists = await this.hasDirectory(targetPath);
-    await this.getDirectoryHandleByPath(targetPath, true);
+    await this.filesystem.ensureDirectory(targetPath);
     if (!targetExists) {
       journal.createdDirectories.push(targetPath);
     }
 
-    for await (const [name, handle] of getDirectoryEntries(sourceHandle)) {
-      if (handle.kind === 'directory') {
+    for await (const { name, kind } of this.filesystem.list(sourcePath)) {
+      if (kind === 'directory') {
         await this.copyDirectory(joinDirectoryPath(sourcePath, name), joinDirectoryPath(targetPath, name), journal);
         continue;
       }
 
       const targetOpfsPath = joinDirectoryAndFileName(targetPath, name);
       const previous = await this.readFileIfExists(targetOpfsPath);
-      const file = await (handle as FileSystemFileHandle).getFile();
+      const file = await this.filesystem.readBlob(joinDirectoryAndFileName(sourcePath, name));
       try {
-        await this.writeBlobToFileHandle(targetOpfsPath, file);
+        await this.writeBlobToPath(targetOpfsPath, file);
       } catch (error) {
         return this.throwAfterRollback(error, () => this.restoreFileState(targetOpfsPath, previous));
       }
@@ -1814,34 +1626,16 @@ export class RxdbFileStorage {
     }
   }
 
-  private async removeFile(opfsPath: string): Promise<void> {
-    try {
-      const directoryPath = getDirectoryPathFromOpfsPath(opfsPath);
-      const fileName = getFileNameFromOpfsPath(opfsPath);
-      const directoryHandle = await this.getDirectoryHandleByPath(directoryPath);
-      await directoryHandle.removeEntry(fileName);
-    } catch (error) {
-      if (!isNotFoundError(error)) {
-        throw error;
-      }
-    }
+  private removeFile(opfsPath: string): Promise<void> {
+    return this.filesystem.removeFile(opfsPath);
   }
 
-  private async removeDirectoryPath(directoryPath: string): Promise<void> {
+  private removeDirectoryPath(directoryPath: string): Promise<void> {
+    // 根目录本身不参与删除：`clear()` 只清空其内容，删掉根会让后续操作全部落空。
     if (directoryPath === '/') {
-      return;
+      return Promise.resolve();
     }
 
-    try {
-      const normalizedDirectoryPath = normalizeDirectoryPath(directoryPath);
-      const parentDirectoryPath = getDirectoryPathFromOpfsPath(normalizedDirectoryPath.slice(1));
-      const directoryName = getFileNameFromOpfsPath(normalizedDirectoryPath.slice(1));
-      const parentHandle = await this.getDirectoryHandleByPath(parentDirectoryPath);
-      await parentHandle.removeEntry(directoryName, { recursive: true });
-    } catch (error) {
-      if (!isNotFoundError(error)) {
-        throw error;
-      }
-    }
+    return this.filesystem.removeDirectory(directoryPath);
   }
 }

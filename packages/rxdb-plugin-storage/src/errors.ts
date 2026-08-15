@@ -152,6 +152,57 @@ export class StoragePreviewLimitError extends Error {
   }
 }
 
+/**
+ * 后端（含桌面 host）失败的稳定判别码。
+ *
+ * @remarks
+ * 单独立一套码而不复用错误类名：这些失败要跨 IPC 传递，
+ * 结构化克隆不保留原型链，接收侧只能靠字符串码判别。
+ */
+export type StorageBackendErrorCode =
+  /** 后端本身不可用（host 未注入、通道已关闭、版本不匹配）。 */
+  | 'backend_unavailable'
+  /** 物理名无法编码或解码，落盘布局与逻辑名不再一一对应。 */
+  | 'invalid_physical_name'
+  /** 解析后的路径逃出存储根。 */
+  | 'path_escape'
+  /** 编码后的单个路径分段超出宿主文件系统的长度上限。 */
+  | 'name_too_long'
+  /** 宿主拒绝访问（EACCES / EPERM）。 */
+  | 'permission_denied'
+  /** 磁盘空间不足（ENOSPC / EDQUOT）。 */
+  | 'disk_full'
+  /** 写入在提交前被中止，目标保持写入前的内容。 */
+  | 'write_aborted'
+  /** 当前 RxDB local adapter 与本后端要求的桌面 adapter 不匹配。 */
+  | 'adapter_mismatch'
+  /** 宿主内部错误，细节见 {@link StorageBackendError.detail}。 */
+  | 'backend_internal_error';
+
+/**
+ * 文件后端或桌面 host 侧的失败。
+ *
+ * @remarks
+ * 与既有 9 个错误类并列而非取代：那些描述的是**服务层语义**（冲突、路径非法、预览超限），
+ * 在任何后端上含义相同；本类描述的是**后端来源**的失败，只有换后端才会出现。
+ * `code` 是稳定判别载体，`detail` 保留跨 IPC 后仅剩结构的原始原因 ——
+ * 两者都保留是因为 `cause` 经结构化克隆会丢掉原型，只靠它无法可靠判别。
+ */
+export class StorageBackendError extends Error {
+  /** 稳定错误码；跨 IPC 后仍可判别。 */
+  readonly code: StorageBackendErrorCode;
+  /** 原始失败原因的结构化残留，仅用于诊断，不参与控制流。 */
+  readonly detail?: unknown;
+
+  /** 创建后端错误。 */
+  constructor(code: StorageBackendErrorCode, message: string, detail?: unknown) {
+    super(message);
+    this.name = 'StorageBackendError';
+    this.code = code;
+    this.detail = detail;
+  }
+}
+
 /** 在 storage service 已进入销毁流程后调用公开 API 时抛出。 */
 export class StorageDestroyedError extends Error {
   /** 创建生命周期终止错误。 */

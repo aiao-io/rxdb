@@ -17,6 +17,18 @@ export {
   type DesktopSqliteHostOptions
 } from './desktop-sqlite-host.js';
 
+export {
+  createDesktopFileHost,
+  type DesktopFileHost,
+  type DesktopFileHostOptions
+} from './desktop-file-host.js';
+
+export {
+  createDesktopHostRouter,
+  type DesktopHostRouter,
+  type DesktopHostRouterOptions
+} from './desktop-host-router.js';
+
 export { NodeSqliteEngine, type NodeSqliteEngineOptions } from './node-sqlite-engine.js';
 
 export { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from './desktop-error.js';

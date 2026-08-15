@@ -35,8 +35,14 @@ export interface StorageFilesystemEntry {
  * 或 {@link StorageFileWriter.abort} 丢弃。服务层保证任一路径上二者只调用其一。
  */
 export interface StorageFileWriter {
-  /** 追加一个分片；分片按调用顺序拼接。 */
-  write(chunk: Blob | Uint8Array): Promise<void>;
+  /**
+   * 追加一个分片；分片按调用顺序拼接。
+   *
+   * @remarks
+   * 分片必须由非共享的 `ArrayBuffer` 支撑：底层写入接口拒绝 `SharedArrayBuffer` 视图，
+   * 调用方从流里读到的分片需自行拷贝一份再传入。
+   */
+  write(chunk: Blob | Uint8Array<ArrayBuffer>): Promise<void>;
   /** 提交全部已写入的分片。 */
   close(): Promise<void>;
   /**
@@ -131,11 +137,30 @@ export interface StorageFilesystem {
 }
 
 /**
+ * 创建后端实例时可见的宿主信息。
+ *
+ * @remarks
+ * 只带**后端选型需要判据的字段**，不传 RxDB 实例：接缝一旦能拿到整个实例，
+ * 后端就能绕过服务层直接读写库，两者的事务边界随即失去意义。
+ */
+export interface StorageFilesystemContext {
+  /**
+   * `sync.local` 配置的适配器名；未配置本地适配器时为 `undefined`。
+   *
+   * @remarks
+   * 桌面后端据此拒绝「metadata 在浏览器存储、文件在原生目录」的错配组合 ——
+   * 那正是 US-504 要消除的「两个备份域」，静默接受等于把问题换个形式留下。
+   */
+  readonly localAdapterName: string | undefined;
+}
+
+/**
  * 按存储根目录创建后端实例的工厂。
  *
  * @param rootDir - 已规范化的存储根目录相对路径（如 `files`）。
+ * @param context - 宿主信息，供后端做启用前校验。
  */
-export type StorageFilesystemFactory = (rootDir: string) => StorageFilesystem;
+export type StorageFilesystemFactory = (rootDir: string, context: StorageFilesystemContext) => StorageFilesystem;
 
 /**
  * 判断错误是否表示「目标不存在」。

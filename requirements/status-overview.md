@@ -26,6 +26,7 @@
 > 同日新增 [US-904](stories/future/US-904-electron-native-storage-devtools.md)（Backlog），补齐 Electron 原生 SQLite 与本地文件后端的 DevTools 调试面。现有扩展的逻辑数据页可复用 connector，但 OPFS 页、数据库下载与清理都硬编码浏览器存储；本故事要求 provider 能力协商、真实 Electron 链路和无 fallback 的安全边界。Tauri WebView 不承载 Chrome MV3 扩展，明确不混入本故事。Backlog 14 → 15，合计 49 → 50。
 > 同日按 Electron / Tauri 运行模型拆出 [US-905](stories/future/US-905-tauri-native-storage-devtools.md)（Backlog）：Tauri 不能加载 Chrome MV3 扩展，因此复用 US-904 的平台无关面板和 provider 协议，以开发态受限 WebView window 承载，不复制第二套 UI / wire。依赖 US-210 / US-505 的 Tauri SQLite 与原生文件 host。Backlog 15 → 16，合计 50 → 51。
 > 同日再次评审把 US-904 拆为 [US-904a](stories/future/US-904a-electron-mv3-devtools-feasibility.md) / [US-904b](stories/future/US-904b-devtools-shared-protocol-panel.md) / [US-904c](stories/future/US-904c-electron-native-devtools-integration.md)，把 US-905 拆为 [US-905a](stories/future/US-905a-tauri-devtools-window-transport.md) / [US-905b](stories/future/US-905b-tauri-native-devtools-integration.md)。父故事保留为契约文档，新增 5 条 Backlog 只反映真实交付切分，**不新增范围**；Backlog 16 → 21，合计 51 → 56。
+> 同日第三次评审修正依赖与安全契约：US-904a 只门禁 Electron 的 US-904c，US-904b 与其并行且不再阻塞 Tauri；US-905b 直接消费 US-904b conformance suite，不等待 US-904c。wire v2 保留一个 minor 的 v1/v2 迁移桥，provider 改用语义 kind，并冻结 capability/descriptor/mutation policy、流式 transfer 与有界 immutable snapshot。状态数量不变。
 
 ## 项目统计
 
@@ -96,12 +97,12 @@
 - ✅ [US-402 代码编辑器](stories/ui/US-402-code-editor.md)
 - ✅ [US-902 DevTools 面板](stories/future/US-902-devtools-panel.md)
 - 📄 [US-904 DevTools 调试 Electron 原生本地存储](stories/future/US-904-electron-native-storage-devtools.md) — **父故事/共享契约文档，不直接交付**
-  - ⬜ [US-904a Electron 43 MV3 DevTools 可行性门禁](stories/future/US-904a-electron-mv3-devtools-feasibility.md) — 无 native host 前置；仅 supported 解锁 904b
-  - ⬜ [US-904b DevTools 共享 v2 协议与面板](stories/future/US-904b-devtools-shared-protocol-panel.md) — breaking v2、限额、provider、分页诊断与 Chrome 回归
-  - ⬜ [US-904c Electron 原生存储 DevTools 集成](stories/future/US-904c-electron-native-devtools-integration.md) — 依赖 904b、US-207、US-504；真实 Electron provider/E2E
+  - ⬜ [US-904a Electron 43 MV3 DevTools 可行性门禁](stories/future/US-904a-electron-mv3-devtools-feasibility.md) — 无 native host 前置；只门禁 904c，可与 904b 并行
+  - ⬜ [US-904b DevTools 共享 v2 协议与面板](stories/future/US-904b-devtools-shared-protocol-panel.md) — v1/v2 bridge、语义 provider、授权、transfer/snapshot 与 Chrome 回归
+  - ⬜ [US-904c Electron 原生存储 DevTools 集成](stories/future/US-904c-electron-native-devtools-integration.md) — 依赖 904a(supported)、904b、US-207、US-504；真实 Electron provider/E2E
 - 📄 [US-905 DevTools 调试 Tauri 原生本地存储](stories/future/US-905-tauri-native-storage-devtools.md) — **父故事/共享契约文档，不直接交付**
   - ⬜ [US-905a Tauri DevTools 窗口与 v2 transport](stories/future/US-905a-tauri-devtools-window-transport.md) — 只依赖 904b，可与 US-210/505 并行
-  - ⬜ [US-905b Tauri 原生存储 DevTools 集成](stories/future/US-905b-tauri-native-devtools-integration.md) — 依赖 905a、904c、US-210、US-505；真实 Rust/WebView/host 证据
+  - ⬜ [US-905b Tauri 原生存储 DevTools 集成](stories/future/US-905b-tauri-native-devtools-integration.md) — 依赖 904b、905a、US-210/505；不等待 Electron，真实 Rust/WebView/host 证据
 
 > US-401 / US-701 查询构建器系列已随 PR #251 清理出本仓库，详见 [CHANGELOG](CHANGELOG.md)。
 

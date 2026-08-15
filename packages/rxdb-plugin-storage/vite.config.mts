@@ -42,15 +42,19 @@ export default defineConfig(() => ({
       transformMixedEsModules: true
     },
     lib: {
-      entry: 'src/index.ts',
+      entry: {
+        index: 'src/index.ts',
+        desktop: 'src/desktop.ts'
+      },
       name: '@aiao/rxdb-plugin-storage',
-      fileName: 'index',
+      fileName: (_, entryName) => `${entryName}.js`,
       formats: ['es' as const]
     },
     rolldownOptions: {
       // dts 插件生成声明文件天然比 Rolldown 原生链接阶段慢，抑制误报的 PLUGIN_TIMINGS 警告
       checks: { pluginTimings: false },
-      external: ['@aiao/rxdb', 'rxjs']
+      // desktop 入口经 host 协议说话，桌面适配器必须外置：内联会把它复制进浏览器主入口的依赖图
+      external: ['@aiao/rxdb', '@aiao/rxdb-adapter-desktop', 'rxjs']
     }
   },
   server: {

@@ -75,7 +75,7 @@ const readDirectoryEntries = (
 class OpfsFileWriter implements StorageFileWriter {
   constructor(private readonly writable: WritableWithOptionalAbort) {}
 
-  async write(chunk: Blob | Uint8Array): Promise<void> {
+  async write(chunk: Blob | Uint8Array<ArrayBuffer>): Promise<void> {
     await this.writable.write(chunk);
   }
 

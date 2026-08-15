@@ -17,6 +17,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./desktop": {
+      "types": "./dist/desktop.d.ts",
+      "import": "./dist/desktop.js",
+      "default": "./dist/desktop.js"
     }
   },
   "files": [
@@ -34,7 +39,16 @@
     "@aiao/rxdb": "workspace:*",
     "rxjs": "^7.8.2"
   },
+  "peerDependencies": {
+    "@aiao/rxdb-adapter-desktop": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@aiao/rxdb-adapter-desktop": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@aiao/rxdb-adapter-desktop": "workspace:*",
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*"
   }
 }
