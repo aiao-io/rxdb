@@ -367,12 +367,18 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     // 防御性复制 params：部分 adapter 实现可能在内部修改入参数组，避免与上游共享引用
     const callRaw = (sql: string, params?: readonly unknown[]) => rawQuery(sql, params ? [...params] : undefined);
 
-    const executor: RuntimeSqlExecutor = { rawQuery: callRaw };
-    const store = this.#createMigrationStore(adapter.getRepository(RxDBMigration));
-
-    for (const plan of this.#searchPlans) {
-      await installFtsForEntity(plan, executor, store);
-    }
+    // FTS DDL / 迁移仓必须走 bootstrapTransaction：此时 connected$ 已为 true，
+    // 但 RxDB.connect() 还卡在 #await_plugin_installs。adapter.rawQuery / repo.find
+    // 都会 ready() → 再等 connect()，等于等自己。
+    await adapter.bootstrapTransaction(async tx => {
+      const executor: RuntimeSqlExecutor = {
+        rawQuery: (sql, params?) => tx.query(sql, params ? [...params] : undefined)
+      };
+      const store = this.#createMigrationStore(tx.getRepository(RxDBMigration));
+      for (const plan of this.#searchPlans) {
+        await installFtsForEntity(plan, executor, store);
+      }
+    });
 
     this.#engine = createSearchEngine(async (sql, params) => mapRowsToFtsRows(await callRaw(sql, params)));
 

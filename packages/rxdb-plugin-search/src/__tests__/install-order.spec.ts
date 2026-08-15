@@ -67,7 +67,10 @@ describe('search plugin install ordering', () => {
     };
     const adapter = {
       rawQuery,
-      getRepository: vi.fn(() => migrationRepository)
+      getRepository: vi.fn(() => migrationRepository),
+      bootstrapTransaction: vi.fn(async (fn: (tx: { query: typeof rawQuery; getRepository: () => typeof migrationRepository }) => Promise<unknown>) =>
+        fn({ query: rawQuery, getRepository: () => migrationRepository })
+      )
     };
 
     const connected$ = new BehaviorSubject(false);
@@ -98,7 +101,7 @@ describe('search plugin install ordering', () => {
 
     await Promise.resolve();
     expect(fakeRxdb.connect).toHaveBeenCalledWith('sqlite-wasm');
-    expect(adapter.getRepository).not.toHaveBeenCalled();
+    expect(adapter.bootstrapTransaction).not.toHaveBeenCalled();
     expect(installFtsForEntity).not.toHaveBeenCalled();
     expect(emissions.at(-1) ?? []).toEqual([]);
 
@@ -109,7 +112,7 @@ describe('search plugin install ordering', () => {
     connected$.next(true);
     await plugin.ready;
 
-    expect(adapter.getRepository).toHaveBeenCalledTimes(1);
+    expect(adapter.bootstrapTransaction).toHaveBeenCalledTimes(1);
     expect(installFtsForEntity).toHaveBeenCalledTimes(1);
     await vi.waitFor(() => {
       expect(engineSearch).toHaveBeenCalled();
@@ -118,5 +121,84 @@ describe('search plugin install ordering', () => {
 
     sub.unsubscribe();
     handle.destroy();
+  });
+
+  it('does not deadlock when FTS rawQuery / migration repo re-enter RxDB.connect()', async () => {
+    installFtsForEntity.mockImplementationOnce(async (_plan, executor, store) => {
+      await executor.rawQuery('SELECT 1');
+      await store.listInstallMigrationsForTable('article');
+      return {
+        tableName: 'article',
+        status: 'installed' as const,
+        fields: [{ name: 'title', isArray: false }]
+      };
+    });
+
+    let finishPlugins!: () => void;
+    const pluginGate = new Promise<void>(resolve => {
+      finishPlugins = resolve;
+    });
+    const connected$ = new BehaviorSubject(false);
+    const reenterConnect = async () => {
+      await fakeRxdb.connect('sqlite-wasm');
+    };
+    const rawQuery = vi.fn(async () => {
+      await reenterConnect();
+      return { rowsAffected: 0, rows: [], columns: [] };
+    });
+    const migrationRepository = {
+      find: vi.fn(async () => {
+        await reenterConnect();
+        return [];
+      }),
+      create: vi.fn(async (entity: unknown) => {
+        await reenterConnect();
+        return entity;
+      })
+    };
+    const installQuery = vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] }));
+    const installRepository = {
+      find: vi.fn(async () => []),
+      create: vi.fn(async (entity: unknown) => entity)
+    };
+    const adapter = {
+      rawQuery,
+      getRepository: vi.fn(() => migrationRepository),
+      bootstrapTransaction: vi.fn(
+        async (fn: (tx: { query: typeof installQuery; getRepository: () => typeof installRepository }) => Promise<unknown>) =>
+          fn({ query: installQuery, getRepository: () => installRepository })
+      )
+    };
+    const fakeRxdb = {
+      config: {
+        sync: { local: { adapter: 'sqlite-wasm' } },
+        entities: [FakeArticle]
+      },
+      localAdapter$: new BehaviorSubject(adapter),
+      connected$,
+      connect: vi.fn(async () => {
+        connected$.next(true);
+        await pluginGate;
+        return adapter;
+      }),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn()
+    } as unknown as RxDB;
+
+    const plugin = rxDBPluginSearch(fakeRxdb, { debounce: 0 }) as RxDBPluginSearch;
+    plugin.install();
+
+    const hung = Promise.race([
+      plugin.ready.then(() => 'ready' as const),
+      new Promise<'hung'>(resolve => {
+        setTimeout(() => resolve('hung'), 50);
+      })
+    ]);
+
+    await expect(hung).resolves.toBe('ready');
+    expect(adapter.bootstrapTransaction).toHaveBeenCalled();
+    expect(rawQuery).not.toHaveBeenCalled();
+    finishPlugins();
+    await plugin.ready;
   });
 });

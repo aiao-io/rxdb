@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "epic-006 本地工作树与提交历史：把 RxDB 的本地变更组织成 Git 式工作流（工作树 WorkingTree* / 缓存区 Index* / 提交 Commit*），覆盖 US-305、US-306a/b/c、US-307、US-308 的完整范围。来源文档：requirements/epics/epic-006-working-tree-commits.md"
+**Input**: User description: "epic-006 本地工作树与提交历史：把 RxDB 的本地变更组织成 Git 式工作流（工作树 `WorkingTree*` / 缓存区 `Index*` / 提交 `Commit*`），覆盖 US-305、US-306a/b/c、US-307、US-308 的完整范围。来源文档：requirements/epics/epic-006-working-tree-commits.md"
 
 ## 概述
 
@@ -269,21 +269,19 @@ Angular、React、Vue 开发者使用同名、同签名、同返回键的工作�
 
 ### Key Entities
 
-| 实体                       | 表示什么                                                                                                   |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **Commit**                 | 不可变提交节点：稳定标识、种类、零或一个父节点、创建位置与分支代次、操作标识、作者、消息、数据库时间、变更集合、摘要、编解码版本与按实体的 schema 指纹 |
-| **CommitBranchRef**        | 分支引用：分支标识、不可变代次、head 提交、head 版本号、来源与更新时间——该次分支生命周期内 HEAD 的唯一真相源；同名重建生成新代次 |
-| **CommitChangeSet**        | 一次提交的变更单元集合，按实体/事务分组，保留补丁、逆补丁或等价可恢复信息（完整复制，不只引用可能被删除的变更行） |
-| **CommitCapabilityState**  | 数据库级启用与协议协商状态：提交协议、系统 schema、编解码版本、启用迁移标识与时间                          |
-| **CommitConflict**         | 一次失败命令的类型化诊断值（非持久状态、非协调锁）：操作、对象、受影响单元、expected/actual 版本号、建议动作 |
-| **WorkingTreeActivationState** | 数据库级单行激活版本号；当前分支仍由既有激活标记表示，此处不复制第二份标识                              |
-| **WorkingTreeState**       | 数据库/分支级工作树水位：基于哪个 HEAD、是否恢复中、未提交单元计数、工作树版本号                           |
-| **WorkingTreeEntry**       | 数据库/分支/单元级未提交变更单元：实体或完整事务身份、操作、补丁/逆补丁或等价快照、当前指纹、来源变更标识、来源分类（本地 / 远端同步 / 合并 / 撤销重做 / 恢复） |
-| **IndexState**             | 数据库/分支级缓存区水位：缓存区版本号、基线 HEAD、条目计数                                                 |
-| **IndexEntry**             | 分支级缓存区条目：变更单元标识、基线提交、完整已暂存快照、暂存时的工作树版本号、依赖单元、暂存时间         |
-| **WorkingTreeRestoreSession** | 历史恢复会话：目标提交、恢复前 HEAD 与各 expected 版本号、产生的工作树版本号、目标 schema/编解码 manifest、数据库创建时间、活跃/冲突/已提交生命周期 |
-| **CommitBranchMaterializationAttempt** | 仅元数据远端分支首次物化的内部持久暂存：尝试标识、目标身份、冻结终止水位、范围 manifest、已提交分页水位、内容指纹、生命周期；成功切换后原子删除 |
-| **CommitOptions**          | 普通提交选项：必填作者标识与操作标识、可选扩展审计元数据；保留审计字段（父节点、时间、作者、操作标识、manifest、变更数量）MUST NOT 被元数据覆盖 |
+- **Commit** — 不可变提交节点：稳定标识、种类、零或一个父节点、创建位置与分支代次、操作标识、作者、消息、数据库时间、变更集合、摘要、编解码版本与按实体的 schema 指纹。
+- **CommitBranchRef** — 分支引用：分支标识、不可变代次、head 提交、head 版本号、来源与更新时间。该次分支生命周期内 HEAD 的唯一真相源；同名重建生成新代次。
+- **CommitChangeSet** — 一次提交的变更单元集合，按实体/事务分组，保留补丁、逆补丁或等价可恢复信息（完整复制，不只引用可能被删除的变更行）。
+- **CommitCapabilityState** — 数据库级启用与协议协商状态：提交协议、系统 schema、编解码版本、启用迁移标识与时间。
+- **CommitConflict** — 一次失败命令的类型化诊断值（非持久状态、非协调锁）：操作、对象、受影响单元、expected/actual 版本号、建议动作。
+- **WorkingTreeActivationState** — 数据库级单行激活版本号；当前分支仍由既有激活标记表示，此处不复制第二份标识。
+- **WorkingTreeState** — 数据库/分支级工作树水位：基于哪个 HEAD、是否恢复中、未提交单元计数、工作树版本号。
+- **WorkingTreeEntry** — 数据库/分支/单元级未提交变更单元：实体或完整事务身份、操作、补丁/逆补丁或等价快照、当前指纹、来源变更标识、来源分类（本地 / 远端同步 / 合并 / 撤销重做 / 恢复）。
+- **IndexState** — 数据库/分支级缓存区水位：缓存区版本号、基线 HEAD、条目计数。
+- **IndexEntry** — 分支级缓存区条目：变更单元标识、基线提交、完整已暂存快照、暂存时的工作树版本号、依赖单元、暂存时间。
+- **WorkingTreeRestoreSession** — 历史恢复会话：目标提交、恢复前 HEAD 与各 expected 版本号、产生的工作树版本号、目标 schema/编解码 manifest、数据库创建时间、活跃/冲突/已提交生命周期。
+- **CommitBranchMaterializationAttempt** — 仅元数据远端分支首次物化的内部持久暂存：尝试标识、目标身份、冻结终止水位、范围 manifest、已提交分页水位、内容指纹、生命周期；成功切换后原子删除。
+- **CommitOptions** — 普通提交选项：必填作者标识与操作标识、可选扩展审计元数据；保留审计字段（父节点、时间、作者、操作标识、manifest、变更数量）MUST NOT 被元数据覆盖。
 
 ## Success Criteria *(mandatory)*
 

@@ -55,8 +55,7 @@ async function bindEncryption(adapter: RxDBAdapterSqlite): Promise<void> {
 
 onMounted(async () => {
   try {
-    const adapter = (await rxdb.getAdapter('sqlite-wasm')) as RxDBAdapterSqlite;
-    await adapter.connect();
+    const adapter = (await rxdb.connect('sqlite-wasm')) as RxDBAdapterSqlite;
     await bindEncryption(adapter);
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
@@ -72,11 +71,11 @@ async function handleUnlock() {
   error.value = null;
   try {
     if (!encFacade) {
-      const adapter = (await rxdb.getAdapter('sqlite-wasm')) as RxDBAdapterSqlite;
-      await adapter.connect();
+      const adapter = (await rxdb.connect('sqlite-wasm')) as RxDBAdapterSqlite;
       await bindEncryption(adapter);
     }
     await encFacade.unlock({ passphrase: passphrase.value });
+    isLocked.value = encFacade.isLocked;
     isFirstTime.value = false;
     passphrase.value = '';
   } catch (err) {
