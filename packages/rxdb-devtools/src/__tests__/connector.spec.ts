@@ -55,6 +55,21 @@ describe('DevToolsConnector', () => {
     return wrapMessageListener(registered[1] as EventListener) as (event: MessageEvent) => void;
   }
 
+  function dispatchMessage(handler: (event: MessageEvent) => void, type: string, payload: unknown = null): void {
+    handler({
+      source: window,
+      origin: location.origin,
+      data: {
+        source: RXDB_DEVTOOLS_MESSAGE,
+        direction: 'devtools-to-page',
+        type,
+        payload,
+        timestamp: Date.now(),
+        sequence: 1
+      }
+    } as unknown as MessageEvent);
+  }
+
   it('MUST start disconnected', () => {
     expect(connector.connected).toBe(false);
   });
@@ -155,18 +170,7 @@ describe('DevToolsConnector', () => {
       connector.init(rxdb);
 
       // 模拟握手确认。
-      const handler = getHandler();
-      handler({
-        source: window,
-        data: {
-          source: RXDB_DEVTOOLS_MESSAGE,
-          direction: 'devtools-to-page',
-          type: 'HANDSHAKE_ACK',
-          payload: null,
-          timestamp: Date.now(),
-          sequence: 1
-        }
-      });
+      dispatchMessage(getHandler(), 'HANDSHAKE_ACK');
       expect(connector.connected).toBe(true);
 
       connector.disconnect();
@@ -184,17 +188,7 @@ describe('DevToolsConnector', () => {
     });
 
     function sendDevToolsMessage(type: string, payload: unknown = null) {
-      messageHandler({
-        source: window,
-        data: {
-          source: RXDB_DEVTOOLS_MESSAGE,
-          direction: 'devtools-to-page',
-          type,
-          payload,
-          timestamp: Date.now(),
-          sequence: 1
-        }
-      } as unknown as MessageEvent);
+      dispatchMessage(messageHandler, type, payload);
     }
 
     it('MUST connect on HANDSHAKE_ACK', () => {
@@ -310,18 +304,7 @@ describe('DevToolsConnector', () => {
       postMessageSpy.mockClear();
 
       // 模拟握手确认。
-      const handler = getHandler();
-      handler({
-        source: window,
-        data: {
-          source: RXDB_DEVTOOLS_MESSAGE,
-          direction: 'devtools-to-page',
-          type: 'HANDSHAKE_ACK',
-          payload: null,
-          timestamp: Date.now(),
-          sequence: 1
-        }
-      });
+      dispatchMessage(getHandler(), 'HANDSHAKE_ACK');
 
       const eventMsgs = postMessageSpy.mock.calls.filter(c => c[0]?.type === 'EVENT');
       expect(eventMsgs.length).toBeGreaterThanOrEqual(1);
@@ -332,18 +315,7 @@ describe('DevToolsConnector', () => {
       connector.init(rxdb);
 
       // 建立连接。
-      const handler = getHandler();
-      handler({
-        source: window,
-        data: {
-          source: RXDB_DEVTOOLS_MESSAGE,
-          direction: 'devtools-to-page',
-          type: 'HANDSHAKE_ACK',
-          payload: null,
-          timestamp: Date.now(),
-          sequence: 1
-        }
-      });
+      dispatchMessage(getHandler(), 'HANDSHAKE_ACK');
 
       postMessageSpy.mockClear();
       rxdb.emit('SYNC_BEGIN', { type: 'SYNC_BEGIN' });
@@ -361,17 +333,7 @@ describe('DevToolsConnector', () => {
       const handler = getHandler();
       postMessageSpy.mockClear();
 
-      handler({
-        source: window,
-        data: {
-          source: RXDB_DEVTOOLS_MESSAGE,
-          direction: 'devtools-to-page',
-          type: 'INSPECT_DB',
-          payload: null,
-          timestamp: Date.now(),
-          sequence: 1
-        }
-      });
+      dispatchMessage(handler, 'INSPECT_DB');
 
       const dbInfoMsgs = postMessageSpy.mock.calls.filter(c => c[0]?.type === 'DB_INFO');
       expect(dbInfoMsgs).toHaveLength(1);
@@ -388,17 +350,7 @@ describe('DevToolsConnector', () => {
       const handler = getHandler();
       postMessageSpy.mockClear();
 
-      handler({
-        source: window,
-        data: {
-          source: RXDB_DEVTOOLS_MESSAGE,
-          direction: 'devtools-to-page',
-          type: 'INSPECT_DB',
-          payload: null,
-          timestamp: Date.now(),
-          sequence: 1
-        }
-      });
+      dispatchMessage(handler, 'INSPECT_DB');
 
       const dbInfoMsgs = postMessageSpy.mock.calls.filter(c => c[0]?.type === 'DB_INFO');
       expect(dbInfoMsgs).toHaveLength(1);
@@ -431,17 +383,7 @@ describe('DevToolsConnector', () => {
       const handler = getHandler();
       postMessageSpy.mockClear();
 
-      handler({
-        source: window,
-        data: {
-          source: RXDB_DEVTOOLS_MESSAGE,
-          direction: 'devtools-to-page',
-          type: 'INSPECT_DB',
-          payload: null,
-          timestamp: Date.now(),
-          sequence: 1
-        }
-      });
+      dispatchMessage(handler, 'INSPECT_DB');
 
       const dbInfoMsgs = postMessageSpy.mock.calls.filter(c => c[0]?.type === 'DB_INFO');
       expect(dbInfoMsgs).toHaveLength(1);
@@ -457,17 +399,7 @@ describe('DevToolsConnector', () => {
       const handler = getHandler();
       postMessageSpy.mockClear();
 
-      handler({
-        source: window,
-        data: {
-          source: RXDB_DEVTOOLS_MESSAGE,
-          direction: 'devtools-to-page',
-          type: 'QUERY_ENTITY',
-          payload: { entityName: 'User' },
-          timestamp: Date.now(),
-          sequence: 1
-        }
-      });
+      dispatchMessage(handler, 'QUERY_ENTITY', { entityName: 'User' });
 
       const dataMsgs = postMessageSpy.mock.calls.filter(c => c[0]?.type === 'ENTITY_DATA');
       expect(dataMsgs).toHaveLength(1);
@@ -480,17 +412,7 @@ describe('DevToolsConnector', () => {
 
       const handler = getHandler();
       const send = (type: string, payload: unknown): void => {
-        handler({
-          source: window,
-          data: {
-            source: RXDB_DEVTOOLS_MESSAGE,
-            direction: 'devtools-to-page',
-            type,
-            payload,
-            timestamp: Date.now(),
-            sequence: 1
-          }
-        });
+        dispatchMessage(handler, type, payload);
       };
 
       // 断开被观测实例后 message 监听仍在（DevTools 通道没断），
@@ -540,17 +462,7 @@ describe('DevToolsConnector', () => {
 
       postMessageSpy.mockClear();
 
-      handler({
-        source: window,
-        data: {
-          source: RXDB_DEVTOOLS_MESSAGE,
-          direction: 'devtools-to-page',
-          type: 'QUERY_ENTITY',
-          payload: { entityName: 'Secret' },
-          timestamp: Date.now(),
-          sequence: 1
-        }
-      });
+      dispatchMessage(handler, 'QUERY_ENTITY', { entityName: 'Secret' });
 
       await vi.waitFor(() => {
         const dataMsgs = postMessageSpy.mock.calls.filter(c => c[0]?.type === 'ENTITY_DATA');
@@ -584,17 +496,7 @@ describe('DevToolsConnector', () => {
 
       postMessageSpy.mockClear();
 
-      handler({
-        source: window,
-        data: {
-          source: RXDB_DEVTOOLS_MESSAGE,
-          direction: 'devtools-to-page',
-          type: 'QUERY_ENTITY',
-          payload: { entityName: 'Secret' },
-          timestamp: Date.now(),
-          sequence: 1
-        }
-      });
+      dispatchMessage(handler, 'QUERY_ENTITY', { entityName: 'Secret' });
 
       const dataMsgs = postMessageSpy.mock.calls.filter(c => c[0]?.type === 'ENTITY_DATA');
       expect(dataMsgs).toHaveLength(1);
@@ -617,17 +519,7 @@ describe('DevToolsConnector', () => {
       const handler = getHandler();
       postMessageSpy.mockClear();
 
-      handler({
-        source: window,
-        data: {
-          source: RXDB_DEVTOOLS_MESSAGE,
-          direction: 'devtools-to-page',
-          type: 'QUERY_ENTITY',
-          payload: { entityName: 'User' },
-          timestamp: Date.now(),
-          sequence: 1
-        }
-      });
+      dispatchMessage(handler, 'QUERY_ENTITY', { entityName: 'User' });
 
       const dataMsgs = postMessageSpy.mock.calls.filter(c => c[0]?.type === 'ENTITY_DATA');
       expect(dataMsgs[0][0].payload).toEqual({ entityName: 'User', error: 'query failed', data: [] });
@@ -642,17 +534,7 @@ describe('DevToolsConnector', () => {
       const handler = getHandler();
       postMessageSpy.mockClear();
 
-      handler({
-        source: window,
-        data: {
-          source: RXDB_DEVTOOLS_MESSAGE,
-          direction: 'devtools-to-page',
-          type: 'GET_BRANCHES',
-          payload: null,
-          timestamp: Date.now(),
-          sequence: 1
-        }
-      });
+      dispatchMessage(handler, 'GET_BRANCHES');
 
       const branchMsgs = postMessageSpy.mock.calls.filter(c => c[0]?.type === 'BRANCHES');
       expect(branchMsgs).toHaveLength(1);
@@ -669,18 +551,7 @@ describe('DevToolsConnector', () => {
     ] as const;
 
     function sendCommand(type: string, payload: unknown): void {
-      const handler = getHandler();
-      handler({
-        source: window,
-        data: {
-          source: RXDB_DEVTOOLS_MESSAGE,
-          direction: 'devtools-to-page',
-          type,
-          payload,
-          timestamp: Date.now(),
-          sequence: 1
-        }
-      });
+      dispatchMessage(getHandler(), type, payload);
     }
 
     it.each(BRANCH_COMMANDS)('MUST forward %s to versionManager.%s', (type, method, payload) => {
@@ -727,17 +598,7 @@ describe('DevToolsConnector', () => {
       postMessageSpy.mockClear();
 
       withoutSession(() => {
-        handler({
-          source: window,
-          data: {
-            source: RXDB_DEVTOOLS_MESSAGE,
-            direction: 'devtools-to-page',
-            type: 'INSPECT_DB',
-            payload: null,
-            timestamp: Date.now(),
-            sequence: 1
-          }
-        } as unknown as MessageEvent);
+        dispatchMessage(handler, 'INSPECT_DB');
       });
 
       expect(postMessageSpy.mock.calls.filter(c => c[0]?.type === 'DB_INFO')).toHaveLength(0);

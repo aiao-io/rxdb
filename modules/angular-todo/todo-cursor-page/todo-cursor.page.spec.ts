@@ -87,7 +87,7 @@ const originalAfterViewInit = TodoCursorPage.prototype.ngAfterViewInit;
 function renderCursorPage() {
   const rxdb = {
     entityManager: {
-      saveMany: vi.fn(() => Promise.resolve())
+      saveMany: vi.fn<(entities: Todo[]) => Promise<void>>(() => Promise.resolve())
     }
   };
   vi.spyOn(TodoCursorPage.prototype, 'ngAfterViewInit').mockImplementation(() => undefined);
@@ -210,13 +210,13 @@ describe('TodoCursorPage', () => {
     await page.add_many_todo(2);
     expect(rxdb.entityManager.saveMany).toHaveBeenCalledOnce();
     expect(page.resource.refresh).toHaveBeenCalledTimes(2);
-    const batch = rxdb.entityManager.saveMany.mock.calls[0][0] as Todo[];
+    const [batch] = rxdb.entityManager.saveMany.mock.calls[0];
     expect(batch).toHaveLength(2);
   });
 
   it('updates cursor query options from tab and sort', () => {
     const { page } = renderCursorPage();
-    const todo = stubTodo({ id: 'id-2', updatedAt: new Date(10) });
+    const todo = stubTodo({ id: 'id-2-0-0-0', updatedAt: new Date(10) });
 
     page.set_current_tab('active');
     expect(page.$todo_find_by_cursor_options().where.rules).toEqual([
