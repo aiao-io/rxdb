@@ -398,15 +398,15 @@ export class RxDB {
    */
   connect<K extends keyof RxDBAdapters>(adapterName: K): Promise<RxDBAdapters[K]>;
   connect(adapterName: RxDBAdapterName): Promise<IRxDBAdapter>;
-  async connect(adapterName: string): Promise<IRxDBAdapter> {
+  connect(adapterName: string): Promise<IRxDBAdapter> {
     // 防重入：如果已经在连接中，直接返回缓存的 Promise
     const pending = this.#connect_promise_map.get(adapterName);
     if (pending) {
       return pending;
     }
 
-    // 先入缓存再 init：插件 install 可能同步回呼 connect()，必须命中同一条 Promise。
-    // init() 必须在 connect() 返回前同步跑完，否则同拍 `new Entity()` 会撞上未注册的 EntityManager。
+    // 先入缓存再启动：插件 install 可能同步回呼 connect()，必须命中同一条 Promise。
+    // init() 必须在 connect() 返回前同步跑完，同一轮 `new Entity()` 才能命中 registry。
     let startConnect!: () => void;
     let failConnect!: (error: unknown) => void;
     const started = new Promise<void>((resolve, reject) => {
@@ -455,14 +455,14 @@ export class RxDB {
       if (this.#connect_promise_map.get(adapterName) === connectPromise) {
         this.#connect_promise_map.delete(adapterName);
       }
+    });
+    this.#connect_promise_map.set(adapterName, connectPromise);
     try {
       this.init();
     } catch (error) {
       failConnect(error);
       return connectPromise;
     }
-    });
-    this.#connect_promise_map.set(adapterName, connectPromise);
     startConnect();
     return connectPromise;
   }
