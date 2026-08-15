@@ -16,7 +16,7 @@ INVEST 检查清单:
 - [x] Valuable (有价值): 文件与桌面 SQLite 落在同一备份域，拷一个目录即完整带走应用数据
 - [x] Estimable (可估算): 单一运行时（Electron）+ 单一后端（node:fs），OPFS 行为冻结不动
 - [x] Small (小): 不含 Tauri（US-505）、不含 OPFS→原生迁移工具、不含远端同步
-- [x] Testable (可测试): 重启持久化、备份恢复、流式有界、失败补偿、双窗口互斥均有独立 AC
+- [x] Testable (可测试): 重启持久化、备份恢复、流式有界、失败补偿、双窗口互斥、错配拒绝均有独立 AC
 -->
 
 # 用户故事：Electron 本地文件存储
@@ -31,11 +31,15 @@ INVEST 检查清单:
 
 结论：**✅ 可行，且改造面收敛**。依据：
 
-1. **接缝唯一。** `RxdbFileStorage` 的文件系统访问全部经由标准 `FileSystemDirectoryHandle` /
-   `FileSystemFileHandle` 接口，OPFS 特定入口只有一处 —— `getStorageRootHandle()` 里的
-   `navigator.storage.getDirectory()`（`storage.service.ts`）。`move()` 做了特性检测并有
-   copy+delete 回退；`entries()` 是硬要求，后端必须提供目录枚举。把根句柄的来源换掉，
-   其余全部服务逻辑（路径锁、回滚 journal、临时文件提交、流式落盘）原样保留。
+1. **OPFS 根入口唯一，但句柄调用面广。** `RxdbFileStorage` 的文件系统访问全部经由标准
+   `FileSystemDirectoryHandle` / `FileSystemFileHandle` 接口，OPFS 特定入口只有一处 ——
+   `getStorageRootHandle()` 里的 `navigator.storage.getDirectory()`（`storage.service.ts`）。
+   `move()` 做了特性检测并有 copy+delete 回退；`entries()` 是硬要求，后端必须提供目录
+   枚举。注意「把根句柄换掉、其余服务逻辑（路径锁、回滚 journal、临时文件提交、流式
+   落盘）原样保留」**只对 handle shim 案成立**：根句柄之后服务全程直接调用句柄 API
+   （`getDirectoryHandle` / `removeEntry` / `createWritable` / `getFile` / `move`），
+   若 plan 阶段选窄接口案，改造面是全部这些调用点（2026-08-15 二次评审修正措辞，
+   避免接缝决策被锚在「换根零改动」的预期上）。
 2. **host 模式现成。** US-207 已交付 renderer/host 双入口契约与安全基线（窄 preload、
    类型化校验、协议版本、路径白名单）。文件传输是同一模式下的新消息类型，不需要新抽象。
 3. **「Electron 里 OPFS 本来能跑」不构成反例。** Electron renderer 是 Chromium，插件不改
@@ -59,21 +63,25 @@ INVEST 检查清单:
   preload 方法** —— US-207 的「`__aiaoRxdbDesktopHost__` 暴露面恰为 request / subscribe」
   e2e 断言保持成立（口径限于该全局：preload 另暴露 demo 用的 `electron` 全局
   （platform / versions / runDemo），不属于桌面 host 桥，不在断言范围内）
-- host 侧对 renderer 传入路径二次校验（renderer 不可信），白名单哲学沿用
-  `assertValidDesktopDatabaseName`；逻辑名→物理名的编码方案见技术笔记
+- host 侧对 renderer 传入路径二次校验（renderer 不可信）：名称模式校验沿用
+  `assertValidDesktopDatabaseName` 的白名单哲学（注意该函数只校验**逻辑名**、显式拒绝
+  路径语义），路径逃逸拦截对齐 host 侧 `createDatabasePathResolver` 的做法 —— AC#4 的
+  防线主体是后者；逻辑名→物理名的编码方案见技术笔记
 - 大文件分帧流式传输，保持服务层现有「临时文件 → 提交 → 失败补偿」语义；host 侧写临时
   文件 + `rename` 原子替换
-- `RxdbFileStorage` 现有**全部**公开 API 在桌面后端可用，清单以
-  `requirements/api-baseline/rxdb-plugin-storage.json` 的导出面为准，不手抄（2026-08-15
-  评审：手抄清单漏掉了 `createDirectory` / `getMeta` / `init` / `revokeObjectUrl` /
-  `destroy`，其中前两个是功能性方法）；AC#2「复跑现有全部行为用例、无跳过项」兜底
+- `RxdbFileStorage` 现有**全部**公开 API 在桌面后端可用，清单以 `RxdbFileStorage` 类的
+  公开方法面（TS 类型层）为准，不手抄（2026-08-15 评审：手抄清单漏掉了 `createDirectory` /
+  `getMeta` / `init` / `revokeObjectUrl` / `destroy`，其中前两个是功能性方法；二次评审：
+  `requirements/api-baseline/rxdb-plugin-storage.json` 只记录**模块级导出**、不追踪类
+  实例方法，不能拿它当这份清单）；AC#2「复跑现有全部行为用例、无跳过项」兜底
 - storage 插件没有三框架绑定包（对照 search 插件的 `rxdb-plugin-search-{angular,react,vue}`），
   三框架侧是 demo 页面直连 service —— 桌面后端在 service 层一次实现即对全部调用方透明，
   不存在「绑定层改动」这一项
 - 桌面文件后端要求 meta adapter 同为桌面 SQLite（US-207）：文件落原生目录而 meta 落
   webview 存储的「备份域撕裂」组合以稳定错误码拒绝，见 AC#9
-- `dev-rxdb-electron` 演示接入 + e2e 用真实 userData 验证重启后文件读回；演示的「保存
-  文件」一律调用 `service.download()`，不得复制现有三个 web demo 各自手写的
+- `dev-rxdb-electron` 演示接入 + e2e 用真实 userData 验证重启后文件读回；演示的单文件
+  保存一律调用 `service.download()`；ZIP 批量/文件夹下载（`download()` 不覆盖、三个
+  web demo 各自手写落盘的场景）不进 Electron demo 范围 —— 不复制第四份手写
   `showSaveFilePicker` + `<a download>` 逻辑（见 Out of Scope 的存量债务说明）
 
 ### Out of Scope
@@ -84,11 +92,13 @@ INVEST 检查清单:
 - blob 参与远端同步（US-502 已声明 blob 只覆盖单机，不变）
 - 让用户选择存储根位置；存储根恒在应用数据目录内
 - 监听其他进程直接改写存储根产生的变更
-- 收敛三个 web demo 各自重复实现的 FSA 下载逻辑（2026-08-15 评审发现的存量债务：
+- 收敛三个 web demo 重复实现的 **ZIP 批量下载**落盘逻辑（2026-08-15 评审核实的存量
+  债务，二次评审修正范围：单文件下载三端**均已**调用 `service.download()`，手写
+  `showSaveFilePicker` + `<a download>` 只在 ZIP 批量/文件夹下载路径 ——
   `apps/dev-rxdb-angular/.../storage.page.ts`、`apps/dev-rxdb-react/.../storage.tsx`、
-  `apps/dev-rxdb-vue/.../useStorageTransfer.ts` 三份高度雷同且不走 `service.download()`，
-  Vue 版还绕开 `ObjectUrlRegistry` 自行 `createObjectURL` + `setTimeout` 延迟 revoke）——
-  另立清理项处理；本故事只承诺 Electron demo 不新增第四份
+  `apps/dev-rxdb-vue/.../useStorageTransfer.ts` 三份高度雷同，且 zip 路径三端都绕开
+  `ObjectUrlRegistry`：React / Vue 为 `createObjectURL` + `setTimeout` 延迟 revoke，
+  Angular 为同步 revoke）—— 另立清理项处理；本故事只承诺 Electron demo 不新增第四份
 
 ## 验收标准
 
@@ -108,9 +118,13 @@ INVEST 检查清单:
 
 > AC#7 的锁归宿是本故事最大的设计决策：`PathLockManager` 现用 Web Locks（按 rootDir
 > 命名空间的同源锁），两个 BrowserWindow 同 origin 同 profile 时成立，但这是对 Chromium
-> 实现的假设而非契约。plan 阶段必须决定「继续依赖 Web Locks 并用双窗口 e2e 钉住」还是
-> 「临界区下沉 host 侧兜底」；该决策同时约束 [US-505](./US-505-tauri-local-file-storage.md)
-> （WKWebView 的 Web Locks 可用性另算）。
+> 实现的假设而非契约。另注意（2026-08-15 二次评审）：`PathLockManager` 在
+> `navigator.locks` 缺失时**静默降级为进程内队列**（`path-lock.ts`），该回退在多窗口下
+> 不提供任何互斥且不报错 —— 锁归宿决策必须把它列为不充分项：缺 Web Locks 时要么临界区
+> 下沉 host 侧，要么以可判别错误拒绝多窗口场景，不得静默单进程化（无 fallback 铁律）。
+> plan 阶段必须决定「继续依赖 Web Locks 并用双窗口 e2e 钉住」还是「临界区下沉 host 侧
+> 兜底」；该决策同时约束 [US-505](./US-505-tauri-local-file-storage.md)（WKWebView 的
+> Web Locks 可用性另算）。
 
 ## 技术笔记
 
@@ -157,8 +171,9 @@ Windows 上非法或有陷阱。两条路：收窄逻辑名字符集（破坏与
   （已随 `@aiao/rxdb-adapter-desktop@0.0.25` 发布）；不依赖其未关闭的 AC#8 打包矩阵
 - metadata 侧无新依赖：桌面场景下 `rxdb.config.sync.local` 应配置桌面 SQLite adapter
   （US-207 已交付）。注意 `ensureLocalReady` 实际只校验 `config.sync.local` 存在并
-  `connect()` 成功，**没有**「adapter 是否本地/桌面」的运行时判别 —— 错配拒绝由
-  AC#9 承担，不能指望 `ensureLocalReady` 把关
+  `connect()` 成功（严格说还前置 `assertActive()` 与 `init()`，但均与 adapter 类型
+  无关），**没有**「adapter 是否本地/桌面」的运行时判别 —— 错配拒绝由 AC#9 承担，
+  不能指望 `ensureLocalReady` 把关
 
 ## 实现文件
 

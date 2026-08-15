@@ -16,7 +16,7 @@ INVEST 检查清单:
 - [x] Valuable (有价值): Tauri 应用的文件与 SQLite 同域备份，且不必授予全文件系统权限
 - [x] Estimable (可估算): 复用 US-504 接缝，只补 Tauri 传输与权限面
 - [x] Small (小): 不含 Electron、不含接缝设计本身、不含迁移工具
-- [x] Testable (可测试): 持久化、权限面、webview 差异门禁、三平台打包均有独立 AC
+- [x] Testable (可测试): 持久化、权限面、webview 差异门禁、三平台打包、错误路径、双窗口互斥、包体纯净、错配拒绝均有独立 AC（AC#8–#11 对齐 US-504 AC#6–#9，2026-08-15 二次评审补齐）
 -->
 
 # 用户故事：Tauri 本地文件存储
@@ -39,7 +39,7 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
    SQLite adapter 上，而它是
    [US-210](../adapter/US-210-tauri-sqlite-local-database.md)（Backlog，事务门禁未验证）。
    US-210 不落地，meta 只能留在 webview 存储 —— 恰是 US-504 AC#9 明令拒绝的「备份域
-   撕裂」组合；该错配拒绝在 Tauri 侧同样适用。
+   撕裂」组合；该错配拒绝在 Tauri 侧同样适用（本故事 AC#11 钉住）。
 2. **接缝未抽出**：文件系统后端接缝由 US-504 定义并冻结（含物理名编码与锁归宿决策），
    本故事只做 Tauri 传输实现。若 Tauri 侧发现接缝不足以承载，改动回到 US-504 那一层，
    不在本故事另起一套（同 US-210 对 US-207 的纪律）。
@@ -88,6 +88,10 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 | 5   | 上传/读取超过预览上限量级（≥ 50 MiB）的文件                       | 全程观察内存与中断行为                                     | 分帧流式完成，内容不整体进 JS 堆；中途 abort 或杀进程后重启，无半写文件、无孤儿 meta                                                                           | ⬜   |
 | 6   | 三家 webview（WebView2 / WKWebView / WebKitGTK）                  | 触发 `download()` 保存与 `fetch()` 远程缓存                | 保存路径行为被集成测试锁定（WKWebView 无 `showSaveFilePicker`、`<a download>` 行为未定，正是门禁对象）；`fetch()` 在自定义协议 origin 下的 CORS 行为被锁定或有可判别错误 | ⬜   |
 | 7   | 构建打包后的 Tauri 应用                                           | 在 macOS、Windows、Linux CI 中运行文件持久化 smoke test    | 三平台均通过；测试使用真实临时目录而非 mock 或浏览器存储                                                                                                       | ⬜   |
+| 8   | 磁盘满或存储根无写权限                                            | `upload()` / `fetch()`                                     | 稳定可判别错误 + 原始原因；补偿语义成立（meta 与文件不脱钩），不回退 webview 存储/内存（对齐 US-504 AC#6）                                                     | ⬜   |
+| 9   | 同一应用开两个 webview 窗口                                       | 并发 `upload()` 同一路径（其一 overwrite）                 | 串行化执行，结果等价于某一种顺序执行；无文件删失、无孤儿 meta —— 锁归宿决策在 Tauri webview 矩阵上成立，Web Locks 缺失时不得静默单进程化（对齐 US-504 AC#7，见技术笔记） | ⬜   |
+| 10  | web 应用照常使用插件（不配桌面后端）                              | 构建 + 运行现有浏览器测试                                  | 行为与包体不变；Tauri 传输客户端代码不进浏览器 bundle；新增子路径入口按 `KNOWN_UNCOVERED_SUBPATHS` 流程登记（对齐 US-504 AC#8）                                | ⬜   |
+| 11  | 启用桌面文件后端，但 `sync.local` 配置的不是 US-210 的 Tauri 桌面 SQLite adapter | 初始化 storage 插件                                        | 以稳定可判别错误码拒绝启用，不启动文件后端、不静默降级 —— 备份域撕裂组合被禁止（对齐 US-504 AC#9，无 fallback 铁律）                                           | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -112,8 +116,11 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 ### 锁归宿
 
 `PathLockManager` 的 Web Locks 在 WKWebView / WebKitGTK 上的可用性与跨 webview 窗口语义
-必须单独验证；US-504 若把临界区下沉 host 侧，本故事跟随该决策（Rust 侧串行化），不做
-Tauri 特有的第三种方案。
+必须单独验证；尤其注意（2026-08-15 二次评审）它在 `navigator.locks` 缺失时**静默降级为
+进程内队列**（`path-lock.ts`），多窗口下等于没有互斥且不报错 —— 验证结论若为不可用，
+必须走可判别错误或 Rust 侧串行化，不得吃下这个静默回退（无 fallback 铁律，AC#9 钉住）。
+US-504 若把临界区下沉 host 侧，本故事跟随该决策（Rust 侧串行化），不做 Tauri 特有的
+第三种方案。
 
 ### 依赖
 
@@ -127,7 +134,7 @@ Tauri 特有的第三种方案。
 - `packages/rxdb-plugin-storage/src/` — Tauri 传输客户端（复用 US-504 接缝）
 - `apps/dev-rxdb-tauri/src-tauri/` — capability 收敛与必要的文件 command
 - `apps/dev-rxdb-tauri/src/app/` — 演示接入
-- `apps/dev-rxdb-tauri-e2e/` — AC#1 / #3 / #7 的重启、备份与打包用例（由 US-210 AC#9 新建）
+- `apps/dev-rxdb-tauri-e2e/` — AC#1 / #3 / #7 / #9 的重启、备份、打包与双窗口用例（由 US-210 AC#9 新建）
 - `requirements/api-baseline/` — 若新增公开 API 则同步基线
 
 ## References
