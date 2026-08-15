@@ -23,12 +23,6 @@ export {
   type DesktopFileHostOptions
 } from './desktop-file-host.js';
 
-export {
-  createDesktopHostRouter,
-  type DesktopHostRouter,
-  type DesktopHostRouterOptions
-} from './desktop-host-router.js';
-
 export { NodeSqliteEngine, type NodeSqliteEngineOptions } from './node-sqlite-engine.js';
 
 export { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from './desktop-error.js';
@@ -48,11 +42,19 @@ export {
   DESKTOP_HOST_MAX_BINDINGS,
   DESKTOP_HOST_MAX_BLOB_BYTES,
   DESKTOP_HOST_MAX_SQL_LENGTH,
+  DESKTOP_HOST_MAX_FILE_CHUNK_BYTES,
   DESKTOP_HOST_PROTOCOL_VERSION,
+  isDesktopHostFileRequestKind,
+  parseDesktopHostFileRequest,
   parseDesktopHostRequest,
   type DesktopHostChangeEventMessage,
   type DesktopHostCloseRequest,
   type DesktopHostExecuteRequest,
+  type DesktopHostFileEntry,
+  type DesktopHostFileReadResult,
+  type DesktopHostFileRequest,
+  type DesktopHostFileResponse,
+  type DesktopHostFileStat,
   type DesktopHostOpenRequest,
   type DesktopHostOpenResult,
   type DesktopHostRequest,

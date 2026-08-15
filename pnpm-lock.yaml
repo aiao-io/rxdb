@@ -1338,6 +1338,9 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
     devDependencies:
+      '@aiao/rxdb-adapter-desktop':
+        specifier: workspace:*
+        version: link:../rxdb-adapter-desktop
       '@aiao/rxdb-adapter-wa-sqlite':
         specifier: workspace:*
         version: link:../rxdb-adapter-wa-sqlite

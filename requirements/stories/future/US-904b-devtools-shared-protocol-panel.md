@@ -71,9 +71,11 @@ INVEST 检查清单:
 
 ### 版本与身份
 
-- 新 panel 先发送宽外层 `PROTOCOL_HELLO`，声明支持版本；v2 connector 选择共同最高版本、生成 canonical
-  UUID v4 `sessionId` 并发送 HANDSHAKE，panel 只在 HANDSHAKE_ACK 原样回显。新 panel 同时保留 legacy
-  激活路径，旧 connector 回 v1 HANDSHAKE 时进入 bridge；旧 panel 的 v1 ACK/命令由新 connector 的
+- v2 connector 初始化时仍立即发送 v1-compatible HANDSHAKE，保证旧 panel 无等待可连接；新 panel
+  初始化时先发送宽外层 `PROTOCOL_HELLO` 并把收到的 legacy HANDSHAKE 最多暂存 1 秒。v2 connector
+  选择共同最高版本、生成 canonical UUID v4 `sessionId` 并发送 v2 HANDSHAKE，panel 只在
+  HANDSHAKE_ACK 原样回显；1 秒内收到 v2 响应必须选择 v2，只有超时且已收到 legacy HANDSHAKE 才进入
+  bridge。session 建立后拒绝同一连接上的迟到 handshake。旧 panel 的 v1 ACK/命令由新 connector 的
   v1 facade 承接。bridge 至少保留一个 minor，只暴露 v1 既有能力
 - `sessionId` 是生命周期/关联标识，不是授权凭据；`requestId` / `transferId` 为 1～128 个 ASCII 字符，
   只允许 `[A-Za-z0-9._:-]`。同一 session 内 ID 终态后也不得复用。握手后全部消息绑定 session，
@@ -123,8 +125,8 @@ INVEST 检查清单:
 
 | #   | 前置条件                                                     | 操作                                          | 预期结果                                                                                                           | 状态 |
 | --- | ------------------------------------------------------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---- |
-| 1   | 新 panel 连接 v1 connector                                   | 执行握手并使用既有页面                        | 进入 v1 bridge；Database、Events、branch、OPFS、Storage 与 Settings 清理保持可用；不展示 native/provider 新能力    | ⬜   |
-| 2   | v1 panel 连接 v2 connector                                   | 发送旧 ACK 与既有命令                         | v1 facade 保持既有行为；不建立 v2 session、不执行任何 v2/provider 新操作                                           | ⬜   |
+| 1   | 新 panel 连接 v1 connector                                   | 执行握手并使用既有页面                        | 暂存 legacy HANDSHAKE 最多 1 秒后进入 v1 bridge；既有页面保持可用，不展示 native/provider 新能力                   | ⬜   |
+| 2   | v1 panel 连接 v2 connector                                   | 接收 eager legacy HANDSHAKE 并发送旧 ACK      | 无协商等待即可进入 v1 facade；既有命令保持行为，不建立 v2 session、不执行任何 v2/provider 新操作                   | ⬜   |
 | 3   | 双方版本范围无交集                                           | 执行 `PROTOCOL_HELLO`                         | 返回 `protocol_unsupported` 与支持版本；不建立 session、不猜 provider                                              | ⬜   |
 | 4   | v2 双方完成握手                                              | 发送非法/重复/复用/旧身份、错误回显或额外字段 | session 由 connector 签发；三类 ID 与 exact-key guard 生效，重复 ID 返回固定错误，旧 session 数据不进入当前状态    | ⬜   |
 | 5   | 同源脚本持有合法 session，分别配置 none/readonly/full        | 伪造读写 provider operation                   | none 全拒；readonly 只放只读；full 仍不能绕过 descriptor 与 mutation opt-in；被拒操作的 provider/host 调用次数为 0 | ⬜   |
@@ -138,6 +140,7 @@ INVEST 检查清单:
 | 13  | Chrome 与 fake native driver 运行同一 conformance suite      | 查询、事件、branch、文件、授权、传输和诊断    | 状态与错误完全一致；事件来自 `RXDB_EVENT_TYPES`；UI/状态服务不引用 Chrome runtime、PortService 或桌面全局对象      | ⬜   |
 | 14  | session 有订阅、snapshot、请求和未完成传输                   | 关闭/刷新面板并建立新 session                 | 旧订阅、计时器、snapshot、请求、传输和临时文件全部释放；迟到响应、事件与帧被拒绝                                   | ⬜   |
 | 15  | 普通 Chrome 页面使用现有 Web adapters                        | 运行 bridge、v2、面板与浏览器 smoke           | 新旧 connector 均可调试既有页面；可见收敛仅为数据库下载 unsupported 与超出声明总量的传输明确报错                   | ⬜   |
+| 16  | 新 panel 同时收到 eager legacy 与 v2 HANDSHAKE               | 在 1 秒窗口内交换消息并注入迟到握手           | 确定选择共同最高版本且只建立一个 session；v2 胜出后不短暂进入 v1 状态，迟到握手不重置状态                          | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 

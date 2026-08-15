@@ -27,6 +27,8 @@
       "@aiao/code-editor-vue": ["./packages/code-editor-vue/src/index.ts"],
       "@aiao/rxdb": ["./packages/rxdb/src/index.ts"],
       "@aiao/rxdb-devtools": ["./packages/rxdb-devtools/src/index.ts"],
+      "@aiao/rxdb-adapter-desktop": ["./packages/rxdb-adapter-desktop/src/index.ts"],
+      "@aiao/rxdb-adapter-desktop/host": ["./packages/rxdb-adapter-desktop/src/host.ts"],
       "@aiao/rxdb-adapter-encrypted": ["./packages/rxdb-adapter-encrypted/src/index.ts"],
       "@aiao/rxdb-adapter-encrypted/testing": ["./packages/rxdb-adapter-encrypted/src/testing.ts"],
       "@aiao/rxdb-adapter-pglite": ["./packages/rxdb-adapter-pglite/src/index.ts"],

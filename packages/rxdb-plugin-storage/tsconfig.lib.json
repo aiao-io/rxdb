@@ -12,6 +12,8 @@
       "@aiao/code-editor-vue": ["./packages/code-editor-vue/src/index.ts"],
       "@aiao/rxdb": ["./packages/rxdb/src/index.ts"],
       "@aiao/rxdb-devtools": ["./packages/rxdb-devtools/src/index.ts"],
+      "@aiao/rxdb-adapter-desktop": ["./packages/rxdb-adapter-desktop/src/index.ts"],
+      "@aiao/rxdb-adapter-desktop/host": ["./packages/rxdb-adapter-desktop/src/host.ts"],
       "@aiao/rxdb-adapter-pglite": ["./packages/rxdb-adapter-pglite/src/index.ts"],
       "@aiao/rxdb-adapter-wa-sqlite": ["./packages/rxdb-adapter-wa-sqlite/src/index.ts"],
       "@aiao/rxdb-adapter-sqlite-wasm": ["./packages/rxdb-adapter-sqlite-wasm/src/index.ts"],
@@ -68,6 +70,9 @@
   "references": [
     {
       "path": "../rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-adapter-desktop/tsconfig.lib.json"
     }
   ]
 }

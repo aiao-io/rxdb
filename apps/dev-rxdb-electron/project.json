@@ -192,7 +192,7 @@
       }
     },
     "watch-main": {
-      "//": "ELEC-23：dev 模式加载的是同一份 dist 产物，因此 tsc 与 esbuild 必须一起 watch —— 少了后者，main.js 里的 `./desktop-sqlite-bridge.bundle.js` 根本不存在，应用一启动就 Cannot find module。bundle 配置与打包路径共用 tools/bundle-desktop-host.mjs，此处只多传一个 --watch。",
+      "//": "ELEC-23：dev 模式加载的是同一份 dist 产物，因此 tsc 与 esbuild 必须一起 watch —— 少了后者，main.js 里的 `./desktop-host-bridge.bundle.js` 根本不存在，应用一启动就 Cannot find module。bundle 配置与打包路径共用 tools/bundle-desktop-host.mjs，此处只多传一个 --watch。",
       "executor": "nx:run-commands",
       "continuous": true,
       "options": {
@@ -212,7 +212,7 @@
       "executor": "nx:run-commands",
       "dependsOn": ["serve", "watch-main"],
       "options": {
-        "command": "corepack pnpm exec wait-on tcp:4120 dist/apps/dev-rxdb-electron/src-electron/main.js dist/apps/dev-rxdb-electron/src-electron/desktop-sqlite-bridge.bundle.js && mkdir -p dist/apps/dev-rxdb-electron && cp apps/dev-rxdb-electron/package.json dist/apps/dev-rxdb-electron/"
+        "command": "corepack pnpm exec wait-on tcp:4120 dist/apps/dev-rxdb-electron/src-electron/main.js dist/apps/dev-rxdb-electron/src-electron/desktop-host-bridge.bundle.js && mkdir -p dist/apps/dev-rxdb-electron && cp apps/dev-rxdb-electron/package.json dist/apps/dev-rxdb-electron/"
       }
     }
   }

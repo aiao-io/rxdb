@@ -120,14 +120,17 @@ export class OpfsStorageFilesystem implements StorageFilesystem {
   /** @param rootDir - 已规范化的存储根目录相对路径。 */
   constructor(private readonly rootDir: string) {}
 
+  /** {@inheritDoc StorageFilesystem.ensureRoot} */
   async ensureRoot(): Promise<void> {
     await this.getRootHandle();
   }
 
+  /** {@inheritDoc StorageFilesystem.ensureDirectory} */
   async ensureDirectory(directoryPath: string): Promise<void> {
     await this.getDirectoryHandle(directoryPath, true);
   }
 
+  /** {@inheritDoc StorageFilesystem.directoryExists} */
   async directoryExists(directoryPath: string): Promise<boolean> {
     try {
       await this.getDirectoryHandle(directoryPath);
@@ -141,6 +144,7 @@ export class OpfsStorageFilesystem implements StorageFilesystem {
     }
   }
 
+  /** {@inheritDoc StorageFilesystem.removeDirectory} */
   async removeDirectory(directoryPath: string): Promise<void> {
     try {
       const relativePath = normalizeDirectoryPath(directoryPath).slice(1);
@@ -153,6 +157,7 @@ export class OpfsStorageFilesystem implements StorageFilesystem {
     }
   }
 
+  /** {@inheritDoc StorageFilesystem.list} */
   async *list(directoryPath: string): AsyncGenerator<StorageFilesystemEntry> {
     const directoryHandle = await this.getDirectoryHandle(directoryPath);
 
@@ -161,6 +166,7 @@ export class OpfsStorageFilesystem implements StorageFilesystem {
     }
   }
 
+  /** {@inheritDoc StorageFilesystem.fileExists} */
   async fileExists(filePath: string): Promise<boolean> {
     try {
       await this.getFileHandle(filePath);
@@ -174,21 +180,25 @@ export class OpfsStorageFilesystem implements StorageFilesystem {
     }
   }
 
+  /** {@inheritDoc StorageFilesystem.readBlob} */
   async readBlob(filePath: string): Promise<Blob> {
     const fileHandle = await this.getFileHandle(filePath);
     return fileHandle.getFile();
   }
 
+  /** {@inheritDoc StorageFilesystem.openRead} */
   async openRead(filePath: string): Promise<ReadableStream<Uint8Array>> {
     const file = await this.readBlob(filePath);
     return file.stream();
   }
 
+  /** {@inheritDoc StorageFilesystem.openWrite} */
   async openWrite(filePath: string): Promise<StorageFileWriter> {
     const fileHandle = await this.getFileHandle(filePath, true);
     return new OpfsFileWriter(await fileHandle.createWritable());
   }
 
+  /** {@inheritDoc StorageFilesystem.removeFile} */
   async removeFile(filePath: string): Promise<void> {
     try {
       const directoryHandle = await this.getDirectoryHandle(getDirectoryPathFromOpfsPath(filePath));
@@ -200,10 +210,12 @@ export class OpfsStorageFilesystem implements StorageFilesystem {
     }
   }
 
+  /** {@inheritDoc StorageFilesystem.supportsFileMove} */
   async supportsFileMove(filePath: string): Promise<boolean> {
     return isMovableFileSystemHandle(await this.getFileHandle(filePath));
   }
 
+  /** {@inheritDoc StorageFilesystem.moveFile} */
   async moveFile(fromPath: string, toPath: string): Promise<void> {
     const handle = await this.getFileHandle(fromPath);
     if (!isMovableFileSystemHandle(handle)) {
@@ -213,10 +225,12 @@ export class OpfsStorageFilesystem implements StorageFilesystem {
     await this.applyMove(handle, fromPath, toPath);
   }
 
+  /** {@inheritDoc StorageFilesystem.supportsDirectoryMove} */
   async supportsDirectoryMove(directoryPath: string): Promise<boolean> {
     return isMovableFileSystemHandle(await this.getDirectoryHandle(directoryPath));
   }
 
+  /** {@inheritDoc StorageFilesystem.moveDirectory} */
   async moveDirectory(fromPath: string, toPath: string): Promise<void> {
     const handle = await this.getDirectoryHandle(fromPath);
     if (!isMovableFileSystemHandle(handle)) {
@@ -226,6 +240,7 @@ export class OpfsStorageFilesystem implements StorageFilesystem {
     await this.applyMove(handle, fromPath, toPath);
   }
 
+  /** {@inheritDoc StorageFilesystem.dispose} */
   dispose(): void {
     this.#rootHandle = null;
   }

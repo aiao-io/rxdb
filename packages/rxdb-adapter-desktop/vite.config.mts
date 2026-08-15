@@ -53,8 +53,16 @@ export default defineConfig(() => ({
     rolldownOptions: {
       // dts 插件生成声明文件天然比 Rolldown 原生链接阶段慢，抑制误报的 PLUGIN_TIMINGS 警告
       checks: { pluginTimings: false },
-      // host 入口本来就只在 Node 侧加载，node: 内建必须外置，否则 rolldown 会当浏览器目标去 polyfill
-      external: ['@aiao/rxdb', '@aiao/rxdb-adapter-sqlite-core', '@aiao/utils', 'rxjs', 'node:crypto', 'node:sqlite']
+      // host 入口本来就只在 Node 侧加载，node: 内建必须外置，否则 rolldown 会当浏览器目标
+      // 把它们替换成空的浏览器 stub —— 产物照样构建成功，直到运行时 `path.resolve` 变成
+      // `undefined is not a function` 才炸。用前缀匹配兜住全部内建，别再逐个点名漏掉新引入的。
+      external: [
+        '@aiao/rxdb',
+        '@aiao/rxdb-adapter-sqlite-core',
+        '@aiao/utils',
+        'rxjs',
+        /^node:/
+      ]
     }
   },
   test: {

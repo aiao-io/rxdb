@@ -201,7 +201,15 @@ export interface DesktopHostFileWriteChunkRequest {
   readonly kind: 'file.writeChunk';
   readonly sessionId: string;
   readonly writeId: string;
-  readonly chunk: Uint8Array;
+  /**
+   * 本帧内容。
+   *
+   * @remarks
+   * 收窄到 `Uint8Array<ArrayBuffer>` 而不是默认的 `ArrayBufferLike`：这条通道只走结构化克隆，
+   * 克隆产物的宿主永远是普通 `ArrayBuffer`，`SharedArrayBuffer` 根本传不过来。
+   * 类型说实话，接收侧才能把帧直接喂给 `Blob`/`BufferSource` 而不必到处断言。
+   */
+  readonly chunk: Uint8Array<ArrayBuffer>;
 }
 
 /** 提交（rename 覆盖目标）或丢弃（删临时文件）一次写入。 */
@@ -259,8 +267,8 @@ export interface DesktopHostFileStat {
 
 /** `file.read` 的一帧结果。 */
 export interface DesktopHostFileReadResult {
-  /** 本帧内容；`length` 覆盖到文件尾时可能短于请求长度。 */
-  readonly chunk: Uint8Array;
+  /** 本帧内容；`length` 覆盖到文件尾时可能短于请求长度。宿主缓冲区必为普通 `ArrayBuffer`（同上）。 */
+  readonly chunk: Uint8Array<ArrayBuffer>;
   /** 本帧读到文件尾时为 `true`。 */
   readonly eof: boolean;
 }
@@ -499,13 +507,15 @@ const readPath = (record: Record<string, unknown>, key: string, allowRoot: boole
   return path;
 };
 
-const readChunk = (record: Record<string, unknown>): Uint8Array => {
+const readChunk = (record: Record<string, unknown>): Uint8Array<ArrayBuffer> => {
   const chunk = record['chunk'];
   if (!(chunk instanceof Uint8Array)) throw violation('chunk must be a Uint8Array');
   if (chunk.byteLength > DESKTOP_HOST_MAX_FILE_CHUNK_BYTES) {
     throw violation(`chunk exceeds ${DESKTOP_HOST_MAX_FILE_CHUNK_BYTES} bytes`);
   }
-  return chunk;
+  if (chunk.buffer instanceof ArrayBuffer) return chunk as Uint8Array<ArrayBuffer>;
+  // 走到这里说明调用方绕过了结构化克隆直接塞了 SharedArrayBuffer 视图，属于协议违例而非可容忍的输入。
+  throw violation('chunk must be backed by a plain ArrayBuffer');
 };
 
 /** `length` 下界是 1：零长度的读没有语义，只会让调用方误以为读到了文件尾。 */
