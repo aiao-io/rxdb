@@ -59,7 +59,8 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 - 用集成测试锁定当前插件版本对 `sqlite:<name>.sqlite3` 的真实解析结果，对外只承诺「应用作用域内的逻辑数据库名」
 - 复用 US-207 的桌面存储配置与 renderer client 契约，实现 Tauri 传输层
 - `dev-rxdb-tauri` 的最小接入示例与真实临时文件的重启恢复验证
-- 新建 `apps/dev-rxdb-tauri-e2e` 与三平台打包 smoke test
+- 创建或复用 `apps/dev-rxdb-tauri-e2e`，并增加本故事拥有的 SQLite / 事务 / 三平台打包 smoke specs；
+  与 US-905a 并行时由先开工者用 generator 创建一次，不复制第二个 E2E project
 
 ### Out of Scope
 
@@ -94,7 +95,8 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 >
 > AC#6 依赖 [US-304](../collaboration/US-304-writer-lease-migration-fencing.md) 的 AC2/AC6 收敛。
 >
-> AC#9 需要 `apps/dev-rxdb-tauri-e2e`（当前不存在，见「实现文件」）与三平台打包 CI 矩阵。
+> AC#9 需要 `apps/dev-rxdb-tauri-e2e` 与三平台打包 CI 矩阵。该 project 由 US-210 / US-905a
+> 中先开工者创建一次，但 AC#9 的 SQLite、事务与打包 specs 仍由本故事负责。
 > 打包 smoke test 成本高，应只在 release 分支或 tag 触发，不进 PR 门禁。
 
 ## 技术笔记
@@ -129,7 +131,8 @@ Tauri SQL 指南将 SQLite 路径描述为相对 `AppConfig`，JavaScript API re
 - `packages/rxdb-adapter-desktop/` — Tauri 传输实现（复用 US-207 的 renderer client 与存储配置）
 - `apps/dev-rxdb-tauri/src-tauri/` — `tauri-plugin-sql` SQLite feature、权限和必要的事务 command
 - `apps/dev-rxdb-tauri/src/app/` — Tauri renderer 接入示例与连接状态
-- `apps/dev-rxdb-tauri-e2e/` — **当前不存在**，AC#9 需要新建；三平台打包矩阵的 CI 成本应在 plan 阶段单独评估
+- `apps/dev-rxdb-tauri-e2e/` — 与 US-905a 共享 project，先开工者用 generator 创建一次；本故事只拥有
+  AC#9 的 SQLite、事务与三平台打包 specs
 - `requirements/api-baseline/` — 若新增公开 API 则同步基线
 
 ## References

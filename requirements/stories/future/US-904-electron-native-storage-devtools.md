@@ -6,20 +6,29 @@ priority: Medium
 epic: epic-003-ui-developer-tools
 created: 2026-08-15
 updated: 2026-08-15
-tags: [tooling, devtools, desktop, electron, sqlite, filesystem]
+tags: [tooling, devtools, desktop, electron, sqlite, filesystem, parent-story]
 ---
 
 <!--
-INVEST 检查清单:
+INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接交付）:
 - [ ] Independent (独立): 受 US-207 / US-504 前置约束；两者关闭前不得实现对应 provider
 - [x] Negotiable (可协商): 文件页复用现有 OPFS 组件还是抽统一 provider，可在 plan 阶段决定
 - [x] Valuable (有价值): 开发者能在一个面板里定位实体数据、事件、文件 metadata 与原生文件本体的不一致
-- [ ] Estimable (可估算): Electron 43 对当前 MV3 API 组合的支持尚未实证；AC#1 通过后才能冻结估算
-- [ ] Small (小): 同时包含共享协议/面板抽取、Electron 接入和原生文件诊断；必须按「交付切分」分阶段实施
+- [x] Estimable (可估算): 未知量和实现边界已分别落入 US-904a / US-904b / US-904c
+- [ ] Small (小): **不成立，已于 2026-08-15 拆分**；交付由 US-904a / US-904b / US-904c 承担
 - [x] Testable (可测试): 扩展加载、握手、数据库查询、文件操作、错误路径、安全边界与浏览器回归均有独立 AC
 -->
 
-# 用户故事：DevTools 调试 Electron 原生本地存储
+# 用户故事：DevTools 调试 Electron 原生本地存储（契约父故事）
+
+> **本文件不直接交付。** 它是三条子故事共享的范围、安全和协议契约；`status` 是子故事的
+> 汇总视图，三条全部 `Done` 时才置 `Done`。
+>
+> | 子故事                                                        | 交付                                              |
+> | ------------------------------------------------------------- | ------------------------------------------------- |
+> | [US-904a](./US-904a-electron-mv3-devtools-feasibility.md)     | Electron 43 + 当前 MV3 扩展 stop/go 实证          |
+> | [US-904b](./US-904b-devtools-shared-protocol-panel.md)        | v2 wire、共享面板、provider/诊断协议与浏览器回归  |
+> | [US-904c](./US-904c-electron-native-devtools-integration.md)  | Electron desktop SQLite/native files 接入与 E2E   |
 
 ## 作为/我想要/以便
 
@@ -41,18 +50,19 @@ INVEST 检查清单:
 [US-504](../plugin/US-504-electron-local-file-storage.md) 的原生文件后端，扩展仍可能展示错误的
 WebView 存储、执行无效清理，或把“未清理桌面数据”误报为成功。
 
-### 交付切分与 stop/go 门禁
+### 子故事顺序与 stop/go 门禁
 
-1. **A：Electron MV3 可行性门禁。** 用当前锁定的 Electron 43 和工作区扩展构建，实证
+1. **US-904a：Electron MV3 可行性门禁。** 用当前锁定的 Electron 43 和工作区扩展构建，实证
    `loadExtension`、MV3 service worker、`chrome.devtools.panels`、`chrome.scripting`、按需 host
    permission 与 runtime Port 全链路可用。任一关键 API 不可用即停止本故事，回到 plan 选择独立
    DevTools window，不得先抽面板再赌 Electron 支持。
-2. **B：平台无关协议与共享面板。** 冻结版本协商、session/request/transfer 身份、provider 能力、
+2. **US-904b：平台无关协议与共享面板。** 冻结版本协商、session/request/transfer 身份、provider 能力、
    错误分类和共享 Angular 面板；Chrome adapter 回归通过后才进入桌面 provider。
-3. **C：Electron provider 与真实 E2E。** 接入 desktop SQLite / native files，完成诊断、Settings
+3. **US-904c：Electron provider 与真实 E2E。** 接入 desktop SQLite / native files，完成诊断、Settings
    和真实 extension / renderer / preload / main 证据。
 
-三个阶段必须各自形成可独立审查的提交和测试证据；A 未通过时 B/C 不得启动。
+固定顺序为 **US-904a → US-904b → US-904c**。US-904a 记录 supported / unsupported 实证；
+结论不是 supported 时，后两条保持 Backlog，并先修改本父契约选择独立 DevTools window。
 
 ## 范围边界
 
@@ -77,24 +87,23 @@ WebView 存储、执行无效清理，或把“未清理桌面数据”误报为
 - Storage 页通过 provider 的分页诊断快照比较 `StorageFileMeta` 与已提交的逻辑文件；只有收到
   `complete: true` 才给出结论，并区分 metadata 存在但文件缺失、文件存在但 metadata 缺失。
   内部临时文件、rollback journal 和未完成传输不属于“文件缺 metadata”
-- 设置页的数据库下载与清理动作必须感知后端：只有声明支持的 provider 才允许执行；桌面后端
-  未提供安全实现时显示明确的 unsupported 状态，不得转而操作 OPFS / IndexedDB 或报告假成功
-- 浏览器数据库下载是诊断导出，不是热备份：必须先由 connector 确认目标 RxDB 已停写并释放
-  SQLite / WAL 句柄，再限定到当前数据库的已解析 provider 根，执行总字节预算、取消和同名文件
-  隔离。无法确认静止状态时显示 unsupported，不得复制正在写入的文件
+- 设置页的数据库下载始终禁用并返回 `export_unsupported`；清理动作只有在 provider 明确声明支持时
+  才允许执行，不得转而操作 OPFS / IndexedDB 或报告假成功
+- 现有浏览器数据库下载直接禁用并返回结构化 `export_unsupported`；当前架构没有覆盖
+  “停写 → 防重连 → 多文件一致快照 → 释放”的 export lease，不能继续复制 SQLite / WAL
 - 所有桌面文件请求复用 US-207 / US-504 的窄 `request` / `subscribe` host 通道；DevTools provider
   不新增任意 SQL 或绝对路径操作，content script 与扩展拿不到原始 `ipcRenderer` 或应用数据目录句柄
-- 浏览器中的 OPFS、IndexedDB、事件与实体调试语义保持不变；数据库下载的范围收敛和资源预算
-  属于安全修复，不受“用户可见行为不变”约束
+- 浏览器中的 OPFS、IndexedDB、事件与实体调试语义保持不变；禁用不安全数据库下载属于安全修复，
+  不受“用户可见行为不变”约束
 
 ### 能力矩阵
 
 | 运行时                         | 逻辑数据库 / 事件                                   | 物理文件页             | 数据库下载 / 清理                                |
 | ------------------------------ | --------------------------------------------------- | ---------------------- | ------------------------------------------------ |
-| Chrome / Web（OPFS）           | 保持现状                                            | 保持现有 OPFS provider | 仅支持停写后的有界诊断导出；清理保持现状         |
-| Electron / desktop SQLite      | 本故事                                              | 不适用                 | provider 明确支持才启用，否则显示 unsupported    |
-| Electron / native file storage | metadata 本故事                                     | 本故事                 | 仅操作插件专用存储根，不触碰数据库或其他应用文件 |
-| Tauri                          | [US-905](./US-905-tauri-native-storage-devtools.md) | US-905                 | US-905                                           |
+| Chrome / Web（OPFS）           | 保持现状                                            | 保持现有 OPFS provider | 下载 unsupported；清理保持现状                  |
+| Electron / desktop SQLite      | 本故事                                              | 不适用                 | 下载 unsupported；清理按 provider 能力启用      |
+| Electron / native file storage | metadata 本故事                                     | 本故事                 | 数据库下载 unsupported；文件操作限插件专用根     |
+| Tauri                          | [US-905](./US-905-tauri-native-storage-devtools.md) | US-905                 | 数据库下载 unsupported；清理见 US-905            |
 
 ### Out of Scope
 
@@ -102,50 +111,53 @@ WebView 存储、执行无效清理，或把“未清理桌面数据”误报为
   `rxdb-devtools-extension` 是 Chrome Manifest V3 扩展，Tauri 复用面板与协议，但不伪装成加载 CRX
 - 在用户的普通生产包中捆绑或默认开启调试扩展
 - 暴露绝对数据库路径、应用数据目录、任意文件选择器、shell、原始 IPC 或 Node API
-- 任意 SQL 控制台、schema 修改器、SQLite 修复器、VACUUM、数据库导入或格式转换
-- SQLite / WAL 热拷贝与一致性备份。US-207 已明确数据库导出和热备份不在其范围内；本故事
-  不用复制正在写入的文件伪装成可靠备份
+- 任意 SQL 控制台、schema 修改器、SQLite 修复器、VACUUM、数据库导入导出或格式转换
+- SQLite / WAL 热拷贝、一致性备份和 export lease。可靠导出需要 adapter 参与阻止重连并生成
+  一致快照，必须另立故事；本系列只禁用当前不安全入口
 - 原生文件内容编辑器、十六进制预览、大文件全文预览或远端 blob 同步
 - 修改 US-207 / US-504 的持久化布局、事务、路径编码、原子写入与补偿语义
 
 ## 验收标准
 
-| #   | 前置条件                                                                 | 操作                                                  | 预期结果                                                                                                                                                                   | 状态 |
-| --- | ------------------------------------------------------------------------ | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | Electron 43 与当前 MV3 扩展构建                                         | 加载 unpacked 扩展并打开 DevTools                     | service worker、RxDB panel、`chrome.scripting`、按需 host permission 与 runtime Port 均完成真实往返；任一关键 API 不可用则停止并回到 plan                                    | ⬜   |
-| 2   | AC#1 通过，`dev-rxdb-electron` 使用显式开发配置                          | 启动应用并打开 Electron DevTools                      | 出现 RxDB 面板并完成握手；关闭开发配置后不加载扩展，生产构建产物不包含扩展源码、加载路径或权限                                                                               | ⬜   |
-| 3   | Electron 已通过 US-207 连接 desktop SQLite                               | 查询实体、在应用内逐类派发事件并通过面板切换分支      | 实体数据、全部 `RXDB_EVENT_TYPES` 和分支状态与应用一致；刷新面板不创建第二份 OPFS / IndexedDB 数据库                                                                         | ⬜   |
-| 4   | Electron 已通过 US-504 启用原生文件后端                                  | 打开文件页并浏览目录                                  | 展示插件专用存储根的目录和文件；UI 标明 Electron native provider，不展示同 origin OPFS 内容，不暴露绝对物理路径                                                              | ⬜   |
-| 5   | 原生文件页已连接                                                         | 上传、下载、新建目录、删除并刷新                      | 行为与现有 OPFS 页公开操作对称；字节一致，失败不留下半写文件或孤儿 metadata，删除等破坏性操作需要现有确认流程                                                                | ⬜   |
-| 6   | 存在 1001 条以上 metadata / 文件，并包含两类缺失与一条在途上传           | 分页加载完整诊断快照                                  | 只在 `complete: true` 后报告两类真实不一致；不漏掉尾页，不把临时文件、journal 或在途上传报成孤儿，不自动修复或猜测归属                                                    | ⬜   |
-| 7   | browser OPFS、desktop SQLite、native files 分别声明不同 Settings 能力    | 查看并触发下载或清理                                  | 只启用明确声明的动作；浏览器导出先停写并释放句柄，只含当前数据库且受总量预算和取消控制；无法静止、同名异目录或其他后端均不复制、不进入归档                              | ⬜   |
-| 8   | connector 与 panel 使用不兼容的协议/provider 版本，或 host 拒绝/文件占用 | 握手、刷新或执行文件操作                              | 外层握手返回结构化 `protocol_unsupported` / `provider_unsupported`；面板展示稳定错误和支持版本范围，清除陈旧结果，不 fallback                                             | ⬜   |
-| 9   | renderer 或 content script 构造越界路径、绝对路径或未知调试操作          | 通过 DevTools 通道发送                                | connector 与 host 在各自信任边界拒绝；应用数据目录其他位置无读写，错误响应不包含绝对路径、SQL 绑定值、加密字段或文件内容                                                 | ⬜   |
-| 10  | session A 有订阅、迟到响应和未完成传输                                   | 关闭/刷新后建立 session B，并投递 session A 的消息    | A 的订阅与 host session 已释放；B 拒绝全部旧 `sessionId` / `requestId` / `transferId`，不显示旧实体、旧错误、重复事件或旧传输进度                                         | ⬜   |
-| 11  | 普通 Chrome 页面继续使用 wa-sqlite / sqlite-wasm / PGlite / OPFS         | 运行共享协议/面板测试和浏览器 smoke                   | 除 AC#7 明确收敛的安全导出外，Database、Events、OPFS、Storage 与 Settings 的既有行为不变；旧 connector 无 provider 描述时仅禁用新增能力，不按 `full` 猜测桌面能力          | ⬜   |
-| 12  | Electron 使用真实临时 userData、desktop SQLite 与原生文件后端            | 运行扩展集成测试并重启应用                            | 重启前后查询同一实体和文件均一致；测试走真实 extension / renderer / preload / main 链路，不用 mock host 代替端到端证据                                                   | ⬜   |
+**本父故事不直接持有 AC。** 落地和关闭判定只看子故事：
 
-状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
+| 契约范围                                                 | 去向                                                                    |
+| -------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Electron 43 MV3 API 组合与真实加载                       | [US-904a](./US-904a-electron-mv3-devtools-feasibility.md)               |
+| v2 wire、版本拒绝、session、限额、分页诊断、共享面板     | [US-904b](./US-904b-devtools-shared-protocol-panel.md)                  |
+| Electron SQLite/native files provider、安全边界与真实 E2E | [US-904c](./US-904c-electron-native-devtools-integration.md)            |
 
 ## 技术约束
 
 - 协议采用“宽外层、严内层”：外层只解析来源、方向、协议版本和 session 身份，以便报告版本不兼容；
   版本匹配后才用 exact-key guard 校验具体消息 payload
 - provider 描述是按领域组合的版本化可辨识联合；未知领域、kind、版本或操作一律 unsupported，
-  旧握手的 `payload: null` 只保留逻辑数据库兼容，不授予任何新增文件或 Settings 能力
+  不按运行时、URL、全局变量或缺失字段猜测能力
+- 本系列直接发布 breaking wire v2，不保留旧 `payload: null` 的运行兼容：新 panel 遇到旧 connector 时
+  显示 `protocol_unsupported`；旧 panel 连接新 connector 时，新 connector 拒绝旧 ACK 与命令且不建立 session
 - HANDSHAKE_ACK 绑定 `sessionId`，握手后的所有 wire 消息都必须回显它；请求响应再绑定
-  `requestId`，文件分块再绑定 `transferId`。三者都有长度/数量上限，关闭 session 后不得复用
+  `requestId`，文件分块再绑定 `transferId`；关闭 session 后不得复用
 - Database / Events 继续走 RxDB connector 的语义 API，不允许扩展绕过 adapter 向 host 发送任意 SQL
 - 原生文件 provider 只接收逻辑路径和有界分块；host 继续负责路径解析、二次校验和原子落盘
 - Storage 诊断必须分页且可判定完成；provider 只枚举已提交的逻辑文件。并发修改使快照失效时
-  返回结构化 `snapshot_invalidated` 并重新开始，不拼接两个时点的数据
-- 诊断导出只有在 connector 完成停写、断开并由 provider 确认句柄释放后才可开始；失败或取消
-  不生成可下载产物，完成后由用户显式重载应用，不在后台静默重连
+  返回结构化 `snapshot_invalidated` 并从头重试，不拼接两个时点的数据；最多重试 3 次且总计不超过
+  15 秒，耗尽返回 `snapshot_busy`
+- 数据库下载在 browser、Electron、Tauri provider 上一律返回 `export_unsupported`，实现不得读取 OPFS、
+  SQLite、WAL 或应用数据目录来生成替代产物
 - 扩展不得直接读取 `globalThis.__aiaoRxdbDesktopHost__`。桌面 adapter / storage plugin 将受限调试
   能力注册给 connector，由 connector 统一做 wire 序列化、脱敏、超时和生命周期管理
 - DevTools 断开、页面刷新或窗口关闭时必须取消订阅并终止未完成传输，不能留下 host session
-- AC#1 是 stop/go 门禁，AC#12 是交付证据；只测 Angular service、content script 或
-  in-process fake transport 不足以关闭本故事
+
+### v2 协议限额
+
+- `sessionId` 必须是 canonical UUID v4；`requestId` / `transferId` 长度为 1～128 个 ASCII 字符，
+  只允许 `[A-Za-z0-9._:-]`，非法标识返回 `invalid_identifier`
+- 每个 session 最多 32 个在途请求和 2 个在途传输，超过时分别返回
+  `request_limit_exceeded` / `transfer_limit_exceeded`
+- 单个 chunk 最大 256 KiB，超过时返回 `payload_too_large`；非流式请求与传输空闲超时均为 15 秒，
+  超时返回 `request_timeout` 并释放对应资源
+- 分页默认 100 条、最大 500 条；provider 必须声明 `maxTransferBytes`，browser OPFS 固定为 50 MiB，
+  panel 与 connector 取双方声明中的较小值，缺失声明视为 `provider_unsupported`
 
 ## 依赖与排期
 
@@ -153,20 +165,23 @@ WebView 存储、执行无效清理，或把“未清理桌面数据”误报为
   安全契约；本故事不依赖其未完成的三平台打包矩阵
 - [US-504](../plugin/US-504-electron-local-file-storage.md)：提供原生文件后端与文件消息；本故事应在
   其 provider 接缝冻结后实现，避免 DevTools 反向定义业务存储协议
-- 现有扩展数据库下载必须在本故事阶段 B 关闭“未停写热拷贝、全 origin 遍历 + basename 猜归属、
+- 现有扩展数据库下载必须由 US-904b 关闭“未停写热拷贝、全 origin 遍历 + basename 猜归属、
   无总量预算、无取消”的缺口；不得用浏览器回归要求把该缺口冻结下来
 - [US-601](../tooling/US-601-subpath-api-surface-baseline.md)：若调试 provider 新增公开子路径入口，必须
   纳入 API baseline；在 US-601 交付前按其人工审查流程登记
 
-## 实现文件
+## 实现所有权
 
-- `packages/rxdb-devtools/src/` — 版本协商、provider 注册、session/request/transfer 身份、wire 校验、脱敏与生命周期
-- `packages/rxdb-devtools-panel/` — generator 创建的内部 Angular library；共享面板、状态机和平台无关 transport token
-- `packages/rxdb-adapter-desktop/src/` — 只读数据库诊断能力适配，不新增任意 SQL 调试入口
-- `packages/rxdb-plugin-storage/src/` — 原生文件调试 provider，复用业务后端的路径与流式语义
-- `apps/rxdb-devtools-extension/src/` — Chrome transport adapter、受限脚本注入与安全数据库导出
-- `apps/dev-rxdb-electron/src-electron/` — 显式开发模式加载扩展与真实链路 e2e 接线
-- `requirements/api-baseline/` — 新增公开 API 的表面基线
+| 路径                              | 所有者  | 边界                                                              |
+| --------------------------------- | ------- | ----------------------------------------------------------------- |
+| `apps/rxdb-devtools-extension/`   | US-904a | Electron 43 可行性 fixture；不抽面板、不接 provider               |
+| `packages/rxdb-devtools/src/`     | US-904b | v2 wire、provider 描述、身份、限额、校验与生命周期                |
+| `packages/rxdb-devtools-panel/`   | US-904b | generator 创建的内部 Angular library、共享面板和 transport token  |
+| `apps/rxdb-devtools-extension/`   | US-904b | Chrome adapter 回归与禁用不安全数据库下载                         |
+| `packages/rxdb-adapter-desktop/`  | US-904c | Electron 只读数据库诊断 provider，不增加任意 SQL                  |
+| `packages/rxdb-plugin-storage/`   | US-904c | Electron 原生文件调试 provider，复用业务路径与流式语义            |
+| `apps/dev-rxdb-electron/`         | US-904c | 开发态加载、生产隔离与真实 extension/renderer/preload/main E2E    |
+| `requirements/api-baseline/`      | 改动方  | 只有新增公开 API 时同步                                           |
 
 ## References
 

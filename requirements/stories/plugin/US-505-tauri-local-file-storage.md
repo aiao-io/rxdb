@@ -65,8 +65,8 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 - capability 权限面收敛到应用数据目录下的存储根子目录，不授予 shell 或全文件系统读写
 - 存储根与 US-210 的 SQLite 文件同在应用作用域数据目录，备份拷贝一次带走两者
 - 流式分帧与「临时文件 + rename 原子替换」语义与 US-504 对齐
-- `dev-rxdb-tauri` 演示接入 + 在 `apps/dev-rxdb-tauri-e2e`（US-210 AC#9 新建）上扩展
-  重启持久化用例
+- `dev-rxdb-tauri` 演示接入 + 在 US-210 / US-905a 先开工者创建的 `apps/dev-rxdb-tauri-e2e`
+  上扩展本故事拥有的重启持久化用例
 
 ### Out of Scope
 
@@ -99,7 +99,7 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 > `download()` / `fetch()` 这两个**不经 host** 的 renderer 侧路径在三家上的行为差异必须
 > 被测试钉住，而不是假设与 Chromium 一致。
 >
-> AC#7 复用 US-210 AC#9 建立的 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵；打包 smoke
+> AC#7 复用 US-210 / US-905a 先开工者建立的 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵；打包 smoke
 > test 成本高，只在 release 分支或 tag 触发，不进 PR 门禁。
 
 ## 技术笔记
@@ -130,8 +130,8 @@ US-504 若把临界区下沉 host 侧，本故事跟随该决策（Rust 侧串�
 
 ### 依赖
 
-- [US-210](../adapter/US-210-tauri-sqlite-local-database.md) — meta 的 Tauri 桌面 SQLite
-  adapter 与 `apps/dev-rxdb-tauri-e2e` 套件；**未交付前本故事不可开工**
+- [US-210](../adapter/US-210-tauri-sqlite-local-database.md) — meta 的 Tauri 桌面 SQLite adapter；
+  **adapter 未交付前本故事不可开工**。`apps/dev-rxdb-tauri-e2e` 可由 US-905a 先创建，不构成业务前置
 - [US-504](./US-504-electron-local-file-storage.md) — 文件系统接缝、协议消息形状、物理名
   编码与锁归宿决策
 
@@ -140,7 +140,8 @@ US-504 若把临界区下沉 host 侧，本故事跟随该决策（Rust 侧串�
 - `packages/rxdb-plugin-storage/src/` — Tauri 传输客户端（复用 US-504 接缝）
 - `apps/dev-rxdb-tauri/src-tauri/` — capability 收敛与必要的文件 command
 - `apps/dev-rxdb-tauri/src/app/` — 演示接入
-- `apps/dev-rxdb-tauri-e2e/` — AC#1 / #3 / #7 / #9 的重启、备份、打包与双窗口用例（由 US-210 AC#9 新建）
+- `apps/dev-rxdb-tauri-e2e/` — 共享 project，由 US-210 / US-905a 先开工者创建一次；本故事只拥有
+  AC#1 / #3 / #7 / #9 的重启、备份、打包与双窗口 specs
 - `requirements/api-baseline/` — 若新增公开 API 则同步基线
 
 ## References

@@ -11,7 +11,9 @@
 ### 父故事（共享契约文档）
 
 个别 story 因 INVEST「Small」不成立而被拆分，原文件保留为**父故事**：只承载子故事共享的契约、设计决策与不变式，
-**不直接交付**。目前只有 [US-012](stories/core/US-012-field-semantic-metadata.md)（子故事 US-012a/b/c）属于这一类。
+**不直接交付**。目前 [US-012](stories/core/US-012-field-semantic-metadata.md)（子故事 US-012a/b/c）、
+[US-904](stories/future/US-904-electron-native-storage-devtools.md)（子故事 US-904a/b/c）和
+[US-905](stories/future/US-905-tauri-native-storage-devtools.md)（子故事 US-905a/b）属于这一类。
 
 父故事的 `status` 仍然参与计数（它要等所有子故事 Done 才能置 Done），但在 `status-overview.md` 和 epic 列表中
 用 `📄` 而非 `⬜` 标记，并把子故事缩进列在其下，避免读者以为它是一条可以直接开工的交付项。
@@ -105,10 +107,13 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 3. US-207 必须先锁定 Electron SQLite 的真实连接语义并抽出共享桌面 host 契约；无法保证单连接事务时应 fail-fast，不得降级成伪事务。
 4. US-208 与 US-210 均排在 US-207 之后，复用其抽出的 host 契约。US-208 的两种事务 host 方案（IPC 事务 ID 协议 /
    adapter 完整托管在主进程）、US-210 的两种事务方案（配置单连接池 / Rust command 持有事务）都必须先通过同一套事务与事件测试再冻结选择。
-5. US-305 必须排在 US-304 之后：其跨 realm 提交校验建立在 writer lease / epoch fencing 之上，不允许另起一套协调协议。
+5. DevTools 桌面系列按 **US-904a(supported) → US-904b → US-904c** 交付；Tauri 窗口可在共享协议完成后
+   按 **US-904b → US-905a** 并行推进。原生 Tauri 链为 **US-210 → US-505**，最终集成必须满足
+   **US-904c + US-905a + US-505 → US-905b**。US-904 / US-905 本体是共享契约文档，不直接交付。
+6. US-305 必须排在 US-304 之后：其跨 realm 提交校验建立在 writer lease / epoch fencing 之上，不允许另起一套协调协议。
    epic-006 内部顺序为 **US-305 → US-306 → US-307 → US-308**，后一个依赖前一个的存储布局；US-308 额外要求 US-304 已 Done。
-6. US-703 应复用现有搜索公开 API 和跨框架 parity fixture，不为 PGlite 增加 SQLite 专属 fallback。
-7. ~~US-209 只做门禁与文档收尾~~ → 2026-08-15 已 Done。约束仍然生效并转为**长期口径**：小程序适配器的能力承诺不得扩大，
+7. US-703 应复用现有搜索公开 API 和跨框架 parity fixture，不为 PGlite 增加 SQLite 专属 fallback。
+8. ~~US-209 只做门禁与文档收尾~~ → 2026-08-15 已 Done。约束仍然生效并转为**长期口径**：小程序适配器的能力承诺不得扩大，
    WAL、多页面并发、崩溃恢复保证和微信以外的小程序平台都不在范围内；文档一律写「实验性」，
    不得把它列成与 wa-sqlite 同级的受支持适配器（落点见 [compatibility.md](../website/docs/compatibility.md) 的能力边界专节）。
    US-209 AC#8 顺带留下一个新缺口：`exports` 子路径入口的**导出表面**不受 api-surface 门禁保护
