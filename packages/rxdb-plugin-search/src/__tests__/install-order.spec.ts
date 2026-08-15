@@ -9,9 +9,9 @@ import type { SearchResult } from '../types.js';
 const { installFtsForEntity, engineSearch } = vi.hoisted(() => ({
   installFtsForEntity: vi.fn(
     async (
-      _plan?: FtsInstallPlan,
-      _executor?: RuntimeSqlExecutor,
-      _store?: MigrationRecordStore
+      _plan: FtsInstallPlan,
+      _executor: RuntimeSqlExecutor,
+      _store: MigrationRecordStore
     ): Promise<InstallFtsResult> => ({
       tableName: 'article',
       status: 'installed' as const,

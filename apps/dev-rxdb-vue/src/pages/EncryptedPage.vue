@@ -40,12 +40,13 @@ async function loadUsers() {
   }
 }
 
-async function bindEncryption(adapter: RxDBAdapterSqlite): Promise<void> {
-  encFacade = adapter.encryption;
-  isLocked.value = encFacade.isLocked;
-  isFirstTime.value = !(await encFacade.isInitialized());
+async function bindEncryption(adapter: RxDBAdapterSqlite): Promise<AdapterEncryptionFacade> {
+  const facade = adapter.encryption;
+  encFacade = facade;
+  isLocked.value = facade.isLocked;
+  isFirstTime.value = !(await facade.isInitialized());
   lockSub?.unsubscribe();
-  lockSub = encFacade.lockChange$.subscribe(locked => {
+  lockSub = facade.lockChange$.subscribe(locked => {
     isLocked.value = locked;
     if (!locked) {
       void loadUsers();
@@ -53,6 +54,7 @@ async function bindEncryption(adapter: RxDBAdapterSqlite): Promise<void> {
       users.value = [];
     }
   });
+  return facade;
 }
 
 onMounted(async () => {
@@ -72,12 +74,10 @@ async function handleUnlock() {
   if (!passphrase.value.trim()) return;
   error.value = null;
   try {
-    if (!encFacade) {
-      const adapter = (await rxdb.connect('sqlite-wasm')) as RxDBAdapterSqlite;
-      await bindEncryption(adapter);
-    }
-    await encFacade.unlock({ passphrase: passphrase.value });
-    isLocked.value = encFacade.isLocked;
+    const facade =
+      encFacade ?? (await bindEncryption((await rxdb.connect('sqlite-wasm')) as RxDBAdapterSqlite));
+    await facade.unlock({ passphrase: passphrase.value });
+    isLocked.value = facade.isLocked;
     isFirstTime.value = false;
     passphrase.value = '';
   } catch (err) {
