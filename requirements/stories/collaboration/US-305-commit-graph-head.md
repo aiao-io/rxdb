@@ -5,13 +5,17 @@ status: Backlog
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-09
-updated: 2026-08-13
+updated: 2026-08-15
 tags: [collaboration, commit, head, persistence, migration]
+inherited_acs:
+  - from: US-304
+    ac: 11
+    note: 本故事是首个真实系统迁移发布，负责用 v0.0.25 bridge tag 验证 oldBundlePolicy 与发布门禁。
 ---
 
 <!--
 INVEST 检查清单:
-- [x] Independent: 只依赖 US-304 的 lease/epoch，不依赖工作树与缓存区的任何 UI 或状态机
+- [x] Independent: 只依赖 US-304 的 writer 身份与迁移 fencing，不依赖工作树与缓存区的 UI 或状态机
 - [x] Negotiable: commit ID 生成方式、存储表名和 ChangeSet 编码可在 plan 阶段调整
 - [x] Valuable: 有了持久 commit 图，历史节点第一次成为可长期引用的锚点
 - [x] Estimable: 存储层次、审计字段和迁移路径已在本文列出
@@ -42,22 +46,25 @@ INVEST 检查清单:
 
 | Git 概念               | RxDB 中的含义                                          | 持久化要求                          |
 | ---------------------- | ------------------------------------------------------ | ----------------------------------- |
-| `HEAD`                 | 当前分支最近一次成功 commit 的指针                     | 必须持久化且只能指向已存在的 commit |
-| 分支引用（branch ref） | 分支名到 `HEAD` commit 的映射；沿用现有分支能力        | 必须与 commit 更新原子一致          |
+| `HEAD`                 | 当前激活分支的 `CommitBranchRef.headCommitId` 派生值   | 不持久化第二份独立指针              |
+| 分支引用（branch ref） | 分支名到 head commit 的唯一映射；沿用现有分支能力      | 与 commit 更新原子一致并带 revision |
 | commit                 | 带父节点、消息、作者和变更集合的不可变版本节点         | 创建后不可改；刷新后可查询          |
 | ChangeSet              | commit 的变更单元集合，按实体/事务分组，保留可恢复信息 | 与 commit 同一提交屏障内可见        |
 
 v1 的变更单元粒度为「实体操作或完整事务」。同一事务不能被拆到不同 commit；字段级、代码行级粒度属于后续扩展。
+baseline commit 没有父节点；普通 commit 固定一个父节点。既有 `mergeBranch()` 只把合并结果写成目标分支的普通工作树变更，
+不自动创建双父 commit；用户随后提交时仍以目标分支原 HEAD 为唯一父节点。
 
 ## 范围边界
 
 ### In Scope
 
-- commit 图、`HEAD` 指针与分支引用的持久化存储布局
+- commit 图与 `CommitBranchRef` 的持久化存储布局；HEAD 只作为当前 branch ref 的派生概念
+- `CommitBranchRef.headRevision` 的事务内 CAS；它是普通提交竞争的唯一判定，不复用 writer epoch
 - commit 的原子写入：变更集合、父 commit、作者、时间、摘要与新的分支 HEAD 在一次操作内可见
 - ChangeSet 的 patch / inverse patch 存储与实体身份、操作类型、基线版本、当前版本指纹
 - `log(options?)` / `show(commitId)` 查询：按分支、实体、时间排序，返回详情与父子关系
-- 已有数据库的一次性初始化：生成基线 commit、导入仍存在的 NEW 草稿、保留旧 change 记录，失败可重试且幂等
+- 显式启用后的首次初始化：为每个既有分支生成基线 commit、保留旧 change 记录，失败可重试且幂等
 - 损坏或不兼容 commit 记录的隔离与诊断
 - 与 `RxDBChange`、undo/redo、`restoreEntity` 的兼容边界
 
@@ -68,6 +75,7 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 - 分支切换行为与跨标签页冲突检测 —— 属 [US-308](./US-308-branch-isolation-conflict.md)
 - 远程 push/pull、rebase、cherry-pick、任意历史改写
 - 基于时间或大小的 commit 自动清理策略
+- Workspace IndexedDB 草稿的读取、搬迁或隔离；草稿不属于 SQL/PGlite 迁移事务
 
 ## 用户场景与验收标准
 
@@ -86,6 +94,7 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 3. **Given** 应用在持久化写入中途崩溃，**When** 下次打开应用，**Then** 只能看到上一次完整一致的状态，不出现半个 commit 或半个事务。
 4. **Given** 变更单元集合为空，**When** 创建 commit，**Then** 操作被拒绝，不产生空节点，HEAD 不变。
 5. **Given** commit message 为空或只含空白，**When** 创建 commit，**Then** 操作被拒绝并保留调用前状态。
+6. **Given** 两个 writer 从相同 `headRevision` 开始提交，**When** 先后尝试推进同一分支，**Then** 只有一个 CAS 成功；失败方不产生可见 commit，并收到包含 expected/actual revision 的稳定冲突错误。
 
 ### User Story 2 - 已有数据库首次启用（Priority: P1）
 
@@ -93,34 +102,39 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 **我想要** 打开 commit 能力时不丢失既有数据与历史
 **以便** 升级是一次可重试的迁移而不是重建
 
-**独立测试**：在已有数据（含 NEW 草稿与旧 `RxDBChange`）的数据库上首次启用，重复启动两次。
+**独立测试**：在已有多分支数据与旧 `RxDBChange` 的数据库上显式启用，重复启动两次。
 
 **验收场景**：
 
-1. **Given** 数据库已有数据但无 commit 图，**When** 首次启用，**Then** 生成一个只作为基线的初始 commit，不伪造旧 commit 的作者和消息；既有 `RxDBChange` 仍可供历史/undo 使用。
+1. **Given** 数据库已有数据但无 commit 图，**When** 首次显式启用，**Then** 为每个既有分支生成一个 `kind=baseline` 的初始 commit；baseline 不伪造用户作者和消息，既有 `RxDBChange` 仍可供历史/undo 使用。
 2. **Given** 首次初始化已完成，**When** 再次启动应用，**Then** 迁移幂等，不重复建立基线。
 3. **Given** 迁移中途失败，**When** 重试，**Then** 从可验证的一致点继续，不产生重复基线或孤立 commit。
 4. **Given** commit 图或索引记录损坏，**When** 启动，**Then** 隔离损坏记录，保留可验证的 commit，提供错误详情；**不得**静默回退到空库或内存模式。
+5. **Given** 数据库已有 A/B 多个分支且指向不同状态，**When** 首次启用完成后依次切换分支，**Then** 每个 `CommitBranchRef` 指向代表该分支原 tip 的 baseline，当前激活分支与业务实体状态不因迁移改变。
+6. **Given** Workspace 插件仍有 NEW 草稿，**When** 首次启用 commit 能力，**Then** baseline 不包含也不删除草稿；草稿 `save()` 后才以普通 INSERT 出现在工作树。
+7. **Given** 应用未显式启用 commit 能力，**When** 打开旧数据库，**Then** 不创建 commit 系统表、不生成 baseline，现有 CRUD、branch、undo/redo 行为不变。
 
 ## 功能需求
 
-- **FR-001**：系统 MUST 为每个数据库和当前分支维护唯一有效的 `HEAD` 指针；`HEAD` 不得指向不存在或未完成写入的 commit。
-- **FR-002**：系统 MUST 持久化 commit 元数据、分支引用与 HEAD；刷新、重启和正常关闭后可恢复。
+- **FR-001**：系统 MUST 为每个数据库/分支维护唯一 `CommitBranchRef`；HEAD MUST 从当前激活分支的 `headCommitId` 派生，不得持久化第二份可漂移的 HEAD 指针。
+- **FR-002**：系统 MUST 持久化 commit 元数据、`CommitBranchRef.headCommitId` 与 `headRevision`；刷新、重启和正常关闭后可恢复。
 - **FR-003**：系统 MUST 把 NEW、UPDATE、DELETE 和完整事务表示为可比较的变更单元，并为每条保留实体身份、操作类型、基线版本和当前版本指纹。
-- **FR-008**：系统 MUST 要求 commit 包含非空、可读的消息，并在一次原子操作中写入变更集合、父 commit、作者、时间、摘要和新的分支 HEAD。
+- **FR-008**：系统 MUST 要求用户 commit 包含非空、可读的消息，并在一次原子操作中写入变更集合、父 commit、作者、时间、摘要和新的分支 HEAD；`kind=baseline` 是唯一无用户作者/消息的系统节点。
 - **FR-009**：系统 MUST 保证 commit 不为空；无变更单元时提交失败且不产生空节点。
 - **FR-010**：系统 MUST 保证 commit 创建失败时恢复提交前状态，不出现可见半状态。
 - **FR-012**：系统 MUST 提供按当前分支、实体和时间排序的历史列表，以及单个 commit 的变更详情和父节点关系。
 - **FR-018**：系统 MUST 与现有 `RxDBChange`、历史 undo/redo 和 `restoreEntity` 保持兼容；已有 API 的行为不能因为 commit 功能而改变。
 - **FR-019**：系统 MUST 明确区分 durable commit 历史与会话级 redo 栈；刷新后 redo 可清空，但 commit 与 HEAD 不得清空。
-- **FR-021**：系统 MUST 为已有数据库提供一次性初始化和迁移策略：生成基线 commit、导入仍存在的 NEW 草稿、保留旧 change 记录，并支持失败重试。
+- **FR-021**：系统 MUST 在显式启用后为已有数据库提供一次性初始化：按每个既有分支生成 baseline、保留旧 change 记录、保持激活分支与业务实体状态，并支持失败重试；Workspace 草稿不参与迁移。
 - **FR-022**：系统 MUST 对损坏或不兼容的 commit 记录进行隔离和诊断，不得将整个数据库静默降级为空工作树或内存模式。
 - **FR-027**：commit 历史 MUST 可审计，至少记录稳定 commit ID、父节点、分支、作者标识、消息、创建时间、变更数量和 schema/数据版本；不得记录无法恢复的数据引用。
+- **FR-029**：普通 commit MUST 在同一数据库事务内以 expected `headRevision` 条件更新 `CommitBranchRef`；CAS 失败时 commit、ChangeSet 与 branch ref 全部不可见。US-304 epoch MUST 只用于迁移 fencing，不得代替 `headRevision`。
+- **FR-030**：本故事作为首个真实系统迁移发布，MUST 承接 US-304 AC11：发布清单使用 `bridge.tag=v0.0.25`、启用明确的 `oldBundlePolicy`，并通过真实 git tag 的 migration release gate。
 
 ## 关键实体
 
-- **Commit**：不可变提交；稳定 ID、一个或多个父节点、分支、作者、消息、时间、变更集合、摘要、数据/schema 版本。
-- **BranchRef**：分支引用；分支 ID、名称、HEAD commit、创建来源、更新时间。
+- **Commit**：不可变提交；稳定 ID、kind、零或一个父节点、分支、作者、消息、时间、变更集合、摘要、数据/schema 版本。
+- **CommitBranchRef**：分支引用；分支 ID、head commit、head revision、创建来源、更新时间，是分支 HEAD 的唯一真相源。
 - **CommitChangeSet**：commit 的变更单元集合；按实体/事务分组，保留 patch、inverse patch 或等价可恢复信息。
 
 > 命名遵守 [epic-006](../../epics/epic-006-working-tree-commits.md) 的术语表：新导出一律 `Commit*` 前缀，
@@ -132,19 +146,22 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 
 1. 业务实体表保存当前物化数据，仍沿用现有 CRUD、事务和响应式查询。
 2. 变更日志保存原子变更的 patch/inverse patch；commit 只引用经过校验的变更单元或不可变快照，不能依赖易失的 UI 状态。
-3. commit 元数据（分支、HEAD、版本水位）必须与业务数据在同一提交屏障内可恢复。
+3. commit 元数据、ChangeSet 和 `CommitBranchRef` 必须在同一提交屏障内可恢复；HEAD 只从 branch ref 派生。
 4. commit 图保存父子关系和审计字段；任何 commit 一旦可见就必须可重放到其父节点之后的完整状态。
 
 ### 提交规则
 
-- commit 的父节点固定为提交开始时读取到的当前分支 HEAD；提交结束时若 HEAD 已被其他 writer 推进，整个提交失败并要求重新读取状态。跨 realm 的推进判定复用 [US-304](./US-304-writer-lease-migration-fencing.md) 的 epoch，不新增第二套 lease 表。
+- commit 的父节点固定为提交开始时读取到的当前分支 HEAD；同一事务内执行
+  `UPDATE branch_ref ... WHERE headRevision = expected`，受影响行数不为 1 时整个提交失败。writer lease/epoch 仍在写事务内校验，
+  但只负责识别迁移 fencing，不参与普通 HEAD 竞争判定。
 - 历史节点永不通过「把旧节点改成当前」实现变更；需要可追踪的动作时必须再创建一个新 commit。
 
 ### 兼容与迁移
 
 - 保留 `RxDBChange` 的现有 ID、transactionId、patch/inversePatch、branchId 和 undo/redo 字段；commit 层不改变旧 API 的过滤规则。
-- 首次启用时建立基线 commit 并记录迁移版本；重复启动幂等。
-- 旧 Workspace NEW 草稿直接进入工作树，保存后按普通变更处理；无法识别的旧缓存记录隔离并报告，不静默删除。
+- commit 能力显式启用；未启用时不建立系统表、不生成 baseline，也不改变既有 API 行为。
+- 首次启用时按每个既有分支的原 tip 建立 baseline 和 `CommitBranchRef`，并记录迁移版本；迁移前后的激活分支与当前业务实体状态一致，重复启动幂等。
+- Workspace NEW 草稿继续由插件独立恢复；commit 迁移不读取、不搬迁、不删除 IndexedDB 记录，草稿保存后按普通 INSERT 处理。
 
 ## 非功能要求
 
@@ -156,8 +173,8 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 ## 测试要求
 
 - 核心包按 TDD 先写崩溃/刷新恢复的失败用例，再实现；覆盖率不低于 90%。
-- 本地适配器集成测试覆盖事务原子性与 schema 迁移。
-- 迁移幂等性与损坏记录隔离必须有独立 fixture。
+- PGlite、四个 SQLite 浏览器适配器与 desktop SQLite host 的共享 conformance 套件覆盖事务原子性、head revision CAS 与 schema 迁移。
+- 迁移幂等性、多分支 baseline、未启用零副作用、Workspace 草稿隔离与损坏记录隔离必须有独立 fixture。
 - 测试文件使用 `*.spec.ts`，不依赖非确定性的固定延时。
 
 ## 实现文件（计划阶段待确认）
@@ -172,7 +189,7 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 - [epic-006 本地工作树与提交历史](../../epics/epic-006-working-tree-commits.md)
 - [US-301 版本控制](./US-301-version-control.md) — 现有分支、合并和远程同步边界
 - [US-302 撤销/重做](./US-302-undo-redo.md) — 现有 durable undo 与会话级 redo 语义
-- [US-304 跨 realm writer lease 与迁移 fencing](./US-304-writer-lease-migration-fencing.md) — 提交乐观校验复用其 epoch
+- [US-304 跨 realm writer lease 与迁移 fencing](./US-304-writer-lease-migration-fencing.md) — 只复用 writer 身份与迁移期 epoch fencing；AC11 转入本故事的真实迁移发布
 - [US-306 工作树、缓存区与提交操作](./US-306-working-tree-index.md)
 - [US-501 Workspace 插件](../plugin/US-501-workspace-plugin.md) — NEW 草稿持久化现状与明确限制
 - [版本控制文档](../../../website/docs/versioning.md)

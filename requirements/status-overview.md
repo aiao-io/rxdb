@@ -121,7 +121,8 @@
 
 由 2026-08-13 的评审从原 US-305 升级而来：原故事持有 4 个 user story、28 条 FR、7 个关键实体，
 横跨 `packages/rxdb/src/version/`、`src/system/`、workspace 插件、三个框架包与三个 demo，INVEST「Small」不成立。
-拆分后每个故事都能独立证明「写入 → 刷新 → 读回」。**必须按顺序交付**，后一个依赖前一个的存储布局。
+拆分后每个故事都能独立证明「写入 → 刷新 → 读回」。交付顺序为
+**US-305 → US-306 → (US-307 ∥ US-308)**：前两项先完成存储与 revision CAS，后两项可并行。
 
 - ⬜ [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 基础层
 - ⬜ [US-306 工作树、缓存区与提交操作](stories/collaboration/US-306-working-tree-index.md)

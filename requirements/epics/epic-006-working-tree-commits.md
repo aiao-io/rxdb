@@ -31,21 +31,53 @@ owner: jimmy
 
 新契约里**不得**出现 `Workspace` 前缀的新导出；文档与 story 正文中"工作区"一词只指草稿缓存。
 
-## 横切约束（每个故事的 DoD，不单独成故事）
+恢复会话属于工作树状态，公开名使用 `WorkingTreeRestore*`；分支引用和并发冲突属于提交图，公开名使用
+`CommitBranch*` / `CommitConflict*`。既有适配器契约已经导出 `SwitchBranchOptions`，本 Epic 不复用该名字；
+面向 `VersionManager.switchBranch()` 的新选项固定使用 `WorkingTreeSwitchBranchOptions`。
 
-原 US-305 把三框架对称（FR-024）、a11y（FR-025）、异步状态（FR-023）和禁止复活旧导出（FR-028）各写成一条 FR，读起来像"最后统一补"。按仓库铁律，单端实现即未完成，所以这四条是**每个**故事各自的完成条件：
+## v1 状态模型（唯一真相源）
 
-1. **三框架对称**：Angular / React / Vue 提供语义对称的 API，命名、参数、状态转换和错误语义一致；任一端缺失该故事不得标 Done。
-2. **异步状态**：所有异步操作暴露 loading / success / empty / error；错误说明操作、对象与恢复建议。
-3. **可访问性**：键盘可达、焦点可见、状态与错误可被屏幕阅读器读出，达到 WCAG 2.1 AA；不得只有图标没有可访问名称。
+v1 不持久化第二份独立 `HEAD`。当前分支仍由既有 `RxDBBranch.activated` 表示，当前 HEAD 从该分支的
+`CommitBranchRef.headCommitId` 派生：
+
+| 状态                         | 主键                | 必须持久化的版本                         | 写入规则                                               |
+| ---------------------------- | ------------------- | ---------------------------------------- | ------------------------------------------------------ |
+| `CommitBranchRef`            | database + branch   | `headCommitId`、`headRevision`           | commit 在同一事务内以 `headRevision` 做 CAS 后推进      |
+| `WorkingTreeState`           | database + branch   | `baseHeadCommitId`、`workingTreeRevision` | 任何工作树物化或丢弃都在同一事务内递增 revision        |
+| `IndexState` / `IndexEntry`  | database + branch   | `indexRevision`、staged snapshot         | stage / unstage / commit 以 `indexRevision` 做 CAS      |
+| writer lease / upgrade guard | database + writer   | `epoch`                                  | 只判断 writer 是否被 schema 迁移 fence，不充当业务版本 |
+
+正常提交、stage 和恢复不会递增 US-304 的 epoch。跨 realm 正确性由数据库事务内的
+`headRevision` / `workingTreeRevision` / `indexRevision` 条件更新保证；writer lease 只提供 writer 身份和迁移期
+fencing。revision CAS 是领域数据完整性，不是第二套 lease 或跨 realm 协调协议。
+
+分支切换时保存来源分支自己的工作树/index 状态，并恢复目标分支自己的工作树/index；只有目标分支从未产生过
+未提交状态时，才从目标 `CommitBranchRef.headCommitId` 物化。不得把“切到分支”实现成无条件 reset 到 HEAD。
+
+## 启用与存储边界
+
+- commit 能力默认不改变既有应用行为；开发者显式启用后才创建系统表并执行首次基线迁移，具体配置名在 plan 阶段冻结。
+- SQL/PGlite 主库是 commit、工作树元数据和 index 的唯一一致性边界。
+- Workspace 插件的 NEW 草稿仍留在独立 IndexedDB 中，不参与系统 schema 事务，也不进入 baseline commit。
+  草稿调用 `save()` 落入主表后，才作为普通 INSERT 进入工作树。
+- v1 支持 PGlite、四个 SQLite 浏览器适配器和 desktop SQLite host；它们必须通过同一套
+  `workingTreeCommitConformanceSuite`。实验性的 miniprogram 适配器不承诺崩溃恢复，因此不在 v1 支持矩阵内。
+
+## 横切约束（按故事适用，不单独成故事）
+
+原 US-305 把三框架对称（FR-024）、a11y（FR-025）、异步状态（FR-023）和禁止复活旧导出（FR-028）各写成一条 FR，读起来像"最后统一补"。适用范围固定如下：
+
+1. **三框架对称**：US-306～308 的用户操作面必须在 Angular / React / Vue 提供语义对称的 API；US-305 是无 UI 的存储底座，只要求核心公开类型、TSDoc 和类型契约测试。
+2. **异步状态**：命令暴露 loading / success / error，查询在无结果时额外暴露 empty；错误说明操作、对象与恢复建议，不给无 empty 语义的命令伪造 empty 状态。
+3. **可访问性**：US-306～308 的 UI 键盘可达、焦点可见、状态与错误可被屏幕阅读器读出，达到 WCAG 2.1 AA；US-305 不适用 UI a11y。
 4. **不复活旧导出**：`stagedChange()`、`unstageChange()`、`commit()`、`stagedCount`、`WorkspaceCacheEntry.staged` 已在 `0.0.24` 删除（提交 `4d2495bdd`），新导出不得与它们同名同签名，也不得使用 `Workspace` 前缀（见上表）。
 
 ## 依赖顺序
 
-1. [US-304](../stories/collaboration/US-304-writer-lease-migration-fencing.md) 必须先 Done —— 跨 realm 校验复用其 writer lease / epoch，本 Epic 不允许另起一套协调协议
-2. [US-305](../stories/collaboration/US-305-commit-graph-head.md) 建立 commit 图、HEAD、存储布局与基线迁移
-3. [US-306](../stories/collaboration/US-306-working-tree-index.md) 在其上实现工作树、缓存区、status/diff/stage/commit
-4. [US-307](../stories/collaboration/US-307-restore-session.md) 与 [US-308](../stories/collaboration/US-308-branch-isolation-conflict.md) 依赖 US-306，可并行
+1. [US-304](../stories/collaboration/US-304-writer-lease-migration-fencing.md) 必须先 Done —— 本 Epic 复用 writer 身份与迁移期 epoch fencing，不复用 epoch 充当提交版本
+2. [US-305](../stories/collaboration/US-305-commit-graph-head.md) 建立 commit 图、branch ref、`headRevision` CAS、存储布局与每分支基线迁移
+3. [US-306](../stories/collaboration/US-306-working-tree-index.md) 在其上实现分支级工作树/index、revision CAS、status/diff/stage/commit
+4. [US-307](../stories/collaboration/US-307-restore-session.md) 与 [US-308](../stories/collaboration/US-308-branch-isolation-conflict.md) 依赖 US-306，可并行；二者复用 US-305/306 已完成的安全原语
 
 ## 故事
 
@@ -58,23 +90,28 @@ owner: jimmy
 
 原 FR-026 写「status/diff/stage 用户可见响应 100 ms 内、恢复最近 commit 1 s 内，覆盖 10,000 条实体 / 100 个 commit」。这三个数字当前**不可验收**：没有指定设备与存储后端（OPFS / IDB / wa-sqlite / PGlite 的差距是数量级）、没有定义"用户可见响应"是 promise resolve 还是首次绘制、没有统计口径（p50 / p95 / max），在 CI 机器上做绝对墙钟断言必然抖动。
 
-仓库里已有可用先例：[benchmarks/](../../benchmarks/) 的两个 bench 用 `WARMUP = 5` + 定量采样 + p50/p95 + JSON 报告，门禁判定用**相对回归**（`MAX_REGRESSION_PCT = 2`）而不是绝对毫秒。本 Epic 沿用同一套：
+仓库已有 `WARMUP = 5`、定量采样、p50/p95 和 JSON 报告的组织方式，可以复用报告结构；但
+`non-encrypted-hot-path.bench.ts` 的 2% 是同一进程内 plain / encryption 对照，`encryption.bench.ts` 只归档报告，
+都不能直接证明跨提交的 working-tree 性能可接受。本 Epic 采用双门禁：
 
 - 新增 `nx run benchmarks:bench-working-tree`，输出格式与 `benchmarks/reports/` 一致
-- 门禁判定用 p95 与**相对基线**的回归百分比；基线随第一次实现落库
-- 若保留绝对数字，只在固定基准环境（Node + PGlite memory，与现有两个 bench 相同）下成立，并写明浏览器 OPFS / IDB 不承诺同一数字
+- 固定基准环境为 Node + PGlite memory；API promise resolve 定义为操作完成，不把 React/Angular/Vue 首次绘制混入核心 benchmark
+- 绝对门禁保留原产品预算并明确为 p95：status / diff / stage 不高于 100 ms，restore 不高于 1 s
+- 相对门禁比较“被测操作 p95 / 同次运行 control CRUD p95”的归一化比值；阈值须由首次实现连续采样校准后冻结，不照搬 2%
 - 数据规模（10,000 实体 / 100 commit）保留，作为 bench 的固定 fixture
+- 浏览器 OPFS / IDB 不承诺相同绝对数字，但三端 E2E 必须记录首次可见状态耗时，防止核心 promise 很快而 UI 长时间无反馈
 
 具体归属：status / diff / stage 的预算在 US-306，restore 的预算在 US-307。
 
 ## 发布门禁
 
 1. US-304 Done（前置）
-2. US-305 / US-306 / US-307 / US-308 全部 Done，且各自的三框架对称与 a11y 条件满足
+2. US-305 / US-306 / US-307 / US-308 全部 Done；US-306～308 的三框架对称与 a11y 条件满足
 3. 崩溃与刷新恢复 fixture 全绿：不出现半个 commit、半个事务或半成品 index
-4. `nx run benchmarks:bench-working-tree` 无回归
-5. api-baseline 新增导出全部使用 `Commit*` / `WorkingTree*` / `Index*` 前缀，无 `Workspace*` 新导出
-6. 公开文档说明工作树与草稿缓存的区别、恢复语义与不改写历史的承诺
+4. PGlite、四个 SQLite 浏览器适配器与 desktop SQLite host 的 `workingTreeCommitConformanceSuite` 全绿
+5. `nx run benchmarks:bench-working-tree` 同时通过绝对 p95 与归一化相对回归门禁
+6. api-baseline 新增导出全部使用 `Commit*` / `WorkingTree*` / `Index*` 前缀，无 `Workspace*` 新导出，也不复用既有 `SwitchBranchOptions`
+7. 公开文档说明显式启用、工作树与草稿缓存的区别、恢复语义、历史保留敏感旧值的风险与不改写历史的承诺
 
 ## 非目标
 

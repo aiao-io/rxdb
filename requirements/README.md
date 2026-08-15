@@ -105,8 +105,9 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 3. US-207 必须先锁定 Electron SQLite 的真实连接语义并抽出共享桌面 host 契约；无法保证单连接事务时应 fail-fast，不得降级成伪事务。
 4. US-208 与 US-210 均排在 US-207 之后，复用其抽出的 host 契约。US-208 的两种事务 host 方案（IPC 事务 ID 协议 /
    adapter 完整托管在主进程）、US-210 的两种事务方案（配置单连接池 / Rust command 持有事务）都必须先通过同一套事务与事件测试再冻结选择。
-5. US-305 必须排在 US-304 之后：其跨 realm 提交校验建立在 writer lease / epoch fencing 之上，不允许另起一套协调协议。
-   epic-006 内部顺序为 **US-305 → US-306 → US-307 → US-308**，后一个依赖前一个的存储布局；US-308 额外要求 US-304 已 Done。
+5. US-305 必须排在 US-304 之后：写事务复用 writer 身份与迁移期 epoch fencing，普通提交竞争使用独立的
+   `headRevision` CAS，不把 epoch 当业务版本。epic-006 内部顺序为 **US-305 → US-306 → (US-307 ∥ US-308)**；
+   US-305/306 先交付数据安全原语，US-307/308 再并行交付恢复与分支/冲突用户面。
 6. US-703 应复用现有搜索公开 API 和跨框架 parity fixture，不为 PGlite 增加 SQLite 专属 fallback。
 7. ~~US-209 只做门禁与文档收尾~~ → 2026-08-15 已 Done。约束仍然生效并转为**长期口径**：小程序适配器的能力承诺不得扩大，
    WAL、多页面并发、崩溃恢复保证和微信以外的小程序平台都不在范围内；文档一律写「实验性」，
@@ -283,11 +284,10 @@ AC11 的操作列是「发布迁移版本」，而 `0.0.25` 不升级任何系�
 清单切 `kind=migration`、`bridge.tag` / `bridge.version` 指向本次桥接版本、`oldBundlePolicy.strategy` 四选一、
 `minimumVersion` 不低于桥接版本、`enforced=true`。
 
-按现有排期，第一个带迁移的交付是 [US-305](stories/collaboration/US-305-commit-graph-head.md)（其范围含「baseline commit 与一次性迁移」）。
-因此有两条路可选，**尚未决策**：
-
-- **等**：AC11 留在 US-304，US-304 维持 `In Progress` 直到下一个迁移周期。诚实，但把整条 story 拖长一个周期。
-- **转**：按[跨故事 AC 转移](#跨故事-ac-转移)把 AC11 挂到 US-305 的 `inherited_acs`，US-304 只对桥接协议本身负责。
+按现有排期，第一个带迁移的交付是 [US-305](stories/collaboration/US-305-commit-graph-head.md)（其范围含「每分支 baseline commit 与一次性迁移」）。
+**2026-08-15 已决策转移**：AC11 挂到 US-305 的 `inherited_acs`，US-304 只对桥接协议和迁移 fencing
+本身负责。这样 US-304 可以在补齐 AC6 后 Done，US-305 随后用首个真实迁移发布验收
+`bridge.tag=v0.0.25`、`oldBundlePolicy` 和 migration release gate，不再形成循环依赖。
 
 （AC6 同样不在此列，但理由不同：它不需要转移，只缺一条自己的用例——
 「writer 挂起 → 别的 realm 完成迁移抬 epoch → 该 writer 恢复后写入被 fence」。

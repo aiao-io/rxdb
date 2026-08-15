@@ -5,13 +5,13 @@ status: Backlog
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-08-13
+updated: 2026-08-15
 tags: [collaboration, working-tree, staging, diff, angular, react, vue]
 ---
 
 <!--
 INVEST 检查清单:
-- [x] Independent: 依赖 US-305 的 commit 图，但状态机、diff 与三端 API 自成一条交付线
+- [x] Independent: 依赖 US-305 的 commit 图与 head CAS，但工作树/index 状态机、diff 与三端 API 自成一条交付线
 - [x] Negotiable: 导出名、事件名和 diff 结构可在 plan 阶段冻结
 - [x] Valuable: 用户第一次能选择性提交，并在刷新后接着上次干
 - [x] Estimable: 状态集合、操作契约与 bench fixture 已列出
@@ -34,11 +34,13 @@ INVEST 检查清单:
 
 | 概念                    | 含义                                                                | 持久化要求                     |
 | ----------------------- | ------------------------------------------------------------------- | ------------------------------ |
-| 工作树（`WorkingTree`） | 当前分支上用户实际看到和编辑的实体状态，含已落本地库但未提交的修改  | 必须持久化；刷新后恢复原状     |
-| 缓存区（`Index`）       | 用户明确选择、准备放入下一次 commit 的变更集合                      | 必须持久化；与工作树分离       |
+| 工作树（`WorkingTree`） | 当前分支上用户实际看到和编辑的实体状态，含已落本地库但未提交的修改  | 按分支持久化；刷新/切回后恢复  |
+| 缓存区（`Index`）       | 用户明确选择、准备放入下一次 commit 的变更集合                      | 按分支持久化；与工作树分离     |
 | 工作树状态              | `clean`、`modified`、`staged`、`conflicted`、`restoring` 等可见状态 | 状态重建结果稳定，不依赖内存栈 |
 
 变更选择粒度为「实体操作或完整事务」，同一事务不可拆到不同 commit。
+工作树、index 和 HEAD 的唯一真相源及 revision 关系见 Epic 的
+[v1 状态模型](../../epics/epic-006-working-tree-commits.md#v1-状态模型唯一真相源)。
 
 ### 状态关系
 
@@ -56,6 +58,7 @@ INVEST 检查清单:
 ### In Scope
 
 - 工作树与缓存区状态的持久化与刷新后重建
+- `workingTreeRevision` / `indexRevision` 的事务内 CAS；跨 realm 的数据安全在本故事完成，不推迟到 US-308
 - `status()`：至少区分 clean、仅未暂存、仅已暂存、同时存在 staged/unstaged、恢复中、冲突
 - `diff(scope?)`：分别比较 `HEAD ↔ 工作树` 与 `HEAD ↔ 缓存区`
 - `stage` / `unstage` / stage all / `clearIndex`
@@ -69,7 +72,7 @@ INVEST 检查清单:
 
 - commit 图、HEAD、分支引用的存储布局与迁移 —— 属 [US-305](./US-305-commit-graph-head.md)
 - 历史恢复会话 —— 属 [US-307](./US-307-restore-session.md)（本故事只需让 `status()` 能表达 `restoring`）
-- 分支切换与跨标签页冲突检测 —— 属 [US-308](./US-308-branch-isolation-conflict.md)
+- 分支切换入口、冲突记录和三端冲突提示 —— 属 [US-308](./US-308-branch-isolation-conflict.md)；底层 revision CAS 不在其范围
 - 字段级或代码行级的部分暂存
 - 自动 stash / stash pop
 
@@ -83,7 +86,7 @@ INVEST 检查清单:
 
 1. **Given** 当前分支有一个已提交的 HEAD，**When** 用户修改实体但不 commit 后刷新，**Then** 工作树数据、未暂存标记和对应 diff 与刷新前一致。
 2. **Given** 缓存区已有实体变更，**When** 用户刷新或重新打开应用，**Then** 缓存区选择、变更顺序和事务边界保持不变。
-3. **Given** 只有 NEW 草稿、没有 HEAD，**When** 应用启动，**Then** 草稿仍按 Workspace 插件规则恢复，并在首次提交时作为普通 INSERT 变更进入 commit。
+3. **Given** Workspace 插件中只有 NEW 草稿，**When** 应用启动，**Then** 草稿仍按 Workspace 插件规则恢复，不出现在 SQL/PGlite 工作树或 baseline 中；草稿 `save()` 后才作为普通 INSERT 进入工作树。
 
 ### User Story 2 - 暂存并提交一组变更（Priority: P1）
 
@@ -98,6 +101,8 @@ INVEST 检查清单:
 5. **Given** 删除实体后 stage，**When** 查看 diff，**Then** 必须显示删除，而不是显示为空或消失。
 6. **Given** commit 成功，**When** 查看工作树，**Then** 只清除已提交的缓存区条目，未暂存变更继续留在工作树并显示准确 diff。
 7. **Given** 空事务、重复 stage、重复 discard，**When** 反复执行，**Then** 幂等，不产生额外 commit 或错误历史。
+8. **Given** stage 后任意 realm 又编辑同一实体，**When** 用户查看 status 或提交原 stage，**Then** staged snapshot 保持不变，后续编辑统一显示为 unstaged；提交不得覆盖或丢弃后续编辑。
+9. **Given** 两个 realm 从相同 index/head revision 开始 stage 或 commit，**When** 它们竞争同一分支，**Then** 条件更新只允许一个操作成功；失败方不留下半成品 index/commit，并返回 expected/actual revision。
 
 ### User Story 3 - 丢弃与清空（Priority: P2）
 
@@ -115,18 +120,19 @@ INVEST 检查清单:
 - **FR-007**：系统 MUST 在 stage 后再次发生编辑时保留 staged 快照，并把新增部分标记为 unstaged；禁止隐式扩大 stage 范围。
 - **FR-011**：系统 MUST 在 commit 成功后只清除已提交的缓存区变更；未暂存变更继续留在工作树并显示准确 diff。
 - **FR-016**：系统 MUST 支持 discard working tree 和 clear index，且两者操作范围明确：前者回到当前 HEAD，后者只清除暂存选择。
-- **FR-023**：系统 MUST 为所有异步操作提供可观察的 loading、success、empty 和 error 状态；错误必须说明操作、对象和恢复建议。
-- **FR-026**（已改口径）：系统 MUST 在 `benchmarks/` 现有框架下新增 `bench-working-tree`，对 status / diff / stage 采样并输出 p50/p95 与 JSON 报告；门禁判定为**相对基线的回归百分比**，沿用 `MAX_REGRESSION_PCT` 的做法。固定 fixture 为 10,000 条实体记录 / 100 个 commit，基准环境为 Node + PGlite memory（与 `benchmarks/non-encrypted-hot-path.bench.ts` 一致）。**不承诺**浏览器 OPFS / IDB 下的同一数字。
+- **FR-023**：系统 MUST 为异步命令提供 loading、success、error，为查询额外提供 empty；错误必须说明操作、对象和恢复建议。
+- **FR-026**（已改口径）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit 下对 status / diff / stage 采样并输出 p50/p95 与 JSON。三项 promise resolve 的 p95 MUST 不高于 100 ms，且“操作 p95 / 同次 control CRUD p95”的归一化比值不得超过校准后冻结的回归阈值。浏览器 OPFS / IDB 不承诺相同绝对数字。
+- **FR-031**：stage、unstage、clear index 和 commit MUST 在同一数据库事务内校验 expected `indexRevision`；会物化数据的操作还 MUST 校验 expected `workingTreeRevision`。CAS 失败时操作全量回滚。
+- **FR-032**：stage 后发生的实体编辑不按 writer 身份分叉处理；无论来自当前 realm 还是其他 realm，都 MUST 保留为相对 staged snapshot 的 unstaged 变更。writer 身份不得成为提交正确性的必要条件。
 
-> FR-026 原文是「用户可见响应 MUST 在 100 ms 内完成」。这句话没有指定设备、存储后端、统计口径，
-> 也没有定义「用户可见响应」是 promise resolve 还是首次绘制——在 CI 上做绝对墙钟断言必然抖动，
-> 等于写了一条永远可以被解释成通过或不通过的验收条件。仓库里已有的两个 bench
-> （[benchmarks/](../../../benchmarks/)）用的是 warmup + p50/p95 + 相对回归门禁，这里沿用同一套。
+> FR-026 保留原 100 ms 产品预算，但把环境、数据规模、完成时点和 p95 口径固定下来；相对门禁使用
+> 同次 control CRUD 归一化，不照搬 hot-path bench 的 2%。浏览器首次可见状态由三端 E2E 单独记录。
 
 ## 关键实体
 
-- **WorkingTreeState**：当前数据库/分支的工作树状态；基于哪个 HEAD、是否恢复中、未提交变更计数、最后一次持久化版本。
-- **IndexEntry**：缓存区条目；变更单元 ID、基线 commit、暂存快照、工作树版本、stage 时间。
+- **WorkingTreeState**：数据库/分支级工作树状态；基于哪个 HEAD、是否恢复中、未提交变更计数、`workingTreeRevision`。
+- **IndexState**：数据库/分支级 index 水位；`indexRevision`、基线 HEAD、条目计数。
+- **IndexEntry**：分支级缓存区条目；变更单元 ID、基线 commit、暂存快照、stage 时工作树 revision、stage 时间。
 
 > 命名遵守 [epic-006](../../epics/epic-006-working-tree-commits.md) 的术语表：不得使用 `Workspace*` 前缀。
 
@@ -146,15 +152,19 @@ INVEST 检查清单:
 | `discardWorkingTree()`       | 丢弃工作树未提交变更并回到 HEAD     |       否        |
 | `clearIndex()`               | 清空暂存选择                        |       否        |
 
+所有修改操作接收或内部捕获 expected revision，并在事务内做条件更新。公开 API 是否显式暴露 expected revision
+在 plan 阶段冻结，但冲突错误必须返回 expected/actual，调用方不能靠字符串解析。
+
 ### 边界情况
 
-- stage 的实体已被其他 writer 删除或更新：提交前重新校验版本指纹，返回冲突而不是使用过期快照（冲突协议见 [US-308](./US-308-branch-isolation-conflict.md)）。
+- stage 后实体被任意 realm 删除或更新：不改写 staged snapshot，变化作为 unstaged 保留；只有 head/index/worktree revision CAS 失败才返回并发冲突。
 - 存储配额不足、浏览器禁用持久化或 schema 升级失败：明确报告持久化不可用，禁止把状态伪装成已保存。
 - undo/redo 与 commit 同时触发时按调用顺序串行化；redo 仍是会话级能力，不能被误报为 durable commit。
 
 ## 测试要求
 
 - 核心包按 TDD 先写刷新恢复的失败用例，再实现；覆盖率不低于 90%。
+- PGlite、四个 SQLite 浏览器适配器与 desktop SQLite host 复用同一套 revision CAS / 崩溃恢复 conformance fixture。
 - 三端各有等价的单元/组件测试，并用跨框架 E2E 验证 status → stage → commit → refresh 流程。
 - 失败、空状态、键盘可达性和屏幕阅读器名称必须有 UI 回归测试；测试文件使用 `*.spec.ts`，不依赖固定延时。
 - `nx run benchmarks:bench-working-tree` 纳入 CI，报告写入 `benchmarks/reports/`。
@@ -163,7 +173,6 @@ INVEST 检查清单:
 
 - `packages/rxdb/src/version/` — 工作树与缓存区状态机、diff
 - `packages/rxdb/src/system/` — 工作树/缓存区元数据表
-- `packages/rxdb-plugin-workspace/` — NEW 草稿与工作树状态的整合边界
 - `packages/rxdb-{angular,react,vue}/` — 对称的 hooks / composables / signals
 - `apps/dev-rxdb-{angular,react,vue}/` — 三端工作树演示
 - `benchmarks/working-tree.bench.ts` — FR-026 的判定依据（新增）

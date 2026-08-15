@@ -5,7 +5,7 @@ status: In Progress
 priority: High
 epic: epic-005-type-system-evolution
 created: 2026-08-01
-updated: 2026-08-13
+updated: 2026-08-15
 tags: [collaboration, migration, lease, fencing, cross-tab, cross-process]
 inherited_acs:
   - from: US-303
@@ -66,9 +66,9 @@ INVEST 检查清单:
 | 8   | 迁移任意步骤失败或 upgrader 崩溃             | 重新连接并重试                       | 无半迁移状态；过期升级者不能清除其他 owner 的 guard；重试成功且不重复改写历史                                                  | ✅   |
 | 9   | lease/guard 表不存在、协议版本过低或状态未知 | 尝试升级                             | 明确报错并中止，不猜测安全、不启用业务 trigger                                                                                 | ✅   |
 | 10  | 真实 SQLite 多进程和 PGlite Worker/Tab 场景  | 运行共享迁移套件                     | 空闲 writer、竞态、崩溃恢复和 stale writer fencing 均通过                                                                      | ✅   |
-| 11  | 仍有桥接版本之前的离线旧 bundle              | 发布迁移版本                         | 发布门禁阻止升级，或通过强制更新/缓存失效/新数据库命名空间隔离；本仓库须存在位于 HEAD 祖先链上的桥接 tag；不得声称 AC13 已完成 | ⚠️   |
+| 11  | 仍有桥接版本之前的离线旧 bundle              | 发布迁移版本                         | 发布门禁阻止升级，或通过强制更新/缓存失效/新数据库命名空间隔离；本仓库须存在位于 HEAD 祖先链上的桥接 tag；不得声称 AC13 已完成 | ↪ US-305 |
 
-状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
+状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过 / ↪ 已转移
 
 ## 复核记录（2026-08-11 初版；2026-08-13 更新 AC2、AC4、AC8、门禁缺口与 bridge tag 依据；2026-08-14 桥接版本 `v0.0.25` 已发布，AC1 转 ✅）
 
@@ -85,7 +85,7 @@ INVEST 检查清单:
 - 至今没有任何 tag 被声明为桥接版本，`oldBundlePolicy` 也从未启用，AC11 列出的三条替代路径（强制更新 / 缓存失效 / 新数据库命名空间）一条都没生效。
 - 现清单为 `kind=normal` / `0.0.24`（见下文「门禁自身的两处缺口」），`pnpm nx run @aiao/source:migration-release-gate` 与 `migration-release-gate-test` 本地均通过。桥接版本实际发布后，AC11 才能重新评估。
 
-### 阻塞项：桥接 tag 指向哪一次发布尚未决策（2026-08-13 复核，前一版依据已失效）
+### 历史阻塞项：桥接 tag 已决策（2026-08-13 复核，前一版依据已失效）
 
 门禁的 `bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` 全部走 git tag
 （[`check-migration-release-gate.mjs`](../../../scripts/check-migration-release-gate.mjs) 的 `git rev-parse refs/tags/…`、
@@ -157,8 +157,9 @@ INVEST 检查清单:
 `migration-release-gate` 也不再由 tag 推送自动执行——发布前需手工跑
 `pnpm nx run @aiao/source:migration-release-gate --args="--release-tag=v<版本>"`。
 
-**AC11 仍为 ⚠️**，且不因本次发布改变——理由仍是上表第 3/4 步：本版无可迁移内容，
-清单未切 `kind=migration`，`oldBundlePolicy` 未启用。AC11 要等到真正的迁移版本才能重新评估。
+**AC11 已于 2026-08-15 转移到 US-305，不再阻塞 US-304 Done。** 理由仍是上表第 3/4 步：本版无可迁移内容，
+清单未切 `kind=migration`，`oldBundlePolicy` 未启用。US-305 是首个真实迁移发布，由其 `inherited_acs`
+承接 `bridge.tag=v0.0.25`、`oldBundlePolicy` 和真实发布门禁验收，避免形成“US-304 等 US-305，US-305 又等 US-304 Done”的循环依赖。
 但它的**前置**已经清掉了：此前 AC11 卡在「本仓库没有任何 tag 被声明为桥接版本」，
 现在 `v0.0.25` 就是。届时 `bridge.tag=v0.0.25` / `bridge.version=0.0.25` /
 `oldBundlePolicy.minimumVersion≥0.0.25` 有了确定的填法。
