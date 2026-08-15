@@ -79,8 +79,8 @@ INVEST 检查清单:
 
 ### 能力与数据泄漏边界
 
-| 最低 capability | 控制面操作                                                        |
-| --------------- | ----------------------------------------------------------------- |
+| 最低 capability | 控制面操作                                                         |
+| --------------- | ------------------------------------------------------------------ |
 | `none`          | HANDSHAKE、PING、`CLEAR_EVENT_BUFFER`、DISCONNECT                  |
 | `readonly`      | inspect/query/events/get branches 及 US-904b2 的只读 provider 操作 |
 | `full`          | 既有 branch mutation 及 US-904b2 显式允许的 mutation               |
@@ -104,18 +104,18 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #  | 前置条件                                               | 操作                                                     | 预期结果                                                                                                                     | 状态 |
-| -- | ------------------------------------------------------ | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1  | 新 panel + v2 connector，经 fake background/content   | 同时投递 eager legacy 与 v2 HANDSHAKE                    | background/content 不代 ACK；1 秒内 v2 胜出，只建立一个 UUID v4 session，从未进入 v1 状态                                    | ⬜   |
-| 2  | 新 panel + v1 connector                                | 暂存 legacy HANDSHAKE                                    | 1 秒无 v2 后由 panel 发送 legacy ACK，既有能力进入 bridge；不展示任何 v2/provider 能力                                      | ⬜   |
-| 3  | v1 panel + v2 connector                                | 旧 background ACK eager legacy HANDSHAKE                 | 无协商等待进入 v1 facade；不建立 v2 session，不执行新操作                                                                    | ⬜   |
-| 4  | 双方版本无交集、HELLO 非降序/重复/超长或含非法数字     | 执行协商                                                 | 合法无交集返回 `protocol_unsupported`；非法形状返回 `invalid_message`；都不建立 session                                      | ⬜   |
-| 5  | v2 session 已建立                                      | 注入错误 ACK、重复 HELLO、迟到握手、旧 session 和额外键  | exact-key 和状态机拒绝；当前 session、版本与 UI 状态不变                                                                     | ⬜   |
-| 6  | capability 为 none，握手前后各产生事件                 | ACK、PING、查询并观察内部订阅和消息总线                  | 只返回生命周期消息；事件订阅、buffer、DB_INFO/EVENT/BRANCHES/provider 调用均为 0                                             | ⬜   |
-| 7  | none/readonly/full 分别运行控制面矩阵                   | 伪造查询、branch mutation 与更高 capability 回显         | none 零数据；readonly 只读；full 仅允许自身操作；wire 回显不能扩大本地配置                                                    | ⬜   |
-| 8  | session 达到 32 个请求或 2 个传输                      | 再登记一个                                               | 返回对应 limit 错误且不分配资源                                                                                              | ⬜   |
-| 9  | 连续完成 4,096 请求或 256 个传输                       | 再登记唯一 ID，并尝试复用旧 ID                           | 新登记返回 `session_budget_exhausted`，复用返回 duplicate；tombstone 数量不超过固定上限，轮换后旧 session 消息全部拒绝        | ⬜   |
-| 10 | 请求进行中或已超时                                     | 断连、重握手并投递迟到响应                               | 计时器和资源释放；迟到数据不进入新状态，旧 session 不复活                                                                    | ⬜   |
+| #   | 前置条件                                            | 操作                                                    | 预期结果                                                                                                               | 状态 |
+| --- | --------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | 新 panel + v2 connector，经 fake background/content | 同时投递 eager legacy 与 v2 HANDSHAKE                   | background/content 不代 ACK；1 秒内 v2 胜出，只建立一个 UUID v4 session，从未进入 v1 状态                              | ⬜   |
+| 2   | 新 panel + v1 connector                             | 暂存 legacy HANDSHAKE                                   | 1 秒无 v2 后由 panel 发送 legacy ACK，既有能力进入 bridge；不展示任何 v2/provider 能力                                 | ⬜   |
+| 3   | v1 panel + v2 connector                             | 旧 background ACK eager legacy HANDSHAKE                | 无协商等待进入 v1 facade；不建立 v2 session，不执行新操作                                                              | ⬜   |
+| 4   | 双方版本无交集、HELLO 非降序/重复/超长或含非法数字  | 执行协商                                                | 合法无交集返回 `protocol_unsupported`；非法形状返回 `invalid_message`；都不建立 session                                | ⬜   |
+| 5   | v2 session 已建立                                   | 注入错误 ACK、重复 HELLO、迟到握手、旧 session 和额外键 | exact-key 和状态机拒绝；当前 session、版本与 UI 状态不变                                                               | ⬜   |
+| 6   | capability 为 none，握手前后各产生事件              | ACK、PING、查询并观察内部订阅和消息总线                 | 只返回生命周期消息；事件订阅、buffer、DB_INFO/EVENT/BRANCHES/provider 调用均为 0                                       | ⬜   |
+| 7   | none/readonly/full 分别运行控制面矩阵               | 伪造查询、branch mutation 与更高 capability 回显        | none 零数据；readonly 只读；full 仅允许自身操作；wire 回显不能扩大本地配置                                             | ⬜   |
+| 8   | session 达到 32 个请求或 2 个传输                   | 再登记一个                                              | 返回对应 limit 错误且不分配资源                                                                                        | ⬜   |
+| 9   | 连续完成 4,096 请求或 256 个传输                    | 再登记唯一 ID，并尝试复用旧 ID                          | 新登记返回 `session_budget_exhausted`，复用返回 duplicate；tombstone 数量不超过固定上限，轮换后旧 session 消息全部拒绝 | ⬜   |
+| 10  | 请求进行中或已超时                                  | 断连、重握手并投递迟到响应                              | 计时器和资源释放；迟到数据不进入新状态，旧 session 不复活                                                              | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 

@@ -6,6 +6,8 @@
 
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { DESKTOP_ADAPTER_NAME, RxDBAdapterDesktop } from '@aiao/rxdb-adapter-desktop';
+import { rxDBPluginStorage, type RxdbFileStorage } from '@aiao/rxdb-plugin-storage';
+import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { DesktopLaunch } from '../desktop-launch.entity';
@@ -19,6 +21,16 @@ import { connectLocalAdapter, RxDBConnectionStatus, shutdownDatabase } from '../
  * 同名会让 host 与 OPFS 各存一份、页面上却看不出区别。
  */
 export const DESKTOP_DEMO_DB_NAME = 'desktop_demo';
+
+/**
+ * 文件内容在存储根下的子目录名（US-504）。
+ *
+ * @remarks
+ * 物理位置是 `userData/rxdb-files/<此值>/`：外层由主进程的 `DESKTOP_STORAGE_DIRECTORY`
+ * 决定，内层由 storage 插件的 `rootDir` 决定。显式写出而不吃插件默认值 ——
+ * e2e 要按这个路径去磁盘上核对字节，默认值一旦变动，那边只会看到「文件不见了」。
+ */
+export const DESKTOP_STORAGE_ROOT_DIR = 'files';
 
 /**
  * 演示「数据落在主进程持有的真实 SQLite 文件里」的第二个 RxDB 实例。
@@ -43,6 +55,17 @@ export class DesktopDatabaseService {
   /** 桌面适配器的连接状态。 */
   readonly status = this.#status.asReadonly();
 
+  /**
+   * 本实例上的文件存储服务（US-504）。
+   *
+   * @remarks
+   * 内容后端是主进程的原生文件，不是 WebView 的 OPFS —— metadata 落在上面那个
+   * SQLite 文件里，两者因此同属一个备份域。
+   */
+  get storage(): RxdbFileStorage {
+    return this.#db.storage;
+  }
+
   /** 失败原因文案；其余状态下为 `null`。 */
   readonly errorMessage = computed(() => {
     const error = this.#error();
@@ -59,6 +82,14 @@ export class DesktopDatabaseService {
         local: { adapter: DESKTOP_ADAPTER_NAME },
         type: SyncType.None
       }
+    });
+    // US-504：文件内容也交给主进程写成原生文件。`use()` 必须排在 `init()` 之前 ——
+    // 插件的 install() 是往 `config.entities` 里追加 StorageFileMeta，init() 之后再追加，
+    // 建表那一步早已跑完，metadata 表不会存在。
+    // 同样不传 transport：桌面后端和适配器共用 preload 暴露的那一条通道，不新增 preload 方法。
+    this.#db.use(rxDBPluginStorage, {
+      rootDir: DESKTOP_STORAGE_ROOT_DIR,
+      filesystem: createDesktopStorageFilesystem()
     });
     // 不传 transport：适配器自己去全局键上找 preload 暴露的桥接，
     // 渲染进程因此拿不到、也不需要知道库文件的物理路径（AC#3）。

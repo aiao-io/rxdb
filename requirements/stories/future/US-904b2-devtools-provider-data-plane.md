@@ -57,11 +57,11 @@ INVEST 检查清单:
 
 每个 session 恰有一份 descriptor 集合；每个领域最多一个 descriptor，payload 使用 exact-key union：
 
-| 领域       | kind                                      | 可声明操作                                                     |
-| ---------- | ----------------------------------------- | -------------------------------------------------------------- |
-| `database` | `rxdb` / `unavailable`                    | inspect、query、events、get/switch/create/delete branch        |
-| `files`    | `opfs` / `native-files` / `unavailable`   | list、download、upload、create-directory、delete               |
-| `settings` | `opfs` / `idb` / `sqlite` / `unavailable` | clear；export 固定存在但只返回 `export_unsupported`            |
+| 领域       | kind                                      | 可声明操作                                              |
+| ---------- | ----------------------------------------- | ------------------------------------------------------- |
+| `database` | `rxdb` / `unavailable`                    | inspect、query、events、get/switch/create/delete branch |
+| `files`    | `opfs` / `native-files` / `unavailable`   | list、download、upload、create-directory、delete        |
+| `settings` | `opfs` / `idb` / `sqlite` / `unavailable` | clear；export 固定存在但只返回 `export_unsupported`     |
 
 - descriptor 精确包含 `domain`、`version: 1`、`kind`、`operations`、`runtime`、`limits`；operations 去重并
   使用协议定义顺序。`unavailable` operations 必须为空并带共享 reason code
@@ -137,18 +137,18 @@ transport 不得临时发明平台私有码。
 
 ## 验收标准
 
-| #  | 前置条件                                                     | 操作                                                   | 预期结果                                                                                                                     | 状态 |
-| -- | ------------------------------------------------------------ | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1  | fake providers 覆盖三个领域和全部 kind                      | 只改变 runtime 并运行 descriptor conformance           | 相同 kind 的操作、状态和错误不变；unknown/duplicate/missing descriptor 被 exact guard 拒绝                                   | ⬜   |
-| 2  | none/readonly/full 与 mutation allow/omit 全组合             | 调用全部 provider operations                           | capability、descriptor、policy 三层矩阵成立；被拒调用为 0，wire 自称权限不能扩大可信配置                                     | ⬜   |
-| 3  | 数值字段含边界值、NaN、Infinity、小数、负数和溢出            | 运行所有 request/descriptor guards                     | 仅范围内 safe integer 通过；非法值在资源分配前统一 `invalid_message`                                                         | ⬜   |
-| 4  | base64 含正常、边界 chunk、非法字符、非规范 padding/URL-safe | 传过 fake JSON driver 并重新编码                       | decoded bytes 一致；非法输入 `payload_encoding_invalid`，不写入、不刷新 timeout                                              | ⬜   |
-| 5  | 零字节、正常多 chunk、乱序、重复、缺块、越限、取消和迟到帧   | 执行完整 transfer 状态机                               | 仅合法 COMPLETE 提交；错误码稳定，其他终态无半写文件、孤儿 metadata 或完整文件内存副本                                       | ⬜   |
-| 6  | provider 上限缺失、为 0、超过 1 GiB 或双方上限不同           | 启动上传/下载                                          | descriptor guard 或 min-limit 生效；超过协商总量 `transfer_size_exceeded`                                                    | ⬜   |
-| 7  | fixture 含 1001 条记录、两类缺失和内部临时状态               | 以默认页大小读取 snapshot                              | 独占锁内物化、tuple 稳定排序和字节计量，不漏尾页；只在 complete 后报告，临时状态不误报                                        | ⬜   |
-| 8  | 等锁、epoch 连续失效、条目/字节超限、60 秒过期               | 创建并翻页                                             | 请求进入起 15 秒内结束；分别返回 busy/too_large/expired，取消能中止等待，不保留旧结论或截断页                                 | ⬜   |
-| 9  | OPFS/Node/Rust 代表性 not-found/conflict/permission/quota 错误 | 运行共享错误映射 contract                              | 三端映射为同一穷举错误码，响应不泄漏路径、stack、平台 code 或内容                                                            | ⬜   |
-| 10 | database export 在任意 kind/runtime 下被强制调用             | 监控 provider/filesystem                               | 固定 `export_unsupported`，provider、OPFS、SQLite、WAL 和应用目录读取次数均为 0                                                | ⬜   |
+| #   | 前置条件                                                       | 操作                                         | 预期结果                                                                                      | 状态 |
+| --- | -------------------------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------- | ---- |
+| 1   | fake providers 覆盖三个领域和全部 kind                         | 只改变 runtime 并运行 descriptor conformance | 相同 kind 的操作、状态和错误不变；unknown/duplicate/missing descriptor 被 exact guard 拒绝    | ⬜   |
+| 2   | none/readonly/full 与 mutation allow/omit 全组合               | 调用全部 provider operations                 | capability、descriptor、policy 三层矩阵成立；被拒调用为 0，wire 自称权限不能扩大可信配置      | ⬜   |
+| 3   | 数值字段含边界值、NaN、Infinity、小数、负数和溢出              | 运行所有 request/descriptor guards           | 仅范围内 safe integer 通过；非法值在资源分配前统一 `invalid_message`                          | ⬜   |
+| 4   | base64 含正常、边界 chunk、非法字符、非规范 padding/URL-safe   | 传过 fake JSON driver 并重新编码             | decoded bytes 一致；非法输入 `payload_encoding_invalid`，不写入、不刷新 timeout               | ⬜   |
+| 5   | 零字节、正常多 chunk、乱序、重复、缺块、越限、取消和迟到帧     | 执行完整 transfer 状态机                     | 仅合法 COMPLETE 提交；错误码稳定，其他终态无半写文件、孤儿 metadata 或完整文件内存副本        | ⬜   |
+| 6   | provider 上限缺失、为 0、超过 1 GiB 或双方上限不同             | 启动上传/下载                                | descriptor guard 或 min-limit 生效；超过协商总量 `transfer_size_exceeded`                     | ⬜   |
+| 7   | fixture 含 1001 条记录、两类缺失和内部临时状态                 | 以默认页大小读取 snapshot                    | 独占锁内物化、tuple 稳定排序和字节计量，不漏尾页；只在 complete 后报告，临时状态不误报        | ⬜   |
+| 8   | 等锁、epoch 连续失效、条目/字节超限、60 秒过期                 | 创建并翻页                                   | 请求进入起 15 秒内结束；分别返回 busy/too_large/expired，取消能中止等待，不保留旧结论或截断页 | ⬜   |
+| 9   | OPFS/Node/Rust 代表性 not-found/conflict/permission/quota 错误 | 运行共享错误映射 contract                    | 三端映射为同一穷举错误码，响应不泄漏路径、stack、平台 code 或内容                             | ⬜   |
+| 10  | database export 在任意 kind/runtime 下被强制调用               | 监控 provider/filesystem                     | 固定 `export_unsupported`，provider、OPFS、SQLite、WAL 和应用目录读取次数均为 0               | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 

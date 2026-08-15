@@ -26,11 +26,11 @@ INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接
 > `unsupported` 时，US-904b 共享链继续交付，
 > US-904c 与本父故事转 `Blocked` 并记录替代承载故事，不能永久留在普通 Backlog。
 >
-> | 子故事                                                       | 交付                                              |
-> | ------------------------------------------------------------ | ------------------------------------------------- |
-> | [US-904a](./US-904a-electron-mv3-devtools-feasibility.md)    | Electron 43 + 当前 MV3 扩展 stop/go 实证          |
-> | [US-904b](./US-904b-devtools-shared-protocol-panel.md)       | 共享链父契约；交付由 US-904b1/b2/b3 承担         |
-> | [US-904c](./US-904c-electron-native-devtools-integration.md) | Electron desktop SQLite/native files 接入与 E2E   |
+> | 子故事                                                       | 交付                                            |
+> | ------------------------------------------------------------ | ----------------------------------------------- |
+> | [US-904a](./US-904a-electron-mv3-devtools-feasibility.md)    | Electron 43 + 当前 MV3 扩展 stop/go 实证        |
+> | [US-904b](./US-904b-devtools-shared-protocol-panel.md)       | 共享链父契约；交付由 US-904b1/b2/b3 承担        |
+> | [US-904c](./US-904c-electron-native-devtools-integration.md) | Electron desktop SQLite/native files 接入与 E2E |
 
 ## 作为/我想要/以便
 
@@ -172,16 +172,16 @@ US-904b 共享链和 US-905 继续推进。
 
 ## 实现所有权
 
-| 路径                             | 所有者  | 边界                                                             |
-| -------------------------------- | ------- | ---------------------------------------------------------------- |
-| `apps/rxdb-devtools-extension/`  | US-904a | Electron 43 可行性 fixture；不抽面板、不接 provider              |
-| `packages/rxdb-devtools/src/`    | b1 / b2 | 控制面、provider、授权、传输、快照、错误与 conformance            |
-| `packages/rxdb-devtools-panel/`  | US-904b3 | private Angular library、共享面板和 transport token               |
-| `apps/rxdb-devtools-extension/`  | US-904b3 | Chrome relay、迁移回归与禁用不安全数据库下载                      |
-| `packages/rxdb-adapter-desktop/` | US-904c | Electron 只读数据库诊断 provider，不增加任意 SQL                 |
-| `packages/rxdb-plugin-storage/`  | US-904c | Electron 原生文件调试 provider，复用业务路径与流式语义           |
-| `apps/dev-rxdb-electron/`        | US-904c | 开发态加载、生产隔离与真实 extension/renderer/preload/main E2E   |
-| `requirements/api-baseline/`     | 改动方  | 只有新增公开 API 时同步                                          |
+| 路径                             | 所有者   | 边界                                                           |
+| -------------------------------- | -------- | -------------------------------------------------------------- |
+| `apps/rxdb-devtools-extension/`  | US-904a  | Electron 43 可行性 fixture；不抽面板、不接 provider            |
+| `packages/rxdb-devtools/src/`    | b1 / b2  | 控制面、provider、授权、传输、快照、错误与 conformance         |
+| `packages/rxdb-devtools-panel/`  | US-904b3 | private Angular library、共享面板和 transport token            |
+| `apps/rxdb-devtools-extension/`  | US-904b3 | Chrome relay、迁移回归与禁用不安全数据库下载                   |
+| `packages/rxdb-adapter-desktop/` | US-904c  | Electron 只读数据库诊断 provider，不增加任意 SQL               |
+| `packages/rxdb-plugin-storage/`  | US-904c  | Electron 原生文件调试 provider，复用业务路径与流式语义         |
+| `apps/dev-rxdb-electron/`        | US-904c  | 开发态加载、生产隔离与真实 extension/renderer/preload/main E2E |
+| `requirements/api-baseline/`     | 改动方   | 只有新增公开 API 时同步                                        |
 
 ## References
 

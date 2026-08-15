@@ -68,17 +68,17 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 前置条件                                                 | 操作                                                   | 预期结果                                                                                                                                         | 状态 |
-| --- | -------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 1   | 分别构建显式开发配置与 production                        | 检查产物并启动                                         | dev 加载唯一工作区扩展并握手；production 无扩展源码、加载路径、bootstrap 和新增权限                                                              | ⬜   |
-| 2   | 应用使用 US-207 desktop SQLite                           | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与应用一致；不创建或查询 OPFS/IndexedDB fallback                                                         | ⬜   |
-| 3   | 应用使用 US-504 原生文件后端并显式允许 mutation          | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件专用根，字节一致；UI 仅用 `runtime: electron` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                              | ⬜   |
-| 4   | 1001 条以上 metadata/files、两类缺失和一条在途上传       | 读取完整诊断 snapshot                                  | 从请求进入起 15 秒 deadline 覆盖等锁/物化/重试；不漏尾页或误报临时状态；失效/超限/过期分别返回 shared busy/too-large/expired                     | ⬜   |
-| 5   | 打开 Settings                                            | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明清理返回 `provider_unsupported`，不读取 OPFS/SQLite/WAL 或其他目录                            | ⬜   |
-| 6   | 同源脚本/content script 持有合法 session，或构造越界路径 | 在 none/readonly/full、mutation 开/关组合下伪造操作    | connector、preload、host 各自校验；未授权 provider 调用为 0，未 opt-in mutation 不执行；根外无读写，错误不含路径、SQL 绑定值、加密字段或文件内容 | ⬜   |
-| 7   | session A 有订阅、迟到响应和未完成传输                   | 关闭/刷新后建立 session B 并投递 A 消息                | A 的 host session 与资源释放；B 拒绝旧身份，不显示旧实体、错误、事件或进度                                                                       | ⬜   |
-| 8   | 真实临时 userData、SQLite 与原生文件后端                 | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 extension/renderer/preload/main/host，不用 mock 替代                                                    | ⬜   |
-| 9   | Electron 薄 driver 接入 US-904b1/b2 conformance 与 b3 panel | 运行全部共享断言                                     | 控制面、descriptor、base64、safe integer、授权、传输、快照、错误和 session 重建通过；不复制 UI、wire、fixture 或错误码                         | ⬜   |
+| #   | 前置条件                                                    | 操作                                                   | 预期结果                                                                                                                                         | 状态 |
+| --- | ----------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 1   | 分别构建显式开发配置与 production                           | 检查产物并启动                                         | dev 加载唯一工作区扩展并握手；production 无扩展源码、加载路径、bootstrap 和新增权限                                                              | ⬜   |
+| 2   | 应用使用 US-207 desktop SQLite                              | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与应用一致；不创建或查询 OPFS/IndexedDB fallback                                                         | ⬜   |
+| 3   | 应用使用 US-504 原生文件后端并显式允许 mutation             | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件专用根，字节一致；UI 仅用 `runtime: electron` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                              | ⬜   |
+| 4   | 1001 条以上 metadata/files、两类缺失和一条在途上传          | 读取完整诊断 snapshot                                  | 从请求进入起 15 秒 deadline 覆盖等锁/物化/重试；不漏尾页或误报临时状态；失效/超限/过期分别返回 shared busy/too-large/expired                     | ⬜   |
+| 5   | 打开 Settings                                               | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明清理返回 `provider_unsupported`，不读取 OPFS/SQLite/WAL 或其他目录                            | ⬜   |
+| 6   | 同源脚本/content script 持有合法 session，或构造越界路径    | 在 none/readonly/full、mutation 开/关组合下伪造操作    | connector、preload、host 各自校验；未授权 provider 调用为 0，未 opt-in mutation 不执行；根外无读写，错误不含路径、SQL 绑定值、加密字段或文件内容 | ⬜   |
+| 7   | session A 有订阅、迟到响应和未完成传输                      | 关闭/刷新后建立 session B 并投递 A 消息                | A 的 host session 与资源释放；B 拒绝旧身份，不显示旧实体、错误、事件或进度                                                                       | ⬜   |
+| 8   | 真实临时 userData、SQLite 与原生文件后端                    | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 extension/renderer/preload/main/host，不用 mock 替代                                                    | ⬜   |
+| 9   | Electron 薄 driver 接入 US-904b1/b2 conformance 与 b3 panel | 运行全部共享断言                                       | 控制面、descriptor、base64、safe integer、授权、传输、快照、错误和 session 重建通过；不复制 UI、wire、fixture 或错误码                           | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 

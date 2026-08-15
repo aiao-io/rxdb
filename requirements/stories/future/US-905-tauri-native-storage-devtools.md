@@ -172,15 +172,15 @@ US-905b 等待真实 native host。
 
 ## 实现所有权
 
-| 路径                             | 所有者  | 边界                                                      |
-| -------------------------------- | ------- | --------------------------------------------------------- |
+| 路径                             | 所有者   | 边界                                                      |
+| -------------------------------- | -------- | --------------------------------------------------------- |
 | `packages/rxdb-devtools-panel/`  | US-904b3 | 三种 surface 共用 private 面板；US-905a/905b 只消费       |
-| `apps/dev-rxdb-tauri/src/`       | US-905a | DevTools bootstrap、Tauri transport adapter 与开发入口    |
-| `apps/dev-rxdb-tauri/src-tauri/` | US-905a | label/sender 受限窗口、消息桥与 dev-only capability       |
-| `packages/rxdb-adapter-desktop/` | US-905b | Tauri SQLite 只读诊断 provider                            |
-| `packages/rxdb-plugin-storage/`  | US-905b | Tauri native files 调试 provider                          |
-| `apps/dev-rxdb-tauri-e2e/`       | 共享    | US-210/US-905a 先开工者创建一次；各故事只拥有自己的 specs |
-| `requirements/api-baseline/`     | 改动方  | 只有新增公开 API 时同步                                   |
+| `apps/dev-rxdb-tauri/src/`       | US-905a  | DevTools bootstrap、Tauri transport adapter 与开发入口    |
+| `apps/dev-rxdb-tauri/src-tauri/` | US-905a  | label/sender 受限窗口、消息桥与 dev-only capability       |
+| `packages/rxdb-adapter-desktop/` | US-905b  | Tauri SQLite 只读诊断 provider                            |
+| `packages/rxdb-plugin-storage/`  | US-905b  | Tauri native files 调试 provider                          |
+| `apps/dev-rxdb-tauri-e2e/`       | 共享     | US-210/US-905a 先开工者创建一次；各故事只拥有自己的 specs |
+| `requirements/api-baseline/`     | 改动方   | 只有新增公开 API 时同步                                   |
 
 ## References
 

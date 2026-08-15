@@ -67,17 +67,17 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 前置条件                                              | 操作                                                   | 预期结果                                                                                                                         | 状态 |
-| --- | ----------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 应用通过 US-210 使用应用作用域 SQLite                 | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与主窗口一致；调试窗口不打开数据库、不取得 writer lease、不创建 OPFS/IDB fallback        | ⬜   |
-| 2   | 应用通过 US-505 使用 native files 并显式允许 mutation | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件根，字节一致；UI 仅用 `runtime: tauri` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                     | ⬜   |
-| 3   | 1001 条以上 metadata/files、两类缺失和在途上传        | 读取完整诊断 snapshot                                  | 请求进入起 15 秒覆盖等锁/物化/重试；不漏尾页或误报临时状态；busy/too-large/expired 与共享错误一致                               | ⬜   |
-| 4   | 打开 Settings                                         | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明能力返回 `provider_unsupported`，不读取 SQLite/WAL、OPFS/IDB 或其他应用目录   | ⬜   |
-| 5   | 错误窗口/旧 session，或合法窗口在授权组合下伪造操作   | 通过真实 transport 发送                                | 各层拒绝错误身份；未授权 provider 调用为 0，未 opt-in mutation 不执行；响应不含路径、SQL 绑定值、加密字段或文件内容              | ⬜   |
-| 6   | session 有订阅、迟到响应、snapshot 和未完成传输       | 关闭/刷新窗口或退出应用                                | 订阅、请求、snapshot、传输、临时文件和 host session 全释放；重开拒绝旧身份与迟到数据                                             | ⬜   |
-| 7   | 真实临时应用目录、US-210 SQLite 与 US-505 files       | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 panel/双 WebView/transport/Rust/host，不用 fake 替代                                    | ⬜   |
-| 8   | Tauri provider 接入 US-904b1/b2 conformance 与 b3 panel | 运行共享 provider 与 panel 回归                       | 控制面、safe integer、base64、descriptor、分页、授权、错误和 session 重建通过；不等待 Electron，也不复制组件、状态机或 wire      | ⬜   |
-| 9   | macOS、Windows、Linux desktop dev/release 构建        | 打开/关闭调试窗口并检查产物                            | 三平台完成加载、握手、session 释放；release 无调试 capability/command/bootstrap，高成本打包 smoke 只在 release 分支或 tag 运行   | ⬜   |
+| #   | 前置条件                                                | 操作                                                   | 预期结果                                                                                                                       | 状态 |
+| --- | ------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 1   | 应用通过 US-210 使用应用作用域 SQLite                   | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与主窗口一致；调试窗口不打开数据库、不取得 writer lease、不创建 OPFS/IDB fallback      | ⬜   |
+| 2   | 应用通过 US-505 使用 native files 并显式允许 mutation   | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件根，字节一致；UI 仅用 `runtime: tauri` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                   | ⬜   |
+| 3   | 1001 条以上 metadata/files、两类缺失和在途上传          | 读取完整诊断 snapshot                                  | 请求进入起 15 秒覆盖等锁/物化/重试；不漏尾页或误报临时状态；busy/too-large/expired 与共享错误一致                              | ⬜   |
+| 4   | 打开 Settings                                           | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明能力返回 `provider_unsupported`，不读取 SQLite/WAL、OPFS/IDB 或其他应用目录 | ⬜   |
+| 5   | 错误窗口/旧 session，或合法窗口在授权组合下伪造操作     | 通过真实 transport 发送                                | 各层拒绝错误身份；未授权 provider 调用为 0，未 opt-in mutation 不执行；响应不含路径、SQL 绑定值、加密字段或文件内容            | ⬜   |
+| 6   | session 有订阅、迟到响应、snapshot 和未完成传输         | 关闭/刷新窗口或退出应用                                | 订阅、请求、snapshot、传输、临时文件和 host session 全释放；重开拒绝旧身份与迟到数据                                           | ⬜   |
+| 7   | 真实临时应用目录、US-210 SQLite 与 US-505 files         | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 panel/双 WebView/transport/Rust/host，不用 fake 替代                                  | ⬜   |
+| 8   | Tauri provider 接入 US-904b1/b2 conformance 与 b3 panel | 运行共享 provider 与 panel 回归                        | 控制面、safe integer、base64、descriptor、分页、授权、错误和 session 重建通过；不等待 Electron，也不复制组件、状态机或 wire    | ⬜   |
+| 9   | macOS、Windows、Linux desktop dev/release 构建          | 打开/关闭调试窗口并检查产物                            | 三平台完成加载、握手、session 释放；release 无调试 capability/command/bootstrap，高成本打包 smoke 只在 release 分支或 tag 运行 | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 

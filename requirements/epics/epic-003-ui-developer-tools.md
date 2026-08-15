@@ -25,7 +25,10 @@ owner: jimmy
 - ✅ [US-902 DevTools 面板](../stories/future/US-902-devtools-panel.md) (Low)
 - 📄 [US-904 DevTools 调试 Electron 原生本地存储](../stories/future/US-904-electron-native-storage-devtools.md) (Medium) — 父故事/共享契约，不直接交付
   - ⬜ [US-904a Electron 43 MV3 DevTools 可行性门禁](../stories/future/US-904a-electron-mv3-devtools-feasibility.md) (High)
-  - ⬜ [US-904b DevTools 共享 v2 协议与面板](../stories/future/US-904b-devtools-shared-protocol-panel.md) (High) — 与 904a 并行，含 v1 bridge/conformance
+  - 📄 [US-904b DevTools 共享 v2 协议与面板](../stories/future/US-904b-devtools-shared-protocol-panel.md) (High) — 父故事/共享契约，不直接交付
+    - ⬜ [US-904b1 DevTools v2 控制面与安全边界](../stories/future/US-904b1-devtools-v2-control-plane.md) (High)
+    - ⬜ [US-904b2 DevTools provider 数据面与 conformance](../stories/future/US-904b2-devtools-provider-data-plane.md) (High)
+    - ⬜ [US-904b3 DevTools 共享面板与 Chrome v2 迁移](../stories/future/US-904b3-devtools-shared-panel-chrome-migration.md) (High)
   - ⬜ [US-904c Electron 原生存储 DevTools 集成](../stories/future/US-904c-electron-native-devtools-integration.md) (Medium) — 仅 904a supported 时开工
 - 📄 [US-905 DevTools 调试 Tauri 原生本地存储](../stories/future/US-905-tauri-native-storage-devtools.md) (Medium) — 父故事/共享契约，不直接交付
   - ⬜ [US-905a Tauri DevTools 窗口与 v2 transport](../stories/future/US-905a-tauri-devtools-window-transport.md) (Medium)

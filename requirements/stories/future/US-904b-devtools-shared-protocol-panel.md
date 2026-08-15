@@ -24,11 +24,11 @@ INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接
 > **本文件不直接交付。** 它是三条子故事共享的版本、安全、数据面和发布边界；三条全部
 > `Done` 后才把本父故事置 `Done`。
 >
-> | 子故事                                                               | 交付                                                        |
-> | -------------------------------------------------------------------- | ----------------------------------------------------------- |
-> | [US-904b1](./US-904b1-devtools-v2-control-plane.md)                  | v1/v2 协商、session、授权、ID 预算与控制面 conformance       |
-> | [US-904b2](./US-904b2-devtools-provider-data-plane.md)               | provider 描述、传输、快照、错误映射与数据面 conformance      |
-> | [US-904b3](./US-904b3-devtools-shared-panel-chrome-migration.md)     | 私有共享面板、Chrome 四段 relay、迁移桥与浏览器回归          |
+> | 子故事                                                           | 交付                                                    |
+> | ---------------------------------------------------------------- | ------------------------------------------------------- |
+> | [US-904b1](./US-904b1-devtools-v2-control-plane.md)              | v1/v2 协商、session、授权、ID 预算与控制面 conformance  |
+> | [US-904b2](./US-904b2-devtools-provider-data-plane.md)           | provider 描述、传输、快照、错误映射与数据面 conformance |
+> | [US-904b3](./US-904b3-devtools-shared-panel-chrome-migration.md) | 私有共享面板、Chrome 四段 relay、迁移桥与浏览器回归     |
 
 ## 作为/我想要/以便
 
@@ -88,23 +88,23 @@ US-505 或任何 native host。Electron / Tauri 集成只消费已冻结的共�
 
 **本父故事不直接持有 AC。** 关闭只看子故事：
 
-| 契约范围                                               | 去向                                                               |
-| ------------------------------------------------------ | ------------------------------------------------------------------ |
-| 版本协商、ACK 所有权、session、授权和 ID 预算          | [US-904b1](./US-904b1-devtools-v2-control-plane.md)                |
-| provider、binary transfer、snapshot、错误与 conformance | [US-904b2](./US-904b2-devtools-provider-data-plane.md)             |
-| 私有共享面板、Chrome relay、v1 bridge 与浏览器回归     | [US-904b3](./US-904b3-devtools-shared-panel-chrome-migration.md)   |
+| 契约范围                                                | 去向                                                             |
+| ------------------------------------------------------- | ---------------------------------------------------------------- |
+| 版本协商、ACK 所有权、session、授权和 ID 预算           | [US-904b1](./US-904b1-devtools-v2-control-plane.md)              |
+| provider、binary transfer、snapshot、错误与 conformance | [US-904b2](./US-904b2-devtools-provider-data-plane.md)           |
+| 私有共享面板、Chrome relay、v1 bridge 与浏览器回归      | [US-904b3](./US-904b3-devtools-shared-panel-chrome-migration.md) |
 
 ## 实现所有权
 
-| 路径                                      | 所有者   | 边界                                                         |
-| ----------------------------------------- | -------- | ------------------------------------------------------------ |
-| `packages/rxdb-devtools/src/`             | US-904b1 | v2 控制面、版本、session、授权、ID 预算与生命周期             |
-| `packages/rxdb-devtools/src/provider/`    | US-904b2 | descriptor、transfer、snapshot、错误映射与数据面状态机        |
-| `packages/rxdb-devtools/src/testing/`     | b1 / b2  | 控制面与数据面共享 conformance；不复制平台 fixture            |
-| `packages/rxdb-devtools-panel/`           | US-904b3 | `private: true` 的 Angular library、面板和 transport token    |
-| `apps/rxdb-devtools-extension/src/`       | US-904b3 | Chrome adapter、四段 relay、迁移桥和浏览器回归                |
-| `nx.json`                                 | US-904b3 | 将私有 panel project 排除出 `release.projects`                |
-| `requirements/api-baseline/`              | 改动方   | 只有新增公开入口时同步                                       |
+| 路径                                   | 所有者   | 边界                                                       |
+| -------------------------------------- | -------- | ---------------------------------------------------------- |
+| `packages/rxdb-devtools/src/`          | US-904b1 | v2 控制面、版本、session、授权、ID 预算与生命周期          |
+| `packages/rxdb-devtools/src/provider/` | US-904b2 | descriptor、transfer、snapshot、错误映射与数据面状态机     |
+| `packages/rxdb-devtools/src/testing/`  | b1 / b2  | 控制面与数据面共享 conformance；不复制平台 fixture         |
+| `packages/rxdb-devtools-panel/`        | US-904b3 | `private: true` 的 Angular library、面板和 transport token |
+| `apps/rxdb-devtools-extension/src/`    | US-904b3 | Chrome adapter、四段 relay、迁移桥和浏览器回归             |
+| `nx.json`                              | US-904b3 | 将私有 panel project 排除出 `release.projects`             |
+| `requirements/api-baseline/`           | 改动方   | 只有新增公开入口时同步                                     |
 
 `packages/rxdb-devtools-panel/` 必须是正式 workspace dependency，但 package manifest 必须设置
 `private: true`，Nx tag 不得使用 `npm:public`，并从 fixed release group 的 `packages/*` 匹配中显式排除。
