@@ -17,7 +17,7 @@ import {
   type DesktopFileBridge
 } from './desktop-file-bridge';
 import { createDesktopHostBridge, type DesktopHostBridge } from './desktop-host-bridge';
-import { DESKTOP_DATABASE_DIRECTORY } from './desktop-sqlite-bridge';
+import { createDatabasePathResolver } from './desktop-sqlite-bridge';
 
 /** 窗口替身：只要 `isDestroyed`/`send` 两个方法，与真实 `WebContents` 结构相容。 */
 const createTarget = (): { isDestroyed(): boolean; send(): void } => ({
@@ -143,7 +143,7 @@ describe('createDesktopHostBridge', () => {
 
   beforeEach(() => {
     bridge = createDesktopHostBridge({
-      resolveDatabasePath: name => join(workspace, DESKTOP_DATABASE_DIRECTORY, name),
+      resolveDatabasePath: createDatabasePathResolver(workspace),
       resolveStorageRoot: createStorageRootResolver(workspace)
     });
   });

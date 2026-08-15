@@ -28,6 +28,7 @@ import {
   type DesktopHostFileLockMode,
   type DesktopHostFileLockReleaseRequest,
   type DesktopHostFilePathRequest,
+  type DesktopHostFileReadResult,
   type DesktopHostFileRequest,
   type DesktopHostFileResponse,
   type DesktopHostFileStat,
@@ -365,7 +366,10 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
     relativePath: string,
     offset: number,
     length: number
-  ): Promise<{ chunk: Uint8Array; eof: boolean }> => {
+    // 用协议类型而不是就地写一个结构一致的字面量类型：协议把 `chunk` 收窄到
+    // `Uint8Array<ArrayBuffer>`，就地写的那份会默认宽成 `ArrayBufferLike`，
+    // 于是这里读到的帧到了应答位置反而装不进协议。
+  ): Promise<DesktopHostFileReadResult> => {
     const target = absolutePath(relativePath);
     let handle: FileHandle | undefined;
     try {
