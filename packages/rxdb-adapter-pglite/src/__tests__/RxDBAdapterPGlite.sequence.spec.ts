@@ -37,11 +37,11 @@ describe('RxDBAdapterPGlite - Sequence Management', () => {
   });
 
   describe('getRxDBChangeSequence', () => {
-    it('应该返回初始序列值 1（序列最小值）', async () => {
+    it('应该返回非负的初始序列值（空序列为 0）', async () => {
       const sequence = await adapter.getRxDBChangeSequence();
-      // PostgreSQL 序列最小值为 1
+      // 契约：返回值 = 最后已用 id；序列未被消费时为 0（与 SQLite 端一致）
       expect(typeof sequence).toBe('number');
-      expect(sequence).toBeGreaterThanOrEqual(1);
+      expect(sequence).toBeGreaterThanOrEqual(0);
     });
 
     it('应该在创建变更记录后返回正确的序列值', async () => {
