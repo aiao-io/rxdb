@@ -11,7 +11,7 @@ tags: [tooling, devtools, desktop, tauri, transport, security]
 
 <!--
 INVEST 检查清单:
-- [x] Independent: 只直接依赖 US-904b3（传递包含 b1/b2），不等待 US-210 / US-505
+- [x] Independent: 只直接依赖 US-904b4（传递包含 b1/b2/b3），不等待 US-210 / US-505
 - [x] Negotiable: Tauri event 或窄 command 可按身份校验与取消证据冻结
 - [x] Valuable: 提前关闭窗口、跨 WebView transport 和 release 权限隔离风险
 - [x] Estimable: bootstrap、身份/授权、fixture、transfer、VFS 映射与生命周期边界已固定
@@ -27,13 +27,14 @@ INVEST 检查清单:
 ## 作为/我想要/以便
 
 **作为** Tauri DevTools 的实现者
-**我想要** 在真实应用内以受限窗口承载 US-904b3 的共享面板和 v2 transport
+**我想要** 在真实应用内以受限窗口承载 US-904b3 的共享面板和 US-904b4 已验证的 v2 transport
 **以便** 不等待原生存储后端，也能验证窗口安全边界、生命周期和发布产物隔离
 
 ## 启动门禁
 
-- 只直接依赖 [US-904b3](./US-904b3-devtools-shared-panel-chrome-migration.md)；其传递依赖的
-  US-904b1/b2 必须已经 `Done`。
+- 只直接依赖 [US-904b4](./US-904b4-devtools-chrome-v2-migration.md)；其传递依赖的
+  US-904b1/b2/b3 必须已经 `Done`。等到 b4 而不是 b3，是为了让 Chrome 先做完 v2 的真实平台验证，
+  Tauri 不承担「第一个发现协议缺陷」的成本。
 - 可与 US-210、US-505 并行；不得反向定义它们的数据库、事务或文件 host 契约。
 
 ## 范围边界
@@ -100,5 +101,6 @@ INVEST 检查清单:
 - [US-904b DevTools 共享 v2 协议与面板契约](./US-904b-devtools-shared-protocol-panel.md)
 - [US-904b1 DevTools v2 控制面](./US-904b1-devtools-v2-control-plane.md)
 - [US-904b2 DevTools provider 数据面](./US-904b2-devtools-provider-data-plane.md)
-- [US-904b3 DevTools 共享面板与 Chrome 迁移](./US-904b3-devtools-shared-panel-chrome-migration.md)
+- [US-904b3 DevTools 共享面板 library 抽取](./US-904b3-devtools-shared-panel-library.md)
+- [US-904b4 DevTools Chrome v2 迁移](./US-904b4-devtools-chrome-v2-migration.md)
 - [US-210 Tauri 连接应用作用域 SQLite 文件](../adapter/US-210-tauri-sqlite-local-database.md)

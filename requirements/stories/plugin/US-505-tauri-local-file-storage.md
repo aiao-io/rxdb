@@ -102,6 +102,39 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 > AC#7 复用 US-210 / US-905a 先开工者建立的 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵；打包 smoke
 > test 成本高，只在 release 分支或 tag 触发，不进 PR 门禁。
 
+## 阻塞状态（2026-08-15，随 US-504 交付复核）
+
+US-504 已交付，本故事**仍停在 Backlog，未开工**，11 条 AC 全部 ⬜。
+
+### 阻塞原因
+
+[US-210](../adapter/US-210-tauri-sqlite-local-database.md) 尚未交付：AC#2–#8 已通过（Rust
+宿主跑 585 用例共享套件），但 AC#1 的跨进程重启 e2e 与 AC#9 的三平台打包矩阵仍未完成，
+`apps/dev-rxdb-tauri` 当前跑的是 wa-sqlite，`apps/dev-rxdb-tauri-e2e` 不存在。
+
+这不是「先做一半」的问题，而是**本故事的代码在 US-210 交付前不可达**：AC#11 要求
+`sync.local` 不是 Tauri 桌面 SQLite adapter 就以可判别错误拒绝启用。没有该 adapter，
+这个判别的通过分支永远为假 —— Tauri 文件后端合法开启的路径不存在，任何实现代码都是
+死代码，违反「无 fallback / 删死代码」铁律。
+
+### 解阻条件
+
+US-210 交付（至少 AC#1 跨进程重启 e2e 通过、Tauri 侧 adapter 包可被 `sync.local` 配置），
+且 `apps/dev-rxdb-tauri` 已切到该 adapter。此后本故事可直接进 plan 阶段——只剩「传输
+二选一」这一个真正待决项。
+
+### 从 US-504 继承的三条决策（不再是开放项）
+
+| 决策         | US-504 的结论                                                                                                       | 对本故事的影响                                                                                             |
+| ------------ | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 文件系统接缝 | 窄接口 `StorageFilesystem`（`packages/rxdb-plugin-storage/src/filesystem/storage-filesystem.ts`），经插件选项 `filesystem` 注入 | Tauri 侧只实现该接口 + 传输层，服务层的回滚 journal / 临时文件提交 / 快照补偿一行都不用重写                |
+| 锁归宿       | 临界区**下沉 host 侧**：后端提供 `lockBackend`，桌面后端构造期即断言其存在，不存在静默单进程化路径                   | AC#9 改由 Rust 侧串行化承担；WKWebView / WebKitGTK 的 Web Locks 可用性**不再是风险项**，「锁归宿」笔记中的验证任务随之作废 |
+| 错误判别载体 | 新增 `StorageBackendError { code: StorageBackendErrorCode; detail? }`，现有 9 个错误类原样不动                       | AC#4 / #8 / #11 的「稳定可判别错误」即该类；Rust 侧错误码按 US-504 的 `BACKEND_ERROR_CODES` 同型映射，未知码一律落 `backend_internal_error`，不裸抛 |
+
+另有一条 US-504 已定、本故事需照抄的行为分歧：物理名编码后单个路径分段超过 255 UTF-8
+字节即抛 `StorageBackendError('name_too_long')`，不做哈希截断（截断不可逆，会打断
+`copyDirectory` / `listEntries` 的物理名 → 逻辑路径回推）。
+
 ## 技术笔记
 
 ### 传输二选一（plan 阶段冻结）
@@ -119,14 +152,16 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 最小集成测试确认其异步形状、rename 原子替换与 fsync 的跨平台语义，与 capability
 子目录粒度、错误形状一并作为二选一的判据。
 
-### 锁归宿
+### 锁归宿（US-504 已冻结，本节留作背景）
 
-`PathLockManager` 的 Web Locks 在 WKWebView / WebKitGTK 上的可用性与跨 webview 窗口语义
-必须单独验证；尤其注意（2026-08-15 二次评审）它在 `navigator.locks` 缺失时**静默降级为
-进程内队列**（`path-lock.ts`），多窗口下等于没有互斥且不报错 —— 验证结论若为不可用，
-必须走可判别错误或 Rust 侧串行化，不得吃下这个静默回退（无 fallback 铁律，AC#9 钉住）。
-US-504 若把临界区下沉 host 侧，本故事跟随该决策（Rust 侧串行化），不做 Tauri 特有的
-第三种方案。
+~~`PathLockManager` 的 Web Locks 在 WKWebView / WebKitGTK 上的可用性与跨 webview 窗口语义
+必须单独验证~~ —— US-504 已把临界区**下沉 host 侧**（后端提供 `lockBackend`，桌面后端
+构造期断言其存在），本故事跟随该决策走 Rust 侧串行化，Web Locks 在三家 webview 上的
+可用性因此不再影响 AC#9，无需验证。
+
+原顾虑保留作背景：`PathLockManager` 在 `navigator.locks` 缺失时会**静默降级为进程内
+队列**（`path-lock.ts`），多窗口下等于没有互斥且不报错。锁下沉后桌面路径不再触及该
+分支 —— 但它对**浏览器**路径依然成立，是 `path-lock.ts` 自身的待清理项，不属本故事。
 
 ### 依赖
 

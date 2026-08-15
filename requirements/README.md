@@ -110,11 +110,12 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 4. US-208 与 US-210 均排在 US-207 之后，复用其抽出的 host 契约。US-208 的两种事务 host 方案（IPC 事务 ID 协议 /
    adapter 完整托管在主进程）、US-210 的两种事务方案（配置单连接池 / Rust command 持有事务）都必须先通过同一套事务与事件测试再冻结选择。
 5. DevTools 共享链与 Electron 可行性门禁并行：
-   **US-904a ∥ (US-904b1 → US-904b2 → US-904b3)**；只有 Electron 集成要求
-   **US-904a(supported) + US-904b3 + US-207 + US-504 → US-904c**。Tauri 窗口按
-   **US-904b3 → US-905a** 推进，原生链为 **US-210 → US-505**，最终集成为
-   **US-904b2 + US-905a + US-505 → US-905b**，不等待 Electron MV3/US-904c。US-904、
-   US-904b、US-905 本体是共享契约文档，不直接交付。
+   **US-904a ∥ (((US-904b1 → US-904b2) ∥ US-904b3) → US-904b4)**；只有 Electron 集成要求
+   **US-904a(supported) + US-904b4 + US-207 + US-504 → US-904c**。Tauri 窗口按
+   **US-904b4 → US-905a** 推进，原生链为 **US-210 → US-505**，最终集成为
+   **US-904b2 + US-905a + US-210 + US-505 → US-905b**，不等待 Electron MV3/US-904c。US-904、
+   US-904b、US-905 本体是共享契约文档，不直接交付。US-904b3 是行为中性的面板抽取，
+   不依赖协议冻结，可与 US-904b1/b2 并行开工。
 6. US-305 必须排在 US-304 之后：其跨 realm 提交校验建立在 writer lease / epoch fencing 之上，不允许另起一套协调协议。
    epic-006 内部顺序为 **US-305 → US-306 → US-307 → US-308**，后一个依赖前一个的存储布局；US-308 额外要求 US-304 已 Done。
 7. US-703 应复用现有搜索公开 API 和跨框架 parity fixture，不为 PGlite 增加 SQLite 专属 fallback。
