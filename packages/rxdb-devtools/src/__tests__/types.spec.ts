@@ -60,6 +60,41 @@ describe('types', () => {
       expect(isDevToolsMessage({ ...command('PING', null), tabId: 1 })).toBe(true);
     });
 
+    it('MUST accept a valid optional session', () => {
+      expect(isDevToolsMessage({ ...command('PING', null), session: 'tok-1' })).toBe(true);
+      expect(isDevToolsMessage({ ...command('INSPECT_DB', null), session: 'tok-1' })).toBe(true);
+    });
+
+    it.each(['', '   ', 1, null])('MUST reject invalid session %#', session => {
+      expect(isDevToolsMessage({ ...command('PING', null), session })).toBe(false);
+    });
+
+    it('MUST accept v2 handshake payload with sessionToken', () => {
+      expect(
+        isDevToolsMessage({
+          source: RXDB_DEVTOOLS_MESSAGE,
+          direction: 'page-to-devtools',
+          type: 'HANDSHAKE',
+          payload: { protocolVersion: 2, capabilities: 'full', sessionToken: 'abc' },
+          timestamp: 1,
+          sequence: 0
+        })
+      ).toBe(true);
+    });
+
+    it('MUST still accept v1 handshake payload without sessionToken', () => {
+      expect(
+        isDevToolsMessage({
+          source: RXDB_DEVTOOLS_MESSAGE,
+          direction: 'page-to-devtools',
+          type: 'HANDSHAKE',
+          payload: { protocolVersion: 1, capabilities: 'full' },
+          timestamp: 1,
+          sequence: 0
+        })
+      ).toBe(true);
+    });
+
     it.each([
       ['HANDSHAKE', null],
       ['DB_INFO', null],

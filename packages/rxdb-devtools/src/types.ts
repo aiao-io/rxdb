@@ -28,7 +28,10 @@ export type MessageType =
 export type DisconnectStatus = 'graceful' | 'forced' | 'failed' | 'not-connected';
 
 /** DevTools 页面协议版本，随不兼容的 envelope/载荷变更递增。 */
-export const DEVTOOLS_PROTOCOL_VERSION = 1 as const;
+export const DEVTOOLS_PROTOCOL_VERSION = 2 as const;
+
+/** 仍被入站守卫接受的旧握手协议版本（无 `sessionToken`）。 */
+const LEGACY_HANDSHAKE_PROTOCOL_VERSION = 1 as const;
 
 /**
  * 页面授予 DevTools 的命令能力档位。
@@ -51,17 +54,20 @@ export const DEVTOOLS_PROTOCOL_VERSION = 1 as const;
 export type DevToolsCapability = 'none' | 'readonly' | 'full';
 
 /**
- * 握手载荷：协议版本 + 本页授予的能力档。
+ * 握手载荷：协议版本 + 本页授予的能力档 + 会话令牌。
  *
  * @remarks
- * 旧版本连接器发送 `payload: null`，{@link isDevToolsMessage} 仍然接受，
- * DevTools 侧读不到 capabilities 时按 `'full'` 理解（历史行为）。
+ * 旧版本连接器发送 `payload: null` 或 v1 `{ protocolVersion, capabilities }`，
+ * {@link isDevToolsMessage} 仍然接受。DevTools 侧读不到 capabilities 时按
+ * `'full'` 理解（历史行为）；读不到 `sessionToken` 时不得签发数据/变更命令。
  */
 export interface HandshakePayload {
   /** 页面侧实现的协议版本。 */
   protocolVersion: typeof DEVTOOLS_PROTOCOL_VERSION;
   /** 本页授予 DevTools 的能力档。 */
   capabilities: DevToolsCapability;
+  /** 本页为本会话生成的不可预测令牌；后续数据/变更命令必须回显。 */
+  sessionToken: string;
 }
 
 /** 基础消息结构。 */
@@ -73,6 +79,7 @@ export interface DevToolsMessage<T = unknown> {
   timestamp: number;
   sequence: number;
   tabId?: number;
+  session?: string;
 }
 
 /**
@@ -402,8 +409,18 @@ function isDevToolsCapability(value: unknown): value is DevToolsCapability {
 function isHandshakePayload(value: unknown): value is HandshakePayload {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ['protocolVersion', 'capabilities']) &&
+    hasExactKeys(value, ['protocolVersion', 'capabilities', 'sessionToken']) &&
     value['protocolVersion'] === DEVTOOLS_PROTOCOL_VERSION &&
+    isDevToolsCapability(value['capabilities']) &&
+    isNonEmptyString(value['sessionToken'])
+  );
+}
+
+function isLegacyHandshakePayload(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ['protocolVersion', 'capabilities']) &&
+    value['protocolVersion'] === LEGACY_HANDSHAKE_PROTOCOL_VERSION &&
     isDevToolsCapability(value['capabilities'])
   );
 }
@@ -456,11 +473,12 @@ function isEntityDataPayload(value: unknown): value is EntityDataPayload {
 }
 
 function hasValidEnvelope(value: Record<string, unknown>): boolean {
-  if (!hasExactKeys(value, REQUIRED_ENVELOPE_KEYS, ['tabId'])) return false;
+  if (!hasExactKeys(value, REQUIRED_ENVELOPE_KEYS, ['tabId', 'session'])) return false;
   if (value['source'] !== RXDB_DEVTOOLS_MESSAGE) return false;
   if (value['direction'] !== 'page-to-devtools' && value['direction'] !== 'devtools-to-page') return false;
   if (!isNonNegativeSafeInteger(value['timestamp']) || !isNonNegativeSafeInteger(value['sequence'])) return false;
   if (Object.hasOwn(value, 'tabId') && !isPositiveSafeInteger(value['tabId'])) return false;
+  if (Object.hasOwn(value, 'session') && !isNonEmptyString(value['session'])) return false;
   return true;
 }
 
@@ -472,8 +490,11 @@ export function isDevToolsMessage(data: unknown): data is AnyDevToolsMessage {
   const payload = data['payload'];
   switch (data['type']) {
     case 'HANDSHAKE':
-      // `null` 是弃用窗口内的旧连接器形态，新连接器发 HandshakePayload
-      return direction === 'page-to-devtools' && (payload === null || isHandshakePayload(payload));
+      // `null` / v1 是弃用窗口内的旧连接器形态，新连接器发带 sessionToken 的 HandshakePayload
+      return (
+        direction === 'page-to-devtools' &&
+        (payload === null || isHandshakePayload(payload) || isLegacyHandshakePayload(payload))
+      );
     case 'HANDSHAKE_ACK':
     case 'CLEAR':
     case 'PING':

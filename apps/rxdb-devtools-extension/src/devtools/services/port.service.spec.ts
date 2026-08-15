@@ -122,6 +122,31 @@ describe('PortService', () => {
       2,
       expect.objectContaining({ type: 'SWITCH_BRANCH', payload: 'feature', sequence: 2 })
     );
+    expect(harnesses[0]?.postMessage.mock.calls[1]?.[0]).not.toHaveProperty('session');
+
+    service.ngOnDestroy();
+  });
+
+  it('attaches the handshake session token only to session-required commands', () => {
+    const service = new PortService();
+    service.activateTab();
+    harnesses[0]?.emitMessage({
+      source: RXDB_DEVTOOLS_MESSAGE,
+      direction: 'page-to-devtools',
+      type: 'HANDSHAKE',
+      payload: { protocolVersion: 2, capabilities: 'full', sessionToken: 'tok-1' },
+      timestamp: 1,
+      sequence: 0
+    });
+    harnesses[0]?.postMessage.mockClear();
+
+    service.sendMessage('PING');
+    service.sendMessage('SWITCH_BRANCH', 'feature');
+
+    expect(harnesses[0]?.postMessage.mock.calls[0]?.[0]).not.toHaveProperty('session');
+    expect(harnesses[0]?.postMessage.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({ type: 'SWITCH_BRANCH', payload: 'feature', session: 'tok-1' })
+    );
 
     service.ngOnDestroy();
   });
