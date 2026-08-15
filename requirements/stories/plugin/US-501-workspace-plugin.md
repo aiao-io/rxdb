@@ -75,4 +75,3 @@ tags: [plugin, workspace, draft-recovery]
 
 - [包 README](../../../packages/rxdb-plugin-workspace/README.md)
 - [网站文档: Workspace 插件](../../../website/docs/plugins/rxdb-plugin-workspace/README.md)
-- [代码评审](../../../packages/rxdb-plugin-workspace/REVIEW.md)
