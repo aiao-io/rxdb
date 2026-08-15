@@ -1,5 +1,5 @@
 import { emptyFunction } from '@aiao/utils';
-import { Observable, of } from 'rxjs';
+import { firstValueFrom, map, Observable, of, switchMap, throwError, timer } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES, type EntityType } from '../../entity/entity.interface.js';
 import query_merge_create_cache_impl from '../../query/merge_create.js';
@@ -153,6 +153,20 @@ describe('query_merge_create_cache', () => {
 
         query_merge_create_cache(task, [createMockEntityEvent({ id: 'run-1', status: 'queued', name: 'world' })]);
       });
+    });
+
+    it('首个权威结果落地前不得用创建事件抢答', async () => {
+      const task = createMockQueryTask({
+        type: 'get',
+        options: 'run-1',
+        // 权威读要说「查无此实体」，但要等一个宏任务——这正是级联删除后再 get 的那段窗口
+        runner: () => timer(0).pipe(switchMap(() => throwError(() => new Error('Entity with id run-1 not found'))))
+      });
+
+      const settled = firstValueFrom(task.result$);
+      query_merge_create_cache(task, [createMockEntityEvent({ id: 'run-1', status: 'queued' })]);
+
+      await expect(settled).rejects.toThrow('Entity with id run-1 not found');
     });
   });
 
@@ -1696,6 +1710,10 @@ describe('query_merge_create_cache', () => {
       const refresh = vi.spyOn(task, 'refresh').mockImplementation(emptyFunction);
       const next = vi.spyOn(task, 'next');
 
+      // 必须先订阅：没有首个权威结果的任务一律交回 SQL 重算，那条更靠前的守卫会把这里要验的
+      // 陈旧判定整个盖掉，测试就变成了空转。
+      task.result$.subscribe();
+
       query_merge_create_cache(task, [createMockEntityEvent({ id: 'stale-1', updatedAt: STALE })]);
 
       expect(refresh).toHaveBeenCalledTimes(1);
@@ -1714,6 +1732,8 @@ describe('query_merge_create_cache', () => {
       const refresh = vi.spyOn(task, 'refresh').mockImplementation(emptyFunction);
       const next = vi.spyOn(task, 'next');
 
+      task.result$.subscribe();
+
       query_merge_create_cache(task, [createMockEntityEvent({ id: 'fresh-1', updatedAt: NEWER })]);
 
       expect(refresh).not.toHaveBeenCalled();
@@ -1729,10 +1749,37 @@ describe('query_merge_create_cache', () => {
       const refresh = vi.spyOn(task, 'refresh').mockImplementation(emptyFunction);
       const next = vi.spyOn(task, 'next');
 
+      task.result$.subscribe();
+
       query_merge_create_cache(task, [createMockEntityEvent({ id: 'uncached-1', updatedAt: STALE })]);
 
       expect(refresh).not.toHaveBeenCalled();
       expect(next).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // 变更事件按批次投递，一条 CREATE 事件可能在实体被级联删除、或分支切走之后才送达。
+  // 任务还没拿到首个权威结果时，增量合并没有可增量的基线，直接把事件负载当成第一个结果
+  // 就是凭空捏造一次查询答案——活查询会因此多出一行当下并不存在的数据。
+  describe('权威基线落地前的 CREATE 事件', () => {
+    it('不得成为首个结果，而应交回 SQL 重算', async () => {
+      let runs = 0;
+      const task = createMockQueryTask({
+        type: 'findAll',
+        options: { where: { combinator: 'and', rules: [] } },
+        runner: () => {
+          runs++;
+          // 权威读要说「一行都没有」，但要等一个宏任务——事件正是在这段窗口里到达的
+          return timer(0).pipe(map(() => [] as TestEntityData[]));
+        }
+      });
+
+      const first = firstValueFrom(task.result$);
+      query_merge_create_cache(task, [createMockEntityEvent({ id: 'ghost-1', title: 'ghost' })]);
+
+      await expect(first).resolves.toEqual([]);
+      // 重跑而不是静默丢弃：事件也可能新于 runner 的快照，丢掉会让这次写入永远缺席
+      expect(runs).toBe(2);
     });
   });
 

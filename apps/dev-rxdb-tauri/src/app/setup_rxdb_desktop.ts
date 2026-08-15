@@ -18,7 +18,7 @@ let rxdb: RxDB | null | undefined;
  * @remarks
  * US-210：与 `setup_rxdb_wa-sqlite.ts` 同构 —— 相同实体集、相同 `dbName`、同样纯本地。
  * 唯一的差别是数据落在哪：wa-sqlite 落在 WebView 的 OPFS/IDB 里，这里落在
- * `<AppData>/rxdb-data/test_6.sqlite3`，一个可备份、可迁移的真实文件（AC#1）。
+ * `<AppData>/io.aiao.dev-rxdb-tauri/rxdb-data/test_6@0_1.sqlite3`，一个可备份、可迁移的真实文件（AC#1）。
  *
  * 选路由 `setup_rxdb.ts` 的 `selectLocalBackend` 负责，本模块只在 Tauri 窗口里被调用。
  *
