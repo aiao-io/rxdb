@@ -1,17 +1,17 @@
 import {
-    ENTITY_LOCAL_CREATE_EVENT,
-    ENTITY_LOCAL_REMOVE_EVENT,
-    ENTITY_LOCAL_UPDATE_EVENT,
-    getEntityMetadata,
-    RxDB,
-    RxDBMigration,
-    RxDBPluginBase,
-    type EntityLocalCreatedEvent,
-    type EntityLocalRemovedEvent,
-    type EntityLocalUpdatedEvent,
-    type IRepository,
-    type IRxDBPlugin,
-    type Plugin
+  ENTITY_LOCAL_CREATE_EVENT,
+  ENTITY_LOCAL_REMOVE_EVENT,
+  ENTITY_LOCAL_UPDATE_EVENT,
+  getEntityMetadata,
+  RxDB,
+  RxDBMigration,
+  RxDBPluginBase,
+  type EntityLocalCreatedEvent,
+  type EntityLocalRemovedEvent,
+  type EntityLocalUpdatedEvent,
+  type IRepository,
+  type IRxDBPlugin,
+  type Plugin
 } from '@aiao/rxdb';
 import { filter, firstValueFrom, from, ignoreElements, isObservable, merge, type Observable } from 'rxjs';
 
@@ -28,11 +28,11 @@ import { resolveSearchScope } from './core/scope-resolver.js';
 import { createSearchEngine, type SearchEngine } from './core/search-engine.js';
 import { createSearchHandle, type PerformSearch, type SearchPage } from './core/search-handle.js';
 import {
-    SearchError,
-    type SearchHandle,
-    type SearchOptions,
-    type SearchPluginOptions,
-    type SearchResult
+  SearchError,
+  type SearchHandle,
+  type SearchOptions,
+  type SearchPluginOptions,
+  type SearchResult
 } from './types.js';
 
 type EntityChangeEvent = EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent;
@@ -353,9 +353,7 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     // 主表由 RxDB 在 connect() 流程中创建。不能 await connect() 本身：
     // connect() 会在 connected$ 之后再 await 插件 install，互相等待会死锁。
     const connecting = this.rxdb.connect(localAdapterName);
-    await firstValueFrom(
-      merge(this.rxdb.connected$.pipe(filter(Boolean)), from(connecting).pipe(ignoreElements()))
-    );
+    await firstValueFrom(merge(this.rxdb.connected$.pipe(filter(Boolean)), from(connecting).pipe(ignoreElements())));
 
     const adapter = await firstValueFrom(this.rxdb.localAdapter$);
     if (!adapter.rawQuery) {

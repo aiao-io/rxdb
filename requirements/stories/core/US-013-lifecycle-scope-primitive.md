@@ -211,7 +211,7 @@ cordis 的 `Fiber.effect()`（`packages/core/src/fiber.ts`）是同类原语的�
 - pending 的 `acquireAsync` 单独记一份等待集合：`dispose()` 必须同时等它们（AC#7），
   且每个 pending 项持有自己的 `AbortController`（AC#14）
 - `label` 只用于诊断与错误消息，不参与身份，允许重复；缺省值 `'anonymous'`
-- 估算：实现 ~180 行，测试 ~340 行（18 条 AC 每条至少一个用例，AC#7 / AC#8 / AC#15 各需 2~3 个）
+- 估算：实现 ~180 行，测试 ~~340 行（18 条 AC 每条至少一个用例，AC#7 / AC#8 / AC#15 各需 2~~3 个）
 
 ## 实现文件
 

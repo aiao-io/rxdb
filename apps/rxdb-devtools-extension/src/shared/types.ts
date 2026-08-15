@@ -5,9 +5,9 @@
 
 export { RXDB_DEVTOOLS_MESSAGE } from '@aiao/rxdb-devtools';
 import {
-    isDevToolsMessage as isCoreDevToolsMessage,
-    RXDB_DEVTOOLS_MESSAGE,
-    type MessageType as CoreMessageType
+  isDevToolsMessage as isCoreDevToolsMessage,
+  RXDB_DEVTOOLS_MESSAGE,
+  type MessageType as CoreMessageType
 } from '@aiao/rxdb-devtools';
 
 /**
@@ -91,7 +91,10 @@ function hasValidEnvelope(value: Record<string, unknown>): boolean {
   if (value['direction'] !== 'page-to-devtools' && value['direction'] !== 'devtools-to-page') return false;
   if (!isNonNegativeSafeInteger(value['timestamp']) || !isNonNegativeSafeInteger(value['sequence'])) return false;
   if (Object.hasOwn(value, 'tabId') && !isPositiveSafeInteger(value['tabId'])) return false;
-  if (Object.hasOwn(value, 'session') && (typeof value['session'] !== 'string' || value['session'].trim().length === 0)) {
+  if (
+    Object.hasOwn(value, 'session') &&
+    (typeof value['session'] !== 'string' || value['session'].trim().length === 0)
+  ) {
     return false;
   }
   return true;

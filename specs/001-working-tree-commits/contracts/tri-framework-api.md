@@ -18,15 +18,15 @@
 
 ## 2. `useWorkingTree()` 返回键（v1 基线键集）
 
-| 键 | 语义 | 容器差异 |
-| --- | --- | --- |
-| `status` | 当前持久状态；含 `clean`/`modified`/`staged`/`restoring`/`conflicted` | Angular `Signal` / React 快照 / Vue `Ref` |
-| `diff` | HEAD↔工作树 与 HEAD↔缓存区 的当前差异 | 同上 |
-| `refresh` | 主动读取最新 revision | 函数，三端同签名 |
-| `stage` / `unstage` | 返回**实际依赖闭包** | 函数 |
-| `clearIndex` / `discardWorkingTree` | 明确范围的清理命令 | 函数 |
-| `commit` | `message` + `CommitOptions` 提交 | 函数 |
-| `commandState` | 当前命令的 `idle`/`loading`/`success`/`error` 与类型化错误 | 复用既有 [`useAction`](../../../packages/rxdb-vue/src/use-action.ts) 形态 |
+| 键                                  | 语义                                                                  | 容器差异                                                                  |
+| ----------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `status`                            | 当前持久状态；含 `clean`/`modified`/`staged`/`restoring`/`conflicted` | Angular `Signal` / React 快照 / Vue `Ref`                                 |
+| `diff`                              | HEAD↔工作树 与 HEAD↔缓存区 的当前差异                                 | 同上                                                                      |
+| `refresh`                           | 主动读取最新 revision                                                 | 函数，三端同签名                                                          |
+| `stage` / `unstage`                 | 返回**实际依赖闭包**                                                  | 函数                                                                      |
+| `clearIndex` / `discardWorkingTree` | 明确范围的清理命令                                                    | 函数                                                                      |
+| `commit`                            | `message` + `CommitOptions` 提交                                      | 函数                                                                      |
+| `commandState`                      | 当前命令的 `idle`/`loading`/`success`/`error` 与类型化错误            | 复用既有 [`useAction`](../../../packages/rxdb-vue/src/use-action.ts) 形态 |
 
 **容器差异（Signal / state / Ref）是唯一允许的差异**。导出名、参数、返回键、错误 code、empty/loading/success/error 判定与恢复建议必须逐项对称。**不得让某一端额外拥有业务能力。**
 
@@ -36,10 +36,10 @@
 
 上表是 **v1 基线键集**，不是最终全集。后续故事按同一协议向 `useWorkingTree()` **追加**键，不得另立入口：
 
-| 追加者 | 新增键 | 约束 |
-| --- | --- | --- |
-| US5（恢复会话） | `restore`、`restoreState` | 复用同一 `commandState` 形状与错误 code 结构；`status` 的 `restoring` 值在本故事已存在，**不得改语义** |
-| US6（分支隔离与冲突） | 分支切换与冲突提示入口 | 同上；**不得**在某一端把切换做成组件内部逻辑 |
+| 追加者                | 新增键                    | 约束                                                                                                   |
+| --------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------ |
+| US5（恢复会话）       | `restore`、`restoreState` | 复用同一 `commandState` 形状与错误 code 结构；`status` 的 `restoring` 值在本故事已存在，**不得改语义** |
+| US6（分支隔离与冲突） | 分支切换与冲突提示入口    | 同上；**不得**在某一端把切换做成组件内部逻辑                                                           |
 
 追加 MUST 满足：三端同名同签名同返回键、共享类型仍从 `@aiao/rxdb` 透传、`tri-framework-check` 与 a11y 门禁对新键同样生效（**缺一端整故事失败**）。追加者 MUST NOT 重定义已冻结键的语义；确需变更时改本契约并同步三端。
 
@@ -59,13 +59,13 @@
 
 ## 5. 可访问性契约（WCAG 2.1 AA）
 
-| 项 | 要求 |
-| --- | --- |
-| 键盘可达 | 浏览 diff、选择单元、stage、clearIndex、commit 全流程仅键盘可完成 |
-| 焦点 | 焦点顺序符合视觉顺序；焦点可见 |
-| 名称与角色 | 每个可操作元素有可被辅助技术读出的名称 |
-| 状态公告 | `loading` / `success` / `error` / `empty` 状态变化被公告 |
-| empty 真实性 | 查询无 diff 时公告 `empty` 与 `clean`；命令**不得伪造** `empty` |
+| 项             | 要求                                                               |
+| -------------- | ------------------------------------------------------------------ |
+| 键盘可达       | 浏览 diff、选择单元、stage、clearIndex、commit 全流程仅键盘可完成  |
+| 焦点           | 焦点顺序符合视觉顺序；焦点可见                                     |
+| 名称与角色     | 每个可操作元素有可被辅助技术读出的名称                             |
+| 状态公告       | `loading` / `success` / `error` / `empty` 状态变化被公告           |
+| empty 真实性   | 查询无 diff 时公告 `empty` 与 `clean`；命令**不得伪造** `empty`    |
 | 长文本与窄视口 | 最长实体名与错误文本在窄视口下不溢出、不遮挡、不改变固定工具栏尺寸 |
 
 ---

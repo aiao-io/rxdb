@@ -212,14 +212,14 @@ WorkingTreeRestoreSessionRef {
 
 **恢复不移动 HEAD、不产生提交**（FR-042）。它把目标数据物化为**普通、未暂存**的工作树条目并建立会话；用户显式暂存完整依赖闭包后，走普通 `commit()` 生成以**原 HEAD 为父节点**的新提交，会话在**同一事务内**转为 `committed`。未暂存时提交仍按空缓存区规则拒绝。
 
-| 判据 | 要求 | 溯源 |
-| --- | --- | --- |
-| 前置 clean | 工作树非空或缓存区非空 → 拒绝；「仅已暂存」**不得**被误报为 clean | FR-043 |
-| 兼容性预检 | 先冻结确定性物化路径，再校验**该路径上每个** change set 的 schema 指纹与编解码版本；拒绝时返回**首个**不兼容提交 id、重放方向与双方 manifest，且不解码/写入后续 change set | FR-044 |
-| 无操作 | 完整差异为空 → `{ kind: 'noop' }`：不创建会话、不产生条目、不递增任何 revision | FR-046 |
-| CAS 非对称 | **初次恢复**失败 → 全量回滚且**不创建会话**；**已存在会话**的提交/丢弃失败 → 保留会话与工作树并派生 `conflicted` | FR-045 |
-| revision 范围 | 初次恢复要求缓存区为空、**只**递增 `workingTreeRevision`；丢弃仅在用户后来暂存过时才清空缓存区并递增 `indexRevision` | FR-045 |
-| 目标合法性 | 不存在 / 不可达 / 属于其他数据库 → 拒绝且工作树不变 | FR-044 |
+| 判据          | 要求                                                                                                                                                                       | 溯源   |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 前置 clean    | 工作树非空或缓存区非空 → 拒绝；「仅已暂存」**不得**被误报为 clean                                                                                                          | FR-043 |
+| 兼容性预检    | 先冻结确定性物化路径，再校验**该路径上每个** change set 的 schema 指纹与编解码版本；拒绝时返回**首个**不兼容提交 id、重放方向与双方 manifest，且不解码/写入后续 change set | FR-044 |
+| 无操作        | 完整差异为空 → `{ kind: 'noop' }`：不创建会话、不产生条目、不递增任何 revision                                                                                             | FR-046 |
+| CAS 非对称    | **初次恢复**失败 → 全量回滚且**不创建会话**；**已存在会话**的提交/丢弃失败 → 保留会话与工作树并派生 `conflicted`                                                           | FR-045 |
+| revision 范围 | 初次恢复要求缓存区为空、**只**递增 `workingTreeRevision`；丢弃仅在用户后来暂存过时才清空缓存区并递增 `indexRevision`                                                       | FR-045 |
+| 目标合法性    | 不存在 / 不可达 / 属于其他数据库 → 拒绝且工作树不变                                                                                                                        | FR-044 |
 
 ```
 rxdb.workingTree.discardRestore(sessionId: string, expect: WorkingTreeRevisions): Promise<void>
@@ -270,9 +270,9 @@ WorkingTreeSwitchBranchOptions {
 
 既有分支入口在启用提交后追加以下语义，签名不变：
 
-| 入口 | 追加语义 |
-| --- | --- |
-| `createBranch` | 从源分支 HEAD 派生 `branch_baseline` 根节点并写入 `rxdb_commit_branch_ref`；新分支工作树与缓存区**为空**，不继承源分支的未提交内容 |
+| 入口           | 追加语义                                                                                                                               |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `createBranch` | 从源分支 HEAD 派生 `branch_baseline` 根节点并写入 `rxdb_commit_branch_ref`；新分支工作树与缓存区**为空**，不继承源分支的未提交内容     |
 | `removeBranch` | 删除该分支的工作树条目、缓存区条目、状态行与 `rxdb_commit_branch_ref` 行；**MUST NOT** 删除提交行或 change set——其他分支可能仍可达它们 |
 
 删除当前激活分支 → 拒绝；`removeBranch` 后遗留孤儿工作树/缓存区条目数量 MUST 为 **0**。
@@ -295,26 +295,26 @@ CommitConflict {
 
 统一基类 `WorkingTreeCommandError`（含 `code`、`operation`、`subject`、`recovery`），子类按 code 分派：
 
-| code | 触发条件 | 恢复建议方向 |
-| --- | --- | --- |
-| `commit_capability_mismatch` | 写入方不支持该库的系统 schema 版本 | 升级写入方 |
-| `ambiguous_active_branch` | 检测到多个激活分支 | 人工裁定后重跑迁移 |
-| `stale_active_branch` | `activationRevision` 不匹配 | 刷新后重试 |
-| `idempotency_key_reused` | 同键不同内容 | 换 `operationId` |
-| `commit_message_empty` | 消息 trim 后为空 | 补写消息 |
-| `commit_author_required` | 作者标识缺失或纯空白 | 由调用方提供作者标识 |
-| `commit_operation_id_required` | 幂等键缺失 | 提供 `operationId` |
-| `commit_empty` | 缓存区为空 | 先暂存 |
-| `commit_metadata_reserved_key` | `metadata` 命中保留键 | 改用非保留键 |
-| `index_dependency_cycle` | 无法形成合法闭包 | 扩大选择范围或整事务暂存 |
-| `mixed_versioned_cache_transaction` | 同事务混写查询缓存与版本化实体 | 拆分事务 |
-| `incompatible_schema` | 恢复路径上某个提交的 schema/编解码版本与当前不兼容 | 先迁移；错误体携带**首个**不兼容提交 id 与双方 manifest |
-| `working_tree_not_clean` | `requireClean: true` 且不满足 §8.2 | 按**真实成因**分派：提交 / 丢弃 / `clearIndex()` / `discardRestore()` |
-| `branch_not_materialized` | 目标分支未物化 | 先物化分支 |
-| `commit_graph_corrupted` | DAG 不变式被破坏 | 进入只读诊断 |
-| `corrupted_read_only` | **该分支**检出损坏后降级 | 导出诊断信息；切到其他健康分支 |
-| `writer_fenced` | 迁移 epoch 落后 | 重连 |
-| `benchmark_environment_mismatch` | runner profile 与参考不符 | 换固定 runner |
+| code                                | 触发条件                                           | 恢复建议方向                                                          |
+| ----------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------- |
+| `commit_capability_mismatch`        | 写入方不支持该库的系统 schema 版本                 | 升级写入方                                                            |
+| `ambiguous_active_branch`           | 检测到多个激活分支                                 | 人工裁定后重跑迁移                                                    |
+| `stale_active_branch`               | `activationRevision` 不匹配                        | 刷新后重试                                                            |
+| `idempotency_key_reused`            | 同键不同内容                                       | 换 `operationId`                                                      |
+| `commit_message_empty`              | 消息 trim 后为空                                   | 补写消息                                                              |
+| `commit_author_required`            | 作者标识缺失或纯空白                               | 由调用方提供作者标识                                                  |
+| `commit_operation_id_required`      | 幂等键缺失                                         | 提供 `operationId`                                                    |
+| `commit_empty`                      | 缓存区为空                                         | 先暂存                                                                |
+| `commit_metadata_reserved_key`      | `metadata` 命中保留键                              | 改用非保留键                                                          |
+| `index_dependency_cycle`            | 无法形成合法闭包                                   | 扩大选择范围或整事务暂存                                              |
+| `mixed_versioned_cache_transaction` | 同事务混写查询缓存与版本化实体                     | 拆分事务                                                              |
+| `incompatible_schema`               | 恢复路径上某个提交的 schema/编解码版本与当前不兼容 | 先迁移；错误体携带**首个**不兼容提交 id 与双方 manifest               |
+| `working_tree_not_clean`            | `requireClean: true` 且不满足 §8.2                 | 按**真实成因**分派：提交 / 丢弃 / `clearIndex()` / `discardRestore()` |
+| `branch_not_materialized`           | 目标分支未物化                                     | 先物化分支                                                            |
+| `commit_graph_corrupted`            | DAG 不变式被破坏                                   | 进入只读诊断                                                          |
+| `corrupted_read_only`               | **该分支**检出损坏后降级                           | 导出诊断信息；切到其他健康分支                                        |
+| `writer_fenced`                     | 迁移 epoch 落后                                    | 重连                                                                  |
+| `benchmark_environment_mismatch`    | runner profile 与参考不符                          | 换固定 runner                                                         |
 
 所有错误 MUST 携带**操作、对象、恢复建议**三要素（FR-039、US-306c AC3）。
 

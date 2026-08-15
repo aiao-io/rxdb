@@ -32,18 +32,18 @@
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 ### I. Code Quality — PASS（含 1 项需记录的例外，见 Complexity Tracking）
 
-| 要求 | 本特性如何满足 |
-| --- | --- |
-| TS strict / 零 ESLint 警告 / 禁 `any` | 新增类型全部具名导出；跨适配器的动态行数据用 `unknown` + 类型守卫，沿用 `system/writer-lease.ts` 既有的快照校验写法 |
-| 嵌套 ≤ 3 层 | 依赖闭包计算、拓扑排序、分页物化三处最深；均按「每层一个具名纯函数」拆分，复用既有 `version/topological-sort.ts` 与 `version/dependency-graph.ts` |
-| 单一职责 | 6 个新子模块各自单一职责（见 Project Structure），不把状态机塞进 `VersionManager` |
-| 禁 fallback 兜底 | 损坏走 fail-closed 只读态（FR-014）、环境不匹配走 `benchmark_environment_mismatch`（FR-041）、未登记意图直接拒绝（FR-022）——全部是显式拒绝而非降级 |
-| `packages/*` 导出补齐 TSDoc | 所有新导出进 `requirements/api-baseline/*.json`，由 `pnpm audit:api-surface` 与 `scripts/audit/package-api-docs.mjs` 双重把关（FR-058） |
-| API 破坏需文档化 | 有破坏风险的是两处**内部契约**：`TransactionExecutor.mergeChanges` 的 `disableTriggers: boolean` → 意图枚举，以及 `SwitchBranchOptions` 追加必填 `intent`。两者均未出现在 `requirements/api-baseline/rxdb.json` 的公开导出中，按 Complexity Tracking 记录。公开侧只有加法（新增导出 + `EntityIndexMetadataOptions.where` 可选字段） |
+| 要求                                  | 本特性如何满足                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TS strict / 零 ESLint 警告 / 禁 `any` | 新增类型全部具名导出；跨适配器的动态行数据用 `unknown` + 类型守卫，沿用 `system/writer-lease.ts` 既有的快照校验写法                                                                                                                                                                                                                 |
+| 嵌套 ≤ 3 层                           | 依赖闭包计算、拓扑排序、分页物化三处最深；均按「每层一个具名纯函数」拆分，复用既有 `version/topological-sort.ts` 与 `version/dependency-graph.ts`                                                                                                                                                                                   |
+| 单一职责                              | 6 个新子模块各自单一职责（见 Project Structure），不把状态机塞进 `VersionManager`                                                                                                                                                                                                                                                   |
+| 禁 fallback 兜底                      | 损坏走 fail-closed 只读态（FR-014）、环境不匹配走 `benchmark_environment_mismatch`（FR-041）、未登记意图直接拒绝（FR-022）——全部是显式拒绝而非降级                                                                                                                                                                                  |
+| `packages/*` 导出补齐 TSDoc           | 所有新导出进 `requirements/api-baseline/*.json`，由 `pnpm audit:api-surface` 与 `scripts/audit/package-api-docs.mjs` 双重把关（FR-058）                                                                                                                                                                                             |
+| API 破坏需文档化                      | 有破坏风险的是两处**内部契约**：`TransactionExecutor.mergeChanges` 的 `disableTriggers: boolean` → 意图枚举，以及 `SwitchBranchOptions` 追加必填 `intent`。两者均未出现在 `requirements/api-baseline/rxdb.json` 的公开导出中，按 Complexity Tracking 记录。公开侧只有加法（新增导出 + `EntityIndexMetadataOptions.where` 可选字段） |
 
 ### II. Testing Standards — PASS
 
@@ -195,33 +195,33 @@ requirements/
 
 > 仅记录 Constitution Check 中需要论证的例外。
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-| --- | --- | --- |
+| Violation                                                                                                                                                                                                                            | Why Needed                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Simpler Alternative Rejected Because                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **两个**适配器级写入口都要携带意图枚举：`TransactionExecutor.mergeChanges` 第三形参由 `disableTriggers: boolean` 改为 `RxDBWriteIntent`，且既有内部类型 `SwitchBranchOptions` 追加必填 `intent` 字段（均为内部契约变更，非公开导出） | FR-022 要求受信登记键为「文件 + 符号 + 意图」。**Phase 1 实测**：undo/redo 与切换分支物化走的都是 `adapter.switchBranch`（`HistoryManager.ts:1472` / `VersionManager.ts:769`），二者对工作树的语义正好相反，而 `SwitchBranchOptions` 当前连一个可区分的形参都没有；`mergeChanges` 侧的布尔参数同样区分不开（合并的逐条与 squash 路径都传 `false`，过期清理与 pull 都传 `true`）。全集共 11 个受信调用点，按**函数**或按**布尔**放行都会把某一类静默吞掉——这正是 FR-019 要防的缺陷 | 「保留 boolean，另加旁路事件表补记」被否：先改业务数据再补记事件无法保证同一事务原子性（FR-018），且崩溃窗口内会产生 spec Edge Cases 明令禁止的半状态。「按调用栈自动推断意图」被否：不可静态校验，无法支撑 SC-004 的「未登记调用点数量为 0」扫描 |
-| 既有 `EntityIndexMetadataOptions` 新增可选谓词字段 `where?: { property; equals }`（公开类型的向后兼容扩展） | FR-012 要求「至多一个激活分支」是**数据库约束**而非代码纪律，落成 `CREATE UNIQUE INDEX ... ON rxdb_branch (activated) WHERE activated = TRUE`；现有索引元数据只支持 `properties` / `normalized` / `unique`，无法表达部分索引 | 「常量表达式索引 `((TRUE))`」被否：SQLite 不支持，跨 6 后端直接破。「可空 `activationSlot` 列 + 普通 UNIQUE」被否：`activated ⟺ activationSlot` 的双向一致性无 CHECK 约束可表达，退化为会漂移的第二份状态 |
-| restore p95 ≤ 1 s 超出宪法 IV 的「DB operation < 100 ms」默认预算 | 一次恢复需要在单个事务内重放最多 100 个变更单元并整体物化，属批量操作而非单次 DB 操作；按单次预算切分会迫使跨事务分批，直接违反 FR-045 的原子性与 spec Edge Cases 的「不留部分物化中间态」 | 「分批提交 + 中间态可见」被否：与 FR-045 冲突。「限制恢复规模到 10 单元内以塞进 100 ms」被否：使能力对真实历史无用，且 fixture 规模（每提交 100 单元）由 epic 冻结 |
+| 既有 `EntityIndexMetadataOptions` 新增可选谓词字段 `where?: { property; equals }`（公开类型的向后兼容扩展）                                                                                                                          | FR-012 要求「至多一个激活分支」是**数据库约束**而非代码纪律，落成 `CREATE UNIQUE INDEX ... ON rxdb_branch (activated) WHERE activated = TRUE`；现有索引元数据只支持 `properties` / `normalized` / `unique`，无法表达部分索引                                                                                                                                                                                                                                                      | 「常量表达式索引 `((TRUE))`」被否：SQLite 不支持，跨 6 后端直接破。「可空 `activationSlot` 列 + 普通 UNIQUE」被否：`activated ⟺ activationSlot` 的双向一致性无 CHECK 约束可表达，退化为会漂移的第二份状态                                         |
+| restore p95 ≤ 1 s 超出宪法 IV 的「DB operation < 100 ms」默认预算                                                                                                                                                                    | 一次恢复需要在单个事务内重放最多 100 个变更单元并整体物化，属批量操作而非单次 DB 操作；按单次预算切分会迫使跨事务分批，直接违反 FR-045 的原子性与 spec Edge Cases 的「不留部分物化中间态」                                                                                                                                                                                                                                                                                        | 「分批提交 + 中间态可见」被否：与 FR-045 冲突。「限制恢复规模到 10 单元内以塞进 100 ms」被否：使能力对真实历史无用，且 fixture 规模（每提交 100 单元）由 epic 冻结                                                                                |
 
 ## 交付顺序与依赖
 
 固定顺序 **US1 → US2 → US3 → US4 →（US5 ∥ US6）**：
 
-| 阶段 | 故事 | 阻塞原因 |
-| --- | --- | --- |
-| 0 | 前置：新的非迁移 bridge tag（更新 `requirements/migration-release.json`） | FR-016；`v0.0.25` 经 squash 后已不是候选发布提交的祖先，`pnpm check-migration-release-gate` 会失败，挡住任何系统 schema 迁移 |
-| 1 | US1 提交图与 HEAD | 后续全部能力需要稳定的版本锚点 |
-| 2 | US2 工作树捕获 | 状态机需要真相源；意图枚举改造在此落地 |
-| 3 | US3 缓存区与提交状态机 | US5 的冲突状态、US6 的 clean 判据都从这里派生 |
-| 4 | US4 三框架操作面 | 冻结 `useWorkingTree()` 扩展点协议 |
-| 5 | US5 恢复会话 ∥ US6 分支隔离 | 两者互相独立；各自的**核心持久层**可与阶段 4 并行开工，但**三端入口与 benchmark 追加**必须排在 US4 之后 |
+| 阶段 | 故事                                                                      | 阻塞原因                                                                                                                     |
+| ---- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 0    | 前置：新的非迁移 bridge tag（更新 `requirements/migration-release.json`） | FR-016；`v0.0.25` 经 squash 后已不是候选发布提交的祖先，`pnpm check-migration-release-gate` 会失败，挡住任何系统 schema 迁移 |
+| 1    | US1 提交图与 HEAD                                                         | 后续全部能力需要稳定的版本锚点                                                                                               |
+| 2    | US2 工作树捕获                                                            | 状态机需要真相源；意图枚举改造在此落地                                                                                       |
+| 3    | US3 缓存区与提交状态机                                                    | US5 的冲突状态、US6 的 clean 判据都从这里派生                                                                                |
+| 4    | US4 三框架操作面                                                          | 冻结 `useWorkingTree()` 扩展点协议                                                                                           |
+| 5    | US5 恢复会话 ∥ US6 分支隔离                                               | 两者互相独立；各自的**核心持久层**可与阶段 4 并行开工，但**三端入口与 benchmark 追加**必须排在 US4 之后                      |
 
 ## Constitution Re-Check（Phase 1 设计后）
 
-| 原则 | 结论 | 设计阶段新增/变化 |
-| --- | --- | --- |
-| I. Code Quality | **PASS** | 例外从 1 项增为 **2** 项（新增 `EntityIndexMetadataOptions.where`），均已在 Complexity Tracking 论证。两项都是**加法**：新增可选字段、新增枚举形参，既有声明与调用点行为不变。`packages/rxdb` 的每个新公开导出在 [contracts/core-api.md](./contracts/core-api.md) 中逐个列出并要求 TSDoc |
-| II. Testing Standards | **PASS** | [contracts/conformance-suites.md](./contracts/conformance-suites.md) 把 **13 条不变式**落成 2 套具名套件共 **60 组**断言（C 10 / G 17 / S 16 / R 9 / B 8），6 个后端逐一执行。确定性手法已冻结（无 `setTimeout`、崩溃用注入错误 + 重连、并发用同进程双实例同库）。覆盖率阈值未放宽 |
-| III. UX Consistency | **PASS** | [contracts/tri-framework-api.md](./contracts/tri-framework-api.md) 冻结 v1 基线键集 + 扩展点协议 + 静态对称门禁（缺失导出数 = 0）。"Never break userspace" 由「未启用 = 零新表零行为差异」保证 |
-| IV. Performance | **PASS** | [contracts/benchmark-report.md](./contracts/benchmark-report.md) 冻结 fixture、报告结构、`runnerProfileHash` 与三态门禁。restore ≤ 1 s 仍是**唯一**性能例外；包体积 < 50 KB gz 需在 US4 收尾实测 |
+| 原则                  | 结论     | 设计阶段新增/变化                                                                                                                                                                                                                                                                        |
+| --------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| I. Code Quality       | **PASS** | 例外从 1 项增为 **2** 项（新增 `EntityIndexMetadataOptions.where`），均已在 Complexity Tracking 论证。两项都是**加法**：新增可选字段、新增枚举形参，既有声明与调用点行为不变。`packages/rxdb` 的每个新公开导出在 [contracts/core-api.md](./contracts/core-api.md) 中逐个列出并要求 TSDoc |
+| II. Testing Standards | **PASS** | [contracts/conformance-suites.md](./contracts/conformance-suites.md) 把 **13 条不变式**落成 2 套具名套件共 **60 组**断言（C 10 / G 17 / S 16 / R 9 / B 8），6 个后端逐一执行。确定性手法已冻结（无 `setTimeout`、崩溃用注入错误 + 重连、并发用同进程双实例同库）。覆盖率阈值未放宽       |
+| III. UX Consistency   | **PASS** | [contracts/tri-framework-api.md](./contracts/tri-framework-api.md) 冻结 v1 基线键集 + 扩展点协议 + 静态对称门禁（缺失导出数 = 0）。"Never break userspace" 由「未启用 = 零新表零行为差异」保证                                                                                           |
+| IV. Performance       | **PASS** | [contracts/benchmark-report.md](./contracts/benchmark-report.md) 冻结 fixture、报告结构、`runnerProfileHash` 与三态门禁。restore ≤ 1 s 仍是**唯一**性能例外；包体积 < 50 KB gz 需在 US4 收尾实测                                                                                         |
 
 **Phase 1 GATE: PASS**。设计过程未引入任何未经论证的违规；唯一的实质变化是把写入意图的覆盖面从 `mergeChanges` 一处扩到 `mergeChanges` + `switchBranch` 两处——这是**修正一个会导致 FR-019 失效的漏洞**，不是范围膨胀。
 

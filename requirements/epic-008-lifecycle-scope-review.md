@@ -34,18 +34,18 @@
 
 ## 与既有建议对照
 
-| 建议 | 当前计划 | 结论 |
-| --- | --- | --- |
-| 生命周期资源树 | US-013 完整覆盖逆序、异步、嵌套、幂等和错误隔离 | 已覆盖 |
-| 插件 `install(scope)` | US-014 覆盖旧契约兼容、四插件迁移和 graph 泄漏 | 已覆盖，但兼容判定需修正 |
-| 插件依赖与按需装卸 | US-015 覆盖依赖纪元、拓扑、环检测和重装 | 已覆盖，但 readiness 定义错误 |
-| 不引入 Proxy/DI/HMR | Epic 非目标已明确 | 已覆盖 |
-| RxDB 根生命周期收敛 | Epic 已记录，但没有 Story 认领 | 需要补 Story |
-| 三框架生命周期所有权 | Epic 已记录，但没有 Story 认领 | 需要补 Story |
-| DevTools 作用域可视化 | 明确后置 | 边界正确 |
-| Provider 决定 Repository | Epic 明确排除“词法多实例隔离” | 应在 Epic 008 外新增 High Story |
-| 不可变 session/operation context | 未覆盖 | 应在 Epic 008 外另立 Story |
-| 插件配置运行时校验 | 未覆盖 | 可后置，不应塞入 US-015 |
+| 建议                             | 当前计划                                        | 结论                            |
+| -------------------------------- | ----------------------------------------------- | ------------------------------- |
+| 生命周期资源树                   | US-013 完整覆盖逆序、异步、嵌套、幂等和错误隔离 | 已覆盖                          |
+| 插件 `install(scope)`            | US-014 覆盖旧契约兼容、四插件迁移和 graph 泄漏  | 已覆盖，但兼容判定需修正        |
+| 插件依赖与按需装卸               | US-015 覆盖依赖纪元、拓扑、环检测和重装         | 已覆盖，但 readiness 定义错误   |
+| 不引入 Proxy/DI/HMR              | Epic 非目标已明确                               | 已覆盖                          |
+| RxDB 根生命周期收敛              | Epic 已记录，但没有 Story 认领                  | 需要补 Story                    |
+| 三框架生命周期所有权             | Epic 已记录，但没有 Story 认领                  | 需要补 Story                    |
+| DevTools 作用域可视化            | 明确后置                                        | 边界正确                        |
+| Provider 决定 Repository         | Epic 明确排除“词法多实例隔离”                   | 应在 Epic 008 外新增 High Story |
+| 不可变 session/operation context | 未覆盖                                          | 应在 Epic 008 外另立 Story      |
+| 插件配置运行时校验               | 未覆盖                                          | 可后置，不应塞入 US-015         |
 
 ## 必须修正
 
@@ -94,7 +94,7 @@ type AdapterResourceState =
 目标类型为：
 
 ```ts
-'localAdapter' | 'remoteAdapter' | Uncapitalize<string>
+'localAdapter' | 'remoteAdapter' | Uncapitalize<string>;
 ```
 
 `Uncapitalize<string>` 无法表达“已安装插件名集合”，也不能让任意字符串在编译期失败。它还允许插件名与 `localAdapter` / `remoteAdapter` 内置资源重名。
@@ -106,10 +106,7 @@ type AdapterResourceState =
 使用封闭类别而非伪造封闭值集合：
 
 ```ts
-export type RxDBPluginDependency =
-  | 'adapter:local'
-  | 'adapter:remote'
-  | `plugin:${string}`;
+export type RxDBPluginDependency = 'adapter:local' | 'adapter:remote' | `plugin:${string}`;
 ```
 
 这样可以做到：

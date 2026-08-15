@@ -4,7 +4,12 @@ import { DevToolsConnector, getDevToolsConnector, resetDevToolsConnector } from 
 import { RXDB_DEVTOOLS_MESSAGE } from '../types.js';
 import type { MockRxDBShape } from './fixtures/mock-rxdb.js';
 import { createMockRxDB, listenerCount, MOCK_DB_NAME, MOCK_VERSION } from './fixtures/mock-rxdb.js';
-import { createPostMessageSpy, resetSessionFixture, withoutSession, wrapMessageListener } from './fixtures/session-command.js';
+import {
+  createPostMessageSpy,
+  resetSessionFixture,
+  withoutSession,
+  wrapMessageListener
+} from './fixtures/session-command.js';
 
 type GetEntityMetadata = NonNullable<Parameters<DevToolsConnector['init']>[1]>;
 

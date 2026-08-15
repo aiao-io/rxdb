@@ -8,14 +8,14 @@
 
 ## 1. v1 后端矩阵
 
-| # | 后端 | 包 | SQL 方言 | 运行环境 |
-| --- | --- | --- | --- | --- |
-| 1 | PGlite | `rxdb-adapter-pglite` | PostgreSQL | 浏览器 + Node |
-| 2 | wa-sqlite | `rxdb-adapter-wa-sqlite` | SQLite | 浏览器（OPFS/IDB） |
-| 3 | sqlite-wasm | `rxdb-adapter-sqlite-wasm` | SQLite | 浏览器 |
-| 4 | sqlite（官方 wasm） | `rxdb-adapter-sqlite` | SQLite | 浏览器 |
-| 5 | sqliteai | `rxdb-adapter-sqliteai` | SQLite | 浏览器 |
-| 6 | Electron 桌面 | `rxdb-adapter-electron`（`node:sqlite`） | SQLite | Electron 主进程 |
+| #   | 后端                | 包                                       | SQL 方言   | 运行环境           |
+| --- | ------------------- | ---------------------------------------- | ---------- | ------------------ |
+| 1   | PGlite              | `rxdb-adapter-pglite`                    | PostgreSQL | 浏览器 + Node      |
+| 2   | wa-sqlite           | `rxdb-adapter-wa-sqlite`                 | SQLite     | 浏览器（OPFS/IDB） |
+| 3   | sqlite-wasm         | `rxdb-adapter-sqlite-wasm`               | SQLite     | 浏览器             |
+| 4   | sqlite（官方 wasm） | `rxdb-adapter-sqlite`                    | SQLite     | 浏览器             |
+| 5   | sqliteai            | `rxdb-adapter-sqliteai`                  | SQLite     | 浏览器             |
+| 6   | Electron 桌面       | `rxdb-adapter-electron`（`node:sqlite`） | SQLite     | Electron 主进程    |
 
 **任一后端缺席 = 整个故事未完成**（SC-003）。2–6 共享 [`rxdb-adapter-sqlite-core`](../../../packages/rxdb-adapter-sqlite-core/) 的 SQL 实现，因此 SQL 层实际只有**两处**实现：PGlite 与 sqlite-core。
 
@@ -25,12 +25,12 @@
 
 ## 2. 适配器必须新增的原语
 
-| 原语 | 语义 | 已有？ |
-| --- | --- | --- |
-| 条件更新回传影响行数 | `UPDATE ... WHERE rev = :expected` 返回 `rowsAffected`，`0` 即 CAS 冲突 | ✅ 已有并有一致性套件覆盖 |
-| 部分唯一索引 | `CREATE UNIQUE INDEX ... WHERE <col> = <const>` | ❌ 需新增（[R-003](../research.md#r-003-head-的唯一真相源与激活分支基数约束)） |
-| 写入意图透传 | `mergeChanges` / `switchBranch` 携带 `RxDBWriteIntent` 并在同事务内落工作树条目 | ❌ 需新增（[R-006](../research.md#r-006-写入意图枚举与受信登记)） |
-| 系统 schema v4 建表 | **11 张新表**（[data-model §8](../data-model.md)），仅在启用时创建 | ❌ 需新增 |
+| 原语                 | 语义                                                                            | 已有？                                                                         |
+| -------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| 条件更新回传影响行数 | `UPDATE ... WHERE rev = :expected` 返回 `rowsAffected`，`0` 即 CAS 冲突         | ✅ 已有并有一致性套件覆盖                                                      |
+| 部分唯一索引         | `CREATE UNIQUE INDEX ... WHERE <col> = <const>`                                 | ❌ 需新增（[R-003](../research.md#r-003-head-的唯一真相源与激活分支基数约束)） |
+| 写入意图透传         | `mergeChanges` / `switchBranch` 携带 `RxDBWriteIntent` 并在同事务内落工作树条目 | ❌ 需新增（[R-006](../research.md#r-006-写入意图枚举与受信登记)）              |
+| 系统 schema v4 建表  | **11 张新表**（[data-model §8](../data-model.md)），仅在启用时创建              | ❌ 需新增                                                                      |
 
 除此之外**不引入任何新的跨方言原语**——这是把跨后端一致性风险压到最低的硬约束。
 
@@ -61,29 +61,29 @@ EntityIndexMetadataOptions {
 
 ### 4.1 经 `mergeChanges`（本地重载）
 
-| # | 文件 | 语义 | intent | 产生工作树条目 |
-| --- | --- | --- | --- | --- |
-| 1 | `transaction/*TransactionExecutor` 常规提交路径 | 普通 CRUD | `local` | ✅ |
-| 2 | [`version/merge-branch.ts`](../../../packages/rxdb/src/version/merge-branch.ts#L127) 逐条路径 | 合并分支 | `merge` | ✅ |
-| 3 | [`version/merge-branch.ts`](../../../packages/rxdb/src/version/merge-branch.ts#L151) squash 路径 | 合并分支 | `merge` | ✅ |
-| 4 | [`version/pull-repository.ts`](../../../packages/rxdb/src/version/pull-repository.ts#L629) | 远端拉取应用 | `remoteSync` | ✅ |
-| 5 | [`version/pull-batch.ts`](../../../packages/rxdb/src/version/pull-batch.ts#L380) | 远端拉取分批应用 | `remoteSync` | ✅ |
-| 6 | [`version/cleanup-expired.ts`](../../../packages/rxdb/src/version/cleanup-expired.ts#L201) | 过期数据清理 | `expiredCleanup` | ✅ |
+| #   | 文件                                                                                             | 语义             | intent           | 产生工作树条目 |
+| --- | ------------------------------------------------------------------------------------------------ | ---------------- | ---------------- | -------------- |
+| 1   | `transaction/*TransactionExecutor` 常规提交路径                                                  | 普通 CRUD        | `local`          | ✅             |
+| 2   | [`version/merge-branch.ts`](../../../packages/rxdb/src/version/merge-branch.ts#L127) 逐条路径    | 合并分支         | `merge`          | ✅             |
+| 3   | [`version/merge-branch.ts`](../../../packages/rxdb/src/version/merge-branch.ts#L151) squash 路径 | 合并分支         | `merge`          | ✅             |
+| 4   | [`version/pull-repository.ts`](../../../packages/rxdb/src/version/pull-repository.ts#L629)       | 远端拉取应用     | `remoteSync`     | ✅             |
+| 5   | [`version/pull-batch.ts`](../../../packages/rxdb/src/version/pull-batch.ts#L380)                 | 远端拉取分批应用 | `remoteSync`     | ✅             |
+| 6   | [`version/cleanup-expired.ts`](../../../packages/rxdb/src/version/cleanup-expired.ts#L201)       | 过期数据清理     | `expiredCleanup` | ✅             |
 
 ### 4.2 经 `switchBranch`
 
-| # | 文件 | 语义 | intent | 产生工作树条目 |
-| --- | --- | --- | --- | --- |
-| 7 | [`version/HistoryManager.ts`](../../../packages/rxdb/src/version/HistoryManager.ts#L1472) | undo / redo 应用 | `undoRedo` | ✅ |
-| 8 | [`version/VersionManager.ts`](../../../packages/rxdb/src/version/VersionManager.ts#L936) | 单条 change 恢复 | `restore` | ✅ |
-| 9 | [`version/VersionManager.ts`](../../../packages/rxdb/src/version/VersionManager.ts#L769) | 切换分支物化 | `branchMaterialization` | ❌ |
-| 10 | [`version/HistoryManager.ts`](../../../packages/rxdb/src/version/HistoryManager.ts#L948) | 仅写 `redoInvalidatedAt` 元数据 | `metadataOnly` | ❌ |
+| #   | 文件                                                                                      | 语义                            | intent                  | 产生工作树条目 |
+| --- | ----------------------------------------------------------------------------------------- | ------------------------------- | ----------------------- | -------------- |
+| 7   | [`version/HistoryManager.ts`](../../../packages/rxdb/src/version/HistoryManager.ts#L1472) | undo / redo 应用                | `undoRedo`              | ✅             |
+| 8   | [`version/VersionManager.ts`](../../../packages/rxdb/src/version/VersionManager.ts#L936)  | 单条 change 恢复                | `restore`               | ✅             |
+| 9   | [`version/VersionManager.ts`](../../../packages/rxdb/src/version/VersionManager.ts#L769)  | 切换分支物化                    | `branchMaterialization` | ❌             |
+| 10  | [`version/HistoryManager.ts`](../../../packages/rxdb/src/version/HistoryManager.ts#L948)  | 仅写 `redoInvalidatedAt` 元数据 | `metadataOnly`          | ❌             |
 
 ### 4.3 新增
 
-| # | 文件 | 语义 | intent | 产生工作树条目 |
-| --- | --- | --- | --- | --- |
-| 11 | `commit/enable-migration.ts` | 启用迁移内的基线物化 | `baselineMaterialization` | ❌ |
+| #   | 文件                         | 语义                 | intent                    | 产生工作树条目 |
+| --- | ---------------------------- | -------------------- | ------------------------- | -------------- |
+| 11  | `commit/enable-migration.ts` | 启用迁移内的基线物化 | `baselineMaterialization` | ❌             |
 
 ### 4.4 明确不在范围内
 

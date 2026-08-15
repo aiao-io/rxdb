@@ -16,16 +16,16 @@
 
 ### 术语（唯一口径）
 
-| 概念               | 中文     | 命名前缀       | 归属                                 |
-| ------------------ | -------- | -------------- | ------------------------------------ |
-| Git working tree   | 工作树   | `WorkingTree*` | 本特性新契约                         |
-| index / staging    | 缓存区   | `Index*`       | 本特性新契约                         |
-| commit / commit 图 | 提交     | `Commit*`      | 本特性新契约                         |
-| NEW 草稿本地缓存   | 草稿缓存 | `Workspace*`   | 既有 Workspace 插件（**已占用**）    |
+| 概念               | 中文     | 命名前缀       | 归属                              |
+| ------------------ | -------- | -------------- | --------------------------------- |
+| Git working tree   | 工作树   | `WorkingTree*` | 本特性新契约                      |
+| index / staging    | 缓存区   | `Index*`       | 本特性新契约                      |
+| commit / commit 图 | 提交     | `Commit*`      | 本特性新契约                      |
+| NEW 草稿本地缓存   | 草稿缓存 | `Workspace*`   | 既有 Workspace 插件（**已占用**） |
 
 `Workspace` 前缀已被既有草稿缓存占用。本特性**不得**新增该前缀的公开导出；文档正文中"工作区"一词只指草稿缓存。恢复会话使用 `WorkingTreeRestore*`，分支引用与并发冲突使用 `CommitBranch*` / `CommitConflict*`，切换分支的新选项固定为 `WorkingTreeSwitchBranchOptions`（不复用既有适配器层的 `SwitchBranchOptions`）。
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - 提交后刷新仍可查询（Priority: P1）
 
@@ -184,7 +184,7 @@ Angular、React、Vue 开发者使用同名、同签名、同返回键的工作�
 - **加密**：所有新增持久化位置（提交、变更集、工作树、缓存区、恢复会话）都必须保持信封落盘；错误、摘要、日志与基准报告不得带明文。
 - **性能环境不匹配**：运行环境指纹与参考不一致时返回环境不匹配，**不得伪装成性能回归，也不得放宽为通过**。
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -283,7 +283,7 @@ Angular、React、Vue 开发者使用同名、同签名、同返回键的工作�
 - **CommitBranchMaterializationAttempt** — 仅元数据远端分支首次物化的内部持久暂存：尝试标识、目标身份、冻结终止水位、范围 manifest、已提交分页水位、内容指纹、生命周期；成功切换后原子删除。
 - **CommitOptions** — 普通提交选项：必填作者标识与操作标识、可选扩展审计元数据；保留审计字段（父节点、时间、作者、操作标识、manifest、变更数量）MUST NOT 被元数据覆盖。
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 
@@ -336,14 +336,14 @@ Angular、React、Vue 开发者使用同名、同签名、同返回键的工作�
 
 ## Traceability
 
-| 本规格用户故事 | 来源故事                        | 主要 FR 段落   |
-| -------------- | ------------------------------- | -------------- |
-| US1            | US-305 提交图与 HEAD 持久化     | A（FR-001–017）|
-| US2            | US-306a 工作树写入捕获与持久化  | B（FR-018–025）|
-| US3            | US-306b 缓存区与提交状态机      | C（FR-026–036）|
-| US4            | US-306c 三框架交互面与性能门禁  | D（FR-037–041）|
-| US5            | US-307 历史恢复会话             | E（FR-042–047）|
-| US6            | US-308 分支隔离与跨 realm 冲突  | F（FR-048–053）|
-| 全部           | epic-006 横切约束与发布门禁     | G（FR-054–058）|
+| 本规格用户故事 | 来源故事                       | 主要 FR 段落    |
+| -------------- | ------------------------------ | --------------- |
+| US1            | US-305 提交图与 HEAD 持久化    | A（FR-001–017） |
+| US2            | US-306a 工作树写入捕获与持久化 | B（FR-018–025） |
+| US3            | US-306b 缓存区与提交状态机     | C（FR-026–036） |
+| US4            | US-306c 三框架交互面与性能门禁 | D（FR-037–041） |
+| US5            | US-307 历史恢复会话            | E（FR-042–047） |
+| US6            | US-308 分支隔离与跨 realm 冲突 | F（FR-048–053） |
+| 全部           | epic-006 横切约束与发布门禁    | G（FR-054–058） |
 
 来源文档：[epic-006 本地工作树与提交历史](../../requirements/epics/epic-006-working-tree-commits.md)（术语表、状态模型、写入口语义矩阵、revision 校验矩阵、发布门禁的唯一真相源）。本规格是它的规格化承接，不改变其任何口径；两者冲突时以 epic 为准并同步修订本文件。

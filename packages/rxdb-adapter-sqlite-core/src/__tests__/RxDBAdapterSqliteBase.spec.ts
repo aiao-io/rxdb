@@ -1,20 +1,20 @@
 import {
-    Entity,
-    ENTITY_LOCAL_CREATE_EVENT,
-    EntityBase,
-    EntityLocalCreatedEvent,
-    getEntityStatus,
-    PropertyType,
-    RxDB,
-    RxDBBranch,
-    RxDBChange,
-    SyncType,
-    TRANSACTION_BEGIN,
-    TRANSACTION_ROLLBACK,
-    type EntityType,
-    type EntityUpdateData,
-    type RxDBMutationsMap,
-    type SwitchVersionActions
+  Entity,
+  ENTITY_LOCAL_CREATE_EVENT,
+  EntityBase,
+  EntityLocalCreatedEvent,
+  getEntityStatus,
+  PropertyType,
+  RxDB,
+  RxDBBranch,
+  RxDBChange,
+  SyncType,
+  TRANSACTION_BEGIN,
+  TRANSACTION_ROLLBACK,
+  type EntityType,
+  type EntityUpdateData,
+  type RxDBMutationsMap,
+  type SwitchVersionActions
 } from '@aiao/rxdb';
 import { EncryptedConfigurationError } from '@aiao/rxdb-adapter-encrypted';
 import { firstValueFrom } from 'rxjs';

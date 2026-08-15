@@ -39,7 +39,10 @@ const buildFakeRxdb = (migrationRecords: { name: string }[] = []) => {
     rawQuery,
     getRepository: vi.fn(() => ({ find, create })),
     bootstrapTransaction: async (
-      fn: (tx: { query: typeof rawQuery; getRepository: () => { find: typeof find; create: typeof create } }) => Promise<unknown>
+      fn: (tx: {
+        query: typeof rawQuery;
+        getRepository: () => { find: typeof find; create: typeof create };
+      }) => Promise<unknown>
     ) => fn({ query: rawQuery, getRepository: () => ({ find, create }) })
   };
   const rxdb = {

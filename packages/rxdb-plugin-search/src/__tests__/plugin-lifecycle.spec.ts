@@ -7,17 +7,17 @@
  *  - `destroy()` 清空 `#installPromise`，避免后续 `await ready` 仍 resolve 旧 promise
  */
 import {
-    Entity,
-    ENTITY_LOCAL_CREATE_EVENT,
-    ENTITY_LOCAL_REMOVE_EVENT,
-    ENTITY_LOCAL_UPDATE_EVENT,
-    EntityBase,
-    PropertyType,
-    type EntityLocalCreatedEvent,
-    type EntityLocalRemovedEvent,
-    type EntityLocalUpdatedEvent,
-    type EntityPropertyMetadataOptions,
-    type RxDB
+  Entity,
+  ENTITY_LOCAL_CREATE_EVENT,
+  ENTITY_LOCAL_REMOVE_EVENT,
+  ENTITY_LOCAL_UPDATE_EVENT,
+  EntityBase,
+  PropertyType,
+  type EntityLocalCreatedEvent,
+  type EntityLocalRemovedEvent,
+  type EntityLocalUpdatedEvent,
+  type EntityPropertyMetadataOptions,
+  type RxDB
 } from '@aiao/rxdb';
 import { BehaviorSubject, firstValueFrom, Subject, throwError } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';

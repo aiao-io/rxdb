@@ -8,20 +8,20 @@
 
 ## 1. 实体总览
 
-| # | 实体 | 表名 | 基数 | 归属故事 |
-| --- | --- | --- | --- | --- |
-| 1 | `RxDBCommit` | `rxdb_commit` | 每提交一行 | US1 |
-| 2 | `RxDBCommitChangeSet` | `rxdb_commit_change_set` | 每变更单元一行 | US1 |
-| 3 | `RxDBCommitBranchRef` | `rxdb_commit_branch_ref` | **每已物化分支**一行 | US1 / US6 |
-| 4 | `RxDBCommitCapabilityState` | `rxdb_commit_capability_state` | **全库单行** | US1 |
-| 5 | `RxDBWorkingTreeActivationState` | `rxdb_working_tree_activation_state` | **全库单行** | US1 |
-| 6 | `RxDBWorkingTreeEntry` | `rxdb_working_tree_entry` | 每未提交单元一行 | US2 |
-| 7 | `RxDBWorkingTreeState` | `rxdb_working_tree_state` | 每分支一行 | US2 |
-| 8 | `RxDBIndexState` | `rxdb_index_state` | 每分支一行 | US3 |
-| 9 | `RxDBIndexEntry` | `rxdb_index_entry` | 每已暂存单元一行 | US3 |
-| 10 | `RxDBWorkingTreeRestoreSession` | `rxdb_working_tree_restore_session` | 每恢复会话一行 | **建表与迁移 US3**；创建与生命周期 US5 |
-| 11 | `RxDBCommitBranchMaterializationAttempt` | `rxdb_commit_branch_materialization_attempt` | 每次首物化尝试一行 | US6 |
-| 12 | `RxDBBranch`（既有，扩展） | `rxdb_branch` | — | US1 / US6 |
+| #   | 实体                                     | 表名                                         | 基数                 | 归属故事                               |
+| --- | ---------------------------------------- | -------------------------------------------- | -------------------- | -------------------------------------- |
+| 1   | `RxDBCommit`                             | `rxdb_commit`                                | 每提交一行           | US1                                    |
+| 2   | `RxDBCommitChangeSet`                    | `rxdb_commit_change_set`                     | 每变更单元一行       | US1                                    |
+| 3   | `RxDBCommitBranchRef`                    | `rxdb_commit_branch_ref`                     | **每已物化分支**一行 | US1 / US6                              |
+| 4   | `RxDBCommitCapabilityState`              | `rxdb_commit_capability_state`               | **全库单行**         | US1                                    |
+| 5   | `RxDBWorkingTreeActivationState`         | `rxdb_working_tree_activation_state`         | **全库单行**         | US1                                    |
+| 6   | `RxDBWorkingTreeEntry`                   | `rxdb_working_tree_entry`                    | 每未提交单元一行     | US2                                    |
+| 7   | `RxDBWorkingTreeState`                   | `rxdb_working_tree_state`                    | 每分支一行           | US2                                    |
+| 8   | `RxDBIndexState`                         | `rxdb_index_state`                           | 每分支一行           | US3                                    |
+| 9   | `RxDBIndexEntry`                         | `rxdb_index_entry`                           | 每已暂存单元一行     | US3                                    |
+| 10  | `RxDBWorkingTreeRestoreSession`          | `rxdb_working_tree_restore_session`          | 每恢复会话一行       | **建表与迁移 US3**；创建与生命周期 US5 |
+| 11  | `RxDBCommitBranchMaterializationAttempt` | `rxdb_commit_branch_materialization_attempt` | 每次首物化尝试一行   | US6                                    |
+| 12  | `RxDBBranch`（既有，扩展）               | `rxdb_branch`                                | —                    | US1 / US6                              |
 
 共 **11 张新表**。派生型（不落表，运行时计算）：`WorkingTreeStatus`、`WorkingTreeDiff`、`WorkingTreeSelection`、`WorkingTreeStageResult`、`CommitCapability`、`CommitConflict`。契约见 [contracts/core-api.md](./contracts/core-api.md)。
 
@@ -33,21 +33,21 @@
 
 ### 2.1 `RxDBCommit` → `rxdb_commit`
 
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| `id` | uuid | PK | `normal` 用 UUID v7；两类系统根节点用**确定性派生 id**（[R-008](./research.md#r-008-提交标识与幂等键)） |
-| `parentId` | uuid \| null | FK → `rxdb_commit.id`，index | `null` 仅出现在 `baseline` / `branch_baseline` |
-| `kind` | enum | not null | `baseline` \| `branch_baseline` \| `normal` |
-| `originBranchId` | uuid | FK → `rxdb_branch.id`，index | **仅审计**：提交被创建时所在的分支 |
-| `originBranchGeneration` | number | not null | 创建时的分支代次，参与幂等键 |
-| `authorId` | string \| null | not null when `kind = 'normal'` | 调用方提供，禁止从空值/设备名/写入方标识伪造（FR-004） |
-| `message` | string | not null | `normal` 要求 trim 后非空；两类根节点为固定系统文案 |
-| `unitCount` | number | not null | 变更单元数，供列表页免 join 计数 |
-| `changeCodecVersion` | number | not null | 变更编解码版本，US5 兼容性预检读它（FR-044） |
-| `schemaFingerprints` | json | not null | `{ "<namespace>.<entity>": "<fingerprint>" }`，覆盖本提交涉及的全部实体 |
-| `operationId` | string \| null | 见 §2.5 | 幂等键；`normal` 必填 |
-| `createdAt` | number | not null，index | **取数据库时钟**，不信任 realm 本地时钟（spec Assumptions） |
-| `updatedAt` | number | not null | |
+| 字段                     | 类型           | 约束                            | 说明                                                                                                    |
+| ------------------------ | -------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `id`                     | uuid           | PK                              | `normal` 用 UUID v7；两类系统根节点用**确定性派生 id**（[R-008](./research.md#r-008-提交标识与幂等键)） |
+| `parentId`               | uuid \| null   | FK → `rxdb_commit.id`，index    | `null` 仅出现在 `baseline` / `branch_baseline`                                                          |
+| `kind`                   | enum           | not null                        | `baseline` \| `branch_baseline` \| `normal`                                                             |
+| `originBranchId`         | uuid           | FK → `rxdb_branch.id`，index    | **仅审计**：提交被创建时所在的分支                                                                      |
+| `originBranchGeneration` | number         | not null                        | 创建时的分支代次，参与幂等键                                                                            |
+| `authorId`               | string \| null | not null when `kind = 'normal'` | 调用方提供，禁止从空值/设备名/写入方标识伪造（FR-004）                                                  |
+| `message`                | string         | not null                        | `normal` 要求 trim 后非空；两类根节点为固定系统文案                                                     |
+| `unitCount`              | number         | not null                        | 变更单元数，供列表页免 join 计数                                                                        |
+| `changeCodecVersion`     | number         | not null                        | 变更编解码版本，US5 兼容性预检读它（FR-044）                                                            |
+| `schemaFingerprints`     | json           | not null                        | `{ "<namespace>.<entity>": "<fingerprint>" }`，覆盖本提交涉及的全部实体                                 |
+| `operationId`            | string \| null | 见 §2.5                         | 幂等键；`normal` 必填                                                                                   |
+| `createdAt`              | number         | not null，index                 | **取数据库时钟**，不信任 realm 本地时钟（spec Assumptions）                                             |
+| `updatedAt`              | number         | not null                        |                                                                                                         |
 
 **规则**:
 
@@ -59,21 +59,21 @@
 
 ### 2.2 `RxDBCommitChangeSet` → `rxdb_commit_change_set`
 
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| `id` | uuid | PK | |
-| `commitId` | uuid | FK → `rxdb_commit.id`，index | |
-| `transactionId` | uuid | index | 原始事务分组，供依赖闭包回溯 |
-| `sequence` | number | not null | 提交内稳定顺序（拓扑序结果） |
-| `type` | enum | not null | `insert` \| `update` \| `delete` |
-| `namespace` | string | not null | |
-| `entity` | string | not null，复合 index `(entity, entityId)` | |
-| `entityId` | string | not null | |
-| `baselineVersion` | string \| null | | 变更前的版本指纹（FR-003） |
-| `currentVersion` | string | not null | 变更后的版本指纹（FR-003） |
-| `patch` | json | not null，**经信封** | [R-009](./research.md#r-009-加密信封复用) |
-| `inversePatch` | json | not null，**经信封** | 支撑 US5 恢复的逆向重放 |
-| `createdAt` | number | not null | |
+| 字段              | 类型           | 约束                                      | 说明                                      |
+| ----------------- | -------------- | ----------------------------------------- | ----------------------------------------- |
+| `id`              | uuid           | PK                                        |                                           |
+| `commitId`        | uuid           | FK → `rxdb_commit.id`，index              |                                           |
+| `transactionId`   | uuid           | index                                     | 原始事务分组，供依赖闭包回溯              |
+| `sequence`        | number         | not null                                  | 提交内稳定顺序（拓扑序结果）              |
+| `type`            | enum           | not null                                  | `insert` \| `update` \| `delete`          |
+| `namespace`       | string         | not null                                  |                                           |
+| `entity`          | string         | not null，复合 index `(entity, entityId)` |                                           |
+| `entityId`        | string         | not null                                  |                                           |
+| `baselineVersion` | string \| null |                                           | 变更前的版本指纹（FR-003）                |
+| `currentVersion`  | string         | not null                                  | 变更后的版本指纹（FR-003）                |
+| `patch`           | json           | not null，**经信封**                      | [R-009](./research.md#r-009-加密信封复用) |
+| `inversePatch`    | json           | not null，**经信封**                      | 支撑 US5 恢复的逆向重放                   |
+| `createdAt`       | number         | not null                                  |                                           |
 
 **规则**:
 
@@ -84,16 +84,16 @@
 
 ### 2.3 `RxDBCommitBranchRef` → `rxdb_commit_branch_ref`
 
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| `id` | uuid | PK | |
-| `branchId` | uuid | FK → `rxdb_branch.id`，**unique** | 一分支一行 |
-| `generation` | number | not null | 不可变代次，参与幂等键 |
-| `headCommitId` | uuid | FK → `rxdb_commit.id`，not null | **HEAD 的唯一真相源**（FR-001） |
-| `baselineCommitId` | uuid | FK → `rxdb_commit.id`，immutable | 根提交 |
-| `headRevision` | number | not null | HEAD 推进的 CAS 版本（[R-005](./research.md#r-005-revision-的实现与两类校验)） |
-| `origin` | enum | not null | `migration` \| `createBranch` \| `remoteMaterialization` |
-| `updatedAt` | number | not null | |
+| 字段               | 类型   | 约束                              | 说明                                                                           |
+| ------------------ | ------ | --------------------------------- | ------------------------------------------------------------------------------ |
+| `id`               | uuid   | PK                                |                                                                                |
+| `branchId`         | uuid   | FK → `rxdb_branch.id`，**unique** | 一分支一行                                                                     |
+| `generation`       | number | not null                          | 不可变代次，参与幂等键                                                         |
+| `headCommitId`     | uuid   | FK → `rxdb_commit.id`，not null   | **HEAD 的唯一真相源**（FR-001）                                                |
+| `baselineCommitId` | uuid   | FK → `rxdb_commit.id`，immutable  | 根提交                                                                         |
+| `headRevision`     | number | not null                          | HEAD 推进的 CAS 版本（[R-005](./research.md#r-005-revision-的实现与两类校验)） |
+| `origin`           | enum   | not null                          | `migration` \| `createBranch` \| `remoteMaterialization`                       |
+| `updatedAt`        | number | not null                          |                                                                                |
 
 **规则**:
 
@@ -106,15 +106,15 @@
 
 **全库单行**，由首次启用迁移在同一事务内建立（FR-011）。
 
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| `id` | string | PK，固定常量 `'singleton'` | 基数由主键保证 |
-| `enabled` | boolean | not null | 单向：一旦 `true` 不可回退 |
-| `commitProtocolVersion` | number | not null | 写入方连接时协商的协议版本 |
-| `systemSchemaVersion` | number | not null | 落库时的 `RXDB_SYSTEM_SCHEMA_VERSION` |
-| `changeCodecVersion` | number | not null | 变更编解码版本 |
-| `enableMigrationId` | string | not null | 启用迁移的标识，参与确定性根提交 id 派生 |
-| `enabledAt` | number | not null | 数据库时钟 |
+| 字段                    | 类型    | 约束                       | 说明                                     |
+| ----------------------- | ------- | -------------------------- | ---------------------------------------- |
+| `id`                    | string  | PK，固定常量 `'singleton'` | 基数由主键保证                           |
+| `enabled`               | boolean | not null                   | 单向：一旦 `true` 不可回退               |
+| `commitProtocolVersion` | number  | not null                   | 写入方连接时协商的协议版本               |
+| `systemSchemaVersion`   | number  | not null                   | 落库时的 `RXDB_SYSTEM_SCHEMA_VERSION`    |
+| `changeCodecVersion`    | number  | not null                   | 变更编解码版本                           |
+| `enableMigrationId`     | string  | not null                   | 启用迁移的标识，参与确定性根提交 id 派生 |
+| `enabledAt`             | number  | not null                   | 数据库时钟                               |
 
 **规则**:
 
@@ -153,11 +153,11 @@
 
 **全库单行**，由首次启用迁移在同一事务内建立，`activationRevision` 初始化为 `0`（FR-015）。
 
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| `id` | string | PK，固定常量 `'singleton'` | 基数由主键保证 |
-| `activationRevision` | number | not null，初始 `0` | 调用方捕获型；不匹配 → `stale_active_branch` |
-| `updatedAt` | number | not null | |
+| 字段                 | 类型   | 约束                       | 说明                                         |
+| -------------------- | ------ | -------------------------- | -------------------------------------------- |
+| `id`                 | string | PK，固定常量 `'singleton'` | 基数由主键保证                               |
+| `activationRevision` | number | not null，初始 `0`         | 调用方捕获型；不匹配 → `stale_active_branch` |
+| `updatedAt`          | number | not null                   |                                              |
 
 **规则**:
 
@@ -172,20 +172,20 @@
 
 ### 4.1 `RxDBWorkingTreeEntry` → `rxdb_working_tree_entry`
 
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| `id` | uuid | PK | |
-| `branchId` | uuid | FK → `rxdb_branch.id`，复合 index `(branchId, staged)` | 按分支隔离 |
-| `transactionId` | uuid | index | 与业务写同一事务内落库 |
-| `sequence` | number | not null | 分支内单调序，决定重放顺序 |
-| `origin` | enum | not null | `local` \| `remote_sync` \| `merge` \| `undo_redo` \| `restore` |
-| `sourceChangeId` | uuid \| null | | 来源变更标识，**仅审计**（本表不依赖它重放） |
-| `type` | enum | not null | `insert` \| `update` \| `delete` |
-| `namespace` / `entity` / `entityId` | string | 复合 index `(entity, entityId)` | |
-| `currentVersion` | string | not null | 当前指纹 |
-| `patch` / `inversePatch` | json | **经信封** | 完整快照，不引用 `rxdb_change` |
-| `staged` | boolean | not null，default `false` | `true` ⇒ `rxdb_index_entry` 存在对应行 |
-| `createdAt` | number | not null | |
+| 字段                                | 类型         | 约束                                                   | 说明                                                            |
+| ----------------------------------- | ------------ | ------------------------------------------------------ | --------------------------------------------------------------- |
+| `id`                                | uuid         | PK                                                     |                                                                 |
+| `branchId`                          | uuid         | FK → `rxdb_branch.id`，复合 index `(branchId, staged)` | 按分支隔离                                                      |
+| `transactionId`                     | uuid         | index                                                  | 与业务写同一事务内落库                                          |
+| `sequence`                          | number       | not null                                               | 分支内单调序，决定重放顺序                                      |
+| `origin`                            | enum         | not null                                               | `local` \| `remote_sync` \| `merge` \| `undo_redo` \| `restore` |
+| `sourceChangeId`                    | uuid \| null |                                                        | 来源变更标识，**仅审计**（本表不依赖它重放）                    |
+| `type`                              | enum         | not null                                               | `insert` \| `update` \| `delete`                                |
+| `namespace` / `entity` / `entityId` | string       | 复合 index `(entity, entityId)`                        |                                                                 |
+| `currentVersion`                    | string       | not null                                               | 当前指纹                                                        |
+| `patch` / `inversePatch`            | json         | **经信封**                                             | 完整快照，不引用 `rxdb_change`                                  |
+| `staged`                            | boolean      | not null，default `false`                              | `true` ⇒ `rxdb_index_entry` 存在对应行                          |
+| `createdAt`                         | number       | not null                                               |                                                                 |
 
 **规则**:
 
@@ -198,15 +198,15 @@
 
 ### 4.2 `RxDBWorkingTreeState` → `rxdb_working_tree_state`
 
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| `id` | uuid | PK | |
-| `branchId` | uuid | FK → `rxdb_branch.id`，**unique** | |
-| `baseHeadCommitId` | uuid | FK → `rxdb_commit.id`，not null | 本工作树基于哪个 HEAD（FR-023、残量 rebase 的基准） |
-| `workingTreeRevision` | number | not null | **事务内读改写型**（并发不失败） |
-| `restoring` | boolean | not null，default `false` | 是否处于恢复会话中 |
-| `unstagedCount` | number | not null | 未提交单元计数 |
-| `updatedAt` | number | not null | |
+| 字段                  | 类型    | 约束                              | 说明                                                |
+| --------------------- | ------- | --------------------------------- | --------------------------------------------------- |
+| `id`                  | uuid    | PK                                |                                                     |
+| `branchId`            | uuid    | FK → `rxdb_branch.id`，**unique** |                                                     |
+| `baseHeadCommitId`    | uuid    | FK → `rxdb_commit.id`，not null   | 本工作树基于哪个 HEAD（FR-023、残量 rebase 的基准） |
+| `workingTreeRevision` | number  | not null                          | **事务内读改写型**（并发不失败）                    |
+| `restoring`           | boolean | not null，default `false`         | 是否处于恢复会话中                                  |
+| `unstagedCount`       | number  | not null                          | 未提交单元计数                                      |
+| `updatedAt`           | number  | not null                          |                                                     |
 
 **规则**:
 
@@ -239,33 +239,33 @@
 
 ### 5.1 `RxDBIndexState` → `rxdb_index_state`
 
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| `id` | uuid | PK | |
-| `branchId` | uuid | FK → `rxdb_branch.id`，**unique** | |
-| `indexRevision` | number | not null | **调用方捕获型**（可因并发失败） |
-| `baseHeadCommitId` | uuid | FK → `rxdb_commit.id`，not null | 缓存区自包含性所参照的 HEAD |
-| `entryCount` | number | not null | 已暂存单元计数 |
-| `updatedAt` | number | not null | |
+| 字段               | 类型   | 约束                              | 说明                             |
+| ------------------ | ------ | --------------------------------- | -------------------------------- |
+| `id`               | uuid   | PK                                |                                  |
+| `branchId`         | uuid   | FK → `rxdb_branch.id`，**unique** |                                  |
+| `indexRevision`    | number | not null                          | **调用方捕获型**（可因并发失败） |
+| `baseHeadCommitId` | uuid   | FK → `rxdb_commit.id`，not null   | 缓存区自包含性所参照的 HEAD      |
+| `entryCount`       | number | not null                          | 已暂存单元计数                   |
+| `updatedAt`        | number | not null                          |                                  |
 
 `indexRevision` 与 `workingTreeRevision` 分表存放：二者的校验类别不同（前者调用方捕获型、后者事务内读改写型），合表会让「clearIndex 只动 `indexRevision`」这条断言（FR-034）失去物理隔离。
 
 ### 5.2 `RxDBIndexEntry` → `rxdb_index_entry`
 
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| `id` | uuid | PK | |
-| `branchId` | uuid | FK，复合 index `(branchId, sequence)` | |
-| `workingTreeEntryId` | uuid | FK → `rxdb_working_tree_entry.id`，**unique** | 一对一（仅溯源） |
-| `baselineCommitId` | uuid | FK → `rxdb_commit.id`，not null | 暂存时的基线提交 |
-| `sequence` | number | not null | 稳定拓扑序（[R-007](./research.md#r-007-依赖闭包算法)） |
-| `type` | enum | not null | `insert` \| `update` \| `delete` |
-| `namespace` / `entity` / `entityId` | string | 复合 index `(entity, entityId)` | |
-| `patch` / `inversePatch` | json | not null，**经信封** | **完整已暂存快照**（见下方规则） |
-| `currentVersion` | string | not null | 暂存时的版本指纹 |
-| `stagedAtWorkingTreeRevision` | number | not null | 暂存时的工作树 revision |
-| `dependencyUnitIds` | json | not null | 闭包内的依赖单元 id 列表 |
-| `stagedAt` | number | not null | 数据库时钟 |
+| 字段                                | 类型   | 约束                                          | 说明                                                    |
+| ----------------------------------- | ------ | --------------------------------------------- | ------------------------------------------------------- |
+| `id`                                | uuid   | PK                                            |                                                         |
+| `branchId`                          | uuid   | FK，复合 index `(branchId, sequence)`         |                                                         |
+| `workingTreeEntryId`                | uuid   | FK → `rxdb_working_tree_entry.id`，**unique** | 一对一（仅溯源）                                        |
+| `baselineCommitId`                  | uuid   | FK → `rxdb_commit.id`，not null               | 暂存时的基线提交                                        |
+| `sequence`                          | number | not null                                      | 稳定拓扑序（[R-007](./research.md#r-007-依赖闭包算法)） |
+| `type`                              | enum   | not null                                      | `insert` \| `update` \| `delete`                        |
+| `namespace` / `entity` / `entityId` | string | 复合 index `(entity, entityId)`               |                                                         |
+| `patch` / `inversePatch`            | json   | not null，**经信封**                          | **完整已暂存快照**（见下方规则）                        |
+| `currentVersion`                    | string | not null                                      | 暂存时的版本指纹                                        |
+| `stagedAtWorkingTreeRevision`       | number | not null                                      | 暂存时的工作树 revision                                 |
+| `dependencyUnitIds`                 | json   | not null                                      | 闭包内的依赖单元 id 列表                                |
+| `stagedAt`                          | number | not null                                      | 数据库时钟                                              |
 
 **规则**:
 
@@ -284,25 +284,25 @@
 
 **建表与 schema 迁移随 US3 交付**（FR-036）；创建与生命周期语义归 US5（FR-042..FR-047）。
 
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| `id` | uuid | PK | |
-| `branchId` | uuid | FK，index | |
-| `targetCommitId` | uuid | FK → `rxdb_commit.id` | 恢复目标 |
-| `preRestoreHeadCommitId` | uuid | FK → `rxdb_commit.id` | 恢复前 HEAD |
-| `expectedHeadRevision` | number | not null | 建立会话时捕获 |
-| `expectedIndexRevision` | number | not null | 建立会话时捕获 |
-| `expectedActivationRevision` | number | not null | 建立会话时捕获 |
-| `producedWorkingTreeRevision` | number | not null | 恢复产生的工作树 revision |
-| `replayDirection` | enum | not null | `forward`（基线→目标）\| `reverse`（HEAD→目标） |
-| `targetManifest` | json | not null | 目标 schema 指纹 + 编解码版本 |
-| `scope` | enum | not null | `wholeTree` \| `entitySubset` |
-| `scopeKeys` | json \| null | | `entitySubset` 时的实体键集合 |
-| `status` | enum | not null | `active` \| `conflicted` \| `committed` |
-| `appliedUnitCount` | number | not null | 断点续做游标 |
-| `totalUnitCount` | number | not null | |
-| `operationId` | string \| null | unique（同 §2.5 形态） | 重复触发幂等 |
-| `createdAt` / `updatedAt` | number | not null | 数据库时钟 |
+| 字段                          | 类型           | 约束                   | 说明                                            |
+| ----------------------------- | -------------- | ---------------------- | ----------------------------------------------- |
+| `id`                          | uuid           | PK                     |                                                 |
+| `branchId`                    | uuid           | FK，index              |                                                 |
+| `targetCommitId`              | uuid           | FK → `rxdb_commit.id`  | 恢复目标                                        |
+| `preRestoreHeadCommitId`      | uuid           | FK → `rxdb_commit.id`  | 恢复前 HEAD                                     |
+| `expectedHeadRevision`        | number         | not null               | 建立会话时捕获                                  |
+| `expectedIndexRevision`       | number         | not null               | 建立会话时捕获                                  |
+| `expectedActivationRevision`  | number         | not null               | 建立会话时捕获                                  |
+| `producedWorkingTreeRevision` | number         | not null               | 恢复产生的工作树 revision                       |
+| `replayDirection`             | enum           | not null               | `forward`（基线→目标）\| `reverse`（HEAD→目标） |
+| `targetManifest`              | json           | not null               | 目标 schema 指纹 + 编解码版本                   |
+| `scope`                       | enum           | not null               | `wholeTree` \| `entitySubset`                   |
+| `scopeKeys`                   | json \| null   |                        | `entitySubset` 时的实体键集合                   |
+| `status`                      | enum           | not null               | `active` \| `conflicted` \| `committed`         |
+| `appliedUnitCount`            | number         | not null               | 断点续做游标                                    |
+| `totalUnitCount`              | number         | not null               |                                                 |
+| `operationId`                 | string \| null | unique（同 §2.5 形态） | 重复触发幂等                                    |
+| `createdAt` / `updatedAt`     | number         | not null               | 数据库时钟                                      |
 
 **规则**:
 
@@ -317,17 +317,17 @@
 
 仅元数据远端分支首次切换时的**内部持久暂存**（FR-052，US6）。
 
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| `id` | uuid | PK | 尝试标识；失败后按此 id 清理 |
-| `targetBranchId` | uuid | FK → `rxdb_branch.id`，index | |
-| `targetBranchIdentity` | json | not null | 冻结的目标身份（远端分支标识 + 代次） |
-| `frozenTerminalWatermark` | string | not null | 开始时冻结的远端终止水位 |
-| `scopeManifest` | json | not null | 冻结的同步范围 |
-| `committedPageWatermark` | string \| null | | **已提交**的分页水位，崩溃后据此续传 |
-| `payloadFingerprint` | string | not null | 内容指纹，提交屏障处复核 |
-| `status` | enum | not null | `staging` \| `converged` \| `abandoned` |
-| `createdAt` / `updatedAt` | number | not null | 数据库时钟 |
+| 字段                      | 类型           | 约束                         | 说明                                    |
+| ------------------------- | -------------- | ---------------------------- | --------------------------------------- |
+| `id`                      | uuid           | PK                           | 尝试标识；失败后按此 id 清理            |
+| `targetBranchId`          | uuid           | FK → `rxdb_branch.id`，index |                                         |
+| `targetBranchIdentity`    | json           | not null                     | 冻结的目标身份（远端分支标识 + 代次）   |
+| `frozenTerminalWatermark` | string         | not null                     | 开始时冻结的远端终止水位                |
+| `scopeManifest`           | json           | not null                     | 冻结的同步范围                          |
+| `committedPageWatermark`  | string \| null |                              | **已提交**的分页水位，崩溃后据此续传    |
+| `payloadFingerprint`      | string         | not null                     | 内容指纹，提交屏障处复核                |
+| `status`                  | enum           | not null                     | `staging` \| `converged` \| `abandoned` |
+| `createdAt` / `updatedAt` | number         | not null                     | 数据库时钟                              |
 
 **规则**:
 
@@ -341,21 +341,21 @@
 
 ## 7. 跨实体不变式（可测清单）
 
-| ID | 不变式 | 违反时 |
-| --- | --- | --- |
-| INV-1 | 至多一行 `rxdb_branch.activated = TRUE`；每次连接至少一行 | `ambiguous_active_branch` |
-| INV-2 | 每**已物化**分支恰好一条根提交（`baseline` 或 `branch_baseline`）且 `parentId IS NULL` | `commit_graph_corrupted` |
-| INV-3 | `headCommitId` 可达 `baselineCommitId`；损坏按**分支**隔离，其他健康分支照常可用 | `commit_graph_corrupted` → 该分支 `corrupted_read_only` |
-| INV-4 | HEAD 链 + 工作树条目 = 当前业务数据 | 冷重放断言失败（SC-002） |
-| INV-5 | 缓存区自包含（依赖闭包完整） | `index_dependency_cycle` |
-| INV-6 | `rxdb_index_entry.workingTreeEntryId` 一一对应且对应条目 `staged = TRUE` | 一致性断言失败 |
-| INV-7 | 幂等键 `(originBranchId, originBranchGeneration, operationId)` 唯一 | `idempotency_key_reused` |
-| INV-8 | 所有 `patch` / `inversePatch` 列在启用加密时无明文哨兵 | SC-009 失败 |
-| INV-9 | 查询缓存实体在 11 张新表中出现次数为 0 | FR-021 失败 |
-| INV-10 | 未启用数据库中上述新表数量为 0 | SC-008 失败 |
-| INV-11 | `rxdb_commit_capability_state` 与 `rxdb_working_tree_activation_state` 各恰好一行（主键常量保证） | 迁移断言失败 |
-| INV-12 | 分支物化成功后 `rxdb_commit_branch_materialization_attempt` 无残留行 | FR-052 失败 |
-| INV-13 | `rxdb_commit_branch_ref` 行的存在 ⟺ 分支已物化（不存在 `headCommitId IS NULL` 的行） | FR-013 失败 |
+| ID     | 不变式                                                                                            | 违反时                                                  |
+| ------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| INV-1  | 至多一行 `rxdb_branch.activated = TRUE`；每次连接至少一行                                         | `ambiguous_active_branch`                               |
+| INV-2  | 每**已物化**分支恰好一条根提交（`baseline` 或 `branch_baseline`）且 `parentId IS NULL`            | `commit_graph_corrupted`                                |
+| INV-3  | `headCommitId` 可达 `baselineCommitId`；损坏按**分支**隔离，其他健康分支照常可用                  | `commit_graph_corrupted` → 该分支 `corrupted_read_only` |
+| INV-4  | HEAD 链 + 工作树条目 = 当前业务数据                                                               | 冷重放断言失败（SC-002）                                |
+| INV-5  | 缓存区自包含（依赖闭包完整）                                                                      | `index_dependency_cycle`                                |
+| INV-6  | `rxdb_index_entry.workingTreeEntryId` 一一对应且对应条目 `staged = TRUE`                          | 一致性断言失败                                          |
+| INV-7  | 幂等键 `(originBranchId, originBranchGeneration, operationId)` 唯一                               | `idempotency_key_reused`                                |
+| INV-8  | 所有 `patch` / `inversePatch` 列在启用加密时无明文哨兵                                            | SC-009 失败                                             |
+| INV-9  | 查询缓存实体在 11 张新表中出现次数为 0                                                            | FR-021 失败                                             |
+| INV-10 | 未启用数据库中上述新表数量为 0                                                                    | SC-008 失败                                             |
+| INV-11 | `rxdb_commit_capability_state` 与 `rxdb_working_tree_activation_state` 各恰好一行（主键常量保证） | 迁移断言失败                                            |
+| INV-12 | 分支物化成功后 `rxdb_commit_branch_materialization_attempt` 无残留行                              | FR-052 失败                                             |
+| INV-13 | `rxdb_commit_branch_ref` 行的存在 ⟺ 分支已物化（不存在 `headCommitId IS NULL` 的行）              | FR-013 失败                                             |
 
 INV-1..INV-13 全部落成两套一致性套件的断言（见 [contracts/conformance-suites.md](./contracts/conformance-suites.md)），在 6 个 v1 后端上逐一执行。
 
@@ -363,14 +363,14 @@ INV-1..INV-13 全部落成两套一致性套件的断言（见 [contracts/confor
 
 ## 8. 迁移影响
 
-| 变更 | 类型 | 说明 |
-| --- | --- | --- |
-| `RXDB_SYSTEM_SCHEMA_VERSION` 3 → 4 | 破坏性（需 bridge tag） | [R-015](./research.md#r-015-bridge-tag-前置条件) 为前置阻塞项 |
-| 新增 **11** 张表 | 仅启用时 | 未启用 = 零表零行为差异（INV-10） |
-| `rxdb_branch` 增加部分唯一索引 | 就地 | 迁移前校验 INV-1 |
-| `EntityIndexMetadataOptions.where` | 新增可选字段 | 向后兼容，既有声明不受影响 |
-| `TransactionExecutor.mergeChanges` 第三形参 | 内部契约破坏性 | 不在公开 API 基线内 |
-| `SwitchBranchOptions` 追加必填 `intent` | 内部契约破坏性 | 同上；公开侧的 `WorkingTreeSwitchBranchOptions` 是另一回事 |
+| 变更                                        | 类型                    | 说明                                                          |
+| ------------------------------------------- | ----------------------- | ------------------------------------------------------------- |
+| `RXDB_SYSTEM_SCHEMA_VERSION` 3 → 4          | 破坏性（需 bridge tag） | [R-015](./research.md#r-015-bridge-tag-前置条件) 为前置阻塞项 |
+| 新增 **11** 张表                            | 仅启用时                | 未启用 = 零表零行为差异（INV-10）                             |
+| `rxdb_branch` 增加部分唯一索引              | 就地                    | 迁移前校验 INV-1                                              |
+| `EntityIndexMetadataOptions.where`          | 新增可选字段            | 向后兼容，既有声明不受影响                                    |
+| `TransactionExecutor.mergeChanges` 第三形参 | 内部契约破坏性          | 不在公开 API 基线内                                           |
+| `SwitchBranchOptions` 追加必填 `intent`     | 内部契约破坏性          | 同上；公开侧的 `WorkingTreeSwitchBranchOptions` 是另一回事    |
 
 上述两处内部契约变更合计 **11 个受信调用点**同批改（[R-006](./research.md#r-006-写入意图枚举与受信登记)、[adapter-contract §4](./contracts/adapter-contract.md#4-写入口受信登记)）。
 

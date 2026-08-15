@@ -14,9 +14,9 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 
 **Alternatives rejected**:
 
-- *复用 `rxdb_change` + 加一个 `stagedAt` 列*：最省表，但压缩与删分支会静默吞掉条目，且把「审计历史」与「未提交真相源」两个生命周期不同的概念绑死。
-- *只存 `changeId` 外键*：同上，且外键在压缩后指向被合并掉的行。
-- *只存计数与 revision*：spec Assumptions 已明确「只存计数与版本号不算满足」。
+- _复用 `rxdb_change` + 加一个 `stagedAt` 列_：最省表，但压缩与删分支会静默吞掉条目，且把「审计历史」与「未提交真相源」两个生命周期不同的概念绑死。
+- _只存 `changeId` 外键_：同上，且外键在压缩后指向被合并掉的行。
+- _只存计数与 revision_：spec Assumptions 已明确「只存计数与版本号不算满足」。
 
 ---
 
@@ -26,7 +26,7 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 
 **Rationale**: 历史列表查询（FR-007）只读元数据表，避免为渲染一屏历史反序列化上万条补丁 JSON；SC-012 的 status/diff p95 ≤ 100 ms 也依赖这一点。变更单元独立成行才能按实体维度建索引以支撑「按实体查询历史」（FR-007）。
 
-**Alternatives rejected**: *单表 + `changes` JSON 列*：写入更简单，但按实体查历史退化为全表 JSON 扫描，且单行体积随提交规模线性膨胀，在 SQLite 上触碰单行大小上限风险。
+**Alternatives rejected**: _单表 + `changes` JSON 列_：写入更简单，但按实体查历史退化为全表 JSON 扫描，且单行体积随提交规模线性膨胀，在 SQLite 上触碰单行大小上限风险。
 
 ---
 
@@ -42,9 +42,9 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 
 **Alternatives rejected**:
 
-- *`CREATE UNIQUE INDEX ON t ((TRUE)) WHERE activated`*：PG 可用，SQLite **不支持常量表达式索引**，跨后端直接破。
-- *加一个可空的 `activationSlot` 列 + 普通 UNIQUE*：所有后端可用，但 `activated ⟺ activationSlot` 的双向一致性无法用现有装饰器表达（无 CHECK 约束支持），退化为代码纪律 —— 与 spec「不引入会漂移的第二份状态」冲突。
-- *单行 `RxDBWorkingTreeActivationState` 里存当前分支 id*：直接违反 FR-001 / FR-015 的「不复制第二份标识」。
+- _`CREATE UNIQUE INDEX ON t ((TRUE)) WHERE activated`_：PG 可用，SQLite **不支持常量表达式索引**，跨后端直接破。
+- _加一个可空的 `activationSlot` 列 + 普通 UNIQUE_：所有后端可用，但 `activated ⟺ activationSlot` 的双向一致性无法用现有装饰器表达（无 CHECK 约束支持），退化为代码纪律 —— 与 spec「不引入会漂移的第二份状态」冲突。
+- _单行 `RxDBWorkingTreeActivationState` 里存当前分支 id_：直接违反 FR-001 / FR-015 的「不复制第二份标识」。
 
 **Consequence**: 这是对既有系统表索引集的变更，须递增 `RXDB_SYSTEM_SCHEMA_VERSION`（见 R-004）；建索引前若发现多行 `activated = TRUE`，迁移整体失败并返回 `ambiguous_active_branch`（FR-012），不按查询顺序任选一个。
 
@@ -62,8 +62,8 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 
 **Alternatives rejected**:
 
-- *建表随包升级自动发生，基线懒加载*：违反 SC-008「未启用数据库新增系统表数量为 0」。
-- *`enableCommits()` 运行时方法*：启用会写系统表，放在 connect 之后意味着存在「已连接但能力状态未定」的窗口，写入方协商（FR-011）无处落脚。
+- _建表随包升级自动发生，基线懒加载_：违反 SC-008「未启用数据库新增系统表数量为 0」。
+- _`enableCommits()` 运行时方法_：启用会写系统表，放在 connect 之后意味着存在「已连接但能力状态未定」的窗口，写入方协商（FR-011）无处落脚。
 
 ---
 
@@ -80,9 +80,9 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 
 **Alternatives rejected**:
 
-- *时间戳做 revision*：本地时钟不可信（spec Assumptions 已排除），且同毫秒并发不可分辨。
-- *统一成调用方捕获型*：会让普通 CRUD 在多标签页下随机失败，直接违反 FR-032。
-- *复用 `rxdb_upgrade_guard.epoch`*：FR-008 明令 epoch 只用于迁移 fencing，两者职责混用会让「迁移后滞后写入方」与「普通并发」两类失败无法区分。
+- _时间戳做 revision_：本地时钟不可信（spec Assumptions 已排除），且同毫秒并发不可分辨。
+- _统一成调用方捕获型_：会让普通 CRUD 在多标签页下随机失败，直接违反 FR-032。
+- _复用 `rxdb_upgrade_guard.epoch`_：FR-008 明令 epoch 只用于迁移 fencing，两者职责混用会让「迁移后滞后写入方」与「普通并发」两类失败无法区分。
 
 ---
 
@@ -103,9 +103,9 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 
 **Alternatives rejected**:
 
-- *保留 boolean，另设旁路事件表补记*：先写业务数据再补记无法保证同一事务原子（FR-018），崩溃窗口产生半状态。
-- *按调用栈自动推断*：不可静态校验，无法支撑 SC-004 的「未登记调用点数量为 0」。
-- *以行号为登记键*：任何无关重排都会让门禁误报，实践中必然被放宽成摆设。
+- _保留 boolean，另设旁路事件表补记_：先写业务数据再补记无法保证同一事务原子（FR-018），崩溃窗口产生半状态。
+- _按调用栈自动推断_：不可静态校验，无法支撑 SC-004 的「未登记调用点数量为 0」。
+- _以行号为登记键_：任何无关重排都会让门禁误报，实践中必然被放宽成摆设。
 
 ---
 
@@ -121,7 +121,7 @@ stage 正向扩展，unstage 反向移除依赖者。不可拆分的关系环整
 
 **Rationale**: 三个来源缺一不可 —— 只按事务会漏掉跨事务的父子新增（spec US3-AC4/AC5），只按关系图会漏掉同实体顺序链。既有拓扑排序已被分支切换与 pull 复用并有测试，直接复用可保证「稳定排序」这一可测断言。
 
-**Alternatives rejected**: *只按事务分组*：US3-AC4 明确要求 T1+T2 跨事务扩展。*让用户手动补依赖*：违反 FR-030「缓存区永远自包含」。
+**Alternatives rejected**: _只按事务分组_：US3-AC4 明确要求 T1+T2 跨事务扩展。_让用户手动补依赖_：违反 FR-030「缓存区永远自包含」。
 
 ---
 
@@ -138,7 +138,7 @@ stage 正向扩展，unstage 反向移除依赖者。不可拆分的关系环整
 
 确定性根节点 id 与「否决内容哈希」不矛盾：派生输入是**结构性标识**（库/分支/迁移/manifest），不含任何被加密的用户数据，因此不受 nonce 随机性影响。
 
-**Alternatives rejected**: *自增整数*：跨分支/跨库不唯一，且与远端同步的 ID 空间冲突。*内容哈希*：见上。*根节点也用 UUID v7*：迁移重试会产生第二条基线，直接违反 INV-2。
+**Alternatives rejected**: _自增整数_：跨分支/跨库不唯一，且与远端同步的 ID 空间冲突。_内容哈希_：见上。_根节点也用 UUID v7_：迁移重试会产生第二条基线，直接违反 INV-2。
 
 ---
 
@@ -148,7 +148,7 @@ stage 正向扩展，unstage 反向移除依赖者。不可拆分的关系环整
 
 **Rationale**: 该函数已按 `entity.encryptedPropertyMap` 逐键信封化并有测试覆盖（`encrypted-change-log.spec.ts`），复用它使 FR-055 与 SC-009 的「明文哨兵零命中」有现成的验证手法可直接扩展到 5 个新落盘位置（提交、变更集、工作树条目、缓存区条目、恢复会话）。
 
-**Alternatives rejected**: *为新表写独立加密路径*：重复实现两份密码学代码，是 SC-009 最可能的破口。*新表整列加密（而非按字段信封）*：会让「按实体查历史」的索引全部失效。
+**Alternatives rejected**: _为新表写独立加密路径_：重复实现两份密码学代码，是 SC-009 最可能的破口。_新表整列加密（而非按字段信封）_：会让「按实体查历史」的索引全部失效。
 
 ---
 
@@ -158,7 +158,7 @@ stage 正向扩展，unstage 反向移除依赖者。不可拆分的关系环整
 
 **Rationale**: `SyncType` 是既有的、声明式的、编译期可见的分类，不需要新增标记。「在检测到的那一刻抛错」而非「事务开始前预知」是必要的——事务回调是用户代码，其未来操作不可预知（FR-021 已明确这一点）。
 
-**Alternatives rejected**: *新增 `@QueryCache()` 装饰器*：与既有 `SyncType.QueryCache` 重复。*事务开始前静态判定*：不可能，回调内容运行时才知道。
+**Alternatives rejected**: _新增 `@QueryCache()` 装饰器_：与既有 `SyncType.QueryCache` 重复。_事务开始前静态判定_：不可能，回调内容运行时才知道。
 
 ---
 
@@ -166,16 +166,16 @@ stage 正向扩展，unstage 反向移除依赖者。不可拆分的关系环整
 
 **Decision**: 两套具名套件放在 `packages/rxdb-test/src/working-tree/`，通过**新增 subpath** `@aiao/rxdb-test/working-tree` 导出，沿用既有 [`@aiao/rxdb-test/transaction`](../../packages/rxdb-test/src/transaction/index.ts) 的 runner 模式：
 
-| 套件 | 归属 | 覆盖 |
-| --- | --- | --- |
-| `workingTreeCaptureConformanceSuite` | US2 | 写入口捕获、事务原子性、工作树冷重放 |
-| `workingTreeCommitConformanceSuite` | US3 | revision 条件更新、残量 rebase、崩溃恢复，**并吸收 US1 的提交图与迁移断言** |
+| 套件                                 | 归属 | 覆盖                                                                        |
+| ------------------------------------ | ---- | --------------------------------------------------------------------------- |
+| `workingTreeCaptureConformanceSuite` | US2  | 写入口捕获、事务原子性、工作树冷重放                                        |
+| `workingTreeCommitConformanceSuite`  | US3  | revision 条件更新、残量 rebase、崩溃恢复，**并吸收 US1 的提交图与迁移断言** |
 
 每个后端在自己的 `src/__tests__/working-tree-conformance.spec.ts` 里调用两个 runner。**不设第三套套件**。
 
 **Rationale**: `@aiao/rxdb-test/transaction` 已经证明这个形态能同时覆盖 PGlite 与 sqlite-core 两处真实实现，且 subpath 导出已进 `scripts/audit/subpath-inventory.mjs` 的审计范围。把 US1 的断言并进 commit 套件而非独立成套，是 epic 的既定口径——避免出现「提交图套件绿、状态机套件绿、但两者交界处没人测」的缝隙。
 
-**Alternatives rejected**: *每个适配器各写一份测试*：6 份漂移，SC-003「任一后端缺席即未完成」无从判定。*三套套件*：epic 已明确否决。
+**Alternatives rejected**: _每个适配器各写一份测试_：6 份漂移，SC-003「任一后端缺席即未完成」无从判定。_三套套件_：epic 已明确否决。
 
 ---
 
@@ -189,7 +189,7 @@ stage 正向扩展，unstage 反向移除依赖者。不可拆分的关系环整
 
 **Rationale**: 宪法 II 要求确定性。已知的 Tauri conformance 偶发失败根因之一正是「stdio 迟到事件」这类时序依赖，本特性从测试设计上直接规避。多实例同库在 6 个 v1 后端上都可构造（Electron 侧走多连接，浏览器侧走同 OPFS 文件多连接）。
 
-**Alternatives rejected**: *真杀进程*：只有 Electron/Node 可行，浏览器后端做不到，会让矩阵不齐。*sleep 等广播*：非确定性，宪法禁止。
+**Alternatives rejected**: _真杀进程_：只有 Electron/Node 可行，浏览器后端做不到，会让矩阵不齐。_sleep 等广播_：非确定性，宪法禁止。
 
 ---
 
@@ -205,7 +205,7 @@ stage 正向扩展，unstage 反向移除依赖者。不可拆分的关系环整
 
 **Rationale**: 既有两个 bench target 已经确立了「node + strip-types + 写 `reports/` JSON」的落地形态，复用它使新 target 无需引入新工具链。三态门禁是 FR-041 与 SC-012 的直接翻译。
 
-**Alternatives rejected**: *把绝对门禁跑在任意 CI runner 上*：共享 runner 的 CPU 争用会让绝对 p95 随机翻倍，门禁变成噪声源。*profile 不匹配时放宽为通过*：spec 明令禁止。
+**Alternatives rejected**: _把绝对门禁跑在任意 CI runner 上_：共享 runner 的 CPU 争用会让绝对 p95 随机翻倍，门禁变成噪声源。_profile 不匹配时放宽为通过_：spec 明令禁止。
 
 ---
 
@@ -215,7 +215,7 @@ stage 正向扩展，unstage 反向移除依赖者。不可拆分的关系环整
 
 **Rationale**: 仓库里已经有一套跑通的跨框架 parity 形态，直接复制它比发明新机制风险低。导出名集合比对是**静态**的，能在 lint 阶段就挡住「只实现了一端」。
 
-**Alternatives rejected**: *只靠 E2E 保证对称*：E2E 只能覆盖被演示页面用到的键，未被 demo 使用的导出会漏。*手工 checklist*：不是门禁。
+**Alternatives rejected**: _只靠 E2E 保证对称_：E2E 只能覆盖被演示页面用到的键，未被 demo 使用的导出会漏。_手工 checklist_：不是门禁。
 
 ---
 
@@ -225,7 +225,7 @@ stage 正向扩展，unstage 反向移除依赖者。不可拆分的关系环整
 
 **Rationale**: 当前 `bridge.tag` 与 `bridge.version` 都是 `null`，`release.version` 停在 `0.0.25`，而 `v0.0.25` 的被打标提交在一次 squash 后已不是候选发布提交的祖先。本特性必然递增 `RXDB_SYSTEM_SCHEMA_VERSION`（R-004），门禁会直接挡住 —— 这是**先于 US1 的阻塞项**，不是收尾工作。
 
-**Alternatives rejected**: *把 `enforced` 关掉绕过*：等同于删除门禁。*重打 `v0.0.25`*：改写已发布标签，FR-016 明令禁止。
+**Alternatives rejected**: _把 `enforced` 关掉绕过_：等同于删除门禁。_重打 `v0.0.25`_：改写已发布标签，FR-016 明令禁止。
 
 ---
 

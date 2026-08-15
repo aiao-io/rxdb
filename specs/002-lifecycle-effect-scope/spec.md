@@ -36,7 +36,7 @@
 「作用域」只指**进程内的存活期**，不指数据的可见范围，也不指任何持久化概念。已有的多实例可见性问题
 （同一进程内多个宿主实例如何互不串扰）是另一件事，不在本特性内解决。
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - 副作用与它的撤销写在一起（Priority: P1）
 
@@ -131,7 +131,7 @@
 - 既有插件既实现了新的作用域登记又保留了废弃的拆卸入口会怎样？——两者都执行（FR-017），顺序固定；文档必须说明这是过渡期写法而非推荐写法。
 - 宿主对外的断开操作在插件拆卸失败时是否会失败？——不会，与本特性前保持一致（FR-022）。改变它是独立的破坏性变更，不在本特性内。
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -202,7 +202,7 @@
 - **DependencyEpoch（依赖代次）** — 依赖提供者的身份标识；用于判定「依赖是否换了一个」，不使用名称或布尔就绪位。
 - **Plugin name index（插件名字索引）** — 名字到插件实例的映射；一个名字可对应多个候选，歧义只在该名字被依赖时才成为错误。
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 

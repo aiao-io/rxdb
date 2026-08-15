@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import {
-    StorageFetchError,
-    StorageFileMeta,
-    StorageMimeTypeMissingError,
-    StorageOfflineError
+  StorageFetchError,
+  StorageFileMeta,
+  StorageMimeTypeMissingError,
+  StorageOfflineError
 } from '@aiao/rxdb-plugin-storage';
 import { useRxDB } from '@aiao/rxdb-vue';
 import { formatFileSize } from '@aiao/utils';
@@ -405,8 +405,8 @@ onUnmounted(() => {
             <h3 class="text-sm font-bold">事件日志</h3>
             <p
               class="text-base-content/50 mt-2 text-xs"
-              data-testid="remote-cache-log-empty"
               v-if="logs.length === 0"
+              data-testid="remote-cache-log-empty"
             >
               日志为空。
             </p>
@@ -417,8 +417,8 @@ onUnmounted(() => {
               <li
                 class="flex gap-2"
                 v-for="entry in logs"
-                data-testid="remote-cache-log-entry"
                 :key="entry.timestamp"
+                data-testid="remote-cache-log-entry"
               >
                 <span class="text-base-content/40 whitespace-nowrap">{{ formatTime(entry.timestamp) }}</span>
                 <span

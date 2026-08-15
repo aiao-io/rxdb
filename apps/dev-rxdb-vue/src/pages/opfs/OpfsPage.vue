@@ -4,20 +4,20 @@
  */
 import { checkOPFSAvailable, OpfsRouteSync } from '@aiao/utils';
 import {
-    AlertTriangle,
-    ChevronRight,
-    Edit3,
-    Eye,
-    Folder,
-    FolderOpen,
-    FolderPlus,
-    Grid3X3,
-    Home,
-    List,
-    RefreshCw,
-    Trash2,
-    Upload,
-    X
+  AlertTriangle,
+  ChevronRight,
+  Edit3,
+  Eye,
+  Folder,
+  FolderOpen,
+  FolderPlus,
+  Grid3X3,
+  Home,
+  List,
+  RefreshCw,
+  Trash2,
+  Upload,
+  X
 } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';

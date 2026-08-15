@@ -181,8 +181,8 @@ async function handleRemoveUser(user: EncryptedUser) {
           <button
             class="btn btn-primary"
             :disabled="!passphrase.trim()"
-            data-testid="encryption-unlock"
             @click="handleUnlock"
+            data-testid="encryption-unlock"
           >
             <LockOpen class="size-4" />
             解锁
@@ -204,8 +204,8 @@ async function handleRemoveUser(user: EncryptedUser) {
         </button>
         <button
           class="btn btn-sm btn-error btn-outline"
-          data-testid="encryption-lock"
           @click="handleLock"
+          data-testid="encryption-lock"
         >
           <Lock class="size-4" />
           锁定
@@ -221,8 +221,8 @@ async function handleRemoveUser(user: EncryptedUser) {
               <legend class="fieldset-legend">姓名（明文）</legend>
               <input
                 class="input input-bordered w-full"
-                data-testid="encryption-name"
                 v-model="newName"
+                data-testid="encryption-name"
                 placeholder="Alice"
                 type="text"
               />
@@ -230,9 +230,9 @@ async function handleRemoveUser(user: EncryptedUser) {
             <fieldset class="fieldset">
               <legend class="fieldset-legend">信用卡号（加密）</legend>
               <input
-                data-testid="encryption-card"
                 class="input input-bordered w-full"
                 v-model="newCard"
+                data-testid="encryption-card"
                 placeholder="4242 4242 4242 4242"
                 type="text"
               />
@@ -240,9 +240,9 @@ async function handleRemoveUser(user: EncryptedUser) {
             <fieldset class="fieldset">
               <legend class="fieldset-legend">API 密钥（加密）</legend>
               <input
-                data-testid="encryption-secret"
                 class="input input-bordered w-full"
                 v-model="newSecret"
+                data-testid="encryption-secret"
                 placeholder="sk_live_…"
                 type="text"
               />
@@ -250,10 +250,10 @@ async function handleRemoveUser(user: EncryptedUser) {
           </div>
           <div class="card-actions">
             <button
-              data-testid="encryption-save-user"
               class="btn btn-primary btn-sm"
               :disabled="!newName.trim()"
               @click="handleCreateUser"
+              data-testid="encryption-save-user"
             >
               <Plus class="size-4" />
               保存用户
@@ -288,8 +288,8 @@ async function handleRemoveUser(user: EncryptedUser) {
               <td>
                 <button
                   class="btn btn-ghost btn-xs text-error"
-                  data-testid="encryption-delete-user"
                   @click="handleRemoveUser(user)"
+                  data-testid="encryption-delete-user"
                 >
                   <Trash2 class="size-3" />
                 </button>

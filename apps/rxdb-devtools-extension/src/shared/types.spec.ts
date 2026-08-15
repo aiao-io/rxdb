@@ -95,7 +95,9 @@ describe('isDevToolsMessage —— 严格协议校验（P0-1）', () => {
   });
 
   it('接受合法 session 字符串', () => {
-    expect(isDevToolsMessage({ ...envelope, direction: 'devtools-to-page', type: 'PING', session: 'tok-1' })).toBe(true);
+    expect(isDevToolsMessage({ ...envelope, direction: 'devtools-to-page', type: 'PING', session: 'tok-1' })).toBe(
+      true
+    );
     expect(
       isDevToolsMessage({
         ...envelope,

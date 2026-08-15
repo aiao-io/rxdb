@@ -76,8 +76,10 @@ describe('search plugin install ordering', () => {
     const adapter = {
       rawQuery,
       getRepository: vi.fn(() => migrationRepository),
-      bootstrapTransaction: vi.fn(async (fn: (tx: { query: typeof rawQuery; getRepository: () => typeof migrationRepository }) => Promise<unknown>) =>
-        fn({ query: rawQuery, getRepository: () => migrationRepository })
+      bootstrapTransaction: vi.fn(
+        async (
+          fn: (tx: { query: typeof rawQuery; getRepository: () => typeof migrationRepository }) => Promise<unknown>
+        ) => fn({ query: rawQuery, getRepository: () => migrationRepository })
       )
     };
 
@@ -173,8 +175,9 @@ describe('search plugin install ordering', () => {
       rawQuery,
       getRepository: vi.fn(() => migrationRepository),
       bootstrapTransaction: vi.fn(
-        async (fn: (tx: { query: typeof installQuery; getRepository: () => typeof installRepository }) => Promise<unknown>) =>
-          fn({ query: installQuery, getRepository: () => installRepository })
+        async (
+          fn: (tx: { query: typeof installQuery; getRepository: () => typeof installRepository }) => Promise<unknown>
+        ) => fn({ query: installQuery, getRepository: () => installRepository })
       )
     };
     const fakeRxdb = {

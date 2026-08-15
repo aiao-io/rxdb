@@ -4,17 +4,17 @@ import { EventBuffer } from './buffer.js';
 import { SequenceGenerator } from './sequence.js';
 import { maskEncryptedFields, serialize, serializeDevToolsValue } from './serializer.js';
 import {
-    createMessage,
-    DEVTOOLS_PROTOCOL_VERSION,
-    isDevToolsCommandMessage,
-    isDevToolsMessage,
-    RXDB_DEVTOOLS_MESSAGE,
-    type AnyDevToolsMessage,
-    type DevToolsCapability,
-    type DevToolsCommandMessage,
-    type DisconnectStatus,
-    type QueryEntityPayload,
-    type SerializedEvent
+  createMessage,
+  DEVTOOLS_PROTOCOL_VERSION,
+  isDevToolsCommandMessage,
+  isDevToolsMessage,
+  RXDB_DEVTOOLS_MESSAGE,
+  type AnyDevToolsMessage,
+  type DevToolsCapability,
+  type DevToolsCommandMessage,
+  type DisconnectStatus,
+  type QueryEntityPayload,
+  type SerializedEvent
 } from './types.js';
 
 /**

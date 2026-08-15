@@ -20,11 +20,11 @@ pnpm check-migration-release-gate
 
 **门禁必须读真实 git 状态**（不得以桩化祖先关系「验证」自己）。三种失败态都要能被挡住：
 
-| 场景 | 期望 |
-| --- | --- |
-| `bridge.tag = null` | 失败 |
+| 场景                                                            | 期望 |
+| --------------------------------------------------------------- | ---- |
+| `bridge.tag = null`                                             | 失败 |
 | `bridge.tag` 指向陈旧发布（如 `v0.0.25`，早于本次 schema 变更） | 失败 |
-| tag 存在但 `git merge-base --is-ancestor` 不成立 | 失败 |
+| tag 存在但 `git merge-base --is-ancestor` 不成立                | 失败 |
 
 **禁止**：重打、移动或伪造已发布标签；禁止把 `oldBundlePolicy.enforced` 关掉绕过。
 
@@ -216,10 +216,10 @@ pnpm check-migration-release-gate
 
 ## 命名纪律自查
 
-| 项 | 要求 |
-| --- | --- |
-| 新增公开导出 | **禁止** `Workspace*` 前缀（已被 `@aiao/rxdb-plugin-workspace` 占用） |
-| 切换分支选项 | 公开新类型固定为 `WorkingTreeSwitchBranchOptions`；**不得**复用既有内部 `SwitchBranchOptions` |
+| 项             | 要求                                                                                                                               |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 新增公开导出   | **禁止** `Workspace*` 前缀（已被 `@aiao/rxdb-plugin-workspace` 占用）                                                              |
+| 切换分支选项   | 公开新类型固定为 `WorkingTreeSwitchBranchOptions`；**不得**复用既有内部 `SwitchBranchOptions`                                      |
 | 切换分支默认值 | 既有入口默认行为**保持不变**（无条件切换、单参签名继续编译）；clean 检查只作为显式 `requireClean` 提供；无 `onDirty` / `carryOver` |
-| 内部意图字段 | `SwitchBranchOptions.intent` 是内部适配器契约扩展，不进公开 API 基线 |
-| 两个枚举不合并 | 内部 `RxDBWriteIntent`（9 值）与持久 `WorkingTreeEntry.origin`（5 值）是不同概念，**不得**合并 |
+| 内部意图字段   | `SwitchBranchOptions.intent` 是内部适配器契约扩展，不进公开 API 基线                                                               |
+| 两个枚举不合并 | 内部 `RxDBWriteIntent`（9 值）与持久 `WorkingTreeEntry.origin`（5 值）是不同概念，**不得**合并                                     |
