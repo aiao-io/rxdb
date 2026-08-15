@@ -40,7 +40,7 @@ owner: jimmy
 
 | #   | 位置                                                                                               | 手工机制                                                                       | 已知代价                                                                                                                                                                             |
 | --- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | [RxDB.ts:597-613](../../packages/rxdb/src/RxDB.ts#L597-L613) `#shutdown()`                         | 一次手工复位 8 处状态                                                          | 注释自陈「复位是拆卸的一半」；漏一处 = 重连后拿到空壳实例                                                                                                                            |
+| 1   | [RxDB.ts:605-621](../../packages/rxdb/src/RxDB.ts#L605-L621) `#shutdown()`                         | 一次手工复位 8 处状态                                                          | 注释自陈「复位是拆卸的一半」；漏一处 = 重连后拿到空壳实例                                                                                                                            |
 | 2   | [RxDB.ts:142](../../packages/rxdb/src/RxDB.ts#L142) `#event_initialized`                           | 「只装一次」布尔守卫                                                           | 事件监听器**没有**卸载路径，只能靠不重复装来防泄漏                                                                                                                                   |
 | 3   | [RxDB.ts:118](../../packages/rxdb/src/RxDB.ts#L118) `#plugin_install_promises`                     | `Map<IRxDBPlugin, Promise<void>>` 记账 + 失败后删条目允许重试                  | 安装态、失败态、重试态三件事挤在一个 Map 里                                                                                                                                          |
 | 4   | [storage/plugin.ts:19-20](../../packages/rxdb-plugin-storage/src/plugin.ts#L19-L20)                | `#ownsStorage` + `#registeredEntity` 双布尔                                    | `defineProperty` / `deleteProperty` 与 `entities.push` / `splice` 两对配对散在 install / destroy                                                                                     |
@@ -54,40 +54,78 @@ owner: jimmy
 因为宿主根本没提供撤销入口。补一个 `unregisterRepository()` 只能解决这一处；同样的洞会在
 下一个「注册型」能力上原样重现。
 
+### 两处「拆了装不回来」的既有泄漏
+
+第 4 / 第 7 条不只是写法不统一，它们**今天就会产生用户可见的坏结果**——因为插件实例由
+[`#plugin_map`](../../packages/rxdb/src/RxDB.ts#L338-L349) 缓存、**构造器只跑一次**，而 `destroy()`
+每次停机都跑：
+
+- **storage**：`new RxdbFileStorage(...)` 与 `Object.defineProperty(rxdb, 'storage', …)` 都在
+  [构造器:27-41](../../packages/rxdb-plugin-storage/src/plugin.ts#L27-L41)，`destroy()` 却
+  `Reflect.deleteProperty(this.rxdb, 'storage')`（:53-64）。**断连一次之后 `rxdb.storage` 永久消失**，
+  重连不会把它装回来。且 [storage.service.ts:822-832](../../packages/rxdb-plugin-storage/src/storage.service.ts#L822-L832)
+  的 `destroy()` 是终态，同一个实例即便留着也已经 `StorageDestroyedError`。
+- **workspace**：`#destroyed`（:196）是终态标志，从不复位；`#indexedDBStore` 是
+  `readonly` + definite assignment（:169），构造器之后无法重新赋值。拆卸后同样装不回来。
+
+**这两条 + 第 9 条构成 US-014 的全部必要性**：它们不依赖依赖图、连接纪元或框架宿主，
+US-014 独立交付即可关闭。后续故事必须各自证明自己的症状。
+
 ### 一处贯穿全部九项的不对称
 
-[RxDB.ts:757-767](../../packages/rxdb/src/RxDB.ts#L757) 的 `#destroy_plugin()` 把每个插件 `destroy()`
-的异常 `console.error` 后**吞掉**，而 `#track_plugin_install()`（:706-722）会把 `install()` 的异常
-经 `#await_plugin_installs()` 抛给 `connect()`。同一个生命周期的两端，一端硬失败一端静默——
+[RxDB.ts:765-775](../../packages/rxdb/src/RxDB.ts#L765-L775) 的 `#destroy_plugin()` 用 `Promise.all`
+并发调用，把每个插件 `destroy()` 的异常 `console.error` 后**吞掉**；而
+`#track_plugin_install()`（:714-728）会把 `install()` 的异常经 `#await_plugin_installs()` 抛给 `connect()`。
+同一个生命周期的两端，一端硬失败一端静默，且拆卸端连**逆序**都没有——
 这不是某个插件的 bug，是「拆卸没有统一语义」的直接后果。
 
 ## 目标
 
-- [ ] 在 `@aiao/utils` 提供 `EffectScope` 生命周期作用域原语，语义（逆序、幂等、异步、错误隔离、可嵌套）
-      由测试冻结（[US-013](../stories/core/US-013-effect-scope-primitive.md)）
-- [ ] `IRxDBPlugin` 契约改为 `install(scope)`，四个插件包全部迁移，`destroy()` 进入废弃周期
-      （[US-014](../stories/core/US-014-plugin-scope-contract.md)）
-- [ ] 插件可声明 `inject` 依赖，依赖未就绪时不安装、依赖消失时自动释放作用域
-      （[US-015](../stories/core/US-015-plugin-inject-dependency.md)）
-- [ ] `RxDB.#shutdown()` 的手工复位收敛到实例作用域——**尚无故事认领**，前置条件是上面三条全部 Done，
-      背景见本文件「现状」表第 1 项
+已认领，构成本 Epic 的承诺范围：
+
+- [ ] 在 `@aiao/utils` 提供 `LifecycleScope` 生命周期作用域原语，语义（逆序、幂等、异步、错误隔离、可嵌套）
+      由测试冻结（[US-013](../stories/core/US-013-lifecycle-scope-primitive.md)）
+- [ ] `IRxDBPlugin` 契约改为 `install(scope)`，四个插件包全部迁移，`destroy()` 转为可选并进入废弃周期；
+      **关闭上表第 4 / 7 / 9 条三处既有泄漏**（[US-014](../stories/core/US-014-plugin-scope-contract.md)）
+
+已冻结契约，但尚无可交付切片：
+
+- [ ] 插件可声明 `inject` 依赖，依赖未就绪时不安装、依赖消失时自动释放作用域。
+      [US-015](../stories/core/US-015-plugin-inject-dependency.md) 已降为**父契约故事**，
+      只冻结封闭依赖类别与不变量；切片指派给 `US-015a`（适配器依赖纪元）与 `US-015b`（插件依赖图），
+      **两个文件都还没创建**
+
+价值待证，**不**构成本 Epic 的承诺：
+
+- [ ] `RxDB.#shutdown()` 的手工复位收敛到实例作用域（背景见「现状」表第 1 项）——预留给 `US-016`
 - [ ] 三框架绑定（Angular `DestroyRef` / React `useEffect` cleanup / Vue `onScopeDispose`）统一挂接到
-      同一个作用域原语——**尚无故事认领**，前置条件是 US-013
+      同一个作用域原语——预留给 `US-017`
+
+> 后两组已被 US-014 / US-015 的正文引用为 `US-016` / `US-017` 的归属，但**故事文件尚未创建**，
+> 因此它们是**编号占位，不是排期承诺**。US-014 交付后本 Epic 的三处已知泄漏即全部关闭；
+> 015a 之后的每一条都必须在自己的故事里写出「今天用户踩得到的具体症状」才允许开工。
 
 ## 故事
 
-- ⬜ [US-013 EffectScope 生命周期作用域原语](../stories/core/US-013-effect-scope-primitive.md) (High)
+- ⬜ [US-013 LifecycleScope 生命周期作用域原语](../stories/core/US-013-lifecycle-scope-primitive.md) (High)
 - ⬜ [US-014 插件作用域契约](../stories/core/US-014-plugin-scope-contract.md) (High)
-- ⬜ [US-015 插件依赖声明与按需装卸](../stories/core/US-015-plugin-inject-dependency.md) (Medium)
+- 📄 [US-015 插件依赖声明与按需装卸](../stories/core/US-015-plugin-inject-dependency.md) (Medium) — 父契约故事，不直接交付
+  - 🚧 `US-015a` 适配器依赖纪元 — 文件未创建
+  - 🚧 `US-015b` 插件依赖图 — 文件未创建，价值待证
+- 🚧 `US-016` 连接纪元与停机收敛 — 文件未创建，价值待证
+- 🚧 `US-017` 三框架宿主作用域 — 文件未创建，价值待证
 
-交付顺序固定为 **US-013 → US-014 → US-015**，不可交换：US-014 的 `install(scope)` 签名需要 US-013
-冻结的 `EffectScope` 类型；US-015 的「依赖消失时释放」需要 US-014 已经把插件的副作用都收进作用域，
-否则「释放」只能释放掉一半。
+**US-013 → US-014 是硬序**，不可交换：US-014 的 `install(scope)` 签名需要 US-013 冻结的
+`LifecycleScope` 类型。US-014 之后的顺序（015a → 015b → 016 → 017）是**依赖顺序，不是排期承诺**——
+US-015 的「依赖消失时释放」确实需要 US-014 先把插件副作用收进作用域，但「需要 A 先做」
+不等于「B 一定要做」。
 
 ## 非目标
 
-- **不引入依赖注入容器**。`inject` 的取值是一个封闭枚举（当前只有本地/远端适配器与已安装插件名），
-  不是任意字符串键；不提供 `ctx.provide()` 式的动态服务注册表。要扩大取值范围必须另起故事并说明理由。
+- **不引入依赖注入容器**。`inject` 的取值限定在一组**封闭的依赖类别**——本地/远端适配器，以及
+  `plugin:${已安装插件名}`——而不是任意字符串键。（它在类型上是模板字面量类型，不是 TS `enum`；
+  「封闭」指的是类别封闭，不是取值可枚举。）不提供 `ctx.provide()` 式的动态服务注册表。
+  要扩大类别必须另起故事并说明理由。
 - **不引入 Proxy 追踪**。rxdb 已经有 `EntityProxy` 一层代理，再叠一层「谁在调用我」的 traceable 代理
   会让栈和调试同时变糟。作用域的归属靠**显式传参**（`install(scope)`），不靠调用方推断。
 - **不做长异步栈追踪**。「effect 出错时指回 `scope.effect()` 的调用点」是可独立交付的诊断增强，

@@ -7,7 +7,7 @@
 **评审对象**：
 
 - [Epic 008 生命周期作用域](epics/epic-008-lifecycle-scope.md)
-- [US-013 EffectScope 生命周期作用域原语](stories/core/US-013-effect-scope-primitive.md)
+- [US-013 生命周期作用域原语](stories/core/US-013-lifecycle-scope-primitive.md)（评审当时名为 `EffectScope`，已按 R-00x 的命名裁决更名为 `LifecycleScope`）
 - [US-014 插件作用域契约](stories/core/US-014-plugin-scope-contract.md)
 - [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md)
 

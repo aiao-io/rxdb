@@ -11,11 +11,23 @@
 ### 父故事（共享契约文档）
 
 个别 story 因 INVEST「Small」不成立而被拆分，原文件保留为**父故事**：只承载子故事共享的契约、设计决策与不变式，
-**不直接交付**。目前只有 [US-012](stories/core/US-012-field-semantic-metadata.md)（子故事 US-012a/b/c）属于这一类。
+**不直接交付**。目前有三条：
+
+| 父故事                                                       | 子故事            | 子故事文件 |
+| ------------------------------------------------------------ | ----------------- | ---------- |
+| [US-012](stories/core/US-012-field-semantic-metadata.md)     | US-012a/b/c       | ✅ 已落盘  |
+| [US-306](stories/collaboration/US-306-working-tree-index.md) | US-306a/b/c       | ✅ 已落盘  |
+| [US-015](stories/core/US-015-plugin-inject-dependency.md)    | US-015a / US-015b | ❌ 未创建  |
 
 父故事的 `status` 仍然参与计数（它要等所有子故事 Done 才能置 Done），但在 `status-overview.md` 和 epic 列表中
 用 `📄` 而非 `⬜` 标记，并把子故事缩进列在其下，避免读者以为它是一条可以直接开工的交付项。
 拆分理由必须写进父故事 INVEST 清单的 `Small` 一项，说明拆分日期与承接的子故事编号。
+
+**拆分即落盘（硬规则）**：把一条 story 降级为父故事时，**必须在同一次改动里创建全部子故事文件**，
+哪怕只有 frontmatter + 一句「承接父故事的哪一段」。理由是拆分动作同时做了两件事——
+它把父故事从 Backlog 移出（不再可开工），却没有把等量的可交付项放回去。子文件缺席时，
+Epic 会呈现出「有故事在排队」的假象，而实际上没有任何一条可以开工。
+US-015 是这条规则被违反的**现存唯一实例**，在补齐之前它是 epic-008 的开工前置。
 
 ## 目录结构
 
@@ -82,25 +94,25 @@ inherited_acs:
 以下建议基于当前能力矩阵和未完成 story 汇总。它们是排期建议，不改变各 story
 frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准。
 
-| 优先级 | 建议功能                             | 对应 story                                                               | 建议理由                                                                              | 主要交付边界                                                                                                       |
-| :----: | ------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-|   P0   | 跨 realm writer lease 与迁移 fencing | [US-304](stories/collaboration/US-304-writer-lease-migration-fencing.md) | 直接影响迁移期间的数据一致性；旧 writer 失效前不能允许发布类型系统升级                | lease/guard 表、drain barrier、epoch fencing、崩溃恢复、多进程/Worker 回归套件                                     |
-|   P1   | 字段 format 声明与注册期校验         | [US-012a](stories/core/US-012a-field-format-declaration.md)              | US-012 系列的地基：`FieldFormat` 判别联合不冻结，DTO 和值校验都无从落地               | 16 个 format 接口、`PropertyType × format` 相容表、注册期聚合校验                                                  |
-|   P1   | 实体字段描述 DTO                     | [US-012b](stories/core/US-012b-entity-fields-dto.md)                     | 让生成器、三框架和 DevTools 使用同一份字段语义，避免按字段名猜测展示规则              | 派生 `cardinality/source`、`ENTITY_FIELDS_DTO_VERSION`、`describeEntityFields()` / `parseEntityFieldsDescriptor()` |
-|   P1   | Electron 桌面本地 SQLite             | [US-207](stories/adapter/US-207-desktop-local-database.md)               | 补齐桌面端文件持久化和重启恢复，扩大 Local-first 的实际使用场景                       | Electron **SQLite 文件**路径、共享桌面 host 契约、类型化 IPC、真实文件 smoke test                                  |
-|   P2   | 提交图与 HEAD 持久化                 | [US-305](stories/collaboration/US-305-commit-graph-head.md)              | 旧暂存导出已在 `0.0.24` 删除，能力缺口现在完全敞开，但需要 US-304 的 fencing 打底     | 独立命名空间的新契约、commit 存储布局、baseline commit 与一次性迁移                                                |
-|   P2   | 字段值校验与生成器透传               | [US-012c](stories/core/US-012c-field-value-validation-codegen.md)        | 有了 DTO 才谈得上运行时校验；单独成条以免和 DTO 一起变成不可验收的大块                | `validateFieldValue()`、D12 归一化、生成器透传、三框架 fixture 复用                                                |
-|   P2   | Electron PGlite 数据目录与事务宿主   | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)       | PGlite callback transaction 不能跨 IPC 序列化，需要 SQLite 路径不需要的事务 host 协议 | 主进程 data directory、事务 ID 协议或主进程托管 adapter、跨进程类型保真                                            |
-|   P2   | PGlite 原生全文搜索                  | [US-703](stories/future/US-703-pglite-full-text-search.md)               | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                             | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                       |
-|   P2   | 子路径入口纳入 API 表面基线          | [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)         | 版本策略把子路径承诺为公开 API，门禁却只扫主入口——承诺与门禁的差额只能靠人工审查补    | 源入口声明收敛到单一真相源、基线格式扩到多入口、资产入口白名单跳过、三处文档收口                                   |
-|   P1   | EffectScope 生命周期作用域原语       | [US-013](stories/core/US-013-effect-scope-primitive.md)                  | 同一件「登记副作用 → 拆卸时撤销」的事在仓库里被手工写了九遍，没有两处写法相同         | `@aiao/utils` 侧的类与语义（逆序、幂等、异步、错误隔离、可嵌套），语义由测试冻结                                   |
-|   P1   | 插件作用域契约                       | [US-014](stories/core/US-014-plugin-scope-contract.md)                   | graph 插件的 `destroy()` 是空的且**契约里没有位置可写**——这是既有泄漏，不是待办能力   | `install(scope)` 契约、`unregisterRepository()`、四个插件包迁移、`destroy()` 废弃周期、类型契约测试                |
+| 优先级 | 建议功能                             | 对应 story                                                               | 建议理由                                                                                                                   | 主要交付边界                                                                                                          |
+| :----: | ------------------------------------ | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+|   P0   | 跨 realm writer lease 与迁移 fencing | [US-304](stories/collaboration/US-304-writer-lease-migration-fencing.md) | 直接影响迁移期间的数据一致性；旧 writer 失效前不能允许发布类型系统升级                                                     | lease/guard 表、drain barrier、epoch fencing、崩溃恢复、多进程/Worker 回归套件                                        |
+|   P1   | 字段 format 声明与注册期校验         | [US-012a](stories/core/US-012a-field-format-declaration.md)              | US-012 系列的地基：`FieldFormat` 判别联合不冻结，DTO 和值校验都无从落地                                                    | 16 个 format 接口、`PropertyType × format` 相容表、注册期聚合校验                                                     |
+|   P1   | 实体字段描述 DTO                     | [US-012b](stories/core/US-012b-entity-fields-dto.md)                     | 让生成器、三框架和 DevTools 使用同一份字段语义，避免按字段名猜测展示规则                                                   | 派生 `cardinality/source`、`ENTITY_FIELDS_DTO_VERSION`、`describeEntityFields()` / `parseEntityFieldsDescriptor()`    |
+|   P1   | Electron 桌面本地 SQLite             | [US-207](stories/adapter/US-207-desktop-local-database.md)               | 补齐桌面端文件持久化和重启恢复，扩大 Local-first 的实际使用场景                                                            | Electron **SQLite 文件**路径、共享桌面 host 契约、类型化 IPC、真实文件 smoke test                                     |
+|   P2   | 提交图与 HEAD 持久化                 | [US-305](stories/collaboration/US-305-commit-graph-head.md)              | 旧暂存导出已在 `0.0.24` 删除，能力缺口现在完全敞开，但需要 US-304 的 fencing 打底                                          | 独立命名空间的新契约、commit 存储布局、baseline commit 与一次性迁移                                                   |
+|   P2   | 字段值校验与生成器透传               | [US-012c](stories/core/US-012c-field-value-validation-codegen.md)        | 有了 DTO 才谈得上运行时校验；单独成条以免和 DTO 一起变成不可验收的大块                                                     | `validateFieldValue()`、D12 归一化、生成器透传、三框架 fixture 复用                                                   |
+|   P2   | Electron PGlite 数据目录与事务宿主   | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)       | PGlite callback transaction 不能跨 IPC 序列化，需要 SQLite 路径不需要的事务 host 协议                                      | 主进程 data directory、事务 ID 协议或主进程托管 adapter、跨进程类型保真                                               |
+|   P2   | PGlite 原生全文搜索                  | [US-703](stories/future/US-703-pglite-full-text-search.md)               | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                                                                  | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                          |
+|   P2   | 子路径入口纳入 API 表面基线          | [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)         | 版本策略把子路径承诺为公开 API，门禁却只扫主入口——承诺与门禁的差额只能靠人工审查补                                         | 源入口声明收敛到单一真相源、基线格式扩到多入口、资产入口白名单跳过、三处文档收口                                      |
+|   P1   | LifecycleScope 生命周期作用域原语    | [US-013](stories/core/US-013-lifecycle-scope-primitive.md)               | 同一件「登记副作用 → 拆卸时撤销」的事在仓库里被手工写了九遍，没有两处写法相同                                              | `@aiao/utils` 侧的类与语义（逆序、幂等、异步、错误隔离、可嵌套），语义由测试冻结                                      |
+|   P1   | 插件作用域契约                       | [US-014](stories/core/US-014-plugin-scope-contract.md)                   | 三处既有泄漏：graph 的 `destroy()` 是空的且契约里没有位置可写；`rxdb.storage` 断连一次即永久消失；workspace 拆卸后无法重装 | `install(scope)` 契约、`repository(name, config, scope?)`、四个插件包迁移、`destroy()` 转可选的废弃周期、类型契约测试 |
 
 > US-306a/b/c / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
 > [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定依赖关系。
 >
-> [US-015](stories/core/US-015-plugin-inject-dependency.md) 同理不单列——它是 US-014 的后续交付，
-> 排期跟随 [epic-008](epics/epic-008-lifecycle-scope.md) 内部的固定顺序。
+> [US-015](stories/core/US-015-plugin-inject-dependency.md) 同理不单列——它已降级为父契约故事，
+> 真正的交付项是尚未创建的 `US-015a` / `US-015b`，见下方排期约束第 8 条。
 
 ### 排期约束
 
@@ -125,6 +137,10 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
    [status-overview.md](status-overview.md) 的「已知的需求覆盖缺口」。
    该缺口 2026-08-15 由 [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md) 认领；
    在它交付之前，改动这 12 个子路径入口的导出**必须在 PR 描述里人工声明破坏性**。
+8. epic-008 内部 **US-013 → US-014** 为硬序。US-014 交付后三处已知泄漏全部关闭，
+   因此 `US-015a` 及其之后的每一条都必须在自己的故事里写出**今天用户踩得到的具体症状**才允许排期；
+   写不出就留在 Backlog。`US-015` 本体自 2026-08-15 起降级为共享契约文档，不直接交付，
+   且其子故事文件尚未创建——在 `US-015a` 落盘之前 epic-008 没有 US-014 之后的可交付切片。
 
 ### 建议补充的验收维度
 

@@ -28,13 +28,19 @@ INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接
 > INV-1～INV-7 与 D1～D5 是唯一真相源，子故事不得各自复述或改写；需要变更时改本文件，再同步子故事。
 > 本文件的 `status` 是子故事的汇总视图：两个子故事全部 `Done` 时才置 `Done`。
 >
-> | 子故事                                           | 交付                                                                     |
-> | ------------------------------------------------ | ------------------------------------------------------------------------ |
-> | [US-015a](./US-015a-adapter-dependency-epoch.md) | `adapter:local` / `adapter:remote` 依赖、纪元调度、释放时序、search 迁移 |
-> | [US-015b](./US-015b-plugin-dependency-graph.md)  | `plugin:*` 依赖、名字索引与重名裁决、拓扑装卸、环检测                    |
+> | 子故事    | 文件          | 交付                                                                     |
+> | --------- | ------------- | ------------------------------------------------------------------------ |
+> | `US-015a` | 🚧 **未创建** | `adapter:local` / `adapter:remote` 依赖、纪元调度、释放时序、search 迁移 |
+> | `US-015b` | 🚧 **未创建** | `plugin:*` 依赖、名字索引与重名裁决、拓扑装卸、环检测                    |
 >
 > 拆分是有序的：US-015a 先落地调度骨架与适配器这一类依赖，US-015b 在同一骨架上加入插件间依赖图。
 > 反过来不成立——没有调度器就没有地方接图。
+>
+> ⚠️ **两个子故事文件至今没有创建**，本条目因此没有任何可交付切片——违反
+> [README 的「拆分即落盘」硬规则](../../README.md)。补齐这两个文件是 US-015a 的开工前置。
+> `US-015b` 另有[价值待证](../../epic-008-lifecycle-scope-review-2.md)问题：今天没有任何插件
+> 声明 `plugin:*` 依赖。全文其余处对 `US-015a` / `US-015b` 的引用一律指向**尚不存在的文件**，
+> 已去链接以免制造「文档齐备」的假象。
 
 ## 作为/我想要/以便
 
@@ -64,17 +70,18 @@ INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接
 ### 证据二：`plugin.name` 从未被当作索引
 
 `#plugin_map` 是 `Map<Plugin, IRxDBPlugin>`（[:116](../../../packages/rxdb/src/RxDB.ts#L116)），键是**工厂函数**。
-`plugin.name` 全文只出现在三处 `console.error` 的模板串里
-（[:711](../../../packages/rxdb/src/RxDB.ts#L711) / :717 / :763）——**从来没有被当作索引用过**。
+`plugin.name` 全文只出现在三处 `console.error` 的模板串里——`#install_one_plugin`、
+`#track_plugin_install`、`#destroy_plugin` 各一处（[:725](../../../packages/rxdb/src/RxDB.ts#L725) /
+:719 / :771）——**从来没有被当作索引用过**。
 后果是 search 的工厂只能自己探测宿主实例上的自有属性来判断「我是不是已经装过了」
 （[:540-543](../../../packages/rxdb-plugin-search/src/plugin.ts#L540-L543)，
 不匹配时抛 `already installed with an incompatible instance`）。要支持按名字声明依赖，
-必须先补上这个索引——见 D4，落地归 [US-015b](./US-015b-plugin-dependency-graph.md)。
+必须先补上这个索引——见 D4，落地归 `US-015b`（🚧 文件未创建）。
 
 ### 证据三：部分断连没有任何信号
 
-`#shutdown()` 只在**最后一个**已连接适配器断开时触发
-（[:476-479](../../../packages/rxdb/src/RxDB.ts#L476-L479)）。本地 + 远端都连着、只断远端时，
+`#shutdown()` 只在**最后一个**已连接适配器断开时触发——见 `RxDB.disconnect(adapterName)`
+（[:478-486](../../../packages/rxdb/src/RxDB.ts#L478-L486)）。本地 + 远端都连着、只断远端时，
 依赖远端的插件既不会被拆卸也收不到任何通知——今天没有任何机制能表达「我的依赖不在了」。
 
 `connected$`（[:219](../../../packages/rxdb/src/RxDB.ts#L219)）是个 `boolean`，
@@ -94,7 +101,8 @@ INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接
 一次依赖变化，否则依赖它的插件会继续挂在已断开的旧实例上。
 
 **INV-4 宿主只 `await` 已经启动的安装。** 依赖未满足的插件**不得**进入 `#plugin_install_promises`。
-这是死锁安全底线：`connect()` 会 `await` 全部在册安装（[:725-739](../../../packages/rxdb/src/RxDB.ts#L725-L739)），
+这是死锁安全底线：`connect()` 会经 `RxDB.#await_plugin_installs()` `await` 全部在册安装
+（[:733-748](../../../packages/rxdb/src/RxDB.ts#L733-L748)），
 一旦「安装」变成「等依赖」而依赖恰好由 `connect()` 自己提供，就会等成死锁——search 已经踩过一次
 （[:370-372](../../../packages/rxdb-plugin-search/src/plugin.ts#L370-L372)），代价是整个后台安装路径。
 新调度必须在**结构上**排除这种可能，而不是靠调用方小心。
@@ -162,7 +170,7 @@ INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接
 export type RxDBPluginDependency = 'adapter:local' | 'adapter:remote' | `plugin:${Uncapitalize<string>}`;
 ```
 
-用 `tsc --strict` 实测过的性质（对应 [US-015b](./US-015b-plugin-dependency-graph.md) 的契约测试）：
+用 `tsc --strict` 实测过的性质（对应 `US-015b`（🚧 文件未创建） 的契约测试）：
 
 | 写法                   | 是否接受 | 说明                                              |
 | ---------------------- | -------- | ------------------------------------------------- |
@@ -217,7 +225,7 @@ adapter.connect()                    :417
 search 今天的双重等待（先 `connected$` 再 `localAdapter$`）正是在手工逼近这个判据：
 `connected$` 保证引导跑完，`localAdapter$` 取到实例。宿主提供正确判据后，两次等待一起消失。
 
-落地归 [US-015a](./US-015a-adapter-dependency-epoch.md)。
+落地归 `US-015a`（🚧 文件未创建）。
 
 ### D3 — 插件依赖的就绪判据
 
@@ -244,7 +252,7 @@ search 今天的双重等待（先 `connected$` 再 `localAdapter$`）正是在�
 推荐方案的原则是：**在代价真正产生的那一点付费**。重名本身无害（今天就这样跑着），
 只有当有人依赖那个名字时它才变成歧义，而那一刻恰好是能给出最有用错误信息的时刻。
 
-落地归 [US-015b](./US-015b-plugin-dependency-graph.md)。
+落地归 `US-015b`（🚧 文件未创建）。
 
 ### D5 — 依赖满足后安装失败的重试口径
 
@@ -268,12 +276,12 @@ search 今天的双重等待（先 `connected$` 再 `localAdapter$`）正是在�
 
 - **依赖注入容器 / `provide()` 式动态服务注册表**——epic-008 明确的非目标
 - **任意字符串依赖键**。扩大 `RxDBPluginDependency` 取值必须另起故事并说明理由（INV-1）
-- **`RxDB.#shutdown()` 的 8 处手工复位收敛**——归 [US-016](./US-016-connection-scope-shutdown.md)
+- **`RxDB.#shutdown()` 的 8 处手工复位收敛**——归 `US-016`（🚧 文件未创建，价值待证）
 - **拆卸错误在 `RxDB` 边界的出口**——与 [US-014 D5](./US-014-plugin-scope-contract.md) 保持一致，仍为 `console.error`
 - **workspace 的 `#installPromise` / `#installFailed`**：它等的是 IndexedDB 恢复
   （[:331-346](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L331-L346)），
   **不是 rxdb 侧的依赖**，`inject` 帮不上忙。两个子故事都不动它
-- **三框架绑定接入**——归 [US-017](./US-017-framework-host-scope.md)
+- **三框架绑定接入**——归 `US-017`（🚧 文件未创建，价值待证）
 
 ## 目标契约
 
@@ -298,6 +306,7 @@ export interface IRxDBPlugin {
 - [epic-008 评审建议](../../epic-008-lifecycle-scope-review.md) — R-001 / R-002 / R-003 / R-008 的来源
 - [US-013 LifecycleScope 生命周期作用域原语](./US-013-lifecycle-scope-primitive.md)
 - [US-014 插件作用域契约](./US-014-plugin-scope-contract.md) — 前置故事；「释放」以它把副作用收进作用域为前提
-- [US-015a 适配器依赖与纪元调度](./US-015a-adapter-dependency-epoch.md)
-- [US-015b 插件间依赖图](./US-015b-plugin-dependency-graph.md)
+- `US-015a` 适配器依赖与纪元调度 — 🚧 计划路径 `stories/core/US-015a-adapter-dependency-epoch.md`，**未创建**
+- `US-015b` 插件间依赖图 — 🚧 计划路径 `stories/core/US-015b-plugin-dependency-graph.md`，**未创建**，价值待证
+- [第二轮评审复核](../../epic-008-lifecycle-scope-review-2.md) — S-002′（`install()` 内可调用什么）是 US-015a 的硬约束
 - [versioning-policy.md](../../versioning-policy.md) 第 4 节 — 三层 API 守护

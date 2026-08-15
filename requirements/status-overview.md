@@ -19,10 +19,15 @@
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，请勿手写维护。
 >
-> **口径**：合计等于 `requirements/stories/*/US-*.md` 的文件数，**包含 2 个 📄 父故事**
-> （[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-306](stories/collaboration/US-306-working-tree-index.md)，
-> 均为 `Backlog`）。父故事不直接交付，其状态在全部子故事 Done 后才随之关闭；因此 Backlog 17 中有 2 条是共享契约文档，
-> 实际待开发切片为 15 条。epic 文件不计入本表。
+> **口径**：合计等于 `requirements/stories/*/US-*.md` 的文件数，**包含 3 个 📄 父故事**
+> （[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-306](stories/collaboration/US-306-working-tree-index.md)、
+> [US-015](stories/core/US-015-plugin-inject-dependency.md)，均为 `Backlog`）。父故事不直接交付，
+> 其状态在全部子故事 Done 后才随之关闭；因此 Backlog 17 中有 3 条是共享契约文档，
+> 实际待开发切片为 14 条。epic 文件不计入本表。
+>
+> ⚠️ **US-015 是唯一一个「已降为父故事但子故事文件尚未创建」的条目**——US-012 / US-306 拆分当天就写出了子文件，
+> US-015 只改了父标记。在 `US-015a` / `US-015b` 落盘之前，epic-008 的这一段**没有任何可交付切片**，
+> 见下方 [生命周期作用域](#生命周期作用域) 小节的开工前置。
 > 2026-08-13 的评审把 US-012 拆成 US-012a/b/c、US-207 拆出 US-208、US-305 升级为 epic-006 并拆成 US-305～US-308，Backlog 因此从 4 增至 11；这是拆分而不是新增范围。
 > 同日补写了 [US-209](stories/adapter/US-209-miniprogram-adapter.md)（微信小程序适配器），适配器实现早已合并，故直接记为 `In Review` 而非 `Backlog`；2026-08-15 收尾项全部关闭，转 `Done`（Done 32 → 33，In Review 1 → 0，合计不变）。
 > 同日 US-207 二次拆分：Tauri 半边迁至 [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)（Backlog），US-207 收敛到 Electron 并转 `In Progress`。Backlog 一进一出仍为 11，合计 45 → 46。
@@ -31,10 +36,14 @@
 > 同日二次评审确认 US-306 仍同时持有写入口捕获、Index 状态机、三框架与 benchmark，INVEST「Small」仍不成立；
 > 保留 US-306 为父契约并拆出 US-306a/b/c。三个子故事是既有范围的交付切片，Backlog 11 → 14，合计 47 → 50。
 > 同日新建 [epic-008](epics/epic-008-lifecycle-scope.md)（生命周期作用域）并登记
-> [US-013](stories/core/US-013-effect-scope-primitive.md) / [US-014](stories/core/US-014-plugin-scope-contract.md) / [US-015](stories/core/US-015-plugin-inject-dependency.md)（均 Backlog）：
+> [US-013](stories/core/US-013-lifecycle-scope-primitive.md) / [US-014](stories/core/US-014-plugin-scope-contract.md) / [US-015](stories/core/US-015-plugin-inject-dependency.md)（均 Backlog）：
 > 把仓库内已存在的九处「登记副作用 → 拆卸时撤销」的手工账本收敛成一个作用域原语，是把既有实现缺口登记成故事，不是新增产品范围。
 > 其中 [graph 插件](../packages/rxdb-plugin-graph/src/plugin.ts#L33-L35) 的 `destroy()` 是空的且**契约里没有位置可写**
 > （`#repository_config_map` 只有 `.set` / `.get`，无反注册 API），属既有泄漏。Backlog 14 → 17，合计 50 → 53。
+> 同日第二轮评审（[review-2](epic-008-lifecycle-scope-review-2.md)）把 US-015 降为父契约故事，
+> 切片指派给 US-015a / US-015b，并把 US-016 / US-017 从 epic 目标转为待创建故事。
+> **子故事文件尚未落盘**，因此本次拆分**不产生任何计数变化**（合计仍为 53）——
+> 只有 `US-015a` / `US-015b` 真正写出来时才 Backlog +2。父故事数 2 → 3，实际待开发切片 15 → 14。
 
 ## 项目统计
 
@@ -172,15 +181,26 @@ US-307 / US-308 的**核心持久层半边**可与 US-306c 并行开工，但两
 2026-08-15 新建，把仓库内九处「安装时登记 → 拆卸时逐一撤销」的手工账本收敛成一个作用域原语。
 它既不是用户可见能力（不挂 epic-001），也不是门禁覆盖面问题（不挂 epic-007），而是一层横切实现约束。
 
-- ⬜ [US-013 EffectScope 生命周期作用域原语](stories/core/US-013-effect-scope-primitive.md) — `@aiao/utils` 侧的原语，语义由测试冻结
-- ⬜ [US-014 插件作用域契约](stories/core/US-014-plugin-scope-contract.md) — `install(scope)`，四个插件包迁移；直接修掉 graph 插件的既有泄漏
-- ⬜ [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) — `inject` 封闭枚举，依赖未就绪不安装、消失即释放
+- ⬜ [US-013 LifecycleScope 生命周期作用域原语](stories/core/US-013-lifecycle-scope-primitive.md) — `@aiao/utils` 侧的原语，语义由测试冻结
+- ⬜ [US-014 插件作用域契约](stories/core/US-014-plugin-scope-contract.md) — `install(scope)`，四个插件包迁移；**独立关闭三处已知泄漏**（graph 注册、storage 属性、workspace 订阅）
+- 📄 [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) — **父契约故事，不直接交付**；只冻结 `inject` 的封闭依赖类别与不变量
+  - 🚧 `US-015a` 适配器依赖纪元 — **文件未创建**
+  - 🚧 `US-015b` 插件依赖图 — **文件未创建**；价值待证：今天没有任何插件声明 `plugin:*` 依赖
+- 🚧 `US-016` 连接纪元与停机收敛 — **文件未创建**；价值待证
+- 🚧 `US-017` 三框架宿主作用域 — **文件未创建**；价值待证
 
-> 交付顺序固定为 **US-013 → US-014 → US-015**，不可交换。
+> 🚧 = 已在其它文档中被引用、但 `stories/` 下没有对应文件，**因此不计入任何统计**。
+> 它与汇总表的 🚫 Blocked 无关（后者统计的是 YAML 里显式 `status: Blocked` 的既有故事，仍为 0）。
 >
-> 本 Epic 会制造一次 `IRxDBPlugin` 成员签名变更，而 [api-surface.mjs](../scripts/audit/api-surface.mjs)
-> 只记录 `{name, kind}`（见 [rxdb.json](api-baseline/rxdb.json)），**成员怎么改都不产生 diff**。
-> 该盲区由 US-014 用类型契约测试就地补上，不扩大 [epic-007](epics/epic-007-public-api-gates.md) 的范围。
+> **交付顺序**：**US-013 → US-014** 为硬序，不可交换。
+> **US-014 完成时，本 Epic 的三处已知泄漏已全部关闭**——后续 015a/015b/016/017 不得凭 Epic 惯性排期，
+> 每一条都要在自己的故事里写出「今天用户踩得到的具体症状」，写不出就留在 Backlog。
+> 这是 review-2 的过度设计判据，不是建议。
+>
+> 本 Epic 会制造一次 `IRxDBPlugin` 成员签名变更（含 `destroy()` 由必选转可选），
+> 而 [api-surface.mjs](../scripts/audit/api-surface.mjs) 只记录 `{name, kind}`（见 [rxdb.json](api-baseline/rxdb.json)），
+> **成员怎么改都不产生 diff**。该盲区由 US-014 用类型契约测试就地补上，
+> 不扩大 [epic-007](epics/epic-007-public-api-gates.md) 的范围。
 
 ## 跨框架 API 对称矩阵
 

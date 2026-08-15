@@ -30,6 +30,8 @@ CI 的 `setup` job 每轮都会执行。表格里各 spec 那一行写的 `node 
 | [git-stats-worker.test.mjs](#git-stats-worker-testmjs)                      | 改 worker 后                                 | Node test runner，覆盖 blame 解析逻辑                                           | `node --test scripts/git-stats-worker.test.mjs`                               |
 | [git-stats-rs/](#git-stats-rs)                                              | 大仓库统计太慢                               | Rust 版 git-stats，Rayon 并发 `git blame`                                       | `cargo run --release --manifest-path scripts/git-stats-rs/Cargo.toml`         |
 | [coverage-serve.mjs](#coverage-servemjs)                                    | 本地查覆盖率                                 | 起一个静态 HTTP 服务，把 Istanbul HTML 报告渲染出来                             | `pnpm coverage:serve`                                                         |
+| [e2e-static-server.mjs](#e2e-static-servermjs)                              | Playwright webServer                         | 直接 `node` 起 SPA 静态服务，避免 nx file-server 残留孤儿进程占端口             | `node scripts/e2e-static-server.mjs --root <dir> --port <n>`                  |
+| `e2e-static-server.spec.mjs`                                                | 改静态服务后                                 | Node test runner，覆盖缺 root / 端口占用 / SPA fallback / 路径穿越              | `node --test scripts/e2e-static-server.spec.mjs`                              |
 | [merge-vitest-reports.mjs](#merge-vitest-reportsmjs)                        | browser 覆盖跑完                             | 把 Node 与 browser 的 Istanbul JSON + JUnit testsuite 合并到唯一门禁目录        | `rxdb-plugin-search:test-browser`                                             |
 | [merge-vitest-reports.spec.mjs](#merge-vitest-reports-specmjs)              | 改 merger 后                                 | Node test runner，覆盖 coverage union + JUnit 计数累加                          | `node --test scripts/merge-vitest-reports.spec.mjs`                           |
 | [test-all-log.mjs](#test-all-logmjs)                                        | 跑 `test-all` 想留档                         | 包一层 Nx affected，跑后写结构化报告（耗时/缓存/失败/跳过）到日志               | `pnpm test-all:log`                                                           |
@@ -184,7 +186,19 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ---
 
-## 7. 覆盖率
+## 7. E2E 静态服务
+
+### `e2e-static-server.mjs`
+
+- **触发**：`apps/dev-rxdb-angular-e2e` 的 Playwright `webServer.command`；也可手动
+  `node scripts/e2e-static-server.mjs --root dist/apps/dev-rxdb-angular/browser --port 8200`。
+- **做什么**：
+  1. 用原生 `http` 服务指定目录，缺文件回退 `index.html`（SPA），不往 dist 里 copy `404.html`；
+  2. 端口被占立刻 `EADDRINUSE`，**不** `detectPort` 换端口；
+  3. 必须作为 Playwright 的直接 `node` 子进程启动。再套 `nx run …:serve-e2e` 会把真正监听端口的进程变成孙子，teardown 杀不掉，下次就报 “port already used”。
+- **何时手动跑**：改了静态服务本身、或想在不启动 Playwright 的情况下确认某份 `dist/` 能被 SPA fallback 打开。
+
+## 8. 覆盖率
 
 ### `coverage-serve.mjs`
 
@@ -288,7 +302,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ---
 
-## 8. API 表面
+## 9. API 表面
 
 ### `audit/api-surface.mjs`
 
@@ -328,7 +342,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
   这是既有状态，不是回归——`@aiao/source` 是内部消费的源码 condition，
   要么给它加豁免、要么从发布清单里摘掉，尚未决策。
 
-## 9. 内部依赖（不可直接执行）
+## 10. 内部依赖（不可直接执行）
 
 这些不是工具脚本，而是被其他脚本 `import` 的小工具。
 
@@ -347,7 +361,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ---
 
-## 10. 通用调用约定
+## 11. 通用调用约定
 
 - 所有脚本统一用 **Node ESM**（`import ... from`，无构建产物），最低 Node 26（由 `preinstall.mjs` 强制）；
 - 工作目录默认是仓库根（用 `process.cwd()` 或 `import.meta.dirname` 解析相对路径），所以从根目录直接 `node scripts/<x>.mjs` 即可；
@@ -359,7 +373,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ---
 
-## 11. 给新成员的一段话
+## 12. 给新成员的一段话
 
 如果你只是想 **跑起来**仓库，路径只有一条：
 

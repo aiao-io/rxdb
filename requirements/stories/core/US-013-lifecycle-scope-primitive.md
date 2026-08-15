@@ -80,7 +80,7 @@ INVEST 检查清单:
 | 6   | 某个 disposer 的实现内部调用 `scope.acquire()`       | `await scope.dispose()`                                        | 该调用抛 `LifecycleScopeDisposedError`；按 AC#8 的隔离规则，其余 disposer 照常跑完                                                                                                                                     | ⬜   |
 | 7   | `acquireAsync(setup)` 的 setup 尚未 settle           | 在 setup pending 期间调用 `scope.dispose()`                    | 先 abort 传给 setup 的 signal；setup 落地后拿到的 disposer 被**立即执行并等待**（资源不泄漏），随后 `acquireAsync` 的 Promise 以 `LifecycleScopeDisposedError` reject；`dispose()` 的 Promise 在该清理完成后才 resolve | ⬜   |
 | 8   | 三个 disposer 中第 2、3 个抛错                       | `await scope.dispose()`                                        | 三个**全部**被调用（不短路）；`dispose()` 以 `AggregateError` reject，`errors` 按**执行顺序**排列；作用域仍进入 `disposed`                                                                                             | ⬜   |
-| 9   | 三个 disposer 中恰好 1 个抛错                        | `await scope.dispose()`                                        | `dispose()` 直接以**该原始错误**reject（不包 `AggregateError`），与 [`RxDB.#runIsolated`](../../../packages/rxdb/src/RxDB.ts#L571-L585) 的首错口径一致                                                                 | ⬜   |
+| 9   | 三个 disposer 中恰好 1 个抛错                        | `await scope.dispose()`                                        | `dispose()` 直接以**该原始错误**reject（不包 `AggregateError`），与 [`RxDB.#runIsolated`](../../../packages/rxdb/src/RxDB.ts#L579-L593) 的首错口径一致                                                                 | ⬜   |
 | 10  | 父作用域上依次登记 A、子作用域 S、B                  | 在 S 上登记 s1、s2，然后 `await parent.dispose()`              | 顺序为 B → (s2 → s1) → A：子作用域在**它被创建的那个位置**整体释放，不是全部提前或全部推后；S 的 `state` 为 `disposed`                                                                                                 | ⬜   |
 | 11  | 子作用域 S 已独立 `dispose()`                        | 随后 `await parent.dispose()`                                  | S 的 disposer 不被二次调用；S 已从父清单摘除；父的其余条目正常释放                                                                                                                                                     | ⬜   |
 | 12  | setup 返回 `undefined`（无需释放的副作用）           | 登记后 `await scope.dispose()`                                 | 不抛错、不调用任何东西；该条目返回的 disposer 可安全调用且为 no-op                                                                                                                                                     | ⬜   |
@@ -184,12 +184,39 @@ setup 若在 abort 后 reject（AC#15），该错误归 `acquireAsync` 的调用
 | 单错原样抛，多错聚合（AC#8 / AC#9） | 调用方需要 `instanceof AggregateError` 分支                  | ✅ **推荐** |
 
 无论哪种方案，**不短路**是硬要求：一个 disposer 抛错绝不能让排在它后面的 disposer 被跳过——
-这正是 [`RxDB.#runIsolated`](../../../packages/rxdb/src/RxDB.ts#L571-L585) 已经确立的口径，
+这正是 [`RxDB.#runIsolated`](../../../packages/rxdb/src/RxDB.ts#L579-L593) 已经确立的口径，
 本原语只是把它从「事务事件批量派发」推广到「作用域释放」。
 
 配套的**摘除时机**由 AC#16 冻结：无论手动调用还是作用域释放，条目都在**执行底层清理之前**
 就从清单摘除并标记已执行。失败不回滚、不重试——重试会让已经成功的那半清理被跑第二遍，
 而「部分清理」正是最难排查的一类残留。
+
+### S-008 — `acquireAsync()` 建议推迟到有调用方时再加
+
+[第二轮评审复核](../../epic-008-lifecycle-scope-review-2.md) 的 S-008 逐个核过了 US-013 → US-017
+链条上**全部四个**迁移点的资源获取方式：
+
+| 迁移点                | 资源获取                                                       | 是否跨 await |
+| --------------------- | -------------------------------------------------------------- | ------------ |
+| `RxDBPluginGraph`     | 属性赋值 + 注册                                                | 否           |
+| `RxDBPluginStorage`   | `new RxdbFileStorage(...)` + `Object.defineProperty`           | 否           |
+| `RxDBPluginWorkspace` | `createWorkspaceStore()`（[workspace-store.ts:47] 是同步函数） | 否           |
+| `RxDBPluginSearch`    | `subscribe()` / `addEventListener`                             | 否           |
+
+[workspace-store.ts:47]: ../../../packages/rxdb-plugin-workspace/src/workspace-store.ts#L47
+
+**结论**：`acquireAsync()` + `AbortSignal` 在本 Epic 全链条内**零调用方**。它是纯可加性 API——
+将来任何一个调用方出现时补上，对已发布的 `acquire()` / `child()` / `dispose()` 零影响。
+而现在保留它的代价是 D3、D4 两个决策 + AC#7 / AC#14 / AC#15 三条最难写的异步竞态用例
+（外加 AC#16 的部分复杂度）。
+
+**建议**：把 D3 / D4 与 AC#7 / AC#14 / AC#15 移入下方「后续可加」，本故事只交付同步 `acquire()`。
+若要保留，需先在本节写出**一个具体调用方**——判据是 Epic 的「病灶数 ≥ 抽象数」。
+
+#### 后续可加（本故事不交付）
+
+- `acquireAsync(setup(signal))` 与它的取消出口——待出现第一个「资源获取跨 await」的调用方
+- 长异步栈追踪、全局作用域注册表、超时强制释放（见 Out of Scope）
 
 ### 参考实现
 
@@ -211,7 +238,8 @@ cordis 的 `Fiber.effect()`（`packages/core/src/fiber.ts`）是同类原语的�
 - pending 的 `acquireAsync` 单独记一份等待集合：`dispose()` 必须同时等它们（AC#7），
   且每个 pending 项持有自己的 `AbortController`（AC#14）
 - `label` 只用于诊断与错误消息，不参与身份，允许重复；缺省值 `'anonymous'`
-- 估算：实现 ~180 行，测试 ~~340 行（18 条 AC 每条至少一个用例，AC#7 / AC#8 / AC#15 各需 2~~3 个）
+- 估算：实现约 180 行，测试约 340 行（18 条 AC 每条至少一个用例，AC#7 / AC#8 / AC#15 各需 2～3 个）。
+  若按下方 S-008 摘掉 `acquireAsync`，降为实现约 120 行、测试约 250 行
 
 ## 实现文件
 
@@ -227,6 +255,6 @@ cordis 的 `Fiber.effect()`（`packages/core/src/fiber.ts`）是同类原语的�
 - [epic-008 生命周期作用域](../../epics/epic-008-lifecycle-scope.md) — 九处手工配对的清单与代价
 - [epic-008 评审建议](../../epic-008-lifecycle-scope-review.md) — 命名裁决、取消出口与手动 disposer 失败语义的来源
 - [US-014 插件作用域契约](US-014-plugin-scope-contract.md) — 本原语的第一个调用方
-- [`RxDB.#runIsolated`](../../../packages/rxdb/src/RxDB.ts#L571-L585) — 「不短路 + 首错重抛」的既有口径
+- [`RxDB.#runIsolated`](../../../packages/rxdb/src/RxDB.ts#L579-L593) — 「不短路 + 首错重抛」的既有口径
 - [versioning-policy.md](../../versioning-policy.md) 第 4 节 — API 表面基线工作流
 - cordis `packages/core/src/fiber.ts` — 参考实现（不作为依赖引入）

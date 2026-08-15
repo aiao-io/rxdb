@@ -49,10 +49,24 @@ INVEST 检查清单:
 `destroy()` 却每次 `#shutdown()` 都跑——**断连一次之后 `rxdb.storage` 就永久消失，重连不会恢复**。
 把 `defineProperty` 移进 `install(scope)` 会顺带修掉它（AC#9）。
 
+> ⚠️ **只挪 `defineProperty` 不够。** `new RxdbFileStorage(rxdb, options)` 本身也在构造器里
+> （[storage/plugin.ts:29-31](../../../packages/rxdb-plugin-storage/src/plugin.ts#L29-L31)），
+> 而 `destroy()` 会 `await this.storage.destroy()`。只搬属性定义，重连时 `defineProperty` 会把
+> **同一个已 destroy 的 storage 实例**重新装回去。判据见 D7：**构造器只创建插件对象本身，
+> 一切按纪元存活的资源都在 `install(scope)` 里获取**。
+
+**其三，workspace 的终态标志挡住了重连。** [`#destroyed`](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L196)
+是终态标志、从不复位（`destroy()` 在 :404-405 置 `true`，此后 :316 的守卫让每次写操作直接抛）；
+而 [`readonly #indexedDBStore!: WorkspaceStore`](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L169)
+是 `readonly` + definite assignment，构造器之后**在类型上就无法重新赋值**。
+
+这三条的共同形状是同一个：**资源的获取点与释放点寿命不同**。它也是本故事的必要性来源——
+迁到 `install(scope)` 之后，获取与释放天然同寿命，上面三处泄漏一起消失。
+
 ### 不在本故事
 
-`RxDB.#shutdown()`（:597-613）那 8 处手工复位的收敛。本故事只创建并释放**连接纪元作用域**
-这一层容器（D3），把 8 处复位迁进去归 [US-016](US-016-connection-scope-shutdown.md)。
+`RxDB.#shutdown()`（:605-621）那 8 处手工复位的收敛。本故事只创建并释放**连接纪元作用域**
+这一层容器（D3），把 8 处复位迁进去归 `US-016`（🚧 文件未创建，价值待证）。
 
 ## 范围边界
 
@@ -70,16 +84,16 @@ INVEST 检查清单:
 ### Out of Scope
 
 - **`inject` 依赖声明与按需装卸**——归 [US-015](US-015-plugin-inject-dependency.md) 系列
-- **`RxDB.#shutdown()` 的 8 处手工复位** 与 `#event_initialized` 守卫的移除——归 [US-016](US-016-connection-scope-shutdown.md)
+- **`RxDB.#shutdown()` 的 8 处手工复位** 与 `#event_initialized` 守卫的移除——归 `US-016`（🚧 文件未创建，价值待证）
 - **注册期资源的释放**。`use()` 时挂上的实例属性今天**在物理上就不可撤销**：
   [search:552-557](../../../packages/rxdb-plugin-search/src/plugin.ts#L552) 的 `searchPlugin` 与
   [workspace:278-283](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L278) 的 `workspace`
   都是 `configurable: false`。要覆盖它们需要先有 `RxDB.destroy()` / `unuse()`——本故事不提供，
   也**不宣称**注册期属性已纳入自动释放（D3）
-- **拆卸错误在 `RxDB` 边界的出口**：`#destroy_plugin()`（:757-767）今天把插件拆卸异常 `console.error` 后吞掉，
+- **拆卸错误在 `RxDB` 边界的出口**：`#destroy_plugin()`（:765-775）今天把插件拆卸异常 `console.error` 后吞掉，
   改成传播会改变 `disconnect()` / `disconnectAll()` 的可见行为，属独立的破坏性变更（D5）
 - **删除 `destroy()`**：本故事只让它变可选 + `@deprecated`；实际移除排在废弃周期结束后
-- **三框架绑定接入作用域**——归 [US-017](US-017-framework-host-scope.md)
+- **三框架绑定接入作用域**——归 `US-017`（🚧 文件未创建，价值待证）
 - **`#plugin_install_promises` 的记账收敛**：安装态与作用域是两件事，本故事不动安装期错误传播路径
 
 ## 验收标准
@@ -106,9 +120,17 @@ INVEST 检查清单:
 | 18  | `IRxDBPlugin` 的成员形状                                             | 跑 `packages/rxdb/src/__tests__/contracts/` 的类型契约测试             | 契约测试断言 `install` 接受 `LifecycleScope`、`destroy` 与 `lifecycle` 均为可选、`lifecycle` 只接受 `'scoped'` 字面量；**故意改坏签名时该测试失败**（见 D4）                                            | ⬜   |
 | 19  | 全部改动完成                                                         | `pnpm nx run-many -t lint test build --projects=tag:js-lib` 与门禁脚本 | 零 ESLint 警告；`@aiao/rxdb` 四项覆盖率 ≥ **90%**，四个插件包 ≥ **80%**；`api-surface.mjs --check` 通过。**注意**：`repository()` 与 `IRxDBPlugin` 的成员变更属公开 API 变更，只是不产生基线 diff（D4） | ⬜   |
 | 20  | 文档                                                                 | 检查插件作者文档与迁移说明                                             | 新契约写法、`lifecycle: 'scoped'` 的含义、`destroy()` 的废弃周期与双版本插件的写法已落到 `website/docs/plugins/` 与 `website/docs/migration/`；四个包 README 同步                                       | ⬜   |
+| 21  | 插件**只**声明 `lifecycle: 'scoped'`，**不**实现 `destroy`           | 触发 `#shutdown()`                                                     | 不抛 `TypeError`：`#destroy_plugin()` 必须写成 `await plugin.destroy?.()`。**今天写成 `await plugin.destroy()` 无保护调用**，契约一改成可选，第一个纯作用域插件就在拆卸路径上崩（S-007）                | ⬜   |
+| 22  | `init()` 中 `schemaManager.init()` 抛错                              | 捕获后检查插件与作用域状态                                             | 连接纪元作用域已释放且置空、已安装插件已回滚——`#install_plugin()` 在 `try` **之外**（[:283-285](../../../packages/rxdb/src/RxDB.ts#L283-L285)），今天只把 `#rxdb_initialized` 拨回 `false`（S-005）     | ⬜   |
+| 23  | 承接 AC#22                                                           | 修复问题后重新 `init()`                                                | 插件被**重新**安装到**全新**的连接纪元作用域下，不是叠在上一轮的半成品上；重复 `init()` 不产生双份注册                                                                                                  | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
+> **AC#3 的夹具脚注**（第二轮评审 S-003 降级后的落点）：本故事的「`use()` 后立即安装」与
+> `US-015` INV-4 的「依赖未满足的插件不进入 `#plugin_install_promises`」**不冲突**——两者不在同一
+> 时间点生效，US-015 系列落地后才有「依赖未满足」这个状态。但 AC#3 的测试**不要**断言
+> 「**所有**插件都立即安装」，只断言被测的那一个；否则该夹具会在 US-015a 落地当天变红。
+>
 > 最容易漏的是 **AC#12～#15（安装半途失败的回收）** 与 **AC#18（门禁看不见这次变更）**。
 > 前者是新契约独有的失败模式：旧契约下 `install()` 抛错只是「没装成」，插件自己在 catch 里收拾；
 > 新契约下宿主已经替它拿着一份**部分登记**的清单，宿主不释放就没有别人会释放。
@@ -117,6 +139,27 @@ INVEST 检查清单:
 > **成员签名怎么改都不会产生 diff**，所以 CI 的绿色在这条变更上不构成任何证据。
 
 ## 技术笔记
+
+### 今天的契约（对照用）
+
+[`rxdb-plugin.ts:6-10`](../../../packages/rxdb/src/rxdb-plugin.ts#L6-L10)：
+
+```ts
+export interface IRxDBPlugin {
+  name: Uncapitalize<string>;
+  install(): void | Promise<void>;
+  destroy(): void | Promise<void>; // ← 今天是**必选**，不是 destroy?()
+}
+```
+
+两处后果，均须在实现里同时处理（S-007）：
+
+1. `destroy` 由必选变可选，对**实现者**无破坏（AC#6 成立），但对**调用者**有——
+   `RxDB.#destroy_plugin()` 今天写的是 `await plugin.destroy()`，**无可选链保护**
+   （[:765-775](../../../packages/rxdb/src/RxDB.ts#L765-L775)）。必须一并改为 `await plugin.destroy?.()`，
+   否则第一个只写 `install(scope)` 的插件在拆卸路径上抛 `TypeError`（AC#21）。
+2. 这正是 D4 那个门禁盲区的一次真实实例：`destroy` 从必选变可选，
+   基线里的 `{"name": "IRxDBPlugin", "kind": "type"}` 一个字都不变。
 
 ### 目标契约
 
@@ -158,7 +201,7 @@ install(scope: LifecycleScope) {
 `#ownsStorage` 与 `#registeredEntity` 随之消失：前者判断的「是不是我装的」由「条目只在我这个
 作用域里登记」天然回答，后者判断的「装没装成」由 disposer 是否存在回答。
 
-### 待冻结的六个决策
+### 待冻结的七个决策
 
 #### D1 — `destroy()` 怎么退场
 
@@ -199,7 +242,7 @@ public repository<RT extends RepositoryInstance>(
 
 身份守卫（AC#8）是必需的：只有存储的那份就是调用方传入的那份时才删除，否则
 「A 注册 → B 覆盖注册同名 → A 拆卸」会把 B 的注册误删。同一守卫思路已经在
-[RxDB.#closeTransactionContext](../../../packages/rxdb/src/RxDB.ts#L561-L564)（按身份从栈中摘除，
+[RxDB.#closeTransactionContext](../../../packages/rxdb/src/RxDB.ts#L569-L572)（按身份从栈中摘除，
 而非假定在栈顶）用过，口径一致。撤销本身用私有方法实现，不进公开表面。
 
 #### D3 — 作用域层级与重连语义
@@ -216,7 +259,7 @@ RxDB 注册期            use() 起；今天没有释放点（无 RxDB.destroy()
     └── 插件激活作用域  ← 每次 install 一个，逆插入序串行释放（AC#1）
 ```
 
-连接纪元作用域与 `#rxdb_initialized`（[:597-613](../../../packages/rxdb/src/RxDB.ts#L597-L613) 里被复位）
+连接纪元作用域与 `#rxdb_initialized`（[:605-621](../../../packages/rxdb/src/RxDB.ts#L605-L621) 里被复位）
 **寿命完全相同**——这正是 US-016 能把那个布尔换成作用域状态的原因。
 
 这一层级也解释了为什么**注册期资源不在本故事**：`searchPlugin` / `workspace` 两个实例属性是
@@ -241,9 +284,9 @@ RxDB 注册期            use() 起；今天没有释放点（无 RxDB.destroy()
 
 #### D5 — 拆卸错误在 `RxDB` 边界的出口（本故事不改）
 
-今天的不对称：`#destroy_plugin()`（[:757-767](../../../packages/rxdb/src/RxDB.ts#L757)）对每个插件
-try/catch 后 `console.error` 吞掉；而 `#track_plugin_install()`（:706-722）会把安装错误经
-`#await_plugin_installs()`（:725-739）抛给 `connect()`。
+今天的不对称：`#destroy_plugin()`（[:765-775](../../../packages/rxdb/src/RxDB.ts#L765)）对每个插件
+try/catch 后 `console.error` 吞掉；而 `#track_plugin_install()`（:714-731）会把安装错误经
+`#await_plugin_installs()`（:733-748）抛给 `connect()`。
 
 本故事**只改插件内部**的拆卸语义（逆序、不短路、串行），**不改** `RxDB` 边界的吞错行为——
 改了会让 `disconnect()` / `disconnectAll()` 从「一定 resolve」变成「可能 reject」，
@@ -269,6 +312,29 @@ try/catch 后 `console.error` 吞掉；而 `#track_plugin_install()`（:706-722�
 标记的取值现在只有 `'scoped'` 一个字面量，留出将来加值的余地；漏声明的失败模式是**安全**的
 （退回到调用 `destroy()`，与升级前一致）。
 
+#### D7 — 构造器与 `install(scope)` 的分工（迁移的硬判据）
+
+三处泄漏（storage 的 `rxdb.storage`、workspace 的 `#destroyed` / `#indexedDBStore`、graph 的空
+`destroy()`）都是同一个错误的三次出现：**资源在构造器里获取，却在每次拆卸时释放**，
+而构造器因 `#plugin_map` 缓存**只跑一次**。
+
+| 方案                                           | 主要风险                                                                          | 结论        |
+| ---------------------------------------------- | --------------------------------------------------------------------------------- | ----------- |
+| 构造器只创建插件对象本身，纪元资源进 `install` | 四个插件都要改构造器，`readonly` 字段需改为可空（workspace 的 `#indexedDBStore`） | ✅ **推荐** |
+| 构造器照旧获取，`destroy()` 里补「重新获取」   | 每个插件各写一份复活逻辑；`#destroyed` 这类终态标志还要各自设计复位时机           | ❌          |
+| 让 `#plugin_map` 每个纪元重建插件实例          | 改的是宿主的插件身份语义（`use()` 按工厂去重），影响面远超本故事                  | ❌          |
+
+**判据（迁移时逐条对照）**：构造器里只允许留下不随连接纪元变化的东西——`super(rxdb)`、
+纯配置解析、`name` / `lifecycle` 常量。任何满足以下之一的都必须移进 `install(scope)`：
+
+- 需要释放（`close()` / `destroy()` / `unsubscribe()` / `removeEventListener`）
+- 改写了宿主（`defineProperty`、`config.entities.push`、`repository()`）
+- 带终态标志（`#destroyed` 这类「一旦置位就再也回不去」的布尔）
+
+workspace 的 `readonly #indexedDBStore!: WorkspaceStore` 因此要改为可空的非 `readonly` 字段
+（或改为作用域内局部变量 + getter）——这是**编译期**阻塞项，不是风格问题。
+`#destroyed` 随作用域一起消失：「已释放」由作用域的 `state` 回答。
+
 ### 实现约束
 
 - `RxDB` 侧新增 `#connection_scope: LifecycleScope | undefined`，在 `init()` 中创建、`#shutdown()` 中释放并置空；
@@ -283,8 +349,18 @@ try/catch 后 `console.error` 吞掉；而 `#track_plugin_install()`（:706-722�
 - search 的 `SearchPluginPhase` 与 workspace 的三标志在本故事**不强制删除**：它们除了拆卸还承担
   `ready` 语义（[search:121-131](../../../packages/rxdb-plugin-search/src/plugin.ts#L121)）与
   「destroy 后不许再 search」的守卫。本故事只要求把**副作用清单**部分交给作用域（AC#10 / AC#11），
-  安装态语义的收敛留给 [US-015a](US-015a-adapter-dependency-epoch.md)
-- 估算：契约 + RxDB 侧 ~160 行；四个插件迁移各 ~30～60 行；类型契约测试 ~70 行；测试与文档另计
+  安装态语义的收敛留给 `US-015a`（🚧 文件未创建）
+- `#destroy_plugin()` 改为 `await plugin.destroy?.()`（S-007 / AC#21）。这一改与「逆序串行」是同一次改造，
+  不要分两次做——`Promise.all` 换成串行循环时顺手加上可选链
+- `init()` 的失败路径要与作用域寿命对齐（S-005 / AC#22）：`#install_plugin()` 今天在 `try` **之外**
+  （[:283-285](../../../packages/rxdb/src/RxDB.ts#L283-L285)，注释解释了为什么），catch 里只把
+  `#rxdb_initialized` 拨回 `false`。连接纪元作用域一旦在 `init()` 创建，catch 就必须**同时**
+  `await this.#connection_scope?.dispose()` 并置空，否则「init 失败 → 修复 → 重新 init」会在一个
+  已经装了半套插件的作用域上叠第二套
+- 搬 storage 时 `new RxdbFileStorage(...)` **一并**移进 `install(scope)`（D7）：只搬 `defineProperty`
+  会在重连时把同一个已 `destroy()` 的实例装回去，泄漏形态变了但没修掉
+- 估算：契约 + RxDB 侧 ~180 行（含 `init()` 回滚与 `destroy?.()`）；四个插件迁移各 ~30～60 行
+  （workspace 因 D7 的 `readonly` 改造偏上限）；类型契约测试 ~70 行；测试与文档另计
 
 ## 实现文件
 
@@ -304,6 +380,8 @@ try/catch 后 `console.error` 吞掉；而 `#track_plugin_install()`（:706-722�
 - [epic-008 评审建议](../../epic-008-lifecycle-scope-review.md) — R-004～R-007 的来源
 - [US-013 LifecycleScope 生命周期作用域原语](US-013-lifecycle-scope-primitive.md) — 前置故事，提供 `LifecycleScope`
 - [US-015 插件依赖声明与按需装卸](US-015-plugin-inject-dependency.md) — 后继故事族，收敛安装态语义
-- [US-016 连接纪元作用域与 shutdown 收敛](US-016-connection-scope-shutdown.md) — 接手 D3 层级中剩下的两层
+- `US-016` 连接纪元作用域与 shutdown 收敛 — 🚧 计划路径 `stories/core/US-016-connection-scope-shutdown.md`，
+  **未创建**，且[价值待证](../../epic-008-lifecycle-scope-review-2.md)：本故事交付后 Epic 的三处已知泄漏已全部关闭
+- [第二轮评审复核](../../epic-008-lifecycle-scope-review-2.md) — S-004 / S-005 / S-007 是本故事的开工前置
 - [versioning-policy.md](../../versioning-policy.md) 第 2、3、4 节 — 公开 API 定义、废弃周期与三层守护
 - [epic-007 公开 API 门禁](../../epics/epic-007-public-api-gates.md) — D4 盲区的长期归属
