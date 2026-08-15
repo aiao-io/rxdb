@@ -22,6 +22,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { join } from 'node:path';
 import ts from 'typescript';
 
+import { auditSubpathInventory } from './subpath-inventory.mjs';
+
 /**
  * API 表面基线 / diff。
  *
@@ -39,7 +41,9 @@ import ts from 'typescript';
  * - 跨包引用用 `tsconfig.base.json` 的 paths 解析（而非 node_modules），保证本地与 CI
  *   提取结果一致；无法解析的导出符号直接报错，不降级猜测种类。
  * - 【v1 边界】只扫主入口 `src/index.ts`，不覆盖 package.json `exports` 子路径入口
- *   （如 `@aiao/x/sub`）。子路径表面变化不会被本门禁捕获，需人工审查。
+ *   （如 `@aiao/x/sub`）。子路径的**导出表面**变化不会被本门禁捕获，需人工审查；
+ *   但子路径的**清单**受 `KNOWN_UNCOVERED_SUBPATHS` 守护（见其注释），新增或删除
+ *   子路径而不同步清单会让本门禁失败。
  * - 通过 TS 编译器解析 `export *` / re-export，得到入口真实可见的导出集合。
  * - 只记录名称与种类（type/value/both），不做完整签名快照 —— 目标是捕获「导出被
  *   增删或改变种类」这类信号，触发人工审查，而非替代类型契约测试。
@@ -53,6 +57,36 @@ const baselineDir = join(root, 'requirements', 'api-baseline');
 
 // 不纳入 API 基线的包：测试夹具 / 非产品公开 API。
 const EXCLUDED = new Set(['rxdb-test']);
+
+/**
+ * `exports` 子路径入口清单 —— 这些入口**属于公开 API**（见
+ * requirements/versioning-policy.md 第 2 节），但**导出表面不受本基线保护**：
+ * 本脚本的 v1 边界只解析主入口 `src/index.ts`。改动它们的导出必须在 PR 描述里人工声明破坏性。
+ *
+ * 本表是那份「已知不覆盖」清单的**真相源**（versioning-policy.md 与 website/docs/versioning.md
+ * 都指回这里），并由 `auditSubpathInventory()` 逐包核对：新增或删除子路径而不同步本表 → 门禁红。
+ * 这样清单不会随包演进静默过期，作者也会在动到无保护的公开 API 时被拦一次。
+ *
+ * 8 个包共 12 个入口。其中 `rxdb-adapter-miniprogram` 的两个 `./assets/*` 是二进制/CJS 资产，
+ * 没有导出表面可扫，改由 `scripts/audit/wa-sqlite-integrity.mjs` 的 SHA-256 固定守护。
+ * `@aiao/rxdb-test/*`（5 个子路径）不在此列——整包已由 EXCLUDED 排除，非产品 API。
+ *
+ * 扩展扫描器以覆盖子路径导出表面由 US-601 认领（Backlog），见
+ * requirements/stories/tooling/US-601-subpath-api-surface-baseline.md；
+ * 交付后本表的语义应收窄为「无导出表面的资产入口白名单」，常量名一并改掉。
+ * @type {Map<string, string[]>}
+ */
+const KNOWN_UNCOVERED_SUBPATHS = new Map([
+  ['rxdb-adapter-desktop', ['./host']],
+  ['rxdb-adapter-encrypted', ['./testing']],
+  // ./runtime = prepareMiniProgramRuntime 等 5 个值 + 6 个类型，共 11 个符号。
+  ['rxdb-adapter-miniprogram', ['./assets/wa-sqlite.cjs', './assets/wa-sqlite.wasm', './runtime']],
+  ['rxdb-adapter-pglite', ['./testing']],
+  ['rxdb-adapter-sqlite-core', ['./testing']],
+  ['rxdb-adapter-wa-sqlite', ['./client']],
+  ['rxdb-client-generator', ['./cli', './vite']],
+  ['rxdb-plugin-graph', ['./generator', './sqlite']]
+]);
 
 const mode = process.argv.includes('--update') ? 'update' : 'check';
 
@@ -185,8 +219,19 @@ if (mode === 'update' && !existsSync(baselineDir)) mkdirSync(baselineDir, { recu
 
 let breaking = 0; // removed / 种类 changed —— 需迁移说明
 let drift = 0; // 仅 added —— 更新基线即可
-let errors = 0; // 解析失败 / 缺基线
+let errors = 0; // 解析失败 / 缺基线 / 子路径清单过期
 let updated = 0;
+
+// 子路径清单核对：守清单不过期，不是守子路径的导出表面（后者是 v1 边界外）。
+const subpathProblems = auditSubpathInventory(packagesDir, packages, KNOWN_UNCOVERED_SUBPATHS);
+if (subpathProblems.length > 0) {
+  console.log('❌ `exports` 子路径入口清单与仓库现状不一致：');
+  for (const problem of subpathProblems) console.log(`   ${problem}`);
+  console.log('   → 同步 api-surface.mjs 的 KNOWN_UNCOVERED_SUBPATHS。');
+  console.log('     这些入口的导出表面不受本基线保护，改动其导出必须在 PR 描述里人工声明破坏性。');
+  // `--update` 只重建基线，不改这份手工清单，所以那里只提示不阻断。
+  if (mode === 'check') errors += subpathProblems.length;
+}
 
 for (const pkg of packages) {
   const entryFile = join(packagesDir, pkg, 'src', 'index.ts');
@@ -238,7 +283,7 @@ if (mode === 'update') {
 
 if (breaking + drift + errors > 0) {
   console.log('');
-  if (errors > 0) console.log(`📋 ${errors} 个包解析失败或缺少基线文件，请先排查 / 运行 --update。`);
+  if (errors > 0) console.log(`📋 ${errors} 处解析失败 / 缺少基线文件 / 子路径清单过期，请先排查 / 运行 --update。`);
   if (breaking > 0) {
     console.log(
       `📋 ${breaking} 个包存在破坏性变化（移除 / 种类变化）：更新基线之外，` +
@@ -251,4 +296,7 @@ if (breaking + drift + errors > 0) {
   process.exit(1);
 }
 
-console.log(`\n✅ 全部 ${packages.length} 个公开包 API 表面与基线一致。`);
+console.log(
+  `\n✅ 全部 ${packages.length} 个公开包 API 表面与基线一致` +
+    `（另核对 ${KNOWN_UNCOVERED_SUBPATHS.size} 个包的子路径清单）。`
+);
