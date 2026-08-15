@@ -1,16 +1,17 @@
 const REMOVE_MAX_ATTEMPTS = 5;
 const REMOVE_BACKOFF_MS = 25;
+const DELETE_BLOCKED_TIMEOUT_MS = 50;
+const BENCHMARK_IDB_PREFIX = 'benchmark-db-run-';
+const BENCHMARK_OPFS_ROOT = 'rxdb-benchmarks';
 
 /**
  * 只清理 benchmark 自己创建的存储，避免误删同源下其它应用（如文档站、demo）的数据。
  *
- * benchmark 的 storageName 形如 `benchmark-db-run-*-<adapter>`，PGlite 的 OPFS 目录为
- * `rxdb-benchmarks/...`，均包含 `benchmark` 子串；据此做白名单过滤。
+ * IndexedDB / OPFS 顶层条目必须是 `benchmark-db-run-...`，PGlite OPFS 根目录必须是
+ * `rxdb-benchmarks`。名称里碰巧含有 `benchmark` 的同源数据一律保留。
  */
-const BENCHMARK_STORAGE_PATTERN = /benchmark/i;
-
 function isBenchmarkOwned(name: string): boolean {
-  return BENCHMARK_STORAGE_PATTERN.test(name);
+  return name === BENCHMARK_OPFS_ROOT || name.startsWith(BENCHMARK_IDB_PREFIX);
 }
 
 type AsyncEntries = AsyncIterable<[string, FileSystemHandle]>;
@@ -42,19 +43,25 @@ async function removeEntryWithRetry(
 function deleteIndexedDBDatabase(name: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const request = indexedDB.deleteDatabase(name);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-    request.onblocked = () => {
-      console.warn(`删除 ${name} 被阻塞`);
-      resolve();
+    const failBlocked = () => {
+      reject(new Error(`删除 ${name} 被阻塞`));
     };
+    const timer = setTimeout(failBlocked, DELETE_BLOCKED_TIMEOUT_MS);
+    const settle = (next: () => void) => {
+      clearTimeout(timer);
+      next();
+    };
+
+    request.onsuccess = () => settle(resolve);
+    request.onerror = () => settle(() => reject(request.error));
+    request.onblocked = () => settle(failBlocked);
   });
 }
 
 /**
  * 清理 benchmark 在 OPFS（文件系统）和 IndexedDB 中创建的数据。
  *
- * 仅删除名称匹配 {@link BENCHMARK_STORAGE_PATTERN} 的顶层 OPFS 条目与 IndexedDB
+ * 仅删除名称匹配 {@link isBenchmarkOwned} 的顶层 OPFS 条目与 IndexedDB
  * 数据库，**不会**触碰同源下其它应用的存储。
  */
 export async function clearDB(): Promise<void> {
@@ -66,8 +73,6 @@ export async function clearDB(): Promise<void> {
 
     try {
       const root = await navigator.storage.getDirectory();
-
-      // 先收集根目录条目，避免边遍历边删除导致迭代器异常
       const topLevelNames: string[] = [];
       for await (const [name] of root as unknown as AsyncEntries) {
         if (isBenchmarkOwned(name)) {
@@ -76,18 +81,13 @@ export async function clearDB(): Promise<void> {
       }
 
       for (const name of topLevelNames) {
-        try {
-          await removeEntryWithRetry(root, name);
-        } catch (error) {
-          console.error(`删除 ${name} 失败:`, error);
-        }
+        await removeEntryWithRetry(root, name);
       }
 
-      // indexedDB.databases() 在部分浏览器不可用；无法枚举时跳过（不臆测库名以免误删）
       if (indexedDB.databases) {
         const dbList = await indexedDB.databases();
         const benchmarkDbs = dbList.filter((db): db is { name: string } => !!db.name && isBenchmarkOwned(db.name));
-        await Promise.allSettled(benchmarkDbs.map(({ name }) => deleteIndexedDBDatabase(name)));
+        await Promise.all(benchmarkDbs.map(({ name }) => deleteIndexedDBDatabase(name)));
       } else {
         console.warn('indexedDB.databases() 不可用，跳过 IndexedDB 清理');
       }

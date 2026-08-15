@@ -34,10 +34,10 @@ INVEST 检查清单:
 
 ## 术语与状态模型
 
-| 概念                    | 含义                                                                | 持久化要求                     |
-| ----------------------- | ------------------------------------------------------------------- | ------------------------------ |
-| 工作树（`WorkingTree`） | 当前分支 HEAD 叠加未提交 `WorkingTreeEntry` 后的逻辑状态            | 按分支持久化；刷新/切回后恢复  |
-| 缓存区（`Index`）       | 用户明确选择、准备放入下一次 commit 的变更集合                      | 按分支持久化；与工作树分离     |
+| 概念                    | 含义                                                                | 持久化要求                                                       |
+| ----------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| 工作树（`WorkingTree`） | 当前分支 HEAD 叠加未提交 `WorkingTreeEntry` 后的逻辑状态            | 按分支持久化；刷新/切回后恢复                                    |
+| 缓存区（`Index`）       | 用户明确选择、准备放入下一次 commit 的变更集合                      | 按分支持久化；与工作树分离                                       |
 | 工作树状态              | `clean`、`modified`、`staged`、`conflicted`、`restoring` 等可见状态 | `conflicted` 只由 durable restore session 派生；状态不依赖内存栈 |
 
 变更选择粒度为「实体操作或完整事务」，同一事务不可拆到不同 commit。
@@ -61,14 +61,22 @@ INVEST 检查清单:
 
 ## 子故事与交付边界
 
-| 子故事 | 独立闭环 | 主要承接 |
-| ------ | -------- | -------- |
-| [US-306a](./US-306a-working-tree-capture.md) | CRUD / sync 写入 → 刷新 → 工作树重建 | 写入口矩阵、active token、working-tree revision、加密与后端 conformance |
-| [US-306b](./US-306b-index-commit-state-machine.md) | stage → 刷新 → commit → status/diff | index 独立重放、关系依赖闭包、commit residual rebase、discard 与冲突状态口径 |
-| [US-306c](./US-306c-cross-framework-working-tree.md) | 三端操作 → 刷新 → 同语义读回 | Angular/React/Vue 公开 API、异步状态、a11y、E2E 与 benchmark |
+| 子故事                                               | 独立闭环                             | 主要承接                                                                     | 承接的 FR                                                                                                           | 承接的父故事 AC                                                                                   |
+| ---------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [US-306a](./US-306a-working-tree-capture.md)         | CRUD / sync 写入 → 刷新 → 工作树重建 | 写入口矩阵、active token、working-tree revision、加密与后端 conformance      | FR-039、FR-046、FR-045（`WorkingTreeEntry` 半边）                                                                   | US1-AC1（工作树半边）、US1-AC3（工作树半边）、US1-AC4（持久层半边）、US2-AC17、US2-AC18、US2-AC19 |
+| [US-306b](./US-306b-index-commit-state-machine.md)   | stage → 刷新 → commit → status/diff  | index 独立重放、关系依赖闭包、commit residual rebase、discard 与冲突状态口径 | FR-004、FR-005、FR-006、FR-007、FR-011、FR-016、FR-031、FR-032、FR-040、FR-041、FR-047、FR-045（`IndexEntry` 半边） | US1-AC2、US2-AC1～AC16（除 AC14 的工作树加密半边）、US3-AC1～AC3                                  |
+| [US-306c](./US-306c-cross-framework-working-tree.md) | 三端操作 → 刷新 → 同语义读回         | Angular/React/Vue 公开 API、异步状态、a11y、E2E 与 benchmark                 | FR-023、FR-026                                                                                                      | 三框架对称与 a11y 横切项（无独占父 AC 编号）                                                      |
 
 固定顺序为 **US-305 → US-306a → US-306b → (US-306c ∥ US-307 ∥ US-308)**。父故事的 AC/FR
 是共享追踪表；子故事必须把自己承接的条目写成独立可运行的验收场景，不能只引用编号后宣布完成。
+
+上表是 [epic-006 发布门禁 2](../../epics/epic-006-working-tree-commits.md) 的审计依据：本文件的每条 FR 与
+User Story AC 都必须在某个子故事中恰好出现一次（半边拆分需显式标注归属）。三个子故事全部 Done 时，本父故事
+的 FR/AC 才算全部关闭；出现无人承接或双重承接的条目即视为拆分失败，必须先修表再继续实现。
+
+> 明确不由本故事群承接的相邻条目：`WorkingTreeActivationState` 建表归 [US-305](./US-305-commit-graph-head.md) FR-052；
+> 分支切换的用户可见语义（切回恢复、`requireClean`、switch CAS）归 [US-308](./US-308-branch-isolation-conflict.md)；
+> restore session 归 [US-307](./US-307-restore-session.md)。
 
 ## 范围边界
 

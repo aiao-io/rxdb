@@ -57,6 +57,24 @@ v1 不持久化第二份独立 `HEAD`。当前分支仍由既有 `RxDBBranch.act
 | branch materialization stage | database + attempt       | 目标分支、冻结远端水位、scope manifest、分页 payload、fingerprint         | 只暂存目标分支快照，不写当前业务投影；成功 switch 后删除    |
 | writer lease / upgrade guard | database + writer        | `epoch`                                                                   | 只判断 writer 是否被 schema 迁移 fence，不充当业务版本      |
 
+### 状态归属（哪个故事负责建表）
+
+状态表本身的创建/迁移与使用它的语义分属不同故事，避免出现「后置故事建表、前置故事使用」的倒挂：
+
+| 状态                                    | 建表与首次迁移 | 语义与 CAS 归属                                                      |
+| --------------------------------------- | -------------- | -------------------------------------------------------------------- |
+| `CommitCapabilityState`                 | US-305         | US-305                                                               |
+| `CommitBranchRef`                       | US-305         | US-305（head CAS）、US-308（分支生命周期）                           |
+| `WorkingTreeActivationState`            | **US-305**     | US-306a（写路径 token 校验）、US-308（switch CAS 与 `requireClean`） |
+| `WorkingTreeState` / `WorkingTreeEntry` | US-306a        | US-306a                                                              |
+| `IndexState` / `IndexEntry`             | US-306b        | US-306b                                                              |
+| `WorkingTreeRestoreSession`             | US-307         | US-307                                                               |
+| branch materialization stage            | US-308         | US-308                                                               |
+
+`WorkingTreeActivationState` 由 US-305 随 system schema 首次迁移一并建立并初始化为 revision 0：
+US-306a 的普通 CRUD 必须校验 active branch token，而它排在 US-308 之前，表不能等到 US-308 才存在。
+US-305 只负责建表与初始化，不实现 switch 语义。
+
 `WorkingTreeEntry` 是逻辑契约，不强制新增物理表；plan 可以证明复用 `RxDBChange` 或不可变派生表满足同一契约。
 但 `WorkingTreeState` 只存计数和 revision 不算完成：必须有可枚举、可重放、按分支隔离的未提交变更单元。
 `CommitChangeSet` 与 `IndexEntry` 必须复制完整的不可变恢复数据，不能只引用可能被 undo、清理或删分支删除的
@@ -121,13 +139,22 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 | `pull()`、autoSync、`pullRepository()`、`sync()`、`bulkSync()` 的实体应用 | 即使为防回推而关闭 `RxDBChange` trigger，也必须写入来源为 `remote_sync` 的未暂存单元；不生成可 push 的本地 change    |
 | 只更新 remoteId、同步水位或审计时间                                       | 不改变业务表，不创建工作树单元，不递增 working-tree revision                                                         |
 | branch switch、baseline/restore 物化、commit residual rebase              | 由对应领域操作显式维护工作树；底层投影重写不得被 trigger 二次记录                                                    |
-| metadata-only 目标分支的远端预取                                           | 只写 branch materialization staging 与独立水位，不得更新当前分支 `RxDBSync` 或业务表                                |
+| metadata-only 目标分支的远端预取                                          | 只写 branch materialization staging 与独立水位，不得更新当前分支 `RxDBSync` 或业务表                                 |
 | QueryCache 的 upsert/delete/过期清理                                      | QueryCache 实体不进入 baseline、status、diff、stage 或 commit；它仍是可重建缓存，不能与版本化实体混在同一事务单元中  |
 | raw SQL、adapter 直写或其他 trigger bypass                                | 业务表写入前以 `commit_capability_mismatch` 拒绝；只有同时持有内部事务能力并原子维护工作树的受信路径可以关闭 trigger |
 
+**受信路径必须与 bypass 门禁同批交付。** 表最后一行的拒绝门禁一旦启用，既有的批量投影重写路径就会撞上它——
+最典型的是 [VersionManager.switchBranch](../../packages/rxdb/src/version/VersionManager.ts#L758) 经
+`adapter.switchBranch({ branchId, actions })` 做的整表重写。因此 **US-306a 在落地拒绝门禁的同一个故事内**，
+必须把既有 switch / baseline 物化路径登记为受信路径（关 trigger + 不产生工作树条目 + 不递增 working-tree revision），
+否则 306a 合并后到 US-308 合并前，`switchBranch` 会被自己的门禁拒掉或静默绕过工作树。登记的是「路径可信」这一
+机制，切换分支的**工作树恢复语义**仍归 US-308。
+
 远端数据进入工作树不等于 remote commit push/pull：v1 只记录本地可审计的未提交结果，不伪造远端作者、消息或远端 commit。
-支持 full/filter 同步的实体必须覆盖“pull → refresh → switch away/back → status/diff”共享 fixture；QueryCache 另测其
-排除边界，避免一次缓存刷新把工作树永久标成 dirty。
+支持 full/filter 同步的实体必须覆盖“pull → refresh → switch away/back → status/diff”这条完整链路，但它**跨三个故事**，
+不能整条压在任何单一故事上：US-306a 验 `pull → refresh → 仅凭 HEAD + WorkingTreeEntry 重放`（持久层断言，不经
+`switchBranch` 入口），US-306b 接上 `status/diff`，US-308 接上 `switch away/back`。三段各自可独立跑；完整链路作为
+US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一次缓存刷新把工作树永久标成 dirty。
 
 ## 启用与存储边界
 
@@ -148,8 +175,20 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
   每页 payload、水位和 fingerprint 原子落盘，崩溃后从 staging 续传。预取期间当前业务投影、active 标记、当前分支
   `RxDBSync` 与工作树全部不变。最终 switch 事务复核完整 scope、终止水位、fingerprint 与 active token 后一次性物化；
   网络失败、scope 漂移、配额不足或不收敛只留下可安全重试/清理的 staging，不得留下部分目标投影。
-- v1 支持 PGlite、四个 SQLite 浏览器适配器和 desktop SQLite host；它们必须通过同一套
-  `workingTreeCommitConformanceSuite`。实验性的 miniprogram 适配器不承诺崩溃恢复，因此不在 v1 支持矩阵内。
+- v1 支持矩阵为 **6 个后端**：PGlite、四个 SQLite 浏览器适配器（wa-sqlite / sqlite-wasm / sqlite / sqliteai）、
+  以及 `@aiao/rxdb-adapter-desktop` 的 **Electron `node:sqlite` host**。实验性的 miniprogram 适配器不承诺崩溃恢复，
+  不在矩阵内。
+- **Tauri 的 Rust `rusqlite` host 是第 7 个后端，v1 暂不承诺**。它与 Electron host 同属 `rxdb-adapter-desktop`，
+  但宿主实现完全不同（进程外 `rusqlite` vs 进程内 `node:sqlite`），且 [US-210](../stories/adapter/US-210-tauri-sqlite-local-database.md)
+  尚未 Done、已知在 CPU 争抢下有变更事件时序 flake。US-210 Done 后按同一套件补入矩阵，届时更新本节与发布门禁 4，
+  不在本 Epic 内夹带。
+- 跨后端 conformance 拆成**两套具名套件**，各有唯一归属故事，避免出现「门禁点名、无人认领」：
+  - `workingTreeCaptureConformanceSuite` —— 归 [US-306a](../stories/collaboration/US-306a-working-tree-capture.md)，
+    覆盖写入口捕获、事务原子性与工作树重放
+  - `workingTreeCommitConformanceSuite` —— 归 [US-306b](../stories/collaboration/US-306b-index-commit-state-machine.md)，
+    覆盖 index/head/working-tree revision CAS、residual rebase 与崩溃恢复
+  - US-305 的 commit 图/迁移断言并入 `workingTreeCommitConformanceSuite`，由 US-306b 收口整套；US-305 自身先落地
+    commit 图部分的用例，不另起第三个套件名
 
 ## 横切约束（按故事适用，不单独成故事）
 
@@ -166,8 +205,11 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 
 1. [US-304](../stories/collaboration/US-304-writer-lease-migration-fencing.md) 必须先 Done —— 本 Epic 复用 writer 身份与迁移期 epoch fencing，不复用 epoch 充当提交版本
 2. 当前发布主线先产生新的非迁移 bridge tag；历史 `v0.0.25` 不在当前 ancestry，不能供下一步引用
-3. [US-305](../stories/collaboration/US-305-commit-graph-head.md) 建立 commit 图、branch ref、`headRevision` CAS、存储布局与每分支基线迁移
-4. [US-306a](../stories/collaboration/US-306a-working-tree-capture.md) 完成全部写入口的持久工作树捕获
+3. [US-305](../stories/collaboration/US-305-commit-graph-head.md) 建立 commit 图、branch ref、`headRevision` CAS、存储布局与每分支基线迁移，
+   并一并建立 `WorkingTreeActivationState`（见「状态归属」）
+4. [US-306a](../stories/collaboration/US-306a-working-tree-capture.md) 完成全部写入口的持久工作树捕获。
+   它只用 US-305 提供的 activation state 做**写路径 token 校验**，不实现 switch 语义；凡需要真正切换分支才能观察的
+   断言一律留给 US-308，306a 用持久层重放断言等价覆盖
 5. [US-306b](../stories/collaboration/US-306b-index-commit-state-machine.md) 在其上实现 index、关系依赖闭包、revision CAS、status/diff/stage/commit
 6. [US-306c](../stories/collaboration/US-306c-cross-framework-working-tree.md)、[US-307](../stories/collaboration/US-307-restore-session.md) 与 [US-308](../stories/collaboration/US-308-branch-isolation-conflict.md) 依赖 US-306b，可并行
 
@@ -210,9 +252,12 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 ## 发布门禁
 
 1. US-304 Done（前置）
-2. US-305 / US-306a / US-306b / US-306c / US-307 / US-308 全部 Done；父契约 US-306 的 AC/FR 全部被子故事覆盖，US-306c/307/308 的三框架对称与 a11y 条件满足
+2. US-305 / US-306a / US-306b / US-306c / US-307 / US-308 全部 Done；父契约 US-306 的
+   [AC/FR 承接表](../stories/collaboration/US-306-working-tree-index.md#子故事与交付边界) 逐条有归属且对应子故事已关闭，
+   US-306c/307/308 的三框架对称与 a11y 条件满足
 3. 崩溃与刷新恢复 fixture 全绿：不出现半个 commit、半个事务或半成品 index
-4. PGlite、四个 SQLite 浏览器适配器与 desktop SQLite host 的 `workingTreeCommitConformanceSuite` 全绿
+4. 上述 6 个 v1 后端的 `workingTreeCaptureConformanceSuite` 与 `workingTreeCommitConformanceSuite` 双双全绿
+   （Tauri Rust host 不计入 v1 门禁，见「启用与存储边界」）
 5. 跨 realm fixture 覆盖 switch 与旧实体 CRUD 竞争、启用/未启用 writer 混用、HEAD/index/working-tree CAS
 6. 支持字段加密的后端通过 commit/index/working-tree/restore 持久化 dump 明文哨兵零命中
 7. `pnpm nx run benchmarks:bench-working-tree` 在普通 CI 通过冻结的归一化相对回归门禁，并在 profile 匹配的固定性能

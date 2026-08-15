@@ -6,6 +6,13 @@
   "sourceRoot": "benchmarks/src",
   "tags": ["react-app"],
   "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "benchmarks",
+        "command": "pnpm run typecheck"
+      }
+    },
     "build-website": {
       "executor": "nx:run-commands",
       "options": {

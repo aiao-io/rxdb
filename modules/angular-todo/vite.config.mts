@@ -14,14 +14,15 @@ export default defineConfig({
     watch: false,
     globals: true,
     environment: 'happy-dom',
-    include: ['src/**/*.{test,spec}.ts'],
+    include: ['src/**/*.{test,spec}.ts', 'todo-page/**/*.{test,spec}.ts', 'todo-cursor-page/**/*.{test,spec}.ts'],
     setupFiles: ['src/test-setup.ts'],
     coverage: {
       enabled: true,
       provider: 'v8' as const,
       reporter: ['text', 'json', 'json-summary', 'lcovonly', 'html'],
       reportsDirectory: '../../coverage/modules/angular-todo',
-      include: ['src/**/*']
+      include: ['src/**/*.ts', 'todo-page/**/*.ts', 'todo-cursor-page/**/*.ts'],
+      exclude: ['**/*.{test,spec}.ts', '**/index.ts', 'src/test-setup.ts']
     }
   }
 });

@@ -72,6 +72,9 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - 显式启用后的首次初始化：为每个本地可完整物化的既有分支生成基线 commit；metadata-only 远端分支延迟到
   US-308 首次成功物化；保留旧 change 记录，失败可重试且幂等
 - 数据库级 `CommitCapabilityState`、writer 能力协商与启用/未启用混用拒绝
+- 数据库级 `WorkingTreeActivationState` 的**建表与初始化**（单行、`activationRevision` 从 0 起）。
+  它排在 US-306a 之前只因为后者的普通 CRUD 必须校验 active branch token；本故事不实现 switch 语义、
+  不递增该 revision，见 [epic-006 状态归属](../../epics/epic-006-working-tree-commits.md#状态归属哪个故事负责建表)
 - 普通 commit 的 `operationId` 幂等约束、必填作者来源与数据库时间
 - commit/ChangeSet 对字段加密 envelope 的原样持久化与明文泄漏门禁
 - 损坏或不兼容 commit 记录的隔离与诊断
@@ -130,6 +133,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 10. **Given** 实体含 `encrypted: true` 字段，**When** 建立 baseline 或普通 commit，**Then** commit 与 ChangeSet 持久化 dump 中只出现 versioned envelope，明文哨兵零命中；解锁后 `show()` 仍返回正确值。
 11. **Given** `syncBranches()` 已建立 `local=false, remote=true` 但本地没有完整实体状态的分支，**When** 首次启用，**Then** 不为它伪造空 baseline 或 branch ref；健康本地分支照常迁移，该远端分支由 US-308 首次成功物化时原子建立 `kind=branch_baseline`。
 12. **Given** 迁移前没有 active 分支且 `main` 存在，**When** 首次启用，**Then** 沿用既有语义激活 `main` 后建立 baseline；**Given** 存在多个 `activated=true` 分支，**Then** 以 `ambiguous_active_branch` 整体失败，所有 commit capability 状态零变化，不按查询顺序任选一个。
+13. **Given** 数据库首次启用 commit 能力，**When** 迁移事务提交，**Then** 存在唯一一行 `WorkingTreeActivationState` 且 `activationRevision = 0`，重启后可读、值不变，且其中不含第二份 active branch ID；**Given** 应用未显式启用 commit 能力，**Then** 该表不被创建。
 
 ## 功能需求
 
@@ -157,6 +161,10 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - **FR-038**：commit、ChangeSet 与 baseline MUST 保持既有字段加密 at-rest 契约；持久化路径不得先解密再把明文写入新系统表，日志、错误与摘要不得包含加密字段值。
 - **FR-048**：commit 能力启用后 MUST 保证 `RxDBBranch.activated` 恰好一行是 true。首次迁移零 active 时沿用既有 main 恢复语义；多 active 时返回 `ambiguous_active_branch` 并全量回滚。系统 schema MUST 约束至多一个 active，每次连接 MUST 验证至少一个。
 - **FR-049**：首次迁移 MUST 区分本地可完整物化分支与 metadata-only 远端分支。后者在没有完整本地状态时不得创建 baseline 或 `CommitBranchRef`；其首次 baseline/ref 创建由 US-308 与完整物化放在同一事务。除该明确例外外，任一本地分支无法物化都 MUST 使迁移整体失败。
+- **FR-052**：首次启用 MUST 在同一迁移事务内建立数据库级单行 `WorkingTreeActivationState` 并把 `activationRevision`
+  初始化为 0。该状态 MUST NOT 复制第二份 active branch ID——当前分支仍由 `RxDBBranch.activated` 表示。本故事只负责
+  建表、初始化与「连接时可读」；递增该 revision 的 switch 语义归 [US-308](./US-308-branch-isolation-conflict.md)，
+  写路径的 token 校验归 [US-306a](./US-306a-working-tree-capture.md)。未启用 commit 能力的数据库 MUST NOT 创建该表。
 - **FR-051**：commit 图校验 MUST 从每个 branch ref 遍历完整可达父链并区分孤立损坏与可达损坏。可达损坏的分支只允许读取不依赖重放的当前投影、导出诊断和切离；commit、restore、switch-to 及任何历史重放 MUST 返回稳定的 `commit_graph_corrupted`。
 
 ## 关键实体
@@ -165,6 +173,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - **CommitBranchRef**：分支引用；分支 ID、不可变 generation、head commit、head revision、创建来源、更新时间，是该次分支生命周期 HEAD 的唯一真相源。同名重建必须生成新 generation。metadata-only 远端分支在首次完整本地物化前没有该记录，不能用 `headCommitId=null` 制造第二种 ref 状态。
 - **CommitChangeSet**：commit 的变更单元集合；按实体/事务分组，保留 patch、inverse patch 或等价可恢复信息。
 - **CommitCapabilityState**：数据库级启用与协议协商状态；commit protocol、system schema、change codec version、启用迁移 ID 与时间。
+- **WorkingTreeActivationState**：数据库级单行 `activationRevision`（本故事只建表并初始化为 0）。当前分支 ID 仍由 `RxDBBranch.activated` 表示，不在此复制第二份；递增语义见 US-308，写路径校验见 US-306a。
 
 > 命名遵守 [epic-006](../../epics/epic-006-working-tree-commits.md) 的术语表：新导出一律 `Commit*` 前缀，
 > **不得**使用 `Workspace*`——该前缀已被 `@aiao/rxdb-plugin-workspace` 的草稿缓存占用。
@@ -210,8 +219,11 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 ## 测试要求
 
 - 核心包按 TDD 先写崩溃/刷新恢复的失败用例，再实现；覆盖率不低于 90%。
-- PGlite、四个 SQLite 浏览器适配器与 desktop SQLite host 的共享 conformance 套件覆盖事务原子性、head revision CAS、operation ID 幂等与 schema 迁移。
+- 本故事的跨后端断言（事务原子性、head revision CAS、operation ID 幂等、schema 迁移）先落进
+  [epic-006](../../epics/epic-006-working-tree-commits.md#启用与存储边界) 冻结的 `workingTreeCommitConformanceSuite`，
+  由 US-306b 收口整套；本故事**不另起第三个套件名**。运行矩阵为 epic 定义的 6 个 v1 后端（PGlite、四个 SQLite 浏览器适配器、Electron `node:sqlite` host）。
 - 迁移幂等性、空/非空多分支 baseline、metadata-only 远端分支延迟建 ref、零/多 active、未启用零副作用、启用状态混用拒绝、Workspace 草稿隔离与损坏记录隔离必须有独立 fixture。
+- `WorkingTreeActivationState` 需独立 fixture：启用后单行存在且 `activationRevision = 0`、重启可读、未启用时表不存在（FR-052 / AC US2-13）。
 - 损坏 fixture 必须分别覆盖不可达孤立节点、HEAD 损坏和中间祖先损坏；后两者断言 ref 不被改写、健康分支可用且损坏分支所有重放写入口稳定 fail-closed。
 - 支持字段加密的后端必须扫描 commit/ChangeSet/baseline 原始持久化 dump，断言明文哨兵零命中。
 - 测试文件使用 `*.spec.ts`，不依赖非确定性的固定延时。

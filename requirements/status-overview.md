@@ -18,6 +18,11 @@
 | **合计**       | 50   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，请勿手写维护。
+>
+> **口径**：合计等于 `requirements/stories/*/US-*.md` 的文件数，**包含 2 个 📄 父故事**
+> （[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-306](stories/collaboration/US-306-working-tree-index.md)，
+> 均为 `Backlog`）。父故事不直接交付，其状态在全部子故事 Done 后才随之关闭；因此 Backlog 14 中有 2 条是共享契约文档，
+> 实际待开发切片为 12 条。epic 文件不计入本表。
 > 2026-08-13 的评审把 US-012 拆成 US-012a/b/c、US-207 拆出 US-208、US-305 升级为 epic-006 并拆成 US-305～US-308，Backlog 因此从 4 增至 11；这是拆分而不是新增范围。
 > 同日补写了 [US-209](stories/adapter/US-209-miniprogram-adapter.md)（微信小程序适配器），适配器实现早已合并，故直接记为 `In Review` 而非 `Backlog`；2026-08-15 收尾项全部关闭，转 `Done`（Done 32 → 33，In Review 1 → 0，合计不变）。
 > 同日 US-207 二次拆分：Tauri 半边迁至 [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)（Backlog），US-207 收敛到 Electron 并转 `In Progress`。Backlog 一进一出仍为 11，合计 45 → 46。
@@ -28,14 +33,14 @@
 
 ## 项目统计
 
-| 维度         | 数值                                                                                                                                 |
-| :----------- | :----------------------------------------------------------------------------------------------------------------------------------- |
-| 总包目录     | 29 个公开 npm 包                                                                                                                     |
-| 支持框架     | Angular 22 / React 19 / Vue 3.5                                                                                                      |
-| 支持平台     | Web / Electron / Tauri / PWA / 小程序                                                                                                |
-| 存储适配器   | wa-sqlite / sqlite-wasm / sqlite (@sqlite.org) / sqliteai / wa-sqlite-miniprogram / PGlite / Supabase + 共享 core + encrypted 包装层 |
-| 演示应用     | 6 个 (Angular / Electron / React / Supabase / Tauri / Vue) + DevTools 扩展                                                           |
-| E2E 测试套件 | 5 个 (Angular / Electron / React / Supabase / Vue)                                                                                   |
+| 维度         | 数值                                                                                                                                           |
+| :----------- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
+| 总包目录     | 29 个公开 npm 包                                                                                                                               |
+| 支持框架     | Angular 22 / React 19 / Vue 3.5                                                                                                                |
+| 支持平台     | Web / Electron / Tauri / PWA / 小程序                                                                                                          |
+| 存储适配器   | wa-sqlite / sqlite-wasm / sqlite (@sqlite.org) / sqliteai / wa-sqlite-miniprogram / desktop / PGlite / Supabase + 共享 core + encrypted 包装层 |
+| 演示应用     | 6 个 (Angular / Electron / React / Supabase / Tauri / Vue) + DevTools 扩展                                                                     |
+| E2E 测试套件 | 5 个 (Angular / Electron / React / Supabase / Vue)                                                                                             |
 
 > 基础设施包（`@aiao/utils` 通用工具、`@aiao/rxdb-test` 跨框架测试 fixture）不单独立 story；前者属于公用底座，后者由 [US-702](stories/future/US-702-full-text-search.md) 等业务 story 引用其 fixture（`cross-framework-fixtures/`）。
 
@@ -160,19 +165,21 @@
 > `useSearch` 的三端 API 对称成立，但**能力边界不对称于适配器**：
 > [adapter-guard.ts](../packages/rxdb-plugin-search/src/core/adapter-guard.ts) 的 `SUPPORTED_SEARCH_ADAPTERS` 目前只有 `sqlite-wasm`，
 > 其余 adapter 在 `createRxDatabase` 阶段直接抛 `SearchUnsupportedAdapterError`（不降级、不挂载 `.search`）。
-> PGlite 侧由 [US-703](stories/future/US-703-pglite-full-text-search.md) 认领；wa-sqlite / sqlite / sqliteai / miniprogram 的搜索支持尚无故事覆盖
-> （[US-209](stories/adapter/US-209-miniprogram-adapter.md) 只覆盖小程序适配器本身，不含 FTS5）。
+> PGlite 侧由 [US-703](stories/future/US-703-pglite-full-text-search.md) 认领；wa-sqlite / sqlite / sqliteai / miniprogram / desktop 的搜索支持尚无故事覆盖
+> （[US-209](stories/adapter/US-209-miniprogram-adapter.md) 只覆盖小程序适配器本身，不含 FTS5；
+> [US-207](stories/adapter/US-207-desktop-local-database.md) / [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md) 同样不含 FTS5）。
 
 ## 适配器能力对比
 
-| 适配器                 | 包名                             | `ADAPTER_NAME`          | 类型   | 核心能力                                                              | 需求覆盖                                                |
-| :--------------------- | :------------------------------- | :---------------------- | :----- | :-------------------------------------------------------------------- | :------------------------------------------------------ |
-| wa-sqlite              | `@aiao/rxdb-adapter-wa-sqlite`   | `wa-sqlite`             | Local  | rhashimoto/wa-sqlite，Worker/OPFS VFS、AsyncQueueExecutor             | [US-201](stories/adapter/US-201-sqlite-adapter.md)      |
-| sqlite-wasm (subframe) | `@aiao/rxdb-adapter-sqlite-wasm` | `sqlite-wasm`           | Local  | `@subframe7536/sqlite-wasm`，oo1 API                                  | [US-204](stories/adapter/US-204-sqlite-wasm-adapter.md) |
-| sqlite (@sqlite.org)   | `@aiao/rxdb-adapter-sqlite`      | `sqlite`                | Local  | `@sqlite.org/sqlite-wasm` 官方包，与 subframe 版本接口一致            | [US-204](stories/adapter/US-204-sqlite-wasm-adapter.md) |
-| sqlite-core（共享层）  | `@aiao/rxdb-adapter-sqlite-core` | —                       | 共享层 | `RxDBAdapterSqliteBase` / execute / trigger，五个 SQLite adapter 复用 | [US-201](stories/adapter/US-201-sqlite-adapter.md)      |
-| sqliteai               | `@aiao/rxdb-adapter-sqliteai`    | `sqliteai`              | Local  | 向量列 + AI SQL 函数，支撑本地 RAG                                    | [US-205](stories/adapter/US-205-sqliteai-adapter.md)    |
-| miniprogram            | `@aiao/rxdb-adapter-miniprogram` | `wa-sqlite-miniprogram` | Local  | **实验性**，仅微信逻辑层：`WXWebAssembly` + 同步文件 VFS，强制单连接  | [US-209](stories/adapter/US-209-miniprogram-adapter.md) |
-| PGlite                 | `@aiao/rxdb-adapter-pglite`      | `pglite`                | Local  | LISTEN/NOTIFY 触发器，延迟约束                                        | [US-202](stories/adapter/US-202-pglite-adapter.md)      |
-| encrypted（包装层）    | `@aiao/rxdb-adapter-encrypted`   | —                       | 包装层 | 透明字段加密，包装任意底层 adapter                                    | [US-803](stories/future/US-803-local-encryption.md)     |
-| Supabase               | `@aiao/rxdb-adapter-supabase`    | `supabase`              | Remote | RPC 推送、PostgREST、Realtime                                         | [US-203](stories/adapter/US-203-supabase-adapter.md)    |
+| 适配器                 | 包名                             | `ADAPTER_NAME`          | 类型   | 核心能力                                                                                                                     | 需求覆盖                                                                                                                     |
+| :--------------------- | :------------------------------- | :---------------------- | :----- | :--------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------- |
+| wa-sqlite              | `@aiao/rxdb-adapter-wa-sqlite`   | `wa-sqlite`             | Local  | rhashimoto/wa-sqlite，Worker/OPFS VFS、AsyncQueueExecutor                                                                    | [US-201](stories/adapter/US-201-sqlite-adapter.md)                                                                           |
+| sqlite-wasm (subframe) | `@aiao/rxdb-adapter-sqlite-wasm` | `sqlite-wasm`           | Local  | `@subframe7536/sqlite-wasm`，oo1 API                                                                                         | [US-204](stories/adapter/US-204-sqlite-wasm-adapter.md)                                                                      |
+| sqlite (@sqlite.org)   | `@aiao/rxdb-adapter-sqlite`      | `sqlite`                | Local  | `@sqlite.org/sqlite-wasm` 官方包，与 subframe 版本接口一致                                                                   | [US-204](stories/adapter/US-204-sqlite-wasm-adapter.md)                                                                      |
+| sqlite-core（共享层）  | `@aiao/rxdb-adapter-sqlite-core` | —                       | 共享层 | `RxDBAdapterSqliteBase` / execute / trigger，五个 SQLite adapter 复用                                                        | [US-201](stories/adapter/US-201-sqlite-adapter.md)                                                                           |
+| sqliteai               | `@aiao/rxdb-adapter-sqliteai`    | `sqliteai`              | Local  | 向量列 + AI SQL 函数，支撑本地 RAG                                                                                           | [US-205](stories/adapter/US-205-sqliteai-adapter.md)                                                                         |
+| miniprogram            | `@aiao/rxdb-adapter-miniprogram` | `wa-sqlite-miniprogram` | Local  | **实验性**，仅微信逻辑层：`WXWebAssembly` + 同步文件 VFS，强制单连接                                                         | [US-209](stories/adapter/US-209-miniprogram-adapter.md)                                                                      |
+| PGlite                 | `@aiao/rxdb-adapter-pglite`      | `pglite`                | Local  | LISTEN/NOTIFY 触发器，延迟约束                                                                                               | [US-202](stories/adapter/US-202-pglite-adapter.md)                                                                           |
+| desktop                | `@aiao/rxdb-adapter-desktop`     | `desktop`               | Local  | 桌面宿主 SQLite：Electron 走 `node:sqlite` host；Tauri 侧本包只提供 transport，真正的 host 是 `src-tauri` 的 Rust `rusqlite` | [US-207](stories/adapter/US-207-desktop-local-database.md) · [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md) |
+| encrypted（包装层）    | `@aiao/rxdb-adapter-encrypted`   | —                       | 包装层 | 透明字段加密，包装任意底层 adapter                                                                                           | [US-803](stories/future/US-803-local-encryption.md)                                                                          |
+| Supabase               | `@aiao/rxdb-adapter-supabase`    | `supabase`              | Remote | RPC 推送、PostgREST、Realtime                                                                                                | [US-203](stories/adapter/US-203-supabase-adapter.md)                                                                         |

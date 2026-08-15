@@ -63,27 +63,60 @@ INVEST 检查清单:
 10. **Given** commit 响应丢失，**When** 相同 operation ID 与相同 payload 重试，**Then** 返回原 commit；payload 不同返回 `idempotency_key_reused`。
 11. **Given** 工作树含未提交修改和 index，**When** discardWorkingTree，**Then** 业务投影回到 HEAD、index 清空、commit 图不变；外键依赖整体回滚。
 12. **Given** 加密字段被 stage/commit，**When** 扫描 IndexEntry 原始 dump，**Then** 明文哨兵零命中。
+13. **Given** 实体被删除后 stage，**When** 查看 `diff(scope)`，**Then** 该删除以显式 delete 单元出现在 HEAD↔index 与 HEAD↔工作树 差异中，不得表现为条目消失或空 diff；commit 后 HEAD 中该实体不存在。
+14. **Given** 工作树有未提交修改且 index 非空，**When** 调用 `clearIndex()`，**Then** 只清空暂存选择并递增 `indexRevision`，业务投影、`WorkingTreeEntry` 与 `workingTreeRevision` 逐字段不变；随后 `status()` 显示同一批变更全部回到 unstaged。
+15. **Given** 空事务、对未变化工作树的重复 stage、以及对已 clean 工作树的重复 `discardWorkingTree()`，**When** 反复执行，**Then** 全部幂等：不产生额外 commit、不递增任何 revision、不返回错误，`status()` 结果稳定。
 
 ## 核心操作契约
 
-| 操作 | revision 校验 | 成功变化 |
-| ---- | ------------- | -------- |
-| `status()` / `diff()` | 读取一致快照 | 无 |
-| `stage()` / re-stage | active + working-tree + index | index；工作树不变 |
-| `unstage()` / `clearIndex()` | active + index | index |
-| `commit()` | active + head + index | head、index、working-tree residual rebase |
-| `discardWorkingTree()` | active + head + working-tree + index | working-tree；index 非空时同时变化 |
+| 操作                         | revision 校验                        | 成功变化                                  |
+| ---------------------------- | ------------------------------------ | ----------------------------------------- |
+| `status()` / `diff()`        | 读取一致快照                         | 无                                        |
+| `stage()` / re-stage         | active + working-tree + index        | index；工作树不变                         |
+| `unstage()` / `clearIndex()` | active + index                       | index                                     |
+| `commit()`                   | active + head + index                | head、index、working-tree residual rebase |
+| `discardWorkingTree()`       | active + head + working-tree + index | working-tree；index 非空时同时变化        |
 
 `CommitConflict` 只描述一次失败命令。v1 不持久化通用冲突表；`status().conflicted` 只由 durable
 `WorkingTreeRestoreSession` 派生，不能依赖页面内存保留一次旧 CAS 错误。
 
+## 功能需求
+
+### 承接的父故事条目（逐条可核对）
+
+| 父故事条目         | 本故事承接范围                                                              | 对应验收场景   |
+| ------------------ | --------------------------------------------------------------------------- | -------------- |
+| FR-004             | 全部：status 状态集合、一次性 `CommitConflict` 与 durable conflicted 的边界 | AC8、AC9       |
+| FR-005             | 全部：`diff(scope?)` 的两条比较线与实体/事务粒度                            | AC1、AC13      |
+| FR-006             | 全部：stage / unstage / stage all / clearIndex 不改历史、不丢未选择变更     | AC1、AC14      |
+| FR-007             | 全部：staged 快照保留与新增部分标记 unstaged                                | AC3            |
+| FR-011             | 全部：commit 后只清已提交条目、未暂存变更保留                               | AC1            |
+| FR-016             | 全部：discard 与 clearIndex 的范围区分                                      | AC11、AC14     |
+| FR-031             | 全部：四类 revision CAS 矩阵与 commit 内 residual rebase                    | AC7、AC8       |
+| FR-032             | 全部：stage 后编辑不按 writer 身份分叉                                      | AC3            |
+| FR-040             | 全部：stage/re-stage 双 revision 校验、no-op 语义、事务自动扩展             | AC3、AC4、AC15 |
+| FR-041             | 全部：message/authorId/operationId 校验与保留审计字段不可覆盖               | AC2、AC10      |
+| FR-045             | 仅 `IndexEntry` 半边（`WorkingTreeEntry` 半边归 US-306a）                   | AC12           |
+| FR-047             | 全部：index 自包含重放、依赖闭包正反向对称、`index_dependency_cycle`        | AC4、AC5、AC6  |
+| US-306 US2-AC5     | 全部：删除必须出现在 diff                                                   | AC13           |
+| US-306 US2-AC7     | 全部：空事务 / 重复 stage / 重复 discard 幂等                               | AC15           |
+| US-306 US3-AC2     | 全部：`clearIndex()` 只清暂存选择                                           | AC14           |
+| US-306 US3-AC1/AC3 | 全部：discard 回到 HEAD、外键依赖整体回滚                                   | AC11           |
+
+未在此表出现的父故事条目由 US-306a（写入口捕获）或 US-306c（三框架 / a11y / benchmark）承接。
+
 ## 测试要求
 
 - 核心包覆盖率不低于 90%，先写 index 不可重放和 residual edit 丢失的失败用例。
+- `workingTreeCommitConformanceSuite` 在 6 个 v1 本地后端（PGlite、wa-sqlite、sqlite-wasm、sqlite、sqliteai、
+  Electron `node:sqlite` host）运行，覆盖 stage/unstage/commit/discard 的 revision CAS、崩溃恢复与幂等。
+  US-305 的 commit 图 / HEAD 断言并入同一 suite（见 [epic-006 conformance 口径](../../epics/epic-006-working-tree-commits.md)），
+  任一后端缺席即本故事未完成。
 - 依赖闭包 fixture 覆盖同实体链、多实体事务、跨事务父子关系、DELETE 逆序、关系键 UPDATE 与环。
 - 每个成功 index 都必须通过“从 HEAD 在空投影重放”的通用断言。
 - 双 realm fixture 覆盖 stage、re-stage、commit、discard CAS；不用固定延时。
-- API baseline 与类型契约覆盖全部核心 DTO、选项和类型化错误。
+- 幂等 fixture 必须断言「不递增 revision」，而不只是「不报错」。
+- API baseline 与类型契约覆盖全部核心 DTO、选项和类型化错误；新增公开导出缺 TSDoc 时 lint 失败。
 
 ## 实现文件（计划阶段待确认）
 
@@ -91,4 +124,3 @@ INVEST 检查清单:
 - `packages/rxdb/src/system/` — IndexState / IndexEntry
 - `packages/rxdb/src/__tests__/version/` — 闭包、CAS、幂等与 residual rebase
 - `requirements/api-baseline/rxdb.json`
-

@@ -36,6 +36,21 @@ INVEST 检查清单:
 普通提交竞争只看领域 revision；不得用 `BroadcastChannel` 或内存状态承担正确性。US-304、US-305、US-306a、US-306b
 任一未 Done 时本故事不可开工。
 
+> **`WorkingTreeActivationState` 的分工**：该单行状态的**建表与初始化**由 [US-305](./US-305-commit-graph-head.md) FR-052
+> 在系统 schema 迁移中完成，[US-306a](./US-306a-working-tree-capture.md) 只消费它做写路径 token 校验。本故事拥有它的
+> **切换语义**：`activationRevision` 的递增时机、switch CAS、`requireClean` 判定，以及切换后目标分支工作树/index 的恢复。
+> 本故事不重复建表，也不改写 306a 已验收的写路径校验机制。
+
+### 从 US-306a 顺延过来的验收责任
+
+US-306a 用持久层重放断言覆盖数据契约，把「必须真的切一次分支才能观察」的行为全部留给本故事。以下两条是明确的顺延点，
+本故事的对应场景即是它们的最终收口，不得再次下推：
+
+| 顺延来源                                               | 本故事收口场景 |
+| ------------------------------------------------------ | -------------- |
+| US-306a AC2 的切出/切回端到端往返                      | US1-AC5        |
+| US-306a AC7 的真实双 Tab `stale_active_branch` fixture | US2-AC5        |
+
 ## 既有 `switchBranch()` 的兼容处置
 
 原 US-305 的 FR-017 写「切换分支前**默认**要求工作区 clean」。这与同一份文档的 FR-018「已有 API 的行为不能因为 commit 功能而改变」直接冲突，而且是会打破用户代码的那种冲突：
@@ -67,7 +82,8 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 
 - 分支与工作树 / 缓存区的隔离：切换后恢复目标分支自己的状态；没有未提交状态时才物化目标 HEAD
 - `requireClean` 显式选项与对应的可操作错误
-- 数据库级 `activationRevision`、active branch token 与跨标签页 switch/CRUD 竞争拒绝
+- 数据库级 `activationRevision` 的**切换语义**：递增时机与 switch CAS（建表归 US-305 FR-052，
+  写路径 token 校验归 US-306a），以及跨标签页 switch/CRUD 竞争拒绝
 - 跨标签页 / 跨 realm revision CAS 的集成 fixture 与类型化诊断
 - `CommitConflict` 派生值与三端一致的冲突提示语义
 - 既有 `createBranch(branchId, fromChangeId?)`、`removeBranch()`、`syncBranches()` 与 commit/working-tree/index 生命周期集成
@@ -123,6 +139,7 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 ## 关键实体
 
 - **WorkingTreeActivationState**：数据库级单行 revision；当前分支 ID 仍由 `RxDBBranch.activated` 表示，该状态不复制第二份 ID。
+  **建表与 `activationRevision = 0` 初始化由 US-305 FR-052 完成**；本故事只定义它在 switch 时的递增与 CAS 语义，不新增表。
 - **CommitConflict**：并发或版本校验失败的一次性不可变诊断值；由失败命令捕获的 expected token 与事务内读取的 actual revision 派生，包含操作、对象、受影响变更单元和建议动作。它不是协调锁、持久状态或独立真相源。
 - **CommitBranchMaterializationAttempt**：metadata-only 分支首次物化的内部 durable staging；attempt ID、目标分支身份、冻结终止水位、scope manifest、已提交分页水位、payload fingerprint 与生命周期。它不属于当前工作树或 commit 图，成功 switch 后原子删除。
 
@@ -143,7 +160,7 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 
 - `packages/rxdb/src/version/VersionManager.ts` — `switchBranch` 新增可选参数，默认行为不变
 - `packages/rxdb/src/version/` — 分支隔离、revision 冲突派生与错误分类
-- `packages/rxdb/src/system/` — `WorkingTreeActivationState` 与 capability/branch lifecycle 事务
+- `packages/rxdb/src/system/` — `WorkingTreeActivationState` 的 switch CAS 与 branch lifecycle 事务（表本身由 US-305 建立）
 - `packages/rxdb-{angular,react,vue}/` — 对称的冲突状态与提示
 - `requirements/api-baseline/rxdb.json` — `WorkingTreeSwitchBranchOptions` 与 `CommitConflict`
 - `packages/rxdb/src/__tests__/contracts/` — `switchBranch` 公开方法签名兼容测试

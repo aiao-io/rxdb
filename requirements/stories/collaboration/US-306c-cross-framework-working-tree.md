@@ -38,15 +38,15 @@ INVEST 检查清单:
 
 `useWorkingTree()` 的返回对象在三端保持同一组语义键：
 
-| 键 | 语义 |
-| -- | ---- |
-| `status` | 当前持久状态；支持 clean/modified/staged/restoring/conflicted |
-| `diff` | HEAD↔working tree 与 HEAD↔index 的当前差异 |
-| `refresh` | 主动读取最新 revision |
-| `stage` / `unstage` | 返回实际依赖闭包 |
-| `clearIndex` / `discardWorkingTree` | 明确范围的清理命令 |
-| `commit` | message + CommitOptions 提交 |
-| `commandState` | 当前命令的 idle/loading/success/error 与类型化错误 |
+| 键                                  | 语义                                                          |
+| ----------------------------------- | ------------------------------------------------------------- |
+| `status`                            | 当前持久状态；支持 clean/modified/staged/restoring/conflicted |
+| `diff`                              | HEAD↔working tree 与 HEAD↔index 的当前差异                    |
+| `refresh`                           | 主动读取最新 revision                                         |
+| `stage` / `unstage`                 | 返回实际依赖闭包                                              |
+| `clearIndex` / `discardWorkingTree` | 明确范围的清理命令                                            |
+| `commit`                            | message + CommitOptions 提交                                  |
+| `commandState`                      | 当前命令的 idle/loading/success/error 与类型化错误            |
 
 Angular 使用 signal、React 使用 state/store、Vue 使用 ref 只是容器差异；导出名、参数、返回键、错误 code、
 empty/loading/success/error 判定和恢复建议必须对称。不得让某一端额外拥有业务能力。
@@ -59,6 +59,21 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 4. **Given** 仅键盘操作，**When** 浏览 diff、选择单元、stage、clear 或 commit，**Then** 焦点顺序、可见焦点、名称与状态公告达到 WCAG 2.1 AA。
 5. **Given** 最长实体名、错误文本和窄视口，**When** 状态更新，**Then** 文本不溢出、遮挡或改变固定工具栏尺寸。
 6. **Given** 任一共享类型或运行时入口只在一到两端导出，**When** parity 门禁运行，**Then** 整个故事失败，不能把单端实现记为 Done。
+
+## 功能需求
+
+### 承接的父故事条目（逐条可核对）
+
+| 父故事条目                             | 本故事承接范围                                                                                | 对应验收场景   |
+| -------------------------------------- | --------------------------------------------------------------------------------------------- | -------------- |
+| FR-023                                 | 全部：命令 loading/success/error、查询 empty、错误含操作/对象/恢复建议                        | AC2、AC3       |
+| FR-026                                 | 全部：`bench-working-tree` fixture、warmup/采样、p50/p95、归一化 ratio 与固定 runner 绝对门禁 | 见「性能门禁」 |
+| epic 横切：三框架 API 对称             | 全部：`useWorkingTree()` 与共享类型三端等价，缺一端整故事失败                                 | AC1、AC6       |
+| epic 横切：a11y WCAG 2.1 AA            | 全部：键盘可达、焦点可见、状态公告、窄视口与长文本                                            | AC4、AC5       |
+| US-306 In Scope「三端对称 API 与演示」 | 全部                                                                                          | AC1、AC6       |
+
+本故事不承接任何持久层 FR：状态机语义归 [US-306b](./US-306b-index-commit-state-machine.md)，
+写入口捕获归 [US-306a](./US-306a-working-tree-capture.md)。三端只做透传与呈现，不得自带业务分支逻辑。
 
 ## 性能门禁
 

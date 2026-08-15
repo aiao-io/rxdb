@@ -109,7 +109,7 @@ export default defineConfig(() => ({
       reportsDirectory: '../coverage/benchmarks',
       provider: 'v8' as const,
       reporter: ['text', 'json', 'lcovonly'],
-      include: ['src/analysis/**', 'src/utils/**'],
+      include: ['src/analysis/**', 'src/utils/**', 'src/clear-db.ts'],
       exclude: ['**/index.ts', '**/dist/**', 'src/utils/rxdb-factory.ts', 'src/utils/memory-tracker.ts']
     }
   }
