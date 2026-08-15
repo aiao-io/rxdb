@@ -68,12 +68,19 @@ v1 不持久化第二份独立 `HEAD`。当前分支仍由既有 `RxDBBranch.act
 | `WorkingTreeActivationState`            | **US-305**     | US-306a（写路径 token 校验）、US-308（switch CAS 与 `requireClean`） |
 | `WorkingTreeState` / `WorkingTreeEntry` | US-306a        | US-306a                                                              |
 | `IndexState` / `IndexEntry`             | US-306b        | US-306b                                                              |
-| `WorkingTreeRestoreSession`             | US-307         | US-307                                                               |
+| `WorkingTreeRestoreSession`             | **US-306b**    | US-307                                                               |
 | branch materialization stage            | US-308         | US-308                                                               |
 
 `WorkingTreeActivationState` 由 US-305 随 system schema 首次迁移一并建立并初始化为 revision 0：
 US-306a 的普通 CRUD 必须校验 active branch token，而它排在 US-308 之前，表不能等到 US-308 才存在。
 US-305 只负责建表与初始化，不实现 switch 语义。
+
+`WorkingTreeRestoreSession` 适用同一条规则，因此建表归 **US-306b** 而不是 US-307：`status()` 的 `conflicted`
+是 US-306b 交付的状态集合的一部分，而 v1 唯一的 durable 来源就是该 session，表不能等到排在其后的 US-307 才存在。
+US-306b 只负责建表与「从已存在的 session 派生 conflicted」，其 fixture 直接写入 session 行来构造分叉
+（与 US-306a 直接推进 `activationRevision`、不经 `switchBranch` 入口的做法同源）；`restore()` / `discard` 的会话
+创建、`active | conflicted | committed` 生命周期、no-op 与兼容预检全部归 US-307。同理，类型化诊断值
+`CommitConflict` 的定义、TSDoc 与 api-baseline 登记归**首个使用者 US-306b**，US-308 只做 activation 维度的扩展。
 
 `WorkingTreeEntry` 是逻辑契约，不强制新增物理表；plan 可以证明复用 `RxDBChange` 或不可变派生表满足同一契约。
 但 `WorkingTreeState` 只存计数和 revision 不算完成：必须有可枚举、可重放、按分支隔离的未提交变更单元。
@@ -157,7 +164,7 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 | raw SQL、adapter 直写或其他 trigger bypass                                | 业务表写入前以 `commit_capability_mismatch` 拒绝；只有同时持有内部事务能力并原子维护工作树的受信路径可以关闭 trigger   |
 
 **受信路径必须与 bypass 门禁同批交付。** 表最后一行的拒绝门禁一旦启用，既有的批量投影重写路径就会撞上它——
-最典型的是 [VersionManager.switchBranch](../../packages/rxdb/src/version/VersionManager.ts#L758) 经
+最典型的是 [VersionManager.ts](../../packages/rxdb/src/version/VersionManager.ts) 的 `switchBranch()` 经
 `adapter.switchBranch({ branchId, actions })` 做的整表重写。因此 **US-306a 在落地拒绝门禁的同一个故事内**，
 必须把既有 switch / baseline 物化路径登记为受信路径（关 trigger + 不产生工作树条目 + 不递增 working-tree revision），
 否则 306a 合并后到 US-308 合并前，`switchBranch` 会被自己的门禁拒掉或静默绕过工作树。登记的是「路径可信」这一
@@ -167,18 +174,35 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 `executor.mergeChanges(..., disableTriggers)` 都是被多个语义不同的调用方复用的批量重写传输层；
 把「受信」挂在这两个函数上，等于让本表的不同行共用同一个判定，必然出错。当前调用方与各自应落的行如下：
 
-| 调用点                                                                                                                                        | 传输层                          | 本表归属                                |
-| --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | --------------------------------------- |
-| [VersionManager.switchBranch](../../packages/rxdb/src/version/VersionManager.ts#L769)                                                         | `adapter.switchBranch`          | 受信物化：**不**产生工作树单元          |
-| [VersionManager `restoreEntity`](../../packages/rxdb/src/version/VersionManager.ts#L936)                                                      | `adapter.switchBranch`          | undo/redo/restore：**必须**产生         |
-| [HistoryManager 失效 redo 栈](../../packages/rxdb/src/version/HistoryManager.ts#L948)                                                         | `adapter.switchBranch`          | 只写 `redoInvalidatedAt` 元数据：不产生 |
-| [HistoryManager undo/redo 应用](../../packages/rxdb/src/version/HistoryManager.ts#L1472)                                                      | `adapter.switchBranch`          | undo/redo：**必须**产生                 |
-| [merge-branch](../../packages/rxdb/src/version/merge-branch.ts#L150)                                                                          | `mergeChanges`（trigger 开启）  | mergeBranch：必须产生                   |
-| [pull-batch](../../packages/rxdb/src/version/pull-batch.ts#L379) / [pull-repository](../../packages/rxdb/src/version/pull-repository.ts#L628) | `mergeChanges(disableTriggers)` | remote apply：`origin=remote_sync`      |
-| [cleanup-expired](../../packages/rxdb/src/version/cleanup-expired.ts#L200)                                                                    | `mergeChanges(disableTriggers)` | 过期删除：`origin=remote_sync`          |
+**登记键固定为「文件 + 符号 + 意图」，不是行号。** 行号会随任何一次无关编辑漂移，把它当键会让漂移测试
+变成噪音源。下表按符号登记，截至 2026-08-15 与代码实际调用点一一对应：
+
+| 登记键（文件 + 符号）                                                                                                                     | 传输层                          | 本表归属                                |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | --------------------------------------- |
+| [VersionManager.ts](../../packages/rxdb/src/version/VersionManager.ts) · `switchBranch()`                                                 | `adapter.switchBranch`          | 受信物化：**不**产生工作树单元          |
+| [VersionManager.ts](../../packages/rxdb/src/version/VersionManager.ts) · `restoreEntity()`                                                | `adapter.switchBranch`          | restore：**必须**产生                   |
+| [HistoryManager.ts](../../packages/rxdb/src/version/HistoryManager.ts) · 失效 redo 栈                                                     | `adapter.switchBranch`          | 只写 `redoInvalidatedAt` 元数据：不产生 |
+| [HistoryManager.ts](../../packages/rxdb/src/version/HistoryManager.ts) · undo/redo 应用                                                   | `adapter.switchBranch`          | undo/redo：**必须**产生                 |
+| [merge-branch.ts](../../packages/rxdb/src/version/merge-branch.ts) · per-change 分支 `executor.mergeChanges`                              | `mergeChanges`（trigger 开启）  | mergeBranch：必须产生                   |
+| [merge-branch.ts](../../packages/rxdb/src/version/merge-branch.ts) · squash 分支 `adapter.mergeChanges`                                   | `mergeChanges`（trigger 开启）  | mergeBranch：必须产生                   |
+| [pull-batch.ts](../../packages/rxdb/src/version/pull-batch.ts) / [pull-repository.ts](../../packages/rxdb/src/version/pull-repository.ts) | `mergeChanges(disableTriggers)` | remote apply：`origin=remote_sync`      |
+| [cleanup-expired.ts](../../packages/rxdb/src/version/cleanup-expired.ts)                                                                  | `mergeChanges(disableTriggers)` | 过期删除：`origin=remote_sync`          |
+
+`merge-branch.ts` **两个策略分支各是一个独立调用点**（per-change 走 `executor`、squash 走 `adapter`），
+必须各占一行；只登记其中一个会让漂移测试在落地当天就红。
+
+**`mergeChanges` 是被重载的名字，扫描必须按签名区分**，否则本表会收进与本地业务表无关的调用：
+
+| 重载                                                                                                     | 语义                                       | 是否属本表 |
+| -------------------------------------------------------------------------------------------------------- | ------------------------------------------ | :--------: |
+| 本地 [`mergeChanges(actions, localChanges?, disableTriggers?)`](../../packages/rxdb/src/rxdb-adapter.ts) | 重写本地业务投影                           |     是     |
+| 远端 [`mergeChanges(actions, branchId?, changes?)`](../../packages/rxdb/src/rxdb-adapter.ts)             | 推送到远端（`push-repository` / Supabase） |     否     |
+
+远端重载的第三个参数是 `changes` 而不是 `disableTriggers`，它不写本地业务表，MUST NOT 计入本表；
+静态扫描 MUST 同时排除 `dist/`（构建产物虽已 gitignore，但本地工作区常驻，按文本 grep 会命中 `.d.ts` 声明）。
 
 因此写路径必须携带**显式意图标记**（枚举值，plan 阶段冻结名称），由发起领域操作的调用方传入并透传到事务内；
-未携带标记的批量重写一律按未知入口拒绝。新增任何一个 `disableTriggers` 调用点都必须先在本表登记，
+未携带标记的批量重写一律按未知入口拒绝。新增任何一个本地 `disableTriggers` 调用点都必须先在本表登记，
 否则视为未知入口——这条同时是防止表随代码漂移的护栏。
 
 > `cleanupExpired()` 归到 `remote_sync` 而非 QueryCache 排除或受信物化，理由：它删除的是**版本化实体**
@@ -215,10 +239,16 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
 - v1 支持矩阵为 **6 个后端**：PGlite、四个 SQLite 浏览器适配器（wa-sqlite / sqlite-wasm / sqlite / sqliteai）、
   以及 `@aiao/rxdb-adapter-desktop` 的 **Electron `node:sqlite` host**。实验性的 miniprogram 适配器不承诺崩溃恢复，
   不在矩阵内。
+- **入矩阵的判据是宿主能力，不是它所属 story 的 status**。承诺一个后端的前提固定为两条：该 host 已在既有
+  跨后端共享套件上全绿，且**没有已知的非确定性失败**。按 status 判定会得出错误结论——
+  [US-207](../stories/adapter/US-207-desktop-local-database.md) 同样尚未 Done（只剩 AC#8 三平台打包矩阵），
+  但 Electron host 已用 `@aiao/rxdb-test` 的五套共享套件跑出 786 用例全绿且无 flake，因此计入 v1；
+  打包矩阵不影响 host 在 CI 里的正确性，属于 US-207 自己的收尾项。
 - **Tauri 的 Rust `rusqlite` host 是第 7 个后端，v1 暂不承诺**。它与 Electron host 同属 `rxdb-adapter-desktop`，
-  但宿主实现完全不同（进程外 `rusqlite` vs 进程内 `node:sqlite`），且 [US-210](../stories/adapter/US-210-tauri-sqlite-local-database.md)
-  尚未 Done、已知在 CPU 争抢下有变更事件时序 flake。US-210 Done 后按同一套件补入矩阵，届时更新本节与发布门禁 4，
-  不在本 Epic 内夹带。
+  但宿主实现完全不同（进程外 `rusqlite` vs 进程内 `node:sqlite`），且按上条判据未达标：
+  [US-210](../stories/adapter/US-210-tauri-sqlite-local-database.md) 已知在与 cargo 目标争抢 CPU 时存在变更事件
+  时序 flake（Node 宿主同条件下没有），AC#1 的跨进程重启 e2e 也尚未覆盖。flake 收敛且共享套件稳定全绿后按同一套件
+  补入矩阵，届时更新本节与发布门禁 4，不在本 Epic 内夹带。
 - 跨后端 conformance 拆成**两套具名套件**，各有唯一归属故事，避免出现「门禁点名、无人认领」：
   - `workingTreeCaptureConformanceSuite` —— 归 [US-306a](../stories/collaboration/US-306a-working-tree-capture.md)，
     覆盖写入口捕获、事务原子性与工作树重放
@@ -252,7 +282,12 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
    它只用 US-305 提供的 activation state 做**写路径 token 校验**，不实现 switch 语义；凡需要真正切换分支才能观察的
    断言一律留给 US-308，306a 用持久层重放断言等价覆盖
 5. [US-306b](../stories/collaboration/US-306b-index-commit-state-machine.md) 在其上实现 index、关系依赖闭包、revision CAS、status/diff/stage/commit
-6. [US-306c](../stories/collaboration/US-306c-cross-framework-working-tree.md)、[US-307](../stories/collaboration/US-307-restore-session.md) 与 [US-308](../stories/collaboration/US-308-branch-isolation-conflict.md) 依赖 US-306b，可并行
+6. [US-306c](../stories/collaboration/US-306c-cross-framework-working-tree.md) 依赖 US-306b，交付
+   `useWorkingTree()` 的三端契约、扩展点协议与 `bench-working-tree` target 本身
+7. [US-307](../stories/collaboration/US-307-restore-session.md) 与 [US-308](../stories/collaboration/US-308-branch-isolation-conflict.md)
+   依赖 US-306b，两者之间互相独立可并行。但它们**不能整体与 US-306c 并行**：US-307 的 `restore` / `restoreState`、
+   US-308 的分支切换与冲突提示都按 US-306c 冻结的扩展点协议追加键，FR-026b 也只向 US-306c 拥有的 bench target
+   追加采样场景。因此二者的**核心持久层语义可与 US-306c 并行开工，三框架入口与 benchmark 半边必须排在 US-306c 之后**
 
 ## 故事
 

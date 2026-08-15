@@ -72,18 +72,19 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 4. **Given** 仅键盘操作，**When** 浏览 diff、选择单元、stage、clear 或 commit，**Then** 焦点顺序、可见焦点、名称与状态公告达到 WCAG 2.1 AA。
 5. **Given** 最长实体名、错误文本和窄视口，**When** 状态更新，**Then** 文本不溢出、遮挡或改变固定工具栏尺寸。
 6. **Given** 任一共享类型或运行时入口只在一到两端导出，**When** parity 门禁运行，**Then** 整个故事失败，不能把单端实现记为 Done。
+7. **Given** Epic 冻结的 Node + PGlite memory fixture 与已签入的 reference 报告，**When** 执行 `pnpm nx run benchmarks:bench-working-tree`（status、完整 diff、批量 stage 50 单元，各 5 次 warmup / 50 次采样），**Then** 输出含 p50/p95、control ratio、fixture hash 与 `runnerProfileHash` 的报告；归一化 ratio 超过 reference median 110% 时门禁失败，且失败后不得以重算基线的方式转绿；`runnerProfileHash` 与 reference 匹配时额外以绝对 p95 100 ms 作为发布门禁，不匹配时该绝对判据 MUST 跳过而非放宽为通过。
 
 ## 功能需求
 
 ### 承接的父故事条目（逐条可核对）
 
-| 父故事条目                             | 本故事承接范围                                                                                | 对应验收场景   |
-| -------------------------------------- | --------------------------------------------------------------------------------------------- | -------------- |
-| FR-023                                 | 全部：命令 loading/success/error、查询 empty、错误含操作/对象/恢复建议                        | AC2、AC3       |
-| FR-026                                 | 全部：`bench-working-tree` fixture、warmup/采样、p50/p95、归一化 ratio 与固定 runner 绝对门禁 | 见「性能门禁」 |
-| epic 横切：三框架 API 对称             | 全部：`useWorkingTree()` 与共享类型三端等价，缺一端整故事失败                                 | AC1、AC6       |
-| epic 横切：a11y WCAG 2.1 AA            | 全部：键盘可达、焦点可见、状态公告、窄视口与长文本                                            | AC4、AC5       |
-| US-306 In Scope「三端对称 API 与演示」 | 全部                                                                                          | AC1、AC6       |
+| 父故事条目                             | 本故事承接范围                                                                                | 对应验收场景 |
+| -------------------------------------- | --------------------------------------------------------------------------------------------- | ------------ |
+| FR-023                                 | 全部：命令 loading/success/error、查询 empty、错误含操作/对象/恢复建议                        | AC2、AC3     |
+| FR-026                                 | 全部：`bench-working-tree` fixture、warmup/采样、p50/p95、归一化 ratio 与固定 runner 绝对门禁 | AC7          |
+| epic 横切：三框架 API 对称             | 全部：`useWorkingTree()` 与共享类型三端等价，缺一端整故事失败                                 | AC1、AC6     |
+| epic 横切：a11y WCAG 2.1 AA            | 全部：键盘可达、焦点可见、状态公告、窄视口与长文本                                            | AC4、AC5     |
+| US-306 In Scope「三端对称 API 与演示」 | 全部                                                                                          | AC1、AC6     |
 
 本故事不承接任何持久层 FR：状态机语义归 [US-306b](./US-306b-index-commit-state-machine.md)，
 写入口捕获归 [US-306a](./US-306a-working-tree-capture.md)。三端只做透传与呈现，不得自带业务分支逻辑。

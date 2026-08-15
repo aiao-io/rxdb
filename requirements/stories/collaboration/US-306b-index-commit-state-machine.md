@@ -34,20 +34,29 @@ INVEST 检查清单:
 
 ### In Scope
 
-- `status()` / `diff(scope?)` 的核心 API 和稳定 DTO
+- `status()` / `diff(scope?)` 的核心 API 和稳定 DTO：`WorkingTreeStatus`、`WorkingTreeDiff`、
+  `WorkingTreeSelection`、`WorkingTreeStageResult`、`WorkingTreeCommandError` 的定义、TSDoc 与 api-baseline 登记
+  （[US-306c](./US-306c-cross-framework-working-tree.md) 只从 `@aiao/rxdb` 透传，不另行定义）
 - `IndexState` / `IndexEntry`、stage/unstage/stage all/clear index
 - 基于同实体顺序、完整事务、schema relation graph 与实际行引用的依赖闭包
 - `commit(message, options)`、operation ID 幂等、residual rebase
 - `discardWorkingTree()` 与 index 清理
-- working-tree/index/head/active token revision CAS
-- 一次性 `CommitConflict` 与 durable `status().conflicted` 的边界
+- **调用方捕获型** revision CAS：working-tree / index / head / active branch token。普通 CRUD 的
+  working-tree revision 是**事务内读改写**，归 [US-306a](./US-306a-working-tree-capture.md)，两者不重叠，
+  见 [epic revision 校验矩阵](../../epics/epic-006-working-tree-commits.md#revision-校验矩阵)
+- 一次性 `CommitConflict` 与 durable `status().conflicted` 的边界。`CommitConflict` 的类型定义、TSDoc 与
+  api-baseline 登记归本故事（首个使用者），[US-308](./US-308-branch-isolation-conflict.md) 只做 activation 维度扩展
+- `WorkingTreeRestoreSession` 的**建表与 schema 迁移**，以及「从已存在 session 派生 conflicted」的读路径
 - IndexEntry 加密 envelope 与核心类型/API baseline
 
 ### Out of Scope
 
 - 工作树写入口捕获，归 US-306a
 - 三框架公开入口和性能门禁，归 US-306c
-- restore session 与 branch switch，分别归 US-307 / US-308
+- restore 的**语义**——`restore()` 入口、会话的创建与 `active | conflicted | committed` 生命周期、no-op 判定、
+  schema/codec 兼容预检——归 [US-307](./US-307-restore-session.md)。本故事只建表并实现从已存在 session 派生
+  conflicted 的读路径，理由见[父故事的相邻资产说明](./US-306-working-tree-index.md#子故事与交付边界)
+- branch switch 归 [US-308](./US-308-branch-isolation-conflict.md)
 
 ## 验收场景
 
@@ -59,7 +68,7 @@ INVEST 检查清单:
 6. **Given** relation graph 存在不可拆分环，**When** 环内单元可作为同一原子集合重放，**Then** 全部纳入；无法形成合法闭包时返回 `index_dependency_cycle` 且 index 零变化。
 7. **Given** 两个 realm 从同一 revision stage/commit，**When** 条件更新竞争，**Then** 只有一个成功，失败方收到 expected/actual revision 且无半成品。
 8. **Given** 普通 stage/commit CAS 失败，**When** 刷新后调用 status，**Then** 状态按最新持久数据重建，不因历史失败永久显示 conflicted。
-9. **Given** active restore session 的 expected revision 与当前值分叉，**When** 调用 status，**Then** 返回 durable conflicted；session 解决或删除后该状态消失。
+9. **Given** active restore session 的 expected revision 与当前值分叉（表由本故事建立，fixture **直接写入 session 行**构造分叉，不经 [US-307](./US-307-restore-session.md) 的 `restore()` 入口——与 US-306a 直接推进 `activationRevision` 同源），**When** 调用 status，**Then** 返回 durable conflicted；session 解决或删除后该状态消失。写入该 session 的领域操作归 US-307。
 10. **Given** commit 响应丢失，**When** 相同 operation ID 与相同 payload 重试，**Then** 返回原 commit；payload 不同返回 `idempotency_key_reused`。
 11. **Given** 工作树含未提交修改和 index，**When** discardWorkingTree，**Then** 业务投影回到 HEAD、index 清空、commit 图不变；外键依赖整体回滚。
 12. **Given** 加密字段被 stage/commit，**When** 扫描 IndexEntry 原始 dump，**Then** 明文哨兵零命中。
@@ -84,20 +93,20 @@ INVEST 检查清单:
 
 ### 承接的父故事条目（逐条可核对）
 
-| 父故事条目 | 本故事承接范围                                                              | 对应验收场景   |
-| ---------- | --------------------------------------------------------------------------- | -------------- |
-| FR-004     | 全部：status 状态集合、一次性 `CommitConflict` 与 durable conflicted 的边界 | AC8、AC9       |
-| FR-005     | 全部：`diff(scope?)` 的两条比较线与实体/事务粒度                            | AC1、AC13      |
-| FR-006     | 全部：stage / unstage / stage all / clearIndex 不改历史、不丢未选择变更     | AC1、AC14      |
-| FR-007     | 全部：staged 快照保留与新增部分标记 unstaged                                | AC3            |
-| FR-011     | 全部：commit 后只清已提交条目、未暂存变更保留                               | AC1            |
-| FR-016     | 全部：discard 与 clearIndex 的范围区分                                      | AC11、AC14     |
-| FR-031     | 全部：四类 revision CAS 矩阵与 commit 内 residual rebase                    | AC7、AC8       |
-| FR-032     | 全部：stage 后编辑不按 writer 身份分叉                                      | AC3            |
-| FR-040     | 全部：stage/re-stage 双 revision 校验、no-op 语义、事务自动扩展             | AC3、AC4、AC15 |
-| FR-041     | 全部：message/authorId/operationId 校验与保留审计字段不可覆盖               | AC2、AC10      |
-| FR-045     | 仅 `IndexEntry` 半边（`WorkingTreeEntry` 半边归 US-306a）                   | AC12           |
-| FR-047     | 全部：index 自包含重放、依赖闭包正反向对称、`index_dependency_cycle`        | AC4、AC5、AC6  |
+| 父故事条目 | 本故事承接范围                                                                                                                               | 对应验收场景   |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| FR-004     | 全部：status 状态集合、一次性 `CommitConflict` 与 durable conflicted 的边界；含 `WorkingTreeRestoreSession` 建表与 `CommitConflict` 类型登记 | AC8、AC9       |
+| FR-005     | 全部：`diff(scope?)` 的两条比较线与实体/事务粒度                                                                                             | AC1、AC13      |
+| FR-006     | 全部：stage / unstage / stage all / clearIndex 不改历史、不丢未选择变更                                                                      | AC1、AC14      |
+| FR-007     | 全部：staged 快照保留与新增部分标记 unstaged                                                                                                 | AC3            |
+| FR-011     | 全部：commit 后只清已提交条目、未暂存变更保留                                                                                                | AC1            |
+| FR-016     | 全部：discard 与 clearIndex 的范围区分                                                                                                       | AC11、AC14     |
+| FR-031     | 全部：四类 revision CAS 矩阵与 commit 内 residual rebase                                                                                     | AC7、AC8       |
+| FR-032     | 全部：stage 后编辑不按 writer 身份分叉                                                                                                       | AC3            |
+| FR-040     | 全部：stage/re-stage 双 revision 校验、no-op 语义、事务自动扩展                                                                              | AC3、AC4、AC15 |
+| FR-041     | 全部：message/authorId/operationId 校验与保留审计字段不可覆盖                                                                                | AC2、AC10      |
+| FR-045     | 仅 `IndexEntry` 半边（`WorkingTreeEntry` 半边归 US-306a）                                                                                    | AC12           |
+| FR-047     | 全部：index 自包含重放、依赖闭包正反向对称、`index_dependency_cycle`                                                                         | AC4、AC5、AC6  |
 
 父故事 AC 逐条对照（发布门禁 2 按此核对，缺一行即拆分失败）：
 
@@ -141,11 +150,15 @@ US2-AC17/AC18/AC19 归 [US-306a](./US-306a-working-tree-capture.md)；US1-AC3 �
 - 每个成功 index 都必须通过“从 HEAD 在空投影重放”的通用断言。
 - 双 realm fixture 覆盖 stage、re-stage、commit、discard CAS；不用固定延时。
 - 幂等 fixture 必须断言「不递增 revision」，而不只是「不报错」。
-- API baseline 与类型契约覆盖全部核心 DTO、选项和类型化错误；新增公开导出缺 TSDoc 时 lint 失败。
+- `WorkingTreeRestoreSession` 需独立 fixture：启用后表存在、可直接写入 session 行并派生 `status().conflicted`、
+  session 删除后该状态消失；全程不依赖 US-307 的 `restore()` 入口。
+- API baseline 与类型契约覆盖全部核心 DTO、选项和类型化错误（含 `WorkingTreeStatus` / `WorkingTreeDiff` /
+  `WorkingTreeSelection` / `WorkingTreeStageResult` / `WorkingTreeCommandError` / `CommitConflict`，
+  即 US-306c 三端透传的共享类型全集）；新增公开导出缺 TSDoc 时 lint 失败。
 
 ## 实现文件（计划阶段待确认）
 
 - `packages/rxdb/src/version/` — status/diff/index/commit 状态机
-- `packages/rxdb/src/system/` — IndexState / IndexEntry
+- `packages/rxdb/src/system/` — IndexState / IndexEntry / `WorkingTreeRestoreSession`（仅建表与迁移）
 - `packages/rxdb/src/__tests__/version/` — 闭包、CAS、幂等与 residual rebase
 - `requirements/api-baseline/rxdb.json`

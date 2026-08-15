@@ -129,19 +129,31 @@
 由 2026-08-13 的评审从原 US-305 升级而来：原故事持有 4 个 user story、28 条 FR、7 个关键实体，
 横跨 `packages/rxdb/src/version/`、`src/system/`、workspace 插件、三个框架包与三个 demo，INVEST「Small」不成立。
 拆分后每个交付故事都能独立证明「写入 → 刷新 → 读回」。交付顺序为
-**US-305 → US-306a → US-306b → (US-306c ∥ US-307 ∥ US-308)**。
+**US-305 → US-306a → US-306b → US-306c →（US-307 ∥ US-308）**。
+US-307 / US-308 的**核心持久层半边**可与 US-306c 并行开工，但两者的三框架入口、a11y 与 benchmark 采样
+都要复用 US-306c 冻结的 `useWorkingTree()` 契约与 `bench-working-tree` target，必须排在其后
+（口径以 [epic-006 依赖顺序](epics/epic-006-working-tree-commits.md) 为准）。
 
 - ⬜ [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 基础层：commit 图 / branch ref / baseline，并建 `WorkingTreeActivationState`（FR-052）与桥接血统预检（FR-030）
 - 📄 [US-306 工作树、缓存区与提交操作](stories/collaboration/US-306-working-tree-index.md) — **父故事/共享契约，不直接交付**；其 FR/AC 承接表是 [发布门禁 2](epics/epic-006-working-tree-commits.md) 的审计依据
   - ⬜ [US-306a 工作树写入捕获与持久化](stories/collaboration/US-306a-working-tree-capture.md) — 全部业务写入口 → `WorkingTreeEntry` 原子捕获、意图登记、6 个 v1 后端 conformance
   - ⬜ [US-306b 缓存区与提交状态机](stories/collaboration/US-306b-index-commit-state-machine.md) — status/diff、index 依赖闭包、commit residual rebase、revision CAS
   - ⬜ [US-306c 三框架工作树交互面与性能门禁](stories/collaboration/US-306c-cross-framework-working-tree.md) — `useWorkingTree()` 三端契约与 `bench-working-tree` target 的归属方
-- ⬜ [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — 依赖 US-306a 的捕获层落盘、US-306c 的三端契约扩展
-- ⬜ [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — 依赖 US-304 收敛
+- ⬜ [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — 依赖 US-306a 的捕获层落盘、US-306b 的 `WorkingTreeRestoreSession` 建表、US-306c 的三端契约扩展
+- ⬜ [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — 依赖 US-304 收敛；`CommitConflict` 类型由 US-306b 登记，本故事只扩展 activation 维度
 
-> **阻塞口径**：上表全部 ⬜ Backlog，但 US-306a 的前置依赖 [US-304](stories/collaboration/US-304-writer-lease-migration-fencing.md)
-> 目前是 In Progress，即整条链在 US-304 收敛前无法开工。汇总表的「🚫 Blocked = 0」统计的是**故事 YAML 里显式写成
-> `status: Blocked`** 的数量，不代表没有前置阻塞；两者不要互相推断。
+> **阻塞口径**：上表全部 ⬜ Backlog，且链首是 **US-305**（不是 US-306a）——它同时是 US-306a、US-306b 与 US-307 的前置。
+> 整条链目前有两个硬前置：
+>
+> 1. [US-304](stories/collaboration/US-304-writer-lease-migration-fencing.md) 仍是 🚧 In Progress，US-305 / US-306a
+>    都要消费它的 writer 身份与迁移 epoch fencing；
+> 2. US-305 是首个真实 system schema 迁移发布，其 FR-030 要求 `requirements/migration-release.json` 指向一个
+>    位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`，
+>    历史 bridge 版本 `v0.0.25` 的 tagged commit 又已被 squash 移出主线，因此**必须先从主线发布一个新的非迁移
+>    bridge 版本**，US-305 的发布门禁才可能转绿。这一条不随代码进度自动解除，需要单独排期。
+>
+> 汇总表的「🚫 Blocked = 0」统计的是**故事 YAML 里显式写成 `status: Blocked`** 的数量，
+> 不代表没有前置阻塞；两者不要互相推断。
 
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 

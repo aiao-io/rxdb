@@ -48,11 +48,14 @@ INVEST 检查清单:
 
 ### In Scope
 
-- `WorkingTreeState` / `WorkingTreeEntry` 的持久化布局和 `workingTreeRevision` CAS
+- `WorkingTreeState` / `WorkingTreeEntry` 的持久化布局和 `workingTreeRevision` 的**事务内读改写**递增
+  （不接收调用方 expected 值、不因并发失败；**调用方捕获型** CAS 归 [US-306b](./US-306b-index-commit-state-machine.md)，
+  见 [epic revision 校验矩阵](../../epics/epic-006-working-tree-commits.md#revision-校验矩阵)）
 - 普通 CRUD、显式 callback transaction 与 Workspace 草稿 `save()` 的原子捕获
 - pull、autoSync、pullRepository、sync、bulkSync 的 `origin=remote_sync` 捕获和 push echo 隔离
 - `VersionManager.cleanupExpired()` 的过期删除：与 pull 同类按 `origin=remote_sync` 捕获，不生成可 push 的本地 change
-- mergeBranch、undo/redo 的工作树维护；纯 remoteId、水位和审计时间更新排除
+- mergeBranch（**两条策略分支都算**：per-change `executor.mergeChanges` 与 squash `adapter.mergeChanges`）、
+  undo/redo、以及 `VersionManager.restoreEntity()` 的工作树维护；纯 remoteId、水位和审计时间更新排除
 - Workspace 插件 NEW 草稿的**排除边界**：草稿留在插件独立 IndexedDB，不进工作树；`save()` 后才作为普通 INSERT 捕获
 - QueryCache 完整排除，以及混合 callback transaction 的整笔回滚
 - active branch token 校验（消费 US-305 建立的 `activationRevision`）、raw/未知 bypass 拒绝、字段加密 envelope
@@ -128,9 +131,17 @@ INVEST 检查清单:
 - 必须注入“业务行已写、WorkingTreeEntry 写入前失败”，断言事务全量回滚。
 - **冷重放测试**：丢弃业务表投影与全部进程内状态后，仅凭 HEAD + `WorkingTreeEntry` 重建，逐字段比对刷新前快照。
 - **受信路径测试**：登记路径的批量重写通过门禁且零工作树副作用；同一重写走未登记路径时断言 `commit_capability_mismatch`。
-- **意图登记漂移测试**：静态扫描全部 `adapter.switchBranch` / `mergeChanges(disableTriggers)` 调用点，
-  与 epic 登记表逐条比对；出现未登记调用点即失败。必须显式覆盖「同一函数、受信意图零副作用 vs 非受信意图
-  必须产生工作树单元」的成对断言，防止按函数放行把 restore / undo/redo / merge / pull 静默吞掉。
+- **意图登记漂移测试**：静态扫描全部 `adapter.switchBranch` / 本地 `mergeChanges(disableTriggers)` 调用点，
+  与 epic 登记表逐条比对；出现未登记调用点即失败。扫描口径固定为：
+  - 比对键是**文件 + 符号 + 意图**（如 `merge-branch.ts · mergeBranchChanges · per-change 应用`），不是行号，
+    重排代码不得让门禁变红或漏检；
+  - 必须区分同名的两个 `mergeChanges` 重载——只有本地重载 `(actions, localChanges?, disableTriggers?)` 进登记表，
+    远端重载 `(actions, branchId?, changes?)`（`push-repository` / Supabase 推送）MUST NOT 被登记；
+  - 扫描范围 MUST 排除 `dist/`：构建产物虽已 gitignore，但常驻本地工作区，按文本 grep 会命中 `.d.ts` 声明。
+
+  必须显式覆盖「同一函数、受信意图零副作用 vs 非受信意图必须产生工作树单元」的成对断言，防止按函数放行把
+  restore / undo/redo / merge / pull 静默吞掉。
+
 - **类型契约测试**：`tri-framework-check` 之外新增 type-level 断言，验证 `WorkingTreeState` / `WorkingTreeEntry`
   从 `@aiao/rxdb` 导出且形状与 api-baseline 一致；api-baseline diff 未同步更新即失败。
 - 新增公开导出缺 TSDoc 时 lint 失败（零警告门禁）。

@@ -30,7 +30,10 @@ INVEST 检查清单:
   restore 结果写成**普通、未暂存的 `WorkingTreeEntry`**，`restoreEntity` 也在 epic 的调用点登记表中被列为
   「必须产生工作树单元」的意图；没有 306a 的捕获层，restore 无处落盘
 - [US-306b](./US-306b-index-commit-state-machine.md)：status/diff/index/commit 状态机与 revision CAS 口径；
-  本故事的「未 stage 时 commit 被拒」直接复用其空 index 规则
+  本故事的「未 stage 时 commit 被拒」直接复用其空 index 规则。**`WorkingTreeRestoreSession` 的建表、schema
+  迁移与「从已存在 session 派生 conflicted」的读路径也由 US-306b 交付**（`status()` 的 durable `conflicted`
+  在 306b 就必须成立，表不能等到本故事才存在）；本故事只负责会话的**创建与生命周期语义**。
+  `CommitConflict` 同理，由 US-306b 定义并登记 api-baseline，本故事直接复用
 - [US-306c](./US-306c-cross-framework-working-tree.md)：`useWorkingTree()` 的三端契约。本故事的恢复入口是对
   该契约的**扩展**（新增 `restore` 与 `restoreState`），不得在某一端另立一套命名或状态机
 
@@ -45,7 +48,8 @@ INVEST 检查清单:
 ### In Scope
 
 - `restore(commitId)`：把目标 commit 的数据物化到当前工作树，**不移动 HEAD**、不改写历史
-- 恢复会话（`WorkingTreeRestoreSession`）的持久化与刷新后重建，且在 UI 中明确标记为「恢复后未提交」
+- 恢复会话（`WorkingTreeRestoreSession`）的**创建、`active | conflicted | committed` 生命周期与删除**，
+  刷新后据其重建「恢复后未提交」标记并在 UI 中明确呈现（表与迁移由 US-306b 提供，本故事不重复建表）
 - 恢复前的 dirty 工作树 / 缓存区检测与拒绝
 - 恢复目标的当前分支可达性，以及完整物化路径的 schema/change codec 兼容预检
 - restore / discard 的 active branch token 与 head、working tree、index revision CAS
@@ -59,6 +63,8 @@ INVEST 检查清单:
 
 - commit 图与 HEAD 存储 —— 属 [US-305](./US-305-commit-graph-head.md)
 - status / diff / stage 的状态机 —— 属 [US-306b](./US-306b-index-commit-state-machine.md)
+- `WorkingTreeRestoreSession` 的建表 / schema 迁移，以及 `CommitConflict` 的类型定义与 api-baseline 登记
+  —— 同属 [US-306b](./US-306b-index-commit-state-machine.md)；本故事是它们的使用者，不是所有者
 - 冲突记录和三端冲突提示 —— 属 [US-308](./US-308-branch-isolation-conflict.md)；底层 revision CAS 已由 US-305/306a/306b 提供
 - rebase、cherry-pick、任意历史改写
 - 把恢复实现成「把旧节点改成当前」
@@ -106,6 +112,7 @@ INVEST 检查清单:
 ## 关键实体
 
 - **WorkingTreeRestoreSession**：历史恢复会话；目标 commit、恢复前 HEAD 与各 expected revision、生成的工作树 revision、目标 schema/codec manifest、数据库创建时间、`active | conflicted | committed` 生命周期。discard 成功后删除 session；commit 与 `committed` 转换原子提交。conflicted 可由 session expected revision 与当前 revision 重建，不另建冲突真相表。
+  > **表归属**：schema、建表与迁移由 [US-306b](./US-306b-index-commit-state-machine.md) 交付，本故事只新增写入与状态转换。本故事若需要给该表加列，MUST 走 US-306b 的迁移路径，不得另建第二张会话表。
 
 ## 设计展开
 
@@ -128,8 +135,8 @@ INVEST 检查清单:
 
 ## 实现文件（计划阶段待确认）
 
-- `packages/rxdb/src/version/` — 恢复语义与恢复会话
-- `packages/rxdb/src/system/` — 恢复会话元数据
+- `packages/rxdb/src/version/` — 恢复语义与恢复会话生命周期
+- `packages/rxdb/src/system/` — 恢复会话元数据（表由 US-306b 建立，本故事只写入）
 - `packages/rxdb-{angular,react,vue}/` — 对称的恢复入口与状态
 - `apps/dev-rxdb-{angular,react,vue}/` — 历史与恢复演示
 - `benchmarks/working-tree.bench.ts` — 恢复场景采样

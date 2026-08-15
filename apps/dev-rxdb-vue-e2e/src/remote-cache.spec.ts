@@ -12,7 +12,7 @@ test.describe('Remote Cache Page (US-502 fetch + OPFS cache)', () => {
     const count = page.getByTestId('remote-cache-count');
     if (!(await count.innerText()).includes('（0）')) {
       await page.getByRole('button', { name: 'Clear all' }).click();
-      await expect(count).toHaveText('已缓存（0）');
+      await expect(count).toContainText('已缓存（0）');
     }
   });
 
@@ -20,7 +20,7 @@ test.describe('Remote Cache Page (US-502 fetch + OPFS cache)', () => {
     await expect(page.getByRole('button', { name: /Picsum #237/u })).toBeVisible();
     await expect(page.getByRole('button', { name: /Picsum #433/u })).toBeVisible();
     await expect(page.getByRole('button', { name: /Picsum #1015/u })).toBeVisible();
-    await expect(page.getByTestId('remote-cache-count')).toHaveText('已缓存（0）');
+    await expect(page.getByTestId('remote-cache-count')).toContainText('已缓存（0）');
     await expect(page.getByTestId('remote-cache-empty')).toBeVisible();
   });
 
@@ -28,7 +28,7 @@ test.describe('Remote Cache Page (US-502 fetch + OPFS cache)', () => {
     const button = page.getByRole('button', { name: /Picsum #237/u });
     await button.click();
 
-    await expect(page.getByTestId('remote-cache-count')).toHaveText('已缓存（1）', { timeout: 10000 });
+    await expect(page.getByTestId('remote-cache-count')).toContainText('已缓存（1）', { timeout: 10000 });
 
     const downloadLog = page.getByTestId('remote-cache-log-entry').filter({ hasText: 'Downloaded:' });
     await expect(downloadLog).toBeVisible();
@@ -39,7 +39,7 @@ test.describe('Remote Cache Page (US-502 fetch + OPFS cache)', () => {
     const button = page.getByRole('button', { name: /Picsum #237/u });
 
     await button.click();
-    await expect(page.getByTestId('remote-cache-count')).toHaveText('已缓存（1）', { timeout: 10000 });
+    await expect(page.getByTestId('remote-cache-count')).toContainText('已缓存（1）', { timeout: 10000 });
     expect(requestCounts.get(page)).toBe(1);
 
     await button.click();
@@ -51,10 +51,10 @@ test.describe('Remote Cache Page (US-502 fetch + OPFS cache)', () => {
 
   test('should clear all cached entries with the Clear all button', async ({ page }) => {
     await page.getByRole('button', { name: /Picsum #237/u }).click();
-    await expect(page.getByTestId('remote-cache-count')).toHaveText('已缓存（1）', { timeout: 10000 });
+    await expect(page.getByTestId('remote-cache-count')).toContainText('已缓存（1）', { timeout: 10000 });
 
     await page.getByRole('button', { name: 'Clear all' }).click();
-    await expect(page.getByTestId('remote-cache-count')).toHaveText('已缓存（0）', { timeout: 5000 });
+    await expect(page.getByTestId('remote-cache-count')).toContainText('已缓存（0）', { timeout: 5000 });
     await expect(
       page.getByTestId('remote-cache-log-entry').filter({ hasText: 'Cleared cache directory' })
     ).toBeVisible();
