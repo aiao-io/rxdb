@@ -105,10 +105,22 @@ discard 与分支操作都必须在实际写事务内验证该 token；另一个
 
 ### revision 校验矩阵
 
+revision 校验分两类，**不可混为一谈**：
+
+- **调用方捕获型**：调用方在事务开始前读到某个 revision，事务内以它做条件更新，失败即冲突。适用于 stage、
+  unstage、commit、restore、discard、switch branch——它们都由用户显式发起，且失败后用户可以刷新重选。
+- **事务内读改写型**：事务内读当前值、写业务数据、写 +1，全程不接收调用方 expected 值，因此**不会因并发而失败**。
+  适用于普通 CRUD 与 remote entity apply。
+
+普通 CRUD **不得**采用调用方捕获型：另一个 Tab 的任何一次写入都会推进同分支的 `workingTreeRevision`，若把它当成
+CRUD 的前置条件，多标签页下所有在途 `save()` 都会失败，与 FR-032「writer 身份不得成为提交正确性的必要条件」和
+US-306 US2-AC8（其他 realm 编辑同一实体属正常行为）直接冲突。`activationRevision` 则相反：它是调用方捕获型，
+因为「实体属于哪个分支」必须以读取时的分支为准，这正是 `stale_active_branch` 的判据。
+
 | 操作                      | 同一事务必须校验                                                 | 成功后递增                                    |
 | ------------------------- | ---------------------------------------------------------------- | --------------------------------------------- |
-| 普通 INSERT/UPDATE/DELETE | active branch token、expected working-tree revision              | working-tree revision                         |
-| remote entity apply       | active branch token、expected working-tree revision + sync 水位  | 有实体净变化时递增 working-tree revision      |
+| 普通 INSERT/UPDATE/DELETE | active branch token（捕获型）；working-tree revision 读改写      | working-tree revision                         |
+| remote entity apply       | active branch token（捕获型）、sync 水位；working-tree revision 读改写 | 有实体净变化时递增 working-tree revision      |
 | merge / undo / redo       | active branch token、expected working-tree + 操作自身 revision   | 有逻辑工作树变化时递增 working-tree revision  |
 | stage / re-stage          | active branch token、expected working-tree + index revision      | index revision；工作树未变                    |
 | unstage / clear index     | active branch token、expected index revision                     | index revision                                |
@@ -138,6 +150,7 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 | `mergeBranch()`、undo/redo、restore/discard                               | 按各自原子边界写入或重算本地工作树；不得绕过 active token 与 revision CAS                                            |
 | `pull()`、autoSync、`pullRepository()`、`sync()`、`bulkSync()` 的实体应用 | 即使为防回推而关闭 `RxDBChange` trigger，也必须写入来源为 `remote_sync` 的未暂存单元；不生成可 push 的本地 change    |
 | 只更新 remoteId、同步水位或审计时间                                       | 不改变业务表，不创建工作树单元，不递增 working-tree revision                                                         |
+| `VersionManager.cleanupExpired()` 的过期删除                              | 与 `pull` 同类：写入来源为 `remote_sync` 的未暂存 DELETE 单元，递增 working-tree revision；不生成可 push 的本地 change |
 | branch switch、baseline/restore 物化、commit residual rebase              | 由对应领域操作显式维护工作树；底层投影重写不得被 trigger 二次记录                                                    |
 | metadata-only 目标分支的远端预取                                          | 只写 branch materialization staging 与独立水位，不得更新当前分支 `RxDBSync` 或业务表                                 |
 | QueryCache 的 upsert/delete/过期清理                                      | QueryCache 实体不进入 baseline、status、diff、stage 或 commit；它仍是可重建缓存，不能与版本化实体混在同一事务单元中  |
@@ -149,6 +162,30 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 必须把既有 switch / baseline 物化路径登记为受信路径（关 trigger + 不产生工作树条目 + 不递增 working-tree revision），
 否则 306a 合并后到 US-308 合并前，`switchBranch` 会被自己的门禁拒掉或静默绕过工作树。登记的是「路径可信」这一
 机制，切换分支的**工作树恢复语义**仍归 US-308。
+
+**登记必须以调用方意图为键，不得以传输层函数为键。** `adapter.switchBranch()` 与
+`executor.mergeChanges(..., disableTriggers)` 都是被多个语义不同的调用方复用的批量重写传输层；
+把「受信」挂在这两个函数上，等于让本表的不同行共用同一个判定，必然出错。当前调用方与各自应落的行如下：
+
+| 调用点                                                                                     | 传输层                            | 本表归属                        |
+| ------------------------------------------------------------------------------------------ | --------------------------------- | ------------------------------- |
+| [VersionManager.switchBranch](../../packages/rxdb/src/version/VersionManager.ts#L769)       | `adapter.switchBranch`            | 受信物化：**不**产生工作树单元  |
+| [VersionManager `restoreEntity`](../../packages/rxdb/src/version/VersionManager.ts#L936)    | `adapter.switchBranch`            | undo/redo/restore：**必须**产生 |
+| [HistoryManager 失效 redo 栈](../../packages/rxdb/src/version/HistoryManager.ts#L948)       | `adapter.switchBranch`            | 只写 `redoInvalidatedAt` 元数据：不产生 |
+| [HistoryManager undo/redo 应用](../../packages/rxdb/src/version/HistoryManager.ts#L1472)    | `adapter.switchBranch`            | undo/redo：**必须**产生         |
+| [merge-branch](../../packages/rxdb/src/version/merge-branch.ts#L150)                        | `mergeChanges`（trigger 开启）    | mergeBranch：必须产生           |
+| [pull-batch](../../packages/rxdb/src/version/pull-batch.ts#L379) / [pull-repository](../../packages/rxdb/src/version/pull-repository.ts#L628) | `mergeChanges(disableTriggers)` | remote apply：`origin=remote_sync` |
+| [cleanup-expired](../../packages/rxdb/src/version/cleanup-expired.ts#L200)                  | `mergeChanges(disableTriggers)`   | 过期删除：`origin=remote_sync`  |
+
+因此写路径必须携带**显式意图标记**（枚举值，plan 阶段冻结名称），由发起领域操作的调用方传入并透传到事务内；
+未携带标记的批量重写一律按未知入口拒绝。新增任何一个 `disableTriggers` 调用点都必须先在本表登记，
+否则视为未知入口——这条同时是防止表随代码漂移的护栏。
+
+> `cleanupExpired()` 归到 `remote_sync` 而非 QueryCache 排除或受信物化，理由：它删除的是**版本化实体**
+> （Filter 同步的业务表行，会进 baseline 与 commit），排除它会让「任何业务表净变化都能由 HEAD + WorkingTreeEntry
+> 重放」（发布门禁 10）失效；而它删除的又是远端仍然存在、只是不再落入本地 sync scope 的行，与 `pull` 造成的
+> 本地投影变化同类，因此复用同一条语义而不是新造第八种。它已在实现里跳过仍有未推送变更的候选，
+> 不会与本地未提交编辑打架。
 
 远端数据进入工作树不等于 remote commit push/pull：v1 只记录本地可审计的未提交结果，不伪造远端作者、消息或远端 commit。
 支持 full/filter 同步的实体必须覆盖“pull → refresh → switch away/back → status/diff”这条完整链路，但它**跨三个故事**，
@@ -204,7 +241,11 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
 ## 依赖顺序
 
 1. [US-304](../stories/collaboration/US-304-writer-lease-migration-fencing.md) 必须先 Done —— 本 Epic 复用 writer 身份与迁移期 epoch fencing，不复用 epoch 充当提交版本
-2. 当前发布主线先产生新的非迁移 bridge tag；历史 `v0.0.25` 不在当前 ancestry，不能供下一步引用
+2. 当前发布主线先产生新的非迁移 bridge tag；历史 `v0.0.25` 不在当前 ancestry，不能供下一步引用。
+   **这一步由 US-305 自身承接**（FR-030 + 新增 AC US2-14），不是无主的流程约定：截至 2026-08-15，
+   [migration-release.json](../migration-release.json) 的 `bridge.tag` / `bridge.version` 仍为 `null`，
+   而 `release.version` 仍写着已脱链的 `0.0.25`。US-305 的第一个可交付物就是产出新 bridge tag 并修正该 manifest，
+   在此之前 system schema 迁移不得进入发布分支
 3. [US-305](../stories/collaboration/US-305-commit-graph-head.md) 建立 commit 图、branch ref、`headRevision` CAS、存储布局与每分支基线迁移，
    并一并建立 `WorkingTreeActivationState`（见「状态归属」）
 4. [US-306a](../stories/collaboration/US-306a-working-tree-capture.md) 完成全部写入口的持久工作树捕获。
@@ -251,7 +292,8 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
 
 ## 发布门禁
 
-1. US-304 Done（前置）
+1. US-304 Done（前置）；[migration-release.json](../migration-release.json) 的 `bridge.tag` 指向一个满足
+   `git merge-base --is-ancestor <bridge-tag> <release-commit>` 的真实 tag，且不是 `v0.0.25`
 2. US-305 / US-306a / US-306b / US-306c / US-307 / US-308 全部 Done；父契约 US-306 的
    [AC/FR 承接表](../stories/collaboration/US-306-working-tree-index.md#子故事与交付边界) 逐条有归属且对应子故事已关闭，
    US-306c/307/308 的三框架对称与 a11y 条件满足
@@ -266,7 +308,9 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
 9. 公开文档说明数据库级显式启用、工作树与草稿缓存的区别、恢复语义、历史保留敏感旧值的风险、
    加密边界与不改写历史的承诺
 10. 写入口 conformance 覆盖普通 CRUD、merge、undo/redo、full/filter pull/autoSync/repository sync/bulkSync、
-    QueryCache 排除与 raw bypass 拒绝；任何业务表净变化都能由 HEAD + WorkingTreeEntry 重放
+    `cleanupExpired()` 过期删除、QueryCache 排除与 raw bypass 拒绝；任何业务表净变化都能由
+    HEAD + WorkingTreeEntry 重放。意图标记登记表与代码实际调用点一致——存在未登记的
+    `adapter.switchBranch` / `mergeChanges(disableTriggers)` 调用点即门禁失败
 11. index 依赖闭包、active 分支基数、metadata-only 远端分支首次物化和完整 restore 路径预检 fixture 全绿
 
 ## 非目标
