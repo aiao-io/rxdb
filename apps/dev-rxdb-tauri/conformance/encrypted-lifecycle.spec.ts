@@ -9,6 +9,7 @@ import { afterAll, expect } from 'vitest';
 import {
   readRustDatabaseFile,
   rustEncryptedAdapterFactory,
+  rustHostDeliveryErrors,
   rustHostStderr,
   stopRustTestHost
 } from './rust-adapter-factory.js';
@@ -16,6 +17,7 @@ import {
 afterAll(() => {
   try {
     expect(rustHostStderr()).toBe('');
+    expect(rustHostDeliveryErrors()).toEqual([]);
   } finally {
     stopRustTestHost();
   }

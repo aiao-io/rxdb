@@ -15,6 +15,7 @@ name: CI Template (Reusable)
 #          ├─ test (N 条 lane) ─┬─ coverage ────┤
 #          ├─ acceptance ───────┘               ├─ gate
 #          ├─ e2e (每个 app / target 一个 job) ─┤
+#          ├─ rust (clippy + test + 一致性) ────┤
 #          └─ benchmark ────────────────────────┘
 #
 #   test / e2e **不等 build**：它们各自只需要自己那棵依赖子树的产物，
@@ -64,6 +65,7 @@ jobs:
       build_projects: ${{ steps.plan.outputs.build_projects }}
       test_projects: ${{ steps.plan.outputs.test_projects }}
       acceptance_projects: ${{ steps.plan.outputs.acceptance_projects }}
+      rust_projects: ${{ steps.plan.outputs.rust_projects }}
       test_matrix: ${{ steps.plan.outputs.test_matrix }}
       e2e_matrix: ${{ steps.plan.outputs.e2e_matrix }}
       has_checks: ${{ steps.plan.outputs.has_checks }}
@@ -71,6 +73,7 @@ jobs:
       has_tests: ${{ steps.plan.outputs.has_tests }}
       has_acceptance: ${{ steps.plan.outputs.has_acceptance }}
       has_e2e: ${{ steps.plan.outputs.has_e2e }}
+      has_rust: ${{ steps.plan.outputs.has_rust }}
       need_benchmark: ${{ steps.plan.outputs.need_benchmark }}
     steps:
       - uses: actions/checkout@v6
@@ -128,12 +131,14 @@ jobs:
           ACCEPTANCE_JSON=$(projects_json coverage-acceptance)
           E2E_JSON=$(projects_json e2e)
           E2E_REMOTE_JSON=$(projects_json e2e-remote)
+          RUST_JSON=$(projects_json cargo-test)
 
           # lint 与 typecheck 合成一个 job 跑，项目集取并集（两者的 target 归属并不总是重合）。
           CHECK=$(jq -r -n --argjson a "$LINT_JSON" --argjson b "$TYPECHECK_JSON" '($a + $b) | unique | join(",")')
           BUILD=$(jq -r 'sort | join(",")' <<<"$BUILD_JSON")
           TEST=$(jq -r 'sort | join(",")' <<<"$TEST_JSON")
           ACCEPTANCE=$(jq -r 'sort | join(",")' <<<"$ACCEPTANCE_JSON")
+          RUST=$(jq -r 'sort | join(",")' <<<"$RUST_JSON")
 
           # 每个 (项目, target) 一个 e2e job。不写死清单：新增 e2e 应用自动进矩阵。
           # e2e-remote 需要本地 Supabase 栈，本地 e2e 不需要。
@@ -168,6 +173,7 @@ jobs:
             echo "build_projects=$BUILD"
             echo "test_projects=$TEST"
             echo "acceptance_projects=$ACCEPTANCE"
+            echo "rust_projects=$RUST"
             echo "test_matrix=$TEST_MATRIX"
             echo "e2e_matrix=$E2E_MATRIX"
             echo "has_checks=$(nonempty "$CHECK")"
@@ -175,6 +181,7 @@ jobs:
             echo "has_tests=$(nonempty "$TEST")"
             echo "has_acceptance=$(nonempty "$ACCEPTANCE")"
             echo "has_e2e=$(jq -r '.include | length > 0' <<<"$E2E_MATRIX")"
+            echo "has_rust=$(nonempty "$RUST")"
             echo "need_benchmark=$NEED_BENCHMARK"
           } >> "$GITHUB_OUTPUT"
 
@@ -190,6 +197,7 @@ jobs:
             echo "| test | $(jq -r 'length' <<<"$TEST_JSON") | \`$TEST\` |"
             echo "| coverage-acceptance | $(jq -r 'length' <<<"$ACCEPTANCE_JSON") | \`$ACCEPTANCE\` |"
             echo "| e2e | $(jq -r '.include | length' <<<"$E2E_MATRIX") | \`$(jq -r '.include | map(.project + ":" + .target) | join(", ")' <<<"$E2E_MATRIX")\` |"
+            echo "| rust | $(jq -r 'length' <<<"$RUST_JSON") | \`$RUST\` |"
             echo
 
             # job 名里只有 label（`test (rxdb-adapter-pglite +8)`），lane 序号只在
@@ -460,6 +468,69 @@ jobs:
         run: docker compose -f docker-compose.ci.yml down -v
 
   # ---------------------------------------------------------------------------
+  # Rust 侧的门禁。`lint` / `test` 两个 job 走的都是 `nx run-many -t lint test`，
+  # 而 Tauri 宿主的 target 叫 cargo-clippy / cargo-test / test-conformance ——
+  # 名字对不上，于是 src-tauri/ 下的几千行 Rust 在别的 job 里一行都不会被编译。
+  # 单开一个 job 而不是并进 lint/test：它要 Rust 工具链和一整套 GTK/WebKit 系统库，
+  # 让每条 test lane 都背上这份安装成本是纯亏。
+  rust:
+    name: rust
+    needs: setup
+    if: needs.setup.outputs.has_rust == 'true'
+    runs-on: ubuntu-latest
+    # 冷跑要从零编译 tauri + rusqlite(bundled) 的依赖树，clippy 与 dev 两套产物各一遍。
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          filter: tree:0
+      - uses: ./.github/actions/setup-workspace
+      - uses: ./.github/actions/nx-cache-restore
+
+      # tauri 2 在 Linux 上经 wry 链到 WebKitGTK，这些是**编译期**依赖：
+      # 缺了连 `cargo clippy` 都过不去（build script 的 pkg-config 就会失败）。
+      - name: Install Tauri system dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libssl-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      # Nx 缓存能挡住「Rust 没变但项目被判定 affected」的重复执行，挡不住真的要编译时
+      # 那 10 分钟的依赖树。key 里带 Cargo.lock 的 hash：依赖没动就直接复用 target/。
+      # 不缓存 ~/.cargo/registry/src —— 它是 cache/*.crate 解压出来的，白占体积。
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            apps/dev-rxdb-tauri/src-tauri/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('apps/dev-rxdb-tauri/src-tauri/Cargo.lock') }}-${{ github.run_id }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ hashFiles('apps/dev-rxdb-tauri/src-tauri/Cargo.lock') }}-
+            cargo-${{ runner.os }}-
+
+      # 不跑 cargo-check：`cargo clippy --all-targets` 已经做了完整类型检查，
+      # 再跑一遍只是换个 cargo 缓存目录把依赖树重编一次。
+      #
+      # test-conformance 自带 `dependsOn: build-test-host`，Nx 会先编出 stdio 宿主二进制。
+      # --parallel=1：三个 target 共享同一个 src-tauri/target/ 目录，cargo 的文件锁会让
+      # 并行退化成串行等待，还看不出是在等谁。
+      - name: Rust gates
+        env:
+          PROJECTS: ${{ needs.setup.outputs.rust_projects }}
+        run: |
+          pnpm exec nx run-many -t cargo-clippy cargo-test test-conformance \
+            -p "$PROJECTS" --output-style=stream --parallel=1
+
+  # ---------------------------------------------------------------------------
   # benchmarks/scripts/search-ci.mjs 自己起 vite dev server 再用 Playwright 驱动页面，
   # 所以这个 job 和 test/e2e 一样需要 chromium —— 旧流程里它和别的任务同 job，
   # 白蹭了前面装好的浏览器，拆出来后必须自己装。
@@ -561,7 +632,7 @@ jobs:
   # 新增 job 时必须同步加进 needs 和下面的断言列表 —— 漏加 = 那个门禁不再拦任何东西。
   gate:
     name: gate
-    needs: [setup, lint, build, test, acceptance, e2e, benchmark, coverage]
+    needs: [setup, lint, build, test, acceptance, e2e, rust, benchmark, coverage]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -588,6 +659,7 @@ jobs:
           check test       "${{ needs.test.result }}"
           check acceptance "${{ needs.acceptance.result }}"
           check e2e        "${{ needs.e2e.result }}"
+          check rust       "${{ needs.rust.result }}"
           check benchmark  "${{ needs.benchmark.result }}"
           check coverage   "${{ needs.coverage.result }}"
 
@@ -601,12 +673,13 @@ jobs:
           # 一个 test 项目都没有只可能是项目图或过滤条件出了问题 —— 那会让 CI
           # 一片绿却什么都没测。这里显式拦住。
           if [ "${{ inputs.run_mode }}" = "run-many" ]; then
-            for flag in has_checks has_builds has_tests has_e2e; do
+            for flag in has_checks has_builds has_tests has_e2e has_rust; do
               case "$flag" in
                 has_checks) value="${{ needs.setup.outputs.has_checks }}" ;;
                 has_builds) value="${{ needs.setup.outputs.has_builds }}" ;;
                 has_tests) value="${{ needs.setup.outputs.has_tests }}" ;;
                 has_e2e) value="${{ needs.setup.outputs.has_e2e }}" ;;
+                has_rust) value="${{ needs.setup.outputs.has_rust }}" ;;
               esac
               if [ "$value" != "true" ]; then
                 echo "❌ run-many 模式下 $flag=false —— 项目图或 --exclude 过滤出问题了，本次 CI 实际什么都没跑。"

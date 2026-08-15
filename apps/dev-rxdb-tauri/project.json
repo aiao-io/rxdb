@@ -156,7 +156,10 @@
         "{projectRoot}/src-tauri/Cargo.toml",
         "{projectRoot}/src-tauri/Cargo.lock"
       ],
-      "outputs": ["{projectRoot}/src-tauri/target/debug/rxdb_host_stdio"],
+      "outputs": [
+        "{projectRoot}/src-tauri/target/debug/rxdb_host_stdio",
+        "{projectRoot}/src-tauri/target/debug/rxdb_host_stdio.exe"
+      ],
       "options": {
         "cwd": "apps/dev-rxdb-tauri/src-tauri",
         "command": "cargo build --locked --bin rxdb_host_stdio",

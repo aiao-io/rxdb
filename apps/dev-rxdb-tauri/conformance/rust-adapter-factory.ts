@@ -29,6 +29,7 @@ interface RustTestHost {
   readonly workspace: string;
   readonly process: RustHostProcess;
   readonly transport: DesktopHostTransport;
+  readonly deliveryErrors: () => readonly unknown[];
 }
 
 let running: RustTestHost | undefined;
@@ -66,6 +67,20 @@ export function stopRustTestHost(): void {
  */
 export function rustHostStderr(): string {
   return running?.process.stderr() ?? '';
+}
+
+/**
+ * 变更事件通道迄今出过的错。
+ *
+ * @remarks
+ * 与 {@link rustHostStderr} 互补：那条看的是宿主进程内部，这条看的是**推送到达之后**的
+ * 解码与分发。变更事件通道断了不会让任何一次 `execute` 失败，只会让响应式查询悄悄停更——
+ * 没有这个旁路信号的话，套件对这类故障是全盲的。
+ *
+ * @returns 错误列表，正常情况下为空
+ */
+export function rustHostDeliveryErrors(): readonly unknown[] {
+  return running?.deliveryErrors() ?? [];
 }
 
 const uniqueDbName = (): string => `tauri-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

@@ -107,6 +107,15 @@ pub struct ExecuteResult {
     pub results: Option<ResultSet>,
 }
 
+/// 一个脚本跑完后的累计产出。
+#[derive(Debug, Default)]
+struct StatementOutcome {
+    /// 第一条产出行的语句的结果集。
+    results: Option<ResultSet>,
+    /// 各条语句影响行数之和。
+    rows_affected: i64,
+}
+
 /// 单个结果集。
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResultSet {
@@ -331,21 +340,25 @@ impl Engine {
         }
 
         // 前一次是为别的连接刚建好的系统表补装触发器，后一次是为本条语句自己建的表补装。
-        self.ensure_notify_triggers()?;
-        let results = self.run_statements(&statements, bindings)?;
-        let rows_affected = if is_read_only_statement(sql) {
-            0
-        } else {
-            i64::try_from(self.db().changes()).unwrap_or(i64::MAX)
-        };
-        self.ensure_notify_triggers()?;
+        let outcome = self
+            .ensure_notify_triggers()
+            .and_then(|()| self.run_statements(&statements, bindings))
+            .and_then(|outcome| {
+                self.ensure_notify_triggers()?;
+                Ok(outcome)
+            });
         // 截止时间在这里才设：语句已经跑完，事务状态已经落定（见模块文档的差异 2）。
+        //
+        // 失败路径也要设。多语句脚本可能第三条才失败，前两条的行变更已经躺在批次里了；
+        // 早退不设截止时间，它们就要等下一次**成功**的 `execute()` 才被捎带发出——
+        // 而失败往往紧跟着回滚与断连，那个「下一次」可能根本不会来。
         self.arm_flush();
+        let outcome = outcome?;
         Ok(ExecuteResult {
             sql: sql.to_string(),
-            rows_affected,
+            rows_affected: outcome.rows_affected,
             elapsed_ms: started_at.elapsed().as_secs_f64() * 1_000.0,
-            results,
+            results: outcome.results,
         })
     }
 
@@ -521,15 +534,43 @@ impl Engine {
     /// 「只留第一条」是照着 oo1 的 `db.exec` 抄的：它遇到第一个 `columnCount > 0` 的语句后
     /// 就不再收集，因此 wasm 后端的一次 `execute()` 至多返回一个结果集。桌面端与之对齐，
     /// 上层才不必分后端处理。
-    fn run_statements(&self, statements: &[&str], bindings: &[SqlValue]) -> HostResult<Option<ResultSet>> {
-        let mut collected: Option<ResultSet> = None;
+    ///
+    /// 影响行数**逐条累加**，与 wasm 后端 `execute_helper.ts` 的
+    /// `rowsAffected += sqlite3.changes(db)` 同形：`changes()` 只反映最后一条语句，
+    /// 拿它当整个脚本的答案，`DELETE a; DELETE b;` 会漏掉前一条。
+    fn run_statements(&self, statements: &[&str], bindings: &[SqlValue]) -> HostResult<StatementOutcome> {
+        let mut outcome = StatementOutcome::default();
         for statement in statements {
+            let total_changes_before = self.db().total_changes();
             let data = self.run_single_statement(statement, bindings)?;
-            if collected.is_none() {
-                collected = data;
+            outcome.rows_affected = outcome
+                .rows_affected
+                .saturating_add(self.statement_rows_affected(statement, total_changes_before));
+            if outcome.results.is_none() {
+                outcome.results = data;
             }
         }
-        Ok(collected)
+        Ok(outcome)
+    }
+
+    /// 单条语句影响的行数。
+    ///
+    /// # 为什么不能直接报 `changes()`
+    ///
+    /// `sqlite3_changes()` 只被 INSERT / UPDATE / DELETE 重置。任何别的语句跑完，它仍然是
+    /// **上一条写语句**留下的数字——SQLC-030 记的就是这类事故。只读语句由
+    /// [`is_read_only_statement`] 挡掉；DDL、PRAGMA、`BEGIN` / `COMMIT` 这些既不是只读、
+    /// 又不改行的语句挡不住，于是再用 `total_changes()` 兜一层：它单调递增且只记
+    /// 真正改动的行，一条语句前后不变就说明它一行没动，此时 `changes()` 必然是遗留值。
+    ///
+    /// 兜底只用来判断「动没动」，报出去的仍是 `changes()`：两者对触发器与外键级联的口径
+    /// 不同（`total_changes()` 把它们算进去，`changes()` 不算），换成差值会悄悄改变
+    /// 级联删除的返回值。
+    fn statement_rows_affected(&self, sql: &str, total_changes_before: u64) -> i64 {
+        if is_read_only_statement(sql) || self.db().total_changes() == total_changes_before {
+            return 0;
+        }
+        i64::try_from(self.db().changes()).unwrap_or(i64::MAX)
     }
 
     fn run_single_statement(&self, sql: &str, bindings: &[SqlValue]) -> HostResult<Option<ResultSet>> {
@@ -703,6 +744,61 @@ mod tests {
         assert_eq!(
             results.rows,
             vec![vec![SqlValue::Integer(1)], vec![SqlValue::Integer(2)]]
+        );
+    }
+
+    /// 脚本中途失败时，此前几条语句的行变更已经躺在批次里了。不设截止时间，它们要等下一次
+    /// **成功**的 `execute()` 才被捎带发出——而失败往往紧跟着回滚与断连，那个「下一次」
+    /// 可能根本不会来，订阅者于是永远收不到这批通知。
+    #[test]
+    fn still_schedules_pending_changes_when_a_later_statement_fails() {
+        let mut harness = harness(0);
+        run(&mut harness.engine, "CREATE TABLE \"rxdb$rxdb_change\" (a INTEGER)");
+        let failed = harness.engine.execute(
+            "INSERT INTO \"rxdb$rxdb_change\" VALUES (1); INSERT INTO \"no_such_table\" VALUES (1);",
+            &[],
+        );
+        assert!(failed.is_err());
+
+        let event = harness.events.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(event.table_name, "rxdb$rxdb_change");
+        assert_eq!(event.row_ids.len(), 1);
+    }
+
+    /// 与 wasm 后端 `execute_helper.ts` 的 `rowsAffected += sqlite3.changes(db)` 对齐：
+    /// `changes()` 只反映最后一条语句，拿它当整个脚本的答案会漏掉前面几条。
+    #[test]
+    fn sums_rows_affected_across_the_statements_of_a_script() {
+        let mut harness = harness(0);
+        run(
+            &mut harness.engine,
+            "CREATE TABLE a (id INTEGER PRIMARY KEY); CREATE TABLE b (id INTEGER PRIMARY KEY);",
+        );
+        run(
+            &mut harness.engine,
+            "INSERT INTO a (id) VALUES (1), (2), (3); INSERT INTO b (id) VALUES (1);",
+        );
+        let deleted = run(&mut harness.engine, "DELETE FROM a; DELETE FROM b;");
+        assert_eq!(deleted.rows_affected, 4);
+    }
+
+    /// SQLC-030 的脚本版：`changes()` 不被 DDL 重置，一条纯 DDL 脚本会报出上一条写语句的计数。
+    #[test]
+    fn does_not_inherit_a_stale_changes_count_for_a_script_that_touches_no_rows() {
+        let mut harness = harness(0);
+        run(&mut harness.engine, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        assert_eq!(run(&mut harness.engine, "INSERT INTO t (id) VALUES (1), (2)").rows_affected, 2);
+        assert_eq!(
+            run(&mut harness.engine, "CREATE TABLE u (id INTEGER PRIMARY KEY);").rows_affected,
+            0
+        );
+        assert_eq!(
+            run(
+                &mut harness.engine,
+                "CREATE INDEX ix ON t (id); CREATE INDEX iu ON u (id);"
+            )
+            .rows_affected,
+            0
         );
     }
 

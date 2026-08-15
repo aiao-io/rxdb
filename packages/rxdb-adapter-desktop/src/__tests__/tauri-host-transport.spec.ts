@@ -141,4 +141,48 @@ describe('createTauriHostTransport', () => {
     transport.subscribe(vi.fn());
     await vi.waitFor(() => expect(listen).toHaveBeenCalledTimes(2));
   });
+
+  /**
+   * `deliver` 跑在 Tauri 的事件回调里，抛出去无人接管，故障彻底无痕。
+   * host 发来不合协议的负载是真会发生的（版本不齐、序列化缺陷），必须走上报口。
+   */
+  it('reports a payload it cannot decode instead of throwing into the tauri callback', async () => {
+    const { listen, emit, listenCount } = createListen();
+    const onListenError = vi.fn();
+    const transport = createTauriHostTransport({ invoke: vi.fn(), listen, onListenError });
+    const subscriber = vi.fn();
+
+    transport.subscribe(subscriber);
+    await vi.waitFor(() => expect(listenCount()).toBe(1));
+
+    expect(() => emit({ kind: 'change', sessionId: 's', event: { rowIds: [{ $u8: '不是 base64' }] } })).not.toThrow();
+    expect(onListenError).toHaveBeenCalledTimes(1);
+    expect(subscriber).not.toHaveBeenCalled();
+
+    // 一条坏负载不能把通道废掉，后面的正常事件照送。
+    emit({ kind: 'change', sessionId: 's', event: { rowIds: [{ $bigint: '7' }] } });
+    expect(subscriber).toHaveBeenCalledWith({ kind: 'change', sessionId: 's', event: { rowIds: [7n] } });
+  });
+
+  /**
+   * 多个 `DesktopSqliteClient` 共享一条通道。一个客户端的 handler 抛出，
+   * 若让它中断循环，排在后面的客户端就再也收不到变更——表现为「某个库不刷新」。
+   */
+  it('keeps fanning out after a subscriber throws, and reports the failure', async () => {
+    const { listen, emit, listenCount } = createListen();
+    const onListenError = vi.fn();
+    const transport = createTauriHostTransport({ invoke: vi.fn(), listen, onListenError });
+    const failure = new Error('handler blew up');
+    const healthy = vi.fn();
+
+    transport.subscribe(() => {
+      throw failure;
+    });
+    transport.subscribe(healthy);
+    await vi.waitFor(() => expect(listenCount()).toBe(1));
+
+    expect(() => emit({ kind: 'change', sessionId: 's', event: { rowIds: [] } })).not.toThrow();
+    expect(onListenError).toHaveBeenCalledWith(failure);
+    expect(healthy).toHaveBeenCalledTimes(1);
+  });
 });

@@ -47,13 +47,15 @@ export interface TauriHostTransportOptions {
    */
   readonly listen: (event: string, handler: (event: { payload: unknown }) => void) => Promise<() => void>;
   /**
-   * 事件订阅注册失败时的回调。
+   * 变更事件通道出问题时的回调，覆盖注册失败与送达失败两种。
    *
    * @remarks
    * 省略时错误会被抛进全局错误处理器。**不能悄悄吞掉**：变更事件不通意味着
    * 响应式查询永远不刷新，在 UI 上表现为「数据没变」——所有故障形态里最难查的一种。
    *
-   * @param error - `listen` 抛出的原因
+   * 实现**不应抛出**：它是从 Tauri 的事件回调里同步调用的，抛出去无人接管。
+   *
+   * @param error - `listen` 注册失败的原因，或某条推送解码 / 分发失败的原因
    */
   readonly onListenError?: (error: unknown) => void;
 }
@@ -95,9 +97,34 @@ export function createTauriHostTransport(options: TauriHostTransportOptions): De
     stop?.();
   };
 
+  /**
+   * 解码一条推送并扇出给所有订阅者。
+   *
+   * @remarks
+   * 本函数跑在 Tauri `listen` 的回调里，**不能让异常逃出去**：Tauri 从自己的事件分发器
+   * 调用回调，抛上去既没有 try/catch 接、也不落在任何 promise 链上，故障于是彻底无痕。
+   * 解码失败（host 发来不合协议的负载）和订阅者自身抛出（`parseDesktopHostChangeEvent`
+   * 拒绝事件、或业务 handler 出错）都走 {@link TauriHostTransportOptions.onListenError}，
+   * 与 host 侧 `postChange` 失败走 `onDeliveryError` 是同一手法。
+   *
+   * 每个订阅者单独包一层：多个 `DesktopSqliteClient` 共享一条通道，一个客户端出错
+   * 不该让排在它后面的客户端收不到这条变更——那会表现为「某个库的响应式查询不刷新」。
+   */
   const deliver = (payload: unknown): void => {
-    const message = decodeDesktopJsonPayload(payload);
-    for (const listener of listeners) listener(message);
+    let message: unknown;
+    try {
+      message = decodeDesktopJsonPayload(payload);
+    } catch (error) {
+      reportListenError(error);
+      return;
+    }
+    for (const listener of listeners) {
+      try {
+        listener(message);
+      } catch (error) {
+        reportListenError(error);
+      }
+    }
   };
 
   const startListening = (): void => {

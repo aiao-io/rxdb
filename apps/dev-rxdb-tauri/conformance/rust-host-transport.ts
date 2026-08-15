@@ -18,9 +18,23 @@ import { createTauriHostTransport, type DesktopHostTransport } from '@aiao/rxdb-
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { platform } from 'node:process';
 
-/** 测试宿主二进制的位置，由 Nx 的 `build-test-host` target 产出。 */
-const HOST_BINARY = resolve(import.meta.dirname, '..', 'src-tauri', 'target', 'debug', 'rxdb_host_stdio');
+/**
+ * 测试宿主二进制的位置，由 Nx 的 `build-test-host` target 产出。
+ *
+ * @remarks
+ * Windows 上 cargo 产出的是 `.exe`。少了后缀，套件在那儿只会报「二进制不存在，去跑
+ * build-test-host」——而那条命令刚刚才成功跑完，提示指向的是一个不存在的问题。
+ */
+const HOST_BINARY = resolve(
+  import.meta.dirname,
+  '..',
+  'src-tauri',
+  'target',
+  'debug',
+  `rxdb_host_stdio${platform === 'win32' ? '.exe' : ''}`
+);
 
 interface PendingRequest {
   readonly resolve: (payload: unknown) => void;
@@ -86,7 +100,15 @@ export function startRustHostProcess(root: string): RustHostProcess {
     buffer += chunk;
     const lines = buffer.split('\n');
     buffer = lines.pop() ?? '';
-    for (const line of lines) if (line.trim()) dispatch(line);
+    try {
+      for (const line of lines) if (line.trim()) dispatch(line);
+    } catch (error) {
+      // 这里是 stream 的 'data' 回调，异常逃出去就是 uncaught exception：Vitest worker 整个崩掉，
+      // 报出来的是一句与协议无关的进程死亡。改成让在途请求带着真实原因失败，
+      // 等着它的那条测试就能读到「宿主答了个不认识的 id」这类可诊断的话。
+      failAll(error instanceof Error ? error : new Error(String(error)));
+      child.kill();
+    }
   });
   child.stderr.setEncoding('utf8');
   child.stderr.on('data', (chunk: string) => {
@@ -96,6 +118,9 @@ export function startRustHostProcess(root: string): RustHostProcess {
   child.on('error', error => failAll(error));
 
   return {
+    // 刻意**不**在这里排队：Tauri 的 `invoke` 是真并发，测试替身一旦替被测代码把请求
+    // 串起来，`DesktopSqliteClient` 里的顺序保证就再也验不到了——而那正是这条路径上
+    // 最容易回归的性质。
     invoke: (command, args) =>
       new Promise((resolveRequest, rejectRequest) => {
         if (exit) {
@@ -127,19 +152,26 @@ export function startRustHostProcess(root: string): RustHostProcess {
  * 用 stdio 宿主进程组装一条与生产同款的桌面传输层。
  *
  * @param root - 数据库根目录
- * @returns 进程句柄与它驱动的传输层
+ * @returns 进程句柄、传输层，以及变更通道的健康信号
  */
-export function createRustHostTransport(root: string): { process: RustHostProcess; transport: DesktopHostTransport } {
+export function createRustHostTransport(root: string): {
+  process: RustHostProcess;
+  transport: DesktopHostTransport;
+  /** 变更事件通道上出过的错；正常情况下应为空。 */
+  deliveryErrors: () => readonly unknown[];
+} {
   const host = startRustHostProcess(root);
+  const deliveryErrors: unknown[] = [];
   return {
     process: host,
+    deliveryErrors: () => deliveryErrors,
     transport: createTauriHostTransport({
       invoke: host.invoke,
       listen: host.listen,
-      // 这里的 listen 从不失败；真失败了就是本文件的缺陷，让它炸出来。
-      onListenError: error => {
-        throw error;
-      }
+      // 记下来而不是抛出去：这个回调是从 Tauri（这里是 stdin 数据回调）里同步调的，
+      // 抛出去只会变成一句与故障无关的 worker 崩溃。攒成数组由 afterAll 断言，
+      // 与 Electron 工厂的 `desktopHostDeliveryErrors()` 是同一个旁路信号。
+      onListenError: error => deliveryErrors.push(error)
     })
   };
 }

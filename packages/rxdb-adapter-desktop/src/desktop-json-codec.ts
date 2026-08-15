@@ -74,11 +74,23 @@ const sextetAt = (text: string, index: number): number => {
   return sextet;
 };
 
+/**
+ * 严格按**规范形式**解码：长度必须是 4 的倍数、补位不超过两个、尾部丢弃的位必须为 0。
+ *
+ * @remarks
+ * 宽松解码在这里是数据完整性问题而不是风格问题：`$u8` 载荷就是用户的 blob。少掉两个字符的
+ * `"Zm9vYmFy"` 在宽松解码下会安静地还原成 4 字节而不是 6 字节——一条被截断的 blob 就这样
+ * 落进了库里，等到它被读出来解析失败时，现场早已不在。要求长度对齐 4 就能挡住所有
+ * 非 4 倍数的截断；要求丢弃位为 0 则让编码是单射的，同一串字节只有一种合法写法。
+ *
+ * 与 Rust 侧 `value.rs` 的 `decode_base64` 逐条对应。两边的编码器都只产出规范形式，
+ * 因此收严只影响手写或被篡改的载荷。
+ */
 const decodeBase64 = (text: string): Uint8Array => {
+  if (text.length % 4 !== 0) throw violation(`${BYTES_TAG} must be padded to a multiple of 4 characters`);
   let end = text.length;
   while (end > 0 && text[end - 1] === '=') end--;
-  // 4n+1 个有效字符解不出整字节数，是被截断的载荷而不是合法编码。
-  if (end % 4 === 1) throw violation(`${BYTES_TAG} has a truncated base64 payload`);
+  if (text.length - end > 2) throw violation(`${BYTES_TAG} has more than two padding characters`);
   const bytes = new Uint8Array(Math.floor((end * 6) / 8));
   let bits = 0;
   let bitCount = 0;
@@ -89,6 +101,9 @@ const decodeBase64 = (text: string): Uint8Array => {
     if (bitCount < 8) continue;
     bitCount -= 8;
     bytes[written++] = (bits >> bitCount) & 0xff;
+  }
+  if (bits & ((1 << bitCount) - 1)) {
+    throw violation(`${BYTES_TAG} has non-zero bits past the last whole byte, so it is not canonical base64`);
   }
   return bytes;
 };

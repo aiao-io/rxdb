@@ -27,11 +27,32 @@ fn is_trailing_character(character: char) -> bool {
     character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '@' | '-')
 }
 
+/// Windows 保留设备名——白名单唯一挡不住的一类名字。
+///
+/// `CON`、`NUL`、`COM1` 这些在 Win32 命名空间里指向字符设备而不是文件，`CreateFile` 会连上设备本身。
+/// 它们全都匹配 `^[A-Za-z0-9][A-Za-z0-9._@-]*$`，于是在 Windows 上失败点被推迟到 `open`，
+/// 报出来的是 `open_failed` 这类含糊错误——而不是调用方能理解、且三平台一致的 `invalid_database_name`。
+///
+/// 匹配的是**第一个 `.` 之前**的部分：`CON.sqlite3` 与 `CON` 在 Windows 上是同一个设备。
+/// 大小写不敏感。`COM0`/`LPT0` 不在其列（Windows 只保留 1–9），上标数字变体（`COM¹`）
+/// 本就落在 ASCII 白名单之外。与 TS 侧 `desktop-storage.ts` 的
+/// `WINDOWS_RESERVED_DEVICE_NAME_PATTERN` 同义。
+fn is_windows_reserved_device_name(database_name: &str) -> bool {
+    let stem = database_name.split('.').next().unwrap_or_default().as_bytes();
+    if [&b"CON"[..], b"PRN", b"AUX", b"NUL"].iter().any(|reserved| stem.eq_ignore_ascii_case(reserved)) {
+        return true;
+    }
+    stem.len() == 4
+        && matches!(stem[3], b'1'..=b'9')
+        && (stem[..3].eq_ignore_ascii_case(b"COM") || stem[..3].eq_ignore_ascii_case(b"LPT"))
+}
+
 /// 校验逻辑数据库名，等价于 TS 侧的 `/^[A-Za-z0-9][A-Za-z0-9._@-]*$/` 加 128 字符上限。
 ///
 /// 允许集是白名单而非黑名单：字符集里没有 `/`、`\`、`:`，也不允许以 `.` 开头，
 /// 于是 `..`、绝对路径、盘符、`~` 展开、URL scheme 全部落在集合外，不需要逐一枚举攻击形态。
 /// `@` 必须在集合内：RxDB 的本地库名恒为 `<dbName>@<RXDB_DB_NAME_SUFFIX>`。
+/// [`is_windows_reserved_device_name`] 是唯一必须补的黑名单——那类名字合法却不指向文件。
 pub fn validate_database_name(database_name: &str) -> HostResult<()> {
     let invalid = |message: String| HostError::new(ErrorCode::InvalidDatabaseName, message);
     if database_name.chars().count() > DATABASE_NAME_MAX_LENGTH {
@@ -45,6 +66,12 @@ pub fn validate_database_name(database_name: &str) -> HostResult<()> {
         return Err(invalid(format!(
             "database name {database_name:?} must match ^[A-Za-z0-9][A-Za-z0-9._@-]*$; \
              it is an app-scoped logical name, not a path"
+        )));
+    }
+    if is_windows_reserved_device_name(database_name) {
+        return Err(invalid(format!(
+            "database name {database_name:?} is a reserved Windows device name; \
+             it would open a character device instead of a file"
         )));
     }
     Ok(())
@@ -111,6 +138,26 @@ mod tests {
         for name in invalid {
             let error = validate_database_name(name).unwrap_err();
             assert_eq!(error.code, ErrorCode::InvalidDatabaseName, "for {name:?}");
+        }
+    }
+
+    /// 这些名字过得了字符白名单，却在 Windows 上指向字符设备。三平台统一在校验期拒绝，
+    /// 免得同一个名字在 macOS 上建出文件、在 Windows 上连上串口。
+    #[test]
+    fn rejects_windows_reserved_device_names_on_every_platform() {
+        let reserved = ["CON", "con", "NUL", "PRN", "AUX", "COM1", "lpt9", "CON.sqlite3", "nul.db"];
+        for name in reserved {
+            let error = validate_database_name(name).unwrap_err();
+            assert_eq!(error.code, ErrorCode::InvalidDatabaseName, "for {name:?}");
+        }
+    }
+
+    /// 黑名单只认设备名本身，不能顺手把以它开头的正常名字一起毙掉。
+    #[test]
+    fn keeps_accepting_names_that_merely_start_like_a_device() {
+        let valid = ["CONFIG.sqlite3", "console", "COM0", "LPT0", "COM10", "nullable.db", "auxiliary"];
+        for name in valid {
+            assert!(validate_database_name(name).is_ok(), "{name} should be valid");
         }
     }
 

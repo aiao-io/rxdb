@@ -95,16 +95,27 @@ fn sextet(character: u8) -> HostResult<u32> {
     Ok(u32::from(value))
 }
 
+/// 严格按**规范形式**解码：长度必须是 4 的倍数、补位不超过两个、尾部丢弃的位必须为 0。
+///
+/// 宽松解码在这里是数据完整性问题而不是风格问题：`$u8` 载荷就是用户的 blob。少掉两个字符的
+/// `"Zm9vYmFy"` 在宽松解码下会安静地还原成 4 字节而不是 6 字节——一条被截断的 blob 就这样
+/// 落进了库里，等到它被读出来解析失败时，现场早已不在。要求长度对齐 4 就能挡住所有
+/// 非 4 倍数的截断；要求丢弃位为 0 则让编码是单射的，同一串字节只有一种合法写法。
+///
+/// 与 TS 侧 `desktop-json-codec.ts` 的 `decodeBase64` 逐条对应。两边的编码器都只产出规范形式，
+/// 因此收严只影响手写或被篡改的载荷。
 fn decode_base64(text: &str) -> HostResult<Vec<u8>> {
     let bytes = text.as_bytes();
-    let mut end = bytes.len();
-    while end > 0 && bytes[end - 1] == b'=' {
-        end -= 1;
+    if bytes.len() % 4 != 0 {
+        return Err(violation(format!(
+            "{BYTES_TAG} must be padded to a multiple of 4 characters"
+        )));
     }
-    // 4n+1 个有效字符解不出整字节数，是被截断的载荷而不是合法编码。
-    if end % 4 == 1 {
-        return Err(violation(format!("{BYTES_TAG} has a truncated base64 payload")));
+    let padding = bytes.iter().rev().take_while(|byte| **byte == b'=').count();
+    if padding > 2 {
+        return Err(violation(format!("{BYTES_TAG} has more than two padding characters")));
     }
+    let end = bytes.len() - padding;
     let mut decoded = Vec::with_capacity(end * 6 / 8);
     let mut bits: u32 = 0;
     let mut bit_count: u32 = 0;
@@ -116,6 +127,11 @@ fn decode_base64(text: &str) -> HostResult<Vec<u8>> {
         }
         bit_count -= 8;
         decoded.push(((bits >> bit_count) & 0xff) as u8);
+    }
+    if bits & ((1 << bit_count) - 1) != 0 {
+        return Err(violation(format!(
+            "{BYTES_TAG} has non-zero bits past the last whole byte, so it is not canonical base64"
+        )));
     }
     Ok(decoded)
 }
@@ -252,6 +268,38 @@ mod tests {
         let bytes: Vec<u8> = (0..=255).collect();
         let encoded = encode_bytes(&bytes);
         assert_eq!(decode_binding(&encoded).unwrap(), rusqlite::types::Value::Blob(bytes));
+    }
+
+    /// `$u8` 载荷是用户的 blob。宽松解码会把截断当成一条更短的 blob 安静地收下，
+    /// 等到它被读出来解析失败时现场早已不在——所以只认规范形式。
+    /// 与 `desktop-json-codec.spec.ts` 的同名断言逐条对齐。
+    #[test]
+    fn only_accepts_canonical_base64() {
+        let rejected = [
+            // "Zm9vYmFy" 掉两个字符：宽松解码会还原成 4 字节，规范化后长度对不齐 4，直接拒。
+            "Zm9vYm", "Zg=", "Zg===", "====",
+            // `Zm9=` 与 `Zm8=` 解出同一串字节，只有后者是编码器会产出的写法。
+            "Zm9=", "Zh==",
+        ];
+        for text in rejected {
+            let error = decode_binding(&json!({ "$u8": text })).unwrap_err();
+            assert_eq!(error.code, ErrorCode::ProtocolViolation, "for {text:?}");
+        }
+    }
+
+    #[test]
+    fn keeps_accepting_every_canonical_padding_shape() {
+        let accepted = [
+            ("", vec![]),
+            ("Zg==", vec![102]),
+            ("Zm8=", vec![102, 111]),
+            ("Zm9v", vec![102, 111, 111]),
+            ("Zm9vYmFy", vec![102, 111, 111, 98, 97, 114]),
+        ];
+        for (text, expected) in accepted {
+            let decoded = decode_binding(&json!({ "$u8": text })).unwrap();
+            assert_eq!(decoded, rusqlite::types::Value::Blob(expected), "for {text:?}");
+        }
     }
 
     /// 2^53 边界：JS 侧的 `Number` 到这里就开始丢位，因此必须走 `$bigint`。

@@ -97,6 +97,29 @@ describe('desktop json codec', () => {
     expect(() => decodeDesktopJsonPayload({ $esc: [1] })).toThrow(RxDBAdapterDesktopError);
   });
 
+  /**
+   * `$u8` 载荷是用户的 blob。宽松解码会把截断当成一条更短的 blob 安静地收下，
+   * 等到它被读出来解析失败时现场早已不在——所以只认规范形式。
+   */
+  it('only accepts canonical base64, so a truncated blob cannot pass as a shorter one', () => {
+    // "Zm9vYmFy" 掉两个字符：宽松解码会还原成 4 字节，规范化后长度对不齐 4，直接拒。
+    expect(() => decodeDesktopJsonPayload({ $u8: 'Zm9vYm' })).toThrow(/multiple of 4/);
+    expect(() => decodeDesktopJsonPayload({ $u8: 'Zg=' })).toThrow(/multiple of 4/);
+    expect(() => decodeDesktopJsonPayload({ $u8: 'Zg===' })).toThrow(/multiple of 4/);
+    expect(() => decodeDesktopJsonPayload({ $u8: '====' })).toThrow(/more than two padding/);
+    // `Zm9=` 与 `Zm8=` 解出同一串字节，只有后者是编码器会产出的写法。
+    expect(() => decodeDesktopJsonPayload({ $u8: 'Zm9=' })).toThrow(/not canonical/);
+    expect(() => decodeDesktopJsonPayload({ $u8: 'Zh==' })).toThrow(/not canonical/);
+  });
+
+  it('keeps accepting every canonical padding shape', () => {
+    expect(decodeDesktopJsonPayload({ $u8: '' })).toEqual(new Uint8Array([]));
+    expect(decodeDesktopJsonPayload({ $u8: 'Zg==' })).toEqual(new Uint8Array([102]));
+    expect(decodeDesktopJsonPayload({ $u8: 'Zm8=' })).toEqual(new Uint8Array([102, 111]));
+    expect(decodeDesktopJsonPayload({ $u8: 'Zm9v' })).toEqual(new Uint8Array([102, 111, 111]));
+    expect(decodeDesktopJsonPayload({ $u8: 'Zm9vYmFy' })).toEqual(new Uint8Array([102, 111, 111, 98, 97, 114]));
+  });
+
   it('reports protocol_violation for malformed tags', () => {
     try {
       decodeDesktopJsonPayload({ $u8: '!!!!' });

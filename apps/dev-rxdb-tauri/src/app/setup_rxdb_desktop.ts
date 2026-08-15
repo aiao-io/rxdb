@@ -20,7 +20,7 @@ let rxdb: RxDB | null | undefined;
  * 唯一的差别是数据落在哪：wa-sqlite 落在 WebView 的 OPFS/IDB 里，这里落在
  * `<AppData>/rxdb-data/test_6.sqlite3`，一个可备份、可迁移的真实文件（AC#1）。
  *
- * 选路由 `local-backend.ts` 负责，本模块只在 Tauri 窗口里被调用。
+ * 选路由 `setup_rxdb.ts` 的 `selectLocalBackend` 负责，本模块只在 Tauri 窗口里被调用。
  *
  * 必须在注入上下文中调用（读 `PLATFORM_ID`）。实例按模块作用域缓存，重复调用返回同一个。
  */
