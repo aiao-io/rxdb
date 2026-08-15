@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import {
-  StorageFetchError,
-  StorageFileMeta,
-  StorageMimeTypeMissingError,
-  StorageOfflineError
+    StorageFetchError,
+    StorageFileMeta,
+    StorageMimeTypeMissingError,
+    StorageOfflineError
 } from '@aiao/rxdb-plugin-storage';
 import { useRxDB } from '@aiao/rxdb-vue';
 import { formatFileSize } from '@aiao/utils';

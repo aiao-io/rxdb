@@ -62,9 +62,13 @@ onUnmounted(() => {
 });
 
 async function handleUnlock() {
-  if (!encFacade || !passphrase.value.trim()) return;
+  if (!passphrase.value.trim()) return;
   error.value = null;
   try {
+    if (!encFacade) {
+      const adapter = (await rxdb.getAdapter('sqlite-wasm')) as RxDBAdapterSqlite;
+      encFacade = adapter.encryption;
+    }
     await encFacade.unlock({ passphrase: passphrase.value });
     isFirstTime.value = false;
     passphrase.value = '';

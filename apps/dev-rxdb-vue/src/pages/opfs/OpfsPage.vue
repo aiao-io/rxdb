@@ -4,29 +4,29 @@
  */
 import { checkOPFSAvailable, OpfsRouteSync } from '@aiao/utils';
 import {
-  AlertTriangle,
-  ChevronRight,
-  Edit3,
-  Eye,
-  Folder,
-  FolderOpen,
-  FolderPlus,
-  Grid3X3,
-  Home,
-  List,
-  RefreshCw,
-  Trash2,
-  Upload,
-  X
+    AlertTriangle,
+    ChevronRight,
+    Edit3,
+    Eye,
+    Folder,
+    FolderOpen,
+    FolderPlus,
+    Grid3X3,
+    Home,
+    List,
+    RefreshCw,
+    Trash2,
+    Upload,
+    X
 } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { readDirectoryEntries } from '../../app/utils/read-directory-entries';
 import OpfsFileGrid from './components/OpfsFileGrid.vue';
 import OpfsFileList from './components/OpfsFileList.vue';
 import OpfsFilePreview from './components/OpfsFilePreview.vue';
 import { useOpfsService } from './composables/useOpfsService';
 import { formatFileSize, type OPFSFileEntry } from './utils/opfs-utils';
-import { readDirectoryEntries } from '../../app/utils/read-directory-entries';
 
 type ViewMode = 'list' | 'grid';
 
