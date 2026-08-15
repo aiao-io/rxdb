@@ -70,6 +70,7 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 - 跨标签页 / 跨 realm revision CAS 的集成 fixture 与类型化诊断
 - `CommitConflict` 派生值与三端一致的冲突提示语义
 - 既有 `createBranch(branchId, fromChangeId?)`、`removeBranch()`、`syncBranches()` 与 commit/working-tree/index 生命周期集成
+- metadata-only 远端分支首次切换前的有界远端预取，以及完整本地物化、baseline/ref 原子创建与失败回滚
 
 ### Out of Scope
 
@@ -94,7 +95,8 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 6. **Given** 当前仅 index 非空、存在 active restore session 或状态 conflicted，**When** 以 `{ requireClean: true }` 切换，**Then** 操作被拒绝且所有状态零变化；错误建议与具体非 clean 原因一致。
 7. **Given** 调用既有 `createBranch(branchId, fromChangeId)`，**When** change 存在，**Then** 新分支切换后的业务状态与本故事实施前从该 changeId 创建的状态一致；commit 图用确定性的 `kind=branch_baseline` 完整快照锚定该状态，不修改来源分支历史。
 8. **Given** 删除非激活且无子分支的分支，**When** `removeBranch()` 成功，**Then** 在同一事务删除 branch ref、工作树、index、restore session 与既有该分支 `RxDBChange`，但不删除可能被其他 ref 共享或按 ID 审计的不可变 commit；同名重建获得新 branch generation，既有 main/active/有子分支拒绝行为不变。
-9. **Given** `syncBranches()` 拉到一个没有本地 commit 图的远端分支，**When** 该分支第一次拥有可完整物化的本地状态，**Then** 建立确定性的本地 `kind=branch_baseline` 和 branch ref；不把它伪装成远端 commit，也不扩大到 remote commit push/pull。
+9. **Given** `syncBranches()` 拉到 `local=false, remote=true` 且没有本地 commit 图的 metadata-only 分支，**When** 用户首次切换，**Then** 系统先在本地写事务外复用现有 data pull 协议按目标分支与配置的 sync scope 有界拉取到稳定水位并计算 materialization fingerprint，再在单一 switch 事务内复核 active token、水位/fingerprint，物化业务表、建立确定性的本地 `kind=branch_baseline`、创建 branch ref、激活目标并递增 activation revision；不把它伪装成远端 commit，也不实现 remote commit push/pull。
+10. **Given** metadata-only 远端分支缺少父分支、远端 adapter、change，或有界预取无法收敛到完整配置 scope，**When** 用户尝试切换，**Then** 返回 `branch_not_materialized`，来源/目标业务投影、active 标记、activation revision、commit 图和 branch ref 全部零变化；不得先激活空分支再等待后续 pull 修补。
 
 ### User Story 2 - 跨标签页并发（Priority: P2）
 
@@ -114,7 +116,7 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 - **FR-017**（已改口径）：系统 MUST 与现有分支操作集成。`createBranch(branchId)` 保留从当前物化状态创建的行为，复制独立 working-tree snapshot、共享当前 HEAD 且 index 为空；`createBranch(branchId, fromChangeId)` 保留历史 change 状态并以 `kind=branch_baseline` 锚定。分支不得共享可变 HEAD / 工作树 / index。切换恢复目标分支状态；clean 检查以 `WorkingTreeSwitchBranchOptions.requireClean` 显式提供，不带选项仍无条件切换。
 - **FR-020**：系统 MUST 使用持久化 activation/head/index/working-tree revision CAS 阻止跨标签页静默覆盖，并使用 US-304 epoch 拒绝迁移后的 stale writer。普通 CRUD MUST 校验实体/realm 捕获的 active branch token；不得在事务中重新读取新 active branch 后把旧实体归到新分支，也不得只依赖 `BroadcastChannel` 或内存状态。
 - **FR-035**：`CommitConflict` MUST 从失败操作、对象 ID、expected/actual activation/head/index/working-tree revision 与建议动作派生，不得建立第二张可与真实 revision 漂移的冲突状态表。
-- **FR-044**：`removeBranch()` MUST 原子删除该分支全部可变状态但保留不可变 commit；同名重建 MUST 使用新 branch generation。`syncBranches()` 新增的远端分支 MUST 在首次完整本地物化时建立确定性 local baseline。两者的旧签名、旧拒绝条件与 remote commit 非目标保持不变。
+- **FR-044**：`removeBranch()` MUST 原子删除该分支全部可变状态但保留不可变 commit；同名重建 MUST 使用新 branch generation。`syncBranches()` 只同步 metadata 时不得提前伪造 baseline/ref；承接 US-305 FR-049，没有 `CommitBranchRef` 的 metadata-only 远端分支不是空 HEAD。其首次 switch MUST 在本地事务外有界预取目标分支的完整配置 sync scope，并把“复核稳定水位/fingerprint、完整物化、创建 `kind=branch_baseline`、创建 ref、切换 active、递增 activation revision”放进同一提交屏障；物化依据不足则以 `branch_not_materialized` 全量回滚，来源分支保持 active。旧签名、旧拒绝条件与 remote commit 非目标保持不变。
 
 ## 关键实体
 
@@ -130,7 +132,7 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 - 必须有 A dirty+staged → B dirty+staged → A → B 往返测试，断言每个分支的数据、index 和 revision 均恢复。
 - 必须有一条回归用例专门断言**不带选项**的 `switchBranch(branchId)` 行为未变（AC User Story 1 场景 3）。
 - 必须有 `public-type-compatibility` 用例断言旧的一参调用继续编译、新的可选参数使用 `WorkingTreeSwitchBranchOptions`，适配器层 `SwitchBranchOptions` 签名不变。
-- 必须有 `createBranch(branchId, fromChangeId?)`、`removeBranch()`、`syncBranches()` 的公开签名与既有行为回归；覆盖 dirty current state、历史 change、删分支状态清理和远端分支 local baseline。
+- 必须有 `createBranch(branchId, fromChangeId?)`、`removeBranch()`、`syncBranches()` 的公开签名与既有行为回归；覆盖 dirty current state、历史 change、删分支状态清理、metadata-only 远端分支本地已有资料/远端预取两条首次 baseline 路径，以及网络失败、水位漂移、预取不收敛时零变化。
 - 三端冲突提示的语义、错误分类与恢复建议必须一致，并有等价测试。
 - 测试文件使用 `*.spec.ts`，不依赖非确定性的固定延时。
 

@@ -69,7 +69,8 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - commit 的原子写入：变更集合、父 commit、作者、时间、摘要与新的分支 HEAD 在一次操作内可见
 - ChangeSet 的 patch / inverse patch 存储与实体身份、操作类型、基线版本、当前版本指纹
 - `log(options?)` / `show(commitId)` 查询：按分支、实体、时间排序，返回详情与父子关系
-- 显式启用后的首次初始化：为每个既有分支生成基线 commit、保留旧 change 记录，失败可重试且幂等
+- 显式启用后的首次初始化：为每个本地可完整物化的既有分支生成基线 commit；metadata-only 远端分支延迟到
+  US-308 首次成功物化；保留旧 change 记录，失败可重试且幂等
 - 数据库级 `CommitCapabilityState`、writer 能力协商与启用/未启用混用拒绝
 - 普通 commit 的 `operationId` 幂等约束、必填作者来源与数据库时间
 - commit/ChangeSet 对字段加密 envelope 的原样持久化与明文泄漏门禁
@@ -116,16 +117,18 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 
 **验收场景**：
 
-1. **Given** 数据库已有数据但无 commit 图，**When** 首次显式启用，**Then** 为每个既有分支生成一个 `kind=baseline` 的初始 commit；baseline 不伪造用户作者和消息，既有 `RxDBChange` 仍可供历史/undo 使用。
+1. **Given** 数据库已有数据但无 commit 图，**When** 首次显式启用，**Then** 为每个能仅凭本地主库与旧 `RxDBChange` 完整物化的分支生成一个 `kind=baseline` 的初始 commit；baseline 不伪造用户作者和消息，既有 `RxDBChange` 仍可供历史/undo 使用。
 2. **Given** 首次初始化已完成，**When** 再次启动应用，**Then** 迁移幂等，不重复建立基线。
 3. **Given** 迁移中途失败，**When** 重试，**Then** 从可验证的一致点继续，不产生重复基线或孤立 commit。
-4. **Given** commit 图或索引记录损坏，**When** 启动，**Then** 隔离损坏记录，保留可验证的 commit，提供错误详情；**不得**静默回退到空库或内存模式。
+4. **Given** 不可达的孤立 commit 损坏，**When** 启动，**Then** 隔离原始记录并保留其他可验证 commit；**Given** 损坏节点是某个 branch ref 的 HEAD 或可达祖先，**Then** 该分支进入 `corrupted_read_only`，保留原 ref，不自动改指针、不删除记录、不允许 commit/restore/switch-to，并返回首个损坏节点与修复建议。其他健康分支仍可使用，禁止静默回退到空库或内存模式。
 5. **Given** 数据库已有 A/B 多个分支且指向不同状态，**When** 首次启用完成后依次切换分支，**Then** 每个 `CommitBranchRef` 指向代表该分支原 tip 的 baseline，当前激活分支与业务实体状态不因迁移改变。
 6. **Given** Workspace 插件仍有 NEW 草稿，**When** 首次启用 commit 能力，**Then** baseline 不包含也不删除草稿；草稿 `save()` 后才以普通 INSERT 出现在工作树。
 7. **Given** 应用未显式启用 commit 能力，**When** 打开旧数据库，**Then** 不创建 commit 系统表、不生成 baseline，现有 CRUD、branch、undo/redo 行为不变。
-8. **Given** 既有数据库或其中某个分支没有任何业务实体，**When** 首次启用，**Then** 允许创建确定性的空 `kind=baseline` 根节点；该例外不得放宽普通 commit 的非空要求。
+8. **Given** 既有数据库或某个已证明完整物化的本地分支没有任何业务实体，**When** 首次启用，**Then** 允许创建确定性的空 `kind=baseline` 根节点；metadata-only 远端分支不适用该例外，该例外也不得放宽普通 commit 的非空要求。
 9. **Given** 数据库已由一个 realm 启用 commit 能力，**When** 另一个 realm 以未启用或不兼容协议连接并尝试写入，**Then** 在业务写入前返回 `commit_capability_mismatch` 或进入调用方明确请求的只读模式，实体表、工作树与 revision 零变化。
 10. **Given** 实体含 `encrypted: true` 字段，**When** 建立 baseline 或普通 commit，**Then** commit 与 ChangeSet 持久化 dump 中只出现 versioned envelope，明文哨兵零命中；解锁后 `show()` 仍返回正确值。
+11. **Given** `syncBranches()` 已建立 `local=false, remote=true` 但本地没有完整实体状态的分支，**When** 首次启用，**Then** 不为它伪造空 baseline 或 branch ref；健康本地分支照常迁移，该远端分支由 US-308 首次成功物化时原子建立 `kind=branch_baseline`。
+12. **Given** 迁移前没有 active 分支且 `main` 存在，**When** 首次启用，**Then** 沿用既有语义激活 `main` 后建立 baseline；**Given** 存在多个 `activated=true` 分支，**Then** 以 `ambiguous_active_branch` 整体失败，所有 commit capability 状态零变化，不按查询顺序任选一个。
 
 ## 功能需求
 
@@ -138,19 +141,22 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - **FR-012**：系统 MUST 提供按 branch ref 父链可达性、实体和数据库时间查询的历史列表，以及单个 commit 的变更详情和父节点关系；`originBranchId` 只用于审计，不得用于截断继承历史。
 - **FR-018**：系统 MUST 与现有 `RxDBChange`、历史 undo/redo 和 `restoreEntity` 保持兼容；已有 API 的行为不能因为 commit 功能而改变。
 - **FR-019**：系统 MUST 明确区分 durable commit 历史与会话级 redo 栈；刷新后 redo 可清空，但 commit 与 HEAD 不得清空。
-- **FR-021**：系统 MUST 在显式启用后为已有数据库提供一次性初始化：按每个既有分支生成 baseline、保留旧 change 记录、保持激活分支与业务实体状态，并支持失败重试；Workspace 草稿不参与迁移。
-- **FR-022**：系统 MUST 对损坏或不兼容的 commit 记录进行隔离和诊断，不得将整个数据库静默降级为空工作树或内存模式。
+- **FR-021**：系统 MUST 在显式启用后为已有数据库提供一次性初始化：为每个本地可完整物化分支生成 baseline、保留旧 change 记录、保持激活分支与业务实体状态，并支持失败重试；Workspace 草稿不参与迁移，metadata-only 远端分支遵守 FR-049。
+- **FR-022**：系统 MUST 对损坏或不兼容的 commit 记录进行隔离和诊断。不可达孤立记录可单独隔离；HEAD 或可达祖先损坏时该分支 MUST fail-closed 为 `corrupted_read_only`，保留原始 ref 与记录，不得自动回退到较早 commit、空工作树或内存模式。
 - **FR-027**：commit 历史 MUST 可审计，至少记录稳定 commit ID、父节点、分支、作者标识、消息、创建时间、变更数量和 schema/数据版本；不得记录无法恢复的数据引用。
 - **FR-029**：普通 commit MUST 在同一数据库事务内以 expected `headRevision` 条件更新 `CommitBranchRef`；CAS 失败时 commit、ChangeSet 与 branch ref 全部不可见。US-304 epoch MUST 只用于迁移 fencing，不得代替 `headRevision`。
 - **FR-030**：本故事作为首个真实系统迁移发布，MUST 承接 US-304 AC11：发布清单使用 `bridge.tag=v0.0.25`、启用明确的 `oldBundlePolicy`，并通过真实 git tag 的 migration release gate。
 - **FR-036**：普通 commit MUST 以 database + immutable branch generation + `operationId` 建立唯一幂等约束。相同请求重试返回原 commit；相同 key 的 message、author、parent 或 ChangeSet 指纹不同则返回稳定错误，不得覆盖原记录。删除并同名重建的分支使用新 generation，不与旧幂等键碰撞。
 - **FR-037**：首次启用 MUST 持久化数据库级 capability/protocol 状态。此后所有 writer 在连接时协商；未启用或不兼容 writer 不得继续裸写业务表。
 - **FR-038**：commit、ChangeSet 与 baseline MUST 保持既有字段加密 at-rest 契约；持久化路径不得先解密再把明文写入新系统表，日志、错误与摘要不得包含加密字段值。
+- **FR-048**：commit 能力启用后 MUST 保证 `RxDBBranch.activated` 恰好一行是 true。首次迁移零 active 时沿用既有 main 恢复语义；多 active 时返回 `ambiguous_active_branch` 并全量回滚。系统 schema MUST 约束至多一个 active，每次连接 MUST 验证至少一个。
+- **FR-049**：首次迁移 MUST 区分本地可完整物化分支与 metadata-only 远端分支。后者在没有完整本地状态时不得创建 baseline 或 `CommitBranchRef`；其首次 baseline/ref 创建由 US-308 与完整物化放在同一事务。除该明确例外外，任一本地分支无法物化都 MUST 使迁移整体失败。
+- **FR-051**：commit 图校验 MUST 从每个 branch ref 遍历完整可达父链并区分孤立损坏与可达损坏。可达损坏的分支只允许读取不依赖重放的当前投影、导出诊断和切离；commit、restore、switch-to 及任何历史重放 MUST 返回稳定的 `commit_graph_corrupted`。
 
 ## 关键实体
 
 - **Commit**：不可变提交；稳定 ID、kind、零或一个父节点、`originBranchId`、`originBranchGeneration`、operation ID、作者、消息、数据库时间、变更集合、摘要、change codec version 与按实体记录的 schema fingerprint。
-- **CommitBranchRef**：分支引用；分支 ID、不可变 generation、head commit、head revision、创建来源、更新时间，是该次分支生命周期 HEAD 的唯一真相源。同名重建必须生成新 generation。
+- **CommitBranchRef**：分支引用；分支 ID、不可变 generation、head commit、head revision、创建来源、更新时间，是该次分支生命周期 HEAD 的唯一真相源。同名重建必须生成新 generation。metadata-only 远端分支在首次完整本地物化前没有该记录，不能用 `headCommitId=null` 制造第二种 ref 状态。
 - **CommitChangeSet**：commit 的变更单元集合；按实体/事务分组，保留 patch、inverse patch 或等价可恢复信息。
 - **CommitCapabilityState**：数据库级启用与协议协商状态；commit protocol、system schema、change codec version、启用迁移 ID 与时间。
 
@@ -181,7 +187,9 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - 保留 `RxDBChange` 的现有 ID、transactionId、patch/inversePatch、branchId 和 undo/redo 字段；commit 层不改变旧 API 的过滤规则。
 - commit 能力在从未启用的数据库上显式启用；未启用时不建立系统表、不生成 baseline，也不改变既有 API 行为。
 - 数据库一旦启用，后续 writer 不得通过省略配置回到裸写模式；同版本 realm 的配置分歧与旧 bundle 都必须在首笔业务写入前被拒绝或显式只读。
-- 首次启用时按每个既有分支的原 tip 建立 baseline 和 `CommitBranchRef`，并记录迁移版本；迁移前后的激活分支与当前业务实体状态一致，重复启动幂等。
+- 首次启用时按每个本地可完整物化分支的原 tip 建立 baseline 和 `CommitBranchRef`，并记录迁移版本；迁移前后的激活分支与当前业务实体状态一致，重复启动幂等。metadata-only 远端分支保持无 ref，不能把未知远端内容解释为空 tip。
+- 启用事务先收敛 active 分支基数：零 active 沿用 `main` 恢复语义，多 active 直接失败；成功后用数据库约束维持至多一个 active，并在连接时验证至少一个。
+- 启动图校验不得“修复”不可变历史。可达链损坏时保留原 ref 和原始行，把分支标记为派生的只读损坏态；显式历史修复工具不在本 Epic 范围。
 - Workspace NEW 草稿继续由插件独立恢复；commit 迁移不读取、不搬迁、不删除 IndexedDB 记录，草稿保存后按普通 INSERT 处理。
 
 ## 非功能要求
@@ -195,7 +203,8 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 
 - 核心包按 TDD 先写崩溃/刷新恢复的失败用例，再实现；覆盖率不低于 90%。
 - PGlite、四个 SQLite 浏览器适配器与 desktop SQLite host 的共享 conformance 套件覆盖事务原子性、head revision CAS、operation ID 幂等与 schema 迁移。
-- 迁移幂等性、空/非空多分支 baseline、未启用零副作用、启用状态混用拒绝、Workspace 草稿隔离与损坏记录隔离必须有独立 fixture。
+- 迁移幂等性、空/非空多分支 baseline、metadata-only 远端分支延迟建 ref、零/多 active、未启用零副作用、启用状态混用拒绝、Workspace 草稿隔离与损坏记录隔离必须有独立 fixture。
+- 损坏 fixture 必须分别覆盖不可达孤立节点、HEAD 损坏和中间祖先损坏；后两者断言 ref 不被改写、健康分支可用且损坏分支所有重放写入口稳定 fail-closed。
 - 支持字段加密的后端必须扫描 commit/ChangeSet/baseline 原始持久化 dump，断言明文哨兵零命中。
 - 测试文件使用 `*.spec.ts`，不依赖非确定性的固定延时。
 

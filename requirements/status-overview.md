@@ -28,7 +28,7 @@
 
 | 维度         | 数值                                                                                                                                 |
 | :----------- | :----------------------------------------------------------------------------------------------------------------------------------- |
-| 总包目录     | 28 个公开 npm 包                                                                                                                     |
+| 总包目录     | 29 个公开 npm 包                                                                                                                     |
 | 支持框架     | Angular 22 / React 19 / Vue 3.5                                                                                                      |
 | 支持平台     | Web / Electron / Tauri / PWA / 小程序                                                                                                |
 | 存储适配器   | wa-sqlite / sqlite-wasm / sqlite (@sqlite.org) / sqliteai / wa-sqlite-miniprogram / PGlite / Supabase + 共享 core + encrypted 包装层 |

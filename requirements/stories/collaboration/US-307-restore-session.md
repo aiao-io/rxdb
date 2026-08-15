@@ -36,7 +36,7 @@ INVEST 检查清单:
 - `restore(commitId)`：把目标 commit 的数据物化到当前工作树，**不移动 HEAD**、不改写历史
 - 恢复会话（`WorkingTreeRestoreSession`）的持久化与刷新后重建，且在 UI 中明确标记为「恢复后未提交」
 - 恢复前的 dirty 工作树 / 缓存区检测与拒绝
-- 恢复目标的当前分支可达性与 schema/change codec 兼容校验
+- 恢复目标的当前分支可达性，以及完整物化路径的 schema/change codec 兼容预检
 - restore / discard 的 active branch token 与 head、working tree、index revision CAS
 - 把恢复结果作为普通工作树变更重新 stage / commit
 - 目标内容与当前 HEAD 相同时的 no-op 语义
@@ -76,7 +76,7 @@ INVEST 检查清单:
 2. **Given** 恢复目标 commit 不存在、不可达或属于其他数据库，**When** 用户恢复，**Then** 拒绝操作，工作树不变。
 3. **Given** 恢复涉及跨实体的外键依赖，**When** 恢复中途失败，**Then** 在事务边界内回滚全部实体和元数据，不留下部分物化的中间态。
 4. **Given** 恢复目标包含已被删除的实体，**When** 恢复到删除前的 commit，**Then** 实体重新出现，且以普通 INSERT 变更形式进入工作树。
-5. **Given** 目标 commit 的任一实体 schema fingerprint 或 change codec version 与当前客户端不兼容，**When** 用户恢复，**Then** 返回稳定的 `incompatible_schema` 错误，指出目标/当前 manifest，工作树、index、HEAD 和恢复会话均零变化。
+5. **Given** 从 baseline 到目标的正向重放路径，或从当前 HEAD 到目标的逆向路径中任一 ChangeSet 的实体 schema fingerprint / change codec version 与当前客户端不兼容，**When** 用户恢复，**Then** 在物化前返回稳定的 `incompatible_schema`，指出首个不兼容 commit、方向与目标/当前 manifest，工作树、index、HEAD 和恢复会话均零变化；不能只检查目标 commit。
 6. **Given** restore 捕获 expected revision 后、事务提交前其他 realm 改变 HEAD、工作树、index 或 active branch，**When** CAS 失败，**Then** 初次 restore 全量回滚且不创建 session；错误返回 expected/actual。只有已经成功存在的 session 在后续 commit/discard 冲突时才保留并派生 `conflicted`。
 7. **Given** 目标 commit 包含加密字段，**When** restore、刷新并再次 stage，**Then** 持久化的 working-tree entry、index 与 restore session dump 中明文哨兵零命中，解锁后的业务值正确。
 
@@ -85,11 +85,12 @@ INVEST 检查清单:
 - **FR-013**：系统 MUST 支持将可达历史 commit 恢复到当前工作树；恢复默认不移动 HEAD、不删除历史，并将恢复会话持久化。
 - **FR-014**：系统 MUST 在恢复前检测 dirty 工作树 / 缓存区；未显式处理未提交变更时，恢复操作必须拒绝并保持原状。
 - **FR-015**：系统 MUST 支持将恢复结果作为普通工作树变更重新 stage/commit；生成的新 commit 不得改写被恢复的历史节点。
-- **FR-026b**（已改口径，见 [epic-006](../../epics/epic-006-working-tree-commits.md)）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit 下，以 5 次 warmup、50 次采样恢复含 100 个完整变更单元的 `HEAD~1`。promise resolve 的 p95 MUST 不高于 1 s，且归一化 ratio 不得超过已签入 reference median 的 110%。
-- **FR-033**：v1 只允许恢复当前分支 HEAD 沿父链可达，且 commit 涉及实体的 schema fingerprint manifest 与 change codec version 均与当前客户端完全相等的 commit；v1 不提供跨 schema/codec patch 转换。拒绝时所有持久状态 MUST 零变化。
+- **FR-026b**（已改口径，见 [epic-006](../../epics/epic-006-working-tree-commits.md)）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit 下，以 5 次 warmup、50 次采样恢复含 100 个完整变更单元的 `HEAD~1` 并记录 runner profile。普通 CI 以归一化 ratio 不超过 reference median 的 110% 为硬门禁；promise resolve 的 p95 不高于 1 s 只在 `runnerProfileHash` 匹配 reference 的固定性能 runner 上作为发布硬门禁。
+- **FR-033**：v1 只允许恢复当前分支 HEAD 沿父链可达的 commit。系统 MUST 在任何持久写入前选定确定性的物化路径，并校验该路径每个 ChangeSet 涉及实体的 schema fingerprint manifest 与 change codec version 均与当前客户端完全相等；v1 不提供跨 schema/codec patch 转换。拒绝时所有持久状态 MUST 零变化。
 - **FR-034**：restore / discard MUST 在同一数据库事务内校验 active branch token 与 expected head、working tree、index revision。初次 restore CAS 失败时全部回滚且不创建 session；已有 session 的 commit/discard CAS 失败时保留工作树和 session，并由 expected/actual revision 派生 conflicted，不得自动选择任一 writer 的状态。
 - **FR-042**：restore 产生的完整 diff 为空时 MUST 返回 no-op，不创建 `WorkingTreeRestoreSession`、`WorkingTreeEntry` 或 index 条目，也不递增任何 revision。
 - **FR-043**：restore 物化与 session 持久化 MUST 保持字段加密 envelope；任何错误、摘要与 session 诊断不得包含加密字段明文。
+- **FR-050**：restore 兼容性判断 MUST 覆盖实际读取/应用的完整 commit 路径，而不只是目标节点。错误 MUST 稳定返回首个不兼容 commit ID、重放方向、实体和版本 manifest；检查期间不得解码或写入后续 ChangeSet。
 
 ## 关键实体
 
@@ -99,17 +100,17 @@ INVEST 检查清单:
 
 ### 恢复规则
 
-- restore 以当前分支父链上的兼容目标 commit 为数据源、以当前 HEAD 为工作树基线，产生普通的 INSERT / UPDATE / DELETE 工作树变更；目标 commit 本身**不**被标记为「当前」。
+- restore 以当前分支父链上的兼容目标 commit 为数据源、以当前 HEAD 为工作树基线，产生普通的 INSERT / UPDATE / DELETE 工作树变更；目标 commit 本身**不**被标记为「当前」。实现可以选择 baseline→target 正向重放或 HEAD→target 逆向重放，但必须先冻结路径并校验路径上的每个 ChangeSet。
 - restore、discard 均须在事务边界内物化跨实体关系；失败时回滚全部实体和元数据。
 - restore 先计算完整 diff；diff 为空直接返回 no-op。初次 restore 的任何 revision/activation CAS 失败也必须回滚，不能留下一个只记录“失败”的 session。
 - 历史节点永不通过「把旧节点改成当前」实现恢复；需要可追踪的恢复动作时，用户必须再创建一个新 commit。
 - 恢复会话必须与工作树数据在同一提交屏障内可恢复，否则刷新后会出现「数据是恢复后的、状态却显示 clean」的错配。
-- commit 只记录 schema fingerprint manifest / codec version 不等于可以跨版本恢复；manifest 不完全相等必须 fail-fast，不猜测字段映射、不跳过未知字段。
+- commit 只记录 schema fingerprint manifest / codec version 不等于可以跨版本恢复；实际物化路径上任一 manifest 不完全相等都必须在写事务前 fail-fast，不猜测字段映射、不跳过未知字段。
 
 ## 测试要求
 
 - 先写「restore → 刷新 → 仍标记未提交」的失败用例，再实现；覆盖率不低于 90%。
-- 拒绝路径（dirty、不可达 commit、跨库 commit、schema/codec 不兼容、初次 restore revision/activation CAS 失败）各有独立用例，断言全部持久状态零变化。
+- 拒绝路径（dirty、不可达 commit、跨库 commit、目标不兼容、中间祖先/后继 ChangeSet 不兼容、初次 restore revision/activation CAS 失败）各有独立用例，断言全部持久状态零变化。
 - 已有 session 的 commit/discard 冲突另设用例，断言 session 与工作树保留、状态可在刷新后重新派生为 conflicted。
 - 三端各有等价测试，并用跨框架 E2E 验证 log → restore → refresh → commit 流程。
 - 恢复中断的回滚用例必须覆盖含外键依赖的多实体事务。

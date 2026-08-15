@@ -55,7 +55,7 @@ describe('search plugin install ordering', () => {
     vi.clearAllMocks();
   });
 
-  it('waits for connect() before installing FTS and refreshes handles created before ready', async () => {
+  it('waits for connected$ (tables ready) before installing FTS and refreshes handles created before ready', async () => {
     let resolveConnect!: () => void;
     const connectGate = new Promise<void>(resolve => {
       resolveConnect = resolve;
@@ -70,12 +70,14 @@ describe('search plugin install ordering', () => {
       getRepository: vi.fn(() => migrationRepository)
     };
 
+    const connected$ = new BehaviorSubject(false);
     const fakeRxdb = {
       config: {
         sync: { local: { adapter: 'sqlite-wasm' } },
         entities: [FakeArticle]
       },
       localAdapter$: new BehaviorSubject(adapter),
+      connected$,
       connect: vi.fn(async () => {
         await connectGate;
         return adapter;
@@ -101,6 +103,10 @@ describe('search plugin install ordering', () => {
     expect(emissions.at(-1) ?? []).toEqual([]);
 
     resolveConnect();
+    await Promise.resolve();
+    expect(installFtsForEntity).not.toHaveBeenCalled();
+
+    connected$.next(true);
     await plugin.ready;
 
     expect(adapter.getRepository).toHaveBeenCalledTimes(1);

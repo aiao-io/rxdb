@@ -13,7 +13,7 @@ import {
   type IRxDBPlugin,
   type Plugin
 } from '@aiao/rxdb';
-import { firstValueFrom, isObservable, type Observable } from 'rxjs';
+import { filter, firstValueFrom, isObservable, type Observable } from 'rxjs';
 
 import type { FtsField } from '@aiao/rxdb-adapter-sqlite-core';
 import { assertSupportedAdapter } from './core/adapter-guard.js';
@@ -350,8 +350,10 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
       throw new Error('[rxdb-plugin-search] local adapter is not configured; search requires a local SQLite adapter');
     }
 
-    // 主表由 RxDB 在 connect() 流程中创建；必须等该阶段完成后再创建 FTS 外部内容表与 trigger。
-    await this.rxdb.connect(localAdapterName);
+    // 主表由 RxDB 在 connect() 流程中创建。不能 await connect() 本身：
+    // connect() 会在 connected$ 之后再 await 插件 install，互相等待会死锁。
+    const connecting = this.rxdb.connect(localAdapterName);
+    await Promise.race([firstValueFrom(this.rxdb.connected$.pipe(filter(Boolean))), connecting]);
 
     const adapter = await firstValueFrom(this.rxdb.localAdapter$);
     if (!adapter.rawQuery) {

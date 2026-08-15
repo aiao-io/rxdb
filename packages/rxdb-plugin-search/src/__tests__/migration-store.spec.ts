@@ -41,6 +41,7 @@ const buildFakeRxdb = (migrationRecords: { name: string }[] = []) => {
   const rxdb = {
     config: { sync: { local: { adapter: 'sqlite-wasm' } }, entities: [FakeArticle] },
     localAdapter$: new BehaviorSubject(adapter),
+    connected$: new BehaviorSubject(true),
     connect: vi.fn(async () => adapter),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn()

@@ -41,6 +41,11 @@ v1 不持久化第二份独立 `HEAD`。当前分支仍由既有 `RxDBBranch.act
 `CommitBranchRef.headCommitId` 派生。业务实体表只保存**当前激活分支的物化投影**，不是所有分支工作树的
 唯一持久化副本；非激活分支必须能仅凭 HEAD 与自己的未提交变更单元恢复，不得依赖离开分支时残留在业务表里的值。
 
+启用 commit 能力后，`RxDBBranch.activated` 必须满足“恰好一行是 true”。首次迁移发现零个 active 时沿用既有
+`resolve_current_branch` 语义：优先激活 `main`，没有 `main` 时创建它；发现多个 active 时以
+`ambiguous_active_branch` 整体拒绝迁移，不按查询顺序猜一个。系统 schema 必须用数据库约束保证至多一个 active，
+并在每次连接时验证至少一个；`activationRevision` 只防并发切换，不能替代该基数不变量。
+
 | 状态                         | 主键                     | 必须持久化的版本/内容                                                     | 写入规则                                                    |
 | ---------------------------- | ------------------------ | ------------------------------------------------------------------------- | ----------------------------------------------------------- |
 | `CommitCapabilityState`      | database                 | enabled、protocol/schema/codec version                                    | 首次启用后数据库级生效；所有 writer 连接时协商              |
@@ -55,6 +60,12 @@ v1 不持久化第二份独立 `HEAD`。当前分支仍由既有 `RxDBBranch.act
 但 `WorkingTreeState` 只存计数和 revision 不算完成：必须有可枚举、可重放、按分支隔离的未提交变更单元。
 `CommitChangeSet` 与 `IndexEntry` 必须复制完整的不可变恢复数据，不能只引用可能被 undo、清理或删分支删除的
 `RxDBChange` 行。
+
+index 必须满足**独立可重放不变量**：任意时刻，全部 `IndexEntry` 只依赖当前 HEAD 与 index 内其他条目，不能依赖
+仍留在工作树但未 stage 的前置操作。选择一个单元时，系统向前扩展所有触及同一实体的未提交前置单元，再按事务成员
+递归闭包；unstage 一个前置单元时向后移除依赖它的 staged 单元。stage / unstage 都返回实际扩展后的稳定单元列表。
+例如 T1 插入 A/B、T2 更新 A，stage T2 必须同时 stage T1；不得提交一个无法应用到 HEAD 的 UPDATE，也不得静默把
+T1 的效果塞进 T2。闭包计算或 CAS 失败时 index 零变化。
 
 正常提交、stage 和恢复不会递增 US-304 的 epoch。跨 realm 正确性由数据库事务内的
 `headRevision` / `workingTreeRevision` / `indexRevision` 条件更新保证；writer lease 只提供 writer 身份和迁移期
@@ -74,6 +85,8 @@ discard 与分支操作都必须在实际写事务内验证该 token；另一个
 | 操作                      | 同一事务必须校验                                                 | 成功后递增                                    |
 | ------------------------- | ---------------------------------------------------------------- | --------------------------------------------- |
 | 普通 INSERT/UPDATE/DELETE | active branch token、expected working-tree revision              | working-tree revision                         |
+| remote entity apply       | active branch token、expected working-tree revision + sync 水位  | 有实体净变化时递增 working-tree revision      |
+| merge / undo / redo       | active branch token、expected working-tree + 操作自身 revision   | 有逻辑工作树变化时递增 working-tree revision  |
 | stage / re-stage          | active branch token、expected working-tree + index revision      | index revision；工作树未变                    |
 | unstage / clear index     | active branch token、expected index revision                     | index revision                                |
 | commit                    | active branch token、expected head + index revision              | head、index、working-tree revision            |
@@ -85,6 +98,25 @@ discard 与分支操作都必须在实际写事务内验证该 token；另一个
 commit 不因 stage 后的普通编辑单独失败：staged snapshot 已冻结，commit 在事务内把已提交部分从当前
 `WorkingTreeEntry` 中扣除或 rebase，后续编辑仍作为 unstaged 保留。任何语义 no-op 都不递增 revision。
 
+### 写入口语义矩阵
+
+`HEAD + WorkingTreeEntry` 要成为真相源，不能只拦截 Repository 的普通 CRUD。所有会改业务实体表的入口必须在
+同一数据库事务内落入下表之一；未知入口默认拒绝，不能先改业务表再靠事件补记。
+
+| 写入口                                                                    | commit 能力启用后的语义                                                                                              |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 普通 CRUD、显式事务、Workspace 草稿 `save()`                              | 写入/合并本地 `WorkingTreeEntry`，来源为 `local`，递增 working-tree revision                                         |
+| `mergeBranch()`、undo/redo、restore/discard                               | 按各自原子边界写入或重算本地工作树；不得绕过 active token 与 revision CAS                                            |
+| `pull()`、autoSync、`pullRepository()`、`sync()`、`bulkSync()` 的实体应用 | 即使为防回推而关闭 `RxDBChange` trigger，也必须写入来源为 `remote_sync` 的未暂存单元；不生成可 push 的本地 change    |
+| 只更新 remoteId、同步水位或审计时间                                       | 不改变业务表，不创建工作树单元，不递增 working-tree revision                                                         |
+| branch switch、baseline/restore 物化、commit residual rebase              | 由对应领域操作显式维护工作树；底层投影重写不得被 trigger 二次记录                                                    |
+| QueryCache 的 upsert/delete/过期清理                                      | QueryCache 实体不进入 baseline、status、diff、stage 或 commit；它仍是可重建缓存，不能与版本化实体混在同一事务单元中  |
+| raw SQL、adapter 直写或其他 trigger bypass                                | 业务表写入前以 `commit_capability_mismatch` 拒绝；只有同时持有内部事务能力并原子维护工作树的受信路径可以关闭 trigger |
+
+远端数据进入工作树不等于 remote commit push/pull：v1 只记录本地可审计的未提交结果，不伪造远端作者、消息或远端 commit。
+支持 full/filter 同步的实体必须覆盖“pull → refresh → switch away/back → status/diff”共享 fixture；QueryCache 另测其
+排除边界，避免一次缓存刷新把工作树永久标成 dirty。
+
 ## 启用与存储边界
 
 - commit 能力在从未启用的数据库上默认零副作用；开发者显式启用后创建系统表并执行首次基线迁移，具体配置名在 plan 阶段冻结。
@@ -94,6 +126,9 @@ commit 不因 stage 后的普通编辑单独失败：staged snapshot 已冻结�
 - SQL/PGlite 主库是 commit、工作树元数据和 index 的唯一一致性边界。
 - Workspace 插件的 NEW 草稿仍留在独立 IndexedDB 中，不参与系统 schema 事务，也不进入 baseline commit。
   草稿调用 `save()` 落入主表后，才作为普通 INSERT 进入工作树。
+- 首次迁移只为能仅凭本地主库与旧 `RxDBChange` 完整物化的分支生成 baseline。`local=false, remote=true` 且本地内容
+  尚不可完整物化的 metadata-only 分支暂不创建 `CommitBranchRef`，也不得伪造空 baseline；它在 US-308 的首次成功
+  物化事务内原子建立 `kind=branch_baseline` 与 branch ref。其他本地分支无法物化时迁移整体失败，不留下部分启用状态。
 - v1 支持 PGlite、四个 SQLite 浏览器适配器和 desktop SQLite host；它们必须通过同一套
   `workingTreeCommitConformanceSuite`。实验性的 miniprogram 适配器不承诺崩溃恢复，因此不在 v1 支持矩阵内。
 
@@ -136,7 +171,11 @@ commit 不因 stage 后的普通编辑单独失败：staged snapshot 已冻结�
   每个 commit 100 个完整变更单元；当前工作树 100 个 unstaged 单元、index 50 个 staged 单元
 - status 测完整摘要，diff 测无 scope 的完整 `HEAD ↔ working tree` 与 `HEAD ↔ index`，stage 测 50 个完整变更单元；
   restore 测 clean HEAD 恢复含 100 个变更单元的 `HEAD~1`。fixture 内容与 hash 必须写入 JSON，禁止只固定总行数
-- 绝对门禁保留原产品预算并明确为 p95：status / diff / stage 不高于 100 ms，restore 不高于 1 s
+- benchmark JSON 必须记录 Node/PGlite 版本、OS、CPU 型号、逻辑核数、内存、runner ID 与并发度并计算
+  `runnerProfileHash`；profile 不匹配 reference 时返回 `benchmark_environment_mismatch`，不得把它伪装成性能回归
+- 普通 PR CI 只把归一化 ratio 作为硬门禁，绝对 p95 仅记录趋势；发布门禁必须在与 reference
+  `runnerProfileHash` 相同的固定性能 runner 上执行，届时绝对预算才作为硬门禁：status / diff / stage 不高于 100 ms，
+  restore 不高于 1 s
 - 每项 control CRUD 使用相同实体数量和事务边界；相对门禁比较“被测操作 p95 / 同次 control CRUD p95”。
   首个绿色实现先归档 reference commit 的 10 次独立运行并冻结各项 median ratio，候选版本不得超过该 ratio 的 110%；
   reference JSON 与阈值必须先于发布候选签入，不能在失败后重算基线
@@ -152,10 +191,14 @@ commit 不因 stage 后的普通编辑单独失败：staged snapshot 已冻结�
 4. PGlite、四个 SQLite 浏览器适配器与 desktop SQLite host 的 `workingTreeCommitConformanceSuite` 全绿
 5. 跨 realm fixture 覆盖 switch 与旧实体 CRUD 竞争、启用/未启用 writer 混用、HEAD/index/working-tree CAS
 6. 支持字段加密的后端通过 commit/index/working-tree/restore 持久化 dump 明文哨兵零命中
-7. `nx run benchmarks:bench-working-tree` 同时通过绝对 p95 与冻结的归一化相对回归门禁
+7. `nx run benchmarks:bench-working-tree` 在普通 CI 通过冻结的归一化相对回归门禁，并在 profile 匹配的固定性能
+   runner 上同时通过绝对 p95；环境不匹配不得产出绿色发布结论
 8. api-baseline 新增导出全部使用 `Commit*` / `WorkingTree*` / `Index*` 前缀，无 `Workspace*` 新导出，也不复用既有 `SwitchBranchOptions`
 9. 公开文档说明数据库级显式启用、工作树与草稿缓存的区别、恢复语义、历史保留敏感旧值的风险、
    加密边界与不改写历史的承诺
+10. 写入口 conformance 覆盖普通 CRUD、merge、undo/redo、full/filter pull/autoSync/repository sync/bulkSync、
+    QueryCache 排除与 raw bypass 拒绝；任何业务表净变化都能由 HEAD + WorkingTreeEntry 重放
+11. index 依赖闭包、active 分支基数、metadata-only 远端分支首次物化和完整 restore 路径预检 fixture 全绿
 
 ## 非目标
 
