@@ -67,7 +67,7 @@ const EXCLUDED = new Set(['rxdb-test']);
  * 都指回这里），并由 `auditSubpathInventory()` 逐包核对：新增或删除子路径而不同步本表 → 门禁红。
  * 这样清单不会随包演进静默过期，作者也会在动到无保护的公开 API 时被拦一次。
  *
- * 9 个包共 14 个入口。其中 `rxdb-adapter-miniprogram` 的两个 `./assets/*` 是二进制/CJS 资产，
+ * 10 个包共 15 个入口。其中 `rxdb-adapter-miniprogram` 的两个 `./assets/*` 是二进制/CJS 资产，
  * 没有导出表面可扫，改由 `scripts/audit/wa-sqlite-integrity.mjs` 的 SHA-256 固定守护。
  * `@aiao/rxdb-test/*`（5 个子路径）不在此列——整包已由 EXCLUDED 排除，非产品 API。
  *
@@ -85,6 +85,10 @@ const KNOWN_UNCOVERED_SUBPATHS = new Map([
   ['rxdb-adapter-sqlite-core', ['./testing']],
   ['rxdb-adapter-wa-sqlite', ['./client']],
   ['rxdb-client-generator', ['./cli', './vite']],
+  // ./testing = conformance driver 接缝 + wire hygiene 套件 + fake clock/driver，
+  // 供 US-904c/904d/905 的 Chrome / Electron / Tauri 薄 driver 复跑同一份 v2 协议断言；
+  // 依赖 vitest，只在测试环境使用。
+  ['rxdb-devtools', ['./testing']],
   ['rxdb-plugin-graph', ['./generator', './sqlite']],
   // ./desktop = createDesktopStorageFilesystem + DesktopStorageFilesystemOptions。
   // 该入口依赖桌面 host 传输层，不能进浏览器 bundle，因此不从主入口导出。

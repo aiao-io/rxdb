@@ -73,7 +73,8 @@ describe('isDevToolsV2Envelope', () => {
 
   it('MUST reject extra and missing envelope keys', () => {
     expect(isDevToolsV2Envelope(envelope({ extra: 1 }))).toBe(false);
-    const { payload: _payload, ...withoutPayload } = envelope();
+    const withoutPayload = envelope();
+    delete withoutPayload['payload'];
     expect(isDevToolsV2Envelope(withoutPayload)).toBe(false);
   });
 
