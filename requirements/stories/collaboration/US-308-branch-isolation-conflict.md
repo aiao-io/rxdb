@@ -5,7 +5,7 @@ status: Backlog
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-08-13
+updated: 2026-08-15
 tags: [collaboration, branch, concurrency, writer-lease, conflict]
 ---
 
@@ -42,19 +42,29 @@ INVEST 检查清单:
 - [apps/dev-rxdb-supabase/src/app/branch-manager.ts:203](../../../apps/dev-rxdb-supabase/src/app/branch-manager.ts#L203) 从一个下拉框直接调用它，没有任何 dirty 处理路径。
 - `VersionManager` 类本身不在 [api-baseline/rxdb.json](../../api-baseline/rxdb.json) 的导出清单里（只有 `SwitchBranchOptions` 在），所以**给它加拒绝路径不会被 api-baseline 门禁挡住**——破坏会一路走到用户那里才被发现。
 
+### `SwitchBranchOptions` 是同名不同层，不得复用
+
+上一条提到 api-baseline 里"只有 `SwitchBranchOptions` 在"，但那个类型**不是** `VersionManager.switchBranch()` 的参数类型，两者只是撞名：
+
+- [rxdb-adapter.ts:55](../../../packages/rxdb/src/rxdb-adapter.ts#L55) 的 `SwitchBranchOptions` 是 `{ branchId: string; actions: SwitchVersionActions }`，属**适配器层**契约，由 [rxdb-adapter.ts:165](../../../packages/rxdb/src/rxdb-adapter.ts#L165) 的 `abstract switchBranch(options)` 声明，pglite 与 sqlite-core 各有实现。
+- [VersionManager.ts:756](../../../packages/rxdb/src/version/VersionManager.ts#L756) 的签名是 `switchBranch(branchId: string)`——它**没有** options 参数，内部才构造 `{ branchId, actions }` 去调适配器。
+
+把 `requireClean` 加到适配器层的 `SwitchBranchOptions` 上，等于让每个适配器的 `switch_branch` 签名都长出一个它根本不该关心的参数。这与 [epic-006 术语表](../../epics/epic-006-working-tree-commits.md)禁止复用 `Workspace*` 前缀是**同一条规矩**：同名不同义比新造一个名字贵得多。
+
 本故事定死：
 
 1. `switchBranch(branchId)` 的默认行为**不变**：仍然无条件切换。
-2. clean 检查是**显式选项**：`switchBranch(branchId, { requireClean: true })`，或本 Epic 新契约自己的入口；参数省略时行为与今天完全一致。
-3. 要把默认改成拒绝，必须走独立的破坏性变更故事，并按仓库的版本发布门禁处理，不在本 Epic 内夹带。
+2. clean 检查是**显式选项**：`switchBranch(branchId, options?)`，或本 Epic 新契约自己的入口；参数省略时行为与今天完全一致。
+3. 该 options MUST 是 **VersionManager 层的新类型**（建议名 `BranchSwitchOptions`，最终名在 plan 阶段冻结），MUST NOT 复用或扩展适配器层的 `SwitchBranchOptions`；后者在本故事内**保持零改动**。
+4. 要把默认改成拒绝，必须走独立的破坏性变更故事，并按仓库的版本发布门禁处理，不在本 Epic 内夹带。
 
 ## 范围边界
 
 ### In Scope
 
-- 分支与工作树 / 缓存区的隔离：切换后物化为目标分支 HEAD，缓存区不串分支
+- 分支与工作树 / 缓存区的隔离：切换后物化为目标分支 HEAD，缓存区不串分支（跨**分支**隔离；跨**标签页**是共享，见 [US-306 FR-034](./US-306-working-tree-index.md)）
 - `requireClean` 显式选项与对应的可操作错误
-- 跨标签页 / 跨 realm 的 HEAD、缓存区版本、工作树版本校验，复用 US-304 的 epoch
+- 提交时的 HEAD 父节点校验与 staged 条目版本指纹重校验，复用 US-304 的 epoch
 - 冲突记录（`CommitConflict`）与三端一致的冲突提示语义
 - 提交前对 staged 条目的版本指纹重校验
 
@@ -80,19 +90,25 @@ INVEST 检查清单:
 
 ### User Story 2 - 跨标签页并发（Priority: P2）
 
+> **前提**：工作树与缓存区是 per-(database, branch) 的**共享**资源（[US-306 FR-034](./US-306-working-tree-index.md)），
+> 同源标签页看到的是同一份数据，而不是各自的副本。因此"另一方的修改丢失"不可能表现为"两份工作树互相覆盖"，
+> 只可能表现为下面两种形式：**提交期间 HEAD 被推进**，或 **staged 快照相对工作树当前版本已过期**。
+> 本故事的 AC 按这两种形式判定，不使用"同时修改同一工作树"这种在共享模型下无法判定的措辞。
+
 **独立测试**：两个同源标签页打开同一数据库，一个提交，另一个尝试提交。
 
 **验收场景**：
 
-1. **Given** 两个同源标签页同时修改同一工作树，**When** 后到的标签页尝试提交，**Then** 系统检测 HEAD 或缓存区版本已变化，要求刷新、合并或重新 stage，禁止静默丢弃另一方修改。
+1. **Given** 标签页 A 读取 HEAD 后开始提交流程，其间标签页 B 成功提交并推进了 HEAD，**When** A 尝试写入，**Then** A 的提交因父节点不再是当前 HEAD 而失败，错误说明需重新读取状态并重试；B 的 commit 完好，A 的工作树与缓存区不被清空。
 2. **Given** commit 已成功写入但 UI 在刷新前关闭，**When** 重新打开任一标签页，**Then** commit、HEAD 和工作树状态最终收敛到同一结果。
-3. **Given** 缓存区中的实体已被其他标签页删除或更新，**When** 本标签页提交，**Then** 版本指纹重校验失败并返回冲突，不使用过期快照写入。
+3. **Given** 缓存区中的实体已被其他标签页删除或更新，**When** 本标签页提交，**Then** 版本指纹重校验失败并返回冲突，不使用过期快照写入——这是"另一方修改被静默丢弃"在共享工作树模型下的**唯一**真实形式，必须有独立用例。
 4. **Given** 另一 realm 持有的 writer lease 已过期，**When** 本 realm 提交，**Then** 走 US-304 既有的 fencing 路径判定，不额外发明第二套判定。
 
 ## 功能需求
 
-- **FR-017**（已改口径）：系统 MUST 与现有分支操作集成：创建分支从当前 HEAD 开始，分支之间不得共享可变的 HEAD / 缓存区状态。分支切换的 clean 检查 MUST 以显式选项提供；`switchBranch(branchId)` 不带选项时的行为 MUST NOT 改变。
-- **FR-020**：系统 MUST 在跨标签页或并发写入时校验 HEAD、缓存区版本和工作树版本；检测到冲突时阻止静默覆盖并提供可操作错误。该校验 MUST 建立在 [US-304](./US-304-writer-lease-migration-fencing.md) 的 writer lease / epoch fencing 之上，MUST NOT 另起一套跨 realm 协调协议，也不得只依赖 `BroadcastChannel` 或内存状态。
+- **FR-017**（已改口径）：系统 MUST 与现有分支操作集成：创建分支从当前 HEAD 开始，分支之间不得共享可变的 HEAD / 缓存区状态。分支切换的 clean 检查 MUST 以显式选项提供；`switchBranch(branchId)` 不带选项时的行为 MUST NOT 改变。该选项 MUST 定义为 **VersionManager 层的新导出类型**，MUST NOT 复用或扩展[适配器层的 `SwitchBranchOptions`](../../../packages/rxdb/src/rxdb-adapter.ts#L55)（同名不同层，见上文）；适配器的 `switchBranch(options)` 签名与各适配器的 `switch_branch` 实现 MUST 零改动。
+- **FR-020**（已收窄口径）：系统 MUST 在并发写入时校验两件事，且仅这两件：（a）提交时父节点仍是当前分支 HEAD；（b）每个 staged 条目的版本指纹相对工作树当前版本仍然有效。任一失败 MUST 返回可操作冲突错误并放弃写入，MUST NOT 使用过期快照覆盖。该校验 MUST 建立在 [US-304](./US-304-writer-lease-migration-fencing.md) 的 writer lease / epoch fencing 之上，MUST NOT 另起一套跨 realm 协调协议，也不得只依赖 `BroadcastChannel` 或内存状态。
+  > 收窄原因：工作树与缓存区是跨标签页共享的（[US-306 FR-034](./US-306-working-tree-index.md)），不存在"两份工作树版本"需要比对。原文的"工作树版本"校验在共享模型下没有对应物，会引导实现去发明一个 per-tab 的影子状态——那恰好是 FR-034 禁止的。
 
 ## 关键实体
 
@@ -102,18 +118,20 @@ INVEST 检查清单:
 
 ## 测试要求
 
-- 必须有跨标签页 / 跨 realm 并发测试，覆盖 HEAD 乐观校验、重复 commit、防止旧 stage 覆盖新编辑。
+- 必须有跨标签页 / 跨 realm 并发测试，覆盖 HEAD 父节点乐观校验、重复 commit、防止旧 stage 覆盖新编辑；并显式断言两个 realm 看到的是**同一份**工作树/缓存区（不得为了造冲突而伪造 per-tab 副本）。
 - 必须有一条回归用例专门断言**不带选项**的 `switchBranch(branchId)` 行为未变（AC User Story 1 场景 3）。
+- 必须有一条类型层断言确认适配器层 `SwitchBranchOptions` 未被扩展：`requireClean` 不出现在 `adapter.switchBranch()` 的参数类型上，且 pglite / sqlite-core 的 `switch_branch` 现有用例无需改动即通过。
 - 三端冲突提示的语义、错误分类与恢复建议必须一致，并有等价测试。
 - 测试文件使用 `*.spec.ts`，不依赖非确定性的固定延时。
 
 ## 实现文件（计划阶段待确认）
 
-- `packages/rxdb/src/version/VersionManager.ts` — `switchBranch` 新增可选参数，默认行为不变
-- `packages/rxdb/src/version/` — 分支隔离与并发校验
+- `packages/rxdb/src/version/VersionManager.ts` — `switchBranch` 新增可选参数（**新类型**，默认行为不变）
+- `packages/rxdb/src/version/` — 分支隔离与并发校验、新的分支切换选项类型
 - `packages/rxdb/src/system/` — 冲突记录
 - `packages/rxdb-{angular,react,vue}/` — 对称的冲突状态与提示
-- `requirements/api-baseline/rxdb.json` — `SwitchBranchOptions` 与新增冲突类型
+- `requirements/api-baseline/rxdb.json` — **新增** VersionManager 层的分支切换选项类型与冲突类型；适配器层既有的 `SwitchBranchOptions` 条目**不变**
+- `packages/rxdb/src/rxdb-adapter.ts` — **不改动**（列出是为了明确它在本故事的变更范围之外）
 
 ## 依赖与参考
 

@@ -5,7 +5,7 @@ status: Backlog
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-08-13
+updated: 2026-08-15
 tags: [collaboration, working-tree, staging, diff, angular, react, vue]
 ---
 
@@ -15,7 +15,7 @@ INVEST 检查清单:
 - [x] Negotiable: 导出名、事件名和 diff 结构可在 plan 阶段冻结
 - [x] Valuable: 用户第一次能选择性提交，并在刷新后接着上次干
 - [x] Estimable: 状态集合、操作契约与 bench fixture 已列出
-- [x] Small: 不含 restore、不含分支切换、不含跨标签页冲突协议
+- [~] Small: **本 Epic 里最大的一个故事，Small 存疑但已有意保留**。不含 restore、不含分支切换、不含跨标签页冲突协议；2026-08-15 二轮复审已把共用 bench 基建前置到 US-305（FR-037）、把判定基准前置到 US-305（FR-036）以卸掉两块。剩余的三端绑定 + demo 未再拆，因为它们与状态机共享同一套导出名和状态枚举，先拆会制造一次纯粹为拆而拆的契约冻结。plan 阶段若确认导出可先冻结，允许再拆出 US-306b 承接三端绑定与 demo，届时 FR-024 / FR-025 随之只对 US-306b 生效。见 [epic-006「US-306 的体量说明」](../../epics/epic-006-working-tree-commits.md)。
 - [x] Testable: 「改 → stage → 刷新 → commit → 查 status」可独立验收
 -->
 
@@ -40,6 +40,14 @@ INVEST 检查清单:
 
 变更选择粒度为「实体操作或完整事务」，同一事务不可拆到不同 commit。
 
+### 作用域：工作树与缓存区都是共享资源
+
+这一条必须写死，否则 [US-308](./US-308-branch-isolation-conflict.md) 的跨标签页 AC 无法判定：
+
+- 工作树**就是**本地库里的物化数据。同源多标签页打开同一数据库时，它们看到的是**同一份**工作树，不是各自的副本——B 标签页的编辑会直接出现在 A 的工作树里，这不是冲突，是共享。
+- 缓存区要求持久化，因此同样是 **per-(database, branch) 的共享资源**，不是 per-tab、per-realm 的会话状态。两个标签页 stage 同一分支时操作的是同一个 index。
+- 由此，真正需要并发保护的只有两处：**HEAD 在提交期间被推进**，以及 **staged 快照相对工作树当前版本已过期**。"另一方的修改被静默丢弃"只可能以这两种形式出现，协议见 US-308。
+
 ### 状态关系
 
 ```text
@@ -62,12 +70,15 @@ INVEST 检查清单:
 - `commit(message, metadata?)`：只提交缓存区内容，保留未暂存修改
 - `discardWorkingTree()`：回到当前 HEAD
 - stage 后再次编辑时保留 staged 快照，新增部分标记为 unstaged
+- 迁移登记的 NEW 草稿物化进工作树（[US-305 FR-021](./US-305-commit-graph-head.md) 的对侧）
 - Angular / React / Vue 三端对称 API 与演示
-- `nx run benchmarks:bench-working-tree` 中 status / diff / stage 的性能基线
+- 在 US-305 建好的 `bench-working-tree` harness 中补 status / diff / stage 场景并冻结阈值
 
 ### Out of Scope
 
 - commit 图、HEAD、分支引用的存储布局与迁移 —— 属 [US-305](./US-305-commit-graph-head.md)
+- 「已提交 / 未提交」判定基准的**选定** —— 属 [US-305 FR-036](./US-305-commit-graph-head.md)；本故事消费该基准，不自行发明
+- bench harness、target 注册与固定 fixture —— 属 [US-305 FR-037](./US-305-commit-graph-head.md)；本故事只加场景
 - 历史恢复会话 —— 属 [US-307](./US-307-restore-session.md)（本故事只需让 `status()` 能表达 `restoring`）
 - 分支切换与跨标签页冲突检测 —— 属 [US-308](./US-308-branch-isolation-conflict.md)
 - 字段级或代码行级的部分暂存
@@ -83,7 +94,9 @@ INVEST 检查清单:
 
 1. **Given** 当前分支有一个已提交的 HEAD，**When** 用户修改实体但不 commit 后刷新，**Then** 工作树数据、未暂存标记和对应 diff 与刷新前一致。
 2. **Given** 缓存区已有实体变更，**When** 用户刷新或重新打开应用，**Then** 缓存区选择、变更顺序和事务边界保持不变。
-3. **Given** 只有 NEW 草稿、没有 HEAD，**When** 应用启动，**Then** 草稿仍按 Workspace 插件规则恢复，并在首次提交时作为普通 INSERT 变更进入 commit。
+3. **Given** 只有 NEW 草稿、HEAD 处于 unborn（[US-305 FR-030](./US-305-commit-graph-head.md)），**When** 应用启动，**Then** 草稿仍按 Workspace 插件规则恢复，`status()` 把全部工作树数据视为未提交变更而非报错，并在首次提交时作为普通 INSERT 变更进入 commit。
+4. **Given** 迁移已把既有 NEW 草稿**登记**为「待纳入工作树」（[US-305 FR-021](./US-305-commit-graph-head.md) 只做登记，不做物化），**When** 本故事的工作树首次重建，**Then** 这些登记项被物化为工作树中的普通未提交变更，登记标记随之清除，且重复启动不会重复物化。
+5. **Given** HEAD 为 unborn，**When** 用户调用 `discardWorkingTree()`，**Then** 工作树回到"空基线"（没有 HEAD 可回退到），操作结果明确且不报未定义错误。
 
 ### User Story 2 - 暂存并提交一组变更（Priority: P1）
 
@@ -106,6 +119,9 @@ INVEST 检查清单:
 1. **Given** 工作树有未提交修改，**When** 用户 `discardWorkingTree()`，**Then** 工作树回到当前 HEAD，未提交 stage 一并清除，历史 commit 不变。
 2. **Given** 缓存区有条目，**When** 用户 `clearIndex()`，**Then** 只清除暂存选择，工作树数据不变。
 3. **Given** 同一事务跨多个实体且含外键依赖，**When** discard，**Then** 在事务边界内整体回滚，不留下部分实体的中间态。
+4. **Given** 工作树有未提交修改，**When** 用户 discard 后查看 `RxDBChange` 与 undo 栈，**Then** 原有变更记录仍在（未被删除或改写），discard 本身以反向变更追加，undo 可观察到它——即 discard 不是"历史被抹掉"而是"又发生了一次变更"（FR-033）。
+5. **Given** 一个标签页执行 discard，**When** 另一同源标签页查询 `status()`，**Then** 看到同一结果（FR-034），不出现两个标签页各持一份工作树状态的分叉。
+6. **Given** 工作树有未提交修改，**When** 用户 discard 后立即查询 `status()`，**Then** 结果为 **clean**，**且** `RxDBChange` 记录数相对 discard 前**增加**（反向变更已追加）。这两条 MUST 在**同一个**用例里断言——它是 [US-305 FR-036](./US-305-commit-graph-head.md) 判定基准的不变式检查点，分开写就测不出「基准选错导致 discard 后永远不 clean」这个失效模式。
 
 ## 功能需求
 
@@ -115,13 +131,22 @@ INVEST 检查清单:
 - **FR-007**：系统 MUST 在 stage 后再次发生编辑时保留 staged 快照，并把新增部分标记为 unstaged；禁止隐式扩大 stage 范围。
 - **FR-011**：系统 MUST 在 commit 成功后只清除已提交的缓存区变更；未暂存变更继续留在工作树并显示准确 diff。
 - **FR-016**：系统 MUST 支持 discard working tree 和 clear index，且两者操作范围明确：前者回到当前 HEAD，后者只清除暂存选择。
-- **FR-023**：系统 MUST 为所有异步操作提供可观察的 loading、success、empty 和 error 状态；错误必须说明操作、对象和恢复建议。
-- **FR-026**（已改口径）：系统 MUST 在 `benchmarks/` 现有框架下新增 `bench-working-tree`，对 status / diff / stage 采样并输出 p50/p95 与 JSON 报告；门禁判定为**相对基线的回归百分比**，沿用 `MAX_REGRESSION_PCT` 的做法。固定 fixture 为 10,000 条实体记录 / 100 个 commit，基准环境为 Node + PGlite memory（与 `benchmarks/non-encrypted-hot-path.bench.ts` 一致）。**不承诺**浏览器 OPFS / IDB 下的同一数字。
+- **FR-023**：见 [epic-006 横切约束](../../epics/epic-006-working-tree-commits.md)；本故事的全部异步操作（status / diff / stage / unstage / commit / discard）适用。
+- **FR-026**（已改口径；harness 已前置到 US-305）：系统 MUST 在 [US-305 FR-037](./US-305-commit-graph-head.md) 建立的 `bench-working-tree` harness 中**补充 status / diff / stage 三个 A/B 场景**并冻结其阈值。MUST NOT 重复注册 target 或另起 bench 文件。门禁判定沿用 harness 的口径：同一次运行内 A = 未启用 commit 能力的基线路径、B = 启用工作树/commit 后的同一操作，判定值 `(B.p50 - A.p50) / A.p50`；p95 输出但不作为门禁；固定 fixture 为 10,000 条实体 / 100 个 commit，基准环境 Node + PGlite memory（与 [non-encrypted-hot-path.bench.ts](../../../benchmarks/non-encrypted-hot-path.bench.ts) 一致），**不承诺**浏览器 OPFS / IDB 下的同一数字。
+  阈值冻结 MUST 同时给出两样东西：**实测分布**，**以及独立论证的上限**（例如「stage 相对基线的额外写次数理论上限 = N，据此取阈值 X%」）。只把首次实测值直接当阈值是循环论证——验收标准由被它门禁的那个 PR 自己写，抓不到它自己引入的回归。
+- **FR-033**（新增）：`discardWorkingTree()` MUST 以**追加反向变更**的方式回到 HEAD，MUST NOT 删除或改写既有 `RxDBChange` 记录——后者等于改写变更日志，与 [FR-018](./US-305-commit-graph-head.md) 冲突。由此 discard 本身是一次可被 undo 观察到的变更；该行为 MUST 有明确断言的验收用例，不得留给实现自行决定。
+  本条与 [US-305 FR-036](./US-305-commit-graph-head.md)（「已提交 / 未提交」判定基准）**互相约束**，必须一起读：discard 既然是追加而非删除，若判定基准是「变更日志中晚于最后一次 commit 的条目」，那么 discard 之后日志反而变长、`status()` 永远回不到 clean，两条需求互相否定。因此 FR-036 已禁止该推导，本故事的实现 MUST 建立在 FR-036 选定的基准之上，MUST NOT 自行发明第二套判定。
+- **FR-034**（新增）：工作树与缓存区 MUST 是 per-(database, branch) 的持久化共享资源，对同源多标签页可见同一份状态；MUST NOT 实现为 per-tab / per-realm 的会话副本。任一标签页的 stage / unstage / discard 结果 MUST 对其他标签页可观测。
 
 > FR-026 原文是「用户可见响应 MUST 在 100 ms 内完成」。这句话没有指定设备、存储后端、统计口径，
 > 也没有定义「用户可见响应」是 promise resolve 还是首次绘制——在 CI 上做绝对墙钟断言必然抖动，
-> 等于写了一条永远可以被解释成通过或不通过的验收条件。仓库里已有的两个 bench
-> （[benchmarks/](../../../benchmarks/)）用的是 warmup + p50/p95 + 相对回归门禁，这里沿用同一套。
+> 等于写了一条永远可以被解释成通过或不通过的验收条件。
+>
+> 注意仓库现状：只有 [non-encrypted-hot-path.bench.ts](../../../benchmarks/non-encrypted-hot-path.bench.ts)
+> 带门禁（`MAX_REGRESSION_PCT = 2`），`encryption.bench.ts` 只出报告；而且那条门禁比较的是**同一次运行内**
+> 的 plain vs 加密插件两组，判定用 **p50**，仓库里并不存在"落库历史基线"这种东西。因此这里采用与它同构的
+> A/B 对照，而不是跨 run 比历史基线——后者只是把绝对毫秒换成绝对毫秒的差值，一样吃机器波动。口径详见
+> [epic-006 性能预算](../../epics/epic-006-working-tree-commits.md)。
 
 ## 关键实体
 
@@ -155,9 +180,12 @@ INVEST 检查清单:
 ## 测试要求
 
 - 核心包按 TDD 先写刷新恢复的失败用例，再实现；覆盖率不低于 90%。
+- discard 与变更日志的关系必须有专门用例（FR-033）：断言 `RxDBChange` 记录未被删除、discard 以反向变更追加、undo 行为可预测。
+- **判定基准的不变式必须有一条合并断言的用例**（User Story 3 场景 6）：同一用例内同时断言 discard 后 `status()` 为 clean **且** `RxDBChange` 记录数增加。这是 [US-305 FR-036](./US-305-commit-graph-head.md) 选错基准时唯一会红的用例，拆成两条就测不出来。
+- 工作树/缓存区共享语义必须有跨 realm 用例（FR-034）：两个 realm 打开同一数据库，一端 stage/discard，另一端 `status()` 收敛到同一结果。
 - 三端各有等价的单元/组件测试，并用跨框架 E2E 验证 status → stage → commit → refresh 流程。
 - 失败、空状态、键盘可达性和屏幕阅读器名称必须有 UI 回归测试；测试文件使用 `*.spec.ts`，不依赖固定延时。
-- `nx run benchmarks:bench-working-tree` 纳入 CI，报告写入 `benchmarks/reports/`。
+- `nx run benchmarks:bench-working-tree` 的 status / diff / stage 场景纳入 CI（target 本身由 [US-305 FR-037](./US-305-commit-graph-head.md) 注册）。
 
 ## 实现文件（计划阶段待确认）
 
@@ -166,7 +194,7 @@ INVEST 检查清单:
 - `packages/rxdb-plugin-workspace/` — NEW 草稿与工作树状态的整合边界
 - `packages/rxdb-{angular,react,vue}/` — 对称的 hooks / composables / signals
 - `apps/dev-rxdb-{angular,react,vue}/` — 三端工作树演示
-- `benchmarks/working-tree.bench.ts` — FR-026 的判定依据（新增）
+- `benchmarks/working-tree.bench.ts` — **在 US-305 建好的 harness 中追加** status / diff / stage 场景与阈值常量；本故事**不**新建文件、**不**改 `benchmarks/project.json`
 - `requirements/api-baseline/rxdb.json`
 
 ## 依赖与参考

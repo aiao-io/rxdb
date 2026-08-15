@@ -5,7 +5,7 @@ status: Backlog
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-09
-updated: 2026-08-13
+updated: 2026-08-15
 tags: [collaboration, commit, head, persistence, migration]
 ---
 
@@ -15,20 +15,25 @@ INVEST 检查清单:
 - [x] Negotiable: commit ID 生成方式、存储表名和 ChangeSet 编码可在 plan 阶段调整
 - [x] Valuable: 有了持久 commit 图，历史节点第一次成为可长期引用的锚点
 - [x] Estimable: 存储层次、审计字段和迁移路径已在本文列出
-- [x] Small: 不含 status/diff/stage、不含 restore、不含分支切换改动
+- [x] Small: 不含 status/diff/stage、不含 restore、不含分支切换改动。2026-08-15 复审新增的 FR-030～032 是**同一存储层**的状态定义与启用校验；二轮复审新增的 FR-036 是同一存储层的判定基准；FR-037 是 bench harness——它是本故事**唯一**的新交付面，接受它的理由是本故事本就要跑崩溃恢复 fixture，且把共用基建留给 US-306 会让那个已经最大的故事同时背上「建基建」和「用基建」
 - [x] Testable: 最小闭环「写 commit → 刷新 → 读回 log/show」可独立验收
+- [x] 横切 FR 适用性：FR-024 / FR-025 不适用（纯存储层，无框架绑定、无 UI），见 epic-006 横切约束表
 -->
 
 # 用户故事：提交图与 HEAD 持久化
 
-> Epic 级的术语表、横切 DoD 与性能口径见 [epic-006](../../epics/epic-006-working-tree-commits.md)。
+> Epic 级的术语表、横切 FR（FR-023 / FR-024 / FR-025 / FR-028）与性能口径见 [epic-006](../../epics/epic-006-working-tree-commits.md)。
 > 本故事不重述，只承接落地与验收。
+>
+> **横切 FR 的适用性**：本故事是纯存储层，不暴露框架绑定也不交付 UI（见下方实现文件清单），
+> 因此 **FR-024（三框架对称）与 FR-025（a11y）对本故事不适用**，发布门禁不得以此卡它。
+> FR-023（异步状态）与 FR-028（不复活旧导出）适用。
 
 ## 背景与问题
 
 当前历史记录可以支持 undo、redo 和从历史恢复实体，但恢复结果与部分状态依赖当前页面会话；刷新后用户看不到上次的结果，也没有一个可以长期引用的提交节点。
 
-早期的 `stagedChange()` / `unstageChange()` / `commit()` / `stagedCount` 已在 `0.0.24` 删除（提交 `4d2495bdd`），因此这是全新设计，没有需要兼容的旧暂存契约。
+早期的 `stagedChange()` / `unstageChange()` / `commit()` / `stagedCount` 已在 `0.0.24` 删除（见 [rxdb-plugin-workspace/README.md 的「已移除 API」](../../../packages/rxdb-plugin-workspace/README.md#已移除-api)），因此这是全新设计，没有需要兼容的旧暂存契约。
 
 本故事只做**底座**：commit 图、HEAD、分支引用的原子一致性、存储布局与一次性迁移。工作树与缓存区的状态机在 [US-306](./US-306-working-tree-index.md)。
 
@@ -43,27 +48,45 @@ INVEST 检查清单:
 | Git 概念               | RxDB 中的含义                                          | 持久化要求                          |
 | ---------------------- | ------------------------------------------------------ | ----------------------------------- |
 | `HEAD`                 | 当前分支最近一次成功 commit 的指针                     | 必须持久化且只能指向已存在的 commit |
+| unborn `HEAD`          | 分支已存在但尚无任何 commit 时的合法空指针             | 必须可持久化表达，不能用"损坏"表示  |
 | 分支引用（branch ref） | 分支名到 `HEAD` commit 的映射；沿用现有分支能力        | 必须与 commit 更新原子一致          |
 | commit                 | 带父节点、消息、作者和变更集合的不可变版本节点         | 创建后不可改；刷新后可查询          |
+| baseline commit        | 迁移时生成的唯一根节点，语义是"迁移时刻的物化数据"     | 无父节点、无 ChangeSet，见下        |
 | ChangeSet              | commit 的变更单元集合，按实体/事务分组，保留可恢复信息 | 与 commit 同一提交屏障内可见        |
 
 v1 的变更单元粒度为「实体操作或完整事务」。同一事务不能被拆到不同 commit；字段级、代码行级粒度属于后续扩展。
+
+### 两类"没有普通 commit"的合法状态
+
+这两种状态过去被隐式当成异常，现在必须显式建模，否则 US-306 的 `status()` / `diff()` / `discardWorkingTree()` 在这些状态下无定义：
+
+1. **unborn HEAD**：全新数据库、或新建分支后尚未提交。此时 `HEAD` 为空是**合法**的，不算损坏。US-306 的
+   「只有 NEW 草稿、没有 HEAD」场景即属此类。
+2. **baseline commit**：已有数据的数据库首次启用 commit 能力时生成的根节点。它**不携带 ChangeSet**——把
+   10,000 条既有实体倒灌成一个巨型 ChangeSet 既没有性能预算，也伪造了从未发生过的变更历史。它的语义由
+   FR-031 定义为「迁移时刻的物化数据快照引用」，因此它是 FR-009（禁止空 commit）的**唯一豁免**，且
+   「commit 必须可重放到完整状态」对它的成立方式是**直接读取该快照**，而不是重放变更。
 
 ## 范围边界
 
 ### In Scope
 
-- commit 图、`HEAD` 指针与分支引用的持久化存储布局
+- commit 图、`HEAD` 指针（含 unborn 状态）与分支引用的持久化存储布局
+- 启用 commit 能力时的适配器能力校验与拒绝路径（FR-032）
 - commit 的原子写入：变更集合、父 commit、作者、时间、摘要与新的分支 HEAD 在一次操作内可见
 - ChangeSet 的 patch / inverse patch 存储与实体身份、操作类型、基线版本、当前版本指纹
 - `log(options?)` / `show(commitId)` 查询：按分支、实体、时间排序，返回详情与父子关系
-- 已有数据库的一次性初始化：生成基线 commit、导入仍存在的 NEW 草稿、保留旧 change 记录，失败可重试且幂等
+- 「已提交 / 未提交」判定基准的选定与存储表达（FR-036）
+- 已有数据库的一次性初始化：生成 baseline commit、**登记**仍存在的 NEW 草稿、保留旧 change 记录，失败可重试且幂等
 - 损坏或不兼容 commit 记录的隔离与诊断
 - 与 `RxDBChange`、undo/redo、`restoreEntity` 的兼容边界
+- `bench-working-tree` 的 harness、target 注册与固定 fixture（FR-037），供 US-306 / US-307 复用
 
 ### Out of Scope
 
 - status / diff / stage / unstage / commit 的用户操作面 —— 属 [US-306](./US-306-working-tree-index.md)
+- NEW 草稿**物化进工作树** —— 属 [US-306](./US-306-working-tree-index.md)；本故事只负责登记
+- status / diff / stage / restore 的 bench **场景与阈值** —— 属 US-306 / US-307；本故事只建 harness
 - 历史恢复会话 —— 属 [US-307](./US-307-restore-session.md)
 - 分支切换行为与跨标签页冲突检测 —— 属 [US-308](./US-308-branch-isolation-conflict.md)
 - 远程 push/pull、rebase、cherry-pick、任意历史改写
@@ -97,25 +120,58 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 
 **验收场景**：
 
-1. **Given** 数据库已有数据但无 commit 图，**When** 首次启用，**Then** 生成一个只作为基线的初始 commit，不伪造旧 commit 的作者和消息；既有 `RxDBChange` 仍可供历史/undo 使用。
-2. **Given** 首次初始化已完成，**When** 再次启动应用，**Then** 迁移幂等，不重复建立基线。
-3. **Given** 迁移中途失败，**When** 重试，**Then** 从可验证的一致点继续，不产生重复基线或孤立 commit。
-4. **Given** commit 图或索引记录损坏，**When** 启动，**Then** 隔离损坏记录，保留可验证的 commit，提供错误详情；**不得**静默回退到空库或内存模式。
+1. **Given** 数据库已有数据但无 commit 图，**When** 首次启用，**Then** 生成一个 FR-031 定义的 baseline commit：无父节点、无 ChangeSet、作者为迁移来源、消息为固定迁移标记，不伪造旧 commit 的作者和消息；既有 `RxDBChange` 仍可供历史/undo 使用。
+2. **Given** 迁移已生成 baseline commit，**When** 用户查询 `status()` / `diff()`，**Then** 既有数据视为已提交（clean），而不是被当成 10,000 条未提交变更。
+3. **Given** 首次初始化已完成，**When** 再次启动应用，**Then** 迁移幂等，不重复建立基线，数据库中始终至多一个 baseline commit。
+4. **Given** 迁移中途失败，**When** 重试，**Then** 从可验证的一致点继续，不产生重复基线或孤立 commit。
+5. **Given** commit 图或索引记录损坏，**When** 启动，**Then** 隔离损坏记录，保留可验证的 commit，提供错误详情；**不得**静默回退到空库或内存模式。
+6. **Given** 当前适配器不在受支持矩阵内（如 supabase / miniprogram），**When** 启用 commit 能力，**Then** 操作以明确错误拒绝，说明原因与受支持的替代后端，既有数据与既有 API 行为不受影响，**不得**降级启用。
+7. **Given** 底层适配器在受支持矩阵内但被 `@aiao/rxdb-adapter-encrypted` 包装，**When** 启用 commit 能力，**Then** guard 解包到底层 `ADAPTER_NAME` 后放行；反之底层不受支持时，包装后仍然拒绝（FR-032）。
+8. **Given** 数据库中存在 Workspace NEW 草稿，**When** 首次启用 commit 能力，**Then** 这些草稿被登记为「待纳入工作树」，**不被** baseline commit 视为已提交数据，且该登记结果刷新后可查询——本条断言不依赖 US-306 的工作树结构（FR-021）。
+
+### User Story 3 - 尚无任何提交（Priority: P2）
+
+**作为** 刚建库或刚开新分支的开发者
+**我想要** 在还没有任何 commit 时也能得到确定的查询结果
+**以便** 空状态不会被当成数据损坏
+
+**独立测试**：新建数据库（或新建分支）后不做任何提交，直接查询 log / HEAD。
+
+**验收场景**：
+
+1. **Given** 数据库刚创建、从未 commit，**When** 查询 HEAD，**Then** 返回 unborn 状态而非错误，且该状态在刷新后保持一致。
+2. **Given** 分支处于 unborn 状态，**When** 调用 `log()`，**Then** 返回空列表，不抛错、不静默创建 baseline commit。
+3. **Given** 分支处于 unborn 状态，**When** 用户完成第一次 commit，**Then** 该 commit 无父节点，HEAD 由 unborn 转为指向它，转换在同一提交屏障内可见。
 
 ## 功能需求
 
-- **FR-001**：系统 MUST 为每个数据库和当前分支维护唯一有效的 `HEAD` 指针；`HEAD` 不得指向不存在或未完成写入的 commit。
+- **FR-001**：系统 MUST 为每个数据库和当前分支维护唯一有效的 `HEAD` 状态；`HEAD` 要么为 unborn（合法空值），要么指向一个已完成写入的 commit，MUST NOT 指向不存在或写了一半的 commit。
 - **FR-002**：系统 MUST 持久化 commit 元数据、分支引用与 HEAD；刷新、重启和正常关闭后可恢复。
 - **FR-003**：系统 MUST 把 NEW、UPDATE、DELETE 和完整事务表示为可比较的变更单元，并为每条保留实体身份、操作类型、基线版本和当前版本指纹。
 - **FR-008**：系统 MUST 要求 commit 包含非空、可读的消息，并在一次原子操作中写入变更集合、父 commit、作者、时间、摘要和新的分支 HEAD。
-- **FR-009**：系统 MUST 保证 commit 不为空；无变更单元时提交失败且不产生空节点。
+- **FR-009**：系统 MUST 保证用户发起的 commit 不为空；无变更单元时提交失败且不产生空节点。唯一豁免是 FR-031 的 baseline commit，它由迁移而非用户发起。
 - **FR-010**：系统 MUST 保证 commit 创建失败时恢复提交前状态，不出现可见半状态。
 - **FR-012**：系统 MUST 提供按当前分支、实体和时间排序的历史列表，以及单个 commit 的变更详情和父节点关系。
 - **FR-018**：系统 MUST 与现有 `RxDBChange`、历史 undo/redo 和 `restoreEntity` 保持兼容；已有 API 的行为不能因为 commit 功能而改变。
 - **FR-019**：系统 MUST 明确区分 durable commit 历史与会话级 redo 栈；刷新后 redo 可清空，但 commit 与 HEAD 不得清空。
-- **FR-021**：系统 MUST 为已有数据库提供一次性初始化和迁移策略：生成基线 commit、导入仍存在的 NEW 草稿、保留旧 change 记录，并支持失败重试。
+- **FR-021**（已收窄口径）：系统 MUST 为已有数据库提供一次性初始化和迁移策略：生成 baseline commit、**登记**仍存在的 NEW 草稿（标记为「待纳入工作树」且不被 baseline 视为已提交数据）、保留旧 change 记录，并支持失败重试。草稿**实际物化进工作树**的行为属 [US-306 User Story 1 场景 3](./US-306-working-tree-index.md)，不在本故事。
+  > 收窄原因：原文写「导入仍存在的 NEW 草稿」，而「导入到哪里」是工作树——本故事已把工作树显式 out-of-scope，目标结构在这里根本不存在，导致该子句在本故事内无法验收（原 User Story 2 的 AC 也确实一条都没断言它）。拆成「本故事登记 / US-306 物化」后，两边各自可独立验收。
 - **FR-022**：系统 MUST 对损坏或不兼容的 commit 记录进行隔离和诊断，不得将整个数据库静默降级为空工作树或内存模式。
 - **FR-027**：commit 历史 MUST 可审计，至少记录稳定 commit ID、父节点、分支、作者标识、消息、创建时间、变更数量和 schema/数据版本；不得记录无法恢复的数据引用。
+- **FR-030**（新增）：系统 MUST 把 unborn `HEAD`（分支存在但尚无 commit）建模为合法状态而非损坏状态，并定义该状态下的行为：`log()` 返回空列表而非报错，`show()` 对不存在的 commit 返回明确的 not-found 错误，工作树中的全部数据视为未提交变更。US-306 的 `status()` / `diff()` / `discardWorkingTree()` 在 unborn 下的具体语义由该故事承接，但**状态本身的存储表达**在本故事定义。
+- **FR-031**（新增）：迁移生成的 baseline commit MUST 是一个独立类别的根节点：无父节点、无 ChangeSet、作者标识为迁移来源而非伪造的用户、消息为固定的迁移标记。它的"可重放到完整状态"MUST 通过引用迁移时刻的物化数据实现，MUST NOT 把既有实体倒灌成变更单元。每个数据库 MUST 至多存在一个 baseline commit（配合 FR-021 的幂等）。
+- **FR-032**（新增）：系统 MUST 在启用 commit 能力时校验当前适配器是否支持跨表事务提交屏障；不在 [epic-006 受支持矩阵](../../epics/epic-006-working-tree-commits.md)内的适配器 MUST 显式报错拒绝启用，并说明原因与受支持的替代后端。MUST NOT 静默降级为内存态、非事务写入或"尽力而为"模式。该校验还 MUST 满足三条实现约束：
+  - **判定依据 MUST 是 epic-006 矩阵的显式名单**（对齐 `ADAPTER_NAME`），MUST NOT 依据「适配器是否实现 `transaction()`」——[rxdb-adapter.ts:139](../../../packages/rxdb/src/rxdb-adapter.ts#L139) 上它是 `abstract` 方法，**全部**适配器都实现了，包括矩阵里被拒绝的 supabase 与 miniprogram。照这个信号 gate 等于没 gate。
+  - **包装层 MUST 先解包**：`@aiao/rxdb-adapter-encrypted` 装饰任意底层适配器，guard MUST 取到底层的 `ADAPTER_NAME` 再判定。可参照 [SUPPORTED_SEARCH_ADAPTERS](../../../packages/rxdb-plugin-search/src/core/adapter-guard.ts) 的白名单形态，但**不得**直接照抄——那份先例是按 adapter 字符串名直接匹配的，没有解包语义，照抄会让 encrypted 一律撞墙。
+  - **未列出的适配器 MUST 走拒绝路径**，且错误信息 MUST 提示「该适配器尚未在 epic-006 矩阵中裁决」，而不是笼统的"不支持"。
+- **FR-036**（新增）：系统 MUST 把「某条工作树数据是否属于未提交变更」的判定基准**显式选定、持久化并写入 plan.md**，且该基准 MUST 满足不变式：**`discardWorkingTree()` 完成后 `status()` 为 clean**。当前 [IRxDBChange](../../../packages/rxdb/src/system/system.interface.ts) 上没有任何 commit 关联字段，因此该基准必须在本故事落地，而不能留给 US-306 边实现边决定。可选方案与各自的约束：
+  - **(a) 物化数据 ↔ HEAD 快照比对**（复用 FR-003 的版本指纹）：不改 `RxDBChange` schema。
+  - **(b) 变更日志 + commit 水位线**：MUST 在 `IRxDBChange` 上新增 commit 关联字段，MUST 作为显式 schema 迁移纳入 FR-021，且 MUST 满足 FR-018（既有字段、ID、transactionId、过滤规则行为零变化）。
+
+  MUST NOT 采用「变更日志中晚于最后一次 commit 的全部条目即未提交变更」这类**纯追加顺序推导**：[US-306 FR-033](./US-306-working-tree-index.md) 要求 `discardWorkingTree()` 以**追加反向变更**的方式回到 HEAD，在该推导下 discard 反而会让日志多出一批条目、`status()` 永远回不到 clean——两条需求直接互相否定。基准一经选定即对 US-306 / US-307 生效。
+
+- **FR-037**（新增）：本故事 MUST 交付 US-306 / US-307 共用的 bench 基础设施：`benchmarks/working-tree.bench.ts` 骨架、[benchmarks/project.json](../../../benchmarks/project.json) 中的 `bench-working-tree` target（`dependsOn: ["typecheck", "^build"]`，与既有两个 bench target 一致）、10,000 实体 / 100 commit 的固定 fixture，以及同 run 内 A/B 对照的采样与报告骨架（p50 判定 / p95 仅观察，报告写入 `benchmarks/reports/`）。本故事自身的 A/B 场景为「打开已有 commit 图并查询 `log()` / `show()`」。status / diff / stage 场景与阈值由 [US-306 FR-026](./US-306-working-tree-index.md) 补齐，restore 场景由 [US-307 FR-029](./US-307-restore-session.md) 补齐；两者 MUST NOT 重复注册 target。
+  > 归属理由：bench harness 是 US-306 与 US-307 的共用基建，放进任一消费方都会让那个故事同时背上「建基建」和「用基建」；而本故事本来就要跑崩溃恢复 fixture，A/B 骨架与它同一条交付线。见 [epic-006 性能预算](../../epics/epic-006-working-tree-commits.md)。
 
 ## 关键实体
 
@@ -133,7 +189,8 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 1. 业务实体表保存当前物化数据，仍沿用现有 CRUD、事务和响应式查询。
 2. 变更日志保存原子变更的 patch/inverse patch；commit 只引用经过校验的变更单元或不可变快照，不能依赖易失的 UI 状态。
 3. commit 元数据（分支、HEAD、版本水位）必须与业务数据在同一提交屏障内可恢复。
-4. commit 图保存父子关系和审计字段；任何 commit 一旦可见就必须可重放到其父节点之后的完整状态。
+4. commit 图保存父子关系和审计字段；任何**普通** commit 一旦可见就必须可重放到其父节点之后的完整状态。baseline commit 是唯一例外：它没有 ChangeSet，其"完整状态"由迁移时刻的物化数据直接给出（FR-031）。
+5. 上述 1–4 全部依赖适配器提供跨表事务；不支持的适配器按 FR-032 拒绝启用，不在本层做补偿写入或两阶段模拟。
 
 ### 提交规则
 
@@ -142,9 +199,9 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 
 ### 兼容与迁移
 
-- 保留 `RxDBChange` 的现有 ID、transactionId、patch/inversePatch、branchId 和 undo/redo 字段；commit 层不改变旧 API 的过滤规则。
-- 首次启用时建立基线 commit 并记录迁移版本；重复启动幂等。
-- 旧 Workspace NEW 草稿直接进入工作树，保存后按普通变更处理；无法识别的旧缓存记录隔离并报告，不静默删除。
+- 保留 `RxDBChange` 的现有 ID、transactionId、patch/inversePatch、branchId 和 undo/redo 字段；commit 层不改变旧 API 的过滤规则。若 FR-036 选定方案 (b) 需要新增 commit 关联字段，该字段只能**追加**，且必须证明既有查询与过滤行为零变化。
+- 首次启用时建立 baseline commit 并记录迁移版本；重复启动幂等。
+- 旧 Workspace NEW 草稿在本故事只被**登记**为「待纳入工作树」并排除在 baseline 之外；把它们物化成工作树里的普通变更属 [US-306](./US-306-working-tree-index.md)。无法识别的旧缓存记录隔离并报告，不静默删除。
 
 ## 非功能要求
 
@@ -156,8 +213,13 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 ## 测试要求
 
 - 核心包按 TDD 先写崩溃/刷新恢复的失败用例，再实现；覆盖率不低于 90%。
-- 本地适配器集成测试覆盖事务原子性与 schema 迁移。
+- 本地适配器集成测试覆盖事务原子性与 schema 迁移，范围为 [epic-006 受支持矩阵](../../epics/epic-006-working-tree-commits.md)内的适配器。
 - 迁移幂等性与损坏记录隔离必须有独立 fixture。
+- unborn HEAD 必须有独立 fixture：空库 `log()` / HEAD 查询、首次 commit 的父节点为空、刷新后状态不变。
+- baseline commit 必须有独立 fixture：断言其无 ChangeSet、迁移后 `status()` 为 clean、重复启动不产生第二个 baseline。
+- FR-032 必须有拒绝路径用例：在不支持的适配器上启用 commit 能力时抛出可识别错误，且既有 API 行为零变化；并**必须包含一条 encrypted 包装用例**，断言 guard 按解包后的底层 `ADAPTER_NAME` 判定（底层受支持则放行、不受支持则仍拒绝）。
+- FR-036 的判定基准必须有独立 fixture：同一组工作树数据的判定结果在刷新前后一致；若选定方案 (b)，迁移用例必须断言既有 `RxDBChange` 的查询与过滤行为零变化。该基准的不变式（discard 后 `status()` 为 clean）由 [US-306](./US-306-working-tree-index.md) 的用例把关，本故事只需保证基准本身可持久化、可重建。
+- FR-021 的草稿登记必须有独立断言：草稿被标记为「待纳入工作树」、不计入 baseline commit、刷新后仍可查询——且该断言不得依赖 US-306 的工作树结构。
 - 测试文件使用 `*.spec.ts`，不依赖非确定性的固定延时。
 
 ## 实现文件（计划阶段待确认）
@@ -165,6 +227,8 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 - `packages/rxdb/src/version/` — commit 图、HEAD 与分支引用
 - `packages/rxdb/src/system/` — commit 元数据表与迁移
 - `packages/rxdb/src/__tests__/version/` — 核心回归套件
+- `benchmarks/working-tree.bench.ts` — A/B harness 与固定 fixture（FR-037，新增）
+- `benchmarks/project.json` — 注册 `bench-working-tree` target（`dependsOn: ["typecheck", "^build"]`，与既有两个 bench target 一致）
 - `requirements/api-baseline/rxdb.json`
 
 ## 依赖与参考

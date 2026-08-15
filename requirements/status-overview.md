@@ -4,7 +4,7 @@
 >
 > **完成记录**与 spec 关闭快照已移至 [CHANGELOG.md](CHANGELOG.md)。
 
-**最后同步**: 2026-08-14
+**最后同步**: 2026-08-15
 
 ## 状态汇总
 
@@ -120,10 +120,28 @@
 横跨 `packages/rxdb/src/version/`、`src/system/`、workspace 插件、三个框架包与三个 demo，INVEST「Small」不成立。
 拆分后每个故事都能独立证明「写入 → 刷新 → 读回」。**必须按顺序交付**，后一个依赖前一个的存储布局。
 
-- ⬜ [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 基础层
-- ⬜ [US-306 工作树、缓存区与提交操作](stories/collaboration/US-306-working-tree-index.md)
+**整个 Epic 的前置是 US-304**（跨 realm 校验复用其 writer lease / epoch，不另起协调协议），不只是 US-308；US-304 属 epic-005，当前 🚧。
+2026-08-15 复审后已收敛：性能门禁改为同 run 内 A/B 对照（仓库里不存在"历史基线"机制）、FR-024/025 对纯存储层的 US-305 不适用、
+新增 unborn HEAD 与 baseline commit 的显式建模（FR-030/031）、适配器支持矩阵（FR-032）、discard 与变更日志的关系（FR-033）、
+工作树与缓存区的共享作用域（FR-034）、恢复会话唯一性（FR-035）。
+
+2026-08-15 二轮复审（对照源码逐条核实）又修了四处：
+
+1. **适配器矩阵的排除理由不成立**——`transaction()` 是 `abstract` 方法，所有适配器都实现了，miniprogram 更是与 sqlite-wasm 共用 sqlite-core 的同一份事务代码。理由已改为「事务语义与 CI 可验证性」，并补齐了原先漏判的 `sqlite`(@sqlite.org) / `sqliteai`，以及 encrypted 的解包要求。
+2. **`SwitchBranchOptions` 是第二处同名不同层冲突**——它是适配器层契约，不是 `VersionManager.switchBranch()` 的参数类型。US-308 的 `requireClean` 已定死落在新类型上，适配器层零改动。
+3. **「已提交 / 未提交」判定基准无人认领**，且与 FR-033（discard 追加反向变更）存在互相否定的风险。新增 US-305 FR-036 选定基准并钉住不变式，US-306 补一条合并断言的用例。
+4. **bench 基建前置到 US-305**（新增 FR-037）——它是 US-306/US-307 的共用基建；同时收窄 US-305 FR-021（草稿只登记、物化归 US-306）。
+
+> **排期风险**：epic-006 的 `startDate` / `targetDate` 仍是 `TBD`，四个故事全部 Backlog，整条链被 US-304 卡着；
+> 而 US-304 自身 🚧、INVEST `Independent` 未勾选、依赖 US-303。本 Epic 的最早开工时间不由它自己决定，
+> 排期落地前不要把这四个故事当成可独立排入迭代的条目。
+
+- ⬜ [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 基础层，纯存储层（不含框架绑定）；另交付 US-306/307 共用的 bench harness
+- ⬜ [US-306 工作树、缓存区与提交操作](stories/collaboration/US-306-working-tree-index.md) — 四个里最大的一个，`Small` 存疑但有意保留（理由见故事内 INVEST 注释）
 - ⬜ [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md)
-- ⬜ [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — 依赖 US-304 收敛
+- ⬜ [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md)
+
+> US-307 / US-308 的 `priority: Medium` 表示 **Epic 内的交付顺序，不表示"可选"**：epic-006 的发布门禁要求四个故事全部 Done。
 
 ## 跨框架 API 对称矩阵
 
