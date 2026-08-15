@@ -54,18 +54,18 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 前置条件                                     | 操作                                 | 预期结果                                                                                                                       | 状态 |
-| --- | -------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 1   | 桥接版本打开旧格式数据库                     | 初始化 writer lease 与 upgrade guard | 不改变旧 change 格式；旧 writer 可读；协议版本可查询                                                                           | ✅   |
-| 2   | 两个 Tab、Worker 或进程连接同一数据库        | 注册并持续写入 lease                 | 每个 writer 有唯一身份；心跳使用数据库时间；重复注册不覆盖其他 writer                                                          | ✅   |
-| 3   | 存在仍有效的空闲旧 writer lease              | 新版本请求迁移                       | 进入 `draining` 后无法确认 writer 已退出则 fail-fast；业务 trigger 不启动                                                      | ✅   |
-| 4   | writer 写事务与 upgrader 同时竞争            | 执行写入和升级                       | guard/epoch 校验与实际写入在同一事务内，不存在检查后竞态窗口；四个 SQLite 后端通过同一套 `rowsAffected` conformance 套件       | ✅   |
-| 5   | writer 被杀死或 lease 超时                   | 等待保守的 lease TTL 后重试升级      | 旧 writer 被视为失效，升级可重新获取 fencing 并继续                                                                            | ✅   |
-| 6   | 已迁移后暂停的旧桥接 writer 恢复             | 尝试写入                             | epoch/fencing 校验失败，连接转为只读或要求重连，不产生旧格式 change                                                            | ⚠️   |
-| 7   | lease drain 成功                             | 执行系统 DDL/DML 与 watermark 提交   | guard、schema、watermark、epoch 和业务 trigger 在同一原子提交中完成                                                            | ✅   |
-| 8   | 迁移任意步骤失败或 upgrader 崩溃             | 重新连接并重试                       | 无半迁移状态；过期升级者不能清除其他 owner 的 guard；重试成功且不重复改写历史                                                  | ✅   |
-| 9   | lease/guard 表不存在、协议版本过低或状态未知 | 尝试升级                             | 明确报错并中止，不猜测安全、不启用业务 trigger                                                                                 | ✅   |
-| 10  | 真实 SQLite 多进程和 PGlite Worker/Tab 场景  | 运行共享迁移套件                     | 空闲 writer、竞态、崩溃恢复和 stale writer fencing 均通过                                                                      | ✅   |
+| #   | 前置条件                                     | 操作                                 | 预期结果                                                                                                                       | 状态     |
+| --- | -------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | -------- |
+| 1   | 桥接版本打开旧格式数据库                     | 初始化 writer lease 与 upgrade guard | 不改变旧 change 格式；旧 writer 可读；协议版本可查询                                                                           | ✅       |
+| 2   | 两个 Tab、Worker 或进程连接同一数据库        | 注册并持续写入 lease                 | 每个 writer 有唯一身份；心跳使用数据库时间；重复注册不覆盖其他 writer                                                          | ✅       |
+| 3   | 存在仍有效的空闲旧 writer lease              | 新版本请求迁移                       | 进入 `draining` 后无法确认 writer 已退出则 fail-fast；业务 trigger 不启动                                                      | ✅       |
+| 4   | writer 写事务与 upgrader 同时竞争            | 执行写入和升级                       | guard/epoch 校验与实际写入在同一事务内，不存在检查后竞态窗口；四个 SQLite 后端通过同一套 `rowsAffected` conformance 套件       | ✅       |
+| 5   | writer 被杀死或 lease 超时                   | 等待保守的 lease TTL 后重试升级      | 旧 writer 被视为失效，升级可重新获取 fencing 并继续                                                                            | ✅       |
+| 6   | 已迁移后暂停的旧桥接 writer 恢复             | 尝试写入                             | epoch/fencing 校验失败，连接转为只读或要求重连，不产生旧格式 change                                                            | ⚠️       |
+| 7   | lease drain 成功                             | 执行系统 DDL/DML 与 watermark 提交   | guard、schema、watermark、epoch 和业务 trigger 在同一原子提交中完成                                                            | ✅       |
+| 8   | 迁移任意步骤失败或 upgrader 崩溃             | 重新连接并重试                       | 无半迁移状态；过期升级者不能清除其他 owner 的 guard；重试成功且不重复改写历史                                                  | ✅       |
+| 9   | lease/guard 表不存在、协议版本过低或状态未知 | 尝试升级                             | 明确报错并中止，不猜测安全、不启用业务 trigger                                                                                 | ✅       |
+| 10  | 真实 SQLite 多进程和 PGlite Worker/Tab 场景  | 运行共享迁移套件                     | 空闲 writer、竞态、崩溃恢复和 stale writer fencing 均通过                                                                      | ✅       |
 | 11  | 仍有桥接版本之前的离线旧 bundle              | 发布迁移版本                         | 发布门禁阻止升级，或通过强制更新/缓存失效/新数据库命名空间隔离；本仓库须存在位于 HEAD 祖先链上的桥接 tag；不得声称 AC13 已完成 | ↪ US-305 |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过 / ↪ 已转移

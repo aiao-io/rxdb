@@ -21,8 +21,8 @@
 >
 > **口径**：合计等于 `requirements/stories/*/US-*.md` 的文件数，**包含 2 个 📄 父故事**
 > （[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-306](stories/collaboration/US-306-working-tree-index.md)，
-> 均为 `Backlog`）。父故事不直接交付，其状态在全部子故事 Done 后才随之关闭；因此 Backlog 14 中有 2 条是共享契约文档，
-> 实际待开发切片为 12 条。epic 文件不计入本表。
+> 均为 `Backlog`）。父故事不直接交付，其状态在全部子故事 Done 后才随之关闭；因此 Backlog 17 中有 2 条是共享契约文档，
+> 实际待开发切片为 15 条。epic 文件不计入本表。
 > 2026-08-13 的评审把 US-012 拆成 US-012a/b/c、US-207 拆出 US-208、US-305 升级为 epic-006 并拆成 US-305～US-308，Backlog 因此从 4 增至 11；这是拆分而不是新增范围。
 > 同日补写了 [US-209](stories/adapter/US-209-miniprogram-adapter.md)（微信小程序适配器），适配器实现早已合并，故直接记为 `In Review` 而非 `Backlog`；2026-08-15 收尾项全部关闭，转 `Done`（Done 32 → 33，In Review 1 → 0，合计不变）。
 > 同日 US-207 二次拆分：Tauri 半边迁至 [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)（Backlog），US-207 收敛到 Electron 并转 `In Progress`。Backlog 一进一出仍为 11，合计 45 → 46。
@@ -30,21 +30,22 @@
 > 同日 [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md) 开工转 `In Progress`（Backlog 12 → 11，In Progress 2 → 3，合计不变）。
 > 同日二次评审确认 US-306 仍同时持有写入口捕获、Index 状态机、三框架与 benchmark，INVEST「Small」仍不成立；
 > 保留 US-306 为父契约并拆出 US-306a/b/c。三个子故事是既有范围的交付切片，Backlog 11 → 14，合计 47 → 50。
-> 同日新增 [US-013](stories/core/US-013-effect-scope-primitive.md) / [US-014](stories/core/US-014-plugin-scope-contract.md) / [US-015](stories/core/US-015-plugin-inject-dependency.md) 并为它们新建 [epic-008](epics/epic-008-lifecycle-scope.md)。
-> 这三条是把**已存在的实现债**登记成故事：同一件「登记副作用 → 拆卸时撤销」的事在仓库里被手工写了九遍，
+> 同日新建 [epic-008](epics/epic-008-lifecycle-scope.md)（生命周期作用域）并登记
+> [US-013](stories/core/US-013-effect-scope-primitive.md) / [US-014](stories/core/US-014-plugin-scope-contract.md) / [US-015](stories/core/US-015-plugin-inject-dependency.md)（均 Backlog）：
+> 把仓库内已存在的九处「登记副作用 → 拆卸时撤销」的手工账本收敛成一个作用域原语，是把既有实现缺口登记成故事，不是新增产品范围。
 > 其中 [graph 插件](../packages/rxdb-plugin-graph/src/plugin.ts#L33-L35) 的 `destroy()` 是空的且**契约里没有位置可写**
-> （`#repository_config_map` 只有 `.set` / `.get`，无反注册 API），属既有泄漏而非新增范围。Backlog 14 → 17，合计 50 → 53。
+> （`#repository_config_map` 只有 `.set` / `.get`，无反注册 API），属既有泄漏。Backlog 14 → 17，合计 50 → 53。
 
 ## 项目统计
 
-| 维度         | 数值                                                                                                                                           |
-| :----------- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
-| 总包目录     | 29 个公开 npm 包                                                                                                                               |
-| 支持框架     | Angular 22 / React 19 / Vue 3.5                                                                                                                |
-| 支持平台     | Web / Electron / Tauri / PWA / 小程序                                                                                                          |
-| 存储适配器   | wa-sqlite / sqlite-wasm / sqlite (@sqlite.org) / sqliteai / wa-sqlite-miniprogram / desktop / PGlite / Supabase + 共享 core + encrypted 包装层 |
-| 演示应用     | 6 个 (Angular / Electron / React / Supabase / Tauri / Vue) + DevTools 扩展                                                                     |
-| E2E 测试套件 | 5 个 (Angular / Electron / React / Supabase / Vue)                                                                                             |
+| 维度         | 数值                                                                                                                                                                                                |
+| :----------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 总包目录     | 29 个公开 npm 包                                                                                                                                                                                    |
+| 支持框架     | Angular 22 / React 19 / Vue 3.5                                                                                                                                                                     |
+| 支持平台     | Web / Electron / Tauri / PWA / 小程序                                                                                                                                                               |
+| 存储适配器   | 8 个具名适配器：wa-sqlite / sqlite-wasm / sqlite (@sqlite.org) / sqliteai / wa-sqlite-miniprogram / desktop / PGlite / Supabase；另有 sqlite-core 共享基类与 encrypted 加密工具包（两者均非适配器） |
+| 演示应用     | 6 个 (Angular / Electron / React / Supabase / Tauri / Vue) + DevTools 扩展                                                                                                                          |
+| E2E 测试套件 | 5 个 (Angular / Electron / React / Supabase / Vue)                                                                                                                                                  |
 
 > 基础设施包（`@aiao/utils` 通用工具、`@aiao/rxdb-test` 跨框架测试 fixture）不单独立 story；前者属于公用底座，后者由 [US-702](stories/future/US-702-full-text-search.md) 等业务 story 引用其 fixture（`cross-framework-fixtures/`）。
 
@@ -168,13 +169,15 @@ US-307 / US-308 的**核心持久层半边**可与 US-306c 并行开工，但两
 
 ### [生命周期作用域](epics/epic-008-lifecycle-scope.md)
 
-2026-08-15 新建。横切的实现约束，不是产品能力也不是门禁：把「资源的获取与释放被拆成两处、
-靠人工保持对称」收敛成一个原语。交付顺序固定为 **US-013 → US-014 → US-015**，不可交换。
+2026-08-15 新建，把仓库内九处「安装时登记 → 拆卸时逐一撤销」的手工账本收敛成一个作用域原语。
+它既不是用户可见能力（不挂 epic-001），也不是门禁覆盖面问题（不挂 epic-007），而是一层横切实现约束。
 
 - ⬜ [US-013 EffectScope 生命周期作用域原语](stories/core/US-013-effect-scope-primitive.md) — `@aiao/utils` 侧的原语，语义由测试冻结
 - ⬜ [US-014 插件作用域契约](stories/core/US-014-plugin-scope-contract.md) — `install(scope)`，四个插件包迁移；直接修掉 graph 插件的既有泄漏
 - ⬜ [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) — `inject` 封闭枚举，依赖未就绪不安装、消失即释放
 
+> 交付顺序固定为 **US-013 → US-014 → US-015**，不可交换。
+>
 > 本 Epic 会制造一次 `IRxDBPlugin` 成员签名变更，而 [api-surface.mjs](../scripts/audit/api-surface.mjs)
 > 只记录 `{name, kind}`（见 [rxdb.json](api-baseline/rxdb.json)），**成员怎么改都不产生 diff**。
 > 该盲区由 US-014 用类型契约测试就地补上，不扩大 [epic-007](epics/epic-007-public-api-gates.md) 的范围。
@@ -204,15 +207,19 @@ US-307 / US-308 的**核心持久层半边**可与 US-306c 并行开工，但两
 
 ## 适配器能力对比
 
-| 适配器                 | 包名                             | `ADAPTER_NAME`          | 类型   | 核心能力                                                                                                                     | 需求覆盖                                                                                                                     |
-| :--------------------- | :------------------------------- | :---------------------- | :----- | :--------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------- |
-| wa-sqlite              | `@aiao/rxdb-adapter-wa-sqlite`   | `wa-sqlite`             | Local  | rhashimoto/wa-sqlite，Worker/OPFS VFS、AsyncQueueExecutor                                                                    | [US-201](stories/adapter/US-201-sqlite-adapter.md)                                                                           |
-| sqlite-wasm (subframe) | `@aiao/rxdb-adapter-sqlite-wasm` | `sqlite-wasm`           | Local  | `@subframe7536/sqlite-wasm`，oo1 API                                                                                         | [US-204](stories/adapter/US-204-sqlite-wasm-adapter.md)                                                                      |
-| sqlite (@sqlite.org)   | `@aiao/rxdb-adapter-sqlite`      | `sqlite`                | Local  | `@sqlite.org/sqlite-wasm` 官方包，与 subframe 版本接口一致                                                                   | [US-204](stories/adapter/US-204-sqlite-wasm-adapter.md)                                                                      |
-| sqlite-core（共享层）  | `@aiao/rxdb-adapter-sqlite-core` | —                       | 共享层 | `RxDBAdapterSqliteBase` / execute / trigger，五个 SQLite adapter 复用                                                        | [US-201](stories/adapter/US-201-sqlite-adapter.md)                                                                           |
-| sqliteai               | `@aiao/rxdb-adapter-sqliteai`    | `sqliteai`              | Local  | 向量列 + AI SQL 函数，支撑本地 RAG                                                                                           | [US-205](stories/adapter/US-205-sqliteai-adapter.md)                                                                         |
-| miniprogram            | `@aiao/rxdb-adapter-miniprogram` | `wa-sqlite-miniprogram` | Local  | **实验性**，仅微信逻辑层：`WXWebAssembly` + 同步文件 VFS，强制单连接                                                         | [US-209](stories/adapter/US-209-miniprogram-adapter.md)                                                                      |
-| PGlite                 | `@aiao/rxdb-adapter-pglite`      | `pglite`                | Local  | LISTEN/NOTIFY 触发器，延迟约束                                                                                               | [US-202](stories/adapter/US-202-pglite-adapter.md)                                                                           |
-| desktop                | `@aiao/rxdb-adapter-desktop`     | `desktop`               | Local  | 桌面宿主 SQLite：Electron 走 `node:sqlite` host；Tauri 侧本包只提供 transport，真正的 host 是 `src-tauri` 的 Rust `rusqlite` | [US-207](stories/adapter/US-207-desktop-local-database.md) · [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md) |
-| encrypted（包装层）    | `@aiao/rxdb-adapter-encrypted`   | —                       | 包装层 | 透明字段加密，包装任意底层 adapter                                                                                           | [US-803](stories/future/US-803-local-encryption.md)                                                                          |
-| Supabase               | `@aiao/rxdb-adapter-supabase`    | `supabase`              | Remote | RPC 推送、PostgREST、Realtime                                                                                                | [US-203](stories/adapter/US-203-supabase-adapter.md)                                                                         |
+| 适配器                  | 包名                             | `ADAPTER_NAME`          | 类型   | 核心能力                                                                                                                     | 需求覆盖                                                                                                                     |
+| :---------------------- | :------------------------------- | :---------------------- | :----- | :--------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------- |
+| wa-sqlite               | `@aiao/rxdb-adapter-wa-sqlite`   | `wa-sqlite`             | Local  | rhashimoto/wa-sqlite，Worker/OPFS VFS、AsyncQueueExecutor                                                                    | [US-201](stories/adapter/US-201-sqlite-adapter.md)                                                                           |
+| sqlite-wasm (subframe)  | `@aiao/rxdb-adapter-sqlite-wasm` | `sqlite-wasm`           | Local  | `@subframe7536/sqlite-wasm`，oo1 API                                                                                         | [US-204](stories/adapter/US-204-sqlite-wasm-adapter.md)                                                                      |
+| sqlite (@sqlite.org)    | `@aiao/rxdb-adapter-sqlite`      | `sqlite`                | Local  | `@sqlite.org/sqlite-wasm` 官方包，与 subframe 版本接口一致                                                                   | [US-204](stories/adapter/US-204-sqlite-wasm-adapter.md)                                                                      |
+| sqlite-core（共享层）   | `@aiao/rxdb-adapter-sqlite-core` | —                       | 共享层 | `RxDBAdapterSqliteBase` / execute / trigger，五个 SQLite adapter 复用                                                        | [US-201](stories/adapter/US-201-sqlite-adapter.md)                                                                           |
+| sqliteai                | `@aiao/rxdb-adapter-sqliteai`    | `sqliteai`              | Local  | 向量列 + AI SQL 函数，支撑本地 RAG                                                                                           | [US-205](stories/adapter/US-205-sqliteai-adapter.md)                                                                         |
+| miniprogram             | `@aiao/rxdb-adapter-miniprogram` | `wa-sqlite-miniprogram` | Local  | **实验性**，仅微信逻辑层：`WXWebAssembly` + 同步文件 VFS，强制单连接                                                         | [US-209](stories/adapter/US-209-miniprogram-adapter.md)                                                                      |
+| PGlite                  | `@aiao/rxdb-adapter-pglite`      | `pglite`                | Local  | LISTEN/NOTIFY 触发器，延迟约束                                                                                               | [US-202](stories/adapter/US-202-pglite-adapter.md)                                                                           |
+| desktop                 | `@aiao/rxdb-adapter-desktop`     | `desktop`               | Local  | 桌面宿主 SQLite：Electron 走 `node:sqlite` host；Tauri 侧本包只提供 transport，真正的 host 是 `src-tauri` 的 Rust `rusqlite` | [US-207](stories/adapter/US-207-desktop-local-database.md) · [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md) |
+| encrypted（加密工具包） | `@aiao/rxdb-adapter-encrypted`   | —                       | 工具包 | 密钥环 + 信封编解码；**不是适配器、也不包装适配器**，由 sqlite-core / pglite 内部消费                                        | [US-803](stories/future/US-803-local-encryption.md)                                                                          |
+| Supabase                | `@aiao/rxdb-adapter-supabase`    | `supabase`              | Remote | RPC 推送、PostgREST、Realtime                                                                                                | [US-203](stories/adapter/US-203-supabase-adapter.md)                                                                         |
+
+> `encrypted` 包的 [index.ts](../packages/rxdb-adapter-encrypted/src/index.ts) 只导出 `Keyring` / `createKeyring` / 信封编解码 / 校验与错误类型，**没有任何 `IRxDBAdapter` 实现**；
+> [RxDBAdapterSqliteBase.ts:43](../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts#L43) 与 [RxDBAdapterPGlite.ts:47](../packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts#L47) 直接 import 它，加密是**内建**能力而非外层包装。
+> 因此按适配器 `name` 判定能力时不存在「先解包」这一步（见 [epic-006 启用与存储边界](epics/epic-006-working-tree-commits.md)）。
