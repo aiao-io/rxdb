@@ -27,8 +27,8 @@ import {
   SyncType,
   getEntityMetadata
 } from '@aiao/rxdb';
-import { get_table_name_by_metadata, quote_sql_identifier } from '@aiao/rxdb-adapter-sqlite-core';
 import { DESKTOP_ADAPTER_NAME, RxDBAdapterDesktop, type DesktopHostTransport } from '@aiao/rxdb-adapter-desktop';
+import { get_table_name_by_metadata, quote_sql_identifier } from '@aiao/rxdb-adapter-sqlite-core';
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

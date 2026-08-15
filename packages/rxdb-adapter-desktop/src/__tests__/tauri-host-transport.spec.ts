@@ -43,7 +43,12 @@ describe('createTauriHostTransport', () => {
   it('encodes the request and decodes the response across the JSON boundary', async () => {
     const invoke = vi.fn().mockResolvedValue({
       kind: 'execute',
-      result: { sql: 'SELECT 1', rowsAffected: 0, elapsed: 0.5, results: [{ columns: ['id'], rows: [[{ $bigint: '9007199254740993' }]] }] }
+      result: {
+        sql: 'SELECT 1',
+        rowsAffected: 0,
+        elapsed: 0.5,
+        results: [{ columns: ['id'], rows: [[{ $bigint: '9007199254740993' }]] }]
+      }
     });
     const transport = createTauriHostTransport({ invoke, listen: createListen().listen });
 
@@ -73,7 +78,9 @@ describe('createTauriHostTransport', () => {
     const invoke = vi.fn().mockResolvedValue({ kind: 'error', code: 'database_busy', message: 'locked' });
     const transport = createTauriHostTransport({ invoke, listen: createListen().listen });
 
-    await expect(transport.request({ kind: 'version', sessionId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301' })).resolves.toEqual({
+    await expect(
+      transport.request({ kind: 'version', sessionId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301' })
+    ).resolves.toEqual({
       kind: 'error',
       code: 'database_busy',
       message: 'locked'
@@ -90,7 +97,11 @@ describe('createTauriHostTransport', () => {
     transport.subscribe(second);
     await vi.waitFor(() => expect(listenCount()).toBe(1));
 
-    emit({ kind: 'change', sessionId: 's', event: { rowIds: [{ $bigint: '7' }], recordAt: { $date: 1_700_000_000_000 } } });
+    emit({
+      kind: 'change',
+      sessionId: 's',
+      event: { rowIds: [{ $bigint: '7' }], recordAt: { $date: 1_700_000_000_000 } }
+    });
 
     const expected = { kind: 'change', sessionId: 's', event: { rowIds: [7n], recordAt: new Date(1_700_000_000_000) } };
     expect(first).toHaveBeenCalledWith(expected);

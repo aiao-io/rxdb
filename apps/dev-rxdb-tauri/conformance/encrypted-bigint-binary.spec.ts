@@ -6,7 +6,12 @@
 
 import { runBigIntBinaryEncryptedSuite } from '@aiao/rxdb-test/encrypted';
 import { afterAll, expect } from 'vitest';
-import { rustEncryptedAdapterFactory, rustHostDeliveryErrors, rustHostStderr, stopRustTestHost } from './rust-adapter-factory.js';
+import {
+  rustEncryptedAdapterFactory,
+  rustHostDeliveryErrors,
+  rustHostStderr,
+  stopRustTestHost
+} from './rust-adapter-factory.js';
 
 afterAll(() => {
   try {

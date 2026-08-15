@@ -33,7 +33,12 @@ import {
   versionBranchSuite
 } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { afterAll, expect } from 'vitest';
-import { rustAdapterFactory, rustHostDeliveryErrors, rustHostStderr, stopRustTestHost } from './rust-adapter-factory.js';
+import {
+  rustAdapterFactory,
+  rustHostDeliveryErrors,
+  rustHostStderr,
+  stopRustTestHost
+} from './rust-adapter-factory.js';
 
 afterAll(() => {
   try {

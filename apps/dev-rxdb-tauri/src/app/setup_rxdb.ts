@@ -30,6 +30,6 @@ export interface LocalBackend {
  * 而报错只会说「适配器不存在」，指不到真正的原因。
  */
 export const selectLocalBackend = (runtime: unknown): LocalBackend =>
-  isTauriRuntime(runtime)
-    ? { adapter: DESKTOP_ADAPTER_NAME, create: setup_rxdb_desktop }
-    : { adapter: WA_SQLITE_ADAPTER_NAME, create: setup_rxdb_wa_sqlite };
+  isTauriRuntime(runtime) ?
+    { adapter: DESKTOP_ADAPTER_NAME, create: setup_rxdb_desktop }
+  : { adapter: WA_SQLITE_ADAPTER_NAME, create: setup_rxdb_wa_sqlite };
