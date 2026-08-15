@@ -227,17 +227,24 @@ export default class StoragePage implements OnInit, OnDestroy {
     });
   }
 
-  /** 初始化存储根并列出根目录。 */
+  /**
+   * 初始化存储根并列出根目录。
+   *
+   * @remarks
+   * 「就绪」在**首次列表拉完之后**才置位。反过来（先置就绪再拉列表）会让页面有一段
+   * 自称就绪、列表却还是空的窗口期 —— 观察者据此判断「目录里什么都没有」是错的，
+   * 而这正是重启后读回内容的那条 e2e 唯一能依据的信号。
+   */
   private async initialize(): Promise<void> {
     try {
       await this.desktopDatabase.storage.init();
-      this.status.set('ready');
     } catch (error) {
       this.status.set('failed');
       this.errorMessage.set(describeError(error));
       return;
     }
     await this.refresh();
+    this.status.set('ready');
   }
 
   /** 覆盖式上传到当前目录。 */

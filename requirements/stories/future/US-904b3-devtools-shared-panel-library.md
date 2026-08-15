@@ -71,13 +71,13 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 前置条件                                    | 操作                                                 | 预期结果                                                                                                   | 状态 |
-| --- | ------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---- |
-| 1   | generator 创建私有 panel library            | 检查 project、manifest、graph 与 release dry-run     | 正式 workspace dependency 生效；private project 不在 public tag、API baseline、版本改写或 publish 列表中   | ⬜   |
-| 2   | Chrome surface 构建                         | 扫描共享 library import graph                        | UI/状态服务只依赖 transport token；不引用 chrome runtime、PortService 或任何桌面 global                    | ⬜   |
-| 3   | 抽取完成                                    | 只用内存 fake transport 在单测中启动面板并渲染各页   | 面板可在无任何 `chrome.*` 的环境下装配；token 是唯一接缝                                                   | ⬜   |
-| 4   | 抽取前的浏览器回归基线已记录                | 抽取后重跑 Database、Events、branch、Storage、OPFS、Settings 清理 | 用户可见行为、wire 消息与错误展示与基线一致；本故事不引入任何协议或行为差异                   | ⬜   |
-| 5   | 公开包统计与 API baseline 已有基线          | 运行 API surface 审计与包数量统计                    | 公开包数量与 baseline 条目不变；`packages/rxdb-devtools-panel/` 不产生任何公开子路径入口                   | ⬜   |
+| #   | 前置条件                           | 操作                                                              | 预期结果                                                                                                 | 状态 |
+| --- | ---------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | generator 创建私有 panel library   | 检查 project、manifest、graph 与 release dry-run                  | 正式 workspace dependency 生效；private project 不在 public tag、API baseline、版本改写或 publish 列表中 | ⬜   |
+| 2   | Chrome surface 构建                | 扫描共享 library import graph                                     | UI/状态服务只依赖 transport token；不引用 chrome runtime、PortService 或任何桌面 global                  | ⬜   |
+| 3   | 抽取完成                           | 只用内存 fake transport 在单测中启动面板并渲染各页                | 面板可在无任何 `chrome.*` 的环境下装配；token 是唯一接缝                                                 | ⬜   |
+| 4   | 抽取前的浏览器回归基线已记录       | 抽取后重跑 Database、Events、branch、Storage、OPFS、Settings 清理 | 用户可见行为、wire 消息与错误展示与基线一致；本故事不引入任何协议或行为差异                              | ⬜   |
+| 5   | 公开包统计与 API baseline 已有基线 | 运行 API surface 审计与包数量统计                                 | 公开包数量与 baseline 条目不变；`packages/rxdb-devtools-panel/` 不产生任何公开子路径入口                 | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 

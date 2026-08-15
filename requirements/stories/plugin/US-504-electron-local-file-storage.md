@@ -1,7 +1,7 @@
 ---
 id: US-504
 title: Electron 本地文件存储
-status: Backlog
+status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-15
@@ -103,17 +103,17 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 前置条件                                                          | 操作                                                                         | 预期结果                                                                                                                                                   | 状态 |
-| --- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | Electron 应用启用桌面文件后端                                     | `upload()` 一个文件，退出应用，重启后 `read()`                               | 字节与上传一致；物理文件位于应用数据目录内的存储根，Chromium profile 的 File System / IndexedDB 目录无新增内容                                             | ⬜   |
-| 2   | 桌面后端已接入                                                    | 以桌面后端为注入实现复跑 storage 插件现有全部行为用例                        | 与 OPFS 后端行为一致，无跳过项                                                                                                                             | ✅   |
-| 3   | 应用已写入若干文件与目录                                          | 退出应用，把应用数据目录整体拷贝到新 `--user-data-dir`，启动                 | `list()` 结构完整，逐文件 `read()` 字节一致 —— meta（SQLite）与文件本体在同一备份域                                                                        | ⬜   |
-| 4   | renderer 构造恶意路径（`../`、绝对路径、盘符、NUL、Windows 保留名） | 经协议发起文件操作                                                           | host 拒绝并返回稳定可判别错误码；存储根之外无任何写入                                                                                                      | ✅   |
-| 5   | 上传/读取超过预览上限量级的文件（≥ 50 MiB，即 `DEFAULT_PREVIEW_LIMIT_BYTES` 默认值，可经 `previewLimitBytes` 配置，`storage.service.ts`） | 全程观察内存与中断行为                                                       | 分帧流式完成，内容不整体进 JS 堆；传输中途 abort 或杀进程后重启，路径上要么旧内容要么新内容，无半写文件，无孤儿 meta                                       | ⬜   |
-| 6   | 磁盘满或存储根无写权限                                            | `upload()` / `fetch()`                                                       | 稳定错误码 + 原始原因；现有补偿语义成立（meta 与文件不脱钩），不回退 OPFS/内存                                                                             | ✅   |
-| 7   | 同一应用开两个窗口                                                | 并发 `upload()` 同一路径（其一 overwrite）                                   | 串行化执行，结果等价于某一种顺序执行；无文件删失、无孤儿 meta（STOR-002 的临界区跨窗口成立）                                                               | ✅   |
-| 8   | web 应用照常使用插件（不配桌面后端）                              | 构建 + 运行现有浏览器测试                                                    | 行为与包体不变；桌面后端代码不进浏览器 bundle；新增子路径入口按 `KNOWN_UNCOVERED_SUBPATHS` 流程登记（[US-601](../tooling/US-601-subpath-api-surface-baseline.md) 缺口敞开期间人工审查其导出面） | ⬜   |
-| 9   | 启用桌面文件后端，但 `sync.local` 配置的不是桌面 SQLite adapter（如 wa-sqlite / OPFS） | 初始化 storage 插件                                                          | 以稳定可判别错误码拒绝启用，不启动文件后端、不静默降级 —— 「文件在原生目录、meta 在 webview 存储」的备份域撕裂组合被禁止（无 fallback 铁律）；`ensureLocalReady` 现无 adapter 类型判别，该校验须在桌面后端接入点新增 | ⬜   |
+| #   | 前置条件                                                                                                                                  | 操作                                                         | 预期结果                                                                                                                                                                                                             | 状态 |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | Electron 应用启用桌面文件后端                                                                                                             | `upload()` 一个文件，退出应用，重启后 `read()`               | 字节与上传一致；物理文件位于应用数据目录内的存储根，Chromium profile 的 File System / IndexedDB 目录无新增内容                                                                                                       | ✅   |
+| 2   | 桌面后端已接入                                                                                                                            | 以桌面后端为注入实现复跑 storage 插件现有全部行为用例        | 与 OPFS 后端行为一致，无跳过项                                                                                                                                                                                       | ✅   |
+| 3   | 应用已写入若干文件与目录                                                                                                                  | 退出应用，把应用数据目录整体拷贝到新 `--user-data-dir`，启动 | `list()` 结构完整，逐文件 `read()` 字节一致 —— meta（SQLite）与文件本体在同一备份域                                                                                                                                  | ✅   |
+| 4   | renderer 构造恶意路径（`../`、绝对路径、盘符、NUL、Windows 保留名）                                                                       | 经协议发起文件操作                                           | host 拒绝并返回稳定可判别错误码；存储根之外无任何写入                                                                                                                                                                | ✅   |
+| 5   | 上传/读取超过预览上限量级的文件（≥ 50 MiB，即 `DEFAULT_PREVIEW_LIMIT_BYTES` 默认值，可经 `previewLimitBytes` 配置，`storage.service.ts`） | 全程观察内存与中断行为                                       | 分帧流式完成，内容不整体进 JS 堆；传输中途 abort 或杀进程后重启，路径上要么旧内容要么新内容，无半写文件，无孤儿 meta                                                                                                 | ✅   |
+| 6   | 磁盘满或存储根无写权限                                                                                                                    | `upload()` / `fetch()`                                       | 稳定错误码 + 原始原因；现有补偿语义成立（meta 与文件不脱钩），不回退 OPFS/内存                                                                                                                                       | ✅   |
+| 7   | 同一应用开两个窗口                                                                                                                        | 并发 `upload()` 同一路径（其一 overwrite）                   | 串行化执行，结果等价于某一种顺序执行；无文件删失、无孤儿 meta（STOR-002 的临界区跨窗口成立）                                                                                                                         | ✅   |
+| 8   | web 应用照常使用插件（不配桌面后端）                                                                                                      | 构建 + 运行现有浏览器测试                                    | 行为与包体不变；桌面后端代码不进浏览器 bundle；新增子路径入口按 `KNOWN_UNCOVERED_SUBPATHS` 流程登记（[US-601](../tooling/US-601-subpath-api-surface-baseline.md) 缺口敞开期间人工审查其导出面）                      | ✅   |
+| 9   | 启用桌面文件后端，但 `sync.local` 配置的不是桌面 SQLite adapter（如 wa-sqlite / OPFS）                                                    | 初始化 storage 插件                                          | 以稳定可判别错误码拒绝启用，不启动文件后端、不静默降级 —— 「文件在原生目录、meta 在 webview 存储」的备份域撕裂组合被禁止（无 fallback 铁律）；`ensureLocalReady` 现无 adapter 类型判别，该校验须在桌面后端接入点新增 | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -132,14 +132,42 @@ INVEST 检查清单:
 > 调用，无任何新建窗口入口。选 Web Locks 路线时，「先给 demo 加多窗口能力」是双窗口
 > e2e 的前置成本，要计入 plan。
 
+## 交付说明（2026-08-15）
+
+9 条 AC 全部通过。证据落点：
+
+| AC       | 证据                                                                                                                                                                        |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #1 #3 #5 | `apps/dev-rxdb-electron-e2e/src/storage-persistence.spec.ts` —— 打包产物真实重启 / 整目录拷贝 / SIGKILL 三段；与既有 9 条 smoke + SQLite 持久化用例合计 11/11 绿            |
+| #2       | `packages/rxdb-plugin-storage/src/__tests__/backend-parity.spec.ts` —— 15 组行为 × 2 后端 = 30 用例，测试体不知道自己跑在哪个后端上，无跳过项                               |
+| #4       | `packages/rxdb-adapter-desktop/src/__tests__/desktop-file-host.spec.ts` 的恶意路径矩阵 + 存储根外零写入断言                                                                 |
+| #6       | `packages/rxdb-plugin-storage/src/__tests__/desktop-failure.spec.ts` —— 故障注入在**传输层**，host 与磁盘都是真的，补偿路径发出的 `writeAbort` / `remove` 走真实实现        |
+| #7       | 同 `desktop-file-host.spec.ts` 的锁仲裁段：两个独立 session（等价于两个窗口）在同一路径上串行、共享锁并发、无关锁名不互相阻塞、session 关闭释放持有与排队中的锁             |
+| #8       | `public-api.spec.ts` 的 import 图断言（以每个 renderer 入口为图根，含 `desktop.ts`）+ `scripts/audit/api-surface.mjs` 的 `KNOWN_UNCOVERED_SUBPATHS` 登记 + 浏览器套件 20/20 |
+| #9       | `desktop-filesystem.spec.ts` 的 `adapter_mismatch` 两例                                                                                                                     |
+
+包级门禁：`rxdb-plugin-storage` node 侧 200/200 绿、语句覆盖率 92.3%（门槛 90%），browser 侧 20/20 绿，两包 lint 零警告。
+
+实现过程中发现并修掉的两处真问题（均非计划内条目）：
+
+1. **`read()` 的 MIME 随后端漂移**：AC#2 的参数化套件抓到 —— 同一张 PNG 在 OPFS 后端读回是
+   `image/png`（浏览器按扩展名推断），在桌面后端是 `application/octet-stream`（原生文件没有
+   MIME 概念）。修法是在 `storage.service.ts` 的 `read()` 里以 metadata 的 `mimeType` 为权威
+   重新贴 type；这同时让 `upload()` 那句「下次 `read()` 读回仍是原 mime」的 TSDoc 承诺第一次
+   真正成立。
+2. **demo 页「就绪」置位早于首次列表加载**：`storage.page.ts` 的 `initialize()` 先置 `ready`
+   再 `await refresh()`，页面因此有一段自称就绪、列表却还是空的窗口期。AC#1 / #3 / #5 的
+   重启读回断言唯一能依据的就是这个信号，于是稳定读到空列表。改为**列表拉完才置就绪**——
+   放宽测试等待会把这段窗口期永久留在 demo 里，观察者据此判断「目录里什么都没有」仍然是错的。
+
 ## 技术笔记
 
 ### 接缝二选一（plan 阶段冻结）
 
-| 方案        | 做法                                                                                       | 主要风险                                                                                            |
-| ----------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| handle shim | renderer 侧实现 `FileSystemDirectoryHandle` 兼容代理，底层走 IPC；service 零改动           | 要仿真 `File`（含 `stream()` / `slice()`）与 `createWritable` 的「副本写 + close 原子替换」语义，接口面大且随规范漂移 |
-| 窄接口      | 从 service 抽 `StorageFilesystem`（openRead / openWrite / move / remove / list / exists）  | 要重构 service 内部调用点；换来的是接口面固定、逐后端可独立测试                                     |
+| 方案        | 做法                                                                                      | 主要风险                                                                                                              |
+| ----------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| handle shim | renderer 侧实现 `FileSystemDirectoryHandle` 兼容代理，底层走 IPC；service 零改动          | 要仿真 `File`（含 `stream()` / `slice()`）与 `createWritable` 的「副本写 + close 原子替换」语义，接口面大且随规范漂移 |
+| 窄接口      | 从 service 抽 `StorageFilesystem`（openRead / openWrite / move / remove / list / exists） | 要重构 service 内部调用点；换来的是接口面固定、逐后端可独立测试                                                       |
 
 两案共同约束：接缝层不得丢掉现有回滚 journal 语义；桌面后端可为 `move()` 提供原生
 rename，而不是走 copy+delete 回退。

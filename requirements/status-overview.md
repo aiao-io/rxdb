@@ -10,12 +10,12 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 33   |
+| ✅ Done        | 34   |
 | 👀 In Review   | 0    |
 | 📝 Backlog     | 23   |
 | 🚧 In Progress | 3    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 59   |
+| **合计**       | 60   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，请勿手写维护。
 > 2026-08-13 的评审把 US-012 拆成 US-012a/b/c、US-207 拆出 US-208、US-305 升级为 epic-006 并拆成 US-305～US-308，Backlog 因此从 4 增至 11；这是拆分而不是新增范围。
@@ -28,7 +28,9 @@
 > 同日按 Electron / Tauri 运行模型拆出 [US-905](stories/future/US-905-tauri-native-storage-devtools.md)（Backlog）：Tauri 不能加载 Chrome MV3 扩展，因此复用 US-904 的平台无关面板和 provider 协议，以开发态受限 WebView window 承载，不复制第二套 UI / wire。依赖 US-210 / US-505 的 Tauri SQLite 与原生文件 host。Backlog 14 → 15，合计 50 → 51。
 > 同日再次评审把 US-904 拆为 [US-904a](stories/future/US-904a-electron-mv3-devtools-feasibility.md) / [US-904b](stories/future/US-904b-devtools-shared-protocol-panel.md) / [US-904c](stories/future/US-904c-electron-native-devtools-integration.md)，把 US-905 拆为 [US-905a](stories/future/US-905a-tauri-devtools-window-transport.md) / [US-905b](stories/future/US-905b-tauri-native-devtools-integration.md)。父故事保留为契约文档，新增 5 条 Backlog 只反映真实交付切分，**不新增范围**；Backlog 15 → 20，合计 51 → 56。
 > 同日第三次评审修正依赖与安全契约：US-904a 只门禁 Electron 的 US-904c，US-904b 与其并行且不再阻塞 Tauri；US-905b 直接消费 US-904b conformance suite，不等待 US-904c。wire v2 保留一个 minor 的 v1/v2 迁移桥，provider 改用语义 kind，并冻结 capability/descriptor/mutation policy、流式 transfer 与有界 immutable snapshot。状态数量不变。
-> 同日第四次评审确认 US-904b 仍横跨控制面、provider 数据面和 UI/Chrome 迁移，INVEST Small 不成立，继续拆为 [US-904b1](stories/future/US-904b1-devtools-v2-control-plane.md) / [US-904b2](stories/future/US-904b2-devtools-provider-data-plane.md) / [US-904b3](stories/future/US-904b3-devtools-shared-panel-chrome-migration.md)。父故事 US-904b 保留为契约文档，新增 3 条 Backlog 只反映真实交付切分，**不新增范围**；同时关闭 background 代 ACK 导致的 v2 降级、`none` 事件泄漏、无界 ID tombstone、跨 transport binary/数值歧义、平台错误分叉和 snapshot 等锁无 deadline 六个缺口。Backlog 20 → 23，合计 56 → 59。
+> 同日第四次评审确认 US-904b 仍横跨控制面、provider 数据面和 UI/Chrome 迁移，INVEST Small 不成立，继续拆为 [US-904b1](stories/future/US-904b1-devtools-v2-control-plane.md) / [US-904b2](stories/future/US-904b2-devtools-provider-data-plane.md) / [US-904b3](stories/future/US-904b3-devtools-shared-panel-library.md)（当轮文件名为 `US-904b3-devtools-shared-panel-chrome-migration.md`，第五次评审拆分后改名，此处链接已指向现名）。父故事 US-904b 保留为契约文档，新增 3 条 Backlog 只反映真实交付切分，**不新增范围**；同时关闭 background 代 ACK 导致的 v2 降级、`none` 事件泄漏、无界 ID tombstone、跨 transport binary/数值歧义、平台错误分叉和 snapshot 等锁无 deadline 六个缺口。Backlog 20 → 23，合计 56 → 59。
+> 同日第五次评审复查 US-904/US-905 全链，落三类修正。**协议缺陷（P0）**：v1/v2 协商窗口原以 panel 初始化起算，但 connector bootstrap 与 content script 注入（要等 `chrome.permissions.request` 用户授权，延迟无上界）都可能晚于 panel，计时器会在任何一条握手到达前过期，让「双方都支持 v2」稳定退回 v1——同一「双方永久互等」的失败模式在 [bridge.ts](../apps/rxdb-devtools-extension/src/content/bridge.ts) 已有先例注释。改为**证据触发**：panel 在无 session 状态下每次观察到 legacy HANDSHAKE 都补发一次 `PROTOCOL_HELLO`，1,000 ms 窗口从首次暂存起算且只启动一次，无 session 的迟到握手不算非法帧，v1 facade 进入后为终态并置降级标记。另冻结 `crypto.randomUUID()` 在非安全上下文（扩展显式接受 `http:` 页面）不可用，须用 `getRandomValues` 构造 v4；补齐流式 transfer 的 15 秒 idle + 10 分钟总时长两道时限与 `transfer_timeout`（US-904b2 原「继承 US-904b1 的 15 秒 idle deadline」引用了一个 b1 从未定义的值）。**INVEST（P1）**：US-904b3 同时含「行为中性的面板抽取」与「行为收敛的 Chrome v2 迁移」，拆为 [US-904b3](stories/future/US-904b3-devtools-shared-panel-library.md)（library 抽取，不依赖协议冻结，可与 b1/b2 并行）与 [US-904b4](stories/future/US-904b4-devtools-chrome-v2-migration.md)（四段 relay、ACK 所有权、OPFS provider 迁移、下载收敛、浏览器回归）；US-905a 仍门禁在 b4，保持「Chrome 先做 v2 参考实现」的风险姿态不变。US-904a 补齐「关键项」定义与唯一可容忍差异（fixture 静态窄 host permission，须记 variance 且生产 manifest 不动），并点名 US-905a 窗口模型为 `unsupported` 分支的替代承载。US-905 依赖式补回 US-210。**文档一致性（P2）**：US-904/904c/905/905b 中重复冻结数值改为引用 b1/b2，避免两处漂移；v1 兼容形态（完整 facade vs 版本闸门）作为 plan 阶段必答取舍写入 US-904b/b4。Backlog 23 → 24，合计 59 → 60。
+> 同日 [US-504](stories/plugin/US-504-electron-local-file-storage.md) 交付转 `Done`（Backlog 24 → 23，Done 33 → 34，合计不变）。四个 plan 阶段决策落定：窄接口 `StorageFilesystem`、临界区下沉 host 侧（跨窗口互斥不再依赖 Chromium Web Locks）、新增 `StorageBackendError { code }`、逻辑名→物理名确定性可逆编码（编码后超单组件 255 字节即以 `name_too_long` 拒绝，是与 OPFS 后端唯一的有意分歧）。同轮复核 [US-505](stories/plugin/US-505-tauri-local-file-storage.md)：US-210 未交付，其 AC#11 的启用分支不可达，本轮只做文档动作，不写不可达代码，状态维持 `Backlog`。
 
 ## 项目统计
 
@@ -99,14 +101,15 @@
 - ✅ [US-402 代码编辑器](stories/ui/US-402-code-editor.md)
 - ✅ [US-902 DevTools 面板](stories/future/US-902-devtools-panel.md)
 - 📄 [US-904 DevTools 调试 Electron 原生本地存储](stories/future/US-904-electron-native-storage-devtools.md) — **父故事/共享契约文档，不直接交付**
-  - ⬜ [US-904a Electron 43 MV3 DevTools 可行性门禁](stories/future/US-904a-electron-mv3-devtools-feasibility.md) — 无 native host 前置；只门禁 904c，可与 904b1/b2/b3 并行
+  - ⬜ [US-904a Electron 43 MV3 DevTools 可行性门禁](stories/future/US-904a-electron-mv3-devtools-feasibility.md) — 无 native host 前置；只门禁 904c，可与 904b 全链并行
   - 📄 [US-904b DevTools 共享 v2 协议与面板](stories/future/US-904b-devtools-shared-protocol-panel.md) — **父故事/共享契约文档，不直接交付**
-    - ⬜ [US-904b1 DevTools v2 控制面与安全边界](stories/future/US-904b1-devtools-v2-control-plane.md) — ACK 所有权、session、授权、ID 总预算
+    - ⬜ [US-904b1 DevTools v2 控制面与安全边界](stories/future/US-904b1-devtools-v2-control-plane.md) — ACK 所有权、证据触发协商、session、授权、ID 总预算
     - ⬜ [US-904b2 DevTools provider 数据面与 conformance](stories/future/US-904b2-devtools-provider-data-plane.md) — descriptor、base64 transfer、snapshot、穷举错误
-    - ⬜ [US-904b3 DevTools 共享面板与 Chrome v2 迁移](stories/future/US-904b3-devtools-shared-panel-chrome-migration.md) — private Angular panel、真实四段 relay 与浏览器回归
-  - ⬜ [US-904c Electron 原生存储 DevTools 集成](stories/future/US-904c-electron-native-devtools-integration.md) — 依赖 904a(supported)、904b3、US-207、US-504；真实 Electron provider/E2E
+    - ⬜ [US-904b3 DevTools 共享面板 library 抽取](stories/future/US-904b3-devtools-shared-panel-library.md) — 行为中性的 private Angular library 与 transport token；可与 b1/b2 并行
+    - ⬜ [US-904b4 DevTools Chrome v2 迁移](stories/future/US-904b4-devtools-chrome-v2-migration.md) — 真实四段 relay、v2 切换、下载收敛与浏览器回归；依赖 b1/b2/b3
+  - ⬜ [US-904c Electron 原生存储 DevTools 集成](stories/future/US-904c-electron-native-devtools-integration.md) — 依赖 904a(supported)、904b4、US-207、US-504；真实 Electron provider/E2E
 - 📄 [US-905 DevTools 调试 Tauri 原生本地存储](stories/future/US-905-tauri-native-storage-devtools.md) — **父故事/共享契约文档，不直接交付**
-  - ⬜ [US-905a Tauri DevTools 窗口与 v2 transport](stories/future/US-905a-tauri-devtools-window-transport.md) — 直接依赖 904b3，可与 US-210/505 并行
+  - ⬜ [US-905a Tauri DevTools 窗口与 v2 transport](stories/future/US-905a-tauri-devtools-window-transport.md) — 直接依赖 904b4，可与 US-210/505 并行
   - ⬜ [US-905b Tauri 原生存储 DevTools 集成](stories/future/US-905b-tauri-native-devtools-integration.md) — 依赖 904b1/b2、905a、US-210/505；不等待 Electron
 
 > US-401 / US-701 查询构建器系列已随 PR #251 清理出本仓库，详见 [CHANGELOG](CHANGELOG.md)。
@@ -119,8 +122,8 @@
 - ⬜ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md) — 从 US-207 拆出，PGlite callback transaction 不能跨 IPC 序列化
 - 🚧 [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) — 从 US-207 二次拆出。事务门禁判定 `tauri-plugin-sql` 不可用（池连接不固定 + 完全没有变更事件 API），改为自写 Rust command 持有 `rusqlite::Connection`；AC#2–#8 ✅（Rust 宿主跑 21 shared + 5 encrypted 共享套件，585 用例零跳过，空闲机器上连跑 5 次全绿；与 cargo 目标并行抢 CPU 时会有变更事件时序 flake，Node 宿主同条件无，详见故事）；AC#1 ⚠️ 缺跨进程重启 e2e，AC#9 三平台打包矩阵未做
 - ✅ [US-209 微信小程序 wa-sqlite 适配器](stories/adapter/US-209-miniprogram-adapter.md) — 实验性；2026-08-15 完成覆盖率门禁登记、子路径 API baseline 决策与文档收尾
-- ⬜ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md) — `rxdb-plugin-storage` 文件内容改落应用数据目录，与桌面 SQLite 同一备份域；复用 US-207 host 契约，可即刻排期
-- ⬜ [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边；被 [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md) 前置，meta 需要 Tauri 桌面 adapter 先存在
+- ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md) — 2026-08-15 交付：窄接口 `StorageFilesystem` 接缝（OPFS 默认实现行为冻结）+ host 侧仲裁路径锁 + `StorageBackendError { code }`；文件内容落 `userData/rxdb-files`，与 US-207 的 SQLite 同一备份域。AC#1–#9 ✅，`dev-rxdb-electron-e2e` 11/11（含重启、整目录拷贝、传输中途 SIGKILL），`rxdb-plugin-storage` node 200/200 + browser 20/20
+- ⬜ [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边；**仍被 [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md) 前置阻塞**（AC#1 跨进程重启 e2e 与 AC#9 打包矩阵未交付，`apps/dev-rxdb-tauri` 仍跑 wa-sqlite），故 AC#11 的启用分支永远为假、任何实现都是不可达代码。2026-08-15 随 US-504 复核，阻塞原因、解阻条件与三条继承决策记在故事的「阻塞状态」节
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
 

@@ -29,8 +29,8 @@ owner: jimmy
 - ⬜ [US-208 Electron PGlite 数据目录与事务宿主](../stories/adapter/US-208-electron-pglite-data-directory.md) — 从 US-207 拆出，依赖其抽出的 host 契约
 - ⬜ [US-210 Tauri 连接应用作用域 SQLite 文件](../stories/adapter/US-210-tauri-sqlite-local-database.md) — 从 US-207 二次拆出，`tauri-plugin-sql` 的单物理连接事务语义未验证
 - ✅ [US-209 微信小程序 wa-sqlite 适配器](../stories/adapter/US-209-miniprogram-adapter.md) — 实验性平台扩展；2026-08-15 完成门禁登记与文档收尾
-- ⬜ [US-504 Electron 本地文件存储](../stories/plugin/US-504-electron-local-file-storage.md) — `rxdb-plugin-storage` 的文件内容改落应用数据目录，与桌面 SQLite 同一备份域；复用 US-207 已发布的 host 契约
-- ⬜ [US-505 Tauri 本地文件存储](../stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边；被 US-210 前置（meta 需要 Tauri 桌面 adapter 先存在）
+- ✅ [US-504 Electron 本地文件存储](../stories/plugin/US-504-electron-local-file-storage.md) — 2026-08-15 交付：文件内容落 `userData/rxdb-files`，与桌面 SQLite 同一备份域；窄接口 `StorageFilesystem` + host 侧仲裁路径锁 + `StorageBackendError { code }`，OPFS 默认后端行为冻结
+- ⬜ [US-505 Tauri 本地文件存储](../stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边；**仍被 US-210 阻塞**（meta 需要 Tauri 桌面 adapter 先存在），2026-08-15 复核后只补文档，见故事「阻塞状态」节
 
 > 拆分理由（2026-08-13 评审）：PGlite 的 callback transaction 无法跨 IPC 序列化，需要一套 SQLite 路径不需要的
 > 事务 host 协议；混编会让 US-207 在不做这件事的前提下无法验收。Tauri PGlite 明确不在范围内——Tauri 没有 Node

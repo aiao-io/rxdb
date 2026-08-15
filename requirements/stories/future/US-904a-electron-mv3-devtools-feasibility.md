@@ -48,13 +48,13 @@ INVEST 检查清单:
 
 「关键项」不是「全部 AC 逐字通过」，必须先冻结以下清单，否则门禁无法判定：
 
-| 判据                                                     | 级别                | 依据                                                                                        |
-| -------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------- |
-| AC#1 `loadExtension` + MV3 service worker 启动           | 关键，任何失败即 stop | 没有 service worker 就没有四段中继，Chrome 扩展形态整体不成立                               |
-| AC#2 `chrome.devtools.panels.create` 与一次完整往返      | 关键，任何失败即 stop | panel 宿主与 relay 是 US-904c 的全部价值                                                    |
-| AC#4 Port 断开与 session/worker 清理可观察               | 关键，任何失败即 stop | 泄漏的旧连接会让 US-904b1 的 session 轮换在 Electron 上不可验证                             |
-| AC#3 `chrome.permissions.request` 按需授予 host 权限     | **可容忍差异**      | Electron 的 fixture 只加载受控本地页面，授权 UI 本身不是被测能力                            |
-| AC#3 `chrome.scripting` 在已获授权的 origin 上完成注入   | 关键，任何失败即 stop | 注入失败等于 connector 永远进不了页面                                                        |
+| 判据                                                   | 级别                  | 依据                                                             |
+| ------------------------------------------------------ | --------------------- | ---------------------------------------------------------------- |
+| AC#1 `loadExtension` + MV3 service worker 启动         | 关键，任何失败即 stop | 没有 service worker 就没有四段中继，Chrome 扩展形态整体不成立    |
+| AC#2 `chrome.devtools.panels.create` 与一次完整往返    | 关键，任何失败即 stop | panel 宿主与 relay 是 US-904c 的全部价值                         |
+| AC#4 Port 断开与 session/worker 清理可观察             | 关键，任何失败即 stop | 泄漏的旧连接会让 US-904b1 的 session 轮换在 Electron 上不可验证  |
+| AC#3 `chrome.permissions.request` 按需授予 host 权限   | **可容忍差异**        | Electron 的 fixture 只加载受控本地页面，授权 UI 本身不是被测能力 |
+| AC#3 `chrome.scripting` 在已获授权的 origin 上完成注入 | 关键，任何失败即 stop | 注入失败等于 connector 永远进不了页面                            |
 
 - AC#3 的可容忍差异仅限一种形态：**Electron 开发 fixture 的扩展 manifest 改用静态窄 host permission**
   （只覆盖 fixture 自身 origin），从而绕过运行时授权 UI。必须在 `evidence` 中作为 variance 显式记录，
@@ -73,14 +73,14 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 前置条件                           | 操作                                              | 预期结果                                                                                                                          | 状态 |
-| --- | ---------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | Electron 43 与工作区扩展已构建     | 通过 `session.defaultSession.loadExtension` 加载  | 返回有效 extension，MV3 service worker 启动；失败时记录稳定复现步骤、版本和原始错误                                               | ⬜   |
-| 2   | 打开 fixture 页面的 DevTools       | 扩展执行 `chrome.devtools.panels.create`          | RxDB panel 真实出现并能完成一次 panel → service worker → inspected page → panel 往返                                              | ⬜   |
+| #   | 前置条件                           | 操作                                              | 预期结果                                                                                                                                                                                                                                      | 状态 |
+| --- | ---------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | Electron 43 与工作区扩展已构建     | 通过 `session.defaultSession.loadExtension` 加载  | 返回有效 extension，MV3 service worker 启动；失败时记录稳定复现步骤、版本和原始错误                                                                                                                                                           | ⬜   |
+| 2   | 打开 fixture 页面的 DevTools       | 扩展执行 `chrome.devtools.panels.create`          | RxDB panel 真实出现并能完成一次 panel → service worker → inspected page → panel 往返                                                                                                                                                          | ⬜   |
 | 3   | fixture 初始未授予目标 origin 权限 | 由扩展请求权限并执行 `chrome.scripting`           | host permission 按需授予，脚本只注入目标页面；拒绝权限时返回可见错误，不扩大 manifest 常驻权限。若仅 `chrome.permissions.request` 不可用，可按「关键项与可容忍差异」改用 fixture 静态窄 host permission 并记录 variance，注入本身仍须真实通过 | ⬜   |
-| 4   | runtime Port 已建立                | 刷新 inspected page、关闭 DevTools 和应用         | Port 断开与 service worker/session 清理可观察，不残留能接收下一次启动消息的旧连接                                                 | ⬜   |
-| 5   | AC#1～#4 已逐项执行                | 写入 `evidence` 指向的可行性记录并更新 `decision` | 每项都有版本、命令、结果与日志，并逐条标注关键/可容忍差异；用到 AC#3 差异时必须同时记录 variance 与「Chrome 生产 manifest 未改动」核对；`decision` 只能从 `pending` 变为 `supported` 或 `unsupported`，不得写“理论可行”或用 mock 补证据 | ⬜   |
-| 6   | 可行性结论已冻结                   | 检查后续排期                                      | `supported` 解锁 US-904c；`unsupported` 时 US-904c 与 US-904 父故事转 `Blocked`，并记录「按 US-905a 窗口模型另立 Electron 承载故事」为替代路径；US-904b 共享链/US-905 不受影响 | ⬜   |
+| 4   | runtime Port 已建立                | 刷新 inspected page、关闭 DevTools 和应用         | Port 断开与 service worker/session 清理可观察，不残留能接收下一次启动消息的旧连接                                                                                                                                                             | ⬜   |
+| 5   | AC#1～#4 已逐项执行                | 写入 `evidence` 指向的可行性记录并更新 `decision` | 每项都有版本、命令、结果与日志，并逐条标注关键/可容忍差异；用到 AC#3 差异时必须同时记录 variance 与「Chrome 生产 manifest 未改动」核对；`decision` 只能从 `pending` 变为 `supported` 或 `unsupported`，不得写“理论可行”或用 mock 补证据       | ⬜   |
+| 6   | 可行性结论已冻结                   | 检查后续排期                                      | `supported` 解锁 US-904c；`unsupported` 时 US-904c 与 US-904 父故事转 `Blocked`，并记录「按 US-905a 窗口模型另立 Electron 承载故事」为替代路径；US-904b 共享链/US-905 不受影响                                                                | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 

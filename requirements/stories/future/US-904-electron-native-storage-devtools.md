@@ -63,7 +63,7 @@ WebView 存储、执行无效清理，或把“未清理桌面数据”误报为
 3. **US-904c：Electron provider 与真实 E2E。** 接入 desktop SQLite / native files，完成诊断、Settings
    和真实 extension / renderer / preload / main 证据；只有 US-904a 为 `supported` 才开工。
 
-固定关系为 **US-904a ∥ ((US-904b1 → US-904b2) ∥ US-904b3 → US-904b4)**，以及
+固定关系为 **US-904a ∥ (((US-904b1 → US-904b2) ∥ US-904b3) → US-904b4)**，以及
 **US-904a(supported) + US-904b4 + US-207 + US-504 → US-904c**。US-904a 必须在 frontmatter
 写入 `decision` / `evidence`；结论为 `unsupported` 时只有 US-904c 与本父故事转 `Blocked`，
 US-904b 共享链和 US-905 继续推进。
