@@ -8,8 +8,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # 同 ci-template.yml：workspace 已 claim，没有 token 的话下面那条
-  # `nx run-many -t build lint test` 会在 403 握手处直接被掐掉。
+  # 同 ci-template.yml：nx.app 上 workspace 处于 disabled 状态，不关掉的话下面那条
+  # `nx run-many -t build lint test` 会在握手处被 Nx 直接掐掉。恢复方法见 ci-template.yml。
+  NX_NO_CLOUD: true
   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
 
 jobs:

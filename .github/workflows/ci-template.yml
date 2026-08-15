@@ -49,11 +49,21 @@ env:
   CI: true
   NX_DAEMON: false
   NX_TUI: false
-  # nx.json 配了 nxCloudId，且该 workspace 已 claim —— 已 claim 的 workspace 会拒绝
-  # 匿名 CI 运行：runner-configuration 握手拿到 403，Nx 直接
-  # 「Workspace is unable to be authorized. Exiting run.」掐掉整个 run，一个 task 都不跑。
-  # 注意这个故障的伪装性：setup job 只用 `nx show projects`，压根不碰 task runner，
-  # 所以它照常绿，红的只有 build/lint/test/e2e —— 看起来像「构建挂了」，其实是没凭证。
+  # ---- Nx Cloud 临时关闭（2026-08-15）----------------------------------------
+  # nx.app 上 workspace 6a7b30a94caecff9b5bf52d6 处于 disabled 状态：
+  #   GET /nx-cloud/v1/runner-configuration/flags → 200 {"workspace":{"enabled":false}}
+  # 于是 CI 侧握手被拒，Nx 打出「Workspace is unable to be authorized. Exiting run.」
+  # 直接掐掉整个 run —— 一个 task 都不跑。
+  #
+  # 这个故障很会伪装：setup job 只用 `nx show projects`，压根不碰 task runner，
+  # 所以它照常绿；红的只有 build/lint/test/e2e，看起来像「构建挂了」，其实不是。
+  # 另注：缺 token / token 错都是 401，不是这个 403 —— 别再往 token 方向查。
+  #
+  # NX_NO_CLOUD 是唯一的硬开关（nx/src/utils/nx-cloud-utils.js: isNxCloudDisabled），
+  # 光把 token 留空没用：nx.json 里只要有 nxCloudId 就仍然会走 cloud runner。
+  # ⚠️ 恢复步骤：nx.app 上把 workspace 重新启用 → 配好 NX_CLOUD_ACCESS_TOKEN secret
+  #    → 删掉下面这一行即可，其余接线已经就位。
+  NX_NO_CLOUD: true
   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
   NODE_OPTIONS: '--max-old-space-size=6144'
   VITE_SUPABASE_URL: http://localhost:54331
