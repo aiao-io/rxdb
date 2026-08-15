@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { auditSubpathInventory } from './subpath-inventory.mjs';
+import { auditSubpathInventory, listSubpathExports } from './subpath-inventory.mjs';
 
 const packagesDir = fileURLToPath(new URL('./__fixtures__/subpath-inventory/packages/', import.meta.url));
 
@@ -57,4 +57,27 @@ test('清单里的包已不在扫描范围时报错', () => {
 
 test('完全没有 exports 字段的包不报错', () => {
   assert.deepEqual(auditSubpathInventory(packagesDir, ['no-exports'], new Map()), []);
+});
+
+test('exports 简写成字符串时没有子路径（不能把字符串下标当 key）', () => {
+  assert.deepEqual(listSubpathExports({ exports: './dist/index.js' }), []);
+});
+
+test('exports 是 fallback 数组时没有子路径', () => {
+  assert.deepEqual(listSubpathExports({ exports: ['./dist/index.js', './dist/index.cjs'] }), []);
+});
+
+test('exports 只有条件简写时没有子路径（import/require 不是子路径）', () => {
+  assert.deepEqual(listSubpathExports({ exports: { import: './dist/index.js', require: './dist/index.cjs' } }), []);
+});
+
+test('子路径与条件混排时只取以 ./ 开头的 key', () => {
+  const exports = {
+    '.': { import: './dist/index.js' },
+    './package.json': './package.json',
+    './testing': { import: './dist/testing.js' },
+    './client': './dist/client.js'
+  };
+
+  assert.deepEqual(listSubpathExports({ exports }), ['./client', './testing']);
 });

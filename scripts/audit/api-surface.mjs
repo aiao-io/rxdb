@@ -71,8 +71,9 @@ const EXCLUDED = new Set(['rxdb-test']);
  * 没有导出表面可扫，改由 `scripts/audit/wa-sqlite-integrity.mjs` 的 SHA-256 固定守护。
  * `@aiao/rxdb-test/*`（5 个子路径）不在此列——整包已由 EXCLUDED 排除，非产品 API。
  *
- * 扩展扫描器以覆盖子路径导出表面尚无故事认领，见 requirements/status-overview.md 的
- * 「已知的需求覆盖缺口」。
+ * 扩展扫描器以覆盖子路径导出表面由 US-601 认领（Backlog），见
+ * requirements/stories/tooling/US-601-subpath-api-surface-baseline.md；
+ * 交付后本表的语义应收窄为「无导出表面的资产入口白名单」，常量名一并改掉。
  * @type {Map<string, string[]>}
  */
 const KNOWN_UNCOVERED_SUBPATHS = new Map([
@@ -229,7 +230,7 @@ if (subpathProblems.length > 0) {
   console.log('   → 同步 api-surface.mjs 的 KNOWN_UNCOVERED_SUBPATHS。');
   console.log('     这些入口的导出表面不受本基线保护，改动其导出必须在 PR 描述里人工声明破坏性。');
   // `--update` 只重建基线，不改这份手工清单，所以那里只提示不阻断。
-  if (mode === 'check') errors++;
+  if (mode === 'check') errors += subpathProblems.length;
 }
 
 for (const pkg of packages) {

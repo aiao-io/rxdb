@@ -6,6 +6,19 @@
 
 ## Story 状态变更
 
+### 2026-08-15 — 新增 US-601 与 epic-007（缺口登记，非新增范围）
+
+- 上一条 US-209 收尾留下的「扫描子路径**导出表面**」缺口由新故事
+  [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md) 认领（`Backlog`）。
+  **缺口在它交付前依然敞开**：`KNOWN_UNCOVERED_SUBPATHS` 只守清单，不守表面。
+- 新建 [epic-007 公开 API 门禁](epics/epic-007-public-api-gates.md)：门禁不是产品能力，
+  挂进 epic-001~006 会让那个 epic 的愿景失真。它同时收纳另外两处**尚无故事认领**的门禁缺口
+  （迁移发布的三个 git 钩子只在打 tag 时跑、手工发布无 `pnpm test-all` 前置校验）。
+- 新建 `stories/tooling/`，占用此前未分配的编号段 **US-601~699**。
+- 派生视图同步：`status-overview.md`（Backlog 11 → 12，合计 46 → 47）、`README.md`
+  （目录表、P2 排期建议、约束 7）、`versioning-policy.md` 与 `api-surface.mjs` 的「尚无故事认领」措辞。
+- 顺带修一处派生视图漂移：`epic-004` 的故事列表缺 US-210（`status-overview.md` 一直列着）。
+
 ### 2026-08-15 — US-209 小程序适配器门禁与文档收尾（In Review → Done）
 
 - `@aiao/rxdb-adapter-miniprogram` 登记进 `scripts/audit/coverage-baseline.json`（99/97/100/100，向下取整）。

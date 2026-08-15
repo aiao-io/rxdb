@@ -52,8 +52,8 @@
 > `KNOWN_UNCOVERED_SUBPATHS`，每次 `--check` 都逐包核对 `exports`，新增或删除子路径而不同步清单即失败。
 > 这只保证「没有子路径悄悄溜进公开 API 而无人知晓」，不等于它们的导出表面被守住。
 >
-> 扩展扫描器以覆盖子路径**导出表面**尚无故事认领（不在 [US-209](stories/adapter/US-209-miniprogram-adapter.md) 范围内），
-> 见 [status-overview.md](status-overview.md) 的「已知的需求覆盖缺口」。
+> 扩展扫描器以覆盖子路径**导出表面**由 [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md) 认领
+> （Backlog；不在 [US-209](stories/adapter/US-209-miniprogram-adapter.md) 范围内）。**在它交付之前本条警示继续生效。**
 > 对外呈现见 [website/docs/versioning.md](../website/docs/versioning.md) 的同名警示块。
 
 ## 5. 版本级别决策

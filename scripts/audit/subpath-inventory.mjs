@@ -3,12 +3,19 @@ import { join } from 'node:path';
 
 /**
  * 读出一个包 `exports` 里声明的子路径入口（不含主入口 `.` 与 `./package.json`）。
+ *
+ * 只认以 `./` 开头的 key —— 这是规范对子路径的唯一形态。据此自然排除三类非子路径写法：
+ * 简写字符串 `exports: './dist/index.js'`、fallback 数组（两者 `Object.keys` 返回下标），
+ * 以及条件简写对象 `{ import, require }`（否则条件名会被误判成未登记子路径）。
+ *
  * @param {object} packageJson 已解析的 package.json
  * @returns {string[]} 排序后的子路径 key，如 `['./client', './testing']`
  */
 export function listSubpathExports(packageJson) {
-  return Object.keys(packageJson.exports ?? {})
-    .filter(key => key !== '.' && key !== './package.json')
+  const exports = packageJson.exports;
+  if (typeof exports !== 'object' || exports === null) return [];
+  return Object.keys(exports)
+    .filter(key => key.startsWith('./') && key !== './package.json')
     .sort();
 }
 

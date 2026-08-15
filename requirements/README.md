@@ -35,6 +35,7 @@
 | `collaboration/` | 版本控制、撤销/重做、迁移协作                               | US-301~399 |
 | `ui/`            | 代码编辑器等跨框架 UI 组件                                  | US-401~499 |
 | `plugin/`        | RxDB plugin 包（workspace / storage / graph）               | US-501~599 |
+| `tooling/`       | 门禁、基线与发布工具链（不是产品能力）                      | US-601~699 |
 | `future/`        | 中长期规划                                                  | US-700~999 |
 
 ## 状态定义
@@ -91,6 +92,7 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 |   P2   | 字段值校验与生成器透传               | [US-012c](stories/core/US-012c-field-value-validation-codegen.md)        | 有了 DTO 才谈得上运行时校验；单独成条以免和 DTO 一起变成不可验收的大块                | `validateFieldValue()`、D12 归一化、生成器透传、三框架 fixture 复用                                                |
 |   P2   | Electron PGlite 数据目录与事务宿主   | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)       | PGlite callback transaction 不能跨 IPC 序列化，需要 SQLite 路径不需要的事务 host 协议 | 主进程 data directory、事务 ID 协议或主进程托管 adapter、跨进程类型保真                                            |
 |   P2   | PGlite 原生全文搜索                  | [US-703](stories/future/US-703-pglite-full-text-search.md)               | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                             | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                       |
+|   P2   | 子路径入口纳入 API 表面基线          | [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)         | 版本策略把子路径承诺为公开 API，门禁却只扫主入口——承诺与门禁的差额只能靠人工审查补    | 源入口声明收敛到单一真相源、基线格式扩到多入口、资产入口白名单跳过、三处文档收口                                   |
 
 > US-306 / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
 > [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定顺序。
@@ -111,7 +113,9 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
    不得把它列成与 wa-sqlite 同级的受支持适配器（落点见 [compatibility.md](../website/docs/compatibility.md) 的能力边界专节）。
    US-209 AC#8 顺带留下一个新缺口：`exports` 子路径入口的**导出表面**不受 api-surface 门禁保护
    （清单本身已由 `KNOWN_UNCOVERED_SUBPATHS` 核对），见
-   [status-overview.md](status-overview.md) 的「已知的需求覆盖缺口」，尚无故事认领。
+   [status-overview.md](status-overview.md) 的「已知的需求覆盖缺口」。
+   该缺口 2026-08-15 由 [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md) 认领；
+   在它交付之前，改动这 12 个子路径入口的导出**必须在 PR 描述里人工声明破坏性**。
 
 ### 建议补充的验收维度
 
@@ -320,5 +324,6 @@ PR 描述：
 - [未来功能](epics/epic-004-future-features.md)
 - [类型系统演进](epics/epic-005-type-system-evolution.md)
 - [本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
+- [公开 API 门禁](epics/epic-007-public-api-gates.md)
 - [状态概览](status-overview.md)
 - [完成记录](CHANGELOG.md)

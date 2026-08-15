@@ -26,6 +26,7 @@ owner: jimmy
 - ⬜ [PGlite 全文搜索](../stories/future/US-703-pglite-full-text-search.md) — tsvector/GIN 与现有搜索 API 集成
 - ⬜ [US-207 Electron/Tauri 连接本地数据库](../stories/adapter/US-207-desktop-local-database.md) — 收敛为 Tauri/Electron **SQLite 文件**路径与共享桌面 host 契约
 - ⬜ [US-208 Electron PGlite 数据目录与事务宿主](../stories/adapter/US-208-electron-pglite-data-directory.md) — 从 US-207 拆出，依赖其抽出的 host 契约
+- ⬜ [US-210 Tauri 连接应用作用域 SQLite 文件](../stories/adapter/US-210-tauri-sqlite-local-database.md) — 从 US-207 二次拆出，`tauri-plugin-sql` 的单物理连接事务语义未验证
 - ✅ [US-209 微信小程序 wa-sqlite 适配器](../stories/adapter/US-209-miniprogram-adapter.md) — 实验性平台扩展；2026-08-15 完成门禁登记与文档收尾
 
 > 拆分理由（2026-08-13 评审）：PGlite 的 callback transaction 无法跨 IPC 序列化，需要一套 SQLite 路径不需要的
