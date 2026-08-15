@@ -499,9 +499,8 @@ impl FileHost {
     /// `write_aborted`，而不是对着一个已经被删掉的临时文件再 `rename` 一次。
     fn write_commit(&self, session_id: &str, write_id: &str) -> HostResult<Value> {
         let pending = self.take_write(session_id, write_id)?;
-        finish_write(&pending).map_err(|error| {
+        finish_write(&pending).inspect_err(|_| {
             let _ = fs::remove_file(&pending.temporary);
-            error
         })?;
         Ok(json!({ "kind": "file.writeCommit" }))
     }
