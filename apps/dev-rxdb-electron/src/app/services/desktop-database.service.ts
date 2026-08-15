@@ -107,14 +107,24 @@ export class DesktopDatabaseService {
     void this.#start();
   }
 
-  /** 连接适配器并记录本次启动；**永不 reject**，失败只体现在状态信号上。 */
+  /**
+   * 连接适配器并记录本次启动；**永不 reject**，失败只体现在状态信号上。
+   *
+   * @remarks
+   * `connected` **压到启动次数读回之后**才对外发布。适配器一连上就置「已连接」的话，
+   * 卡片会有一段自称已连接、次数却还是空白的窗口期 —— 观察者据此读到的是空字符串，
+   * 而「重启后 +1」这条 e2e 唯一能依据的就是它。失败方向本来就是这个口径
+   * （连上了却写不进去照样落 `failed`），成功方向跟着对齐而已。
+   */
   async #start(): Promise<void> {
+    let adapterConnected = false;
     await connectLocalAdapter(this.#db, DESKTOP_ADAPTER_NAME, (status, error) => {
-      this.#status.set(status);
+      adapterConnected = status === 'connected';
+      if (!adapterConnected) this.#status.set(status);
       this.#error.set(error);
       if (status === 'failed') console.error('desktop adapter startup connection failed', error);
     });
-    if (this.#status() !== 'connected') return;
+    if (!adapterConnected) return;
 
     try {
       const repository = this.#db.entityManager.getRepository(DesktopLaunch);
@@ -125,6 +135,7 @@ export class DesktopDatabaseService {
       );
       // 空 rules = 不筛任何字段，只数总行数。
       this.#launchCount.set(await firstValueFrom(repository.count({ where: { combinator: 'and', rules: [] } })));
+      this.#status.set('connected');
     } catch (error) {
       // 连上了却写不进去，对用户来说和没连上没有区别，因此照样落到失败态。
       this.#status.set('failed');
