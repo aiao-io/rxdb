@@ -82,7 +82,8 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 - **触发**：`postinstall`，CI 模式下跳过。
 - **做什么**：
   1. 如果 `.env` 不存在但 `.env.example` 存在，自动复制一份；`docker/.env` 同理；
-  2. 调用 `nx run-many --target=build --projects=rxdb-test` 预构建 `workspace.mjs#NEED_BUILDS` 列出的库（默认只有 `rxdb-test`）。
+  2. 调用 `nx run-many --target=build --projects=rxdb-test --no-cloud` 预构建 `workspace.mjs#NEED_BUILDS` 列出的库（默认只有 `rxdb-test`）。
+     子进程强制 `NX_DAEMON=false` / `NX_NO_CLOUD=true`。图损坏（陈旧 daemon / 隔离 worker 提前退出）时先 `nx reset` 再试一次。
 - **何时手动跑**：clone 完仓库第一次 `pnpm install` 后；或 `.env` 文件被误删想恢复默认模板。
 
 ### `clean.mjs`
@@ -333,7 +334,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ### `runner.mjs`
 
-- **做什么**：`run(command, args, collect?)` 包装 `child_process.spawn`，统一 `stdio: 'inherit'`、非零退出码打印红字。`collect=true` 时把 stdout 拼成字符串 resolve 出去。
+- **做什么**：`run(command, args, collect?, extra?)` 包装 `child_process.spawn`，统一 `stdio: 'inherit'`、非零退出码打印红字并 `reject(Error)`。`collect=true` 时把 stdout 拼成字符串 resolve 出去。`extra.env` 与 `process.env` 合并。
 - **调用方**：`check-workspace.mjs` 等需要跨进程串行的脚本。
 
 ### `workspace.mjs`

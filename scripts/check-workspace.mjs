@@ -3,8 +3,8 @@
  *
  * install 后兜底（package.json#postinstall -> `pnpm check-workspace`）：
  *   1. 复制 `.env.example` → `.env`（仓库根 + docker/），首次克隆免去手动配置；
- *   2. 用 `nx run-many --target=build` 预构建 workspace.mjs#NEED_BUILDS 列出的库，
- *      保证下游包 import 时 dist/ 已就绪，避免装完就跑测试时出现「找不到产物」。
+ *   2. 用 `nx run-many --target=build --no-cloud` 预构建 workspace.mjs#NEED_BUILDS，
+ *      关掉 daemon / Cloud；图损坏时 `nx reset` 后再试一次。
  *
  * CI 模式下整体跳过 —— 流水线环境里 .env 由部署系统注入、预构建由专用 job 完成。
  */
@@ -18,6 +18,17 @@ import { NEED_BUILDS } from './workspace.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, '..');
+const THIS_FILE = fileURLToPath(import.meta.url);
+
+/**
+ * postinstall 里关掉 daemon 和 Cloud：
+ * 陈旧 daemon / 隔离 worker 会在 Unix socket 连上前以 exit 0 退出，
+ * 把 project graph 打死；Cloud org 当前 401，装依赖不该依赖远程缓存。
+ */
+export const POSTINSTALL_NX_ENV = {
+  NX_DAEMON: 'false',
+  NX_NO_CLOUD: 'true'
+};
 
 /**
  * 需要初始化的 .env 配置
@@ -51,18 +62,41 @@ const checkEnvFiles = () => {
 };
 
 /**
+ * 预构建 NEED_BUILDS。图损坏时 `nx reset` 后再试一次。
+ * @param {{ projects?: string[], runCommand?: (command: string, args: string[], options?: { env?: NodeJS.ProcessEnv }) => Promise<unknown> }} [options]
+ */
+export const buildNeedLibs = async ({
+  projects = NEED_BUILDS,
+  runCommand = (command, args, options) => run(command, args, false, options)
+} = {}) => {
+  if (projects.length === 0) return;
+
+  const buildArgs = [`nx run-many --target=build --projects=${projects.join(',')} --no-cloud`];
+  const options = { env: POSTINSTALL_NX_ENV };
+  try {
+    await runCommand('pnpm', buildArgs, options);
+  } catch {
+    await runCommand('pnpm', ['nx reset'], options);
+    await runCommand('pnpm', buildArgs, options);
+  }
+};
+
+/**
  * 检查基础 lib 是否已经构建
  */
 const checkLibBuild = async () => {
-  if (NEED_BUILDS.length > 0) {
-    const check = ora('build').start();
-    await run('pnpm', [`nx run-many --target=build --projects=${NEED_BUILDS.join(',')}`]);
+  const check = ora('build').start();
+  try {
+    await buildNeedLibs();
     check.succeed();
+  } catch (error) {
+    check.fail();
+    throw error;
   }
 };
 
 // CI 下整体跳过：.env 由部署系统注入，dist 预构建由专用 job 完成。
-if (process.env.CI !== 'true') {
+if (process.env.CI !== 'true' && process.argv[1] === THIS_FILE) {
   checkEnvFiles();
   await checkLibBuild();
 }
