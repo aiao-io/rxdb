@@ -37,7 +37,8 @@ INVEST 检查清单:
    `move()` 做了特性检测并有 copy+delete 回退；`entries()` 是硬要求，后端必须提供目录
    枚举。注意「把根句柄换掉、其余服务逻辑（路径锁、回滚 journal、临时文件提交、流式
    落盘）原样保留」**只对 handle shim 案成立**：根句柄之后服务全程直接调用句柄 API
-   （`getDirectoryHandle` / `removeEntry` / `createWritable` / `getFile` / `move`），
+   （`getDirectoryHandle` / `getFileHandle` / `removeEntry` / `createWritable` /
+   `getFile` / `move` / `entries`，2026-08-15 四次评审补全清单），
    若 plan 阶段选窄接口案，改造面是全部这些调用点（2026-08-15 二次评审修正措辞，
    避免接缝决策被锚在「换根零改动」的预期上）。
 2. **host 模式现成。** US-207 已交付 renderer/host 双入口契约与安全基线（窄 preload、
@@ -125,8 +126,11 @@ INVEST 检查清单:
 > plan 阶段必须决定「继续依赖 Web Locks 并用双窗口 e2e 钉住」还是「临界区下沉 host 侧
 > 兜底」；该决策同时约束 [US-505](./US-505-tauri-local-file-storage.md)（WKWebView 的
 > Web Locks 可用性另算）。另注意（2026-08-15 三次评审）：现有 e2e
-> （`desktop-persistence.spec.ts`）只有单窗口用例，`dev-rxdb-electron` demo 是否支持
-> 开第二个窗口未验证 —— 选 Web Locks 路线时，双窗口 e2e 的基建成本要计入 plan。
+> （`desktop-persistence.spec.ts`）只有单窗口用例；且（2026-08-15 四次评审核实）
+> `dev-rxdb-electron` demo **结构上不支持**第二个窗口 —— `main.ts` 是单一模块级 `win`
+> 变量，`createWindow()` 仅在 `whenReady` 与 macOS `activate`（守卫 `win === null`）
+> 调用，无任何新建窗口入口。选 Web Locks 路线时，「先给 demo 加多窗口能力」是双窗口
+> e2e 的前置成本，要计入 plan。
 
 ## 技术笔记
 
@@ -157,10 +161,17 @@ Windows 上非法或有陷阱。两条路：收窄逻辑名字符集（破坏与
 ### 错误判别载体（plan 阶段冻结）
 
 AC#4 / #6 / #9 中的「稳定可判别错误码」指调用方能以编程方式稳定判别失败原因，不预设
-具体载体：`errors.ts` 现有 9 个错误类均**无 `code` 属性**，包内不存在错误码体系，桌面
-host 协议侧也只有 `error` 类响应消息（2026-08-15 三次评审核实）。plan 阶段在「沿用
-错误类判别」与「新增 code 字段」之间二选一并冻结；跨 IPC 传输时错误形状如何保真
-（类实例过不了结构化克隆）是该决策必须一并回答的问题。US-505 的对应
+具体载体：`errors.ts` 现有 9 个错误类均**无 `code` 属性**，包内不存在错误码体系
+（2026-08-15 三次评审核实）。「桌面 host 协议侧也只有 `error` 类响应消息」系三次评审
+**误记**（2026-08-15 四次评审修正）：协议的 error 响应自带
+`code: RxDBAdapterDesktopErrorCode`（`desktop-host-protocol.ts`），其 TSDoc 言明存在
+理由正是 `ipcRenderer.invoke` 会把 rejection 压成字符串、code 放进返回值才能跨进程
+保持可判别；解包侧经 `isRxDBAdapterDesktopErrorCode` 白名单还原为
+`RxDBAdapterDesktopError` —— 即「跨 IPC 错误形状保真」在协议层已有现成答案，不是
+待答的开放问题。plan 阶段的二选一因此收窄为 storage 服务对调用方的错误面：「沿用
+错误类判别」还是「引入 code 字段并与协议侧 code 对齐/映射」。另一处应一并归入判别
+体系的现存不一致：`getDirectoryEntries` 在 `entries()` 缺失时抛普通 `Error` 而非
+`StorageUnavailableError`（`storage.service.ts`）。US-505 的对应
 AC（#4 / #8 / #11）跟随本决策，不另订载体。
 
 ### 传输与协议
@@ -178,7 +189,10 @@ AC（#4 / #8 / #11）跟随本决策，不另订载体。
   自动覆盖仅限与主入口连边的模块。桌面客户端若按 AC#8 以新**子路径入口**暴露，
   则不与 index.ts 连边、该图走不到它 —— 为 storage 插件补的同型断言必须以每个
   renderer 侧入口（含新增子路径）为图根；side-effect import（`import 'node:fs'`）
-  与动态 `import()` 也不被该正则捕获，新增代码避开这两种写法或另加断言。产物层
+  与动态 `import()` 也不被该正则捕获，新增代码避开这两种写法或另加断言；另
+  （2026-08-15 四次评审核实）该遍历遇到 workspace 包 specifier（如
+  `@aiao/rxdb-adapter-desktop`）记录但**不跨包递归** —— storage 客户端经 adapter
+  renderer 入口间接可达的 builtin 由 adapter 自己的同型断言把关，两道断言缺一不可。产物层
   （minify / bundle 后）的自动门禁已移除（见 US-207），发布前手工 `pnpm pack`
   验证仍是最后一道
 - `download()` 不经 host：Blob 已在 renderer，Chromium 的 `showSaveFilePicker` 与
@@ -191,8 +205,9 @@ AC（#4 / #8 / #11）跟随本决策，不另订载体。
   （已随 `@aiao/rxdb-adapter-desktop@0.0.25` 发布）；不依赖其未关闭的 AC#8 打包矩阵
 - metadata 侧无新依赖：桌面场景下 `rxdb.config.sync.local` 应配置桌面 SQLite adapter
   （US-207 已交付）。注意 `ensureLocalReady` 实际只校验 `config.sync.local` 存在并
-  `connect()` 成功（严格说还前置 `assertActive()` 与 `init()`，但均与 adapter 类型
-  无关），**没有**「adapter 是否本地/桌面」的运行时判别 —— 错配拒绝由 AC#9 承担，
+  `connect()` 成功（严格顺序为 `assertActive()` → `connect()` → 二次 `assertActive()` →
+  `init()`，2026-08-15 四次评审修正：`init()` 在 connect **之后**而非前置；均与 adapter
+  类型无关），**没有**「adapter 是否本地/桌面」的运行时判别 —— 错配拒绝由 AC#9 承担，
   不能指望 `ensureLocalReady` 把关
 
 ## 实现文件
