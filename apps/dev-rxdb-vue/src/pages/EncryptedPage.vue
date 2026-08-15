@@ -115,7 +115,10 @@ async function handleRemoveUser(user: EncryptedUser) {
         :is="isLocked ? Lock : LockOpen"
       />
       <h1 class="text-2xl font-bold">本地字段加密演示</h1>
-      <span :class="['badge', isLocked ? 'badge-error' : 'badge-success']">
+      <span
+        :class="['badge', isLocked ? 'badge-error' : 'badge-success']"
+        data-testid="encryption-status"
+      >
         {{ isLocked ? '已锁定' : '已解锁' }}
       </span>
     </div>
@@ -157,6 +160,7 @@ async function handleRemoveUser(user: EncryptedUser) {
             class="input input-bordered w-full"
             v-model="passphrase"
             @keydown.enter="handleUnlock"
+            data-testid="encryption-passphrase"
             placeholder="输入密码…"
             type="password"
           />
@@ -165,6 +169,7 @@ async function handleRemoveUser(user: EncryptedUser) {
           <button
             class="btn btn-primary"
             :disabled="!passphrase.trim()"
+            data-testid="encryption-unlock"
             @click="handleUnlock"
           >
             <LockOpen class="size-4" />
@@ -187,6 +192,7 @@ async function handleRemoveUser(user: EncryptedUser) {
         </button>
         <button
           class="btn btn-sm btn-error btn-outline"
+          data-testid="encryption-lock"
           @click="handleLock"
         >
           <Lock class="size-4" />
@@ -203,6 +209,7 @@ async function handleRemoveUser(user: EncryptedUser) {
               <legend class="fieldset-legend">姓名（明文）</legend>
               <input
                 class="input input-bordered w-full"
+                data-testid="encryption-name"
                 v-model="newName"
                 placeholder="Alice"
                 type="text"
@@ -211,6 +218,7 @@ async function handleRemoveUser(user: EncryptedUser) {
             <fieldset class="fieldset">
               <legend class="fieldset-legend">信用卡号（加密）</legend>
               <input
+                data-testid="encryption-card"
                 class="input input-bordered w-full"
                 v-model="newCard"
                 placeholder="4242 4242 4242 4242"
@@ -220,6 +228,7 @@ async function handleRemoveUser(user: EncryptedUser) {
             <fieldset class="fieldset">
               <legend class="fieldset-legend">API 密钥（加密）</legend>
               <input
+                data-testid="encryption-secret"
                 class="input input-bordered w-full"
                 v-model="newSecret"
                 placeholder="sk_live_…"
@@ -229,6 +238,7 @@ async function handleRemoveUser(user: EncryptedUser) {
           </div>
           <div class="card-actions">
             <button
+              data-testid="encryption-save-user"
               class="btn btn-primary btn-sm"
               :disabled="!newName.trim()"
               @click="handleCreateUser"
@@ -258,6 +268,7 @@ async function handleRemoveUser(user: EncryptedUser) {
             <tr
               v-for="user in users"
               :key="user.id"
+              data-testid="encryption-user-row"
             >
               <td>{{ user.name }}</td>
               <td class="font-mono text-xs">{{ user.creditCardInfo ?? '—' }}</td>
@@ -265,6 +276,7 @@ async function handleRemoveUser(user: EncryptedUser) {
               <td>
                 <button
                   class="btn btn-ghost btn-xs text-error"
+                  data-testid="encryption-delete-user"
                   @click="handleRemoveUser(user)"
                 >
                   <Trash2 class="size-3" />

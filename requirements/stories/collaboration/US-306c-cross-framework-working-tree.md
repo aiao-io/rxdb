@@ -51,6 +51,19 @@ INVEST 检查清单:
 Angular 使用 signal、React 使用 state/store、Vue 使用 ref 只是容器差异；导出名、参数、返回键、错误 code、
 empty/loading/success/error 判定和恢复建议必须对称。不得让某一端额外拥有业务能力。
 
+### 扩展点（本故事冻结协议，不冻结键的全集）
+
+上表是 **v1 基线键集**，对应本故事交付时可用的能力；它**不是**最终全集。后续故事按同一协议向 `useWorkingTree()`
+追加键，本故事负责把「怎么加」定死，避免它们各自另立入口：
+
+| 追加者                                          | 新增键                    | 约束                                                                                               |
+| ----------------------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------- |
+| [US-307](./US-307-restore-session.md)           | `restore`、`restoreState` | 复用同一 `commandState` 形状与错误 code 结构；`status` 的 `restoring` 值在本故事已存在，不得改语义 |
+| [US-308](./US-308-branch-isolation-conflict.md) | 分支切换与冲突提示入口    | 同上；不得在某一端把切换做成组件内部逻辑                                                           |
+
+追加 MUST 满足：三端同名同签名同返回键、共享类型仍从 `@aiao/rxdb` 透传、`tri-framework-check` 与 a11y 门禁
+对新键同样生效（缺一端整故事失败）。追加者 MUST NOT 重定义已冻结键的语义；确需变更时改本故事并同步三端。
+
 ## 验收场景
 
 1. **Given** 三端加载同一 fixture，**When** status → stage → refresh → commit，**Then** 三端返回相同状态、依赖闭包、commit 摘要和错误 code。
@@ -78,6 +91,9 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 ## 性能门禁
 
 - 新增 `pnpm nx run benchmarks:bench-working-tree`，使用 Epic 固定的 Node + PGlite memory fixture。
+  **本故事拥有该 target 本身**：fixture 构造、warmup/采样参数、`runnerProfileHash`、报告 JSON 结构与
+  reference 签入流程。[US-307](./US-307-restore-session.md) FR-026b 只向其中**追加 restore 采样场景**，
+  不新建 target、不改报告结构、不重算已冻结的 reference。
 - status、完整 diff、批量 stage 50 单元执行 5 次 warmup、50 次采样，输出 p50/p95、control ratio、fixture hash 与 runner profile。
 - 普通 CI 的归一化 ratio 不得超过冻结 reference median 的 110%；绝对 p95 100 ms 只在 profile 匹配的固定 runner 上作为发布门禁。
 - 三端 E2E 记录首次可见状态耗时，但浏览器 OPFS/IDB 不承诺相同绝对数字。

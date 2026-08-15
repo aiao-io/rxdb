@@ -131,13 +131,17 @@
 拆分后每个交付故事都能独立证明「写入 → 刷新 → 读回」。交付顺序为
 **US-305 → US-306a → US-306b → (US-306c ∥ US-307 ∥ US-308)**。
 
-- ⬜ [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 基础层
-- 📄 [US-306 工作树、缓存区与提交操作](stories/collaboration/US-306-working-tree-index.md) — **父故事/共享契约，不直接交付**
-  - ⬜ [US-306a 工作树写入捕获与持久化](stories/collaboration/US-306a-working-tree-capture.md)
-  - ⬜ [US-306b 缓存区与提交状态机](stories/collaboration/US-306b-index-commit-state-machine.md)
-  - ⬜ [US-306c 三框架工作树交互面与性能门禁](stories/collaboration/US-306c-cross-framework-working-tree.md)
-- ⬜ [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md)
+- ⬜ [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 基础层：commit 图 / branch ref / baseline，并建 `WorkingTreeActivationState`（FR-052）与桥接血统预检（FR-030）
+- 📄 [US-306 工作树、缓存区与提交操作](stories/collaboration/US-306-working-tree-index.md) — **父故事/共享契约，不直接交付**；其 FR/AC 承接表是 [发布门禁 2](epics/epic-006-working-tree-commits.md) 的审计依据
+  - ⬜ [US-306a 工作树写入捕获与持久化](stories/collaboration/US-306a-working-tree-capture.md) — 全部业务写入口 → `WorkingTreeEntry` 原子捕获、意图登记、6 个 v1 后端 conformance
+  - ⬜ [US-306b 缓存区与提交状态机](stories/collaboration/US-306b-index-commit-state-machine.md) — status/diff、index 依赖闭包、commit residual rebase、revision CAS
+  - ⬜ [US-306c 三框架工作树交互面与性能门禁](stories/collaboration/US-306c-cross-framework-working-tree.md) — `useWorkingTree()` 三端契约与 `bench-working-tree` target 的归属方
+- ⬜ [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — 依赖 US-306a 的捕获层落盘、US-306c 的三端契约扩展
 - ⬜ [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — 依赖 US-304 收敛
+
+> **阻塞口径**：上表全部 ⬜ Backlog，但 US-306a 的前置依赖 [US-304](stories/collaboration/US-304-writer-lease-migration-fencing.md)
+> 目前是 In Progress，即整条链在 US-304 收敛前无法开工。汇总表的「🚫 Blocked = 0」统计的是**故事 YAML 里显式写成
+> `status: Blocked`** 的数量，不代表没有前置阻塞；两者不要互相推断。
 
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 

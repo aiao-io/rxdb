@@ -292,7 +292,12 @@ onUnmounted(() => {
         <section class="card bg-base-100 border-base-300 border">
           <div class="card-body p-4">
             <div class="flex items-center justify-between">
-              <h3 class="text-sm font-bold">已缓存（{{ cached.length }}）</h3>
+              <h3
+                class="text-sm font-bold"
+                data-testid="remote-cache-count"
+              >
+                已缓存（{{ cached.length }}）
+              </h3>
               <button
                 class="btn btn-xs btn-ghost gap-1"
                 v-if="cached.length > 0"
@@ -306,6 +311,7 @@ onUnmounted(() => {
             <p
               class="text-base-content/50 mt-2 text-xs"
               v-if="cached.length === 0"
+              data-testid="remote-cache-empty"
             >
               还没有缓存内容。点击上方预设或自定义按钮开始。
             </p>
@@ -399,6 +405,7 @@ onUnmounted(() => {
             <h3 class="text-sm font-bold">事件日志</h3>
             <p
               class="text-base-content/50 mt-2 text-xs"
+              data-testid="remote-cache-log-empty"
               v-if="logs.length === 0"
             >
               日志为空。
@@ -410,6 +417,7 @@ onUnmounted(() => {
               <li
                 class="flex gap-2"
                 v-for="entry in logs"
+                data-testid="remote-cache-log-entry"
                 :key="entry.timestamp"
               >
                 <span class="text-base-content/40 whitespace-nowrap">{{ formatTime(entry.timestamp) }}</span>

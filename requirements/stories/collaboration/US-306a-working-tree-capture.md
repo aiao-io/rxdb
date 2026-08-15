@@ -51,12 +51,15 @@ INVEST 检查清单:
 - `WorkingTreeState` / `WorkingTreeEntry` 的持久化布局和 `workingTreeRevision` CAS
 - 普通 CRUD、显式 callback transaction 与 Workspace 草稿 `save()` 的原子捕获
 - pull、autoSync、pullRepository、sync、bulkSync 的 `origin=remote_sync` 捕获和 push echo 隔离
+- `VersionManager.cleanupExpired()` 的过期删除：与 pull 同类按 `origin=remote_sync` 捕获，不生成可 push 的本地 change
 - mergeBranch、undo/redo 的工作树维护；纯 remoteId、水位和审计时间更新排除
 - Workspace 插件 NEW 草稿的**排除边界**：草稿留在插件独立 IndexedDB，不进工作树；`save()` 后才作为普通 INSERT 捕获
 - QueryCache 完整排除，以及混合 callback transaction 的整笔回滚
 - active branch token 校验（消费 US-305 建立的 `activationRevision`）、raw/未知 bypass 拒绝、字段加密 envelope
-- **既有 switch / baseline 物化路径的受信登记**：与 bypass 拒绝门禁同批交付，保证关 trigger 的批量投影重写
-  不被门禁误杀、也不产生工作树条目（见 [epic-006 写入口语义矩阵](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)）
+- **受信路径的意图登记**：与 bypass 拒绝门禁同批交付。登记以**调用方意图**为键、不以传输层函数为键——
+  `adapter.switchBranch` / `mergeChanges(disableTriggers)` 同时被受信物化与必须产生工作树单元的路径调用，
+  按函数登记会把 restore、undo/redo、merge 一并放行成静默写入（见
+  [epic-006 写入口语义矩阵](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)与其下的调用点登记表）
 - `WorkingTreeState` / `WorkingTreeEntry` 的公开类型、TSDoc 与 api-baseline 登记
 - PGlite、四个 SQLite 浏览器适配器和 Electron `node:sqlite` host 的共享 conformance（6 个 v1 后端）
 
@@ -83,22 +86,24 @@ INVEST 检查清单:
 8. **Given** 加密字段含明文哨兵，**When** CRUD、同步、刷新并重放，**Then** WorkingTreeEntry 原始 dump 零明文，解锁后业务值正确。
 9. **Given** commit capability 已启用，**When** raw SQL 或未知 adapter 路径试图绕过工作树维护，**Then** 在业务提交前返回 `commit_capability_mismatch`，不得先写实体再补记事件。
 10. **Given** Workspace 插件中存在 NEW 草稿，**When** 应用启动并读取工作树，**Then** 草稿仍按插件规则从其独立 IndexedDB 恢复，既不出现在 `WorkingTreeEntry` 中、也不递增 `workingTreeRevision`；**When** 用户对该草稿调用 `save()`，**Then** 它作为一次普通 INSERT 被捕获成本地工作树单元。承接父故事 US1-AC3 的工作树半边（baseline 半边由 US-305 AC US2-6 承担）。
-11. **Given** 第 9 条的 bypass 拒绝门禁已启用，**When** 既有 `switchBranch` / baseline 物化以受信路径关闭 trigger 重写业务投影，**Then** 操作正常完成、不被 `commit_capability_mismatch` 拒绝、不产生工作树单元、不递增 `workingTreeRevision`；**When** 同一批量重写走的是未登记路径，**Then** 仍被拒绝。此条只验证「受信登记机制成立」，切换分支后的工作树恢复语义归 US-308。
+11. **Given** 第 9 条的 bypass 拒绝门禁已启用，且写路径按**调用方意图**而非按函数名登记，**When** `switchBranch` 物化 / baseline 物化以受信意图关闭 trigger 重写业务投影，**Then** 操作正常完成、不被 `commit_capability_mismatch` 拒绝、不产生工作树单元、不递增 `workingTreeRevision`。
+12. **Given** 同一批底层函数（`adapter.switchBranch`、`mergeChanges(disableTriggers)`）被不同意图调用，**When** 意图为 `restore` 实体、undo/redo 应用、merge 应用、pull 批量或 `cleanupExpired()` 过期删除，**Then** 每一类都必须产生对应 origin（`restore` / `undo_redo` / `merge` / `remote_sync`）的工作树单元并递增 `workingTreeRevision`——**受信登记不得因为它们共用同一个 adapter 函数而顺带放行**；**When** 批量重写不携带任何已登记意图，**Then** 以 `commit_capability_mismatch` 拒绝。此条只验证「意图登记机制成立」，切换分支后的工作树恢复语义归 US-308。
 
 ## 功能需求
 
 ### 承接的父故事条目（逐条可核对）
 
-| 父故事条目            | 本故事承接范围                                                                                        | 对应验收场景             |
-| --------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------ |
-| FR-039                | 全部：CRUD 在同一事务校验 active token、写实体、写/合并 WorkingTreeEntry、递增 revision               | AC1、AC7                 |
-| FR-045                | 仅 `WorkingTreeEntry` 半边（`IndexEntry` 半边归 US-306b）                                             | AC8                      |
-| FR-046                | 全部：写入口矩阵、`origin=remote_sync`、纯元数据更新、QueryCache 排除与混用回滚、raw/未知 bypass 拒绝 | AC3、AC4、AC6、AC9、AC11 |
-| US-306 US1-AC1        | 刷新后工作树数据与未暂存标记一致（diff 部分归 US-306b）                                               | AC2                      |
-| US-306 US1-AC3        | 仅工作树半边：草稿不进工作树、`save()` 后按普通 INSERT 捕获                                           | AC10                     |
-| US-306 US1-AC4        | 仅持久层半边：仅凭 HEAD + WorkingTreeEntry 冷重建（switch 往返归 US-308）                             | AC2                      |
-| US-306 US2-AC17/18/19 | 全部                                                                                                  | AC3、AC4、AC6            |
-| US-305 FR-052         | 消费方：使用其建立的 `activationRevision` 做写路径 token 校验，不递增                                 | AC7                      |
+| 父故事条目            | 本故事承接范围                                                                                                                                                                                                                                                            | 对应验收场景                   |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| FR-039                | 全部：CRUD 在同一事务以**捕获型** CAS 校验 active branch token、写实体、写/合并 WorkingTreeEntry，并以**事务内读改写**递增 `workingTreeRevision`（不接收调用方 expected 值，见 [epic revision 校验矩阵](../../epics/epic-006-working-tree-commits.md#revision-校验矩阵)） | AC1、AC7                       |
+| FR-045                | 仅 `WorkingTreeEntry` 半边（`IndexEntry` 半边归 US-306b）                                                                                                                                                                                                                 | AC8                            |
+| FR-046                | 全部：写入口矩阵、`origin=remote_sync`（含 `cleanupExpired()`）、纯元数据更新、QueryCache 排除与混用回滚、raw/未知 bypass 拒绝、意图登记                                                                                                                                  | AC3、AC4、AC6、AC9、AC11、AC12 |
+| US-306 US1-AC1        | 刷新后工作树数据与未暂存标记一致（diff 部分归 US-306b）                                                                                                                                                                                                                   | AC2                            |
+| US-306 US1-AC3        | 仅工作树半边：草稿不进工作树、`save()` 后按普通 INSERT 捕获                                                                                                                                                                                                               | AC10                           |
+| US-306 US1-AC4        | 仅持久层半边：仅凭 HEAD + WorkingTreeEntry 冷重建（switch 往返归 US-308）                                                                                                                                                                                                 | AC2                            |
+| US-306 US2-AC14       | 仅工作树加密半边：`WorkingTreeEntry` 原始 dump 明文哨兵零命中（`IndexEntry` 半边与 stage/commit 语义归 US-306b）                                                                                                                                                          | AC8                            |
+| US-306 US2-AC17/18/19 | 全部                                                                                                                                                                                                                                                                      | AC3、AC4、AC6                  |
+| US-305 FR-052         | 消费方：使用其建立的 `activationRevision` 做写路径 token 校验，不递增                                                                                                                                                                                                     | AC7                            |
 
 ### 本故事新增
 
@@ -107,6 +112,10 @@ INVEST 检查清单:
 - `WorkingTreeState` 只存 revision/计数不算完成；条目必须可枚举、可重放并按分支隔离。
 - 受信路径登记 MUST 与 bypass 拒绝门禁同批交付：既有 switch / baseline 物化在门禁启用后 MUST 继续可用，
   且 MUST NOT 产生工作树单元或递增 `workingTreeRevision`。未登记的批量重写 MUST 仍被拒绝。
+- 登记的键 MUST 是调用方意图，不是底层函数。每个关 trigger 的写路径 MUST 在事务上下文中携带一个显式意图枚举
+  （枚举名在 plan 阶段冻结），由调用点一直传到事务体；同一函数的不同意图 MUST 得到不同处置。登记表以
+  [epic-006 调用点登记表](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)为准，新增
+  `disableTriggers` 调用点 MUST 先登记再实现，未登记即拒绝。
 - 新增公开类型（`WorkingTreeState`、`WorkingTreeEntry` 及其错误码）MUST 补齐 TSDoc 并登记进
   `requirements/api-baseline/rxdb.json`，前缀遵守 epic 术语表（禁止 `Workspace*`）。
 
@@ -115,10 +124,13 @@ INVEST 检查清单:
 - 核心包先写失败用例，覆盖率不低于 90%。
 - `workingTreeCaptureConformanceSuite` 在 6 个 v1 本地后端（PGlite、wa-sqlite、sqlite-wasm、sqlite、sqliteai、
   Electron `node:sqlite` host）运行，逐项覆盖 CRUD、callback transaction、所有同步入口、merge、undo/redo、
-  QueryCache 与 raw bypass。任一后端缺席即本故事未完成。
+  `cleanupExpired()` 过期删除、QueryCache 与 raw bypass。任一后端缺席即本故事未完成。
 - 必须注入“业务行已写、WorkingTreeEntry 写入前失败”，断言事务全量回滚。
 - **冷重放测试**：丢弃业务表投影与全部进程内状态后，仅凭 HEAD + `WorkingTreeEntry` 重建，逐字段比对刷新前快照。
 - **受信路径测试**：登记路径的批量重写通过门禁且零工作树副作用；同一重写走未登记路径时断言 `commit_capability_mismatch`。
+- **意图登记漂移测试**：静态扫描全部 `adapter.switchBranch` / `mergeChanges(disableTriggers)` 调用点，
+  与 epic 登记表逐条比对；出现未登记调用点即失败。必须显式覆盖「同一函数、受信意图零副作用 vs 非受信意图
+  必须产生工作树单元」的成对断言，防止按函数放行把 restore / undo/redo / merge / pull 静默吞掉。
 - **类型契约测试**：`tri-framework-check` 之外新增 type-level 断言，验证 `WorkingTreeState` / `WorkingTreeEntry`
   从 `@aiao/rxdb` 导出且形状与 api-baseline 一致；api-baseline diff 未同步更新即失败。
 - 新增公开导出缺 TSDoc 时 lint 失败（零警告门禁）。

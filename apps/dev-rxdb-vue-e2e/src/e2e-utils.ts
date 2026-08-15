@@ -114,3 +114,25 @@ export async function addRootFolder(page: Page, name: string): Promise<Locator> 
   await expect(input).toHaveValue('');
   return row;
 }
+
+const E2E_DB_NAME_STORAGE_KEY = '__aiao_e2e_db_name__';
+const E2E_RESET_MARKER = '__aiao_e2e_state_reset__';
+
+/**
+ * 为当前 Playwright context 建立一次性的数据库隔离边界。
+ *
+ * init script 只在首次文档加载时移除数据库名；同一测试内的 reload 保留
+ * 已生成的名字，因此既不会读取上一个测试的数据，也能验证刷新后的持久化。
+ */
+export async function resetE2eState(page: Page): Promise<void> {
+  await page.addInitScript(
+    ({ dbNameStorageKey, resetMarker }) => {
+      if (window.sessionStorage.getItem(resetMarker) !== '1') {
+        window.localStorage.removeItem(dbNameStorageKey);
+        window.sessionStorage.removeItem(dbNameStorageKey);
+        window.sessionStorage.setItem(resetMarker, '1');
+      }
+    },
+    { dbNameStorageKey: E2E_DB_NAME_STORAGE_KEY, resetMarker: E2E_RESET_MARKER }
+  );
+}

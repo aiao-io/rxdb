@@ -442,6 +442,13 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
           />
           <span class="text-base-content/60 text-xs">{{ opfsAvailable ? '已连接' : '未连接' }}</span>
         </div>
+        <span
+          class="text-error text-xs"
+          v-if="opfs.error.value"
+          data-testid="opfs-error"
+        >
+          {{ opfs.error.value }}
+        </span>
       </div>
       <div
         class="tabs tabs-boxed tabs-xs"
@@ -864,6 +871,7 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
     <input
       class="hidden"
       @change="fileInputRef?.files && handleUpload(Array.from(fileInputRef.files))"
+      data-testid="opfs-file-input"
       multiple
       ref="fileInputRef"
       type="file"

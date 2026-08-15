@@ -84,26 +84,51 @@ INVEST 检查清单:
 
 ### 承接的父故事条目（逐条可核对）
 
-| 父故事条目         | 本故事承接范围                                                              | 对应验收场景   |
-| ------------------ | --------------------------------------------------------------------------- | -------------- |
-| FR-004             | 全部：status 状态集合、一次性 `CommitConflict` 与 durable conflicted 的边界 | AC8、AC9       |
-| FR-005             | 全部：`diff(scope?)` 的两条比较线与实体/事务粒度                            | AC1、AC13      |
-| FR-006             | 全部：stage / unstage / stage all / clearIndex 不改历史、不丢未选择变更     | AC1、AC14      |
-| FR-007             | 全部：staged 快照保留与新增部分标记 unstaged                                | AC3            |
-| FR-011             | 全部：commit 后只清已提交条目、未暂存变更保留                               | AC1            |
-| FR-016             | 全部：discard 与 clearIndex 的范围区分                                      | AC11、AC14     |
-| FR-031             | 全部：四类 revision CAS 矩阵与 commit 内 residual rebase                    | AC7、AC8       |
-| FR-032             | 全部：stage 后编辑不按 writer 身份分叉                                      | AC3            |
-| FR-040             | 全部：stage/re-stage 双 revision 校验、no-op 语义、事务自动扩展             | AC3、AC4、AC15 |
-| FR-041             | 全部：message/authorId/operationId 校验与保留审计字段不可覆盖               | AC2、AC10      |
-| FR-045             | 仅 `IndexEntry` 半边（`WorkingTreeEntry` 半边归 US-306a）                   | AC12           |
-| FR-047             | 全部：index 自包含重放、依赖闭包正反向对称、`index_dependency_cycle`        | AC4、AC5、AC6  |
-| US-306 US2-AC5     | 全部：删除必须出现在 diff                                                   | AC13           |
-| US-306 US2-AC7     | 全部：空事务 / 重复 stage / 重复 discard 幂等                               | AC15           |
-| US-306 US3-AC2     | 全部：`clearIndex()` 只清暂存选择                                           | AC14           |
-| US-306 US3-AC1/AC3 | 全部：discard 回到 HEAD、外键依赖整体回滚                                   | AC11           |
+| 父故事条目 | 本故事承接范围                                                              | 对应验收场景   |
+| ---------- | --------------------------------------------------------------------------- | -------------- |
+| FR-004     | 全部：status 状态集合、一次性 `CommitConflict` 与 durable conflicted 的边界 | AC8、AC9       |
+| FR-005     | 全部：`diff(scope?)` 的两条比较线与实体/事务粒度                            | AC1、AC13      |
+| FR-006     | 全部：stage / unstage / stage all / clearIndex 不改历史、不丢未选择变更     | AC1、AC14      |
+| FR-007     | 全部：staged 快照保留与新增部分标记 unstaged                                | AC3            |
+| FR-011     | 全部：commit 后只清已提交条目、未暂存变更保留                               | AC1            |
+| FR-016     | 全部：discard 与 clearIndex 的范围区分                                      | AC11、AC14     |
+| FR-031     | 全部：四类 revision CAS 矩阵与 commit 内 residual rebase                    | AC7、AC8       |
+| FR-032     | 全部：stage 后编辑不按 writer 身份分叉                                      | AC3            |
+| FR-040     | 全部：stage/re-stage 双 revision 校验、no-op 语义、事务自动扩展             | AC3、AC4、AC15 |
+| FR-041     | 全部：message/authorId/operationId 校验与保留审计字段不可覆盖               | AC2、AC10      |
+| FR-045     | 仅 `IndexEntry` 半边（`WorkingTreeEntry` 半边归 US-306a）                   | AC12           |
+| FR-047     | 全部：index 自包含重放、依赖闭包正反向对称、`index_dependency_cycle`        | AC4、AC5、AC6  |
 
-未在此表出现的父故事条目由 US-306a（写入口捕获）或 US-306c（三框架 / a11y / benchmark）承接。
+父故事 AC 逐条对照（发布门禁 2 按此核对，缺一行即拆分失败）：
+
+| 父故事 AC | 本故事承接范围                                                                                         | 对应验收场景 |
+| --------- | ------------------------------------------------------------------------------------------------------ | ------------ |
+| US1-AC1   | 仅 diff 半边：刷新后 HEAD↔工作树 / HEAD↔index 差异一致（工作树数据与未暂存标记的持久化半边归 US-306a） | AC1、AC13    |
+| US1-AC2   | 全部：刷新后缓存区选择、变更顺序与事务边界不变                                                         | AC1          |
+| US2-AC1   | 全部：只提交被 stage 的闭包，另一修改留在工作树                                                        | AC1          |
+| US2-AC2   | 全部：空 index 提交被拒，工作树与 HEAD 不变                                                            | AC2          |
+| US2-AC3   | 全部：staged 版本与 unstaged 版本分别可见，不静默并入                                                  | AC3          |
+| US2-AC4   | 全部：多实体事务作为不可拆分单元进入 commit                                                            | AC4、AC5     |
+| US2-AC5   | 全部：删除必须出现在 diff                                                                              | AC13         |
+| US2-AC6   | 全部：commit 后只清已提交条目，未暂存变更保留并显示准确 diff                                           | AC1          |
+| US2-AC7   | 全部：空事务 / 重复 stage / 重复 discard 幂等                                                          | AC15         |
+| US2-AC8   | 全部：其他 realm 的后续编辑一律记为 unstaged，不覆盖 snapshot                                          | AC3          |
+| US2-AC9   | 全部：双 realm 竞争只允许一个成功，失败方返回 expected/actual                                          | AC7          |
+| US2-AC10  | 全部：re-stage 原子替换快照；工作树未变化时为 no-op 且不递增 revision                                  | AC3、AC15    |
+| US2-AC11  | 全部：选择自动扩展到完整事务与关系依赖并返回实际列表                                                   | AC4、AC5     |
+| US2-AC12  | 全部：捕获 token 后被抢先修改则 `workingTreeRevision` CAS 失败，index 零变化                           | AC7          |
+| US2-AC13  | 全部：message/authorId/operationId 校验先于任何持久状态变化                                            | AC2          |
+| US2-AC14  | 仅 `IndexEntry` 半边（`WorkingTreeEntry` dump 扫描归 US-306a）                                         | AC12         |
+| US2-AC15  | 全部：跨事务前置闭包与反向 unstage，失败时 index 零变化                                                | AC4          |
+| US2-AC16  | 全部：Parent→Child 拓扑、DELETE 逆序、关系键 UPDATE 与关系环                                           | AC5、AC6     |
+| US3-AC1   | 全部：discard 回到当前 HEAD 且历史 commit 不变                                                         | AC11         |
+| US3-AC2   | 全部：`clearIndex()` 只清暂存选择                                                                      | AC14         |
+| US3-AC3   | 全部：跨实体外键依赖在事务边界内整体回滚                                                               | AC11         |
+
+父故事剩余 AC 的归属是**穷举**的，不存在兜底：US1-AC3 的工作树半边、US1-AC4 的持久层半边、
+US2-AC17/AC18/AC19 归 [US-306a](./US-306a-working-tree-capture.md)；US1-AC3 的 baseline 半边归
+[US-305](./US-305-commit-graph-head.md)，US1-AC4 的切出/切回往返半边归
+[US-308](./US-308-branch-isolation-conflict.md)；US-306c 不承接任何编号父 AC，只承接三框架与 a11y 横切项。
 
 ## 测试要求
 

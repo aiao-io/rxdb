@@ -23,6 +23,17 @@ INVEST 检查清单:
 
 > Epic 级的术语表、横切 DoD 与性能口径见 [epic-006](../../epics/epic-006-working-tree-commits.md)。
 
+## 前置依赖
+
+- [US-305](./US-305-commit-graph-head.md)：commit 图、父链可达性与 baseline，是 restore 的数据源与路径校验依据
+- [US-306a](./US-306a-working-tree-capture.md)：`WorkingTreeEntry` 的持久化布局与写入口捕获。FR-015 要求
+  restore 结果写成**普通、未暂存的 `WorkingTreeEntry`**，`restoreEntity` 也在 epic 的调用点登记表中被列为
+  「必须产生工作树单元」的意图；没有 306a 的捕获层，restore 无处落盘
+- [US-306b](./US-306b-index-commit-state-machine.md)：status/diff/index/commit 状态机与 revision CAS 口径；
+  本故事的「未 stage 时 commit 被拒」直接复用其空 index 规则
+- [US-306c](./US-306c-cross-framework-working-tree.md)：`useWorkingTree()` 的三端契约。本故事的恢复入口是对
+  该契约的**扩展**（新增 `restore` 与 `restoreState`），不得在某一端另立一套命名或状态机
+
 ## 作为/我想要/以便
 
 **作为** 想纠正错误的用户

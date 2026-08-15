@@ -134,6 +134,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 11. **Given** `syncBranches()` 已建立 `local=false, remote=true` 但本地没有完整实体状态的分支，**When** 首次启用，**Then** 不为它伪造空 baseline 或 branch ref；健康本地分支照常迁移，该远端分支由 US-308 首次成功物化时原子建立 `kind=branch_baseline`。
 12. **Given** 迁移前没有 active 分支且 `main` 存在，**When** 首次启用，**Then** 沿用既有语义激活 `main` 后建立 baseline；**Given** 存在多个 `activated=true` 分支，**Then** 以 `ambiguous_active_branch` 整体失败，所有 commit capability 状态零变化，不按查询顺序任选一个。
 13. **Given** 数据库首次启用 commit 能力，**When** 迁移事务提交，**Then** 存在唯一一行 `WorkingTreeActivationState` 且 `activationRevision = 0`，重启后可读、值不变，且其中不含第二份 active branch ID；**Given** 应用未显式启用 commit 能力，**Then** 该表不被创建。
+14. **Given** `requirements/migration-release.json` 当前为 `bridge.tag = null` / `bridge.version = null`，且历史 bridge 发布 `v0.0.25` 的 tagged commit 因 squash 已不在发布主线上（`git merge-base --is-ancestor v0.0.25 HEAD` 为 false），**When** 本故事的 system schema 迁移发布进入门禁，**Then** 门禁必须失败，直到发布主线上产出一个新的**非迁移** bridge 版本并把它的真实 tag 写入 `bridge.tag`；该 tag 必须满足 `git merge-base --is-ancestor <bridge-tag> <release-commit>` 且不得是 `v0.0.25`。**Then** 补齐后重跑门禁通过，且全程不重打、移动或伪造任何已发布 tag。
 
 ## 功能需求
 
@@ -226,6 +227,9 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - `WorkingTreeActivationState` 需独立 fixture：启用后单行存在且 `activationRevision = 0`、重启可读、未启用时表不存在（FR-052 / AC US2-13）。
 - 损坏 fixture 必须分别覆盖不可达孤立节点、HEAD 损坏和中间祖先损坏；后两者断言 ref 不被改写、健康分支可用且损坏分支所有重放写入口稳定 fail-closed。
 - 支持字段加密的后端必须扫描 commit/ChangeSet/baseline 原始持久化 dump，断言明文哨兵零命中。
+- 桥接血统门禁需独立用例（FR-030 / AC US2-14）：`bridge.tag` 为 `null`、为 `v0.0.25`、或不满足
+  `git merge-base --is-ancestor <bridge-tag> <release-commit>` 时门禁均失败；只有真实祖先 tag 才放行。
+  用例读真实 git 仓库状态，不 mock 祖先判定。
 - 测试文件使用 `*.spec.ts`，不依赖非确定性的固定延时。
 
 ## 实现文件（计划阶段待确认）

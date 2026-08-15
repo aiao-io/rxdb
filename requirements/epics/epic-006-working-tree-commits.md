@@ -117,19 +117,19 @@ CRUD 的前置条件，多标签页下所有在途 `save()` 都会失败，与 F
 US-306 US2-AC8（其他 realm 编辑同一实体属正常行为）直接冲突。`activationRevision` 则相反：它是调用方捕获型，
 因为「实体属于哪个分支」必须以读取时的分支为准，这正是 `stale_active_branch` 的判据。
 
-| 操作                      | 同一事务必须校验                                                 | 成功后递增                                    |
-| ------------------------- | ---------------------------------------------------------------- | --------------------------------------------- |
-| 普通 INSERT/UPDATE/DELETE | active branch token（捕获型）；working-tree revision 读改写      | working-tree revision                         |
+| 操作                      | 同一事务必须校验                                                       | 成功后递增                                    |
+| ------------------------- | ---------------------------------------------------------------------- | --------------------------------------------- |
+| 普通 INSERT/UPDATE/DELETE | active branch token（捕获型）；working-tree revision 读改写            | working-tree revision                         |
 | remote entity apply       | active branch token（捕获型）、sync 水位；working-tree revision 读改写 | 有实体净变化时递增 working-tree revision      |
-| merge / undo / redo       | active branch token、expected working-tree + 操作自身 revision   | 有逻辑工作树变化时递增 working-tree revision  |
-| stage / re-stage          | active branch token、expected working-tree + index revision      | index revision；工作树未变                    |
-| unstage / clear index     | active branch token、expected index revision                     | index revision                                |
-| commit                    | active branch token、expected head + index revision              | head、index、working-tree revision            |
-| restore                   | active branch token、expected head + working-tree + empty index  | working-tree revision；index 不变             |
-| discard                   | active branch token、expected head + working-tree + index        | working-tree；index 非空时递增 index revision |
-| switch branch             | expected activation revision、来源/目标分支状态或物化快照        | activation revision                           |
-| create branch             | active branch token、来源 head + working-tree revision           | 新 ref/state 从 revision 0 开始；来源状态不变 |
-| remove branch             | expected activation revision、目标 ref/state revision、非 active | 原子删除目标可变状态；revision 不复用         |
+| merge / undo / redo       | active branch token、expected working-tree + 操作自身 revision         | 有逻辑工作树变化时递增 working-tree revision  |
+| stage / re-stage          | active branch token、expected working-tree + index revision            | index revision；工作树未变                    |
+| unstage / clear index     | active branch token、expected index revision                           | index revision                                |
+| commit                    | active branch token、expected head + index revision                    | head、index、working-tree revision            |
+| restore                   | active branch token、expected head + working-tree + empty index        | working-tree revision；index 不变             |
+| discard                   | active branch token、expected head + working-tree + index              | working-tree；index 非空时递增 index revision |
+| switch branch             | expected activation revision、来源/目标分支状态或物化快照              | activation revision                           |
+| create branch             | active branch token、来源 head + working-tree revision                 | 新 ref/state 从 revision 0 开始；来源状态不变 |
+| remove branch             | expected activation revision、目标 ref/state revision、非 active       | 原子删除目标可变状态；revision 不复用         |
 
 commit 不因 stage 后的普通编辑单独失败：staged snapshot 已冻结，commit 在事务内把已提交部分从当前
 `WorkingTreeEntry` 中扣除或 rebase，后续编辑仍作为 unstaged 保留。任何语义 no-op 都不递增 revision。
@@ -144,17 +144,17 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 `HEAD + WorkingTreeEntry` 要成为真相源，不能只拦截 Repository 的普通 CRUD。所有会改业务实体表的入口必须在
 同一数据库事务内落入下表之一；未知入口默认拒绝，不能先改业务表再靠事件补记。
 
-| 写入口                                                                    | commit 能力启用后的语义                                                                                              |
-| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| 普通 CRUD、显式事务、Workspace 草稿 `save()`                              | 写入/合并本地 `WorkingTreeEntry`，来源为 `local`，递增 working-tree revision                                         |
-| `mergeBranch()`、undo/redo、restore/discard                               | 按各自原子边界写入或重算本地工作树；不得绕过 active token 与 revision CAS                                            |
-| `pull()`、autoSync、`pullRepository()`、`sync()`、`bulkSync()` 的实体应用 | 即使为防回推而关闭 `RxDBChange` trigger，也必须写入来源为 `remote_sync` 的未暂存单元；不生成可 push 的本地 change    |
-| 只更新 remoteId、同步水位或审计时间                                       | 不改变业务表，不创建工作树单元，不递增 working-tree revision                                                         |
+| 写入口                                                                    | commit 能力启用后的语义                                                                                                |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 普通 CRUD、显式事务、Workspace 草稿 `save()`                              | 写入/合并本地 `WorkingTreeEntry`，来源为 `local`，递增 working-tree revision                                           |
+| `mergeBranch()`、undo/redo、restore/discard                               | 按各自原子边界写入或重算本地工作树；不得绕过 active token 与 revision CAS                                              |
+| `pull()`、autoSync、`pullRepository()`、`sync()`、`bulkSync()` 的实体应用 | 即使为防回推而关闭 `RxDBChange` trigger，也必须写入来源为 `remote_sync` 的未暂存单元；不生成可 push 的本地 change      |
+| 只更新 remoteId、同步水位或审计时间                                       | 不改变业务表，不创建工作树单元，不递增 working-tree revision                                                           |
 | `VersionManager.cleanupExpired()` 的过期删除                              | 与 `pull` 同类：写入来源为 `remote_sync` 的未暂存 DELETE 单元，递增 working-tree revision；不生成可 push 的本地 change |
-| branch switch、baseline/restore 物化、commit residual rebase              | 由对应领域操作显式维护工作树；底层投影重写不得被 trigger 二次记录                                                    |
-| metadata-only 目标分支的远端预取                                          | 只写 branch materialization staging 与独立水位，不得更新当前分支 `RxDBSync` 或业务表                                 |
-| QueryCache 的 upsert/delete/过期清理                                      | QueryCache 实体不进入 baseline、status、diff、stage 或 commit；它仍是可重建缓存，不能与版本化实体混在同一事务单元中  |
-| raw SQL、adapter 直写或其他 trigger bypass                                | 业务表写入前以 `commit_capability_mismatch` 拒绝；只有同时持有内部事务能力并原子维护工作树的受信路径可以关闭 trigger |
+| branch switch、baseline/restore 物化、commit residual rebase              | 由对应领域操作显式维护工作树；底层投影重写不得被 trigger 二次记录                                                      |
+| metadata-only 目标分支的远端预取                                          | 只写 branch materialization staging 与独立水位，不得更新当前分支 `RxDBSync` 或业务表                                   |
+| QueryCache 的 upsert/delete/过期清理                                      | QueryCache 实体不进入 baseline、status、diff、stage 或 commit；它仍是可重建缓存，不能与版本化实体混在同一事务单元中    |
+| raw SQL、adapter 直写或其他 trigger bypass                                | 业务表写入前以 `commit_capability_mismatch` 拒绝；只有同时持有内部事务能力并原子维护工作树的受信路径可以关闭 trigger   |
 
 **受信路径必须与 bypass 门禁同批交付。** 表最后一行的拒绝门禁一旦启用，既有的批量投影重写路径就会撞上它——
 最典型的是 [VersionManager.switchBranch](../../packages/rxdb/src/version/VersionManager.ts#L758) 经
@@ -167,15 +167,15 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 `executor.mergeChanges(..., disableTriggers)` 都是被多个语义不同的调用方复用的批量重写传输层；
 把「受信」挂在这两个函数上，等于让本表的不同行共用同一个判定，必然出错。当前调用方与各自应落的行如下：
 
-| 调用点                                                                                     | 传输层                            | 本表归属                        |
-| ------------------------------------------------------------------------------------------ | --------------------------------- | ------------------------------- |
-| [VersionManager.switchBranch](../../packages/rxdb/src/version/VersionManager.ts#L769)       | `adapter.switchBranch`            | 受信物化：**不**产生工作树单元  |
-| [VersionManager `restoreEntity`](../../packages/rxdb/src/version/VersionManager.ts#L936)    | `adapter.switchBranch`            | undo/redo/restore：**必须**产生 |
-| [HistoryManager 失效 redo 栈](../../packages/rxdb/src/version/HistoryManager.ts#L948)       | `adapter.switchBranch`            | 只写 `redoInvalidatedAt` 元数据：不产生 |
-| [HistoryManager undo/redo 应用](../../packages/rxdb/src/version/HistoryManager.ts#L1472)    | `adapter.switchBranch`            | undo/redo：**必须**产生         |
-| [merge-branch](../../packages/rxdb/src/version/merge-branch.ts#L150)                        | `mergeChanges`（trigger 开启）    | mergeBranch：必须产生           |
-| [pull-batch](../../packages/rxdb/src/version/pull-batch.ts#L379) / [pull-repository](../../packages/rxdb/src/version/pull-repository.ts#L628) | `mergeChanges(disableTriggers)` | remote apply：`origin=remote_sync` |
-| [cleanup-expired](../../packages/rxdb/src/version/cleanup-expired.ts#L200)                  | `mergeChanges(disableTriggers)`   | 过期删除：`origin=remote_sync`  |
+| 调用点                                                                                                                                        | 传输层                          | 本表归属                                |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | --------------------------------------- |
+| [VersionManager.switchBranch](../../packages/rxdb/src/version/VersionManager.ts#L769)                                                         | `adapter.switchBranch`          | 受信物化：**不**产生工作树单元          |
+| [VersionManager `restoreEntity`](../../packages/rxdb/src/version/VersionManager.ts#L936)                                                      | `adapter.switchBranch`          | undo/redo/restore：**必须**产生         |
+| [HistoryManager 失效 redo 栈](../../packages/rxdb/src/version/HistoryManager.ts#L948)                                                         | `adapter.switchBranch`          | 只写 `redoInvalidatedAt` 元数据：不产生 |
+| [HistoryManager undo/redo 应用](../../packages/rxdb/src/version/HistoryManager.ts#L1472)                                                      | `adapter.switchBranch`          | undo/redo：**必须**产生                 |
+| [merge-branch](../../packages/rxdb/src/version/merge-branch.ts#L150)                                                                          | `mergeChanges`（trigger 开启）  | mergeBranch：必须产生                   |
+| [pull-batch](../../packages/rxdb/src/version/pull-batch.ts#L379) / [pull-repository](../../packages/rxdb/src/version/pull-repository.ts#L628) | `mergeChanges(disableTriggers)` | remote apply：`origin=remote_sync`      |
+| [cleanup-expired](../../packages/rxdb/src/version/cleanup-expired.ts#L200)                                                                    | `mergeChanges(disableTriggers)` | 过期删除：`origin=remote_sync`          |
 
 因此写路径必须携带**显式意图标记**（枚举值，plan 阶段冻结名称），由发起领域操作的调用方传入并透传到事务内；
 未携带标记的批量重写一律按未知入口拒绝。新增任何一个 `disableTriggers` 调用点都必须先在本表登记，
