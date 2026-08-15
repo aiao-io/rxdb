@@ -12,7 +12,7 @@
 
 `WorkingTreeStatus`、`WorkingTreeDiff`、`WorkingTreeSelection`、`WorkingTreeStageResult`、`WorkingTreeCommandError`、`CommitOptions`、`CommitConflict`
 
-定义见 [core-api.md](./core-api.md)。
+定义见 [core-api.md](./core-api.md)；`CommitConflict` 见 [§8.5](./core-api.md#85-冲突描述类型)——它是从操作、对象与 expected/actual revision 派生的纯结构，三端**原样透传**，不得在框架层重算或补字段。
 
 ---
 

@@ -28,7 +28,7 @@
 
 **Constraints**: 宪法 IV 默认预算（query < 16 ms、DB op < 100 ms、bundle < 50 KB gz、demo first paint < 1.5 s）全部适用；未启用该能力的数据库零副作用、零新表；已启用后 `packages/rxdb` 的公开 API 无破坏性变更（`switchBranch(branchId: string)` 单参签名继续编译）；所有新增持久化位置在支持字段加密的后端上保持信封落盘
 
-**Scale/Scope**: 新增约 12 张系统表 / 类型契约；核心包 `packages/rxdb` 新增 6 个内部子模块；6 个适配器包需实现新的适配器方法；3 个框架包各新增 1 个入口；3 个演示应用 + 3 个 e2e 项目各新增 1 个页面与场景；`packages/rxdb-test` 新增 2 套具名套件；`benchmarks/` 新增 1 个 target。交付切分为 6 个可独立验收的用户故事，固定顺序 US1 → US2 → US3 → US4 →（US5 ∥ US6）
+**Scale/Scope**: 新增 **11 张系统表** + 扩展既有 `rxdb_branch`；核心包 `packages/rxdb` 新增 6 个内部子模块；6 个适配器包需实现新的适配器方法；3 个框架包各新增 1 个入口；3 个演示应用 + 3 个 e2e 项目各新增 1 个页面与场景；`packages/rxdb-test` 新增 2 套具名套件；`benchmarks/` 新增 1 个 target。交付切分为 6 个可独立验收的用户故事，固定顺序 US1 → US2 → US3 → US4 →（US5 ∥ US6）
 
 ## Constitution Check
 
@@ -219,7 +219,7 @@ requirements/
 | 原则 | 结论 | 设计阶段新增/变化 |
 | --- | --- | --- |
 | I. Code Quality | **PASS** | 例外从 1 项增为 **2** 项（新增 `EntityIndexMetadataOptions.where`），均已在 Complexity Tracking 论证。两项都是**加法**：新增可选字段、新增枚举形参，既有声明与调用点行为不变。`packages/rxdb` 的每个新公开导出在 [contracts/core-api.md](./contracts/core-api.md) 中逐个列出并要求 TSDoc |
-| II. Testing Standards | **PASS** | [contracts/conformance-suites.md](./contracts/conformance-suites.md) 把 10 条不变式落成 2 套具名套件共 **36 组**断言，6 个后端逐一执行。确定性手法已冻结（无 `setTimeout`、崩溃用注入错误 + 重连、并发用同进程双实例同库）。覆盖率阈值未放宽 |
+| II. Testing Standards | **PASS** | [contracts/conformance-suites.md](./contracts/conformance-suites.md) 把 **13 条不变式**落成 2 套具名套件共 **60 组**断言（C 10 / G 17 / S 16 / R 9 / B 8），6 个后端逐一执行。确定性手法已冻结（无 `setTimeout`、崩溃用注入错误 + 重连、并发用同进程双实例同库）。覆盖率阈值未放宽 |
 | III. UX Consistency | **PASS** | [contracts/tri-framework-api.md](./contracts/tri-framework-api.md) 冻结 v1 基线键集 + 扩展点协议 + 静态对称门禁（缺失导出数 = 0）。"Never break userspace" 由「未启用 = 零新表零行为差异」保证 |
 | IV. Performance | **PASS** | [contracts/benchmark-report.md](./contracts/benchmark-report.md) 冻结 fixture、报告结构、`runnerProfileHash` 与三态门禁。restore ≤ 1 s 仍是**唯一**性能例外；包体积 < 50 KB gz 需在 US4 收尾实测 |
 

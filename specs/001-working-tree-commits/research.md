@@ -129,13 +129,16 @@ stage 正向扩展，unstage 反向移除依赖者。不可拆分的关系环整
 
 **Decision**:
 
-- 提交 id 用既有 [`uuid()`](../../packages/rxdb/src/rxdb-utils.ts#L153)（**UUID v7**，时间有序），**不用**内容哈希。
+- **普通提交**（`kind = 'normal'`）id 用既有 [`uuid()`](../../packages/rxdb/src/rxdb-utils.ts#L153)（**UUID v7**，时间有序），**不用**内容哈希。
+- **系统根节点**（`kind = 'baseline'` / `'branch_baseline'`）id 是**确定性派生**的：由「数据库标识 + 分支标识 + `enableMigrationId` + schema/编解码 manifest」派生。理由是这两类节点由**可重试的迁移与分支物化**创建（FR-013、FR-052），随机 id 会让「重试」与「重复创建」无法区分，也无法让 INV-2「每分支恰好一条基线」在续做路径上收敛。它们不经用户提交入口创建，因此不需要时间有序性。
 - 幂等唯一约束键 = `(branchId, branchGeneration, operationId)`。`branchGeneration` 是分支引用上的不可变代次，同名重建分支拿到新代次，因此不与旧幂等键碰撞（FR-009、spec Edge Cases）。
 - 相同键 + 相同内容 → 返回原提交、HEAD 不推进；相同键 + 不同内容 → `idempotency_key_reused`，原记录不被覆盖。
 
 **Rationale**: UUID v7 时间有序，既是主键又能当稳定游标，与 FR-007 的「拓扑顺序为主、创建时间为次级排序」天然吻合。内容哈希被否有两个硬理由：加密字段的信封每次加密产生不同密文（nonce 随机），内容哈希不稳定；且内容哈希会让「相同内容不同意图的两次提交」被误判为重试。
 
-**Alternatives rejected**: *自增整数*：跨分支/跨库不唯一，且与远端同步的 ID 空间冲突。*内容哈希*：见上。
+确定性根节点 id 与「否决内容哈希」不矛盾：派生输入是**结构性标识**（库/分支/迁移/manifest），不含任何被加密的用户数据，因此不受 nonce 随机性影响。
+
+**Alternatives rejected**: *自增整数*：跨分支/跨库不唯一，且与远端同步的 ID 空间冲突。*内容哈希*：见上。*根节点也用 UUID v7*：迁移重试会产生第二条基线，直接违反 INV-2。
 
 ---
 

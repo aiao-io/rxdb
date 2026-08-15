@@ -8,7 +8,7 @@ US4（US-306c）**拥有** `benchmarks:bench-working-tree` 这个 target 本身�
 
 ## 1. Target
 
-```
+```bash
 pnpm nx run benchmarks:bench-working-tree
 ```
 
@@ -40,7 +40,7 @@ fixture 由确定性种子构造（无随机、无时钟依赖），其内容摘
 | `status` | US4 |
 | 完整 `diff` | US4 |
 | 批量 `stage` 50 单元 | US4 |
-| `restore`（整树恢复到 N 提交前） | US5 追加 |
+| `restore`（clean HEAD 恢复含 **100 个变更单元**的 `HEAD~1`） | US5 追加 |
 
 每个场景独立 warmup 5 次、采样 50 次。
 
@@ -48,7 +48,7 @@ fixture 由确定性种子构造（无随机、无时钟依赖），其内容摘
 
 ## 4. 报告 JSON 结构
 
-```
+```json
 {
   "target": "bench-working-tree",
   "fixture": { "entities": 10000, "commits": 100, ..., "fixtureHash": "<hash>" },

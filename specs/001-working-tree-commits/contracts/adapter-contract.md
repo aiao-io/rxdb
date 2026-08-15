@@ -30,7 +30,7 @@
 | 条件更新回传影响行数 | `UPDATE ... WHERE rev = :expected` 返回 `rowsAffected`，`0` 即 CAS 冲突 | ✅ 已有并有一致性套件覆盖 |
 | 部分唯一索引 | `CREATE UNIQUE INDEX ... WHERE <col> = <const>` | ❌ 需新增（[R-003](../research.md#r-003-head-的唯一真相源与激活分支基数约束)） |
 | 写入意图透传 | `mergeChanges` / `switchBranch` 携带 `RxDBWriteIntent` 并在同事务内落工作树条目 | ❌ 需新增（[R-006](../research.md#r-006-写入意图枚举与受信登记)） |
-| 系统 schema v4 建表 | 7 张新表，仅在启用时创建 | ❌ 需新增 |
+| 系统 schema v4 建表 | **11 张新表**（[data-model §8](../data-model.md)），仅在启用时创建 | ❌ 需新增 |
 
 除此之外**不引入任何新的跨方言原语**——这是把跨后端一致性风险压到最低的硬约束。
 
@@ -120,10 +120,13 @@ EntityIndexMetadataOptions {
 
 ---
 
-## 7. 损坏检测与降级
+## 7. 损坏检测与降级（**按分支隔离**）
 
-检出提交图不变式破坏（INV-2 / INV-3）时：
+FR-014 的降级单位是**分支**，不是数据库。检出某分支可达路径上的提交图不变式破坏（INV-2 / INV-3）时：
 
-1. 抛 `commit_graph_corrupted`，携带被破坏的不变式标识与涉及的提交 id。
-2. 数据库进入 `corrupted_read_only` 降级：拒绝一切写入，保留读取与诊断导出能力。
-3. **不**自动修复、**不**自动删除任何提交行。
+1. 抛 `commit_graph_corrupted`，携带被破坏的不变式标识、**首个**损坏节点 id 与修复建议。
+2. **仅该分支**进入 `corrupted_read_only`：阻止该分支的提交、恢复与切入；保留读取与诊断导出能力。
+3. 保留原分支引用与原始记录：**不**自动修复、**不**自动改指针、**不**删除任何提交行或 change set 行。
+4. **其他健康分支照常可用**——MUST NOT 整库降级、MUST NOT 阻断未受影响分支的普通 CRUD。
+
+一致性套件对应断言见 [conformance-suites.md](./conformance-suites.md) G 组：构造一条损坏分支后，另一条健康分支的 `status()` / `stage()` / `commit()` 全部正常返回。

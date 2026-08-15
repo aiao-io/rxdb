@@ -18,6 +18,14 @@ pnpm check-migration-release-gate
 
 **通过判据**：产出一个**新的非迁移 bridge tag**、更新该 JSON 后，`git merge-base --is-ancestor <bridge-tag> <release-commit>` 成立且上述命令退出码为 0。
 
+**门禁必须读真实 git 状态**（不得以桩化祖先关系「验证」自己）。三种失败态都要能被挡住：
+
+| 场景 | 期望 |
+| --- | --- |
+| `bridge.tag = null` | 失败 |
+| `bridge.tag` 指向陈旧发布（如 `v0.0.25`，早于本次 schema 变更） | 失败 |
+| tag 存在但 `git merge-base --is-ancestor` 不成立 | 失败 |
+
 **禁止**：重打、移动或伪造已发布标签；禁止把 `oldBundlePolicy.enforced` 关掉绕过。
 
 ---
@@ -39,6 +47,7 @@ pnpm nx test rxdb -- --testNamePattern="commit graph|baseline|idempotency"
 ```
 
 **判据**：
+
 - 每分支恰好一条基线提交（INV-2）
 - `headCommitId` 可达 `baselineCommitId`（INV-3）
 - 直写两行 `activated = TRUE` 被**数据库约束**拒绝（INV-1）
@@ -51,7 +60,7 @@ pnpm nx test rxdb -- --testNamePattern="commit graph|baseline|idempotency"
 pnpm nx run-many -t test --projects=tag:adapter
 ```
 
-**判据**：6 个后端全部执行 `workingTreeCommitConformanceSuite` 的 G-1..G-10 组并通过。任一后端缺席 = 未完成（SC-003）。
+**判据**：6 个后端全部执行 `workingTreeCommitConformanceSuite` 的 **G-1..G-17** 组并通过。任一后端缺席 = 未完成（SC-003）。
 
 ---
 
@@ -65,6 +74,7 @@ node scripts/audit/write-intent-drift.mjs
 ```
 
 **判据**：
+
 - 11 个受信调用点逐个触发，条目「产生 / 不产生」与登记表逐项一致（[adapter-contract §4](./contracts/adapter-contract.md#4-写入口受信登记)）
 - 漂移扫描：未登记调用点数量 = **0**（SC-004）；登记了但已不存在的条目数量 = **0**
 - 扫描排除 `dist/` 与测试文件，且能区分 `mergeChanges` 的本地/远端两个重载
@@ -76,9 +86,10 @@ pnpm nx run-many -t test --projects=tag:adapter -- --testNamePattern="workingTre
 ```
 
 **判据**：
+
 - 事务回滚后业务数据与工作树条目**同时不存在**，半状态率 = **0**（SC-002）
 - 任意操作序列后，「HEAD 链 + 条目按 `sequence` 重放」逐字段等于当前业务数据（INV-4）
-- `SyncType.QueryCache` 实体在 5 张新表中出现次数 = **0**（INV-9）
+- `SyncType.QueryCache` 实体在 **11 张新表**中出现次数 = **0**（INV-9）
 - 同事务混写 → `mixed_versioned_cache_transaction` + 整事务回滚
 
 ### 2.3 加密
@@ -98,6 +109,7 @@ pnpm nx run-many -t test --projects=tag:adapter -- --testNamePattern="workingTre
 ```
 
 **判据**（对应 [conformance-suites §3.2](./contracts/conformance-suites.md#32-缓存区与状态机us3)）：
+
 - `closure ⊇ requested` 且如实回传；跨事务父子依赖被自动扩展
 - 任意 stage/unstage 序列后缓存区**自包含**（INV-5）
 - 无法形成合法闭包 → `index_dependency_cycle` 且缓存区**零变化**
@@ -147,6 +159,7 @@ pnpm nx run benchmarks:bench-working-tree
 **前置**：`benchmarks/reports/working-tree-reference.json` 已签入。
 
 **判据**（[benchmark-report.md §5](./contracts/benchmark-report.md#5-三态门禁)）：
+
 - 归一化 ratio ≤ reference median 的 **110%**
 - `runnerProfileHash` 匹配时追加绝对判据 p95 ≤ **100 ms**
 - 不匹配时产出 `benchmark_environment_mismatch` 并**跳过**绝对判据 —— 不得放宽为通过（SC-012）
@@ -164,14 +177,20 @@ pnpm nx run benchmarks:bench-working-tree     # 含 US5 追加的 restore 场景
 ```
 
 **判据**：
-- 恢复以**新提交**表达；历史提交行逐字段未被改写（FR-043）
+
+- 恢复**不移动 HEAD、不产生提交**：只落未暂存条目与会话行；暂存闭包后走普通 `commit()`，新提交以原 HEAD 为父，会话同事务转 `committed`（FR-042）
+- 历史提交行逐字段未被改写（FR-043）
+- 完整差异为空 → `{ kind: 'noop' }`，三个 revision 变化量均为 0（FR-046）
+- CAS 非对称：初次恢复失败 → 不建会话并全量回滚；已有会话的提交/丢弃失败 → 保留会话并派生 `conflicted`（FR-045）
 - 中途崩溃 → 据 `appliedUnitCount` 续做或整体回滚，两种终态都无半状态
-- 同 `operationId` 重复触发不产生第二条恢复提交
-- schema 不兼容 → `incompatible_schema` 且零写入
-- 分支 A 的工作树/缓存区在分支 B 上完全不可见
-- 脏工作树切换缺省被拒（`onDirty: 'reject'`）
+- 路径级 schema 预检：返回**首个**不兼容提交 id + 重放方向 + 双方 manifest，`incompatible_schema` 且零写入（FR-044）
+- 分支 A 的工作树/缓存区在分支 B 上完全不可见（FR-050）
+- **`switchBranch(branchId)` 单参调用仍编译，且默认仍是无条件切换**——脏工作树不阻断（FR-048）
+- `requireClean: true` 显式传入时才校验；非 clean → `working_tree_not_clean`，恢复建议与真实成因一致
+- 切换成功只递增 `activationRevision`，两个分支的另外两个 revision 变化量均为 0（FR-049）
 - 未物化目标分支 → `branch_not_materialized`
 - 并发切换恰好 1 个成功
+- `createBranch` 派生 `branch_baseline` 且新分支工作树为空；`removeBranch` 后孤儿条目数 = 0 且提交行未被删除（FR-051）
 - `restore` p95 ≤ **1 s**（已登记的宪法 IV 例外）
 
 ---
@@ -186,6 +205,7 @@ pnpm check-migration-release-gate
 ```
 
 **判据**：
+
 - 零 ESLint 警告、TS strict 通过、嵌套 ≤ 3 层
 - `packages/rxdb` 覆盖率 ≥ **90%**，其余包 ≥ **80%**
 - 每个新公开导出都有 TSDoc
@@ -200,4 +220,6 @@ pnpm check-migration-release-gate
 | --- | --- |
 | 新增公开导出 | **禁止** `Workspace*` 前缀（已被 `@aiao/rxdb-plugin-workspace` 占用） |
 | 切换分支选项 | 公开新类型固定为 `WorkingTreeSwitchBranchOptions`；**不得**复用既有内部 `SwitchBranchOptions` |
+| 切换分支默认值 | 既有入口默认行为**保持不变**（无条件切换、单参签名继续编译）；clean 检查只作为显式 `requireClean` 提供；无 `onDirty` / `carryOver` |
 | 内部意图字段 | `SwitchBranchOptions.intent` 是内部适配器契约扩展，不进公开 API 基线 |
+| 两个枚举不合并 | 内部 `RxDBWriteIntent`（9 值）与持久 `WorkingTreeEntry.origin`（5 值）是不同概念，**不得**合并 |
