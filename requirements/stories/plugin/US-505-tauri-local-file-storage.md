@@ -33,10 +33,13 @@ INVEST 检查清单:
 US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri 侧被两个前置卡住，
 绑在一条故事里等于让能交付的一半陪跑。
 
-1. **meta 无处安放**：storage 插件的 `ensureLocalReady` 硬性要求 `rxdb.config.sync.local`
-   指向本地 adapter；Tauri 的桌面 SQLite adapter 是
+1. **meta 无处安放**：storage 插件要求 `rxdb.config.sync.local` 配置一个可连接的
+   adapter（`ensureLocalReady` 只校验其存在并 `connect()` 成功，**无**「本地/桌面」类型
+   判别，见 US-504 2026-08-15 评审）；「同域备份」要成立，meta 必须落在 Tauri 的桌面
+   SQLite adapter 上，而它是
    [US-210](../adapter/US-210-tauri-sqlite-local-database.md)（Backlog，事务门禁未验证）。
-   US-210 不落地，本故事的「同域备份」根本不成立 —— meta 还在 webview 存储里。
+   US-210 不落地，meta 只能留在 webview 存储 —— 恰是 US-504 AC#9 明令拒绝的「备份域
+   撕裂」组合；该错配拒绝在 Tauri 侧同样适用。
 2. **接缝未抽出**：文件系统后端接缝由 US-504 定义并冻结（含物理名编码与锁归宿决策），
    本故事只做 Tauri 传输实现。若 Tauri 侧发现接缝不足以承载，改动回到 US-504 那一层，
    不在本故事另起一套（同 US-210 对 US-207 的纪律）。
@@ -101,7 +104,7 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 
 | 方案                   | 做法                                                                         | 主要风险                                                                                       |
 | ---------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `@tauri-apps/plugin-fs` | capability 限定存储根，接缝直接映射到 `open() / read() / write() / seek()` | rename 原子替换与 fsync 档位的跨平台语义依赖插件实现；capability 粒度是否能收敛到子目录需验证 |
+| `@tauri-apps/plugin-fs` | capability 限定存储根，接缝直接映射到 `open() / read() / write() / seek()` | rename 原子替换与 fsync 档位的跨平台语义依赖插件实现；capability 粒度是否能收敛到子目录需验证；AC#4 要求的「稳定可判别错误」形状由插件 capability 层决定，需与粒度一并验证，作为二选一判据 |
 | 最小 Rust command      | 自写分帧读写 command，持有文件句柄与临时文件提交逻辑                         | 自维护权限项与句柄生命周期；悬挂句柄的回收要额外设计（同 US-210 事务 ID 的顾虑）               |
 
 两案共用约束：物理名编码、临时文件提交与失败补偿语义由 US-504 冻结，本故事不得另订一套。

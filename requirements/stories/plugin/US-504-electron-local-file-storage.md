@@ -56,15 +56,25 @@ INVEST 检查清单:
   `rxdb-data` 同级；目录名纳入既有「不与 Chromium 在 userData 下自用的目录重名」名单断言
   （`desktop-sqlite-bridge.spec.ts`）
 - 文件消息作为桌面 host 协议内的新消息类型走既有 `request` / `subscribe` 通道，**不新增
-  preload 方法** —— US-207 的「preload 暴露面恰为 request / subscribe」e2e 断言保持成立
+  preload 方法** —— US-207 的「`__aiaoRxdbDesktopHost__` 暴露面恰为 request / subscribe」
+  e2e 断言保持成立（口径限于该全局：preload 另暴露 demo 用的 `electron` 全局
+  （platform / versions / runDemo），不属于桌面 host 桥，不在断言范围内）
 - host 侧对 renderer 传入路径二次校验（renderer 不可信），白名单哲学沿用
   `assertValidDesktopDatabaseName`；逻辑名→物理名的编码方案见技术笔记
 - 大文件分帧流式传输，保持服务层现有「临时文件 → 提交 → 失败补偿」语义；host 侧写临时
   文件 + `rename` 原子替换
-- 现有全部公开 API（upload / read / download / preview / createObjectUrl / fetch / rename /
-  renameDirectory / delete / list / listEntries / watch / clear）在桌面后端可用；三框架绑定
-  零改动（service 层一次实现，绑定透传 Promise，同 [US-502](./US-502-storage-plugin.md)）
-- `dev-rxdb-electron` 演示接入 + e2e 用真实 userData 验证重启后文件读回
+- `RxdbFileStorage` 现有**全部**公开 API 在桌面后端可用，清单以
+  `requirements/api-baseline/rxdb-plugin-storage.json` 的导出面为准，不手抄（2026-08-15
+  评审：手抄清单漏掉了 `createDirectory` / `getMeta` / `init` / `revokeObjectUrl` /
+  `destroy`，其中前两个是功能性方法）；AC#2「复跑现有全部行为用例、无跳过项」兜底
+- storage 插件没有三框架绑定包（对照 search 插件的 `rxdb-plugin-search-{angular,react,vue}`），
+  三框架侧是 demo 页面直连 service —— 桌面后端在 service 层一次实现即对全部调用方透明，
+  不存在「绑定层改动」这一项
+- 桌面文件后端要求 meta adapter 同为桌面 SQLite（US-207）：文件落原生目录而 meta 落
+  webview 存储的「备份域撕裂」组合以稳定错误码拒绝，见 AC#9
+- `dev-rxdb-electron` 演示接入 + e2e 用真实 userData 验证重启后文件读回；演示的「保存
+  文件」一律调用 `service.download()`，不得复制现有三个 web demo 各自手写的
+  `showSaveFilePicker` + `<a download>` 逻辑（见 Out of Scope 的存量债务说明）
 
 ### Out of Scope
 
@@ -74,6 +84,11 @@ INVEST 检查清单:
 - blob 参与远端同步（US-502 已声明 blob 只覆盖单机，不变）
 - 让用户选择存储根位置；存储根恒在应用数据目录内
 - 监听其他进程直接改写存储根产生的变更
+- 收敛三个 web demo 各自重复实现的 FSA 下载逻辑（2026-08-15 评审发现的存量债务：
+  `apps/dev-rxdb-angular/.../storage.page.ts`、`apps/dev-rxdb-react/.../storage.tsx`、
+  `apps/dev-rxdb-vue/.../useStorageTransfer.ts` 三份高度雷同且不走 `service.download()`，
+  Vue 版还绕开 `ObjectUrlRegistry` 自行 `createObjectURL` + `setTimeout` 延迟 revoke）——
+  另立清理项处理；本故事只承诺 Electron demo 不新增第四份
 
 ## 验收标准
 
@@ -83,10 +98,11 @@ INVEST 检查清单:
 | 2   | 桌面后端已接入                                                    | 以桌面后端为注入实现复跑 storage 插件现有全部行为用例                        | 与 OPFS 后端行为一致，无跳过项                                                                                                                             | ⬜   |
 | 3   | 应用已写入若干文件与目录                                          | 退出应用，把应用数据目录整体拷贝到新 `--user-data-dir`，启动                 | `list()` 结构完整，逐文件 `read()` 字节一致 —— meta（SQLite）与文件本体在同一备份域                                                                        | ⬜   |
 | 4   | renderer 构造恶意路径（`../`、绝对路径、盘符、NUL、Windows 保留名） | 经协议发起文件操作                                                           | host 拒绝并返回稳定可判别错误码；存储根之外无任何写入                                                                                                      | ⬜   |
-| 5   | 上传/读取超过预览上限量级（≥ 50 MiB）的文件                       | 全程观察内存与中断行为                                                       | 分帧流式完成，内容不整体进 JS 堆；传输中途 abort 或杀进程后重启，路径上要么旧内容要么新内容，无半写文件，无孤儿 meta                                       | ⬜   |
+| 5   | 上传/读取超过预览上限量级的文件（≥ 50 MiB，即 `DEFAULT_PREVIEW_LIMIT_BYTES` 默认值，可经 `previewLimitBytes` 配置，`storage.service.ts`） | 全程观察内存与中断行为                                                       | 分帧流式完成，内容不整体进 JS 堆；传输中途 abort 或杀进程后重启，路径上要么旧内容要么新内容，无半写文件，无孤儿 meta                                       | ⬜   |
 | 6   | 磁盘满或存储根无写权限                                            | `upload()` / `fetch()`                                                       | 稳定错误码 + 原始原因；现有补偿语义成立（meta 与文件不脱钩），不回退 OPFS/内存                                                                             | ⬜   |
 | 7   | 同一应用开两个窗口                                                | 并发 `upload()` 同一路径（其一 overwrite）                                   | 串行化执行，结果等价于某一种顺序执行；无文件删失、无孤儿 meta（STOR-002 的临界区跨窗口成立）                                                               | ⬜   |
 | 8   | web 应用照常使用插件（不配桌面后端）                              | 构建 + 运行现有浏览器测试                                                    | 行为与包体不变；桌面后端代码不进浏览器 bundle；新增子路径入口按 `KNOWN_UNCOVERED_SUBPATHS` 流程登记（[US-601](../tooling/US-601-subpath-api-surface-baseline.md) 缺口敞开期间人工审查其导出面） | ⬜   |
+| 9   | 启用桌面文件后端，但 `sync.local` 配置的不是桌面 SQLite adapter（如 wa-sqlite / OPFS） | 初始化 storage 插件                                                          | 以稳定可判别错误码拒绝启用，不启动文件后端、不静默降级 —— 「文件在原生目录、meta 在 webview 存储」的备份域撕裂组合被禁止（无 fallback 铁律）；`ensureLocalReady` 现无 adapter 类型判别，该校验须在桌面后端接入点新增 | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -126,8 +142,11 @@ Windows 上非法或有陷阱。两条路：收窄逻辑名字符集（破坏与
 
 - 文件消息复用 `@aiao/rxdb-adapter-desktop` 的 host 协议通道与
   `DESKTOP_HOST_PROTOCOL_VERSION` 协商；两端版本不一致时按既有拒绝路径处理
-- renderer 入口产物不得出现 `node:fs` —— 同 US-207 对 `node:sqlite` 的承诺；同样只有产物
-  层看得见，且自动门禁已移除（见 US-207），发布前手工 `pnpm pack` 验证
+- renderer 入口不得出现 `node:fs` —— 同 US-207 对 `node:sqlite` 的承诺。源码层已有自动
+  防线：`packages/rxdb-adapter-desktop/src/__tests__/public-api.spec.ts` 的
+  「keeps every Node builtin behind the host entry」import 图断言会自动覆盖新增的文件
+  客户端模块（若客户端落在 storage 插件包内，需为该包补同型断言）；产物层（minify /
+  bundle 后）的自动门禁已移除（见 US-207），发布前手工 `pnpm pack` 验证仍是最后一道
 - `download()` 不经 host：Blob 已在 renderer，Chromium 的 `showSaveFilePicker` 与
   `<a download>` 回退照旧
 - `fetch()` 远程缓存逻辑不变：renderer 侧 `globalThis.fetch` → 流式写入改走注入后端
@@ -136,8 +155,10 @@ Windows 上非法或有陷阱。两条路：收窄逻辑名字符集（破坏与
 
 - [US-207](../adapter/US-207-desktop-local-database.md) 的 host / preload / 协议版本模式
   （已随 `@aiao/rxdb-adapter-desktop@0.0.25` 发布）；不依赖其未关闭的 AC#8 打包矩阵
-- metadata 侧无新依赖：`ensureLocalReady` 要求的本地 adapter 即桌面 SQLite adapter
-  （US-207 已交付）
+- metadata 侧无新依赖：桌面场景下 `rxdb.config.sync.local` 应配置桌面 SQLite adapter
+  （US-207 已交付）。注意 `ensureLocalReady` 实际只校验 `config.sync.local` 存在并
+  `connect()` 成功，**没有**「adapter 是否本地/桌面」的运行时判别 —— 错配拒绝由
+  AC#9 承担，不能指望 `ensureLocalReady` 把关
 
 ## 实现文件
 
