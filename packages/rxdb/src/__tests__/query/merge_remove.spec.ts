@@ -1,5 +1,5 @@
 import { emptyFunction } from '@aiao/utils';
-import { Observable, of } from 'rxjs';
+import { firstValueFrom, map, Observable, of, timer } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import query_merge_remove_cache_impl from '../../query/merge_remove.js';
@@ -929,6 +929,30 @@ describe('query_merge_remove_cache', () => {
       expect(task.result).toBe(1);
       expect(task.resultEntityIds.has('1')).toBe(false);
       expect(task.resultEntityIds.has('2')).toBe(true);
+    });
+  });
+
+  // 与 merge_create / merge_update 的同款守卫：首个权威结果落地前收到 DELETE 事件，
+  // count 分支会用 `(result || 0) - matched` 伪造出首发结果 0；其余分支虽是空转，
+  // 但 runner 的快照可能取自删除提交之前，静默丢弃会让这行死数据永远留在活查询里。
+  describe('权威基线落地前的 DELETE 事件', () => {
+    it('不得成为首个结果，而应交回 SQL 重算', async () => {
+      let runs = 0;
+      const task = createMockQueryTask(
+        { type: 'count', where: { combinator: 'and', rules: [] } },
+        () => {
+          runs++;
+          // 权威读要等一个宏任务——事件正是在这段窗口里到达的
+          return timer(0).pipe(map(() => 3));
+        }
+      );
+
+      const first = firstValueFrom(task.result$);
+      query_merge_remove_cache(task, [createMockRemoveEvent({ id: 'gone-1', title: 'gone' })]);
+
+      await expect(first).resolves.toBe(3);
+      // 重跑而不是静默丢弃：事件也可能新于 runner 的快照，丢掉会让这次删除永远缺席
+      expect(runs).toBe(2);
     });
   });
 

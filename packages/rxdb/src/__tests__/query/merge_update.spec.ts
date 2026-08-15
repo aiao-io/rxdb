@@ -1,5 +1,5 @@
 import { emptyFunction } from '@aiao/utils';
-import { Observable, of } from 'rxjs';
+import { firstValueFrom, map, Observable, of, timer } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import query_merge_update_cache_impl from '../../query/merge_update.js';
@@ -1168,6 +1168,36 @@ describe('query_merge_update_cache', () => {
         ];
         query_merge_update_cache(task, updateEvents);
       });
+    });
+  });
+
+  // 与 merge_create 的同款守卫：变更事件按批次投递、还可能跨进程（Tauri 的 stdio 宿主），
+  // 一条 UPDATE 事件完全可能在活查询拿到首个权威结果之前送达。此刻 resultEntitySet 还是
+  // 空的，findAll 的增量合并会把事件负载当成完整结果发射——订阅者第一眼看到的是
+  // 只含「被更新那几行」的残缺答案（批量更新 A、B 后 findAll 只回了 B）。
+  describe('权威基线落地前的 UPDATE 事件', () => {
+    it('不得成为首个结果，而应交回 SQL 重算', async () => {
+      let runs = 0;
+      const authoritative = [
+        { id: 'a', title: 'PosA' },
+        { id: 'b', title: 'PosB' }
+      ];
+      const task = createMockQueryTask({
+        type: 'findAll',
+        options: { where: { combinator: 'and', rules: [] } },
+        runner: () => {
+          runs++;
+          // 权威读要等一个宏任务——事件正是在这段窗口里到达的
+          return timer(0).pipe(map(() => authoritative as TestEntityData[]));
+        }
+      });
+
+      const first = firstValueFrom(task.result$);
+      query_merge_update_cache(task, [createMockUpdateEvent({ id: 'b', title: 'PosB' })]);
+
+      await expect(first).resolves.toEqual(authoritative);
+      // 重跑而不是静默丢弃：事件也可能新于 runner 的快照，丢掉会让这次更新永远缺席
+      expect(runs).toBe(2);
     });
   });
 
