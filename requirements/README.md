@@ -108,7 +108,9 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 5. US-305 必须排在 US-304 之后：写事务复用 writer 身份与迁移期 epoch fencing，普通提交竞争使用独立的
    `headRevision` CAS，不把 epoch 当业务版本。US-305 的 schema migration 前还必须从当前发布主线产生新的有效
    bridge ancestor；历史 `v0.0.25` 已脱离当前 ancestry。epic-006 内部顺序为
-   **US-305 → US-306a → US-306b → (US-306c ∥ US-307 ∥ US-308)**。
+   **US-305 → US-306a → US-306b → US-306c →（US-307 ∥ US-308）**。
+   US-307 / US-308 的核心持久层半边可与 US-306c 并行开工，但三框架入口与 benchmark 采样必须复用
+   US-306c 冻结的 `useWorkingTree()` 契约与 `bench-working-tree` target，排在其后。
 6. US-703 应复用现有搜索公开 API 和跨框架 parity fixture，不为 PGlite 增加 SQLite 专属 fallback。
 7. ~~US-209 只做门禁与文档收尾~~ → 2026-08-15 已 Done。约束仍然生效并转为**长期口径**：小程序适配器的能力承诺不得扩大，
    WAL、多页面并发、崩溃恢复保证和微信以外的小程序平台都不在范围内；文档一律写「实验性」，
