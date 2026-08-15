@@ -114,6 +114,7 @@ describe('TodoCursorPage', () => {
   });
 
   afterEach(() => {
+    vi.mocked(TodoCursorPage.prototype.ngAfterViewInit).mockRestore();
     TestBed.resetTestingModule();
     vi.useRealTimers();
   });
@@ -122,7 +123,11 @@ describe('TodoCursorPage', () => {
     vi.useFakeTimers();
     const { fixture, page } = renderCursorPage();
     const { elementScrolled$, measureScrollOffset, viewport } = createViewport(100);
-    Object.defineProperty(page, 'viewport', { configurable: true, get: () => viewport });
+    Object.defineProperty(page, 'viewport', {
+      configurable: true,
+      get: () => viewport,
+      set: () => undefined
+    });
     originalAfterViewInit.call(page);
 
     elementScrolled$.next(new Event('scroll'));
