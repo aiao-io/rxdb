@@ -63,13 +63,28 @@ const DATABASE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._@-]*$/;
 const DATABASE_NAME_MAX_LENGTH = 128;
 
 /**
+ * Windows 保留设备名——白名单唯一挡不住的一类名字。
+ *
+ * @remarks
+ * `CON`、`NUL`、`COM1` 这些在 Win32 命名空间里指向字符设备而不是文件，`CreateFile` 会连上设备本身。
+ * 它们全都匹配 {@link DATABASE_NAME_PATTERN}，于是在 Windows 上失败点被推迟到 `open`，
+ * 报出来的是 `open_failed` 这类含糊错误——而不是调用方能理解、且在三平台上一致的 `invalid_database_name`。
+ *
+ * 匹配的是**第一个 `.` 之前**的部分：`CON.sqlite3` 与 `CON` 在 Windows 上是同一个设备。
+ * 大小写不敏感。`COM0`/`LPT0` 不在其列（Windows 只保留 1–9），上标数字变体（`COM¹`）
+ * 本就落在 ASCII 白名单之外。
+ */
+const WINDOWS_RESERVED_DEVICE_NAME_PATTERN = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i;
+
+/**
  * 校验逻辑数据库名。
  *
  * @remarks
  * 入参来自 renderer，即便有 `contextIsolation` 也**不可信**，host 侧必须再校验一次。
  * 允许集是白名单而非黑名单：字符集里没有 `/`、`\`、`:`，也不允许以 `.` 开头，
  * 于是 `..`、绝对路径、盘符、`~` 展开、URL scheme 全部落在集合外，
- * 不需要逐一枚举攻击形态。
+ * 不需要逐一枚举攻击形态。{@link WINDOWS_RESERVED_DEVICE_NAME_PATTERN} 是唯一必须补的黑名单——
+ * 那类名字合法却不指向文件。
  *
  * @param databaseName - 待校验的逻辑名
  * @throws 非法时抛 {@link RxDBAdapterDesktopError}，code 为 `invalid_database_name`
@@ -88,6 +103,13 @@ export function assertValidDesktopDatabaseName(databaseName: string): void {
     throw new RxDBAdapterDesktopError(
       'invalid_database_name',
       `database name must match ${String(DATABASE_NAME_PATTERN)}; it is an app-scoped logical name, not a path`
+    );
+  }
+  if (WINDOWS_RESERVED_DEVICE_NAME_PATTERN.test(databaseName)) {
+    throw new RxDBAdapterDesktopError(
+      'invalid_database_name',
+      `database name ${JSON.stringify(databaseName)} is a reserved Windows device name; ` +
+        `it would open a character device instead of a file`
     );
   }
 }

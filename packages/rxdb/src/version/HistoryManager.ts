@@ -263,6 +263,17 @@ export class HistoryManager {
   #revertStateWatermarkTrigger$ = new BehaviorSubject<number>(0);
 
   /**
+   * redo 栈失效判定的 change 序列水位
+   *
+   * undo 预分配 revertChangeId 时把序列推进到 `seq + changes.length`，此后**真正的新写入**
+   * 拿到的 id 必然大于它。而 undo 之前那些写入的 change-INSERT 通知可能经宿主 debounce
+   * 与跨进程传输（Tauri 的 stdio 宿主最典型）在 undo 完成后才到达——
+   * `isExecutingUndoRedo()` 这类时间窗守卫挡不住迟到者。id 与水位比较是内容判定：
+   * 全部 ≤ 水位 ⇒ 迟到的旧通知，不该清栈。
+   */
+  #redoInvalidationFloor = 0;
+
+  /**
    * 所有变更记录流（从数据库实时查询）
    */
   #all_changes$!: Observable<RxDBChange[]>;
@@ -274,6 +285,17 @@ export class HistoryManager {
    * 这是初始过滤条件，pull/push 后会通过 syncCleared 来清空 undo 历史
    */
   #firstConnectedAt: Date | null = null;
+
+  /**
+   * `rxdb.firstConnectedAt` 不可用时的会话起点：本实例的构造时刻。
+   *
+   * gateway 的 leader 选举在没有 `navigator.locks` 的环境（Node / Tauri 测试宿主）走
+   * BroadcastChannel 降级路径，选举完成前 `rxdb.firstConnectedAt` 一直是 undefined；
+   * `multiInstance: false` 时则永远是。回退值必须在构造时就定格——若等到首次取用
+   * （可能就是 undo 本身）才取 `new Date()`，本会话所有已落库的变更都早于该水位，
+   * undo 会静默变成 no-op。构造发生在连接完成之前，恒早于本会话的任何变更，是安全下界。
+   */
+  readonly #sessionStartedAt = new Date();
 
   /**
    * 每个分支一份 undo session
@@ -877,12 +899,21 @@ export class HistoryManager {
    * // 结果：B.redoInvalidatedAt = C.createdAt，redo 栈清空
    * ```
    *
+   * @param triggerChangeIds - 触发本次失效的 RxDBChange id 列表。全部不超过
+   * {@link #redoInvalidationFloor} 时视为 undo 前旧写入的**迟到通知**，跳过失效；
+   * 省略或为空时按新写入处理（保守清栈）。
+   *
    * @internal 由 VersionManager 的事件监听器调用
    */
-  async invalidateRedoStack(): Promise<void> {
+  async invalidateRedoStack(triggerChangeIds?: readonly number[]): Promise<void> {
     return this.#runSerialized(async () => {
       // 锁内仍保留快速跳过：上一次操作（如另一次 invalidate）已清空，这次直接返回
       if (this.isUndoRedoInProgress || this.isInvalidatingRedo) {
+        return;
+      }
+      // 内容判定优先于时间窗：迟到的旧 change 通知（id 未越过 undo 时的序列水位）
+      // 不代表用户的新操作，清栈会让紧随 undo 的 redo 静默空跑（见 #redoInvalidationFloor）。
+      if (triggerChangeIds?.length && triggerChangeIds.every(id => id <= this.#redoInvalidationFloor)) {
         return;
       }
 
@@ -1273,7 +1304,7 @@ export class HistoryManager {
 
   #getFirstConnectedAt(): Date {
     if (!this.#firstConnectedAt) {
-      this.#firstConnectedAt = this.rxdb.firstConnectedAt ?? new Date();
+      this.#firstConnectedAt = this.rxdb.firstConnectedAt ?? this.#sessionStartedAt;
     }
     return this.#firstConnectedAt;
   }
@@ -1414,6 +1445,8 @@ export class HistoryManager {
           });
         });
         actions.updateRxDBChangeSequence = seq + changes.length;
+        // 序列已推进：此后只有 id 越过该水位的 change-INSERT 事件才是真正的新写入
+        this.#redoInvalidationFloor = seq + changes.length;
       } else {
         // redo: 清除 revertChangeId
         changes.forEach(change => {

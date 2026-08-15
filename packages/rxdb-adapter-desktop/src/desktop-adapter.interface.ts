@@ -7,6 +7,7 @@
 import type { IRxDBAdapterOptions } from '@aiao/rxdb';
 import type { SqliteBaseOptions } from '@aiao/rxdb-adapter-sqlite-core';
 import type { DesktopHostTransport } from './desktop-sqlite-client.js';
+import type { DesktopRuntime } from './desktop-storage.js';
 
 /** 适配器在 `RxDBAdapters` 注册表中的名字。 */
 export const ADAPTER_NAME = 'desktop' as const;
@@ -47,4 +48,12 @@ export interface DesktopOptions extends IRxDBAdapterOptions, SqliteBaseOptions {
    * 调小它降低响应延迟，调大它减少唤醒次数；无论怎么配，一批最多攒 `MAX_BATCH_WAIT_MS`。
    */
   batchTimeout?: number;
+  /**
+   * host 所在的桌面运行时，省略时按 `'electron'` 解读。
+   *
+   * @remarks
+   * 只影响连接前那次能力矩阵校验的判据与措辞（Tauri 永不支持 PGlite）；
+   * 真正的把关在 host 侧，它知道自己跑在哪个运行时里。
+   */
+  runtime?: DesktopRuntime;
 }

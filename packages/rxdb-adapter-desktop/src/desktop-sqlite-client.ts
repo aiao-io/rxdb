@@ -19,7 +19,11 @@ import {
   type DesktopHostFileRequest,
   type DesktopHostRequest
 } from './desktop-host-protocol.js';
-import { assertSupportedDesktopStorage, type DesktopSqliteFileStorage } from './desktop-storage.js';
+import {
+  assertSupportedDesktopStorage,
+  type DesktopRuntime,
+  type DesktopSqliteFileStorage
+} from './desktop-storage.js';
 
 /**
  * renderer 与 host 之间的传输层。
@@ -59,6 +63,15 @@ export interface DesktopSqliteClientOptions {
    * 与 wasm 客户端的同名选项同义，只是批处理发生在 host 侧——合并在事件跨进程之前完成。
    */
   readonly batchTimeout?: number;
+  /**
+   * host 所在的桌面运行时，省略时按 `'electron'` 解读。
+   *
+   * @remarks
+   * 只影响 renderer 侧那次前置校验的**判据与措辞**——能力矩阵按 runtime 收敛
+   * （Tauri 永不支持 PGlite，见 {@link ./desktop-storage.js | assertSupportedDesktopStorage}）。
+   * 传错不会放宽任何东西：host 侧还会用它自己的 runtime 再校验一次。
+   */
+  readonly runtime?: DesktopRuntime;
 }
 
 /**
@@ -113,7 +126,14 @@ export class DesktopSqliteClient implements SqliteClientLike {
   readonly #beginTransactionSql: string;
   readonly #beginSystemMigrationTransactionSql: string;
   readonly #handlers = new Map<SQLiteChangeType, Set<(event: SqliteChangeEvent) => void>>();
-  readonly #inFlight = new Set<Promise<unknown>>();
+  /**
+   * 会话请求队列的队尾，见 {@link DesktopSqliteClient.request}。
+   *
+   * @remarks
+   * 恒不 reject：失败在入队时就被吞掉，只交给发起方那一份 promise。链上留一个 reject
+   * 会让后续所有请求跟着失败，一条查询出错就把整个会话废掉。
+   */
+  #tail: Promise<unknown> = Promise.resolve();
   /** 由 {@link DesktopSqliteClient.connect} 在实例构造完成后立即装上。 */
   #unsubscribe?: () => void;
   #closed = false;
@@ -158,7 +178,7 @@ export class DesktopSqliteClient implements SqliteClientLike {
       );
     }
     // renderer 侧先校验一次，非法配置连 IPC 都不用发；host 侧还会再校验一次。
-    assertSupportedDesktopStorage('electron', storage);
+    assertSupportedDesktopStorage(options?.runtime ?? 'electron', storage);
 
     const request = { kind: 'open', storage, batchTimeout: options?.batchTimeout } as const;
     const response = assertDesktopHostResponse('open', await transport.request(request));
@@ -184,13 +204,8 @@ export class DesktopSqliteClient implements SqliteClientLike {
    */
   async execute(sql: string, bindings: SQLiteCompatibleType[] = []): Promise<SqliteResult> {
     this.#assertOpen();
-    const pending = this.#transport.request({ kind: 'execute', sessionId: this.#sessionId, sql, bindings });
-    this.#inFlight.add(pending);
-    try {
-      return assertDesktopHostResponse('execute', await pending).result;
-    } finally {
-      this.#inFlight.delete(pending);
-    }
+    const request = { kind: 'execute', sessionId: this.#sessionId, sql, bindings } as const;
+    return assertDesktopHostResponse('execute', await this.#request(request)).result;
   }
 
   /**
@@ -200,8 +215,8 @@ export class DesktopSqliteClient implements SqliteClientLike {
    */
   async version(): Promise<string> {
     this.#assertOpen();
-    const request = this.#transport.request({ kind: 'version', sessionId: this.#sessionId });
-    return assertDesktopHostResponse('version', await request).result;
+    return assertDesktopHostResponse('version', await this.#request({ kind: 'version', sessionId: this.#sessionId }))
+      .result;
   }
 
   /**
@@ -245,17 +260,46 @@ export class DesktopSqliteClient implements SqliteClientLike {
    *
    * @remarks
    * 顺序即 AC#7 的语义：先置关闭标记**停止接受新任务**，再等在途请求跑完，
-   * 最后才让 host 释放句柄。等待用 `allSettled`——某条在途查询失败不该把句柄一直挂住。
+   * 最后才让 host 释放句柄。等的是 {@link DesktopSqliteClient.#tail}，它不会 reject
+   * ——某条在途查询失败不该把句柄一直挂住。
    *
    * 重复调用是安全的。
    */
   async disconnect(): Promise<void> {
     if (this.#closed) return;
     this.#closed = true;
-    await Promise.allSettled([...this.#inFlight]);
+    await this.#tail;
     this.#unsubscribe?.();
     this.#handlers.clear();
-    assertDesktopHostResponse('close', await this.#transport.request({ kind: 'close', sessionId: this.#sessionId }));
+    assertDesktopHostResponse('close', await this.#request({ kind: 'close', sessionId: this.#sessionId }));
+  }
+
+  /**
+   * 把一个请求排进本会话的队列，队列空了才发上传输层。
+   *
+   * @remarks
+   * **一个会话同一时刻只允许有一个在途请求。** 会话在 host 侧就是一条 SQLite 连接，
+   * 而 `BEGIN` / 业务语句 / `COMMIT` 是三次独立往返：只要允许它们与别的请求交错，
+   * 「先发的先执行」就不再成立，一条 `SELECT` 可能挤到 `DELETE` 前面跑，
+   * 上层看到的是刚删掉的行还在。
+   *
+   * 这条保证以前是**偶然**成立的：Electron 侧 `ipcMain` 的处理函数是同步的
+   * （`node:sqlite` 全同步），一次 `invoke` 跑完才轮到下一次，顺序自然是 FIFO。
+   * Tauri 侧不是——每次 `invoke` 派到自己的任务上，再经 `spawn_blocking` 去抢会话锁，
+   * 抢到的顺序与发出的顺序无关。行为差异因此只在 Tauri 路径上暴露，且表现为随机失败。
+   * 顺序保证放在这里，两个 host 就都不必再依赖各自的调度巧合。
+   *
+   * 排队不影响并发度：队列是**每会话**一条，不同会话（不同连接）照旧并行，
+   * 跨会话的写锁竞争仍由 host 侧的 `busy_timeout` 处理。同一条连接上的请求本来
+   * 就会被 SQLite 串起来，这里只是把串行发生的位置提前到发出之前。
+   *
+   * @param payload - 待发送的请求
+   * @returns host 的原始应答
+   */
+  #request(payload: DesktopHostRequest): Promise<unknown> {
+    const settled = this.#tail.then(() => this.#transport.request(payload));
+    this.#tail = settled.then(undefined, () => undefined);
+    return settled;
   }
 
   #assertOpen(): void {

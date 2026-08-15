@@ -41,6 +41,23 @@ describe('assertValidDesktopDatabaseName', () => {
     expect(() => assertValidDesktopDatabaseName(name)).toThrowError(/invalid_database_name/);
   });
 
+  // 这些名字过得了字符白名单，却在 Windows 上指向字符设备。三平台统一在校验期拒绝，
+  // 免得同一个名字在 macOS 上建出文件、在 Windows 上连上串口。
+  it.each(['CON', 'con', 'NUL', 'PRN', 'AUX', 'COM1', 'lpt9', 'CON.sqlite3', 'nul.db'])(
+    'rejects the reserved Windows device name %s',
+    name => {
+      expect(() => assertValidDesktopDatabaseName(name)).toThrowError(/invalid_database_name/);
+    }
+  );
+
+  // 黑名单只认设备名本身，不能顺手把以它开头的正常名字一起毙掉。
+  it.each(['CONFIG.sqlite3', 'console', 'COM0', 'LPT0', 'COM10', 'nullable.db', 'auxiliary'])(
+    'keeps accepting %s, which merely starts like a device name',
+    name => {
+      expect(() => assertValidDesktopDatabaseName(name)).not.toThrow();
+    }
+  );
+
   it('rejects a name longer than 128 characters', () => {
     expect(() => assertValidDesktopDatabaseName(`${'a'.repeat(129)}`)).toThrowError(/invalid_database_name/);
   });

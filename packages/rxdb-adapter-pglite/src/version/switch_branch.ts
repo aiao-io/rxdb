@@ -127,8 +127,11 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
       }
 
       // 更新 RxDBChange 序列号（如果提供）
+      // is_called=true：下一次 nextval() 返回 updateRxDBChangeSequence + 1
+      //（契约：值 = 最后已用 id，与 SQLite 端 sqlite_sequence 语义一致）。
+      // 用 false 会让 undo 后首个新写入拿到的 id 恰好等于 redo 失效水位，被误判为迟到通知。
       if (actions?.updateRxDBChangeSequence !== undefined) {
-        await executor.query('SELECT setval($1::regclass, $2, false)', [
+        await executor.query('SELECT setval($1::regclass, $2, true)', [
           'rxdb.rxdb_change_id_seq',
           actions.updateRxDBChangeSequence
         ]);

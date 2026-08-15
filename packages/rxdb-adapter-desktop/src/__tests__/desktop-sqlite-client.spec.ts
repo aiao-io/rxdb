@@ -258,3 +258,58 @@ describe('DesktopSqliteClient.disconnect', () => {
     await expect(client.disconnect()).resolves.toBeUndefined();
   });
 });
+
+describe('DesktopSqliteClient 会话内的请求顺序', () => {
+  /**
+   * 一个**乱序**的传输层：越早收到的请求拖得越久。
+   *
+   * @remarks
+   * 它模拟的是 Tauri：每次 `invoke` 派到自己的任务上，谁先抢到会话锁与谁先发出无关。
+   * Electron 的 `ipcMain` + 同步 `node:sqlite` 不会这样，所以这条性质在 Electron 上
+   * 是白送的，一到 Tauri 就会以随机失败的形式暴露——必须由 client 自己保证。
+   */
+  const createReorderingTransport = (): { transport: DesktopHostTransport; peakOverlap: () => number } => {
+    let overlap = 0;
+    let peak = 0;
+    let sent = 0;
+    const transport: DesktopHostTransport = {
+      request: async payload => {
+        overlap++;
+        peak = Math.max(peak, overlap);
+        // 严格递减且不触底：任意两个请求都会被翻转，没有排队的话应答顺序与发出顺序相反。
+        await new Promise(resolve => setTimeout(resolve, Math.max(1, 50 - sent++)));
+        try {
+          return await host.handle(payload);
+        } finally {
+          overlap--;
+        }
+      },
+      subscribe: listener => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      }
+    };
+    return { transport, peakOverlap: () => peak };
+  };
+
+  it('keeps at most one request in flight per session', async () => {
+    const { transport: reordering, peakOverlap } = createReorderingTransport();
+    const client = await DesktopSqliteClient.connect(reordering, sqliteStorage);
+    await Promise.all([client.execute('SELECT 1'), client.execute('SELECT 2'), client.execute('SELECT 3')]);
+    expect(peakOverlap()).toBe(1);
+  });
+
+  // 顺序一旦丢失，最典型的形态就是读挤到写前面：调用方看到的是刚删掉的行还在。
+  it('does not let a read overtake a write that was issued first', async () => {
+    const { transport: reordering } = createReorderingTransport();
+    const client = await DesktopSqliteClient.connect(reordering, sqliteStorage);
+    await client.execute('CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)');
+    await client.execute("INSERT INTO t (name) VALUES ('to-delete')");
+
+    const deleted = client.execute('DELETE FROM t');
+    const read = client.execute('SELECT name FROM t');
+    await deleted;
+
+    expect((await read).results[0]?.rows).toEqual([]);
+  });
+});

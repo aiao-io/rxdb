@@ -1,0 +1,27 @@
+{
+  "configurations": [
+    {
+      "type": "node",
+      "name": "dev-rxdb-angular",
+      "request": "launch",
+      "runtimeExecutable": "pnpm",
+      "cwd": "${workspaceFolder}",
+      "args": ["nx", "serve", "dev-rxdb-angular"],
+      "serverReadyAction": {
+        "action": "debugWithChrome",
+        "killOnServerStop": true,
+        "pattern": "http://localhost:.*",
+        "uriFormat": "http://localhost:4200"
+      }
+    },
+    {
+      "type": "node",
+      "name": "rxdb-adapter-sqlite",
+      "request": "launch",
+      "runtimeExecutable": "pnpm",
+      "cwd": "${workspaceFolder}",
+      "args": ["nx", "test", "rxdb-adapter-sqlite", "--ui", "--watch"]
+    }
+  ],
+  "version": "0.2.0"
+}

@@ -12,8 +12,8 @@
 | :------------- | :--- |
 | ✅ Done        | 33   |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 24   |
-| 🚧 In Progress | 2    |
+| 📝 Backlog     | 23   |
+| 🚧 In Progress | 3    |
 | 🚫 Blocked     | 0    |
 | **合计**       | 59   |
 
@@ -22,12 +22,13 @@
 > 同日补写了 [US-209](stories/adapter/US-209-miniprogram-adapter.md)（微信小程序适配器），适配器实现早已合并，故直接记为 `In Review` 而非 `Backlog`；2026-08-15 收尾项全部关闭，转 `Done`（Done 32 → 33，In Review 1 → 0，合计不变）。
 > 同日 US-207 二次拆分：Tauri 半边迁至 [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)（Backlog），US-207 收敛到 Electron 并转 `In Progress`。Backlog 一进一出仍为 11，合计 45 → 46。
 > 2026-08-15 新增 [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)（Backlog）认领下方「子路径导出表面」缺口，并为它新建 [epic-007](epics/epic-007-public-api-gates.md) 与 `stories/tooling/`（编号段 US-601~699，此前未分配）。这是把已存在的缺口登记成故事，不是新增范围；Backlog 11 → 12，合计 46 → 47。
-> 同日再新增 [US-504](stories/plugin/US-504-electron-local-file-storage.md) / [US-505](stories/plugin/US-505-tauri-local-file-storage.md)（`rxdb-plugin-storage` 桌面原生文件后端的 Electron / Tauri 两半，挂 epic-004）。这是**新增范围**：[US-502](stories/plugin/US-502-storage-plugin.md) 只承诺过 OPFS。可行性评审结论写在 US-504 内——OPFS 特定入口唯一（`getStorageRootHandle()`），但根句柄之后服务全程直接调用句柄 API，「换根即可、其余零改动」只对 handle shim 案成立（接缝两案 plan 阶段冻结）；host 通道复用 US-207 已发布的契约。拆分沿 US-207 → US-210 先例：Electron 半边可即刻排期，Tauri 半边被 US-210（meta 的桌面 adapter）前置。Backlog 12 → 14，合计 47 → 49。
-> 同日新增 [US-904](stories/future/US-904-electron-native-storage-devtools.md)（Backlog），补齐 Electron 原生 SQLite 与本地文件后端的 DevTools 调试面。现有扩展的逻辑数据页可复用 connector，但 OPFS 页、数据库下载与清理都硬编码浏览器存储；本故事要求 provider 能力协商、真实 Electron 链路和无 fallback 的安全边界。Tauri WebView 不承载 Chrome MV3 扩展，明确不混入本故事。Backlog 14 → 15，合计 49 → 50。
-> 同日按 Electron / Tauri 运行模型拆出 [US-905](stories/future/US-905-tauri-native-storage-devtools.md)（Backlog）：Tauri 不能加载 Chrome MV3 扩展，因此复用 US-904 的平台无关面板和 provider 协议，以开发态受限 WebView window 承载，不复制第二套 UI / wire。依赖 US-210 / US-505 的 Tauri SQLite 与原生文件 host。Backlog 15 → 16，合计 50 → 51。
-> 同日再次评审把 US-904 拆为 [US-904a](stories/future/US-904a-electron-mv3-devtools-feasibility.md) / [US-904b](stories/future/US-904b-devtools-shared-protocol-panel.md) / [US-904c](stories/future/US-904c-electron-native-devtools-integration.md)，把 US-905 拆为 [US-905a](stories/future/US-905a-tauri-devtools-window-transport.md) / [US-905b](stories/future/US-905b-tauri-native-devtools-integration.md)。父故事保留为契约文档，新增 5 条 Backlog 只反映真实交付切分，**不新增范围**；Backlog 16 → 21，合计 51 → 56。
+> 同日 [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md) 开工转 `In Progress`（Backlog 12 → 11，In Progress 2 → 3，合计不变）。
+> 同日再新增 [US-504](stories/plugin/US-504-electron-local-file-storage.md) / [US-505](stories/plugin/US-505-tauri-local-file-storage.md)（`rxdb-plugin-storage` 桌面原生文件后端的 Electron / Tauri 两半，挂 epic-004）。这是**新增范围**：[US-502](stories/plugin/US-502-storage-plugin.md) 只承诺过 OPFS。可行性评审结论写在 US-504 内——OPFS 特定入口唯一（`getStorageRootHandle()`），但根句柄之后服务全程直接调用句柄 API，「换根即可、其余零改动」只对 handle shim 案成立（接缝两案 plan 阶段冻结）；host 通道复用 US-207 已发布的契约。拆分沿 US-207 → US-210 先例：Electron 半边可即刻排期，Tauri 半边被 US-210（meta 的桌面 adapter）前置。Backlog 11 → 13，合计 47 → 49。
+> 同日新增 [US-904](stories/future/US-904-electron-native-storage-devtools.md)（Backlog），补齐 Electron 原生 SQLite 与本地文件后端的 DevTools 调试面。现有扩展的逻辑数据页可复用 connector，但 OPFS 页、数据库下载与清理都硬编码浏览器存储；本故事要求 provider 能力协商、真实 Electron 链路和无 fallback 的安全边界。Tauri WebView 不承载 Chrome MV3 扩展，明确不混入本故事。Backlog 13 → 14，合计 49 → 50。
+> 同日按 Electron / Tauri 运行模型拆出 [US-905](stories/future/US-905-tauri-native-storage-devtools.md)（Backlog）：Tauri 不能加载 Chrome MV3 扩展，因此复用 US-904 的平台无关面板和 provider 协议，以开发态受限 WebView window 承载，不复制第二套 UI / wire。依赖 US-210 / US-505 的 Tauri SQLite 与原生文件 host。Backlog 14 → 15，合计 50 → 51。
+> 同日再次评审把 US-904 拆为 [US-904a](stories/future/US-904a-electron-mv3-devtools-feasibility.md) / [US-904b](stories/future/US-904b-devtools-shared-protocol-panel.md) / [US-904c](stories/future/US-904c-electron-native-devtools-integration.md)，把 US-905 拆为 [US-905a](stories/future/US-905a-tauri-devtools-window-transport.md) / [US-905b](stories/future/US-905b-tauri-native-devtools-integration.md)。父故事保留为契约文档，新增 5 条 Backlog 只反映真实交付切分，**不新增范围**；Backlog 15 → 20，合计 51 → 56。
 > 同日第三次评审修正依赖与安全契约：US-904a 只门禁 Electron 的 US-904c，US-904b 与其并行且不再阻塞 Tauri；US-905b 直接消费 US-904b conformance suite，不等待 US-904c。wire v2 保留一个 minor 的 v1/v2 迁移桥，provider 改用语义 kind，并冻结 capability/descriptor/mutation policy、流式 transfer 与有界 immutable snapshot。状态数量不变。
-> 同日第四次评审确认 US-904b 仍横跨控制面、provider 数据面和 UI/Chrome 迁移，INVEST Small 不成立，继续拆为 [US-904b1](stories/future/US-904b1-devtools-v2-control-plane.md) / [US-904b2](stories/future/US-904b2-devtools-provider-data-plane.md) / [US-904b3](stories/future/US-904b3-devtools-shared-panel-chrome-migration.md)。父故事 US-904b 保留为契约文档，新增 3 条 Backlog 只反映真实交付切分，**不新增范围**；同时关闭 background 代 ACK 导致的 v2 降级、`none` 事件泄漏、无界 ID tombstone、跨 transport binary/数值歧义、平台错误分叉和 snapshot 等锁无 deadline 六个缺口。Backlog 21 → 24，合计 56 → 59。
+> 同日第四次评审确认 US-904b 仍横跨控制面、provider 数据面和 UI/Chrome 迁移，INVEST Small 不成立，继续拆为 [US-904b1](stories/future/US-904b1-devtools-v2-control-plane.md) / [US-904b2](stories/future/US-904b2-devtools-provider-data-plane.md) / [US-904b3](stories/future/US-904b3-devtools-shared-panel-chrome-migration.md)。父故事 US-904b 保留为契约文档，新增 3 条 Backlog 只反映真实交付切分，**不新增范围**；同时关闭 background 代 ACK 导致的 v2 降级、`none` 事件泄漏、无界 ID tombstone、跨 transport binary/数值歧义、平台错误分叉和 snapshot 等锁无 deadline 六个缺口。Backlog 20 → 23，合计 56 → 59。
 
 ## 项目统计
 
@@ -116,7 +117,7 @@
 - ⬜ [US-703 PGlite 全文搜索](stories/future/US-703-pglite-full-text-search.md)
 - 🚧 [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md) — `@aiao/rxdb-adapter-desktop` 与主进程 host 已落地，AC#1–#7 ✅（2026-08-14 接入 `@aiao/rxdb-test/encrypted` 五套共享套件关闭 AC#2，786 用例全绿）；仅剩 AC#8 三平台打包矩阵
 - ⬜ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md) — 从 US-207 拆出，PGlite callback transaction 不能跨 IPC 序列化
-- ⬜ [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) — 从 US-207 二次拆出，`tauri-plugin-sql` 的单物理连接事务语义未验证
+- 🚧 [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) — 从 US-207 二次拆出。事务门禁判定 `tauri-plugin-sql` 不可用（池连接不固定 + 完全没有变更事件 API），改为自写 Rust command 持有 `rusqlite::Connection`；AC#2–#8 ✅（Rust 宿主跑 21 shared + 5 encrypted 共享套件，585 用例零跳过，空闲机器上连跑 5 次全绿；与 cargo 目标并行抢 CPU 时会有变更事件时序 flake，Node 宿主同条件无，详见故事）；AC#1 ⚠️ 缺跨进程重启 e2e，AC#9 三平台打包矩阵未做
 - ✅ [US-209 微信小程序 wa-sqlite 适配器](stories/adapter/US-209-miniprogram-adapter.md) — 实验性；2026-08-15 完成覆盖率门禁登记、子路径 API baseline 决策与文档收尾
 - ⬜ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md) — `rxdb-plugin-storage` 文件内容改落应用数据目录，与桌面 SQLite 同一备份域；复用 US-207 host 契约，可即刻排期
 - ⬜ [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边；被 [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md) 前置，meta 需要 Tauri 桌面 adapter 先存在
