@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createMessage,
-  isDevToolsMessage,
-  RXDB_DEVTOOLS_MESSAGE,
-  type AnyDevToolsMessage,
-  type SerializedEvent
+    createMessage,
+    isDevToolsMessage,
+    RXDB_DEVTOOLS_MESSAGE,
+    type AnyDevToolsMessage,
+    type SerializedEvent
 } from '../types.js';
 
 const VALID_ENVELOPE = {
