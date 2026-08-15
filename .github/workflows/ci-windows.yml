@@ -7,6 +7,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # 同 ci-template.yml：workspace 已 claim，没有 token 的话下面那条
+  # `nx run-many -t build lint test` 会在 403 握手处直接被掐掉。
+  NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+
 jobs:
   main-windows:
     runs-on: windows-latest

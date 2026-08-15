@@ -41,11 +41,20 @@ on:
     secrets:
       CODECOV_TOKEN:
         required: true
+      # reusable workflow 不会自动继承调用方的 secrets，必须显式声明 + 显式传入。
+      NX_CLOUD_ACCESS_TOKEN:
+        required: true
 
 env:
   CI: true
   NX_DAEMON: false
   NX_TUI: false
+  # nx.json 配了 nxCloudId，且该 workspace 已 claim —— 已 claim 的 workspace 会拒绝
+  # 匿名 CI 运行：runner-configuration 握手拿到 403，Nx 直接
+  # 「Workspace is unable to be authorized. Exiting run.」掐掉整个 run，一个 task 都不跑。
+  # 注意这个故障的伪装性：setup job 只用 `nx show projects`，压根不碰 task runner，
+  # 所以它照常绿，红的只有 build/lint/test/e2e —— 看起来像「构建挂了」，其实是没凭证。
+  NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
   NODE_OPTIONS: '--max-old-space-size=6144'
   VITE_SUPABASE_URL: http://localhost:54331
   VITE_SUPABASE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE
