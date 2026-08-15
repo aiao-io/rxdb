@@ -359,6 +359,8 @@ Story 必须先定义所有权：
 - 三框架提供同语义的显式 owned/borrowed 选项；
 - 不能因为一个子树卸载而断开其他子树仍在使用的共享数据库。
 
+> 下列两项的完整停车位（含 Cordis 对照后补的 P-001～P-007）见 [epic-008-out-of-scope.md](epic-008-out-of-scope.md)。本节保留第一轮原文，不另开故事。
+
 ### Epic 008 外：Provider 到 Repository 的多数据库绑定
 
 当前基础查询 hook 通过 Entity 静态方法找 Repository，不读取 Provider 中的 RxDB。`makeRxDBProvider()` 虽能隔离 context，却不能让 `useFind()` 等 hook 选择对应数据库。

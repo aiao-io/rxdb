@@ -332,7 +332,7 @@ Epic「现状」表与代码一致，没有写过时。实现前用这张表防�
 ## 不在本轮范围
 
 - 不实现代码。
-- 不把 Provider→Repository 多库绑定、不可变 session context、插件配置运行时校验塞进 008（第一轮已划到 Epic 外，维持）。
+- 不把 Provider→Repository 多库绑定、不可变 session context、插件配置运行时校验塞进 008（第一轮已划到 Epic 外，维持）。停车位见 [epic-008-out-of-scope.md](epic-008-out-of-scope.md)。
 - 不引入 Cordis / Proxy / DI / HMR。
 - 不改 `disconnect()` 的吞错出口。
 - 不删 `destroy()`。
