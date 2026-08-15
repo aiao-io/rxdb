@@ -4,6 +4,15 @@
   "name": "rxdb-plugin-storage",
   "projectType": "library",
   "sourceRoot": "packages/rxdb-plugin-storage/src",
+  "// namedInputs": "src/__tests__/storage-backend-parity.suite.ts 是 ./testing 入口的产品代码，不是测试文件：工作区默认的 production 会把整个 __tests__ 排掉，于是「只改共享套件」不使本包 build 失效、也不使 dev-rxdb-tauri 的 test-conformance（inputs 含 ^production）失效——两边一起假绿。",
+  "namedInputs": {
+    "production": [
+      "default",
+      "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
+      "!{projectRoot}/tsconfig.spec.json",
+      "!{projectRoot}/src/test-setup.[jt]s"
+    ]
+  },
   "tags": ["js-lib"],
   "targets": {
     "typecheck": {

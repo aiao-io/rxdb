@@ -723,6 +723,34 @@ mod tests {
         assert_eq!(orphan["code"], "session_closed");
     }
 
+    /// US-505 AC#8：存储根不可写时给出**稳定错误码**，而不是一句只能读给人看的自由文本。
+    ///
+    /// AC#8 的另一半（磁盘满）在单元测试里造不出来：要么占满真盘，要么挂一个 loopback
+    /// 文件系统，两者都不该由一条 `cargo test` 承担。`error_code_for` 把
+    /// `StorageFull | QuotaExceeded` 和 `PermissionDenied | ReadOnlyFilesystem` 映射到
+    /// 同一张表上，这里钉住其中一条，另一条只有映射表本身作保。
+    ///
+    /// 只在 unix 上跑：Windows 的目录 ACL 不受 `chmod` 影响，照搬只会得到一条恒绿的用例。
+    #[cfg(unix)]
+    #[test]
+    fn reports_an_unwritable_storage_root_as_permission_denied() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let harness = Harness::new();
+        let original = fs::metadata(&harness.root).expect("the storage root exists").permissions();
+        fs::set_permissions(&harness.root, fs::Permissions::from_mode(0o555)).expect("the temp root is ours to seal");
+
+        let response = harness.call(json!({ "kind": "file.writeBegin", "path": "a.txt" }));
+
+        // 先解封再断言：断言失败会 panic，权限留在只读上会让 Drop 里的 `remove_dir_all`
+        // 静默失败（那里是 `let _ =`），在别人的临时目录里留下一份删不掉的残骸。
+        fs::set_permissions(&harness.root, original).expect("the temp root is ours to unseal");
+
+        assert_eq!(response["kind"], "error");
+        assert_eq!(response["code"], "permission_denied");
+        assert!(response["message"].as_str().expect("errors carry a message").contains("a.txt"));
+    }
+
     /// 「不存在」与「读不了」是两件事：前者是 `null`，服务层据此走「视为空快照」的分支。
     #[test]
     fn reports_a_missing_entry_as_null_rather_than_an_error() {

@@ -42,9 +42,14 @@ export default defineConfig(() => ({
       transformMixedEsModules: true
     },
     lib: {
+      // `testing` 入口把 `src/__tests__/storage-backend-parity.suite.ts` 打进 `dist/testing.js`，
+      // 供 `apps/dev-rxdb-tauri` 的一致性套件直接消费。也就是说：**这份套件是本包的产品面，
+      // 不是测试文件**。project.json 因此覆盖了本包的 `production` 命名输入（只排除 `*.spec.ts`），
+      // 否则「只改共享套件」既不使本包 build 失效、也不使 Tauri 侧 test-conformance 失效——两边一起假绿。
       entry: {
         index: 'src/index.ts',
-        desktop: 'src/desktop.ts'
+        desktop: 'src/desktop.ts',
+        testing: 'src/testing.ts'
       },
       name: '@aiao/rxdb-plugin-storage',
       fileName: (_, entryName) => `${entryName}.js`,
@@ -53,8 +58,10 @@ export default defineConfig(() => ({
     rolldownOptions: {
       // dts 插件生成声明文件天然比 Rolldown 原生链接阶段慢，抑制误报的 PLUGIN_TIMINGS 警告
       checks: { pluginTimings: false },
-      // desktop 入口经 host 协议说话，桌面适配器必须外置：内联会把它复制进浏览器主入口的依赖图
-      external: ['@aiao/rxdb', '@aiao/rxdb-adapter-desktop', 'rxjs']
+      // desktop 入口经 host 协议说话，桌面适配器必须外置：内联会把它复制进浏览器主入口的依赖图。
+      // vitest 同理且更硬：testing 入口的断言必须跑在**调用方那一个** vitest 实例上，
+      // 内联一份进来，`expect` 就登记不到调用方的测试上下文里。
+      external: ['@aiao/rxdb', '@aiao/rxdb-adapter-desktop', 'rxjs', 'vitest']
     }
   },
   server: {

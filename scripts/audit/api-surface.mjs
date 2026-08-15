@@ -67,7 +67,7 @@ const EXCLUDED = new Set(['rxdb-test']);
  * 都指回这里），并由 `auditSubpathInventory()` 逐包核对：新增或删除子路径而不同步本表 → 门禁红。
  * 这样清单不会随包演进静默过期，作者也会在动到无保护的公开 API 时被拦一次。
  *
- * 8 个包共 12 个入口。其中 `rxdb-adapter-miniprogram` 的两个 `./assets/*` 是二进制/CJS 资产，
+ * 9 个包共 14 个入口。其中 `rxdb-adapter-miniprogram` 的两个 `./assets/*` 是二进制/CJS 资产，
  * 没有导出表面可扫，改由 `scripts/audit/wa-sqlite-integrity.mjs` 的 SHA-256 固定守护。
  * `@aiao/rxdb-test/*`（5 个子路径）不在此列——整包已由 EXCLUDED 排除，非产品 API。
  *
@@ -88,7 +88,9 @@ const KNOWN_UNCOVERED_SUBPATHS = new Map([
   ['rxdb-plugin-graph', ['./generator', './sqlite']],
   // ./desktop = createDesktopStorageFilesystem + DesktopStorageFilesystemOptions。
   // 该入口依赖桌面 host 传输层，不能进浏览器 bundle，因此不从主入口导出。
-  ['rxdb-plugin-storage', ['./desktop']]
+  // ./testing = storageBackendParitySuite + isTemporaryStorageName + ParityBackend，
+  // 供包外后端（Tauri 的 Rust 宿主）证明行为一致；依赖 vitest，只在测试环境使用。
+  ['rxdb-plugin-storage', ['./desktop', './testing']]
 ]);
 
 const mode = process.argv.includes('--update') ? 'update' : 'check';

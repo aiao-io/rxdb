@@ -1,6 +1,7 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite, WaSqliteOptions } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
+import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { checkOPFSAvailable } from '@aiao/utils';
 import { APP_BASE_HREF, isPlatformBrowser } from '@angular/common';
@@ -41,39 +42,47 @@ export default () => {
       type: SyncType.None
     }
   });
-  rxdb.use(rxDBPluginGraph).adapter('wa-sqlite', async db => {
-    let options: WaSqliteOptions;
-    const backend = selectWaSqliteBackend(await checkOPFSAvailable(), typeof SharedWorker === 'function');
-    if (backend === 'OPFSCoopSyncVFS') {
-      options = {
-        vfs: backend,
-        // OPFSCoopSyncVFS 同时支持 sync 与 async，适配器无从猜测；wasmPath 指向的是
-        // 同步产物 wa-sqlite.wasm，必须显式声明 sync 模式，否则会加载 asyncify glue 配同步 wasm。
-        async: false,
-        worker: true,
-        workerInstance: new Worker(new URL('./wa-sqlite.worker', import.meta.url), {
-          type: 'module',
-          name: 'rxdb-wa-sqlite-worker'
-        }),
-        workerOwnership: 'client',
-        wasmPath: `${baseHref}wa-sqlite/wa-sqlite.wasm`
-      };
-    } else if (backend === 'IDBBatchAtomicVFS') {
-      options = {
-        vfs: backend,
-        sharedWorker: true,
-        sharedWorkerInstance: new SharedWorker(new URL('./wa-sqlite-shared.worker', import.meta.url), {
-          type: 'module',
-          name: 'rxdb-wa-sqlite-shared-worker'
-        }),
-        workerOwnership: 'client',
-        wasmPath: `${baseHref}wa-sqlite/wa-sqlite-async.wasm`
-      };
-    } else {
-      throw new Error('wa-sqlite requires OPFS or SharedWorker support');
-    }
-    return new RxDBAdapterWaSqlite(db, options);
-  });
+  // US-505：浏览器预览下 storage 落回插件默认的 OPFS 后端（根目录同为 `files`）。
+  // 不装的话 `/storage` 页在 `nx serve` 里会直接炸在 `rxdb.storage` 上 —— 而这个 demo
+  // 想让人看见的恰恰是「同一个页面、同一套 API，换掉的只是文件落在哪」。
+  // 这里刻意不显式写 rootDir：桌面路径那个常量是给 Rust 侧的物理布局用的，
+  // 搬到这条 OPFS 路径上只会多出一处需要同步、却没有任何东西去核对的配置。
+  rxdb
+    .use(rxDBPluginGraph)
+    .use(rxDBPluginStorage)
+    .adapter('wa-sqlite', async db => {
+      let options: WaSqliteOptions;
+      const backend = selectWaSqliteBackend(await checkOPFSAvailable(), typeof SharedWorker === 'function');
+      if (backend === 'OPFSCoopSyncVFS') {
+        options = {
+          vfs: backend,
+          // OPFSCoopSyncVFS 同时支持 sync 与 async，适配器无从猜测；wasmPath 指向的是
+          // 同步产物 wa-sqlite.wasm，必须显式声明 sync 模式，否则会加载 asyncify glue 配同步 wasm。
+          async: false,
+          worker: true,
+          workerInstance: new Worker(new URL('./wa-sqlite.worker', import.meta.url), {
+            type: 'module',
+            name: 'rxdb-wa-sqlite-worker'
+          }),
+          workerOwnership: 'client',
+          wasmPath: `${baseHref}wa-sqlite/wa-sqlite.wasm`
+        };
+      } else if (backend === 'IDBBatchAtomicVFS') {
+        options = {
+          vfs: backend,
+          sharedWorker: true,
+          sharedWorkerInstance: new SharedWorker(new URL('./wa-sqlite-shared.worker', import.meta.url), {
+            type: 'module',
+            name: 'rxdb-wa-sqlite-shared-worker'
+          }),
+          workerOwnership: 'client',
+          wasmPath: `${baseHref}wa-sqlite/wa-sqlite-async.wasm`
+        };
+      } else {
+        throw new Error('wa-sqlite requires OPFS or SharedWorker support');
+      }
+      return new RxDBAdapterWaSqlite(db, options);
+    });
 
   rxdb.init();
   return rxdb;

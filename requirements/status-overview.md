@@ -4,7 +4,7 @@
 >
 > **完成记录**与 spec 关闭快照已移至 [CHANGELOG.md](CHANGELOG.md)。
 
-**最后同步**: 2026-08-15
+**最后同步**: 2026-08-16
 
 ## 状态汇总
 
@@ -12,8 +12,8 @@
 | :------------- | :--- |
 | ✅ Done        | 34   |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 18   |
-| 🚧 In Progress | 3    |
+| 📝 Backlog     | 17   |
+| 🚧 In Progress | 4    |
 | 🚫 Blocked     | 0    |
 | **合计**       | 55   |
 
@@ -32,6 +32,7 @@
 > 同日第五次评审复查 US-904/US-905 全链，落三类修正。**协议缺陷（P0）**：v1/v2 协商窗口原以 panel 初始化起算，但 connector bootstrap 与 content script 注入（要等 `chrome.permissions.request` 用户授权，延迟无上界）都可能晚于 panel，计时器会在任何一条握手到达前过期，让「双方都支持 v2」稳定退回 v1——同一「双方永久互等」的失败模式在 [bridge.ts](../apps/rxdb-devtools-extension/src/content/bridge.ts) 已有先例注释。改为**证据触发**：panel 在无 session 状态下每次观察到 legacy HANDSHAKE 都补发一次 `PROTOCOL_HELLO`，1,000 ms 窗口从首次暂存起算且只启动一次，无 session 的迟到握手不算非法帧，v1 facade 进入后为终态并置降级标记。另冻结 `crypto.randomUUID()` 在非安全上下文（扩展显式接受 `http:` 页面）不可用，须用 `getRandomValues` 构造 v4；补齐流式 transfer 的 15 秒 idle + 10 分钟总时长两道时限与 `transfer_timeout`（US-904b2 原「继承 US-904b1 的 15 秒 idle deadline」引用了一个 b1 从未定义的值）。**INVEST（P1）**：US-904b3 同时含「行为中性的面板抽取」与「行为收敛的 Chrome v2 迁移」，拆为 [US-904b3](stories/future/US-904c-devtools-shared-panel-chrome-migration.md)（library 抽取，不依赖协议冻结，可与 b1/b2 并行）与 [US-904b4](stories/future/US-904c-devtools-shared-panel-chrome-migration.md)（四段 relay、ACK 所有权、OPFS provider 迁移、下载收敛、浏览器回归）；US-905a 仍门禁在 b4，保持「Chrome 先做 v2 参考实现」的风险姿态不变。US-904a 补齐「关键项」定义与唯一可容忍差异（fixture 静态窄 host permission，须记 variance 且生产 manifest 不动），并点名 US-905a 窗口模型为 `unsupported` 分支的替代承载。US-905 依赖式补回 US-210。**文档一致性（P2）**：US-904/904c/905/905b 中重复冻结数值改为引用 b1/b2，避免两处漂移；v1 兼容形态（完整 facade vs 版本闸门）作为 plan 阶段必答取舍写入 US-904b/b4。Backlog 23 → 24，合计 59 → 60。
 > 同日 [US-504](stories/plugin/US-504-electron-local-file-storage.md) 交付转 `Done`（Backlog 24 → 23，Done 33 → 34，合计不变）。四个 plan 阶段决策落定：窄接口 `StorageFilesystem`、临界区下沉 host 侧（跨窗口互斥不再依赖 Chromium Web Locks）、新增 `StorageBackendError { code }`、逻辑名→物理名确定性可逆编码（编码后超单组件 255 字节即以 `name_too_long` 拒绝，是与 OPFS 后端唯一的有意分歧）。同轮复核 [US-505](stories/plugin/US-505-tauri-local-file-storage.md)：US-210 未交付，其 AC#11 的启用分支不可达，本轮只做文档动作，不写不可达代码，状态维持 `Backlog`。
 > 同日把 US-904/US-905 全链**文档整合**为 6 篇（原 11 篇 1651 行）：三份「不直接交付」的父契约（旧 US-904 / US-904b / US-905）合并为唯一的 [US-904 共享契约](stories/future/US-904-devtools-native-storage-contract.md)；旧 b1+b2 合并为 [US-904b](stories/future/US-904b-devtools-v2-protocol.md)（v2 全部数值、状态机与错误联合的**唯一真相源**，消除跨文件「只引用不重定义」的漂移风险）；旧 b3+b4 合并为 [US-904c](stories/future/US-904c-devtools-shared-panel-chrome-migration.md)，旧 US-905a+905b 合并为 [US-905](stories/future/US-905-tauri-native-devtools.md)，两者各自保留第五次评审确立的 INVEST 切分——以**故事内两阶段**表达，并硬性要求阶段 1（行为中性）与阶段 2（行为收敛）是独立 PR/commit 序列，阶段 1 的 diff 不得含 wire 类型/错误码/权限判定变化；旧 US-904c 顺延重编号为 [US-904d](stories/future/US-904d-electron-native-devtools-integration.md)。并行性不变：904c 阶段 1 ∥ 904b，905 阶段 1 ∥ US-210/505。**无规范性内容增删**，仅合并与重编号；上方历史条目保留当轮旧编号，链接已指向现名（b1/b2→904b，b3/b4→904c，旧 904c→904d，905a/b→905）。Backlog 23 → 18，合计 60 → 55。
+> 2026-08-16 [US-505](stories/plugin/US-505-tauri-local-file-storage.md) 开工转 `In Progress`（Backlog 18 → 17，In Progress 3 → 4，合计不变），同时**作废上一条 2026-08-15 的复核结论**。那条判「AC#11 的启用分支不可达」有两处站不住：[setup_rxdb_desktop.ts](../apps/dev-rxdb-tauri/src/app/setup_rxdb_desktop.ts) 早已把 `sync.local.adapter` 配成 `DESKTOP_ADAPTER_NAME`，通过分支一直存在，「死代码」的前提不成立；且它把 US-210 当作全有全无的门禁，实际被门禁的只有 AC#1/#7。plan 阶段冻结**最小 Rust command**（复用既有 `rxdb_desktop_request` 通道，`capabilities/default.json` 零改动，不引入 `fs` / `shell` 权限），判据是 `lockBackend` 而不是任何一条风险权衡：`tauri-plugin-fs` 只提供文件读写原语，**给不出跨窗口的锁仲裁**，选它等于 AC#9 无法成立。渲染端因此接近零新代码（US-504 交付的 `desktop.ts` 本就运行时无关），实做全在 Rust 侧 `src-tauri/src/rxdb/file/`；一条 IPC 通道上的两套协议按 `kind` **精确成员判定**分流，且必须先于 SQL 解析器。11 条 AC 中 5 条 ✅、4 条 ⚠️、2 条 ⬜，未关闭的分别要打包应用真实重启、三家真实 webview、三平台打包矩阵，与 US-210 AC#1/#9 卡在同一缺口；本轮按既定范围**不建** `apps/dev-rxdb-tauri-e2e`（tauri-driver 不支持 macOS，本机无法验证）。门禁：`cargo test` 113 条、`cargo clippy` 零警告、`test-conformance` 9 文件 602 条、`dev-rxdb-tauri` 12 文件 70 条，均绿。
 
 ## 项目统计
 
@@ -119,7 +120,7 @@
 - 🚧 [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) — 从 US-207 二次拆出。事务门禁判定 `tauri-plugin-sql` 不可用（池连接不固定 + 完全没有变更事件 API），改为自写 Rust command 持有 `rusqlite::Connection`；AC#2–#8 ✅（Rust 宿主跑 21 shared + 5 encrypted 共享套件，585 用例零跳过，空闲机器上连跑 5 次全绿；与 cargo 目标并行抢 CPU 时会有变更事件时序 flake，Node 宿主同条件无，详见故事）；AC#1 ⚠️ 缺跨进程重启 e2e，AC#9 三平台打包矩阵未做
 - ✅ [US-209 微信小程序 wa-sqlite 适配器](stories/adapter/US-209-miniprogram-adapter.md) — 实验性；2026-08-15 完成覆盖率门禁登记、子路径 API baseline 决策与文档收尾
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md) — 2026-08-15 交付：窄接口 `StorageFilesystem` 接缝（OPFS 默认实现行为冻结）+ host 侧仲裁路径锁 + `StorageBackendError { code }`；文件内容落 `userData/rxdb-files`，与 US-207 的 SQLite 同一备份域。AC#1–#9 ✅，`dev-rxdb-electron-e2e` 11/11（含重启、整目录拷贝、传输中途 SIGKILL），`rxdb-plugin-storage` node 200/200 + browser 20/20
-- ⬜ [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边；**仍被 [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md) 前置阻塞**（AC#1 跨进程重启 e2e 与 AC#9 打包矩阵未交付，`apps/dev-rxdb-tauri` 仍跑 wa-sqlite），故 AC#11 的启用分支永远为假、任何实现都是不可达代码。2026-08-15 随 US-504 复核，阻塞原因、解阻条件与三条继承决策记在故事的「阻塞状态」节
+- 🚧 [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边。2026-08-16 开工：2026-08-15 记下的「被 US-210 前置阻塞、任何实现都是不可达代码」判断经复核**作废**——`setup_rxdb_desktop.ts` 早已把 `sync.local` 配成桌面 adapter，AC#11 的通过分支一直存在；真正共享的只是 `apps/dev-rxdb-tauri-e2e` 与打包矩阵这个下游缺口。传输层冻结为**最小 Rust command**（复用 `rxdb_desktop_request`，capability 零改动；plugin-fs 给不出 `lockBackend`，选它 AC#9 无法成立）。AC#2 / #4 / #9 / #10 / #11 ✅，AC#1 / #3 / #5 / #8 ⚠️，AC#6 / #7 ⬜；`cargo test` 113 条、`test-conformance` 602 条（含 15 条后端一致性 + 2 条持久性）全绿
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
 
