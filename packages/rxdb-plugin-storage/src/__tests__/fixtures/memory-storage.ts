@@ -10,7 +10,7 @@
  */
 
 import type { RxDB } from '@aiao/rxdb';
-import { vi } from 'vitest';
+import { type Mock, vi } from 'vitest';
 import type { StorageFileMeta } from '../../file-meta.entity.js';
 import { ObjectUrlRegistry } from '../../object-url.js';
 import { RxdbFileStorage, type RxDBStoragePluginOptions } from '../../storage.service.js';
@@ -234,8 +234,31 @@ export class FakeRepository {
   }
 }
 
+/** 假 adapter：`getRepository` 恒返回同一个 {@link FakeRepository}。 */
+export interface FakeAdapter {
+  getRepository: Mock<() => FakeRepository>;
+}
+
+/** 假 RxDB：只提供 storage 用得到的 `config.sync.local.adapter` 与 `connect()`。 */
+export interface FakeRxDB {
+  config: { sync: { local: { adapter: string } } };
+  connect: Mock<() => Promise<FakeAdapter>>;
+}
+
+/** {@link createService} 造出来的一套装置。 */
+export interface MemoryStorageHarness {
+  adapter: FakeAdapter;
+  repository: FakeRepository;
+  rxdb: FakeRxDB;
+  service: RxdbFileStorage;
+}
+
 /**
  * 造一个接在假仓储上的 {@link RxdbFileStorage}。
+ *
+ * @remarks
+ * 返回类型**必须显式写出**：`vi.fn()` 的推断类型引用了 `@vitest/spy` 内部的 `Procedure`，
+ * 从 `.d.ts` 里指不到（TS2883），而本文件是被多个 spec 复用的导出模块，声明必须可发射。
  *
  * @param options - 插件选项；`rootDir` 缺省为 `files`
  * @param objectUrls - 对象 URL 注册表替身
@@ -248,12 +271,12 @@ export const createService = (
   objectUrls = new ObjectUrlRegistry(() => 'blob:x', vi.fn()),
   entityType: FakeStorageMetaEntityType = FakeStorageFileMeta,
   localAdapterName = 'sqlite'
-) => {
+): MemoryStorageHarness => {
   const repository = new FakeRepository(entityType);
-  const adapter = {
-    getRepository: vi.fn().mockReturnValue(repository)
+  const adapter: FakeAdapter = {
+    getRepository: vi.fn(() => repository)
   };
-  const rxdb = {
+  const rxdb: FakeRxDB = {
     config: {
       sync: {
         local: {
@@ -261,7 +284,7 @@ export const createService = (
         }
       }
     },
-    connect: vi.fn().mockResolvedValue(adapter)
+    connect: vi.fn(() => Promise.resolve(adapter))
   };
 
   const service = new RxdbFileStorage(
