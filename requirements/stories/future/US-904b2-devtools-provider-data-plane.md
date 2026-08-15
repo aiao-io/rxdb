@@ -92,7 +92,11 @@ INVEST 检查清单:
 
 ### Transfer 状态机
 
-- 每 session 的并发、总 ID 预算和 15 秒 idle deadline 继承 US-904b1
+- 每 session 的并发、总 ID 预算，以及 transfer 的 **15 秒 idle deadline + 10 分钟总时长上限**均由
+  US-904b1 冻结，本故事只引用、不重定义。两道时限到期一律返回 US-904b1 的 `transfer_timeout`
+  （属控制面错误，不进入下方 provider 错误联合）
+- idle deadline 只被通过 guard 的 `TRANSFER_START` / `TRANSFER_CHUNK` / `TRANSFER_COMPLETE` 刷新；
+  被拒帧（`payload_encoding_invalid`、`transfer_sequence_invalid`、`transfer_size_exceeded` 等）不刷新
 - 固定流程为 `TRANSFER_START → TRANSFER_CHUNK* → TRANSFER_COMPLETE`，任一方可发送
   `TRANSFER_CANCEL`。START 声明 `totalBytes`；超过协商上限返回 `transfer_size_exceeded`
 - chunkIndex 从 0 连续递增，offset 从 0 开始且等于此前 decoded bytes 累计值。乱序、重复、不连续、
@@ -143,7 +147,7 @@ transport 不得临时发明平台私有码。
 | 2   | none/readonly/full 与 mutation allow/omit 全组合               | 调用全部 provider operations                 | capability、descriptor、policy 三层矩阵成立；被拒调用为 0，wire 自称权限不能扩大可信配置      | ⬜   |
 | 3   | 数值字段含边界值、NaN、Infinity、小数、负数和溢出              | 运行所有 request/descriptor guards           | 仅范围内 safe integer 通过；非法值在资源分配前统一 `invalid_message`                          | ⬜   |
 | 4   | base64 含正常、边界 chunk、非法字符、非规范 padding/URL-safe   | 传过 fake JSON driver 并重新编码             | decoded bytes 一致；非法输入 `payload_encoding_invalid`，不写入、不刷新 timeout               | ⬜   |
-| 5   | 零字节、正常多 chunk、乱序、重复、缺块、越限、取消和迟到帧     | 执行完整 transfer 状态机                     | 仅合法 COMPLETE 提交；错误码稳定，其他终态无半写文件、孤儿 metadata 或完整文件内存副本        | ⬜   |
+| 5   | 零字节、正常多 chunk、乱序、重复、缺块、越限、取消、idle 超时和迟到帧 | 执行完整 transfer 状态机                     | 仅合法 COMPLETE 提交；被拒帧不刷新 idle，超时返回 US-904b1 的 `transfer_timeout`；错误码稳定，其他终态无半写文件、孤儿 metadata 或完整文件内存副本 | ⬜   |
 | 6   | provider 上限缺失、为 0、超过 1 GiB 或双方上限不同             | 启动上传/下载                                | descriptor guard 或 min-limit 生效；超过协商总量 `transfer_size_exceeded`                     | ⬜   |
 | 7   | fixture 含 1001 条记录、两类缺失和内部临时状态                 | 以默认页大小读取 snapshot                    | 独占锁内物化、tuple 稳定排序和字节计量，不漏尾页；只在 complete 后报告，临时状态不误报        | ⬜   |
 | 8   | 等锁、epoch 连续失效、条目/字节超限、60 秒过期                 | 创建并翻页                                   | 请求进入起 15 秒内结束；分别返回 busy/too_large/expired，取消能中止等待，不保留旧结论或截断页 | ⬜   |
