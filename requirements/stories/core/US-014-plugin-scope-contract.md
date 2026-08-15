@@ -5,14 +5,16 @@ status: Backlog
 priority: High
 epic: epic-008-lifecycle-scope
 created: 2026-08-15
-updated: 2026-08-15
+updated: 2026-08-16
 tags: [lifecycle, plugin, public-api, breaking-candidate]
 ---
 
 <!--
 INVEST 检查清单:
 - [x] Independent (独立): 依赖 US-013 的原语，但不依赖 US-015 系列；单独交付后四个插件的泄漏即被修复
-- [x] Negotiable (可协商): 四处语义（destroy 退场方式、repository 撤销形式、作用域层级、拆卸错误在 RxDB 边界的出口）给了决策表
+- [x] Negotiable (可协商): 七处语义在技术笔记里给了决策记录（D1 destroy 退场 / D2 repository 撤销 /
+      D3 作用域层级 / D4 门禁归属 / D5 拆卸错误出口 / D6 双版本插件消歧 / D7 构造器与 install 分工），
+      其中 D1 / D2 / D6 / D7 有方案对比表
 - [x] Valuable (有价值): 直接修掉 graph 插件「注册永不撤销」与 storage「构造期获取 / 拆卸期释放」两处既有泄漏
 - [x] Estimable (可估算): 1 个契约文件 + RxDB 侧作用域层级 + 4 个插件迁移 + 1 个类型契约测试
 - [x] Small (小): 本链条中最大的一个，但仍是**一套机制在四个调用点上的验证**，不是四件事；
@@ -377,11 +379,14 @@ workspace 的 `readonly #indexedDBStore!: WorkspaceStore` 因此要改为可空�
 ## References
 
 - [epic-008 生命周期作用域](../../epics/epic-008-lifecycle-scope.md)
-- [epic-008 评审建议](../../epic-008-lifecycle-scope-review.md) — R-004～R-007 的来源
 - [US-013 LifecycleScope 生命周期作用域原语](US-013-lifecycle-scope-primitive.md) — 前置故事，提供 `LifecycleScope`
 - [US-015 插件依赖声明与按需装卸](US-015-plugin-inject-dependency.md) — 后继故事族，收敛安装态语义
 - `US-016` 连接纪元作用域与 shutdown 收敛 — 🚧 计划路径 `stories/core/US-016-connection-scope-shutdown.md`，
-  **未创建**，且[价值待证](../../epic-008-lifecycle-scope-review-2.md)：本故事交付后 Epic 的三处已知泄漏已全部关闭
-- [第二轮评审复核](../../epic-008-lifecycle-scope-review-2.md) — S-004 / S-005 / S-007 是本故事的开工前置
+  **未创建**，且**价值待证**：本故事交付后 Epic 的三处已知泄漏已全部关闭
 - [versioning-policy.md](../../versioning-policy.md) 第 2、3、4 节 — 公开 API 定义、废弃周期与三层守护
 - [epic-007 公开 API 门禁](../../epics/epic-007-public-api-gates.md) — D4 盲区的长期归属
+
+> 两轮 epic-008 评审文件已于 2026-08-16 删除。本故事的三条开工前置（S-004 storage 构造期终态、
+> S-005 `init()` 不回滚、S-007 `destroy()` 今天是必选成员）已分别落到「来源与边界」其二、
+> AC#22 / AC#23、AC#21 与「今天的契约」一节，**每条都附源码锚点可直接复验**；
+> 正文里残留的 `R-00x` / `S-00x` 仅为追溯改动来源的编号。

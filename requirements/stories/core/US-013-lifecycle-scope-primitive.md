@@ -132,7 +132,7 @@ INVEST 检查清单:
 | ------------------------- | ---------------------------------------------------------------------------------------------- | ----------- |
 | `@aiao/utils`             | 扩大 utils 的定位（从「工具函数」到「运行时构件」）                                            | ✅ **推荐** |
 | `@aiao/rxdb`              | `code-editor-*` 等非 rxdb 包用不到；`@aiao/utils` 反向依赖 `@aiao/rxdb` 不可接受，只能各写一份 | ❌          |
-| 新建 `@aiao/lifecycle` 包 | 为 ~180 行新增第 30 个公开包，连带 build / 覆盖率 / 基线 / 文档五套配置                        | ❌          |
+| 新建 `@aiao/lifecycle` 包 | 为 ~120 行新增第 30 个公开包，连带 build / 覆盖率 / 基线 / 文档五套配置                        | ❌          |
 
 选 `@aiao/utils` 的实质理由不是「它是杂物箱」，而是**它已经在提供有生命周期的运行时构件**：
 `async/AsyncQueueExecutor`、`@browser/leader-election`、`@browser/broadcast-channel-pool` 都不是纯函数，
@@ -154,10 +154,10 @@ INVEST 检查清单:
 就从清单摘除并标记已执行。失败不回滚、不重试——重试会让已经成功的那半清理被跑第二遍，
 而「部分清理」正是最难排查的一类残留。
 
-### 已推迟：`acquireAsync()` 与它的取消出口（S-008，2026-08-16 采纳）
+### 已推迟：`acquireAsync()` 与它的取消出口（2026-08-16 采纳）
 
-[第二轮评审复核](../../epic-008-lifecycle-scope-review-2.md) 的 S-008 逐个核过了 US-013 → US-017
-链条上**全部四个**迁移点的资源获取方式：
+结论的依据是逐个核过 US-013 → US-017 链条上**全部四个**迁移点的资源获取方式
+（每一行都可点开复验，不依赖任何评审文档）：
 
 | 迁移点                | 资源获取                                                       | 是否跨 await |
 | --------------------- | -------------------------------------------------------------- | ------------ |
@@ -168,7 +168,7 @@ INVEST 检查清单:
 
 [workspace-store.ts:47]: ../../../packages/rxdb-plugin-workspace/src/workspace-store.ts#L47
 
-**结论**：`acquireAsync()` + `AbortSignal` 在本 Epic 全链条内**零调用方**。它是纯可加性 API——
+**结论**：`acquireAsync()` + `AbortSignal` 在本 Epic 全链条内**零调用方**（S-008）。它是纯可加性 API——
 将来任何一个调用方出现时补上，对已发布的 `acquire()` / `child()` / `dispose()` 零影响。
 而保留它的代价是两个决策 + 三条最难写的异步竞态用例。按 Epic 的「病灶数 ≥ 抽象数」判据，
 **已于 2026-08-16 摘除**：删去原 AC#7 / AC#14 / AC#15，本故事只交付同步 `acquire()`。
@@ -180,8 +180,8 @@ INVEST 检查清单:
 - 某个调用方必须写成 `const res = await open(); scope.acquire(…)`——`await` 期间作用域可能已释放，
   同步 `acquire()` 会抛 `LifecycleScopeDisposedError`（AC#5）而 `res` 已打开且无人关闭
 - 最可能的第一个调用方是 `US-016` 的**适配器作用域**：`await adapter.connect()` 之后再登记
-  `() => adapter.disconnect()`，正好落在上面这个形状里。该故事[价值待证](../../epic-008-lifecycle-scope-review-2.md)、
-  尚未创建，因此现在不为它冻结语义——**为假想调用方冻结的竞态语义，等真实调用方出现时往往不合用**
+  `() => adapter.disconnect()`，正好落在上面这个形状里。该故事**价值待证**、尚未创建，
+  因此现在不为它冻结语义——**为假想调用方冻结的竞态语义，等真实调用方出现时往往不合用**
 
 #### 已选定的形状（推迟不等于没想清楚，补回来时照此实现）
 
@@ -242,9 +242,11 @@ cordis 的 `Fiber.effect()`（`packages/core/src/fiber.ts`）是同类原语的�
 ## References
 
 - [epic-008 生命周期作用域](../../epics/epic-008-lifecycle-scope.md) — 九处手工配对的清单与代价
-- [epic-008 评审建议](../../epic-008-lifecycle-scope-review.md) — 命名裁决、取消出口与手动 disposer 失败语义的来源
-- [第二轮评审复核](../../epic-008-lifecycle-scope-review-2.md) — S-008：`acquireAsync()` 零调用方，本故事据此摘除
 - [US-014 插件作用域契约](US-014-plugin-scope-contract.md) — 本原语的第一个调用方
 - [`RxDB.#runIsolated`](../../../packages/rxdb/src/RxDB.ts#L579-L593) — 「不短路 + 首错重抛」的既有口径
 - [versioning-policy.md](../../versioning-policy.md) 第 4 节 — API 表面基线工作流
 - cordis `packages/core/src/fiber.ts` — 参考实现（不作为依赖引入）
+
+> 两轮 epic-008 评审文件已于 2026-08-16 删除，其结论**全部并入本文件正文**（D1～D3、「已推迟」一节、
+> AC 重排注）。正文里残留的 `R-00x` / `S-00x` 只是当时的条目编号，用于追溯改动来源；
+> 每一处的完整论据都已就地写出，**不需要**回查评审文件也能复验。

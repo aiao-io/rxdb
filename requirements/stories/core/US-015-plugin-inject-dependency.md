@@ -38,8 +38,8 @@ INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接
 >
 > ⚠️ **两个子故事文件至今没有创建**，本条目因此没有任何可交付切片——违反
 > [README 的「拆分即落盘」硬规则](../../README.md)。补齐这两个文件是 US-015a 的开工前置。
-> `US-015b` 另有[价值待证](../../epic-008-lifecycle-scope-review-2.md)问题：今天没有任何插件
-> 声明 `plugin:*` 依赖。全文其余处对 `US-015a` / `US-015b` 的引用一律指向**尚不存在的文件**，
+> `US-015b` 另有**价值待证**问题：今天没有任何插件声明 `plugin:*` 依赖。
+> 全文其余处对 `US-015a` / `US-015b` 的引用一律指向**尚不存在的文件**，
 > 已去链接以免制造「文档齐备」的假象。
 
 ## 作为/我想要/以便
@@ -56,11 +56,14 @@ INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接
 ### 证据一：search 插件的等待链
 
 - [:136](../../../packages/rxdb-plugin-search/src/plugin.ts#L136) 构造期 `assertSupportedAdapter()` 校验**配置**里的适配器名
-- [:355-360](../../../packages/rxdb-plugin-search/src/plugin.ts#L355-L360) 安装期**先**
+- [:356-358](../../../packages/rxdb-plugin-search/src/plugin.ts#L356-L358) 安装期**先**
   `await firstValueFrom(this.rxdb.connected$.pipe(filter(Boolean)))`，**再**
   `await firstValueFrom(this.rxdb.localAdapter$)`——**两个条件缺一不可**，原因见 D2
-- [:145](../../../packages/rxdb-plugin-search/src/plugin.ts#L145) `install()` 必须**立刻返回**，真实安装转入后台，否则死锁
-- [:370-372](../../../packages/rxdb-plugin-search/src/plugin.ts#L370-L372) 注释写明了死锁的形状：
+- [:139-161](../../../packages/rxdb-plugin-search/src/plugin.ts#L139-L161) `install()` 同步挂完事件通道后
+  **返回包住 `#runInstall()` 的 Promise**（:161），因此 `connect()` 确实会等到 FTS 建完。
+  ⚠️ :145 的行内注释写着「立刻返回；真实安装……异步执行」，**与代码不符**——真正避开死锁的不是「转入后台」，
+  而是下一条的 `bootstrapTransaction`。读这段时以代码为准，改写时见 D2 附
+- [:368-370](../../../packages/rxdb-plugin-search/src/plugin.ts#L368-L370) 注释写明了死锁的形状：
   「`connect()` 还卡在 `#await_plugin_installs`……都会 `ready()` → 再等 `connect()`，等于等自己」
 - [:84](../../../packages/rxdb-plugin-search/src/plugin.ts#L84) 于是有了 `SearchPluginPhase` 五态枚举，
   [:121](../../../packages/rxdb-plugin-search/src/plugin.ts#L121) `ready` 把这套内部状态翻译给使用者
@@ -74,7 +77,7 @@ INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接
 `#track_plugin_install`、`#destroy_plugin` 各一处（[:725](../../../packages/rxdb/src/RxDB.ts#L725) /
 :719 / :771）——**从来没有被当作索引用过**。
 后果是 search 的工厂只能自己探测宿主实例上的自有属性来判断「我是不是已经装过了」
-（[:540-543](../../../packages/rxdb-plugin-search/src/plugin.ts#L540-L543)，
+（[:538-541](../../../packages/rxdb-plugin-search/src/plugin.ts#L538-L541)，
 不匹配时抛 `already installed with an incompatible instance`）。要支持按名字声明依赖，
 必须先补上这个索引——见 D4，落地归 `US-015b`（🚧 文件未创建）。
 
@@ -113,7 +116,7 @@ INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接
 **INV-6 失败不自动重试。** 安装失败只在**依赖纪元变化**时重来，不引入定时器与退避语义（D5）。
 
 **INV-7 释放先于依赖失效。** 依赖即将消失时，必须先释放依赖方的作用域，再让依赖本身失效。
-`disconnect()` 今天已经是这个顺序（`#shutdown()` 在 :478，`adapter.disconnect()` 在 :481），
+`disconnect()` 今天已经是这个顺序（[`#shutdown()` 在 :486，`adapter.disconnect()` 在 :489](../../../packages/rxdb/src/RxDB.ts#L484-L489)），
 新调度必须保持它——反过来会让 disposer 跑在一个已经断开的适配器上。
 
 ## 插件激活状态机
@@ -202,15 +205,15 @@ export type RxDBPluginDependency = 'adapter:local' | 'adapter:remote' | `plugin:
 真正的就绪点在 `connect()` 里，是这条链**全部**跑完之后：
 
 ```text
-adapter.connect()                    :417
-  → migrateSystemSchema?()           :425 / :435   ┐
-  → startWriterLease?()              :426 / :436   │ 仅 local 分支（:418 isLocalAdapter）
-  → #runMigrations() / createTables  :427 / :434   │
-  → #ensureEntityTables()            :428          │
-  → reconcileEntityIndexes?()        :438          ┘
-  → #connected_adapters.add(name)    :440   ← 就绪
-  → #connected_sub.next(true)        :441
-  → #await_plugin_installs()         :443
+adapter.connect()                    :419
+  → migrateSystemSchema?()           :427 / :437   ┐
+  → startWriterLease?()              :428 / :438   │ 仅 local 分支（:420 isLocalAdapter）
+  → #runMigrations() / createTables  :429 / :436   │
+  → #ensureEntityTables()            :430          │
+  → reconcileEntityIndexes?()        :440          ┘
+  → #connected_adapters.add(name)    :442   ← 就绪
+  → #connected_sub.next(true)        :443
+  → #await_plugin_installs()         :445
 ```
 
 | 方案                                | 主要风险                                                                  | 结论        |
@@ -219,13 +222,27 @@ adapter.connect()                    :417
 | 以 `connected$` 为真为就绪          | 它是全局布尔，「远端连着、本地没连」时对 `adapter:local` 给出**假的**就绪 | ❌          |
 | 以 `#connected_adapters` 含该名为准 | 需要新增一个按适配器名分发的信号（今天只有 `Set` + 全局布尔）             | ✅ **推荐** |
 
-`#connected_adapters.add()` 在 :440、`#await_plugin_installs()` 在 :443——**就绪信号先于插件安装等待点发生**，
+[`#connected_adapters.add()` 在 :442、`#await_plugin_installs()` 在 :445](../../../packages/rxdb/src/RxDB.ts#L442-L445)——**就绪信号先于插件安装等待点发生**，
 所以这个判据不会引入新的死锁窗口（INV-4 依然成立）。
 
 search 今天的双重等待（先 `connected$` 再 `localAdapter$`）正是在手工逼近这个判据：
 `connected$` 保证引导跑完，`localAdapter$` 取到实例。宿主提供正确判据后，两次等待一起消失。
 
 落地归 `US-015a`（🚧 文件未创建）。
+
+#### D2 附 — `install()` 内允许调用什么（US-015a 的硬约束）
+
+改写 search 的等待链时**不得**顺手把 FTS DDL 挪出 `install()` 返回的 Promise。今天
+[`install()`](../../../packages/rxdb-plugin-search/src/plugin.ts#L143-L150) 返回的 Promise 包含
+`#runInstall()`，而 `connect()` 会 `await` 它——**`await db.connect()` 返回即 FTS 可用是用户可见保证**，
+把它挪到连接 Promise 之外是行为回退，不是重构。
+
+约束因此是：`install()` 内只允许走
+[`bootstrapTransaction` / `rawQuery`](../../../packages/rxdb-plugin-search/src/plugin.ts#L368-L375)
+这条不回头等 `connect()` 的路径，**不改对外时序**。原因写在源码注释里：`repo.find()` /
+`adapter.rawQuery()` 都会先 `ready()`，而 `ready()` 又等 `connect()`——等于等自己。
+「另开一个不进 `#await_plugin_installs()` 的慢路径钩子」这一方案已被否决，
+理由见 [epic-008 停车位 P-002](../../epic-008-out-of-scope.md)。
 
 ### D3 — 插件依赖的就绪判据
 
@@ -265,8 +282,10 @@ search 今天的双重等待（先 `connected$` 再 `localAdapter$`）正是在�
 推荐方案与 `#plugin_install_promises` 现有的「失败后删条目允许重试」
 （epic-008 现状表第 3 项）语义一致：失败不粘死，但也不自作主张地重来。
 
-**与 US-014 AC#15 的关系**：那条说的是「安装失败时已登记的资源要被回收」，是**资源语义**；
-本决策说的是「回收之后要不要再试一次」，是**调度语义**。两者互不覆盖，都要成立。
+**与 US-014 AC#12～#15 的关系**：那一组说的是「安装失败时已登记的资源要被回收、失败的作用域不复用」，
+是**资源语义**；本决策说的是「回收之后由什么事件触发再试一次」，是**调度语义**。
+两者在「下一次纪元重来」这一点上**故意重合**（US-014 AC#15 已经这样写），
+本决策只是把「除了纪元变化之外不再有别的触发源」补成封闭规则——不得引入定时器或退避。
 
 ## 共享的范围边界
 
@@ -303,10 +322,13 @@ export interface IRxDBPlugin {
 ## References
 
 - [epic-008 生命周期作用域](../../epics/epic-008-lifecycle-scope.md)
-- [epic-008 评审建议](../../epic-008-lifecycle-scope-review.md) — R-001 / R-002 / R-003 / R-008 的来源
 - [US-013 LifecycleScope 生命周期作用域原语](./US-013-lifecycle-scope-primitive.md)
 - [US-014 插件作用域契约](./US-014-plugin-scope-contract.md) — 前置故事；「释放」以它把副作用收进作用域为前提
 - `US-015a` 适配器依赖与纪元调度 — 🚧 计划路径 `stories/core/US-015a-adapter-dependency-epoch.md`，**未创建**
 - `US-015b` 插件间依赖图 — 🚧 计划路径 `stories/core/US-015b-plugin-dependency-graph.md`，**未创建**，价值待证
-- [第二轮评审复核](../../epic-008-lifecycle-scope-review-2.md) — S-002′（`install()` 内可调用什么）是 US-015a 的硬约束
+- [epic-008 停车位](../../epic-008-out-of-scope.md) — P-001（按名字的就绪流）与 P-002（已否决的钩子）的边界
 - [versioning-policy.md](../../versioning-policy.md) 第 4 节 — 三层 API 守护
+
+> 两轮 epic-008 评审文件已于 2026-08-16 删除。曾以「S-002′」编号引用的那条 US-015a 硬约束
+> （`install()` 内可调用什么、不得改对外时序）已就地写进 **D2 附**，并附源码锚点；
+> 正文里残留的 `R-00x` / `S-00x` 仅为追溯改动来源的编号，不再有可跳转的出处。
