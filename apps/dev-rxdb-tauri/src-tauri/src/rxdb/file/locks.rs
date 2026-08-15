@@ -118,6 +118,14 @@ impl LockTable {
         self.outcomes.remove(lock_id)
     }
 
+    /// 某个锁名下正在排队的申请数。
+    ///
+    /// 仲裁本身用不到它，**多线程测试**用得到：没有它就只能靠 sleep 去猜「等待方排上队了没」，
+    /// 那种测试要么必然 flaky，要么必然慢。
+    pub fn queued_count(&self, name: &str) -> usize {
+        self.queues.get(name).map_or(0, |queue| queue.waiting.len())
+    }
+
     /// 释放一把锁。
     ///
     /// 会话归属由**本表**判定：renderer 递来的 `lock_id` 只是一个字符串，
