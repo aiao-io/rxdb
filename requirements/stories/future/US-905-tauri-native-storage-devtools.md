@@ -56,15 +56,16 @@ US-210 SQLite host / US-505 native file host
 
 ### 子故事顺序与启动门禁
 
-- **US-905a：窗口与 transport。** 只依赖 US-904b3（传递包含 b1/b2）；实现开发态窗口、定向消息、
+- **US-905a：窗口与 transport。** 只依赖 US-904b4（传递包含 b1/b2/b3）；实现开发态窗口、定向消息、
   v2 session 生命周期、
   release capability 产物隔离和共享 fake provider 验收，可与 US-210 / US-505 并行。
 - **US-905b：真实 provider 与三平台证据。** 依赖 US-905a、US-904b1/b2 conformance、US-210、US-505；接入真实
   SQLite/native files，完成诊断、Settings、重启 E2E 和 macOS / Windows / Linux smoke。
 
-固定关系为 **US-904b1 → US-904b2 → US-904b3 → US-905a**，以及
-**US-904b2 + US-905a + US-210 + US-505 → US-905b**。不得等待全部 native host 完成后才开始
-US-905a，也不得由 Tauri adapter 复制或反向修改共享 wire。
+固定关系为 **((US-904b1 → US-904b2) ∥ US-904b3) → US-904b4 → US-905a**，以及
+**US-904b2 + US-905a + US-210 + US-505 → US-905b**。US-905a 之所以等到 b4 而不是 b3，是因为
+Chrome 是 v2 的参考实现：先有一个真实平台跑通四段 relay，Tauri 才不会成为第一个发现协议缺陷的地方。
+不得等待全部 native host 完成后才开始 US-905a，也不得由 Tauri adapter 复制或反向修改共享 wire。
 
 ## 范围边界
 
@@ -132,7 +133,7 @@ files 会在同一 session 同时出现。
 
 ## 技术约束
 
-- 面板组件、状态机、provider 类型和错误分类必须与 US-904b1/b2/b3 共用同一实现；Tauri 只新增 transport /
+- 面板组件、状态机、provider 类型和错误分类必须与 US-904b1/b2/b3/b4 共用同一实现；Tauri 只新增 transport /
   bootstrap adapter，统一从 `packages/rxdb-devtools-panel/` 消费
 - Tauri transport 复用 US-904b1 的 v2 与“宽外层、严内层”解析；外层必须能返回 `protocol_unsupported`，
   版本匹配后未知消息、额外字段、错误 direction、错误 session 和非预期窗口标签一律拒绝
@@ -151,23 +152,24 @@ files 会在同一 session 同时出现。
   测试可控性决策；不得暴露通用 `invoke(command, payload)` 或广播未脱敏业务数据
 - 共享面板固定消费 US-904b3 生成的 private Nx library，通过 workspace dependency 正式连接，
   不用 tsconfig path 绕过 package 依赖
-- v2 的 ID、在途/总预算与 session 轮换继承 US-904b1；RFC 4648 base64、decoded-byte 256 KiB chunk、
-  safe integer、offset、总字节、100/500 分页和穷举错误继承 US-904b2。Tauri 不放宽限制
-- 诊断 snapshot 使用 100,000 条/32 MiB、单 session 一个活动快照和 60 秒 idle 上限；从请求进入起
-  15 秒包含等锁/物化/重试，busy、too-large、expired 原样使用共享错误；数据库下载一律 unsupported
+- v2 的 ID、在途/总预算、transfer 时限与 session 轮换继承 US-904b1；RFC 4648 base64、decoded-byte
+  chunk 尺寸、safe integer、offset、总字节、分页上限和穷举错误继承 US-904b2。Tauri 不放宽限制，
+  也不在本文件复述这些数值
+- 诊断 snapshot 的条目/字节上限、单 session 活动快照数、idle 释放和请求进入起算的 deadline 全部
+  继承 US-904b2；busy、too-large、expired 原样使用共享错误；数据库下载一律 unsupported
 
 ## 依赖与排期
 
-- [US-904b3](./US-904b3-devtools-shared-panel-chrome-migration.md)：US-905a 的唯一直接功能前置；它已
-  传递依赖 US-904b1/b2，提供 private panel、v2、provider conformance 与真实 Chrome 基准。
+- [US-904b4](./US-904b4-devtools-chrome-v2-migration.md)：US-905a 的唯一直接功能前置；它已
+  传递依赖 US-904b1/b2/b3，提供 private panel、v2、provider conformance 与真实 Chrome 基准。
   US-905b 不等待 Electron MV3 或 US-904c
 - [US-210](../adapter/US-210-tauri-sqlite-local-database.md)：提供应用作用域 SQLite 与 Tauri host
 - [US-505](../plugin/US-505-tauri-local-file-storage.md)：提供原生文件后端；其本身依赖 US-210
 - [US-601](../tooling/US-601-subpath-api-surface-baseline.md)：新增公开入口必须纳入 API baseline；
   在 US-601 完成前按人工审查流程登记
 
-前置关系：**US-904b1 → US-904b2 → US-904b3 → US-905a**；**US-210 → US-505**；
-**US-904b2 + US-905a + US-505 → US-905b**。US-905a 与 US-210 / US-505 可并行，只有
+前置关系：**((US-904b1 → US-904b2) ∥ US-904b3) → US-904b4 → US-905a**；**US-210 → US-505**；
+**US-904b2 + US-905a + US-210 + US-505 → US-905b**。US-905a 与 US-210 / US-505 可并行，只有
 US-905b 等待真实 native host。
 
 ## 实现所有权
@@ -189,6 +191,7 @@ US-905b 等待真实 native host。
 - [US-904b 共享 v2 协议与面板契约](./US-904b-devtools-shared-protocol-panel.md)
 - [US-904b1 v2 控制面](./US-904b1-devtools-v2-control-plane.md)
 - [US-904b2 provider 数据面](./US-904b2-devtools-provider-data-plane.md)
-- [US-904b3 共享面板与 Chrome 迁移](./US-904b3-devtools-shared-panel-chrome-migration.md)
+- [US-904b3 共享面板 library 抽取](./US-904b3-devtools-shared-panel-library.md)
+- [US-904b4 Chrome v2 迁移](./US-904b4-devtools-chrome-v2-migration.md)
 - [US-210 Tauri 连接应用作用域 SQLite 文件](../adapter/US-210-tauri-sqlite-local-database.md)
 - [US-505 Tauri 本地文件存储](../plugin/US-505-tauri-local-file-storage.md)

@@ -366,13 +366,18 @@ export class RxdbFileStorage {
   /**
    * 读取 metadata 对应的文件快照。
    *
+   * @returns 内容 Blob，`type` 恒为 metadata 记录的 MIME。
    * @throws 文件 ID 不存在、后端文件缺失或服务已销毁时抛出。
    */
   async read(fileId: string): Promise<Blob> {
     await this.ensureLocalReady();
 
     const meta = await this.getRequiredMeta(fileId);
-    return this.filesystem.readBlob(meta.opfsPath);
+    const blob = await this.filesystem.readBlob(meta.opfsPath);
+    // MIME 的权威来源是 metadata，不是后端：OPFS 由浏览器按扩展名推断，桌面原生文件压根没有
+    // MIME 概念（一律 application/octet-stream）。不在这里统一，`preview()` 拿到的 type
+    // 就会随后端漂移 —— 同一个文件在浏览器里是 image/png、在桌面上是 octet-stream。
+    return blob.type === meta.mimeType ? blob : blob.slice(0, blob.size, meta.mimeType);
   }
 
   /**

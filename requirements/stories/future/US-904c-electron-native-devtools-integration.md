@@ -32,9 +32,9 @@ INVEST 检查清单:
 
 ## 启动门禁
 
-- US-904a 已完成、`decision: supported` 且 `evidence` 非空；US-904b1/b2/b3 已全部 `Done`，分别冻结
-  v2 控制面、provider conformance 和共享 panel/Chrome relay。若 904a 为 `unsupported`，本故事转
-  `Blocked` 并由新的承载故事替代。
+- US-904a 已完成、`decision: supported` 且 `evidence` 非空；US-904b1/b2/b3/b4 已全部 `Done`，分别冻结
+  v2 控制面、provider conformance、共享 panel library 和 Chrome v2 relay 基准。若 904a 为
+  `unsupported`，本故事转 `Blocked`，并按 US-905a 的受限窗口模型另立承载故事替代。
 - [US-207](../adapter/US-207-desktop-local-database.md) 已交付 Electron SQLite 与 desktop host 接缝；
   不等待其无关的三平台打包矩阵。[US-504](../plugin/US-504-electron-local-file-storage.md) 已交付原生文件接缝。
 
@@ -73,12 +73,12 @@ INVEST 检查清单:
 | 1   | 分别构建显式开发配置与 production                           | 检查产物并启动                                         | dev 加载唯一工作区扩展并握手；production 无扩展源码、加载路径、bootstrap 和新增权限                                                              | ⬜   |
 | 2   | 应用使用 US-207 desktop SQLite                              | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与应用一致；不创建或查询 OPFS/IndexedDB fallback                                                         | ⬜   |
 | 3   | 应用使用 US-504 原生文件后端并显式允许 mutation             | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件专用根，字节一致；UI 仅用 `runtime: electron` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                              | ⬜   |
-| 4   | 1001 条以上 metadata/files、两类缺失和一条在途上传          | 读取完整诊断 snapshot                                  | 从请求进入起 15 秒 deadline 覆盖等锁/物化/重试；不漏尾页或误报临时状态；失效/超限/过期分别返回 shared busy/too-large/expired                     | ⬜   |
+| 4   | 1001 条以上 metadata/files、两类缺失和一条在途上传          | 读取完整诊断 snapshot                                  | 从请求进入起算的共享 deadline（US-904b2）覆盖等锁/物化/重试；不漏尾页或误报临时状态；失效/超限/过期分别返回 shared busy/too-large/expired        | ⬜   |
 | 5   | 打开 Settings                                               | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明清理返回 `provider_unsupported`，不读取 OPFS/SQLite/WAL 或其他目录                            | ⬜   |
 | 6   | 同源脚本/content script 持有合法 session，或构造越界路径    | 在 none/readonly/full、mutation 开/关组合下伪造操作    | connector、preload、host 各自校验；未授权 provider 调用为 0，未 opt-in mutation 不执行；根外无读写，错误不含路径、SQL 绑定值、加密字段或文件内容 | ⬜   |
 | 7   | session A 有订阅、迟到响应和未完成传输                      | 关闭/刷新后建立 session B 并投递 A 消息                | A 的 host session 与资源释放；B 拒绝旧身份，不显示旧实体、错误、事件或进度                                                                       | ⬜   |
 | 8   | 真实临时 userData、SQLite 与原生文件后端                    | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 extension/renderer/preload/main/host，不用 mock 替代                                                    | ⬜   |
-| 9   | Electron 薄 driver 接入 US-904b1/b2 conformance 与 b3 panel | 运行全部共享断言                                       | 控制面、descriptor、base64、safe integer、授权、传输、快照、错误和 session 重建通过；不复制 UI、wire、fixture 或错误码                           | ⬜   |
+| 9   | Electron 薄 driver 接入 US-904b1/b2 conformance 与 b3 panel library | 运行全部共享断言                                       | 控制面、descriptor、base64、safe integer、授权、传输、快照、错误和 session 重建通过；不复制 UI、wire、fixture 或错误码                           | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -89,7 +89,8 @@ INVEST 检查清单:
 - native files provider 只接收逻辑路径和有界分块，host 继续负责路径解析、二次校验与原子落盘。
 - session 只做关联，不做授权；capability、descriptor 和 mutation policy 在 connector 与 host 两侧重复校验。
 - 所有控制面限制原样使用 US-904b1；provider/传输/snapshot/错误原样使用 US-904b2；面板消费
-  US-904b3 private workspace library，不增加 Electron 私有 kind/error/fallback。
+  US-904b3 private workspace library，relay 语义沿用 US-904b4 已验证的 Chrome 基准，
+  不增加 Electron 私有 kind/error/fallback。
 
 ## 实现文件
 
@@ -105,6 +106,7 @@ INVEST 检查清单:
 - [US-904b DevTools 共享 v2 协议与面板契约](./US-904b-devtools-shared-protocol-panel.md)
 - [US-904b1 DevTools v2 控制面](./US-904b1-devtools-v2-control-plane.md)
 - [US-904b2 DevTools provider 数据面](./US-904b2-devtools-provider-data-plane.md)
-- [US-904b3 DevTools 共享面板与 Chrome 迁移](./US-904b3-devtools-shared-panel-chrome-migration.md)
+- [US-904b3 DevTools 共享面板 library 抽取](./US-904b3-devtools-shared-panel-library.md)
+- [US-904b4 DevTools Chrome v2 迁移](./US-904b4-devtools-chrome-v2-migration.md)
 - [US-207 Electron 连接本地 SQLite 文件](../adapter/US-207-desktop-local-database.md)
 - [US-504 Electron 本地文件存储](../plugin/US-504-electron-local-file-storage.md)

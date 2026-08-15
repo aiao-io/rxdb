@@ -166,4 +166,5 @@ transport 不得临时发明平台私有码。
 
 - [US-904b 共享 v2 协议与面板契约](./US-904b-devtools-shared-protocol-panel.md)
 - [US-904b1 v2 控制面与安全边界](./US-904b1-devtools-v2-control-plane.md)
-- [US-904b3 共享面板与 Chrome 迁移](./US-904b3-devtools-shared-panel-chrome-migration.md)
+- [US-904b3 共享面板 library 抽取](./US-904b3-devtools-shared-panel-library.md)
+- [US-904b4 Chrome v2 迁移](./US-904b4-devtools-chrome-v2-migration.md)

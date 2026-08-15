@@ -14,22 +14,22 @@ INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接
 - [ ] Independent (独立): 受 US-207 / US-504 前置约束；两者关闭前不得实现对应 provider
 - [x] Negotiable (可协商): 文件页复用现有 OPFS 组件还是抽统一 provider，可在 plan 阶段决定
 - [x] Valuable (有价值): 开发者能在一个面板里定位实体数据、事件、文件 metadata 与原生文件本体的不一致
-- [x] Estimable (可估算): 未知量和实现边界已落入 US-904a / US-904b1/b2/b3 / US-904c
-- [ ] Small (小): **不成立，已拆分**；共享层由 US-904b1/b2/b3 继续细分
+- [x] Estimable (可估算): 未知量和实现边界已落入 US-904a / US-904b1/b2/b3/b4 / US-904c
+- [ ] Small (小): **不成立，已拆分**；共享层由 US-904b1/b2/b3/b4 继续细分
 - [x] Testable (可测试): 扩展加载、握手、数据库查询、文件操作、错误路径、安全边界与浏览器回归均有独立 AC
 -->
 
 # 用户故事：DevTools 调试 Electron 原生本地存储（契约父故事）
 
 > **本文件不直接交付。** 它是 Electron 门禁、共享链和 native 集成的范围契约。US-904a 为 `supported`
-> 时，US-904a、US-904b1/b2/b3、US-904c 全部 `Done` 才把父故事置 `Done`；US-904a 为
+> 时，US-904a、US-904b1/b2/b3/b4、US-904c 全部 `Done` 才把父故事置 `Done`；US-904a 为
 > `unsupported` 时，US-904b 共享链继续交付，
 > US-904c 与本父故事转 `Blocked` 并记录替代承载故事，不能永久留在普通 Backlog。
 >
 > | 子故事                                                       | 交付                                            |
 > | ------------------------------------------------------------ | ----------------------------------------------- |
 > | [US-904a](./US-904a-electron-mv3-devtools-feasibility.md)    | Electron 43 + 当前 MV3 扩展 stop/go 实证        |
-> | [US-904b](./US-904b-devtools-shared-protocol-panel.md)       | 共享链父契约；交付由 US-904b1/b2/b3 承担        |
+> | [US-904b](./US-904b-devtools-shared-protocol-panel.md)       | 共享链父契约；交付由 US-904b1/b2/b3/b4 承担     |
 > | [US-904c](./US-904c-electron-native-devtools-integration.md) | Electron desktop SQLite/native files 接入与 E2E |
 
 ## 作为/我想要/以便
@@ -56,15 +56,15 @@ WebView 存储、执行无效清理，或把“未清理桌面数据”误报为
 
 1. **US-904a：Electron MV3 可行性门禁。** 用当前锁定的 Electron 43 和工作区扩展构建，实证
    `loadExtension`、MV3 service worker、`chrome.devtools.panels`、`chrome.scripting`、按需 host
-   permission 与 runtime Port 全链路可用。任一关键 API 不可用即停止 US-904c，回到 plan 选择独立
-   DevTools window；该结论不阻塞平台无关共享层和 Tauri。
-2. **US-904b1/b2/b3：平台无关共享链。** 可与 US-904a 并行，依次交付控制面、provider 数据面、
-   共享 Angular 面板和 Chrome 迁移；拆分与固定依赖见 US-904b 父契约。
+   permission 与 runtime Port 全链路可用。「关键项」与唯一可容忍差异由 US-904a 自身冻结；任一关键
+   API 不可用即停止 US-904c，改按 US-905a 的受限窗口模型另立承载故事；该结论不阻塞平台无关共享层和 Tauri。
+2. **US-904b1/b2/b3/b4：平台无关共享链。** 可与 US-904a 并行，交付控制面、provider 数据面、
+   共享 Angular 面板 library 和 Chrome v2 迁移；拆分与固定依赖见 US-904b 父契约。
 3. **US-904c：Electron provider 与真实 E2E。** 接入 desktop SQLite / native files，完成诊断、Settings
    和真实 extension / renderer / preload / main 证据；只有 US-904a 为 `supported` 才开工。
 
-固定关系为 **US-904a ∥ (US-904b1 → US-904b2 → US-904b3)**，以及
-**US-904a(supported) + US-904b3 + US-207 + US-504 → US-904c**。US-904a 必须在 frontmatter
+固定关系为 **US-904a ∥ ((US-904b1 → US-904b2) ∥ US-904b3 → US-904b4)**，以及
+**US-904a(supported) + US-904b4 + US-207 + US-504 → US-904c**。US-904a 必须在 frontmatter
 写入 `decision` / `evidence`；结论为 `unsupported` 时只有 US-904c 与本父故事转 `Blocked`，
 US-904b 共享链和 US-905 继续推进。
 
@@ -99,12 +99,11 @@ US-904b 共享链和 US-905 继续推进。
   目录导航、上传、下载、新建目录和删除操作
 - Storage 页通过 provider 的分页诊断快照比较 `StorageFileMeta` 与已提交的逻辑文件；provider 在
   storage 全局独占锁内同时物化两侧记录，按 `(logicalPath, id)` 稳定排序后释放锁，后续页只读该
-  immutable snapshot。每 session 只允许一个活动 snapshot，最多 100,000 条或 32 MiB 规范化记录的
-  UTF-8 字节；从请求进入起 15 秒的 deadline 覆盖等锁、物化和重试，超出返回
-  `snapshot_too_large` / `snapshot_busy`。游标绑定
-  session/snapshot，60 秒无活动即释放。只有收到
-  `complete: true` 才给出结论，并区分两类缺失。临时文件、rollback journal 和未完成传输由 storage
-  provider 的 committed-file 枚举排除，不得由 panel 猜文件名前缀
+  immutable snapshot。每 session 只允许一个活动 snapshot，条目/字节上限、从请求进入起算的 deadline、
+  idle 释放时间和 `snapshot_too_large` / `snapshot_busy` / `snapshot_expired` 的判定
+  **全部以 [US-904b2](./US-904b2-devtools-provider-data-plane.md) 为唯一真相源**，本契约不复述数值。
+  只有收到 `complete: true` 才给出结论，并区分两类缺失。临时文件、rollback journal 和未完成传输由
+  storage provider 的 committed-file 枚举排除，不得由 panel 猜文件名前缀
 - 设置页的数据库下载始终禁用并返回 `export_unsupported`；清理动作只有在 provider 明确声明支持时
   才允许执行，不得转而操作 OPFS / IndexedDB 或报告假成功
 - 现有浏览器数据库下载直接禁用并返回结构化 `export_unsupported`；当前架构没有覆盖
@@ -151,8 +150,9 @@ US-904b 共享链和 US-905 继续推进。
   [US-904b1](./US-904b1-devtools-v2-control-plane.md) 为唯一真相源。
 - provider descriptor、RFC 4648 base64、decoded-byte 计量、safe-integer guard、transfer、snapshot、
   穷举错误联合和平台映射以 [US-904b2](./US-904b2-devtools-provider-data-plane.md) 为唯一真相源。
-- 私有 Angular library、真实 Chrome background/content/Port relay、v1 bridge 和浏览器回归以
-  [US-904b3](./US-904b3-devtools-shared-panel-chrome-migration.md) 为唯一真相源。
+- 私有 Angular library 与 transport token 以 [US-904b3](./US-904b3-devtools-shared-panel-library.md)
+  为唯一真相源；真实 Chrome background/content/Port relay、v1 bridge 和浏览器回归以
+  [US-904b4](./US-904b4-devtools-chrome-v2-migration.md) 为唯一真相源。
 - Database / Events 继续走 RxDB connector 语义 API；扩展不得绕过 adapter 发送任意 SQL，也不得读取
   `globalThis.__aiaoRxdbDesktopHost__`、原始 IPC 或应用数据目录句柄。
 - 数据库下载在 browser、Electron、Tauri 一律 `export_unsupported`；断连、刷新或关闭必须取消订阅、
@@ -164,8 +164,8 @@ US-904b 共享链和 US-905 继续推进。
   安全契约；本故事不依赖其未完成的三平台打包矩阵
 - [US-504](../plugin/US-504-electron-local-file-storage.md)：提供原生文件后端与文件消息；本故事应在
   其 provider 接缝冻结后实现，避免 DevTools 反向定义业务存储协议
-- US-904a 与 US-904b1/b2/b3 链可并行；US-904a 只门禁 Electron 承载的 US-904c
-- 现有扩展数据库下载必须由 US-904b3 关闭“未停写热拷贝、全 origin 遍历 + basename 猜归属、
+- US-904a 与 US-904b1/b2/b3/b4 链可并行；US-904a 只门禁 Electron 承载的 US-904c
+- 现有扩展数据库下载必须由 US-904b4 关闭“未停写热拷贝、全 origin 遍历 + basename 猜归属、
   无总量预算、无取消”的缺口；不得用浏览器回归要求把该缺口冻结下来
 - [US-601](../tooling/US-601-subpath-api-surface-baseline.md)：若调试 provider 新增公开子路径入口，必须
   纳入 API baseline；在 US-601 交付前按其人工审查流程登记
@@ -177,7 +177,7 @@ US-904b 共享链和 US-905 继续推进。
 | `apps/rxdb-devtools-extension/`  | US-904a  | Electron 43 可行性 fixture；不抽面板、不接 provider            |
 | `packages/rxdb-devtools/src/`    | b1 / b2  | 控制面、provider、授权、传输、快照、错误与 conformance         |
 | `packages/rxdb-devtools-panel/`  | US-904b3 | private Angular library、共享面板和 transport token            |
-| `apps/rxdb-devtools-extension/`  | US-904b3 | Chrome relay、迁移回归与禁用不安全数据库下载                   |
+| `apps/rxdb-devtools-extension/`  | US-904b4 | Chrome relay、v2 迁移回归与禁用不安全数据库下载                |
 | `packages/rxdb-adapter-desktop/` | US-904c  | Electron 只读数据库诊断 provider，不增加任意 SQL               |
 | `packages/rxdb-plugin-storage/`  | US-904c  | Electron 原生文件调试 provider，复用业务路径与流式语义         |
 | `apps/dev-rxdb-electron/`        | US-904c  | 开发态加载、生产隔离与真实 extension/renderer/preload/main E2E |

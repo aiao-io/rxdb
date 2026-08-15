@@ -22,7 +22,7 @@ INVEST 检查清单:
 # 用户故事：DevTools v2 控制面与安全边界
 
 > 共享契约见 [US-904b](./US-904b-devtools-shared-protocol-panel.md)。本故事只冻结 v2 控制面；
-> provider、transfer 与 snapshot 由 US-904b2 承接，真实 Chrome relay 由 US-904b3 承接。
+> provider、transfer 与 snapshot 由 US-904b2 承接，真实 Chrome relay 由 US-904b4 承接。
 
 ## 作为/我想要/以便
 
