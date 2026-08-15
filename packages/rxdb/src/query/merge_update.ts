@@ -115,6 +115,18 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
  * @param entities 更新的实体事件数据
  */
 export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLocalUpdatedEventData<T>[]) => {
+  // 与 merge_create 的同款守卫：首个权威结果尚未落地时不做增量——此刻 resultEntitySet
+  // 还是空的，findAll 的增量合并会把事件负载当成完整结果发射，订阅者第一眼看到的是
+  // 只含「被更新那几行」的残缺答案。变更事件按批次投递、还可能跨进程（Tauri 的 stdio
+  // 宿主最典型），完全可能赶在 runner 的 SQL 回来之前送达。
+  //
+  // 交给 `refresh()` 而不是直接 `return`：runner 的快照可能取自更新提交之前，
+  // 直接丢弃会让这次更新在活查询里永远缺席。重跑一次查询两种情况都对。
+  if (task.result === undefined) {
+    task.refresh();
+    return;
+  }
+
   const refresh_rules: RefreshMatchRules = [];
   const recalculate_rules: RefreshMatchRules = [];
 

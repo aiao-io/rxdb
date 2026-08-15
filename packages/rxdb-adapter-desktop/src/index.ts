@@ -18,6 +18,15 @@ export { RxDBAdapterDesktop } from './RxDBAdapterDesktop.js';
 
 export { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from './desktop-error.js';
 
+export { decodeDesktopJsonPayload, encodeDesktopJsonPayload } from './desktop-json-codec.js';
+
+export {
+  TAURI_DESKTOP_CHANGE_EVENT,
+  TAURI_DESKTOP_REQUEST_COMMAND,
+  createTauriHostTransport,
+  type TauriHostTransportOptions
+} from './tauri-host-transport.js';
+
 export {
   DESKTOP_HOST_TRANSPORT_KEY,
   DesktopSqliteClient,

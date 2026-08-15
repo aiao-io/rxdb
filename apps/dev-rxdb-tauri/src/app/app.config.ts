@@ -17,7 +17,7 @@ import { provideLoadingBarRouter } from '@ngx-loading-bar/router';
 import { appRoutes } from './app.routes';
 import { RxDBConnectionState } from './rxdb-connection-state';
 import { connectRxDB } from './rxdb-initializer';
-import setup_rxdb from './setup_rxdb_wa-sqlite';
+import { selectLocalBackend } from './setup_rxdb';
 
 /** 按浏览器/系统语言挑 locale id。 */
 const resolveLocaleId = (): string => (Intl.DateTimeFormat().resolvedOptions().locale.includes('zh') ? 'zh' : 'en-US');
@@ -66,8 +66,13 @@ export const appConfig: ApplicationConfig = {
       // 空回调会覆盖 Angular 的默认实现 —— 看着像"这里有定制"，实际是把默认行为换成什么都不做。
       withViewTransitions({ skipInitialTransition: true })
     ),
-    provideRxDB(setup_rxdb),
-    provideAppInitializer(() => connectRxDB(inject(RxDB), inject(RxDBConnectionState))),
+    // US-210：Tauri 窗口里数据落在宿主持有的 SQLite 文件，浏览器预览里落在 wa-sqlite。
+    // 判定放在 provider 工厂里（惰性），因为 `__TAURI_INTERNALS__` 由 Tauri 的初始化脚本注入，
+    // 模块求值期读它等于赌两段脚本的先后顺序。
+    provideRxDB(() => selectLocalBackend(globalThis).create()),
+    provideAppInitializer(() =>
+      connectRxDB(inject(RxDB), inject(RxDBConnectionState), selectLocalBackend(globalThis).adapter)
+    ),
     provideHttpClient(withFetch(), withInterceptorsFromDi()),
     provideLoadingBarInterceptor(),
     provideLoadingBarRouter()

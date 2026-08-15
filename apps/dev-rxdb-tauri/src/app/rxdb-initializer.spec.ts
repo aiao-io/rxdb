@@ -2,13 +2,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { connectRxDB } from './rxdb-initializer';
 
 describe('connectRxDB', () => {
-  it('waits for the wa-sqlite connection', async () => {
+  /** US-210：适配器名由调用方给出，两个后端（wa-sqlite / desktop）走同一条连接路径。 */
+  it.each(['wa-sqlite', 'desktop'])('waits for the %s connection', async adapterName => {
     const adapter = {};
     const connect = vi.fn().mockResolvedValue(adapter);
     const markFailed = vi.fn();
 
-    await expect(connectRxDB({ connect } as never, { markFailed })).resolves.toBeUndefined();
-    expect(connect).toHaveBeenCalledWith('wa-sqlite');
+    await expect(connectRxDB({ connect } as never, { markFailed }, adapterName)).resolves.toBeUndefined();
+    expect(connect).toHaveBeenCalledWith(adapterName);
     expect(markFailed).not.toHaveBeenCalled();
   });
 
@@ -26,7 +27,7 @@ describe('connectRxDB', () => {
     const connect = vi.fn().mockRejectedValue(failure);
     const markFailed = vi.fn();
 
-    await expect(connectRxDB({ connect } as never, { markFailed })).resolves.toBeUndefined();
+    await expect(connectRxDB({ connect } as never, { markFailed }, 'wa-sqlite')).resolves.toBeUndefined();
     expect(markFailed).toHaveBeenCalledWith(failure);
   });
 });

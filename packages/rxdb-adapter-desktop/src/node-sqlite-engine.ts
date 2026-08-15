@@ -136,6 +136,12 @@ const normalizeValue = (value: unknown): SQLiteCompatibleType => {
 
 const normalizeRow = (row: readonly unknown[]): SQLiteCompatibleType[] => row.map(normalizeValue);
 
+/** 读一条形如 `SELECT changes()` 的单值计数语句。 */
+const readCounter = (statement: StatementSync): number => {
+  const [row] = statement.all() as unknown as number[][];
+  return Number(row?.[0] ?? 0);
+};
+
 const quoteIdentifier = (name: string): string => `"${name.replaceAll('"', '""')}"`;
 const quoteLiteral = (value: string): string => `'${value.replaceAll("'", "''")}'`;
 
@@ -172,6 +178,7 @@ export class NodeSqliteEngine {
   #batchTimer?: BatchTimer;
   #maxWaitTimer?: BatchTimer;
   #changesStatement?: StatementSync;
+  #totalChangesStatement?: StatementSync;
   #closed = false;
 
   private constructor(db: DatabaseSync, options: NodeSqliteEngineOptions) {
@@ -249,8 +256,7 @@ export class NodeSqliteEngine {
 
     // 前一次是为别的连接刚建好的系统表补装触发器，后一次是为本条语句自己建的表补装。
     this.#ensureNotifyTriggers();
-    const results = this.#runStatements(statements, bindings);
-    const rowsAffected = isReadOnlyStatement(sql) ? 0 : this.#changes();
+    const { results, rowsAffected } = this.#runStatements(statements, bindings);
     this.#ensureNotifyTriggers();
     return { sql, rowsAffected, elapsed: performance.now() - startedAt, results };
   }
@@ -288,6 +294,7 @@ export class NodeSqliteEngine {
       this.#db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
     } finally {
       this.#changesStatement = undefined;
+      this.#totalChangesStatement = undefined;
       this.#db.close();
     }
   }
@@ -347,14 +354,46 @@ export class NodeSqliteEngine {
    * 桌面端与之对齐，上层才不必分后端处理。
    *
    * 走到这里时 `bindings` 非空即意味着只有一条语句（多语句带参已在 {@link NodeSqliteEngine.execute} 拒绝）。
+   *
+   * 影响行数**逐条累加**，与 wasm 后端 `execute_helper.ts` 的
+   * `rowsAffected += sqlite3.changes(db)` 同形：`changes()` 只反映最后一条语句，
+   * 拿它当整个脚本的答案，`DELETE a; DELETE b;` 会漏掉前一条。
    */
-  #runStatements(statements: readonly string[], bindings: readonly SQLiteCompatibleType[]): SqliteData[] {
+  #runStatements(
+    statements: readonly string[],
+    bindings: readonly SQLiteCompatibleType[]
+  ): { results: SqliteData[]; rowsAffected: number } {
     const results: SqliteData[] = [];
+    let rowsAffected = 0;
     for (const statement of statements) {
+      const totalChangesBefore = this.#totalChanges();
       const data = this.#runSingleStatement(statement, bindings);
+      rowsAffected += this.#statementRowsAffected(statement, totalChangesBefore);
       if (results.length === 0) results.push(...data);
     }
-    return results;
+    return { results, rowsAffected };
+  }
+
+  /**
+   * 单条语句影响的行数。
+   *
+   * @remarks
+   * `changes()` 只被 INSERT / UPDATE / DELETE 重置。任何别的语句跑完，它仍然是**上一条写语句**
+   * 留下的数字——SQLC-030 记的就是这类事故。只读语句由 {@link isReadOnlyStatement} 挡掉；
+   * DDL、PRAGMA、`BEGIN` / `COMMIT` 这些既不是只读、又不改行的语句挡不住，于是再用
+   * `total_changes()` 兜一层：它单调递增且只记真正改动的行，一条语句前后不变就说明它一行没动，
+   * 此时 `changes()` 必然是遗留值。
+   *
+   * 兜底只用来判断「动没动」，报出去的仍是 `changes()`：两者对触发器与外键级联的口径不同
+   * （`total_changes()` 把它们算进去，`changes()` 不算），换成差值会悄悄改变级联删除的返回值。
+   *
+   * @param sql - 单条语句
+   * @param totalChangesBefore - 执行前的 `total_changes()`
+   * @returns 该语句影响的行数
+   */
+  #statementRowsAffected(sql: string, totalChangesBefore: number): number {
+    if (isReadOnlyStatement(sql) || this.#totalChanges() === totalChangesBefore) return 0;
+    return this.#changes();
   }
 
   #statementError(sql: string, error: unknown): RxDBAdapterDesktopError {
@@ -366,13 +405,17 @@ export class NodeSqliteEngine {
   }
 
   #changes(): number {
-    this.#changesStatement ??= this.#prepareChangesStatement();
-    const [row] = this.#changesStatement.all() as unknown as number[][];
-    return Number(row?.[0] ?? 0);
+    this.#changesStatement ??= this.#prepareCounterStatement('SELECT changes()');
+    return readCounter(this.#changesStatement);
   }
 
-  #prepareChangesStatement(): StatementSync {
-    const statement = this.#db.prepare('SELECT changes()');
+  #totalChanges(): number {
+    this.#totalChangesStatement ??= this.#prepareCounterStatement('SELECT total_changes()');
+    return readCounter(this.#totalChangesStatement);
+  }
+
+  #prepareCounterStatement(sql: string): StatementSync {
+    const statement = this.#db.prepare(sql);
     statement.setReturnArrays(true);
     return statement;
   }

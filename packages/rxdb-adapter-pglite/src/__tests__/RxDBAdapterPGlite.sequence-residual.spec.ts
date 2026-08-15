@@ -9,8 +9,12 @@ const state = vi.hoisted(() => {
     // last_value 声明为 string | number：PG 的 bigint 经驱动回来是字符串，
     // 本用例正是要覆盖字符串与数字两种形态
     readonly query = vi.fn(
-      async (): Promise<{ rows: { last_value: string | number }[]; fields: unknown[]; affectedRows: number }> => ({
-        rows: [{ last_value: 1 }],
+      async (): Promise<{
+        rows: { last_value: string | number; is_called: boolean }[];
+        fields: unknown[];
+        affectedRows: number;
+      }> => ({
+        rows: [{ last_value: 1, is_called: true }],
         fields: [],
         affectedRows: 0
       })
@@ -67,11 +71,15 @@ describe('RxDBAdapterPGlite sequence residual', () => {
     client.query.mockResolvedValueOnce({ rows: [], fields: [], affectedRows: 0 });
     await expect(adapter.getRxDBChangeSequence()).resolves.toBe(0);
 
-    client.query.mockResolvedValueOnce({ rows: [{ last_value: '77' }], fields: [], affectedRows: 1 });
+    client.query.mockResolvedValueOnce({ rows: [{ last_value: '77', is_called: true }], fields: [], affectedRows: 1 });
     await expect(adapter.getRxDBChangeSequence()).resolves.toBe(77);
 
-    client.query.mockResolvedValueOnce({ rows: [{ last_value: 88 }], fields: [], affectedRows: 1 });
+    client.query.mockResolvedValueOnce({ rows: [{ last_value: 88, is_called: true }], fields: [], affectedRows: 1 });
     await expect(adapter.getRxDBChangeSequence()).resolves.toBe(88);
+
+    // is_called=false：last_value 尚未被 nextval 消费，最后已用 id = last_value - 1
+    client.query.mockResolvedValueOnce({ rows: [{ last_value: 5, is_called: false }], fields: [], affectedRows: 1 });
+    await expect(adapter.getRxDBChangeSequence()).resolves.toBe(4);
 
     await adapter.disconnect();
   });

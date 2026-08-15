@@ -1,0 +1,188 @@
+{
+  "[dockercompose]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[ejs]": {
+    "editor.defaultFormatter": "j69.ejs-beautify"
+  },
+  "[html]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[ignore]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[mdx]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  },
+  "[shellscript]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
+  },
+  "[sql]": {
+    "editor.defaultFormatter": "inferrinizzard.prettier-sql-vscode"
+  },
+  "[toml]": {
+    "editor.defaultFormatter": "tamasfe.even-better-toml"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[vue]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[yaml]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "cSpell.words": [
+    "analogjs",
+    "antv",
+    "autocheckpoint",
+    "AUTOINCREMENT",
+    "bpchar",
+    "CANTOPEN",
+    "comlink",
+    "CRDT",
+    "crios",
+    "crxjs",
+    "ctid",
+    "daisyui",
+    "Decoratable",
+    "DELETEONCLOSE",
+    "Emscripten",
+    "ENFP",
+    "fflate",
+    "fkey",
+    "ignorecase",
+    "ilike",
+    "imgproxy",
+    "IOERR",
+    "iteratees",
+    "journeyapps",
+    "kalimahapps",
+    "keymap",
+    "keyval",
+    "lofi",
+    "lucide",
+    "miniprogram",
+    "ngsw",
+    "ngxtension",
+    "nodenext",
+    "OPFS",
+    "overscan",
+    "packagr",
+    "pglite",
+    "plpgsql",
+    "PostgREST",
+    "powersync",
+    "Pullable",
+    "pushable",
+    "rdlabo",
+    "Redoable",
+    "revolist",
+    "rhashimoto",
+    "rxdb",
+    "sqliteai",
+    "SUBJOURNAL",
+    "Supabase",
+    "tanstack",
+    "tauri",
+    "timestamptz",
+    "topbar",
+    "Uncapitalize",
+    "Undoable",
+    "ungap",
+    "Unpushed",
+    "upserted",
+    "upserts",
+    "userspace",
+    "valibot",
+    "visactor",
+    "vite",
+    "vtable",
+    "vueuse",
+    "Wechat"
+  ],
+  "chat.promptFilesRecommendations": {
+    "speckit.constitution": true,
+    "speckit.implement": true,
+    "speckit.plan": true,
+    "speckit.specify": true,
+    "speckit.tasks": true
+  },
+  "chat.tools.terminal.autoApprove": {
+    ".specify/scripts/bash/": true,
+    ".specify/scripts/powershell/": true
+  },
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.fixAll.ts": "explicit",
+    "source.organizeImports": "explicit",
+    "source.sortImports": "explicit"
+  },
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.wordWrap": "on",
+  "eslint.enable": true,
+  "eslint.options": {
+    "overrideConfigFile": "eslint.config.mjs"
+  },
+  "eslint.useFlatConfig": true,
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact", "vue", "html", "json"],
+  "files.eol": "\n",
+  "files.exclude": {
+    "**/*.lock": true,
+    "**/__pycache__": true,
+    "**/dist": true,
+    "**/node_modules": true,
+    "**/out-tsc": true,
+    "**/pnpm-lock.yaml": true,
+    "**/poetry.lock": true,
+    "**/test-output": true,
+    "**/tsconfig.tsbuildinfo": true,
+    "*-lock.yaml": true,
+    "*.log": true,
+    ".angular": true,
+    ".husky": true,
+    ".ng-doc": true,
+    ".vscode": true,
+    "bazel-out": true,
+    "coverage": true,
+    "ng-doc": true,
+    "playwright-report": true,
+    "reports": true,
+    "tmp": true,
+    "**/LICENSE": true,
+    "apps/*/{*.json,*.md,*.js,*.yml,*.config.ts,*.config.mjs,*.config.mts,out}": true,
+    "packages/*/{*.json,*.mjs,*.mts,*.md,*.config.ts,src/test-setup.ts}": true,
+    "modules/*/{*.json,*.mjs,*.mts,*.md,*.config.ts,src/test-setup.ts}": true,
+    "website/{*.json,*.md,*.js,*.yml,*.config.ts,*.config.mjs,*.config.mts,out}": true,
+    "benchmarks/{*.json,*.md,*.js,*.yml,*.config.ts,*.config.mjs,*.config.mts,out}": true
+  },
+  "gitlens.codeLens.authors.enabled": false,
+  "gitlens.codeLens.recentChange.enabled": false,
+  "scss.lint.unknownAtRules": "ignore",
+  "tailwindCSS.classAttributes": ["class", "className", "ngClass", "class:list", ".*ClassName.*"],
+  "tailwindCSS.experimental.classRegex": [["clsx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]],
+  "tailwindCSS.experimental.configFile": {
+    "apps/dev-rxdb-angular/src/styles.scss": "apps/dev-rxdb-angular/**"
+  },
+  "tailwindCSS.lint.invalidConfigPath": "ignore",
+  "terminal.integrated.env.osx": {
+    "PLAYWRIGHT_CDN_MIRRORS": "https://registry.npmmirror.com/-/binary/playwright"
+  },
+  "terminal.integrated.shellIntegration.decorationsEnabled": "both",
+  "terminal.integrated.shellIntegration.enabled": true
+}

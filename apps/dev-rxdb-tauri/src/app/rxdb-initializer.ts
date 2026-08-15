@@ -2,10 +2,12 @@ import type { RxDB } from '@aiao/rxdb';
 import type { RxDBConnectionStateWriter } from './rxdb-connection-state';
 
 /**
- * 建立本地 wa-sqlite 连接。**失败不向上抛。**
+ * 建立本地适配器连接。**失败不向上抛。**
  *
  * @param database - RxDB 实例
  * @param state - 承接失败的应用内状态
+ * @param adapterName - 要连的本地适配器名，必须与 `provideRxDB` 用的工厂来自同一次
+ *   `selectLocalBackend` 判定（US-210）
  *
  * @remarks
  * TAURI-01：原实现是 `database.connect('wa-sqlite')` 直接返回给
@@ -19,9 +21,13 @@ import type { RxDBConnectionStateWriter } from './rxdb-connection-state';
  * 所以连接失败必须降级成**应用内状态**：bootstrap 照常完成，页面渲染出来，
  * 诊断面板第一次真正可达。
  */
-export const connectRxDB = async (database: Pick<RxDB, 'connect'>, state: RxDBConnectionStateWriter): Promise<void> => {
+export const connectRxDB = async (
+  database: Pick<RxDB, 'connect'>,
+  state: RxDBConnectionStateWriter,
+  adapterName: string
+): Promise<void> => {
   try {
-    await database.connect('wa-sqlite');
+    await database.connect(adapterName);
   } catch (error) {
     state.markFailed(error);
   }

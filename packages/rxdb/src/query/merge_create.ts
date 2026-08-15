@@ -213,6 +213,21 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
  * @param entities 创建的实体事件数据
  */
 export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLocalCreatedEventData<T>[]) => {
+  // 首个权威结果尚未落地时不做增量：此刻没有可增量的基线，把事件负载直接当成第一个结果
+  // 等于凭空捏造一次查询答案。而 CREATE 事件是可以任意迟到的——变更投递按批次 flush
+  // （见 sqlite 后端的批处理），一条创建事件完全可能在实体被级联删除、或在分支切走之后才送达。
+  // 拿它抢在 runner 之前 `next()`，订阅者拿到的就是一个当下并不存在的实体：`get()` 本该抛
+  // 「Entity with id ... not found」却解析出尸体，`findAll()` 本该是空集却多出一行别的分支的数据。
+  //
+  // 交给 `refresh()` 而不是直接 `return`：事件也可能**新于** runner 的快照（订阅后、SQL 落地前
+  // 刚写进去的行），直接丢弃会让这次写入在活查询里永远缺席。重跑一次查询两种情况都对。
+  //
+  // 首个结果之后不受此限：那时 `result` 是权威基线，增量合并正是活查询该有的行为。
+  if (task.result === undefined) {
+    task.refresh();
+    return;
+  }
+
   // 批内只要有一条比实体缓存更旧（创建后又被改过，CREATE 事件迟到），JS 增量的前提
   // ——「事件负载 = 实体当前状态」——就不成立了：`serialize` 在 P0-004 守卫下会返回
   // 缓存中的**新**实例，而结果集里仍是**旧**的成员关系，二者拼出来的是一个从未存在过的
