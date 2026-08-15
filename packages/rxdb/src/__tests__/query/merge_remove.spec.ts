@@ -938,14 +938,11 @@ describe('query_merge_remove_cache', () => {
   describe('权威基线落地前的 DELETE 事件', () => {
     it('不得成为首个结果，而应交回 SQL 重算', async () => {
       let runs = 0;
-      const task = createMockQueryTask(
-        { type: 'count', where: { combinator: 'and', rules: [] } },
-        () => {
-          runs++;
-          // 权威读要等一个宏任务——事件正是在这段窗口里到达的
-          return timer(0).pipe(map(() => 3));
-        }
-      );
+      const task = createMockQueryTask({ type: 'count', where: { combinator: 'and', rules: [] } }, () => {
+        runs++;
+        // 权威读要等一个宏任务——事件正是在这段窗口里到达的
+        return timer(0).pipe(map(() => 3));
+      });
 
       const first = firstValueFrom(task.result$);
       query_merge_remove_cache(task, [createMockRemoveEvent({ id: 'gone-1', title: 'gone' })]);
