@@ -175,6 +175,53 @@ WebSQL 目录撞车导致的**静默丢数据**（每次启动拿到一个全新
 而 `rust-adapter-factory.ts` 刻意给每次构造发唯一库名（套件之间不能互相看见对方的表），
 两个窗口也就撞不到一起——争锁用例必须自己单开一个文件、显式共用同一个库名。
 
+## Tauri 包化（未开工）
+
+本故事的实现今天**没有一行在 packages 里**：JS 传输层寄居在
+`@aiao/rxdb-adapter-desktop`，Rust 宿主、stdio 测试二进制与 585 条一致性用例全在
+`apps/dev-rxdb-tauri/` 这个 demo 应用里。装了 npm 包的用户拿到的只是一根传输管子，管子那头的
+`rusqlite` 引擎要自己照着 demo 重写一遍——AC#2/#3 承诺的「与其它后端行为一致」于是只对本仓库成立。
+
+目标是 `packages/rxdb-adapter-tauri` 一个包同时装 **npm 包与 Rust crate**，demo 反过来依赖它。
+Electron 半边的改名与共享层下沉见 [US-207「包边界重整」](./US-207-desktop-local-database.md#包边界重整未开工)，
+`ADAPTER_NAME` 是否分裂由那里统一定，本节不另起一套。
+
+### 开工前必须落定的决策：插件形态会让权限面结论反转
+
+「权限面」小节今天的论证是**根本没有可授的东西**：`generate_handler!` 注册的 app 自定义命令
+不受 capability 门禁约束，只有 `core:` / `plugin:` 前缀的命令才是，于是
+`capabilities/default.json` 全程零改动。
+
+**把宿主做成 Tauri 插件，命令就带上 `plugin:` 前缀，恰好落进门禁。** 宿主 app 从此必须显式授予
+`rxdb:allow-request` 之类的权限项，AC#1 的论证形态从「无可授之物」退化成「授予面收敛到两个命令」，
+而「`capabilities/` 零改动」这句话不再成立。二选一：
+
+| 形态                                     | 权限面                                                       | 代价                                                                         |
+| ---------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| Tauri 插件（`tauri::plugin::Builder`）   | 命令进 capability 门禁，宿主须显式授权；插件可自带默认权限集 | 接入是一行 `.plugin(rxdb::init())`，生态惯例，但 AC#1 与「权限面」小节要重写 |
+| 普通 crate，宿主自己 `generate_handler!` | 维持现状：无可授之物，`capabilities/` 零改动                 | 接入要抄一段注册代码；「一行接入」的包化收益打折                             |
+
+**结论必须写回 AC#1 与「权限面」小节**，不能让两处各说各话。
+
+### 任务
+
+| #   | 任务                                                                                                                                                                                                                                   | 完成判据                                                                                                                                                                         |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T1  | 新建 `packages/rxdb-adapter-tauri`：npm 包（`src/`）与 Rust crate（`rust/`）同居一个 Nx project                                                                                                                                        | `tag:js-lib` 的 `run-many -t lint test build` 覆盖到它；crate 名与是否发 crates.io 一并定（见 T7）                                                                               |
+| T2  | Rust 宿主整体迁入：`apps/dev-rxdb-tauri/src-tauri/src/rxdb/`（`protocol.rs` / `value.rs` / `engine.rs` / `session.rs` / `paths.rs` / `router.rs` / `script.rs` / `error.rs` / `commands.rs` + `file/`）与 `src/bin/rxdb_host_stdio.rs` | 按上述决策定形为插件或普通 crate；`apps/dev-rxdb-tauri/src-tauri/src/rxdb/` 目录不再存在；`cargo test` 现有 113 条在新位置全绿                                                   |
+| T3  | JS 侧迁入：`tauri-host-transport.ts` 与 `desktop-json-codec.ts` 及其单测从 desktop 包迁入。codec 跟着 Tauri 走而不是留共享层——`grep` 证实其唯一消费者是 `tauri-host-transport.ts`，Rust 侧有对应实现                                   | 新包 renderer 入口不含任何 Node builtin；`DESKTOP_HOST_PROTOCOL_VERSION` 仍为 `1`（拆包不是协议变更，Electron 路径应一字未动）                                                   |
+| T4  | 一致性套件迁入：`conformance/` 的 `rust-adapter-factory.ts` / `rust-host-transport.ts` + 7 个 SQL 侧 spec 归本故事；`storage-parity.spec.ts` / `storage-persistence.spec.ts` 归 [US-505](../plugin/US-505-tauri-local-file-storage.md) | 新位置复现 **585 passed / 7 files / 0 skipped**（含 storage 两条则为 602 / 9 files）；`rust-host-transport.ts` 里指向 `../src-tauri/target/debug/` 的 `HOST_BINARY` 路径同步     |
+| T5  | Nx target 搬家：`cargo-check` / `cargo-clippy` / `cargo-test` / `build-test-host` / `test-conformance` 五个 target 从 `apps/dev-rxdb-tauri/project.json` 移到新包                                                                      | `pnpm nx run rxdb-adapter-tauri:test-conformance` 绿；demo 只保留 `dev` / `serve` / `tauri-build`，后者 `dependsOn` 新包的三条 Rust 门禁                                         |
+| T6  | demo 反向依赖：`src-tauri/Cargo.toml` 以 path 依赖引用新 crate，`src-tauri/src/` 只剩 `main.rs` / `lib.rs`；`src/app/setup_rxdb*.ts` 与 `README.md` 改指 `@aiao/rxdb-adapter-tauri`                                                    | `pnpm nx run dev-rxdb-tauri:tauri-build` 绿；demo 的接入代码就是文档里给用户看的那段                                                                                             |
+| T7  | Rust crate 的发布形态：crate 名（生态惯例是 `tauri-plugin-*`）、是否发 crates.io、与 npm 包的版本联动                                                                                                                                  | 不发 crates.io 则用户只能 path / git 依赖，「用户能复用」这个包化目标只兑现一半——要么发，要么把这条限制写进包 README；npm 侧在 Nx fixed release group 内，cargo 版本号需另行对齐 |
+
+拆包不改本故事任何一条 AC 的语义，只换证据锚点的路径；唯一有实质影响的是上面那条权限面决策。
+
+另有一件本故事的代码要交出去：`src/app/setup_rxdb.ts` 的 `selectLocalBackend()` —— 「Tauri 窗口走
+宿主 SQLite、浏览器预览走 wa-sqlite」的判定不是 demo 的私事，是所有「一份代码同时发 web 与桌面」
+的应用都要写的那段。它连同「静态 import 两条分支会把 transport 打进浏览器 bundle」这个现存缺陷，
+归 [US-207「Web 回落」E8～E11](./US-207-desktop-local-database.md#web-回落同一份代码跑三端)。
+
 ## 技术笔记
 
 ### 事务门禁（已判定：不用 `tauri-plugin-sql`）

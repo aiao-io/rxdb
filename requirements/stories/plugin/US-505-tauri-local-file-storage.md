@@ -158,6 +158,25 @@ lint/test/build 全绿。
 字节即抛 `StorageBackendError('name_too_long')`，不做哈希截断（截断不可逆，会打断
 `copyDirectory` / `listEntries` 的物理名 → 逻辑路径回推）。
 
+## 随 Tauri 包化搬迁（未开工）
+
+本故事的 Rust 文件宿主与两条一致性 spec 都在 `apps/dev-rxdb-tauri/` 里，会跟着
+[US-210「Tauri 包化」](../adapter/US-210-tauri-sqlite-local-database.md#tauri-包化未开工)
+一起搬进 `packages/rxdb-adapter-tauri`；renderer 侧则受
+[US-207「包边界重整」](../adapter/US-207-desktop-local-database.md#包边界重整未开工)
+的改名影响。搬迁**不改本故事任何一条 AC 的语义**，但有两处论证要跟着改口径。
+
+| #   | 任务                                                                                                                                                                       | 完成判据                                                                                                                                               |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| S1  | `src-tauri/src/rxdb/file/`（`protocol.rs` / `locks.rs` / `mod.rs`）与 `router.rs` 的两协议分流随 crate 迁入新包，`error.rs` 的四个文件变体同行                             | `cargo test` 的 113 条在新位置全绿；`is_file_request` 精确成员判定仍**先于** SQL 解析器（顺序颠倒是静默 bug，不是编译错误）                            |
+| S2  | `conformance/storage-parity.spec.ts` / `storage-persistence.spec.ts` 迁入新包                                                                                              | 与 US-210 的 7 条 SQL spec 合计复现 **602 条 / 9 文件**；`storage-parity` 仍从 `@aiao/rxdb-plugin-storage/testing` 取套件，不在新包里复制一份          |
+| S3  | AC#10 证据句改口径：「Tauri 传输客户端本来就在 `@aiao/rxdb-adapter-desktop`」改为新包名；`rxdb-plugin-storage` 的 `./desktop` 子路径按 US-207 E5 改指共享层而非运行时包    | `rxdb-plugin-storage` 浏览器 bundle 仍不含任何 Node builtin 与 Tauri 依赖（AC#10 的实质）；`KNOWN_UNCOVERED_SUBPATHS` 的包计数注释同步                 |
+| S4  | AC#11 的 `adapter_mismatch` 判据跟随 US-207 E3 的 `ADAPTER_NAME` 决策：名字若从 `desktop` 分裂成 `electron` / `tauri`，`setup_rxdb_storage.spec.ts` 的断言与拒绝条件要重写 | 决策未定前不动此项；改后 `refuses to build on a non-desktop adapter` 用例名与断言一致，不留名不副实的用例名                                            |
+| S5  | 「传输二选一」小节引用的 `rxdb/mod.rs` capability 论证跟随 US-210 的插件形态决策                                                                                           | 若宿主定形为 Tauri 插件，本故事「`capabilities/` 全程零改动」与「一条 capability 都不用加」两处论证同步失效，须与 US-210 AC#1 一起改，不得两处各说各话 |
+
+搬迁不解「剩余缺口」里的任何一条：AC#1 / #3 / #6 / #7 仍卡在
+`apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵上。
+
 ## 技术笔记
 
 ### 传输二选一（已冻结：最小 Rust command）

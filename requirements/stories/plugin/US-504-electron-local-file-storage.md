@@ -244,6 +244,15 @@ AC（#4 / #8 / #11）跟随本决策，不另订载体。
 - `apps/dev-rxdb-electron-e2e/` — AC#1 / #3 的重启与备份恢复 e2e
 - `requirements/api-baseline/` — 新公开 API 基线；新增子路径入口同步 `KNOWN_UNCOVERED_SUBPATHS`
 
+> 本故事已 Done，但上表第二行会被
+> [US-207「包边界重整」](../adapter/US-207-desktop-local-database.md#包边界重整未开工)
+> 改写：`@aiao/rxdb-adapter-desktop` 拆成 `@aiao/rxdb-adapter-electron` 与
+> `@aiao/rxdb-adapter-tauri`，共享协议下沉 `rxdb-adapter-sqlite-core` 子路径。本故事引用的
+> `desktop-file-host.ts` / `desktop-filesystem.spec.ts` / `desktop-failure.spec.ts` /
+> `public-api.spec.ts` 随 Electron 半边迁入新包，**九条 AC 与其证据的内容一字不改，只换路径**；
+> 「renderer 入口零 node 依赖」这条不变式由 US-207 E2 的双入口断言继续守着。搬迁完成后
+> 回来同步本节路径即可，不需要重开验收。
+
 ## References
 
 - [US-502 Storage 插件](./US-502-storage-plugin.md) — 现有 OPFS 实现与 API 承诺

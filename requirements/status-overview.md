@@ -27,12 +27,22 @@
 
 | Story                                                                                            | 卡在哪                                                                       |
 | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)         | 仅剩 AC#8 三平台打包矩阵                                                     |
-| [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) | AC#1 缺跨进程重启 e2e、AC#9 三平台打包矩阵                                   |
+| [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)         | AC#8 三平台打包矩阵；另有「包边界重整」E1～E7 未开工                         |
+| [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) | AC#1 缺跨进程重启 e2e、AC#9 三平台打包矩阵；另有「Tauri 包化」T1～T7 未开工  |
 | [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                   | AC#6 / #7 待 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵；AC#1/#3/#5/#8 仍 ⚠️ |
 | [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)    | 阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 A / C / D 未开始           |
 
 > US-207 / US-210 / US-505 的三条尾巴是**同一个下游缺口**：真实打包应用的重启与三平台矩阵。
+>
+> **桌面包边界重整（未开工，横跨 US-207 / US-210 / US-505 / US-504）**：
+> `@aiao/rxdb-adapter-desktop` 拆成 `@aiao/rxdb-adapter-electron` 与 `@aiao/rxdb-adapter-tauri`，
+> 共享协议与 renderer client 下沉 `rxdb-adapter-sqlite-core` 子路径，`desktop` 这个包名消失；
+> Tauri 的 Rust 宿主与 585 条一致性用例从 `apps/dev-rxdb-tauri/` 搬进新包，demo 反向依赖。
+> 任务表在 US-207「包边界重整」（E1～E7）+「Web 回落」（E8～E11）与 US-210「Tauri 包化」（T1～T7），US-505 有 S1～S5 跟进项，
+> US-504 只需事后同步路径。两条**开工前必须落定**的决策：`ADAPTER_NAME` 是否从 `desktop`
+> 分裂成 `electron` / `tauri`（US-207 E3），以及 Rust 宿主做成 Tauri 插件还是普通 crate
+> —— 后者会决定 US-210 AC#1 与 US-505「`capabilities/` 零改动」的论证是否需要重写。
+> 拖延成本随时间上涨：`@aiao/rxdb-adapter-desktop@0.0.25` 已在 registry 上。
 
 ## 已取消
 
