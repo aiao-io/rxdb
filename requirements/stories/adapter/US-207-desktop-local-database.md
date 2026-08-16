@@ -15,8 +15,9 @@ INVEST 检查清单:
 - [x] Negotiable (可协商): 桌面 host 与 renderer 的传输实现可替换
 - [x] Valuable (有价值): 数据落在可备份、可迁移的原生本地存储中
 - [x] Estimable (可估算): 单一运行时（Electron）+ 单一引擎（SQLite）
-- [ ] Small (小): **已不成立**。8 条 AC 本身是收敛的（Electron PGlite 拆至 US-208、Tauri 拆至 US-210），
-      但文末「包边界重整」E1～E7 与「Web 回落」E8～E11 各是一条独立故事的体量，见「待拆分」
+- [ ] Small (小): **不成立，已改为分阶段交付**。9 条 AC 本身是收敛的（Electron PGlite 拆至 US-208、
+      Tauri 拆至 US-210），但文末「包边界重整」E1～E7 与「Web 回落」E8～E11 各是一条独立故事的体量。
+      不再拆故事，改为在本故事内划四个阶段，各阶段有独立完成判据，见「交付阶段」
 - [x] Testable (可测试): 持久化、事务、失败路径与打包 smoke test 均有独立 AC
 -->
 
@@ -93,6 +94,7 @@ INVEST 检查清单:
 | 6   | SQLite 文件存在应用未知的普通业务表                       | Aiao 首次连接并初始化系统 schema                         | 保留未知表和数据；只创建或迁移 Aiao 自有系统对象，失败时事务回滚                                                     | ✅   |
 | 7   | 存在未提交事务或在途查询                                  | 调用 `disconnect()` 或关闭窗口                           | 停止接受新任务，等待或回滚在途工作，刷新持久化数据并关闭句柄；随后可重命名该 SQLite 文件                             | ✅   |
 | 8   | 构建打包后的 Electron 应用                                | 在 macOS、Windows、Linux CI 中运行桌面持久化 smoke test  | 三平台均通过；测试使用真实临时文件而非 mock 或浏览器存储                                                             | ⬜   |
+| 9   | host 与 renderer 编译自不同协议版本                       | 发起连接                                                 | 连接失败并报可判别的错误码；不建库、不按旧协议降级解释载荷                                                           | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -111,6 +113,7 @@ worker 选项组合，桌面客户端不接受任何 worker 选项）。AC#1 / #
 | 2   | `encrypted-{crud,tamper,bigint-binary,change-log,lifecycle}.spec.ts` —— `@aiao/rxdb-test/encrypted` 的五套共享套件跑在桌面工厂上                                                          |
 | 6   | `desktop-sqlite-host.spec.ts` 「preserves unknown business tables that already live in the file」                                                                                         |
 | 7   | `node-sqlite-engine.spec.ts` 「flushes the pending batch synchronously on close」/「persists committed data across a reopen」/「releases the file handle so the database can be renamed」 |
+| 9   | `desktop-host-protocol.ts` 的 `parseDesktopHostOpenResult` 在 `open` 应答上比对 `DESKTOP_HOST_PROTOCOL_VERSION`，不等即抛 `protocol_violation`；`desktop-sqlite-client.spec.ts` 「refuses a host that speaks a different protocol version」注入 `protocolVersion: 99` 撞它 |
 
 AC#1 的断言形态是**跨进程**的累计启动次数（1 → 2），不是「写一条读一条」——
 后者在单次启动内就能通过，哪怕数据只活在内存里也一样绿。整套 e2e 在真实 `--dir` 产物上
@@ -198,10 +201,19 @@ Electron 完全同构（多个 renderer，同一个主进程 host，一库一连
 3. host 入口真能开库、建表、写入、读回、关闭，应答一律经 renderer 入口导出的
    `assertDesktopHostResponse` 解包 —— 于是这条往返同时证明两个入口的协议是配套的。
 
-> **没有自动门禁。** 曾由 `scripts/audit/desktop-adapter-consumer.mjs` + `consumer` target
-> 在真 tarball 上守这三条，随发布流程改为手工执行一并删除。
-> 这三条性质现在**没有任何自动化覆盖**，改包的 `exports` / 入口切分 / host 协议后，
-> 需要手工 `pnpm pack` 装进临时项目自行确认。
+> **今天没有自动门禁。** 曾由 `scripts/audit/desktop-adapter-consumer.mjs`（254 行）+ `consumer`
+> target 在真 tarball 上守这三条，随发布流程改为手工执行一并删除（删除提交 `0d7f88e`）。
+> 改包的 `exports` / 入口切分 / host 协议后，目前需要手工 `pnpm pack` 装进临时项目自行确认。
+
+**恢复计划（阶段 2）：恢复，但只在发布时跑。** 脚本还在 git 历史里，
+`git show 0d7f88e^:scripts/audit/desktop-adapter-consumer.mjs` 就能取回——恢复成本是
+「取回 + 按新包名改路径 + 挂一个 target」，不是重写，因此落在「能自动就自动」这一侧。
+
+它**不进 PR 门禁**：要 `pnpm pack` 再装进临时项目，耗时与 PR 上每次都跑的收益不成比例，
+而这三条性质只在包的 `exports`／入口切分／host 协议变动时才可能退化——那是发布时必然经过的路口。
+挂在「三平台打包 CI」那条 release workflow 上，与 AC#8 共用一次触发。
+
+阶段 3 拆包后这三条要在**两个**包上各跑一遍（E7），脚本届时参数化包名，不复制第二份。
 
 ### 发布后的真 registry 复验
 
@@ -226,30 +238,65 @@ run log 里的 `Published to https://registry.npmjs.org/` 才是权威，`npm vi
 > **跨 realm writer lease 与迁移 epoch fencing 已于 2026-08-16 取消**（连同其代码与 US-304 一并删除），
 > 本故事不再承诺「第二个 writer 在连接时被拒」这类跨 realm 排他语义。
 >
-> AC#8 需要三平台打包 CI 矩阵。本地只跑过 macOS（`mac-arm64`）。
-> 打包 smoke test 成本高，应只在 release 分支或 tag 触发，不进 PR 门禁。
+> AC#8 需要三平台打包 CI 矩阵。本地只跑过 macOS（`mac-arm64`）。方案见下节。
 
-## 待拆分（本故事已超出 INVEST「Small」）
+### 三平台打包 CI（阶段 2）
 
-8 条 AC 里 7 条已过，剩 AC#8 一条。但下面两节各挂着一整套任务：
+**AC#8 从未被技术前提挡住，只是没人加 runner。** 现有 e2e 用 Playwright 的
+`_electron.launch()` 驱动打包产物（`apps/dev-rxdb-electron-e2e/src/*.spec.ts`），走的是 **CDP**，
+不是 WebDriver——Electron 侧不存在 [US-210](./US-210-tauri-sqlite-local-database.md) 那个
+「macOS 没有 WKWebView WebDriver」的问题。同一份 spec 换个 runner 就能跑。
 
-| 节                         | 任务    | 为什么它不是本故事的尾巴                                                                                                                                                                                                                             |
-| -------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 包边界重整                 | E1～E7  | 有自己的未落定决策（`ADAPTER_NAME` 是否分裂），影响面横跨 US-208 / US-210 / US-504 / US-505 / US-601 / US-904 / US-905；与 [US-210「Tauri 包化」T1～T7](./US-210-tauri-sqlite-local-database.md#tauri-包化未开工) 是同一件事的两半，应合并成一条故事 |
-| Web 回落：同一份代码跑三端 | E8～E11 | 是一条新能力（运行时后端选择器），不是本故事任何一条 AC 的实现细节；其中「选择器是否公开 API」一旦定为是，还要受三框架对称铁律约束，Angular / React / Vue 三端各写一遍                                                                               |
+今天 `.github/workflows/` 里**一个 macOS runner 都没有**：`main.yml`（push main）与
+`pr.yml`（PR）全是 `ubuntu-latest`，只有 `ci-windows.yml` 是 `windows-latest` 且为
+`workflow_dispatch` 手动触发。所以缺的是一条新 workflow，不是新能力。
 
-**后果是具体的**：AC#8 关闭后本故事仍欠 11 条任务，于是永远标不了 `Done`，
-`status-overview.md` 的「进行中」从此不再表示「AC 没做完」。
+`ci-windows.yml` 里「Windows runner 按 2 倍计费」那句注释是**本仓库不适用的**：
+本仓库是 public，GitHub 标准 runner 对公开仓库不计费。它当初写手动触发的成本理由在这里不成立，
+真正的理由只剩耗时（打包 + Playwright 安装）——那正好对应「只在发布时跑」。
 
-建议拆成两条新故事（本节在拆完后删除）：
+**方案：新增一条 release 触发的 workflow**，`matrix: [ubuntu-latest, windows-latest, macos-latest]`，
+一次触发同时兑现三件事：
 
-- **桌面适配器包边界重整** —— 收 E1～E7 + US-210 T1～T7，两个未落定决策（`ADAPTER_NAME` 分裂、
-  Rust 宿主做插件还是普通 crate）在该故事的 plan 阶段一并定；后者会改写 US-210 AC#1 的论证，属回归风险，不是纯重构
-- **Web / 桌面运行时后端选择** —— 收 E8～E11
+| 承担                                    | 内容                                                                 |
+| --------------------------------------- | -------------------------------------------------------------------- |
+| 本故事 AC#8                             | `dev-rxdb-electron-e2e` 在三平台打包产物上跑持久化 smoke             |
+| 本故事「发布前需人工确认的三条性质」    | 恢复的 `desktop-adapter-consumer.mjs` 在真 tarball 上跑              |
+| [US-210](./US-210-tauri-sqlite-local-database.md) AC#9 | Tauri 打包产物的三平台持久化 smoke（驱动方式不同，见该故事） |
 
-拆分前这两节留在原地，但**不计入本故事的完成判据**。
+三件事共用一次触发而不是各起一条：它们要的前置是同一个（三平台 runner + 打包产物），
+拆成三条 workflow 会把同一份 `tauri build` / `electron-builder` 跑三遍。
 
-## 包边界重整（未开工）
+**不进 PR 门禁**，与本节上文「发布前需人工确认的三条性质」同理。代价要写明白：
+三平台打包的回归**发现得晚**——引入它的 PR 已经合进 main，红在发布那一刻。
+这是拿「PR 反馈速度」换来的，接受它就要接受发布前偶尔需要回退一个已合入的改动。
+
+## 交付阶段
+
+本故事的体量已超出 INVEST「Small」：9 条 AC 之外，文末两节各挂着一整套任务。
+**不拆成新故事**（拆了要重建交叉引用、重分 epic、重写 `inherited_acs`，而这几节的上下文
+恰恰全在本文里），改为在故事内划阶段。每个阶段有独立的完成判据，**逐阶段推进、逐阶段验收**。
+
+| 阶段 | 内容                                    | 完成判据                                                                              | 状态       |
+| ---- | --------------------------------------- | ------------------------------------------------------------------------------------- | ---------- |
+| 1    | 核心能力：AC#1～#7、AC#9                | 8 条 AC 全绿，共享套件 0 skipped                                                       | ✅ 已交付  |
+| 2    | 打包与发布门禁：AC#8 +「三条发布性质」  | release 触发的三平台 workflow 绿（见「三平台打包 CI」）                                | ⬜ 未开始  |
+| 3    | 包边界重整：E1～E7                      | 见各任务判据；与 [US-210 T1～T7](./US-210-tauri-sqlite-local-database.md#tauri-包化) 同批做，两侧共用一次 `ADAPTER_NAME` 改名 | ⬜ 未开始  |
+| 4    | Web 回落：E8～E11                       | 见各任务判据；「选择器是否公开 API」在本阶段 plan 时定                                 | ⬜ 未开始  |
+
+**分阶段不等于降低完成判据**：本故事只有在四个阶段都完成后才标 `Done`。
+`status-overview.md` 的「进行中」记录当前停在哪个阶段，读到「进行中」的人由此知道
+欠的是 AC 还是后续阶段，不必翻回本文猜。
+
+阶段间的依赖是真的，不是排序偏好：
+
+- **阶段 3 必须在阶段 2 之后**。阶段 2 要在打包产物上验「renderer 入口不含 `node:sqlite`」，
+  而阶段 3 正是把入口切开重排——先立门禁再动结构，动坏了当场红；反过来则是拆完才发现串味，
+  已无从判断是拆坏的还是本来就坏的。
+- **阶段 4 必须在阶段 3 之后**。E8 的选择器要「不依赖任何适配器包」，而今天只有
+  `@aiao/rxdb-adapter-desktop` 一个包，选择器无处可放；E1 把共享层下沉之后才有位置。
+
+## 包边界重整
 
 `@aiao/rxdb-adapter-desktop` 一个包同时装了三层东西：跨运行时的协议与 renderer client
 （`desktop-host-protocol.ts` / `desktop-sqlite-client.ts` / `desktop-storage.ts`）、Electron 的
@@ -269,19 +316,46 @@ run log 里的 `Published to https://registry.npmjs.org/` 才是权威，`npm vi
 它也**不是**发布 1.0 前的可选整理——`@aiao/rxdb-adapter-desktop@0.0.25` 已在 registry 上，
 拖到有真实用户之后再改名，成本从「改 21 个引用点」变成「改用户代码」。
 
-### 开工前必须落定的决策
+### 已落定的决策：`ADAPTER_NAME` 分裂（2026-08-17）
 
-**`ADAPTER_NAME` 是否分裂。** `desktop-adapter.interface.ts` 的 `ADAPTER_NAME = 'desktop'` 是用户
-写进 `rxdb.config.sync.local.adapter` 的运行时字符串，不是内部常量；`RxDBAdapterDesktop` 今天靠
+`desktop-adapter.interface.ts` 的 `ADAPTER_NAME = 'desktop'` 是用户写进
+`rxdb.config.sync.local.adapter` 的运行时字符串，不是内部常量；`RxDBAdapterDesktop` 今天靠
 构造选项 `runtime: 'electron' | 'tauri'` 区分两条路径（`DesktopRuntime`，`desktop-storage.ts`）。
-拆包后二选一：
 
-| 选项                            | 代价                                                                                                                                                                                                                                                                              |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 两包继续注册同一个 `desktop` 名 | 用户代码零改动；但一个进程内两个包互斥注册，冲突只能在运行时报错                                                                                                                                                                                                                  |
-| 分裂成 `electron` / `tauri`     | 语义与包名一致，`runtime` 选项可以消失；但改用户代码，且 [US-505](../plugin/US-505-tauri-local-file-storage.md) AC#11 的 `adapter_mismatch` 判别、`apps/dev-rxdb-tauri/src/app/setup_rxdb.ts` 的运行时选路、[capability-matrix](../../capability-matrix.md) 的 desktop 行都跟着改 |
+**决策：分裂。** 两包各注册自己的名字，不再共用 `desktop`。
 
-**该决策未落定前 E2 不开工**——它决定的是公开运行时契约要不要改，不是文件放哪。
+被否掉的是「两包继续注册同一个 `desktop` 名」：它对用户代码零改动，但一个进程内两个包会
+互斥注册，冲突只能在**运行时**报错。而拆包的目的正是让「装了哪个包」在**构建期**就确定——
+留一个运行时冲突点进去，等于把拆包本该消除的那类问题换了个地方保留。
+
+**命名遵循已有惯例 `<引擎>-<运行时>`**，参照 `@aiao/rxdb-adapter-miniprogram` 的
+`ADAPTER_NAME = 'wa-sqlite-miniprogram'`（不是 `'miniprogram'`）：
+
+| 适配器                      | `ADAPTER_NAME`     | 归属                                                     |
+| --------------------------- | ------------------ | -------------------------------------------------------- |
+| Electron + SQLite           | `sqlite-electron`  | 本故事 E3                                                |
+| Tauri + SQLite              | `sqlite-tauri`     | [US-210](./US-210-tauri-sqlite-local-database.md) T1～T7 |
+| Electron + PGlite           | `pglite-electron`  | [US-208](./US-208-electron-pglite-data-directory.md)     |
+
+**PGlite 单独占一个名，不并进 `sqlite-electron`。** 理由不是对称美感：两者是不同的引擎、
+不同的事务模型（PGlite 的 callback transaction 跨不了 IPC，需要一套 SQLite 路径不需要的
+事务 host，正是当初拆出 US-208 的原因），共用一个适配器名意味着同一个名字下藏着两种事务语义，
+用户无从在配置里表达自己要哪一种。US-208 的实现落在哪个包由该故事定，但**名字必须是第三个**。
+
+分裂的连带改动（E3 的完成判据即为这几处全部同步）：
+
+| 处                                                                              | 改动                                                                        |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `DesktopOptions.runtime` 与 `DesktopRuntime`                                    | **删除**。名字已经表达了运行时，再留一个选项就是同一件事的两个真相来源     |
+| `SupportedDesktopStorage<TRuntime>`（`desktop-storage.ts:51`）                  | 泛型失去输入，退化成两个具体类型，各归各包                                 |
+| `SUPPORTED_RUNTIMES`（`desktop-storage.ts:141`）与连接前的能力矩阵校验          | 删除。「Tauri 永不支持 PGlite」不再需要运行时校验——那个组合没有对应的名字 |
+| [US-505](../plugin/US-505-tauri-local-file-storage.md) AC#11 `adapter_mismatch` | 判别依据从 `runtime` 改为适配器名                                          |
+| `apps/dev-rxdb-tauri/src/app/setup_rxdb.ts` 的运行时选路                        | 返回的适配器名改为 `sqlite-tauri`；这段判定本身在阶段 4 的 E8 上移         |
+| [capability-matrix](../../capability-matrix.md) 的 desktop 行                   | 拆成三行                                                                   |
+| `website/docs/migration/`                                                       | 旧 `desktop` 名的迁移映射，随 E6 的废弃周期一并写                          |
+
+**这是破坏性改动，且必须赶在有真实用户之前做**——`@aiao/rxdb-adapter-desktop@0.0.25` 已在
+registry 上。改名成本今天是「改 21 个引用点」，拖下去就变成「改用户代码」。
 
 ### 任务
 
@@ -289,11 +363,11 @@ run log 里的 `Published to https://registry.npmjs.org/` 才是权威，`npm vi
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | E1  | 共享层下沉：`desktop-host-protocol.ts` / `desktop-sqlite-client.ts` / `desktop-storage.ts` / `desktop-error.ts` 与 `desktop-adapter.interface.ts` 的跨运行时部分迁入 `packages/rxdb-adapter-sqlite-core`，以**子路径入口**暴露                                                                                                                                                                                                                                  | 不进主入口（wa-sqlite / sqlite / sqlite-wasm / pglite / miniprogram 五个下游包吃的是主入口，协议层对它们是净负重）；`requirements/api-baseline/rxdb-adapter-sqlite-core.json` diff 为空；新子路径同步 `scripts/audit/api-surface.mjs` 的 `KNOWN_UNCOVERED_SUBPATHS`（含其「10 个包共 15 个入口」的计数注释） |
 | E2  | `packages/rxdb-adapter-desktop` → `packages/rxdb-adapter-electron`，包名 `@aiao/rxdb-adapter-electron`；只留 Electron 专有实现与 `./host` 入口，`tauri-host-transport.ts` 与 `desktop-json-codec.ts` 移出（US-210 T3）                                                                                                                                                                                                                                          | 包内 `grep -ri tauri` 零命中；`public-api.spec.ts` 的「keeps every Node builtin behind the host entry」import 图断言在新包内继续绿；`.` 与 `./host` 双入口保留                                                                                                                                               |
-| E3  | 按上述决策落定 `ADAPTER_NAME` 与 `RxDBAdapterDesktop` / `DESKTOP_*` / `RxDBAdapterDesktopError` 的命名                                                                                                                                                                                                                                                                                                                                                          | 决策与理由就地写回本节；`capability-matrix.md` 的 desktop 行按结果拆成一行或两行                                                                                                                                                                                                                             |
+| E3  | 执行 `ADAPTER_NAME` 分裂（决策已落定，见上）：`'desktop'` → `'sqlite-electron'` / `'sqlite-tauri'`，`RxDBAdapterDesktop` / `DESKTOP_*` / `RxDBAdapterDesktopError` 随包名改，删除 `runtime` 选项与 `DesktopRuntime`                                                                                                                                                                                                                                              | 上表七处连带改动全部同步；`grep -rn "runtime: 'electron'\|runtime: 'tauri'" --exclude-dir=node_modules` 零命中；`capability-matrix.md` 的 desktop 行拆成三行（含 US-208 的 `pglite-electron`）                                                                                                                |
 | E4  | api-baseline 拆分：`rxdb-adapter-desktop.json` 删除，其导出按运行时归属拆入新增的 `rxdb-adapter-electron.json` / `rxdb-adapter-tauri.json`                                                                                                                                                                                                                                                                                                                      | `pnpm nx run-many -t build` 后 `node scripts/audit/api-surface.mjs --check` 绿；拆分前后**导出条目总数不变**（拆包不是 API 变更；写本条时 `rxdb-adapter-desktop.json` 为 48 项，以拆分当天实测为准）                                                                                                         |
 | E5  | 引用点更新：`tsconfig.base.json` 两条 paths、`rxdb-plugin-storage`（`package.json` / `vite.config.mts` external / `src/desktop.ts` / 4 个 spec）、`dev-rxdb-electron`、`dev-rxdb-tauri`、`README.md` 目录树、`scripts/README.md`、`capability-matrix.md`、[US-601](../tooling/US-601-subpath-api-surface-baseline.md) 子路径表、[US-904](../future/US-904-devtools-native-storage-contract.md) / [US-905](../future/US-905-tauri-native-devtools.md) 实现文件表 | `grep -rn "@aiao/rxdb-adapter-desktop" --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=out-tsc` 零命中；`rxdb-plugin-storage` 的 `./desktop` 入口改指共享层后**不再依赖任何运行时包**，其对 `/host` 的依赖只剩测试用途                                                                           |
 | E6  | 发布迁移：`npm deprecate @aiao/rxdb-adapter-desktop` 指向新包名，改名映射写进 `website/docs/migration/`                                                                                                                                                                                                                                                                                                                                                         | 按 [versioning-policy](../../versioning-policy.md) 第 3 节走废弃周期；两个新包在 Nx fixed release group 下与其余 `@aiao/*` 同步版本号                                                                                                                                                                        |
-| E7  | 「发布前需人工确认的三条性质」现在要在**两个**包上各跑一遍                                                                                                                                                                                                                                                                                                                                                                                                      | 双入口在 NodeNext / Bundler 下均 typecheck、renderer 入口产物不含 `node:sqlite`（Tauri 包对应「不含任何 Node builtin」）、host 入口真开库往返；无自动门禁，手工 `pnpm pack` 验                                                                                                                               |
+| E7  | 「发布前需人工确认的三条性质」现在要在**两个**包上各跑一遍                                                                                                                                                                                                                                                                                                                                                                                                      | 双入口在 NodeNext / Bundler 下均 typecheck、renderer 入口产物不含 `node:sqlite`（Tauri 包对应「不含任何 Node builtin」）、host 入口真开库往返；由阶段 2 恢复的 `desktop-adapter-consumer.mjs` 承担，此处只需参数化包名，不复制第二份脚本                                                                     |
 
 ### Web 回落：同一份代码跑三端
 
@@ -350,19 +424,25 @@ E8 的「纯函数 + 应用注入候选」在两种形态下都成立，可以�
 - 不增加 memory、OPFS 或 IndexedDB fallback。文件连接失败必须暴露真实错误，避免用户误以为数据已写入目标文件。
 - 新增公开 API 必须包含 TSDoc、更新 `requirements/api-baseline/`，并通过严格类型检查、ESLint 零警告与对应包覆盖率门禁。
 
-### 覆盖缺口：协议版本不匹配没有 AC
+### AC#9 为什么值得单列一条
 
-host 与 renderer 各自更新到不同协议版本时，`desktop-host-protocol.ts` 会在 `open` 应答上比对
-`DESKTOP_HOST_PROTOCOL_VERSION` 并拒绝连接，`desktop-sqlite-client.spec.ts` 也有注入
-`protocolVersion: 99` 的用例——**但本故事与 [US-210](./US-210-tauri-sqlite-local-database.md) 没有任何一条 AC 覆盖它**。
+`DESKTOP_HOST_PROTOCOL_VERSION` 是 host 与 renderer 之间的握手版本号。两者是**两份分开构建、
+分开分发的代码**：host 跟着 Electron 主进程走（asar 增量更新），renderer 是网页 bundle
+（有自己的缓存与 service worker）。两边不同步是常态，不是假想场景。
 
-这不是假想场景：Electron 的 asar 更新与 renderer bundle 缓存本就可能不同步，Tauri 侧同理。
-「有实现有用例但没有 AC」的后果是**谁删掉这段校验都不算违反验收标准**，而失败形态是
-两端按不同协议解释同一份二进制载荷，比直接报错更难查。
+代码与用例一直都在（见上表 AC#9 行），缺的只是**没有任何一条 AC 认领它**。这不是文档洁癖——
+「有实现有用例但没有 AC」的实际后果是**谁删掉这段校验都不算违反验收标准**：
+下一个嫌它碍事的人删掉后，测试红了改测试就行，评审时也挑不出违反了哪条。
+补成 AC 之后，删它就是删验收标准，得走改 AC 的流程。
 
-建议补一条 AC：_前置_ host 与 renderer 协议版本不一致 → _操作_ 发起连接 →
-_预期_ 连接失败并报可判别的错误码，不建库、不按旧协议降级解释。是否补由 backlog 决定，
-在补上之前这条覆盖靠自觉。
+失败形态本身也值得单列：版本不匹配若不拦，两端会按不同协议解释同一份载荷——
+字段错位、类型误读，比直接报错难查一个量级。所以 AC 里写死「不建库、不按旧协议降级解释」，
+而不只是「报错」：降级解释是这里唯一有诱惑力的错误做法。
+
+[US-210](./US-210-tauri-sqlite-local-database.md) AC#10 与
+[US-208](./US-208-electron-pglite-data-directory.md) AC#11 是它在另两条路径上的对偶。
+校验代码在共享层，三条 AC 因此共用同一份实现，但各自的 host 是独立实现的，
+不能只在一处验。
 
 ## 实现文件
 
@@ -370,7 +450,11 @@ _预期_ 连接失败并报可判别的错误码，不建库、不按旧协议�
 - `packages/rxdb-adapter-desktop/` — 桌面配置、renderer client 与 host protocol（US-208 与 US-210 复用同一层）
 - `apps/dev-rxdb-electron/src-electron/` — SQLite 主进程 host、路径解析与 IPC 校验
 - `apps/dev-rxdb-electron/src/app/` — Electron renderer 接入示例与连接状态
-- `apps/dev-rxdb-electron-e2e/` — 打包 Electron 应用的真实文件持久化测试；AC#8 的三平台矩阵在此扩展
+- `apps/dev-rxdb-electron-e2e/` — 打包 Electron 应用的真实文件持久化测试；AC#8 的三平台矩阵在此扩展，
+  spec 本身不用改（`_electron.launch()` 与平台无关），改的是触发它的 workflow
+- `.github/workflows/` — **阶段 2 新增**一条 release 触发的三平台 workflow，见「三平台打包 CI」；
+  现有 `main.yml` / `pr.yml` 全是 `ubuntu-latest`，不改
+- `scripts/audit/desktop-adapter-consumer.mjs` — **阶段 2 从 `0d7f88e^` 取回**，只在上述 workflow 里跑
 - `requirements/api-baseline/` — 新增公开桌面 adapter API 基线
 - `packages/rxdb-adapter-desktop/src/__tests__/encrypted-*.spec.ts` — AC#2 的五套 `@aiao/rxdb-test/encrypted` 共享套件接线
 

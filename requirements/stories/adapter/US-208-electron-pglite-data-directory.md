@@ -82,8 +82,15 @@ renderer 不直接接触 `fs` / `ipcRenderer` 的运行时边界。本故事复�
 | 8   | 目录中存在应用未知的普通业务表                     | Aiao 首次连接并初始化系统 schema                                                     | 保留未知表和数据；只创建或迁移 Aiao 自有系统对象，失败时事务回滚                                                                             | ⬜   |
 | 9   | 存在未提交事务或在途查询                           | 调用 `disconnect()` 或关闭窗口                                                       | 停止接受新任务，等待或回滚在途工作，刷新持久化数据并关闭句柄；随后可重命名该目录                                                             | ⬜   |
 | 10  | 构建打包后的 Electron 应用                         | 在 macOS、Windows、Linux CI 中运行桌面持久化 smoke test                              | 三平台均通过；测试使用真实临时目录而非 mock 或浏览器存储                                                                                     | ⬜   |
+| 11  | PGlite host 与 renderer 编译自不同协议版本         | 发起连接                                                                             | 连接失败并报可判别的错误码；不建目录、不按旧协议降级解释载荷                                                                                 | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
+
+> **AC#11 于 2026-08-17 补入**，与 [US-207 AC#9](./US-207-desktop-local-database.md#ac9-为什么值得单列一条)
+> 及 [US-210 AC#10](./US-210-tauri-sqlite-local-database.md) 是同一件事在三条路径上的对偶。
+> 补的理由见 US-207 那一节：校验代码在共享层，但三个 host 是独立实现的，不能只在一处验。
+> 本故事的 PGlite host 尚未开工，所以这条标 ⬜——它是**开工时要一并做的**，不是事后补丁：
+> `open` 应答携带协议版本这件事，写在协议里比写在 host 里便宜一个量级。
 
 ## 技术笔记
 
@@ -103,6 +110,19 @@ AC#2 是本故事最大的未知量，应最先验证。两种候选：
 bigint、binary 与 JSONB 跨 `structuredClone` / IPC 序列化的行为必须逐值验证。
 `Uint8Array` 与 `bigint` 在 Electron IPC（structured clone）中可直接传输，但
 `postMessage` 与 `ipcRenderer.invoke` 的序列化路径不完全一致，需要按实际使用的通道锁定。
+
+### `ADAPTER_NAME` 为 `pglite-electron`
+
+2026-08-17 落定，完整决策与命名依据见
+[US-207「已落定的决策：`ADAPTER_NAME` 分裂」](./US-207-desktop-local-database.md#已落定的决策adapter_name-分裂2026-08-17)。
+
+本故事拿到独立名字而不是复用 `sqlite-electron`，理由和当初把本故事从 US-207 拆出来的理由是同一个：
+**引擎不同，事务模型不同**。`rxdb.config.sync.local.adapter` 是写进配置、会被诊断日志和错误信息引用的
+用户可见字符串，让它同时指代「Electron 里的 SQLite」和「Electron 里的 PGlite」，等于把 AC#2 那条
+「协议无法保证事务语义时必须失败并报告能力缺失」的错误信息指向一个无法定位到具体引擎的名字。
+
+命名对 AC 没有语义影响，但它决定了本故事开工时**新增**哪个常量——不是改哪个。
+改名动作本身归 [US-207 E3](./US-207-desktop-local-database.md#包边界重整)，本故事只负责在自己的 host 落地时用对。
 
 ### 依赖
 

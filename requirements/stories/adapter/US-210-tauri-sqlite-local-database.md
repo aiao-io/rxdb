@@ -100,9 +100,10 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 | 6   | 同一 SQLite 文件已被另一个窗口打开并持有写锁              | 第二个窗口发起写事务                                             | 由 `PRAGMA busy_timeout` 原地等待持锁方提交；超时报可判别的 `database_busy`，不静默切换到另一份数据库                                | ⚠️   |
 | 7   | SQLite 文件存在应用未知的普通业务表                       | Aiao 首次连接并初始化系统 schema                                 | 保留未知表和数据；只创建或迁移 Aiao 自有系统对象，失败时事务回滚                                                                     | ✅   |
 | 8   | 存在未提交事务或在途查询                                  | 调用 `disconnect()` 或关闭窗口                                   | 停止接受新任务，等待或回滚在途工作，刷新持久化数据并关闭句柄；随后可重命名该 SQLite 文件                                             | ✅   |
-| 9   | 构建打包后的 Tauri 应用                                   | 在 macOS、Windows、Linux CI 中运行桌面持久化 smoke test          | 三平台均通过；测试使用真实临时文件而非 mock 或浏览器存储                                                                             | 🚫   |
+| 9   | 构建打包后的 Tauri 应用                                   | 在 macOS、Windows、Linux CI 中启动产物、写入、退出、再次启动    | 三平台均通过；测试使用真实临时文件而非 mock 或浏览器存储，且断言形态为跨进程累计。三平台**统一不使用 WebDriver**（理由见下） | ⬜   |
+| 10  | Rust 宿主与 renderer 编译自不同协议版本                   | 发起连接                                                        | 连接失败并报可判别的错误码；不建库、不按旧协议降级解释载荷                                                                          | ⚠️   |
 
-状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过 / 🚫 前置条件已知不成立（阻塞，非「没人动过」）
+状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 > **AC#2（事务门禁）已判定：`tauri-plugin-sql` 不可用，改为自写 Rust command。** 详见「事务门禁」。
 > 门禁的结论不是「降级为假事务」，而是换掉了实现手段——`rusqlite::Connection` 一 session 一条，
@@ -117,21 +118,28 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 > **不是实现或用例形态对齐**：两侧忙等机制是有意不同的（Node 侧 host 层异步退避重试，
 > Rust 侧 `PRAGMA busy_timeout` 原地等待，理由见下文「三处有意差异」），照实现抄会做出错的东西。
 >
-> **AC#9 标 🚫 而不是 ⬜：它不是「还没排上」，是当前方案已判定做不到。**
-> macOS 没有官方 WKWebView WebDriver，`tauri-driver` 只支持 Windows / Linux，
-> 因此「在 macOS、Windows、Linux CI 中运行」这条 AC 按字面无法满足。两条出路，二选一后回写本 AC：
+> **AC#9 已解除阻塞（2026-08-17），从 🚫 改回 ⬜。** 此前判定「做不到」的理由是
+> macOS 没有官方 WKWebView WebDriver、`tauri-driver` 只支持 Windows / Linux。
+> 该理由**只对「用 WebDriver 驱 UI」这一种实现方式成立**，而这条 AC 从来不需要驱 UI——
+> 它要验的是「打包产物能不能跨重启保住数据」，不是「点了按钮界面有没有变」。
 >
-> 1. **改 AC**：macOS 那格换掉 WebDriver 手段（如直接驱动打包产物进程 + 断言数据文件），
->    并在 AC 文本里写明三平台用的不是同一种驱动；
-> 2. **单开 spike**：评估 macOS 上的 Tauri e2e 驱动方案，结论出来前本 AC 维持 🚫。
+> **改判后的方案：三平台统一用进程级驱动，全都不上 WebDriver。** 打包产物在
+> 「自检模式」下启动（环境变量触发）：连库、写一行、退出；同一份数据目录连跑两次，
+> 断言启动计数 1 → 2。三平台跑的是同一段代码，AC 文本里因此不必写「三平台用的不是同一种驱动」。
+> 这比原方案严格更好：WebDriver 路线本来就要在 macOS 上另开一格例外。
 >
-> 其余前置条件不变：需要 `apps/dev-rxdb-tauri-e2e`（该 project 由 US-210 / US-905 阶段 1 中先开工者
-> 创建一次，但 AC#9 的 SQLite、事务与打包 specs 仍由本故事负责）；打包 smoke test 成本高，
-> 应只在 release 分支或 tag 触发，不进 PR 门禁。
+> 代价要写明：**这条路验不到 UI 交互**。将来若要验「点击按钮 → 数据落库」，macOS 的驱动缺口
+> 依然存在，那时再单开 spike。本 AC 不背这个债——它的前置条件里没有一个字提到界面。
 >
-> **AC#1 不应排在 AC#9 之后。** 它要的只是「关掉应用再打开还能读回」，不需要 WebDriver 驱动 UI——
-> 一个启动即写入并退出的 dev build 连跑两次就能断言跨进程计数递增，成本比三平台打包矩阵低一个量级。
-> 鉴于 US-207 正是靠这条断言抓到静默丢数据（见下文），AC#1 应有独立于 AC#9 的关闭路径。
+> **AC#1 与 AC#9 是同一次实现。** AC#1 要的「关掉应用再打开还能读回」正是上述两次启动的断言，
+> 差别只在 AC#9 还要求它在三个平台上跑。所以 AC#1 不再是「等 AC#9」，两者一起关。
+> 鉴于 US-207 正是靠「跨进程累计计数」这条断言抓到静默丢数据（见下文），断言形态不能退化成
+> 单次启动内的「写一条读一条」。
+>
+> `apps/dev-rxdb-tauri-e2e` 仍需新建（该 project 由 US-210 / US-905 阶段 1 中先开工者创建一次，
+> 但 AC#9 的 SQLite、事务与打包 specs 由本故事负责）。三平台矩阵挂在
+> [US-207「三平台打包 CI」](./US-207-desktop-local-database.md#三平台打包-ci阶段-2)
+> 那条 release workflow 上，与 Electron 侧共用一次触发，不进 PR 门禁。
 
 ### 当前证据
 
@@ -150,7 +158,7 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 换成 stdio 子进程里的 `rusqlite`。「Tauri 路径的行为与其它后端一致」这句话因此有机械保证，
 而不是靠人肉比对两份实现。
 
-**跑这个 target 时不要抢 CPU**：空闲机器上连跑 5 次都是 585/585；但把 CPU 打满
+**跑这个 target 时不要抢 CPU**：空闲机器上连跑 5 次全绿；但把 CPU 打满
 （`yes` × 核数），或者把它和 `cargo-check` / `cargo-clippy` / `cargo-test` 一起塞进
 `nx run-many` 并行跑，就会随机挂 1–4 条。挂掉的用例每次都不一样，却全落在同一族：
 **改完立刻读，读到的还是改之前的值**（典型是级联删除后 `MenuLarge.get(deletedId)` 本该
@@ -178,6 +186,7 @@ Rust 宿主被调度饿住时就不成立了。
 | 6   | `engine.rs` 设置 `busy_timeout`、`protocol.rs` 的 `database_busy` 错误码映射、`session.rs` 的两会话隔离用例；**缺**两会话争写锁的直接用例                                                                                                                                        |
 | 7   | `systemSchemaMigrationSuite`（共享套件，含未知表保留）                                                                                                                                                                                                                           |
 | 8   | `engine.rs` 的 `releases_the_file_handle_so_it_can_be_renamed`：close 后 `-wal` 已 TRUNCATE checkpoint、句柄已交还，文件可直接 `rename`，且未提交的写入已回滚                                                                                                                    |
+| 10  | 拒绝动作本身在共享层，与 Electron 路径同一份代码（见 [US-207 AC#9](./US-207-desktop-local-database.md)）；Rust 侧 `session.rs` 的 `open` 应答带上 `protocol.rs` 的 `PROTOCOL_VERSION`，`session.rs:315` 断言它出现在应答里。**缺**：没有任何用例让两端版本真的不一致，见下 |
 
 AC#5 的两条失败路径是补这份文档时才发现没有直接用例的——错误码映射表
 （`sqlite_error_code`）一直在，但没有任何一条用例真的拿一个坏文件去撞它。补的时候把断言
@@ -199,18 +208,39 @@ WebSQL 目录撞车导致的**静默丢数据**（每次启动拿到一个全新
 而 `rust-adapter-factory.ts` 刻意给每次构造发唯一库名（套件之间不能互相看见对方的表），
 两个窗口也就撞不到一起——争锁用例必须自己单开一个文件、显式共用同一个库名。
 
-## Tauri 包化（未开工）
+## 交付阶段
+
+与 [US-207「交付阶段」](./US-207-desktop-local-database.md#交付阶段) 同构：本故事也已超出
+INVEST「Small」，**不拆新故事**，改为划阶段，每阶段独立验收。
+
+| 阶段 | 内容                            | 完成判据                                                                                                     | 状态      |
+| ---- | ------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------- |
+| 1    | 核心能力：AC#2～#5、AC#7、AC#8  | 6 条 AC 全绿，一致性套件 0 skipped                                                                            | ✅ 已交付 |
+| 2    | 收尾保留项：AC#6、AC#10         | AC#6 补一条两会话争写锁的直接用例；AC#10 把两侧协议常量绑起来                                                 | ⚠️ 进行中 |
+| 3    | 打包验证：AC#1、AC#9            | 三平台 release workflow 绿；两者是同一次实现，见 AC#9 上方说明                                                | ⬜ 未开始 |
+| 4    | Tauri 包化：T1～T7              | 见各任务判据；与 [US-207 E1～E7](./US-207-desktop-local-database.md#包边界重整) 同批做，共用一次改名          | ⬜ 未开始 |
+
+本故事只有在四个阶段都完成后才标 `Done`。阶段 2 与阶段 3 之间没有依赖，可并行；
+阶段 4 必须在 [US-207 E1](./US-207-desktop-local-database.md#任务) 把共享层下沉之后开工——
+新包要引用的共享层今天还在 `@aiao/rxdb-adapter-desktop` 里。
+
+## Tauri 包化
 
 本故事的实现今天**没有一行在 packages 里**：JS 传输层寄居在
-`@aiao/rxdb-adapter-desktop`，Rust 宿主、stdio 测试二进制与 585 条一致性用例全在
-`apps/dev-rxdb-tauri/` 这个 demo 应用里。装了 npm 包的用户拿到的只是一根传输管子，管子那头的
+`@aiao/rxdb-adapter-desktop`，Rust 宿主、stdio 测试二进制与全部一致性用例（写本条时 SQL 侧 577 条）
+全在 `apps/dev-rxdb-tauri/` 这个 demo 应用里。装了 npm 包的用户拿到的只是一根传输管子，管子那头的
 `rusqlite` 引擎要自己照着 demo 重写一遍——AC#2/#3 承诺的「与其它后端行为一致」于是只对本仓库成立。
 
 目标是 `packages/rxdb-adapter-tauri` 一个包同时装 **npm 包与 Rust crate**，demo 反过来依赖它。
-Electron 半边的改名与共享层下沉见 [US-207「包边界重整」](./US-207-desktop-local-database.md#包边界重整未开工)，
-`ADAPTER_NAME` 是否分裂由那里统一定，本节不另起一套。
+Electron 半边的改名与共享层下沉见 [US-207「包边界重整」](./US-207-desktop-local-database.md#包边界重整)。
 
-### 开工前必须落定的决策：插件形态会让权限面结论反转
+**`ADAPTER_NAME` 分裂已于 2026-08-17 落定**（决策、命名惯例与七处连带改动见
+[US-207「已落定的决策」](./US-207-desktop-local-database.md#已落定的决策adapter_name-分裂2026-08-17)）：
+本故事的适配器名为 **`sqlite-tauri`**，构造选项 `runtime: 'tauri'` 随之删除。
+本节不另起一套命名，改名与 US-207 E3 同批执行——两个包共用一次破坏性变更，
+分两次做等于让用户改两遍代码。
+
+### 开工前仍未落定的决策：插件形态会让权限面结论反转
 
 「权限面」小节今天的论证是**根本没有可授的东西**：`generate_handler!` 注册的 app 自定义命令
 不受 capability 门禁约束，只有 `core:` / `plugin:` 前缀的命令才是，于是
@@ -323,12 +353,31 @@ Tauri 的 WebView 不是 Chromium（macOS 上是 WKWebView），但目录名沿�
 - **纯 `async fn` 也不行。** `rusqlite` 是阻塞接口，直接在 async 上下文里跑会占住 tokio
   的 worker 线程；库一忙，其它 command 一起饿死。`spawn_blocking` 把它放到专用线程池。
 
-### 覆盖缺口：协议版本不匹配没有 AC
+### AC#10 为什么标 ⚠️ 而不是 ✅
 
-Tauri 侧同样比对 `DESKTOP_HOST_PROTOCOL_VERSION`（Rust 宿主与 renderer 各自更新即可不一致），
-而本故事没有一条 AC 覆盖它。完整论证与建议补的 AC 形态见
-[US-207「覆盖缺口：协议版本不匹配没有 AC」](./US-207-desktop-local-database.md#覆盖缺口协议版本不匹配没有-ac)——
-校验代码在共享层，补 AC 时两条故事应同时补，不要只补一边。
+这条 AC 于 2026-08-17 补入，与
+[US-207 AC#9](./US-207-desktop-local-database.md#ac9-为什么值得单列一条) 是同一件事在两条路径上的对偶。
+补的理由在那边写全了：实现和用例都在，缺的是没有 AC 认领，于是**谁删掉这段校验都不算违反验收标准**。
+
+标 ⚠️ 是因为 Tauri 侧比 Electron 侧多一个薄弱环节。拒绝动作本身在共享层（renderer 收到
+`open` 应答后比对 `DESKTOP_HOST_PROTOCOL_VERSION`），两条路径同一份代码，这半边是稳的。
+不稳的是**版本号在 Rust 侧是手抄的第二份**：
+
+| 侧          | 常量                                                          |
+| ----------- | ------------------------------------------------------------- |
+| TypeScript  | `DESKTOP_HOST_PROTOCOL_VERSION`（`desktop-host-protocol.ts`） |
+| Rust        | `PROTOCOL_VERSION: i64 = 1`（`protocol.rs:17`）              |
+
+两个常量之间**没有任何机械联系**：改了 TS 那个，`cargo test` 一条不红；改了 Rust 那个，
+`pnpm nx test` 一条不红。Electron 侧没有这个问题——host 与 renderer 读的是同一个 TS 常量。
+
+后果不是「版本不匹配没被拦住」（共享层会拦），而是**漂移本身要到运行时才暴露**：
+协议真变更时漏改一侧，一致性套件照常全绿（它们两侧都用当时的代码构建），
+问题留给用户在真 IPC 上撞。
+
+关闭 ⚠️ 需要一条把两个常量绑起来的断言。最省的做法是让一致性套件在握手时
+断言 Rust 宿主报的版本号等于 TS 常量——`session.rs:315` 今天断言的是「应答里有这个字段」，
+差的是「等于对面那个值」。改判为 ✅ 的判据就是这一条。
 
 ### 依赖
 
@@ -352,7 +401,7 @@ Tauri 侧同样比对 `DESKTOP_HOST_PROTOCOL_VERSION`（Rust 宿主与 renderer 
 - `apps/dev-rxdb-tauri-e2e/` — **当前不存在**，AC#9 需要新建；与 US-905 阶段 1 共享 project，先开工者用
   generator 创建一次，本故事只拥有 AC#9 的 SQLite、事务与三平台打包 specs；三平台打包矩阵的 CI 成本
   应在 plan 阶段单独评估
-- `requirements/api-baseline/rxdb-adapter-desktop.json` — 已同步（新增 6 项导出，35 → 41）
+- `requirements/api-baseline/rxdb-adapter-desktop.json` — 已同步；条目总数以 `api-surface.mjs --check` 为准，不在本文写死（写本条时 48 项）
 
 ## References
 
