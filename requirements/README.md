@@ -47,7 +47,7 @@
 | [capability-matrix.md](capability-matrix.md) | 仓库**现在能做什么**、哪些组合还不支持         |
 | [release-plan.md](release-plan.md)           | **下一次发布**要做什么、桥接版本卡在哪         |
 | [versioning-policy.md](versioning-policy.md) | 什么算公开 API、什么改动算破坏性               |
-| [code-scanning.md](code-scanning.md)         | GitHub CodeQL 告警清单（安全扫描离线镜像）      |
+| [code-scanning/](code-scanning/README.md)    | GitHub CodeQL 告警清单（一条告警一个文件）      |
 | `migration-release.json`                     | 当前发布的迁移清单（门禁读它）                 |
 | `epics/`                                     | 史诗目标与阶段划分                             |
 | `stories/`                                   | 按领域拆分的用户故事（**状态真相源**）         |
