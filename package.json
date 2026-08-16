@@ -26,6 +26,7 @@
     "audit:coverage": "node scripts/audit/coverage-check.mjs --check",
     "audit:coverage:update": "node scripts/audit/coverage-check.mjs --update",
     "audit:wa-sqlite": "node scripts/audit/wa-sqlite-integrity.mjs",
+    "audit:action-pins": "node scripts/audit/workflow-action-pins.mjs",
     "check-migration-release-gate": "node scripts/check-migration-release-gate.mjs --check",
     "test-scripts": "node --test \"scripts/**/*.spec.mjs\"",
     "coverage:serve": "node ./scripts/coverage-serve.mjs",

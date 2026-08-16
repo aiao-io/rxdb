@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { test } from 'node:test';
 
-import { auditWorkflows, findUnpinnedUses } from './workflow-action-pins.mjs';
+import { auditGithubDir, findUnpinnedUses } from './workflow-action-pins.mjs';
 
 const PINNED = 'actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6';
 
@@ -54,8 +54,10 @@ test('注释掉的 uses 不算', () => {
   assert.deepEqual(findUnpinnedUses('ci.yml', ['      # - uses: foo/bar@v1']), []);
 });
 
-test('仓库现状：.github/workflows 全量通过（回归护栏）', async () => {
-  const workflowsDir = path.resolve(import.meta.dirname, '../../.github/workflows');
+// 复合 action（.github/actions/*/action.yml）里也 `uses:` 第三方 action，
+// 只扫 workflows/ 会漏掉半个供应链面，所以审计入口取整个 .github。
+test('仓库现状：.github 下全部 workflow 与复合 action 通过（回归护栏）', async () => {
+  const githubDir = path.resolve(import.meta.dirname, '../../.github');
 
-  assert.deepEqual(await auditWorkflows(workflowsDir), []);
+  assert.deepEqual(await auditGithubDir(githubDir), []);
 });

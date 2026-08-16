@@ -184,6 +184,11 @@ jobs:
       - name: Package runtime conditions gate
         run: pnpm audit:conditions
 
+      # 文件头那条「第三方 action 一律钉 commit SHA」从此有人执行。
+      # tag 能被强推，靠 review 盯不住；这一步扫 .github 下全部 workflow 与复合 action。
+      - name: Third-party action pin gate
+        run: pnpm audit:action-pins
+
       # 校验 **PR 标题**而不是分支上的中间提交：本仓库走 squash merge，
       # 落到 main 的只有 GitHub 用 PR 标题生成的那一条（`main` 上的
       # `feat(...): ... (#7)` 就是这么来的）。理由详见 scripts/commit-lint.mjs 头注释。
