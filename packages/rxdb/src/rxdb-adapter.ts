@@ -159,6 +159,21 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
     return this.transaction(fun, transactionLog);
   }
 
+  /**
+   * 关闭**引导窗**：`RxDB.connect()` 完成建表后调用一次。
+   *
+   * @remarks
+   * 自带就绪门的适配器（SQLite family / PGlite）在引导窗内让 `query()` / `rawQuery()` /
+   * `createTables()` 跳过就绪门 —— 那道门等的正是尚未 settle 的 `RxDB.connect()`。
+   * 本方法把状态翻到 `ready`，此后所有入口一律走正常的就绪等待。
+   * 没有就绪门的 adapter 保持默认的 no-op 实现。
+   *
+   * @internal
+   */
+  completeBootstrap(): void {
+    // no-op：默认适配器没有引导窗
+  }
+
   abstract createTables(EntityTypes: EntityType[], entities?: InstanceType<EntityType>[]): Promise<boolean>;
 
   /** 在用户迁移和缺表补建后幂等收敛实体索引。 */

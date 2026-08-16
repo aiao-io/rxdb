@@ -7,15 +7,11 @@ epic: epic-006-working-tree-commits
 created: 2026-08-09
 updated: 2026-08-15
 tags: [collaboration, commit, head, persistence, migration]
-inherited_acs:
-  - from: US-304
-    ac: 11
-    note: 本故事是首个真实系统迁移发布，负责引用当前发布主线祖先上的有效 bridge tag，验证 oldBundlePolicy 与发布门禁。
 ---
 
 <!--
 INVEST 检查清单:
-- [x] Independent: 只依赖 US-304 的 writer 身份与迁移 fencing，不依赖工作树与缓存区的 UI 或状态机
+- [x] Independent: 不依赖工作树与缓存区的 UI 或状态机
 - [x] Negotiable: commit ID 生成方式、存储表名和 ChangeSet 编码可在 plan 阶段调整
 - [x] Valuable: 有了持久 commit 图，历史节点第一次成为可长期引用的锚点
 - [x] Estimable: 存储层次、审计字段和迁移路径已在本文列出
@@ -65,7 +61,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 ### In Scope
 
 - commit 图与 `CommitBranchRef` 的持久化存储布局；HEAD 只作为当前 branch ref 的派生概念
-- `CommitBranchRef.headRevision` 的事务内 CAS；它是普通提交竞争的唯一判定，不复用 writer epoch
+- `CommitBranchRef.headRevision` 的事务内 CAS；它是普通提交竞争的唯一判定
 - commit 的原子写入：变更集合、父 commit、作者、时间、摘要与新的分支 HEAD 在一次操作内可见
 - ChangeSet 的 patch / inverse patch 存储与实体身份、操作类型、基线版本、当前版本指纹
 - `log(options?)` / `show(commitId)` 查询：按分支、实体、时间排序，返回详情与父子关系
@@ -150,8 +146,8 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - **FR-021**：系统 MUST 在显式启用后为已有数据库提供一次性初始化：为每个本地可完整物化分支生成 baseline、保留旧 change 记录、保持激活分支与业务实体状态，并支持失败重试；Workspace 草稿不参与迁移，metadata-only 远端分支遵守 FR-049。
 - **FR-022**：系统 MUST 对损坏或不兼容的 commit 记录进行隔离和诊断。不可达孤立记录可单独隔离；HEAD 或可达祖先损坏时该分支 MUST fail-closed 为 `corrupted_read_only`，保留原始 ref 与记录，不得自动回退到较早 commit、空工作树或内存模式。
 - **FR-027**：commit 历史 MUST 可审计，至少记录稳定 commit ID、父节点、分支、作者标识、消息、创建时间、变更数量和 schema/数据版本；不得记录无法恢复的数据引用。
-- **FR-029**：普通 commit MUST 在同一数据库事务内以 expected `headRevision` 条件更新 `CommitBranchRef`；CAS 失败时 commit、ChangeSet 与 branch ref 全部不可见。US-304 epoch MUST 只用于迁移 fencing，不得代替 `headRevision`。
-- **FR-030**：本故事作为首个真实系统迁移发布，MUST 承接 US-304 AC11。实现进入发布分支前，发布负责人 MUST 从
+- **FR-029**：普通 commit MUST 在同一数据库事务内以 expected `headRevision` 条件更新 `CommitBranchRef`；CAS 失败时 commit、ChangeSet 与 branch ref 全部不可见。跨 realm 正确性由该 revision CAS 本身承担，不引入额外的协调协议。
+- **FR-030**：本故事是首个真实系统迁移发布。实现进入发布分支前，发布负责人 MUST 从
   最近一次已验证、且满足 `git merge-base --is-ancestor <bridge-tag> <release-commit>` 的 bridge manifest 读取
   `bridge.tag` / `bridge.version`，启用明确的 `oldBundlePolicy`，并通过真实 git tag 的 migration release gate。
   `v0.0.25` 虽是历史 bridge 发布，但当前主线经 squash 后不再包含其 tagged commit，MUST NOT 作为本故事的迁移锚点；
@@ -191,8 +187,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 ### 提交规则
 
 - commit 的父节点固定为提交开始时读取到的当前分支 HEAD；同一事务内执行
-  `UPDATE branch_ref ... WHERE headRevision = expected`，受影响行数不为 1 时整个提交失败。writer lease/epoch 仍在写事务内校验，
-  但只负责识别迁移 fencing，不参与普通 HEAD 竞争判定。
+  `UPDATE branch_ref ... WHERE headRevision = expected`，受影响行数不为 1 时整个提交失败。
 - `operationId` 的唯一记录与 commit/ChangeSet/branch ref 同事务写入。数据库提交后响应丢失不属于“提交失败”；
   调用方只能以相同 operation ID 重试并取回原结果。
 - baseline ID 由数据库、分支、迁移 ID 与 schema/codec manifest 确定性生成；branch baseline 额外绑定来源类型和 `fromChangeId` 或 remote materialization fingerprint。空状态也可生成系统根节点，重复操作必须命中同一 ID。
@@ -208,7 +203,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - 启动图校验不得“修复”不可变历史。可达链损坏时保留原 ref 和原始行，把分支标记为派生的只读损坏态；显式历史修复工具不在本 Epic 范围。
 - Workspace NEW 草稿继续由插件独立恢复；commit 迁移不读取、不搬迁、不删除 IndexedDB 记录，草稿保存后按普通 INSERT 处理。
 - migration release 不能按版本号猜 bridge。候选 tag 必须同时满足：manifest 声明 `kind=bridge`、包版本与 tag 一致、
-  含 writer lease 协议、tag commit 是候选发布提交的真实祖先。cherry-pick 或 squash 后内容相同不等于 ancestry 成立。
+  含系统迁移面、tag commit 是候选发布提交的真实祖先。cherry-pick 或 squash 后内容相同不等于 ancestry 成立。
 
 ## 非功能要求
 
@@ -244,7 +239,6 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - [epic-006 本地工作树与提交历史](../../epics/epic-006-working-tree-commits.md)
 - [US-301 版本控制](./US-301-version-control.md) — 现有分支、合并和远程同步边界
 - [US-302 撤销/重做](./US-302-undo-redo.md) — 现有 durable undo 与会话级 redo 语义
-- [US-304 跨 realm writer lease 与迁移 fencing](./US-304-writer-lease-migration-fencing.md) — 只复用 writer 身份与迁移期 epoch fencing；AC11 转入本故事的真实迁移发布
 - [US-306 工作树、缓存区与提交操作](./US-306-working-tree-index.md)
 - [US-501 Workspace 插件](../plugin/US-501-workspace-plugin.md) — NEW 草稿持久化现状与明确限制
 - [版本控制文档](../../../website/docs/versioning.md)

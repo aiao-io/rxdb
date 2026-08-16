@@ -489,7 +489,7 @@ describe('RxDBAdapterSqliteBase', () => {
       expect(client.execute).toHaveBeenCalledWith(expect.stringContaining('sqlite_master'), ['public$todos']);
     });
 
-    it('createTables 在单一事务中执行建表与 writer protocol SQL', async () => {
+    it('createTables 在单一事务中执行建表与 trigger SQL', async () => {
       const client = createClient();
       const adapter = new TestAdapter(createRxdbMock(), () => client);
 
@@ -500,7 +500,6 @@ describe('RxDBAdapterSqliteBase', () => {
       expect(sqls[1]).toContain('CREATE TABLE');
       expect(sqls[1]).toContain('"public$todos"');
       expect(sqls[1]).toContain('CREATE TRIGGER');
-      expect(sqls).toContainEqual(expect.stringContaining('rxdb_writer_lease'));
       expect(sqls.at(-1)).toContain('COMMIT');
     });
 

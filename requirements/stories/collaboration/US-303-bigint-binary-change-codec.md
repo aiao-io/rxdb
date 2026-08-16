@@ -15,27 +15,16 @@ INVEST 检查清单:
 - [x] Negotiable: codec envelope 与系统表物理表示可以调整
 - [x] Valuable: 防止 change、历史和跨 Tab 路径丢精度或字符串化
 - [x] Estimable: 范围集中在 change 边界、系统迁移和本地协作能力
-- [x] Small: 不包含远程同步、加密、DevTools 和跨 realm writer lease
+- [x] Small: 不包含远程同步、加密和 DevTools
 - [x] Testable: codec、迁移、历史和跨 Tab 均有独立 AC
 -->
 
 # 用户故事：bigint/binary change codec 与系统迁移
 
-## ⏸️ 迁移部分已实现，但未投入使用
-
-本 story 保持 `Done`——20 条 AC 中属于自己的全部通过，AC13 早已转给
-[US-304](./US-304-writer-lease-migration-fencing.md)，不因本次暂缓回退。
-
-需要如实记录的是：**「系统迁移」那一组（AC10–AC14）的代码路径至今没有被任何真实发布行使过。**
-0.0.x 线的 `RXDB_SYSTEM_SCHEMA_VERSION`(3) 与 `RXDB_CHANGE_CODEC_VERSION`(1) 从未抬升，
-所以 `migrateSystemSchema()` 在生产中始终走「版本已是最新，无事可做」的分支；
-它的正确性目前**只由旧库 fixture 与注入失败的测试担保**，不含真实用户数据的证据。
-
-因此迁移相关工作整体暂缓至 1.0.0 前完善，与 US-304 同步。**codec 部分不受影响**——
-AC1–AC9、AC15–AC20 覆盖的 bigint/binary 编解码、identity key 和 history/branch/跨 Tab
-都在日常路径上真实运行，照常维护。
-
-> 首次真实迁移发布时，AC10–AC14 应视作「待真实验证」而非「已验证」重新过一遍。
+> **迁移路径尚未被真实发布行使过。** 0.0.x 线的 `RXDB_SYSTEM_SCHEMA_VERSION`(3) 与
+> `RXDB_CHANGE_CODEC_VERSION`(1) 从未抬升，`migrateSystemSchema()` 在生产中始终走
+> 「版本已是最新，无事可做」的分支。AC10–AC14 的正确性由旧库 fixture 与注入失败的测试担保，
+> 首次真实迁移发布时应重新过一遍。
 
 ## 作为/我想要/以便
 
@@ -64,7 +53,7 @@ AC1–AC9、AC15–AC20 覆盖的 bigint/binary 编解码、identity key 和 his
 - 内建系统迁移在业务 trigger 和 Repository 启用前执行，不要求应用手写 migration
 - 迁移和 watermark 在同一事务提交；失败不得留下半迁移 schema
 - 迁移可安全重试；重复启动不得二次改写已迁移 change
-- 迁移开始前获取后端排他锁，排除当前活跃写事务；跨 realm/进程旧 writer 的 lease 与 fencing 由 US-304 负责
+- 迁移开始前获取后端排他锁，排除当前活跃写事务
 - 迁移是单向的；已迁移数据库不承诺由旧版本重新打开，公开升级文档必须说明该限制
 - 当前客户端遇到高于自身支持范围的 schema/codec 版本时必须 fail-fast
 
@@ -81,7 +70,7 @@ AC1–AC9、AC15–AC20 覆盖的 bigint/binary 编解码、identity key 和 his
 - DevTools wire/display 表示（US-903）
 - bigint[]、binary[] 和内嵌新类型
 - 自动 down migration 或允许旧客户端写入已升级数据库
-- 跨 realm/进程 writer lease、drain barrier 与 fencing（US-304）
+- 跨 realm/进程 writer lease、drain barrier 与 epoch fencing（已取消，见下方「AC13 说明」）
 
 ## 验收标准
 
@@ -106,7 +95,7 @@ AC1–AC9、AC15–AC20 覆盖的 bigint/binary 编解码、identity key 和 his
 | 10  | SQLite/PGlite 旧库含 UUID change           | 新版本 connect | 内建迁移自动完成，旧 change 可查询、切换和撤销 | ✅       |
 | 11  | 迁移执行到任意 DDL/DML 步骤时注入失败      | 重新打开数据库 | 首次升级完整回滚；重试一次成功，无数据丢失     | ✅       |
 | 12  | 已完成迁移的数据库                         | 重复 connect   | 不重复迁移或改写历史数据                       | ✅       |
-| 13  | 另一 writer 持有旧数据库连接               | 尝试升级       | 获取升级锁失败并中止，业务 trigger 不启动      | ↪ US-304 |
+| 13  | 另一 writer 持有旧数据库连接               | 尝试升级       | 获取升级锁失败并中止，业务 trigger 不启动      | ✅       |
 | 14  | 数据库 schema/codec 版本高于客户端支持范围 | connect        | fail-fast，不读写未知格式                      | ✅       |
 
 ### History、Branch 与跨 Tab
@@ -122,13 +111,15 @@ AC1–AC9、AC15–AC20 覆盖的 bigint/binary 编解码、identity key 和 his
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过 / ↪ 已转移至其他 story
 
-<!-- deferredACs: AC13→US-304 -->
+### AC13 说明
 
-### AC13 转移
+AC13 由后端排他锁本身满足：迁移在 `BEGIN EXCLUSIVE`（SQLite）/ 表锁（PGlite）失败时抛
+`RxDBSystemMigrationLockError` 并中止，业务 trigger 不启动。
 
-AC13 不属于 US-303 的 codec 和基础迁移交付，已转移到 [US-304 跨 realm writer lease 与迁移 fencing](./US-304-writer-lease-migration-fencing.md)。US-303 只验证当前后端锁能排除活跃写事务，并在无法获得该锁时中止迁移。
-
-US-304 必须先发布旧格式兼容的桥接协议，再由后续迁移版本执行 lease drain 和 fencing；仅修改迁移端无法追溯约束已发布的旧 bundle。
+原计划在此之上叠加的**跨 realm writer lease、drain barrier 与 epoch fencing 已取消**——
+它需要一套持久化 lease/guard 表、桥接版本发布流程和多进程回归套件，而 0.0.x 线至今没有真实
+迁移发布来验证它，成本与收益不成比例。该协议连同其代码与用户故事一并于 2026-08-16 删除。
+若未来出现真实的跨 realm 迁移需求，重新立项即可，本 story 的锁契约不受影响。
 
 ## 技术约束
 
@@ -136,7 +127,7 @@ US-304 必须先发布旧格式兼容的桥接协议，再由后续迁移版本�
 - entityId 不在 patch 内，必须走同一版本化 codec
 - codec 入口集中，trigger、branch 和 gateway 不各自发明格式
 - identity key 必须带类型标签，禁止依赖 `String(id)` 作为唯一表示
-- 新版本可以读旧格式；旧版本读新格式不在兼容承诺内，旧 writer 的排除协议由 US-304 定义
+- 新版本可以读旧格式；旧版本读新格式不在兼容承诺内
 - SQLite 四个具体 adapter 和 PGlite 都必须跑旧库升级 fixture
 
 ## 实现文件
@@ -153,5 +144,4 @@ US-304 必须先发布旧格式兼容的桥接协议，再由后续迁移版本�
 
 - [US-011 类型与公共 API 契约](../core/US-011-property-type-bigint-binary.md)
 - [US-206 本地适配器持久化与查询](../adapter/US-206-bigint-binary-adapter.md)
-- [US-304 跨 realm writer lease 与迁移 fencing](./US-304-writer-lease-migration-fencing.md)
 - [SQLite JSON1](https://www.sqlite.org/json1.html)

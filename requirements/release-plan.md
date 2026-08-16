@@ -33,7 +33,7 @@
 | 1   | 先落一批可 bump 的提交，且**不动系统版本常量** | 没有可 bump 的提交就发不出版本（见硬前提 2）；动了常量则 `kind=bridge` 过不了门禁（见硬前提 1）                           |
 | 2   | 合入 `main`                                    | tag 必须打在 `main` 上，本仓库一律 squash——先打 tag 再 squash 会让 tag 提交脱离 `main` 历史，`v0.0.25` 正是这样掉出主线的 |
 | 3   | 打桥接 tag 发布                                | 桥接 tag 只有存在于 `main` 祖先链上，将来的 migration 发布才引用得了                                                      |
-| 4   | 验证并修复迁移 fencing                         | 门禁三钩子（tag 存在/是祖先/含协议）与 `oldBundlePolicy` 只有在真实迁移发布上才验得全                                     |
+| 4   | 在真实迁移发布上验证门禁                       | 门禁三钩子（tag 存在/是祖先/含迁移面）与 `oldBundlePolicy` 只有在真实迁移发布上才验得全                                   |
 
 桥接段**不能塞进** US-305：US-305 的范围含「已有数据库的一次性初始化」，属 schema 迁移，会强制
 `kind=migration`，而 migration 要求 `bridge.tag` 指向一个**已存在**且在祖先链上的桥接发布——现在没有，直接死锁。
@@ -43,7 +43,7 @@
 
 先说两件会让整个计划作废的事，动手前必须确认：
 
-1. **桥接版本不得抬升系统版本常量**。`bridge` 的定义就是「发布了 writer lease 协议、但不改
+1. **桥接版本不得抬升系统版本常量**。`bridge` 的定义就是「被声明为迁移锚点、但不改
    schema/codec，让所有实例先升到它」；门禁对 `kind=bridge` + `systemSchemaUpgrade|changeCodecUpgrade=true`
    直接报 `bridge releases cannot upgrade system schema or change codec`。所以随这一版发布的功能
    **不能动** `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION`。若那个功能必须升 schema，
@@ -91,10 +91,8 @@
    `pnpm nx run @aiao/source:migration-release-gate --args="--release-tag=v<实际版本>"` 全绿后才允许提交。
 5. **提交并打 tag 推送**：package.json 与清单在同一个提交里，tag 指向 `main` 上的该提交。
    推送 tag 不会触发任何发布——发布是手工执行 `pnpm publish`，由执行者自行确保第 4 步已跑绿。
-6. **回写 US-304**：AC1 由 ⚠️ 转 ✅，依据是「桥接 tag 已推送、是 `main` 祖先、清单声明 `kind=bridge` 且通过门禁」。
-   AC6 **不随桥接发布转 ✅**：AC6 要的是「writer 挂起 → 别的 realm 完成迁移抬 epoch
-   → 该 writer 恢复后写入被 fence」，而现有的 writer 用例验的是两个**同时在线**的 writer 在连接时互相 fencing、
-   以及两次启动之间不发生迁移的重启 e2e。三者不是同一个场景。
+6. **回写 US-305**：把该桥接 tag 记进 [US-305](stories/collaboration/US-305-commit-graph-head.md) 的 FR-030 / AC14 证据，
+   依据是「桥接 tag 已推送、是 `main` 祖先、清单声明 `kind=bridge` 且通过门禁」。US-305 的迁移发布从此有了合法锚点。
 
 ### 门禁三钩子的状态
 
@@ -104,27 +102,24 @@
 唯一的缺口是这三条还只在 tag 时跑，未挂进 PR CI（见执行顺序第 0 步）。
 
 注意 `bridgeTagSupportsProtocol` 只用 `git cat-file -e` 校验文件存在、不校验内容，
-它单独并不能证明该 tag 含协议实现，须另行人工确认。
+它单独并不能证明该 tag 含可用的迁移实现，须另行人工确认。
 
-### 迁移发布（AC11）的关闭条件
+### 迁移发布的关闭条件
 
-AC11 的操作列是「发布迁移版本」，桥接发布不升级任何系统版本，够不着这个前置条件。三条子句在桥接发布后的状态：
+迁移发布门禁的操作列是「发布迁移版本」，桥接发布不升级任何系统版本，够不着这个前置条件。三条子句在桥接发布后的状态：
 
 | 子句                                                 | 桥接发布之后                           |
 | ---------------------------------------------------- | -------------------------------------- |
 | 本仓库须存在位于 HEAD 祖先链上的桥接 tag             | ✅ 由该次桥接 tag 满足                 |
 | 发布门禁阻止升级，或强制更新/缓存失效/新命名空间隔离 | ❌ 需要一次真实 migration 发布才验得了 |
-| 不得声称 AC13 已完成                                 | ✅ 保持                                |
 
-真正关闭 AC11 的那次发布必须同时满足：抬升 `RXDB_SYSTEM_SCHEMA_VERSION` 或 `RXDB_CHANGE_CODEC_VERSION`、
+真正关闭迁移发布门禁的那次发布必须同时满足：抬升 `RXDB_SYSTEM_SCHEMA_VERSION` 或 `RXDB_CHANGE_CODEC_VERSION`、
 清单切 `kind=migration`、`bridge.tag` / `bridge.version` 指向该次桥接版本、`oldBundlePolicy.strategy` 四选一、
 `minimumVersion` 不低于桥接版本、`enforced=true`。
 
-**AC11 由 [US-305](stories/collaboration/US-305-commit-graph-head.md) 的 `inherited_acs` 承接**（其范围含「每分支 baseline commit 与一次性迁移」），
-US-304 只对桥接协议和迁移 fencing 本身负责，补齐 AC6 后即可 Done。US-305 在 schema 迁移前先验证当前主线存在有效
-bridge ancestor，随后用首个真实迁移发布验收该 bridge manifest、`oldBundlePolicy` 和 migration release gate，不形成循环依赖。
+**这条门禁由 [US-305](stories/collaboration/US-305-commit-graph-head.md) 的 FR-030 / AC14 承接**（其范围含「每分支 baseline commit 与一次性迁移」）。
+US-305 在 schema 迁移前先验证当前主线存在有效 bridge ancestor，随后用首个真实迁移发布验收该 bridge manifest、
+`oldBundlePolicy` 和 migration release gate，不形成循环依赖。
 
-（AC6 不在此列，理由不同：它不需要转移，只缺一条自己的用例，见执行顺序第 6 步。）
-
-不要用「推一个废弃 tag」来充当 AC11 的证据：tag 是桥接协议的声明本身，
+不要用「推一个废弃 tag」来充当证据：tag 是桥接声明本身，
 试探性 tag 会污染 `nx release` 的版本计算基准，也会让后续读历史的人分不清哪个 tag 是真的。

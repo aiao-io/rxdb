@@ -55,7 +55,6 @@ v1 不持久化第二份独立 `HEAD`。当前分支仍由既有 `RxDBBranch.act
 | `WorkingTreeEntry`           | database + branch + unit | 实体/事务身份、操作、patch/inverse patch 或快照、当前指纹、来源 change ID | 与业务 CRUD 同一事务写入；完整事务共享同一 unit             |
 | `IndexState` / `IndexEntry`  | database + branch        | `indexRevision`、完整 staged snapshot、来源 working-tree revision         | stage / unstage / commit 以 `indexRevision` 做 CAS          |
 | branch materialization stage | database + attempt       | 目标分支、冻结远端水位、scope manifest、分页 payload、fingerprint         | 只暂存目标分支快照，不写当前业务投影；成功 switch 后删除    |
-| writer lease / upgrade guard | database + writer        | `epoch`                                                                   | 只判断 writer 是否被 schema 迁移 fence，不充当业务版本      |
 
 ### 状态归属（哪个故事负责建表）
 
@@ -97,9 +96,8 @@ index 必须满足**独立可重放不变量**：任意时刻，全部 `IndexEnt
 stage T2 也必须包含 T1。不得提交无法应用到 HEAD 的 INSERT/UPDATE/DELETE，也不得静默把前置效果塞进后续单元。
 闭包计算或 CAS 失败时 index 零变化。
 
-正常提交、stage 和恢复不会递增 US-304 的 epoch。跨 realm 正确性由数据库事务内的
-`headRevision` / `workingTreeRevision` / `indexRevision` 条件更新保证；writer lease 只提供 writer 身份和迁移期
-fencing。revision CAS 是领域数据完整性，不是第二套 lease 或跨 realm 协调协议。
+跨 realm 正确性由数据库事务内的 `headRevision` / `workingTreeRevision` / `indexRevision` 条件更新保证。
+revision CAS 是领域数据完整性，不是跨 realm 协调协议；本 Epic 不引入 writer lease 或迁移 epoch fencing。
 
 每个 realm 在读取/实例化实体时捕获 `{ branchId, activationRevision }`。普通 CRUD、stage、commit、restore、
 discard 与分支操作都必须在实际写事务内验证该 token；另一个 realm 已切换分支时，旧 token 的写入返回稳定的
@@ -225,7 +223,7 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
 - commit 能力在从未启用的数据库上默认零副作用；开发者显式启用后创建系统表并执行首次基线迁移，具体配置名在 plan 阶段冻结。
 - 启用是**数据库级且单向**的协议状态。数据库已经启用后，未声明该能力、协议版本不匹配或试图绕过
   working-tree trigger 的 writer 必须在业务写入前以 `commit_capability_mismatch` fail-fast 或进入显式只读模式；
-  不允许一个 realm 维护 revision、另一个 realm 继续裸写。旧 bundle 由 US-304/305 的 migration gate 拦截。
+  不允许一个 realm 维护 revision、另一个 realm 继续裸写。旧 bundle 由 US-305 的 migration gate 拦截。
 - SQL/PGlite 主库是 commit、工作树元数据和 index 的唯一一致性边界。
 - Workspace 插件的 NEW 草稿仍留在独立 IndexedDB 中，不参与系统 schema 事务，也不进入 baseline commit。
   草稿调用 `save()` 落入主表后，才作为普通 INSERT 进入工作树。
@@ -270,21 +268,20 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
 
 ## 依赖顺序
 
-1. [US-304](../stories/collaboration/US-304-writer-lease-migration-fencing.md) 必须先 Done —— 本 Epic 复用 writer 身份与迁移期 epoch fencing，不复用 epoch 充当提交版本
-2. 当前发布主线先产生新的非迁移 bridge tag；历史 `v0.0.25` 不在当前 ancestry，不能供下一步引用。
+1. 当前发布主线先产生新的非迁移 bridge tag；历史 `v0.0.25` 不在当前 ancestry，不能供下一步引用。
    **这一步由 US-305 自身承接**（FR-030 + AC US2-14），不是无主的流程约定：
    [migration-release.json](../migration-release.json) 的 `bridge.tag` / `bridge.version` 仍为 `null`，
    而 `release.version` 仍写着已脱链的 `0.0.25`。US-305 的第一个可交付物就是产出新 bridge tag 并修正该 manifest，
    在此之前 system schema 迁移不得进入发布分支
-3. [US-305](../stories/collaboration/US-305-commit-graph-head.md) 建立 commit 图、branch ref、`headRevision` CAS、存储布局与每分支基线迁移，
+2. [US-305](../stories/collaboration/US-305-commit-graph-head.md) 建立 commit 图、branch ref、`headRevision` CAS、存储布局与每分支基线迁移，
    并一并建立 `WorkingTreeActivationState`（见「状态归属」）
-4. [US-306 阶段 A](../stories/collaboration/US-306-working-tree-index.md) 完成全部写入口的持久工作树捕获。
+3. [US-306 阶段 A](../stories/collaboration/US-306-working-tree-index.md) 完成全部写入口的持久工作树捕获。
    它只用 US-305 提供的 activation state 做**写路径 token 校验**，不实现 switch 语义；凡需要真正切换分支才能观察的
    断言一律留给 US-308，阶段 A 用持久层重放断言等价覆盖
-5. [US-306 阶段 B](../stories/collaboration/US-306-working-tree-index.md) 在其上实现 index、关系依赖闭包、revision CAS、status/diff/stage/commit
-6. [US-306 阶段 C](../stories/collaboration/US-306-working-tree-index.md) 依赖 US-306 阶段 B，交付
+4. [US-306 阶段 B](../stories/collaboration/US-306-working-tree-index.md) 在其上实现 index、关系依赖闭包、revision CAS、status/diff/stage/commit
+5. [US-306 阶段 C](../stories/collaboration/US-306-working-tree-index.md) 依赖 US-306 阶段 B，交付
    `useWorkingTree()` 的三端契约、扩展点协议与 `bench-working-tree` target 本身
-7. [US-307](../stories/collaboration/US-307-restore-session.md) 与 [US-308](../stories/collaboration/US-308-branch-isolation-conflict.md)
+6. [US-307](../stories/collaboration/US-307-restore-session.md) 与 [US-308](../stories/collaboration/US-308-branch-isolation-conflict.md)
    依赖 US-306 阶段 B，两者之间互相独立可并行。但它们**不能整体与 US-306 阶段 C 并行**：US-307 的 `restore` / `restoreState`、
    US-308 的分支切换与冲突提示都按 US-306 阶段 C 冻结的扩展点协议追加键，FR-026b 也只向 US-306 阶段 C 拥有的 bench target
    追加采样场景。因此二者的**核心持久层语义可与 US-306 阶段 C 并行开工，三框架入口与 benchmark 半边必须排在 US-306 阶段 C 之后**
@@ -329,7 +326,7 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
 
 ## 发布门禁
 
-1. US-304 Done（前置）；[migration-release.json](../migration-release.json) 的 `bridge.tag` 指向一个满足
+1. [migration-release.json](../migration-release.json) 的 `bridge.tag` 指向一个满足
    `git merge-base --is-ancestor <bridge-tag> <release-commit>` 的真实 tag，且不是 `v0.0.25`
 2. US-305 / US-306（阶段 A / B / C 全部关闭）/ US-307 / US-308 全部 Done；US-306 的
    [交付阶段与边界表](../stories/collaboration/US-306-working-tree-index.md#交付阶段与边界) 逐条有归属且对应阶段已关闭，

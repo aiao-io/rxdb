@@ -1,10 +1,6 @@
 import {
-  Entity,
-  EntityBase,
-  PropertyType,
   RXDB_CHANGE_CODEC_WATERMARK,
   RXDB_SYSTEM_SCHEMA_WATERMARK,
-  RXDB_WRITER_PROTOCOL_VERSION,
   RxDBChange,
   RxDBMigration,
   UnsupportedRxDBSystemVersionError,
@@ -20,11 +16,6 @@ import { SUITE_DEADLINE_MS } from './test-utils.js';
 
 const currentWatermarks = [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATERMARK] as const;
 
-@Entity({ name: 'RuntimeTodo', properties: [{ name: 'title', type: PropertyType.string }] })
-class RuntimeTodo extends EntityBase {
-  title!: string;
-}
-
 const placeholders = currentWatermarks.map(() => '?').join(', ');
 
 const readWatermarks = async (adapter: RxDBAdapterSqliteBase): Promise<Array<[number, string]>> => {
@@ -39,13 +30,6 @@ const readWatermarks = async (adapter: RxDBAdapterSqliteBase): Promise<Array<[nu
 const readRows = async (adapter: RxDBAdapterSqliteBase, sql: string): Promise<unknown[][]> => {
   const result = await adapter.internalQuery(sql);
   return result.results.flatMap(item => item.rows);
-};
-
-const readGuardEpoch = async (adapter: RxDBAdapterSqliteBase): Promise<number> => {
-  const rows = await readRows(adapter, `SELECT "epoch" FROM "rxdb$rxdb_upgrade_guard"`);
-  const epoch = rows[0]?.[0];
-  if (typeof epoch !== 'number') throw new Error('Missing writer guard epoch.');
-  return epoch;
 };
 
 const reconnectAdapter = async (
@@ -74,92 +58,6 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
         await adapter.rxdb.disconnectAll();
       } finally {
         await factory.cleanupAdapter?.(adapter);
-      }
-    });
-
-    it('注册持久化 writer lease 并初始化 open guard', async () => {
-      const guardRows = await readRows(
-        adapter,
-        `SELECT "epoch", "state", "minProtocol" FROM "rxdb$rxdb_upgrade_guard"`
-      );
-      const leaseRows = await readRows(
-        adapter,
-        `SELECT "writerId", "protocolVersion", "epoch", julianday("expiresAt") > julianday("lastSeenAt")
-         FROM "rxdb$rxdb_writer_lease"`
-      );
-
-      expect(guardRows).toEqual([[2, 'open', RXDB_WRITER_PROTOCOL_VERSION]]);
-      expect(leaseRows).toHaveLength(1);
-      expect(leaseRows[0]?.[0]).toEqual(expect.any(String));
-      expect(leaseRows[0]?.slice(1)).toEqual([RXDB_WRITER_PROTOCOL_VERSION, 2, 1]);
-    });
-
-    it('持久化 epoch 提升后在业务事务回调前 fence 旧 writer', async () => {
-      const writerEpoch = await readGuardEpoch(adapter);
-      const fencedEpoch = writerEpoch + 1;
-      await adapter.internalQuery(`UPDATE "rxdb$rxdb_upgrade_guard" SET "epoch" = ? WHERE "databaseId" = ?`, [
-        fencedEpoch,
-        adapter.rxdb.config.dbName
-      ]);
-
-      try {
-        await expect(
-          adapter.query(`UPDATE "rxdb$rxdb_writer_lease" SET "protocolVersion" = "protocolVersion" WHERE 0`)
-        ).rejects.toThrow(/was fenced by epoch \d+|requires reconnect/);
-
-        let transactionBodyRan = false;
-        await expect(
-          adapter.transaction(async () => {
-            transactionBodyRan = true;
-          }, false)
-        ).rejects.toThrow('requires reconnect');
-        expect(transactionBodyRan).toBe(false);
-
-        const staleTodo = new Todo();
-        staleTodo.title = 'stale-writer';
-        staleTodo.completed = false;
-        await expect(adapter.getRepository(Todo).create(staleTodo)).rejects.toThrow('requires reconnect');
-      } finally {
-        await adapter.internalQuery(`UPDATE "rxdb$rxdb_upgrade_guard" SET "epoch" = ? WHERE "databaseId" = ?`, [
-          writerEpoch,
-          adapter.rxdb.config.dbName
-        ]);
-        await expect(adapter.transaction(async () => undefined, false)).rejects.toThrow('requires reconnect');
-        adapter = await reconnectAdapter(adapter, factory.name);
-      }
-    });
-
-    it('运行期建表和 sequence 更新受 writer guard 保护', async () => {
-      await expect(adapter.createTables([RuntimeTodo])).resolves.toBe(true);
-      const tableWriterEpoch = await readGuardEpoch(adapter);
-      await adapter.internalQuery(`UPDATE "rxdb$rxdb_upgrade_guard" SET "epoch" = ? WHERE "databaseId" = ?`, [
-        tableWriterEpoch + 1,
-        adapter.rxdb.config.dbName
-      ]);
-
-      try {
-        await expect(adapter.createTables([RuntimeTodo])).rejects.toThrow(/was fenced by epoch \d+|requires reconnect/);
-      } finally {
-        await adapter.internalQuery(`UPDATE "rxdb$rxdb_upgrade_guard" SET "epoch" = ? WHERE "databaseId" = ?`, [
-          tableWriterEpoch,
-          adapter.rxdb.config.dbName
-        ]);
-        adapter = await reconnectAdapter(adapter, factory.name);
-      }
-
-      const sequenceWriterEpoch = await readGuardEpoch(adapter);
-      await adapter.internalQuery(`UPDATE "rxdb$rxdb_upgrade_guard" SET "epoch" = ? WHERE "databaseId" = ?`, [
-        sequenceWriterEpoch + 1,
-        adapter.rxdb.config.dbName
-      ]);
-      try {
-        await expect(adapter.setRxDBChangeSequence(123)).rejects.toThrow(/was fenced by epoch \d+|requires reconnect/);
-      } finally {
-        await adapter.internalQuery(`UPDATE "rxdb$rxdb_upgrade_guard" SET "epoch" = ? WHERE "databaseId" = ?`, [
-          sequenceWriterEpoch,
-          adapter.rxdb.config.dbName
-        ]);
-        adapter = await reconnectAdapter(adapter, factory.name);
       }
     });
 

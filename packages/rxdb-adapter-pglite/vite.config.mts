@@ -17,10 +17,8 @@ export default defineConfig(() => {
     process.env.RXDB_PGLITE_TEST_FILE === undefined ?
       ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}']
     : [process.env.RXDB_PGLITE_TEST_FILE];
-  const testExclude =
-    nodeTestMode ?
-      ['src/__tests__/system-schema-migration.browser.spec.ts']
-    : ['src/__tests__/system-schema-migration.spec.ts'];
+  // system schema migration 用例直接操作磁盘库文件，只在 Node 模式下跑。
+  const testExclude = nodeTestMode ? [] : ['src/__tests__/system-schema-migration.spec.ts'];
 
   return {
     root: import.meta.dirname,
