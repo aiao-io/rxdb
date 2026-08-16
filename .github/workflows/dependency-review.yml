@@ -1,0 +1,47 @@
+name: Dependency review
+
+# PR 里新增/升级依赖时，比对 base 与 head 的依赖图，命中已知漏洞就拦下来。
+#
+# 它补的是一个真实缺口：`pnpm audit` 从来没进过 CI，Dependabot 的安全更新只在
+# 漏洞**已经**合进 main 之后才开 PR。这条流水线是唯一一个在「引入的那一刻」
+# 就说话的地方 —— 拦在合并前的成本，比合进去之后再回滚低一个数量级。
+#
+# 只在 pull_request 上跑：push 到 main 时依赖图没有可比的 base，跑了也没结论。
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    name: dependency review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          filter: tree:0
+
+      - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4
+        with:
+          # high 起拦。moderate 在一个有 3000+ 传递依赖的 workspace 里几乎天天有，
+          # 全拦会让这道门禁在两周内被当成噪音关掉 —— 那才是最坏结果。
+          # moderate 及以下仍会出现在下面的 PR 摘要里，只是不阻塞。
+          fail-on-severity: high
+
+          # 不开 comment-summary-in-pr：它要 `pull-requests: write`，而这条流水线
+          # 其余部分一点写权限都不需要。为一条评论把整个 job 提权不划算 ——
+          # 何况 fork 来的 PR 拿到的 GITHUB_TOKEN 本来就是只读的，评论也发不出去。
+          # 完整报表始终写进 job summary（core.summary.write() 是无条件调用的），
+          # 从那条红色的 check 点进去就能看到。
+
+          # 不开 license 检查。这个仓库的依赖里有一批 BSD/ISC/Python-2.0 之类的
+          # 变体写法，allow/deny 名单没人维护的话只会持续误报。
+          # 真要管许可证，应该单独做一次全量盘点，而不是在这里顺手加一行。

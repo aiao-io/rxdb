@@ -55,11 +55,14 @@ const createHarness = async (options?: {
     // 只包 rawQuery 会让失败注入和窗口探测全部空转。
     const nextBootstrap = adapter.bootstrapTransaction.bind(adapter);
     adapter.bootstrapTransaction = ((fun, transactionLog) =>
-      nextBootstrap((async tx => {
-        const nextQuery = tx.query.bind(tx);
-        tx.query = (sql, params) => wrap(sql, params as RawQueryParams, nextQuery as RxDBAdapterSqlite['rawQuery']);
-        return fun(tx);
-      }) as typeof fun, transactionLog)) as typeof adapter.bootstrapTransaction;
+      nextBootstrap(
+        (async tx => {
+          const nextQuery = tx.query.bind(tx);
+          tx.query = (sql, params) => wrap(sql, params as RawQueryParams, nextQuery as RxDBAdapterSqlite['rawQuery']);
+          return fun(tx);
+        }) as typeof fun,
+        transactionLog
+      )) as typeof adapter.bootstrapTransaction;
   }
 
   return {

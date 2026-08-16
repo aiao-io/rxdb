@@ -321,7 +321,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ### `audit/package-api-docs.mjs`
 
-- **触发**：被 `rxdb-plugin-storage` / `rxdb-adapter-encrypted` / `rxdb-adapter-sqlite` / `rxdb-adapter-sqliteai` 的 `build` target 串在 `vite build` 之后。历史 adapter 保持根导出检查；storage 使用 `node ../../scripts/audit/package-api-docs.mjs . --members` 开启成员门禁。
+- **触发**：被 `rxdb-plugin-storage` / `rxdb-adapter-desktop` / `rxdb-adapter-encrypted` / `rxdb-adapter-sqlite` / `rxdb-adapter-sqliteai` 的 `build` target 串在 `vite build` 之后（共 5 个包，原文漏了 desktop）。历史 adapter 保持根导出检查；storage 使用 `node ../../scripts/audit/package-api-docs.mjs . --members` 开启成员门禁。
 - **做什么**：
   1. 取目标包根目录作为 CLI 第一个参数（默认 `.`），从 `src/index.ts` 起 TypeScript program；
   2. 用 `checker.getExportsOfModule()` 拿到入口的全部可见 symbol，过滤出**声明就在本包源码里**的那些（避免将 `Type` 节点归到 `@types/*`/`node_modules/*` 而误判）；
@@ -333,14 +333,17 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ### `audit/package-runtime-conditions.mjs`
 
-- **触发**：`pnpm audit:conditions`，手动。**没有任何 CI 会自动跑它**。
+- **触发**：`pnpm audit:conditions`；CI 在 `ci-template.yml` 的 `setup` job 里作为**阻塞门禁**跑。
   （脚本名不能占用 `audit` —— `pnpm audit` 是 pnpm 的内置漏洞扫描命令，会把同名 npm script 遮蔽掉。）
 - **做什么**：遍历 `packages/*/package.json` 的 `exports`，找出指向 `.ts` 等**非可执行**文件的
   condition。这类 condition 在 workspace 里靠 tsconfig paths 能解析，装进用户项目后就是死链。
-- **现状**：当前**是红的**，报 3 条 `@aiao/source -> ./src/*.ts`
-  （`rxdb-adapter-miniprogram` 2 条、`rxdb-adapter-wa-sqlite` 1 条）。
-  这是既有状态，不是回归——`@aiao/source` 是内部消费的源码 condition，
-  要么给它加豁免、要么从发布清单里摘掉，尚未决策。
+- **白名单**：`BUILD_TIME_CONDITIONS = { types, @aiao/source }`。
+  `@aiao/source` 从来不由 Node 在运行时解析——它只被三处构建期消费方读取：
+  `tsconfig.base.json` 的 `customConditions`、`audit/api-surface.mjs`、各 vite config 的
+  `resolve.conditions`。所以它指向 `.ts` 是**设计如此**，与 `types` 指向 `.d.ts` 同性质。
+  豁免按 **condition 名**判定，不是按包或路径：同一个 `exports` 里若有
+  `default: './src/x.ts'`，照样报错。`package-runtime-conditions.spec.mjs` 固定住了这条边界。
+- **何时手动跑**：给某个包加/改 `exports`（尤其是新增自定义 condition）之后。
 
 ## 10. 内部依赖（不可直接执行）
 
