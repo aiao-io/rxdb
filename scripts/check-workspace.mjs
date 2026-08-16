@@ -62,7 +62,28 @@ const checkEnvFiles = () => {
 };
 
 /**
- * 预构建 NEED_BUILDS。图损坏时 `nx reset` 后再试一次。
+ * 探测 project graph 还读不读得出来。
+ *
+ * `run` 是 stdio: 'inherit'，拿不到子进程输出，所以没法从报错文本里判断失败原因。
+ * 换个思路：直接问「reset 要治的那个病还在不在」—— `nx show projects` 读一次图，
+ * 图损坏 / daemon 挂了它必然失败，图正常它秒回。
+ */
+const canReadProjectGraph = async (runCommand, options) => {
+  try {
+    await runCommand('pnpm', ['nx show projects --json'], options);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * 预构建 NEED_BUILDS。**仅在 project graph 损坏时** `nx reset` 后再试一次。
+ *
+ * 早先这里是无条件 catch 重试：一个 TS 编译错误也会触发 `nx reset`，把全仓 Nx
+ * 缓存清空、再原样失败一遍 —— postinstall 时间翻倍，缓存归零，真正的编译错误
+ * 还被第二轮输出冲到屏幕外。现在先探图再决定，编译错误直接原样抛出。
+ *
  * @param {{ projects?: string[], runCommand?: (command: string, args: string[], options?: { env?: NodeJS.ProcessEnv }) => Promise<unknown> }} [options]
  */
 export const buildNeedLibs = async ({
@@ -75,7 +96,8 @@ export const buildNeedLibs = async ({
   const options = { env: POSTINSTALL_NX_ENV };
   try {
     await runCommand('pnpm', buildArgs, options);
-  } catch {
+  } catch (buildError) {
+    if (await canReadProjectGraph(runCommand, options)) throw buildError;
     await runCommand('pnpm', ['nx reset'], options);
     await runCommand('pnpm', buildArgs, options);
   }

@@ -265,3 +265,23 @@ pnpm nx run-many -t typecheck test \
 6. 重新执行 affected lint、typecheck、test、build、E2E 和 coverage gate。
 
 在以上条件满足前，当前分支不应进入合并队列。
+
+## 修复记录（本报告全部发现项已处理）
+
+| 发现项                           | 处理                                                                                                                                                                                                                                     |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P0 门禁失败                      | 夹具、协议断言、fake RxDB 全部同步；`pnpm check-format` 与 `tag:js-lib` 的 lint/test/build 恢复绿色                                                                                                                                      |
+| P1 `rawQuery()` 绕过就绪门       | 外部入口统一等待完整 `RxDB.connect()`，补回归测试                                                                                                                                                                                        |
+| P1 插件安装失败毒化实例          | 失败不再永久置位，单适配器 disconnect/reconnect 可恢复，补回归测试                                                                                                                                                                       |
+| P2 MessagePort 只保护半条链路    | 按选型改为 MessageChannel 私有端口，上下行同时校验；window 总线伪造消息被拒                                                                                                                                                              |
+| P2 IndexedDB 删除 50ms 误判      | 移除硬编码超时，超过 50ms 的正常删除不再判失败                                                                                                                                                                                           |
+| P2 `connected$` 重复发射 `false` | 收敛到单一状态变更入口，最后一个适配器断开只发一次                                                                                                                                                                                       |
+| P2 CI 供应链加固                 | 两处 Codecov 钉到 `fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0`；`id-token: write` 下沉到 coverage job；新增 `pnpm audit:action-pins` 门禁（`scripts/audit/workflow-action-pins.mjs`），扫 `.github` 下全部 workflow 与复合 action |
+| P3 任何构建失败都 `nx reset`     | `buildNeedLibs` 先用 `nx show projects --json` 探图：图正常直接抛出原始构建错误，只有图读不出来才 reset 重试                                                                                                                             |
+| P3 commit 前缀 `startsWith` 绕过 | 改为 `\b` 词边界正则，补 `wipe` / `Released` / `Reverting` 反例测试                                                                                                                                                                      |
+| 缺失测试 1–7                     | 逐条补齐；另新增 React / Angular 两端 `opfs.spec.ts`，与 Vue 端选择器对齐                                                                                                                                                                |
+
+两点需要留档：
+
+1. Angular demo 的 `remote-cache.spec.ts` 里「命中缓存不发网络请求」此前是**假绿**——生产构建注册了 `ngsw-worker.js`，SW 发出的请求不经过 `page.route`，计数恒为 0。已加 `test.use({ serviceWorkers: 'block' })`。react / vue 未注册 SW，不受影响。
+2. Vue 端第三条 OPFS 用例（rename 失败时对话框保持打开）未移植到 react：react 用瞬时 toast 而非常驻 `opfs-error` 元素报错，断言还依赖 `renameOpfsEntry` 真的失败，照搬会得到一条不稳定的用例。
