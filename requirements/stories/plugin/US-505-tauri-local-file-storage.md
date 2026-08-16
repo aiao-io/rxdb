@@ -16,7 +16,7 @@ INVEST 检查清单:
 - [x] Valuable (有价值): Tauri 应用的文件与 SQLite 同域备份，且不必授予全文件系统权限
 - [x] Estimable (可估算): 复用 US-504 接缝，只补 Tauri 传输与权限面
 - [x] Small (小): 不含 Electron、不含接缝设计本身、不含迁移工具
-- [x] Testable (可测试): 持久化、权限面、webview 差异门禁、三平台打包、错误路径、双窗口互斥、包体纯净、错配拒绝均有独立 AC（AC#8–#11 对齐 US-504 AC#6–#9，2026-08-15 二次评审补齐）
+- [x] Testable (可测试): 持久化、权限面、webview 差异门禁、三平台打包、错误路径、双窗口互斥、包体纯净、错配拒绝均有独立 AC（AC#8–#11 对齐 US-504 AC#6–#9）
 -->
 
 # 用户故事：Tauri 本地文件存储
@@ -35,10 +35,9 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 
 1. **meta 无处安放**：storage 插件要求 `rxdb.config.sync.local` 配置一个可连接的
    adapter（`ensureLocalReady` 只校验其存在并 `connect()` 成功，**无**「本地/桌面」类型
-   判别，见 US-504 2026-08-15 评审）；「同域备份」要成立，meta 必须落在 Tauri 的桌面
+   判别，见 US-504 技术笔记）；「同域备份」要成立，meta 必须落在 Tauri 的桌面
    SQLite adapter 上，而它是
-   [US-210](../adapter/US-210-tauri-sqlite-local-database.md)（写下时 Backlog、事务门禁未验证；
-   2026-08-16 已是 In Progress，AC#2–#8 通过）。
+   [US-210](../adapter/US-210-tauri-sqlite-local-database.md)（In Progress，AC#2–#8 通过）。
    US-210 不落地，meta 只能留在 webview 存储 —— 恰是 US-504 AC#9 明令拒绝的「备份域
    撕裂」组合；该错配拒绝在 Tauri 侧同样适用（本故事 AC#11 钉住）。
 2. **接缝未抽出**：文件系统后端接缝由 US-504 定义并冻结（含物理名编码与锁归宿决策），
@@ -103,30 +102,21 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 > AC#7 复用 US-210 / US-905 阶段 1 先开工者建立的 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵；打包 smoke
 > test 成本高，只在 release 分支或 tag 触发，不进 PR 门禁。
 
-## 交付状态（2026-08-16）
+## 交付状态
 
 传输层与 Rust 文件宿主已实现并接入 demo，11 条 AC 中 **5 条 ✅、4 条 ⚠️、2 条 ⬜**。
 
-### 上一节「阻塞状态（2026-08-15）」为何作废
+**US-210 不是本故事的整体前置**，被它前置的只有 AC#1 / #7：这两条缺的是
+`apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵，与 US-210 自己敞开的 AC#1 / #9 是同一个缺口，
+不是本故事**特有**的阻塞；其余 9 条不依赖打包。AC#11 的通过分支也一直存在——
+`apps/dev-rxdb-tauri/src/app/setup_rxdb_desktop.ts` 已把 `sync.local.adapter` 配成
+`DESKTOP_ADAPTER_NAME`（`selectLocalBackend()` 在 Tauri 窗口下选它、浏览器预览下回落
+wa-sqlite），「跑的是 wa-sqlite」只在浏览器预览分支为真。
+可达性按**逐条 AC** 核对，不按依赖故事的整体状态一票否决。
 
-原结论是「本故事的代码在 US-210 交付前**不可达**：AC#11 要求 `sync.local` 不是 Tauri
-桌面 SQLite adapter 就拒绝启用，没有该 adapter，判别的通过分支永远为假，任何实现代码
-都是死代码」。开工前复核发现该论据的事实前提已不成立，其中一条**当时写下时就是错的**：
+### 范围决策：e2e 工程不由本故事建
 
-- `apps/dev-rxdb-tauri/src/app/setup_rxdb_desktop.ts` 早已把 `sync.local.adapter` 配成
-  `DESKTOP_ADAPTER_NAME`（`selectLocalBackend()` 在 Tauri 窗口下选它、浏览器预览下回落
-  wa-sqlite）。「`apps/dev-rxdb-tauri` 当前跑的是 wa-sqlite」只在浏览器预览分支为真，
-  AC#11 的通过分支因此一直存在，实现代码不是死代码。
-- 「US-210 未交付」被当成了全有全无的门禁，但真正被前置的只是 AC#1 / #7 —— 它们缺的是
-  `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵，与 US-210 自己敞开的 AC#1 / #9 是同一个缺口，
-  而不是本故事**特有**的阻塞。其余 9 条 AC 不依赖打包。
-
-保留这一段是因为它记录了一次**把「共享的下游缺口」误判为「本故事的上游阻塞」**的推理
-错误：判据应当逐条 AC 核对可达性，而不是按依赖故事的整体状态一票否决。
-
-### 本轮的范围决策
-
-`apps/dev-rxdb-tauri-e2e` **本轮不建**。tauri-driver 不支持 macOS（本机无法验证），且它
+`apps/dev-rxdb-tauri-e2e` **不在本故事范围内**。tauri-driver 不支持 macOS（本机无法验证），且它
 与 US-210 AC#1 / #9 卡在同一处；建一个只能在 CI 上盲跑的 e2e 工程，代价与风险都由本故事
 独担而收益归两者。代价是 AC#1 / #3 / #6 / #7 只能如实留在 ⚠️ / ⬜，不粉饰。
 
@@ -161,7 +151,7 @@ lint/test/build 全绿。
 | 决策         | US-504 的结论                                                                                                                   | 对本故事的影响                                                                                                                                      |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 文件系统接缝 | 窄接口 `StorageFilesystem`（`packages/rxdb-plugin-storage/src/filesystem/storage-filesystem.ts`），经插件选项 `filesystem` 注入 | Tauri 侧只实现该接口 + 传输层，服务层的回滚 journal / 临时文件提交 / 快照补偿一行都不用重写                                                         |
-| 锁归宿       | 临界区**下沉 host 侧**：后端提供 `lockBackend`，桌面后端构造期即断言其存在，不存在静默单进程化路径                              | AC#9 改由 Rust 侧串行化承担；WKWebView / WebKitGTK 的 Web Locks 可用性**不再是风险项**，「锁归宿」笔记中的验证任务随之作废                          |
+| 锁归宿       | 临界区**下沉 host 侧**：后端提供 `lockBackend`，桌面后端构造期即断言其存在，不存在静默单进程化路径                              | AC#9 改由 Rust 侧串行化承担；WKWebView / WebKitGTK 的 Web Locks 可用性**不是风险项**，无需验证                          |
 | 错误判别载体 | 新增 `StorageBackendError { code: StorageBackendErrorCode; detail? }`，现有 9 个错误类原样不动                                  | AC#4 / #8 / #11 的「稳定可判别错误」即该类；Rust 侧错误码按 US-504 的 `BACKEND_ERROR_CODES` 同型映射，未知码一律落 `backend_internal_error`，不裸抛 |
 
 另有一条 US-504 已定、本故事需照抄的行为分歧：物理名编码后单个路径分段超过 255 UTF-8
@@ -170,7 +160,7 @@ lint/test/build 全绿。
 
 ## 技术笔记
 
-### 传输二选一（2026-08-16 冻结：最小 Rust command）
+### 传输二选一（已冻结：最小 Rust command）
 
 | 方案                        | 做法                                                                       | 主要风险                                                                                                                                                                                   |
 | --------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -185,28 +175,26 @@ lint/test/build 全绿。
 门禁约束（只有 `core:` / `plugin:` 前缀才是，见 `rxdb/mod.rs`），物理根由 Rust 侧写死为
 `app_data_dir()` 子目录，比 AC#1 原本设想的「capability 收敛到子目录」更强。
 
-三次评审留下的验证任务（确认 plugin-fs 的 `open() / read() / write() / seek()` 异步形状、
-rename 原子替换与 fsync 跨平台语义、capability 子目录粒度）随选型作废——这些都只是
-plugin-fs 路线的判据，未选则无需验证。
+plugin-fs 路线的那几项验证（`open() / read() / write() / seek()` 的异步形状、
+rename 原子替换与 fsync 跨平台语义、capability 子目录粒度）因未选中而无需进行。
 
 两案共用约束（对已选方案依然生效）：物理名编码、临时文件提交与失败补偿语义由 US-504
 冻结，本故事不得另订一套；错误判别载体同样跟随 US-504（见其技术笔记「错误判别载体」）。
 
-### 锁归宿（US-504 已冻结，本节留作背景）
+### 锁归宿（US-504 已冻结）
 
-~~`PathLockManager` 的 Web Locks 在 WKWebView / WebKitGTK 上的可用性与跨 webview 窗口语义
-必须单独验证~~ —— US-504 已把临界区**下沉 host 侧**（后端提供 `lockBackend`，桌面后端
-构造期断言其存在），本故事跟随该决策走 Rust 侧串行化，Web Locks 在三家 webview 上的
-可用性因此不再影响 AC#9，无需验证。
+US-504 把临界区**下沉 host 侧**（后端提供 `lockBackend`，桌面后端构造期断言其存在），
+本故事跟随该决策走 Rust 侧串行化。Web Locks 在 WKWebView / WebKitGTK 上的可用性与跨
+webview 窗口语义因此不影响 AC#9，无需验证。
 
-原顾虑保留作背景：`PathLockManager` 在 `navigator.locks` 缺失时会**静默降级为进程内
+一处相关的待清理项：`PathLockManager` 在 `navigator.locks` 缺失时会**静默降级为进程内
 队列**（`path-lock.ts`），多窗口下等于没有互斥且不报错。锁下沉后桌面路径不再触及该
-分支 —— 但它对**浏览器**路径依然成立，是 `path-lock.ts` 自身的待清理项，不属本故事。
+分支 —— 但它对**浏览器**路径依然成立，属 `path-lock.ts` 自身，不在本故事。
 
 ### 依赖
 
 - [US-210](../adapter/US-210-tauri-sqlite-local-database.md) — meta 的 Tauri 桌面 SQLite adapter。
-  ~~adapter 未交付前本故事不可开工~~ —— 该 adapter 已可被 `sync.local` 配置，AC#11 的通过
+  该 adapter 已可被 `sync.local` 配置，AC#11 的通过
   分支存在（见「交付状态」）；实际共享的只剩 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵，
   它同样卡着 US-210 自己的 AC#1 / #9，可由 [US-905](../future/US-905-tauri-native-devtools.md)
   阶段 1 先创建，不构成业务前置
@@ -232,7 +220,7 @@ plugin-fs 路线的判据，未选则无需验证。
   不新增第四份手写 `showSaveFilePicker`
 - `apps/dev-rxdb-tauri/src-tauri/capabilities/` — **零改动**（自定义命令不受 capability 门禁）
 - `apps/dev-rxdb-tauri-e2e/` — 共享 project，由 US-210 / US-905 阶段 1 先开工者创建一次；本故事只拥有
-  AC#1 / #3 / #7 / #9 的重启、备份、打包与双窗口 specs。**本轮未创建**，见「本轮的范围决策」
+  AC#1 / #3 / #7 / #9 的重启、备份、打包与双窗口 specs。**尚未创建**，见「范围决策」
 - `requirements/api-baseline/` — 若新增公开 API 则同步基线
 
 ## References

@@ -347,10 +347,10 @@ try/catch 后 `console.error` 吞掉；而 `#track_plugin_install()`（:714-731�
 
 #### D7 — 构造器与 `install(scope)` 的分工（迁移的硬判据）
 
-> **本决策于 2026-08-16 被 D8 收窄**：原判据第二条「改写了宿主」会把
+> **本决策由 D8 收窄**：下文第二条判据「改写了宿主」若照字面执行，会把
 > `defineProperty(rxdb, 'workspace')` 这类**注册期身份发布**也扫进 `install(scope)`，
 > 而它是 `configurable: false`、物理上撤销不了，与 D3 的「注册期资源不在本故事」直接打架。
-> 判据的准确形式见 D8，本节其余内容不变。
+> 判据的准确形式以 D8 为准。
 
 三处泄漏（storage 的 `rxdb.storage`、workspace 的 `#destroyed` / `#indexedDBStore`、graph 的空
 `destroy()`）都是同一个错误的三次出现：**资源在构造器里获取，却在每次拆卸时释放**，
@@ -373,7 +373,7 @@ workspace 的 `readonly #indexedDBStore!: WorkspaceStore` 因此要改为可空�
 （或改为作用域内局部变量 + getter）——这是**编译期**阻塞项，不是风格问题。
 `#destroyed` 随作用域一起消失：「已释放」由作用域的 `state` 回答（守卫的新写法见 D8 末尾）。
 
-**搬进 `install(scope)` 时按获取步数拆 `acquire()`（2026-08-16 第三轮 Cordis 复核补入）**：
+**搬进 `install(scope)` 时按获取步数拆 `acquire()`**：
 本判据说的是「搬哪些」，不是「搬成一坨」。一处构造 + 一处宿主改写 = **两次** `acquire()`，
 顺序与获取顺序一致。合并写会制造一个本判据原本要消灭的泄漏——构造成功、改写抛错，
 实例既不在清单里也没人持有。规则与反面写法见 [US-013 D5](US-013-lifecycle-scope-primitive.md)，

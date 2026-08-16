@@ -78,129 +78,77 @@ INVEST 检查清单:
 - 双适配器接入：`RxDBAdapterSqliteBase` 与 `RxDBAdapterPGlite` 都在写事务内读 guard 并续租（PGlite 用 `SELECT ... FOR UPDATE`，SQLite 用带 `state = 'open' AND epoch = ?` 条件的 UPSERT，`rowsAffected !== 1` 即判 `writer_fenced`）；心跳间隔取 `RXDB_WRITER_HEARTBEAT_INTERVAL_MS`，时间戳取数据库时间（`strftime('%Y-%m-%dT%H:%M:%fZ','now')` / `clock_timestamp()`）。
 - 测试：`shared-system-schema-migration.suite.ts`、真实多进程的 `system-schema-migration.multiprocess.spec.ts`、PGlite 的 `pglite-migration-writer.worker.ts` 覆盖 AC3/5/7/9/10。
 
-### AC11 由 ✅ 降级为 ⚠️ 的依据
+### AC11 由 US-305 承接
 
-- **本条前一版记载有误，2026-08-13 实测更正**：`v0.0.24` 上的清单不是 `kind=migration`，而是 `kind=bridge` / `release.version=0.0.25`，而同 tag 的 `packages/rxdb/package.json` 是 `0.0.24`。用 `v0.0.24` 当时的门禁脚本校验该清单，唯一报错是 `release.version 0.0.25 does not match tag v0.0.24`——**是版本漂移，不是 migration 字段缺失**。
-- 同样更正：`v0.0.24` 的 `publish.yml` 已经把门禁两步排在 build 与 `nx release publish` 之前，所以「门禁没装」不成立。但 `@aiao/rxdb@0.0.24` 仍是 npm `latest`，而 `v0.0.24` tag 指向的提交是 `init`——本仓库是重新初始化的历史，npm 上那次发布不是经这条流水线发出的。准确说法是**门禁没机会跑**，而非拦不住。结论不变：“发布门禁阻止升级”从未被真实发布验证过。
-- 至今没有任何 tag 被声明为桥接版本，`oldBundlePolicy` 也从未启用，AC11 列出的三条替代路径（强制更新 / 缓存失效 / 新数据库命名空间）一条都没生效。
-- 现清单为 `kind=normal` / `0.0.24`（见下文「门禁自身的两处缺口」），`pnpm nx run @aiao/source:migration-release-gate` 与 `migration-release-gate-test` 本地均通过。桥接版本实际发布后，AC11 才能重新评估。
+AC11 的关闭需要一次真实的迁移发布，而本版没有可迁移内容：HEAD 与 `v0.0.25` 的
+`RXDB_SYSTEM_SCHEMA_VERSION`（`3`）、`RXDB_WRITER_PROTOCOL_VERSION`（`1`）、
+`RXDB_CHANGE_CODEC_VERSION`（`1`）完全相同，清单切 `kind=migration` 会被
+`migration releases must upgrade system schema or change codec` 拒绝。因此 AC11 由
+[US-305](./US-305-commit-graph-head.md) 的 `inherited_acs` 承接有效 bridge ancestor、
+`oldBundlePolicy` 与真实发布门禁验收，避免形成「US-304 等 US-305，US-305 又等 US-304 Done」的循环依赖。
 
-### 历史阻塞项：桥接 tag 已决策（2026-08-13 复核，前一版依据已失效）
+### 桥接 tag：`v0.0.25` 已脱离当前发布主线
 
-门禁的 `bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` 全部走 git tag
+`v0.0.25` 是已推送、已发布的桥接版本（29 个包落地 npm，清单 `kind=bridge`，`release.version` 与
+`packages/rxdb/package.json` 同为 `0.0.25`，门禁通过），也确实携带完整的 writer lease/guard 协议。
+
+但 `v0.0.25^{}` 现指向 `b31c7e2`，当前发布分支与它的 merge base 是 `c47cf97`，
+`git merge-base --is-ancestor v0.0.25 HEAD` 返回 `1`——squash 合并使该 tagged commit 脱离了当前主线。
+`v0.0.25` 仍是不可移动的历史发布 tag，但**不能**作为 US-305 的 migration bridge。
+US-305 开工前必须从届时的发布主线先发布一个新的非迁移 bridge，并把它的 tag/version 写入
+migration manifest；禁止重打 `v0.0.25` 或用 cherry-pick 冒充 ancestry。
+
+现清单为 `kind=normal`，`pnpm nx run @aiao/source:migration-release-gate` 与
+`migration-release-gate-test` 本地均通过。
+
+### 门禁的 git 钩子
+
+`bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` 全部走 git tag
 （[`check-migration-release-gate.mjs`](../../../scripts/check-migration-release-gate.mjs) 的 `git rev-parse refs/tags/…`、
-`git merge-base --is-ancestor`、`git cat-file -e <tag>:<file>`）。
+`git merge-base --is-ancestor`、`git cat-file -e <tag>:<file>`）。三个钩子已用真实 tag 验证过
+（正向零报错、伪造 tag 三条全报），**门禁本身不需要修**。
 
-本节此前记载「本仓库 `git tag --list` 为空、`git rev-list --count HEAD` 为 5，清单切 `kind=migration`
-必然报 `bridge.tag … does not exist`」。该依据已不成立，实测：
+注意 `bridgeTagSupportsProtocol` 只用 `git cat-file -e` 校验文件存在，不校验文件内容，
+因此它单独并不能证明 tag 含协议实现，须另行人工确认。
 
-| 检查项                                        | 实测结果                                                              |
-| --------------------------------------------- | --------------------------------------------------------------------- |
-| `git tag --list`                              | `v0.0.24`（非空）；`git rev-list --count HEAD` 为 10                  |
-| `bridgeTagIsAncestor(v0.0.24)`                | 通过，`git merge-base --is-ancestor v0.0.24 HEAD` 成立                |
-| `bridgeTagSupportsProtocol(v0.0.24)`          | 通过，`gitTagSupportsProtocol` 列出的 5 个文件在 `v0.0.24` 上全部存在 |
-| `v0.0.24` 是否真的含 lease 集成（非仅文件在） | 是：`writer_fenced` 1 处、`rowsAffected !== 1` 4 处、协议模块 229 行  |
+AC1/AC11 的前提**不是「发到 npm」，而是「在本仓库打出并推送 tag，且该 tag 位于发布提交的祖先链上」**。
+仅发布 npm 包不满足门禁。推送 `v*.*.*` tag 不触发任何自动发布，`migration-release-gate` 也不由 tag
+推送自动执行——发布前需手工跑
+`pnpm nx run @aiao/source:migration-release-gate --args="--release-tag=v<版本>"`。
 
-即 `v0.0.24` 事实上已经携带完整的 writer lease/guard 协议，只是**从未被有效声明为桥接版本**——
-它的清单虽然写着 `kind=bridge`，但 `release.version` 与包版本漂移，门禁对该 tag 判定 fail-closed，
-这份声明从未通过校验。所以真正的阻塞不是「没有 tag 可用」，而是桥接 tag 该指向哪一次发布。
+### 迁移发布的关闭条件（按序执行，缺一不可）
 
-**该决策已于 2026-08-13 作出：另打 `v0.0.25`，不追认 `v0.0.24`。**
-发布顺序与关闭判据见 [`requirements/release-plan.md` 的「下一次发布计划」](../../release-plan.md#下一次发布计划桥接版本)。
-
-同时注意 `bridgeTagSupportsProtocol` 只用 `git cat-file -e` 校验文件存在，不校验文件内容，
-因此它单独并不能证明 tag 含协议实现；上表第 4 行是手工补的证据，不是门禁给的。
-
-结论不变：AC1/AC11 的前提**不是“发到 npm”，而是“在本仓库打出并推送 tag，且该 tag 位于发布提交的祖先链上”**。
-仅发布 npm 包不满足门禁。
-
-### AC11 关闭条件（按序执行，缺一不可）
-
-> 以下步骤记录 `v0.0.25` 发布当时的关闭方案，已被本故事后文“2026-08-15 后续主线复核更正”取代。
-> 当前 US-305 不得照抄这里的 tag/version，必须读取当前发布主线上的有效 bridge manifest。
-
-0. ~~先决策桥接 tag~~ **已决策：`<bridge>` = `v0.0.25`**（2026-08-13）。已在生产的 `0.0.24` 因此被划进「离线旧 bundle」。
-1. `v0.0.25` 必须已推送，且 `git merge-base --is-ancestor v0.0.25 HEAD` 成立。
-   前置是清单切 `kind=bridge` 且 `release.version` 与 `packages/rxdb/package.json` 同步推进到 `0.0.25`——
-   `v0.0.24` 正是栽在这一步。
+1. bridge tag 已推送，且 `git merge-base --is-ancestor <bridge> HEAD` 成立。前置是清单切
+   `kind=bridge`，且 `release.version` 与 `packages/rxdb/package.json` 同步推进到该版本。
 2. 用该 tag 跑 `bridgeTagSupportsProtocol` 冒烟：`gitTagSupportsProtocol` 列出的 5 个文件
    （`packages/rxdb/src/RxDB.ts`、`packages/rxdb/src/rxdb-adapter.ts`、`packages/rxdb/src/system/writer-lease.ts`、
    `packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts`、`packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts`）
    在 `<bridge>` 上全部存在；因该检查只验存在不验内容，需另行确认该 tag 确含 lease 集成。
-3. 上述各步通过后，清单才允许切 `kind=migration`，并同时填 `bridge.tag=v0.0.25`、`bridge.version=0.0.25`、
-   `oldBundlePolicy.strategy`（白名单四选一）、`oldBundlePolicy.minimumVersion≥0.0.25`、`enforced=true`。
-4. **但第 3 步不会发生在 `0.0.25` 这一版**：实测 HEAD 与 `v0.0.24` 的 `RXDB_SYSTEM_SCHEMA_VERSION`（`3`）、
-   `RXDB_WRITER_PROTOCOL_VERSION`（`1`）、`RXDB_CHANGE_CODEC_VERSION`（`1`）完全相同，没有任何东西要迁移，
-   清单切 `kind=migration` 会被 `migration releases must upgrade system schema or change codec` 拒绝。
-   AC11 要等下一次真正抬升系统版本的发布，按现有排期是 [US-305](./US-305-commit-graph-head.md)（含「一次性迁移」）。
+3. 上述各步通过后，清单才允许切 `kind=migration`，并同时填 `bridge.tag`、`bridge.version`、
+   `oldBundlePolicy.strategy`（白名单四选一）、`oldBundlePolicy.minimumVersion ≥ bridge.version`、`enforced=true`。
+4. `kind=migration` 要求该版本真正抬升 `RXDB_SYSTEM_SCHEMA_VERSION` 或 `RXDB_CHANGE_CODEC_VERSION`，
+   否则门禁以 `migration releases must upgrade system schema or change codec` 拒绝。
 
-### 上述条件的执行进度（2026-08-13）
+### 门禁的两条结构校验
 
-`v0.0.25` 已在本地打出，上面四步的实际状态：
-
-| 步骤                               | 状态 | 依据                                                                                                                                                                                                                                                |
-| ---------------------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 决策桥接 tag                     | ✅   | `v0.0.25`；`nx release version` 依 conventional commits 算出的也是 `0.0.25`，与本决策一致，未做人工覆写                                                                                                                                             |
-| 1 tag 已推送且是 HEAD 祖先         | ✅   | 2026-08-14 已推送：`git ls-remote --tags origin v0.0.25` → `5ee8100`，与本地 `v0.0.25` 同一 commit；`git merge-base --is-ancestor v0.0.25 HEAD` 成立；清单 `kind=bridge`、`release.version` 与 `packages/rxdb/package.json` 同为 `0.0.25`，门禁通过 |
-| 2 `bridgeTagSupportsProtocol` 冒烟 | ✅   | 5 个文件在 `v0.0.25` 上全部存在；另按本节要求确认了内容而非仅文件名：`RxDBAdapterPGlite.ts` 与 `RxDBAdapterSqliteBase.ts` 在该 tag 上各有约 30 处 `WriterLease` 引用，含 `RXDB_WRITER_LEASE_TABLE_NAME` / `RXDB_WRITER_PROTOCOL_VERSION` / TTL 常量 |
-| 3 切 `kind=migration`              | ⬜   | 不发生在本版，见第 4 步                                                                                                                                                                                                                             |
-| 4 本版无可迁移内容                 | ✅   | 实测 `v0.0.24` 与 `v0.0.25` 的 `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_WRITER_PROTOCOL_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 均为 `3` / `1` / `1`，两侧完全相同                                                                                       |
-
-写作当时 tag 未推送是刻意的：`publish.yml` 的触发条件是 `v*.*.*`，推送即拉起真实发布流程，
-门禁通过后直接 `nx release publish` 发到 npm。是否发布是发布决策，不是验证步骤的一部分——
-本节上文那条「不要用推一个废弃 tag 试门禁来充当 AC11 证据」的告诫，同样约束这次。
-
-**2026-08-14 更新：该决策已作出，tag 已推送、0.0.25 已发布，AC1 转 ✅。**
-桥接版本 `v0.0.25` 现已同时满足四项：`kind=bridge` 声明、门禁通过、位于 HEAD 祖先链、已推送。
-29 个包全部落地 npm（run `31782357651`），因此「桥接版本在生产可得」这一前提也真实成立，
-不再是仅存在于本仓库的一个 tag。
-
-**2026-08-15 更新：`publish.yml` 已删除，发布改为手工执行。** 上文提到该文件的段落是
-当时的实测记录，保留原状不改写。现状是：推送 `v*.*.*` tag 不再触发任何自动发布，
-`migration-release-gate` 也不再由 tag 推送自动执行——发布前需手工跑
-`pnpm nx run @aiao/source:migration-release-gate --args="--release-tag=v<版本>"`。
-
-**AC11 已于 2026-08-15 转移到 US-305，不再阻塞 US-304 Done。** 理由仍是上表第 3/4 步：本版无可迁移内容，
-清单未切 `kind=migration`，`oldBundlePolicy` 未启用。US-305 是首个真实迁移发布，由其 `inherited_acs`
-承接有效 bridge ancestor、`oldBundlePolicy` 和真实发布门禁验收，避免形成“US-304 等 US-305，US-305 又等 US-304 Done”的循环依赖。
-
-**2026-08-15 后续主线复核更正**：`v0.0.25^{}` 当前指向 `b31c7e2`，当前发布分支与它的 merge base
-是 `c47cf97`，`git merge-base --is-ancestor v0.0.25 HEAD` 返回 1。前文“位于 HEAD 祖先链”的结论只描述
-tag 创建当时的分支；后续 squash 合并使该 tagged commit 脱离当前主线。`v0.0.25` 仍是不可移动的历史发布 tag，
-但已经不能作为 US-305 的 migration bridge。US-305 开工前必须从届时的发布主线先发布一个新的非迁移 bridge，
-并把它的 tag/version 写入 migration manifest；禁止重打 `v0.0.25` 或用 cherry-pick 冒充 ancestry。
-
-门禁的三个 git 钩子已借 `v0.0.25` 首次用真实 tag 验证（正向零报错、伪造 tag 三条全报），
-**门禁本身不需要修**；实测明细见 [`requirements/release-plan.md` 的「门禁三钩子的实测」](../../release-plan.md#门禁三钩子的实测2026-08-13)。
-
-### 门禁自身的两处缺口（已修复，2026-08-13）
-
-| 缺口                                                                                           | 影响                                                                                                                          | 修复                                                                                                                                                |
-| ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `release.kind` 只接受 `bridge \| migration`，没有 `normal`                                     | 普通 patch 发布被迫自称 `bridge`，「桥接版本」语义被稀释；将来切 `kind=migration` 时无法判断 `bridge.tag` 该指向哪一次发布    | 新增 `normal`：与 `bridge` 一样禁止 schema/codec 升级，但强制 `bridge.tag`/`bridge.version` 为 `null`，不进入 bridge 链                             |
-| 门禁只把 `release.version` 与 git tag 名对比，不校验 `packages/rxdb/package.json` 的 `version` | 清单可长期停在陈旧值而无人察觉（修复前清单 `0.0.25`，`packages/rxdb/package.json` 仍为 `0.0.24`），正是 0.0.24 事故的同类形态 | 新增 `release.version === packages/rxdb/package.json.version`，且**常态生效**而非仅发布时——tag 时两者必然相等，这条校验的全部价值就在于平时发现漂移 |
+| 校验                                                                  | 为什么需要                                                                                                                                                                        |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `release.kind` 取 `normal \| bridge \| migration`                     | `normal` 与 `bridge` 一样禁止 schema/codec 升级，但强制 `bridge.tag`/`bridge.version` 为 `null`、不进入 bridge 链；没有它，普通 patch 发布只能自称 `bridge`，「桥接版本」语义被稀释 |
+| `release.version === packages/rxdb/package.json.version`，**常态生效** | tag 时两者必然相等，这条校验的全部价值就在于平时发现漂移——清单停在陈旧值而无人察觉，正是 0.0.24 事故的形态                                                                        |
 
 两条校验各配红测试（`scripts/check-migration-release-gate.spec.mjs` 现 28 例全绿）。
-package.json 绑定上线后立刻抓到了它要抓的东西：签入清单 `0.0.25` 与包 `0.0.24` 不一致，`签入的 migration-release.json 通过结构校验` 转红。
-
-**因此改动了发布产物** `requirements/migration-release.json`：`kind` 由 `bridge` 改为 `normal`、`version` 由 `0.0.25` 改为 `0.0.24`。
-理由是绑定要求清单与 `packages/rxdb/package.json`（`0.0.24`）一致，而 `normal` 是不预设立场的取值——
-它既不追认 `v0.0.24` 为桥接版本，也不预先声明 `v0.0.25` 是桥接版本，把关闭条件第 0 步的决策原样留给发布方。
-副作用是原先「下一版是 bridge」的意图从清单里消失了，该意图现记录在关闭条件第 0 步。
-之所以不保留原值，是因为让门禁长期恒红正是本 story 记录的 0.0.24 失效形态。
 
 ### ⚠️ 项的剩余条件
 
 | AC  | 剩余条件                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | 协议常量与建表已就位；「桥接版本已发布」的判定基准是**本仓库存在被声明为桥接的 tag 且为 HEAD 祖先**，不是 npm dist-tag；该 tag 选 `v0.0.24` 还是 `v0.0.25` 见上文关闭条件第 0 步                                                                                                                                                                                                                                                                     |
 | 6   | 现有用例通过模拟 epoch 提升验证 fencing，待补长时间挂起的 writer 恢复后的真实表现。[US-207](../adapter/US-207-desktop-local-database.md) AC#5 的 [`writer-lease.spec.ts`](../../../packages/rxdb-adapter-desktop/src/__tests__/writer-lease.spec.ts) 验的是第二个 writer**连接时**被拒，AC#1 的重启 e2e 两次启动之间不发生迁移 —— 两条都不是本 AC 的场景。仍缺一条「writer 挂起 → 别的 realm 完成迁移抬 epoch → 该 writer 恢复后写入被 fence」的用例 |
 
-### AC2 并发注册测试（已交付，2026-08-13）
+### AC2 并发注册测试（已交付）
 
-剩余条件为「待在真实多 realm 下复核并发注册不互相覆盖」。交付物是
+交付物是
 [`system-schema-migration.multiprocess.spec.ts`](../../../packages/rxdb-adapter-sqlite-core/src/__tests__/system-schema-migration.multiprocess.spec.ts)
-新增的 `SQLite multiprocess writer lease registration`，让**三个各自独立的 writer** 落到同一个数据库文件上：
+的 `SQLite multiprocess writer lease registration`，让**三个各自独立的 writer** 落到同一个数据库文件上：
 
 | writer    | 隔离级别                             | 注册路径                                     |
 | --------- | ------------------------------------ | -------------------------------------------- |
@@ -229,9 +177,9 @@ package.json 绑定上线后立刻抓到了它要抓的东西：签入清单 `0.
 
 顺带修掉的 harness 问题：`afterEach` 原先 `Promise.all` 并发 `disconnect()`。`node:sqlite` 是同步 API——先拿到写锁的一方在 `await` 处让出后，另一方的 `BEGIN` 会同步阻塞整个事件循环直到 `busy_timeout` 耗尽，持锁方根本排不上 `COMMIT`，必然报 `database is locked`（耗时恰为 2000ms 的 busy_timeout）。改为逐个断开。这是同进程同步驱动的局限，不是产品缺陷；真正的跨 realm 并发由子进程 writer 覆盖。
 
-### AC8 恢复文档（已交付，2026-08-13）——`failed` 并不可达，本条剩余条件的前提有误
+### AC8 恢复文档（已交付）——真正需要恢复说明的是 `draining` 而非 `failed`
 
-本条剩余条件原写作「`failed` 是需要人工恢复的终态，恢复步骤尚未写入文档」。实测这个前提不成立：
+`failed` 并不可达：
 
 | 状态        | 是否有生产代码写入                                                                                                                                        | 失败后是否滞留                                                                                                                     |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
@@ -249,7 +197,7 @@ package.json 绑定上线后立刻抓到了它要抓的东西：签入清单 `0.
 
 若日后有代码路径开始写 `failed`，需回来补该状态的真实恢复步骤。
 
-### AC4 backend conformance 测试（已交付，2026-08-13）
+### AC4 backend conformance 测试（已交付）
 
 lease 续租与 guard 校验的唯一判据是 `rowsAffected !== 1`
 （[`RxDBAdapterSqliteBase.ts`](../../../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts) 的 L507 / L556 / L618 / L1235）。

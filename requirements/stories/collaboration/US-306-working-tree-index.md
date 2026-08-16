@@ -19,7 +19,7 @@ INVEST 检查清单:
 - [x] Estimable: 状态集合、写入口矩阵、revision 校验矩阵、操作契约与 bench fixture 已列出
 - [ ] Small: 体量偏大——同时覆盖全部业务写入口、六类本地后端、working-tree/index 状态机、三框架、
       E2E 与 benchmark。按「交付阶段」表的 A → B → C 顺序分批交付，每个阶段有独立可验收的场景区段；
-      不再拆成独立故事文件（2026-08-16 合并回本文件）
+      不拆成独立故事文件
 - [x] Testable: 「改 → stage → 刷新 → commit → 查 status」可独立验收
 -->
 
