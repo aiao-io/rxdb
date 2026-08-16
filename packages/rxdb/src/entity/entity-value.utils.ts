@@ -16,6 +16,7 @@ import type {
   EntityPropertyFieldDescriptor,
   EntityRelationFieldDescriptor
 } from './entity-field.utils.js';
+import { isOnStep, PERCENTAGE_DOMAIN } from './format-rules.js';
 import { isPlainRecord } from './json-safe.js';
 import type {
   CurrencyFormat,
@@ -43,8 +44,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // ------------------------------------------------------[ 两代校验共用的内部谓词 ]
 //
 // 提取自冻结的 validateEntityFieldValue：新旧函数各自组装这些谓词，谁都不调用对方（D11）。
-// 注意共用到此为止——旧函数对 number/uuid 走 `Number()` / `String()` 强制转换，
-// 新函数按「无 fallback 兜底」铁律只认原生类型，这份差异是刻意的，不要合并。
+// 注意共用到此为止——旧函数对 number/uuid 走 `Number()` / `String()` 强制转换、对 date 走
+// `new Date(value)` 隐式解析，新函数按「无 fallback 兜底」铁律只认原生类型，
+// 这份差异是刻意的，不要合并。date 因此只有旧函数用 toValidDate。
 
 /** 值是否为「空」：`null`、`undefined` 或空串。 */
 const isBlankValue = (value: unknown): boolean => value == null || value === '';
@@ -56,7 +58,13 @@ const isRequiredMissing = (value: unknown): boolean =>
 /** 文本是否为 UUID（大小写不敏感）。 */
 const isUuidText = (text: string): boolean => UUID_RE.test(text);
 
-/** 转成合法 `Date`；无法解析时返回 `null`。 */
+/**
+ * 转成合法 `Date`；无法解析时返回 `null`。
+ *
+ * @remarks
+ * 只服务冻结层：它会把 `'2026-01-01'` / 毫秒时间戳 / `true` 一并认成日期，这是 D5 冻结下来的
+ * 既有行为。{@link validateFieldValue} 走 `instanceof Date` 严判，不要改用本谓词。
+ */
 const toValidDate = (value: unknown): Date | null => {
   const date = value instanceof Date ? value : new Date(value as number | string);
   return isNaN(date.getTime()) ? null : date;
@@ -288,12 +296,6 @@ const UNSAFE_VALUE = Symbol('unsafeValue');
 
 type NormalizedValue = JsonValue | typeof UNSAFE_VALUE;
 
-/** `percentage` 各刻度的固有值域。 */
-const PERCENTAGE_DOMAIN: Record<PercentageFormat['scale'], readonly [number, number]> = {
-  '0..1': [0, 1],
-  '0..100': [0, 100]
-};
-
 const violation = (rule: FieldValidationRule, message: string): ValueViolation => ({ rule, message });
 
 const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
@@ -318,18 +320,6 @@ const toUrl = (text: string): URL | null => {
   } catch {
     return null;
   }
-};
-
-/**
- * 值是否落在「以 `base` 为起点、`step` 为步长」的刻度上。
- *
- * @remarks
- * 浮点除法必然带误差（`0.3 / 0.1 === 2.9999999999999996`），按商的量级放大 `EPSILON` 容差，
- * 而不是拿固定阈值硬卡。
- */
-const isOnStep = (value: number, base: number, step: number): boolean => {
-  const quotient = (value - base) / step;
-  return Math.abs(quotient - Math.round(quotient)) <= Number.EPSILON * Math.max(1, Math.abs(quotient)) * 8;
 };
 
 /** 严格 JSON 形状判定：`Date`、`Uint8Array`、`Map`、类实例、`bigint`、`NaN` 一律不算。 */
@@ -435,7 +425,11 @@ function checkValueType(valueType: `${PropertyType}`, displayName: string, value
     case 'boolean':
       return typeof value === 'boolean' ? null : violation('type', `${displayName} 必须是布尔值`);
     case 'date':
-      return toValidDate(value) ? null : violation('date', `${displayName} 日期格式不正确`);
+      // 与 bigint / binary 同理：wire 层另有表示（ISO 串），但运行时契约就是 Date 实例本身。
+      // 接受 '2026-01-01' / 1735689600000 等价于替调用方做隐式转换，违反「无 fallback 兜底」。
+      return value instanceof Date && !isNaN(value.getTime()) ?
+          null
+        : violation('date', `${displayName} 必须是合法的 Date 实例`);
     case 'stringArray':
       return checkStringArray(displayName, value);
     case 'numberArray':
@@ -589,7 +583,9 @@ function toFieldError(descriptor: EntityFieldDescriptor, found: ValueViolation, 
  * required → 类型 → 枚举成员 → format 值语义，任一环失败即短路返回，不累积多条错误。
  *
  * 该函数与 {@link validateEntityFieldValue} 并存且**行为不对齐**：新函数按「无 fallback 兜底」
- * 只认原生类型，`'3.14'` 不是合法的 `number`；旧函数的 `Number()` 强制转换保持冻结。
+ * 只认原生类型——`'3.14'` 不是合法的 `number`，`'2026-01-01'` 与毫秒时间戳也不是合法的 `date`
+ * （`date` 只认 `Date` 实例，与 `bigint` / `binary` 同一口径）；旧函数的 `Number()` 强制转换与
+ * `new Date(value)` 隐式解析保持冻结。
  *
  * @param descriptor - 来自 `describeEntityFields()` 或 `parseEntityFieldsDescriptor()` 的字段描述
  * @param value - 待校验的值

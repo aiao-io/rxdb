@@ -155,6 +155,13 @@ export function entityFieldsWireField(draft: EntityFieldsWireDraft, field: strin
   return found;
 }
 
+/** 取草稿字段里的嵌套对象；形状不对直接抛错，避免断言退化成空跑。 */
+function entityFieldsWireNested(record: Record<string, unknown>, key: string): Record<string, unknown> {
+  const found = record[key];
+  if (found === null || typeof found !== 'object') throw new Error(`夹具键 ${key} 不是对象`);
+  return found as Record<string, unknown>;
+}
+
 /** 单个字段的形状期望。 */
 export interface EntityFieldExpectation {
   readonly field: string;
@@ -288,7 +295,11 @@ export const ENTITY_FIELD_VALUE_CASES: readonly EntityFieldValueCase[] = [
   { title: '单值关系拒绝非主键形状', field: 'author', value: 'not-a-uuid', rule: 'uuid' },
   { title: '多值关系接受主键数组', field: 'tags', value: [UUID_A, UUID_B], rule: null },
   { title: '多值关系拒绝标量', field: 'tags', value: UUID_A, rule: 'type' },
-  { title: '多值关系拒绝非法成员', field: 'comments', value: [UUID_A, 'nope'], rule: 'uuid' }
+  { title: '多值关系拒绝非法成员', field: 'comments', value: [UUID_A, 'nope'], rule: 'uuid' },
+  { title: 'date 接受原生 Date 实例', field: 'createdAt', value: new Date('2026-01-01T00:00:00.000Z'), rule: null },
+  { title: 'date 拒绝 ISO 字符串（只认原生类型）', field: 'createdAt', value: '2026-01-01', rule: 'date' },
+  { title: 'date 拒绝毫秒时间戳', field: 'createdAt', value: 1735689600000, rule: 'date' },
+  { title: 'date 拒绝布尔值', field: 'createdAt', value: true, rule: 'date' }
 ];
 
 /** 单条解析拒绝期望。 */
@@ -322,5 +333,9 @@ export const ENTITY_FIELDS_PARSE_REJECTIONS: readonly EntityFieldsParseRejection
   {
     title: 'enum 成员不是字符串',
     apply: draft => void (entityFieldsWireField(draft, 'status')['enum'] = ['draft', 1])
+  },
+  {
+    title: 'format 缺必填配置键',
+    apply: draft => void delete entityFieldsWireNested(entityFieldsWireField(draft, 'rating'), 'format')['step']
   }
 ];

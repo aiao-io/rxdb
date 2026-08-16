@@ -15,6 +15,7 @@
  * 两层不互相调用：冻结层的语义缺陷不能通过复用传染给描述层。
  */
 import { RxDBError } from '../RxDBError.js';
+import { missingFormatConfigKeys } from './format-rules.js';
 import { isPlainRecord } from './json-safe.js';
 import {
   PropertyType,
@@ -691,7 +692,15 @@ function parseFormatConfigValue(key: string, value: unknown, path: string): numb
   throw parseError(`${path}.${key}`, '必须是字符串');
 }
 
-/** 解析 `format`：按 kind 保留合法配置键，其余（含跨 format 的陌生键）静默丢弃。 */
+/**
+ * 解析 `format`。
+ *
+ * @remarks
+ * D6.1 的两半都在这里：陌生键（含跨 format 的合法键）静默丢弃，**必填键缺失则显式失败**。
+ * 后者不能一并丢弃——`RichTextFormat.contentType`、`RatingFormat.min/max/step` 都是必选属性，
+ * 放行会产出一个 `as FieldFormat` 断言出来的类型谎言，下游 `validateFieldValue()` 读到
+ * `undefined` 的 min/max 就静默跳过全部范围校验。必填键表与注册期闸门同源（`format-rules.ts`）。
+ */
 function parseFormatKey(record: Record<string, unknown>, path: string): { format?: FieldFormat } {
   if (!('format' in record)) return {};
   const format = record['format'];
@@ -699,6 +708,9 @@ function parseFormatKey(record: Record<string, unknown>, path: string): { format
   if (!isPlainRecord(format)) throw parseError(formatPath, '必须是对象');
 
   const kind = requireLiteral(format, 'kind', formatPath, Object.keys(FIELD_FORMAT_CONFIG_KEYS));
+  const missing = missingFormatConfigKeys(kind, format);
+  if (missing.length > 0) throw parseError(formatPath, `format "${kind}" 缺少必填配置 ${missing.join('、')}`);
+
   const config = FIELD_FORMAT_CONFIG_KEYS[kind as FieldFormat['kind']]
     .filter(key => key in format)
     .map(key => [key, parseFormatConfigValue(key, format[key], formatPath)] as const);

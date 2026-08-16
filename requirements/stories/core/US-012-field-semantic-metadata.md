@@ -263,6 +263,14 @@ export function parseEntityFieldsDescriptor(value: unknown): EntityFieldsDescrip
 作者写错配置的场景由注册期闸门拦截，那里有完整的元数据上下文、能报出实体名和字段名，比在 wire 边界
 猜测意图更准确。这也让 D6.1 的三档表格对所有协议层级保持同一条规则，没有 format 特例。
 
+**「校验已知键」包含存在性**：`kind` 自有 schema 里的**必填**配置键（`richText.contentType`、
+`currency.currency`、`percentage.scale`、`duration.unit`、`rating.min/max/step`）缺失时按 D6.1 第三档
+显式失败，不能顺着「丢弃」那一档放行——它们是 `FieldFormat` 联合的必选属性，放行只能靠
+`as FieldFormat` 断言出一个类型谎言，而下游 `validateFieldValue()` 读到 `undefined` 的 min/max 会
+静默跳过全部范围校验。这与上面「跨 format 配置键移出解析器」不冲突：那张会漂移的是**全部 format 的
+已知键并集**，这张只是**当前 kind 自有 schema 的必填子集**，加可选键不会改动它。必填键表在
+`packages/rxdb/src/entity/format-rules.ts` 里与注册期闸门 `missingFormatConfig` 同源。
+
 ### D7 — DTO 只包含 `valueType`，不再重复输出 `type`
 
 - `valueType`：对 `property` / `computed` / `system` 是其 `PropertyType`
@@ -343,7 +351,9 @@ export function describeEntityFields(metadata: EntityMetadata, resolve: EntityMe
 
 `validateEntityFieldValue(field: EntityFieldConfig, value)` 读的是 `field.type` / `field.enumValues`，而 format、`enum`、`options` 只存在于新 DTO —— 给 `EntityFieldConfig` 加 `format` 会同时破坏 D5 的冻结和 D5「不对齐命名」的边界。
 
-定死：新增 `validateFieldValue(descriptor: EntityFieldDescriptor, value: unknown): FieldValidationError | null`。新函数先复用旧函数的 required、基础类型、日期、enum、JSON 规则，再增加 `stringArray`、`numberArray` 与 format 校验；旧 `validateEntityFieldValue` 签名、行为、输出全部不变，同样加 `@deprecated` 指向新函数。关系字段按 `relation.mutation` 只校验 ID 形状，不访问 repository。
+定死：新增 `validateFieldValue(descriptor: EntityFieldDescriptor, value: unknown): FieldValidationError | null`。新函数先复用旧函数的 required、基础类型、enum、JSON 规则，再增加 `stringArray`、`numberArray` 与 format 校验；旧 `validateEntityFieldValue` 签名、行为、输出全部不变，同样加 `@deprecated` 指向新函数。关系字段按 `relation.mutation` 只校验 ID 形状，不访问 repository。
+
+**刻意不复用的三处**：`number`、`uuid`、`date`。旧函数分别走 `Number()`、`String()`、`new Date(value)` 隐式转换，新函数按「无 fallback 兜底」铁律只认原生类型——`'3.14'` 不是 `number`，`'2026-01-01'` / `1735689600000` / `true` 都不是 `date`（`date` 只认 `Date` 实例，与同样「wire 层另有表示」的 `bigint` / `binary` 同一口径）。旧函数这三条行为按 D5 保持冻结。
 
 ### D12 — 校验错误值必须是 JSON-safe 且默认不回显加密值
 
@@ -508,7 +518,7 @@ export type FieldFormat =
   | MultiSelectFormat;
 ```
 
-`currency` 只校验 ISO 4217 的代码形状 `/^[A-Z]{3}$/`，本故事不内置会随时间变化的货币分配表；`schemes` 中每项必须匹配 `/^[A-Za-z][A-Za-z0-9+.-]*$/`，按 ASCII 小写**判重**但以不带冒号的**原值**输出，重复时保留数组中首次出现的那一项（`['HTTP', 'http']` → `['HTTP']`）；`language`、`timezone` 非空时原样透传，`timezone` 在本故事中是 opaque hint，不验证 IANA 数据库；`percentage.scale` 是两个字符串字面量之一，不是任意数值范围。
+`currency` 只校验 ISO 4217 的代码形状 `/^[A-Z]{3}$/`，本故事不内置会随时间变化的货币分配表；`schemes` 中每项必须匹配 `/^[A-Za-z][A-Za-z0-9+.-]*$/`（不带冒号），并按 ASCII 小写**判重**——存在大小写重复项时报 `invalidFormatConfig`，本层**不做归一化**，声明原样进入 DTO（口径见 [US-019](./US-019-url-scheme-duplicate-rejection.md) D1）；`language`、`timezone` 非空时原样透传，`timezone` 在本故事中是 opaque hint，不验证 IANA 数据库；`percentage.scale` 是两个字符串字面量之一，不是任意数值范围。
 
 第一阶段支持以下格式：
 
@@ -921,8 +931,9 @@ AC 按交付阶段分段，编号连续。阶段内可任意顺序验收，阶�
   关系目标解析的 `missingRelationPrimary` / `unsupportedRelationValueType` 属于另一个联合
   `RelationResolutionRule`，只由阶段 B 的 `describeEntityFields()` 产出（D3）。
 - `validateFieldValue()` 同样是纯函数：不读全局状态、不访问 repository、不做 I/O（AC#32 用 spy 断言）。
-  它复用旧函数的 required、基础类型、日期、enum、JSON 规则，再叠加 `stringArray` / `numberArray` 与 format 校验（D11）。
+  它复用旧函数的 required、基础类型、enum、JSON 规则，再叠加 `stringArray` / `numberArray` 与 format 校验（D11）。
   复用方式是**提取共享内部函数**，不是让新函数调用已冻结的旧函数——否则旧函数的行为改动会经由新函数外溢。
+  `number` / `uuid` / `date` 三条刻意不复用：旧函数隐式转换，新函数只认原生类型（D11）。
 - 新 DTO 与旧结构**故意不对齐命名**（`valueType` vs `type`、`enum` vs `enumValues`、`relation.entity` vs
   `relatedEntityName`），不提供别名、不做双向转换（D5）。
 - 覆盖率门禁：`packages/rxdb` ≥ 90%。
@@ -935,6 +946,7 @@ AC 按交付阶段分段，编号连续。阶段内可任意顺序验收，阶�
 | ---------------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `packages/rxdb/src/entity/metadata-options.interface.ts`         | A     | `format` 判别联合、逐属性窄类型 `format?`、`StringArrayProperty.enum` / `options`                                                                                        |
 | `packages/rxdb/src/entity/metadata-validate.ts`（新增）          | A     | `validateEntityMetadata` 与规则表                                                                                                                                        |
+| `packages/rxdb/src/entity/format-rules.ts`（新增）               | C     | format 必填键表、`percentage` 固有值域、step 容差的内部唯一真相源；三处消费者共用，**不从包入口导出**（同 `json-safe.ts`）                                               |
 | `packages/rxdb/src/entity/entity-manager.ts`                     | A     | `init()` 跨实体聚合校验并抛错（D3）                                                                                                                                      |
 | `packages/rxdb/src/entity/entity-field.utils.ts`                 | B     | DTO、parser、`EntityRelationResolutionError`、版本常量；既有导出冻结 + `@deprecated`                                                                                     |
 | `packages/rxdb/src/entity/entity-value.utils.ts`                 | C     | `validateFieldValue()`；旧 `validateEntityFieldValue` 冻结 + `@deprecated`                                                                                               |

@@ -178,6 +178,14 @@ export const VALUE_SEMANTIC_CASES = [
     expected: 'invalidFormatConfig'
   },
   {
+    // US-019 AC#1：判重口径与 `validateFieldValue()` 的协议比对同为 ASCII 小写，
+    // 两项语义相同却都留在白名单里，前端会重复渲染同一个协议。
+    label: 'scheme 大小写重复',
+    type: PropertyType.string,
+    extra: { format: { kind: 'url', schemes: ['HTTP', 'http'] } },
+    expected: 'invalidFormatConfig'
+  },
+  {
     label: 'language 非空',
     type: PropertyType.string,
     extra: { format: { kind: 'code', language: 'ts' } },

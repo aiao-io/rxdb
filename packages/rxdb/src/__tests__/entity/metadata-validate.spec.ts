@@ -234,6 +234,30 @@ describe('validateEntityMetadata — AC#8/AC#9 enum 与 options', () => {
     expect(errors[0].message).toContain('"b"');
   });
 
+  it('scheme 大小写重复 → invalidFormatConfig 并指出重复项（US-019 AC#1）', () => {
+    const errors = validateEntityMetadata(
+      withProperty({ name: 'homepage', type: PropertyType.string, format: { kind: 'url', schemes: ['HTTP', 'http'] } })
+    );
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatchObject({ field: 'homepage', rule: 'invalidFormatConfig' });
+    // 报的是判重口径下的小写形式，作者据此能定位到底哪两项撞了
+    expect(errors[0].message).toContain('"http"');
+  });
+
+  it('scheme 语法非法时不再判定大小写重复（US-019 AC#2）', () => {
+    // 两项同时犯规：语法更具体，且同一 format 只产出一条错误
+    const errors = validateEntityMetadata(
+      withProperty({
+        name: 'homepage',
+        type: PropertyType.string,
+        format: { kind: 'url', schemes: ['1http', 'HTTP', 'http'] }
+      })
+    );
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain('1http');
+    expect(errors[0].message).not.toContain('重复');
+  });
+
   it('enum 非法时不再判定重复值与 options 子集', () => {
     expect(rulesOf(withProperty({ name: 'state', type: PropertyType.enum, enum: 'open', options: { x: {} } }))).toEqual(
       ['invalidEnumConfig']

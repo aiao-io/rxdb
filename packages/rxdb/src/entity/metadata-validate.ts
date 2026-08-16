@@ -7,6 +7,7 @@
  * 不因输入形状畸形而自身抛出非聚合异常。
  */
 
+import { isStepAligned, missingFormatConfigKeys, percentageDomainOf } from './format-rules.js';
 import {
   EntityPropertyMetadata,
   EntityRelationMetadata,
@@ -87,15 +88,6 @@ const CARDINALITY_CONFLICTS: readonly { kind: FieldFormat['kind']; type: Propert
   { kind: 'singleSelect', type: PropertyType.stringArray }
 ];
 
-/** 各 kind 的必填配置键。 */
-const REQUIRED_CONFIG_KEYS: Partial<Record<FieldFormat['kind'], readonly string[]>> = {
-  richText: ['contentType'],
-  currency: ['currency'],
-  percentage: ['scale'],
-  duration: ['unit'],
-  rating: ['min', 'max', 'step']
-};
-
 /**
  * `format` 配置键全集（不含 `kind` 本身）。
  *
@@ -152,32 +144,25 @@ const ENUM_CONFIG_VALUES: Record<string, readonly string[]> = {
   display: ['date', 'time', 'datetime']
 };
 
-/** percentage 的固有值域。 */
-const PERCENTAGE_DOMAIN: Record<string, readonly [number, number]> = {
-  '0..1': [0, 1],
-  '0..100': [0, 100]
-};
-
 const CURRENCY_RE = /^[A-Z]{3}$/;
 const SCHEME_RE = /^[A-Za-z][A-Za-z0-9+.-]*$/;
 const OPTION_DISPLAY_KEYS: readonly string[] = ['label', 'color', 'disabled'];
 const NUMERIC_CONFIG_KEYS: readonly string[] = ['min', 'max', 'step'];
-/** step 对齐容差，与 `validateFieldValue()` 共用同一口径。 */
-const STEP_EPSILON_FACTOR = 8;
 
 /** 判断是否为普通对象（排除数组、`null` 与类实例以外的宿主对象）。 */
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-/** 按同一容差判断商是否为整数。 */
-const isStepAligned = (quotient: number): boolean =>
-  Math.abs(quotient - Math.round(quotient)) <= Number.EPSILON * Math.max(1, Math.abs(quotient)) * STEP_EPSILON_FACTOR;
-
-/** 校验 `schemes` 数组语法。 */
+/** 校验 `schemes` 数组语法，并按 ASCII 小写判重（US-019 D1：重复即拒绝，本层不做归一化）。 */
 const invalidSchemes = (value: unknown): string | null => {
   if (!Array.isArray(value)) return '必须是字符串数组';
   const bad = value.filter(item => typeof item !== 'string' || !SCHEME_RE.test(item));
-  return bad.length > 0 ? `包含非法 scheme ${JSON.stringify(bad)}` : null;
+  // 判重排在语法之后：语法非法时小写化没有意义，且同一 format 只产出一条错误，先报更具体的那条
+  if (bad.length > 0) return `包含非法 scheme ${JSON.stringify(bad)}`;
+  // 与 `validateFieldValue()` 比对协议时的小写口径同源，否则会「注册期放行、值校验视作同一协议」
+  const lowered = (value as readonly string[]).map(item => item.toLowerCase());
+  const duplicates = [...new Set(lowered.filter((item, index) => lowered.indexOf(item) !== index))];
+  return duplicates.length > 0 ? `存在大小写重复的 scheme ${JSON.stringify(duplicates)}` : null;
 };
 
 /** 校验单个配置键的值语义，返回错误描述或 `null`。 */
@@ -214,7 +199,7 @@ const invalidRangeMessage = (format: Record<string, unknown>): string | null => 
   if (step !== undefined && step <= 0) return 'step 必须大于 0';
   if (min !== undefined && max !== undefined && min > max) return `min (${min}) 不能大于 max (${max})`;
 
-  const domain = typeof format['scale'] === 'string' ? PERCENTAGE_DOMAIN[format['scale']] : undefined;
+  const domain = typeof format['scale'] === 'string' ? percentageDomainOf(format['scale']) : undefined;
   if (domain) {
     const outside = [min, max].filter(value => value !== undefined && (value < domain[0] || value > domain[1]));
     if (outside.length > 0) {
@@ -239,7 +224,7 @@ class ViolationCollector {
   ) {}
 
   add(field: string, rule: MetadataValidationRule, message: string): void {
-    const key = `${field} ${rule}`;
+    const key = `${field}\0${rule}`;
     if (this.seen.has(key)) return;
     this.seen.add(key);
     this.errors.push({ namespace: this.namespace, entity: this.entity, field, rule, message: `${field}: ${message}` });
@@ -278,7 +263,7 @@ const detectFormatViolation = (
     return { rule: 'formatTypeMismatch', message: `format "${kind}" 不能用在 PropertyType "${type}" 上` };
   }
 
-  const missing = (REQUIRED_CONFIG_KEYS[kind as FieldFormat['kind']] ?? []).filter(key => !(key in format));
+  const missing = missingFormatConfigKeys(kind, format);
   if (missing.length > 0) {
     return { rule: 'missingFormatConfig', message: `format "${kind}" 缺少必填配置 ${missing.join('、')}` };
   }

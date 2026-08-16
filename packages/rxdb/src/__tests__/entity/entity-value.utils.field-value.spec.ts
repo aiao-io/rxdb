@@ -254,6 +254,34 @@ describe('validateFieldValue', () => {
     });
   });
 
+  // ------------------------------------------------------[ date 的原生类型口径 ]
+
+  describe('date 只认原生 Date 实例', () => {
+    const field = propertyField({ valueType: 'date' });
+
+    it.each([
+      ['ISO 日期串', '2026-01-01'],
+      ['ISO 日期时间串', '2026-01-01T00:00:00.000Z'],
+      ['毫秒时间戳', 1735689600000],
+      ['布尔值', true],
+      ['Invalid Date', new Date('不是日期')]
+    ])('%s 不是合法 date', (_title, value) => {
+      expect(errorOf(field, value).rule).toBe('date');
+    });
+
+    it('Date 实例通过', () => {
+      expect(validateFieldValue(field, new Date('2026-01-01'))).toBeNull();
+    });
+
+    it('与 bigint / binary 同为「wire 层另有表示」的类型，判定同样严格', () => {
+      // date 在 wire 层是 ISO 字符串、bigint 是十进制串、binary 是 hex 串。
+      // 三者的运行时契约都是原生类型，这里锁住 date 不比同类宽松。
+      expect(errorOf(propertyField({ valueType: 'bigint' }), '1').rule).toBe('type');
+      expect(errorOf(propertyField({ valueType: 'binary' }), 'ff').rule).toBe('type');
+      expect(errorOf(field, '2026-01-01').rule).toBe('date');
+    });
+  });
+
   describe('AC#29 — range 的浮点容差、step 与 percentage 值域', () => {
     it('0.3 落在 step 0.1 上（容差内命中）', () => {
       const field = propertyField({ valueType: 'number', format: { kind: 'number', min: 0, step: 0.1 } });

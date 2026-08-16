@@ -8,12 +8,12 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 35   |
+| ✅ Done        | 36   |
 | 🚧 In Progress | 4    |
 | 👀 In Review   | 0    |
 | 📝 Backlog     | 13   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 52   |
+| **合计**       | 53   |
 
 三条口径，读表前必知：
 
@@ -139,6 +139,7 @@
   - ✅ 阶段 A 字段 format 声明与注册期校验
   - ✅ 阶段 B 实体字段描述 DTO
   - ✅ 阶段 C 字段值校验、format/enum/options 透传与三框架契约
+- ✅ [US-019 拒绝重复声明的 URL scheme](stories/core/US-019-url-scheme-duplicate-rejection.md) — US-012 阶段 A 的收尾：`['HTTP','http']` 报 `invalidFormatConfig`，不做归一化
 - ⬜ [US-018 生成器元数据序列化管线与 default 语义](stories/core/US-018-generator-default-serialization.md) — 从 US-012 拆出，与其无依赖，可并行
 
 ### [本地工作树与提交历史](epics/epic-006-working-tree-commits.md)

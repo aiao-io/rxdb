@@ -487,6 +487,40 @@ describe('AC#23～24 — DTO 往返与解析器键策略', () => {
     expect(fieldOf(parsed, 'homepage').format).toStrictEqual({ kind: 'url', schemes: ['https'] });
   });
 
+  it('AC#24 — format 缺必填配置键显式失败（D6.1 的「已知键缺失」半边）', () => {
+    // 与上一条成对：陌生键丢弃、必填键缺失报错。少了这半边，解析器会产出
+    // 静态类型承诺了 contentType / step、运行时却没有的 format，
+    // 且 rating 的全部范围校验会被静默关掉。
+    const cases: readonly (readonly [string, LooseDto])[] = [
+      [
+        'richText 缺 contentType',
+        mutate(SEMANTIC, draft => void delete nested(looseField(draft, 'body'), 'format')['contentType'])
+      ],
+      ['rating 缺 step', mutate(SEMANTIC, draft => void delete nested(looseField(draft, 'score'), 'format')['step'])],
+      [
+        'currency 缺 currency',
+        mutate(SEMANTIC, draft => looseSet(nested(looseField(draft, 'score'), 'format'), 'kind', 'currency'))
+      ],
+      [
+        'percentage 缺 scale',
+        mutate(SEMANTIC, draft => looseSet(nested(looseField(draft, 'score'), 'format'), 'kind', 'percentage'))
+      ],
+      [
+        'duration 缺 unit',
+        mutate(SEMANTIC, draft => looseSet(nested(looseField(draft, 'score'), 'format'), 'kind', 'duration'))
+      ]
+    ];
+
+    cases.forEach(([label, input]) => expect(() => parseEntityFieldsDescriptor(input), label).toThrow(/缺少必填配置/));
+  });
+
+  it('AC#24 — 必填配置齐全的 format 不受影响', () => {
+    const parsed = parseEntityFieldsDescriptor(clone(SEMANTIC));
+
+    expect(fieldOf(parsed, 'body').format).toStrictEqual({ kind: 'richText', contentType: 'text/markdown' });
+    expect(fieldOf(parsed, 'score').format).toStrictEqual({ kind: 'rating', min: 1, max: 5, step: 1 });
+  });
+
   it('AC#24 — Record 的业务键原样保留', () => {
     const parsed = parseEntityFieldsDescriptor(clone(ARTICLE));
     const meta = viewOf(fieldOf(parsed, 'meta'));
