@@ -118,12 +118,12 @@ Registry、thenable Fiber、HMR 或长异步栈追踪。
 - [ ] `IRxDBPlugin` 契约改为 `install(scope)`，四个插件包全部迁移，`destroy()` 转为可选并进入废弃周期；
       **关闭上表第 4 / 7 / 9 条三处既有泄漏**（[US-014](../stories/core/US-014-plugin-scope-contract.md)）
 
-已冻结契约，但尚无可交付切片：
+已冻结契约，分两阶段交付：
 
-- [ ] 插件可声明 `inject` 依赖，依赖未就绪时不安装、依赖消失时自动释放作用域。
-      [US-015](../stories/core/US-015-plugin-inject-dependency.md) 已降为**父契约故事**，
-      只冻结封闭依赖类别与不变量；切片指派给 `US-015a`（适配器依赖纪元）与 `US-015b`（插件依赖图），
-      **两个文件都还没创建**
+- [ ] 插件可声明 `inject` 依赖，依赖未就绪时不安装、依赖消失时自动释放作用域
+      （[US-015](../stories/core/US-015-plugin-inject-dependency.md)）。
+      **阶段 A** 适配器依赖纪元——症状已证（search 插件的 `adapterConnected$` 等待与 phase 机），US-014 后可直接排期；
+      **阶段 B** 插件间依赖图（拓扑序、环检测）——**价值待证**，未证不开工
 
 价值已证，尚未切片：
 
