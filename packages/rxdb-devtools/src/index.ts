@@ -246,10 +246,10 @@ export type {
   DevToolsV2HandshakePayload,
   /** 全部 v2 消息的联合。 */
   DevToolsV2Message,
-  /** v2 消息类型字面量联合。 */
-  DevToolsV2MessageType,
   /** 构造 v2 消息时的信封选项。 */
   DevToolsV2MessageOptions,
+  /** v2 消息类型字面量联合。 */
+  DevToolsV2MessageType,
   /** `type` 到 payload 的映射。 */
   DevToolsV2PayloadMap
 } from './v2/wire.js';
@@ -342,18 +342,10 @@ export type {
 } from './v2/clock.js';
 
 export {
-  /** 用 `getRandomValues` 铸造 UUID v4；非安全上下文同样可用。 */
-  createSessionId,
-  /** 判断是否为规范 UUID v4 文本。 */
-  isCanonicalUuidV4,
-  /** 判断是否为合法 `requestId` / `transferId`。 */
-  isDevToolsIdentifier
-} from './v2/ids.js';
-export {
-  /** 按 RFC 4648 标准字母表与规范填充编码。 */
-  encodeCanonicalBase64,
   /** 解码并做重编码往返比较；非规范输入一律拒绝。 */
-  decodeCanonicalBase64
+  decodeCanonicalBase64,
+  /** 按 RFC 4648 标准字母表与规范填充编码。 */
+  encodeCanonicalBase64
 } from './v2/base64.js';
 export {
   /** 判断是否为合法 `pageSize`。 */
@@ -361,21 +353,15 @@ export {
   /** 判断是否为合法 `supportedVersions`（非空、降序、去重、有界）。 */
   isSupportedVersionList
 } from './v2/guards.js';
-
 export {
-  /** panel 侧协商机：暂存、补发 HELLO、决策窗口、ACK 所有权、降级标记。 */
-  createPanelNegotiation
-} from './v2/negotiation-panel.js';
-export type {
-  /** panel 协商机。 */
-  DevToolsPanelNegotiation,
-  /** panel 协商机会发出的消息联合。 */
-  DevToolsPanelNegotiationMessage,
-  /** panel 协商机的构造端口。 */
-  DevToolsPanelNegotiationPorts,
-  /** panel 协商机状态。 */
-  DevToolsPanelNegotiationState
-} from './v2/negotiation-panel.js';
+  /** 用 `getRandomValues` 铸造 UUID v4；非安全上下文同样可用。 */
+  createSessionId,
+  /** 判断是否为规范 UUID v4 文本。 */
+  isCanonicalUuidV4,
+  /** 判断是否为合法 `requestId` / `transferId`。 */
+  isDevToolsIdentifier
+} from './v2/ids.js';
+
 export {
   /** connector 侧协商机：eager legacy 握手、逐次响应 HELLO、铸造 session。 */
   createConnectorNegotiation
@@ -390,6 +376,20 @@ export type {
   /** connector 协商机状态。 */
   DevToolsConnectorNegotiationState
 } from './v2/negotiation-connector.js';
+export {
+  /** panel 侧协商机：暂存、补发 HELLO、决策窗口、ACK 所有权、降级标记。 */
+  createPanelNegotiation
+} from './v2/negotiation-panel.js';
+export type {
+  /** panel 协商机。 */
+  DevToolsPanelNegotiation,
+  /** panel 协商机会发出的消息联合。 */
+  DevToolsPanelNegotiationMessage,
+  /** panel 协商机的构造端口。 */
+  DevToolsPanelNegotiationPorts,
+  /** panel 协商机状态。 */
+  DevToolsPanelNegotiationState
+} from './v2/negotiation-panel.js';
 
 export {
   /** connector 侧 v2 端点：协商 + session 预算 + 授权 + 传输状态机的组合根。 */
