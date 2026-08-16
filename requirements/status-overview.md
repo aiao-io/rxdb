@@ -10,9 +10,9 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 34   |
+| ✅ Done        | 35   |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 17   |
+| 📝 Backlog     | 16   |
 | 🚧 In Progress | 4    |
 | 🚫 Blocked     | 0    |
 | **合计**       | 55   |
@@ -33,6 +33,7 @@
 > 同日 [US-504](stories/plugin/US-504-electron-local-file-storage.md) 交付转 `Done`（Backlog 24 → 23，Done 33 → 34，合计不变）。四个 plan 阶段决策落定：窄接口 `StorageFilesystem`、临界区下沉 host 侧（跨窗口互斥不再依赖 Chromium Web Locks）、新增 `StorageBackendError { code }`、逻辑名→物理名确定性可逆编码（编码后超单组件 255 字节即以 `name_too_long` 拒绝，是与 OPFS 后端唯一的有意分歧）。同轮复核 [US-505](stories/plugin/US-505-tauri-local-file-storage.md)：US-210 未交付，其 AC#11 的启用分支不可达，本轮只做文档动作，不写不可达代码，状态维持 `Backlog`。
 > 同日把 US-904/US-905 全链**文档整合**为 6 篇（原 11 篇 1651 行）：三份「不直接交付」的父契约（旧 US-904 / US-904b / US-905）合并为唯一的 [US-904 共享契约](stories/future/US-904-devtools-native-storage-contract.md)；旧 b1+b2 合并为 [US-904b](stories/future/US-904b-devtools-v2-protocol.md)（v2 全部数值、状态机与错误联合的**唯一真相源**，消除跨文件「只引用不重定义」的漂移风险）；旧 b3+b4 合并为 [US-904c](stories/future/US-904c-devtools-shared-panel-chrome-migration.md)，旧 US-905a+905b 合并为 [US-905](stories/future/US-905-tauri-native-devtools.md)，两者各自保留第五次评审确立的 INVEST 切分——以**故事内两阶段**表达，并硬性要求阶段 1（行为中性）与阶段 2（行为收敛）是独立 PR/commit 序列，阶段 1 的 diff 不得含 wire 类型/错误码/权限判定变化；旧 US-904c 顺延重编号为 [US-904d](stories/future/US-904d-electron-native-devtools-integration.md)。并行性不变：904c 阶段 1 ∥ 904b，905 阶段 1 ∥ US-210/505。**无规范性内容增删**，仅合并与重编号；上方历史条目保留当轮旧编号，链接已指向现名（b1/b2→904b，b3/b4→904c，旧 904c→904d，905a/b→905）。Backlog 23 → 18，合计 60 → 55。
 > 2026-08-16 [US-505](stories/plugin/US-505-tauri-local-file-storage.md) 开工转 `In Progress`（Backlog 18 → 17，In Progress 3 → 4，合计不变），同时**作废上一条 2026-08-15 的复核结论**。那条判「AC#11 的启用分支不可达」有两处站不住：[setup_rxdb_desktop.ts](../apps/dev-rxdb-tauri/src/app/setup_rxdb_desktop.ts) 早已把 `sync.local.adapter` 配成 `DESKTOP_ADAPTER_NAME`，通过分支一直存在，「死代码」的前提不成立；且它把 US-210 当作全有全无的门禁，实际被门禁的只有 AC#1/#7。plan 阶段冻结**最小 Rust command**（复用既有 `rxdb_desktop_request` 通道，`capabilities/default.json` 零改动，不引入 `fs` / `shell` 权限），判据是 `lockBackend` 而不是任何一条风险权衡：`tauri-plugin-fs` 只提供文件读写原语，**给不出跨窗口的锁仲裁**，选它等于 AC#9 无法成立。渲染端因此接近零新代码（US-504 交付的 `desktop.ts` 本就运行时无关），实做全在 Rust 侧 `src-tauri/src/rxdb/file/`；一条 IPC 通道上的两套协议按 `kind` **精确成员判定**分流，且必须先于 SQL 解析器。11 条 AC 中 5 条 ✅、4 条 ⚠️、2 条 ⬜，未关闭的分别要打包应用真实重启、三家真实 webview、三平台打包矩阵，与 US-210 AC#1/#9 卡在同一缺口；本轮按既定范围**不建** `apps/dev-rxdb-tauri-e2e`（tauri-driver 不支持 macOS，本机无法验证）。门禁：`cargo test` 113 条、`cargo clippy` 零警告、`test-conformance` 9 文件 602 条、`dev-rxdb-tauri` 12 文件 70 条，均绿。
+> 同日 [US-904b](stories/future/US-904b-devtools-v2-protocol.md) 交付转 `Done`（Backlog 17 → 16，Done 34 → 35，合计不变）。交付范围**只有** `packages/rxdb-devtools`：v2 控制面（证据触发协商、ACK 所有权、session 身份、三层授权矩阵、有界 ID 预算）、provider 数据面（descriptor、base64 transfer、snapshot、穷举错误联合），以及一套 fake 四段 relay / fake provider / conformance suite；**不抽 Angular 面板、不碰 Chrome relay、不接任何 native host**，24 条 AC 全部以 fake 验收。plan 阶段冻结三处取舍：① v1 兼容只实现 **facade 的进入状态机**（到期发 legacy ACK、无等待进入、终态 + 降级标记），legacy 命令映射按 US-904:144-146 仍归 US-904c，本轮不预判；② **panel 协商端属于本包的公开导出**而非测试专用——US-904c:65/87/153 三条合起来只允许 904c 写平台相关的 transport driver，故状态机必须平台无关地由本包导出；③ `./testing` 是唯一新增子路径，因为 suite 必须 `import 'vitest'`，而它**不受 `requirements/api-baseline/` 保护**（baseline 只扫 `src/index.ts`），日后收窄其导出须按 [README.md](README.md) 在 PR 描述手动声明 breaking。门禁：`lint typecheck test build` 全绿，30 文件 757 条测试，覆盖率 97.72 / 94.55 / 99.14 / 99.51（stmts/branch/funcs/lines，高于本包 96/91/98/98 baseline），`audit:api-surface` 更新后零 diff——主入口新增 132 个符号而非 plan 预估的 40–45，是**有意放宽**：面板要构造 REQUEST payload、host 作者要实现 provider 接缝、relay 要在不解析 payload 的前提下转发，任一类型不导出下游就只能抄一份不会随本包演进的副本；`v2/session.ts`、`v2/transfer.ts` 的状态机与 tombstone 容器、`internal/guards.ts` 仍不导出。回归：`connector.boundaries.spec.ts` 只此一处 diff（`none` 档「HANDSHAKE_ACK 后仍 flush 事件」按 US-904:169 的安全收敛授权改为零泄漏），其余 6 个 spec 文件与 `rxdb-devtools-extension` 零改动通过。24 条 AC 中 19 条 ✅、5 条 ⚠️：#13（跨真实重连）与 #24（OPFS/SQLite/WAL 零读取）只能由 US-904c 的真实四段 relay 关闭，#19（不整文件驻留内存）与 #21（storage 独占锁内物化）要 US-904d / US-905 的真实 host 才可观测，#23（错误映射穷尽性）本轮只做到「每个 `DEVTOOLS_PROVIDER_ERROR_CODES` 成员至少被一条 fixture 产出」的 meta-test，fixture 表从 `./testing` 导出，逼下游**加行**而不是加 default 分支。
 
 ## 项目统计
 
@@ -104,7 +105,7 @@
 - ✅ [US-902 DevTools 面板](stories/future/US-902-devtools-panel.md)
 - 📄 [US-904 DevTools 原生本地存储调试共享契约](stories/future/US-904-devtools-native-storage-contract.md) — **父故事/共享契约文档，不直接交付**
   - ⬜ [US-904a Electron 43 MV3 DevTools 可行性门禁](stories/future/US-904a-electron-mv3-devtools-feasibility.md) — 无 native host 前置；只门禁 904d，可与 904b/904c 共享链并行
-  - ⬜ [US-904b DevTools v2 协议](stories/future/US-904b-devtools-v2-protocol.md) — 控制面（ACK 所有权、证据触发协商、session、授权、ID 总预算）+ provider 数据面（descriptor、base64 transfer、snapshot、穷举错误）；v2 全部数值与状态机的唯一真相源
+  - ✅ [US-904b DevTools v2 协议](stories/future/US-904b-devtools-v2-protocol.md) — 控制面（ACK 所有权、证据触发协商、session、授权、ID 总预算）+ provider 数据面（descriptor、base64 transfer、snapshot、穷举错误）；v2 全部数值与状态机的唯一真相源
   - ⬜ [US-904c DevTools 共享面板与 Chrome v2 迁移](stories/future/US-904c-devtools-shared-panel-chrome-migration.md) — 阶段 1 行为中性的 private library 抽取（无协议前置，可与 904b 并行）；阶段 2 四段 relay、v2 切换、下载收敛与浏览器回归
   - ⬜ [US-904d Electron 原生存储 DevTools 集成](stories/future/US-904d-electron-native-devtools-integration.md) — 依赖 904a(supported)、904c、US-207、US-504；真实 Electron provider/E2E
   - ⬜ [US-905 Tauri DevTools 调试窗口与原生存储集成](stories/future/US-905-tauri-native-devtools.md) — 阶段 1 受限窗口/transport（依赖 904c，可与 US-210/505 并行）；阶段 2 依赖 US-210/505，不等待 Electron 904d

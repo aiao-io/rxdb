@@ -25,13 +25,13 @@ INVEST 检查清单（本文件是契约文档，不直接交付）:
 > 能力矩阵、安全边界与发布约束。`status` 是子故事的汇总视图：全部 `Done` 才置 `Done`；
 > US-904a 结论为 `unsupported` 时只有 US-904d 与本文件的 Electron 部分转 `Blocked`，共享链与 Tauri 继续推进。
 
-| 子故事                                                         | 交付                                                   | 直接前置                                  | 状态       |
-| -------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------- | ---------- |
-| [US-904a](./US-904a-electron-mv3-devtools-feasibility.md)      | Electron 43 + 当前 MV3 扩展 stop/go 实证               | 无                                        | 📝 Backlog |
+| 子故事                                                         | 交付                                                    | 直接前置                                  | 状态       |
+| -------------------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------- | ---------- |
+| [US-904a](./US-904a-electron-mv3-devtools-feasibility.md)      | Electron 43 + 当前 MV3 扩展 stop/go 实证                | 无                                        | 📝 Backlog |
 | [US-904b](./US-904b-devtools-v2-protocol.md)                   | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面 | 无                                        | ✅ Done    |
-| [US-904c](./US-904c-devtools-shared-panel-chrome-migration.md) | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移  | US-904b（仅阶段 2）                       | 📝 Backlog |
-| [US-904d](./US-904d-electron-native-devtools-integration.md)   | Electron desktop SQLite / native files 接入与真实 E2E  | US-904a(supported) + US-904c + US-207/504 | 📝 Backlog |
-| [US-905](./US-905-tauri-native-devtools.md)                    | Tauri 调试窗口、transport 与原生 SQLite / files 接入   | US-904c（+ 阶段 2 需 US-210/505）         | 📝 Backlog |
+| [US-904c](./US-904c-devtools-shared-panel-chrome-migration.md) | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移   | US-904b（仅阶段 2）                       | 📝 Backlog |
+| [US-904d](./US-904d-electron-native-devtools-integration.md)   | Electron desktop SQLite / native files 接入与真实 E2E   | US-904a(supported) + US-904c + US-207/504 | 📝 Backlog |
+| [US-905](./US-905-tauri-native-devtools.md)                    | Tauri 调试窗口、transport 与原生 SQLite / files 接入    | US-904c（+ 阶段 2 需 US-210/505）         | 📝 Backlog |
 
 > 状态列是各子故事 YAML `status` 的派生视图，真相源仍是子故事自身。US-904b 已交付：本包内的
 > v2 协议、provider 数据面与 conformance suite 全部落地，5 条 AC 因只能由真实链路关闭而保留为
@@ -96,16 +96,16 @@ US-210 → US-505
 
 ## 能力矩阵
 
-| 运行时 / 后端                          | 逻辑数据库 / 事件  | 物理文件页             | 数据库下载 / 清理                            | 承载    |
-| -------------------------------------- | ------------------ | ---------------------- | -------------------------------------------- | ------- |
-| Chrome / Web（OPFS）                   | 保持现状           | 现有 OPFS provider     | 下载 unsupported；清理保持现状               | US-904c |
-| Electron / desktop SQLite（US-207）    | `rxdb`             | 不适用                 | 下载 unsupported；清理按 provider 能力启用   | US-904d |
-| Electron / native files（US-504）      | metadata 经 `rxdb` | `native-files`         | 下载 unsupported；文件操作限插件专用根       | US-904d |
-| Tauri / wa-sqlite `OPFSCoopSyncVFS`    | `rxdb`             | `opfs`                 | 下载 unsupported；清理按 `settings: opfs`    | US-905  |
-| Tauri / wa-sqlite `IDBBatchAtomicVFS`  | `rxdb`             | `unavailable`          | 下载 unsupported；清理按 `settings: idb`     | US-905  |
-| Tauri / wa-sqlite `unavailable`        | `unavailable`      | `unavailable`          | 下载与清理均 unsupported，不创建 fallback    | US-905  |
-| Tauri / US-210 SQLite                  | `rxdb`             | `unavailable`          | 下载 unsupported；清理按 `settings: sqlite`  | US-905  |
-| Tauri / US-505 native files            | metadata 经 `rxdb` | `native-files`         | 下载 unsupported；文件操作限插件专用根       | US-905  |
+| 运行时 / 后端                         | 逻辑数据库 / 事件  | 物理文件页         | 数据库下载 / 清理                           | 承载    |
+| ------------------------------------- | ------------------ | ------------------ | ------------------------------------------- | ------- |
+| Chrome / Web（OPFS）                  | 保持现状           | 现有 OPFS provider | 下载 unsupported；清理保持现状              | US-904c |
+| Electron / desktop SQLite（US-207）   | `rxdb`             | 不适用             | 下载 unsupported；清理按 provider 能力启用  | US-904d |
+| Electron / native files（US-504）     | metadata 经 `rxdb` | `native-files`     | 下载 unsupported；文件操作限插件专用根      | US-904d |
+| Tauri / wa-sqlite `OPFSCoopSyncVFS`   | `rxdb`             | `opfs`             | 下载 unsupported；清理按 `settings: opfs`   | US-905  |
+| Tauri / wa-sqlite `IDBBatchAtomicVFS` | `rxdb`             | `unavailable`      | 下载 unsupported；清理按 `settings: idb`    | US-905  |
+| Tauri / wa-sqlite `unavailable`       | `unavailable`      | `unavailable`      | 下载与清理均 unsupported，不创建 fallback   | US-905  |
+| Tauri / US-210 SQLite                 | `rxdb`             | `unavailable`      | 下载 unsupported；清理按 `settings: sqlite` | US-905  |
+| Tauri / US-505 native files           | metadata 经 `rxdb` | `native-files`     | 下载 unsupported；文件操作限插件专用根      | US-905  |
 
 - 表中 `database` / `files` / `settings` 是**可组合能力，不是互斥运行模式**：US-207 SQLite 与 US-504
   native files 会在同一 session 同时出现，US-210 与 US-505 同理。
@@ -177,28 +177,28 @@ US-210 → US-505
 
 **本文件不直接持有 AC。** 落地与关闭只看子故事：
 
-| 契约范围                                                        | 去向                                                           |
-| --------------------------------------------------------------- | -------------------------------------------------------------- |
-| Electron 43 MV3 API 组合与真实加载                              | [US-904a](./US-904a-electron-mv3-devtools-feasibility.md)      |
-| 版本协商、ACK 所有权、session、授权、ID 预算、descriptor、transfer、snapshot、错误联合与 conformance | [US-904b](./US-904b-devtools-v2-protocol.md) |
-| 私有共享面板 library、transport token、Chrome 四段 relay、v1 bridge 与浏览器回归 | [US-904c](./US-904c-devtools-shared-panel-chrome-migration.md) |
-| Electron SQLite / native files provider、安全边界与真实 E2E     | [US-904d](./US-904d-electron-native-devtools-integration.md)   |
-| Tauri 窗口、transport、release 隔离、native provider 与三平台证据 | [US-905](./US-905-tauri-native-devtools.md)                    |
+| 契约范围                                                                                             | 去向                                                           |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Electron 43 MV3 API 组合与真实加载                                                                   | [US-904a](./US-904a-electron-mv3-devtools-feasibility.md)      |
+| 版本协商、ACK 所有权、session、授权、ID 预算、descriptor、transfer、snapshot、错误联合与 conformance | [US-904b](./US-904b-devtools-v2-protocol.md)                   |
+| 私有共享面板 library、transport token、Chrome 四段 relay、v1 bridge 与浏览器回归                     | [US-904c](./US-904c-devtools-shared-panel-chrome-migration.md) |
+| Electron SQLite / native files provider、安全边界与真实 E2E                                          | [US-904d](./US-904d-electron-native-devtools-integration.md)   |
+| Tauri 窗口、transport、release 隔离、native provider 与三平台证据                                    | [US-905](./US-905-tauri-native-devtools.md)                    |
 
 ## 实现所有权
 
-| 路径                             | 所有者        | 边界                                                            |
-| -------------------------------- | ------------- | --------------------------------------------------------------- |
-| `packages/rxdb-devtools/src/`    | US-904b       | v2 控制面、provider 数据面、授权、传输、快照、错误与 conformance |
-| `packages/rxdb-devtools-panel/`  | US-904c       | `private: true` 的 Angular library、共享面板与 transport token   |
-| `nx.json`                        | US-904c       | 将私有 panel project 排除出 `release.projects`                   |
+| 路径                             | 所有者         | 边界                                                                                   |
+| -------------------------------- | -------------- | -------------------------------------------------------------------------------------- |
+| `packages/rxdb-devtools/src/`    | US-904b        | v2 控制面、provider 数据面、授权、传输、快照、错误与 conformance                       |
+| `packages/rxdb-devtools-panel/`  | US-904c        | `private: true` 的 Angular library、共享面板与 transport token                         |
+| `nx.json`                        | US-904c        | 将私有 panel project 排除出 `release.projects`                                         |
 | `apps/rxdb-devtools-extension/`  | US-904a / 904c | 904a 只做可行性 fixture；904c 拥有 Chrome adapter、四段 relay、v2 迁移与禁用不安全下载 |
-| `apps/dev-rxdb-electron/`        | US-904a / 904d | 904a 做最小加载 fixture；904d 做开发态加载、生产隔离与真实链路   |
-| `apps/dev-rxdb-tauri/`           | US-905        | DevTools bootstrap、Tauri transport adapter、受限窗口与 dev-only capability |
-| `packages/rxdb-adapter-desktop/` | US-904d / 905 | Electron / Tauri SQLite 只读诊断 provider，不增加任意 SQL        |
-| `packages/rxdb-plugin-storage/`  | US-904d / 905 | Electron / Tauri 原生文件调试 provider，复用业务路径与流式语义   |
-| `apps/dev-rxdb-tauri-e2e/`       | 共享          | US-210 / US-905 先开工者用 generator 创建一次；各故事只拥有自己的 specs |
-| `requirements/api-baseline/`     | 改动方        | 只有新增公开 API 时同步                                          |
+| `apps/dev-rxdb-electron/`        | US-904a / 904d | 904a 做最小加载 fixture；904d 做开发态加载、生产隔离与真实链路                         |
+| `apps/dev-rxdb-tauri/`           | US-905         | DevTools bootstrap、Tauri transport adapter、受限窗口与 dev-only capability            |
+| `packages/rxdb-adapter-desktop/` | US-904d / 905  | Electron / Tauri SQLite 只读诊断 provider，不增加任意 SQL                              |
+| `packages/rxdb-plugin-storage/`  | US-904d / 905  | Electron / Tauri 原生文件调试 provider，复用业务路径与流式语义                         |
+| `apps/dev-rxdb-tauri-e2e/`       | 共享           | US-210 / US-905 先开工者用 generator 创建一次；各故事只拥有自己的 specs                |
+| `requirements/api-baseline/`     | 改动方         | 只有新增公开 API 时同步                                                                |
 
 ## 依赖与排期
 
