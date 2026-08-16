@@ -22,6 +22,10 @@
  * - `statement_failed`：SQL 本身执行失败（语法、约束等），`cause` 保留原始错误
  * - `host_internal_error`：host 自身出错，属于缺陷而非调用方问题
  * - `database_busy`：另一个连接（通常是另一个窗口）正持有冲突的锁，重试即可，数据无损
+ * - `file_not_found`：目标文件或目录不存在；renderer 侧据此还原成 `NotFoundError`
+ * - `invalid_file_path`：路径逃出存储根，或指向的类型与操作不符
+ * - `disk_full`：磁盘空间或配额耗尽（ENOSPC / EDQUOT）
+ * - `write_aborted`：写入令牌已失效（会话关闭、已提交或已丢弃），目标保持写入前的内容
  */
 export type RxDBAdapterDesktopErrorCode =
   | 'unsupported_runtime_engine'
@@ -34,7 +38,11 @@ export type RxDBAdapterDesktopErrorCode =
   | 'database_corrupted'
   | 'statement_failed'
   | 'host_internal_error'
-  | 'database_busy';
+  | 'database_busy'
+  | 'file_not_found'
+  | 'invalid_file_path'
+  | 'disk_full'
+  | 'write_aborted';
 
 const ERROR_CODES: readonly RxDBAdapterDesktopErrorCode[] = [
   'unsupported_runtime_engine',
@@ -47,7 +55,11 @@ const ERROR_CODES: readonly RxDBAdapterDesktopErrorCode[] = [
   'database_corrupted',
   'statement_failed',
   'host_internal_error',
-  'database_busy'
+  'database_busy',
+  'file_not_found',
+  'invalid_file_path',
+  'disk_full',
+  'write_aborted'
 ];
 
 /**

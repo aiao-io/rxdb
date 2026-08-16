@@ -164,7 +164,12 @@ impl Host {
     ///
     /// 先从表里摘掉再关：关闭本身可能报错（例如 checkpoint 失败），但连接已经不可用了，
     /// 留在表里只会让后续请求打到一个死会话上。
-    fn close(&self, session_id: &str) -> HostResult<Value> {
+    ///
+    /// `pub(crate)`：除了 renderer 发来的 `close`，[`DesktopRouter::close_owner`] 也要按 id
+    /// 关会话——窗口销毁后不会再有任何一条 renderer 请求来关它。
+    ///
+    /// [`DesktopRouter::close_owner`]: crate::rxdb::router::DesktopRouter::close_owner
+    pub(crate) fn close(&self, session_id: &str) -> HostResult<Value> {
         let engine = self.take_session(session_id)?;
         engine.lock().expect("engine mutex poisoned").close()?;
         Ok(json!({ "kind": "close" }))

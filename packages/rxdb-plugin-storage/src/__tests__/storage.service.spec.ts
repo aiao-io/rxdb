@@ -1,7 +1,12 @@
-import type { RxDB } from '@aiao/rxdb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { StorageFetchError, StorageMimeTypeMissingError, StorageOfflineError } from '../errors.js';
-import { StorageFileMeta } from '../file-meta.entity.js';
+import {
+  StorageDestroyedError,
+  StorageFetchError,
+  StorageMimeTypeMissingError,
+  StorageOfflineError
+} from '../errors.js';
+import { createOpfsStorageFilesystem } from '../filesystem/opfs-filesystem.js';
+import type { StorageFilesystemFactory } from '../filesystem/storage-filesystem.js';
 import { ObjectUrlRegistry } from '../object-url.js';
 import {
   getDirectoryPathFromOpfsPath,
@@ -10,264 +15,16 @@ import {
   joinDirectoryAndFileName,
   normalizeDirectoryPath,
   normalizeRelativeOpfsPath,
-  RxdbFileStorage,
-  RxDBStoragePluginOptions,
   toAbsoluteStoragePath
 } from '../storage.service.js';
+import {
+  createService,
+  FakeStorageFileMeta,
+  MemoryDirectoryHandle,
+  MemoryFileHandle
+} from './fixtures/memory-storage.js';
+import { isTemporaryStorageName } from './storage-backend-parity.suite.js';
 
-interface MemoryWritableOptions {
-  writeError?: Error;
-  closeError?: Error;
-}
-
-class MemoryWritable {
-  readonly #chunks: Blob[] = [];
-  #mimeType = '';
-
-  constructor(
-    private readonly onWrite: (blob: Blob) => void,
-    private readonly options: MemoryWritableOptions = {}
-  ) {}
-
-  async write(value: Blob | ArrayBuffer | ArrayBufferView | string): Promise<void> {
-    if (this.options.writeError) {
-      throw this.options.writeError;
-    }
-
-    if (value instanceof Blob) {
-      // 标准语义：写回一个已失效的 getFile() 快照会抛 NotReadableError
-      const source = fileSnapshotSource.get(value);
-      if (source && source.handle.currentBlob !== source.blobAtSnapshot) {
-        throw new DOMException('The requested file could not be read', 'NotReadableError');
-      }
-      this.#mimeType ||= value.type;
-      this.#chunks.push(value);
-    } else if (value instanceof ArrayBuffer) {
-      this.#chunks.push(new Blob([value]));
-    } else if (ArrayBuffer.isView(value)) {
-      const bytes = new Uint8Array(value.byteLength);
-      bytes.set(new Uint8Array(value.buffer, value.byteOffset, value.byteLength));
-      this.#chunks.push(new Blob([bytes.buffer]));
-    } else {
-      this.#chunks.push(new Blob([value]));
-    }
-
-    this.onWrite(new Blob(this.#chunks, { type: this.#mimeType }));
-  }
-
-  close(): Promise<void> {
-    return this.options.closeError ? Promise.reject(this.options.closeError) : Promise.resolve();
-  }
-}
-
-/**
- * 记录每个 `getFile()` 快照对应的来源句柄与当时的 blob。
- *
- * 用于在替身里复现 File System 标准的 **snapshot state** 语义：
- * `getFile()` 返回的 File 绑定调用那一刻的磁盘状态，文件此后被修改，该 File 即不可读。
- * 旧替身每次都从当前 blob 新建 File、永不失效 —— 这正是「补偿回滚用失效快照」
- * 这个缺陷长期没被测试抓到的原因。
- */
-const fileSnapshotSource = new WeakMap<Blob, { handle: MemoryFileHandle; blobAtSnapshot: Blob }>();
-
-class MemoryFileHandle {
-  #blob = new Blob([]);
-
-  readonly kind = 'file' as const;
-
-  /** 供快照失效判定读取当前磁盘内容 */
-  get currentBlob(): Blob {
-    return this.#blob;
-  }
-
-  constructor(
-    private readonly fileName: string,
-    private readonly writableOptions: MemoryWritableOptions = {}
-  ) {}
-
-  async createWritable(): Promise<MemoryWritable> {
-    return new MemoryWritable(blob => {
-      this.#blob = blob;
-    }, this.writableOptions);
-  }
-
-  async getFile(): Promise<File> {
-    const blobAtSnapshot = this.#blob;
-    const file = new File([blobAtSnapshot], this.fileName, {
-      type: blobAtSnapshot.type || 'application/octet-stream'
-    });
-    fileSnapshotSource.set(file, { handle: this, blobAtSnapshot });
-    return file;
-  }
-}
-
-class MemoryDirectoryHandle {
-  readonly kind = 'directory' as const;
-  readonly directories = new Map<string, MemoryDirectoryHandle>();
-  readonly files = new Map<string, MemoryFileHandle>();
-  fileHandleFactory: (name: string) => MemoryFileHandle = name => new MemoryFileHandle(name);
-
-  /**
-   * 按**实时游标**推进，而不是先物化成数组。
-   *
-   * 真实的目录迭代器是按索引推进的活游标：迭代过程中删掉当前项，后续项会前移，
-   * 下一次推进就跳过一项。旧替身用 `Array.from(...)` 提前物化，永远不会重现这种漏删 ——
-   * 于是「边异步迭代边 removeEntry」的缺陷在测试里看不出来。
-   */
-  async *entries(): AsyncIterableIterator<[string, MemoryDirectoryHandle | MemoryFileHandle]> {
-    const liveKeys = () => [
-      ...Array.from(this.directories.keys()).sort((a, b) => a.localeCompare(b)),
-      ...Array.from(this.files.keys()).sort((a, b) => a.localeCompare(b))
-    ];
-
-    for (let index = 0; index < liveKeys().length; index++) {
-      const name = liveKeys()[index];
-      const handle = this.directories.get(name) ?? this.files.get(name);
-      if (!handle) continue;
-      yield [name, handle];
-    }
-  }
-
-  async getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<MemoryDirectoryHandle> {
-    if (!this.directories.has(name)) {
-      if (!options?.create) {
-        throw new DOMException('Directory not found', 'NotFoundError');
-      }
-
-      this.directories.set(name, new MemoryDirectoryHandle());
-    }
-
-    return this.directories.get(name)!;
-  }
-
-  async getFileHandle(name: string, options?: { create?: boolean }): Promise<MemoryFileHandle> {
-    if (!this.files.has(name)) {
-      if (!options?.create) {
-        throw new DOMException('File not found', 'NotFoundError');
-      }
-
-      this.files.set(name, this.fileHandleFactory(name));
-    }
-
-    return this.files.get(name)!;
-  }
-
-  async removeEntry(name: string, options?: { recursive?: boolean }): Promise<void> {
-    if (this.files.delete(name)) {
-      return;
-    }
-
-    if (!this.directories.has(name)) {
-      throw new DOMException('Entry not found', 'NotFoundError');
-    }
-
-    if (!options?.recursive) {
-      throw new DOMException('Recursive flag required', 'InvalidModificationError');
-    }
-
-    this.directories.delete(name);
-  }
-}
-
-type FakeStorageMetaRule = {
-  field: 'id' | 'opfsPath';
-  value: string;
-};
-
-class FakeStorageFileMeta {
-  static store = new Map<string, FakeStorageFileMeta>();
-
-  id: string;
-  name!: string;
-  mimeType!: string;
-  size!: number;
-  opfsPath!: string;
-  contentVersion!: number;
-
-  constructor(initData: Partial<FakeStorageFileMeta>) {
-    this.id = initData.id || `meta-${FakeStorageFileMeta.store.size + 1}`;
-    Object.assign(this, initData);
-  }
-
-  static reset(): void {
-    FakeStorageFileMeta.store.clear();
-  }
-}
-
-type FakeStorageMetaEntityType = {
-  new (initData: Partial<FakeStorageFileMeta>): FakeStorageFileMeta;
-  store: Map<string, FakeStorageFileMeta>;
-  reset(): void;
-};
-
-class FakeRepository {
-  constructor(private readonly EntityType: FakeStorageMetaEntityType) {}
-
-  async find(options: { where?: { rules?: FakeStorageMetaRule[] }; limit?: number; offset?: number } = {}) {
-    const rules = options.where?.rules ?? [];
-    const matched = Array.from(this.EntityType.store.values()).filter(entity =>
-      rules.every(rule => entity[rule.field] === rule.value)
-    );
-
-    const offset = options.offset ?? 0;
-    if (typeof options.limit === 'number') {
-      return matched.slice(offset, offset + options.limit);
-    }
-
-    return matched.slice(offset);
-  }
-
-  async create(entity: FakeStorageFileMeta): Promise<FakeStorageFileMeta> {
-    this.EntityType.store.set(entity.id, entity);
-    return entity;
-  }
-
-  async update(entity: FakeStorageFileMeta, patch: Partial<FakeStorageFileMeta>): Promise<FakeStorageFileMeta> {
-    Object.assign(entity, patch);
-    this.EntityType.store.set(entity.id, entity);
-    return entity;
-  }
-
-  async remove(entity: FakeStorageFileMeta): Promise<FakeStorageFileMeta> {
-    this.EntityType.store.delete(entity.id);
-    return entity;
-  }
-}
-
-const createService = (
-  options: RxDBStoragePluginOptions = {},
-  objectUrls = new ObjectUrlRegistry(() => 'blob:x', vi.fn()),
-  entityType: FakeStorageMetaEntityType = FakeStorageFileMeta
-) => {
-  const repository = new FakeRepository(entityType);
-  const adapter = {
-    getRepository: vi.fn().mockReturnValue(repository)
-  };
-  const rxdb = {
-    config: {
-      sync: {
-        local: {
-          adapter: 'sqlite'
-        }
-      }
-    },
-    connect: vi.fn().mockResolvedValue(adapter)
-  };
-
-  const service = new RxdbFileStorage(
-    rxdb as unknown as RxDB,
-    { rootDir: 'files', ...options },
-    entityType as unknown as typeof StorageFileMeta,
-    objectUrls
-  );
-
-  return {
-    adapter,
-    repository,
-    rxdb,
-    service
-  };
-};
 
 describe('RxdbFileStorage', () => {
   let rootHandle: MemoryDirectoryHandle;
@@ -810,6 +567,132 @@ describe('RxdbFileStorage', () => {
     }
   });
 
+  // STOR-002 续：锁按**锁外读到的** opfsPath 挂，锁内虽然重读了 meta 却不比对路径。
+  // 于是「读到 docs/a.txt → 排队期间它被改名成 docs/b.txt」这条交错里，delete 攥着
+  // a.txt 的锁去删 b.txt —— b.txt 上的并发 upload 毫无阻挡地提交，随后被这次删除抹掉。
+  it('relocks on the current path when the file is renamed while delete is queued', async () => {
+    const { repository, service } = createService();
+    const uploaded = await service.upload(new File(['first'], 'a.txt', { type: 'text/plain' }), { path: '/docs' });
+    await service.rename(uploaded.id, 'b.txt');
+
+    // delete 锁外的那次读返回改名前的旧路径 —— 等价于「读完之后紧接着落地了一次 rename」。
+    const find = repository.find.bind(repository);
+    let staleServed = false;
+    vi.spyOn(repository, 'find').mockImplementation(async options => {
+      const matched = await find(options);
+      if (staleServed || matched[0]?.id !== uploaded.id) return matched;
+      staleServed = true;
+      return [new FakeStorageFileMeta({ ...matched[0], opfsPath: 'docs/a.txt' })];
+    });
+
+    // 卡在「meta 已删、文件还没删」之间：并发 upload 若能挤进来，它写下的文件正好被
+    // 随后的 removeFile 抹掉。
+    const remove = repository.remove.bind(repository);
+    let parkedOnce = false;
+    let releaseDelete!: () => void;
+    const deleteParked = new Promise<void>(resolveParked => {
+      vi.spyOn(repository, 'remove').mockImplementation(async entity => {
+        const removed = await remove(entity);
+        if (parkedOnce) return removed;
+        parkedOnce = true;
+        resolveParked();
+        await new Promise<void>(resolveRelease => {
+          releaseDelete = resolveRelease;
+        });
+        return removed;
+      });
+    });
+
+    const deletePromise = service.delete(uploaded.id);
+    await deleteParked;
+
+    const uploadPromise = service.upload(new File(['second'], 'b.txt', { type: 'text/plain' }), {
+      path: '/docs',
+      overwrite: true
+    });
+    // 没重新加锁时 upload 在这个宏任务里整个跑完；锁挂对了它会一直排在 delete 后面，
+    // 所以不能直接 await 它（会死锁）。
+    await new Promise(resolve => setTimeout(resolve, 0));
+    releaseDelete();
+
+    await Promise.allSettled([deletePromise, uploadPromise]);
+
+    const metas = await service.list();
+    expect(metas).toHaveLength(1);
+    await expect(service.read(metas[0].id)).resolves.toBeInstanceOf(Blob);
+  });
+
+  // read / list / watch 都不计入在途写，`destroy()` 只等写操作 —— 一次读取完全可能在
+  // metadata 查询的 await 间隙里被整程销毁跨过去。此时惰性 getter 若照常新建后端，
+  // 已销毁的实例会**重新**长出一个没人负责关闭的句柄，而调用方还以为读成功了。
+  it('rejects reads that outlive destroy instead of rebuilding the backend', async () => {
+    const { repository, service } = createService();
+    const uploaded = await service.upload(new File(['bytes'], 'a.txt', { type: 'text/plain' }), { path: '/docs' });
+
+    const find = repository.find.bind(repository);
+    let parkedOnce = false;
+    let releaseRead!: () => void;
+    const readParked = new Promise<void>(resolveParked => {
+      vi.spyOn(repository, 'find').mockImplementation(async options => {
+        const matched = await find(options);
+        if (parkedOnce) return matched;
+        parkedOnce = true;
+        resolveParked();
+        await new Promise<void>(resolveRelease => {
+          releaseRead = resolveRelease;
+        });
+        return matched;
+      });
+    });
+
+    const readPromise = service.read(uploaded.id);
+    await readParked;
+    await service.destroy();
+    releaseRead();
+
+    await expect(readPromise).rejects.toThrow(StorageDestroyedError);
+  });
+
+  // createDirectory 早先完全绕开锁协议，直接 `ensureDirectory`。与 renameDirectory
+  // （独占锁）并发时它会把目录建进一棵正在被搬走的树里：调用方拿到 '/docs/sub'，
+  // 而这条路径在返回的那一刻已经不存在了。
+  it('serializes createDirectory against a concurrent directory rename', async () => {
+    const { repository, service } = createService();
+    await service.createDirectory('docs');
+
+    const find = repository.find.bind(repository);
+    let parkedOnce = false;
+    let releaseRename!: () => void;
+    const renameParked = new Promise<void>(resolveParked => {
+      vi.spyOn(repository, 'find').mockImplementation(async options => {
+        const matched = await find(options);
+        if (parkedOnce) return matched;
+        parkedOnce = true;
+        resolveParked();
+        await new Promise<void>(resolveRelease => {
+          releaseRename = resolveRelease;
+        });
+        return matched;
+      });
+    });
+
+    const renamePromise = service.renameDirectory('/docs', 'guides');
+    await renameParked;
+
+    const createPromise = service.createDirectory('sub', { path: '/docs' });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    releaseRename();
+
+    const [created] = await Promise.all([createPromise, renamePromise]);
+
+    // 断言落在「返回的路径必须真的存在」上：这是唯一能把两种交错分开的观测点 ——
+    // 单看「/guides 建出来了」两种顺序都成立。
+    const storageRoot = rootHandle.directories.get('files');
+    expect(created).toBe('/docs/sub');
+    expect(storageRoot?.directories.get('docs')?.directories.has('sub')).toBe(true);
+    expect(storageRoot?.directories.get('guides')?.directories.has('sub')).toBe(false);
+  });
+
   it('should rename a directory with nested files and empty directories', async () => {
     const { service } = createService();
 
@@ -1094,6 +977,36 @@ describe('RxdbFileStorage', () => {
 
     expect(clickSpy).toHaveBeenCalled();
     expect(revokeImpl).toHaveBeenCalledWith('blob:download-url');
+
+    appendChildSpy.mockRestore();
+    removeChildSpy.mockRestore();
+  });
+
+  it('download() 在 click 之后让出一个宏任务再回收 URL', async () => {
+    // click() 只是把下载排进队列。同步 revoke 会让部分浏览器在真正读 blob 之前就丢掉 URL，
+    // 表现为下载出一个空文件——这种失败不会抛错，只会静默产出坏文件。
+    const revokeImpl = vi.fn();
+    const { service } = createService({}, new ObjectUrlRegistry(() => 'blob:download-url', revokeImpl));
+    const meta = await service.upload(new File(['data'], 'file.txt', { type: 'text/plain' }));
+
+    let revokedBeforeBrowserRead = true;
+    const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(node => {
+      (node as HTMLAnchorElement).click = () => {
+        // 用一个宏任务代表浏览器真正去读 blob 的那一刻。
+        setTimeout(() => {
+          revokedBeforeBrowserRead = revokeImpl.mock.calls.length > 0;
+        }, 0);
+      };
+      (node as HTMLAnchorElement).click();
+      return node;
+    });
+    const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(node => node);
+
+    await service.download(meta.id);
+
+    expect(revokedBeforeBrowserRead).toBe(false);
+    expect(revokeImpl).toHaveBeenCalledWith('blob:download-url');
+    expect(service.activeObjectUrlCount).toBe(0);
 
     appendChildSpy.mockRestore();
     removeChildSpy.mockRestore();
@@ -1700,5 +1613,58 @@ describe('storage path helpers', () => {
     expect(isOpfsPathInDirectory('avatars/nested/photo.png', '/avatars')).toBe(false);
     expect(isOpfsPathInsideDirectory('avatars/nested/photo.png', '/avatars')).toBe(true);
     expect(isOpfsPathInsideDirectory('avatars/nested/photo.png', '/')).toBe(true);
+  });
+
+  describe('回滚快照与临时命名', () => {
+    /** 记录后端收到的调用路径；用来观察服务层做了几次快照。 */
+    const recordingFilesystem = (record: { reads: string[]; writes: string[] }): StorageFilesystemFactory => {
+      return (rootDir, context) => {
+        const inner = createOpfsStorageFilesystem(rootDir, context);
+        const openRead = inner.openRead.bind(inner);
+        const openWrite = inner.openWrite.bind(inner);
+        vi.spyOn(inner, 'openRead').mockImplementation(path => {
+          record.reads.push(path);
+          return openRead(path);
+        });
+        vi.spyOn(inner, 'openWrite').mockImplementation(path => {
+          record.writes.push(path);
+          return openWrite(path);
+        });
+        return inner;
+      };
+    };
+
+    it('copyDirectory 对每个目标只取一次回滚快照', async () => {
+      // 每次快照都要把已有内容整份转存到临时文件；取两次等于把同一份数据抄两遍，
+      // 在桌面后端上还是两轮跨进程往返。
+      const record = { reads: [] as string[], writes: [] as string[] };
+      const { service } = createService({ filesystem: recordingFilesystem(record) });
+      await service.upload(new File(['a'], 'a.txt', { type: 'text/plain' }), { path: '/docs' });
+      await service.upload(new File(['b'], 'b.txt', { type: 'text/plain' }), { path: '/docs' });
+      record.reads.length = 0;
+
+      await service.renameDirectory('/docs', 'papers');
+
+      expect(record.reads.filter(path => path.startsWith('papers/'))).toEqual(['papers/a.txt', 'papers/b.txt']);
+    });
+
+    it('临时文件名带随机段，同一毫秒内的两个上下文不会撞名', async () => {
+      // 两个标签页各有一份从 0 开始的序号；只靠 `Date.now()-序号`，同毫秒启动的两页会
+      // 生成同名临时文件，互相覆盖对方的回滚快照。
+      vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+      const record = { reads: [] as string[], writes: [] as string[] };
+      const filesystem = recordingFilesystem(record);
+      const first = createService({ filesystem }).service;
+      const second = createService({ filesystem }).service;
+
+      await first.upload(new File(['v1'], 'doc.txt', { type: 'text/plain' }));
+      record.writes.length = 0;
+      await first.upload(new File(['v2'], 'doc.txt', { type: 'text/plain' }), { overwrite: true });
+      await second.upload(new File(['v3'], 'doc.txt', { type: 'text/plain' }), { overwrite: true });
+
+      const temporaries = record.writes.filter(isTemporaryStorageName);
+      expect(temporaries.length).toBeGreaterThanOrEqual(2);
+      expect(new Set(temporaries).size).toBe(temporaries.length);
+    });
   });
 });

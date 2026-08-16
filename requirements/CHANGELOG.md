@@ -6,6 +6,33 @@
 
 ## Story 状态变更
 
+### 2026-08-16 — US-904b DevTools v2 协议冻结（Backlog → Done）
+
+- [US-904b](stories/future/US-904b-devtools-v2-protocol.md) 交付，成为 v2 **全部数值、状态机与错误联合的唯一真相源**；
+  US-904c / US-904d / US-905 只引用，不重定义。范围只有 `packages/rxdb-devtools`：
+  控制面（证据触发协商、1,000 ms 决策窗口、ACK 所有权、session 身份、三层授权矩阵、有界 ID 预算与 tombstone 轮换）、
+  provider 数据面（三领域 descriptor、RFC 4648 base64 transfer、有界 immutable snapshot、穷举错误联合），
+  外加 fake 四段 relay / fake provider / conformance suite。**不抽面板、不碰 Chrome relay、不接 native host。**
+- 新增 `./testing` 子路径（suite 必须 `import 'vitest'`，运行时主入口不能背上测试框架）。
+  四处协同登记已同步：`package.json` exports + 可选 peer `vitest`、`vite.config.mts` 多入口、
+  `tsconfig.base.json` 路径、`api-surface.mjs` 的 `KNOWN_UNCOVERED_SUBPATHS`（9 包 14 入口 → 10 包 15 入口）。
+  该入口**不受 API 基线保护**（基线只扫 `src/index.ts`），日后收窄其导出须在 PR 描述手动声明 breaking。
+- API 基线主入口新增 132 个符号（plan 预估 40–45），零删除。放宽是有意的：
+  面板要构造 REQUEST payload、host 作者要实现 provider 接缝、relay 要在不解析 payload 的前提下转发，
+  任一类型不导出，下游只能抄一份不随本包演进的副本。`v2/session.ts` / `v2/transfer.ts` 的状态机与
+  tombstone 容器、`internal/guards.ts` 仍不导出——那是端点实现细节，导出即允许下游复刻并行语义。
+- 唯一的行为回归是授权的：`connector.boundaries.spec.ts` 里「`none` 档 HANDSHAKE_ACK 后仍 flush 事件」
+  改为零泄漏（不订阅、不写 buffer、不发业务数据），依据 US-904:169 的安全收敛豁免。
+  其余 6 个 spec 文件与 `rxdb-devtools-extension` 零改动通过。
+- 门禁：30 文件 757 条测试全绿，覆盖率 97.72 / 94.55 / 99.14 / 99.51（高于本包 96/91/98/98 baseline），
+  `audit:api-surface` 更新后零 diff，`lint typecheck test build` 全绿。
+- 24 条 AC 中 19 条 ✅、5 条 ⚠️（AC#13 / #19 / #21 / #23 / #24）。保留项不是「还没写测试」而是本包结构上不可测：
+  真实重连语义与 OPFS/SQLite/WAL 零读取由 US-904c 关闭，内存驻留与 storage 独占锁由 US-904d / US-905 关闭，
+  错误映射穷尽性本轮只到 meta-test（`DEVTOOLS_PROVIDER_ERROR_CODES` 每个成员至少一条 fixture），
+  fixture 表从 `./testing` 导出，逼下游**加行**而非加 default 分支。详见该故事的「保留项」小节。
+- 派生视图同步：`status-overview.md`（Backlog 17 → 16，Done 34 → 35，合计 55 不变；epic-003 索引条目转 ✅）、
+  `US-904` 共享契约的子故事表新增状态列。
+
 ### 2026-08-15 — 新增 US-601 与 epic-007（缺口登记，非新增范围）
 
 - 上一条 US-209 收尾留下的「扫描子路径**导出表面**」缺口由新故事

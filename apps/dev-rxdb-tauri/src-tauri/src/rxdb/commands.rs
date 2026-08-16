@@ -1,4 +1,4 @@
-//! 把 [`Host`] 接到 Tauri 的 IPC 上，对应 Electron 侧的
+//! 把 [`DesktopRouter`] 接到 Tauri 的 IPC 上，对应 Electron 侧的
 //! `apps/dev-rxdb-electron/src-electron/desktop-sqlite-bridge.ts`。
 //!
 //! 这是 `rxdb` 模块里唯一依赖 `tauri` 的文件——一致性测试用的 stdio 二进制复用其余全部模块，
@@ -9,7 +9,8 @@ use std::sync::Arc;
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use super::session::{Host, HostOptions};
+use super::router::DesktopRouter;
+use super::session::HostOptions;
 
 /// 变更事件的事件名。
 ///
@@ -21,17 +22,20 @@ pub const CHANGE_EVENT: &str = "rxdb-desktop-change";
 /// 托管在 Tauri state 里的 host。
 ///
 /// 整个应用一个实例：会话表要跨窗口、跨命令调用存活，而 `State` 是唯一能横跨
-/// 所有 `invoke` 的持有点。
-pub struct DesktopHost(Arc<Host>);
+/// 所有 `invoke` 的持有点。SQL 与文件两套协议共用这一个 state——renderer 侧
+/// `DesktopHostTransport` 只有一个 `request()`，分流因此只能发生在 host 侧。
+pub struct DesktopHost(Arc<DesktopRouter>);
 
 impl DesktopHost {
     /// 在应用数据目录上建 host，变更事件走 `app.emit`。
     ///
-    /// 物理根目录取自 `app.path().app_data_dir()`——应用作用域，无需任何 `fs` 插件权限（AC#1）。
+    /// 物理根目录取自 `app.path().app_data_dir()`——应用作用域，无需任何 `fs` 插件权限
+    /// （US-210 AC#1 / US-505 AC#1）。SQLite 库落在 `rxdb-data/`，文件存储落在
+    /// `rxdb-files/`，两者同在这个目录之下，因而同属一个备份域（US-505 AC#4）。
     pub fn new(app: &AppHandle) -> tauri::Result<Self> {
         let app_data_dir = app.path().app_data_dir()?;
         let emitter = app.clone();
-        Ok(Self(Arc::new(Host::new(HostOptions {
+        Ok(Self(Arc::new(DesktopRouter::new(HostOptions {
             app_data_dir,
             deliver: Arc::new(move |message| {
                 // 事件发不出去意味着响应式查询永远不刷新，在 UI 上表现为「数据没变」
@@ -44,12 +48,24 @@ impl DesktopHost {
         }))))
     }
 
-    /// 关闭全部会话，退出路径上调用。
+    /// 关闭两套宿主的全部会话，退出路径上调用。
     ///
     /// 不做这一步，SQLite 的文件句柄与 `-wal` / `-shm` 会活到进程被杀为止；
-    /// AC#8 要的「关掉应用后能重命名库文件」正是靠这里的 checkpoint 与 close。
+    /// US-210 AC#8 要的「关掉应用后能重命名库文件」正是靠这里的 checkpoint 与 close。
+    /// 文件侧则是把未提交的写入连同临时文件一起丢弃：留下 `.rxdb-tmp` 不会破坏目标文件
+    /// （原子替换只发生在 commit），但会在用户的备份域里堆垃圾。
     pub fn close_all(&self) {
         self.0.close_all();
+    }
+
+    /// 回收一个窗口的全部会话，窗口销毁时调用。
+    ///
+    /// 只在 `RunEvent::Exit` 上 `close_all` 是不够的：窗口崩溃或被单独关掉之后，
+    /// 它持有的文件锁、未提交的写入和 SQLite 连接会一直活到整个应用退出。锁尤其致命——
+    /// `file.lockAcquire` 是条件变量上的无限等待，另一个窗口从此再也拿不到那把锁，
+    /// 而它看到的现象与死锁不可区分。
+    pub fn close_window(&self, label: &str) {
+        self.0.close_owner(label);
     }
 }
 
@@ -70,15 +86,25 @@ impl DesktopHost {
 ///
 /// 业务错误是**普通返回值**（`{ kind: "error", code, message }`），不是 `Err`：
 /// Tauri 把 `Err` 压平成字符串，AC#5 承诺的可判别 `code` 会在路上丢掉。
-/// 这里的 `Err` 只对应一种情况——`Host::handle` panic 了。那是缺陷而非业务失败，
+/// 这里的 `Err` 只对应一种情况——`DesktopRouter::handle` panic 了。那是缺陷而非业务失败，
 /// 让 `invoke` 直接 reject 才是诚实的信号。
+///
+/// # 关于 `window`
+///
+/// 会话按**发起窗口**记账，窗口销毁时据此回收（[`DesktopHost::close_window`]）。
+/// 这个归属只能在请求经过时记下来：窗口没了以后，除了一个 label 什么都不剩。
+///
+/// 注入的是 `Window` 而不是 `Webview`：回收挂在 `WindowEvent::Destroyed` 上，那个事件
+/// 按**窗口** label 分发。两处用的 label 必须同源，否则回收永远匹配不上任何一条记录。
 #[tauri::command]
 pub async fn rxdb_desktop_request(
     payload: Value,
+    window: tauri::Window,
     host: State<'_, DesktopHost>,
 ) -> Result<Value, String> {
     let host = Arc::clone(&host.0);
-    tauri::async_runtime::spawn_blocking(move || host.handle(&payload))
+    let owner = window.label().to_string();
+    tauri::async_runtime::spawn_blocking(move || host.handle_owned(&payload, &owner))
         .await
         .map_err(|error| format!("rxdb desktop host panicked: {error}"))
 }
@@ -90,11 +116,11 @@ mod tests {
 
     fn test_host() -> (DesktopHost, std::path::PathBuf) {
         let root = std::env::temp_dir().join(format!("rxdb-commands-{}", uuid::Uuid::new_v4()));
-        let host = Host::new(HostOptions {
+        let router = DesktopRouter::new(HostOptions {
             app_data_dir: root.clone(),
             deliver: Arc::new(|_| {}),
         });
-        (DesktopHost(Arc::new(host)), root)
+        (DesktopHost(Arc::new(router)), root)
     }
 
     /// 事件名是跨语言契约的一半，另一半在 `tauri-host-transport.ts` 里。
@@ -126,9 +152,42 @@ mod tests {
             "kind": "open",
             "storage": { "engine": "sqlite", "databaseName": "app.sqlite3" }
         }));
-        assert_eq!(host.0.open_session_count(), 1);
+        assert_eq!(host.0.sqlite().open_session_count(), 1);
         host.close_all();
-        assert_eq!(host.0.open_session_count(), 0);
+        assert_eq!(host.0.sqlite().open_session_count(), 0);
         std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// 接线的全部意义在这一条：state 里托管的必须是**路由器**，不是 SQL 宿主。
+    /// 托错了不会编译失败，只会让一条 `file.open` 落进 SQL 解析器。
+    #[test]
+    fn state_routes_file_requests_to_the_file_host() {
+        let (host, root) = test_host();
+        let response = host.0.handle(&json!({ "kind": "file.open" }));
+        assert_eq!(response["kind"], "file.open");
+        assert_eq!(host.0.files().open_session_count(), 1);
+        assert_eq!(host.0.sqlite().open_session_count(), 0);
+        host.close_all();
+        assert_eq!(host.0.files().open_session_count(), 0);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// 窗口销毁钩子只回收**那一个** label 名下的会话。
+    ///
+    /// 无法在单测里造出真的 `Window`，所以钉的是这一层的两件事：label 被原样传给
+    /// [`DesktopRouter::close_owner`]，且回收不波及其他窗口。
+    #[test]
+    fn close_window_reclaims_only_that_windows_sessions() {
+        let (host, root) = test_host();
+        host.0.handle_owned(&json!({ "kind": "file.open" }), "main");
+        host.0.handle_owned(&json!({ "kind": "file.open" }), "second");
+        assert_eq!(host.0.files().open_session_count(), 2);
+
+        host.close_window("main");
+        assert_eq!(host.0.files().open_session_count(), 1);
+        assert_eq!(host.0.owned_session_count("second"), 1);
+
+        host.close_all();
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

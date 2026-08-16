@@ -65,7 +65,8 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 - 用集成测试锁定 `<name>.sqlite3` 的真实解析结果，对外只承诺「应用作用域内的逻辑数据库名」
 - 复用 US-207 的桌面存储配置与 renderer client 契约，实现 Tauri 传输层
 - `dev-rxdb-tauri` 的最小接入示例与真实临时文件的重启恢复验证
-- 新建 `apps/dev-rxdb-tauri-e2e` 与三平台打包 smoke test
+- 创建或复用 `apps/dev-rxdb-tauri-e2e`，并增加本故事拥有的 SQLite / 事务 / 三平台打包 smoke specs；
+  与 US-905 阶段 1 并行时由先开工者用 generator 创建一次，不复制第二个 E2E project
 
 ### Out of Scope
 
@@ -103,7 +104,8 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 > 本故事只验「第二个 writer 在**连接时**被 lease 挡住」，不关闭 US-304 AC6（挂起 → 迁移 → 恢复写入），
 > 与 [US-207](./US-207-desktop-local-database.md) 的边界一致。
 >
-> AC#9 需要 `apps/dev-rxdb-tauri-e2e`（当前不存在，见「实现文件」）与三平台打包 CI 矩阵。
+> AC#9 需要 `apps/dev-rxdb-tauri-e2e` 与三平台打包 CI 矩阵。该 project 由 US-210 / US-905 阶段 1
+> 中先开工者创建一次，但 AC#9 的 SQLite、事务与打包 specs 仍由本故事负责。
 > 打包 smoke test 成本高，应只在 release 分支或 tag 触发，不进 PR 门禁。
 > 本次未做，与 US-207 的同类 AC 保持同一状态；附带原因：macOS 没有官方 WKWebView WebDriver，
 > `tauri-driver` 只支持 Windows / Linux，三平台矩阵需要单独评估驱动方案。
@@ -195,7 +197,11 @@ WebSQL 目录撞车导致的**静默丢数据**（每次启动拿到一个全新
 **不触发**，而行触发器会触发，共享套件恰好断言了这个行为。
 
 原「事务 ID 的悬挂回收要额外设计」这条风险仍然成立，实现里由 `session.rs` 的 session 表 +
-`RunEvent::Exit` 上的 `close_all()` 承担（见 AC#8）。
+两级回收承担：`RunEvent::Exit` 上的 `close_all()`（见 AC#8），以及 `WindowEvent::Destroyed`
+上按 window label 的 `close_owner()`。只有前者是不够的——窗口崩溃或被单独关掉后，它的连接与
+（US-505 的）文件锁会一直活到整个应用退出，而 `file.lockAcquire` 是无超时的等待，
+另一个窗口从此再也拿不到那把锁。归属表在 `router.rs`，不在两套宿主里：宿主是传输无关的，
+一致性测试的 stdio 二进制原样复用它们，那里没有「窗口」可言。
 
 ### 与 Node 宿主的三处有意差异
 
@@ -261,7 +267,9 @@ Tauri 的 WebView 不是 Chromium（macOS 上是 WKWebView），但目录名沿�
 - `apps/dev-rxdb-tauri/conformance/` — 共享套件的 Rust 宿主入口与 `writer-lease.spec.ts`
 - `apps/dev-rxdb-tauri/src/app/setup_rxdb.ts` — 运行时选路：Tauri 窗口用 desktop 适配器，
   浏览器预览用 wa-sqlite。适配器名与工厂**成对返回**，避免两处判定漂移
-- `apps/dev-rxdb-tauri-e2e/` — **当前不存在**，AC#9 需要新建；三平台打包矩阵的 CI 成本应在 plan 阶段单独评估
+- `apps/dev-rxdb-tauri-e2e/` — **当前不存在**，AC#9 需要新建；与 US-905 阶段 1 共享 project，先开工者用
+  generator 创建一次，本故事只拥有 AC#9 的 SQLite、事务与三平台打包 specs；三平台打包矩阵的 CI 成本
+  应在 plan 阶段单独评估
 - `requirements/api-baseline/rxdb-adapter-desktop.json` — 已同步（新增 6 项导出，35 → 41）
 
 ## References

@@ -187,7 +187,7 @@
         "parallel": false
       },
       "metadata": {
-        "description": "US-210 AC#2/#3/#5/#7：Rust 引擎跑 21 个共享套件 + 5 个加密套件"
+        "description": "US-210 AC#2/#3/#5/#7 + US-505 AC#2：Rust 引擎跑 21 个共享套件 + 5 个加密套件，Rust 文件宿主跑 storage 后端一致性套件"
       }
     },
     "cargo-test": {

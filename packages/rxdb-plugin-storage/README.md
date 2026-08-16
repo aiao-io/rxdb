@@ -1,8 +1,11 @@
 # @aiao/rxdb-plugin-storage
 
-> Implements: [US-502 Storage 插件](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/plugin/US-502-storage-plugin.md)
+> Implements: [US-502 Storage 插件](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/plugin/US-502-storage-plugin.md)、[US-504 Electron 本地文件存储](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/plugin/US-504-electron-local-file-storage.md)
 
-基于 RxDB 与 Origin Private File System（OPFS）的浏览器文件存储插件：文件体写入 OPFS，文件元数据写入 RxDB。
+RxDB 文件存储插件：文件元数据写入 RxDB，文件内容写入可替换的文件系统后端。
+
+- **浏览器**（默认）—— 内容落在 Origin Private File System（OPFS）。
+- **Electron 桌面**（`@aiao/rxdb-plugin-storage/desktop`）—— 内容落在应用数据目录下的原生文件，与桌面 SQLite 库（US-207）同属一个备份域。
 
 ## 能力范围
 
@@ -47,6 +50,8 @@ interface StorageFileMeta {
 interface RxDBStoragePluginOptions {
   rootDir?: string;
   previewLimitBytes?: number;
+  /** 文件系统后端工厂；省略即 OPFS。 */
+  filesystem?: StorageFilesystemFactory;
 }
 
 interface UploadOptions {
@@ -118,9 +123,26 @@ StoragePreviewLimitError;
 StorageOfflineError;
 StorageFetchError;
 StorageMimeTypeMissingError;
+
+// 后端（文件系统 / 宿主）来源的失败，带稳定错误码
+class StorageBackendError extends Error {
+  readonly code: StorageBackendErrorCode;
+  readonly detail?: unknown;
+}
+
+type StorageBackendErrorCode =
+  | 'backend_unavailable'
+  | 'invalid_physical_name'
+  | 'path_escape'
+  | 'name_too_long'
+  | 'permission_denied'
+  | 'disk_full'
+  | 'write_aborted'
+  | 'adapter_mismatch'
+  | 'backend_internal_error';
 ```
 
-调用方应按错误类型处理，不要匹配英文错误消息。
+调用方应按错误类型处理，不要匹配英文错误消息。跨 IPC 的失败按 `code` 判别 —— 结构化克隆不保留原型，`instanceof` 在 renderer 侧不成立；原始原因经 `detail` 透出。
 
 当主操作失败且补偿回滚也失败时，服务会抛 `AggregateError`，其中第一个错误仍是原始失败原因。
 
@@ -158,24 +180,48 @@ const blob = await rxdb.storage.fetch('images/avatar.png', {
 });
 ```
 
+## 桌面后端（Electron）
+
+```ts
+import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
+import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
+
+rxdb.use(rxDBPluginStorage, {
+  rootDir: 'files',
+  filesystem: createDesktopStorageFilesystem()
+});
+```
+
+- 文件内容落在主进程解析的应用数据目录下（示例应用为 `userData/rxdb-files`），**不经过 OPFS**；拷贝该目录即完整带走文件与数据库。
+- 走 US-207 已有的那条 host 通道，**不新增 preload 方法**。读写按 4 MiB 分帧，内容不整块进 JS 堆。
+- 写入是原子的：临时文件 → `fsync` → `rename`。会话关闭或窗口销毁会中止未提交的写入并删掉临时文件。
+- 路径锁由 host 仲裁，跨窗口串行化不依赖 WebView 的 Web Locks。
+- 启用前校验 `sync.local.adapter` 必须是桌面 SQLite 适配器；不匹配即抛 `StorageBackendError('adapter_mismatch')`，**不降级、不静默接受**——否则 metadata 与文件又回到两个备份域。
+
+### 与 OPFS 后端的唯一行为分歧
+
+逻辑名到物理文件名走确定性可逆编码（`%XX` 转义 Windows 非法字符、结尾空格与点、保留设备名）。**编码后单个路径分段超过 255 UTF-8 字节即抛 `StorageBackendError('name_too_long')`**，同名操作在 OPFS 后端仍会成功。
+
+不做哈希截断是有意的：`listEntries()` 与目录拷贝要从磁盘上的物理名回推逻辑名，截断不可逆，一旦引入就再也读不回原名。宁可在写入时当场失败，也不要写进去以后读不出来。
+
 ## 运行要求
 
 - `rxdb.config.sync.local.adapter` 必须存在，元数据必须落到本地适配器。
-- 运行环境必须支持 `navigator.storage.getDirectory()`。
+- 浏览器后端要求运行环境支持 `navigator.storage.getDirectory()`；桌面后端要求 preload 注入的 host 桥接可用。
 - `showSaveFilePicker` 可用时 `download()` 使用文件选择器；否则回退到临时 `<a download>`。
-- `watch()` 监听本插件触发的元数据变化，不监视其他代码直接修改 OPFS 的行为。
+- `watch()` 监听本插件触发的元数据变化，不监视其他代码绕过插件直接改动文件的行为。
 - `destroy()` 会回收本实例创建的全部对象 URL。
 
 ## 一致性策略
 
-OPFS 与 RxDB 不共享事务。插件采用补偿日志维持用户可见一致性：
+文件系统后端与 RxDB 不共享事务。插件采用补偿日志维持用户可见一致性：
 
 - 写入失败：恢复旧文件，或删除本次新建的孤儿文件。
 - 元数据创建/更新失败：恢复对应文件体。
 - 删除文件失败：重建已删除的元数据。
 - 文件或目录重命名失败：按逆序恢复元数据、目标文件和本次新建目录。
 
-这不是跨进程的分布式事务；同一路径仍应由一个应用实例串行修改。
+这不是跨进程的分布式事务。同一路径的并发修改由路径锁串行化：浏览器后端用 Web Locks（同 origin 内跨标签页有效），桌面后端用 host 仲裁的锁（跨窗口有效）。跨**应用实例**（各自独立进程、各自的 host）仍无保护。
 
 ## 开发命令
 

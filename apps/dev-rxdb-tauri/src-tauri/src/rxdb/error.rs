@@ -31,6 +31,18 @@ pub enum ErrorCode {
     HostInternalError,
     /// 另一个连接正持有冲突的锁，重试即可，数据无损。
     DatabaseBusy,
+    /// 目标文件或目录不存在（US-505）。
+    ///
+    /// renderer 侧 `desktop.ts` 把它单独翻成 `name === 'NotFoundError'` 的 `DOMException`，
+    /// 而不是 `StorageBackendError`：服务层「不存在即视为空快照」的补偿分支认那个名字，
+    /// 换成别的错误会让回滚把本不该删的文件删掉。
+    FileNotFound,
+    /// 路径非法或试图逃出存储根（US-505）。
+    InvalidFilePath,
+    /// 磁盘写满或超出配额（US-505）。
+    DiskFull,
+    /// 写入令牌已失效：会话关闭或已被放弃（US-505）。
+    WriteAborted,
 }
 
 /// host 侧的错误：一个稳定码加一段面向开发者的描述。
@@ -91,6 +103,10 @@ mod tests {
             (ErrorCode::StatementFailed, "statement_failed"),
             (ErrorCode::HostInternalError, "host_internal_error"),
             (ErrorCode::DatabaseBusy, "database_busy"),
+            (ErrorCode::FileNotFound, "file_not_found"),
+            (ErrorCode::InvalidFilePath, "invalid_file_path"),
+            (ErrorCode::DiskFull, "disk_full"),
+            (ErrorCode::WriteAborted, "write_aborted"),
         ];
         for (code, literal) in expected {
             assert_eq!(serde_json::to_value(code).unwrap(), literal);

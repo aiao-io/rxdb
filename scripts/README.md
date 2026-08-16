@@ -177,7 +177,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ### `git-stats-rs/`
 
-- **触发**：`cargo run --release --manifest-path scripts/git-stats-rs/Cargo.toml`。
+- **触发**：`cargo run --release --manifest-path scripts/git-stats-rs/Cargo.toml`。需要最新稳定版 Rust（`rustup update stable`，`rustc` ≥ 1.88）。
 - **做什么**：JS 版的 Rust 改写（`rayon` 并发 + `colored` 终端着色），保留**完全一致**的统计口径。详见 [`scripts/git-stats-rs/README.md`](./git-stats-rs/README.md)。支持 `GIT_STATS_CONCURRENCY` 环境变量控制 worker 数。
 - **何时手动跑**：JS 版跑大仓库太慢，或想对比两侧结果保证语义没漂移。
 

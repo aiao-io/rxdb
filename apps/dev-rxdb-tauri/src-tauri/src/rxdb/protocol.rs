@@ -67,7 +67,10 @@ fn as_object(value: &Value) -> HostResult<&Map<String, Value>> {
 }
 
 /// UUID v4 的字面形状，等价于 TS 侧的 `SESSION_ID_PATTERN`。
-fn is_session_id(candidate: &str) -> bool {
+///
+/// 文件协议（US-505）复用它校验 `sessionId` / `writeId` / `lockId`——TS 侧同样是一个
+/// `readUuid` 服务于两套协议，各写一份只会让两边的接受集在下一次修订时分叉。
+pub fn is_session_id(candidate: &str) -> bool {
     let groups = [8usize, 4, 4, 4, 12];
     let mut parts = candidate.split('-');
     let matched = groups

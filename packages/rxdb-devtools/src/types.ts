@@ -1,3 +1,11 @@
+import {
+  hasExactKeys,
+  isNonEmptyString,
+  isNonNegativeSafeInteger,
+  isPositiveSafeInteger,
+  isRecord
+} from './internal/guards.js';
+
 /** RxDB DevTools 消息来源标识符。 */
 export const RXDB_DEVTOOLS_MESSAGE = '@aiao/rxdb-devtools' as const;
 
@@ -318,33 +326,6 @@ export type DevToolsCommandMessage =
   | DeleteBranchMessage;
 
 const REQUIRED_ENVELOPE_KEYS = ['source', 'direction', 'type', 'payload', 'timestamp', 'sequence'] as const;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function hasExactKeys(
-  value: Record<string, unknown>,
-  requiredKeys: readonly string[],
-  optionalKeys: readonly string[] = []
-): boolean {
-  const allowedKeys = [...requiredKeys, ...optionalKeys];
-  return (
-    requiredKeys.every(key => Object.hasOwn(value, key)) && Object.keys(value).every(key => allowedKeys.includes(key))
-  );
-}
-
-function isNonNegativeSafeInteger(value: unknown): value is number {
-  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
-}
-
-function isPositiveSafeInteger(value: unknown): value is number {
-  return isNonNegativeSafeInteger(value) && value > 0;
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
-}
 
 function isDisconnectRequestPayload(value: unknown): value is { requestId: string } {
   return isRecord(value) && hasExactKeys(value, ['requestId']) && isNonEmptyString(value['requestId']);

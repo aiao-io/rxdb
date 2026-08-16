@@ -16,6 +16,7 @@ import {
   assertDesktopHostResponse,
   parseDesktopHostChangeEvent,
   parseDesktopHostOpenResult,
+  type DesktopHostFileRequest,
   type DesktopHostRequest
 } from './desktop-host-protocol.js';
 import {
@@ -36,10 +37,14 @@ export interface DesktopHostTransport {
   /**
    * 发一条请求并等待应答。
    *
+   * @remarks
+   * SQLite 与文件两族请求共用同一条通道：preload 暴露的方法名已被 e2e 的 `bridgeKeys`
+   * 断言冻结，另开一条等于新增方法。分派由 host 侧的路由按 `kind` 完成。
+   *
    * @param payload - 协议请求
    * @returns host 的未校验应答负载
    */
-  request(payload: DesktopHostRequest): Promise<unknown>;
+  request(payload: DesktopHostRequest | DesktopHostFileRequest): Promise<unknown>;
   /**
    * 订阅 host 主动推送的消息。
    *

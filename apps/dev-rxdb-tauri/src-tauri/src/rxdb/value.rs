@@ -168,6 +168,21 @@ pub fn encode_bytes(bytes: &[u8]) -> Value {
     tagged(BYTES_TAG, Value::String(encode_base64(bytes)))
 }
 
+/// 把 `$u8` 标签还原成字节，[`encode_bytes`] 的逆。
+///
+/// 与 [`decode_binding`] 分开：那边接受 `null` / 数字 / 字符串 / `number[]` 等一整套 SQLite
+/// 绑定形状，而文件写入的 `chunk` 只有 `$u8` 一种合法写法。复用 `decode_binding` 会让一个
+/// 写错成字符串的 chunk 变成「一段文本」被静默写进文件，而不是当场报协议违规。
+pub fn decode_bytes(value: &Value) -> HostResult<Vec<u8>> {
+    let text = value
+        .as_object()
+        .filter(|object| object.len() == 1)
+        .and_then(|object| object.get(BYTES_TAG))
+        .and_then(Value::as_str)
+        .ok_or_else(|| violation(format!("expected a {BYTES_TAG} tagged base64 payload")))?;
+    decode_base64(text)
+}
+
 /// 编码一个时间戳（epoch 毫秒）。
 pub fn encode_date_ms(milliseconds: i64) -> Value {
     tagged(DATE_TAG, Value::from(milliseconds))
@@ -267,7 +282,25 @@ mod tests {
     fn round_trips_every_byte_value_through_base64() {
         let bytes: Vec<u8> = (0..=255).collect();
         let encoded = encode_bytes(&bytes);
-        assert_eq!(decode_binding(&encoded).unwrap(), rusqlite::types::Value::Blob(bytes));
+        assert_eq!(decode_binding(&encoded).unwrap(), rusqlite::types::Value::Blob(bytes.clone()));
+        assert_eq!(decode_bytes(&encoded).unwrap(), bytes);
+    }
+
+    /// 文件写入的 `chunk` 只有 `$u8` 一种合法写法。放行字符串或数组会让一个写错的 chunk
+    /// 被静默当成内容写进用户的文件——而这类损坏在读回之前完全看不见。
+    #[test]
+    fn decode_bytes_only_accepts_the_tagged_shape() {
+        for value in [
+            json!("Zm9v"),
+            json!([102, 111, 111]),
+            json!(null),
+            json!({ "$bigint": "1" }),
+            json!({ "$u8": "Zm9v", "extra": 1 }),
+            json!({ "$u8": 7 }),
+        ] {
+            let error = decode_bytes(&value).unwrap_err();
+            assert_eq!(error.code, ErrorCode::ProtocolViolation, "for {value}");
+        }
     }
 
     /// `$u8` 载荷是用户的 blob。宽松解码会把截断当成一条更短的 blob 安静地收下，

@@ -1,11 +1,14 @@
-//! 一致性测试专用的宿主二进制：在 stdin/stdout 上跑 [`rxdb::session::Host`]，不启动 `tauri::App`。
+//! 一致性测试专用的宿主二进制：在 stdin/stdout 上跑 [`DesktopRouter`]，不启动 `tauri::App`。
 //!
 //! # 为什么需要它
 //!
-//! US-210 真正要证明的是「Rust 引擎与 Electron / wasm 后端行为一致」，而这份证明只能由
-//! `@aiao/rxdb-adapter-sqlite-core/testing` 的共享套件给出——它们是 TypeScript 的。
-//! 让 Vitest 直接驱动一个 Rust 进程，比在 Rust 里重写 26 个套件便宜得多，也不会因为
-//! 重写而悄悄放松断言。
+//! US-210 真正要证明的是「Rust 引擎与 Electron / wasm 后端行为一致」，US-505 要证明的是
+//! 「Rust 文件宿主与 OPFS / Electron 后端行为一致」，而这两份证明都只能由 TypeScript 的
+//! 共享套件给出（`@aiao/rxdb-adapter-sqlite-core/testing` 与
+//! `@aiao/rxdb-plugin-storage/testing`）。让 Vitest 直接驱动一个 Rust 进程，比在 Rust 里
+//! 重写这些套件便宜得多，也不会因为重写而悄悄放松断言。
+//!
+//! 托的是 [`DesktopRouter`] 而不是单个 `Host`：套件驱动不到的宿主等于没被证明过。
 //!
 //! **它不进产品包**：`tauri build` 只打包 `dev-rxdb-tauri` 主二进制。这里也刻意不引入
 //! `tauri` 的任何东西——它跑在测试进程里，没有 `AppHandle` 可用。
@@ -34,7 +37,8 @@ use std::io::{BufRead, Write};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
-use dev_rxdb_tauri_lib::rxdb::session::{Host, HostOptions};
+use dev_rxdb_tauri_lib::rxdb::router::DesktopRouter;
+use dev_rxdb_tauri_lib::rxdb::session::HostOptions;
 use serde_json::{json, Value};
 
 /// stdout 的独占写入口。
@@ -61,7 +65,7 @@ fn main() {
 
     let out: Out = Arc::new(Mutex::new(std::io::stdout()));
     let events = Arc::clone(&out);
-    let host = Arc::new(Host::new(HostOptions {
+    let host = Arc::new(DesktopRouter::new(HostOptions {
         app_data_dir: std::path::PathBuf::from(root),
         deliver: Arc::new(move |message| write_line(&events, &json!({ "event": message }))),
     }));
@@ -78,7 +82,7 @@ fn main() {
         workers.push(std::thread::spawn(move || write_line(&out, &handle_line(&host, &line))));
     }
     for worker in workers {
-        // 忽略 panic：`Host::handle` 契约上不 panic，真 panic 了标准库已经把它打到 stderr，
+        // 忽略 panic：`DesktopRouter::handle` 契约上不 panic，真 panic 了标准库已经把它打到 stderr，
         // 而测试侧断言的正是 stderr 为空。
         let _ = worker.join();
     }
@@ -89,7 +93,7 @@ fn main() {
 ///
 /// 解析失败也要**回一条应答**：调用方那边挂着一个 promise，静默丢弃只会让测试挂到超时，
 /// 而超时的报错信息完全指不出问题在哪。
-fn handle_line(host: &Host, line: &str) -> Value {
+fn handle_line(host: &DesktopRouter, line: &str) -> Value {
     let Ok(request) = serde_json::from_str::<Value>(line) else {
         return json!({
             "id": Value::Null,

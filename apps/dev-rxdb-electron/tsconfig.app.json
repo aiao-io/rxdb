@@ -31,6 +31,9 @@
       "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-plugin-storage/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/utils/tsconfig.lib.json"
     },
     {

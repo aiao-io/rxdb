@@ -10,11 +10,13 @@
  * 一旦破掉就是安全问题或「适配器永远找不到 host」，值得用源码断言先拦一道。
  */
 
+import { DESKTOP_HOST_TRANSPORT_KEY } from '@aiao/rxdb-adapter-desktop';
 import { RxDBAdapterDesktopError, type DesktopHostResponse } from '@aiao/rxdb-adapter-desktop/host';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DESKTOP_STORAGE_DIRECTORY } from './desktop-file-bridge';
 import {
   createDatabasePathResolver,
   createDesktopSqliteBridge,
@@ -64,23 +66,35 @@ describe('createDatabasePathResolver', () => {
   //
   // 这条断言没法从行为上验（要真跑一个 Electron 才看得到），因此退而守住名字本身：
   // 名单里的任何一个都不许用。改名字改到名单里去，这里当场红。
-  it('库目录名不与 Chromium 在 userData 下自用的目录重名', () => {
-    // 取自 Chromium profile 布局中会被其存储层主动清理或接管的目录名，小写比较。
-    const chromiumOwned = [
-      'databases',
-      'blob_storage',
-      'cache',
-      'code cache',
-      'gpucache',
-      'indexeddb',
-      'local storage',
-      'network',
-      'service worker',
-      'session storage',
-      'shared proto db',
-      'webstorage'
-    ];
-    expect(chromiumOwned).not.toContain(DESKTOP_DATABASE_DIRECTORY.toLowerCase());
+  //
+  // US-504 起文件根也落在同一个 userData 下，同一条失败对它一字不差地成立，
+  // 因此名单在这里一处维护、两个目录名一起过。
+  it.each([DESKTOP_DATABASE_DIRECTORY, DESKTOP_STORAGE_DIRECTORY])(
+    '%s 不与 Chromium 在 userData 下自用的目录重名',
+    directory => {
+      // 取自 Chromium profile 布局中会被其存储层主动清理或接管的目录名，小写比较。
+      const chromiumOwned = [
+        'databases',
+        'blob_storage',
+        'cache',
+        'code cache',
+        'file system',
+        'gpucache',
+        'indexeddb',
+        'local storage',
+        'network',
+        'service worker',
+        'session storage',
+        'shared proto db',
+        'webstorage'
+      ];
+      expect(chromiumOwned).not.toContain(directory.toLowerCase());
+    }
+  );
+
+  // 合并成一个目录就没法分别回答「库多大」「文件多大」，库整体重建也会连着删掉用户文件。
+  it('库目录与文件目录分开', () => {
+    expect(DESKTOP_DATABASE_DIRECTORY).not.toBe(DESKTOP_STORAGE_DIRECTORY);
   });
 });
 
@@ -230,8 +244,11 @@ describe('桌面 host 的 IPC 接线', () => {
   );
 
   // 全局键是适配器与 preload 之间唯一的约定，两边各写一份字符串，改一处不会让另一处变红。
-  it('全局键与适配器包的 DESKTOP_HOST_TRANSPORT_KEY 一致', async () => {
-    const { DESKTOP_HOST_TRANSPORT_KEY } = await import('@aiao/rxdb-adapter-desktop');
+  // 静态 import 而不是 `await import()`：Nx 只要在某个文件里看见一次动态 import，
+  // 就把整个库判为 lazy-loaded，于是**所有**静态引用它的文件一起报
+  // 「Static imports of lazy-loaded libraries are forbidden」——警告落在被牵连的文件上，
+  // 根因却在这一行。
+  it('全局键与适配器包的 DESKTOP_HOST_TRANSPORT_KEY 一致', () => {
     expect(DESKTOP_HOST_BRIDGE_KEY).toBe(DESKTOP_HOST_TRANSPORT_KEY);
   });
 });
@@ -244,9 +261,12 @@ describe('桌面 host 的 IPC 接线', () => {
  * 在打包后的应用里必然找不到模块。typecheck、单测、`--serve` 全绿，只有真实产物会炸。
  *
  * 所以由 esbuild 单独打一份自足的 CJS 出来。输出名带 `.bundle` 是**故意**的：
- * tsc 照样会往 `desktop-sqlite-bridge.js` 写它那份未打包的产物，同名就成了两个进程抢一个
+ * tsc 照样会往 `desktop-host-bridge.js` 写它那份未打包的产物，同名就成了两个进程抢一个
  * 文件（watch 模式下 esbuild 先完成、tsc 后覆盖，dev 模式必然拿到坏的那份）。
  * 换个名字，两边各写各的，`main.ts` 只认 `.bundle.js`。
+ *
+ * US-504 起入口是**合流后的** `desktop-host-bridge.ts`：SQLite 与文件两族 host 都要跟进
+ * 产物，各打一份会把协议模块复制两遍，`main.ts` 也要维护两条 import 路径。
  */
 describe('ELEC-23 桌面 host 依赖必须打进主进程产物', () => {
   const project = JSON.parse(read('project.json'));
@@ -257,11 +277,11 @@ describe('ELEC-23 桌面 host 依赖必须打进主进程产物', () => {
       typeof entry === 'string' ? entry : entry.command
     );
 
-  // 静态 import 会让 main.js emit 出 `require("./desktop-sqlite-bridge")` —— 那是 tsc 的未打包产物。
+  // 静态 import 会让 main.js emit 出 `require("./desktop-host-bridge")` —— 那是 tsc 的未打包产物。
   it('main 从打包产物而不是 tsc 的逐文件产物加载桥接', () => {
     const source = read('src-electron/main.ts');
-    expect(source).toContain("from './desktop-sqlite-bridge.bundle.js'");
-    expect(source).not.toMatch(/from '\.\/desktop-sqlite-bridge'/);
+    expect(source).toContain("from './desktop-host-bridge.bundle.js'");
+    expect(source).not.toMatch(/from '\.\/desktop-(host|sqlite|file)-bridge'/);
   });
 
   it.each(bundleTargets)('%s 在 tsc 之后跑打包脚本', target => {
@@ -287,10 +307,19 @@ describe('ELEC-23 桌面 host 依赖必须打进主进程产物', () => {
       external: ['electron']
     });
     expect(bundleOptions.entryPoints).toHaveLength(1);
-    expect(bundleOptions.entryPoints[0]).toMatch(/src-electron\/desktop-sqlite-bridge\.ts$/);
+    expect(bundleOptions.entryPoints[0]).toMatch(/src-electron\/desktop-host-bridge\.ts$/);
     expect(bundleOptions.outfile).toMatch(
-      /dist\/apps\/dev-rxdb-electron\/src-electron\/desktop-sqlite-bridge\.bundle\.js$/
+      /dist\/apps\/dev-rxdb-electron\/src-electron\/desktop-host-bridge\.bundle\.js$/
     );
+  });
+
+  // main.ts 只 import 打包产物，而 esbuild 只留**本入口**的导出面 ——
+  // 两个路径解析器不从合流入口转发出去，main.ts 就只能去取 tsc 的逐文件产物，
+  // 又绕回 ELEC-23 要解决的那个失败。
+  it('合流入口转发两族的路径解析器', async () => {
+    const bridge = await import('./desktop-host-bridge');
+    expect(typeof bridge.createDatabasePathResolver).toBe('function');
+    expect(typeof bridge.createStorageRootResolver).toBe('function');
   });
 
   // 三处逐字副本正是 ELEC-23 想消灭的东西：打包路径漏改一处，
