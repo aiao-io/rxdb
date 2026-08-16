@@ -53,6 +53,11 @@ local-only 新类型实体可以与其他 Supabase 实体共存。任何含 bigi
 以下门禁只覆盖 bigint/binary 发布轨道。六个相关 story 分别跟踪、按依赖顺序实施并单独验收；US-012 不新增物理 PropertyType，不扩大 bigint/binary 的发布门禁。发布检查必须同时满足：
 
 1. US-011 / US-206 / US-303 / US-304 / US-804 / US-903 全部 Done
+
+   > ⏸️ **US-304 已于 2026-08-16 暂缓至 1.0.0**，本门禁因此暂时无法全部满足。
+   > 迁移路径尚未投入使用（`RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 均未抬升），
+   > 门禁条款本身不放宽——排 1.0.0 时先关闭 US-304 再重跑本表。
+   > 详见 [US-304 暂缓说明](../stories/collaboration/US-304-writer-lease-migration-fencing.md)。
 2. SQLite 四个具体 adapter 与 PGlite 的共享 gate 全绿
 3. 旧 SQLite/PGlite 数据库升级、lease drain、stale writer fencing、失败回滚和重试 fixture 全绿
 4. public type compatibility、client generator 编译 fixture 与 API surface baseline 全绿
