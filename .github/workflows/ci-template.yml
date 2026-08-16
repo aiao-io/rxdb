@@ -336,7 +336,7 @@ jobs:
           {
             echo "### CI plan (\`${{ inputs.run_mode }}\`)"
             echo
-            echo "| job | 项目数 | 项目 |"
+            echo "| job | num | projects |"
             echo "| --- | --- | --- |"
             echo "| lint + typecheck | $(jq -r 'length' <<<"$LINT_JSON") | \`$CHECK\` |"
             echo "| build | $(jq -r 'length' <<<"$BUILD_JSON") | \`$BUILD\` |"
@@ -353,7 +353,7 @@ jobs:
             # 少了它就没法从一个红 job 找到它的覆盖率产物。
             echo "test lane 划分："
             echo
-            echo "| job | lane | 项目 |"
+            echo "| job | lane | projects |"
             echo "| --- | --- | --- |"
             jq -r '.include[] | "| test (" + .label + ") | `" + .lane + "` | `" + .projects + "` |"' <<<"$TEST_MATRIX"
           } >> "$GITHUB_STEP_SUMMARY"
