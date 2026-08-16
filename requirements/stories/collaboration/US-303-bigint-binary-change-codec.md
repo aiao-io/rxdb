@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-005-type-system-evolution
 created: 2026-07-31
-updated: 2026-08-01
+updated: 2026-08-16
 tags: [collaboration, change-tracking, migration, history, cross-tab]
 ---
 
@@ -20,6 +20,22 @@ INVEST 检查清单:
 -->
 
 # 用户故事：bigint/binary change codec 与系统迁移
+
+## ⏸️ 迁移部分已实现，但未投入使用（2026-08-16）
+
+本 story 保持 `Done`——20 条 AC 中属于自己的全部通过，AC13 早已转给
+[US-304](./US-304-writer-lease-migration-fencing.md)，不因本次暂缓回退。
+
+需要如实记录的是：**「系统迁移」那一组（AC10–AC14）的代码路径至今没有被任何真实发布行使过。**
+0.0.x 线的 `RXDB_SYSTEM_SCHEMA_VERSION`(3) 与 `RXDB_CHANGE_CODEC_VERSION`(1) 从未抬升，
+所以 `migrateSystemSchema()` 在生产中始终走「版本已是最新，无事可做」的分支；
+它的正确性目前**只由旧库 fixture 与注入失败的测试担保**，不含真实用户数据的证据。
+
+因此迁移相关工作整体暂缓至 1.0.0 前完善，与 US-304 同步。**codec 部分不受影响**——
+AC1–AC9、AC15–AC20 覆盖的 bigint/binary 编解码、identity key 和 history/branch/跨 Tab
+都在日常路径上真实运行，照常维护。
+
+> 首次真实迁移发布时，AC10–AC14 应视作「待真实验证」而非「已验证」重新过一遍。
 
 ## 作为/我想要/以便
 

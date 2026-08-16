@@ -18,9 +18,8 @@ INVEST 检查清单:
 - [x] Small (小): 适配器实现已合并（92 个单测通过），本故事只承接收尾项
 - [x] Testable (可测试): 每条 AC 都对应一条可执行的门禁命令或可 diff 的文档位置
 
-补记（2026-08-13）：本 story 是补写的。`@aiao/rxdb-adapter-miniprogram` 自 0.0.24 起已发布，
-但 requirements/ 下一直没有对应需求文件（见 capability-matrix.md「已知的需求覆盖缺口」）。
-已实现能力按事实标 ✅ 并附证据，剩余缺口标 ⬜。
+本 story 是为已发布的包补写的：`@aiao/rxdb-adapter-miniprogram` 自 0.0.24 起已发布，
+而 requirements/ 下曾没有对应需求文件。已实现能力按事实标 ✅ 并附证据，剩余缺口标 ⬜。
 -->
 
 # 用户故事：微信小程序 wa-sqlite 适配器
@@ -87,7 +86,7 @@ INVEST 检查清单:
   `cache_size = -${cacheSizeKb}`。
 - **同步回调**：`synchronous-callbacks.ts` 按 `CALLBACK_ARGUMENTS` 定位每个 API 的回调参数位并加 Proxy 包装。
 
-### 收尾项的落地方式（2026-08-15）
+### 收尾项的落地方式
 
 - **AC#7 覆盖率登记**：`node scripts/audit/coverage-check.mjs --update --projects=rxdb-adapter-miniprogram`
   把本包写入 [coverage-baseline.json](../../../scripts/audit/coverage-baseline.json)
@@ -107,7 +106,7 @@ INVEST 检查清单:
   避免这份手工清单随包演进静默过期。
   **未选择**扩展扫描器扫子路径导出表面：那会新增约 12 个 baseline 文件并改变 8 个包的门禁行为，
   属于仓库级改动，超出本故事「门禁与文档收尾」的定位，应另立故事 →
-  2026-08-15 已立为 [US-601](../tooling/US-601-subpath-api-surface-baseline.md)（Backlog）。
+  已立为 [US-601](../tooling/US-601-subpath-api-surface-baseline.md)（Backlog）。
 - **AC#9/#10 文档口径**：[compatibility.md](../../../website/docs/compatibility.md) 新增
   「`@aiao/rxdb-adapter-miniprogram` 的能力边界」专节（平台/并发/日志模式/崩溃恢复/数据量/随机源/全文搜索
   逐项列出），并把原「浏览器能力 × 适配器」表扩为「运行时能力 × 适配器」以容纳非浏览器运行时。
