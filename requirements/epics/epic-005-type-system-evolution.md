@@ -22,6 +22,7 @@ owner: jimmy
 - [x] 加密与 DevTools 不退化、不泄露、不放宽既有限制
 - [x] Supabase 对实际绑定远端的新类型实体 fail-fast
 - [ ] 字段元数据区分底层值类型、业务格式、单值/多值和字段来源，并提供版本化前端通信 DTO
+- [ ] 生成器把 `default` 确定性还原成源码字面量，不支持的值显式失败，杜绝静默丢失
 
 ## 支持边界
 
@@ -46,9 +47,14 @@ local-only 新类型实体可以与其他 Supabase 实体共存。任何含 bigi
 阶段 B 的 DTO 需要阶段 A 已冻结的 `FieldFormat` 判别联合，阶段 C 的值校验与生成器透传需要阶段 B 的 DTO 形状。
 两条轨道之间无强依赖，可并行推进。
 
+US-018（生成器 `default` 序列化）是第三条轨道，修的是当前就存在的生成器有损转换（bigint 直接抛原生
+`TypeError`、`Uint8Array` 塌缩成 `{"0":1,...}`、函数工厂被静默丢弃），与字段语义无因果关系。
+它与 US-012 各阶段之间**无依赖**：US-012 阶段 C 只透传 `format` / `enum` / `options` 三项 JSON-safe
+纯数据，现有管线即可承载。三条轨道可完全并行。
+
 ## 发布门禁
 
-以下门禁只覆盖 bigint/binary 发布轨道。六个相关 story 分别跟踪、按依赖顺序实施并单独验收；US-012 不新增物理 PropertyType，不扩大 bigint/binary 的发布门禁。发布检查必须同时满足：
+以下门禁只覆盖 bigint/binary 发布轨道。七个相关 story 分别跟踪、按依赖顺序实施并单独验收；US-012 与 US-018 都不新增物理 PropertyType，也不扩大 bigint/binary 的发布门禁。发布检查必须同时满足：
 
 1. US-011 / US-206 / US-303 / US-804 / US-903 全部 Done
 2. SQLite 四个具体 adapter 与 PGlite 的共享 gate 全绿
@@ -67,7 +73,8 @@ local-only 新类型实体可以与其他 Supabase 实体共存。任何含 bigi
 - [US-012 扩展字段语义与前端通信契约](../stories/core/US-012-field-semantic-metadata.md) (High) — 单文件三阶段：
   - 阶段 A 字段 format 声明与注册期校验
   - 阶段 B 实体字段描述 DTO
-  - 阶段 C 字段值校验、生成器透传与三框架契约
+  - 阶段 C 字段值校验、format/enum/options 透传与三框架契约
+- [US-018 生成器元数据序列化管线与 default 语义](../stories/core/US-018-generator-default-serialization.md) (High) — 从 US-012 拆出，含 `BREAKING CHANGE`
 - [US-206 本地适配器持久化与查询 bigint/binary](../stories/adapter/US-206-bigint-binary-adapter.md) (High)
 - [US-303 bigint/binary change codec 与系统迁移](../stories/collaboration/US-303-bigint-binary-change-codec.md) (High)
 - [US-804 加密字段支持 bigint/binary](../stories/future/US-804-bigint-binary-encryption.md) (High)

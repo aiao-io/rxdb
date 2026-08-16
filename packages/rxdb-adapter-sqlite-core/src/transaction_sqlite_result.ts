@@ -115,6 +115,23 @@ export const transaction_sqlite_result = async <T extends EntityType>(
         const entityObjectData =
           isRxDBChange ? decodeChangeResult(adapter, decodedEntityObjectData) : decodedEntityObjectData;
 
+        if (
+          isRxDBChange &&
+          !forcedUpdate &&
+          !mergeExternalChanges &&
+          (entityObjectData as Record<string, unknown>)['entityId'] !==
+            (entity as unknown as Record<string, unknown>)['entityId']
+        ) {
+          // eslint-disable-next-line no-console
+          console.error(
+            'DEBUG-STALE-CACHE',
+            JSON.stringify({
+              id,
+              cachedEntityId: (entity as unknown as Record<string, unknown>)['entityId'],
+              rowEntityId: (entityObjectData as Record<string, unknown>)['entityId']
+            })
+          );
+        }
         // 始终更新计算属性（如 hasChildren），因为它们是从数据库动态计算的
         metadata.computedPropertyMap.forEach((prop, propName) => {
           if (propName in entityObjectData) {

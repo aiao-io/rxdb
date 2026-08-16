@@ -5,7 +5,7 @@
  * 输出可直接喂给 `strategy.matrix` 的 JSON。
  *
  * 为什么需要它：
- *   公开仓库的 Actions 分钟数不要钱，稀缺的是墙钟时间。把 37 个 test 任务塞进
+ *   公开仓库的 Actions 分钟数不要钱，稀缺的是墙钟时间。把全部 test 任务塞进
  *   一个 job 串行跑（旧 CI 的做法）要 17 分钟，其中最后 8 分钟只有 pglite 一个
  *   任务在跑。横向铺开成 N 个 job 是唯一免费的加速手段。
  *
@@ -31,8 +31,8 @@ import { pathToFileURL } from 'node:url';
  * 4 有两个独立的理由，任一成立就不该往上调：
  *   1. 并发位：免费额度上限 20，实测峰值并发已经是 16。
  *   2. 更根本的 —— 墙钟被 `rxdb-adapter-pglite` 一个任务卡死在 238s（见 WEIGHTS）。
- *      按实测权重装箱，4 条 lane 的负载是 238 / 237 / 235 / 236，已经贴着这个下界。
- *      开到 5、6 条只会多出几条 200s 的空转 lane，一秒都省不下来。
+ *      按实测权重装箱，4 条非 Supabase lane 的负载是 242 / 242 / 242 / 242，已经
+ *      贴着这个下界。开到 5、6 条只会多出几条 200s 的空转 lane，一秒都省不下来。
  */
 export const LANE_COUNT = 4;
 
@@ -57,10 +57,18 @@ export const SUPABASE_PROJECTS = ['rxdb-adapter-supabase', 'dev-rxdb-supabase'];
  *   utils              1 →  26   低估 26 倍（当轮命中了缓存，旧表填的是缓存后的耗时）
  * 教训：命中缓存的那轮数据不能用来填这张表，宁可缺项走 DEFAULT_WEIGHT。
  *
+ * `website` / `benchmarks` 原先不在表里。run 31945480551（PR #10）把它们
+ * 放进了 test 集，DEFAULT_WEIGHT=60 把两个轻量脚本测抬成种子，LPT 单独开出
+ * `benchmarks +9`，剩下的中等包全堆到 `dev-rxdb-angular`。Test step 墙钟变成
+ * 445 / 370 / 241 / 186（最重是最轻的 2.4 倍）。这两项的值不是那轮 Duration
+ * （job 日志要登录），是按 target 形态估的：website 是三个 `node --test`
+ * 脚本，benchmarks 是分析/工具 vitest。**不要**用那轮 Test step 总和去改
+ * pglite / angular —— 那是 Nx + `^build` 的墙钟，和本表的 Duration 口径不是一回事。
+ *
  * `rxdb-adapter-pglite`（238s）是唯一的长尾，比第二名（116s）大一倍。
- * 它一个人就是 test 阶段的墙钟下界：LPT 会给它单独一条 lane，其余三条正好各摊
- * ~236s。**因此把 LANE_COUNT 从 4 调大不会更快** —— 想压 test 阶段只能拆 pglite
- * 自己的用例。（本地 M 系列上同样配置只要 72s，别拿本地数据填这张表。）
+ * 它一个人就是 test 阶段的墙钟下界：LPT 会给它一条几乎独占的 lane，其余三条
+ * 各摊 ~242s。**因此把 LANE_COUNT 从 4 调大不会更快** —— 想压 test 阶段只能拆
+ * pglite 自己的用例。（本地 M 系列上同样配置只要 72s，别拿本地数据填这张表。）
  *
  * `code-editor` 那轮没打出 Duration 行（它的 test 只有 type-only 的桩），
  * 保留旧估值 2 而不是填 0 —— 填 0 会让它在冷跑时被当成免费的。
@@ -75,6 +83,7 @@ export const WEIGHTS = {
   'dev-rxdb-supabase': 43,
   'rxdb-adapter-wa-sqlite': 41,
   'rxdb-adapter-sqlite-wasm': 38,
+  benchmarks: 18,
   'rxdb-adapter-supabase': 36,
   'angular-todo': 33,
   'rxdb-adapter-sqlite-core': 29,
@@ -85,6 +94,7 @@ export const WEIGHTS = {
   'rxdb-adapter-desktop': 21,
   'rxdb-angular': 10,
   'dev-rxdb-vue': 9,
+  website: 4,
   'dev-rxdb-react': 9,
   angular: 8,
   'code-editor-angular': 6,
