@@ -32,6 +32,19 @@ export function versionBranchSuite(factory: AdapterFactory) {
       }
     });
 
+    /**
+     * 变更日志里最后一条变更的 id。
+     *
+     * `rxdb$rxdb_change.id` 是 `INTEGER PRIMARY KEY AUTOINCREMENT`，产品契约是单调递增、
+     * 删行也不回收；`cleanup_db` 因此不重置 `sqlite_sequence`（否则跨测试复用 id 会让
+     * 身份缓存把上一个测试的变更实体当成本测试的新行）。所以断言 `fromChangeId` 只能比
+     * 「刚写入的那条变更」，不能写死字面量 1。
+     */
+    const lastChangeId = async (): Promise<number> => {
+      const { rows } = await adapter.rawQuery(`SELECT MAX(id) FROM "rxdb$rxdb_change";`);
+      return Number(rows[0][0]);
+    };
+
     // ================================================================
     // 1. create_branch
     // ================================================================
@@ -46,7 +59,7 @@ export function versionBranchSuite(factory: AdapterFactory) {
         expect(result).contain({
           activated: false,
           id: 'branch_01',
-          fromChangeId: 1,
+          fromChangeId: await lastChangeId(),
           parentId: 'main',
           local: true,
           remote: false
@@ -1101,7 +1114,7 @@ export function versionBranchSuite(factory: AdapterFactory) {
         await todo.save();
         const branch_01 = await rxdb.versionManager.createBranch('branch_01');
         expect(branch_01.activated).toEqual(false);
-        expect(branch_01.fromChangeId).toEqual(1);
+        expect(branch_01.fromChangeId).toEqual(await lastChangeId());
         expect(branch_01.parentId).toEqual('main');
         await rxdb.versionManager.switchBranch('branch_01');
         expect(branch_01.activated).toBe(true);

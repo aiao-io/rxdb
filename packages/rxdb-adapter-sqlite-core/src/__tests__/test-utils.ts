@@ -14,6 +14,8 @@ const FTS5_SHADOW_SUFFIXES = ['_data', '_idx', '_content', '_docsize', '_config'
  * 直接逐表 `DELETE`，影子表 `<vt>_config` 可能先被清空，之后 `DELETE FROM <vt>` 就会报
  * `invalid fts5 file format (found 0, expected 4 or 5)`。删虚拟表本身即可连带清干净影子表，
  * 所以影子表必须整体跳过。
+ *
+ * `sqlite_*` 内部表同样整体跳过，理由见 {@link cleanup_db}。
  */
 const classifyTables = (rows: readonly (readonly unknown[])[]) => {
   const virtualTables: string[] = [];
@@ -21,6 +23,7 @@ const classifyTables = (rows: readonly (readonly unknown[])[]) => {
   for (const row of rows) {
     const name = String(row[0]);
     const sql = row[1] == null ? '' : String(row[1]);
+    if (name.startsWith('sqlite_')) continue;
     allNames.push(name);
     if (/^\s*CREATE\s+VIRTUAL\s+TABLE/i.test(sql)) virtualTables.push(name);
   }
@@ -34,7 +37,19 @@ const classifyTables = (rows: readonly (readonly unknown[])[]) => {
 };
 
 /**
- * 清理数据库中的所有数据
+ * 清理数据库中的所有数据。
+ *
+ * @remarks
+ * 只清业务表与 `rxdb$` 系统表，**不碰 `sqlite_*` 内部表**（与 `@aiao/rxdb-test` 的
+ * `cleanupSqliteTestAdapter` 同口径）。尤其不能重置 `sqlite_sequence`：
+ * `rxdb$rxdb_change.id` 是 `INTEGER PRIMARY KEY AUTOINCREMENT`，产品契约是**单调递增、
+ * 删行也不回收 id**，身份缓存（identity map）按 id 认实体正是建立在这条契约上。
+ *
+ * 重置序列会让每个测试的变更 id 都从 1 重来，于是同一个 id 在一个进程里指代不同的记录：
+ * 上一个测试的变更事件是异步投递的，它可能在这里 `cleanAllCache()` 之后才把 `RxDBChange#1`
+ * 水合回缓存；下一个测试再查第 1 条变更行时命中的是那个陈旧实体，读出的 `entityId`
+ * 属于上一个测试（表现为 `自定义主键列 > 事件：change 表按自定义主键列记录 entityId`
+ * 这类按机器负载偶发的假红）。序列不重置后，跨测试的 id 不再重叠，陈旧缓存无从冒充新行。
  */
 export const cleanup_db = async (adapter: RxDBAdapterSqliteBase) => {
   adapter.rxdb.entityManager.cleanAllCache();
@@ -51,7 +66,6 @@ export const cleanup_db = async (adapter: RxDBAdapterSqliteBase) => {
     for (const tableName of plainTables) {
       await tx.execute(`DELETE FROM ${quote_sql_identifier(tableName)};`);
     }
-    await tx.execute(`DELETE FROM sqlite_sequence;`);
     await tx.execute(
       `INSERT INTO "rxdb$rxdb_branch" (id,activated,fromChangeId,local,remote) VALUES ('main',1,NULL,1,0);`
     );

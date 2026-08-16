@@ -245,23 +245,6 @@ export function customPrimaryKeySuite(factory: AdapterFactory) {
           where: { combinator: 'and', rules: [{ field: 'entity', operator: '=', value: 'CpkBook' }] }
         })
       );
-      if (!changes.map(change => change.entityId).includes(book.id)) {
-        const raw = await adapter.rawQuery(`SELECT id, entity, entityId, type FROM "rxdb$rxdb_change"`);
-        // eslint-disable-next-line no-console
-        console.error(
-          'DEBUG-CPK',
-          JSON.stringify({
-            bookId: book.id,
-            observed: changes.map(change => ({
-              id: change.id,
-              entity: change.entity,
-              entityId: change.entityId,
-              type: change.type
-            })),
-            raw: raw.rows
-          })
-        );
-      }
       expect(changes.map(change => change.entityId)).toContain(book.id);
     });
 
