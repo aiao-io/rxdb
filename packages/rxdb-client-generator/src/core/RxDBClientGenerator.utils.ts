@@ -152,7 +152,10 @@ export const getEntityPropertyTsType = (property: PropertyMetadata, metadata: En
       type = 'string';
       break;
     case PropertyType.enum:
-      if (!('enum' in property)) throw new Error('Enum property is missing enum values');
+      // `stringArray` 也可选携带 enum，`in` 判定不再蕴含值存在，必须同时检查值
+      if (!('enum' in property) || property.enum === undefined) {
+        throw new Error('Enum property is missing enum values');
+      }
       type = property.enum.length > 0 ? property.enum.map(value => JSON.stringify(value)).join(' | ') : 'string';
       break;
     case PropertyType.number:

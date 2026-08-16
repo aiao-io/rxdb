@@ -9,9 +9,9 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 34   |
-| 🚧 In Progress | 4    |
+| 🚧 In Progress | 5    |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 14   |
+| 📝 Backlog     | 13   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 52   |
 
@@ -23,7 +23,7 @@
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🅰️ 多阶段故事 · 🚫 Blocked
 
-## 进行中（4 条）
+## 进行中（5 条）
 
 | Story                                                                                            | 卡在哪                                                                       |
 | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
@@ -31,6 +31,7 @@
 | [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) | AC#1 缺跨进程重启 e2e、AC#9 三平台打包矩阵；另有「Tauri 包化」T1～T7 未开工  |
 | [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                   | AC#6 / #7 待 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵；AC#1/#3/#5/#8 仍 ⚠️ |
 | [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)    | 阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 A / C / D 未开始           |
+| [US-012 扩展字段语义与前端通信契约](stories/core/US-012-field-semantic-metadata.md)              | 阶段 A 已交付（AC#1～12）；阶段 B / C 未开始，按 A → B → C 顺序单独交付      |
 
 > US-207 / US-210 / US-505 的三条尾巴是**同一个下游缺口**：真实打包应用的重启与三平台矩阵。
 >
@@ -122,7 +123,7 @@
   - ⬜ 阶段 B 第一个非微信 host — 默认候选支付宝，以阶段 A 矩阵为准
   - ⬜ 阶段 C 抖音 / 百度 / QQ — 每平台独立 `supported` 才实现
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md) — 文件落 `userData/rxdb-files`，与 US-207 的 SQLite 同一备份域
-- 🚧 [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md) — 见上方[进行中](#进行中4-条)
+- 🚧 [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md) — 见上方[进行中](#进行中5-条)
 - 🚧 [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) — 从 US-207 二次拆出；自写 Rust command 持有 `rusqlite::Connection`
 - 🚧 [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边
 - ⬜ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md) — PGlite callback transaction 不能跨 IPC 序列化
@@ -135,8 +136,8 @@
 - ✅ [US-303 bigint/binary change codec 与系统迁移](stories/collaboration/US-303-bigint-binary-change-codec.md) — 迁移部分（AC10–AC14）已实现但未被真实发布行使
 - ✅ [US-804 加密字段支持 bigint/binary](stories/future/US-804-bigint-binary-encryption.md)
 - ✅ [US-903 DevTools 展示 bigint/binary](stories/future/US-903-bigint-binary-devtools.md)
-- 🅰️ ⬜ [US-012 扩展字段语义与前端通信契约](stories/core/US-012-field-semantic-metadata.md) — 三阶段单文件故事
-  - ⬜ 阶段 A 字段 format 声明与注册期校验
+- 🅰️ 🚧 [US-012 扩展字段语义与前端通信契约](stories/core/US-012-field-semantic-metadata.md) — 三阶段单文件故事
+  - ✅ 阶段 A 字段 format 声明与注册期校验
   - ⬜ 阶段 B 实体字段描述 DTO
   - ⬜ 阶段 C 字段值校验、format/enum/options 透传与三框架契约
 - ⬜ [US-018 生成器元数据序列化管线与 default 语义](stories/core/US-018-generator-default-serialization.md) — 从 US-012 拆出，与其无依赖，可并行

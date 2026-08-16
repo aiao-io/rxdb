@@ -1,11 +1,11 @@
 ---
 id: US-012
 title: 扩展字段语义与前端通信契约
-status: Backlog
+status: In Progress
 priority: High
 epic: epic-005-type-system-evolution
 created: 2026-08-06
-updated: 2026-08-16
+updated: 2026-08-17
 tags: [core, model, metadata, field-type, frontend, transport, teable]
 ---
 
@@ -28,7 +28,7 @@ INVEST 检查清单:
 >
 > | 阶段 | 交付                                                               | AC 区段   | 状态 |
 > | ---- | ------------------------------------------------------------------ | --------- | ---- |
-> | A    | `format` 声明层 + `validateEntityMetadata()` 注册期校验            | AC#1～12  | ⬜   |
+> | A    | `format` 声明层 + `validateEntityMetadata()` 注册期校验            | AC#1～12  | ✅   |
 > | B    | `describeEntityFields()` / DTO / 严格解析器                        | AC#13～26 | ⬜   |
 > | C    | `validateFieldValue()` + format/enum/options 透传 + 三框架契约回归 | AC#27～36 | ⬜   |
 >
@@ -805,18 +805,18 @@ AC 按交付阶段分段，编号连续。阶段内可任意顺序验收，阶�
 
 | #   | 前置条件                                                                             | 操作                                            | 预期结果                                                                                                                                                                                                                                                | 状态 |
 | --- | ------------------------------------------------------------------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 现有实体只声明 `PropertyType`                                                        | 注册并读取旧元数据                              | 行为与既有公共类型不变；未声明 `format` 的字段在元数据里不出现 `format` 键，不填默认值                                                                                                                                                                  | ⬜   |
-| 2   | `string` 字段声明 `url` / `email` / `phone`                                          | 编译并注册实体                                  | 类型合法；`transitionMetadata()` 产出的 `propertyMap` 条目原样保留 format 判别对象；该条目的 `type` 仍是 `PropertyType.string`                                                                                                                          | ⬜   |
-| 3   | 同一实体的两份元数据，唯一差异是其中一份字段带 `format`                              | 对两份分别调用 `transitionMetadata()` 并深比较  | 除 `format` 键外两份 `EntityMetadata` 完全相同：`type`、`nullable`、`default`、索引与键顺序均无差异（INV-2 的**元数据层**证明）                                                                                                                         | ⬜   |
-| 4   | `string` 字段声明 `richText`                                                         | 未提供 `contentType`                            | 类型测试（`@ts-expect-error` + `expectTypeOf`）确认声明不可编译；绕过类型的运行时配置在 `EntityManager.init()` 抛 `RxDBError`，消息含实体名、字段名与 `missingFormatConfig`                                                                             | ⬜   |
-| 5   | `enum` 字段声明 `multiSelect`，或 `stringArray` 声明 `singleSelect`                  | 注册实体                                        | 抛 `cardinalityConflict`；多选必须用带 `enum` 的 `stringArray`（INV-3）                                                                                                                                                                                 | ⬜   |
-| 6   | `number` 字段声明 `currency` / `percentage` / `rating` / `duration`                  | 注册缺少配置、非法范围、step 或 percentage 边界 | 抛 `missingFormatConfig` / `invalidRange`；覆盖非有限数、rating 端点未对齐和 scale 固有值域；同一实体多个字段错误一次报出                                                                                                                               | ⬜   |
-| 7   | `config.entities` 中有两个实体各带违规字段，且违规实体排在合法实体**之后**           | `EntityManager.init()`                          | 一次异常同时报出两个实体的全部违规（D3 跨实体聚合），不在第一个实体处中断；抛错后对**排在前面的合法实体**调用 `resolveEntityManager()` 同样失败——即部分注册没有泄漏出去（由前置校验或既有 `boundTypes` 回滚保证，两种实现都可接受，断言只看可观察结果） | ⬜   |
-| 8   | `stringArray` 声明 `multiSelect` 但缺 `enum`；或 `options` 键越界                    | 注册实体                                        | 分别抛 `missingEnum` / `enumOptionsMismatch`                                                                                                                                                                                                            | ⬜   |
-| 9   | `enum` 含重复值                                                                      | 注册实体                                        | 抛 `duplicateEnum`，错误指出字段名和重复值                                                                                                                                                                                                              | ⬜   |
-| 10  | 关系元数据上声明任意 `format`，或在 1:1 / m:1 关系上声明 `readonly`                  | 类型检查 + 绕过类型后注册实体                   | 四种 kind 的关系接口在类型层均不接受 `format`，1:1 / m:1 因 `readonly?: never` 也不接受 `readonly`（均用 `@ts-expect-error` 断言）；运行时注册分别抛 `formatOnRelation` / `readonlyOnRelation` 并指出关系名（D4、D9.1）                                 | ⬜   |
-| 11  | 使用未知 `format.kind`、与 `PropertyType` 不匹配的组合、畸形 enum/options 或非法配置 | 注册实体                                        | 分别抛 `unknownFormat` / `formatTypeMismatch` / `invalidEnumConfig` / `invalidOptionsConfig` / `invalidFormatConfig`；校验器对 `format: null`、非数组 enum 等 `unknown` 形状也聚合报错，不自身崩溃                                                      | ⬜   |
-| 12  | 同一组结构 fixture 与值语义 fixture                                                  | 分别走类型检查与 `validateEntityMetadata()`     | 结构 fixture 满足单向不变式：类型拒绝则运行时拒绝，运行时接受则类型合法；`min > max`、重复 enum、非法 scheme/货币代码等值语义允许“类型接受、运行时拒绝”，并逐项覆盖（D4）                                                                               | ⬜   |
+| 1   | 现有实体只声明 `PropertyType`                                                        | 注册并读取旧元数据                              | 行为与既有公共类型不变；未声明 `format` 的字段在元数据里不出现 `format` 键，不填默认值                                                                                                                                                                  | ✅   |
+| 2   | `string` 字段声明 `url` / `email` / `phone`                                          | 编译并注册实体                                  | 类型合法；`transitionMetadata()` 产出的 `propertyMap` 条目原样保留 format 判别对象；该条目的 `type` 仍是 `PropertyType.string`                                                                                                                          | ✅   |
+| 3   | 同一实体的两份元数据，唯一差异是其中一份字段带 `format`                              | 对两份分别调用 `transitionMetadata()` 并深比较  | 除 `format` 键外两份 `EntityMetadata` 完全相同：`type`、`nullable`、`default`、索引与键顺序均无差异（INV-2 的**元数据层**证明）                                                                                                                         | ✅   |
+| 4   | `string` 字段声明 `richText`                                                         | 未提供 `contentType`                            | 类型测试（`@ts-expect-error` + `expectTypeOf`）确认声明不可编译；绕过类型的运行时配置在 `EntityManager.init()` 抛 `RxDBError`，消息含实体名、字段名与 `missingFormatConfig`                                                                             | ✅   |
+| 5   | `enum` 字段声明 `multiSelect`，或 `stringArray` 声明 `singleSelect`                  | 注册实体                                        | 抛 `cardinalityConflict`；多选必须用带 `enum` 的 `stringArray`（INV-3）                                                                                                                                                                                 | ✅   |
+| 6   | `number` 字段声明 `currency` / `percentage` / `rating` / `duration`                  | 注册缺少配置、非法范围、step 或 percentage 边界 | 抛 `missingFormatConfig` / `invalidRange`；覆盖非有限数、rating 端点未对齐和 scale 固有值域；同一实体多个字段错误一次报出                                                                                                                               | ✅   |
+| 7   | `config.entities` 中有两个实体各带违规字段，且违规实体排在合法实体**之后**           | `EntityManager.init()`                          | 一次异常同时报出两个实体的全部违规（D3 跨实体聚合），不在第一个实体处中断；抛错后对**排在前面的合法实体**调用 `resolveEntityManager()` 同样失败——即部分注册没有泄漏出去（由前置校验或既有 `boundTypes` 回滚保证，两种实现都可接受，断言只看可观察结果） | ✅   |
+| 8   | `stringArray` 声明 `multiSelect` 但缺 `enum`；或 `options` 键越界                    | 注册实体                                        | 分别抛 `missingEnum` / `enumOptionsMismatch`                                                                                                                                                                                                            | ✅   |
+| 9   | `enum` 含重复值                                                                      | 注册实体                                        | 抛 `duplicateEnum`，错误指出字段名和重复值                                                                                                                                                                                                              | ✅   |
+| 10  | 关系元数据上声明任意 `format`，或在 1:1 / m:1 关系上声明 `readonly`                  | 类型检查 + 绕过类型后注册实体                   | 四种 kind 的关系接口在类型层均不接受 `format`，1:1 / m:1 因 `readonly?: never` 也不接受 `readonly`（均用 `@ts-expect-error` 断言）；运行时注册分别抛 `formatOnRelation` / `readonlyOnRelation` 并指出关系名（D4、D9.1）                                 | ✅   |
+| 11  | 使用未知 `format.kind`、与 `PropertyType` 不匹配的组合、畸形 enum/options 或非法配置 | 注册实体                                        | 分别抛 `unknownFormat` / `formatTypeMismatch` / `invalidEnumConfig` / `invalidOptionsConfig` / `invalidFormatConfig`；校验器对 `format: null`、非数组 enum 等 `unknown` 形状也聚合报错，不自身崩溃                                                      | ✅   |
+| 12  | 同一组结构 fixture 与值语义 fixture                                                  | 分别走类型检查与 `validateEntityMetadata()`     | 结构 fixture 满足单向不变式：类型拒绝则运行时拒绝，运行时接受则类型合法；`min > max`、重复 enum、非法 scheme/货币代码等值语义允许“类型接受、运行时拒绝”，并逐项覆盖（D4）                                                                               | ✅   |
 
 > **AC#2 / AC#3 为什么只验到元数据层**：阶段 A 只交付声明层与注册期校验，此时 schema 生成、
 > 写入和序列化路径一行都没改。让阶段 A 的 AC 去跑 adapter 写读，等于把阶段 B/C 的依赖倒挂回阶段 A，

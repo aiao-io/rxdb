@@ -65,6 +65,14 @@
       "kind": "type"
     },
     {
+      "name": "CodeFormat",
+      "kind": "type"
+    },
+    {
+      "name": "ColorFormat",
+      "kind": "type"
+    },
+    {
       "name": "compactChanges",
       "kind": "value"
     },
@@ -101,11 +109,19 @@
       "kind": "type"
     },
     {
+      "name": "CurrencyFormat",
+      "kind": "type"
+    },
+    {
       "name": "DateProperty",
       "kind": "type"
     },
     {
       "name": "DateRules",
+      "kind": "type"
+    },
+    {
+      "name": "DateTimeFormat",
       "kind": "type"
     },
     {
@@ -130,6 +146,14 @@
     },
     {
       "name": "DiffResult",
+      "kind": "type"
+    },
+    {
+      "name": "DurationFormat",
+      "kind": "type"
+    },
+    {
+      "name": "EmailFormat",
       "kind": "type"
     },
     {
@@ -253,6 +277,10 @@
       "kind": "type"
     },
     {
+      "name": "EntityMetadataValidationError",
+      "kind": "type"
+    },
+    {
       "name": "EntityPropertyMetadata",
       "kind": "type"
     },
@@ -329,6 +357,26 @@
       "kind": "value"
     },
     {
+      "name": "FIELD_FORMAT_CARRIERS",
+      "kind": "value"
+    },
+    {
+      "name": "FIELD_FORMAT_KINDS",
+      "kind": "value"
+    },
+    {
+      "name": "FieldFormat",
+      "kind": "type"
+    },
+    {
+      "name": "FieldOptionDisplay",
+      "kind": "type"
+    },
+    {
+      "name": "FieldOptions",
+      "kind": "type"
+    },
+    {
       "name": "FieldValidationError",
       "kind": "type"
     },
@@ -366,6 +414,10 @@
     },
     {
       "name": "formatEntityFieldValue",
+      "kind": "value"
+    },
+    {
+      "name": "formatMetadataViolations",
       "kind": "value"
     },
     {
@@ -613,7 +665,19 @@
       "kind": "type"
     },
     {
+      "name": "MetadataValidationRule",
+      "kind": "type"
+    },
+    {
       "name": "MigrationType",
+      "kind": "type"
+    },
+    {
+      "name": "MultilineTextFormat",
+      "kind": "type"
+    },
+    {
+      "name": "MultiSelectFormat",
       "kind": "type"
     },
     {
@@ -638,6 +702,10 @@
     },
     {
       "name": "NumberArrayRules",
+      "kind": "type"
+    },
+    {
+      "name": "NumberFormat",
       "kind": "type"
     },
     {
@@ -675,6 +743,18 @@
     {
       "name": "parseRxDBEntityIdentityKey",
       "kind": "value"
+    },
+    {
+      "name": "PercentageFormat",
+      "kind": "type"
+    },
+    {
+      "name": "PhoneFormat",
+      "kind": "type"
+    },
+    {
+      "name": "PlainTextFormat",
+      "kind": "type"
     },
     {
       "name": "Plugin",
@@ -769,6 +849,10 @@
       "kind": "type"
     },
     {
+      "name": "RatingFormat",
+      "kind": "type"
+    },
+    {
       "name": "RawQueryResult",
       "kind": "type"
     },
@@ -806,6 +890,10 @@
     },
     {
       "name": "RelationNumberRules",
+      "kind": "type"
+    },
+    {
+      "name": "RelationResolutionRule",
       "kind": "type"
     },
     {
@@ -906,6 +994,10 @@
     },
     {
       "name": "RestoreEntityOptions",
+      "kind": "type"
+    },
+    {
+      "name": "RichTextFormat",
       "kind": "type"
     },
     {
@@ -1201,6 +1293,10 @@
       "kind": "value"
     },
     {
+      "name": "SingleSelectFormat",
+      "kind": "type"
+    },
+    {
       "name": "StringArrayProperty",
       "kind": "type"
     },
@@ -1425,6 +1521,10 @@
       "kind": "both"
     },
     {
+      "name": "UrlFormat",
+      "kind": "type"
+    },
+    {
       "name": "uuid",
       "kind": "value"
     },
@@ -1442,6 +1542,14 @@
     },
     {
       "name": "validateEntityFieldValue",
+      "kind": "value"
+    },
+    {
+      "name": "validateEntityMetadata",
+      "kind": "value"
+    },
+    {
+      "name": "validateEntityMetadataSet",
       "kind": "value"
     }
   ]
