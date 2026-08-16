@@ -114,7 +114,12 @@ export default defineConfig(() => ({
     : {
         environment: 'happy-dom',
         include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-        exclude: ['{src,tests}/**/*.browser.{test,spec}.{ts,tsx}']
+        exclude: ['{src,tests}/**/*.browser.{test,spec}.{ts,tsx}'],
+        // 桌面后端的一致性用例既要 DOM（套件会装 window、点锚点下载），又要真的把
+        // `@aiao/rxdb-adapter-desktop/host` 加载起来（它 import `node:sqlite`）。happy-dom 走的是
+        // client 环境，Vite 会尝试把这条依赖内联进 bundle 并在 node 内置模块上炸掉；externalize
+        // 之后由 Node 原生 ESM 直接加载，两个要求才同时成立。
+        server: { deps: { external: [/rxdb-adapter-desktop/] } }
       }),
     reporters: ['default', 'junit'],
     // Node / browser 并行时不能共用 coverage 与 junit 产物（Vitest .tmp 会互相删除）。

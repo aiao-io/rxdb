@@ -1,4 +1,4 @@
-// @vitest-environment node
+// @vitest-environment happy-dom
 /**
  * @fileoverview 把共享的 storage 行为套件跑在包内两个后端上（US-504 AC#2）。
  *
@@ -9,6 +9,11 @@
  *
  * 桌面一侧接的是真实 host + 真实临时目录（不是断言 mock），因此这里同时也是
  * 「host 协议 → 原生文件」这条链路的集成测试。
+ *
+ * 环境必须是 happy-dom：套件会装 `window`、走锚点下载，`document` 缺席时**每条**用例都在
+ * beforeEach 里炸掉。而 host 入口 import 了 `node:sqlite`，client 环境默认内联链接依赖会在
+ * node 内置模块上解析失败 —— 这条依赖已在 `vite.config.mts` 的 `test.server.deps.external` 里
+ * 外置，两个条件才同时成立。换回 `node` 环境等于把这 34 条用例全判死。
  *
  * @module rxdb-plugin-storage/__tests__/backend-parity
  */
