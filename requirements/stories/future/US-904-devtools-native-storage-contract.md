@@ -25,13 +25,17 @@ INVEST 检查清单（本文件是契约文档，不直接交付）:
 > 能力矩阵、安全边界与发布约束。`status` 是子故事的汇总视图：全部 `Done` 才置 `Done`；
 > US-904a 结论为 `unsupported` 时只有 US-904d 与本文件的 Electron 部分转 `Blocked`，共享链与 Tauri 继续推进。
 
-| 子故事                                                              | 交付                                                          | 直接前置                                   |
-| ------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------ |
-| [US-904a](./US-904a-electron-mv3-devtools-feasibility.md)           | Electron 43 + 当前 MV3 扩展 stop/go 实证                      | 无                                         |
-| [US-904b](./US-904b-devtools-v2-protocol.md)                        | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面        | 无                                         |
-| [US-904c](./US-904c-devtools-shared-panel-chrome-migration.md)      | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移         | US-904b（仅阶段 2）                        |
-| [US-904d](./US-904d-electron-native-devtools-integration.md)        | Electron desktop SQLite / native files 接入与真实 E2E         | US-904a(supported) + US-904c + US-207/504  |
-| [US-905](./US-905-tauri-native-devtools.md)                         | Tauri 调试窗口、transport 与原生 SQLite / files 接入          | US-904c（+ 阶段 2 需 US-210/505）          |
+| 子故事                                                         | 交付                                                   | 直接前置                                  | 状态       |
+| -------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------- | ---------- |
+| [US-904a](./US-904a-electron-mv3-devtools-feasibility.md)      | Electron 43 + 当前 MV3 扩展 stop/go 实证               | 无                                        | 📝 Backlog |
+| [US-904b](./US-904b-devtools-v2-protocol.md)                   | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面 | 无                                        | ✅ Done    |
+| [US-904c](./US-904c-devtools-shared-panel-chrome-migration.md) | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移  | US-904b（仅阶段 2）                       | 📝 Backlog |
+| [US-904d](./US-904d-electron-native-devtools-integration.md)   | Electron desktop SQLite / native files 接入与真实 E2E  | US-904a(supported) + US-904c + US-207/504 | 📝 Backlog |
+| [US-905](./US-905-tauri-native-devtools.md)                    | Tauri 调试窗口、transport 与原生 SQLite / files 接入   | US-904c（+ 阶段 2 需 US-210/505）         | 📝 Backlog |
+
+> 状态列是各子故事 YAML `status` 的派生视图，真相源仍是子故事自身。US-904b 已交付：本包内的
+> v2 协议、provider 数据面与 conformance suite 全部落地，5 条 AC 因只能由真实链路关闭而保留为
+> `⚠️`（见该故事的「保留项」小节）。
 
 ## 作为/我想要/以便
 
