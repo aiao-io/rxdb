@@ -137,6 +137,10 @@
       "kind": "value"
     },
     {
+      "name": "describeEntityFields",
+      "kind": "value"
+    },
+    {
       "name": "deterministicStringify",
       "kind": "value"
     },
@@ -174,6 +178,10 @@
     },
     {
       "name": "ENTITY_BASE_METADATA_OPTIONS",
+      "kind": "value"
+    },
+    {
+      "name": "ENTITY_FIELDS_DTO_VERSION",
       "kind": "value"
     },
     {
@@ -217,11 +225,23 @@
       "kind": "type"
     },
     {
+      "name": "EntityComputedFieldDescriptor",
+      "kind": "type"
+    },
+    {
       "name": "EntityData",
       "kind": "type"
     },
     {
       "name": "EntityFieldConfig",
+      "kind": "type"
+    },
+    {
+      "name": "EntityFieldDescriptor",
+      "kind": "type"
+    },
+    {
+      "name": "EntityFieldsDescriptor",
       "kind": "type"
     },
     {
@@ -273,6 +293,10 @@
       "kind": "type"
     },
     {
+      "name": "EntityMetadataResolver",
+      "kind": "type"
+    },
+    {
       "name": "EntityMetadataTreeFeatures",
       "kind": "type"
     },
@@ -281,11 +305,19 @@
       "kind": "type"
     },
     {
+      "name": "EntityPropertyFieldDescriptor",
+      "kind": "type"
+    },
+    {
       "name": "EntityPropertyMetadata",
       "kind": "type"
     },
     {
       "name": "EntityPropertyMetadataOptions",
+      "kind": "type"
+    },
+    {
+      "name": "EntityRelationFieldDescriptor",
       "kind": "type"
     },
     {
@@ -313,6 +345,10 @@
       "kind": "type"
     },
     {
+      "name": "EntityRelationResolutionError",
+      "kind": "both"
+    },
+    {
       "name": "EntityRemoteCreatedEvent",
       "kind": "both"
     },
@@ -326,6 +362,14 @@
     },
     {
       "name": "EntityStaticType",
+      "kind": "type"
+    },
+    {
+      "name": "EntityToManyRelationFieldDescriptor",
+      "kind": "type"
+    },
+    {
+      "name": "EntityToOneRelationFieldDescriptor",
       "kind": "type"
     },
     {
@@ -361,11 +405,23 @@
       "kind": "value"
     },
     {
+      "name": "FIELD_FORMAT_CONFIG_KEYS",
+      "kind": "value"
+    },
+    {
       "name": "FIELD_FORMAT_KINDS",
       "kind": "value"
     },
     {
+      "name": "FieldCardinality",
+      "kind": "type"
+    },
+    {
       "name": "FieldFormat",
+      "kind": "type"
+    },
+    {
+      "name": "FieldFormatConfigKey",
       "kind": "type"
     },
     {
@@ -374,6 +430,10 @@
     },
     {
       "name": "FieldOptions",
+      "kind": "type"
+    },
+    {
+      "name": "FieldSource",
       "kind": "type"
     },
     {
@@ -733,6 +793,10 @@
       "kind": "type"
     },
     {
+      "name": "parseEntityFieldsDescriptor",
+      "kind": "value"
+    },
+    {
       "name": "parseEntityFieldValue",
       "kind": "value"
     },
@@ -902,6 +966,10 @@
     },
     {
       "name": "RelationUUIDRules",
+      "kind": "type"
+    },
+    {
+      "name": "RelationValueType",
       "kind": "type"
     },
     {

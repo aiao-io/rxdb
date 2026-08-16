@@ -16,11 +16,13 @@ export * from './entity/metadata-options.interface.js';
 export { transitionMetadata } from './entity/metadata-transition.js';
 export {
   FIELD_FORMAT_CARRIERS,
+  FIELD_FORMAT_CONFIG_KEYS,
   FIELD_FORMAT_KINDS,
   formatMetadataViolations,
   validateEntityMetadata,
   validateEntityMetadataSet,
   type EntityMetadataValidationError,
+  type FieldFormatConfigKey,
   type MetadataValidationRule,
   type RelationResolutionRule
 } from './entity/metadata-validate.js';

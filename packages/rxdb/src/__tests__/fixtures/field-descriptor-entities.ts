@@ -9,6 +9,7 @@
  */
 
 import { ENTITY_BASE_METADATA_OPTIONS } from '../../entity/entity-base.js';
+import type { EntityMetadataResolver } from '../../entity/entity-field.utils.js';
 import type { EntityType } from '../../entity/entity.interface.js';
 import {
   type EntityMetadataOptions,
@@ -127,3 +128,210 @@ export const BASELINE_ENTITIES: readonly (readonly [string, EntityMetadata])[] =
   ['Topic', TOPIC_METADATA],
   ['Loose', MUTABLE_SYSTEM_METADATA]
 ];
+
+// ------------------------------------------------------[ 阶段 B：描述层矩阵 ]
+
+/** 造一个只有 uuid 主键的关系目标实体。 */
+const uuidTarget = (name: string, namespace = 'public'): EntityMetadata =>
+  transitionMetadata({
+    name,
+    namespace,
+    properties: [{ name: 'id', type: PropertyType.uuid, displayName: 'ID', primary: true, readonly: true }],
+    computedProperties: [],
+    relations: [],
+    indexes: []
+  } as unknown as EntityMetadataOptions);
+
+/** 造一个只有单个 m:1 关系的宿主实体，用于隔离关系解析失败路径。 */
+const relationHost = (name: string, mappedEntity: string): EntityMetadata =>
+  transitionMetadata({
+    name,
+    namespace: 'public',
+    properties: [{ name: 'id', type: PropertyType.uuid, displayName: 'ID', primary: true, readonly: true }],
+    computedProperties: [],
+    relations: [{ name: 'ref', kind: RelationKind.MANY_TO_ONE, displayName: '引用', mappedEntity, mappedProperty: 'hosts' }],
+    indexes: []
+  } as unknown as EntityMetadataOptions);
+
+/** `Article` 三个 uuid 主键的关系目标；`Topic` 用上面 `slug: string` 主键那份。 */
+export const REVISION_METADATA: EntityMetadata = uuidTarget('Revision');
+export const AUTHOR_METADATA: EntityMetadata = uuidTarget('Author');
+export const COMMENT_METADATA: EntityMetadata = uuidTarget('Comment');
+
+/** 通用关系目标，供标志矩阵与顺序矩阵复用。 */
+export const TARGET_METADATA: EntityMetadata = uuidTarget('Target');
+
+/** 同名但落在另一个 namespace 的关系目标。 */
+export const OTHER_TARGET_METADATA: EntityMetadata = uuidTarget('Target', 'other');
+
+/** 关系目标跨 namespace，用于验证 `relation.namespace` 跟随 `mappedNamespace`。 */
+export const CROSS_NAMESPACE_METADATA: EntityMetadata = transitionMetadata({
+  name: 'CrossNs',
+  namespace: 'public',
+  properties: [{ name: 'id', type: PropertyType.uuid, displayName: 'ID', primary: true, readonly: true }],
+  computedProperties: [],
+  relations: [
+    {
+      name: 'remote',
+      kind: RelationKind.MANY_TO_ONE,
+      displayName: '远端',
+      mappedEntity: 'Target',
+      mappedNamespace: 'other',
+      mappedProperty: 'hosts'
+    }
+  ],
+  indexes: []
+} as unknown as EntityMetadataOptions);
+
+/** 没有任何 `primary: true` 属性的实体。 */
+export const GHOST_METADATA: EntityMetadata = transitionMetadata({
+  name: 'Ghost',
+  namespace: 'public',
+  properties: [{ name: 'label', type: PropertyType.string, displayName: '名称' }],
+  computedProperties: [],
+  relations: [],
+  indexes: []
+} as unknown as EntityMetadataOptions);
+
+/** 主键类型不在 `uuid/string/integer/bigint` 内的实体。 */
+export const STAMP_METADATA: EntityMetadata = transitionMetadata({
+  name: 'Stamp',
+  namespace: 'public',
+  properties: [{ name: 'at', type: PropertyType.date, displayName: '时刻', primary: true }],
+  computedProperties: [],
+  relations: [],
+  indexes: []
+} as unknown as EntityMetadataOptions);
+
+/** 指向缺主键 / 主键类型非法 / 未注册目标的三个宿主。 */
+export const GHOST_HOST_METADATA: EntityMetadata = relationHost('GhostHost', 'Ghost');
+export const STAMP_HOST_METADATA: EntityMetadata = relationHost('StampHost', 'Stamp');
+export const ORPHAN_HOST_METADATA: EntityMetadata = relationHost('OrphanHost', 'Nowhere');
+
+/**
+ * AC#21 的布尔标志矩阵：属性、计算属性与四种关系上**一个标志都不声明**，
+ * 只观察 DTO 里键的存在性。属性一栏刻意覆盖有/无 `sortable`、`searchable`、`primary` 的接口。
+ */
+export const FLAG_MATRIX_METADATA: EntityMetadata = transitionMetadata({
+  name: 'Flags',
+  namespace: 'public',
+  properties: [
+    { name: 'text', type: PropertyType.string, displayName: '文本' },
+    { name: 'count', type: PropertyType.number, displayName: '数值' },
+    { name: 'blob', type: PropertyType.binary, displayName: '二进制' },
+    { name: 'raw', type: PropertyType.json, displayName: '原始' },
+    // 嵌套属性刻意不声明 displayName：DTO 里对应条目不该出现 label 键
+    { name: 'kv', type: PropertyType.keyValue, displayName: '键值', properties: [{ name: 'bare', type: PropertyType.string }] }
+  ],
+  computedProperties: [{ name: 'derived', type: PropertyType.string, displayName: '派生' }],
+  relations: [
+    { name: 'one', kind: RelationKind.ONE_TO_ONE, mappedEntity: 'Target', mappedProperty: 'flags' },
+    { name: 'many', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'Target', mappedProperty: 'flags' },
+    { name: 'children', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'Target', mappedProperty: 'flags' },
+    {
+      name: 'peers',
+      kind: RelationKind.MANY_TO_MANY,
+      mappedEntity: 'Target',
+      mappedProperty: 'flags',
+      junctionEntityType: JUNCTION_ENTITY
+    }
+  ],
+  indexes: []
+} as unknown as EntityMetadataOptions);
+
+/** AC#13 / #14 / #15：`format`、`enum` 顺序与 `options` 展示元数据的透传矩阵。 */
+export const SEMANTIC_METADATA: EntityMetadata = transitionMetadata({
+  name: 'Semantic',
+  namespace: 'public',
+  properties: [
+    {
+      name: 'body',
+      type: PropertyType.string,
+      displayName: '正文',
+      format: { kind: 'richText', contentType: 'text/markdown' }
+    },
+    {
+      name: 'state',
+      type: PropertyType.enum,
+      displayName: '状态',
+      enum: ['review', 'draft', 'published'],
+      format: { kind: 'singleSelect' },
+      options: {
+        review: { label: '待审', color: '#f5a623' },
+        draft: { label: '草稿' },
+        published: { label: '已发布', disabled: true }
+      }
+    },
+    {
+      name: 'publishedAt',
+      type: PropertyType.date,
+      displayName: '发布时间',
+      format: { kind: 'dateTime', timezone: 'Asia/Shanghai', display: 'datetime' }
+    },
+    {
+      name: 'homepage',
+      type: PropertyType.string,
+      displayName: '主页',
+      format: { kind: 'url', schemes: ['https'] }
+    },
+    {
+      name: 'score',
+      type: PropertyType.integer,
+      displayName: '评分',
+      format: { kind: 'rating', min: 1, max: 5, step: 1 }
+    }
+  ],
+  computedProperties: [],
+  relations: [],
+  indexes: []
+} as unknown as EntityMetadataOptions);
+
+/** AC#26 的顺序矩阵：两份内容相同、Map 插入顺序相反的元数据。 */
+const orderMatrix = (reversed: boolean): EntityMetadata => {
+  const properties = [
+    { name: 'alpha', type: PropertyType.string, displayName: '甲' },
+    { name: 'beta', type: PropertyType.string, displayName: '乙' },
+    { name: 'gamma', type: PropertyType.string, displayName: '丙' }
+  ];
+  const computedProperties = [
+    { name: 'first', type: PropertyType.string, displayName: '前' },
+    { name: 'second', type: PropertyType.string, displayName: '后' }
+  ];
+  const relations = [
+    { name: 'left', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'Target', mappedProperty: 'orders' },
+    { name: 'right', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'Target', mappedProperty: 'orders' }
+  ];
+  const flip = <T>(items: T[]): T[] => (reversed ? [...items].reverse() : items);
+  return transitionMetadata({
+    name: 'Order',
+    namespace: 'public',
+    properties: flip(properties),
+    computedProperties: flip(computedProperties),
+    relations: flip(relations),
+    indexes: []
+  } as unknown as EntityMetadataOptions);
+};
+
+/** 声明顺序正序的元数据。 */
+export const ORDER_METADATA: EntityMetadata = orderMatrix(false);
+
+/** 与 {@link ORDER_METADATA} 内容相同、三组各自逆序声明的元数据。 */
+export const ORDER_REVERSED_METADATA: EntityMetadata = orderMatrix(true);
+
+/** 按 `namespace/entity` 查表的关系解析器。 */
+export function createFieldResolver(entities: readonly EntityMetadata[]): EntityMetadataResolver {
+  const registry = new Map(entities.map(item => [`${item.namespace}/${item.name}`, item]));
+  return (entity, namespace) => registry.get(`${namespace}/${entity}`);
+}
+
+/** 覆盖上面全部关系目标的解析器。 */
+export const FIELD_RESOLVER: EntityMetadataResolver = createFieldResolver([
+  REVISION_METADATA,
+  AUTHOR_METADATA,
+  COMMENT_METADATA,
+  TOPIC_METADATA,
+  TARGET_METADATA,
+  OTHER_TARGET_METADATA,
+  GHOST_METADATA,
+  STAMP_METADATA
+]);

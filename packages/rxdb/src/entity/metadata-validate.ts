@@ -96,8 +96,35 @@ const REQUIRED_CONFIG_KEYS: Partial<Record<FieldFormat['kind'], readonly string[
   rating: ['min', 'max', 'step']
 };
 
-/** 各 kind 允许出现的配置键（不含 `kind` 本身）。 */
-const ALLOWED_CONFIG_KEYS: Record<FieldFormat['kind'], readonly string[]> = {
+/**
+ * `format` 配置键全集（不含 `kind` 本身）。
+ *
+ * @remarks
+ * 注册期校验与字段描述 DTO 解析器共用同一份键名字典：前者判「这个 kind 不该有这个键」，
+ * 后者判「这个键不属于协议、直接丢弃」。两边各写一份必然漂移。
+ */
+export type FieldFormatConfigKey =
+  | 'colorSpace'
+  | 'contentType'
+  | 'currency'
+  | 'display'
+  | 'language'
+  | 'max'
+  | 'min'
+  | 'scale'
+  | 'schemes'
+  | 'step'
+  | 'timezone'
+  | 'unit';
+
+/**
+ * 各 kind 允许出现的配置键（不含 `kind` 本身）。
+ *
+ * @remarks
+ * 值类型保持 `readonly string[]` 而非字面量元组：调用方需要用任意 `string` 做 `includes`
+ * 判存，收窄成字面量只会逼出一堆断言。
+ */
+export const FIELD_FORMAT_CONFIG_KEYS: Record<FieldFormat['kind'], readonly string[]> = {
   plainText: [],
   multilineText: [],
   richText: ['contentType'],
@@ -238,7 +265,7 @@ const detectFormatViolation = (
   if (typeof kind !== 'string') return { rule: 'invalidFormatConfig', message: 'format 缺少字符串 kind' };
   if (type === undefined) return { rule: 'formatOnRelation', message: '关系不接受 format 声明' };
 
-  const allowed = ALLOWED_CONFIG_KEYS[kind as FieldFormat['kind']];
+  const allowed = FIELD_FORMAT_CONFIG_KEYS[kind as FieldFormat['kind']];
   if (!allowed) return { rule: 'unknownFormat', message: `未知的 format.kind "${kind}"` };
 
   const conflict = CARDINALITY_CONFLICTS.find(item => item.kind === kind && item.type === type);
