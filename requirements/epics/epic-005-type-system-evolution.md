@@ -75,6 +75,7 @@ US-018（生成器 `default` 序列化）是第三条轨道，修的是当前就
   - 阶段 B 实体字段描述 DTO
   - 阶段 C 字段值校验、format/enum/options 透传与三框架契约
 - [US-018 生成器元数据序列化管线与 default 语义](../stories/core/US-018-generator-default-serialization.md) (High) — 从 US-012 拆出，含 `BREAKING CHANGE`
+- [US-019 拒绝重复声明的 URL scheme](../stories/core/US-019-url-scheme-duplicate-rejection.md) (Medium) — US-012 阶段 A 的收尾，消解其 L511/L565 矛盾；不新增 `MetadataValidationRule` 成员
 - [US-206 本地适配器持久化与查询 bigint/binary](../stories/adapter/US-206-bigint-binary-adapter.md) (High)
 - [US-303 bigint/binary change codec 与系统迁移](../stories/collaboration/US-303-bigint-binary-change-codec.md) (High)
 - [US-804 加密字段支持 bigint/binary](../stories/future/US-804-bigint-binary-encryption.md) (High)

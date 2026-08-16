@@ -25,6 +25,7 @@ import {
   setSafeObjectKey,
   setSafeObjectWritableKey
 } from './entity.utils.js';
+import { formatMetadataViolations, validateEntityMetadataSet } from './metadata-validate.js';
 import { collectMutationEntityTypes, resolveBatchPrimaryAdapter } from './primary-adapter.js';
 import { createEntityProxy } from './proxy.js';
 import entity_relation_helper from './relation-helper.js';
@@ -97,6 +98,14 @@ export class EntityManager {
   }
 
   init() {
+    // 跨实体聚合校验前置：违规时一条都不绑定，`resolveEntityManager()` 对所有实体一致失败
+    const violations = validateEntityMetadataSet(
+      this.rxdb.config.entities.map(EntityType => getEntityMetadata(EntityType))
+    );
+    if (violations.length > 0) {
+      throw new RxDBError(formatMetadataViolations(violations));
+    }
+
     const boundTypes: EntityType[] = [];
     try {
       // 批量处理所有注册的实体类型

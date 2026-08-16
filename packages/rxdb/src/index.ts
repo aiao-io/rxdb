@@ -14,6 +14,18 @@ export * from './entity/metadata-options.interface.js';
 // 批量写入解析主适配器时抛给调用方的结构化错误。
 // 选择器本身（selectPrimaryAdapterKind 等）是 Repository / EntityManager 的共享内部实现。
 export { transitionMetadata } from './entity/metadata-transition.js';
+export {
+  FIELD_FORMAT_CARRIERS,
+  FIELD_FORMAT_CONFIG_KEYS,
+  FIELD_FORMAT_KINDS,
+  formatMetadataViolations,
+  validateEntityMetadata,
+  validateEntityMetadataSet,
+  type EntityMetadataValidationError,
+  type FieldFormatConfigKey,
+  type MetadataValidationRule,
+  type RelationResolutionRule
+} from './entity/metadata-validate.js';
 export type { EntityMetadata } from './entity/metadata.interface.js';
 export {
   RxDBMissingPrimaryAdapterError,

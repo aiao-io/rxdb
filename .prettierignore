@@ -31,6 +31,9 @@ docker/
 /.nx/cache
 /.nx/workspace-data
 __*__.*
+# 逐字节快照：内容由 `JSON.stringify(x, null, 2)` 生成，Prettier 一格式化就与断言不符。
+# 上面的 `__*__.*` 匹配的是「名字里带点」的文件，套不到 `__snapshots__` 这个目录名。
+**/__snapshots__/
 **/ios/App/**
 
 *.d.ts

@@ -46,6 +46,7 @@
     ]
   },
   "devDependencies": {
-    "@aiao/rxdb-plugin-graph": "workspace:*"
+    "@aiao/rxdb-plugin-graph": "workspace:*",
+    "@aiao/rxdb-test": "workspace:*"
   }
 }

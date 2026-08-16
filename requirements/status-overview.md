@@ -8,12 +8,12 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 34   |
+| ✅ Done        | 36   |
 | 🚧 In Progress | 4    |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 14   |
+| 📝 Backlog     | 13   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 52   |
+| **合计**       | 53   |
 
 三条口径，读表前必知：
 
@@ -135,10 +135,11 @@
 - ✅ [US-303 bigint/binary change codec 与系统迁移](stories/collaboration/US-303-bigint-binary-change-codec.md) — 迁移部分（AC10–AC14）已实现但未被真实发布行使
 - ✅ [US-804 加密字段支持 bigint/binary](stories/future/US-804-bigint-binary-encryption.md)
 - ✅ [US-903 DevTools 展示 bigint/binary](stories/future/US-903-bigint-binary-devtools.md)
-- 🅰️ ⬜ [US-012 扩展字段语义与前端通信契约](stories/core/US-012-field-semantic-metadata.md) — 三阶段单文件故事
-  - ⬜ 阶段 A 字段 format 声明与注册期校验
-  - ⬜ 阶段 B 实体字段描述 DTO
-  - ⬜ 阶段 C 字段值校验、format/enum/options 透传与三框架契约
+- 🅰️ ✅ [US-012 扩展字段语义与前端通信契约](stories/core/US-012-field-semantic-metadata.md) — 三阶段单文件故事
+  - ✅ 阶段 A 字段 format 声明与注册期校验
+  - ✅ 阶段 B 实体字段描述 DTO
+  - ✅ 阶段 C 字段值校验、format/enum/options 透传与三框架契约
+- ✅ [US-019 拒绝重复声明的 URL scheme](stories/core/US-019-url-scheme-duplicate-rejection.md) — US-012 阶段 A 的收尾：`['HTTP','http']` 报 `invalidFormatConfig`，不做归一化
 - ⬜ [US-018 生成器元数据序列化管线与 default 语义](stories/core/US-018-generator-default-serialization.md) — 从 US-012 拆出，与其无依赖，可并行
 
 ### [本地工作树与提交历史](epics/epic-006-working-tree-commits.md)

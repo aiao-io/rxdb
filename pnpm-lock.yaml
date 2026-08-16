@@ -1201,6 +1201,9 @@ importers:
       '@aiao/rxdb-plugin-graph':
         specifier: workspace:*
         version: link:../rxdb-plugin-graph
+      '@aiao/rxdb-test':
+        specifier: workspace:*
+        version: link:../rxdb-test
       '@angular/compiler':
         specifier: 22.1.2
         version: 22.1.2
@@ -1391,6 +1394,9 @@ importers:
       '@aiao/rxdb-plugin-graph':
         specifier: workspace:*
         version: link:../rxdb-plugin-graph
+      '@aiao/rxdb-test':
+        specifier: workspace:*
+        version: link:../rxdb-test
 
   packages/rxdb-test:
     dependencies:
@@ -1426,6 +1432,9 @@ importers:
       '@aiao/rxdb-plugin-graph':
         specifier: workspace:*
         version: link:../rxdb-plugin-graph
+      '@aiao/rxdb-test':
+        specifier: workspace:*
+        version: link:../rxdb-test
 
   packages/utils:
     dependencies:

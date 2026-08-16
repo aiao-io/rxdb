@@ -113,10 +113,15 @@ describe('published model invariants', () => {
     // 数据库也不会有 CHECK 约束，等于白声明。
     const empty = PUBLISHED.flatMap(([, entity]) => {
       const metadata = metadataOf(entity);
-      return metadata.properties
-        .filter(property => 'enum' in property)
-        .filter(property => !Array.isArray(property.enum) || property.enum.length === 0)
-        .map(property => `${metadata.name}.${property.name}`);
+      return (
+        metadata.properties
+          // `in` 只在同一个表达式里收窄联合；拆成两个 `.filter` 后第二个拿到的仍是全联合，
+          // 而 `EntityPropertyMetadata` 里只有 enum / stringArray 两支带 `enum`。
+          .filter(property =>
+            'enum' in property ? !Array.isArray(property.enum) || property.enum.length === 0 : false
+          )
+          .map(property => `${metadata.name}.${property.name}`)
+      );
     });
 
     expect(empty).toEqual([]);

@@ -140,7 +140,7 @@ const validateRelationIdentifiers = (metadata: EntityMetadata): void => {
   });
 };
 
-const validateEntityMetadata = (metadata: EntityMetadata): void => {
+const assertGeneratedEntityBindings = (metadata: EntityMetadata): void => {
   assertGeneratedBindingIdentifier(metadata.name, 'entity name');
   if (RESERVED_ENTITY_BINDINGS.has(metadata.name)) {
     throw new Error(`Invalid entity name binding: ${JSON.stringify(metadata.name)}`);
@@ -170,7 +170,7 @@ const validateMetadataSet = (metadataSet: ReadonlySet<EntityMetadata>, splitFile
   const namespacesByName = new Map<string, string>();
 
   metadataSet.forEach(metadata => {
-    validateEntityMetadata(metadata);
+    assertGeneratedEntityBindings(metadata);
     // split 模式下实体文件名直接取实体名，与固定的 barrel index.js/index.d.ts 撞名。
     // 大小写不敏感的文件系统（macOS/Windows）上 Index.js 同样会覆盖 index.js。
     if (splitFiles && metadata.name.toLowerCase() === 'index') {
@@ -295,7 +295,7 @@ export class RxDBClientGenerator {
       meta = transitionMetadata(meta_options, options);
     }
 
-    validateEntityMetadata(meta);
+    assertGeneratedEntityBindings(meta);
     validateSourceGetters(meta, sourceGetters);
     const duplicate = Array.from(this.metadataSet).find(metadata => metadata.name === meta.name && metadata !== meta);
     if (duplicate) {

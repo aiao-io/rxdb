@@ -65,6 +65,14 @@
       "kind": "type"
     },
     {
+      "name": "CodeFormat",
+      "kind": "type"
+    },
+    {
+      "name": "ColorFormat",
+      "kind": "type"
+    },
+    {
       "name": "compactChanges",
       "kind": "value"
     },
@@ -101,11 +109,19 @@
       "kind": "type"
     },
     {
+      "name": "CurrencyFormat",
+      "kind": "type"
+    },
+    {
       "name": "DateProperty",
       "kind": "type"
     },
     {
       "name": "DateRules",
+      "kind": "type"
+    },
+    {
+      "name": "DateTimeFormat",
       "kind": "type"
     },
     {
@@ -121,6 +137,10 @@
       "kind": "value"
     },
     {
+      "name": "describeEntityFields",
+      "kind": "value"
+    },
+    {
       "name": "deterministicStringify",
       "kind": "value"
     },
@@ -130,6 +150,14 @@
     },
     {
       "name": "DiffResult",
+      "kind": "type"
+    },
+    {
+      "name": "DurationFormat",
+      "kind": "type"
+    },
+    {
+      "name": "EmailFormat",
       "kind": "type"
     },
     {
@@ -150,6 +178,10 @@
     },
     {
       "name": "ENTITY_BASE_METADATA_OPTIONS",
+      "kind": "value"
+    },
+    {
+      "name": "ENTITY_FIELDS_DTO_VERSION",
       "kind": "value"
     },
     {
@@ -193,11 +225,23 @@
       "kind": "type"
     },
     {
+      "name": "EntityComputedFieldDescriptor",
+      "kind": "type"
+    },
+    {
       "name": "EntityData",
       "kind": "type"
     },
     {
       "name": "EntityFieldConfig",
+      "kind": "type"
+    },
+    {
+      "name": "EntityFieldDescriptor",
+      "kind": "type"
+    },
+    {
+      "name": "EntityFieldsDescriptor",
       "kind": "type"
     },
     {
@@ -249,7 +293,19 @@
       "kind": "type"
     },
     {
+      "name": "EntityMetadataResolver",
+      "kind": "type"
+    },
+    {
       "name": "EntityMetadataTreeFeatures",
+      "kind": "type"
+    },
+    {
+      "name": "EntityMetadataValidationError",
+      "kind": "type"
+    },
+    {
+      "name": "EntityPropertyFieldDescriptor",
       "kind": "type"
     },
     {
@@ -258,6 +314,10 @@
     },
     {
       "name": "EntityPropertyMetadataOptions",
+      "kind": "type"
+    },
+    {
+      "name": "EntityRelationFieldDescriptor",
       "kind": "type"
     },
     {
@@ -285,6 +345,10 @@
       "kind": "type"
     },
     {
+      "name": "EntityRelationResolutionError",
+      "kind": "both"
+    },
+    {
       "name": "EntityRemoteCreatedEvent",
       "kind": "both"
     },
@@ -298,6 +362,14 @@
     },
     {
       "name": "EntityStaticType",
+      "kind": "type"
+    },
+    {
+      "name": "EntityToManyRelationFieldDescriptor",
+      "kind": "type"
+    },
+    {
+      "name": "EntityToOneRelationFieldDescriptor",
       "kind": "type"
     },
     {
@@ -329,7 +401,47 @@
       "kind": "value"
     },
     {
+      "name": "FIELD_FORMAT_CARRIERS",
+      "kind": "value"
+    },
+    {
+      "name": "FIELD_FORMAT_CONFIG_KEYS",
+      "kind": "value"
+    },
+    {
+      "name": "FIELD_FORMAT_KINDS",
+      "kind": "value"
+    },
+    {
+      "name": "FieldCardinality",
+      "kind": "type"
+    },
+    {
+      "name": "FieldFormat",
+      "kind": "type"
+    },
+    {
+      "name": "FieldFormatConfigKey",
+      "kind": "type"
+    },
+    {
+      "name": "FieldOptionDisplay",
+      "kind": "type"
+    },
+    {
+      "name": "FieldOptions",
+      "kind": "type"
+    },
+    {
+      "name": "FieldSource",
+      "kind": "type"
+    },
+    {
       "name": "FieldValidationError",
+      "kind": "type"
+    },
+    {
+      "name": "FieldValidationRule",
       "kind": "type"
     },
     {
@@ -366,6 +478,10 @@
     },
     {
       "name": "formatEntityFieldValue",
+      "kind": "value"
+    },
+    {
+      "name": "formatMetadataViolations",
       "kind": "value"
     },
     {
@@ -549,6 +665,10 @@
       "kind": "type"
     },
     {
+      "name": "JsonValue",
+      "kind": "type"
+    },
+    {
       "name": "KeyValue",
       "kind": "type"
     },
@@ -613,7 +733,19 @@
       "kind": "type"
     },
     {
+      "name": "MetadataValidationRule",
+      "kind": "type"
+    },
+    {
       "name": "MigrationType",
+      "kind": "type"
+    },
+    {
+      "name": "MultilineTextFormat",
+      "kind": "type"
+    },
+    {
+      "name": "MultiSelectFormat",
       "kind": "type"
     },
     {
@@ -641,6 +773,10 @@
       "kind": "type"
     },
     {
+      "name": "NumberFormat",
+      "kind": "type"
+    },
+    {
       "name": "NumberProperty",
       "kind": "type"
     },
@@ -665,6 +801,10 @@
       "kind": "type"
     },
     {
+      "name": "parseEntityFieldsDescriptor",
+      "kind": "value"
+    },
+    {
       "name": "parseEntityFieldValue",
       "kind": "value"
     },
@@ -675,6 +815,18 @@
     {
       "name": "parseRxDBEntityIdentityKey",
       "kind": "value"
+    },
+    {
+      "name": "PercentageFormat",
+      "kind": "type"
+    },
+    {
+      "name": "PhoneFormat",
+      "kind": "type"
+    },
+    {
+      "name": "PlainTextFormat",
+      "kind": "type"
     },
     {
       "name": "Plugin",
@@ -769,6 +921,10 @@
       "kind": "type"
     },
     {
+      "name": "RatingFormat",
+      "kind": "type"
+    },
+    {
       "name": "RawQueryResult",
       "kind": "type"
     },
@@ -809,11 +965,19 @@
       "kind": "type"
     },
     {
+      "name": "RelationResolutionRule",
+      "kind": "type"
+    },
+    {
       "name": "RelationStringRules",
       "kind": "type"
     },
     {
       "name": "RelationUUIDRules",
+      "kind": "type"
+    },
+    {
+      "name": "RelationValueType",
       "kind": "type"
     },
     {
@@ -906,6 +1070,10 @@
     },
     {
       "name": "RestoreEntityOptions",
+      "kind": "type"
+    },
+    {
+      "name": "RichTextFormat",
       "kind": "type"
     },
     {
@@ -1201,6 +1369,10 @@
       "kind": "value"
     },
     {
+      "name": "SingleSelectFormat",
+      "kind": "type"
+    },
+    {
       "name": "StringArrayProperty",
       "kind": "type"
     },
@@ -1425,6 +1597,10 @@
       "kind": "both"
     },
     {
+      "name": "UrlFormat",
+      "kind": "type"
+    },
+    {
       "name": "uuid",
       "kind": "value"
     },
@@ -1442,6 +1618,18 @@
     },
     {
       "name": "validateEntityFieldValue",
+      "kind": "value"
+    },
+    {
+      "name": "validateEntityMetadata",
+      "kind": "value"
+    },
+    {
+      "name": "validateEntityMetadataSet",
+      "kind": "value"
+    },
+    {
+      "name": "validateFieldValue",
       "kind": "value"
     }
   ]

@@ -1,14 +1,10 @@
-import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { SourceFile } from '../../core/ts-morph-browser.js';
+import { runTypeScriptCompiler } from './typescript-compiler.js';
 
 const RXDB_IMPORT_PATTERN = /import \{ ([^}]+) \} from '@aiao\/rxdb';/g;
-const TYPESCRIPT_COMPILER_PATH = fileURLToPath(
-  new URL('../../../../../node_modules/typescript/bin/tsc', import.meta.url)
-);
 
 const collectRxDBImports = (sourceFiles: readonly SourceFile[]): string[] => {
   const imports = new Set<string>();
@@ -93,32 +89,6 @@ const writePackage = async (root: string, packageName: string, declaration: stri
     writeFile(path.join(packageDir, 'index.d.ts'), declaration)
   ]);
 };
-
-const runTypeScriptCompiler = (configPath: string): Promise<string[]> =>
-  new Promise((resolve, reject) => {
-    execFile(
-      process.execPath,
-      [TYPESCRIPT_COMPILER_PATH, '--project', configPath, '--pretty', 'false'],
-      { encoding: 'utf8' },
-      (error, stdout, stderr) => {
-        if (!error) {
-          resolve([]);
-          return;
-        }
-
-        const diagnostics = `${stdout}\n${stderr}`
-          .split('\n')
-          .map(line => line.trim())
-          .filter(Boolean);
-        if (diagnostics.length > 0) {
-          resolve(diagnostics);
-          return;
-        }
-
-        reject(error);
-      }
-    );
-  });
 
 export const compileGeneratedConsumer = async (
   sourceFiles: readonly SourceFile[],
