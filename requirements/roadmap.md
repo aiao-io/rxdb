@@ -18,6 +18,7 @@
 |   P2   | Electron PGlite 数据目录与事务宿主   | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)       | PGlite callback transaction 不能跨 IPC 序列化，需要 SQLite 路径不需要的事务 host 协议                                      | 主进程 data directory、事务 ID 协议或主进程托管 adapter、跨进程类型保真                                               |
 |   P2   | PGlite 原生全文搜索                  | [US-703](stories/future/US-703-pglite-full-text-search.md)               | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                                                                  | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                          |
 |   P2   | 子路径入口纳入 API 表面基线          | [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)         | 版本策略把子路径承诺为公开 API，门禁却只扫主入口——承诺与门禁的差额只能靠人工审查补                                         | 源入口声明收敛到单一真相源、基线格式扩到多入口、资产入口白名单跳过、三处文档收口                                      |
+|   P3   | 多端小程序宿主（先抽契约）           | [US-211 阶段 A](stories/adapter/US-211-multi-miniprogram-platforms.md)   | Taro 有 `build:alipay/tt/qq/swan`，适配器只认 `wx`；先抽 host + 可行性矩阵，**不**扩大公开支持声明                         | `MiniProgramHost`、微信路径零回归、`miniprogram-platform-feasibility.md`；B/C 只吃矩阵 `supported`                    |
 
 > US-306 / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
 > [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定依赖关系。
@@ -45,9 +46,13 @@
    US-307 / US-308 的核心持久层半边可与 US-306 阶段 C 并行开工，但三框架入口与 benchmark 采样必须复用
    阶段 C 冻结的 `useWorkingTree()` 契约与 `bench-working-tree` target，排在其后。
 6. US-703 应复用现有搜索公开 API 和跨框架 parity fixture，不为 PGlite 增加 SQLite 专属 fallback。
-7. US-209 已 Done，其约束转为**长期口径**：小程序适配器的能力承诺不得扩大，
-   WAL、多页面并发、崩溃恢复保证和微信以外的小程序平台都不在范围内；文档一律写「实验性」，
-   不得把它列成与 wa-sqlite 同级的受支持适配器（落点见 [compatibility.md](../website/docs/compatibility.md) 的能力边界专节）。
+7. US-209 已 Done，其**能力上限**转为长期口径：WAL、多页面并发、崩溃恢复保证在微信路径上不得扩大；
+   文档一律写「实验性」，不得把微信路径列成与 wa-sqlite 同级的受支持适配器
+   （落点见 [compatibility.md](../website/docs/compatibility.md) 的能力边界专节）。
+   **平台集合**的扩展由 [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 认领：
+   阶段 A 先抽宿主契约并写可行性矩阵，仍写「仅微信」；阶段 B/C 只吃矩阵里 `decision: supported` 的平台，
+   且新 host 继承同一套能力上限（单连接 / rollback journal / 无崩溃恢复 / ~10MB）。
+   未关闭的阶段不得改公开支持声明。
    US-209 AC#8 顺带留下一个新缺口：`exports` 子路径入口的**导出表面**不受 api-surface 门禁保护
    （清单本身已由 `KNOWN_UNCOVERED_SUBPATHS` 核对），见
    [capability-matrix.md](capability-matrix.md) 的「已知的需求覆盖缺口」。

@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-13
-updated: 2026-08-15
+updated: 2026-08-16
 tags: [adapter, miniprogram, wechat, wa-sqlite, experimental]
 ---
 
@@ -43,7 +43,7 @@ INVEST 检查清单:
 
 ### Out of Scope
 
-- 支付宝 / 抖音 / 百度 / QQ 等其他小程序平台（本适配器仅支持微信逻辑层）
+- 支付宝 / 抖音 / 百度 / QQ 等其他小程序平台（本适配器仅支持微信逻辑层；多端扩展见 [US-211](./US-211-multi-miniprogram-platforms.md)）
 - WAL 模式、Worker / SharedWorker、多页面并发连接
 - 崩溃恢复保证（微信文件 API 无可靠 `fsync`、文件锁与原子 rename）
 - 大数据量场景（整库缓冲在内存，仅适用于 ~10MB 级兼容性验证）

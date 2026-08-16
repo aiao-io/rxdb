@@ -11,15 +11,15 @@
 | ✅ Done        | 34   |
 | 🚧 In Progress | 4    |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 12   |
-| ⏸️ Deferred    | 1    |
+| 📝 Backlog     | 13   |
+| ⏸️ Deferred    | 0    |
 | 🚫 Blocked     | 0    |
 | **合计**       | 51   |
 
 三条口径，读表前必知：
 
 1. 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；合计等于 `stories/*/US-*.md` 的文件数，epic 文件不计入。
-2. 其中 **4 条是多阶段故事**（[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-306](stories/collaboration/US-306-working-tree-index.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)）：一个编号一个文件一条状态，正文用「交付阶段」表分批交付，**全部阶段关闭后才置 `Done`**。阶段不单独计数，见 [README](README.md#大故事用交付阶段不用子故事文件)。
+2. 其中 **5 条是多阶段故事**（[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)、[US-306](stories/collaboration/US-306-working-tree-index.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)）：一个编号一个文件一条状态，正文用「交付阶段」表分批交付，**全部阶段关闭后才置 `Done`**。阶段不单独计数，见 [README](README.md#大故事用交付阶段不用子故事文件)。
 3. `🚫 Blocked = 0` 统计的是**故事 YAML 里显式写成 `status: Blocked`** 的数量，**不代表没有前置阻塞**——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。两者不要互相推断。
 4. `⏸️ Deferred` 与 `🚫 Blocked` 不同：Deferred 是**我方主动排期决定**（技术上可继续，选择不做），Blocked 是被外部前置卡住。Deferred 故事的 YAML 带 `deferred.until` 字段说明恢复条件。
 
@@ -36,7 +36,10 @@
 
 > US-207 / US-210 / US-505 的三条尾巴是**同一个下游缺口**：真实打包应用的重启与三平台矩阵。
 
-## 已暂缓（1 条）
+## 已暂缓（0 条）
+
+上表按 `grep "^status:"` 计数，当前没有 `status: Deferred` 的故事文件。
+[US-304](stories/collaboration/US-304-writer-lease-migration-fencing.md) 仍被其它故事引用，但文件不在 `stories/`，**不计入合计**。
 
 | Story                                                                                                         | 暂缓到 | 剩什么                                                          |
 | ------------------------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------- |
@@ -111,6 +114,10 @@
 
 - ✅ [US-702 全文搜索](stories/future/US-702-full-text-search.md)
 - ✅ [US-209 微信小程序 wa-sqlite 适配器](stories/adapter/US-209-miniprogram-adapter.md) — 实验性，仅微信逻辑层
+- 🅰️ ⬜ [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) — 三阶段单文件故事；阶段 A 抽 host + 可行性矩阵，B/C 按门禁放行支付宝 / 抖音 / 百度 / QQ
+  - ⬜ 阶段 A 宿主契约与可行性矩阵 — 微信路径零行为变化；不扩大支持声明
+  - ⬜ 阶段 B 第一个非微信 host — 默认候选支付宝，以阶段 A 矩阵为准
+  - ⬜ 阶段 C 抖音 / 百度 / QQ — 每平台独立 `supported` 才实现
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md) — 文件落 `userData/rxdb-files`，与 US-207 的 SQLite 同一备份域
 - 🚧 [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md) — 见上方[进行中](#进行中4-条)
 - 🚧 [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) — 从 US-207 二次拆出；自写 Rust command 持有 `rusqlite::Connection`
@@ -124,7 +131,7 @@
 - ✅ [US-206 本地适配器持久化与查询 bigint/binary](stories/adapter/US-206-bigint-binary-adapter.md)
 - ✅ [US-303 bigint/binary change codec 与系统迁移](stories/collaboration/US-303-bigint-binary-change-codec.md) — 迁移部分（AC10–AC14）已实现但未被真实发布行使
 - ✅ [US-804 加密字段支持 bigint/binary](stories/future/US-804-bigint-binary-encryption.md)
-- ✅ [US-903 DevTools 展示 bigint/binary](stories/future/US-903-bigint-binary-devtools.md)
+- ✅ [US-903 DevTools 展示 bigint/binary](stories/future/US-903-bigint-binary-devtools.md)0-条)；文件当前不在 `stories/`，不计入上表
 - ⏸️ [US-304 跨 realm writer lease 与迁移 fencing](stories/collaboration/US-304-writer-lease-migration-fencing.md) — 暂缓至 1.0.0，见[已暂缓](#已暂缓1-条)
 - 🅰️ ⬜ [US-012 扩展字段语义与前端通信契约](stories/core/US-012-field-semantic-metadata.md) — 三阶段单文件故事
   - ⬜ 阶段 A 字段 format 声明与注册期校验
