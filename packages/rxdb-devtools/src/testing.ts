@@ -31,10 +31,45 @@ export { createFakeClock } from './testing/fake-clock.js';
 export type { DevToolsFakeClock } from './testing/fake-clock.js';
 
 export { createJsonConformanceDriver } from './testing/json-driver.js';
-export type { JsonDriverEndpoints } from './testing/json-driver.js';
+export type { JsonDriverEndpointFactory, JsonDriverEndpoints } from './testing/json-driver.js';
+
+export { createFakeEndpointFactory } from './testing/fake-endpoints.js';
+
+export { createFakeProviders } from './testing/fake-providers.js';
+export type {
+  DevToolsFakePlatformFailure,
+  DevToolsFakeProviderKinds,
+  DevToolsFakeProviderOptions,
+  DevToolsFakeProviderSet
+} from './testing/fake-providers.js';
+
+// fixture 表是 AC#23 穷尽性的抓手：下游补映射要**加一行**，而不是加一条 default 分支。
+export { DEVTOOLS_ERROR_MAPPING_FIXTURES } from './testing/error-fixtures.js';
+export type { DevToolsErrorFixture } from './testing/error-fixtures.js';
+
+export {
+  encodeFrame,
+  readErrorCodes,
+  readLegacyFramesOfType,
+  readV2Frames,
+  readV2FramesOfType
+} from './testing/frames.js';
+export type { DevToolsAnyErrorCode } from './testing/frames.js';
+
+export {
+  DEVTOOLS_SUITE_BASE_TIMESTAMP,
+  connected,
+  connectorOutput,
+  panelClient,
+  panelOutput,
+  sessionIdOf
+} from './testing/suite-support.js';
+export type { DevToolsSuitePanelClient } from './testing/suite-support.js';
 
 export {
   assertCanonicalJsonFrame,
   isCanonicalJsonFrame,
   runDevToolsWireHygieneSuite
 } from './testing/wire-hygiene.suite.js';
+export { runDevToolsControlPlaneSuite } from './testing/control-plane.suite.js';
+export { runDevToolsDataPlaneSuite } from './testing/data-plane.suite.js';
