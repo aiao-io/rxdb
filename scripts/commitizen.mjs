@@ -13,6 +13,7 @@ import { execSync } from 'node:child_process';
 const scopes = [
   { value: 'aiao',                        name: 'aiao:                           框架变更' },
   { value: 'rxdb',                        name: 'rxdb:                           rxdb 变更' },
+  { value: 'rxdb-adapter-desktop',        name: 'rxdb-adapter-desktop:           rxdb-adapter-desktop 变更' },
   { value: 'rxdb-adapter-encrypted',      name: 'rxdb-adapter-encrypted:         rxdb-adapter-encrypted 变更' },
   { value: 'rxdb-adapter-miniprogram',    name: 'rxdb-adapter-miniprogram:       rxdb-adapter-miniprogram 变更' },
   { value: 'rxdb-adapter-pglite',         name: 'rxdb-adapter-pglite:            rxdb-adapter-pglite 变更' },

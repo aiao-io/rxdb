@@ -12,19 +12,26 @@ name: CI Template (Reusable)
 #
 #   setup ─┬─ lint ─────────────────────────────┐
 #          ├─ build ────────────────────────────┤
-#          ├─ test (N 条 lane) ─┬─ coverage ────┤
+#          ├─ test (N 条 lane) ─┐               │
+#          ├─ test-browser ─────┼─ coverage ────┤
 #          ├─ acceptance ───────┘               ├─ gate
 #          ├─ e2e (每个 app / target 一个 job) ─┤
 #          ├─ rust (clippy + test + 一致性) ────┤
+#          ├─ extras (文档 / 密钥 / spec 类型) ─┤
 #          └─ benchmark ────────────────────────┘
 #
 #   test / e2e **不等 build**：它们各自只需要自己那棵依赖子树的产物，
-#   等全量 build 反而是净亏。跨 job 复用靠 Nx Cloud 远端缓存 + actions/cache 的
-#   restore-keys 回退（能暖到上一轮 run 的本地缓存）。
+#   等全量 build 反而是净亏（build 324s + 最慢 lane 469s 串起来比现在的 572s 关键路径还长）。
+#   跨 job 复用只靠 actions/cache 的 restore-keys 回退，暖到 main 上一轮 run 的本地
+#   Nx 缓存 —— Nx Cloud 远端缓存目前是关闭的，见下面 NX_NO_CLOUD 的说明，
+#   别照着「有远端缓存」的前提去做容量规划。
 #
 # 分支保护只需要挂一个 required status check：`gate`。
 # 它 needs 上面所有 job，任何一个不是 success/skipped 就红。
 # 新增 job 时**必须**同步加进 gate 的 needs 和断言列表，否则新门禁形同虚设。
+#
+# 第三方 action 一律钉 commit SHA（尾注 `# vX` 供 Dependabot 识别）。
+# tag 可以被强推，一次上游账号失陷就能拿到本仓库 CI 的 secrets 与 id-token。
 
 on:
   workflow_call:
@@ -42,27 +49,44 @@ on:
       CODECOV_TOKEN:
         required: true
       # reusable workflow 不会自动继承调用方的 secrets，必须显式声明 + 显式传入。
+      # 这个是 optional：Nx Cloud 现在被 NX_NO_CLOUD 硬关（见下），token 缺席不影响任何 job。
+      # 写成 required: true 的话，fork PR 上拿不到 secret 会让整个 workflow 直接不启动，
+      # 报的还是「secret 未提供」这种和真实原因无关的错。
       NX_CLOUD_ACCESS_TOKEN:
-        required: true
+        required: false
+
+# 显式声明最小权限：仓库默认值可能是宽松的 read/write，而这里跑的是 PR 代码。
+# `actions: read` 给 nx-set-shas 查上一次成功 run；`id-token: write` 给 Codecov OIDC。
+# 没有任何 job 需要写仓库内容或评论 PR —— 别加回来。
+permissions:
+  actions: read
+  contents: read
+  id-token: write
 
 env:
   CI: true
   NX_DAEMON: false
   NX_TUI: false
-  # ---- Nx Cloud 临时关闭（2026-08-15）----------------------------------------
-  # nx.app 上 workspace 6a7b30a94caecff9b5bf52d6 处于 disabled 状态：
-  #   GET /nx-cloud/v1/runner-configuration/flags → 200 {"workspace":{"enabled":false}}
-  # 于是 CI 侧握手被拒，Nx 打出「Workspace is unable to be authorized. Exiting run.」
-  # 直接掐掉整个 run —— 一个 task 都不跑。
+  # ---- Nx Cloud 关闭（2026-08-15）--------------------------------------------
+  # 真实原因是**免费额度用完**，不是配置错、也不是 token 问题。原文（复制自实跑日志）：
+  #
+  #   NX   Nx Cloud encountered some problems
+  #   This Nx Cloud organization has been disabled due to exceeding the FREE plan.
+  #   Your organization can be re-enabled immediately by an organization admin
+  #   upgrading to the Team plan at https://cloud.nx.app/orgs/<org>/plans. (code: 401)
+  #
+  # 别被 401 带偏去查 token —— 额度超限和「token 缺失/错误」共用同一个状态码。
+  # 判据是消息正文里的 "exceeding the FREE plan"。
   #
   # 这个故障很会伪装：setup job 只用 `nx show projects`，压根不碰 task runner，
   # 所以它照常绿；红的只有 build/lint/test/e2e，看起来像「构建挂了」，其实不是。
-  # 另注：缺 token / token 错都是 401，不是这个 403 —— 别再往 token 方向查。
   #
   # NX_NO_CLOUD 是唯一的硬开关（nx/src/utils/nx-cloud-utils.js: isNxCloudDisabled），
   # 光把 token 留空没用：nx.json 里只要有 nxCloudId 就仍然会走 cloud runner。
-  # ⚠️ 恢复步骤：nx.app 上把 workspace 重新启用 → 配好 NX_CLOUD_ACCESS_TOKEN secret
-  #    → 删掉下面这一行即可，其余接线已经就位。
+  # ⚠️ 恢复步骤：升级 nx.app 套餐（或换一个未超额的 org）→ 配好 NX_CLOUD_ACCESS_TOKEN
+  #    secret → 删掉下面这一行即可，其余接线已经就位。
+  #
+  # 关着的这段时间里，跨 job 的产物复用**只有** actions/cache 一条路。
   NX_NO_CLOUD: true
   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
   NODE_OPTIONS: '--max-old-space-size=6144'
@@ -83,19 +107,24 @@ jobs:
       check_projects: ${{ steps.plan.outputs.check_projects }}
       build_projects: ${{ steps.plan.outputs.build_projects }}
       test_projects: ${{ steps.plan.outputs.test_projects }}
+      test_browser_projects: ${{ steps.plan.outputs.test_browser_projects }}
       acceptance_projects: ${{ steps.plan.outputs.acceptance_projects }}
       rust_projects: ${{ steps.plan.outputs.rust_projects }}
+      extras_projects: ${{ steps.plan.outputs.extras_projects }}
       test_matrix: ${{ steps.plan.outputs.test_matrix }}
       e2e_matrix: ${{ steps.plan.outputs.e2e_matrix }}
       has_checks: ${{ steps.plan.outputs.has_checks }}
       has_builds: ${{ steps.plan.outputs.has_builds }}
       has_tests: ${{ steps.plan.outputs.has_tests }}
+      has_test_browser: ${{ steps.plan.outputs.has_test_browser }}
       has_acceptance: ${{ steps.plan.outputs.has_acceptance }}
       has_e2e: ${{ steps.plan.outputs.has_e2e }}
       has_rust: ${{ steps.plan.outputs.has_rust }}
+      has_extras: ${{ steps.plan.outputs.has_extras }}
+      code_changed: ${{ steps.plan.outputs.code_changed }}
       need_benchmark: ${{ steps.plan.outputs.need_benchmark }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           filter: tree:0
           fetch-depth: 0
@@ -106,7 +135,7 @@ jobs:
 
       - uses: ./.github/actions/setup-workspace
 
-      - uses: nrwl/nx-set-shas@v5
+      - uses: nrwl/nx-set-shas@afb73a62d26e41464e9254689e1fd6122ee683c1 # v5
 
       # project graph 构建失败要在这里就炸，而不是让 8 个下游 job 各炸一次。
       - name: Validate Nx project graph
