@@ -1,7 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import { createDesktopSqliteHost, NodeSqliteEngine, parseDesktopHostRequest } from '../host.js';
+import {
+  createDesktopFileHost,
+  createDesktopSqliteHost,
+  isDesktopHostFileRequestKind,
+  NodeSqliteEngine,
+  parseDesktopHostFileRequest,
+  parseDesktopHostRequest
+} from '../host.js';
 import {
   DESKTOP_ADAPTER_NAME,
   DESKTOP_DEFAULT_DATABASE_SUFFIX,
@@ -63,8 +70,18 @@ describe('host entry', () => {
     expect(typeof parseDesktopHostRequest).toBe('function');
   });
 
+  // US-504：文件 host 与它的分派判据同样只在特权侧
+  it('exposes the file host and the dispatch predicate', () => {
+    expect(typeof createDesktopFileHost).toBe('function');
+    expect(typeof parseDesktopHostFileRequest).toBe('function');
+    expect(isDesktopHostFileRequestKind('file.open')).toBe(true);
+    expect(isDesktopHostFileRequestKind('execute')).toBe(false);
+  });
+
   // 特权侧的东西泄漏到 renderer 入口，隔离就只剩文档上的一句话
-  it('does not re-export the host factory from the renderer entry', async () => {
-    expect(Object.keys(await import('../index.js'))).not.toContain('createDesktopSqliteHost');
+  it('does not re-export the host factories from the renderer entry', async () => {
+    const rendererExports = Object.keys(await import('../index.js'));
+    expect(rendererExports).not.toContain('createDesktopSqliteHost');
+    expect(rendererExports).not.toContain('createDesktopFileHost');
   });
 });

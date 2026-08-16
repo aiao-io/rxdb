@@ -6,6 +6,52 @@
 
 ## Story 状态变更
 
+### 2026-08-16 — `main` 合并进 `001-working-tree-commits`（无状态变更）
+
+- 两侧各自追加故事后合并，**没有任何一条 story 的 `status` 因合并而改变**；
+  但两边的派生计数各自只在本分支内自洽，已按真相源重新推导：
+  Done 35、In Progress 4、Backlog 22、合计 61（父故事 3 → 4，实际待开发切片 18）。
+  上方两侧历史条目里的递进计数（`…→…`）保留作为当轮记录，**不再表示当前值**。
+- `packages/rxdb-devtools/src/connector.ts` 是唯一一处**语义**冲突：本分支加的
+  v1 私有 `MessagePort` 传输层与 `main` 加的 US-904b v2 端点互不知情地改了同几行。
+  两者都保留，接缝按信道划分：**v1 命令走私有端口，v2 帧始终走 `window` 总线**——
+  入站 v2 帧本来就只从总线进来（端口的 `onmessage` 只收 v1 命令），出站若也切到端口，
+  对端在总线上发 `PROTOCOL_HELLO` 却要去另一个信道找回应，协商永不闭合。
+  eager legacy 握手仍随附本次会话的 port2：端点只决定它何时出门，不知道 v1 还要求它带端口。
+- `connector.boundaries.spec.ts` 的 `none` 档用例取 `main` 的零泄漏判据（US-904:169 授权的安全收敛），
+  本分支的「window 总线命令白名单」用例原样保留。门禁：`rxdb-devtools` 30 文件 781 条测试全绿，
+  `rxdb-devtools-extension` 26 文件 212 条零改动通过，两包 `lint typecheck build` 全绿。
+- `packages/rxdb-plugin-storage/tsconfig.lib.json` 取本分支的删除：那段 `paths` 是误提交的
+  根级副本（同目录下无第二个包有它），`main` 只是往里加了两行；`main` 真正的改动
+  （`rxdb-adapter-desktop` 的 project reference）在冲突区之外，已保留。
+
+### 2026-08-16 — US-904b DevTools v2 协议冻结（Backlog → Done）
+
+- [US-904b](stories/future/US-904b-devtools-v2-protocol.md) 交付，成为 v2 **全部数值、状态机与错误联合的唯一真相源**；
+  US-904c / US-904d / US-905 只引用，不重定义。范围只有 `packages/rxdb-devtools`：
+  控制面（证据触发协商、1,000 ms 决策窗口、ACK 所有权、session 身份、三层授权矩阵、有界 ID 预算与 tombstone 轮换）、
+  provider 数据面（三领域 descriptor、RFC 4648 base64 transfer、有界 immutable snapshot、穷举错误联合），
+  外加 fake 四段 relay / fake provider / conformance suite。**不抽面板、不碰 Chrome relay、不接 native host。**
+- 新增 `./testing` 子路径（suite 必须 `import 'vitest'`，运行时主入口不能背上测试框架）。
+  四处协同登记已同步：`package.json` exports + 可选 peer `vitest`、`vite.config.mts` 多入口、
+  `tsconfig.base.json` 路径、`api-surface.mjs` 的 `KNOWN_UNCOVERED_SUBPATHS`（9 包 14 入口 → 10 包 15 入口）。
+  该入口**不受 API 基线保护**（基线只扫 `src/index.ts`），日后收窄其导出须在 PR 描述手动声明 breaking。
+- API 基线主入口新增 132 个符号（plan 预估 40–45），零删除。放宽是有意的：
+  面板要构造 REQUEST payload、host 作者要实现 provider 接缝、relay 要在不解析 payload 的前提下转发，
+  任一类型不导出，下游只能抄一份不随本包演进的副本。`v2/session.ts` / `v2/transfer.ts` 的状态机与
+  tombstone 容器、`internal/guards.ts` 仍不导出——那是端点实现细节，导出即允许下游复刻并行语义。
+- 唯一的行为回归是授权的：`connector.boundaries.spec.ts` 里「`none` 档 HANDSHAKE_ACK 后仍 flush 事件」
+  改为零泄漏（不订阅、不写 buffer、不发业务数据），依据 US-904:169 的安全收敛豁免。
+  其余 6 个 spec 文件与 `rxdb-devtools-extension` 零改动通过。
+- 门禁：30 文件 757 条测试全绿，覆盖率 97.72 / 94.55 / 99.14 / 99.51（高于本包 96/91/98/98 baseline），
+  `audit:api-surface` 更新后零 diff，`lint typecheck test build` 全绿。
+- 24 条 AC 中 19 条 ✅、5 条 ⚠️（AC#13 / #19 / #21 / #23 / #24）。保留项不是「还没写测试」而是本包结构上不可测：
+  真实重连语义与 OPFS/SQLite/WAL 零读取由 US-904c 关闭，内存驻留与 storage 独占锁由 US-904d / US-905 关闭，
+  错误映射穷尽性本轮只到 meta-test（`DEVTOOLS_PROVIDER_ERROR_CODES` 每个成员至少一条 fixture），
+  fixture 表从 `./testing` 导出，逼下游**加行**而非加 default 分支。详见该故事的「保留项」小节。
+- 派生视图同步：`status-overview.md`（Backlog 17 → 16，Done 34 → 35，合计 55 不变；epic-003 索引条目转 ✅）、
+  `US-904` 共享契约的子故事表新增状态列。
+
 ### 2026-08-15 — epic-006 二次评审与 US-306 拆分
 
 - 复核发现历史 bridge `v0.0.25` 的 tagged commit 经后续 squash 脱离当前发布主线，不能通过 migration gate 的

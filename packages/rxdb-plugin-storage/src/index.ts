@@ -13,6 +13,8 @@
 
 export * from './errors.js';
 export * from './file-meta.entity.js';
+export * from './filesystem/opfs-filesystem.js';
+export * from './filesystem/storage-filesystem.js';
 export * from './object-url.js';
 export * from './plugin.js';
 export * from './rxdb-storage.js';

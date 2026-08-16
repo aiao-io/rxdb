@@ -12,6 +12,10 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./pages/home/home.page')
   },
   {
+    path: 'storage',
+    loadComponent: () => import('./pages/storage/storage.page')
+  },
+  {
     path: 'todo',
     loadComponent: () => import('@modules/angular-todo/todo-page')
   },

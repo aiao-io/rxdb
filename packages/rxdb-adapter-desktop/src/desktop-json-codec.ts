@@ -5,7 +5,7 @@
  * {@link ../desktop-host-protocol.js | 线协议} 本身只承诺结构化克隆可传，因此 Electron 的
  * `ipcRenderer.invoke` 不需要任何编解码。Tauri 不同：它的 IPC 是 JSON，`bigint`
  * 会抛 `TypeError`、`Uint8Array` 会退化成 `{"0":1,...}`、`Date` 会变成字符串——
- * 三者恰好是协议里最要紧的 rowId、blob 与 `recordAt`。
+ * 三者正是协议里最依赖原语类型 rowId（bigint）/ blob（Uint8Array）/ recordAt（Date）的对象。
  *
  * 于是给 JSON 这条管子单独加一层带标签的编码。它是**传输层**的事，不是协议变更：
  * `DESKTOP_HOST_PROTOCOL_VERSION` 保持不变，Electron 路径完全不经过本模块。

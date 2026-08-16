@@ -30,6 +30,9 @@
   "references": [
     {
       "path": "../rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-adapter-desktop/tsconfig.lib.json"
     }
   ]
 }

@@ -11,16 +11,19 @@
 ### 父故事（共享契约文档）
 
 个别 story 因 INVEST「Small」不成立而被拆分，原文件保留为**父故事**：只承载子故事共享的契约、设计决策与不变式，
-**不直接交付**。目前有三条：
+**不直接交付**。目前有四条：
 
-| 父故事                                                       | 子故事            | 子故事文件 |
-| ------------------------------------------------------------ | ----------------- | ---------- |
-| [US-012](stories/core/US-012-field-semantic-metadata.md)     | US-012a/b/c       | ✅ 已落盘  |
-| [US-306](stories/collaboration/US-306-working-tree-index.md) | US-306a/b/c       | ✅ 已落盘  |
-| [US-015](stories/core/US-015-plugin-inject-dependency.md)    | US-015a / US-015b | ❌ 未创建  |
+| 父故事                                                              | 子故事                  | 子故事文件 |
+| ------------------------------------------------------------------- | ----------------------- | ---------- |
+| [US-012](stories/core/US-012-field-semantic-metadata.md)            | US-012a/b/c             | ✅ 已落盘  |
+| [US-306](stories/collaboration/US-306-working-tree-index.md)        | US-306a/b/c             | ✅ 已落盘  |
+| [US-904](stories/future/US-904-devtools-native-storage-contract.md) | US-904a/b/c/d 与 US-905 | ✅ 已落盘  |
+| [US-015](stories/core/US-015-plugin-inject-dependency.md)           | US-015a / US-015b       | ❌ 未创建  |
 
-父故事的 `status` 仍然参与计数（它要等所有子故事 Done 才能置 Done），但在 `status-overview.md` 和 epic 列表中
-用 `📄` 而非 `⬜` 标记，并把子故事缩进列在其下，避免读者以为它是一条可以直接开工的交付项。
+父故事的 `status` 仍然参与计数（通常要等所有子故事 Done 才能置 Done）。若 feasibility 子故事以机器可读
+`decision: unsupported` 关闭，受它门禁的子故事与父故事转 `Blocked` 并记录替代故事；不受该运行时前提影响的
+共享子故事继续交付。`status-overview.md` 和 epic 列表用 `📄` 而非 `⬜` 标记父故事，并把子故事缩进列在其下，
+避免读者以为它是一条可以直接开工的交付项。
 拆分理由必须写进父故事 INVEST 清单的 `Small` 一项，说明拆分日期与承接的子故事编号。
 
 **拆分即落盘（硬规则）**：把一条 story 降级为父故事时，**必须在同一次改动里创建全部子故事文件**，
@@ -112,7 +115,7 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 > [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定依赖关系。
 >
 > [US-015](stories/core/US-015-plugin-inject-dependency.md) 同理不单列——它已降级为父契约故事，
-> 真正的交付项是尚未创建的 `US-015a` / `US-015b`，见下方排期约束第 8 条。
+> 真正的交付项是尚未创建的 `US-015a` / `US-015b`，见下方排期约束第 9 条。
 
 ### 排期约束
 
@@ -122,14 +125,19 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
 3. US-207 必须先锁定 Electron SQLite 的真实连接语义并抽出共享桌面 host 契约；无法保证单连接事务时应 fail-fast，不得降级成伪事务。
 4. US-208 与 US-210 均排在 US-207 之后，复用其抽出的 host 契约。US-208 的两种事务 host 方案（IPC 事务 ID 协议 /
    adapter 完整托管在主进程）、US-210 的两种事务方案（配置单连接池 / Rust command 持有事务）都必须先通过同一套事务与事件测试再冻结选择。
-5. US-305 必须排在 US-304 之后：写事务复用 writer 身份与迁移期 epoch fencing，普通提交竞争使用独立的
+5. DevTools 共享链与 Electron 可行性门禁并行：**US-904a ∥ (US-904b → US-904c)**；只有 Electron 集成
+   要求 **US-904a(supported) + US-904c + US-207 + US-504 → US-904d**。Tauri 按 **US-904c → US-905** 推进，
+   原生链为 **US-210 → US-505**，US-905 阶段 2 额外要求 **US-210 + US-505**，全程不等待 Electron MV3/US-904d。
+   US-904 本体是共享契约文档，不直接交付。US-904c 阶段 1（行为中性的面板抽取）不依赖协议冻结，
+   可与 US-904b 并行开工；US-905 阶段 1（窗口/transport + fake provider）可与 US-210/US-505 并行。
+6. US-305 必须排在 US-304 之后：写事务复用 writer 身份与迁移期 epoch fencing，普通提交竞争使用独立的
    `headRevision` CAS，不把 epoch 当业务版本。US-305 的 schema migration 前还必须从当前发布主线产生新的有效
    bridge ancestor；历史 `v0.0.25` 已脱离当前 ancestry。epic-006 内部顺序为
-   **US-305 → US-306a → US-306b → US-306c →（US-307 ∥ US-308）**。
+   **US-305 → US-306a → US-306b → US-306c →（US-307 ∥ US-308）**；US-308 额外要求 US-304 已 Done。
    US-307 / US-308 的核心持久层半边可与 US-306c 并行开工，但三框架入口与 benchmark 采样必须复用
    US-306c 冻结的 `useWorkingTree()` 契约与 `bench-working-tree` target，排在其后。
-6. US-703 应复用现有搜索公开 API 和跨框架 parity fixture，不为 PGlite 增加 SQLite 专属 fallback。
-7. ~~US-209 只做门禁与文档收尾~~ → 2026-08-15 已 Done。约束仍然生效并转为**长期口径**：小程序适配器的能力承诺不得扩大，
+7. US-703 应复用现有搜索公开 API 和跨框架 parity fixture，不为 PGlite 增加 SQLite 专属 fallback。
+8. ~~US-209 只做门禁与文档收尾~~ → 2026-08-15 已 Done。约束仍然生效并转为**长期口径**：小程序适配器的能力承诺不得扩大，
    WAL、多页面并发、崩溃恢复保证和微信以外的小程序平台都不在范围内；文档一律写「实验性」，
    不得把它列成与 wa-sqlite 同级的受支持适配器（落点见 [compatibility.md](../website/docs/compatibility.md) 的能力边界专节）。
    US-209 AC#8 顺带留下一个新缺口：`exports` 子路径入口的**导出表面**不受 api-surface 门禁保护
@@ -137,7 +145,7 @@ frontmatter 中的 `status`；实现时仍以对应 story 的验收标准为准�
    [status-overview.md](status-overview.md) 的「已知的需求覆盖缺口」。
    该缺口 2026-08-15 由 [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md) 认领；
    在它交付之前，改动这 12 个子路径入口的导出**必须在 PR 描述里人工声明破坏性**。
-8. epic-008 内部 **US-013 → US-014** 为硬序。US-014 交付后三处已知泄漏全部关闭，
+9. epic-008 内部 **US-013 → US-014** 为硬序。US-014 交付后三处已知泄漏全部关闭，
    因此 `US-015a` 及其之后的每一条都必须在自己的故事里写出**今天用户踩得到的具体症状**才允许排期；
    写不出就留在 Backlog。`US-015` 本体自 2026-08-15 起降级为共享契约文档，不直接交付，
    且其子故事文件尚未创建——在 `US-015a` 落盘之前 epic-008 没有 US-014 之后的可交付切片。

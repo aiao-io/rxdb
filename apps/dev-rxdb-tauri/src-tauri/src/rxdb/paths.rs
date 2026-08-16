@@ -17,6 +17,13 @@ use super::error::{ErrorCode, HostError, HostResult};
 /// 会静默删除其中没有登记在案的文件。换个名字就完全绕开了这套回收逻辑。
 pub const DATABASE_DIRECTORY: &str = "rxdb-data";
 
+/// 文件内容所在的子目录名（US-505）。
+///
+/// 与 Electron 侧 `desktop-file-bridge.ts` 的 `DESKTOP_STORAGE_DIRECTORY` 逐字相同：
+/// 两个桌面宿主写出的数据目录布局必须一致，否则同一份备份换个宿主恢复就找不到文件。
+/// 它与 [`DATABASE_DIRECTORY`] 并列在应用数据目录下——同一个备份域，正是 US-505 的全部要点。
+pub const STORAGE_DIRECTORY: &str = "rxdb-files";
+
 const DATABASE_NAME_MAX_LENGTH: usize = 128;
 
 fn is_leading_character(character: char) -> bool {
@@ -36,9 +43,13 @@ fn is_trailing_character(character: char) -> bool {
 /// 匹配的是**第一个 `.` 之前**的部分：`CON.sqlite3` 与 `CON` 在 Windows 上是同一个设备。
 /// 大小写不敏感。`COM0`/`LPT0` 不在其列（Windows 只保留 1–9），上标数字变体（`COM¹`）
 /// 本就落在 ASCII 白名单之外。与 TS 侧 `desktop-storage.ts` 的
-/// `WINDOWS_RESERVED_DEVICE_NAME_PATTERN` 同义。
-fn is_windows_reserved_device_name(database_name: &str) -> bool {
-    let stem = database_name.split('.').next().unwrap_or_default().as_bytes();
+/// `WINDOWS_RESERVED_DEVICE_NAME_PATTERN`、`desktop-host-protocol.ts` 的
+/// `RESERVED_SEGMENT_BASE_NAMES` 同义。
+///
+/// 入参既可以是逻辑库名，也可以是一个文件路径分段：两处的判据完全相同，
+/// 各写一份只会让它们在下一次修订时分叉。
+pub fn is_windows_reserved_device_name(name: &str) -> bool {
+    let stem = name.split('.').next().unwrap_or_default().as_bytes();
     if [&b"CON"[..], b"PRN", b"AUX", b"NUL"].iter().any(|reserved| stem.eq_ignore_ascii_case(reserved)) {
         return true;
     }
@@ -168,6 +179,15 @@ mod tests {
         assert_eq!(path, root.join(DATABASE_DIRECTORY).join("app.sqlite3"));
         assert!(root.join(DATABASE_DIRECTORY).is_dir());
         fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// 目录名是**跨宿主契约**：Electron 与 Tauri 写出的应用数据目录布局必须一致，
+    /// 否则同一份备份换个宿主恢复就找不到文件。另一半在
+    /// `apps/dev-rxdb-electron/src-electron/desktop-file-bridge.ts`。
+    #[test]
+    fn storage_directory_matches_the_electron_layout() {
+        assert_eq!(STORAGE_DIRECTORY, "rxdb-files");
+        assert_ne!(STORAGE_DIRECTORY, DATABASE_DIRECTORY);
     }
 
     /// 非法名字不得在磁盘上留下任何痕迹。

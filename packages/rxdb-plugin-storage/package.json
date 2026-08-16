@@ -17,6 +17,16 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./desktop": {
+      "types": "./dist/desktop.d.ts",
+      "import": "./dist/desktop.js",
+      "default": "./dist/desktop.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
     }
   },
   "files": [
@@ -34,7 +44,21 @@
     "@aiao/rxdb": "workspace:*",
     "rxjs": "^7.8.2"
   },
+  "peerDependencies": {
+    "@aiao/rxdb-adapter-desktop": "workspace:*",
+    "vitest": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@aiao/rxdb-adapter-desktop": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
+    }
+  },
   "devDependencies": {
-    "@aiao/rxdb-adapter-wa-sqlite": "workspace:*"
+    "@aiao/rxdb-adapter-desktop": "workspace:*",
+    "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
+    "vitest": "4.1.10"
   }
 }

@@ -6,9 +6,10 @@ import { pathToFileURL } from 'node:url';
 // 完整缘由与门禁见 desktop-sqlite-bridge.spec.ts。
 import {
   createDatabasePathResolver,
-  createDesktopSqliteBridge,
-  type DesktopSqliteBridge
-} from './desktop-sqlite-bridge.bundle.js';
+  createDesktopHostBridge,
+  createStorageRootResolver,
+  type DesktopHostBridge
+} from './desktop-host-bridge.bundle.js';
 import { DEMO_RUN_CHANNEL, DESKTOP_HOST_REQUEST_CHANNEL, parseDemoRequest, type DemoResult } from './ipc-contract';
 import {
   APP_ENTRY_URL,
@@ -26,16 +27,18 @@ const serve = args.some(val => val === '--serve');
 const hideWindow = shouldHideWindow(process.env);
 
 /**
- * 桌面 SQLite host，首次被 renderer 请求时才建。
+ * 桌面 host（SQLite + 文件两族），首次被 renderer 请求时才建。
  *
- * 惰性是有意的：`setupIPC()` 在 app ready 之前就跑，而库目录挂在
+ * 惰性是有意的：`setupIPC()` 在 app ready 之前就跑，而库目录与文件根都挂在
  * `app.getPath('userData')` 下 —— 等到真有请求进来时，ready 早已完成。
  */
-let desktopSqlite: DesktopSqliteBridge | null = null;
+let desktopHost: DesktopHostBridge | null = null;
 
-const requireDesktopSqlite = (): DesktopSqliteBridge =>
-  (desktopSqlite ??= createDesktopSqliteBridge({
+const requireDesktopHost = (): DesktopHostBridge =>
+  (desktopHost ??= createDesktopHostBridge({
     resolveDatabasePath: createDatabasePathResolver(app.getPath('userData')),
+    // US-504：文件内容与库文件同域，于是「拷一个 userData 目录」= 完整带走应用数据。
+    resolveStorageRoot: createStorageRootResolver(app.getPath('userData')),
     onDeliveryError: error => console.error('[dev-rxdb-electron] 数据库变更事件送达失败：', error)
   }));
 
@@ -69,14 +72,14 @@ function setupIPC(): void {
     };
   });
 
-  // US-207：桌面 SQLite host。ELEC-08 那句「将来加入有副作用的操作」在这里兑现了 ——
-  // 这条通道能读写真实库文件，少了发起方校验就等于把数据库开放给任意被嵌入的 frame。
-  // 入参本身不在这里验：协议校验、SQL 与绑定值的边界全在 host 内部完成。
+  // US-207 / US-504：桌面 host。ELEC-08 那句「将来加入有副作用的操作」在这里兑现了 ——
+  // 这条通道能读写真实库文件与用户文件，少了发起方校验就等于把它们开放给任意被嵌入的 frame。
+  // 入参本身不在这里验：协议校验、SQL 与绑定值、文件路径的边界全在 host 内部完成。
   ipcMain.handle(DESKTOP_HOST_REQUEST_CHANNEL, (event, payload: unknown) => {
     if (event.senderFrame !== win?.webContents.mainFrame) {
       throw new Error(`[${DESKTOP_HOST_REQUEST_CHANNEL}] 拒绝来自非主 frame 的调用`);
     }
-    return requireDesktopSqlite().handle(event.sender, payload);
+    return requireDesktopHost().handle(event.sender, payload);
   });
 }
 
@@ -150,10 +153,12 @@ function createWindow(): BrowserWindow {
 
   // AC#7：窗口没了，它开的库句柄必须跟着放。留着的话文件一直被占，
   // 用户重开窗口会撞上另一份连接的 WAL 锁，症状看着却像「数据库坏了」。
+  // US-504 起同一步还要回收文件会话：未提交的写入要连临时文件一起中止，
+  // 它持有的路径锁要放掉，否则下一个窗口会永远等在一把没人放的锁上。
   // 这里捕获 webContents 而不是读 `win`：'destroyed' 触发时 `win` 已被下面的 'closed' 置空。
   const contents = win.webContents;
   contents.on('destroyed', () => {
-    desktopSqlite?.releaseTarget(contents);
+    desktopHost?.releaseTarget(contents);
   });
 
   win.on('closed', () => {
@@ -181,10 +186,26 @@ void app
   })
   .catch(reportLoadFailure);
 
+/** 收尾是否已经跑完；见下面的 'will-quit'。 */
+let desktopHostClosed = false;
+
 // 退出前把还开着的连接收干净：SQLite 的 WAL 需要一次 checkpoint 才算落定，
-// 进程被直接杀掉会留下 -wal / -shm，下次启动多一轮恢复。
-app.on('will-quit', () => {
-  desktopSqlite?.closeAll();
+// 进程被直接杀掉会留下 -wal / -shm，下次启动多一轮恢复；
+// 文件族则要把未提交写入的临时文件删掉，否则每次退出都在磁盘上留一份垃圾。
+//
+// 清理是异步的，而 'will-quit' 的回调一返回 Electron 就继续退 —— 即发即忘等于没清。
+// 因此先 preventDefault 把退出按住，等收尾落地再 quit 一次；`desktopHostClosed`
+// 保证第二次进来直接放行，否则这里就是个退不掉的死循环。
+app.on('will-quit', event => {
+  if (desktopHostClosed || !desktopHost) return;
+  event.preventDefault();
+  void desktopHost
+    .closeAll()
+    .catch(error => console.error('[dev-rxdb-electron] 退出前的清理失败：', error))
+    .finally(() => {
+      desktopHostClosed = true;
+      app.quit();
+    });
 });
 
 app.on('window-all-closed', () => {

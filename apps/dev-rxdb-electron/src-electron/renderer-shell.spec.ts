@@ -213,6 +213,63 @@ describe('US-207 桌面 SQLite 在渲染进程一侧的接线', () => {
   });
 });
 
+describe('US-504 本地文件存储在渲染进程一侧的接线', () => {
+  const service = read('src/app/services/desktop-database.service.ts');
+
+  // 插件的 install() 是往 `config.entities` 里追加 StorageFileMeta。`init()` 之后再 use()，
+  // 建表那一步早已跑完 —— metadata 表不存在，而症状是运行期某次 upload 才炸，
+  // 离真正的原因隔着一整个启动流程。顺序在这里钉死，比事后排查便宜得多。
+  it('use(rxDBPluginStorage) 排在 init() 之前', () => {
+    const useAt = service.indexOf('use(rxDBPluginStorage');
+    const initAt = service.indexOf('.init()');
+    expect(useAt).toBeGreaterThan(-1);
+    expect(initAt).toBeGreaterThan(-1);
+    expect(useAt).toBeLessThan(initAt);
+  });
+
+  // 后端不接进来，文件内容仍旧落在 WebView 的 OPFS 里 —— 页面照常能用，
+  // 只有「拷走 userData 再恢复」时才暴露：meta 还在，文件没了。
+  it('接入桌面文件后端并显式指定 rootDir', () => {
+    expect(service).toContain("from '@aiao/rxdb-plugin-storage/desktop'");
+    expect(service).toContain('createDesktopStorageFilesystem()');
+    expect(service).toMatch(/rootDir:\s*DESKTOP_STORAGE_ROOT_DIR/);
+  });
+
+  // 与 US-207 同型：`/host` 会把 node:sqlite 拖进 renderer bundle。
+  it.each(['src/app/services/desktop-database.service.ts', 'src/app/pages/storage/storage.page.ts'])(
+    '%s 不碰适配器的 /host 子路径',
+    file => {
+      expect(read(file)).not.toContain('@aiao/rxdb-adapter-desktop/host');
+    }
+  );
+
+  // 路由缺了这一条，storage 页会被 `**` 兜底吞成首页 —— e2e 只会看到「找不到选择器」。
+  it('storage 路由排在 ** 兜底之前', () => {
+    const routes = read('src/app/app.routes.ts');
+    expect(routes.indexOf("path: 'storage'")).toBeGreaterThan(-1);
+    expect(routes.indexOf("path: 'storage'")).toBeLessThan(routes.indexOf("path: '**'"));
+  });
+
+  // 打包 e2e（AC#1 / #3 / #5）全靠这些 testid 驱动；改名不会让 e2e 变红，
+  // 只会让它在等待选择器时超时。
+  it.each([
+    'storage-status',
+    'storage-error',
+    'storage-path',
+    'storage-entries',
+    'storage-entry',
+    'storage-refresh',
+    'storage-generate-name',
+    'storage-generate-size',
+    'storage-generate-upload',
+    'storage-verify',
+    'storage-digest',
+    'storage-delete'
+  ])('storage 页暴露 %s', testId => {
+    expect(read('src/app/pages/storage/storage.page.html')).toContain(`data-testid="${testId}"`);
+  });
+});
+
 describe('ELEC-21 worker 共享 chunk 不能被 chunk optimizer 删掉', () => {
   // @angular/build 22.0.5 的 `optimizeChunks`（懒加载 chunk ≥ 3 时默认启用）只把
   // **main 这一个入口**交给 rollup 重新打包，然后把被 rollup 吃掉的原 chunk

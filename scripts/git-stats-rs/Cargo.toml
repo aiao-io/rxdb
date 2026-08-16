@@ -2,6 +2,8 @@
 name = "git-stats"
 version = "0.1.0"
 edition = "2021"
+# human_format 1.2.1（gix 默认 comfort 特性拉进来）需要 1.88 的 if-let chain
+rust-version = "1.88"
 
 [dependencies]
 rayon = "1.10"

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import {
+  LucideFolderOpen as FolderOpen,
   LucideHouse as House,
   LucideListTodo as ListTodo,
   LucideDynamicIcon,
@@ -73,6 +74,12 @@ export class AppMenu {
       title: 'Home',
       path: '/home',
       icon: House
+    },
+    {
+      type: 'link',
+      title: 'Storage',
+      path: '/storage',
+      icon: FolderOpen
     },
     {
       type: 'divider',

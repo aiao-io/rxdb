@@ -1,6 +1,12 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { LucideHouse as House, LucideListTodo as ListTodo, LucideDynamicIcon, LucideIcon } from '@lucide/angular';
+import {
+  LucideFolderOpen as FolderOpen,
+  LucideHouse as House,
+  LucideListTodo as ListTodo,
+  LucideDynamicIcon,
+  LucideIcon
+} from '@lucide/angular';
 
 /**
  * 可点击的菜单项：一定有 `path` 与 `icon`。
@@ -91,6 +97,12 @@ export class AppMenu {
       title: 'Home',
       path: '/home',
       icon: House
+    },
+    {
+      type: 'link',
+      title: 'Storage',
+      path: '/storage',
+      icon: FolderOpen
     },
     {
       type: 'divider',
