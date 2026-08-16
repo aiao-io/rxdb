@@ -26,7 +26,8 @@
   },
   "devDependencies": {
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
-    "@aiao/rxdb-plugin-graph": "workspace:*"
+    "@aiao/rxdb-plugin-graph": "workspace:*",
+    "@aiao/rxdb-test": "workspace:*"
   },
   "peerDependencies": {
     "@aiao/rxdb-plugin-graph": "*",

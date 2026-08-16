@@ -50,6 +50,9 @@
       "path": "../rxdb/tsconfig.lib.json"
     },
     {
+      "path": "../rxdb-test/tsconfig.lib.json"
+    },
+    {
       "path": "../rxdb-plugin-graph/tsconfig.lib.json"
     }
   ]

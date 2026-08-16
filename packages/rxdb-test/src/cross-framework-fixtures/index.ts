@@ -10,6 +10,8 @@
  *
  * Fixture 文件：
  * - search-parity.ts — search parity 种子（Article/Comment），由三端 demo 实际消费
+ * - entity-fields-descriptor.ts — US-012 字段描述契约，由三端 `tri-framework-field-descriptor.spec.ts` 消费
  */
 
+export * from './entity-fields-descriptor.js';
 export * from './search-parity.js';

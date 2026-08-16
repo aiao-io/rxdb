@@ -441,6 +441,10 @@
       "kind": "type"
     },
     {
+      "name": "FieldValidationRule",
+      "kind": "type"
+    },
+    {
       "name": "fillDefaultValue",
       "kind": "value"
     },
@@ -658,6 +662,10 @@
     },
     {
       "name": "JSONProperty",
+      "kind": "type"
+    },
+    {
+      "name": "JsonValue",
       "kind": "type"
     },
     {
@@ -1618,6 +1626,10 @@
     },
     {
       "name": "validateEntityMetadataSet",
+      "kind": "value"
+    },
+    {
+      "name": "validateFieldValue",
       "kind": "value"
     }
   ]

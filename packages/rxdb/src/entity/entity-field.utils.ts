@@ -15,6 +15,7 @@
  * 两层不互相调用：冻结层的语义缺陷不能通过复用传染给描述层。
  */
 import { RxDBError } from '../RxDBError.js';
+import { isPlainRecord } from './json-safe.js';
 import {
   PropertyType,
   RelationKind,
@@ -202,10 +203,7 @@ export type FieldSource = 'computed' | 'property' | 'relation' | 'system';
 
 /** 关系字段的值类型全集：目标实体主键只允许这四种。 */
 export type RelationValueType = `${
-  | PropertyType.bigint
-  | PropertyType.integer
-  | PropertyType.string
-  | PropertyType.uuid}`;
+  PropertyType.bigint | PropertyType.integer | PropertyType.string | PropertyType.uuid}`;
 
 /**
  * 字段描述的公共部分。
@@ -319,15 +317,11 @@ export type EntityToManyRelationFieldDescriptor = EntityRelationFieldDescriptorB
 };
 
 /** 关系字段描述。用顶层 `cardinality` 收窄到具体分支。 */
-export type EntityRelationFieldDescriptor =
-  | EntityToManyRelationFieldDescriptor
-  | EntityToOneRelationFieldDescriptor;
+export type EntityRelationFieldDescriptor = EntityToManyRelationFieldDescriptor | EntityToOneRelationFieldDescriptor;
 
 /** 单个字段的描述。用 `source` 收窄到具体分支（INV-5）。 */
 export type EntityFieldDescriptor =
-  | EntityComputedFieldDescriptor
-  | EntityPropertyFieldDescriptor
-  | EntityRelationFieldDescriptor;
+  EntityComputedFieldDescriptor | EntityPropertyFieldDescriptor | EntityRelationFieldDescriptor;
 
 /** 一个实体的完整字段描述。 */
 export interface EntityFieldsDescriptor {
@@ -483,10 +477,13 @@ function resolveRelationValueType(
   const details = { namespace: metadata.namespace, entity: metadata.name, field: relation.name };
   const primary = [...target.propertyMap.values()].find(prop => readFlag(prop, 'primary'));
   if (!primary) {
-    throw new EntityRelationResolutionError(`${location} 的目标实体 ${namespace}/${relation.mappedEntity} 没有声明主键`, {
-      ...details,
-      rule: 'missingRelationPrimary'
-    });
+    throw new EntityRelationResolutionError(
+      `${location} 的目标实体 ${namespace}/${relation.mappedEntity} 没有声明主键`,
+      {
+        ...details,
+        rule: 'missingRelationPrimary'
+      }
+    );
   }
   if (!PRIMARY_PROPERTY_TYPES.has(primary.type)) {
     throw new EntityRelationResolutionError(`${location} 的目标主键类型 "${primary.type}" 不能作为外键值类型`, {
@@ -544,7 +541,10 @@ function describeRelation(
  * @throws {@link EntityRelationResolutionError} 关系目标缺主键或主键类型不受支持
  * @throws {@link RxDBError} 关系目标未注册
  */
-export function describeEntityFields(metadata: EntityMetadata, resolve: EntityMetadataResolver): EntityFieldsDescriptor {
+export function describeEntityFields(
+  metadata: EntityMetadata,
+  resolve: EntityMetadataResolver
+): EntityFieldsDescriptor {
   const fields: EntityFieldDescriptor[] = [];
 
   metadata.propertyMap.forEach((prop, key) => fields.push(describeProperty(key, prop)));
@@ -614,13 +614,6 @@ const FIELD_SOURCE_RANK: Record<FieldSource, number> = { property: 0, system: 0,
 /** 构造解析失败错误。 */
 const parseError = (path: string, reason: string): RxDBError =>
   new RxDBError(`实体字段描述解析失败：${path} ${reason}`);
-
-/** 判断是否为纯 JSON 对象：类实例、`Date`、`Uint8Array`、`Map` 一律不算。 */
-const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  const proto: unknown = Object.getPrototypeOf(value);
-  return proto === Object.prototype || proto === null;
-};
 
 /** 递归判定输入是否严格 JSON-safe；不安全值直接失败，不做静默丢弃。 */
 function assertJsonSafe(value: unknown, path: string): void {
@@ -869,9 +862,7 @@ function parseToManyRelationField(
 }
 
 /** 判定是否为单值关系 kind。 */
-const isToOneKind = (
-  kind: `${RelationKind}`
-): kind is `${RelationKind.MANY_TO_ONE | RelationKind.ONE_TO_ONE}` =>
+const isToOneKind = (kind: `${RelationKind}`): kind is `${RelationKind.MANY_TO_ONE | RelationKind.ONE_TO_ONE}` =>
   kind === RelationKind.ONE_TO_ONE || kind === RelationKind.MANY_TO_ONE;
 
 /** 解析关系字段描述。 */
@@ -893,8 +884,8 @@ function parseRelationField(record: Record<string, unknown>, path: string): Enti
     sortable: requireBoolean(record, 'sortable', path)
   };
   const kind = requireLiteral(relation, 'kind', relationPath, RELATION_KINDS);
-  return isToOneKind(kind)
-    ? parseToOneRelationField(record, relation, kind, base, path)
+  return isToOneKind(kind) ?
+      parseToOneRelationField(record, relation, kind, base, path)
     : parseToManyRelationField(record, relation, kind, base, path);
 }
 

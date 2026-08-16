@@ -11,16 +11,29 @@ import {
   cleanupSqliteTestAdapter,
   clearEntityRecords,
   createLockedSeeder,
+  ENTITY_FIELD_VALUE_CASES,
+  ENTITY_FIELDS_EXPECTATIONS,
+  ENTITY_FIELDS_FIXTURE_METADATA,
+  ENTITY_FIELDS_FIXTURE_RESOLVER,
+  ENTITY_FIELDS_PARSE_REJECTIONS,
+  entityFieldsWireField,
   expectObservableSequence,
   generateTestDbName,
   getE2eDbName,
   installSearchDemoTestApi,
+  makeEntityFieldsDescriptor,
+  makeEntityFieldsWire,
+  makeEntityFieldsWireDraft,
   makeSearchParityArticles,
   makeSearchParityComments,
   SEARCH_PARITY_ARTICLES,
   SEARCH_PARITY_COMMENTS,
   version,
-  withSeedLock
+  withSeedLock,
+  type EntityFieldExpectation,
+  type EntityFieldsParseRejection,
+  type EntityFieldsWireDraft,
+  type EntityFieldValueCase
 } from '@aiao/rxdb-test';
 import {
   ENCRYPTED_SENTINELS,
@@ -88,6 +101,12 @@ declare const treeUniqueDatabaseOptions: TreeUniqueSuiteDatabaseOptions;
 declare const treeUniqueDatabase: TreeUniqueSuiteDatabase;
 const treeUniqueOptions: TreeSiblingUniqueSuiteOptions = { factory: treeUniqueFactory };
 
+// US-012 字段描述夹具的四个类型导出同样要被真实消费，理由同上。
+declare const fieldExpectation: EntityFieldExpectation;
+declare const fieldValueCase: EntityFieldValueCase;
+declare const fieldsParseRejection: EntityFieldsParseRejection;
+declare const fieldsWireDraft: EntityFieldsWireDraft;
+
 void [
   // root
   version,
@@ -103,6 +122,18 @@ void [
   makeSearchParityComments,
   SEARCH_PARITY_ARTICLES,
   SEARCH_PARITY_COMMENTS,
+  ENTITY_FIELDS_FIXTURE_METADATA.name,
+  ENTITY_FIELDS_FIXTURE_RESOLVER,
+  makeEntityFieldsDescriptor().dtoVersion,
+  makeEntityFieldsWire(),
+  makeEntityFieldsWireDraft().fields,
+  entityFieldsWireField(fieldsWireDraft, 'title'),
+  ENTITY_FIELDS_EXPECTATIONS,
+  ENTITY_FIELD_VALUE_CASES,
+  ENTITY_FIELDS_PARSE_REJECTIONS,
+  fieldExpectation.valueType,
+  fieldValueCase.rule,
+  fieldsParseRejection.apply,
   // encrypted
   encryptedUser,
   ENCRYPTED_SENTINELS,
