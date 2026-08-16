@@ -25,19 +25,19 @@
 
 ## 进行中（4 条）
 
-| Story                                                                                            | 卡在哪                                                                       |
-| ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)         | AC#8 三平台打包矩阵；另有「包边界重整」E1～E7 未开工                         |
-| [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) | AC#1 缺跨进程重启 e2e、AC#9 三平台打包矩阵；另有「Tauri 包化」T1～T7 未开工  |
-| [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                   | AC#6 / #7 待 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵；AC#1/#3/#5/#8 仍 ⚠️ |
-| [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)    | 阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 A / C / D 未开始           |
+| Story                                                                                            | 卡在哪                                                                                                                                                            |
+| ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)         | AC#8 三平台打包矩阵；另有「包边界重整」E1～E7 与「Web 回落」E8～E11 未开工，两节应拆成独立故事（见该文件「待拆分」）                                              |
+| [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) | AC#1 缺跨进程重启 e2e；**AC#9 已标 🚫 阻塞**（macOS 无 WKWebView WebDriver，见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)）；另有「Tauri 包化」T1～T7 未开工 |
+| [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                   | AC#6 / #7 待 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵；AC#1/#3/#5/#8 仍 ⚠️                                                                                      |
+| [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)    | 阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 A / C / D 未开始                                                                                                |
 
 > US-207 / US-210 / US-505 的三条尾巴是**同一个下游缺口**：真实打包应用的重启与三平台矩阵。
 >
 > **桌面包边界重整（未开工，横跨 US-207 / US-210 / US-505 / US-504）**：
 > `@aiao/rxdb-adapter-desktop` 拆成 `@aiao/rxdb-adapter-electron` 与 `@aiao/rxdb-adapter-tauri`，
 > 共享协议与 renderer client 下沉 `rxdb-adapter-sqlite-core` 子路径，`desktop` 这个包名消失；
-> Tauri 的 Rust 宿主与 585 条一致性用例从 `apps/dev-rxdb-tauri/` 搬进新包，demo 反向依赖。
+> Tauri 的 Rust 宿主与一致性用例（写本条时 SQL 侧 577 条）从 `apps/dev-rxdb-tauri/` 搬进新包，demo 反向依赖。
 > 任务表在 US-207「包边界重整」（E1～E7）+「Web 回落」（E8～E11）与 US-210「Tauri 包化」（T1～T7），US-505 有 S1～S5 跟进项，
 > US-504 只需事后同步路径。两条**开工前必须落定**的决策：`ADAPTER_NAME` 是否从 `desktop`
 > 分裂成 `electron` / `tauri`（US-207 E3），以及 Rust 宿主做成 Tauri 插件还是普通 crate
@@ -194,3 +194,4 @@
 | epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`，历史 `v0.0.25` 又已被 squash 移出主线——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。这一条不随代码进度自动解除，需单独排期 |
 | epic-008 中 US-014 之后的一切                                                                    | [US-013](stories/core/US-013-lifecycle-scope-primitive.md) → [US-014](stories/core/US-014-plugin-scope-contract.md) 是硬序；[US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 A 消费 US-014 的 `install(scope)` 签名，阶段 B 另需先证明用户价值                                                                                       |
 | [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D                       | 同一文件的阶段 A 必须先给出 `decision: supported`                                                                                                                                                                                                                                                                                                  |
+| [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md) AC#9（Tauri 三平台打包 smoke）   | macOS 没有官方 WKWebView WebDriver，`tauri-driver` 只支持 Windows / Linux，该 AC 按字面**无法满足**。需先二选一：改 AC（macOS 换非 WebDriver 手段）或单开驱动方案 spike。该 AC 在故事内已标 🚫 而非 ⬜——它不是「还没排上」，是当前方案已判定做不到                                                                                                 |

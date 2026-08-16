@@ -5,15 +5,19 @@ status: Backlog
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-13
-updated: 2026-08-16
+updated: 2026-08-17
 tags: [adapter, desktop, electron, pglite, ipc, transaction]
 inherited_acs:
   - from: US-207
-    ac: 4
-    note: Electron PGlite data directory 的持久化与类型保真验收整条迁入本故事。
+    ac: 1
+    note: >-
+      ac 一律是 US-207 的**当前**编号——US-207 拆出 US-208 / US-210 后由 11 条重编为 8 条，
+      各条括注的「原 AC#N」只用于回溯 git 历史，不要拿它索引今天的 US-207。
+      本条：Electron PGlite data directory 的持久化与类型保真验收（原 AC#4）整条迁入本故事 AC#1；
+      US-207 AC#1 是它的 SQLite 对偶，今天的 US-207 已无 PGlite 相关 AC。
   - from: US-207
-    ac: 11
-    note: 仅继承「Electron PGlite 三平台通过」半句；SQLite 三平台仍由 US-207 承诺。
+    ac: 8
+    note: 仅继承「Electron PGlite 三平台通过」半句（原 AC#11 的一半）迁入本故事 AC#10；SQLite 三平台仍由 US-207 AC#8 承诺。
 ---
 
 <!--
