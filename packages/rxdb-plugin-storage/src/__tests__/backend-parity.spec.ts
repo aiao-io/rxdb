@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * @fileoverview 把共享的 storage 行为套件跑在包内两个后端上（US-504 AC#2）。
  *

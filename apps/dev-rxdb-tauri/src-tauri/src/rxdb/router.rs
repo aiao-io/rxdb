@@ -94,7 +94,7 @@ impl DesktopRouter {
             return;
         };
         for session_id in &owned.files {
-            let _ = session_id;
+            let _ = self.files.close_session(session_id);
         }
         for session_id in &owned.sqlite {
             let _ = self.sqlite.close(session_id);
@@ -157,7 +157,12 @@ impl DesktopRouter {
         let Some(session_id) = session_id else {
             return;
         };
-        let _ = files;
+        for owned in self.owners().values_mut() {
+            match files {
+                true => owned.files.remove(session_id),
+                false => owned.sqlite.remove(session_id),
+            };
+        }
     }
 
     fn owners(&self) -> MutexGuard<'_, Ownership> {

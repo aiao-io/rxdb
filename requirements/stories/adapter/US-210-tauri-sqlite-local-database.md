@@ -197,7 +197,11 @@ WebSQL 目录撞车导致的**静默丢数据**（每次启动拿到一个全新
 **不触发**，而行触发器会触发，共享套件恰好断言了这个行为。
 
 原「事务 ID 的悬挂回收要额外设计」这条风险仍然成立，实现里由 `session.rs` 的 session 表 +
-`RunEvent::Exit` 上的 `close_all()` 承担（见 AC#8）。
+两级回收承担：`RunEvent::Exit` 上的 `close_all()`（见 AC#8），以及 `WindowEvent::Destroyed`
+上按 window label 的 `close_owner()`。只有前者是不够的——窗口崩溃或被单独关掉后，它的连接与
+（US-505 的）文件锁会一直活到整个应用退出，而 `file.lockAcquire` 是无超时的等待，
+另一个窗口从此再也拿不到那把锁。归属表在 `router.rs`，不在两套宿主里：宿主是传输无关的，
+一致性测试的 stdio 二进制原样复用它们，那里没有「窗口」可言。
 
 ### 与 Node 宿主的三处有意差异
 

@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * @fileoverview host 报错时 storage 服务层的错误码与补偿语义（US-504 AC#6）。
  *

@@ -57,6 +57,16 @@ impl DesktopHost {
     pub fn close_all(&self) {
         self.0.close_all();
     }
+
+    /// 回收一个窗口的全部会话，窗口销毁时调用。
+    ///
+    /// 只在 `RunEvent::Exit` 上 `close_all` 是不够的：窗口崩溃或被单独关掉之后，
+    /// 它持有的文件锁、未提交的写入和 SQLite 连接会一直活到整个应用退出。锁尤其致命——
+    /// `file.lockAcquire` 是条件变量上的无限等待，另一个窗口从此再也拿不到那把锁，
+    /// 而它看到的现象与死锁不可区分。
+    pub fn close_window(&self, label: &str) {
+        self.0.close_owner(label);
+    }
 }
 
 /// renderer 的唯一入口，对应 `createTauriHostTransport` 里的
@@ -78,13 +88,23 @@ impl DesktopHost {
 /// Tauri 把 `Err` 压平成字符串，AC#5 承诺的可判别 `code` 会在路上丢掉。
 /// 这里的 `Err` 只对应一种情况——`DesktopRouter::handle` panic 了。那是缺陷而非业务失败，
 /// 让 `invoke` 直接 reject 才是诚实的信号。
+///
+/// # 关于 `window`
+///
+/// 会话按**发起窗口**记账，窗口销毁时据此回收（[`DesktopHost::close_window`]）。
+/// 这个归属只能在请求经过时记下来：窗口没了以后，除了一个 label 什么都不剩。
+///
+/// 注入的是 `Window` 而不是 `Webview`：回收挂在 `WindowEvent::Destroyed` 上，那个事件
+/// 按**窗口** label 分发。两处用的 label 必须同源，否则回收永远匹配不上任何一条记录。
 #[tauri::command]
 pub async fn rxdb_desktop_request(
     payload: Value,
+    window: tauri::Window,
     host: State<'_, DesktopHost>,
 ) -> Result<Value, String> {
     let host = Arc::clone(&host.0);
-    tauri::async_runtime::spawn_blocking(move || host.handle(&payload))
+    let owner = window.label().to_string();
+    tauri::async_runtime::spawn_blocking(move || host.handle_owned(&payload, &owner))
         .await
         .map_err(|error| format!("rxdb desktop host panicked: {error}"))
 }
@@ -149,6 +169,25 @@ mod tests {
         assert_eq!(host.0.sqlite().open_session_count(), 0);
         host.close_all();
         assert_eq!(host.0.files().open_session_count(), 0);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// 窗口销毁钩子只回收**那一个** label 名下的会话。
+    ///
+    /// 无法在单测里造出真的 `Window`，所以钉的是这一层的两件事：label 被原样传给
+    /// [`DesktopRouter::close_owner`]，且回收不波及其他窗口。
+    #[test]
+    fn close_window_reclaims_only_that_windows_sessions() {
+        let (host, root) = test_host();
+        host.0.handle_owned(&json!({ "kind": "file.open" }), "main");
+        host.0.handle_owned(&json!({ "kind": "file.open" }), "second");
+        assert_eq!(host.0.files().open_session_count(), 2);
+
+        host.close_window("main");
+        assert_eq!(host.0.files().open_session_count(), 1);
+        assert_eq!(host.0.owned_session_count("second"), 1);
+
+        host.close_all();
         let _ = std::fs::remove_dir_all(&root);
     }
 }

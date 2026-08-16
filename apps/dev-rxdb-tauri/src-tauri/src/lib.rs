@@ -40,6 +40,9 @@ fn check_runtime() -> RuntimeHealth {
 /// 用 `build(...).run(closure)` 而不是 `run(context)`，就是为了拿到 [`tauri::RunEvent::Exit`]
 /// 这个钩子。放任进程退出的话，SQLite 的文件句柄与 `-wal` / `-shm` 会活到最后一刻，
 /// 库文件在应用关闭后仍被占用——AC#8 要的「关掉应用后能重命名库文件」就不成立。
+///
+/// 进程级的退出钩子只是下界。单个窗口关闭或崩溃时也要回收，见下面的
+/// [`tauri::WindowEvent::Destroyed`]。
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -52,6 +55,18 @@ pub fn run() {
         .setup(|app| {
             app.manage(rxdb::commands::DesktopHost::new(app.handle())?);
             Ok(())
+        })
+        // 单个窗口没了就回收它的会话，不等整个应用退出。
+        //
+        // 挂 `Destroyed` 而不是 `CloseRequested`：后者可被阻止，也压根不会在窗口崩溃或被
+        // 外部关掉时触发。窗口带着一把独占文件锁消失后，另一个窗口的 `file.lockAcquire`
+        // 会在条件变量上无限期地等下去——没有超时能解开它，用户看到的就是界面卡死。
+        .on_window_event(|window, event| {
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                window
+                    .state::<rxdb::commands::DesktopHost>()
+                    .close_window(window.label());
+            }
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

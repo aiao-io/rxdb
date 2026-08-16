@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { DESKTOP_ADAPTER_NAME, type DesktopHostTransport } from '@aiao/rxdb-adapter-desktop';
 import { createDesktopFileHost, type DesktopFileHost } from '@aiao/rxdb-adapter-desktop/host';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
