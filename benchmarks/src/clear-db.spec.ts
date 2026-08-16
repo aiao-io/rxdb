@@ -143,7 +143,9 @@ describe('clearDB', () => {
     });
 
     // onblocked 是「别的连接还开着」的权威信号，不需要靠计时器推断
-    await expect(clearDB()).rejects.toThrow(`删除 ${OWNED_IDB} 被阻塞`);
+    await expect(clearDB()).rejects.toMatchObject({
+      errors: [expect.objectContaining({ message: `删除 ${OWNED_IDB} 被阻塞` })]
+    });
 
     expect(log).not.toHaveBeenCalledWith('Benchmark 存储清理完成 ✅');
     expect(warn).not.toHaveBeenCalledWith(`删除 ${OWNED_IDB} 被阻塞`);

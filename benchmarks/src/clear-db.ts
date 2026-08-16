@@ -93,7 +93,13 @@ export async function clearDB(): Promise<void> {
       if (indexedDB.databases) {
         const dbList = await indexedDB.databases();
         const benchmarkDbs = dbList.filter((db): db is { name: string } => !!db.name && isBenchmarkOwned(db.name));
-        await Promise.all(benchmarkDbs.map(({ name }) => deleteIndexedDBDatabase(name)));
+        // allSettled 而非 all：Promise.all 在第一个 reject 时就不再等其余，剩下那些库
+        // 到底删没删掉既无人查看、失败也无人报告。清理要的是「能删的都删掉」。
+        const results = await Promise.allSettled(benchmarkDbs.map(({ name }) => deleteIndexedDBDatabase(name)));
+        const reasons = results.filter(result => result.status === 'rejected').map(result => result.reason);
+        if (reasons.length > 0) {
+          throw new AggregateError(reasons, `${reasons.length} 个 IndexedDB 数据库清理失败`);
+        }
       } else {
         console.warn('indexedDB.databases() 不可用，跳过 IndexedDB 清理');
       }

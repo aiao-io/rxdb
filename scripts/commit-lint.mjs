@@ -30,8 +30,9 @@
  * 校验规则：首行必须是 `<type>(<scope>)!?: subject`，type/scope 取自 commitizen 配置；
  * 或以 `Revert` / `Release` / `wip` 开头。
  *
- * 三个前缀例外**锚定在首行开头**。历史版本用的是 `/wip/gi.test(整条消息)` 这种无锚点匹配，
- * 于是 `fix the release notes`、`swipe 手势` 都能蒙混过关 —— 那不是门禁，是装饰。
+ * 三个前缀例外**锚定在首行开头，且必须是完整的词**。历史版本先是用 `/wip/gi.test(整条消息)`
+ * 这种无锚点匹配，`fix the release notes`、`swipe 手势` 都能蒙混过关；后来改成 `startsWith`，
+ * 又漏掉词边界，`wipe out the cache`、`Released 1.2.3` 照样能过 —— 那不是门禁，是装饰。
  */
 
 import { execFileSync } from 'node:child_process';
@@ -43,8 +44,17 @@ import { NEED_CHECK_COMMIT_BRANCH_NAMES } from './workspace.mjs';
 /** 本地模式（含 commit-msg 文件）才校验的分支；其余分支放行。CI 的 --message / --range 不受此限制。 */
 export const NEED_CHECK_BRANCHES = NEED_CHECK_COMMIT_BRANCH_NAMES;
 
-/** 允许绕过 `type(scope):` 的首行前缀（大小写不敏感，但必须在开头）。 */
+/** 允许绕过 `type(scope):` 的首行前缀（大小写不敏感，但必须在开头，且必须是完整的词）。 */
 export const ALLOWED_PREFIXES = ['Revert', 'Release', 'wip'];
+
+/**
+ * 前缀例外的匹配正则：锚在首行开头 + 词边界。
+ *
+ * 只锚开头是不够的 —— `startsWith` 会把「以前缀开头的更长的词」一并放行：
+ * `wipe out the cache`、`Released 1.2.3`、`Reverting my decision` 都不是例外情形。
+ * `\b` 要求前缀后面紧跟非单词字符（空格、冒号、引号）或直接结束。
+ */
+const ALLOWED_PREFIX_REGEX = new RegExp(`^(?:${ALLOWED_PREFIXES.join('|')})\\b`, 'i');
 
 /**
  * 把不可见空白可视化，方便调试 commit msg 里的隐藏字符（中文输入法常见问题）。
@@ -87,8 +97,7 @@ export function buildSubjectRegex(types, scopes) {
 export function validateCommitMessage(message, config) {
   const firstLine = message.split('\n')[0].trim();
 
-  const prefixed = ALLOWED_PREFIXES.some(prefix => firstLine.toLowerCase().startsWith(prefix.toLowerCase()));
-  if (prefixed) return { ok: true };
+  if (ALLOWED_PREFIX_REGEX.test(firstLine)) return { ok: true };
 
   if (buildSubjectRegex(config.types, config.scopes).test(firstLine)) return { ok: true };
 
@@ -155,24 +164,36 @@ function readCurrentBranchName() {
 }
 
 /**
- * 列出区间内所有非 merge commit 的完整 message。
+ * 解析 `%H %B%x00` 格式的 git log 输出。
  *
  * 用 NUL 分隔而不是换行：commit message 本身是多行的，换行分隔会把一条拆成多条。
  *
- * @param {string} range 形如 `main..HEAD`
+ * @param {string} raw `git log --pretty=format:%H %B%x00` 的原始输出
  * @returns {{sha: string, message: string}[]} 由新到旧
  */
-export function listCommitsInRange(range) {
-  const raw = git('log', '--no-merges', '--pretty=format:%H %B%x00', range);
-
+export function parseCommitLog(raw) {
   return raw
     .split('\0')
     .map(chunk => chunk.trim())
     .filter(Boolean)
     .map(chunk => {
       const separator = chunk.indexOf(' ');
+      // 空 message 的提交 trim 完只剩一个 sha，找不到分隔空格。
+      // 不特判的话 slice(0, -1) 会砍掉 sha 最后一位，再把整个 sha 当成 message
+      // 送去校验 —— 报出来的是「40 位十六进制不合规」，完全指不到真正的毛病。
+      if (separator === -1) return { sha: chunk, message: '' };
       return { sha: chunk.slice(0, separator), message: chunk.slice(separator + 1).trim() };
     });
+}
+
+/**
+ * 列出区间内所有非 merge commit 的完整 message。
+ *
+ * @param {string} range 形如 `main..HEAD`
+ * @returns {{sha: string, message: string}[]} 由新到旧
+ */
+export function listCommitsInRange(range) {
+  return parseCommitLog(git('log', '--no-merges', '--pretty=format:%H %B%x00', range));
 }
 
 /**

@@ -5,6 +5,7 @@ import {
   ALLOWED_PREFIXES,
   NEED_CHECK_BRANCHES,
   buildSubjectRegex,
+  parseCommitLog,
   parseMessage,
   parseRange,
   shouldCheckCurrentBranch,
@@ -75,6 +76,20 @@ test('前缀例外必须在首行开头：合法前缀放行', () => {
   }
 });
 
+// 锚在开头还不够：startsWith 会把「以前缀开头的更长的词」一并放行。
+// `wipe out the cache`、`Released 1.2.3`、`Reverting my decision` 都不是例外情形。
+test('前缀例外必须是完整的词，不接受词内延长', () => {
+  assert.equal(accepts('wipe out the stale cache'), false);
+  assert.equal(accepts('Released 1.2.3'), false);
+  assert.equal(accepts('Reverting my earlier decision'), false);
+});
+
+test('前缀例外后面接标点或结束都算完整的词', () => {
+  assert.equal(accepts('Revert "feat(rxdb): 新增查询缓存"'), true);
+  assert.equal(accepts('Release: 1.2.3'), true);
+  assert.equal(accepts('wip'), true);
+});
+
 test('type(scope) 前面带杂物不放行（正则必须锚定）', () => {
   assert.equal(accepts('[skip ci] feat(rxdb): 新增查询缓存'), false);
 });
@@ -91,6 +106,24 @@ test('scope 里的正则元字符被转义（不会被当成分组）', () => {
 
   assert.equal(regex.test('feat(a.b): x'), true);
   assert.equal(regex.test('feat(axb): x'), false);
+});
+
+const SHA_A = 'a'.repeat(40);
+const SHA_B = 'b'.repeat(40);
+
+test('parseCommitLog 按 NUL 切分，多行 message 不会被拆散', () => {
+  const raw = `${SHA_A} feat(rxdb): 支持事务回滚\n\n正文第二段\0${SHA_B} fix(aiao): 修个小问题\n\0`;
+
+  assert.deepEqual(parseCommitLog(raw), [
+    { sha: SHA_A, message: 'feat(rxdb): 支持事务回滚\n\n正文第二段' },
+    { sha: SHA_B, message: 'fix(aiao): 修个小问题' }
+  ]);
+});
+
+// `%H %B` 遇到空 message 时输出只剩 "sha "，trim 完连分隔空格都没了。
+// 不特判的话 slice(0, -1) 会砍掉 sha 最后一位，再把整个 sha 当 message 送去校验。
+test('parseCommitLog 处理 message 为空的提交', () => {
+  assert.deepEqual(parseCommitLog(`${SHA_A} \0`), [{ sha: SHA_A, message: '' }]);
 });
 
 test('parseRange 支持 --range=A..B 与 --range A..B 两种写法', () => {
