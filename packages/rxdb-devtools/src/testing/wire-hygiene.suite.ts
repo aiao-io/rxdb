@@ -115,11 +115,14 @@ export function runDevToolsWireHygieneSuite(driver: DevToolsConformanceDriver): 
       // hopDelayMs > 0：投递靠 advanceTime 推进，而不是靠微任务。若 driver 只在 0 延迟下
       // 保真（例如同步传对象引用、只在异步路径上序列化），这条会把差异照出来。
       const session = await driver.open(createScenario({ hopDelayMs: 5 }));
-      await session.segment('panel').inject(hygieneFrame(2), 'panel-to-connector');
+      const injected = hygieneFrame(2);
+      await session.segment('panel').inject(injected, 'panel-to-connector');
       await session.advanceTime(5 * DEVTOOLS_RELAY_SEGMENTS.length);
 
+      // 只断言「注入的那帧原样到达」，不断言总数：装配了真实两端的 driver 这里还会有协商帧，
+      // 而它们同样必须规范——把总数写死会让这条在真实 driver 上因为无关原因红。
       const delivered = session.segment('connector').received;
-      expect(delivered).toHaveLength(1);
+      expect(delivered).toContain(injected);
       for (const frame of delivered) {
         expect(() => assertCanonicalJsonFrame(frame)).not.toThrow();
       }

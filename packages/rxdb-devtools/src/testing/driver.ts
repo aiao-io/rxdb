@@ -73,6 +73,17 @@ export interface DevToolsProviderProbe {
    * @returns 任何终态（成功 / 失败 / 取消 / 超时）之后必须为空（AC#19 / #22）。
    */
   temporaryArtifacts(): Promise<readonly string[]>;
+  /**
+   * 已**持久落地**的传输。
+   *
+   * @remarks
+   * 「只有合法 COMPLETE 才提交」若只断言「没有错误帧」，对一个在 CHUNK 阶段就写盘的实现同样绿——
+   * 取消与超时路径下它照样留下了文件，而 wire 上什么都看不出来。所以终态必须有一个独立于
+   * 消息的凭据。真实 driver 用宿主目录回答，fake 用内存表回答，判据不变。
+   *
+   * @returns `[传输标识, 字节数]` 序对；只有 `commit()` 会往里加。
+   */
+  committedTransfers(): Promise<readonly (readonly [string, number])[]>;
 }
 
 /** 一次 conformance 运行的固定条件。 */

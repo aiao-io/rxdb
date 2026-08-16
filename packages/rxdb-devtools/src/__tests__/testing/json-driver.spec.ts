@@ -122,7 +122,7 @@ describe('json conformance driver', () => {
 
   it('MUST wire endpoint factories on both ends', async () => {
     const seenByPanel: string[] = [];
-    const driver = createJsonConformanceDriver({
+    const driver = createJsonConformanceDriver(() => ({
       panel: send => {
         send(pingFrame());
         return frame => seenByPanel.push(frame);
@@ -130,7 +130,7 @@ describe('json conformance driver', () => {
       connector: send => frame => {
         if (frame === pingFrame()) send(pongFrame());
       }
-    });
+    }));
 
     const session = await driver.open(createScenario());
     await session.settle();
@@ -152,9 +152,10 @@ describe('json conformance driver', () => {
       eventSubscriptions: 0,
       bufferedEvents: 0,
       peakRetainedBytes: 0,
-      temporaryArtifacts: () => Promise.resolve([])
+      temporaryArtifacts: () => Promise.resolve([]),
+      committedTransfers: () => Promise.resolve([])
     };
-    const session = await createJsonConformanceDriver({ provider: probe }).open(createScenario());
+    const session = await createJsonConformanceDriver(() => ({ provider: probe })).open(createScenario());
 
     expect(session.provider.operationCalls.get('files.list')).toBe(0);
     await expect(session.provider.temporaryArtifacts()).resolves.toEqual([]);
