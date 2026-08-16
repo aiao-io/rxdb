@@ -26,11 +26,16 @@ INVEST 检查清单:
 >
 > **交付阶段**（顺序硬约束，阶段之间不可并行）：
 >
-> | 阶段 | 交付                                                    | AC 区段   |
-> | ---- | ------------------------------------------------------- | --------- |
-> | A    | `format` 声明层 + `validateEntityMetadata()` 注册期校验 | AC#1～12  |
-> | B    | `describeEntityFields()` / DTO / 严格解析器             | AC#13～26 |
-> | C    | `validateFieldValue()` + 生成器透传 + 三框架契约回归    | AC#27～39 |
+> | 阶段 | 交付                                                               | AC 区段   | 状态 |
+> | ---- | ------------------------------------------------------------------ | --------- | ---- |
+> | A    | `format` 声明层 + `validateEntityMetadata()` 注册期校验            | AC#1～12  | ⬜   |
+> | B    | `describeEntityFields()` / DTO / 严格解析器                        | AC#13～26 | ⬜   |
+> | C    | `validateFieldValue()` + format/enum/options 透传 + 三框架契约回归 | AC#27～36 | ⬜   |
+>
+> 生成器的 `default` 序列化管线重写与函数工厂显式失败**不在本故事**，已拆到
+> [US-018](./US-018-generator-default-serialization.md)：它修的是当前就存在的生成器缺陷，与字段语义无因果关系，
+> 且是唯一带 `BREAKING CHANGE` 的部分，独立发布与回滚更安全。阶段 C 的透传只涉及 `format` / `enum` / `options`
+> 这些 JSON-safe 纯数据，现有管线即可承载，**不依赖 US-018**。
 >
 > 本文是跨阶段的公共契约。进入开发前必须为 A / B / C 分别建立子任务；一个 PR 只能交付一个阶段，
 > 每个子任务独立更新对应 AC 状态和 API baseline。不得用“阶段表已经拆分”为理由把三阶段塞进同一 PR。
@@ -320,55 +325,19 @@ export function describeEntityFields(metadata: EntityMetadata, resolve: EntityMe
 
 `MetadataValidationRule` 因此为 **13 项**（12 + `readonlyOnRelation`）。
 
-### D10 — `default` 一律不进入 DTO
+### D10 — `default` 一律不进入 DTO；生成器侧的 default 语义由 US-018 承接
 
 不区分工厂函数和常量：常量 default 也不输出。理由是 default 的完整语义还包含 `'CURRENT_TIMESTAMP'` 这类 adapter 侧字面量（见 `DateProperty.default`）和 `Uint8Array` / `bigint` 等非 JSON-safe 值，逐类型定义通信表示是独立议题。前端需要初始值时走创建接口，不从字段描述里读。
 
-**DTO 不输出 default 不等于生成器可以丢失 default 语义。** 生成器规则固定如下：
+**DTO 不输出 default 不等于生成器可以丢失 default 语义**——但那是另一条故事的事。生成器今天的
+`JSON.stringify` / `JSON.parse` 往返会让 bigint 抛原生 `TypeError`、`Uint8Array` 塌成普通对象、
+函数工厂被静默丢弃，这是**当前就存在的缺陷**，与本故事要定义的字段语义没有因果关系，且是唯一带
+`BREAKING CHANGE` 的改动。整块已拆到 [US-018 生成器元数据序列化管线与 default 语义](./US-018-generator-default-serialization.md)，
+本故事不再重复定义规则。
 
-| metadata `default`                                              | 生成器行为                                                         |
-| --------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `string` / `boolean` / 有限 `number` / JSON-safe 数组和普通对象 | 输出等价 JS 字面量                                                 |
-| `bigint`                                                        | 输出十进制 bigint 字面量，如 `7n`                                  |
-| `Uint8Array`                                                    | 输出 `new Uint8Array([...])`，只取当前视图字节                     |
-| 有效 `Date`                                                     | 输出 `new Date('<ISO>')`                                           |
-| `'CURRENT_TIMESTAMP'`                                           | 原样输出该字符串字面量                                             |
-| 任意函数，包括 `() => new Date()`、`() => uuid()` 和闭包        | 抛 `Error`，message 含实体名、字段名和 `unsupportedDefaultFactory` |
-| 其他值、循环引用、非有限数或非法 `Date`                         | 抛 `Error`，message 含实体名、字段名和 `unsupportedDefaultValue`   |
-
-运行时函数对象不携带可靠的闭包与 import 信息，本故事禁止用 `Function#toString()` 猜测源码。若未来需要保留工厂，必须由独立 story 定义可序列化表达式或基于 AST 的依赖协议。
-
-从“静默丢弃函数 default”改成“生成期失败”是有意的用户可见行为变化。阶段 C 的 PR 必须标注
-`BREAKING CHANGE`，并在迁移说明中要求生成器用户把函数 default 移到可表达的常量、实体构造逻辑
-或创建接口；不得把它包装成无行为变化的 patch fix。
-
-#### D10.1 — 前置改造：生成器必须先去掉 JSON 往返，这不是“透传增强”
-
-上表在**当前**生成器管线下逐条不可实现。[RxDBClientGenerator.utils.ts:306-315](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.utils.ts#L306-L315) 的 `transitionMetadata()` 是「先 `JSON.stringify` / `JSON.parse` 往返，再交给 `renderMetadataValue()` 渲染」：
-
-```ts
-const serialized = JSON.stringify(metadataOptions);
-const plainMetadata: unknown = JSON.parse(serialized);
-return renderMetadataValue(plainMetadata, 0, 'metadata');
-```
-
-`renderToken()`（[同文件 L261](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.utils.ts#L261)）只在 JSON 解析**之后**被调用，它看到的永远是 plain 值。后果：
-
-| D10 要求                              | JSON 往返后的实际情况                                               |
-| ------------------------------------- | ------------------------------------------------------------------- |
-| `bigint` → `7n`                       | `JSON.stringify` 直接抛 `TypeError`，走不到任何本故事定义的错误处理 |
-| `Uint8Array` → `new Uint8Array([…])`  | 已塌成 `{"0":1,"1":2}`，字节视图信息不可恢复                        |
-| 有效 `Date` → `new Date('<ISO>')`     | 已塌成 ISO 字符串，与作者手写的字符串 default 不可区分              |
-| 函数 → 抛 `unsupportedDefaultFactory` | `JSON.stringify` 已把函数属性静默丢弃，该错误**永远触发不了**       |
-
-定死：阶段 C 必须**移除 `transitionMetadata()` 的 JSON 往返**，改为直接递归遍历 `EntityMetadata` 对象，在遍历中按值的运行时类型分派（`typeof value === 'bigint'`、`value instanceof Uint8Array`、`value instanceof Date`、`typeof value === 'function'`）。这是一次序列化管线重写，不是加一个 `renderToken` 分支；工作量必须按此估算。
-
-两条实现约束：
-
-- `omit(metadata, ['propertyMap', 'relationMap', 'indexMap'])` 保留即可。其余派生 Map（`computedPropertyMap` / `encryptedPropertyMap` / `columnNameToPropertyName` / `foreignKeyRelationMap` / `defaultValueProperties`）由 `setSafeObjectKey` 以 `enumerable: false` 定义（[entity.utils.ts:40](../../../packages/rxdb/src/entity/entity.utils.ts#L40)），不会被遍历到——但去掉 JSON 往返后这一点从「JSON.stringify 的副作用」变成了**必须显式测试的前提**，AC#37 需覆盖。
-- 现有的 `Metadata cannot be serialized` / `Metadata must serialize to an object` 两条守卫依赖 `JSON.stringify` 返回 `undefined`，管线重写后失去意义，必须由 D10 表格最后一行的 `unsupportedDefaultValue` 接管，不得留成死代码。
-
-**这条同时说明了本故事的现实收益**：今天用户写 `default: () => uuid()`，生成的客户端实体**已经在静默丢默认值**——不是"未来可能出问题"，是当前就存在的数据缺陷。
+两层契约的边界固定为：**生成器保留支持的常量 `default`（US-018），DTO 一律不输出任何 `default`（本故事）**。
+本故事阶段 C 只要求 `format` / `enum` / `options` 透传——它们是 JSON-safe 纯数据，现有管线即可承载，
+因此阶段 C **不依赖** US-018，两者可并行。
 
 ### D11 — 值校验新增吃 `EntityFieldDescriptor` 的入口，旧签名不动
 
@@ -716,6 +685,7 @@ type EntityRelationFieldDescriptorBase = Omit<
 
 /** 1:1 / m:1 —— extends `IEntityObject`，四个通用布尔标志都可声明；有逻辑外键可写 */
 export type EntityToOneRelationFieldDescriptor = EntityRelationFieldDescriptorBase & {
+  cardinality: 'single'; // 顶层判别，见下方「为什么关系子类型要收窄 cardinality」
   nullable: boolean;
   required: boolean;
   unique: boolean;
@@ -729,6 +699,7 @@ export type EntityToOneRelationFieldDescriptor = EntityRelationFieldDescriptorBa
 
 /** 1:m / m:n —— 只 extends `EntityRelationMetadataBase`，这四个概念在类型层就不存在 */
 export type EntityToManyRelationFieldDescriptor = EntityRelationFieldDescriptorBase & {
+  cardinality: 'multiple'; // 顶层判别
   nullable?: never;
   required?: never;
   unique?: never;
@@ -752,6 +723,19 @@ export function describeEntityFields(
 
 export function parseEntityFieldsDescriptor(value: unknown): EntityFieldsDescriptor;
 ```
+
+#### 为什么关系子类型要收窄 `cardinality`
+
+`relation.kind` 是**嵌套**判别字段。实测（TypeScript 6.0.3，`--strict`）：
+
+- `d.relation.writeField` 可用 —— 检查 `d.relation.kind === '1:1'` 收窄的是 `d.relation` 这个引用，没问题
+- `d.nullable` **不可用** —— 检查 `d.relation.mutation === 'set-remove'` **不会**把 `d` 本身收窄成 `EntityToOneRelationFieldDescriptor`，
+  `d.nullable` 仍是 `boolean | undefined`，消费方只能写类型断言，正是这份契约要消灭的东西
+
+因此两个关系子类型各自把继承自 `EntityFieldDescriptorBase` 的 `cardinality` 收窄成字面量：ToOne → `'single'`，
+ToMany → `'multiple'`。它同时是**顶层可用的判别字段**，并把 D1 的推导从文档约定变成编译期事实（`m:n` 不可能是 `single`）。
+`sortable` 用同一手法从 `sortable?: boolean` 交叉成必填——两处都刻意用交叉而不是 `Omit` 后重声明，
+保证子类型在结构上永远是 `EntityFieldDescriptorBase` 的子集。
 
 约束：
 
@@ -789,7 +773,8 @@ export function parseEntityFieldsDescriptor(value: unknown): EntityFieldsDescrip
 - 新增严格的 `parseEntityFieldsDescriptor()` 反序列化入口：未知版本、非法字段联合、非 JSON-safe 值和关系解析缺口都显式失败；任意协议层级的未知键按 D6.1 丢弃
 - `EntityFieldConfig` / `extractEntityFields()` / `extractSystemFields()` / `validateEntityFieldValue()` 输出**逐字节不变**，仅加 `@deprecated` 注释（D5、D11）
 - 新增 `validateFieldValue()`：`stringArray` 分支与 format 校验（D11）；`FieldValidationError` additive 扩展；该纯函数不接入 repository 写路径
-- **重写生成器的元数据序列化管线**（D10.1）：拆掉 `transitionMetadata()` 的 `JSON.stringify` / `JSON.parse` 往返，改为按运行时类型分派；在此基础上透传新语义元数据、按 D10 确定性输出支持的常量 `default`，函数工厂与其他不支持值显式失败，禁止静默丢弃
+- 生成器透传新语义元数据（`format` / `enum` / `options`）：三者都是 JSON-safe 纯数据，现有 `transitionMetadata()` 管线即可承载，不改管线结构
+- 把 `rxdb-client-generator` 内部私有的 `validateEntityMetadata`（[RxDBClientGenerator.ts:143](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L143)）改名，避让 core 新增的同名公开导出（阶段 A，无公开 API 影响）
 - 三框架只复用 core 的 DTO 类型与 `parseEntityFieldsDescriptor()`，并从 `@aiao/rxdb-test` 导入同一份契约 fixture，不增加专属语义 API
 - 更新 `requirements/api-baseline/rxdb.json`
 
@@ -797,6 +782,8 @@ export function parseEntityFieldsDescriptor(value: unknown): EntityFieldsDescrip
 
 - 把 `validateEntityFieldValue` 或 `validateFieldValue` 接入 repository 写路径（属 US-004 范畴）
 - 把加密列约束（`encrypted_sortable_forbidden` 等）从 `@aiao/rxdb-adapter-encrypted` 上提到 core 注册期校验（D13）
+- **生成器 `transitionMetadata()` 的序列化管线重写与 `default` 语义**（JSON 往返拆除、bigint / `Uint8Array` / `Date` 字面量还原、函数工厂显式失败）：已整体拆到 [US-018](./US-018-generator-default-serialization.md)，本故事不触碰该函数的管线结构
+- `keyValue` / `json` / `bigint` / `binary` / `boolean` 的**子结构**值校验：`validateFieldValue()` 对这五类只跑 `required` 与 `type` / `json` 两条规则（值是否为对象、是否 JSON-safe），不校验 `keyValueSchema` 里每个 entry 的类型、不校验 JSON 内部形状、不校验 bigint 值域与 binary 长度
 - Date、bigint、binary 以及关系 ID/集合的值 wire codec、adapter 编解码和远端 API 值协议；本故事只定义 metadata DTO 与纯函数校验
 - SQLite、PGlite、Supabase 等适配器新增物理列类型和数据库迁移
 - `decimal`、`dateOnly`、`timeOnly`、递归 `object`、通用 `array` 等新运行时 PropertyType
@@ -833,8 +820,14 @@ AC 按交付阶段分段，编号连续。阶段内可任意顺序验收，阶�
 
 > **AC#2 / AC#3 为什么只验到元数据层**：阶段 A 只交付声明层与注册期校验，此时 schema 生成、
 > 写入和序列化路径一行都没改。让阶段 A 的 AC 去跑 adapter 写读，等于把阶段 B/C 的依赖倒挂回阶段 A，
-> 而且断言的其实是"没碰过的代码没坏"。INV-2 的**存储层**证明放在阶段 C 的 AC#38 全量回归里：
+> 而且断言的其实是"没碰过的代码没坏"。INV-2 的**存储层**证明放在阶段 C 的 AC#35 全量回归里：
 > 既有 storage 契约测试在实体带 `format` 后必须零 diff 通过——那才是真正跑物理列和值 codec 的地方。
+>
+> **AC#7 的后半段是回归护栏，不是新行为**：`EntityManager.init()` 已经在 `catch` 里回滚
+> `boundTypes`（[entity-manager.ts:99-137](../../../packages/rxdb/src/entity/entity-manager.ts#L99-L137)），
+> 部分注册今天就不会泄漏。本条要锁的是：新增的跨实体聚合校验**不能**把这条既有保证改坏——
+> 比如把校验插在部分实体已绑定之后、又不走原来的 `catch` 路径。因此断言只看可观察结果
+> （`resolveEntityManager()` 对先注册的合法实体同样失败），不指定实现落在校验前置还是回滚。
 >
 > **AC#12 为什么单独成条**：类型层和运行时层仍可能在可静态表达的结构规则上漂移。
 > 落地方式：载体映射与 `kind` 列表共用 `as const` 数据源；类型级与运行时测试读取同一组结构 fixture。
@@ -842,22 +835,22 @@ AC 按交付阶段分段，编号连续。阶段内可任意顺序验收，阶�
 
 ### 阶段 B — 实体字段描述 DTO（AC#13～26）
 
-| #   | 前置条件                                                                      | 操作                                                                                       | 预期结果                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | 状态 |
-| --- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 13  | `richText` 声明 `text/markdown` 或 `text/html`                                | 生成字段 DTO                                                                               | DTO 原样保留 `contentType`；不包含编辑器私有 JSON 结构；**不做净化、不断言内容安全**                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | ⬜   |
-| 14  | `enum` 字段包含 `options` 展示元数据                                          | 生成字段 DTO                                                                               | DTO 同时保留稳定 `enum` 顺序和 `label/color/disabled`；重命名 label 不改数据值                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | ⬜   |
-| 15  | `date` 字段声明 `dateTime`                                                    | 生成字段 DTO 并做 JSON 往返                                                                | DTO 输出 `valueType: 'date'` 与 `format.kind: 'dateTime'`；不含 `Date` 实例；Date↔ISO、时区和 adapter 值 codec 按既有契约回归，不在本故事重新实现                                                                                                                                                                                                                                                                                                                                                                                                                  | ⬜   |
-| 16  | 实体含 `1:1`、`m:1`、`1:m`、`m:n` 四种关系                                    | 调用 `describeEntityFields(metadata, resolve)`                                             | 四种关系全部出现且 `field` 均为**关系名**（D9）；无 `orderId` 之类外键字段；`cardinality` 按 D1 推导；含 `relation.kind/entity/namespace`；1:1 / m:1 带 `writeField: '${name}Id'` 与 `mutation: 'set-remove'`，1:m / m:n 带 `mutation: 'add-remove'` 且**不含** `writeField`；四者均不含 `format`，`readonly` 恒 `true`（D9.1）；类型层用 `@ts-expect-error` 断言无法在 `EntityToManyRelationFieldDescriptor` 上写 `nullable` 或 `writeField`                                                                                                                      | ⬜   |
-| 17  | 实体含关系                                                                    | ①省略 `resolve` 编译；②传入返回 `undefined` 的 `resolve`                                   | ①`@ts-expect-error` 确认省略 `resolve` 不可编译（D7：签名必填，不做「无关系可省略」特例）；②抛 `RxDBError`，消息含关系名与目标实体名，**不**回退成 `uuid`、**不**省略 `valueType`（INV-4）                                                                                                                                                                                                                                                                                                                                                                         | ⬜   |
-| 18  | 关系目标实体只有一个 `primary: true` 的 `string` 属性                         | 调用 `describeEntityFields(metadata, resolve)`                                             | 关系 DTO 的 `valueType` 为 `'string'`，而非默认猜测的 `'uuid'`；`relation` 结构和写入映射仍符合 D9                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | ⬜   |
-| 19  | 关系目标实体没有主键，或主键类型不在 `uuid/string/integer/bigint` 内          | 调用 `describeEntityFields(metadata, resolve)`                                             | 抛 `EntityRelationResolutionError` 且 `instanceof RxDBError`；`details` 保留关系字段、目标实体和 `missingRelationPrimary` / `unsupportedRelationValueType`，不得只检查 message                                                                                                                                                                                                                                                                                                                                                                                     | ⬜   |
-| 20  | 计算属性 + `createdAt` / `updatedAt` / `createdBy` 系统字段存在               | 调用 `describeEntityFields()`                                                              | 计算属性输出真实 `valueType` 且 `readonly: true`；系统字段 `source: 'system'`，`readonly` **按元数据实际声明输出**——当前 `ENTITY_BASE_METADATA_OPTIONS` 五个字段恰好都声明了 `readonly: true`（[entity-base.ts:38-71](../../../packages/rxdb/src/entity/entity-base.ts#L38-L71)），因此本条断言值为 `true`，但实现必须读元数据而不是按 `source === 'system'` 填常量；用一个把 `createdAt` 覆盖成 `readonly: false` 的 fixture 实体反证这一点；`createdBy` / `updatedBy` 的 `valueType` 为 `'string'`（元数据实际声明），无用户语义                                 | ⬜   |
-| 21  | 布尔标志矩阵 fixture：属性 / 计算属性 / 四种关系各一行，标志一律不声明        | 生成字段 DTO，对每行断言键的**存在性**（`'unique' in d`）而非取值                          | 属性行：`readonly`/`nullable`/`required`/`unique`/`encrypted` 五键都在且为 `false`，`sortable`/`searchable`/`primary` 按属性接口能力决定在或不在（`BinaryProperty`/`JSONProperty`/`KeyValueProperty` 无 `sortable` 键，不伪造 `false`）；四种关系行：`sortable` 键都在且为 `false`，`readonly` 恒 `true`，`searchable`/`primary`/`enum`/`options`/`keyValueSchema` **一个都不出现**；`nullable`/`required`/`unique`/`encrypted` 四键**只在 1:1 / m:1 出现**（值为 `false`），在 1:m / m:n 上一个都不出现。断言必须用键存在性，`toEqual` 无法区分省略与 `undefined` | ⬜   |
-| 22  | 字段同时声明 `encrypted: true` 与 `sortable: true`                            | ①不装加密 adapter 时注册并生成 DTO；②单独跑 `@aiao/rxdb-adapter-encrypted` 的 adapter init | ①core 注册期**不**报错，DTO 忠实输出 `encrypted: true` 与 `sortable: true`，不做裁剪（D13）；②加密 adapter 仍抛 `encrypted_sortable_forbidden`，既有行为无回归                                                                                                                                                                                                                                                                                                                                                                                                     | ⬜   |
-| 23  | 任意实体的字段 DTO                                                            | 执行 `parseEntityFieldsDescriptor(JSON.parse(JSON.stringify(dto)))` 并深比较               | 解析成功且往返无损；不含 `Map`、函数、`Date`、`Uint8Array`、`columnName`、`default`；`dtoVersion === ENTITY_FIELDS_DTO_VERSION`                                                                                                                                                                                                                                                                                                                                                                                                                                    | ⬜   |
-| 24  | DTO 各协议层级被注入未知键、未知 `dtoVersion`、已知键类型错误、违反联合的组合 | 逐项调用 `parseEntityFieldsDescriptor()`                                                   | 顶层、字段、format、relation、options 展示项和 keyValueSchema 条目的未知键均被忽略且不出现在返回值中，**跨 format 的陌生配置键同样只被删除而不报错**（D6.1：解析器不做跨 format 键检测，那是注册期 `invalidFormatConfig` 的职责）；Record 业务键保留；未知版本、已知键类型错误、非 JSON-safe 值与违反 INV-5 的组合显式失败。INV-5 用例必须含「给 1:m / m:n 关系塞 `nullable` / `unique` / `writeField`」——这类键最容易被实现成「未知键丢弃」，丢弃即判红                                                                                                           | ⬜   |
-| 25  | 同一份元数据                                                                  | 调用 `extractEntityFields()` / `extractSystemFields()`                                     | 与实施前落库的基线快照零 diff（口径见脚注）；不新增任何字段、不改变键顺序；`@deprecated` 注释不改变运行时行为                                                                                                                                                                                                                                                                                                                                                                                                                                                      | ⬜   |
-| 26  | 同一 metadata，以及内容相同但 Map 插入顺序相反的 metadata                     | 分别重复调用 `describeEntityFields()`                                                      | 同一 metadata 重复输出深相等；两份 metadata 都按 `propertyMap` → `computedPropertyMap` → `relationMap` 分组，并各自保留 Map 插入顺序；第二份允许组内顺序不同，以此证明没有隐式字母排序（INV-6）                                                                                                                                                                                                                                                                                                                                                                    | ⬜   |
+| #   | 前置条件                                                                      | 操作                                                                                       | 预期结果                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 状态 |
+| --- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 13  | `richText` 声明 `text/markdown` 或 `text/html`                                | 生成字段 DTO                                                                               | DTO 原样保留 `contentType`；不包含编辑器私有 JSON 结构；**不做净化、不断言内容安全**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | ⬜   |
+| 14  | `enum` 字段包含 `options` 展示元数据                                          | 生成字段 DTO                                                                               | DTO 同时保留稳定 `enum` 顺序和 `label/color/disabled`；重命名 label 不改数据值                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | ⬜   |
+| 15  | `date` 字段声明 `dateTime`                                                    | 生成字段 DTO 并做 JSON 往返                                                                | DTO 输出 `valueType: 'date'` 与 `format.kind: 'dateTime'`；不含 `Date` 实例；Date↔ISO、时区和 adapter 值 codec 按既有契约回归，不在本故事重新实现                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | ⬜   |
+| 16  | 实体含 `1:1`、`m:1`、`1:m`、`m:n` 四种关系                                    | 调用 `describeEntityFields(metadata, resolve)`                                             | 四种关系全部出现且 `field` 均为**关系名**（D9）；无 `orderId` 之类外键字段；`cardinality` 按 D1 推导；含 `relation.kind/entity/namespace`；1:1 / m:1 带 `writeField: '${name}Id'` 与 `mutation: 'set-remove'`，1:m / m:n 带 `mutation: 'add-remove'` 且**不含** `writeField`；四者均不含 `format`，`readonly` 恒 `true`（D9.1）；类型层同时断言两个方向：`@ts-expect-error` 确认无法在 `EntityToManyRelationFieldDescriptor` 上写 `nullable` 或 `writeField`；**并且**在 `EntityFieldDescriptor` 联合上按顶层 `cardinality === 'single'` 收窄后，`expectTypeOf` 确认 `d.nullable` 是 `boolean`（不是 `boolean \| undefined`）、`d.relation.writeField` 是 `string`——只有负向断言时消费方仍被迫写类型断言 | ⬜   |
+| 17  | 实体含关系                                                                    | ①省略 `resolve` 编译；②传入返回 `undefined` 的 `resolve`                                   | ①`@ts-expect-error` 确认省略 `resolve` 不可编译（D7：签名必填，不做「无关系可省略」特例）；②抛 `RxDBError`，消息含关系名与目标实体名，**不**回退成 `uuid`、**不**省略 `valueType`（INV-4）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | ⬜   |
+| 18  | 关系目标实体只有一个 `primary: true` 的 `string` 属性                         | 调用 `describeEntityFields(metadata, resolve)`                                             | 关系 DTO 的 `valueType` 为 `'string'`，而非默认猜测的 `'uuid'`；`relation` 结构和写入映射仍符合 D9                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | ⬜   |
+| 19  | 关系目标实体没有主键，或主键类型不在 `uuid/string/integer/bigint` 内          | 调用 `describeEntityFields(metadata, resolve)`                                             | 抛 `EntityRelationResolutionError` 且 `instanceof RxDBError`；`details` 保留关系字段、目标实体和 `missingRelationPrimary` / `unsupportedRelationValueType`，不得只检查 message                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | ⬜   |
+| 20  | 计算属性 + `createdAt` / `updatedAt` / `createdBy` 系统字段存在               | 调用 `describeEntityFields()`                                                              | 计算属性输出真实 `valueType` 且 `readonly: true`；系统字段 `source: 'system'`，`readonly` **按元数据实际声明输出**——当前 `ENTITY_BASE_METADATA_OPTIONS` 五个字段恰好都声明了 `readonly: true`（[entity-base.ts:38-71](../../../packages/rxdb/src/entity/entity-base.ts#L38-L71)），因此本条断言值为 `true`，但实现必须读元数据而不是按 `source === 'system'` 填常量；用一个把 `createdAt` 覆盖成 `readonly: false` 的 fixture 实体反证这一点；`createdBy` / `updatedBy` 的 `valueType` 为 `'string'`（元数据实际声明），无用户语义                                                                                                                                                                       | ⬜   |
+| 21  | 布尔标志矩阵 fixture：属性 / 计算属性 / 四种关系各一行，标志一律不声明        | 生成字段 DTO，对每行断言键的**存在性**（`'unique' in d`）而非取值                          | 属性行：`readonly`/`nullable`/`required`/`unique`/`encrypted` 五键都在且为 `false`，`sortable`/`searchable`/`primary` 按属性接口能力决定在或不在（`BinaryProperty`/`JSONProperty`/`KeyValueProperty` 无 `sortable` 键，不伪造 `false`）；四种关系行：`sortable` 键都在且为 `false`，`readonly` 恒 `true`，`searchable`/`primary`/`enum`/`options`/`keyValueSchema` **一个都不出现**；`nullable`/`required`/`unique`/`encrypted` 四键**只在 1:1 / m:1 出现**（值为 `false`），在 1:m / m:n 上一个都不出现。断言必须用键存在性，`toEqual` 无法区分省略与 `undefined`                                                                                                                                       | ⬜   |
+| 22  | 字段同时声明 `encrypted: true` 与 `sortable: true`                            | ①不装加密 adapter 时注册并生成 DTO；②单独跑 `@aiao/rxdb-adapter-encrypted` 的 adapter init | ①core 注册期**不**报错，DTO 忠实输出 `encrypted: true` 与 `sortable: true`，不做裁剪（D13）；②加密 adapter 仍抛 `encrypted_sortable_forbidden`，既有行为无回归                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | ⬜   |
+| 23  | 任意实体的字段 DTO                                                            | 执行 `parseEntityFieldsDescriptor(JSON.parse(JSON.stringify(dto)))` 并深比较               | 解析成功且往返无损；不含 `Map`、函数、`Date`、`Uint8Array`、`columnName`、`default`；`dtoVersion === ENTITY_FIELDS_DTO_VERSION`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | ⬜   |
+| 24  | DTO 各协议层级被注入未知键、未知 `dtoVersion`、已知键类型错误、违反联合的组合 | 逐项调用 `parseEntityFieldsDescriptor()`                                                   | 顶层、字段、format、relation、options 展示项和 keyValueSchema 条目的未知键均被忽略且不出现在返回值中，**跨 format 的陌生配置键同样只被删除而不报错**（D6.1：解析器不做跨 format 键检测，那是注册期 `invalidFormatConfig` 的职责）；Record 业务键保留；未知版本、已知键类型错误、非 JSON-safe 值与违反 INV-5 的组合显式失败。INV-5 用例必须含「给 1:m / m:n 关系塞 `nullable` / `unique` / `writeField`」——这类键最容易被实现成「未知键丢弃」，丢弃即判红                                                                                                                                                                                                                                                 | ⬜   |
+| 25  | 同一份元数据                                                                  | 调用 `extractEntityFields()` / `extractSystemFields()`                                     | 与实施前落库的基线快照零 diff（口径见脚注）；不新增任何字段、不改变键顺序；`@deprecated` 注释不改变运行时行为                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | ⬜   |
+| 26  | 同一 metadata，以及内容相同但 Map 插入顺序相反的 metadata                     | 分别重复调用 `describeEntityFields()`                                                      | 同一 metadata 重复输出深相等；两份 metadata 都按 `propertyMap` → `computedPropertyMap` → `relationMap` 分组，并各自保留 Map 插入顺序；第二份允许组内顺序不同，以此证明没有隐式字母排序（INV-6）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | ⬜   |
 
 > **AC#25 的比较口径**（「逐字节一致」对 JS 对象不可直接判定，也没说基线从哪来）。可执行步骤，缺一不可：
 >
@@ -872,30 +865,27 @@ AC 按交付阶段分段，编号连续。阶段内可任意顺序验收，阶�
 > `validateEntityFieldValue()` 的冻结不走快照（它返回 `null` 或错误对象，分支比结构更重要），
 > 改由阶段 C 的 AC#33 用参数化输入/输出对表锁定。
 
-### 阶段 C — 值校验、生成器透传与三框架契约（AC#27～39）
+### 阶段 C — 值校验、生成器透传与三框架契约（AC#27～36）
 
-| #   | 前置条件                                                                                                        | 操作                                                                           | 预期结果                                                                                                                                                                                                                                                                                                               | 状态 |
-| --- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 27  | URL 字段声明 `schemes: ['HTTPS']`                                                                               | 对 `http://`、`https://` 与非 URL 文本调用 `validateFieldValue()`              | `http` 返回 `urlScheme`，`https` 大小写无关地通过，非 URL 返回 `url`；错误 value 是 JSON-safe 字符串，不回显不可安全序列化对象                                                                                                                                                                                         | ⬜   |
-| 28  | 三份 fixture：`stringArray`+`enum`+`multiSelect`、`stringArray`+`enum`**无 format**、`enum` 属性+`singleSelect` | 各自对含非法成员的值调用 `validateFieldValue()`                                | 三份都返回 `rule: 'enum'` 和非法值，**错误与是否声明 format 无关**（D2）；数组字段的 message 列出全部非法项而非只报第一个；`options.disabled` 的选项仍算合法值；合法输入一律返回 `null`                                                                                                                                | ⬜   |
-| 29  | `FieldValidationRule` 的 15 条规则                                                                              | 参数化用例逐条走通过与失败两条路径                                             | 每条规则至少各有一组用例；`range` 额外覆盖 `0.3/0.1` 浮点容差、step 不命中和 percentage 两种 scale；失败 rule 一一对应且不缺失；无任何规则只有 happy path；用例表长度与联合成员数做等值断言，新增规则漏测即红                                                                                                          | ⬜   |
-| 30  | 值分别为 `Date`、`bigint`、`Uint8Array`、函数、`Map`、实体实例                                                  | 触发校验失败并读取返回的 `value`                                               | 按 D12 规范化：ISO 8601 字符串 / 十进制字符串 / 小写 hex；后三类省略 `value`，用 `'value' in error === false` 断言（`toEqual` 视 `{value: undefined}` 与 `{}` 相等，会永远判绿）；`JSON.stringify(error)` 不抛且往返无损                                                                                               | ⬜   |
-| 31  | 字段声明 `encrypted: true`                                                                                      | 用任意非法值触发校验失败                                                       | 错误对象**始终**省略 `value`（D12），无论该值本身是否 JSON-safe；断言用 `toStrictEqual` 或 `'value' in error === false`，不得用 `toEqual`；`field`、`message`、`rule` 正常返回                                                                                                                                         | ⬜   |
-| 32  | 四种关系的 `EntityFieldDescriptor`                                                                              | 对合法与非法 ID 值调用 `validateFieldValue()`                                  | 只按 `relation.mutation` 校验 ID 形状（单值 vs 数组）与 `valueType`；不发起任何 repository / adapter 调用（用 spy 断言零调用），不校验目标记录是否存在                                                                                                                                                                 | ⬜   |
-| 33  | 同一份元数据与同一组值                                                                                          | 调用旧 `validateEntityFieldValue()`                                            | 与实施前的输入/输出对表逐项一致（含返回 `null` 的分支）；`@deprecated` 注释不改变运行时行为                                                                                                                                                                                                                            | ⬜   |
-| 34  | 实体元数据含 `format`、`enum`、`options`                                                                        | 运行生成器并编译输出                                                           | 三者完整透传到生成代码且可编译；嵌套判别对象与只读数组不被塌缩成 `string`；Angular / React / Vue 的类型表现一致                                                                                                                                                                                                        | ⬜   |
-| 35  | 实体元数据分别含 JSON-safe 常量、bigint、Uint8Array 视图、Date、`'CURRENT_TIMESTAMP'`、函数工厂和不支持值       | 运行生成器                                                                     | 前五类按 D10 生成并编译后保持值语义；后两类抛 `Error`，message 分别含 `unsupportedDefaultFactory` / `unsupportedDefaultValue`、实体名与字段名；禁止静默丢失或源码猜测；PR 标注 `BREAKING CHANGE` 并含迁移说明                                                                                                          | ⬜   |
-| 36  | 生成器 `transitionMetadata()` 的 `JSON.stringify` / `JSON.parse` 往返已按 D10.1 拆除                            | 对含 bigint `default`、`Uint8Array` `default` 和函数工厂的元数据分别运行生成器 | bigint 不再抛原生 `TypeError: Do not know how to serialize a BigInt`，`Uint8Array` 不再塌缩成 `{"0":1,...}`，函数工厂能真正走到 `unsupportedDefaultFactory` 分支（往返存在时它被静默丢弃，AC#35 的后半段永远跑不到）；旧代码里两处 `serialized === undefined` / `isRecord` 的 `Error` 守卫已随往返一并删除，未留死分支 | ⬜   |
-| 37  | 属性元数据带 `enumerable: false` 的内部键（`setSafeObjectKey`）                                                 | 运行生成器                                                                     | 生成结果不包含这些内部键。`JSON.stringify` 天然跳过不可枚举属性，改成运行时类型分派后该保护不再自动成立，必须由本条显式锁定                                                                                                                                                                                            | ⬜   |
-| 38  | 现有 core、`rxdb-client-generator`、`rxdb-test` 及三框架契约测试                                                | 通过 Nx 执行回归                                                               | 既有字段、关系、计算属性与生成代码无回归；共享 fixture 包可构建；`packages/rxdb` 覆盖率 ≥ 90%                                                                                                                                                                                                                          | ⬜   |
-| 39  | 三框架均已接入字段描述                                                                                          | 检查三端源码、依赖和 api-baseline                                              | fixture 位于 `@aiao/rxdb-test` 的 `cross-framework-fixtures`，三端以 devDependency 导入；直接复用 core parser，不跨包导入 `src/__tests__`；任一端都不新增专属语义 API，三端 api-baseline 相关导出为空集                                                                                                                | ⬜   |
+| #   | 前置条件                                                                                                        | 操作                                                              | 预期结果                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 状态 |
+| --- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 27  | URL 字段声明 `schemes: ['HTTPS']`                                                                               | 对 `http://`、`https://` 与非 URL 文本调用 `validateFieldValue()` | `http` 返回 `urlScheme`，`https` 大小写无关地通过，非 URL 返回 `url`；错误 value 是 JSON-safe 字符串，不回显不可安全序列化对象                                                                                                                                                                                                                                                                                                                                    | ⬜   |
+| 28  | 三份 fixture：`stringArray`+`enum`+`multiSelect`、`stringArray`+`enum`**无 format**、`enum` 属性+`singleSelect` | 各自对含非法成员的值调用 `validateFieldValue()`                   | 三份都返回 `rule: 'enum'` 和非法值，**错误与是否声明 format 无关**（D2）；数组字段的 message 列出全部非法项而非只报第一个；`options.disabled` 的选项仍算合法值；合法输入一律返回 `null`                                                                                                                                                                                                                                                                           | ⬜   |
+| 29  | `FieldValidationRule` 的 15 条规则                                                                              | 参数化用例逐条走通过与失败两条路径                                | 每条规则至少各有一组用例；`range` 额外覆盖 `0.3/0.1` 浮点容差、step 不命中和 percentage 两种 scale；失败 rule 一一对应且不缺失；无任何规则只有 happy path；用例表长度与联合成员数做等值断言，新增规则漏测即红。另按 `valueType` 做覆盖矩阵：每个 `PropertyType` 成员至少一组用例，并断言 `keyValue`/`json`/`bigint`/`binary`/`boolean` 只触发 `required` 与 `type`/`json` 两条规则、不进入任何子结构校验（Out of Scope 的口径由本条锁定，避免日后被当成漏测补上） | ⬜   |
+| 30  | 值分别为 `Date`、`bigint`、`Uint8Array`、函数、`Map`、实体实例                                                  | 触发校验失败并读取返回的 `value`                                  | 按 D12 规范化：ISO 8601 字符串 / 十进制字符串 / 小写 hex；后三类省略 `value`，用 `'value' in error === false` 断言（`toEqual` 视 `{value: undefined}` 与 `{}` 相等，会永远判绿）；`JSON.stringify(error)` 不抛且往返无损                                                                                                                                                                                                                                          | ⬜   |
+| 31  | 字段声明 `encrypted: true`                                                                                      | 用任意非法值触发校验失败                                          | 错误对象**始终**省略 `value`（D12），无论该值本身是否 JSON-safe；断言用 `toStrictEqual` 或 `'value' in error === false`，不得用 `toEqual`；`field`、`message`、`rule` 正常返回                                                                                                                                                                                                                                                                                    | ⬜   |
+| 32  | 四种关系的 `EntityFieldDescriptor`                                                                              | 对合法与非法 ID 值调用 `validateFieldValue()`                     | 只按 `relation.mutation` 校验 ID 形状（单值 vs 数组）与 `valueType`；不发起任何 repository / adapter 调用（用 spy 断言零调用），不校验目标记录是否存在                                                                                                                                                                                                                                                                                                            | ⬜   |
+| 33  | 同一份元数据与同一组值                                                                                          | 调用旧 `validateEntityFieldValue()`                               | 与实施前的输入/输出对表逐项一致（含返回 `null` 的分支）；`@deprecated` 注释不改变运行时行为                                                                                                                                                                                                                                                                                                                                                                       | ⬜   |
+| 34  | 实体元数据含 `format`、`enum`、`options`                                                                        | 运行生成器并编译输出                                              | 三者完整透传到生成代码且可编译；嵌套判别对象与只读数组不被塌缩成 `string`；Angular / React / Vue 的类型表现一致                                                                                                                                                                                                                                                                                                                                                   | ⬜   |
+| 35  | 现有 core、`rxdb-client-generator`、`rxdb-test` 及三框架契约测试                                                | 通过 Nx 执行回归                                                  | 既有字段、关系、计算属性与生成代码无回归；共享 fixture 包可构建；`packages/rxdb` 覆盖率 ≥ 90%                                                                                                                                                                                                                                                                                                                                                                     | ⬜   |
+| 36  | 三框架均已接入字段描述                                                                                          | 检查三端源码、依赖和 api-baseline                                 | fixture 位于 `@aiao/rxdb-test` 的 `cross-framework-fixtures`，三端以 devDependency 导入；直接复用 core parser，不跨包导入 `src/__tests__`；任一端都不新增专属语义 API，三端 api-baseline 相关导出为空集                                                                                                                                                                                                                                                           | ⬜   |
 
-> AC#34 / AC#35 是有意分开的两条：透传成功和「无法安全生成时失败」是两条相反的路径，
-> 合成一行只要透传通过就容易被整行判绿。
+> AC#34 只覆盖 `format` / `enum` / `options` 三项**透传**。它们是 JSON-safe 纯数据
+> （判别对象、字符串字面量、只读数组），现有 `transitionMetadata()` 的 `JSON.stringify` 往返能原样搬运，
+> 因此本条**不依赖** [US-018](./US-018-generator-default-serialization.md)，也不要求管线先重写。
 >
-> AC#36 / AC#37 是 AC#35 的**前置条件**，不是补充：JSON 往返还在时 AC#35 的失败路径结构上跑不到
-> （函数已被 `JSON.stringify` 静默丢弃），`enumerable: false` 的内部键也只是靠往返的副作用被挡住。
-> 验收顺序固定为 36 → 37 → 35；36 未通过时 35 判绿一律视为无效。
+> `default` 的生成语义（bigint / `Uint8Array` / `Date` 还原、函数工厂显式失败、JSON 往返拆除、
+> `enumerable: false` 内部键防护）属于 US-018 的 AC，本表不重复。两条 story 可并行推进。
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -903,8 +893,13 @@ AC 按交付阶段分段，编号连续。阶段内可任意顺序验收，阶�
 
 - `PropertyType` 继续作为存储和运行时判别联合；`url`、`richText` 等不新增物理列映射。
 - `format` 使用判别对象（`{ kind, ...options }`），避免把 `currency`、`timezone`、`contentType` 等配置散落成互相冲突的可选字段。
-- **仓库里有两个同名的 `transitionMetadata`，不要混淆**：`@aiao/rxdb` 的 `entity/metadata-transition.ts` 把 `EntityMetadataOptions` 合并成 `EntityMetadata`（装饰器求值时跑，见 D3）；`rxdb-client-generator` 的 `core/RxDBClientGenerator.utils.ts:306` 把 `EntityMetadata` 序列化成**字符串**回填 `Entity(...)`。本故事只在前者的产物上做校验，对后者则要先按 D10.1 拆掉 JSON 往返，再验证透传——它今天不是"透传"，是有损转换。
-- 生成器与 DTO 是两层契约：生成器源 metadata 按 D10 保留支持的常量 `default`，函数工厂一律显式失败；DTO 则有意不输出任何 `default`。禁止先 `JSON.stringify` 再假装函数从未存在。
+- **仓库里有两个同名的 `transitionMetadata`，不要混淆**：`@aiao/rxdb` 的 `entity/metadata-transition.ts` 把 `EntityMetadataOptions` 合并成 `EntityMetadata`（装饰器求值时跑，见 D3）；`rxdb-client-generator` 的 `core/RxDBClientGenerator.utils.ts:306` 把 `EntityMetadata` 序列化成**字符串**回填 `Entity(...)`。本故事只在前者的产物上做校验；后者的管线归 [US-018](./US-018-generator-default-serialization.md)，这里只借它搬运 `format` / `enum` / `options` 三项 JSON-safe 数据。
+- **`validateEntityMetadata` 这个名字今天已经被占用**：`rxdb-client-generator` 里有一个同名私有箭头函数
+  （[RxDBClientGenerator.ts:143](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L143)，
+  校验绑定标识符与 namespace，调用点在 L173 / L298）。它不导出，与 core 新增的公开导出不冲突编译，
+  但同名不同义会让「哪个校验器报的错」这类问题在两个包之间反复误判。阶段 A 顺手把私有的那个改名
+  （建议 `assertGeneratedEntityBindings`），无公开 API 影响，不需要 api-baseline 变更。
+- 生成器与 DTO 是两层契约：生成器源 metadata 保留支持的常量 `default`（US-018 定义其语义与失败条件），DTO 则一律不输出任何 `default`（D10）。两层的边界不因 US-018 的进度而移动。
 - `parseEntityFieldsDescriptor()` 是 DTO 的唯一严格反序列化入口；它在解析时再次检查 `dtoVersion`、字段判别联合、JSON-safe 值、稳定顺序和关系 `valueType`。未知键必须规范化删除，已知键不得用类型断言、静默删除或默认值猜测来修复。
 - DTO 生成顺序固定为 `propertyMap`（含系统字段）、`computedPropertyMap`、`relationMap`；关系使用逻辑 `writeField` 与 `mutation` 描述写入意图，绝不把数据库 `columnName` 或值 wire codec 混入 DTO。
 - Date、bigint、binary 和关系值的运行时/远端 wire codec 继续遵守既有契约；本故事只验证 metadata DTO 的 JSON-safe 往返和纯函数校验，不新增 adapter、repository 或 API 编解码。
@@ -936,18 +931,19 @@ AC 按交付阶段分段，编号连续。阶段内可任意顺序验收，阶�
 
 按交付阶段归属，避免三个阶段同时改同一个文件：
 
-| 文件                                                     | 阶段  | 内容                                                                                                                                                                                                                                                 |
-| -------------------------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/rxdb/src/entity/metadata-options.interface.ts` | A     | `format` 判别联合、逐属性窄类型 `format?`、`StringArrayProperty.enum` / `options`                                                                                                                                                                    |
-| `packages/rxdb/src/entity/metadata-validate.ts`（新增）  | A     | `validateEntityMetadata` 与规则表                                                                                                                                                                                                                    |
-| `packages/rxdb/src/entity/entity-manager.ts`             | A     | `init()` 跨实体聚合校验并抛错（D3）                                                                                                                                                                                                                  |
-| `packages/rxdb/src/entity/entity-field.utils.ts`         | B     | DTO、parser、`EntityRelationResolutionError`、版本常量；既有导出冻结 + `@deprecated`                                                                                                                                                                 |
-| `packages/rxdb/src/entity/entity-value.utils.ts`         | C     | `validateFieldValue()`；旧 `validateEntityFieldValue` 冻结 + `@deprecated`                                                                                                                                                                           |
-| `packages/rxdb-client-generator/src/`                    | C     | **重写** `transitionMetadata()` 的序列化管线（[RxDBClientGenerator.utils.ts:306](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.utils.ts#L306)）：去掉 JSON 往返、改运行时类型分派，落地 `default` 语义保留与显式失败（D10.1） |
-| `packages/rxdb-test/src/cross-framework-fixtures/`       | C     | 新增 `entity-fields-descriptor.ts` 并从既有 `index.ts` 导出，由 `@aiao/rxdb-test` 根入口共享                                                                                                                                                         |
-| `packages/rxdb-{angular,react,vue}/`                     | C     | 用 pnpm workspace 命令添加 `@aiao/rxdb-test` devDependency，复用同一组 DTO fixture 做契约回归                                                                                                                                                        |
-| `pnpm-lock.yaml`                                         | C     | 记录三框架测试依赖的 workspace 链接，不手改依赖图                                                                                                                                                                                                    |
-| `requirements/api-baseline/rxdb.json`                    | A/B/C | 每个阶段各自追加，不集中一次改完                                                                                                                                                                                                                     |
+| 文件                                                             | 阶段  | 内容                                                                                                                                                                     |
+| ---------------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `packages/rxdb/src/entity/metadata-options.interface.ts`         | A     | `format` 判别联合、逐属性窄类型 `format?`、`StringArrayProperty.enum` / `options`                                                                                        |
+| `packages/rxdb/src/entity/metadata-validate.ts`（新增）          | A     | `validateEntityMetadata` 与规则表                                                                                                                                        |
+| `packages/rxdb/src/entity/entity-manager.ts`                     | A     | `init()` 跨实体聚合校验并抛错（D3）                                                                                                                                      |
+| `packages/rxdb/src/entity/entity-field.utils.ts`                 | B     | DTO、parser、`EntityRelationResolutionError`、版本常量；既有导出冻结 + `@deprecated`                                                                                     |
+| `packages/rxdb/src/entity/entity-value.utils.ts`                 | C     | `validateFieldValue()`；旧 `validateEntityFieldValue` 冻结 + `@deprecated`                                                                                               |
+| `packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts` | A     | 私有 `validateEntityMetadata` 改名（[L143](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L143) 及 L173 / L298 调用点），避让 core 同名公开导出 |
+| `packages/rxdb-client-generator/src/`                            | C     | 透传 `format` / `enum` / `options`（AC#34）。**不改** `transitionMetadata()` 的管线结构——那属于 [US-018](./US-018-generator-default-serialization.md)                    |
+| `packages/rxdb-test/src/cross-framework-fixtures/`               | C     | 新增 `entity-fields-descriptor.ts` 并从既有 `index.ts` 导出，由 `@aiao/rxdb-test` 根入口共享                                                                             |
+| `packages/rxdb-{angular,react,vue}/`                             | C     | 用 pnpm workspace 命令添加 `@aiao/rxdb-test` devDependency，复用同一组 DTO fixture 做契约回归                                                                            |
+| `pnpm-lock.yaml`                                                 | C     | 记录三框架测试依赖的 workspace 链接，不手改依赖图                                                                                                                        |
+| `requirements/api-baseline/rxdb.json`                            | A/B/C | 每个阶段各自追加，不集中一次改完                                                                                                                                         |
 
 ## References
 
@@ -955,5 +951,6 @@ AC 按交付阶段分段，编号连续。阶段内可任意顺序验收，阶�
 - [US-001 定义数据模型](./US-001-model-definition.md)
 - [US-004 数据变更](./US-004-data-mutation.md)
 - [US-011 定义 bigint 与 binary 类型及公共 API 契约](./US-011-property-type-bigint-binary.md)
+- [US-018 生成器元数据序列化管线与 default 语义](./US-018-generator-default-serialization.md) — 从本故事拆出的生成器侧 `default` 语义，可并行
 - [US-402 代码编辑器组件](../ui/US-402-code-editor.md)
 - [US-502 Storage 插件](../plugin/US-502-storage-plugin.md) — 附件语义的后续落点，本故事不依赖

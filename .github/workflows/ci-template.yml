@@ -21,7 +21,8 @@ name: CI Template (Reusable)
 #          └─ benchmark ────────────────────────┘
 #
 #   test / e2e **不等 build**：它们各自只需要自己那棵依赖子树的产物，
-#   等全量 build 反而是净亏（build 324s + 最慢 lane 469s 串起来比现在的 572s 关键路径还长）。
+#   等全量 build 反而是净亏（run 31945480551：build 318s，最慢 test lane 504s，
+#   最慢 e2e 457s；串起来比现在 test/e2e 并行的关键路径更长）。
 #   跨 job 复用只靠 actions/cache 的 restore-keys 回退，暖到 main 上一轮 run 的本地
 #   Nx 缓存 —— Nx Cloud 远端缓存目前是关闭的，见下面 NX_NO_CLOUD 的说明，
 #   别照着「有远端缓存」的前提去做容量规划。

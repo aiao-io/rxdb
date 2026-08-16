@@ -290,8 +290,10 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 - **改它要同步改什么**：`WEIGHTS` 是 CI 冷跑（全部 Cache Miss）的实测秒数，只影响分桶是否均衡，
   不影响正确性；跑一轮 CI 后把偏差大的值补回来即可，**别拿本地耗时填**（本地 M 系列比 runner 快 3 倍）。
   `LANE_COUNT` 受 GitHub 免费额度的 20 并发 job 约束。
-- **当前瓶颈**：`rxdb-adapter-pglite` 261s，是第二名（76s）的 3.4 倍，LPT 会单独给它一条 lane，
-  其余三条各 ~174s。也就是说 test 阶段的下界就是它一个包 —— 想再压只能拆它自己的用例，加 lane 没用。
+- **当前瓶颈**：`rxdb-adapter-pglite` 238s，是第二名（`dev-rxdb-angular` 116s）的两倍，LPT
+  会给它一条几乎独占的 lane，其余三条各 ~242s。test 阶段的下界就是它一个包 —— 想再压只能拆
+  它自己的用例，加 lane 没用。`website` / `benchmarks` 必须进 WEIGHTS：缺项会按 60s 估成
+  种子道，run 31945480551 已经把四条 lane 拉成 445 / 370 / 241 / 186。
 
 ### `ci/plan-test-lanes.spec.mjs`
 

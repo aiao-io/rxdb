@@ -11,9 +11,9 @@
 | ✅ Done        | 34   |
 | 🚧 In Progress | 4    |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 13   |
+| 📝 Backlog     | 14   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 51   |
+| **合计**       | 52   |
 
 三条口径，读表前必知：
 
@@ -138,7 +138,8 @@
 - 🅰️ ⬜ [US-012 扩展字段语义与前端通信契约](stories/core/US-012-field-semantic-metadata.md) — 三阶段单文件故事
   - ⬜ 阶段 A 字段 format 声明与注册期校验
   - ⬜ 阶段 B 实体字段描述 DTO
-  - ⬜ 阶段 C 字段值校验、生成器透传与三框架契约
+  - ⬜ 阶段 C 字段值校验、format/enum/options 透传与三框架契约
+- ⬜ [US-018 生成器元数据序列化管线与 default 语义](stories/core/US-018-generator-default-serialization.md) — 从 US-012 拆出，与其无依赖，可并行
 
 ### [本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
 
