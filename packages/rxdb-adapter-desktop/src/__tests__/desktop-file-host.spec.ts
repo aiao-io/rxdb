@@ -51,7 +51,7 @@ describe('createDesktopFileHost', () => {
   });
 
   afterEach(async () => {
-    host.closeAll();
+    await host.closeAll();
     await rm(workspace, { recursive: true, force: true });
   });
 
@@ -363,9 +363,11 @@ describe('createDesktopFileHost', () => {
     await openSession();
     await host.handle({ kind: 'file.lockAcquire', sessionId, name: 'files:/a', mode: 'exclusive' });
 
-    host.closeAll();
+    await host.closeAll();
 
     expect(host.openSessionCount).toBe(0);
+    // 会话回收也要把锁名带走，否则「退出前清干净」只清了一半。
+    expect(host.trackedLockNameCount).toBe(0);
   });
 
   it('prunes a lock name once nobody holds or waits on it', async () => {

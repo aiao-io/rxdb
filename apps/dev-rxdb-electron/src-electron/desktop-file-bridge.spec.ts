@@ -6,7 +6,7 @@
  * 于是整条会话生命周期能用真实文件系统驱动，不必启动 Electron。
  */
 
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -60,8 +60,8 @@ describe('createDesktopFileBridge', () => {
     bridge = createDesktopFileBridge({ resolveStorageRoot: createStorageRootResolver(workspace) });
   });
 
-  afterEach(() => {
-    bridge.closeAll();
+  afterEach(async () => {
+    await bridge.closeAll();
   });
 
   const openSession = async (target: ReturnType<typeof createTarget>): Promise<string> => {
@@ -129,6 +129,34 @@ describe('createDesktopFileBridge', () => {
     await vi.waitFor(() => expect(readdirSync(join(workspace, DESKTOP_STORAGE_DIRECTORY))).toEqual([]));
   });
 
+  // AC#5 的另一半：进程被直接杀掉时没有任何收尾代码跑得到，临时文件只能靠下次启动清。
+  it('创建时清掉上一轮进程留下的临时文件，但不动真实内容', async () => {
+    const root = join(workspace, DESKTOP_STORAGE_DIRECTORY);
+    mkdirSync(join(root, 'notes'), { recursive: true });
+    writeFileSync(join(root, '.11111111-2222-4333-8444-555555555555.rxdb-tmp'), 'stale');
+    writeFileSync(join(root, 'notes', '.66666666-7777-4888-8999-000000000000.rxdb-tmp'), 'stale');
+    writeFileSync(join(root, 'notes', 'keep.txt'), 'keep');
+
+    const swept = createDesktopFileBridge({ resolveStorageRoot: createStorageRootResolver(workspace) });
+    await swept.whenSwept;
+    await swept.closeAll();
+
+    expect(readdirSync(root)).toEqual(['notes']);
+    expect(readdirSync(join(root, 'notes'))).toEqual(['keep.txt']);
+  });
+
+  it('closeAll 落地后未提交写入的临时文件已经不在磁盘上', async () => {
+    const target = createTarget();
+    const sessionId = await openSession(target);
+    const begin = await bridge.handle(target, { kind: 'file.writeBegin', sessionId, path: 'pending.bin' });
+    if (begin.kind !== 'file.writeBegin') throw new Error('writeBegin failed');
+
+    // 即发即忘的清理在 will-quit 里等于没有清理：进程不等它就退了。
+    await bridge.closeAll();
+
+    expect(readdirSync(join(workspace, DESKTOP_STORAGE_DIRECTORY))).toEqual([]);
+  });
+
   it('会话正常关闭后窗口释放不再计数', async () => {
     const target = createTarget();
     const sessionId = await openSession(target);
@@ -148,8 +176,8 @@ describe('createDesktopHostBridge', () => {
     });
   });
 
-  afterEach(() => {
-    bridge.closeAll();
+  afterEach(async () => {
+    await bridge.closeAll();
   });
 
   it('file.* 请求交给文件 host', async () => {

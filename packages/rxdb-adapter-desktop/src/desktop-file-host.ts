@@ -89,8 +89,14 @@ export interface DesktopFileHost {
    * 锁名是逐文件的：稳态下它应当回到 0，长期只增不减就说明队列没被回收。
    */
   readonly trackedLockNameCount: number;
-  /** 关闭全部会话，通常在应用退出前调用。 */
-  closeAll(): void;
+  /**
+   * 关闭全部会话，通常在应用退出前调用。
+   *
+   * @remarks
+   * 返回的 Promise 落地才意味着未提交写入的临时文件真的从磁盘上消失了。
+   * 调用方（退出钩子）必须等它 —— 不等就等于没清，进程先一步退了。
+   */
+  closeAll(): Promise<void>;
 }
 
 /** 一次尚未提交的写入。 */
@@ -574,8 +580,8 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
     get trackedLockNameCount(): number {
       return queues.size;
     },
-    closeAll: (): void => {
-      for (const sessionId of [...sessions.keys()]) void closeSession(sessionId);
+    closeAll: async (): Promise<void> => {
+      await Promise.all([...sessions.keys()].map(sessionId => closeSession(sessionId)));
     }
   };
 }

@@ -14,6 +14,7 @@
 
 import { createDesktopFileHost, type DesktopHostFileResponse } from '@aiao/rxdb-adapter-desktop/host';
 import { mkdirSync } from 'node:fs';
+import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
 /**
@@ -92,9 +93,49 @@ export interface DesktopFileBridge {
   releaseTarget(target: DesktopFileEventTarget): number;
   /** 当前打开的会话数，用于诊断与关停检查。 */
   readonly openSessionCount: number;
-  /** 关闭全部会话，应用退出前调用。 */
-  closeAll(): void;
+  /**
+   * 启动清扫的完成信号。
+   *
+   * @remarks
+   * 清扫在后台跑，因此它不挡任何请求；暴露出来只为让测试与关停检查有个确定的等待点。
+   * 失败不会 reject —— 见 {@link createDesktopFileBridge}。
+   */
+  readonly whenSwept: Promise<void>;
+  /**
+   * 关闭全部会话，应用退出前调用。
+   *
+   * @remarks
+   * 必须等它落地：清理是异步的，不等就等于没清 —— 进程先一步退了。
+   */
+  closeAll(): Promise<void>;
 }
+
+/** 未提交写入在磁盘上的临时文件后缀，与 host 的 `.${writeId}.rxdb-tmp` 命名一致。 */
+const TEMPORARY_SUFFIX = '.rxdb-tmp';
+
+/**
+ * 清掉上一轮进程留下的临时文件。
+ *
+ * @remarks
+ * `closeAll` 只覆盖体面退出。进程被 SIGKILL、掉电、或渲染进程连主进程一起拖崩时，
+ * 没有任何收尾代码跑得到，临时文件就永久留在磁盘上 —— 一次崩溃一份，只增不减。
+ * 因此回收点放在启动：此刻还没有任何会话，根目录下带该后缀的文件必然是上一轮的遗留。
+ *
+ * 前提是本应用独占这个根。这在 Electron 下成立（根在自己的 userData 下），
+ * 万一有第二个实例在同时写，被删掉的临时文件会让它的 commit 以 `file_not_found` 失败 ——
+ * 是一个**报出来的**错误，而不是静默的坏数据。
+ */
+const sweepTemporaryFiles = async (directory: string): Promise<void> => {
+  const entries = await readdir(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      await sweepTemporaryFiles(path);
+    } else if (entry.name.endsWith(TEMPORARY_SUFFIX)) {
+      await rm(path, { force: true });
+    }
+  }
+};
 
 /**
  * 创建主进程侧的桌面文件 host。
@@ -105,8 +146,15 @@ export interface DesktopFileBridge {
 export function createDesktopFileBridge(options: DesktopFileBridgeOptions): DesktopFileBridge {
   const targets = new Map<string, DesktopFileEventTarget>();
   const host = createDesktopFileHost({ resolveStorageRoot: options.resolveStorageRoot });
+  // 清扫失败只记一笔：它是一次垃圾回收，不是功能路径。让它把 bridge 的创建带崩，
+  // 等于一个没人读的临时文件就能让应用打不开自己的文件。
+  const whenSwept = sweepTemporaryFiles(options.resolveStorageRoot()).catch((error: unknown) => {
+    console.error('[dev-rxdb-electron] 清理上一轮残留的临时文件失败：', error);
+  });
 
   return {
+    whenSwept,
+
     handle: async (target, request) => {
       const response = await host.handle(request);
       if (response.kind === 'file.open') targets.set(response.result.sessionId, target);
@@ -130,9 +178,9 @@ export function createDesktopFileBridge(options: DesktopFileBridgeOptions): Desk
       return host.openSessionCount;
     },
 
-    closeAll: (): void => {
+    closeAll: async (): Promise<void> => {
       targets.clear();
-      host.closeAll();
+      await host.closeAll();
     }
   };
 }

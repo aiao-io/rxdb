@@ -186,11 +186,26 @@ void app
   })
   .catch(reportLoadFailure);
 
+/** 收尾是否已经跑完；见下面的 'will-quit'。 */
+let desktopHostClosed = false;
+
 // 退出前把还开着的连接收干净：SQLite 的 WAL 需要一次 checkpoint 才算落定，
 // 进程被直接杀掉会留下 -wal / -shm，下次启动多一轮恢复；
 // 文件族则要把未提交写入的临时文件删掉，否则每次退出都在磁盘上留一份垃圾。
-app.on('will-quit', () => {
-  desktopHost?.closeAll();
+//
+// 清理是异步的，而 'will-quit' 的回调一返回 Electron 就继续退 —— 即发即忘等于没清。
+// 因此先 preventDefault 把退出按住，等收尾落地再 quit 一次；`desktopHostClosed`
+// 保证第二次进来直接放行，否则这里就是个退不掉的死循环。
+app.on('will-quit', event => {
+  if (desktopHostClosed || !desktopHost) return;
+  event.preventDefault();
+  void desktopHost
+    .closeAll()
+    .catch(error => console.error('[dev-rxdb-electron] 退出前的清理失败：', error))
+    .finally(() => {
+      desktopHostClosed = true;
+      app.quit();
+    });
 });
 
 app.on('window-all-closed', () => {

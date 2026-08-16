@@ -25,6 +25,19 @@ pub const MAX_PATH_LENGTH: usize = 1024;
 /// 单个分段的字节上限，与 TS 侧 `DESKTOP_HOST_MAX_PATH_SEGMENT_BYTES` 相同。
 pub const MAX_PATH_SEGMENT_BYTES: usize = 255;
 
+/// 单个会话同时挂起的未提交写入数上限，与 TS 侧
+/// `DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION` 相同。
+///
+/// 每个挂起的写入都占着一个打开的临时文件句柄，只有 commit/abort 才归还。renderer 不可信：
+/// 不设上限，一个只 begin 不 commit 的循环就能把宿主进程的 fd 耗光，连带数据库也打不开。
+pub const MAX_PENDING_WRITES_PER_SESSION: usize = 256;
+
+/// 单个锁名允许排队的等待者数上限，与 TS 侧 `DESKTOP_HOST_MAX_QUEUED_LOCKS_PER_NAME` 相同。
+///
+/// 等待者不超时（对齐 Web Locks 的语义），队列只会越堆越长。这是给失控的调用方设的护栏，
+/// 不是给正常并发设的配额。
+pub const MAX_QUEUED_LOCKS_PER_NAME: usize = 256;
+
 /// 文件协议认可的全部 `kind`。
 ///
 /// 路由器按它分派，因此顺序无关紧要、完整性至关重要：漏掉一个，那条请求会掉进

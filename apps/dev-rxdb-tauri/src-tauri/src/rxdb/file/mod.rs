@@ -34,7 +34,9 @@ use crate::rxdb::protocol::{error_response, PROTOCOL_VERSION};
 use crate::rxdb::value::encode_bytes;
 
 use self::locks::{LockOutcome, LockTable};
-use self::protocol::{parse_file_request, FileRequest, LockMode};
+use self::protocol::{
+    parse_file_request, FileRequest, LockMode, MAX_PENDING_WRITES_PER_SESSION, MAX_QUEUED_LOCKS_PER_NAME,
+};
 
 /// 一次尚未提交的写入。
 ///
@@ -134,10 +136,14 @@ fn normalize(path: &Path) -> PathBuf {
 
 /// 判断一次读写是否落在存储根之内。
 ///
-/// 协议层已经逐段挡过 `..` / 绝对路径 / 盘符，这里是**最后一道**：大小写不敏感卷、
-/// 以及 renderer 之外的进程在根里留下的符号链接，都可能让逐段校验通过的路径落到根外。
-/// [`Path::starts_with`] 按**路径分量**比较，因此 `rxdb-files-evil` 这类同前缀兄弟目录
-/// 不会被误判为在根内。
+/// 协议层已经逐段挡过 `..` / 绝对路径 / 盘符，这里是**最后一道**：逐段校验看的是字面量，
+/// 拼接与规范化之后才知道路径最终落在哪里。[`Path::starts_with`] 按**路径分量**比较，
+/// 因此 `rxdb-files-evil` 这类同前缀兄弟目录不会被误判为在根内。
+///
+/// 只做词法判定——[`normalize`] 不碰文件系统，因此**拦不住符号链接**：根内的一个链接指到
+/// 根外时，这里会放行。真正的防线是「存储根由本应用独占」这条前提；根目录被外部塞进链接
+/// 已经等同于数据目录失守，不在本函数的威胁模型内。要覆盖它得用 `canonicalize`，
+/// 而目标在写入前往往还不存在。TS 侧的 `resolveWithinRoot` 是同一套判定与同一条边界。
 fn resolve_within_root(root: &Path, relative_path: &str) -> HostResult<PathBuf> {
     let root = normalize(root);
     if relative_path.is_empty() {
@@ -178,10 +184,25 @@ fn discard_write(pending: &PendingWrite) {
     let _ = fs::remove_file(&pending.temporary);
 }
 
-/// 收尾一次写入：`sync_all` 之后再 `rename`。
+/// 把目录项的变更刷到盘上。
 ///
-/// **顺序不能反**：rename 本身是原子的，但它只保证目录项的替换原子，不保证文件内容
-/// 已经落盘。少了这一步，掉电后目标可能指向一个内容是空洞的新 inode。
+/// `rename` 的原子性只覆盖「要么旧要么新」，不覆盖「已经落盘」：目录项还在页缓存里时掉电，
+/// 重启后看到的可能仍是改名前的状态——内容已 `sync_all` 也救不回来，因为指向它的那条目录项没落。
+///
+/// Windows 上 `File::open` 打不开目录（拿不到 `FILE_FLAG_BACKUP_SEMANTICS`），那里的 rename
+/// 由文件系统日志保证；只吞「打不开目录」这一类错误，其余照常上报，否则「提交成功」就成了
+/// 没有依据的断言。
+fn sync_directory(directory: &Path) -> io::Result<()> {
+    match File::open(directory).and_then(|handle| handle.sync_all()) {
+        Err(error) if matches!(error.kind(), io::ErrorKind::PermissionDenied | io::ErrorKind::InvalidInput) => Ok(()),
+        other => other,
+    }
+}
+
+/// 收尾一次写入：`sync_all` → `rename` → 父目录 `sync`。
+///
+/// **顺序不能反**：内容先落盘，否则掉电后目标可能指向一个内容是空洞的新 inode；
+/// 父目录后落盘，否则改名本身可能丢失（见 [`sync_directory`]）。
 fn finish_write(pending: &PendingWrite) -> HostResult<()> {
     let file = pending
         .file
@@ -193,7 +214,11 @@ fn finish_write(pending: &PendingWrite) -> HostResult<()> {
         .map_err(|error| filesystem_error(&error, &pending.relative_path))?;
     drop(file);
     fs::rename(&pending.temporary, &pending.target)
-        .map_err(|error| filesystem_error(&error, &pending.relative_path))
+        .map_err(|error| filesystem_error(&error, &pending.relative_path))?;
+    match pending.target.parent() {
+        Some(parent) => sync_directory(parent).map_err(|error| filesystem_error(&error, &pending.relative_path)),
+        None => Ok(()),
+    }
 }
 
 impl FileHost {
@@ -442,21 +467,32 @@ impl FileHost {
             relative_path: relative_path.to_string(),
             file: Mutex::new(Some(file)),
         });
-        if !self.register_write(session_id, &write_id, Arc::clone(&pending)) {
-            // 建临时文件期间会话被关掉了：登记不上就没人回收它，这里当场清掉。
+        if let Err(error) = self.register_write(session_id, &write_id, Arc::clone(&pending)) {
+            // 登记不上（会话已关，或挂起的写入到顶了）就没人回收它，这里当场清掉。
             discard_write(&pending);
-            return Err(session_closed(session_id));
+            return Err(error);
         }
         Ok(json!({ "kind": "file.writeBegin", "result": { "writeId": write_id } }))
     }
 
-    fn register_write(&self, session_id: &str, write_id: &str, pending: Arc<PendingWrite>) -> bool {
+    /// 把一次写入挂到会话上。
+    ///
+    /// 上限在**持锁时**判，而不是在 `write_begin` 开头判一次就放行：并发的 begin 会各自
+    /// 通过那次检查，于是上限被冲过去。代价是超限那次已经建了临时文件——调用方随即删掉它。
+    fn register_write(&self, session_id: &str, write_id: &str, pending: Arc<PendingWrite>) -> HostResult<()> {
         let mut state = self.lock_state();
-        let Some(session) = state.sessions.get_mut(session_id) else {
-            return false;
-        };
+        let session = state
+            .sessions
+            .get_mut(session_id)
+            .ok_or_else(|| session_closed(session_id))?;
+        if session.writes.len() >= MAX_PENDING_WRITES_PER_SESSION {
+            return Err(HostError::new(
+                ErrorCode::ProtocolViolation,
+                format!("session already has {MAX_PENDING_WRITES_PER_SESSION} pending writes"),
+            ));
+        }
         session.writes.insert(write_id.to_string(), pending);
-        true
+        Ok(())
     }
 
     fn require_write(&self, session_id: &str, write_id: &str) -> HostResult<Arc<PendingWrite>> {
@@ -521,6 +557,12 @@ impl FileHost {
         let mut state = self.lock_state();
         if !state.sessions.contains_key(session_id) {
             return Err(session_closed(session_id));
+        }
+        if state.locks.queued_count(name) >= MAX_QUEUED_LOCKS_PER_NAME {
+            return Err(HostError::new(
+                ErrorCode::ProtocolViolation,
+                format!("lock {name} already has {MAX_QUEUED_LOCKS_PER_NAME} queued waiters"),
+            ));
         }
         let lock_id = state.locks.enqueue(name, session_id, mode);
         let outcome = loop {
@@ -705,6 +747,42 @@ mod tests {
         assert!(harness.temporary_files().is_empty());
         let stale = harness.call(json!({ "kind": "file.writeChunk", "writeId": write_id, "chunk": encode_bytes(b"x") }));
         assert_eq!(stale["code"], "write_aborted");
+    }
+
+    /// 每个挂起的写入都占着一个 fd。不设上限，一个只 begin 不 commit 的 renderer
+    /// 就能把宿主的 fd 耗光——那时连数据库都打不开，一个 renderer 的 bug 升级成整个应用不可用。
+    #[test]
+    fn caps_pending_writes_per_session() {
+        let harness = Harness::new();
+        for index in 0..MAX_PENDING_WRITES_PER_SESSION {
+            let begin = harness.call(json!({ "kind": "file.writeBegin", "path": format!("bulk/{index}.txt") }));
+            assert_eq!(begin["kind"], "file.writeBegin", "write {index} should still fit");
+        }
+
+        let overflow = harness.call(json!({ "kind": "file.writeBegin", "path": "bulk/overflow.txt" }));
+
+        assert_eq!(overflow["kind"], "error");
+        assert_eq!(overflow["code"], "protocol_violation");
+    }
+
+    /// 等待者永不超时（对齐 Web Locks），因此队列只增不减地堆在持有者后面。
+    #[test]
+    fn caps_queued_lock_waiters_per_name() {
+        let harness = Harness::new();
+        harness.call(json!({ "kind": "file.lockAcquire", "name": "files:/a", "mode": "exclusive" }));
+        {
+            let mut state = harness.host.lock_state();
+            for index in 0..MAX_QUEUED_LOCKS_PER_NAME {
+                let session = format!("queued-{index}");
+                state.sessions.insert(session.clone(), FileSession::default());
+                state.locks.enqueue("files:/a", &session, LockMode::Exclusive);
+            }
+        }
+
+        let overflow = harness.call(json!({ "kind": "file.lockAcquire", "name": "files:/a", "mode": "shared" }));
+
+        assert_eq!(overflow["kind"], "error");
+        assert_eq!(overflow["code"], "protocol_violation");
     }
 
     /// 会话是资源边界：窗口销毁后未提交的写入必须整体回收，否则临时文件会一直攒着。

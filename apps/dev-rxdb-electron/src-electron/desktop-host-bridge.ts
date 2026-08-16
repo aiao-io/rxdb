@@ -72,8 +72,13 @@ export interface DesktopHostBridge {
   releaseTarget(target: DesktopHostEventTarget): number;
   /** 两族当前打开的会话总数。 */
   readonly openSessionCount: number;
-  /** 关闭全部会话，应用退出前调用。 */
-  closeAll(): void;
+  /**
+   * 关闭全部会话，应用退出前调用。
+   *
+   * @remarks
+   * 必须等它落地：文件族的清理是异步的，不等就等于没清 —— 进程先一步退了。
+   */
+  closeAll(): Promise<void>;
 }
 
 /** 安全地取出 `kind`，负载不是对象时返回 `undefined`（由 host 去报 `protocol_violation`）。 */
@@ -103,13 +108,13 @@ export function createDesktopHostBridge(options: DesktopHostBridgeOptions): Desk
       return sqlite.openSessionCount + file.openSessionCount;
     },
 
-    closeAll: (): void => {
+    closeAll: async (): Promise<void> => {
       // finally 而不是 try/catch：关停在退出路径上，前一个 host 抛错不能让后一个漏关——
       // 文件 host 漏关会把未提交写入的临时文件留在磁盘上。错误照抛，不吞。
       try {
         sqlite.closeAll();
       } finally {
-        file.closeAll();
+        await file.closeAll();
       }
     }
   };
