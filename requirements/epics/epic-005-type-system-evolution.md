@@ -63,16 +63,18 @@ US-012b 的 DTO 需要 US-012a 已冻结的 `FieldFormat` 判别联合，US-012c
 
 ## 故事
 
-- ✅ [US-011 定义 bigint 与 binary 类型及公共 API 契约](../stories/core/US-011-property-type-bigint-binary.md) (High)
+> 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
+
+- [US-011 定义 bigint 与 binary 类型及公共 API 契约](../stories/core/US-011-property-type-bigint-binary.md) (High)
 - 📄 [US-012 扩展字段语义与前端通信契约](../stories/core/US-012-field-semantic-metadata.md) (High) — 父故事/共享契约文档，**不直接交付**
-  - ⬜ [US-012a 字段 format 声明与注册期校验](../stories/core/US-012a-field-format-declaration.md) (High)
-  - ⬜ [US-012b 实体字段描述 DTO](../stories/core/US-012b-entity-fields-dto.md) (High)
-  - ⬜ [US-012c 字段值校验、生成器透传与三框架契约](../stories/core/US-012c-field-value-validation-codegen.md) (Medium)
-- ✅ [US-206 本地适配器持久化与查询 bigint/binary](../stories/adapter/US-206-bigint-binary-adapter.md) (High)
-- ✅ [US-303 bigint/binary change codec 与系统迁移](../stories/collaboration/US-303-bigint-binary-change-codec.md) (High)
-- 🚧 [US-304 跨 realm writer lease 与迁移 fencing](../stories/collaboration/US-304-writer-lease-migration-fencing.md) (High)
-- ✅ [US-804 加密字段支持 bigint/binary](../stories/future/US-804-bigint-binary-encryption.md) (High)
-- ✅ [US-903 DevTools 展示 bigint/binary](../stories/future/US-903-bigint-binary-devtools.md) (Medium)
+  - [US-012a 字段 format 声明与注册期校验](../stories/core/US-012a-field-format-declaration.md) (High)
+  - [US-012b 实体字段描述 DTO](../stories/core/US-012b-entity-fields-dto.md) (High)
+  - [US-012c 字段值校验、生成器透传与三框架契约](../stories/core/US-012c-field-value-validation-codegen.md) (Medium)
+- [US-206 本地适配器持久化与查询 bigint/binary](../stories/adapter/US-206-bigint-binary-adapter.md) (High)
+- [US-303 bigint/binary change codec 与系统迁移](../stories/collaboration/US-303-bigint-binary-change-codec.md) (High)
+- [US-304 跨 realm writer lease 与迁移 fencing](../stories/collaboration/US-304-writer-lease-migration-fencing.md) (High)
+- [US-804 加密字段支持 bigint/binary](../stories/future/US-804-bigint-binary-encryption.md) (High)
+- [US-903 DevTools 展示 bigint/binary](../stories/future/US-903-bigint-binary-devtools.md) (Medium)
 
 ## 非目标
 

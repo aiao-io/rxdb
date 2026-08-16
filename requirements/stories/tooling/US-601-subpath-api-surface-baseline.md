@@ -51,7 +51,7 @@ US-209 AC#8 问的是「`@aiao/rxdb-adapter-miniprogram/runtime` 的 11 个导�
 - `KNOWN_UNCOVERED_SUBPATHS` 退化为「无导出表面的资产入口」白名单；`auditSubpathInventory()` 的清单核对保留
 - 文档三处同步收口：[versioning-policy.md](../../versioning-policy.md) 第 4 节、
   [website/docs/versioning.md](../../../website/docs/versioning.md) 的警示块、
-  [status-overview.md](../../status-overview.md) 的「已知的需求覆盖缺口」
+  [capability-matrix.md](../../capability-matrix.md) 的「已知的需求覆盖缺口」
 - 新增逻辑的 `scripts/**/*.spec.mjs` 单测，全部基于 `__fixtures__/` 下的假包，不断言真实 `packages/` 内容
 
 ### Out of Scope
@@ -143,7 +143,7 @@ US-209 AC#8 问的是「`@aiao/rxdb-adapter-miniprogram/runtime` 的 11 个导�
 - `scripts/audit/__fixtures__/` — 新增「有源入口 / 资产入口 / 解析失败」三类假包
 - `requirements/api-baseline/*.json` — 格式扩展后全量重写
 - `packages/*/package.json` 或 `tsconfig.base.json` — 补齐 4 个缺失的源入口声明（二选一，见技术笔记）
-- `requirements/versioning-policy.md`、`website/docs/versioning.md`、`requirements/status-overview.md` — 文档收口
+- `requirements/versioning-policy.md`、`website/docs/versioning.md`、`requirements/capability-matrix.md` — 文档收口
 
 ## References
 

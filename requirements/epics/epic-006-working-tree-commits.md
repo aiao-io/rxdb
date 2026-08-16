@@ -291,13 +291,15 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
 
 ## 故事
 
-- ⬜ [US-305 提交图与 HEAD 持久化](../stories/collaboration/US-305-commit-graph-head.md) (High)
+> 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
+
+- [US-305 提交图与 HEAD 持久化](../stories/collaboration/US-305-commit-graph-head.md) (High)
 - 📄 [US-306 工作树、缓存区与提交操作](../stories/collaboration/US-306-working-tree-index.md)（父故事/共享契约，不直接交付）
-  - ⬜ [US-306a 工作树写入捕获与持久化](../stories/collaboration/US-306a-working-tree-capture.md) (High)
-  - ⬜ [US-306b 缓存区与提交状态机](../stories/collaboration/US-306b-index-commit-state-machine.md) (High)
-  - ⬜ [US-306c 三框架工作树交互面与性能门禁](../stories/collaboration/US-306c-cross-framework-working-tree.md) (High)
-- ⬜ [US-307 历史恢复会话](../stories/collaboration/US-307-restore-session.md) (Medium)
-- ⬜ [US-308 分支隔离与跨 realm 冲突检测](../stories/collaboration/US-308-branch-isolation-conflict.md) (Medium)
+  - [US-306a 工作树写入捕获与持久化](../stories/collaboration/US-306a-working-tree-capture.md) (High)
+  - [US-306b 缓存区与提交状态机](../stories/collaboration/US-306b-index-commit-state-machine.md) (High)
+  - [US-306c 三框架工作树交互面与性能门禁](../stories/collaboration/US-306c-cross-framework-working-tree.md) (High)
+- [US-307 历史恢复会话](../stories/collaboration/US-307-restore-session.md) (Medium)
+- [US-308 分支隔离与跨 realm 冲突检测](../stories/collaboration/US-308-branch-isolation-conflict.md) (Medium)
 
 ## 性能预算的口径
 

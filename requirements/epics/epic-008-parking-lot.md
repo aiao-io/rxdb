@@ -36,7 +36,7 @@
 
 **问题**
 
-[`connected$`](../packages/rxdb/src/RxDB.ts) 是全局布尔。本地连着、远端没连（或反过来）时，它对 `adapter:local` / `adapter:remote` 给出假就绪。search 今天先 `firstValueFrom(connected$)` 再拿 `localAdapter$`，就是在手工逼近「这个适配器可用」。
+[`connected$`](../../packages/rxdb/src/RxDB.ts) 是全局布尔。本地连着、远端没连（或反过来）时，它对 `adapter:local` / `adapter:remote` 给出假就绪。search 今天先 `firstValueFrom(connected$)` 再拿 `localAdapter$`，就是在手工逼近「这个适配器可用」。
 
 015a 的正确内部形状是 `#connected_adapters` + `host.isDependencyReady('adapter:local')`（Cordis `Service.check` 的封闭版）。那是**谓词**，不是流。
 
@@ -72,12 +72,12 @@ rxdb.afterAdapterReady('local', async () => {
 **它要绕开的那个环今天不存在。**「search 的 `install()` 返回含 FTS DDL 的 Promise，`connect()` 又
 `await` 所有 `#plugin_install_promises`，套上『install settle = active』会死锁」——次序不是这样。
 `connect()` 在 `#connected_adapters.add` 与 `connected_sub.next(true)`
-（[:442-443](../packages/rxdb/src/RxDB.ts#L442-L443)）**之后**才 `await this.#await_plugin_installs()`（:445），
+（[:442-443](../../packages/rxdb/src/RxDB.ts#L442-L443)）**之后**才 `await this.#await_plugin_installs()`（:445），
 search 等的 `connected$` 此时已经是 `true`，没有环。
 
 **它的收益同样不成立。** 今天 `await db.connect()` 返回即 FTS 可用，是用户可见保证；把 FTS 挪到连接
 Promise 之外**会破坏它**。这条约束的正式落点是
-[US-015 的 D2 附](stories/core/US-015-plugin-inject-dependency.md)——015a **不拆** FTS，因此本条与
+[US-015 的 D2 附](../stories/core/US-015-plugin-inject-dependency.md)——015a **不拆** FTS，因此本条与
 「`install()` 只做同步登记、FTS 走 `ready` / 后台」两边都不做。
 
 只有 015a 实测发现「后台 Promise + `ready`」在四个插件里复制三遍时，才重开本条把慢路径收口。
@@ -89,7 +89,7 @@ Promise 之外**会破坏它**。这条约束的正式落点是
 - 把 Cordis 的 async apply 当宿主模型——Cordis **没有人在外面 await 所有 LOADING**。RxDB 的 `connect()` 会。
 
 **前置**：无。本条现在不做——`install()` 内只走 `bootstrapTransaction` / `rawQuery`、不改对外时序
-这一点已由 [US-015 D2 附](stories/core/US-015-plugin-inject-dependency.md) 定死。
+这一点已由 [US-015 D2 附](../stories/core/US-015-plugin-inject-dependency.md) 定死。
 
 ---
 
@@ -124,7 +124,7 @@ Epic 原文已推迟：没有稳定作用域树就谈不上展示。013 明确�
 
 - 只读快照：scope `label` 树 + 插件名 + 状态 + 当前依赖 epoch。
 - 宿主发诊断信号：`plugin:search` 进入 `waiting` / `failed`。不是 DI，是探针。
-- 挂现有 [`@aiao/rxdb-devtools`](../packages/rxdb-devtools) 通道，不新开一套协议除非版本化需要。
+- 挂现有 [`@aiao/rxdb-devtools`](../../packages/rxdb-devtools) 通道，不新开一套协议除非版本化需要。
 
 **不要做成**
 

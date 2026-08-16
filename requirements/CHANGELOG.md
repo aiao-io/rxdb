@@ -52,6 +52,79 @@
 - 派生视图同步：`status-overview.md`（Backlog 17 → 16，Done 34 → 35，合计 55 不变；epic-003 索引条目转 ✅）、
   `US-904` 共享契约的子故事表新增状态列。
 
+### 2026-08-16 — US-505 Tauri 本地文件存储开工（Backlog → In Progress）
+
+- 本条**作废 2026-08-15 的复核结论**「US-210 未交付 → AC#11 启用分支不可达 → 本轮只补文档」。
+  该判断有两处站不住：[setup_rxdb_desktop.ts](../apps/dev-rxdb-tauri/src/app/setup_rxdb_desktop.ts)
+  早已把 `sync.local.adapter` 配成 `DESKTOP_ADAPTER_NAME`，通过分支一直存在，「死代码」的前提不成立；
+  且它把 US-210 当成全有全无的门禁，实际被门禁的只有 AC#1 / #7。
+- plan 阶段冻结 **最小 Rust command**：复用既有 `rxdb_desktop_request` 通道，`capabilities/default.json`
+  零改动，不引入 `fs` / `shell` 权限。判据是 `lockBackend` 而非风险权衡——`tauri-plugin-fs` 只提供
+  文件读写原语，**给不出跨窗口的锁仲裁**，选它等于 AC#9 无法成立。
+- 渲染端接近零新代码（US-504 交付的 `desktop.ts` 本就运行时无关），实做全在 `src-tauri/src/rxdb/file/`；
+  同一条 IPC 通道上的两套协议按 `kind` **精确成员判定**分流，且必须排在 SQL 解析器之前。
+- 11 条 AC 中 5 条 ✅、4 条 ⚠️、2 条 ⬜，未关闭项分别要打包应用真实重启、三家真实 webview、三平台打包矩阵，
+  与 US-210 AC#1 / #9 卡在同一缺口。本轮按既定范围**不建** `apps/dev-rxdb-tauri-e2e`（tauri-driver 不支持 macOS）。
+- 门禁：`cargo test` 113 条、`cargo clippy` 零警告、`test-conformance` 9 文件 602 条、`dev-rxdb-tauri` 12 文件 70 条，均绿。
+
+### 2026-08-15 — US-504 Electron 本地文件存储交付（Backlog → Done）
+
+- [US-504](stories/plugin/US-504-electron-local-file-storage.md) 是 `rxdb-plugin-storage` 桌面原生文件后端的
+  Electron 半边（Tauri 半边为 [US-505](stories/plugin/US-505-tauri-local-file-storage.md)）。这是**新增范围**：
+  [US-502](stories/plugin/US-502-storage-plugin.md) 只承诺过 OPFS。
+- 四个 plan 阶段决策落定：① 窄接口 `StorageFilesystem`；② 临界区下沉 host 侧，跨窗口互斥不再依赖 Chromium Web Locks；
+  ③ 新增 `StorageBackendError { code }`；④ 逻辑名→物理名确定性可逆编码，编码后超单组件 255 字节即以
+  `name_too_long` 拒绝——这是与 OPFS 后端**唯一的有意分歧**。
+- 文件落 `userData/rxdb-files`，与 US-207 的 SQLite 同一备份域；host 通道复用 US-207 已发布的契约。
+- 可行性结论：OPFS 特定入口唯一（`getStorageRootHandle()`），但根句柄之后服务全程直接调用句柄 API，
+  「换根即可、其余零改动」只对 handle shim 案成立，接缝两案在 plan 阶段冻结。
+
+### 2026-08-15 — US-904 / US-905 DevTools 链五轮评审拆分与重编号
+
+同日连续五轮评审，最终把该链**文档整合**为 6 篇（原 11 篇 1651 行）。全程只做切分、合并与重编号，**无规范性内容增删**。
+
+重编号映射（上方历史条目保留当轮旧编号，链接已指向现名）：
+
+| 当轮编号                          | 现名                                                                                      |
+| :-------------------------------- | :---------------------------------------------------------------------------------------- |
+| US-904b1 + b2                     | [US-904b](stories/future/US-904b-devtools-v2-protocol.md)                                 |
+| US-904b3 + b4                     | [US-904c](stories/future/US-904c-devtools-shared-panel-chrome-migration.md)               |
+| 旧 US-904c                        | [US-904d](stories/future/US-904d-electron-native-devtools-integration.md)                 |
+| US-905a + 905b                    | [US-905](stories/future/US-905-tauri-native-devtools.md)                                  |
+| 旧 US-904 / 904b / 905 三份父契约 | 合并为唯一的 [US-904 共享契约](stories/future/US-904-devtools-native-storage-contract.md) |
+
+各轮落定的决策：
+
+- **协议缺陷（P0，第五轮）**：v1/v2 协商窗口原以 panel 初始化起算，但 connector bootstrap 与 content script
+  注入（要等 `chrome.permissions.request` 用户授权，延迟无上界）都可能晚于 panel，计时器会在任何一条握手到达前
+  过期，让「双方都支持 v2」稳定退回 v1——同一「双方永久互等」的失败模式在
+  [bridge.ts](../apps/rxdb-devtools-extension/src/content/bridge.ts) 已有先例注释。改为**证据触发**：
+  panel 在无 session 状态下每次观察到 legacy HANDSHAKE 都补发一次 `PROTOCOL_HELLO`，1,000 ms 窗口从首次暂存起算
+  且只启动一次，无 session 的迟到握手不算非法帧，v1 facade 进入后为终态并置降级标记。
+- 冻结 `crypto.randomUUID()` 在非安全上下文（扩展显式接受 `http:` 页面）不可用，须用 `getRandomValues` 构造 v4；
+  补齐流式 transfer 的 15 秒 idle + 10 分钟总时长两道时限与 `transfer_timeout`（原文引用了一个从未定义的值）。
+- **依赖与安全契约（第三轮）**：US-904a 只门禁 Electron 侧，US-904b 与其并行且不阻塞 Tauri；
+  wire v2 保留一个 minor 的 v1/v2 迁移桥，provider 改用语义 kind，冻结 capability/descriptor/mutation policy、
+  流式 transfer 与有界 immutable snapshot。
+- **INVEST（第四、五轮）**：US-904b 横跨控制面、provider 数据面与 UI/Chrome 迁移，Small 不成立，
+  据此切出「行为中性的面板抽取」与「行为收敛的 Chrome v2 迁移」两段；合并后以**故事内两阶段**表达，
+  并硬性要求两阶段是独立 PR/commit 序列，阶段 1 的 diff 不得含 wire 类型、错误码或权限判定变化。
+- 同轮关闭六个缺口：background 代 ACK 导致的 v2 降级、`none` 事件泄漏、无界 ID tombstone、
+  跨 transport binary/数值歧义、平台错误分叉、snapshot 等锁无 deadline。
+- 并行性最终形态不变：US-904c 阶段 1 ∥ US-904b，US-905 阶段 1 ∥ US-210 / US-505。
+
+### 2026-08-15 — 新建 epic-008 生命周期作用域，登记 US-013 / US-014 / US-015
+
+- 新建 [epic-008](epics/epic-008-lifecycle-scope.md)，登记
+  [US-013](stories/core/US-013-lifecycle-scope-primitive.md) /
+  [US-014](stories/core/US-014-plugin-scope-contract.md) /
+  [US-015](stories/core/US-015-plugin-inject-dependency.md)：把仓库内已存在的九处
+  「登记副作用 → 拆卸时撤销」手工账本收敛成一个作用域原语。这是把既有实现缺口登记成故事，**不是新增产品范围**。
+- 判据是既有泄漏而非设计偏好：[graph 插件](../packages/rxdb-plugin-graph/src/plugin.ts#L33-L35) 的 `destroy()`
+  是空的且**契约里没有位置可写**（`#repository_config_map` 只有 `.set` / `.get`，无反注册 API）。
+- 同日把 US-015 降为父契约故事，切片指派给待创建的 `US-015a` / `US-015b`，US-016 / US-017 从 epic 目标转为待创建故事。
+  **子故事文件至今未落盘**，因此该轮不产生任何计数变化；在 `US-015a` 落盘前，epic-008 没有 US-014 之后的可交付切片。
+
 ### 2026-08-15 — epic-006 二次评审与 US-306 拆分
 
 - 复核发现历史 bridge `v0.0.25` 的 tagged commit 经后续 squash 脱离当前发布主线，不能通过 migration gate 的
@@ -160,6 +233,33 @@
 1. 三框架 (`rxdb-{angular,react,vue}`) 完成 P0 稳定性（拖拽、虚拟滚动、批量操作的 e2e 回归零失败）
 2. 决定 UI 形态：Visual Query Builder 还是 SQL-like DSL；若选前者，需先评估 `react-querybuilder` 等三方件的 Vue/Angular 端可移植性
 3. 与 `rxdb-plugin-search` 的关系定义清楚（全文 vs. 结构化查询的 UX 边界）
+
+## 计数演进归档
+
+2026-08-13 / 08-15 两轮评审在 `status-overview.md` 里留下过一串递进计数（`Backlog N → M，合计 X → Y`）。
+这些数字**只在当轮分支内自洽**，已被 2026-08-16 的 `main` 合并整体作废，此处仅归档动作本身。
+当前计数一律由真相源推导：`grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c`。
+
+| 日期       | 动作                                                                            | 当轮记录的计数变化                                                          |
+| :--------- | :------------------------------------------------------------------------------ | :-------------------------------------------------------------------------- |
+| 2026-08-13 | US-012 拆 a/b/c、US-207 拆出 US-208、US-305 升级为 epic-006 并拆 305~308        | Backlog 4 → 11（拆分，非新增范围）                                          |
+| 2026-08-13 | 补写 US-209（实现早已合并，直接记 `In Review`）                                 | 合计 +1                                                                     |
+| 2026-08-13 | US-207 二次拆分，Tauri 半边迁至 US-210；US-207 收敛到 Electron 转 `In Progress` | 合计 45 → 46，Backlog 仍 11                                                 |
+| 2026-08-15 | 新增 US-601 + epic-007 + `stories/tooling/`                                     | Backlog 11 → 12，合计 46 → 47                                               |
+| 2026-08-15 | US-210 开工                                                                     | Backlog 12 → 11，In Progress 2 → 3                                          |
+| 2026-08-15 | US-306 拆出 306a/b/c                                                            | Backlog 11 → 14，合计 47 → 50                                               |
+| 2026-08-15 | 新增 US-504 / US-505                                                            | Backlog 11 → 13，合计 47 → 49                                               |
+| 2026-08-15 | 新增 US-904                                                                     | Backlog 13 → 14，合计 49 → 50                                               |
+| 2026-08-15 | 新增 US-905                                                                     | Backlog 14 → 15，合计 50 → 51                                               |
+| 2026-08-15 | epic-008 新建，登记 US-013 / US-014 / US-015                                    | Backlog 14 → 17，合计 50 → 53                                               |
+| 2026-08-15 | US-015 降为父契约（子故事文件未落盘）                                           | 无变化，父故事 2 → 3                                                        |
+| 2026-08-15 | US-904 / US-905 第二至第五轮拆分                                                | Backlog 15 → 24，合计 51 → 60                                               |
+| 2026-08-15 | US-209 收尾转 `Done`                                                            | Done 32 → 33，In Review 1 → 0                                               |
+| 2026-08-15 | US-504 交付转 `Done`                                                            | Backlog 24 → 23，Done 33 → 34                                               |
+| 2026-08-15 | US-904 / US-905 链文档整合为 6 篇（11 篇 → 6 篇，含重编号）                     | Backlog 23 → 18，合计 60 → 55                                               |
+| 2026-08-16 | US-505 开工                                                                     | Backlog 18 → 17，In Progress 3 → 4                                          |
+| 2026-08-16 | US-904b 交付转 `Done`                                                           | Backlog 17 → 16，Done 34 → 35                                               |
+| 2026-08-16 | 合并 `main`                                                                     | 以上递进全部作废；重新推导为 Done 35 / In Progress 4 / Backlog 22 / 合计 61 |
 
 ## 依赖锁定记录
 

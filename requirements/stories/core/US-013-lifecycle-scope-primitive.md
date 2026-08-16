@@ -42,7 +42,7 @@ INVEST 检查清单:
 > `EffectScope` / `effectScope()`，Angular 导出 `effect()`——同名不同义是最贵的一类命名错误，
 > 不能留到实现期再定。
 >
-> **本故事不是「给 `@aiao/utils` 立故事」。** [status-overview.md](../../status-overview.md) 的
+> **本故事不是「给 `@aiao/utils` 立故事」。** [capability-matrix.md](../../capability-matrix.md) 的
 > 「项目统计」注写明基础设施包不单独立 story。本故事的归属是**核心引擎的生命周期契约**，
 > 代码落点恰好在 `@aiao/utils`（选型理由见技术笔记 D2）。该注不需要修改：它排除的是
 > 「为 utils 的工具函数补需求覆盖」这类工作，不是「核心契约的实现放在 utils 里」。

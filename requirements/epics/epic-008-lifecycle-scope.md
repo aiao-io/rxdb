@@ -109,13 +109,15 @@ US-014 独立交付即可关闭。后续故事必须各自证明自己的症状�
 
 ## 故事
 
-- ⬜ [US-013 LifecycleScope 生命周期作用域原语](../stories/core/US-013-lifecycle-scope-primitive.md) (High)
-- ⬜ [US-014 插件作用域契约](../stories/core/US-014-plugin-scope-contract.md) (High)
+> 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
+
+- [US-013 LifecycleScope 生命周期作用域原语](../stories/core/US-013-lifecycle-scope-primitive.md) (High)
+- [US-014 插件作用域契约](../stories/core/US-014-plugin-scope-contract.md) (High)
 - 📄 [US-015 插件依赖声明与按需装卸](../stories/core/US-015-plugin-inject-dependency.md) (Medium) — 父契约故事，不直接交付
-  - 🚧 `US-015a` 适配器依赖纪元 — 文件未创建
-  - 🚧 `US-015b` 插件依赖图 — 文件未创建，价值待证
-- 🚧 `US-016` 连接纪元与停机收敛 — 文件未创建，价值待证
-- 🚧 `US-017` 三框架宿主作用域 — 文件未创建，价值待证
+  - `US-015a` 适配器依赖纪元 — 文件未创建
+  - `US-015b` 插件依赖图 — 文件未创建，价值待证
+- `US-016` 连接纪元与停机收敛 — 文件未创建，价值待证
+- `US-017` 三框架宿主作用域 — 文件未创建，价值待证
 
 **US-013 → US-014 是硬序**，不可交换：US-014 的 `install(scope)` 签名需要 US-013 冻结的
 `LifecycleScope` 类型。US-014 之后的顺序（015a → 015b → 016 → 017）是**依赖顺序，不是排期承诺**——

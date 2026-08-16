@@ -242,7 +242,7 @@ search 今天的双重等待（先 `connected$` 再 `localAdapter$`）正是在�
 这条不回头等 `connect()` 的路径，**不改对外时序**。原因写在源码注释里：`repo.find()` /
 `adapter.rawQuery()` 都会先 `ready()`，而 `ready()` 又等 `connect()`——等于等自己。
 「另开一个不进 `#await_plugin_installs()` 的慢路径钩子」这一方案已被否决，
-理由见 [epic-008 停车位 P-002](../../epic-008-out-of-scope.md)。
+理由见 [epic-008 停车位 P-002](../../epics/epic-008-parking-lot.md)。
 
 ### D3 — 插件依赖的就绪判据
 
@@ -326,5 +326,5 @@ export interface IRxDBPlugin {
 - [US-014 插件作用域契约](./US-014-plugin-scope-contract.md) — 前置故事；「释放」以它把副作用收进作用域为前提
 - `US-015a` 适配器依赖与纪元调度 — 🚧 计划路径 `stories/core/US-015a-adapter-dependency-epoch.md`，**未创建**
 - `US-015b` 插件间依赖图 — 🚧 计划路径 `stories/core/US-015b-plugin-dependency-graph.md`，**未创建**，价值待证
-- [epic-008 停车位](../../epic-008-out-of-scope.md) — P-001（按名字的就绪流）与 P-002（已否决的钩子）的边界
+- [epic-008 停车位](../../epics/epic-008-parking-lot.md) — P-001（按名字的就绪流）与 P-002（已否决的钩子）的边界
 - [versioning-policy.md](../../versioning-policy.md) 第 4 节 — 三层 API 守护

@@ -4,7 +4,7 @@
 
 [![codecov](https://codecov.io/gh/aiao-io/rxdb/graph/badge.svg?token=VJW8U2PNBG)](https://codecov.io/gh/aiao-io/rxdb)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![User Stories](https://img.shields.io/badge/User_Stories-32%2F37_Done-green)](requirements/status-overview.md)
+[![User Stories](https://img.shields.io/badge/User_Stories-35%2F61_Done-green)](requirements/status-overview.md)
 
 </div>
 
@@ -35,7 +35,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri        |
 
 > [!NOTE]
-> ⚠️ 核心 MVP 已完成（[32/37 stories](requirements/status-overview.md)），当前处于 1.0 发布冲刺阶段。API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。
+> ⚠️ 核心 MVP 已完成（[35/61 stories](requirements/status-overview.md)），当前处于 1.0 发布冲刺阶段。API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。
 
 ## RxDB 解决什么问题？
 

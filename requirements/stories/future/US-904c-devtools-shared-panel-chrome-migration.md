@@ -37,10 +37,10 @@ INVEST 检查清单:
 
 本故事按两个**必须分开审查**的阶段推进，避免「行为中性」和「行为收敛」两类 diff 混在同一次审查里：
 
-| 阶段                          | 内容                                                             | 门禁                                                       |
-| ----------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------- |
-| **阶段 1：行为中性抽取**      | 在**现有 v1 wire 上**抽出私有 Angular library 与 transport token | 无协议前置，**可与 US-904b 并行开工**                      |
-| **阶段 2：v2 迁移与安全收敛** | 四段 relay 改造、OPFS provider 迁移、禁用不安全下载、浏览器回归  | [US-904b](./US-904b-devtools-v2-protocol.md) 已 `Done`     |
+| 阶段                          | 内容                                                             | 门禁                                                   |
+| ----------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------ |
+| **阶段 1：行为中性抽取**      | 在**现有 v1 wire 上**抽出私有 Angular library 与 transport token | 无协议前置，**可与 US-904b 并行开工**                  |
+| **阶段 2：v2 迁移与安全收敛** | 四段 relay 改造、OPFS provider 迁移、禁用不安全下载、浏览器回归  | [US-904b](./US-904b-devtools-v2-protocol.md) 已 `Done` |
 
 [US-902](./US-902-devtools-panel.md) 的既有面板与浏览器行为是阶段 1 的回归基准。
 
@@ -83,7 +83,7 @@ INVEST 检查清单:
 - `packages/rxdb-devtools-panel/package.json` 必须 `private: true`，不得声明 `npm:public` tag 或 publish target
 - `nx.json.release.projects` 必须显式排除该 project；fixed release version/publish dry-run 不得修改或发布它
 - Chrome/Electron/Tauri 通过 package manager workspace dependency 消费，不使用 tsconfig path 绕过依赖
-- API baseline 与公开包统计继续只包含现有公开 npm 包；本故事不改变 `status-overview.md` 的「28 个公开包」
+- API baseline 与公开包统计继续只包含现有公开 npm 包；本故事不改变 `capability-matrix.md` 的公开包统计
 - library 构建不得把 Chrome types/runtime 变成传递依赖；surface adapter 在各 app 侧提供 transport
 
 ## transport token 契约

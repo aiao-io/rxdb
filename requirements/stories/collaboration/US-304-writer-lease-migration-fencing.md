@@ -106,7 +106,7 @@ INVEST 检查清单:
 这份声明从未通过校验。所以真正的阻塞不是「没有 tag 可用」，而是桥接 tag 该指向哪一次发布。
 
 **该决策已于 2026-08-13 作出：另打 `v0.0.25`，不追认 `v0.0.24`。**
-发布顺序与关闭判据见 [`requirements/README.md` 的「下一次发布计划」](../../README.md#下一次发布计划v0025-桥接版本)。
+发布顺序与关闭判据见 [`requirements/release-plan.md` 的「下一次发布计划」](../../release-plan.md#下一次发布计划桥接版本)。
 
 同时注意 `bridgeTagSupportsProtocol` 只用 `git cat-file -e` 校验文件存在，不校验文件内容，
 因此它单独并不能证明 tag 含协议实现；上表第 4 行是手工补的证据，不是门禁给的。
@@ -171,7 +171,7 @@ tag 创建当时的分支；后续 squash 合并使该 tagged commit 脱离当�
 并把它的 tag/version 写入 migration manifest；禁止重打 `v0.0.25` 或用 cherry-pick 冒充 ancestry。
 
 门禁的三个 git 钩子已借 `v0.0.25` 首次用真实 tag 验证（正向零报错、伪造 tag 三条全报），
-**门禁本身不需要修**；实测明细见 [`requirements/README.md` 的「门禁三钩子的实测」](../../README.md#门禁三钩子的实测2026-08-13)。
+**门禁本身不需要修**；实测明细见 [`requirements/release-plan.md` 的「门禁三钩子的实测」](../../release-plan.md#门禁三钩子的实测2026-08-13)。
 
 ### 门禁自身的两处缺口（已修复，2026-08-13）
 

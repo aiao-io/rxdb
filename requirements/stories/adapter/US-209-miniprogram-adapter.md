@@ -19,7 +19,7 @@ INVEST 检查清单:
 - [x] Testable (可测试): 每条 AC 都对应一条可执行的门禁命令或可 diff 的文档位置
 
 补记（2026-08-13）：本 story 是补写的。`@aiao/rxdb-adapter-miniprogram` 自 0.0.24 起已发布，
-但 requirements/ 下一直没有对应需求文件（见 status-overview.md「已知的需求覆盖缺口」）。
+但 requirements/ 下一直没有对应需求文件（见 capability-matrix.md「已知的需求覆盖缺口」）。
 已实现能力按事实标 ✅ 并附证据，剩余缺口标 ⬜。
 -->
 
