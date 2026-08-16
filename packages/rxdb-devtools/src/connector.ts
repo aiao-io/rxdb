@@ -1,13 +1,8 @@
 import type { EntityType, RxDB, RxDBEvent, RxDBEventMap } from '@aiao/rxdb';
 
 import { EventBuffer } from './buffer.js';
-import { SequenceGenerator } from './sequence.js';
 import type { DevToolsProviderDescriptor } from './provider/descriptor.js';
-import { createSystemClock } from './v2/clock.js';
-import { createDevToolsConnectorEndpoint } from './v2/endpoint.js';
-import type { DevToolsConnectorEndpoint, DevToolsProviderRegistry } from './v2/endpoint.js';
-import type { DevToolsMutationPolicy } from './v2/authorization.js';
-import type { DevToolsConnectorNegotiationMessage } from './v2/negotiation-connector.js';
+import { SequenceGenerator } from './sequence.js';
 import { maskEncryptedFields, serialize, serializeDevToolsValue } from './serializer.js';
 import {
   createMessage,
@@ -22,6 +17,11 @@ import {
   type QueryEntityPayload,
   type SerializedEvent
 } from './types.js';
+import type { DevToolsMutationPolicy } from './v2/authorization.js';
+import { createSystemClock } from './v2/clock.js';
+import type { DevToolsConnectorEndpoint, DevToolsProviderRegistry } from './v2/endpoint.js';
+import { createDevToolsConnectorEndpoint } from './v2/endpoint.js';
+import type { DevToolsConnectorNegotiationMessage } from './v2/negotiation-connector.js';
 
 /**
  * DevTools 实际使用的 RxDB 能力子集。
@@ -224,7 +224,7 @@ const CAPABILITY_RANK: Record<DevToolsCapability, number> = { none: 0, readonly:
  * @remarks
  * 空集是当前的**事实**而不是占位：本包不实现任何原生存储 provider，files / settings
  * 在页内根本不存在，database 的 v2 操作也还没有对着 RxDB 实现。
- * 由 US-904c / US-904d / US-905 各自接上真实 provider 后填充。
+ * 由 US-904 阶段 C / D 与 US-905 各自接上真实 provider 后填充。
  */
 const CONNECTOR_PROVIDER_DESCRIPTORS: readonly DevToolsProviderDescriptor[] = [];
 
@@ -234,7 +234,7 @@ const CONNECTOR_PROVIDER_DESCRIPTORS: readonly DevToolsProviderDescriptor[] = []
  * @remarks
  * 硬编码为 `'omit'`，而不是开成一个选项：三层授权里 mutationPolicy 管的是「已声明的写操作
  * 要不要放行」，而本页宣告的 provider 集是空的，眼下没有任何写操作可管。开成选项等于让
- * 使用者去配一个当前不产生任何效果的开关，等 US-904c / US-904d / US-905 接上真实 provider
+ * 使用者去配一个当前不产生任何效果的开关，等 US-904 阶段 C / D 与 US-905 接上真实 provider
  * 时又得连同默认值一起重新想一遍。届时补上选项即可——默认停在 `'omit'`，
  * 意味着「接上 provider」这一步不会顺带把写路径也悄悄打开。
  */
@@ -260,6 +260,16 @@ const CONNECTOR_PROVIDERS: DevToolsProviderRegistry = {
 };
 
 const OPAQUE_ORIGIN = 'null' as const;
+
+/**
+ * 握手之后仍然允许从共享 `window` 总线进入的命令。
+ *
+ * @remarks
+ * 只有 `PING` —— 它是「你还在吗」的探活，不读也不改任何东西，而对端在拿到端口之前
+ * 只能靠它确认页面已经装了连接器。其余命令一律只认私有端口，从 `window` 来的直接丢弃
+ * 并给一次诊断（见 {@link RxDBDevToolsConnector.#warnWindowBusCommand}）。
+ */
+const WINDOW_BUS_ALLOWED_COMMAND = 'PING' as const satisfies DevToolsCommandMessage['type'];
 
 const DEVTOOLS_GLOBAL_KEY = '__AIAO_RXDB_DEVTOOLS__' as const;
 const EVENT_ENTITY_FIELDS = ['patch', 'inversePatch', 'data'] as const;
@@ -467,6 +477,14 @@ export class DevToolsConnector {
   #rxdbInstance: DevToolsRxDB | null = null;
   #eventListeners: Map<keyof RxDBEventMap, (event: RxDBEvent) => void> = new Map();
   #messageHandler: ((event: MessageEvent) => void) | null = null;
+  /**
+   * 握手时建立的私有信道的己方端口，握手之后的收发全部走它。
+   *
+   * @remarks
+   * `null` 表示还没握过手（或已 {@link disconnect}）。此时出站消息退回
+   * `window.postMessage` —— 握手本身就必须这么发，没有别的路可走。
+   */
+  #port: MessagePort | null = null;
   #endpoint: DevToolsConnectorEndpoint | null = null;
   #hasEntityMetadata = false;
   #entityInfo: EntityInfo[] = [];
@@ -476,6 +494,7 @@ export class DevToolsConnector {
   #branchQueryInFlight = false;
   #disconnectInFlight: Promise<DisconnectResult> | null = null;
   #opaqueOriginWarned = false;
+  #windowBusCommandWarned = false;
 
   /**
    * DevTools 是否已确认握手。
@@ -564,11 +583,15 @@ export class DevToolsConnector {
    * 本方法只撤销 {@link init} 的副作用：发一条 `DISCONNECT`、摘掉 message 监听与
    * 全部事件监听、取消在途查询订阅、删掉全局 helper、清空 buffer 并把 sequence 归零。
    * 调用后可以再次 {@link init}（sequence 从 0 重新开始，属于新会话）。
+   *
+   * `DISCONNECT` 在关端口**之前**发，且刻意走当前信道（还握着手就走私有端口）——
+   * 先关端口的话这条告别消息会被丢进已关闭的信道，对端只能等超时。
    */
   disconnect(): void {
     if (typeof window === 'undefined') return;
 
     this.#postMessage(createMessage('DISCONNECT', 'page-to-devtools', null, this.#sequence.next()));
+    this.#closePort();
     if (this.#messageHandler) {
       window.removeEventListener('message', this.#messageHandler);
       this.#messageHandler = null;
@@ -658,6 +681,14 @@ export class DevToolsConnector {
     this.#encryptedFieldsMap.clear();
   }
 
+  /**
+   * 注册 `window` 总线监听。
+   *
+   * @remarks
+   * 握手之后命令走私有端口，这条监听只留给 {@link WINDOW_BUS_ALLOWED_COMMAND}：
+   * 对端在拿到端口之前只有 `PING` 可用。其余命令从这里进来说明对端还在按旧协议发，
+   * 丢弃并给一次诊断 —— 静默丢弃会让升级期变成"点了按钮没反应"。
+   */
   #setupMessageListener(): void {
     if (this.#messageHandler) return;
     this.#messageHandler = (event: MessageEvent) => {
@@ -666,12 +697,57 @@ export class DevToolsConnector {
       // v1 优先且语义不变：`isDevToolsMessage` 是对已知 v1 `type` 的闭集判断，
       // `PROTOCOL_HELLO` 会被它判否——不分流的话 v2 协商永远起不来。
       if (isDevToolsMessage(event.data)) {
-        if (isDevToolsCommandMessage(event.data)) this.#handleMessage(event.data);
+        if (!isDevToolsCommandMessage(event.data)) return;
+        // v1 命令仍受总线白名单约束：握手之后它们只能走私有端口。
+        // v2 协商帧不在这条闭集里，走下面的端点分支，与本白名单互不影响。
+        if (event.data.type !== WINDOW_BUS_ALLOWED_COMMAND) {
+          this.#warnWindowBusCommand(event.data.type);
+          return;
+        }
+        this.#handleMessage(event.data);
         return;
       }
       this.#endpoint?.receive(event.data);
     };
     window.addEventListener('message', this.#messageHandler);
+  }
+
+  /**
+   * 建立本次会话的私有信道，返回要移交给对端的那一端。
+   *
+   * @remarks
+   * 每次握手都新建一对端口，旧端口立刻关掉：`PING` 会触发重新握手，
+   * 复用旧端口的话上一次会话的对端仍然连着，权限撤销与断开都作用不到它。
+   */
+  #createSessionPort(): MessagePort {
+    this.#closePort();
+    const channel = new MessageChannel();
+    this.#port = channel.port1;
+    this.#port.onmessage = (event: MessageEvent) => {
+      // 端口是点对点的，没有 source/origin 可查 —— 能往里发消息的只有握手时
+      // 拿到 port2 的那一方。结构校验照做：对端一样可能发畸形消息。
+      if (!isDevToolsMessage(event.data) || !isDevToolsCommandMessage(event.data)) return;
+      this.#handleMessage(event.data);
+    };
+    this.#port.start();
+    return channel.port2;
+  }
+
+  #closePort(): void {
+    if (!this.#port) return;
+    this.#port.onmessage = null;
+    this.#port.close();
+    this.#port = null;
+  }
+
+  #warnWindowBusCommand(type: DevToolsCommandMessage['type']): void {
+    if (this.#windowBusCommandWarned) return;
+    this.#windowBusCommandWarned = true;
+    console.warn(
+      `[${RXDB_DEVTOOLS_MESSAGE}] 收到从 window 总线发来的 ${type} 命令并已丢弃。` +
+        `协议 v${DEVTOOLS_PROTOCOL_VERSION} 起，握手之后的命令必须走 HANDSHAKE 消息随附的 MessagePort。` +
+        `请升级 DevTools 扩展。`
+    );
   }
 
   /**
@@ -864,12 +940,15 @@ export class DevToolsConnector {
   }
 
   /**
-   * 发一次握手，附带协议版本与本页授予的能力档。
+   * 发一次握手：协议版本 + 本页授予的能力档，并移交本次会话的私有端口。
    *
    * @remarks
    * `capabilities` 只是**告知**，不是权限来源 —— 真正的判定在 {@link #isAllowed}，
    * 页面侧独立执行。DevTools 读它是为了把不可用的按钮直接禁掉，
    * 而不是发出去等一个永远不会来的回复。
+   *
+   * 端口是在 `#postMessage` **之前**建好并挂上 `onmessage` 的：`transfer` 一交出去，
+   * 对端可能同一个 task 就回 `HANDSHAKE_ACK`，此时己方端口必须已经在收。
    */
   #buildLegacyHandshake(): AnyDevToolsMessage {
     return createMessage(
@@ -881,7 +960,8 @@ export class DevToolsConnector {
   }
 
   #sendHandshake(): void {
-    this.#postMessage(this.#buildLegacyHandshake());
+    const remotePort = this.#createSessionPort();
+    this.#postMessage(this.#buildLegacyHandshake(), [remotePort]);
   }
 
   /**
@@ -899,16 +979,25 @@ export class DevToolsConnector {
    *
    * 本轮仍宣告空 descriptor 集（见 {@link CONNECTOR_PROVIDERS}）：页内还没有接上任何
    * v2 provider，声明服务不了的 operation 等于让面板据此点亮按钮。真实 descriptor 随
-   * US-904c / US-904d / US-905 的 provider 一起接上。
+   * US-904 阶段 C / D 与 US-905 的 provider 一起接上。
+   *
+   * 端点只决定 legacy 握手**何时**出门，不知道 v1 传输层还要求这条握手**随附**本次会话的
+   * 私有端口。所以端口在这里就建好，并按对象身份认出那唯一一条要携带它的出站消息——
+   * 端点发的就是我们交给它的那个对象，`start()` 只发一次（见 negotiation-connector）。
+   * 不能改成「凡 HANDSHAKE 都附端口」：`PING` 触发的重握手由 {@link #sendHandshake}
+   * 另建新端口，两条路各自持有自己的那一对，混在一起会把上一次会话的端口再送出去一遍。
    */
   #startNegotiation(): void {
+    const legacyHandshake = this.#buildLegacyHandshake();
+    const remotePort = this.#createSessionPort();
     const endpoint = createDevToolsConnectorEndpoint({
-      send: (message: DevToolsConnectorNegotiationMessage) => this.#postMessage(message),
+      send: (message: DevToolsConnectorNegotiationMessage) =>
+        message === legacyHandshake ? this.#postMessage(message, [remotePort]) : this.#postMessage(message),
       clock: createSystemClock(),
       capability: this.#options.capabilities,
       mutationPolicy: CONNECTOR_MUTATION_POLICY,
       providers: CONNECTOR_PROVIDERS,
-      legacyHandshake: this.#buildLegacyHandshake()
+      legacyHandshake
     });
     this.#endpoint = endpoint;
     endpoint.start();
@@ -1277,23 +1366,36 @@ export class DevToolsConnector {
   }
 
   /**
-   * 把消息投到本页的 message 总线。
+   * 发出一条出站消息：v1 消息握过手走私有端口，其余退回 `window` 总线。
+   *
+   * @param message - 要发出的消息
+   * @param transfer - 需要移交所有权的对象；仅握手用它交出 `port2`
    *
    * @remarks
-   * `targetOrigin` 用 `location.origin` 而不是 `'*'`。这些载荷里带着
-   * 实体名、加密字段清单、乃至查询结果的明文文档 —— `'*'` 意味着
+   * 私有端口是 **v1 命令面**的传输层，v2 帧不走它：入站的 v2 帧由 `window` 总线进来
+   * （端口的 `onmessage` 只收 v1 命令，见 {@link #createSessionPort}），出站若改走端口
+   * 就成了单向的——对端在总线上发 `PROTOCOL_HELLO`，却要去一个它可能压根没在读 v2 的
+   * 信道里找回应，协商永远不会闭合。两个协议各自完整地待在自己的信道上。
+   *
+   * 走 `window` 总线时 `targetOrigin` 用 `location.origin` 而不是 `'*'`：
+   * 载荷里带着实体名、加密字段清单、乃至查询结果的明文文档 —— `'*'` 意味着
    * 同页任何跨源 iframe（广告位、第三方挂件）都能原样收到整份数据。
    * 收发都在同一个文档内，精确 origin 完全够用。
    *
    * 唯一的例外是 opaque origin（`'null'`）：那里 `location.origin` 不是
    * 合法的 targetOrigin，只有显式设了 {@link DevToolsOptions.allowOpaqueOrigin}
-   * 才退回 `'*'`，否则 {@link init} 早就把连接器停用了。
+   * 才退回 `'*'`，否则 {@link init} 早就把连接器停用了。端口路径没有这个问题 ——
+   * 点对点信道不看 origin，这也正是握手之后要切过去的原因之一。
    */
-  #postMessage(message: DevToolsConnectorNegotiationMessage): void {
+  #postMessage(message: DevToolsConnectorNegotiationMessage, transfer?: Transferable[]): void {
     if (typeof window === 'undefined') return;
-    const targetOrigin = location.origin === OPAQUE_ORIGIN ? '*' : location.origin;
     try {
-      window.postMessage(message, targetOrigin);
+      if (this.#port && !transfer && isDevToolsMessage(message)) {
+        this.#port.postMessage(message);
+        return;
+      }
+      const targetOrigin = location.origin === OPAQUE_ORIGIN ? '*' : location.origin;
+      window.postMessage(message, targetOrigin, transfer);
     } catch (error) {
       console.warn(`[${RXDB_DEVTOOLS_MESSAGE}] Failed to post message:`, error);
     }

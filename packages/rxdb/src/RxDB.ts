@@ -115,6 +115,8 @@ export class RxDB {
 
   #plugin_map = new Map<Plugin, IRxDBPlugin>();
 
+  #plugin_install_promises = new Map<IRxDBPlugin, Promise<void>>();
+
   #connected_sub = new BehaviorSubject<boolean>(false);
 
   #event_map = new Map<keyof RxDBEventMap, Set<EventListener<RxDBEvent>>>();
@@ -163,8 +165,14 @@ export class RxDB {
    * 而 `localAdapter$` / `remoteAdapter$` 的订阅会经 {@link RxDB.getAdapter} 把从未 `connect()`
    * 的适配器也塞进去。用 map 大小判断时，唯一连接的适配器断开会被误判成「还有别的适配器在」，
    * 插件、gateway 与 versionManager 就永远拆不掉。
+   *
+   * 只能经 {@link RxDB.#set_adapter_connected} 增删 —— 它负责同步推送
+   * {@link RxDB.#adapter_connected_sub}，直接改这个 Set 会让订阅者读到陈旧值。
    */
   #connected_adapters = new Set<string>();
+
+  /** {@link RxDB.#connected_adapters} 的快照流，供 {@link RxDB.adapterConnected$} 派生。 */
+  #adapter_connected_sub = new BehaviorSubject<ReadonlySet<string>>(new Set<string>());
 
   /**
    * RxDB 上下文
@@ -213,8 +221,15 @@ export class RxDB {
 
   /**
    * 连接状态 Observable
+   *
+   * @remarks
+   * 这是**全实例聚合**信号：任意一个适配器连上就是 `true`。要等某个具体适配器的表结构就绪，
+   * 必须用 {@link RxDB.adapterConnected$} —— 多适配器配置下，远程适配器先连上就会把这里
+   * 置 `true`，此时本地适配器可能还停在 `createTables()`。
+   *
+   * 去重后发射：多适配器下每一次单独的连/断都会重算聚合值，但聚合值没变时不该惊动订阅者。
    */
-  public readonly connected$ = this.#connected_sub.asObservable();
+  public readonly connected$ = this.#connected_sub.pipe(distinctUntilChanged());
 
   public readonly schemaManager!: SchemaManager;
 
@@ -278,8 +293,8 @@ export class RxDB {
     if (local) this.#local_adapter_sub.next(local.adapter);
     if (remote) this.#remote_adapter_sub.next(remote.adapter);
     // 安装插件并初始化各个管理器
-    // #install_plugin 内部自行吞掉每个插件的安装错误（见其 JSDoc），故意留在 try 外——
-    // 它不会抛出，不需要参与下面的失败回滚。
+    // #install_plugin 同步不抛（错误记入 #plugin_install_promises），故意留在 try 外——
+    // Schema/Entity 初始化失败仍只回滚管理器；插件失败由 connect() 传播。
     this.#install_plugin();
     try {
       this.schemaManager.init();
@@ -326,7 +341,8 @@ export class RxDB {
    * `init()` 之前注册的插件在 `init()` 时统一安装；
    * `init()` 之后注册的插件立即安装，保证与 `shutdown` 时的 destroy 对称。
    *
-   * 安装失败仅 `console.error`，不 rethrow、不阻断调用方（与 `init()` 期的行为一致）。
+   * 同步 `install()` 失败只 `console.error`，`use()` / `init()` 本身不抛。
+   * 异步或同步失败都会记入安装 Promise，由后续 `connect()` 传播。
    *
    * @param plugin - 插件构造函数
    * @param options - 插件选项
@@ -395,16 +411,23 @@ export class RxDB {
    */
   connect<K extends keyof RxDBAdapters>(adapterName: K): Promise<RxDBAdapters[K]>;
   connect(adapterName: RxDBAdapterName): Promise<IRxDBAdapter>;
-  async connect(adapterName: string): Promise<IRxDBAdapter> {
+  connect(adapterName: string): Promise<IRxDBAdapter> {
     // 防重入：如果已经在连接中，直接返回缓存的 Promise
     const pending = this.#connect_promise_map.get(adapterName);
     if (pending) {
       return pending;
     }
 
-    // 创建连接 Promise 并缓存
+    // 先入缓存再启动：插件 install 可能同步回呼 connect()，必须命中同一条 Promise。
+    // init() 必须在 connect() 返回前同步跑完，同一轮 `new Entity()` 才能命中 registry。
+    let startConnect!: () => void;
+    let failConnect!: (error: unknown) => void;
+    const started = new Promise<void>((resolve, reject) => {
+      startConnect = resolve;
+      failConnect = reject;
+    });
     const connectPromise = (async () => {
-      this.init();
+      await started;
       const adapter = await this.getAdapter(adapterName);
       await adapter.connect();
       if (isLocalAdapter(adapterName, this.#config)) {
@@ -415,7 +438,7 @@ export class RxDB {
         if (existed) {
           // 已存在表结构，执行升级流程
           await localAdapter.migrateSystemSchema?.();
-          await localAdapter.startWriterLease?.();
+          localAdapter.completeBootstrap?.();
           await this.#runMigrations(localAdapter);
           await this.#ensureEntityTables(localAdapter);
         } else {
@@ -425,12 +448,21 @@ export class RxDB {
           branch.activated = true;
           await localAdapter.createTables(this.#config.entities, [branch, ...this.#createMigrationWatermarks()]);
           await localAdapter.migrateSystemSchema?.();
-          await localAdapter.startWriterLease?.();
+          localAdapter.completeBootstrap?.();
         }
         await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
       }
-      this.#connected_adapters.add(adapterName);
-      this.#connected_sub.next(true);
+      // 先于 #await_plugin_installs 置位：插件的 install() 正是靠这个信号确认
+      // 「本适配器的表已经建好」，而它们跑在下一行的 await 里面。
+      this.#set_adapter_connected(adapterName, true);
+      try {
+        await this.#await_plugin_installs();
+      } catch (error) {
+        // 本适配器的引导没有走完，不能留在已连接集合里。聚合信号只在真的一个都不剩时才落下，
+        // 否则别的连着的适配器会被一起误报成断开。
+        this.#set_adapter_connected(adapterName, false);
+        throw error;
+      }
       return adapter;
     })();
 
@@ -441,7 +473,34 @@ export class RxDB {
       }
     });
     this.#connect_promise_map.set(adapterName, connectPromise);
+    try {
+      this.init();
+    } catch (error) {
+      failConnect(error);
+      return connectPromise;
+    }
+    startConnect();
     return connectPromise;
+  }
+
+  /**
+   * 指定适配器的连接状态流。
+   *
+   * @param adapterName - 适配器名称
+   * @returns 该适配器连上（表结构已就绪）时发 `true`，断开时发 `false`；去重后发射
+   *
+   * @remarks
+   * 与聚合的 {@link RxDB.connected$} 的区别是这里**认适配器**。插件的 `install()` 要等的是
+   * 「我要用的那个适配器建好表了」，用聚合信号会被另一个先连上的适配器提前放行。
+   *
+   * 置位时机在插件安装**之前** —— 引导期的插件正是靠它解除等待，等到插件安装之后就死锁了。
+   * 因此它表示的是「表结构可用」，不是「整个 `connect()` 已完成」。
+   */
+  adapterConnected$(adapterName: string): Observable<boolean> {
+    return this.#adapter_connected_sub.pipe(
+      map(connected => connected.has(adapterName)),
+      distinctUntilChanged()
+    );
   }
 
   /**
@@ -458,7 +517,7 @@ export class RxDB {
     const adapter = await cached;
     // 断开最后一个**已连接**适配器前先执行全局拆卸（插件须在适配器断开前销毁）。
     // 判定依据是 #connected_adapters 而非 #adapter_map.size，理由见前者的 @remarks。
-    const wasConnected = this.#connected_adapters.delete(adapterName);
+    const wasConnected = this.#set_adapter_connected(adapterName, false);
     if (wasConnected && this.#connected_adapters.size === 0) {
       await this.#shutdown();
     }
@@ -483,7 +542,7 @@ export class RxDB {
       // 同 disconnect：部分适配器 disconnect 失败也不能让全部缓存条目悬空。
       this.#adapter_map.clear();
       this.#connect_promise_map.clear();
-      this.#connected_adapters.clear();
+      this.#clear_adapter_connected();
     }
   }
 
@@ -515,6 +574,35 @@ export class RxDB {
     // 本次事件，持续新增还会让派发不终止。
     const listeners = Array.from(this.#listener(event.type as keyof RxDBEventMap));
     this.#runIsolated(listeners, listener => listener.call(this, event));
+  }
+
+  /**
+   * 增删 {@link RxDB.#connected_adapters} 并推送快照。
+   *
+   * @param adapterName - 适配器名称
+   * @param connected - 目标状态
+   * @returns 状态是否真的发生了变化（`false` 表示原本就是这个状态）
+   *
+   * @remarks
+   * 聚合的 {@link RxDB.connected$} 在这里跟着算：`true` 只要有一个连上就发，`false` 只在
+   * 最后一个也掉线时才发。此前失败路径直接 `next(false)`，会把仍然连着的适配器一起报成断开。
+   */
+  #set_adapter_connected(adapterName: string, connected: boolean): boolean {
+    const changed =
+      connected ? !this.#connected_adapters.has(adapterName) : this.#connected_adapters.delete(adapterName);
+    if (connected) this.#connected_adapters.add(adapterName);
+    if (!changed) return false;
+    this.#adapter_connected_sub.next(new Set(this.#connected_adapters));
+    this.#connected_sub.next(this.#connected_adapters.size > 0);
+    return true;
+  }
+
+  /** 清空已连接集合并推送一次空快照（拆卸路径专用）。 */
+  #clear_adapter_connected(): void {
+    if (this.#connected_adapters.size === 0) return;
+    this.#connected_adapters.clear();
+    this.#adapter_connected_sub.next(new Set<string>());
+    this.#connected_sub.next(false);
   }
 
   /**
@@ -592,7 +680,10 @@ export class RxDB {
     this.#local_adapter_sub.next('');
     this.#remote_adapter_sub.next('');
     this.#transaction_stack = [];
+    // 清空安装记录：这是失败插件唯一的解锁点（见 #await_plugin_installs 的 @remarks）。
+    this.#plugin_install_promises.clear();
     this.#rxdb_initialized = false;
+    this.#clear_adapter_connected();
     this.#connected_sub.next(false);
   }
 
@@ -675,23 +766,58 @@ export class RxDB {
   }
 
   /**
-   * 安装单个插件
-   *
-   * 契约（有意降级，被 `RxDB.coverage.spec.ts` 锁定）：
-   * 同步 throw 与异步 reject 均只 `console.error`，不 rethrow、不聚合、不阻断后续启动流程。
-   * 调用方无法 await 异步 `install()` 的完成。
+   * `use()` / `init()` 保持同步且不抛：同步 throw 转成 rejected Promise。
+   * 异步 reject 不再吞掉，由 {@link RxDB.#await_plugin_installs} 在 `connect()` 里传播。
    */
   #install_one_plugin(plugin: IRxDBPlugin) {
+    const tracked = this.#track_plugin_install(plugin);
+    void tracked.then(
+      () => undefined,
+      () => undefined
+    );
+    this.#plugin_install_promises.set(plugin, tracked);
+  }
+
+  #track_plugin_install(plugin: IRxDBPlugin): Promise<void> {
     try {
       const result = plugin.install();
-      if (result && typeof (result as Promise<void>).then === 'function') {
-        (result as Promise<void>).catch(err => {
+      if (isPromise(result)) {
+        return result.catch(err => {
           console.error(`[RxDB] Plugin '${plugin.name}' install failed:`, err);
+          throw err;
         });
       }
+      return Promise.resolve();
     } catch (err) {
       console.error(`[RxDB] Plugin '${plugin.name}' install failed:`, err);
+      return Promise.reject(err);
     }
+  }
+
+  /**
+   * 表就绪后等待插件安装。
+   *
+   * @remarks
+   * 失败的插件**保留**在 {@link RxDB.#plugin_install_promises} 里，后续 `connect()` 会拿到
+   * 同一个 rejected promise 而不是重跑 `install()`。
+   *
+   * 这不是偷懒：`install()` 没有幂等契约。搜索插件失败时可能已经建了一半 FTS 表、写了一部分
+   * 迁移水位线；重跑会在半成品上再来一遍，第二次的报错还会盖掉第一次的真实原因。宁可让每次
+   * `connect()` 都用同一个错误明确地失败。
+   *
+   * 唯一的解锁点是 `disconnect()` / `disconnectAll()` —— 它们经 {@link RxDB.#shutdown}
+   * 先 `destroy()` 掉插件再清空这张表，此时重装才有干净的起点。
+   */
+  async #await_plugin_installs(): Promise<void> {
+    for (const plugin of this.#plugin_map.values()) {
+      if (!this.#plugin_install_promises.has(plugin)) {
+        this.#install_one_plugin(plugin);
+      }
+    }
+    const pending = [...this.#plugin_install_promises.values()];
+    const results = await Promise.allSettled(pending);
+    const failure = results.find(result => result.status === 'rejected');
+    if (failure !== undefined) throw failure.reason;
   }
 
   /**

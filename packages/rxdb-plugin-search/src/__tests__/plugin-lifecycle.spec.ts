@@ -82,13 +82,24 @@ const buildFakeRxdb = (entities = [FakeArticle], exposesRawQuery = true) => {
     create: vi.fn(async (entity: unknown) => entity)
   };
   const listeners = new Map<string, ((event: EntityChangeEvent) => void)[]>();
-  const activeAdapter = exposesRawQuery ? { rawQuery, getRepository: vi.fn(() => migrationRepository) } : {};
+  const activeAdapter =
+    exposesRawQuery ?
+      {
+        rawQuery,
+        getRepository: vi.fn(() => migrationRepository),
+        bootstrapTransaction: async (
+          fn: (tx: { query: typeof rawQuery; getRepository: () => typeof migrationRepository }) => Promise<unknown>
+        ) => fn({ query: rawQuery, getRepository: () => migrationRepository })
+      }
+    : {};
   const rxdb = {
     config: {
       sync: { local: { adapter: 'sqlite-wasm' } },
       entities
     },
     localAdapter$: new BehaviorSubject(activeAdapter),
+    connected$: new BehaviorSubject(true),
+    adapterConnected$: () => new BehaviorSubject(true),
     connect: vi.fn(async () => activeAdapter),
     addEventListener: vi.fn((type: string, listener: (event: EntityChangeEvent) => void) => {
       const list = listeners.get(type) ?? [];

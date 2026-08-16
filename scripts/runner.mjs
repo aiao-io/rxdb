@@ -8,6 +8,9 @@
  *
  * `collect=true` 时改为收集 stdout 第一行内容 resolve 出去（用于拿版本号等场景）。
  * 不要在 collect 模式下让子进程输出大量内容 —— 当前实现只取第一行，多余数据会被丢弃。
+ *
+ * 第四参 `extra` 会并进 spawn options；`extra.env` 与 `process.env` 合并，
+ * 方便 postinstall 这类场景单独关掉 Nx daemon / Cloud。
  */
 
 import chalk from 'chalk';
@@ -18,13 +21,16 @@ import { spawn } from 'node:child_process';
  * @param {string} command 命令（如 `pnpm` / `git`）
  * @param {string[]} args 参数数组
  * @param {boolean} [collect=false] 是否收集 stdout 第一行内容；为 true 时由 collect 分支 resolve 字符串
+ * @param {import('node:child_process').SpawnOptions} [extra] 额外 spawn 选项
  * @returns {Promise<null | string>} collect=false 时 resolve null；collect=true 时 resolve stdout 首行（去掉尾部换行）
  */
-export function run(command, args, collect = false) {
+export function run(command, args, collect = false, extra = {}) {
   const options = {
     cwd: process.cwd(),
     stdio: 'inherit',
-    shell: true
+    shell: true,
+    ...extra,
+    env: extra.env ? { ...process.env, ...extra.env } : process.env
   };
   return new Promise((resolve, reject) => {
     const child = spawn(`${command}`, args, options);
@@ -38,11 +44,11 @@ export function run(command, args, collect = false) {
     child.on('close', code => {
       if (code === 0) {
         resolve(null);
-      } else {
-        // 非零退出：把失败命令红字打印，方便日志里定位。
-        console.error(chalk.red(`${command} ${args.join(' ')}`));
-        reject();
+        return;
       }
+      const failed = `${command} ${args.join(' ')}`;
+      console.error(chalk.red(failed));
+      reject(new Error(`${failed} failed with exit code ${code}`));
     });
   });
 }

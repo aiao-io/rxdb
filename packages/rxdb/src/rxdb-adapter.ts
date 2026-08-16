@@ -129,32 +129,49 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
     return Promise.resolve();
   }
 
-  /** 系统表就绪后启动此适配器的持久化 writer lease。 */
-  startWriterLease(): Promise<void> {
-    return Promise.resolve();
-  }
-
   abstract isTableExisted(EntityType: EntityType): Promise<boolean>;
 
-  abstract transaction<T extends TransactionFun>(fun: T): Promise<Awaited<ReturnType<T>>>;
-  abstract transaction(fun: TransactionFun): Promise<unknown>;
+  abstract transaction<T extends TransactionFun>(fun: T, transactionLog?: boolean): Promise<Awaited<ReturnType<T>>>;
+  abstract transaction(fun: TransactionFun, transactionLog?: boolean): Promise<unknown>;
 
   /**
-   * 执行 **`RxDB.connect()` 引导期内部**的事务。
+   * 执行 **引导期**（表结构尚未就绪）的事务。
    *
    * @param fun 事务回调函数
+   * @param transactionLog 是否写事务日志。默认 `true`；纯 DDL / 元数据引导应显式传 `false`
    *
    * @remarks
    * 与 {@link transaction} 的唯一区别是**跳过「引导已完成」就绪门**。适配器的就绪门等的正是
    * `RxDB.connect()`，而引导期的调用方就在那个 promise 里面 —— 走 {@link transaction} 会等自己，
-   * 永久挂起。仅限 `RxDB.connect()` 的引导链路调用；此时表可能尚未建出，调用方自己负责顺序。
+   * 永久挂起。此时表可能尚未建出，调用方自己负责顺序。
    *
-   * 默认实现直接委托 {@link transaction}：只有自带就绪门的适配器需要覆写。
+   * 调用方限于两类：`RxDB.connect()` 自身的引导链路（水位线、建表、迁移），以及
+   * **在 `connect()` 内部被安装的插件**（它们的 `install()` 同样跑在那条 promise 里，
+   * 见 `@aiao/rxdb-plugin-search` 的 FTS 安装）。业务代码一律用 {@link transaction}。
+   *
+   * `transactionLog` 必须在这里就能传：引导期的 DDL 不属于任何用户变更，写日志会白白触发
+   * 一次分支号读取与全量触发器重建。默认实现直接委托 {@link transaction}，
+   * 只有自带就绪门的适配器需要覆写。
    *
    * @internal
    */
-  bootstrapTransaction<T extends TransactionFun>(fun: T): Promise<Awaited<ReturnType<T>>> {
-    return this.transaction(fun);
+  bootstrapTransaction<T extends TransactionFun>(fun: T, transactionLog?: boolean): Promise<Awaited<ReturnType<T>>> {
+    return this.transaction(fun, transactionLog);
+  }
+
+  /**
+   * 关闭**引导窗**：`RxDB.connect()` 完成建表后调用一次。
+   *
+   * @remarks
+   * 自带就绪门的适配器（SQLite family / PGlite）在引导窗内让 `query()` / `rawQuery()` /
+   * `createTables()` 跳过就绪门 —— 那道门等的正是尚未 settle 的 `RxDB.connect()`。
+   * 本方法把状态翻到 `ready`，此后所有入口一律走正常的就绪等待。
+   * 没有就绪门的 adapter 保持默认的 no-op 实现。
+   *
+   * @internal
+   */
+  completeBootstrap(): void {
+    // no-op：默认适配器没有引导窗
   }
 
   abstract createTables(EntityTypes: EntityType[], entities?: InstanceType<EntityType>[]): Promise<boolean>;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES, DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT } from '../../v2/constants.js';
 import { isMaxTransferBytes, isWithinTransferLimit, resolveNegotiatedTransferLimit } from '../../provider/limits.js';
+import { DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES, DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT } from '../../v2/constants.js';
 
 describe('isMaxTransferBytes', () => {
   it('MUST accept 0 through 1 GiB inclusive', () => {

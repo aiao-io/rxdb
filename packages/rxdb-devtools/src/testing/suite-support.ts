@@ -11,9 +11,9 @@
  * @module @aiao/rxdb-devtools/testing/suite-support
  */
 
+import type { DevToolsV2MessageType, DevToolsV2PayloadMap } from '../v2/wire.js';
 import type { DevToolsConformanceSession, DevToolsWireFrame } from './driver.js';
 import { encodeFrame, readV2FramesOfType } from './frames.js';
-import type { DevToolsV2MessageType, DevToolsV2PayloadMap } from '../v2/wire.js';
 
 /** 套件自造帧的时间戳基准；固定值让失败输出可读。 */
 export const DEVTOOLS_SUITE_BASE_TIMESTAMP = 1_700_000_000_000;

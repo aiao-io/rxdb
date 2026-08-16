@@ -36,15 +36,26 @@ export type MessageType =
 export type DisconnectStatus = 'graceful' | 'forced' | 'failed' | 'not-connected';
 
 /** DevTools 页面协议版本，随不兼容的 envelope/载荷变更递增。 */
-export const DEVTOOLS_PROTOCOL_VERSION = 1 as const;
+export const DEVTOOLS_PROTOCOL_VERSION = 2 as const;
+
+/**
+ * 仍被入站守卫接受的旧握手协议版本。
+ *
+ * @remarks
+ * v1 走的是纯 `window.postMessage`，没有 {@link HandshakeMessage} 随附的私有 MessagePort。
+ * 守卫仍然接受它，是为了让对端能**识别**出版本不匹配并给出诊断，而不是当成畸形消息扔掉。
+ */
+const LEGACY_HANDSHAKE_PROTOCOL_VERSION = 1 as const;
 
 /**
  * 页面授予 DevTools 的命令能力档位。
  *
  * @remarks
- * 页面与 DevTools 之间是 `window.postMessage`，**同源脚本可以伪造任何命令**
- * （见 {@link isDevToolsCommandMessage}：方向字段只是约定，不是权限）。
- * 分档的意义是让页面自己决定最坏情况的爆炸半径：
+ * 握手之后命令走的是私有 MessagePort（见 {@link HandshakeMessage}），但**握手本身
+ * 在共享的 `window` 总线上**：先于真 DevTools 抢答的同源脚本一样能拿到端口
+ * （`event.ports` 对同 realm 的每个 `message` 监听器都可见）。
+ * 也就是说端口挡得住握手之后的旁听，挡不住握手当时就已经在页面里执行的脚本。
+ * 分档的意义正是让页面自己决定这种最坏情况的爆炸半径：
  *
  * - `'none'`：只放行连接生命周期命令（握手 / PING / CLEAR / DISCONNECT）。
  *   不泄漏任何库内数据，也不改变任何状态。
@@ -62,8 +73,9 @@ export type DevToolsCapability = 'none' | 'readonly' | 'full';
  * 握手载荷：协议版本 + 本页授予的能力档。
  *
  * @remarks
- * 旧版本连接器发送 `payload: null`，{@link isDevToolsMessage} 仍然接受，
- * DevTools 侧读不到 capabilities 时按 `'full'` 理解（历史行为）。
+ * 旧版本连接器发送 `payload: null` 或 v1 形态，{@link isDevToolsMessage} 仍然接受，
+ * 以便对端能识别出版本不匹配并给出诊断。DevTools 侧读不到 capabilities 时按
+ * `'full'` 理解（历史行为）。
  */
 export interface HandshakePayload {
   /** 页面侧实现的协议版本。 */
@@ -87,6 +99,15 @@ export interface DevToolsMessage<T = unknown> {
  * 握手消息。
  *
  * @remarks
+ * 这是**唯一**必须走 `window.postMessage` 的消息，因为此时还没有信道可用。
+ * 它随附一个 `MessagePort`（`transfer` 数组的第 0 项）：连接器留 `port1`，
+ * 把 `port2` 交出去；握手之后双向的事件、命令、响应全部走这个端口，
+ * 不再出现在 `window` 总线上。
+ *
+ * 端口买到的是「握手之后不再被旁听」——跨源 iframe 和后来注入的脚本什么都看不到。
+ * 它买不到「握手当时的身份认证」：同 realm 的任何 `message` 监听器都能读到
+ * 同一个 `event.ports`。这一层由 {@link DevToolsCapability} 兜底。
+ *
  * `null` 载荷是弃用窗口内的兼容形态（旧连接器产出）；新连接器一律发送
  * {@link HandshakePayload}。
  */
@@ -389,6 +410,15 @@ function isHandshakePayload(value: unknown): value is HandshakePayload {
   );
 }
 
+function isLegacyHandshakePayload(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ['protocolVersion', 'capabilities']) &&
+    value['protocolVersion'] === LEGACY_HANDSHAKE_PROTOCOL_VERSION &&
+    isDevToolsCapability(value['capabilities'])
+  );
+}
+
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(item => typeof item === 'string');
 }
@@ -453,8 +483,11 @@ export function isDevToolsMessage(data: unknown): data is AnyDevToolsMessage {
   const payload = data['payload'];
   switch (data['type']) {
     case 'HANDSHAKE':
-      // `null` 是弃用窗口内的旧连接器形态，新连接器发 HandshakePayload
-      return direction === 'page-to-devtools' && (payload === null || isHandshakePayload(payload));
+      // `null` / v1 是弃用窗口内的旧连接器形态；接受它们是为了让对端能识别版本并诊断
+      return (
+        direction === 'page-to-devtools' &&
+        (payload === null || isHandshakePayload(payload) || isLegacyHandshakePayload(payload))
+      );
     case 'HANDSHAKE_ACK':
     case 'CLEAR':
     case 'PING':

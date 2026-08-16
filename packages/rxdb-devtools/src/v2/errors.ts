@@ -16,7 +16,7 @@ import { hasExactKeys, isRecord } from '../internal/guards.js';
  * 控制面错误码（恰好 12 个）。
  *
  * @remarks
- * 顺序与 US-904b「控制面错误」一节一致，便于逐条比对。
+ * 顺序与 US-904 阶段 B「控制面错误」一节一致，便于逐条比对。
  */
 export const DEVTOOLS_CONTROL_PLANE_ERROR_CODES = [
   'protocol_unsupported',

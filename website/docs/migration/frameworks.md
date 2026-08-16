@@ -6,13 +6,13 @@
 
 | 能力           | Angular (`@aiao/rxdb-angular`) | React (`@aiao/rxdb-react`) | Vue (`@aiao/rxdb-vue`)     |
 | :------------- | :----------------------------- | :------------------------- | :------------------------- |
-| 提供数据库实例 | `provideRxDB(db)`              | `<RxDBProvider db={db}>`   | `provideRxDB(db)` / plugin |
-| 读取数据库     | `injectRxDB()`                 | `useRxDB()`                | `useRxDB()`                |
-| 基础查询       | `injectFind` / `injectGet` …   | `useFind` / `useGet` …     | `useFind` / `useGet` …     |
-| 无限滚动       | `injectInfiniteScroll`         | `useInfiniteScroll`        | `useInfiniteScroll`        |
+| 提供数据库实例 | `provideRxDB(() => db)`        | `<RxDBProvider db={db}>`   | `provideRxDB(db)` / plugin |
+| 读取数据库     | `inject(RxDB)`                 | `useRxDB()`                | `useRxDB()`                |
+| 基础查询       | `useFind` / `useGet` …         | `useFind` / `useGet` …     | `useFind` / `useGet` …     |
+| 无限滚动       | `useInfiniteScroll`            | `useInfiniteScroll`        | `useInfiniteScroll`        |
 | 全文搜索       | `useSearch`                    | `useSearch`                | `useSearch`                |
 
-查询 hook 三端同名（Angular 以 `inject*` / `use*` 前缀提供同名能力），返回结构一致：`{ value, error, isLoading, isEmpty, hasValue }`。
+查询 hook 三端同名，返回结构一致：`{ value, error, isLoading, isEmpty, hasValue }`。
 
 ## 从 React 迁移到 Vue（示例）
 

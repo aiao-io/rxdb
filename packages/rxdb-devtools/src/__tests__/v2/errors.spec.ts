@@ -12,7 +12,7 @@ import {
 } from '../../v2/errors.js';
 
 describe('v2 error unions', () => {
-  it('MUST freeze the control-plane union at exactly the 12 codes US-904b lists', () => {
+  it('MUST freeze the control-plane union at exactly the 12 codes US-904 阶段 B lists', () => {
     expect([...DEVTOOLS_CONTROL_PLANE_ERROR_CODES]).toEqual([
       'protocol_unsupported',
       'invalid_message',
@@ -29,7 +29,7 @@ describe('v2 error unions', () => {
     ]);
   });
 
-  it('MUST freeze the provider union at exactly the 18 codes US-904b lists', () => {
+  it('MUST freeze the provider union at exactly the 18 codes US-904 阶段 B lists', () => {
     expect([...DEVTOOLS_PROVIDER_ERROR_CODES]).toEqual([
       'provider_unsupported',
       'provider_unavailable',
@@ -122,9 +122,7 @@ describe('createDevToolsError', () => {
   });
 
   it('MUST refuse to emit a message that fails redaction', () => {
-    expect(() => createDevToolsError('operation_failed', { message: 'ENOENT /Users/jimmy/x' })).toThrow(
-      /redact/iu
-    );
+    expect(() => createDevToolsError('operation_failed', { message: 'ENOENT /Users/jimmy/x' })).toThrow(/redact/iu);
   });
 });
 

@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
+import type { DevToolsProviderDomain, DevToolsProviderKind } from '../../provider/descriptor.js';
 import {
   DEVTOOLS_PROVIDER_KINDS,
   DEVTOOLS_PROVIDER_OPERATIONS,
   isDevToolsProviderDescriptorSet
 } from '../../provider/descriptor.js';
-import type { DevToolsProviderDomain, DevToolsProviderKind } from '../../provider/descriptor.js';
-import { createFakeProviders } from '../../testing/fake-providers.js';
 import type { DevToolsFakeProviderKinds } from '../../testing/fake-providers.js';
+import { createFakeProviders } from '../../testing/fake-providers.js';
 
 const DOMAINS: readonly DevToolsProviderDomain[] = ['database', 'files', 'settings'];
 

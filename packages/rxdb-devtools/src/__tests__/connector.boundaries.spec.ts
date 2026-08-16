@@ -2,6 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DevToolsConnector } from '../connector.js';
 import type { DisconnectStatus } from '../types.js';
 import { RXDB_DEVTOOLS_MESSAGE } from '../types.js';
+import {
+  createPostMessageSpy,
+  installChannelStub,
+  restoreChannelStub,
+  sendToConnector
+} from './fixtures/devtools-channel.js';
 import type { MockRxDB, MockRxDBShape } from './fixtures/mock-rxdb.js';
 import { createMockRxDB, listenerCount, MOCK_DB_NAME, MOCK_VERSION } from './fixtures/mock-rxdb.js';
 
@@ -18,6 +24,7 @@ type DevtoolsWindow = Window & {
   [DEVTOOLS_GLOBAL_KEY]?: { disconnectRxdb(timeoutMs?: number): Promise<DisconnectResult> };
 };
 
+/** 取 `window` 总线上注册的监听器；只有验证「命令走错信道」的用例需要它。 */
 function getMessageHandler(addEventSpy: ReturnType<typeof vi.spyOn>): (event: MessageEvent) => void {
   const calls = addEventSpy.mock.calls as unknown as unknown[][];
   const listener = calls.find(call => call[0] === 'message')?.[1];
@@ -25,12 +32,13 @@ function getMessageHandler(addEventSpy: ReturnType<typeof vi.spyOn>): (event: Me
   return listener as (event: MessageEvent) => void;
 }
 
-function dispatchRaw(handler: (event: MessageEvent) => void, data: unknown): void {
-  handler({ source: window, origin: location.origin, data } as unknown as MessageEvent);
+/** 经握手交出的私有端口把消息送进连接器 —— 协议 v2 下命令唯一的合法入口。 */
+function dispatchRaw(data: unknown): void {
+  sendToConnector(data);
 }
 
-function dispatchCommand(handler: (event: MessageEvent) => void, type: string, payload: unknown): void {
-  dispatchRaw(handler, {
+function dispatchCommand(type: string, payload: unknown): void {
+  dispatchRaw({
     source: RXDB_DEVTOOLS_MESSAGE,
     direction: 'devtools-to-page',
     type,
@@ -44,8 +52,8 @@ function postedMessages(postMessageSpy: ReturnType<typeof vi.fn>, type: string):
   return postMessageSpy.mock.calls.map(call => call[0] as PostedMessage).filter(message => message.type === type);
 }
 
-function inspectDb(handler: (event: MessageEvent) => void): void {
-  dispatchCommand(handler, 'INSPECT_DB', null);
+function inspectDb(): void {
+  dispatchCommand('INSPECT_DB', null);
 }
 
 function getGlobalHelper(): DevtoolsWindow[typeof DEVTOOLS_GLOBAL_KEY] {
@@ -58,7 +66,8 @@ describe('DevToolsConnector boundaries', () => {
   let addEventSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    postMessageSpy = vi.fn();
+    installChannelStub();
+    postMessageSpy = createPostMessageSpy();
     addEventSpy = vi.spyOn(window, 'addEventListener');
     vi.spyOn(window, 'postMessage').mockImplementation(postMessageSpy as unknown as typeof window.postMessage);
     connector = new DevToolsConnector();
@@ -76,16 +85,16 @@ describe('DevToolsConnector boundaries', () => {
   afterEach(() => {
     connector.disconnect();
     while (extraConnectors.length > 0) extraConnectors.pop()?.disconnect();
+    restoreChannelStub();
     vi.restoreAllMocks();
   });
 
   it('MUST reject malformed envelopes before invoking a command handler', async () => {
     const disconnectAll = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     connector.init(createMockRxDB({ disconnectAll }));
-    const handler = getMessageHandler(addEventSpy);
     postMessageSpy.mockClear();
 
-    dispatchRaw(handler, {
+    dispatchRaw({
       source: RXDB_DEVTOOLS_MESSAGE,
       direction: 'devtools-to-page',
       type: 'DISCONNECT_RXDB',
@@ -112,10 +121,9 @@ describe('DevToolsConnector boundaries', () => {
         entity === UserEntity ? { name: 'User', namespace: 'public' } : undefined;
 
       connector.init(rxdb, getMetadata);
-      const handler = getMessageHandler(addEventSpy);
       postMessageSpy.mockClear();
 
-      dispatchCommand(handler, 'QUERY_ENTITY', { entityName: 'User', limit });
+      dispatchCommand('QUERY_ENTITY', { entityName: 'User', limit });
 
       expect(find).not.toHaveBeenCalled();
       expect(postedMessages(postMessageSpy, 'ENTITY_DATA')).toHaveLength(0);
@@ -133,10 +141,9 @@ describe('DevToolsConnector boundaries', () => {
       entity === UserEntity ? { name: 'User', namespace: 'public' } : undefined;
 
     connector.init(rxdb, getMetadata);
-    const handler = getMessageHandler(addEventSpy);
     const payload = limit === undefined ? { entityName: 'User' } : { entityName: 'User', limit };
 
-    dispatchCommand(handler, 'QUERY_ENTITY', payload);
+    dispatchCommand('QUERY_ENTITY', payload);
 
     expect(find).toHaveBeenCalledWith(expect.objectContaining({ limit: limit ?? 1000 }));
   });
@@ -163,10 +170,9 @@ describe('DevToolsConnector boundaries', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     connector.init(rxdb, getMetadata);
-    const handler = getMessageHandler(addEventSpy);
     postMessageSpy.mockClear();
 
-    dispatchCommand(handler, 'QUERY_ENTITY', { entityName: 'Secret' });
+    dispatchCommand('QUERY_ENTITY', { entityName: 'Secret' });
 
     const responses = postedMessages(postMessageSpy, 'ENTITY_DATA');
     expect(responses).toHaveLength(1);
@@ -213,10 +219,9 @@ describe('DevToolsConnector boundaries', () => {
         }
       : undefined
     );
-    const handler = getMessageHandler(addEventSpy);
     postMessageSpy.mockClear();
 
-    dispatchCommand(handler, 'QUERY_ENTITY', { entityName: 'Secret' });
+    dispatchCommand('QUERY_ENTITY', { entityName: 'Secret' });
 
     expect(postedMessages(postMessageSpy, 'ENTITY_DATA')[0]?.payload).toEqual({
       entityName: 'Secret',
@@ -255,8 +260,7 @@ describe('DevToolsConnector boundaries', () => {
     it('事件遮罩必须使用事件自身 namespace 对应的加密字段集', () => {
       const rxdb = createMockRxDB({ config: { entities: [AlphaUser, BetaUser] } });
       connector.init(rxdb, twoNamespaceMetadata);
-      const handler = getMessageHandler(addEventSpy);
-      dispatchCommand(handler, 'HANDSHAKE_ACK', null);
+      dispatchCommand('HANDSHAKE_ACK', null);
       postMessageSpy.mockClear();
 
       rxdb.emit('ENTITY_LOCAL_UPDATE', {
@@ -297,10 +301,9 @@ describe('DevToolsConnector boundaries', () => {
         } as unknown as MockRxDBShape['entityManager']
       });
       connector.init(rxdb, twoNamespaceMetadata);
-      const handler = getMessageHandler(addEventSpy);
       postMessageSpy.mockClear();
 
-      dispatchCommand(handler, 'QUERY_ENTITY', { entityName: 'User', namespace: 'alpha', limit: 10 });
+      dispatchCommand('QUERY_ENTITY', { entityName: 'User', namespace: 'alpha', limit: 10 });
 
       expect(queried).toEqual([AlphaUser]);
       expect(postedMessages(postMessageSpy, 'ENTITY_DATA')[0]?.payload).toEqual({
@@ -320,10 +323,9 @@ describe('DevToolsConnector boundaries', () => {
         } as unknown as MockRxDBShape['entityManager']
       });
       connector.init(rxdb, twoNamespaceMetadata);
-      const handler = getMessageHandler(addEventSpy);
       postMessageSpy.mockClear();
 
-      dispatchCommand(handler, 'QUERY_ENTITY', { entityName: 'User', limit: 10 });
+      dispatchCommand('QUERY_ENTITY', { entityName: 'User', limit: 10 });
 
       const responses = postedMessages(postMessageSpy, 'ENTITY_DATA');
       expect(responses).toHaveLength(1);
@@ -341,8 +343,7 @@ describe('DevToolsConnector boundaries', () => {
       : undefined;
 
     connector.init(rxdb, getMetadata);
-    const handler = getMessageHandler(addEventSpy);
-    dispatchCommand(handler, 'HANDSHAKE_ACK', null);
+    dispatchCommand('HANDSHAKE_ACK', null);
     postMessageSpy.mockClear();
 
     rxdb.emit('ENTITY_LOCAL_UPDATE', {
@@ -389,8 +390,7 @@ describe('DevToolsConnector boundaries', () => {
       return undefined;
     };
     connector.init(rxdb, getMetadata);
-    const handler = getMessageHandler(addEventSpy);
-    dispatchCommand(handler, 'HANDSHAKE_ACK', null);
+    dispatchCommand('HANDSHAKE_ACK', null);
     postMessageSpy.mockClear();
 
     rxdb.emit('ENTITY_LOCAL_CREATE', {
@@ -508,8 +508,7 @@ describe('DevToolsConnector boundaries', () => {
       ];
 
       connector.init(rxdb, getMetadata);
-      const handler = getMessageHandler(addEventSpy);
-      dispatchCommand(handler, 'HANDSHAKE_ACK', null);
+      dispatchCommand('HANDSHAKE_ACK', null);
       postMessageSpy.mockClear();
 
       const conflictEvent =
@@ -540,8 +539,7 @@ describe('DevToolsConnector boundaries', () => {
     const remotePatch = { count: -9_223_372_036_854_775_808n, binary: remoteBinary };
     const rxdb = createMockRxDB({ config: { entities: [UserEntity] } });
     connector.init(rxdb, entity => (entity === UserEntity ? { name: 'User', namespace: 'public' } : undefined));
-    const handler = getMessageHandler(addEventSpy);
-    dispatchCommand(handler, 'HANDSHAKE_ACK', null);
+    dispatchCommand('HANDSHAKE_ACK', null);
     postMessageSpy.mockClear();
 
     rxdb.emit('CONFLICT_PENDING', {
@@ -600,10 +598,9 @@ describe('DevToolsConnector boundaries', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     connector.init(rxdb, getMetadata);
-    const handler = getMessageHandler(addEventSpy);
     postMessageSpy.mockClear();
 
-    dispatchCommand(handler, 'GET_BRANCHES', null);
+    dispatchCommand('GET_BRANCHES', null);
 
     const responses = postedMessages(postMessageSpy, 'BRANCHES');
     expect(responses).toHaveLength(1);
@@ -623,7 +620,6 @@ describe('DevToolsConnector boundaries', () => {
     );
 
     connector.init(first, firstMetadata);
-    const handler = getMessageHandler(addEventSpy);
     const firstListenerCount = listenerCount(first);
 
     expect(() => connector.init(second, secondMetadata)).toThrow(/single RxDB instance/i);
@@ -632,7 +628,7 @@ describe('DevToolsConnector boundaries', () => {
     expect(listenerCount(first)).toBe(firstListenerCount);
 
     postMessageSpy.mockClear();
-    inspectDb(handler);
+    inspectDb();
     expect(postedMessages(postMessageSpy, 'DB_INFO')[0]?.payload).toEqual({
       version: MOCK_VERSION,
       dbName: MOCK_DB_NAME,
@@ -728,10 +724,9 @@ describe('DevToolsConnector boundaries', () => {
 
   it('MUST report truthful graceful and not-connected statuses in DISCONNECT_RXDB_RESULT', async () => {
     connector.init(createMockRxDB());
-    const handler = getMessageHandler(addEventSpy);
     postMessageSpy.mockClear();
 
-    dispatchCommand(handler, 'DISCONNECT_RXDB', { requestId: 'request-1' });
+    dispatchCommand('DISCONNECT_RXDB', { requestId: 'request-1' });
 
     await vi.waitFor(() => {
       expect(postedMessages(postMessageSpy, 'DISCONNECT_RXDB_RESULT')[0]?.payload).toEqual({
@@ -743,7 +738,7 @@ describe('DevToolsConnector boundaries', () => {
     });
 
     postMessageSpy.mockClear();
-    dispatchCommand(handler, 'DISCONNECT_RXDB', { requestId: 'request-2' });
+    dispatchCommand('DISCONNECT_RXDB', { requestId: 'request-2' });
 
     await vi.waitFor(() => {
       expect(postedMessages(postMessageSpy, 'DISCONNECT_RXDB_RESULT')[0]?.payload).toEqual({
@@ -814,15 +809,14 @@ describe('DevToolsConnector boundaries', () => {
   it('MUST drop buffered events on CLEAR so a later handshake ack flushes nothing', () => {
     const rxdb = createMockRxDB();
     connector.init(rxdb);
-    const handler = getMessageHandler(addEventSpy);
     rxdb.emit('SYNC_BEGIN', { type: 'SYNC_BEGIN' });
     postMessageSpy.mockClear();
 
-    expect(() => dispatchCommand(handler, 'CLEAR', null)).not.toThrow();
+    expect(() => dispatchCommand('CLEAR', null)).not.toThrow();
     // CLEAR 本身不回包：它改的是连接器的本地缓冲，DevTools 侧没有需要对账的响应。
     expect(postMessageSpy).not.toHaveBeenCalled();
 
-    dispatchCommand(handler, 'HANDSHAKE_ACK', null);
+    dispatchCommand('HANDSHAKE_ACK', null);
 
     expect(postedMessages(postMessageSpy, 'EVENT')).toHaveLength(0);
   });
@@ -830,13 +824,12 @@ describe('DevToolsConnector boundaries', () => {
   it('MUST keep the sequence monotonic across CLEAR', () => {
     const rxdb = createMockRxDB();
     connector.init(rxdb);
-    const handler = getMessageHandler(addEventSpy);
-    dispatchCommand(handler, 'HANDSHAKE_ACK', null);
+    dispatchCommand('HANDSHAKE_ACK', null);
     rxdb.emit('SYNC_BEGIN', { type: 'SYNC_BEGIN' });
     const before = postedMessages(postMessageSpy, 'EVENT')[0]?.payload as { sequence: number };
     postMessageSpy.mockClear();
 
-    dispatchCommand(handler, 'CLEAR', null);
+    dispatchCommand('CLEAR', null);
     rxdb.emit('SYNC_COMPLETE', { type: 'SYNC_COMPLETE' });
 
     // sequence 是 wire 上的全局定序键。CLEAR 只清历史，不能把它归零 ——
@@ -859,9 +852,8 @@ describe('DevToolsConnector boundaries', () => {
     };
 
     connector.init(rxdb, getMetadata);
-    const handler = getMessageHandler(addEventSpy);
     postMessageSpy.mockClear();
-    inspectDb(handler);
+    inspectDb();
 
     expect(postedMessages(postMessageSpy, 'DB_INFO')[0]?.payload).toEqual({
       version: '2.0.0',
@@ -879,10 +871,9 @@ describe('DevToolsConnector boundaries', () => {
       entityManager: { getRepository: () => ({ find }) }
     });
     connector.init(rxdb, entity => (entity === UserEntity ? { name: 'User' } : undefined));
-    const handler = getMessageHandler(addEventSpy);
     postMessageSpy.mockClear();
 
-    dispatchCommand(handler, 'QUERY_ENTITY', { entityName: 'Missing' });
+    dispatchCommand('QUERY_ENTITY', { entityName: 'Missing' });
 
     expect(find).not.toHaveBeenCalled();
     expect(postedMessages(postMessageSpy, 'ENTITY_DATA')[0]?.payload).toEqual({
@@ -905,10 +896,9 @@ describe('DevToolsConnector boundaries', () => {
       entityManager: { getRepository: () => ({ find: () => ({ subscribe }) }) }
     });
     connector.init(rxdb, entity => (entity === UserEntity ? { name: 'User' } : undefined));
-    const handler = getMessageHandler(addEventSpy);
     postMessageSpy.mockClear();
 
-    dispatchCommand(handler, 'QUERY_ENTITY', { entityName: 'User' });
+    dispatchCommand('QUERY_ENTITY', { entityName: 'User' });
 
     // 环引用不是「无法序列化」：safeSerialize 会把成环的那个节点降级成 '[Circular]'，
     // 兄弟字段照常输出。整条记录塌成 { id, _error } 等于调试工具把要调试的数据吃掉了。
@@ -937,10 +927,9 @@ describe('DevToolsConnector boundaries', () => {
       entityManager: { getRepository: () => ({ find: () => ({ subscribe }) }) }
     });
     connector.init(rxdb, entity => (entity === UserEntity ? { name: 'User' } : undefined));
-    const handler = getMessageHandler(addEventSpy);
     postMessageSpy.mockClear();
 
-    dispatchCommand(handler, 'QUERY_ENTITY', { entityName: 'User' });
+    dispatchCommand('QUERY_ENTITY', { entityName: 'User' });
 
     expect(postedMessages(postMessageSpy, 'ENTITY_DATA')[0]?.payload).toEqual({
       entityName: 'User',
@@ -969,10 +958,9 @@ describe('DevToolsConnector boundaries', () => {
       } as unknown as MockRxDBShape['entityManager']
     });
     connector.init(rxdb, entity => (entity === BranchEntity ? { name: 'RxDBBranch' } : undefined));
-    const handler = getMessageHandler(addEventSpy);
     postMessageSpy.mockClear();
 
-    dispatchCommand(handler, 'GET_BRANCHES', null);
+    dispatchCommand('GET_BRANCHES', null);
 
     expect(postedMessages(postMessageSpy, 'BRANCHES')[0]?.payload).toEqual([
       { id: 'main', activated: true },
@@ -1003,10 +991,9 @@ describe('DevToolsConnector boundaries', () => {
       } as unknown as MockRxDBShape['entityManager']
     });
     connector.init(rxdb, entity => (entity === BranchEntity ? { name: 'RxDBBranch' } : undefined));
-    const handler = getMessageHandler(addEventSpy);
     postMessageSpy.mockClear();
 
-    dispatchCommand(handler, 'GET_BRANCHES', null);
+    dispatchCommand('GET_BRANCHES', null);
 
     await vi.waitFor(() => {
       expect(postedMessages(postMessageSpy, 'BRANCHES')[0]?.payload).toEqual([]);
@@ -1029,10 +1016,9 @@ describe('DevToolsConnector boundaries', () => {
       }
     });
     connector.init(rxdb, entity => (entity === BranchEntity ? { name: 'RxDBBranch' } : undefined));
-    const handler = getMessageHandler(addEventSpy);
     postMessageSpy.mockClear();
 
-    dispatchCommand(handler, 'GET_BRANCHES', null);
+    dispatchCommand('GET_BRANCHES', null);
 
     expect(postedMessages(postMessageSpy, 'BRANCHES')[0]?.payload).toEqual([]);
     expect(consoleErrorSpy).toHaveBeenCalled();
@@ -1055,21 +1041,20 @@ describe('DevToolsConnector boundaries', () => {
       versionManager: { switchBranch, createBranch, removeBranch }
     });
     connector.init(rxdb, entity => (entity === BranchEntity ? { name: 'RxDBBranch' } : undefined));
-    const handler = getMessageHandler(addEventSpy);
 
     postMessageSpy.mockClear();
-    dispatchCommand(handler, 'SWITCH_BRANCH', 'feature');
+    dispatchCommand('SWITCH_BRANCH', 'feature');
     await vi.waitFor(() => expect(switchBranch).toHaveBeenCalledWith('feature'));
     await vi.waitFor(() => expect(postedMessages(postMessageSpy, 'BRANCHES').length).toBeGreaterThan(0));
 
     postMessageSpy.mockClear();
-    dispatchCommand(handler, 'CREATE_BRANCH', 'feature-2');
+    dispatchCommand('CREATE_BRANCH', 'feature-2');
     await vi.waitFor(() => expect(createBranch).toHaveBeenCalledWith('feature-2'));
     await vi.waitFor(() => expect(consoleErrorSpy).toHaveBeenCalled());
     await vi.waitFor(() => expect(postedMessages(postMessageSpy, 'BRANCHES').length).toBeGreaterThan(0));
 
     postMessageSpy.mockClear();
-    dispatchCommand(handler, 'DELETE_BRANCH', 'feature-2');
+    dispatchCommand('DELETE_BRANCH', 'feature-2');
     await vi.waitFor(() => expect(removeBranch).toHaveBeenCalledWith('feature-2'));
     await vi.waitFor(() => expect(postedMessages(postMessageSpy, 'BRANCHES').length).toBeGreaterThan(0));
   });
@@ -1085,8 +1070,7 @@ describe('DevToolsConnector boundaries', () => {
       entityManager: { getRepository: () => ({ find: () => ({ subscribe }) }) }
     });
     connector.init(rxdb, entity => (entity === BranchEntity ? { name: 'RxDBBranch' } : undefined));
-    const handler = getMessageHandler(addEventSpy);
-    dispatchCommand(handler, 'HANDSHAKE_ACK', null);
+    dispatchCommand('HANDSHAKE_ACK', null);
     postMessageSpy.mockClear();
 
     rxdb.emit('SWITCH_BRANCH_COMMIT', { type: 'SWITCH_BRANCH_COMMIT' });
@@ -1118,8 +1102,7 @@ describe('DevToolsConnector boundaries', () => {
       entityManager: { getRepository: () => ({ find }) }
     });
     connector.init(rxdb, entity => (entity === BranchEntity ? { name: 'RxDBBranch' } : undefined));
-    const handler = getMessageHandler(addEventSpy);
-    dispatchCommand(handler, 'HANDSHAKE_ACK', null);
+    dispatchCommand('HANDSHAKE_ACK', null);
     find.mockClear();
     postMessageSpy.mockClear();
 
@@ -1140,8 +1123,7 @@ describe('DevToolsConnector boundaries', () => {
       entityManager: { getRepository: () => ({ find }) }
     });
     connector.init(rxdb, entity => (entity === TodoEntity ? { name: 'Todo' } : undefined));
-    const handler = getMessageHandler(addEventSpy);
-    dispatchCommand(handler, 'HANDSHAKE_ACK', null);
+    dispatchCommand('HANDSHAKE_ACK', null);
     find.mockClear();
     postMessageSpy.mockClear();
 
@@ -1160,8 +1142,7 @@ describe('DevToolsConnector boundaries', () => {
     connector.init(rxdb, entity =>
       entity === SecretEntity ? { name: 'Secret', encryptedPropertyMap: new Map([['ssn', true]]) } : undefined
     );
-    const handler = getMessageHandler(addEventSpy);
-    dispatchCommand(handler, 'HANDSHAKE_ACK', null);
+    dispatchCommand('HANDSHAKE_ACK', null);
     postMessageSpy.mockClear();
 
     rxdb.emit('SYNC_COMPLETE', {
@@ -1199,8 +1180,7 @@ describe('DevToolsConnector boundaries', () => {
       entityManager: { getRepository: () => ({ find }) }
     });
     connector.init(rxdb, entity => (entity === UserEntity ? { name: 'User' } : undefined));
-    const handler = getMessageHandler(addEventSpy);
-    dispatchCommand(handler, 'QUERY_ENTITY', { entityName: 'User' });
+    dispatchCommand('QUERY_ENTITY', { entityName: 'User' });
     expect(deliver).toBeTypeOf('function');
     postMessageSpy.mockClear();
 
@@ -1222,10 +1202,9 @@ describe('DevToolsConnector boundaries', () => {
         entityManager: { getRepository: () => ({ find }) }
       });
       connector.init(rxdb, entity => (entity === UserEntity ? { name: 'User' } : undefined));
-      const handler = getMessageHandler(addEventSpy);
       postMessageSpy.mockClear();
 
-      dispatchCommand(handler, 'QUERY_ENTITY', { entityName: 'User' });
+      dispatchCommand('QUERY_ENTITY', { entityName: 'User' });
       expect(postedMessages(postMessageSpy, 'ENTITY_DATA')).toHaveLength(0);
 
       vi.advanceTimersByTime(10_000);
@@ -1258,10 +1237,9 @@ describe('DevToolsConnector boundaries', () => {
         entityManager: { getRepository: () => ({ find }) }
       });
       connector.init(rxdb, entity => (entity === UserEntity ? { name: 'User' } : undefined));
-      const handler = getMessageHandler(addEventSpy);
       postMessageSpy.mockClear();
 
-      dispatchCommand(handler, 'QUERY_ENTITY', { entityName: 'User' });
+      dispatchCommand('QUERY_ENTITY', { entityName: 'User' });
 
       // 必须立刻回报真实错误，而不是等超时
       const immediate = postedMessages(postMessageSpy, 'ENTITY_DATA');
@@ -1315,8 +1293,7 @@ describe('DevToolsConnector boundaries', () => {
       entityManager: { getRepository: () => ({ find }) }
     });
     connector.init(rxdb, entity => (entity === BranchEntity ? { name: 'RxDBBranch' } : undefined));
-    const handler = getMessageHandler(addEventSpy);
-    dispatchCommand(handler, 'HANDSHAKE_ACK', null);
+    dispatchCommand('HANDSHAKE_ACK', null);
     postMessageSpy.mockClear();
     find.mockClear();
 
@@ -1340,7 +1317,6 @@ describe('DevToolsConnector boundaries', () => {
     const branchMetadata: GetEntityMetadata = entity => (entity === BranchEntity ? { name: 'RxDBBranch' } : undefined);
 
     function initWith(capabilities: 'none' | 'readonly' | 'full'): {
-      handler: (event: MessageEvent) => void;
       rxdb: MockRxDB;
       switchBranch: ReturnType<typeof vi.fn>;
     } {
@@ -1367,9 +1343,8 @@ describe('DevToolsConnector boundaries', () => {
       });
       const scoped = createConnector({ capabilities });
       scoped.init(rxdb, branchMetadata);
-      const handler = getMessageHandler(addEventSpy);
       postMessageSpy.mockClear();
-      return { handler, rxdb, switchBranch };
+      return { rxdb, switchBranch };
     }
 
     it('MUST default to the full tier and announce it in the handshake', () => {
@@ -1378,7 +1353,7 @@ describe('DevToolsConnector boundaries', () => {
 
       expect(connector.capabilities).toBe('full');
       const handshake = postedMessages(postMessageSpy, 'HANDSHAKE')[0];
-      expect(handshake?.payload).toEqual({ protocolVersion: 1, capabilities: 'full' });
+      expect(handshake?.payload).toEqual({ protocolVersion: 2, capabilities: 'full' });
     });
 
     it.each(['none', 'readonly', 'full'] as const)('MUST announce the configured %s tier', capabilities => {
@@ -1386,17 +1361,14 @@ describe('DevToolsConnector boundaries', () => {
       scoped.init(createMockRxDB());
 
       expect(scoped.capabilities).toBe(capabilities);
-      expect(postedMessages(postMessageSpy, 'HANDSHAKE')[0]?.payload).toEqual({
-        protocolVersion: 1,
-        capabilities
-      });
+      expect(postedMessages(postMessageSpy, 'HANDSHAKE')[0]?.payload).toEqual({ protocolVersion: 2, capabilities });
     });
 
     it('MUST answer readonly commands at the readonly tier', () => {
-      const { handler } = initWith('readonly');
+      initWith('readonly');
 
-      inspectDb(handler);
-      dispatchCommand(handler, 'GET_BRANCHES', null);
+      inspectDb();
+      dispatchCommand('GET_BRANCHES', null);
 
       expect(postedMessages(postMessageSpy, 'DB_INFO')).toHaveLength(1);
       expect(postedMessages(postMessageSpy, 'BRANCHES')).toHaveLength(1);
@@ -1408,9 +1380,8 @@ describe('DevToolsConnector boundaries', () => {
       ['DELETE_BRANCH', 'feature-3']
     ])('MUST silently drop the mutating command %s at the readonly tier', async (type, payload) => {
       const { switchBranch } = initWith('readonly');
-      const handler = getMessageHandler(addEventSpy);
 
-      dispatchCommand(handler, type, payload);
+      dispatchCommand(type, payload);
       await Promise.resolve();
 
       expect(switchBranch).not.toHaveBeenCalled();
@@ -1421,9 +1392,8 @@ describe('DevToolsConnector boundaries', () => {
 
     it('MUST silently drop DISCONNECT_RXDB at the readonly tier', async () => {
       const { rxdb } = initWith('readonly');
-      const handler = getMessageHandler(addEventSpy);
 
-      dispatchCommand(handler, 'DISCONNECT_RXDB', { requestId: 'request-1' });
+      dispatchCommand('DISCONNECT_RXDB', { requestId: 'request-1' });
       await Promise.resolve();
 
       expect(rxdb.disconnectAll).not.toHaveBeenCalled();
@@ -1431,33 +1401,55 @@ describe('DevToolsConnector boundaries', () => {
     });
 
     it('MUST drop readonly commands at the none tier while keeping the transport alive', () => {
-      const { handler } = initWith('none');
+      initWith('none');
 
-      inspectDb(handler);
-      dispatchCommand(handler, 'QUERY_ENTITY', { entityName: 'RxDBBranch' });
-      dispatchCommand(handler, 'GET_BRANCHES', null);
+      inspectDb();
+      dispatchCommand('QUERY_ENTITY', { entityName: 'RxDBBranch' });
+      dispatchCommand('GET_BRANCHES', null);
 
       expect(postMessageSpy).not.toHaveBeenCalled();
 
       // 传输层命令（握手 / 缓冲 / 断连）不受能力档影响，否则 none 档等于连不上。
-      dispatchCommand(handler, 'PING', null);
+      dispatchCommand('PING', null);
       expect(postedMessages(postMessageSpy, 'HANDSHAKE')).toHaveLength(1);
     });
 
     it('MUST NOT subscribe, buffer or flush any event at the none tier', () => {
-      // 本用例先前断言的正是 US-904b AC#9 明令禁止的行为：`none` 档曾照常订阅并写 buffer，
+      // 本用例先前断言的正是 US-904 阶段 B AC#9 明令禁止的行为：`none` 档曾照常订阅并写 buffer，
       // 一条 `HANDSHAKE_ACK` 就把它们整批冲出去。US-904 已预先授权——`none` 档零泄漏
       // 属安全收敛，不受「用户可见行为不变」约束——所以这里改的是判据本身，
       // 而不是给 AC#9 加一个把旧行为保留下来的 opt-in 开关。
-      const { handler, rxdb } = initWith('none');
+      const { rxdb } = initWith('none');
       rxdb.emit('SYNC_BEGIN', { type: 'SYNC_BEGIN' });
 
-      dispatchCommand(handler, 'HANDSHAKE_ACK', null);
+      dispatchCommand('HANDSHAKE_ACK', null);
 
       expect(postedMessages(postMessageSpy, 'EVENT')).toHaveLength(0);
       // 拒绝必须发生在订阅处而不是出站处：只在出站拦截的话事件仍会进 buffer，
       // 「没有 EVENT 帧」就只是暂时的。
       expect(listenerCount(rxdb)).toBe(0);
+    });
+
+    it('MUST drop data commands that arrive on the window bus instead of the private port', () => {
+      initWith('full');
+      const handler = getMessageHandler(addEventSpy);
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      postMessageSpy.mockClear();
+
+      handler({
+        source: window,
+        origin: location.origin,
+        data: {
+          source: RXDB_DEVTOOLS_MESSAGE,
+          direction: 'devtools-to-page',
+          type: 'INSPECT_DB',
+          payload: null,
+          timestamp: Date.now(),
+          sequence: 1
+        }
+      } as unknown as MessageEvent);
+
+      expect(postedMessages(postMessageSpy, 'DB_INFO')).toHaveLength(0);
     });
   });
 
@@ -1469,14 +1461,13 @@ describe('DevToolsConnector boundaries', () => {
         .mockImplementation(() => new Promise<void>(resolve => (resolveDisconnect = resolve)));
       const rxdb = createMockRxDB({ disconnectAll });
       connector.init(rxdb);
-      const handler = getMessageHandler(addEventSpy);
       const helper = getGlobalHelper();
       if (!helper) throw new Error('global helper not registered');
       postMessageSpy.mockClear();
 
       const first = helper.disconnectRxdb(5000);
-      dispatchCommand(handler, 'DISCONNECT_RXDB', { requestId: 'request-1' });
-      dispatchCommand(handler, 'DISCONNECT_RXDB', { requestId: 'request-2' });
+      dispatchCommand('DISCONNECT_RXDB', { requestId: 'request-1' });
+      dispatchCommand('DISCONNECT_RXDB', { requestId: 'request-2' });
       const second = helper.disconnectRxdb(5000);
 
       // 并发的断开请求必须复用同一次 disconnectAll：四路各调一次会让适配器
@@ -1569,15 +1560,19 @@ describe('DevToolsConnector boundaries', () => {
       scoped.init(createMockRxDB());
 
       expect(scoped.enabled).toBe(true);
-      expect(postMessageSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'HANDSHAKE' }), '*');
+      expect(postMessageSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'HANDSHAKE' }), '*', [
+        expect.anything()
+      ]);
     });
 
     it('MUST target the exact origin on a normal document', () => {
       connector.init(createMockRxDB());
 
-      // 广播用 '*' 会把 RxDB 的完整事件流（含业务字段）交给任意跨域 iframe。
-      expect(postMessageSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'HANDSHAKE' }), location.origin);
-      expect(postMessageSpy).not.toHaveBeenCalledWith(expect.anything(), '*');
+      // 广播用 '*' 会把握手（连同私有端口）交给任意跨域 iframe。
+      expect(postMessageSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'HANDSHAKE' }), location.origin, [
+        expect.anything()
+      ]);
+      expect(postMessageSpy).not.toHaveBeenCalledWith(expect.anything(), '*', expect.anything());
     });
   });
 });

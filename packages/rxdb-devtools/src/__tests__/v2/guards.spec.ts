@@ -23,8 +23,8 @@ import {
 import { isPageSize, isSafeIntegerInRange, isSupportedVersionList } from '../../v2/guards.js';
 
 describe('v2 frozen constants', () => {
-  it('MUST match the values frozen by US-904b', () => {
-    // 这些数字是 US-904c / US-904d / US-905 共同引用的唯一真相源。
+  it('MUST match the values frozen by US-904 阶段 B', () => {
+    // 这些数字是 US-904 阶段 C / D 与 US-905 共同引用的唯一真相源。
     // 改动任何一个都会让三端行为分叉，所以在这里钉死。
     expect(DEVTOOLS_PROTOCOL_VERSION_V2).toBe(2);
     expect(DEVTOOLS_NEGOTIATION_WINDOW_MS).toBe(1_000);

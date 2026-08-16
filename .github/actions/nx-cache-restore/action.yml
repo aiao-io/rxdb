@@ -1,19 +1,24 @@
 name: Restore Nx cache
 description: 只读恢复 Nx 本地任务缓存。
 
-# 用 cache/restore 而不是 cache：只有 build job 回写（同 key 多写只有第一个生效，
-# 其余会打 warning）。这里只读。
+# 用 cache/restore 而不是 cache：全仓只有 build job 在 main 上回写一次（见
+# ci-template.yml 的 "Save Nx cache"）。这里只读。
 #
-# restore-keys 的回退是关键：本 run 的 key 通常还没落盘（并行 job 抢跑），
-# 于是回退到上一轮 run 的缓存 —— CI 因此不再是纯冷跑。
+# restore-keys 的回退才是主力：本 run 的精确 key 通常还没落盘（并行 job 抢跑），
+# 于是回退到 `nx-cache-<os>-` 前缀下最近写入的那份 —— CI 因此不再是纯冷跑。
 # Nx 的 hash 机制保证陈旧缓存只会 miss，不会用错产物。
+#
+# PR 上不回写不是省事，是 Actions cache 的作用域使然：分支上写的缓存只有该分支
+# （及其子 PR）看得见，别的 PR 一律 miss；只有默认分支写的缓存对所有分支可见。
+# PR 回写等于往 10GB 配额里塞一份只有自己能用、下一轮就作废的副本，
+# 还会把真正共享的那份（main 的缓存、playwright、pnpm store）挤出 LRU。
 #
 # 只碰 .nx/cache，不碰 .nx/workspace-data（project graph 缓存，跨 job 复用有陈旧风险）。
 
 runs:
   using: composite
   steps:
-    - uses: actions/cache/restore@v5
+    - uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
       with:
         path: .nx/cache
         key: nx-cache-${{ runner.os }}-${{ github.run_id }}

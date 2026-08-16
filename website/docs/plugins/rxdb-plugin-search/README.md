@@ -61,14 +61,12 @@ import { RxDB } from '@aiao/rxdb';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 
 const rxdb = new RxDB({ adapter });
-rxdb.use(
-  rxDBPluginSearch({
-    debounce: 300, // 默认 300ms；0 表示关闭
-    pageSize: 50,
-    snippetLength: 120,
-    excludedCollections: [] // 全局排除某些 collection
-  })
-);
+rxdb.use(rxDBPluginSearch, {
+  debounce: 300, // 默认 300ms；0 表示关闭
+  pageSize: 50,
+  snippetLength: 120,
+  excludedCollections: [] // 全局排除某些 collection
+});
 await rxdb.connect();
 ```
 

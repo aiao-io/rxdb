@@ -40,16 +40,60 @@ export function forwardPageMessage(
 }
 
 /**
- * 校验并把扩展消息投递到当前页面的指定 origin。
+ * 校验并把私有端口上收到的消息转交给扩展运行时。
  *
+ * @returns 消息通过方向与协议校验时返回 `true`
+ *
+ * @remarks
+ * 端口是点对点的，没有 `source` / `origin` 可查 —— 能往里发消息的只有握手时留下
+ * `port1` 的那个 connector，所以这里只做结构校验，不重复 {@link forwardPageMessage}
+ * 的来源检查。
+ */
+export function forwardPortMessage(event: MessageEvent, send: (message: DevToolsMessage) => void): boolean {
+  if (!isDevToolsMessage(event.data) || event.data.direction !== 'page-to-devtools') return false;
+  send(event.data);
+  return true;
+}
+
+/**
+ * 从页面 HANDSHAKE 消息中取出随附的私有端口。
+ *
+ * @returns 该消息确实是带端口的握手时返回端口，否则 `null`
+ *
+ * @remarks
+ * 协议 v2 起 connector 会在 HANDSHAKE 上 transfer 一个 `MessagePort`。取不到端口
+ * 说明对面是 v1 connector —— 调用方应当据此给出诊断，而不是当作正常握手继续。
+ */
+export function extractHandshakePort(event: MessageEvent): MessagePort | null {
+  if (!isDevToolsMessage(event.data) || event.data.type !== 'HANDSHAKE') return null;
+  return event.ports[0] ?? null;
+}
+
+/**
+ * 校验并把扩展消息投递给页面。
+ *
+ * @param message - 待投递的消息，非 `devtools-to-page` 方向一律拒绝
+ * @param origin - 退回 `window` 总线时使用的 targetOrigin
+ * @param post - `window.postMessage` 适配器
+ * @param port - 已握手时的私有端口；`null` 表示尚未握手
  * @returns 消息属于 `devtools-to-page` 方向且已投递时返回 `true`
+ *
+ * @remarks
+ * 有端口就走端口：命令载荷（分支名、查询参数）不该出现在同页任何脚本都能监听的
+ * `window` 总线上。唯独 `PING` 例外 —— 它正是用来唤醒「握手时 bridge 还没注入」的
+ * connector 的，那种情况下端口必然还不存在，只能广播。
  */
 export function forwardExtensionMessage(
   message: unknown,
   origin: string,
-  post: (message: DevToolsMessage, targetOrigin: string) => void
+  post: (message: DevToolsMessage, targetOrigin: string) => void,
+  port: MessagePort | null = null
 ): boolean {
   if (!isDevToolsMessage(message) || message.direction !== 'devtools-to-page') return false;
+  if (port) {
+    port.postMessage(message);
+    return true;
+  }
   post(message, origin);
   return true;
 }

@@ -5,30 +5,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { cleanup_db, cloneEntityClasses, generateDbName } from '../testing.js';
 
-const getWriterProtocolState = async (adapter: RxDBAdapterPGlite) => {
-  const guard = await adapter.internalQuery<{
-    databaseId: string;
-    epoch: number;
-    state: string;
-    minProtocol: number;
-  }>(
-    `SELECT "databaseId", "epoch", "state", "minProtocol"
-     FROM "rxdb"."rxdb_upgrade_guard"
-     ORDER BY "databaseId"`
-  );
-  const leases = await adapter.internalQuery<{
-    databaseId: string;
-    writerId: string;
-    protocolVersion: number;
-    epoch: number;
-  }>(
-    `SELECT "databaseId", "writerId", "protocolVersion", "epoch"
-     FROM "rxdb"."rxdb_writer_lease"
-     ORDER BY "databaseId", "writerId"`
-  );
-  return { guard: guard.rows, leases: leases.rows };
-};
-
 describe('testing cleanup_db integration & cloneEntityClasses metadata', () => {
   let rxdb: RxDB | undefined;
 
@@ -62,14 +38,8 @@ describe('testing cleanup_db integration & cloneEntityClasses metadata', () => {
     todo.title = 'cleanup-me';
     await repo.create(todo);
 
-    const protocolBefore = await getWriterProtocolState(adapter);
-    expect(protocolBefore.guard).toHaveLength(1);
-    expect(protocolBefore.leases).toHaveLength(1);
-
     // 写入额外的 change 行，使 truncate 路径中的 public/rxdb 表非空。
     await expect(cleanup_db(adapter)).resolves.toBeUndefined();
-
-    expect(await getWriterProtocolState(adapter)).toEqual(protocolBefore);
 
     expect((await adapter.internalQuery(`SELECT id FROM "public"."todos"`)).rows).toEqual([]);
     expect((await adapter.internalQuery(`SELECT id FROM "rxdb"."rxdb_change"`)).rows).toEqual([]);
@@ -79,12 +49,11 @@ describe('testing cleanup_db integration & cloneEntityClasses metadata', () => {
     expect((branch.rows[0] as { activated: boolean }).activated).toBe(true);
 
     const nextTodo = new Todo();
-    nextTodo.title = 'writer-still-valid';
+    nextTodo.title = 'writable-after-cleanup';
     await expect(repo.create(nextTodo)).resolves.toBeDefined();
 
-    // 第二次调用验证重建的触发器语句，同时不会丢失 writer lease。
+    // 第二次调用验证重建的触发器语句。
     await expect(cleanup_db(adapter)).resolves.toBeUndefined();
-    expect(await getWriterProtocolState(adapter)).toEqual(protocolBefore);
   });
 
   it('cloneEntityClasses copies ɵMetadata and non-special statics', () => {

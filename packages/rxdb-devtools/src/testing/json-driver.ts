@@ -2,7 +2,7 @@
  * @fileoverview 内存 conformance driver：JSON 文本 only，四段中继全在同一个进程里。
  *
  * @remarks
- * 它是 US-904c / 904d / 905 的对照组——同一份 suite 先在这里跑绿，再由下游的薄 driver
+ * 它是 US-904 阶段 C / D 与 US-905 的对照组——同一份 suite 先在这里跑绿，再由下游的薄 driver
  * 在真实 `chrome.runtime.Port` / Electron IPC / Tauri `invoke` 上复跑。两边判据完全相同，
  * 差别只在 transport。
  *
@@ -13,9 +13,6 @@
  */
 
 import { createMessage } from '../types.js';
-import { createFakeClock } from './fake-clock.js';
-import type { DevToolsFakeClock } from './fake-clock.js';
-import { FakeRelay } from './fake-relay.js';
 import type {
   DevToolsConformanceDriver,
   DevToolsConformanceScenario,
@@ -25,6 +22,9 @@ import type {
   DevToolsSegmentProbe,
   DevToolsWireFrame
 } from './driver.js';
+import type { DevToolsFakeClock } from './fake-clock.js';
+import { createFakeClock } from './fake-clock.js';
+import { FakeRelay } from './fake-relay.js';
 
 /**
  * 一次会话的装配上下文。

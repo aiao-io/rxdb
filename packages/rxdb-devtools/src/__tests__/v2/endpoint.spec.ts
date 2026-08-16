@@ -1,23 +1,23 @@
 import { describe, expect, it } from 'vitest';
 
-import { RXDB_DEVTOOLS_MESSAGE, createMessage } from '../../types.js';
-import type { AnyDevToolsMessage, DevToolsCapability } from '../../types.js';
-import { createFakeClock } from '../../testing/fake-clock.js';
 import type { DevToolsFakeClock } from '../../testing/fake-clock.js';
-import { createFakeProviders } from '../../testing/fake-providers.js';
+import { createFakeClock } from '../../testing/fake-clock.js';
 import type { DevToolsFakeProviderSet } from '../../testing/fake-providers.js';
+import { createFakeProviders } from '../../testing/fake-providers.js';
+import type { AnyDevToolsMessage, DevToolsCapability } from '../../types.js';
+import { RXDB_DEVTOOLS_MESSAGE, createMessage } from '../../types.js';
+import type { DevToolsMutationPolicy } from '../../v2/authorization.js';
 import { encodeCanonicalBase64 } from '../../v2/base64.js';
 import {
   DEVTOOLS_PROTOCOL_VERSION_V2,
   DEVTOOLS_REQUEST_TIMEOUT_MS,
   DEVTOOLS_TRANSFER_IDLE_TIMEOUT_MS
 } from '../../v2/constants.js';
-import { createDevToolsConnectorEndpoint } from '../../v2/endpoint.js';
 import type { DevToolsConnectorEndpoint } from '../../v2/endpoint.js';
-import type { DevToolsMutationPolicy } from '../../v2/authorization.js';
-import { createDevToolsV2Message, isDevToolsV2Message } from '../../v2/wire.js';
-import type { DevToolsV2Message, DevToolsV2MessageType, DevToolsV2PayloadMap } from '../../v2/wire.js';
+import { createDevToolsConnectorEndpoint } from '../../v2/endpoint.js';
 import type { DevToolsConnectorNegotiationMessage } from '../../v2/negotiation-connector.js';
+import type { DevToolsV2Message, DevToolsV2MessageType, DevToolsV2PayloadMap } from '../../v2/wire.js';
+import { createDevToolsV2Message, isDevToolsV2Message } from '../../v2/wire.js';
 
 const FOREIGN_SESSION_ID = 'b3d9e7c1-4a52-4e08-8f6b-1c0d5a2739e4';
 const TIMESTAMP = 1_700_000_000_000;
@@ -94,7 +94,12 @@ function connected(options: HarnessOptions = {}): Harness {
   return harness;
 }
 
-function request(harness: Harness, requestId: string, domain: 'database' | 'files' | 'settings', operation: string): void {
+function request(
+  harness: Harness,
+  requestId: string,
+  domain: 'database' | 'files' | 'settings',
+  operation: string
+): void {
   harness.panel('REQUEST', { requestId, domain, operation, params: {} });
 }
 
@@ -256,9 +261,9 @@ describe('connector endpoint request dispatch', () => {
         provider: domain => ({
           descriptor: providers.provider(domain).descriptor,
           invoke: (operation, params) =>
-            operation === 'inspect'
-              ? Promise.reject(new Error('provider blew up'))
-              : providers.provider(domain).invoke(operation, params)
+            operation === 'inspect' ?
+              Promise.reject(new Error('provider blew up'))
+            : providers.provider(domain).invoke(operation, params)
         })
       }
     });

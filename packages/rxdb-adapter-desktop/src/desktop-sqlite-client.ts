@@ -116,8 +116,8 @@ const isChangeMessage = (message: unknown): message is { sessionId: string; even
  * 通过桌面 host 访问本地 SQLite 文件的客户端。
  *
  * @remarks
- * 它满足 `SqliteClientLike`，因此 `RxDBAdapterSqliteBase` 里的查询、事务、分支切换、
- * 系统 schema 迁移与 writer lease 全部原样复用——桌面路径不是另一套实现，
+ * 它满足 `SqliteClientLike`，因此 `RxDBAdapterSqliteBase` 里的查询、事务、分支切换
+ * 与系统 schema 迁移全部原样复用——桌面路径不是另一套实现，
  * 只是同一份契约换了条传输通道。
  */
 export class DesktopSqliteClient implements SqliteClientLike {

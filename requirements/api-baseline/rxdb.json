@@ -17,10 +17,6 @@
       "kind": "type"
     },
     {
-      "name": "assertRxDBUpgradeClaimable",
-      "kind": "value"
-    },
-    {
       "name": "assertSupportedRxDBSystemVersions",
       "kind": "value"
     },
@@ -103,10 +99,6 @@
     {
       "name": "CountOptions",
       "kind": "type"
-    },
-    {
-      "name": "createRxDBActiveWriterLeaseError",
-      "kind": "value"
     },
     {
       "name": "DateProperty",
@@ -781,14 +773,6 @@
       "kind": "type"
     },
     {
-      "name": "readRxDBUpgradeGuard",
-      "kind": "value"
-    },
-    {
-      "name": "readRxDBWriterLease",
-      "kind": "value"
-    },
-    {
       "name": "RefreshMatchRules",
       "kind": "type"
     },
@@ -921,10 +905,6 @@
       "kind": "type"
     },
     {
-      "name": "resolveRxDBWriterEpoch",
-      "kind": "value"
-    },
-    {
       "name": "RestoreEntityOptions",
       "kind": "type"
     },
@@ -978,30 +958,6 @@
     },
     {
       "name": "RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX",
-      "kind": "value"
-    },
-    {
-      "name": "RXDB_UPGRADE_GUARD_TABLE_NAME",
-      "kind": "value"
-    },
-    {
-      "name": "RXDB_UPGRADE_OWNER_TTL_MS",
-      "kind": "value"
-    },
-    {
-      "name": "RXDB_WRITER_HEARTBEAT_INTERVAL_MS",
-      "kind": "value"
-    },
-    {
-      "name": "RXDB_WRITER_LEASE_TABLE_NAME",
-      "kind": "value"
-    },
-    {
-      "name": "RXDB_WRITER_LEASE_TTL_MS",
-      "kind": "value"
-    },
-    {
-      "name": "RXDB_WRITER_PROTOCOL_VERSION",
       "kind": "value"
     },
     {
@@ -1218,26 +1174,6 @@
     },
     {
       "name": "RxDBSystemVersionState",
-      "kind": "type"
-    },
-    {
-      "name": "RxDBUpgradeGuardSnapshot",
-      "kind": "type"
-    },
-    {
-      "name": "RxDBUpgradeGuardState",
-      "kind": "type"
-    },
-    {
-      "name": "RxDBWriterLeaseError",
-      "kind": "both"
-    },
-    {
-      "name": "RxDBWriterLeaseErrorCode",
-      "kind": "type"
-    },
-    {
-      "name": "RxDBWriterLeaseSnapshot",
       "kind": "type"
     },
     {

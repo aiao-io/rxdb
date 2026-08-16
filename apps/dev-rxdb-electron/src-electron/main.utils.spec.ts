@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   APP_ENTRY_URL,
   APP_ORIGIN,
   APP_SCHEME,
+  createWillQuitHandler,
   HIDE_WINDOW_ENV,
   isAllowedNavigation,
   parseDevServerPort,
@@ -177,5 +178,114 @@ describe('resolveDevServerPort', () => {
 
   it('`--port=` 空值必须报错，而不是静默变成 NaN', () => {
     expect(() => resolveDevServerPort(['--port='], {})).toThrow(RangeError);
+  });
+});
+
+describe('createWillQuitHandler', () => {
+  /** 造一个只记录 `preventDefault` 调用次数的事件。 */
+  const fakeEvent = (): { preventDefault: () => void; prevented: () => number } => {
+    const preventDefault = vi.fn();
+    return { preventDefault, prevented: () => preventDefault.mock.calls.length };
+  };
+
+  /** 立刻落地的收尾：这些用例只验时序，不关心收尾里做了什么。 */
+  const settledCleanup = (): Promise<void> => Promise.resolve();
+
+  /** 永不落地的收尾：用来把 handler 钉在 'closing' 上观察第二次 will-quit。 */
+  const pendingCleanup = (): Promise<void> => new Promise<void>(() => undefined);
+
+  it('第一次 will-quit 按住退出并启动收尾', () => {
+    const cleanup = vi.fn(settledCleanup);
+    const event = fakeEvent();
+
+    createWillQuitHandler({ cleanup, quit: vi.fn(), defer: vi.fn() })(event);
+
+    expect(event.prevented()).toBe(1);
+    expect(cleanup).toHaveBeenCalledOnce();
+  });
+
+  it('收尾落地之前不退出，落地之后才通过 defer 退出', async () => {
+    const quit = vi.fn();
+    const deferred: Array<() => void> = [];
+    const handler = createWillQuitHandler({
+      cleanup: settledCleanup,
+      quit,
+      defer: task => {
+        deferred.push(task);
+      }
+    });
+
+    handler(fakeEvent());
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(quit, '收尾链还没跑完就退出，等于把 cleanup 白做了').not.toHaveBeenCalled();
+    expect(deferred).toHaveLength(1);
+    deferred[0]?.();
+    expect(quit).toHaveBeenCalledOnce();
+  });
+
+  // 这条是整套用例的核心，对应一次线上 e2e 全红：
+  // Electron 的 `Browser::Quit()` 开头就是 `if (is_quitting_) return;`，而
+  // `is_quitting_ = false` 要等 `will-quit` 的**全部** JS 监听器返回、C++ 侧读到
+  // prevent_default 之后才执行。JS 回调返回时 V8 会立刻排空微任务 —— 此刻仍在那段
+  // C++ 帧里、`is_quitting_` 还是 true，于是在微任务里调 `app.quit()` 是个静默空操作：
+  // 不再有 before-quit / will-quit / quit，进程永远不退。
+  // 表现就是 Playwright 的 `app.close()` 永不落地，最终报
+  // `Worker teardown timeout of 120000ms exceeded`，三个 spec 全红。
+  // 收尾没有任何真实 I/O（会话已被 webContents 'destroyed' 提前释放）时必然踩中。
+  it('默认的 defer 把退出推出当前微任务检查点', async () => {
+    const quit = vi.fn();
+
+    createWillQuitHandler({ cleanup: settledCleanup, quit })(fakeEvent());
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+
+    expect(quit, 'quit 落在微任务里，Electron 会静默忽略它').not.toHaveBeenCalled();
+
+    await new Promise<void>(resolve => setImmediate(resolve));
+    expect(quit).toHaveBeenCalledOnce();
+  });
+
+  it('收尾期间再次 will-quit：继续按住，但不重复收尾', () => {
+    const cleanup = vi.fn(pendingCleanup);
+    const handler = createWillQuitHandler({ cleanup, quit: vi.fn(), defer: vi.fn() });
+    const first = fakeEvent();
+    const second = fakeEvent();
+
+    handler(first);
+    handler(second);
+
+    expect(first.prevented()).toBe(1);
+    expect(second.prevented(), '收尾还没落地，第二次也必须按住').toBe(1);
+    expect(cleanup).toHaveBeenCalledOnce();
+  });
+
+  it('收尾完成后的 will-quit 直接放行', async () => {
+    const handler = createWillQuitHandler({ cleanup: settledCleanup, quit: vi.fn(), defer: task => task() });
+
+    handler(fakeEvent());
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+
+    const again = fakeEvent();
+    handler(again);
+    expect(again.prevented(), '放行的那次不能再 preventDefault，否则退不掉').toBe(0);
+  });
+
+  it('收尾失败照样退出，并把错误交给上报口', async () => {
+    const failure = new Error('closeAll 炸了');
+    const quit = vi.fn();
+    const onError = vi.fn();
+
+    createWillQuitHandler({
+      cleanup: () => Promise.reject(failure),
+      quit,
+      onError,
+      defer: task => task()
+    })(fakeEvent());
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+
+    expect(onError).toHaveBeenCalledWith(failure);
+    expect(quit, '收尾失败也不能把应用卡在退不掉的状态').toHaveBeenCalledOnce();
   });
 });

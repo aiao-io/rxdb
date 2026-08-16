@@ -29,7 +29,7 @@ tags: [security, adapter, encryption, local-first, mvp]
 | 表结构生成是否单点                         | 是，两边 DDL 都走 `PropertyType → column type` 单一 switch                                                                                                                                         | 列类型强制覆写也是单点                                                                           |
 | `saveMany` / `mergeChanges` / `upsertMany` | 最终复用 `transformEntityValueToSql` + `getEntityObjectFromResult`                                                                                                                                 | 不需要给批量路径单独写转换                                                                       |
 | undo/redo 历史快照                         | `packages/rxdb/src/version/HistoryManager.ts` 持有 materialized 实体快照                                                                                                                           | **初版漏列的泄漏面**：内存快照必须存 envelope 而非明文                                           |
-| 系统变更历史表 `rxdb_change`               | `packages/rxdb/src/system/change.ts` 记录的 `patch` / `inversePatch`                                                                                                                               | **初版漏列的严重泄露面**：变更历史中的 JSON patch 必须深层脱敏，对应加密列数据转为 envelope 保存 |
+| 系统变更历史表 `rxdb_change`               | `packages/rxdb/src/system/change.ts` 记录的 `patch` / `inversePatch`                                                                                                                               | **最易漏列的严重泄露面**：变更历史中的 JSON patch 必须深层脱敏，对应加密列数据转为 envelope 保存 |
 | FTS5 / pglite tsvector                     | `packages/rxdb-adapter-sqlite-core/src/fts5/`、`packages/rxdb-adapter-pglite/src/fts/`                                                                                                             | **初版漏列**：加密字段绝不能进 FTS 索引，必须 schema 启动期硬拒                                  |
 
 **收敛后的接入点**：
@@ -159,6 +159,6 @@ tags: [security, adapter, encryption, local-first, mvp]
 ## 参考
 
 - [Epic: 数据同步与协作](../../epics/epic-002-data-sync.md)
-- [README 路线图 · 阶段 2](../../../README.md#阶段-2协作--安全约-812-周)
+- [README 路线图 · 阶段 2](../../../README.md#阶段-2-生产可靠性)
 - OWASP Password Storage Cheat Sheet（PBKDF2 参数）
 - WebCrypto `SubtleCrypto.encrypt({ name: 'AES-GCM', iv })` 规范

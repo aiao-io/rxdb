@@ -27,7 +27,7 @@ INVEST 检查清单:
 **我想要** `rxdb-plugin-storage` 把文件内容写进应用数据目录里的原生文件，而不是 WebView 的 OPFS
 **以便** 文件与桌面 SQLite 数据库（[US-207](../adapter/US-207-desktop-local-database.md)）落在同一个可备份、可迁移的目录里，拷贝应用数据目录即可完整带走 metadata 与文件本体
 
-## 可行性结论（2026-08-15 评审）
+## 可行性结论
 
 结论：**✅ 可行，且改造面收敛**。依据：
 
@@ -38,9 +38,8 @@ INVEST 检查清单:
    枚举。注意「把根句柄换掉、其余服务逻辑（路径锁、回滚 journal、临时文件提交、流式
    落盘）原样保留」**只对 handle shim 案成立**：根句柄之后服务全程直接调用句柄 API
    （`getDirectoryHandle` / `getFileHandle` / `removeEntry` / `createWritable` /
-   `getFile` / `move` / `entries`，2026-08-15 四次评审补全清单），
-   若 plan 阶段选窄接口案，改造面是全部这些调用点（2026-08-15 二次评审修正措辞，
-   避免接缝决策被锚在「换根零改动」的预期上）。
+   `getFile` / `move` / `entries`），
+   若 plan 阶段选窄接口案，改造面是全部这些调用点——接缝决策不能锚在「换根零改动」的预期上。
 2. **host 模式现成。** US-207 已交付 renderer/host 双入口契约与安全基线（窄 preload、
    类型化校验、协议版本、路径白名单）。文件传输是同一模式下的新消息类型，不需要新抽象。
 3. **「Electron 里 OPFS 本来能跑」不构成反例。** Electron renderer 是 Chromium，插件不改
@@ -71,8 +70,8 @@ INVEST 检查清单:
 - 大文件分帧流式传输，保持服务层现有「临时文件 → 提交 → 失败补偿」语义；host 侧写临时
   文件 + `rename` 原子替换
 - `RxdbFileStorage` 现有**全部**公开 API 在桌面后端可用，清单以 `RxdbFileStorage` 类的
-  公开方法面（TS 类型层）为准，不手抄（2026-08-15 评审：手抄清单漏掉了 `createDirectory` /
-  `getMeta` / `init` / `revokeObjectUrl` / `destroy`，其中前两个是功能性方法；二次评审：
+  公开方法面（TS 类型层）为准，**不手抄**（手抄极易漏掉 `createDirectory` /
+  `getMeta` / `init` / `revokeObjectUrl` / `destroy`，其中前两个是功能性方法；
   `requirements/api-baseline/rxdb-plugin-storage.json` 只记录**模块级导出**、不追踪类
   实例方法，不能拿它当这份清单）；AC#2「复跑现有全部行为用例、无跳过项」兜底
 - storage 插件没有三框架绑定包（对照 search 插件的 `rxdb-plugin-search-{angular,react,vue}`），
@@ -93,8 +92,8 @@ INVEST 检查清单:
 - blob 参与远端同步（US-502 已声明 blob 只覆盖单机，不变）
 - 让用户选择存储根位置；存储根恒在应用数据目录内
 - 监听其他进程直接改写存储根产生的变更
-- 收敛三个 web demo 重复实现的 **ZIP 批量下载**落盘逻辑（2026-08-15 评审核实的存量
-  债务，二次评审修正范围：单文件下载三端**均已**调用 `service.download()`，手写
+- 收敛三个 web demo 重复实现的 **ZIP 批量下载**落盘逻辑（存量债务：单文件下载三端**均已**
+  调用 `service.download()`，手写
   `showSaveFilePicker` + `<a download>` 只在 ZIP 批量/文件夹下载路径 ——
   `apps/dev-rxdb-angular/.../storage.page.ts`、`apps/dev-rxdb-react/.../storage.tsx`、
   `apps/dev-rxdb-vue/.../useStorageTransfer.ts` 三份高度雷同，且 zip 路径三端都绕开
@@ -119,20 +118,20 @@ INVEST 检查清单:
 
 > AC#7 的锁归宿是本故事最大的设计决策：`PathLockManager` 现用 Web Locks（按 rootDir
 > 命名空间的同源锁），两个 BrowserWindow 同 origin 同 profile 时成立，但这是对 Chromium
-> 实现的假设而非契约。另注意（2026-08-15 二次评审）：`PathLockManager` 在
+> 实现的假设而非契约。另注意：`PathLockManager` 在
 > `navigator.locks` 缺失时**静默降级为进程内队列**（`path-lock.ts`），该回退在多窗口下
 > 不提供任何互斥且不报错 —— 锁归宿决策必须把它列为不充分项：缺 Web Locks 时要么临界区
 > 下沉 host 侧，要么以可判别错误拒绝多窗口场景，不得静默单进程化（无 fallback 铁律）。
 > plan 阶段必须决定「继续依赖 Web Locks 并用双窗口 e2e 钉住」还是「临界区下沉 host 侧
 > 兜底」；该决策同时约束 [US-505](./US-505-tauri-local-file-storage.md)（WKWebView 的
-> Web Locks 可用性另算）。另注意（2026-08-15 三次评审）：现有 e2e
-> （`desktop-persistence.spec.ts`）只有单窗口用例；且（2026-08-15 四次评审核实）
+> Web Locks 可用性另算）。另注意：现有 e2e
+> （`desktop-persistence.spec.ts`）只有单窗口用例；且
 > `dev-rxdb-electron` demo **结构上不支持**第二个窗口 —— `main.ts` 是单一模块级 `win`
 > 变量，`createWindow()` 仅在 `whenReady` 与 macOS `activate`（守卫 `win === null`）
 > 调用，无任何新建窗口入口。选 Web Locks 路线时，「先给 demo 加多窗口能力」是双窗口
 > e2e 的前置成本，要计入 plan。
 
-## 交付说明（2026-08-15）
+## 交付说明
 
 9 条 AC 全部通过。证据落点：
 
@@ -189,9 +188,8 @@ Windows 上非法或有陷阱。两条路：收窄逻辑名字符集（破坏与
 ### 错误判别载体（plan 阶段冻结）
 
 AC#4 / #6 / #9 中的「稳定可判别错误码」指调用方能以编程方式稳定判别失败原因，不预设
-具体载体：`errors.ts` 现有 9 个错误类均**无 `code` 属性**，包内不存在错误码体系
-（2026-08-15 三次评审核实）。「桌面 host 协议侧也只有 `error` 类响应消息」系三次评审
-**误记**（2026-08-15 四次评审修正）：协议的 error 响应自带
+具体载体：`errors.ts` 现有 9 个错误类均**无 `code` 属性**，包内不存在错误码体系。
+桌面 host 协议侧则相反——协议的 error 响应自带
 `code: RxDBAdapterDesktopErrorCode`（`desktop-host-protocol.ts`），其 TSDoc 言明存在
 理由正是 `ipcRenderer.invoke` 会把 rejection 压成字符串、code 放进返回值才能跨进程
 保持可判别；解包侧经 `isRxDBAdapterDesktopErrorCode` 白名单还原为
@@ -206,19 +204,19 @@ AC（#4 / #8 / #11）跟随本决策，不另订载体。
 
 - 文件消息复用 `@aiao/rxdb-adapter-desktop` 的 host 协议通道与
   `DESKTOP_HOST_PROTOCOL_VERSION` 协商；版本不一致按既有拒绝路径处理 —— 注意
-  （2026-08-15 三次评审核实）该路径是**单向**的：客户端在 open 应答里拒绝异版本
+  该路径是**单向**的：客户端在 open 应答里拒绝异版本
   host（`parseDesktopHostOpenResult`），host 不校验 renderer 声称的版本。文件消息
   沿用此方向即可，但 renderer 不可信侧的兜底是 host 对消息形状的类型化校验与
   AC#4 的路径校验，不是版本协商
 - renderer 入口不得出现 `node:fs` —— 同 US-207 对 `node:sqlite` 的承诺。源码层已有自动
   防线：`packages/rxdb-adapter-desktop/src/__tests__/public-api.spec.ts` 的
-  「keeps every Node builtin behind the host entry」import 图断言，但（2026-08-15
-  三次评审核实）其机制是**从 `src/index.ts` 出发递归跟随静态 `from '...'` import**，
+  「keeps every Node builtin behind the host entry」import 图断言，
+  但其机制是**从 `src/index.ts` 出发递归跟随静态 `from '...'` import**，
   自动覆盖仅限与主入口连边的模块。桌面客户端若按 AC#8 以新**子路径入口**暴露，
   则不与 index.ts 连边、该图走不到它 —— 为 storage 插件补的同型断言必须以每个
   renderer 侧入口（含新增子路径）为图根；side-effect import（`import 'node:fs'`）
   与动态 `import()` 也不被该正则捕获，新增代码避开这两种写法或另加断言；另
-  （2026-08-15 四次评审核实）该遍历遇到 workspace 包 specifier（如
+  该遍历遇到 workspace 包 specifier（如
   `@aiao/rxdb-adapter-desktop`）记录但**不跨包递归** —— storage 客户端经 adapter
   renderer 入口间接可达的 builtin 由 adapter 自己的同型断言把关，两道断言缺一不可。产物层
   （minify / bundle 后）的自动门禁已移除（见 US-207），发布前手工 `pnpm pack`
@@ -234,7 +232,7 @@ AC（#4 / #8 / #11）跟随本决策，不另订载体。
 - metadata 侧无新依赖：桌面场景下 `rxdb.config.sync.local` 应配置桌面 SQLite adapter
   （US-207 已交付）。注意 `ensureLocalReady` 实际只校验 `config.sync.local` 存在并
   `connect()` 成功（严格顺序为 `assertActive()` → `connect()` → 二次 `assertActive()` →
-  `init()`，2026-08-15 四次评审修正：`init()` 在 connect **之后**而非前置；均与 adapter
+  `init()`——`init()` 在 connect **之后**而非前置；均与 adapter
   类型无关），**没有**「adapter 是否本地/桌面」的运行时判别 —— 错配拒绝由 AC#9 承担，
   不能指望 `ensureLocalReady` 把关
 
@@ -246,10 +244,20 @@ AC（#4 / #8 / #11）跟随本决策，不另订载体。
 - `apps/dev-rxdb-electron-e2e/` — AC#1 / #3 的重启与备份恢复 e2e
 - `requirements/api-baseline/` — 新公开 API 基线；新增子路径入口同步 `KNOWN_UNCOVERED_SUBPATHS`
 
+> 本故事已 Done，但上表第二行会被
+> [US-207「包边界重整」](../adapter/US-207-desktop-local-database.md#包边界重整未开工)
+> 改写：`@aiao/rxdb-adapter-desktop` 拆成 `@aiao/rxdb-adapter-electron` 与
+> `@aiao/rxdb-adapter-tauri`，共享协议下沉 `rxdb-adapter-sqlite-core` 子路径。本故事引用的
+> `desktop-file-host.ts` / `desktop-filesystem.spec.ts` / `desktop-failure.spec.ts` /
+> `public-api.spec.ts` 随 Electron 半边迁入新包，**九条 AC 与其证据的内容一字不改，只换路径**；
+> 「renderer 入口零 node 依赖」这条不变式由 US-207 E2 的双入口断言继续守着。搬迁完成后
+> 回来同步本节路径即可，不需要重开验收。
+
 ## References
 
 - [US-502 Storage 插件](./US-502-storage-plugin.md) — 现有 OPFS 实现与 API 承诺
-- [US-207 Electron 连接本地 SQLite 文件](../adapter/US-207-desktop-local-database.md) — host 契约、安全基线、`rxdb-data` 目录命名教训
+- [US-207 Electron 连接本地 SQLite 文件](../adapter/US-207-desktop-local-database.md) — 桌面本地 SQLite 的 Electron 半边；host 契约、安全基线、`rxdb-data` 目录命名教训
+- [US-210 Tauri 连接应用作用域 SQLite 文件](../adapter/US-210-tauri-sqlite-local-database.md) — 桌面本地 SQLite 的 Tauri 半边；本故事不覆盖
 - [US-505 Tauri 本地文件存储](./US-505-tauri-local-file-storage.md) — 复用本故事接缝的 Tauri 半边
 - [US-601 子路径入口纳入 API 表面基线](../tooling/US-601-subpath-api-surface-baseline.md) — AC#8 的登记流程
 - [Electron Security](https://www.electronjs.org/docs/latest/tutorial/security)

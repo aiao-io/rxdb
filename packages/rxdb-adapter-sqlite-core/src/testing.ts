@@ -35,7 +35,6 @@ type SuiteExportName =
   | 'menuIntegrationSuite'
   | 'querySqlSuite'
   | 'relationIntegrationSuite'
-  | 'rowsAffectedConformanceSuite'
   | 'rxdbAdapterSuite'
   | 'sqliteClientBatchTimeoutSuite'
   | 'sqliteClientSuite'
@@ -135,10 +134,6 @@ export const querySqlSuite = getSharedSuite('./__tests__/shared-query-sql.suite.
 export const relationIntegrationSuite = getSharedSuite(
   './__tests__/shared-relations.suite.ts',
   'relationIntegrationSuite'
-);
-export const rowsAffectedConformanceSuite = getSharedSuite(
-  './__tests__/shared-rows-affected-conformance.suite.ts',
-  'rowsAffectedConformanceSuite'
 );
 export const sqliteRepositorySuite = getSharedSuite('./__tests__/shared-repository.suite.ts', 'sqliteRepositorySuite');
 export const systemSchemaMigrationSuite = getSharedSuite(

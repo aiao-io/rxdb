@@ -90,7 +90,7 @@ const uniqueDbName = (): string => `tauri-test-${Date.now()}-${Math.random().toS
  *
  * @remarks
  * 加密套件用它断言「解锁后重复读走的是缓存而不是又一次往返」这类性质，计数必须落在
- * **适配器**层而不是宿主层：宿主还会看到系统 schema 初始化、writer lease 心跳这些
+ * **适配器**层而不是宿主层：宿主还会看到系统 schema 初始化这些
  * 与被测行为无关的往返。
  */
 class QueryCountingRustAdapter extends RxDBAdapterDesktop {

@@ -72,13 +72,27 @@ rxdb.adapter(
 `@aiao/rxdb-plugin-search` 依赖 FTS5，**只兼容此适配器**：
 
 ```typescript
-import { createRxDatabase } from '@aiao/rxdb';
+import { RxDB, SyncType } from '@aiao/rxdb';
+import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 
-const db = await createRxDatabase({
-  adapter,
-  plugins: [rxDBPluginSearch()]
+const rxdb = new RxDB({
+  dbName: 'demo',
+  entities: [Todo],
+  sync: { local: { adapter: 'sqlite-wasm' }, type: SyncType.None }
 });
+
+rxdb.adapter(
+  'sqlite-wasm',
+  async db =>
+    new RxDBAdapterSqlite(db, {
+      vfs: 'idb',
+      wasmUrl: new URL('@subframe7536/sqlite-wasm/wasm-async', import.meta.url).href
+    })
+);
+
+rxdb.use(rxDBPluginSearch);
+await rxdb.connect('sqlite-wasm');
 ```
 
 ## Vite 配置

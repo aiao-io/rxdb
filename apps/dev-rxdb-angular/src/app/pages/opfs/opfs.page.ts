@@ -244,6 +244,9 @@ export default class OpfsPage implements OnInit, OnDestroy {
     this.fileInputRef = document.createElement('input');
     this.fileInputRef.type = 'file';
     this.fileInputRef.multiple = true;
+    // e2e 直接 setInputFiles 到这个隐藏 input 上（真实的系统文件选择框驱动不了）。
+    // testid 与 react / vue 两端保持同名，三份 opfs.spec.ts 才能共用同一套选择器。
+    this.fileInputRef.dataset['testid'] = 'opfs-file-input';
     this.fileInputRef.style.display = 'none';
     document.body.appendChild(this.fileInputRef);
     this.fileInputRef.addEventListener('change', this.handleFileInputChange, listenerOptions);

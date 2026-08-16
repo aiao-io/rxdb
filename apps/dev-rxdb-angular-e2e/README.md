@@ -38,12 +38,14 @@ pnpm exec playwright test --grep "Todo"    # 按用例名过滤
 pnpm exec playwright test --ui             # 调试
 ```
 
-`webServer` 用 `nx run dev-rxdb-angular:serve-e2e` 服务**构建产物**而不是 dev server ——
-这样本地与 CI 跑的是同一份东西。`serve-e2e` 与 `serve-static` 的唯一区别是**不带 `buildTarget`**：
-产物由 `e2e` target 的 `dependsOn: ["dev-rxdb-angular:build"]` 保证，webServer 里再建一次只会多起
+`webServer` 直接 `node scripts/e2e-static-server.mjs` 服务**构建产物**，而不是
+`nx run …:serve-e2e` / `serve-static`。后者会把真正监听 8200 的 http-server
+spawn 成脱离进程组的孙子进程，Playwright teardown 只杀得掉 nx/pnpm 包装层，
+下次 e2e 就会报 “port 8200 already used”。产物由 `e2e` target 的
+`dependsOn: ["dev-rxdb-angular:build"]` 保证；webServer 里再建一次只会多起
 一个 `NX_DAEMON=false`、与外层 nx 互不协调的 nx 进程，和并行跑的其它 e2e 抢同一份
 `packages/*/dist`（vite `emptyOutDir` 撞上另一进程的写入 → `ENOTEMPTY`，即 `rxdb-test:build`
-被标记 flaky 的根因）。
+被标记 flaky 的根因）。端口必须保持 8200：应用用它强制 IDB + e2e DB 隔离。
 
 ## 配置要点（以 `playwright.config.ts` 为准，不在这里复述数值）
 

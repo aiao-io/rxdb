@@ -12,7 +12,7 @@ npm install @aiao/rxdb @aiao/rxdb-angular
 
 ### 提供 RxDB 实例
 
-使用 `provideRxDB` 在应用或模块级别提供 RxDB 实例：
+使用 `provideRxDB` 在应用或模块级别提供 RxDB 实例。参数是**工厂函数**（不是实例），工厂在注入上下文中执行：
 
 ```typescript
 import { ApplicationConfig } from '@angular/core';
@@ -20,20 +20,21 @@ import { provideRxDB } from '@aiao/rxdb-angular';
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { Todo } from './entities/Todo';
 
-// 创建 RxDB 实例
-const rxdb = new RxDB({
-  dbName: 'myapp',
-  entities: [Todo],
-  sync: { type: SyncType.None, local: { adapter: 'wa-sqlite' } }
-});
-
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideRxDB(rxdb)
-    // 其他 providers
+    provideRxDB(() => {
+      const rxdb = new RxDB({
+        dbName: 'myapp',
+        entities: [Todo],
+        sync: { type: SyncType.None, local: { adapter: 'wa-sqlite' } }
+      });
+      return rxdb;
+    })
   ]
 };
 ```
+
+组件里用 `inject(RxDB)` 取同一个实例；`useGet` / `useFind` 会自己注入，不必再包一层服务。
 
 ## Hooks API
 

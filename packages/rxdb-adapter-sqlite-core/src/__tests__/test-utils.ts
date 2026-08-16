@@ -1,4 +1,3 @@
-import { RXDB_UPGRADE_GUARD_TABLE_NAME, RXDB_WRITER_LEASE_TABLE_NAME } from '@aiao/rxdb';
 import { expectObservableSequence } from '@aiao/rxdb-test';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { quote_sql_identifier } from '../sqlite-core.utils.js';
@@ -7,15 +6,6 @@ import { generateSwitchBranchSql } from '../version/switch_branch.js';
 
 /** fts5 为每张虚拟表生成的影子表后缀 */
 const FTS5_SHADOW_SUFFIXES = ['_data', '_idx', '_content', '_docsize', '_config'] as const;
-
-/**
- * writer lease 协议表：持久化 across 整个测试文件的 writer epoch，一旦被清空即永久 fenced。
- * 必须与 {@link RxDBAdapterSqliteBase} 内部的表名拼接规则（`rxdb$${name}`）保持一致。
- */
-const WRITER_LEASE_PROTOCOL_TABLES = new Set([
-  `rxdb$${RXDB_UPGRADE_GUARD_TABLE_NAME}`,
-  `rxdb$${RXDB_WRITER_LEASE_TABLE_NAME}`
-]);
 
 /**
  * 把表名分成「虚拟表」「影子表」「普通表」三类。
@@ -39,9 +29,7 @@ const classifyTables = (rows: readonly (readonly unknown[])[]) => {
   );
   return {
     virtualTables,
-    plainTables: allNames.filter(
-      name => !shadowNames.has(name) && !virtualTables.includes(name) && !WRITER_LEASE_PROTOCOL_TABLES.has(name)
-    )
+    plainTables: allNames.filter(name => !shadowNames.has(name) && !virtualTables.includes(name))
   };
 };
 

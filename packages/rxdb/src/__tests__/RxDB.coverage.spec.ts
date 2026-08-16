@@ -366,6 +366,8 @@ describe('RxDB coverage', () => {
       synchronousInstallFailure
     );
 
+    await expect(database.connect('local')).rejects.toBe(installFailure);
+
     await disposeDatabase(database);
 
     expect(consoleError).toHaveBeenCalledWith("[RxDB] Plugin 'asyncCoverage' destroy failed:", destroyFailure);
@@ -407,6 +409,45 @@ describe('RxDB coverage', () => {
 
     expect(() => database.use(factory)).not.toThrow();
     expect(consoleError).toHaveBeenCalledWith("[RxDB] Plugin 'lateFailure' install failed:", installFailure);
+    await expect(database.connect('local')).rejects.toBe(installFailure);
+
+    await disposeDatabase(database);
+  });
+
+  /**
+   * 插件安装失败后的重试路径：**必须先断开**。
+   *
+   * 裸 `connect()` 重试拿到的是同一个 rejected promise，不会重跑 `install()` ——
+   * `install()` 没有幂等契约（搜索插件可能已经建了一半 FTS 表），在半成品上再跑一遍
+   * 只会让第二次的报错盖掉第一次的真实原因。`disconnectAll()` 先 `destroy()` 掉插件
+   * 再清空安装记录，重装才有干净的起点。
+   */
+  it('connect() 在插件安装失败后经断开重试', async () => {
+    let shouldFail = true;
+    const transient = new Error('transient install failed');
+    const plugin = {
+      name: 'retryCoverage' as const,
+      install: vi.fn(async () => {
+        if (shouldFail) throw transient;
+      }),
+      destroy: vi.fn()
+    };
+    const factory: Plugin = vi.fn(() => plugin);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const database = createDatabase();
+    database.use(factory);
+
+    await expect(database.connect('local')).rejects.toBe(transient);
+    expect(plugin.install).toHaveBeenCalledTimes(1);
+
+    shouldFail = false;
+    // 没断开就重连：错误原样重放，install() 不再被调用
+    await expect(database.connect('local')).rejects.toBe(transient);
+    expect(plugin.install).toHaveBeenCalledTimes(1);
+
+    await database.disconnectAll();
+    await expect(database.connect('local')).resolves.toBeDefined();
+    expect(plugin.install).toHaveBeenCalledTimes(2);
 
     await disposeDatabase(database);
   });

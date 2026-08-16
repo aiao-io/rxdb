@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { createMessage } from '../../types.js';
-import type { AnyDevToolsMessage } from '../../types.js';
 import { createFakeClock } from '../../testing/fake-clock.js';
+import type { AnyDevToolsMessage } from '../../types.js';
+import { createMessage } from '../../types.js';
 import { DEVTOOLS_PROTOCOL_VERSION_V2 } from '../../v2/constants.js';
 import { isCanonicalUuidV4 } from '../../v2/ids.js';
-import { createDevToolsV2Message, isDevToolsV2Message } from '../../v2/wire.js';
-import { createConnectorNegotiation } from '../../v2/negotiation-connector.js';
 import type { DevToolsConnectorNegotiationMessage } from '../../v2/negotiation-connector.js';
+import { createConnectorNegotiation } from '../../v2/negotiation-connector.js';
+import { createDevToolsV2Message, isDevToolsV2Message } from '../../v2/wire.js';
 
 const OTHER_SESSION_ID = 'b3d9e7c1-4a52-4e08-8f6b-1c0d5a2739e4';
 

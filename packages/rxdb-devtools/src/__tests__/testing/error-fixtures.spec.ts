@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEVTOOLS_ERROR_MAPPING_FIXTURES } from '../../testing/error-fixtures.js';
-import { DEVTOOLS_MAPPABLE_ERROR_CODES, mapPlatformError } from '../../v2/error-mapping.js';
 import type { DevToolsErrorOrigin } from '../../v2/error-mapping.js';
+import { DEVTOOLS_MAPPABLE_ERROR_CODES, mapPlatformError } from '../../v2/error-mapping.js';
 import { DEVTOOLS_PROVIDER_ERROR_CODES } from '../../v2/errors.js';
 
 const ORIGINS: readonly DevToolsErrorOrigin[] = ['dom', 'node', 'rust'];
@@ -13,7 +13,7 @@ describe('provider error union exhaustiveness', () => {
   it('MUST give every provider error code at least one known origin', () => {
     const covered = new Set(DEVTOOLS_ERROR_MAPPING_FIXTURES.map(fixture => fixture.expected));
 
-    // 这条断言是 US-904b 对「穷尽性无法被普通测试证明」的缓解：新增码必须**加行**。
+    // 这条断言是 US-904 阶段 B 对「穷尽性无法被普通测试证明」的缓解：新增码必须**加行**。
     expect([...DEVTOOLS_PROVIDER_ERROR_CODES].filter(code => !covered.has(code))).toEqual([]);
   });
 

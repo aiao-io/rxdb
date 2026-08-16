@@ -5,14 +5,20 @@ on:
     branches:
       - main
 
+# 与 pr.yml 同一份最小权限。id-token 只是给被调用 workflow 的**上限**：
+# ci-template.yml 里只有 coverage job 声明它（Codecov OIDC），其余 job 拿不到。
 permissions:
   actions: read
   contents: read
   id-token: write
 
+# cancel-in-progress 必须是 false：group 里的 ref 在 main 上恒等于 refs/heads/main，
+# 开着的话连续两次推送会把前一次**取消掉**，于是那个 commit 在 GitHub 上永远停在
+# 「已取消」——既没有绿也没有红。想二分定位一次回归时，历史上会有一串空洞。
+# PR 上则相反：新 push 意味着旧 commit 的结论已经没人关心了，那边保持 true。
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   # 全量跑（run-many），不走 affected —— main 上的绿必须代表整仓都过。

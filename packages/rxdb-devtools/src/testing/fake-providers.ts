@@ -19,19 +19,19 @@
  * @module @aiao/rxdb-devtools/testing/fake-providers
  */
 
-import { DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES } from '../v2/constants.js';
-import { createProviderError, mapPlatformError } from '../v2/error-mapping.js';
-import type { DevToolsErrorOrigin } from '../v2/error-mapping.js';
-import type { DevToolsProviderErrorCode } from '../v2/errors.js';
-import { isRecord } from '../v2/guards.js';
-import { DEVTOOLS_PROVIDER_DOMAINS, DEVTOOLS_PROVIDER_OPERATIONS } from '../provider/descriptor.js';
 import type {
   DevToolsProviderDescriptor,
   DevToolsProviderDomain,
   DevToolsProviderKind,
   DevToolsProviderRuntime
 } from '../provider/descriptor.js';
+import { DEVTOOLS_PROVIDER_DOMAINS, DEVTOOLS_PROVIDER_OPERATIONS } from '../provider/descriptor.js';
 import type { DevToolsChunkSink, DevToolsProvider, DevToolsProviderResult } from '../provider/types.js';
+import { DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES } from '../v2/constants.js';
+import type { DevToolsErrorOrigin } from '../v2/error-mapping.js';
+import { createProviderError, mapPlatformError } from '../v2/error-mapping.js';
+import type { DevToolsProviderErrorCode } from '../v2/errors.js';
+import { isRecord } from '../v2/guards.js';
 import type { DevToolsProviderProbe } from './driver.js';
 
 /** 注入给某个操作的平台失败。 */

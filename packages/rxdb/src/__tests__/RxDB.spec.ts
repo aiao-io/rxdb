@@ -132,6 +132,23 @@ class RebindChild extends EntityBase {
   parentId!: string;
 }
 
+@Entity({
+  name: 'ConnectInitUser',
+  properties: [{ name: 'name', type: PropertyType.string }]
+})
+class ConnectInitUser extends EntityBase {
+  name!: string;
+}
+
+@Entity({
+  name: 'ConnectInitBrokenEntity',
+  repository: 'MissingConnectRepository',
+  properties: [{ name: 'name', type: PropertyType.string }]
+})
+class ConnectInitBrokenEntity extends EntityBase {
+  name!: string;
+}
+
 describe('RxDB', () => {
   let rxdbOptions: RxDBOptions;
   let rxdb: RxDB;
@@ -426,6 +443,126 @@ describe('RxDB', () => {
       await rxdb.connect('connect-test');
 
       expect(mockAdapterInstance.connect).toHaveBeenCalled();
+    });
+
+    it('connect() 返回后即可 new Entity()，不得等微任务才 bind manager', async () => {
+      const localRxdb = new RxDB({
+        dbName: 'connect-sync-init',
+        entities: [ConnectInitUser] as EntityType[],
+        sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
+      });
+      const mockAdapterInstance = createMockAdapter();
+      localRxdb.adapter('sqlite', () => mockAdapterInstance);
+
+      const connecting = localRxdb.connect('sqlite');
+      expect(() => {
+        const user = new ConnectInitUser();
+        user.name = 'issued-during-connect';
+      }).not.toThrow();
+
+      await expect(connecting).resolves.toBe(mockAdapterInstance);
+    });
+
+    it('插件 install 同步回呼 connect() 必须命中同一条 in-flight Promise', async () => {
+      const localRxdb = new RxDB({
+        dbName: 'connect-plugin-reenter',
+        entities: [ConnectInitUser] as EntityType[],
+        sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
+      });
+      const mockAdapterInstance = createMockAdapter();
+      localRxdb.adapter('sqlite', () => mockAdapterInstance);
+
+      const seen: Promise<IRxDBAdapter>[] = [];
+      localRxdb.use(() => ({
+        name: 'reentrantConnect' as const,
+        install: () => {
+          seen.push(localRxdb.connect('sqlite'));
+        },
+        destroy: vi.fn()
+      }));
+
+      const connecting = localRxdb.connect('sqlite');
+      expect(seen).toHaveLength(1);
+      await expect(Promise.all([connecting, seen[0]])).resolves.toEqual([mockAdapterInstance, mockAdapterInstance]);
+      expect(mockAdapterInstance.connect).toHaveBeenCalledTimes(1);
+    });
+
+    it('connect() 期间 init() 失败应拒绝同一条 Promise，修复后可重试', async () => {
+      const localRxdb = new RxDB({
+        dbName: 'connect-init-retry',
+        entities: [ConnectInitBrokenEntity] as EntityType[],
+        sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
+      });
+      const mockAdapterInstance = createMockAdapter();
+      localRxdb.adapter('sqlite', () => mockAdapterInstance);
+
+      await expect(localRxdb.connect('sqlite')).rejects.toThrow(
+        "Repository 'MissingConnectRepository' not found for entity 'ConnectInitBrokenEntity'"
+      );
+      expect(mockAdapterInstance.connect).not.toHaveBeenCalled();
+
+      localRxdb.repository('MissingConnectRepository', localRxdb.getRepositoryConfig('Repository')!);
+      await expect(localRxdb.connect('sqlite')).resolves.toBe(mockAdapterInstance);
+      expect(typeof new ConnectInitBrokenEntity().save).toBe('function');
+    });
+
+    it('connect() 返回当拍即可 new Entity()，插件同步重入必须命中同一条连接', async () => {
+      @Entity({
+        name: 'ConnectSyncUser',
+        properties: [{ name: 'name', type: PropertyType.string }]
+      })
+      class ConnectSyncUser extends EntityBase {
+        name!: string;
+      }
+
+      const adapter = createMockAdapter();
+      const localRxdb = new RxDB({
+        dbName: 'connect-sync-init',
+        entities: [ConnectSyncUser] as EntityType[],
+        sync: {
+          local: { adapter: 'sqlite' },
+          type: SyncType.None
+        }
+      });
+      localRxdb.adapter('sqlite', () => adapter);
+
+      const reentered: Promise<IRxDBAdapter>[] = [];
+      localRxdb.use(() => ({
+        name: 'reenterConnect',
+        install: () => {
+          reentered.push(localRxdb.connect('sqlite'));
+        },
+        destroy: async () => undefined
+      }));
+
+      const connecting = localRxdb.connect('sqlite');
+      expect(() => new ConnectSyncUser()).not.toThrow();
+      expect(reentered).toHaveLength(1);
+
+      const [fromCaller, fromPlugin] = await Promise.all([connecting, reentered[0]]);
+      expect(fromCaller).toBe(adapter);
+      expect(fromPlugin).toBe(adapter);
+      expect(adapter.connect).toHaveBeenCalledTimes(1);
+
+      await localRxdb.disconnectAll();
+    });
+
+    it('connect() 触发的 init 失败应拒绝 Promise，而不是同步抛出', async () => {
+      const invalidRxdb = new RxDB({
+        dbName: 'connect-init-failure',
+        entities: [BrokenRepositoryEntity] as EntityType[],
+        sync: {
+          local: { adapter: 'sqlite' },
+          type: SyncType.None
+        }
+      });
+      invalidRxdb.adapter('sqlite', createMockAdapter);
+
+      const connecting = invalidRxdb.connect('sqlite');
+      expect(connecting).toBeInstanceOf(Promise);
+      await expect(connecting).rejects.toThrow(
+        "Repository 'MissingRepository' not found for entity 'BrokenRepositoryEntity'"
+      );
     });
 
     it('应该在连接时跳过表创建（已存在数据库）', async () => {

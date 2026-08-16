@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { createMessage } from '../../types.js';
-import type { AnyDevToolsMessage } from '../../types.js';
 import { createFakeClock } from '../../testing/fake-clock.js';
+import type { AnyDevToolsMessage } from '../../types.js';
+import { createMessage } from '../../types.js';
 import { DEVTOOLS_NEGOTIATION_WINDOW_MS, DEVTOOLS_PROTOCOL_VERSION_V2 } from '../../v2/constants.js';
-import { createDevToolsV2Message } from '../../v2/wire.js';
-import type { DevToolsV2Message } from '../../v2/wire.js';
-import { createPanelNegotiation } from '../../v2/negotiation-panel.js';
 import type { DevToolsPanelNegotiationMessage } from '../../v2/negotiation-panel.js';
+import { createPanelNegotiation } from '../../v2/negotiation-panel.js';
+import type { DevToolsV2Message } from '../../v2/wire.js';
+import { createDevToolsV2Message } from '../../v2/wire.js';
 
 const SESSION_ID = '2f1c8a4e-6b0d-4f37-9c25-7ae3b8140d6f';
 const OTHER_SESSION_ID = 'b3d9e7c1-4a52-4e08-8f6b-1c0d5a2739e4';
@@ -231,7 +231,10 @@ describe('panel negotiation', () => {
     panel.receive(
       createDevToolsV2Message(
         'ERROR',
-        { requestId: null, error: { code: 'protocol_unsupported', retryable: false, message: 'supported versions: 3' } },
+        {
+          requestId: null,
+          error: { code: 'protocol_unsupported', retryable: false, message: 'supported versions: 3' }
+        },
         { sessionId: SESSION_ID, sequence: 1, timestamp: 1 }
       )
     );
@@ -249,9 +252,7 @@ describe('panel negotiation', () => {
     const { panel } = setup();
     panel.start();
     panel.receive(v2Handshake());
-    panel.receive(
-      createDevToolsV2Message('PONG', null, { sessionId: SESSION_ID, sequence: 3, timestamp: 1 })
-    );
+    panel.receive(createDevToolsV2Message('PONG', null, { sessionId: SESSION_ID, sequence: 3, timestamp: 1 }));
 
     expect(panel.rejectedFrames).toBe(0);
     expect(panel.state).toBe('v2');

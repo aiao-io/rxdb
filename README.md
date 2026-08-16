@@ -4,7 +4,7 @@
 
 [![codecov](https://codecov.io/gh/aiao-io/rxdb/graph/badge.svg?token=VJW8U2PNBG)](https://codecov.io/gh/aiao-io/rxdb)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![User Stories](https://img.shields.io/badge/User_Stories-32%2F37_Done-green)](requirements/status-overview.md)
+[![User Stories](https://img.shields.io/badge/User_Stories-35%2F61_Done-green)](requirements/status-overview.md)
 
 </div>
 
@@ -35,7 +35,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri        |
 
 > [!NOTE]
-> ⚠️ 核心 MVP 已完成（[32/37 stories](requirements/status-overview.md)），当前处于 1.0 发布冲刺阶段。API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。
+> ⚠️ 核心 MVP 已完成（[35/61 stories](requirements/status-overview.md)），当前处于 1.0 发布冲刺阶段。API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。
 
 ## RxDB 解决什么问题？
 
@@ -193,7 +193,7 @@ aiao/
 
 ## 当前进展
 
-32/46 个 story 已交付。核心引擎、七种本地存储适配器、三框架集成、插件体系和协作能力均已就绪。
+34/50 个 story 已交付（口径见 [status-overview](requirements/status-overview.md)）。核心引擎、七种本地存储适配器、三框架集成、插件体系和协作能力均已就绪。
 
 ### 已验证场景
 
@@ -204,8 +204,7 @@ aiao/
 
 ### 进行中
 
-- 🚧 **Writer lease 与迁移 fencing**（[US-304](requirements/stories/collaboration/US-304-writer-lease-migration-fencing.md)）— 跨 Tab / Worker / 进程的安全迁移协议，防止旧连接在升级后写入不兼容格式
-- 🚧 **桌面本地数据库**（[US-207](requirements/stories/adapter/US-207-desktop-local-database.md)）— Electron 主进程持有 `node:sqlite` 文件，适配器与主进程 host 已落地（含多窗口 writer lease），剩余加密字段覆盖与三平台打包矩阵
+- 🚧 **桌面本地数据库**（[US-207](requirements/stories/adapter/US-207-desktop-local-database.md)）— Electron 主进程持有 `node:sqlite` 文件，适配器与主进程 host 已落地（含多窗口写锁退避重试），剩余加密字段覆盖与三平台打包矩阵
 
 ### 待办
 
@@ -222,7 +221,6 @@ aiao/
 
 将已完成能力推到稳定可发版状态。阻塞项：
 
-- 🚧 **US-304** writer lease：跨 realm 安全迁移的最后一道门禁
 - ⬜ **US-012** 字段语义元数据：统一前端 DTO 与校验契约
 - **API 冻结**：核心 / 适配器 / 框架集成锁定对外类型，进入 semver
 - **覆盖率门禁**：核心包 ≥ 90%，其余 ≥ 80%（已接入 CI，棘轮式推进）

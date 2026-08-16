@@ -64,7 +64,7 @@ interface BenchmarkHarness {
 
 async function createHarness(): Promise<BenchmarkHarness> {
   const rxdb = new RxDB({
-    dbName: `search-benchmark-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    dbName: `benchmark-db-run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     entities: [Article, Comment],
     sync: {
       local: { adapter: 'sqlite-wasm' },

@@ -1,0 +1,95 @@
+# Dependabot 配置
+#
+# 引入它的直接原因：所有 action 现在都钉在 commit SHA 上（见 ci-template.yml 头注释）。
+# SHA 钉死解决了供应链问题，但也让「上游发了安全修复」变成了纯人工活 —— tag 会
+# 悄悄指向新提交，SHA 不会。Dependabot 是这套写法唯一可行的更新机制：它认得
+# `uses: owner/repo@<sha> # v6` 这种写法，会把 SHA 和后面的注释一起改。
+#
+# 换句话说：**删掉这个文件，SHA 钉死就从「安全」变成「永久停在旧版本」。**
+
+# commit-message.prefix 全都写成 `chore(aiao)`，Dependabot 会补上 `: ` 得到
+# `chore(aiao): Bump the actions group with 3 updates` —— 正好满足 setup job 里的
+# PR 标题门禁（scripts/commit-lint.mjs）。
+# ⚠️ 千万别加 `include: "scope"`：那会产出 `chore(aiao)(deps): …`，双层括号
+# 直接被门禁拒掉，于是每个 Dependabot PR 都红着、没人能合，功能等于自废。
+
+version: 2
+
+updates:
+  # ---------------------------------------------------------------------------
+  # GitHub Actions
+  #
+  # 必须逐个列出 composite action 的目录：`directory: "/"` 只覆盖
+  # `.github/workflows/`，不会去看 `.github/actions/*/action.yml`。
+  # 而恰恰是那几个 composite action 里藏着 checkout / cache / setup-node。
+  # 新增 composite action 时**必须**在这里补一行，否则它会被静默漏掉。
+  - package-ecosystem: github-actions
+    directories:
+      - '/'
+      - '/.github/actions/setup-workspace'
+      - '/.github/actions/nx-cache-restore'
+      - '/.github/actions/playwright-chromium'
+      - '/.github/actions/supabase'
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+    # 合成一个 PR：这些 action 几乎总是一起动（actions/* 同批发版），
+    # 拆成 8 个 PR 只会让每个都要单独跑一遍完整 CI。
+    groups:
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: 'chore(aiao)'
+    labels: ['dependencies', 'github-actions']
+
+  # ---------------------------------------------------------------------------
+  # npm / pnpm workspace
+  #
+  # 只开安全更新以外的**分组**升级，且限制并发 PR 数：这是个 40+ 包的 workspace，
+  # 不分组的话每周会开出几十个 PR，每个都要占一轮完整 CI 的额度，
+  # 结果就是没人看、堆积、最后整个功能被关掉。
+  #
+  # 注意 open-pull-requests-limit 不影响**安全更新**（security advisories 触发的
+  # PR 不受此限），所以调低它不会漏掉 CVE 修复。
+  - package-ecosystem: npm
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+    open-pull-requests-limit: 5
+    groups:
+      # 框架主版本升级会牵动三端绑定包的 peerDependencies，必须一起看。
+      frameworks:
+        patterns: ['@angular/*', '@angular-devkit/*', 'react', 'react-dom', '@types/react*', 'vue', '@vue/*']
+      # 构建/测试工具链同理：nx 与它的插件版本必须严格对齐。
+      toolchain:
+        patterns: ['nx', '@nx/*', 'typescript', 'vite', 'vitest', '@vitest/*', '@playwright/*', 'playwright']
+      # 其余的按 minor/patch 合成一个，major 单独开 PR（大概率要改代码）。
+      minor-and-patch:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
+    commit-message:
+      prefix: 'chore(aiao)'
+    labels: ['dependencies']
+
+  # ---------------------------------------------------------------------------
+  # Cargo（Tauri 外壳）
+  #
+  # 这块代码在 CI 里只有 clippy + cargo test 把关，没有任何依赖告警来源 ——
+  # RUSTSEC 公告不会自己走到面前。
+  - package-ecosystem: cargo
+    directory: '/apps/dev-rxdb-tauri/src-tauri'
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+    open-pull-requests-limit: 3
+    groups:
+      cargo:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
+    commit-message:
+      prefix: 'chore(aiao)'
+    labels: ['dependencies', 'rust']

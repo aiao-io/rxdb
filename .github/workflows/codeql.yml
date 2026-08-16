@@ -1,0 +1,82 @@
+name: CodeQL
+
+# 静态安全扫描。与 ci-template.yml 完全解耦：它**不**挂在 `ci / gate` 上，
+# 因此不会拖慢合并；结果进 Security → Code scanning，由分支保护另行决定是否强制。
+#
+# 扫两种语言，各自的理由不同：
+#
+#   actions               扫 workflow 与 composite action 本身。这个仓库刚把
+#                         `${{ github.event.pull_request.title }}` 从 `run:` 里挪进
+#                         `env:`（不挪的话一个反引号就是 runner 上的任意命令执行）。
+#                         那类问题是人肉发现的 —— 这条 query 组的存在意义就是
+#                         下次别再靠人肉。
+#
+#   javascript-typescript 扫 packages/ 下所有**要发到 npm 上**的源码。
+#                         这里的代码会跑在使用者的浏览器和 Node 进程里，
+#                         注入类缺陷的影响半径不止本仓库。
+#
+# 故意**没有** rust：apps/dev-rxdb-tauri/src-tauri 已经有 cargo-clippy + cargo-test
+# 两道门禁（见 ci-template.yml 的 rust job），而且那是个只做窗口壳的薄层。
+# 想加的话在 matrix 里补 `{language: rust, build-mode: none}` 即可 —— 但请先确认
+# 它在本仓库能跑绿，别为了「覆盖全语言」换来一条常红的流水线。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # 周一 05:47 UTC。避开整点：所有人都写 `0 5 * * 1`，GitHub 的排队会把
+    # 整点任务推迟几十分钟。分钟数取个零头，实际起跑反而更准时。
+    - cron: '47 5 * * 1'
+
+# 默认只读；写权限精确到用得上的那个 job。
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      # 上传 SARIF 结果所必需。
+      security-events: write
+      # CodeQL 要读 Actions 的 run 信息来关联结果。
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: actions
+            build-mode: none
+          - language: javascript-typescript
+            build-mode: none
+
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          filter: tree:0
+
+      # 不跑 pnpm install：build-mode 是 none，CodeQL 直接从源码建库。
+      # 装依赖只会让 node_modules 里几万个第三方文件进入抽取范围，
+      # 换来的是几十分钟耗时和一堆不属于本仓库的告警。
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          # security-extended 比默认套件多一档精度较低但覆盖更广的 query。
+          # 对一个「以前完全没扫过」的仓库，先看广度更有价值；
+          # 噪音大到影响使用时再退回 security-and-quality 或默认。
+          queries: security-extended
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
+        with:
+          category: /language:${{ matrix.language }}

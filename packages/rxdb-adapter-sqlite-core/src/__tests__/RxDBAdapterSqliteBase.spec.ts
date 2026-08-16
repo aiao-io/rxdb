@@ -422,6 +422,21 @@ describe('RxDBAdapterSqliteBase', () => {
 
       await expect(adapter.bootstrapTransaction(async tx => tx.execute('SELECT 1'), false)).resolves.toBeDefined();
     });
+
+    it('connect 未完成时 rawQuery 不得再等 RxDB.connect()（插件 install 窗口）', async () => {
+      const rxdb = createRxdbMock();
+      vi.mocked(rxdb.connect).mockReturnValue(new Promise<never>(() => undefined) as never);
+      const client = createClient();
+      const adapter = new TestAdapter(rxdb, () => client);
+
+      await adapter.connect();
+
+      await expect(adapter.rawQuery('SELECT 1')).resolves.toEqual({
+        rowsAffected: 0,
+        rows: [],
+        columns: []
+      });
+    });
   });
 
   describe('仓库注册与获取', () => {
@@ -474,7 +489,7 @@ describe('RxDBAdapterSqliteBase', () => {
       expect(client.execute).toHaveBeenCalledWith(expect.stringContaining('sqlite_master'), ['public$todos']);
     });
 
-    it('createTables 在单一事务中执行建表与 writer protocol SQL', async () => {
+    it('createTables 在单一事务中执行建表与 trigger SQL', async () => {
       const client = createClient();
       const adapter = new TestAdapter(createRxdbMock(), () => client);
 
@@ -485,7 +500,6 @@ describe('RxDBAdapterSqliteBase', () => {
       expect(sqls[1]).toContain('CREATE TABLE');
       expect(sqls[1]).toContain('"public$todos"');
       expect(sqls[1]).toContain('CREATE TRIGGER');
-      expect(sqls).toContainEqual(expect.stringContaining('rxdb_writer_lease'));
       expect(sqls.at(-1)).toContain('COMMIT');
     });
 

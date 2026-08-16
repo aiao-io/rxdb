@@ -10,8 +10,8 @@
 //!
 //! - 切分不用增量调 `sqlite3_complete()`：它只对整串返回一个布尔，要切位置就得对每个前缀
 //!   调一次，O(n²) 且每次都要新建一个 `CString`。状态机移植过来是同一份判据，还便宜。
-//! - 只读判定不用 `Statement::readonly()`：它比正则**更准**，而共享套件
-//!   (`rowsAffectedConformanceSuite`) 断言的正是正则那一份行为。这里要的是与 wasm/Electron
+//! - 只读判定不用 `Statement::readonly()`：它比正则**更准**，而 JS 侧
+//!   `execute-sql.utils.ts` 用的就是正则。这里要的是与 wasm/Electron
 //!   后端逐字一致，不是更聪明。
 
 const TOKEN_SEMI: usize = 0;

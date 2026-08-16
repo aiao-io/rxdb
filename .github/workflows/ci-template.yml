@@ -12,19 +12,26 @@ name: CI Template (Reusable)
 #
 #   setup ─┬─ lint ─────────────────────────────┐
 #          ├─ build ────────────────────────────┤
-#          ├─ test (N 条 lane) ─┬─ coverage ────┤
+#          ├─ test (N 条 lane) ─┐               │
+#          ├─ test-browser ─────┼─ coverage ────┤
 #          ├─ acceptance ───────┘               ├─ gate
 #          ├─ e2e (每个 app / target 一个 job) ─┤
 #          ├─ rust (clippy + test + 一致性) ────┤
+#          ├─ extras (文档 / 密钥 / spec 类型) ─┤
 #          └─ benchmark ────────────────────────┘
 #
 #   test / e2e **不等 build**：它们各自只需要自己那棵依赖子树的产物，
-#   等全量 build 反而是净亏。跨 job 复用靠 Nx Cloud 远端缓存 + actions/cache 的
-#   restore-keys 回退（能暖到上一轮 run 的本地缓存）。
+#   等全量 build 反而是净亏（build 324s + 最慢 lane 469s 串起来比现在的 572s 关键路径还长）。
+#   跨 job 复用只靠 actions/cache 的 restore-keys 回退，暖到 main 上一轮 run 的本地
+#   Nx 缓存 —— Nx Cloud 远端缓存目前是关闭的，见下面 NX_NO_CLOUD 的说明，
+#   别照着「有远端缓存」的前提去做容量规划。
 #
 # 分支保护只需要挂一个 required status check：`gate`。
 # 它 needs 上面所有 job，任何一个不是 success/skipped 就红。
 # 新增 job 时**必须**同步加进 gate 的 needs 和断言列表，否则新门禁形同虚设。
+#
+# 第三方 action 一律钉 commit SHA（尾注 `# vX` 供 Dependabot 识别）。
+# tag 可以被强推，一次上游账号失陷就能拿到本仓库 CI 的 secrets 与 id-token。
 
 on:
   workflow_call:
@@ -42,27 +49,48 @@ on:
       CODECOV_TOKEN:
         required: true
       # reusable workflow 不会自动继承调用方的 secrets，必须显式声明 + 显式传入。
+      # 这个是 optional：Nx Cloud 现在被 NX_NO_CLOUD 硬关（见下），token 缺席不影响任何 job。
+      # 写成 required: true 的话，fork PR 上拿不到 secret 会让整个 workflow 直接不启动，
+      # 报的还是「secret 未提供」这种和真实原因无关的错。
       NX_CLOUD_ACCESS_TOKEN:
-        required: true
+        required: false
+
+# 显式声明最小权限：仓库默认值可能是宽松的 read/write，而这里跑的是 PR 代码。
+# `actions: read` 给 nx-set-shas 查上一次成功 run。
+# 没有任何 job 需要写仓库内容或评论 PR —— 别加回来。
+#
+# `id-token: write` **不在这里**：workflow 级的权限会发给每一个 job，
+# 而真正需要它的只有 coverage（Codecov OIDC）。其余十来个 job 全都在跑 PR 提交的
+# 代码（构建脚本、测试、e2e），任何一个被投毒就能签出一枚可换 Codecov 上传凭据的
+# OIDC token。它声明在 coverage job 自己的 permissions 里，见那边。
+permissions:
+  actions: read
+  contents: read
 
 env:
   CI: true
   NX_DAEMON: false
   NX_TUI: false
-  # ---- Nx Cloud 临时关闭（2026-08-15）----------------------------------------
-  # nx.app 上 workspace 6a7b30a94caecff9b5bf52d6 处于 disabled 状态：
-  #   GET /nx-cloud/v1/runner-configuration/flags → 200 {"workspace":{"enabled":false}}
-  # 于是 CI 侧握手被拒，Nx 打出「Workspace is unable to be authorized. Exiting run.」
-  # 直接掐掉整个 run —— 一个 task 都不跑。
+  # ---- Nx Cloud 关闭（2026-08-15）--------------------------------------------
+  # 真实原因是**免费额度用完**，不是配置错、也不是 token 问题。原文（复制自实跑日志）：
+  #
+  #   NX   Nx Cloud encountered some problems
+  #   This Nx Cloud organization has been disabled due to exceeding the FREE plan.
+  #   Your organization can be re-enabled immediately by an organization admin
+  #   upgrading to the Team plan at https://cloud.nx.app/orgs/<org>/plans. (code: 401)
+  #
+  # 别被 401 带偏去查 token —— 额度超限和「token 缺失/错误」共用同一个状态码。
+  # 判据是消息正文里的 "exceeding the FREE plan"。
   #
   # 这个故障很会伪装：setup job 只用 `nx show projects`，压根不碰 task runner，
   # 所以它照常绿；红的只有 build/lint/test/e2e，看起来像「构建挂了」，其实不是。
-  # 另注：缺 token / token 错都是 401，不是这个 403 —— 别再往 token 方向查。
   #
   # NX_NO_CLOUD 是唯一的硬开关（nx/src/utils/nx-cloud-utils.js: isNxCloudDisabled），
   # 光把 token 留空没用：nx.json 里只要有 nxCloudId 就仍然会走 cloud runner。
-  # ⚠️ 恢复步骤：nx.app 上把 workspace 重新启用 → 配好 NX_CLOUD_ACCESS_TOKEN secret
-  #    → 删掉下面这一行即可，其余接线已经就位。
+  # ⚠️ 恢复步骤：升级 nx.app 套餐（或换一个未超额的 org）→ 配好 NX_CLOUD_ACCESS_TOKEN
+  #    secret → 删掉下面这一行即可，其余接线已经就位。
+  #
+  # 关着的这段时间里，跨 job 的产物复用**只有** actions/cache 一条路。
   NX_NO_CLOUD: true
   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
   NODE_OPTIONS: '--max-old-space-size=6144'
@@ -83,30 +111,41 @@ jobs:
       check_projects: ${{ steps.plan.outputs.check_projects }}
       build_projects: ${{ steps.plan.outputs.build_projects }}
       test_projects: ${{ steps.plan.outputs.test_projects }}
+      test_browser_projects: ${{ steps.plan.outputs.test_browser_projects }}
       acceptance_projects: ${{ steps.plan.outputs.acceptance_projects }}
       rust_projects: ${{ steps.plan.outputs.rust_projects }}
+      extras_projects: ${{ steps.plan.outputs.extras_projects }}
       test_matrix: ${{ steps.plan.outputs.test_matrix }}
       e2e_matrix: ${{ steps.plan.outputs.e2e_matrix }}
       has_checks: ${{ steps.plan.outputs.has_checks }}
       has_builds: ${{ steps.plan.outputs.has_builds }}
       has_tests: ${{ steps.plan.outputs.has_tests }}
+      has_test_browser: ${{ steps.plan.outputs.has_test_browser }}
       has_acceptance: ${{ steps.plan.outputs.has_acceptance }}
       has_e2e: ${{ steps.plan.outputs.has_e2e }}
       has_rust: ${{ steps.plan.outputs.has_rust }}
+      has_extras: ${{ steps.plan.outputs.has_extras }}
+      code_changed: ${{ steps.plan.outputs.code_changed }}
       need_benchmark: ${{ steps.plan.outputs.need_benchmark }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           filter: tree:0
           fetch-depth: 0
 
-      - name: Fetch main
+      # 取 PR 真正的 base 分支，而不是写死 main：PR 也可能提给 release/* 之类的
+      # 长期分支，那时 `origin/main...HEAD` 会把 base 分支上的全部改动算进本 PR，
+      # need_benchmark / code_changed 双双失真（前者白跑基准，后者让 gate 误判）。
+      # 分支名经 env 传参：它是外部可选的输入，绝不直接插值进 shell。
+      - name: Fetch PR base branch
         if: ${{ inputs.is_pr }}
-        run: git fetch origin main:main
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: git fetch origin "$BASE_REF:refs/remotes/origin/$BASE_REF"
 
       - uses: ./.github/actions/setup-workspace
 
-      - uses: nrwl/nx-set-shas@v5
+      - uses: nrwl/nx-set-shas@afb73a62d26e41464e9254689e1fd6122ee683c1 # v5
 
       # project graph 构建失败要在这里就炸，而不是让 8 个下游 job 各炸一次。
       - name: Validate Nx project graph
@@ -120,11 +159,48 @@ jobs:
           fi
           echo "✅ Project graph OK"
 
-      # 公开包导出发生未声明变化时失败。放最前面：不用等 build/test 就能出结果。
-      - name: API surface gate
-        run: node scripts/audit/api-surface.mjs --check
+      # 下面这一组都是「秒级、不依赖任何构建产物」的静态门禁，全放在 setup 里跑完。
+      # 单独开 job 不划算：每个 job 要先交 ~74s 的 checkout + pnpm install，
+      # 比门禁本身贵一个数量级。它们之间不 fail-fast —— 但 step 天然串行，
+      # 前一个红了后面不跑，这里接受这个取舍（都是几秒的事，重跑一轮就行）。
 
-      # scripts/ 下的工具脚本自己也有单测（lane 装箱、覆盖率产物合并、release gate…），
+      # 格式化。`nx format:check` 只看 affected 文件，比全量 prettier 快得多。
+      # 排在最前：格式问题会污染后面所有 diff-based 的判断。
+      - name: Format check
+        run: pnpm check-format
+
+      # 公开包导出发生未声明变化时失败。放前面：不用等 build/test 就能出结果。
+      - name: API surface gate
+        run: pnpm audit:api-surface
+
+      # 子路径入口清单（KNOWN_UNCOVERED_SUBPATHS）与各包 exports 的一致性。
+      # 此前它只有 spec 没有调用方 —— 文档里写着「已受门禁保护」，实际没有任何
+      # 自动化在跑它。接在这里才算数。
+      - name: Subpath inventory gate
+        run: node scripts/audit/subpath-inventory.mjs
+
+      # exports 里指向 .ts 的运行时 condition = 装到用户项目里的死链。
+      # `@aiao/source` / `types` 是构建期条件，已在脚本里显式白名单（含 spec 说明理由）。
+      - name: Package runtime conditions gate
+        run: pnpm audit:conditions
+
+      # 文件头那条「第三方 action 一律钉 commit SHA」从此有人执行。
+      # tag 能被强推，靠 review 盯不住；这一步扫 .github 下全部 workflow 与复合 action。
+      - name: Third-party action pin gate
+        run: pnpm audit:action-pins
+
+      # 校验 **PR 标题**而不是分支上的中间提交：本仓库走 squash merge，
+      # 落到 main 的只有 GitHub 用 PR 标题生成的那一条（`main` 上的
+      # `feat(...): ... (#7)` 就是这么来的）。理由详见 scripts/commit-lint.mjs 头注释。
+      # 标题是外部可控输入，必须经 env 传参，绝不能直接插值进 shell —— 一个
+      # 反引号或 `$(...)` 就是 runner 上的任意命令执行。
+      - name: Commit message convention (PR title)
+        if: ${{ inputs.is_pr }}
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: node scripts/commit-lint.mjs --message="$PR_TITLE"
+
+      # scripts/ 下的工具脚本自己也有单测（lane 装箱、覆盖率产物合并、commit 校验…），
       # 但它们不属于任何 Nx 项目，`nx run-many -t test` 永远碰不到。挂在这里跑：
       # 这些脚本正是 CI 自身的地基，坏了会以「CI 一片绿但什么都没测」的形式表现出来。
       - name: Script unit tests
@@ -132,6 +208,10 @@ jobs:
 
       - name: Plan jobs
         id: plan
+        env:
+          # 只在 inputs.is_pr 为真的分支里用得到；非 PR 事件下它是空串，
+          # 那两处 diff 也不会执行 —— 不需要、也不该给它兜一个默认分支。
+          BASE_REF: ${{ github.base_ref }}
         run: |
           set -euo pipefail
 
@@ -139,25 +219,58 @@ jobs:
 
           # 注意必须走 --json：`nx show projects` 在非 TTY 下输出 JSON 数组，
           # 空集是字面量 `[]` 而不是空串，用 `[ -z ... ]` 判空会永远为假。
+          #
+          # 这里**不再**整体 --exclude=website,benchmarks。当初排除它们是因为担心
+          # `--coverage.*` 这些 lane 参数打到非 vitest 的 target 上（website:test 是
+          # `node --test`）。实测不会：Nx 不把未声明的 CLI 参数转发给 run-commands，
+          # website:test / benchmarks:test 带着完整 lane 参数跑都是绿的。
+          # 排除的代价是实打实的：website / benchmarks 的 lint 和 typecheck 在 CI 里
+          # 一次都没跑过。
           projects_json() {
-            pnpm exec nx show projects "${SEL[@]}" --withTarget="$1" --exclude=website,benchmarks --json
+            pnpm exec nx show projects "${SEL[@]}" --withTarget="$1" --json
           }
 
           LINT_JSON=$(projects_json lint)
           TYPECHECK_JSON=$(projects_json typecheck)
-          BUILD_JSON=$(projects_json build)
+          SPEC_TYPECHECK_JSON=$(projects_json spec-typecheck)
+
+          # 唯独 build 要把 website 摘掉，这不是省时间，是**正确性**：
+          #   website:build 声明 `dependsOn: []`，但 build-website.mjs 内部自己再起
+          #   `pnpm nx run-many -t build -p <全部 30 个包>` 和 `pnpm nx build dev-rxdb-angular`。
+          # 放进同一轮 run-many，Nx 会把 website:build 和它内部要建的那批 target 排进
+          # 同一个并发波次 —— 两个 nx 进程同时往同一批 dist/ 里写。实测就是这么炸的：
+          # `nx run-many -t lint typecheck build -p website,benchmarks` 挂在 website:build，
+          # 且被 Nx 自己标成 flaky；串行单独跑同一条命令则是绿的。
+          # website 的 lint / typecheck 仍在上面的 CHECK 集里，文档代码块和 TypeDoc
+          # 由 extras job 的 check-doc-code / api-docs 覆盖，整站构建留给发布链路。
+          BUILD_JSON=$(pnpm exec nx show projects "${SEL[@]}" --withTarget=build --exclude=website --json)
           TEST_JSON=$(projects_json test)
+          TEST_BROWSER_JSON=$(projects_json test-browser)
           ACCEPTANCE_JSON=$(projects_json coverage-acceptance)
           E2E_JSON=$(projects_json e2e)
           E2E_REMOTE_JSON=$(projects_json e2e-remote)
           RUST_JSON=$(projects_json cargo-test)
+          DOC_CODE_JSON=$(projects_json check-doc-code)
+          API_DOCS_JSON=$(projects_json api-docs)
+          AUDIT_SECRETS_JSON=$(projects_json audit-secrets)
 
-          # lint 与 typecheck 合成一个 job 跑，项目集取并集（两者的 target 归属并不总是重合）。
-          CHECK=$(jq -r -n --argjson a "$LINT_JSON" --argjson b "$TYPECHECK_JSON" '($a + $b) | unique | join(",")')
+          # lint / typecheck / spec-typecheck 合成一个 job 跑，项目集取并集
+          # （三者的 target 归属并不总是重合）。
+          CHECK=$(jq -r -n --argjson a "$LINT_JSON" --argjson b "$TYPECHECK_JSON" --argjson c "$SPEC_TYPECHECK_JSON" \
+            '($a + $b + $c) | unique | join(",")')
           BUILD=$(jq -r 'sort | join(",")' <<<"$BUILD_JSON")
           TEST=$(jq -r 'sort | join(",")' <<<"$TEST_JSON")
+          TEST_BROWSER=$(jq -r 'sort | join(",")' <<<"$TEST_BROWSER_JSON")
           ACCEPTANCE=$(jq -r 'sort | join(",")' <<<"$ACCEPTANCE_JSON")
           RUST=$(jq -r 'sort | join(",")' <<<"$RUST_JSON")
+
+          # extras：三个此前完全没进过 CI 的 target，共用一个 job。
+          #   check-doc-code  文档里的代码块能否编译（website）
+          #   api-docs        TypeDoc 能否产出（website）—— 挂了等于发布日才发现文档站崩了
+          #   audit-secrets   扫**已构建产物**里有没有泄漏的凭据（dev-rxdb-supabase）；
+          #                   它 dependsOn build，是这一组里唯一有安全含义的门禁
+          EXTRAS=$(jq -r -n --argjson a "$DOC_CODE_JSON" --argjson b "$API_DOCS_JSON" --argjson c "$AUDIT_SECRETS_JSON" \
+            '($a + $b + $c) | unique | join(",")')
 
           # 每个 (项目, target) 一个 e2e job。不写死清单：新增 e2e 应用自动进矩阵。
           # e2e-remote 需要本地 Supabase 栈，本地 e2e 不需要。
@@ -181,8 +294,17 @@ jobs:
           # 省一次 pnpm install，也不占免费额度里的并发位。
           NEED_BENCHMARK=false
           if [ "${{ inputs.is_pr }}" = "true" ] && \
-             [ -n "$(git diff --name-only origin/main...HEAD -- 'packages/' 'benchmarks/')" ]; then
+             [ -n "$(git diff --name-only "origin/$BASE_REF...HEAD" -- 'packages/' 'benchmarks/')" ]; then
             NEED_BENCHMARK=true
+          fi
+
+          # 供 gate 做 affected 模式的兜底断言：改了产品代码却一个测试都没跑，
+          # 只可能是 affected 算错了（错误的 base SHA、project graph 断链）。
+          # gate 拿这个和 has_tests 对撞，见那边的注释。
+          CODE_CHANGED=false
+          if [ "${{ inputs.is_pr }}" = "true" ] && \
+             [ -n "$(git diff --name-only "origin/$BASE_REF...HEAD" -- 'packages/' 'apps/' 'modules/')" ]; then
+            CODE_CHANGED=true
           fi
 
           nonempty() { [ -n "$1" ] && echo true || echo false; }
@@ -191,16 +313,21 @@ jobs:
             echo "check_projects=$CHECK"
             echo "build_projects=$BUILD"
             echo "test_projects=$TEST"
+            echo "test_browser_projects=$TEST_BROWSER"
             echo "acceptance_projects=$ACCEPTANCE"
             echo "rust_projects=$RUST"
+            echo "extras_projects=$EXTRAS"
             echo "test_matrix=$TEST_MATRIX"
             echo "e2e_matrix=$E2E_MATRIX"
             echo "has_checks=$(nonempty "$CHECK")"
             echo "has_builds=$(nonempty "$BUILD")"
             echo "has_tests=$(nonempty "$TEST")"
+            echo "has_test_browser=$(nonempty "$TEST_BROWSER")"
             echo "has_acceptance=$(nonempty "$ACCEPTANCE")"
             echo "has_e2e=$(jq -r '.include | length > 0' <<<"$E2E_MATRIX")"
             echo "has_rust=$(nonempty "$RUST")"
+            echo "has_extras=$(nonempty "$EXTRAS")"
+            echo "code_changed=$CODE_CHANGED"
             echo "need_benchmark=$NEED_BENCHMARK"
           } >> "$GITHUB_OUTPUT"
 
@@ -209,14 +336,16 @@ jobs:
           {
             echo "### CI plan (\`${{ inputs.run_mode }}\`)"
             echo
-            echo "| job | 项目数 | 项目 |"
+            echo "| job | num | projects |"
             echo "| --- | --- | --- |"
             echo "| lint + typecheck | $(jq -r 'length' <<<"$LINT_JSON") | \`$CHECK\` |"
             echo "| build | $(jq -r 'length' <<<"$BUILD_JSON") | \`$BUILD\` |"
             echo "| test | $(jq -r 'length' <<<"$TEST_JSON") | \`$TEST\` |"
+            echo "| test-browser | $(jq -r 'length' <<<"$TEST_BROWSER_JSON") | \`$TEST_BROWSER\` |"
             echo "| coverage-acceptance | $(jq -r 'length' <<<"$ACCEPTANCE_JSON") | \`$ACCEPTANCE\` |"
             echo "| e2e | $(jq -r '.include | length' <<<"$E2E_MATRIX") | \`$(jq -r '.include | map(.project + ":" + .target) | join(", ")' <<<"$E2E_MATRIX")\` |"
             echo "| rust | $(jq -r 'length' <<<"$RUST_JSON") | \`$RUST\` |"
+            echo "| extras | $(jq -r -n --argjson a "$DOC_CODE_JSON" --argjson b "$API_DOCS_JSON" --argjson c "$AUDIT_SECRETS_JSON" '($a+$b+$c)|unique|length') | \`$EXTRAS\` |"
             echo
 
             # job 名里只有 label（`test (rxdb-adapter-pglite +8)`），lane 序号只在
@@ -224,7 +353,7 @@ jobs:
             # 少了它就没法从一个红 job 找到它的覆盖率产物。
             echo "test lane 划分："
             echo
-            echo "| job | lane | 项目 |"
+            echo "| job | lane | projects |"
             echo "| --- | --- | --- |"
             jq -r '.include[] | "| test (" + .label + ") | `" + .lane + "` | `" + .projects + "` |"' <<<"$TEST_MATRIX"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -237,7 +366,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
@@ -245,13 +374,18 @@ jobs:
 
       # 不加 --nxBail：一次跑完能看到全部 lint/typecheck 错误，
       # 而不是修一个再发现下一个。
+      #
+      # spec-typecheck 挂在这里而不是单开 job：它就是 typecheck，只是换了个
+      # tsconfig（dev-rxdb-angular 的 tsconfig.spec.json）。此前它不在任何
+      # CI 命令的 target 列表里 —— 测试代码的类型错误一路无人拦截。
+      # run-many 对没有该 target 的项目是静默跳过，不需要单独筛项目集。
       - name: Lint and typecheck
         env:
           PROJECTS: ${{ needs.setup.outputs.check_projects }}
-        run: pnpm exec nx run-many -t lint typecheck -p "$PROJECTS" --output-style=stream --parallel=4
+        run: pnpm exec nx run-many -t lint typecheck spec-typecheck -p "$PROJECTS" --output-style=stream --parallel=4
 
   # ---------------------------------------------------------------------------
-  # build 是唯一回写 actions cache 的 job：多个 job 用同一个 key 写入只有第一个生效，
+  # build 是唯一回写 Nx actions cache 的 job：多个 job 用同一个 key 写入只有第一个生效，
   # 其余会打 warning。挑 build 是因为它的产物对下游（e2e、后续 run）最值钱。
   build:
     name: build
@@ -260,18 +394,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
         with:
           free-disk: 'true'
 
-      - name: Cache Nx
-        uses: actions/cache@v5
+      # 拆成 restore + save，而不是一个 actions/cache：save 只在 main 上做。
+      # 见 .github/actions/nx-cache-restore 的注释 —— 分支上写的缓存别的 PR 看不见，
+      # 纯粹是往 10GB 配额里塞垃圾，还会把真正共享的那几份挤出 LRU。
+      #
+      # key 用 github.sha 而不是 github.run_id：run_id 每次重跑都变，
+      # 同一个 commit 手动 re-run 几次就会各写一份完整副本，正是 rust job 那边
+      # 把仓库缓存推到 10GB 上限的同一个坑（见「Restore cargo cache」的注释）。
+      # 换成 sha 后，同 commit 的重跑 restore 精确命中、save 自动跳过；
+      # 跨 commit 仍由 restore-keys 前缀回退到上一轮的暖缓存。
+      - name: Restore Nx cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: .nx/cache
-          key: nx-cache-${{ runner.os }}-${{ github.run_id }}
+          key: nx-cache-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
             nx-cache-${{ runner.os }}-
 
@@ -281,6 +424,15 @@ jobs:
         env:
           PROJECTS: ${{ needs.setup.outputs.build_projects }}
         run: pnpm exec nx run-many -t build -p "$PROJECTS" --output-style=stream --parallel=3
+
+      # 只有 main 回写，且 build 真的绿了才写 —— 半截缓存会让下一轮拿到
+      # 「有 hash 记录但产物不全」的条目，表现成难查的偶发失败。
+      - name: Save Nx cache
+        if: ${{ success() && github.ref == 'refs/heads/main' }}
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .nx/cache
+          key: nx-cache-${{ runner.os }}-${{ github.sha }}
 
   # ---------------------------------------------------------------------------
   # test lane：一条 lane = 一个 job，项目划分由 scripts/ci/plan-test-lanes.mjs
@@ -300,7 +452,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.setup.outputs.test_matrix) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
@@ -336,10 +488,11 @@ jobs:
       # 也才容得下 `apps/` 与 `modules/` 两组。
       - name: Upload coverage
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          # 名字前缀 `coverage-lane-` 是有意的：coverage job 要先合并所有 lane，
-          # 再单独把 `coverage-acceptance` 盖上去（两者的项目集有重叠，acceptance 才是权威值）。
+          # 名字前缀 `coverage-lane-` 是有意的：coverage job 要按固定顺序叠加
+          # lane → test-browser → acceptance（后两者与 lane 的项目集有重叠，
+          # 且它们的值才是权威的）。详见 coverage job 里的下载步骤。
           name: coverage-lane-${{ matrix.lane }}
           path: |
             coverage/**/coverage-final.json
@@ -355,6 +508,56 @@ jobs:
         run: docker compose -f docker-compose.ci.yml down -v
 
   # ---------------------------------------------------------------------------
+  # test-browser：真实 chromium 里跑的那一档 vitest project（VITEST_BROWSER=true）。
+  #
+  # 它在 `pnpm test-all` 的 target 列表里，却从来没进过 GitHub CI ——
+  # 也就是说 rxdb-plugin-search / -storage / -workspace / rxdb-react 里所有
+  # 只在真实浏览器下才成立的断言（OPFS、SharedWorker、真 IndexedDB），
+  # 本地跑不跑全凭自觉，PR 上一次都没被拦过。
+  #
+  # 单开 job 而不是并进 test lane，是因为覆盖率产物会打架：
+  # search / storage 的 test-browser 跑完会把 node + browser 两段 merge 回
+  # `coverage/packages/<pkg>/`，和 lane 里 `test` 写的是同一个路径。
+  # 同 job 内两者的先后取决于 Nx 的调度，不可控；拆开后靠 coverage job 的
+  # **下载顺序**显式定序（lane → browser），merge 后的值才是权威的那份。
+  test-browser:
+    name: test (browser)
+    needs: setup
+    if: needs.setup.outputs.has_test_browser == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          filter: tree:0
+      - uses: ./.github/actions/setup-workspace
+      - uses: ./.github/actions/nx-cache-restore
+      - uses: ./.github/actions/playwright-chromium
+
+      # --parallel=1：几个包共用一个 chromium，多开只会互相抢 4 vCPU。
+      - name: Run browser tests
+        env:
+          PROJECTS: ${{ needs.setup.outputs.test_browser_projects }}
+        run: pnpm exec nx run-many -t test-browser -p "$PROJECTS" --output-style=stream --parallel=1
+
+      # if-no-files-found 用 ignore 而不是 error：四个项目里只有 search 和 storage
+      # 的 test-browser 产出覆盖率，workspace / rxdb-react 那两个是裸 `vitest run`。
+      # affected 模式下只命中后两个时，这里本来就该是空的 —— 那不是故障。
+      # 对应地，coverage job 用 `pattern:` 而非 `name:` 下载，缺 artifact 不报错。
+      - name: Upload coverage
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: coverage-browser
+          path: |
+            coverage/**/coverage-final.json
+            coverage/**/coverage-summary.json
+            coverage/**/lcov.info
+            coverage/**/junit.xml
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
   # coverage-acceptance 必须独立于 test 跑：它自己驱动多段 vitest 并合并 blob，
   # 不能接收 test 那行的 `--coverage.*` 参数（RXT-031）。
   acceptance:
@@ -364,7 +567,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
@@ -378,7 +581,7 @@ jobs:
 
       - name: Upload coverage
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: coverage-acceptance
           path: |
@@ -410,7 +613,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.setup.outputs.e2e_matrix) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
@@ -439,7 +642,7 @@ jobs:
           nohup Xvfb :99 -screen 0 1280x1024x24 -nolisten tcp >/tmp/xvfb.log 2>&1 &
           echo "DISPLAY=:99" >> "$GITHUB_ENV"
           # 用 socket 文件判就绪，不用 xdpyinfo —— x11-utils 不保证装了，多一个依赖就多一个失败点。
-          for i in {1..30}; do
+          for _ in {1..30}; do
             if [ -S /tmp/.X11-unix/X99 ]; then
               echo "✅ Xvfb ready on :99"
               exit 0
@@ -455,15 +658,16 @@ jobs:
         with:
           anon-key: ${{ env.VITE_SUPABASE_KEY }}
 
+      # 这里曾有一行 `jobs -p | xargs -r kill` 声称「清理 webServer / vite preview」。
+      # 它是空操作：`jobs` 只列出**本 shell** 用 `&` 起的后台作业，而这条 run 里
+      # 一个 `&` 都没有，非交互 bash 的 job control 默认也是关的 —— 每次都输出空。
+      # 真正的清理由 Playwright 的 webServer 生命周期负责（进程组随 nx 退出一起收），
+      # 而且 step 结束后整个 runner 就销毁了。留着只会让人以为这里有防线。
       - name: Run E2E
         env:
           PROJECT: ${{ matrix.project }}
           TARGET: ${{ matrix.target }}
-        run: |
-          set -e
-          pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream
-          # 确保 webServer / vite preview 这类后台进程被清理
-          jobs -p | xargs -r kill 2>/dev/null || true
+        run: pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream
 
       # 失败复盘用。`trace: 'on-first-retry'` 在各 config 里都开着，重试产生的
       # trace.zip 落在 test-output/playwright/output/ 下：
@@ -472,7 +676,7 @@ jobs:
       # html 报告落在 playwright-report/ 而不是 preset 的 test-output/playwright/report/。
       - name: Upload Playwright artifacts
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: playwright-${{ matrix.project }}-${{ matrix.target }}
           path: |
@@ -500,7 +704,7 @@ jobs:
     # 冷跑要从零编译 tauri + rusqlite(bundled) 的依赖树，clippy 与 dev 两套产物各一遍。
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
@@ -516,24 +720,34 @@ jobs:
             libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
             librsvg2-dev libxdo-dev libssl-dev
 
-      - uses: dtolnay/rust-toolchain@stable
+      # 不用 @stable：那是会移动的分支引用，等于把 CI 的执行内容交给上游。
+      # toolchain 版本仍然是 stable（下面的 with.toolchain），只是 action 代码钉死。
+      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
         with:
+          toolchain: stable
           components: clippy
 
       # Nx 缓存能挡住「Rust 没变但项目被判定 affected」的重复执行，挡不住真的要编译时
       # 那 10 分钟的依赖树。key 里带 Cargo.lock 的 hash：依赖没动就直接复用 target/。
       # 不缓存 ~/.cargo/registry/src —— 它是 cache/*.crate 解压出来的，白占体积。
-      - name: Cache cargo
-        uses: actions/cache@v5
+      #
+      # key 里**不能**带 github.run_id。带了以后每一轮 CI 都会新写一份 ~811MiB 的
+      # 缓存条目：实测 7 份同 lockfile 的副本占掉 5.55 GiB，直接把仓库推到 10 GB
+      # 上限（当时 9.43 GiB / 15 条），LRU 于是开始驱逐真正共享的 playwright 和
+      # pnpm store —— 「加缓存」反而让别的 job 冷跑。
+      # 现在 key 只由 Cargo.lock 决定：lockfile 不变就只有一份，命中即精确命中，
+      # save 步骤会自动跳过（同 key 已存在）。
+      - name: Restore cargo cache
+        id: cargo-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: |
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             apps/dev-rxdb-tauri/src-tauri/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('apps/dev-rxdb-tauri/src-tauri/Cargo.lock') }}-${{ github.run_id }}
+          key: cargo-${{ runner.os }}-${{ hashFiles('apps/dev-rxdb-tauri/src-tauri/Cargo.lock') }}
           restore-keys: |
-            cargo-${{ runner.os }}-${{ hashFiles('apps/dev-rxdb-tauri/src-tauri/Cargo.lock') }}-
             cargo-${{ runner.os }}-
 
       # 不跑 cargo-check：`cargo clippy --all-targets` 已经做了完整类型检查，
@@ -549,6 +763,75 @@ jobs:
           pnpm exec nx run-many -t cargo-clippy cargo-test test-conformance \
             -p "$PROJECTS" --output-style=stream --parallel=1
 
+      # 精确命中时不回写（同 key 已存在，写了也是白写一次上传）。
+      # 只在 lockfile 变了（restore 走 restore-keys 回退）且编译真的成功时才存。
+      # 这里不限制分支：cargo 缓存的 key 由 Cargo.lock 唯一决定，PR 上那份对
+      # 同 lockfile 的后续 run 依然是精确命中，不存在「只有自己能用」的问题。
+      - name: Save cargo cache
+        if: ${{ success() && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            apps/dev-rxdb-tauri/src-tauri/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('apps/dev-rxdb-tauri/src-tauri/Cargo.lock') }}
+
+  # ---------------------------------------------------------------------------
+  # extras：三个此前完全没进过 CI 的 target，共用一个 job（各自单开要多交三次
+  # ~74s 的 checkout + pnpm install，还多占两个并发位）。
+  #
+  #   check-doc-code  文档里的代码块能否编译 —— 文档腐烂唯一的自动化防线
+  #   api-docs        TypeDoc 能否产出；挂了会在发布文档站那天才暴露
+  #   audit-secrets   扫**构建产物**里有没有泄漏的凭据（dependsOn build）。
+  #                   这一组里唯一有安全含义的门禁，此前从没跑过。
+  extras:
+    name: extras
+    needs: setup
+    if: needs.setup.outputs.has_extras == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          filter: tree:0
+      - uses: ./.github/actions/setup-workspace
+        with:
+          # audit-secrets 要先 build dev-rxdb-supabase（Angular 生产构建）。
+          free-disk: 'true'
+      - uses: ./.github/actions/nx-cache-restore
+
+      # api-docs 的 TypeDoc 用**每个包自己的** tsconfig 编译 src/index.ts，跨包 import
+      # 走 node_modules → workspace link → package.json exports → dist。没有产物就是
+      # 一片 `Cannot find module '@aiao/*'`（清空 dist 后实测：861 errors）。
+      # 而 website 在 Nx 图里只有 2 个依赖，`dependsOn: ["^build"]` 盖不住 TypeDoc 的
+      # 26 个 entryPoint —— 这个构建集只能从 typedoc.config.cjs 自己推，
+      # 将来加 entryPoint 才会自动跟上，不用记得来改这里。
+      #
+      # 这一步**无条件全量**，不跟 affected 走：只改了 3 个包时 TypeDoc 依然要读全部 26 个。
+      # 这也正是它不能并进受 affected 收窄的 build job 的原因。
+      - name: Build packages for TypeDoc
+        run: |
+          TYPEDOC_PKGS=$(node -p "require('./website/typedoc.config.cjs').entryPoints.map(p => p.replace('../packages/', '')).join(',')")
+          echo "typedoc packages: $TYPEDOC_PKGS"
+          pnpm exec nx run-many -t build -p "$TYPEDOC_PKGS" --output-style=stream
+
+      # 不加 --nxBail：一轮看全三个的结果。
+      #
+      # --parallel=1 是刻意的，不是保守：audit-secrets 声明 `dependsOn: ["build"]`，
+      # 会把 dev-rxdb-supabase 依赖的那批 @aiao 包全建一遍；而 api-docs 的 TypeDoc
+      # 带 `skipErrorChecking: false`，正在对同一批包做完整 TS 编译。两者并发就是
+      # 「一边写包产物一边编译同一个包」，本仓库已经在 website:build 上吃过这个亏
+      # （被 Nx 标成 flaky，串行跑则稳定绿）。这三个 target 加起来也就几分钟，
+      # 30 分钟预算足够，没必要拿确定性换这点墙钟。
+      - name: Docs and secret gates
+        env:
+          PROJECTS: ${{ needs.setup.outputs.extras_projects }}
+        run: |
+          pnpm exec nx run-many -t check-doc-code api-docs audit-secrets \
+            -p "$PROJECTS" --output-style=stream --parallel=1
+
   # ---------------------------------------------------------------------------
   # benchmarks/scripts/search-ci.mjs 自己起 vite dev server 再用 Playwright 驱动页面，
   # 所以这个 job 和 test/e2e 一样需要 chromium —— 旧流程里它和别的任务同 job，
@@ -560,7 +843,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
@@ -573,35 +856,62 @@ jobs:
   # 门禁脚本只读已生成的 summary/final，不跑测试，所以这个 job 不需要 pnpm install。
   coverage:
     name: coverage
-    needs: [setup, test, acceptance]
+    needs: [setup, test, test-browser, acceptance]
     if: ${{ !cancelled() && needs.setup.result == 'success' && needs.setup.outputs.has_tests == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # 全流水线唯一需要 id-token 的 job：codecov-action 的 use_oidc: true。
+    # 这里重声明 permissions 会**整体覆盖** workflow 级那份，所以 actions/contents
+    # 必须一并列出，不能只写 id-token。
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           filter: tree:0
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: .nvmrc
+
+      # 下面三步的**顺序即语义**：同一个 coverage/packages/<pkg>/ 会被多个来源写，
+      # 后解压的覆盖先解压的。权威性 lane < browser < acceptance。
 
       # artifact 的根是 `coverage/`（见上传步骤的注释），内部路径形如
       # `packages/<pkg>/coverage-final.json`，所以要解到 `coverage/` 而不是仓库根。
       - name: Download lane coverage
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: coverage-lane-*
           merge-multiple: true
           path: coverage
 
-      # 必须在 lane 之后单独下载：`rxdb-test` / `rxdb-adapter-sqlite-core` 既有 test
-      # 也有 coverage-acceptance，两边都会写同一个 coverage/packages/<pkg>/。
+      # rxdb-plugin-search / rxdb-plugin-storage 的 test-browser 会把 node + browser
+      # 两段覆盖率合并后写进 **同一个** coverage/packages/<pkg>/，即 lane 刚写过的位置，
+      # 且合并结果是两者的并集 —— 所以必须晚于 lane。
+      #
+      # 用 pattern 而不是 name：rxdb-plugin-workspace / rxdb-react 的 test-browser 是
+      # 裸 `vitest run`（不产覆盖率），若全仓只剩这类项目，上传步骤的
+      # if-no-files-found: ignore 会让 artifact 根本不存在。`name:` 找不到会直接抛
+      # `Artifact 'coverage-browser' not found`；`pattern:` 命中 0 个则正常返回
+      # 「Total of 0 artifact(s) downloaded」。这不是兜底，是这两种参数的既定语义差异。
+      - name: Download browser coverage
+        if: needs.test-browser.result == 'success'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: coverage-browser
+          merge-multiple: true
+          path: coverage
+
+      # 必须最后下载：`rxdb-test` / `rxdb-adapter-sqlite-core` 既有 test 也有
+      # coverage-acceptance，两边都会写同一个 coverage/packages/<pkg>/。
       # acceptance 自己驱动多段 vitest 并合并 blob，它的值才是权威的 —— 旧的单 job
       # 流程里靠「acceptance 跑在 test 之后」天然覆盖，这里靠下载顺序显式复现。
       - name: Download acceptance coverage
         if: needs.acceptance.result == 'success'
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: coverage-acceptance
           path: coverage
@@ -612,7 +922,7 @@ jobs:
 
           # 上游没全绿 ⇒ coverage/ 是残缺的，此时跑阈值判定只会给出误导性的
           # 「某某包缺 summary」。直接失败并说清原因，不做任何兜底。
-          for result in "${{ needs.test.result }}" "${{ needs.acceptance.result }}"; do
+          for result in "${{ needs.test.result }}" "${{ needs.test-browser.result }}" "${{ needs.acceptance.result }}"; do
             case "$result" in
               success | skipped) ;;
               *)
@@ -627,9 +937,12 @@ jobs:
       # 只在门禁跑完且数据完整时上报。上一步失败时 coverage/ 可能只有部分 lane 的产物，
       # 把残缺数据推给 Codecov 会在 PR 上留一条「覆盖率暴跌」的假告警，
       # 掩盖掉「其实是某条 lane 没跑完」这个真问题。
+      # 这两步是全仓唯一同时拿到 CODECOV_TOKEN 和 id-token 的地方，
+      # 所以更要遵守文件头那条「第三方 action 一律钉 commit SHA」——
+      # 之前挂在可变 tag `v7` 上，上游 tag 被强推就等于把 secret 和 OIDC 一起交出去。
       - name: Upload coverage to Codecov
         if: success()
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           use_oidc: true
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -638,7 +951,7 @@ jobs:
 
       - name: Upload test results to Codecov
         if: success()
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           use_oidc: true
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -651,7 +964,7 @@ jobs:
   # 新增 job 时必须同步加进 needs 和下面的断言列表 —— 漏加 = 那个门禁不再拦任何东西。
   gate:
     name: gate
-    needs: [setup, lint, build, test, acceptance, e2e, rust, benchmark, coverage]
+    needs: [setup, lint, build, test, test-browser, acceptance, e2e, rust, extras, benchmark, coverage]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -672,15 +985,17 @@ jobs:
           }
 
           echo "job 结果："
-          check setup      "${{ needs.setup.result }}"
-          check lint       "${{ needs.lint.result }}"
-          check build      "${{ needs.build.result }}"
-          check test       "${{ needs.test.result }}"
-          check acceptance "${{ needs.acceptance.result }}"
-          check e2e        "${{ needs.e2e.result }}"
-          check rust       "${{ needs.rust.result }}"
-          check benchmark  "${{ needs.benchmark.result }}"
-          check coverage   "${{ needs.coverage.result }}"
+          check setup        "${{ needs.setup.result }}"
+          check lint         "${{ needs.lint.result }}"
+          check build        "${{ needs.build.result }}"
+          check test         "${{ needs.test.result }}"
+          check test-browser "${{ needs.test-browser.result }}"
+          check acceptance   "${{ needs.acceptance.result }}"
+          check e2e          "${{ needs.e2e.result }}"
+          check rust         "${{ needs.rust.result }}"
+          check extras       "${{ needs.extras.result }}"
+          check benchmark    "${{ needs.benchmark.result }}"
+          check coverage     "${{ needs.coverage.result }}"
 
           if [ ${#failed[@]} -gt 0 ]; then
             echo
@@ -688,23 +1003,42 @@ jobs:
             exit 1
           fi
 
-          # skipped 在 affected 模式下是正常的（没受影响），但 run-many 模式下
-          # 一个 test 项目都没有只可能是项目图或过滤条件出了问题 —— 那会让 CI
-          # 一片绿却什么都没测。这里显式拦住。
+          # ---- 反「空转绿灯」断言 ------------------------------------------
+          # 上面的 check 把 skipped 当通过，这是必须的（affected 模式下大部分 job
+          # 本来就该跳过）。代价是：如果项目图崩了、过滤条件写错了，所有 job 全 skipped，
+          # gate 照样全绿 —— 一次什么都没跑的 CI 和一次全过的 CI 长得一模一样。
+          # 下面两条断言就是为了把这两种情况区分开。
+
+          # run-many 模式（main 分支 / 手动全量）下，每一类 job 都必然有项目可跑。
+          # 任何一个 has_* 为 false 都只可能是项目图或过滤条件出了问题。
           if [ "${{ inputs.run_mode }}" = "run-many" ]; then
-            for flag in has_checks has_builds has_tests has_e2e has_rust; do
+            for flag in has_checks has_builds has_tests has_test_browser has_acceptance has_e2e has_rust has_extras; do
               case "$flag" in
                 has_checks) value="${{ needs.setup.outputs.has_checks }}" ;;
                 has_builds) value="${{ needs.setup.outputs.has_builds }}" ;;
                 has_tests) value="${{ needs.setup.outputs.has_tests }}" ;;
+                has_test_browser) value="${{ needs.setup.outputs.has_test_browser }}" ;;
+                has_acceptance) value="${{ needs.setup.outputs.has_acceptance }}" ;;
                 has_e2e) value="${{ needs.setup.outputs.has_e2e }}" ;;
                 has_rust) value="${{ needs.setup.outputs.has_rust }}" ;;
+                has_extras) value="${{ needs.setup.outputs.has_extras }}" ;;
               esac
               if [ "$value" != "true" ]; then
-                echo "❌ run-many 模式下 $flag=false —— 项目图或 --exclude 过滤出问题了，本次 CI 实际什么都没跑。"
+                echo "❌ run-many 模式下 $flag=false —— 项目图或过滤条件出问题了，本次 CI 实际什么都没跑。"
                 exit 1
               fi
             done
+          fi
+
+          # affected 模式：改了 packages/ apps/ modules/ 下的源码，却一个测试项目
+          # 都没被算进来，说明 nx-set-shas 的 base/head 或项目图坏了。
+          # 只改 docs/ 或根配置时 code_changed=false，此时 has_tests=false 是正常的。
+          if [ "${{ needs.setup.outputs.code_changed }}" = "true" ] \
+            && [ "${{ needs.setup.outputs.has_tests }}" != "true" ]; then
+            echo "❌ 本次改动落在 packages/ apps/ modules/ 内，但 affected 没算出任何 test 项目。"
+            echo "   多半是 nx-set-shas 的 base/head 没解析对（浅克隆？base 分支没 fetch？），"
+            echo "   或者项目图坏了。这类情况会让 CI 一片绿却什么都没测，必须拦住。"
+            exit 1
           fi
 
           echo

@@ -30,6 +30,8 @@ CI 的 `setup` job 每轮都会执行。表格里各 spec 那一行写的 `node 
 | [git-stats-worker.test.mjs](#git-stats-worker-testmjs)                      | 改 worker 后                                 | Node test runner，覆盖 blame 解析逻辑                                           | `node --test scripts/git-stats-worker.test.mjs`                               |
 | [git-stats-rs/](#git-stats-rs)                                              | 大仓库统计太慢                               | Rust 版 git-stats，Rayon 并发 `git blame`                                       | `cargo run --release --manifest-path scripts/git-stats-rs/Cargo.toml`         |
 | [coverage-serve.mjs](#coverage-servemjs)                                    | 本地查覆盖率                                 | 起一个静态 HTTP 服务，把 Istanbul HTML 报告渲染出来                             | `pnpm coverage:serve`                                                         |
+| [e2e-static-server.mjs](#e2e-static-servermjs)                              | Playwright webServer                         | 直接 `node` 起 SPA 静态服务，避免 nx file-server 残留孤儿进程占端口             | `node scripts/e2e-static-server.mjs --root <dir> --port <n>`                  |
+| `e2e-static-server.spec.mjs`                                                | 改静态服务后                                 | Node test runner，覆盖缺 root / 端口占用 / SPA fallback / 路径穿越              | `node --test scripts/e2e-static-server.spec.mjs`                              |
 | [merge-vitest-reports.mjs](#merge-vitest-reportsmjs)                        | browser 覆盖跑完                             | 把 Node 与 browser 的 Istanbul JSON + JUnit testsuite 合并到唯一门禁目录        | `rxdb-plugin-search:test-browser`                                             |
 | [merge-vitest-reports.spec.mjs](#merge-vitest-reports-specmjs)              | 改 merger 后                                 | Node test runner，覆盖 coverage union + JUnit 计数累加                          | `node --test scripts/merge-vitest-reports.spec.mjs`                           |
 | [test-all-log.mjs](#test-all-logmjs)                                        | 跑 `test-all` 想留档                         | 包一层 Nx affected，跑后写结构化报告（耗时/缓存/失败/跳过）到日志               | `pnpm test-all:log`                                                           |
@@ -82,7 +84,8 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 - **触发**：`postinstall`，CI 模式下跳过。
 - **做什么**：
   1. 如果 `.env` 不存在但 `.env.example` 存在，自动复制一份；`docker/.env` 同理；
-  2. 调用 `nx run-many --target=build --projects=rxdb-test` 预构建 `workspace.mjs#NEED_BUILDS` 列出的库（默认只有 `rxdb-test`）。
+  2. 调用 `nx run-many --target=build --projects=rxdb-test --no-cloud` 预构建 `workspace.mjs#NEED_BUILDS` 列出的库（默认只有 `rxdb-test`）。
+     子进程强制 `NX_DAEMON=false` / `NX_NO_CLOUD=true`。图损坏（陈旧 daemon / 隔离 worker 提前退出）时先 `nx reset` 再试一次。
 - **何时手动跑**：clone 完仓库第一次 `pnpm install` 后；或 `.env` 文件被误删想恢复默认模板。
 
 ### `clean.mjs`
@@ -105,7 +108,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 - **触发**：`husky#pre-commit` / `husky#pre-push` / `pnpm check-commit`。
 - **做什么**：
-  1. 在 `main` 分支上才执行（其余分支直接放行）；
+  1. 本地路径（`commit-msg` 文件 / 无参）只在 `NEED_CHECK_BRANCHES`（= `workspace.mjs#NEED_CHECK_COMMIT_BRANCH_NAMES`，默认 `main`）上执行，其余分支直接放行；
   2. 读最新 commit（或 commit msg 文件）正则匹配 `type(scope)!?: subject`，类型来自 `commitizen.types`，scope 来自 `commitizen.scopes`，同时放行 `Revert` / `Release` / `wip`；
   3. 失败时把首行的不可见空白（空格/Tab/换行）用 `·` `→` `↵` 可视化输出，便于排查 CJK 输入法的隐形空格。
 - **何时手动跑**：想在 push 前手动确认 commit 文案合规。
@@ -183,7 +186,20 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ---
 
-## 7. 覆盖率
+## 7. E2E 静态服务
+
+### `e2e-static-server.mjs`
+
+- **触发**：`apps/dev-rxdb-angular-e2e` 的 Playwright `webServer.command`；也可手动
+  `node scripts/e2e-static-server.mjs --root dist/apps/dev-rxdb-angular/browser --port 8200`。
+- **做什么**：
+  1. 用原生 `http` 服务指定目录，缺文件回退 `index.html`（SPA），不往 dist 里 copy `404.html`；
+  2. 端口被占立刻 `EADDRINUSE`，**不** `detectPort` 换端口；
+  3. 启动前拒绝 `<base href>` 不是 `/` / `./` / 空的产物。`website:build` 若把 `/demo/angular/` 写进 e2e dist，整套 Playwright 会变成「goto 200 + element not found」；
+  4. 必须作为 Playwright 的直接 `node` 子进程启动。再套 `nx run …:serve-e2e` 会把真正监听端口的进程变成孙子，teardown 杀不掉，下次就报 “port already used”。
+- **何时手动跑**：改了静态服务本身、或想在不启动 Playwright 的情况下确认某份 `dist/` 能被 SPA fallback 打开。
+
+## 8. 覆盖率
 
 ### `coverage-serve.mjs`
 
@@ -249,7 +265,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
      - `parseNxLog` 抽 `Cache: N/M (P%)` / `Run duration` / `Failed tasks:` / `Tasks not run` / `NX Nx detected K flaky tasks` / Playwright 的 `Error Context:` / `trace.zip`；失败任务再 `findFailureDetails` 反查首个错误行 + 测试名 + 源码位置；
      - `renderReport` 输出 `测试结果 / 任务统计 / 失败任务 / 不稳定任务 / Nx 详细输出` 四段结构化报告，**直接写回** `logPath`，覆盖原始 Nx 输出。
   4. `renderConsoleSummary` 在终端打印一行彩色的 `通过/失败 + 失败列表`，便于一眼判断。
-- **何时手动跑**：长跑 `test-all` 时需要事后回溯失败栈；CI 上 `pnpm test-all` 失败但 Nx TUI 的输出被关了 / 被截断时，重跑 `-log` 版拿到结构化报告。
+- **何时手动跑**：长跑 `test-all` 时需要事后回溯失败栈；CI 上 `pnpm test-all` 失败或输出被截断时，重跑 `-log` 版拿到结构化报告。
 
 ### `test-all-log.spec.mjs`
 
@@ -287,7 +303,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ---
 
-## 8. API 表面
+## 9. API 表面
 
 ### `audit/api-surface.mjs`
 
@@ -306,7 +322,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ### `audit/package-api-docs.mjs`
 
-- **触发**：被 `rxdb-plugin-storage` / `rxdb-adapter-encrypted` / `rxdb-adapter-sqlite` / `rxdb-adapter-sqliteai` 的 `build` target 串在 `vite build` 之后。历史 adapter 保持根导出检查；storage 使用 `node ../../scripts/audit/package-api-docs.mjs . --members` 开启成员门禁。
+- **触发**：被 `rxdb-plugin-storage` / `rxdb-adapter-desktop` / `rxdb-adapter-encrypted` / `rxdb-adapter-sqlite` / `rxdb-adapter-sqliteai` 的 `build` target 串在 `vite build` 之后（共 5 个包，原文漏了 desktop）。历史 adapter 保持根导出检查；storage 使用 `node ../../scripts/audit/package-api-docs.mjs . --members` 开启成员门禁。
 - **做什么**：
   1. 取目标包根目录作为 CLI 第一个参数（默认 `.`），从 `src/index.ts` 起 TypeScript program；
   2. 用 `checker.getExportsOfModule()` 拿到入口的全部可见 symbol，过滤出**声明就在本包源码里**的那些（避免将 `Type` 节点归到 `@types/*`/`node_modules/*` 而误判）；
@@ -318,22 +334,25 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ### `audit/package-runtime-conditions.mjs`
 
-- **触发**：`pnpm audit:conditions`，手动。**没有任何 CI 会自动跑它**。
+- **触发**：`pnpm audit:conditions`；CI 在 `ci-template.yml` 的 `setup` job 里作为**阻塞门禁**跑。
   （脚本名不能占用 `audit` —— `pnpm audit` 是 pnpm 的内置漏洞扫描命令，会把同名 npm script 遮蔽掉。）
 - **做什么**：遍历 `packages/*/package.json` 的 `exports`，找出指向 `.ts` 等**非可执行**文件的
   condition。这类 condition 在 workspace 里靠 tsconfig paths 能解析，装进用户项目后就是死链。
-- **现状**：当前**是红的**，报 3 条 `@aiao/source -> ./src/*.ts`
-  （`rxdb-adapter-miniprogram` 2 条、`rxdb-adapter-wa-sqlite` 1 条）。
-  这是既有状态，不是回归——`@aiao/source` 是内部消费的源码 condition，
-  要么给它加豁免、要么从发布清单里摘掉，尚未决策。
+- **白名单**：`BUILD_TIME_CONDITIONS = { types, @aiao/source }`。
+  `@aiao/source` 从来不由 Node 在运行时解析——它只被三处构建期消费方读取：
+  `tsconfig.base.json` 的 `customConditions`、`audit/api-surface.mjs`、各 vite config 的
+  `resolve.conditions`。所以它指向 `.ts` 是**设计如此**，与 `types` 指向 `.d.ts` 同性质。
+  豁免按 **condition 名**判定，不是按包或路径：同一个 `exports` 里若有
+  `default: './src/x.ts'`，照样报错。`package-runtime-conditions.spec.mjs` 固定住了这条边界。
+- **何时手动跑**：给某个包加/改 `exports`（尤其是新增自定义 condition）之后。
 
-## 9. 内部依赖（不可直接执行）
+## 10. 内部依赖（不可直接执行）
 
 这些不是工具脚本，而是被其他脚本 `import` 的小工具。
 
 ### `runner.mjs`
 
-- **做什么**：`run(command, args, collect?)` 包装 `child_process.spawn`，统一 `stdio: 'inherit'`、非零退出码打印红字。`collect=true` 时把 stdout 拼成字符串 resolve 出去。
+- **做什么**：`run(command, args, collect?, extra?)` 包装 `child_process.spawn`，统一 `stdio: 'inherit'`、非零退出码打印红字并 `reject(Error)`。`collect=true` 时把 stdout 拼成字符串 resolve 出去。`extra.env` 与 `process.env` 合并。
 - **调用方**：`check-workspace.mjs` 等需要跨进程串行的脚本。
 
 ### `workspace.mjs`
@@ -346,7 +365,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ---
 
-## 10. 通用调用约定
+## 11. 通用调用约定
 
 - 所有脚本统一用 **Node ESM**（`import ... from`，无构建产物），最低 Node 26（由 `preinstall.mjs` 强制）；
 - 工作目录默认是仓库根（用 `process.cwd()` 或 `import.meta.dirname` 解析相对路径），所以从根目录直接 `node scripts/<x>.mjs` 即可；
@@ -358,7 +377,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ---
 
-## 11. 给新成员的一段话
+## 12. 给新成员的一段话
 
 如果你只是想 **跑起来**仓库，路径只有一条：
 

@@ -5,7 +5,7 @@ import { EncryptedUser } from '@aiao/rxdb-test/encrypted';
 import { injectRxDB } from '@aiao/rxdb-vue';
 import { Lock, LockOpen, Plus, RefreshCw, Trash2 } from '@lucide/vue';
 import { firstValueFrom, Subscription } from 'rxjs';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, markRaw, onMounted, onUnmounted, ref } from 'vue';
 
 const rxdb = injectRxDB()!;
 
@@ -30,7 +30,9 @@ async function loadUsers() {
   error.value = null;
   try {
     const repo = rxdb.entityManager.getRepository(EncryptedUser);
-    users.value = await firstValueFrom(repo.findAll({ where: { combinator: 'and', rules: [] } }));
+    users.value = (await firstValueFrom(repo.findAll({ where: { combinator: 'and', rules: [] } }))).map(user =>
+      markRaw(user)
+    );
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -38,20 +40,27 @@ async function loadUsers() {
   }
 }
 
+async function bindEncryption(adapter: RxDBAdapterSqlite): Promise<AdapterEncryptionFacade> {
+  const facade = adapter.encryption;
+  encFacade = facade;
+  isLocked.value = facade.isLocked;
+  isFirstTime.value = !(await facade.isInitialized());
+  lockSub?.unsubscribe();
+  lockSub = facade.lockChange$.subscribe(locked => {
+    isLocked.value = locked;
+    if (!locked) {
+      void loadUsers();
+    } else {
+      users.value = [];
+    }
+  });
+  return facade;
+}
+
 onMounted(async () => {
   try {
-    const adapter = (await rxdb.getAdapter('sqlite-wasm')) as RxDBAdapterSqlite;
-    encFacade = adapter.encryption;
-    isLocked.value = encFacade.isLocked;
-    isFirstTime.value = !(await encFacade.isInitialized());
-    lockSub = encFacade.lockChange$.subscribe(locked => {
-      isLocked.value = locked;
-      if (!locked) {
-        void loadUsers();
-      } else {
-        users.value = [];
-      }
-    });
+    const adapter = (await rxdb.connect('sqlite-wasm')) as RxDBAdapterSqlite;
+    await bindEncryption(adapter);
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   }
@@ -62,10 +71,12 @@ onUnmounted(() => {
 });
 
 async function handleUnlock() {
-  if (!encFacade || !passphrase.value.trim()) return;
+  if (!passphrase.value.trim()) return;
   error.value = null;
   try {
-    await encFacade.unlock({ passphrase: passphrase.value });
+    const facade = encFacade ?? (await bindEncryption((await rxdb.connect('sqlite-wasm')) as RxDBAdapterSqlite));
+    await facade.unlock({ passphrase: passphrase.value });
+    isLocked.value = facade.isLocked;
     isFirstTime.value = false;
     passphrase.value = '';
   } catch (err) {
@@ -115,7 +126,10 @@ async function handleRemoveUser(user: EncryptedUser) {
         :is="isLocked ? Lock : LockOpen"
       />
       <h1 class="text-2xl font-bold">本地字段加密演示</h1>
-      <span :class="['badge', isLocked ? 'badge-error' : 'badge-success']">
+      <span
+        :class="['badge', isLocked ? 'badge-error' : 'badge-success']"
+        data-testid="encryption-status"
+      >
         {{ isLocked ? '已锁定' : '已解锁' }}
       </span>
     </div>
@@ -157,6 +171,7 @@ async function handleRemoveUser(user: EncryptedUser) {
             class="input input-bordered w-full"
             v-model="passphrase"
             @keydown.enter="handleUnlock"
+            data-testid="encryption-passphrase"
             placeholder="输入密码…"
             type="password"
           />
@@ -166,6 +181,7 @@ async function handleRemoveUser(user: EncryptedUser) {
             class="btn btn-primary"
             :disabled="!passphrase.trim()"
             @click="handleUnlock"
+            data-testid="encryption-unlock"
           >
             <LockOpen class="size-4" />
             解锁
@@ -188,6 +204,7 @@ async function handleRemoveUser(user: EncryptedUser) {
         <button
           class="btn btn-sm btn-error btn-outline"
           @click="handleLock"
+          data-testid="encryption-lock"
         >
           <Lock class="size-4" />
           锁定
@@ -204,6 +221,7 @@ async function handleRemoveUser(user: EncryptedUser) {
               <input
                 class="input input-bordered w-full"
                 v-model="newName"
+                data-testid="encryption-name"
                 placeholder="Alice"
                 type="text"
               />
@@ -213,6 +231,7 @@ async function handleRemoveUser(user: EncryptedUser) {
               <input
                 class="input input-bordered w-full"
                 v-model="newCard"
+                data-testid="encryption-card"
                 placeholder="4242 4242 4242 4242"
                 type="text"
               />
@@ -222,6 +241,7 @@ async function handleRemoveUser(user: EncryptedUser) {
               <input
                 class="input input-bordered w-full"
                 v-model="newSecret"
+                data-testid="encryption-secret"
                 placeholder="sk_live_…"
                 type="text"
               />
@@ -232,6 +252,7 @@ async function handleRemoveUser(user: EncryptedUser) {
               class="btn btn-primary btn-sm"
               :disabled="!newName.trim()"
               @click="handleCreateUser"
+              data-testid="encryption-save-user"
             >
               <Plus class="size-4" />
               保存用户
@@ -258,6 +279,7 @@ async function handleRemoveUser(user: EncryptedUser) {
             <tr
               v-for="user in users"
               :key="user.id"
+              data-testid="encryption-user-row"
             >
               <td>{{ user.name }}</td>
               <td class="font-mono text-xs">{{ user.creditCardInfo ?? '—' }}</td>
@@ -266,6 +288,7 @@ async function handleRemoveUser(user: EncryptedUser) {
                 <button
                   class="btn btn-ghost btn-xs text-error"
                   @click="handleRemoveUser(user)"
+                  data-testid="encryption-delete-user"
                 >
                   <Trash2 class="size-3" />
                 </button>

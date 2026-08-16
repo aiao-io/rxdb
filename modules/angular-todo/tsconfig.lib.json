@@ -7,7 +7,7 @@
     "types": [],
     "rootDir": "."
   },
-  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+  "exclude": ["**/*.spec.ts", "**/*.test.ts"],
   "extends": "./tsconfig.json",
   "include": ["**/*.ts"],
   "references": [

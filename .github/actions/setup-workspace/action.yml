@@ -27,12 +27,15 @@ runs:
           /usr/local/.ghcup
         df -h / | tail -1
 
+    # 第三方 action 一律钉 commit SHA，不用可变的 tag/分支：tag 可以被强推，
+    # 一次上游账号失陷就能拿到所有 CI 的 secrets 和 id-token。尾注的 `# vX` 是
+    # Dependabot 的约定 —— 它认这个注释，升级时 SHA 和注释一起改。
     - name: Install pnpm
-      uses: pnpm/action-setup@v4.4.0
+      uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
       with:
         run_install: false
 
-    - uses: actions/setup-node@v6
+    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
       with:
         node-version-file: .nvmrc
         cache: 'pnpm'

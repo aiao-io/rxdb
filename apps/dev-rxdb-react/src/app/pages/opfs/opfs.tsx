@@ -800,6 +800,7 @@ export default function OpfsPage() {
         multiple
         className='hidden'
         onChange={e => e.target.files && handleUpload(Array.from(e.target.files))}
+        data-testid='opfs-file-input'
       />
       <input
         ref={folderInputRef}

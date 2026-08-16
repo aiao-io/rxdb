@@ -22,7 +22,7 @@
     },
     "test-browser": {
       "executor": "nx:run-commands",
-      "dependsOn": ["coverage"],
+      "dependsOn": ["^build", "coverage"],
       "options": {
         "cwd": "packages/rxdb-plugin-search",
         "command": "vitest run --coverage && node ../../scripts/merge-vitest-reports.mjs --node=../../coverage/packages/rxdb-plugin-search --browser=../../coverage/packages/rxdb-plugin-search-browser --output=../../coverage/packages/rxdb-plugin-search",

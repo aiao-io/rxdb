@@ -8,9 +8,9 @@ RxDB 适配器，把数据落到**桌面应用私有目录里的真实 SQLite �
 
 - **真文件持久化**：数据在应用数据目录里的 `.sqlite3` 文件中，重启后仍在，不依赖浏览器存储配额
 - **渲染进程零文件系统权限**：`contextIsolation: true` + `sandbox: true` 下照常工作
-- **多窗口安全**：同一文件上的多个窗口连接共享 writer lease 与 `BEGIN IMMEDIATE` 事务，撞锁自动重试
+- **多窗口安全**：同一文件上的多个窗口各持独立连接，靠 SQLite 文件锁与 `BEGIN IMMEDIATE` 事务串行化，撞锁自动重试
 - **不回退**：runtime 与 engine 的组合不受支持时直接抛错，绝不静默切到 memory/OPFS/IndexedDB
-- **复用 SQL 核心**：查询、事务、分支切换、writer lease 全部来自 `@aiao/rxdb-adapter-sqlite-core`，与 wa-sqlite / sqlite-wasm 同语义
+- **复用 SQL 核心**：查询、事务、分支切换全部来自 `@aiao/rxdb-adapter-sqlite-core`，与 wa-sqlite / sqlite-wasm 同语义
 
 ## 何时使用
 

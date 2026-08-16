@@ -21,11 +21,13 @@ owner: jimmy
 
 ## 故事
 
-- ✅ [US-402 代码编辑器组件](../stories/ui/US-402-code-editor.md) (Medium)
-- ✅ [US-902 DevTools 面板](../stories/future/US-902-devtools-panel.md) (Low)
-- 📄 [US-904 DevTools 原生本地存储调试共享契约](../stories/future/US-904-devtools-native-storage-contract.md) (Medium) — 父故事/共享契约，不直接交付
-  - ⬜ [US-904a Electron 43 MV3 DevTools 可行性门禁](../stories/future/US-904a-electron-mv3-devtools-feasibility.md) (High)
-  - ⬜ [US-904b DevTools v2 协议（控制面 + provider 数据面）](../stories/future/US-904b-devtools-v2-protocol.md) (High)
-  - ⬜ [US-904c DevTools 共享面板与 Chrome v2 迁移](../stories/future/US-904c-devtools-shared-panel-chrome-migration.md) (High) — 阶段 1 可与 904b 并行
-  - ⬜ [US-904d Electron 原生存储 DevTools 集成](../stories/future/US-904d-electron-native-devtools-integration.md) (Medium) — 仅 904a supported 时开工
-  - ⬜ [US-905 Tauri DevTools 调试窗口与原生存储集成](../stories/future/US-905-tauri-native-devtools.md) (Medium) — 不等待 Electron 904d
+> 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
+
+- [US-402 代码编辑器组件](../stories/ui/US-402-code-editor.md) (Medium)
+- [US-902 DevTools 面板](../stories/future/US-902-devtools-panel.md) (Low)
+- [US-904 DevTools 原生本地存储调试](../stories/future/US-904-devtools-native-storage-contract.md) (Medium) — 单文件四阶段：
+  - 阶段 A Electron 43 MV3 DevTools 可行性门禁
+  - 阶段 B DevTools v2 协议（控制面 + provider 数据面）
+  - 阶段 C DevTools 共享面板与 Chrome v2 迁移 — C1 可与阶段 B 并行
+  - 阶段 D Electron 原生存储 DevTools 集成 — 仅阶段 A supported 时开工
+- [US-905 Tauri DevTools 调试窗口与原生存储集成](../stories/future/US-905-tauri-native-devtools.md) (Medium) — 不等待 US-904 阶段 D

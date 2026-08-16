@@ -13,7 +13,7 @@ import {
   type IRxDBPlugin,
   type Plugin
 } from '@aiao/rxdb';
-import { firstValueFrom, isObservable, type Observable } from 'rxjs';
+import { filter, firstValueFrom, from, ignoreElements, isObservable, merge, type Observable } from 'rxjs';
 
 import type { FtsField } from '@aiao/rxdb-adapter-sqlite-core';
 import { assertSupportedAdapter } from './core/adapter-guard.js';
@@ -350,8 +350,22 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
       throw new Error('[rxdb-plugin-search] local adapter is not configured; search requires a local SQLite adapter');
     }
 
-    // 主表由 RxDB 在 connect() 流程中创建；必须等该阶段完成后再创建 FTS 外部内容表与 trigger。
-    await this.rxdb.connect(localAdapterName);
+    // 主表由 RxDB 在 connect() 流程中创建。不能 await connect() 本身：
+    // connect() 会在适配器就绪之后再 await 插件 install，互相等待会死锁。
+    //
+    // 等的必须是 adapterConnected$(localAdapterName) 而不是聚合的 connected$：
+    // 后者任意一个适配器连上就为 true，配了 remote 时它先连上就会把这里提前放行，
+    // 于是 FTS DDL 打在还没建出来的主表上。
+    //
+    // merge(..., ignoreElements()) 只为把 connect() 的失败接进来 —— 它自己永不发值，
+    // 但 reject 会穿透 firstValueFrom，避免连接失败时这里永久挂起。
+    const connecting = this.rxdb.connect(localAdapterName);
+    await firstValueFrom(
+      merge(
+        this.rxdb.adapterConnected$(localAdapterName).pipe(filter(Boolean)),
+        from(connecting).pipe(ignoreElements())
+      )
+    );
 
     const adapter = await firstValueFrom(this.rxdb.localAdapter$);
     if (!adapter.rawQuery) {
@@ -363,11 +377,23 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     // 防御性复制 params：部分 adapter 实现可能在内部修改入参数组，避免与上游共享引用
     const callRaw = (sql: string, params?: readonly unknown[]) => rawQuery(sql, params ? [...params] : undefined);
 
-    const executor: RuntimeSqlExecutor = { rawQuery: callRaw };
-    const store = this.#createMigrationStore(adapter.getRepository(RxDBMigration));
-
+    // FTS DDL / 迁移仓必须走 bootstrapTransaction：此时适配器已就绪，
+    // 但 RxDB.connect() 还卡在 #await_plugin_installs。adapter.rawQuery / repo.find
+    // 都会 ready() → 再等 connect()，等于等自己。
+    //
+    // 第二个参数 false 关掉事务日志：这里全是 DDL 和迁移水位线，不是用户变更。
+    // 开着的话每个事务都会白白读一次分支号、重建一遍所有受日志实体的触发器。
+    //
+    // 每个实体**各自**一个事务，不合并成一个大事务：合并后任意一个实体撞上
+    // RxDBMigrationClaimConflictError（另一个 tab 正在装同一张表），会把已经装好的
+    // 其它实体一起回滚。逐个提交时冲突只影响它自己。
     for (const plan of this.#searchPlans) {
-      await installFtsForEntity(plan, executor, store);
+      await adapter.bootstrapTransaction(async tx => {
+        const executor: RuntimeSqlExecutor = {
+          rawQuery: (sql, params?) => tx.query(sql, params ? [...params] : undefined)
+        };
+        await installFtsForEntity(plan, executor, this.#createMigrationStore(tx.getRepository(RxDBMigration)));
+      }, false);
     }
 
     this.#engine = createSearchEngine(async (sql, params) => mapRowsToFtsRows(await callRaw(sql, params)));

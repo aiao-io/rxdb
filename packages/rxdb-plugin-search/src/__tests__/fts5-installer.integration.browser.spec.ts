@@ -47,8 +47,22 @@ const createHarness = async (options?: {
     : ((await rxdb.getAdapter('sqlite-wasm')) as RxDBAdapterSqlite);
 
   if (options?.wrapRawQuery) {
-    const next = adapter.rawQuery.bind(adapter);
-    adapter.rawQuery = ((sql, params) => options.wrapRawQuery!(sql, params, next)) as RxDBAdapterSqlite['rawQuery'];
+    const wrap = options.wrapRawQuery;
+    const nextRawQuery = adapter.rawQuery.bind(adapter);
+    adapter.rawQuery = ((sql, params) => wrap(sql, params, nextRawQuery)) as RxDBAdapterSqlite['rawQuery'];
+
+    // `#runInstall` 的 FTS DDL 走 bootstrapTransaction → tx.query，不会经过 adapter.rawQuery。
+    // 只包 rawQuery 会让失败注入和窗口探测全部空转。
+    const nextBootstrap = adapter.bootstrapTransaction.bind(adapter);
+    adapter.bootstrapTransaction = ((fun, transactionLog) =>
+      nextBootstrap(
+        (async tx => {
+          const nextQuery = tx.query.bind(tx);
+          tx.query = (sql, params) => wrap(sql, params as RawQueryParams, nextQuery as RxDBAdapterSqlite['rawQuery']);
+          return fun(tx);
+        }) as typeof fun,
+        transactionLog
+      )) as typeof adapter.bootstrapTransaction;
   }
 
   return {
@@ -199,17 +213,17 @@ describe('fts5 installer browser integration', () => {
     expect(migrationNames.filter(name => name.startsWith('fts5__'))).toEqual([]);
   });
 
-  // FTS5 安装由多条 rawQuery 组成，而 `#runInstall` 并没有把它们包进事务
-  //（`installFtsForEntity` 的 TSDoc 写「调用方负责」，而调用方没做）。
-  // 适配器按 rawQuery 粒度串行，所以**每两条语句之间都是一个能落进用户写入的窗口**。
+  // `#runInstall` 把 install 包进 bootstrapTransaction；`installFtsForEntity` 仍拆成两次 query：
+  // CREATE VIRTUAL TABLE，以及 reset + backfill + triggers 的合并批次。
+  // 批次内部不再有用户写入窗口；残留窗口只在建表与批次之间。
   //
-  // 旧顺序 DDL → triggers → reset → backfill 在「triggers 之后」那个窗口上会炸：
-  // trigger 已生效而索引还是空的，一条用户 DELETE 让 `_ad` 对着空索引发 `'delete'`，
-  // FTS5 抛 SQLITE_CORRUPT_VTAB —— 用户看到的字面报错是「database disk image is malformed」。
-  // 语句回滚、行还在，所以再点一次又好了；浏览器里表现为约 1/650 的偶发删除失灵。
+  // 旧顺序 DDL → triggers → reset → backfill 会在「triggers 已生效、索引仍为空」时炸：
+  // 用户 DELETE 让 `_ad` 对着空索引发 `'delete'`，FTS5 抛 SQLITE_CORRUPT_VTAB
+  // （字面报错「database disk image is malformed」）。
   //
-  // 这条用例在**每一个**窗口都插一次真实 DELETE，把偶发钉成确定性复现。
-  // 它同时守住修复的两个要件：trigger 排在 backfill 之后，且三者不得被重新拆开。
+  // 这条用例在每一次 `_fts_` query 之后插一次真实 DELETE：建表后无 trigger，批次后
+  // trigger 已存在且索引已回填。两者都不得抛错；若有人把 trigger 提前或把批次拆开，
+  // DELETE 会再次打到空索引。
   it('SRCH-FTS-BOOTSTRAP 安装期间任一窗口内的并发删除都不得打崩索引', async () => {
     const plan = extractFtsPlanFromMetadata(getEntityMetadata(Article))!;
     const quotedTable = quoteIdentifier(plan.sqlTableName!);

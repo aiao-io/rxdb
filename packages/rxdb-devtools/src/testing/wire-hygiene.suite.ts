@@ -20,8 +20,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { createDevToolsV2Message } from '../v2/wire.js';
-import { DEVTOOLS_RELAY_SEGMENTS, createScenario } from './driver.js';
 import type { DevToolsConformanceDriver, DevToolsWireFrame } from './driver.js';
+import { DEVTOOLS_RELAY_SEGMENTS, createScenario } from './driver.js';
 
 /** 套件自身发流量时使用的 session 身份；固定值让失败输出可读。 */
 const HYGIENE_SESSION_ID = '4b1d0f3a-2c6e-4a58-9f31-8d7c5e2b0a94';

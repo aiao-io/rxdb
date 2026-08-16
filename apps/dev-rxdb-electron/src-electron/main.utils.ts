@@ -204,3 +204,75 @@ export const resolveDevServerPort = (args: readonly string[], env: Record<string
   if (env['DEV_SERVER_PORT']) return parseDevServerPort(env['DEV_SERVER_PORT']);
   return 4120;
 };
+
+/** {@link createWillQuitHandler} 需要的最小事件形状，Electron 的 `Event` 结构上满足它。 */
+export interface PreventableQuitEvent {
+  /** 按住这次退出。 */
+  preventDefault(): void;
+}
+
+/** {@link createWillQuitHandler} 的入参。 */
+export interface WillQuitHandlerOptions {
+  /** 退出前必须落地的异步收尾（关连接、checkpoint WAL、删临时文件）。 */
+  readonly cleanup: () => Promise<void>;
+  /** 收尾落地后重新发起退出，通常是 `() => app.quit()`。 */
+  readonly quit: () => void;
+  /** 收尾失败的上报口。不传则静默 —— 失败不该挡住退出。 */
+  readonly onError?: (error: unknown) => void;
+  /**
+   * 把 {@link WillQuitHandlerOptions.quit} 排到当前微任务检查点之外。
+   *
+   * @remarks
+   * 仅供测试注入。默认 `setImmediate`，理由见 {@link createWillQuitHandler}。
+   */
+  readonly defer?: (task: () => void) => void;
+}
+
+/**
+ * 造一个「先收尾、再退出」的 `will-quit` 监听器。
+ *
+ * @param options - 收尾动作、重新退出的方式与错误上报口
+ * @returns 可直接挂到 `app.on('will-quit', ...)` 的监听器
+ *
+ * @remarks
+ * `will-quit` 的回调一返回 Electron 就继续退，异步收尾必须先 `preventDefault()`
+ * 把退出按住，等落地后再 `quit()` 一次。
+ *
+ * **重新 `quit()` 必须跨出当前微任务检查点**，这是本函数存在的全部理由：
+ * Electron 的 `Browser::Quit()` 开头是 `if (is_quitting_) return;`，而把
+ * `is_quitting_` 复位成 `false` 发生在 C++ 侧读到 prevent_default 之后 ——
+ * 也就是**所有** `will-quit` 监听器返回之后。JS 回调一返回，V8 立刻排空微任务，
+ * 此时仍在那段 C++ 帧里、`is_quitting_` 还是 `true`：在微任务里调 `app.quit()`
+ * 是个静默空操作，不再有 before-quit / will-quit / quit，进程永远不退。
+ *
+ * 收尾没有任何真实 I/O 时必然踩中 —— 而这正是常态：窗口的 `webContents` 'destroyed'
+ * 已经提前把会话都释放了，退出时 `closeAll()` 面对的是空集合，promise 在微任务里就 settle。
+ * 实测症状是 Playwright 的 `app.close()` 永不落地，`dev-rxdb-electron-e2e` 三个 spec
+ * 全部以 `Worker teardown timeout of 120000ms exceeded` 变红。
+ *
+ * 用 `setImmediate` 而不是 `setTimeout(..., 0)`：前者是事件循环的 check 阶段，
+ * 语义就是「当前这轮回调跑完之后」，不必挑一个没有依据的毫秒数。
+ *
+ * 三态而不是一个布尔：收尾**期间**再来一次 `will-quit`（用户连点退出、
+ * 或 `window-all-closed` 又触发一次）必须继续按住，既不能重复收尾，
+ * 也不能放行让进程带着未落盘的写入退出。
+ */
+export function createWillQuitHandler(options: WillQuitHandlerOptions): (event: PreventableQuitEvent) => void {
+  const defer = options.defer ?? ((task: () => void): void => void setImmediate(task));
+  let state: 'idle' | 'closing' | 'closed' = 'idle';
+
+  return event => {
+    if (state === 'closed') return;
+    event.preventDefault();
+    if (state === 'closing') return;
+
+    state = 'closing';
+    void options
+      .cleanup()
+      .catch(error => options.onError?.(error))
+      .finally(() => {
+        state = 'closed';
+        defer(options.quit);
+      });
+  };
+}

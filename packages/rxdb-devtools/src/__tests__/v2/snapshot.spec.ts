@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DevToolsSnapshotCaptureResult, DevToolsSnapshotRecord, DevToolsSnapshotSource } from '../../provider/types.js';
-import {
-  createDevToolsSnapshotStore,
-  snapshotRecordBytes,
-  totalSnapshotBytes
-} from '../../provider/snapshot.js';
 import type { DevToolsSnapshotStore } from '../../provider/snapshot.js';
-import { createFakeClock } from '../../testing/fake-clock.js';
+import { createDevToolsSnapshotStore, snapshotRecordBytes, totalSnapshotBytes } from '../../provider/snapshot.js';
+import type {
+  DevToolsSnapshotCaptureResult,
+  DevToolsSnapshotRecord,
+  DevToolsSnapshotSource
+} from '../../provider/types.js';
 import type { DevToolsFakeClock } from '../../testing/fake-clock.js';
+import { createFakeClock } from '../../testing/fake-clock.js';
 import {
   DEVTOOLS_DEFAULT_PAGE_SIZE,
   DEVTOOLS_MAX_PAGE_SIZE,

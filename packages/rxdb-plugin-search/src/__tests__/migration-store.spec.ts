@@ -34,13 +34,22 @@ const INSTALL_PREFIX = 'fts5__public$article__v1__install__';
 const buildFakeRxdb = (migrationRecords: { name: string }[] = []) => {
   const find = vi.fn(async () => migrationRecords);
   const create = vi.fn(async (entity: unknown) => entity);
+  const rawQuery = vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] }));
   const adapter = {
-    rawQuery: vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] })),
-    getRepository: vi.fn(() => ({ find, create }))
+    rawQuery,
+    getRepository: vi.fn(() => ({ find, create })),
+    bootstrapTransaction: async (
+      fn: (tx: {
+        query: typeof rawQuery;
+        getRepository: () => { find: typeof find; create: typeof create };
+      }) => Promise<unknown>
+    ) => fn({ query: rawQuery, getRepository: () => ({ find, create }) })
   };
   const rxdb = {
     config: { sync: { local: { adapter: 'sqlite-wasm' } }, entities: [FakeArticle] },
     localAdapter$: new BehaviorSubject(adapter),
+    connected$: new BehaviorSubject(true),
+    adapterConnected$: () => new BehaviorSubject(true),
     connect: vi.fn(async () => adapter),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn()

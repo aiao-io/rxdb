@@ -5,7 +5,6 @@ import { defineConfig, devices } from '@playwright/test';
 // For CI, you may want to set BASE_URL to the deployed application.
 const baseURL = process.env['BASE_URL'] || 'http://localhost:8200';
 const isCI = Boolean(process.env['CI']);
-const nxCommandPrefix = 'NX_DAEMON=false ';
 
 /**
  * Read environment variables from file.
@@ -64,16 +63,22 @@ export default defineConfig({
   /*
    * Run your local dev server before starting the tests.
    *
-   * 用 `serve-e2e` 而不是 `serve-static`：**webServer 里绝不能带 buildTarget**。
-   * `serve-static` 的 `buildTarget` 会在 playwright 进程内再起一个 `NX_DAEMON=false` 的
-   * nx 进程，把 utils → rxdb → rxdb-client-generator → rxdb-test 整条链重建一遍。
-   * 而 `e2e` target 自己已经 `dependsOn: ["dev-rxdb-angular:build"]`，产物在 playwright
-   * 启动前就已存在 —— 这次重建纯属多余，且因为关掉了 daemon 而**无法与任何人协调**：
-   * 它会和外层 nx、以及并行跑的 dev-rxdb-supabase-e2e 的同名嵌套进程同时写
-   * 各个包的 dist。vite 的 `emptyOutDir` 正在 rmSync 时另一进程往里写，
-   * 就是 `ENOTEMPTY: packages/rxdb/dist/entity`。
-   * Nx 把 `rxdb-test:build` / `rxdb:build` 标成 flaky（同 hash 既有 success 又有 failure）
-   * 根因就在这里。`serve-e2e` 不带 buildTarget，只 serve 产物，不碰 dist。
+   * 直接 `node scripts/e2e-static-server.mjs`，不要再走 `nx run …:serve-e2e`。
+   * `@nx/web:file-server` 会 fork 出 http-server 孙子进程；Playwright teardown 只杀得掉
+   * nx/pnpm 包装层，http-server 被 reparent 到 init 后继续占 8200，下次 e2e 就报
+   * "http://localhost:8200 is already used"。Vue / React 已经改成直接 exec vite preview，
+   * Angular 没有 vite preview，所以用仓库自己的 SPA 静态服务，让监听进程成为 Playwright
+   * 的直接子进程，teardown 能回收。
+   *
+   * **webServer 里绝不能带 buildTarget**。`serve-static` 的 `buildTarget` 会在 playwright
+   * 进程内再起一个 `NX_DAEMON=false` 的 nx 进程，把 utils → rxdb → rxdb-client-generator
+   * → rxdb-test 整条链重建一遍。而 `e2e` target 自己已经
+   * `dependsOn: ["dev-rxdb-angular:build"]`，产物在 playwright 启动前就已存在 ——
+   * 这次重建纯属多余，且因为关掉了 daemon 而**无法与任何人协调**：它会和外层 nx、
+   * 以及并行跑的 dev-rxdb-supabase-e2e 的同名嵌套进程同时写各个包的 dist。
+   * vite 的 `emptyOutDir` 正在 rmSync 时另一进程往里写，就是
+   * `ENOTEMPTY: packages/rxdb/dist/entity`。Nx 把 `rxdb-test:build` / `rxdb:build`
+   * 标成 flaky（同 hash 既有 success 又有 failure）根因就在这里。
    *
    * `reuseExistingServer` 恒为 false，与 `dev-rxdb-react-e2e` / `dev-rxdb-vue-e2e` 对齐。
    * 曾经是 `!isCI`，而 `serve-e2e` 是 continuous target，它的 file-server 常在本次运行结束后
@@ -86,11 +91,16 @@ export default defineConfig({
    * Nx 因此把它标成 flaky —— 一条把真实失效模式盖成「偶发」的假信号。
    * 复现只需在 8200 上挂一个返回空 HTML 的服务器再跑本套件，症状逐字一致。
    *
+   * 同类全红：website:build 若把 `--base-href=/demo/angular/` 写进
+   * `dist/apps/dev-rxdb-angular`，本 webServer 仍 200，但脚本去 `/demo/angular/*.js`。
+   * 网站演示必须写到 `dist/apps/dev-rxdb-angular-website`；e2e-static-server 启动时也会拒收这种产物。
+   *
    * 改成 false 后端口被占会**当场显式报错**（"8200 is already used"），
    * 而不是静默跑在一个不知道是什么的服务器上：一个显式失败，好过一次说明不了任何事的绿。
+   * 端口必须保持 8200：应用用 `window.location.port === '8200'` 强制 IDB + e2e DB 隔离。
    */
   webServer: {
-    command: `${nxCommandPrefix}pnpm exec nx run dev-rxdb-angular:serve-e2e --port 8200`,
+    command: 'node scripts/e2e-static-server.mjs --root dist/apps/dev-rxdb-angular/browser --port 8200',
     url: 'http://localhost:8200',
     reuseExistingServer: false,
     cwd: workspaceRoot,

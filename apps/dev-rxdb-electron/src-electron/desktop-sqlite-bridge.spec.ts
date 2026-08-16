@@ -251,6 +251,21 @@ describe('桌面 host 的 IPC 接线', () => {
   it('全局键与适配器包的 DESKTOP_HOST_TRANSPORT_KEY 一致', () => {
     expect(DESKTOP_HOST_BRIDGE_KEY).toBe(DESKTOP_HOST_TRANSPORT_KEY);
   });
+
+  // 退出时序的行为用例在 main.utils.spec.ts（createWillQuitHandler），但那套管不到
+  // main.ts 有没有真的用它 —— 手写一遍「preventDefault + 收尾 + app.quit()」照样能跑通
+  // 全部单测，然后在真实产物上永远退不掉（见 createWillQuitHandler 的注释）。
+  // 这条把接线本身钉住：will-quit 里除了委托给 handler，不得再出现裸的 app.quit()。
+  it('main 的 will-quit 委托给 createWillQuitHandler，不自己 quit', () => {
+    const source = read('src-electron/main.ts');
+    expect(source).toContain('createWillQuitHandler(');
+
+    const start = source.indexOf(`app.on('will-quit'`);
+    expect(start, 'main.ts 里找不到 will-quit 监听器').toBeGreaterThan(-1);
+    const listener = source.slice(start, source.indexOf('});', start));
+    expect(listener).toContain('handleWillQuit(event)');
+    expect(listener, 'will-quit 里直接 app.quit() 会被 Electron 静默吞掉').not.toContain('app.quit()');
+  });
 });
 
 /**

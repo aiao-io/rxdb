@@ -152,9 +152,7 @@ const toErrorResponse = (error: unknown): DesktopHostResponse => {
  * @remarks
  * 每个 `open` 请求得到**独立的** `DatabaseSync` 连接，而不是共享一条：
  * 多个窗口共用连接时它们的 `BEGIN` 块会互相穿插，事务隔离直接失效。
- * 各持连接后，跨窗口并发交由 SQLite 自己的文件锁与
- * [US-304](../../../requirements/stories/collaboration/US-304-writer-lease-migration-fencing.md)
- * 的 writer lease 处理（AC#5）。
+ * 各持连接后，跨窗口并发交由 SQLite 自己的文件锁处理（AC#5）。
  *
  * @param options - host 配置
  * @returns host 实例

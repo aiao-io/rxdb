@@ -14,7 +14,7 @@
   "targets": {
     "spec-typecheck": {
       "executor": "nx:run-commands",
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "^typecheck"],
       "inputs": ["default", "^production"],
       "options": {
         "cwd": "apps/dev-rxdb-angular",

@@ -9,8 +9,8 @@ import {
   DEVTOOLS_REQUEST_TIMEOUT_MS
 } from '../../v2/constants.js';
 import { createSessionId } from '../../v2/ids.js';
-import { createDevToolsSession } from '../../v2/session.js';
 import type { DevToolsSession } from '../../v2/session.js';
+import { createDevToolsSession } from '../../v2/session.js';
 
 const OTHER_SESSION_ID = 'b3d9e7c1-4a52-4e08-8f6b-1c0d5a2739e4';
 

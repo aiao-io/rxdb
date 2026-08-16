@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
@@ -47,5 +47,41 @@ test('every step carries a name and a command', () => {
     assert.ok(step.name.length > 0);
     assert.equal(typeof step.command, 'string');
     assert.ok(step.command.length > 0);
+  }
+});
+
+test('Angular demo build writes to a dedicated output path, not the e2e dist', () => {
+  const step = steps.find(item => item.name === '构建 Angular 演示');
+
+  assert.ok(step, 'missing Angular demo step');
+  // baseHref 与 outputPath 必须成对出现：只改 baseHref 会把 /demo/angular/ 写进
+  // e2e 的 webServer 根，localhost:8200 上整套 e2e 全红。
+  assert.match(step.command, /--base-href=\/demo\/angular\//);
+  assert.match(step.command, /--output-path=dist\/apps\/dev-rxdb-angular-website(?:["'\s]|$)/);
+
+  const source = String(step.postBuild);
+  assert.match(source, /dev-rxdb-angular-website\/browser/);
+  assert.doesNotMatch(source, /dev-rxdb-angular\/browser/);
+});
+
+test('every --configuration referenced by a step exists in the target project.json', () => {
+  // Nx 的 resolveConfiguration 对不存在的 configuration **静默**回退到 defaultConfiguration，
+  // 构建照样报成功、产物却少了这份 configuration 的所有选项。逗号串联（`production,website`）
+  // 正是这样一个不存在的 key。这里把「配置名必须真实存在」变成断言，而不是留给部署去发现。
+  const nxBuild = /pnpm nx (?<target>[\w-]+) (?<project>[\w-]+)[^\n]*--configuration=(?<configuration>[^\s'"]+)/g;
+
+  for (const step of steps) {
+    for (const { groups } of step.command.matchAll(nxBuild)) {
+      const { target, project, configuration } = groups;
+      const projectJson = join(repoRoot, 'apps', project, 'project.json');
+
+      assert.ok(existsSync(projectJson), `${project} has no apps/${project}/project.json`);
+      const configurations = JSON.parse(readFileSync(projectJson, 'utf8')).targets?.[target]?.configurations ?? {};
+
+      assert.ok(
+        Object.hasOwn(configurations, configuration),
+        `${project}:${target} has no configuration "${configuration}" — nx would silently fall back to the default`
+      );
+    }
   }
 });

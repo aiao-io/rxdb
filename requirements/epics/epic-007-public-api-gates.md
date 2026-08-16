@@ -22,7 +22,7 @@ owner: jimmy
 把「扫描器覆盖子路径」塞进去只会让读者以为它是一项用户可见功能。
 
 同时这类工作有稳定的复现模式：**某道门禁的覆盖面小于它被引用时暗示的范围**。
-2026-08-15 的评审一次性暴露了三处（见下方目标），说明它需要一个能持续接收此类缺口的归属，
+一次评审即一次性暴露了三处（见下方目标），说明它需要一个能持续接收此类缺口的归属，
 而不是每次现补一个「杂项」故事。
 
 ## 目标
@@ -30,16 +30,18 @@ owner: jimmy
 - [ ] `api-surface.mjs` 覆盖 `exports` 子路径入口的导出表面（[US-601](../stories/tooling/US-601-subpath-api-surface-baseline.md)）
 - [ ] 迁移发布门禁的三个 git 钩子（`bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol`）
       进入 PR CI，而不只在打 tag 时跑——**尚无故事认领**，背景见
-      [README 的执行顺序第 0 步](../README.md#执行顺序)
+      [release-plan 的执行顺序第 0 步](../release-plan.md#执行顺序)
 - [ ] 手工发布路径的前置校验：`pnpm test-all` 未跑绿即发布，会重演 0.0.25 的版本漂移——**尚无故事认领**，
-      背景见 [README](../README.md) 的「开项：0.0.25 遗留的两条版本漂移」
+      背景见 [release-plan](../release-plan.md) 的「开项：0.0.25 遗留的两条版本漂移」
 
 新缺口进入本 Epic 的判据只有一条：**它是一道门禁的覆盖面问题**。
 「某个功能还没做」不属于本 Epic，哪怕它会顺带改到门禁配置。
 
 ## 故事
 
-- ⬜ [US-601 子路径入口纳入 API 表面基线](../stories/tooling/US-601-subpath-api-surface-baseline.md) (Medium)
+> 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
+
+- [US-601 子路径入口纳入 API 表面基线](../stories/tooling/US-601-subpath-api-surface-baseline.md) (Medium)
 
 ## 非目标
 

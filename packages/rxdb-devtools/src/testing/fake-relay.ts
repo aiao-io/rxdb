@@ -16,8 +16,8 @@
 
 import type { DevToolsClock } from '../v2/clock.js';
 import type { DevToolsV2Direction } from '../v2/wire.js';
-import { DEVTOOLS_RELAY_SEGMENTS } from './driver.js';
 import type { DevToolsRelaySegment, DevToolsSegmentProbe, DevToolsWireFrame } from './driver.js';
+import { DEVTOOLS_RELAY_SEGMENTS } from './driver.js';
 
 /** 中继的构造条件。 */
 export interface FakeRelayOptions {
@@ -161,7 +161,12 @@ export class FakeRelay {
   }
 
   /** 把帧交给第 `index` 段：端点则回调，中间段则记录并继续转发。 */
-  #deliver(frame: DevToolsWireFrame, direction: DevToolsV2Direction, index: number, segment: DevToolsRelaySegment): void {
+  #deliver(
+    frame: DevToolsWireFrame,
+    direction: DevToolsV2Direction,
+    index: number,
+    segment: DevToolsRelaySegment
+  ): void {
     const record = this.#record(segment);
     record.received.push(frame);
 

@@ -3,10 +3,19 @@ name: PR
 on:
   pull_request:
 
+# 最小权限。ci-template.yml 里也有一份同样的声明（reusable workflow 的 job 权限
+# 取调用方与被调用方的**交集**，两边都写死才不会被将来某次改动悄悄放宽）。
+#   actions: read     nrwl/nx-set-shas 要读历史 workflow run 找 base SHA
+#   contents: read    checkout
+#   id-token: write   Codecov 的 OIDC 上传（use_oidc: true）
+# 没有 pull-requests: write —— 全流程没有任何一步往 PR 上写评论或改标签。
+#
+# 这里的 id-token 只是**上限**：ci-template.yml 没有在 workflow 级要它，
+# 只有 coverage job 自己声明，其余 job 一律拿不到。这一行删不得（交集为空就没得签），
+# 但也别据此以为每个 job 都带着 id-token。
 permissions:
   actions: read
   contents: read
-  pull-requests: write
   id-token: write
 
 concurrency:

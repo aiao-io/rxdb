@@ -6,7 +6,7 @@
  * 10 min transfer 总时长、60 s snapshot cursor 过期、15 s snapshot 端到端。
  * 它们**必须**全部走本模块注入的时钟，不能直接调 `globalThis.setTimeout`。
  *
- * 理由不是「方便写单测」：同一份 conformance suite 要被 US-904c / US-904d / US-905 的薄
+ * 理由不是「方便写单测」：同一份 conformance suite 要被 US-904 阶段 C / D 与 US-905 的薄
  * driver 在真实 `chrome.runtime.Port`、Electron IPC 和 Tauri `invoke` 上复跑，那些 driver
  * 无法让 vitest 的 fake timers 接管宿主计时器。没有这个端口，与时限相关的验收在下游只能
  * 靠真实等待（十分钟级）或者干脆跳过——跳过就是假绿。

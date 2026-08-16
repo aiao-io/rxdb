@@ -122,6 +122,31 @@ describe('PortService', () => {
       2,
       expect.objectContaining({ type: 'SWITCH_BRANCH', payload: 'feature', sequence: 2 })
     );
+    expect(harnesses[0]?.postMessage.mock.calls[1]?.[0]).not.toHaveProperty('session');
+
+    service.ngOnDestroy();
+  });
+
+  // 协议 v2 用私有 MessagePort 取代了会话令牌：面板不再在 envelope 上贴任何 `session`，
+  // 贴了反而会被页面侧的严格 envelope 校验整条拒掉。
+  it('never stamps a session key on outbound commands', () => {
+    const service = new PortService();
+    service.activateTab();
+    harnesses[0]?.emitMessage({
+      source: RXDB_DEVTOOLS_MESSAGE,
+      direction: 'page-to-devtools',
+      type: 'HANDSHAKE',
+      payload: { protocolVersion: 2, capabilities: 'full' },
+      timestamp: 1,
+      sequence: 0
+    });
+    harnesses[0]?.postMessage.mockClear();
+
+    service.sendMessage('PING');
+    service.sendMessage('SWITCH_BRANCH', 'feature');
+
+    expect(harnesses[0]?.postMessage.mock.calls[0]?.[0]).not.toHaveProperty('session');
+    expect(harnesses[0]?.postMessage.mock.calls[1]?.[0]).not.toHaveProperty('session');
 
     service.ngOnDestroy();
   });

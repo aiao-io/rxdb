@@ -18,11 +18,15 @@
  * @module @aiao/rxdb-devtools/v2/authorization
  */
 
-import type { DevToolsProviderDescriptor, DevToolsProviderDomain, DevToolsProviderOperation } from '../provider/descriptor.js';
+import type {
+  DevToolsProviderDescriptor,
+  DevToolsProviderDomain,
+  DevToolsProviderOperation
+} from '../provider/descriptor.js';
 import type { DevToolsCapability } from '../types.js';
 import { satisfiesCapability } from './capability.js';
-import { createDevToolsError } from './errors.js';
 import type { DevToolsErrorPayload } from './errors.js';
+import { createDevToolsError } from './errors.js';
 import type { DevToolsV2MessageType } from './wire.js';
 
 /**

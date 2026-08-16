@@ -63,7 +63,8 @@ export function encodeCanonicalBase64(bytes: Uint8Array): string {
   let encoded = '';
   for (let index = 0; index < bytes.length; index += 3) {
     const remaining = bytes.length - index;
-    const word = (bytes[index] << 16) | ((remaining > 1 ? bytes[index + 1] : 0) << 8) | (remaining > 2 ? bytes[index + 2] : 0);
+    const word =
+      (bytes[index] << 16) | ((remaining > 1 ? bytes[index + 1] : 0) << 8) | (remaining > 2 ? bytes[index + 2] : 0);
     encoded += ALPHABET.charAt((word >>> 18) & 0x3f) + ALPHABET.charAt((word >>> 12) & 0x3f);
     encoded += remaining > 1 ? ALPHABET.charAt((word >>> 6) & 0x3f) : '=';
     encoded += remaining > 2 ? ALPHABET.charAt(word & 0x3f) : '=';

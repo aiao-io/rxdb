@@ -68,7 +68,7 @@ const isNonNegativeSafeInteger = (value: unknown): boolean => Number.isSafeInteg
 const isPositiveSafeInteger = (value: unknown): boolean => Number.isSafeInteger(value) && (value as number) > 0;
 
 /**
- * envelope 的键必须**精确**匹配（`tabId` 是唯一允许的可选键）。
+ * envelope 的键必须**精确**匹配（`tabId` 是唯一的可选键）。
  *
  * 与核心库 `hasExactKeys` 的语义一致：多一个键就拒绝。
  * 这不是洁癖 —— 消息来自页面上下文，夹带键是最省事的注入手段。

@@ -88,7 +88,7 @@ export type {
   HandshakeAckMessage,
   /** 握手消息。 */
   HandshakeMessage,
-  /** 握手载荷：协议版本 + 能力档。 */
+  /** 握手载荷：协议版本 + 能力档（私有信道端口随消息 transfer，不在载荷里）。 */
   HandshakePayload,
   /** 数据库检查命令。 */
   InspectDbMessage,
@@ -139,9 +139,9 @@ export type {
 
 /*
  * ---------------------------------------------------------------------------
- * v2 协议表面（US-904b）
+ * v2 协议表面（US-904 阶段 B）
  *
- * 这一整段是 v2 数值、状态机与错误联合的唯一真相源：US-904c / 904d / 905 只引用，
+ * 这一整段是 v2 数值、状态机与错误联合的唯一真相源：US-904 阶段 C / D 与 US-905 只引用，
  * 不重定义。表面刻意做得宽——面板要构造 REQUEST payload、host 作者要实现 provider 接缝、
  * 中继要在不解析 payload 的前提下转发，任何一个类型不导出，下游就只能照抄一份，
  * 而照抄出来的副本不会随本包演进。
@@ -246,10 +246,10 @@ export type {
   DevToolsV2HandshakePayload,
   /** 全部 v2 消息的联合。 */
   DevToolsV2Message,
-  /** v2 消息类型字面量联合。 */
-  DevToolsV2MessageType,
   /** 构造 v2 消息时的信封选项。 */
   DevToolsV2MessageOptions,
+  /** v2 消息类型字面量联合。 */
+  DevToolsV2MessageType,
   /** `type` 到 payload 的映射。 */
   DevToolsV2PayloadMap
 } from './v2/wire.js';
@@ -342,18 +342,10 @@ export type {
 } from './v2/clock.js';
 
 export {
-  /** 用 `getRandomValues` 铸造 UUID v4；非安全上下文同样可用。 */
-  createSessionId,
-  /** 判断是否为规范 UUID v4 文本。 */
-  isCanonicalUuidV4,
-  /** 判断是否为合法 `requestId` / `transferId`。 */
-  isDevToolsIdentifier
-} from './v2/ids.js';
-export {
-  /** 按 RFC 4648 标准字母表与规范填充编码。 */
-  encodeCanonicalBase64,
   /** 解码并做重编码往返比较；非规范输入一律拒绝。 */
-  decodeCanonicalBase64
+  decodeCanonicalBase64,
+  /** 按 RFC 4648 标准字母表与规范填充编码。 */
+  encodeCanonicalBase64
 } from './v2/base64.js';
 export {
   /** 判断是否为合法 `pageSize`。 */
@@ -361,21 +353,15 @@ export {
   /** 判断是否为合法 `supportedVersions`（非空、降序、去重、有界）。 */
   isSupportedVersionList
 } from './v2/guards.js';
-
 export {
-  /** panel 侧协商机：暂存、补发 HELLO、决策窗口、ACK 所有权、降级标记。 */
-  createPanelNegotiation
-} from './v2/negotiation-panel.js';
-export type {
-  /** panel 协商机。 */
-  DevToolsPanelNegotiation,
-  /** panel 协商机会发出的消息联合。 */
-  DevToolsPanelNegotiationMessage,
-  /** panel 协商机的构造端口。 */
-  DevToolsPanelNegotiationPorts,
-  /** panel 协商机状态。 */
-  DevToolsPanelNegotiationState
-} from './v2/negotiation-panel.js';
+  /** 用 `getRandomValues` 铸造 UUID v4；非安全上下文同样可用。 */
+  createSessionId,
+  /** 判断是否为规范 UUID v4 文本。 */
+  isCanonicalUuidV4,
+  /** 判断是否为合法 `requestId` / `transferId`。 */
+  isDevToolsIdentifier
+} from './v2/ids.js';
+
 export {
   /** connector 侧协商机：eager legacy 握手、逐次响应 HELLO、铸造 session。 */
   createConnectorNegotiation
@@ -390,6 +376,20 @@ export type {
   /** connector 协商机状态。 */
   DevToolsConnectorNegotiationState
 } from './v2/negotiation-connector.js';
+export {
+  /** panel 侧协商机：暂存、补发 HELLO、决策窗口、ACK 所有权、降级标记。 */
+  createPanelNegotiation
+} from './v2/negotiation-panel.js';
+export type {
+  /** panel 协商机。 */
+  DevToolsPanelNegotiation,
+  /** panel 协商机会发出的消息联合。 */
+  DevToolsPanelNegotiationMessage,
+  /** panel 协商机的构造端口。 */
+  DevToolsPanelNegotiationPorts,
+  /** panel 协商机状态。 */
+  DevToolsPanelNegotiationState
+} from './v2/negotiation-panel.js';
 
 export {
   /** connector 侧 v2 端点：协商 + session 预算 + 授权 + 传输状态机的组合根。 */

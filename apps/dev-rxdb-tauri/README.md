@@ -195,7 +195,7 @@ apps/dev-rxdb-tauri/
 ├── conformance/               # Rust 宿主一致性套件（Vitest，node 环境，驱动 stdio 二进制）
 │   ├── rust-host-transport.ts # 子进程 + 行协议
 │   ├── rust-adapter-factory.ts# 共享套件要的适配器工厂
-│   └── *.spec.ts              # setup / writer-lease / encrypted-*
+│   └── *.spec.ts              # setup / storage-* / encrypted-*
 ├── public/                    # renderer 静态资源
 ├── src/                       # Angular renderer
 │   └── app/

@@ -3,7 +3,7 @@
  *
  * @remarks
  * 本模块**只定义接缝**，不含任何平台实现——真正的 OPFS / Node / Rust provider 由
- * US-904c / US-904d / US-905 落地。冻结在这里的是三件下游不得重新定义的事：
+ * US-904 阶段 C / D 与 US-905 落地。冻结在这里的是三件下游不得重新定义的事：
  *
  * 1. **provider 只用穷尽错误联合说话。** `invoke` 的失败分支返回
  *    {@link DevToolsErrorPayload}，而不是 throw 平台异常。抛异常的接口没法在类型上

@@ -22,8 +22,8 @@
  * @module @aiao/rxdb-devtools/v2/error-mapping
  */
 
-import { createDevToolsError, DEVTOOLS_PROVIDER_ERROR_CODES } from './errors.js';
 import type { DevToolsErrorPayload, DevToolsProviderErrorCode } from './errors.js';
+import { createDevToolsError, DEVTOOLS_PROVIDER_ERROR_CODES } from './errors.js';
 import { isRecord } from './guards.js';
 
 /**
@@ -125,7 +125,10 @@ const ORIGIN_TABLES: Readonly<Record<DevToolsErrorOrigin, Readonly<Record<string
 };
 
 /** 每个来源的判别字段名。 */
-const ORIGIN_FIELDS = { dom: 'name', node: 'code', rust: 'kind' } as const satisfies Record<DevToolsErrorOrigin, string>;
+const ORIGIN_FIELDS = { dom: 'name', node: 'code', rust: 'kind' } as const satisfies Record<
+  DevToolsErrorOrigin,
+  string
+>;
 
 /**
  * 取出该来源的判别字段。
