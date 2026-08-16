@@ -1,0 +1,192 @@
+[
+  {
+    "entity": "Article",
+    "systemFields": [
+      {
+        "field": "id",
+        "displayName": "ID",
+        "type": "uuid",
+        "readonly": true
+      },
+      {
+        "field": "createdAt",
+        "displayName": "创建时间",
+        "type": "date",
+        "readonly": true
+      },
+      {
+        "field": "updatedAt",
+        "displayName": "更新时间",
+        "type": "date",
+        "readonly": true
+      },
+      {
+        "field": "createdBy",
+        "displayName": "创建者",
+        "type": "string",
+        "readonly": true
+      },
+      {
+        "field": "updatedBy",
+        "displayName": "更新者",
+        "type": "string",
+        "readonly": true
+      }
+    ],
+    "entityFields": [
+      {
+        "field": "title",
+        "displayName": "标题",
+        "type": "string",
+        "readonly": false,
+        "required": true,
+        "unique": true
+      },
+      {
+        "field": "body",
+        "displayName": "正文",
+        "type": "string",
+        "readonly": false,
+        "nullable": true
+      },
+      {
+        "field": "secret",
+        "displayName": "密文",
+        "type": "string",
+        "readonly": false
+      },
+      {
+        "field": "tags",
+        "displayName": "标签",
+        "type": "stringArray",
+        "readonly": false
+      },
+      {
+        "field": "state",
+        "displayName": "状态",
+        "type": "enum",
+        "readonly": false,
+        "enumValues": [
+          "draft",
+          "published"
+        ]
+      },
+      {
+        "field": "views",
+        "displayName": "浏览量",
+        "type": "integer",
+        "readonly": false
+      },
+      {
+        "field": "publishedAt",
+        "displayName": "发布时间",
+        "type": "date",
+        "readonly": false,
+        "nullable": true
+      },
+      {
+        "field": "meta",
+        "displayName": "扩展",
+        "type": "keyValue",
+        "readonly": false,
+        "keyValueSchema": {
+          "source": {
+            "label": "来源",
+            "type": "string",
+            "required": true
+          },
+          "score": {
+            "label": "评分",
+            "type": "number",
+            "nullable": true
+          }
+        }
+      },
+      {
+        "field": "payload",
+        "displayName": "原始载荷",
+        "type": "json",
+        "readonly": false
+      },
+      {
+        "field": "thumbnail",
+        "displayName": "缩略图",
+        "type": "binary",
+        "readonly": false,
+        "nullable": true
+      },
+      {
+        "field": "excerpt",
+        "displayName": "摘要",
+        "type": "computed",
+        "readonly": true
+      },
+      {
+        "field": "draftRevisionId",
+        "displayName": "草稿版本",
+        "type": "oneToOne",
+        "nullable": false,
+        "relatedEntityName": "Revision",
+        "relatedNamespace": "public"
+      },
+      {
+        "field": "authorId",
+        "displayName": "作者",
+        "type": "manyToOne",
+        "nullable": true,
+        "relatedEntityName": "Author",
+        "relatedNamespace": "public"
+      }
+    ]
+  },
+  {
+    "entity": "Topic",
+    "systemFields": [
+      {
+        "field": "id",
+        "displayName": "ID",
+        "type": "uuid",
+        "readonly": true
+      }
+    ],
+    "entityFields": [
+      {
+        "field": "slug",
+        "displayName": "别名",
+        "type": "string",
+        "readonly": false
+      },
+      {
+        "field": "label",
+        "displayName": "名称",
+        "type": "string",
+        "readonly": false
+      }
+    ]
+  },
+  {
+    "entity": "Loose",
+    "systemFields": [
+      {
+        "field": "id",
+        "displayName": "ID",
+        "type": "uuid",
+        "readonly": true
+      },
+      {
+        "field": "createdAt",
+        "displayName": "创建时间",
+        "type": "date",
+        "readonly": true
+      }
+    ],
+    "entityFields": [
+      {
+        "field": "note",
+        "displayName": "备注",
+        "type": "string",
+        "readonly": false
+      }
+    ]
+  }
+]
