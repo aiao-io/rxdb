@@ -2,13 +2,13 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-    ALLOWED_PREFIXES,
-    NEED_CHECK_BRANCHES,
-    buildSubjectRegex,
-    parseMessage,
-    parseRange,
-    shouldCheckCurrentBranch,
-    validateCommitMessage
+  ALLOWED_PREFIXES,
+  NEED_CHECK_BRANCHES,
+  buildSubjectRegex,
+  parseMessage,
+  parseRange,
+  shouldCheckCurrentBranch,
+  validateCommitMessage
 } from './commit-lint.mjs';
 
 const config = {
