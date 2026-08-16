@@ -185,11 +185,11 @@ describe('session resource budgets', () => {
     });
   });
 
-  it('MUST still answer the waitable code while one tombstone slot remains', () => {
-    // 墓碑差一格就满、在途也已满：这时排空在途确实能推进，所以答案必须是可等待的那个。
-    // （两者同时满在结构上不可达：填满墓碑必须先结算，而结算就会腾出在途名额。）
+  it('MUST still answer the waitable code while a tombstone slot remains for every live id', () => {
+    // 在途已满，但把在途全部结算之后墓碑仍装得下：这时排空在途确实能推进，
+    // 所以答案必须是可等待的那个。
     const { session } = setup();
-    burnRequestBudget(session, DEVTOOLS_MAX_REQUEST_TOMBSTONES - 1);
+    burnRequestBudget(session, DEVTOOLS_MAX_REQUEST_TOMBSTONES - DEVTOOLS_MAX_INFLIGHT_REQUESTS - 1);
     for (let index = 0; index < DEVTOOLS_MAX_INFLIGHT_REQUESTS; index++) {
       expect(session.registerRequest(`live-${index}`).outcome).toBe('registered');
     }
@@ -198,6 +198,24 @@ describe('session resource budgets', () => {
       outcome: 'rejected',
       error: { code: 'request_limit_exceeded', retryable: true }
     });
+  });
+
+  it('MUST NOT admit more distinct ids than the declared tombstone budget', () => {
+    // 在途 ID 迟早都要变成墓碑，准入时不给它们留位就等于把声明的 4096 悄悄放大到
+    // 4096 + 32：4095 个墓碑之上仍能同时准入 32 条，全部结算后墓碑就是 4127。
+    const { session } = setup();
+    burnRequestBudget(session, DEVTOOLS_MAX_REQUEST_TOMBSTONES - 1);
+
+    // 只剩最后一格，只能再进一条；在途名额空着也换不来第二条。
+    expect(session.registerRequest('last').outcome).toBe('registered');
+    expect(session.registerRequest('overflow')).toEqual({
+      outcome: 'rejected',
+      error: { code: 'session_budget_exhausted', retryable: false }
+    });
+
+    session.settleRequest('last');
+    expect(session.requestTombstones).toBe(DEVTOOLS_MAX_REQUEST_TOMBSTONES);
+    expect(session.inflightRequests).toBe(0);
   });
 
   it('MUST time a request out at 15 s and release its slot', () => {

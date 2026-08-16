@@ -134,28 +134,83 @@ fn normalize(path: &Path) -> PathBuf {
     normalized
 }
 
+fn escapes_root(relative_path: &str) -> HostError {
+    HostError::new(
+        ErrorCode::InvalidFilePath,
+        format!("path escapes the storage root: {relative_path}"),
+    )
+}
+
+/// 把 `trailing`（自底向上收集的段）按原顺序接回 `base`。
+fn rebuild(base: PathBuf, trailing: &[std::ffi::OsString]) -> PathBuf {
+    let mut resolved = base;
+    for segment in trailing.iter().rev() {
+        resolved.push(segment);
+    }
+    resolved
+}
+
+/// 求一条**可能尚不存在**的路径的规范形式。
+///
+/// [`Path::canonicalize`] 只认已经存在的路径，而写入的目标在 `writeBegin` 那一刻往往还不存在。
+/// 于是逐级上探到第一个存在的祖先，把它规范化之后再把剩下的段拼回去——不存在的段不可能是
+/// 符号链接，拼回去不会漏掉任何一次跳转。
+///
+/// 一路上探到卷根仍不存在（存储根本身还没建出来）时按字面量返回：此时磁盘上根本没有可解析的
+/// 东西，字面量就是它未来的规范形式。TS 侧的 `canonicalize` 是同一套算法。
+fn canonicalize_partial(path: &Path) -> io::Result<PathBuf> {
+    let mut trailing: Vec<std::ffi::OsString> = Vec::new();
+    let mut probe = path.to_path_buf();
+
+    loop {
+        match probe.canonicalize() {
+            Ok(real) => return Ok(rebuild(real, &trailing)),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                let Some(name) = probe.file_name().map(|name| name.to_os_string()) else {
+                    return Ok(rebuild(probe, &trailing));
+                };
+                probe.pop();
+                trailing.push(name);
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
 /// 判断一次读写是否落在存储根之内。
 ///
-/// 协议层已经逐段挡过 `..` / 绝对路径 / 盘符，这里是**最后一道**：逐段校验看的是字面量，
-/// 拼接与规范化之后才知道路径最终落在哪里。[`Path::starts_with`] 按**路径分量**比较，
-/// 因此 `rxdb-files-evil` 这类同前缀兄弟目录不会被误判为在根内。
+/// 协议层已经逐段挡过 `..` / 绝对路径 / 盘符，这里是**最后一道**，两层判定：
 ///
-/// 只做词法判定——[`normalize`] 不碰文件系统，因此**拦不住符号链接**：根内的一个链接指到
-/// 根外时，这里会放行。真正的防线是「存储根由本应用独占」这条前提；根目录被外部塞进链接
-/// 已经等同于数据目录失守，不在本函数的威胁模型内。要覆盖它得用 `canonicalize`，
-/// 而目标在写入前往往还不存在。TS 侧的 `resolveWithinRoot` 是同一套判定与同一条边界。
+/// 1. **词法**：拼接与规范化之后才知道路径最终落在哪里。[`Path::starts_with`] 按**路径分量**
+///    比较，因此 `rxdb-files-evil` 这类同前缀兄弟目录不会被误判为在根内。
+/// 2. **规范形式**：[`normalize`] 不碰文件系统，看不见符号链接那一跳——根内一个指向根外的
+///    链接，字面量上完全合法，读写却全落在根之外。因此把根与目标各自 [`canonicalize_partial`]
+///    一遍再比一次前缀。根自己也要规范化：macOS 的 `/var`、`/tmp` 本身就是链接，
+///    拿字面量的根去比会把每一条合法路径都判成越界。
+///
+/// 返回的仍是**词法**路径而不是规范形式：链接只要解析后落在根内就是合法的存储布局，
+/// 照着它写才是调用方期待的语义。规范形式只用于判定。
+///
+/// 判定与随后的读写之间存在 TOCTOU 窗口，这里不试图关掉它——关掉需要 `openat` 一级的原语。
+/// 「存储根由本应用独占」仍是首要前提，本函数是它的第二道。
+/// TS 侧的 `resolveWithinRoot` + `containedPath` 是同一套判定与同一条边界。
 fn resolve_within_root(root: &Path, relative_path: &str) -> HostResult<PathBuf> {
     let root = normalize(root);
-    if relative_path.is_empty() {
-        return Ok(root);
-    }
-    let absolute = normalize(&root.join(relative_path));
+    let absolute = if relative_path.is_empty() {
+        root.clone()
+    } else {
+        normalize(&root.join(relative_path))
+    };
     if !absolute.starts_with(&root) {
-        return Err(HostError::new(
-            ErrorCode::InvalidFilePath,
-            format!("path escapes the storage root: {relative_path}"),
-        ));
+        return Err(escapes_root(relative_path));
     }
+
+    let real_root = canonicalize_partial(&root).map_err(|error| filesystem_error(&error, relative_path))?;
+    let real_target = canonicalize_partial(&absolute).map_err(|error| filesystem_error(&error, relative_path))?;
+    if !real_target.starts_with(&real_root) {
+        return Err(escapes_root(relative_path));
+    }
+
     Ok(absolute)
 }
 
@@ -248,6 +303,13 @@ impl FileHost {
         self.lock_state().sessions.len()
     }
 
+    /// 某个锁名下正在排队的申请数（不含已授予的那一把）。
+    ///
+    /// 只用于诊断与多线程用例的同步：等待方是否已入队，从外部没有别的办法观察。
+    pub fn queued_lock_count(&self, name: &str) -> usize {
+        self.lock_state().locks.queued_count(name)
+    }
+
     /// 关闭全部会话：丢弃未提交的写入、放掉持有的锁、拒掉排队中的申请。
     pub fn close_all(&self) {
         let session_ids: Vec<String> = self.lock_state().sessions.keys().cloned().collect();
@@ -310,7 +372,13 @@ impl FileHost {
         })
     }
 
-    fn close_session(&self, session_id: &str) -> HostResult<Value> {
+    /// 关闭一个会话：摘掉它、放掉它的锁、丢弃它未提交的写入。
+    ///
+    /// `pub(crate)`：除了 renderer 发来的 `file.close`，[`DesktopRouter::close_owner`] 也要
+    /// 按 id 关会话——窗口销毁时没有任何一条 renderer 请求会再来。
+    ///
+    /// [`DesktopRouter::close_owner`]: crate::rxdb::router::DesktopRouter::close_owner
+    pub(crate) fn close_session(&self, session_id: &str) -> HostResult<Value> {
         let mut state = self.lock_state();
         let session = state
             .sessions
@@ -893,8 +961,9 @@ mod tests {
         assert_eq!(missing["code"], "file_not_found");
     }
 
-    /// AC#4 的最后一道闸。协议层已经挡过 `..`，这里挡的是**根里的符号链接**——
-    /// 逐段校验对它无能为力，只有拼完再比前缀才拦得住。
+    /// AC#4 的词法闸。协议层已经挡过 `..`，这里挡的是拼接之后才暴露出来的越界——
+    /// 逐段校验对它无能为力，只有拼完再比前缀才拦得住。符号链接那一层见
+    /// [`refuses_symlinks_that_point_outside_the_storage_root`]。
     #[test]
     fn refuses_paths_that_resolve_outside_the_storage_root() {
         let root = std::env::temp_dir().join(format!("rxdb-files-{}", uuid::Uuid::new_v4()));
@@ -912,6 +981,93 @@ mod tests {
 
         assert_eq!(resolve_within_root(&root, "").unwrap(), normalize(&root));
         assert_eq!(resolve_within_root(&root, "a/b").unwrap(), normalize(&root).join("a/b"));
+    }
+
+    /// 根外的一块地，用完就地清掉；用例断言失败时也不留在 temp 里。
+    #[cfg(unix)]
+    struct Outside(PathBuf);
+
+    #[cfg(unix)]
+    impl Drop for Outside {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    /// 在根里种两条指向根外的符号链接：一条文件链接，一条目录链接。
+    #[cfg(unix)]
+    fn plant_escaping_symlinks(harness: &Harness) -> Outside {
+        let outside = Outside(harness.root.with_file_name(format!(
+            "{}-outside",
+            harness.root.file_name().unwrap().to_string_lossy()
+        )));
+        fs::create_dir_all(&outside.0).expect("the outside directory is creatable");
+        fs::write(outside.0.join("secret.txt"), b"classified").expect("the outside file is writable");
+        std::os::unix::fs::symlink(outside.0.join("secret.txt"), harness.root.join("escape.txt"))
+            .expect("the file symlink is creatable");
+        std::os::unix::fs::symlink(&outside.0, harness.root.join("escape-dir"))
+            .expect("the directory symlink is creatable");
+        outside
+    }
+
+    /// AC#4 的第二道闸：词法判定看不见符号链接那一跳，根里一条指向根外的链接在字面量上
+    /// 完全合法，读写却全落在根之外。四条通路（读 / 写 / 移动 / 删除）都得拦住，
+    /// 并且根外的内容一个字节都不能动。
+    ///
+    /// 只在 unix 上跑：Windows 建链接要提权，测的东西会变成「有没有权限」。
+    #[cfg(unix)]
+    #[test]
+    fn refuses_symlinks_that_point_outside_the_storage_root() {
+        let harness = Harness::new();
+        let outside = plant_escaping_symlinks(&harness);
+        harness.write("a.txt", b"payload");
+
+        // 读：既不能顺着文件链接读，也不能顺着目录链接读。
+        assert_eq!(harness.read("escape.txt", 0, 64)["code"], "invalid_file_path");
+        assert_eq!(harness.read("escape-dir/secret.txt", 0, 64)["code"], "invalid_file_path");
+        assert_eq!(harness.call(json!({ "kind": "file.stat", "path": "escape.txt" }))["code"], "invalid_file_path");
+        assert_eq!(harness.call(json!({ "kind": "file.list", "path": "escape-dir" }))["code"], "invalid_file_path");
+
+        // 写：链接本身和链接底下的新文件都不能开写。
+        for path in ["escape.txt", "escape-dir/planted.txt"] {
+            let begin = harness.call(json!({ "kind": "file.writeBegin", "path": path }));
+            assert_eq!(begin["code"], "invalid_file_path", "writeBegin accepted {path}");
+        }
+
+        // 移动：出去和进来都不行。
+        let out = harness.call(json!({ "kind": "file.move", "fromPath": "escape.txt", "toPath": "b.txt" }));
+        assert_eq!(out["code"], "invalid_file_path");
+        let into = harness.call(json!({ "kind": "file.move", "fromPath": "a.txt", "toPath": "escape-dir/b.txt" }));
+        assert_eq!(into["code"], "invalid_file_path");
+
+        // 删除：链接本身也不能删——删掉它等于替调用方动了根外的布局。
+        assert_eq!(harness.call(json!({ "kind": "file.remove", "path": "escape.txt" }))["code"], "invalid_file_path");
+        assert_eq!(harness.call(json!({ "kind": "file.rmdir", "path": "escape-dir" }))["code"], "invalid_file_path");
+
+        // 根外原封不动。
+        assert_eq!(fs::read(outside.0.join("secret.txt")).expect("the outside file survives"), b"classified");
+        let survivors: Vec<String> = fs::read_dir(&outside.0)
+            .expect("the outside directory survives")
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(survivors, vec!["secret.txt".to_string()]);
+    }
+
+    /// 封堵的边界：解析后仍落在根内的链接是**合法的存储布局**，不能一起挡掉。
+    /// 判定用规范形式，返回的仍是词法路径，读写照着链接走。
+    #[cfg(unix)]
+    #[test]
+    fn follows_symlinks_that_stay_inside_the_storage_root() {
+        let harness = Harness::new();
+        harness.call(json!({ "kind": "file.mkdir", "path": "docs" }));
+        harness.write("docs/note.txt", b"inside");
+        std::os::unix::fs::symlink(harness.root.join("docs"), harness.root.join("alias"))
+            .expect("the in-root symlink is creatable");
+
+        assert_eq!(decoded(&harness.read("alias/note.txt", 0, 64)), b"inside");
+        assert_eq!(harness.write("alias/new.txt", b"through")["kind"], "file.writeCommit");
+        assert_eq!(decoded(&harness.read("docs/new.txt", 0, 64)), b"through");
     }
 
     /// 物理根是宿主的内部情报：它出现在应答里就等于把文件系统布局告诉了 renderer。

@@ -129,15 +129,13 @@ export default class StoragePage implements OnInit, OnDestroy {
   }
 
   protected refresh(): Promise<void> {
-    return this.run(async () => {
-      this.entries.set(await this.rxdb.storage.listEntries({ path: this.currentPath() }));
-    });
+    return this.run(() => this.loadEntries());
   }
 
   protected createDirectory(name: string): Promise<void> {
     return this.run(async () => {
       await this.rxdb.storage.createDirectory(name, { path: this.currentPath() });
-      this.entries.set(await this.rxdb.storage.listEntries({ path: this.currentPath() }));
+      await this.loadEntries();
     });
   }
 
@@ -147,7 +145,7 @@ export default class StoragePage implements OnInit, OnDestroy {
     input.value = '';
     return this.run(async () => {
       for (const file of picked) await this.uploadOne(file);
-      this.entries.set(await this.rxdb.storage.listEntries({ path: this.currentPath() }));
+      await this.loadEntries();
     });
   }
 
@@ -169,7 +167,7 @@ export default class StoragePage implements OnInit, OnDestroy {
       }
 
       await this.uploadOne(createPatternFile(name, Math.round(sizeMib * BYTES_PER_MIB)));
-      this.entries.set(await this.rxdb.storage.listEntries({ path: this.currentPath() }));
+      await this.loadEntries();
     });
   }
 
@@ -210,7 +208,7 @@ export default class StoragePage implements OnInit, OnDestroy {
 
     return this.run(async () => {
       await this.rxdb.storage.rename(entry.meta.id, newName, { overwrite: true });
-      this.entries.set(await this.rxdb.storage.listEntries({ path: this.currentPath() }));
+      await this.loadEntries();
     });
   }
 
@@ -219,7 +217,7 @@ export default class StoragePage implements OnInit, OnDestroy {
 
     return this.run(async () => {
       await this.rxdb.storage.delete(entry.meta.id);
-      this.entries.set(await this.rxdb.storage.listEntries({ path: this.currentPath() }));
+      await this.loadEntries();
     });
   }
 
@@ -229,17 +227,33 @@ export default class StoragePage implements OnInit, OnDestroy {
    * @remarks
    * 「就绪」在**首次列表拉完之后**才置位。反过来（先置就绪再拉列表）会让页面有一段
    * 自称就绪、列表却还是空的窗口期 —— 观察者据此判断「目录里什么都没有」是错的。
+   *
+   * 同理，首次列表**失败**也必须落到 `failed`：init 成功只说明存储根建起来了，
+   * 不等于这个页面已经能如实展示目录。
    */
   private async initialize(): Promise<void> {
     try {
       await this.rxdb.storage.init();
+      await this.loadEntries();
     } catch (error) {
       this.status.set('failed');
       this.errorMessage.set(describeError(error));
       return;
     }
-    await this.refresh();
     this.status.set('ready');
+  }
+
+  /**
+   * 拉一次当前目录的列表。
+   *
+   * @remarks
+   * 这里**故意会 reject**，怎么呈现失败由调用方决定：交互路径把它交给 `run` 收进
+   * `errorMessage`，初始化路径则要据此把整页判为 `failed`。曾经两边都走 `run`，
+   * 于是首次列表失败时页面照样置位 `ready` —— 一个自称就绪、`entries` 却是空数组的页面，
+   * 读起来正是「这个目录里什么都没有」，而真相是它一个条目都没读到。
+   */
+  private async loadEntries(): Promise<void> {
+    this.entries.set(await this.rxdb.storage.listEntries({ path: this.currentPath() }));
   }
 
   private async uploadOne(file: File): Promise<void> {

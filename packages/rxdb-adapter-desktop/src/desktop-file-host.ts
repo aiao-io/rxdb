@@ -17,8 +17,8 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { open, mkdir, readdir, rename, rm, stat, type FileHandle } from 'node:fs/promises';
-import { dirname, join, resolve, sep } from 'node:path';
+import { open, mkdir, readdir, realpath, rename, rm, stat, type FileHandle } from 'node:fs/promises';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from './desktop-error.js';
 import {
   DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION,
@@ -101,6 +101,15 @@ export interface DesktopFileHost {
 
 /** 一次尚未提交的写入。 */
 interface PendingWrite {
+  /**
+   * renderer 送来的存储根内相对路径。
+   *
+   * @remarks
+   * 只用于报错。协议错误里绝不能出现 {@link PendingWrite.targetPath} —— 那是宿主数据目录的
+   * 物理绝对路径，回到 renderer 就等于把用户名、安装位置这些与请求无关的信息一并交出去，
+   * 而调用方能用来定位问题的本来就只有它自己送上来的那条相对路径。
+   */
+  readonly logicalPath: string;
   readonly targetPath: string;
   readonly temporaryPath: string;
   readonly handle: FileHandle;
@@ -140,6 +149,7 @@ const ERRNO_CODES: Readonly<Record<string, RxDBAdapterDesktopErrorCode>> = {
   EISDIR: 'invalid_file_path',
   ENAMETOOLONG: 'invalid_file_path',
   EEXIST: 'invalid_file_path',
+  ELOOP: 'invalid_file_path',
   EACCES: 'permission_denied',
   EPERM: 'permission_denied',
   EROFS: 'permission_denied',
@@ -182,23 +192,57 @@ const toErrorResponse = (error: unknown): DesktopHostFileResponse => {
   };
 };
 
+const escapesRoot = (relativePath: string): RxDBAdapterDesktopError =>
+  new RxDBAdapterDesktopError('invalid_file_path', `path escapes the storage root: ${relativePath}`);
+
+/** 字面量判定：拼接并规范化之后是否仍在根前缀之下。 */
+const isInside = (root: string, absolute: string): boolean => absolute === root || absolute.startsWith(root + sep);
+
 /**
- * 判断一次读写是否落在存储根之内。
+ * 词法判定一次读写是否落在存储根之内。
  *
  * @remarks
- * 协议层已经逐段挡过 `..` / 绝对路径 / 盘符，这里是**最后一道**：逐段校验看的是字面量，
- * 拼接与规范化之后才知道路径最终落在哪里，因此拼完再比一次前缀。
+ * 协议层已经逐段挡过 `..` / 绝对路径 / 盘符，这里补上「拼完再看落点」：逐段校验看的是字面量，
+ * 只有规范化之后才知道路径最终指向哪里。
  *
- * 只做词法判定 —— `resolve` 不读文件系统，因此**拦不住符号链接**：根内的一个链接指到根外时，
- * 这里会放行。真正的防线是「存储根由宿主应用独占」这条前提；根目录被外部塞进链接已经等同于
- * 数据目录失守，不在本函数的威胁模型内。要覆盖它得用 `realpath`，而目标在写入前往往还不存在。
+ * `resolve` 不读文件系统，因此这一层**拦不住符号链接** —— 那由
+ * {@link createDesktopFileHost} 内的 `containedPath` 用 `realpath` 兜住。两层都要：
+ * 词法这层不碰磁盘，能在完全不存在的路径上给出确定答案，也是 `realpath` 逐级上探时的起点。
  */
 const resolveWithinRoot = (root: string, relativePath: string): string => {
   const absolute = relativePath === '' ? root : resolve(root, relativePath);
-  if (absolute !== root && !absolute.startsWith(root + sep)) {
-    throw new RxDBAdapterDesktopError('invalid_file_path', `path escapes the storage root: ${relativePath}`);
-  }
+  if (!isInside(root, absolute)) throw escapesRoot(relativePath);
   return absolute;
+};
+
+/**
+ * 求一条**可能尚不存在**的路径的规范形式。
+ *
+ * @remarks
+ * `realpath` 只认已经存在的路径，而写入的目标在 `writeBegin` 那一刻往往还不存在。
+ * 于是逐级上探到第一个存在的祖先，把它 `realpath` 之后再把剩下的段拼回去 —— 不存在的段
+ * 不可能是符号链接，拼回去不会漏掉任何一次跳转。
+ *
+ * 一路上探到卷根仍不存在（根目录本身还没建出来）时按字面量返回：此时磁盘上根本没有可解析的
+ * 东西，字面量就是它未来的规范形式。
+ */
+const canonicalize = async (absolute: string): Promise<string> => {
+  const trailing: string[] = [];
+  let probe = absolute;
+
+  for (;;) {
+    try {
+      const real = await realpath(probe);
+      return trailing.length === 0 ? real : join(real, ...trailing);
+    } catch (error) {
+      if (readErrno(error) !== 'ENOENT') throw error;
+
+      const parent = dirname(probe);
+      if (parent === probe) return join(probe, ...trailing);
+      trailing.unshift(basename(probe));
+      probe = parent;
+    }
+  }
 };
 
 const toEntryKind = (isDirectory: boolean): DesktopHostFileEntry['kind'] => (isDirectory ? 'directory' : 'file');
@@ -239,7 +283,37 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
     }
   };
 
-  const absolutePath = (relativePath: string): string => resolveWithinRoot(rootPath(), relativePath);
+  /**
+   * 把相对路径解析成物理绝对路径，并确认它**真的**落在存储根之内。
+   *
+   * @param relativePath - renderer 送来的存储根内相对路径
+   * @returns 词法解析后的绝对路径（不是规范形式）
+   * @throws {@link RxDBAdapterDesktopError} 路径逃出存储根，或解析过程本身失败时抛出。
+   *
+   * @remarks
+   * 词法判定之后再比一次**规范形式**：`resolve` 不读磁盘，根内的一个符号链接指到根外时它照放
+   * 不误，而随后的读写就落在根之外了。这里把根与目标各自 {@link canonicalize} 一遍再比前缀，
+   * 链接跳转因此逃不掉。根自己也要规范化 —— macOS 的 `/var`、`/tmp` 本身就是链接，
+   * 拿字面量的根去比会把每一条合法路径都判成越界。
+   *
+   * 返回的仍是**词法**路径而不是规范形式：链接只要解析后落在根内就是合法的存储布局，
+   * 照着它写才是调用方期待的语义。规范形式只用于判定。
+   *
+   * 判定与随后的读写之间存在 TOCTOU 窗口，这里不试图关掉它 —— 关掉需要 `openat` 一级的
+   * 原语，Node 的 `fs` 给不了。存储根由宿主应用独占仍是首要前提，本函数是它的第二道。
+   */
+  const containedPath = async (relativePath: string): Promise<string> => {
+    const root = rootPath();
+    const absolute = resolveWithinRoot(root, relativePath);
+
+    try {
+      const [realRoot, realTarget] = await Promise.all([canonicalize(root), canonicalize(absolute)]);
+      if (!isInside(realRoot, realTarget)) throw escapesRoot(relativePath);
+      return absolute;
+    } catch (error) {
+      throw toFilesystemError(error, relativePath);
+    }
+  };
 
   // ---- 锁仲裁 -------------------------------------------------------------
 
@@ -359,7 +433,7 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
   // ---- 文件操作 -----------------------------------------------------------
 
   const statPath = async (relativePath: string): Promise<DesktopHostFileStat | null> => {
-    const target = absolutePath(relativePath);
+    const target = await containedPath(relativePath);
     try {
       const stats = await stat(target);
       return {
@@ -374,7 +448,7 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
   };
 
   const listPath = async (relativePath: string): Promise<readonly DesktopHostFileEntry[]> => {
-    const target = absolutePath(relativePath);
+    const target = await containedPath(relativePath);
     try {
       const entries = await readdir(target, { withFileTypes: true });
       return entries.map(entry => ({ name: entry.name, kind: toEntryKind(entry.isDirectory()) }));
@@ -392,8 +466,8 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
   };
 
   const movePath = async (fromPath: string, toPath: string): Promise<void> => {
-    const source = absolutePath(fromPath);
-    const target = absolutePath(toPath);
+    const source = await containedPath(fromPath);
+    const target = await containedPath(toPath);
     await runPathOperation(() => mkdir(dirname(target), { recursive: true }), toPath);
     await runPathOperation(() => rename(source, target), fromPath);
   };
@@ -406,7 +480,7 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
     // `Uint8Array<ArrayBuffer>`，就地写的那份会默认宽成 `ArrayBufferLike`，
     // 于是这里读到的帧到了应答位置反而装不进协议。
   ): Promise<DesktopHostFileReadResult> => {
-    const target = absolutePath(relativePath);
+    const target = await containedPath(relativePath);
     let handle: FileHandle | undefined;
     try {
       handle = await open(target, 'r');
@@ -430,13 +504,18 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
         `session already has ${DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION} pending writes`
       );
     }
-    const target = absolutePath(relativePath);
+    const target = await containedPath(relativePath);
     const writeId = randomUUID();
     const temporaryPath = join(dirname(target), `.${writeId}.rxdb-tmp`);
     await runPathOperation(() => mkdir(dirname(target), { recursive: true }), relativePath);
     try {
       // 'wx' 而不是 'w'：临时名带 UUID，撞名只可能是同名文件已被别处占用，静默覆盖会丢它的内容。
-      session.writes.set(writeId, { targetPath: target, temporaryPath, handle: await open(temporaryPath, 'wx') });
+      session.writes.set(writeId, {
+        logicalPath: relativePath,
+        targetPath: target,
+        temporaryPath,
+        handle: await open(temporaryPath, 'wx')
+      });
       return writeId;
     } catch (error) {
       throw toFilesystemError(error, relativePath);
@@ -484,7 +563,7 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
       await syncDirectory(dirname(pending.targetPath));
     } catch (error) {
       await rm(pending.temporaryPath, { force: true }).catch(() => undefined);
-      throw toFilesystemError(error, pending.targetPath);
+      throw toFilesystemError(error, pending.logicalPath);
     }
   };
 
@@ -500,7 +579,7 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
       try {
         await pending.handle.write(request.chunk);
       } catch (error) {
-        throw toFilesystemError(error, pending.targetPath);
+        throw toFilesystemError(error, pending.logicalPath);
       }
       return { kind: 'file.writeChunk' };
     }
@@ -528,7 +607,7 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
     if (request.kind === 'file.stat') return { kind: 'file.stat', result: await statPath(request.path) };
     if (request.kind === 'file.list') return { kind: 'file.list', result: await listPath(request.path) };
 
-    const target = absolutePath(request.path);
+    const target = await containedPath(request.path);
     if (request.kind === 'file.mkdir') {
       await runPathOperation(() => mkdir(target, { recursive: true }), request.path);
       return { kind: 'file.mkdir' };

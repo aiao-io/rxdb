@@ -79,25 +79,44 @@ export interface DevToolsSnapshotSource {
  * @remarks
  * 只有 {@link commit} 能让临时文件转正；其余任何终态都必须走 {@link discard}。
  * 实现不得在 `write` 与 `commit` 之间累积整文件。
+ *
+ * 三个方法都返回 `Promise<void>`，而不是 `void`：OPFS、Node 与 Rust 的落盘全是**异步 I/O**，
+ * 同步签名逼着实现要么把 promise 吞掉（写失败在协议上完全不可见，状态机照常推进 offset，
+ * 最后 commit 出一个短了几块的文件），要么在内存里攒够再一次性写（正是第 2 条约束要禁的事）。
+ * 返回 promise 之后，状态机能等这一块真的落盘再认账，磁盘慢就自然地把帧压在队列里——
+ * **背压是这个签名给的，不是实现能自己补出来的**。
+ *
+ * 失败用 **reject** 表达，不是返回错误联合：这里没有可供调用方分支处理的语义差别，
+ * 任何一块写不下去，这条传输就只有一条路——discard + 结构化错误。
  */
 export interface DevToolsChunkSink {
   /**
    * 写入一块已解码的字节。
    *
+   * @remarks
+   * 状态机保证**串行**调用：上一块 resolve 之前不会有下一块进来，实现无需自己排队。
+   *
    * @param data - 本块字节；调用方不再持有它。
+   * @returns 本块确实落盘后 resolve；reject 即这条传输作废。
    */
-  write(data: Uint8Array): void;
+  write(data: Uint8Array): Promise<void>;
 
-  /** 把临时文件提交为正式文件。仅在完整校验通过的 COMPLETE 之后调用。 */
-  commit(): void;
+  /**
+   * 把临时文件提交为正式文件。仅在完整校验通过的 COMPLETE 之后调用。
+   *
+   * @returns 目标文件确实转正后 resolve；reject 时调用方会转去 {@link discard}。
+   */
+  commit(): Promise<void>;
 
   /**
    * 丢弃临时文件与全部中间状态。
    *
    * @remarks
-   * 必须幂等：取消、两道超时与 dispose 都可能触发它。
+   * 必须幂等：取消、两道超时、写失败与 dispose 都可能触发它。
+   *
+   * @returns 清理完成后 resolve。
    */
-  discard(): void;
+  discard(): Promise<void>;
 }
 
 /**

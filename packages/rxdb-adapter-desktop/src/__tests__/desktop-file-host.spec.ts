@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -222,6 +222,75 @@ describe('createDesktopFileHost', () => {
     expect(response).toMatchObject({ kind: 'error' });
     await expect(readdir(workspace)).resolves.toEqual(['rxdb-files']);
     await expect(readdir(storageRoot)).resolves.toEqual([]);
+  });
+
+  // AC#4 续：逐段校验与 `resolve` 都只看字面量，符号链接是它们看不见的那一跳 ——
+  // 根内一个指向根外的链接，字面量上完全合法，读写却全落在根之外。
+  // Windows 建符号链接要开发者模式或管理员权限，那里跳过。
+  describe.skipIf(process.platform === 'win32')('symlink containment', () => {
+    let outside: string;
+
+    beforeEach(async () => {
+      outside = join(workspace, 'outside');
+      await mkdir(outside, { recursive: true });
+      await writeFile(join(outside, 'secret.txt'), 'classified');
+      await symlink(join(outside, 'secret.txt'), join(storageRoot, 'escape.txt'));
+      await symlink(outside, join(storageRoot, 'escape-dir'));
+    });
+
+    it('refuses to read a file through a symlink pointing outside the root', async () => {
+      const response = await host.handle({ kind: 'file.read', sessionId, path: 'escape.txt', offset: 0, length: 64 });
+
+      expectError(response, 'invalid_file_path');
+    });
+
+    it('refuses to write through a symlink pointing outside the root', async () => {
+      expectError(await host.handle({ kind: 'file.writeBegin', sessionId, path: 'escape.txt' }), 'invalid_file_path');
+      expectError(
+        await host.handle({ kind: 'file.writeBegin', sessionId, path: 'escape-dir/planted.txt' }),
+        'invalid_file_path'
+      );
+
+      // 内容与目录项都不能被碰到：报错但顺手建了个临时文件同样是越界写。
+      await expect(readFile(join(outside, 'secret.txt'), 'utf8')).resolves.toBe('classified');
+      await expect(readdir(outside)).resolves.toEqual(['secret.txt']);
+    });
+
+    it('refuses to move a symlink that resolves outside the root', async () => {
+      expectError(
+        await host.handle({ kind: 'file.move', sessionId, fromPath: 'escape.txt', toPath: 'moved.txt' }),
+        'invalid_file_path'
+      );
+      expectError(
+        await host.handle({ kind: 'file.move', sessionId, fromPath: 'inside.txt', toPath: 'escape-dir/moved.txt' }),
+        'invalid_file_path'
+      );
+
+      await expect(readdir(outside)).resolves.toEqual(['secret.txt']);
+    });
+
+    it('refuses to delete through a symlink pointing outside the root', async () => {
+      expectError(await host.handle({ kind: 'file.remove', sessionId, path: 'escape.txt' }), 'invalid_file_path');
+      expectError(await host.handle({ kind: 'file.rmdir', sessionId, path: 'escape-dir' }), 'invalid_file_path');
+
+      await expect(readFile(join(outside, 'secret.txt'), 'utf8')).resolves.toBe('classified');
+    });
+
+    // 反向的那半同样要钉住：封堵的判据是「解析后落在根外」，不是「路径上有链接」。
+    // 把根内链接一并拒掉会误伤合法的存储布局，而这种过度封堵只会在真实用户那里才暴露。
+    it('still serves a symlink that resolves back inside the root', async () => {
+      expectOk(await writeThrough('docs/note.txt', 'kept'), 'file.writeCommit');
+      await symlink(join(storageRoot, 'docs'), join(storageRoot, 'alias'));
+
+      const read = expectOk(
+        await host.handle({ kind: 'file.read', sessionId, path: 'alias/note.txt', offset: 0, length: 64 }),
+        'file.read'
+      );
+
+      expect(new TextDecoder().decode(read.result.chunk)).toBe('kept');
+      expectOk(await writeThrough('alias/added.txt', 'new'), 'file.writeCommit');
+      await expect(readFile(join(storageRoot, 'docs/added.txt'), 'utf8')).resolves.toBe('new');
+    });
   });
 
   it('never rejects, even when the storage root cannot be resolved', async () => {

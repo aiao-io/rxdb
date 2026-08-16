@@ -256,12 +256,19 @@ class DevToolsSessionImpl implements DevToolsSession {
    * @remarks
    * 顺序是承重的：`session_closed` 排在标识符校验之前，关闭后连「这个 ID 长得对不对」都不
    * 泄漏；终态的预算耗尽排在可等待的在途上限之前，免得对端白白排空在途才拿到同一个终态答案。
+   *
+   * 墓碑水位算的是 `tombstones + inflight` 而不是 `tombstones`：**每条在途 ID 迟早都要变成
+   * 墓碑**，准入时不给它留位，声明的上限就被悄悄放大了一个 `maxInflight`——4095 个墓碑之上
+   * 仍能同时准入 32 条，全部结算后墓碑是 4127。把在途算进水位等于为已准入的 ID 预留终态槽，
+   * 「单 session 最多接纳 `maxTombstones` 个不同 ID」才是一条真成立的边界。
    */
   #admit(budget: IdBudget, value: unknown): Admission {
     if (this.#state === 'closed') return rejected('session_closed');
     if (!isDevToolsIdentifier(value)) return rejected('invalid_identifier');
     if (budget.inflight.has(value) || budget.tombstones.has(value)) return rejected(budget.duplicateCode);
-    if (budget.tombstones.size >= budget.maxTombstones) return rejected('session_budget_exhausted');
+    if (budget.tombstones.size + budget.inflight.size >= budget.maxTombstones) {
+      return rejected('session_budget_exhausted');
+    }
     if (budget.inflight.size >= budget.maxInflight) return rejected(budget.limitCode, true);
     return { outcome: 'admitted', id: value };
   }

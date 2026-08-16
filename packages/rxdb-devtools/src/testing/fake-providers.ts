@@ -312,20 +312,22 @@ function createSink(state: FakeState, name: string): DevToolsChunkSink {
   let written = 0;
   let settled = false;
 
+  // 三个方法都是 async：fake 必须和真实实现同形，否则「等落盘」这条时序在 fake 上恒真，
+  // 而 conformance suite 正是拿同一份断言去跑两者的。
   return {
-    write(data: Uint8Array): void {
+    async write(data: Uint8Array): Promise<void> {
       if (settled) return;
       written += data.byteLength;
       // 只记峰值与长度：真要保留 `data` 就等于把整文件搬进内存。
       state.peakRetainedBytes = Math.max(state.peakRetainedBytes, data.byteLength);
     },
-    commit(): void {
+    async commit(): Promise<void> {
       if (settled) return;
       settled = true;
       state.temporary.delete(temporary);
       state.committed.set(name, written);
     },
-    discard(): void {
+    async discard(): Promise<void> {
       if (settled) return;
       settled = true;
       state.temporary.delete(temporary);

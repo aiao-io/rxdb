@@ -29,6 +29,38 @@ describe('DevToolsConnector v2 negotiation', () => {
     return matches;
   }
 
+  /** 本端点铸造的 session 身份；取自它自己发出的 HANDSHAKE 要约。 */
+  function sessionId(): string {
+    const offered = framesOf('HANDSHAKE')[0]?.payload.sessionId;
+    if (typeof offered !== 'string') throw new Error('connector never offered a v2 session');
+    return offered;
+  }
+
+  /** 走完 HELLO → HANDSHAKE → ACK，让数据面真正打开。 */
+  function connect(): void {
+    deliver(
+      createDevToolsV2Message(
+        'PROTOCOL_HELLO',
+        { supportedVersions: [DEVTOOLS_PROTOCOL_VERSION_V2, 1] },
+        { sessionId: null, sequence: 1, timestamp: TIMESTAMP, direction: 'panel-to-connector' }
+      )
+    );
+    deliver(
+      createDevToolsV2Message(
+        'HANDSHAKE_ACK',
+        { protocolVersion: DEVTOOLS_PROTOCOL_VERSION_V2, sessionId: sessionId() },
+        { sessionId: sessionId(), sequence: 2, timestamp: TIMESTAMP, direction: 'panel-to-connector' }
+      )
+    );
+  }
+
+  /** 已发出的、关联到某个 requestId 的错误载荷。 */
+  function errorsFor(requestId: string | null): readonly unknown[] {
+    return framesOf('ERROR')
+      .filter(frame => frame.payload.requestId === requestId)
+      .map(frame => frame.payload.error);
+  }
+
   function init(capability: 'none' | 'readonly' | 'full' = 'readonly'): void {
     connector = new DevToolsConnector({ capabilities: capability });
     const addEventSpy = vi.spyOn(window, 'addEventListener');
@@ -127,6 +159,55 @@ describe('DevToolsConnector v2 negotiation', () => {
     // 被当成本次会话的合法帧。
     expect(offers).toHaveLength(2);
     expect(offers[1]?.payload.sessionId).not.toBe(first);
+  });
+
+  it('MUST answer a data-plane frame with a structured error once the session is open', () => {
+    init();
+    connect();
+
+    deliver(
+      createDevToolsV2Message(
+        'REQUEST',
+        { requestId: 'r1', domain: 'database', operation: 'inspect', params: {} },
+        { sessionId: sessionId(), sequence: 3, timestamp: TIMESTAMP, direction: 'panel-to-connector' }
+      )
+    );
+
+    // 协商机自己不认识数据面帧。只接协商机、不接端点，REQUEST 就会掉在地上：面板等到
+    // 15 秒请求时限才知道「没人答」，而 wire 上分不清这是超时还是这条能力根本不存在。
+    expect(errorsFor('r1')).toEqual([{ code: 'provider_unsupported', retryable: false }]);
+  });
+
+  it('MUST refuse a data-plane frame carrying a foreign session id', () => {
+    init();
+    connect();
+
+    deliver(
+      createDevToolsV2Message(
+        'REQUEST',
+        { requestId: 'r1', domain: 'database', operation: 'inspect', params: {} },
+        {
+          sessionId: 'b3d9e7c1-4a52-4e08-8f6b-1c0d5a2739e4',
+          sequence: 3,
+          timestamp: TIMESTAMP,
+          direction: 'panel-to-connector'
+        }
+      )
+    );
+
+    // 归属不符是**已识别**的错帧，答的是 session_invalid 而不是这条请求的业务结论。
+    expect(errorsFor(null)).toContainEqual({ code: 'session_invalid', retryable: false });
+    expect(errorsFor('r1')).toEqual([]);
+  });
+
+  it('MUST report the absent database provider as soon as the session opens', () => {
+    init();
+    connect();
+
+    // 页内还没接上任何 v2 provider，事件流因此建立不起来。把这个结论咽下去，面板会一直
+    // 等一条永远不会来的 EVENT；`requestId: null` 是它诚实的关联键——订阅不是任何一条
+    // REQUEST 的结果。descriptor 填上真实 provider 后这一帧自然消失。
+    expect(errorsFor(null)).toEqual([{ code: 'provider_unsupported', retryable: false }]);
   });
 
   it('MUST NOT answer a v2 hello at all once negotiation is disposed', () => {

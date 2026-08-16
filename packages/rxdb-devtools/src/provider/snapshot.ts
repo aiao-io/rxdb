@@ -234,6 +234,11 @@ class DevToolsSnapshotStoreImpl implements DevToolsSnapshotStore {
    * @remarks
    * deadline 与取消都不是 race 的「结果」而是**状态**：先看状态再解释结果，一次恰好压线
    * 返回的 `invalidated` 才不会开启第二轮等待，把端到端 15 秒变成它的倍数。
+   *
+   * 收尾**只在 `finally` 里做一次**，因此正常返回、拒绝与异常走同一条路径。把清理写在
+   * 各个成功/失败分支上曾经留下一个洞：`source.capture` 一旦抛出（平台实现等锁时抛一个
+   * DOMException 就够了），在途账本永远留着，此后每一次 {@link open} 都答 `snapshot_busy`——
+   * 而那份「忙」背后没有任何在途工作，也没有任何东西会来解除它。
    */
   async #capture(pageSize: number): Promise<DevToolsSnapshotResult> {
     const pending = this.#armPending();
@@ -244,14 +249,34 @@ class DevToolsSnapshotStoreImpl implements DevToolsSnapshotStore {
       this.#resolveInterrupt = () => resolve({ outcome: 'invalidated' });
     });
 
-    for (let attempt = 0; attempt <= DEVTOOLS_MAX_SNAPSHOT_EPOCH_RETRIES; attempt += 1) {
-      const raced = await Promise.race([this.#ports.source.capture(pending.controller.signal), interrupted]);
+    try {
+      for (let attempt = 0; attempt <= DEVTOOLS_MAX_SNAPSHOT_EPOCH_RETRIES; attempt += 1) {
+        const raced = await Promise.race([this.#ports.source.capture(pending.controller.signal), interrupted]);
 
-      if (pending.interruption !== undefined) return this.#settle(pending, pending.interruption);
-      if (raced.outcome === 'captured') return this.#materialize(pending, raced.records, pageSize);
-      // epoch 变了：换新身份从头再来，绝不拼接两个时点的数据。
+        if (pending.interruption !== undefined) return this.#settle(pending.interruption);
+        if (raced.outcome === 'captured') return this.#materialize(raced.records, pageSize);
+        // epoch 变了：换新身份从头再来，绝不拼接两个时点的数据。
+      }
+      return this.#settle('busy');
+    } finally {
+      this.#clearPending(pending);
     }
-    return this.#settle(pending, 'busy');
+  }
+
+  /**
+   * 收回一次物化占用的在途资源：15 秒 deadline、账本与 race 解除句柄。
+   *
+   * @remarks
+   * 身份判等而不是无条件清空：这样它对「已被别的路径收走」是安全的，调用点不必先问状态。
+   * `cancelDeadline` 则无条件调用——计时器只属于这一次物化，没有第二个主人。
+   *
+   * @param pending - 本次物化的账本。
+   */
+  #clearPending(pending: PendingCapture): void {
+    pending.cancelDeadline();
+    if (this.#pending !== pending) return;
+    this.#pending = undefined;
+    this.#resolveInterrupt = undefined;
   }
 
   #armPending(): PendingCapture {
@@ -273,23 +298,12 @@ class DevToolsSnapshotStoreImpl implements DevToolsSnapshotStore {
     this.#resolveInterrupt?.();
   }
 
-  /** 收尾一次失败的物化：撤掉 deadline、清空在途账本，并翻译成对外结果。 */
-  #settle(pending: PendingCapture, reason: Interruption): DevToolsSnapshotResult {
-    pending.cancelDeadline();
-    this.#pending = undefined;
-    this.#resolveInterrupt = undefined;
+  /** 把一次未能物化的收场翻译成对外结果；资源回收由 `#capture` 的 `finally` 负责。 */
+  #settle(reason: Interruption): DevToolsSnapshotResult {
     return reason === 'cancelled' ? CANCELLED : rejected('snapshot_busy');
   }
 
-  #materialize(
-    pending: PendingCapture,
-    records: readonly DevToolsSnapshotRecord[],
-    pageSize: number
-  ): DevToolsSnapshotResult {
-    pending.cancelDeadline();
-    this.#pending = undefined;
-    this.#resolveInterrupt = undefined;
-
+  #materialize(records: readonly DevToolsSnapshotRecord[], pageSize: number): DevToolsSnapshotResult {
     // 条数先判：越限时不必为一批注定要丢弃的记录做字节计量。
     if (records.length > DEVTOOLS_MAX_SNAPSHOT_RECORDS) return rejected('snapshot_too_large');
     if (totalSnapshotBytes(records) > DEVTOOLS_MAX_SNAPSHOT_BYTES) return rejected('snapshot_too_large');

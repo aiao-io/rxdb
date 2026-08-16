@@ -330,7 +330,7 @@ describe('connector endpoint transfers', () => {
     harness.panel('TRANSFER_START', { transferId: 't1', requestId: 'r1', totalBytes });
   }
 
-  it('MUST commit the sink only after a legal COMPLETE', () => {
+  it('MUST commit the sink only after a legal COMPLETE', async () => {
     const harness = connected();
     startTransfer(harness);
     harness.panel('TRANSFER_CHUNK', {
@@ -339,19 +339,23 @@ describe('connector endpoint transfers', () => {
       offset: 0,
       dataBase64: encodeCanonicalBase64(PAYLOAD)
     });
+    await flush();
 
+    // 字节已经真的落到 sink 里了，转正的仍然只有 COMPLETE 能给。
     expect(harness.providers.committedFiles()).toEqual([]);
 
     harness.panel('TRANSFER_COMPLETE', { transferId: 't1' });
+    await flush();
 
     expect(harness.providers.committedFiles()).toEqual([['t1', 4]]);
     expect(harness.endpoint.inflightTransfers).toBe(0);
   });
 
-  it('MUST reject a non-canonical chunk without writing anything', () => {
+  it('MUST reject a non-canonical chunk without writing anything', async () => {
     const harness = connected();
     startTransfer(harness);
     harness.panel('TRANSFER_CHUNK', { transferId: 't1', chunkIndex: 0, offset: 0, dataBase64: 'SGk' });
+    await flush();
 
     expect(harness.framesOf('ERROR')[0]?.payload).toEqual({
       requestId: 'r1',

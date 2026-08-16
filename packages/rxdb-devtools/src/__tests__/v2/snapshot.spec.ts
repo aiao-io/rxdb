@@ -379,6 +379,20 @@ describe('snapshot epoch retries and deadline', () => {
 
     expect(store.active).toBe(false);
   });
+
+  it('MUST release the in-flight ledger when the source throws instead of returning', async () => {
+    // 平台实现只要在等锁时抛一个 DOMException，就能让在途账本永远留在那里——
+    // 此后每一次 open() 都答 snapshot_busy，而那份「忙」背后并没有任何在途工作，
+    // 也没有任何东西会来解除它：整个 session 的快照能力就此报废。
+    const boom: Responder = () => Promise.reject(new Error('lock manager exploded'));
+    const { clock, store } = setup(boom, captured(makeRecords(1)));
+
+    await expect(store.open()).rejects.toThrow('lock manager exploded');
+    // 15 秒 deadline 也一并收回，否则它会在 15 秒后去中断一份早已不存在的物化。
+    expect(clock.pendingTimers()).toBe(0);
+
+    expect(expectPage(await store.open()).records).toHaveLength(1);
+  });
 });
 
 describe('snapshot session ownership', () => {

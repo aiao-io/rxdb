@@ -47,6 +47,9 @@ export const DEVTOOLS_MAX_INFLIGHT_TRANSFERS = 2 as const;
  * 「终态 ID 不得复用」必须用**有界**墓碑实现。无界集合会让长 session 的内存随请求数
  * 单调增长，而这条增长在功能测试里完全看不见。达到上限后新登记返回
  * `session_budget_exhausted`，由 panel 重新握手换取新 session。
+ *
+ * 这同时是**单 session 能接纳的不同 request ID 总数**：准入把在途也算进水位，
+ * 为每条已准入的 ID 预留终态槽（见 `session.ts` 的 `#admit`）。
  */
 export const DEVTOOLS_MAX_REQUEST_TOMBSTONES = 4_096 as const;
 

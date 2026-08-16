@@ -249,13 +249,13 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
         this.#onTransferStart(message.payload);
         return;
       case 'TRANSFER_CHUNK':
-        this.#onTransferChunk(message.payload);
+        void this.#onTransferChunk(message.payload);
         return;
       case 'TRANSFER_COMPLETE':
-        this.#settleTransferFrame(message.payload, 'complete');
+        void this.#settleTransferFrame(message.payload, 'complete');
         return;
       case 'TRANSFER_CANCEL':
-        this.#settleTransferFrame(message.payload, 'cancel');
+        void this.#settleTransferFrame(message.payload, 'cancel');
         return;
       default:
         // 协商帧由 negotiation 处理；connector-to-panel 的类型不该回流，忽略即可。
@@ -359,21 +359,37 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
     });
   }
 
-  #onTransferChunk(payload: DevToolsTransferChunkPayload): void {
-    const result = this.#transfers?.chunk(payload);
-    if (result?.outcome === 'rejected') this.#sendError(this.#requestIdOf(payload.transferId), result.error);
+  /**
+   * CHUNK 帧。
+   *
+   * @remarks
+   * `requestId` 在**结果回来之后**才取：写失败会顺带把传输结算掉，而结算会移除 binding，
+   * 那时归因只剩 `null`。所以先记下它，再去等落盘。
+   */
+  async #onTransferChunk(payload: DevToolsTransferChunkPayload): Promise<void> {
+    const requestId = this.#requestIdOf(payload.transferId);
+    const result = await this.#transfers?.chunk(payload);
+    if (result?.outcome === 'rejected') this.#sendError(requestId, result.error);
   }
 
-  #settleTransferFrame(payload: DevToolsTransferIdPayload, kind: 'complete' | 'cancel'): void {
+  async #settleTransferFrame(payload: DevToolsTransferIdPayload, kind: 'complete' | 'cancel'): Promise<void> {
     const table = this.#transfers;
     if (table === null) return;
 
-    const result = kind === 'complete' ? table.complete(payload) : table.cancel(payload);
-    if (result.outcome === 'rejected') this.#sendError(this.#requestIdOf(payload.transferId), result.error);
+    const requestId = this.#requestIdOf(payload.transferId);
+    const result = kind === 'complete' ? await table.complete(payload) : await table.cancel(payload);
+    if (result.outcome === 'rejected') this.#sendError(requestId, result.error);
   }
 
-  #onChunk(transferId: string, data: Uint8Array): void {
-    this.#transferBindings.get(transferId)?.sink.write(data);
+  /**
+   * 把一块字节交给 sink。
+   *
+   * @remarks
+   * 失败**必须抛出去**而不是吞掉：传输表正是靠这次 reject 才知道这条传输已经写不下去，
+   * 吞掉的话它会继续记账，最后 commit 一个缺块的文件。
+   */
+  async #onChunk(transferId: string, data: Uint8Array): Promise<void> {
+    await this.#transferBindings.get(transferId)?.sink.write(data);
   }
 
   /**
@@ -381,17 +397,43 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
    *
    * @remarks
    * `completed` 之外的任何终态都必须 `discard`——半写文件与孤儿元数据正是这里漏一条就产生的。
+   * `commit` 自己失败时同样落到 discard：转正没成功，临时产物就还是临时产物，留着它等于
+   * 让下一次启动去猜那是半个文件还是一个完整文件。
    */
-  #onTransferSettled(transferId: string, outcome: DevToolsTransferOutcome): void {
+  async #onTransferSettled(transferId: string, outcome: DevToolsTransferOutcome): Promise<void> {
     const binding = this.#transferBindings.get(transferId);
     this.#transferBindings.delete(transferId);
     this.#session?.settleTransfer(transferId);
     if (binding === undefined) return;
 
-    if (outcome === 'completed') binding.sink.commit();
-    else binding.sink.discard();
     if (outcome === 'idle-timeout' || outcome === 'total-timeout') {
       this.#sendError(binding.requestId, createDevToolsError('transfer_timeout'));
+    }
+    if (outcome !== 'completed') {
+      await this.#discard(binding);
+      return;
+    }
+
+    try {
+      await binding.sink.commit();
+    } catch {
+      this.#sendError(binding.requestId, createDevToolsError('operation_failed'));
+      await this.#discard(binding);
+    }
+  }
+
+  /**
+   * 清理一次传输的临时产物。
+   *
+   * @remarks
+   * `discard` 自己失败没有第二条补救路径——再抛一次只会顺着计时器回调逃到全局。
+   * 契约要求它幂等且尽力而为，这里把它当终点。
+   */
+  async #discard(binding: TransferBinding): Promise<void> {
+    try {
+      await binding.sink.discard();
+    } catch {
+      // 无处可退：临时产物的兜底是宿主启动时的清理，不是这里再报一次。
     }
   }
 
@@ -462,7 +504,8 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
 
   #closeSession(): void {
     this.#transfers?.dispose();
-    for (const binding of this.#transferBindings.values()) binding.sink.discard();
+    // 拆链路没有可以 await 的调用方；清理后台跑完即可，失败已在 #discard 内收口。
+    for (const binding of this.#transferBindings.values()) void this.#discard(binding);
     this.#transferBindings.clear();
     this.#session?.close();
     this.#transfers = null;

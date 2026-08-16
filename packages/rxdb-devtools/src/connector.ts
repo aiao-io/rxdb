@@ -4,11 +4,10 @@ import { EventBuffer } from './buffer.js';
 import { SequenceGenerator } from './sequence.js';
 import type { DevToolsProviderDescriptor } from './provider/descriptor.js';
 import { createSystemClock } from './v2/clock.js';
-import { createConnectorNegotiation } from './v2/negotiation-connector.js';
-import type {
-  DevToolsConnectorNegotiation,
-  DevToolsConnectorNegotiationMessage
-} from './v2/negotiation-connector.js';
+import { createDevToolsConnectorEndpoint } from './v2/endpoint.js';
+import type { DevToolsConnectorEndpoint, DevToolsProviderRegistry } from './v2/endpoint.js';
+import type { DevToolsMutationPolicy } from './v2/authorization.js';
+import type { DevToolsConnectorNegotiationMessage } from './v2/negotiation-connector.js';
 import { maskEncryptedFields, serialize, serializeDevToolsValue } from './serializer.js';
 import {
   createMessage,
@@ -229,6 +228,37 @@ const CAPABILITY_RANK: Record<DevToolsCapability, number> = { none: 0, readonly:
  */
 const CONNECTOR_PROVIDER_DESCRIPTORS: readonly DevToolsProviderDescriptor[] = [];
 
+/**
+ * 页内 connector 的写入开关。
+ *
+ * @remarks
+ * 硬编码为 `'omit'`，而不是开成一个选项：三层授权里 mutationPolicy 管的是「已声明的写操作
+ * 要不要放行」，而本页宣告的 provider 集是空的，眼下没有任何写操作可管。开成选项等于让
+ * 使用者去配一个当前不产生任何效果的开关，等 US-904c / US-904d / US-905 接上真实 provider
+ * 时又得连同默认值一起重新想一遍。届时补上选项即可——默认停在 `'omit'`，
+ * 意味着「接上 provider」这一步不会顺带把写路径也悄悄打开。
+ */
+const CONNECTOR_MUTATION_POLICY: DevToolsMutationPolicy = 'omit';
+
+/**
+ * 页内 connector 的 provider 接缝。
+ *
+ * @remarks
+ * 空 descriptor 集让三层授权的第二层拦下每一个操作（`provider_unsupported`），因此
+ * {@link DevToolsProviderRegistry.provider} 与 {@link DevToolsProviderRegistry.createChunkSink}
+ * 在结构上不可达。两者因此**抛错**而不是返回一个「什么都不支持」的替身：替身会把一处接线
+ * 错误变成一条看起来正常的协议应答，而这里需要的是它立刻炸出来。
+ */
+const CONNECTOR_PROVIDERS: DevToolsProviderRegistry = {
+  descriptors: CONNECTOR_PROVIDER_DESCRIPTORS,
+  provider: domain => {
+    throw new Error(`no in-page devtools provider for domain "${domain}"`);
+  },
+  createChunkSink: name => {
+    throw new Error(`no in-page devtools chunk sink for transfer "${name}"`);
+  }
+};
+
 const OPAQUE_ORIGIN = 'null' as const;
 
 const DEVTOOLS_GLOBAL_KEY = '__AIAO_RXDB_DEVTOOLS__' as const;
@@ -437,7 +467,7 @@ export class DevToolsConnector {
   #rxdbInstance: DevToolsRxDB | null = null;
   #eventListeners: Map<keyof RxDBEventMap, (event: RxDBEvent) => void> = new Map();
   #messageHandler: ((event: MessageEvent) => void) | null = null;
-  #negotiation: DevToolsConnectorNegotiation | null = null;
+  #endpoint: DevToolsConnectorEndpoint | null = null;
   #hasEntityMetadata = false;
   #entityInfo: EntityInfo[] = [];
   #entityTypeMap: Map<string, EntityType> = new Map();
@@ -544,8 +574,8 @@ export class DevToolsConnector {
       this.#messageHandler = null;
     }
     if (this.#rxdbInstance) this.#unsubscribeFromEvents(this.#rxdbInstance);
-    this.#negotiation?.dispose();
-    this.#negotiation = null;
+    this.#endpoint?.dispose();
+    this.#endpoint = null;
 
     this.#rxdbInstance = null;
     this.#clearEntityInfo();
@@ -639,7 +669,7 @@ export class DevToolsConnector {
         if (isDevToolsCommandMessage(event.data)) this.#handleMessage(event.data);
         return;
       }
-      this.#negotiation?.receive(event.data);
+      this.#endpoint?.receive(event.data);
     };
     window.addEventListener('message', this.#messageHandler);
   }
@@ -855,27 +885,33 @@ export class DevToolsConnector {
   }
 
   /**
-   * 起一次 v2 协商，并由它发出 eager legacy 握手。
+   * 起一个 v2 端点，并由它发出 eager legacy 握手。
    *
    * @remarks
-   * legacy 握手仍是**第一条**出站消息：协商机的 `start()` 只做这一件事，v2 要约要等对端
+   * 接的是**端点**而不是光秃秃的协商机：协商机只认识 HELLO / HANDSHAKE / ACK 三帧，
+   * 数据面的 REQUEST、TRANSFER_* 会直接掉在地上——面板要等满 15 秒请求时限才知道没人答，
+   * 而 wire 上分不清那是超时、是归属不符，还是这条能力根本不存在。session 归属校验、
+   * 三层授权、请求与传输预算、格式错误的结构化拒绝，全都长在端点上；协商机一个都没有。
+   *
+   * legacy 握手仍是**第一条**出站消息：`start()` 只做这一件事，v2 要约要等对端
    * `PROTOCOL_HELLO` 到达才发。顺序不能反——只支持 v1 的面板收到未知 `type` 会直接丢弃，
    * 而它需要那条握手才知道页面上有 connector。
    *
-   * 本轮宣告空 descriptor 集：页内 connector 还没有接上任何 v2 provider，
-   * 声明服务不了的 operation 等于让面板据此点亮按钮。真实 descriptor 随
+   * 本轮仍宣告空 descriptor 集（见 {@link CONNECTOR_PROVIDERS}）：页内还没有接上任何
+   * v2 provider，声明服务不了的 operation 等于让面板据此点亮按钮。真实 descriptor 随
    * US-904c / US-904d / US-905 的 provider 一起接上。
    */
   #startNegotiation(): void {
-    const negotiation = createConnectorNegotiation({
+    const endpoint = createDevToolsConnectorEndpoint({
       send: (message: DevToolsConnectorNegotiationMessage) => this.#postMessage(message),
       clock: createSystemClock(),
       capability: this.#options.capabilities,
-      descriptors: CONNECTOR_PROVIDER_DESCRIPTORS,
+      mutationPolicy: CONNECTOR_MUTATION_POLICY,
+      providers: CONNECTOR_PROVIDERS,
       legacyHandshake: this.#buildLegacyHandshake()
     });
-    this.#negotiation = negotiation;
-    negotiation.start();
+    this.#endpoint = endpoint;
+    endpoint.start();
   }
 
   #onHandshakeAck(): void {
