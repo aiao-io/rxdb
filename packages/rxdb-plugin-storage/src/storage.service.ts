@@ -49,9 +49,7 @@ import {
   validateStorageName
 } from './paths.js';
 
-// 路径工具早先定义在本模块内，`@aiao/rxdb-plugin-storage` 与包内深引用都从这里取用。
-// 为了让后端实现能复用同一套校验而又不反向依赖服务实现，实体已移入 `./paths.js`，
-// 此处原样再导出以保持导入路径不变。
+// 再导出路径工具：让后端实现能复用同一套校验，而不反向依赖服务实现。
 export {
   getDirectoryPathFromOpfsPath,
   getFileNameFromOpfsPath,
@@ -265,6 +263,20 @@ const readStreamChunk = async (
 };
 
 /**
+ * 「按 fileId 锁住它当前所在路径」的最大尝试次数。
+ *
+ * @remarks
+ * 每次尝试都要重读一次 metadata，因此上限不能太大；而路径被连续改名到用光配额，
+ * 只可能是调用方在打转。宁可报冲突让上层重试，也不在锁上无界地兜圈子。
+ */
+const MAX_PATH_RELOCK_ATTEMPTS = 8;
+
+/** 排队期间路径被改：这把锁保护的已经不是要动的那条路径。 */
+const RELOCK = Symbol('relock');
+
+const metaNotFoundError = (fileId: string): Error => new Error(`Storage file meta not found: ${fileId}`);
+
+/**
  * 用 {@link StorageFilesystem} 保存文件、用 RxDB 保存 metadata 的文件存储服务。
  *
  * @remarks
@@ -301,8 +313,23 @@ export class RxdbFileStorage {
     return normalizeRelativeOpfsPath(this.options.rootDir || 'files');
   }
 
-  /** 惰性创建的文件后端；根目录在首次访问时确定。 */
+  /**
+   * 惰性创建的文件后端；根目录在首次访问时确定。
+   *
+   * @remarks
+   * 判 `destroyed` 排在 `??=` 之前：`read` / `list` / `watch` 不计入 `#activeWrites`，
+   * {@link destroy} 只等写操作，因此一次读取完全可能在 metadata 查询的 await 间隙里
+   * 被整程销毁「跨过去」。此时若照常惰性创建，一个已销毁的实例会**重新**建出后端句柄 ——
+   * 那个句柄不属于任何生命周期，再没有人会去关它。
+   *
+   * 只挡终态而不挡 `destroying`：destroy 正等着的那些在途写入还要继续访问后端，
+   * 在 `destroying` 上就抛会把它自己等待的对象打断。
+   *
+   * @throws {@link StorageDestroyedError} 实例已销毁时抛出。
+   */
   private get filesystem(): StorageFilesystem {
+    if (this.#lifecycle === 'destroyed') throw new StorageDestroyedError();
+
     return (this.#filesystem ??= (this.options.filesystem ?? createOpfsStorageFilesystem)(this.rootDir, {
       localAdapterName: this.rxdb.config.sync.local?.adapter
     }));
@@ -632,7 +659,10 @@ export class RxdbFileStorage {
       await this.ensureLocalReady();
 
       const directoryPath = joinDirectoryPath(options.path, name);
-      await this.filesystem.ensureDirectory(directoryPath);
+      // STOR-002：建目录也要过锁。它与 renameDirectory / clear 争的是同一批目录句柄 ——
+      // 后两者取独占锁，而 `withPaths` 与 `withExclusive` 互斥，因此挂上任意一条路径锁
+      // 就够把「建到一半的目录被同时改名的父目录带走」挡在外面。
+      await this.withPathLock([directoryPath], () => this.filesystem.ensureDirectory(directoryPath));
       return directoryPath;
     } finally {
       finishWrite();
@@ -649,19 +679,24 @@ export class RxdbFileStorage {
     try {
       await this.ensureLocalReady();
 
-      const meta = await this.getRequiredMeta(fileId);
-      const targetOpfsPath = normalizeRelativeOpfsPath(
-        joinDirectoryAndFileName(getDirectoryPathFromOpfsPath(meta.opfsPath), newName)
-      );
-
-      if (targetOpfsPath === meta.opfsPath) {
-        return meta;
-      }
+      // 目标路径由**源路径所在目录**推出，因此源路径变了目标也跟着变：只能在锁内定，
+      // 不能拿锁外读到的那份算完就当数。
+      const targetOf = (opfsPath: string): string =>
+        normalizeRelativeOpfsPath(joinDirectoryAndFileName(getDirectoryPathFromOpfsPath(opfsPath), newName));
 
       // STOR-002：source 与 target 必须一次性一起锁住 —— 只锁其一时，另一路径上的
       // 并发 upload 会在预检之后、覆写之前提交，随后被本次的补偿回滚删掉。
-      return await this.withPathLock([meta.opfsPath, targetOpfsPath], () =>
-        this.renameLocked(fileId, newName, targetOpfsPath, options)
+      return await this.withCurrentPathLock(
+        fileId,
+        opfsPath => [opfsPath, targetOf(opfsPath)],
+        async current => {
+          if (current === null) throw metaNotFoundError(fileId);
+
+          const targetOpfsPath = targetOf(current.opfsPath);
+          if (targetOpfsPath === current.opfsPath) return current;
+
+          return this.renameLocked(fileId, newName, targetOpfsPath, options);
+        }
       );
     } finally {
       finishWrite();
@@ -692,14 +727,16 @@ export class RxdbFileStorage {
     try {
       await this.ensureLocalReady();
 
-      const meta = await this.getRequiredMeta(fileId);
       // STOR-002：删除同样是「写 metadata → 删 OPFS → 失败则补偿」，必须与同路径的
       // upload / rename 串行，否则补偿会把并发写入的新内容一并删掉。
-      await this.withPathLock([meta.opfsPath], async () => {
-        const current = await this.findMetaById(fileId);
-        if (!current) return;
-        await this.deleteMetaAndFile(current);
-      });
+      await this.withCurrentPathLock(
+        fileId,
+        opfsPath => [opfsPath],
+        async current => {
+          if (current === null) return;
+          await this.deleteMetaAndFile(current);
+        }
+      );
     } finally {
       finishWrite();
     }
@@ -1133,11 +1170,15 @@ export class RxdbFileStorage {
       // STOR-002：只对**提交阶段**加锁，不把网络下载圈进临界区 ——
       // 否则同路径的 upload 会被一次慢下载阻塞整程。提交阶段与 upload / rename 的
       // 「写文件 → 写 metadata → 补偿」是同一类临界区，必须串行。
-      await this.withPathLock([normalizedPath], () =>
-        this.commitFetchedFile(normalizedPath, temporaryPath, size, fileName, mimeType)
-      );
+      //
+      // 读回也在锁内：提交完就放锁，下一个持锁者（同路径的 upload / rename / delete）
+      // 会在读到之前把文件换掉甚至删掉 —— 于是 `fetch()` 要么返回别人的内容，要么直接
+      // 撞上「文件不存在」，而调用方拿到的是一次自称成功的下载。
+      const committed = await this.withPathLock([normalizedPath], async () => {
+        await this.commitFetchedFile(normalizedPath, temporaryPath, size, fileName, mimeType);
+        return this.filesystem.readBlob(normalizedPath);
+      });
 
-      const committed = await this.filesystem.readBlob(normalizedPath);
       return committed.slice(0, committed.size, mimeType);
     } finally {
       await this.removeFile(temporaryPath);
@@ -1319,7 +1360,7 @@ export class RxdbFileStorage {
     const meta = await this.findMetaById(fileId);
 
     if (!meta) {
-      throw new Error(`Storage file meta not found: ${fileId}`);
+      throw metaNotFoundError(fileId);
     }
 
     return meta;
@@ -1498,6 +1539,48 @@ export class RxdbFileStorage {
    */
   private withPathLock<T>(opfsPaths: ReadonlyArray<string>, fn: () => Promise<T>): Promise<T> {
     return this.locks.withPaths(opfsPaths, fn);
+  }
+
+  /**
+   * 锁住 `fileId` **当前**所在的那条路径并执行 `fn`；排队期间路径若被改掉就重新加锁。
+   *
+   * @param fileId - 目标文件的 metadata ID
+   * @param paths - 由当前 `opfsPath` 推出本次要锁的全部路径（rename 还要带上目标路径）
+   * @param fn - 临界区；收到锁内重读的 meta，`null` 表示文件在排队期间已被删除
+   * @returns `fn` 的返回值
+   * @throws {@link StorageConflictError} 连续 {@link MAX_PATH_RELOCK_ATTEMPTS} 次都没锁住同一条路径时抛出。
+   *
+   * @remarks
+   * 路径锁保护的是**路径**，而 `rename` / `delete` 要保护的是**文件**，两者只在「meta 没变」
+   * 时才重合。按锁外读到的 `opfsPath` 加锁，再在锁内重读 meta，仍会撞上这条交错：读到
+   * `/a.txt` → 排队期间另一个 rename 把它改成 `/b.txt` → 本次拿到的是 `/a.txt` 的锁，
+   * 动的却是 `/b.txt`。此时 `/b.txt` 上的并发 upload 完全不受阻，删除的补偿逻辑照样会把
+   * 它刚提交的文件删掉 —— 正是 STOR-002 要根除的那类「删掉别人已提交的文件」。
+   *
+   * 所以锁内重读之后还要**比对路径**：不一致就退出临界区、按新路径重来，而不是带着一把
+   * 错的锁继续。`current === null` 不算不一致 —— 文件已经没了，这把锁保护的东西也没了。
+   *
+   * 次数有上限：每轮重试都要多读一次 metadata，而路径能被连续改到用光配额，只可能是调用方
+   * 在打转。宁可报冲突让上层决定，也不在锁上无界地兜圈子。
+   */
+  private async withCurrentPathLock<T>(
+    fileId: string,
+    paths: (opfsPath: string) => ReadonlyArray<string>,
+    fn: (current: StorageFileMeta | null) => Promise<T>
+  ): Promise<T> {
+    let lockedPath = '';
+    for (let attempt = 0; attempt < MAX_PATH_RELOCK_ATTEMPTS; attempt += 1) {
+      lockedPath = (await this.getRequiredMeta(fileId)).opfsPath;
+      const outcome = await this.withPathLock(paths(lockedPath), async () => {
+        const current = await this.findMetaById(fileId);
+        if (current !== null && current.opfsPath !== lockedPath) return RELOCK;
+        return fn(current);
+      });
+
+      if (outcome !== RELOCK) return outcome;
+    }
+
+    throw new StorageConflictError(lockedPath);
   }
 
   /**

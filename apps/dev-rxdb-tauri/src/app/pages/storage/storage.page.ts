@@ -57,11 +57,8 @@ const describeError = (error: unknown): string => {
 
 /** 读回内容的校验结果，展示在页面上供人工核对字节。 */
 interface VerifyResult {
-  /** 被校验文件的逻辑名。 */
   readonly name: string;
-  /** 读回的字节数。 */
   readonly size: number;
-  /** 读回内容的 SHA-256，小写十六进制。 */
   readonly sha256: string;
 }
 
@@ -89,34 +86,27 @@ export default class StoragePage implements OnInit, OnDestroy {
   private readonly rxdb = inject(RxDB);
   private readonly tauriService = inject(TauriService);
 
-  /** 已释放的预览 URL 不再持有；切换预览时先回收上一个。 */
+  /** 切换预览时先回收上一个，否则上一次的对象 URL 始终活着。 */
   private previewDispose: (() => void) | null = null;
 
   /** 内容后端是否为 Rust 宿主持有的原生文件（否则是 WebView 的 OPFS）。 */
   protected readonly isNativeBackend = signal(this.tauriService.isTauri);
 
-  /** 存储后端的初始化状态。 */
   protected readonly status = signal<'initializing' | 'ready' | 'failed'>('initializing');
 
-  /** 最近一次失败的可读描述；成功后清空。 */
   protected readonly errorMessage = signal<string | null>(null);
 
-  /** 是否有操作正在执行；按钮据此禁用。 */
   protected readonly busy = signal(false);
 
-  /** 当前浏览目录，始终以 `/` 开头。 */
   protected readonly currentPath = signal('/');
 
-  /** 当前目录的直属条目。 */
   protected readonly entries = signal<readonly StorageBrowserEntry[]>([]);
 
-  /** 最近一次读回校验的结果。 */
   protected readonly verifyResult = signal<VerifyResult | null>(null);
 
-  /** 当前预览的对象 URL。 */
   protected readonly previewUrl = signal<string | null>(null);
 
-  /** 是否已在根目录（决定「上一级」是否可用）。 */
+  /** 派生：`/` 时禁用「上一级」。 */
   protected readonly atRoot = computed(() => this.currentPath() === '/');
 
   ngOnInit(): void {
@@ -127,27 +117,23 @@ export default class StoragePage implements OnInit, OnDestroy {
     this.disposePreview();
   }
 
-  /** 进入子目录并刷新列表。 */
   protected enter(path: string): Promise<void> {
     this.currentPath.set(path);
     return this.refresh();
   }
 
-  /** 回到上一级目录。 */
   protected goUp(): Promise<void> {
     const current = this.currentPath();
     const parent = current.slice(0, current.lastIndexOf('/'));
     return this.enter(parent === '' ? '/' : parent);
   }
 
-  /** 重新拉取当前目录的条目。 */
   protected refresh(): Promise<void> {
     return this.run(async () => {
       this.entries.set(await this.rxdb.storage.listEntries({ path: this.currentPath() }));
     });
   }
 
-  /** 在当前目录下新建子目录。 */
   protected createDirectory(name: string): Promise<void> {
     return this.run(async () => {
       await this.rxdb.storage.createDirectory(name, { path: this.currentPath() });
@@ -155,7 +141,6 @@ export default class StoragePage implements OnInit, OnDestroy {
     });
   }
 
-  /** 上传文件选择器里选中的文件。 */
   protected uploadPicked(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const picked = Array.from(input.files ?? []);
@@ -188,7 +173,6 @@ export default class StoragePage implements OnInit, OnDestroy {
     });
   }
 
-  /** 读回文件内容并展示大小与 SHA-256。 */
   protected verify(entry: StorageBrowserEntry): Promise<void> {
     if (entry.kind !== 'file') return Promise.resolve();
 
@@ -204,7 +188,6 @@ export default class StoragePage implements OnInit, OnDestroy {
     });
   }
 
-  /** 创建一次性预览 URL。 */
   protected preview(entry: StorageBrowserEntry): Promise<void> {
     if (entry.kind !== 'file') return Promise.resolve();
 
@@ -216,14 +199,12 @@ export default class StoragePage implements OnInit, OnDestroy {
     });
   }
 
-  /** 保存单个文件到本机。 */
   protected download(entry: StorageBrowserEntry): Promise<void> {
     if (entry.kind !== 'file') return Promise.resolve();
 
     return this.run(() => this.rxdb.storage.download(entry.meta.id));
   }
 
-  /** 把文件改名为输入框里的名字。 */
   protected rename(entry: StorageBrowserEntry, newName: string): Promise<void> {
     if (entry.kind !== 'file') return Promise.resolve();
 
@@ -233,7 +214,6 @@ export default class StoragePage implements OnInit, OnDestroy {
     });
   }
 
-  /** 删除文件及其 metadata。 */
   protected remove(entry: StorageBrowserEntry): Promise<void> {
     if (entry.kind !== 'file') return Promise.resolve();
 
@@ -262,7 +242,6 @@ export default class StoragePage implements OnInit, OnDestroy {
     this.status.set('ready');
   }
 
-  /** 覆盖式上传到当前目录。 */
   private async uploadOne(file: File): Promise<void> {
     await this.rxdb.storage.upload(file, { path: this.currentPath(), overwrite: true });
   }
@@ -286,7 +265,6 @@ export default class StoragePage implements OnInit, OnDestroy {
     }
   }
 
-  /** 回收上一个预览 URL。 */
   private disposePreview(): void {
     this.previewDispose?.();
     this.previewDispose = null;

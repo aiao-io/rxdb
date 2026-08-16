@@ -17,7 +17,7 @@ import { SequenceGenerator } from '../sequence.js';
 import type { AnyDevToolsMessage, DevToolsCapability } from '../types.js';
 import type { DevToolsProviderDescriptor, DevToolsProviderDomain } from '../provider/descriptor.js';
 import { resolveNegotiatedTransferLimit } from '../provider/limits.js';
-import type { DevToolsChunkSink, DevToolsProvider } from '../provider/types.js';
+import type { DevToolsChunkSink, DevToolsProvider, DevToolsProviderResult } from '../provider/types.js';
 import { authorizeMessage, authorizeOperation } from './authorization.js';
 import type { DevToolsMutationPolicy } from './authorization.js';
 import type { DevToolsClock } from './clock.js';
@@ -115,6 +115,16 @@ interface TransferBinding {
  */
 const TRANSFER_DOMAIN = 'files' as const;
 const TRANSFER_OPERATION = 'upload' as const;
+
+/**
+ * 事件订阅在授权矩阵里的坐标。
+ *
+ * @remarks
+ * 与传输同理：EVENT 帧本身不带 domain/operation，但订阅要做的事就是 `database.events`，
+ * 按它判定才谈得上「三层授权」。
+ */
+const EVENT_DOMAIN = 'database' as const;
+const EVENT_OPERATION = 'events' as const;
 
 /** 由协商机独占错误语义的三种帧；端点不得对它们重复回错。 */
 const NEGOTIATION_OWNED_TYPES: ReadonlySet<DevToolsV2MessageType> = new Set<DevToolsV2MessageType>([
@@ -277,8 +287,27 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
     void this.#invoke(payload);
   }
 
+  /**
+   * 调用一个 provider，并把「实现抛了」收敛成一次普通失败。
+   *
+   * @remarks
+   * 契约要求 provider 只用错误联合说话（见 `provider/types.ts`），但契约挡不住 bug：
+   * 一次 reject 会顺着调用点的 `void` 逃到全局，而请求**永不结算** —— 对端只能白等满
+   * 15 秒的时限，这段时间里在途名额一直被占着，墓碑也永远不会记上。
+   *
+   * 这里不做平台映射：能抛到这一层，说明它绕过了 provider 自己的映射，剩下的信息不足以
+   * 安全归类。`operation_failed` 是唯一诚实的答案。
+   */
+  async #callProvider(domain: DevToolsProviderDomain, operation: string, params: unknown): Promise<DevToolsProviderResult> {
+    try {
+      return await this.#ports.providers.provider(domain).invoke(operation, params);
+    } catch {
+      return { outcome: 'failed', error: createDevToolsError('operation_failed') };
+    }
+  }
+
   async #invoke(payload: DevToolsRequestPayload): Promise<void> {
-    const result = await this.#ports.providers.provider(payload.domain).invoke(payload.operation, payload.params);
+    const result = await this.#callProvider(payload.domain, payload.operation, payload.params);
     // 结算门同时挡住两件事：已超时的请求，以及 session 轮换后迟到的结果。
     if (this.#session?.settleRequest(payload.requestId) !== true) return;
 
@@ -309,12 +338,18 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
     this.#openTransfer(payload);
   }
 
-  /** sink 在传输表接受之后才建立，被拒的 START 不留下任何临时产物。 */
+  /**
+   * sink 在传输表接受之后才建立，被拒的 START 不留下任何临时产物。
+   *
+   * @remarks
+   * 被拒时走 `releaseTransfer` 而不是 `settleTransfer`：这条传输从未开始，那个 ID
+   * 也就没被用掉（理由见 `session.ts` 上的 TSDoc）。
+   */
   #openTransfer(payload: DevToolsTransferStartPayload): void {
     const result = this.#transfers?.start(payload);
     if (result === undefined) return;
     if (result.outcome === 'rejected') {
-      this.#session?.settleTransfer(payload.transferId);
+      this.#session?.releaseTransfer(payload.transferId);
       this.#sendError(payload.requestId, result.error);
       return;
     }
@@ -390,11 +425,39 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
    * @remarks
    * `none` 档**不建立订阅**，而不是「订阅了但不发」：后者仍会在 host 侧产生开销与副作用，
    * 也让「订阅数为 0」这条判据失去意义。
+   *
+   * 判据走完整的 {@link authorizeOperation} 而不是只看档位：事件是 `database.events`
+   * 这个操作，与 REQUEST 打过来的同一个操作没有任何区别。只看档位就等于 descriptor 与
+   * mutationPolicy 两层在这条路径上不存在 —— 一个声明 `unavailable` 的 database 领域，
+   * 照样会被订阅触碰一次。
    */
   #subscribeToEvents(): void {
-    if (!authorizeMessage('EVENT', this.#ports.capability)) return;
+    const authorization = authorizeOperation({
+      capability: this.#ports.capability,
+      mutationPolicy: this.#ports.mutationPolicy,
+      descriptors: this.#ports.providers.descriptors,
+      domain: EVENT_DOMAIN,
+      operation: EVENT_OPERATION
+    });
+    if (authorization.outcome === 'silent-drop') return;
+    if (authorization.outcome === 'rejected') {
+      this.#sendError(null, authorization.error);
+      return;
+    }
+    void this.#openEventStream();
+  }
 
-    void this.#ports.providers.provider('database').invoke('events', {});
+  /**
+   * 真正去 host 侧建立订阅。
+   *
+   * @remarks
+   * 失败必须发出去，哪怕它没有 `requestId`（订阅不是任何一条 REQUEST 的结果，`null` 是
+   * 它诚实的关联键）。把结果 `void` 掉的话，对端会一直等一条永远不会来的 EVENT，
+   * 而 wire 上没有任何迹象说明它不会来。
+   */
+  async #openEventStream(): Promise<void> {
+    const result = await this.#callProvider(EVENT_DOMAIN, EVENT_OPERATION, {});
+    if (result.outcome === 'failed') this.#sendError(null, result.error);
   }
 
   #closeSession(): void {

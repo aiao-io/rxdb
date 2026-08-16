@@ -248,6 +248,29 @@ describe('session resource budgets', () => {
     expect(session.inflightTransfers).toBe(1);
   });
 
+  it('MUST release a never-started transfer without spending a tombstone', () => {
+    // 登记之后立刻被传输表拒掉的 START 没有终结过任何东西：没建 sink，也没收过一个字节。
+    // 给它记墓碑，等于每一次被拒都永久吃掉一格预算（墓碑有界且满了不驱逐），
+    // 攒满上限后 session 只剩终态的 session_budget_exhausted。
+    const { session } = setup();
+    for (let index = 0; index < DEVTOOLS_MAX_TRANSFER_TOMBSTONES + 4; index++) {
+      expect(session.registerTransfer('tx-1').outcome).toBe('registered');
+      expect(session.releaseTransfer('tx-1')).toBe(true);
+    }
+
+    expect(session.transferTombstones).toBe(0);
+    expect(session.inflightTransfers).toBe(0);
+  });
+
+  it('MUST report the release of an unknown transfer or a closed session as a no-op', () => {
+    const { session } = setup();
+    expect(session.releaseTransfer('never-registered')).toBe(false);
+
+    session.registerTransfer('tx-1');
+    session.close();
+    expect(session.releaseTransfer('tx-1')).toBe(false);
+  });
+
   it('MUST report settlement of an unknown or already terminal id as a no-op', () => {
     const { session } = setup();
     expect(session.settleRequest('never-registered')).toBe(false);

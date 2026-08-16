@@ -247,6 +247,34 @@ describe('connector endpoint request dispatch', () => {
     expect(harness.endpoint.inflightRequests).toBe(0);
     expect(harness.clock.pendingTimers()).toBe(0);
   });
+
+  it('MUST settle the request when the provider throws instead of returning a mapped error', async () => {
+    const providers = createFakeProviders();
+    const harness = connected({
+      providers: {
+        ...providers,
+        provider: domain => ({
+          descriptor: providers.provider(domain).descriptor,
+          invoke: (operation, params) =>
+            operation === 'inspect'
+              ? Promise.reject(new Error('provider blew up'))
+              : providers.provider(domain).invoke(operation, params)
+        })
+      }
+    });
+    request(harness, 'r1', 'database', 'inspect');
+    await flush();
+
+    // 契约要求 provider 只用错误联合说话，但契约挡不住 bug：一次 reject 会顺着
+    // `void #invoke(...)` 逃到全局，这条请求则永不结算 —— 面板只能白等满 15 秒的时限，
+    // 而这段时间里名额一直被占着。归类只能是 operation_failed：平台细节已经无从得知。
+    expect(harness.framesOf('ERROR')[0]?.payload).toEqual({
+      requestId: 'r1',
+      error: { code: 'operation_failed', retryable: false }
+    });
+    expect(harness.endpoint.inflightRequests).toBe(0);
+    expect(harness.clock.pendingTimers()).toBe(0);
+  });
 });
 
 describe('connector endpoint events', () => {
@@ -254,6 +282,38 @@ describe('connector endpoint events', () => {
     const harness = connected({ capability: 'none' });
 
     expect(harness.providers.probe.eventSubscriptions).toBe(0);
+  });
+
+  it('MUST NOT subscribe when the descriptor declares the database domain unavailable', () => {
+    const harness = connected({ providers: createFakeProviders({ kinds: { database: 'unavailable' } }) });
+
+    // 档位只是三层授权里的第一层。事件订阅只看档位就发出去，等于 descriptor 与
+    // mutationPolicy 两层在这条路径上根本不存在 —— host 侧照样被触碰一次。
+    expect(harness.providers.probe.operationCalls.get('database.events')).toBeUndefined();
+    expect(harness.framesOf('ERROR')[0]?.payload).toEqual({
+      requestId: null,
+      error: { code: 'provider_unsupported', retryable: false }
+    });
+  });
+
+  it('MUST report a failed subscription instead of dropping the rejection on the floor', async () => {
+    const providers = createFakeProviders();
+    const harness = connected({
+      providers: {
+        ...providers,
+        provider: domain => ({
+          descriptor: providers.provider(domain).descriptor,
+          invoke: () => Promise.reject(new Error('subscription blew up'))
+        })
+      }
+    });
+    await flush();
+
+    // 被 `void` 吃掉的订阅失败没有任何迹象：面板会一直等一条永远不会来的 EVENT。
+    expect(harness.framesOf('ERROR')[0]?.payload).toEqual({
+      requestId: null,
+      error: { code: 'operation_failed', retryable: false }
+    });
   });
 
   it.each(['readonly', 'full'] as const)('MUST create exactly one event subscription at %s', capability => {
@@ -347,6 +407,18 @@ describe('connector endpoint transfers', () => {
     });
     expect(harness.endpoint.inflightTransfers).toBe(0);
     expect(await harness.providers.probe.temporaryArtifacts()).toEqual([]);
+  });
+
+  it('MUST leave the transfer id reusable after the transfer table rejects the START', () => {
+    const harness = connected();
+    startTransfer(harness, 60_000_000);
+    startTransfer(harness);
+
+    // 被拒的 START 什么都没建立，那个 ID 也就没被用掉。给它记一块墓碑，等于让每一次被拒
+    // 都永久吃掉一格传输预算 —— 攒满上限后 session 只剩终态的 session_budget_exhausted，
+    // 于是「一次超限的上传」升级成了「整条连接作废」。
+    expect(harness.framesOf('ERROR')).toHaveLength(1);
+    expect(harness.endpoint.inflightTransfers).toBe(1);
   });
 });
 

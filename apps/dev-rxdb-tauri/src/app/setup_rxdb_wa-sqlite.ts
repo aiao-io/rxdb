@@ -33,7 +33,7 @@ export default () => {
     entities: [Todo, MenuLarge, MenuSimple, FileNode, FileLarge],
     // TAURI-04：这里原先还声明了 `remote: { adapter: 'supabase' }`，可全文件只
     // 注册了 `wa-sqlite` 一个适配器。声明会让 `remoteAdapter$` 去解析一个不存在的
-    // 适配器名，谁订阅谁炸；`SyncType.None` 只是恰好没人订阅，把它掩住了。
+    // 适配器名，谁订阅谁炸；`SyncType.None` 没人订阅把这条故障暂时掩住了。
     // 这个 demo 演示的就是纯本地 wa-sqlite，远端同步另有 dev-rxdb-supabase。
     sync: {
       local: {

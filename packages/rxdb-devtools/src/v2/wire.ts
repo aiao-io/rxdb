@@ -17,18 +17,18 @@
  * @module @aiao/rxdb-devtools/v2/wire
  */
 
-import {
-  DEVTOOLS_PROVIDER_OPERATIONS,
-  isDevToolsProviderDescriptorSet,
-  isDevToolsProviderDomain
-} from '../provider/descriptor.js';
 import type { DevToolsProviderDescriptor, DevToolsProviderDomain } from '../provider/descriptor.js';
-import { RXDB_DEVTOOLS_MESSAGE } from '../types.js';
+import {
+    DEVTOOLS_PROVIDER_OPERATIONS,
+    isDevToolsProviderDescriptorSet,
+    isDevToolsProviderDomain
+} from '../provider/descriptor.js';
 import type { DevToolsCapability } from '../types.js';
+import { RXDB_DEVTOOLS_MESSAGE } from '../types.js';
 import { isDevToolsCapability } from './capability.js';
 import { DEVTOOLS_PROTOCOL_VERSION_V2 } from './constants.js';
-import { isDevToolsErrorPayload } from './errors.js';
 import type { DevToolsErrorPayload } from './errors.js';
+import { isDevToolsErrorPayload } from './errors.js';
 import { hasExactKeys, isNonEmptyString, isNonNegativeSafeInteger, isRecord, isSupportedVersionList } from './guards.js';
 import { isCanonicalUuidV4, isDevToolsIdentifier } from './ids.js';
 
@@ -337,9 +337,8 @@ function isTransferIdPayload(payload: unknown): payload is DevToolsTransferIdPay
  * 类型到内层 guard 的映射。
  *
  * @remarks
- * 显式 `Record<DevToolsV2MessageType, …>` 而不是 `as const`：新增消息类型却忘记登记 guard 时
- * 直接编译失败。若退化成可选映射，未登记的类型会走到「找不到 guard 就放行」的分支上——
- * 那是最坏的默认值。
+ * 强制 `Record<DevToolsV2MessageType, …>`：新增消息类型漏登记 guard 时直接编译失败，
+ * 杜绝「找不到 guard 就放行」这条后门。
  */
 const PAYLOAD_GUARDS: Record<DevToolsV2MessageType, (payload: unknown) => boolean> = {
   PROTOCOL_HELLO: isProtocolHelloPayload,

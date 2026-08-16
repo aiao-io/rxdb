@@ -1,7 +1,7 @@
 import {
-  DESKTOP_ADAPTER_NAME,
-  DESKTOP_HOST_PROTOCOL_VERSION,
-  type DesktopHostTransport
+    DESKTOP_ADAPTER_NAME,
+    DESKTOP_HOST_PROTOCOL_VERSION,
+    type DesktopHostTransport
 } from '@aiao/rxdb-adapter-desktop';
 import { StorageBackendError } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageOptions, DESKTOP_STORAGE_ROOT_DIR } from './setup_rxdb_desktop';
@@ -10,7 +10,7 @@ import { createDesktopStorageOptions, DESKTOP_STORAGE_ROOT_DIR } from './setup_r
  * 记录请求种类的假传输层。
  *
  * @remarks
- * 只答 `file.open` 与 `file.mkdir` 两种——`ensureRoot()` 恰好只走这两步，
+ * 只答 `file.open` 与 `file.mkdir` 两种 —— `ensureRoot()` 内部只发这两种请求，
  * 多答一种就等于在测试里描述了一份没人验证过的协议。
  */
 const createRecordingTransport = (): { kinds: string[]; transport: DesktopHostTransport } => {

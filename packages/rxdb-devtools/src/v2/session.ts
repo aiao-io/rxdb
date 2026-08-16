@@ -111,6 +111,21 @@ export interface DevToolsSession {
   settleTransfer(transferId: string): boolean;
 
   /**
+   * 退掉一条**从未开始**的在途传输：只释放名额，不留墓碑。
+   *
+   * @remarks
+   * 与 {@link DevToolsSession.settleTransfer} 的区别是承重的：墓碑的作用是挡住「已终结的
+   * ID 被复用」，而登记之后立刻被传输表拒掉的 START 根本没有终结过任何东西 —— 既没建 sink，
+   * 也没收过一个字节。给它记墓碑，等于每一次被拒都永久吃掉一格预算：墓碑有界且满了不驱逐，
+   * 于是攒满上限后 session 只剩终态的 `session_budget_exhausted`，一次超限的上传就把整条
+   * 连接判了死刑。
+   *
+   * @param transferId - 传输标识符。
+   * @returns 本次调用确实退掉了名额时为 `true`。
+   */
+  releaseTransfer(transferId: string): boolean;
+
+  /**
    * 关闭 session：取消全部时限、清空在途账本。
    *
    * @remarks
@@ -219,6 +234,11 @@ class DevToolsSessionImpl implements DevToolsSession {
 
   settleTransfer(transferId: string): boolean {
     return this.#settle(this.#transfers, transferId);
+  }
+
+  releaseTransfer(transferId: string): boolean {
+    if (this.#state === 'closed') return false;
+    return this.#transfers.inflight.delete(transferId);
   }
 
   close(): void {

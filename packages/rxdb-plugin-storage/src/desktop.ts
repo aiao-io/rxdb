@@ -12,27 +12,27 @@
  */
 
 import {
-  DESKTOP_ADAPTER_NAME,
-  DESKTOP_HOST_MAX_FILE_CHUNK_BYTES,
-  DESKTOP_HOST_PROTOCOL_VERSION,
-  resolveDesktopHostTransport,
-  type DesktopHostFileEntry,
-  type DesktopHostFileLockMode,
-  type DesktopHostFileReadResult,
-  type DesktopHostFileRequest,
-  type DesktopHostFileResponse,
-  type DesktopHostFileStat,
-  type DesktopHostTransport,
-  type RxDBAdapterDesktopErrorCode
+    DESKTOP_ADAPTER_NAME,
+    DESKTOP_HOST_MAX_FILE_CHUNK_BYTES,
+    DESKTOP_HOST_PROTOCOL_VERSION,
+    resolveDesktopHostTransport,
+    type DesktopHostFileEntry,
+    type DesktopHostFileLockMode,
+    type DesktopHostFileReadResult,
+    type DesktopHostFileRequest,
+    type DesktopHostFileResponse,
+    type DesktopHostFileStat,
+    type DesktopHostTransport,
+    type RxDBAdapterDesktopErrorCode
 } from '@aiao/rxdb-adapter-desktop';
 import { StorageBackendError, type StorageBackendErrorCode } from './errors.js';
 import { decodePhysicalName, encodePhysicalName } from './filesystem/physical-name.js';
 import type {
-  StorageFilesystem,
-  StorageFilesystemContext,
-  StorageFilesystemEntry,
-  StorageFilesystemFactory,
-  StorageFileWriter
+    StorageFilesystem,
+    StorageFilesystemContext,
+    StorageFilesystemEntry,
+    StorageFilesystemFactory,
+    StorageFileWriter
 } from './filesystem/storage-filesystem.js';
 import { normalizeDirectoryPath, normalizeRelativeOpfsPath, normalizeRemovableDirectoryPath } from './paths.js';
 
@@ -515,11 +515,6 @@ const assertReadResult = (result: DesktopHostFileReadResult): DesktopHostFileRea
  * @param options - 可选的传输层覆盖
  * @returns 可直接交给 `RxDBStoragePluginOptions.filesystem` 的工厂
  * @throws {@link StorageBackendError} 本地适配器不是桌面适配器时抛 `adapter_mismatch`
- *
- * @example
- * ```ts
- * rxdb.use(rxDBPluginStorage, { filesystem: createDesktopStorageFilesystem() });
- * ```
  */
 export const createDesktopStorageFilesystem = (
   options: DesktopStorageFilesystemOptions = {}
