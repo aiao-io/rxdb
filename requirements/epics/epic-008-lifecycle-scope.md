@@ -79,6 +79,34 @@ US-014 独立交付即可关闭。后续故事必须各自证明自己的症状�
 同一个生命周期的两端，一端硬失败一端静默，且拆卸端连**逆序**都没有——
 这不是某个插件的 bug，是「拆卸没有统一语义」的直接后果。
 
+## 2026-08-16 Cordis 第二轮复核
+
+再次对照 `/Users/jimmy/Documents/aiao/cordis` 的 `Fiber`、`EventsService`、`Service.check`、反射通知和对应测试后，
+真正值得迁移的不是 Cordis 的 `Context`、Proxy 或完整状态枚举，而是三条可验证的机制：
+
+1. **目标纪元（target epoch）+ 单飞 reconcile。** Cordis 的 `_setEpoch()` 在过渡进行时只更新目标，不并发启动第二个
+   `_reload()` / `_unload()`；当前过渡结束后再比较最新目标。迁移到 RxDB 后，同一插件同一时刻最多一个
+   `install` / 作用域释放过渡：
+   - `install()` 尚未 settle 时依赖消失，必须等它 settle，释放已经登记的 scope，且不能把旧 epoch 标成 `active`；
+   - `disposing` 期间出现新 epoch，旧释放只执行一次，完成后直接安装最新 epoch，不启动中间纪元；
+   - 安装失败绑定到触发它的依赖 epoch，依赖不变时不自动重试，只有新 epoch 才重新 reconcile。
+2. **就绪判定与失效通知分开。** Cordis 用 `Service.check` 判断注入对象当前是否可用，再由反射通知触发依赖重新评估；RxDB
+   应把 `adapterConnected$(adapterName)` 当作“当前表结构已就绪”的谓词信号，把 adapter 实例身份编码进
+   `targetEpoch`。信号变为 `false` 或实例替换只负责触发 reconcile，不负责直接操作插件状态；这样不会重新退化成
+   `firstValueFrom(connected$)` 的聚合猜测，也不会把 Observable 误当成依赖容器。
+3. **注册即返回 disposer。** Cordis `EventsService.on()` 返回幂等 disposer，并把监听器挂进当前 Fiber 的 effect；RxDB
+   现有 `addEventListener()`、VersionManager、HistoryManager、QueryManager、Gateway、Search、Workspace 仍维护多份
+   手工 remover/subscription 清单。`LifecycleScope` 迁移应让事件注册返回幂等 remover，再用 `scope.acquire()` 统一登记，
+   保留现有 `removeEventListener()` 作为兼容路径。
+
+   `@aiao/utils` 的 `EventDispatcher` 使用 `Set` 去重，因此同一 listener 的重复注册仍只有一个集合条目；重复调用返回
+   的 disposer 应为幂等空操作，只有实际插入条目的 disposer 负责移除它。这样既保留现有去重语义，也不会误删另一处注册。
+   该 API 收敛属于本 Epic 的生命周期账本，不另起 Cordis 兼容层。
+
+对应测试必须覆盖 Cordis `fiber.spec.ts` 的三类 inertia lock：安装中断连、安装/释放期间重新连上、依赖实例替换但名字不变；
+并覆盖 `dispose.spec.ts` 的重复释放、逆序、嵌套和异步释放。**不迁移** Cordis `Context`/`provide()`、Proxy trace、全局
+Registry、thenable Fiber、HMR 或长异步栈追踪。
+
 ## 目标
 
 已认领，构成本 Epic 的承诺范围：
@@ -97,15 +125,18 @@ US-014 独立交付即可关闭。后续故事必须各自证明自己的症状�
       只冻结封闭依赖类别与不变量；切片指派给 `US-015a`（适配器依赖纪元）与 `US-015b`（插件依赖图），
       **两个文件都还没创建**
 
-价值待证，**不**构成本 Epic 的承诺：
+价值已证，尚未切片：
 
-- [ ] `RxDB.#shutdown()` 的手工复位收敛到实例作用域（背景见「现状」表第 1 项）——预留给 `US-016`
+- [ ] `RxDB.#shutdown()` 的手工复位收敛到实例作用域（背景见「现状」表第 1 项）——预留给 `US-016`。
+      当前 `init()` 在 `versionManager.init()` 或 Gateway 初始化失败时只复位 `#rxdb_initialized`，没有销毁已登记的
+      VersionManager 事件和 RxJS subscription；下一次 `init()` 会重复注册副作用。US-016 至少要覆盖 init 失败回滚、
+      `disconnectAll()` 统一释放，以及事件 disposer API。
 - [ ] 三框架绑定（Angular `DestroyRef` / React `useEffect` cleanup / Vue `onScopeDispose`）统一挂接到
       同一个作用域原语——预留给 `US-017`
 
 > 后两组已被 US-014 / US-015 的正文引用为 `US-016` / `US-017` 的归属，但**故事文件尚未创建**，
-> 因此它们是**编号占位，不是排期承诺**。US-014 交付后本 Epic 的三处已知泄漏即全部关闭；
-> 015a 之后的每一条都必须在自己的故事里写出「今天用户踩得到的具体症状」才允许开工。
+> 因此它们仍不是排期承诺；但 US-016 已有可复现症状，不再是「价值待证」。US-014 交付后本 Epic 的三处已知泄漏即全部关闭；
+> 015a 之后的每一条仍必须在自己的故事里写出「今天用户踩得到的具体症状」才允许开工。
 
 ## 故事
 
@@ -116,7 +147,7 @@ US-014 独立交付即可关闭。后续故事必须各自证明自己的症状�
 - 📄 [US-015 插件依赖声明与按需装卸](../stories/core/US-015-plugin-inject-dependency.md) (Medium) — 父契约故事，不直接交付
   - `US-015a` 适配器依赖纪元 — 文件未创建
   - `US-015b` 插件依赖图 — 文件未创建，价值待证
-- `US-016` 连接纪元与停机收敛 — 文件未创建，价值待证
+- `US-016` 连接纪元与停机收敛 — 文件未创建，价值已证，待切片
 - `US-017` 三框架宿主作用域 — 文件未创建，价值待证
 
 **US-013 → US-014 是硬序**，不可交换：US-014 的 `install(scope)` 签名需要 US-013 冻结的

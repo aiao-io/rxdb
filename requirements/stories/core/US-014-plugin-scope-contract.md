@@ -68,7 +68,7 @@ INVEST 检查清单:
 ### 不在本故事
 
 `RxDB.#shutdown()`（:605-621）那 8 处手工复位的收敛。本故事只创建并释放**连接纪元作用域**
-这一层容器（D3），把 8 处复位迁进去归 `US-016`（🚧 文件未创建，价值待证）。
+这一层容器（D3），把 8 处复位迁进去归 `US-016`（🚧 文件未创建，价值已证，待切片）。
 
 ## 范围边界
 
@@ -86,7 +86,7 @@ INVEST 检查清单:
 ### Out of Scope
 
 - **`inject` 依赖声明与按需装卸**——归 [US-015](US-015-plugin-inject-dependency.md) 系列
-- **`RxDB.#shutdown()` 的 8 处手工复位** 与 `#event_initialized` 守卫的移除——归 `US-016`（🚧 文件未创建，价值待证）
+- **`RxDB.#shutdown()` 的 8 处手工复位** 与 `#event_initialized` 守卫的移除——归 `US-016`（🚧 文件未创建，价值已证，待切片）
 - **注册期资源的释放**。`use()` 时挂上的实例属性今天**在物理上就不可撤销**：
   [search:552-557](../../../packages/rxdb-plugin-search/src/plugin.ts#L552) 的 `searchPlugin` 与
   [workspace:278-283](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L278) 的 `workspace`
@@ -480,7 +480,7 @@ D7 第 4 条要求「终态销毁的服务每纪元新建」，但 workspace 的
 - [US-013 LifecycleScope 生命周期作用域原语](US-013-lifecycle-scope-primitive.md) — 前置故事，提供 `LifecycleScope`
 - [US-015 插件依赖声明与按需装卸](US-015-plugin-inject-dependency.md) — 后继故事族，收敛安装态语义
 - `US-016` 连接纪元作用域与 shutdown 收敛 — 🚧 计划路径 `stories/core/US-016-connection-scope-shutdown.md`，
-  **未创建**，且**价值待证**：本故事交付后 Epic 的三处已知泄漏已全部关闭
+  **未创建**，但**价值已证，待切片**：本故事交付后 Epic 的三处已知泄漏已全部关闭
 - [versioning-policy.md](../../versioning-policy.md) 第 2、3、4 节 — 公开 API 定义、废弃周期与三层守护
 - [epic-007 公开 API 门禁](../../epics/epic-007-public-api-gates.md) — D4 盲区的长期归属
 

@@ -22,7 +22,7 @@
 
 | #     | 建议                                                        | 值不值                         | 何时另开                             | 为什么不在 008                             |
 | ----- | ----------------------------------------------------------- | ------------------------------ | ------------------------------------ | ------------------------------------------ |
-| P-001 | 按适配器名的就绪 Observable，替换布尔 `connected$`          | ✅                             | 015a 的内部 `Set` 先冻死；公开流另开 | 008 要的是内部纪元，不是订阅表面           |
+| P-001 | 按适配器名的就绪信号（内部已落地；公开流另开）              | ✅ **内部已落地**              | 015a 消费既有信号并补 epoch 重连；公开流另开 | 008 现在要的是消费与释放时序，不是再造信号 |
 | P-002 | `afterAdapterReady` 钩子，**不**进 `#await_plugin_installs` | ❌ **动机不成立**              | 除非 015a 实测出新的死锁             | 它要绕开的那个环今天不存在                 |
 | P-003 | 插件 `Config` 用 Standard Schema 做运行时校验               | ⚠️ 可做，不急                  | 008 Done 之后，且真有热更新/HMR 需求 | 今天 options 是工厂闭包，没有热更          |
 | P-004 | DevTools 画 scope / 插件状态树                              | ⚠️ 008 已推迟                  | 013～015 状态机与 `label` 稳定之后   | 没有稳定树就画，画的是谎言                 |
@@ -32,29 +32,33 @@
 
 ---
 
-## P-001 按适配器名的就绪 Observable
+## P-001 按适配器名的就绪信号（内部已落地）
 
 **问题**
 
-[`connected$`](../../packages/rxdb/src/RxDB.ts) 是全局布尔。本地连着、远端没连（或反过来）时，它对 `adapter:local` / `adapter:remote` 给出假就绪。search 今天先 `firstValueFrom(connected$)` 再拿 `localAdapter$`，就是在手工逼近「这个适配器可用」。
+旧问题是 [`connected$`](../../packages/rxdb/src/RxDB.ts) 只有全局布尔。本地连着、远端没连（或反过来）时，它不能表达某个
+适配器是否可用。这个问题已经在 `RxDB.adapterConnected$(adapterName)` 落地：内部以
+`#connected_adapters` + `BehaviorSubject<ReadonlySet<string>>` 为唯一真相，且在表结构、迁移和索引引导完成后、插件安装等待前置位。
+Search 也已经改为等待 `adapterConnected$(localAdapterName)`，不再用聚合 `connected$` 猜本地就绪。
 
-015a 的正确内部形状是 `#connected_adapters` + `host.isDependencyReady('adapter:local')`（Cordis `Service.check` 的封闭版）。那是**谓词**，不是流。
+这对应 Cordis `Service.check` 的封闭版：依赖判定是按名字的**谓词**，而不是把整个连接状态当成布尔。
 
-**另开之后做什么**
+**P-001 剩余工作**
 
 ```ts
-rxdb.adapterReady$('local'); // Observable<boolean>，按名字，不是全局
+rxdb.adapterConnected$('local'); // 现有 API；只表示该适配器表结构已就绪
 ```
 
-让 UI / DevTools / 非插件代码也能订阅，不必每个调用方自己 `filter` 那个布尔。
+015a 不应再新增同义的 `adapterReady$`，而应消费现有信号，并在适配器局部断开时释放依赖插件、在新连接实例
+出现时以新的 adapter epoch 重装。UI / DevTools 需要面向公开消费者的快照流时另开故事，不能把内部 `Set` 直接暴露。
 
 **不要做成**
 
 - 015a 把内部 `Set` 直接 `Object.defineProperty` 出去。
-- 继续让插件 `firstValueFrom(connected$)`。那是 search 死锁的一半。
+- 继续让插件 `firstValueFrom(connected$)`。它无法区分本地和远端。
 - 用 `localAdapter$` 冒充就绪。实例存在 ≠ bootstrap 完成。
 
-**前置**：015 D2 / 015a 的 `Set` 先成为唯一真相。没有内部纪元，公开流只是把错判据订阅化。
+**状态**：内部信号已落地；公开快照流仍停车。015a 的价值从“新增信号”改为“消费信号 + 处理局部断连和 adapter epoch 替换”。
 
 ---
 
@@ -215,18 +219,18 @@ Cordis 用 `isolate` + 原型影子让同一服务名在不同 Context 上指向
 ```text
 013 → 014                               ← 硬序，Epic 的三处已知泄漏到此全部关闭
    → 015a                               ← 前置：015a/015b 两个 stub 先落盘
-   → 015b / 016 / 017                   ← 价值待证，各自举证后才排期
+   → 015b / 016 / 017                   ← 015b/017 价值待证；016 价值已证但尚未切片
 
-P-001            015a 内部 Set 冻死之后才谈公开流
+P-001            015a 消费既有 adapterConnected$，处理局部断连和 epoch 替换；公开流另开
 P-002            ❌ 不做（动机不成立）
-P-004            015 状态机 + 016 事件进纪元之后（016 本身价值待证）
+P-004            015 状态机 + 016 事件进纪元之后（016 已有症状，仍需切片）
 P-005            可并行设计；实现最好等 017 的 owned/borrowed（017 本身价值待证）
 P-003 / P-006    008 全部 Done 后再立故事
 P-007            默认不做
 ```
 
-> 注意：`015b` / `016` / `017` 已在 Epic 与 status-overview 标为**价值待证**，
-> 且它们的故事文件至今未创建。依赖它们的停车位条目（P-004 / P-005）因此**没有可预期的解锁日期**——
+> 注意：`015b` / `017` 仍在 Epic 与 status-overview 标为**价值待证**；`016` 已有可复现症状但故事文件仍未创建。
+> 依赖它们的停车位条目（P-004 / P-005）因此**没有可预期的解锁日期**——
 > 这不改变本文件的结论（都是「先别做」），但不要把上面的箭头读成排期承诺。
 
 008 的编码门槛收敛为三条 AC 补写（全在 US-014 里），与本文件无关。本文件多一条实现 = 范围失控。

@@ -5,7 +5,7 @@ status: Backlog
 priority: Medium
 epic: epic-008-lifecycle-scope
 created: 2026-08-15
-updated: 2026-08-15
+updated: 2026-08-16
 tags: [lifecycle, plugin, public-api, dependency, parent-story]
 ---
 
@@ -13,7 +13,7 @@ tags: [lifecycle, plugin, public-api, dependency, parent-story]
 INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接交付）:
 - [x] Independent (独立): 依赖 US-014 已把副作用收进作用域；不依赖任何未排期工作
 - [x] Negotiable (可协商): 依赖取值、就绪判据、重名裁决、失败重试四处给了决策表
-- [x] Valuable (有价值): 删掉 search 插件整套自建等待状态机；让「远端适配器断开」第一次有可响应的信号
+- [x] Valuable (有价值): 收敛 search 的依赖等待；让局部适配器断开触发依赖插件释放，并以新 adapter epoch 恢复
 - [x] Estimable (可估算): 契约已在本文件定死（INV-1～INV-7 与 D1～D5），子故事无需再做架构选择
 - [ ] Small: **不成立，已于 2026-08-15 拆分**。原故事一次性交付两套彼此独立的就绪判据
       （适配器引导完成 vs 插件安装完成）、一个拓扑排序器、一个环检测器、一套重名裁决，
@@ -51,20 +51,22 @@ INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接
 ## 来源与边界
 
 来源是 [epic-008](../../epics/epic-008-lifecycle-scope.md) 「现状」表的第 5、7 项——两套语义不同的
-自建安装状态机。它们存在的唯一原因是：**插件无法告诉宿主自己需要什么**，只能在 `install()` 里自己等。
+自建安装状态机，以及当前已经落地但尚未被依赖调度消费的按适配器就绪信号。它们存在的共同问题是：**插件无法把
+依赖和作用域交给宿主调度**，只能在 `install()` 里自己等、自己判断竞态。
 
 ### 证据一：search 插件的等待链
 
 - [:136](../../../packages/rxdb-plugin-search/src/plugin.ts#L136) 构造期 `assertSupportedAdapter()` 校验**配置**里的适配器名
-- [:356-358](../../../packages/rxdb-plugin-search/src/plugin.ts#L356-L358) 安装期**先**
-  `await firstValueFrom(this.rxdb.connected$.pipe(filter(Boolean)))`，**再**
-  `await firstValueFrom(this.rxdb.localAdapter$)`——**两个条件缺一不可**，原因见 D2
+- [:356-358](../../../packages/rxdb-plugin-search/src/plugin.ts#L356-L358) 安装期等待
+  `adapterConnected$(localAdapterName)`，并从 `localAdapter$` 取得实例；按适配器信号已经落地，待 015a 把这段
+  等待和后续释放纳入宿主调度
 - [:139-161](../../../packages/rxdb-plugin-search/src/plugin.ts#L139-L161) `install()` 同步挂完事件通道后
   **返回包住 `#runInstall()` 的 Promise**（:161），因此 `connect()` 确实会等到 FTS 建完。
   ⚠️ :145 的行内注释写着「立刻返回；真实安装……异步执行」，**与代码不符**——真正避开死锁的不是「转入后台」，
   而是下一条的 `bootstrapTransaction`。读这段时以代码为准，改写时见 D2 附
-- [:368-370](../../../packages/rxdb-plugin-search/src/plugin.ts#L368-L370) 注释写明了死锁的形状：
-  「`connect()` 还卡在 `#await_plugin_installs`……都会 `ready()` → 再等 `connect()`，等于等自己」
+- [:368-370](../../../packages/rxdb-plugin-search/src/plugin.ts#L368-L370) 注释保留了历史死锁形状：
+  `adapter.rawQuery` / `repo.find` 会回到 `ready()`，而 `connect()` 正在等待插件安装；当前实现用
+  `bootstrapTransaction` 绕开该环，015a 不得把这条用户可见时序改成后台未等待
 - [:84](../../../packages/rxdb-plugin-search/src/plugin.ts#L84) 于是有了 `SearchPluginPhase` 五态枚举，
   [:121](../../../packages/rxdb-plugin-search/src/plugin.ts#L121) `ready` 把这套内部状态翻译给使用者
 
@@ -81,14 +83,14 @@ INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接
 不匹配时抛 `already installed with an incompatible instance`）。要支持按名字声明依赖，
 必须先补上这个索引——见 D4，落地归 `US-015b`（🚧 文件未创建）。
 
-### 证据三：部分断连没有任何信号
+### 证据三：部分断连已有信号，但没有依赖释放
 
 `#shutdown()` 只在**最后一个**已连接适配器断开时触发——见 `RxDB.disconnect(adapterName)`
 （[:478-486](../../../packages/rxdb/src/RxDB.ts#L478-L486)）。本地 + 远端都连着、只断远端时，
-依赖远端的插件既不会被拆卸也收不到任何通知——今天没有任何机制能表达「我的依赖不在了」。
+`adapterConnected$('remote')` 会变为 `false`，但依赖远端的插件仍不会被拆卸，也没有新 epoch 调度。
 
-`connected$`（[:219](../../../packages/rxdb/src/RxDB.ts#L219)）是个 `boolean`，
-只回答「**有没有**适配器连着」，回答不了「**哪个**适配器连着」——这正是 US-015a 要补的信号。
+`connected$`（[:219](../../../packages/rxdb/src/RxDB.ts#L219)）仍是聚合 `boolean`，只回答「**有没有**适配器连着」；
+015a 不再补信号，而是消费已经存在的按名信号，维护依赖插件的作用域和 adapter epoch。
 
 ## 核心不变式（INV）
 
@@ -157,6 +159,34 @@ INVEST 检查清单（本文件是拆分后的父故事/契约文档，不直接
 - `disposing → waiting`（依赖没了但插件仍在册）与 `disposing → registered`（整体 `#shutdown()`）
   的区别只在调度器内部，对插件作者不可见
 
+## Cordis 复核：调度器采用目标纪元，不照搬 Fiber
+
+Cordis `Fiber._setEpoch()` / `_reload()` / `_unload()` 的可迁移部分是“最新目标最终胜出”的单飞算法，不是它的
+`Context` 或完整宿主模型。RxDB 调度器必须冻结以下行为：
+
+- 每个插件维护一个由依赖实例身份组成的 `targetEpoch`，同一时间最多一个 `install` 或 scope dispose 过渡；
+- 依赖在 `install()` 未 settle 时消失：等待该 install settle，释放已经登记的 scope，丢弃该 epoch 的成功结果，不能短暂标记
+  `active`；
+- `disposing` 期间依赖重新满足或实例替换：旧 dispose 只执行一次，完成后直接 reconcile 最新 `targetEpoch`，不启动中间纪元；
+- `failed` 绑定失败时的依赖 epoch；依赖身份和集合不变时不定时重试，只有 epoch 变化才允许再次安装；
+- 依赖方的 scope dispose 完成后，宿主才允许让对应适配器真正断开，保持 INV-7。
+
+这组约束比“增加更多状态名”更重要。实现可以继续使用本故事的
+`registered / waiting / installing / active / failed / disposing`，但状态只能由 reconcile loop 改写，不能让插件包各自
+维护第二套标志位。
+
+### 必须加入的并发测试
+
+1. install 延迟期间断开依赖：install settle 后 scope 释放一次，插件不进入 `active`。
+2. dispose 延迟期间重新连接同名但新实例：旧 dispose 一次，跳过中间 epoch，只安装新实例。
+3. 失败后依赖不变不重试；断开再连接或适配器实例替换后恰好重试一次。
+4. 同一插件重复 disconnect / reconnect 不重复注册事件；scope disposer 逆序、幂等、异步释放。
+
+事件注册应沿用 Epic 008 的账本收敛方向：`RxDB.addEventListener()` 和 `@aiao/utils` 的
+`EventDispatcher.addEventListener()` 返回幂等 remover，重复 listener 继续保持 `Set` 的单条目语义（重复调用返回空操作
+disposer），015a/015b 通过 `scope.acquire()` 登记；保留现有 `removeEventListener()` 兼容调用。不得引入 Cordis
+`Context`、Proxy trace、全局 Registry、thenable Fiber 或 HMR。
+
 ## 待冻结的五个决策
 
 ### D1 — 依赖取值范围与写法
@@ -205,30 +235,31 @@ export type RxDBPluginDependency = 'adapter:local' | 'adapter:remote' | `plugin:
 真正的就绪点在 `connect()` 里，是这条链**全部**跑完之后：
 
 ```text
-adapter.connect()                    :419
-  → migrateSystemSchema?()           :427 / :437   ┐
-  → startWriterLease?()              :428 / :438   │ 仅 local 分支（:420 isLocalAdapter）
-  → #runMigrations() / createTables  :429 / :436   │
-  → #ensureEntityTables()            :430          │
-  → reconcileEntityIndexes?()        :440          ┘
-  → #connected_adapters.add(name)    :442   ← 就绪
-  → #connected_sub.next(true)        :443
-  → #await_plugin_installs()         :445
+adapter.connect()                    :432
+  → migrateSystemSchema?()           :440 / :450   ┐
+  → startWriterLease?()              :441 / :451   │ 仅 local 分支（:433 isLocalAdapter）
+  → #runMigrations() / createTables  :442 / :449   │
+  → #ensureEntityTables()            :443          │
+  → reconcileEntityIndexes?()        :453          ┘
+  → #set_adapter_connected(name)     :457   ← 就绪
+  → #adapter_connected_sub.next()    :595
+  → #await_plugin_installs()         :459
 ```
 
 | 方案                                | 主要风险                                                                  | 结论        |
 | ----------------------------------- | ------------------------------------------------------------------------- | ----------- |
 | 以 `localAdapter$` 发出为就绪       | 插件会在**建表与迁移之前**拿到适配器；search 的索引建在不存在的表上       | ❌          |
 | 以 `connected$` 为真为就绪          | 它是全局布尔，「远端连着、本地没连」时对 `adapter:local` 给出**假的**就绪 | ❌          |
-| 以 `#connected_adapters` 含该名为准 | 需要新增一个按适配器名分发的信号（今天只有 `Set` + 全局布尔）             | ✅ **推荐** |
+| 以 `#connected_adapters` 含该名为准 | 已由 `adapterConnected$(adapterName)` 分发；015a 需要消费并绑定 epoch | ✅ **现有实现** |
 
-[`#connected_adapters.add()` 在 :442、`#await_plugin_installs()` 在 :445](../../../packages/rxdb/src/RxDB.ts#L442-L445)——**就绪信号先于插件安装等待点发生**，
+[`#set_adapter_connected()` 在 :590-597、`#await_plugin_installs()` 在 :459](../../../packages/rxdb/src/RxDB.ts#L590-L597)——**就绪信号先于插件安装等待点发生**，
 所以这个判据不会引入新的死锁窗口（INV-4 依然成立）。
 
-search 今天的双重等待（先 `connected$` 再 `localAdapter$`）正是在手工逼近这个判据：
-`connected$` 保证引导跑完，`localAdapter$` 取到实例。宿主提供正确判据后，两次等待一起消失。
+Search 当前已经去掉聚合 `connected$`，等待按名的 `adapterConnected$(localAdapterName)` 后再从
+`localAdapter$` 取得实例。后者只负责取实例，不能被重新解释为 readiness；015a 的宿主调度应把这两个动作放进同一
+个依赖 epoch，并负责局部断连时的释放与重装。
 
-落地归 `US-015a`（🚧 文件未创建）。
+信号本身已落地；剩余的依赖释放、epoch reconcile 和 search 生命周期迁移归 `US-015a`（🚧 文件未创建）。
 
 #### D2 附 — `install()` 内允许调用什么（US-015a 的硬约束）
 
@@ -295,7 +326,7 @@ search 今天的双重等待（先 `connected$` 再 `localAdapter$`）正是在�
 
 - **依赖注入容器 / `provide()` 式动态服务注册表**——epic-008 明确的非目标
 - **任意字符串依赖键**。扩大 `RxDBPluginDependency` 取值必须另起故事并说明理由（INV-1）
-- **`RxDB.#shutdown()` 的 8 处手工复位收敛**——归 `US-016`（🚧 文件未创建，价值待证）
+- **`RxDB.#shutdown()` 的 8 处手工复位收敛**——归 `US-016`（🚧 文件未创建，价值已证，待切片）
 - **拆卸错误在 `RxDB` 边界的出口**——与 [US-014 D5](./US-014-plugin-scope-contract.md) 保持一致，仍为 `console.error`
 - **workspace 的 `#installPromise` / `#installFailed`**：它等的是 IndexedDB 恢复
   （[:331-346](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L331-L346)），
@@ -326,5 +357,5 @@ export interface IRxDBPlugin {
 - [US-014 插件作用域契约](./US-014-plugin-scope-contract.md) — 前置故事；「释放」以它把副作用收进作用域为前提
 - `US-015a` 适配器依赖与纪元调度 — 🚧 计划路径 `stories/core/US-015a-adapter-dependency-epoch.md`，**未创建**
 - `US-015b` 插件间依赖图 — 🚧 计划路径 `stories/core/US-015b-plugin-dependency-graph.md`，**未创建**，价值待证
-- [epic-008 停车位](../../epics/epic-008-parking-lot.md) — P-001（按名字的就绪流）与 P-002（已否决的钩子）的边界
+- [epic-008 停车位](../../epics/epic-008-parking-lot.md) — P-001（按名字的就绪信号，内部已落地）与 P-002（已否决的钩子）的边界
 - [versioning-policy.md](../../versioning-policy.md) 第 4 节 — 三层 API 守护
