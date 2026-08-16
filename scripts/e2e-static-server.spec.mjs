@@ -8,13 +8,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
-import {
-    assertStaticRoot,
-    closeStaticServer,
-    parseArgs,
-    safeJoin,
-    startStaticServer
-} from './e2e-static-server.mjs';
+import { assertStaticRoot, closeStaticServer, parseArgs, safeJoin, startStaticServer } from './e2e-static-server.mjs';
 
 const execFileAsync = promisify(execFile);
 const scriptPath = fileURLToPath(new URL('./e2e-static-server.mjs', import.meta.url));

@@ -1,98 +1,69 @@
 name: CI Windows
 
+# Windows 上只验一件事：**跨平台可移植性**。
+#
+# 这个仓库到处是路径拼接、`file://` URL、OPFS/SQLite 的文件句柄、以及生成器
+# 往磁盘写文件 —— 这些正是在 Windows 上会因为 `\` vs `/`、盘符、大小写不敏感
+# 而炸掉的地方。功能正确性由 Linux 上的 PR/main 流水线负责，这里不重复。
+#
+# 因此**故意不做**的事：
+#   - 不装 Playwright、不跑 e2e：浏览器行为与 OS 无关，装一次要 5 分钟。
+#   - 不传 Codecov：覆盖率按包合并，同一份数据传两遍只会让 Codecov 的
+#     基线在 Linux/Windows 之间反复横跳，制造假告警。
+#   - 不跑 affected：手动触发时没有可靠的 base SHA，全量跑才有意义。
+#
+# 手动触发（workflow_dispatch）而非定时：Windows runner 的分钟数按 2 倍计费，
+# 而这类问题的引入频率远低于每日一次。改动到路径处理时手动跑一轮即可。
+
 on:
-  workflow_dispatch: # 只允许手动触发
+  workflow_dispatch:
+
+# 只读。这条流水线不上传任何东西，也就不需要 id-token。
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  # 同 ci-template.yml：nx.app 上 workspace 处于 disabled 状态，不关掉的话下面那条
-  # `nx run-many -t build lint test` 会在握手处被 Nx 直接掐掉。恢复方法见 ci-template.yml。
+  # nx.app 上的 workspace 处于 disabled 状态（免费额度用尽），不关掉的话
+  # 下面的 run-many 会在握手处被 Nx 直接掐掉。详见 ci-template.yml 的同名注释。
   NX_NO_CLOUD: true
-  NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
 
 jobs:
   main-windows:
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           filter: tree:0
-          fetch-depth: 0
 
-      - uses: webfactory/ssh-agent@v0.10.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      # 这里没有 ssh-agent。历史版本挂了 webfactory/ssh-agent + SSH_PRIVATE_KEY，
+      # 但 pnpm-lock.yaml 里 `git+ssh` / `ssh://` 依赖是 0 条 —— 唯一看起来像
+      # 私有源的 wa-sqlite 走的是 codeload 的 HTTPS tarball。也就是说那把私钥
+      # 从来没被用过，却在每次运行里被注入进 runner 环境。删掉。
 
-      - name: Add GitHub to known hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
-        shell: bash
-
-      - uses: pnpm/action-setup@v4.4.0
-        name: Install pnpm
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
           run_install: false
 
-      # This enables task distribution via Nx Cloud
-      # Run this command as early as possible, before dependencies are installed
-      # Learn more at https://nx.dev/ci/reference/nx-cloud-cli#npx-nxcloud-startcirun
-      # Uncomment this line to enable task distribution
-      # - run: pnpm dlx nx-cloud start-ci-run --distribute-on="3 windows-medium-js" --stop-agents-after="e2e-ci"
-
-      # Cache node_modules
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: .nvmrc
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
 
-      # 缓存 Playwright 浏览器 (Windows 路径)
-      - name: Get Playwright version
-        id: playwright-version
-        run: echo "version=$(pnpm list @playwright/test --depth=0 | Select-String '@playwright/test' | ForEach-Object { ($_ -split '\s+')[1] })" >> $env:GITHUB_OUTPUT
-        shell: powershell
+      # typecheck 排在最前，且单独一步：TS 的 moduleResolution 在大小写不敏感的
+      # NTFS 上会放过 `import './Foo'` 引 `foo.ts` 这类写法，反过来也一样 ——
+      # 这是 Windows 专属 CI 最有价值的一条信号，不该被埋在 run-many 的合并输出里。
+      - run: pnpm exec nx run-many -t typecheck --output-style=stream
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v5
-        id: playwright-cache
-        with:
-          path: ~\AppData\Local\ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+      - run: pnpm exec nx run-many -t build lint test --output-style=stream
 
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps
-
-      - name: Install Playwright system dependencies
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps
-
-      - uses: nrwl/nx-set-shas@v5
-
-      # Prepend any command with "nx-cloud record --" to record its logs to Nx Cloud
-      # - run: pnpm exec nx-cloud record -- echo Hello World
-      # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
-      # When you enable task distribution, run the e2e-ci task instead of e2e
-      - run: pnpm exec nx run-many -t build lint test
-
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          slug: aiao-io/rxdb
-          codecov_yml_path: .github/codecov.yml
-
-      - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          slug: aiao-io/rxdb
-          codecov_yml_path: .github/codecov.yml
-          report_type: test_results
+      # scripts/ 下的工具脚本不属于任何 Nx 项目，run-many 碰不到。
+      # 它们里面全是 path.join / file URL / `git` 子进程调用，恰恰是最容易只在
+      # Windows 上炸的一类代码。
+      - run: pnpm test-scripts

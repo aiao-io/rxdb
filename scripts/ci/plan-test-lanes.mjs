@@ -25,7 +25,15 @@
 
 import { pathToFileURL } from 'node:url';
 
-/** 非 Supabase 任务铺开的 lane 上限。4 = 在 20 个并发 job 的免费额度里给 e2e/lint/build 留足位置。 */
+/**
+ * 非 Supabase 任务铺开的 lane 上限。
+ *
+ * 4 有两个独立的理由，任一成立就不该往上调：
+ *   1. 并发位：免费额度上限 20，实测峰值并发已经是 16。
+ *   2. 更根本的 —— 墙钟被 `rxdb-adapter-pglite` 一个任务卡死在 238s（见 WEIGHTS）。
+ *      按实测权重装箱，4 条 lane 的负载是 238 / 237 / 235 / 236，已经贴着这个下界。
+ *      开到 5、6 条只会多出几条 200s 的空转 lane，一秒都省不下来。
+ */
 export const LANE_COUNT = 4;
 
 /**
@@ -36,62 +44,66 @@ export const SUPABASE_PROJECTS = ['rxdb-adapter-supabase', 'dev-rxdb-supabase'];
 
 /**
  * 各项目 test 任务的实测耗时（秒），用于装箱时估算 lane 负载。
+ * 只影响**分桶是否均衡**，不影响正确性 —— 填错了 CI 还是全跑，只是慢。
  *
- * 数据来源：并行化改造后第一轮 CI（run 85622186464）5 条 lane 的 Nx 汇总表，
- * 全部 Cache Miss，即冷跑真值。只影响**分桶是否均衡**，不影响正确性。
+ * 数据来源：main 上的 run 31874082535（run-many 全量、全部 Cache Miss，即冷跑真值）。
+ * 提取方式：每条 lane 都以 `--parallel=1` 串行执行，于是同一条 lane 的日志里
+ * 相邻两条 vitest `Duration` 行的时间差就是后一个项目的净耗时。
+ * （不能用「项目首行到末行」的时间跨度 —— 那会把 Nx 的调度输出算进去。）
  *
- * `rxdb-adapter-pglite` 是唯一的长尾：开 fileParallelism 后从 455s 降到 261s，
- * 但仍比第二名（76s）大 3.4 倍 —— 它一个人就是 test 阶段的下界，LPT 会给它单独一条
- * lane。想再压只能继续拆它自己的用例，调 lane 数没用。
- * （本地 M 系列上同样配置只要 72s，别拿本地数据填这张表。）
+ * 上一版这张表是从更早一轮 CI 的 Nx 汇总表抄的，两处离谱偏差正是那轮
+ * 四条 lane 跑出 469s / 331s / 322s / 313s（最重比最轻多 50%）的原因：
+ *   dev-rxdb-angular  55 → 116   低估 2.1 倍
+ *   utils              1 →  26   低估 26 倍（当轮命中了缓存，旧表填的是缓存后的耗时）
+ * 教训：命中缓存的那轮数据不能用来填这张表，宁可缺项走 DEFAULT_WEIGHT。
  *
- * 少数几个当轮命中远端缓存、拿不到真实耗时的项目（utils / code-editor*），
- * 保留改造前的旧估值，不填 0 —— 填 0 会让它们在冷跑时被当成免费的。
+ * `rxdb-adapter-pglite`（238s）是唯一的长尾，比第二名（116s）大一倍。
+ * 它一个人就是 test 阶段的墙钟下界：LPT 会给它单独一条 lane，其余三条正好各摊
+ * ~236s。**因此把 LANE_COUNT 从 4 调大不会更快** —— 想压 test 阶段只能拆 pglite
+ * 自己的用例。（本地 M 系列上同样配置只要 72s，别拿本地数据填这张表。）
  *
- * `rxdb-adapter-desktop` 是那轮 CI 之后才建的包，表里没有它的真值。它的 21 是换算来的：
- * 本地同一次冷跑（`--skip-nx-cache`）里，它与 `rxdb-adapter-sqlite-core` 的 test 任务耗时之比
- * 约为 0.74，而后者在 CI 上是 28s。两者同为 node 环境下的 SQLite 适配器套件，工作量构成相近，
- * 这个比值才有意义 —— 换成浏览器或 Docker 打头的项目就不能这么推。等它进过一轮冷跑 CI 就用真值覆盖。
+ * `code-editor` 那轮没打出 Duration 行（它的 test 只有 type-only 的桩），
+ * 保留旧估值 2 而不是填 0 —— 填 0 会让它在冷跑时被当成免费的。
  */
 export const WEIGHTS = {
-  'rxdb-adapter-pglite': 261,
-  'rxdb-client-generator': 76,
-  'dev-rxdb-angular': 55,
-  'dev-rxdb-tauri': 47,
-  'dev-rxdb-supabase': 45,
-  rxdb: 41,
-  'rxdb-adapter-wa-sqlite': 38,
-  'rxdb-adapter-sqlite-wasm': 37,
-  'rxdb-devtools-extension': 34,
-  'rxdb-adapter-supabase': 32,
-  'rxdb-adapter-sqlite-core': 28,
-  'rxdb-adapter-sqliteai': 25,
+  'rxdb-adapter-pglite': 238,
+  'dev-rxdb-angular': 116,
+  'rxdb-client-generator': 90,
+  'dev-rxdb-tauri': 49,
+  'rxdb-devtools-extension': 46,
+  rxdb: 45,
+  'dev-rxdb-supabase': 43,
+  'rxdb-adapter-wa-sqlite': 41,
+  'rxdb-adapter-sqlite-wasm': 38,
+  'rxdb-adapter-supabase': 36,
+  'angular-todo': 33,
+  'rxdb-adapter-sqlite-core': 29,
+  'rxdb-adapter-sqlite': 27,
+  'rxdb-adapter-sqliteai': 27,
+  utils: 26,
+  'rxdb-plugin-graph': 22,
   'rxdb-adapter-desktop': 21,
-  'rxdb-plugin-graph': 21,
-  'rxdb-adapter-sqlite': 20,
-  'angular-todo': 16,
   'rxdb-angular': 10,
-  'dev-rxdb-react': 8,
-  angular: 7,
-  'code-editor-angular': 7,
+  'dev-rxdb-vue': 9,
+  'dev-rxdb-react': 9,
+  angular: 8,
+  'code-editor-angular': 6,
   'rxdb-plugin-search': 6,
   'rxdb-plugin-workspace': 6,
   'rxdb-react': 5,
-  'dev-rxdb-vue': 5,
+  'rxdb-test': 5,
   'code-editor-vue': 4,
-  'rxdb-adapter-miniprogram': 3,
-  'rxdb-devtools': 3,
+  'rxdb-vue': 4,
+  'rxdb-devtools': 4,
+  'rxdb-adapter-encrypted': 4,
+  'rxdb-adapter-miniprogram': 4,
   'code-editor': 2,
   'code-editor-react': 2,
-  'dev-rxdb-electron': 2,
-  'rxdb-adapter-encrypted': 2,
   'rxdb-plugin-search-angular': 2,
   'rxdb-plugin-search-react': 2,
-  'rxdb-test': 2,
-  'rxdb-vue': 2,
-  'rxdb-plugin-search-vue': 1,
-  'rxdb-plugin-storage': 1,
-  utils: 1
+  'rxdb-plugin-search-vue': 2,
+  'dev-rxdb-electron': 2,
+  'rxdb-plugin-storage': 2
 };
 
 /** 权重表里没登记的新包按这个值估算。宁可高估，避免新包把一条 lane 拖成长尾。 */

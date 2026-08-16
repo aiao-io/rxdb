@@ -74,8 +74,7 @@ async function handleUnlock() {
   if (!passphrase.value.trim()) return;
   error.value = null;
   try {
-    const facade =
-      encFacade ?? (await bindEncryption((await rxdb.connect('sqlite-wasm')) as RxDBAdapterSqlite));
+    const facade = encFacade ?? (await bindEncryption((await rxdb.connect('sqlite-wasm')) as RxDBAdapterSqlite));
     await facade.unlock({ passphrase: passphrase.value });
     isLocked.value = facade.isLocked;
     isFirstTime.value = false;

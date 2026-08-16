@@ -63,7 +63,7 @@ export function parseArgs(argv) {
   let root = '';
   let port;
   let host;
-  for (let i = 0; i < argv.length; ) {
+  for (let i = 0; i < argv.length;) {
     const arg = argv[i];
     if (arg === '-h' || arg === '--help') usage(0);
 

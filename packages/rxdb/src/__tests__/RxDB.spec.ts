@@ -6,12 +6,12 @@ import { EntityType, RelationEntitiesObservable } from '../entity/entity.interfa
 import { PropertyType, RelationKind, SyncType } from '../entity/metadata-options.interface.js';
 import { AdapterFactory, IRxDBAdapter } from '../rxdb-adapter.js';
 import {
-    ENTITY_LOCAL_CREATE_EVENT,
-    EntityLocalCreatedEvent,
-    TRANSACTION_BEGIN,
-    TransactionBeginEvent,
-    TransactionCommitEvent,
-    TransactionRollbackEvent
+  ENTITY_LOCAL_CREATE_EVENT,
+  EntityLocalCreatedEvent,
+  TRANSACTION_BEGIN,
+  TransactionBeginEvent,
+  TransactionCommitEvent,
+  TransactionRollbackEvent
 } from '../rxdb-events.js';
 import { RxDBOptions } from '../rxdb.interface.js';
 import { RxDB } from '../RxDB.js';
@@ -483,10 +483,7 @@ describe('RxDB', () => {
 
       const connecting = localRxdb.connect('sqlite');
       expect(seen).toHaveLength(1);
-      await expect(Promise.all([connecting, seen[0]])).resolves.toEqual([
-        mockAdapterInstance,
-        mockAdapterInstance
-      ]);
+      await expect(Promise.all([connecting, seen[0]])).resolves.toEqual([mockAdapterInstance, mockAdapterInstance]);
       expect(mockAdapterInstance.connect).toHaveBeenCalledTimes(1);
     });
 
