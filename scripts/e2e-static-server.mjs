@@ -216,7 +216,8 @@ export function createStaticServer(rootPath) {
     try {
       body = readFileSync(filePath);
     } catch (error) {
-      console.error(`[e2e-static-server] Failed to read ${filePath}:`, error);
+      // filePath 来自 req.url，不能插进 console 的 format string（%s 会被当占位符）。
+      console.error('[e2e-static-server] Failed to read file:', filePath, error);
       return send(res, 500, 'Internal Server Error');
     }
 
