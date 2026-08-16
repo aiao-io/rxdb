@@ -40,14 +40,23 @@
 
 ## 技术栈
 
-TS 5.9+ / Nx 22+ / pnpm 10 / Angular 21+ / React 19+ / Vue 3.5+ / RxJS 7.8+ / wa-sqlite / PGlite / Vitest / Playwright
+TS 6.0+ / Nx 23+ / pnpm 10 / Node 26+ / Angular 22+ / React 19+ / Vue 3.5+ / RxJS 7.8+ / wa-sqlite / sqlite-wasm / PGlite / Supabase / sqliteai / Electron / Tauri / Vitest / Playwright
 
 ## 命令
 
 ```bash
-nx serve dev-rxdb-{angular|react|vue}  # 开发
-nx test <project> --watch              # TDD
+pnpm nx serve dev-rxdb-{angular|react|vue}  # 开发
+pnpm nx test <project> --watch              # TDD
+pnpm test-all                               # 全量门禁（affected: lint/typecheck/test/test-browser/build/e2e）
 ```
+
+## 全量测试坑
+
+- `pnpm test-all` 是 `nx affected`，基线通常是 `main`。失败先看 `Failed tasks`，再单独 `pnpm nx run <project>:<target>` 复跑；EPIPE / `The service was stopped` / worker 崩溃优先当并发假失败，不要直接改业务。
+- `--parallel=4` 在本机 32GB 上仍会把 vitest forks 和 Angular 构建打崩。假失败先串行复跑；不要为了「稳」把并行调到 8。
+- 共享套件删了就同步删所有后端入口（尤其 `apps/dev-rxdb-tauri/conformance/`）。`rowsAffectedConformanceSuite` 已随 writer lease 删除，不要再加回来。
+- Nx Cloud FREE 已超限（401），本地加 `--skipRemoteCache`；不要把云缓存 miss 当成测试失败。
+- `rxdb-adapter-desktop:typecheck` 被 Nx 记过 flaky；单独复跑绿了就当并发抖动，不要扩 scope。
 
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->

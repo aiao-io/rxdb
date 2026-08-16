@@ -6,7 +6,7 @@
 
 **rxdb** — Local-first RxDB monorepo（开源版），核心 RxDB 引擎、三框架绑定（Angular 22 / React 19 / Vue 3.5）、多存储适配器与开发者工具。
 
-核心能力：装饰器驱动实体 → 类型安全 Repository → RxDB 响应式查询 → 多存储后端（wa-sqlite / PGlite / Supabase / sqliteai）。
+核心能力：装饰器驱动实体 → 类型安全 Repository → RxDB 响应式查询 → 多存储后端（wa-sqlite / sqlite-wasm / PGlite / Supabase / sqliteai / desktop）。
 
 ## 技术栈
 
@@ -23,8 +23,8 @@
 ## 项目结构
 
 ```
-apps/          # 演示应用（dev-rxdb-angular + electron/tauri/supabase）
-packages/      # 可发布库（rxdb-* / rxdb-adapter-* / code-editor-*）
+apps/          # 演示应用（angular/react/vue + electron/tauri/supabase）
+packages/      # 可发布库（rxdb-* / rxdb-adapter-* / rxdb-plugin-* / code-editor-*）
 modules/       # 内部共享模块（angular / angular-todo）
 requirements/  # Epics / Stories / status-overview.md
 scripts/       # 构建 / 审计脚本（scripts/audit/）
@@ -43,7 +43,7 @@ pnpm nx test <project> --watch
 # 核心包 lint / test / build
 pnpm nx run-many -t lint test build --projects=tag:js-lib
 
-# 全量验证（CI 门禁）
+# 全量验证（CI 门禁；失败先单独复跑，见 AGENTS.md「全量测试坑」）
 pnpm test-all
 
 # 依赖图
