@@ -14,7 +14,7 @@ INVEST 检查清单:
 - [x] Independent (独立): 只新增 @aiao/utils 的导出，不改任何既有调用方；单独合并后仓库行为零变化
 - [x] Negotiable (可协商): 三处语义（命名与方法名、原语落包、多错聚合方式与手动 disposer 失败口径）在技术笔记里给了决策表
 - [x] Valuable (有价值): 它是 epic-008 后续全部故事的地基；单独交付后新代码即可停止手写配对
-- [x] Estimable (可估算): ~120 行实现 + ~250 行测试，无外部依赖，无 I/O
+- [x] Estimable (可估算): ~135 行实现 + ~290 行测试，无外部依赖，无 I/O
 - [x] Small (小): 单包单文件夹，不跨包，不改公开行为
 - [x] Testable (可测试): 全部语义可用纯内存单测断言，无需 adapter / DOM / 计时器
 -->
@@ -52,7 +52,7 @@ INVEST 检查清单:
 ### In Scope
 
 - `LifecycleScope` 类：`acquire()` / `child()` / `dispose()` 与 `state` / `label`
-- `ScopeDisposer` / `AcquireResult` 类型与 `LifecycleScopeDisposedError` 错误类型
+- `ScopeDisposer` / `AcquireResult` / `ScopeEntry` 类型与 `LifecycleScopeDisposedError` 错误类型
 - 三态状态机 `active` → `disposing` → `disposed` 的完整语义与全部边界行为
 - 嵌套作用域：父释放递归释放子，子可独立释放并从父清单摘除
 - 只读结构读出 `getEntries()`：返回**本作用域自己**清单的 `{ label, children }` 树（D4）
@@ -109,6 +109,10 @@ INVEST 检查清单:
 > 是为了不打断已经写进 US-014 与 spec 的下游引用。原 AC#4 的措辞「不抛错」在首次 reject 的场景下
 > 与 AC#7 / AC#8 自相矛盾，补正口径见技术笔记 D3「幂等的准确含义」。
 >
+> **2026-08-16 第三轮 Cordis 复核补入 AC#9b / AC#12b**：前者给 `getEntries()` 立约——让树形能在
+> **释放之前**被断言，而不是靠释放顺序反推（D4）；后者钉住「分次 `acquire()` 时先前成功的条目照常回滚」，
+> 补上 AC#12 单独存在时留下的缺口（D5）。同样用后缀编号，不动既有引用。
+>
 > 最容易漏的是 **AC#2（串行）**、**AC#9（子作用域按登记位置释放）** 与 **AC#13（失败的手动 disposer 不重试）**。
 > 用 `Promise.all` 并发跑 disposer 能让 AC#1 的顺序断言在同步用例下侥幸通过，但会破坏因果：
 > 「后登记的依赖先登记的」这一前提在异步释放时就不再成立。子作用域若统一提到最前或最后释放，
@@ -117,7 +121,7 @@ INVEST 检查清单:
 
 ## 技术笔记
 
-### 待冻结的三个决策
+### 待冻结的五个决策
 
 #### D1 — 命名（发布前唯一一次裁决）
 
@@ -176,6 +180,74 @@ INVEST 检查清单:
 
 反面写法（缓存一个 `disposed` 布尔、第二次直接 `return Promise.resolve()`）会把首次失败**吞掉**：
 调用方在 `#shutdown()` 里对同一个作用域做防御性二次释放时，看到的是「一切正常」。
+
+#### D4 — `getEntries()` 是本地读出，不是全局注册表（2026-08-16 补入）
+
+| 方案                                      | 主要风险                                                                                        | 结论        |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------- |
+| 不提供任何结构读出                        | AC#9 / AC#10 只能靠「释放后的调用顺序」反推树形——拆掉再验尸，结构与顺序两类缺陷混在同一条断言里 | ❌          |
+| `getEntries()` 只读**本实例**清单的快照树 | 多一个公开方法与一份 TSDoc                                                                      | ✅ **推荐** |
+| 进程级注册表（`WeakMap` / 全局 `Set`）    | 单例、SSR 多实例串扰、测试间状态泄漏——Out of Scope 已否                                         | ❌          |
+
+后两行是**两件事**，不要因为都能画出一棵树就合并看待。依据来自 cordis：它把
+`{ label, children }` 挂在 `effect()` **返回的那个 disposer 函数自己**身上
+（[fiber.ts:296](../../../../cordis/packages/core/src/fiber.ts#L296) 的 `EffectMeta` + `symbols.effect`），
+`getEffects()` 只遍历**本 fiber 自己**的清单把这些 meta 读出来。整棵树是「每个作用域各存各的一段」
+拼出来的，进程里没有任何一处登记过「现在存在哪些作用域」。`getEntries()` 照搬这个形状，
+读的是 `this` 已经持有的东西，一条跨实例登记都不需要。
+
+真正的收益在**测试口径**。cordis 的
+[dispose.spec.ts:53-68](../../../../cordis/packages/core/tests/dispose.spec.ts#L53-L68)
+是在**释放之前**直接断言树形的；rxdb 这边若没有读出口，AC#9 / AC#10 只能先造带副作用的 disposer、
+释放、再断言序列。有了 AC#9b，同一个状态先验结构再验顺序，两条 AC 失败时指向的缺陷也就分得开：
+结构错 = 登记时挂错父；顺序错 = 释放时排序错。
+
+契约细节：返回**快照**（普通数组与普通对象，不是活引用），调用不改变任何状态、可重复调用；
+未传 `label` 的条目填 `'anonymous'`（与 cordis 同名同义）。怎么把这棵树画出来是
+[停车位 P-004](../../epics/epic-008-parking-lot.md) 的事，不在本故事。
+
+#### D5 — 一次 `acquire()` 只包一步会失败的获取（2026-08-16 补入）
+
+cordis 允许 `effect()` 的 setup 写成 generator，每 `yield` 一个 disposer 就**立刻**收进清单；
+setup 跑到一半抛错时，已经拿到的那几个资源仍会被回滚——
+[dispose.spec.ts:197-208](../../../../cordis/packages/core/tests/dispose.spec.ts#L197-L208)
+的 "yield with error" 用例断言 `seq === [1]`。
+
+本原语**不引入** generator setup：多一套语法、多一批用例，按「已推迟」同一条判据摘除。
+同样的安全性靠**契约**拿到，代价是零：
+
+> 一次 `acquire()` 的 setup 里最多放**一步**可能抛错的获取。需要 N 个资源就调用 N 次 `acquire()`，
+> 顺序与获取顺序一致。
+
+这不是风格建议。AC#12 只保证「setup 抛错时该条目不进清单」——如果 setup 在抛错**之前**已经造出了
+一个真实资源，那个资源就没有任何人持有，宿主的回滚够不着它：
+
+```ts
+// ❌ 一次 acquire 两步：defineProperty 抛错时，已经 new 出来的 storage 实例无人持有
+scope.acquire(() => {
+  this.storage = new RxdbFileStorage(this.rxdb, options); // 已占资源
+  Object.defineProperty(this.rxdb, 'storage', { value: this.storage, configurable: true }); // 可能抛
+  return async () => {
+    await this.storage.destroy();
+    Reflect.deleteProperty(this.rxdb, 'storage');
+  };
+}, 'storage');
+
+// ✅ 两次 acquire：第二次抛错时，第一条已在清单里，宿主逆序回滚能把实例销毁掉
+scope.acquire(() => {
+  this.storage = new RxdbFileStorage(this.rxdb, options);
+  return async () => await this.storage.destroy();
+}, 'storage:construct');
+
+scope.acquire(() => {
+  Object.defineProperty(this.rxdb, 'storage', { value: this.storage, configurable: true });
+  return () => Reflect.deleteProperty(this.rxdb, 'storage');
+}, 'storage:defineProperty');
+```
+
+AC#12 与 AC#12b 合起来就是这条契约的可执行形式：前者钉住「失败的那一步不留痕」，
+后者钉住「先前成功的那些步照常回滚」。迁移侧的对应写法见
+[US-014 D7](US-014-plugin-scope-contract.md)。
 
 ### 已推迟：`acquireAsync()` 与它的取消出口（2026-08-16 采纳）
 
@@ -252,12 +324,17 @@ cordis 的 `Fiber.effect()`（`packages/core/src/fiber.ts`）是同类原语的�
 - `label` 只用于诊断与错误消息，不参与身份，允许重复；缺省值 `'anonymous'`
 - `dispose()` 的返回值存进一个字段并原样复用（`#disposePromise ??= this.#runDispose()`），
   **不要**在 catch 里把它换成一个已 resolve 的 Promise——那会让 AC#4b 的「同一个错误对象」失效
-- 估算：实现约 120 行，测试约 260 行（16 条 AC 每条至少一个用例，AC#2 / AC#7 / AC#9 各需 2～3 个）
+- `getEntries()` 返回**快照**：新建普通数组与普通对象，不暴露内部 `Map`、不返回条目本体的引用，
+  调用不改变任何状态（AC#9b）。`children` 直接取子作用域的 `getEntries()`，递归到底；
+  已释放的作用域返回空数组，**不抛错**——它是诊断出口，不该成为新的失败源
+- TSDoc 里把 D5 的契约写进 `acquire()` 的说明：**一次 `acquire()` 只包一步可能抛错的获取**，
+  N 个资源写 N 次。setup 里连做两步而第二步抛错，第一步造出的资源不进清单、宿主回滚够不着
+- 估算：实现约 135 行，测试约 290 行（18 条 AC 每条至少一个用例，AC#2 / AC#7 / AC#9 各需 2～3 个）
 
 ## 实现文件
 
 - `packages/utils/src/lifecycle/lifecycle-scope.ts` — `LifecycleScope` 类与三态状态机
-- `packages/utils/src/lifecycle/lifecycle-scope.interface.ts` — `ScopeDisposer` / `AcquireResult` / `LifecycleScopeDisposedError`
+- `packages/utils/src/lifecycle/lifecycle-scope.interface.ts` — `ScopeDisposer` / `AcquireResult` / `ScopeEntry`（`getEntries()` 的快照节点）/ `LifecycleScopeDisposedError`
 - `packages/utils/src/lifecycle/index.ts` — 子目录桶导出
 - `packages/utils/src/index.ts` — 主入口追加 `export * from './lifecycle/index.js'` 与 fileoverview 条目
 - `packages/utils/src/__tests__/lifecycle/lifecycle-scope.spec.ts` — 语义冻结测试

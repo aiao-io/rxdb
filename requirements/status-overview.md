@@ -33,6 +33,7 @@
 | [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md)              | AC#1 缺跨进程重启 e2e、AC#9 三平台打包矩阵                     |
 | [US-304 跨 realm writer lease 与迁移 fencing](stories/collaboration/US-304-writer-lease-migration-fencing.md) | 剩 AC6（挂起 writer 被迁移 epoch fence）；AC11 已转移给 US-305 |
 | [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                                | AC#6 / #7 待 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵        |
+| [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)                 | 阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 A / C / D 未开始 |
 
 > US-207 / US-210 / US-505 的三条尾巴是**同一个下游缺口**：真实打包应用的重启与三平台矩阵。
 
@@ -85,12 +86,12 @@
 
 - ✅ [US-402 代码编辑器](stories/ui/US-402-code-editor.md)
 - ✅ [US-902 DevTools 面板](stories/future/US-902-devtools-panel.md)
-- 📄 [US-904 DevTools 原生本地存储调试共享契约](stories/future/US-904-devtools-native-storage-contract.md) — 父故事，不直接交付
-  - ⬜ [US-904a Electron 43 MV3 可行性门禁](stories/future/US-904a-electron-mv3-devtools-feasibility.md) — 无前置；只门禁 904d
-  - ✅ [US-904b DevTools v2 协议](stories/future/US-904b-devtools-v2-protocol.md) — v2 全部数值、状态机与错误联合的唯一真相源
-  - ⬜ [US-904c 共享面板与 Chrome v2 迁移](stories/future/US-904c-devtools-shared-panel-chrome-migration.md) — 阶段 1 面板抽取（可与 904b 并行）；阶段 2 四段 relay 与 v2 切换
-  - ⬜ [US-904d Electron 原生存储 DevTools 集成](stories/future/US-904d-electron-native-devtools-integration.md) — 依赖 904a(supported) + 904c + US-207 + US-504
-  - ⬜ [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1 依赖 904c；阶段 2 依赖 US-210 + US-505，不等 904d
+- 🅰️ 🚧 [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) — 四阶段单文件故事
+  - ⬜ 阶段 A Electron 43 MV3 可行性门禁 — 无前置；只门禁阶段 D
+  - ✅ 阶段 B v2 协议（控制面 + provider 数据面）— v2 全部数值、状态机与错误联合的唯一真相源
+  - ⬜ 阶段 C 共享面板 library 与 Chrome v2 迁移 — C1 面板抽取（可与阶段 B 并行）；C2 四段 relay 与 v2 切换
+  - ⬜ 阶段 D Electron 原生存储集成 — 依赖 阶段 A(supported) + 阶段 C + US-207 + US-504
+- ⬜ [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1 依赖 US-904 阶段 C；阶段 2 依赖 US-210 + US-505，不等 US-904 阶段 D
 
 > US-401 / US-701 查询构建器系列已随 PR #251 清理出本仓库，详见 [CHANGELOG](CHANGELOG.md)。
 
@@ -113,22 +114,22 @@
 - ✅ [US-804 加密字段支持 bigint/binary](stories/future/US-804-bigint-binary-encryption.md)
 - ✅ [US-903 DevTools 展示 bigint/binary](stories/future/US-903-bigint-binary-devtools.md)
 - 🚧 [US-304 跨 realm writer lease 与迁移 fencing](stories/collaboration/US-304-writer-lease-migration-fencing.md)
-- 📄 [US-012 扩展字段语义与前端通信契约](stories/core/US-012-field-semantic-metadata.md) — 父故事，不直接交付
-  - ⬜ [US-012a 字段 format 声明与注册期校验](stories/core/US-012a-field-format-declaration.md)
-  - ⬜ [US-012b 实体字段描述 DTO](stories/core/US-012b-entity-fields-dto.md)
-  - ⬜ [US-012c 字段值校验、生成器透传与三框架契约](stories/core/US-012c-field-value-validation-codegen.md)
+- 🅰️ ⬜ [US-012 扩展字段语义与前端通信契约](stories/core/US-012-field-semantic-metadata.md) — 三阶段单文件故事
+  - ⬜ 阶段 A 字段 format 声明与注册期校验
+  - ⬜ 阶段 B 实体字段描述 DTO
+  - ⬜ 阶段 C 字段值校验、生成器透传与三框架契约
 
 ### [本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
 
-全部 ⬜ Backlog。交付顺序 **US-305 → US-306a → US-306b → US-306c →（US-307 ∥ US-308）**，
+全部 ⬜ Backlog。交付顺序 **US-305 → US-306 阶段 A → 阶段 B → 阶段 C →（US-307 ∥ US-308）**，
 口径以 [epic-006 依赖顺序](epics/epic-006-working-tree-commits.md) 为准。
 
 - ⬜ [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 基础层：commit 图 / branch ref / baseline
-- 📄 [US-306 工作树、缓存区与提交操作](stories/collaboration/US-306-working-tree-index.md) — 父故事；其 FR/AC 承接表是发布门禁 2 的审计依据
-  - ⬜ [US-306a 工作树写入捕获与持久化](stories/collaboration/US-306a-working-tree-capture.md)
-  - ⬜ [US-306b 缓存区与提交状态机](stories/collaboration/US-306b-index-commit-state-machine.md)
-  - ⬜ [US-306c 三框架工作树交互面与性能门禁](stories/collaboration/US-306c-cross-framework-working-tree.md) — `useWorkingTree()` 三端契约与 `bench-working-tree` target 的归属方
-- ⬜ [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — 依赖 US-306a/b/c
+- 🅰️ ⬜ [US-306 工作树、缓存区与提交操作](stories/collaboration/US-306-working-tree-index.md) — 三阶段单文件故事；其 FR/AC 承接表是发布门禁 2 的审计依据
+  - ⬜ 阶段 A 工作树写入捕获与持久化
+  - ⬜ 阶段 B 缓存区与提交状态机
+  - ⬜ 阶段 C 三框架工作树交互面与性能门禁 — `useWorkingTree()` 三端契约与 `bench-working-tree` target
+- ⬜ [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — 依赖 US-306 阶段 A/B/C
 - ⬜ [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — 依赖 US-304 收敛
 
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
@@ -141,15 +142,15 @@
 
 - ⬜ [US-013 LifecycleScope 生命周期作用域原语](stories/core/US-013-lifecycle-scope-primitive.md) — `@aiao/utils` 侧的原语，语义由测试冻结
 - ⬜ [US-014 插件作用域契约](stories/core/US-014-plugin-scope-contract.md) — `install(scope)`，四个插件包迁移；独立关闭三处已知泄漏（graph 注册、storage 属性、workspace 订阅）
-- 📄 [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) — 父故事；只冻结 `inject` 的封闭依赖类别与不变量
-  - ❔ `US-015a` 适配器依赖纪元 — **文件未创建**
-  - ❔ `US-015b` 插件依赖图 — **文件未创建**；价值待证
+- 🅰️ ⬜ [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) — 两阶段单文件故事
+  - ⬜ 阶段 A 适配器依赖纪元 — `inject: ['adapter:local']`，关闭 search 插件的 phase 机
+  - ⬜ 阶段 B 插件间依赖图 — 拓扑序与环检测；**价值待证**，未证不开工
 - ❔ `US-016` 连接纪元与停机收敛 — **文件未创建**；价值已证，待切片
 - ❔ `US-017` 三框架宿主作用域 — **文件未创建**；价值待证
 
 > ❔ = 已在其它文档中被引用、但 `stories/` 下没有对应文件，**因此不计入任何统计**。
 >
-> US-015a 之后的每一条都要在自己的故事里写出「今天用户踩得到的具体症状」，写不出就留在 Backlog——
+> US-015 阶段 B 之后的每一条都要写出「今天用户踩得到的具体症状」，写不出就留在 Backlog——
 > 这是过度设计判据，不是建议（见 [roadmap 约束 9](roadmap.md#排期约束)）。
 >
 > 本 Epic 会制造一次 `IRxDBPlugin` 成员签名变更（含 `destroy()` 由必选转可选），
@@ -164,7 +165,7 @@
 
 | 被挡住的                                                                  | 硬前置                                                                                                                                                                                                                                                                                                                                               |
 | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| epic-006 整条链（链首 US-305，不是 US-306a）                              | ① [US-304](stories/collaboration/US-304-writer-lease-migration-fencing.md) 仍 🚧，US-305 / US-306a 都要消费它的 writer 身份与迁移 epoch fencing                                                                                                                                                                                                      |
+| epic-006 整条链（链首 US-305，不是 US-306）                               | ① [US-304](stories/collaboration/US-304-writer-lease-migration-fencing.md) 仍 🚧，US-305 / US-306 阶段 A 都要消费它的 writer 身份与迁移 epoch fencing                                                                                                                                                                                                |
 | [US-305](stories/collaboration/US-305-commit-graph-head.md)               | ② 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`，历史 `v0.0.25` 又已被 squash 移出主线——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。这一条不随代码进度自动解除，需单独排期 |
-| epic-008 中 US-014 之后的一切                                             | `US-015a` / `US-015b` 的故事文件尚未落盘。US-015 是「已降为父故事但子故事文件未创建」的**现存唯一实例**，违反了 [README 的拆分即落盘规则](README.md#父故事共享契约文档)                                                                                                                                                                              |
-| [US-904d](stories/future/US-904d-electron-native-devtools-integration.md) | US-904a 必须先给出 `decision: supported`                                                                                                                                                                                                                                                                                                             |
+| epic-008 中 US-014 之后的一切                                             | [US-013](stories/core/US-013-lifecycle-scope-primitive.md) → [US-014](stories/core/US-014-plugin-scope-contract.md) 是硬序；[US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 A 消费 US-014 的 `install(scope)` 签名，阶段 B 另需先证明用户价值                                                                                          |
+| [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D | 同一文件的阶段 A 必须先给出 `decision: supported`                                                                                                                                                                                                                                                                                                    |

@@ -44,8 +44,8 @@ local-only 新类型实体可以与其他 Supabase 实体共存。任何含 bigi
 4. US-304 在 US-303 基础上发布 writer lease、drain barrier 和 fencing 协议
 5. US-804 与 US-903 分别接入加密和 DevTools，可在 US-303 后并行完成
 
-字段语义（US-012 系列）是独立于 bigint/binary 的第二条轨道，内部依赖顺序为 **US-012a → US-012b → US-012c**：
-US-012b 的 DTO 需要 US-012a 已冻结的 `FieldFormat` 判别联合，US-012c 的值校验与生成器透传需要 US-012b 的 DTO 形状。
+字段语义（US-012）是独立于 bigint/binary 的第二条轨道，内部依赖顺序为 **阶段 A → 阶段 B → 阶段 C**：
+阶段 B 的 DTO 需要阶段 A 已冻结的 `FieldFormat` 判别联合，阶段 C 的值校验与生成器透传需要阶段 B 的 DTO 形状。
 两条轨道之间无强依赖，可并行推进。
 
 ## 发布门禁
@@ -66,10 +66,10 @@ US-012b 的 DTO 需要 US-012a 已冻结的 `FieldFormat` 判别联合，US-012c
 > 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
 
 - [US-011 定义 bigint 与 binary 类型及公共 API 契约](../stories/core/US-011-property-type-bigint-binary.md) (High)
-- 📄 [US-012 扩展字段语义与前端通信契约](../stories/core/US-012-field-semantic-metadata.md) (High) — 父故事/共享契约文档，**不直接交付**
-  - [US-012a 字段 format 声明与注册期校验](../stories/core/US-012a-field-format-declaration.md) (High)
-  - [US-012b 实体字段描述 DTO](../stories/core/US-012b-entity-fields-dto.md) (High)
-  - [US-012c 字段值校验、生成器透传与三框架契约](../stories/core/US-012c-field-value-validation-codegen.md) (Medium)
+- [US-012 扩展字段语义与前端通信契约](../stories/core/US-012-field-semantic-metadata.md) (High) — 单文件三阶段：
+  - 阶段 A 字段 format 声明与注册期校验
+  - 阶段 B 实体字段描述 DTO
+  - 阶段 C 字段值校验、生成器透传与三框架契约
 - [US-206 本地适配器持久化与查询 bigint/binary](../stories/adapter/US-206-bigint-binary-adapter.md) (High)
 - [US-303 bigint/binary change codec 与系统迁移](../stories/collaboration/US-303-bigint-binary-change-codec.md) (High)
 - [US-304 跨 realm writer lease 与迁移 fencing](../stories/collaboration/US-304-writer-lease-migration-fencing.md) (High)

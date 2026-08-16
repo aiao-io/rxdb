@@ -196,14 +196,20 @@ export interface IRxDBPlugin {
 迁移前后对照（以 storage 为例，[plugin.ts:19-64](../../../packages/rxdb-plugin-storage/src/plugin.ts#L19-L64)）：
 
 ```ts
-// 前：构造器 defineProperty，destroy 里 deleteProperty；两者寿命不同（见「来源与边界」其二）
-// 后：
+// 前：构造器 new + defineProperty，destroy 里 deleteProperty；两者寿命不同（见「来源与边界」其二）
+// 后：#storage 由 readonly 改为可空字段（D7 的编译期阻塞项）
 readonly lifecycle = 'scoped' as const;
 
 install(scope: LifecycleScope) {
+  // 三次 acquire，一次只包一步会失败的获取（US-013 D5）
   scope.acquire(() => {
-    Object.defineProperty(this.rxdb, 'storage', { value: this.storage, configurable: true, /* … */ });
-    return async () => { await this.storage.destroy(); Reflect.deleteProperty(this.rxdb, 'storage'); };
+    this.#storage = new RxdbFileStorage(this.rxdb, this.options);
+    return async () => { await this.#storage!.destroy(); this.#storage = undefined; };
+  }, 'storage:construct');
+
+  scope.acquire(() => {
+    Object.defineProperty(this.rxdb, 'storage', { value: this.#storage, configurable: true, /* … */ });
+    return () => { Reflect.deleteProperty(this.rxdb, 'storage'); };
   }, 'storage:defineProperty');
 
   scope.acquire(() => {
@@ -216,6 +222,13 @@ install(scope: LifecycleScope) {
 
 `#ownsStorage` 与 `#registeredEntity` 随之消失：前者判断的「是不是我装的」由「条目只在我这个
 作用域里登记」天然回答，后者判断的「装没装成」由 disposer 是否存在回答。
+
+**为什么 `new` 和 `defineProperty` 是两次 `acquire()` 而不是一次**：写在一次里的话，
+`defineProperty` 抛错（宿主上已有同名不可配置属性、或另一个 storage 插件先到）时，
+按 US-013 AC#12 该条目**不进清单**——而 `RxdbFileStorage` 实例已经造出来了，谁也够不着它，
+宿主的回滚只能眼看它连同它持有的句柄一起泄漏。拆成两次之后，第二次抛错时第一次已经在清单里，
+`install()` 失败的回滚（AC#5）逆序跑过去正好把它 `destroy()` 掉。判据与反面写法见
+[US-013 D5](US-013-lifecycle-scope-primitive.md)。
 
 ### 待冻结的九个决策
 
