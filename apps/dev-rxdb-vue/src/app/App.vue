@@ -44,26 +44,26 @@ router.onError(() => {
     :class="['flex size-full', { 'left-menu-pinned': sidebarPinned, 'header-floating': headerFloating }]"
   >
     <LoadingBar
-      ref="loadingBarRef"
       :shadow="true"
       color="#f11946"
+      ref="loadingBarRef"
     />
     <AppToast />
     <div
-      v-if="sidebarPinned"
       class="sidebar-overlay md:hidden"
-      aria-label="Close sidebar"
+      v-if="sidebarPinned"
       @click="toggleSidebar"
+      aria-label="Close sidebar"
     />
     <AppSidebar />
     <div
-      id="layout-container"
       class="flex h-full min-w-0 grow flex-col overflow-hidden"
+      id="layout-container"
     >
       <AppHeader />
       <div
-        id="layout-content"
         class="flex min-h-0 flex-1 flex-col overflow-auto"
+        id="layout-content"
       >
         <RouterView />
       </div>

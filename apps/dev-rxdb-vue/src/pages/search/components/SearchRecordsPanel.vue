@@ -28,9 +28,9 @@ const emit = defineEmits<{
     <button
       class="flex w-full items-center justify-between gap-2 p-3 text-left"
       :aria-expanded="!collapsed"
+      @click="emit('update:collapsed', !collapsed)"
       data-testid="search-records-toggle"
       type="button"
-      @click="emit('update:collapsed', !collapsed)"
     >
       <span class="flex items-center gap-2 text-sm font-medium">
         <svg
@@ -55,8 +55,8 @@ const emit = defineEmits<{
     </button>
 
     <div
-      v-if="!collapsed"
       class="px-3 pb-3"
+      v-if="!collapsed"
     >
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div
@@ -65,13 +65,13 @@ const emit = defineEmits<{
         >
           <button
             v-for="tab in ['article', 'comment'] as const"
-            :key="tab"
             :aria-selected="activeTab === tab"
             :class="`tab text-base-content${activeTab === tab ? 'tab-active' : ''}`"
             :data-testid="`search-tab-${tab}`"
+            :key="tab"
+            @click="emit('update:activeTab', tab)"
             role="tab"
             type="button"
-            @click="emit('update:activeTab', tab)"
           >
             {{ tab === 'article' ? '文章' : '评论' }}
             ({{ tab === 'article' ? articleRecords.length : commentRecords.length }})
@@ -82,8 +82,8 @@ const emit = defineEmits<{
           :aria-label="`新建${activeTab === 'article' ? '文章' : '评论'}`"
           :data-testid="activeTab === 'article' ? 'search-create-article' : 'search-create-comment'"
           :disabled="mutationBusy"
-          type="button"
           @click="emit('open-create', activeTab)"
+          type="button"
         >
           <svg
             fill="none"
@@ -105,20 +105,20 @@ const emit = defineEmits<{
 
       <template v-if="activeTab === 'article'">
         <p
-          v-if="articleRecords.length === 0"
           class="text-base-content/60 mt-3 text-sm italic"
+          v-if="articleRecords.length === 0"
         >
           暂无文章
         </p>
         <ul
-          v-else
           class="divide-base-300 rounded-box bg-base-100 mt-3 max-h-96 divide-y overflow-y-auto"
+          v-else
         >
           <li
-            v-for="article in articleRecords"
-            :key="article.id"
             class="flex items-start justify-between gap-3 px-4 py-3"
+            v-for="article in articleRecords"
             :data-testid="`search-record-article-${article.id}`"
+            :key="article.id"
           >
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-2">
@@ -129,10 +129,11 @@ const emit = defineEmits<{
               <p class="text-base-content/80 mt-1 text-sm">{{ article.body }}</p>
               <div class="mt-2 flex flex-wrap gap-1">
                 <span
+                  class="badge badge-outline badge-xs"
                   v-for="tag in article.tags"
                   :key="tag"
-                  class="badge badge-outline badge-xs"
-                >{{ tag }}</span>
+                  >{{ tag }}</span
+                >
               </div>
               <p class="text-base-content/80 mt-2 text-xs">{{ article.authorId }} · {{ article.viewCount }} 次浏览</p>
             </div>
@@ -140,8 +141,8 @@ const emit = defineEmits<{
               class="btn btn-xs btn-ghost text-error"
               :data-testid="`search-delete-article-${article.id}`"
               :disabled="mutationBusy"
-              type="button"
               @click="emit('remove-article', String(article.id))"
+              type="button"
             >
               删除
             </button>
@@ -150,20 +151,20 @@ const emit = defineEmits<{
       </template>
       <template v-else>
         <p
-          v-if="commentRecords.length === 0"
           class="text-base-content/60 mt-3 text-sm italic"
+          v-if="commentRecords.length === 0"
         >
           暂无评论
         </p>
         <ul
-          v-else
           class="divide-base-300 rounded-box bg-base-100 mt-3 max-h-96 divide-y overflow-y-auto"
+          v-else
         >
           <li
-            v-for="comment in commentRecords"
-            :key="comment.id"
             class="flex items-start justify-between gap-3 px-4 py-3"
+            v-for="comment in commentRecords"
             :data-testid="`search-record-comment-${comment.id}`"
+            :key="comment.id"
           >
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-2">
@@ -177,8 +178,8 @@ const emit = defineEmits<{
               class="btn btn-xs btn-ghost text-error"
               :data-testid="`search-delete-comment-${comment.id}`"
               :disabled="mutationBusy"
-              type="button"
               @click="emit('remove-comment', String(comment.id))"
+              type="button"
             >
               删除
             </button>
@@ -187,8 +188,8 @@ const emit = defineEmits<{
       </template>
 
       <p
-        v-if="mutationMessage"
         class="text-base-content/70 mt-3 text-xs"
+        v-if="mutationMessage"
         data-testid="search-mutation-message"
         role="status"
       >

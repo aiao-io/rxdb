@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { StorageBackendError } from '../errors.js';
-import {
-  decodePhysicalName,
-  encodePhysicalName,
-  MAX_PHYSICAL_NAME_BYTES
-} from '../filesystem/physical-name.js';
+import { decodePhysicalName, encodePhysicalName, MAX_PHYSICAL_NAME_BYTES } from '../filesystem/physical-name.js';
 
 describe('physical name encoding', () => {
   it('leaves names that are already filesystem-safe untouched', () => {
@@ -90,18 +86,14 @@ describe('physical name encoding', () => {
 
   it('rejects an empty name', () => {
     expect(() => encodePhysicalName('')).toThrow(StorageBackendError);
-    expect(() => encodePhysicalName('')).toThrow(
-      expect.objectContaining({ code: 'invalid_physical_name' })
-    );
+    expect(() => encodePhysicalName('')).toThrow(expect.objectContaining({ code: 'invalid_physical_name' }));
   });
 
   it('rejects names whose encoded form exceeds the single-component byte limit', () => {
     // 不做哈希截断：截断不可逆，会打断物理名→逻辑名的回推。宁可以稳定错误码拒绝。
     const tooLong = '?'.repeat(MAX_PHYSICAL_NAME_BYTES / 3 + 1);
 
-    expect(() => encodePhysicalName(tooLong)).toThrow(
-      expect.objectContaining({ code: 'name_too_long' })
-    );
+    expect(() => encodePhysicalName(tooLong)).toThrow(expect.objectContaining({ code: 'name_too_long' }));
   });
 
   it('measures the limit in UTF-8 bytes, not UTF-16 code units', () => {
@@ -110,24 +102,18 @@ describe('physical name encoding', () => {
     const overLimit = `${exactlyAtLimit}中`;
 
     expect(encodePhysicalName(exactlyAtLimit)).toBe(exactlyAtLimit);
-    expect(() => encodePhysicalName(overLimit)).toThrow(
-      expect.objectContaining({ code: 'name_too_long' })
-    );
+    expect(() => encodePhysicalName(overLimit)).toThrow(expect.objectContaining({ code: 'name_too_long' }));
   });
 
   it('rejects physical names carrying a malformed escape', () => {
     for (const malformed of ['a%', 'a%3', 'a%zz', 'a%3z']) {
-      expect(() => decodePhysicalName(malformed)).toThrow(
-        expect.objectContaining({ code: 'invalid_physical_name' })
-      );
+      expect(() => decodePhysicalName(malformed)).toThrow(expect.objectContaining({ code: 'invalid_physical_name' }));
     }
   });
 
   it('rejects escapes that would decode to a non-ASCII byte', () => {
     // 编码器只转义 ASCII，`%80` 及以上说明物理名不是本编码器产出的，
     // 强行解码会得到与原逻辑名不同的字符串 —— 静默的数据损坏。
-    expect(() => decodePhysicalName('a%80b')).toThrow(
-      expect.objectContaining({ code: 'invalid_physical_name' })
-    );
+    expect(() => decodePhysicalName('a%80b')).toThrow(expect.objectContaining({ code: 'invalid_physical_name' }));
   });
 });

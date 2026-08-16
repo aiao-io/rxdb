@@ -382,9 +382,9 @@ describe('createDesktopStorageFilesystem', () => {
     });
 
     it('临界区抛错也会释放锁', async () => {
-      await expect(
-        filesystem.lockBackend?.request('same', () => Promise.reject(new Error('boom')))
-      ).rejects.toThrow('boom');
+      await expect(filesystem.lockBackend?.request('same', () => Promise.reject(new Error('boom')))).rejects.toThrow(
+        'boom'
+      );
 
       await expect(filesystem.lockBackend?.request('same', async () => 'ok')).resolves.toBe('ok');
     });

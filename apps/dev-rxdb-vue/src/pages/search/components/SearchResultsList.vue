@@ -30,29 +30,33 @@ const emit = defineEmits<{
       :class="`rounded-box border-base-300 bg-base-100 flex items-center gap-2 border px-3 py-2 text-sm${
         displayState === 'loading' ? 'border-primary'
         : displayState === 'error' ? 'border-warning'
-          : ''
+        : ''
       }`"
     >
       <span
-        v-if="displayState === 'loading'"
         class="loading loading-spinner loading-xs text-primary"
+        v-if="displayState === 'loading'"
       />
       <span
-        v-else-if="displayState === 'error'"
         class="text-warning"
-      >⚠</span>
+        v-else-if="displayState === 'error'"
+        >⚠</span
+      >
       <span
+        class="text-base-content/50"
         v-else-if="displayState === 'empty'"
-        class="text-base-content/50"
-      >∅</span>
+        >∅</span
+      >
       <span
-        v-else-if="displayState === 'success'"
         class="text-success"
-      >✓</span>
+        v-else-if="displayState === 'success'"
+        >✓</span
+      >
       <span
-        v-else
         class="text-base-content/50"
-      >⌕</span>
+        v-else
+        >⌕</span
+      >
       <span
         class="text-base-content/80"
         data-testid="search-results-count"
@@ -64,16 +68,18 @@ const emit = defineEmits<{
       <span
         class="text-base-content/60 text-xs"
         data-testid="search-state"
-      >{{ displayState }}</span>
+        >{{ displayState }}</span
+      >
       <span
-        v-if="displayError"
         class="text-warning text-xs"
-      >— {{ displayError }}</span>
+        v-if="displayError"
+        >— {{ displayError }}</span
+      >
     </div>
 
     <p
-      v-if="displayState === 'empty' && query.trim()"
       class="text-sm italic"
+      v-if="displayState === 'empty' && query.trim()"
       data-testid="search-empty"
     >
       未找到 "{{ query }}" 相关结果
@@ -81,12 +87,12 @@ const emit = defineEmits<{
 
     <ul class="flex flex-col gap-2">
       <li
-        v-for="r in results"
-        :key="`${r.collection}:${r.id}`"
         class="group card bg-base-200 hover:bg-base-300 relative p-3 transition-colors"
+        v-for="r in results"
         :data-collection="r.collection"
         :data-id="r.id"
         :data-rank="r.rank"
+        :key="`${r.collection}:${r.id}`"
         data-testid="search-result"
       >
         <div class="flex items-start justify-between gap-3">
@@ -106,17 +112,17 @@ const emit = defineEmits<{
             <p class="mt-1.5 text-sm leading-relaxed break-words">{{ r.snippet }}</p>
           </div>
           <div
-            v-if="r.collection === 'article' || r.collection === 'comment'"
             class="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
+            v-if="r.collection === 'article' || r.collection === 'comment'"
           >
             <button
               class="btn btn-xs btn-ghost"
               :data-testid="`search-result-update-${r.collection}`"
               :disabled="mutationBusy"
+              @click="emit('update-result', r)"
               aria-label="更新"
               title="更新"
               type="button"
-              @click="emit('update-result', r)"
             >
               <svg
                 fill="none"
@@ -139,10 +145,10 @@ const emit = defineEmits<{
               class="btn btn-xs btn-ghost text-error"
               :data-testid="`search-result-delete-${r.collection}`"
               :disabled="mutationBusy"
+              @click="emit('remove-result', r)"
               aria-label="删除"
               title="删除"
               type="button"
-              @click="emit('remove-result', r)"
             >
               <svg
                 fill="none"
@@ -166,21 +172,21 @@ const emit = defineEmits<{
     </ul>
 
     <button
-      v-if="hasMore"
       class="btn btn-sm"
+      v-if="hasMore"
+      @click="emit('load-more')"
       data-testid="search-load-more"
       type="button"
-      @click="emit('load-more')"
     >
       加载更多
     </button>
 
     <button
-      v-if="displayState === 'error'"
       class="btn btn-sm btn-warning"
+      v-if="displayState === 'error'"
+      @click="emit('retry')"
       data-testid="search-retry"
       type="button"
-      @click="emit('retry')"
     >
       重试
     </button>

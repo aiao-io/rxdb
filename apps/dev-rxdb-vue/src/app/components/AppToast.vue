@@ -6,20 +6,20 @@ const { toasts, dismiss } = useToast();
 
 <template>
   <div
-    v-if="toasts.length > 0"
     class="toast toast-top toast-end z-50"
+    v-if="toasts.length > 0"
   >
     <div
-      v-for="t in toasts"
-      :key="t.id"
       class="alert cursor-pointer"
+      v-for="t in toasts"
       :class="{
         'alert-error': t.type === 'error',
         'alert-success': t.type === 'success',
         'alert-info': t.type === 'info'
       }"
-      role="alert"
+      :key="t.id"
       @click="dismiss(t.id)"
+      role="alert"
     >
       <span>{{ t.message }}</span>
     </div>

@@ -200,7 +200,8 @@ function ComparisonContent(): ReactNode {
               <span className='eyebrow eyebrow--plain'>collaboration scope</span>
             </div>
             <p className='text-muted-foreground text-base leading-7 sm:text-lg sm:leading-8'>
-              当前已验证版本分支、撤销重做、条件同步与跨 Tab 同步。CRDT 多人实时协同、权限系统与托管云服务不在当前能力范围内。
+              当前已验证版本分支、撤销重做、条件同步与跨 Tab 同步。CRDT
+              多人实时协同、权限系统与托管云服务不在当前能力范围内。
             </p>
             <div className='mt-6 flex flex-wrap gap-2'>
               {['Version branching', 'Undo / redo', 'Conditional sync', 'Cross-tab sync'].map(tag => (

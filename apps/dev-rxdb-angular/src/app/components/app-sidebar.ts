@@ -1,5 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { LucideDatabase as Database, LucideDynamicIcon, LucidePanelLeftClose as PanelLeftClose, LucidePanelLeftDashed as PanelLeftDashed, LucideSettings2 as Settings2 } from '@lucide/angular';
+import {
+  LucideDatabase as Database,
+  LucideDynamicIcon,
+  LucidePanelLeftClose as PanelLeftClose,
+  LucidePanelLeftDashed as PanelLeftDashed,
+  LucideSettings2 as Settings2
+} from '@lucide/angular';
 import { ThemeBtn } from '@modules/angular';
 import { AppService } from '../app.service';
 import { AppMenu } from './app-menu';

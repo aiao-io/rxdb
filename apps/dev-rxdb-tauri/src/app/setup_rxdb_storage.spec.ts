@@ -1,7 +1,7 @@
 import {
-    DESKTOP_ADAPTER_NAME,
-    DESKTOP_HOST_PROTOCOL_VERSION,
-    type DesktopHostTransport
+  DESKTOP_ADAPTER_NAME,
+  DESKTOP_HOST_PROTOCOL_VERSION,
+  type DesktopHostTransport
 } from '@aiao/rxdb-adapter-desktop';
 import { StorageBackendError } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageOptions, DESKTOP_STORAGE_ROOT_DIR } from './setup_rxdb_desktop';

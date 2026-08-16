@@ -1,21 +1,16 @@
-import { Button, Checkbox, CheckboxGroup, Input, Label, Text, View } from '@tarojs/components'
-import { useLoad, useUnload } from '@tarojs/taro'
-import { useCallback, useRef, useState } from 'react'
-import {
-  openMiniProgramRxdbDemo,
-  type DemoCheck,
-  type MiniProgramRxdbDemo,
-  type TodoItem
-} from '../../rxdb-demo'
+import { Button, Checkbox, CheckboxGroup, Input, Label, Text, View } from '@tarojs/components';
+import { useLoad, useUnload } from '@tarojs/taro';
+import { useCallback, useRef, useState } from 'react';
 import {
   getMiniProgramRuntimeReferences,
   inspectMiniProgramRuntime,
   type RuntimeCapability
-} from '../../runtime-preflight'
-import './index.scss'
+} from '../../runtime-preflight';
+import { openMiniProgramRxdbDemo, type DemoCheck, type MiniProgramRxdbDemo, type TodoItem } from '../../rxdb-demo';
+import './index.scss';
 
-type DemoPhase = 'checking' | 'ready' | 'blocked' | 'error'
-type CheckStatus = 'waiting' | 'running' | 'passed' | 'pending' | 'failed'
+type DemoPhase = 'checking' | 'ready' | 'blocked' | 'error';
+type CheckStatus = 'waiting' | 'running' | 'passed' | 'pending' | 'failed';
 
 interface CheckView {
   readonly name: string;
@@ -74,23 +69,27 @@ export default function Index() {
   const [busy, setBusy] = useState(false);
 
   const verifyReconnect = useCallback(async (demo: MiniProgramRxdbDemo) => {
-    setChecks(current => current.map(check =>
-      check.name === '跨启动持久化' ? check : { ...check, status: 'running', detail: '正在执行验证' }
-    ));
+    setChecks(current =>
+      current.map(check =>
+        check.name === '跨启动持久化' ? check : { ...check, status: 'running', detail: '正在执行验证' }
+      )
+    );
     try {
       const result = await demo.verifyReconnect();
-      setChecks(current => current.map(check => {
-        if (check.name === 'Todo CRUD 自检') return { ...check, ...result.crud };
-        if (check.name === '断开重连验证') return { ...check, ...result.reconnect };
-        return check;
-      }));
+      setChecks(current =>
+        current.map(check => {
+          if (check.name === 'Todo CRUD 自检') return { ...check, ...result.crud };
+          if (check.name === '断开重连验证') return { ...check, ...result.reconnect };
+          return check;
+        })
+      );
       setTodos(await demo.listTodos());
       setOperation('数据库验证完成');
     } catch (error) {
       const detail = errorMessage(error);
-      setChecks(current => current.map(check =>
-        check.name === '跨启动持久化' ? check : { ...check, status: 'failed', detail }
-      ));
+      setChecks(current =>
+        current.map(check => (check.name === '跨启动持久化' ? check : { ...check, status: 'failed', detail }))
+      );
       setOperation(detail);
     }
   }, []);
@@ -113,9 +112,9 @@ export default function Index() {
       setCapabilities(result.capabilities);
       setSqliteVersion(result.sqliteVersion);
       setTodos(await result.demo.listTodos());
-      setChecks(current => current.map(check =>
-        check.name === '跨启动持久化' ? { ...check, ...result.launchPersistence } : check
-      ));
+      setChecks(current =>
+        current.map(check => (check.name === '跨启动持久化' ? { ...check, ...result.launchPersistence } : check))
+      );
       setPhase('ready');
       await verifyReconnect(result.demo);
     } catch (error) {
@@ -134,19 +133,22 @@ export default function Index() {
     void demoRef.current?.dispose();
   });
 
-  const runTodoOperation = useCallback(async (action: (demo: MiniProgramRxdbDemo) => Promise<TodoItem[]>, message: string) => {
-    const demo = demoRef.current;
-    if (!demo || busy) return;
-    setBusy(true);
-    try {
-      setTodos(await action(demo));
-      setOperation(message);
-    } catch (error) {
-      setOperation(errorMessage(error));
-    } finally {
-      setBusy(false);
-    }
-  }, [busy]);
+  const runTodoOperation = useCallback(
+    async (action: (demo: MiniProgramRxdbDemo) => Promise<TodoItem[]>, message: string) => {
+      const demo = demoRef.current;
+      if (!demo || busy) return;
+      setBusy(true);
+      try {
+        setTodos(await action(demo));
+        setOperation(message);
+      } catch (error) {
+        setOperation(errorMessage(error));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy]
+  );
 
   const addTodo = useCallback(() => {
     const normalizedTitle = title.trim();
@@ -191,7 +193,9 @@ export default function Index() {
       <View className='section capabilities-section'>
         <View className='section-heading'>
           <Text className='section-title'>运行时能力</Text>
-          <Text className='section-meta'>{capabilities.filter(item => item.available).length}/{capabilities.length}</Text>
+          <Text className='section-meta'>
+            {capabilities.filter(item => item.available).length}/{capabilities.length}
+          </Text>
         </View>
         <View className='capability-grid'>
           {capabilities.map(capability => (
@@ -208,7 +212,12 @@ export default function Index() {
       <View className='section checks-section'>
         <View className='section-heading'>
           <Text className='section-title'>验证状态</Text>
-          <Button className='verify-button' size='mini' disabled={phase !== 'ready' || busy} onClick={runManualVerification}>
+          <Button
+            className='verify-button'
+            size='mini'
+            disabled={phase !== 'ready' || busy}
+            onClick={runManualVerification}
+          >
             重跑验证
           </Button>
         </View>
@@ -238,7 +247,9 @@ export default function Index() {
             onInput={event => setTitle(event.detail.value)}
             onConfirm={addTodo}
           />
-          <Button className='add-button' disabled={phase !== 'ready' || busy} onClick={addTodo}>添加</Button>
+          <Button className='add-button' disabled={phase !== 'ready' || busy} onClick={addTodo}>
+            添加
+          </Button>
         </View>
         <View className='todo-list'>
           {todos.map(todo => (
@@ -259,7 +270,9 @@ export default function Index() {
               </Button>
             </View>
           ))}
-          {phase === 'ready' && todos.length === 0 ? <Text className='empty-state'>暂无 Todo</Text> : null}
+          {phase === 'ready' && todos.length === 0 ?
+            <Text className='empty-state'>暂无 Todo</Text>
+          : null}
         </View>
       </View>
     </View>

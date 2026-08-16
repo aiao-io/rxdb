@@ -6,7 +6,11 @@
 
 import { runBigIntBinaryEncryptedSuite } from '@aiao/rxdb-test/encrypted';
 import { afterAll, expect } from 'vitest';
-import { desktopEncryptedAdapterFactory, desktopHostDeliveryErrors, stopDesktopTestHost } from './desktop-adapter-factory.js';
+import {
+  desktopEncryptedAdapterFactory,
+  desktopHostDeliveryErrors,
+  stopDesktopTestHost
+} from './desktop-adapter-factory.js';
 
 afterAll(() => {
   try {

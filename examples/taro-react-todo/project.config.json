@@ -1,36 +1,9 @@
 {
-  "miniprogramRoot": "dist/",
-  "projectname": "taro-react-todo",
-  "description": "taro-react-todo",
   "appid": "wx0c6a68673e0872fe",
-  "setting": {
-    "urlCheck": true,
-    "es6": true,
-    "enhance": true,
-    "compileHotReLoad": false,
-    "postcss": false,
-    "minified": true,
-    "compileWorklet": false,
-    "uglifyFileName": false,
-    "uploadWithSourceMap": false,
-    "packNpmManually": false,
-    "packNpmRelationList": [],
-    "minifyWXSS": true,
-    "minifyWXML": true,
-    "localPlugins": false,
-    "disableUseStrict": false,
-    "useCompilerPlugins": false,
-    "condition": false,
-    "swc": false,
-    "disableSWC": true,
-    "babelSetting": {
-      "ignore": [],
-      "disablePlugins": [],
-      "outputPath": ""
-    }
-  },
   "compileType": "miniprogram",
-  "simulatorPluginLibVersion": {},
+  "description": "taro-react-todo",
+  "editorSetting": {},
+  "miniprogramRoot": "dist/",
   "packOptions": {
     "ignore": [
       {
@@ -120,5 +93,32 @@
     ],
     "include": []
   },
-  "editorSetting": {}
+  "projectname": "taro-react-todo",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "compileHotReLoad": false,
+    "postcss": false,
+    "minified": true,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": false,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "simulatorPluginLibVersion": {}
 }

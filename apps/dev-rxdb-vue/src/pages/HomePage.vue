@@ -15,7 +15,7 @@
                 class="h-32 w-32"
                 :src="`vue.svg`"
                 alt="Vue"
-              >
+              />
             </div>
             <p>Running on Vue</p>
           </div>

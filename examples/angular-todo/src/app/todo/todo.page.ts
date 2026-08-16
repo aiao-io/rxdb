@@ -5,31 +5,31 @@ import { nextMacroTask } from '@aiao/utils';
 import { ScrollDispatcher, ScrollingModule } from '@angular/cdk/scrolling';
 import { AsyncPipe, isPlatformBrowser } from '@angular/common';
 import {
-    AfterViewInit,
-    ChangeDetectionStrategy,
-    Component,
-    computed,
-    DestroyRef,
-    ElementRef,
-    inject,
-    OnInit,
-    PLATFORM_ID,
-    signal,
-    viewChild,
-    WritableSignal,
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  ElementRef,
+  inject,
+  OnInit,
+  PLATFORM_ID,
+  signal,
+  viewChild,
+  WritableSignal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import {
-    LucideArrowDown,
-    LucideArrowUp,
-    LucideDynamicIcon,
-    LucideHistory,
-    LucidePen,
-    LucidePlus,
-    LucideRedo2,
-    LucideUndo2,
-    LucideX,
+  LucideArrowDown,
+  LucideArrowUp,
+  LucideDynamicIcon,
+  LucideHistory,
+  LucidePen,
+  LucidePlus,
+  LucideRedo2,
+  LucideUndo2,
+  LucideX,
 } from '@lucide/angular';
 import { HistorySidebarComponent } from '../history-sidebar/history-sidebar.component';
 
@@ -116,11 +116,11 @@ export default class TodoPage implements OnInit, AfterViewInit {
   readonly $disabled_toggle_all_btn = computed(() => this.todo_resource.value().length === 0);
 
   readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
-  readonly add_1 = useAction<number>(options => this.add_many_todo(options));
-  readonly add_2 = useAction<number>(options => this.add_many_todo(options));
-  readonly add_3 = useAction<number>(options => this.add_many_todo(options));
-  readonly add_4 = useAction<number>(options => this.add_many_todo(options));
-  readonly add_5 = useAction<number>(options => this.add_many_todo(options));
+  readonly add_1 = useAction<number>((options) => this.add_many_todo(options));
+  readonly add_2 = useAction<number>((options) => this.add_many_todo(options));
+  readonly add_3 = useAction<number>((options) => this.add_many_todo(options));
+  readonly add_4 = useAction<number>((options) => this.add_many_todo(options));
+  readonly add_5 = useAction<number>((options) => this.add_many_todo(options));
 
   fullHeaderRef = viewChild<ElementRef<HTMLElement>>('fullHeader');
   mainContainerRef = viewChild<ElementRef<HTMLElement>>('mainContainer');

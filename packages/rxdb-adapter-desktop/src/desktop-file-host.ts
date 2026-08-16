@@ -17,7 +17,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { open, mkdir, readdir, realpath, rename, rm, stat, type FileHandle } from 'node:fs/promises';
+import { mkdir, open, readdir, realpath, rename, rm, stat, type FileHandle } from 'node:fs/promises';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from './desktop-error.js';
 import {
@@ -41,9 +41,7 @@ import {
 
 /** 写入相关的请求。 */
 type FileWriteRequest =
-  | DesktopHostFileWriteBeginRequest
-  | DesktopHostFileWriteChunkRequest
-  | DesktopHostFileWriteFinishRequest;
+  DesktopHostFileWriteBeginRequest | DesktopHostFileWriteChunkRequest | DesktopHostFileWriteFinishRequest;
 
 /** 锁相关的请求。 */
 type FileLockRequest = DesktopHostFileLockAcquireRequest | DesktopHostFileLockReleaseRequest;
@@ -174,11 +172,9 @@ const toFilesystemError = (error: unknown, path: string): RxDBAdapterDesktopErro
   if (error instanceof RxDBAdapterDesktopError) return error;
   const errno = readErrno(error);
   const code = errno === undefined ? undefined : ERRNO_CODES[errno];
-  return new RxDBAdapterDesktopError(
-    code ?? 'host_internal_error',
-    `${errno ?? 'filesystem failure'} on ${path}`,
-    { cause: error }
-  );
+  return new RxDBAdapterDesktopError(code ?? 'host_internal_error', `${errno ?? 'filesystem failure'} on ${path}`, {
+    cause: error
+  });
 };
 
 const toErrorResponse = (error: unknown): DesktopHostFileResponse => {

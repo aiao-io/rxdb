@@ -1,8 +1,5 @@
 import type { EntityType, RxDB } from '@aiao/rxdb';
-import type {
-    RxDBAdapterWaSqliteMiniProgram,
-    WaSqliteModuleFactory
-} from '@aiao/rxdb-adapter-miniprogram';
+import type { RxDBAdapterWaSqliteMiniProgram, WaSqliteModuleFactory } from '@aiao/rxdb-adapter-miniprogram';
 import type { MiniProgramRuntimeReferences, RuntimeCapability } from './runtime-preflight';
 
 type RxdbModule = typeof import('@aiao/rxdb');
@@ -38,11 +35,7 @@ interface SubscriptionLike {
 }
 
 interface ObservableLike<T> {
-  subscribe(observer: {
-    next(value: T): void;
-    error(reason: unknown): void;
-    complete(): void;
-  }): SubscriptionLike;
+  subscribe(observer: { next(value: T): void; error(reason: unknown): void; complete(): void }): SubscriptionLike;
 }
 
 const EMPTY_RULE_GROUP = { combinator: 'and' as const, rules: [] };
@@ -123,11 +116,7 @@ export class MiniProgramRxdbDemo {
   private readonly entities: DemoEntities;
   private readonly adapterName: string;
 
-  constructor(
-    rxdb: RxDB,
-    entities: DemoEntities,
-    adapterName: string
-  ) {
+  constructor(rxdb: RxDB, entities: DemoEntities, adapterName: string) {
     this.rxdb = rxdb;
     this.entities = entities;
     this.adapterName = adapterName;
@@ -173,28 +162,28 @@ export class MiniProgramRxdbDemo {
     await probe.save();
 
     const connectedAdapter = await this.rxdb.connect('wa-sqlite-miniprogram');
-    if (await this.readProbeValue(connectedAdapter, key) !== 'created') {
+    if ((await this.readProbeValue(connectedAdapter, key)) !== 'created') {
       throw new Error('CRUD 自检未从 SQLite 读回新建记录');
     }
     const created = await this.findProbe(key);
     if (!created) throw new Error('CRUD 自检未读回新建记录');
     created.value = 'updated';
     await created.save();
-    if (await this.readProbeValue(connectedAdapter, key) !== 'updated') {
+    if ((await this.readProbeValue(connectedAdapter, key)) !== 'updated') {
       throw new Error('CRUD 自检未从 SQLite 读回更新记录');
     }
 
     await this.rxdb.disconnect(this.adapterName);
     const reopenedAdapter = await this.rxdb.connect('wa-sqlite-miniprogram');
 
-    if (await this.readProbeValue(reopenedAdapter, key) !== 'updated') {
+    if ((await this.readProbeValue(reopenedAdapter, key)) !== 'updated') {
       throw new Error('断开重连后未从 SQLite 读到已更新记录');
     }
     const reopened = await this.findProbe(key);
     if (!reopened) throw new Error('断开重连后 RxDB 未读到探针记录');
     await reopened.remove();
 
-    if (await this.readProbeValue(reopenedAdapter, key) !== undefined) {
+    if ((await this.readProbeValue(reopenedAdapter, key)) !== undefined) {
       throw new Error('CRUD 自检未从 SQLite 删除探针记录');
     }
     return {
@@ -236,10 +225,9 @@ export class MiniProgramRxdbDemo {
   }
 
   private async readProbeValue(adapter: RxDBAdapterWaSqliteMiniProgram, key: string): Promise<string | undefined> {
-    const result = await adapter.query(
-      'SELECT "value" FROM "miniprogram$runtime_probe" WHERE "key" = ? LIMIT 1',
-      [key]
-    );
+    const result = await adapter.query('SELECT "value" FROM "miniprogram$runtime_probe" WHERE "key" = ? LIMIT 1', [
+      key
+    ]);
     const value = result.results[0]?.rows[0]?.[0];
     return typeof value === 'string' ? value : undefined;
   }
@@ -276,13 +264,15 @@ export async function openMiniProgramRxdbDemo(runtime: MiniProgramRuntimeReferen
       type: rxdb.SyncType.None
     }
   });
-  database.adapter(adapterPackage.ADAPTER_NAME, currentDatabase =>
-    new adapterPackage.RxDBAdapterWaSqliteMiniProgram(currentDatabase, {
-      moduleFactory,
-      wechat: runtime.wechat,
-      wasmRuntime: runtime.wasmRuntime,
-      wasmPath: adapterPackage.DEFAULT_WASM_PATH
-    })
+  database.adapter(
+    adapterPackage.ADAPTER_NAME,
+    currentDatabase =>
+      new adapterPackage.RxDBAdapterWaSqliteMiniProgram(currentDatabase, {
+        moduleFactory,
+        wechat: runtime.wechat,
+        wasmRuntime: runtime.wasmRuntime,
+        wasmPath: adapterPackage.DEFAULT_WASM_PATH
+      })
   );
 
   const adapter = await database.connect(adapterPackage.ADAPTER_NAME);

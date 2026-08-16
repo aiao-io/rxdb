@@ -1,4 +1,5 @@
 {
+  "compileOnSave": false,
   "compilerOptions": {
     "target": "es2017",
     "module": "esnext",
@@ -17,14 +18,11 @@
     "jsx": "react-jsx",
     "allowJs": true,
     "resolveJsonModule": true,
-    "typeRoots": [
-      "node_modules/@types"
-    ],
+    "typeRoots": ["node_modules/@types"],
     "paths": {
       // TS5090 leading './'
       "@/*": ["./src/*"]
     }
   },
-  "include": ["./src", "./types", "./config"],
-  "compileOnSave": false
+  "include": ["./src", "./types", "./config"]
 }

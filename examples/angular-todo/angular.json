@@ -30,9 +30,7 @@
                 "output": "./wa-sqlite/"
               }
             ],
-            "styles": [
-              "src/styles.css"
-            ],
+            "styles": ["src/styles.css"],
             "webWorkerTsConfig": "tsconfig.worker.json"
           },
           "configurations": {

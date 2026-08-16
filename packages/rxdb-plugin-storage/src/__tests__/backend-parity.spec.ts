@@ -27,7 +27,11 @@ import { vi } from 'vitest';
 import { createDesktopStorageFilesystem } from '../desktop.js';
 import { createOpfsStorageFilesystem } from '../filesystem/opfs-filesystem.js';
 import { MemoryDirectoryHandle } from './fixtures/memory-storage.js';
-import { isTemporaryStorageName, storageBackendParitySuite, type ParityBackend } from './storage-backend-parity.suite.js';
+import {
+  isTemporaryStorageName,
+  storageBackendParitySuite,
+  type ParityBackend
+} from './storage-backend-parity.suite.js';
 
 /** 递归收集内存目录树里的全部条目名。 */
 const collectMemoryNames = (directory: MemoryDirectoryHandle): string[] => {

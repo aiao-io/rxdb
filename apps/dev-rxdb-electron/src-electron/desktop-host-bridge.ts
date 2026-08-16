@@ -20,11 +20,7 @@ import {
   type DesktopHostFileResponse,
   type DesktopHostResponse
 } from '@aiao/rxdb-adapter-desktop/host';
-import {
-  createDesktopFileBridge,
-  type DesktopFileBridge,
-  type DesktopFileEventTarget
-} from './desktop-file-bridge.js';
+import { createDesktopFileBridge, type DesktopFileBridge, type DesktopFileEventTarget } from './desktop-file-bridge.js';
 import {
   createDesktopSqliteBridge,
   type DesktopChangeEventTarget,
@@ -34,8 +30,8 @@ import {
 // 两族的路径解析器一并转发出去：`main.ts` 只能 import 打包产物（ELEC-23），
 // 而 esbuild 只把**本入口**的导出面留在产物里。不转发的话 `main.ts` 就得从 tsc 的
 // 逐文件产物里取它们，那份产物在打包后的应用里 `require` 不到 node_modules。
-export { DESKTOP_STORAGE_DIRECTORY, createStorageRootResolver } from './desktop-file-bridge.js';
-export { DESKTOP_DATABASE_DIRECTORY, createDatabasePathResolver } from './desktop-sqlite-bridge.js';
+export { createStorageRootResolver, DESKTOP_STORAGE_DIRECTORY } from './desktop-file-bridge.js';
+export { createDatabasePathResolver, DESKTOP_DATABASE_DIRECTORY } from './desktop-sqlite-bridge.js';
 
 /** 同时充当两族会话归属者的窗口；真实 `WebContents` 结构上满足它。 */
 export type DesktopHostEventTarget = DesktopChangeEventTarget & DesktopFileEventTarget;

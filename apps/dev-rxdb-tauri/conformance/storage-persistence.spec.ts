@@ -14,8 +14,8 @@
  */
 
 import { DESKTOP_ADAPTER_NAME } from '@aiao/rxdb-adapter-desktop';
-import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
 import type { StorageFilesystem } from '@aiao/rxdb-plugin-storage';
+import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
 import { cp, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

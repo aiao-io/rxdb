@@ -83,9 +83,11 @@ describe('createDesktopFileBridge', () => {
       writeId: begin.result.writeId,
       chunk: new TextEncoder().encode('hello')
     });
-    expect(await bridge.handle(target, { kind: 'file.writeCommit', sessionId, writeId: begin.result.writeId })).toEqual({
-      kind: 'file.writeCommit'
-    });
+    expect(await bridge.handle(target, { kind: 'file.writeCommit', sessionId, writeId: begin.result.writeId })).toEqual(
+      {
+        kind: 'file.writeCommit'
+      }
+    );
 
     const physical = join(workspace, DESKTOP_STORAGE_DIRECTORY, 'notes', 'a.txt');
     expect(readFileSync(physical, 'utf8')).toBe('hello');

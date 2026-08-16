@@ -12,27 +12,27 @@
  */
 
 import {
-    DESKTOP_ADAPTER_NAME,
-    DESKTOP_HOST_MAX_FILE_CHUNK_BYTES,
-    DESKTOP_HOST_PROTOCOL_VERSION,
-    resolveDesktopHostTransport,
-    type DesktopHostFileEntry,
-    type DesktopHostFileLockMode,
-    type DesktopHostFileReadResult,
-    type DesktopHostFileRequest,
-    type DesktopHostFileResponse,
-    type DesktopHostFileStat,
-    type DesktopHostTransport,
-    type RxDBAdapterDesktopErrorCode
+  DESKTOP_ADAPTER_NAME,
+  DESKTOP_HOST_MAX_FILE_CHUNK_BYTES,
+  DESKTOP_HOST_PROTOCOL_VERSION,
+  resolveDesktopHostTransport,
+  type DesktopHostFileEntry,
+  type DesktopHostFileLockMode,
+  type DesktopHostFileReadResult,
+  type DesktopHostFileRequest,
+  type DesktopHostFileResponse,
+  type DesktopHostFileStat,
+  type DesktopHostTransport,
+  type RxDBAdapterDesktopErrorCode
 } from '@aiao/rxdb-adapter-desktop';
 import { StorageBackendError, type StorageBackendErrorCode } from './errors.js';
 import { decodePhysicalName, encodePhysicalName } from './filesystem/physical-name.js';
 import type {
-    StorageFilesystem,
-    StorageFilesystemContext,
-    StorageFilesystemEntry,
-    StorageFilesystemFactory,
-    StorageFileWriter
+  StorageFilesystem,
+  StorageFilesystemContext,
+  StorageFilesystemEntry,
+  StorageFilesystemFactory,
+  StorageFileWriter
 } from './filesystem/storage-filesystem.js';
 import { normalizeDirectoryPath, normalizeRelativeOpfsPath, normalizeRemovableDirectoryPath } from './paths.js';
 
@@ -49,23 +49,24 @@ export interface DesktopStorageFilesystemOptions {
 }
 
 /** host 错误码到后端错误码的映射；`file_not_found` 不在表内，另走 NotFound 语义。 */
-const BACKEND_ERROR_CODES: Readonly<Record<Exclude<RxDBAdapterDesktopErrorCode, 'file_not_found'>, StorageBackendErrorCode>> =
-  {
-    unsupported_runtime_engine: 'backend_unavailable',
-    invalid_database_name: 'backend_internal_error',
-    host_unavailable: 'backend_unavailable',
-    session_closed: 'backend_unavailable',
-    protocol_violation: 'backend_internal_error',
-    open_failed: 'backend_internal_error',
-    permission_denied: 'permission_denied',
-    database_corrupted: 'backend_internal_error',
-    statement_failed: 'backend_internal_error',
-    host_internal_error: 'backend_internal_error',
-    database_busy: 'backend_internal_error',
-    invalid_file_path: 'path_escape',
-    disk_full: 'disk_full',
-    write_aborted: 'write_aborted'
-  };
+const BACKEND_ERROR_CODES: Readonly<
+  Record<Exclude<RxDBAdapterDesktopErrorCode, 'file_not_found'>, StorageBackendErrorCode>
+> = {
+  unsupported_runtime_engine: 'backend_unavailable',
+  invalid_database_name: 'backend_internal_error',
+  host_unavailable: 'backend_unavailable',
+  session_closed: 'backend_unavailable',
+  protocol_violation: 'backend_internal_error',
+  open_failed: 'backend_internal_error',
+  permission_denied: 'permission_denied',
+  database_corrupted: 'backend_internal_error',
+  statement_failed: 'backend_internal_error',
+  host_internal_error: 'backend_internal_error',
+  database_busy: 'backend_internal_error',
+  invalid_file_path: 'path_escape',
+  disk_full: 'disk_full',
+  write_aborted: 'write_aborted'
+};
 
 /** 单帧上限；读写都按它切分，内容因此不会整块进 JS 堆。 */
 const FRAME_BYTES = DESKTOP_HOST_MAX_FILE_CHUNK_BYTES;
@@ -98,7 +99,11 @@ const toBackendError = (record: Record<string, unknown>): Error => {
 
   const mapped = BACKEND_ERROR_CODES[code as Exclude<RxDBAdapterDesktopErrorCode, 'file_not_found'>];
   if (!mapped) {
-    return new StorageBackendError('backend_internal_error', `unknown desktop host error code: ${String(code)}`, record);
+    return new StorageBackendError(
+      'backend_internal_error',
+      `unknown desktop host error code: ${String(code)}`,
+      record
+    );
   }
   return new StorageBackendError(mapped, message, record);
 };
@@ -154,8 +159,8 @@ const toFrames = async function* (chunk: Blob | Uint8Array<ArrayBuffer>): AsyncG
     const end = Math.min(offset + FRAME_BYTES, size);
     // 一律拷贝：结构化克隆传 TypedArray 视图会连整块底层 ArrayBuffer 一起复制过去。
     yield chunk instanceof Blob ?
-        new Uint8Array(await chunk.slice(offset, end).arrayBuffer())
-      : chunk.slice(offset, end);
+      new Uint8Array(await chunk.slice(offset, end).arrayBuffer())
+    : chunk.slice(offset, end);
   }
 };
 
@@ -316,8 +321,7 @@ class DesktopStorageFilesystem implements StorageFilesystem {
     // 先取首帧再造流：文件不存在必须在这里就抛出，而不是等到调用方开始读。
     let pending = await this.readFrame(path, 0);
     let offset = pending.chunk.byteLength;
-    const readFrame = (position: number): Promise<DesktopHostFileReadResult> =>
-      this.readFrame(path, position);
+    const readFrame = (position: number): Promise<DesktopHostFileReadResult> => this.readFrame(path, position);
 
     return new ReadableStream<Uint8Array>({
       async pull(controller) {
@@ -500,7 +504,8 @@ const assertEntries = (result: readonly DesktopHostFileEntry[]): readonly Deskto
 };
 
 const assertReadResult = (result: DesktopHostFileReadResult): DesktopHostFileReadResult => {
-  if (!(result.chunk instanceof Uint8Array) || typeof result.eof !== 'boolean') throw invalidResult('read frame', result);
+  if (!(result.chunk instanceof Uint8Array) || typeof result.eof !== 'boolean')
+    throw invalidResult('read frame', result);
   return { chunk: result.chunk, eof: result.eof };
 };
 

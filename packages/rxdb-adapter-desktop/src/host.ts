@@ -17,11 +17,7 @@ export {
   type DesktopSqliteHostOptions
 } from './desktop-sqlite-host.js';
 
-export {
-  createDesktopFileHost,
-  type DesktopFileHost,
-  type DesktopFileHostOptions
-} from './desktop-file-host.js';
+export { createDesktopFileHost, type DesktopFileHost, type DesktopFileHostOptions } from './desktop-file-host.js';
 
 export { NodeSqliteEngine, type NodeSqliteEngineOptions } from './node-sqlite-engine.js';
 
@@ -41,8 +37,8 @@ export {
 export {
   DESKTOP_HOST_MAX_BINDINGS,
   DESKTOP_HOST_MAX_BLOB_BYTES,
-  DESKTOP_HOST_MAX_SQL_LENGTH,
   DESKTOP_HOST_MAX_FILE_CHUNK_BYTES,
+  DESKTOP_HOST_MAX_SQL_LENGTH,
   DESKTOP_HOST_PROTOCOL_VERSION,
   isDesktopHostFileRequestKind,
   parseDesktopHostFileRequest,

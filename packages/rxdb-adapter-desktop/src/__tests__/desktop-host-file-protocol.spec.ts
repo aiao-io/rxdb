@@ -122,9 +122,9 @@ describe('parseDesktopHostFileRequest', () => {
       sessionId,
       path: withinLimit
     });
-    expect(() =>
-      parseDesktopHostFileRequest({ kind: 'file.stat', sessionId, path: `${withinLimit}中` })
-    ).toThrowError(/protocol_violation/);
+    expect(() => parseDesktopHostFileRequest({ kind: 'file.stat', sessionId, path: `${withinLimit}中` })).toThrowError(
+      /protocol_violation/
+    );
   });
 
   it('rejects the empty path where a concrete file is required', () => {

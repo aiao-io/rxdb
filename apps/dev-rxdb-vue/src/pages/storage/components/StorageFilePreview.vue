@@ -204,8 +204,7 @@ function resetPreviewState() {
           <pre
             class="bg-base-200 overflow-auto rounded p-4 text-xs"
             v-else-if="fileType === 'text' && textContent"
-            >{{ textContent }}</pre
-          >
+            >{{ textContent }}</pre>
           <div
             class="text-base-content/40 py-8 text-center"
             v-else

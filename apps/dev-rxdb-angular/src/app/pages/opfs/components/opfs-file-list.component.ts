@@ -10,7 +10,20 @@
 
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, input, output } from '@angular/core';
-import { LucideDownload as Download, LucideEye as Eye, LucideFileArchive as FileArchive, LucideFileCode as FileCode, LucideFileHeadphone as FileHeadphone, LucideFileImage as FileImage, LucideFilePlay as FilePlay, LucideFileText as FileText, LucideFolder as Folder, LucideFolderOpen as FolderOpen, LucideDynamicIcon, LucideTrash2 as Trash2 } from '@lucide/angular';
+import {
+  LucideDownload as Download,
+  LucideEye as Eye,
+  LucideFileArchive as FileArchive,
+  LucideFileCode as FileCode,
+  LucideFileHeadphone as FileHeadphone,
+  LucideFileImage as FileImage,
+  LucideFilePlay as FilePlay,
+  LucideFileText as FileText,
+  LucideFolder as Folder,
+  LucideFolderOpen as FolderOpen,
+  LucideDynamicIcon,
+  LucideTrash2 as Trash2
+} from '@lucide/angular';
 import { OPFSFileEntry, canPreviewFile, formatFileSize, getFileIcon, getFileIconColor } from '../utils/opfs-utils';
 
 @Component({

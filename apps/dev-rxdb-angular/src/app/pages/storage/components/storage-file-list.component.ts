@@ -1,7 +1,13 @@
 import { formatFileSize, STORAGE_TESTID } from '@aiao/utils';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, input, output } from '@angular/core';
-import { LucideDownload as Download, LucideEye as Eye, LucideFolderOpen as FolderOpen, LucideDynamicIcon, LucideTrash2 as Trash2 } from '@lucide/angular';
+import {
+  LucideDownload as Download,
+  LucideEye as Eye,
+  LucideFolderOpen as FolderOpen,
+  LucideDynamicIcon,
+  LucideTrash2 as Trash2
+} from '@lucide/angular';
 import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } from '../utils/storage-utils';
 
 @Component({

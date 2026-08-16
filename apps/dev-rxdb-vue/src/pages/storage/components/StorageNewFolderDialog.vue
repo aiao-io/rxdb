@@ -26,8 +26,8 @@ function submit(): void {
 
 <template>
   <div
-    v-if="show"
     class="modal modal-open"
+    v-if="show"
     :data-testid="T.NEW_FOLDER_DIALOG"
     @click="emit('cancel')"
   >
@@ -37,13 +37,13 @@ function submit(): void {
     >
       <h3 class="mb-4 text-base font-bold">New Folder</h3>
       <input
-        v-model="name"
         class="input input-bordered w-full"
+        v-model="name"
         :data-testid="T.NEW_FOLDER_INPUT"
+        @keydown.enter="submit"
         placeholder="Folder name"
         type="text"
-        @keydown.enter="submit"
-      >
+      />
       <div class="modal-action">
         <button
           class="btn btn-sm"

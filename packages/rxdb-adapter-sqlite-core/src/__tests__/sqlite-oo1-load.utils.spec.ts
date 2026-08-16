@@ -161,9 +161,9 @@ describe('sqlite-oo1-load.utils', () => {
     it('run 抛错时也应该还原全局配置', async () => {
       delete globalWithConfig.sqlite3ApiConfig;
 
-      await expect(
-        withSqliteApiConfig({ warn: 'w' }, () => Promise.reject(new Error('load boom')))
-      ).rejects.toThrow('load boom');
+      await expect(withSqliteApiConfig({ warn: 'w' }, () => Promise.reject(new Error('load boom')))).rejects.toThrow(
+        'load boom'
+      );
 
       expect('sqlite3ApiConfig' in globalWithConfig).toBe(false);
     });

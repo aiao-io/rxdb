@@ -25,7 +25,6 @@ import {
 } from './fixtures/memory-storage.js';
 import { isTemporaryStorageName } from './storage-backend-parity.suite.js';
 
-
 describe('RxdbFileStorage', () => {
   let rootHandle: MemoryDirectoryHandle;
 

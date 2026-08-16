@@ -28,8 +28,8 @@ function submit(): void {
 
 <template>
   <div
-    v-if="show && entry"
     class="modal modal-open"
+    v-if="show && entry"
     :data-testid="T.RENAME_DIALOG"
     @click="emit('cancel')"
   >
@@ -39,13 +39,13 @@ function submit(): void {
     >
       <h3 class="mb-4 text-base font-bold">Rename {{ entry.kind === 'file' ? 'File' : 'Folder' }}</h3>
       <input
-        v-model="newName"
         class="input input-bordered w-full"
+        v-model="newName"
         :data-testid="T.RENAME_INPUT"
         :placeholder="entry.kind === 'file' ? 'File name' : 'Folder name'"
-        type="text"
         @keydown.enter="submit"
-      >
+        type="text"
+      />
       <div class="modal-action">
         <button
           class="btn btn-sm"

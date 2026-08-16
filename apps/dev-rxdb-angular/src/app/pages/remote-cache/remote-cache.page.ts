@@ -8,7 +8,15 @@ import {
 import { formatFileSize } from '@aiao/utils';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
-import { LucideCloud as Cloud, LucideCloudDownload as CloudDownload, LucideDynamicIcon, LucideRefreshCw as RefreshCw, LucideTrash2 as Trash2, LucideWifi as Wifi, LucideWifiOff as WifiOff } from '@lucide/angular';
+import {
+  LucideCloud as Cloud,
+  LucideCloudDownload as CloudDownload,
+  LucideDynamicIcon,
+  LucideRefreshCw as RefreshCw,
+  LucideTrash2 as Trash2,
+  LucideWifi as Wifi,
+  LucideWifiOff as WifiOff
+} from '@lucide/angular';
 
 interface RemoteResource {
   label: string;

@@ -1,5 +1,14 @@
 import { StorageFileMeta } from '@aiao/rxdb-plugin-storage';
-import { LucideFileArchive as FileArchive, LucideFileAudio as FileAudio, LucideFileCode as FileCode, LucideFile as FileIcon, LucideFileImage as FileImage, LucideFileText as FileText, LucideFileVideo as FileVideo, LucideFolder as Folder } from '@lucide/angular';
+import {
+  LucideFileArchive as FileArchive,
+  LucideFileAudio as FileAudio,
+  LucideFileCode as FileCode,
+  LucideFile as FileIcon,
+  LucideFileImage as FileImage,
+  LucideFileText as FileText,
+  LucideFileVideo as FileVideo,
+  LucideFolder as Folder
+} from '@lucide/angular';
 
 export interface StorageBrowserItem {
   name: string;

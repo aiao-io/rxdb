@@ -111,7 +111,10 @@ describe('createDesktopFileHost', () => {
     const { writeId } = begin.result;
     await host.handle({ kind: 'file.writeCommit', sessionId, writeId });
 
-    expectError(await host.handle({ kind: 'file.writeChunk', sessionId, writeId, chunk: textOf('x') }), 'write_aborted');
+    expectError(
+      await host.handle({ kind: 'file.writeChunk', sessionId, writeId, chunk: textOf('x') }),
+      'write_aborted'
+    );
     expectError(await host.handle({ kind: 'file.writeCommit', sessionId, writeId }), 'write_aborted');
   });
 
@@ -458,7 +461,10 @@ describe('createDesktopFileHost', () => {
       expectOk(await host.handle({ kind: 'file.writeBegin', sessionId, path: `bulk/${index}.txt` }), 'file.writeBegin');
     }
 
-    expectError(await host.handle({ kind: 'file.writeBegin', sessionId, path: 'bulk/overflow.txt' }), 'protocol_violation');
+    expectError(
+      await host.handle({ kind: 'file.writeBegin', sessionId, path: 'bulk/overflow.txt' }),
+      'protocol_violation'
+    );
   });
 
   it('caps queued lock waiters per name instead of growing the queue without bound', async () => {
@@ -468,7 +474,12 @@ describe('createDesktopFileHost', () => {
       host.handle({ kind: 'file.lockAcquire', sessionId: other, name: 'files:/a', mode: 'exclusive' })
     );
 
-    const overflow = await host.handle({ kind: 'file.lockAcquire', sessionId: other, name: 'files:/a', mode: 'exclusive' });
+    const overflow = await host.handle({
+      kind: 'file.lockAcquire',
+      sessionId: other,
+      name: 'files:/a',
+      mode: 'exclusive'
+    });
 
     expectError(overflow, 'protocol_violation');
     await host.handle({ kind: 'file.close', sessionId: other });
