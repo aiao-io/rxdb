@@ -24,7 +24,7 @@ tauri-build = { version = "=2.6.3", features = [] }
 # 在 stdin/stdout 上跑同一套 `rxdb` 宿主而不启动 `tauri::App`，见 `conformance/`。
 
 [dependencies]
-tauri = { version = "=2.11.2", features = [] }
+tauri = { version = "=2.11.5", features = [] }
 serde = { version = "1", features = ["derive"] }
 # 线协议是 JSON：`rxdb` 模块要自己解析 renderer 请求、构造应答，不能只靠 tauri 的 IPC 层。
 serde_json = "1"
