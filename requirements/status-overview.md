@@ -25,17 +25,29 @@
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🅰️ 多阶段故事 · ⏸️ Deferred · 🚫 Blocked
 
-## 进行中（5 条）
+## 进行中（4 条）
 
-| Story                                                                                                         | 卡在哪                                                                       |
-| ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)                      | 仅剩 AC#8 三平台打包矩阵                                                     |
-| [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md)              | AC#1 缺跨进程重启 e2e、AC#9 三平台打包矩阵                                   |
-| [US-304 跨 realm writer lease 与迁移 fencing](stories/collaboration/US-304-writer-lease-migration-fencing.md) | 剩 AC6（挂起 writer 被迁移 epoch fence）；AC11 已转移给 US-305               |
-| [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                                | AC#6 / #7 待 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵；AC#1/#3/#5/#8 仍 ⚠️ |
-| [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)                 | 阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 A / C / D 未开始           |
+| Story                                                                                            | 卡在哪                                                                       |
+| ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)         | 仅剩 AC#8 三平台打包矩阵                                                     |
+| [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) | AC#1 缺跨进程重启 e2e、AC#9 三平台打包矩阵                                   |
+| [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                   | AC#6 / #7 待 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵；AC#1/#3/#5/#8 仍 ⚠️ |
+| [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)    | 阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 A / C / D 未开始           |
 
 > US-207 / US-210 / US-505 的三条尾巴是**同一个下游缺口**：真实打包应用的重启与三平台矩阵。
+
+## 已暂缓（1 条）
+
+| Story                                                                                                         | 暂缓到 | 剩什么                                                          |
+| ------------------------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------- |
+| [US-304 跨 realm writer lease 与迁移 fencing](stories/collaboration/US-304-writer-lease-migration-fencing.md) | 1.0.0  | AC6（挂起 writer 被迁移 epoch fence）；AC11 已转移给 US-305     |
+
+迁移路径至今未投入使用：0.0.x 线的 `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 均未抬升，
+没有可迁移内容。已交付的 lease/guard/fencing 协议仍在生产路径上正常维护，暂缓的只是收尾验收。
+[US-303](stories/collaboration/US-303-bigint-binary-change-codec.md) 保持 ✅ Done，但其 AC10–AC14
+（系统迁移）同样未被真实发布行使过，首次迁移发布时需重新验证。
+
+> ⚠️ 这不解除 US-305 的前置：它仍需一次真实迁移发布，见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 
 ## 按 Epic 索引
 
