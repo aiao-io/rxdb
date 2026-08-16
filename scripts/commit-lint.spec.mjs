@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  ALLOWED_PREFIXES,
-  buildSubjectRegex,
-  parseMessage,
-  parseRange,
-  validateCommitMessage
+    ALLOWED_PREFIXES,
+    NEED_CHECK_BRANCHES,
+    buildSubjectRegex,
+    parseMessage,
+    parseRange,
+    shouldCheckCurrentBranch,
+    validateCommitMessage
 } from './commit-lint.mjs';
 
 const config = {
@@ -98,6 +100,17 @@ test('parseRange 支持 --range=A..B 与 --range A..B 两种写法', () => {
 
 test('parseRange 未传时返回 null（走本地模式）', () => {
   assert.equal(parseRange(['node', 'commit-lint.mjs']), null);
+});
+
+test('NEED_CHECK_BRANCHES 与 workspace 共享同一份名单', async () => {
+  const { NEED_CHECK_COMMIT_BRANCH_NAMES } = await import('./workspace.mjs');
+  assert.equal(NEED_CHECK_BRANCHES, NEED_CHECK_COMMIT_BRANCH_NAMES);
+});
+
+test('本地校验只在 NEED_CHECK_BRANCHES 上触发，特性分支和 detached HEAD 放行', () => {
+  assert.equal(shouldCheckCurrentBranch('main'), true);
+  assert.equal(shouldCheckCurrentBranch('feat/foo'), false);
+  assert.equal(shouldCheckCurrentBranch(''), false);
 });
 
 test('parseRange 缺值时报错，不静默走成全量校验', () => {

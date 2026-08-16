@@ -108,7 +108,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 - **触发**：`husky#pre-commit` / `husky#pre-push` / `pnpm check-commit`。
 - **做什么**：
-  1. 在 `main` 分支上才执行（其余分支直接放行）；
+  1. 本地路径（`commit-msg` 文件 / 无参）只在 `NEED_CHECK_BRANCHES`（= `workspace.mjs#NEED_CHECK_COMMIT_BRANCH_NAMES`，默认 `main`）上执行，其余分支直接放行；
   2. 读最新 commit（或 commit msg 文件）正则匹配 `type(scope)!?: subject`，类型来自 `commitizen.types`，scope 来自 `commitizen.scopes`，同时放行 `Revert` / `Release` / `wip`；
   3. 失败时把首行的不可见空白（空格/Tab/换行）用 `·` `→` `↵` 可视化输出，便于排查 CJK 输入法的隐形空格。
 - **何时手动跑**：想在 push 前手动确认 commit 文案合规。

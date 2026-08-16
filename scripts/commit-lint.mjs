@@ -10,7 +10,8 @@
  *   - `.github/workflows/ci-template.yml` 的 setup job（PR 上校验整个区间，见 --range）
  *
  * 四种模式：
- *   1. `commit-lint.mjs <msg-file>`   husky 的 commit-msg 钩子，校验文件内容那一条；
+ *   1. `commit-lint.mjs <msg-file>`   husky 的 commit-msg 钩子，读文件那一条；
+ *                                    与无参模式一样，只在 NEED_CHECK_BRANCHES 上校验；
  *   2. `commit-lint.mjs`              本地兜底，只在 NEED_CHECK_BRANCHES 列出的分支上
  *                                    校验「与 upstream/main 的差集」里最新一条非 merge commit，
  *                                    其余分支直接放行 —— 不让特性分支早期被文案卡住；
@@ -37,9 +38,10 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import commitizen from './commitizen.mjs';
+import { NEED_CHECK_COMMIT_BRANCH_NAMES } from './workspace.mjs';
 
-/** 无参模式下会做严格校验的分支；其余分支放行。CI 的 --range 模式不受此限制。 */
-export const NEED_CHECK_BRANCHES = ['main'];
+/** 本地模式（含 commit-msg 文件）才校验的分支；其余分支放行。CI 的 --message / --range 不受此限制。 */
+export const NEED_CHECK_BRANCHES = NEED_CHECK_COMMIT_BRANCH_NAMES;
 
 /** 允许绕过 `type(scope):` 的首行前缀（大小写不敏感，但必须在开头）。 */
 export const ALLOWED_PREFIXES = ['Revert', 'Release', 'wip'];
@@ -94,6 +96,18 @@ export function validateCommitMessage(message, config) {
 }
 
 /**
+ * 当前分支是否需要做 commit 文案校验。
+ * detached HEAD（拿不到分支名）视为不校验。
+ *
+ * @param {string} branchName `git symbolic-ref --short HEAD` 的结果；失败时传空串
+ * @param {string[]} [branches] 白名单，默认 NEED_CHECK_BRANCHES
+ * @returns {boolean}
+ */
+export function shouldCheckCurrentBranch(branchName, branches = NEED_CHECK_BRANCHES) {
+  return branches.includes(branchName);
+}
+
+/**
  * 解析 `--flag=value` 或 `--flag value` 形式的选项。
  *
  * @param {string[]} argv 完整 argv
@@ -127,6 +141,18 @@ export const parseRange = argv => parseOption(argv, '--range', '--range=main..HE
 export const parseMessage = argv => parseOption(argv, '--message', '--message="feat(rxdb): 标题"');
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' });
+
+/**
+ * 读当前分支名。detached HEAD 时 symbolic-ref 以非零退出，视为无分支。
+ * @returns {string}
+ */
+function readCurrentBranchName() {
+  try {
+    return git('symbolic-ref', '--short', '-q', 'HEAD').trim();
+  } catch {
+    return '';
+  }
+}
 
 /**
  * 列出区间内所有非 merge commit 的完整 message。
@@ -242,20 +268,15 @@ const main = () => {
     return 0;
   }
 
-  // ---- 本地模式 ---------------------------------------------------------
+  // ---- 本地模式（commit-msg 文件 / 无参兜底）-----------------------------
+  // 特性分支不卡文案。commit-msg 钩子会带消息文件，必须先看分支再读文件，
+  // 否则 NEED_CHECK_BRANCHES 形同虚设。
+  // `git symbolic-ref` 在 detached HEAD 上会抛错 —— rebase / CI 不该走到这里。
+  const branchName = readCurrentBranchName();
+  if (!shouldCheckCurrentBranch(branchName)) return 0;
+
   const commitMsgFile = process.argv[2];
-  let gitMessage;
-
-  if (commitMsgFile) {
-    gitMessage = fs.readFileSync(commitMsgFile, 'utf8').trim();
-  } else {
-    // 只在 NEED_CHECK_BRANCHES 列出的分支上做严格校验，其余分支放行。
-    // `git symbolic-ref` 在 detached HEAD 上会抛错 —— 那是 CI 的形态，不该走到这里。
-    const branchName = git('symbolic-ref', '--short', '-q', 'HEAD').trim();
-    if (!NEED_CHECK_BRANCHES.includes(branchName)) return 0;
-
-    gitMessage = readLatestLocalCommit();
-  }
+  const gitMessage = commitMsgFile ? fs.readFileSync(commitMsgFile, 'utf8').trim() : readLatestLocalCommit();
 
   if (!gitMessage) {
     console.log('No commits found. Skipping commit message validation.');

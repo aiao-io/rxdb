@@ -50,7 +50,7 @@
     "@docusaurus/tsconfig": "3.10.2",
     "@docusaurus/types": "3.10.2",
     "@tailwindcss/postcss": "^4.3.3",
-    "daisyui": "^5.7.16",
+    "daisyui": "^5.7.17",
     "docusaurus-plugin-typedoc": "^1.4.2",
     "postcss": "^8.5.25",
     "prettier-plugin-tailwindcss": "^0.8.1",
