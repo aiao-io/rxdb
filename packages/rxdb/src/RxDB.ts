@@ -546,34 +546,6 @@ export class RxDB {
     }
   }
 
-  /**
-   * 增删 {@link RxDB.#connected_adapters} 并推送快照。
-   *
-   * @param adapterName - 适配器名称
-   * @param connected - 目标状态
-   * @returns 状态是否真的发生了变化（`false` 表示原本就是这个状态）
-   *
-   * @remarks
-   * 聚合的 {@link RxDB.connected$} 在这里跟着算：`true` 只要有一个连上就发，`false` 只在
-   * 最后一个也掉线时才发。此前失败路径直接 `next(false)`，会把仍然连着的适配器一起报成断开。
-   */
-  #set_adapter_connected(adapterName: string, connected: boolean): boolean {
-    const changed = connected ? !this.#connected_adapters.has(adapterName) : this.#connected_adapters.delete(adapterName);
-    if (connected) this.#connected_adapters.add(adapterName);
-    if (!changed) return false;
-    this.#adapter_connected_sub.next(new Set(this.#connected_adapters));
-    this.#connected_sub.next(this.#connected_adapters.size > 0);
-    return true;
-  }
-
-  /** 清空已连接集合并推送一次空快照（拆卸路径专用）。 */
-  #clear_adapter_connected(): void {
-    if (this.#connected_adapters.size === 0) return;
-    this.#connected_adapters.clear();
-    this.#adapter_connected_sub.next(new Set<string>());
-    this.#connected_sub.next(false);
-  }
-
   addEventListener<T extends keyof RxDBEventMap>(type: T, listener: EventListener<RxDBEventMap[T]>): void {
     this.#listener(type).add(listener);
   }
@@ -602,6 +574,35 @@ export class RxDB {
     // 本次事件，持续新增还会让派发不终止。
     const listeners = Array.from(this.#listener(event.type as keyof RxDBEventMap));
     this.#runIsolated(listeners, listener => listener.call(this, event));
+  }
+
+  /**
+   * 增删 {@link RxDB.#connected_adapters} 并推送快照。
+   *
+   * @param adapterName - 适配器名称
+   * @param connected - 目标状态
+   * @returns 状态是否真的发生了变化（`false` 表示原本就是这个状态）
+   *
+   * @remarks
+   * 聚合的 {@link RxDB.connected$} 在这里跟着算：`true` 只要有一个连上就发，`false` 只在
+   * 最后一个也掉线时才发。此前失败路径直接 `next(false)`，会把仍然连着的适配器一起报成断开。
+   */
+  #set_adapter_connected(adapterName: string, connected: boolean): boolean {
+    const changed =
+      connected ? !this.#connected_adapters.has(adapterName) : this.#connected_adapters.delete(adapterName);
+    if (connected) this.#connected_adapters.add(adapterName);
+    if (!changed) return false;
+    this.#adapter_connected_sub.next(new Set(this.#connected_adapters));
+    this.#connected_sub.next(this.#connected_adapters.size > 0);
+    return true;
+  }
+
+  /** 清空已连接集合并推送一次空快照（拆卸路径专用）。 */
+  #clear_adapter_connected(): void {
+    if (this.#connected_adapters.size === 0) return;
+    this.#connected_adapters.clear();
+    this.#adapter_connected_sub.next(new Set<string>());
+    this.#connected_sub.next(false);
   }
 
   /**
