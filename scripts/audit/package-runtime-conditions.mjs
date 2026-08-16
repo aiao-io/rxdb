@@ -36,24 +36,30 @@ const isNonExecutable = target => /\.[cm]?tsx?$/.test(target);
 /**
  * 找出一个 package.json 的 `exports` 里指向非可执行文件的运行时 condition。
  *
+ * 白名单按**整条 condition 路径**匹配，不是只看最内层那个 key：condition 可以嵌套，
+ * `{"@aiao/source": {"node": "./src/index.ts"}}` 里真正决定 Node 走不走进来的是外层的
+ * `@aiao/source`，内层的 `node` 只在外层命中之后才被考虑。只比对最内层 key 会把这类
+ * 写法（以及 `{"types": {"import": "./index.d.ts"}}`）全判成死链。
+ *
  * @param {object} packageJson 已解析的 package.json
- * @returns {string[]} 形如 `['@aiao/rxdb-foo:node -> ./src/index.ts']`，无违规时为空数组
+ * @returns {string[]} 形如 `['@aiao/rxdb-foo:. > node -> ./src/index.ts']`，无违规时为空数组
  */
 export function findNonExecutableConditions(packageJson) {
   const offenders = [];
 
-  const visit = (value, condition = '') => {
+  const visit = (value, conditionPath) => {
     if (typeof value === 'string') {
-      if (!BUILD_TIME_CONDITIONS.has(condition) && isNonExecutable(value)) {
-        offenders.push(`${packageJson.name}:${condition || 'export'} -> ${value}`);
+      const buildTime = conditionPath.some(segment => BUILD_TIME_CONDITIONS.has(segment));
+      if (!buildTime && isNonExecutable(value)) {
+        offenders.push(`${packageJson.name}:${conditionPath.join(' > ') || 'export'} -> ${value}`);
       }
       return;
     }
     if (!value || typeof value !== 'object') return;
-    for (const [key, child] of Object.entries(value)) visit(child, key);
+    for (const [key, child] of Object.entries(value)) visit(child, [...conditionPath, key]);
   };
 
-  visit(packageJson.exports);
+  visit(packageJson.exports, []);
   return offenders;
 }
 

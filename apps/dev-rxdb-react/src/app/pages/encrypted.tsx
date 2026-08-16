@@ -108,7 +108,9 @@ export default function EncryptedPage(): React.JSX.Element {
           <Lock className={`text-error size-6`} />
         : <LockOpen className={`text-success size-6`} />}
         <h1 className='text-2xl font-bold'>本地字段加密演示</h1>
-        <span className={`badge ${isLocked ? 'badge-error' : 'badge-success'}`}>{isLocked ? '已锁定' : '已解锁'}</span>
+        <span className={`badge ${isLocked ? 'badge-error' : 'badge-success'}`} data-testid='encryption-status'>
+          {isLocked ? '已锁定' : '已解锁'}
+        </span>
       </div>
 
       {/* Error */}
@@ -139,10 +141,16 @@ export default function EncryptedPage(): React.JSX.Element {
                 value={passphrase}
                 onChange={e => setPassphrase(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleUnlock()}
+                data-testid='encryption-passphrase'
               />
             </fieldset>
             <div className='card-actions'>
-              <button className='btn btn-primary' disabled={!passphrase.trim()} onClick={handleUnlock}>
+              <button
+                className='btn btn-primary'
+                disabled={!passphrase.trim()}
+                onClick={handleUnlock}
+                data-testid='encryption-unlock'
+              >
                 <LockOpen className='size-4' />
                 解锁
               </button>
@@ -160,7 +168,7 @@ export default function EncryptedPage(): React.JSX.Element {
               <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
               刷新
             </button>
-            <button className='btn btn-sm btn-error btn-outline' onClick={handleLock}>
+            <button className='btn btn-sm btn-error btn-outline' onClick={handleLock} data-testid='encryption-lock'>
               <Lock className='size-4' />
               锁定
             </button>
@@ -179,6 +187,7 @@ export default function EncryptedPage(): React.JSX.Element {
                     placeholder='Alice'
                     value={newName}
                     onChange={e => setNewName(e.target.value)}
+                    data-testid='encryption-name'
                   />
                 </fieldset>
                 <fieldset className='fieldset'>
@@ -189,6 +198,7 @@ export default function EncryptedPage(): React.JSX.Element {
                     placeholder='4242 4242 4242 4242'
                     value={newCard}
                     onChange={e => setNewCard(e.target.value)}
+                    data-testid='encryption-card'
                   />
                 </fieldset>
                 <fieldset className='fieldset'>
@@ -199,11 +209,17 @@ export default function EncryptedPage(): React.JSX.Element {
                     placeholder='sk_live_…'
                     value={newSecret}
                     onChange={e => setNewSecret(e.target.value)}
+                    data-testid='encryption-secret'
                   />
                 </fieldset>
               </div>
               <div className='card-actions'>
-                <button className='btn btn-primary btn-sm' disabled={!newName.trim()} onClick={handleCreateUser}>
+                <button
+                  className='btn btn-primary btn-sm'
+                  disabled={!newName.trim()}
+                  onClick={handleCreateUser}
+                  data-testid='encryption-save-user'
+                >
                   <Plus className='size-4' />
                   保存用户
                 </button>
@@ -229,12 +245,16 @@ export default function EncryptedPage(): React.JSX.Element {
                 </thead>
                 <tbody>
                   {users.map(user => (
-                    <tr key={user.id}>
+                    <tr key={user.id} data-testid='encryption-user-row'>
                       <td>{user.name}</td>
                       <td className='font-mono text-xs'>{user.creditCardInfo ?? '—'}</td>
                       <td className='font-mono text-xs'>{user.apiSecret ?? '—'}</td>
                       <td>
-                        <button className='btn btn-ghost btn-xs text-error' onClick={() => handleRemoveUser(user)}>
+                        <button
+                          className='btn btn-ghost btn-xs text-error'
+                          onClick={() => handleRemoveUser(user)}
+                          data-testid='encryption-delete-user'
+                        >
                           <Trash2 className='size-3' />
                         </button>
                       </td>

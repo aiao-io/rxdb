@@ -56,12 +56,16 @@ on:
         required: false
 
 # 显式声明最小权限：仓库默认值可能是宽松的 read/write，而这里跑的是 PR 代码。
-# `actions: read` 给 nx-set-shas 查上一次成功 run；`id-token: write` 给 Codecov OIDC。
+# `actions: read` 给 nx-set-shas 查上一次成功 run。
 # 没有任何 job 需要写仓库内容或评论 PR —— 别加回来。
+#
+# `id-token: write` **不在这里**：workflow 级的权限会发给每一个 job，
+# 而真正需要它的只有 coverage（Codecov OIDC）。其余十来个 job 全都在跑 PR 提交的
+# 代码（构建脚本、测试、e2e），任何一个被投毒就能签出一枚可换 Codecov 上传凭据的
+# OIDC token。它声明在 coverage job 自己的 permissions 里，见那边。
 permissions:
   actions: read
   contents: read
-  id-token: write
 
 env:
   CI: true
@@ -129,9 +133,15 @@ jobs:
           filter: tree:0
           fetch-depth: 0
 
-      - name: Fetch main
+      # 取 PR 真正的 base 分支，而不是写死 main：PR 也可能提给 release/* 之类的
+      # 长期分支，那时 `origin/main...HEAD` 会把 base 分支上的全部改动算进本 PR，
+      # need_benchmark / code_changed 双双失真（前者白跑基准，后者让 gate 误判）。
+      # 分支名经 env 传参：它是外部可选的输入，绝不直接插值进 shell。
+      - name: Fetch PR base branch
         if: ${{ inputs.is_pr }}
-        run: git fetch origin main:main
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: git fetch origin "$BASE_REF:refs/remotes/origin/$BASE_REF"
 
       - uses: ./.github/actions/setup-workspace
 
@@ -193,6 +203,10 @@ jobs:
 
       - name: Plan jobs
         id: plan
+        env:
+          # 只在 inputs.is_pr 为真的分支里用得到；非 PR 事件下它是空串，
+          # 那两处 diff 也不会执行 —— 不需要、也不该给它兜一个默认分支。
+          BASE_REF: ${{ github.base_ref }}
         run: |
           set -euo pipefail
 
@@ -275,7 +289,7 @@ jobs:
           # 省一次 pnpm install，也不占免费额度里的并发位。
           NEED_BENCHMARK=false
           if [ "${{ inputs.is_pr }}" = "true" ] && \
-             [ -n "$(git diff --name-only origin/main...HEAD -- 'packages/' 'benchmarks/')" ]; then
+             [ -n "$(git diff --name-only "origin/$BASE_REF...HEAD" -- 'packages/' 'benchmarks/')" ]; then
             NEED_BENCHMARK=true
           fi
 
@@ -284,7 +298,7 @@ jobs:
           # gate 拿这个和 has_tests 对撞，见那边的注释。
           CODE_CHANGED=false
           if [ "${{ inputs.is_pr }}" = "true" ] && \
-             [ -n "$(git diff --name-only origin/main...HEAD -- 'packages/' 'apps/' 'modules/')" ]; then
+             [ -n "$(git diff --name-only "origin/$BASE_REF...HEAD" -- 'packages/' 'apps/' 'modules/')" ]; then
             CODE_CHANGED=true
           fi
 
@@ -385,11 +399,17 @@ jobs:
       # 拆成 restore + save，而不是一个 actions/cache：save 只在 main 上做。
       # 见 .github/actions/nx-cache-restore 的注释 —— 分支上写的缓存别的 PR 看不见，
       # 纯粹是往 10GB 配额里塞垃圾，还会把真正共享的那几份挤出 LRU。
+      #
+      # key 用 github.sha 而不是 github.run_id：run_id 每次重跑都变，
+      # 同一个 commit 手动 re-run 几次就会各写一份完整副本，正是 rust job 那边
+      # 把仓库缓存推到 10GB 上限的同一个坑（见「Restore cargo cache」的注释）。
+      # 换成 sha 后，同 commit 的重跑 restore 精确命中、save 自动跳过；
+      # 跨 commit 仍由 restore-keys 前缀回退到上一轮的暖缓存。
       - name: Restore Nx cache
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: .nx/cache
-          key: nx-cache-${{ runner.os }}-${{ github.run_id }}
+          key: nx-cache-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
             nx-cache-${{ runner.os }}-
 
@@ -407,7 +427,7 @@ jobs:
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: .nx/cache
-          key: nx-cache-${{ runner.os }}-${{ github.run_id }}
+          key: nx-cache-${{ runner.os }}-${{ github.sha }}
 
   # ---------------------------------------------------------------------------
   # test lane：一条 lane = 一个 job，项目划分由 scripts/ci/plan-test-lanes.mjs
@@ -835,6 +855,13 @@ jobs:
     if: ${{ !cancelled() && needs.setup.result == 'success' && needs.setup.outputs.has_tests == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # 全流水线唯一需要 id-token 的 job：codecov-action 的 use_oidc: true。
+    # 这里重声明 permissions 会**整体覆盖** workflow 级那份，所以 actions/contents
+    # 必须一并列出，不能只写 id-token。
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:

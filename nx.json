@@ -73,8 +73,19 @@
     "build": { "cache": true, "dependsOn": ["^build"], "inputs": ["production", "^production"] },
     "lint": { "cache": true, "inputs": ["default", "^production"] },
     "test": { "cache": true, "dependsOn": ["^build"], "inputs": ["default", "^production"] },
-    "coverage": { "dependsOn": ["^build"] },
-    "test-browser": { "dependsOn": ["^build"] },
+    "coverage": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["default", "^production"],
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"]
+    },
+    "test-browser": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["default", "^production"],
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}", "{workspaceRoot}/coverage/{projectRoot}-browser"]
+    },
+    "//": "coverage-acceptance 各包显式 cache:false（自驱多段 vitest + 合并 blob，产物不止 coverage 目录），这里只补 dependsOn。",
     "coverage-acceptance": { "dependsOn": ["^build"] },
     "@nx/angular:ng-packagr-lite": { "cache": true, "dependsOn": ["^build"], "inputs": ["production", "^production"] },
     "@nx/angular:unit-test": { "cache": true, "inputs": ["default", "^production"] },

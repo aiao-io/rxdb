@@ -9,7 +9,7 @@ const pkg = exports => ({ name: '@aiao/demo', exports });
 test('运行时 condition 指向 .ts 时报错（装到用户项目里就是死链）', () => {
   const offenders = findNonExecutableConditions(pkg({ '.': { import: './src/index.ts' } }));
 
-  assert.deepEqual(offenders, ['@aiao/demo:import -> ./src/index.ts']);
+  assert.deepEqual(offenders, ['@aiao/demo:. > import -> ./src/index.ts']);
 });
 
 test('.tsx / .mts / .cts 同样不是可执行产物', () => {
@@ -56,13 +56,39 @@ test('@aiao/source 在子路径入口下同样豁免', () => {
   assert.deepEqual(findNonExecutableConditions(pkg(exports)), []);
 });
 
-test('豁免只认条件名本身，同一个包里的运行时条件照样被抓', () => {
+test('豁免不外溢到兄弟条件，同一个入口里的运行时条件照样被抓', () => {
   const exports = {
     '.': { '@aiao/source': './src/index.ts', default: './dist/index.js' },
     './broken': { '@aiao/source': './src/broken.ts', default: './src/broken.ts' }
   };
 
-  assert.deepEqual(findNonExecutableConditions(pkg(exports)), ['@aiao/demo:default -> ./src/broken.ts']);
+  assert.deepEqual(findNonExecutableConditions(pkg(exports)), ['@aiao/demo:./broken > default -> ./src/broken.ts']);
+});
+
+// 下面三条是这次修的漏报/误报：白名单原先只比对**最内层**那个 key，
+// condition 一旦嵌套（`@aiao/source` 里再按平台分叉、`types` 里再分 import/require），
+// 最内层就变成了 `node` / `import` 这些运行时条件名，白名单彻底失效。
+test('嵌套在 @aiao/source 里的平台条件同样豁免', () => {
+  const exports = {
+    '.': {
+      '@aiao/source': { node: './src/index.node.ts', default: './src/index.ts' },
+      default: './dist/index.js'
+    }
+  };
+
+  assert.deepEqual(findNonExecutableConditions(pkg(exports)), []);
+});
+
+test('types 下再分 import / require 也不报错（.d.ts 本来就以 .ts 结尾）', () => {
+  const exports = { '.': { types: { import: './dist/index.d.ts', require: './dist/index.d.cts' } } };
+
+  assert.deepEqual(findNonExecutableConditions(pkg(exports)), []);
+});
+
+test('嵌套在运行时条件里的 .ts 一样要被抓，且报告完整路径', () => {
+  const exports = { '.': { node: { import: './src/index.ts' } } };
+
+  assert.deepEqual(findNonExecutableConditions(pkg(exports)), ['@aiao/demo:. > node > import -> ./src/index.ts']);
 });
 
 test('白名单只含构建期条件（新增项必须先确认 Node 不会解析到它）', () => {

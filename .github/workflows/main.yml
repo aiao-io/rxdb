@@ -5,6 +5,8 @@ on:
     branches:
       - main
 
+# 与 pr.yml 同一份最小权限。id-token 只是给被调用 workflow 的**上限**：
+# ci-template.yml 里只有 coverage job 声明它（Codecov OIDC），其余 job 拿不到。
 permissions:
   actions: read
   contents: read
