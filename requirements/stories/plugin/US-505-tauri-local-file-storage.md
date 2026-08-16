@@ -226,7 +226,8 @@ webview 窗口语义因此不影响 AC#9，无需验证。
 ## References
 
 - [US-504 Electron 本地文件存储](./US-504-electron-local-file-storage.md) — 本故事的来源与共享接缝
-- [US-210 Tauri 连接应用作用域 SQLite 文件](../adapter/US-210-tauri-sqlite-local-database.md) — meta adapter 前置
+- [US-207 Electron 连接本地 SQLite 文件](../adapter/US-207-desktop-local-database.md) — 桌面本地 SQLite 的 Electron 半边；本故事不覆盖
+- [US-210 Tauri 连接应用作用域 SQLite 文件](../adapter/US-210-tauri-sqlite-local-database.md) — 桌面本地 SQLite 的 Tauri 半边；本故事的 meta adapter 前置
 - [US-502 Storage 插件](./US-502-storage-plugin.md) — 现有 OPFS 实现与 API 承诺
 - [Tauri FS Plugin](https://v2.tauri.app/plugin/file-system/)
 - [Tauri Capabilities](https://v2.tauri.app/security/capabilities/)

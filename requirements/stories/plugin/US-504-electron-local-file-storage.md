@@ -247,7 +247,8 @@ AC（#4 / #8 / #11）跟随本决策，不另订载体。
 ## References
 
 - [US-502 Storage 插件](./US-502-storage-plugin.md) — 现有 OPFS 实现与 API 承诺
-- [US-207 Electron 连接本地 SQLite 文件](../adapter/US-207-desktop-local-database.md) — host 契约、安全基线、`rxdb-data` 目录命名教训
+- [US-207 Electron 连接本地 SQLite 文件](../adapter/US-207-desktop-local-database.md) — 桌面本地 SQLite 的 Electron 半边；host 契约、安全基线、`rxdb-data` 目录命名教训
+- [US-210 Tauri 连接应用作用域 SQLite 文件](../adapter/US-210-tauri-sqlite-local-database.md) — 桌面本地 SQLite 的 Tauri 半边；本故事不覆盖
 - [US-505 Tauri 本地文件存储](./US-505-tauri-local-file-storage.md) — 复用本故事接缝的 Tauri 半边
 - [US-601 子路径入口纳入 API 表面基线](../tooling/US-601-subpath-api-surface-baseline.md) — AC#8 的登记流程
 - [Electron Security](https://www.electronjs.org/docs/latest/tutorial/security)
