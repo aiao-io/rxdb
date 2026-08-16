@@ -66,7 +66,10 @@
         "displayName": "状态",
         "type": "enum",
         "readonly": false,
-        "enumValues": ["draft", "published"]
+        "enumValues": [
+          "draft",
+          "published"
+        ]
       },
       {
         "field": "views",
