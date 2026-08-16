@@ -8,29 +8,29 @@
 
 其他地方（`status-overview.md`、各 epic 文件）都是它的派生视图，不允许独立维护。出现冲突时以 YAML 为准，并同步修复派生视图。
 
-### 父故事（共享契约文档）
+### 大故事用「交付阶段」，不用子故事文件
 
-个别 story 因 INVEST「Small」不成立而被拆分，原文件保留为**父故事**：只承载子故事共享的契约、设计决策与不变式，
-**不直接交付**。目前有四条：
+个别 story 因 INVEST「Small」不成立而体量偏大。这类 story **仍是一个文件、一条状态**，
+在正文里用 `## 交付阶段` 表把交付切成 A / B / C…，AC 表按阶段分段编号，实现文件表加「阶段」列。
+现有四条：[US-012](stories/core/US-012-field-semantic-metadata.md)、
+[US-015](stories/core/US-015-plugin-inject-dependency.md)、
+[US-306](stories/collaboration/US-306-working-tree-index.md)、
+[US-904](stories/future/US-904-devtools-native-storage-contract.md)。
 
-| 父故事                                                              | 子故事                  | 子故事文件 |
-| ------------------------------------------------------------------- | ----------------------- | ---------- |
-| [US-012](stories/core/US-012-field-semantic-metadata.md)            | US-012a/b/c             | ✅ 已落盘  |
-| [US-306](stories/collaboration/US-306-working-tree-index.md)        | US-306a/b/c             | ✅ 已落盘  |
-| [US-904](stories/future/US-904-devtools-native-storage-contract.md) | US-904a/b/c/d 与 US-905 | ✅ 已落盘  |
-| [US-015](stories/core/US-015-plugin-inject-dependency.md)           | US-015a / US-015b       | ❌ 未创建  |
+规则：
 
-父故事的 `status` 仍然参与计数（通常要等所有子故事 Done 才能置 Done）。若 feasibility 子故事以机器可读
-`decision: unsupported` 关闭，受它门禁的子故事与父故事转 `Blocked` 并记录替代故事；不受该运行时前提影响的
-共享子故事继续交付。`status-overview.md` 和 epic 列表用 `📄` 而非 `⬜` 标记父故事，并把子故事缩进列在其下，
-避免读者以为它是一条可以直接开工的交付项。
-拆分理由必须写进父故事 INVEST 清单的 `Small` 一项，说明拆分日期与承接的子故事编号。
+- **不创建 `US-XXXa` / `US-XXXb` 这类中间版本文件。**（2026-08-16 起；此前拆出的
+  US-012a/b/c、US-306a/b/c、US-904a/b/c/d 已全部合并回各自父文件。）一个编号一个文件，
+  外部引用因此永远指向同一个路径
+- 分阶段的理由写进 INVEST 清单的 `Small` 一项，说明为什么体量不成立、按什么顺序分批
+- 阶段有独立可验收的 AC 区段与前置；全部阶段关闭后才置 `Done`
+- 阶段可以有不同的完成度（例如 US-904 阶段 B 已交付、其余未开始），在「交付阶段」表的状态列体现
+- 若某阶段被机器可读的 feasibility 门禁（如 US-904 的 `decision: unsupported`）否决，
+  **只有受它门禁的阶段**转 `Blocked` 并记录替代故事，不受该前提影响的阶段继续交付；
+  story 整体 `status` 相应转 `Blocked` 并在「交付阶段」表下注明
 
-**拆分即落盘（硬规则）**：把一条 story 降级为父故事时，**必须在同一次改动里创建全部子故事文件**，
-哪怕只有 frontmatter + 一句「承接父故事的哪一段」。理由是拆分动作同时做了两件事——
-它把父故事从 Backlog 移出（不再可开工），却没有把等量的可交付项放回去。子文件缺席时，
-Epic 会呈现出「有故事在排队」的假象，而实际上没有任何一条可以开工。
-US-015 是这条规则被违反的**现存唯一实例**，在补齐之前它是 epic-008 的开工前置。
+**编号只在能独立交付时才新开。** 一段工作如果有自己的用户价值、自己的前置和自己的关闭条件
+（例如 US-905 相对 US-904），它就该占一个新编号；否则它是前一条 story 的一个阶段。
 
 ## 目录结构
 
@@ -91,7 +91,7 @@ inherited_acs:
 ## 命名规范
 
 - 用户故事：`US-XXX-description.md`
-- 拆分出的子故事：`US-XXXa-description.md` / `US-XXXb-…`，沿用父故事编号加小写字母后缀，不占用新编号段
+- **不使用** `US-XXXa` / `US-XXXb` 这类字母后缀文件；大故事在文件内分「交付阶段」，见上文
 - 史诗：`epic-XXX-name.md`
 
 ## 工作流

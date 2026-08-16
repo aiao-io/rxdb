@@ -10,22 +10,22 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 35   |
-| 🚧 In Progress | 4    |
+| ✅ Done        | 34   |
+| 🚧 In Progress | 5    |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 22   |
+| 📝 Backlog     | 12   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 61   |
+| **合计**       | 51   |
 
 三条口径，读表前必知：
 
 1. 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；合计等于 `stories/*/US-*.md` 的文件数，epic 文件不计入。
-2. Backlog 22 里有 **4 条 📄 父故事**（[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-306](stories/collaboration/US-306-working-tree-index.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)）是共享契约文档，不直接交付，须待子故事全部 Done 才随之关闭。**实际待开发切片 18 条。**
+2. 其中 **4 条是多阶段故事**（[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-306](stories/collaboration/US-306-working-tree-index.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)）：一个编号一个文件一条状态，正文用「交付阶段」表分批交付，**全部阶段关闭后才置 `Done`**。阶段不单独计数，见 [README](README.md#大故事用交付阶段不用子故事文件)。
 3. `🚫 Blocked = 0` 统计的是**故事 YAML 里显式写成 `status: Blocked`** 的数量，**不代表没有前置阻塞**——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。两者不要互相推断。
 
-图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 📄 父故事（不直接交付） · 🚫 Blocked
+图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🅰️ 多阶段故事 · 🚫 Blocked
 
-## 进行中（4 条）
+## 进行中（5 条）
 
 | Story                                                                                                         | 卡在哪                                                         |
 | ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
