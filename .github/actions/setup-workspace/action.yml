@@ -31,11 +31,11 @@ runs:
     # 一次上游账号失陷就能拿到所有 CI 的 secrets 和 id-token。尾注的 `# vX` 是
     # Dependabot 的约定 —— 它认这个注释，升级时 SHA 和注释一起改。
     - name: Install pnpm
-      uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
       with:
         run_install: false
 
-    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version-file: .nvmrc
         cache: 'pnpm'

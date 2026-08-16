@@ -128,7 +128,7 @@ jobs:
       code_changed: ${{ steps.plan.outputs.code_changed }}
       need_benchmark: ${{ steps.plan.outputs.need_benchmark }}
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           filter: tree:0
           fetch-depth: 0
@@ -366,7 +366,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
@@ -394,7 +394,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
@@ -411,7 +411,7 @@ jobs:
       # 换成 sha 后，同 commit 的重跑 restore 精确命中、save 自动跳过；
       # 跨 commit 仍由 restore-keys 前缀回退到上一轮的暖缓存。
       - name: Restore Nx cache
-        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .nx/cache
           key: nx-cache-${{ runner.os }}-${{ github.sha }}
@@ -429,7 +429,7 @@ jobs:
       # 「有 hash 记录但产物不全」的条目，表现成难查的偶发失败。
       - name: Save Nx cache
         if: ${{ success() && github.ref == 'refs/heads/main' }}
-        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .nx/cache
           key: nx-cache-${{ runner.os }}-${{ github.sha }}
@@ -452,7 +452,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.setup.outputs.test_matrix) }}
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
@@ -527,7 +527,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
@@ -567,7 +567,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
@@ -613,7 +613,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.setup.outputs.e2e_matrix) }}
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
@@ -704,7 +704,7 @@ jobs:
     # 冷跑要从零编译 tauri + rusqlite(bundled) 的依赖树，clippy 与 dev 两套产物各一遍。
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
@@ -739,7 +739,7 @@ jobs:
       # save 步骤会自动跳过（同 key 已存在）。
       - name: Restore cargo cache
         id: cargo-cache
-        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index
@@ -769,7 +769,7 @@ jobs:
       # 同 lockfile 的后续 run 依然是精确命中，不存在「只有自己能用」的问题。
       - name: Save cargo cache
         if: ${{ success() && steps.cargo-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index
@@ -793,7 +793,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
@@ -843,7 +843,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
@@ -868,11 +868,11 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           filter: tree:0
 
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
 
