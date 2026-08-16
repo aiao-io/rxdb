@@ -150,9 +150,7 @@ describe('AC#16～19 — 关系字段', () => {
     expect(names).toContain('author');
     expect(names).toContain('comments');
     expect(names).toContain('topics');
-    ['draftRevisionId', 'authorId', 'commentsId', 'topicsId'].forEach(name =>
-      expect(names).not.toContain(name)
-    );
+    ['draftRevisionId', 'authorId', 'commentsId', 'topicsId'].forEach(name => expect(names).not.toContain(name));
   });
 
   it('AC#16 — 1:1 / m:1 是单值，带 writeField 与 set-remove', () => {
@@ -494,11 +492,7 @@ describe('AC#23～24 — DTO 往返与解析器键策略', () => {
     const meta = viewOf(fieldOf(parsed, 'meta'));
 
     expect(Object.keys(meta['keyValueSchema'] as object)).toStrictEqual(['source', 'score']);
-    expect(Object.keys(fieldOf(SEMANTIC, 'state').options as object)).toStrictEqual([
-      'review',
-      'draft',
-      'published'
-    ]);
+    expect(Object.keys(fieldOf(SEMANTIC, 'state').options as object)).toStrictEqual(['review', 'draft', 'published']);
   });
 
   it('AC#24 — 未知版本显式失败', () => {
@@ -537,15 +531,35 @@ describe('AC#23～24 — DTO 往返与解析器键策略', () => {
       ['字段元素不是对象', mutate(ARTICLE, draft => looseSet(draft.fields, '0', 'x'))],
       ['source 不是合法字面量', mutate(ARTICLE, draft => looseSet(looseField(draft, 'title'), 'source', 'nope'))],
       ['format 不是对象', mutate(SEMANTIC, draft => looseSet(looseField(draft, 'body'), 'format', 'richText'))],
-      ['format 的字符串配置键给了数值', mutate(SEMANTIC, draft => looseSet(nested(looseField(draft, 'body'), 'format'), 'contentType', 1))],
+      [
+        'format 的字符串配置键给了数值',
+        mutate(SEMANTIC, draft => looseSet(nested(looseField(draft, 'body'), 'format'), 'contentType', 1))
+      ],
       ['enum 不是字符串数组', mutate(SEMANTIC, draft => looseSet(looseField(draft, 'state'), 'enum', [1]))],
       ['options 不是对象', mutate(SEMANTIC, draft => looseSet(looseField(draft, 'state'), 'options', []))],
-      ['options 展示项不是对象', mutate(SEMANTIC, draft => looseSet(nested(looseField(draft, 'state'), 'options'), 'draft', 'x'))],
+      [
+        'options 展示项不是对象',
+        mutate(SEMANTIC, draft => looseSet(nested(looseField(draft, 'state'), 'options'), 'draft', 'x'))
+      ],
       ['keyValueSchema 不是对象', mutate(ARTICLE, draft => looseSet(looseField(draft, 'meta'), 'keyValueSchema', []))],
-      ['keyValueSchema 条目不是对象', mutate(ARTICLE, draft => looseSet(nested(looseField(draft, 'meta'), 'keyValueSchema'), 'source', 'x'))],
-      ['keyValueSchema 条目的 type 非法', mutate(ARTICLE, draft => looseSet(nested(nested(looseField(draft, 'meta'), 'keyValueSchema'), 'source'), 'type', 'blob'))],
-      ['单值关系标成 multiple', mutate(ARTICLE, draft => looseSet(looseField(draft, 'author'), 'cardinality', 'multiple'))],
-      ['多值关系标成 single', mutate(ARTICLE, draft => looseSet(looseField(draft, 'comments'), 'cardinality', 'single'))]
+      [
+        'keyValueSchema 条目不是对象',
+        mutate(ARTICLE, draft => looseSet(nested(looseField(draft, 'meta'), 'keyValueSchema'), 'source', 'x'))
+      ],
+      [
+        'keyValueSchema 条目的 type 非法',
+        mutate(ARTICLE, draft =>
+          looseSet(nested(nested(looseField(draft, 'meta'), 'keyValueSchema'), 'source'), 'type', 'blob')
+        )
+      ],
+      [
+        '单值关系标成 multiple',
+        mutate(ARTICLE, draft => looseSet(looseField(draft, 'author'), 'cardinality', 'multiple'))
+      ],
+      [
+        '多值关系标成 single',
+        mutate(ARTICLE, draft => looseSet(looseField(draft, 'comments'), 'cardinality', 'single'))
+      ]
     ];
 
     cases.forEach(([label, input]) => expect(() => parseEntityFieldsDescriptor(input), label).toThrow(RxDBError));

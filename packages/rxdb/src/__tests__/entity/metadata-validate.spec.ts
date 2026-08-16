@@ -126,9 +126,9 @@ describe('validateEntityMetadata — AC#5 cardinalityConflict', () => {
   });
 
   it('multiSelect 用在既非 enum 也非 stringArray 的载体上仍是 formatTypeMismatch', () => {
-    expect(
-      rulesOf(withProperty({ name: 'tags', type: PropertyType.string, format: { kind: 'multiSelect' } }))
-    ).toEqual(['formatTypeMismatch']);
+    expect(rulesOf(withProperty({ name: 'tags', type: PropertyType.string, format: { kind: 'multiSelect' } }))).toEqual(
+      ['formatTypeMismatch']
+    );
   });
 });
 
@@ -148,17 +148,30 @@ describe('validateEntityMetadata — AC#6 invalidRange', () => {
 
   it('rating 端点可整除时通过', () => {
     expect(
-      rulesOf(withProperty({ name: 'score', type: PropertyType.number, format: { kind: 'rating', min: 0, max: 5, step: 0.5 } }))
+      rulesOf(
+        withProperty({
+          name: 'score',
+          type: PropertyType.number,
+          format: { kind: 'rating', min: 0, max: 5, step: 0.5 }
+        })
+      )
     ).toEqual([]);
   });
 
   it('同一实体多个字段的违规一次全部报出', () => {
     const metadata = makeMeta({
       propertyMap: new Map([
-        ['a', { name: 'a', type: PropertyType.number, format: { kind: 'currency' } } as unknown as EntityPropertyMetadata],
+        [
+          'a',
+          { name: 'a', type: PropertyType.number, format: { kind: 'currency' } } as unknown as EntityPropertyMetadata
+        ],
         [
           'b',
-          { name: 'b', type: PropertyType.number, format: { kind: 'number', min: 9, max: 1 } } as unknown as EntityPropertyMetadata
+          {
+            name: 'b',
+            type: PropertyType.number,
+            format: { kind: 'number', min: 9, max: 1 }
+          } as unknown as EntityPropertyMetadata
         ],
         ['c', { name: 'c', type: PropertyType.enum, enum: ['x', 'x'] } as unknown as EntityPropertyMetadata]
       ])
@@ -179,7 +192,9 @@ describe('validateEntityMetadata — AC#8/AC#9 enum 与 options', () => {
   });
 
   it('stringArray 声明 options 但缺 enum → missingEnum', () => {
-    expect(rulesOf(withProperty({ name: 'tags', type: PropertyType.stringArray, options: {} }))).toEqual(['missingEnum']);
+    expect(rulesOf(withProperty({ name: 'tags', type: PropertyType.stringArray, options: {} }))).toEqual([
+      'missingEnum'
+    ]);
   });
 
   it('EnumProperty 缺 enum → missingEnum', () => {
@@ -220,9 +235,9 @@ describe('validateEntityMetadata — AC#8/AC#9 enum 与 options', () => {
   });
 
   it('enum 非法时不再判定重复值与 options 子集', () => {
-    expect(
-      rulesOf(withProperty({ name: 'state', type: PropertyType.enum, enum: 'open', options: { x: {} } }))
-    ).toEqual(['invalidEnumConfig']);
+    expect(rulesOf(withProperty({ name: 'state', type: PropertyType.enum, enum: 'open', options: { x: {} } }))).toEqual(
+      ['invalidEnumConfig']
+    );
   });
 
   it('options 非法时不再判定键越界', () => {
@@ -321,9 +336,9 @@ describe('validateEntityMetadata — AC#11 畸形输入不崩溃', () => {
     ['options 是字符串', 'x'],
     ['options 展示项非对象', { a: 1 }]
   ])('%s → invalidOptionsConfig', (_label, options) => {
-    expect(
-      rulesOf(withProperty({ name: 'state', type: PropertyType.enum, enum: ['a'], options }))
-    ).toEqual(['invalidOptionsConfig']);
+    expect(rulesOf(withProperty({ name: 'state', type: PropertyType.enum, enum: ['a'], options }))).toEqual([
+      'invalidOptionsConfig'
+    ]);
   });
 
   it('计算属性同样参与校验', () => {
@@ -331,7 +346,11 @@ describe('validateEntityMetadata — AC#11 畸形输入不崩溃', () => {
       computedPropertyMap: new Map([
         [
           'total',
-          { name: 'total', type: PropertyType.number, format: { kind: 'currency' } } as unknown as EntityPropertyMetadata
+          {
+            name: 'total',
+            type: PropertyType.number,
+            format: { kind: 'currency' }
+          } as unknown as EntityPropertyMetadata
         ]
       ])
     });

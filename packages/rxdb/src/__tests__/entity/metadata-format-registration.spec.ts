@@ -14,8 +14,8 @@ import {
 } from '../../entity/metadata-options.interface.js';
 import { transitionMetadata } from '../../entity/metadata-transition.js';
 import type { IRxDBAdapter } from '../../rxdb-adapter.js';
-import { ENTITY_MANAGER } from '../../rxdb.private.js';
 import { RxDB } from '../../RxDB.js';
+import { ENTITY_MANAGER } from '../../rxdb.private.js';
 import { RxDBError } from '../../RxDBError.js';
 
 const stringProp = (name: string, extra: Partial<StringProperty> = {}): StringProperty =>

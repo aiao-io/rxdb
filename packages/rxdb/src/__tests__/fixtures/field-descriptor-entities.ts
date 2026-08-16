@@ -11,11 +11,7 @@
 import { ENTITY_BASE_METADATA_OPTIONS } from '../../entity/entity-base.js';
 import type { EntityMetadataResolver } from '../../entity/entity-field.utils.js';
 import type { EntityType } from '../../entity/entity.interface.js';
-import {
-  type EntityMetadataOptions,
-  PropertyType,
-  RelationKind
-} from '../../entity/metadata-options.interface.js';
+import { type EntityMetadataOptions, PropertyType, RelationKind } from '../../entity/metadata-options.interface.js';
 import { transitionMetadata } from '../../entity/metadata-transition.js';
 import type { EntityMetadata } from '../../entity/metadata.interface.js';
 
@@ -149,7 +145,9 @@ const relationHost = (name: string, mappedEntity: string): EntityMetadata =>
     namespace: 'public',
     properties: [{ name: 'id', type: PropertyType.uuid, displayName: 'ID', primary: true, readonly: true }],
     computedProperties: [],
-    relations: [{ name: 'ref', kind: RelationKind.MANY_TO_ONE, displayName: '引用', mappedEntity, mappedProperty: 'hosts' }],
+    relations: [
+      { name: 'ref', kind: RelationKind.MANY_TO_ONE, displayName: '引用', mappedEntity, mappedProperty: 'hosts' }
+    ],
     indexes: []
   } as unknown as EntityMetadataOptions);
 
@@ -221,7 +219,12 @@ export const FLAG_MATRIX_METADATA: EntityMetadata = transitionMetadata({
     { name: 'blob', type: PropertyType.binary, displayName: '二进制' },
     { name: 'raw', type: PropertyType.json, displayName: '原始' },
     // 嵌套属性刻意不声明 displayName：DTO 里对应条目不该出现 label 键
-    { name: 'kv', type: PropertyType.keyValue, displayName: '键值', properties: [{ name: 'bare', type: PropertyType.string }] }
+    {
+      name: 'kv',
+      type: PropertyType.keyValue,
+      displayName: '键值',
+      properties: [{ name: 'bare', type: PropertyType.string }]
+    }
   ],
   computedProperties: [{ name: 'derived', type: PropertyType.string, displayName: '派生' }],
   relations: [
