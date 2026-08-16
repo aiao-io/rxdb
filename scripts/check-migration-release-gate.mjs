@@ -30,7 +30,7 @@ const SEMVER_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.
 
 /**
  * 发布种类。`normal` 是普通发布：与 `bridge` 一样禁止 schema/codec 升级，
- * 但**不进入 bridge 链**——它不发布 writer lease 协议，不能被后续 migration
+ * 但**不进入 bridge 链**——它不被声明为迁移锚点，不能被后续 migration
  * 引用为 `bridge.tag`。缺了 `normal` 时普通 patch 只能自称 `bridge`，
  * 「桥接版本」语义会被稀释到无法判断 `bridge.tag` 该指向哪一次发布。
  */
@@ -137,7 +137,7 @@ export const validateManifest = (manifest, options = {}) => {
       options.bridgeTagSupportsProtocol &&
       !options.bridgeTagSupportsProtocol(bridge.tag)
     ) {
-      errors.push(`bridge.tag ${bridge.tag} does not contain the writer lease protocol`);
+      errors.push(`bridge.tag ${bridge.tag} does not contain the system migration surface`);
     }
   } else if (release.kind === 'normal' && (bridge.tag !== null || bridge.version !== null)) {
     errors.push('normal releases must leave bridge.tag and bridge.version null');
@@ -194,7 +194,6 @@ const gitTagSupportsProtocol = tag => {
   const requiredFiles = [
     'packages/rxdb/src/RxDB.ts',
     'packages/rxdb/src/rxdb-adapter.ts',
-    'packages/rxdb/src/system/writer-lease.ts',
     'packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts',
     'packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts'
   ];

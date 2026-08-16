@@ -438,7 +438,7 @@ export class RxDB {
         if (existed) {
           // 已存在表结构，执行升级流程
           await localAdapter.migrateSystemSchema?.();
-          await localAdapter.startWriterLease?.();
+          localAdapter.completeBootstrap?.();
           await this.#runMigrations(localAdapter);
           await this.#ensureEntityTables(localAdapter);
         } else {
@@ -448,7 +448,7 @@ export class RxDB {
           branch.activated = true;
           await localAdapter.createTables(this.#config.entities, [branch, ...this.#createMigrationWatermarks()]);
           await localAdapter.migrateSystemSchema?.();
-          await localAdapter.startWriterLease?.();
+          localAdapter.completeBootstrap?.();
         }
         await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
       }

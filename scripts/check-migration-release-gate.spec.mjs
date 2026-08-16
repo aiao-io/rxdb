@@ -85,8 +85,8 @@ test('合法的 normal 清单没有错误', () => {
   assert.deepEqual(validateManifest(normalManifest()), []);
 });
 
-// normal 是为了让普通 patch 发布不必自称 bridge：bridge 的语义是「发布了 writer lease
-// 协议、可被后续 migration 引用为 bridge.tag」，普通发布不该混进这条链。
+// normal 是为了让普通 patch 发布不必自称 bridge：bridge 的语义是「被声明为迁移锚点、
+// 可被后续 migration 引用为 bridge.tag」，普通发布不该混进这条链。
 test('normal 发布不得声明系统 schema 或 change codec 升级', () => {
   for (const field of ['systemSchemaUpgrade', 'changeCodecUpgrade']) {
     const manifest = normalManifest();
@@ -228,11 +228,11 @@ test('bridge.tag 必须与 bridge.version 对应', () => {
   assert.ok(validateManifest(manifest, passingHooks).includes('bridge.tag must match bridge.version'));
 });
 
-test('bridge.tag 必须存在、是祖先提交且包含 writer lease 协议', () => {
+test('bridge.tag 必须存在、是祖先提交且包含系统迁移面', () => {
   const cases = [
     ['bridgeTagExists', 'bridge.tag v0.0.24 does not exist in the repository'],
     ['bridgeTagIsAncestor', 'bridge.tag v0.0.24 is not an ancestor of the release commit'],
-    ['bridgeTagSupportsProtocol', 'bridge.tag v0.0.24 does not contain the writer lease protocol']
+    ['bridgeTagSupportsProtocol', 'bridge.tag v0.0.24 does not contain the system migration surface']
   ];
 
   for (const [hook, expected] of cases) {

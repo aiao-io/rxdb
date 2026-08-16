@@ -15,7 +15,6 @@ import {
   menuIntegrationSuite,
   querySqlSuite,
   relationIntegrationSuite,
-  rowsAffectedConformanceSuite,
   rxdbAdapterSuite,
   sqliteClientBatchTimeoutSuite,
   sqliteClientSuite,
@@ -35,7 +34,6 @@ bigintBinaryEntitySuite(sqliteaiFactory);
 rxdbAdapterSuite(sqliteaiFactory);
 sqliteRepositorySuite(sqliteaiFactory);
 systemSchemaMigrationSuite(sqliteaiFactory);
-rowsAffectedConformanceSuite(sqliteaiFactory);
 sqliteClientSuite(sqliteaiFactory);
 sqliteClientBatchTimeoutSuite(sqliteaiFactory);
 createSqliteClientSuite(sqliteaiFactory);

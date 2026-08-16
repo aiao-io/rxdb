@@ -18,8 +18,7 @@ owner: jimmy
 - [x] 公共 ID、查询规则、关系和生成客户端完整支持新类型
 - [x] SQLite family 与 PGlite CRUD、索引、查询和关系行为一致
 - [x] patch / inversePatch、undo / redo、branch 与跨 Tab 无损
-- [x] 旧 change 数据通过原子、可重试的内建迁移升级
-- [ ] 迁移通过跨 realm/进程 writer lease 与 fencing 可靠排除旧 writer
+- [x] 旧 change 数据通过原子、可重试的内建迁移升级，并由后端排他锁排除活跃写事务
 - [x] 加密与 DevTools 不退化、不泄露、不放宽既有限制
 - [x] Supabase 对实际绑定远端的新类型实体 fail-fast
 - [ ] 字段元数据区分底层值类型、业务格式、单值/多值和字段来源，并提供版本化前端通信 DTO
@@ -41,8 +40,7 @@ local-only 新类型实体可以与其他 Supabase 实体共存。任何含 bigi
 1. US-011 建立类型、ID、查询和生成器契约
 2. US-206 落地五个本地 adapter 的持久化、查询和关系
 3. US-303 在前两者上实现 change codec、系统迁移和本地协作
-4. US-304 在 US-303 基础上发布 writer lease、drain barrier 和 fencing 协议
-5. US-804 与 US-903 分别接入加密和 DevTools，可在 US-303 后并行完成
+4. US-804 与 US-903 分别接入加密和 DevTools，可在 US-303 后并行完成
 
 字段语义（US-012）是独立于 bigint/binary 的第二条轨道，内部依赖顺序为 **阶段 A → 阶段 B → 阶段 C**：
 阶段 B 的 DTO 需要阶段 A 已冻结的 `FieldFormat` 判别联合，阶段 C 的值校验与生成器透传需要阶段 B 的 DTO 形状。
@@ -52,14 +50,9 @@ local-only 新类型实体可以与其他 Supabase 实体共存。任何含 bigi
 
 以下门禁只覆盖 bigint/binary 发布轨道。六个相关 story 分别跟踪、按依赖顺序实施并单独验收；US-012 不新增物理 PropertyType，不扩大 bigint/binary 的发布门禁。发布检查必须同时满足：
 
-1. US-011 / US-206 / US-303 / US-304 / US-804 / US-903 全部 Done
-
-   > ⏸️ **US-304 已于 2026-08-16 暂缓至 1.0.0**，本门禁因此暂时无法全部满足。
-   > 迁移路径尚未投入使用（`RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 均未抬升），
-   > 门禁条款本身不放宽——排 1.0.0 时先关闭 US-304 再重跑本表。
-   > 详见 [US-304 暂缓说明](../stories/collaboration/US-304-writer-lease-migration-fencing.md)。
+1. US-011 / US-206 / US-303 / US-804 / US-903 全部 Done
 2. SQLite 四个具体 adapter 与 PGlite 的共享 gate 全绿
-3. 旧 SQLite/PGlite 数据库升级、lease drain、stale writer fencing、失败回滚和重试 fixture 全绿
+3. 旧 SQLite/PGlite 数据库升级、迁移锁、失败回滚和重试 fixture 全绿
 4. public type compatibility、client generator 编译 fixture 与 API surface baseline 全绿
 5. encrypted 与 DevTools 回归 gate 全绿
 6. 公开文档说明类型值域、binary 可变性、adapter 矩阵、单向迁移和 Supabase 限制
@@ -77,7 +70,6 @@ local-only 新类型实体可以与其他 Supabase 实体共存。任何含 bigi
   - 阶段 C 字段值校验、生成器透传与三框架契约
 - [US-206 本地适配器持久化与查询 bigint/binary](../stories/adapter/US-206-bigint-binary-adapter.md) (High)
 - [US-303 bigint/binary change codec 与系统迁移](../stories/collaboration/US-303-bigint-binary-change-codec.md) (High)
-- [US-304 跨 realm writer lease 与迁移 fencing](../stories/collaboration/US-304-writer-lease-migration-fencing.md) (High)
 - [US-804 加密字段支持 bigint/binary](../stories/future/US-804-bigint-binary-encryption.md) (High)
 - [US-903 DevTools 展示 bigint/binary](../stories/future/US-903-bigint-binary-devtools.md) (Medium)
 

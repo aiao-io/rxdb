@@ -68,7 +68,6 @@ export * from './system/migration.js';
 export * from './system/sync.js';
 export * from './system/system.interface.js';
 export * from './system/types.js';
-export * from './system/writer-lease.js';
 export * from './transaction/transaction-executor.interface.js';
 // 只转类型不转 `checkRepositoryUpdates` 函数本身 ——
 // 它是 `VersionManager.checkRepositoryUpdates()` 的内部实现，不进公开 API。

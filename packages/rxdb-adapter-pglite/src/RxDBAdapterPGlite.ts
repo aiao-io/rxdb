@@ -10,32 +10,21 @@ import type {
   SwitchVersionActions
 } from '@aiao/rxdb';
 import {
-  assertRxDBUpgradeClaimable,
   assertSupportedRxDBSystemVersions,
-  createRxDBActiveWriterLeaseError,
   getEntityMetadata,
   getEntityStatus,
   getRxDBSystemVersionState,
   isCurrentRxDBSystemVersion,
-  readRxDBWriterLease,
-  resolveRxDBWriterEpoch,
   RxDB,
   RXDB_CHANGE_CODEC_WATERMARK,
   RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
   RXDB_SYSTEM_SCHEMA_WATERMARK,
   RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
-  RXDB_UPGRADE_GUARD_TABLE_NAME,
-  RXDB_UPGRADE_OWNER_TTL_MS,
-  RXDB_WRITER_HEARTBEAT_INTERVAL_MS,
-  RXDB_WRITER_LEASE_TABLE_NAME,
-  RXDB_WRITER_LEASE_TTL_MS,
-  RXDB_WRITER_PROTOCOL_VERSION,
   RxDBAdapterLocalBase,
   RxDBBranch,
   RxDBChange,
   RxDBMigration,
   RxDBSystemMigrationLockError,
-  RxDBWriterLeaseError,
   TransactionFun
 } from '@aiao/rxdb';
 import {
@@ -46,7 +35,7 @@ import {
   validateEncryptedPropertyMetadata
 } from '@aiao/rxdb-adapter-encrypted';
 import { AsyncQueueExecutor } from '@aiao/utils';
-import type { QueryOptions, Results, Transaction } from '@electric-sql/pglite';
+import type { QueryOptions, Results } from '@electric-sql/pglite';
 import { defer, from, map, Observable, of, Subject } from 'rxjs';
 import generate_entity_deletes_sql from './entity/deletes_sql.js';
 import generate_entity_inserts_sql, { generate_entity_upserts_sql } from './entity/inserts_sql.js';
@@ -83,9 +72,16 @@ import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { switch_branch } from './version/switch_branch.js';
 import rxdb_adapter_switch_transaction_id from './version/switch_transaction_id.js';
 
-type HeartbeatTimer = ReturnType<typeof setTimeout> & { unref?: () => void };
-type WriterLeaseState = 'bootstrap' | 'starting' | 'active' | 'fenced' | 'closing' | 'closed';
-type SystemMigrationOutcome = 'current' | 'migrated' | 'active-writer' | 'storage-peer';
+/**
+ * 适配器生命周期状态。
+ *
+ * @remarks
+ * `bootstrap` 是**引导窗**：`RxDB.connect()` 自身的 promise 尚未 settle，此窗内的
+ * `query()` / `rawQuery()` / `createTables()` 必须跳过 `ready()` 就绪门 —— 等它就是等自己。
+ * `RxDB.connect()` 建表完成后调 {@link RxDBAdapterPGlite.completeBootstrap} 翻到 `ready`。
+ */
+type AdapterLifecycleState = 'bootstrap' | 'ready' | 'closing' | 'closed';
+type SystemMigrationOutcome = 'current' | 'migrated' | 'storage-peer';
 const CHANGE_PIPELINE_TIMEOUT_MS = 2_000;
 
 export interface RxDBChangePipelineTimeoutDiagnostics {
@@ -109,15 +105,6 @@ export class RxDBChangePipelineTimeoutError extends RxdbAdapterPGliteError {
     this.diagnostics = diagnostics;
     Object.setPrototypeOf(this, RxDBChangePipelineTimeoutError.prototype);
   }
-}
-
-interface UpgradeGuardRow {
-  epoch: number;
-  state: string;
-  ownerId: string | null;
-  ownerExpiresAt: Date | null;
-  minProtocol: number;
-  ownerActive: boolean;
 }
 
 /**
@@ -172,12 +159,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
 
   /** NOTIFY 基础设施就绪标志，避免重复执行重量级 DDL */
   #notifyInfrastructureReady = false;
-  readonly #writer_id = crypto.randomUUID();
-  readonly #upgrade_owner_id = crypto.randomUUID();
-  #writer_epoch?: number;
-  #writer_lease_state: WriterLeaseState = 'bootstrap';
-  #writer_lease_start?: Promise<void>;
-  #writer_heartbeat?: HeartbeatTimer;
+  #lifecycle_state: AdapterLifecycleState = 'bootstrap';
 
   /** 加密 keyring（仅当至少一个 entity 声明加密列时初始化） */
   #keyring: Keyring | null = null;
@@ -466,7 +448,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    * @returns 适配器实例
    */
   public async connect(): Promise<IRxDBAdapter> {
-    if (this.#writer_lease_state === 'closed') this.#writer_lease_state = 'bootstrap';
+    if (this.#lifecycle_state === 'closed') this.#lifecycle_state = 'bootstrap';
     this.#initEncryption();
     const client = await this.#getClient();
 
@@ -487,27 +469,8 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     return this as IRxDBAdapter;
   }
 
-  override async startWriterLease(): Promise<void> {
-    if (this.#writer_lease_state === 'active') return;
-    if (this.#writer_lease_start) return this.#writer_lease_start;
-    if (this.#writer_lease_state !== 'bootstrap') this.#assertWriterLeaseWritable();
-
-    this.#writer_lease_state = 'starting';
-    // 水位线是 RxDB.connect() 引导链路的一环，必须绕开就绪门（门等的正是那个 connect()）
-    this.#writer_lease_start = this.bootstrapTransaction(async () => undefined, false)
-      .then(() => {
-        this.#writer_lease_state = 'active';
-        this.#scheduleWriterHeartbeat();
-      })
-      .catch(error => {
-        this.#writer_lease_state = 'fenced';
-        this.#writer_epoch = undefined;
-        throw error;
-      })
-      .finally(() => {
-        this.#writer_lease_start = undefined;
-      });
-    return this.#writer_lease_start;
+  override completeBootstrap(): void {
+    if (this.#lifecycle_state === 'bootstrap') this.#lifecycle_state = 'ready';
   }
 
   /**
@@ -517,30 +480,22 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    */
   async disconnect(): Promise<void> {
     const client = this.#cached_client ?? (await this.#client_promise?.catch(() => undefined));
-    const previousWriterLeaseState = this.#writer_lease_state;
-    this.#writer_lease_state = 'closing';
+    this.#lifecycle_state = 'closing';
 
     try {
       if (client) {
+        this.#detachClientListeners(client);
         try {
-          await this.#stopWriterLease(
-            client,
-            previousWriterLeaseState !== 'bootstrap' && previousWriterLeaseState !== 'closed'
-          );
+          await this.#drainPendingChangeHandlers();
         } finally {
-          this.#detachClientListeners(client);
-          try {
-            await this.#drainPendingChangeHandlers();
-          } finally {
-            await client.disconnect();
-          }
+          await client.disconnect();
         }
       }
     } finally {
       this.#cached_client = undefined;
       this.#client_promise = undefined;
       this.#notifyInfrastructureReady = false;
-      this.#writer_lease_state = 'closed';
+      this.#lifecycle_state = 'closed';
       this.#changeErrors.complete();
     }
   }
@@ -747,16 +702,6 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       return true;
     };
 
-    if (this.#writer_lease_state === 'bootstrap') {
-      return this.#queue.addTask(() =>
-        this.#run_transaction(async executor => {
-          const execute = (sql: string, params?: unknown[]): Promise<unknown> => executor.query(sql, params);
-          await run(execute);
-          await this.#ensureWriterProtocol(execute);
-          return true;
-        }, false)
-      );
-    }
     // 建表也在引导链路上（RxDB.#ensureEntityTables 补建缺失的实体表），同样不能等就绪门；
     // 何况「表就绪」正是本方法要建立的前提，让它反过来等就绪是循环依赖。
     return this.bootstrapTransaction(
@@ -784,7 +729,6 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     try {
       await this.#queue.addTask(async () => {
         const outcome = await client.transaction<SystemMigrationOutcome>(async tx => {
-          await this.#assertWriterProtocolTables(tx);
           const tableResult = await tx.query<{ table_schema: string; table_name: string }>(
             `SELECT table_schema, table_name
              FROM information_schema.tables
@@ -819,50 +763,6 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
           assertSupportedRxDBSystemVersions(state);
           if (isCurrentRxDBSystemVersion(state)) return 'current';
 
-          const guardResult = await tx.query<UpgradeGuardRow>(
-            `SELECT "epoch", "state", "ownerId", "ownerExpiresAt", "minProtocol",
-                    "ownerExpiresAt" IS NOT NULL AND "ownerExpiresAt" > clock_timestamp() AS "ownerActive"
-             FROM "rxdb"."${RXDB_UPGRADE_GUARD_TABLE_NAME}"
-             WHERE "databaseId" = $1::text
-             FOR UPDATE`,
-            [this.rxdb.config.dbName]
-          );
-          const guard = guardResult.rows[0];
-          const epoch = assertRxDBUpgradeClaimable(guard, this.#upgrade_owner_id, RXDB_WRITER_PROTOCOL_VERSION);
-          await tx.query(
-            `UPDATE "rxdb"."${RXDB_UPGRADE_GUARD_TABLE_NAME}"
-             SET "state" = 'draining', "ownerId" = $2::text,
-                 "ownerExpiresAt" = clock_timestamp() + make_interval(secs => $3::double precision)
-             WHERE "databaseId" = $1::text`,
-            [this.rxdb.config.dbName, this.#upgrade_owner_id, RXDB_UPGRADE_OWNER_TTL_MS / 1000]
-          );
-          const leaseResult = await tx.query<{
-            writerId: string;
-            protocolVersion: number;
-            epoch: number;
-            validTtl: boolean;
-            active: boolean;
-          }>(
-            `SELECT "writerId", "protocolVersion", "epoch",
-                    "lastSeenAt" IS NOT NULL
-                      AND "expiresAt" IS NOT NULL
-                      AND "lastSeenAt" <= clock_timestamp() AS "validTtl",
-                    "expiresAt" > clock_timestamp() AS "active"
-             FROM "rxdb"."${RXDB_WRITER_LEASE_TABLE_NAME}"
-             WHERE "databaseId" = $1::text`,
-            [this.rxdb.config.dbName]
-          );
-          let hasActiveWriterLease = false;
-          for (const row of leaseResult.rows) {
-            const lease = readRxDBWriterLease(row, guard, RXDB_WRITER_PROTOCOL_VERSION);
-            if (lease.active && lease.writerId !== this.#writer_id) hasActiveWriterLease = true;
-          }
-          await tx.query(
-            `DELETE FROM "rxdb"."${RXDB_WRITER_LEASE_TABLE_NAME}"
-             WHERE "databaseId" = $1::text AND "expiresAt" <= clock_timestamp()`,
-            [this.rxdb.config.dbName]
-          );
-          if (hasActiveWriterLease) return 'active-writer';
           if (client.hasStoragePeer?.() === true) return 'storage-peer';
 
           try {
@@ -871,18 +771,6 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
             );
           } catch (cause) {
             throw new RxDBSystemMigrationLockError(cause);
-          }
-
-          const migratingGuard = await tx.query<{ epoch: number }>(
-            `UPDATE "rxdb"."${RXDB_UPGRADE_GUARD_TABLE_NAME}"
-             SET "state" = 'migrating', "epoch" = "epoch" + 1,
-                 "ownerExpiresAt" = clock_timestamp() + make_interval(secs => $3::double precision)
-             WHERE "databaseId" = $1::text AND "ownerId" = $2::text AND "state" = 'draining'
-             RETURNING "epoch"`,
-            [this.rxdb.config.dbName, this.#upgrade_owner_id, RXDB_UPGRADE_OWNER_TTL_MS / 1000]
-          );
-          if (migratingGuard.rows[0]?.epoch !== epoch + 1) {
-            throw new RxdbAdapterPGliteError('RxDB upgrade guard ownership changed before migration.');
           }
 
           const branchMetadata = getEntityMetadata(RxDBBranch);
@@ -955,23 +843,8 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
               [watermark]
             );
           }
-          await tx.query(`DELETE FROM "rxdb"."${RXDB_WRITER_LEASE_TABLE_NAME}" WHERE "databaseId" = $1::text`, [
-            this.rxdb.config.dbName
-          ]);
-          const openedGuard = await tx.query<{ epoch: number }>(
-            `UPDATE "rxdb"."${RXDB_UPGRADE_GUARD_TABLE_NAME}"
-             SET "state" = 'open', "ownerId" = NULL, "ownerExpiresAt" = NULL,
-                 "minProtocol" = $3::integer
-             WHERE "databaseId" = $1::text AND "ownerId" = $2::text AND "state" = 'migrating'
-             RETURNING "epoch"`,
-            [this.rxdb.config.dbName, this.#upgrade_owner_id, RXDB_WRITER_PROTOCOL_VERSION]
-          );
-          if (openedGuard.rows[0]?.epoch !== epoch + 1) {
-            throw new RxdbAdapterPGliteError('RxDB upgrade guard ownership changed during migration.');
-          }
           return 'migrated';
         });
-        if (outcome === 'active-writer') throw createRxDBActiveWriterLeaseError();
         if (outcome === 'storage-peer') {
           throw new RxDBSystemMigrationLockError(new Error('Another PGlite client owns the same persistent storage.'));
         }
@@ -1057,7 +930,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     transactionFun: T,
     transactionLog: boolean = true
   ): Promise<Awaited<ReturnType<T>>> {
-    this.#assertWriterLeaseWritable();
+    this.#assertWritable();
     await this.ready(); // 与 query() 同口径：就绪等待必须在入队之前
     return this.#queue.addTask(() => this.#run_transaction(transactionFun, transactionLog));
   }
@@ -1079,7 +952,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     transactionFun: T,
     transactionLog: boolean = true
   ): Promise<Awaited<ReturnType<T>>> {
-    this.#assertWriterLeaseWritable();
+    this.#assertWritable();
     return this.#queue.addTask(() => this.#run_transaction(transactionFun, transactionLog));
   }
 
@@ -1117,7 +990,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    * @returns 查询结果
    */
   public query<T = Record<string, unknown>>(sql: string, bindings?: unknown[]): Promise<Results<T>> {
-    if (this.#writer_lease_state !== 'bootstrap') return this.writeQuery<T>(sql, bindings);
+    if (this.#lifecycle_state !== 'bootstrap') return this.writeQuery<T>(sql, bindings);
     // 否则加入队列，保证并发调用的执行顺序。
     // 就绪等待在**入队之前**完成：留在队列任务里会占着唯一槽位等一个只能由队列后方任务
     // 完成的 promise（首装死锁）。代价是「调用顺序」变成「就绪顺序」——已就绪时两者一致。
@@ -1217,7 +1090,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     transactionFun: T,
     transactionLog: boolean
   ): Promise<Awaited<ReturnType<T>>> {
-    this.#assertWriterLeaseWritable();
+    this.#assertWritable();
     // 就绪等待已上移到 transaction() 的入队之前，不能留在临界区内（见 ready()）
     const client = await this.#getClient();
     const transactionId = transactionLog ? crypto.randomUUID() : undefined;
@@ -1229,14 +1102,6 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
 
         // 延迟外键约束检查到事务提交时
         await tx.query('SET CONSTRAINTS ALL DEFERRED');
-        if (this.#writer_lease_state === 'starting' || this.#writer_lease_state === 'active') {
-          try {
-            await this.#renewWriterLease(tx);
-          } catch (error) {
-            this.#handleWriterLeaseError(error);
-            throw error;
-          }
-        }
 
         if (transactionLog && transactionId) {
           const statement = rxdb_adapter_switch_transaction_id(transactionId);
@@ -1287,131 +1152,9 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     });
   }
 
-  async #ensureWriterProtocol(execute: (sql: string, params?: unknown[]) => Promise<unknown>): Promise<void> {
-    await execute(`CREATE SCHEMA IF NOT EXISTS "rxdb"`);
-    await execute(`
-      CREATE TABLE IF NOT EXISTS "rxdb"."${RXDB_UPGRADE_GUARD_TABLE_NAME}" (
-        "databaseId" text PRIMARY KEY,
-        "epoch" integer NOT NULL,
-        "state" text NOT NULL,
-        "ownerId" text,
-        "ownerExpiresAt" timestamptz,
-        "minProtocol" integer NOT NULL
-      )
-    `);
-    await execute(`
-      CREATE TABLE IF NOT EXISTS "rxdb"."${RXDB_WRITER_LEASE_TABLE_NAME}" (
-        "databaseId" text NOT NULL,
-        "writerId" text NOT NULL,
-        "protocolVersion" integer NOT NULL,
-        "epoch" integer NOT NULL,
-        "lastSeenAt" timestamptz NOT NULL,
-        "expiresAt" timestamptz NOT NULL,
-        PRIMARY KEY ("databaseId", "writerId")
-      )
-    `);
-    await execute(
-      `CREATE INDEX IF NOT EXISTS "rxdb_writer_lease_expires_at"
-       ON "rxdb"."${RXDB_WRITER_LEASE_TABLE_NAME}" ("databaseId", "expiresAt")`
-    );
-    await execute(
-      `INSERT INTO "rxdb"."${RXDB_UPGRADE_GUARD_TABLE_NAME}"
-       ("databaseId", "epoch", "state", "ownerId", "ownerExpiresAt", "minProtocol")
-       VALUES ($1::text, 1, 'open', NULL, NULL, $2::integer)
-       ON CONFLICT ("databaseId") DO NOTHING`,
-      [this.rxdb.config.dbName, RXDB_WRITER_PROTOCOL_VERSION]
-    );
-  }
-
-  async #assertWriterProtocolTables(tx: Transaction): Promise<void> {
-    const result = await tx.query<{ table_name: string }>(
-      `SELECT table_name
-       FROM information_schema.tables
-       WHERE table_schema = 'rxdb' AND table_name IN ($1::text, $2::text)`,
-      [RXDB_UPGRADE_GUARD_TABLE_NAME, RXDB_WRITER_LEASE_TABLE_NAME]
-    );
-    const existingTables = new Set(result.rows.map(row => row.table_name));
-    const missingTables = [RXDB_UPGRADE_GUARD_TABLE_NAME, RXDB_WRITER_LEASE_TABLE_NAME].filter(
-      tableName => !existingTables.has(tableName)
-    );
-    if (missingTables.length > 0) {
-      throw new RxDBWriterLeaseError(
-        'writer_guard_missing',
-        `RxDB writer protocol table(s) missing: ${missingTables.join(', ')}.`
-      );
-    }
-  }
-
-  async #renewWriterLease(tx: Transaction): Promise<void> {
-    const guardResult = await tx.query<{ epoch: number; state: string; minProtocol: number }>(
-      `SELECT "epoch", "state", "minProtocol"
-       FROM "rxdb"."${RXDB_UPGRADE_GUARD_TABLE_NAME}"
-       WHERE "databaseId" = $1::text
-       FOR UPDATE`,
-      [this.rxdb.config.dbName]
-    );
-    const epoch = resolveRxDBWriterEpoch(guardResult.rows[0], RXDB_WRITER_PROTOCOL_VERSION, this.#writer_epoch);
-    await tx.query(
-      `INSERT INTO "rxdb"."${RXDB_WRITER_LEASE_TABLE_NAME}"
-       ("databaseId", "writerId", "protocolVersion", "epoch", "lastSeenAt", "expiresAt")
-       VALUES ($1::text, $2::text, $3::integer, $4::integer, clock_timestamp(),
-               clock_timestamp() + make_interval(secs => $5::double precision))
-       ON CONFLICT ("databaseId", "writerId") DO UPDATE SET
-         "protocolVersion" = excluded."protocolVersion",
-         "epoch" = excluded."epoch",
-         "lastSeenAt" = excluded."lastSeenAt",
-         "expiresAt" = excluded."expiresAt"`,
-      [this.rxdb.config.dbName, this.#writer_id, RXDB_WRITER_PROTOCOL_VERSION, epoch, RXDB_WRITER_LEASE_TTL_MS / 1000]
-    );
-    this.#writer_epoch = epoch;
-  }
-
-  #scheduleWriterHeartbeat(): void {
-    if (this.#writer_lease_state !== 'active') return;
-    this.#writer_heartbeat = setTimeout(() => {
-      void this.transaction(async () => undefined, false).then(
-        () => this.#scheduleWriterHeartbeat(),
-        () => this.#scheduleWriterHeartbeat()
-      );
-    }, RXDB_WRITER_HEARTBEAT_INTERVAL_MS) as HeartbeatTimer;
-    this.#writer_heartbeat.unref?.();
-  }
-
-  async #stopWriterLease(client: IPGliteClient, hadWriterLease: boolean): Promise<void> {
-    if (this.#writer_heartbeat) clearTimeout(this.#writer_heartbeat);
-    this.#writer_heartbeat = undefined;
-    if (!hadWriterLease || this.#writer_epoch === undefined) return;
-    try {
-      await this.#queue.addTask(() =>
-        client.transaction(async tx => {
-          await tx.query(
-            `DELETE FROM "rxdb"."${RXDB_WRITER_LEASE_TABLE_NAME}"
-             WHERE "databaseId" = $1::text AND "writerId" = $2::text AND "epoch" = $3::integer`,
-            [this.rxdb.config.dbName, this.#writer_id, this.#writer_epoch ?? 0]
-          );
-        })
-      );
-    } finally {
-      this.#writer_epoch = undefined;
-    }
-  }
-
-  #assertWriterLeaseWritable(): void {
-    if (
-      this.#writer_lease_state === 'bootstrap' ||
-      this.#writer_lease_state === 'starting' ||
-      this.#writer_lease_state === 'active'
-    ) {
-      return;
-    }
-    throw new RxdbAdapterPGliteError(`RxDB writer lease is ${this.#writer_lease_state} and requires reconnect.`);
-  }
-
-  #handleWriterLeaseError(error: unknown): void {
-    if (!(error instanceof RxDBWriterLeaseError)) return;
-    this.#writer_lease_state = 'fenced';
-    if (this.#writer_heartbeat) clearTimeout(this.#writer_heartbeat);
-    this.#writer_heartbeat = undefined;
+  #assertWritable(): void {
+    if (this.#lifecycle_state === 'bootstrap' || this.#lifecycle_state === 'ready') return;
+    throw new RxdbAdapterPGliteError(`RxDB adapter is ${this.#lifecycle_state} and requires reconnect.`);
   }
 
   #trackChangeHandler(event: PGliteChangeEvent): Promise<void> {
