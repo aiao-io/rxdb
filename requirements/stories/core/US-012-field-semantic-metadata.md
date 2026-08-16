@@ -27,9 +27,9 @@ INVEST 检查清单:
 >
 > **交付阶段**（顺序硬约束，阶段之间不可并行）：
 >
-> | 阶段 | 交付                                                    | AC 区段  |
-> | ---- | ------------------------------------------------------- | -------- |
-> | A    | `format` 声明层 + `validateEntityMetadata()` 注册期校验 | AC#1～12 |
+> | 阶段 | 交付                                                    | AC 区段   |
+> | ---- | ------------------------------------------------------- | --------- |
+> | A    | `format` 声明层 + `validateEntityMetadata()` 注册期校验 | AC#1～12  |
 > | B    | `describeEntityFields()` / DTO / 严格解析器             | AC#13～26 |
 > | C    | `validateFieldValue()` + 生成器透传 + 三框架契约回归    | AC#27～37 |
 >
@@ -615,7 +615,7 @@ AC 按交付阶段分段，编号连续。阶段内可任意顺序验收，阶�
 ### 阶段 A — `format` 声明层与注册期校验（AC#1～12）
 
 | #   | 前置条件                                                            | 操作                                          | 预期结果                                                                                                                                                                    | 状态 |
-| --- | ------------------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| --- | ------------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | 1   | 现有实体只声明 `PropertyType`                                       | 注册并读取旧元数据                            | 行为与既有公共类型不变；未声明 `format` 的字段在元数据里不出现 `format` 键，不填默认值                                                                                      | ⬜   |
 | 2   | `string` 字段声明 `url` / `email` / `phone`                         | 编译并注册实体                                | 类型合法；元数据保留 format 判别对象；生成的物理列类型仍是字符串                                                                                                            | ⬜   |
 | 3   | 同一实体的两份元数据，唯一差异是其中一份字段带 `format`             | 分别生成 schema、写入同一份数据、读回并序列化 | 物理列类型、运行时值类型与序列化结果完全一致（INV-2）                                                                                                                       | ⬜   |
@@ -718,17 +718,17 @@ AC 按交付阶段分段，编号连续。阶段内可任意顺序验收，阶�
 
 按交付阶段归属，避免三个阶段同时改同一个文件：
 
-| 文件                                                       | 阶段 | 内容                                                                                                                    |
-| ---------------------------------------------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------- |
-| `packages/rxdb/src/entity/metadata-options.interface.ts`   | A    | `format` 判别联合、逐属性窄类型 `format?`、`StringArrayProperty.enum` / `options`                                       |
-| `packages/rxdb/src/entity/metadata-validate.ts`（新增）    | A    | `validateEntityMetadata` 与规则表                                                                                       |
-| `packages/rxdb/src/entity/entity-manager.ts`               | A    | `init()` 跨实体聚合校验并抛错（D3）                                                                                     |
-| `packages/rxdb/src/entity/entity-field.utils.ts`           | B    | `describeEntityFields()` / `parseEntityFieldsDescriptor()` / `ENTITY_FIELDS_DTO_VERSION`；既有导出冻结 + `@deprecated`  |
-| `packages/rxdb/src/entity/entity-value.utils.ts`           | C    | `validateFieldValue()`；旧 `validateEntityFieldValue` 冻结 + `@deprecated`                                              |
-| `packages/rxdb-client-generator/src/`                      | C    | 生成器 `default` 语义保留与显式失败（`core/RxDBClientGenerator.utils.ts:306` 的透传点）                                 |
-| `packages/rxdb/src/__tests__/fixtures/`（新增）            | C    | 三框架共享的 DTO JSON fixture，三端 import 不复制                                                                       |
-| `packages/rxdb-{angular,react,vue}/`                       | C    | 三框架复用同一组 DTO fixture 的契约回归                                                                                 |
-| `requirements/api-baseline/rxdb.json`                      | A/B/C | 每个阶段各自追加，不集中一次改完                                                                                        |
+| 文件                                                     | 阶段  | 内容                                                                                                                   |
+| -------------------------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------- |
+| `packages/rxdb/src/entity/metadata-options.interface.ts` | A     | `format` 判别联合、逐属性窄类型 `format?`、`StringArrayProperty.enum` / `options`                                      |
+| `packages/rxdb/src/entity/metadata-validate.ts`（新增）  | A     | `validateEntityMetadata` 与规则表                                                                                      |
+| `packages/rxdb/src/entity/entity-manager.ts`             | A     | `init()` 跨实体聚合校验并抛错（D3）                                                                                    |
+| `packages/rxdb/src/entity/entity-field.utils.ts`         | B     | `describeEntityFields()` / `parseEntityFieldsDescriptor()` / `ENTITY_FIELDS_DTO_VERSION`；既有导出冻结 + `@deprecated` |
+| `packages/rxdb/src/entity/entity-value.utils.ts`         | C     | `validateFieldValue()`；旧 `validateEntityFieldValue` 冻结 + `@deprecated`                                             |
+| `packages/rxdb-client-generator/src/`                    | C     | 生成器 `default` 语义保留与显式失败（`core/RxDBClientGenerator.utils.ts:306` 的透传点）                                |
+| `packages/rxdb/src/__tests__/fixtures/`（新增）          | C     | 三框架共享的 DTO JSON fixture，三端 import 不复制                                                                      |
+| `packages/rxdb-{angular,react,vue}/`                     | C     | 三框架复用同一组 DTO fixture 的契约回归                                                                                |
+| `requirements/api-baseline/rxdb.json`                    | A/B/C | 每个阶段各自追加，不集中一次改完                                                                                       |
 
 ## References
 

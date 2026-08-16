@@ -7,19 +7,7 @@ epic: epic-006-working-tree-commits
 created: 2026-08-13
 updated: 2026-08-16
 tags:
-  [
-    collaboration,
-    working-tree,
-    staging,
-    diff,
-    persistence,
-    concurrency,
-    angular,
-    react,
-    vue,
-    accessibility,
-    benchmark,
-  ]
+  [collaboration, working-tree, staging, diff, persistence, concurrency, angular, react, vue, accessibility, benchmark]
 ---
 
 <!--
@@ -77,11 +65,11 @@ INVEST 检查清单:
 
 阶段顺序是硬约束，阶段之间不可并行；每个阶段有独立可运行的验收场景区段，落地后即可单独回归。
 
-| 阶段 | 交付闭环                             | 主要内容                                                                                                                              | 承接的 FR                                                                                                           | 承接的 AC                                                                                                            |
-| ---- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| A    | CRUD / sync 写入 → 刷新 → 工作树重建 | 写入口矩阵、active token、working-tree revision、受信意图登记、加密与后端 conformance                                                 | FR-039、FR-046、FR-045（`WorkingTreeEntry` 半边）                                                                   | US1-AC1（工作树半边）、US1-AC3（工作树半边）、US1-AC4（持久层半边）、US2-AC14（工作树半边）、US2-AC17～19、US4-AC1～7 |
-| B    | stage → 刷新 → commit → status/diff  | index 独立重放、关系依赖闭包、commit residual rebase、discard 与冲突状态口径，含 `WorkingTreeRestoreSession` 建表与 `CommitConflict` | FR-004、FR-005、FR-006、FR-007、FR-011、FR-016、FR-031、FR-032、FR-040、FR-041、FR-047、FR-045（`IndexEntry` 半边） | US1-AC1（diff 半边）、US1-AC2、US2-AC1～AC16（AC14 只承接 `IndexEntry` 半边）、US2-AC20～22、US3-AC1～AC3            |
-| C    | 三端操作 → 刷新 → 同语义读回         | Angular/React/Vue 公开 API、异步状态、a11y、E2E 与 benchmark                                                                          | FR-023、FR-026                                                                                                      | US5-AC1～AC7                                                                                                         |
+| 阶段 | 交付闭环                             | 主要内容                                                                                                                             | 承接的 FR                                                                                                           | 承接的 AC                                                                                                             |
+| ---- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| A    | CRUD / sync 写入 → 刷新 → 工作树重建 | 写入口矩阵、active token、working-tree revision、受信意图登记、加密与后端 conformance                                                | FR-039、FR-046、FR-045（`WorkingTreeEntry` 半边）                                                                   | US1-AC1（工作树半边）、US1-AC3（工作树半边）、US1-AC4（持久层半边）、US2-AC14（工作树半边）、US2-AC17～19、US4-AC1～7 |
+| B    | stage → 刷新 → commit → status/diff  | index 独立重放、关系依赖闭包、commit residual rebase、discard 与冲突状态口径，含 `WorkingTreeRestoreSession` 建表与 `CommitConflict` | FR-004、FR-005、FR-006、FR-007、FR-011、FR-016、FR-031、FR-032、FR-040、FR-041、FR-047、FR-045（`IndexEntry` 半边） | US1-AC1（diff 半边）、US1-AC2、US2-AC1～AC16（AC14 只承接 `IndexEntry` 半边）、US2-AC20～22、US3-AC1～AC3             |
+| C    | 三端操作 → 刷新 → 同语义读回         | Angular/React/Vue 公开 API、异步状态、a11y、E2E 与 benchmark                                                                         | FR-023、FR-026                                                                                                      | US5-AC1～AC7                                                                                                          |
 
 阶段 B 依赖阶段 A 的持久工作树；阶段 C 只从 `@aiao/rxdb` 透传阶段 B 冻结的共享类型，不自带业务分支逻辑，
 A 与 B 都未落地时 C 不可开工。整体固定顺序为
@@ -418,20 +406,20 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 
 ## 实现文件（计划阶段待确认）
 
-| 路径                                       | 阶段 | 用途                                                     |
-| ------------------------------------------ | ---- | -------------------------------------------------------- |
-| `packages/rxdb/src/version/`               | A    | 工作树单元与写入口编排、受信路径登记                     |
-| `packages/rxdb/src/version/`               | B    | status/diff/index/commit 状态机                          |
-| `packages/rxdb/src/system/`                | A    | `WorkingTreeState` / `WorkingTreeEntry`                  |
-| `packages/rxdb/src/system/`                | B    | `IndexState` / `IndexEntry` / `WorkingTreeRestoreSession`（仅建表与迁移） |
-| `packages/rxdb/src/__tests__/version/`     | B    | 闭包、CAS、幂等与 residual rebase                        |
+| 路径                                       | 阶段 | 用途                                                                       |
+| ------------------------------------------ | ---- | -------------------------------------------------------------------------- |
+| `packages/rxdb/src/version/`               | A    | 工作树单元与写入口编排、受信路径登记                                       |
+| `packages/rxdb/src/version/`               | B    | status/diff/index/commit 状态机                                            |
+| `packages/rxdb/src/system/`                | A    | `WorkingTreeState` / `WorkingTreeEntry`                                    |
+| `packages/rxdb/src/system/`                | B    | `IndexState` / `IndexEntry` / `WorkingTreeRestoreSession`（仅建表与迁移）  |
+| `packages/rxdb/src/__tests__/version/`     | B    | 闭包、CAS、幂等与 residual rebase                                          |
 | `packages/rxdb-test/`                      | A/B  | `workingTreeCaptureConformanceSuite` / `workingTreeCommitConformanceSuite` |
-| 各 v1 本地 adapter                         | A    | 事务内 trigger/capability 接入                           |
-| `packages/rxdb-{angular,react,vue}/`       | C    | `useWorkingTree()` 与共享类型透传                        |
-| `apps/dev-rxdb-{angular,react,vue}/`       | C    | 对称演示与 E2E                                           |
-| `benchmarks/working-tree.bench.ts`（新增） | C    | FR-026 的判定依据                                        |
-| `benchmarks/reports/`                      | C    | 冻结 reference 报告                                      |
-| `requirements/api-baseline/rxdb.json`      | A/B  | 新增公开类型登记                                         |
+| 各 v1 本地 adapter                         | A    | 事务内 trigger/capability 接入                                             |
+| `packages/rxdb-{angular,react,vue}/`       | C    | `useWorkingTree()` 与共享类型透传                                          |
+| `apps/dev-rxdb-{angular,react,vue}/`       | C    | 对称演示与 E2E                                                             |
+| `benchmarks/working-tree.bench.ts`（新增） | C    | FR-026 的判定依据                                                          |
+| `benchmarks/reports/`                      | C    | 冻结 reference 报告                                                        |
+| `requirements/api-baseline/rxdb.json`      | A/B  | 新增公开类型登记                                                           |
 
 ## 依赖与参考
 

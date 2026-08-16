@@ -9,13 +9,13 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 import {
-    assertCompatibleBaseHref,
-    assertStaticRoot,
-    closeStaticServer,
-    parseArgs,
-    readDocumentBaseHref,
-    safeJoin,
-    startStaticServer
+  assertCompatibleBaseHref,
+  assertStaticRoot,
+  closeStaticServer,
+  parseArgs,
+  readDocumentBaseHref,
+  safeJoin,
+  startStaticServer
 } from './e2e-static-server.mjs';
 
 const execFileAsync = promisify(execFile);
