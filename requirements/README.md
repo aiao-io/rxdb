@@ -12,15 +12,11 @@
 
 个别 story 因 INVEST「Small」不成立而体量偏大。这类 story **仍是一个文件、一条状态**，
 在正文里用 `## 交付阶段` 表把交付切成 A / B / C…，AC 表按阶段分段编号，实现文件表加「阶段」列。
-现有四条：[US-012](stories/core/US-012-field-semantic-metadata.md)、
-[US-015](stories/core/US-015-plugin-inject-dependency.md)、
-[US-306](stories/collaboration/US-306-working-tree-index.md)、
-[US-904](stories/future/US-904-devtools-native-storage-contract.md)。
+现有四条：[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-306](stories/collaboration/US-306-working-tree-index.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)。
 
 规则：
 
-- **不创建 `US-XXXa` / `US-XXXb` 这类中间版本文件。**（2026-08-16 起；此前拆出的
-  US-012a/b/c、US-306a/b/c、US-904a/b/c/d 已全部合并回各自父文件。）一个编号一个文件，
+- **不创建 `US-XXXa` / `US-XXXb` 这类中间版本文件。** 一个编号一个文件，
   外部引用因此永远指向同一个路径
 - 分阶段的理由写进 INVEST 清单的 `Small` 一项，说明为什么体量不成立、按什么顺序分批
 - 阶段有独立可验收的 AC 区段与前置；全部阶段关闭后才置 `Done`
@@ -36,19 +32,18 @@
 
 一个问题一个文件。查什么去哪里：
 
-| 文件                                         | 回答的问题                                                       |
-| -------------------------------------------- | ---------------------------------------------------------------- |
-| [status-overview.md](status-overview.md)     | 每条故事**现在是什么状态**、哪些在做、哪些卡住                   |
-| [roadmap.md](roadmap.md)                     | **接下来做什么**、什么必须排在什么前面                           |
-| [capability-matrix.md](capability-matrix.md) | 仓库**现在能做什么**、哪些组合还不支持                           |
-| [release-plan.md](release-plan.md)           | **下一次发布**要做什么、桥接版本卡在哪                           |
-| [CHANGELOG.md](CHANGELOG.md)                 | **什么时候完成了什么**、历轮评审的决策                           |
-| [versioning-policy.md](versioning-policy.md) | 什么算公开 API、什么改动算破坏性                                 |
-| `migration-release.json`                     | 当前发布的迁移清单（门禁读它）                                   |
-| `epics/`                                     | 史诗目标与阶段划分；`epic-008-parking-lot.md` 是明确不做的停车位 |
-| `stories/`                                   | 按领域拆分的用户故事（**状态真相源**）                           |
-| `api-baseline/`                              | 各包公开 API 表面基线（由门禁生成与校验）                        |
-| `template.md`                                | 新建 story 的模板                                                |
+| 文件                                         | 回答的问题                                     |
+| -------------------------------------------- | ---------------------------------------------- |
+| [status-overview.md](status-overview.md)     | 每条故事**现在是什么状态**、哪些在做、哪些卡住 |
+| [roadmap.md](roadmap.md)                     | **接下来做什么**、什么必须排在什么前面         |
+| [capability-matrix.md](capability-matrix.md) | 仓库**现在能做什么**、哪些组合还不支持         |
+| [release-plan.md](release-plan.md)           | **下一次发布**要做什么、桥接版本卡在哪         |
+| [versioning-policy.md](versioning-policy.md) | 什么算公开 API、什么改动算破坏性               |
+| `migration-release.json`                     | 当前发布的迁移清单（门禁读它）                 |
+| `epics/`                                     | 史诗目标与阶段划分                             |
+| `stories/`                                   | 按领域拆分的用户故事（**状态真相源**）         |
+| `api-baseline/`                              | 各包公开 API 表面基线（由门禁生成与校验）      |
+| `template.md`                                | 新建 story 的模板                              |
 
 `stories/` 子目录：
 
@@ -100,7 +95,7 @@ inherited_acs:
 2. 选正确领域目录、未占用编号
 3. 完整填写 frontmatter（id / title / status / priority / epic / created / updated / tags）、目标、AC 表、范围边界、实现文件
 4. 推进过程中持续更新 `status`、`priority`、`updated`、`References`
-5. 合并后：YAML `status: Done`，补 PR 链接，在 `CHANGELOG.md` 加一行
+5. 合并后：YAML `status: Done`，补 PR 链接
 
 ## 提交与 PR 关联方式
 
@@ -134,8 +129,7 @@ Epic：
 - [epic-006 本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
 - [epic-007 公开 API 门禁](epics/epic-007-public-api-gates.md)
 - [epic-008 生命周期作用域](epics/epic-008-lifecycle-scope.md)
-- [停车位：明确不做的范围](epics/epic-008-parking-lot.md)
 
 视图：
 
-- [状态概览](status-overview.md) · [排期与约束](roadmap.md) · [能力矩阵](capability-matrix.md) · [发布计划](release-plan.md) · [完成记录](CHANGELOG.md)
+- [状态概览](status-overview.md) · [排期与约束](roadmap.md) · [能力矩阵](capability-matrix.md) · [发布计划](release-plan.md)

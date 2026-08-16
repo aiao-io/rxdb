@@ -2,9 +2,7 @@
 
 > **真相源**：每个 story 的 YAML `status` 字段。本文件是派生视图，**不要**作为查询当前状态的唯一依据；如发现与 YAML 不一致，请优先信任 YAML 并修复本文件。
 >
-> 本文件**只回答「什么状态」**。历史演进 → [CHANGELOG.md](CHANGELOG.md)；排期与约束 → [roadmap.md](roadmap.md)；能力与覆盖缺口 → [capability-matrix.md](capability-matrix.md)；发布 → [release-plan.md](release-plan.md)。
-
-**最后同步**：2026-08-16
+> 本文件**只回答「什么状态」**。排期与约束 → [roadmap.md](roadmap.md)；能力与覆盖缺口 → [capability-matrix.md](capability-matrix.md)；发布 → [release-plan.md](release-plan.md)。
 
 ## 状态汇总
 
@@ -27,13 +25,13 @@
 
 ## 进行中（5 条）
 
-| Story                                                                                                         | 卡在哪                                                             |
-| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)                      | 仅剩 AC#8 三平台打包矩阵                                           |
-| [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md)              | AC#1 缺跨进程重启 e2e、AC#9 三平台打包矩阵                         |
-| [US-304 跨 realm writer lease 与迁移 fencing](stories/collaboration/US-304-writer-lease-migration-fencing.md) | 剩 AC6（挂起 writer 被迁移 epoch fence）；AC11 已转移给 US-305     |
-| [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                                | AC#6 / #7 待 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵            |
-| [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)                 | 阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 A / C / D 未开始 |
+| Story                                                                                                         | 卡在哪                                                                       |
+| ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)                      | 仅剩 AC#8 三平台打包矩阵                                                     |
+| [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md)              | AC#1 缺跨进程重启 e2e、AC#9 三平台打包矩阵                                   |
+| [US-304 跨 realm writer lease 与迁移 fencing](stories/collaboration/US-304-writer-lease-migration-fencing.md) | 剩 AC6（挂起 writer 被迁移 epoch fence）；AC11 已转移给 US-305               |
+| [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                                | AC#6 / #7 待 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵；AC#1/#3/#5/#8 仍 ⚠️ |
+| [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)                 | 阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 A / C / D 未开始           |
 
 > US-207 / US-210 / US-505 的三条尾巴是**同一个下游缺口**：真实打包应用的重启与三平台矩阵。
 
@@ -93,7 +91,7 @@
   - ⬜ 阶段 D Electron 原生存储集成 — 依赖 阶段 A(supported) + 阶段 C + US-207 + US-504
 - ⬜ [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1 依赖 US-904 阶段 C；阶段 2 依赖 US-210 + US-505，不等 US-904 阶段 D
 
-> US-401 / US-701 查询构建器系列已随 PR #251 清理出本仓库，详见 [CHANGELOG](CHANGELOG.md)。
+> US-401 / US-701 查询构建器系列不在本仓库范围内。
 
 ### [未来功能](epics/epic-004-future-features.md)
 
@@ -121,10 +119,13 @@
 
 ### [本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
 
-全部 ⬜ Backlog。交付顺序 **US-305 → US-306 阶段 A → 阶段 B → 阶段 C →（US-307 ∥ US-308）**，
+全部 ⬜ Backlog。**不得因分支名 `001-working-tree-commits` 或 spec 已齐而把任一条标成 In Progress。**
+[specs/001-working-tree-commits/](../specs/001-working-tree-commits/) 已有 spec / plan / data-model / research / quickstart / contracts，**没有 `tasks.md`，运行时未开工**
+（`packages/rxdb/src/` 无 `commit/`，无 `CommitManager` / `WorkingTreeManager` / `IndexManager` / `useWorkingTree`）。
+交付顺序 **US-304(剩 AC6) → 新 bridge 发布（FR-030）→ US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）**，
 口径以 [epic-006 依赖顺序](epics/epic-006-working-tree-commits.md) 为准。
 
-- ⬜ [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 基础层：commit 图 / branch ref / baseline
+- ⬜ [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 基础层：commit 图 / branch ref / baseline；仍被 FR-030 挡住（`migration-release.json` 的 `bridge.tag`/`bridge.version` 为 `null`，`v0.0.25` 不是 HEAD 祖先）
 - 🅰️ ⬜ [US-306 工作树、缓存区与提交操作](stories/collaboration/US-306-working-tree-index.md) — 三阶段单文件故事；其 FR/AC 承接表是发布门禁 2 的审计依据
   - ⬜ 阶段 A 工作树写入捕获与持久化
   - ⬜ 阶段 B 缓存区与提交状态机
@@ -135,6 +136,8 @@
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 
 - ⬜ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md) — 认领 [capability-matrix](capability-matrix.md#已知的需求覆盖缺口) 第 2 条缺口
+
+[specs/002-lifecycle-effect-scope/spec.md](../specs/002-lifecycle-effect-scope/spec.md) 仍是 Draft；`packages/` 无 `LifecycleScope` 实现，YAML 保持 Backlog。
 
 ### [生命周期作用域](epics/epic-008-lifecycle-scope.md)
 
@@ -156,8 +159,6 @@
 > 本 Epic 会制造一次 `IRxDBPlugin` 成员签名变更（含 `destroy()` 由必选转可选），
 > 而 [api-surface.mjs](../scripts/audit/api-surface.mjs) 只记录 `{name, kind}`，**成员怎么改都不产生 diff**。
 > 该盲区由 US-014 用类型契约测试就地补上，不扩大 [epic-007](epics/epic-007-public-api-gates.md) 的范围。
->
-> 另见 [epic-008 停车位](epics/epic-008-parking-lot.md)（P-001～P-007）：**不编号、不进本表、不改任何 story 的 `status`**。
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

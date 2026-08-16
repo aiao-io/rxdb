@@ -115,7 +115,7 @@ Registry、thenable Fiber、HMR 或长异步栈追踪。
 
 1. **作用域树是本地读出，不是全局注册表。** cordis 把 `{ label, children }` 挂在 `effect()` 返回的
    disposer 自己身上，`getEffects()` 只读本 fiber 的清单。据此给 US-013 补 `getEntries()`
-   与 AC#9b（决策见 US-013 D4）；连带更正停车位 P-004 的阻塞理由——它缺的从来不是数据源，
+   与 AC#9b（决策见 US-013 D4）；连带更正 DevTools 作用域树的阻塞理由——它缺的从来不是数据源，
    而是 US-015 的状态机。
 2. **一次 `acquire()` 只包一步会失败的获取。** cordis 用 generator effect 让 setup 半途抛错时
    已获取的部分照常回滚；rxdb 不引入 generator，改用契约拿到同一保证。据此给 US-013 补 AC#12b

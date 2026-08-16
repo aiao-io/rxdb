@@ -287,8 +287,9 @@ Search 当前已经去掉聚合 `connected$`，等待按名的 `adapterConnected
 [`bootstrapTransaction` / `rawQuery`](../../../packages/rxdb-plugin-search/src/plugin.ts#L368-L375)
 这条不回头等 `connect()` 的路径，**不改对外时序**。原因写在源码注释里：`repo.find()` /
 `adapter.rawQuery()` 都会先 `ready()`，而 `ready()` 又等 `connect()`——等于等自己。
-「另开一个不进 `#await_plugin_installs()` 的慢路径钩子」这一方案已被否决，
-理由见 [epic-008 停车位 P-002](../../epics/epic-008-parking-lot.md)。
+「另开一个不进 `#await_plugin_installs()` 的慢路径钩子」这一方案已被否决：它要绕开的那个环今天不存在
+（`connect()` 先置位 `connected$` 再 `await` 插件安装），而把 FTS 挪出连接 Promise 会破坏
+「`await db.connect()` 返回即 FTS 可用」这条用户可见保证。
 
 ### D3 — 插件依赖的就绪判据
 
@@ -445,5 +446,4 @@ async install(scope: LifecycleScope) {
 - [epic-008 生命周期作用域](../../epics/epic-008-lifecycle-scope.md)
 - [US-013 LifecycleScope 生命周期作用域原语](./US-013-lifecycle-scope-primitive.md)
 - [US-014 插件作用域契约](./US-014-plugin-scope-contract.md) — 前置故事；「释放」以它把副作用收进作用域为前提
-- [epic-008 停车位](../../epics/epic-008-parking-lot.md) — P-001（按名字的就绪信号，内部已落地）与 P-002（已否决的钩子）的边界
 - [versioning-policy.md](../../versioning-policy.md) 第 4 节 — 三层 API 守护

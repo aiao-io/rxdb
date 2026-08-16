@@ -52,10 +52,19 @@ export const steps = [
   },
   {
     name: '构建 Angular 演示',
-    // production,website：保留 production 的 hashing / SW，同时把产物写到独立目录。
+    // 保留 production 的 hashing / SW，用命令行覆盖把产物写到独立目录。
     // 绝不能写回 dist/apps/dev-rxdb-angular——那是 Angular e2e 的 webServer 根。
     // 共用这份 dist 时，<base href="/demo/angular/"> 会让 localhost:8200 上整套 e2e 全红。
-    command: 'pnpm nx build dev-rxdb-angular --configuration=production,website',
+    //
+    // 覆盖必须走 CLI，不能写成 `--configuration=production,website`：逗号串联多个
+    // configuration 是 Angular CLI 的语法，Nx 只做一次精确 key 查找
+    // （`combineOptionsForExecutor`），查不到时 `resolveConfiguration` 会**静默**回退到
+    // defaultConfiguration。于是 `production,website` 只跑成 production，baseHref 与
+    // outputPath 全部丢失，产物落回 dist/apps/dev-rxdb-angular，构建照样报成功，
+    // 直到下面的 cpSync 撞上 ENOENT 才暴露——2026-08-16 的 Netlify 部署就死在这里。
+    command:
+      'pnpm nx build dev-rxdb-angular --configuration=production' +
+      ' --base-href=/demo/angular/ --output-path=dist/apps/dev-rxdb-angular-website',
     postBuild: () => {
       const targetDir = join(repoRoot, 'website/public/demo/angular');
       console.log('  → 清理 website/public/demo/angular');

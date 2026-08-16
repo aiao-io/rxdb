@@ -89,7 +89,7 @@ guard 从"硬编码 adapter 名单"改成"按 backend 能力查表"正是 backen
 | 6   | SQLite FTS5 回归套件              | 运行                                                                                                       | 全部通过，不为 PGlite 增加运行时 fallback                                                                                       | ⬜   |
 | 7   | 存量 backfill 执行到一半被中断    | 重新初始化搜索插件                                                                                         | 索引状态可判定：要么继续回填至完成，要么 fail-fast 并说明恢复动作；不得把半成品索引当作就绪                                     | ⬜   |
 | 8   | backend 抽象已落地                | 用 `sqlite-core` 家族的每个 adapter（`wa-sqlite` / `sqlite-wasm` / `sqlite` / `sqliteai`）分别装载搜索插件 | 具备 FTS5 能力的一律放行并通过同一套搜索行为套件；确实不支持的必须给出可判别的能力缺失原因，而不是因为名字不在硬编码 Set 里被拒 | ⬜   |
-| 9   | backend 抽象改动了搜索插件公开面  | 运行 api-baseline 校验                                                                                     | 「现状基线」表中 11 个 FTS5 专有导出的处置与基线一致；若有改名或降为内部，CHANGELOG 标为破坏性并给出迁移写法                    | ⬜   |
+| 9   | backend 抽象改动了搜索插件公开面  | 运行 api-baseline 校验                                                                                     | 「现状基线」表中 11 个 FTS5 专有导出的处置与基线一致；若有改名或降为内部，按 versioning-policy 标为破坏性并给出迁移写法         | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
