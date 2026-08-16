@@ -328,6 +328,8 @@ export class RxdbFileStorage {
    * @throws {@link StorageDestroyedError} 实例已销毁时抛出。
    */
   private get filesystem(): StorageFilesystem {
+    if (this.#lifecycle === 'destroyed') throw new StorageDestroyedError();
+
     return (this.#filesystem ??= (this.options.filesystem ?? createOpfsStorageFilesystem)(this.rootDir, {
       localAdapterName: this.rxdb.config.sync.local?.adapter
     }));
@@ -660,7 +662,7 @@ export class RxdbFileStorage {
       // STOR-002：建目录也要过锁。它与 renameDirectory / clear 争的是同一批目录句柄 ——
       // 后两者取独占锁，而 `withPaths` 与 `withExclusive` 互斥，因此挂上任意一条路径锁
       // 就够把「建到一半的目录被同时改名的父目录带走」挡在外面。
-      await this.filesystem.ensureDirectory(directoryPath);
+      await this.withPathLock([directoryPath], () => this.filesystem.ensureDirectory(directoryPath));
       return directoryPath;
     } finally {
       finishWrite();
@@ -727,12 +729,14 @@ export class RxdbFileStorage {
 
       // STOR-002：删除同样是「写 metadata → 删 OPFS → 失败则补偿」，必须与同路径的
       // upload / rename 串行，否则补偿会把并发写入的新内容一并删掉。
-      const meta0 = await this.getRequiredMeta(fileId);
-      await this.withPathLock([meta0.opfsPath], async () => {
-        const current = await this.findMetaById(fileId);
-        if (!current) return;
-        await this.deleteMetaAndFile(current);
-      });
+      await this.withCurrentPathLock(
+        fileId,
+        opfsPath => [opfsPath],
+        async current => {
+          if (current === null) return;
+          await this.deleteMetaAndFile(current);
+        }
+      );
     } finally {
       finishWrite();
     }
