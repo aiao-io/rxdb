@@ -1,22 +1,21 @@
+# Dependencies / lockfiles
 node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build / test artifacts
 dist/
 build/
 coverage/
 tmp/
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-node_modules/
-dist/
-build/
-coverage/
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-.env*
+out-tsc/
 test-output/
 playwright-report/
-# Add files here to ignore them from prettier formatting
+.env*
+
+# Cargo 构建产物（crate 内 .gitignore 对 Prettier / nx format 无效）
+**/target/
 
 # Docker volumes config - double quotes are required in YAML for variable substitution
 docker/
@@ -25,21 +24,16 @@ docker/
 .github/**/*.md
 .specify/**/*.md
 
-/dist
-/coverage
-
 /.angular
 /.ng-doc
 /.yarn
 
 /.nx/cache
+/.nx/workspace-data
 __*__.*
 **/ios/App/**
 
-/.nx/workspace-data
-
 *.d.ts
-pnpm-lock.yaml
 
 .agents/
 .angular/
@@ -48,4 +42,3 @@ pnpm-lock.yaml
 .cursor/
 .git/
 .specify/
-.cursor/

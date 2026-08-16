@@ -20,6 +20,8 @@ Thumbs.db
 dist
 tmp
 out-tsc
+# Cargo 构建产物。crate 内 .gitignore 对 Prettier / nx format 无效，它们只读仓库根 ignore。
+**/target/
 
 # dependencies
 node_modules
