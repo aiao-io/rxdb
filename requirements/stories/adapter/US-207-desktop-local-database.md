@@ -29,33 +29,21 @@ INVEST 检查清单:
 
 ## 拆分说明
 
-### 2026-08-13（第一次）：拆出 US-208
+本故事收敛为 **Electron + SQLite** 一条路径，另外两半各自成story：
 
-本故事原先把 Electron PGlite data directory 与 SQLite 混编，导致 INVEST「Small」不成立：
-PGlite 需要一套 SQLite 路径不需要的 IPC 事务 host。拆分后本故事收敛为**纯 SQLite**。
+| 范围                        | 归属                                                          |
+| --------------------------- | ------------------------------------------------------------- |
+| Electron SQLite（含三平台） | 本故事                                                        |
+| Electron PGlite data dir    | [US-208](./US-208-electron-pglite-data-directory.md)          |
+| Tauri SQLite（含三平台）    | [US-210](./US-210-tauri-sqlite-local-database.md)             |
 
-| 原 AC        | 归属                                                              |
-| ------------ | ----------------------------------------------------------------- |
-| 1 / 2 / 3    | 本故事（Electron SQLite、Tauri SQLite、Tauri 事务门禁）           |
-| 4            | [US-208](./US-208-electron-pglite-data-directory.md) AC#1         |
-| 5 ~ 10       | 本故事，重述为「受支持的 SQLite 组合」；US-208 有对应的 PGlite 版 |
-| 11（SQLite） | 本故事                                                            |
-| 11（PGlite） | [US-208](./US-208-electron-pglite-data-directory.md) AC#10        |
+两条拆分线各有理由，都是 INVEST「Small」不成立：
 
-### 2026-08-13（第二次）：拆出 US-210
-
-第一次拆分后 Electron 与 Tauri 仍并列在一条故事里，而两者的**风险量级不对等**：
-Electron 侧只是工程量，Tauri 侧卡在一个尚未验证的外部前提——`@tauri-apps/plugin-sql`
-的 JavaScript API 没有事务对象，无从确认 BEGIN / 业务语句 / COMMIT 是否落在同一物理连接
-（原 AC#3）。该前提为否时 Tauri 侧要回到 plan 阶段重定方案，而 Electron 侧完全不受影响。
-绑在一起等于让已可交付的一半陪着另一半停在 Backlog，因此按下表二次拆分。
-
-| 上一版 AC | 归属                                                                |
-| --------- | ------------------------------------------------------------------- |
-| 1         | 本故事 AC#1（Electron SQLite 持久化）                               |
-| 2 / 3     | [US-210](./US-210-tauri-sqlite-local-database.md) AC#1 / AC#2       |
-| 4 ~ 9     | 本故事，重述为 Electron 单一运行时；US-210 有对应的 Tauri 版        |
-| 10        | 按运行时对半：Electron 三平台留在本故事，Tauri 三平台归 US-210 AC#9 |
+- **PGlite 分出去**，因为它需要一套 SQLite 路径不需要的 IPC 事务 host，混编会让本故事同时背两种事务模型。
+- **Tauri 分出去**，因为两者**风险量级不对等**：Electron 侧只是工程量，Tauri 侧卡在一个外部前提——
+  `@tauri-apps/plugin-sql` 的 JavaScript API 没有事务对象，无从确认 BEGIN / 业务语句 / COMMIT
+  是否落在同一物理连接。该前提为否时 Tauri 侧要回 plan 阶段重定方案，而 Electron 侧完全不受影响；
+  绑在一起等于让已可交付的一半陪着另一半停在 Backlog。
 
 桌面 host 契约（renderer client / host protocol / 安全基线）在本故事抽出，US-208 与 US-210 复用。
 
@@ -203,16 +191,16 @@ Electron 完全同构（多个 renderer，同一个主进程 host，一库一连
 3. host 入口真能开库、建表、写入、读回、关闭，应答一律经 renderer 入口导出的
    `assertDesktopHostResponse` 解包 —— 于是这条往返同时证明两个入口的协议是配套的。
 
-> **2026-08-15：自动门禁已移除。** 此前由 `scripts/audit/desktop-adapter-consumer.mjs` +
-> `consumer` target 在真 tarball 上守这三条，随发布流程改为手工执行一并删除。
+> **没有自动门禁。** 曾由 `scripts/audit/desktop-adapter-consumer.mjs` + `consumer` target
+> 在真 tarball 上守这三条，随发布流程改为手工执行一并删除。
 > 这三条性质现在**没有任何自动化覆盖**，改包的 `exports` / 入口切分 / host 协议后，
 > 需要手工 `pnpm pack` 装进临时项目自行确认。
 
-### 发布后的真 registry 复验（2026-08-14）
+### 发布后的真 registry 复验
 
-上面三条性质是在**本地 tarball** 上验的。0.0.25 发布后又从真 registry 装了一次
-`@aiao/rxdb-adapter-desktop@0.0.25`（`pnpm install --config.prefer-online=true`），
-把同一组断言重跑了一遍——这一次验的是用户真正会装到的那个包：
+上面三条性质除了在**本地 tarball** 上验过，也从真 registry 装了一次
+`@aiao/rxdb-adapter-desktop@0.0.25`（`pnpm install --config.prefer-online=true`）重跑同一组断言，
+验的是用户真正会装到的那个包：
 
 - 双入口（`.` + `./host`）在 NodeNext 与 Bundler 下均通过 typecheck，且 `skipLibCheck: false`；
 - 两端 `DESKTOP_HOST_PROTOCOL_VERSION` 一致；
@@ -221,8 +209,8 @@ Electron 完全同构（多个 renderer，同一个主进程 host，一库一连
 - 路径穿越被拒；
 - 39 个安装文件、零测试泄漏；`workspace:*` 已替换成 `0.0.25`；`repository.url` 正确。
 
-首发过程中遇到一次假警报值得记下：发布成功后 `npm view @aiao/rxdb-adapter-desktop` 查不到，
-看着像没发出去。实际是**新 scoped 包的 CDN packument 传播延迟**——
+发布新 scoped 包时的一个已知假警报：发布成功后 `npm view @aiao/rxdb-adapter-desktop` 可能查不到，
+看着像没发出去。那是 **CDN packument 传播延迟**——
 run log 里的 `Published to https://registry.npmjs.org/` 才是权威，`npm view` 不是。
 
 ### 未关闭项

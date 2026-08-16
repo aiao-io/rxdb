@@ -31,11 +31,11 @@
 1. 先完成 US-304，再允许涉及系统 schema 或 change codec 的新迁移进入发布分支。
 2. US-012 可与 US-304 并行设计，但其 DTO 不得重新定义 `bigint/binary` 的值 wire codec。
    内部必须按 **阶段 A → 阶段 B → 阶段 C** 顺序交付，三个阶段同在
-   [US-012](stories/core/US-012-field-semantic-metadata.md) 一个文件里（2026-08-16 由 US-012a/b/c 合并回）。
+   [US-012](stories/core/US-012-field-semantic-metadata.md) 一个文件里。
 3. US-207 必须先锁定 Electron SQLite 的真实连接语义并抽出共享桌面 host 契约；无法保证单连接事务时应 fail-fast，不得降级成伪事务。
 4. US-208 与 US-210 均排在 US-207 之后，复用其抽出的 host 契约。US-208 的两种事务 host 方案（IPC 事务 ID 协议 /
    adapter 完整托管在主进程）、US-210 的两种事务方案（配置单连接池 / Rust command 持有事务）都必须先通过同一套事务与事件测试再冻结选择。
-5. [US-904](stories/future/US-904-devtools-native-storage-contract.md) 内部四阶段（2026-08-16 由 US-904a/b/c/d 合并回一个文件）：
+5. [US-904](stories/future/US-904-devtools-native-storage-contract.md) 内部四阶段：
    共享链与 Electron 可行性门禁并行 **阶段 A ∥ (阶段 B → 阶段 C)**；只有 Electron 集成要求
    **阶段 A(supported) + 阶段 C + US-207 + US-504 → 阶段 D**。Tauri 按 **US-904 阶段 C → US-905** 推进，
    原生链为 **US-210 → US-505**，US-905 阶段 2 额外要求 **US-210 + US-505**，全程不等待 Electron MV3/US-904 阶段 D。
@@ -48,13 +48,13 @@
    US-307 / US-308 的核心持久层半边可与 US-306 阶段 C 并行开工，但三框架入口与 benchmark 采样必须复用
    阶段 C 冻结的 `useWorkingTree()` 契约与 `bench-working-tree` target，排在其后。
 7. US-703 应复用现有搜索公开 API 和跨框架 parity fixture，不为 PGlite 增加 SQLite 专属 fallback。
-8. ~~US-209 只做门禁与文档收尾~~ → 2026-08-15 已 Done。约束仍然生效并转为**长期口径**：小程序适配器的能力承诺不得扩大，
+8. US-209 已 Done，其约束转为**长期口径**：小程序适配器的能力承诺不得扩大，
    WAL、多页面并发、崩溃恢复保证和微信以外的小程序平台都不在范围内；文档一律写「实验性」，
    不得把它列成与 wa-sqlite 同级的受支持适配器（落点见 [compatibility.md](../website/docs/compatibility.md) 的能力边界专节）。
    US-209 AC#8 顺带留下一个新缺口：`exports` 子路径入口的**导出表面**不受 api-surface 门禁保护
    （清单本身已由 `KNOWN_UNCOVERED_SUBPATHS` 核对），见
    [capability-matrix.md](capability-matrix.md) 的「已知的需求覆盖缺口」。
-   该缺口 2026-08-15 由 [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md) 认领；
+   该缺口由 [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md) 认领；
    在它交付之前，改动这 12 个子路径入口的导出**必须在 PR 描述里人工声明破坏性**。
 9. epic-008 内部 **US-013 → US-014** 为硬序。US-014 交付后三处已知泄漏全部关闭，
    因此 US-015 阶段 B 及其之后的每一条都必须写出**今天用户踩得到的具体症状**才允许排期；写不出就留在 Backlog。

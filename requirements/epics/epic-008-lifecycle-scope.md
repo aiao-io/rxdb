@@ -79,10 +79,11 @@ US-014 独立交付即可关闭。后续故事必须各自证明自己的症状�
 同一个生命周期的两端，一端硬失败一端静默，且拆卸端连**逆序**都没有——
 这不是某个插件的 bug，是「拆卸没有统一语义」的直接后果。
 
-## 2026-08-16 Cordis 第二轮复核
+## 从 Cordis 迁移什么
 
-再次对照 `/Users/jimmy/Documents/aiao/cordis` 的 `Fiber`、`EventsService`、`Service.check`、反射通知和对应测试后，
-真正值得迁移的不是 Cordis 的 `Context`、Proxy 或完整状态枚举，而是三条可验证的机制：
+对照 `/Users/jimmy/Documents/aiao/cordis` 的 `Fiber`、`EventsService`、`Service.check`、反射通知、
+`registry.ts` / `utils.ts` / `packages/timer` 与对应测试，真正值得迁移的不是 Cordis 的 `Context`、
+Proxy 或完整状态枚举，而是六条可验证的机制：
 
 1. **目标纪元（target epoch）+ 单飞 reconcile。** Cordis 的 `_setEpoch()` 在过渡进行时只更新目标，不并发启动第二个
    `_reload()` / `_unload()`；当前过渡结束后再比较最新目标。迁移到 RxDB 后，同一插件同一时刻最多一个
@@ -103,31 +104,22 @@ US-014 独立交付即可关闭。后续故事必须各自证明自己的症状�
    的 disposer 应为幂等空操作，只有实际插入条目的 disposer 负责移除它。这样既保留现有去重语义，也不会误删另一处注册。
    该 API 收敛属于本 Epic 的生命周期账本，不另起 Cordis 兼容层。
 
+4. **作用域树是本地读出，不是全局注册表。** cordis 把 `{ label, children }` 挂在 `effect()` 返回的
+   disposer 自己身上，`getEffects()` 只读本 fiber 的清单。据此 US-013 提供 `getEntries()`
+   与 AC#9b（决策见 US-013 D4）。DevTools 作用域树因此缺的从来不是数据源，而是 US-015 的状态机。
+5. **一次 `acquire()` 只包一步会失败的获取。** cordis 用 generator effect 让 setup 半途抛错时
+   已获取的部分照常回滚；rxdb 不引入 generator，改用契约拿到同一保证（US-013 AC#12b 与 D5）。
+   US-014 D7 的 storage 迁移写法据此是三段式：把 `new` 与 `defineProperty` 写进一次 `acquire()`，
+   `defineProperty` 抛错时新造的实例不进清单，等于把 D7 要消灭的泄漏换个位置。
+6. **批量 reconcile + 只在 `active` 边上通知。** cordis 的 `ReflectService.notify(names[])` 一轮扫完
+   一批名字，`_updateState` 只在跨越 `ACTIVE` 时才通知。US-015 的调度器约束与两条并发测试据此而来。
+
 对应测试必须覆盖 Cordis `fiber.spec.ts` 的三类 inertia lock：安装中断连、安装/释放期间重新连上、依赖实例替换但名字不变；
-并覆盖 `dispose.spec.ts` 的重复释放、逆序、嵌套和异步释放。**不迁移** Cordis `Context`/`provide()`、Proxy trace、全局
-Registry、thenable Fiber、HMR 或长异步栈追踪。
+并覆盖 `dispose.spec.ts` 的重复释放、逆序、嵌套和异步释放。
 
-## 2026-08-16 Cordis 第三轮复核
-
-第二轮已经把 `Fiber` 的纪元算法、`Service.check` 的谓词就绪、`EventsService.on()` 的返回式 disposer
-三条主线搬完；第三轮只找**增量**，逐条核过 `fiber.ts` / `utils.ts` / `reflect.ts` / `registry.ts` /
-`events.ts` / `packages/timer` 与对应测试后，只有三条是新的，且都已落到对应文档：
-
-1. **作用域树是本地读出，不是全局注册表。** cordis 把 `{ label, children }` 挂在 `effect()` 返回的
-   disposer 自己身上，`getEffects()` 只读本 fiber 的清单。据此给 US-013 补 `getEntries()`
-   与 AC#9b（决策见 US-013 D4）；连带更正 DevTools 作用域树的阻塞理由——它缺的从来不是数据源，
-   而是 US-015 的状态机。
-2. **一次 `acquire()` 只包一步会失败的获取。** cordis 用 generator effect 让 setup 半途抛错时
-   已获取的部分照常回滚；rxdb 不引入 generator，改用契约拿到同一保证。据此给 US-013 补 AC#12b
-   与 D5，并改写 US-014 D7 的 storage 迁移示例为三段式——原示例把 `new` 与 `defineProperty` 写在
-   一次 `acquire()` 里，`defineProperty` 抛错时新造的实例不进清单，等于把 D7 要消灭的泄漏换个位置。
-3. **批量 reconcile + 只在 `active` 边上通知。** cordis 的 `ReflectService.notify(names[])` 一轮扫完
-   一批名字，`_updateState` 只在跨越 `ACTIVE` 时才通知。据此给 US-015 的「Cordis 复核」补两条约束
-   与两条并发测试。
-
-**仍然不迁移**：`Context` / `provide()` / Proxy trace / 全局 Registry / thenable Fiber / HMR /
-长异步栈追踪（同第二轮）。`packages/timer` 的 `ctx.timeout()` / `interval()` / `throttle()` /
-`debounce()` 一并**否决**：rxdb 的 ~30 处 `setTimeout` 全部在适配器内部，已有 47 处配对的 `clear*`，
+**不迁移**：Cordis `Context` / `provide()` / Proxy trace、全局 Registry、thenable Fiber、HMR、长异步栈追踪。
+`packages/timer` 的 `ctx.timeout()` / `interval()` / `throttle()` / `debounce()` 一并**否决**：
+rxdb 的 ~30 处 `setTimeout` 全部在适配器内部，已有 47 处配对的 `clear*`，
 且适配器自己拥有 `destroy()`——不满足本 Epic「病灶数 ≥ 抽象数」的判据。
 
 ## 目标
@@ -137,7 +129,7 @@ Registry、thenable Fiber、HMR 或长异步栈追踪。
 - [ ] 在 `@aiao/utils` 提供 `LifecycleScope` 生命周期作用域原语，语义（逆序、幂等、**异步释放**、错误隔离、可嵌套）
       由测试冻结（[US-013](../stories/core/US-013-lifecycle-scope-primitive.md)）。
       **异步获取**（`acquireAsync()` + `AbortSignal`）不在承诺范围：本 Epic 四个迁移点的资源获取全部是同步的，
-      零调用方，已于 2026-08-16 推迟；它是纯可加性 API，出现第一个「获取跨 `await`」的调用方时再补
+      零调用方；它是纯可加性 API，出现第一个「获取跨 `await`」的调用方时再补
 - [ ] `IRxDBPlugin` 契约改为 `install(scope)`，四个插件包全部迁移，`destroy()` 转为可选并进入废弃周期；
       **关闭上表第 4 / 7 / 9 条三处既有泄漏**（[US-014](../stories/core/US-014-plugin-scope-contract.md)）
 

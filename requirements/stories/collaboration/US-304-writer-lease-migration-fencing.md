@@ -1,11 +1,15 @@
 ---
 id: US-304
 title: 跨 realm writer lease 与迁移 fencing
-status: In Progress
+status: Deferred
 priority: High
 epic: epic-005-type-system-evolution
 created: 2026-08-01
-updated: 2026-08-15
+updated: 2026-08-16
+deferred:
+  since: 2026-08-16
+  until: 1.0.0
+  reason: 迁移路径尚未投入使用，0.0.x 线无可迁移内容；未闭合项留到 1.0.0 前完善
 tags: [collaboration, migration, lease, fencing, cross-tab, cross-process]
 inherited_acs:
   - from: US-303

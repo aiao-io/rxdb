@@ -14,7 +14,7 @@ owner: jimmy
 
 ## 为什么是 Epic 而不是一个 Story
 
-原 [US-305](../stories/collaboration/US-305-commit-graph-head.md) 单个故事持有 4 个用户故事、28 条 FR、7 个关键实体，横跨 `packages/rxdb/src/version/`、`packages/rxdb/src/system/`、`rxdb-plugin-workspace`、三个框架包和三个 demo。它的 INVEST 里 `Small` 打了勾，但没有任何一条 FR 可以在不落地存储布局的前提下单独验收——即"要么全做要么全不做"，这正是 Small 不成立的定义。首轮拆分后的 US-306 仍同时覆盖全部写入口、Index、三框架和 benchmark，2026-08-15 再拆出三段，2026-08-16 合并回 US-306 一个文件的「交付阶段 A/B/C」。现在每个阶段都能独立跑通「写入 → 刷新 → 读回」这条最小闭环。
+原 [US-305](../stories/collaboration/US-305-commit-graph-head.md) 单个故事持有 4 个用户故事、28 条 FR、7 个关键实体，横跨 `packages/rxdb/src/version/`、`packages/rxdb/src/system/`、`rxdb-plugin-workspace`、三个框架包和三个 demo。它的 INVEST 里 `Small` 打了勾，但没有任何一条 FR 可以在不落地存储布局的前提下单独验收——即"要么全做要么全不做"，这正是 Small 不成立的定义。拆分后的 [US-306](../stories/collaboration/US-306-working-tree-index.md) 仍同时覆盖全部写入口、Index、三框架和 benchmark，因此在文件内再切成「交付阶段 A/B/C」。现在每个阶段都能独立跑通「写入 → 刷新 → 读回」这条最小闭环。
 
 ## 术语（与既有 Workspace 插件的命名冲突处置）
 
@@ -175,7 +175,7 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 把「受信」挂在这两个函数上，等于让本表的不同行共用同一个判定，必然出错。当前调用方与各自应落的行如下：
 
 **登记键固定为「文件 + 符号 + 意图」，不是行号。** 行号会随任何一次无关编辑漂移，把它当键会让漂移测试
-变成噪音源。下表按符号登记，截至 2026-08-15 与代码实际调用点一一对应：
+变成噪音源。下表按符号登记，与代码实际调用点一一对应：
 
 | 登记键（文件 + 符号）                                                                                                                     | 传输层                          | 本表归属                                |
 | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | --------------------------------------- |
@@ -272,7 +272,7 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
 
 1. [US-304](../stories/collaboration/US-304-writer-lease-migration-fencing.md) 必须先 Done —— 本 Epic 复用 writer 身份与迁移期 epoch fencing，不复用 epoch 充当提交版本
 2. 当前发布主线先产生新的非迁移 bridge tag；历史 `v0.0.25` 不在当前 ancestry，不能供下一步引用。
-   **这一步由 US-305 自身承接**（FR-030 + 新增 AC US2-14），不是无主的流程约定：截至 2026-08-15，
+   **这一步由 US-305 自身承接**（FR-030 + AC US2-14），不是无主的流程约定：
    [migration-release.json](../migration-release.json) 的 `bridge.tag` / `bridge.version` 仍为 `null`，
    而 `release.version` 仍写着已脱链的 `0.0.25`。US-305 的第一个可交付物就是产出新 bridge tag 并修正该 manifest，
    在此之前 system schema 迁移不得进入发布分支
