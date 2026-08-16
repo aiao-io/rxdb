@@ -129,11 +129,6 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
     return Promise.resolve();
   }
 
-  /** 系统表就绪后启动此适配器的持久化 writer lease。 */
-  startWriterLease(): Promise<void> {
-    return Promise.resolve();
-  }
-
   abstract isTableExisted(EntityType: EntityType): Promise<boolean>;
 
   abstract transaction<T extends TransactionFun>(fun: T, transactionLog?: boolean): Promise<Awaited<ReturnType<T>>>;
