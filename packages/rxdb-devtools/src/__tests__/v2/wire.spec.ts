@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { RXDB_DEVTOOLS_MESSAGE } from '../../types.js';
 import {
   createDevToolsV2Message,
   DEVTOOLS_V2_MESSAGE_DIRECTIONS,
@@ -7,7 +8,6 @@ import {
   isDevToolsV2Envelope,
   isDevToolsV2Message
 } from '../../v2/wire.js';
-import { RXDB_DEVTOOLS_MESSAGE } from '../../types.js';
 
 const SESSION_ID = '7f3e4d2c-1a0b-4c9d-8e7f-0a1b2c3d4e5f';
 const OTHER_SESSION_ID = '00000000-0000-4000-8000-000000000001';
@@ -85,7 +85,9 @@ describe('isDevToolsV2Envelope', () => {
 
   it('MUST allow a null sessionId only during negotiation', () => {
     expect(
-      isDevToolsV2Envelope(envelope({ type: 'PROTOCOL_HELLO', sessionId: null, payload: { supportedVersions: [2, 1] } }))
+      isDevToolsV2Envelope(
+        envelope({ type: 'PROTOCOL_HELLO', sessionId: null, payload: { supportedVersions: [2, 1] } })
+      )
     ).toBe(true);
     expect(isDevToolsV2Envelope(envelope({ sessionId: null }))).toBe(false);
     expect(isDevToolsV2Envelope(envelope({ sessionId: 'not-a-uuid' }))).toBe(false);
@@ -119,7 +121,11 @@ describe('isDevToolsV2Message payload guards', () => {
     expect(
       isDevToolsV2Message({
         ...handshake,
-        payload: { protocolVersion: 3, sessionId: SESSION_ID, capabilities: { capability: 'readonly', descriptors: [] } }
+        payload: {
+          protocolVersion: 3,
+          sessionId: SESSION_ID,
+          capabilities: { capability: 'readonly', descriptors: [] }
+        }
       })
     ).toBe(false);
     expect(
@@ -169,9 +175,9 @@ describe('isDevToolsV2Message payload guards', () => {
     });
 
     expect(isDevToolsV2Message(request)).toBe(true);
-    expect(isDevToolsV2Message({ ...request, payload: { ...request['payload'] as object, requestId: 'req 1' } })).toBe(
-      false
-    );
+    expect(
+      isDevToolsV2Message({ ...request, payload: { ...(request['payload'] as object), requestId: 'req 1' } })
+    ).toBe(false);
     expect(
       isDevToolsV2Message({ ...request, payload: { ...(request['payload'] as object), operation: 'inspect' } })
     ).toBe(false);
@@ -190,7 +196,10 @@ describe('isDevToolsV2Message payload guards', () => {
     expect(isDevToolsV2Message({ ...chunk, payload: { ...(chunk['payload'] as object), chunkIndex: -1 } })).toBe(false);
     expect(isDevToolsV2Message({ ...chunk, payload: { ...(chunk['payload'] as object), offset: 1.5 } })).toBe(false);
     expect(
-      isDevToolsV2Message({ ...chunk, payload: { ...(chunk['payload'] as object), offset: Number.MAX_SAFE_INTEGER + 2 } })
+      isDevToolsV2Message({
+        ...chunk,
+        payload: { ...(chunk['payload'] as object), offset: Number.MAX_SAFE_INTEGER + 2 }
+      })
     ).toBe(false);
   });
 
@@ -299,17 +308,15 @@ describe('exact-key coverage across every message type', () => {
   it.each([...DEVTOOLS_V2_MESSAGE_TYPES])('MUST accept the sample payload for %s', type => {
     const sessionId = type === 'PROTOCOL_HELLO' ? null : SESSION_ID;
     expect(
-      isDevToolsV2Message(
-        envelope({ type, direction: directionFor(type), sessionId, payload: VALID_PAYLOADS[type] })
-      )
+      isDevToolsV2Message(envelope({ type, direction: directionFor(type), sessionId, payload: VALID_PAYLOADS[type] }))
     ).toBe(true);
   });
 
   it.each([...DEVTOOLS_V2_MESSAGE_TYPES])('MUST reject a non-record payload for %s', type => {
     const sessionId = type === 'PROTOCOL_HELLO' ? null : SESSION_ID;
-    expect(
-      isDevToolsV2Message(envelope({ type, direction: directionFor(type), sessionId, payload: 'payload' }))
-    ).toBe(false);
+    expect(isDevToolsV2Message(envelope({ type, direction: directionFor(type), sessionId, payload: 'payload' }))).toBe(
+      false
+    );
   });
 
   it.each([...DEVTOOLS_V2_MESSAGE_TYPES])('MUST reject an extra payload key for %s', type => {
@@ -368,9 +375,9 @@ describe('isDevToolsV2Message identifier and value checks', () => {
     expect(isDevToolsV2Message(withCapabilities('readonly'))).toBe(false);
     expect(isDevToolsV2Message(withCapabilities({ capability: 'readonly' }))).toBe(false);
     expect(isDevToolsV2Message(withCapabilities({ capability: 'readonly', descriptors: {} }))).toBe(false);
-    expect(
-      isDevToolsV2Message(withCapabilities({ capability: 'readonly', descriptors: [{ domain: 'files' }] }))
-    ).toBe(false);
+    expect(isDevToolsV2Message(withCapabilities({ capability: 'readonly', descriptors: [{ domain: 'files' }] }))).toBe(
+      false
+    );
   });
 
   it('MUST reject a HANDSHAKE_ACK whose protocolVersion is not 2', () => {
@@ -382,11 +389,15 @@ describe('isDevToolsV2Message identifier and value checks', () => {
 
 describe('createDevToolsV2Message', () => {
   it('MUST derive direction from the message type and emit a self-valid message', () => {
-    const message = createDevToolsV2Message('PROTOCOL_HELLO', { supportedVersions: [2, 1] }, {
-      sessionId: null,
-      sequence: 3,
-      timestamp: 1_700_000_000_000
-    });
+    const message = createDevToolsV2Message(
+      'PROTOCOL_HELLO',
+      { supportedVersions: [2, 1] },
+      {
+        sessionId: null,
+        sequence: 3,
+        timestamp: 1_700_000_000_000
+      }
+    );
 
     expect(message.direction).toBe('panel-to-connector');
     expect(isDevToolsV2Message(message)).toBe(true);
@@ -405,7 +416,11 @@ describe('createDevToolsV2Message', () => {
 
   it('MUST refuse to build a bidirectional message without an explicit direction', () => {
     expect(() =>
-      createDevToolsV2Message('TRANSFER_CANCEL', { transferId: 'tx-1' }, { sessionId: SESSION_ID, sequence: 1, timestamp: 1 })
+      createDevToolsV2Message(
+        'TRANSFER_CANCEL',
+        { transferId: 'tx-1' },
+        { sessionId: SESSION_ID, sequence: 1, timestamp: 1 }
+      )
     ).toThrow(TypeError);
   });
 

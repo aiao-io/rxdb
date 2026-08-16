@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { RXDB_DEVTOOLS_MESSAGE } from '../../types.js';
-import { createDevToolsV2Message } from '../../v2/wire.js';
-import { createScenario } from '../../testing/driver.js';
 import type { DevToolsConformanceSession } from '../../testing/driver.js';
+import { createScenario } from '../../testing/driver.js';
 import { createJsonConformanceDriver } from '../../testing/json-driver.js';
 import { runDevToolsWireHygieneSuite } from '../../testing/wire-hygiene.suite.js';
+import { RXDB_DEVTOOLS_MESSAGE } from '../../types.js';
+import { createDevToolsV2Message } from '../../v2/wire.js';
 
 const SESSION_ID = '9c2f7a10-58b4-4d2e-b6a7-3e1f04c9d85b';
 
@@ -93,20 +93,34 @@ describe('json conformance driver', () => {
   it('MUST forge a legacy ACK at background when configured to replay the old relay', async () => {
     const session = await open({ relayAcksLegacyHandshake: true });
     const handshake = JSON.stringify(
-      createDevToolsV2Message('HANDSHAKE', { protocolVersion: 2, sessionId: SESSION_ID, capabilities: { capability: 'readonly', descriptors: [] } }, { sessionId: SESSION_ID, timestamp: 1_700_000_000_000, sequence: 1 })
+      createDevToolsV2Message(
+        'HANDSHAKE',
+        { protocolVersion: 2, sessionId: SESSION_ID, capabilities: { capability: 'readonly', descriptors: [] } },
+        { sessionId: SESSION_ID, timestamp: 1_700_000_000_000, sequence: 1 }
+      )
     );
     await session.segment('connector').inject(handshake, 'connector-to-panel');
 
     const delivered = session.segment('panel').received;
     expect(delivered).toHaveLength(2);
-    const forged = delivered.map(frame => JSON.parse(frame) as Record<string, unknown>).find(message => message['type'] === 'HANDSHAKE_ACK');
-    expect(forged).toMatchObject({ source: RXDB_DEVTOOLS_MESSAGE, type: 'HANDSHAKE_ACK', direction: 'devtools-to-page' });
+    const forged = delivered
+      .map(frame => JSON.parse(frame) as Record<string, unknown>)
+      .find(message => message['type'] === 'HANDSHAKE_ACK');
+    expect(forged).toMatchObject({
+      source: RXDB_DEVTOOLS_MESSAGE,
+      type: 'HANDSHAKE_ACK',
+      direction: 'devtools-to-page'
+    });
   });
 
   it('MUST NOT forge anything when the relay is a plain forwarder', async () => {
     const session = await open({ relayAcksLegacyHandshake: false });
     const handshake = JSON.stringify(
-      createDevToolsV2Message('HANDSHAKE', { protocolVersion: 2, sessionId: SESSION_ID, capabilities: { capability: 'readonly', descriptors: [] } }, { sessionId: SESSION_ID, timestamp: 1_700_000_000_000, sequence: 1 })
+      createDevToolsV2Message(
+        'HANDSHAKE',
+        { protocolVersion: 2, sessionId: SESSION_ID, capabilities: { capability: 'readonly', descriptors: [] } },
+        { sessionId: SESSION_ID, timestamp: 1_700_000_000_000, sequence: 1 }
+      )
     );
     await session.segment('connector').inject(handshake, 'connector-to-panel');
 

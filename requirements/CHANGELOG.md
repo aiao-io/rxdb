@@ -6,6 +6,36 @@
 
 ## Story 状态变更
 
+### 2026-08-16 — 取消子故事文件，10 个 `US-XXXa/b/c` 合并回 4 个父文件（无规范性内容增删）
+
+- 撤销「父故事 + `US-XXXa/b/c` 子故事文件」这一整套约定。子文件拆分同时做了两件事：把父文件移出 Backlog
+  （不再可开工），却依赖另一次改动把等量可交付项放回去——US-015 就卡在这个断层上整整一天
+  （降级已发生、`US-015a` / `US-015b` 始终没落盘，epic-008 因此在 US-014 之后没有任何可开工切片）。
+  改为**一个编号一个文件**，体量过大时在正文用 `## 交付阶段` 表切成 A / B / C…，
+  AC 表按阶段分段编号，实现文件表加「阶段」列。外部引用因此永远指向同一个路径。
+- 合并映射（10 个子文件已 `git rm`，内容全部并入父文件，AC 逐条保留）：
+
+  | 合并前                                | 合并后                                                                                 |
+  | :------------------------------------ | :------------------------------------------------------------------------------------- |
+  | US-012a / US-012b / US-012c           | [US-012](stories/core/US-012-field-semantic-metadata.md) 阶段 A / B / C                |
+  | US-306a / US-306b / US-306c           | [US-306](stories/collaboration/US-306-working-tree-index.md) 阶段 A / B / C            |
+  | US-904a / US-904b / US-904c / US-904d | [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 A / B / C / D |
+  | `US-015a` / `US-015b`（从未落盘）     | [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 A / B                   |
+
+- US-015 相应**从父故事回退为普通可交付故事**：从 git 历史取回被拆散前的 15 条 AC，重排为按阶段分段的 20 条
+  （阶段 A 12 条含 Cordis 四类并发测试与 search 插件迁移，阶段 B 6 条，横切 2 条）。
+  epic-008 在 US-014 之后重新有可开工切片。
+- US-904 的状态由子故事的最高进度接管：`Backlog` → `In Progress`（阶段 B 已交付，含 5 条 fake 关不掉的保留 AC；
+  阶段 A / C / D 未开始）。US-904a 的机器可读门禁 frontmatter（`decision: pending` / `evidence: null`）随之落到父文件。
+- [US-905](stories/future/US-905-tauri-native-devtools.md) **不参与合并**：它有自己的用户价值、前置与关闭条件，
+  按新规则该占独立编号；只把对 904b/c/d 的引用改指 US-904 的对应阶段。
+- 派生视图与规则文档同步：`README.md`（新增「大故事用交付阶段，不用子故事文件」，删除「拆分即落盘」硬规则）、
+  `template.md`、`status-overview.md`、`roadmap.md`、`release-plan.md`、epic-002/003/005/006/008、
+  US-305 / US-307 / US-308 / US-014 / US-905，以及 `specs/` 与 `packages/rxdb-devtools` 的 TSDoc 引用。
+  派生计数按真相源重推：**Done 34、In Progress 5、Backlog 12、合计 51**（合并前 35 / 4 / 22 / 61）。
+  计数变化全部来自文件数减少与 US-904 状态接管，**没有任何一条 AC 被增删**。
+- 本条以上的历史条目**保留当轮旧编号**作为记录，链接已改指合并后的文件。
+
 ### 2026-08-16 — `main` 合并进 `001-working-tree-commits`（无状态变更）
 
 - 两侧各自追加故事后合并，**没有任何一条 story 的 `status` 因合并而改变**；
@@ -27,8 +57,8 @@
 
 ### 2026-08-16 — US-904b DevTools v2 协议冻结（Backlog → Done）
 
-- [US-904b](stories/future/US-904b-devtools-v2-protocol.md) 交付，成为 v2 **全部数值、状态机与错误联合的唯一真相源**；
-  US-904c / US-904d / US-905 只引用，不重定义。范围只有 `packages/rxdb-devtools`：
+- [US-904b](stories/future/US-904-devtools-native-storage-contract.md) 交付，成为 v2 **全部数值、状态机与错误联合的唯一真相源**；
+  同文件的阶段 C / 阶段 D 与 US-905 只引用，不重定义。范围只有 `packages/rxdb-devtools`：
   控制面（证据触发协商、1,000 ms 决策窗口、ACK 所有权、session 身份、三层授权矩阵、有界 ID 预算与 tombstone 轮换）、
   provider 数据面（三领域 descriptor、RFC 4648 base64 transfer、有界 immutable snapshot、穷举错误联合），
   外加 fake 四段 relay / fake provider / conformance suite。**不抽面板、不碰 Chrome relay、不接 native host。**
@@ -46,11 +76,11 @@
 - 门禁：30 文件 757 条测试全绿，覆盖率 97.72 / 94.55 / 99.14 / 99.51（高于本包 96/91/98/98 baseline），
   `audit:api-surface` 更新后零 diff，`lint typecheck test build` 全绿。
 - 24 条 AC 中 19 条 ✅、5 条 ⚠️（AC#13 / #19 / #21 / #23 / #24）。保留项不是「还没写测试」而是本包结构上不可测：
-  真实重连语义与 OPFS/SQLite/WAL 零读取由 US-904c 关闭，内存驻留与 storage 独占锁由 US-904d / US-905 关闭，
+  真实重连语义与 OPFS/SQLite/WAL 零读取由阶段 C 关闭，内存驻留与 storage 独占锁由阶段 D / US-905 关闭，
   错误映射穷尽性本轮只到 meta-test（`DEVTOOLS_PROVIDER_ERROR_CODES` 每个成员至少一条 fixture），
   fixture 表从 `./testing` 导出，逼下游**加行**而非加 default 分支。详见该故事的「保留项」小节。
 - 派生视图同步：`status-overview.md`（Backlog 17 → 16，Done 34 → 35，合计 55 不变；epic-003 索引条目转 ✅）、
-  `US-904` 共享契约的子故事表新增状态列。
+  `US-904` 的阶段表新增状态列。
 
 ### 2026-08-16 — US-505 Tauri 本地文件存储开工（Backlog → In Progress）
 
@@ -85,13 +115,13 @@
 
 重编号映射（上方历史条目保留当轮旧编号，链接已指向现名）：
 
-| 当轮编号                          | 现名                                                                                      |
-| :-------------------------------- | :---------------------------------------------------------------------------------------- |
-| US-904b1 + b2                     | [US-904b](stories/future/US-904b-devtools-v2-protocol.md)                                 |
-| US-904b3 + b4                     | [US-904c](stories/future/US-904c-devtools-shared-panel-chrome-migration.md)               |
-| 旧 US-904c                        | [US-904d](stories/future/US-904d-electron-native-devtools-integration.md)                 |
-| US-905a + 905b                    | [US-905](stories/future/US-905-tauri-native-devtools.md)                                  |
-| 旧 US-904 / 904b / 905 三份父契约 | 合并为唯一的 [US-904 共享契约](stories/future/US-904-devtools-native-storage-contract.md) |
+| 当轮编号                          | 现名（2026-08-16 二次合并后）                                                    |
+| :-------------------------------- | :------------------------------------------------------------------------------- |
+| US-904b1 + b2                     | [US-904 阶段 B](stories/future/US-904-devtools-native-storage-contract.md)       |
+| US-904b3 + b4                     | [US-904 阶段 C](stories/future/US-904-devtools-native-storage-contract.md)       |
+| 旧 US-904c                        | [US-904 阶段 D](stories/future/US-904-devtools-native-storage-contract.md)       |
+| US-905a + 905b                    | [US-905](stories/future/US-905-tauri-native-devtools.md)                         |
+| 旧 US-904 / 904b / 905 三份父契约 | 合并为唯一的 [US-904](stories/future/US-904-devtools-native-storage-contract.md) |
 
 各轮落定的决策：
 
@@ -103,15 +133,15 @@
   且只启动一次，无 session 的迟到握手不算非法帧，v1 facade 进入后为终态并置降级标记。
 - 冻结 `crypto.randomUUID()` 在非安全上下文（扩展显式接受 `http:` 页面）不可用，须用 `getRandomValues` 构造 v4；
   补齐流式 transfer 的 15 秒 idle + 10 分钟总时长两道时限与 `transfer_timeout`（原文引用了一个从未定义的值）。
-- **依赖与安全契约（第三轮）**：US-904a 只门禁 Electron 侧，US-904b 与其并行且不阻塞 Tauri；
+- **依赖与安全契约（第三轮）**：阶段 A 只门禁 Electron 侧，阶段 B 与其并行且不阻塞 Tauri；
   wire v2 保留一个 minor 的 v1/v2 迁移桥，provider 改用语义 kind，冻结 capability/descriptor/mutation policy、
   流式 transfer 与有界 immutable snapshot。
-- **INVEST（第四、五轮）**：US-904b 横跨控制面、provider 数据面与 UI/Chrome 迁移，Small 不成立，
+- **INVEST（第四、五轮）**：当轮的 US-904b 横跨控制面、provider 数据面与 UI/Chrome 迁移，Small 不成立，
   据此切出「行为中性的面板抽取」与「行为收敛的 Chrome v2 迁移」两段；合并后以**故事内两阶段**表达，
   并硬性要求两阶段是独立 PR/commit 序列，阶段 1 的 diff 不得含 wire 类型、错误码或权限判定变化。
 - 同轮关闭六个缺口：background 代 ACK 导致的 v2 降级、`none` 事件泄漏、无界 ID tombstone、
   跨 transport binary/数值歧义、平台错误分叉、snapshot 等锁无 deadline。
-- 并行性最终形态不变：US-904c 阶段 1 ∥ US-904b，US-905 阶段 1 ∥ US-210 / US-505。
+- 并行性最终形态不变：US-904 阶段 C1 ∥ 阶段 B，US-905 阶段 1 ∥ US-210 / US-505。
 
 ### 2026-08-15 — 新建 epic-008 生命周期作用域，登记 US-013 / US-014 / US-015
 
@@ -123,7 +153,8 @@
 - 判据是既有泄漏而非设计偏好：[graph 插件](../packages/rxdb-plugin-graph/src/plugin.ts#L33-L35) 的 `destroy()`
   是空的且**契约里没有位置可写**（`#repository_config_map` 只有 `.set` / `.get`，无反注册 API）。
 - 同日把 US-015 降为父契约故事，切片指派给待创建的 `US-015a` / `US-015b`，US-016 / US-017 从 epic 目标转为待创建故事。
-  **子故事文件至今未落盘**，因此该轮不产生任何计数变化；在 `US-015a` 落盘前，epic-008 没有 US-014 之后的可交付切片。
+  该轮不产生任何计数变化，且两个子文件始终未落盘——**这正是 2026-08-16 取消整套子故事约定的直接诱因**，
+  US-015 已回退为普通可交付故事，两个切片改为它的阶段 A / 阶段 B。
 
 ### 2026-08-15 — epic-006 二次评审与 US-306 拆分
 
@@ -134,7 +165,8 @@
 - Index 独立重放闭包补齐跨事务实体关系依赖，覆盖 Parent→Child INSERT、Child→Parent DELETE、关系键更新与环。
 - `CommitConflict` 收敛为一次性命令诊断；durable `status().conflicted` 只由 restore session 派生。
 - restore 固定为只生成未暂存工作树，流程明确为 `restore → stage → commit`。
-- US-306 保留为父契约并拆出 US-306a/b/c，分别承接写入口捕获、Index/commit 状态机、三框架与性能门禁。
+- US-306 保留为父契约并拆出三段，分别承接写入口捕获、Index/commit 状态机、三框架与性能门禁
+  （2026-08-16 合并回 US-306 的阶段 A / B / C）。
   派生统计 Backlog 11 → 14，合计 47 → 50；这是既有范围拆分，不是新增产品范围。
 
 ### 2026-08-15 — 新增 US-601 与 epic-007（缺口登记，非新增范围）
@@ -247,12 +279,12 @@
 | 2026-08-13 | US-207 二次拆分，Tauri 半边迁至 US-210；US-207 收敛到 Electron 转 `In Progress` | 合计 45 → 46，Backlog 仍 11                                                 |
 | 2026-08-15 | 新增 US-601 + epic-007 + `stories/tooling/`                                     | Backlog 11 → 12，合计 46 → 47                                               |
 | 2026-08-15 | US-210 开工                                                                     | Backlog 12 → 11，In Progress 2 → 3                                          |
-| 2026-08-15 | US-306 拆出 306a/b/c                                                            | Backlog 11 → 14，合计 47 → 50                                               |
+| 2026-08-15 | US-306 拆出三段（后合并回阶段 A/B/C）                                           | Backlog 11 → 14，合计 47 → 50                                               |
 | 2026-08-15 | 新增 US-504 / US-505                                                            | Backlog 11 → 13，合计 47 → 49                                               |
 | 2026-08-15 | 新增 US-904                                                                     | Backlog 13 → 14，合计 49 → 50                                               |
 | 2026-08-15 | 新增 US-905                                                                     | Backlog 14 → 15，合计 50 → 51                                               |
 | 2026-08-15 | epic-008 新建，登记 US-013 / US-014 / US-015                                    | Backlog 14 → 17，合计 50 → 53                                               |
-| 2026-08-15 | US-015 降为父契约（子故事文件未落盘）                                           | 无变化，父故事 2 → 3                                                        |
+| 2026-08-15 | US-015 降为父契约（子故事文件未落盘，已于 08-16 回退）                          | 无变化，父故事 2 → 3                                                        |
 | 2026-08-15 | US-904 / US-905 第二至第五轮拆分                                                | Backlog 15 → 24，合计 51 → 60                                               |
 | 2026-08-15 | US-209 收尾转 `Done`                                                            | Done 32 → 33，In Review 1 → 0                                               |
 | 2026-08-15 | US-504 交付转 `Done`                                                            | Backlog 24 → 23，Done 33 → 34                                               |
@@ -260,6 +292,7 @@
 | 2026-08-16 | US-505 开工                                                                     | Backlog 18 → 17，In Progress 3 → 4                                          |
 | 2026-08-16 | US-904b 交付转 `Done`                                                           | Backlog 17 → 16，Done 34 → 35                                               |
 | 2026-08-16 | 合并 `main`                                                                     | 以上递进全部作废；重新推导为 Done 35 / In Progress 4 / Backlog 22 / 合计 61 |
+| 2026-08-16 | 10 个 `US-XXXa/b/c` 子故事文件合并回 4 个父文件                                 | Done 35 → 34，In Progress 4 → 5，Backlog 22 → 12，合计 61 → 51              |
 
 ## 依赖锁定记录
 

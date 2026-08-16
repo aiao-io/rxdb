@@ -27,12 +27,12 @@
 
 ## 进行中（5 条）
 
-| Story                                                                                                         | 卡在哪                                                         |
-| ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)                      | 仅剩 AC#8 三平台打包矩阵                                       |
-| [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md)              | AC#1 缺跨进程重启 e2e、AC#9 三平台打包矩阵                     |
-| [US-304 跨 realm writer lease 与迁移 fencing](stories/collaboration/US-304-writer-lease-migration-fencing.md) | 剩 AC6（挂起 writer 被迁移 epoch fence）；AC11 已转移给 US-305 |
-| [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                                | AC#6 / #7 待 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵        |
+| Story                                                                                                         | 卡在哪                                                             |
+| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)                      | 仅剩 AC#8 三平台打包矩阵                                           |
+| [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md)              | AC#1 缺跨进程重启 e2e、AC#9 三平台打包矩阵                         |
+| [US-304 跨 realm writer lease 与迁移 fencing](stories/collaboration/US-304-writer-lease-migration-fencing.md) | 剩 AC6（挂起 writer 被迁移 epoch fence）；AC11 已转移给 US-305     |
+| [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                                | AC#6 / #7 待 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵            |
 | [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)                 | 阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 A / C / D 未开始 |
 
 > US-207 / US-210 / US-505 的三条尾巴是**同一个下游缺口**：真实打包应用的重启与三平台矩阵。
@@ -100,7 +100,7 @@
 - ✅ [US-702 全文搜索](stories/future/US-702-full-text-search.md)
 - ✅ [US-209 微信小程序 wa-sqlite 适配器](stories/adapter/US-209-miniprogram-adapter.md) — 实验性，仅微信逻辑层
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md) — 文件落 `userData/rxdb-files`，与 US-207 的 SQLite 同一备份域
-- 🚧 [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md) — 见上方[进行中](#进行中4-条)
+- 🚧 [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md) — 见上方[进行中](#进行中5-条)
 - 🚧 [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) — 从 US-207 二次拆出；自写 Rust command 持有 `rusqlite::Connection`
 - 🚧 [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边
 - ⬜ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md) — PGlite callback transaction 不能跨 IPC 序列化
@@ -163,9 +163,9 @@
 
 以下故事的 YAML `status` 都不是 `Blocked`，但开工前有硬前置：
 
-| 被挡住的                                                                  | 硬前置                                                                                                                                                                                                                                                                                                                                               |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| epic-006 整条链（链首 US-305，不是 US-306）                               | ① [US-304](stories/collaboration/US-304-writer-lease-migration-fencing.md) 仍 🚧，US-305 / US-306 阶段 A 都要消费它的 writer 身份与迁移 epoch fencing                                                                                                                                                                                                |
-| [US-305](stories/collaboration/US-305-commit-graph-head.md)               | ② 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`，历史 `v0.0.25` 又已被 squash 移出主线——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。这一条不随代码进度自动解除，需单独排期 |
-| epic-008 中 US-014 之后的一切                                             | [US-013](stories/core/US-013-lifecycle-scope-primitive.md) → [US-014](stories/core/US-014-plugin-scope-contract.md) 是硬序；[US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 A 消费 US-014 的 `install(scope)` 签名，阶段 B 另需先证明用户价值                                                                                          |
+| 被挡住的                                                                   | 硬前置                                                                                                                                                                                                                                                                                                                                               |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| epic-006 整条链（链首 US-305，不是 US-306）                                | ① [US-304](stories/collaboration/US-304-writer-lease-migration-fencing.md) 仍 🚧，US-305 / US-306 阶段 A 都要消费它的 writer 身份与迁移 epoch fencing                                                                                                                                                                                                |
+| [US-305](stories/collaboration/US-305-commit-graph-head.md)                | ② 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`，历史 `v0.0.25` 又已被 squash 移出主线——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。这一条不随代码进度自动解除，需单独排期 |
+| epic-008 中 US-014 之后的一切                                              | [US-013](stories/core/US-013-lifecycle-scope-primitive.md) → [US-014](stories/core/US-014-plugin-scope-contract.md) 是硬序；[US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 A 消费 US-014 的 `install(scope)` 签名，阶段 B 另需先证明用户价值                                                                                         |
 | [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D | 同一文件的阶段 A 必须先给出 `decision: supported`                                                                                                                                                                                                                                                                                                    |

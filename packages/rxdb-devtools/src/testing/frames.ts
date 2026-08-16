@@ -11,18 +11,17 @@
  * @module @aiao/rxdb-devtools/testing/frames
  */
 
-import { isDevToolsMessage } from '../types.js';
 import type { AnyDevToolsMessage, MessageType } from '../types.js';
-import type { DevToolsProviderErrorCode } from '../v2/errors.js';
-import type { DevToolsControlPlaneErrorCode } from '../v2/errors.js';
-import { createDevToolsV2Message, isDevToolsV2Message } from '../v2/wire.js';
+import { isDevToolsMessage } from '../types.js';
+import type { DevToolsControlPlaneErrorCode, DevToolsProviderErrorCode } from '../v2/errors.js';
 import type {
   DevToolsV2Envelope,
+  DevToolsV2Message,
   DevToolsV2MessageOptions,
   DevToolsV2MessageType,
-  DevToolsV2Message,
   DevToolsV2PayloadMap
 } from '../v2/wire.js';
+import { createDevToolsV2Message, isDevToolsV2Message } from '../v2/wire.js';
 import type { DevToolsWireFrame } from './driver.js';
 
 /** 探针里出现的任一错误码。 */

@@ -14,7 +14,7 @@ owner: jimmy
 
 ## 为什么是 Epic 而不是一个 Story
 
-原 [US-305](../stories/collaboration/US-305-commit-graph-head.md) 单个故事持有 4 个用户故事、28 条 FR、7 个关键实体，横跨 `packages/rxdb/src/version/`、`packages/rxdb/src/system/`、`rxdb-plugin-workspace`、三个框架包和三个 demo。它的 INVEST 里 `Small` 打了勾，但没有任何一条 FR 可以在不落地存储布局的前提下单独验收——即"要么全做要么全不做"，这正是 Small 不成立的定义。首轮拆分后的 US-306 仍同时覆盖全部写入口、Index、三框架和 benchmark，2026-08-15 再拆为 US-306a/b/c。现在每个交付故事都能独立跑通「写入 → 刷新 → 读回」这条最小闭环。
+原 [US-305](../stories/collaboration/US-305-commit-graph-head.md) 单个故事持有 4 个用户故事、28 条 FR、7 个关键实体，横跨 `packages/rxdb/src/version/`、`packages/rxdb/src/system/`、`rxdb-plugin-workspace`、三个框架包和三个 demo。它的 INVEST 里 `Small` 打了勾，但没有任何一条 FR 可以在不落地存储布局的前提下单独验收——即"要么全做要么全不做"，这正是 Small 不成立的定义。首轮拆分后的 US-306 仍同时覆盖全部写入口、Index、三框架和 benchmark，2026-08-15 再拆出三段，2026-08-16 合并回 US-306 一个文件的「交付阶段 A/B/C」。现在每个阶段都能独立跑通「写入 → 刷新 → 读回」这条最小闭环。
 
 ## 术语（与既有 Workspace 插件的命名冲突处置）
 
@@ -61,26 +61,26 @@ v1 不持久化第二份独立 `HEAD`。当前分支仍由既有 `RxDBBranch.act
 
 状态表本身的创建/迁移与使用它的语义分属不同故事，避免出现「后置故事建表、前置故事使用」的倒挂：
 
-| 状态                                    | 建表与首次迁移 | 语义与 CAS 归属                                                      |
-| --------------------------------------- | -------------- | -------------------------------------------------------------------- |
-| `CommitCapabilityState`                 | US-305         | US-305                                                               |
-| `CommitBranchRef`                       | US-305         | US-305（head CAS）、US-308（分支生命周期）                           |
-| `WorkingTreeActivationState`            | **US-305**     | US-306a（写路径 token 校验）、US-308（switch CAS 与 `requireClean`） |
-| `WorkingTreeState` / `WorkingTreeEntry` | US-306a        | US-306a                                                              |
-| `IndexState` / `IndexEntry`             | US-306b        | US-306b                                                              |
-| `WorkingTreeRestoreSession`             | **US-306b**    | US-307                                                               |
-| branch materialization stage            | US-308         | US-308                                                               |
+| 状态                                    | 建表与首次迁移    | 语义与 CAS 归属                                                            |
+| --------------------------------------- | ----------------- | -------------------------------------------------------------------------- |
+| `CommitCapabilityState`                 | US-305            | US-305                                                                     |
+| `CommitBranchRef`                       | US-305            | US-305（head CAS）、US-308（分支生命周期）                                 |
+| `WorkingTreeActivationState`            | **US-305**        | US-306 阶段 A（写路径 token 校验）、US-308（switch CAS 与 `requireClean`） |
+| `WorkingTreeState` / `WorkingTreeEntry` | US-306 阶段 A     | US-306 阶段 A                                                              |
+| `IndexState` / `IndexEntry`             | US-306 阶段 B     | US-306 阶段 B                                                              |
+| `WorkingTreeRestoreSession`             | **US-306 阶段 B** | US-307                                                                     |
+| branch materialization stage            | US-308            | US-308                                                                     |
 
 `WorkingTreeActivationState` 由 US-305 随 system schema 首次迁移一并建立并初始化为 revision 0：
-US-306a 的普通 CRUD 必须校验 active branch token，而它排在 US-308 之前，表不能等到 US-308 才存在。
+US-306 阶段 A 的普通 CRUD 必须校验 active branch token，而它排在 US-308 之前，表不能等到 US-308 才存在。
 US-305 只负责建表与初始化，不实现 switch 语义。
 
-`WorkingTreeRestoreSession` 适用同一条规则，因此建表归 **US-306b** 而不是 US-307：`status()` 的 `conflicted`
-是 US-306b 交付的状态集合的一部分，而 v1 唯一的 durable 来源就是该 session，表不能等到排在其后的 US-307 才存在。
-US-306b 只负责建表与「从已存在的 session 派生 conflicted」，其 fixture 直接写入 session 行来构造分叉
-（与 US-306a 直接推进 `activationRevision`、不经 `switchBranch` 入口的做法同源）；`restore()` / `discard` 的会话
+`WorkingTreeRestoreSession` 适用同一条规则，因此建表归 **US-306 阶段 B** 而不是 US-307：`status()` 的 `conflicted`
+是 US-306 阶段 B 交付的状态集合的一部分，而 v1 唯一的 durable 来源就是该 session，表不能等到排在其后的 US-307 才存在。
+US-306 阶段 B 只负责建表与「从已存在的 session 派生 conflicted」，其 fixture 直接写入 session 行来构造分叉
+（与 US-306 阶段 A 直接推进 `activationRevision`、不经 `switchBranch` 入口的做法同源）；`restore()` / `discard` 的会话
 创建、`active | conflicted | committed` 生命周期、no-op 与兼容预检全部归 US-307。同理，类型化诊断值
-`CommitConflict` 的定义、TSDoc 与 api-baseline 登记归**首个使用者 US-306b**，US-308 只做 activation 维度的扩展。
+`CommitConflict` 的定义、TSDoc 与 api-baseline 登记归**首个使用者 US-306 阶段 B**，US-308 只做 activation 维度的扩展。
 
 `WorkingTreeEntry` 是逻辑契约，不强制新增物理表；plan 可以证明复用 `RxDBChange` 或不可变派生表满足同一契约。
 但 `WorkingTreeState` 只存计数和 revision 不算完成：必须有可枚举、可重放、按分支隔离的未提交变更单元。
@@ -165,9 +165,9 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 
 **受信路径必须与 bypass 门禁同批交付。** 表最后一行的拒绝门禁一旦启用，既有的批量投影重写路径就会撞上它——
 最典型的是 [VersionManager.ts](../../packages/rxdb/src/version/VersionManager.ts) 的 `switchBranch()` 经
-`adapter.switchBranch({ branchId, actions })` 做的整表重写。因此 **US-306a 在落地拒绝门禁的同一个故事内**，
+`adapter.switchBranch({ branchId, actions })` 做的整表重写。因此 **US-306 阶段 A 在落地拒绝门禁的同一个阶段内**，
 必须把既有 switch / baseline 物化路径登记为受信路径（关 trigger + 不产生工作树条目 + 不递增 working-tree revision），
-否则 306a 合并后到 US-308 合并前，`switchBranch` 会被自己的门禁拒掉或静默绕过工作树。登记的是「路径可信」这一
+否则阶段 A 合并后到 US-308 合并前，`switchBranch` 会被自己的门禁拒掉或静默绕过工作树。登记的是「路径可信」这一
 机制，切换分支的**工作树恢复语义**仍归 US-308。
 
 **登记必须以调用方意图为键，不得以传输层函数为键。** `adapter.switchBranch()` 与
@@ -213,8 +213,8 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 
 远端数据进入工作树不等于 remote commit push/pull：v1 只记录本地可审计的未提交结果，不伪造远端作者、消息或远端 commit。
 支持 full/filter 同步的实体必须覆盖“pull → refresh → switch away/back → status/diff”这条完整链路，但它**跨三个故事**，
-不能整条压在任何单一故事上：US-306a 验 `pull → refresh → 仅凭 HEAD + WorkingTreeEntry 重放`（持久层断言，不经
-`switchBranch` 入口），US-306b 接上 `status/diff`，US-308 接上 `switch away/back`。三段各自可独立跑；完整链路作为
+不能整条压在任何单一故事上：US-306 阶段 A 验 `pull → refresh → 仅凭 HEAD + WorkingTreeEntry 重放`（持久层断言，不经
+`switchBranch` 入口），US-306 阶段 B 接上 `status/diff`，US-308 接上 `switch away/back`。三段各自可独立跑；完整链路作为
 US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一次缓存刷新把工作树永久标成 dirty。
 
 ## 启用与存储边界
@@ -250,20 +250,20 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
   时序 flake（Node 宿主同条件下没有），AC#1 的跨进程重启 e2e 也尚未覆盖。flake 收敛且共享套件稳定全绿后按同一套件
   补入矩阵，届时更新本节与发布门禁 4，不在本 Epic 内夹带。
 - 跨后端 conformance 拆成**两套具名套件**，各有唯一归属故事，避免出现「门禁点名、无人认领」：
-  - `workingTreeCaptureConformanceSuite` —— 归 [US-306a](../stories/collaboration/US-306a-working-tree-capture.md)，
+  - `workingTreeCaptureConformanceSuite` —— 归 [US-306 阶段 A](../stories/collaboration/US-306-working-tree-index.md)，
     覆盖写入口捕获、事务原子性与工作树重放
-  - `workingTreeCommitConformanceSuite` —— 归 [US-306b](../stories/collaboration/US-306b-index-commit-state-machine.md)，
+  - `workingTreeCommitConformanceSuite` —— 归 [US-306 阶段 B](../stories/collaboration/US-306-working-tree-index.md)，
     覆盖 index/head/working-tree revision CAS、residual rebase 与崩溃恢复
-  - US-305 的 commit 图/迁移断言并入 `workingTreeCommitConformanceSuite`，由 US-306b 收口整套；US-305 自身先落地
+  - US-305 的 commit 图/迁移断言并入 `workingTreeCommitConformanceSuite`，由 US-306 阶段 B 收口整套；US-305 自身先落地
     commit 图部分的用例，不另起第三个套件名
 
 ## 横切约束（按故事适用，不单独成故事）
 
 原 US-305 把三框架对称（FR-024）、a11y（FR-025）、异步状态（FR-023）和禁止复活旧导出（FR-028）各写成一条 FR，读起来像"最后统一补"。适用范围固定如下：
 
-1. **三框架对称**：US-306c、US-307、US-308 的用户操作面必须在 Angular / React / Vue 提供语义对称的 API；US-305/306a/306b 是无 UI 的核心底座，只要求核心公开类型、TSDoc 和类型契约测试。
+1. **三框架对称**：US-306 阶段 C、US-307、US-308 的用户操作面必须在 Angular / React / Vue 提供语义对称的 API；US-305 与 US-306 阶段 A/B 是无 UI 的核心底座，只要求核心公开类型、TSDoc 和类型契约测试。
 2. **异步状态**：命令暴露 loading / success / error，查询在无结果时额外暴露 empty；错误说明操作、对象与恢复建议，不给无 empty 语义的命令伪造 empty 状态。
-3. **可访问性**：US-306c、US-307、US-308 的 UI 键盘可达、焦点可见、状态与错误可被屏幕阅读器读出，达到 WCAG 2.1 AA；US-305/306a/306b 不适用 UI a11y。
+3. **可访问性**：US-306 阶段 C、US-307、US-308 的 UI 键盘可达、焦点可见、状态与错误可被屏幕阅读器读出，达到 WCAG 2.1 AA；US-305 与 US-306 阶段 A/B 不适用 UI a11y。
 4. **不复活旧导出**：`stagedChange()`、`unstageChange()`、`commit()`、`stagedCount`、`WorkspaceCacheEntry.staged` 在可复核的 `v0.0.24` 公开表面中已不存在；新导出不得与它们同名同签名，也不得使用 `Workspace` 前缀（见上表）。
 5. **加密不降级**：支持后端叠加字段加密时，commit、working-tree、index、restore session 中的加密字段仍以
    versioned envelope 落盘；错误、摘要和 benchmark 报告不得带明文。历史保留风险提示不能代替 at-rest 加密。
@@ -278,26 +278,26 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
    在此之前 system schema 迁移不得进入发布分支
 3. [US-305](../stories/collaboration/US-305-commit-graph-head.md) 建立 commit 图、branch ref、`headRevision` CAS、存储布局与每分支基线迁移，
    并一并建立 `WorkingTreeActivationState`（见「状态归属」）
-4. [US-306a](../stories/collaboration/US-306a-working-tree-capture.md) 完成全部写入口的持久工作树捕获。
+4. [US-306 阶段 A](../stories/collaboration/US-306-working-tree-index.md) 完成全部写入口的持久工作树捕获。
    它只用 US-305 提供的 activation state 做**写路径 token 校验**，不实现 switch 语义；凡需要真正切换分支才能观察的
-   断言一律留给 US-308，306a 用持久层重放断言等价覆盖
-5. [US-306b](../stories/collaboration/US-306b-index-commit-state-machine.md) 在其上实现 index、关系依赖闭包、revision CAS、status/diff/stage/commit
-6. [US-306c](../stories/collaboration/US-306c-cross-framework-working-tree.md) 依赖 US-306b，交付
+   断言一律留给 US-308，阶段 A 用持久层重放断言等价覆盖
+5. [US-306 阶段 B](../stories/collaboration/US-306-working-tree-index.md) 在其上实现 index、关系依赖闭包、revision CAS、status/diff/stage/commit
+6. [US-306 阶段 C](../stories/collaboration/US-306-working-tree-index.md) 依赖 US-306 阶段 B，交付
    `useWorkingTree()` 的三端契约、扩展点协议与 `bench-working-tree` target 本身
 7. [US-307](../stories/collaboration/US-307-restore-session.md) 与 [US-308](../stories/collaboration/US-308-branch-isolation-conflict.md)
-   依赖 US-306b，两者之间互相独立可并行。但它们**不能整体与 US-306c 并行**：US-307 的 `restore` / `restoreState`、
-   US-308 的分支切换与冲突提示都按 US-306c 冻结的扩展点协议追加键，FR-026b 也只向 US-306c 拥有的 bench target
-   追加采样场景。因此二者的**核心持久层语义可与 US-306c 并行开工，三框架入口与 benchmark 半边必须排在 US-306c 之后**
+   依赖 US-306 阶段 B，两者之间互相独立可并行。但它们**不能整体与 US-306 阶段 C 并行**：US-307 的 `restore` / `restoreState`、
+   US-308 的分支切换与冲突提示都按 US-306 阶段 C 冻结的扩展点协议追加键，FR-026b 也只向 US-306 阶段 C 拥有的 bench target
+   追加采样场景。因此二者的**核心持久层语义可与 US-306 阶段 C 并行开工，三框架入口与 benchmark 半边必须排在 US-306 阶段 C 之后**
 
 ## 故事
 
 > 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
 
 - [US-305 提交图与 HEAD 持久化](../stories/collaboration/US-305-commit-graph-head.md) (High)
-- 📄 [US-306 工作树、缓存区与提交操作](../stories/collaboration/US-306-working-tree-index.md)（父故事/共享契约，不直接交付）
-  - [US-306a 工作树写入捕获与持久化](../stories/collaboration/US-306a-working-tree-capture.md) (High)
-  - [US-306b 缓存区与提交状态机](../stories/collaboration/US-306b-index-commit-state-machine.md) (High)
-  - [US-306c 三框架工作树交互面与性能门禁](../stories/collaboration/US-306c-cross-framework-working-tree.md) (High)
+- [US-306 工作树、缓存区与提交操作](../stories/collaboration/US-306-working-tree-index.md) (High) — 单文件三阶段：
+  - 阶段 A 工作树写入捕获与持久化
+  - 阶段 B 缓存区与提交状态机
+  - 阶段 C 三框架工作树交互面与性能门禁
 - [US-307 历史恢复会话](../stories/collaboration/US-307-restore-session.md) (Medium)
 - [US-308 分支隔离与跨 realm 冲突检测](../stories/collaboration/US-308-branch-isolation-conflict.md) (Medium)
 
@@ -325,15 +325,15 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
   reference JSON 与阈值必须先于发布候选签入，不能在失败后重算基线
 - 浏览器 OPFS / IDB 不承诺相同绝对数字，但三端 E2E 必须记录首次可见状态耗时，防止核心 promise 很快而 UI 长时间无反馈
 
-具体归属：status / diff / stage 的预算在 US-306c，restore 的预算在 US-307。
+具体归属：status / diff / stage 的预算在 US-306 阶段 C，restore 的预算在 US-307。
 
 ## 发布门禁
 
 1. US-304 Done（前置）；[migration-release.json](../migration-release.json) 的 `bridge.tag` 指向一个满足
    `git merge-base --is-ancestor <bridge-tag> <release-commit>` 的真实 tag，且不是 `v0.0.25`
-2. US-305 / US-306a / US-306b / US-306c / US-307 / US-308 全部 Done；父契约 US-306 的
-   [AC/FR 承接表](../stories/collaboration/US-306-working-tree-index.md#子故事与交付边界) 逐条有归属且对应子故事已关闭，
-   US-306c/307/308 的三框架对称与 a11y 条件满足
+2. US-305 / US-306（阶段 A / B / C 全部关闭）/ US-307 / US-308 全部 Done；US-306 的
+   [交付阶段与边界表](../stories/collaboration/US-306-working-tree-index.md#交付阶段与边界) 逐条有归属且对应阶段已关闭，
+   US-306 阶段 C / US-307 / US-308 的三框架对称与 a11y 条件满足
 3. 崩溃与刷新恢复 fixture 全绿：不出现半个 commit、半个事务或半成品 index
 4. 上述 6 个 v1 后端的 `workingTreeCaptureConformanceSuite` 与 `workingTreeCommitConformanceSuite` 双双全绿
    （Tauri Rust host 不计入 v1 门禁，见「启用与存储边界」）

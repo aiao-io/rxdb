@@ -18,19 +18,19 @@
  * @module @aiao/rxdb-devtools/v2/negotiation-connector
  */
 
-import { RXDB_DEVTOOLS_MESSAGE, isDevToolsMessage } from '../types.js';
-import type { AnyDevToolsMessage, DevToolsCapability } from '../types.js';
-import { SequenceGenerator } from '../sequence.js';
 import { isRecord } from '../internal/guards.js';
-import { DEVTOOLS_PROTOCOL_VERSION_V2 } from './constants.js';
+import type { DevToolsProviderDescriptor } from '../provider/descriptor.js';
+import { SequenceGenerator } from '../sequence.js';
+import type { AnyDevToolsMessage, DevToolsCapability } from '../types.js';
+import { RXDB_DEVTOOLS_MESSAGE, isDevToolsMessage } from '../types.js';
 import type { DevToolsClock } from './clock.js';
-import { createDevToolsError } from './errors.js';
+import { DEVTOOLS_PROTOCOL_VERSION_V2 } from './constants.js';
 import type { DevToolsControlPlaneErrorCode } from './errors.js';
+import { createDevToolsError } from './errors.js';
 import { isSupportedVersionList } from './guards.js';
 import { createSessionId } from './ids.js';
-import { createDevToolsV2Message, isDevToolsV2Envelope, isDevToolsV2Message } from './wire.js';
 import type { DevToolsV2Message, DevToolsV2MessageOptions } from './wire.js';
-import type { DevToolsProviderDescriptor } from '../provider/descriptor.js';
+import { createDevToolsV2Message, isDevToolsV2Envelope, isDevToolsV2Message } from './wire.js';
 
 /**
  * connector 协商机的状态。
@@ -251,8 +251,6 @@ class ConnectorNegotiation implements DevToolsConnectorNegotiation {
  * @returns 平台无关的协商机。
  * @throws TypeError 当 `supportedVersions` 不是合法版本表时。
  */
-export function createConnectorNegotiation(
-  ports: DevToolsConnectorNegotiationPorts
-): DevToolsConnectorNegotiation {
+export function createConnectorNegotiation(ports: DevToolsConnectorNegotiationPorts): DevToolsConnectorNegotiation {
   return new ConnectorNegotiation(ports);
 }

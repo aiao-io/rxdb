@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEVTOOLS_PROVIDER_OPERATIONS } from '../../provider/descriptor.js';
 import type { DevToolsProviderDescriptor, DevToolsProviderDomain } from '../../provider/descriptor.js';
-import { DEVTOOLS_V2_MESSAGE_TYPES } from '../../v2/wire.js';
+import { DEVTOOLS_PROVIDER_OPERATIONS } from '../../provider/descriptor.js';
+import type { DevToolsCapability } from '../../types.js';
+import type { DevToolsAuthorizationInput } from '../../v2/authorization.js';
 import {
   DEVTOOLS_MESSAGE_REQUIRED_CAPABILITY,
   DEVTOOLS_OPERATION_REQUIRED_CAPABILITY,
@@ -10,15 +11,11 @@ import {
   authorizeOperation,
   isMutatingOperation
 } from '../../v2/authorization.js';
-import type { DevToolsAuthorizationInput } from '../../v2/authorization.js';
-import type { DevToolsCapability } from '../../types.js';
+import { DEVTOOLS_V2_MESSAGE_TYPES } from '../../v2/wire.js';
 
 const CAPABILITIES: readonly DevToolsCapability[] = ['none', 'readonly', 'full'];
 
-function descriptor(
-  domain: DevToolsProviderDomain,
-  operations: readonly string[]
-): DevToolsProviderDescriptor {
+function descriptor(domain: DevToolsProviderDomain, operations: readonly string[]): DevToolsProviderDescriptor {
   const kind = domain === 'database' ? 'rxdb' : 'opfs';
   return {
     domain,
@@ -102,7 +99,9 @@ describe('three-layer authorization', () => {
 
   it('MUST answer provider_unsupported for a recognised request the provider does not offer', () => {
     const missingDomain = authorizeOperation(input({ descriptors: [] }));
-    const missingOperation = authorizeOperation(input({ descriptors: [descriptor('files', ['list'])], operation: 'download' }));
+    const missingOperation = authorizeOperation(
+      input({ descriptors: [descriptor('files', ['list'])], operation: 'download' })
+    );
 
     for (const decision of [missingDomain, missingOperation]) {
       expect(decision).toEqual({
@@ -137,7 +136,9 @@ describe('three-layer authorization', () => {
     });
     expect(authorizeOperation(input({ operation: 'upload', mutationPolicy: 'allow' }))).toEqual({ outcome: 'allowed' });
     // 只读操作不受 policy 影响。
-    expect(authorizeOperation(input({ operation: 'download', mutationPolicy: 'omit' }))).toEqual({ outcome: 'allowed' });
+    expect(authorizeOperation(input({ operation: 'download', mutationPolicy: 'omit' }))).toEqual({
+      outcome: 'allowed'
+    });
   });
 
   it('MUST fail closed for an operation nobody registered', () => {
@@ -173,7 +174,9 @@ describe('three-layer authorization', () => {
   it('MUST accept every readonly operation at the readonly tier across all domains', () => {
     for (const domain of ['database', 'files', 'settings'] as const) {
       for (const operation of DEVTOOLS_PROVIDER_OPERATIONS[domain]) {
-        const decision = authorizeOperation(input({ capability: 'readonly', domain, operation, mutationPolicy: 'omit' }));
+        const decision = authorizeOperation(
+          input({ capability: 'readonly', domain, operation, mutationPolicy: 'omit' })
+        );
         const expected = isMutatingOperation(domain, operation) ? 'silent-drop' : 'allowed';
         expect(decision.outcome, `${domain}.${operation}`).toBe(expected);
       }

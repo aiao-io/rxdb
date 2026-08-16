@@ -20,7 +20,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { createMessage } from '../types.js';
+import { RXDB_DEVTOOLS_MESSAGE, createMessage } from '../types.js';
 import {
   DEVTOOLS_MAX_INFLIGHT_TRANSFERS,
   DEVTOOLS_MAX_TRANSFER_TOMBSTONES,
@@ -29,10 +29,10 @@ import {
   DEVTOOLS_TRANSFER_IDLE_TIMEOUT_MS,
   DEVTOOLS_TRANSFER_TOTAL_TIMEOUT_MS
 } from '../v2/constants.js';
-import { RXDB_DEVTOOLS_MESSAGE } from '../types.js';
-import { createScenario } from './driver.js';
 import type { DevToolsConformanceDriver, DevToolsWireFrame } from './driver.js';
+import { createScenario } from './driver.js';
 import { encodeFrame, readErrorCodes, readLegacyFramesOfType, readV2FramesOfType } from './frames.js';
+import type { DevToolsSuitePanelClient } from './suite-support.js';
 import {
   DEVTOOLS_SUITE_BASE_TIMESTAMP,
   connected,
@@ -40,7 +40,6 @@ import {
   panelOutput,
   sessionIdOf
 } from './suite-support.js';
-import type { DevToolsSuitePanelClient } from './suite-support.js';
 import { assertCanonicalJsonFrame, runDevToolsWireHygieneSuite } from './wire-hygiene.suite.js';
 
 /** 套件自造帧的时间戳基准；固定值让失败输出可读。 */
@@ -173,11 +172,15 @@ export function runDevToolsControlPlaneSuite(driver: DevToolsConformanceDriver):
       await run.settle();
 
       await run.segment('panel').inject(
-        encodeFrame('PROTOCOL_HELLO', { supportedVersions: [7] }, {
-          sessionId: null,
-          sequence: 1,
-          timestamp: BASE_TIMESTAMP
-        }),
+        encodeFrame(
+          'PROTOCOL_HELLO',
+          { supportedVersions: [7] },
+          {
+            sessionId: null,
+            sequence: 1,
+            timestamp: BASE_TIMESTAMP
+          }
+        ),
         'panel-to-connector'
       );
       await run.settle();
@@ -277,7 +280,12 @@ export function runDevToolsControlPlaneSuite(driver: DevToolsConformanceDriver):
         const panel = await connected(run);
 
         await panel.send('REQUEST', { requestId: 'r1', domain: 'database', operation: 'query', params: {} });
-        await panel.send('REQUEST', { requestId: 'r2', domain: 'database', operation: 'create-branch', params: { name: 'wip' } });
+        await panel.send('REQUEST', {
+          requestId: 'r2',
+          domain: 'database',
+          operation: 'create-branch',
+          params: { name: 'wip' }
+        });
 
         expect(run.provider.operationCalls.get('database.query') ?? 0).toBe(reads);
         expect(run.provider.operationCalls.get('database.create-branch') ?? 0).toBe(writes);
@@ -308,7 +316,12 @@ export function runDevToolsControlPlaneSuite(driver: DevToolsConformanceDriver):
         'connector-to-panel'
       );
       await run.settle();
-      await panel.send('REQUEST', { requestId: 'w1', domain: 'files', operation: 'delete', params: { path: '/db.sqlite' } });
+      await panel.send('REQUEST', {
+        requestId: 'w1',
+        domain: 'files',
+        operation: 'delete',
+        params: { path: '/db.sqlite' }
+      });
 
       expect(run.provider.operationCalls.get('files.delete')).toBeUndefined();
       expect(readErrorCodes(connectorOutput(run))).toEqual([]);

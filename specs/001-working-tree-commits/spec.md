@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "epic-006 本地工作树与提交历史：把 RxDB 的本地变更组织成 Git 式工作流（工作树 `WorkingTree*` / 缓存区 `Index*` / 提交 `Commit*`），覆盖 US-305、US-306a/b/c、US-307、US-308 的完整范围。来源文档：requirements/epics/epic-006-working-tree-commits.md"
+**Input**: User description: "epic-006 本地工作树与提交历史：把 RxDB 的本地变更组织成 Git 式工作流（工作树 `WorkingTree*` / 缓存区 `Index*` / 提交 `Commit*`），覆盖 US-305、US-306 阶段 A/B/C、US-307、US-308 的完整范围。来源文档：requirements/epics/epic-006-working-tree-commits.md"
 
 ## 概述
 
@@ -336,14 +336,14 @@ Angular、React、Vue 开发者使用同名、同签名、同返回键的工作�
 
 ## Traceability
 
-| 本规格用户故事 | 来源故事                       | 主要 FR 段落    |
-| -------------- | ------------------------------ | --------------- |
-| US1            | US-305 提交图与 HEAD 持久化    | A（FR-001–017） |
-| US2            | US-306a 工作树写入捕获与持久化 | B（FR-018–025） |
-| US3            | US-306b 缓存区与提交状态机     | C（FR-026–036） |
-| US4            | US-306c 三框架交互面与性能门禁 | D（FR-037–041） |
-| US5            | US-307 历史恢复会话            | E（FR-042–047） |
-| US6            | US-308 分支隔离与跨 realm 冲突 | F（FR-048–053） |
-| 全部           | epic-006 横切约束与发布门禁    | G（FR-054–058） |
+| 本规格用户故事 | 来源故事                             | 主要 FR 段落    |
+| -------------- | ------------------------------------ | --------------- |
+| US1            | US-305 提交图与 HEAD 持久化          | A（FR-001–017） |
+| US2            | US-306 阶段 A 工作树写入捕获与持久化 | B（FR-018–025） |
+| US3            | US-306 阶段 B 缓存区与提交状态机     | C（FR-026–036） |
+| US4            | US-306 阶段 C 三框架交互面与性能门禁 | D（FR-037–041） |
+| US5            | US-307 历史恢复会话                  | E（FR-042–047） |
+| US6            | US-308 分支隔离与跨 realm 冲突       | F（FR-048–053） |
+| 全部           | epic-006 横切约束与发布门禁          | G（FR-054–058） |
 
 来源文档：[epic-006 本地工作树与提交历史](../../requirements/epics/epic-006-working-tree-commits.md)（术语表、状态模型、写入口语义矩阵、revision 校验矩阵、发布门禁的唯一真相源）。本规格是它的规格化承接，不改变其任何口径；两者冲突时以 epic 为准并同步修订本文件。

@@ -1415,7 +1415,7 @@ describe('DevToolsConnector boundaries', () => {
     });
 
     it('MUST NOT subscribe, buffer or flush any event at the none tier', () => {
-      // 本用例先前断言的正是 US-904b AC#9 明令禁止的行为：`none` 档曾照常订阅并写 buffer，
+      // 本用例先前断言的正是 US-904 阶段 B AC#9 明令禁止的行为：`none` 档曾照常订阅并写 buffer，
       // 一条 `HANDSHAKE_ACK` 就把它们整批冲出去。US-904 已预先授权——`none` 档零泄漏
       // 属安全收敛，不受「用户可见行为不变」约束——所以这里改的是判据本身，
       // 而不是给 AC#9 加一个把旧行为保留下来的 opt-in 开关。

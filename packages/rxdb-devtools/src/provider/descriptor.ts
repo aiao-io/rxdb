@@ -13,8 +13,8 @@
  * @module @aiao/rxdb-devtools/provider/descriptor
  */
 
-import { hasExactKeys, isRecord, isSafeIntegerInRange } from '../v2/guards.js';
 import { DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT } from '../v2/constants.js';
+import { hasExactKeys, isRecord, isSafeIntegerInRange } from '../v2/guards.js';
 
 /** provider 领域。 */
 export const DEVTOOLS_PROVIDER_DOMAINS = ['database', 'files', 'settings'] as const;
@@ -144,7 +144,11 @@ function hasValidAvailability(value: Record<string, unknown>, operations: readon
 }
 
 /** files 声明 download/upload 时，`maxTransferBytes` 必须大于 0。 */
-function hasUsableTransferLimit(domain: DevToolsProviderDomain, operations: readonly unknown[], limits: DevToolsProviderLimits): boolean {
+function hasUsableTransferLimit(
+  domain: DevToolsProviderDomain,
+  operations: readonly unknown[],
+  limits: DevToolsProviderLimits
+): boolean {
   if (domain !== 'files') return true;
   const declaresTransfer = operations.some(operation => FILES_TRANSFER_OPERATIONS.includes(String(operation)));
   return !declaresTransfer || limits.maxTransferBytes > 0;

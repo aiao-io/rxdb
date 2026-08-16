@@ -144,8 +144,8 @@ INVEST 检查清单:
 >
 > **AC#3 的夹具脚注**：本故事的「`use()` 后立即安装」与
 > `US-015` INV-4 的「依赖未满足的插件不进入 `#plugin_install_promises`」**不冲突**——两者不在同一
-> 时间点生效，US-015 系列落地后才有「依赖未满足」这个状态。但 AC#3 的测试**不要**断言
-> 「**所有**插件都立即安装」，只断言被测的那一个；否则该夹具会在 US-015a 落地当天变红。
+> 时间点生效，US-015 落地后才有「依赖未满足」这个状态。但 AC#3 的测试**不要**断言
+> 「**所有**插件都立即安装」，只断言被测的那一个；否则该夹具会在 US-015 阶段 A 落地当天变红。
 >
 > 最容易漏的是 **AC#12～#15（安装半途失败的回收）** 与 **AC#18（门禁看不见这次变更）**。
 > 前者是新契约独有的失败模式：旧契约下 `install()` 抛错只是「没装成」，插件自己在 catch 里收拾；
@@ -227,7 +227,7 @@ install(scope: LifecycleScope) {
 `defineProperty` 抛错（宿主上已有同名不可配置属性、或另一个 storage 插件先到）时，
 按 US-013 AC#12 该条目**不进清单**——而 `RxdbFileStorage` 实例已经造出来了，谁也够不着它，
 宿主的回滚只能眼看它连同它持有的句柄一起泄漏。拆成两次之后，第二次抛错时第一次已经在清单里，
-`install()` 失败的回滚（AC#5）逆序跑过去正好把它 `destroy()` 掉。判据与反面写法见
+宿主的「安装半途失败的回收」（AC#12～#15）逆序跑过去正好把它 `destroy()` 掉。判据与反面写法见
 [US-013 D5](US-013-lifecycle-scope-primitive.md)。
 
 ### 待冻结的九个决策
@@ -373,6 +373,12 @@ workspace 的 `readonly #indexedDBStore!: WorkspaceStore` 因此要改为可空�
 （或改为作用域内局部变量 + getter）——这是**编译期**阻塞项，不是风格问题。
 `#destroyed` 随作用域一起消失：「已释放」由作用域的 `state` 回答（守卫的新写法见 D8 末尾）。
 
+**搬进 `install(scope)` 时按获取步数拆 `acquire()`（2026-08-16 第三轮 Cordis 复核补入）**：
+本判据说的是「搬哪些」，不是「搬成一坨」。一处构造 + 一处宿主改写 = **两次** `acquire()`，
+顺序与获取顺序一致。合并写会制造一个本判据原本要消灭的泄漏——构造成功、改写抛错，
+实例既不在清单里也没人持有。规则与反面写法见 [US-013 D5](US-013-lifecycle-scope-primitive.md)，
+对应写法见上文「目标契约」的 storage 三段式示例。
+
 #### D8 — 「发布插件实例身份」不是「获取纪元资源」（D7 判据的收窄）
 
 D7 的第二条判据「改写了宿主的都必须移进 `install(scope)`」写得太宽，落到源码上会撞上 D3：
@@ -449,7 +455,7 @@ D7 第 4 条要求「终态销毁的服务每纪元新建」，但 workspace 的
   应把作用域作为参数继续往下传，不要挂到实例字段上
 - search 的 `SearchPluginPhase` 在本故事**不强制删除**：它除了拆卸还承担 `ready` 语义
   （[search:121-131](../../../packages/rxdb-plugin-search/src/plugin.ts#L121)）。本故事只要求把
-  **副作用清单**部分交给作用域（AC#10），安装态语义的收敛留给 `US-015a`（🚧 文件未创建）
+  **副作用清单**部分交给作用域（AC#10），安装态语义的收敛留给 [US-015](./US-015-plugin-inject-dependency.md) 阶段 A
 - 但**终态标志必须删**（D8 判据其四 + AC#11b）：workspace 的 `#destroyed`
   （[:196](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L196)）今天表达的是
   「这个实例永远死了」，而实例现在要跨纪元存活。守卫改写为「当前纪元有没有活着的作用域」——
@@ -468,7 +474,11 @@ D7 第 4 条要求「终态销毁的服务每纪元新建」，但 workspace 的
   `await this.#connection_scope?.dispose()` 并置空，否则「init 失败 → 修复 → 重新 init」会在一个
   已经装了半套插件的作用域上叠第二套
 - 搬 storage 时 `new RxdbFileStorage(...)` **一并**移进 `install(scope)`（D7）：只搬 `defineProperty`
-  会在重连时把同一个已 `destroy()` 的实例装回去，泄漏形态变了但没修掉
+  会在重连时把同一个已 `destroy()` 的实例装回去，泄漏形态变了但没修掉。移进去后**拆成两次
+  `acquire()`**（`storage:construct` / `storage:defineProperty`，见 D7 补注与
+  [US-013 D5](US-013-lifecycle-scope-primitive.md)）——写成一次的话 `defineProperty` 抛错时
+  已经 `new` 出来的实例不进清单，等于把老泄漏换了个位置。同一条规则适用于 workspace 的
+  `createWorkspaceStore()` + 宿主改写
 - 估算：契约 + RxDB 侧 ~180 行（含 `init()` 回滚与 `destroy?.()`）；四个插件迁移各 ~30～60 行
   （workspace 因 D7 的 `readonly` 改造与 D8 / D9 的守卫重写取上限）；类型契约测试 ~70 行；
   测试与文档另计

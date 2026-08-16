@@ -2,7 +2,7 @@
 
 **Feature**: [spec.md](../spec.md) | **Core API**: [core-api.md](./core-api.md) | **Date**: 2026-08-15
 
-冻结 `@aiao/rxdb-angular`、`@aiao/rxdb-react`、`@aiao/rxdb-vue` 三端必须**同名、同签名、同返回键**的工作树交互面（US4 / US-306c）。三端只做透传与呈现，**不得自带业务分支逻辑**。
+冻结 `@aiao/rxdb-angular`、`@aiao/rxdb-react`、`@aiao/rxdb-vue` 三端必须**同名、同签名、同返回键**的工作树交互面（US4 / US-306 阶段 C）。三端只做透传与呈现，**不得自带业务分支逻辑**。
 
 ---
 

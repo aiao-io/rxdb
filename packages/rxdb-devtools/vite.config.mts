@@ -82,7 +82,7 @@ export default defineConfig(() => ({
       // 会以「未覆盖的生产代码」身份混进统计 —— 夹具里没被某条用例走到的分支
       // 不是生产缺口，混进来只会稀释真实数字。
       //
-      // `src/testing/` 同理：它是发布给 US-904c/904d/905 复跑的 conformance 套件与 fake，
+      // `src/testing/` 同理：它是发布给 US-904 阶段 C / D 与 US-905 复跑的 conformance 套件与 fake，
       // 属于测试基础设施而非产品代码。它不能放在 `src/__tests__/` 下（tsconfig.lib.json
       // 整段排除该目录，会让 typecheck 与 dts 找不到源文件），所以只能在这里显式排除。
       exclude: ['src/**/__tests__/fixtures/**', 'src/testing/**', 'src/testing.ts']

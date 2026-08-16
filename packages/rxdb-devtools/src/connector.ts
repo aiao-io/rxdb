@@ -224,7 +224,7 @@ const CAPABILITY_RANK: Record<DevToolsCapability, number> = { none: 0, readonly:
  * @remarks
  * 空集是当前的**事实**而不是占位：本包不实现任何原生存储 provider，files / settings
  * 在页内根本不存在，database 的 v2 操作也还没有对着 RxDB 实现。
- * 由 US-904c / US-904d / US-905 各自接上真实 provider 后填充。
+ * 由 US-904 阶段 C / D 与 US-905 各自接上真实 provider 后填充。
  */
 const CONNECTOR_PROVIDER_DESCRIPTORS: readonly DevToolsProviderDescriptor[] = [];
 
@@ -234,7 +234,7 @@ const CONNECTOR_PROVIDER_DESCRIPTORS: readonly DevToolsProviderDescriptor[] = []
  * @remarks
  * 硬编码为 `'omit'`，而不是开成一个选项：三层授权里 mutationPolicy 管的是「已声明的写操作
  * 要不要放行」，而本页宣告的 provider 集是空的，眼下没有任何写操作可管。开成选项等于让
- * 使用者去配一个当前不产生任何效果的开关，等 US-904c / US-904d / US-905 接上真实 provider
+ * 使用者去配一个当前不产生任何效果的开关，等 US-904 阶段 C / D 与 US-905 接上真实 provider
  * 时又得连同默认值一起重新想一遍。届时补上选项即可——默认停在 `'omit'`，
  * 意味着「接上 provider」这一步不会顺带把写路径也悄悄打开。
  */
@@ -979,7 +979,7 @@ export class DevToolsConnector {
    *
    * 本轮仍宣告空 descriptor 集（见 {@link CONNECTOR_PROVIDERS}）：页内还没有接上任何
    * v2 provider，声明服务不了的 operation 等于让面板据此点亮按钮。真实 descriptor 随
-   * US-904c / US-904d / US-905 的 provider 一起接上。
+   * US-904 阶段 C / D 与 US-905 的 provider 一起接上。
    *
    * 端点只决定 legacy 握手**何时**出门，不知道 v1 传输层还要求这条握手**随附**本次会话的
    * 私有端口。所以端口在这里就建好，并按对象身份认出那唯一一条要携带它的出站消息——

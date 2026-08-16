@@ -13,15 +13,15 @@
  * @module @aiao/rxdb-devtools/testing/fake-endpoints
  */
 
-import { SequenceGenerator } from '../sequence.js';
-import { createMessage, isDevToolsMessage } from '../types.js';
-import type { AnyDevToolsMessage } from '../types.js';
 import type { DevToolsProviderDescriptor } from '../provider/descriptor.js';
+import { SequenceGenerator } from '../sequence.js';
+import type { AnyDevToolsMessage } from '../types.js';
+import { createMessage, isDevToolsMessage } from '../types.js';
 import { createDevToolsConnectorEndpoint } from '../v2/endpoint.js';
 import { createPanelNegotiation } from '../v2/negotiation-panel.js';
 import type { DevToolsConformanceScenario, DevToolsWireFrame } from './driver.js';
-import { createFakeProviders } from './fake-providers.js';
 import type { DevToolsFakeProviderKinds, DevToolsFakeProviderOptions } from './fake-providers.js';
+import { createFakeProviders } from './fake-providers.js';
 import type { JsonDriverContext, JsonDriverEndpointFactory, JsonDriverEndpoints } from './json-driver.js';
 
 /** connector 发出的那条 eager v1 握手；与 `connector.ts` 现有形状一致。 */
@@ -69,7 +69,10 @@ function providerOptions(scenario: DevToolsConformanceScenario): DevToolsFakePro
   const kinds: DevToolsFakeProviderKinds = {};
   for (const descriptor of scenario.descriptors) kinds[descriptor.domain] = descriptor.kind;
   const files = scenario.descriptors.find((descriptor: DevToolsProviderDescriptor) => descriptor.domain === 'files');
-  const limit = files === undefined || files.limits.maxTransferBytes === 0 ? {} : { maxTransferBytes: files.limits.maxTransferBytes };
+  const limit =
+    files === undefined || files.limits.maxTransferBytes === 0 ?
+      {}
+    : { maxTransferBytes: files.limits.maxTransferBytes };
 
   return { runtime: scenario.runtime, kinds, ...limit };
 }

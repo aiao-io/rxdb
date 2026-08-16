@@ -9,7 +9,7 @@
  * - {@link DEVTOOLS_PROVIDER_ERROR_CODES} 的每个成员都必须在这里出现；
  * - 平台可映射的码，**三个来源各要有一条 fixture**——只给某一端加映射会直接红。
  *
- * 于是 US-904d / US-905 接入真实平台时，正确动作是往这张表**加行**，而不是往映射里加分支
+ * 于是 US-904 阶段 D 与 US-905 接入真实平台时，正确动作是往这张表**加行**，而不是往映射里加分支
  * 然后让新情况落进兜底。
  *
  * @module @aiao/rxdb-devtools/testing/error-fixtures

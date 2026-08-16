@@ -25,7 +25,7 @@
 
 共 **11 张新表**。派生型（不落表，运行时计算）：`WorkingTreeStatus`、`WorkingTreeDiff`、`WorkingTreeSelection`、`WorkingTreeStageResult`、`CommitCapability`、`CommitConflict`。契约见 [contracts/core-api.md](./contracts/core-api.md)。
 
-**归属纪律**：第 10 项的**建表与 schema 迁移随 US3（US-306b）交付**——持久冲突状态（FR-033、FR-036）在 US3 就必须成立，其读路径要能从已存在的会话派生冲突；US5 只拥有会话的创建与生命周期语义。把建表推迟到 US5 会让 US3 的 `conflicted` 状态无处附着。
+**归属纪律**：第 10 项的**建表与 schema 迁移随 US3（US-306 阶段 B）交付**——持久冲突状态（FR-033、FR-036）在 US3 就必须成立，其读路径要能从已存在的会话派生冲突；US5 只拥有会话的创建与生命周期语义。把建表推迟到 US5 会让 US3 的 `conflicted` 状态无处附着。
 
 ---
 

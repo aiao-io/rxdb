@@ -19,9 +19,9 @@
 
 import type { DevToolsProviderDescriptor, DevToolsProviderDomain } from '../provider/descriptor.js';
 import {
-    DEVTOOLS_PROVIDER_OPERATIONS,
-    isDevToolsProviderDescriptorSet,
-    isDevToolsProviderDomain
+  DEVTOOLS_PROVIDER_OPERATIONS,
+  isDevToolsProviderDescriptorSet,
+  isDevToolsProviderDomain
 } from '../provider/descriptor.js';
 import type { DevToolsCapability } from '../types.js';
 import { RXDB_DEVTOOLS_MESSAGE } from '../types.js';
@@ -29,7 +29,13 @@ import { isDevToolsCapability } from './capability.js';
 import { DEVTOOLS_PROTOCOL_VERSION_V2 } from './constants.js';
 import type { DevToolsErrorPayload } from './errors.js';
 import { isDevToolsErrorPayload } from './errors.js';
-import { hasExactKeys, isNonEmptyString, isNonNegativeSafeInteger, isRecord, isSupportedVersionList } from './guards.js';
+import {
+  hasExactKeys,
+  isNonEmptyString,
+  isNonNegativeSafeInteger,
+  isRecord,
+  isSupportedVersionList
+} from './guards.js';
 import { isCanonicalUuidV4, isDevToolsIdentifier } from './ids.js';
 
 /**
@@ -393,7 +399,10 @@ export function isDevToolsV2Message(value: unknown): value is DevToolsV2Message 
 }
 
 /** 由消息类型推导方向；双向消息必须显式给出，单向消息不得给出冲突值。 */
-function resolveDirection(type: DevToolsV2MessageType, requested: DevToolsV2Direction | undefined): DevToolsV2Direction {
+function resolveDirection(
+  type: DevToolsV2MessageType,
+  requested: DevToolsV2Direction | undefined
+): DevToolsV2Direction {
   const allowed = DEVTOOLS_V2_MESSAGE_DIRECTIONS[type];
   if (allowed !== 'both') {
     if (requested !== undefined && requested !== allowed) {

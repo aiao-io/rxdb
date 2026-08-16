@@ -25,7 +25,7 @@
 | P-001 | 按适配器名的就绪信号（内部已落地；公开流另开）              | ✅ **内部已落地**              | 015a 消费既有信号并补 epoch 重连；公开流另开 | 008 现在要的是消费与释放时序，不是再造信号 |
 | P-002 | `afterAdapterReady` 钩子，**不**进 `#await_plugin_installs` | ❌ **动机不成立**              | 除非 015a 实测出新的死锁                     | 它要绕开的那个环今天不存在                 |
 | P-003 | 插件 `Config` 用 Standard Schema 做运行时校验               | ⚠️ 可做，不急                  | 008 Done 之后，且真有热更新/HMR 需求         | 今天 options 是工厂闭包，没有热更          |
-| P-004 | DevTools 画 scope / 插件状态树                              | ⚠️ 008 已推迟                  | 013～015 状态机与 `label` 稳定之后           | 没有稳定树就画，画的是谎言                 |
+| P-004 | DevTools 画 scope / 插件状态树                              | ⚠️ 008 已推迟                  | 015 状态机稳定之后（结构数据源已就位）       | 没有稳定树就画，画的是谎言                 |
 | P-005 | Provider → Repository 多库绑定                              | ✅ High，可与 008 **并行设计** | 独立故事，三框架一次交付                     | 作用域**可见性**，不是资源存活期           |
 | P-006 | 不可变 `session` / `OperationContext`                       | ✅ 另立                        | 独立故事                                     | 可变实例字段，不是账本对称                 |
 | P-007 | 多 `RxDB` 实例的词法隔离（entity-manager 动态栈）           | ❌ 现在                        | 有第二个真实调用方再开                       | 008 已否决 isolate；P-005 先解决 hook 选库 |
@@ -122,21 +122,30 @@ Promise 之外**会破坏它**。这条约束的正式落点是
 
 **问题**
 
-Epic 原文已推迟：没有稳定作用域树就谈不上展示。013 明确不提供全局注册表。015 的状态机（`waiting` / `installing` / `active` / `failed` / `disposing`）对外不可见时，DevTools 和 INV-5 的 warn 都只能打日志。
+Epic 原文已推迟：没有稳定作用域树就谈不上展示。015 的状态机（`waiting` / `installing` / `active` / `failed` / `disposing`）对外不可见时，DevTools 和 INV-5 的 warn 都只能打日志。
+
+> **2026-08-16 第三轮 Cordis 复核更正**：原文写的「013 明确不提供全局注册表」被当成了本项的
+> 数据源缺口，是**误判**。013 否掉的是**跨实例登记**（进程级 `WeakMap` / 全局 `Set`），
+> 而画一棵树需要的是**从一个已知根往下读**——cordis 的 `getEffects()` 就只读本 fiber 自己的清单，
+> `{ label, children }` 挂在 disposer 上，整个进程没有任何注册表。013 已据此补入
+> `getEntries()`（AC#9b / D4），本项的**结构数据源不再缺**。剩下的唯一前置是 015 的状态机对外可见。
 
 **另开之后做什么**
 
-- 只读快照：scope `label` 树 + 插件名 + 状态 + 当前依赖 epoch。
+- 只读快照：scope `label` 树（直接用 013 的 `getEntries()`，从连接纪元作用域这个根往下读）
+  \+ 插件名 + 状态 + 当前依赖 epoch。
 - 宿主发诊断信号：`plugin:search` 进入 `waiting` / `failed`。不是 DI，是探针。
 - 挂现有 [`@aiao/rxdb-devtools`](../../packages/rxdb-devtools) 通道，不新开一套协议除非版本化需要。
 
 **不要做成**
 
-- 013 为了面板加进程级 `WeakMap<LifecycleScope>`。那是 013 的 Out of Scope。
+- 为了面板去加进程级 `WeakMap<LifecycleScope>` / 全局 `Set` / 实例计数器。那是 013 的 Out of Scope，
+  而且**用不着**：`getEntries()` 从一个已知根往下读就够（更正说明见上）。
 - 在 014 的 `install(scope)` 里 `console.log` 充数。
 - 画完再回头改状态机。先冻 015a/015b 的转移，再画。
 
-**前置**：US-013 `label` + US-015 状态机落地。US-016 把 `#event_initialized` 收进连接纪元之后，树才完整。
+**前置**：US-015 状态机落地（结构数据源已由 US-013 的 `getEntries()` + `label` 就位）。
+US-016 把 `#event_initialized` 收进连接纪元之后，树才完整。
 
 ---
 

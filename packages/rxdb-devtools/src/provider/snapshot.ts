@@ -33,8 +33,8 @@ import {
   DEVTOOLS_SNAPSHOT_TIMEOUT_MS
 } from '../v2/constants.js';
 import { createProviderError } from '../v2/error-mapping.js';
-import { createDevToolsError } from '../v2/errors.js';
 import type { DevToolsErrorPayload } from '../v2/errors.js';
+import { createDevToolsError } from '../v2/errors.js';
 import { isNonNegativeSafeInteger, isPageSize } from '../v2/guards.js';
 import { createSessionId } from '../v2/ids.js';
 import type { DevToolsSnapshotCaptureResult, DevToolsSnapshotRecord, DevToolsSnapshotSource } from './types.js';
@@ -141,7 +141,9 @@ const CANCELLED: DevToolsSnapshotResult = { outcome: 'cancelled' };
  * provider 侧的三个码走共享的可重试性表，避免「`snapshot_busy` 在这里可重试、在那里不可」
  * 这类只在某条路径上暴露的分叉；`invalid_message` 属控制面，恒为不可重试。
  */
-function rejected(code: 'invalid_message' | 'snapshot_busy' | 'snapshot_expired' | 'snapshot_too_large'): DevToolsSnapshotResult {
+function rejected(
+  code: 'invalid_message' | 'snapshot_busy' | 'snapshot_expired' | 'snapshot_too_large'
+): DevToolsSnapshotResult {
   const error = code === 'invalid_message' ? createDevToolsError(code) : createProviderError(code);
   return { outcome: 'rejected', error };
 }

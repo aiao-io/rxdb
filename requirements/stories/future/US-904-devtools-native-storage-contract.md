@@ -34,11 +34,11 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 交付                                                    | 直接前置                                    | AC 区段    | 状态                  |
-| ---- | ------------------------------------------------------- | ------------------------------------------- | ---------- | --------------------- |
-| A    | Electron 43 + 当前 MV3 扩展 stop/go 实证                | 无                                          | AC#1～6    | ⬜ 未开始             |
-| B    | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面 | 无                                          | AC#7～30   | ✅ 已交付（5 条保留） |
-| C    | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移   | 阶段 B（仅其阶段 2）                        | AC#31～44  | ⬜ 未开始             |
+| 阶段 | 交付                                                    | 直接前置                                     | AC 区段   | 状态                  |
+| ---- | ------------------------------------------------------- | -------------------------------------------- | --------- | --------------------- |
+| A    | Electron 43 + 当前 MV3 扩展 stop/go 实证                | 无                                           | AC#1～6   | ⬜ 未开始             |
+| B    | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面 | 无                                           | AC#7～30  | ✅ 已交付（5 条保留） |
+| C    | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移   | 阶段 B（仅其阶段 2）                         | AC#31～44 | ⬜ 未开始             |
 | D    | Electron desktop SQLite / native files 接入与真实 E2E   | 阶段 A(supported) + 阶段 C + US-207 / US-504 | AC#45～53 | ⬜ 未开始             |
 
 - 阶段 A 与阶段 B 相互独立，可并行开工；阶段 C 的阶段 1（行为中性抽取）也可与阶段 B 并行。
@@ -453,10 +453,10 @@ transport 不得临时发明平台私有码。
 
 本阶段按两个**必须分开审查**的子阶段推进，避免「行为中性」和「行为收敛」两类 diff 混在同一次审查里：
 
-| 子阶段                       | 内容                                                             | 门禁                             |
-| ---------------------------- | ---------------------------------------------------------------- | -------------------------------- |
-| **C1：行为中性抽取**         | 在**现有 v1 wire 上**抽出私有 Angular library 与 transport token | 无协议前置，**可与阶段 B 并行**  |
-| **C2：v2 迁移与安全收敛**    | 四段 relay 改造、OPFS provider 迁移、禁用不安全下载、浏览器回归  | 阶段 B 已交付                    |
+| 子阶段                    | 内容                                                             | 门禁                            |
+| ------------------------- | ---------------------------------------------------------------- | ------------------------------- |
+| **C1：行为中性抽取**      | 在**现有 v1 wire 上**抽出私有 Angular library 与 transport token | 无协议前置，**可与阶段 B 并行** |
+| **C2：v2 迁移与安全收敛** | 四段 relay 改造、OPFS provider 迁移、禁用不安全下载、浏览器回归  | 阶段 B 已交付                   |
 
 [US-902](./US-902-devtools-panel.md) 的既有面板与浏览器行为是 C1 的回归基准。
 
@@ -587,7 +587,7 @@ shared panel → chrome.runtime.Port → MV3 background service worker → conte
 ### 阶段 A — Electron 43 MV3 可行性门禁（AC#1～6）
 
 | #   | 前置条件                           | 操作                                              | 预期结果                                                                                                                                                                                                                                      | 状态 |
-| --- | ---------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| --- | ---------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | 1   | Electron 43 与工作区扩展已构建     | 通过 `session.defaultSession.loadExtension` 加载  | 返回有效 extension，MV3 service worker 启动；失败时记录稳定复现步骤、版本和原始错误                                                                                                                                                           | ⬜   |
 | 2   | 打开 fixture 页面的 DevTools       | 扩展执行 `chrome.devtools.panels.create`          | RxDB panel 真实出现并能完成一次 panel → service worker → inspected page → panel 往返                                                                                                                                                          | ⬜   |
 | 3   | fixture 初始未授予目标 origin 权限 | 由扩展请求权限并执行 `chrome.scripting`           | host permission 按需授予，脚本只注入目标页面；拒绝权限时返回可见错误，不扩大 manifest 常驻权限。若仅 `chrome.permissions.request` 不可用，可按「关键项与可容忍差异」改用 fixture 静态窄 host permission 并记录 variance，注入本身仍须真实通过 | ⬜   |
@@ -597,50 +597,50 @@ shared panel → chrome.runtime.Port → MV3 background service worker → conte
 
 ### 阶段 B — v2 控制面（AC#7～20）
 
-| #   | 前置条件                                                              | 操作                                                       | 预期结果                                                                                                                                | 状态     |
-| --- | --------------------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| 7   | 新 panel + v2 connector，经 fake background/content                   | 同时投递 eager legacy 与 v2 HANDSHAKE                      | background/content 不代 ACK；决策窗口内 v2 胜出，只建立一个 UUID v4 session，从未进入 v1 状态                                           | ✅       |
-| 8   | 新 panel 先启动，v2 connector 在其后 bootstrap；relay 就绪延迟 5 秒   | 投递 eager legacy HANDSHAKE（panel 的首个 HELLO 早已丢失） | panel 暂存时同 tick 补发 HELLO，connector 响应 v2 HANDSHAKE，最终仍选 v2；**不因 panel 先于 connector 存在而降级到 v1**                 | ✅       |
-| 9   | 新 panel + v1 connector，legacy HANDSHAKE 在 panel init 后 5 秒才到达 | 暂存 legacy HANDSHAKE 并等待                               | 1,000 ms 窗口从**首次暂存**起算（非 panel init）；到期后由 panel 发送 legacy ACK 进入 bridge；不展示任何 v2/provider 能力               | ✅       |
-| 10  | 无 session 状态下 connector 高频重发 legacy HANDSHAKE                 | 在窗口内持续投递                                           | 窗口只启动一次且不被延长，暂存内容被替换；到期仍按最后一次暂存进入 v1 facade                                                            | ✅       |
-| 11  | v1 panel + v2 connector                                               | 旧 background ACK eager legacy HANDSHAKE                   | 无协商等待进入 v1 facade；不建立 v2 session，不执行新操作                                                                               | ✅       |
-| 12  | 双方版本无交集、HELLO 非降序/重复/超长或含非法数字                    | 执行协商                                                   | 合法无交集返回 `protocol_unsupported`；非法形状返回 `invalid_message`；都不建立 session                                                 | ✅       |
-| 13  | 已进入 v1 facade                                                      | 投递迟到的合法 v2 HANDSHAKE                                | facade 是终态：拒绝该握手、不切换版本、不并存第二个状态机；置 panel 本地可见降级标记，只有 transport 重连才重新协商                     | ✅       |
-| 14  | v2 session 已建立                                                     | 注入错误 ACK、重复 HELLO、迟到握手、旧 session 和额外键    | exact-key 和状态机拒绝；当前 session、版本与 UI 状态不变。与 AC#8/#9 的「无 session 迟到 legacy 握手」路径区分，后者必须被接受进入暂存 | ✅       |
-| 15  | capability 为 none，握手前后各产生事件                                | ACK、PING、查询并观察内部订阅和消息总线                    | 只返回生命周期消息；事件订阅、buffer、DB_INFO/EVENT/BRANCHES/provider 调用均为 0                                                        | ✅       |
-| 16  | none/readonly/full 分别运行控制面矩阵                                 | 伪造查询、branch mutation 与更高 capability 回显           | none 零数据；readonly 只读；full 仅允许自身操作；wire 回显不能扩大本地配置                                                              | ✅       |
-| 17  | session 达到 32 个请求或 2 个传输                                     | 再登记一个                                                 | 返回对应 limit 错误且不分配资源                                                                                                         | ✅       |
-| 18  | 连续完成 4,096 请求或 256 个传输                                      | 再登记唯一 ID，并尝试复用旧 ID                             | 新登记返回 `session_budget_exhausted`，复用返回 duplicate；tombstone 数量不超过固定上限，轮换后旧 session 消息全部拒绝                  | ✅       |
-| 19  | 请求进行中或已超时                                                    | 断连、重握手并投递迟到响应                                 | 计时器和资源释放；迟到数据不进入新状态，旧 session 不复活                                                                               | ⚠️ →AC#39 |
-| 20  | fake transfer 帧序列（不含真实 provider）                             | 分别制造 idle 静默、被拒帧刷新尝试和超长总时长             | 合法帧刷新 idle，被拒帧不刷新；idle 15 秒或总时长 10 分钟到期返回 `transfer_timeout`，临时资源释放且不复活                              | ✅       |
+| #   | 前置条件                                                              | 操作                                                       | 预期结果                                                                                                                               | 状态      |
+| --- | --------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| 7   | 新 panel + v2 connector，经 fake background/content                   | 同时投递 eager legacy 与 v2 HANDSHAKE                      | background/content 不代 ACK；决策窗口内 v2 胜出，只建立一个 UUID v4 session，从未进入 v1 状态                                          | ✅        |
+| 8   | 新 panel 先启动，v2 connector 在其后 bootstrap；relay 就绪延迟 5 秒   | 投递 eager legacy HANDSHAKE（panel 的首个 HELLO 早已丢失） | panel 暂存时同 tick 补发 HELLO，connector 响应 v2 HANDSHAKE，最终仍选 v2；**不因 panel 先于 connector 存在而降级到 v1**                | ✅        |
+| 9   | 新 panel + v1 connector，legacy HANDSHAKE 在 panel init 后 5 秒才到达 | 暂存 legacy HANDSHAKE 并等待                               | 1,000 ms 窗口从**首次暂存**起算（非 panel init）；到期后由 panel 发送 legacy ACK 进入 bridge；不展示任何 v2/provider 能力              | ✅        |
+| 10  | 无 session 状态下 connector 高频重发 legacy HANDSHAKE                 | 在窗口内持续投递                                           | 窗口只启动一次且不被延长，暂存内容被替换；到期仍按最后一次暂存进入 v1 facade                                                           | ✅        |
+| 11  | v1 panel + v2 connector                                               | 旧 background ACK eager legacy HANDSHAKE                   | 无协商等待进入 v1 facade；不建立 v2 session，不执行新操作                                                                              | ✅        |
+| 12  | 双方版本无交集、HELLO 非降序/重复/超长或含非法数字                    | 执行协商                                                   | 合法无交集返回 `protocol_unsupported`；非法形状返回 `invalid_message`；都不建立 session                                                | ✅        |
+| 13  | 已进入 v1 facade                                                      | 投递迟到的合法 v2 HANDSHAKE                                | facade 是终态：拒绝该握手、不切换版本、不并存第二个状态机；置 panel 本地可见降级标记，只有 transport 重连才重新协商                    | ✅        |
+| 14  | v2 session 已建立                                                     | 注入错误 ACK、重复 HELLO、迟到握手、旧 session 和额外键    | exact-key 和状态机拒绝；当前 session、版本与 UI 状态不变。与 AC#8/#9 的「无 session 迟到 legacy 握手」路径区分，后者必须被接受进入暂存 | ✅        |
+| 15  | capability 为 none，握手前后各产生事件                                | ACK、PING、查询并观察内部订阅和消息总线                    | 只返回生命周期消息；事件订阅、buffer、DB_INFO/EVENT/BRANCHES/provider 调用均为 0                                                       | ✅        |
+| 16  | none/readonly/full 分别运行控制面矩阵                                 | 伪造查询、branch mutation 与更高 capability 回显           | none 零数据；readonly 只读；full 仅允许自身操作；wire 回显不能扩大本地配置                                                             | ✅        |
+| 17  | session 达到 32 个请求或 2 个传输                                     | 再登记一个                                                 | 返回对应 limit 错误且不分配资源                                                                                                        | ✅        |
+| 18  | 连续完成 4,096 请求或 256 个传输                                      | 再登记唯一 ID，并尝试复用旧 ID                             | 新登记返回 `session_budget_exhausted`，复用返回 duplicate；tombstone 数量不超过固定上限，轮换后旧 session 消息全部拒绝                 | ✅        |
+| 19  | 请求进行中或已超时                                                    | 断连、重握手并投递迟到响应                                 | 计时器和资源释放；迟到数据不进入新状态，旧 session 不复活                                                                              | ⚠️ →AC#39 |
+| 20  | fake transfer 帧序列（不含真实 provider）                             | 分别制造 idle 静默、被拒帧刷新尝试和超长总时长             | 合法帧刷新 idle，被拒帧不刷新；idle 15 秒或总时长 10 分钟到期返回 `transfer_timeout`，临时资源释放且不复活                             | ✅        |
 
 ### 阶段 B — provider 数据面（AC#21～30）
 
-| #   | 前置条件                                                              | 操作                                         | 预期结果                                                                                                                                | 状态           |
-| --- | --------------------------------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| 21  | fake providers 覆盖三个领域和全部 kind                                | 只改变 runtime 并运行 descriptor conformance | 相同 kind 的操作、状态和错误不变；unknown/duplicate/missing descriptor 被 exact guard 拒绝                                              | ✅             |
-| 22  | none/readonly/full 与 mutation allow/omit 全组合                      | 调用全部 provider operations                 | capability、descriptor、policy 三层矩阵成立；被拒调用为 0，wire 自称权限不能扩大可信配置                                                | ✅             |
-| 23  | 数值字段含边界值、NaN、Infinity、小数、负数和溢出                     | 运行所有 request/descriptor guards           | 仅范围内 safe integer 通过；非法值在资源分配前统一 `invalid_message`                                                                    | ✅             |
-| 24  | base64 含正常、边界 chunk、非法字符、非规范 padding/URL-safe          | 传过 fake JSON driver 并重新编码             | decoded bytes 一致；非法输入 `payload_encoding_invalid`，不写入、不刷新 timeout                                                         | ✅             |
-| 25  | 零字节、正常多 chunk、乱序、重复、缺块、越限、取消、idle 超时和迟到帧 | 执行完整 transfer 状态机                     | 仅合法 COMPLETE 提交；被拒帧不刷新 idle，超时返回 `transfer_timeout`；错误码稳定，其他终态无半写文件、孤儿 metadata 或完整文件内存副本  | ⚠️ →阶段 D/905 |
-| 26  | provider 上限缺失、为 0、超过 1 GiB 或双方上限不同                    | 启动上传/下载                                | descriptor guard 或 min-limit 生效；超过协商总量 `transfer_size_exceeded`                                                               | ✅             |
-| 27  | fixture 含 1001 条记录、两类缺失和内部临时状态                        | 以默认页大小读取 snapshot                    | 独占锁内物化、tuple 稳定排序和字节计量，不漏尾页；只在 complete 后报告，临时状态不误报                                                  | ⚠️ →阶段 D/905 |
-| 28  | 等锁、epoch 连续失效、条目/字节超限、60 秒过期                        | 创建并翻页                                   | 请求进入起 15 秒内结束；分别返回 busy/too_large/expired，取消能中止等待，不保留旧结论或截断页                                           | ✅             |
-| 29  | OPFS/Node/Rust 代表性 not-found/conflict/permission/quota 错误        | 运行共享错误映射 contract                    | 三端映射为同一穷举错误码，响应不泄漏路径、stack、平台 code 或内容                                                                       | ⚠️ 部分        |
-| 30  | database export 在任意 kind/runtime 下被强制调用                      | 监控 provider/filesystem                     | 固定 `export_unsupported`，provider、OPFS、SQLite、WAL 和应用目录读取次数均为 0                                                         | ⚠️ →AC#43      |
+| #   | 前置条件                                                              | 操作                                         | 预期结果                                                                                                                               | 状态           |
+| --- | --------------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| 21  | fake providers 覆盖三个领域和全部 kind                                | 只改变 runtime 并运行 descriptor conformance | 相同 kind 的操作、状态和错误不变；unknown/duplicate/missing descriptor 被 exact guard 拒绝                                             | ✅             |
+| 22  | none/readonly/full 与 mutation allow/omit 全组合                      | 调用全部 provider operations                 | capability、descriptor、policy 三层矩阵成立；被拒调用为 0，wire 自称权限不能扩大可信配置                                               | ✅             |
+| 23  | 数值字段含边界值、NaN、Infinity、小数、负数和溢出                     | 运行所有 request/descriptor guards           | 仅范围内 safe integer 通过；非法值在资源分配前统一 `invalid_message`                                                                   | ✅             |
+| 24  | base64 含正常、边界 chunk、非法字符、非规范 padding/URL-safe          | 传过 fake JSON driver 并重新编码             | decoded bytes 一致；非法输入 `payload_encoding_invalid`，不写入、不刷新 timeout                                                        | ✅             |
+| 25  | 零字节、正常多 chunk、乱序、重复、缺块、越限、取消、idle 超时和迟到帧 | 执行完整 transfer 状态机                     | 仅合法 COMPLETE 提交；被拒帧不刷新 idle，超时返回 `transfer_timeout`；错误码稳定，其他终态无半写文件、孤儿 metadata 或完整文件内存副本 | ⚠️ →阶段 D/905 |
+| 26  | provider 上限缺失、为 0、超过 1 GiB 或双方上限不同                    | 启动上传/下载                                | descriptor guard 或 min-limit 生效；超过协商总量 `transfer_size_exceeded`                                                              | ✅             |
+| 27  | fixture 含 1001 条记录、两类缺失和内部临时状态                        | 以默认页大小读取 snapshot                    | 独占锁内物化、tuple 稳定排序和字节计量，不漏尾页；只在 complete 后报告，临时状态不误报                                                 | ⚠️ →阶段 D/905 |
+| 28  | 等锁、epoch 连续失效、条目/字节超限、60 秒过期                        | 创建并翻页                                   | 请求进入起 15 秒内结束；分别返回 busy/too_large/expired，取消能中止等待，不保留旧结论或截断页                                          | ✅             |
+| 29  | OPFS/Node/Rust 代表性 not-found/conflict/permission/quota 错误        | 运行共享错误映射 contract                    | 三端映射为同一穷举错误码，响应不泄漏路径、stack、平台 code 或内容                                                                      | ⚠️ 部分        |
+| 30  | database export 在任意 kind/runtime 下被强制调用                      | 监控 provider/filesystem                     | 固定 `export_unsupported`，provider、OPFS、SQLite、WAL 和应用目录读取次数均为 0                                                        | ⚠️ →AC#43      |
 
 #### 保留项：fake 关不掉的 5 条
 
 阶段 B 的 19 条 ✅ 全部有对应断言且在 `pnpm nx test rxdb-devtools` 中绿。下列 5 条**不写 ✅**——
 fake 能证明的部分已证明，剩下的部分不是「还没写测试」，而是本包结构上不可测：
 
-| AC  | 本轮 fake 验收到的程度                                                                                                                                                     | 谁最终关闭                                       |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| 19  | 计时器与资源释放、迟到响应不进新状态、旧 session 帧被拒，均已断言；但「断连」由 fake relay 自己定义。service worker 重启、Port 重连与页面刷新的真实语义不在本包            | 阶段 C AC#39                                     |
-| 25  | 状态机全部终态、错误码稳定性、`peakRetainedBytes ≤ 256 KiB` 已断言；「不得整文件驻留内存」只有这一个代理指标，Rust / 主进程那一半在本包结构上不可观测                      | 阶段 D / US-905                                  |
-| 27  | tuple 稳定排序、字节计量、不漏尾页、只在 complete 后报告已由 `provider/snapshot` 单测断言；fake 锁只能证明**调用顺序**，证明不了真实独占锁排斥并发写者                     | 阶段 D / US-905                                  |
+| AC  | 本轮 fake 验收到的程度                                                                                                                                                     | 谁最终关闭                                          |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| 19  | 计时器与资源释放、迟到响应不进新状态、旧 session 帧被拒，均已断言；但「断连」由 fake relay 自己定义。service worker 重启、Port 重连与页面刷新的真实语义不在本包            | 阶段 C AC#39                                        |
+| 25  | 状态机全部终态、错误码稳定性、`peakRetainedBytes ≤ 256 KiB` 已断言；「不得整文件驻留内存」只有这一个代理指标，Rust / 主进程那一半在本包结构上不可观测                      | 阶段 D / US-905                                     |
+| 27  | tuple 稳定排序、字节计量、不漏尾页、只在 complete 后报告已由 `provider/snapshot` 单测断言；fake 锁只能证明**调用顺序**，证明不了真实独占锁排斥并发写者                     | 阶段 D / US-905                                     |
 | 29  | 三来源代表性 fixture 全部映射到同一联合且响应脱敏；穷尽性只做到「`DEVTOOLS_PROVIDER_ERROR_CODES` 每个成员都至少被一条 fixture 产出」的 meta-test，真实平台异常空间无法枚举 | 部分；阶段 D / US-905 补 fixture **加行**而非加分支 |
-| 30  | `export_unsupported` 固定返回、provider 与 host 读取计数为 0 已断言；但本包没有真实 OPFS/SQLite/WAL 代码路径，这是在数一个从未存在过的调用                                 | 阶段 C AC#43                                     |
+| 30  | `export_unsupported` 固定返回、provider 与 host 读取计数为 0 已断言；但本包没有真实 OPFS/SQLite/WAL 代码路径，这是在数一个从未存在过的调用                                 | 阶段 C AC#43                                        |
 
 ### 阶段 C1 — 行为中性抽取（AC#31～35）
 
@@ -668,37 +668,37 @@ fake 能证明的部分已证明，剩下的部分不是「还没写测试」，
 
 ### 阶段 D — Electron 原生存储集成（AC#45～53）
 
-| #   | 前置条件                                                     | 操作                                                   | 预期结果                                                                                                                                         | 状态 |
-| --- | ------------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 45  | 分别构建显式开发配置与 production                            | 检查产物并启动                                         | dev 加载唯一工作区扩展并握手；production 无扩展源码、加载路径、bootstrap 和新增权限                                                              | ⬜   |
-| 46  | 应用使用 US-207 desktop SQLite                               | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与应用一致；不创建或查询 OPFS/IndexedDB fallback                                                         | ⬜   |
-| 47  | 应用使用 US-504 原生文件后端并显式允许 mutation              | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件专用根，字节一致；UI 仅用 `runtime: electron` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                              | ⬜   |
-| 48  | 1001 条以上 metadata/files、两类缺失和一条在途上传           | 读取完整诊断 snapshot                                  | 从请求进入起算的共享 deadline（阶段 B）覆盖等锁/物化/重试；不漏尾页或误报临时状态；失效/超限/过期分别返回 shared busy/too-large/expired          | ⬜   |
-| 49  | 打开 Settings                                                | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明清理返回 `provider_unsupported`，不读取 OPFS/SQLite/WAL 或其他目录                            | ⬜   |
-| 50  | 同源脚本/content script 持有合法 session，或构造越界路径     | 在 none/readonly/full、mutation 开/关组合下伪造操作    | connector、preload、host 各自校验；未授权 provider 调用为 0，未 opt-in mutation 不执行；根外无读写，错误不含路径、SQL 绑定值、加密字段或文件内容 | ⬜   |
-| 51  | session A 有订阅、迟到响应和未完成传输                       | 关闭/刷新后建立 session B 并投递 A 消息                | A 的 host session 与资源释放；B 拒绝旧身份，不显示旧实体、错误、事件或进度                                                                       | ⬜   |
-| 52  | 真实临时 userData、SQLite 与原生文件后端                     | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 extension/renderer/preload/main/host，不用 mock 替代                                                    | ⬜   |
-| 53  | Electron 薄 driver 接入阶段 B conformance 与阶段 C panel library | 运行全部共享断言                                   | 控制面、descriptor、base64、safe integer、授权、传输、快照、错误和 session 重建通过；不复制 UI、wire、fixture 或错误码                           | ⬜   |
+| #   | 前置条件                                                         | 操作                                                   | 预期结果                                                                                                                                         | 状态 |
+| --- | ---------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 45  | 分别构建显式开发配置与 production                                | 检查产物并启动                                         | dev 加载唯一工作区扩展并握手；production 无扩展源码、加载路径、bootstrap 和新增权限                                                              | ⬜   |
+| 46  | 应用使用 US-207 desktop SQLite                                   | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与应用一致；不创建或查询 OPFS/IndexedDB fallback                                                         | ⬜   |
+| 47  | 应用使用 US-504 原生文件后端并显式允许 mutation                  | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件专用根，字节一致；UI 仅用 `runtime: electron` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                              | ⬜   |
+| 48  | 1001 条以上 metadata/files、两类缺失和一条在途上传               | 读取完整诊断 snapshot                                  | 从请求进入起算的共享 deadline（阶段 B）覆盖等锁/物化/重试；不漏尾页或误报临时状态；失效/超限/过期分别返回 shared busy/too-large/expired          | ⬜   |
+| 49  | 打开 Settings                                                    | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明清理返回 `provider_unsupported`，不读取 OPFS/SQLite/WAL 或其他目录                            | ⬜   |
+| 50  | 同源脚本/content script 持有合法 session，或构造越界路径         | 在 none/readonly/full、mutation 开/关组合下伪造操作    | connector、preload、host 各自校验；未授权 provider 调用为 0，未 opt-in mutation 不执行；根外无读写，错误不含路径、SQL 绑定值、加密字段或文件内容 | ⬜   |
+| 51  | session A 有订阅、迟到响应和未完成传输                           | 关闭/刷新后建立 session B 并投递 A 消息                | A 的 host session 与资源释放；B 拒绝旧身份，不显示旧实体、错误、事件或进度                                                                       | ⬜   |
+| 52  | 真实临时 userData、SQLite 与原生文件后端                         | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 extension/renderer/preload/main/host，不用 mock 替代                                                    | ⬜   |
+| 53  | Electron 薄 driver 接入阶段 B conformance 与阶段 C panel library | 运行全部共享断言                                       | 控制面、descriptor、base64、safe integer、授权、传输、快照、错误和 session 重建通过；不复制 UI、wire、fixture 或错误码                           | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 ## 实现所有权
 
-| 路径                                  | 阶段        | 边界                                                                                       |
-| ------------------------------------- | ----------- | ------------------------------------------------------------------------------------------ |
-| `packages/rxdb-devtools/src/`         | B           | v2 envelope、协商、session、授权、ID 预算、错误和生命周期                                  |
-| `packages/rxdb-devtools/src/provider/` | B          | descriptor、授权、transfer、snapshot、错误和规范化 helper                                  |
-| `packages/rxdb-devtools/src/testing/` | B           | fake 四段 relay、fake providers、JSON driver 与完整 conformance suite                      |
-| `packages/rxdb-devtools-panel/`       | C           | `private: true` 的 Angular library、共享面板、状态服务与 transport token                   |
-| `nx.json`                             | C           | 将私有 panel project 排除出 `release.projects`                                             |
-| `apps/rxdb-devtools-extension/`       | A / C       | A 只做可行性 fixture（使用现有构建产物）；C 拥有 Chrome adapter、四段 relay、v2 迁移与禁用不安全下载 |
-| `apps/dev-rxdb-electron/`             | A / D       | A 做最小加载 fixture 与 Electron 43 加载脚本；D 做开发态加载、preload/main 接线与生产隔离  |
-| `apps/dev-rxdb-electron-e2e/`         | A / D       | A 提供真实 DevTools panel、Port 和生命周期证据；D 提供持久化、重启与安全边界 E2E           |
-| `apps/dev-rxdb-tauri/`                | US-905      | DevTools bootstrap、Tauri transport adapter、受限窗口与 dev-only capability                |
-| `packages/rxdb-adapter-desktop/`      | D / US-905  | Electron / Tauri SQLite 只读诊断 provider，不增加任意 SQL                                  |
-| `packages/rxdb-plugin-storage/`       | D / US-905  | Electron / Tauri 原生文件调试 provider，复用业务路径与流式语义                             |
-| `apps/dev-rxdb-tauri-e2e/`            | 共享        | US-210 / US-905 先开工者用 generator 创建一次；各故事只拥有自己的 specs                    |
-| `requirements/api-baseline/`          | 改动方      | 只有新增公开 API 时同步                                                                    |
+| 路径                                   | 阶段       | 边界                                                                                                 |
+| -------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------- |
+| `packages/rxdb-devtools/src/`          | B          | v2 envelope、协商、session、授权、ID 预算、错误和生命周期                                            |
+| `packages/rxdb-devtools/src/provider/` | B          | descriptor、授权、transfer、snapshot、错误和规范化 helper                                            |
+| `packages/rxdb-devtools/src/testing/`  | B          | fake 四段 relay、fake providers、JSON driver 与完整 conformance suite                                |
+| `packages/rxdb-devtools-panel/`        | C          | `private: true` 的 Angular library、共享面板、状态服务与 transport token                             |
+| `nx.json`                              | C          | 将私有 panel project 排除出 `release.projects`                                                       |
+| `apps/rxdb-devtools-extension/`        | A / C      | A 只做可行性 fixture（使用现有构建产物）；C 拥有 Chrome adapter、四段 relay、v2 迁移与禁用不安全下载 |
+| `apps/dev-rxdb-electron/`              | A / D      | A 做最小加载 fixture 与 Electron 43 加载脚本；D 做开发态加载、preload/main 接线与生产隔离            |
+| `apps/dev-rxdb-electron-e2e/`          | A / D      | A 提供真实 DevTools panel、Port 和生命周期证据；D 提供持久化、重启与安全边界 E2E                     |
+| `apps/dev-rxdb-tauri/`                 | US-905     | DevTools bootstrap、Tauri transport adapter、受限窗口与 dev-only capability                          |
+| `packages/rxdb-adapter-desktop/`       | D / US-905 | Electron / Tauri SQLite 只读诊断 provider，不增加任意 SQL                                            |
+| `packages/rxdb-plugin-storage/`        | D / US-905 | Electron / Tauri 原生文件调试 provider，复用业务路径与流式语义                                       |
+| `apps/dev-rxdb-tauri-e2e/`             | 共享       | US-210 / US-905 先开工者用 generator 创建一次；各故事只拥有自己的 specs                              |
+| `requirements/api-baseline/`           | 改动方     | 只有新增公开 API 时同步                                                                              |
 
 ## 依赖与排期
 

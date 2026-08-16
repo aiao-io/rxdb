@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { DevToolsProviderDescriptor } from '../../provider/descriptor.js';
 import {
   DEVTOOLS_PROVIDER_DOMAINS,
   DEVTOOLS_PROVIDER_KINDS,
@@ -9,11 +10,8 @@ import {
   isDevToolsProviderDescriptor,
   isDevToolsProviderDescriptorSet
 } from '../../provider/descriptor.js';
-import type { DevToolsProviderDescriptor } from '../../provider/descriptor.js';
 
-const filesDescriptor = (
-  overrides: Partial<Record<string, unknown>> = {}
-): Record<string, unknown> => ({
+const filesDescriptor = (overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> => ({
   domain: 'files',
   version: 1,
   kind: 'opfs',

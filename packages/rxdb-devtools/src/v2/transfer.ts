@@ -26,13 +26,9 @@ import {
   DEVTOOLS_TRANSFER_IDLE_TIMEOUT_MS,
   DEVTOOLS_TRANSFER_TOTAL_TIMEOUT_MS
 } from './constants.js';
-import { createDevToolsError } from './errors.js';
 import type { DevToolsErrorPayload, DevToolsProviderErrorCode } from './errors.js';
-import type {
-  DevToolsTransferChunkPayload,
-  DevToolsTransferIdPayload,
-  DevToolsTransferStartPayload
-} from './wire.js';
+import { createDevToolsError } from './errors.js';
+import type { DevToolsTransferChunkPayload, DevToolsTransferIdPayload, DevToolsTransferStartPayload } from './wire.js';
 
 /**
  * 一块 chunk 的编码长度上界。
@@ -284,7 +280,10 @@ class DevToolsTransferTableImpl implements DevToolsTransferTable {
   }
 
   #armIdle(transferId: string): DevToolsCancelTimer {
-    return this.#ports.clock.setTimeout(() => this.#expire(transferId, 'idle-timeout'), DEVTOOLS_TRANSFER_IDLE_TIMEOUT_MS);
+    return this.#ports.clock.setTimeout(
+      () => this.#expire(transferId, 'idle-timeout'),
+      DEVTOOLS_TRANSFER_IDLE_TIMEOUT_MS
+    );
   }
 
   /**

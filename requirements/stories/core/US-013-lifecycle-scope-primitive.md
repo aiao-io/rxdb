@@ -189,17 +189,16 @@ INVEST 检查清单:
 | `getEntries()` 只读**本实例**清单的快照树 | 多一个公开方法与一份 TSDoc                                                                      | ✅ **推荐** |
 | 进程级注册表（`WeakMap` / 全局 `Set`）    | 单例、SSR 多实例串扰、测试间状态泄漏——Out of Scope 已否                                         | ❌          |
 
-后两行是**两件事**，不要因为都能画出一棵树就合并看待。依据来自 cordis：它把
-`{ label, children }` 挂在 `effect()` **返回的那个 disposer 函数自己**身上
-（[fiber.ts:296](../../../../cordis/packages/core/src/fiber.ts#L296) 的 `EffectMeta` + `symbols.effect`），
-`getEffects()` 只遍历**本 fiber 自己**的清单把这些 meta 读出来。整棵树是「每个作用域各存各的一段」
-拼出来的，进程里没有任何一处登记过「现在存在哪些作用域」。`getEntries()` 照搬这个形状，
-读的是 `this` 已经持有的东西，一条跨实例登记都不需要。
+后两行是**两件事**，不要因为都能画出一棵树就合并看待。依据来自 cordis（下述路径均相对
+`/Users/jimmy/Documents/aiao/cordis`，与 Epic 第二轮复核同一份源码）：它把 `{ label, children }`
+挂在 `effect()` **返回的那个 disposer 函数自己**身上（`packages/core/src/fiber.ts:296` 的
+`EffectMeta` + `symbols.effect`），`getEffects()` 只遍历**本 fiber 自己**的清单把这些 meta 读出来。
+整棵树是「每个作用域各存各的一段」拼出来的，进程里没有任何一处登记过「现在存在哪些作用域」。
+`getEntries()` 照搬这个形状，读的是 `this` 已经持有的东西，一条跨实例登记都不需要。
 
-真正的收益在**测试口径**。cordis 的
-[dispose.spec.ts:53-68](../../../../cordis/packages/core/tests/dispose.spec.ts#L53-L68)
-是在**释放之前**直接断言树形的；rxdb 这边若没有读出口，AC#9 / AC#10 只能先造带副作用的 disposer、
-释放、再断言序列。有了 AC#9b，同一个状态先验结构再验顺序，两条 AC 失败时指向的缺陷也就分得开：
+真正的收益在**测试口径**。cordis 的 `packages/core/tests/dispose.spec.ts:53-68` 是在**释放之前**
+直接断言树形的；rxdb 这边若没有读出口，AC#9 / AC#10 只能先造带副作用的 disposer、释放、再断言序列。
+有了 AC#9b，同一个状态先验结构再验顺序，两条 AC 失败时指向的缺陷也就分得开：
 结构错 = 登记时挂错父；顺序错 = 释放时排序错。
 
 契约细节：返回**快照**（普通数组与普通对象，不是活引用），调用不改变任何状态、可重复调用；
@@ -209,8 +208,7 @@ INVEST 检查清单:
 #### D5 — 一次 `acquire()` 只包一步会失败的获取（2026-08-16 补入）
 
 cordis 允许 `effect()` 的 setup 写成 generator，每 `yield` 一个 disposer 就**立刻**收进清单；
-setup 跑到一半抛错时，已经拿到的那几个资源仍会被回滚——
-[dispose.spec.ts:197-208](../../../../cordis/packages/core/tests/dispose.spec.ts#L197-L208)
+setup 跑到一半抛错时，已经拿到的那几个资源仍会被回滚——`packages/core/tests/dispose.spec.ts:197-208`
 的 "yield with error" 用例断言 `seq === [1]`。
 
 本原语**不引入** generator setup：多一套语法、多一批用例，按「已推迟」同一条判据摘除。

@@ -10,7 +10,7 @@
  *
  * **为什么是 ports-only 工厂而不是持有 transport 的 client。** 面板侧收发抽象只允许暴露平台
  * 无关的收发与生命周期，不得出现 tab id / Port / window label / `invoke` / IPC 概念
- * （US-904c 的 token 契约），且共享 library 不能把 Chrome types 变成传递依赖。所以这里只收
+ * （US-904 阶段 C 的 token 契约），且共享 library 不能把 Chrome types 变成传递依赖。所以这里只收
  * 一个 `send` 回调和一个时钟端口，904c 用薄 driver 包一层。
  *
  * **ACK 的所有权属于 panel。** 中继看到 HANDSHAKE 就自行合成 ACK 会绕过版本决策——协议无法靠
@@ -19,16 +19,16 @@
  * @module @aiao/rxdb-devtools/v2/negotiation-panel
  */
 
-import { RXDB_DEVTOOLS_MESSAGE, createMessage, isDevToolsMessage } from '../types.js';
-import type { AnyDevToolsMessage, HandshakeAckMessage } from '../types.js';
-import { SequenceGenerator } from '../sequence.js';
 import { isRecord } from '../internal/guards.js';
-import { DEVTOOLS_NEGOTIATION_WINDOW_MS, DEVTOOLS_PROTOCOL_VERSION_V2 } from './constants.js';
+import { SequenceGenerator } from '../sequence.js';
+import type { AnyDevToolsMessage, HandshakeAckMessage } from '../types.js';
+import { RXDB_DEVTOOLS_MESSAGE, createMessage, isDevToolsMessage } from '../types.js';
 import type { DevToolsCancelTimer, DevToolsClock } from './clock.js';
+import { DEVTOOLS_NEGOTIATION_WINDOW_MS, DEVTOOLS_PROTOCOL_VERSION_V2 } from './constants.js';
 import type { DevToolsErrorPayload } from './errors.js';
 import { isSupportedVersionList } from './guards.js';
-import { createDevToolsV2Message, isDevToolsV2Message } from './wire.js';
 import type { DevToolsV2HandshakePayload, DevToolsV2Message } from './wire.js';
+import { createDevToolsV2Message, isDevToolsV2Message } from './wire.js';
 
 /**
  * panel 协商机的状态。

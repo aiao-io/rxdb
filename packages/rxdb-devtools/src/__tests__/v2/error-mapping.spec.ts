@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEVTOOLS_PROVIDER_ERROR_CODES } from '../../v2/errors.js';
-import type { DevToolsProviderErrorCode } from '../../v2/errors.js';
-import { DEVTOOLS_PROVIDER_ERROR_RETRYABLE, mapPlatformError } from '../../v2/error-mapping.js';
 import type { DevToolsErrorOrigin } from '../../v2/error-mapping.js';
+import { DEVTOOLS_PROVIDER_ERROR_RETRYABLE, mapPlatformError } from '../../v2/error-mapping.js';
+import type { DevToolsProviderErrorCode } from '../../v2/errors.js';
+import { DEVTOOLS_PROVIDER_ERROR_CODES } from '../../v2/errors.js';
 
 /** 构造一个带 `name` 的类 DOMException 值。 */
 function domError(name: string): unknown {

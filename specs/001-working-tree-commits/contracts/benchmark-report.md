@@ -2,7 +2,7 @@
 
 **Feature**: [spec.md](../spec.md) | **Research**: [research.md](../research.md) | **Date**: 2026-08-15
 
-US4（US-306c）**拥有** `benchmarks:bench-working-tree` 这个 target 本身：fixture 构造、warmup/采样参数、`runnerProfileHash`、报告 JSON 结构与 reference 签入流程。US5 只向其中**追加 restore 采样场景**，不新建 target、不改报告结构、不重算已冻结的 reference。
+US4（US-306 阶段 C）**拥有** `benchmarks:bench-working-tree` 这个 target 本身：fixture 构造、warmup/采样参数、`runnerProfileHash`、报告 JSON 结构与 reference 签入流程。US5 只向其中**追加 restore 采样场景**，不新建 target、不改报告结构、不重算已冻结的 reference。
 
 ---
 

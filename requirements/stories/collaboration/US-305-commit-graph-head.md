@@ -73,7 +73,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
   US-308 首次成功物化；保留旧 change 记录，失败可重试且幂等
 - 数据库级 `CommitCapabilityState`、writer 能力协商与启用/未启用混用拒绝
 - 数据库级 `WorkingTreeActivationState` 的**建表与初始化**（单行、`activationRevision` 从 0 起）。
-  它排在 US-306a 之前只因为后者的普通 CRUD 必须校验 active branch token；本故事不实现 switch 语义、
+  它排在 US-306 阶段 A 之前只因为后者的普通 CRUD 必须校验 active branch token；本故事不实现 switch 语义、
   不递增该 revision，见 [epic-006 状态归属](../../epics/epic-006-working-tree-commits.md#状态归属哪个故事负责建表)
 - 普通 commit 的 `operationId` 幂等约束、必填作者来源与数据库时间
 - commit/ChangeSet 对字段加密 envelope 的原样持久化与明文泄漏门禁
@@ -165,7 +165,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - **FR-052**：首次启用 MUST 在同一迁移事务内建立数据库级单行 `WorkingTreeActivationState` 并把 `activationRevision`
   初始化为 0。该状态 MUST NOT 复制第二份 active branch ID——当前分支仍由 `RxDBBranch.activated` 表示。本故事只负责
   建表、初始化与「连接时可读」；递增该 revision 的 switch 语义归 [US-308](./US-308-branch-isolation-conflict.md)，
-  写路径的 token 校验归 [US-306a](./US-306a-working-tree-capture.md)。未启用 commit 能力的数据库 MUST NOT 创建该表。
+  写路径的 token 校验归 [US-306 阶段 A](./US-306-working-tree-index.md)。未启用 commit 能力的数据库 MUST NOT 创建该表。
 - **FR-051**：commit 图校验 MUST 从每个 branch ref 遍历完整可达父链并区分孤立损坏与可达损坏。可达损坏的分支只允许读取不依赖重放的当前投影、导出诊断和切离；commit、restore、switch-to 及任何历史重放 MUST 返回稳定的 `commit_graph_corrupted`。
 
 ## 关键实体
@@ -174,7 +174,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - **CommitBranchRef**：分支引用；分支 ID、不可变 generation、head commit、head revision、创建来源、更新时间，是该次分支生命周期 HEAD 的唯一真相源。同名重建必须生成新 generation。metadata-only 远端分支在首次完整本地物化前没有该记录，不能用 `headCommitId=null` 制造第二种 ref 状态。
 - **CommitChangeSet**：commit 的变更单元集合；按实体/事务分组，保留 patch、inverse patch 或等价可恢复信息。
 - **CommitCapabilityState**：数据库级启用与协议协商状态；commit protocol、system schema、change codec version、启用迁移 ID 与时间。
-- **WorkingTreeActivationState**：数据库级单行 `activationRevision`（本故事只建表并初始化为 0）。当前分支 ID 仍由 `RxDBBranch.activated` 表示，不在此复制第二份；递增语义见 US-308，写路径校验见 US-306a。
+- **WorkingTreeActivationState**：数据库级单行 `activationRevision`（本故事只建表并初始化为 0）。当前分支 ID 仍由 `RxDBBranch.activated` 表示，不在此复制第二份；递增语义见 US-308，写路径校验见 US-306 阶段 A。
 
 > 命名遵守 [epic-006](../../epics/epic-006-working-tree-commits.md) 的术语表：新导出一律 `Commit*` 前缀，
 > **不得**使用 `Workspace*`——该前缀已被 `@aiao/rxdb-plugin-workspace` 的草稿缓存占用。
@@ -222,7 +222,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - 核心包按 TDD 先写崩溃/刷新恢复的失败用例，再实现；覆盖率不低于 90%。
 - 本故事的跨后端断言（事务原子性、head revision CAS、operation ID 幂等、schema 迁移）先落进
   [epic-006](../../epics/epic-006-working-tree-commits.md#启用与存储边界) 冻结的 `workingTreeCommitConformanceSuite`，
-  由 US-306b 收口整套；本故事**不另起第三个套件名**。运行矩阵为 epic 定义的 6 个 v1 后端（PGlite、四个 SQLite 浏览器适配器、Electron `node:sqlite` host）。
+  由 US-306 阶段 B 收口整套；本故事**不另起第三个套件名**。运行矩阵为 epic 定义的 6 个 v1 后端（PGlite、四个 SQLite 浏览器适配器、Electron `node:sqlite` host）。
 - 迁移幂等性、空/非空多分支 baseline、metadata-only 远端分支延迟建 ref、零/多 active、未启用零副作用、启用状态混用拒绝、Workspace 草稿隔离与损坏记录隔离必须有独立 fixture。
 - `WorkingTreeActivationState` 需独立 fixture：启用后单行存在且 `activationRevision = 0`、重启可读、未启用时表不存在（FR-052 / AC US2-13）。
 - 损坏 fixture 必须分别覆盖不可达孤立节点、HEAD 损坏和中间祖先损坏；后两者断言 ref 不被改写、健康分支可用且损坏分支所有重放写入口稳定 fail-closed。

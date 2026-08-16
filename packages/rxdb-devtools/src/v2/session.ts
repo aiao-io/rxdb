@@ -24,8 +24,8 @@ import {
   DEVTOOLS_MAX_TRANSFER_TOMBSTONES,
   DEVTOOLS_REQUEST_TIMEOUT_MS
 } from './constants.js';
-import { createDevToolsError } from './errors.js';
 import type { DevToolsControlPlaneErrorCode, DevToolsErrorPayload } from './errors.js';
+import { createDevToolsError } from './errors.js';
 import { isDevToolsIdentifier } from './ids.js';
 
 /** 构造一个 session 所需的外部依赖。 */
@@ -45,8 +45,7 @@ export interface DevToolsSessionPorts {
 
 /** 一次 ID 登记的结果。 */
 export type DevToolsRegistration =
-  | { readonly outcome: 'registered' }
-  | { readonly outcome: 'rejected'; readonly error: DevToolsErrorPayload };
+  { readonly outcome: 'registered' } | { readonly outcome: 'rejected'; readonly error: DevToolsErrorPayload };
 
 /** session 的生命周期状态。 */
 export type DevToolsSessionState = 'open' | 'closed';
@@ -216,7 +215,10 @@ class DevToolsSessionImpl implements DevToolsSession {
     if (admission.outcome === 'rejected') return admission;
 
     const id = admission.id;
-    this.#requests.inflight.set(id, this.#ports.clock.setTimeout(() => this.#expire(id), DEVTOOLS_REQUEST_TIMEOUT_MS));
+    this.#requests.inflight.set(
+      id,
+      this.#ports.clock.setTimeout(() => this.#expire(id), DEVTOOLS_REQUEST_TIMEOUT_MS)
+    );
     return { outcome: 'registered' };
   }
 

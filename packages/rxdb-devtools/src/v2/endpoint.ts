@@ -5,31 +5,30 @@
  * 分散的状态机各自都能单测，但**它们之间的接线本身才是协议**：授权排在登记之前（被拒的调用
  * 不得占用预算）、登记排在 provider 调用之前（越限的请求不得触碰 host）、迟到的结果必须先过
  * session 的结算门（超时或轮换后的响应不得进入新状态）。这些顺序在任何单个模块里都看不出来，
- * 只有在这里才成立或失效，所以它是产品代码而不是测试脚手架——US-904c 的 Chrome driver 与
- * US-904d / US-905 的原生 driver 复用的正是这份接线。
+ * 只有在这里才成立或失效，所以它是产品代码而不是测试脚手架——US-904 阶段 C 的 Chrome driver 与
+ * US-904 阶段 D 与 US-905 的原生 driver 复用的正是这份接线。
  *
- * panel 侧只导出协商机（见 `negotiation-panel`）：数据面客户端归 US-904c，本模块不预判它的形状。
+ * panel 侧只导出协商机（见 `negotiation-panel`）：数据面客户端归 US-904 阶段 C，本模块不预判它的形状。
  *
  * @module @aiao/rxdb-devtools/v2/endpoint
  */
 
-import { SequenceGenerator } from '../sequence.js';
-import type { AnyDevToolsMessage, DevToolsCapability } from '../types.js';
 import type { DevToolsProviderDescriptor, DevToolsProviderDomain } from '../provider/descriptor.js';
 import { resolveNegotiatedTransferLimit } from '../provider/limits.js';
 import type { DevToolsChunkSink, DevToolsProvider, DevToolsProviderResult } from '../provider/types.js';
-import { authorizeMessage, authorizeOperation } from './authorization.js';
+import { SequenceGenerator } from '../sequence.js';
+import type { AnyDevToolsMessage, DevToolsCapability } from '../types.js';
 import type { DevToolsMutationPolicy } from './authorization.js';
+import { authorizeMessage, authorizeOperation } from './authorization.js';
 import type { DevToolsClock } from './clock.js';
-import { createDevToolsError } from './errors.js';
 import type { DevToolsErrorPayload } from './errors.js';
-import { createConnectorNegotiation } from './negotiation-connector.js';
+import { createDevToolsError } from './errors.js';
 import type { DevToolsConnectorNegotiation, DevToolsConnectorNegotiationMessage } from './negotiation-connector.js';
-import { createDevToolsSession } from './session.js';
+import { createConnectorNegotiation } from './negotiation-connector.js';
 import type { DevToolsSession } from './session.js';
-import { createDevToolsTransferTable } from './transfer.js';
+import { createDevToolsSession } from './session.js';
 import type { DevToolsTransferOutcome, DevToolsTransferTable } from './transfer.js';
-import { createDevToolsV2Message, isDevToolsV2Envelope, isDevToolsV2Message } from './wire.js';
+import { createDevToolsTransferTable } from './transfer.js';
 import type {
   DevToolsRequestPayload,
   DevToolsTransferChunkPayload,
@@ -40,6 +39,7 @@ import type {
   DevToolsV2MessageOptions,
   DevToolsV2MessageType
 } from './wire.js';
+import { createDevToolsV2Message, isDevToolsV2Envelope, isDevToolsV2Message } from './wire.js';
 
 /**
  * 端点访问 provider 的全部接缝。
@@ -298,7 +298,11 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
    * 这里不做平台映射：能抛到这一层，说明它绕过了 provider 自己的映射，剩下的信息不足以
    * 安全归类。`operation_failed` 是唯一诚实的答案。
    */
-  async #callProvider(domain: DevToolsProviderDomain, operation: string, params: unknown): Promise<DevToolsProviderResult> {
+  async #callProvider(
+    domain: DevToolsProviderDomain,
+    operation: string,
+    params: unknown
+  ): Promise<DevToolsProviderResult> {
     try {
       return await this.#ports.providers.provider(domain).invoke(operation, params);
     } catch {
@@ -540,8 +544,6 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
  * @param ports - 收发、时钟、本地授权配置与 provider 接缝。
  * @returns 一个 {@link DevToolsConnectorEndpoint}。
  */
-export function createDevToolsConnectorEndpoint(
-  ports: DevToolsConnectorEndpointPorts
-): DevToolsConnectorEndpoint {
+export function createDevToolsConnectorEndpoint(ports: DevToolsConnectorEndpointPorts): DevToolsConnectorEndpoint {
   return new DevToolsConnectorEndpointImpl(ports);
 }

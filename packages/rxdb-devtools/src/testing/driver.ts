@@ -1,5 +1,5 @@
 /**
- * @fileoverview conformance driver 接缝：US-904c / 904d / 905 复跑同一份断言的唯一接入点。
+ * @fileoverview conformance driver 接缝：US-904 阶段 C / D 与 US-905 复跑同一份断言的唯一接入点。
  *
  * @remarks
  * 驱动只描述 **transport 与探针**，不描述断言。断言全部住在 `*.suite.ts` 里，下游故事换掉的是
@@ -16,8 +16,8 @@
  * @module @aiao/rxdb-devtools/testing/driver
  */
 
-import type { DevToolsCapability } from '../types.js';
 import type { DevToolsProviderDescriptor, DevToolsProviderRuntime } from '../provider/descriptor.js';
+import type { DevToolsCapability } from '../types.js';
 import type { DevToolsV2Direction } from '../v2/wire.js';
 
 /**

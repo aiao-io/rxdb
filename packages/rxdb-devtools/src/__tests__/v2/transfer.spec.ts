@@ -7,8 +7,8 @@ import {
   DEVTOOLS_TRANSFER_IDLE_TIMEOUT_MS,
   DEVTOOLS_TRANSFER_TOTAL_TIMEOUT_MS
 } from '../../v2/constants.js';
-import { createDevToolsTransferTable } from '../../v2/transfer.js';
 import type { DevToolsTransferOutcome, DevToolsTransferTable } from '../../v2/transfer.js';
+import { createDevToolsTransferTable } from '../../v2/transfer.js';
 
 const TRANSFER_ID = 'tx-1';
 const REQUEST_ID = 'req-1';
@@ -362,7 +362,9 @@ describe('transfer state machine', () => {
     while (clock.now() < DEVTOOLS_TRANSFER_TOTAL_TIMEOUT_MS - 1) {
       expect(await chunk(table, index, index * 4, encodeCanonicalBase64(bytes(4)))).toEqual({ outcome: 'accepted' });
       index += 1;
-      clock.advance(Math.min(DEVTOOLS_TRANSFER_IDLE_TIMEOUT_MS - 1, DEVTOOLS_TRANSFER_TOTAL_TIMEOUT_MS - 1 - clock.now()));
+      clock.advance(
+        Math.min(DEVTOOLS_TRANSFER_IDLE_TIMEOUT_MS - 1, DEVTOOLS_TRANSFER_TOTAL_TIMEOUT_MS - 1 - clock.now())
+      );
     }
 
     expect(clock.now()).toBe(DEVTOOLS_TRANSFER_TOTAL_TIMEOUT_MS - 1);

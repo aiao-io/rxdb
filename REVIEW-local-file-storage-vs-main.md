@@ -72,13 +72,13 @@ rename 和 delete 都先读取 metadata，再按当时的 `opfsPath` 排队。�
 
 影响：v2 握手可以成功，但协商后的基础 PING 和全部数据面请求静默无响应。空 descriptor 只能说明没有 provider，不能解释已协商协议连生命周期帧都不处理。
 
-建议：现在接入 endpoint；若产品接线确实属于后续 US-904c/904d/905，则当前生产 Connector 不应宣告或选择 v2，只发布协议库与测试入口。
+建议：现在接入 endpoint；若产品接线确实属于后续 US-904 阶段 C / D 与 US-905，则当前生产 Connector 不应宣告或选择 v2，只发布协议库与测试入口。
 
 ### 5. [P1] 文件操作缺少需求明确要求的共享 request/response schema
 
 位置：
 
-- [US-904b provider 数据面要求](requirements/stories/future/US-904b-devtools-v2-protocol.md#L54)
+- [US-904 阶段 B provider 数据面要求](requirements/stories/future/US-904-devtools-native-storage-contract.md)
 - [`DevToolsRequestPayload`](packages/rxdb-devtools/src/v2/wire.ts#L121)
 - [`DevToolsProvider.invoke`](packages/rxdb-devtools/src/provider/types.ts#L113)
 
@@ -283,7 +283,7 @@ Host 只在整个应用 `RunEvent::Exit` 时执行 `close_all()`。窗口崩溃�
 ### 越出合并门槛的两条
 
 **#5（共享 request/response schema）与 #6（transfer 绑定 upload REQUEST、download 字节通路）**
-描述的现象属实，但它们是 US-904c/904d/905 的交付内容，不是本分支承诺的范围。本分支的边界已由 #4
+描述的现象属实，但它们是 US-904 阶段 C / D 与 US-905 的交付内容，不是本分支承诺的范围。本分支的边界已由 #4
 的修复确定：生产 Connector 现在真的接入了 v2 endpoint，协商后的 PING/DISCONNECT/REQUEST/TRANSFER
 不再静默丢弃。schema 判别联合与 download 反向通道留给后续 story，不作为合并阻断。
 
@@ -318,7 +318,7 @@ Host 只在整个应用 `RunEvent::Exit` 时执行 `close_all()`。窗口崩溃�
 ### 本轮验证
 
 - Rust：`cargo test` 121 通过、`cargo clippy --all-targets -- -D warnings` 干净、`cargo check
-  --locked --all-targets` 与 `cargo build` 通过。
+--locked --all-targets` 与 `cargo build` 通过。
 - `pnpm nx run-many -t lint test --projects=rxdb-devtools,dev-rxdb-tauri,dev-rxdb-electron`：全绿。
 - `dev-rxdb-tauri:test-conformance`：首跑 1 条 undo 断言失败，复跑 604/604 通过（已知 flaky）。
 - `tag:js-lib` 全量门禁只剩两处红：`rxdb-plugin-storage:test` 的 `backend-parity.spec.ts`

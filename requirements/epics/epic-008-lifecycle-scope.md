@@ -107,6 +107,29 @@ US-014 独立交付即可关闭。后续故事必须各自证明自己的症状�
 并覆盖 `dispose.spec.ts` 的重复释放、逆序、嵌套和异步释放。**不迁移** Cordis `Context`/`provide()`、Proxy trace、全局
 Registry、thenable Fiber、HMR 或长异步栈追踪。
 
+## 2026-08-16 Cordis 第三轮复核
+
+第二轮已经把 `Fiber` 的纪元算法、`Service.check` 的谓词就绪、`EventsService.on()` 的返回式 disposer
+三条主线搬完；第三轮只找**增量**，逐条核过 `fiber.ts` / `utils.ts` / `reflect.ts` / `registry.ts` /
+`events.ts` / `packages/timer` 与对应测试后，只有三条是新的，且都已落到对应文档：
+
+1. **作用域树是本地读出，不是全局注册表。** cordis 把 `{ label, children }` 挂在 `effect()` 返回的
+   disposer 自己身上，`getEffects()` 只读本 fiber 的清单。据此给 US-013 补 `getEntries()`
+   与 AC#9b（决策见 US-013 D4）；连带更正停车位 P-004 的阻塞理由——它缺的从来不是数据源，
+   而是 US-015 的状态机。
+2. **一次 `acquire()` 只包一步会失败的获取。** cordis 用 generator effect 让 setup 半途抛错时
+   已获取的部分照常回滚；rxdb 不引入 generator，改用契约拿到同一保证。据此给 US-013 补 AC#12b
+   与 D5，并改写 US-014 D7 的 storage 迁移示例为三段式——原示例把 `new` 与 `defineProperty` 写在
+   一次 `acquire()` 里，`defineProperty` 抛错时新造的实例不进清单，等于把 D7 要消灭的泄漏换个位置。
+3. **批量 reconcile + 只在 `active` 边上通知。** cordis 的 `ReflectService.notify(names[])` 一轮扫完
+   一批名字，`_updateState` 只在跨越 `ACTIVE` 时才通知。据此给 US-015 的「Cordis 复核」补两条约束
+   与两条并发测试。
+
+**仍然不迁移**：`Context` / `provide()` / Proxy trace / 全局 Registry / thenable Fiber / HMR /
+长异步栈追踪（同第二轮）。`packages/timer` 的 `ctx.timeout()` / `interval()` / `throttle()` /
+`debounce()` 一并**否决**：rxdb 的 ~30 处 `setTimeout` 全部在适配器内部，已有 47 处配对的 `clear*`，
+且适配器自己拥有 `destroy()`——不满足本 Epic「病灶数 ≥ 抽象数」的判据。
+
 ## 目标
 
 已认领，构成本 Epic 的承诺范围：
@@ -136,7 +159,7 @@ Registry、thenable Fiber、HMR 或长异步栈追踪。
 
 > 后两组已被 US-014 / US-015 的正文引用为 `US-016` / `US-017` 的归属，但**故事文件尚未创建**，
 > 因此它们仍不是排期承诺；但 US-016 已有可复现症状，不再是「价值待证」。US-014 交付后本 Epic 的三处已知泄漏即全部关闭；
-> 015a 之后的每一条仍必须在自己的故事里写出「今天用户踩得到的具体症状」才允许开工。
+> US-015 阶段 A 之后的每一条仍必须写出「今天用户踩得到的具体症状」才允许开工。
 
 ## 故事
 
@@ -144,14 +167,14 @@ Registry、thenable Fiber、HMR 或长异步栈追踪。
 
 - [US-013 LifecycleScope 生命周期作用域原语](../stories/core/US-013-lifecycle-scope-primitive.md) (High)
 - [US-014 插件作用域契约](../stories/core/US-014-plugin-scope-contract.md) (High)
-- 📄 [US-015 插件依赖声明与按需装卸](../stories/core/US-015-plugin-inject-dependency.md) (Medium) — 父契约故事，不直接交付
-  - `US-015a` 适配器依赖纪元 — 文件未创建
-  - `US-015b` 插件依赖图 — 文件未创建，价值待证
+- [US-015 插件依赖声明与按需装卸](../stories/core/US-015-plugin-inject-dependency.md) (Medium) — 单文件两阶段：
+  - 阶段 A 适配器依赖纪元
+  - 阶段 B 插件依赖图 — 价值待证
 - `US-016` 连接纪元与停机收敛 — 文件未创建，价值已证，待切片
 - `US-017` 三框架宿主作用域 — 文件未创建，价值待证
 
 **US-013 → US-014 是硬序**，不可交换：US-014 的 `install(scope)` 签名需要 US-013 冻结的
-`LifecycleScope` 类型。US-014 之后的顺序（015a → 015b → 016 → 017）是**依赖顺序，不是排期承诺**——
+`LifecycleScope` 类型。US-014 之后的顺序（US-015 阶段 A → 阶段 B → 016 → 017）是**依赖顺序，不是排期承诺**——
 US-015 的「依赖消失时释放」确实需要 US-014 先把插件副作用收进作用域，但「需要 A 先做」
 不等于「B 一定要做」。
 

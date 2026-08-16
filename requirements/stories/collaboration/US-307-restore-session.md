@@ -11,7 +11,7 @@ tags: [collaboration, restore, history, persistence, angular, react, vue]
 
 <!--
 INVEST 检查清单:
-- [x] Independent: 依赖 US-305 的 commit 图与 US-306b 的工作树/index 状态机，但恢复语义可单独交付与验收
+- [x] Independent: 依赖 US-305 的 commit 图与 US-306 阶段 B 的工作树/index 状态机，但恢复语义可单独交付与验收
 - [x] Negotiable: 恢复会话的存储位置与事件名可在 plan 阶段调整
 - [x] Valuable: 用户可以先看恢复结果，再决定是否落成新 commit，且刷新不丢
 - [x] Estimable: 恢复规则、拒绝条件与性能口径已列出
@@ -26,15 +26,15 @@ INVEST 检查清单:
 ## 前置依赖
 
 - [US-305](./US-305-commit-graph-head.md)：commit 图、父链可达性与 baseline，是 restore 的数据源与路径校验依据
-- [US-306a](./US-306a-working-tree-capture.md)：`WorkingTreeEntry` 的持久化布局与写入口捕获。FR-015 要求
+- [US-306 阶段 A](./US-306-working-tree-index.md)：`WorkingTreeEntry` 的持久化布局与写入口捕获。FR-015 要求
   restore 结果写成**普通、未暂存的 `WorkingTreeEntry`**，`restoreEntity` 也在 epic 的调用点登记表中被列为
-  「必须产生工作树单元」的意图；没有 306a 的捕获层，restore 无处落盘
-- [US-306b](./US-306b-index-commit-state-machine.md)：status/diff/index/commit 状态机与 revision CAS 口径；
+  「必须产生工作树单元」的意图；没有阶段 A 的捕获层，restore 无处落盘
+- [US-306 阶段 B](./US-306-working-tree-index.md)：status/diff/index/commit 状态机与 revision CAS 口径；
   本故事的「未 stage 时 commit 被拒」直接复用其空 index 规则。**`WorkingTreeRestoreSession` 的建表、schema
-  迁移与「从已存在 session 派生 conflicted」的读路径也由 US-306b 交付**（`status()` 的 durable `conflicted`
-  在 306b 就必须成立，表不能等到本故事才存在）；本故事只负责会话的**创建与生命周期语义**。
-  `CommitConflict` 同理，由 US-306b 定义并登记 api-baseline，本故事直接复用
-- [US-306c](./US-306c-cross-framework-working-tree.md)：`useWorkingTree()` 的三端契约。本故事的恢复入口是对
+  迁移与「从已存在 session 派生 conflicted」的读路径也由 US-306 阶段 B 交付**（`status()` 的 durable `conflicted`
+  在阶段 B 就必须成立，表不能等到本故事才存在）；本故事只负责会话的**创建与生命周期语义**。
+  `CommitConflict` 同理，由 US-306 阶段 B 定义并登记 api-baseline，本故事直接复用
+- [US-306 阶段 C](./US-306-working-tree-index.md)：`useWorkingTree()` 的三端契约。本故事的恢复入口是对
   该契约的**扩展**（新增 `restore` 与 `restoreState`），不得在某一端另立一套命名或状态机
 
 ## 作为/我想要/以便
@@ -49,7 +49,7 @@ INVEST 检查清单:
 
 - `restore(commitId)`：把目标 commit 的数据物化到当前工作树，**不移动 HEAD**、不改写历史
 - 恢复会话（`WorkingTreeRestoreSession`）的**创建、`active | conflicted | committed` 生命周期与删除**，
-  刷新后据其重建「恢复后未提交」标记并在 UI 中明确呈现（表与迁移由 US-306b 提供，本故事不重复建表）
+  刷新后据其重建「恢复后未提交」标记并在 UI 中明确呈现（表与迁移由 US-306 阶段 B 提供，本故事不重复建表）
 - 恢复前的 dirty 工作树 / 缓存区检测与拒绝
 - 恢复目标的当前分支可达性，以及完整物化路径的 schema/change codec 兼容预检
 - restore / discard 的 active branch token 与 head、working tree、index revision CAS
@@ -62,10 +62,10 @@ INVEST 检查清单:
 ### Out of Scope
 
 - commit 图与 HEAD 存储 —— 属 [US-305](./US-305-commit-graph-head.md)
-- status / diff / stage 的状态机 —— 属 [US-306b](./US-306b-index-commit-state-machine.md)
+- status / diff / stage 的状态机 —— 属 [US-306 阶段 B](./US-306-working-tree-index.md)
 - `WorkingTreeRestoreSession` 的建表 / schema 迁移，以及 `CommitConflict` 的类型定义与 api-baseline 登记
-  —— 同属 [US-306b](./US-306b-index-commit-state-machine.md)；本故事是它们的使用者，不是所有者
-- 冲突记录和三端冲突提示 —— 属 [US-308](./US-308-branch-isolation-conflict.md)；底层 revision CAS 已由 US-305/306a/306b 提供
+  —— 同属 [US-306 阶段 B](./US-306-working-tree-index.md)；本故事是它们的使用者，不是所有者
+- 冲突记录和三端冲突提示 —— 属 [US-308](./US-308-branch-isolation-conflict.md)；底层 revision CAS 已由 US-305 与 US-306 阶段 A/B 提供
 - rebase、cherry-pick、任意历史改写
 - 把恢复实现成「把旧节点改成当前」
 
@@ -80,7 +80,7 @@ INVEST 检查清单:
 1. **Given** commit 图中存在目标 commit，**When** 用户打开 log 并查看详情，**Then** 能看到消息、作者、时间、父 commit、涉及实体数量和变更摘要。
 2. **Given** 工作树和缓存区均 clean，**When** 用户恢复任意可达 commit，**Then** 目标数据物化到当前工作树，当前分支 HEAD 不移动，恢复状态可被 `status()` 识别为 `restoring`。
 3. **Given** 用户执行 `restore(commitId)` 尚未 commit，**When** 页面刷新，**Then** 恢复后的工作树继续显示，且明确标记为「恢复后未提交」。
-4. **Given** 历史恢复会话已建立，**When** 用户显式 stage 恢复产生的完整依赖闭包并用新消息 commit，**Then** 生成以原 HEAD 为父节点的新 commit，restore session 在同一事务转为 `committed`，旧 commit 和原有后继节点仍可访问；未 stage 时 commit 仍按 US-306b 的空 index 规则拒绝。
+4. **Given** 历史恢复会话已建立，**When** 用户显式 stage 恢复产生的完整依赖闭包并用新消息 commit，**Then** 生成以原 HEAD 为父节点的新 commit，restore session 在同一事务转为 `committed`，旧 commit 和原有后继节点仍可访问；未 stage 时 commit 仍按 US-306 阶段 B 的空 index 规则拒绝。
 5. **Given** 用户在恢复会话中选择 discard，**When** 操作完成，**Then** 工作树回到当前 HEAD，恢复会话和未提交 stage 一并清除，历史 commit 不变。
 6. **Given** 恢复会话建立后其他 realm 推进了当前分支 HEAD，**When** 用户尝试提交或 discard，**Then** revision CAS 拒绝静默覆盖，恢复结果继续保留并标记为 conflicted。
 7. **Given** 用户从 clean HEAD 恢复当前 HEAD，或目标 commit 虽不同但物化内容与当前 HEAD 完全相同，**When** restore 完成，**Then** 返回类型化 no-op 结果，不创建恢复会话、不递增 revision，后续 commit 仍因 index 为空被拒绝。
@@ -112,7 +112,7 @@ INVEST 检查清单:
 ## 关键实体
 
 - **WorkingTreeRestoreSession**：历史恢复会话；目标 commit、恢复前 HEAD 与各 expected revision、生成的工作树 revision、目标 schema/codec manifest、数据库创建时间、`active | conflicted | committed` 生命周期。discard 成功后删除 session；commit 与 `committed` 转换原子提交。conflicted 可由 session expected revision 与当前 revision 重建，不另建冲突真相表。
-  > **表归属**：schema、建表与迁移由 [US-306b](./US-306b-index-commit-state-machine.md) 交付，本故事只新增写入与状态转换。本故事若需要给该表加列，MUST 走 US-306b 的迁移路径，不得另建第二张会话表。
+  > **表归属**：schema、建表与迁移由 [US-306 阶段 B](./US-306-working-tree-index.md) 交付，本故事只新增写入与状态转换。本故事若需要给该表加列，MUST 走 US-306 阶段 B 的迁移路径，不得另建第二张会话表。
 
 ## 设计展开
 
@@ -136,7 +136,7 @@ INVEST 检查清单:
 ## 实现文件（计划阶段待确认）
 
 - `packages/rxdb/src/version/` — 恢复语义与恢复会话生命周期
-- `packages/rxdb/src/system/` — 恢复会话元数据（表由 US-306b 建立，本故事只写入）
+- `packages/rxdb/src/system/` — 恢复会话元数据（表由 US-306 阶段 B 建立，本故事只写入）
 - `packages/rxdb-{angular,react,vue}/` — 对称的恢复入口与状态
 - `apps/dev-rxdb-{angular,react,vue}/` — 历史与恢复演示
 - `benchmarks/working-tree.bench.ts` — 恢复场景采样
@@ -147,5 +147,5 @@ INVEST 检查清单:
 - [epic-006 本地工作树与提交历史](../../epics/epic-006-working-tree-commits.md)
 - [US-305 提交图与 HEAD 持久化](./US-305-commit-graph-head.md)
 - [US-306 父契约](./US-306-working-tree-index.md)
-- [US-306b 缓存区与提交状态机](./US-306b-index-commit-state-machine.md)
+- [US-306 阶段 B 缓存区与提交状态机](./US-306-working-tree-index.md)
 - [US-302 撤销/重做](./US-302-undo-redo.md) — 现有 `restoreEntity` 与 durable undo 语义

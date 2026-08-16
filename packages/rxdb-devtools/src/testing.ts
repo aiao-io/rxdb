@@ -12,11 +12,7 @@
  * @module @aiao/rxdb-devtools/testing
  */
 
-export {
-  DEVTOOLS_DEFAULT_SCENARIO,
-  DEVTOOLS_RELAY_SEGMENTS,
-  createScenario
-} from './testing/driver.js';
+export { DEVTOOLS_DEFAULT_SCENARIO, DEVTOOLS_RELAY_SEGMENTS, createScenario } from './testing/driver.js';
 export type {
   DevToolsConformanceDriver,
   DevToolsConformanceScenario,
@@ -66,10 +62,10 @@ export {
 } from './testing/suite-support.js';
 export type { DevToolsSuitePanelClient } from './testing/suite-support.js';
 
+export { runDevToolsControlPlaneSuite } from './testing/control-plane.suite.js';
+export { runDevToolsDataPlaneSuite } from './testing/data-plane.suite.js';
 export {
   assertCanonicalJsonFrame,
   isCanonicalJsonFrame,
   runDevToolsWireHygieneSuite
 } from './testing/wire-hygiene.suite.js';
-export { runDevToolsControlPlaneSuite } from './testing/control-plane.suite.js';
-export { runDevToolsDataPlaneSuite } from './testing/data-plane.suite.js';

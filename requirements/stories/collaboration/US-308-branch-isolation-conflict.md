@@ -11,7 +11,7 @@ tags: [collaboration, branch, concurrency, writer-lease, conflict]
 
 <!--
 INVEST 检查清单:
-- [x] Independent: 依赖 US-305/306b 的 revision CAS 与 US-304 的迁移 fencing，但分支往返和冲突诊断自成一条交付线
+- [x] Independent: 依赖 US-305 与 US-306 阶段 B 的 revision CAS 与 US-304 的迁移 fencing，但分支往返和冲突诊断自成一条交付线
 - [x] Negotiable: 冲突记录结构与提示文案可在 plan 阶段调整
 - [x] Valuable: 多标签页/多分支下不会静默丢失另一方的修改
 - [x] Estimable: 现有 switchBranch 行为与 lease 契约都已确认
@@ -32,28 +32,28 @@ INVEST 检查清单:
 ## 前置依赖
 
 跨 realm 写入先经过 [US-304](./US-304-writer-lease-migration-fencing.md) 的 writer lease / epoch fencing，
-再使用 Epic 与 US-305/306a/306b 持久化的 activation/head/index/working-tree revision CAS。epoch 只识别 schema 迁移后的 stale writer，
-普通提交竞争只看领域 revision；不得用 `BroadcastChannel` 或内存状态承担正确性。US-304、US-305、US-306a、US-306b
+再使用 Epic 与 US-305 与 US-306 阶段 A/B 持久化的 activation/head/index/working-tree revision CAS。epoch 只识别 schema 迁移后的 stale writer，
+普通提交竞争只看领域 revision；不得用 `BroadcastChannel` 或内存状态承担正确性。US-304、US-305、US-306 阶段 A、US-306 阶段 B
 任一未 Done 时本故事的**持久层半边**不可开工。
 
-本故事的**三端半边**（对称的冲突状态与提示）另加一条前置：[US-306c](./US-306c-cross-framework-working-tree.md)
+本故事的**三端半边**（对称的冲突状态与提示）另加一条前置：[US-306 阶段 C](./US-306-working-tree-index.md)
 必须先冻结 `useWorkingTree()` 的返回键与 `commandState` 形状，本故事按其「扩展点」协议追加分支切换与冲突提示入口，
-不得在某一端另立命名或状态机。持久层半边可与 US-306c 并行开工。
+不得在某一端另立命名或状态机。持久层半边可与 US-306 阶段 C 并行开工。
 
 > **`WorkingTreeActivationState` 的分工**：该单行状态的**建表与初始化**由 [US-305](./US-305-commit-graph-head.md) FR-052
-> 在系统 schema 迁移中完成，[US-306a](./US-306a-working-tree-capture.md) 只消费它做写路径 token 校验。本故事拥有它的
+> 在系统 schema 迁移中完成，[US-306 阶段 A](./US-306-working-tree-index.md) 只消费它做写路径 token 校验。本故事拥有它的
 > **切换语义**：`activationRevision` 的递增时机、switch CAS、`requireClean` 判定，以及切换后目标分支工作树/index 的恢复。
-> 本故事不重复建表，也不改写 306a 已验收的写路径校验机制。
+> 本故事不重复建表，也不改写阶段 A 已验收的写路径校验机制。
 
-### 从 US-306a 顺延过来的验收责任
+### 从 US-306 阶段 A 顺延过来的验收责任
 
-US-306a 用持久层重放断言覆盖数据契约，把「必须真的切一次分支才能观察」的行为全部留给本故事。以下两条是明确的顺延点，
+US-306 阶段 A 用持久层重放断言覆盖数据契约，把「必须真的切一次分支才能观察」的行为全部留给本故事。以下两条是明确的顺延点，
 本故事的对应场景即是它们的最终收口，不得再次下推：
 
-| 顺延来源                                               | 本故事收口场景 |
-| ------------------------------------------------------ | -------------- |
-| US-306a AC2 的切出/切回端到端往返                      | US1-AC5        |
-| US-306a AC7 的真实双 Tab `stale_active_branch` fixture | US2-AC5        |
+| 顺延来源                                                     | 本故事收口场景 |
+| ------------------------------------------------------------ | -------------- |
+| US-306 阶段 A AC2 的切出/切回端到端往返                      | US1-AC5        |
+| US-306 阶段 A AC7 的真实双 Tab `stale_active_branch` fixture | US2-AC5        |
 
 ## 既有 `switchBranch()` 的兼容处置
 
@@ -87,7 +87,7 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 - 分支与工作树 / 缓存区的隔离：切换后恢复目标分支自己的状态；没有未提交状态时才物化目标 HEAD
 - `requireClean` 显式选项与对应的可操作错误
 - 数据库级 `activationRevision` 的**切换语义**：递增时机与 switch CAS（建表归 US-305 FR-052，
-  写路径 token 校验归 US-306a），以及跨标签页 switch/CRUD 竞争拒绝
+  写路径 token 校验归 US-306 阶段 A），以及跨标签页 switch/CRUD 竞争拒绝
 - 跨标签页 / 跨 realm revision CAS 的集成 fixture 与类型化诊断
 - `CommitConflict` 派生值与三端一致的冲突提示语义
 - 既有 `createBranch(branchId, fromChangeId?)`、`removeBranch()`、`syncBranches()` 与 commit/working-tree/index 生命周期集成
@@ -137,7 +137,7 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 
 - **FR-017**（已改口径）：系统 MUST 与现有分支操作集成。`createBranch(branchId)` 保留从当前物化状态创建的行为，复制独立 working-tree snapshot、共享当前 HEAD 且 index 为空；`createBranch(branchId, fromChangeId)` 保留历史 change 状态并以 `kind=branch_baseline` 锚定。分支不得共享可变 HEAD / 工作树 / index。切换恢复目标分支状态；clean 检查以 `WorkingTreeSwitchBranchOptions.requireClean` 显式提供，不带选项仍无条件切换。
 - **FR-020**：系统 MUST 使用持久化 activation/head/index/working-tree revision CAS 阻止跨标签页静默覆盖，并使用 US-304 epoch 拒绝迁移后的 stale writer。普通 CRUD MUST 校验实体/realm 捕获的 active branch token；不得在事务中重新读取新 active branch 后把旧实体归到新分支，也不得只依赖 `BroadcastChannel` 或内存状态。
-- **FR-035**：`CommitConflict` MUST 从失败操作、对象 ID、expected/actual activation/head/index/working-tree revision 与建议动作派生，不得建立第二张可与真实 revision 漂移的冲突状态表。普通命令 CAS 失败只返回诊断值，不建立 durable conflict；`status().conflicted` 与 `requireClean` 只读取仍存在的 `WorkingTreeRestoreSession` 等 durable domain session。**该类型本身由首个使用者 [US-306b](./US-306b-index-commit-state-machine.md) 定义、补 TSDoc 并登记 api-baseline**；本故事只把 activation 维度（activation expected/actual 与切换建议动作）扩展进去，不重新定义类型、不新建并行诊断类型。
+- **FR-035**：`CommitConflict` MUST 从失败操作、对象 ID、expected/actual activation/head/index/working-tree revision 与建议动作派生，不得建立第二张可与真实 revision 漂移的冲突状态表。普通命令 CAS 失败只返回诊断值，不建立 durable conflict；`status().conflicted` 与 `requireClean` 只读取仍存在的 `WorkingTreeRestoreSession` 等 durable domain session。**该类型本身由首个使用者 [US-306 阶段 B](./US-306-working-tree-index.md) 定义、补 TSDoc 并登记 api-baseline**；本故事只把 activation 维度（activation expected/actual 与切换建议动作）扩展进去，不重新定义类型、不新建并行诊断类型。
 - **FR-044**：`removeBranch()` MUST 原子删除该分支全部可变状态和 materialization attempt，但保留不可变 commit；同名重建 MUST 使用新 branch generation。`syncBranches()` 只同步 metadata 时不得提前伪造 baseline/ref；承接 US-305 FR-049，没有 `CommitBranchRef` 的 metadata-only 远端分支不是空 HEAD。其首次 switch MUST 使用独立 durable staging 冻结目标分支、终止水位和完整配置 sync scope，逐页持久化 payload/fingerprint 且不触碰当前投影；最终把“复核 active token、目标身份、水位/scope/fingerprint、完整物化、创建 `kind=branch_baseline`、创建 ref、切换 active、递增 activation revision、删除 staging”放进同一提交屏障。物化依据不足则以 `branch_not_materialized` 全量回滚，来源分支保持 active；分页崩溃可恢复，staging 可按 attempt 清理。旧签名、旧拒绝条件与 remote commit 非目标保持不变。
 
 ## 关键实体
@@ -145,7 +145,7 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 - **WorkingTreeActivationState**：数据库级单行 revision；当前分支 ID 仍由 `RxDBBranch.activated` 表示，该状态不复制第二份 ID。
   **建表与 `activationRevision = 0` 初始化由 US-305 FR-052 完成**；本故事只定义它在 switch 时的递增与 CAS 语义，不新增表。
 - **CommitConflict**：并发或版本校验失败的一次性不可变诊断值；由失败命令捕获的 expected token 与事务内读取的 actual revision 派生，包含操作、对象、受影响变更单元和建议动作。它不是协调锁、持久状态或独立真相源。
-  > **类型归属**：定义、TSDoc 与 api-baseline 登记由 [US-306b](./US-306b-index-commit-state-machine.md) 交付，本故事只扩展 activation 维度并同步更新基线 diff。
+  > **类型归属**：定义、TSDoc 与 api-baseline 登记由 [US-306 阶段 B](./US-306-working-tree-index.md) 交付，本故事只扩展 activation 维度并同步更新基线 diff。
 - **CommitBranchMaterializationAttempt**：metadata-only 分支首次物化的内部 durable staging；attempt ID、目标分支身份、冻结终止水位、scope manifest、已提交分页水位、payload fingerprint 与生命周期。它不属于当前工作树或 commit 图，成功 switch 后原子删除。
 
 > 命名遵守 [epic-006](../../epics/epic-006-working-tree-commits.md) 的术语表：不得使用 `Workspace*` 前缀。
@@ -167,7 +167,7 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 - `packages/rxdb/src/version/` — 分支隔离、revision 冲突派生与错误分类
 - `packages/rxdb/src/system/` — `WorkingTreeActivationState` 的 switch CAS 与 branch lifecycle 事务（表本身由 US-305 建立）
 - `packages/rxdb-{angular,react,vue}/` — 对称的冲突状态与提示
-- `requirements/api-baseline/rxdb.json` — 新增 `WorkingTreeSwitchBranchOptions`；`CommitConflict` 只更新已由 US-306b 登记的条目
+- `requirements/api-baseline/rxdb.json` — 新增 `WorkingTreeSwitchBranchOptions`；`CommitConflict` 只更新已由 US-306 阶段 B 登记的条目
 - `packages/rxdb/src/__tests__/contracts/` — `switchBranch` 公开方法签名兼容测试
 
 ## 依赖与参考
@@ -175,8 +175,8 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 - [epic-006 本地工作树与提交历史](../../epics/epic-006-working-tree-commits.md)
 - [US-304 跨 realm writer lease 与迁移 fencing](./US-304-writer-lease-migration-fencing.md) — 只复用 writer 身份与迁移期 epoch fencing
 - [US-306 父契约](./US-306-working-tree-index.md)
-- [US-306a 工作树写入捕获与持久化](./US-306a-working-tree-capture.md)
-- [US-306b 缓存区与提交状态机](./US-306b-index-commit-state-machine.md) — `CommitConflict` 类型与 restore session 表的所有者
-- [US-306c 三框架工作树交互面与性能门禁](./US-306c-cross-framework-working-tree.md) — 三端半边扩展所依据的 `useWorkingTree()` 契约
+- [US-306 阶段 A 工作树写入捕获与持久化](./US-306-working-tree-index.md)
+- [US-306 阶段 B 缓存区与提交状态机](./US-306-working-tree-index.md) — `CommitConflict` 类型与 restore session 表的所有者
+- [US-306 阶段 C 三框架工作树交互面与性能门禁](./US-306-working-tree-index.md) — 三端半边扩展所依据的 `useWorkingTree()` 契约
 - [US-301 版本控制](./US-301-version-control.md) — 现有分支能力
 - [分支文档](../../../website/docs/collaboration/branch.md) — 受 FR-017 口径影响的现有示例

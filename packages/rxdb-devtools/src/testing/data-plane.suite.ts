@@ -13,7 +13,7 @@
  * 1. **AC#21 / #22（snapshot）在 wire 上不可达。** snapshot 不是协议操作——它没有对应的
  *    `DevToolsV2MessageType`，是 provider 实现内部的物化与分页机制。给它开一条 wire 只为了
  *    测试，等于把一个下游实现细节冻进共享协议。这两条由 `provider/snapshot` 的单测覆盖，
- *    最终由 US-904d / US-905 在真实独占锁上关闭。
+ *    最终由 US-904 阶段 D 与 US-905 在真实独占锁上关闭。
  * 2. **AC#19 的「不得整文件驻留内存」只能用代理判据。** 峰值内存不可观测；这里断言
  *    `peakRetainedBytes` 等于**最大单块**而不是总字节数——任何整文件拼接的实现会让两者相等。
  *    真正的证明在 Rust / 主进程那一半，属 904d / 905。
@@ -26,30 +26,30 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { RXDB_DEVTOOLS_MESSAGE } from '../types.js';
-import {
-  DEVTOOLS_PROVIDER_RUNTIMES,
-  isDevToolsProviderDescriptor,
-  isDevToolsProviderDescriptorSet
-} from '../provider/descriptor.js';
 import type {
   DevToolsProviderDescriptor,
   DevToolsProviderDomain,
   DevToolsProviderRuntime
 } from '../provider/descriptor.js';
+import {
+  DEVTOOLS_PROVIDER_RUNTIMES,
+  isDevToolsProviderDescriptor,
+  isDevToolsProviderDescriptorSet
+} from '../provider/descriptor.js';
 import { isMaxTransferBytes, resolveNegotiatedTransferLimit } from '../provider/limits.js';
+import { RXDB_DEVTOOLS_MESSAGE } from '../types.js';
 import { DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT, DEVTOOLS_PROTOCOL_VERSION_V2 } from '../v2/constants.js';
 import { mapPlatformError } from '../v2/error-mapping.js';
 import { isRedactedErrorMessage } from '../v2/errors.js';
 import type { DevToolsV2MessageType } from '../v2/wire.js';
-import { createScenario } from './driver.js';
 import type { DevToolsConformanceDriver, DevToolsConformanceSession, DevToolsWireFrame } from './driver.js';
-import { DEVTOOLS_ERROR_MAPPING_FIXTURES } from './error-fixtures.js';
+import { createScenario } from './driver.js';
 import type { DevToolsErrorFixture } from './error-fixtures.js';
-import { createFakeProviders } from './fake-providers.js';
+import { DEVTOOLS_ERROR_MAPPING_FIXTURES } from './error-fixtures.js';
 import type { DevToolsFakeProviderKinds } from './fake-providers.js';
-import { readErrorCodes, readV2FramesOfType } from './frames.js';
+import { createFakeProviders } from './fake-providers.js';
 import type { DevToolsAnyErrorCode } from './frames.js';
+import { readErrorCodes, readV2FramesOfType } from './frames.js';
 import { DEVTOOLS_SUITE_BASE_TIMESTAMP, connected, connectorOutput } from './suite-support.js';
 import { assertCanonicalJsonFrame, runDevToolsWireHygieneSuite } from './wire-hygiene.suite.js';
 
@@ -151,13 +151,16 @@ async function observeRuntime(
   kinds: DevToolsFakeProviderKinds
 ): Promise<RuntimeObservation> {
   const { descriptors } = createFakeProviders({ runtime, kinds });
-  const run = await driver.open(
-    createScenario({ runtime, descriptors, capability: 'full', mutationPolicy: 'allow' })
-  );
+  const run = await driver.open(createScenario({ runtime, descriptors, capability: 'full', mutationPolicy: 'allow' }));
   const panel = await connected(run);
   const announced = announcedDescriptors(run);
 
-  await panel.send('REQUEST', { requestId: 'd1', domain: 'files', operation: 'download', params: { path: '/missing' } });
+  await panel.send('REQUEST', {
+    requestId: 'd1',
+    domain: 'files',
+    operation: 'download',
+    params: { path: '/missing' }
+  });
   await panel.send('REQUEST', { requestId: 'e1', domain: 'settings', operation: 'export', params: {} });
   const codes = readErrorCodes(connectorOutput(run));
 
@@ -230,7 +233,12 @@ export function runDevToolsDataPlaneSuite(driver: DevToolsConformanceDriver): vo
         const panel = await connected(run);
 
         await panel.send('REQUEST', { requestId: 'r1', domain: 'files', operation: 'list', params: {} });
-        await panel.send('REQUEST', { requestId: 'w1', domain: 'files', operation: 'delete', params: { path: '/db.sqlite' } });
+        await panel.send('REQUEST', {
+          requestId: 'w1',
+          domain: 'files',
+          operation: 'delete',
+          params: { path: '/db.sqlite' }
+        });
 
         expect(run.provider.operationCalls.get('files.list') ?? 0).toBe(reads);
         expect(run.provider.operationCalls.get('files.delete') ?? 0).toBe(writes);
@@ -244,9 +252,7 @@ export function runDevToolsDataPlaneSuite(driver: DevToolsConformanceDriver): vo
 
     it('AC#16 MUST answer provider_unsupported for an unavailable domain without touching the host', async () => {
       const { descriptors } = createFakeProviders({ kinds: { files: 'unavailable' } });
-      const run = await driver.open(
-        createScenario({ capability: 'full', mutationPolicy: 'allow', descriptors })
-      );
+      const run = await driver.open(createScenario({ capability: 'full', mutationPolicy: 'allow', descriptors }));
       const panel = await connected(run);
 
       await panel.send('REQUEST', { requestId: 'r1', domain: 'files', operation: 'list', params: {} });
@@ -270,10 +276,12 @@ export function runDevToolsDataPlaneSuite(driver: DevToolsConformanceDriver): vo
       const run = await driver.open(createScenario({ capability: 'full', mutationPolicy: 'allow' }));
       const panel = await connected(run);
 
-      await run.segment('panel').inject(
-        rawFrame('TRANSFER_START', { transferId: 't1', requestId: 'req1', totalBytes: value }, panel.sessionId),
-        'panel-to-connector'
-      );
+      await run
+        .segment('panel')
+        .inject(
+          rawFrame('TRANSFER_START', { transferId: 't1', requestId: 'req1', totalBytes: value }, panel.sessionId),
+          'panel-to-connector'
+        );
       await run.settle();
 
       expect(readErrorCodes(connectorOutput(run))).toEqual(['invalid_message']);
@@ -294,14 +302,16 @@ export function runDevToolsDataPlaneSuite(driver: DevToolsConformanceDriver): vo
       const panel = await connected(run);
       await panel.send('TRANSFER_START', { transferId: 't1', requestId: 'req1', totalBytes: 8 });
 
-      await run.segment('panel').inject(
-        rawFrame(
-          'TRANSFER_CHUNK',
-          { transferId: 't1', chunkIndex: value, offset: 0, dataBase64: THREE_BYTES },
-          panel.sessionId
-        ),
-        'panel-to-connector'
-      );
+      await run
+        .segment('panel')
+        .inject(
+          rawFrame(
+            'TRANSFER_CHUNK',
+            { transferId: 't1', chunkIndex: value, offset: 0, dataBase64: THREE_BYTES },
+            panel.sessionId
+          ),
+          'panel-to-connector'
+        );
       await run.settle();
 
       expect(readErrorCodes(connectorOutput(run))).toEqual(['invalid_message']);
@@ -317,10 +327,9 @@ export function runDevToolsDataPlaneSuite(driver: DevToolsConformanceDriver): vo
       const panel = await connected(run);
       const before = connectorOutput(run).length;
 
-      await run.segment('panel').inject(
-        rawFrame('PING', null, panel.sessionId, { sequence: 1.5 }),
-        'panel-to-connector'
-      );
+      await run
+        .segment('panel')
+        .inject(rawFrame('PING', null, panel.sessionId, { sequence: 1.5 }), 'panel-to-connector');
       await run.settle();
 
       expect(connectorOutput(run)).toHaveLength(before);
@@ -519,16 +528,14 @@ export function runDevToolsDataPlaneSuite(driver: DevToolsConformanceDriver): vo
         isDevToolsProviderDescriptor({ ...files, limits: { maxTransferBytes: DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT + 1 } })
       ).toBe(false);
       // 不声明 transfer 操作时，0 是合法的。
-      expect(
-        isDevToolsProviderDescriptor({ ...files, operations: ['list'], limits: { maxTransferBytes: 0 } })
-      ).toBe(true);
+      expect(isDevToolsProviderDescriptor({ ...files, operations: ['list'], limits: { maxTransferBytes: 0 } })).toBe(
+        true
+      );
     });
 
     it('AC#20 MUST answer transfer_size_exceeded beyond the negotiated total without opening a sink', async () => {
       const { descriptors } = createFakeProviders({ maxTransferBytes: 8 });
-      const run = await driver.open(
-        createScenario({ capability: 'full', mutationPolicy: 'allow', descriptors })
-      );
+      const run = await driver.open(createScenario({ capability: 'full', mutationPolicy: 'allow', descriptors }));
       const panel = await connected(run);
 
       await panel.send('TRANSFER_START', { transferId: 't1', requestId: 'req1', totalBytes: 16 });
@@ -557,12 +564,15 @@ export function runDevToolsDataPlaneSuite(driver: DevToolsConformanceDriver): vo
     it.each(DEVTOOLS_PROVIDER_RUNTIMES)(
       'AC#23 MUST answer resource_not_found on %s without leaking the requested path',
       async runtime => {
-        const run = await driver.open(
-          createScenario({ runtime, capability: 'full', mutationPolicy: 'allow' })
-        );
+        const run = await driver.open(createScenario({ runtime, capability: 'full', mutationPolicy: 'allow' }));
         const panel = await connected(run);
 
-        await panel.send('REQUEST', { requestId: 'r1', domain: 'files', operation: 'download', params: { path: '/missing' } });
+        await panel.send('REQUEST', {
+          requestId: 'r1',
+          domain: 'files',
+          operation: 'download',
+          params: { path: '/missing' }
+        });
 
         expect(readErrorCodes(connectorOutput(run))).toEqual(['resource_not_found']);
         const errors = readV2FramesOfType(connectorOutput(run), 'ERROR');

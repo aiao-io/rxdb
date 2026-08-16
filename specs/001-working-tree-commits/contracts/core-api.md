@@ -316,7 +316,7 @@ CommitConflict {
 | `writer_fenced`                     | 迁移 epoch 落后                                    | 重连                                                                  |
 | `benchmark_environment_mismatch`    | runner profile 与参考不符                          | 换固定 runner                                                         |
 
-所有错误 MUST 携带**操作、对象、恢复建议**三要素（FR-039、US-306c AC3）。
+所有错误 MUST 携带**操作、对象、恢复建议**三要素（FR-039、US-306 阶段 C AC3）。
 
 **损坏是按分支隔离的**（FR-014）：`corrupted_read_only` / `commit_graph_corrupted` 只把**可达损坏的那条分支**置为只读损坏态——保留原引用与原始记录、不自动改指针、不删除任何行，阻止该分支的提交/恢复/切入，并返回首个损坏节点与修复建议；**其他健康分支照常可用**，不得整库降级。
 

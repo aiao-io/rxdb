@@ -26,7 +26,7 @@ workingTreeCommitConformanceSuite(factory)
 
 ---
 
-## 2. `workingTreeCaptureConformanceSuite`（US2 / US-306a）
+## 2. `workingTreeCaptureConformanceSuite`（US2 / US-306 阶段 A）
 
 覆盖工作树捕获与冷重放。
 
@@ -45,7 +45,7 @@ workingTreeCommitConformanceSuite(factory)
 
 ---
 
-## 3. `workingTreeCommitConformanceSuite`（US3 / US-306b，吸收 US1）
+## 3. `workingTreeCommitConformanceSuite`（US3 / US-306 阶段 B，吸收 US1）
 
 覆盖提交图、迁移、缓存区与提交状态机。**US1 的提交图与迁移断言并入本套件**，不另立套件——避免出现「两套都绿、交界处无人测」的缝隙。
 
