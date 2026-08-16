@@ -30,7 +30,7 @@
     },
     "test-browser": {
       "executor": "nx:run-commands",
-      "dependsOn": ["coverage"],
+      "dependsOn": ["^build", "coverage"],
       "options": {
         "cwd": "packages/rxdb-plugin-storage",
         "command": "vitest run --coverage && node ../../scripts/merge-vitest-reports.mjs --node=../../coverage/packages/rxdb-plugin-storage --browser=../../coverage/packages/rxdb-plugin-storage-browser --output=../../coverage/packages/rxdb-plugin-storage",
