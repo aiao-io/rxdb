@@ -266,3 +266,63 @@ Host 只在整个应用 `RunEvent::Exit` 时执行 `close_all()`。窗口崩溃�
 4. 重新运行受后续提交影响的 storage、desktop、Electron、Tauri、Rust 与 conformance targets。
 5. Electron/Tauri production build 必须稳定通过，不能留下“无诊断 exit 1”。
 6. 修正文档中“已挡住根内符号链接”的错误证据声明。
+
+## 复核与修复记录（2026-08-16）
+
+对上述 17 条逐条核对代码后的结论，以及本轮已落地的修复。核对基准是评审快照之后的工作区，
+落地提交为 `67411aa`、`8c33738`。
+
+### 一条不成立的 finding
+
+**#2「Tauri 在 Windows 上无法覆盖已有文件」不属实。** `std::fs::rename` 在 Windows 上走的是
+`MoveFileExW` 并带 `MOVEFILE_REPLACE_EXISTING`，目标存在时会被替换；Node 的 `fs.rename` 同理。
+标准库文档里“目标存在时的行为因平台而异”指的是目录与跨卷的情形，不是同卷普通文件覆盖。
+因此 `finish_write` 的 rename 提交在 Windows 上语义正确，无需平台分支。Windows CI 仍值得补，
+但它验证的是权限与 ACL，不是 replace 语义。
+
+### 越出合并门槛的两条
+
+**#5（共享 request/response schema）与 #6（transfer 绑定 upload REQUEST、download 字节通路）**
+描述的现象属实，但它们是 US-904c/904d/905 的交付内容，不是本分支承诺的范围。本分支的边界已由 #4
+的修复确定：生产 Connector 现在真的接入了 v2 endpoint，协商后的 PING/DISCONNECT/REQUEST/TRANSFER
+不再静默丢弃。schema 判别联合与 download 反向通道留给后续 story，不作为合并阻断。
+
+### 本轮已修复
+
+1. **#1 符号链接逃逸** —— Node 与 Rust 两端都改为对已存在部分做 canonicalize、对尚不存在的写入
+   目标做最近已存在父目录 canonicalization 后再判前缀，逐段拒绝越界链接；两端都补了真实
+   symlink（文件与目录）的读、写、移动、删除测试。同时改掉 US-505 AC#4 里“挡根内符号链接”的
+   错误证据声明——那正是评审第 6 条最低要求。
+2. **#4 生产 Connector 未接入 v2 Endpoint** —— `connector.ts` 在协商进入 v2 后把非 v1 帧交给
+   `createDevToolsConnectorEndpoint`，新增 `connector.v2-negotiation.spec.ts` 端到端钉住。
+3. **#7 同步 chunk sink** —— `write` / `commit` / `discard` 全部返回 Promise；transfer table 改为
+   写入成功后才推进 `nextChunkIndex` / `receivedBytes`，失败统一进 discard。背压由每条 entry 的
+   promise 串行化提供：流水线上的 CHUNK 帧排在未完成的写入之后。
+4. **#13 snapshot capture reject 永久 busy** —— `#capture` 加 try/finally 清理 `#pending`、resolver
+   与 deadline timer，reject 映射为稳定错误码；补了“capture reject 之后仍能再次 open”的测试。
+5. **#15 两个 demo 初始化失败仍显示 ready** —— 抽出会 reject 的内部 `loadEntries()`，`initialize()`
+   把 init 与首次 list 一起纳入失败范围，公共事件入口继续用 `run()` 包装。
+6. **#16 Tauri session 未绑定窗口生命周期** —— 在 `router.rs` 增加按 window label 记账的会话归属表
+   （`handle_owned` / `close_owner`），`lib.rs` 挂 `WindowEvent::Destroyed` 回收。归属表放在 router
+   而不是两个 host 里，是因为 stdio 一致性二进制复用同一批 host 且根本没有窗口；`handle()` 因此
+   保持无归属语义。测试覆盖“一个窗口消失后另一个窗口能拿到它持有的独占锁”。
+7. **#17 tombstone 上限未为在途预留终态容量** —— 准入水位改为 `tombstones + inflight`，并补了
+   `4095 + 32` 的边界测试。
+
+**#8 的异常边界一半**与 **#12 的 descriptor 授权**在评审快照之后、本轮之前已经修好，代码中可查。
+
+### 仍未处理
+
+仍然成立、但未在本轮范围内的：#3、#9、#10、#11、#14，以及 #8 的 AbortSignal 一半。
+
+### 本轮验证
+
+- Rust：`cargo test` 121 通过、`cargo clippy --all-targets -- -D warnings` 干净、`cargo check
+  --locked --all-targets` 与 `cargo build` 通过。
+- `pnpm nx run-many -t lint test --projects=rxdb-devtools,dev-rxdb-tauri,dev-rxdb-electron`：全绿。
+- `dev-rxdb-tauri:test-conformance`：首跑 1 条 undo 断言失败，复跑 604/604 通过（已知 flaky）。
+- `tag:js-lib` 全量门禁只剩两处红：`rxdb-plugin-storage:test` 的 `backend-parity.spec.ts`
+  （34/34 失败于 `ReferenceError: document is not defined`——该文件声明 `@vitest-environment node`
+  以便 desktop 半边能用 `node:sqlite`，而 opfs 半边需要 DOM，两者在同一文件内不可兼得；该文件
+  在 `main` 上不存在，也不属于本报告 17 条），以及 `rxdb-adapter-supabase:test-env`（Docker 守护
+  进程未运行）。
