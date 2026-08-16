@@ -27,9 +27,9 @@ owner: jimmy
 
 - [全文搜索](../stories/future/US-702-full-text-search.md) — `@aiao/rxdb-plugin-search`（FTS5 + 三端绑定 + parity e2e + perf baseline）
 - [PGlite 全文搜索](../stories/future/US-703-pglite-full-text-search.md) — tsvector/GIN 与现有搜索 API 集成
-- [US-207 Electron 连接本地 SQLite 文件](../stories/adapter/US-207-desktop-local-database.md) — Electron **SQLite 文件**路径与共享桌面 host 契约（Tauri 半边已拆至 US-210）
-- [US-208 Electron PGlite 数据目录与事务宿主](../stories/adapter/US-208-electron-pglite-data-directory.md) — 从 US-207 拆出，依赖其抽出的 host 契约
-- [US-210 Tauri 连接应用作用域 SQLite 文件](../stories/adapter/US-210-tauri-sqlite-local-database.md) — 从 US-207 二次拆出，自写 Rust command 持有 `rusqlite::Connection`
+- [US-207 Electron 连接本地 SQLite 文件](../stories/adapter/US-207-desktop-local-database.md) — 桌面本地 SQLite 的 Electron 半边：`node:sqlite` 文件路径与共享桌面 host 契约
+- [US-208 Electron PGlite 数据目录与事务宿主](../stories/adapter/US-208-electron-pglite-data-directory.md) — 从 US-207 拆出，依赖其抽出的 host 契约；不含 Tauri
+- [US-210 Tauri 连接应用作用域 SQLite 文件](../stories/adapter/US-210-tauri-sqlite-local-database.md) — 桌面本地 SQLite 的 Tauri 半边：自写 Rust command 持有 `rusqlite::Connection`
 - [US-209 微信小程序 wa-sqlite 适配器](../stories/adapter/US-209-miniprogram-adapter.md) — 实验性平台扩展，仅微信逻辑层
 - [US-504 Electron 本地文件存储](../stories/plugin/US-504-electron-local-file-storage.md) — 文件内容落 `userData/rxdb-files`，与桌面 SQLite 同一备份域；窄接口 `StorageFilesystem` + host 侧仲裁路径锁 + `StorageBackendError { code }`
 - [US-505 Tauri 本地文件存储](../stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边；被 US-210 门禁的只有 AC#1 / #7，其余可独立交付

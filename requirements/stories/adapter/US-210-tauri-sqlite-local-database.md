@@ -2,10 +2,10 @@
 id: US-210
 title: Tauri 连接应用作用域 SQLite 文件
 status: In Progress
-priority: Medium
+priority: High
 epic: epic-004-future-features
 created: 2026-08-13
-updated: 2026-08-15
+updated: 2026-08-16
 tags: [adapter, desktop, tauri, sqlite, transaction]
 inherited_acs:
   - from: US-207
@@ -42,7 +42,11 @@ INVEST 检查清单:
 
 ## 来源与边界
 
-本故事从 [US-207](./US-207-desktop-local-database.md) 拆出，手法与当初拆出 [US-208](./US-208-electron-pglite-data-directory.md) 相同。
+**桌面本地 SQLite** 是 Electron 与 Tauri 两条路径；缺一则桌面 Local-first 不完整。
+本故事交付 **Tauri + SQLite** 半边，Electron 半边是
+[US-207](./US-207-desktop-local-database.md)。
+
+本故事从 US-207 拆出，手法与当初拆出 [US-208](./US-208-electron-pglite-data-directory.md) 相同。
 
 拆分原因：US-207 的 Tauri 半边卡在一个**尚未验证的外部前提**——`@tauri-apps/plugin-sql`
 的 JavaScript API 只公开 `load/get/select/execute/close`，没有事务对象，因而无从确认
@@ -274,8 +278,8 @@ Tauri 的 WebView 不是 Chromium（macOS 上是 WKWebView），但目录名沿�
 
 ## References
 
-- [US-207 Electron 连接本地 SQLite 文件](./US-207-desktop-local-database.md) — 本故事的来源与共享的桌面存储配置 / host 契约
-- [US-208 Electron PGlite 数据目录与事务宿主](./US-208-electron-pglite-data-directory.md) — 同样从 US-207 拆出
+- [US-207 Electron 连接本地 SQLite 文件](./US-207-desktop-local-database.md) — 桌面本地 SQLite 的 Electron 半边，也是本故事的来源与共享 host 契约
+- [US-208 Electron PGlite 数据目录与事务宿主](./US-208-electron-pglite-data-directory.md) — 同样从 US-207 拆出，不含 Tauri
 - [US-201 SQLite 适配器](./US-201-sqlite-adapter.md)
 - [US-304 跨 realm writer lease 与迁移 fencing](../collaboration/US-304-writer-lease-migration-fencing.md)
 - [Tauri SQL Plugin](https://v2.tauri.app/plugin/sql/) — **已否决**，见「事务门禁」

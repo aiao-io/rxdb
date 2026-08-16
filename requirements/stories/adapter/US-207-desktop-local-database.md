@@ -5,7 +5,7 @@ status: In Progress
 priority: High
 epic: epic-004-future-features
 created: 2026-08-08
-updated: 2026-08-14
+updated: 2026-08-16
 tags: [adapter, desktop, electron, sqlite]
 ---
 
@@ -29,7 +29,10 @@ INVEST 检查清单:
 
 ## 拆分说明
 
-本故事收敛为 **Electron + SQLite** 一条路径，另外两半各自成story：
+**桌面本地 SQLite** 是 Electron 与 Tauri 两条路径；缺一则桌面 Local-first 不完整。
+本故事只交付 **Electron + SQLite** 半边，Tauri 半边是
+[US-210](./US-210-tauri-sqlite-local-database.md)。PGlite 另半边是
+[US-208](./US-208-electron-pglite-data-directory.md)。
 
 | 范围                        | 归属                                                 |
 | --------------------------- | ---------------------------------------------------- |
@@ -229,13 +232,7 @@ run log 里的 `Published to https://registry.npmjs.org/` 才是权威，`npm vi
 
 - renderer 中的 RxDB adapter 不得直接接触 `fs`、Electron `ipcRenderer` 或任意 Tauri `invoke`；桌面 host 通过窄接口实现 `SqliteClientLike` 契约。该契约的抽象方式需要同时能承载 US-208 的 PGlite 客户端，避免 US-208 推翻本故事的 host protocol。
 - Electron 主进程只接受来自当前主 frame 的请求，校验数据库标识、SQL 参数、事务 ID 和请求大小；preload 只暴露本故事需要的方法，不暴露原始 `ipcRenderer`。
-- Tauri SQL 指南将 SQLite 路径描述为相对 `AppConfig`，JavaScript API reference 描述为相对 `BaseDirectory::App`。实现前必须用集成测试锁定当前插件版本的真实解析结果，对外只承诺“应用作用域内的逻辑数据库名”，不泄漏或猜测物理根目录。
-
-### Tauri SQLite 事务门禁
-
-- `@tauri-apps/plugin-sql` 当前 JavaScript API 只公开 `load/get/select/execute/close`，没有事务对象。
-- RxDB 的 callback transaction 需要 BEGIN、业务查询与 COMMIT/ROLLBACK 落在同一物理连接。不能因为 SQL 文本能执行 `BEGIN` 就假设连接池会固定连接。
-- 优先验证插件能否配置单连接池并串行化整个事务；若不能，使用最小 Rust command 持有 `sqlx::SqliteConnection` 和事务 ID。不得把多条独立 `execute()` 包装成假事务。
+- Tauri 半边的路径解析、权限面与事务门禁见 [US-210](./US-210-tauri-sqlite-local-database.md)，本故事不重做。
 
 ### 为什么不承诺 Tauri PGlite
 
@@ -265,12 +262,10 @@ Tauri 侧的实现文件（`apps/dev-rxdb-tauri/`、`apps/dev-rxdb-tauri-e2e/`�
 
 ## References
 
-- [US-208 Electron PGlite data directory](./US-208-electron-pglite-data-directory.md) — 从本故事拆出，复用本故事的桌面 host 契约
-- [US-210 Tauri SQLite 本地数据库](./US-210-tauri-sqlite-local-database.md) — 从本故事拆出，复用本故事的桌面 host 契约
+- [US-208 Electron PGlite 数据目录与事务宿主](./US-208-electron-pglite-data-directory.md) — 从本故事拆出，复用本故事的桌面 host 契约
+- [US-210 Tauri 连接应用作用域 SQLite 文件](./US-210-tauri-sqlite-local-database.md) — 桌面本地 SQLite 的 Tauri 半边，复用本故事的桌面 host 契约
 - [US-304 跨 realm writer lease 与迁移 fencing](../collaboration/US-304-writer-lease-migration-fencing.md) — AC#5 的依赖
 - [US-201 SQLite 适配器](US-201-sqlite-adapter.md)
 - [US-202 PGlite 适配器](US-202-pglite-adapter.md)
-- [Tauri SQL Plugin](https://v2.tauri.app/plugin/sql/)
-- [Tauri SQL JavaScript API](https://v2.tauri.app/reference/javascript/sql/)
 - [PGlite Repository](https://github.com/electric-sql/pglite)
 - [Electron Security](https://www.electronjs.org/docs/latest/tutorial/security)

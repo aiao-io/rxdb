@@ -5,7 +5,7 @@ status: Backlog
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-13
-updated: 2026-08-13
+updated: 2026-08-16
 tags: [adapter, desktop, electron, pglite, ipc, transaction]
 inherited_acs:
   - from: US-207
@@ -58,7 +58,8 @@ renderer 不直接接触 `fs` / `ipcRenderer` 的运行时边界。本故事复�
 - Tauri PGlite。Tauri 没有 Node 主进程，PGlite `BaseFilesystem` 的 `open/read/write/fstat` 是同步契约，
   无法用异步 Tauri command 逐次代理。若未来引入 Node/Bun sidecar，必须另立 story 评估打包体积、
   进程生命周期和 IPC 事务语义
-- 桌面 SQLite 文件路径（Electron 与 Tauri 均属 [US-207](./US-207-desktop-local-database.md)）
+- Electron SQLite 文件路径（[US-207](./US-207-desktop-local-database.md)）
+- Tauri SQLite 文件路径（[US-210](./US-210-tauri-sqlite-local-database.md)）
 - 将 data directory 打包或伪装成单个 `.pglite` 文件
 - 数据库导入、导出、热备份、损坏修复和格式转换
 - 监听其他进程直接写入同一 data directory 所产生的实时变更
@@ -116,7 +117,8 @@ bigint、binary 与 JSONB 跨 `structuredClone` / IPC 序列化的行为必须�
 
 ## References
 
-- [US-207 Electron/Tauri 连接本地数据库](./US-207-desktop-local-database.md) — 本故事的来源与共享的桌面 host 契约
+- [US-207 Electron 连接本地 SQLite 文件](./US-207-desktop-local-database.md) — 本故事的来源与共享的桌面 host 契约
+- [US-210 Tauri 连接应用作用域 SQLite 文件](./US-210-tauri-sqlite-local-database.md) — 桌面本地 SQLite 的 Tauri 半边，不在本故事范围
 - [US-202 PGlite 适配器](./US-202-pglite-adapter.md)
 - [US-304 跨 realm writer lease 与迁移 fencing](../collaboration/US-304-writer-lease-migration-fencing.md)
 - [PGlite Repository](https://github.com/electric-sql/pglite)
