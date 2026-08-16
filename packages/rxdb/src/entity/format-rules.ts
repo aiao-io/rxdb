@@ -38,7 +38,8 @@ export const REQUIRED_FORMAT_CONFIG_KEYS: Readonly<Partial<Record<FieldFormat['k
  * 会取到 `Object.prototype.toString`，`?? []` 拦不住它，随后的 `.filter` 直接抛 TypeError。
  */
 export const missingFormatConfigKeys = (kind: string, format: Record<string, unknown>): readonly string[] =>
-  (Object.hasOwn(REQUIRED_FORMAT_CONFIG_KEYS, kind) ? (REQUIRED_FORMAT_CONFIG_KEYS[kind as FieldFormat['kind']] ?? [])
+  (Object.hasOwn(REQUIRED_FORMAT_CONFIG_KEYS, kind) ?
+    (REQUIRED_FORMAT_CONFIG_KEYS[kind as FieldFormat['kind']] ?? [])
   : []
   ).filter(key => !(key in format));
 

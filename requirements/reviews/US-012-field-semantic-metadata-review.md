@@ -2,13 +2,13 @@
 
 ## 评审信息
 
-| 项目 | 内容 |
-| --- | --- |
+| 项目     | 内容                                       |
+| -------- | ------------------------------------------ |
 | 评审对象 | `1b09d39f49912d0557cb2a8a182995ee45d74cdc` |
 | 对比基线 | `5044dad20cfe7e23342393ac924a3d2d70e77ac7` |
-| 提交主题 | `feat(rxdb): US-012 字段语义元数据 (#20)` |
-| 评审日期 | 2026-08-17 |
-| 评审结论 | 不建议合并 |
+| 提交主题 | `feat(rxdb): US-012 字段语义元数据 (#20)`  |
+| 评审日期 | 2026-08-17                                 |
+| 评审结论 | 不建议合并                                 |
 
 本次评审覆盖该提交涉及的实体字段描述 DTO、元数据注册校验、字段值校验、关系主键解析、客户端生成器、公共契约 fixture 及三框架契约测试。
 
@@ -29,7 +29,9 @@
 最小复现：
 
 ```ts
-format: { kind: 'toString' }
+format: {
+  kind: 'toString';
+}
 ```
 
 建议在读取 `FIELD_FORMAT_CONFIG_KEYS` 和 `FIELD_FORMAT_CARRIERS` 前使用 `Object.hasOwn()`，或将规则表改成无原型对象。
@@ -74,7 +76,9 @@ format: { kind: 'percentage', scale: 'bogus' }
 
 ```ts
 options: {
-  __proto__: { label: '...' }
+  __proto__: {
+    label: '...';
+  }
 }
 ```
 
@@ -87,7 +91,7 @@ JavaScript 会把它解释为原型设置，而不是普通自有属性，因此
 当前实现只排除数组和 `null`：
 
 ```ts
-typeof value === 'object' && value !== null && !Array.isArray(value)
+typeof value === 'object' && value !== null && !Array.isArray(value);
 ```
 
 因此 `options: new Map()`、`options: new Date()` 或类实例可能通过注册校验，最终进入本应 JSON-safe 的 DTO。仓库已有 [json-safe.ts](../../packages/rxdb/src/entity/json-safe.ts) 中的 `isPlainRecord()`，应统一复用。

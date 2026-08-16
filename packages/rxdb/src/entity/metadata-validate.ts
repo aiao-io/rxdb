@@ -243,8 +243,8 @@ const detectFormatViolation = (
 
   // `kind` 是未受信字符串：直接索引会把 `toString` / `__proto__` / `constructor` 取成原型链上的成员，
   // 绕过 unknownFormat 后在下面的 `.includes()` 上抛 TypeError，违反本模块「畸形输入只转违规」的契约
-  const allowed = Object.hasOwn(FIELD_FORMAT_CONFIG_KEYS, kind) ? FIELD_FORMAT_CONFIG_KEYS[kind as FieldFormat['kind']]
-    : undefined;
+  const allowed =
+    Object.hasOwn(FIELD_FORMAT_CONFIG_KEYS, kind) ? FIELD_FORMAT_CONFIG_KEYS[kind as FieldFormat['kind']] : undefined;
   if (!allowed) return { rule: 'unknownFormat', message: `未知的 format.kind "${kind}"` };
 
   const conflict = CARDINALITY_CONFLICTS.find(item => item.kind === kind && item.type === type);
@@ -334,7 +334,11 @@ const requiresEnum = (property: Record<string, unknown>): boolean => {
  * 类型层只有 `EnumProperty` 与 `StringArrayProperty` 声明这两个键。绕过 TypeScript 后
  * 一个 `number` 属性带上 `enum` 会一路进到描述器，`validateFieldValue()` 还会拿数字去比枚举成员。
  */
-const validateEnumCarrier = (collector: ViolationCollector, property: Record<string, unknown>, name: string): boolean => {
+const validateEnumCarrier = (
+  collector: ViolationCollector,
+  property: Record<string, unknown>,
+  name: string
+): boolean => {
   if (ENUM_CARRIER_TYPES.includes(String(property['type']))) return true;
   const carriers = ENUM_CARRIER_TYPES.join(' | ');
   if ('enum' in property) {
