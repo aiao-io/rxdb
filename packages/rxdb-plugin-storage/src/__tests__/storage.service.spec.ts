@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { StorageFetchError, StorageMimeTypeMissingError, StorageOfflineError } from '../errors.js';
+import {
+  StorageDestroyedError,
+  StorageFetchError,
+  StorageMimeTypeMissingError,
+  StorageOfflineError
+} from '../errors.js';
 import { createOpfsStorageFilesystem } from '../filesystem/opfs-filesystem.js';
 import type { StorageFilesystemFactory } from '../filesystem/storage-filesystem.js';
 import { ObjectUrlRegistry } from '../object-url.js';
@@ -560,6 +565,132 @@ describe('RxdbFileStorage', () => {
     for (const meta of metas) {
       await expect(service.read(meta.id)).resolves.toBeInstanceOf(Blob);
     }
+  });
+
+  // STOR-002 续：锁按**锁外读到的** opfsPath 挂，锁内虽然重读了 meta 却不比对路径。
+  // 于是「读到 docs/a.txt → 排队期间它被改名成 docs/b.txt」这条交错里，delete 攥着
+  // a.txt 的锁去删 b.txt —— b.txt 上的并发 upload 毫无阻挡地提交，随后被这次删除抹掉。
+  it('relocks on the current path when the file is renamed while delete is queued', async () => {
+    const { repository, service } = createService();
+    const uploaded = await service.upload(new File(['first'], 'a.txt', { type: 'text/plain' }), { path: '/docs' });
+    await service.rename(uploaded.id, 'b.txt');
+
+    // delete 锁外的那次读返回改名前的旧路径 —— 等价于「读完之后紧接着落地了一次 rename」。
+    const find = repository.find.bind(repository);
+    let staleServed = false;
+    vi.spyOn(repository, 'find').mockImplementation(async options => {
+      const matched = await find(options);
+      if (staleServed || matched[0]?.id !== uploaded.id) return matched;
+      staleServed = true;
+      return [new FakeStorageFileMeta({ ...matched[0], opfsPath: 'docs/a.txt' })];
+    });
+
+    // 卡在「meta 已删、文件还没删」之间：并发 upload 若能挤进来，它写下的文件正好被
+    // 随后的 removeFile 抹掉。
+    const remove = repository.remove.bind(repository);
+    let parkedOnce = false;
+    let releaseDelete!: () => void;
+    const deleteParked = new Promise<void>(resolveParked => {
+      vi.spyOn(repository, 'remove').mockImplementation(async entity => {
+        const removed = await remove(entity);
+        if (parkedOnce) return removed;
+        parkedOnce = true;
+        resolveParked();
+        await new Promise<void>(resolveRelease => {
+          releaseDelete = resolveRelease;
+        });
+        return removed;
+      });
+    });
+
+    const deletePromise = service.delete(uploaded.id);
+    await deleteParked;
+
+    const uploadPromise = service.upload(new File(['second'], 'b.txt', { type: 'text/plain' }), {
+      path: '/docs',
+      overwrite: true
+    });
+    // 没重新加锁时 upload 在这个宏任务里整个跑完；锁挂对了它会一直排在 delete 后面，
+    // 所以不能直接 await 它（会死锁）。
+    await new Promise(resolve => setTimeout(resolve, 0));
+    releaseDelete();
+
+    await Promise.allSettled([deletePromise, uploadPromise]);
+
+    const metas = await service.list();
+    expect(metas).toHaveLength(1);
+    await expect(service.read(metas[0].id)).resolves.toBeInstanceOf(Blob);
+  });
+
+  // read / list / watch 都不计入在途写，`destroy()` 只等写操作 —— 一次读取完全可能在
+  // metadata 查询的 await 间隙里被整程销毁跨过去。此时惰性 getter 若照常新建后端，
+  // 已销毁的实例会**重新**长出一个没人负责关闭的句柄，而调用方还以为读成功了。
+  it('rejects reads that outlive destroy instead of rebuilding the backend', async () => {
+    const { repository, service } = createService();
+    const uploaded = await service.upload(new File(['bytes'], 'a.txt', { type: 'text/plain' }), { path: '/docs' });
+
+    const find = repository.find.bind(repository);
+    let parkedOnce = false;
+    let releaseRead!: () => void;
+    const readParked = new Promise<void>(resolveParked => {
+      vi.spyOn(repository, 'find').mockImplementation(async options => {
+        const matched = await find(options);
+        if (parkedOnce) return matched;
+        parkedOnce = true;
+        resolveParked();
+        await new Promise<void>(resolveRelease => {
+          releaseRead = resolveRelease;
+        });
+        return matched;
+      });
+    });
+
+    const readPromise = service.read(uploaded.id);
+    await readParked;
+    await service.destroy();
+    releaseRead();
+
+    await expect(readPromise).rejects.toThrow(StorageDestroyedError);
+  });
+
+  // createDirectory 早先完全绕开锁协议，直接 `ensureDirectory`。与 renameDirectory
+  // （独占锁）并发时它会把目录建进一棵正在被搬走的树里：调用方拿到 '/docs/sub'，
+  // 而这条路径在返回的那一刻已经不存在了。
+  it('serializes createDirectory against a concurrent directory rename', async () => {
+    const { repository, service } = createService();
+    await service.createDirectory('docs');
+
+    const find = repository.find.bind(repository);
+    let parkedOnce = false;
+    let releaseRename!: () => void;
+    const renameParked = new Promise<void>(resolveParked => {
+      vi.spyOn(repository, 'find').mockImplementation(async options => {
+        const matched = await find(options);
+        if (parkedOnce) return matched;
+        parkedOnce = true;
+        resolveParked();
+        await new Promise<void>(resolveRelease => {
+          releaseRename = resolveRelease;
+        });
+        return matched;
+      });
+    });
+
+    const renamePromise = service.renameDirectory('/docs', 'guides');
+    await renameParked;
+
+    const createPromise = service.createDirectory('sub', { path: '/docs' });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    releaseRename();
+
+    const [created] = await Promise.all([createPromise, renamePromise]);
+
+    // 断言落在「返回的路径必须真的存在」上：这是唯一能把两种交错分开的观测点 ——
+    // 单看「/guides 建出来了」两种顺序都成立。
+    const storageRoot = rootHandle.directories.get('files');
+    expect(created).toBe('/docs/sub');
+    expect(storageRoot?.directories.get('docs')?.directories.has('sub')).toBe(true);
+    expect(storageRoot?.directories.get('guides')?.directories.has('sub')).toBe(false);
   });
 
   it('should rename a directory with nested files and empty directories', async () => {
