@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DevToolsConnector } from '../connector.js';
 import type { DisconnectStatus } from '../types.js';
 import { RXDB_DEVTOOLS_MESSAGE } from '../types.js';
-import type { MockRxDB, MockRxDBShape } from './fixtures/mock-rxdb.js';
-import { createMockRxDB, listenerCount, MOCK_DB_NAME, MOCK_VERSION } from './fixtures/mock-rxdb.js';
 import {
   createPostMessageSpy,
   installChannelStub,
   restoreChannelStub,
   sendToConnector
 } from './fixtures/devtools-channel.js';
+import type { MockRxDB, MockRxDBShape } from './fixtures/mock-rxdb.js';
+import { createMockRxDB, listenerCount, MOCK_DB_NAME, MOCK_VERSION } from './fixtures/mock-rxdb.js';
 
 type DisconnectResult = { success: boolean; error: string | null; status: DisconnectStatus };
 type GetEntityMetadata = NonNullable<Parameters<DevToolsConnector['init']>[1]>;

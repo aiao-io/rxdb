@@ -73,18 +73,16 @@ describe('RxDB 适配器连接信号与插件安装', () => {
   it('插件可以在 install() 里等自己的适配器就绪而不死锁', async () => {
     const database = createDatabase();
     const order: string[] = [];
-    database.use(
-      (rxdb): IRxDBPlugin => ({
-        name: 'gatedPlugin',
-        install: async () => {
-          // 信号在 #await_plugin_installs 之前置位，所以这一等必然能等到；
-          // 若改回「connect() 完成后才置位」，这里就是一个互等的死锁。
-          await firstValueFrom(rxdb.adapterConnected$('sqlite').pipe(filter(Boolean)));
-          order.push('install');
-        },
-        destroy: async () => undefined
-      })
-    );
+    database.use((rxdb): IRxDBPlugin => ({
+      name: 'gatedPlugin',
+      install: async () => {
+        // 信号在 #await_plugin_installs 之前置位，所以这一等必然能等到；
+        // 若改回「connect() 完成后才置位」，这里就是一个互等的死锁。
+        await firstValueFrom(rxdb.adapterConnected$('sqlite').pipe(filter(Boolean)));
+        order.push('install');
+      },
+      destroy: async () => undefined
+    }));
 
     await database.connect('sqlite');
     order.push('connected');

@@ -7,7 +7,12 @@ import { auditGithubDir, findUnpinnedUses } from './workflow-action-pins.mjs';
 const PINNED = 'actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6';
 
 test('可变 tag 被抓出来', () => {
-  const offenders = findUnpinnedUses('ci.yml', ['jobs:', '  a:', '    steps:', '      - uses: codecov/codecov-action@v7']);
+  const offenders = findUnpinnedUses('ci.yml', [
+    'jobs:',
+    '  a:',
+    '    steps:',
+    '      - uses: codecov/codecov-action@v7'
+  ]);
 
   assert.deepEqual(offenders, ['ci.yml:4 -> codecov/codecov-action@v7']);
 });

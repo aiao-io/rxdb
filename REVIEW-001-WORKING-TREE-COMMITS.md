@@ -206,17 +206,17 @@ const prefixed = ALLOWED_PREFIXES.some(prefix => firstLine.toLowerCase().startsW
 
 在未提交 WIP 出现之前，以下任务通过：
 
-| 项目 | 结果 |
-| --- | --- |
-| scripts | 125 passed |
-| `rxdb` | 119 files / 2062 tests passed |
-| `rxdb-adapter-sqlite-core` | 39 files / 836 tests passed |
-| `rxdb-plugin-search` | 226 tests passed |
-| `rxdb-devtools` | 300 tests passed，statement coverage 96.48% |
-| `rxdb-devtools-extension` | 208 tests passed |
-| `benchmarks` | 51 tests passed |
-| 相关 typecheck | passed |
-| `pnpm check-format` | passed |
+| 项目                       | 结果                                        |
+| -------------------------- | ------------------------------------------- |
+| scripts                    | 125 passed                                  |
+| `rxdb`                     | 119 files / 2062 tests passed               |
+| `rxdb-adapter-sqlite-core` | 39 files / 836 tests passed                 |
+| `rxdb-plugin-search`       | 226 tests passed                            |
+| `rxdb-devtools`            | 300 tests passed，statement coverage 96.48% |
+| `rxdb-devtools-extension`  | 208 tests passed                            |
+| `benchmarks`               | 51 tests passed                             |
+| 相关 typecheck             | passed                                      |
+| `pnpm check-format`        | passed                                      |
 
 Nx 最后报告 Nx Cloud 免费额度/网络错误，但使用 `--skipRemoteCache` 后不影响本地任务结果。
 
@@ -232,16 +232,16 @@ pnpm nx run-many -t typecheck test \
 
 结果：
 
-| 项目 | 结果 |
-| --- | --- |
-| `rxdb-devtools:test` | 3 个测试文件失败，185 passed |
-| `rxdb-devtools:typecheck` | 失败，导入已删除 fixture |
-| `rxdb-devtools-extension:test` | 2 failed / 206 passed |
-| `rxdb-plugin-search:test` | 19 failed / 207 passed，另有 1 个 unhandled rejection |
-| `rxdb:typecheck` | passed |
-| `rxdb-plugin-search:typecheck` | passed |
-| `rxdb-devtools-extension:typecheck` | passed |
-| `pnpm check-format` | failed |
+| 项目                                | 结果                                                  |
+| ----------------------------------- | ----------------------------------------------------- |
+| `rxdb-devtools:test`                | 3 个测试文件失败，185 passed                          |
+| `rxdb-devtools:typecheck`           | 失败，导入已删除 fixture                              |
+| `rxdb-devtools-extension:test`      | 2 failed / 206 passed                                 |
+| `rxdb-plugin-search:test`           | 19 failed / 207 passed，另有 1 个 unhandled rejection |
+| `rxdb:typecheck`                    | passed                                                |
+| `rxdb-plugin-search:typecheck`      | passed                                                |
+| `rxdb-devtools-extension:typecheck` | passed                                                |
+| `pnpm check-format`                 | failed                                                |
 
 `rxdb:test` 在沙箱内因监听本地端口被系统以 `EPERM` 拒绝，未进入测试执行。随后申请沙箱外定向复测时，审批服务返回 404，因此没有把该环境错误算作代码失败。
 

@@ -160,10 +160,7 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    *
    * @internal
    */
-  bootstrapTransaction<T extends TransactionFun>(
-    fun: T,
-    transactionLog?: boolean
-  ): Promise<Awaited<ReturnType<T>>> {
+  bootstrapTransaction<T extends TransactionFun>(fun: T, transactionLog?: boolean): Promise<Awaited<ReturnType<T>>> {
     return this.transaction(fun, transactionLog);
   }
 

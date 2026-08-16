@@ -2,8 +2,6 @@ import { throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DevToolsConnector, getDevToolsConnector, resetDevToolsConnector } from '../connector.js';
 import { RXDB_DEVTOOLS_MESSAGE } from '../types.js';
-import type { MockRxDBShape } from './fixtures/mock-rxdb.js';
-import { createMockRxDB, listenerCount, MOCK_DB_NAME, MOCK_VERSION } from './fixtures/mock-rxdb.js';
 import {
   captureRemotePort,
   createPostMessageSpy,
@@ -11,6 +9,8 @@ import {
   restoreChannelStub,
   sendToConnector
 } from './fixtures/devtools-channel.js';
+import type { MockRxDBShape } from './fixtures/mock-rxdb.js';
+import { createMockRxDB, listenerCount, MOCK_DB_NAME, MOCK_VERSION } from './fixtures/mock-rxdb.js';
 
 type GetEntityMetadata = NonNullable<Parameters<DevToolsConnector['init']>[1]>;
 
