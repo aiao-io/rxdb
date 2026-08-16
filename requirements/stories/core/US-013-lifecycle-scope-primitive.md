@@ -78,7 +78,8 @@ INVEST 检查清单:
 | 1   | 作用域已登记 A、B、C（按此顺序）                   | `await scope.dispose()`                                        | 释放顺序严格为 C → B → A；`state` 在首个 disposer 执行前已是 `disposing`，全部完成后为 `disposed`                                                      | ⬜   |
 | 2   | A、B 的 disposer 均返回 Promise                    | `await scope.dispose()`                                        | **串行**执行：B 的 Promise settle 之后 A 才开始；`dispose()` 返回的 Promise 在全部 settle 后才 resolve                                                 | ⬜   |
 | 3   | 已登记条目并拿到 `acquire()` 返回的 disposer       | 调用该 disposer 两次，再 `await scope.dispose()`               | 底层清理只执行 **1** 次；该条目已从作用域清单摘除，`dispose()` 不会再次调用它                                                                          | ⬜   |
-| 4   | 作用域已 `dispose()`                               | 再次 `await scope.dispose()`（含并发同时调用两次）             | 返回**同一个** Promise，清理总执行次数不变，不抛错                                                                                                     | ⬜   |
+| 4   | 作用域已 `dispose()`（**首次成功**）               | 再次 `await scope.dispose()`（含并发同时调用两次）             | 返回**同一个** Promise 实例，清理总执行次数不变，不抛错                                                                                                | ⬜   |
+| 4b  | 作用域首次 `dispose()` 已 **reject**（AC#7 / #8）  | 捕获后再次 `await scope.dispose()`                             | 返回**同一个**已 reject 的 Promise 实例（同一错误对象，`AggregateError` 的 `errors` 不变）；disposer 总执行次数不变，**不重试**、不新增错误            | ⬜   |
 | 5   | 作用域处于 `disposing` 或 `disposed`               | 调用 `scope.acquire(setup)`                                    | 同步抛 `LifecycleScopeDisposedError`，且 **`setup` 不被执行**（不产生新资源）；错误消息含作用域 label 与传入的条目 label                               | ⬜   |
 | 6   | 某个 disposer 的实现内部调用 `scope.acquire()`     | `await scope.dispose()`                                        | 该调用抛 `LifecycleScopeDisposedError`；按 AC#7 的隔离规则，其余 disposer 照常跑完                                                                     | ⬜   |
 | 7   | 三个 disposer 中第 2、3 个抛错                     | `await scope.dispose()`                                        | 三个**全部**被调用（不短路）；`dispose()` 以 `AggregateError` reject，`errors` 按**执行顺序**排列；作用域仍进入 `disposed`                             | ⬜   |
@@ -96,6 +97,10 @@ INVEST 检查清单:
 > **AC 编号已于 2026-08-16 重排**（原 18 条 → 15 条，删去原 AC#7 / #14 / #15 三条
 > `acquireAsync` 竞态用例）。原 AC#8→#7、#9→#8、#10→#9、#11→#10、#12→#11、#13→#12、#16→#13、
 > #17→#14、#18→#15；AC#1～#6 不变。下游引用（[US-014 AC#17](US-014-plugin-scope-contract.md)）已同步。
+>
+> **2026-08-16 补入 AC#4b**（首次 `dispose()` 失败后的重复调用）。用 `4b` 而不是重排编号，
+> 是为了不打断已经写进 US-014 与 spec 的下游引用。原 AC#4 的措辞「不抛错」在首次 reject 的场景下
+> 与 AC#7 / AC#8 自相矛盾，补正口径见技术笔记 D3「幂等的准确含义」。
 >
 > 最容易漏的是 **AC#2（串行）**、**AC#9（子作用域按登记位置释放）** 与 **AC#13（失败的手动 disposer 不重试）**。
 > 用 `Promise.all` 并发跑 disposer 能让 AC#1 的顺序断言在同步用例下侥幸通过，但会破坏因果：
@@ -153,6 +158,17 @@ INVEST 检查清单:
 配套的**摘除时机**由 AC#13 冻结：无论手动调用还是作用域释放，条目都在**执行底层清理之前**
 就从清单摘除并标记已执行。失败不回滚、不重试——重试会让已经成功的那半清理被跑第二遍，
 而「部分清理」正是最难排查的一类残留。
+
+**幂等的准确含义（AC#4 / AC#4b，2026-08-16 补正）**：`dispose()` 把**首次调用产生的那个 Promise 实例
+缓存下来**，后续调用一律返回同一个实例——**成功与失败一视同仁**。因此：
+
+- 「幂等」= 副作用只发生一次 + 返回值恒等，**不等于**「第二次一定 resolve」。
+  首次以 `AggregateError` reject 的作用域，第二次 `dispose()` 仍然 reject，且是**同一个错误对象**；
+- 「不抛错」只约束**重复调用这件事本身不新增错误**：不会因为「已经释放过了」而报错，
+  也不会重跑任何 disposer 去制造第二批错误。
+
+反面写法（缓存一个 `disposed` 布尔、第二次直接 `return Promise.resolve()`）会把首次失败**吞掉**：
+调用方在 `#shutdown()` 里对同一个作用域做防御性二次释放时，看到的是「一切正常」。
 
 ### 已推迟：`acquireAsync()` 与它的取消出口（2026-08-16 采纳）
 
@@ -227,7 +243,9 @@ cordis 的 `Fiber.effect()`（`packages/core/src/fiber.ts`）是同类原语的�
   这样「资源获取跨 `await`」的调用方会在**编译期**被挡下，而不是运行时静默泄漏。
   将来加 `acquireAsync()` 时是新增重载，不改这条
 - `label` 只用于诊断与错误消息，不参与身份，允许重复；缺省值 `'anonymous'`
-- 估算：实现约 120 行，测试约 250 行（15 条 AC 每条至少一个用例，AC#2 / AC#7 / AC#9 各需 2～3 个）
+- `dispose()` 的返回值存进一个字段并原样复用（`#disposePromise ??= this.#runDispose()`），
+  **不要**在 catch 里把它换成一个已 resolve 的 Promise——那会让 AC#4b 的「同一个错误对象」失效
+- 估算：实现约 120 行，测试约 260 行（16 条 AC 每条至少一个用例，AC#2 / AC#7 / AC#9 各需 2～3 个）
 
 ## 实现文件
 
