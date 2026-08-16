@@ -152,7 +152,8 @@ export default defineConfig(() => ({
         : '../../coverage/packages/rxdb-plugin-search',
       provider: 'v8' as const,
       reporter: ['text', 'json-summary', 'json', 'clover', 'lcovonly', 'html'],
-      include: ['src/**/*']
+      include: ['src/**/*'],
+      exclude: ['src/__tests__/**', 'src/**/*.spec.*', 'src/**/*.test.*', 'src/**/*.d.ts', '**/dist/**']
     }
   }
 }));
