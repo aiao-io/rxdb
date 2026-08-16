@@ -68,7 +68,7 @@ rxdb.adapterReady$('local'); // Observable<boolean>，按名字，不是全局
 >
 > 反过来，撤回 S-002 时冻结的 **S-002′** 直接否掉了这条钩子的收益：今天
 > `await db.connect()` 返回即 FTS 可用，是用户可见保证；把 FTS 挪到连接 Promise 之外**会破坏它**。
-> 详见[第二轮评审复核](epic-008-lifecycle-scope-review-2.md)。
+> 该约束的正式落点是 [US-015 的 D2 附](stories/core/US-015-plugin-inject-dependency.md)。
 >
 > 保留原文供追溯。若 015a 实测出**新的**死锁（而不是复述这一条），再重开。
 

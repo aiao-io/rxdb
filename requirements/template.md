@@ -98,9 +98,9 @@ INVEST 检查清单:
 （[RxDB.ts:283-285](../packages/rxdb/src/RxDB.ts#L283-L285)）：
 
 ```ts
-await this.#install_plugin(plugin);
+this.#install_plugin();
 try {
-  await this.#init_schema();
+  this.schemaManager.init();
 ```
 ````
 
@@ -110,7 +110,11 @@ try {
   修一处而不扫全仓，等于留下更难发现的错误。改完用
   `grep -rn 'packages/rxdb/src/RxDB.ts#L' requirements/` 自查。
 - **锚点失效的真实代价不是"链接坏了"**，是读者停止复验、转而信任叙述。
-  [epic-008 第二轮评审](epic-008-lifecycle-scope-review-2.md) 的 S-002 就是这样带着错误前提活到复核的。
+  epic-008 第一轮评审的 S-002 就是这样带着错误前提活到复核的：它断言 `connect()` 会与
+  `install()` 互等成环，而真实次序是 `#connected_adapters.add` / `connected_sub.next(true)`
+  （[:442-443](../packages/rxdb/src/RxDB.ts#L442-L443)）**先于** `#await_plugin_installs()`（:445）——
+  一次点开就能证伪，但没有人点。该评审文件已删除，结论并入
+  [US-015 D2 附](stories/core/US-015-plugin-inject-dependency.md)。
 
 ### 评审结论必须写出复验方式
 
