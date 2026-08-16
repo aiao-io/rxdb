@@ -190,8 +190,8 @@ importers:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       react-router:
-        specifier: 8.2.0
-        version: 8.2.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: 8.3.0
+        version: 8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react-router-dom:
         specifier: 7.18.2
         version: 7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -14747,8 +14747,8 @@ packages:
       react-dom:
         optional: true
 
-  react-router@8.2.0:
-    resolution: {integrity: sha512-uP1LgGNHyilL1u+ZkecQk74DJOKOb6q4NLNYLRJcD/fjoogftNb5/Rj/07o/QBFsY/5MbAKPm1peTCQuVPv9cQ==}
+  react-router@8.3.0:
+    resolution: {integrity: sha512-qyPMvW83jGIct3yiieisxdk9M745anqhpIMKN5m1t6yBMfgVPpt77aHOqs5fUlEJRMCGffg9BaQLH9oPVOL7xQ==}
     engines: {node: '>=22.22.0'}
     peerDependencies:
       react: ^19.2.8
@@ -16885,7 +16885,7 @@ packages:
     resolution: {integrity: sha512-dpojBhNsCNN7T82Tm7k26A6G9ML3NkhDsnw9n/eoxSRlVBB4CEtIQ/KTCLI2Fwf3ataSXRhYFkQi3SlnFwPvPQ==}
 
   wa-sqlite@https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994:
-    resolution: {integrity: sha512-aF923cT8vn7YQ/DuEqconOCe47peo8CmG0Cp28pFqASwYznZhidx5E5w8f0UkhfNjEaM7rNxmykIDrqtL7kC4g==, tarball: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994}
+    resolution: {tarball: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994}
     version: 1.1.1
 
   wait-on@9.1.0:
@@ -33700,7 +33700,7 @@ snapshots:
     optionalDependencies:
       react-dom: 19.2.8(react@19.2.8)
 
-  react-router@8.2.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
       cookie-es: 3.1.1
       react: 19.2.8
