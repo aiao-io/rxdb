@@ -11,6 +11,8 @@ type DeleteRequest = {
 type DeleteDatabaseBehavior = {
   mode: 'success' | 'error' | 'blocked';
   error?: DOMException;
+  /** 事件延迟多久才派发；不给就在下一个微任务里派发 */
+  delayMs?: number;
 };
 
 const OWNED_IDB = 'benchmark-db-run-1-throughput-wa-sqlite';
@@ -77,7 +79,7 @@ function installBrowserStorage(options: {
         onblocked: null
       };
 
-      queueMicrotask(() => {
+      const dispatch = () => {
         if (behavior.mode === 'blocked') {
           request.onblocked?.();
           return;
@@ -88,7 +90,10 @@ function installBrowserStorage(options: {
         }
         deletedIdb.push(name);
         request.onsuccess?.();
-      });
+      };
+
+      if (behavior.delayMs === undefined) queueMicrotask(dispatch);
+      else setTimeout(dispatch, behavior.delayMs);
 
       return request;
     }
@@ -130,20 +135,53 @@ describe('clearDB', () => {
     expect(log).toHaveBeenCalledWith('Benchmark 存储清理完成 ✅');
   });
 
-  it('IndexedDB onblocked 超时后 reject，不当成成功', async () => {
+  it('IndexedDB onblocked 立刻 reject，不等看门狗', async () => {
     vi.useFakeTimers();
     installBrowserStorage({
       idbNames: [OWNED_IDB],
       deleteDatabase: () => ({ mode: 'blocked' })
     });
 
-    const pending = clearDB();
-    const expectation = expect(pending).rejects.toThrow(`删除 ${OWNED_IDB} 被阻塞`);
-    await vi.runAllTimersAsync();
-    await expectation;
+    // onblocked 是「别的连接还开着」的权威信号，不需要靠计时器推断
+    await expect(clearDB()).rejects.toThrow(`删除 ${OWNED_IDB} 被阻塞`);
 
     expect(log).not.toHaveBeenCalledWith('Benchmark 存储清理完成 ✅');
     expect(warn).not.toHaveBeenCalledWith(`删除 ${OWNED_IDB} 被阻塞`);
+  });
+
+  /**
+   * 看门狗此前是 50ms —— 但「删得慢」和「被阻塞」是两回事：
+   * 装满数据的 benchmark 库删上几百毫秒完全正常，IDB 也从不为此发 onblocked。
+   * 50ms 的计时器把这种正常情况一律判成阻塞，清理随机失败。
+   */
+  it('删得慢但最终成功的库不会被看门狗误杀', async () => {
+    vi.useFakeTimers();
+    const { deletedIdb } = installBrowserStorage({
+      idbNames: [OWNED_IDB],
+      deleteDatabase: () => ({ mode: 'success', delayMs: 2_000 })
+    });
+
+    const pending = clearDB();
+    await vi.advanceTimersByTimeAsync(2_000);
+    await pending;
+
+    expect(deletedIdb).toEqual([OWNED_IDB]);
+    expect(log).toHaveBeenCalledWith('Benchmark 存储清理完成 ✅');
+  });
+
+  it('一个库删不掉不会中断其它库的清理', async () => {
+    const other = 'benchmark-db-run-2-throughput-pglite';
+    const { deletedIdb } = installBrowserStorage({
+      idbNames: [OWNED_IDB, other],
+      deleteDatabase: name =>
+        name === OWNED_IDB ? { mode: 'error', error: new DOMException('quota', 'UnknownError') } : { mode: 'success' }
+    });
+
+    // Promise.all 会在第一个 reject 时就放弃等待，剩下那个库的结果既无人查看
+    // 也无人报告；allSettled 才能保证「能删的都删掉，失败的一并抛出」
+    await expect(clearDB()).rejects.toThrow();
+
+    expect(deletedIdb).toEqual([other]);
   });
 
   it('任一 IndexedDB 删除失败时 reject，且不打印成功日志', async () => {

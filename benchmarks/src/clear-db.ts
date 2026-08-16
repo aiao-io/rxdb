@@ -1,6 +1,13 @@
 const REMOVE_MAX_ATTEMPTS = 5;
 const REMOVE_BACKOFF_MS = 25;
-const DELETE_BLOCKED_TIMEOUT_MS = 50;
+/**
+ * 看门狗：IDB 既没成功、没报错、也没发 onblocked 时的最后兜底。
+ *
+ * 不是用来判断「被阻塞」的——那有 `onblocked` 这个权威信号。它只防「一个事件都不来」
+ * 的悬挂。因此必须给得足够宽：装满数据的 benchmark 库删几百毫秒是常态，
+ * 早先的 50ms 会把每一次正常的慢删除都误判成阻塞。
+ */
+const DELETE_WATCHDOG_MS = 30_000;
 const BENCHMARK_IDB_PREFIX = 'benchmark-db-run-';
 const BENCHMARK_OPFS_ROOT = 'rxdb-benchmarks';
 
@@ -43,10 +50,9 @@ async function removeEntryWithRetry(
 function deleteIndexedDBDatabase(name: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const request = indexedDB.deleteDatabase(name);
-    const failBlocked = () => {
-      reject(new Error(`删除 ${name} 被阻塞`));
-    };
-    const timer = setTimeout(failBlocked, DELETE_BLOCKED_TIMEOUT_MS);
+    const timer = setTimeout(() => {
+      reject(new Error(`删除 ${name} 超时（${DELETE_WATCHDOG_MS}ms 内没有任何事件）`));
+    }, DELETE_WATCHDOG_MS);
     const settle = (next: () => void) => {
       clearTimeout(timer);
       next();
@@ -54,7 +60,7 @@ function deleteIndexedDBDatabase(name: string): Promise<void> {
 
     request.onsuccess = () => settle(resolve);
     request.onerror = () => settle(() => reject(request.error));
-    request.onblocked = () => settle(failBlocked);
+    request.onblocked = () => settle(() => reject(new Error(`删除 ${name} 被阻塞`)));
   });
 }
 

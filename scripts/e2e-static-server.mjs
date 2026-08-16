@@ -160,6 +160,13 @@ export function createStaticServer(rootPath) {
   const indexFile = join(realRoot, 'index.html');
 
   return createServer((req, res) => {
+    // HEAD 走和 GET 完全一样的路径，Node 自己会丢掉响应体；其余方法一律拒绝，
+    // 免得 e2e 里一个手滑的 POST 被当成静态文件请求、拿到 200 + index.html。
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.writeHead(405, { Allow: 'GET, HEAD', 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('Method Not Allowed');
+    }
+
     const rawPath = req.url ?? '/';
     let filePath = safeJoin(realRoot, rawPath);
     if (!filePath) return send(res, 403, 'Forbidden');
@@ -175,8 +182,20 @@ export function createStaticServer(rootPath) {
 
     if (!isWithinRoot(realRoot, filePath)) return send(res, 403, 'Forbidden');
 
+    // 同步读没问题（e2e 里就一个浏览器在拉），但**必须**兜住异常：
+    // 请求处理器里抛出的错会冒到 'request' 之外直接终结进程，Playwright 的 webServer
+    // 就此消失，后面所有用例集体报连接失败——排查时完全看不出根因在这一行。
+    // stat 与 read 之间文件被并发构建换掉（ENOENT）、权限位变了（EACCES）都会走到这。
+    let body;
+    try {
+      body = readFileSync(filePath);
+    } catch (error) {
+      console.error(`[e2e-static-server] Failed to read ${filePath}:`, error);
+      return send(res, 500, 'Internal Server Error');
+    }
+
     const type = MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream';
-    send(res, 200, readFileSync(filePath), type);
+    send(res, 200, body, type);
   });
 }
 
@@ -208,7 +227,10 @@ export function closeStaticServer(server) {
   });
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+// argv[1] 在 `node --eval` / `node --input-type=module` 下是 undefined，
+// pathToFileURL(undefined) 会抛 —— 那种场景下本文件只是被 import，不该跑 CLI。
+const entryPoint = process.argv[1] ? pathToFileURL(process.argv[1]).href : null;
+if (import.meta.url === entryPoint) {
   try {
     const options = parseArgs(process.argv.slice(2));
     const server = await startStaticServer(options);
