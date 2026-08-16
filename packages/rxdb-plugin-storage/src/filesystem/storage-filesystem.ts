@@ -97,16 +97,25 @@ export interface StorageFilesystem {
   fileExists(filePath: string): Promise<boolean>;
 
   /**
-   * 读取文件的完整快照。
+   * 读取文件的完整内容。
    *
    * @remarks
-   * 返回值遵循 File System 标准的 **snapshot state** 语义：绑定调用那一刻的内容，
-   * 文件此后被改写则该快照不可再读。需要先读后写的调用方必须用
-   * {@link StorageFilesystem.openRead} 转存到临时文件，而不是留着快照。
+   * **不保证读写隔离**：并发写入期间的返回值只承诺「读到某个字节序列」，
+   * 既可能是旧内容、新内容，也可能是两者的拼接。OPFS 后端凭 File System 的
+   * snapshot state 恰好能给出更强的保证（快照失效时抛错），桌面后端按帧读取则会读到撕裂内容 ——
+   * 接口只取二者的交集，调用方不得依赖强的那一侧，否则换后端就会静默出错。
+   *
+   * 因此串行化由服务层的路径锁负责，而不是靠这里。需要先读后写的调用方仍应用
+   * {@link StorageFilesystem.openRead} 转存到临时文件，不要把返回值当长期快照留着。
    */
   readBlob(filePath: string): Promise<Blob>;
 
-  /** 打开文件的读取流；文件不存在时抛出 NotFound。 */
+  /**
+   * 打开文件的读取流；文件不存在时抛出 NotFound。
+   *
+   * @remarks
+   * 读写隔离保证与 {@link StorageFilesystem.readBlob} 相同 —— 也就是没有保证。
+   */
   openRead(filePath: string): Promise<ReadableStream<Uint8Array>>;
 
   /** 打开文件的写入句柄，缺失的父目录一并创建。 */

@@ -128,7 +128,19 @@ export class MemoryDirectoryHandle {
     }
   }
 
+  /**
+   * 取子目录句柄。
+   *
+   * @remarks
+   * 名字被文件占用时抛 `TypeMismatchError` 而不是 `NotFoundError` —— 这是真实 OPFS 的行为。
+   * 替身早先在这种情况下也回 NotFound，于是「后端把类型不符当成不存在」这件事在测试里
+   * 根本无从暴露，而两个内容后端恰好在这里分叉过。
+   */
   async getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<MemoryDirectoryHandle> {
+    if (this.files.has(name)) {
+      throw new DOMException('Path is a file, not a directory', 'TypeMismatchError');
+    }
+
     if (!this.directories.has(name)) {
       if (!options?.create) {
         throw new DOMException('Directory not found', 'NotFoundError');
@@ -140,7 +152,12 @@ export class MemoryDirectoryHandle {
     return this.directories.get(name)!;
   }
 
+  /** 取文件句柄；名字被目录占用时抛 `TypeMismatchError`，同 {@link MemoryDirectoryHandle.getDirectoryHandle}。 */
   async getFileHandle(name: string, options?: { create?: boolean }): Promise<MemoryFileHandle> {
+    if (this.directories.has(name)) {
+      throw new DOMException('Path is a directory, not a file', 'TypeMismatchError');
+    }
+
     if (!this.files.has(name)) {
       if (!options?.create) {
         throw new DOMException('File not found', 'NotFoundError');

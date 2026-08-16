@@ -65,6 +65,26 @@ export const DESKTOP_HOST_MAX_PATH_LENGTH = 1024;
  */
 export const DESKTOP_HOST_MAX_PATH_SEGMENT_BYTES = 255;
 
+/**
+ * 单个会话允许同时挂起的未提交写入数上限。
+ *
+ * @remarks
+ * 每个未提交的写入都占着一个打开的临时文件句柄，只有 commit 或 abort 才归还。
+ * renderer 不可信：不设上限，一个只 begin 不 commit 的循环就能把宿主进程的 fd 耗光，
+ * 而 fd 耗尽会连带打不开数据库 —— 一个 renderer 的错误由此升级成整个应用不可用。
+ * 取 256 远高于任何真实并发（服务层的写入是按路径串行的），越过它意味着调用方有 bug。
+ */
+export const DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION = 256;
+
+/**
+ * 单个锁名允许排队的等待者数上限。
+ *
+ * @remarks
+ * 等待者是永不超时的（对齐 Web Locks 的语义），因此队列只增不减地堆在持有者后面。
+ * 同上：这是给失控的调用方设的护栏，不是给正常并发设的配额。
+ */
+export const DESKTOP_HOST_MAX_QUEUED_LOCKS_PER_NAME = 256;
+
 /** 打开一个数据库会话。 */
 export interface DesktopHostOpenRequest {
   readonly kind: 'open';

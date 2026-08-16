@@ -67,6 +67,26 @@ export const normalizeDirectoryPath = (path?: string): string => {
 };
 
 /**
+ * 规范化一个**可删除**的目录路径，返回不带开头 `/` 的相对形式。
+ *
+ * @remarks
+ * 存储根不可删：根一旦消失，此后所有操作都落在一个不存在的目录上。
+ * 这里显式拒绝而不是静默跳过 —— 两个后端曾各自即兴处理（OPFS 退化成 `removeEntry('')`，
+ * 桌面则真的把根删掉），静默兜底会让这种分叉继续留在暗处。
+ *
+ * @param directoryPath - 待删除的目录路径
+ * @returns 相对存储根的路径，恒非空
+ * @throws {@link StorageInvalidPathError} 路径非法，或指向存储根本身时抛出。
+ */
+export const normalizeRemovableDirectoryPath = (directoryPath: string): string => {
+  const relativePath = normalizeDirectoryPath(directoryPath).slice(1);
+  if (relativePath === '') {
+    throw new StorageInvalidPathError(directoryPath, 'Cannot remove the storage root directory');
+  }
+  return relativePath;
+};
+
+/**
  * 把 storage 路径规范化为不带开头 `/` 的 OPFS 相对路径。
  *
  * @throws {@link StorageInvalidPathError} 路径包含非法段时抛出。

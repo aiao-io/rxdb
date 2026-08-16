@@ -14,7 +14,8 @@ import {
   getDirectoryPathFromOpfsPath,
   getFileNameFromOpfsPath,
   normalizeDirectoryPath,
-  normalizeRelativeOpfsPath
+  normalizeRelativeOpfsPath,
+  normalizeRemovableDirectoryPath
 } from '../paths.js';
 import type {
   StorageFilesystem,
@@ -54,6 +55,25 @@ const isStorageManagerWithDirectory = (value: unknown): value is StorageManagerW
 
 const isMovableFileSystemHandle = (handle: FileSystemHandle): handle is MovableFileSystemHandle =>
   typeof (handle as { move?: unknown }).move === 'function';
+
+/**
+ * 判断句柄解析失败是否等价于「这里没有我要的那种条目」。
+ *
+ * @remarks
+ * OPFS 在名字被另一种条目占用时抛 `TypeMismatchError` 而非 `NotFoundError`。
+ * `directoryExists` / `fileExists` 返回的是布尔值，「那里是个文件」正是「那里没有目录」，
+ * 让它抛出去会逼调用方 catch 一个只有浏览器后端才出现的错误 ——
+ * 桌面后端的 `stat` 在同样情况下直接回 false，接缝的两个实现必须给同一个答案。
+ *
+ * 只认这两个具名错误：其余失败（权限、配额、句柄失效）仍旧原样抛出。
+ */
+const isMissingOrWrongKind = (error: unknown): boolean => {
+  if (isStorageNotFoundError(error)) {
+    return true;
+  }
+
+  return typeof error === 'object' && error !== null && (error as { name?: string }).name === 'TypeMismatchError';
+};
 
 /**
  * 取目录条目迭代器。
@@ -136,7 +156,7 @@ export class OpfsStorageFilesystem implements StorageFilesystem {
       await this.getDirectoryHandle(directoryPath);
       return true;
     } catch (error) {
-      if (isStorageNotFoundError(error)) {
+      if (isMissingOrWrongKind(error)) {
         return false;
       }
 
@@ -146,8 +166,9 @@ export class OpfsStorageFilesystem implements StorageFilesystem {
 
   /** {@inheritDoc StorageFilesystem.removeDirectory} */
   async removeDirectory(directoryPath: string): Promise<void> {
+    const relativePath = normalizeRemovableDirectoryPath(directoryPath);
+
     try {
-      const relativePath = normalizeDirectoryPath(directoryPath).slice(1);
       const parentHandle = await this.getDirectoryHandle(getDirectoryPathFromOpfsPath(relativePath));
       await parentHandle.removeEntry(getFileNameFromOpfsPath(relativePath), { recursive: true });
     } catch (error) {
@@ -172,7 +193,7 @@ export class OpfsStorageFilesystem implements StorageFilesystem {
       await this.getFileHandle(filePath);
       return true;
     } catch (error) {
-      if (isStorageNotFoundError(error)) {
+      if (isMissingOrWrongKind(error)) {
         return false;
       }
 

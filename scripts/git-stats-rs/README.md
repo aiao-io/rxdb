@@ -6,8 +6,16 @@
 
 ## 前置条件
 
-- 已安装稳定版 Rust 工具链
+- 最新稳定版 Rust（`rustc` ≥ 1.88）。请用 rustup，不要用发行版自带的过期包
 - 当前目录是一个包含完整 Git 历史的仓库
+
+```sh
+# 未安装
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+# 已安装但偏旧（例如 1.87 会编不过）
+rustup update stable
+rustc --version
+```
 
 ## 运行
 
@@ -110,3 +118,4 @@ JS 版本对每个文件 fork 一次 `git blame`。在本仓库（约 2400 个�
 - 这是仓库内工具，不提供 CLI 参数接口
 - 作者名会做少量标准化处理，例如把 `Jimmy Liu` 归并成 `Jimmy`
 - 如果某个文件 blame 失败，会被静默跳过
+- `rustc` 低于 1.88 时 cargo 会直接拒绝编译。先 `rustup update stable`

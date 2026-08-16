@@ -55,11 +55,13 @@ const captureError = (fn: () => unknown): unknown => {
   }
 };
 
-const collect = async (directoryPath: string): Promise<string[]> => {
+const collectFrom = async (backend: StorageFilesystem, directoryPath: string): Promise<string[]> => {
   const names: string[] = [];
-  for await (const entry of filesystem.list(directoryPath)) names.push(`${entry.kind}:${entry.name}`);
+  for await (const entry of backend.list(directoryPath)) names.push(`${entry.kind}:${entry.name}`);
   return names.sort();
 };
+
+const collect = (directoryPath: string): Promise<string[]> => collectFrom(filesystem, directoryPath);
 
 beforeEach(async () => {
   workspace = await mkdtemp(join(tmpdir(), 'rxdb-desktop-fs-'));
@@ -265,6 +267,35 @@ describe('createDesktopStorageFilesystem', () => {
       await expect(backend.fileExists('a.txt')).rejects.toMatchObject({ code: 'backend_internal_error' });
     });
 
+    it('目录条目缺少名称时抛后端错误，而不是把 undefined 当成文件名', async () => {
+      const broken: DesktopHostTransport = {
+        request: async payload =>
+          payload.kind === 'file.list' ? { kind: 'file.list', result: [{ kind: 'file' }] } : host.handle(payload),
+        subscribe: () => () => undefined
+      };
+      const backend = createDesktopStorageFilesystem({ transport: broken })('files', CONTEXT);
+
+      await expect(collectFrom(backend, '/')).rejects.toMatchObject({ code: 'backend_internal_error' });
+      backend.dispose();
+    });
+
+    it('host 反复返回空的非结束帧时以后端错误收场，而不是原地空转', async () => {
+      // 读循环靠「非 eof 帧必然推进」终止；不校验这条不变量，坏 host 会让调用方永久挂起。
+      const stalled: DesktopHostTransport = {
+        request: async payload =>
+          payload.kind === 'file.read' ?
+            { kind: 'file.read', result: { chunk: new Uint8Array(0), eof: false } }
+          : host.handle(payload),
+        subscribe: () => () => undefined
+      };
+      const backend = createDesktopStorageFilesystem({ transport: stalled })('files', CONTEXT);
+      await backend.ensureRoot();
+
+      await expect(backend.readBlob('a.txt')).rejects.toMatchObject({ code: 'backend_internal_error' });
+      await expect(backend.openRead('a.txt')).rejects.toMatchObject({ code: 'backend_internal_error' });
+      backend.dispose();
+    });
+
     it('host 协议版本不一致时拒绝连接，不静默降级', async () => {
       const mismatched: DesktopHostTransport = {
         request: async () => ({ kind: 'file.open', result: { sessionId: crypto.randomUUID(), protocolVersion: 99 } }),
@@ -355,6 +386,40 @@ describe('createDesktopStorageFilesystem', () => {
       ).rejects.toThrow('boom');
 
       await expect(filesystem.lockBackend?.request('same', async () => 'ok')).resolves.toBe('ok');
+    });
+
+    it('释放锁失败不会盖住临界区的原始错误', async () => {
+      // 调用方要修的是临界区里那个错误；把它换成 lockRelease 的失败等于把线索抹掉。
+      const flaky: DesktopHostTransport = {
+        request: async payload =>
+          payload.kind === 'file.lockRelease' ?
+            { kind: 'error', code: 'host_internal_error', message: 'release failed' }
+          : host.handle(payload),
+        subscribe: () => () => undefined
+      };
+      const backend = createDesktopStorageFilesystem({ transport: flaky })('files', CONTEXT);
+
+      await expect(backend.lockBackend?.request('same', () => Promise.reject(new Error('boom')))).rejects.toThrow(
+        'boom'
+      );
+      backend.dispose();
+    });
+
+    it('临界区成功而释放锁失败时仍然报错，不假装一切正常', async () => {
+      // 释放失败意味着锁还挂在 host 上，后续临界区会永久阻塞——这条必须让调用方看见。
+      const flaky: DesktopHostTransport = {
+        request: async payload =>
+          payload.kind === 'file.lockRelease' ?
+            { kind: 'error', code: 'host_internal_error', message: 'release failed' }
+          : host.handle(payload),
+        subscribe: () => () => undefined
+      };
+      const backend = createDesktopStorageFilesystem({ transport: flaky })('files', CONTEXT);
+
+      await expect(backend.lockBackend?.request('same', async () => 'ok')).rejects.toMatchObject({
+        code: 'backend_internal_error'
+      });
+      backend.dispose();
     });
 
     it('拒绝不支持的锁选项，而不是静默忽略', async () => {

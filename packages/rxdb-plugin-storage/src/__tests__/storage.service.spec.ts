@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StorageFetchError, StorageMimeTypeMissingError, StorageOfflineError } from '../errors.js';
+import { createOpfsStorageFilesystem } from '../filesystem/opfs-filesystem.js';
+import type { StorageFilesystemFactory } from '../filesystem/storage-filesystem.js';
 import { ObjectUrlRegistry } from '../object-url.js';
 import {
   getDirectoryPathFromOpfsPath,
@@ -16,6 +18,7 @@ import {
   MemoryDirectoryHandle,
   MemoryFileHandle
 } from './fixtures/memory-storage.js';
+import { isTemporaryStorageName } from './storage-backend-parity.suite.js';
 
 
 describe('RxdbFileStorage', () => {
@@ -848,6 +851,36 @@ describe('RxdbFileStorage', () => {
     removeChildSpy.mockRestore();
   });
 
+  it('download() 在 click 之后让出一个宏任务再回收 URL', async () => {
+    // click() 只是把下载排进队列。同步 revoke 会让部分浏览器在真正读 blob 之前就丢掉 URL，
+    // 表现为下载出一个空文件——这种失败不会抛错，只会静默产出坏文件。
+    const revokeImpl = vi.fn();
+    const { service } = createService({}, new ObjectUrlRegistry(() => 'blob:download-url', revokeImpl));
+    const meta = await service.upload(new File(['data'], 'file.txt', { type: 'text/plain' }));
+
+    let revokedBeforeBrowserRead = true;
+    const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(node => {
+      (node as HTMLAnchorElement).click = () => {
+        // 用一个宏任务代表浏览器真正去读 blob 的那一刻。
+        setTimeout(() => {
+          revokedBeforeBrowserRead = revokeImpl.mock.calls.length > 0;
+        }, 0);
+      };
+      (node as HTMLAnchorElement).click();
+      return node;
+    });
+    const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(node => node);
+
+    await service.download(meta.id);
+
+    expect(revokedBeforeBrowserRead).toBe(false);
+    expect(revokeImpl).toHaveBeenCalledWith('blob:download-url');
+    expect(service.activeObjectUrlCount).toBe(0);
+
+    appendChildSpy.mockRestore();
+    removeChildSpy.mockRestore();
+  });
+
   it('should clean up fallback anchor when click throws', async () => {
     const revokeImpl = vi.fn();
     const { service } = createService({}, new ObjectUrlRegistry(() => 'blob:download-url', revokeImpl));
@@ -1449,5 +1482,58 @@ describe('storage path helpers', () => {
     expect(isOpfsPathInDirectory('avatars/nested/photo.png', '/avatars')).toBe(false);
     expect(isOpfsPathInsideDirectory('avatars/nested/photo.png', '/avatars')).toBe(true);
     expect(isOpfsPathInsideDirectory('avatars/nested/photo.png', '/')).toBe(true);
+  });
+
+  describe('回滚快照与临时命名', () => {
+    /** 记录后端收到的调用路径；用来观察服务层做了几次快照。 */
+    const recordingFilesystem = (record: { reads: string[]; writes: string[] }): StorageFilesystemFactory => {
+      return (rootDir, context) => {
+        const inner = createOpfsStorageFilesystem(rootDir, context);
+        const openRead = inner.openRead.bind(inner);
+        const openWrite = inner.openWrite.bind(inner);
+        vi.spyOn(inner, 'openRead').mockImplementation(path => {
+          record.reads.push(path);
+          return openRead(path);
+        });
+        vi.spyOn(inner, 'openWrite').mockImplementation(path => {
+          record.writes.push(path);
+          return openWrite(path);
+        });
+        return inner;
+      };
+    };
+
+    it('copyDirectory 对每个目标只取一次回滚快照', async () => {
+      // 每次快照都要把已有内容整份转存到临时文件；取两次等于把同一份数据抄两遍，
+      // 在桌面后端上还是两轮跨进程往返。
+      const record = { reads: [] as string[], writes: [] as string[] };
+      const { service } = createService({ filesystem: recordingFilesystem(record) });
+      await service.upload(new File(['a'], 'a.txt', { type: 'text/plain' }), { path: '/docs' });
+      await service.upload(new File(['b'], 'b.txt', { type: 'text/plain' }), { path: '/docs' });
+      record.reads.length = 0;
+
+      await service.renameDirectory('/docs', 'papers');
+
+      expect(record.reads.filter(path => path.startsWith('papers/'))).toEqual(['papers/a.txt', 'papers/b.txt']);
+    });
+
+    it('临时文件名带随机段，同一毫秒内的两个上下文不会撞名', async () => {
+      // 两个标签页各有一份从 0 开始的序号；只靠 `Date.now()-序号`，同毫秒启动的两页会
+      // 生成同名临时文件，互相覆盖对方的回滚快照。
+      vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+      const record = { reads: [] as string[], writes: [] as string[] };
+      const filesystem = recordingFilesystem(record);
+      const first = createService({ filesystem }).service;
+      const second = createService({ filesystem }).service;
+
+      await first.upload(new File(['v1'], 'doc.txt', { type: 'text/plain' }));
+      record.writes.length = 0;
+      await first.upload(new File(['v2'], 'doc.txt', { type: 'text/plain' }), { overwrite: true });
+      await second.upload(new File(['v3'], 'doc.txt', { type: 'text/plain' }), { overwrite: true });
+
+      const temporaries = record.writes.filter(isTemporaryStorageName);
+      expect(temporaries.length).toBeGreaterThanOrEqual(2);
+      expect(new Set(temporaries).size).toBe(temporaries.length);
+    });
   });
 });

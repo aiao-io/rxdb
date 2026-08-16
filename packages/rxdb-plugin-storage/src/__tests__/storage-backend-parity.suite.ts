@@ -307,6 +307,41 @@ export function storageBackendParitySuite(backend: ParityBackend): void {
       await expect(backend.temporaryNames()).resolves.toEqual([]);
     });
 
+    it('存在性判断在路径被另一种条目占用时回 false，而不是抛错', async () => {
+      // 两个后端曾在这里分叉：OPFS 句柄抛 TypeMismatchError，桌面 stat 直接回 false。
+      // 方法签名是 boolean，「那里是个文件」正是「那里没有目录」，调用方不该被迫 catch。
+      const filesystem = backend.createRawFilesystem();
+      try {
+        await filesystem.ensureRoot();
+        await filesystem.ensureDirectory('/box');
+        const writer = await filesystem.openWrite('plain.txt');
+        await writer.write(new TextEncoder().encode('x'));
+        await writer.close();
+
+        await expect(filesystem.directoryExists('/plain.txt')).resolves.toBe(false);
+        await expect(filesystem.fileExists('box')).resolves.toBe(false);
+        // 真正存在的那一侧仍然为真，确认上面两条不是「恒 false」。
+        await expect(filesystem.directoryExists('/box')).resolves.toBe(true);
+        await expect(filesystem.fileExists('plain.txt')).resolves.toBe(true);
+      } finally {
+        filesystem.dispose();
+      }
+    });
+
+    it('删除存储根被显式拒绝，而不是各后端各干各的', async () => {
+      // 根目录一旦没了，后续所有操作都落空。OPFS 曾退化成 removeEntry('')，
+      // 桌面则会真的把根删掉——两种都不该发生，且都不该是静默的。
+      const filesystem = backend.createRawFilesystem();
+      try {
+        await filesystem.ensureRoot();
+
+        await expect(filesystem.removeDirectory('/')).rejects.toMatchObject({ name: 'StorageInvalidPathError' });
+        await expect(filesystem.directoryExists('/')).resolves.toBe(true);
+      } finally {
+        filesystem.dispose();
+      }
+    });
+
     it('含空格、非 ASCII 与保留字符的名字往返一致', async () => {
       const { service } = makeService();
       // 桌面后端要把这些字符编码成原生文件系统接受的物理名再解码回来；

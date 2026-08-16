@@ -183,6 +183,19 @@ const stripMimeParameters = (value: string): string => {
   return (semicolon === -1 ? value : value.slice(0, semicolon)).trim().toLowerCase();
 };
 
+/**
+ * 生成临时文件名里的随机段。
+ *
+ * @remarks
+ * 用 `crypto.getRandomValues` 而不是 `crypto.randomUUID`：后者只在安全上下文里有定义，
+ * 而本插件在 `http://` 的本地调试页上也要能跑。`Math.random()` 同样不行 ——
+ * 它在多个上下文之间没有任何不相撞的保证，而这正是这段随机数存在的全部理由。
+ */
+const randomToken = (): string => {
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+};
+
 /** 浏览目录时返回的子目录条目。 */
 export interface StorageDirectoryEntry {
   /** 用于可辨识联合的目录标记。 */
@@ -521,6 +534,10 @@ export class RxdbFileStorage {
       document.body.appendChild(anchor);
       appended = true;
       anchor.click();
+      // click() 只是把下载**排进队列**，浏览器要到之后才去读这个 blob。
+      // 同步 revoke 在部分浏览器上会赶在读取之前把 URL 拆掉，产出一个空文件 ——
+      // 这种失败不抛错，只是悄悄给出坏文件。让出一个宏任务把读取排到回收之前。
+      await new Promise(resolve => setTimeout(resolve, 0));
     } finally {
       if (appended) {
         anchor.remove();
@@ -913,8 +930,7 @@ export class RxdbFileStorage {
       return this.renameDirectoryWithMove(targetExists, sourcePath, targetPath, moves, targetMetas);
     }
 
-    const backupPath =
-      targetExists ? `/.rxdb-storage-journal-${Date.now()}-${Math.random().toString(36).slice(2)}` : null;
+    const backupPath = targetExists ? `/.rxdb-storage-journal-${Date.now()}-${randomToken()}` : null;
     const backupJournal: DirectoryCopyJournal = { files: [], createdDirectories: [] };
     const copyJournal: DirectoryCopyJournal = { files: [], createdDirectories: [] };
     const removedTargetMetas: StorageFileMeta[] = [];
@@ -1171,9 +1187,17 @@ export class RxdbFileStorage {
     await this.discardFileState(previousFile);
   }
 
+  /**
+   * 造一个不会与其他上下文相撞的临时文件名。
+   *
+   * @remarks
+   * 序号只在**本实例内**递增，时间戳只有毫秒精度：同一毫秒里启动的两个标签页会
+   * 生成一模一样的名字，于是各自的回滚快照互相覆盖 —— 回滚时还原出的是另一个页面的内容。
+   * 随机段是这里唯一真正提供跨上下文唯一性的部分，时间戳与序号只留作可读的排序线索。
+   */
   private createTemporaryFilePath(purpose: string): string {
     this.#temporaryFileSequence += 1;
-    return `.rxdb-storage-${purpose}-${Date.now()}-${this.#temporaryFileSequence}`;
+    return `.rxdb-storage-${purpose}-${Date.now()}-${this.#temporaryFileSequence}-${randomToken()}`;
   }
 
   private async streamResponseToFile(response: Response, opfsPath: string, signal?: AbortSignal): Promise<number> {
@@ -1620,10 +1644,12 @@ export class RxdbFileStorage {
       }
 
       const targetOpfsPath = joinDirectoryAndFileName(targetPath, name);
+      // 这里已经自己持有快照并登记进 journal，因此写入走不带回滚的那条：
+      // 换成 writeBlobToPath 会让它再取一份同样的快照，等于把每个已有目标整份抄两遍。
       const previous = await this.readFileIfExists(targetOpfsPath);
       const file = await this.filesystem.readBlob(joinDirectoryAndFileName(sourcePath, name));
       try {
-        await this.writeBlobToPath(targetOpfsPath, file);
+        await this.writeBlobWithoutRollback(targetOpfsPath, file);
       } catch (error) {
         return this.throwAfterRollback(error, () => this.restoreFileState(targetOpfsPath, previous));
       }

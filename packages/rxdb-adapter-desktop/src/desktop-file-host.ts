@@ -21,6 +21,8 @@ import { open, mkdir, readdir, rename, rm, stat, type FileHandle } from 'node:fs
 import { dirname, join, resolve, sep } from 'node:path';
 import { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from './desktop-error.js';
 import {
+  DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION,
+  DESKTOP_HOST_MAX_QUEUED_LOCKS_PER_NAME,
   DESKTOP_HOST_PROTOCOL_VERSION,
   parseDesktopHostFileRequest,
   type DesktopHostFileEntry,
@@ -80,6 +82,13 @@ export interface DesktopFileHost {
   handle(request: unknown): Promise<DesktopHostFileResponse>;
   /** 当前打开的会话数，用于诊断与关停检查。 */
   readonly openSessionCount: number;
+  /**
+   * 当前仍被跟踪的锁名个数，用于诊断。
+   *
+   * @remarks
+   * 锁名是逐文件的：稳态下它应当回到 0，长期只增不减就说明队列没被回收。
+   */
+  readonly trackedLockNameCount: number;
   /** 关闭全部会话，通常在应用退出前调用。 */
   closeAll(): void;
 }
@@ -171,9 +180,12 @@ const toErrorResponse = (error: unknown): DesktopHostFileResponse => {
  * 判断一次读写是否落在存储根之内。
  *
  * @remarks
- * 协议层已经逐段挡过 `..` / 绝对路径 / 盘符，这里是**最后一道**：
- * 符号链接与大小写不敏感卷都可能让逐段校验通过的路径最终解析到根之外，
- * 只有拼完再比前缀才拦得住。
+ * 协议层已经逐段挡过 `..` / 绝对路径 / 盘符，这里是**最后一道**：逐段校验看的是字面量，
+ * 拼接与规范化之后才知道路径最终落在哪里，因此拼完再比一次前缀。
+ *
+ * 只做词法判定 —— `resolve` 不读文件系统，因此**拦不住符号链接**：根内的一个链接指到根外时，
+ * 这里会放行。真正的防线是「存储根由宿主应用独占」这条前提；根目录被外部塞进链接已经等同于
+ * 数据目录失守，不在本函数的威胁模型内。要覆盖它得用 `realpath`，而目标在写入前往往还不存在。
  */
 const resolveWithinRoot = (root: string, relativePath: string): string => {
   const absolute = relativePath === '' ? root : resolve(root, relativePath);
@@ -239,21 +251,39 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
     return [...queue.held.values()].every(mode => mode === 'shared');
   };
 
-  /** 按 FIFO 推进队列；队首拿不到就整队停住，避免独占请求被共享流饿死。 */
+  /**
+   * 按 FIFO 推进队列；队首拿不到就整队停住，避免独占请求被共享流饿死。
+   *
+   * @remarks
+   * 推进完顺手把空队列删掉：锁名是逐文件的，长跑的 host 不清理就会按访问过的文件数无界增长。
+   * 所有释放路径（release / 会话回收 / 拒绝排队者）末尾都会走到这里，因此回收点只此一处。
+   */
   const pump = (name: string): void => {
-    const queue = queueOf(name);
+    const queue = queues.get(name);
+    if (!queue) return;
     while (queue.waiting.length > 0 && canGrant(queue, queue.waiting[0])) {
       const waiter = queue.waiting.shift() as LockWaiter;
       queue.held.set(waiter.lockId, waiter.mode);
       waiter.grant();
     }
+    if (queue.held.size === 0 && queue.waiting.length === 0) {
+      queues.delete(name);
+    }
   };
 
   const acquireLock = (sessionId: string, name: string, mode: DesktopHostFileLockMode): Promise<string> => {
     const session = requireSession(sessionId);
+    const queue = queueOf(name);
+    if (queue.waiting.length >= DESKTOP_HOST_MAX_QUEUED_LOCKS_PER_NAME) {
+      // 等待者不超时（对齐 Web Locks），队列因此只会越堆越长。到这个量级只可能是调用方失控。
+      throw new RxDBAdapterDesktopError(
+        'protocol_violation',
+        `lock ${name} already has ${DESKTOP_HOST_MAX_QUEUED_LOCKS_PER_NAME} queued waiters`
+      );
+    }
     const lockId = randomUUID();
     return new Promise<string>((grantResolve, grantReject) => {
-      queueOf(name).waiting.push({
+      queue.waiting.push({
         lockId,
         sessionId,
         mode,
@@ -273,7 +303,7 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
       throw new RxDBAdapterDesktopError('protocol_violation', `lock ${lockId} is not held by this session`);
     }
     session.lockNames.delete(lockId);
-    queueOf(name).held.delete(lockId);
+    queues.get(name)?.held.delete(lockId);
     pump(name);
   };
 
@@ -311,7 +341,7 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
     for (const lockId of [...session.lockNames.keys()]) {
       const name = session.lockNames.get(lockId) as string;
       session.lockNames.delete(lockId);
-      queueOf(name).held.delete(lockId);
+      queues.get(name)?.held.delete(lockId);
       pump(name);
     }
     dropWaiters(sessionId);
@@ -386,6 +416,14 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
   };
 
   const beginWrite = async (session: FileSession, relativePath: string): Promise<string> => {
+    if (session.writes.size >= DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION) {
+      // 每个挂起的写入都占着一个打开的临时文件句柄，只有 commit/abort 才归还。
+      // 不设上限，一个只 begin 不 commit 的 renderer 就能把宿主的 fd 耗光，连带数据库也打不开。
+      throw new RxDBAdapterDesktopError(
+        'protocol_violation',
+        `session already has ${DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION} pending writes`
+      );
+    }
     const target = absolutePath(relativePath);
     const writeId = randomUUID();
     const temporaryPath = join(dirname(target), `.${writeId}.rxdb-tmp`);
@@ -400,11 +438,35 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
   };
 
   /**
+   * 把目录项的变更刷到盘上。
+   *
+   * @remarks
+   * `rename` 的原子性只覆盖「要么旧要么新」，不覆盖「已经落盘」：目录项还在页缓存里时掉电，
+   * 重启后看到的可能仍是改名前的状态 —— 内容已 fsync 也救不回来，因为指向它的那条目录项没落。
+   *
+   * Windows 打不开目录句柄（`open` 回 EISDIR/EPERM/EACCES），那里的 rename 由文件系统日志保证，
+   * 只吞这三个 errno；其余失败照常上抛，否则「提交成功」就成了没有依据的断言。
+   */
+  const syncDirectory = async (directoryPath: string): Promise<void> => {
+    let handle: FileHandle | undefined;
+    try {
+      handle = await open(directoryPath, 'r');
+      await handle.sync();
+    } catch (error) {
+      const errno = readErrno(error);
+      if (errno !== 'EISDIR' && errno !== 'EPERM' && errno !== 'EACCES') throw error;
+    } finally {
+      await handle?.close().catch(() => undefined);
+    }
+  };
+
+  /**
    * 提交一次写入。
    *
    * @remarks
-   * `sync()` 必须在 `rename()` 之前：rename 本身是原子的，但它只保证目录项的替换原子，
-   * 不保证文件内容已经落盘。少了这一步，掉电后目标可能指向一个内容为空洞的新 inode。
+   * 顺序是不变式的一部分：内容 `sync` → `close` → `rename` → 父目录 `sync`。
+   * 内容先落盘，否则掉电后目标会指向一个内容为空洞的新 inode；父目录后落盘，
+   * 否则改名本身可能丢失（见 {@link syncDirectory}）。
    */
   const commitWrite = async (session: FileSession, writeId: string): Promise<void> => {
     const pending = requireWrite(session, writeId);
@@ -413,6 +475,7 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
       await pending.handle.sync();
       await pending.handle.close();
       await rename(pending.temporaryPath, pending.targetPath);
+      await syncDirectory(dirname(pending.targetPath));
     } catch (error) {
       await rm(pending.temporaryPath, { force: true }).catch(() => undefined);
       throw toFilesystemError(error, pending.targetPath);
@@ -507,6 +570,9 @@ export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopF
     },
     get openSessionCount(): number {
       return sessions.size;
+    },
+    get trackedLockNameCount(): number {
+      return queues.size;
     },
     closeAll: (): void => {
       for (const sessionId of [...sessions.keys()]) void closeSession(sessionId);

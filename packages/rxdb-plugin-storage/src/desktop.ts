@@ -34,7 +34,7 @@ import type {
   StorageFilesystemFactory,
   StorageFileWriter
 } from './filesystem/storage-filesystem.js';
-import { normalizeDirectoryPath, normalizeRelativeOpfsPath } from './paths.js';
+import { normalizeDirectoryPath, normalizeRelativeOpfsPath, normalizeRemovableDirectoryPath } from './paths.js';
 
 /** {@link createDesktopStorageFilesystem} 的可选参数。 */
 export interface DesktopStorageFilesystemOptions {
@@ -234,12 +234,21 @@ class DesktopLockBackend implements Pick<LockManager, 'request'> {
     const mode: DesktopHostFileLockMode = options.mode === 'shared' ? 'shared' : 'exclusive';
     const sessionId = await this.session();
     const acquired = await this.send({ kind: 'file.lockAcquire', sessionId, name, mode });
+    const release = (): Promise<unknown> =>
+      this.send({ kind: 'file.lockRelease', sessionId, lockId: acquired.result.lockId });
 
+    let value: T;
     try {
-      return await callback({ name, mode });
-    } finally {
-      await this.send({ kind: 'file.lockRelease', sessionId, lockId: acquired.result.lockId });
+      value = await callback({ name, mode });
+    } catch (error) {
+      // 已经在错误路径上：释放失败再抛一次会盖住临界区里那个真正要修的错误。
+      await release().catch(() => undefined);
+      throw error;
     }
+
+    // 成功路径上必须抛：释放失败意味着锁还挂在 host 上，后续临界区会永久阻塞。
+    await release();
+    return value;
   }
 }
 
@@ -270,8 +279,10 @@ class DesktopStorageFilesystem implements StorageFilesystem {
   }
 
   async removeDirectory(directoryPath: string): Promise<void> {
+    // 校验在发请求之前：host 收到根路径会真的把存储根删掉，此后所有操作都落空。
+    const path = this.directoryPath(normalizeRemovableDirectoryPath(directoryPath));
     const sessionId = await this.session();
-    await this.send({ kind: 'file.rmdir', sessionId, path: this.directoryPath(directoryPath) });
+    await this.send({ kind: 'file.rmdir', sessionId, path });
   }
 
   async *list(directoryPath: string): AsyncGenerator<StorageFilesystemEntry> {
@@ -424,10 +435,27 @@ class DesktopStorageFilesystem implements StorageFilesystem {
     }
   }
 
+  /**
+   * 取一帧内容。
+   *
+   * @remarks
+   * 请求长度恒为正数 {@link FRAME_BYTES}，因此「非 eof 帧必然至少推进一个字节」是协议不变量。
+   * 不校验它，坏掉的 host 只要一直回空的非结束帧，{@link DesktopStorageFilesystem.readBlob}
+   * 与 {@link DesktopStorageFilesystem.openRead} 的读循环就会原地空转 —— 调用方看到的是永久挂起，
+   * 而不是一个能上报的错误。
+   */
   private async readFrame(path: string, offset: number): Promise<DesktopHostFileReadResult> {
     const sessionId = await this.session();
     const { result } = await this.send({ kind: 'file.read', sessionId, path, offset, length: FRAME_BYTES });
-    return assertReadResult(result);
+    const frame = assertReadResult(result);
+    if (frame.chunk.byteLength === 0 && !frame.eof) {
+      throw new StorageBackendError(
+        'backend_internal_error',
+        `desktop host returned an empty non-final read frame at offset ${offset}: ${path}`,
+        result
+      );
+    }
+    return frame;
   }
 }
 
@@ -450,8 +478,24 @@ const assertStat = (result: DesktopHostFileStat | null): DesktopHostFileStat | n
   return result;
 };
 
+/**
+ * 校验目录列表的形状。
+ *
+ * @remarks
+ * 逐条校验而不是只看外层是不是数组：条目名会直接进 {@link decodePhysicalName}，
+ * 缺名的条目会在那里炸成 `TypeError`，调用方拿到的错误既没有稳定 code 也指不出是 host 的问题。
+ */
 const assertEntries = (result: readonly DesktopHostFileEntry[]): readonly DesktopHostFileEntry[] => {
   if (!Array.isArray(result)) throw invalidResult('directory listing', result);
+  for (const entry of result) {
+    const isValid =
+      typeof entry === 'object' &&
+      entry !== null &&
+      typeof entry.name === 'string' &&
+      entry.name !== '' &&
+      (entry.kind === 'directory' || entry.kind === 'file');
+    if (!isValid) throw invalidResult('directory entry', entry);
+  }
   return result;
 };
 

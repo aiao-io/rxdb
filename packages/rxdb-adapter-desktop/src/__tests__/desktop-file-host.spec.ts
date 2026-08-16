@@ -3,7 +3,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createDesktopFileHost, type DesktopFileHost } from '../desktop-file-host.js';
-import type { DesktopHostFileResponse } from '../desktop-host-protocol.js';
+import {
+  DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION,
+  DESKTOP_HOST_MAX_QUEUED_LOCKS_PER_NAME,
+  type DesktopHostFileResponse
+} from '../desktop-host-protocol.js';
 
 const textOf = (value: string): Uint8Array => new TextEncoder().encode(value);
 
@@ -362,6 +366,42 @@ describe('createDesktopFileHost', () => {
     host.closeAll();
 
     expect(host.openSessionCount).toBe(0);
+  });
+
+  it('prunes a lock name once nobody holds or waits on it', async () => {
+    // 锁名是逐文件的。长跑的 host 不清理，这张表就按访问过的文件数无界增长。
+    const acquired = expectOk(
+      await host.handle({ kind: 'file.lockAcquire', sessionId, name: 'files:/a', mode: 'exclusive' }),
+      'file.lockAcquire'
+    );
+    expect(host.trackedLockNameCount).toBe(1);
+
+    await host.handle({ kind: 'file.lockRelease', sessionId, lockId: acquired.result.lockId });
+
+    expect(host.trackedLockNameCount).toBe(0);
+  });
+
+  it('caps pending writes per session instead of holding unbounded file handles', async () => {
+    // 每个未提交的写入都占着一个打开的 fd；不设上限，一个 renderer 就能把 host 的 fd 耗尽。
+    for (let index = 0; index < DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION; index++) {
+      expectOk(await host.handle({ kind: 'file.writeBegin', sessionId, path: `bulk/${index}.txt` }), 'file.writeBegin');
+    }
+
+    expectError(await host.handle({ kind: 'file.writeBegin', sessionId, path: 'bulk/overflow.txt' }), 'protocol_violation');
+  });
+
+  it('caps queued lock waiters per name instead of growing the queue without bound', async () => {
+    const other = await openSession();
+    await host.handle({ kind: 'file.lockAcquire', sessionId, name: 'files:/a', mode: 'exclusive' });
+    const queued = Array.from({ length: DESKTOP_HOST_MAX_QUEUED_LOCKS_PER_NAME }, () =>
+      host.handle({ kind: 'file.lockAcquire', sessionId: other, name: 'files:/a', mode: 'exclusive' })
+    );
+
+    const overflow = await host.handle({ kind: 'file.lockAcquire', sessionId: other, name: 'files:/a', mode: 'exclusive' });
+
+    expectError(overflow, 'protocol_violation');
+    await host.handle({ kind: 'file.close', sessionId: other });
+    await Promise.all(queued);
   });
 
   it('maps a structural filesystem failure onto a stable code rather than a generic host error', async () => {
