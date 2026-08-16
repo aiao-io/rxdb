@@ -195,7 +195,8 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 - **做什么**：
   1. 用原生 `http` 服务指定目录，缺文件回退 `index.html`（SPA），不往 dist 里 copy `404.html`；
   2. 端口被占立刻 `EADDRINUSE`，**不** `detectPort` 换端口；
-  3. 必须作为 Playwright 的直接 `node` 子进程启动。再套 `nx run …:serve-e2e` 会把真正监听端口的进程变成孙子，teardown 杀不掉，下次就报 “port already used”。
+  3. 启动前拒绝 `<base href>` 不是 `/` / `./` / 空的产物。`website:build` 若把 `/demo/angular/` 写进 e2e dist，整套 Playwright 会变成「goto 200 + element not found」；
+  4. 必须作为 Playwright 的直接 `node` 子进程启动。再套 `nx run …:serve-e2e` 会把真正监听端口的进程变成孙子，teardown 杀不掉，下次就报 “port already used”。
 - **何时手动跑**：改了静态服务本身、或想在不启动 Playwright 的情况下确认某份 `dist/` 能被 SPA fallback 打开。
 
 ## 8. 覆盖率

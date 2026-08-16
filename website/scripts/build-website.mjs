@@ -52,14 +52,17 @@ export const steps = [
   },
   {
     name: '构建 Angular 演示',
-    command: 'pnpm nx build dev-rxdb-angular --base-href=/demo/angular/',
+    // production,website：保留 production 的 hashing / SW，同时把产物写到独立目录。
+    // 绝不能写回 dist/apps/dev-rxdb-angular——那是 Angular e2e 的 webServer 根。
+    // 共用这份 dist 时，<base href="/demo/angular/"> 会让 localhost:8200 上整套 e2e 全红。
+    command: 'pnpm nx build dev-rxdb-angular --configuration=production,website',
     postBuild: () => {
       const targetDir = join(repoRoot, 'website/public/demo/angular');
       console.log('  → 清理 website/public/demo/angular');
       rmSync(targetDir, { recursive: true, force: true });
       console.log('  → 复制 Angular 构建到 website/public/demo/angular');
       // 用 cpSync 而不是 shell 的 `cp -r`：少一次 shell 往返，且不把整个脚本绑死在 Unix 上。
-      cpSync(join(repoRoot, 'dist/apps/dev-rxdb-angular/browser'), targetDir, { recursive: true });
+      cpSync(join(repoRoot, 'dist/apps/dev-rxdb-angular-website/browser'), targetDir, { recursive: true });
     }
   },
   {

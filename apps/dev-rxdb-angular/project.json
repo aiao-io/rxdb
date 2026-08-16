@@ -142,6 +142,10 @@
           ],
           "outputHashing": "all",
           "serviceWorker": "apps/dev-rxdb-angular/ngsw-config.json"
+        },
+        "website": {
+          "baseHref": "/demo/angular/",
+          "outputPath": "dist/apps/dev-rxdb-angular-website"
         }
       }
     },

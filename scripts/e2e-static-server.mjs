@@ -110,6 +110,31 @@ export function parseArgs(argv) {
   return { root, port, host };
 }
 
+export function readDocumentBaseHref(html) {
+  const match = html.match(/<base\b[^>]*\bhref\s*=\s*(["'])(.*?)\1/i);
+  return match ? match[2] : null;
+}
+
+/**
+ * website:build 曾经用 `--base-href=/demo/angular/` 覆盖 e2e 的 dist。
+ * Playwright 在 `/` 上 serve 那份产物时，JS/CSS 全去 `/demo/angular/...`，
+ * `page.goto()` 仍 200，整套用例变成 "element(s) not found"。
+ * 启动前把这种产物拦下来，比 112 条超时有用。
+ */
+export function assertCompatibleBaseHref(rootPath) {
+  const indexFile = join(rootPath, 'index.html');
+  const href = readDocumentBaseHref(readFileSync(indexFile, 'utf8'));
+  if (href == null || href === '' || href === '/' || href === './') return;
+  const error = new Error(
+    `Static root is not e2e-compatible: ${indexFile} has <base href="${href}">. ` +
+      'Playwright serves this folder at http://localhost:<port>/, so a deploy base href 404s every asset ' +
+      'and the suite fails with "element(s) not found". ' +
+      'Rebuild with: pnpm nx build dev-rxdb-angular'
+  );
+  error.code = 'EBASEHREF';
+  throw error;
+}
+
 export function assertStaticRoot(rootPath) {
   if (!existsSync(rootPath) || !statSync(rootPath).isDirectory()) {
     const error = new Error(`Static root not found: ${rootPath}`);
@@ -122,6 +147,7 @@ export function assertStaticRoot(rootPath) {
     error.code = 'ENOENT';
     throw error;
   }
+  assertCompatibleBaseHref(rootPath);
 }
 
 export function safeJoin(base, requestPath) {

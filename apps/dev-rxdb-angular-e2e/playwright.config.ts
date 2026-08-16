@@ -91,6 +91,10 @@ export default defineConfig({
    * Nx 因此把它标成 flaky —— 一条把真实失效模式盖成「偶发」的假信号。
    * 复现只需在 8200 上挂一个返回空 HTML 的服务器再跑本套件，症状逐字一致。
    *
+   * 同类全红：website:build 若把 `--base-href=/demo/angular/` 写进
+   * `dist/apps/dev-rxdb-angular`，本 webServer 仍 200，但脚本去 `/demo/angular/*.js`。
+   * 网站演示必须写到 `dist/apps/dev-rxdb-angular-website`；e2e-static-server 启动时也会拒收这种产物。
+   *
    * 改成 false 后端口被占会**当场显式报错**（"8200 is already used"），
    * 而不是静默跑在一个不知道是什么的服务器上：一个显式失败，好过一次说明不了任何事的绿。
    * 端口必须保持 8200：应用用 `window.location.port === '8200'` 强制 IDB + e2e DB 隔离。

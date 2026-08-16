@@ -8,7 +8,15 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
-import { assertStaticRoot, closeStaticServer, parseArgs, safeJoin, startStaticServer } from './e2e-static-server.mjs';
+import {
+    assertCompatibleBaseHref,
+    assertStaticRoot,
+    closeStaticServer,
+    parseArgs,
+    readDocumentBaseHref,
+    safeJoin,
+    startStaticServer
+} from './e2e-static-server.mjs';
 
 const execFileAsync = promisify(execFile);
 const scriptPath = fileURLToPath(new URL('./e2e-static-server.mjs', import.meta.url));
@@ -68,6 +76,24 @@ test('parseArgs 拒绝缺失参数与非法端口', () => {
 test('parseArgs 不认没写进 usage 的首字母短写', () => {
   assert.throws(() => parseArgs(['-r', 'dist/app', '--port', '8200']), /Unknown option/);
   assert.throws(() => parseArgs(['--root', 'dist/app', '-p', '8200']), /Unknown option/);
+});
+
+test('assertCompatibleBaseHref 拒绝网站演示用的非根 base href', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'e2e-static-base-'));
+  await writeFile(join(root, 'index.html'), '<!doctype html><base href="/demo/angular/"><title>demo</title>');
+
+  assert.equal(readDocumentBaseHref('<base href="/demo/angular/">'), '/demo/angular/');
+  assert.throws(() => assertCompatibleBaseHref(root), { code: 'EBASEHREF' });
+  assert.throws(() => assertStaticRoot(root), { code: 'EBASEHREF' });
+});
+
+test('assertCompatibleBaseHref 接受 / 与缺失 base 标签', async () => {
+  const root = await createFixture();
+  assert.equal(readDocumentBaseHref('<base href="/" />'), '/');
+  assert.doesNotThrow(() => assertCompatibleBaseHref(root));
+
+  await writeFile(join(root, 'index.html'), '<!doctype html><base href="/"><title>spa</title>');
+  assert.doesNotThrow(() => assertCompatibleBaseHref(root));
 });
 
 test('assertStaticRoot 在目录或 index.html 缺失时抛 ENOENT', async () => {

@@ -49,3 +49,16 @@ test('every step carries a name and a command', () => {
     assert.ok(step.command.length > 0);
   }
 });
+
+test('Angular demo build writes to a dedicated output path, not the e2e dist', () => {
+  const step = steps.find(item => item.name === '构建 Angular 演示');
+
+  assert.ok(step, 'missing Angular demo step');
+  assert.match(step.command, /--configuration=production,website/);
+  assert.doesNotMatch(step.command, /--base-href=/);
+  assert.doesNotMatch(step.command, /dist\/apps\/dev-rxdb-angular(?:["'\s]|$)/);
+
+  const source = String(step.postBuild);
+  assert.match(source, /dev-rxdb-angular-website\/browser/);
+  assert.doesNotMatch(source, /dev-rxdb-angular\/browser/);
+});
