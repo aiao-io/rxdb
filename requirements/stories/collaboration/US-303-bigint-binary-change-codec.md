@@ -21,7 +21,7 @@ INVEST 检查清单:
 
 # 用户故事：bigint/binary change codec 与系统迁移
 
-## ⏸️ 迁移部分已实现，但未投入使用（2026-08-16）
+## ⏸️ 迁移部分已实现，但未投入使用
 
 本 story 保持 `Done`——20 条 AC 中属于自己的全部通过，AC13 早已转给
 [US-304](./US-304-writer-lease-migration-fencing.md)，不因本次暂缓回退。

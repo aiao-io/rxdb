@@ -31,11 +31,11 @@ INVEST 检查清单:
 
 本故事收敛为 **Electron + SQLite** 一条路径，另外两半各自成story：
 
-| 范围                        | 归属                                                          |
-| --------------------------- | ------------------------------------------------------------- |
-| Electron SQLite（含三平台） | 本故事                                                        |
-| Electron PGlite data dir    | [US-208](./US-208-electron-pglite-data-directory.md)          |
-| Tauri SQLite（含三平台）    | [US-210](./US-210-tauri-sqlite-local-database.md)             |
+| 范围                        | 归属                                                 |
+| --------------------------- | ---------------------------------------------------- |
+| Electron SQLite（含三平台） | 本故事                                               |
+| Electron PGlite data dir    | [US-208](./US-208-electron-pglite-data-directory.md) |
+| Tauri SQLite（含三平台）    | [US-210](./US-210-tauri-sqlite-local-database.md)    |
 
 两条拆分线各有理由，都是 INVEST「Small」不成立：
 

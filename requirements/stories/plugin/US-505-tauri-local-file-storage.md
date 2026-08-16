@@ -151,7 +151,7 @@ lint/test/build 全绿。
 | 决策         | US-504 的结论                                                                                                                   | 对本故事的影响                                                                                                                                      |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 文件系统接缝 | 窄接口 `StorageFilesystem`（`packages/rxdb-plugin-storage/src/filesystem/storage-filesystem.ts`），经插件选项 `filesystem` 注入 | Tauri 侧只实现该接口 + 传输层，服务层的回滚 journal / 临时文件提交 / 快照补偿一行都不用重写                                                         |
-| 锁归宿       | 临界区**下沉 host 侧**：后端提供 `lockBackend`，桌面后端构造期即断言其存在，不存在静默单进程化路径                              | AC#9 改由 Rust 侧串行化承担；WKWebView / WebKitGTK 的 Web Locks 可用性**不是风险项**，无需验证                          |
+| 锁归宿       | 临界区**下沉 host 侧**：后端提供 `lockBackend`，桌面后端构造期即断言其存在，不存在静默单进程化路径                              | AC#9 改由 Rust 侧串行化承担；WKWebView / WebKitGTK 的 Web Locks 可用性**不是风险项**，无需验证                                                      |
 | 错误判别载体 | 新增 `StorageBackendError { code: StorageBackendErrorCode; detail? }`，现有 9 个错误类原样不动                                  | AC#4 / #8 / #11 的「稳定可判别错误」即该类；Rust 侧错误码按 US-504 的 `BACKEND_ERROR_CODES` 同型映射，未知码一律落 `backend_internal_error`，不裸抛 |
 
 另有一条 US-504 已定、本故事需照抄的行为分歧：物理名编码后单个路径分段超过 255 UTF-8
