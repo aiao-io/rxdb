@@ -30,9 +30,36 @@ export const REQUIRED_FORMAT_CONFIG_KEYS: Readonly<Partial<Record<FieldFormat['k
   richText: ['contentType']
 };
 
-/** 列出 `format` 缺失的必填配置键；`kind` 未知或无必填项时返回空数组。 */
+/**
+ * 列出 `format` 缺失的必填配置键；`kind` 未知或无必填项时返回空数组。
+ *
+ * @remarks
+ * 必须走 `Object.hasOwn`：`kind` 是未受信字符串，`REQUIRED_FORMAT_CONFIG_KEYS['toString']`
+ * 会取到 `Object.prototype.toString`，`?? []` 拦不住它，随后的 `.filter` 直接抛 TypeError。
+ */
 export const missingFormatConfigKeys = (kind: string, format: Record<string, unknown>): readonly string[] =>
-  (REQUIRED_FORMAT_CONFIG_KEYS[kind as FieldFormat['kind']] ?? []).filter(key => !(key in format));
+  (Object.hasOwn(REQUIRED_FORMAT_CONFIG_KEYS, kind) ? (REQUIRED_FORMAT_CONFIG_KEYS[kind as FieldFormat['kind']] ?? [])
+  : []
+  ).filter(key => !(key in format));
+
+/**
+ * 枚举型配置键的合法字面量。
+ *
+ * @remarks
+ * 注册期闸门判「这个值不在联合里」，线格式解析器判「这个值不能进 `FieldFormat`」——
+ * 两边判据必须同源，否则解析器会放行一个注册期拒绝的值，造出 `as FieldFormat` 的类型谎言。
+ */
+export const FORMAT_CONFIG_LITERALS: Readonly<Record<string, readonly string[]>> = {
+  contentType: ['text/markdown', 'text/html'],
+  scale: ['0..1', '0..100'],
+  unit: ['ms', 's', 'min', 'h', 'd'],
+  colorSpace: ['hex', 'rgb', 'hsl', 'hsv', 'lab', 'lch'],
+  display: ['date', 'time', 'datetime']
+};
+
+/** 按配置键取合法字面量；该键不是枚举型时返回 `undefined`。 */
+export const formatConfigLiteralsOf = (key: string): readonly string[] | undefined =>
+  Object.hasOwn(FORMAT_CONFIG_LITERALS, key) ? FORMAT_CONFIG_LITERALS[key] : undefined;
 
 /** `percentage` 各刻度的固有值域。 */
 export const PERCENTAGE_DOMAIN = {

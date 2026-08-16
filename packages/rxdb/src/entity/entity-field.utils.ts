@@ -15,7 +15,7 @@
  * 两层不互相调用：冻结层的语义缺陷不能通过复用传染给描述层。
  */
 import { RxDBError } from '../RxDBError.js';
-import { missingFormatConfigKeys } from './format-rules.js';
+import { formatConfigLiteralsOf, missingFormatConfigKeys } from './format-rules.js';
 import { isPlainRecord } from './json-safe.js';
 import {
   PropertyType,
@@ -476,7 +476,14 @@ function resolveRelationValueType(
   }
 
   const details = { namespace: metadata.namespace, entity: metadata.name, field: relation.name };
-  const primary = [...target.propertyMap.values()].find(prop => readFlag(prop, 'primary'));
+  const primaries = [...target.propertyMap.values()].filter(prop => readFlag(prop, 'primary'));
+  // 多主键与「目标未注册」同类：都是作者写错了元数据，不是可聚合的字段级违规，因此同样抛裸 RxDBError。
+  // 取 `find()` 的第一个等于让外键类型跟着 Map 插入顺序走 —— 属于「无 fallback 兜底」铁律禁止的静默兜底。
+  if (primaries.length > 1) {
+    const names = primaries.map(prop => prop.name).join('、');
+    throw new RxDBError(`${location} 的目标实体 ${namespace}/${relation.mappedEntity} 声明了多个主键：${names}`);
+  }
+  const primary = primaries[0];
   if (!primary) {
     throw new EntityRelationResolutionError(
       `${location} 的目标实体 ${namespace}/${relation.mappedEntity} 没有声明主键`,
@@ -677,7 +684,16 @@ function optionalString<K extends string>(
   return { [key]: requireString(record, key, path) } as { [P in K]?: string };
 }
 
-/** 校验单个 format 配置值的线格式。 */
+/**
+ * 校验单个 format 配置值的线格式。
+ *
+ * @remarks
+ * 线格式之外还要判字面量联合：`scale` / `contentType` / `unit` / `colorSpace` / `display`
+ * 在类型层都是字面量联合而非任意字符串，只判 `typeof === 'string'` 就会把
+ * `{ kind: 'percentage', scale: 'bogus' }` 断言成 `FieldFormat` —— 下游
+ * `validateFieldValue()` 拿它去查 `PERCENTAGE_DOMAIN` 会解构到 `undefined` 直接崩。
+ * 字面量表与注册期闸门同源（`format-rules.ts`）。
+ */
 function parseFormatConfigValue(key: string, value: unknown, path: string): number | string | readonly string[] {
   const wire = FORMAT_CONFIG_WIRE_TYPES[key as FieldFormatConfigKey];
   if (wire === 'number') {
@@ -688,8 +704,13 @@ function parseFormatConfigValue(key: string, value: unknown, path: string): numb
     if (Array.isArray(value) && value.every(item => typeof item === 'string')) return value as readonly string[];
     throw parseError(`${path}.${key}`, '必须是字符串数组');
   }
-  if (typeof value === 'string') return value;
-  throw parseError(`${path}.${key}`, '必须是字符串');
+  if (typeof value !== 'string') throw parseError(`${path}.${key}`, '必须是字符串');
+
+  const literals = formatConfigLiteralsOf(key);
+  if (literals && !literals.includes(value)) {
+    throw parseError(`${path}.${key}`, `必须是 ${literals.join(' | ')} 之一`);
+  }
+  return value;
 }
 
 /**

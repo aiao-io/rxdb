@@ -62,6 +62,9 @@ const withRelation = (relation: Record<string, unknown>): EntityMetadata =>
 const rulesOf = (metadata: EntityMetadata): MetadataValidationRule[] =>
   validateEntityMetadata(metadata).map(error => error.rule);
 
+/** `enum` / `options` 的合法载体：只有这两种 PropertyType 在类型层声明了这两个键。 */
+const ENUM_CARRIER_TYPES = new Set<PropertyType>([PropertyType.enum, PropertyType.stringArray]);
+
 /** 单值/多值冲突的 `kind:PropertyType` 组合，其余载体不匹配一律是 formatTypeMismatch。 */
 const CARDINALITY_CONFLICT_PAIRS = new Set([
   `multiSelect:${PropertyType.enum}`,
@@ -342,6 +345,34 @@ describe('validateEntityMetadata — AC#11 畸形输入不崩溃', () => {
     expect(rulesOf(withProperty({ name: 'field', type: PropertyType.string, ...extra }))).toEqual([rule]);
   });
 
+  // 直接索引规则表时，这些名字会取到原型链上的成员：`allowed` 恒为真值绕过 unknownFormat，
+  // 随后拿 `Object.prototype.toString` 当数组做 `.includes()` 抛 TypeError，整个聚合过程中断
+  it.each([['__proto__'], ['constructor'], ['toString'], ['valueOf'], ['hasOwnProperty']])(
+    'format.kind 为原型链名 %s → unknownFormat 而不是抛错',
+    kind => {
+      expect(rulesOf(withProperty({ name: 'field', type: PropertyType.string, format: { kind } }))).toEqual([
+        'unknownFormat'
+      ]);
+    }
+  );
+
+  it.each([
+    ['options 是 Map', new Map()],
+    ['options 是 Date', new Date()],
+    ['options 是类实例', new (class Holder {})()]
+  ])('%s → invalidOptionsConfig', (_label, options) => {
+    // 这些对象的 Object.entries() 都是空数组，只判「非数组非 null」会让它们一路进到本该 JSON-safe 的 DTO
+    expect(rulesOf(withProperty({ name: 'state', type: PropertyType.enum, enum: ['a'], options }))).toEqual([
+      'invalidOptionsConfig'
+    ]);
+  });
+
+  it('format 是类实例 → invalidFormatConfig', () => {
+    expect(rulesOf(withProperty({ name: 'field', type: PropertyType.string, format: new Date() }))).toEqual([
+      'invalidFormatConfig'
+    ]);
+  });
+
   it('未知 kind 放在不匹配的载体上仍报 unknownFormat', () => {
     expect(rulesOf(withProperty({ name: 'flag', type: PropertyType.boolean, format: { kind: 'bogus' } }))).toEqual([
       'unknownFormat'
@@ -426,8 +457,10 @@ describe('validateEntityMetadata — AC#12 结构 fixture 单向不变式', () =
       scalarTypes
         .filter(type => !carriers[kind].includes(type))
         .forEach(type => {
-          // 带上合法 enum，隔离 enum 族规则，只观察 format 族结论
-          const rules = rulesOf(withProperty({ name: 'field', type, enum: ['a'], format: { kind } }));
+          // 只给 enum/stringArray 载体带上合法 enum，隔离 enum 族规则，只观察 format 族结论。
+          // 其余类型不能带 enum：它们在类型层就没有这个键，带上会另报 invalidEnumConfig
+          const enumKey = ENUM_CARRIER_TYPES.has(type) ? { enum: ['a'] } : {};
+          const rules = rulesOf(withProperty({ name: 'field', type, ...enumKey, format: { kind } }));
           expect(rules, `${kind} on ${type}`).toEqual([
             CARDINALITY_CONFLICT_PAIRS.has(`${kind}:${type}`) ? 'cardinalityConflict' : 'formatTypeMismatch'
           ]);
