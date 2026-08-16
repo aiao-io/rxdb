@@ -2,7 +2,7 @@
 
 **登记日期**：2026-08-15  
 **状态**：停车。不是故事，没有 AC，**先别做**。  
-**来源**：对照 Cordis 读完 008 后划出的后续；并收口第一轮已标「Epic 008 外」的两项。
+**来源**：对照 Cordis 读完 008 后划出的后续；并收口已标「Epic 008 外」的两项。
 
 ## 这份文件是什么
 
@@ -20,15 +20,15 @@
 
 ## 总表
 
-| #     | 建议                                                        | 值不值                          | 何时另开                             | 为什么不在 008                             |
-| ----- | ----------------------------------------------------------- | ------------------------------- | ------------------------------------ | ------------------------------------------ |
-| P-001 | 按适配器名的就绪 Observable，替换布尔 `connected$`          | ✅                              | 015a 的内部 `Set` 先冻死；公开流另开 | 008 要的是内部纪元，不是订阅表面           |
-| P-002 | `afterAdapterReady` 钩子，**不**进 `#await_plugin_installs` | ❌ **动机已消失**（S-002 撤回） | 除非 015a 实测出新的死锁             | 它要绕开的那个环今天不存在                 |
-| P-003 | 插件 `Config` 用 Standard Schema 做运行时校验               | ⚠️ 可做，不急                   | 008 Done 之后，且真有热更新/HMR 需求 | 今天 options 是工厂闭包，没有热更          |
-| P-004 | DevTools 画 scope / 插件状态树                              | ⚠️ 008 已推迟                   | 013～015 状态机与 `label` 稳定之后   | 没有稳定树就画，画的是谎言                 |
-| P-005 | Provider → Repository 多库绑定                              | ✅ High，可与 008 **并行设计**  | 独立故事，三框架一次交付             | 作用域**可见性**，不是资源存活期           |
-| P-006 | 不可变 `session` / `OperationContext`                       | ✅ 另立                         | 独立故事                             | 可变实例字段，不是账本对称                 |
-| P-007 | 多 `RxDB` 实例的词法隔离（entity-manager 动态栈）           | ❌ 现在                         | 有第二个真实调用方再开               | 008 已否决 isolate；P-005 先解决 hook 选库 |
+| #     | 建议                                                        | 值不值                         | 何时另开                             | 为什么不在 008                             |
+| ----- | ----------------------------------------------------------- | ------------------------------ | ------------------------------------ | ------------------------------------------ |
+| P-001 | 按适配器名的就绪 Observable，替换布尔 `connected$`          | ✅                             | 015a 的内部 `Set` 先冻死；公开流另开 | 008 要的是内部纪元，不是订阅表面           |
+| P-002 | `afterAdapterReady` 钩子，**不**进 `#await_plugin_installs` | ❌ **动机不成立**              | 除非 015a 实测出新的死锁             | 它要绕开的那个环今天不存在                 |
+| P-003 | 插件 `Config` 用 Standard Schema 做运行时校验               | ⚠️ 可做，不急                  | 008 Done 之后，且真有热更新/HMR 需求 | 今天 options 是工厂闭包，没有热更          |
+| P-004 | DevTools 画 scope / 插件状态树                              | ⚠️ 008 已推迟                  | 013～015 状态机与 `label` 稳定之后   | 没有稳定树就画，画的是谎言                 |
+| P-005 | Provider → Repository 多库绑定                              | ✅ High，可与 008 **并行设计** | 独立故事，三框架一次交付             | 作用域**可见性**，不是资源存活期           |
+| P-006 | 不可变 `session` / `OperationContext`                       | ✅ 另立                        | 独立故事                             | 可变实例字段，不是账本对称                 |
+| P-007 | 多 `RxDB` 实例的词法隔离（entity-manager 动态栈）           | ❌ 现在                        | 有第二个真实调用方再开               | 008 已否决 isolate；P-005 先解决 hook 选库 |
 
 ---
 
@@ -52,32 +52,15 @@ rxdb.adapterReady$('local'); // Observable<boolean>，按名字，不是全局
 
 - 015a 把内部 `Set` 直接 `Object.defineProperty` 出去。
 - 继续让插件 `firstValueFrom(connected$)`。那是 search 死锁的一半。
-- 用 `localAdapter$` 冒充就绪。实例存在 ≠ bootstrap 完成（第一轮 R-001，已吸收）。
+- 用 `localAdapter$` 冒充就绪。实例存在 ≠ bootstrap 完成。
 
 **前置**：015 D2 / 015a 的 `Set` 先成为唯一真相。没有内部纪元，公开流只是把错判据订阅化。
 
 ---
 
-## P-002 `afterAdapterReady` 钩子 — 现在 ❌（动机已消失）
+## P-002 `afterAdapterReady` 钩子 — 现在 ❌（动机不成立）
 
-> ⚠️ **2026-08-15 复核：本条赖以成立的 S-002 已被撤回。**
-> 原文说「套上『install settle = active』会死锁」——不成立。`connect()` 在
-> `#connected_adapters.add` 与 `connected_sub.next(true)`（[:442-443](../packages/rxdb/src/RxDB.ts#L442-L443)）
-> **之后**才 `await this.#await_plugin_installs()`（:445），search 等的 `connected$` 此时已经是 `true`，
-> 没有环。既然没有环，「绕开 `#await_plugin_installs` 的第二条慢路径」就没有动机了。
->
-> 反过来，撤回 S-002 时冻结的 **S-002′** 直接否掉了这条钩子的收益：今天
-> `await db.connect()` 返回即 FTS 可用，是用户可见保证；把 FTS 挪到连接 Promise 之外**会破坏它**。
-> 该约束的正式落点是 [US-015 的 D2 附](stories/core/US-015-plugin-inject-dependency.md)。
->
-> 保留原文供追溯。若 015a 实测出**新的**死锁（而不是复述这一条），再重开。
-
-**原问题（前提已证伪）**
-
-~~S-002：search 的 `install()` 今天返回包含 FTS DDL 的 Promise。`connect()` 又 `await` 所有 `#plugin_install_promises`。套上「install settle = active」会死锁。~~
-
-015a 的主切法：`install()` 只做同步登记，FTS 走 `ready` / 后台。  
-另一刀：给一个**不进** `#await_plugin_installs` 的钩子，让慢工作挂在适配器就绪之后、连接 Promise 之外。
+这个钩子的设想是：给一个**不进** `#await_plugin_installs` 的入口，让慢工作挂在适配器就绪之后、连接 Promise 之外。
 
 ```ts
 // 示意，不是现行 API
@@ -86,7 +69,18 @@ rxdb.afterAdapterReady('local', async () => {
 });
 ```
 
-原文的裁决是「**二选一，不要两套**」：015a 若已经把 FTS 从 `install()` 拆走，这个钩子没有独立价值。复核后连「二选一」都不成立——按 S-002′，015a **不拆** FTS，两边都不做。只有 015a 实测发现「后台 Promise + `ready`」在四个插件里复制三遍时，才重开本条把慢路径收口。
+**它要绕开的那个环今天不存在。**「search 的 `install()` 返回含 FTS DDL 的 Promise，`connect()` 又
+`await` 所有 `#plugin_install_promises`，套上『install settle = active』会死锁」——次序不是这样。
+`connect()` 在 `#connected_adapters.add` 与 `connected_sub.next(true)`
+（[:442-443](../packages/rxdb/src/RxDB.ts#L442-L443)）**之后**才 `await this.#await_plugin_installs()`（:445），
+search 等的 `connected$` 此时已经是 `true`，没有环。
+
+**它的收益同样不成立。** 今天 `await db.connect()` 返回即 FTS 可用，是用户可见保证；把 FTS 挪到连接
+Promise 之外**会破坏它**。这条约束的正式落点是
+[US-015 的 D2 附](stories/core/US-015-plugin-inject-dependency.md)——015a **不拆** FTS，因此本条与
+「`install()` 只做同步登记、FTS 走 `ready` / 后台」两边都不做。
+
+只有 015a 实测发现「后台 Promise + `ready`」在四个插件里复制三遍时，才重开本条把慢路径收口。
 
 **不要做成**
 
@@ -94,8 +88,8 @@ rxdb.afterAdapterReady('local', async () => {
 - 插件作者同时写 `inject: ['adapter:local']` 和 `afterAdapterReady('local')`。双轨。
 - 把 Cordis 的 async apply 当宿主模型——Cordis **没有人在外面 await 所有 LOADING**。RxDB 的 `connect()` 会。
 
-**前置**：~~S-002 在 015a 里先有书面选择~~ → 已由 S-002′ 定死（`install()` 内只走
-`bootstrapTransaction` / `rawQuery`，不改对外时序）。本条无前置，因为本条现在不做。
+**前置**：无。本条现在不做——`install()` 内只走 `bootstrapTransaction` / `rawQuery`、不改对外时序
+这一点已由 [US-015 D2 附](stories/core/US-015-plugin-inject-dependency.md) 定死。
 
 ---
 
@@ -103,7 +97,7 @@ rxdb.afterAdapterReady('local', async () => {
 
 **问题**
 
-第一轮已写「插件配置运行时校验，可后置，不应塞入 US-015」。Cordis 用 Standard Schema + `intercept` 链合并配置。RxDB 的插件 options 是工厂闭包，`#freeze_config()` 冻的是**实例配置**，不是插件参数。没有 `fiber.update()`，没有 HMR。
+插件配置的运行时校验可后置，不应塞入 US-015。Cordis 用 Standard Schema + `intercept` 链合并配置。RxDB 的插件 options 是工厂闭包，`#freeze_config()` 冻的是**实例配置**，不是插件参数。没有 `fiber.update()`，没有 HMR。
 
 **另开的判据（缺一条就先别做）**
 
@@ -144,7 +138,7 @@ Epic 原文已推迟：没有稳定作用域树就谈不上展示。013 明确�
 
 ## P-005 Provider → Repository 多库绑定
 
-**问题**（第一轮原文，维持）
+**问题**
 
 基础查询 hook 通过 Entity 静态方法找 Repository，不读 Provider 里的 RxDB。`makeRxDBProvider()` 能隔离 context，却不能让 `useFind()` 等选择对应数据库。
 
@@ -171,7 +165,7 @@ Epic 原文已推迟：没有稳定作用域树就谈不上展示。013 明确�
 
 ## P-006 不可变 session / OperationContext
 
-**问题**（第一轮原文，维持）
+**问题**
 
 `rxdb.context = { userId }` 是全实例可变状态。写入、事务、同步若读这个字段，并发操作会互相踩。
 
@@ -224,16 +218,15 @@ Cordis 用 `isolate` + 原型影子让同一服务名在不同 Context 上指向
    → 015b / 016 / 017                   ← 价值待证，各自举证后才排期
 
 P-001            015a 内部 Set 冻死之后才谈公开流
-P-002            ❌ 不做（S-002 撤回，动机消失）
+P-002            ❌ 不做（动机不成立）
 P-004            015 状态机 + 016 事件进纪元之后（016 本身价值待证）
 P-005            可并行设计；实现最好等 017 的 owned/borrowed（017 本身价值待证）
 P-003 / P-006    008 全部 Done 后再立故事
 P-007            默认不做
 ```
 
-> 复核后：`015b` / `016` / `017` 已在 Epic 与 status-overview 标为**价值待证**，
+> 注意：`015b` / `016` / `017` 已在 Epic 与 status-overview 标为**价值待证**，
 > 且它们的故事文件至今未创建。依赖它们的停车位条目（P-004 / P-005）因此**没有可预期的解锁日期**——
 > 这不改变本文件的结论（都是「先别做」），但不要把上面的箭头读成排期承诺。
 
-008 的编码门槛复核后收敛为三条 AC 补写（S-004 / S-005 / S-007，全在 US-014 里），
-与本文件无关。本文件多一条实现 = 范围失控。
+008 的编码门槛收敛为三条 AC 补写（全在 US-014 里），与本文件无关。本文件多一条实现 = 范围失控。

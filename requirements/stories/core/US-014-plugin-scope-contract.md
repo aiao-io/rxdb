@@ -122,13 +122,13 @@ INVEST 检查清单:
 | 18  | `IRxDBPlugin` 的成员形状                                             | 跑 `packages/rxdb/src/__tests__/contracts/` 的类型契约测试             | 契约测试断言 `install` 接受 `LifecycleScope`、`destroy` 与 `lifecycle` 均为可选、`lifecycle` 只接受 `'scoped'` 字面量；**故意改坏签名时该测试失败**（见 D4）                                            | ⬜   |
 | 19  | 全部改动完成                                                         | `pnpm nx run-many -t lint test build --projects=tag:js-lib` 与门禁脚本 | 零 ESLint 警告；`@aiao/rxdb` 四项覆盖率 ≥ **90%**，四个插件包 ≥ **80%**；`api-surface.mjs --check` 通过。**注意**：`repository()` 与 `IRxDBPlugin` 的成员变更属公开 API 变更，只是不产生基线 diff（D4） | ⬜   |
 | 20  | 文档                                                                 | 检查插件作者文档与迁移说明                                             | 新契约写法、`lifecycle: 'scoped'` 的含义、`destroy()` 的废弃周期与双版本插件的写法已落到 `website/docs/plugins/` 与 `website/docs/migration/`；四个包 README 同步                                       | ⬜   |
-| 21  | 插件**只**声明 `lifecycle: 'scoped'`，**不**实现 `destroy`           | 触发 `#shutdown()`                                                     | 不抛 `TypeError`：`#destroy_plugin()` 必须写成 `await plugin.destroy?.()`。**今天写成 `await plugin.destroy()` 无保护调用**，契约一改成可选，第一个纯作用域插件就在拆卸路径上崩（S-007）                | ⬜   |
-| 22  | `init()` 中 `schemaManager.init()` 抛错                              | 捕获后检查插件与作用域状态                                             | 连接纪元作用域已释放且置空、已安装插件已回滚——`#install_plugin()` 在 `try` **之外**（[:283-285](../../../packages/rxdb/src/RxDB.ts#L283-L285)），今天只把 `#rxdb_initialized` 拨回 `false`（S-005）     | ⬜   |
+| 21  | 插件**只**声明 `lifecycle: 'scoped'`，**不**实现 `destroy`           | 触发 `#shutdown()`                                                     | 不抛 `TypeError`：`#destroy_plugin()` 必须写成 `await plugin.destroy?.()`。**今天写成 `await plugin.destroy()` 无保护调用**，契约一改成可选，第一个纯作用域插件就在拆卸路径上崩                         | ⬜   |
+| 22  | `init()` 中 `schemaManager.init()` 抛错                              | 捕获后检查插件与作用域状态                                             | 连接纪元作用域已释放且置空、已安装插件已回滚——`#install_plugin()` 在 `try` **之外**（[:283-285](../../../packages/rxdb/src/RxDB.ts#L283-L285)），今天只把 `#rxdb_initialized` 拨回 `false`              | ⬜   |
 | 23  | 承接 AC#22                                                           | 修复问题后重新 `init()`                                                | 插件被**重新**安装到**全新**的连接纪元作用域下，不是叠在上一轮的半成品上；重复 `init()` 不产生双份注册                                                                                                  | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-> **AC#3 的夹具脚注**（第二轮评审 S-003 降级后的落点）：本故事的「`use()` 后立即安装」与
+> **AC#3 的夹具脚注**：本故事的「`use()` 后立即安装」与
 > `US-015` INV-4 的「依赖未满足的插件不进入 `#plugin_install_promises`」**不冲突**——两者不在同一
 > 时间点生效，US-015 系列落地后才有「依赖未满足」这个状态。但 AC#3 的测试**不要**断言
 > 「**所有**插件都立即安装」，只断言被测的那一个；否则该夹具会在 US-015a 落地当天变红。
@@ -154,7 +154,7 @@ export interface IRxDBPlugin {
 }
 ```
 
-两处后果，均须在实现里同时处理（S-007）：
+两处后果，均须在实现里同时处理：
 
 1. `destroy` 由必选变可选，对**实现者**无破坏（AC#6 成立），但对**调用者**有——
    `RxDB.#destroy_plugin()` 今天写的是 `await plugin.destroy()`，**无可选链保护**
@@ -352,9 +352,9 @@ workspace 的 `readonly #indexedDBStore!: WorkspaceStore` 因此要改为可空�
   `ready` 语义（[search:121-131](../../../packages/rxdb-plugin-search/src/plugin.ts#L121)）与
   「destroy 后不许再 search」的守卫。本故事只要求把**副作用清单**部分交给作用域（AC#10 / AC#11），
   安装态语义的收敛留给 `US-015a`（🚧 文件未创建）
-- `#destroy_plugin()` 改为 `await plugin.destroy?.()`（S-007 / AC#21）。这一改与「逆序串行」是同一次改造，
+- `#destroy_plugin()` 改为 `await plugin.destroy?.()`（AC#21）。这一改与「逆序串行」是同一次改造，
   不要分两次做——`Promise.all` 换成串行循环时顺手加上可选链
-- `init()` 的失败路径要与作用域寿命对齐（S-005 / AC#22）：`#install_plugin()` 今天在 `try` **之外**
+- `init()` 的失败路径要与作用域寿命对齐（AC#22）：`#install_plugin()` 今天在 `try` **之外**
   （[:283-285](../../../packages/rxdb/src/RxDB.ts#L283-L285)，注释解释了为什么），catch 里只把
   `#rxdb_initialized` 拨回 `false`。连接纪元作用域一旦在 `init()` 创建，catch 就必须**同时**
   `await this.#connection_scope?.dispose()` 并置空，否则「init 失败 → 修复 → 重新 init」会在一个
@@ -386,7 +386,5 @@ workspace 的 `readonly #indexedDBStore!: WorkspaceStore` 因此要改为可空�
 - [versioning-policy.md](../../versioning-policy.md) 第 2、3、4 节 — 公开 API 定义、废弃周期与三层守护
 - [epic-007 公开 API 门禁](../../epics/epic-007-public-api-gates.md) — D4 盲区的长期归属
 
-> 两轮 epic-008 评审文件已于 2026-08-16 删除。本故事的三条开工前置（S-004 storage 构造期终态、
-> S-005 `init()` 不回滚、S-007 `destroy()` 今天是必选成员）已分别落到「来源与边界」其二、
-> AC#22 / AC#23、AC#21 与「今天的契约」一节，**每条都附源码锚点可直接复验**；
-> 正文里残留的 `R-00x` / `S-00x` 仅为追溯改动来源的编号。
+> 本故事的三条开工前置——storage 的构造期终态、`init()` 失败不回滚、`destroy()` 今天是必选成员——
+> 分别写在「来源与边界」其二、AC#22 / AC#23、AC#21 与「今天的契约」一节，**每条都附源码锚点可直接复验**。

@@ -328,7 +328,3 @@ export interface IRxDBPlugin {
 - `US-015b` 插件间依赖图 — 🚧 计划路径 `stories/core/US-015b-plugin-dependency-graph.md`，**未创建**，价值待证
 - [epic-008 停车位](../../epic-008-out-of-scope.md) — P-001（按名字的就绪流）与 P-002（已否决的钩子）的边界
 - [versioning-policy.md](../../versioning-policy.md) 第 4 节 — 三层 API 守护
-
-> 两轮 epic-008 评审文件已于 2026-08-16 删除。曾以「S-002′」编号引用的那条 US-015a 硬约束
-> （`install()` 内可调用什么、不得改对外时序）已就地写进 **D2 附**，并附源码锚点；
-> 正文里残留的 `R-00x` / `S-00x` 仅为追溯改动来源的编号，不再有可跳转的出处。
