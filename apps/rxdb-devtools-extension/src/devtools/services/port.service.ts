@@ -10,16 +10,6 @@ import { logger } from '../../shared/utils/logger';
 const BASE_RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 30000;
 
-const SESSION_REQUIRED_TYPES = new Set<ExtensionMessageType>([
-  'INSPECT_DB',
-  'QUERY_ENTITY',
-  'GET_BRANCHES',
-  'SWITCH_BRANCH',
-  'CREATE_BRANCH',
-  'DELETE_BRANCH',
-  'DISCONNECT_RXDB'
-]);
-
 @Injectable({ providedIn: 'root' })
 export class PortService implements OnDestroy {
   private port: chrome.runtime.Port | null = null;
@@ -28,7 +18,6 @@ export class PortService implements OnDestroy {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
   private activationRequested = false;
-  private sessionToken: string | null = null;
   private readonly listeners = new Set<(msg: DevToolsMessage) => void>();
 
   /** 连接状态 */
@@ -81,9 +70,6 @@ export class PortService implements OnDestroy {
       sequence: this.sequence++,
       tabId: chrome.devtools.inspectedWindow.tabId
     };
-    if (SESSION_REQUIRED_TYPES.has(type) && this.sessionToken) {
-      message.session = this.sessionToken;
-    }
 
     this.port.postMessage(message);
   }
@@ -95,7 +81,6 @@ export class PortService implements OnDestroy {
 
       this.port.onMessage.addListener((message: unknown) => {
         if (!isDevToolsMessage(message)) return;
-        this.captureSessionToken(message);
         this.notifyListeners(message);
       });
 
@@ -141,15 +126,6 @@ export class PortService implements OnDestroy {
       this.port = null;
     }
     this.listeners.clear();
-  }
-
-  private captureSessionToken(message: DevToolsMessage): void {
-    if (message.type !== 'HANDSHAKE') return;
-    const payload = message.payload;
-    if (!payload || typeof payload !== 'object') return;
-    const token = Reflect.get(payload, 'sessionToken');
-    if (typeof token !== 'string' || token.trim().length === 0) return;
-    this.sessionToken = token;
   }
 
   private notifyListeners(message: DevToolsMessage): void {

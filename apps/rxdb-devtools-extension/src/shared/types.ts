@@ -43,7 +43,6 @@ export interface DevToolsMessage<T = unknown> {
   timestamp: number;
   sequence: number;
   tabId?: number;
-  session?: string;
 }
 
 /** 面板 → background 的握手。payload 恒为 `null`，真正的信息是 `tabId`。 */
@@ -69,20 +68,18 @@ const isNonNegativeSafeInteger = (value: unknown): boolean => Number.isSafeInteg
 const isPositiveSafeInteger = (value: unknown): boolean => Number.isSafeInteger(value) && (value as number) > 0;
 
 /**
- * envelope 的键必须**精确**匹配（`tabId` / `session` 是仅有的可选键）。
+ * envelope 的键必须**精确**匹配（`tabId` 是唯一的可选键）。
  *
  * 与核心库 `hasExactKeys` 的语义一致：多一个键就拒绝。
  * 这不是洁癖 —— 消息来自页面上下文，夹带键是最省事的注入手段。
  */
 function hasExactEnvelopeKeys(value: Record<string, unknown>): boolean {
   const keys = Object.keys(value);
-  if (keys.length > REQUIRED_ENVELOPE_KEYS.length + 2) return false;
+  if (keys.length > REQUIRED_ENVELOPE_KEYS.length + 1) return false;
   for (const key of REQUIRED_ENVELOPE_KEYS) {
     if (!Object.hasOwn(value, key)) return false;
   }
-  return keys.every(
-    key => key === 'tabId' || key === 'session' || (REQUIRED_ENVELOPE_KEYS as readonly string[]).includes(key)
-  );
+  return keys.every(key => key === 'tabId' || (REQUIRED_ENVELOPE_KEYS as readonly string[]).includes(key));
 }
 
 function hasValidEnvelope(value: Record<string, unknown>): boolean {
@@ -91,12 +88,6 @@ function hasValidEnvelope(value: Record<string, unknown>): boolean {
   if (value['direction'] !== 'page-to-devtools' && value['direction'] !== 'devtools-to-page') return false;
   if (!isNonNegativeSafeInteger(value['timestamp']) || !isNonNegativeSafeInteger(value['sequence'])) return false;
   if (Object.hasOwn(value, 'tabId') && !isPositiveSafeInteger(value['tabId'])) return false;
-  if (
-    Object.hasOwn(value, 'session') &&
-    (typeof value['session'] !== 'string' || value['session'].trim().length === 0)
-  ) {
-    return false;
-  }
   return true;
 }
 

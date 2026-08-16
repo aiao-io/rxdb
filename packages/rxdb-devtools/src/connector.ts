@@ -212,27 +212,17 @@ const COMMAND_REQUIRED_CAPABILITY = {
 
 const CAPABILITY_RANK: Record<DevToolsCapability, number> = { none: 0, readonly: 1, full: 2 };
 
-const SESSION_REQUIRED_COMMAND = {
-  HANDSHAKE_ACK: false,
-  PING: false,
-  CLEAR: false,
-  DISCONNECT: false,
-  INSPECT_DB: true,
-  QUERY_ENTITY: true,
-  GET_BRANCHES: true,
-  DISCONNECT_RXDB: true,
-  SWITCH_BRANCH: true,
-  CREATE_BRANCH: true,
-  DELETE_BRANCH: true
-} as const satisfies Record<DevToolsCommandMessage['type'], boolean>;
-
-function createSessionToken(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
-}
-
 const OPAQUE_ORIGIN = 'null' as const;
+
+/**
+ * 握手之后仍然允许从共享 `window` 总线进入的命令。
+ *
+ * @remarks
+ * 只有 `PING` —— 它是「你还在吗」的探活，不读也不改任何东西，而对端在拿到端口之前
+ * 只能靠它确认页面已经装了连接器。其余命令一律只认私有端口，从 `window` 来的直接丢弃
+ * 并给一次诊断（见 {@link RxDBDevToolsConnector.#warnWindowBusCommand}）。
+ */
+const WINDOW_BUS_ALLOWED_COMMAND = 'PING' as const satisfies DevToolsCommandMessage['type'];
 
 const DEVTOOLS_GLOBAL_KEY = '__AIAO_RXDB_DEVTOOLS__' as const;
 const EVENT_ENTITY_FIELDS = ['patch', 'inversePatch', 'data'] as const;
@@ -437,10 +427,17 @@ export class DevToolsConnector {
   #connected = false;
   #buffer: EventBuffer;
   #sequence: SequenceGenerator;
-  #sessionToken: string;
   #rxdbInstance: DevToolsRxDB | null = null;
   #eventListeners: Map<keyof RxDBEventMap, (event: RxDBEvent) => void> = new Map();
   #messageHandler: ((event: MessageEvent) => void) | null = null;
+  /**
+   * 握手时建立的私有信道的己方端口，握手之后的收发全部走它。
+   *
+   * @remarks
+   * `null` 表示还没握过手（或已 {@link disconnect}）。此时出站消息退回
+   * `window.postMessage` —— 握手本身就必须这么发，没有别的路可走。
+   */
+  #port: MessagePort | null = null;
   #hasEntityMetadata = false;
   #entityInfo: EntityInfo[] = [];
   #entityTypeMap: Map<string, EntityType> = new Map();
@@ -449,6 +446,7 @@ export class DevToolsConnector {
   #branchQueryInFlight = false;
   #disconnectInFlight: Promise<DisconnectResult> | null = null;
   #opaqueOriginWarned = false;
+  #windowBusCommandWarned = false;
 
   /**
    * DevTools 是否已确认握手。
@@ -489,7 +487,6 @@ export class DevToolsConnector {
   constructor(options: DevToolsOptions = {}) {
     this.#options = { ...DEFAULT_OPTIONS, ...options };
     this.#buffer = new EventBuffer(this.#options.maxBufferSize);
-    this.#sessionToken = createSessionToken();
     this.#sequence = new SequenceGenerator();
   }
 
@@ -538,11 +535,15 @@ export class DevToolsConnector {
    * 本方法只撤销 {@link init} 的副作用：发一条 `DISCONNECT`、摘掉 message 监听与
    * 全部事件监听、取消在途查询订阅、删掉全局 helper、清空 buffer 并把 sequence 归零。
    * 调用后可以再次 {@link init}（sequence 从 0 重新开始，属于新会话）。
+   *
+   * `DISCONNECT` 在关端口**之前**发，且刻意走当前信道（还握着手就走私有端口）——
+   * 先关端口的话这条告别消息会被丢进已关闭的信道，对端只能等超时。
    */
   disconnect(): void {
     if (typeof window === 'undefined') return;
 
     this.#postMessage(createMessage('DISCONNECT', 'page-to-devtools', null, this.#sequence.next()));
+    this.#closePort();
     if (this.#messageHandler) {
       window.removeEventListener('message', this.#messageHandler);
       this.#messageHandler = null;
@@ -630,15 +631,65 @@ export class DevToolsConnector {
     this.#encryptedFieldsMap.clear();
   }
 
+  /**
+   * 注册 `window` 总线监听。
+   *
+   * @remarks
+   * 握手之后命令走私有端口，这条监听只留给 {@link WINDOW_BUS_ALLOWED_COMMAND}：
+   * 对端在拿到端口之前只有 `PING` 可用。其余命令从这里进来说明对端还在按旧协议发，
+   * 丢弃并给一次诊断 —— 静默丢弃会让升级期变成"点了按钮没反应"。
+   */
   #setupMessageListener(): void {
     if (this.#messageHandler) return;
     this.#messageHandler = (event: MessageEvent) => {
       if (event.source !== window) return;
       if (event.origin && event.origin !== location.origin) return;
       if (!isDevToolsMessage(event.data) || !isDevToolsCommandMessage(event.data)) return;
+      if (event.data.type !== WINDOW_BUS_ALLOWED_COMMAND) {
+        this.#warnWindowBusCommand(event.data.type);
+        return;
+      }
       this.#handleMessage(event.data);
     };
     window.addEventListener('message', this.#messageHandler);
+  }
+
+  /**
+   * 建立本次会话的私有信道，返回要移交给对端的那一端。
+   *
+   * @remarks
+   * 每次握手都新建一对端口，旧端口立刻关掉：`PING` 会触发重新握手，
+   * 复用旧端口的话上一次会话的对端仍然连着，权限撤销与断开都作用不到它。
+   */
+  #createSessionPort(): MessagePort {
+    this.#closePort();
+    const channel = new MessageChannel();
+    this.#port = channel.port1;
+    this.#port.onmessage = (event: MessageEvent) => {
+      // 端口是点对点的，没有 source/origin 可查 —— 能往里发消息的只有握手时
+      // 拿到 port2 的那一方。结构校验照做：对端一样可能发畸形消息。
+      if (!isDevToolsMessage(event.data) || !isDevToolsCommandMessage(event.data)) return;
+      this.#handleMessage(event.data);
+    };
+    this.#port.start();
+    return channel.port2;
+  }
+
+  #closePort(): void {
+    if (!this.#port) return;
+    this.#port.onmessage = null;
+    this.#port.close();
+    this.#port = null;
+  }
+
+  #warnWindowBusCommand(type: DevToolsCommandMessage['type']): void {
+    if (this.#windowBusCommandWarned) return;
+    this.#windowBusCommandWarned = true;
+    console.warn(
+      `[${RXDB_DEVTOOLS_MESSAGE}] 收到从 window 总线发来的 ${type} 命令并已丢弃。` +
+        `协议 v${DEVTOOLS_PROTOCOL_VERSION} 起，握手之后的命令必须走 HANDSHAKE 消息随附的 MessagePort。` +
+        `请升级 DevTools 扩展。`
+    );
   }
 
   /**
@@ -654,13 +705,7 @@ export class DevToolsConnector {
     return CAPABILITY_RANK[this.#options.capabilities] >= CAPABILITY_RANK[COMMAND_REQUIRED_CAPABILITY[type]];
   }
 
-  #hasValidSession(message: DevToolsCommandMessage): boolean {
-    if (!SESSION_REQUIRED_COMMAND[message.type]) return true;
-    return message.session === this.#sessionToken;
-  }
-
   #handleMessage(message: DevToolsCommandMessage): void {
-    if (!this.#hasValidSession(message)) return;
     if (!this.#isAllowed(message.type)) return;
 
     switch (message.type) {
@@ -837,28 +882,29 @@ export class DevToolsConnector {
   }
 
   /**
-   * 发一次握手，附带协议版本、本页授予的能力档与会话令牌。
+   * 发一次握手：协议版本 + 本页授予的能力档，并移交本次会话的私有端口。
    *
    * @remarks
    * `capabilities` 只是**告知**，不是权限来源 —— 真正的判定在 {@link #isAllowed}，
    * 页面侧独立执行。DevTools 读它是为了把不可用的按钮直接禁掉，
    * 而不是发出去等一个永远不会来的回复。
    *
-   * `sessionToken` 同样只是告知：扩展必须把它回显在后续数据/变更命令的
-   * envelope `session` 上；真正的比对在 {@link #hasValidSession}。
+   * 端口是在 `#postMessage` **之前**建好并挂上 `onmessage` 的：`transfer` 一交出去，
+   * 对端可能同一个 task 就回 `HANDSHAKE_ACK`，此时己方端口必须已经在收。
    */
   #sendHandshake(): void {
+    const remotePort = this.#createSessionPort();
     this.#postMessage(
       createMessage(
         'HANDSHAKE',
         'page-to-devtools',
         {
           protocolVersion: DEVTOOLS_PROTOCOL_VERSION,
-          capabilities: this.#options.capabilities,
-          sessionToken: this.#sessionToken
+          capabilities: this.#options.capabilities
         },
         this.#sequence.next()
-      )
+      ),
+      [remotePort]
     );
   }
 
@@ -1213,23 +1259,31 @@ export class DevToolsConnector {
   }
 
   /**
-   * 把消息投到本页的 message 总线。
+   * 发出一条出站消息：握过手走私有端口，否则退回 `window` 总线。
+   *
+   * @param message - 要发出的消息
+   * @param transfer - 需要移交所有权的对象；仅握手用它交出 `port2`
    *
    * @remarks
-   * `targetOrigin` 用 `location.origin` 而不是 `'*'`。这些载荷里带着
-   * 实体名、加密字段清单、乃至查询结果的明文文档 —— `'*'` 意味着
+   * 走 `window` 总线时 `targetOrigin` 用 `location.origin` 而不是 `'*'`：
+   * 载荷里带着实体名、加密字段清单、乃至查询结果的明文文档 —— `'*'` 意味着
    * 同页任何跨源 iframe（广告位、第三方挂件）都能原样收到整份数据。
    * 收发都在同一个文档内，精确 origin 完全够用。
    *
    * 唯一的例外是 opaque origin（`'null'`）：那里 `location.origin` 不是
    * 合法的 targetOrigin，只有显式设了 {@link DevToolsOptions.allowOpaqueOrigin}
-   * 才退回 `'*'`，否则 {@link init} 早就把连接器停用了。
+   * 才退回 `'*'`，否则 {@link init} 早就把连接器停用了。端口路径没有这个问题 ——
+   * 点对点信道不看 origin，这也正是握手之后要切过去的原因之一。
    */
-  #postMessage(message: AnyDevToolsMessage): void {
+  #postMessage(message: AnyDevToolsMessage, transfer?: Transferable[]): void {
     if (typeof window === 'undefined') return;
-    const targetOrigin = location.origin === OPAQUE_ORIGIN ? '*' : location.origin;
     try {
-      window.postMessage(message, targetOrigin);
+      if (this.#port && !transfer) {
+        this.#port.postMessage(message);
+        return;
+      }
+      const targetOrigin = location.origin === OPAQUE_ORIGIN ? '*' : location.origin;
+      window.postMessage(message, targetOrigin, transfer);
     } catch (error) {
       console.warn(`[${RXDB_DEVTOOLS_MESSAGE}] Failed to post message:`, error);
     }

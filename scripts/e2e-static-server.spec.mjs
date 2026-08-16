@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { createServer, request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -19,16 +19,20 @@ const listen = (server, options) =>
     server.listen(options, () => resolve(server));
   });
 
-const rawGet = (port, path) =>
+const rawRequest = (port, path, method = 'GET') =>
   new Promise((resolve, reject) => {
-    const req = httpRequest({ host: '127.0.0.1', port, path }, res => {
+    const req = httpRequest({ host: '127.0.0.1', port, path, method }, res => {
       const chunks = [];
       res.on('data', chunk => chunks.push(chunk));
-      res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString('utf8') }));
+      res.on('end', () =>
+        resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks).toString('utf8') })
+      );
     });
     req.on('error', reject);
     req.end();
   });
+
+const rawGet = (port, path) => rawRequest(port, path);
 
 async function createFixture() {
   const root = await mkdtemp(join(tmpdir(), 'e2e-static-'));
@@ -57,6 +61,13 @@ test('parseArgs 拒绝缺失参数与非法端口', () => {
   assert.throws(() => parseArgs(['--root', 'dist/app']), /Missing --port/);
   assert.throws(() => parseArgs(['--root', 'dist/app', '--port', 'nope']), /Invalid port/);
   assert.throws(() => parseArgs(['--root', 'dist/app', '--port', '8200', '--unknown']), /Unknown option/);
+});
+
+// `-h` 是 --help，不是 --host 的短写。此前 readFlag 会给每个长选项凭空造一个首字母短写
+// （-r / -p / -h），既没写进 usage，`-h` 那个还被 --help 抢在前面判掉——永远走不到。
+test('parseArgs 不认没写进 usage 的首字母短写', () => {
+  assert.throws(() => parseArgs(['-r', 'dist/app', '--port', '8200']), /Unknown option/);
+  assert.throws(() => parseArgs(['--root', 'dist/app', '-p', '8200']), /Unknown option/);
 });
 
 test('assertStaticRoot 在目录或 index.html 缺失时抛 ENOENT', async () => {
@@ -109,6 +120,53 @@ test('已有文件按原路径返回，缺失路径回退 index.html', async () 
     assert.equal(spa.status, 200);
     assert.match(spa.headers.get('content-type') ?? '', /text\/html/);
     assert.match(await spa.text(), /<title>spa<\/title>/);
+  } finally {
+    await closeStaticServer(server);
+  }
+});
+
+// 这是 Playwright webServer 场景下最要命的一类失败：请求处理器里同步抛出的异常会冒到
+// 'request' 事件外，整个 node 进程退出，webServer 随之消失，剩下的用例全部连不上。
+// 读文件必须自己兜住——stat 与 read 之间文件被并发构建换掉（ENOENT）或权限变了（EACCES）都会走到这。
+test('文件读失败返回 500，不会把进程带崩', async t => {
+  if (process.getuid?.() === 0) {
+    t.skip('root 无视文件权限位，造不出 EACCES');
+    return;
+  }
+  const root = await createFixture();
+  const locked = join(root, 'locked.txt');
+  await writeFile(locked, 'nope');
+  await chmod(locked, 0o000);
+
+  const server = await startStaticServer({ root, port: 0, host: '127.0.0.1' });
+  const { port } = server.address();
+  try {
+    const denied = await rawGet(port, '/locked.txt');
+    assert.equal(denied.status, 500);
+
+    // 进程还活着：后续请求照常
+    const ok = await rawGet(port, '/assets/ok.txt');
+    assert.equal(ok.status, 200);
+    assert.equal(ok.body, 'ok');
+  } finally {
+    await chmod(locked, 0o600);
+    await closeStaticServer(server);
+  }
+});
+
+test('HEAD 只回响应头，写操作一律 405', async () => {
+  const root = await createFixture();
+  const server = await startStaticServer({ root, port: 0, host: '127.0.0.1' });
+  const { port } = server.address();
+  try {
+    const head = await rawRequest(port, '/app.js', 'HEAD');
+    assert.equal(head.status, 200);
+    assert.equal(head.headers['content-type'], 'text/javascript; charset=utf-8');
+    assert.equal(head.body, '');
+
+    const post = await rawRequest(port, '/app.js', 'POST');
+    assert.equal(post.status, 405);
+    assert.equal(post.headers.allow, 'GET, HEAD');
   } finally {
     await closeStaticServer(server);
   }

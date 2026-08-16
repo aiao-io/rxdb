@@ -1,7 +1,13 @@
 import { isDevToolsMessage as isStrictDevToolsMessage } from '@aiao/rxdb-devtools';
 import { describe, expect, it, vi } from 'vitest';
 import { RXDB_DEVTOOLS_MESSAGE } from '../shared/types';
-import { createBridgePing, forwardExtensionMessage, forwardPageMessage } from './bridge-core';
+import {
+  createBridgePing,
+  extractHandshakePort,
+  forwardExtensionMessage,
+  forwardPageMessage,
+  forwardPortMessage
+} from './bridge-core';
 
 /**
  * 构造一条**方向与类型配对正确**的消息。
@@ -93,5 +99,55 @@ describe('forwardExtensionMessage', () => {
     expect(forwardExtensionMessage(message('page-to-devtools'), 'https://example.com', post)).toBe(false);
     expect(forwardExtensionMessage({ type: 'PING' }, 'https://example.com', post)).toBe(false);
     expect(post).not.toHaveBeenCalled();
+  });
+
+  it('routes through the private port and keeps the payload off the window bus', () => {
+    const post = vi.fn();
+    const port = { postMessage: vi.fn() } as unknown as MessagePort;
+    const value = message('devtools-to-page');
+
+    expect(forwardExtensionMessage(value, 'https://example.com', post, port)).toBe(true);
+    expect(port.postMessage).toHaveBeenCalledWith(value);
+    expect(post).not.toHaveBeenCalled();
+  });
+});
+
+describe('forwardPortMessage', () => {
+  it('forwards a valid page-to-devtools message without any source check', () => {
+    // 端口是点对点的，MessageEvent 上没有 source / origin 可查 —— 只做结构校验。
+    const send = vi.fn();
+    const event = { data: message('page-to-devtools') } as unknown as MessageEvent;
+
+    expect(forwardPortMessage(event, send)).toBe(true);
+    expect(send).toHaveBeenCalledWith(event.data);
+  });
+
+  it.each([message('devtools-to-page'), { type: 'HANDSHAKE' }, null])('rejects %#', data => {
+    const send = vi.fn();
+
+    expect(forwardPortMessage({ data } as unknown as MessageEvent, send)).toBe(false);
+    expect(send).not.toHaveBeenCalled();
+  });
+});
+
+describe('extractHandshakePort', () => {
+  const port = {} as MessagePort;
+
+  it('takes the port transferred with a handshake', () => {
+    const event = { data: message('page-to-devtools'), ports: [port] } as unknown as MessageEvent;
+
+    expect(extractHandshakePort(event)).toBe(port);
+  });
+
+  it('reports a v1 connector by returning null for a portless handshake', () => {
+    const event = { data: message('page-to-devtools'), ports: [] } as unknown as MessageEvent;
+
+    expect(extractHandshakePort(event)).toBeNull();
+  });
+
+  it('never adopts a port smuggled in on a non-handshake message', () => {
+    const event = { data: message('devtools-to-page'), ports: [port] } as unknown as MessageEvent;
+
+    expect(extractHandshakePort(event)).toBeNull();
   });
 });

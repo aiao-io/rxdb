@@ -127,14 +127,16 @@ describe('PortService', () => {
     service.ngOnDestroy();
   });
 
-  it('attaches the handshake session token only to session-required commands', () => {
+  // 协议 v2 用私有 MessagePort 取代了会话令牌：面板不再在 envelope 上贴任何 `session`，
+  // 贴了反而会被页面侧的严格 envelope 校验整条拒掉。
+  it('never stamps a session key on outbound commands', () => {
     const service = new PortService();
     service.activateTab();
     harnesses[0]?.emitMessage({
       source: RXDB_DEVTOOLS_MESSAGE,
       direction: 'page-to-devtools',
       type: 'HANDSHAKE',
-      payload: { protocolVersion: 2, capabilities: 'full', sessionToken: 'tok-1' },
+      payload: { protocolVersion: 2, capabilities: 'full' },
       timestamp: 1,
       sequence: 0
     });
@@ -144,9 +146,7 @@ describe('PortService', () => {
     service.sendMessage('SWITCH_BRANCH', 'feature');
 
     expect(harnesses[0]?.postMessage.mock.calls[0]?.[0]).not.toHaveProperty('session');
-    expect(harnesses[0]?.postMessage.mock.calls[1]?.[0]).toEqual(
-      expect.objectContaining({ type: 'SWITCH_BRANCH', payload: 'feature', session: 'tok-1' })
-    );
+    expect(harnesses[0]?.postMessage.mock.calls[1]?.[0]).not.toHaveProperty('session');
 
     service.ngOnDestroy();
   });

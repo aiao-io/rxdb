@@ -414,7 +414,15 @@ describe('RxDB coverage', () => {
     await disposeDatabase(database);
   });
 
-  it('connect() 在插件安装失败后可重试', async () => {
+  /**
+   * 插件安装失败后的重试路径：**必须先断开**。
+   *
+   * 裸 `connect()` 重试拿到的是同一个 rejected promise，不会重跑 `install()` ——
+   * `install()` 没有幂等契约（搜索插件可能已经建了一半 FTS 表），在半成品上再跑一遍
+   * 只会让第二次的报错盖掉第一次的真实原因。`disconnectAll()` 先 `destroy()` 掉插件
+   * 再清空安装记录，重装才有干净的起点。
+   */
+  it('connect() 在插件安装失败后经断开重试', async () => {
     let shouldFail = true;
     const transient = new Error('transient install failed');
     const plugin = {
@@ -433,6 +441,11 @@ describe('RxDB coverage', () => {
     expect(plugin.install).toHaveBeenCalledTimes(1);
 
     shouldFail = false;
+    // 没断开就重连：错误原样重放，install() 不再被调用
+    await expect(database.connect('local')).rejects.toBe(transient);
+    expect(plugin.install).toHaveBeenCalledTimes(1);
+
+    await database.disconnectAll();
     await expect(database.connect('local')).resolves.toBeDefined();
     expect(plugin.install).toHaveBeenCalledTimes(2);
 

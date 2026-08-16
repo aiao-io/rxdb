@@ -94,9 +94,11 @@ describe('isDevToolsMessage —— 严格协议校验（P0-1）', () => {
     expect(isDevToolsMessage({ ...envelope, direction: 'devtools-to-page', type: 'PING', tabId: 7 })).toBe(true);
   });
 
-  it('接受合法 session 字符串', () => {
+  // 会话令牌随协议 v2 的私有 MessagePort 一起删掉了：端口本身就是信道身份。
+  // envelope 必须重新拒绝 `session`，否则它就是一个可夹带的额外键。
+  it('拒绝令牌协议遗留的 session 键', () => {
     expect(isDevToolsMessage({ ...envelope, direction: 'devtools-to-page', type: 'PING', session: 'tok-1' })).toBe(
-      true
+      false
     );
     expect(
       isDevToolsMessage({
@@ -106,11 +108,7 @@ describe('isDevToolsMessage —— 严格协议校验（P0-1）', () => {
         payload: 'main',
         session: 'tok-1'
       })
-    ).toBe(true);
-  });
-
-  it.each(['', '   ', 1, null])('拒绝非法 session %#', session => {
-    expect(isDevToolsMessage({ ...envelope, direction: 'devtools-to-page', type: 'PING', session })).toBe(false);
+    ).toBe(false);
   });
 
   describe('扩展自有类型（核心库不认识，必须由扩展这侧同等严格地校验）', () => {

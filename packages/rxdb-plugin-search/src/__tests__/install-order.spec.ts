@@ -1,5 +1,5 @@
 import { Entity, EntityBase, PropertyType, type RxDB } from '@aiao/rxdb';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, type Observable } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { FtsInstallPlan } from '../core/fts5-installer.js';
@@ -58,12 +58,27 @@ import { RxDBPluginSearch, rxDBPluginSearch } from '../plugin.js';
 })
 class FakeArticle extends EntityBase {}
 
+/**
+ * 造一组「按适配器名分开」的连接状态源，模拟 RxDB.adapterConnected$。
+ *
+ * 名字没出现过就返回一个常驻 false 的流 —— 真实实现同样如此（未连接的适配器
+ * 永远是 false），插件不该因为问了一个陌生名字就拿到 true。
+ */
+function createAdapterConnections(names: readonly string[]) {
+  const subjects = new Map(names.map(name => [name, new BehaviorSubject(false)]));
+  const never = new BehaviorSubject(false);
+  return {
+    subjects,
+    adapterConnected$: (name: string): Observable<boolean> => subjects.get(name) ?? never
+  };
+}
+
 describe('search plugin install ordering', () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it('waits for connected$ (tables ready) before installing FTS and refreshes handles created before ready', async () => {
+  it('waits for the local adapter specifically before installing FTS and refreshes handles created before ready', async () => {
     let resolveConnect!: () => void;
     const connectGate = new Promise<void>(resolve => {
       resolveConnect = resolve;
@@ -84,13 +99,17 @@ describe('search plugin install ordering', () => {
     };
 
     const connected$ = new BehaviorSubject(false);
+    const connections = createAdapterConnections(['sqlite-wasm', 'supabase']);
     const fakeRxdb = {
       config: {
-        sync: { local: { adapter: 'sqlite-wasm' } },
+        // 同时配上 remote：聚合的 connected$ 会被先连上的 remote 拉成 true，
+        // 这一路正是回归点 —— 插件必须只认 local 那一个适配器。
+        sync: { local: { adapter: 'sqlite-wasm' }, remote: { adapter: 'supabase' } },
         entities: [FakeArticle]
       },
       localAdapter$: new BehaviorSubject(adapter),
       connected$,
+      adapterConnected$: connections.adapterConnected$,
       connect: vi.fn(async () => {
         await connectGate;
         return adapter;
@@ -119,7 +138,14 @@ describe('search plugin install ordering', () => {
     await Promise.resolve();
     expect(installFtsForEntity).not.toHaveBeenCalled();
 
+    // remote 先连上：聚合的 connected$ 变成 true，但主表还没建出来。
+    // 这里放行就等于把 FTS DDL 打在不存在的表上。
+    connections.subjects.get('supabase')?.next(true);
     connected$.next(true);
+    await Promise.resolve();
+    expect(installFtsForEntity).not.toHaveBeenCalled();
+
+    connections.subjects.get('sqlite-wasm')?.next(true);
     await plugin.ready;
 
     expect(adapter.bootstrapTransaction).toHaveBeenCalledTimes(1);
@@ -148,7 +174,7 @@ describe('search plugin install ordering', () => {
     const pluginGate = new Promise<void>(resolve => {
       finishPlugins = resolve;
     });
-    const connected$ = new BehaviorSubject(false);
+    const connections = createAdapterConnections(['sqlite-wasm']);
     const reenterConnect = async () => {
       await fakeRxdb.connect('sqlite-wasm');
     };
@@ -186,9 +212,10 @@ describe('search plugin install ordering', () => {
         entities: [FakeArticle]
       },
       localAdapter$: new BehaviorSubject(adapter),
-      connected$,
+      connected$: new BehaviorSubject(false),
+      adapterConnected$: connections.adapterConnected$,
       connect: vi.fn(async () => {
-        connected$.next(true);
+        connections.subjects.get('sqlite-wasm')?.next(true);
         await pluginGate;
         return adapter;
       }),

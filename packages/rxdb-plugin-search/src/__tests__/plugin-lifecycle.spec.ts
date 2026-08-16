@@ -99,6 +99,7 @@ const buildFakeRxdb = (entities = [FakeArticle], exposesRawQuery = true) => {
     },
     localAdapter$: new BehaviorSubject(activeAdapter),
     connected$: new BehaviorSubject(true),
+    adapterConnected$: () => new BehaviorSubject(true),
     connect: vi.fn(async () => activeAdapter),
     addEventListener: vi.fn((type: string, listener: (event: EntityChangeEvent) => void) => {
       const list = listeners.get(type) ?? [];

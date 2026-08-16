@@ -60,16 +60,27 @@ describe('types', () => {
       expect(isDevToolsMessage({ ...command('PING', null), tabId: 1 })).toBe(true);
     });
 
-    it('MUST accept a valid optional session', () => {
-      expect(isDevToolsMessage({ ...command('PING', null), session: 'tok-1' })).toBe(true);
-      expect(isDevToolsMessage({ ...command('INSPECT_DB', null), session: 'tok-1' })).toBe(true);
+    // 会话令牌随协议 v2 的私有 MessagePort 一起删掉了：端口本身就是信道身份，
+    // envelope 上再挂一个 `session` 只会给伪造方多一个可夹带的键。
+    it('MUST reject a session key left over from the token-based protocol', () => {
+      expect(isDevToolsMessage({ ...command('PING', null), session: 'tok-1' })).toBe(false);
+      expect(isDevToolsMessage({ ...command('INSPECT_DB', null), session: 'tok-1' })).toBe(false);
     });
 
-    it.each(['', '   ', 1, null])('MUST reject invalid session %#', session => {
-      expect(isDevToolsMessage({ ...command('PING', null), session })).toBe(false);
+    it('MUST accept v2 handshake payload', () => {
+      expect(
+        isDevToolsMessage({
+          source: RXDB_DEVTOOLS_MESSAGE,
+          direction: 'page-to-devtools',
+          type: 'HANDSHAKE',
+          payload: { protocolVersion: 2, capabilities: 'full' },
+          timestamp: 1,
+          sequence: 0
+        })
+      ).toBe(true);
     });
 
-    it('MUST accept v2 handshake payload with sessionToken', () => {
+    it('MUST reject a v2 handshake payload carrying a stale sessionToken', () => {
       expect(
         isDevToolsMessage({
           source: RXDB_DEVTOOLS_MESSAGE,
@@ -79,10 +90,10 @@ describe('types', () => {
           timestamp: 1,
           sequence: 0
         })
-      ).toBe(true);
+      ).toBe(false);
     });
 
-    it('MUST still accept v1 handshake payload without sessionToken', () => {
+    it('MUST still accept a v1 handshake payload so the peer can diagnose the version skew', () => {
       expect(
         isDevToolsMessage({
           source: RXDB_DEVTOOLS_MESSAGE,

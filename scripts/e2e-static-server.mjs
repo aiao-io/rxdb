@@ -48,9 +48,15 @@ Missing files fall back to index.html. Occupied ports fail immediately.`);
   process.exit(exitCode);
 }
 
+/**
+ * 只认 usage 里写着的长选项。
+ *
+ * 早先这里额外接受 `-${首字母}`，凭空造出 `-r` / `-p` / `-h` 三个没文档的短写，
+ * 其中 `-h` 还被 `--help` 抢在前面判掉，永远走不到 `--host` 这一支。
+ */
 function readFlag(argv, index, name) {
   const current = argv[index];
-  if (current === name || current === `-${name.slice(2, 3)}`) {
+  if (current === name) {
     return { value: argv[index + 1], next: index + 2 };
   }
   if (current.startsWith(`${name}=`)) {

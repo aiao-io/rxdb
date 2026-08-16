@@ -88,7 +88,7 @@ export type {
   HandshakeAckMessage,
   /** 握手消息。 */
   HandshakeMessage,
-  /** 握手载荷：协议版本 + 能力档 + 会话令牌。 */
+  /** 握手载荷：协议版本 + 能力档（私有信道端口随消息 transfer，不在载荷里）。 */
   HandshakePayload,
   /** 数据库检查命令。 */
   InspectDbMessage,
