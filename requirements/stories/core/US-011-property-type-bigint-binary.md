@@ -62,7 +62,7 @@ INVEST 检查清单:
 ### Out of Scope
 
 - 数据库列映射、绑定、读取、索引与运行时查询（US-206）
-- change、系统表迁移、undo / redo、branch 和跨 Tab 编码（US-303）；跨 realm writer lease 与 fencing（US-304）
+- change、系统表迁移、undo / redo、branch 和跨 Tab 编码（US-303）
 - 加密字段（US-804）与 DevTools 展示（US-903）
 - `bigint[]`、`binary[]` 以及 keyValue / json 内嵌 bigint/binary
 - decimal、任意精度整数和大于有符号 64 位的 bigint
@@ -112,6 +112,5 @@ INVEST 检查清单:
 
 - [US-206 本地适配器持久化与查询](../adapter/US-206-bigint-binary-adapter.md)
 - [US-303 change codec 与系统迁移](../collaboration/US-303-bigint-binary-change-codec.md)
-- [US-304 跨 realm writer lease 与迁移 fencing](../collaboration/US-304-writer-lease-migration-fencing.md)
 - [SQLite Datatypes](https://www.sqlite.org/datatype3.html)
 - [PostgreSQL Numeric Types](https://www.postgresql.org/docs/current/datatype-numeric.html)

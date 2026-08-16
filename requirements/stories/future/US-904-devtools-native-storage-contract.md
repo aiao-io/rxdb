@@ -82,7 +82,7 @@ Tauri:    shared panel（rxdb-devtools WebView window）→ 定向 Tauri transpo
 
 - Tauri WebView 不支持安装 Chrome Manifest V3 扩展，因此 **不承诺「把 CRX 装进 Tauri」**；它复用面板与
   协议，以标签固定的受限调试窗口承载。
-- 调试窗口 / 扩展都不是第二个 RxDB writer：不直接打开 SQLite，不持有 writer lease、文件根句柄或业务
+- 调试窗口 / 扩展都不是第二个 RxDB writer：不直接打开 SQLite，不持有文件根句柄或业务
   service 实例，只通过宿主页面中的 connector 使用受限调试能力。
 
 ## 依赖图与门禁
@@ -177,7 +177,7 @@ US-210 → US-505
   `export_unsupported`，执行路径零 OPFS / SQLite / WAL 读取）
 - 原生文件内容编辑器、十六进制预览、大文件全文预览或远端 blob 同步
 - 修改 US-207 / US-504 / US-210 / US-505 的持久化布局、事务、路径编码、原子写入、锁、补偿、备份域与
-  writer lease 语义
+  写入语义
 - Tauri mobile（iOS / Android）、远程设备调试、浏览器远程 attach 或网络调试服务
 - 将共享 Angular 面板发布为公共 npm 包
 - Tauri 的窗口、transport 与 native provider —— 属 [US-905](./US-905-tauri-native-devtools.md)

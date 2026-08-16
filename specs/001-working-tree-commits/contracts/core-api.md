@@ -313,7 +313,6 @@ CommitConflict {
 | `branch_not_materialized`           | 目标分支未物化                                     | 先物化分支                                                            |
 | `commit_graph_corrupted`            | DAG 不变式被破坏                                   | 进入只读诊断                                                          |
 | `corrupted_read_only`               | **该分支**检出损坏后降级                           | 导出诊断信息；切到其他健康分支                                        |
-| `writer_fenced`                     | 迁移 epoch 落后                                    | 重连                                                                  |
 | `benchmark_environment_mismatch`    | runner profile 与参考不符                          | 换固定 runner                                                         |
 
 所有错误 MUST 携带**操作、对象、恢复建议**三要素（FR-039、US-306 阶段 C AC3）。

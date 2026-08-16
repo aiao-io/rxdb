@@ -34,75 +34,31 @@ SQLite 系列适配器与 PGlite 会在应用迁移、业务 Repository 和新�
 - `__rxdb_system_schema__:` 与 `__rxdb_change_codec__:` 是保留的 migration 名称前缀，应用 migration 不得使用。
 - 当前客户端发现数据库系统 schema 或 change codec 高于自身支持版本时会直接拒绝连接，不会猜测格式或继续读写。
 
-## Writer lease 与发布顺序
+## 迁移的排他性与失败恢复
 
-系统迁移使用持久化的 `rxdb_upgrade_guard` 和 `rxdb_writer_lease` 表协调跨 Tab、Worker
-和进程的 writer。writer 在每个写事务内校验 guard/epoch 并续租；迁移先进入
-`draining`，清理数据库时间已过期的 lease，确认没有活动 writer 后再进入
-`migrating`，最后在同一事务中提交 DDL、trigger、watermark、epoch 和 `open` 状态。
-活动 lease 会提交 `draining` 并 fail-fast，不会启动业务 trigger；旧 writer 恢复后会因
-epoch fencing 被拒绝写入。排空阶段会逐条校验 lease 的 writerId、protocolVersion、epoch
-和数据库时间字段；任何不完整、跨 epoch 或不支持协议的记录都会回滚迁移并 fail-fast。
+系统迁移整体跑在**一个后端排他事务**里（SQLite 是 `BEGIN EXCLUSIVE`，PGlite 是表锁 + `tx`）：
+
+- 拿不到锁就抛 `RxDBSystemMigrationLockError` 并中止 `connect()`，业务 trigger 不启动 —— 这排除的是**同一后端上正在执行的写事务**。
+- DDL、旧数据兼容处理、trigger 重建和系统版本水位在同一事务提交；任何一步失败都整体回滚，崩溃后数据库仍停在事务开始前的状态，不会留下半迁移 schema。
+- 因此迁移**没有需要人工清理的中间状态**：修好问题后直接重连即可重试，不需要手工改任何系统表。
+
+> RxDB **不提供**跨 Tab / Worker / 进程的 writer lease 或 epoch fencing。排他性只到 SQLite / PGlite
+> 自身的锁为止：它能挡住同时在写的事务，但挡不住一个「先连上、又长时间挂起、之后才恢复」的旧客户端。
+> 这类跨 realm 排他必须由发布系统承担（见下节）。
+
+## 发布顺序
 
 发布必须分为三个门：
 
-1. **桥接版本**：先发布只新增 lease/guard 协议的版本，保持旧 change 格式可读写，并公布最低协议版本。
+1. **桥接版本**：先发布一个不改系统 schema / change codec 的版本，让所有运行实例都升到它 —— 它是迁移版本的锚点，用来确保「迁移发生时，在线的客户端都已经是新代码」。
 2. **迁移版本**：桥接版本覆盖全部运行实例后，才允许发布会提升系统 schema 或 change codec 的版本；发布前运行 SQLite 多进程与 PGlite Worker/Tab 迁移套件。
-3. **旧 bundle 门禁**：阻止低于最低桥接版本的离线 bundle 重新写入，可使用强制更新、缓存失效、服务端版本门禁或新的数据库命名空间。不能让未实现协议的旧 bundle 连接已迁移数据库。
+3. **旧 bundle 门禁**：阻止低于最低桥接版本的离线 bundle 重新写入，可使用强制更新、缓存失效、服务端版本门禁或新的数据库命名空间。不能让旧 bundle 连接已迁移数据库。
 
-仓库发布通过 `requirements/migration-release.json` 声明本次发布类型、桥接 tag、最低桥接版本和旧 bundle 策略，并由 `pnpm nx run @aiao/source:migration-release-gate` 校验。迁移版本缺少任一项时发布会 fail-closed；桥接 tag 还必须包含 writer lease/guard 实现。
+仓库发布通过 `requirements/migration-release.json` 声明本次发布类型（`normal` / `bridge` / `migration`）、桥接 tag、最低桥接版本和旧 bundle 策略，并由 `pnpm nx run @aiao/source:migration-release-gate` 校验。迁移版本缺少任一项时发布会 fail-closed；桥接 tag 还必须真实存在、是发布提交的祖先，并包含系统迁移实现。
 
-部署回滚不能把旧 bundle 直接指向已升级数据库；必须恢复升级前备份，或切换到新的数据库命名空间。当前运行时 fencing 只能保护已接入协议的 writer，不能替代发布系统对离线客户端的版本门禁。
+部署回滚不能把旧 bundle 直接指向已升级数据库；必须恢复升级前备份，或切换到新的数据库命名空间。运行时**没有**任何机制能识别并拒绝一个离线的旧 bundle —— 第 3 道门是唯一的防线。
 
 系统迁移是单向升级。升级后的数据库不承诺能被旧版客户端重新打开；发布新客户端前应先阻止旧版本继续写入，并确保所有运行实例一起升级。需要回退应用版本时，请恢复升级前的数据库备份，不要让旧客户端直接连接已升级库。
-
-## 升级 guard 状态与恢复
-
-`rxdb_upgrade_guard` 每个 `databaseId` 一行，列为 `epoch` / `state` / `ownerId` / `ownerExpiresAt` / `minProtocol`；`rxdb_writer_lease` 每个 writer 一行，列为 `writerId` / `protocolVersion` / `epoch` / `lastSeenAt` / `expiresAt`。SQLite 系列是顶层表，PGlite 位于 `rxdb` schema 下。
-
-| `state`     | 谁写入这个状态           | writer 的行为                      | 失败后是否滞留 |
-| ----------- | ------------------------ | ---------------------------------- | -------------- |
-| `open`      | 迁移成功收尾             | 正常写入                           | —              |
-| `draining`  | 迁移开始排空活动 writer  | 一律拒绝，`writer_guard_draining`  | **会**         |
-| `migrating` | 排空确认没有活动 writer  | 一律拒绝，`writer_guard_migrating` | 不会           |
-| `failed`    | 当前没有任何代码路径写入 | 一律拒绝，`writer_guard_failed`    | —              |
-
-- `migrating` 不会滞留：整个 `migrateSystemSchema()` 跑在单个事务里（SQLite 是 `BEGIN EXCLUSIVE`，PGlite 是 `tx`），任何异常都整体回滚，崩溃后数据库仍停在事务开始前的状态。
-- `failed` 目前是**协议预留状态**：类型与错误码 `writer_guard_failed` 已定义并会拒绝写入，但没有任何生产代码把 guard 写成 `failed`。若在库里真的读到 `failed`，它不是 RxDB 写的 —— 先排查是谁改了这张表，再按下面的手工复位处理。
-- `draining` 是唯一会跨越失败留在库里的状态：排空时发现别的实例还有活动 lease，实现会**先提交 `draining` 再** fail-fast（`upgrade_writer_active`），把「有人想升级」这件事落盘。
-
-### `draining` 滞留时的表现与自愈
-
-代价是这个窗口内**所有** writer 的写入都被拒绝（`writer_guard_draining`），包括那个挡住升级的活动 writer 自己 —— guard 不区分是谁挡的。
-
-自愈不需要人工介入：
-
-1. 活动 writer 关闭，或其 lease 过期（`RXDB_WRITER_LEASE_TTL_MS`，30 秒，心跳间隔 10 秒）。
-2. 任一实例重新 `connect()`；系统版本仍然落后，于是再次进入 `migrateSystemSchema()`。
-3. `assertRxDBUpgradeClaimable` 放行重新认领：同一个 owner 可立即接手，换一个 owner 需要等 `ownerExpiresAt` 过期（`RXDB_UPGRADE_OWNER_TTL_MS`，30 秒）。
-4. 这次迁移在进入 `migrating` 时把 `epoch` +1，成功收尾时把 `state` 写回 `open` 并清空 lease 表；仍持旧 epoch 的 writer 被 fencing 拒绝（`writer_fenced`）后重连。
-
-注意 TTL 到期本身**不会**清掉 `draining`，它只是让 guard 重新可被认领 —— 必须有一次成功的 `connect()` 才会真正复位。所以标准处置是「关掉全部实例，再打开一个」。如果反复重连仍停在 `draining`，说明每次都还有活动 lease 没退出，先查是谁在写，不要直接改表。
-
-### 手工复位（最后手段）
-
-只有确认没有任何实例正在迁移时才可以手工改表；误判会让 writer 在 DDL 执行途中写入。先备份数据库，再确认 guard 的 `ownerExpiresAt` 已经是过去时间、且 lease 表里没有未过期的行：
-
-```sql
-SELECT * FROM rxdb_upgrade_guard WHERE "databaseId" = 'myapp';
-SELECT * FROM rxdb_writer_lease WHERE "databaseId" = 'myapp';
-```
-
-确认后清空 lease 并把 guard 放回 `open`：
-
-```sql
-DELETE FROM rxdb_writer_lease WHERE "databaseId" = 'myapp';
-UPDATE rxdb_upgrade_guard
-   SET "state" = 'open', "ownerId" = NULL, "ownerExpiresAt" = NULL
- WHERE "databaseId" = 'myapp';
-```
-
-**不要改 `epoch` 和 `minProtocol`。** 调低 `epoch` 会让本该被 fencing 拒绝的旧 writer 重新拿到写入权；调低 `minProtocol` 会放进不支持当前协议的客户端。两者都会绕过升级的全部保护。
 
 ## 声明迁移
 

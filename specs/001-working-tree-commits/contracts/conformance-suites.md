@@ -57,7 +57,6 @@ workingTreeCommitConformanceSuite(factory)
 | G-2 DAG 可达          | `headCommitId` 可达 `baselineCommitId`；伪造断链 → `commit_graph_corrupted`                                                                                               | FR-004/005、INV-3                                      |
 | G-3 HEAD 单源         | 全库不存在第二份持久化 HEAD 或当前分支 id                                                                                                                                 | FR-001/015                                             |
 | G-4 激活基数          | 直写两行 `activated = TRUE` 被数据库约束拒绝；迁移前存在多行 → `ambiguous_active_branch` 且迁移整体失败                                                                   | FR-012、INV-1                                          |
-| G-5 迁移 fencing      | 落后写入方在 epoch 推进后 → `writer_fenced`                                                                                                                               | FR-008                                                 |
 | G-6 迁移幂等          | 分页物化中途崩溃 → 重连后续做或整体回滚，无半状态                                                                                                                         | FR-013                                                 |
 | G-7 空提交拒绝        | `unitCount = 0` 的 `normal` 提交被拒                                                                                                                                      | FR-006                                                 |
 | G-8 幂等键            | 同键同内容 → 返回原提交且 HEAD 不推进；同键不同内容 → `idempotency_key_reused` 且原记录不变                                                                               | FR-009、INV-7                                          |
@@ -70,6 +69,8 @@ workingTreeCommitConformanceSuite(factory)
 | G-15 元数据分支不物化 | 仅有元数据的远端分支 MUST NOT 创建基线或 `rxdb_commit_branch_ref` 行，且 MUST NOT 被解释为空 HEAD                                                                         | FR-013                                                 |
 | G-16 迁移前零激活     | 迁移前不存在激活分支时沿用既有主分支恢复语义；每次连接校验至少存在一行                                                                                                    | FR-012、INV-1                                          |
 | G-17 物化尝试可恢复   | 分支物化中断后重连：据持久 `CommitBranchMaterializationAttempt` 续做或整体回滚；成功后尝试行被**删除**                                                                    | FR-052、INV-12                                         |
+
+> G-5（迁移 fencing）已随跨 realm writer lease 于 2026-08-16 取消而删除；编号保留空位以免既有引用错位。
 
 ### 3.2 缓存区与状态机（US3）
 

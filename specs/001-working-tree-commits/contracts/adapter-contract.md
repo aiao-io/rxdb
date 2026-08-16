@@ -113,7 +113,7 @@ EntityIndexMetadataOptions {
 ## 6. 迁移契约
 
 - 系统 schema 由 3 迁到 4，走既有 watermark + `rxdb_migration` 占坑机制；占坑冲突 → `RxDBMigrationClaimConflictError` 重试。
-- 迁移期间 `rxdb_upgrade_guard` / `rxdb_writer_lease` 的 epoch **仅**用于 fencing 落后写入方（FR-008）；落后写入方得到 `writer_fenced`。epoch **不得**被复用为工作树/缓存区的并发控制。
+- 迁移期间的排他性只由后端排他锁（SQLite `BEGIN EXCLUSIVE` / PGlite 表锁）承担；不存在跨 realm 的写入方 lease 或 epoch fencing，落后写入方一律走领域版本号条件更新失败路径（FR-008）。
 - 建部分唯一索引前校验 INV-1；违反 → 整个迁移失败并返回 `ambiguous_active_branch`。
 - 建表与基线物化在同一迁移事务内，基线物化本身可重试且幂等。
 - 分页物化的中途崩溃 ⇒ 重连后要么续做、要么整体回滚，两种终态都无半状态。

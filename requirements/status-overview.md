@@ -12,18 +12,16 @@
 | 🚧 In Progress | 4    |
 | 👀 In Review   | 0    |
 | 📝 Backlog     | 12   |
-| ⏸️ Deferred    | 1    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 51   |
+| **合计**       | 50   |
 
 三条口径，读表前必知：
 
 1. 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；合计等于 `stories/*/US-*.md` 的文件数，epic 文件不计入。
 2. 其中 **4 条是多阶段故事**（[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-306](stories/collaboration/US-306-working-tree-index.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)）：一个编号一个文件一条状态，正文用「交付阶段」表分批交付，**全部阶段关闭后才置 `Done`**。阶段不单独计数，见 [README](README.md#大故事用交付阶段不用子故事文件)。
 3. `🚫 Blocked = 0` 统计的是**故事 YAML 里显式写成 `status: Blocked`** 的数量，**不代表没有前置阻塞**——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。两者不要互相推断。
-4. `⏸️ Deferred` 与 `🚫 Blocked` 不同：Deferred 是**我方主动排期决定**（技术上可继续，选择不做），Blocked 是被外部前置卡住。Deferred 故事的 YAML 带 `deferred.until` 字段说明恢复条件。
 
-图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🅰️ 多阶段故事 · ⏸️ Deferred · 🚫 Blocked
+图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🅰️ 多阶段故事 · 🚫 Blocked
 
 ## 进行中（4 条）
 
@@ -36,16 +34,14 @@
 
 > US-207 / US-210 / US-505 的三条尾巴是**同一个下游缺口**：真实打包应用的重启与三平台矩阵。
 
-## 已暂缓（1 条）
+## 已取消
 
-| Story                                                                                                         | 暂缓到 | 剩什么                                                          |
-| ------------------------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------- |
-| [US-304 跨 realm writer lease 与迁移 fencing](stories/collaboration/US-304-writer-lease-migration-fencing.md) | 1.0.0  | AC6（挂起 writer 被迁移 epoch fence）；AC11 已转移给 US-305     |
-
+**跨 realm writer lease 与迁移 fencing（原 US-304）已于 2026-08-16 取消**，故事与实现代码一并删除。
 迁移路径至今未投入使用：0.0.x 线的 `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 均未抬升，
-没有可迁移内容。已交付的 lease/guard/fencing 协议仍在生产路径上正常维护，暂缓的只是收尾验收。
-[US-303](stories/collaboration/US-303-bigint-binary-change-codec.md) 保持 ✅ Done，但其 AC10–AC14
-（系统迁移）同样未被真实发布行使过，首次迁移发布时需重新验证。
+没有可迁移内容，一套持久化 lease/guard 表 + 桥接发布流程 + 多进程回归套件的成本与收益不成比例。
+系统迁移的排他性由后端排他锁（`BEGIN EXCLUSIVE` / 表锁）与单事务提交承担，见
+[US-303](stories/collaboration/US-303-bigint-binary-change-codec.md) 的 AC13 说明；跨 realm 的旧客户端
+拦截由发布门禁（[release-plan.md](release-plan.md)）承担，不再有运行时协议。
 
 > ⚠️ 这不解除 US-305 的前置：它仍需一次真实迁移发布，见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 
@@ -125,7 +121,6 @@
 - ✅ [US-303 bigint/binary change codec 与系统迁移](stories/collaboration/US-303-bigint-binary-change-codec.md) — 迁移部分（AC10–AC14）已实现但未被真实发布行使
 - ✅ [US-804 加密字段支持 bigint/binary](stories/future/US-804-bigint-binary-encryption.md)
 - ✅ [US-903 DevTools 展示 bigint/binary](stories/future/US-903-bigint-binary-devtools.md)
-- ⏸️ [US-304 跨 realm writer lease 与迁移 fencing](stories/collaboration/US-304-writer-lease-migration-fencing.md) — 暂缓至 1.0.0，见[已暂缓](#已暂缓1-条)
 - 🅰️ ⬜ [US-012 扩展字段语义与前端通信契约](stories/core/US-012-field-semantic-metadata.md) — 三阶段单文件故事
   - ⬜ 阶段 A 字段 format 声明与注册期校验
   - ⬜ 阶段 B 实体字段描述 DTO
@@ -136,7 +131,7 @@
 全部 ⬜ Backlog。**不得因分支名 `001-working-tree-commits` 或 spec 已齐而把任一条标成 In Progress。**
 [specs/001-working-tree-commits/](../specs/001-working-tree-commits/) 已有 spec / plan / data-model / research / quickstart / contracts，**没有 `tasks.md`，运行时未开工**
 （`packages/rxdb/src/` 无 `commit/`，无 `CommitManager` / `WorkingTreeManager` / `IndexManager` / `useWorkingTree`）。
-交付顺序 **US-304(剩 AC6) → 新 bridge 发布（FR-030）→ US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）**，
+交付顺序 **新 bridge 发布（FR-030）→ US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）**，
 口径以 [epic-006 依赖顺序](epics/epic-006-working-tree-commits.md) 为准。
 
 - ⬜ [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 基础层：commit 图 / branch ref / baseline；仍被 FR-030 挡住（`migration-release.json` 的 `bridge.tag`/`bridge.version` 为 `null`，`v0.0.25` 不是 HEAD 祖先）
@@ -145,7 +140,7 @@
   - ⬜ 阶段 B 缓存区与提交状态机
   - ⬜ 阶段 C 三框架工作树交互面与性能门禁 — `useWorkingTree()` 三端契约与 `bench-working-tree` target
 - ⬜ [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — 依赖 US-306 阶段 A/B/C
-- ⬜ [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — 依赖 US-304 收敛
+- ⬜ [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — 依赖 US-306 的提交状态机；跨 realm 竞争只走 `headRevision` CAS
 
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 
@@ -178,9 +173,8 @@
 
 以下故事的 YAML `status` 都不是 `Blocked`，但开工前有硬前置：
 
-| 被挡住的                                                                   | 硬前置                                                                                                                                                                                                                                                                                                                                               |
-| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| epic-006 整条链（链首 US-305，不是 US-306）                                | ① [US-304](stories/collaboration/US-304-writer-lease-migration-fencing.md) 仍 🚧，US-305 / US-306 阶段 A 都要消费它的 writer 身份与迁移 epoch fencing                                                                                                                                                                                                |
-| [US-305](stories/collaboration/US-305-commit-graph-head.md)                | ② 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`，历史 `v0.0.25` 又已被 squash 移出主线——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。这一条不随代码进度自动解除，需单独排期 |
-| epic-008 中 US-014 之后的一切                                              | [US-013](stories/core/US-013-lifecycle-scope-primitive.md) → [US-014](stories/core/US-014-plugin-scope-contract.md) 是硬序；[US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 A 消费 US-014 的 `install(scope)` 签名，阶段 B 另需先证明用户价值                                                                                         |
-| [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D | 同一文件的阶段 A 必须先给出 `decision: supported`                                                                                                                                                                                                                                                                                                    |
+| 被挡住的                                                                                         | 硬前置                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`，历史 `v0.0.25` 又已被 squash 移出主线——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。这一条不随代码进度自动解除，需单独排期 |
+| epic-008 中 US-014 之后的一切                                                                    | [US-013](stories/core/US-013-lifecycle-scope-primitive.md) → [US-014](stories/core/US-014-plugin-scope-contract.md) 是硬序；[US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 A 消费 US-014 的 `install(scope)` 签名，阶段 B 另需先证明用户价值                                                                                       |
+| [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D                       | 同一文件的阶段 A 必须先给出 `decision: supported`                                                                                                                                                                                                                                                                                                  |

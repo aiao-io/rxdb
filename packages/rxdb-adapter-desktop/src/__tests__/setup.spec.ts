@@ -20,7 +20,6 @@ import {
   menuIntegrationSuite,
   querySqlSuite,
   relationIntegrationSuite,
-  rowsAffectedConformanceSuite,
   rxdbAdapterSuite,
   sqliteClientBatchTimeoutSuite,
   sqliteClientSuite,
@@ -50,7 +49,6 @@ bigintBinaryEntitySuite(desktopAdapterFactory);
 rxdbAdapterSuite(desktopAdapterFactory);
 sqliteRepositorySuite(desktopAdapterFactory);
 systemSchemaMigrationSuite(desktopAdapterFactory);
-rowsAffectedConformanceSuite(desktopAdapterFactory);
 sqliteClientSuite(desktopAdapterFactory);
 sqliteClientBatchTimeoutSuite(desktopAdapterFactory);
 

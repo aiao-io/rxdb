@@ -41,10 +41,10 @@
 
 ### P1：公共 `rawQuery()` 绕过 RxDB 就绪门
 
-位置：`packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts:704`
+位置：`packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts:563`
 
 ```ts
-if (this.#writer_lease_state === 'bootstrap') {
+if (this.#lifecycle_state === 'bootstrap') {
   return this.bootstrapTransaction(executor => executor.query(sql, params), false);
 }
 ```

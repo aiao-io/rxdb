@@ -8,7 +8,7 @@
 
 把本地数据变更组织成 Git 式三层工作流——**工作树**（未提交的当前状态）→ **缓存区**（本次准备提交的选择）→ **提交**（不可变历史节点），并保证这三层在刷新、崩溃、多标签页并发与分支往返后语义一致。
 
-技术路径：在 `packages/rxdb` 内新增一组 `Commit*` / `WorkingTree*` / `Index*` 系统实体，复用既有 `RxDBBranch.activated` 作为当前分支的唯一真相源（不引入第二份 HEAD 指针），复用既有 `rxdb_migration` 水位机制做数据库级单向启用，复用既有 `rxdb_upgrade_guard` / `rxdb_writer_lease` 的 epoch 做迁移 fencing（**不**用它充当提交版本号）。写入捕获挂在既有 `TransactionExecutor` 边界上，把「关闭本地变更触发器」的批量重写路径从布尔 `disableTriggers` 升级为**显式意图枚举**，使受信登记键成为「文件 + 符号 + 意图」。三框架侧只做透传：`packages/rxdb-{angular,react,vue}` 各导出同名 `useWorkingTree()`，复用既有 `useAction` 命令状态形状。跨后端一致性由 `packages/rxdb-test` 新增两套具名套件覆盖 6 个 v1 后端，性能由 `benchmarks/` 新增一个 Nx target 门禁。
+技术路径：在 `packages/rxdb` 内新增一组 `Commit*` / `WorkingTree*` / `Index*` 系统实体，复用既有 `RxDBBranch.activated` 作为当前分支的唯一真相源（不引入第二份 HEAD 指针），复用既有 `rxdb_migration` 水位机制做数据库级单向启用（跨实例竞争一律由领域版本号条件更新承担，不引入写入方级协调协议）。写入捕获挂在既有 `TransactionExecutor` 边界上，把「关闭本地变更触发器」的批量重写路径从布尔 `disableTriggers` 升级为**显式意图枚举**，使受信登记键成为「文件 + 符号 + 意图」。三框架侧只做透传：`packages/rxdb-{angular,react,vue}` 各导出同名 `useWorkingTree()`，复用既有 `useAction` 命令状态形状。跨后端一致性由 `packages/rxdb-test` 新增两套具名套件覆盖 6 个 v1 后端，性能由 `benchmarks/` 新增一个 Nx target 门禁。
 
 ## Technical Context
 
@@ -38,7 +38,7 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 | 要求                                  | 本特性如何满足                                                                                                                                                                                                                                                                                                                      |
 | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| TS strict / 零 ESLint 警告 / 禁 `any` | 新增类型全部具名导出；跨适配器的动态行数据用 `unknown` + 类型守卫，沿用 `system/writer-lease.ts` 既有的快照校验写法                                                                                                                                                                                                                 |
+| TS strict / 零 ESLint 警告 / 禁 `any` | 新增类型全部具名导出；跨适配器的动态行数据用 `unknown` + 类型守卫，沿用 `system/migration.ts` 既有的快照校验写法                                                                                                                                                                                                                    |
 | 嵌套 ≤ 3 层                           | 依赖闭包计算、拓扑排序、分页物化三处最深；均按「每层一个具名纯函数」拆分，复用既有 `version/topological-sort.ts` 与 `version/dependency-graph.ts`                                                                                                                                                                                   |
 | 单一职责                              | 6 个新子模块各自单一职责（见 Project Structure），不把状态机塞进 `VersionManager`                                                                                                                                                                                                                                                   |
 | 禁 fallback 兜底                      | 损坏走 fail-closed 只读态（FR-014）、环境不匹配走 `benchmark_environment_mismatch`（FR-041）、未登记意图直接拒绝（FR-022）——全部是显式拒绝而非降级                                                                                                                                                                                  |
@@ -100,7 +100,6 @@ packages/rxdb/src/
 │   ├── branch.ts                    # 既有：RxDBBranch.activated 仍是当前分支唯一真相源
 │   ├── change.ts                    # 既有：RxDBChange 保持不变
 │   ├── migration.ts                 # 既有：RXDB_SYSTEM_SCHEMA_VERSION 递增 + 新增 watermark
-│   ├── writer-lease.ts              # 既有：epoch 只用于迁移 fencing，不动语义
 │   ├── commit.ts                    # 新增：RxDBCommit
 │   ├── commit-branch-ref.ts         # 新增：RxDBCommitBranchRef
 │   ├── commit-change-set.ts         # 新增：RxDBCommitChangeSet
