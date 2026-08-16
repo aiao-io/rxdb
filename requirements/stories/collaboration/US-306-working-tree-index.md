@@ -12,7 +12,7 @@ tags:
 
 <!--
 INVEST 检查清单:
-- [x] Independent: 依赖 US-304 的 writer lease 与 US-305 的 commit graph / `WorkingTreeActivationState`，
+- [x] Independent: 依赖 US-305 的 commit graph / `WorkingTreeActivationState`，
       其余契约自包含；不倒挂依赖排在后面的 US-307 / US-308
 - [x] Negotiable: 核心 DTO 字段、物理表名和事件名可在 plan 阶段冻结；三框架入口固定为 `useWorkingTree()`
 - [x] Valuable: 用户第一次能选择性提交，并在刷新后接着上次干
@@ -424,7 +424,6 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 ## 依赖与参考
 
 - [epic-006 本地工作树与提交历史](../../epics/epic-006-working-tree-commits.md)
-- [US-304 Writer 租约与迁移 fencing](./US-304-writer-lease-migration-fencing.md) — 提供 writer 身份与迁移 epoch fencing
 - [US-305 提交图与 HEAD 持久化](./US-305-commit-graph-head.md) — 提供 commit graph、branch ref、baseline 与
   `WorkingTreeActivationState` 建表（FR-052）
 - [US-307 历史恢复会话](./US-307-restore-session.md)

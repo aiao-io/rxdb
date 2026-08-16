@@ -72,7 +72,6 @@ INVEST 检查清单:
 ### Out of Scope
 
 - change trigger、patch / inversePatch 和系统表迁移（US-303）
-- 跨 realm writer lease、迁移排空和 fencing（US-304）
 - undo / redo、branch 与跨 Tab（US-303）
 - 远程 push / pull；本 Epic 不支持新类型远程同步
 - 加密字段（US-804）与 DevTools（US-903）
@@ -129,7 +128,7 @@ INVEST 检查清单:
 - binary 查询的相等语义是值相等，不是 JavaScript 引用相等
 - PGlite 不得基于过时的“bigint 返回 string”假设增加 fallback
 - Supabase 校验读取解析后的 entity sync 配置，不扫描后无条件拒绝全部实体
-- 本 story 在 US-011 后可以单独标记 Done，但 Epic 发布前还必须满足 US-303、US-304、US-804、US-903
+- 本 story 在 US-011 后可以单独标记 Done，但 Epic 发布前还必须满足 US-303、US-804、US-903
 
 ## 实现范围
 
@@ -143,7 +142,6 @@ INVEST 检查清单:
 
 - [US-011 类型与公共 API 契约](../core/US-011-property-type-bigint-binary.md)
 - [US-303 change codec 与系统迁移](../collaboration/US-303-bigint-binary-change-codec.md)
-- [US-304 跨 realm writer lease 与迁移 fencing](../collaboration/US-304-writer-lease-migration-fencing.md)
 - [SQLite JSON1](https://www.sqlite.org/json1.html)
 - [PostgreSQL Binary Data Types](https://www.postgresql.org/docs/current/datatype-binary.html)
 - [PostgreSQL Operator Classes](https://www.postgresql.org/docs/current/indexes-opclass.html)

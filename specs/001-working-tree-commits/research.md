@@ -76,13 +76,15 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 - **事务内读改写型**（普通 CRUD、远端实体应用的 `workingTreeRevision`）在**同一事务内**先读后写，不接收调用方的 expected 值，因此在串行化的事务边界内不会因并发失败。
 - 语义无操作路径一律**不执行**该 UPDATE（FR-035、SC-007）。
 
-**Rationale**: `rowsAffected` 是全部 6 个后端都已实现并有 `rowsAffectedConformanceSuite` 覆盖的既有能力（见 [`shared-rows-affected-conformance.suite.ts`](../../packages/rxdb-adapter-sqlite-core/src/__tests__/shared-rows-affected-conformance.suite.ts)），无需新增跨方言原语。整数列在两种方言下语义完全一致，无时钟依赖。
+**Rationale**: `rowsAffected` 是全部 6 个后端都已实现的既有能力（`SqliteBackend` / `IRxDBAdapter` 契约的返回值），无需新增跨方言原语。整数列在两种方言下语义完全一致，无时钟依赖。
+
+> ⚠️ 原先钉死该判据的跨后端套件 `rowsAffectedConformanceSuite` 随 writer lease 于 2026-08-16 一并删除（它的断言建在 lease/guard 表上）。本特性依赖的两条语义——**条件 UPDATE 未命中时 `rowsAffected` 必须为 0**、**紧随写语句的 SELECT 不得继承上一条写语句的计数**（sqlite-core 有同类事故记录 SQLC-030）——目前没有跨后端断言保护，US-305 实施时 MUST 以领域 revision CAS 的形式重建这套 conformance。
 
 **Alternatives rejected**:
 
 - _时间戳做 revision_：本地时钟不可信（spec Assumptions 已排除），且同毫秒并发不可分辨。
 - _统一成调用方捕获型_：会让普通 CRUD 在多标签页下随机失败，直接违反 FR-032。
-- _复用 `rxdb_upgrade_guard.epoch`_：FR-008 明令 epoch 只用于迁移 fencing，两者职责混用会让「迁移后滞后写入方」与「普通并发」两类失败无法区分。
+- _另立一层写入方级协调协议（lease / epoch）_：FR-008 明令跨实例竞争只由领域版本号条件更新承担；再叠一层协调协议会让「滞后写入方」与「普通并发」两类失败无法区分，且需要一整套持久化状态表与多进程回归套件。
 
 ---
 

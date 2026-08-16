@@ -87,7 +87,7 @@ US-210 SQLite host / US-505 native file host
 **阶段 2 — 真实原生 provider**
 
 - Tauri SQLite provider 通过主 WebView connector 查询实体、全部 `RXDB_EVENT_TYPES`、branch 与
-  Storage metadata；调试窗口不直接打开数据库或取得 writer lease
+  Storage metadata；调试窗口不直接打开数据库
 - Tauri native files provider 只暴露插件专用逻辑根，支持浏览、刷新、上传、下载、新建目录和删除，
   原样复用 US-904 阶段 B 的 RFC 4648 base64 transfer 状态机，provider 声明真实 `maxTransferBytes`，覆盖边界
   大小、乱序/重复/缺块、取消、超时与断连，不在 WebView/Rust 整体缓存文件
@@ -106,7 +106,7 @@ US-210 SQLite host / US-505 native file host
 
 - 在 Tauri 中加载 Chrome CRX、Manifest V3 background、content script 或 `chrome.*` API
 - 让调试窗口获得 SQL、filesystem、shell、原始 event 总线或通用 `invoke` 权限
-- 修改 US-210 / US-505 的事务、路径解析、原子写入、补偿、备份域或 writer lease 语义
+- 修改 US-210 / US-505 的事务、路径解析、原子写入、补偿或备份域语义
 - 数据库导入导出、SQLite/WAL 热备份、export lease、任意 SQL 或应用目录浏览
 - Tauri mobile、远程设备调试或网络 attach
 - 用 fake/in-process transport 替代真实 Rust/WebView/host E2E
@@ -130,7 +130,7 @@ US-210 SQLite host / US-505 native file host
 
 | #   | 前置条件                                                   | 操作                                                   | 预期结果                                                                                                                        | 状态 |
 | --- | ---------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 9   | 应用通过 US-210 使用应用作用域 SQLite                      | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与主窗口一致；调试窗口不打开数据库、不取得 writer lease、不创建 OPFS/IDB fallback       | ⬜   |
+| 9   | 应用通过 US-210 使用应用作用域 SQLite                      | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与主窗口一致；调试窗口不打开数据库、不创建 OPFS/IDB fallback                            | ⬜   |
 | 10  | 应用通过 US-505 使用 native files 并显式允许 mutation      | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件根，字节一致；UI 仅用 `runtime: tauri` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                    | ⬜   |
 | 11  | 1001 条以上 metadata/files、两类缺失和在途上传             | 读取完整诊断 snapshot                                  | 从请求进入起算的共享 deadline（US-904 阶段 B）覆盖等锁/物化/重试；不漏尾页或误报临时状态；busy/too-large/expired 与共享错误一致 | ⬜   |
 | 12  | 打开 Settings                                              | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明能力返回 `provider_unsupported`，不读取 SQLite/WAL、OPFS/IDB 或其他应用目录  | ⬜   |
@@ -155,7 +155,7 @@ US-210 SQLite host / US-505 native file host
 - 调试窗口 capability 按 `rxdb-devtools` label 最小授权，不继承主窗口的 SQL / filesystem 权限；dev/release
   使用不同的 capability 输入，release 产物静态检查不得包含只服务调试窗口的授权、command 名或 bootstrap 入口。
   调试窗口 capability 只限制 Rust/WebView 权限，不能替代业务操作授权。
-- 主 WebView 是唯一 RxDB connector 与 provider owner；调试窗口不持有数据库连接、writer lease、文件根句柄
+- 主 WebView 是唯一 RxDB connector 与 provider owner；调试窗口不持有数据库连接与文件根句柄
   或业务 service 实例。provider 只通过 US-210 / US-505 的窄 host 接缝工作，不暴露通用 SQL/filesystem command。
 - session 只做关联，不做授权；capability、descriptor 和 mutation policy 在 connector 与 Rust/host 两侧重复校验。
 - 共享面板固定通过正式 workspace dependency 消费 US-904 阶段 C 的 private `packages/rxdb-devtools-panel/`，

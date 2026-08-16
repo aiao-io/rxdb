@@ -6,12 +6,12 @@ priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-08-13
 updated: 2026-08-15
-tags: [collaboration, branch, concurrency, writer-lease, conflict]
+tags: [collaboration, branch, concurrency, conflict]
 ---
 
 <!--
 INVEST 检查清单:
-- [x] Independent: 依赖 US-305 与 US-306 阶段 B 的 revision CAS 与 US-304 的迁移 fencing，但分支往返和冲突诊断自成一条交付线
+- [x] Independent: 依赖 US-305 与 US-306 阶段 B 的 revision CAS，但分支往返和冲突诊断自成一条交付线
 - [x] Negotiable: 冲突记录结构与提示文案可在 plan 阶段调整
 - [x] Valuable: 多标签页/多分支下不会静默丢失另一方的修改
 - [x] Estimable: 现有 switchBranch 行为与 lease 契约都已确认
@@ -31,9 +31,8 @@ INVEST 检查清单:
 
 ## 前置依赖
 
-跨 realm 写入先经过 [US-304](./US-304-writer-lease-migration-fencing.md) 的 writer lease / epoch fencing，
-再使用 Epic 与 US-305 与 US-306 阶段 A/B 持久化的 activation/head/index/working-tree revision CAS。epoch 只识别 schema 迁移后的 stale writer，
-普通提交竞争只看领域 revision；不得用 `BroadcastChannel` 或内存状态承担正确性。US-304、US-305、US-306 阶段 A、US-306 阶段 B
+跨 realm 写入使用 Epic 与 US-305 与 US-306 阶段 A/B 持久化的 activation/head/index/working-tree revision CAS。
+提交竞争只看领域 revision；不得用 `BroadcastChannel` 或内存状态承担正确性。US-305、US-306 阶段 A、US-306 阶段 B
 任一未 Done 时本故事的**持久层半边**不可开工。
 
 本故事的**三端半边**（对称的冲突状态与提示）另加一条前置：[US-306 阶段 C](./US-306-working-tree-index.md)
@@ -129,14 +128,14 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 1. **Given** 两个同源标签页从相同 revision 开始操作同一分支，**When** 一个标签页先推进 HEAD 或 index，另一个随后提交，**Then** 后者的 CAS 失败并返回 expected/actual revision，禁止静默丢弃另一方修改。
 2. **Given** commit 已成功写入但 UI 在刷新前关闭，**When** 重新打开任一标签页，**Then** commit、HEAD 和工作树状态最终收敛到同一结果。
 3. **Given** stage 后另一个标签页删除或更新同一实体但未移动 HEAD/index，**When** 本标签页提交原 staged snapshot，**Then** 提交只推进 staged 版本，后续删除/更新继续作为 unstaged 保留，不因 writer 身份产生特殊分支。
-4. **Given** writer 挂起期间发生 schema 迁移并抬升 epoch，**When** stale writer 恢复后提交，**Then** 先走 US-304 的 `writer_fenced` 路径；未发生迁移的普通竞争则只走 revision CAS。
+4. **Given** 一个 realm 长时间挂起后恢复，**When** 它以过期 revision 提交，**Then** 走与其他竞争完全相同的 revision CAS 失败路径，不存在额外的 writer 级判定。
 5. **Given** Tab A 在分支 A 读取实体并捕获 active branch token，Tab B 随后切到 B，**When** Tab A 保存旧实体，**Then** 写事务以 `stale_active_branch` 拒绝，A/B 的业务表投影、WorkingTreeEntry 与 revision 均不被错误修改。
 6. **Given** 两个 realm 从同一 `activationRevision` 同时切换到不同分支，**When** 两个事务竞争，**Then** 只有一个 activation CAS 成功；失败方刷新后读取胜出分支，不重放自己的物化动作。
 
 ## 功能需求
 
 - **FR-017**（已改口径）：系统 MUST 与现有分支操作集成。`createBranch(branchId)` 保留从当前物化状态创建的行为，复制独立 working-tree snapshot、共享当前 HEAD 且 index 为空；`createBranch(branchId, fromChangeId)` 保留历史 change 状态并以 `kind=branch_baseline` 锚定。分支不得共享可变 HEAD / 工作树 / index。切换恢复目标分支状态；clean 检查以 `WorkingTreeSwitchBranchOptions.requireClean` 显式提供，不带选项仍无条件切换。
-- **FR-020**：系统 MUST 使用持久化 activation/head/index/working-tree revision CAS 阻止跨标签页静默覆盖，并使用 US-304 epoch 拒绝迁移后的 stale writer。普通 CRUD MUST 校验实体/realm 捕获的 active branch token；不得在事务中重新读取新 active branch 后把旧实体归到新分支，也不得只依赖 `BroadcastChannel` 或内存状态。
+- **FR-020**：系统 MUST 使用持久化 activation/head/index/working-tree revision CAS 阻止跨标签页静默覆盖。普通 CRUD MUST 校验实体/realm 捕获的 active branch token；不得在事务中重新读取新 active branch 后把旧实体归到新分支，也不得只依赖 `BroadcastChannel` 或内存状态。
 - **FR-035**：`CommitConflict` MUST 从失败操作、对象 ID、expected/actual activation/head/index/working-tree revision 与建议动作派生，不得建立第二张可与真实 revision 漂移的冲突状态表。普通命令 CAS 失败只返回诊断值，不建立 durable conflict；`status().conflicted` 与 `requireClean` 只读取仍存在的 `WorkingTreeRestoreSession` 等 durable domain session。**该类型本身由首个使用者 [US-306 阶段 B](./US-306-working-tree-index.md) 定义、补 TSDoc 并登记 api-baseline**；本故事只把 activation 维度（activation expected/actual 与切换建议动作）扩展进去，不重新定义类型、不新建并行诊断类型。
 - **FR-044**：`removeBranch()` MUST 原子删除该分支全部可变状态和 materialization attempt，但保留不可变 commit；同名重建 MUST 使用新 branch generation。`syncBranches()` 只同步 metadata 时不得提前伪造 baseline/ref；承接 US-305 FR-049，没有 `CommitBranchRef` 的 metadata-only 远端分支不是空 HEAD。其首次 switch MUST 使用独立 durable staging 冻结目标分支、终止水位和完整配置 sync scope，逐页持久化 payload/fingerprint 且不触碰当前投影；最终把“复核 active token、目标身份、水位/scope/fingerprint、完整物化、创建 `kind=branch_baseline`、创建 ref、切换 active、递增 activation revision、删除 staging”放进同一提交屏障。物化依据不足则以 `branch_not_materialized` 全量回滚，来源分支保持 active；分页崩溃可恢复，staging 可按 attempt 清理。旧签名、旧拒绝条件与 remote commit 非目标保持不变。
 
@@ -152,7 +151,7 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 
 ## 测试要求
 
-- 必须有跨标签页 / 跨 realm 并发测试，覆盖 activation/HEAD/index/working-tree CAS、重复 commit、stale writer fencing，以及 stage 后编辑统一保留为 unstaged。
+- 必须有跨标签页 / 跨 realm 并发测试，覆盖 activation/HEAD/index/working-tree CAS、重复 commit、过期 revision 提交，以及 stage 后编辑统一保留为 unstaged。
 - 必须有“Tab A 读 A → Tab B 切 B → Tab A 保存旧实体”的真实双 realm fixture，断言稳定 `stale_active_branch` 且两分支零污染。
 - 必须有 A dirty+staged → B dirty+staged → A → B 往返测试，断言每个分支的数据、index 和 revision 均恢复。
 - 必须有一条回归用例专门断言**不带选项**的 `switchBranch(branchId)` 行为未变（AC User Story 1 场景 3）。
@@ -173,7 +172,6 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 ## 依赖与参考
 
 - [epic-006 本地工作树与提交历史](../../epics/epic-006-working-tree-commits.md)
-- [US-304 跨 realm writer lease 与迁移 fencing](./US-304-writer-lease-migration-fencing.md) — 只复用 writer 身份与迁移期 epoch fencing
 - [US-306 父契约](./US-306-working-tree-index.md)
 - [US-306 阶段 A 工作树写入捕获与持久化](./US-306-working-tree-index.md)
 - [US-306 阶段 B 缓存区与提交状态机](./US-306-working-tree-index.md) — `CommitConflict` 类型与 restore session 表的所有者
