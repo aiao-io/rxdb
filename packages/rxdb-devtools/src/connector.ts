@@ -2,6 +2,13 @@ import type { EntityType, RxDB, RxDBEvent, RxDBEventMap } from '@aiao/rxdb';
 
 import { EventBuffer } from './buffer.js';
 import { SequenceGenerator } from './sequence.js';
+import type { DevToolsProviderDescriptor } from './provider/descriptor.js';
+import { createSystemClock } from './v2/clock.js';
+import { createConnectorNegotiation } from './v2/negotiation-connector.js';
+import type {
+  DevToolsConnectorNegotiation,
+  DevToolsConnectorNegotiationMessage
+} from './v2/negotiation-connector.js';
 import { maskEncryptedFields, serialize, serializeDevToolsValue } from './serializer.js';
 import {
   createMessage,
@@ -212,6 +219,16 @@ const COMMAND_REQUIRED_CAPABILITY = {
 
 const CAPABILITY_RANK: Record<DevToolsCapability, number> = { none: 0, readonly: 1, full: 2 };
 
+/**
+ * 页内 connector 宣告的 provider descriptor。
+ *
+ * @remarks
+ * 空集是当前的**事实**而不是占位：本包不实现任何原生存储 provider，files / settings
+ * 在页内根本不存在，database 的 v2 操作也还没有对着 RxDB 实现。
+ * 由 US-904c / US-904d / US-905 各自接上真实 provider 后填充。
+ */
+const CONNECTOR_PROVIDER_DESCRIPTORS: readonly DevToolsProviderDescriptor[] = [];
+
 const OPAQUE_ORIGIN = 'null' as const;
 
 const DEVTOOLS_GLOBAL_KEY = '__AIAO_RXDB_DEVTOOLS__' as const;
@@ -420,6 +437,7 @@ export class DevToolsConnector {
   #rxdbInstance: DevToolsRxDB | null = null;
   #eventListeners: Map<keyof RxDBEventMap, (event: RxDBEvent) => void> = new Map();
   #messageHandler: ((event: MessageEvent) => void) | null = null;
+  #negotiation: DevToolsConnectorNegotiation | null = null;
   #hasEntityMetadata = false;
   #entityInfo: EntityInfo[] = [];
   #entityTypeMap: Map<string, EntityType> = new Map();
@@ -503,7 +521,7 @@ export class DevToolsConnector {
     this.#hasEntityMetadata = getEntityMetadata !== undefined;
     this.#setEntityInfo(entityInfo);
     this.#setupMessageListener();
-    this.#sendHandshake();
+    this.#startNegotiation();
     this.#syncGlobalHelper();
     this.#subscribeToEvents(rxdb);
   }
@@ -526,6 +544,8 @@ export class DevToolsConnector {
       this.#messageHandler = null;
     }
     if (this.#rxdbInstance) this.#unsubscribeFromEvents(this.#rxdbInstance);
+    this.#negotiation?.dispose();
+    this.#negotiation = null;
 
     this.#rxdbInstance = null;
     this.#clearEntityInfo();
@@ -613,8 +633,13 @@ export class DevToolsConnector {
     this.#messageHandler = (event: MessageEvent) => {
       if (event.source !== window) return;
       if (event.origin && event.origin !== location.origin) return;
-      if (!isDevToolsMessage(event.data) || !isDevToolsCommandMessage(event.data)) return;
-      this.#handleMessage(event.data);
+      // v1 优先且语义不变：`isDevToolsMessage` 是对已知 v1 `type` 的闭集判断，
+      // `PROTOCOL_HELLO` 会被它判否——不分流的话 v2 协商永远起不来。
+      if (isDevToolsMessage(event.data)) {
+        if (isDevToolsCommandMessage(event.data)) this.#handleMessage(event.data);
+        return;
+      }
+      this.#negotiation?.receive(event.data);
     };
     window.addEventListener('message', this.#messageHandler);
   }
@@ -816,15 +841,41 @@ export class DevToolsConnector {
    * 页面侧独立执行。DevTools 读它是为了把不可用的按钮直接禁掉，
    * 而不是发出去等一个永远不会来的回复。
    */
-  #sendHandshake(): void {
-    this.#postMessage(
-      createMessage(
-        'HANDSHAKE',
-        'page-to-devtools',
-        { protocolVersion: DEVTOOLS_PROTOCOL_VERSION, capabilities: this.#options.capabilities },
-        this.#sequence.next()
-      )
+  #buildLegacyHandshake(): AnyDevToolsMessage {
+    return createMessage(
+      'HANDSHAKE',
+      'page-to-devtools',
+      { protocolVersion: DEVTOOLS_PROTOCOL_VERSION, capabilities: this.#options.capabilities },
+      this.#sequence.next()
     );
+  }
+
+  #sendHandshake(): void {
+    this.#postMessage(this.#buildLegacyHandshake());
+  }
+
+  /**
+   * 起一次 v2 协商，并由它发出 eager legacy 握手。
+   *
+   * @remarks
+   * legacy 握手仍是**第一条**出站消息：协商机的 `start()` 只做这一件事，v2 要约要等对端
+   * `PROTOCOL_HELLO` 到达才发。顺序不能反——只支持 v1 的面板收到未知 `type` 会直接丢弃，
+   * 而它需要那条握手才知道页面上有 connector。
+   *
+   * 本轮宣告空 descriptor 集：页内 connector 还没有接上任何 v2 provider，
+   * 声明服务不了的 operation 等于让面板据此点亮按钮。真实 descriptor 随
+   * US-904c / US-904d / US-905 的 provider 一起接上。
+   */
+  #startNegotiation(): void {
+    const negotiation = createConnectorNegotiation({
+      send: (message: DevToolsConnectorNegotiationMessage) => this.#postMessage(message),
+      clock: createSystemClock(),
+      capability: this.#options.capabilities,
+      descriptors: CONNECTOR_PROVIDER_DESCRIPTORS,
+      legacyHandshake: this.#buildLegacyHandshake()
+    });
+    this.#negotiation = negotiation;
+    negotiation.start();
   }
 
   #onHandshakeAck(): void {
@@ -1043,7 +1094,19 @@ export class DevToolsConnector {
     for (const event of this.#buffer.flush()) this.#sendEvent(event);
   }
 
+  /**
+   * 订阅 RxDB 事件。
+   *
+   * @remarks
+   * `none` 档直接返回：该档位的要求不是「拒绝入站命令」而是**零泄漏**——不建订阅、
+   * 不写 buffer、不发任何业务数据。只在出站处拦截的话，事件仍会进 buffer，
+   * 一条 `HANDSHAKE_ACK` 就能把它们整批冲出去。
+   *
+   * @param rxdb - 已注册的实例。
+   */
   #subscribeToEvents(rxdb: DevToolsRxDB): void {
+    if (this.#options.capabilities === 'none') return;
+
     for (const eventType of RXDB_EVENT_TYPES) {
       const listener = (event: RxDBEvent): void => this.#onRxDBEvent(event);
       rxdb.addEventListener(eventType, listener);
@@ -1190,7 +1253,7 @@ export class DevToolsConnector {
    * 合法的 targetOrigin，只有显式设了 {@link DevToolsOptions.allowOpaqueOrigin}
    * 才退回 `'*'`，否则 {@link init} 早就把连接器停用了。
    */
-  #postMessage(message: AnyDevToolsMessage): void {
+  #postMessage(message: DevToolsConnectorNegotiationMessage): void {
     if (typeof window === 'undefined') return;
     const targetOrigin = location.origin === OPAQUE_ORIGIN ? '*' : location.origin;
     try {
