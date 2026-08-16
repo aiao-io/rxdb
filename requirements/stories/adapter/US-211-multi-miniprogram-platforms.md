@@ -27,11 +27,11 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 状态 | 交付                                                                 | AC 区段  | 门禁                                                                 |
-| ---- | ---- | -------------------------------------------------------------------- | -------- | -------------------------------------------------------------------- |
-| A    | ⬜    | 宿主契约 + 平台可行性矩阵；微信路径零行为变化                        | AC#1～8  | US-209 已 Done；**不**把任何新平台标成受支持                         |
-| B    | ⬜    | 第一个非微信 host（默认候选支付宝；以阶段 A 矩阵的 `supported` 为准） | AC#9～14 | 阶段 A + 该平台 `decision: supported`                                |
-| C    | ⬜    | 其余第一档平台（抖音 / 百度 / QQ）按矩阵逐个放行                     | AC#15～20 | 阶段 B；每个平台独立 `supported` 才能进实现，`unsupported` 只写原因 |
+| 阶段 | 状态 | 交付                                                                  | AC 区段   | 门禁                                                                |
+| ---- | ---- | --------------------------------------------------------------------- | --------- | ------------------------------------------------------------------- |
+| A    | ⬜   | 宿主契约 + 平台可行性矩阵；微信路径零行为变化                         | AC#1～8   | US-209 已 Done；**不**把任何新平台标成受支持                        |
+| B    | ⬜   | 第一个非微信 host（默认候选支付宝；以阶段 A 矩阵的 `supported` 为准） | AC#9～14  | 阶段 A + 该平台 `decision: supported`                               |
+| C    | ⬜   | 其余第一档平台（抖音 / 百度 / QQ）按矩阵逐个放行                      | AC#15～20 | 阶段 B；每个平台独立 `supported` 才能进实现，`unsupported` 只写原因 |
 
 阶段 A 可以单独合并。阶段 B / C 在对应平台可行性为 `unsupported` 时**只阻塞该平台**，
 不把整条故事标 `Blocked`，也不许用「微信 host 凑合能跑」冒充交付。
@@ -98,11 +98,11 @@ INVEST 检查清单:
 
 ### 平台档位
 
-| 档位 | 平台                         | 全局对象（现状，阶段 A 复核） | 本故事承诺                         |
-| ---- | ---------------------------- | ----------------------------- | ---------------------------------- |
-| 已交 | 微信                         | `wx` + `WXWebAssembly`        | US-209，实验性，本故事不得回退     |
-| 第一 | 支付宝 / 抖音 / 百度 / QQ    | `my` / `tt` / `swan` / `qq`   | 阶段 B / C，受可行性门禁           |
-| 观察 | 京东 / 快手 / 小红书 / 企业微信 | 阶段 A 矩阵可列 `unknown`     | **不实现**；要做另立故事           |
+| 档位 | 平台                            | 全局对象（现状，阶段 A 复核） | 本故事承诺                     |
+| ---- | ------------------------------- | ----------------------------- | ------------------------------ |
+| 已交 | 微信                            | `wx` + `WXWebAssembly`        | US-209，实验性，本故事不得回退 |
+| 第一 | 支付宝 / 抖音 / 百度 / QQ       | `my` / `tt` / `swan` / `qq`   | 阶段 B / C，受可行性门禁       |
+| 观察 | 京东 / 快手 / 小红书 / 企业微信 | 阶段 A 矩阵可列 `unknown`     | **不实现**；要做另立故事       |
 
 ### Out of Scope
 
@@ -120,38 +120,38 @@ INVEST 检查清单:
 
 ### 阶段 A — 宿主契约与可行性矩阵
 
-| #   | 前置条件                                      | 操作                                                                 | 预期结果                                                                                                                                                          | 状态 |
-| --- | --------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 现有微信接入代码只传 `wechat` + `wasmRuntime` | 跑 `pnpm nx test rxdb-adapter-miniprogram`                           | 全绿；公开微信 API、能力名、错误文案与 US-209 一致                                                                                                                | ⬜   |
-| 2   | 包主入口                                      | 阅读 `WaSqliteMiniProgramOptions`                                    | 新增平台无关的 `host`（或等价）注入点；`wechat` 仍可用，并在类型上标明它是微信 host 的便利形状                                                                    | ⬜   |
-| 3   | 微信 host 已连接                              | 对同一数据库文件开第二个连接                                         | 仍抛「不支持同一数据库的并发连接」，语义与 `wechat-file-vfs.ts` 的 `ACTIVE_DATABASES` 一致                                                                        | ⬜   |
-| 4   | 仓库 `requirements/`                          | 查阅本故事旁的可行性文件                                             | 微信 / 支付宝 / 抖音 / 百度 / QQ 五行齐全，每行含 WASM 实例化、同步 FS、随机源、用户目录、`fsync`/锁/原子 rename 的证据链接，以及 `supported`/`unsupported`/`unknown` | ⬜   |
-| 5   | 阶段 A 合并前                                 | 阅读 `website/docs/compatibility.md` 小程序专节与根 README           | 仍写「仅微信、实验性」；不出现「支持支付宝 / 抖音 / 百度 / QQ」                                                                                                   | ⬜   |
-| 6   | 调用方传入未知 `platform` id                  | 创建 adapter / 准备 runtime                                          | 抛稳定错误，列出已知平台 id，不回退到微信全局                                                                                                                     | ⬜   |
-| 7   | `createWechatFileVFS` / `prepareMiniProgramRuntime` | 对照 [api-baseline/rxdb-adapter-miniprogram.json](../../api-baseline/rxdb-adapter-miniprogram.json) | 旧符号仍在；若新增通用符号，走 API baseline 更新，不静默改名                                                                                                      | ⬜   |
-| 8   | 阶段 A 的可行性结论                           | 复核「第一个非微信平台」                                             | 正文或可行性文件写明阶段 B 锁定的平台 id；若第一档全部 `unsupported`，阶段 B/C 在本表标注跳过原因，不进入实现                                                      | ⬜   |
+| #   | 前置条件                                            | 操作                                                                                                | 预期结果                                                                                                                                                              | 状态 |
+| --- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | 现有微信接入代码只传 `wechat` + `wasmRuntime`       | 跑 `pnpm nx test rxdb-adapter-miniprogram`                                                          | 全绿；公开微信 API、能力名、错误文案与 US-209 一致                                                                                                                    | ⬜   |
+| 2   | 包主入口                                            | 阅读 `WaSqliteMiniProgramOptions`                                                                   | 新增平台无关的 `host`（或等价）注入点；`wechat` 仍可用，并在类型上标明它是微信 host 的便利形状                                                                        | ⬜   |
+| 3   | 微信 host 已连接                                    | 对同一数据库文件开第二个连接                                                                        | 仍抛「不支持同一数据库的并发连接」，语义与 `wechat-file-vfs.ts` 的 `ACTIVE_DATABASES` 一致                                                                            | ⬜   |
+| 4   | 仓库 `requirements/`                                | 查阅本故事旁的可行性文件                                                                            | 微信 / 支付宝 / 抖音 / 百度 / QQ 五行齐全，每行含 WASM 实例化、同步 FS、随机源、用户目录、`fsync`/锁/原子 rename 的证据链接，以及 `supported`/`unsupported`/`unknown` | ⬜   |
+| 5   | 阶段 A 合并前                                       | 阅读 `website/docs/compatibility.md` 小程序专节与根 README                                          | 仍写「仅微信、实验性」；不出现「支持支付宝 / 抖音 / 百度 / QQ」                                                                                                       | ⬜   |
+| 6   | 调用方传入未知 `platform` id                        | 创建 adapter / 准备 runtime                                                                         | 抛稳定错误，列出已知平台 id，不回退到微信全局                                                                                                                         | ⬜   |
+| 7   | `createWechatFileVFS` / `prepareMiniProgramRuntime` | 对照 [api-baseline/rxdb-adapter-miniprogram.json](../../api-baseline/rxdb-adapter-miniprogram.json) | 旧符号仍在；若新增通用符号，走 API baseline 更新，不静默改名                                                                                                          | ⬜   |
+| 8   | 阶段 A 的可行性结论                                 | 复核「第一个非微信平台」                                                                            | 正文或可行性文件写明阶段 B 锁定的平台 id；若第一档全部 `unsupported`，阶段 B/C 在本表标注跳过原因，不进入实现                                                         | ⬜   |
 
 ### 阶段 B — 第一个非微信 host
 
-| #   | 前置条件                                      | 操作                                                                 | 预期结果                                                                                                                                                          | 状态 |
-| --- | --------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 9   | 阶段 A 指定平台为 `supported`                 | 注入该平台 host（不传 `wx`）并完成一次写入 / `disconnect` / 重连     | 数据仍在；使用该平台的用户目录与同步 FS，不读取 `wx`                                                                                                              | ⬜   |
-| 10  | 该平台缺少 WASM 或同步 FS 或可信随机源        | `assertMiniProgramRuntimeCapabilities()` / `prepareMiniProgramRuntime` | 抛出列出全部缺失能力名的错误，能力名带平台前缀；**不**降级到 `Math.random`，**不**去碰微信全局                                                                    | ⬜   |
-| 11  | 该平台 host 已注册                            | 对同一数据库文件开第二个连接                                         | 与微信相同：拒绝并发，不静默共享句柄                                                                                                                              | ⬜   |
-| 12  | 公开文档                                      | 阅读 compatibility 专节、包 README、根 README                        | 该平台从「不支持」改为「实验性支持」，并保留单连接 / rollback journal / 无崩溃恢复 / ~10MB 边界；其他未交付平台仍写不支持                                         | ⬜   |
-| 13  | 手工验证入口                                  | 按文档执行该平台的构建与开发者工具步骤                               | 步骤可复述；若走 taro，对应 `build:*` 必须在 [examples/README.md](../../../examples/README.md) 标明「已验证」或「仍未验证」，禁止含糊                                | ⬜   |
-| 14  | 微信回归                                      | 再跑微信单测与既有 taro `build:weapp` 类型检查                       | 微信路径无回归                                                                                                                                                    | ⬜   |
+| #   | 前置条件                               | 操作                                                                   | 预期结果                                                                                                                              | 状态 |
+| --- | -------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 9   | 阶段 A 指定平台为 `supported`          | 注入该平台 host（不传 `wx`）并完成一次写入 / `disconnect` / 重连       | 数据仍在；使用该平台的用户目录与同步 FS，不读取 `wx`                                                                                  | ⬜   |
+| 10  | 该平台缺少 WASM 或同步 FS 或可信随机源 | `assertMiniProgramRuntimeCapabilities()` / `prepareMiniProgramRuntime` | 抛出列出全部缺失能力名的错误，能力名带平台前缀；**不**降级到 `Math.random`，**不**去碰微信全局                                        | ⬜   |
+| 11  | 该平台 host 已注册                     | 对同一数据库文件开第二个连接                                           | 与微信相同：拒绝并发，不静默共享句柄                                                                                                  | ⬜   |
+| 12  | 公开文档                               | 阅读 compatibility 专节、包 README、根 README                          | 该平台从「不支持」改为「实验性支持」，并保留单连接 / rollback journal / 无崩溃恢复 / ~10MB 边界；其他未交付平台仍写不支持             | ⬜   |
+| 13  | 手工验证入口                           | 按文档执行该平台的构建与开发者工具步骤                                 | 步骤可复述；若走 taro，对应 `build:*` 必须在 [examples/README.md](../../../examples/README.md) 标明「已验证」或「仍未验证」，禁止含糊 | ⬜   |
+| 14  | 微信回归                               | 再跑微信单测与既有 taro `build:weapp` 类型检查                         | 微信路径无回归                                                                                                                        | ⬜   |
 
 ### 阶段 C — 抖音 / 百度 / QQ
 
-| #   | 前置条件                                      | 操作                                                                 | 预期结果                                                                                                                                                          | 状态 |
-| --- | --------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 15  | 某第一档平台矩阵为 `supported` 且尚未实现     | 按阶段 B 同等标准落地 host                                           | AC#9～#13 对该平台同样成立                                                                                                                                        | ⬜   |
-| 16  | 某第一档平台矩阵为 `unsupported`              | 传入该平台 id                                                        | 连接前失败，错误指向可行性文件中的原因；不存在「当成微信跑一下」的分支                                                                                            | ⬜   |
-| 17  | 三个平台都处理完毕（实现或明确拒绝）          | 阅读 compatibility 专节                                              | 四个第一档平台（含阶段 B）每行都有「实验性支持」或「不支持 + 原因」，没有「各种小程序」这种集合句                                                                 | ⬜   |
-| 18  | 观察档平台（京东等）                          | 传入其平台 id                                                        | 一律按未知平台拒绝；矩阵里可以有 `unknown` 行，代码不得出现半成品 host                                                                                            | ⬜   |
-| 19  | 覆盖率门禁                                    | `node scripts/audit/coverage-check.mjs`（本包）                      | 不低于包类型门槛（80%）与既有 baseline 趋势                                                                                                                       | ⬜   |
-| 20  | 微信 + 已支持的非微信 host                    | 全量 `pnpm nx test rxdb-adapter-miniprogram`                         | 全绿；平台 fixture 不得互相污染全局对象                                                                                                                           | ⬜   |
+| #   | 前置条件                                  | 操作                                            | 预期结果                                                                                          | 状态 |
+| --- | ----------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---- |
+| 15  | 某第一档平台矩阵为 `supported` 且尚未实现 | 按阶段 B 同等标准落地 host                      | AC#9～#13 对该平台同样成立                                                                        | ⬜   |
+| 16  | 某第一档平台矩阵为 `unsupported`          | 传入该平台 id                                   | 连接前失败，错误指向可行性文件中的原因；不存在「当成微信跑一下」的分支                            | ⬜   |
+| 17  | 三个平台都处理完毕（实现或明确拒绝）      | 阅读 compatibility 专节                         | 四个第一档平台（含阶段 B）每行都有「实验性支持」或「不支持 + 原因」，没有「各种小程序」这种集合句 | ⬜   |
+| 18  | 观察档平台（京东等）                      | 传入其平台 id                                   | 一律按未知平台拒绝；矩阵里可以有 `unknown` 行，代码不得出现半成品 host                            | ⬜   |
+| 19  | 覆盖率门禁                                | `node scripts/audit/coverage-check.mjs`（本包） | 不低于包类型门槛（80%）与既有 baseline 趋势                                                       | ⬜   |
+| 20  | 微信 + 已支持的非微信 host                | 全量 `pnpm nx test rxdb-adapter-miniprogram`    | 全绿；平台 fixture 不得互相污染全局对象                                                           | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过 / ⏭️ 因可行性 `unsupported` 跳过
 
@@ -159,14 +159,14 @@ INVEST 检查清单:
 
 ### 现状耦合点（阶段 A 必须拆开、不得删掉）
 
-| 符号 | 微信特化点 | 阶段 A 去向 |
-| ---- | ---------- | ----------- |
-| `MiniProgramWechatApi` | `env.USER_DATA_PATH` / `getFileSystemManager` / `getRandomValues` | 保留；由 `createWechatMiniProgramHost(wx)` 适配到 `MiniProgramHost` |
-| `MiniProgramWasmRuntime` | 已是最小 `instantiate(path, imports)` | 保留；各平台自己提供实现，不假设全局名叫 `WXWebAssembly` |
-| `loadWaSqliteMiniProgramModule` | 错误文案写死 `WXWebAssembly` | 微信 host 保持原文案；通用加载器用 host / runtime 名称 |
-| `createWechatFileVFS` | 函数名与 `WechatFileVFSOptions.wechat` | 抽出 `createMiniProgramFileVFS({ fileSystem, root, … })`；旧函数变薄封装 |
-| `prepareMiniProgramRuntime(wx)` | `requestWechatRandomPool` | 保留；新增按 host 取随机源的重载或并行函数 |
-| `ACTIVE_DATABASES` | 模块级单连接 | 继续作为所有 host 的并发安全来源，不指望小程序文件锁 |
+| 符号                            | 微信特化点                                                        | 阶段 A 去向                                                              |
+| ------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `MiniProgramWechatApi`          | `env.USER_DATA_PATH` / `getFileSystemManager` / `getRandomValues` | 保留；由 `createWechatMiniProgramHost(wx)` 适配到 `MiniProgramHost`      |
+| `MiniProgramWasmRuntime`        | 已是最小 `instantiate(path, imports)`                             | 保留；各平台自己提供实现，不假设全局名叫 `WXWebAssembly`                 |
+| `loadWaSqliteMiniProgramModule` | 错误文案写死 `WXWebAssembly`                                      | 微信 host 保持原文案；通用加载器用 host / runtime 名称                   |
+| `createWechatFileVFS`           | 函数名与 `WechatFileVFSOptions.wechat`                            | 抽出 `createMiniProgramFileVFS({ fileSystem, root, … })`；旧函数变薄封装 |
+| `prepareMiniProgramRuntime(wx)` | `requestWechatRandomPool`                                         | 保留；新增按 host 取随机源的重载或并行函数                               |
+| `ACTIVE_DATABASES`              | 模块级单连接                                                      | 继续作为所有 host 的并发安全来源，不指望小程序文件锁                     |
 
 `wechat-file-vfs.ts` 的实质已经是「整库进内存 + `writeFileSync`」。它缺的不是另一套 VFS，
 是一个**不是微信名字**的注入口。不要为每个平台复制一份缓冲 VFS。
@@ -212,17 +212,17 @@ Taro 与历史 README 都把支付宝放在微信旁边，所以它是**第一�
 
 ## 实现文件
 
-| 阶段 | 路径 | 职责 |
-| ---- | ---- | ---- |
-| A | `packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts` | `MiniProgramHost` / 平台 id |
-| A | `packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts` | 通用文件 VFS；微信封装保留 |
-| A | `packages/rxdb-adapter-miniprogram/src/runtime-capabilities.ts` | 按 host 预检；微信文案不变 |
-| A | `packages/rxdb-adapter-miniprogram/src/runtime-polyfills.ts` | host 随机源；`wx` 路径保留 |
-| A | `requirements/stories/adapter/miniprogram-platform-feasibility.md` | 可行性矩阵 |
-| B/C | `packages/rxdb-adapter-miniprogram/src/hosts/` | 每平台一个 host，禁止共享「像 wx 的全局」 |
-| B/C | `packages/rxdb-adapter-miniprogram/src/__tests__/` | 每平台 fixture，不碰真实微信全局 |
-| B/C | `website/docs/compatibility.md`、包 README、根 README、`examples/README.md` | 按已关闭阶段改口径 |
-| B | `examples/taro-react-todo/`（可选） | 仅当它仍是最便宜的手工入口时扩展；不进 CI |
+| 阶段 | 路径                                                                        | 职责                                      |
+| ---- | --------------------------------------------------------------------------- | ----------------------------------------- |
+| A    | `packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts`           | `MiniProgramHost` / 平台 id               |
+| A    | `packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts`                  | 通用文件 VFS；微信封装保留                |
+| A    | `packages/rxdb-adapter-miniprogram/src/runtime-capabilities.ts`             | 按 host 预检；微信文案不变                |
+| A    | `packages/rxdb-adapter-miniprogram/src/runtime-polyfills.ts`                | host 随机源；`wx` 路径保留                |
+| A    | `requirements/stories/adapter/miniprogram-platform-feasibility.md`          | 可行性矩阵                                |
+| B/C  | `packages/rxdb-adapter-miniprogram/src/hosts/`                              | 每平台一个 host，禁止共享「像 wx 的全局」 |
+| B/C  | `packages/rxdb-adapter-miniprogram/src/__tests__/`                          | 每平台 fixture，不碰真实微信全局          |
+| B/C  | `website/docs/compatibility.md`、包 README、根 README、`examples/README.md` | 按已关闭阶段改口径                        |
+| B    | `examples/taro-react-todo/`（可选）                                         | 仅当它仍是最便宜的手工入口时扩展；不进 CI |
 
 ## References
 

@@ -29,9 +29,7 @@ const classifyTables = (rows: readonly (readonly unknown[])[]) => {
   );
   return {
     virtualTables,
-    plainTables: allNames.filter(
-      name => !shadowNames.has(name) && !virtualTables.includes(name)
-    )
+    plainTables: allNames.filter(name => !shadowNames.has(name) && !virtualTables.includes(name))
   };
 };
 
