@@ -7,6 +7,15 @@ test.describe('Remote Cache Page (US-502 fetch + OPFS cache)', () => {
   // 并行跑时「已缓存（N）」的断言互相打架。beforeEach 里的清理是同一个原因。
   test.describe.configure({ mode: 'serial' });
 
+  /*
+   * Angular demo 独有：生产构建注册了 ngsw-worker.js（`provideServiceWorker(..., { enabled: !isDevMode() })`），
+   * 而 e2e 跑的正是生产产物。走 SW 发出的请求 **不经过 `page.route`** —— 于是
+   * `requestCounts` 永远是 0，「命中缓存时不发网络请求」这条断言会退化成恒真。
+   * 这里把 SW 关掉，让 picsum 的请求回到页面上下文，stub 才真的拦得住。
+   * react / vue demo 没有注册 SW，所以它们的同名 spec 不需要这一行。
+   */
+  test.use({ serviceWorkers: 'block' });
+
   test.beforeEach(async ({ page }) => {
     await stubPicsumFetch(page);
     await page.goto('/remote-cache');

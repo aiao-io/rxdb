@@ -932,9 +932,12 @@ jobs:
       # 只在门禁跑完且数据完整时上报。上一步失败时 coverage/ 可能只有部分 lane 的产物，
       # 把残缺数据推给 Codecov 会在 PR 上留一条「覆盖率暴跌」的假告警，
       # 掩盖掉「其实是某条 lane 没跑完」这个真问题。
+      # 这两步是全仓唯一同时拿到 CODECOV_TOKEN 和 id-token 的地方，
+      # 所以更要遵守文件头那条「第三方 action 一律钉 commit SHA」——
+      # 之前挂在可变 tag `v7` 上，上游 tag 被强推就等于把 secret 和 OIDC 一起交出去。
       - name: Upload coverage to Codecov
         if: success()
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           use_oidc: true
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -943,7 +946,7 @@ jobs:
 
       - name: Upload test results to Codecov
         if: success()
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           use_oidc: true
           token: ${{ secrets.CODECOV_TOKEN }}
