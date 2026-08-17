@@ -201,9 +201,23 @@ export const STAMP_METADATA: EntityMetadata = transitionMetadata({
   indexes: []
 } as unknown as EntityMetadataOptions);
 
-/** 指向缺主键 / 主键类型非法 / 未注册目标的三个宿主。 */
+/** 声明了两个 `primary: true` 属性的实体：外键类型取哪一个无法确定。 */
+export const TWIN_METADATA: EntityMetadata = transitionMetadata({
+  name: 'Twin',
+  namespace: 'public',
+  properties: [
+    { name: 'id', type: PropertyType.uuid, displayName: 'ID', primary: true },
+    { name: 'code', type: PropertyType.integer, displayName: '编号', primary: true }
+  ],
+  computedProperties: [],
+  relations: [],
+  indexes: []
+} as unknown as EntityMetadataOptions);
+
+/** 指向缺主键 / 主键类型非法 / 多主键 / 未注册目标的四个宿主。 */
 export const GHOST_HOST_METADATA: EntityMetadata = relationHost('GhostHost', 'Ghost');
 export const STAMP_HOST_METADATA: EntityMetadata = relationHost('StampHost', 'Stamp');
+export const TWIN_HOST_METADATA: EntityMetadata = relationHost('TwinHost', 'Twin');
 export const ORPHAN_HOST_METADATA: EntityMetadata = relationHost('OrphanHost', 'Nowhere');
 
 /**
@@ -336,5 +350,6 @@ export const FIELD_RESOLVER: EntityMetadataResolver = createFieldResolver([
   TARGET_METADATA,
   OTHER_TARGET_METADATA,
   GHOST_METADATA,
-  STAMP_METADATA
+  STAMP_METADATA,
+  TWIN_METADATA
 ]);

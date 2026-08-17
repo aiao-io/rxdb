@@ -7,7 +7,14 @@
  * 不因输入形状畸形而自身抛出非聚合异常。
  */
 
-import { isStepAligned, missingFormatConfigKeys, percentageDomainOf } from './format-rules.js';
+import {
+  formatConfigLiteralsOf,
+  isStepAligned,
+  lookupOwn,
+  missingFormatConfigKeys,
+  percentageDomainOf
+} from './format-rules.js';
+import { isPlainRecord } from './json-safe.js';
 import {
   EntityPropertyMetadata,
   EntityRelationMetadata,
@@ -46,7 +53,8 @@ export type MetadataValidationRule =
  * 与 {@link MetadataValidationRule} 故意不合并：两者的产出方、产出时机和错误类型都不同。
  * 本联合由字段描述 DTO 的生成入口产出。
  */
-export type RelationResolutionRule = 'missingRelationPrimary' | 'unsupportedRelationValueType';
+export type RelationResolutionRule =
+  'missingRelationPrimary' | 'multipleRelationPrimaries' | 'unsupportedRelationValueType';
 
 /**
  * 单条元数据违规。
@@ -135,23 +143,13 @@ export const FIELD_FORMAT_CONFIG_KEYS: Record<FieldFormat['kind'], readonly stri
   multiSelect: []
 };
 
-/** 枚举型配置键的合法字面量。 */
-const ENUM_CONFIG_VALUES: Record<string, readonly string[]> = {
-  contentType: ['text/markdown', 'text/html'],
-  scale: ['0..1', '0..100'],
-  unit: ['ms', 's', 'min', 'h', 'd'],
-  colorSpace: ['hex', 'rgb', 'hsl', 'hsv', 'lab', 'lch'],
-  display: ['date', 'time', 'datetime']
-};
-
 const CURRENCY_RE = /^[A-Z]{3}$/;
 const SCHEME_RE = /^[A-Za-z][A-Za-z0-9+.-]*$/;
 const OPTION_DISPLAY_KEYS: readonly string[] = ['label', 'color', 'disabled'];
 const NUMERIC_CONFIG_KEYS: readonly string[] = ['min', 'max', 'step'];
 
-/** 判断是否为普通对象（排除数组、`null` 与类实例以外的宿主对象）。 */
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
+/** `enum` / `options` 的合法载体 PropertyType（类型层只有 `EnumProperty` 与 `StringArrayProperty` 声明这两个键）。 */
+const ENUM_CARRIER_TYPES: readonly string[] = [PropertyType.enum, PropertyType.stringArray];
 
 /** 校验 `schemes` 数组语法，并按 ASCII 小写判重（US-019 D1：重复即拒绝，本层不做归一化）。 */
 const invalidSchemes = (value: unknown): string | null => {
@@ -174,7 +172,7 @@ const invalidConfigValue = (key: string, value: unknown): string | null => {
   if (key === 'language' || key === 'timezone') {
     return typeof value === 'string' && value.length > 0 ? null : '必须是非空字符串';
   }
-  const literals = ENUM_CONFIG_VALUES[key];
+  const literals = formatConfigLiteralsOf(key);
   if (literals) {
     return typeof value === 'string' && literals.includes(value) ? null : `必须是 ${literals.join(' | ')} 之一`;
   }
@@ -245,12 +243,15 @@ const detectFormatViolation = (
   format: unknown,
   type: string | undefined
 ): { rule: MetadataValidationRule; message: string } | null => {
-  if (!isPlainObject(format)) return { rule: 'invalidFormatConfig', message: 'format 必须是普通对象' };
+  if (!isPlainRecord(format)) return { rule: 'invalidFormatConfig', message: 'format 必须是普通对象' };
   const kind = format['kind'];
   if (typeof kind !== 'string') return { rule: 'invalidFormatConfig', message: 'format 缺少字符串 kind' };
   if (type === undefined) return { rule: 'formatOnRelation', message: '关系不接受 format 声明' };
 
-  const allowed = FIELD_FORMAT_CONFIG_KEYS[kind as FieldFormat['kind']];
+  // `kind` 是未受信字符串，必须走 lookupOwn：直接索引会把 `toString` / `__proto__` / `constructor`
+  // 取成原型链上的成员，绕过 unknownFormat 后在下面的 `.includes()` 上抛 TypeError，
+  // 违反本模块「畸形输入只转违规」的契约
+  const allowed = lookupOwn(FIELD_FORMAT_CONFIG_KEYS, kind);
   if (!allowed) return { rule: 'unknownFormat', message: `未知的 format.kind "${kind}"` };
 
   const conflict = CARDINALITY_CONFLICTS.find(item => item.kind === kind && item.type === type);
@@ -304,12 +305,12 @@ const validateEnumDeclaration = (
 
 /** 校验 `options` 声明本身，返回是否可继续判定键越界。 */
 const validateOptionsDeclaration = (collector: ViolationCollector, name: string, declared: unknown): boolean => {
-  if (!isPlainObject(declared)) {
+  if (!isPlainRecord(declared)) {
     collector.add(name, 'invalidOptionsConfig', 'options 必须是普通对象');
     return false;
   }
   const bad = Object.entries(declared).find(([, display]) => {
-    if (!isPlainObject(display)) return true;
+    if (!isPlainRecord(display)) return true;
     if (Object.keys(display).some(key => !OPTION_DISPLAY_KEYS.includes(key))) return true;
     if ('label' in display && typeof display['label'] !== 'string') return true;
     if ('color' in display && typeof display['color'] !== 'string') return true;
@@ -327,13 +328,41 @@ const requiresEnum = (property: Record<string, unknown>): boolean => {
   if (property['type'] === PropertyType.enum) return true;
   if (property['type'] !== PropertyType.stringArray) return false;
   const format = property['format'];
-  const multiSelect = isPlainObject(format) && format['kind'] === 'multiSelect';
+  const multiSelect = isPlainRecord(format) && format['kind'] === 'multiSelect';
   return multiSelect || 'options' in property;
+};
+
+/**
+ * 校验 `enum` / `options` 的载体合法性。
+ *
+ * @returns 是否继续判定 enum 族内容。非载体类型一律 `false`：带了这两个键的已记违规，
+ * 没带的本来就无内容可判——两种情况都不该再往下走。
+ *
+ * @remarks
+ * 类型层只有 `EnumProperty` 与 `StringArrayProperty` 声明这两个键。绕过 TypeScript 后
+ * 一个 `number` 属性带上 `enum` 会一路进到描述器，`validateFieldValue()` 还会拿数字去比枚举成员。
+ */
+const continueAfterEnumCarrier = (
+  collector: ViolationCollector,
+  property: Record<string, unknown>,
+  name: string
+): boolean => {
+  if (ENUM_CARRIER_TYPES.includes(String(property['type']))) return true;
+  const carriers = ENUM_CARRIER_TYPES.join(' | ');
+  if ('enum' in property) {
+    collector.add(name, 'invalidEnumConfig', `enum 只能声明在 ${carriers} 属性上`);
+  }
+  if ('options' in property) {
+    collector.add(name, 'invalidOptionsConfig', `options 只能声明在 ${carriers} 属性上`);
+  }
+  return false;
 };
 
 /** 校验 `enum` 与 `options` 族规则，与 format 族相互独立。 */
 const validateEnumAndOptions = (collector: ViolationCollector, property: Record<string, unknown>): void => {
   const name = String(property['name']);
+  if (!continueAfterEnumCarrier(collector, property, name)) return;
+
   const hasEnum = 'enum' in property;
   const values = hasEnum ? validateEnumDeclaration(collector, name, property['enum']) : null;
 

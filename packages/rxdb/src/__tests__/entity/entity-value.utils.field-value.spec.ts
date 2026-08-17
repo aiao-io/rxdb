@@ -533,6 +533,43 @@ describe('validateFieldValue', () => {
       expect('value' in error).toBe(false);
     });
 
+    it('循环引用返回错误而不是抛 RangeError', () => {
+      // 函数契约是「校验失败返回错误对象」，栈溢出会把调用方的 try/catch 变成必需品
+      const json = propertyField({ valueType: 'json' });
+      const cyclic: Record<string, unknown> = { name: 'root' };
+      cyclic['self'] = cyclic;
+
+      const error = errorOf(json, cyclic);
+
+      expect(error.rule).toBe('json');
+      expect('value' in error).toBe(false);
+    });
+
+    it('数组里的循环引用同样只转成错误', () => {
+      const array: unknown[] = [1];
+      array.push(array);
+
+      const error = errorOf(propertyField({ valueType: 'stringArray' }), array);
+
+      expect('value' in error).toBe(false);
+    });
+
+    it('同一对象出现多次但无环时不算不可序列化', () => {
+      // 判据必须是「当前递归路径」而不是「见过的对象」，否则合法的 DAG 会被误判
+      const shared = { a: 1 };
+      expect(validateFieldValue(propertyField({ valueType: 'json' }), { left: shared, right: shared })).toBeNull();
+    });
+
+    it('自有 __proto__ 键在规范化后保留', () => {
+      // 用 `result[key] = ...` 赋值会命中原型 setter：键被吞掉、原型被改，error.value 无法 JSON 往返
+      const value: Record<string, unknown> = JSON.parse('{"__proto__": {"x": 1}, "plain": 2}');
+
+      const error = errorOf(text, value);
+
+      expect(Object.keys(error.value as object)).toStrictEqual(['__proto__', 'plain']);
+      expect(JSON.parse(JSON.stringify(error))).toStrictEqual(error);
+    });
+
     it('JSON.stringify(error) 不抛且往返无损', () => {
       const errors = [errorOf(text, new Date('2026-01-02T03:04:05.000Z')), errorOf(text, 42n), errorOf(text, () => 1)];
       errors.forEach(error => {
