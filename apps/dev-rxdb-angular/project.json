@@ -1,6 +1,5 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "// serve-e2e": "Playwright 的 webServer 专用：只服务产物，不带 buildTarget。产物由 e2e target 的 dependsOn 保证已存在；带上 buildTarget 会在 playwright 进程里再起一个 NX_DAEMON=false、与外层 nx 互不协调的 nx 进程重建整条依赖链，和并行跑的其它 e2e 抢同一份包 dist，vite 的 emptyOutDir 与另一进程的写入相撞后报 ENOTEMPTY —— 这就是 rxdb-test:build / rxdb:build 被标记为 flaky 的根因。serve-static 保持带 buildTarget，供人手动使用。",
   "cli": {
     "cache": {
       "enabled": false
