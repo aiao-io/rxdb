@@ -29,15 +29,16 @@
 | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)         | 阶段 1～2 已交付（**9 条 AC 全绿**，2026-08-17 关闭 AC#8 + 三条发布性质）；**停在阶段 3** = 包边界重整 E1～E7；阶段 4 = Web 回落 E8～E11。见该文件[交付阶段](stories/adapter/US-207-desktop-local-database.md#交付阶段) |
 | [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) | 阶段 1～3 已交付（2026-08-17 关闭 AC#1/#6/#9；**AC#10 仍 ⚠️**，「不建库」那半条要改协议才做得到）；**停在阶段 4** = Tauri 包化 T1～T7。见该文件[交付阶段](stories/adapter/US-210-tauri-sqlite-local-database.md#交付阶段)          |
-| [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                   | AC#6 / #7 待 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵；AC#1/#3/#5/#8 仍 ⚠️                                                                                                                                  |
+| [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                   | AC#6 / #7 的两个前置（`apps/dev-rxdb-tauri-e2e` project、三平台打包矩阵）已由 US-210 建好，缺的只剩 US-505 自己的 specs；AC#1/#3/#5/#8 仍 ⚠️                                                                  |
 | [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)    | 阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 A / C / D 未开始                                                                                                                                            |
 
-> US-207 / US-210 / US-505 的三条尾巴是**同一个下游缺口**：真实打包应用的重启与三平台矩阵。
+> US-207 / US-210 / US-505 的三条尾巴曾是**同一个下游缺口**：真实打包应用的重启与三平台矩阵。
+> 该缺口已于 2026-08-17 补上（`release-desktop.yml` + 两个 e2e project），US-505 只剩自己的 specs。
 >
 > **桌面包边界重整（未开工，横跨 US-207 / US-210 / US-505 / US-504）**：
 > `@aiao/rxdb-adapter-desktop` 拆成 `@aiao/rxdb-adapter-electron` 与 `@aiao/rxdb-adapter-tauri`，
 > 共享协议与 renderer client 下沉 `rxdb-adapter-sqlite-core` 子路径，`desktop` 这个包名消失；
-> Tauri 的 Rust 宿主与一致性用例（写本条时 SQL 侧 577 条）从 `apps/dev-rxdb-tauri/` 搬进新包，demo 反向依赖。
+> Tauri 的 Rust 宿主与一致性用例（写本条时 SQL 侧 585 条）从 `apps/dev-rxdb-tauri/` 搬进新包，demo 反向依赖。
 > 任务表在 US-207「包边界重整」（E1～E7）+「Web 回落」（E8～E11）与 US-210「Tauri 包化」（T1～T7），US-505 有 S1～S5 跟进项，
 > US-504 只需事后同步路径。
 >
@@ -207,5 +208,7 @@
 >
 > 真正的缺口从来不是技术性的：**仓库至今没有任何 macOS runner**。这不是阻塞，是没排期——
 > 仓库是 public，标准 runner 免费，`ci-windows.yml` 里那句「2 倍计费」的成本理由不成立。
-> 落地方案见 [US-207「三平台打包 CI（阶段 2）」](stories/adapter/US-207-desktop-local-database.md#三平台打包-ci阶段-2)：
-> 一个 release 触发的 workflow，同时服务 US-207 AC#8、US-210 AC#9 与三条发布性质。
+> **2026-08-17 已排上**：`.github/workflows/release-desktop.yml` 一条 release 触发的 workflow，
+> 同时服务 US-207 AC#8、US-210 AC#9 与三条发布性质；决策与代价见
+> [US-207「三平台打包 CI（阶段 2）」](stories/adapter/US-207-desktop-local-database.md#三平台打包-ci阶段-2)。
+> **三平台的首轮结果尚未产生**——本机只跑得动 macOS，另两个平台要等 workflow 真被触发一次。
