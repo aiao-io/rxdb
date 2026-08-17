@@ -10,7 +10,7 @@
 import { createJiti } from 'jiti';
 import { existsSync, realpathSync } from 'node:fs';
 import { dirname, normalize, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import buildClientLibrary from './build-client-lib.js';
 import type { RxDBClientCLIentGeneratorOptions } from './cli.interface.js';
 import { validateUniqueConfigOutDirs } from './out-dir.js';
@@ -99,10 +99,9 @@ export async function main(): Promise<void> {
 /**
  * 比较两条 file URL 是否指向同一 CLI 入口。
  *
- * Node ESM 在 Windows 上会把 `import.meta.url` 的盘符写成小写（`file:///d:/...`），
- * `pathToFileURL(realpathSync(argv[1]))` 则保留 argv 的大写盘符（`file:///D:/...`）。
- * `file://localhost/...` 与 `file:///...` 也是同一路径的两种写法。
- * 字符串全等会让 `node dist/cli.js` 以 0 退出、不生成任何文件。
+ * 必须先 `fileURLToPath` 再比真实路径：Windows 上 `import.meta.url` 可能是
+ * `file:///d:/...`、`file:///D%3A/...`、`file://localhost/D:/...`，
+ * 只比 URL pathname 会漏掉编码和反斜杠形态。
  */
 export const sameCliFileUrl = (left: string, right: string): boolean => {
   try {
@@ -112,12 +111,13 @@ export const sameCliFileUrl = (left: string, right: string): boolean => {
   }
 };
 
-/** 去掉 `file://localhost`，解码后把 Windows 盘符统一成小写。 */
 const comparableCliPath = (fileUrl: string): string => {
   const url = new URL(fileUrl);
   if (url.protocol !== 'file:') return fileUrl;
-  url.host = '';
-  return decodeURIComponent(url.pathname).replace(/^\/[A-Za-z]:/u, drive => drive.toLowerCase());
+  // POSIX 上 fileURLToPath('file:///D:/...') 得到 `/D:/...`；Windows 上是 `D:\...`。
+  return fileURLToPath(url)
+    .replaceAll('\\', '/')
+    .replace(/^\/?([A-Za-z]):/u, (_match, letter: string) => `${letter.toLowerCase()}:`);
 };
 
 /**

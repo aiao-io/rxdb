@@ -202,6 +202,11 @@ describe('rxdb-client-generator cli', () => {
     expect(sameCliFileUrl(lower, upper)).toBe(true);
     expect(sameCliFileUrl(upper, lower)).toBe(true);
     expect(sameCliFileUrl(lower, other)).toBe(false);
+    expect(sameCliFileUrl('file:///D%3A/a/rxdb/rxdb/packages/rxdb-client-generator/dist/cli.js', lower)).toBe(true);
+    expect(sameCliFileUrl('file://localhost/D:/a/rxdb/rxdb/packages/rxdb-client-generator/dist/cli.js', upper)).toBe(
+      true
+    );
+    expect(sameCliFileUrl('file:///d:/a/rxdb/rxdb/packages/rxdb-client-generator/dist/cli.js', upper)).toBe(true);
   });
 
   // Windows CI 上 `node D:\...\dist\cli.js` 的 import.meta.url 与
