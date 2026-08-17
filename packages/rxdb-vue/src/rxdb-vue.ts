@@ -244,12 +244,4 @@ const useRxDB = (): RxDB => {
  */
 const useRxDBOptional = (): RxDB | undefined => injectSlotQuietly()?.db.value;
 
-export {
-  injectRxDB,
-  injectRxDBRef,
-  makeRxDBDependencyInjector,
-  provideRxDB,
-  useRxDB,
-  useRxDBOptional,
-  useRxDBRef
-};
+export { injectRxDB, injectRxDBRef, makeRxDBDependencyInjector, provideRxDB, useRxDB, useRxDBOptional, useRxDBRef };

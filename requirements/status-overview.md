@@ -43,10 +43,11 @@
 > E6 的迁移文档（2026-08-18，`website/docs/migration/desktop-split.md`）、
 > E8 的选择器本体 + E9 的同名断言（2026-08-18，`apps/dev-rxdb-tauri/src/app/local-backend.ts`；
 > 同日判定**不做成公开 API**，从 `@aiao/rxdb` 撤回到应用里，理由见故事内「为什么不做成公开 API」）、
-> US-210 T3（JS 传输层迁入）与 US-505 S3+S4。
+> US-210 T3（JS 传输层迁入）与 US-505 S3+S4、
+> 三端 provider 统一异步契约（2026-08-18，见下）。
 > **未完成**：E6 的 `npm deprecate` 旧包（**对外不可逆，需人工确认后执行**）、
 > E8 的 `dev-rxdb-electron` 半边（它要求把 demo 的两张卡合并成一张，是 demo 形态变更，需先确认）、
-> E9 的页面展示 / E10 / E11（E11 卡在 `provideRxDB` 收的是同步工厂）、
+> E9 的页面展示 / E10 / E11（E11 的前置已解除，见下）、
 > US-210 T1/T2/T4～T7——Tauri 的 Rust 宿主与一致性用例（写本条时 SQL 侧 585 条）仍在 `apps/dev-rxdb-tauri/`，
 > 搬进新包后 demo 才反向依赖。US-504 只需事后同步路径。
 >
@@ -57,6 +58,19 @@
 > US-505「`capabilities/` 零改动」的论证是否需要重写。
 > 拖延成本随时间上涨：`@aiao/rxdb-adapter-desktop@0.0.25` 仍挂在 registry 上，指向一个仓库里已经不存在的包——
 > 这条要等 E6 的 `npm deprecate` 才算收口。
+>
+> **三端 provider 统一异步契约（2026-08-18）**：Angular / React / Vue 的 provider 现在收同一个
+> `RxDBSource = RxDB | Promise<RxDB> | (() => RxDB | Promise<RxDB>)`，读取统一为
+> `useRxDB()`（未就绪抛错、创建失败原样抛出创建异常）+ `useRxDBOptional()`（返回 `undefined`），
+> 三端共用一条所有权规则：**provider 只销毁自己造的东西**。对称性由三个同名同结构的
+> `tri-framework-provider.spec.ts` 在编译期锁住（`@ts-expect-error` + `nx typecheck`）。
+> 连带解除两处：E11 的「`provideRxDB` 只收同步工厂」前置没了（动态 `import()` 可直接交给 provider）；
+> ELEC-11 在 `dev-rxdb-electron` 里手写的「bootstrap 强制实例化」补丁删除 ——
+> Angular 的 `provideRxDB` 自带 app initializer，且该 initializer 永不 reject（reject 会中止
+> bootstrap，窗口全白，诊断界面反被失败本身挡在门外）。
+> 详见 [US-101](stories/framework/US-101-angular-integration.md) /
+> [US-102](stories/framework/US-102-react-integration.md) /
+> [US-103](stories/framework/US-103-vue-integration.md)。
 
 ## 已取消
 

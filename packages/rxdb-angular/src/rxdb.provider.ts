@@ -63,8 +63,9 @@ const createHolder = (source: RxDBSource, destroyRef: DestroyRef): RxDBHolder =>
   // 失败在这里被吸收：ready() 交给 provideAppInitializer，而 initializer 一旦 reject，
   // Angular 会中止 bootstrap —— 组件树不渲染、窗口全白，为这种失败准备的应用内诊断面板
   // 反而被失败本身挡在门外。所以错误留到 require() 再抛，那时页面已经渲染出来了。
-  const ready: Promise<void> = isThenable(produced)
-    ? Promise.resolve(produced).then(
+  const ready: Promise<void> =
+    isThenable(produced) ?
+      Promise.resolve(produced).then(
         database => void (instance = database),
         error => void (failure = error)
       )
@@ -73,9 +74,7 @@ const createHolder = (source: RxDBSource, destroyRef: DestroyRef): RxDBHolder =>
   if (owned) {
     destroyRef.onDestroy(() => {
       // 销毁可能早于 resolve：挂在 ready 之后才不会漏掉「还在建库时就被销毁」这一路。
-      void ready
-        .then(() => instance?.disconnectAll())
-        .catch(error => console.error('RxDB shutdown failed', error));
+      void ready.then(() => instance?.disconnectAll()).catch(error => console.error('RxDB shutdown failed', error));
     });
   }
 

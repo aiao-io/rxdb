@@ -34,6 +34,39 @@ function App() {
 }
 ```
 
+### 异步 source
+
+`db` 收的是 `RxDBSource`：实例、`Promise`，或返回二者之一的工厂（Angular / Vue 侧是同一个联合类型）。桌面/浏览器分流常用异步形态 —— 静态 `import` 会把桌面分支打进 web bundle，`await import()` 才不会。
+
+```tsx
+import { useMemo } from 'react';
+
+function App() {
+  // 非实例的 source 必须是稳定引用：每次 render 新建一个工厂，
+  // Provider 会以为换了数据源，反复重建数据库。
+  const source = useMemo(() => async () => (await import('./setup-desktop')).setupDesktop(), []);
+
+  return (
+    <RxDBProvider db={source}>
+      <TodoList />
+    </RxDBProvider>
+  );
+}
+```
+
+`db` 仍是**必填**：少传时的报错要指得出「你没给数据库」，而不是把正在用 Provider 的人指回 Provider。
+
+读取分两条，区别只有「没就绪该怎么办」：
+
+```tsx
+const database = useRxDB(); // 未就绪抛错，创建失败原样抛出创建异常
+const maybe = useRxDBOptional(); // 无 Provider 或未就绪时返回 undefined，用于渲染 loading 态
+```
+
+### 生命周期所有权
+
+**Provider 只销毁自己造的东西。** 传工厂或 `Promise`，实例由 Provider 等来，卸载时它负责 `disconnectAll()`；传已就绪的实例，它归调用方所有，Provider 不碰 —— 否则 `StrictMode` 的双挂载（挂载 → 卸载 → 挂载）会断掉调用方的模块级单例，留下一个没人会去重连的死库。这条规则在 Angular / Vue 侧逐字相同。
+
 ### 自定义 Provider
 
 如果需要更强的类型安全性，可以创建自定义的 Provider：

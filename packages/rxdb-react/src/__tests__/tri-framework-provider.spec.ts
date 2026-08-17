@@ -16,6 +16,9 @@
  * - `packages/rxdb-angular/src/__tests__/tri-framework-provider.spec.ts`
  * - `packages/rxdb-vue/src/__tests__/tri-framework-provider.spec.ts`
  */
+/* eslint-disable react-hooks/rules-of-hooks -- 本文件只做类型断言：下面的函数体一次也不执行，
+   自然谈不上「在非组件里调 hook」。它们叫 read / misuse 而非 useXxx，是为了与 Angular、Vue
+   两端的同名文件逐字对齐 —— 这正是这三个文件要锁的东西。 */
 import { RxDB } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { useRxDB, useRxDBOptional, type ProviderProps, type RxDBSource } from '../index';

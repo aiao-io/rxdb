@@ -148,7 +148,10 @@ describe('rxdb-vue dependency injection', () => {
 describe('异步 source', () => {
   it('resolves a factory returning a promise', async () => {
     const { database } = createOwnableRxDB('async-factory');
-    const mounted = mountWithProvider(() => Promise.resolve(database), () => RxDBVue.injectRxDBRef());
+    const mounted = mountWithProvider(
+      () => Promise.resolve(database),
+      () => RxDBVue.injectRxDBRef()
+    );
 
     expect(mounted.result?.value).toBeUndefined();
     await flushPromises();
@@ -170,7 +173,10 @@ describe('异步 source', () => {
   it('returns undefined from useRxDBOptional without warning while pending', () => {
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const { database } = createOwnableRxDB('pending');
-    const mounted = mountWithProvider(() => Promise.resolve(database), () => RxDBVue.useRxDBOptional());
+    const mounted = mountWithProvider(
+      () => Promise.resolve(database),
+      () => RxDBVue.useRxDBOptional()
+    );
 
     expect(mounted.result).toBeUndefined();
     expect(warning).not.toHaveBeenCalled();
@@ -224,7 +230,10 @@ describe('异步 source', () => {
 describe('生命周期所有权', () => {
   it('disconnects a database it created itself', async () => {
     const { database, disconnectAll } = createOwnableRxDB('owned');
-    const mounted = mountWithProvider(() => database, () => RxDBVue.injectRxDBRef());
+    const mounted = mountWithProvider(
+      () => database,
+      () => RxDBVue.injectRxDBRef()
+    );
 
     await flushPromises();
     expect(mounted.result?.value).toBe(database);
@@ -255,7 +264,10 @@ describe('生命周期所有权', () => {
     const { database, disconnectAll } = createOwnableRxDB('late');
     let settle: (value: RxDB) => void = () => undefined;
     const pending = new Promise<RxDB>(resolve => (settle = resolve));
-    const mounted = mountWithProvider(() => pending, () => RxDBVue.injectRxDBRef());
+    const mounted = mountWithProvider(
+      () => pending,
+      () => RxDBVue.injectRxDBRef()
+    );
 
     mounted.wrapper.unmount();
     settle(database);

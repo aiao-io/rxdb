@@ -19,7 +19,7 @@
 | [RV-004-tauri-会话未绑定窗口.md](./RV-004-tauri-会话未绑定窗口.md)                                                 | Tauri 会话未绑定窗口                                    | Open |
 | [RV-005-tauri-事件订阅未纳入连接握手.md](./RV-005-tauri-事件订阅未纳入连接握手.md)                                 | Tauri 事件订阅未纳入连接握手                            | Open |
 | [RV-006-并发-disconnect-提前返回.md](./RV-006-并发-disconnect-提前返回.md)                                         | 并发 `disconnect()` 提前返回                            | Open |
-| [RV-007-local-db-vs-main.md](./RV-007-local-db-vs-main.md)                                                         | `local-db` 相对 `main` 的分支评审（含工作区未提交）     | Open |
+| [RV-007-local-db-vs-main.md](./RV-007-local-db-vs-main.md)                                                         | `local-db` 相对 `main` 的分支评审（185 文件全量）       | Open |
 
 ## 状态约定
 

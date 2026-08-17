@@ -12,27 +12,28 @@ npm install @aiao/rxdb @aiao/rxdb-vue
 
 ### 提供 RxDB 实例
 
-使用 `provideRxDB` 将 RxDB 实例注入到 Vue 应用中：
+`provideRxDB` 底层是 Vue 的 `provide`，只能在**组件的 setup 中**调用 —— 在 `createApp()` 之后的模块顶层调用没有活动组件实例，Vue 会告警且什么也不会被提供。放在会渲染业务组件的祖先组件里：
 
-```typescript
-import { createApp } from 'vue';
+```vue
+<!-- App.vue -->
+<script lang="ts" setup>
 import { provideRxDB } from '@aiao/rxdb-vue';
 import { RxDB, SyncType } from '@aiao/rxdb';
-import App from './App.vue';
+import TodoList from './TodoList.vue';
+import { Todo } from './entities/Todo';
 
-// 创建 RxDB 实例
 const rxdb = new RxDB({
   dbName: 'myapp',
   entities: [Todo],
   sync: { type: SyncType.None, local: { adapter: 'wa-sqlite' } }
 });
 
-const app = createApp(App);
-
-// 提供 RxDB 实例
 provideRxDB(rxdb);
+</script>
 
-app.mount('#app');
+<template>
+  <TodoList />
+</template>
 ```
 
 ### 注入 RxDB 实例
@@ -49,6 +50,35 @@ export default {
   }
 };
 ```
+
+读取共有三条，区别只有「没就绪该怎么办」：
+
+```typescript
+import { injectRxDB, useRxDB, useRxDBOptional } from '@aiao/rxdb-vue';
+
+const a = injectRxDB(); // RxDB | undefined；无 provider 时 dev 下有 Vue 告警
+const b = useRxDBOptional(); // 同上，但缺 provider 不告警 —— 可选读取本就允许没有 provider
+const c = useRxDB(); // 无 provider / 未就绪各抛一条不同文案；创建失败原样抛出创建异常
+```
+
+### 异步 source
+
+`provideRxDB` 收 `RxDBInput`：三端共享的 `RxDBSource`（实例、`Promise`，或返回二者之一的工厂）之外，Vue 还多收 `Ref<RxDB | undefined>` 与 `undefined`。
+
+`Promise` / 工厂形态用于桌面/浏览器分流 —— 静态 `import` 会把桌面分支打进 web bundle，`await import()` 才不会：
+
+```typescript
+provideRxDB(async () => {
+  const { setupDesktop } = await import('./setup-desktop');
+  return setupDesktop();
+});
+```
+
+`Ref` 形态是 Vue 独有的：由调用方自己持有、自己决定何时填上，消费者用 `useRxDBRef()` / `injectRxDBRef()` 等它就绪。
+
+### 生命周期所有权
+
+**provider 只销毁自己造的东西。** 传工厂或 `Promise`，实例由 provider 等来，作用域销毁时它负责 `disconnectAll()`；传已就绪的实例或你自己的 `Ref`，它归调用方所有，provider 不碰 —— 否则一个模块级单例会被某个子组件的卸载顺手断掉，而没有人会去重连。这条规则在 Angular / React 侧逐字相同。
 
 ## Composables API
 
