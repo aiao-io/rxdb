@@ -113,12 +113,13 @@ worker 选项组合，桌面客户端不接受任何 worker 选项）。AC#1 / #
 | 2   | `encrypted-{crud,tamper,bigint-binary,change-log,lifecycle}.spec.ts` —— `@aiao/rxdb-test/encrypted` 的五套共享套件跑在桌面工厂上                                                                                                                                           |
 | 6   | `desktop-sqlite-host.spec.ts` 「preserves unknown business tables that already live in the file」                                                                                                                                                                          |
 | 7   | `node-sqlite-engine.spec.ts` 「flushes the pending batch synchronously on close」/「persists committed data across a reopen」/「releases the file handle so the database can be renamed」                                                                                  |
-| 8   | `.github/workflows/release-desktop.yml` 的 `electron-smoke`：ubuntu / macOS / windows 三平台矩阵（`fail-fast: false`）跑 `dev-rxdb-electron-e2e:e2e`，该 target 经 `dependsOn` 先出 `electron-package-dir` 产物；数据目录是 `mkdtemp` 出来的真实临时目录                     |
+| 8   | `.github/workflows/release-desktop.yml` 的 `electron-smoke`：ubuntu / macOS / windows 三平台矩阵（`fail-fast: false`）跑 `dev-rxdb-electron-e2e:e2e`，该 target 经 `dependsOn` 先出 `electron-package-dir` 产物；数据目录是 `mkdtemp` 出来的真实临时目录                   |
 | 9   | `desktop-host-protocol.ts` 的 `parseDesktopHostOpenResult` 在 `open` 应答上比对 `DESKTOP_HOST_PROTOCOL_VERSION`，不等即抛 `protocol_violation`；`desktop-sqlite-client.spec.ts` 「refuses a host that speaks a different protocol version」注入 `protocolVersion: 99` 撞它 |
 
 AC#1 的断言形态是**跨进程**的累计启动次数（1 → 2），不是「写一条读一条」——
 后者在单次启动内就能通过，哪怕数据只活在内存里也一样绿。整套 e2e 在真实 `--dir` 产物上
-8/8 通过（另 7 条是启动 smoke）。
+11/11 通过（这条持久化断言 1 条、启动 smoke 8 条、[US-504](../plugin/US-504-electron-local-file-storage.md)
+的文件存储 2 条）。
 
 这条断言形态立刻兑现了自己的价值：它抓到一个**静默丢数据**的缺陷。库目录原名 `databases`，
 而 `userData/databases` 是 Chromium 自己的 WebSQL 目录，其存储层在启动时会删掉目录里
@@ -139,7 +140,7 @@ Electron 才看得到，单测里守不住，于是退一步守住名字本身�
 现由 `desktopEncryptedAdapterFactory` 驱动 `@aiao/rxdb-test/encrypted` 的五套共享套件
 （crud + queryValidation / tamper / bigint-binary / change-log / lifecycle），
 点名的「解锁」正是 lifecycle 那一套。`pnpm nx test rxdb-adapter-desktop` 为
-**920 passed / 18 files / 0 skipped**（接线加密套件当时是 786 / 15，接线前 734）。
+**931 passed / 18 files / 0 skipped**（接线加密套件当时是 786 / 15，接线前 734）。
 
 > 这个条数是**快照，不是判据**。判据是「0 skipped 且不低于上次基线」——
 > 把具体数字写进完成判据，过期后要么假红、要么被人默默改小对齐，两种都比不写更糟。
@@ -320,7 +321,7 @@ skipped 是正常状态；这条 workflow 里三个 job 全都无条件跑，ski
 | 阶段 | 内容                                   | 完成判据                                                                                                                      | 状态      |
 | ---- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------- |
 | 1    | 核心能力：AC#1～#7、AC#9               | 8 条 AC 全绿，共享套件 0 skipped                                                                                              | ✅ 已交付 |
-| 2    | 打包与发布门禁：AC#8 +「三条发布性质」 | release 触发的三平台 workflow 绿（见「三平台打包 CI」）。workflow 与审计脚本已落地，本机 macOS 全绿，三平台待首轮触发确认   | ✅ 已交付 |
+| 2    | 打包与发布门禁：AC#8 +「三条发布性质」 | release 触发的三平台 workflow 绿（见「三平台打包 CI」）。workflow 与审计脚本已落地，本机 macOS 全绿，三平台待首轮触发确认     | ✅ 已交付 |
 | 3    | 包边界重整：E1～E7                     | 见各任务判据；与 [US-210 T1～T7](./US-210-tauri-sqlite-local-database.md#tauri-包化) 同批做，两侧共用一次 `ADAPTER_NAME` 改名 | ⬜ 未开始 |
 | 4    | Web 回落：E8～E11                      | 见各任务判据；「选择器是否公开 API」在本阶段 plan 时定                                                                        | ⬜ 未开始 |
 
