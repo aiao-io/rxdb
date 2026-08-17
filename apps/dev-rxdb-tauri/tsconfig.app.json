@@ -47,9 +47,6 @@
       "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-adapter-desktop/tsconfig.lib.json"
-    },
-    {
       "path": "../../packages/rxdb/tsconfig.lib.json"
     },
     {
