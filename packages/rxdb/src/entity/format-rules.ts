@@ -16,6 +16,18 @@
 import type { FieldFormat, PercentageFormat } from './metadata-options.interface.js';
 
 /**
+ * 用未受信字符串查规则表：键不是自有属性时返回 `undefined`。
+ *
+ * @remarks
+ * 直接 `TABLE[key]` 会把 `toString` / `constructor` / `__proto__` 取成原型链上的成员，
+ * `?? []` 这类兜底拦不住——取到的是函数而不是 `undefined`，随后的 `.filter` / `.includes`
+ * 直接抛 `TypeError`。三张规则表（必填键、枚举字面量、各 kind 允许的配置键）都由外部
+ * `format.kind` 或配置键名索引，因此统一走这里。
+ */
+export const lookupOwn = <T>(table: Readonly<Record<string, T>>, key: string): T | undefined =>
+  Object.hasOwn(table, key) ? table[key] : undefined;
+
+/**
  * 各 kind 的必填配置键。
  *
  * @remarks
