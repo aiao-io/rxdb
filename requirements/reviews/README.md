@@ -9,26 +9,21 @@
 
 ## 目录结构
 
-| 文件           | 说明                      |
-| -------------- | ------------------------- |
-| `README.md`    | 本说明与状态约定          |
-| `template.md`  | 新建 review 记录的模板    |
+| 文件                 | 说明                   |
+| -------------------- | ---------------------- |
+| `README.md`          | 本说明与状态约定       |
+| `review.template.md` | 新建 review 记录的模板 |
 
 ## 状态约定
 
-每条记录（`RV-XXX.md`）的状态用 YAML `status` 字段维护：
-
-| 状态       | 含义                 |
-| ---------- | -------------------- |
-| `Open`     | 已发现，待修复       |
-| `Resolved` | PR 已合并，修复落地  |
+见 [../CONVENTIONS.md](../CONVENTIONS.md#状态定义)。
 
 ## 工作流
 
-1. AI review 发现问题 → 从 `template.md` 复制出 `RV-XXX-描述.md`，`status: Open`
+1. AI review 发现问题 → 从 `review.template.md` 复制出 `RV-XXX-描述.md`，`status: Open`
 2. 开 PR 修复 → 在 `pr` 字段记录 PR 链接
 3. PR 合并、修复完成 → `status: Resolved`，补 `updated` 日期
 
 ## 命名规范
 
-- `RV-XXX-描述.md`，编号 `RV-001` 起递增，不与 story 编号 `US-XXX` 混用
+见 [../CONVENTIONS.md](../CONVENTIONS.md#命名规范)。`RV-XXX-描述.md`，编号 `RV-001` 起递增。

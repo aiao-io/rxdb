@@ -30,7 +30,7 @@ url: https://github.com/aiao-io/rxdb/security/code-scanning/0
 
 ## 修复方案
 
-<!-- 待补充：怎么修。断言带证据锚点（符号名 / 短代码引用 / 行号），见 requirements/template.md 写作规范 -->
+<!-- 待补充：怎么修。断言带证据锚点（符号名 / 短代码引用 / 行号），见 ../CONVENTIONS.md 写作规范 -->
 
 ## 解决记录
 

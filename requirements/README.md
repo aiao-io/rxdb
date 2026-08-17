@@ -40,20 +40,20 @@
 
 一个问题一个文件。查什么去哪里：
 
-| 文件                                         | 回答的问题                                     |
-| -------------------------------------------- | ---------------------------------------------- |
-| [status-overview.md](status-overview.md)     | 每条故事**现在是什么状态**、哪些在做、哪些卡住 |
-| [roadmap.md](roadmap.md)                     | **接下来做什么**、什么必须排在什么前面         |
-| [capability-matrix.md](capability-matrix.md) | 仓库**现在能做什么**、哪些组合还不支持         |
-| [release-plan.md](release-plan.md)           | **下一次发布**要做什么、桥接版本卡在哪         |
-| [versioning-policy.md](versioning-policy.md) | 什么算公开 API、什么改动算破坏性               |
-| [code-scanning/](code-scanning/README.md)    | GitHub CodeQL 告警清单（一条告警一个文件）      |
-| `migration-release.json`                     | 当前发布的迁移清单（门禁读它）                 |
-| `epics/`                                     | 史诗目标与阶段划分                             |
-| `stories/`                                   | 按领域拆分的用户故事（**状态真相源**）         |
-| `api-baseline/`                              | 各包公开 API 表面基线（由门禁生成与校验）      |
-| `reviews/`                                   | 给 AI 的 review 规则与结论记录（修复后标解决）  |
-| `template.md`                                | 新建 story 的模板                              |
+| 文件                                         | 回答的问题                                                     |
+| -------------------------------------------- | -------------------------------------------------------------- |
+| [status-overview.md](status-overview.md)     | 每条故事**现在是什么状态**、哪些在做、哪些卡住                 |
+| [roadmap.md](roadmap.md)                     | **接下来做什么**、什么必须排在什么前面                         |
+| [capability-matrix.md](capability-matrix.md) | 仓库**现在能做什么**、哪些组合还不支持                         |
+| [release-plan.md](release-plan.md)           | **下一次发布**要做什么、桥接版本卡在哪                         |
+| [versioning-policy.md](versioning-policy.md) | 什么算公开 API、什么改动算破坏性                               |
+| [code-scanning/](code-scanning/README.md)    | GitHub CodeQL 告警清单（一条告警一个文件）                     |
+| `migration-release.json`                     | 当前发布的迁移清单（门禁读它）                                 |
+| `epics/`                                     | 史诗目标与阶段划分                                             |
+| `stories/`                                   | 按领域拆分的用户故事（**状态真相源**，含 `story.template.md`） |
+| `api-baseline/`                              | 各包公开 API 表面基线（由门禁生成与校验）                      |
+| `reviews/`                                   | 给 AI 的 review 规则与结论记录（修复后标解决）                 |
+| `CONVENTIONS.md`                             | 命名 / 状态 / 写作规范（单一真相源）                           |
 
 `stories/` 子目录：
 
@@ -70,38 +70,21 @@
 
 ## 状态定义
 
-| 状态          | 含义                       |
-| ------------- | -------------------------- |
-| `Backlog`     | 已确认要做，但还没开始     |
-| `In Progress` | 正在实现                   |
-| `In Review`   | 代码已完成，等待审核或收尾 |
-| `Done`        | 已合并，当前仓库能力已覆盖 |
-| `Blocked`     | 被外部依赖或前置条件卡住   |
+各文档类型的状态集合见 [CONVENTIONS.md](CONVENTIONS.md#状态定义)（story 五态：`Backlog` / `In Progress` /
+`In Review` / `Done` / `Blocked`）。
 
 ## 跨故事 AC 转移
 
-当一个 story 的某条 AC 被推迟到另一个 story 实现，**不要**只在源 story 的 HTML 注释里写 `<!-- deferredACs: AC#X→US-NNN -->`。
-
-在 **接收方** story 的 frontmatter 加 `inherited_acs` 字段：
-
-```yaml
-inherited_acs:
-  - from: US-NNN
-    ac: N
-    note: 简述为什么这条 AC 从源故事迁来
-```
-
-源 story 文件本体注释保留作为反向索引可读性辅助，但接收方 YAML 是机器可读的真相。
+被推迟的 AC 在接收方 story 的 frontmatter 用 `inherited_acs` 字段声明（机器可读真相），详见
+[CONVENTIONS.md](CONVENTIONS.md#跨故事-ac-转移)。
 
 ## 命名规范
 
-- 用户故事：`US-XXX-description.md`
-- **不使用** `US-XXXa` / `US-XXXb` 这类字母后缀文件；大故事在文件内分「交付阶段」，见上文
-- 史诗：`epic-XXX-name.md`
+四类文档的命名与编号段见 [CONVENTIONS.md](CONVENTIONS.md#命名规范)。
 
 ## 工作流
 
-1. 从 `template.md` 复制出新 story
+1. 从 [story.template.md](stories/story.template.md) 复制出新 story
 2. 选正确领域目录、未占用编号
 3. 完整填写 frontmatter（id / title / status / priority / epic / created / updated / tags）、目标、AC 表、范围边界、实现文件
 4. 推进过程中持续更新 `status`、`priority`、`updated`、`References`

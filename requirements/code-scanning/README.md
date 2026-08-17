@@ -15,21 +15,15 @@
 
 ## 目录结构
 
-| 文件          | 说明                          |
-| ------------- | ----------------------------- |
-| `README.md`   | 本说明 + 汇总 + 同步机制       |
-| `template.md` | 新建单条告警文件的模板         |
-| `CS-XXX-*.md` | 每条告警一个文件（当前 19 条） |
+| 文件                        | 说明                           |
+| --------------------------- | ------------------------------ |
+| `README.md`                 | 本说明 + 汇总 + 同步机制       |
+| `code-scanning.template.md` | 新建单条告警文件的模板         |
+| `CS-XXX-*.md`               | 每条告警一个文件（当前 19 条） |
 
 ## 状态约定
 
-每条告警文件的 YAML `status` 字段是本地跟踪状态（GitHub 是真相源）：
-
-| 状态        | 含义                              | GitHub 对应 |
-| ----------- | --------------------------------- | ----------- |
-| `Open`      | 待修复                            | `open`      |
-| `Resolved`  | 已修复，代码合并                  | `fixed`     |
-| `Dismissed` | 已承认风险、不修                  | `dismissed` |
+见 [../CONVENTIONS.md](../CONVENTIONS.md#状态定义)。本地 YAML `status` 是跟踪状态，GitHub 是真相源。
 
 ## 同步机制
 
@@ -42,50 +36,50 @@
 
 19 条开放告警（`open`），无 `dismissed` / `fixed`。
 
-| 维度       | 数值 |
-| :--------- | :--- |
-| 开放告警   | 19   |
-| error 级   | 1    |
-| warning 级 | 18   |
-| security `high`   | 14 |
-| security `medium` | 5  |
+| 维度              | 数值 |
+| :---------------- | :--- |
+| 开放告警          | 19   |
+| error 级          | 1    |
+| warning 级        | 18   |
+| security `high`   | 14   |
+| security `medium` | 5    |
 
 ### 按规则聚合
 
-| 规则 ID                                      | 规则名                                   | 数量 | severity | security | 涉及文件 |
-| :------------------------------------------- | :--------------------------------------- | :--- | :------- | :------- | :------- |
-| `js/polynomial-redos`                        | 不受控数据上的多项式正则（ReDoS）         | 9    | warning  | high     | `CS-003`~`CS-011` |
-| `js/file-system-race`                        | 潜在文件系统竞态（TOCTOU）                | 3    | warning  | high     | `CS-017`~`CS-019` |
-| `js/overly-large-range`                      | 正则字符区间过于宽泛                      | 2    | warning  | medium   | `CS-013`~`CS-014` |
-| `js/log-injection`                           | 日志注入                                  | 1    | error    | medium   | `CS-021` |
-| `js/missing-origin-check`                    | `postMessage` 缺 origin 校验              | 1    | warning  | medium   | `CS-020` |
-| `js/incomplete-multi-character-sanitization` | 多字符消毒不完整                          | 1    | warning  | high     | `CS-016` |
-| `js/double-escaping`                         | 双重转义 / 反义                           | 1    | warning  | high     | `CS-015` |
-| `js/shell-command-injection-from-environment` | 由环境变量拼接 shell 命令                 | 1    | warning  | medium   | `CS-012` |
+| 规则 ID                                       | 规则名                            | 数量 | severity | security | 涉及文件          |
+| :-------------------------------------------- | :-------------------------------- | :--- | :------- | :------- | :---------------- |
+| `js/polynomial-redos`                         | 不受控数据上的多项式正则（ReDoS） | 9    | warning  | high     | `CS-003`~`CS-011` |
+| `js/file-system-race`                         | 潜在文件系统竞态（TOCTOU）        | 3    | warning  | high     | `CS-017`~`CS-019` |
+| `js/overly-large-range`                       | 正则字符区间过于宽泛              | 2    | warning  | medium   | `CS-013`~`CS-014` |
+| `js/log-injection`                            | 日志注入                          | 1    | error    | medium   | `CS-021`          |
+| `js/missing-origin-check`                     | `postMessage` 缺 origin 校验      | 1    | warning  | medium   | `CS-020`          |
+| `js/incomplete-multi-character-sanitization`  | 多字符消毒不完整                  | 1    | warning  | high     | `CS-016`          |
+| `js/double-escaping`                          | 双重转义 / 反义                   | 1    | warning  | high     | `CS-015`          |
+| `js/shell-command-injection-from-environment` | 由环境变量拼接 shell 命令         | 1    | warning  | medium   | `CS-012`          |
 
 ## 全量清单
 
-| 文件                                                                  | 规则                                     | sev   | sec  | 位置                                                 |
-| :-------------------------------------------------------------------- | :--------------------------------------- | :---- | :--- | :--------------------------------------------------- |
-| [CS-021](CS-021-log-injection.md)                                     | `js/log-injection`                       | error | med  | `scripts/e2e-static-server.mjs:220`                  |
-| [CS-020](CS-020-missing-origin-check.md)                              | `js/missing-origin-check`                | warn  | med  | `benchmarks/src/hooks/useTheme.ts:36`                |
-| [CS-019](CS-019-file-system-race.md)                                  | `js/file-system-race`                    | warn  | high | `website/scripts/preview-with-redirects.mjs:105`     |
-| [CS-018](CS-018-file-system-race.md)                                  | `js/file-system-race`                    | warn  | high | `website/scripts/flatten-api-docs.mjs:82`            |
-| [CS-017](CS-017-file-system-race.md)                                  | `js/file-system-race`                    | warn  | high | `scripts/coverage-serve.mjs:729`                     |
-| [CS-016](CS-016-incomplete-multi-character-sanitization.md)           | `js/incomplete-multi-character-sanitization` | warn | high | `apps/dev-rxdb-electron/src-electron/renderer-shell.spec.ts:22` |
-| [CS-015](CS-015-double-escaping.md)                                   | `js/double-escaping`                     | warn  | high | `website/scripts/flatten-api-docs.mjs:196-199`       |
-| [CS-014](CS-014-overly-large-range.md)                                | `js/overly-large-range`                  | warn  | med  | `packages/rxdb-adapter-pglite/src/__tests__/encrypted-test-fixture.ts:31` |
-| [CS-013](CS-013-overly-large-range.md)                                | `js/overly-large-range`                  | warn  | med  | `packages/rxdb-adapter-pglite/src/__tests__/encrypted-test-fixture.ts:31` |
-| [CS-012](CS-012-shell-command-injection-from-environment.md)          | `js/shell-command-injection-from-environment` | warn | med | `website/scripts/build-website.mjs:113`              |
-| [CS-011](CS-011-polynomial-redos.md)                                  | `js/polynomial-redos`                    | warn  | high | `packages/utils/src/string/urlJoin.ts:106-109`       |
-| [CS-010](CS-010-polynomial-redos.md)                                  | `js/polynomial-redos`                    | warn  | high | `packages/utils/src/string/urlJoin.ts:19`            |
-| [CS-009](CS-009-polynomial-redos.md)                                  | `js/polynomial-redos`                    | warn  | high | `packages/utils/src/string/stringTemplate.ts:11`     |
-| [CS-008](CS-008-polynomial-redos.md)                                  | `js/polynomial-redos`                    | warn  | high | `packages/utils/src/object/isEqual.ts:105`           |
-| [CS-007](CS-007-polynomial-redos.md)                                  | `js/polynomial-redos`                    | warn  | high | `packages/utils/src/date/msTimeToMilliseconds.ts:37` |
-| [CS-006](CS-006-polynomial-redos.md)                                  | `js/polynomial-redos`                    | warn  | high | `packages/utils/src/date/isMSTime.ts:25`             |
-| [CS-005](CS-005-polynomial-redos.md)                                  | `js/polynomial-redos`                    | warn  | high | `packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts:106` |
-| [CS-004](CS-004-polynomial-redos.md)                                  | `js/polynomial-redos`                    | warn  | high | `packages/rxdb-adapter-sqlite-core/src/execute-sql.utils.ts:11-13` |
-| [CS-003](CS-003-polynomial-redos.md)                                  | `js/polynomial-redos`                    | warn  | high | `packages/rxdb/src/rxdb-utils.ts:169`                |
+| 文件                                                         | 规则                                          | sev   | sec  | 位置                                                                      |
+| :----------------------------------------------------------- | :-------------------------------------------- | :---- | :--- | :------------------------------------------------------------------------ |
+| [CS-021](CS-021-log-injection.md)                            | `js/log-injection`                            | error | med  | `scripts/e2e-static-server.mjs:220`                                       |
+| [CS-020](CS-020-missing-origin-check.md)                     | `js/missing-origin-check`                     | warn  | med  | `benchmarks/src/hooks/useTheme.ts:36`                                     |
+| [CS-019](CS-019-file-system-race.md)                         | `js/file-system-race`                         | warn  | high | `website/scripts/preview-with-redirects.mjs:105`                          |
+| [CS-018](CS-018-file-system-race.md)                         | `js/file-system-race`                         | warn  | high | `website/scripts/flatten-api-docs.mjs:82`                                 |
+| [CS-017](CS-017-file-system-race.md)                         | `js/file-system-race`                         | warn  | high | `scripts/coverage-serve.mjs:729`                                          |
+| [CS-016](CS-016-incomplete-multi-character-sanitization.md)  | `js/incomplete-multi-character-sanitization`  | warn  | high | `apps/dev-rxdb-electron/src-electron/renderer-shell.spec.ts:22`           |
+| [CS-015](CS-015-double-escaping.md)                          | `js/double-escaping`                          | warn  | high | `website/scripts/flatten-api-docs.mjs:196-199`                            |
+| [CS-014](CS-014-overly-large-range.md)                       | `js/overly-large-range`                       | warn  | med  | `packages/rxdb-adapter-pglite/src/__tests__/encrypted-test-fixture.ts:31` |
+| [CS-013](CS-013-overly-large-range.md)                       | `js/overly-large-range`                       | warn  | med  | `packages/rxdb-adapter-pglite/src/__tests__/encrypted-test-fixture.ts:31` |
+| [CS-012](CS-012-shell-command-injection-from-environment.md) | `js/shell-command-injection-from-environment` | warn  | med  | `website/scripts/build-website.mjs:113`                                   |
+| [CS-011](CS-011-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/utils/src/string/urlJoin.ts:106-109`                            |
+| [CS-010](CS-010-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/utils/src/string/urlJoin.ts:19`                                 |
+| [CS-009](CS-009-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/utils/src/string/stringTemplate.ts:11`                          |
+| [CS-008](CS-008-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/utils/src/object/isEqual.ts:105`                                |
+| [CS-007](CS-007-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/utils/src/date/msTimeToMilliseconds.ts:37`                      |
+| [CS-006](CS-006-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/utils/src/date/isMSTime.ts:25`                                  |
+| [CS-005](CS-005-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts:106`      |
+| [CS-004](CS-004-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/rxdb-adapter-sqlite-core/src/execute-sql.utils.ts:11-13`        |
+| [CS-003](CS-003-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/rxdb/src/rxdb-utils.ts:169`                                     |
 
 > 图例：`sev` = CodeQL `rule.severity`（error / warning）；`sec` = `rule.security_severity_level`（high / medium）。
 
