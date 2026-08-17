@@ -13,7 +13,7 @@ import { execSync } from 'node:child_process';
 const scopes = [
   { value: 'aiao',                        name: 'aiao:                           框架变更' },
   { value: 'rxdb',                        name: 'rxdb:                           rxdb 变更' },
-  { value: 'rxdb-adapter-desktop',        name: 'rxdb-adapter-desktop:           rxdb-adapter-desktop 变更' },
+  { value: 'rxdb-adapter-electron',       name: 'rxdb-adapter-electron:          rxdb-adapter-electron 变更' },
   { value: 'rxdb-adapter-encrypted',      name: 'rxdb-adapter-encrypted:         rxdb-adapter-encrypted 变更' },
   { value: 'rxdb-adapter-miniprogram',    name: 'rxdb-adapter-miniprogram:       rxdb-adapter-miniprogram 变更' },
   { value: 'rxdb-adapter-pglite',         name: 'rxdb-adapter-pglite:            rxdb-adapter-pglite 变更' },
@@ -22,6 +22,7 @@ const scopes = [
   { value: 'rxdb-adapter-sqlite-wasm',    name: 'rxdb-adapter-sqlite-wasm:       rxdb-adapter-sqlite-wasm 变更' },
   { value: 'rxdb-adapter-sqliteai',       name: 'rxdb-adapter-sqliteai:          rxdb-adapter-sqliteai 变更' },
   { value: 'rxdb-adapter-supabase',       name: 'rxdb-adapter-supabase:          rxdb-adapter-supabase 变更' },
+  { value: 'rxdb-adapter-tauri',          name: 'rxdb-adapter-tauri:             rxdb-adapter-tauri 变更' },
   { value: 'rxdb-adapter-wa-sqlite',      name: 'rxdb-adapter-wa-sqlite:         rxdb-adapter-wa-sqlite 变更' },
   { value: 'rxdb-angular',                name: 'rxdb-angular:                   rxdb-angular 变更' },
   { value: 'rxdb-client-generator',       name: 'rxdb-client-generator:          rxdb-client-generator 变更' },

@@ -5,7 +5,7 @@
       "kind": "value"
     },
     {
-      "name": "assertSupportedDesktopStorage",
+      "name": "assertDesktopSqliteStorage",
       "kind": "value"
     },
     {
@@ -18,10 +18,6 @@
     },
     {
       "name": "decodeDesktopJsonPayload",
-      "kind": "value"
-    },
-    {
-      "name": "DESKTOP_ADAPTER_NAME",
       "kind": "value"
     },
     {
@@ -129,10 +125,6 @@
       "kind": "type"
     },
     {
-      "name": "DesktopRuntime",
-      "kind": "type"
-    },
-    {
       "name": "DesktopSqliteClient",
       "kind": "both"
     },
@@ -177,10 +169,6 @@
       "kind": "value"
     },
     {
-      "name": "RxDBAdapterDesktop",
-      "kind": "both"
-    },
-    {
       "name": "RxDBAdapterDesktopError",
       "kind": "both"
     },
@@ -189,8 +177,12 @@
       "kind": "type"
     },
     {
-      "name": "SupportedDesktopStorage",
-      "kind": "type"
+      "name": "RxDBAdapterTauri",
+      "kind": "both"
+    },
+    {
+      "name": "TAURI_ADAPTER_NAME",
+      "kind": "value"
     },
     {
       "name": "TAURI_DESKTOP_CHANGE_EVENT",
@@ -202,6 +194,10 @@
     },
     {
       "name": "TauriHostTransportOptions",
+      "kind": "type"
+    },
+    {
+      "name": "TauriOptions",
       "kind": "type"
     }
   ]

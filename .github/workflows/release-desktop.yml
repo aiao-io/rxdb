@@ -6,8 +6,8 @@ name: Release Desktop
 #
 #   1. Electron 打包产物在三个平台上都能起来、写库、重启后数据还在（US-207 AC#8）
 #   2. Tauri 打包产物同上（US-210 AC#1 + AC#9）
-#   3. `@aiao/rxdb-adapter-desktop` 的发布 tarball 双入口可解析、可类型检查、可运行
-#      （US-207 的「三条发布性质」）
+#   3. `@aiao/rxdb-adapter-electron` 与 `@aiao/rxdb-adapter-tauri` 的发布 tarball
+#      可解析、可类型检查、可运行（US-207 的「三条发布性质」，E7 后两个包各跑一遍）
 #
 # 为什么不并进 `pr.yml` / `main.yml`：三平台冷编译 Rust release + 解包 Electron
 # 发行包，墙钟以十分钟计，而这三条性质只在打包配置、`exports` 字段、入口切分或
@@ -178,6 +178,9 @@ jobs:
   #
   # 不上矩阵：`pnpm pack` → 临时消费者 → tsc（NodeNext + Bundler）→ host 真开库往返，
   # 全程与 OS 无关。三份一样的结论不值三个 runner。
+  #
+  # E7 之后一个 job 跑两个包（electron / tauri）：脚本内部参数化，共享闭包只 pack 一次，
+  # 拆成两个 job 反而要把 `pnpm install` 与 `pnpm pack` 各付一遍。
   # ---------------------------------------------------------------------------
   adapter-consumer:
     name: adapter-consumer
@@ -196,7 +199,7 @@ jobs:
       - name: Build packages under audit
         run: |
           pnpm exec nx run-many -t build --output-style=stream \
-            --projects=utils,rxdb,rxdb-adapter-encrypted,rxdb-adapter-sqlite-core,rxdb-adapter-desktop
+            --projects=utils,rxdb,rxdb-adapter-encrypted,rxdb-adapter-sqlite-core,rxdb-adapter-electron,rxdb-adapter-tauri
 
       # 脚本用 `process.cwd()` 当 workspace root，必须从仓库根目录跑。
       - name: Audit published consumer

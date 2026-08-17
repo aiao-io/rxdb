@@ -22,10 +22,7 @@ import {
   type SqliteData,
   type SqliteResult
 } from '@aiao/rxdb-adapter-sqlite-core';
-import {
-  RxDBAdapterDesktopError,
-  type RxDBAdapterDesktopErrorCode
-} from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
+import { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { constants, DatabaseSync, type SQLInputValue, type SQLOutputValue, type StatementSync } from 'node:sqlite';
 import { splitSqliteScript } from './sqlite-script.js';
 

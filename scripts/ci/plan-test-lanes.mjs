@@ -91,7 +91,13 @@ export const WEIGHTS = {
   'rxdb-adapter-sqliteai': 27,
   utils: 26,
   'rxdb-plugin-graph': 22,
-  'rxdb-adapter-desktop': 21,
+  // US-207 E2/E3 把 `rxdb-adapter-desktop` 拆成了下面两个包。21 原样留给 electron：
+  // 整套 host / 加密 / 客户端用例都跟着 `node:sqlite` 留在了那边，形态没变。
+  'rxdb-adapter-electron': 21,
+  // tauri 侧只剩传输层与 JSON codec 两个 spec，**尚无 CI Duration**；这里填的是按
+  // 形态估的下界，不是实测值。缺项会走 DEFAULT_WEIGHT=60，把一个两文件的包抬成
+  // 表里第三重的种子，比估低更糟。首次跑完 CI 后请用真实 Duration 覆盖。
+  'rxdb-adapter-tauri': 3,
   'rxdb-angular': 10,
   'dev-rxdb-vue': 9,
   website: 4,

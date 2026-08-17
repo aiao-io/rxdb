@@ -21,10 +21,7 @@ export {
   type DesktopOptions
 } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 
-export {
-  RxDBAdapterDesktopError,
-  type RxDBAdapterDesktopErrorCode
-} from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
+export { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 
 export {
   DESKTOP_HOST_TRANSPORT_KEY,

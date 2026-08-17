@@ -430,9 +430,9 @@ describe('DesktopSqliteClient 的变更事件路由', () => {
     const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
     await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, vi.fn());
 
-    expect(() => host.push({ kind: 'change', sessionId: SESSION_ID, event: { ...changeEvent, rowIds: [7] } })).toThrowError(
-      /^\[protocol_violation\]/
-    );
+    expect(() =>
+      host.push({ kind: 'change', sessionId: SESSION_ID, event: { ...changeEvent, rowIds: [7] } })
+    ).toThrowError(/^\[protocol_violation\]/);
   });
 });
 
@@ -456,7 +456,9 @@ describe('DesktopSqliteClient.addEventListener', () => {
     ready = Promise.reject(new Error('event channel dropped'));
     ready.catch(() => undefined);
 
-    await expect(client.addEventListener(SQLiteChangeType.SQLITE_INSERT, vi.fn())).rejects.toThrowError('event channel dropped');
+    await expect(client.addEventListener(SQLiteChangeType.SQLITE_INSERT, vi.fn())).rejects.toThrowError(
+      'event channel dropped'
+    );
   });
 
   it('refuses to register on a disconnected session', async () => {

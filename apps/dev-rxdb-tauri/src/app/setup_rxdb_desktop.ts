@@ -1,9 +1,9 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import {
   createTauriHostTransport,
+  RxDBAdapterTauri,
   TAURI_ADAPTER_NAME,
-  type DesktopHostTransport,
-  RxDBAdapterTauri
+  type DesktopHostTransport
 } from '@aiao/rxdb-adapter-tauri';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginStorage, type RxDBStoragePluginOptions } from '@aiao/rxdb-plugin-storage';

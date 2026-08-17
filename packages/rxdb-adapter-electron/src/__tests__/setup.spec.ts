@@ -32,7 +32,11 @@ import {
   versionBranchSuite
 } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { afterAll, expect } from 'vitest';
-import { electronAdapterFactory, electronHostDeliveryErrors, stopElectronTestHost } from './electron-adapter-factory.js';
+import {
+  electronAdapterFactory,
+  electronHostDeliveryErrors,
+  stopElectronTestHost
+} from './electron-adapter-factory.js';
 
 afterAll(() => {
   try {

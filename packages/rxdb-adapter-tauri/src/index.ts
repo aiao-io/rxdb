@@ -15,8 +15,8 @@
  * @module @aiao/rxdb-adapter-tauri
  */
 
-export { ADAPTER_NAME as TAURI_ADAPTER_NAME } from './tauri-adapter.interface.js';
 export { RxDBAdapterTauri } from './RxDBAdapterTauri.js';
+export { ADAPTER_NAME as TAURI_ADAPTER_NAME } from './tauri-adapter.interface.js';
 export type { TauriOptions } from './tauri-options.interface.js';
 
 export { decodeDesktopJsonPayload, encodeDesktopJsonPayload } from './desktop-json-codec.js';
@@ -33,10 +33,7 @@ export {
   type DesktopOptions
 } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 
-export {
-  RxDBAdapterDesktopError,
-  type RxDBAdapterDesktopErrorCode
-} from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
+export { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 
 export {
   DESKTOP_HOST_TRANSPORT_KEY,

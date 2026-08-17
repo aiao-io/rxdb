@@ -16,9 +16,6 @@
  * @module desktop-file-host
  */
 
-import { randomUUID } from 'node:crypto';
-import { mkdir, open, readdir, realpath, rename, rm, stat, type FileHandle } from 'node:fs/promises';
-import { basename, dirname, join, resolve, sep } from 'node:path';
 import {
   DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION,
   DESKTOP_HOST_MAX_QUEUED_LOCKS_PER_NAME,
@@ -39,6 +36,9 @@ import {
   type DesktopHostFileWriteFinishRequest,
   type RxDBAdapterDesktopErrorCode
 } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
+import { randomUUID } from 'node:crypto';
+import { mkdir, open, readdir, realpath, rename, rm, stat, type FileHandle } from 'node:fs/promises';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 
 /** 写入相关的请求。 */
 type FileWriteRequest =

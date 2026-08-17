@@ -1,17 +1,29 @@
 /**
- * `@aiao/rxdb-adapter-desktop` 消费者测试：验证发布 tarball 的**双入口**在临时 ESM
- * 消费者项目中可解析、可类型检查、可运行。
+ * 桌面适配器的**消费者测试**：验证 `@aiao/rxdb-adapter-electron` 与
+ * `@aiao/rxdb-adapter-tauri` 的发布 tarball 在临时 ESM 消费者项目中
+ * 可解析、可类型检查、可运行。
  *
  * @remarks
- * 本包是 monorepo 里唯一的双入口包（`.` 给 renderer，`./host` 给特权侧），
- * 因此除了常规的符号存在性之外，这里额外守两条 workspace 内测不到的性质：
+ * 两个包由同一份脚本参数化跑（US-207 E7），**不复制第二份脚本**：它们守的是同一组
+ * 性质，抄一份出来只会让两边的判据各自漂移。差异集中在 {@link TARGETS} 一张表里。
  *
- * 1. **renderer 入口不得引用 `node:sqlite`。** `src/index.ts` 的 TSDoc 把「可以安全地
- *    打进 renderer bundle」写成了承诺，而 workspace 里的单测走 tsconfig paths 读源码，
- *    永远不会经过 rolldown 的 external / 入口切分——真出现串味只有在产物里才看得见。
- *    串味的后果不是构建报错而是安全退化：renderer bundle 里出现文件系统能力。
+ * 守的是三条 workspace 内测不到的性质：
+ *
+ * 1. **renderer 入口的产物依赖图里不得出现 Node 内建。** 两个包的 `src/index.ts` 都把
+ *    「可以安全地打进 renderer bundle」写成了 TSDoc 承诺，而 workspace 里的单测走
+ *    tsconfig paths 读源码，永远不会经过 rolldown 的 external / 入口切分——真出现串味
+ *    只有在产物里才看得见。串味的后果不是构建报错而是安全退化：renderer bundle 里
+ *    出现文件系统能力。
+ *
+ *    US-207 E1 之后这条必须**跟着依赖图走**，只读入口那一个文件已经不够：协议层搬去了
+ *    `@aiao/rxdb-adapter-sqlite-core/desktop-host`，被 external 出去，两个包的 `dist/index.js`
+ *    如今基本只是一层转出壳子——串味会发生在壳子后面。
  * 2. **`./host` 真能打开数据库并跑出结果。** 只断言 `typeof === 'function'` 挡不住
  *    「导出在、但 `node:sqlite` 被 external 错了导致一调用就炸」这类产物级故障。
+ *    只有 Electron 有这一条：Tauri 的特权侧是 Rust，随应用二进制走，不经 npm 分发，
+ *    因而没有第二个入口可验（它的对应保障是 `conformance/` 那套跨进程一致性套件）。
+ * 3. **NodeNext 与 Bundler 两种解析下都能类型检查。** 桌面应用两种打包姿势都有人用，
+ *    `exports` 字段写错时往往只在其中一种下才炸。
  */
 
 import assert from 'node:assert/strict';
@@ -24,13 +36,69 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 const workspaceRoot = process.cwd();
 const workspacePackageJson = JSON.parse(await readFile(path.join(workspaceRoot, 'package.json'), 'utf8'));
-const packageName = '@aiao/rxdb-adapter-desktop';
-const packageDirectories = [
-  'utils',
-  'rxdb',
-  'rxdb-adapter-encrypted',
-  'rxdb-adapter-sqlite-core',
-  'rxdb-adapter-desktop'
+
+/**
+ * 两个桌面运行时包共享的依赖闭包。顺序即 `pnpm pack` 顺序，与依赖方向一致。
+ */
+const SHARED_PACKAGE_DIRECTORIES = ['utils', 'rxdb', 'rxdb-adapter-encrypted', 'rxdb-adapter-sqlite-core'];
+
+/**
+ * 两个包的差异全在这里。新增桌面运行时（US-208 的 `pglite-electron` 等）只加一项，
+ * 下面的流程一个字都不用改。
+ */
+const TARGETS = [
+  {
+    directory: 'rxdb-adapter-electron',
+    packageName: '@aiao/rxdb-adapter-electron',
+    // 名字带引擎与运行时两段：同一个运行时上还会有别的引擎（US-208 的 `pglite-electron`）。
+    adapterNameExport: 'ELECTRON_ADAPTER_NAME',
+    adapterName: 'sqlite-electron',
+    adapterClass: 'RxDBAdapterElectron',
+    extraValueExports: [],
+    extraTypeExports: [],
+    // 特权侧也是 TypeScript，经 `./host` 子路径分发。
+    hasHostEntry: true
+  },
+  {
+    directory: 'rxdb-adapter-tauri',
+    packageName: '@aiao/rxdb-adapter-tauri',
+    adapterNameExport: 'TAURI_ADAPTER_NAME',
+    adapterName: 'sqlite-tauri',
+    adapterClass: 'RxDBAdapterTauri',
+    extraValueExports: [
+      'TAURI_DESKTOP_CHANGE_EVENT',
+      'TAURI_DESKTOP_REQUEST_COMMAND',
+      'createTauriHostTransport',
+      'decodeDesktopJsonPayload',
+      'encodeDesktopJsonPayload'
+    ],
+    extraTypeExports: ['TauriHostTransportOptions', 'TauriOptions'],
+    hasHostEntry: false
+  }
+];
+
+/** renderer 入口上两个包共有的值导出。 */
+const SHARED_VALUE_EXPORTS = [
+  'DESKTOP_DEFAULT_DATABASE_SUFFIX',
+  'DESKTOP_HOST_PROTOCOL_VERSION',
+  'DESKTOP_HOST_TRANSPORT_KEY',
+  'DesktopSqliteClient',
+  'RxDBAdapterDesktopError',
+  'assertDesktopHostResponse',
+  'assertValidDesktopDatabaseName',
+  'resolveDesktopHostTransport'
+];
+
+/** renderer 入口上两个包共有的类型导出。 */
+const SHARED_TYPE_EXPORTS = ['DesktopHostTransport', 'DesktopOptions', 'DesktopSqliteFileStorage', 'DesktopStorage'];
+
+/** renderer 入口里必须是函数的导出（`typeof === 'function'`）。 */
+const RENDERER_CALLABLE_EXPORTS = [
+  'DesktopSqliteClient',
+  'RxDBAdapterDesktopError',
+  'assertDesktopHostResponse',
+  'assertValidDesktopDatabaseName',
+  'resolveDesktopHostTransport'
 ];
 
 const run = async (command, args, cwd, forwardOutput = true) => {
@@ -52,23 +120,17 @@ const pack = async (packageDirectory, destination) => {
   return path.join(destination, tarballs[0]);
 };
 
-const writeConsumer = async root => {
+const writeConsumer = async (root, target) => {
+  const values = [...SHARED_VALUE_EXPORTS, target.adapterNameExport, target.adapterClass, ...target.extraValueExports];
+  const types = [...SHARED_TYPE_EXPORTS, ...target.extraTypeExports];
+  const bindings = [...values.toSorted(), ...types.toSorted().map(name => `type ${name}`)];
+
+  // 类型位置上真用一遍，而不只是 `void X`：`exports` 的 `types` 指错时，
+  // 单纯的重导出往往还能过，落到具体类型标注上才炸。
   const rendererSource = `
 import {
-  DESKTOP_ADAPTER_NAME,
-  DESKTOP_DEFAULT_DATABASE_SUFFIX,
-  DESKTOP_HOST_PROTOCOL_VERSION,
-  DESKTOP_HOST_TRANSPORT_KEY,
-  DesktopSqliteClient,
-  RxDBAdapterDesktop,
-  RxDBAdapterDesktopError,
-  assertValidDesktopDatabaseName,
-  resolveDesktopHostTransport,
-  type DesktopHostTransport,
-  type DesktopOptions,
-  type DesktopSqliteFileStorage,
-  type DesktopStorage
-} from '${packageName}';
+${bindings.map(binding => `  ${binding}`).join(',\n')}
+} from '${target.packageName}';
 
 const storage: DesktopSqliteFileStorage = { engine: 'sqlite', databaseName: 'app.sqlite3' };
 const anyStorage: DesktopStorage = storage;
@@ -76,17 +138,11 @@ const options: DesktopOptions = { transport: undefined as unknown as DesktopHost
 
 void anyStorage;
 void options;
-void DESKTOP_ADAPTER_NAME;
-void DESKTOP_DEFAULT_DATABASE_SUFFIX;
-void DESKTOP_HOST_PROTOCOL_VERSION;
-void DESKTOP_HOST_TRANSPORT_KEY;
-void DesktopSqliteClient;
-void RxDBAdapterDesktop;
-void RxDBAdapterDesktopError;
-void assertValidDesktopDatabaseName;
-void resolveDesktopHostTransport;
+${values.toSorted().map(name => `void ${name};`).join('\n')}
 `;
   await writeFile(path.join(root, 'consumer.ts'), rendererSource);
+
+  if (!target.hasHostEntry) return ['./consumer.ts'];
 
   const hostSource = `
 import {
@@ -97,7 +153,7 @@ import {
   parseDesktopHostRequest,
   type ElectronSqliteHost,
   type ElectronSqliteHostOptions
-} from '${packageName}/host';
+} from '${target.packageName}/host';
 
 const options: ElectronSqliteHostOptions = {
   resolveDatabasePath: name => name,
@@ -112,33 +168,14 @@ void assertValidDesktopDatabaseName;
 void parseDesktopHostRequest;
 `;
   await writeFile(path.join(root, 'consumer-host.ts'), hostSource);
+  return ['./consumer.ts', './consumer-host.ts'];
 };
 
-const writeRuntime = async root => {
-  const source = `
-import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-
-import * as renderer from '${packageName}';
+/**
+ * 性质 2 的正文：只有带 `./host` 的包才写进 runtime。
+ */
+const hostRoundTripSource = packageName => `
 import * as host from '${packageName}/host';
-
-const require = createRequire(import.meta.url);
-
-for (const name of [
-  'DesktopSqliteClient',
-  'RxDBAdapterDesktop',
-  'RxDBAdapterDesktopError',
-  'assertDesktopHostResponse',
-  'assertValidDesktopDatabaseName',
-  'resolveDesktopHostTransport'
-]) {
-  assert.equal(typeof renderer[name], 'function', 'renderer entry is missing ' + name);
-}
-assert.equal(typeof renderer.DESKTOP_ADAPTER_NAME, 'string');
-assert.equal(typeof renderer.DESKTOP_HOST_PROTOCOL_VERSION, 'number');
 
 for (const name of ['createElectronSqliteHost', 'NodeSqliteEngine', 'parseDesktopHostRequest', 'assertValidDesktopDatabaseName']) {
   assert.equal(typeof host[name], 'function', 'host entry is missing ' + name);
@@ -146,14 +183,6 @@ for (const name of ['createElectronSqliteHost', 'NodeSqliteEngine', 'parseDeskto
 
 // 双入口报同一个协议版本，否则 renderer 和 host 会在握手时各说各话。
 assert.equal(renderer.DESKTOP_HOST_PROTOCOL_VERSION, host.DESKTOP_HOST_PROTOCOL_VERSION);
-
-// renderer 入口不得把特权侧代码带进来 —— 见本脚本头部第 1 条。
-const rendererEntry = require.resolve('${packageName}');
-const rendererCode = await readFile(rendererEntry, 'utf8');
-assert.ok(
-  !/["'\\\`]node:sqlite["'\\\`]/.test(rendererCode),
-  'renderer entry references node:sqlite; it can no longer be bundled into a renderer safely'
-);
 
 // host 入口真的能开库、建表、读回来。
 const workspaceDir = await mkdtemp(path.join(tmpdir(), 'desktop-consumer-db-'));
@@ -194,10 +223,88 @@ try {
   await rm(workspaceDir, { force: true, recursive: true });
 }
 `;
+
+const writeRuntime = async (root, target) => {
+  const source = `
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+import * as renderer from '${target.packageName}';
+
+const require = createRequire(import.meta.url);
+
+for (const name of ${JSON.stringify(RENDERER_CALLABLE_EXPORTS)}) {
+  assert.equal(typeof renderer[name], 'function', 'renderer entry is missing ' + name);
+}
+assert.equal(typeof renderer.${target.adapterClass}, 'function', 'renderer entry is missing ${target.adapterClass}');
+assert.equal(typeof renderer.DESKTOP_HOST_PROTOCOL_VERSION, 'number');
+
+// 适配器名在产物里也必须是拆分后的那一个：US-504 AC#9 的 adapter_mismatch 判定按名字走，
+// 名字漂了，插件侧只会静默地不再匹配。
+assert.equal(renderer.${target.adapterNameExport}, '${target.adapterName}');
+
+// ---------------------------------------------------------------------------
+// 性质 1：renderer 入口的**依赖图**里不得出现 Node 内建 —— 见本脚本头部第 1 条。
+//
+// 只走 @aiao/ 范围内的文件：外部依赖（rxjs 等）不是本仓库能改的东西，把它们扫进来
+// 只会让这条门禁报出无人能修的红。
+// ---------------------------------------------------------------------------
+const IMPORT_PATTERN = /(?:from|import)\\s*\\(?\\s*['"]([^'"]+)['"]/g;
+
+const collectGraph = async entry => {
+  const seen = new Set();
+  const builtins = new Map();
+  const queue = [entry];
+  while (queue.length > 0) {
+    const current = queue.pop();
+    if (seen.has(current)) continue;
+    seen.add(current);
+    const code = await readFile(current, 'utf8');
+    const localRequire = createRequire(pathToFileURL(current));
+    for (const [, specifier] of code.matchAll(IMPORT_PATTERN)) {
+      if (specifier.startsWith('node:')) {
+        builtins.set(specifier, current);
+        continue;
+      }
+      let resolved;
+      try {
+        resolved = localRequire.resolve(specifier);
+      } catch {
+        continue;
+      }
+      if (resolved.includes(path.join('node_modules', '@aiao')) || resolved.startsWith(path.dirname(entry))) {
+        queue.push(resolved);
+      }
+    }
+  }
+  return { files: seen, builtins };
+};
+
+const rendererEntry = require.resolve('${target.packageName}');
+const { files, builtins } = await collectGraph(rendererEntry);
+assert.ok(files.size > 0, 'renderer graph walk visited no files; the walker is broken, not the package');
+
+// \`node:sqlite\` 单独点名：它是这条门禁最初要拦的东西，混在通用报错里不好认。
+assert.ok(
+  !builtins.has('node:sqlite'),
+  'renderer graph references node:sqlite (via ' + builtins.get('node:sqlite') + '); it can no longer be bundled into a renderer safely'
+);
+assert.equal(
+  builtins.size,
+  0,
+  'renderer graph references Node builtins: ' +
+    [...builtins].map(([specifier, file]) => specifier + ' <- ' + file).join(', ')
+);
+${target.hasHostEntry ? hostRoundTripSource(target.packageName) : ''}
+`;
   await writeFile(path.join(root, 'runtime.mjs'), source);
 };
 
-const writeTsconfig = async root => {
+const writeTsconfig = async (root, files) => {
   const base = {
     compilerOptions: {
       module: 'NodeNext',
@@ -208,7 +315,7 @@ const writeTsconfig = async root => {
       skipLibCheck: false,
       types: ['node']
     },
-    files: ['./consumer.ts', './consumer-host.ts']
+    files
   };
   await writeFile(path.join(root, 'tsconfig.json'), JSON.stringify(base, null, 2));
   await writeFile(
@@ -224,39 +331,58 @@ const writeTsconfig = async root => {
   );
 };
 
-const root = await mkdtemp(path.join(tmpdir(), 'rxdb-adapter-desktop-consumer-'));
-const tarballs = await mkdtemp(path.join(tmpdir(), 'rxdb-adapter-desktop-pack-'));
+const auditTarget = async (target, tarballs, sharedTarballs) => {
+  const root = await mkdtemp(path.join(tmpdir(), `${target.directory}-consumer-`));
+  try {
+    const packageDirectories = [...SHARED_PACKAGE_DIRECTORIES, target.directory];
+    const packed = new Map(sharedTarballs);
+    packed.set(target.directory, await pack(path.join(workspaceRoot, 'packages', target.directory), tarballs));
+
+    const packageJson = {
+      name: `${target.directory}-consumer`,
+      private: true,
+      type: 'module',
+      dependencies: Object.fromEntries(
+        packageDirectories.map(directory => [`@aiao/${directory}`, `file:${packed.get(directory)}`])
+      ),
+      devDependencies: {
+        '@types/ms': workspacePackageJson.devDependencies['@types/ms'],
+        '@types/node': workspacePackageJson.devDependencies['@types/node']
+      }
+    };
+    await writeFile(path.join(root, 'package.json'), JSON.stringify(packageJson, null, 2));
+    await writeFile(path.join(root, '.npmrc'), 'node-linker=hoisted\n');
+    await run('pnpm', ['install', '--prefer-offline', '--ignore-scripts', '--no-frozen-lockfile'], root);
+    const files = await writeConsumer(root, target);
+    await writeTsconfig(root, files);
+    await writeRuntime(root, target);
+
+    const tscPath = path.join(workspaceRoot, 'node_modules/typescript/bin/tsc');
+    await run(process.execPath, [tscPath, '--project', 'tsconfig.json', '--pretty', 'false'], root);
+    await run(process.execPath, [tscPath, '--project', 'tsconfig.bundler.json', '--pretty', 'false'], root);
+    await run(process.execPath, ['runtime.mjs'], root);
+
+    const entries = target.hasHostEntry ? 'dual entry' : 'single entry';
+    process.stdout.write(
+      `Published consumer passed: ${target.packageName} ${entries}, NodeNext + Bundler` +
+        `${target.hasHostEntry ? ' + host round-trip' : ''}.\n`
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+};
+
+const tarballs = await mkdtemp(path.join(tmpdir(), 'desktop-adapter-pack-'));
 try {
-  const packed = new Map();
-  for (const directory of packageDirectories) {
-    packed.set(directory, await pack(path.join(workspaceRoot, 'packages', directory), tarballs));
+  // 共享闭包只打一次：两个 target 用的是同一批 tarball，重打一遍纯粹是白等。
+  const sharedTarballs = new Map();
+  for (const directory of SHARED_PACKAGE_DIRECTORIES) {
+    sharedTarballs.set(directory, await pack(path.join(workspaceRoot, 'packages', directory), tarballs));
   }
 
-  const packageJson = {
-    name: 'rxdb-adapter-desktop-consumer',
-    private: true,
-    type: 'module',
-    dependencies: Object.fromEntries(
-      packageDirectories.map(directory => [`@aiao/${directory}`, `file:${packed.get(directory)}`])
-    ),
-    devDependencies: {
-      '@types/ms': workspacePackageJson.devDependencies['@types/ms'],
-      '@types/node': workspacePackageJson.devDependencies['@types/node']
-    }
-  };
-  await writeFile(path.join(root, 'package.json'), JSON.stringify(packageJson, null, 2));
-  await writeFile(path.join(root, '.npmrc'), 'node-linker=hoisted\n');
-  await run('pnpm', ['install', '--prefer-offline', '--ignore-scripts', '--no-frozen-lockfile'], root);
-  await writeConsumer(root);
-  await writeTsconfig(root);
-  await writeRuntime(root);
-
-  const tscPath = path.join(workspaceRoot, 'node_modules/typescript/bin/tsc');
-  await run(process.execPath, [tscPath, '--project', 'tsconfig.json', '--pretty', 'false'], root);
-  await run(process.execPath, [tscPath, '--project', 'tsconfig.bundler.json', '--pretty', 'false'], root);
-  await run(process.execPath, ['runtime.mjs'], root);
-  process.stdout.write(`Published consumer passed: ${packageName} dual entry, NodeNext + Bundler + host round-trip.\n`);
+  for (const target of TARGETS) {
+    await auditTarget(target, tarballs, sharedTarballs);
+  }
 } finally {
-  await rm(root, { force: true, recursive: true });
   await rm(tarballs, { force: true, recursive: true });
 }

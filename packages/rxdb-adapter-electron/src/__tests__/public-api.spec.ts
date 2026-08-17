@@ -16,8 +16,8 @@ import {
   DesktopSqliteClient,
   ELECTRON_ADAPTER_NAME,
   resolveDesktopHostTransport,
-  RxDBAdapterElectron,
   RxDBAdapterDesktopError,
+  RxDBAdapterElectron,
   type DesktopHostTransport,
   type DesktopOptions
 } from '../index.js';
@@ -38,7 +38,10 @@ const IMPORT_PATTERN = /from\s+'([^']+)'/g;
  * 且五个下游浏览器适配器一直在吃它，浏览器可用性由它们自己那套 e2e 守着。
  */
 const WORKSPACE_ENTRIES: ReadonlyMap<string, string> = new Map([
-  ['@aiao/rxdb-adapter-sqlite-core/desktop-host', resolve(SOURCE_ROOT, '../../rxdb-adapter-sqlite-core/src/desktop-host.ts')]
+  [
+    '@aiao/rxdb-adapter-sqlite-core/desktop-host',
+    resolve(SOURCE_ROOT, '../../rxdb-adapter-sqlite-core/src/desktop-host.ts')
+  ]
 ]);
 
 /** 从入口出发跟着相对 import（与共享层子路径）走一遍，收集整棵图上出现过的模块说明符。 */

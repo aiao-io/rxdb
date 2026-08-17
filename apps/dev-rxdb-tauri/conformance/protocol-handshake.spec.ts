@@ -155,10 +155,10 @@ describe('两端协议版本不一致', () => {
     host: ReturnType<typeof createRustHostTransport>
   ): Promise<{ error: unknown; kinds: readonly string[] }> => {
     const recorded = recording(host.transport);
-    const error = await DesktopSqliteClient.connect(
-      recorded.transport,
-      { engine: 'sqlite', databaseName: DATABASE_NAME }
-    ).then(
+    const error = await DesktopSqliteClient.connect(recorded.transport, {
+      engine: 'sqlite',
+      databaseName: DATABASE_NAME
+    }).then(
       client => {
         void client.disconnect();
         return undefined;

@@ -120,9 +120,9 @@ describe('DesktopSqliteClient.connect', () => {
   it('refuses a host too old to answer the handshake at all', async () => {
     const ancient: DesktopHostTransport = {
       request: payload =>
-        payload.kind === 'handshake'
-          ? Promise.resolve({ kind: 'error', code: 'protocol_violation', message: 'unknown request kind handshake' })
-          : host.handle(payload),
+        payload.kind === 'handshake' ?
+          Promise.resolve({ kind: 'error', code: 'protocol_violation', message: 'unknown request kind handshake' })
+        : host.handle(payload),
       subscribe: transport.subscribe
     };
     await expect(DesktopSqliteClient.connect(ancient, sqliteStorage)).rejects.toThrowError(/protocol_violation/);

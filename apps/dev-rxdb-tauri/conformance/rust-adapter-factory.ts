@@ -12,13 +12,13 @@
  */
 
 import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
+import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import {
-  TAURI_ADAPTER_NAME,
   DesktopSqliteClient,
   RxDBAdapterTauri,
+  TAURI_ADAPTER_NAME,
   type DesktopHostTransport
 } from '@aiao/rxdb-adapter-tauri';
-import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import type { EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
