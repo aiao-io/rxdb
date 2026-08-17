@@ -18,7 +18,7 @@ description: 只读恢复 Nx 本地任务缓存。
 runs:
   using: composite
   steps:
-    - uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+    - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: .nx/cache
         key: nx-cache-${{ runner.os }}-${{ github.run_id }}
