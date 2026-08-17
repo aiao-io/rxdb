@@ -11,14 +11,15 @@ const transform = async (id: string, code = SOURCE): Promise<string | null> => {
   if (typeof hook !== 'function') {
     throw new Error('Expected transform hook');
   }
-  const result = await hook.call({} as never, code, id);
+  const result: unknown = await hook.call({} as never, code, id);
   if (typeof result === 'string') {
     return result;
   }
   if (result == null) {
     return null;
   }
-  return typeof result.code === 'string' ? result.code : null;
+  const { code: resultCode } = result as { code?: unknown };
+  return typeof resultCode === 'string' ? resultCode : null;
 };
 
 describe('rxdbClientGeneratorCliShebangPlugin', () => {
