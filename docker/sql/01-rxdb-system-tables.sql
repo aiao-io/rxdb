@@ -110,13 +110,24 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-DROP TRIGGER IF EXISTS update_rxdb_change_updated_at ON public.rxdb_change;
-CREATE TRIGGER update_rxdb_change_updated_at
+-- 幂等重建触发器必须用 `CREATE OR REPLACE TRIGGER`（PG 14+），不能用
+-- `DROP TRIGGER IF EXISTS` + `CREATE TRIGGER`：
+--
+-- 在 Supabase 的库里，`DROP TRIGGER IF EXISTS x ON t` 会对**全库**的
+-- auth.* / realtime.* 表加 AccessExclusiveLock（实测 19 张：16 张 auth 表 +
+-- realtime.messages/subscription + 目标表），而且触发器根本不存在、只打一行
+-- NOTICE 跳过时也照加不误。本脚本跑在 `docker compose up -d` 之后，此刻 GoTrue
+-- 正在并发跑它那 69 个建表迁移（auth.users / auth.sessions / auth.refresh_tokens
+-- …），两边的加锁顺序一反就是 `ERROR: deadlock detected` —— CI 的
+-- `e2e (supabase remote)` 间歇性挂在这一行，runner 越慢命中率越高。
+--
+-- `CREATE OR REPLACE TRIGGER` 同样幂等，但只锁目标表（ShareRowExclusiveLock），
+-- 实测对 auth.*/realtime.* 零加锁，物理上不可能和 GoTrue 迁移互锁。
+CREATE OR REPLACE TRIGGER update_rxdb_change_updated_at
 BEFORE UPDATE ON public.rxdb_change
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_rxdb_branch_updated_at ON public.rxdb_branch;
-CREATE TRIGGER update_rxdb_branch_updated_at
+CREATE OR REPLACE TRIGGER update_rxdb_branch_updated_at
 BEFORE UPDATE ON public.rxdb_branch
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

@@ -277,6 +277,19 @@ const renderToken = (context: RenderContext, key: string, value: unknown): strin
   return undefined;
 };
 
+/**
+ * 渲染对象字面量的键。
+ *
+ * @remarks
+ * `__proto__` 必须走计算属性：`{ __proto__: v }` 与 `{ "__proto__": v }` 在对象字面量里都是
+ * **原型设置语法**，生成出来的代码会改掉对象原型并丢掉这个自有键；只有 `{ ["__proto__"]: v }`
+ * 才定义成普通属性。`options` / `keyValueSchema` 的键是业务字符串，元数据里出现它并不违法。
+ */
+const renderKey = (key: string): string => {
+  if (key === '__proto__') return `['${key}']`;
+  return isGeneratedIdentifier(key) ? key : JSON.stringify(key);
+};
+
 const renderMetadataValue = (value: unknown, indentSize: number, context: RenderContext): string => {
   if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return JSON.stringify(value);
@@ -298,7 +311,7 @@ const renderMetadataValue = (value: unknown, indentSize: number, context: Render
 
   const indent = ' '.repeat(indentSize + 2);
   const renderedEntries = entries.map(([key, childValue]) => {
-    const renderedKey = isGeneratedIdentifier(key) ? key : JSON.stringify(key);
+    const renderedKey = renderKey(key);
     const token = renderToken(context, key, childValue);
     const renderedValue = token ?? renderMetadataValue(childValue, indentSize + 2, getChildContext(context, key));
     return `${indent}${renderedKey}: ${renderedValue}`;

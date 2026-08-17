@@ -16,6 +16,18 @@
 import type { FieldFormat, PercentageFormat } from './metadata-options.interface.js';
 
 /**
+ * 用未受信字符串查规则表：键不是自有属性时返回 `undefined`。
+ *
+ * @remarks
+ * 直接 `TABLE[key]` 会把 `toString` / `constructor` / `__proto__` 取成原型链上的成员，
+ * `?? []` 这类兜底拦不住——取到的是函数而不是 `undefined`，随后的 `.filter` / `.includes`
+ * 直接抛 `TypeError`。三张规则表（必填键、枚举字面量、各 kind 允许的配置键）都由外部
+ * `format.kind` 或配置键名索引，因此统一走这里。
+ */
+export const lookupOwn = <T>(table: Readonly<Record<string, T>>, key: string): T | undefined =>
+  Object.hasOwn(table, key) ? table[key] : undefined;
+
+/**
  * 各 kind 的必填配置键。
  *
  * @remarks
@@ -32,7 +44,26 @@ export const REQUIRED_FORMAT_CONFIG_KEYS: Readonly<Partial<Record<FieldFormat['k
 
 /** 列出 `format` 缺失的必填配置键；`kind` 未知或无必填项时返回空数组。 */
 export const missingFormatConfigKeys = (kind: string, format: Record<string, unknown>): readonly string[] =>
-  (REQUIRED_FORMAT_CONFIG_KEYS[kind as FieldFormat['kind']] ?? []).filter(key => !(key in format));
+  (lookupOwn(REQUIRED_FORMAT_CONFIG_KEYS, kind) ?? []).filter(key => !(key in format));
+
+/**
+ * 枚举型配置键的合法字面量。
+ *
+ * @remarks
+ * 注册期闸门判「这个值不在联合里」，线格式解析器判「这个值不能进 `FieldFormat`」——
+ * 两边判据必须同源，否则解析器会放行一个注册期拒绝的值，造出 `as FieldFormat` 的类型谎言。
+ */
+export const FORMAT_CONFIG_LITERALS: Readonly<Record<string, readonly string[]>> = {
+  contentType: ['text/markdown', 'text/html'],
+  scale: ['0..1', '0..100'],
+  unit: ['ms', 's', 'min', 'h', 'd'],
+  colorSpace: ['hex', 'rgb', 'hsl', 'hsv', 'lab', 'lch'],
+  display: ['date', 'time', 'datetime']
+};
+
+/** 按配置键取合法字面量；该键不是枚举型时返回 `undefined`。 */
+export const formatConfigLiteralsOf = (key: string): readonly string[] | undefined =>
+  lookupOwn(FORMAT_CONFIG_LITERALS, key);
 
 /** `percentage` 各刻度的固有值域。 */
 export const PERCENTAGE_DOMAIN = {

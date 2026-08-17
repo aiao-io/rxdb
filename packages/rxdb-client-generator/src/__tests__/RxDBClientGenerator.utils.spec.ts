@@ -154,6 +154,19 @@ describe('RxDBClientGenerator.utils', () => {
       expect(result).toContain('"key with space"');
     });
 
+    it('__proto__ 键必须渲染成计算属性', () => {
+      // 直接写 `{ __proto__: v }` 字面量会当场触发原型设置，只能用 JSON.parse 造出真正的自有键
+      const features: Record<string, unknown> = JSON.parse('{"__proto__": true, "plain": true}');
+      const metadata = { ...createEntityMetadata({ name: 'Test', namespace: 'public' }), features };
+
+      const result = transitionMetadata(metadata);
+
+      // 裸形式和引号形式在对象字面量里都是原型设置语法：生成的代码会改掉原型并丢掉这个自有键
+      expect(result).toContain("['__proto__']: true");
+      expect(result).not.toContain('"__proto__":');
+      expect(result).toContain('plain: true');
+    });
+
     it('should handle metadata without relations', () => {
       const metadata = createEntityMetadata({
         name: 'SimpleEntity',

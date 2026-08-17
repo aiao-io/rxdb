@@ -470,19 +470,19 @@ DECLARE
   ];
   t text;
 BEGIN
+  -- `CREATE OR REPLACE TRIGGER`（PG 14+）而不是 DROP + CREATE：后者会对全库的
+  -- auth.*/realtime.* 表加 AccessExclusiveLock，详见 01-rxdb-system-tables.sql。
   FOREACH t IN ARRAY public_tables LOOP
-    EXECUTE format('DROP TRIGGER IF EXISTS %I ON public.%I', 'update_' || t || '_updated_at', t);
     EXECUTE format(
-      'CREATE TRIGGER %I BEFORE UPDATE ON public.%I FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()',
+      'CREATE OR REPLACE TRIGGER %I BEFORE UPDATE ON public.%I FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()',
       'update_' || t || '_updated_at',
       t
     );
   END LOOP;
 
   FOREACH t IN ARRAY shop_tables LOOP
-    EXECUTE format('DROP TRIGGER IF EXISTS %I ON shop.%I', 'update_' || t || '_updated_at', t);
     EXECUTE format(
-      'CREATE TRIGGER %I BEFORE UPDATE ON shop.%I FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()',
+      'CREATE OR REPLACE TRIGGER %I BEFORE UPDATE ON shop.%I FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()',
       'update_' || t || '_updated_at',
       t
     );

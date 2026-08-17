@@ -32,7 +32,8 @@ import {
   ORPHAN_HOST_METADATA,
   SEMANTIC_METADATA,
   STAMP_HOST_METADATA,
-  TOPIC_METADATA
+  TOPIC_METADATA,
+  TWIN_HOST_METADATA
 } from '../fixtures/field-descriptor-entities.js';
 
 /** 解析器用例操作的是「任意 JSON」，刻意不带 DTO 类型，否则构造不出非法组合。 */
@@ -306,6 +307,25 @@ describe('AC#16～19 — 关系字段', () => {
     });
   });
 
+  it('AC#18 — 目标声明多个主键：抛结构化错误而不是按 Map 顺序取第一个', () => {
+    // `find()` 会让外键类型跟着属性插入顺序走 —— 换个声明次序就换个 valueType，
+    // 正是「无 fallback 兜底」铁律禁止的静默兜底。
+    // 错误类型必须与「主键数 = 0」的 missingRelationPrimary 一致：同一个目标实体的同一类声明错误，
+    // 只断言 RxDBError 的话裸错和结构化错误都能过，钉不住这个决定。
+    const error = captureError(() => describeEntityFields(TWIN_HOST_METADATA, FIELD_RESOLVER));
+
+    expect(error).toBeInstanceOf(EntityRelationResolutionError);
+    expect((error as EntityRelationResolutionError).details).toStrictEqual({
+      namespace: 'public',
+      entity: 'TwinHost',
+      field: 'ref',
+      rule: 'multipleRelationPrimaries'
+    });
+    expect((error as Error).message).toContain('Twin');
+    expect((error as Error).message).toContain('id');
+    expect((error as Error).message).toContain('code');
+  });
+
   it('AC#19 — 目标主键类型不受支持：rule 为 unsupportedRelationValueType', () => {
     const error = captureError(() => describeEntityFields(STAMP_HOST_METADATA, FIELD_RESOLVER));
 
@@ -558,6 +578,63 @@ describe('AC#23～24 — DTO 往返与解析器键策略', () => {
     expect(() => parseEntityFieldsDescriptor(input)).toThrow(RxDBError);
   });
 
+  it('AC#24 — 枚举型配置键的值必须落在字面量联合里', () => {
+    // 只判 `typeof value === 'string'` 会让 `{ kind: 'percentage', scale: '0..7' }` 通过，
+    // 产出一个 `as FieldFormat` 断言下类型撒谎的对象；`percentageDomainOf` 随后取到 undefined。
+    const cases: readonly (readonly [string, LooseDto])[] = [
+      [
+        'contentType',
+        mutate(SEMANTIC, draft => looseSet(nested(looseField(draft, 'body'), 'format'), 'contentType', 'text/plain'))
+      ],
+      [
+        'scale',
+        mutate(SEMANTIC, draft => {
+          const format = nested(looseField(draft, 'score'), 'format');
+          looseSet(format, 'kind', 'percentage');
+          looseSet(format, 'scale', '0..7');
+        })
+      ],
+      [
+        'unit',
+        mutate(SEMANTIC, draft => {
+          const format = nested(looseField(draft, 'score'), 'format');
+          looseSet(format, 'kind', 'duration');
+          looseSet(format, 'unit', 'year');
+        })
+      ],
+      [
+        'colorSpace',
+        mutate(SEMANTIC, draft => {
+          const format = nested(looseField(draft, 'homepage'), 'format');
+          looseSet(format, 'kind', 'color');
+          looseSet(format, 'colorSpace', 'cmyk');
+        })
+      ],
+      [
+        'display',
+        mutate(SEMANTIC, draft => looseSet(nested(looseField(draft, 'publishedAt'), 'format'), 'display', 'era'))
+      ]
+    ];
+
+    cases.forEach(([label, input]) => expect(() => parseEntityFieldsDescriptor(input), label).toThrow(RxDBError));
+  });
+
+  it('AC#24 — 枚举型配置键的合法值原样往返', () => {
+    const input = mutate(SEMANTIC, draft => {
+      const format = nested(looseField(draft, 'score'), 'format');
+      looseSet(format, 'kind', 'percentage');
+      looseSet(format, 'scale', '0..100');
+    });
+
+    expect(fieldOf(parseEntityFieldsDescriptor(input), 'score').format).toStrictEqual({
+      kind: 'percentage',
+      scale: '0..100',
+      min: 1,
+      max: 5,
+      step: 1
+    });
+  });
+
   it('AC#24 — 各层已知键的线格式被逐一校验', () => {
     const cases: readonly (readonly [string, unknown])[] = [
       ['顶层不是对象', 5],
@@ -627,6 +704,31 @@ describe('AC#23～24 — DTO 往返与解析器键策略', () => {
 
     expect(() => parseEntityFieldsDescriptor(withDate)).toThrow(RxDBError);
     expect(() => parseEntityFieldsDescriptor(withNaN)).toThrow(RxDBError);
+  });
+
+  it('AC#24 — 循环引用返回 RxDBError 而不是栈溢出', () => {
+    // 本函数的契约是「解析失败抛 RxDBError」，RangeError 会漏过调用方的 instanceof 分支。
+    // 兄弟模块 entity-value.utils 已按同一判据处理循环引用，两边不能给出不同契约。
+    const cyclicRecord = clone(ARTICLE);
+    looseSet(looseField(cyclicRecord, 'title'), 'self', looseField(cyclicRecord, 'title'));
+    const cyclicList = clone(ARTICLE);
+    const list: unknown[] = ['a'];
+    list.push(list);
+    looseSet(looseField(cyclicList, 'tags'), 'enum', list);
+
+    [cyclicRecord, cyclicList].forEach(input => expect(() => parseEntityFieldsDescriptor(input)).toThrow(RxDBError));
+  });
+
+  it('AC#24 — 同一对象出现多次但无环时正常解析', () => {
+    // 判据必须是「当前递归路径」而不是「见过的对象」：DTO 里同一个 options 展示项复用两次是合法 DAG
+    const input = clone(SEMANTIC);
+    const display = { label: '共享' };
+    looseSet(looseField(input, 'state'), 'options', { review: display, draft: display });
+
+    expect(fieldOf(parseEntityFieldsDescriptor(input), 'state').options).toStrictEqual({
+      review: { label: '共享' },
+      draft: { label: '共享' }
+    });
   });
 
   it('AC#24 — 给 1:m / m:n 塞 nullable / unique 必须失败，不能当未知键丢弃', () => {
