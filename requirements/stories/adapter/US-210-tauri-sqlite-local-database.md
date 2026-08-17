@@ -251,7 +251,7 @@ INVEST「Small」，**不拆新故事**，改为划阶段，每阶段独立验�
 ## Tauri 包化
 
 本故事的实现今天**没有一行在 packages 里**：JS 传输层寄居在
-`@aiao/rxdb-adapter-desktop`，Rust 宿主、stdio 测试二进制与全部一致性用例（写本条时 SQL 侧 577 条）
+`@aiao/rxdb-adapter-desktop`，Rust 宿主、stdio 测试二进制与全部一致性用例（写本条时 SQL 侧 604 条）
 全在 `apps/dev-rxdb-tauri/` 这个 demo 应用里。装了 npm 包的用户拿到的只是一根传输管子，管子那头的
 `rusqlite` 引擎要自己照着 demo 重写一遍——AC#2/#3 承诺的「与其它后端行为一致」于是只对本仓库成立。
 
