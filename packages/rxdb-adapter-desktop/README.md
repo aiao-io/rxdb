@@ -22,10 +22,10 @@ RxDB 适配器，把数据落到**桌面应用私有目录里的真实 SQLite �
 
 ## 能力矩阵
 
-| 运行时   | SQLite 单文件                | PGlite data directory         |
-| -------- | ---------------------------- | ----------------------------- |
-| Electron | ✅ host 在包内（`/host`）    | ❌ 未实现，见 US-208          |
-| Tauri    | ⚠️ 包内只有 transport，见下  | ❌ 永不支持（无 Node 主进程） |
+| 运行时   | SQLite 单文件               | PGlite data directory         |
+| -------- | --------------------------- | ----------------------------- |
+| Electron | ✅ host 在包内（`/host`）   | ❌ 未实现，见 US-208          |
+| Tauri    | ⚠️ 包内只有 transport，见下 | ❌ 永不支持（无 Node 主进程） |
 
 不在矩阵内的组合会被 `assertSupportedDesktopStorage` 以 `unsupported_runtime_engine` 拒绝。
 

@@ -117,7 +117,7 @@ export const TAURI_DESKTOP_REQUEST_COMMAND = 'rxdb_desktop_request';
 发布文档比故事更差。包 README 能力矩阵仍写（[README.md](../../packages/rxdb-adapter-desktop/README.md#L36-L42)）：
 
 ```md
-| Tauri    | ⚠️ 仅存储形状与校验，见 US-210 | ❌ 永不支持（无 Node 主进程） |
+| Tauri | ⚠️ 仅存储形状与校验，见 US-210 | ❌ 永不支持（无 Node 主进程） |
 ```
 
 > Tauri 侧目前只有类型与校验：host 实现基于 `node:sqlite`，Tauri 没有 Node 主进程，需要另一套 host。
@@ -250,10 +250,10 @@ if (protocolVersion !== DESKTOP_HOST_PROTOCOL_VERSION) {
 
 不稳的是 **Tauri host 报上来的数字是手抄的第二份**：
 
-| 侧         | 常量                                                          | 位置                                                                                         |
-| ---------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| TypeScript | `DESKTOP_HOST_PROTOCOL_VERSION = 1`                           | [desktop-host-protocol.ts](../../packages/rxdb-adapter-desktop/src/desktop-host-protocol.ts#L34) |
-| Rust       | `pub const PROTOCOL_VERSION: i64 = 1;`                        | [protocol.rs](../../apps/dev-rxdb-tauri/src-tauri/src/rxdb/protocol.rs#L17)                  |
+| 侧         | 常量                                   | 位置                                                                                             |
+| ---------- | -------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| TypeScript | `DESKTOP_HOST_PROTOCOL_VERSION = 1`    | [desktop-host-protocol.ts](../../packages/rxdb-adapter-desktop/src/desktop-host-protocol.ts#L34) |
+| Rust       | `pub const PROTOCOL_VERSION: i64 = 1;` | [protocol.rs](../../apps/dev-rxdb-tauri/src-tauri/src/rxdb/protocol.rs#L17)                      |
 
 两个常量之间没有任何机械联系。改了 TS 那个，`cargo test` 一条不红；改了 Rust 那个，`pnpm nx test` 一条不红。
 
@@ -278,7 +278,7 @@ Tauri host 活在另一门语言里，版本号只能复制。阶段 1 先把拒
 最小闭环（US-210 已写）：一致性套件 / stdio 测试宿主握手时断言
 
 ```ts
-opened.protocolVersion === DESKTOP_HOST_PROTOCOL_VERSION
+opened.protocolVersion === DESKTOP_HOST_PROTOCOL_VERSION;
 ```
 
 `session.rs:315` 今天只断言「有这个字段且等于 Rust 自己」，差的是「等于对面那个值」。这条绿了，AC#10 才能从 ⚠️ 改 ✅。
@@ -317,11 +317,11 @@ Tauri 的 `app_data_dir()` + `rxdb-data/` 没有已知同类冲突，但没有�
 
 按 US-207「三平台打包 CI」加一条 **release 触发**的 workflow，`matrix: [ubuntu-latest, windows-latest, macos-latest]`，一次触发同时跑：
 
-| 承担            | 断言形态                                              |
-| --------------- | ----------------------------------------------------- |
-| US-207 AC#8     | Electron 打包产物跨进程启动计数 1 → 2                 |
-| US-210 AC#1/#9  | Tauri 打包产物同样 1 → 2；三平台统一进程级驱动，不上 WebDriver |
-| 第 4 项（renderer tarball 门禁） | 恢复的 `desktop-adapter-consumer.mjs` 打在真 tarball 上 |
+| 承担                             | 断言形态                                                       |
+| -------------------------------- | -------------------------------------------------------------- |
+| US-207 AC#8                      | Electron 打包产物跨进程启动计数 1 → 2                          |
+| US-210 AC#1/#9                   | Tauri 打包产物同样 1 → 2；三平台统一进程级驱动，不上 WebDriver |
+| 第 4 项（renderer tarball 门禁） | 恢复的 `desktop-adapter-consumer.mjs` 打在真 tarball 上        |
 
 不进 PR 门禁。断言形态不能退化成单次启动内的读写——那正好是静默空库的盲区。Tauri 侧先建 `apps/dev-rxdb-tauri-e2e`（与 US-905 阶段 1 共享 project，先开工者 generator 一次）。
 
@@ -369,13 +369,13 @@ US-207 已于 2026-08-17 **落定分裂**：Electron → `sqlite-electron`，Tau
 
 按已落定决策做一次破坏性改名，两包共用一次，不要分两次让用户改两遍：
 
-| 处                         | 改动                                                                 |
-| -------------------------- | -------------------------------------------------------------------- |
-| `ADAPTER_NAME`             | `'desktop'` → `'sqlite-electron'` / `'sqlite-tauri'`                 |
-| `DesktopOptions.runtime`   | 删除                                                                 |
-| `DesktopRuntime` / 能力矩阵校验 | 删除；「Tauri 永不支持 PGlite」不再需要 runtime 分支              |
-| capability-matrix desktop 行 | 拆成三行（含 US-208 的 `pglite-electron`）                         |
-| `npm deprecate`            | `@aiao/rxdb-adapter-desktop` 指向新包，映射写进 `website/docs/migration/` |
+| 处                              | 改动                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------- |
+| `ADAPTER_NAME`                  | `'desktop'` → `'sqlite-electron'` / `'sqlite-tauri'`                      |
+| `DesktopOptions.runtime`        | 删除                                                                      |
+| `DesktopRuntime` / 能力矩阵校验 | 删除；「Tauri 永不支持 PGlite」不再需要 runtime 分支                      |
+| capability-matrix desktop 行    | 拆成三行（含 US-208 的 `pglite-electron`）                                |
+| `npm deprecate`                 | `@aiao/rxdb-adapter-desktop` 指向新包，映射写进 `website/docs/migration/` |
 
 完成判据已写在 US-207 E3：`grep -rn "runtime: 'electron'\|runtime: 'tauri'"` 零命中。必须赶在阶段 2 门禁立起来之后、有真实用户之前做——这是破坏性改动，不是整理。
 
@@ -397,10 +397,10 @@ US-210 AC#6 承诺：同一 SQLite 文件已被另一个窗口打开并持有写
 
 关闭判据是行为与 US-207 AC#5 一致：第二个 writer 要么等到持锁方提交后成功，要么超时报 `database_busy`，任何情况下不改道到另一份文件。**不是把 Electron 的实现抄过来**——两侧忙等机制有意不同：
 
-| 路径     | 忙等                                                                 | 理由                                                                 |
-| -------- | -------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| 路径     | 忙等                                                                              | 理由                                                                 |
+| -------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | Electron | host 层异步退避（`DEFAULT_BUSY_RETRY_BUDGET_MS`），**不**设 `PRAGMA busy_timeout` | `node:sqlite` 同步接口 + 主进程单线程，同步自旋会冻住对方的 `COMMIT` |
-| Tauri    | `PRAGMA busy_timeout` 原地等待                                       | 每条连接活在 `spawn_blocking` 线程上，持锁方能真正推进               |
+| Tauri    | `PRAGMA busy_timeout` 原地等待                                                    | 每条连接活在 `spawn_blocking` 线程上，持锁方能真正推进               |
 
 `DesktopSqliteClient.#request` 的注释把跨会话竞争一律写成「host 侧的 `busy_timeout`」（[desktop-sqlite-client.ts](../../packages/rxdb-adapter-desktop/src/desktop-sqlite-client.ts#L292-L294)）。这句话对 Electron 不成立。注释本身不是用户缺陷，但说明两条路径已经容易被写成同一套，缺直接用例时改错一边不会红。
 

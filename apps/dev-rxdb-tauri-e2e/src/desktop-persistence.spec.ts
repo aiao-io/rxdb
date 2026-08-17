@@ -52,9 +52,7 @@ describe('打包产物的桌面 SQLite 持久化', () => {
       // 于是同一台机器上重复跑第二遍就会从 3 开始。
       //
       // 两侧都 realpath：macOS 的 `/var → /private/var` 是这条断言最经典的假红。
-      expect(realpathSync(first.report.appDataDir), `${APP_DATA_DIR_ENV} 没有接到 host 上`).toBe(
-        realpathSync(dataDir)
-      );
+      expect(realpathSync(first.report.appDataDir), `${APP_DATA_DIR_ENV} 没有接到 host 上`).toBe(realpathSync(dataDir));
 
       // 计数对了但文件不在，说明数据写去了别处（或者压根没落盘）—— AC#1 的「可备份、可迁移的
       // 真实文件」就没兑现。

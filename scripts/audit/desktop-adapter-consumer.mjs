@@ -25,7 +25,13 @@ const execFileAsync = promisify(execFile);
 const workspaceRoot = process.cwd();
 const workspacePackageJson = JSON.parse(await readFile(path.join(workspaceRoot, 'package.json'), 'utf8'));
 const packageName = '@aiao/rxdb-adapter-desktop';
-const packageDirectories = ['utils', 'rxdb', 'rxdb-adapter-encrypted', 'rxdb-adapter-sqlite-core', 'rxdb-adapter-desktop'];
+const packageDirectories = [
+  'utils',
+  'rxdb',
+  'rxdb-adapter-encrypted',
+  'rxdb-adapter-sqlite-core',
+  'rxdb-adapter-desktop'
+];
 
 const run = async (command, args, cwd, forwardOutput = true) => {
   const { stdout, stderr } = await execFileAsync(command, args, {
@@ -230,7 +236,9 @@ try {
     name: 'rxdb-adapter-desktop-consumer',
     private: true,
     type: 'module',
-    dependencies: Object.fromEntries(packageDirectories.map(directory => [`@aiao/${directory}`, `file:${packed.get(directory)}`])),
+    dependencies: Object.fromEntries(
+      packageDirectories.map(directory => [`@aiao/${directory}`, `file:${packed.get(directory)}`])
+    ),
     devDependencies: {
       '@types/ms': workspacePackageJson.devDependencies['@types/ms'],
       '@types/node': workspacePackageJson.devDependencies['@types/node']

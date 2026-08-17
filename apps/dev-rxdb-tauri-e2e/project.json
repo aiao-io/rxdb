@@ -1,9 +1,9 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": ["dev-rxdb-tauri"],
   "name": "dev-rxdb-tauri-e2e",
   "projectType": "application",
   "sourceRoot": "apps/dev-rxdb-tauri-e2e/src",
-  "implicitDependencies": ["dev-rxdb-tauri"],
   "targets": {
     "desktop-smoke": {
       "// 为什么不叫 e2e": "ci-template.yml 用 `nx show projects --withTarget=e2e` 自动组矩阵，叫 e2e 就自动进 PR 门禁的 ubuntu 跑道，而 US-210 AC#9 明写它只进发布链路。test / test-browser / build / cargo-test 同理，都要避开。",
