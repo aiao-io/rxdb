@@ -608,6 +608,8 @@ importers:
 
   apps/dev-rxdb-supabase-e2e: {}
 
+  apps/dev-rxdb-tauri-e2e: {}
+
   apps/dev-rxdb-vue:
     dependencies:
       '@aiao/code-editor-vue':
