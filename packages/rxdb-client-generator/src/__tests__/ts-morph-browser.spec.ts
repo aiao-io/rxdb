@@ -353,6 +353,17 @@ describe('ts_morph_browser', () => {
       expect(text).toContain("import { Component, useState } from 'react';");
     });
 
+    it('should render type-only named imports', () => {
+      const sourceFile = project.createSourceFile('test.ts');
+      sourceFile.addImportDeclaration({
+        namedImports: ['Widget'],
+        isTypeOnly: true,
+        moduleSpecifier: './Widget.js'
+      });
+
+      expect(sourceFile.getText()).toContain("import type { Widget } from './Widget.js';");
+    });
+
     it('should add multiple import declarations', () => {
       const sourceFile = project.createSourceFile('test.ts');
       sourceFile.addImportDeclaration({

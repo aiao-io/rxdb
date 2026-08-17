@@ -443,7 +443,10 @@ class CodeGenerator {
 
     const lines = imports
       .filter(imp => imp.namedImports?.length)
-      .map(imp => `import { ${imp.namedImports!.join(', ')} } from '${imp.moduleSpecifier}';`);
+      .map(imp => {
+        const typeKeyword = imp.isTypeOnly ? 'type ' : '';
+        return `import ${typeKeyword}{ ${imp.namedImports!.join(', ')} } from '${imp.moduleSpecifier}';`;
+      });
 
     return lines.length ? lines.join('\n') + '\n\n' : '';
   }

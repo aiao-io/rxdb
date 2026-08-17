@@ -56,7 +56,8 @@ import {
   MenuLarge,
   MenuSimple,
   Todo,
-  TypeDemo
+  TypeDemo,
+  type TodoStaticTypes
 } from '@aiao/rxdb-test/entities';
 import {
   Attribute,
@@ -69,7 +70,8 @@ import {
   ENTITIES as shopEntityTypes,
   SKU,
   SKUAttributes,
-  User
+  User,
+  type UserStaticTypes
 } from '@aiao/rxdb-test/shop';
 import {
   createUnexecutedMigrations,
@@ -93,6 +95,8 @@ import {
 const todo = new Todo();
 const product = new Product();
 const encryptedUser = new EncryptedUser();
+declare const todoFindOptions: TodoStaticTypes['findOptions'];
+declare const shopUserFindOptions: UserStaticTypes['findOptions'];
 
 // tree-unique 的四个类型导出在这里被真实消费：只 import 不使用的话，
 // 类型入口解析失败仍能编译通过（RXT-024 的同一教训）。
@@ -146,6 +150,7 @@ void [
   runQueryValidationSuite,
   runTamperSuite,
   // entities
+  todoFindOptions,
   entityTypes,
   todo,
   Article,
@@ -158,6 +163,7 @@ void [
   // shop
   shopEntityTypes,
   product,
+  shopUserFindOptions,
   Attribute,
   AttributeValue,
   Category,
