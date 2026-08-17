@@ -68,7 +68,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 - **做什么**：
   1. 读 `package.json / benchmarks/package.json / examples/angular-todo/package.json / packages/rxdb-adapter-wa-sqlite/package.json / packages/rxdb-adapter-miniprogram/package.json`，断言 `dependencies.wa-sqlite` 都锁定到 `https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994`；
   2. 解析 `pnpm-lock.yaml` 中 `wa-sqlite@<url>` 段，断言 `tarball / integrity` 字段与上面的固定值一致，并扫掉任何 `codeload.github.com/.../refs/tags/`（即可变 tag URL）形态的残留；
-  3. 对 `packages/rxdb-adapter-miniprogram/assets/wa-sqlite.cjs` 和 `.wasm` 校验固定 SHA-256；
+  3. 对 `packages/rxdb-adapter-miniprogram/assets/wa-sqlite.cjs` 和 `.wasm` 校验固定 SHA-256；`.cjs` 额外拒绝 CR（`0x0d`），避免 Windows `core.autocrlf=true` 把 LF 改成 CRLF 后被误报成供应链哈希漂移（CI 实测：`0315bd7a…` → `2c7bf32a…`）。换行钉死在仓库根 [`.gitattributes`](../.gitattributes)；
   4. 传 `--archive <path-to-tgz>` 时，对下载的本地 tarball 再算一次 `sha512-<base64>`，与上面硬编码的完整性指纹对齐。
 - **何时手动跑**：升级 `wa-sqlite` 后想确认全仓 manifest 与 lockfile 一致；怀疑本地 tarball 被中间人替换；CI 上 `wa-sqlite supply-chain pin OK` 失败时定位。
 

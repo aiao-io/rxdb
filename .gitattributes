@@ -1,0 +1,22 @@
+# 跨平台换行钉死为 LF。Windows runner 默认 core.autocrlf=true，
+# 不写这条的话 checkout 会把文本资产改成 CRLF，preinstall 的 SHA-256
+# 供应链校验会立刻红（CI 实测：wa-sqlite.cjs 0315bd7a… → 2c7bf32a…）。
+* text=auto eol=lf
+
+# vendored 供应链资产：字节必须与 scripts/audit/wa-sqlite-integrity.mjs 钉死的
+# SHA-256 一致。cjs 是文本但禁止任何换行转换；wasm 是二进制。
+packages/rxdb-adapter-miniprogram/assets/wa-sqlite.cjs text eol=lf
+packages/rxdb-adapter-miniprogram/assets/wa-sqlite.wasm binary
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.wasm binary
