@@ -10,12 +10,8 @@
  * @module desktop-host-protocol
  */
 
-import {
-  SQLiteChangeType,
-  type SqliteChangeEvent,
-  type SQLiteCompatibleType,
-  type SqliteResult
-} from '@aiao/rxdb-adapter-sqlite-core';
+import { SQLiteChangeType } from '../sqlite-backend.interface.js';
+import type { SqliteChangeEvent, SQLiteCompatibleType, SqliteResult } from '../sqlite-core.interface.js';
 import {
   isRxDBAdapterDesktopErrorCode,
   RxDBAdapterDesktopError,

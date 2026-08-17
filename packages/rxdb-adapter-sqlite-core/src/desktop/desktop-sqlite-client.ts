@@ -4,13 +4,9 @@
  * @module desktop-sqlite-client
  */
 
-import type {
-  SqliteChangeEvent,
-  SQLiteChangeType,
-  SqliteClientLike,
-  SQLiteCompatibleType,
-  SqliteResult
-} from '@aiao/rxdb-adapter-sqlite-core';
+import type { SqliteClientLike } from '../RxDBAdapterSqliteBase.js';
+import type { SQLiteChangeType } from '../sqlite-backend.interface.js';
+import type { SqliteChangeEvent, SQLiteCompatibleType, SqliteResult } from '../sqlite-core.interface.js';
 import { RxDBAdapterDesktopError } from './desktop-error.js';
 import {
   assertDesktopHostResponse,
