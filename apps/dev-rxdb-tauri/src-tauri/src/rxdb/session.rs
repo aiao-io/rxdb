@@ -15,7 +15,7 @@
 //! 因此退避交给 [`super::engine`] 里的 `busy_timeout`，这一层不再重复实现。
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use serde_json::{json, Value};
@@ -82,6 +82,14 @@ impl Host {
             Ok(response) => response,
             Err(error) => error_response(&error),
         }
+    }
+
+    /// 建库所依据的应用数据根目录。
+    ///
+    /// 自检模式据此上报「库到底落在了哪里」（见 `selfcheck.rs`）。报的是**这个活着的 host**
+    /// 手里的值而不是环境变量原文：后者只能证明变量被读到过，证明不了它接上了。
+    pub fn app_data_dir(&self) -> &Path {
+        &self.app_data_dir
     }
 
     /// 当前打开的会话数，用于诊断与关停检查。

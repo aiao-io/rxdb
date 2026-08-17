@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    // 刻意**不设** `noEmit`：设了之后 `@nx/js/typescript` 会把 typecheck target 直接停掉，
+    // 只回一句「target is disabled」然后判绿 —— 一个永远不会失败的类型门禁。
+    "outDir": "out-tsc/smoke",
+    "sourceMap": false,
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "ignoreDeprecations": "6.0",
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "types": ["vitest/globals", "vitest/importMeta", "node", "vitest"],
+    "rootDir": "."
+  },
+  "exclude": ["out-tsc", "eslint.config.js", "eslint.config.mjs", "eslint.config.cjs"],
+  "extends": "../../tsconfig.base.json",
+  "include": ["vitest.smoke.mts", "src/**/*.ts"]
+}

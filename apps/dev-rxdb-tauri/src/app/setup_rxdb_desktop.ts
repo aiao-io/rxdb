@@ -13,6 +13,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { inject, PLATFORM_ID } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { DesktopLaunch } from './desktop-launch.entity';
 
 let rxdb: RxDB | null | undefined;
 
@@ -66,7 +67,9 @@ export default () => {
   rxdb = new RxDB({
     dbName: 'test_6',
     context: { userId: 'userId' },
-    entities: [Todo, MenuLarge, MenuSimple, FileNode, FileLarge],
+    // `DesktopLaunch` 两个后端都要注册：AC#1 的判据是跨进程累计计数，而计数只有在
+    // 表存在时才写得进去。浏览器预览那份也留着，否则同一份代码在两条路径上行为不同。
+    entities: [Todo, MenuLarge, MenuSimple, FileNode, FileLarge, DesktopLaunch],
     sync: {
       local: {
         adapter: DESKTOP_ADAPTER_NAME

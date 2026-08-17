@@ -1,4 +1,7 @@
 pub mod rxdb;
+// 私有：只有 `run()` 用得到。`rxdb` 之所以是 `pub`，是因为 stdio 测试二进制要复用它；
+// 自检模式没有第二个消费者，导出它等于凭空多一片公开表面。
+mod selfcheck;
 
 use tauri::Manager;
 
@@ -45,15 +48,31 @@ fn check_runtime() -> RuntimeHealth {
 /// [`tauri::WindowEvent::Destroyed`]。
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // 环境变量的校验发生在 `tauri::Builder` 之前：配错了就地退出，而不是带着一个「合理的
+    // 默认值」把测试数据写进用户真实的应用数据目录。放这里而不是放进 `setup`，是因为
+    // 配置里声明的窗口与 `setup` 钩子谁先跑不是可以下注的事，而「配错了绝不建窗」没有例外。
+    let plan = selfcheck::plan_or_exit();
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             get_platform,
             get_versions,
             check_runtime,
-            rxdb::commands::rxdb_desktop_request
+            rxdb::commands::rxdb_desktop_request,
+            selfcheck::rxdb_selfcheck_report
         ])
-        .setup(|app| {
-            app.manage(rxdb::commands::DesktopHost::new(app.handle())?);
+        .setup(move |app| {
+            // 全程唯一一处根目录分支，且**不是** `unwrap_or`：两边都是被显式选出来的，
+            // 没有哪一个是另一个的兜底。自检模式下根目录必须来自测试，来不了就该报错退出，
+            // 而不是安静地回落到真实目录——那正是这套 e2e 要抓的逃逸。
+            let app_data_dir = match &plan {
+                Some(plan) => plan.app_data_dir.clone(),
+                None => app.path().app_data_dir()?,
+            };
+            app.manage(rxdb::commands::DesktopHost::new(app.handle(), app_data_dir));
+            // host 先托管再挂看门狗：看门狗到期时要读 host 的根目录写进报告。
+            if let Some(plan) = plan {
+                selfcheck::arm(app.handle(), plan);
+            }
             Ok(())
         })
         // 单个窗口没了就回收它的会话，不等整个应用退出。

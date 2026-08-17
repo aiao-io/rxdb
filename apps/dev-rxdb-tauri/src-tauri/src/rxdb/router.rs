@@ -136,6 +136,11 @@ impl DesktopRouter {
             .map_or(0, |owned| owned.files.len() + owned.sqlite.len())
     }
 
+    /// 两套宿主共同的应用数据根目录，见 [`Host::app_data_dir`]。
+    pub fn app_data_dir(&self) -> &Path {
+        self.sqlite.app_data_dir()
+    }
+
     /// SQL 宿主，供诊断与关停检查使用。
     pub fn sqlite(&self) -> &Host {
         &self.sqlite

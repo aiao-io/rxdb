@@ -18,7 +18,7 @@ import { createTauriHostTransport, type DesktopHostTransport } from '@aiao/rxdb-
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { platform } from 'node:process';
+import { platform, env as processEnv } from 'node:process';
 
 /**
  * 测试宿主二进制的位置，由 Nx 的 `build-test-host` target 产出。
@@ -65,10 +65,16 @@ const requireBinary = (): string => {
  * 启动 stdio 宿主进程。
  *
  * @param root - 数据库根目录，宿主会在其下建 `rxdb-data/`
+ * @param env - 追加到宿主进程的环境变量，用于打开宿主自己的测试开关
+ *   （目前只有 `RXDB_HOST_STDIO_PROTOCOL_VERSION`，见 `src-tauri/src/bin/rxdb_host_stdio.rs`）。
+ *   省略即完全继承当前进程的环境。
  * @returns 进程句柄与两个 Tauri API 替身
  */
-export function startRustHostProcess(root: string): RustHostProcess {
-  const child: ChildProcessWithoutNullStreams = spawn(requireBinary(), [root], { stdio: 'pipe' });
+export function startRustHostProcess(root: string, env?: Readonly<Record<string, string>>): RustHostProcess {
+  const child: ChildProcessWithoutNullStreams = spawn(requireBinary(), [root], {
+    stdio: 'pipe',
+    env: env ? { ...processEnv, ...env } : processEnv
+  });
   const pending = new Map<number, PendingRequest>();
   const eventHandlers = new Set<(event: { payload: unknown }) => void>();
   let nextId = 1;
@@ -152,15 +158,19 @@ export function startRustHostProcess(root: string): RustHostProcess {
  * 用 stdio 宿主进程组装一条与生产同款的桌面传输层。
  *
  * @param root - 数据库根目录
+ * @param env - 追加到宿主进程的环境变量，见 {@link startRustHostProcess}
  * @returns 进程句柄、传输层，以及变更通道的健康信号
  */
-export function createRustHostTransport(root: string): {
+export function createRustHostTransport(
+  root: string,
+  env?: Readonly<Record<string, string>>
+): {
   process: RustHostProcess;
   transport: DesktopHostTransport;
   /** 变更事件通道上出过的错；正常情况下应为空。 */
   deliveryErrors: () => readonly unknown[];
 } {
-  const host = startRustHostProcess(root);
+  const host = startRustHostProcess(root, env);
   const deliveryErrors: unknown[] = [];
   return {
     process: host,

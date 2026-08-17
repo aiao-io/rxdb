@@ -1,0 +1,23 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "dev-rxdb-tauri-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-tauri-e2e/src",
+  "implicitDependencies": ["dev-rxdb-tauri"],
+  "targets": {
+    "desktop-smoke": {
+      "// 为什么不叫 e2e": "ci-template.yml 用 `nx show projects --withTarget=e2e` 自动组矩阵，叫 e2e 就自动进 PR 门禁的 ubuntu 跑道，而 US-210 AC#9 明写它只进发布链路。test / test-browser / build / cargo-test 同理，都要避开。",
+      "// dependsOn": "必须依赖真实 release 产物。跨进程 1→2 这条断言的全部意义就是「进程整个退出、重新拉起，数据还在」，dev 产物与单测都验不到。",
+      "dependsOn": ["dev-rxdb-tauri:tauri-package-release"],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-tauri-e2e",
+        "command": "vitest run --config vitest.smoke.mts",
+        "parallel": false
+      },
+      "metadata": {
+        "description": "US-210 AC#1/AC#9：打包产物跨进程持久化 smoke（进程级驱动，不上 WebDriver）"
+      }
+    }
+  }
+}

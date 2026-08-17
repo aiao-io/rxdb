@@ -92,16 +92,23 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 
 | #   | 前置条件                                                  | 操作                                                             | 预期结果                                                                                                                             | 状态 |
 | --- | --------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 1   | Tauri 应用已注册 `rxdb_desktop_request` 命令              | 通过应用作用域内的 `<name>.sqlite3` 连接、写入、断开并重启应用   | 在同一 SQLite 文件中读回数据；未授予额外 shell 或全文件系统权限                                                                      | ⚠️   |
+| 1   | Tauri 应用已注册 `rxdb_desktop_request` 命令              | 通过应用作用域内的 `<name>.sqlite3` 连接、写入、断开并重启应用   | 在同一 SQLite 文件中读回数据；未授予额外 shell 或全文件系统权限                                                                      | ✅   |
 | 2   | Tauri SQLite 已连接                                       | 在一次 RxDB 事务中执行至少两次写入，并分别测试 commit 与中途抛错 | 所有语句固定在同一物理连接；commit 全部可见，rollback 后全部不可见。若连接池不能保证该语义，连接必须失败并报告能力缺失，不得伪造事务 | ✅   |
 | 3   | Tauri SQLite 已连接                                       | 执行查询、变更、事务、分支切换、加密字段解锁与响应式订阅         | 用户可见行为与现有 SQLite adapter 一致，标准测试套件无跳过项                                                                         | ✅   |
 | 4   | SQLite 文件路径不存在                                     | 首次连接                                                         | 仅在已授权的应用作用域中创建存储；返回已解析的逻辑位置用于诊断，不向 renderer 暴露额外文件系统能力                                   | ✅   |
 | 5   | 路径无权限、SQLite 文件损坏或 runtime/engine 组合不受支持 | 发起连接                                                         | 返回稳定、可判别的错误码与原始原因；不创建同名空库，不回退到 memory/OPFS/IndexedDB                                                   | ✅   |
-| 6   | 同一 SQLite 文件已被另一个窗口打开并持有写锁              | 第二个窗口发起写事务                                             | 由 `PRAGMA busy_timeout` 原地等待持锁方提交；超时报可判别的 `database_busy`，不静默切换到另一份数据库                                | ⚠️   |
+| 6   | 同一 SQLite 文件已被另一个窗口打开并持有写锁              | 第二个窗口发起写事务                                             | 由 `PRAGMA busy_timeout` 原地等待持锁方提交；超时报可判别的 `database_busy`，不静默切换到另一份数据库                                | ✅   |
 | 7   | SQLite 文件存在应用未知的普通业务表                       | Aiao 首次连接并初始化系统 schema                                 | 保留未知表和数据；只创建或迁移 Aiao 自有系统对象，失败时事务回滚                                                                     | ✅   |
 | 8   | 存在未提交事务或在途查询                                  | 调用 `disconnect()` 或关闭窗口                                   | 停止接受新任务，等待或回滚在途工作，刷新持久化数据并关闭句柄；随后可重命名该 SQLite 文件                                             | ✅   |
-| 9   | 构建打包后的 Tauri 应用                                   | 在 macOS、Windows、Linux CI 中启动产物、写入、退出、再次启动     | 三平台均通过；测试使用真实临时文件而非 mock 或浏览器存储，且断言形态为跨进程累计。三平台**统一不使用 WebDriver**（理由见下）         | ⬜   |
+| 9   | 构建打包后的 Tauri 应用                                   | 在 macOS、Windows、Linux CI 中启动产物、写入、退出、再次启动     | 三平台均通过；测试使用真实临时文件而非 mock 或浏览器存储，且断言形态为跨进程累计。三平台**统一不使用 WebDriver**（理由见下）         | ✅   |
 | 10  | Rust 宿主与 renderer 编译自不同协议版本                   | 发起连接                                                         | 连接失败并报可判别的错误码；不建库、不按旧协议降级解释载荷                                                                           | ⚠️   |
+
+> **AC#10 仍标 ⚠️，是它剩下的那半条真的没做，不是文档没跟上。** 「连接失败并报可判别的错误码」
+> 与「不按旧协议降级解释载荷」已由用例钉死（见证据栏），**「不建库」这半条没有兑现**：
+> 握手发生在 host 已经建库、开连接、登记会话**之后**，一次注定失败的连接仍会在磁盘上留下一个空库文件。
+> `conformance/protocol-handshake.spec.ts` 的「留下了一个空库文件」把这个事实存成了一条断言——
+> 它会在缺口被补上的那天变红，而不是安静地待在文档里等人想起来。
+> 补法是协议层改动（两端各加一条无副作用的握手请求，在 `open` 之前协商版本），不在本轮范围。
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -109,16 +116,19 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 > 门禁的结论不是「降级为假事务」，而是换掉了实现手段——`rusqlite::Connection` 一 session 一条，
 > 单连接语义由构造保证，无需依赖任何池配置。
 >
-> **AC#6 标 ⚠️**：`busy_timeout` 与 `database_busy` 的映射都在，但没有一条用例真的让两个会话撞写锁。
-> 原计划的跨 realm writer lease 与迁移 fencing 已于 2026-08-16 取消（连同其代码与 US-304 一并删除），
-> 本故事不再承诺「第二个 writer 在连接时被拒」；缺的是一条两会话争锁的直接用例。
+> **AC#6 已关闭（2026-08-17）**：补上了 `conformance/write-lock-contention.spec.ts`，三条用例真的让两个
+> 会话撞同一个库的写锁。原计划的跨 realm writer lease 与迁移 fencing 已于 2026-08-16 取消
+> （连同其代码与 US-304 一并删除），本故事不承诺「第二个 writer 在连接时被拒」。
 >
 > 关闭判据是**行为**与 [US-207](./US-207-desktop-local-database.md) AC#5 一致——第二个 writer 要么
 > 等到持锁方提交后成功，要么超时报可判别的 `database_busy`，任何情况下不静默改道到另一份数据库。
 > **不是实现或用例形态对齐**：两侧忙等机制是有意不同的（Node 侧 host 层异步退避重试，
 > Rust 侧 `PRAGMA busy_timeout` 原地等待，理由见下文「三处有意差异」），照实现抄会做出错的东西。
 >
-> **AC#9 已解除阻塞（2026-08-17），从 🚫 改回 ⬜。** 此前判定「做不到」的理由是
+> **AC#1 与 AC#9 已关闭（2026-08-17）。** 实现见下方证据栏；下面这段保留的是改判过程，
+> 因为「为什么不用 WebDriver」这个决定会在有人想加 UI 交互用例时被重新翻出来。
+>
+> **AC#9 曾被判定为阻塞（🚫），2026-08-17 解除。** 此前判定「做不到」的理由是
 > macOS 没有官方 WKWebView WebDriver、`tauri-driver` 只支持 Windows / Linux。
 > 该理由**只对「用 WebDriver 驱 UI」这一种实现方式成立**，而这条 AC 从来不需要驱 UI——
 > 它要验的是「打包产物能不能跨重启保住数据」，不是「点了按钮界面有没有变」。
@@ -136,18 +146,23 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 > 鉴于 US-207 正是靠「跨进程累计计数」这条断言抓到静默丢数据（见下文），断言形态不能退化成
 > 单次启动内的「写一条读一条」。
 >
-> `apps/dev-rxdb-tauri-e2e` 仍需新建（该 project 由 US-210 / US-905 阶段 1 中先开工者创建一次，
-> 但 AC#9 的 SQLite、事务与打包 specs 由本故事负责）。三平台矩阵挂在
+> `apps/dev-rxdb-tauri-e2e` 已建（本故事创建；US-905 将来要加的 specs 落在同一个 project 里）。
+> 它的 target 叫 **`desktop-smoke` 而不是 `e2e`**：`ci-template.yml` 用
+> `nx show projects --withTarget=e2e` 自动组矩阵，叫 `e2e` 就会自动进 PR 门禁的 ubuntu 跑道，
+> 而这条 AC 明写不进 PR 门禁。`test` / `test-browser` / `build` / `cargo-test` 同理都要避开；
+> vitest 配置也因此叫 `vitest.smoke.mts`（`@nx/vitest` 的发现 glob 只认 `vitest.config.*`）。
+> 三平台矩阵挂在
 > [US-207「三平台打包 CI」](./US-207-desktop-local-database.md#三平台打包-ci阶段-2)
-> 那条 release workflow 上，与 Electron 侧共用一次触发，不进 PR 门禁。
+> 那条 release workflow 上，与 Electron 侧共用一次触发。
 
 ### 当前证据
 
 `apps/dev-rxdb-tauri/conformance/setup.spec.ts` 把 `@aiao/rxdb-adapter-sqlite-core/testing` 的
 21 个共享套件 + `@aiao/rxdb-test/encrypted` 的 5 套加密套件**原样**跑在 Rust 宿主上
 （只排除 `createSqliteClientSuite`，它校验的是 wasm 后端的 worker 选项组合，桌面客户端不接受
-任何 worker 选项）。`pnpm nx run dev-rxdb-tauri:test-conformance` 跑 `conformance/` 全部 8 个 spec，
-为 **596 passed / 8 files / 0 skipped**；其中本故事的 SQL 侧是 6 个 spec / **577 passed**，
+任何 worker 选项）。`pnpm nx run dev-rxdb-tauri:test-conformance` 跑 `conformance/` 全部 10 个 spec，
+为 **604 passed / 10 files / 0 skipped**；其中本故事的 SQL 侧是 8 个 spec / **585 passed**
+（含 2026-08-17 新增的 `write-lock-contention` 3 条与 `protocol-handshake` 增补的 4 条），
 另 2 个（`storage-parity` / `storage-persistence`，19 条）属
 [US-505](../plugin/US-505-tauri-local-file-storage.md)。
 
@@ -177,16 +192,18 @@ Rust 宿主被调度饿住时就不成立了。
 进程内，比 stdio 子进程快一个量级。但「没复现出问题」不等于「证明了不会有问题」——真正的
 证明要等 AC#9 的打包 e2e 用真 IPC 跑一遍。
 
-| AC  | 证据                                                                                                                                                                                                                                                                             |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2   | `transactionSqliteResultSuite`；`session.rs` 的 `keeps_transactions_isolated_between_sessions`（一方未提交的写入对另一方不可见，提交后立刻可见）与 `rolls_a_transaction_back`                                                                                                    |
-| 3   | 上述 21 + 5 套套件全绿、零跳过（满载时的时序敏感性见上文）                                                                                                                                                                                                                       |
-| 4   | `paths.rs` 的 `creates_the_scoped_directory_and_joins_the_logical_name`；`session.rs` 的 `open_reports_a_logical_location_not_a_filesystem_path`——物理根目录不出协议                                                                                                             |
-| 5   | `engine.rs` 的 `reports_database_corrupted_without_touching_the_original_bytes` / `reports_open_failed_without_leaving_an_empty_database_behind`；`paths.rs` 的 `does_not_create_anything_for_an_invalid_name`；`protocol.rs` 的 `rejects_engines_outside_the_capability_matrix` |
-| 6   | `engine.rs` 设置 `busy_timeout`、`protocol.rs` 的 `database_busy` 错误码映射、`session.rs` 的两会话隔离用例；**缺**两会话争写锁的直接用例                                                                                                                                        |
-| 7   | `systemSchemaMigrationSuite`（共享套件，含未知表保留）                                                                                                                                                                                                                           |
-| 8   | `engine.rs` 的 `releases_the_file_handle_so_it_can_be_renamed`：close 后 `-wal` 已 TRUNCATE checkpoint、句柄已交还，文件可直接 `rename`，且未提交的写入已回滚                                                                                                                    |
-| 10  | 拒绝动作本身在共享层，与 Electron 路径同一份代码（见 [US-207 AC#9](./US-207-desktop-local-database.md)）；Rust 侧 `session.rs` 的 `open` 应答带上 `protocol.rs` 的 `PROTOCOL_VERSION`，`session.rs:315` 断言它出现在应答里。**缺**：没有任何用例让两端版本真的不一致，见下       |
+| AC  | 证据                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `apps/dev-rxdb-tauri-e2e/src/desktop-persistence.spec.ts`：`tauri build --ci --no-bundle` 的 release 二进制连跑两次同一个数据目录，累计启动次数 **1 → 2**，且 host 上报的 `appDataDir` 与测试指定的目录逐字相等、库文件确实落在其下；第二条用例钉住「只设了一半自检变量时以退出码 3 在建窗之前退出」。权限面由 `capabilities/default.json` **一个字未改**保证——应用自有命令不过 capability 门禁，所以「未授予额外 shell / 全文件系统权限」是结构性事实而非断言 |
+| 2   | `transactionSqliteResultSuite`；`session.rs` 的 `keeps_transactions_isolated_between_sessions`（一方未提交的写入对另一方不可见，提交后立刻可见）与 `rolls_a_transaction_back`                                                                                                                                                                                                                                                                    |
+| 3   | 上述 21 + 5 套套件全绿、零跳过（满载时的时序敏感性见上文）                                                                                                                                                                                                                                                                                                                                                                                       |
+| 4   | `paths.rs` 的 `creates_the_scoped_directory_and_joins_the_logical_name`；`session.rs` 的 `open_reports_a_logical_location_not_a_filesystem_path`——物理根目录不出协议                                                                                                                                                                                                                                                                             |
+| 5   | `engine.rs` 的 `reports_database_corrupted_without_touching_the_original_bytes` / `reports_open_failed_without_leaving_an_empty_database_behind`；`paths.rs` 的 `does_not_create_anything_for_an_invalid_name`；`protocol.rs` 的 `rejects_engines_outside_the_capability_matrix`                                                                                                                                                                 |
+| 6   | `conformance/write-lock-contention.spec.ts`：持锁方提交前第二个 writer 保持 pending（200ms 处断言未 settle）、持锁方压满 `busy_timeout` 后第二个 writer 报 `database_busy`、撞锁后两个会话仍读同一份数据且工作区里只有一个 `.sqlite3`；配套 `engine.rs` 的 `busy_timeout` 与 `protocol.rs` 的错误码映射                                                                                                                                          |
+| 7   | `systemSchemaMigrationSuite`（共享套件，含未知表保留）                                                                                                                                                                                                                                                                                                                                                                                           |
+| 8   | `engine.rs` 的 `releases_the_file_handle_so_it_can_be_renamed`：close 后 `-wal` 已 TRUNCATE checkpoint、句柄已交还，文件可直接 `rename`，且未提交的写入已回滚                                                                                                                                                                                                                                                                                    |
+| 9   | `.github/workflows/release-desktop.yml` 的 `tauri-smoke`：ubuntu / macOS / windows 三平台矩阵（`fail-fast: false`）跑 `dev-rxdb-tauri-e2e:desktop-smoke`，该 target 经 `dependsOn` 先出 `tauri-package-release` 产物。数据目录是 `mkdtemp` 出来的真实临时目录，全程不碰浏览器存储                                                                                                                                                                            |
+| 10  | `conformance/protocol-handshake.spec.ts`：① 直接读 `protocol.rs` 源文本抽出 `PROTOCOL_VERSION`，断言等于 TS 的 `DESKTOP_HOST_PROTOCOL_VERSION`——这是两份手抄常量之间唯一的机械链接；② 宿主被 `RXDB_HOST_STDIO_PROTOCOL_VERSION` 逼着报一个不同的版本号后，`connect` 以 `protocol_violation` 失败、消息里带上两端版本号、`open` 之后只发了一条 `close` 而没有任何 `execute`（既不降级解释也不泄漏会话）。**残留**：「不建库」未兑现，见 AC 表下方 |
 
 AC#5 的两条失败路径是补这份文档时才发现没有直接用例的——错误码映射表
 （`sqlite_error_code`）一直在，但没有任何一条用例真的拿一个坏文件去撞它。补的时候把断言
@@ -194,31 +211,38 @@ AC#5 的两条失败路径是补这份文档时才发现没有直接用例的—
 `SQLITE_OPEN_CREATE` 让「打不开就当空库新建」离默认行为只有一步之遥，而那等于静默销毁
 用户的文件——应用照常显示已连接，只是里面什么都没有了。只断言错误码的话，这个退化不会被抓到。
 
-**AC#1 标 ⚠️ 而不是 ✅**：自动化只到「同一个宿主进程内断开重连读回同一份数据」，
-而这条 AC 要的是**关掉应用再打开**。US-207 的对应 AC 由
-`apps/dev-rxdb-electron-e2e/src/desktop-persistence.spec.ts` 的跨进程启动计数（1 → 2）兑现，
-Tauri 侧没有等价 e2e —— 它正是被推迟的 AC#9 的一部分。
+**AC#1 曾长期标 ⚠️**：在 `desktop-persistence.spec.ts` 之前，自动化只到「同一个宿主进程内
+断开重连读回同一份数据」，而这条 AC 要的是**关掉应用再打开**。它与 AC#9 因此是同一次实现，
+也在同一天关闭。
 
-这个区别不是形式主义：US-207 就是靠「跨进程累计计数」这条断言，抓到了库目录名与 Chromium
-WebSQL 目录撞车导致的**静默丢数据**（每次启动拿到一个全新空库，应用照常显示「已连接」）。
-「写一条读一条」在单次启动内恒绿，哪怕数据只活在内存里。Tauri 的 `app_data_dir()` 与
-`rxdb-data/` 子目录没有已知的同类冲突，但**没有已知冲突不等于验过**。
+断言形态选「跨进程累计计数 1 → 2」而不是「写一条读一条」，不是形式主义：US-207 就是靠前者
+抓到了库目录名与 Chromium WebSQL 目录撞车导致的**静默丢数据**（每次启动拿到一个全新空库，
+应用照常显示「已连接」）。后者在单次启动内恒绿，哪怕数据只活在内存里、哪怕每次都是空库。
+Tauri 的 `app_data_dir()` 与 `rxdb-data/` 子目录没有同类冲突——现在这是验过的，不再是推测。
 
-补 AC#6 的用例时不能并进共享套件：套件里每个用例只有一个 adapter，验不到「第二个 writer」这半边，
-而 `rust-adapter-factory.ts` 刻意给每次构造发唯一库名（套件之间不能互相看见对方的表），
-两个窗口也就撞不到一起——争锁用例必须自己单开一个文件、显式共用同一个库名。
+用例里那条 `appDataDir` 相等断言值得单独说：它证明 `DEV_RXDB_TAURI_APP_DATA_DIR` 真的接到了
+建库的那只手上，而不只是「被读到过」。少了它，一个「读了变量却仍用系统默认目录」的接线错误
+会全程绿灯——计数照样 1 → 2，只不过写进了**真实的**用户数据目录。这条断言的有效性是
+**反向验过**的：把 `lib.rs` 里的 root 覆盖注释掉重跑，它确实变红（也确实在本机的
+`~/Library/Application Support/io.aiao.dev-rxdb-tauri/` 下留了一份数据，证明逃逸真的会发生）。
+报告里的 `appDataDir` 因此必须从**活着的 `DesktopHost`** 读，不能从环境变量重推。
+
+AC#6 的用例没有并进共享套件，是被两件事逼的：套件里每个用例只有一个 adapter，验不到「第二个 writer」
+这半边；而 `rust-adapter-factory.ts` 刻意给每次构造发唯一库名（套件之间不能互相看见对方的表），
+两个窗口也就撞不到一起。所以 `write-lock-contention.spec.ts` 自己一个文件、自己一个宿主进程、
+显式共用同一个库名——共享宿主的工作区由 `setup.spec.ts` 的 `afterAll` 收，跨文件借用会把两边的生命周期缠在一起。
 
 ## 交付阶段
 
 与 [US-207「交付阶段」](./US-207-desktop-local-database.md#交付阶段) 同构：本故事也已超出
 INVEST「Small」，**不拆新故事**，改为划阶段，每阶段独立验收。
 
-| 阶段 | 内容                           | 完成判据                                                                                             | 状态      |
-| ---- | ------------------------------ | ---------------------------------------------------------------------------------------------------- | --------- |
-| 1    | 核心能力：AC#2～#5、AC#7、AC#8 | 6 条 AC 全绿，一致性套件 0 skipped                                                                   | ✅ 已交付 |
-| 2    | 收尾保留项：AC#6、AC#10        | AC#6 补一条两会话争写锁的直接用例；AC#10 把两侧协议常量绑起来                                        | ⚠️ 进行中 |
-| 3    | 打包验证：AC#1、AC#9           | 三平台 release workflow 绿；两者是同一次实现，见 AC#9 上方说明                                       | ⬜ 未开始 |
-| 4    | Tauri 包化：T1～T7             | 见各任务判据；与 [US-207 E1～E7](./US-207-desktop-local-database.md#包边界重整) 同批做，共用一次改名 | ⬜ 未开始 |
+| 阶段 | 内容                           | 完成判据                                                                                                                                | 状态      |
+| ---- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| 1    | 核心能力：AC#2～#5、AC#7、AC#8 | 6 条 AC 全绿，一致性套件 0 skipped                                                                                                      | ✅ 已交付 |
+| 2    | 收尾保留项：AC#6、AC#10        | AC#6 补一条两会话争写锁的直接用例；AC#10 把两侧协议常量绑起来。两条判据均已兑现，AC#10 本身仍留「不建库」缺口（须改协议，见 AC 表下方） | ✅ 已交付 |
+| 3    | 打包验证：AC#1、AC#9           | 三平台 release workflow 绿；两者是同一次实现，见 AC#9 上方说明。本机 macOS 已跑通（含反向验证），三平台待首轮 workflow 确认           | ✅ 已交付 |
+| 4    | Tauri 包化：T1～T7             | 见各任务判据；与 [US-207 E1～E7](./US-207-desktop-local-database.md#包边界重整) 同批做，共用一次改名                                    | ⬜ 未开始 |
 
 本故事只有在四个阶段都完成后才标 `Done`。阶段 2 与阶段 3 之间没有依赖，可并行；
 阶段 4 必须在 [US-207 E1](./US-207-desktop-local-database.md#任务) 把共享层下沉之后开工——
@@ -375,9 +399,23 @@ Tauri 的 WebView 不是 Chromium（macOS 上是 WKWebView），但目录名沿�
 协议真变更时漏改一侧，一致性套件照常全绿（它们两侧都用当时的代码构建），
 问题留给用户在真 IPC 上撞。
 
-关闭 ⚠️ 需要一条把两个常量绑起来的断言。最省的做法是让一致性套件在握手时
-断言 Rust 宿主报的版本号等于 TS 常量——`session.rs:315` 今天断言的是「应答里有这个字段」，
-差的是「等于对面那个值」。改判为 ✅ 的判据就是这一条。
+**漂移这一半已于 2026-08-17 关闭**，用了两条互补的断言，缺一条都留口子：
+
+- 跑起来的宿主报的版本号等于 TS 常量（`protocol-handshake.spec.ts` 原有那条）；
+- **直接读 `protocol.rs` 源文本**抽出 `PROTOCOL_VERSION` 再比。加这条是因为上一条只能证明「当前这个
+  二进制」对得上：源码与二进制之间隔着一次 `cargo build`，只改了 `.rs` 还没重编时，上一条照旧全绿。
+  正则匹配不上要**显式失败**并附上找过的路径——当成「没有这个常量所以跳过」的话，常量一改名，
+  这条用例就退化成一句空话，而它正是为了盯住改名之后的漂移才存在的。
+
+**「版本真不一致时的行为」这一半也已关闭**：`rxdb_host_stdio` 认一个环境变量
+（`RXDB_HOST_STDIO_PROTOCOL_VERSION`），设了就把应答里的 `protocolVersion` 换掉，于是两端版本
+**真的**对不上。改写只在这个测试替身里——产品代码出现「版本可配置」的分支，等于给线协议开了
+一个降级口子，而版本号存在的意义正是不许降级。用例断言三件事：连接以 `protocol_violation` 失败、
+消息里带上两端版本号、`open` 之后只发了一条 `close` 而没有任何 `execute`。
+
+**仍标 ⚠️ 的是第三半：「不建库」没做。** 握手发生在 host 建库、开连接、登记会话之后，
+所以一次注定失败的连接仍在磁盘上留了个空库文件。这个事实被存成了一条断言而不是一句话
+（见 AC 表下方），补法是协议层改动，不在本轮。
 
 ### 依赖
 
@@ -398,9 +436,17 @@ Tauri 的 WebView 不是 Chromium（macOS 上是 WKWebView），但目录名沿�
 - `apps/dev-rxdb-tauri/conformance/` — 共享套件的 Rust 宿主入口
 - `apps/dev-rxdb-tauri/src/app/setup_rxdb.ts` — 运行时选路：Tauri 窗口用 desktop 适配器，
   浏览器预览用 wa-sqlite。适配器名与工厂**成对返回**，避免两处判定漂移
-- `apps/dev-rxdb-tauri-e2e/` — **当前不存在**，AC#9 需要新建；与 US-905 阶段 1 共享 project，先开工者用
-  generator 创建一次，本故事只拥有 AC#9 的 SQLite、事务与三平台打包 specs；三平台打包矩阵的 CI 成本
-  应在 plan 阶段单独评估
+- `apps/dev-rxdb-tauri/src-tauri/src/selfcheck.rs` — 自检模式的纯函数 `plan_from_env`：两个环境变量
+  成对出现才算数，只设其一 / 相对路径 / 目录不存在一律 `Err` → 退出码 3，且发生在**建窗之前**。
+  不设默认值是有意的——默认到某个「合理」位置，只会让测试悄悄写进真实用户数据目录
+- `apps/dev-rxdb-tauri-e2e/` — AC#1 / AC#9 的跨进程 smoke（本故事创建；US-905 将来要加的 specs
+  落在同一个 project 里）。target 叫 `desktop-smoke`、配置叫 `vitest.smoke.mts`，两个名字都是
+  为了避开自动发现，理由见上文 AC#9 段落
+- `apps/dev-rxdb-tauri/src-tauri/tauri.conf.json` — `beforeDevCommand` / `beforeBuildCommand` 从
+  `corepack pnpm exec` 改成 `pnpm exec`。**`.nvmrc` 钉的是 Node 26，而 Node 25 起不再随发行版
+  附带 Corepack**（Node.js TSC 决议），原写法在任何一台照 `.nvmrc` 装 Node 的机器上都会
+  `command not found`。以前从没炸过，只是因为**没有任何 CI job 跑过 `tauri build`**——
+  AC#9 的 workflow 是第一个。这条理由只能写在这里：`tauri.conf.json` 是严格 JSON，注释放不进去
 - `requirements/api-baseline/rxdb-adapter-desktop.json` — 已同步；条目总数以 `api-surface.mjs --check` 为准，不在本文写死（写本条时 48 项）
 
 ## References

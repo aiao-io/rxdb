@@ -137,6 +137,9 @@
     },
     {
       "path": "./packages/rxdb-adapter-desktop"
+    },
+    {
+      "path": "./apps/dev-rxdb-tauri-e2e"
     }
   ]
 }
