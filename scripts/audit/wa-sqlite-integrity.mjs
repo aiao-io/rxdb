@@ -43,9 +43,7 @@ export function assertEqual(actual, expected, label) {
  */
 export function assertNoCr(bytes, label) {
   if (!bytes.includes(0x0d)) return;
-  throw new Error(
-    `${label} contains CR (0x0d); Windows autocrlf rewrote the file. Pin LF via .gitattributes`
-  );
+  throw new Error(`${label} contains CR (0x0d); Windows autocrlf rewrote the file. Pin LF via .gitattributes`);
 }
 
 function readJson(path) {
