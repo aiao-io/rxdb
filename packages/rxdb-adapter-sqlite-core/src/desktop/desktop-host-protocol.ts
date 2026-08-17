@@ -17,7 +17,7 @@ import {
   RxDBAdapterDesktopError,
   type RxDBAdapterDesktopErrorCode
 } from './desktop-error.js';
-import { assertDesktopSqliteStorage, type DesktopSqliteFileStorage } from './desktop-storage.js';
+import { assertDesktopSqliteStorage, type DesktopSqliteFileStorage, type DesktopStorage } from './desktop-storage.js';
 
 /**
  * 线协议版本。
@@ -463,8 +463,11 @@ const parseOpenRequest = (record: Record<string, unknown>): DesktopHostOpenReque
   const storage = record['storage'];
   if (typeof storage !== 'object' || storage === null) throw violation('storage must be an object');
   // 这条线协议只承载 SQLite 单文件：Tauri 侧走 Rust 宿主的 parse_request，同样只认这一种。
-  assertDesktopSqliteStorage(storage as DesktopSqliteFileStorage);
-  const { engine, databaseName } = storage;
+  // 断言签名只对**裸标识符**生效：把 `storage as ...` 直接当实参传，收窄不会落回 `storage`，
+  // 后面读 `.engine` 就成了在 `{}` 上取属性。先落一个局部变量，再对它断言。
+  const candidate = storage as DesktopStorage;
+  assertDesktopSqliteStorage(candidate);
+  const { engine, databaseName } = candidate;
   return { kind: 'open', storage: { engine, databaseName }, batchTimeout: readBatchTimeout(record) };
 };
 

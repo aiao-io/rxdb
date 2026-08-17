@@ -133,7 +133,8 @@ bigint、binary 与 JSONB 跨 `structuredClone` / IPC 序列化的行为必须�
 ## 实现文件
 
 - `packages/rxdb-adapter-pglite/src/` — 消除对具体 `PGliteClient` 实例的耦合，补齐可代理的事务与事件契约
-- `packages/rxdb-adapter-desktop/` — Electron PGlite renderer client 与 host protocol
+- `packages/rxdb-adapter-electron/`（或本故事另立的包，见「`ADAPTER_NAME` 为 `pglite-electron`」）— Electron PGlite renderer client
+- `packages/rxdb-adapter-sqlite-core/src/desktop/` — host protocol；PGlite 的事务语义要在此扩协议还是另起一套，由本故事定
 - `apps/dev-rxdb-electron/src-electron/` — PGlite 主进程 host、目录解析与 IPC 校验
 - `apps/dev-rxdb-electron/src/app/` — renderer 接入示例与连接状态
 - `apps/dev-rxdb-electron-e2e/` — 打包应用的真实目录持久化测试

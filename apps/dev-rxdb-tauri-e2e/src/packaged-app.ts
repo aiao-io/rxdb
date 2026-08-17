@@ -45,14 +45,15 @@ export const CONFIG_EXIT_CODE = 3;
  * @remarks
  * 由三段拼成，少一段就指到一个不存在的路径上：
  * - `rxdb-data/` —— Rust 宿主 `session.rs` 建库用的子目录名
- * - `test_6` —— demo 传给 `RxDB` 的 `dbName`（`setup_rxdb_desktop.ts`）
+ * - `desktop_demo` —— demo 传给 `RxDB` 的 `dbName`（`setup_rxdb_desktop.ts` 的 `DESKTOP_DEMO_DB_NAME`）；
+ *   浏览器预览那份另叫 `test_6`，两个后端不同名是 US-207 E9 的要求
  * - `@0_1` —— `RxDB` 给物理库名加的 `RXDB_DB_NAME_SUFFIX`，**已永久冻结**（`packages/rxdb/src/version.ts`）
  * - `.sqlite3` —— 桌面适配器的 `DEFAULT_DATABASE_SUFFIX`
  *
  * 物理文件名刻意**不进报告**：那会绕开 AC#4 划下的边界（物理路径不出协议）。拼错了是本文件
  * 自己的问题，且会直接变红，不会静默通过。
  */
-export const DATABASE_FILE = join('rxdb-data', 'test_6@0_1.sqlite3');
+export const DATABASE_FILE = join('rxdb-data', 'desktop_demo@0_1.sqlite3');
 
 /**
  * 单次自检的硬超时。

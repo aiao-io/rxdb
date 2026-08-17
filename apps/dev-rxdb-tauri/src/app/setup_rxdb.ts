@@ -1,35 +1,43 @@
-import type { RxDB } from '@aiao/rxdb';
+import type { LocalBackendCandidate } from '@aiao/rxdb';
 import { TAURI_ADAPTER_NAME } from '@aiao/rxdb-adapter-tauri';
 import { isTauriRuntime } from './services/tauri-environment';
-import setup_rxdb_desktop from './setup_rxdb_desktop';
-import setup_rxdb_wa_sqlite from './setup_rxdb_wa-sqlite';
+import setup_rxdb_desktop, { DESKTOP_DEMO_DB_NAME } from './setup_rxdb_desktop';
+import setup_rxdb_wa_sqlite, { WEB_PREVIEW_DB_NAME } from './setup_rxdb_wa-sqlite';
 
 /** wa-sqlite 适配器在 `RxDBAdapters` 注册表中的名字。 */
 export const WA_SQLITE_ADAPTER_NAME = 'wa-sqlite';
 
-/** 一个本地后端：注册名与建库工厂，两者必须成对使用。 */
-export interface LocalBackend {
-  /** `RxDB.connect()` 要的适配器名。 */
-  readonly adapter: string;
-  /** `provideRxDB()` 要的工厂；运行在注入上下文中。 */
-  readonly create: () => RxDB;
-}
-
 /**
- * 按运行时挑本地后端（US-210）。
+ * 本 demo 的本地后端候选表（US-207 E8）。**顺序即优先级。**
  *
- * @param runtime - 待检测对象，实际调用时传 `globalThis`
- * @returns Tauri 窗口下是宿主持有的 SQLite 文件，浏览器预览下是 wa-sqlite
+ * @param runtime - 探针要检测的对象，实际调用时传 `globalThis`
+ * @returns 交给 `@aiao/rxdb` 的 `selectLocalBackend()` 的候选表
  *
  * @remarks
- * 浏览器预览（`nx serve dev-rxdb-tauri`）里 `invoke` 无处可调，所以不能只留 desktop 一条路；
- * 反过来，Tauri 窗口里走 wa-sqlite 就等于绕开了这个 demo 要演示的东西。
+ * 判定逻辑本身已经上移到 `@aiao/rxdb`，这里只剩「本应用有哪些候选」这份数据。
+ * 装了包的用户照着抄的是这张表，不再是一段 `? :`。
  *
- * 适配器名与工厂**打包返回**而不是两个独立函数：分开算的话，两处判定漂移会让
- * `provideRxDB` 注册的适配器和 initializer 要连的适配器对不上，
- * 而报错只会说「适配器不存在」，指不到真正的原因。
+ * 桌面排在前面**不是风格问题**：Tauri 窗口里 OPFS 一样可用，两条探针会同时为真，
+ * 靠顺序才选得中桌面。
+ *
+ * `runtime` 作参数而不是直接读 `globalThis`，一是为了单测能同时跑到两条分支，
+ * 二是因为 `__TAURI_INTERNALS__` 由 Tauri 的初始化脚本注入 —— 模块求值期读它
+ * 等于赌两段脚本的先后顺序，所以调用点都在惰性工厂里。
  */
-export const selectLocalBackend = (runtime: unknown): LocalBackend =>
-  isTauriRuntime(runtime) ?
-    { adapter: TAURI_ADAPTER_NAME, create: setup_rxdb_desktop }
-  : { adapter: WA_SQLITE_ADAPTER_NAME, create: setup_rxdb_wa_sqlite };
+export const localBackends = (runtime: unknown): readonly LocalBackendCandidate[] => [
+  {
+    adapter: TAURI_ADAPTER_NAME,
+    dbName: DESKTOP_DEMO_DB_NAME,
+    isAvailable: () => isTauriRuntime(runtime),
+    create: setup_rxdb_desktop
+  },
+  {
+    // 浏览器预览（`nx serve dev-rxdb-tauri`）里 `invoke` 无处可调，所以不能只留桌面一条路。
+    // 这一条永远可用，因此它同时是「表里至少有一个可用候选」的保证 ——
+    // 换句话说本 demo 不会走到 `RxDBLocalBackendUnavailableError`。
+    adapter: WA_SQLITE_ADAPTER_NAME,
+    dbName: WEB_PREVIEW_DB_NAME,
+    isAvailable: () => true,
+    create: setup_rxdb_wa_sqlite
+  }
+];

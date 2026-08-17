@@ -12,6 +12,21 @@ pr:
 本文件整合 `@aiao/rxdb-adapter-desktop` 相关的 5 项评审发现。原分散为多个编号重复的
 review 文件，现合并为单一 `RV-001`，按主题分 5 节。
 
+> **路径说明**：下文引用的 `packages/rxdb-adapter-desktop/...` 是**评审当时**的树。US-207 E1～E5
+> 把该包拆成了三个（共享层下沉、两个运行时各立门户），行号也不再对应，按下表回读：
+>
+> | 评审当时                                                         | 今天                                                                                                                               |
+> | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+> | `rxdb-adapter-desktop/src/desktop-storage.ts`                    | `rxdb-adapter-sqlite-core/src/desktop/desktop-storage.ts`                                                                          |
+> | `rxdb-adapter-desktop/src/desktop-sqlite-client.ts`              | `rxdb-adapter-sqlite-core/src/desktop/desktop-sqlite-client.ts`                                                                    |
+> | `rxdb-adapter-desktop/src/desktop-adapter.interface.ts`          | 拆成 `rxdb-adapter-sqlite-core/src/desktop/desktop-adapter-name.ts` + `desktop-options.interface.ts`（`runtime` 字段已随 E3 删除） |
+> | `rxdb-adapter-desktop/src/tauri-host-transport.ts`               | `rxdb-adapter-tauri/src/tauri-host-transport.ts`                                                                                   |
+> | `rxdb-adapter-desktop/src/index.ts`、`README.md`、`package.json` | 一分为二：`rxdb-adapter-electron/` 与 `rxdb-adapter-tauri/` 各自一份（`./host` 只留在 electron 侧）                                |
+> | `rxdb-adapter-desktop/src/__tests__/public-api.spec.ts`          | `rxdb-adapter-electron/src/__tests__/public-api.spec.ts`                                                                           |
+>
+> `@aiao/rxdb-adapter-desktop@0.0.25` 这个 registry 上的旧包**没有**跟着改——它的收口动作是
+> US-207 E6 的 `npm deprecate`，尚未执行。
+
 ## 1. Tauri rusqlite host 未随 npm 包发布，用户只拿到一根传输管子
 
 ### 问题
@@ -242,15 +257,27 @@ Electron 侧若还没有对偶用例，用 host 层异步重试做同一组断�
 
 ## 解决记录
 
-已在 `local-db` 分支落地 §1 的 README 措辞（第 1 项），等开 PR；其余各项未动：
+5 项中 4 项已在 `local-db` 分支落地（2026-08-17），等开 PR；只剩 §1 的实质部分未动：
 
-- **§1（仅第 1 项，措辞）**：包 README 能力矩阵改为「Tauri = 包内只有 transport」，并新增一段
-  写明 `rusqlite` host 只存在于 `apps/dev-rxdb-tauri/src-tauri`、装包的 Tauri 应用需自备 Rust 宿主、
-  迁入可发布包是 US-210 阶段 4 且尚未开始。第 2、3 项属于 US-210 阶段 4 本身，未动。
+- **§1（措辞已改，实质未动）**：包 README 能力矩阵改为「Tauri = 包内只有 transport」；US-207 E5 之后
+  Tauri 有了自己的 README（`packages/rxdb-adapter-tauri/README.md`），把「Rust 宿主需自备」提为独立小节。
+  但**代码仍在 demo 里**：迁入可发布包是 US-210 T1／T2，未开工。
+- **§2**：`scripts/audit/desktop-adapter-consumer.mjs` 对**真实 `pnpm pack` 产物**跑三条发布性质，
+  由 `release-desktop.yml` 的 `consumer-smoke` job 执行。US-207 E7 把它参数化到 electron / tauri 两个包
+  （一张 `TARGETS` 表，不是第二份脚本），并把「renderer 不含 Node 内建」从只读 `dist/index.js` 改成
+  **跟着依赖图走**——E1 之后入口只是转出壳子，只读一个文件会漏掉壳子后面的串味。本机对真 tarball
+  跑通：electron `dual entry, NodeNext + Bundler + host round-trip`，tauri `single entry, NodeNext + Bundler`。
+- **§3**：`release-desktop.yml` 的三平台打包矩阵 + `apps/dev-rxdb-electron-e2e` / `apps/dev-rxdb-tauri-e2e`
+  的跨进程累计断言（启动计数 1 → 2），US-207 AC#8 与 US-210 AC#9 据此关闭。
+- **§4**：US-207 E3 执行了 `ADAPTER_NAME` 分裂——`desktop` → `sqlite-electron` / `sqlite-tauri`，
+  `DesktopOptions.runtime` 与 `DesktopRuntime` 一并删除，第二份真相源不复存在
+  （`grep -rn "runtime: 'electron'\|runtime: 'tauri'"` 零命中）。
+- **§5**：`apps/dev-rxdb-tauri/conformance/write-lock-contention.spec.ts` 的三条用例真让两个会话撞同一把写锁，
+  US-210 AC#6 据此关闭。
 
-- [ ] 1. Tauri host 随包发布：README 措辞已改；迁包（US-210 阶段 4）未动
-- [ ] 2. renderer 双入口 tarball 门禁：开 PR 修复
-- [ ] 3. 跨重启持久化打包门禁：开 PR 修复
-- [ ] 4. `ADAPTER_NAME` / `runtime` 双真相源改名：开 PR 修复
-- [ ] 5. Tauri 两会话争写锁直接用例：开 PR 修复
-- [ ] 全部 PR 合并，`status: Resolved`
+- [x] 1. Tauri host 随包发布：README 措辞已改；**迁包（US-210 T1／T2）仍未动**
+- [x] 2. renderer 双入口 tarball 门禁
+- [x] 3. 跨重启持久化打包门禁
+- [x] 4. `ADAPTER_NAME` / `runtime` 双真相源改名
+- [x] 5. Tauri 两会话争写锁直接用例
+- [ ] 全部 PR 合并，`status: Resolved`（§1 的实质随 US-210 T1／T2 收口）

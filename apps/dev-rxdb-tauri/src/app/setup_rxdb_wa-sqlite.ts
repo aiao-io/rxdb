@@ -12,6 +12,15 @@ import { selectWaSqliteBackend } from './wa-sqlite-backend';
 let rxdb: RxDB | null | undefined;
 
 /**
+ * 浏览器预览后端的逻辑库名（落在 WebView 的 OPFS/IDB 里）。
+ *
+ * @remarks
+ * 与其余三个 web demo 取同一个名字；桌面那份另叫 `desktop_demo`，理由见
+ * `setup_rxdb_desktop.ts` 的 {@link DESKTOP_DEMO_DB_NAME}。
+ */
+export const WEB_PREVIEW_DB_NAME = 'test_6';
+
+/**
  * 构建本 app 的 RxDB 单例（纯本地 wa-sqlite，无远端同步）。
  *
  * @returns 已 `init()` 但**尚未 `connect()`** 的 RxDB 实例；连接由 `connectRxDB` 负责
@@ -29,7 +38,7 @@ export default () => {
 
   if (rxdb) return rxdb;
   rxdb = new RxDB({
-    dbName: 'test_6',
+    dbName: WEB_PREVIEW_DB_NAME,
     context: { userId: 'userId' },
     // `DesktopLaunch` 两个后端都注册，理由见 `setup_rxdb_desktop.ts` 同一处。
     entities: [Todo, MenuLarge, MenuSimple, FileNode, FileLarge, DesktopLaunch],

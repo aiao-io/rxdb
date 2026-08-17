@@ -1,4 +1,4 @@
-import { RxDB } from '@aiao/rxdb';
+import { RxDB, selectLocalBackend } from '@aiao/rxdb';
 import { provideRxDB } from '@aiao/rxdb-angular';
 import { APP_BASE_HREF, PlatformLocation, registerLocaleData } from '@angular/common';
 import { provideHttpClient, withFetch, withInterceptorsFromDi } from '@angular/common/http';
@@ -19,7 +19,7 @@ import { RxDBConnectionState } from './rxdb-connection-state';
 import { startLocalDatabase } from './rxdb-initializer';
 import { DesktopLaunchService } from './services/desktop-launch.service';
 import { reportSelfCheck } from './services/selfcheck-reporter';
-import { selectLocalBackend } from './setup_rxdb';
+import { localBackends } from './setup_rxdb';
 
 /** 按浏览器/系统语言挑 locale id。 */
 const resolveLocaleId = (): string => (Intl.DateTimeFormat().resolvedOptions().locale.includes('zh') ? 'zh' : 'en-US');
@@ -74,7 +74,7 @@ export const appConfig: ApplicationConfig = {
     // US-210：Tauri 窗口里数据落在宿主持有的 SQLite 文件，浏览器预览里落在 wa-sqlite。
     // 判定放在 provider 工厂里（惰性），因为 `__TAURI_INTERNALS__` 由 Tauri 的初始化脚本注入，
     // 模块求值期读它等于赌两段脚本的先后顺序。
-    provideRxDB(() => selectLocalBackend(globalThis).create()),
+    provideRxDB(() => selectLocalBackend(localBackends(globalThis)).create()),
     // 「连接 → 记一次启动 → 上报结论」必须串在**同一个** initializer 里：
     // 多个 initializer 是并发跑的，拆开就等于赌「连接先于写入完成」，
     // 而那是一条只在慢机器上偶发的竞态。理由详见 `startLocalDatabase` 的 TSDoc。
@@ -86,7 +86,7 @@ export const appConfig: ApplicationConfig = {
         database: inject(RxDB),
         state: inject(RxDBConnectionState),
         launches: inject(DesktopLaunchService),
-        adapterName: selectLocalBackend(globalThis).adapter,
+        adapterName: selectLocalBackend(localBackends(globalThis)).adapter,
         report: outcome => reportSelfCheck(outcome, globalThis)
       })
     ),

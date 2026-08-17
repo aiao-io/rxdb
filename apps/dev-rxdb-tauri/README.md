@@ -93,7 +93,7 @@ _逻辑名_，拿到物理路径等于拿到额外的文件系统情报，而它
 demo 的完整路径：
 
 ```text
-<AppData>/io.aiao.dev-rxdb-tauri/rxdb-data/test_6@0_1.sqlite3
+<AppData>/io.aiao.dev-rxdb-tauri/rxdb-data/desktop_demo@0_1.sqlite3
 ```
 
 | 平台    | 目录                                                                          |
@@ -106,7 +106,10 @@ demo 的完整路径：
 
 文件名三段各有出处，改任意一段都会挪动落点：
 
-- `test_6` —— [setup_rxdb_desktop.ts](src/app/setup_rxdb_desktop.ts) 传给 `RxDB` 的 `dbName`
+- `desktop_demo` —— [setup_rxdb_desktop.ts](src/app/setup_rxdb_desktop.ts) 传给 `RxDB` 的 `dbName`
+  （常量 `DESKTOP_DEMO_DB_NAME`）。浏览器预览那份叫 `test_6`，**两个后端刻意不同名**：
+  它们写的是两份永不互通的数据，同名会让「现在连的是哪个库」无从回答（US-207 E9），
+  这条已由 `selectLocalBackend` 的候选表校验强制
 - `@0_1` —— RxDB 给物理库名追加的 `RXDB_DB_NAME_SUFFIX`（`packages/rxdb/src/version.ts`，**已永久冻结**，
   它是用户数据的物理地址，改一个字符等于让既有数据凭空消失）
 - `.sqlite3` —— 桌面适配器的 `DEFAULT_DATABASE_SUFFIX`（`packages/rxdb-adapter-sqlite-core`）
@@ -117,9 +120,9 @@ demo 的完整路径：
 `wal_autocheckpoint=1000`、`busy_timeout=5000ms`、`foreign_keys=ON`），因此运行期同目录下还有两个侧车文件：
 
 ```text
-test_6@0_1.sqlite3
-test_6@0_1.sqlite3-wal
-test_6@0_1.sqlite3-shm
+desktop_demo@0_1.sqlite3
+desktop_demo@0_1.sqlite3-wal
+desktop_demo@0_1.sqlite3-shm
 ```
 
 拷贝或备份必须**连它们一起**，或先正常关闭应用：`RunEvent::Exit` 会调用 `DesktopHost::close_all()`，
@@ -136,7 +139,7 @@ US-207 踩过这个坑，实测记录见 `paths.rs` 中 `DATABASE_DIRECTORY` 的
 `open` 应答里的 `resolvedLocation` 是一个**逻辑 URI**，不是路径：
 
 ```text
-desktop-sqlite://app-scope/test_6@0_1.sqlite3
+desktop-sqlite://app-scope/desktop_demo@0_1.sqlite3
 ```
 
 逻辑名过白名单校验（`^[A-Za-z0-9][A-Za-z0-9._@-]*$`、≤128 字符、拒绝 Windows 保留设备名），
@@ -153,7 +156,7 @@ rm -rf ~/Library/Application\ Support/io.aiao.dev-rxdb-tauri/rxdb-data
 直接查看内容（需要 `sqlite3`）：
 
 ```bash
-sqlite3 ~/Library/Application\ Support/io.aiao.dev-rxdb-tauri/rxdb-data/test_6@0_1.sqlite3 '.tables'
+sqlite3 ~/Library/Application\ Support/io.aiao.dev-rxdb-tauri/rxdb-data/desktop_demo@0_1.sqlite3 '.tables'
 ```
 
 ### 浏览器预览（`nx serve`）
