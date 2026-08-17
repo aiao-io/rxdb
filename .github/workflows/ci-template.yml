@@ -24,8 +24,9 @@ name: CI Template (Reusable)
 #   等全量 build 反而是净亏（run 31945480551：build 318s，最慢 test lane 504s，
 #   最慢 e2e 457s；串起来比现在 test/e2e 并行的关键路径更长）。
 #   跨 job 复用只靠 actions/cache 的 restore-keys 回退，暖到 main 上一轮 run 的本地
-#   Nx 缓存 —— Nx Cloud 远端缓存目前是关闭的，见下面 NX_NO_CLOUD 的说明，
-#   别照着「有远端缓存」的前提去做容量规划。
+#   Nx 缓存。Nx Cloud 远端缓存由 setup 探测 `/nx-cloud/ping` 动态开关：
+#   组织超额/不可达时 NX_NO_CLOUD=true，可用时下游 nx job 翻成 false。
+#   容量规划别默认「一定有远端缓存」。
 #
 # 分支保护只需要挂一个 required status check：`gate`。
 # 它 needs 上面所有 job，任何一个不是 success/skipped 就红。
@@ -50,9 +51,9 @@ on:
       CODECOV_TOKEN:
         required: true
       # reusable workflow 不会自动继承调用方的 secrets，必须显式声明 + 显式传入。
-      # 这个是 optional：Nx Cloud 现在被 NX_NO_CLOUD 硬关（见下），token 缺席不影响任何 job。
-      # 写成 required: true 的话，fork PR 上拿不到 secret 会让整个 workflow 直接不启动，
-      # 报的还是「secret 未提供」这种和真实原因无关的错。
+      # 这个是 optional：探测 `/nx-cloud/ping` 不需要 token；fork PR 拿不到 secret
+      # 也不能让整个 workflow 直接不启动。probe 判定可用后，cache/handshake 才可能
+      # 用到这个 secret —— 缺席时 Nx 自己会走无 token 路径，不会在这里爆炸。
       NX_CLOUD_ACCESS_TOKEN:
         required: false
 
@@ -72,26 +73,17 @@ env:
   CI: true
   NX_DAEMON: false
   NX_TUI: false
-  # ---- Nx Cloud 关闭（2026-08-15）--------------------------------------------
-  # 真实原因是**免费额度用完**，不是配置错、也不是 token 问题。原文（复制自实跑日志）：
-  #
-  #   NX   Nx Cloud encountered some problems
-  #   This Nx Cloud organization has been disabled due to exceeding the FREE plan.
-  #   Your organization can be re-enabled immediately by an organization admin
-  #   upgrading to the Team plan at https://cloud.nx.app/orgs/<org>/plans. (code: 401)
-  #
-  # 别被 401 带偏去查 token —— 额度超限和「token 缺失/错误」共用同一个状态码。
-  # 判据是消息正文里的 "exceeding the FREE plan"。
-  #
-  # 这个故障很会伪装：setup job 只用 `nx show projects`，压根不碰 task runner，
-  # 所以它照常绿；红的只有 build/lint/test/e2e，看起来像「构建挂了」，其实不是。
-  #
+  # ---- Nx Cloud（动态探测，默认关）------------------------------------------
   # NX_NO_CLOUD 是唯一的硬开关（nx/src/utils/nx-cloud-utils.js: isNxCloudDisabled），
   # 光把 token 留空没用：nx.json 里只要有 nxCloudId 就仍然会走 cloud runner。
-  # ⚠️ 恢复步骤：升级 nx.app 套餐（或换一个未超额的 org）→ 配好 NX_CLOUD_ACCESS_TOKEN
-  #    secret → 删掉下面这一行即可，其余接线已经就位。
   #
-  # 关着的这段时间里，跨 job 的产物复用**只有** actions/cache 一条路。
+  # 工作流级默认 true：setup 自己、coverage/gate、以及忘了加 override 的新 job
+  # 一律关云。setup 探测 GET /nx-cloud/ping（scripts/ci/probe-nx-cloud.mjs），
+  # 下游跑 nx 的 job 用 needs.setup.outputs.nx_no_cloud 覆盖本行。
+  # 2xx 才开；FREE plan 超限 / 401 / 超时 / 5xx / 网络异常一律 fail-closed。
+  # 强制关：别给下游 job 加 override，或把本行留 true。
+  #
+  # 关着时跨 job 产物复用只有 actions/cache 一条路。
   NX_NO_CLOUD: true
   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
   NODE_OPTIONS: '--max-old-space-size=6144'
@@ -128,11 +120,23 @@ jobs:
       has_extras: ${{ steps.plan.outputs.has_extras }}
       code_changed: ${{ steps.plan.outputs.code_changed }}
       need_benchmark: ${{ steps.plan.outputs.need_benchmark }}
+      nx_no_cloud: ${{ steps.cloud.outputs.nx_no_cloud }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           filter: tree:0
           fetch-depth: 0
+
+      # 纯 fetch + nx.json，不依赖 pnpm。runner 镜像自带 Node，checkout 后立刻跑。
+      # setup 自己继续继承 workflow 的 NX_NO_CLOUD=true（它只跑 nx show projects）。
+      - name: Probe Nx Cloud
+        id: cloud
+        run: |
+          set -euo pipefail
+          NX_NO_CLOUD_VALUE=$(node scripts/ci/probe-nx-cloud.mjs)
+          echo "nx_no_cloud=$NX_NO_CLOUD_VALUE" >> "$GITHUB_OUTPUT"
+          echo "### Nx Cloud" >> "$GITHUB_STEP_SUMMARY"
+          echo "NX_NO_CLOUD=$NX_NO_CLOUD_VALUE" >> "$GITHUB_STEP_SUMMARY"
 
       # 取 PR 真正的 base 分支，而不是写死 main：PR 也可能提给 release/* 之类的
       # 长期分支，那时 `origin/main...HEAD` 会把 base 分支上的全部改动算进本 PR，
@@ -366,6 +370,8 @@ jobs:
     if: needs.setup.outputs.has_checks == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      NX_NO_CLOUD: ${{ needs.setup.outputs.nx_no_cloud }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -394,6 +400,8 @@ jobs:
     if: needs.setup.outputs.has_builds == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      NX_NO_CLOUD: ${{ needs.setup.outputs.nx_no_cloud }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -452,6 +460,8 @@ jobs:
       # 一条 lane 挂掉不掐断其它 lane：一轮就能看到全部失败，而不是修一个发现一个。
       fail-fast: false
       matrix: ${{ fromJSON(needs.setup.outputs.test_matrix) }}
+    env:
+      NX_NO_CLOUD: ${{ needs.setup.outputs.nx_no_cloud }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -527,6 +537,8 @@ jobs:
     if: needs.setup.outputs.has_test_browser == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      NX_NO_CLOUD: ${{ needs.setup.outputs.nx_no_cloud }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -567,6 +579,8 @@ jobs:
     if: needs.setup.outputs.has_acceptance == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      NX_NO_CLOUD: ${{ needs.setup.outputs.nx_no_cloud }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -613,6 +627,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.setup.outputs.e2e_matrix) }}
+    env:
+      NX_NO_CLOUD: ${{ needs.setup.outputs.nx_no_cloud }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -704,6 +720,8 @@ jobs:
     runs-on: ubuntu-latest
     # 冷跑要从零编译 tauri + rusqlite(bundled) 的依赖树，clippy 与 dev 两套产物各一遍。
     timeout-minutes: 45
+    env:
+      NX_NO_CLOUD: ${{ needs.setup.outputs.nx_no_cloud }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -793,6 +811,8 @@ jobs:
     if: needs.setup.outputs.has_extras == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      NX_NO_CLOUD: ${{ needs.setup.outputs.nx_no_cloud }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -843,6 +863,8 @@ jobs:
     if: needs.setup.outputs.need_benchmark == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      NX_NO_CLOUD: ${{ needs.setup.outputs.nx_no_cloud }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
