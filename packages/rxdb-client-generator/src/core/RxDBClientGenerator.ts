@@ -185,7 +185,14 @@ const validateMetadataSet = (metadataSet: ReadonlySet<EntityMetadata>, splitFile
   });
 };
 
-const addRxDBEntityProperties = (rxDBInterface: AddedInterface, metadataSet: ReadonlySet<EntityMetadata>): void => {
+const entityClassType = (metadata: EntityMetadata, splitFiles: boolean): string =>
+  splitFiles ? `typeof import('./${metadata.name}.js').${metadata.name}` : `typeof ${metadata.name}`;
+
+const addRxDBEntityProperties = (
+  rxDBInterface: AddedInterface,
+  metadataSet: ReadonlySet<EntityMetadata>,
+  splitFiles = false
+): void => {
   const groups = new Map<string, EntityMetadata[]>();
 
   metadataSet.forEach(metadata => {
@@ -205,7 +212,7 @@ const addRxDBEntityProperties = (rxDBInterface: AddedInterface, metadataSet: Rea
     if (namespace === NAMESPACE_PUBLIC) {
       rxDBInterface.addProperty({
         name: first.name,
-        type: `typeof ${first.name}`,
+        type: entityClassType(first, splitFiles),
         docs: [first.displayName]
       });
       return;
@@ -213,7 +220,7 @@ const addRxDBEntityProperties = (rxDBInterface: AddedInterface, metadataSet: Rea
 
     rxDBInterface.addProperty({
       name: isGeneratedIdentifier(namespace) ? namespace : JSON.stringify(namespace),
-      type: `{\n${group.map(metadata => `${metadata.name}: typeof ${metadata.name};`).join('\n')}\n}`,
+      type: `{\n${group.map(metadata => `${metadata.name}: ${entityClassType(metadata, splitFiles)};`).join('\n')}\n}`,
       docs: [first.displayName]
     });
   });
@@ -709,19 +716,12 @@ ${className}
       this.addSiblingTypeImports(entityFile, metadata, siblingNamedImports);
     });
 
-    addRxDBEntityProperties(rxDBInterface, metadataSet);
+    addRxDBEntityProperties(rxDBInterface, metadataSet, true);
     names.sort();
 
-    // index.d.ts: 从各 entity 文件导入类型（供 module augmentation 的 typeof 使用）
-    names.forEach(name => {
-      indexDefinitionFile.addImportDeclaration({
-        namedImports: [name],
-        isTypeOnly: true,
-        moduleSpecifier: `./${name}.js`
-      });
-    });
-
-    // index.d.ts: 从各 entity 文件 re-export
+    // index.d.ts 只 re-export，不本地 import 实体名。
+    // `import { Todo }` + `export * from './Todo.js'` 会触发 TS2459，
+    // Angular 生产构建因此拿不到 Todo / TodoStaticTypes。
     names.forEach(name => {
       indexDefinitionFile.addExportDeclaration({
         moduleSpecifier: `./${name}.js`

@@ -7,13 +7,13 @@ import { MenuSimple } from './MenuSimple.js';
 import { Todo } from './Todo.js';
 import { TypeDemo } from './TypeDemo.js';
 
-export * from './Article.js';
-export * from './Comment.js';
-export * from './FileLarge.js';
-export * from './FileNode.js';
-export * from './MenuLarge.js';
-export * from './MenuSimple.js';
-export * from './Todo.js';
-export * from './TypeDemo.js';
+export { Article } from './Article.js';
+export { Comment } from './Comment.js';
+export { FileLarge } from './FileLarge.js';
+export { FileNode } from './FileNode.js';
+export { MenuLarge } from './MenuLarge.js';
+export { MenuSimple } from './MenuSimple.js';
+export { Todo } from './Todo.js';
+export { TypeDemo } from './TypeDemo.js';
 
 export const ENTITIES = [Article, Comment, FileLarge, FileNode, MenuLarge, MenuSimple, Todo, TypeDemo];

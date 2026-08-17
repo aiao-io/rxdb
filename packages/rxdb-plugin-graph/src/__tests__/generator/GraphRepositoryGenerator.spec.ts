@@ -120,7 +120,7 @@ describe('graph', () => {
     expect(javascript).toContain("import { GraphEntityBase } from '@aiao/rxdb-plugin-graph';");
     expect(javascript).not.toMatch(/import \{[^}]*GraphEntityBase[^}]*\} from '@aiao\/rxdb';/);
     expect(declaration).toContain(
-      "import { EdgeFilterOptions, EdgeFilterOptionsWithWeight, EdgeInfoWithWeight, FindNeighborsOptions, FindPathsOptions, GraphEdgeInfoType, GraphEdgePropertiesRecord, GraphEntityBase, GraphPath, GraphQueryResult, GraphWhere, NeighborResult } from '@aiao/rxdb-plugin-graph';"
+      "import type { EdgeFilterOptions, EdgeFilterOptionsWithWeight, EdgeInfoWithWeight, FindNeighborsOptions, FindPathsOptions, GraphEdgeInfoType, GraphEdgePropertiesRecord, GraphEntityBase, GraphPath, GraphQueryResult, GraphWhere, NeighborResult } from '@aiao/rxdb-plugin-graph';"
     );
     expect(declaration).not.toMatch(/import type \{[^}]*GraphEntityBase[^}]*\} from '@aiao\/rxdb';/);
     expect(declaration).toContain(
@@ -192,9 +192,9 @@ describe('graph', () => {
       export { ENTITIES, Person };"
     `);
     expect(indexDJSFile?.getText()).toMatchInlineSnapshot(`
-      "import { CountOptions, DateRules, ENTITY_STATIC_TYPES, EntityBase, EntityType, FindAllOptions, FindByCursorOptions, FindOneOptions, FindOneOrFailOptions, FindOptions, IEntity, ITreeEntity, NumberRules, RuleGroupBase, StringRules, UUID, UUIDRules } from '@aiao/rxdb';
-      import { EdgeFilterOptions, EdgeFilterOptionsWithWeight, EdgeInfoWithWeight, FindNeighborsOptions, FindPathsOptions, GraphEdgeInfoType, GraphEdgePropertiesRecord, GraphEntityBase, GraphPath, GraphQueryResult, GraphWhere, NeighborResult } from '@aiao/rxdb-plugin-graph';
-      import { Observable } from 'rxjs';
+      "import type { CountOptions, DateRules, ENTITY_STATIC_TYPES, EntityBase, EntityType, FindAllOptions, FindByCursorOptions, FindOneOptions, FindOneOrFailOptions, FindOptions, IEntity, ITreeEntity, NumberRules, RuleGroupBase, StringRules, UUID, UUIDRules } from '@aiao/rxdb';
+      import type { EdgeFilterOptions, EdgeFilterOptionsWithWeight, EdgeInfoWithWeight, FindNeighborsOptions, FindPathsOptions, GraphEdgeInfoType, GraphEdgePropertiesRecord, GraphEntityBase, GraphPath, GraphQueryResult, GraphWhere, NeighborResult } from '@aiao/rxdb-plugin-graph';
+      import type { Observable } from 'rxjs';
 
       /**
        * rule
