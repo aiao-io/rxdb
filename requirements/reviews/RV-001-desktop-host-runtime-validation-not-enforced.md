@@ -1,6 +1,6 @@
 ---
 id: RV-001
-title: Desktop adapter（Electron / Tauri）发布面问题集（8 项）
+title: Desktop adapter（Electron / Tauri）发布面问题集（5 项）
 status: Open
 created: 2026-08-17
 updated: 2026-08-17
@@ -9,90 +9,10 @@ pr:
 
 # Review：Desktop adapter（Electron / Tauri）发布面问题集
 
-本文件整合 `@aiao/rxdb-adapter-desktop` 相关的 8 项评审发现。原分散为多个编号重复的
-review 文件，现合并为单一 `RV-001`，按主题分 8 节。
+本文件整合 `@aiao/rxdb-adapter-desktop` 相关的 5 项评审发现。原分散为多个编号重复的
+review 文件，现合并为单一 `RV-001`，按主题分 5 节。
 
-## 1. `runtime` 选项的「host 侧二次校验」契约只写在注释里，代码里不存在
-
-### 问题
-
-`DesktopOptions.runtime` / `DesktopSqliteClientOptions.runtime` 的 TSDoc 与 host 内联注释一致声称：
-renderer 侧的 `runtime` 只影响「连接前那次能力矩阵校验的判据与措辞」，「真正的把关在 host 侧，
-host 会用**它自己的 runtime 再校验一次**」。但两个 host 都没有实现这层把关——`runtime` 是一段
-**死代码**，防御纵深的承诺是假的。
-
-三处证据：
-
-1. client 侧文档承诺 host 会二次校验（
-   [desktop-sqlite-client.ts#L68-L74](../../packages/rxdb-adapter-desktop/src/desktop-sqlite-client.ts#L68-L74)）：
-
-   ```ts
-   * 传错不会放宽任何东西：host 侧还会用它自己的 runtime 再校验一次。
-   readonly runtime?: DesktopRuntime;
-   ```
-
-2. `parseOpenRequest` 硬编码 `'electron'` 并让 `createDesktopSqliteHost` 兜底（
-   [desktop-host-protocol.ts#L422-L428](../../packages/rxdb-adapter-desktop/src/desktop-host-protocol.ts#L422-L428)）：
-
-   ```ts
-   // 这里传 'electron' 只是为了复用同一份矩阵校验；host 侧真实 runtime 由 createDesktopSqliteHost 再断言一次。
-   assertSupportedDesktopStorage('electron', storage as DesktopSqliteFileStorage);
-   ```
-
-   但 `createDesktopSqliteHost` 的 `open` 只取 `databaseName`，既不接收也不断言 runtime（
-   [desktop-sqlite-host.ts#L189-L205](../../packages/rxdb-adapter-desktop/src/desktop-sqlite-host.ts#L189-L205)）：
-
-   ```ts
-   const open = (request: Extract<DesktopHostRequest, { kind: 'open' }>): DesktopHostResponse => {
-     const { databaseName } = request.storage;
-   ```
-
-   且 `DesktopSqliteHostOptions` 根本没有 `runtime` 字段（
-   [desktop-sqlite-host.ts#L70-L118](../../packages/rxdb-adapter-desktop/src/desktop-sqlite-host.ts#L70-L118)），
-   只有 `resolveDatabasePath` / `postChange` / `onDeliveryError?` / `cacheSizeKb?` / `busyRetryBudgetMs?`。
-
-3. Tauri Rust 侧 `read_storage` 只读 `engine`，从不读 `runtime`，pglite 拒绝消息是硬编码的（
-   [protocol.rs#L155-L171](../../apps/dev-rxdb-tauri/src-tauri/src/rxdb/protocol.rs#L155-L171)）：
-
-   ```rust
-   fn read_storage(record: &Map<String, Value>) -> HostResult<String> {
-       let engine = storage.get("engine").and_then(Value::as_str);
-       if engine == Some("pglite") {
-           return Err(HostError::new(ErrorCode::UnsupportedRuntimeEngine,
-               "tauri cannot host a PGlite data directory: ..."));
-   ```
-
-   另 `DesktopOptions.runtime` 文档宣称「真正的把关在 host 侧，它知道自己跑在哪个运行时里」（
-   [desktop-adapter.interface.ts#L53-L58](../../packages/rxdb-adapter-desktop/src/desktop-adapter.interface.ts#L53-L58)）。
-
-**实际影响**：低，无安全漏洞。PGlite 在两端都会被拒——Electron 侧因硬编码 `'electron'` 走
-`assertSupportedDesktopStorage('electron', ...)` 拒 PGlite，Tauri 侧因 `read_storage` 硬编码拒 pglite。
-但契约与实现不一致本身是隐患：读者会据此信任「renderer 传错 runtime 无害」，而实际上 client 与
-host 各用各的 runtime 判据，二者可能不一致（例如给 Electron host 传 `runtime: 'tauri'` 时，
-client 用 `'tauri'` 校验、host 用硬编码 `'electron'` 校验，措辞与错误码来自两套矩阵）。
-
-### 根因
-
-设计意图是「host 侧做最终把关」，但实现时发现每个 host 天然就知道自己的 runtime（Electron host
-就是 Electron，Tauri host 就是 Tauri），无需 renderer 透传 runtime 也能自证，于是「透传 + 断言一致」
-这一步被省略，注释却原样留了下来。跨语言（TS/Rust）× 跨端（Electron/Tauri）的契约只靠注释口口相传，
-没有类型字段或测试兜底，导致注释与实现漂移。
-
-### 修复方案
-
-推荐 **A（改注释，最小且更正确）**，当前「host 各自固化自己的 runtime」本身就是更简单的设计，
-问题只在注释说谎：
-
-- 把 `desktop-adapter.interface.ts#L53-L58`、`desktop-sqlite-client.ts#L68-L74`、
-  `desktop-host-protocol.ts#L425` 三处改为准确描述，例如：
-  「`runtime` 仅决定 renderer 侧前置校验的判据与措辞；host 不依赖它，各 host 用自己的固化 runtime
-  独立校验 `engine`」。
-
-若不满足、确需防御纵深，则 **B（真实现）**：给 open 请求与 `DesktopSqliteHostOptions` 增加
-`runtime` 字段，host 断言收到的 `runtime` 与自身一致；Tauri 侧 `read_storage` 同步读取并断言
-`runtime == 'tauri'`。注意这会让协议结构多一个字段，改动面更大。
-
-## 2. Tauri rusqlite host 未随 npm 包发布，用户只拿到一根传输管子
+## 1. Tauri rusqlite host 未随 npm 包发布，用户只拿到一根传输管子
 
 ### 问题
 
@@ -136,59 +56,7 @@ US-210 阶段 1 把可跑的 host 做在 `apps/dev-rxdb-tauri/` 里以关闭事�
 2. T2 开工前先落定插件 vs 普通 crate。做成 `tauri::plugin::Builder` 会让命令带上 `plugin:` 前缀、落入 capability 门禁，US-210 AC#1「`capabilities/` 零改动 / 无可授之物」必须重写，不能 silently 反转。
 3. T7 若 crate 不发 crates.io，必须在包 README 写清用户只能 path / git 依赖——否则「用户能复用」只兑现一半。
 
-## 3. close/rollback 用 SQLite 错误消息字符串匹配判断「无活动事务」，两端重复且脆弱
-
-### 问题
-
-close 时回滚未提交事务是正常路径，但 Electron 与 Tauri 两端都用
-`'cannot rollback - no transaction is active'` 这条 **SQLite 错误消息原文**做字符串匹配来吞掉
-「无活动事务」这个「错误」，而非结构化判断。两端各抄一份，脆弱点成对出现：
-
-- TS 侧 `NO_ACTIVE_TRANSACTION = 'cannot rollback - no transaction is active'`
-  （[node-sqlite-engine.ts#L80](../../packages/rxdb-adapter-desktop/src/node-sqlite-engine.ts#L80)），
-  在 `#rollbackOpenTransaction()` 里 `messageOf(error).includes(NO_ACTIVE_TRANSACTION)` 判断
-  （[node-sqlite-engine.ts#L528-L534](../../packages/rxdb-adapter-desktop/src/node-sqlite-engine.ts#L528-L534)）。
-- Rust 侧 `NO_ACTIVE_TRANSACTION: &str = "cannot rollback - no transaction is active"`
-  （[engine.rs#L77](../../apps/dev-rxdb-tauri/src-tauri/src/rxdb/engine.rs#L77)），
-  在 `rollback_open_transaction()` 里 `error.to_string().contains(NO_ACTIVE_TRANSACTION)` 判断
-  （[engine.rs#L654-L659](../../apps/dev-rxdb-tauri/src-tauri/src/rxdb/engine.rs#L654-L659)）。
-
-这依赖 SQLite 错误消息的精确英文文本，文本不保证稳定（SQLite 版本升级、构建时本地化都可能改），
-一旦变化，「无事务」会被误判成真错误上报，close 路径开始抛错。
-
-### 根因
-
-两端都选了「最快能跑」的字符串匹配，未查结构化 API。node:sqlite 与 rusqlite 都暴露了
-「是否在事务中」的权威判断，无需匹配错误文本。
-
-### 修复方案
-
-用结构化 API 取代字符串匹配，并删除 `NO_ACTIVE_TRANSACTION` 常量：
-
-- **TS 侧**：`DatabaseSync` 有 `readonly isTransaction: boolean`，是
-  [`sqlite3_get_autocommit()`](https://sqlite.org/c3ref/get_autocommit.html) 的包装（@since v24.0.0；
-  见 `node_modules/@types/node/sqlite.d.ts#L436`）。回滚前判断即可：
-
-  ```ts
-  if (this.#db.isTransaction) {
-    this.#db.exec('ROLLBACK');
-  }
-  ```
-
-- **Rust 侧**：rusqlite 0.32.1 的 `Connection::is_autocommit()`（同源
-  `sqlite3_get_autocommit`）等价可用，回滚前判断：
-
-  ```rust
-  if !self.db().is_autocommit() {
-      self.db().execute_batch("ROLLBACK")?;
-  }
-  ```
-
-**复验方式**：`DatabaseSync.isTransaction` 见 `node_modules/@types/node/sqlite.d.ts#L436`；
-`Connection::is_autocommit` 见本地 cargo registry
-`rusqlite-0.32.1/src/lib.rs#L1043`（`pub fn is_autocommit(&self) -> bool`）。两端均为源码实证。
-
-## 4. renderer 双入口隔离没有真 tarball 门禁，串味只能靠源码图猜测
+## 2. renderer 双入口隔离没有真 tarball 门禁，串味只能靠源码图猜测
 
 ### 问题
 
@@ -234,58 +102,7 @@ US-207「发布前需人工确认的三条性质」自己写了缺口（[US-207]
    - host 入口真开库：open → CREATE → INSERT → SELECT → close，应答经 renderer 导出的 `assertDesktopHostResponse` 解包。
 4. 阶段 3 拆成 `-electron` / `-tauri` 后脚本参数化包名，不复制第二份（US-207 E7）。
 
-## 5. 桌面 host 协议版本号在 TS / Rust 两侧手抄，漂移要到真 IPC 才暴露
-
-### 问题
-
-renderer 在 `open` 应答里核对协议版本，不匹配就拒连、不建库（US-210 AC#10 / US-207 AC#9）。拒绝动作本身在共享层，是稳的（[parseDesktopHostOpenResult](../../packages/rxdb-adapter-desktop/src/desktop-host-protocol.ts#L753-L757)）：
-
-```ts
-if (protocolVersion !== DESKTOP_HOST_PROTOCOL_VERSION) {
-  throw violation(
-    `host speaks protocol ${String(protocolVersion)} but this client speaks ${DESKTOP_HOST_PROTOCOL_VERSION}`
-  );
-}
-```
-
-不稳的是 **Tauri host 报上来的数字是手抄的第二份**：
-
-| 侧         | 常量                                   | 位置                                                                                             |
-| ---------- | -------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| TypeScript | `DESKTOP_HOST_PROTOCOL_VERSION = 1`    | [desktop-host-protocol.ts](../../packages/rxdb-adapter-desktop/src/desktop-host-protocol.ts#L34) |
-| Rust       | `pub const PROTOCOL_VERSION: i64 = 1;` | [protocol.rs](../../apps/dev-rxdb-tauri/src-tauri/src/rxdb/protocol.rs#L17)                      |
-
-两个常量之间没有任何机械联系。改了 TS 那个，`cargo test` 一条不红；改了 Rust 那个，`pnpm nx test` 一条不红。
-
-Rust 侧现有断言只证明「应答里出现了**自己的**常量」（[session.rs](../../apps/dev-rxdb-tauri/src-tauri/src/rxdb/session.rs#L315) `open_reports_a_logical_location_not_a_filesystem_path`）：
-
-```rust
-assert_eq!(result["protocolVersion"], PROTOCOL_VERSION);
-```
-
-它断言的是字段等于 `protocol.rs` 的 `PROTOCOL_VERSION`，不是对面那个 TS 值。一致性套件两侧都用当时的代码构建，协议真变更时漏改一侧，套件照常全绿。US-210 AC#10 因此标 ⚠️，关闭判据写明了缺的就是「握手时 Rust 宿主报的版本号等于 TS 常量」。
-
-Electron 路径没有这个问题：`createDesktopSqliteHost` 回的是同一个 `DESKTOP_HOST_PROTOCOL_VERSION`（[desktop-sqlite-host.ts](../../packages/rxdb-adapter-desktop/src/desktop-sqlite-host.ts#L205)）。
-
-复验：`grep PROTOCOL_VERSION apps/dev-rxdb-tauri` 只有 Rust 常量与对它的自指断言；没有任何测试读 `DESKTOP_HOST_PROTOCOL_VERSION` 再和 Rust 应答比对。客户端单测有「host 报 99 则拒连」（`desktop-sqlite-client.spec.ts`），那是共享层拒绝动作，绑不住 Rust 手抄值。
-
-### 根因
-
-Tauri host 活在另一门语言里，版本号只能复制。阶段 1 先把拒绝动作落到共享层，AC#10 补进来认领这件事，但「把两个常量绑起来」的用例还没写（US-210 阶段 2 ⚠️）。
-
-### 修复方案
-
-最小闭环（US-210 已写）：一致性套件 / stdio 测试宿主握手时断言
-
-```ts
-opened.protocolVersion === DESKTOP_HOST_PROTOCOL_VERSION;
-```
-
-`session.rs:315` 今天只断言「有这个字段且等于 Rust 自己」，差的是「等于对面那个值」。这条绿了，AC#10 才能从 ⚠️ 改 ✅。
-
-不要另起 codegen / 共享 JSON 除非协议字段开始膨胀——现在只有一个 `1`，一条跨语言握手断言就够。
-
-## 6. 桌面 SQLite 跨重启持久化没有打包产物门禁，静默空库抓不到
+## 3. 桌面 SQLite 跨重启持久化没有打包产物门禁，静默空库抓不到
 
 ### 问题
 
@@ -325,7 +142,7 @@ Tauri 的 `app_data_dir()` + `rxdb-data/` 没有已知同类冲突，但没有�
 
 不进 PR 门禁。断言形态不能退化成单次启动内的读写——那正好是静默空库的盲区。Tauri 侧先建 `apps/dev-rxdb-tauri-e2e`（与 US-905 阶段 1 共享 project，先开工者 generator 一次）。
 
-## 7. 已发布的 `ADAPTER_NAME` 仍是 `desktop`，`runtime` 选项是第二份真相源
+## 4. 已发布的 `ADAPTER_NAME` 仍是 `desktop`，`runtime` 选项是第二份真相源
 
 ### 问题
 
@@ -379,7 +196,7 @@ US-207 已于 2026-08-17 **落定分裂**：Electron → `sqlite-electron`，Tau
 
 完成判据已写在 US-207 E3：`grep -rn "runtime: 'electron'\|runtime: 'tauri'"` 零命中。必须赶在阶段 2 门禁立起来之后、有真实用户之前做——这是破坏性改动，不是整理。
 
-## 8. Tauri 两会话争写锁没有直接用例，`database_busy` 路径只被映射表覆盖
+## 5. Tauri 两会话争写锁没有直接用例，`database_busy` 路径只被映射表覆盖
 
 ### 问题
 
@@ -425,42 +242,15 @@ Electron 侧若还没有对偶用例，用 host 层异步重试做同一组断�
 
 ## 解决记录
 
-已在 `local-db` 分支落地 §1 / §2（文档部分）/ §3 / §5，等开 PR：
+已在 `local-db` 分支落地 §1 的 README 措辞（第 1 项），等开 PR；其余各项未动：
 
-- **§1（方案 A，改注释）**：三处不实描述改为「host 从不读 `runtime`；每个 host 实现本身绑死一个
-  运行时，各自按自己那一行矩阵独立断言」——`desktop-adapter.interface.ts` 的 `DesktopOptions.runtime`、
-  `desktop-sqlite-client.ts` 的 `DesktopSqliteClientOptions.runtime`、`desktop-host-protocol.ts`
-  `parseOpenRequest` 里的内联注释（写明硬编码 `'electron'` 是**事实**而非占位：这份协议解析只服务
-  TS 宿主，而 TS 宿主只跑在 Electron 主进程；Tauri 侧走 Rust 的 `parse_request`）。
-  未选方案 B：透传 runtime 会多一个协议字段，而每个 host 本就能自证运行时。
-- **§2（仅第 1 项，措辞）**：包 README 能力矩阵改为「Tauri = 包内只有 transport」，并新增一段
+- **§1（仅第 1 项，措辞）**：包 README 能力矩阵改为「Tauri = 包内只有 transport」，并新增一段
   写明 `rusqlite` host 只存在于 `apps/dev-rxdb-tauri/src-tauri`、装包的 Tauri 应用需自备 Rust 宿主、
   迁入可发布包是 US-210 阶段 4 且尚未开始。第 2、3 项属于 US-210 阶段 4 本身，未动。
-- **§3**：删掉两端的 `NO_ACTIVE_TRANSACTION` 常量，改用结构化判断——
-  `NodeSqliteEngine.#rollbackOpenTransaction()` 用 `DatabaseSync.isTransaction`，
-  `Engine::rollback_open_transaction()` 用 `Connection::is_autocommit()`（同为
-  `sqlite3_get_autocommit()` 的包装）。既有的 close/rollback 用例继续通过。
-- **§5**：一致性套件新增 `conformance/protocol-handshake.spec.ts`——用真的 stdio 宿主进程做一次
-  `open`，断言它报上来的 `protocolVersion` 等于 TS 的 `DESKTOP_HOST_PROTOCOL_VERSION`。
-  这是两个手抄常量之间**唯一**的机械联系。
-  - 断言写成直接比数，不走 `parseDesktopHostOpenResult`：后者不匹配时抛的是 `protocol_violation`，
-    读起来像「宿主坏了」，而这里要说的是「两份常量漂移了」
-  - 不进共享套件：套件按后端并行铺开，而这条只对 Rust 宿主成立——Electron host 回的就是同一个
-    TS 常量，没有第二份真相源可漂
-  - 未起 codegen / 共享 JSON：协议里只有一个 `1`，一条握手断言就够（评审原文同此结论）
-  - `DESKTOP_HOST_PROTOCOL_VERSION` 的 TSDoc 补上 Tauri 这个例外与这条用例的位置——
-    原文「不等只可能发生在混装了不同版本的包」对 Rust 侧不成立
-  - **验过它真的会红**：把 Rust 的 `PROTOCOL_VERSION` 临时改成 `2`，该用例失败
-    （`expected 2 to be 1`）后随即改回。不这么验，一条恒绿的断言与没有断言无法区分
-- 验证：`rxdb-adapter-desktop` 927/927 通过，lint + build 绿；`cargo test --lib` 125/125，clippy 无告警；
-  §5 后一致性套件 597/597（原 596）；`nx affected -t lint test build` 11 个项目 / 49 个任务全绿
 
-- [x] 1. `runtime` 二次校验契约：已改注释（方案 A），待 PR
-- [ ] 2. Tauri host 随包发布：README 措辞已改；迁包（US-210 阶段 4）未动
-- [x] 3. `NO_ACTIVE_TRANSACTION` 换结构化 API：已改，待 PR
-- [ ] 4. renderer 双入口 tarball 门禁：开 PR 修复
-- [x] 5. 协议版本常量两侧绑定：已加跨语言握手断言，待 PR
-- [ ] 6. 跨重启持久化打包门禁：开 PR 修复
-- [ ] 7. `ADAPTER_NAME` / `runtime` 双真相源改名：开 PR 修复
-- [ ] 8. Tauri 两会话争写锁直接用例：开 PR 修复
+- [ ] 1. Tauri host 随包发布：README 措辞已改；迁包（US-210 阶段 4）未动
+- [ ] 2. renderer 双入口 tarball 门禁：开 PR 修复
+- [ ] 3. 跨重启持久化打包门禁：开 PR 修复
+- [ ] 4. `ADAPTER_NAME` / `runtime` 双真相源改名：开 PR 修复
+- [ ] 5. Tauri 两会话争写锁直接用例：开 PR 修复
 - [ ] 全部 PR 合并，`status: Resolved`
