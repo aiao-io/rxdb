@@ -651,7 +651,8 @@ function assertJsonSafe(value: unknown, path: string, walked: JsonWalkPath = new
     return;
   }
   if (!isPlainRecord(value)) throw parseError(path, `不是 JSON-safe 的值（${Object.prototype.toString.call(value)}）`);
-  const visit = (): void => Object.entries(value).forEach(([key, item]) => assertJsonSafe(item, `${path}.${key}`, walked));
+  const visit = (): void =>
+    Object.entries(value).forEach(([key, item]) => assertJsonSafe(item, `${path}.${key}`, walked));
   walkJsonContainer(value, walked, visit, onCycle);
 }
 

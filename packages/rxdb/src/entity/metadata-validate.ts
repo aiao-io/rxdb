@@ -7,7 +7,13 @@
  * 不因输入形状畸形而自身抛出非聚合异常。
  */
 
-import { formatConfigLiteralsOf, isStepAligned, missingFormatConfigKeys, percentageDomainOf } from './format-rules.js';
+import {
+  formatConfigLiteralsOf,
+  isStepAligned,
+  lookupOwn,
+  missingFormatConfigKeys,
+  percentageDomainOf
+} from './format-rules.js';
 import { isPlainRecord } from './json-safe.js';
 import {
   EntityPropertyMetadata,
@@ -48,9 +54,7 @@ export type MetadataValidationRule =
  * 本联合由字段描述 DTO 的生成入口产出。
  */
 export type RelationResolutionRule =
-  | 'missingRelationPrimary'
-  | 'multipleRelationPrimaries'
-  | 'unsupportedRelationValueType';
+  'missingRelationPrimary' | 'multipleRelationPrimaries' | 'unsupportedRelationValueType';
 
 /**
  * 单条元数据违规。
@@ -244,10 +248,10 @@ const detectFormatViolation = (
   if (typeof kind !== 'string') return { rule: 'invalidFormatConfig', message: 'format 缺少字符串 kind' };
   if (type === undefined) return { rule: 'formatOnRelation', message: '关系不接受 format 声明' };
 
-  // `kind` 是未受信字符串：直接索引会把 `toString` / `__proto__` / `constructor` 取成原型链上的成员，
-  // 绕过 unknownFormat 后在下面的 `.includes()` 上抛 TypeError，违反本模块「畸形输入只转违规」的契约
-  const allowed =
-    Object.hasOwn(FIELD_FORMAT_CONFIG_KEYS, kind) ? FIELD_FORMAT_CONFIG_KEYS[kind as FieldFormat['kind']] : undefined;
+  // `kind` 是未受信字符串，必须走 lookupOwn：直接索引会把 `toString` / `__proto__` / `constructor`
+  // 取成原型链上的成员，绕过 unknownFormat 后在下面的 `.includes()` 上抛 TypeError，
+  // 违反本模块「畸形输入只转违规」的契约
+  const allowed = lookupOwn(FIELD_FORMAT_CONFIG_KEYS, kind);
   if (!allowed) return { rule: 'unknownFormat', message: `未知的 format.kind "${kind}"` };
 
   const conflict = CARDINALITY_CONFLICTS.find(item => item.kind === kind && item.type === type);
@@ -331,13 +335,14 @@ const requiresEnum = (property: Record<string, unknown>): boolean => {
 /**
  * 校验 `enum` / `options` 的载体合法性。
  *
- * @returns 载体合法则 `true`；非法时已记违规，调用方不再判定内容
+ * @returns 是否继续判定 enum 族内容。非载体类型一律 `false`：带了这两个键的已记违规，
+ * 没带的本来就无内容可判——两种情况都不该再往下走。
  *
  * @remarks
  * 类型层只有 `EnumProperty` 与 `StringArrayProperty` 声明这两个键。绕过 TypeScript 后
  * 一个 `number` 属性带上 `enum` 会一路进到描述器，`validateFieldValue()` 还会拿数字去比枚举成员。
  */
-const validateEnumCarrier = (
+const continueAfterEnumCarrier = (
   collector: ViolationCollector,
   property: Record<string, unknown>,
   name: string
@@ -356,7 +361,7 @@ const validateEnumCarrier = (
 /** 校验 `enum` 与 `options` 族规则，与 format 族相互独立。 */
 const validateEnumAndOptions = (collector: ViolationCollector, property: Record<string, unknown>): void => {
   const name = String(property['name']);
-  if (!validateEnumCarrier(collector, property, name)) return;
+  if (!continueAfterEnumCarrier(collector, property, name)) return;
 
   const hasEnum = 'enum' in property;
   const values = hasEnum ? validateEnumDeclaration(collector, name, property['enum']) : null;
