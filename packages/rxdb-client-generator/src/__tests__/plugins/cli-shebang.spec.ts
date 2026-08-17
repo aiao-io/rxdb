@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  isCliEntryModuleId,
-  rxdbClientGeneratorCliShebangPlugin,
-  stripCliShebang
-} from '../../plugins/cli-shebang.js';
+import { isCliEntryModuleId, rxdbClientGeneratorCliShebangPlugin, stripCliShebang } from '../../plugins/cli-shebang.js';
 
 const SHEBANG = '#!/usr/bin/env node\n';
 const BODY = 'export const main = async () => undefined;\n';
