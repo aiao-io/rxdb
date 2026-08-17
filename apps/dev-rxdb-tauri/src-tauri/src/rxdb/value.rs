@@ -1,4 +1,4 @@
-//! 线协议的 **JSON 传输编码**，`packages/rxdb-adapter-desktop/src/desktop-json-codec.ts` 的镜像。
+//! 线协议的 **JSON 传输编码**，`packages/rxdb-adapter-tauri/src/desktop-json-codec.ts` 的镜像。
 //!
 //! 协议本身只承诺结构化克隆可传，实际携带 `bigint` rowId、`Uint8Array` blob 与 `Date`。
 //! Tauri 的 IPC 是 JSON，这三类会丢失，因此两侧各实现一份带标签的编码：

@@ -24,7 +24,7 @@
  * 串行处理会让本文件里的每条用例都死锁在等待方身上——那是宿主替身的产物，不是引擎的性质。
  */
 
-import { DesktopSqliteClient, RxDBAdapterDesktopError, type DesktopHostTransport } from '@aiao/rxdb-adapter-desktop';
+import { DesktopSqliteClient, RxDBAdapterDesktopError, type DesktopHostTransport } from '@aiao/rxdb-adapter-tauri';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -41,7 +41,7 @@ let workspace: string;
 let host: ReturnType<typeof createRustHostTransport>;
 
 const openSession = (transport: DesktopHostTransport): Promise<DesktopSqliteClient> =>
-  DesktopSqliteClient.connect(transport, { engine: 'sqlite', databaseName: DATABASE_NAME }, { runtime: 'tauri' });
+  DesktopSqliteClient.connect(transport, { engine: 'sqlite', databaseName: DATABASE_NAME });
 
 /** 开一对会话，并保证它们在用例结束时一定被关掉。 */
 const withTwoSessions = async (

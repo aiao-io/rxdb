@@ -50,6 +50,9 @@
     },
     {
       "path": "../../packages/rxdb-test/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-electron/tsconfig.lib.json"
     }
   ]
 }

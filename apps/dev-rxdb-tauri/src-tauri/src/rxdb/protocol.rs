@@ -1,4 +1,4 @@
-//! renderer 与 host 之间的线协议，`packages/rxdb-adapter-desktop/src/desktop-host-protocol.ts` 的镜像。
+//! renderer 与 host 之间的线协议，`packages/rxdb-adapter-sqlite-core/src/desktop/desktop-host-protocol.ts` 的镜像。
 //!
 //! 这是 host 的**信任边界**：入参来自 WebView，不可信。解析结果是重新构造出来的
 //! `Request`，而不是把原始 JSON 往下传——契约之外的字段因此不会顺着流进 host。

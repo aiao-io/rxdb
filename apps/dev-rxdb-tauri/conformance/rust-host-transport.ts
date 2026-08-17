@@ -14,7 +14,7 @@
  * @module conformance/rust-host-transport
  */
 
-import { createTauriHostTransport, type DesktopHostTransport } from '@aiao/rxdb-adapter-desktop';
+import { createTauriHostTransport, type DesktopHostTransport } from '@aiao/rxdb-adapter-tauri';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';

@@ -10,8 +10,8 @@
  * 一旦破掉就是安全问题或「适配器永远找不到 host」，值得用源码断言先拦一道。
  */
 
-import { DESKTOP_HOST_TRANSPORT_KEY } from '@aiao/rxdb-adapter-desktop';
-import { RxDBAdapterDesktopError, type DesktopHostResponse } from '@aiao/rxdb-adapter-desktop/host';
+import { DESKTOP_HOST_TRANSPORT_KEY } from '@aiao/rxdb-adapter-electron';
+import { RxDBAdapterDesktopError, type DesktopHostResponse } from '@aiao/rxdb-adapter-electron/host';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -298,10 +298,10 @@ describe('桌面 host 的 IPC 接线', () => {
 });
 
 /**
- * ELEC-23：本模块 import 的 `@aiao/rxdb-adapter-desktop/host` 必须被打进产物。
+ * ELEC-23：本模块 import 的 `@aiao/rxdb-adapter-electron/host` 必须被打进产物。
  *
  * 与 ELEC-14（tslib）同源的失败：主进程是**逐文件 tsc 产物**，而 electron-builder 的
- * `files` 白名单写着 `!node_modules` —— tsc 原样 emit 的 `require("@aiao/rxdb-adapter-desktop/host")`
+ * `files` 白名单写着 `!node_modules` —— tsc 原样 emit 的 `require("@aiao/rxdb-adapter-electron/host")`
  * 在打包后的应用里必然找不到模块。typecheck、单测、`--serve` 全绿，只有真实产物会炸。
  *
  * 所以由 esbuild 单独打一份自足的 CJS 出来。输出名带 `.bundle` 是**故意**的：

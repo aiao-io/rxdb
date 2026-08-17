@@ -1,4 +1,4 @@
-//! 单个数据库连接，`packages/rxdb-adapter-desktop/src/node-sqlite-engine.ts` 的 Rust 对照实现。
+//! 单个数据库连接，`packages/rxdb-adapter-electron/src/node-sqlite-engine.ts` 的 Rust 对照实现。
 //!
 //! **一个会话一条连接，不共享**：两个窗口若共用一条连接，它们的 `BEGIN` 块会互相穿插，
 //! 事务隔离直接失效（US-210 AC#2）。各自持有连接后，跨窗口的并发交给 SQLite 自己的

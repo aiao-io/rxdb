@@ -13,7 +13,7 @@
  * @vitest-environment happy-dom
  */
 
-import { DESKTOP_ADAPTER_NAME } from '@aiao/rxdb-adapter-desktop';
+import { TAURI_ADAPTER_NAME } from '@aiao/rxdb-adapter-tauri';
 import type { StorageFilesystem } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
 import { cp, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
@@ -41,7 +41,7 @@ const CONTENT = new Uint8Array(4096).map((_, index) => (index * 31 + 7) & 0xff);
 const openHost = (root: string): { filesystem: StorageFilesystem; quit: () => void } => {
   const host = createRustHostTransport(root);
   const filesystem = createDesktopStorageFilesystem({ transport: host.transport })(ROOT_DIR, {
-    localAdapterName: DESKTOP_ADAPTER_NAME
+    localAdapterName: TAURI_ADAPTER_NAME
   });
   return { filesystem, quit: () => host.process.stop() };
 };

@@ -1,8 +1,8 @@
 import {
-  DESKTOP_ADAPTER_NAME,
+  TAURI_ADAPTER_NAME,
   DESKTOP_HOST_PROTOCOL_VERSION,
   type DesktopHostTransport
-} from '@aiao/rxdb-adapter-desktop';
+} from '@aiao/rxdb-adapter-tauri';
 import { StorageBackendError } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageOptions, DESKTOP_STORAGE_ROOT_DIR } from './setup_rxdb_desktop';
 
@@ -44,7 +44,7 @@ describe('createDesktopStorageOptions', () => {
     const { kinds, transport } = createRecordingTransport();
     const options = createDesktopStorageOptions(transport);
 
-    const filesystem = options.filesystem!(DESKTOP_STORAGE_ROOT_DIR, { localAdapterName: DESKTOP_ADAPTER_NAME });
+    const filesystem = options.filesystem!(DESKTOP_STORAGE_ROOT_DIR, { localAdapterName: TAURI_ADAPTER_NAME });
     await filesystem.ensureRoot();
 
     expect(kinds).toEqual(['file.open', 'file.mkdir']);

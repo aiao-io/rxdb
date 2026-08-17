@@ -1,4 +1,4 @@
-//! 请求派发与会话表，`packages/rxdb-adapter-desktop/src/desktop-sqlite-host.ts` 的 Rust 对照实现。
+//! 请求派发与会话表，`packages/rxdb-adapter-electron/src/electron-sqlite-host.ts` 的 Rust 对照实现。
 //!
 //! 这里是唯一接触文件系统的地方：入参先过 [`super::protocol::parse_request`] 的信任边界，
 //! 再落到 [`super::engine::Engine`]。

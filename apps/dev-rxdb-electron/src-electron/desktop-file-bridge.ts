@@ -2,7 +2,7 @@
  * @fileoverview US-504：主进程侧的桌面文件 host 接线。
  *
  * @remarks
- * 与 {@link module:desktop-sqlite-bridge} 分工一致：`@aiao/rxdb-adapter-desktop/host`
+ * 与 {@link module:desktop-sqlite-bridge} 分工一致：`@aiao/rxdb-adapter-electron/host`
  * 负责协议校验、原子提交与锁仲裁，本文件只补它刻意不管的两件事——文件根放在哪，
  * 以及某个窗口消失时该回收哪些会话。这两件事都只有宿主应用知道。
  *
@@ -12,7 +12,7 @@
  * @module desktop-file-bridge
  */
 
-import { createElectronFileHost, type DesktopHostFileResponse } from '@aiao/rxdb-adapter-desktop/host';
+import { createElectronFileHost, type DesktopHostFileResponse } from '@aiao/rxdb-adapter-electron/host';
 import { mkdirSync } from 'node:fs';
 import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';

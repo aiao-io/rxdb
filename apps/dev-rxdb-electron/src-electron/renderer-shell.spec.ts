@@ -196,8 +196,8 @@ describe('US-207 桌面 SQLite 在渲染进程一侧的接线', () => {
   // 写入落在内存、重启即失，而 US-207 的全部意义正是「别再只存在于 WebView 里」。
   it('renderer 只用包根入口，不碰 /host 子路径', () => {
     const source = read('src/app/services/desktop-database.service.ts');
-    expect(source).toContain("from '@aiao/rxdb-adapter-desktop'");
-    expect(source).not.toContain('@aiao/rxdb-adapter-desktop/host');
+    expect(source).toContain("from '@aiao/rxdb-adapter-electron'");
+    expect(source).not.toContain('@aiao/rxdb-adapter-electron/host');
   });
 
   // 与 ELEC-11 同一个坑的另一种形态：`providedIn: 'root'` 的服务同样是惰性的，
@@ -239,7 +239,7 @@ describe('US-504 本地文件存储在渲染进程一侧的接线', () => {
   it.each(['src/app/services/desktop-database.service.ts', 'src/app/pages/storage/storage.page.ts'])(
     '%s 不碰适配器的 /host 子路径',
     file => {
-      expect(read(file)).not.toContain('@aiao/rxdb-adapter-desktop/host');
+      expect(read(file)).not.toContain('@aiao/rxdb-adapter-electron/host');
     }
   );
 

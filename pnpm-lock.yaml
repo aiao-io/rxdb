@@ -525,9 +525,9 @@ importers:
 
   apps/dev-rxdb-electron:
     devDependencies:
-      '@aiao/rxdb-adapter-desktop':
+      '@aiao/rxdb-adapter-electron':
         specifier: workspace:*
-        version: link:../../packages/rxdb-adapter-desktop
+        version: link:../../packages/rxdb-adapter-electron
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../../packages/rxdb-test
@@ -970,7 +970,7 @@ importers:
         specifier: ^14.0.1
         version: 14.0.1
 
-  packages/rxdb-adapter-desktop:
+  packages/rxdb-adapter-electron:
     dependencies:
       '@aiao/rxdb':
         specifier: workspace:*
@@ -1156,6 +1156,19 @@ importers:
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
+
+  packages/rxdb-adapter-tauri:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../rxdb
+      '@aiao/rxdb-adapter-sqlite-core':
+        specifier: workspace:*
+        version: link:../rxdb-adapter-sqlite-core
+    devDependencies:
+      '@aiao/rxdb-test':
+        specifier: workspace:*
+        version: link:../rxdb-test
 
   packages/rxdb-adapter-wa-sqlite:
     dependencies:
@@ -1346,9 +1359,12 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
     devDependencies:
-      '@aiao/rxdb-adapter-desktop':
+      '@aiao/rxdb-adapter-electron':
         specifier: workspace:*
-        version: link:../rxdb-adapter-desktop
+        version: link:../rxdb-adapter-electron
+      '@aiao/rxdb-adapter-sqlite-core':
+        specifier: workspace:*
+        version: link:../rxdb-adapter-sqlite-core
       '@aiao/rxdb-adapter-wa-sqlite':
         specifier: workspace:*
         version: link:../rxdb-adapter-wa-sqlite

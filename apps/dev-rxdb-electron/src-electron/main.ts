@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, net, protocol } from 'electron';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 // ELEC-23：加载 esbuild 打出来的那份，不是 tsc 的逐文件产物 —— 后者留着一句
-// `require("@aiao/rxdb-adapter-desktop/host")`，而打包后的应用里没有 node_modules。
+// `require("@aiao/rxdb-adapter-electron/host")`，而打包后的应用里没有 node_modules。
 // 完整缘由与门禁见 desktop-sqlite-bridge.spec.ts。
 import {
   createDatabasePathResolver,

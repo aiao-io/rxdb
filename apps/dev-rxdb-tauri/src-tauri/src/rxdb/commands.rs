@@ -15,7 +15,7 @@ use super::session::HostOptions;
 
 /// 变更事件的事件名。
 ///
-/// 必须与 `@aiao/rxdb-adapter-desktop` 的 `TAURI_DESKTOP_CHANGE_EVENT` 逐字相同；
+/// 必须与 `@aiao/rxdb-adapter-tauri` 的 `TAURI_DESKTOP_CHANGE_EVENT` 逐字相同；
 /// 命令名同理，但它由 [`rxdb_desktop_request`] 的**函数名**决定
 /// （`generate_handler!` 取的是标识符），改名时两处一起改。
 pub const CHANGE_EVENT: &str = "rxdb-desktop-change";

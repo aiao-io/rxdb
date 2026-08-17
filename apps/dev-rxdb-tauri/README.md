@@ -109,7 +109,7 @@ demo 的完整路径：
 - `test_6` —— [setup_rxdb_desktop.ts](src/app/setup_rxdb_desktop.ts) 传给 `RxDB` 的 `dbName`
 - `@0_1` —— RxDB 给物理库名追加的 `RXDB_DB_NAME_SUFFIX`（`packages/rxdb/src/version.ts`，**已永久冻结**，
   它是用户数据的物理地址，改一个字符等于让既有数据凭空消失）
-- `.sqlite3` —— 桌面适配器的 `DEFAULT_DATABASE_SUFFIX`（`packages/rxdb-adapter-desktop`）
+- `.sqlite3` —— 桌面适配器的 `DEFAULT_DATABASE_SUFFIX`（`packages/rxdb-adapter-sqlite-core`）
 
 ### WAL 侧车文件
 
@@ -183,7 +183,7 @@ renderer 与宿主之间只有两个名字，跨语言且编译器帮不上忙�
 - **命令是 `async` + `spawn_blocking`**：Tauri 只把 async 命令派到独立任务上，同步命令跑主线程，
   两个会话争写锁时会死锁；而 `rusqlite` 是纯阻塞 API，直接 `async fn` 只会耗光异步运行时的 worker。
 - **transport 由应用注入**：Tauri 没有 preload 层，`invoke` / `listen` 是 renderer 直接 import 的模块，
-  所以在 [setup_rxdb_desktop.ts](src/app/setup_rxdb_desktop.ts) 里显式注入，`@aiao/rxdb-adapter-desktop` 本身保持运行时无关。
+  所以在 [setup_rxdb_desktop.ts](src/app/setup_rxdb_desktop.ts) 里显式注入，`@aiao/rxdb-adapter-tauri` 本身保持运行时无关。
 - **不需要任何 `fs` 插件权限**：库文件在应用作用域内，`capabilities/default.json` 只声明了 `core:default` 与四个窗口权限。
 - **连接失败不中止 bootstrap**：`connectRxDB` 把失败降级成应用内状态（[rxdb-initializer.ts](src/app/rxdb-initializer.ts)），
   否则窗口全白，而首页那块 `@case ('error')` 诊断面板恰恰会被失败本身挡在门外。

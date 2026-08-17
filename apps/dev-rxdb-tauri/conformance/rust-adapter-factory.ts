@@ -2,7 +2,7 @@
  * 共享适配器套件的 **Rust 宿主**工厂（US-210 AC#2/#3/#5/#7/#8）。
  *
  * @remarks
- * 结构与 `packages/rxdb-adapter-desktop/src/__tests__/desktop-adapter-factory.ts` 一致，
+ * 结构与 `packages/rxdb-adapter-electron/src/__tests__/electron-adapter-factory.ts` 一致，
  * 只把进程内的 `node:sqlite` host 换成 stdio 子进程里的 `rusqlite` 引擎。断言一个字都不改——
  * 「Tauri 路径的行为与 Electron / 浏览器路径一致」这句话因此有机械保证，而不是靠人肉比对。
  *
@@ -13,11 +13,11 @@
 
 import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
 import {
-  DESKTOP_ADAPTER_NAME,
+  TAURI_ADAPTER_NAME,
   DesktopSqliteClient,
-  RxDBAdapterDesktop,
+  RxDBAdapterTauri,
   type DesktopHostTransport
-} from '@aiao/rxdb-adapter-desktop';
+} from '@aiao/rxdb-adapter-tauri';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import type { EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -93,10 +93,10 @@ const uniqueDbName = (): string => `tauri-test-${Date.now()}-${Math.random().toS
  * **适配器**层而不是宿主层：宿主还会看到系统 schema 初始化这些
  * 与被测行为无关的往返。
  */
-class QueryCountingRustAdapter extends RxDBAdapterDesktop {
+class QueryCountingRustAdapter extends RxDBAdapterTauri {
   queryCount = 0;
 
-  override query(...args: Parameters<RxDBAdapterDesktop['query']>): ReturnType<RxDBAdapterDesktop['query']> {
+  override query(...args: Parameters<RxDBAdapterTauri['query']>): ReturnType<RxDBAdapterTauri['query']> {
     this.queryCount++;
     return super.query(...args);
   }
@@ -111,7 +111,7 @@ async function createRustAdapter(options?: Record<string, unknown>): Promise<Que
     context: { userId: 'userId' },
     entities,
     sync: {
-      local: { adapter: DESKTOP_ADAPTER_NAME },
+      local: { adapter: TAURI_ADAPTER_NAME },
       type: SyncType.None
     }
   });
@@ -119,20 +119,20 @@ async function createRustAdapter(options?: Record<string, unknown>): Promise<Que
   let adapter: QueryCountingRustAdapter | undefined;
   // 重连的套件会再次调用本工厂函数：`dbName` 不变 ⇒ 落到同一个物理文件，
   // 桌面适配器没有「非持久化」档位，`persistent` 选项因此不需要分支。
-  rxdb.adapter(DESKTOP_ADAPTER_NAME, async db => {
-    adapter = new QueryCountingRustAdapter(db, { transport: ensureHost().transport, runtime: 'tauri' });
+  rxdb.adapter(TAURI_ADAPTER_NAME, async db => {
+    adapter = new QueryCountingRustAdapter(db, { transport: ensureHost().transport });
     return adapter;
   });
 
-  await rxdb.getAdapter(DESKTOP_ADAPTER_NAME);
-  await rxdb.connect(DESKTOP_ADAPTER_NAME);
+  await rxdb.getAdapter(TAURI_ADAPTER_NAME);
+  await rxdb.connect(TAURI_ADAPTER_NAME);
   if (!adapter) throw new Error('rust adapter factory did not create an adapter');
   return adapter;
 }
 
 /** 驱动 `@aiao/rxdb-adapter-sqlite-core/testing` 共享套件的 Rust 宿主适配器工厂。 */
 export const rustAdapterFactory: AdapterFactory = {
-  name: DESKTOP_ADAPTER_NAME,
+  name: TAURI_ADAPTER_NAME,
 
   async createAdapter<T = unknown>(options?: Record<string, unknown>): Promise<T> {
     return (await createRustAdapter(options)) as T;
@@ -142,14 +142,14 @@ export const rustAdapterFactory: AdapterFactory = {
     return (await DesktopSqliteClient.connect(
       ensureHost().transport,
       { engine: 'sqlite', databaseName: `${dbName}.sqlite3` },
-      { batchTimeout: (options as { batchTimeout?: number } | undefined)?.batchTimeout, runtime: 'tauri' }
+      { batchTimeout: (options as { batchTimeout?: number } | undefined)?.batchTimeout }
     )) as T;
   }
 };
 
 /** 驱动 `@aiao/rxdb-test/encrypted` 五套加密契约套件的 Rust 宿主适配器工厂。 */
 export const rustEncryptedAdapterFactory: EncryptedAdapterFactory = {
-  name: DESKTOP_ADAPTER_NAME,
+  name: TAURI_ADAPTER_NAME,
   getQueryCount: adapter => encryptedQueryCounts.get(adapter)?.() ?? 0,
   createAdapter: async options => {
     const adapter = await createRustAdapter(options);
@@ -174,7 +174,7 @@ export const rustEncryptedAdapterFactory: EncryptedAdapterFactory = {
  * @returns 主库文件与 `-wal`（若存在）拼接后的字节
  */
 export async function readRustDatabaseFile(adapter: unknown): Promise<Uint8Array> {
-  const { databaseName } = adapter as RxDBAdapterDesktop;
+  const { databaseName } = adapter as RxDBAdapterTauri;
   const filePath = rustDatabasePath(ensureHost().workspace, databaseName);
   const chunks = [filePath, `${filePath}-wal`].filter(existsSync).map(path => readFileSync(path));
   return new Uint8Array(Buffer.concat(chunks));

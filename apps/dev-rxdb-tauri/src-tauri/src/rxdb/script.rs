@@ -2,7 +2,7 @@
 //!
 //! 两者都是从 JS 侧**逐字移植**过来的，不是重新设计：
 //!
-//! - 切分 → `packages/rxdb-adapter-desktop/src/sqlite-script.ts`（它本身又是 SQLite
+//! - 切分 → `packages/rxdb-adapter-electron/src/sqlite-script.ts`（它本身又是 SQLite
 //!   `complete.c` 的移植，即 `sqlite3_complete()` 的状态机）
 //! - 只读判定 → `packages/rxdb-adapter-sqlite-core/src/execute-sql.utils.ts`
 //!

@@ -1,5 +1,5 @@
 import type { RxDB } from '@aiao/rxdb';
-import { DESKTOP_ADAPTER_NAME } from '@aiao/rxdb-adapter-desktop';
+import { TAURI_ADAPTER_NAME } from '@aiao/rxdb-adapter-tauri';
 import { isTauriRuntime } from './services/tauri-environment';
 import setup_rxdb_desktop from './setup_rxdb_desktop';
 import setup_rxdb_wa_sqlite from './setup_rxdb_wa-sqlite';
@@ -31,5 +31,5 @@ export interface LocalBackend {
  */
 export const selectLocalBackend = (runtime: unknown): LocalBackend =>
   isTauriRuntime(runtime) ?
-    { adapter: DESKTOP_ADAPTER_NAME, create: setup_rxdb_desktop }
+    { adapter: TAURI_ADAPTER_NAME, create: setup_rxdb_desktop }
   : { adapter: WA_SQLITE_ADAPTER_NAME, create: setup_rxdb_wa_sqlite };

@@ -2,7 +2,7 @@
  * @fileoverview US-207：主进程侧的桌面 SQLite host 接线。
  *
  * @remarks
- * `@aiao/rxdb-adapter-desktop/host` 负责协议校验与 `node:sqlite` 连接，本文件只补它
+ * `@aiao/rxdb-adapter-electron/host` 负责协议校验与 `node:sqlite` 连接，本文件只补它
  * 刻意不管的那两件事——库文件放在哪，以及变更事件该送给哪个窗口。这两件事都只有宿主应用知道。
  *
  * 本文件不 import `electron`：窗口在这里被收窄成 {@link DesktopChangeEventTarget}，
@@ -17,7 +17,7 @@ import {
   createElectronSqliteHost,
   type DesktopHostChangeEventMessage,
   type DesktopHostResponse
-} from '@aiao/rxdb-adapter-desktop/host';
+} from '@aiao/rxdb-adapter-electron/host';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { denyForeignSession } from './desktop-session-ownership.js';

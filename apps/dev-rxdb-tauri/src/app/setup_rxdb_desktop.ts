@@ -1,10 +1,10 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import {
   createTauriHostTransport,
-  DESKTOP_ADAPTER_NAME,
+  TAURI_ADAPTER_NAME,
   type DesktopHostTransport,
-  RxDBAdapterDesktop
-} from '@aiao/rxdb-adapter-desktop';
+  RxDBAdapterTauri
+} from '@aiao/rxdb-adapter-tauri';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginStorage, type RxDBStoragePluginOptions } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
@@ -72,7 +72,7 @@ export default () => {
     entities: [Todo, MenuLarge, MenuSimple, FileNode, FileLarge, DesktopLaunch],
     sync: {
       local: {
-        adapter: DESKTOP_ADAPTER_NAME
+        adapter: TAURI_ADAPTER_NAME
       },
       type: SyncType.None
     }
@@ -98,7 +98,7 @@ export default () => {
   rxdb
     .use(rxDBPluginGraph)
     .use(rxDBPluginStorage, createDesktopStorageOptions(transport))
-    .adapter(DESKTOP_ADAPTER_NAME, async db => new RxDBAdapterDesktop(db, { transport, runtime: 'tauri' }));
+    .adapter(TAURI_ADAPTER_NAME, async db => new RxDBAdapterTauri(db, { transport }));
 
   rxdb.init();
   return rxdb;

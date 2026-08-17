@@ -21,7 +21,7 @@ import {
   DesktopSqliteClient,
   RxDBAdapterDesktopError,
   type DesktopHostTransport
-} from '@aiao/rxdb-adapter-desktop';
+} from '@aiao/rxdb-adapter-tauri';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -157,8 +157,7 @@ describe('两端协议版本不一致', () => {
     const recorded = recording(host.transport);
     const error = await DesktopSqliteClient.connect(
       recorded.transport,
-      { engine: 'sqlite', databaseName: DATABASE_NAME },
-      { runtime: 'tauri' }
+      { engine: 'sqlite', databaseName: DATABASE_NAME }
     ).then(
       client => {
         void client.disconnect();

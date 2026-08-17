@@ -1,4 +1,4 @@
-//! `file.*` 线协议，`packages/rxdb-adapter-desktop/src/desktop-host-protocol.ts` 的镜像。
+//! `file.*` 线协议，`packages/rxdb-adapter-sqlite-core/src/desktop/desktop-host-protocol.ts` 的镜像。
 //!
 //! 与 SQL 协议 [`crate::rxdb::protocol`] **刻意分成两个解析器**而不是合并成一个大枚举：
 //! TS 侧的注释已经写明理由——SQLite host 的 dispatch 把「不是 open/close/version 的」

@@ -2,7 +2,7 @@
  * ELEC-23：桌面 host bundle 的**唯一定义**。
  *
  * 主进程是逐文件 tsc 产物，而 electron-builder 的 `files` 白名单排除 node_modules ——
- * `@aiao/rxdb-adapter-desktop/host` 及其依赖只有被打进 `.bundle.js` 才跟得进产物。
+ * `@aiao/rxdb-adapter-electron/host` 及其依赖只有被打进 `.bundle.js` 才跟得进产物。
  *
  * 这段配置此前以命令行形式在 project.json 里出现三次（electron-build /
  * electron-package-dir / watch-main）。三份逐字副本里漏改一处的后果不对称：
