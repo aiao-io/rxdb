@@ -1,6 +1,7 @@
 /// <reference types='vitest' />
 import { codecovVitePlugin } from '@codecov/vite-plugin';
 import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
@@ -23,6 +24,14 @@ export default defineConfig(({ command }) => ({
               stdio: 'inherit',
               cwd: import.meta.dirname
             });
+            // emptyOutDir 会清掉 buildStart 产物，生成必须放 closeBundle。
+            // CLI 若因入口判定失败而静默 exit 0，这里必须把构建打红。
+            for (const entry of ['entities', 'shop']) {
+              const generated = path.join(import.meta.dirname, 'dist', entry, 'index.js');
+              if (!existsSync(generated)) {
+                throw new Error(`rxdb-client-generator 未写出 ${generated}`);
+              }
+            }
           }
         },
         ...(process.env.CI === 'true' && process.env.CODECOV_TOKEN ?

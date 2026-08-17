@@ -97,6 +97,30 @@ export async function main(): Promise<void> {
 }
 
 /**
+ * 比较两条 file URL 是否指向同一 CLI 入口。
+ *
+ * Node ESM 在 Windows 上会把 `import.meta.url` 的盘符写成小写（`file:///d:/...`），
+ * `pathToFileURL(realpathSync(argv[1]))` 则保留 argv 的大写盘符（`file:///D:/...`）。
+ * `file://localhost/...` 与 `file:///...` 也是同一路径的两种写法。
+ * 字符串全等会让 `node dist/cli.js` 以 0 退出、不生成任何文件。
+ */
+export const sameCliFileUrl = (left: string, right: string): boolean => {
+  try {
+    return comparableCliPath(left) === comparableCliPath(right);
+  } catch {
+    return left === right;
+  }
+};
+
+/** 去掉 `file://localhost`，解码后把 Windows 盘符统一成小写。 */
+const comparableCliPath = (fileUrl: string): string => {
+  const url = new URL(fileUrl);
+  if (url.protocol !== 'file:') return fileUrl;
+  url.host = '';
+  return decodeURIComponent(url.pathname).replace(/^\/[A-Za-z]:/u, drive => drive.toLowerCase());
+};
+
+/**
  * 判断本模块是否作为 CLI 入口被直接执行。
  *
  * @remarks
@@ -108,7 +132,7 @@ export const isCliEntry = (importMetaUrl: string, argvEntry: string | undefined)
   if (argvEntry === undefined) return false;
   const entryPath = resolve(argvEntry);
   if (!existsSync(entryPath)) return false;
-  return importMetaUrl === pathToFileURL(realpathSync(entryPath)).href;
+  return sameCliFileUrl(importMetaUrl, pathToFileURL(realpathSync(entryPath)).href);
 };
 
 if (isCliEntry(import.meta.url, process.argv[1])) {

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { isCliEntry, loadConfig, main } from '../cli/cli.js';
+import { isCliEntry, loadConfig, main, sameCliFileUrl } from '../cli/cli.js';
 
 describe('rxdb-client-generator cli', () => {
   const tempDirs: string[] = [];
@@ -189,6 +189,19 @@ describe('rxdb-client-generator cli', () => {
     expect(isCliEntry(realUrl, undefined)).toBe(false);
     expect(isCliEntry(realUrl, path.join(tempDir, 'missing.js'))).toBe(false);
     expect(isCliEntry(pathToFileURL(path.join(tempDir, 'other.js')).href, linkPath)).toBe(false);
+  });
+
+  // Node ESM 在 Windows 上会把 import.meta.url 的盘符小写成 file:///d:/...，
+  // pathToFileURL(realpathSync(argv[1])) 则保留 argv 的大写盘符 file:///D:/...。
+  // 字符串全等会让 CLI 以 0 退出、不生成任何文件（windows-latest smoke 即此）。
+  it('recognizes the CLI entry when import.meta.url only differs by drive-letter case', () => {
+    const lower = 'file:///d:/a/rxdb/rxdb/packages/rxdb-client-generator/dist/cli.js';
+    const upper = 'file:///D:/a/rxdb/rxdb/packages/rxdb-client-generator/dist/cli.js';
+    const other = 'file:///D:/a/rxdb/rxdb/packages/rxdb-client-generator/dist/other.js';
+
+    expect(sameCliFileUrl(lower, upper)).toBe(true);
+    expect(sameCliFileUrl(upper, lower)).toBe(true);
+    expect(sameCliFileUrl(lower, other)).toBe(false);
   });
 
   // Windows CI 上 `node D:\...\dist\cli.js` 的 import.meta.url 与
