@@ -93,7 +93,7 @@ INVEST 检查清单:
 | 5   | 同一 SQLite 文件已被另一个窗口打开并持有写锁              | 第二个窗口发起写事务                                     | 在异步层等待持锁方提交后继续；重试预算耗尽报可判别的 `database_busy`，事务中途撞锁不静默重发，也不切换到另一份数据库 | ✅   |
 | 6   | SQLite 文件存在应用未知的普通业务表                       | Aiao 首次连接并初始化系统 schema                         | 保留未知表和数据；只创建或迁移 Aiao 自有系统对象，失败时事务回滚                                                     | ✅   |
 | 7   | 存在未提交事务或在途查询                                  | 调用 `disconnect()` 或关闭窗口                           | 停止接受新任务，等待或回滚在途工作，刷新持久化数据并关闭句柄；随后可重命名该 SQLite 文件                             | ✅   |
-| 8   | 构建打包后的 Electron 应用                                | 在 macOS、Windows、Linux CI 中运行桌面持久化 smoke test  | 三平台均通过；测试使用真实临时文件而非 mock 或浏览器存储                                                             | ⬜   |
+| 8   | 构建打包后的 Electron 应用                                | 在 macOS、Windows、Linux CI 中运行桌面持久化 smoke test  | 三平台均通过；测试使用真实临时文件而非 mock 或浏览器存储                                                             | ✅   |
 | 9   | host 与 renderer 编译自不同协议版本                       | 发起连接                                                 | 连接失败并报可判别的错误码；不建库、不按旧协议降级解释载荷                                                           | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
@@ -113,6 +113,7 @@ worker 选项组合，桌面客户端不接受任何 worker 选项）。AC#1 / #
 | 2   | `encrypted-{crud,tamper,bigint-binary,change-log,lifecycle}.spec.ts` —— `@aiao/rxdb-test/encrypted` 的五套共享套件跑在桌面工厂上                                                                                                                                           |
 | 6   | `desktop-sqlite-host.spec.ts` 「preserves unknown business tables that already live in the file」                                                                                                                                                                          |
 | 7   | `node-sqlite-engine.spec.ts` 「flushes the pending batch synchronously on close」/「persists committed data across a reopen」/「releases the file handle so the database can be renamed」                                                                                  |
+| 8   | `.github/workflows/release-desktop.yml` 的 `electron-smoke`：ubuntu / macOS / windows 三平台矩阵（`fail-fast: false`）跑 `dev-rxdb-electron-e2e:e2e`，该 target 经 `dependsOn` 先出 `electron-package-dir` 产物；数据目录是 `mkdtemp` 出来的真实临时目录                     |
 | 9   | `desktop-host-protocol.ts` 的 `parseDesktopHostOpenResult` 在 `open` 应答上比对 `DESKTOP_HOST_PROTOCOL_VERSION`，不等即抛 `protocol_violation`；`desktop-sqlite-client.spec.ts` 「refuses a host that speaks a different protocol version」注入 `protocolVersion: 99` 撞它 |
 
 AC#1 的断言形态是**跨进程**的累计启动次数（1 → 2），不是「写一条读一条」——
@@ -201,17 +202,26 @@ Electron 完全同构（多个 renderer，同一个主进程 host，一库一连
 3. host 入口真能开库、建表、写入、读回、关闭，应答一律经 renderer 入口导出的
    `assertDesktopHostResponse` 解包 —— 于是这条往返同时证明两个入口的协议是配套的。
 
-> **今天没有自动门禁。** 曾由 `scripts/audit/desktop-adapter-consumer.mjs`（254 行）+ `consumer`
-> target 在真 tarball 上守这三条，随发布流程改为手工执行一并删除（删除提交 `0d7f88e`）。
-> 改包的 `exports` / 入口切分 / host 协议后，目前需要手工 `pnpm pack` 装进临时项目自行确认。
+> **自动门禁已于 2026-08-17 恢复。** 这三条曾由 `scripts/audit/desktop-adapter-consumer.mjs`（254 行）
+> 与 `consumer` target 在真 tarball 上守着，随发布流程改为手工执行一并删除（删除提交 `0d7f88e`）；
+> 中间这段时间只能手工 `pnpm pack` 装进临时项目自行确认，实际上等于没人确认。
 
-**恢复计划（阶段 2）：恢复，但只在发布时跑。** 脚本还在 git 历史里，
-`git show 0d7f88e^:scripts/audit/desktop-adapter-consumer.mjs` 就能取回——恢复成本是
-「取回 + 按新包名改路径 + 挂一个 target」，不是重写，因此落在「能自动就自动」这一侧。
+**已恢复（阶段 2）：脚本原样取回，只在发布时跑。** `git show 0d7f88e^:scripts/audit/desktop-adapter-consumer.mjs`
+取回后逐条核对——它引用的全部导出名今天都还在，`packageDirectories`（utils / rxdb /
+rxdb-adapter-encrypted / rxdb-adapter-sqlite-core / rxdb-adapter-desktop）也仍与今天的依赖闭包一致，
+所以是「取回 + 核对 + 挂调用」，一行没重写。现由
+[`.github/workflows/release-desktop.yml`](../../../.github/workflows/release-desktop.yml) 的
+`adapter-consumer` job 执行。
 
 它**不进 PR 门禁**：要 `pnpm pack` 再装进临时项目，耗时与 PR 上每次都跑的收益不成比例，
 而这三条性质只在包的 `exports`／入口切分／host 协议变动时才可能退化——那是发布时必然经过的路口。
 挂在「三平台打包 CI」那条 release workflow 上，与 AC#8 共用一次触发。
+
+`adapter-consumer` 是那条 workflow 里唯一**不上矩阵**的 job：`pnpm pack` → 临时消费者 →
+双模式 typecheck → host 真开库往返，没有一步与 OS 有关，×3 只是把同一件事做三遍。
+
+脚本用 `process.cwd()` 当 workspace 根——**必须从仓库根目录调用**。这不是疏忽，是它当初就有的
+形状；workflow 里的 `run:` 默认就在仓库根，本地手跑时注意别先 `cd` 进包目录。
 
 阶段 3 拆包后这三条要在**两个**包上各跑一遍（E7），脚本届时参数化包名，不复制第二份。
 
@@ -238,9 +248,15 @@ run log 里的 `Published to https://registry.npmjs.org/` 才是权威，`npm vi
 > **跨 realm writer lease 与迁移 epoch fencing 已于 2026-08-16 取消**（连同其代码与 US-304 一并删除），
 > 本故事不再承诺「第二个 writer 在连接时被拒」这类跨 realm 排他语义。
 >
-> AC#8 需要三平台打包 CI 矩阵。本地只跑过 macOS（`mac-arm64`）。方案见下节。
+> ~~AC#8 需要三平台打包 CI 矩阵。本地只跑过 macOS（`mac-arm64`）。~~
+> 2026-08-17 关闭：矩阵已随 `release-desktop.yml` 落地，见下节。本地仍只跑得动 macOS，
+> 另两个平台的首轮结果要等 workflow 真跑一次——这是**下节承诺的路子**，不是遗留缺口。
 
 ### 三平台打包 CI（阶段 2）
+
+> **已落地（2026-08-17）：[`.github/workflows/release-desktop.yml`](../../../.github/workflows/release-desktop.yml)。**
+> 下面这段保留的是决策过程——「为什么不进 PR 门禁」「为什么三件事共用一次触发」会在
+> 有人嫌发布反馈太晚时被重新翻出来。
 
 **AC#8 从未被技术前提挡住，只是没人加 runner。** 现有 e2e 用 Playwright 的
 `_electron.launch()` 驱动打包产物（`apps/dev-rxdb-electron-e2e/src/*.spec.ts`），走的是 **CDP**，
@@ -271,6 +287,30 @@ run log 里的 `Published to https://registry.npmjs.org/` 才是权威，`npm vi
 三平台打包的回归**发现得晚**——引入它的 PR 已经合进 main，红在发布那一刻。
 这是拿「PR 反馈速度」换来的，接受它就要接受发布前偶尔需要回退一个已合入的改动。
 
+#### 落地时定形的几件事
+
+**一次触发，但三个 job，不合并。** 上表的三件事共用一次 `release[published]`，job 却是分开的：
+Tauri 要 Rust 工具链 + WebKitGTK 开发库，Electron 要下 ~100MB 发行包，两套工具链不重叠。
+合成一个 job，每台 runner 都得付两份安装税，而且墙钟从 `max` 变成 `sum`。
+
+**Tauri 侧走 `tauri build --ci --no-bundle`。** 前端产物照样编进二进制，但省掉 macOS 签名、
+Windows 安装器，以及 Linux AppImage 构建期下载 `linuxdeploy` + 需要 FUSE 这个 Tauri CI 最经典的
+flaky 源。**代价**：这条路**不验证安装包本身**（Info.plist / MSI / NSIS / AppImage）。
+[US-210](./US-210-tauri-sqlite-local-database.md) AC#9 的文本要的是「启动产物、写入、退出、
+再次启动」，release 二进制满足；但「打包 CI 是绿的」不等于「安装包是好的」，别读串。
+
+**不缓存 `src-tauri/target/`。** 照抄 `ci-template.yml` 的 key 会与 PR 门禁的 rust job 撞 key
+但 profile 不同（debug vs release），白读几百 MB 又不会 save；换独立 key 则 3 OS × ~1GB 会啃掉
+10GB 配额，而 ci-template 的注释里已经记过一次「9.43 GiB / LRU 开始驱逐 playwright 与 pnpm store」
+的事故。**发布是稀有事件，PR 门禁每天几十次**，不该让前者挤后者。冷编译由 `timeout-minutes: 60` 兜住。
+
+**`gate` job 把 `skipped` 也算失败**，与 `ci-template.yml` 的 gate 不同。那边有条件 job，
+skipped 是正常状态；这条 workflow 里三个 job 全都无条件跑，skipped 只可能意味着接线坏了。
+
+**新增 `.github/actions/xvfb/action.yml`**（Electron 与 Tauri 在 Linux 上都要显示后端），
+内容是 `ci-template.yml` 那段常驻 Xvfb 的原样抽出。**本轮没有回头去改 ci-template 换用它**：
+那是一处纯重构，牵进 PR 门禁的关键路径不值当，留作后续单独的 PR。
+
 ## 交付阶段
 
 本故事的体量已超出 INVEST「Small」：9 条 AC 之外，文末两节各挂着一整套任务。
@@ -280,7 +320,7 @@ run log 里的 `Published to https://registry.npmjs.org/` 才是权威，`npm vi
 | 阶段 | 内容                                   | 完成判据                                                                                                                      | 状态      |
 | ---- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------- |
 | 1    | 核心能力：AC#1～#7、AC#9               | 8 条 AC 全绿，共享套件 0 skipped                                                                                              | ✅ 已交付 |
-| 2    | 打包与发布门禁：AC#8 +「三条发布性质」 | release 触发的三平台 workflow 绿（见「三平台打包 CI」）                                                                       | ⬜ 未开始 |
+| 2    | 打包与发布门禁：AC#8 +「三条发布性质」 | release 触发的三平台 workflow 绿（见「三平台打包 CI」）。workflow 与审计脚本已落地，本机 macOS 全绿，三平台待首轮触发确认   | ✅ 已交付 |
 | 3    | 包边界重整：E1～E7                     | 见各任务判据；与 [US-210 T1～T7](./US-210-tauri-sqlite-local-database.md#tauri-包化) 同批做，两侧共用一次 `ADAPTER_NAME` 改名 | ⬜ 未开始 |
 | 4    | Web 回落：E8～E11                      | 见各任务判据；「选择器是否公开 API」在本阶段 plan 时定                                                                        | ⬜ 未开始 |
 
@@ -450,10 +490,16 @@ E8 的「纯函数 + 应用注入候选」在两种形态下都成立，可以�
 - `packages/rxdb-adapter-desktop/` — 桌面配置、renderer client 与 host protocol（US-208 与 US-210 复用同一层）
 - `apps/dev-rxdb-electron/src-electron/` — SQLite 主进程 host、路径解析与 IPC 校验
 - `apps/dev-rxdb-electron/src/app/` — Electron renderer 接入示例与连接状态
-- `apps/dev-rxdb-electron-e2e/` — 打包 Electron 应用的真实文件持久化测试；AC#8 的三平台矩阵在此扩展，
-  spec 本身不用改（`_electron.launch()` 与平台无关），改的是触发它的 workflow
-- `.github/workflows/` — **阶段 2 新增**一条 release 触发的三平台 workflow，见「三平台打包 CI」；
-  现有 `main.yml` / `pr.yml` 全是 `ubuntu-latest`，不改
+- `apps/dev-rxdb-electron-e2e/` — 打包 Electron 应用的真实文件持久化测试；AC#8 的三平台矩阵靠
+  workflow 兑现，spec 一行没改（`_electron.launch()` 与平台无关）。这批 spec **不需要装
+  Playwright 浏览器**：`nxE2EPreset` 没给 `projects`，每条用例都走 `_electron.launch()`，
+  `Page` 只作类型导入——所以 workflow 里没有 `playwright-chromium` 那一步，×3 平台各省一次下载
+- `apps/dev-rxdb-electron/tools/copy-app-manifest.mjs` — 两个打包 target 里的 `cp package.json`
+  换成它。nx `run-commands` 在 Windows 上走 `cmd.exe`，**`cp` 根本不存在**；这条命令此前从没在
+  Windows 上跑过（`ci-windows.yml` 不跑这两个 target），AC#8 的矩阵是第一次
+- `.github/workflows/release-desktop.yml` — **阶段 2 新增**，release 触发的三平台 workflow，
+  见「三平台打包 CI」；现有 `main.yml` / `pr.yml` 全是 `ubuntu-latest`，一字未改
+- `.github/actions/xvfb/action.yml` — **阶段 2 新增**，Linux 上的常驻 Xvfb（Electron 与 Tauri 都要）
 - `scripts/audit/desktop-adapter-consumer.mjs` — **阶段 2 从 `0d7f88e^` 取回**，只在上述 workflow 里跑
 - `requirements/api-baseline/` — 新增公开桌面 adapter API 基线
 - `packages/rxdb-adapter-desktop/src/__tests__/encrypted-*.spec.ts` — AC#2 的五套 `@aiao/rxdb-test/encrypted` 共享套件接线
