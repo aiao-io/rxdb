@@ -41,9 +41,7 @@ const available = reason => ({ available: true, reason, nxNoCloud: false });
  */
 export function readNxCloudId(nxJsonText) {
   const parsed = JSON.parse(nxJsonText);
-  return typeof parsed.nxCloudId === 'string' && parsed.nxCloudId.trim() !== ''
-    ? parsed.nxCloudId.trim()
-    : undefined;
+  return typeof parsed.nxCloudId === 'string' && parsed.nxCloudId.trim() !== '' ? parsed.nxCloudId.trim() : undefined;
 }
 
 /**

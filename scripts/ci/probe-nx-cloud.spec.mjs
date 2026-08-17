@@ -4,13 +4,13 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
-    DEFAULT_API_URL,
-    PING_PATH,
-    classifyPing,
-    printProbe,
-    probeNxCloud,
-    readNxCloudId,
-    runCli
+  DEFAULT_API_URL,
+  PING_PATH,
+  classifyPing,
+  printProbe,
+  probeNxCloud,
+  readNxCloudId,
+  runCli
 } from './probe-nx-cloud.mjs';
 
 const cliPath = fileURLToPath(new URL('./probe-nx-cloud.mjs', import.meta.url));
