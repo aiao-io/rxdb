@@ -83,8 +83,8 @@ describe('RxDBClientGenerator', () => {
 
     const indexTsFile = files.find(f => f.getFilePath() === 'index.d.ts');
     expect(indexTsFile?.getText()).toMatchInlineSnapshot(`
-      "import { CountOptions, DateRules, ENTITY_STATIC_TYPES, EntityBase, EntityType, FindAllOptions, FindByCursorOptions, FindOneOptions, FindOneOrFailOptions, FindOptions, FindTreeOptions, IEntity, ITreeEntity, RelationDateRules, RelationEntitiesObservable, RelationEntityObservable, RelationExistsRules, RelationStringRules, RelationUUIDRules, RuleGroupBase, StringRules, TreeAdjacencyListEntityBase, UUID, UUIDRules } from '@aiao/rxdb';
-      import { Observable } from 'rxjs';
+      "import type { CountOptions, DateRules, ENTITY_STATIC_TYPES, EntityBase, EntityType, FindAllOptions, FindByCursorOptions, FindOneOptions, FindOneOrFailOptions, FindOptions, FindTreeOptions, IEntity, ITreeEntity, RelationDateRules, RelationEntitiesObservable, RelationEntityObservable, RelationExistsRules, RelationStringRules, RelationUUIDRules, RuleGroupBase, StringRules, TreeAdjacencyListEntityBase, UUID, UUIDRules } from '@aiao/rxdb';
+      import type { Observable } from 'rxjs';
 
       /**
        * rule

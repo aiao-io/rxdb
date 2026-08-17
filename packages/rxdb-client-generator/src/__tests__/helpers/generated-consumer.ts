@@ -4,7 +4,7 @@ import path from 'node:path';
 import type { SourceFile } from '../../core/ts-morph-browser.js';
 import { runTypeScriptCompiler } from './typescript-compiler.js';
 
-const RXDB_IMPORT_PATTERN = /import \{ ([^}]+) \} from '@aiao\/rxdb';/g;
+const RXDB_IMPORT_PATTERN = /import(?:\s+type)? \{ ([^}]+) \} from '@aiao\/rxdb';/g;
 
 const collectRxDBImports = (sourceFiles: readonly SourceFile[]): string[] => {
   const imports = new Set<string>();

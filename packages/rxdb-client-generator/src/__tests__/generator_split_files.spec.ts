@@ -1,8 +1,8 @@
 import {
-  PropertyType,
-  RelationKind,
-  transitionMetadata as createEntityMetadata,
-  type EntityMetadata
+    PropertyType,
+    RelationKind,
+    transitionMetadata as createEntityMetadata,
+    type EntityMetadata
 } from '@aiao/rxdb';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
@@ -421,11 +421,46 @@ describe('generator_split_files — generated consumer declarations', () => {
     generator.exec();
 
     const authorDeclaration = generator.getSourceFiles().find(file => file.getFilePath() === 'Author.d.ts')!;
-    expect(authorDeclaration.getText()).toContain("import { Post, PostRuleGroup } from './Post.js';");
+    expect(authorDeclaration.getText()).toContain("import type { Post, PostRuleGroup } from './Post.js';");
     await expect(
       compileGeneratedConsumer(
         generator.getSourceFiles(),
         "import { Author } from './generated/index.js';\ndeclare const author: Author;\nauthor.posts$;"
+      )
+    ).resolves.toEqual([]);
+  });
+
+  it('split-file barrel re-exports the class and StaticTypes without local import shadowing', async () => {
+    const generator = new RxDBClientGenerator({ splitFiles: true });
+    generator.addEntity({
+      name: 'Widget',
+      namespace: 'public',
+      displayName: 'Widget',
+      repository: 'Repository',
+      extends: ['EntityBase'],
+      properties: [],
+      computedProperties: [],
+      relations: [],
+      indexes: []
+    });
+
+    generator.exec();
+
+    const indexDeclaration = generator.getSourceFiles().find(file => file.getFilePath() === 'index.d.ts')!;
+    const content = indexDeclaration.getText();
+    expect(content).not.toMatch(/import \{ Widget \} from '\.\/Widget\.js'/);
+    expect(content).toContain("typeof import('./Widget.js').Widget");
+    expect(content).toContain("export * from './Widget.js'");
+
+    await expect(
+      compileGeneratedConsumer(
+        generator.getSourceFiles(),
+        [
+          "import { Widget, type WidgetStaticTypes } from './generated/index.js';",
+          "const options: WidgetStaticTypes['findOptions'] = {};",
+          'void Widget;',
+          'void options;'
+        ].join('\n')
       )
     ).resolves.toEqual([]);
   });

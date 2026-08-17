@@ -154,7 +154,7 @@ describe('RxDBClientGenerator - KeyValue Type Generation', () => {
       .find(file => file.getFilePath() === 'User.d.ts')!
       .getText();
     expect(userDts).toContain("RelationKeyValueRules<'posts.meta', Partial<PostMetaKeyValue>>");
-    expect(userDts).toMatch(/import \{[^}]*\bPostMetaKeyValue\b[^}]*\} from '\.\/Post\.js';/);
+    expect(userDts).toMatch(/import type \{[^}]*\bPostMetaKeyValue\b[^}]*\} from '\.\/Post\.js';/);
     await expect(
       compileGeneratedConsumer(generator.getSourceFiles(), "import './generated/index.js';")
     ).resolves.toEqual([]);
