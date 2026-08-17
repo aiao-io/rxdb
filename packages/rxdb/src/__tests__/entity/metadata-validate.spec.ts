@@ -279,6 +279,41 @@ describe('validateEntityMetadata — AC#8/AC#9 enum 与 options', () => {
     ).toEqual(['invalidOptionsConfig']);
   });
 
+  // 以下三例守的是「载体」这道闸：类型层只有 EnumProperty 与 StringArrayProperty 声明 enum / options，
+  // 绕过 TypeScript 后一个 number 属性带上 enum 会一路进到描述器，validateFieldValue() 还会拿数字去比枚举成员。
+  // 断言必须落到 message：invalidEnumConfig 同时由「enum 必须是字符串数组」产出，只看 rule 证明不了是闸在拦。
+  it.each([[PropertyType.string], [PropertyType.integer], [PropertyType.boolean], [PropertyType.json]])(
+    '%s 属性带 enum → invalidEnumConfig 且指明合法载体',
+    type => {
+      const errors = validateEntityMetadata(withProperty({ name: 'field', type, enum: ['a'] }));
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({ field: 'field', rule: 'invalidEnumConfig' });
+      expect(errors[0].message).toContain('只能声明在');
+    }
+  );
+
+  it.each([[PropertyType.string], [PropertyType.integer], [PropertyType.boolean], [PropertyType.json]])(
+    '%s 属性带 options → invalidOptionsConfig 且指明合法载体',
+    type => {
+      const errors = validateEntityMetadata(withProperty({ name: 'field', type, options: { a: {} } }));
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({ field: 'field', rule: 'invalidOptionsConfig' });
+      expect(errors[0].message).toContain('只能声明在');
+    }
+  );
+
+  it('非载体同时带 enum 与 options → 两条独立违规', () => {
+    // 两个 if 是平行的而不是 else-if：改成互斥会让第二个键静默过闸
+    expect(rulesOf(withProperty({ name: 'field', type: PropertyType.json, enum: ['a'], options: { a: {} } }))).toEqual([
+      'invalidEnumConfig',
+      'invalidOptionsConfig'
+    ]);
+  });
+
+  it('非载体不带 enum / options 时不产出载体违规', () => {
+    expect(rulesOf(withProperty({ name: 'field', type: PropertyType.string }))).toEqual([]);
+  });
+
   it('enum 与 format 族规则可同时产出', () => {
     expect(
       rulesOf(
