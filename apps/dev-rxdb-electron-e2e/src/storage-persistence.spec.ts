@@ -1,4 +1,5 @@
 import { ElectronApplication, Locator, Page, _electron as electron, expect, test } from '@playwright/test';
+import { spawnSync, type ChildProcess } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -97,6 +98,25 @@ function launchPackagedApp(userDataDir: string): Promise<ElectronApplication> {
     args: [`--user-data-dir=${userDataDir}`],
     env: launchEnv()
   });
+}
+
+/**
+ * 强杀整个 Electron 进程树并等主进程退出。
+ *
+ * @remarks
+ * 直接 `child.kill('SIGKILL')` 在 Windows 上等价于 TerminateProcess —— 只杀主进程。
+ * 渲染 / GPU / 工具进程是主进程的子进程，主进程被强杀后它们变孤儿，继续占着
+ * userData 里的文件句柄，紧随其后的 `rmSync` 便 EPERM。`taskkill /T` 把整棵树端掉，
+ * 句柄随进程死亡一起释放。
+ */
+async function killProcessTree(child: ChildProcess): Promise<void> {
+  const exited = new Promise<void>(resolve => child.once('exit', () => resolve()));
+  if (process.platform === 'win32' && child.pid !== undefined) {
+    spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+  } else {
+    child.kill('SIGKILL');
+  }
+  await exited;
 }
 
 /**
@@ -284,7 +304,7 @@ test.describe('打包产物的本地文件存储', () => {
           })
           .toBeGreaterThan(0);
       } finally {
-        killed.kill('SIGKILL');
+        await killProcessTree(killed);
       }
 
       // 旧内容必须逐字节完好。**不断言临时文件已被清掉**：SIGKILL 之后没有任何代码有机会
