@@ -1,8 +1,8 @@
 import {
-    PropertyType,
-    RelationKind,
-    transitionMetadata as createEntityMetadata,
-    type EntityMetadata
+  PropertyType,
+  RelationKind,
+  transitionMetadata as createEntityMetadata,
+  type EntityMetadata
 } from '@aiao/rxdb';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
