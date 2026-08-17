@@ -222,7 +222,13 @@
     "onlyBuiltDependencies": [
       "nx",
       "electron",
-      "sharp"
+      "sharp",
+      "@swc/core",
+      "esbuild",
+      "@parcel/watcher",
+      "lmdb",
+      "unrs-resolver",
+      "msgpackr-extract"
     ],
     "overrides": {
       "@codemirror/language": "^6.12.4",

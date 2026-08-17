@@ -1,6 +1,4 @@
-import type { RxDBAdapterName } from './rxdb-adapter.js';
-import { RxDB } from './RxDB.js';
-import { RxDBError } from './RxDBError.js';
+import { RxDBError, type RxDB, type RxDBAdapterName } from '@aiao/rxdb';
 
 /**
  * 一个候选本地后端：注册名、逻辑库名、运行时探针与建库工厂。
@@ -100,8 +98,9 @@ const assertUsableTable = (candidates: readonly LocalBackendCandidate<unknown>[]
  * **顺序即优先级**，因为「可用」经常不止一个：Tauri 窗口里 OPFS 一样能用，
  * 桌面候选必须排在 wa-sqlite 前面才选得中。
  *
- * 本函数**不内建任何候选**。内建等于让 `@aiao/rxdb` 反向依赖全部适配器包；
- * 探针（`isTauriRuntime()` 之类）也因此随各运行时包走，由应用接进 `isAvailable`。
+ * **这段判定刻意留在应用里，没有进 `@aiao/rxdb`。** 它只有二十来行，且全部输入
+ * （候选表、探针）本来就来自应用；上移到框架层换不到任何复用，只会多一个必须
+ * 长期兼容的公开 API。装了包的用户照抄这个文件比调一个框架 API 更直接。
  *
  * 这**不是**给「无 fallback 兜底」开口子。允许的是 `connect()` **之前**按运行时能力挑后端；
  * 禁止的是连接**失败后**改道 —— 桌面传输层抛 `host_unavailable` 必须继续抛，

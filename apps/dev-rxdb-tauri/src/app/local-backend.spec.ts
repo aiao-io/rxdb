@@ -1,10 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
 import {
   RxDBLocalBackendTableError,
   RxDBLocalBackendUnavailableError,
   selectLocalBackend,
   type LocalBackendCandidate
-} from '../local-backend.js';
+} from './local-backend';
 
 /** 造一个候选：默认可用、`create` 回自己的适配器名，个别字段按需覆盖。 */
 const candidate = (

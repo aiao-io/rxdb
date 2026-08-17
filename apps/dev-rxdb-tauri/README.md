@@ -38,9 +38,14 @@ corepack pnpm nx run dev-rxdb-tauri:dev
 
 开发端口固定为 `1420`，与 `src-tauri/tauri.conf.json` 的 `devUrl` 对应。
 
-两条路径跑的是**同一份 Angular 代码**，只有本地后端不同：[setup_rxdb.ts](src/app/setup_rxdb.ts) 的 `selectLocalBackend`
+两条路径跑的是**同一份 Angular 代码**，只有本地后端不同：候选表在
+[setup_rxdb.ts](src/app/setup_rxdb.ts)，选择器在 [local-backend.ts](src/app/local-backend.ts)，
 按 `window.__TAURI_INTERNALS__` 是否存在判定——Tauri 窗口里用桌面适配器，浏览器预览里用 wa-sqlite。
 适配器名与建库工厂是打包返回的，避免 `provideRxDB` 注册的适配器和 initializer 要连的适配器漂移。
+
+这两个文件都是**应用代码**，不是框架 API：判定只有二十来行，输入（候选、探针）本来就来自应用，
+上移到 `@aiao/rxdb` 换不到复用，只会多一个要长期兼容的公开导出。要在自己的应用里做同样的事，
+照抄这两个文件即可。
 
 ## 验证
 

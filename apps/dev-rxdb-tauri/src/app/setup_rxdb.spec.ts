@@ -1,5 +1,5 @@
-import { RxDBLocalBackendTableError, selectLocalBackend } from '@aiao/rxdb';
 import { TAURI_ADAPTER_NAME } from '@aiao/rxdb-adapter-tauri';
+import { RxDBLocalBackendTableError, selectLocalBackend } from './local-backend';
 import { localBackends, WA_SQLITE_ADAPTER_NAME } from './setup_rxdb';
 import setup_rxdb_desktop from './setup_rxdb_desktop';
 import setup_rxdb_wa_sqlite from './setup_rxdb_wa-sqlite';

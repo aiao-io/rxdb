@@ -39,14 +39,6 @@ export { query_need_refresh_create as queryNeedRefreshCreate } from './query/nee
 export { query_need_refresh_remove as queryNeedRefreshRemove } from './query/need_refresh_remove.js';
 export { query_need_refresh_update as queryNeedRefreshUpdate } from './query/need_refresh_update.js';
 export { isRuleGroup } from './query/query-matching.utils.js';
-// 「同一份代码跑 web / Electron / Tauri」的连接前选路。放在核心包而不是某个适配器包里：
-// 内建候选会让选择器反向依赖全部适配器，所以候选与探针都由应用注入。
-export {
-  RxDBLocalBackendTableError,
-  RxDBLocalBackendUnavailableError,
-  selectLocalBackend,
-  type LocalBackendCandidate
-} from './local-backend.js';
 export * from './repository/diff-metadata.js';
 export * from './repository/query-options.interface.js';
 export * from './repository/query.interface.js';

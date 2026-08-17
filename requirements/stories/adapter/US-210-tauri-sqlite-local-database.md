@@ -293,10 +293,14 @@ Electron 半边的改名与共享层下沉见 [US-207「包边界重整」](./US
 
 拆包不改本故事任何一条 AC 的语义，只换证据锚点的路径；唯一有实质影响的是上面那条权限面决策。
 
-另有一件本故事的代码要交出去：`src/app/setup_rxdb.ts` 的 `selectLocalBackend()` —— 「Tauri 窗口走
-宿主 SQLite、浏览器预览走 wa-sqlite」的判定不是 demo 的私事，是所有「一份代码同时发 web 与桌面」
-的应用都要写的那段。它连同「静态 import 两条分支会把 transport 打进浏览器 bundle」这个现存缺陷，
-归 [US-207「Web 回落」E8～E11](./US-207-desktop-local-database.md#web-回落同一份代码跑三端)。
+本故事另有一段代码曾被提名上移：`selectLocalBackend()` —— 「Tauri 窗口走宿主 SQLite、
+浏览器预览走 wa-sqlite」的判定。**2026-08-18 判定为不上移**，它留在 demo 里
+（`src/app/local-backend.ts`，候选表在 `src/app/setup_rxdb.ts`）：判定本体二十来行，
+候选与探针本来就只能由应用提供，进 `@aiao/rxdb` 换不到任何复用，只会多一个必须长期
+兼容的公开 API。要复用的人照抄这两个文件比调一个框架 API 更直接。
+
+与之同源的另一件事仍然归 US-207：「静态 import 两条分支会把 transport 打进浏览器 bundle」
+这个现存缺陷，见 [US-207「Web 回落」E8～E11](./US-207-desktop-local-database.md#web-回落同一份代码跑三端)。
 
 ## 技术笔记
 

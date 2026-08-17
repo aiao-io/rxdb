@@ -71,7 +71,7 @@ export const createDesktopStorageOptions = (transport: DesktopHostTransport): Rx
  * `dbName` **刻意与浏览器预览那份不同**（US-207 E9）：两个后端对着两份永不互通的数据，
  * 同名会让「现在连的是哪个库」无从回答。
  *
- * 选路由 `setup_rxdb.ts` 的候选表 + `@aiao/rxdb` 的 `selectLocalBackend` 负责，
+ * 选路由 `setup_rxdb.ts` 的候选表 + `local-backend.ts` 的 `selectLocalBackend` 负责，
  * 本模块只在 Tauri 窗口里被调用。
  *
  * 必须在注入上下文中调用（读 `PLATFORM_ID`）。实例按模块作用域缓存，重复调用返回同一个。

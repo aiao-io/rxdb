@@ -1,4 +1,4 @@
-import { RxDB, selectLocalBackend } from '@aiao/rxdb';
+import { RxDB } from '@aiao/rxdb';
 import { provideRxDB } from '@aiao/rxdb-angular';
 import { APP_BASE_HREF, PlatformLocation, registerLocaleData } from '@angular/common';
 import { provideHttpClient, withFetch, withInterceptorsFromDi } from '@angular/common/http';
@@ -15,6 +15,7 @@ import { provideRouter, withComponentInputBinding, withInMemoryScrolling, withVi
 import { provideLoadingBarInterceptor } from '@ngx-loading-bar/http-client';
 import { provideLoadingBarRouter } from '@ngx-loading-bar/router';
 import { appRoutes } from './app.routes';
+import { selectLocalBackend } from './local-backend';
 import { RxDBConnectionState } from './rxdb-connection-state';
 import { startLocalDatabase } from './rxdb-initializer';
 import { DesktopLaunchService } from './services/desktop-launch.service';

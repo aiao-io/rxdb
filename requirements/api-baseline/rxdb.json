@@ -689,10 +689,6 @@
       "kind": "type"
     },
     {
-      "name": "LocalBackendCandidate",
-      "kind": "type"
-    },
-    {
       "name": "LWWConflictResolver",
       "kind": "both"
     },
@@ -1269,14 +1265,6 @@
       "kind": "type"
     },
     {
-      "name": "RxDBLocalBackendTableError",
-      "kind": "both"
-    },
-    {
-      "name": "RxDBLocalBackendUnavailableError",
-      "kind": "both"
-    },
-    {
       "name": "RxDBMigration",
       "kind": "both"
     },
@@ -1359,10 +1347,6 @@
     {
       "name": "SchemaManager",
       "kind": "both"
-    },
-    {
-      "name": "selectLocalBackend",
-      "kind": "value"
     },
     {
       "name": "setRuntimeObjectGetter",

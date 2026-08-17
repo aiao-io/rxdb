@@ -1,5 +1,5 @@
-import type { LocalBackendCandidate } from '@aiao/rxdb';
 import { TAURI_ADAPTER_NAME } from '@aiao/rxdb-adapter-tauri';
+import type { LocalBackendCandidate } from './local-backend';
 import { isTauriRuntime } from './services/tauri-environment';
 import setup_rxdb_desktop, { DESKTOP_DEMO_DB_NAME } from './setup_rxdb_desktop';
 import setup_rxdb_wa_sqlite, { WEB_PREVIEW_DB_NAME } from './setup_rxdb_wa-sqlite';
@@ -11,11 +11,12 @@ export const WA_SQLITE_ADAPTER_NAME = 'wa-sqlite';
  * 本 demo 的本地后端候选表（US-207 E8）。**顺序即优先级。**
  *
  * @param runtime - 探针要检测的对象，实际调用时传 `globalThis`
- * @returns 交给 `@aiao/rxdb` 的 `selectLocalBackend()` 的候选表
+ * @returns 交给 {@link selectLocalBackend} 的候选表
  *
  * @remarks
- * 判定逻辑本身已经上移到 `@aiao/rxdb`，这里只剩「本应用有哪些候选」这份数据。
- * 装了包的用户照着抄的是这张表，不再是一段 `? :`。
+ * 判定逻辑在同目录的 `local-backend.ts`，这里只剩「本应用有哪些候选」这份数据 ——
+ * 装了包的用户照着抄的是这张表，不再是一段 `? :`。两者都留在应用里：判定只有二十来行，
+ * 且输入全部来自应用，上移到框架层换不到复用（见 `local-backend.ts` 的 TSDoc）。
  *
  * 桌面排在前面**不是风格问题**：Tauri 窗口里 OPFS 一样可用，两条探针会同时为真，
  * 靠顺序才选得中桌面。
