@@ -77,7 +77,9 @@ const EXCLUDED = new Set(['rxdb-test']);
  * @type {Map<string, string[]>}
  */
 const KNOWN_UNCOVERED_SUBPATHS = new Map([
-  ['rxdb-adapter-desktop', ['./host']],
+  // ./host = node:sqlite 引擎 + SQL/文件宿主。特权侧独立成入口，免得被打进 renderer bundle。
+  // Tauri 侧没有对应项：它的特权侧是 Rust，随应用二进制走，不经 npm 分发。
+  ['rxdb-adapter-electron', ['./host']],
   ['rxdb-adapter-encrypted', ['./testing']],
   // ./runtime = prepareMiniProgramRuntime 等 5 个值 + 6 个类型，共 11 个符号。
   ['rxdb-adapter-miniprogram', ['./assets/wa-sqlite.cjs', './assets/wa-sqlite.wasm', './runtime']],
