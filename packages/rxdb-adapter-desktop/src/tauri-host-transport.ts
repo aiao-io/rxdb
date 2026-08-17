@@ -79,6 +79,17 @@ export function createTauriHostTransport(options: TauriHostTransportOptions): De
   const listeners = new Set<(message: unknown) => void>();
   let unlisten: (() => void) | undefined;
   let starting: Promise<void> | undefined;
+  /**
+   * 最近一次订阅触发的注册结果，暴露给 {@link DesktopHostTransport.subscriptionReady}。
+   *
+   * @remarks
+   * 与 `starting` 分开是因为两者生命周期不同：`starting` 在退订收摊或注册失败时被清掉，
+   * 好让下一个订阅者重新注册；而等待方要看的是**上一次注册到底成没成**，
+   * 所以这份引用必须留着，直到下一次 `subscribe()` 覆盖它。
+   *
+   * 还没有人订阅过时通道本来就不需要建，语义上即「已就绪」。
+   */
+  let ready: Promise<void> = Promise.resolve();
 
   const reportListenError = (error: unknown): void => {
     if (options.onListenError) {
@@ -127,7 +138,12 @@ export function createTauriHostTransport(options: TauriHostTransportOptions): De
     }
   };
 
-  const startListening = (): void => {
+  /**
+   * 惰性建立共享通道，并把本次注册的结果交出去。
+   *
+   * @returns 注册落定的 Promise；失败时以 `listen` 的原始原因 reject
+   */
+  const startListening = (): Promise<void> => {
     starting ??= options
       .listen(TAURI_DESKTOP_CHANGE_EVENT, event => deliver(event.payload))
       .then(stop => {
@@ -139,7 +155,12 @@ export function createTauriHostTransport(options: TauriHostTransportOptions): De
         // 清掉 starting，让下一个订阅者能重新注册，而不是永远卡在这次失败上。
         starting = undefined;
         reportListenError(error);
+        throw error;
       });
+    const attempt = starting;
+    // 就绪状态没人等时不能变成 unhandled rejection——错误已经走过 onListenError 了。
+    attempt.catch(() => undefined);
+    return attempt;
   };
 
   return {
@@ -152,11 +173,13 @@ export function createTauriHostTransport(options: TauriHostTransportOptions): De
 
     subscribe(listener) {
       listeners.add(listener);
-      startListening();
+      ready = startListening();
       return () => {
         listeners.delete(listener);
         if (listeners.size === 0 && unlisten) stopListening();
       };
-    }
+    },
+
+    subscriptionReady: () => ready
   };
 }

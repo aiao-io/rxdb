@@ -52,6 +52,23 @@ export interface DesktopHostTransport {
    * @returns 取消订阅的函数
    */
   subscribe(listener: (message: unknown) => void): () => void;
+  /**
+   * 上一次 {@link DesktopHostTransport.subscribe} 触发的通道注册是否已经生效。
+   *
+   * @remarks
+   * `subscribe()` 必须**同步**返回退订函数，所以它交不出「通道已经建好」这个时刻。
+   * 而 Tauri 的 `listen` 是异步的：注册落定之前 host 那边 `emit` 出去的变更事件
+   * 不会送到任何人手里。`connect()` 一返回调用方就开始写库，丢的恰好是建库后的第一批
+   * 变更，表现为「首屏不刷新」——所以就绪状态必须能被等待，而不是靠延时去赌。
+   *
+   * 省略即表示**订阅在 `subscribe()` 返回时就已生效**：Electron 侧的
+   * `ipcRenderer.on` 是同步的，没有可等待的中间态，此处如实留空即可
+   * （preload 的桥接键集被 e2e 的 `bridgeKeys` 断言冻结，也加不进来）。
+   * 传输层若是异步建通道，就**必须**实现它。
+   *
+   * @returns 通道就绪时兑现；注册失败时以原始原因 reject
+   */
+  subscriptionReady?(): Promise<void>;
 }
 
 /** {@link DesktopSqliteClient.connect} 的可选行为参数。 */
@@ -202,6 +219,7 @@ export class DesktopSqliteClient implements SqliteClientLike {
       opened.beginSystemMigrationTransactionSql
     );
     client.#unsubscribe = transport.subscribe(message => client.#onMessage(message));
+    await client.#awaitSubscription();
     return client;
   }
 
@@ -237,15 +255,19 @@ export class DesktopSqliteClient implements SqliteClientLike {
    * 返回 Promise 是为了对齐 `SqliteClientLike`：Comlink 远端客户端即便实现是同步的也会返回
    * Promise，注册方一律 `await`，否则监听可能尚未生效就开始写库。
    *
+   * 这里等的是传输层的 {@link DesktopHostTransport.subscriptionReady}，也就是
+   * `connect()` 等过的那一次注册。正常路径上它早已落定，`await` 只花一个微任务；
+   * 通道事后掉线时它会 reject，注册方据此知道自己等不到事件，而不是静默地永远收不到。
+   *
    * @param type - 关心的变更类型
    * @param handler - 事件回调
    */
-  addEventListener(type: SQLiteChangeType, handler: (event: SqliteChangeEvent) => void): Promise<void> {
+  async addEventListener(type: SQLiteChangeType, handler: (event: SqliteChangeEvent) => void): Promise<void> {
     this.#assertOpen();
     const handlers = this.#handlers.get(type) ?? new Set();
     handlers.add(handler);
     this.#handlers.set(type, handlers);
-    return Promise.resolve();
+    await this.#transport.subscriptionReady?.();
   }
 
   /**
@@ -287,6 +309,55 @@ export class DesktopSqliteClient implements SqliteClientLike {
   async disconnect(): Promise<void> {
     this.#disconnectPromise ??= this.#runDisconnect();
     await this.#disconnectPromise;
+  }
+
+  /**
+   * 等变更事件通道真正建好，失败就回滚刚打开的会话。
+   *
+   * @remarks
+   * 订阅建不起来意味着响应式查询永远不刷新。返回一个「能查、但永不刷新」的客户端是所有
+   * 故障形态里最难查的一种，所以这里让 `connect()` 直接失败，把问题摆在连接这一步。
+   *
+   * 回滚是必须的：`open` 已经在 host 上开了会话、占了文件锁，调用方却拿不到客户端，
+   * 再没有第二个人能关掉它。
+   *
+   * @throws {@link RxDBAdapterDesktopError} 通道注册失败时抛 `host_unavailable`，
+   *   原始原因挂在 `cause` 上
+   */
+  async #awaitSubscription(): Promise<void> {
+    try {
+      await this.#transport.subscriptionReady?.();
+      return;
+    } catch (error) {
+      const closeFailure = await this.#abandonSession();
+      throw new RxDBAdapterDesktopError(
+        'host_unavailable',
+        `desktop session ${this.#sessionId} could not subscribe to host change events` +
+          (closeFailure ? `; closing the half-open session also failed: ${String(closeFailure)}` : ''),
+        { cause: error }
+      );
+    }
+  }
+
+  /**
+   * 关掉一个还没交给调用方的会话。
+   *
+   * @remarks
+   * 与 {@link DesktopSqliteClient.disconnect} 的区别是它**不抛**：真正的失败原因是
+   * 订阅没建起来，回滚顺不顺利不该把它盖掉。但也不能让回滚失败无痕消失，
+   * 所以原样交回去，由调用点拼进消息里。
+   *
+   * @returns 关闭失败的原因，成功时为 `undefined`
+   */
+  async #abandonSession(): Promise<unknown> {
+    this.#closed = true;
+    this.#unsubscribe?.();
+    try {
+      assertDesktopHostResponse('close', await this.#request({ kind: 'close', sessionId: this.#sessionId }));
+      return undefined;
+    } catch (error) {
+      return error;
+    }
   }
 
   async #runDisconnect(): Promise<void> {

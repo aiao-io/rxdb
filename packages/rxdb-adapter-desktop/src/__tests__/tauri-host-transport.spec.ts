@@ -138,6 +138,49 @@ describe('createTauriHostTransport', () => {
     await vi.waitFor(() => expect(unlistenCount()).toBe(1));
   });
 
+  /**
+   * `subscribe()` 必须同步返回退订函数，所以它没法把「通道已建好」这个时刻交出去。
+   * 就绪状态因此单开一个成员：`DesktopSqliteClient.connect()` 靠它决定何时可以放行写入。
+   */
+  it('exposes subscription readiness that settles when the channel exists', async () => {
+    let resolveListen: ((stop: () => void) => void) | undefined;
+    const listen = vi.fn<TauriHostTransportOptions['listen']>(
+      () =>
+        new Promise<() => void>(resolve => {
+          resolveListen = resolve;
+        })
+    );
+    const transport = createTauriHostTransport({ invoke: vi.fn(), listen });
+
+    transport.subscribe(vi.fn());
+    const ready = transport.subscriptionReady?.();
+    expect(ready).toBeInstanceOf(Promise);
+
+    let settled = false;
+    const observed = ready?.then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    resolveListen?.(() => undefined);
+    await observed;
+    expect(settled).toBe(true);
+  });
+
+  /** 注册失败要能被等待方看到，而不是只落在 `onListenError` 上、让 connect 以为一切正常。 */
+  it('rejects subscription readiness when the channel cannot be registered', async () => {
+    const failure = new Error('event system unavailable');
+    const onListenError = vi.fn();
+    const listen = vi.fn<TauriHostTransportOptions['listen']>().mockRejectedValue(failure);
+    const transport = createTauriHostTransport({ invoke: vi.fn(), listen, onListenError });
+
+    transport.subscribe(vi.fn());
+
+    await expect(transport.subscriptionReady?.()).rejects.toBe(failure);
+    expect(onListenError).toHaveBeenCalledWith(failure);
+  });
+
   it('reports a failed registration instead of swallowing it', async () => {
     const onListenError = vi.fn();
     const failure = new Error('event system unavailable');

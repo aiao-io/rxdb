@@ -72,6 +72,62 @@ describe('DesktopSqliteClient.connect', () => {
     await expect(DesktopSqliteClient.connect(skewed, sqliteStorage)).rejects.toThrowError(/protocol_violation/);
   });
 
+  /**
+   * Tauri 的 `listen` 是异步的：注册落定之前 host 发出的变更事件谁也收不到。
+   * `connect()` 一返回调用方就会开始写库，所以它必须等订阅真的生效——
+   * 否则丢的恰好是建库后的第一批变更，表现为「首屏不刷新」。
+   */
+  it('waits for the transport subscription to become ready before returning', async () => {
+    let release: (() => void) | undefined;
+    const ready = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const slow: DesktopHostTransport = {
+      request: payload => host.handle(payload),
+      subscribe: transport.subscribe,
+      subscriptionReady: () => ready
+    };
+
+    let connected = false;
+    const connecting = DesktopSqliteClient.connect(slow, sqliteStorage).then(client => {
+      connected = true;
+      return client;
+    });
+    await vi.waitFor(() => expect(host.openSessionCount).toBe(1));
+    // 排空微任务与宏任务再断言：`connect()` 若不等就绪，这时早就返回了。
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(connected).toBe(false);
+
+    release?.();
+    const client = await connecting;
+    expect(connected).toBe(true);
+    await client.disconnect();
+  });
+
+  /**
+   * 订阅建不起来等于永远收不到变更。这时 `connect()` 不能返回一个「能查但永不刷新」的客户端，
+   * 半开的会话也不能留在 host 上占着文件锁。
+   */
+  it('rejects and closes the half-open session when the subscription cannot be established', async () => {
+    const failure = new Error('event system unavailable');
+    const failing: DesktopHostTransport = {
+      request: payload => host.handle(payload),
+      subscribe: transport.subscribe,
+      subscriptionReady: () => Promise.reject(failure)
+    };
+
+    try {
+      await DesktopSqliteClient.connect(failing, sqliteStorage);
+      expect.unreachable('should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(RxDBAdapterDesktopError);
+      expect((error as RxDBAdapterDesktopError).code).toBe('host_unavailable');
+      expect((error as Error).cause).toBe(failure);
+    }
+    expect(host.openSessionCount).toBe(0);
+    expect(listeners.size).toBe(0);
+  });
+
   // AC#4：错误码要跨传输层活着到达调用方，而不是被压平成一句字符串
   it('rebuilds the host error code on this side of the transport', async () => {
     const failing = createDesktopSqliteHost({
