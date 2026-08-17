@@ -69,7 +69,10 @@ export interface DesktopSqliteClientOptions {
    * @remarks
    * 只影响 renderer 侧那次前置校验的**判据与措辞**——能力矩阵按 runtime 收敛
    * （Tauri 永不支持 PGlite，见 {@link ./desktop-storage.js | assertSupportedDesktopStorage}）。
-   * 传错不会放宽任何东西：host 侧还会用它自己的 runtime 再校验一次。
+   *
+   * 传错不会放宽任何东西，但把关的**不是**这个字段：host 从不读它。每个 host 实现本身就绑死了
+   * 一个运行时——`createDesktopSqliteHost` 只跑在 Electron 主进程，Tauri 侧是 Rust 宿主——
+   * 各自按自己那一行矩阵在信任边界上重新断言一次。
    */
   readonly runtime?: DesktopRuntime;
 }
@@ -136,6 +139,14 @@ export class DesktopSqliteClient implements SqliteClientLike {
   #tail: Promise<unknown> = Promise.resolve();
   /** 由 {@link DesktopSqliteClient.connect} 在实例构造完成后立即装上。 */
   #unsubscribe?: () => void;
+  /**
+   * 唯一的关闭流程，见 {@link DesktopSqliteClient.disconnect}。
+   *
+   * @remarks
+   * 存在即表示关闭**已开始**；它落定才表示关闭**已完成**。这两个状态必须分开，
+   * `#closed` 只承担前者（拒绝新请求）。
+   */
+  #disconnectPromise?: Promise<void>;
   #closed = false;
 
   /** 本客户端在 host 上的会话 ID，用于把推送过来的变更事件对号入座。 */
@@ -263,10 +274,22 @@ export class DesktopSqliteClient implements SqliteClientLike {
    * 最后才让 host 释放句柄。等的是 {@link DesktopSqliteClient.#tail}，它不会 reject
    * ——某条在途查询失败不该把句柄一直挂住。
    *
-   * 重复调用是安全的。
+   * 并发调用共享同一个 {@link DesktopSqliteClient.#disconnectPromise}，因此**所有**调用方
+   * 都在句柄真正释放之后才落定。只靠 `#closed` 布尔量做不到这一点：它一被置位，第二个调用方
+   * 立刻就成功返回，可能在库还开着时就去重命名或备份文件。
+   *
+   * 关闭失败时这个 promise 被缓存为 rejected，后续调用看到同一个 rejection，**不会**
+   * 静默当成已关闭，也不会自动重试——句柄是否释放没有第二个判据，装作成功只会把
+   * 「文件仍被占用」推迟到更难定位的地方爆炸。
+   *
+   * @throws {@link RxDBAdapterDesktopError} host 拒绝或未能关闭该会话时
    */
   async disconnect(): Promise<void> {
-    if (this.#closed) return;
+    this.#disconnectPromise ??= this.#runDisconnect();
+    await this.#disconnectPromise;
+  }
+
+  async #runDisconnect(): Promise<void> {
     this.#closed = true;
     await this.#tail;
     this.#unsubscribe?.();

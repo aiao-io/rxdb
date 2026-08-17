@@ -257,6 +257,57 @@ describe('DesktopSqliteClient.disconnect', () => {
     await client.disconnect();
     await expect(client.disconnect()).resolves.toBeUndefined();
   });
+
+  // RV-002/AC#7：并发调用方也必须等到句柄真的释放，否则第二个调用方会在库还开着时去搬文件
+  it('makes concurrent disconnects wait for the in-flight SQL and the host close', async () => {
+    let releaseExecute: (() => void) | undefined;
+    const order: string[] = [];
+    const gated: DesktopHostTransport = {
+      request: async payload => {
+        if ((payload as { kind: string }).kind === 'execute') {
+          await new Promise<void>(resolve => (releaseExecute = resolve));
+          order.push('execute');
+        }
+        const response = await host.handle(payload);
+        if ((payload as { kind: string }).kind === 'close') order.push('close');
+        return response;
+      },
+      subscribe: transport.subscribe
+    };
+
+    const client = await DesktopSqliteClient.connect(gated, sqliteStorage);
+    const executed = client.execute('SELECT 1');
+    await vi.waitFor(() => expect(releaseExecute).toBeTypeOf('function'));
+
+    const first = client.disconnect().then(() => order.push('first'));
+    const second = client.disconnect().then(() => order.push('second'));
+
+    releaseExecute?.();
+    await Promise.all([executed, first, second]);
+
+    // 两个调用方都晚于 host close 落定；close 只发一次
+    expect(order).toEqual(['execute', 'close', 'first', 'second']);
+    expect(order.filter(step => step === 'close')).toHaveLength(1);
+    expect(host.openSessionCount).toBe(0);
+  });
+
+  // 关闭失败不能被静默当成已关闭：所有并发调用方看到同一个 rejection
+  it('propagates a failing host close to every concurrent caller', async () => {
+    const failing: DesktopHostTransport = {
+      request: async payload => {
+        if ((payload as { kind: string }).kind === 'close') throw new Error('close exploded');
+        return host.handle(payload);
+      },
+      subscribe: transport.subscribe
+    };
+
+    const client = await DesktopSqliteClient.connect(failing, sqliteStorage);
+    const [first, second] = await Promise.allSettled([client.disconnect(), client.disconnect()]);
+
+    expect(first.status).toBe('rejected');
+    expect(second.status).toBe('rejected');
+    expect((second as PromiseRejectedResult).reason).toBe((first as PromiseRejectedResult).reason);
+  });
 });
 
 describe('DesktopSqliteClient 会话内的请求顺序', () => {

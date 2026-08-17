@@ -422,7 +422,9 @@ const readBatchTimeout = (record: Record<string, unknown>): number | undefined =
 const parseOpenRequest = (record: Record<string, unknown>): DesktopHostOpenRequest => {
   const storage = record['storage'];
   if (typeof storage !== 'object' || storage === null) throw violation('storage must be an object');
-  // 这里传 'electron' 只是为了复用同一份矩阵校验；host 侧真实 runtime 由 createDesktopSqliteHost 再断言一次。
+  // 'electron' 是硬编码的**事实**而非占位：这份协议解析只服务于 TS 宿主，而 TS 宿主
+  // （createDesktopSqliteHost）只跑在 Electron 主进程里。Tauri 侧走的是 Rust 宿主的
+  // parse_request，它按 Tauri 那一行矩阵拒 PGlite。renderer 传来的 runtime 不参与这里的判据。
   assertSupportedDesktopStorage('electron', storage as DesktopSqliteFileStorage);
   const { engine, databaseName } = storage as DesktopSqliteFileStorage;
   return { kind: 'open', storage: { engine, databaseName }, batchTimeout: readBatchTimeout(record) };

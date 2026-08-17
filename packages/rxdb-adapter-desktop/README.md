@@ -22,12 +22,14 @@ RxDB 适配器，把数据落到**桌面应用私有目录里的真实 SQLite �
 
 ## 能力矩阵
 
-| 运行时   | SQLite 单文件                  | PGlite data directory         |
-| -------- | ------------------------------ | ----------------------------- |
-| Electron | ✅                             | ❌ 未实现，见 US-208          |
-| Tauri    | ⚠️ 仅存储形状与校验，见 US-210 | ❌ 永不支持（无 Node 主进程） |
+| 运行时   | SQLite 单文件                | PGlite data directory         |
+| -------- | ---------------------------- | ----------------------------- |
+| Electron | ✅ host 在包内（`/host`）    | ❌ 未实现，见 US-208          |
+| Tauri    | ⚠️ 包内只有 transport，见下  | ❌ 永不支持（无 Node 主进程） |
 
-不在矩阵内的组合会被 `assertSupportedDesktopStorage` 以 `unsupported_runtime_engine` 拒绝。Tauri 侧目前只有类型与校验：host 实现基于 `node:sqlite`，Tauri 没有 Node 主进程，需要另一套 host。
+不在矩阵内的组合会被 `assertSupportedDesktopStorage` 以 `unsupported_runtime_engine` 拒绝。
+
+**Tauri 用户请先读这段**：本包为 Tauri 提供的只有 `createTauriHostTransport`——一根把 `invoke` / `listen` 接上协议的管子。管子那头真正开库的 `rusqlite` host（`rxdb_desktop_request` 命令、引擎、会话表）**不在这个 npm 包里**，目前只存在于本仓库的 `apps/dev-rxdb-tauri/src-tauri`。`/host` 入口基于 `node:sqlite`，Tauri 没有 Node 主进程，用不了。也就是说：装了包的 Tauri 应用需要自备 Rust 宿主。把 Rust 宿主迁进可发布包是 US-210 阶段 4 的工作，尚未开始。
 
 host 侧需要一个内置 `node:sqlite` 的运行时。本包在 Node 26 与 Electron 43 上验证，更早的版本未验证。
 

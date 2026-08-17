@@ -1,5 +1,5 @@
 import { MAX_BATCH_WAIT_MS, SQLiteChangeType, type SqliteChangeEvent } from '@aiao/rxdb-adapter-sqlite-core';
-import { existsSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -8,8 +8,13 @@ import { RxDBAdapterDesktopError } from '../desktop-error.js';
 import { NodeSqliteEngine } from '../node-sqlite-engine.js';
 
 let workspace: string;
+/** 应用作用域之外的目录，用来验证 SQL 打不穿宿主根。 */
+let outside: string;
 let engines: NodeSqliteEngine[];
 let events: SqliteChangeEvent[];
+
+/** SQL 字面量里统一用正斜杠，Windows 路径直接内嵌会被当成转义序列。 */
+const sqlPath = (value: string): string => value.replace(/\\/g, '/');
 
 const openEngine = (fileName = 'app.sqlite3', batchTimeout?: number): NodeSqliteEngine => {
   const engine = NodeSqliteEngine.open({
@@ -35,6 +40,7 @@ const createChangeTable = (engine: NodeSqliteEngine): void => {
 
 beforeEach(() => {
   workspace = mkdtempSync(join(tmpdir(), 'rxdb-desktop-'));
+  outside = mkdtempSync(join(tmpdir(), 'rxdb-outside-'));
   engines = [];
   events = [];
 });
@@ -48,6 +54,7 @@ afterEach(() => {
     }
   }
   rmSync(workspace, { recursive: true, force: true });
+  rmSync(outside, { recursive: true, force: true });
 });
 
 describe('NodeSqliteEngine.open', () => {
@@ -85,6 +92,82 @@ describe('NodeSqliteEngine.open', () => {
     } catch (error) {
       expect((error as RxDBAdapterDesktopError).code).toBe('database_corrupted');
     }
+  });
+});
+
+describe('NodeSqliteEngine file scope', () => {
+  /** 越界语句必须以稳定错误码被拒，而不是靠“SQL 里没有 ATTACH 字样”这类文本判断。 */
+  const expectDenied = (engine: NodeSqliteEngine, sql: string): void => {
+    try {
+      engine.execute(sql);
+      expect.unreachable(`should have denied: ${sql}`);
+    } catch (error) {
+      expect(error).toBeInstanceOf(RxDBAdapterDesktopError);
+      expect((error as RxDBAdapterDesktopError).code).toBe('permission_denied');
+    }
+  };
+
+  // RV-002：renderer 可控的 SQL 不能在宿主根之外新建文件
+  it('denies ATTACH DATABASE and creates no file outside the app scope', () => {
+    const engine = openEngine();
+    const escaped = join(outside, 'escaped.sqlite');
+
+    expectDenied(engine, `ATTACH DATABASE '${sqlPath(escaped)}' AS escaped`);
+
+    expect(existsSync(escaped)).toBe(false);
+    // 附加库真被拒了，命名空间就不该存在；否则后续语句仍能写出去
+    expect(() => engine.execute('CREATE TABLE escaped.proof (value TEXT)')).toThrowError(RxDBAdapterDesktopError);
+    expect(existsSync(escaped)).toBe(false);
+  });
+
+  // RV-002：已存在的外部 SQLite 文件既不能读也不能改
+  it('denies ATTACH of an existing external database and leaves its bytes untouched', () => {
+    const victimPath = join(outside, 'victim.sqlite');
+    const victim = new DatabaseSync(victimPath);
+    victim.exec('CREATE TABLE secret (value TEXT)');
+    victim.exec("INSERT INTO secret (value) VALUES ('classified')");
+    victim.close();
+    const before = readFileSync(victimPath);
+
+    const engine = openEngine();
+    expectDenied(engine, `ATTACH DATABASE '${sqlPath(victimPath)}' AS victim`);
+    expect(() => engine.execute('SELECT value FROM victim.secret')).toThrowError(RxDBAdapterDesktopError);
+
+    expect(readFileSync(victimPath).equals(before)).toBe(true);
+  });
+
+  // RV-002：VACUUM INTO 不写 ATTACH 关键字，但同样由 SQLite 打开外部文件
+  it('denies VACUUM INTO an external path', () => {
+    const engine = openEngine();
+    engine.execute('CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)');
+    const copy = join(outside, 'copy.sqlite');
+
+    expectDenied(engine, `VACUUM INTO '${sqlPath(copy)}'`);
+
+    expect(existsSync(copy)).toBe(false);
+  });
+
+  // 授权器不能误伤库内能力：rawQuery() 的正常用途必须原样可用
+  it('still allows in-database DDL, DML, transactions and PRAGMA', () => {
+    const engine = openEngine();
+    engine.execute('CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)');
+    engine.execute('BEGIN IMMEDIATE');
+    engine.execute('INSERT INTO t (name) VALUES (?)', ['kept']);
+    engine.execute('COMMIT');
+    engine.execute('CREATE INDEX idx_t_name ON t (name)');
+
+    expect(engine.execute('SELECT name FROM t').results[0]?.rows).toEqual([['kept']]);
+    expect(engine.execute('PRAGMA journal_mode').results[0]?.rows[0]?.[0]).toBe('wal');
+  });
+
+  // 通知触发器建在 temp 库上，授权器不能把变更事件一起封死
+  it('still delivers change events through the temp notify triggers', async () => {
+    const engine = openEngine();
+    createChangeTable(engine);
+    engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
+
+    await flushed();
+    expect(events[0]?.type).toBe(SQLiteChangeType.SQLITE_INSERT);
   });
 });
 

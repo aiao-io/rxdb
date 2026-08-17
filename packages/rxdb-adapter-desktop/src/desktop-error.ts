@@ -17,7 +17,7 @@
  * - `session_closed`：会话已断开后继续使用
  * - `protocol_violation`：请求或响应不符合协议形状
  * - `open_failed`：打开数据库失败，`cause` 保留原始原因
- * - `permission_denied`：路径无权限
+ * - `permission_denied`：路径无权限，或语句被 SQLite 授权器拒绝（`ATTACH` / `VACUUM INTO` 等越出应用作用域的操作）
  * - `database_corrupted`：目标文件不是可用的 SQLite 数据库
  * - `statement_failed`：SQL 本身执行失败（语法、约束等），`cause` 保留原始错误
  * - `host_internal_error`：host 自身出错，属于缺陷而非调用方问题

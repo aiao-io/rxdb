@@ -24,6 +24,7 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use rusqlite::functions::FunctionFlags;
+use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
 use rusqlite::types::Value as SqlValue;
 use rusqlite::{Connection, OpenFlags};
 
@@ -73,8 +74,6 @@ const BUSY_TIMEOUT_MS: u32 = 5_000;
 /// 恒为 `main`：宿主从不 `ATTACH`，所有表都在主 schema 里。这是 SQLite 的 schema 名，
 /// 不是会话打开的那个文件名——上层按它做路由，与 wasm/Electron 后端保持同一常量。
 const CHANGE_DB_NAME: &str = "main";
-
-const NO_ACTIVE_TRANSACTION: &str = "cannot rollback - no transaction is active";
 
 /// 一批合并后的行变更，对应 TS 侧的 `SqliteChangeEvent`。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -422,6 +421,7 @@ impl Engine {
 
     /// 装好变更通知函数并跑一遍初始化 pragma。
     fn initialize(&mut self) -> HostResult<()> {
+        self.install_authorizer();
         self.register_notify_function()?;
         let init_sql = format!(
             "PRAGMA temp_store = memory;\n\
@@ -439,6 +439,24 @@ impl Engine {
             .busy_timeout(Duration::from_millis(u64::from(BUSY_TIMEOUT_MS)))
             .map_err(|error| self.open_error("set busy_timeout on", &error))?;
         self.ensure_notify_triggers()
+    }
+
+    /// 拒绝会让 SQLite 自己再打开一个数据库文件的 opcode。
+    ///
+    /// 宿主只解析 `open` 请求里的逻辑库名，物理路径不受 renderer 控制；但 SQL 本身是透传的
+    /// （`rawQuery()` 和事务内的 `execute()` 都要求这一点），`ATTACH DATABASE` 能让 SQLite 绕过
+    /// 那次路径解析，直接按语句里的字面量打开任意可访问文件。`VACUUM INTO` 不含 ATTACH 关键字，
+    /// 但 SQLite 同样走 `SQLITE_ATTACH` 授权码，所以一并被这条规则挡住——这正是必须用授权器
+    /// 而不是正则扫 SQL 的原因。
+    ///
+    /// 只封文件级 opcode，DDL/DML/事务/PRAGMA/TEMP 触发器全部照旧放行，库内能力不受影响。
+    /// 与 Electron 侧 `NodeSqliteEngine.#initialize` 的授权器同规则。
+    fn install_authorizer(&self) {
+        self.db()
+            .authorizer(Some(|context: AuthContext<'_>| match context.action {
+                AuthAction::Attach { .. } | AuthAction::Detach { .. } => Authorization::Deny,
+                _ => Authorization::Allow,
+            }));
     }
 
     /// 注册触发器体内调用的标量函数。
@@ -651,13 +669,20 @@ impl Engine {
         Ok(())
     }
 
+    /// 回滚尚未提交的事务；没有事务时什么都不做。
+    ///
+    /// 先问状态再决定发不发 `ROLLBACK`，而不是无条件发了再按 SQLite 的报错文案豁免——
+    /// 那句文案是实现细节，SQLite 改一个字这里就会把「没有事务」当成真故障抛出去，
+    /// 而这是关闭路径上最常见的正常情况。`is_autocommit()` 包的是
+    /// `sqlite3_get_autocommit()`，是同一个判据的稳定问法，与 Electron 侧
+    /// `NodeSqliteEngine` 的 `isTransaction` 同源。
     fn rollback_open_transaction(&self) -> HostResult<()> {
-        match self.db().execute_batch("ROLLBACK") {
-            Ok(()) => Ok(()),
-            // 没有活动事务是最常见的正常路径，只吞这一种；其它错误必须暴露出去。
-            Err(error) if error.to_string().contains(NO_ACTIVE_TRANSACTION) => Ok(()),
-            Err(error) => Err(self.statement_error("ROLLBACK", &error)),
+        if self.db().is_autocommit() {
+            return Ok(());
         }
+        self.db()
+            .execute_batch("ROLLBACK")
+            .map_err(|error| self.statement_error("ROLLBACK", &error))
     }
 }
 
@@ -843,6 +868,93 @@ mod tests {
         let path = std::env::temp_dir().join(format!("rxdb-engine-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&path).unwrap();
         TempDirectory(path)
+    }
+
+    /// RV-002：renderer 可控的 SQL 不能在宿主根之外新建文件。
+    ///
+    /// 与 Electron 侧 `node-sqlite-engine.spec.ts` 的 `NodeSqliteEngine file scope` 用同一组攻击样例，
+    /// 免得只封住其中一个宿主。
+    #[test]
+    fn denies_attach_and_creates_no_file_outside_the_app_scope() {
+        let mut harness = harness(0);
+        let outside = temp_directory();
+        let escaped = outside.0.join("escaped.sqlite");
+
+        let error = harness
+            .engine
+            .execute(&format!("ATTACH DATABASE '{}' AS escaped", escaped.display()), &[])
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::PermissionDenied);
+        assert!(!escaped.exists());
+        // 附加库真被拒了，命名空间就不该存在；否则后续语句仍能写出去
+        assert!(harness
+            .engine
+            .execute("CREATE TABLE escaped.proof (value TEXT)", &[])
+            .is_err());
+        assert!(!escaped.exists());
+    }
+
+    /// RV-002：已存在的外部 SQLite 文件既不能读也不能改。
+    #[test]
+    fn denies_attach_of_an_existing_external_database() {
+        let outside = temp_directory();
+        let victim_path = outside.0.join("victim.sqlite");
+        let victim = Connection::open(&victim_path).unwrap();
+        victim
+            .execute_batch("CREATE TABLE secret (value TEXT); INSERT INTO secret VALUES ('classified');")
+            .unwrap();
+        victim.close().unwrap();
+        let before = std::fs::read(&victim_path).unwrap();
+
+        let mut harness = harness(0);
+        let error = harness
+            .engine
+            .execute(&format!("ATTACH DATABASE '{}' AS victim", victim_path.display()), &[])
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::PermissionDenied);
+        assert!(harness.engine.execute("SELECT value FROM victim.secret", &[]).is_err());
+        assert_eq!(std::fs::read(&victim_path).unwrap(), before);
+    }
+
+    /// RV-002：`VACUUM INTO` 不写 ATTACH 关键字，但同样由 SQLite 打开外部文件。
+    #[test]
+    fn denies_vacuum_into_an_external_path() {
+        let mut harness = harness(0);
+        run(&mut harness.engine, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)");
+        let outside = temp_directory();
+        let copy = outside.0.join("copy.sqlite");
+
+        let error = harness
+            .engine
+            .execute(&format!("VACUUM INTO '{}'", copy.display()), &[])
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::PermissionDenied);
+        assert!(!copy.exists());
+    }
+
+    /// 授权器不能误伤库内能力：`rawQuery()` 的正常用途必须原样可用。
+    #[test]
+    fn still_allows_in_database_ddl_dml_transactions_and_pragma() {
+        let mut harness = harness(0);
+        run(&mut harness.engine, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)");
+        run(&mut harness.engine, "BEGIN IMMEDIATE");
+        harness
+            .engine
+            .execute("INSERT INTO t (name) VALUES (?)", &[SqlValue::Text("kept".into())])
+            .unwrap();
+        run(&mut harness.engine, "COMMIT");
+        run(&mut harness.engine, "CREATE INDEX idx_t_name ON t (name)");
+
+        let selected = run(&mut harness.engine, "SELECT name FROM t");
+        assert_eq!(
+            selected.results.unwrap().rows,
+            vec![vec![SqlValue::Text("kept".into())]]
+        );
+        let journal = run(&mut harness.engine, "PRAGMA journal_mode");
+        assert_eq!(journal.results.unwrap().rows, vec![vec![SqlValue::Text("wal".into())]]);
     }
 
     /// AC#5：文件不是数据库时报 `database_corrupted`，且**原字节一个不动**。

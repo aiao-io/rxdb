@@ -52,8 +52,10 @@ export interface DesktopOptions extends IRxDBAdapterOptions, SqliteBaseOptions {
    * host 所在的桌面运行时，省略时按 `'electron'` 解读。
    *
    * @remarks
-   * 只影响连接前那次能力矩阵校验的判据与措辞（Tauri 永不支持 PGlite）；
-   * 真正的把关在 host 侧，它知道自己跑在哪个运行时里。
+   * 只影响连接前那次能力矩阵校验的判据与措辞（Tauri 永不支持 PGlite）。
+   * 真正的把关在 host 侧，但靠的**不是**这个字段：host 从不读它，是每个 host 实现本身
+   * 就绑死了一个运行时（Electron 主进程用 `createDesktopSqliteHost`，Tauri 用 Rust 宿主），
+   * 各自按自己那一行矩阵重新断言一次。
    */
   runtime?: DesktopRuntime;
 }

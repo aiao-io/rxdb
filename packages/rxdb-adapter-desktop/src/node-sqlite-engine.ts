@@ -22,7 +22,7 @@ import {
   type SqliteData,
   type SqliteResult
 } from '@aiao/rxdb-adapter-sqlite-core';
-import { DatabaseSync, type SQLInputValue, type SQLOutputValue, type StatementSync } from 'node:sqlite';
+import { constants, DatabaseSync, type SQLInputValue, type SQLOutputValue, type StatementSync } from 'node:sqlite';
 import { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from './desktop-error.js';
 import { splitSqliteScript } from './sqlite-script.js';
 
@@ -77,7 +77,19 @@ const SQLITE_ERROR_CODES = new Map<number, RxDBAdapterDesktopErrorCode>([
   [6, 'database_busy'] // SQLITE_LOCKED
 ]);
 
-const NO_ACTIVE_TRANSACTION = 'cannot rollback - no transaction is active';
+/**
+ * 授权器拒绝的 opcode：会让 SQLite 自己再打开一个数据库文件的那些。
+ *
+ * @remarks
+ * host 只解析 `open` 请求里的逻辑库名，物理路径不受 renderer 控制；但 SQL 本身是透传的
+ * （`rawQuery()` 和事务内的 `execute()` 都要求这一点），`ATTACH DATABASE` 能让 SQLite 绕过
+ * 那次路径解析，直接按语句里的字面量打开任意可访问文件。`VACUUM INTO` 不含 ATTACH 关键字，
+ * 但 SQLite 同样走 {@link constants.SQLITE_ATTACH} 授权码，所以一并被这条规则挡住——
+ * 这正是必须用授权器而不是正则扫 SQL 的原因。
+ *
+ * 只封文件级 opcode，DDL/DML/事务/PRAGMA/TEMP 触发器全部照旧放行，库内能力不受影响。
+ */
+const DENIED_ACTION_CODES = new Set<number>([constants.SQLITE_ATTACH, constants.SQLITE_DETACH]);
 
 const readErrcode = (error: unknown): number | undefined => {
   const errcode = (error as { errcode?: unknown }).errcode;
@@ -310,6 +322,10 @@ export class NodeSqliteEngine {
    * 见 `createDesktopSqliteHost` 里的 busy 重试。
    */
   #initialize(cacheSizeKb: number): void {
+    // 先装授权器再跑任何 SQL：初始化本身也走同一条边界，不给「初始化期间不设防」留窗口。
+    this.#db.setAuthorizer(actionCode =>
+      DENIED_ACTION_CODES.has(actionCode) ? constants.SQLITE_DENY : constants.SQLITE_OK
+    );
     this.#db.function(
       NOTIFY_FUNCTION_NAME,
       // directOnly:false 是关键——默认值会禁止在触发器体内调用本函数。
@@ -525,12 +541,16 @@ export class NodeSqliteEngine {
     }
   }
 
+  /**
+   * 回滚尚未提交的事务；没有事务时什么都不做。
+   *
+   * @remarks
+   * 先问状态再决定发不发 `ROLLBACK`，而不是无条件发了再按 SQLite 的报错文案豁免——
+   * 那句文案是实现细节，SQLite 改一个字这里就会把「没有事务」当成真故障抛出去，
+   * 而这是关闭路径上最常见的正常情况。`isTransaction` 包的是
+   * `sqlite3_get_autocommit()`，是同一个判据的稳定问法。
+   */
   #rollbackOpenTransaction(): void {
-    try {
-      this.#db.exec('ROLLBACK');
-    } catch (error) {
-      // 没有活动事务是最常见的正常路径，只吞这一种；其它错误必须暴露出去。
-      if (!messageOf(error).includes(NO_ACTIVE_TRANSACTION)) throw error;
-    }
+    if (this.#db.isTransaction) this.#db.exec('ROLLBACK');
   }
 }
