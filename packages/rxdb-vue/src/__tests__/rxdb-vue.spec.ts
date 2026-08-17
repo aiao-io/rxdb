@@ -1,7 +1,7 @@
 import { RxDB } from '@aiao/rxdb';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, nextTick, shallowRef, type Ref } from 'vue';
+import { defineComponent, h, nextTick, shallowRef } from 'vue';
 import * as PublicApi from '../index';
 import * as RxDBVue from '../rxdb-vue';
 import { createRxDBProviderHarness } from './rxdb-provider-harness';
@@ -9,7 +9,13 @@ import { createSetupHarness } from './setup-harness';
 
 const createRxDB = (name: string): RxDB => ({ name }) as unknown as RxDB;
 
-const mountWithProvider = <T>(source: RxDB | Ref<RxDB | undefined> | undefined, consume: () => T) => {
+/** 带可观测 `disconnectAll` 的假库，用来断言所有权规则。 */
+const createOwnableRxDB = (name: string) => {
+  const disconnectAll = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+  return { database: { name, disconnectAll } as unknown as RxDB, disconnectAll };
+};
+
+const mountWithProvider = <T>(source: RxDBVue.RxDBInput<RxDB>, consume: () => T) => {
   let result: { value: T } | undefined;
 
   const Consumer = createSetupHarness(() => {
@@ -54,7 +60,9 @@ describe('rxdb-vue dependency injection', () => {
 
   it('keeps useRxDB strict when the provided ref has no current value', () => {
     const mounted = mountWithProvider(shallowRef<RxDB>(), () => {
-      expect(() => RxDBVue.useRxDB()).toThrow('RxDB instance not found');
+      // 有 provider、只是还没就绪 —— 文案必须与「压根没有 provider」区分开，
+      // 否则会反过来提示用户去 call provideRxDB()，而他们正调用着它。
+      expect(() => RxDBVue.useRxDB()).toThrow('RxDB is not ready yet');
       return true;
     });
 
@@ -129,7 +137,130 @@ describe('rxdb-vue dependency injection', () => {
       useInfiniteScroll: expect.any(Function),
       useRepositoryQuery: expect.any(Function),
       useRxDB: RxDBVue.useRxDB,
+      useRxDBOptional: RxDBVue.useRxDBOptional,
       useRxDBRef: RxDBVue.useRxDBRef
     });
+  });
+});
+
+// 三框架统一异步契约：provider 收 `RxDB | Promise<RxDB> | (() => RxDB | Promise<RxDB>)`，
+// 读取分 useRxDB（未就绪抛错）与 useRxDBOptional（未就绪返回 undefined）两条。
+describe('异步 source', () => {
+  it('resolves a factory returning a promise', async () => {
+    const { database } = createOwnableRxDB('async-factory');
+    const mounted = mountWithProvider(() => Promise.resolve(database), () => RxDBVue.injectRxDBRef());
+
+    expect(mounted.result?.value).toBeUndefined();
+    await flushPromises();
+
+    expect(mounted.result?.value).toBe(database);
+    mounted.wrapper.unmount();
+  });
+
+  it('resolves a bare promise', async () => {
+    const { database } = createOwnableRxDB('async-promise');
+    const mounted = mountWithProvider(Promise.resolve(database), () => RxDBVue.injectRxDBRef());
+
+    await flushPromises();
+
+    expect(mounted.result?.value).toBe(database);
+    mounted.wrapper.unmount();
+  });
+
+  it('returns undefined from useRxDBOptional without warning while pending', () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { database } = createOwnableRxDB('pending');
+    const mounted = mountWithProvider(() => Promise.resolve(database), () => RxDBVue.useRxDBOptional());
+
+    expect(mounted.result).toBeUndefined();
+    expect(warning).not.toHaveBeenCalled();
+
+    mounted.wrapper.unmount();
+    warning.mockRestore();
+  });
+
+  it('does not warn from useRxDBOptional when no provider exists', () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let seen: RxDB | undefined = createRxDB('sentinel');
+    const Consumer = createSetupHarness(() => {
+      seen = RxDBVue.useRxDBOptional();
+    });
+    const wrapper = mount(Consumer);
+
+    expect(seen).toBeUndefined();
+    expect(warning).not.toHaveBeenCalled();
+
+    wrapper.unmount();
+    warning.mockRestore();
+  });
+
+  it('rethrows the original creation error from useRxDB', async () => {
+    const failure = new Error('storage unavailable');
+    const seen: unknown[] = [];
+    // 在 render 里读：创建异常落到 slot 上会触发重渲染，因此能观察到「就绪前」与「失败后」两次。
+    const Consumer = defineComponent({
+      setup: () => () => {
+        try {
+          RxDBVue.useRxDB();
+        } catch (error) {
+          seen.push(error);
+        }
+        return h('div');
+      }
+    });
+    const wrapper = mount(createRxDBProviderHarness(() => Promise.reject(failure), Consumer));
+
+    await flushPromises();
+
+    // 创建异常原样抛出，不包一层 —— 与 Angular / React 同语义。
+    expect(seen.at(-1)).toBe(failure);
+    expect(seen.at(0)).toHaveProperty('message', expect.stringContaining('RxDB is not ready yet'));
+    wrapper.unmount();
+  });
+});
+
+// 所有权规则：provider 只销毁自己造的东西。调用方自己的实例或 Ref 不该被顺手断掉 ——
+// 否则一个模块级单例会随某个子组件卸载而失效，且没有人会去重连。
+describe('生命周期所有权', () => {
+  it('disconnects a database it created itself', async () => {
+    const { database, disconnectAll } = createOwnableRxDB('owned');
+    const mounted = mountWithProvider(() => database, () => RxDBVue.injectRxDBRef());
+
+    await flushPromises();
+    expect(mounted.result?.value).toBe(database);
+
+    mounted.wrapper.unmount();
+    expect(disconnectAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves a caller-supplied instance alone', () => {
+    const { database, disconnectAll } = createOwnableRxDB('caller-owned');
+    const mounted = mountWithProvider(database, () => RxDBVue.injectRxDB());
+
+    mounted.wrapper.unmount();
+
+    expect(disconnectAll).not.toHaveBeenCalled();
+  });
+
+  it('leaves a caller-supplied ref alone', () => {
+    const { database, disconnectAll } = createOwnableRxDB('caller-ref');
+    const mounted = mountWithProvider(shallowRef<RxDB | undefined>(database), () => RxDBVue.injectRxDB());
+
+    mounted.wrapper.unmount();
+
+    expect(disconnectAll).not.toHaveBeenCalled();
+  });
+
+  it('disconnects a database that settles after unmount', async () => {
+    const { database, disconnectAll } = createOwnableRxDB('late');
+    let settle: (value: RxDB) => void = () => undefined;
+    const pending = new Promise<RxDB>(resolve => (settle = resolve));
+    const mounted = mountWithProvider(() => pending, () => RxDBVue.injectRxDBRef());
+
+    mounted.wrapper.unmount();
+    settle(database);
+    await flushPromises();
+
+    expect(disconnectAll).toHaveBeenCalledTimes(1);
   });
 });
