@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RxDBAdapterDesktopError } from '../desktop-error.js';
+import { RxDBAdapterDesktopError } from '../desktop/desktop-error.js';
 import {
   DESKTOP_HOST_MAX_FILE_CHUNK_BYTES,
   DESKTOP_HOST_MAX_PATH_LENGTH,
@@ -7,7 +7,7 @@ import {
   isDesktopHostFileRequestKind,
   parseDesktopHostFileRequest,
   parseDesktopHostRequest
-} from '../desktop-host-protocol.js';
+} from '../desktop/desktop-host-protocol.js';
 
 const sessionId = '7f1d2c3b-4a59-4e6f-8b0d-1e2f3a4b5c6d';
 const writeId = '0c9e1a2b-3d4e-4f50-9a1b-2c3d4e5f6071';

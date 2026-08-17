@@ -48,7 +48,7 @@ export default defineConfig(() => {
         // `src/**/__tests__/**/*`，会让「只改共享套件」这件事既不使本包 build 失效、
         // 也不使四个适配器的 test（inputs 含 `^production`）失效 —— 四个包一起假绿。
         // 判据：同一份套件四个适配器结果不一致，或改了套件用例数纹丝不动，先查这里。
-        entry: { index: 'src/index.ts', testing: 'src/testing.ts' },
+        entry: { index: 'src/index.ts', 'desktop-host': 'src/desktop-host.ts', testing: 'src/testing.ts' },
         name: '@aiao/rxdb-adapter-sqlite-core',
         fileName: (format: string, entryName: string) => `${entryName}.js`,
         formats: ['es' as const]

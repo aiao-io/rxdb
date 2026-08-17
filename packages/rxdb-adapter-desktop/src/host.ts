@@ -21,7 +21,13 @@ export { createDesktopFileHost, type DesktopFileHost, type DesktopFileHostOption
 
 export { NodeSqliteEngine, type NodeSqliteEngineOptions } from './node-sqlite-engine.js';
 
-export { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from './desktop-error.js';
+// 协议、存储联合与错误类型已下沉到 `@aiao/rxdb-adapter-sqlite-core/desktop-host`（US-207 E1）。
+// 本入口继续原样转出它们：宿主作者只装一个包就该拿全写 host 需要的东西，
+// 让他们再去引一个共享层包等于把拆包的成本转嫁出去。
+export {
+  RxDBAdapterDesktopError,
+  type RxDBAdapterDesktopErrorCode
+} from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 
 export {
   assertSupportedDesktopStorage,
@@ -32,7 +38,7 @@ export {
   type DesktopRuntime,
   type DesktopSqliteFileStorage,
   type DesktopStorage
-} from './desktop-storage.js';
+} from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 
 export {
   DESKTOP_HOST_MAX_BINDINGS,
@@ -58,4 +64,4 @@ export {
   type DesktopHostRequest,
   type DesktopHostResponse,
   type DesktopHostVersionRequest
-} from './desktop-host-protocol.js';
+} from '@aiao/rxdb-adapter-sqlite-core/desktop-host';

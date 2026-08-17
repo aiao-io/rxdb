@@ -1,6 +1,5 @@
-import { SQLiteChangeType } from '@aiao/rxdb-adapter-sqlite-core';
 import { describe, expect, it } from 'vitest';
-import { RxDBAdapterDesktopError } from '../desktop-error.js';
+import { RxDBAdapterDesktopError } from '../desktop/desktop-error.js';
 import {
   DESKTOP_HOST_MAX_BINDINGS,
   DESKTOP_HOST_MAX_BLOB_BYTES,
@@ -9,7 +8,8 @@ import {
   parseDesktopHostChangeEvent,
   parseDesktopHostHandshakeResult,
   parseDesktopHostRequest
-} from '../desktop-host-protocol.js';
+} from '../desktop/desktop-host-protocol.js';
+import { SQLiteChangeType } from '../sqlite-backend.interface.js';
 
 const sessionId = '7f1d2c3b-4a59-4e6f-8b0d-1e2f3a4b5c6d';
 

@@ -1,15 +1,15 @@
 import type { RxDB } from '@aiao/rxdb';
+import {
+  DESKTOP_HOST_TRANSPORT_KEY,
+  RxDBAdapterDesktopError,
+  type DesktopHostTransport,
+  type DesktopOptions,
+  type DesktopSqliteClient
+} from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { DesktopOptions } from '../desktop-adapter.interface.js';
-import { RxDBAdapterDesktopError } from '../desktop-error.js';
-import {
-  DESKTOP_HOST_TRANSPORT_KEY,
-  type DesktopHostTransport,
-  type DesktopSqliteClient
-} from '../desktop-sqlite-client.js';
 import { createDesktopSqliteHost, type DesktopSqliteHost } from '../desktop-sqlite-host.js';
 import { RxDBAdapterDesktop } from '../RxDBAdapterDesktop.js';
 

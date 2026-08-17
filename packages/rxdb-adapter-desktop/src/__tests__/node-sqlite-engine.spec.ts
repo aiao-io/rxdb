@@ -1,10 +1,10 @@
 import { MAX_BATCH_WAIT_MS, SQLiteChangeType, type SqliteChangeEvent } from '@aiao/rxdb-adapter-sqlite-core';
+import { RxDBAdapterDesktopError } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RxDBAdapterDesktopError } from '../desktop-error.js';
 import { NodeSqliteEngine } from '../node-sqlite-engine.js';
 
 let workspace: string;

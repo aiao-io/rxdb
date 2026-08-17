@@ -9,15 +9,15 @@
  */
 
 import type { SqliteChangeEvent } from '@aiao/rxdb-adapter-sqlite-core';
-import { randomUUID } from 'node:crypto';
-import { RxDBAdapterDesktopError } from './desktop-error.js';
 import {
   DESKTOP_HOST_PROTOCOL_VERSION,
+  RxDBAdapterDesktopError,
   parseDesktopHostRequest,
   type DesktopHostChangeEventMessage,
   type DesktopHostRequest,
   type DesktopHostResponse
-} from './desktop-host-protocol.js';
+} from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
+import { randomUUID } from 'node:crypto';
 import { NodeSqliteEngine } from './node-sqlite-engine.js';
 import { splitSqliteScript } from './sqlite-script.js';
 

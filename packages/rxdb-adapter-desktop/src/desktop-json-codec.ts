@@ -2,7 +2,7 @@
  * 线协议的 **JSON 传输编码**。
  *
  * @remarks
- * {@link ../desktop-host-protocol.js | 线协议} 本身只承诺结构化克隆可传，因此 Electron 的
+ * 线协议（`@aiao/rxdb-adapter-sqlite-core/desktop-host`）本身只承诺结构化克隆可传，因此 Electron 的
  * `ipcRenderer.invoke` 不需要任何编解码。Tauri 不同：它的 IPC 是 JSON，`bigint`
  * 会抛 `TypeError`、`Uint8Array` 会退化成 `{"0":1,...}`、`Date` 会变成字符串——
  * 三者正是协议里最依赖原语类型 rowId（bigint）/ blob（Uint8Array）/ recordAt（Date）的对象。
@@ -22,7 +22,7 @@
  * @module desktop-json-codec
  */
 
-import { RxDBAdapterDesktopError } from './desktop-error.js';
+import { RxDBAdapterDesktopError } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 
 const BIGINT_TAG = '$bigint';
 const BYTES_TAG = '$u8';

@@ -13,8 +13,8 @@
  * @module tauri-host-transport
  */
 
+import type { DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { decodeDesktopJsonPayload, encodeDesktopJsonPayload } from './desktop-json-codec.js';
-import type { DesktopHostTransport } from './desktop-sqlite-client.js';
 
 /**
  * Rust 侧 `#[tauri::command]` 的名字。

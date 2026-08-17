@@ -6,9 +6,14 @@
 
 import type { RxDB } from '@aiao/rxdb';
 import { RxDBAdapterSqliteBase } from '@aiao/rxdb-adapter-sqlite-core';
-import { ADAPTER_NAME, DEFAULT_DATABASE_SUFFIX, type DesktopOptions } from './desktop-adapter.interface.js';
-import { DesktopSqliteClient, resolveDesktopHostTransport } from './desktop-sqlite-client.js';
-import { assertValidDesktopDatabaseName } from './desktop-storage.js';
+import {
+  DEFAULT_DATABASE_SUFFIX,
+  DesktopSqliteClient,
+  assertValidDesktopDatabaseName,
+  resolveDesktopHostTransport,
+  type DesktopOptions
+} from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
+import { ADAPTER_NAME } from './desktop-adapter.interface.js';
 
 /**
  * 把 RxDB 接到桌面应用私有目录里的真实 SQLite 文件上。

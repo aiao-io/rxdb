@@ -1,9 +1,12 @@
 import { SQLiteChangeType, type SqliteResult } from '@aiao/rxdb-adapter-sqlite-core';
+import {
+  DESKTOP_HOST_PROTOCOL_VERSION,
+  type DesktopHostChangeEventMessage
+} from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DESKTOP_HOST_PROTOCOL_VERSION, type DesktopHostChangeEventMessage } from '../desktop-host-protocol.js';
 import { createDesktopSqliteHost, type DesktopSqliteHost } from '../desktop-sqlite-host.js';
 
 let workspace: string;

@@ -19,11 +19,11 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, open, readdir, realpath, rename, rm, stat, type FileHandle } from 'node:fs/promises';
 import { basename, dirname, join, resolve, sep } from 'node:path';
-import { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from './desktop-error.js';
 import {
   DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION,
   DESKTOP_HOST_MAX_QUEUED_LOCKS_PER_NAME,
   DESKTOP_HOST_PROTOCOL_VERSION,
+  RxDBAdapterDesktopError,
   parseDesktopHostFileRequest,
   type DesktopHostFileEntry,
   type DesktopHostFileLockAcquireRequest,
@@ -36,8 +36,9 @@ import {
   type DesktopHostFileStat,
   type DesktopHostFileWriteBeginRequest,
   type DesktopHostFileWriteChunkRequest,
-  type DesktopHostFileWriteFinishRequest
-} from './desktop-host-protocol.js';
+  type DesktopHostFileWriteFinishRequest,
+  type RxDBAdapterDesktopErrorCode
+} from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 
 /** 写入相关的请求。 */
 type FileWriteRequest =

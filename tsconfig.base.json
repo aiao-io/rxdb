@@ -39,6 +39,7 @@
       "@aiao/rxdb-adapter-miniprogram": ["./packages/rxdb-adapter-miniprogram/src/index.ts"],
       "@aiao/rxdb-adapter-sqlite-wasm": ["./packages/rxdb-adapter-sqlite-wasm/src/index.ts"],
       "@aiao/rxdb-adapter-sqlite-core": ["./packages/rxdb-adapter-sqlite-core/src/index.ts"],
+      "@aiao/rxdb-adapter-sqlite-core/desktop-host": ["./packages/rxdb-adapter-sqlite-core/src/desktop-host.ts"],
       "@aiao/rxdb-adapter-sqlite-core/testing": ["./packages/rxdb-adapter-sqlite-core/src/testing.ts"],
       "@aiao/rxdb-adapter-sqlite": ["./packages/rxdb-adapter-sqlite/src/index.ts"],
       "@aiao/rxdb-adapter-sqliteai": ["./packages/rxdb-adapter-sqliteai/src/index.ts"],

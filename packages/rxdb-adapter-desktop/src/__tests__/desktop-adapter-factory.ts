@@ -12,13 +12,13 @@
  */
 
 import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
+import { DesktopSqliteClient, type DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import type { EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ADAPTER_NAME } from '../desktop-adapter.interface.js';
-import { DesktopSqliteClient, type DesktopHostTransport } from '../desktop-sqlite-client.js';
 import { createDesktopSqliteHost, type DesktopSqliteHost } from '../desktop-sqlite-host.js';
 import { RxDBAdapterDesktop } from '../RxDBAdapterDesktop.js';
 

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { RxDBAdapterDesktopError } from '../desktop-error.js';
+import { RxDBAdapterDesktopError } from '../desktop/desktop-error.js';
 import {
   assertSupportedDesktopStorage,
   assertValidDesktopDatabaseName,
   isDesktopSqliteFileStorage
-} from '../desktop-storage.js';
+} from '../desktop/desktop-storage.js';
 
 const sqliteStorage = { engine: 'sqlite', databaseName: 'app.sqlite3' } as const;
 const pgliteStorage = { engine: 'pglite', dataDirectoryName: 'app-pgdata' } as const;

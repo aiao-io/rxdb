@@ -7,8 +7,8 @@
  * 因此这里断言的是**编码后的 JSON 文本**，而不只是往返相等。
  */
 
+import { RxDBAdapterDesktopError } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { describe, expect, it } from 'vitest';
-import { RxDBAdapterDesktopError } from '../desktop-error.js';
 import { decodeDesktopJsonPayload, encodeDesktopJsonPayload } from '../desktop-json-codec.js';
 
 const roundTrip = (value: unknown): unknown =>

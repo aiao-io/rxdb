@@ -1,10 +1,13 @@
 import { SQLiteChangeType, type SqliteChangeEvent } from '@aiao/rxdb-adapter-sqlite-core';
+import {
+  DesktopSqliteClient,
+  RxDBAdapterDesktopError,
+  type DesktopHostTransport
+} from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RxDBAdapterDesktopError } from '../desktop-error.js';
-import { DesktopSqliteClient, type DesktopHostTransport } from '../desktop-sqlite-client.js';
 import { createDesktopSqliteHost, type DesktopSqliteHost } from '../desktop-sqlite-host.js';
 
 const sqliteStorage = { engine: 'sqlite', databaseName: 'app.sqlite3' } as const;

@@ -1,13 +1,13 @@
+import {
+  DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION,
+  DESKTOP_HOST_MAX_QUEUED_LOCKS_PER_NAME,
+  type DesktopHostFileResponse
+} from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createDesktopFileHost, type DesktopFileHost } from '../desktop-file-host.js';
-import {
-  DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION,
-  DESKTOP_HOST_MAX_QUEUED_LOCKS_PER_NAME,
-  type DesktopHostFileResponse
-} from '../desktop-host-protocol.js';
 
 const textOf = (value: string): Uint8Array => new TextEncoder().encode(value);
 
