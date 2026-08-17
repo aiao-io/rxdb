@@ -5,17 +5,20 @@ const SHEBANG = '#!/usr/bin/env node\n';
 const BODY = 'export const main = async () => undefined;\n';
 const SOURCE = `${SHEBANG}\n${BODY}`;
 
-const transform = (id: string, code = SOURCE): string | null => {
+const transform = async (id: string, code = SOURCE): Promise<string | null> => {
   const plugin = rxdbClientGeneratorCliShebangPlugin();
   const hook = plugin.transform;
   if (typeof hook !== 'function') {
     throw new Error('Expected transform hook');
   }
-  const result = hook.call({} as never, code, id);
-  if (result == null || typeof result === 'string') {
+  const result = await hook.call({} as never, code, id);
+  if (typeof result === 'string') {
     return result;
   }
-  return result.code;
+  if (result == null) {
+    return null;
+  }
+  return typeof result.code === 'string' ? result.code : null;
 };
 
 describe('rxdbClientGeneratorCliShebangPlugin', () => {
@@ -34,16 +37,16 @@ describe('rxdbClientGeneratorCliShebangPlugin', () => {
     expect(stripCliShebang(BODY)).toBeNull();
   });
 
-  it('strips the CLI shebang when Vite reports a Windows-style module id', () => {
+  it('strips the CLI shebang when Vite reports a Windows-style module id', async () => {
     const windowsId = 'D:/a/rxdb/rxdb/packages/rxdb-client-generator/src/cli/cli.ts';
     const posixId = '/Users/jimmy/rxdb/packages/rxdb-client-generator/src/cli/cli.ts';
     const backslashId = 'D:\\a\\rxdb\\rxdb\\packages\\rxdb-client-generator\\src\\cli\\cli.ts';
 
-    expect(transform(windowsId)).toBe(`\n${BODY}`);
-    expect(transform(posixId)).toBe(`\n${BODY}`);
-    expect(transform(backslashId)).toBe(`\n${BODY}`);
-    expect(transform(`${windowsId}?v=1`, `#!/usr/bin/env node\r\n${BODY}`)).toBe(BODY);
-    expect(transform('/tmp/other.ts')).toBeNull();
+    expect(await transform(windowsId)).toBe(`\n${BODY}`);
+    expect(await transform(posixId)).toBe(`\n${BODY}`);
+    expect(await transform(backslashId)).toBe(`\n${BODY}`);
+    expect(await transform(`${windowsId}?v=1`, `#!/usr/bin/env node\r\n${BODY}`)).toBe(BODY);
+    expect(await transform('/tmp/other.ts')).toBeNull();
   });
 
   it('keeps a shebang on the emitted cli.js chunk', () => {
@@ -53,14 +56,17 @@ describe('rxdbClientGeneratorCliShebangPlugin', () => {
       throw new Error('Expected renderChunk hook');
     }
 
-    expect(hook.call({} as never, BODY, { fileName: 'cli.js' } as never)).toEqual({
+    const render = (code: string, fileName: string) =>
+      hook.call({} as never, code, { fileName } as never, {} as never, {} as never);
+
+    expect(render(BODY, 'cli.js')).toEqual({
       code: `${SHEBANG}${BODY}`,
       map: null
     });
-    expect(hook.call({} as never, `${SHEBANG}${BODY}`, { fileName: 'cli.js' } as never)).toEqual({
+    expect(render(`${SHEBANG}${BODY}`, 'cli.js')).toEqual({
       code: `${SHEBANG}${BODY}`,
       map: null
     });
-    expect(hook.call({} as never, BODY, { fileName: 'index.js' } as never)).toBeNull();
+    expect(render(BODY, 'index.js')).toBeNull();
   });
 });
