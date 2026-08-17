@@ -100,8 +100,8 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 | 6   | 同一 SQLite 文件已被另一个窗口打开并持有写锁              | 第二个窗口发起写事务                                             | 由 `PRAGMA busy_timeout` 原地等待持锁方提交；超时报可判别的 `database_busy`，不静默切换到另一份数据库                                | ⚠️   |
 | 7   | SQLite 文件存在应用未知的普通业务表                       | Aiao 首次连接并初始化系统 schema                                 | 保留未知表和数据；只创建或迁移 Aiao 自有系统对象，失败时事务回滚                                                                     | ✅   |
 | 8   | 存在未提交事务或在途查询                                  | 调用 `disconnect()` 或关闭窗口                                   | 停止接受新任务，等待或回滚在途工作，刷新持久化数据并关闭句柄；随后可重命名该 SQLite 文件                                             | ✅   |
-| 9   | 构建打包后的 Tauri 应用                                   | 在 macOS、Windows、Linux CI 中启动产物、写入、退出、再次启动    | 三平台均通过；测试使用真实临时文件而非 mock 或浏览器存储，且断言形态为跨进程累计。三平台**统一不使用 WebDriver**（理由见下） | ⬜   |
-| 10  | Rust 宿主与 renderer 编译自不同协议版本                   | 发起连接                                                        | 连接失败并报可判别的错误码；不建库、不按旧协议降级解释载荷                                                                          | ⚠️   |
+| 9   | 构建打包后的 Tauri 应用                                   | 在 macOS、Windows、Linux CI 中启动产物、写入、退出、再次启动     | 三平台均通过；测试使用真实临时文件而非 mock 或浏览器存储，且断言形态为跨进程累计。三平台**统一不使用 WebDriver**（理由见下）         | ⬜   |
+| 10  | Rust 宿主与 renderer 编译自不同协议版本                   | 发起连接                                                         | 连接失败并报可判别的错误码；不建库、不按旧协议降级解释载荷                                                                           | ⚠️   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -186,7 +186,7 @@ Rust 宿主被调度饿住时就不成立了。
 | 6   | `engine.rs` 设置 `busy_timeout`、`protocol.rs` 的 `database_busy` 错误码映射、`session.rs` 的两会话隔离用例；**缺**两会话争写锁的直接用例                                                                                                                                        |
 | 7   | `systemSchemaMigrationSuite`（共享套件，含未知表保留）                                                                                                                                                                                                                           |
 | 8   | `engine.rs` 的 `releases_the_file_handle_so_it_can_be_renamed`：close 后 `-wal` 已 TRUNCATE checkpoint、句柄已交还，文件可直接 `rename`，且未提交的写入已回滚                                                                                                                    |
-| 10  | 拒绝动作本身在共享层，与 Electron 路径同一份代码（见 [US-207 AC#9](./US-207-desktop-local-database.md)）；Rust 侧 `session.rs` 的 `open` 应答带上 `protocol.rs` 的 `PROTOCOL_VERSION`，`session.rs:315` 断言它出现在应答里。**缺**：没有任何用例让两端版本真的不一致，见下 |
+| 10  | 拒绝动作本身在共享层，与 Electron 路径同一份代码（见 [US-207 AC#9](./US-207-desktop-local-database.md)）；Rust 侧 `session.rs` 的 `open` 应答带上 `protocol.rs` 的 `PROTOCOL_VERSION`，`session.rs:315` 断言它出现在应答里。**缺**：没有任何用例让两端版本真的不一致，见下       |
 
 AC#5 的两条失败路径是补这份文档时才发现没有直接用例的——错误码映射表
 （`sqlite_error_code`）一直在，但没有任何一条用例真的拿一个坏文件去撞它。补的时候把断言
@@ -213,12 +213,12 @@ WebSQL 目录撞车导致的**静默丢数据**（每次启动拿到一个全新
 与 [US-207「交付阶段」](./US-207-desktop-local-database.md#交付阶段) 同构：本故事也已超出
 INVEST「Small」，**不拆新故事**，改为划阶段，每阶段独立验收。
 
-| 阶段 | 内容                            | 完成判据                                                                                                     | 状态      |
-| ---- | ------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------- |
-| 1    | 核心能力：AC#2～#5、AC#7、AC#8  | 6 条 AC 全绿，一致性套件 0 skipped                                                                            | ✅ 已交付 |
-| 2    | 收尾保留项：AC#6、AC#10         | AC#6 补一条两会话争写锁的直接用例；AC#10 把两侧协议常量绑起来                                                 | ⚠️ 进行中 |
-| 3    | 打包验证：AC#1、AC#9            | 三平台 release workflow 绿；两者是同一次实现，见 AC#9 上方说明                                                | ⬜ 未开始 |
-| 4    | Tauri 包化：T1～T7              | 见各任务判据；与 [US-207 E1～E7](./US-207-desktop-local-database.md#包边界重整) 同批做，共用一次改名          | ⬜ 未开始 |
+| 阶段 | 内容                           | 完成判据                                                                                             | 状态      |
+| ---- | ------------------------------ | ---------------------------------------------------------------------------------------------------- | --------- |
+| 1    | 核心能力：AC#2～#5、AC#7、AC#8 | 6 条 AC 全绿，一致性套件 0 skipped                                                                   | ✅ 已交付 |
+| 2    | 收尾保留项：AC#6、AC#10        | AC#6 补一条两会话争写锁的直接用例；AC#10 把两侧协议常量绑起来                                        | ⚠️ 进行中 |
+| 3    | 打包验证：AC#1、AC#9           | 三平台 release workflow 绿；两者是同一次实现，见 AC#9 上方说明                                       | ⬜ 未开始 |
+| 4    | Tauri 包化：T1～T7             | 见各任务判据；与 [US-207 E1～E7](./US-207-desktop-local-database.md#包边界重整) 同批做，共用一次改名 | ⬜ 未开始 |
 
 本故事只有在四个阶段都完成后才标 `Done`。阶段 2 与阶段 3 之间没有依赖，可并行；
 阶段 4 必须在 [US-207 E1](./US-207-desktop-local-database.md#任务) 把共享层下沉之后开工——
@@ -363,10 +363,10 @@ Tauri 的 WebView 不是 Chromium（macOS 上是 WKWebView），但目录名沿�
 `open` 应答后比对 `DESKTOP_HOST_PROTOCOL_VERSION`），两条路径同一份代码，这半边是稳的。
 不稳的是**版本号在 Rust 侧是手抄的第二份**：
 
-| 侧          | 常量                                                          |
-| ----------- | ------------------------------------------------------------- |
-| TypeScript  | `DESKTOP_HOST_PROTOCOL_VERSION`（`desktop-host-protocol.ts`） |
-| Rust        | `PROTOCOL_VERSION: i64 = 1`（`protocol.rs:17`）              |
+| 侧         | 常量                                                          |
+| ---------- | ------------------------------------------------------------- |
+| TypeScript | `DESKTOP_HOST_PROTOCOL_VERSION`（`desktop-host-protocol.ts`） |
+| Rust       | `PROTOCOL_VERSION: i64 = 1`（`protocol.rs:17`）               |
 
 两个常量之间**没有任何机械联系**：改了 TS 那个，`cargo test` 一条不红；改了 Rust 那个，
 `pnpm nx test` 一条不红。Electron 侧没有这个问题——host 与 renderer 读的是同一个 TS 常量。

@@ -104,15 +104,15 @@ INVEST 检查清单:
 的 21 个共享套件原样跑在桌面工厂上（只排除 `createSqliteClientSuite`，它校验的是 wasm 后端的
 worker 选项组合，桌面客户端不接受任何 worker 选项）。AC#1 / #3 / #4 / #5 / #6 / #7 另有直接用例：
 
-| AC  | 证据                                                                                                                                                                                      |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `apps/dev-rxdb-electron-e2e/src/desktop-persistence.spec.ts` 「重启后计数递增，库文件落在应用数据目录内」                                                                                 |
-| 3   | `desktop-sqlite-host.spec.ts` 「reports a logical location that leaks no filesystem path」；上面那条 e2e 顺带断言 preload 暴露面恰为 `request` / `subscribe`                              |
-| 4   | `node-sqlite-engine.spec.ts` 「reports open_failed without leaving an empty database behind」/「database_corrupted」                                                                      |
-| 5   | `desktop-sqlite-host.spec.ts` 的 `describe('busy retry')` 三条用例（等待持锁方提交 / 预算耗尽报 `database_busy` / 事务中途不重发）                                                        |
-| 2   | `encrypted-{crud,tamper,bigint-binary,change-log,lifecycle}.spec.ts` —— `@aiao/rxdb-test/encrypted` 的五套共享套件跑在桌面工厂上                                                          |
-| 6   | `desktop-sqlite-host.spec.ts` 「preserves unknown business tables that already live in the file」                                                                                         |
-| 7   | `node-sqlite-engine.spec.ts` 「flushes the pending batch synchronously on close」/「persists committed data across a reopen」/「releases the file handle so the database can be renamed」 |
+| AC  | 证据                                                                                                                                                                                                                                                                       |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `apps/dev-rxdb-electron-e2e/src/desktop-persistence.spec.ts` 「重启后计数递增，库文件落在应用数据目录内」                                                                                                                                                                  |
+| 3   | `desktop-sqlite-host.spec.ts` 「reports a logical location that leaks no filesystem path」；上面那条 e2e 顺带断言 preload 暴露面恰为 `request` / `subscribe`                                                                                                               |
+| 4   | `node-sqlite-engine.spec.ts` 「reports open_failed without leaving an empty database behind」/「database_corrupted」                                                                                                                                                       |
+| 5   | `desktop-sqlite-host.spec.ts` 的 `describe('busy retry')` 三条用例（等待持锁方提交 / 预算耗尽报 `database_busy` / 事务中途不重发）                                                                                                                                         |
+| 2   | `encrypted-{crud,tamper,bigint-binary,change-log,lifecycle}.spec.ts` —— `@aiao/rxdb-test/encrypted` 的五套共享套件跑在桌面工厂上                                                                                                                                           |
+| 6   | `desktop-sqlite-host.spec.ts` 「preserves unknown business tables that already live in the file」                                                                                                                                                                          |
+| 7   | `node-sqlite-engine.spec.ts` 「flushes the pending batch synchronously on close」/「persists committed data across a reopen」/「releases the file handle so the database can be renamed」                                                                                  |
 | 9   | `desktop-host-protocol.ts` 的 `parseDesktopHostOpenResult` 在 `open` 应答上比对 `DESKTOP_HOST_PROTOCOL_VERSION`，不等即抛 `protocol_violation`；`desktop-sqlite-client.spec.ts` 「refuses a host that speaks a different protocol version」注入 `protocolVersion: 99` 撞它 |
 
 AC#1 的断言形态是**跨进程**的累计启动次数（1 → 2），不是「写一条读一条」——
@@ -258,10 +258,10 @@ run log 里的 `Published to https://registry.npmjs.org/` 才是权威，`npm vi
 **方案：新增一条 release 触发的 workflow**，`matrix: [ubuntu-latest, windows-latest, macos-latest]`，
 一次触发同时兑现三件事：
 
-| 承担                                    | 内容                                                                 |
-| --------------------------------------- | -------------------------------------------------------------------- |
-| 本故事 AC#8                             | `dev-rxdb-electron-e2e` 在三平台打包产物上跑持久化 smoke             |
-| 本故事「发布前需人工确认的三条性质」    | 恢复的 `desktop-adapter-consumer.mjs` 在真 tarball 上跑              |
+| 承担                                                   | 内容                                                         |
+| ------------------------------------------------------ | ------------------------------------------------------------ |
+| 本故事 AC#8                                            | `dev-rxdb-electron-e2e` 在三平台打包产物上跑持久化 smoke     |
+| 本故事「发布前需人工确认的三条性质」                   | 恢复的 `desktop-adapter-consumer.mjs` 在真 tarball 上跑      |
 | [US-210](./US-210-tauri-sqlite-local-database.md) AC#9 | Tauri 打包产物的三平台持久化 smoke（驱动方式不同，见该故事） |
 
 三件事共用一次触发而不是各起一条：它们要的前置是同一个（三平台 runner + 打包产物），
@@ -277,12 +277,12 @@ run log 里的 `Published to https://registry.npmjs.org/` 才是权威，`npm vi
 **不拆成新故事**（拆了要重建交叉引用、重分 epic、重写 `inherited_acs`，而这几节的上下文
 恰恰全在本文里），改为在故事内划阶段。每个阶段有独立的完成判据，**逐阶段推进、逐阶段验收**。
 
-| 阶段 | 内容                                    | 完成判据                                                                              | 状态       |
-| ---- | --------------------------------------- | ------------------------------------------------------------------------------------- | ---------- |
-| 1    | 核心能力：AC#1～#7、AC#9                | 8 条 AC 全绿，共享套件 0 skipped                                                       | ✅ 已交付  |
-| 2    | 打包与发布门禁：AC#8 +「三条发布性质」  | release 触发的三平台 workflow 绿（见「三平台打包 CI」）                                | ⬜ 未开始  |
-| 3    | 包边界重整：E1～E7                      | 见各任务判据；与 [US-210 T1～T7](./US-210-tauri-sqlite-local-database.md#tauri-包化) 同批做，两侧共用一次 `ADAPTER_NAME` 改名 | ⬜ 未开始  |
-| 4    | Web 回落：E8～E11                       | 见各任务判据；「选择器是否公开 API」在本阶段 plan 时定                                 | ⬜ 未开始  |
+| 阶段 | 内容                                   | 完成判据                                                                                                                      | 状态      |
+| ---- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------- |
+| 1    | 核心能力：AC#1～#7、AC#9               | 8 条 AC 全绿，共享套件 0 skipped                                                                                              | ✅ 已交付 |
+| 2    | 打包与发布门禁：AC#8 +「三条发布性质」 | release 触发的三平台 workflow 绿（见「三平台打包 CI」）                                                                       | ⬜ 未开始 |
+| 3    | 包边界重整：E1～E7                     | 见各任务判据；与 [US-210 T1～T7](./US-210-tauri-sqlite-local-database.md#tauri-包化) 同批做，两侧共用一次 `ADAPTER_NAME` 改名 | ⬜ 未开始 |
+| 4    | Web 回落：E8～E11                      | 见各任务判据；「选择器是否公开 API」在本阶段 plan 时定                                                                        | ⬜ 未开始 |
 
 **分阶段不等于降低完成判据**：本故事只有在四个阶段都完成后才标 `Done`。
 `status-overview.md` 的「进行中」记录当前停在哪个阶段，读到「进行中」的人由此知道
@@ -312,7 +312,7 @@ run log 里的 `Published to https://registry.npmjs.org/` 才是权威，`npm vi
 | `@aiao/rxdb-adapter-electron`                | `node:sqlite` 引擎、SQL 与文件宿主、`./host` 特权入口       | 本节 E2～E7                                                     |
 | `@aiao/rxdb-adapter-tauri`                   | Tauri 传输 + JSON 标签编解码 + Rust 宿主 crate + 一致性套件 | [US-210](./US-210-tauri-sqlite-local-database.md)「Tauri 包化」 |
 
-拆包不改任何一条 AC 的语义：本故事的 8 条 AC 在改名后逐条原样成立，只是证据锚点换了包名。
+拆包不改任何一条 AC 的语义：本故事的 9 条 AC 在改名后逐条原样成立，只是证据锚点换了包名。
 它也**不是**发布 1.0 前的可选整理——`@aiao/rxdb-adapter-desktop@0.0.25` 已在 registry 上，
 拖到有真实用户之后再改名，成本从「改 21 个引用点」变成「改用户代码」。
 
@@ -331,11 +331,11 @@ run log 里的 `Published to https://registry.npmjs.org/` 才是权威，`npm vi
 **命名遵循已有惯例 `<引擎>-<运行时>`**，参照 `@aiao/rxdb-adapter-miniprogram` 的
 `ADAPTER_NAME = 'wa-sqlite-miniprogram'`（不是 `'miniprogram'`）：
 
-| 适配器                      | `ADAPTER_NAME`     | 归属                                                     |
-| --------------------------- | ------------------ | -------------------------------------------------------- |
-| Electron + SQLite           | `sqlite-electron`  | 本故事 E3                                                |
-| Tauri + SQLite              | `sqlite-tauri`     | [US-210](./US-210-tauri-sqlite-local-database.md) T1～T7 |
-| Electron + PGlite           | `pglite-electron`  | [US-208](./US-208-electron-pglite-data-directory.md)     |
+| 适配器            | `ADAPTER_NAME`    | 归属                                                     |
+| ----------------- | ----------------- | -------------------------------------------------------- |
+| Electron + SQLite | `sqlite-electron` | 本故事 E3                                                |
+| Tauri + SQLite    | `sqlite-tauri`    | [US-210](./US-210-tauri-sqlite-local-database.md) T1～T7 |
+| Electron + PGlite | `pglite-electron` | [US-208](./US-208-electron-pglite-data-directory.md)     |
 
 **PGlite 单独占一个名，不并进 `sqlite-electron`。** 理由不是对称美感：两者是不同的引擎、
 不同的事务模型（PGlite 的 callback transaction 跨不了 IPC，需要一套 SQLite 路径不需要的
@@ -344,15 +344,15 @@ run log 里的 `Published to https://registry.npmjs.org/` 才是权威，`npm vi
 
 分裂的连带改动（E3 的完成判据即为这几处全部同步）：
 
-| 处                                                                              | 改动                                                                        |
-| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `DesktopOptions.runtime` 与 `DesktopRuntime`                                    | **删除**。名字已经表达了运行时，再留一个选项就是同一件事的两个真相来源     |
-| `SupportedDesktopStorage<TRuntime>`（`desktop-storage.ts:51`）                  | 泛型失去输入，退化成两个具体类型，各归各包                                 |
+| 处                                                                              | 改动                                                                      |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `DesktopOptions.runtime` 与 `DesktopRuntime`                                    | **删除**。名字已经表达了运行时，再留一个选项就是同一件事的两个真相来源    |
+| `SupportedDesktopStorage<TRuntime>`（`desktop-storage.ts:51`）                  | 泛型失去输入，退化成两个具体类型，各归各包                                |
 | `SUPPORTED_RUNTIMES`（`desktop-storage.ts:141`）与连接前的能力矩阵校验          | 删除。「Tauri 永不支持 PGlite」不再需要运行时校验——那个组合没有对应的名字 |
-| [US-505](../plugin/US-505-tauri-local-file-storage.md) AC#11 `adapter_mismatch` | 判别依据从 `runtime` 改为适配器名                                          |
-| `apps/dev-rxdb-tauri/src/app/setup_rxdb.ts` 的运行时选路                        | 返回的适配器名改为 `sqlite-tauri`；这段判定本身在阶段 4 的 E8 上移         |
-| [capability-matrix](../../capability-matrix.md) 的 desktop 行                   | 拆成三行                                                                   |
-| `website/docs/migration/`                                                       | 旧 `desktop` 名的迁移映射，随 E6 的废弃周期一并写                          |
+| [US-505](../plugin/US-505-tauri-local-file-storage.md) AC#11 `adapter_mismatch` | 判别依据从 `runtime` 改为适配器名                                         |
+| `apps/dev-rxdb-tauri/src/app/setup_rxdb.ts` 的运行时选路                        | 返回的适配器名改为 `sqlite-tauri`；这段判定本身在阶段 4 的 E8 上移        |
+| [capability-matrix](../../capability-matrix.md) 的 desktop 行                   | 拆成三行                                                                  |
+| `website/docs/migration/`                                                       | 旧 `desktop` 名的迁移映射，随 E6 的废弃周期一并写                         |
 
 **这是破坏性改动，且必须赶在有真实用户之前做**——`@aiao/rxdb-adapter-desktop@0.0.25` 已在
 registry 上。改名成本今天是「改 21 个引用点」，拖下去就变成「改用户代码」。
@@ -363,7 +363,7 @@ registry 上。改名成本今天是「改 21 个引用点」，拖下去就变�
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | E1  | 共享层下沉：`desktop-host-protocol.ts` / `desktop-sqlite-client.ts` / `desktop-storage.ts` / `desktop-error.ts` 与 `desktop-adapter.interface.ts` 的跨运行时部分迁入 `packages/rxdb-adapter-sqlite-core`，以**子路径入口**暴露                                                                                                                                                                                                                                  | 不进主入口（wa-sqlite / sqlite / sqlite-wasm / pglite / miniprogram 五个下游包吃的是主入口，协议层对它们是净负重）；`requirements/api-baseline/rxdb-adapter-sqlite-core.json` diff 为空；新子路径同步 `scripts/audit/api-surface.mjs` 的 `KNOWN_UNCOVERED_SUBPATHS`（含其「10 个包共 15 个入口」的计数注释） |
 | E2  | `packages/rxdb-adapter-desktop` → `packages/rxdb-adapter-electron`，包名 `@aiao/rxdb-adapter-electron`；只留 Electron 专有实现与 `./host` 入口，`tauri-host-transport.ts` 与 `desktop-json-codec.ts` 移出（US-210 T3）                                                                                                                                                                                                                                          | 包内 `grep -ri tauri` 零命中；`public-api.spec.ts` 的「keeps every Node builtin behind the host entry」import 图断言在新包内继续绿；`.` 与 `./host` 双入口保留                                                                                                                                               |
-| E3  | 执行 `ADAPTER_NAME` 分裂（决策已落定，见上）：`'desktop'` → `'sqlite-electron'` / `'sqlite-tauri'`，`RxDBAdapterDesktop` / `DESKTOP_*` / `RxDBAdapterDesktopError` 随包名改，删除 `runtime` 选项与 `DesktopRuntime`                                                                                                                                                                                                                                              | 上表七处连带改动全部同步；`grep -rn "runtime: 'electron'\|runtime: 'tauri'" --exclude-dir=node_modules` 零命中；`capability-matrix.md` 的 desktop 行拆成三行（含 US-208 的 `pglite-electron`）                                                                                                                |
+| E3  | 执行 `ADAPTER_NAME` 分裂（决策已落定，见上）：`'desktop'` → `'sqlite-electron'` / `'sqlite-tauri'`，`RxDBAdapterDesktop` / `DESKTOP_*` / `RxDBAdapterDesktopError` 随包名改，删除 `runtime` 选项与 `DesktopRuntime`                                                                                                                                                                                                                                             | 上表七处连带改动全部同步；`grep -rn "runtime: 'electron'\|runtime: 'tauri'" --exclude-dir=node_modules` 零命中；`capability-matrix.md` 的 desktop 行拆成三行（含 US-208 的 `pglite-electron`）                                                                                                               |
 | E4  | api-baseline 拆分：`rxdb-adapter-desktop.json` 删除，其导出按运行时归属拆入新增的 `rxdb-adapter-electron.json` / `rxdb-adapter-tauri.json`                                                                                                                                                                                                                                                                                                                      | `pnpm nx run-many -t build` 后 `node scripts/audit/api-surface.mjs --check` 绿；拆分前后**导出条目总数不变**（拆包不是 API 变更；写本条时 `rxdb-adapter-desktop.json` 为 48 项，以拆分当天实测为准）                                                                                                         |
 | E5  | 引用点更新：`tsconfig.base.json` 两条 paths、`rxdb-plugin-storage`（`package.json` / `vite.config.mts` external / `src/desktop.ts` / 4 个 spec）、`dev-rxdb-electron`、`dev-rxdb-tauri`、`README.md` 目录树、`scripts/README.md`、`capability-matrix.md`、[US-601](../tooling/US-601-subpath-api-surface-baseline.md) 子路径表、[US-904](../future/US-904-devtools-native-storage-contract.md) / [US-905](../future/US-905-tauri-native-devtools.md) 实现文件表 | `grep -rn "@aiao/rxdb-adapter-desktop" --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=out-tsc` 零命中；`rxdb-plugin-storage` 的 `./desktop` 入口改指共享层后**不再依赖任何运行时包**，其对 `/host` 的依赖只剩测试用途                                                                           |
 | E6  | 发布迁移：`npm deprecate @aiao/rxdb-adapter-desktop` 指向新包名，改名映射写进 `website/docs/migration/`                                                                                                                                                                                                                                                                                                                                                         | 按 [versioning-policy](../../versioning-policy.md) 第 3 节走废弃周期；两个新包在 Nx fixed release group 下与其余 `@aiao/*` 同步版本号                                                                                                                                                                        |
