@@ -7,21 +7,21 @@
 import { runChangeLogSuite } from '@aiao/rxdb-test/encrypted';
 import { afterAll, expect } from 'vitest';
 import {
-  desktopEncryptedAdapterFactory,
-  desktopHostDeliveryErrors,
-  readDesktopDatabaseFile,
-  stopDesktopTestHost
-} from './desktop-adapter-factory.js';
+  electronEncryptedAdapterFactory,
+  electronHostDeliveryErrors,
+  readElectronDatabaseFile,
+  stopElectronTestHost
+} from './electron-adapter-factory.js';
 
 afterAll(() => {
   try {
-    expect(desktopHostDeliveryErrors()).toEqual([]);
+    expect(electronHostDeliveryErrors()).toEqual([]);
   } finally {
-    stopDesktopTestHost();
+    stopElectronTestHost();
   }
 });
 
 runChangeLogSuite({
-  factory: desktopEncryptedAdapterFactory,
-  readDatabaseFile: readDesktopDatabaseFile
+  factory: electronEncryptedAdapterFactory,
+  readDatabaseFile: readElectronDatabaseFile
 });

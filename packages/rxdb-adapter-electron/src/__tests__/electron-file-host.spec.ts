@@ -7,7 +7,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createElectronFileHost, type ElectronFileHost } from '../desktop-file-host.js';
+import { createElectronFileHost, type ElectronFileHost } from '../electron-file-host.js';
 
 const textOf = (value: string): Uint8Array => new TextEncoder().encode(value);
 

@@ -1,6 +1,6 @@
 // @vitest-environment node
-import { DESKTOP_ADAPTER_NAME, type DesktopHostTransport } from '@aiao/rxdb-adapter-desktop';
-import { createElectronFileHost, type ElectronFileHost } from '@aiao/rxdb-adapter-desktop/host';
+import { ELECTRON_ADAPTER_NAME, type DesktopHostTransport } from '@aiao/rxdb-adapter-electron';
+import { createElectronFileHost, type ElectronFileHost } from '@aiao/rxdb-adapter-electron/host';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -9,7 +9,7 @@ import { createDesktopStorageFilesystem } from '../desktop.js';
 import type { StorageFilesystem, StorageFilesystemContext } from '../filesystem/storage-filesystem.js';
 import { isStorageNotFoundError } from '../filesystem/storage-filesystem.js';
 
-const CONTEXT: StorageFilesystemContext = { localAdapterName: DESKTOP_ADAPTER_NAME };
+const CONTEXT: StorageFilesystemContext = { localAdapterName: ELECTRON_ADAPTER_NAME };
 
 let workspace: string;
 let host: ElectronFileHost;

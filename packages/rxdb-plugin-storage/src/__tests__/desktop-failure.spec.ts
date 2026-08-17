@@ -14,11 +14,11 @@
  */
 
 import {
-  DESKTOP_ADAPTER_NAME,
+  ELECTRON_ADAPTER_NAME,
   type DesktopHostTransport,
   type RxDBAdapterDesktopErrorCode
-} from '@aiao/rxdb-adapter-desktop';
-import { createElectronFileHost, type ElectronFileHost } from '@aiao/rxdb-adapter-desktop/host';
+} from '@aiao/rxdb-adapter-electron';
+import { createElectronFileHost, type ElectronFileHost } from '@aiao/rxdb-adapter-electron/host';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -89,7 +89,7 @@ beforeEach(async () => {
     { filesystem: createDesktopStorageFilesystem({ transport }) },
     new ObjectUrlRegistry(() => 'blob:x', vi.fn()),
     FakeStorageFileMeta,
-    DESKTOP_ADAPTER_NAME
+    ELECTRON_ADAPTER_NAME
   ).service;
 });
 

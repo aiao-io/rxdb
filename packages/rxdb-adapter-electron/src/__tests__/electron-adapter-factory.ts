@@ -6,9 +6,9 @@
  * 只是在中间多一次序列化，链路形状不变——因此共享套件跑的仍是生产同款的
  * 「客户端 → 协议校验 → host → `node:sqlite`」全程，被替掉的只有最外层那根管子。
  *
- * 所有库文件落在一个临时工作区里，用完由 {@link stopDesktopTestHost} 整个删掉。
+ * 所有库文件落在一个临时工作区里，用完由 {@link stopElectronTestHost} 整个删掉。
  *
- * @module __tests__/desktop-adapter-factory
+ * @module __tests__/electron-adapter-factory
  */
 
 import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
@@ -18,9 +18,9 @@ import type { EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ADAPTER_NAME } from '../desktop-adapter.interface.js';
-import { createElectronSqliteHost, type ElectronSqliteHost } from '../desktop-sqlite-host.js';
-import { RxDBAdapterDesktop } from '../RxDBAdapterDesktop.js';
+import { ADAPTER_NAME } from '../electron-adapter.interface.js';
+import { createElectronSqliteHost, type ElectronSqliteHost } from '../electron-sqlite-host.js';
+import { RxDBAdapterElectron } from '../RxDBAdapterElectron.js';
 
 interface DesktopTestHost {
   readonly workspace: string;
@@ -66,7 +66,7 @@ const ensureHost = (): DesktopTestHost => (running ??= startHost());
  * @remarks
  * 由 setup spec 在 `afterAll` 里调用；不调用会在 `os.tmpdir()` 里留下整个库目录。
  */
-export function stopDesktopTestHost(): void {
+export function stopElectronTestHost(): void {
   if (!running) return;
   const { host, workspace } = running;
   running = undefined;
@@ -79,7 +79,7 @@ export function stopDesktopTestHost(): void {
  *
  * @returns 送达失败列表，正常情况下为空
  */
-export function desktopHostDeliveryErrors(): readonly unknown[] {
+export function electronHostDeliveryErrors(): readonly unknown[] {
   return deliveryErrors;
 }
 
@@ -93,10 +93,10 @@ const uniqueDbName = (): string => `desktop-test-${Date.now()}-${Math.random().t
  * 计数必须落在**适配器**层而不是 host 层：host 还会看到系统 schema 初始化
  * 这类与被测行为无关的往返。
  */
-class QueryCountingDesktopAdapter extends RxDBAdapterDesktop {
+class QueryCountingElectronAdapter extends RxDBAdapterElectron {
   queryCount = 0;
 
-  override query(...args: Parameters<RxDBAdapterDesktop['query']>): ReturnType<RxDBAdapterDesktop['query']> {
+  override query(...args: Parameters<RxDBAdapterElectron['query']>): ReturnType<RxDBAdapterElectron['query']> {
     this.queryCount++;
     return super.query(...args);
   }
@@ -104,7 +104,7 @@ class QueryCountingDesktopAdapter extends RxDBAdapterDesktop {
 
 const encryptedQueryCounts = new WeakMap<object, () => number>();
 
-async function createDesktopAdapter(options?: Record<string, unknown>): Promise<QueryCountingDesktopAdapter> {
+async function createDesktopAdapter(options?: Record<string, unknown>): Promise<QueryCountingElectronAdapter> {
   const entities = ((options ?? {}) as { entities?: EntityType[] }).entities?.slice() ?? [];
   const rxdb = new RxDB({
     dbName: uniqueDbName(),
@@ -116,11 +116,11 @@ async function createDesktopAdapter(options?: Record<string, unknown>): Promise<
     }
   });
 
-  let adapter: QueryCountingDesktopAdapter | undefined;
+  let adapter: QueryCountingElectronAdapter | undefined;
   // 重连的套件会再次调用本工厂函数：`dbName` 不变 ⇒ 落到同一个物理文件，
   // 桌面适配器没有「非持久化」档位，`persistent` 选项因此不需要分支。
   rxdb.adapter(ADAPTER_NAME, async db => {
-    adapter = new QueryCountingDesktopAdapter(db, { transport: ensureHost().transport });
+    adapter = new QueryCountingElectronAdapter(db, { transport: ensureHost().transport });
     return adapter;
   });
 
@@ -131,7 +131,7 @@ async function createDesktopAdapter(options?: Record<string, unknown>): Promise<
 }
 
 /** 驱动 `@aiao/rxdb-adapter-sqlite-core/testing` 共享套件的桌面适配器工厂。 */
-export const desktopAdapterFactory: AdapterFactory = {
+export const electronAdapterFactory: AdapterFactory = {
   name: ADAPTER_NAME,
 
   async createAdapter<T = unknown>(options?: Record<string, unknown>): Promise<T> {
@@ -148,7 +148,7 @@ export const desktopAdapterFactory: AdapterFactory = {
 };
 
 /** 驱动 `@aiao/rxdb-test/encrypted` 五套加密契约套件的桌面适配器工厂。 */
-export const desktopEncryptedAdapterFactory: EncryptedAdapterFactory = {
+export const electronEncryptedAdapterFactory: EncryptedAdapterFactory = {
   name: ADAPTER_NAME,
   getQueryCount: adapter => encryptedQueryCounts.get(adapter)?.() ?? 0,
   createAdapter: async options => {
@@ -174,8 +174,8 @@ export const desktopEncryptedAdapterFactory: EncryptedAdapterFactory = {
  * @param adapter - 被测适配器，取其 `databaseName` 定位物理文件
  * @returns 主库文件与 `-wal`（若存在）拼接后的字节
  */
-export async function readDesktopDatabaseFile(adapter: unknown): Promise<Uint8Array> {
-  const { databaseName } = adapter as RxDBAdapterDesktop;
+export async function readElectronDatabaseFile(adapter: unknown): Promise<Uint8Array> {
+  const { databaseName } = adapter as RxDBAdapterElectron;
   const filePath = join(ensureHost().workspace, databaseName);
   const chunks = [filePath, `${filePath}-wal`].filter(existsSync).map(path => readFileSync(path));
   return new Uint8Array(Buffer.concat(chunks));

@@ -60,7 +60,7 @@ export function stopRustTestHost(): void {
  *
  * @remarks
  * Rust 侧的契约是「`handle()` 永不 panic，错误一律作为返回值」，因此 stderr 上任何一个字
- * 都是缺陷。它对应 Electron 工厂里的 `desktopHostDeliveryErrors()`：一个平时为空、
+ * 都是缺陷。它对应 Electron 工厂里的 `electronHostDeliveryErrors()`：一个平时为空、
  * 一旦不空就说明宿主内部出事了的旁路信号。
  *
  * @returns stderr 全文，正常情况下为空串

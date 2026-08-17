@@ -10,13 +10,13 @@ import {
   parseDesktopHostRequest
 } from '../host.js';
 import {
-  DESKTOP_ADAPTER_NAME,
   DESKTOP_DEFAULT_DATABASE_SUFFIX,
   DESKTOP_HOST_PROTOCOL_VERSION,
   DESKTOP_HOST_TRANSPORT_KEY,
   DesktopSqliteClient,
+  ELECTRON_ADAPTER_NAME,
   resolveDesktopHostTransport,
-  RxDBAdapterDesktop,
+  RxDBAdapterElectron,
   RxDBAdapterDesktopError,
   type DesktopHostTransport,
   type DesktopOptions
@@ -58,11 +58,11 @@ const collectSpecifiers = (entry: string, seen = new Set<string>(), specifiers =
 
 describe('renderer entry', () => {
   it('exposes the adapter, the client and the transport contract', () => {
-    expect(DESKTOP_ADAPTER_NAME).toBe('desktop');
+    expect(ELECTRON_ADAPTER_NAME).toBe('sqlite-electron');
     expect(DESKTOP_DEFAULT_DATABASE_SUFFIX).toBe('.sqlite3');
     expect(DESKTOP_HOST_PROTOCOL_VERSION).toBe(1);
     expect(DESKTOP_HOST_TRANSPORT_KEY).toBe('__aiaoRxdbDesktopHost__');
-    expect(typeof RxDBAdapterDesktop).toBe('function');
+    expect(typeof RxDBAdapterElectron).toBe('function');
     expect(typeof DesktopSqliteClient).toBe('function');
     expect(typeof resolveDesktopHostTransport).toBe('function');
     expect(typeof RxDBAdapterDesktopError).toBe('function');

@@ -57,9 +57,11 @@ describe('主入口', () => {
   });
 
   // AC#8：桌面后端顺着依赖图跟进浏览器 bundle，隔离就只剩文档上的一句话。
+  // 判据按前缀写：US-207 E2/E3 之后桌面运行时是两个包（electron / tauri），将来还会有
+  // `pglite-electron` 这样的第三个——逐个点名的写法漏掉新包时是静默通过的。
   it('依赖图不触及桌面适配器', () => {
     const specifiers = [...collectSpecifiers(resolve(SOURCE_ROOT, 'index.ts'))];
-    expect(specifiers.filter(specifier => specifier.includes('rxdb-adapter-desktop'))).toEqual([]);
+    expect(specifiers.filter(specifier => /rxdb-adapter-(electron|tauri)/.test(specifier))).toEqual([]);
     expect(specifiers.filter(specifier => specifier.startsWith('node:'))).toEqual([]);
   });
 
@@ -80,10 +82,12 @@ describe('./desktop 子入口', () => {
     expect(specifiers.filter(specifier => specifier.startsWith('node:'))).toEqual([]);
   });
 
-  // 走的必须是浏览器入口。`/host` 会把 node:sqlite 一起拖进 renderer bundle。
-  it('只依赖适配器的浏览器入口', () => {
+  // 走的必须是协议层，而不是某一个运行时适配器包：本后端对 Electron 与 Tauri 一视同仁，
+  // 依赖上哪一个都会逼另一端的用户装一个用不到的包（US-207 E3）。
+  // `@aiao/rxdb-adapter-electron/host` 更是禁区——它会把 node:sqlite 一起拖进 renderer bundle。
+  it('只依赖共享协议层', () => {
     const specifiers = [...collectSpecifiers(resolve(SOURCE_ROOT, 'desktop.ts'))];
-    expect(specifiers).toContain('@aiao/rxdb-adapter-desktop');
-    expect(specifiers).not.toContain('@aiao/rxdb-adapter-desktop/host');
+    expect(specifiers).toContain('@aiao/rxdb-adapter-sqlite-core/desktop-host');
+    expect(specifiers.filter(specifier => /rxdb-adapter-(electron|tauri)/.test(specifier))).toEqual([]);
   });
 });

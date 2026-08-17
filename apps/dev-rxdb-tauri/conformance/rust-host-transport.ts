@@ -180,7 +180,7 @@ export function createRustHostTransport(
       listen: host.listen,
       // 记下来而不是抛出去：这个回调是从 Tauri（这里是 stdin 数据回调）里同步调的，
       // 抛出去只会变成一句与故障无关的 worker 崩溃。攒成数组由 afterAll 断言，
-      // 与 Electron 工厂的 `desktopHostDeliveryErrors()` 是同一个旁路信号。
+      // 与 Electron 工厂的 `electronHostDeliveryErrors()` 是同一个旁路信号。
       onListenError: error => deliveryErrors.push(error)
     })
   };

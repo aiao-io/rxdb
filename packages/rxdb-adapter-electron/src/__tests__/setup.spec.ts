@@ -32,37 +32,37 @@ import {
   versionBranchSuite
 } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { afterAll, expect } from 'vitest';
-import { desktopAdapterFactory, desktopHostDeliveryErrors, stopDesktopTestHost } from './desktop-adapter-factory.js';
+import { electronAdapterFactory, electronHostDeliveryErrors, stopElectronTestHost } from './electron-adapter-factory.js';
 
 afterAll(() => {
   try {
-    expect(desktopHostDeliveryErrors()).toEqual([]);
+    expect(electronHostDeliveryErrors()).toEqual([]);
   } finally {
-    stopDesktopTestHost();
+    stopElectronTestHost();
   }
 });
 
-adapterConstructionSuite(desktopAdapterFactory);
-bigintBinaryClientSuite(desktopAdapterFactory);
-bigintBinaryEntitySuite(desktopAdapterFactory);
+adapterConstructionSuite(electronAdapterFactory);
+bigintBinaryClientSuite(electronAdapterFactory);
+bigintBinaryEntitySuite(electronAdapterFactory);
 
-rxdbAdapterSuite(desktopAdapterFactory);
-sqliteRepositorySuite(desktopAdapterFactory);
-systemSchemaMigrationSuite(desktopAdapterFactory);
-sqliteClientSuite(desktopAdapterFactory);
-sqliteClientBatchTimeoutSuite(desktopAdapterFactory);
+rxdbAdapterSuite(electronAdapterFactory);
+sqliteRepositorySuite(electronAdapterFactory);
+systemSchemaMigrationSuite(electronAdapterFactory);
+sqliteClientSuite(electronAdapterFactory);
+sqliteClientBatchTimeoutSuite(electronAdapterFactory);
 
-joinSqlSuite(desktopAdapterFactory);
-querySqlSuite(desktopAdapterFactory);
-tableIndexSuite(desktopAdapterFactory);
-transactionSqliteResultSuite(desktopAdapterFactory);
+joinSqlSuite(electronAdapterFactory);
+querySqlSuite(electronAdapterFactory);
+tableIndexSuite(electronAdapterFactory);
+transactionSqliteResultSuite(electronAdapterFactory);
 
-crudIntegrationSuite(desktopAdapterFactory);
-customPrimaryKeySuite(desktopAdapterFactory);
-relationIntegrationSuite(desktopAdapterFactory);
-menuIntegrationSuite(desktopAdapterFactory);
-cascadeMutationSuite(desktopAdapterFactory);
-treeIntegrationSuite(desktopAdapterFactory);
+crudIntegrationSuite(electronAdapterFactory);
+customPrimaryKeySuite(electronAdapterFactory);
+relationIntegrationSuite(electronAdapterFactory);
+menuIntegrationSuite(electronAdapterFactory);
+cascadeMutationSuite(electronAdapterFactory);
+treeIntegrationSuite(electronAdapterFactory);
 
-versionBranchSuite(desktopAdapterFactory);
-undoRedoSuite(desktopAdapterFactory);
+versionBranchSuite(electronAdapterFactory);
+undoRedoSuite(electronAdapterFactory);

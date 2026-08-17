@@ -18,8 +18,8 @@
  * @module rxdb-plugin-storage/__tests__/backend-parity
  */
 
-import { DESKTOP_ADAPTER_NAME, type DesktopHostTransport } from '@aiao/rxdb-adapter-desktop';
-import { createElectronFileHost, type ElectronFileHost } from '@aiao/rxdb-adapter-desktop/host';
+import { ELECTRON_ADAPTER_NAME, type DesktopHostTransport } from '@aiao/rxdb-adapter-electron';
+import { createElectronFileHost, type ElectronFileHost } from '@aiao/rxdb-adapter-electron/host';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -85,7 +85,7 @@ const createDesktopBackend = (): ParityBackend => {
 
   return {
     name: 'desktop',
-    localAdapterName: DESKTOP_ADAPTER_NAME,
+    localAdapterName: ELECTRON_ADAPTER_NAME,
     async setup() {
       workspace = await mkdtemp(join(tmpdir(), 'rxdb-parity-'));
       const created = createElectronFileHost({ resolveStorageRoot: () => join(workspace, 'rxdb-files') });
@@ -102,7 +102,7 @@ const createDesktopBackend = (): ParityBackend => {
     },
     createRawFilesystem() {
       if (!transport) throw new Error('desktop backend not set up');
-      return createDesktopStorageFilesystem({ transport })('files', { localAdapterName: DESKTOP_ADAPTER_NAME });
+      return createDesktopStorageFilesystem({ transport })('files', { localAdapterName: ELECTRON_ADAPTER_NAME });
     },
     async temporaryNames() {
       return (await collectDiskNames(workspace)).filter(isTemporaryStorageName).sort();

@@ -8,7 +8,7 @@ import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createElectronSqliteHost, type ElectronSqliteHost } from '../desktop-sqlite-host.js';
+import { createElectronSqliteHost, type ElectronSqliteHost } from '../electron-sqlite-host.js';
 
 const sqliteStorage = { engine: 'sqlite', databaseName: 'app.sqlite3' } as const;
 

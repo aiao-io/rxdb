@@ -58,10 +58,16 @@ export default defineConfig(() => ({
     rolldownOptions: {
       // dts 插件生成声明文件天然比 Rolldown 原生链接阶段慢，抑制误报的 PLUGIN_TIMINGS 警告
       checks: { pluginTimings: false },
-      // desktop 入口经 host 协议说话，桌面适配器必须外置：内联会把它复制进浏览器主入口的依赖图。
+      // desktop 入口经 host 协议说话，协议层必须外置：内联会把它复制进浏览器主入口的依赖图。
       // vitest 同理且更硬：testing 入口的断言必须跑在**调用方那一个** vitest 实例上，
       // 内联一份进来，`expect` 就登记不到调用方的测试上下文里。
-      external: ['@aiao/rxdb', '@aiao/rxdb-adapter-electron', 'rxjs', 'vitest']
+      external: [
+        '@aiao/rxdb',
+        '@aiao/rxdb-adapter-electron',
+        '@aiao/rxdb-adapter-sqlite-core/desktop-host',
+        'rxjs',
+        'vitest'
+      ]
     }
   },
   server: {

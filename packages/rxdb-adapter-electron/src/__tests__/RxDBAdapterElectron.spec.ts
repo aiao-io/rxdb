@@ -10,11 +10,11 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createElectronSqliteHost, type ElectronSqliteHost } from '../desktop-sqlite-host.js';
-import { RxDBAdapterDesktop } from '../RxDBAdapterDesktop.js';
+import { createElectronSqliteHost, type ElectronSqliteHost } from '../electron-sqlite-host.js';
+import { RxDBAdapterElectron } from '../RxDBAdapterElectron.js';
 
 /** `createClient` 是 protected：测试子类只把它开出来，不改任何行为。 */
-class TestDesktopAdapter extends RxDBAdapterDesktop {
+class TestElectronAdapter extends RxDBAdapterElectron {
   createTestClient(): Promise<DesktopSqliteClient> {
     return this.createClient();
   }
@@ -26,8 +26,8 @@ let transport: DesktopHostTransport;
 
 const rxdbWith = (dbName: string): RxDB => ({ config: { dbName } }) as RxDB;
 
-const createAdapter = (dbName: string, options: DesktopOptions = {}): TestDesktopAdapter =>
-  new TestDesktopAdapter(rxdbWith(dbName), { transport, ...options });
+const createAdapter = (dbName: string, options: DesktopOptions = {}): TestElectronAdapter =>
+  new TestElectronAdapter(rxdbWith(dbName), { transport, ...options });
 
 beforeEach(() => {
   workspace = mkdtempSync(join(tmpdir(), 'rxdb-desktop-adapter-'));
@@ -47,9 +47,11 @@ afterEach(() => {
   delete (globalThis as Record<string, unknown>)[DESKTOP_HOST_TRANSPORT_KEY];
 });
 
-describe('RxDBAdapterDesktop', () => {
-  it('registers itself under the desktop adapter name', () => {
-    expect(createAdapter('notes').name).toBe('desktop');
+describe('RxDBAdapterElectron', () => {
+  // 名字带上引擎与运行时两段：同一个运行时上还会有别的引擎（US-208 的 `pglite-electron`），
+  // 只叫 `electron` 就没有第二个位置可放。
+  it('registers itself under the electron sqlite adapter name', () => {
+    expect(createAdapter('notes').name).toBe('sqlite-electron');
   });
 
   it('derives the database file name from the RxDB database name', async () => {
@@ -88,18 +90,18 @@ describe('RxDBAdapterDesktop', () => {
 describe('transport resolution', () => {
   it('falls back to the transport the preload script exposed', async () => {
     (globalThis as Record<string, unknown>)[DESKTOP_HOST_TRANSPORT_KEY] = transport;
-    const adapter = new TestDesktopAdapter(rxdbWith('notes'));
+    const adapter = new TestElectronAdapter(rxdbWith('notes'));
     expect((await adapter.createTestClient()).resolvedLocation).toContain('notes.sqlite3');
   });
 
   // 桌面路径没有 renderer 侧的降级后端可用：宁可报 host 缺失，也不能悄悄换个存储
   it('reports host_unavailable when nothing exposed a transport', async () => {
-    const adapter = new TestDesktopAdapter(rxdbWith('notes'));
+    const adapter = new TestElectronAdapter(rxdbWith('notes'));
     await expect(adapter.createTestClient()).rejects.toThrowError(/host_unavailable/);
   });
 
   it('names the global the preload script has to expose', async () => {
-    const adapter = new TestDesktopAdapter(rxdbWith('notes'));
+    const adapter = new TestElectronAdapter(rxdbWith('notes'));
     try {
       await adapter.createTestClient();
       expect.unreachable('should have thrown');
@@ -112,7 +114,7 @@ describe('transport resolution', () => {
   // 半成品桥接（只暴露了 request）比完全没暴露更难查，得在连接前就拦下来
   it('refuses a transport that does not implement the full bridge', async () => {
     (globalThis as Record<string, unknown>)[DESKTOP_HOST_TRANSPORT_KEY] = { request: () => Promise.resolve(null) };
-    const adapter = new TestDesktopAdapter(rxdbWith('notes'));
+    const adapter = new TestElectronAdapter(rxdbWith('notes'));
     await expect(adapter.createTestClient()).rejects.toThrowError(/host_unavailable/);
   });
 });
