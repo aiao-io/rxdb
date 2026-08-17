@@ -89,6 +89,14 @@
       "kind": "type"
     },
     {
+      "name": "DesktopHostHandshakeRequest",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostHandshakeResult",
+      "kind": "type"
+    },
+    {
       "name": "DesktopHostOpenRequest",
       "kind": "type"
     },
@@ -154,6 +162,10 @@
     },
     {
       "name": "parseDesktopHostChangeEvent",
+      "kind": "value"
+    },
+    {
+      "name": "parseDesktopHostHandshakeResult",
       "kind": "value"
     },
     {

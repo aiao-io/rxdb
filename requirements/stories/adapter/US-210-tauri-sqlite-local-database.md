@@ -101,14 +101,11 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 | 7   | SQLite 文件存在应用未知的普通业务表                       | Aiao 首次连接并初始化系统 schema                                 | 保留未知表和数据；只创建或迁移 Aiao 自有系统对象，失败时事务回滚                                                                     | ✅   |
 | 8   | 存在未提交事务或在途查询                                  | 调用 `disconnect()` 或关闭窗口                                   | 停止接受新任务，等待或回滚在途工作，刷新持久化数据并关闭句柄；随后可重命名该 SQLite 文件                                             | ✅   |
 | 9   | 构建打包后的 Tauri 应用                                   | 在 macOS、Windows、Linux CI 中启动产物、写入、退出、再次启动     | 三平台均通过；测试使用真实临时文件而非 mock 或浏览器存储，且断言形态为跨进程累计。三平台**统一不使用 WebDriver**（理由见下）         | ✅   |
-| 10  | Rust 宿主与 renderer 编译自不同协议版本                   | 发起连接                                                         | 连接失败并报可判别的错误码；不建库、不按旧协议降级解释载荷                                                                           | ⚠️   |
+| 10  | Rust 宿主与 renderer 编译自不同协议版本                   | 发起连接                                                         | 连接失败并报可判别的错误码；不建库、不按旧协议降级解释载荷                                                                           | ✅   |
 
-> **AC#10 仍标 ⚠️，是它剩下的那半条真的没做，不是文档没跟上。** 「连接失败并报可判别的错误码」
-> 与「不按旧协议降级解释载荷」已由用例钉死（见证据栏），**「不建库」这半条没有兑现**：
-> 握手发生在 host 已经建库、开连接、登记会话**之后**，一次注定失败的连接仍会在磁盘上留下一个空库文件。
-> `conformance/protocol-handshake.spec.ts` 的「留下了一个空库文件」把这个事实存成了一条断言——
-> 它会在缺口被补上的那天变红，而不是安静地待在文档里等人想起来。
-> 补法是协议层改动（两端各加一条无副作用的握手请求，在 `open` 之前协商版本），不在本轮范围。
+> **AC#10 于 2026-08-17 补齐最后半条并转 ✅。** 协议里加了一条**无副作用**的 `handshake` 请求
+> （无参数、不碰会话表、不碰路径解析），renderer 在 `open` 之前先用它协商版本。顺序就是这条 AC 的
+> 全部：`open` 会建库、开连接、登记会话，核对排在它之后的话，一次注定失败的连接仍会留下空库文件。
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -192,18 +189,18 @@ Rust 宿主被调度饿住时就不成立了。
 进程内，比 stdio 子进程快一个量级。但「没复现出问题」不等于「证明了不会有问题」——真正的
 证明要等 AC#9 的打包 e2e 用真 IPC 跑一遍。
 
-| AC  | 证据                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `apps/dev-rxdb-tauri-e2e/src/desktop-persistence.spec.ts`：`tauri build --ci --no-bundle` 的 release 二进制连跑两次同一个数据目录，累计启动次数 **1 → 2**，且 host 上报的 `appDataDir` 与测试指定的目录逐字相等、库文件确实落在其下；第二条用例钉住「只设了一半自检变量时以退出码 3 在建窗之前退出」。权限面由 `capabilities/default.json` **一个字未改**保证——应用自有命令不过 capability 门禁，所以「未授予额外 shell / 全文件系统权限」是结构性事实而非断言 |
-| 2   | `transactionSqliteResultSuite`；`session.rs` 的 `keeps_transactions_isolated_between_sessions`（一方未提交的写入对另一方不可见，提交后立刻可见）与 `rolls_a_transaction_back`                                                                                                                                                                                                                                                                                  |
-| 3   | 上述 21 + 5 套套件全绿、零跳过（满载时的时序敏感性见上文）                                                                                                                                                                                                                                                                                                                                                                                                     |
-| 4   | `paths.rs` 的 `creates_the_scoped_directory_and_joins_the_logical_name`；`session.rs` 的 `open_reports_a_logical_location_not_a_filesystem_path`——物理根目录不出协议                                                                                                                                                                                                                                                                                           |
-| 5   | `engine.rs` 的 `reports_database_corrupted_without_touching_the_original_bytes` / `reports_open_failed_without_leaving_an_empty_database_behind`；`paths.rs` 的 `does_not_create_anything_for_an_invalid_name`；`protocol.rs` 的 `rejects_engines_outside_the_capability_matrix`                                                                                                                                                                               |
-| 6   | `conformance/write-lock-contention.spec.ts`：持锁方提交前第二个 writer 保持 pending（200ms 处断言未 settle）、持锁方压满 `busy_timeout` 后第二个 writer 报 `database_busy`、撞锁后两个会话仍读同一份数据且工作区里只有一个 `.sqlite3`；配套 `engine.rs` 的 `busy_timeout` 与 `protocol.rs` 的错误码映射                                                                                                                                                        |
-| 7   | `systemSchemaMigrationSuite`（共享套件，含未知表保留）                                                                                                                                                                                                                                                                                                                                                                                                         |
-| 8   | `engine.rs` 的 `releases_the_file_handle_so_it_can_be_renamed`：close 后 `-wal` 已 TRUNCATE checkpoint、句柄已交还，文件可直接 `rename`，且未提交的写入已回滚                                                                                                                                                                                                                                                                                                  |
-| 9   | `.github/workflows/release-desktop.yml` 的 `tauri-smoke`：ubuntu / macOS / windows 三平台矩阵（`fail-fast: false`）跑 `dev-rxdb-tauri-e2e:desktop-smoke`，该 target 经 `dependsOn` 先出 `tauri-package-release` 产物。数据目录是 `mkdtemp` 出来的真实临时目录，全程不碰浏览器存储                                                                                                                                                                              |
-| 10  | `conformance/protocol-handshake.spec.ts`：① 直接读 `protocol.rs` 源文本抽出 `PROTOCOL_VERSION`，断言等于 TS 的 `DESKTOP_HOST_PROTOCOL_VERSION`——这是两份手抄常量之间唯一的机械链接；② 宿主被 `RXDB_HOST_STDIO_PROTOCOL_VERSION` 逼着报一个不同的版本号后，`connect` 以 `protocol_violation` 失败、消息里带上两端版本号、`open` 之后只发了一条 `close` 而没有任何 `execute`（既不降级解释也不泄漏会话）。**残留**：「不建库」未兑现，见 AC 表下方               |
+| AC  | 证据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `apps/dev-rxdb-tauri-e2e/src/desktop-persistence.spec.ts`：`tauri build --ci --no-bundle` 的 release 二进制连跑两次同一个数据目录，累计启动次数 **1 → 2**，且 host 上报的 `appDataDir` 与测试指定的目录逐字相等、库文件确实落在其下；第二条用例钉住「只设了一半自检变量时以退出码 3 在建窗之前退出」。权限面由 `capabilities/default.json` **一个字未改**保证——应用自有命令不过 capability 门禁，所以「未授予额外 shell / 全文件系统权限」是结构性事实而非断言                                                                                                                                                            |
+| 2   | `transactionSqliteResultSuite`；`session.rs` 的 `keeps_transactions_isolated_between_sessions`（一方未提交的写入对另一方不可见，提交后立刻可见）与 `rolls_a_transaction_back`                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 3   | 上述 21 + 5 套套件全绿、零跳过（满载时的时序敏感性见上文）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 4   | `paths.rs` 的 `creates_the_scoped_directory_and_joins_the_logical_name`；`session.rs` 的 `open_reports_a_logical_location_not_a_filesystem_path`——物理根目录不出协议                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 5   | `engine.rs` 的 `reports_database_corrupted_without_touching_the_original_bytes` / `reports_open_failed_without_leaving_an_empty_database_behind`；`paths.rs` 的 `does_not_create_anything_for_an_invalid_name`；`protocol.rs` 的 `rejects_engines_outside_the_capability_matrix`                                                                                                                                                                                                                                                                                                                                          |
+| 6   | `conformance/write-lock-contention.spec.ts`：持锁方提交前第二个 writer 保持 pending（200ms 处断言未 settle）、持锁方压满 `busy_timeout` 后第二个 writer 报 `database_busy`、撞锁后两个会话仍读同一份数据且工作区里只有一个 `.sqlite3`；配套 `engine.rs` 的 `busy_timeout` 与 `protocol.rs` 的错误码映射                                                                                                                                                                                                                                                                                                                   |
+| 7   | `systemSchemaMigrationSuite`（共享套件，含未知表保留）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 8   | `engine.rs` 的 `releases_the_file_handle_so_it_can_be_renamed`：close 后 `-wal` 已 TRUNCATE checkpoint、句柄已交还，文件可直接 `rename`，且未提交的写入已回滚                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 9   | `.github/workflows/release-desktop.yml` 的 `tauri-smoke`：ubuntu / macOS / windows 三平台矩阵（`fail-fast: false`）跑 `dev-rxdb-tauri-e2e:desktop-smoke`，该 target 经 `dependsOn` 先出 `tauri-package-release` 产物。数据目录是 `mkdtemp` 出来的真实临时目录，全程不碰浏览器存储                                                                                                                                                                                                                                                                                                                                         |
+| 10  | `conformance/protocol-handshake.spec.ts`：① 直接读 `protocol.rs` 源文本抽出 `PROTOCOL_VERSION`，断言等于 TS 的 `DESKTOP_HOST_PROTOCOL_VERSION`——这是两份手抄常量之间唯一的机械链接；② 真 Rust 进程的 `handshake` 应答同样等于该常量，且握手后工作区里什么都没建；③ 宿主被 `RXDB_HOST_STDIO_PROTOCOL_VERSION` 逼着报一个不同的版本号后，`connect` 以 `protocol_violation` 失败、消息里带上两端版本号、**全程只发出过 `handshake` 一条请求**、工作区里一点痕迹都不留。配套 `session.rs` 的 `handshake_reports_the_protocol_version_without_touching_the_disk` 与 `protocol.rs` 的 `parses_a_handshake_that_carries_nothing` |
 
 AC#5 的两条失败路径是补这份文档时才发现没有直接用例的——错误码映射表
 （`sqlite_error_code`）一直在，但没有任何一条用例真的拿一个坏文件去撞它。补的时候把断言
@@ -237,12 +234,12 @@ AC#6 的用例没有并进共享套件，是被两件事逼的：套件里每个
 与 [US-207「交付阶段」](./US-207-desktop-local-database.md#交付阶段) 同构：本故事也已超出
 INVEST「Small」，**不拆新故事**，改为划阶段，每阶段独立验收。
 
-| 阶段 | 内容                           | 完成判据                                                                                                                                | 状态      |
-| ---- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| 1    | 核心能力：AC#2～#5、AC#7、AC#8 | 6 条 AC 全绿，一致性套件 0 skipped                                                                                                      | ✅ 已交付 |
-| 2    | 收尾保留项：AC#6、AC#10        | AC#6 补一条两会话争写锁的直接用例；AC#10 把两侧协议常量绑起来。两条判据均已兑现，AC#10 本身仍留「不建库」缺口（须改协议，见 AC 表下方） | ✅ 已交付 |
-| 3    | 打包验证：AC#1、AC#9           | 三平台 release workflow 绿；两者是同一次实现，见 AC#9 上方说明。本机 macOS 已跑通（含反向验证），三平台待首轮 workflow 确认             | ✅ 已交付 |
-| 4    | Tauri 包化：T1～T7             | 见各任务判据；与 [US-207 E1～E7](./US-207-desktop-local-database.md#包边界重整) 同批做，共用一次改名                                    | ⬜ 未开始 |
+| 阶段 | 内容                           | 完成判据                                                                                                                                   | 状态      |
+| ---- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | --------- |
+| 1    | 核心能力：AC#2～#5、AC#7、AC#8 | 6 条 AC 全绿，一致性套件 0 skipped                                                                                                         | ✅ 已交付 |
+| 2    | 收尾保留项：AC#6、AC#10        | AC#6 补一条两会话争写锁的直接用例；AC#10 把两侧协议常量绑起来，并加一条无副作用的 `handshake` 请求在 `open` 之前协商版本。两条 AC 均已全绿 | ✅ 已交付 |
+| 3    | 打包验证：AC#1、AC#9           | 三平台 release workflow 绿；两者是同一次实现，见 AC#9 上方说明。本机 macOS 已跑通（含反向验证），三平台待首轮 workflow 确认                | ✅ 已交付 |
+| 4    | Tauri 包化：T1～T7             | 见各任务判据；与 [US-207 E1～E7](./US-207-desktop-local-database.md#包边界重整) 同批做，共用一次改名                                       | ⬜ 未开始 |
 
 本故事只有在四个阶段都完成后才标 `Done`。阶段 2 与阶段 3 之间没有依赖，可并行；
 阶段 4 必须在 [US-207 E1](./US-207-desktop-local-database.md#任务) 把共享层下沉之后开工——
@@ -377,14 +374,14 @@ Tauri 的 WebView 不是 Chromium（macOS 上是 WKWebView），但目录名沿�
 - **纯 `async fn` 也不行。** `rusqlite` 是阻塞接口，直接在 async 上下文里跑会占住 tokio
   的 worker 线程；库一忙，其它 command 一起饿死。`spawn_blocking` 把它放到专用线程池。
 
-### AC#10 为什么标 ⚠️ 而不是 ✅
+### AC#10 的三半各自是怎么关掉的
 
 这条 AC 于 2026-08-17 补入，与
 [US-207 AC#9](./US-207-desktop-local-database.md#ac9-为什么值得单列一条) 是同一件事在两条路径上的对偶。
 补的理由在那边写全了：实现和用例都在，缺的是没有 AC 认领，于是**谁删掉这段校验都不算违反验收标准**。
 
-标 ⚠️ 是因为 Tauri 侧比 Electron 侧多一个薄弱环节。拒绝动作本身在共享层（renderer 收到
-`open` 应答后比对 `DESKTOP_HOST_PROTOCOL_VERSION`），两条路径同一份代码，这半边是稳的。
+当初标 ⚠️ 是因为 Tauri 侧比 Electron 侧多一个薄弱环节。拒绝动作本身在共享层（renderer 比对
+`DESKTOP_HOST_PROTOCOL_VERSION`），两条路径同一份代码，这半边是稳的。
 不稳的是**版本号在 Rust 侧是手抄的第二份**：
 
 | 侧         | 常量                                                          |
@@ -410,12 +407,24 @@ Tauri 的 WebView 不是 Chromium（macOS 上是 WKWebView），但目录名沿�
 **「版本真不一致时的行为」这一半也已关闭**：`rxdb_host_stdio` 认一个环境变量
 （`RXDB_HOST_STDIO_PROTOCOL_VERSION`），设了就把应答里的 `protocolVersion` 换掉，于是两端版本
 **真的**对不上。改写只在这个测试替身里——产品代码出现「版本可配置」的分支，等于给线协议开了
-一个降级口子，而版本号存在的意义正是不许降级。用例断言三件事：连接以 `protocol_violation` 失败、
-消息里带上两端版本号、`open` 之后只发了一条 `close` 而没有任何 `execute`。
+一个降级口子，而版本号存在的意义正是不许降级。改写按 JSON 指针 `/result/protocolVersion` 下手而不是
+按 `kind` 分支，于是后来新增的 `handshake` 应答自动被盖到。
 
-**仍标 ⚠️ 的是第三半：「不建库」没做。** 握手发生在 host 建库、开连接、登记会话之后，
-所以一次注定失败的连接仍在磁盘上留了个空库文件。这个事实被存成了一条断言而不是一句话
-（见 AC 表下方），补法是协议层改动，不在本轮。
+**第三半「不建库」于同日关闭**，做法是给协议加一条无副作用的 `handshake` 请求：
+
+- **请求形状**：`{ kind: 'handshake' }`，一个字段都没有。Rust 侧 `parse_request` 直接返回
+  `Request::Handshake`——重新构造出来的值里只剩 kind，renderer 多塞的东西一概进不来
+  （`parses_a_handshake_that_carries_nothing`）。
+- **应答形状**：`{ kind: 'handshake', result: { protocolVersion } }`。`open` 应答里那份 `protocolVersion`
+  **保留**：它现在是第二道防线，也是老 renderer 唯一的检查点。
+- **没有抬版本号**。这条请求对 host 是纯增量的：老 renderer 直接发 `open`，在新 host 上行为一字不变；
+  而老到不认识这个 kind 的 host 会回 `protocol_violation: unknown request kind handshake`，那条路径
+  同样碰不到文件系统。于是「版本对不上就不建库」在新旧两种 host 上**都**成立，抬版本号只会平白
+  弄坏「老 renderer + 新 host」这一对。客户端也**不做**「那就退回去直接 open」的兜底——理由同上。
+- **副作用为零由断言钉住**，而不是靠读代码相信：Rust 的
+  `handshake_reports_the_protocol_version_without_touching_the_disk` 把 host 建在一个**故意不预先创建**的
+  目录上，握手后断言目录仍不存在（`resolve_database_path` 会 `create_dir_all`，碰过它目录就会凭空出现）；
+  TS 侧对应 `desktop-sqlite-host.spec.ts` 的「不 consult path resolver」。
 
 ### 依赖
 

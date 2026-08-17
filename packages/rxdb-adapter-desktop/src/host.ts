@@ -51,6 +51,8 @@ export {
   type DesktopHostFileRequest,
   type DesktopHostFileResponse,
   type DesktopHostFileStat,
+  type DesktopHostHandshakeRequest,
+  type DesktopHostHandshakeResult,
   type DesktopHostOpenRequest,
   type DesktopHostOpenResult,
   type DesktopHostRequest,

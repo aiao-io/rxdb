@@ -112,6 +112,12 @@ impl Host {
 
     fn dispatch(&self, request: &Value) -> HostResult<Value> {
         match parse_request(request)? {
+            // 握手排在最前，且不碰会话表、不碰 `resolve_database_path`：它的全部意义就是让
+            // renderer 在 `open` 建库之前把版本对上，一旦这里有了任何副作用，那半条 AC 就不成立了。
+            Request::Handshake => Ok(json!({
+                "kind": "handshake",
+                "result": { "protocolVersion": PROTOCOL_VERSION }
+            })),
             Request::Open {
                 database_name,
                 batch_timeout,
@@ -309,6 +315,28 @@ mod tests {
         let response = host.handle(&json!({ "kind": "execute", "sessionId": session_id, "sql": sql }));
         assert_eq!(response["kind"], "execute", "{sql} -> {response}");
         response["result"].clone()
+    }
+
+    /// 无副作用的版本协商（US-210 AC#10）。
+    ///
+    /// 「版本对不上就不建库」全靠这条请求成立：`open` 一旦发出，库文件、连接与会话就都有了，
+    /// 之后再发现版本不匹配也收不回来。因此这里断言的不是「答得对」，而是「什么都没碰」——
+    /// 数据目录**故意不预先创建**，握手碰过 `resolve_database_path`（它会 `create_dir_all`）
+    /// 的话，目录就会凭空出现。
+    #[test]
+    fn handshake_reports_the_protocol_version_without_touching_the_disk() {
+        let directory = std::env::temp_dir().join(format!("rxdb-handshake-{}", uuid::Uuid::new_v4()));
+        let host = Host::new(HostOptions {
+            app_data_dir: directory.clone(),
+            deliver: Arc::new(|_| ()),
+        });
+        let response = host.handle(&json!({ "kind": "handshake" }));
+        assert_eq!(
+            response,
+            json!({ "kind": "handshake", "result": { "protocolVersion": PROTOCOL_VERSION } })
+        );
+        assert_eq!(host.open_session_count(), 0);
+        assert!(!directory.exists(), "{}", directory.display());
     }
 
     #[test]

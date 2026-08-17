@@ -450,7 +450,7 @@ mod tests {
         for kind in FILE_REQUEST_KINDS {
             assert!(is_file_request(&json!({ "kind": kind })), "{kind} should route to files");
         }
-        for kind in ["open", "execute", "version", "close", "file.", "file.explode"] {
+        for kind in ["handshake", "open", "execute", "version", "close", "file.", "file.explode"] {
             assert!(!is_file_request(&json!({ "kind": kind })), "{kind} should not route to files");
         }
         assert!(!is_file_request(&json!({})));

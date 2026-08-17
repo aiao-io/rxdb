@@ -1,5 +1,5 @@
 import { SQLiteChangeType, type SqliteChangeEvent } from '@aiao/rxdb-adapter-sqlite-core';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -21,6 +21,26 @@ const createInProcessTransport = (): DesktopHostTransport => ({
     listeners.add(listener);
     return () => listeners.delete(listener);
   }
+});
+
+/**
+ * 包一层把应答里的 `protocolVersion` 换掉的传输层，模拟一个讲别的协议版本的宿主。
+ *
+ * @remarks
+ * 按**字段**改而不是按 `kind` 分支：`handshake` 与 `open` 两族应答都带这个字段，
+ * 照 `kind` 枚举的话，将来多一族就会悄悄漏掉。与一致性测试的 stdio 二进制按
+ * JSON 指针改写是同一手法（`src-tauri/src/bin/rxdb_host_stdio.rs`）。
+ *
+ * @param protocolVersion - 宿主谎报的版本号
+ * @returns 会改写应答的传输层
+ */
+const skewProtocolVersion = (protocolVersion: number): DesktopHostTransport => ({
+  request: async payload => {
+    const response = (await host.handle(payload)) as { result?: Record<string, unknown> };
+    if (response.result?.['protocolVersion'] === undefined) return response;
+    return { ...response, result: { ...response.result, protocolVersion } };
+  },
+  subscribe: listener => transport.subscribe(listener)
 });
 
 beforeEach(() => {
@@ -61,18 +81,50 @@ describe('DesktopSqliteClient.connect', () => {
 
   // 混装了不同版本的包时继续跑只会产生难以定位的形状错误
   it('refuses a host that speaks a different protocol version', async () => {
-    const skewed: DesktopHostTransport = {
-      request: async payload => {
-        const response = await host.handle(payload);
-        if (response.kind !== 'open') return response;
-        return { ...response, result: { ...response.result, protocolVersion: 99 } };
-      },
-      subscribe: transport.subscribe
-    };
-    await expect(DesktopSqliteClient.connect(skewed, sqliteStorage)).rejects.toThrowError(/protocol_violation/);
+    await expect(DesktopSqliteClient.connect(skewProtocolVersion(99), sqliteStorage)).rejects.toThrowError(
+      /protocol_violation/
+    );
     // 拒连之后不能把 host 上刚开出来的会话留在那儿。调用方拿不到 client，也就永远没有
     // 关掉它的把手，而那条会话正握着一个已经打开的 SQLite 连接（US-207 AC#9）。
     expect(host.openSessionCount).toBe(0);
+    // 「不建库」那半条：版本协商排在 `open` 之前，一次注定失败的连接因此在磁盘上
+    // 一点痕迹都不留——包括那个本来会被建出来的空库文件。
+    expect(readdirSync(workspace)).toEqual([]);
+  });
+
+  // 顺序就是这条 AC 的全部：`open` 会建库、开连接、登记会话，版本核对必须排在它前面。
+  it('negotiates the protocol version before it asks the host to open anything', async () => {
+    const kinds: string[] = [];
+    const recording: DesktopHostTransport = {
+      request: payload => {
+        kinds.push(payload.kind);
+        return host.handle(payload);
+      },
+      subscribe: transport.subscribe
+    };
+    const client = await DesktopSqliteClient.connect(recording, sqliteStorage);
+    expect(kinds).toEqual(['handshake', 'open']);
+    await client.disconnect();
+  });
+
+  /**
+   * 比版本对不上更早的一种混装：host 老到根本不认识握手请求。
+   *
+   * @remarks
+   * 它只会回一句 `protocol_violation`——那条路径同样碰不到文件系统，于是
+   * 「版本对不上就不建库」在新旧两种 host 上都成立，而不只是在新 host 上成立。
+   */
+  it('refuses a host too old to answer the handshake at all', async () => {
+    const ancient: DesktopHostTransport = {
+      request: payload =>
+        payload.kind === 'handshake'
+          ? Promise.resolve({ kind: 'error', code: 'protocol_violation', message: 'unknown request kind handshake' })
+          : host.handle(payload),
+      subscribe: transport.subscribe
+    };
+    await expect(DesktopSqliteClient.connect(ancient, sqliteStorage)).rejects.toThrowError(/protocol_violation/);
+    expect(host.openSessionCount).toBe(0);
+    expect(readdirSync(workspace)).toEqual([]);
   });
 
   /**

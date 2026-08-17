@@ -245,6 +245,11 @@ export function createDesktopSqliteHost(options: DesktopSqliteHostOptions): Desk
   };
 
   const dispatch = (request: DesktopHostRequest): DesktopHostResponse | Promise<DesktopHostResponse> => {
+    // 握手排在最前，且不碰会话表、不碰 `resolveDatabasePath`：它的全部意义就是让 renderer
+    // 在 `open` 建库之前把版本对上，一旦这里有了任何副作用，那半条 AC 就不成立了。
+    if (request.kind === 'handshake') {
+      return { kind: 'handshake', result: { protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION } };
+    }
     if (request.kind === 'open') return open(request);
     if (request.kind === 'close') return close(request.sessionId);
     if (request.kind === 'version') return { kind: 'version', result: requireSession(request.sessionId).version() };

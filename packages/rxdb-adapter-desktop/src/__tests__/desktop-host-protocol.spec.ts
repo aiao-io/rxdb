@@ -7,6 +7,7 @@ import {
   DESKTOP_HOST_MAX_SQL_LENGTH,
   DESKTOP_HOST_PROTOCOL_VERSION,
   parseDesktopHostChangeEvent,
+  parseDesktopHostHandshakeResult,
   parseDesktopHostRequest
 } from '../desktop-host-protocol.js';
 
@@ -21,11 +22,19 @@ describe('parseDesktopHostRequest', () => {
   });
 
   it.each([
+    ['handshake', { kind: 'handshake' }],
     ['execute', executeRequest],
     ['version', { kind: 'version', sessionId }],
     ['close', { kind: 'close', sessionId }]
   ])('accepts a well formed %s request', (_label, request) => {
     expect(parseDesktopHostRequest(request)).toEqual(request);
+  });
+
+  // 握手是协议里唯一**无副作用**的请求：它没有会话可指、也没有存储可开。多带来的字段
+  // 一律留在信任边界外，否则「无副作用」就成了一句只在正常入参下成立的话。
+  it('parses a handshake without letting anything else across the boundary', () => {
+    const noisy = { kind: 'handshake', sessionId, storage: { engine: 'pglite', dataDirectoryName: 'pg' } };
+    expect(parseDesktopHostRequest(noisy)).toStrictEqual({ kind: 'handshake' });
   });
 
   it('accepts every SQLiteCompatibleType binding', () => {
@@ -145,6 +154,30 @@ describe('parseDesktopHostChangeEvent', () => {
     ['a non-date recordAt', { ...event, recordAt: 0 }]
   ])('rejects %s', (_label, value) => {
     expect(() => parseDesktopHostChangeEvent(value)).toThrowError(/protocol_violation/);
+  });
+});
+
+describe('parseDesktopHostHandshakeResult', () => {
+  it('accepts a host that speaks this exact protocol version', () => {
+    const result = { protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION };
+    expect(parseDesktopHostHandshakeResult(result)).toStrictEqual(result);
+  });
+
+  it.each([
+    ['a newer host', DESKTOP_HOST_PROTOCOL_VERSION + 1],
+    ['an older host', DESKTOP_HOST_PROTOCOL_VERSION - 1],
+    ['a host that reports nothing', undefined],
+    ['a host that reports a string', String(DESKTOP_HOST_PROTOCOL_VERSION)]
+  ])('rejects %s', (_label, protocolVersion) => {
+    expect(() => parseDesktopHostHandshakeResult({ protocolVersion })).toThrowError(/protocol_violation/);
+  });
+
+  // 两个数字都要在消息里：只说「协议不匹配」的话，排查的人还得自己去两个仓位翻常量。
+  it('names both versions so the mismatch is diagnosable without reading two repositories', () => {
+    const skewed = DESKTOP_HOST_PROTOCOL_VERSION + 1;
+    expect(() => parseDesktopHostHandshakeResult({ protocolVersion: skewed })).toThrowError(
+      new RegExp(`${skewed}\\b.*\\b${DESKTOP_HOST_PROTOCOL_VERSION}\\b`)
+    );
   });
 });
 

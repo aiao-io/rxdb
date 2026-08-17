@@ -188,6 +188,7 @@ describe('isDesktopHostFileRequestKind', () => {
     expect(isDesktopHostFileRequestKind('file.stat')).toBe(true);
     expect(isDesktopHostFileRequestKind('file.lockAcquire')).toBe(true);
     expect(isDesktopHostFileRequestKind('execute')).toBe(false);
+    expect(isDesktopHostFileRequestKind('handshake')).toBe(false);
     expect(isDesktopHostFileRequestKind('file.chmod')).toBe(false);
     expect(isDesktopHostFileRequestKind(7)).toBe(false);
   });

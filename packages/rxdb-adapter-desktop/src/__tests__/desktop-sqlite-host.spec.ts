@@ -1,5 +1,5 @@
 import { SQLiteChangeType, type SqliteResult } from '@aiao/rxdb-adapter-sqlite-core';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -43,6 +43,31 @@ beforeEach(() => {
 afterEach(() => {
   host.closeAll();
   rmSync(workspace, { recursive: true, force: true });
+});
+
+/**
+ * 无副作用的版本协商（US-207 AC#9 / US-210 AC#10）。
+ *
+ * @remarks
+ * 「版本对不上就不建库」全靠这条请求成立：`open` 一旦发出，库文件、连接与会话就都有了，
+ * 之后再发现版本不匹配也收不回来。因此这里断言的不是「答得对」，而是「什么都没碰」。
+ */
+describe('handshake', () => {
+  it('answers with the protocol version without opening a session or touching the disk', async () => {
+    const response = await host.handle({ kind: 'handshake' });
+    expect(response).toEqual({ kind: 'handshake', result: { protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION } });
+    expect(host.openSessionCount).toBe(0);
+    expect(readdirSync(workspace)).toEqual([]);
+  });
+
+  // 路径解析函数由宿主应用注入，它自己就会 mkdir（见 `createDatabasePathResolver`）。
+  // 握手碰了它，等于绕过上面那条断言从另一头碰了文件系统。
+  it('does not even consult the path resolver', async () => {
+    const resolveDatabasePath = vi.fn((databaseName: string) => join(workspace, databaseName));
+    const isolated = createDesktopSqliteHost({ resolveDatabasePath, postChange: () => undefined });
+    await isolated.handle({ kind: 'handshake' });
+    expect(resolveDatabasePath).not.toHaveBeenCalled();
+  });
 });
 
 describe('open', () => {

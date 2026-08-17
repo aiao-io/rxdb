@@ -15,6 +15,7 @@ import { RxDBAdapterDesktopError } from './desktop-error.js';
 import {
   assertDesktopHostResponse,
   parseDesktopHostChangeEvent,
+  parseDesktopHostHandshakeResult,
   parseDesktopHostOpenResult,
   type DesktopHostFileRequest,
   type DesktopHostOpenResult,
@@ -134,18 +135,38 @@ const isChangeMessage = (message: unknown): message is { sessionId: string; even
   typeof message === 'object' && message !== null && (message as { kind?: unknown }).kind === 'change';
 
 /**
+ * 在任何有副作用的请求之前核对两端的线协议版本（US-207 AC#9 / US-210 AC#10）。
+ *
+ * @remarks
+ * 顺序就是这条 AC 的全部：`open` 会建库、开连接、登记会话，版本核对排在它之后的话，
+ * 一次注定失败的连接仍会在磁盘上留下一个空库文件。握手请求本身无参数、无副作用，
+ * 因此这里抛出去时 host 上什么都还没发生。
+ *
+ * 老到不认识握手的 host 会回 `protocol_violation: unknown request kind handshake`，
+ * 原样抛给调用方即可：错误码一致（都是「两端对不上，别再往下走」），而消息已经点明了原因。
+ * 这里**不做**任何「那就退回去直接 open」的兜底——版本号存在的意义正是不许降级。
+ *
+ * @param transport - 传输层
+ * @throws {@link RxDBAdapterDesktopError} 两端版本不一致、或 host 根本不认识握手时抛 `protocol_violation`
+ */
+const negotiateProtocolVersion = async (transport: DesktopHostTransport): Promise<void> => {
+  const response = assertDesktopHostResponse('handshake', await transport.request({ kind: 'handshake' }));
+  parseDesktopHostHandshakeResult(response.result);
+};
+
+/**
  * 解析 `open` 结果；解析不过就先把 host 上刚开出来的会话关掉，再把原始错误抛出去。
  *
  * @remarks
- * 版本不匹配（US-207 AC#9）走的正是这条路：host 已经建了库、开了连接、登记了会话，
- * renderer 才发现协议对不上。此时调用方拿不到 client，也就永远没有关掉那条会话的把手——
- * 它会一直握着一个打开的 SQLite 连接，直到宿主进程退出。
+ * 走到这里说明 host 已经建了库、开了连接、登记了会话，而 renderer 才发现结果形状不对。
+ * 此时调用方拿不到 client，也就永远没有关掉那条会话的把手——它会一直握着一个打开的
+ * SQLite 连接，直到宿主进程退出。
  *
- * 这**不是** AC#9 的完整兑现：真正的「不建库」要求版本协商发生在任何有副作用的请求之前，
- * 也就是一条新的无副作用握手请求（旧 host 不认识它，只会回 `protocol_violation`，碰不到文件系统）。
- * 那是协议层改动，两端各加一个请求类型；这里先把「会话泄漏」这一半堵上。
+ * 版本不匹配已经由 {@link negotiateProtocolVersion} 挡在 `open` 之前了，本函数因此只剩
+ * 「结果形状坏掉」这一类原因（以及握手与 `open` 之间 host 被换掉这种病态情形）。
+ * 它仍然必须留着：那类失败同样会留下一条没人认领的会话。
  *
- * `sessionId` 防御性地读：结果形状本来就可能是坏的（那正是走到这里的原因之一），
+ * `sessionId` 防御性地读：结果形状本来就可能是坏的（那正是走到这里的原因），
  * 读不出字符串就没有可关的东西。
  *
  * @param transport - 传输层
@@ -246,6 +267,8 @@ export class DesktopSqliteClient implements SqliteClientLike {
     }
     // renderer 侧先校验一次，非法配置连 IPC 都不用发；host 侧还会再校验一次。
     assertSupportedDesktopStorage(options?.runtime ?? 'electron', storage);
+    // 先握手再 open：版本对不上时，磁盘上不该多出一个空库文件。
+    await negotiateProtocolVersion(transport);
 
     const request = { kind: 'open', storage, batchTimeout: options?.batchTimeout } as const;
     const response = assertDesktopHostResponse('open', await transport.request(request));

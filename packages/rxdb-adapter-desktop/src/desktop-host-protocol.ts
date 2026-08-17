@@ -27,7 +27,8 @@ import { assertSupportedDesktopStorage, type DesktopSqliteFileStorage } from './
  * 线协议版本。
  *
  * @remarks
- * renderer 在 `open` 响应里核对该值。TS 宿主与 renderer 来自同一次打包时它恒等，
+ * renderer 在 `handshake` 响应里核对该值（`open` 响应里也带一份，见
+ * {@link DesktopHostOpenResult.protocolVersion}）。TS 宿主与 renderer 来自同一次打包时它恒等，
  * 不等只可能发生在混装了不同版本的 `@aiao/rxdb-adapter-desktop` —— 那种情况下
  * 继续跑会产生难以定位的形状错误，因此直接拒绝连接。
  *
@@ -90,6 +91,24 @@ export const DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION = 256;
  */
 export const DESKTOP_HOST_MAX_QUEUED_LOCKS_PER_NAME = 256;
 
+/**
+ * 协商线协议版本。
+ *
+ * @remarks
+ * **不带任何参数，也不产生任何副作用**——这正是它存在的理由。版本核对必须排在 `open`
+ * 之前：`open` 会建库、开连接、登记会话，等 renderer 从 `open` 应答里读出版本不匹配时，
+ * 磁盘上已经多了一个空库文件，而调用方拿不到 client，也就没有把手去收拾它
+ * （US-207 AC#9 / US-210 AC#10）。
+ *
+ * 老到不认识这个 kind 的 host 会回 `protocol_violation`——那条路径同样碰不到文件系统，
+ * 于是「版本对不上就不建库」在新旧两种 host 上都成立，而不只是在新 host 上成立。
+ * 也正因如此，加入本请求**没有**抬高 {@link DESKTOP_HOST_PROTOCOL_VERSION}：
+ * 它对 host 是纯增量的，老 renderer 直接发 `open`，在新 host 上行为一字不变。
+ */
+export interface DesktopHostHandshakeRequest {
+  readonly kind: 'handshake';
+}
+
 /** 打开一个数据库会话。 */
 export interface DesktopHostOpenRequest {
   readonly kind: 'open';
@@ -126,7 +145,17 @@ export interface DesktopHostCloseRequest {
 
 /** renderer 可以发给 host 的全部请求。 */
 export type DesktopHostRequest =
-  DesktopHostOpenRequest | DesktopHostExecuteRequest | DesktopHostVersionRequest | DesktopHostCloseRequest;
+  | DesktopHostHandshakeRequest
+  | DesktopHostOpenRequest
+  | DesktopHostExecuteRequest
+  | DesktopHostVersionRequest
+  | DesktopHostCloseRequest;
+
+/** `handshake` 请求的响应。 */
+export interface DesktopHostHandshakeResult {
+  /** host 所讲的线协议版本；renderer 据此决定要不要继续往下发 `open`。 */
+  readonly protocolVersion: number;
+}
 
 /** `open` 请求的响应。 */
 export interface DesktopHostOpenResult {
@@ -139,6 +168,14 @@ export interface DesktopHostOpenResult {
    * 而它并不需要这份情报就能工作。
    */
   readonly resolvedLocation: string;
+  /**
+   * host 所讲的线协议版本；与 {@link DesktopHostHandshakeResult.protocolVersion} 同源。
+   *
+   * @remarks
+   * 版本协商真正发生在 {@link DesktopHostHandshakeRequest} 那一步，这里保留一份是**第二道**：
+   * 中间隔着代理、或 host 在两次请求之间被换掉时，这一份仍会把不一致拦下来。
+   * 它也是老 renderer 唯一的核对点——去掉它，一个 0.0.x 的 renderer 接上新 host 就再也验不了版本。
+   */
   readonly protocolVersion: number;
   /** host 后端开启普通事务使用的 SQL。 */
   readonly beginTransactionSql: string;
@@ -162,6 +199,7 @@ export interface DesktopHostChangeEventMessage {
  * AC#4 承诺的「稳定、可判别的错误码」才能真的跨过进程边界活着到达调用方。
  */
 export type DesktopHostResponse =
+  | { readonly kind: 'handshake'; readonly result: DesktopHostHandshakeResult }
   | { readonly kind: 'open'; readonly result: DesktopHostOpenResult }
   | { readonly kind: 'execute'; readonly result: SqliteResult }
   | { readonly kind: 'version'; readonly result: string }
@@ -317,7 +355,7 @@ export type DesktopHostFileResponse =
   | { readonly kind: 'file.lockRelease' }
   | { readonly kind: 'error'; readonly code: RxDBAdapterDesktopErrorCode; readonly message: string };
 
-const REQUEST_KINDS: readonly DesktopHostRequest['kind'][] = ['open', 'execute', 'version', 'close'];
+const REQUEST_KINDS: readonly DesktopHostRequest['kind'][] = ['handshake', 'open', 'execute', 'version', 'close'];
 
 const FILE_REQUEST_KINDS: readonly DesktopHostFileRequest['kind'][] = [
   'file.open',
@@ -453,6 +491,8 @@ export function parseDesktopHostRequest(value: unknown): DesktopHostRequest {
   if (typeof kind !== 'string' || !REQUEST_KINDS.includes(kind as DesktopHostRequest['kind'])) {
     throw violation(`unknown request kind ${String(kind)}`);
   }
+  // 握手没有任何字段可读：重新构造的对象里因此只剩 kind，renderer 多塞的东西一概进不来。
+  if (kind === 'handshake') return { kind };
   if (kind === 'open') return parseOpenRequest(record);
   if (kind === 'execute') {
     return { kind, sessionId: readSessionId(record), sql: readSql(record), bindings: readBindings(record) };
@@ -747,6 +787,40 @@ export function assertDesktopHostResponse<TKind extends Exclude<DesktopHostRespo
 }
 
 /**
+ * 核对 host 报上来的线协议版本。
+ *
+ * @remarks
+ * 消息里同时点出两端的数字：只说「协议不匹配」的话，排查的人还得自己去两个仓位翻常量——
+ * 而其中一份常量在 Rust 里（`apps/dev-rxdb-tauri/src-tauri/src/rxdb/protocol.rs`）。
+ *
+ * 返回本地常量而不是入参：两者判等通过时它们本就是同一个数字，回本地那份能让调用方
+ * 拿到的类型是 `number` 而不是 `unknown`。
+ */
+const assertProtocolVersion = (protocolVersion: unknown): number => {
+  if (protocolVersion !== DESKTOP_HOST_PROTOCOL_VERSION) {
+    throw violation(
+      `host speaks protocol ${String(protocolVersion)} but this client speaks ${DESKTOP_HOST_PROTOCOL_VERSION}`
+    );
+  }
+  return DESKTOP_HOST_PROTOCOL_VERSION;
+};
+
+/**
+ * 校验 `handshake` 响应。
+ *
+ * @remarks
+ * 这是**唯一**一个在任何有副作用的请求之前跑到的校验点，因此它抛出来即意味着
+ * host 上什么都还没发生：库没建、连接没开、会话没登记（US-207 AC#9 / US-210 AC#10）。
+ *
+ * @param value - host 返回的未校验负载
+ * @returns 校验通过的握手结果
+ * @throws 形状非法或协议版本不匹配时抛 `protocol_violation`
+ */
+export function parseDesktopHostHandshakeResult(value: unknown): DesktopHostHandshakeResult {
+  return { protocolVersion: assertProtocolVersion(asRecord(value)['protocolVersion']) };
+}
+
+/**
  * 校验 `open` 响应。
  *
  * @param value - host 返回的未校验负载
@@ -756,12 +830,7 @@ export function assertDesktopHostResponse<TKind extends Exclude<DesktopHostRespo
 export function parseDesktopHostOpenResult(value: unknown): DesktopHostOpenResult {
   const record = asRecord(value);
   const sessionId = readSessionId(record);
-  const protocolVersion = record['protocolVersion'];
-  if (protocolVersion !== DESKTOP_HOST_PROTOCOL_VERSION) {
-    throw violation(
-      `host speaks protocol ${String(protocolVersion)} but this client speaks ${DESKTOP_HOST_PROTOCOL_VERSION}`
-    );
-  }
+  const protocolVersion = assertProtocolVersion(record['protocolVersion']);
   const resolvedLocation = record['resolvedLocation'];
   const beginTransactionSql = record['beginTransactionSql'];
   const beginSystemMigrationTransactionSql = record['beginSystemMigrationTransactionSql'];

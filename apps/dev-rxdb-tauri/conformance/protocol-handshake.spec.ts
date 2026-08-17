@@ -57,7 +57,38 @@ const withHost = async (
   }
 };
 
+/**
+ * 列出宿主数据目录里的东西；目录压根不存在时算作空。
+ *
+ * @remarks
+ * 「连目录都没建」比「建了目录但里面是空的」更强，两者都该算通过：`resolve_database_path`
+ * 在校验通过后才 `create_dir_all`，握手挡在它前面时 `rxdb-data/` 根本不会出现，直接
+ * `readdir` 会 ENOENT。把它当失败报出来的话，这条用例就变成在盯一个与「有没有留痕」无关的实现细节。
+ *
+ * @param workspace - 宿主进程的 app data 根目录
+ * @returns 目录里的条目名；目录不存在时为空数组
+ */
+const listDataDirectory = async (workspace: string): Promise<readonly string[]> => {
+  try {
+    return await readdir(join(workspace, 'rxdb-data'));
+  } catch (error) {
+    if ((error as { code?: unknown }).code !== 'ENOENT') throw error;
+    return [];
+  }
+};
+
 describe('Rust 宿主的协议握手', () => {
+  // renderer 实际核对的就是这一条应答（`open` 里那份只是老 renderer 的兜底检查点）。
+  // 它同时证明 Rust 侧真的认识 `handshake` 这个 kind——不认识的话回的是 `error`。
+  it('handshake 应答里的协议版本等于 TS 这一侧的常量', async () => {
+    await withHost(async (host, workspace) => {
+      const answered = assertDesktopHostResponse('handshake', await host.transport.request({ kind: 'handshake' }));
+      expect(answered.result.protocolVersion).toBe(DESKTOP_HOST_PROTOCOL_VERSION);
+      // 无副作用：只握过手的宿主不该在磁盘上建出任何东西。
+      expect(await listDataDirectory(workspace)).toEqual([]);
+    });
+  });
+
   it('open 应答里的协议版本等于 TS 这一侧的常量', async () => {
     await withHost(async host => {
       const opened = assertDesktopHostResponse(
@@ -92,13 +123,10 @@ describe('Rust 宿主的协议握手', () => {
  * @remarks
  * 宿主进程由 `RXDB_HOST_STDIO_PROTOCOL_VERSION` 强行报一个不同的版本号。改写只在
  * stdio 测试二进制里，产品代码一行不动——见 `src-tauri/src/bin/rxdb_host_stdio.rs` 模块头。
+ * 它按 JSON 指针 `/result/protocolVersion` 改写，`handshake` 与 `open` 两族应答因此都被盖到。
  *
- * **已知残留缺口**：握手发生在 host 已经建库、开连接、登记会话**之后**，所以「版本不匹配就
- * 不建库」这半条并未兑现——下面的 `留下了一个空库文件` 就是把它钉成一条会随实现变化而变红的
- * 事实，而不是一句藏在文档里的话。真正的修法是加一条无副作用的握手请求（两端各加一个请求
- * 类型），属于协议层改动；`packages/rxdb-adapter-desktop/src/desktop-sqlite-client.ts` 的
- * `parseOpenResultOrClose` 已经把「会话泄漏」这一半堵上了，本组用例是它在 Tauri 路径上的
- * 第一次真实覆盖。
+ * 这组用例盯的是**顺序**：版本协商排在 `open` 之前，所以一次注定失败的连接既不泄漏会话、
+ * 也不在磁盘上留下痕迹（AC#10）。两件事都是「握手在前」的推论，任一条变红都说明顺序被动过了。
  */
 describe('两端协议版本不一致', () => {
   const MISMATCHED_VERSION = DESKTOP_HOST_PROTOCOL_VERSION + 1;
@@ -155,22 +183,20 @@ describe('两端协议版本不一致', () => {
     }, mismatchedEnv);
   });
 
-  it('不按旧协议降级解释，也不泄漏 host 上那条会话', async () => {
+  it('不按旧协议降级解释，也没走到会开库的那一步', async () => {
     await withHost(async host => {
       const { kinds } = await connectAgainstMismatchedHost(host);
-      // `close` 是客户端替调用方补发的收摊请求：没有它，host 上那条连接会一直握着文件，
-      // 直到宿主进程退出——而调用方拿不到 client，永远没有关掉它的把手。
-      expect(kinds).toEqual(['open', 'close']);
+      // 顺序就是这条 AC 的全部：`open` 会建库、开连接、登记会话，版本核对必须排在它前面。
+      // 握手一失败就没有第二条请求——连收摊用的 `close` 都不需要，因为 host 上什么都没发生。
+      // 这里**不接受**任何「那就退回去直接 open」的兜底：版本号存在的意义正是不许降级。
+      expect(kinds).toEqual(['handshake']);
     }, mismatchedEnv);
   });
 
-  it('留下了一个空库文件——「不建库」这半条尚未兑现', async () => {
+  it('磁盘上一点痕迹都不留', async () => {
     await withHost(async (host, workspace) => {
       await connectAgainstMismatchedHost(host);
-      const files = await readdir(join(workspace, 'rxdb-data'));
-      // 这条断言是**当前行为的存档**，不是我们想要的行为：一次注定失败的连接仍然在磁盘上
-      // 留了痕迹。等无副作用握手请求落地，它会变红——那时把它改成 `toEqual([])` 才是修好了。
-      expect(files).toContain(DATABASE_NAME);
+      expect(await listDataDirectory(workspace)).toEqual([]);
     }, mismatchedEnv);
   });
 });
