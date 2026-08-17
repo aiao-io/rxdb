@@ -191,6 +191,29 @@ describe('rxdb-client-generator cli', () => {
     expect(isCliEntry(pathToFileURL(path.join(tempDir, 'other.js')).href, linkPath)).toBe(false);
   });
 
+  // Windows CI 上 `node D:\...\dist\cli.js` 的 import.meta.url 与
+  // pathToFileURL(realpathSync(argv[1])).href 会因盘符大小写 / localhost 前缀而字符串不相等，
+  // CLI 静默以 0 退出，rxdb-test closeBundle 等于没生成。
+  it('recognizes the CLI entry when the file URL form differs from argv', async () => {
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'rxdb-client-generator-'));
+    tempDirs.push(tempDir);
+
+    const realPath = path.join(tempDir, 'cli.js');
+    await writeFile(realPath, '');
+    const realUrl = pathToFileURL(realpathSync(realPath)).href;
+    const localhostUrl = realUrl.replace('file://', 'file://localhost');
+    expect(localhostUrl).not.toBe(realUrl);
+    expect(isCliEntry(localhostUrl, realPath)).toBe(true);
+
+    const flippedDriveUrl = realUrl.replace(/^file:\/\/\/([A-Za-z]):/u, (_match, letter: string) => {
+      const flipped = letter === letter.toLowerCase() ? letter.toUpperCase() : letter.toLowerCase();
+      return `file:///${flipped}:`;
+    });
+    if (flippedDriveUrl !== realUrl) {
+      expect(isCliEntry(flippedDriveUrl, realPath)).toBe(true);
+    }
+  });
+
   it('main prints usage and exits when no config path is provided', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
