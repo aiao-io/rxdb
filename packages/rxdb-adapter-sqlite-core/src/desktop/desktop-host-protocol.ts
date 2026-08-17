@@ -25,7 +25,8 @@ import { assertDesktopSqliteStorage, type DesktopSqliteFileStorage } from './des
  * @remarks
  * renderer 在 `handshake` 响应里核对该值（`open` 响应里也带一份，见
  * {@link DesktopHostOpenResult.protocolVersion}）。TS 宿主与 renderer 来自同一次打包时它恒等，
- * 不等只可能发生在混装了不同版本的 `@aiao/rxdb-adapter-desktop` —— 那种情况下
+ * 不等只可能发生在混装了不同版本的运行时包（`@aiao/rxdb-adapter-electron` /
+ * `@aiao/rxdb-adapter-tauri`，或它们各自依赖的本包版本对不上）—— 那种情况下
  * 继续跑会产生难以定位的形状错误，因此直接拒绝连接。
  *
  * Tauri 宿主是个例外：它活在 Rust 里，版本号只能手抄第二份

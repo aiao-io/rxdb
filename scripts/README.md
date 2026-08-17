@@ -346,7 +346,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ### `audit/package-api-docs.mjs`
 
-- **触发**：被 `rxdb-plugin-storage` / `rxdb-adapter-desktop` / `rxdb-adapter-encrypted` / `rxdb-adapter-sqlite` / `rxdb-adapter-sqliteai` 的 `build` target 串在 `vite build` 之后（共 5 个包，原文漏了 desktop）。历史 adapter 保持根导出检查；storage 使用 `node ../../scripts/audit/package-api-docs.mjs . --members` 开启成员门禁。
+- **触发**：被 `rxdb-plugin-storage` / `rxdb-adapter-electron` / `rxdb-adapter-tauri` / `rxdb-adapter-encrypted` / `rxdb-adapter-sqlite` / `rxdb-adapter-sqliteai` 的 `build` target 串在 `vite build` 之后（共 6 个包；electron 与 tauri 是 US-207 E2/E3 从原 `rxdb-adapter-desktop` 拆出来的，各自独立跑一遍）。adapter 侧保持根导出检查；storage 使用 `node ../../scripts/audit/package-api-docs.mjs . --members` 开启成员门禁。
 - **做什么**：
   1. 取目标包根目录作为 CLI 第一个参数（默认 `.`），从 `src/index.ts` 起 TypeScript program；
   2. 用 `checker.getExportsOfModule()` 拿到入口的全部可见 symbol，过滤出**声明就在本包源码里**的那些（避免将 `Type` 节点归到 `@types/*`/`node_modules/*` 而误判）；

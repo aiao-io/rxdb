@@ -16,7 +16,7 @@
 
 **Primary Dependencies**: RxJS 7.8+（响应式查询与事件）、Nx 23.1 + pnpm 10（构建与任务图）、Angular 22+ / React 19+ / Vue 3.5+（三端绑定）、既有内部依赖 `@aiao/rxdb` → `@aiao/rxdb-adapter-*`
 
-**Storage**: 主库事务边界内的 SQL 表。v1 承诺 6 个后端：`rxdb-adapter-pglite`（PGlite）、`rxdb-adapter-wa-sqlite`、`rxdb-adapter-sqlite-wasm`、`rxdb-adapter-sqlite`（官方 wasm）、`rxdb-adapter-sqliteai`、`rxdb-adapter-desktop`（Electron `node:sqlite` 特权侧）。后四者共享 `rxdb-adapter-sqlite-core` 的同一份 SQL 实现。**不承诺**：`rxdb-adapter-tauri`（Rust host，US-210 已知事件时序抖动）、`rxdb-adapter-miniprogram`（实验性，不承诺崩溃恢复）、`rxdb-adapter-supabase`（远端，非本特性一致性边界）
+**Storage**: 主库事务边界内的 SQL 表。v1 承诺 6 个后端：`rxdb-adapter-pglite`（PGlite）、`rxdb-adapter-wa-sqlite`、`rxdb-adapter-sqlite-wasm`、`rxdb-adapter-sqlite`（官方 wasm）、`rxdb-adapter-sqliteai`、`rxdb-adapter-electron`（Electron `node:sqlite` 特权侧；US-207 拆包前叫 `rxdb-adapter-desktop`）。后四者共享 `rxdb-adapter-sqlite-core` 的同一份 SQL 实现。**不承诺**：`rxdb-adapter-tauri`（Rust host，US-210 已知事件时序抖动）、`rxdb-adapter-miniprogram`（实验性，不承诺崩溃恢复）、`rxdb-adapter-supabase`（远端，非本特性一致性边界）
 
 **Testing**: Vitest 4.1（unit / integration，`*.spec.ts` 与源码同目录）+ Playwright（三端 E2E 与 a11y）。跨后端一致性走 `@aiao/rxdb-test` 的具名套件 + 各适配器 `__tests__/*.spec.ts` runner，沿用既有 `runTransactionIsolationSuite` 模式
 

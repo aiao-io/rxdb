@@ -138,7 +138,10 @@ const options: DesktopOptions = { transport: undefined as unknown as DesktopHost
 
 void anyStorage;
 void options;
-${values.toSorted().map(name => `void ${name};`).join('\n')}
+${values
+  .toSorted()
+  .map(name => `void ${name};`)
+  .join('\n')}
 `;
   await writeFile(path.join(root, 'consumer.ts'), rendererSource);
 

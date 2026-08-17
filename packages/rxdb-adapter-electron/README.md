@@ -1,15 +1,17 @@
-# @aiao/rxdb-adapter-desktop
+# @aiao/rxdb-adapter-electron
 
-RxDB 适配器，把数据落到**桌面应用私有目录里的真实 SQLite 文件**。
+RxDB 适配器，把数据落到 **Electron 应用私有目录里的真实 SQLite 文件**。
 
 数据由特权侧（Electron 主进程或它拥有的 worker）用 `node:sqlite` 直接读写；渲染进程只通过一条窄传输层发协议请求，因此它既拿不到文件系统句柄，也拿不到物理路径。
+
+Tauri 请改用 [`@aiao/rxdb-adapter-tauri`](https://www.npmjs.com/package/@aiao/rxdb-adapter-tauri)：协议与 renderer 客户端两包共用同一份实现（在 `@aiao/rxdb-adapter-sqlite-core/desktop-host`），差别只在特权侧是 `node:sqlite` 还是 Rust。
 
 ## 功能特性
 
 - **真文件持久化**：数据在应用数据目录里的 `.sqlite3` 文件中，重启后仍在，不依赖浏览器存储配额
 - **渲染进程零文件系统权限**：`contextIsolation: true` + `sandbox: true` 下照常工作
 - **多窗口安全**：同一文件上的多个窗口各持独立连接，靠 SQLite 文件锁与 `BEGIN IMMEDIATE` 事务串行化，撞锁自动重试
-- **不回退**：runtime 与 engine 的组合不受支持时直接抛错，绝不静默切到 memory/OPFS/IndexedDB
+- **不回退**：存储配置不受支持时直接抛错，绝不静默切到 memory/OPFS/IndexedDB
 - **复用 SQL 核心**：查询、事务、分支切换全部来自 `@aiao/rxdb-adapter-sqlite-core`，与 wa-sqlite / sqlite-wasm 同语义
 
 ## 何时使用
@@ -22,33 +24,31 @@ RxDB 适配器，把数据落到**桌面应用私有目录里的真实 SQLite �
 
 ## 能力矩阵
 
-| 运行时   | SQLite 单文件               | PGlite data directory         |
-| -------- | --------------------------- | ----------------------------- |
-| Electron | ✅ host 在包内（`/host`）   | ❌ 未实现，见 US-208          |
-| Tauri    | ⚠️ 包内只有 transport，见下 | ❌ 永不支持（无 Node 主进程） |
+| 存储                  | 状态                                                        |
+| --------------------- | ----------------------------------------------------------- |
+| SQLite 单文件         | ✅ host 在包内（`/host`），适配器名 `sqlite-electron`       |
+| PGlite data directory | ❌ 未实现，见 US-208（将是独立的 `pglite-electron` 适配器） |
 
-不在矩阵内的组合会被 `assertSupportedDesktopStorage` 以 `unsupported_runtime_engine` 拒绝。
-
-**Tauri 用户请先读这段**：本包为 Tauri 提供的只有 `createTauriHostTransport`——一根把 `invoke` / `listen` 接上协议的管子。管子那头真正开库的 `rusqlite` host（`rxdb_desktop_request` 命令、引擎、会话表）**不在这个 npm 包里**，目前只存在于本仓库的 `apps/dev-rxdb-tauri/src-tauri`。`/host` 入口基于 `node:sqlite`，Tauri 没有 Node 主进程，用不了。也就是说：装了包的 Tauri 应用需要自备 Rust 宿主。把 Rust 宿主迁进可发布包是 US-210 阶段 4 的工作，尚未开始。
+不在矩阵内的组合会被 `assertDesktopSqliteStorage` 以 `unsupported_runtime_engine` 拒绝——不静默退化。
 
 host 侧需要一个内置 `node:sqlite` 的运行时。本包在 Node 26 与 Electron 43 上验证，更早的版本未验证。
 
 ## 安装
 
 ```bash
-npm install @aiao/rxdb-adapter-desktop
+npm install @aiao/rxdb-adapter-electron
 # 或
-pnpm add @aiao/rxdb-adapter-desktop
+pnpm add @aiao/rxdb-adapter-electron
 ```
 
 ## 两个入口
 
 包**刻意**分成两个入口，不要混用：
 
-| 入口                              | 加载位置                          | 是否引用 `node:sqlite` |
-| --------------------------------- | --------------------------------- | ---------------------- |
-| `@aiao/rxdb-adapter-desktop`      | renderer（浏览器上下文）          | 否，可安全打进 bundle  |
-| `@aiao/rxdb-adapter-desktop/host` | Electron 主进程 / 它拥有的 worker | 是                     |
+| 入口                               | 加载位置                          | 是否引用 `node:sqlite` |
+| ---------------------------------- | --------------------------------- | ---------------------- |
+| `@aiao/rxdb-adapter-electron`      | renderer（浏览器上下文）          | 否，可安全打进 bundle  |
+| `@aiao/rxdb-adapter-electron/host` | Electron 主进程 / 它拥有的 worker | 是                     |
 
 把 `/host` 打进 renderer bundle 等于把文件系统能力还给渲染进程，整个隔离随之作废。
 
@@ -59,7 +59,7 @@ pnpm add @aiao/rxdb-adapter-desktop
 ### 1. 主进程：起 host
 
 ```typescript
-import { createElectronSqliteHost } from '@aiao/rxdb-adapter-desktop/host';
+import { createElectronSqliteHost } from '@aiao/rxdb-adapter-electron/host';
 import { app, ipcMain, type WebContents } from 'electron';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -120,18 +120,18 @@ contextBridge.exposeInMainWorld('__aiaoRxdbDesktopHost__', {
 
 ```typescript
 import { RxDB, SyncType } from '@aiao/rxdb';
-import { DESKTOP_ADAPTER_NAME, RxDBAdapterDesktop } from '@aiao/rxdb-adapter-desktop';
+import { ELECTRON_ADAPTER_NAME, RxDBAdapterElectron } from '@aiao/rxdb-adapter-electron';
 
 const rxdb = new RxDB({
   dbName: 'demo',
   entities: [],
-  sync: { type: SyncType.None, local: { adapter: DESKTOP_ADAPTER_NAME } }
+  sync: { type: SyncType.None, local: { adapter: ELECTRON_ADAPTER_NAME } }
 });
 
 // 不传 transport：适配器自己去全局键上找 preload 暴露的桥接。
-rxdb.adapter(DESKTOP_ADAPTER_NAME, async database => new RxDBAdapterDesktop(database));
+rxdb.adapter(ELECTRON_ADAPTER_NAME, async database => new RxDBAdapterElectron(database));
 rxdb.init();
-await rxdb.connect(DESKTOP_ADAPTER_NAME);
+await rxdb.connect(ELECTRON_ADAPTER_NAME);
 
 // 组件/窗口销毁时把连接交还给 host，否则会话要等到窗口 'destroyed' 才回收。
 await rxdb.disconnectAll();
@@ -157,19 +157,25 @@ await rxdb.disconnectAll();
 
 程序分支请读 `error.code`，不要匹配消息文本（消息以 `[code] ` 前缀开头，仅便于日志检索）。原始原因通过 `cause` 原样透传。
 
-| code                         | 含义                                                             |
-| ---------------------------- | ---------------------------------------------------------------- |
-| `unsupported_runtime_engine` | runtime 与 engine 的组合不在能力矩阵内                           |
-| `invalid_database_name`      | 逻辑库名非法，或试图越出应用作用域                               |
-| `host_unavailable`           | renderer 拿不到 host（未注入 transport / preload 未暴露）        |
-| `session_closed`             | 会话已断开后继续使用                                             |
-| `protocol_violation`         | 请求或响应不符合协议形状                                         |
-| `open_failed`                | 打开数据库失败，`cause` 保留原始原因                             |
-| `permission_denied`          | 路径无权限                                                       |
-| `database_corrupted`         | 目标文件不是可用的 SQLite 数据库                                 |
-| `statement_failed`           | SQL 本身执行失败（语法、约束等）                                 |
-| `host_internal_error`        | host 自身出错，属于缺陷而非调用方问题                            |
-| `database_busy`              | 另一个连接（通常是另一个窗口）正持有冲突的锁，重试即可，数据无损 |
+| code                         | 含义                                                                          |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| `unsupported_runtime_engine` | 存储 `engine` 不在能力矩阵内（例如把 PGlite data directory 递给 SQLite 协议） |
+| `invalid_database_name`      | 逻辑库名非法，或试图越出应用作用域                                            |
+| `host_unavailable`           | renderer 拿不到 host（未注入 transport / preload 未暴露）                     |
+| `session_closed`             | 会话已断开后继续使用                                                          |
+| `protocol_violation`         | 请求或响应不符合协议形状                                                      |
+| `open_failed`                | 打开数据库失败，`cause` 保留原始原因                                          |
+| `permission_denied`          | 路径无权限，或语句被 SQLite 授权器拒绝（`ATTACH` / `VACUUM INTO` 等）         |
+| `database_corrupted`         | 目标文件不是可用的 SQLite 数据库                                              |
+| `statement_failed`           | SQL 本身执行失败（语法、约束等）                                              |
+| `host_internal_error`        | host 自身出错，属于缺陷而非调用方问题                                         |
+| `database_busy`              | 另一个连接（通常是另一个窗口）正持有冲突的锁，重试即可，数据无损              |
+| `file_not_found`             | 目标文件或目录不存在；renderer 侧据此还原成 `NotFoundError`                   |
+| `invalid_file_path`          | 路径逃出存储根，或指向的类型与操作不符                                        |
+| `disk_full`                  | 磁盘空间或配额耗尽（ENOSPC / EDQUOT）                                         |
+| `write_aborted`              | 写入令牌已失效（会话关闭、已提交或已丢弃），目标保持写入前的内容              |
+
+后四个码来自文件宿主（`createElectronFileHost`，供 `@aiao/rxdb-plugin-storage/desktop` 使用），SQLite 侧用不到。
 
 错误码是**契约的一部分**：新增只能追加，不得复用或改写既有含义。
 

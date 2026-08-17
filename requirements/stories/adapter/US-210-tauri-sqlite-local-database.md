@@ -242,14 +242,15 @@ INVEST「Small」，**不拆新故事**，改为划阶段，每阶段独立验�
 | 4    | Tauri 包化：T1～T7             | 见各任务判据；与 [US-207 E1～E7](./US-207-desktop-local-database.md#包边界重整) 同批做，共用一次改名                                       | ⬜ 未开始 |
 
 本故事只有在四个阶段都完成后才标 `Done`。阶段 2 与阶段 3 之间没有依赖，可并行；
-阶段 4 必须在 [US-207 E1](./US-207-desktop-local-database.md#任务) 把共享层下沉之后开工——
-新包要引用的共享层今天还在 `@aiao/rxdb-adapter-desktop` 里。
+阶段 4 的前置——[US-207 E1](./US-207-desktop-local-database.md#任务) 把共享层下沉到
+`@aiao/rxdb-adapter-sqlite-core/desktop-host`——已完成，T1～T7 不再被它挡住。
 
 ## Tauri 包化
 
-本故事的实现今天**没有一行在 packages 里**：JS 传输层寄居在
-`@aiao/rxdb-adapter-desktop`，Rust 宿主、stdio 测试二进制与全部一致性用例（写本条时 SQL 侧 585 条）
-全在 `apps/dev-rxdb-tauri/` 这个 demo 应用里。装了 npm 包的用户拿到的只是一根传输管子，管子那头的
+**JS 侧已经搬完（T3）**：`packages/rxdb-adapter-tauri` 现在装着传输层与 JSON codec，
+协议、renderer client、存储联合与错误类型从 `@aiao/rxdb-adapter-sqlite-core/desktop-host` 转出。
+**Rust 侧还没动（T2）**：宿主、stdio 测试二进制与全部一致性用例（写本条时 SQL 侧 585 条）
+仍在 `apps/dev-rxdb-tauri/` 这个 demo 应用里。装了 npm 包的用户拿到的只是一根传输管子，管子那头的
 `rusqlite` 引擎要自己照着 demo 重写一遍——AC#2/#3 承诺的「与其它后端行为一致」于是只对本仓库成立。
 
 目标是 `packages/rxdb-adapter-tauri` 一个包同时装 **npm 包与 Rust crate**，demo 反过来依赖它。

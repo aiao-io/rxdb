@@ -73,7 +73,7 @@ export interface TauriHostTransportOptions {
  * 因为落定时会重新检查集合是否已空。
  *
  * @param options - 注入的 Tauri API 与错误回调
- * @returns 可直接交给 `RxDBAdapterDesktop` 或 `DesktopSqliteClient.connect` 的传输层
+ * @returns 可直接交给 `RxDBAdapterTauri` 或 `DesktopSqliteClient.connect` 的传输层
  */
 export function createTauriHostTransport(options: TauriHostTransportOptions): DesktopHostTransport {
   const listeners = new Set<(message: unknown) => void>();
