@@ -16,7 +16,7 @@
  */
 import { RxDBError } from '../RxDBError.js';
 import { formatConfigLiteralsOf, missingFormatConfigKeys } from './format-rules.js';
-import { isPlainRecord } from './json-safe.js';
+import { isPlainRecord, walkJsonContainer, type JsonWalkPath } from './json-safe.js';
 import {
   PropertyType,
   RelationKind,
@@ -477,11 +477,15 @@ function resolveRelationValueType(
 
   const details = { namespace: metadata.namespace, entity: metadata.name, field: relation.name };
   const primaries = [...target.propertyMap.values()].filter(prop => readFlag(prop, 'primary'));
-  // 多主键与「目标未注册」同类：都是作者写错了元数据，不是可聚合的字段级违规，因此同样抛裸 RxDBError。
   // 取 `find()` 的第一个等于让外键类型跟着 Map 插入顺序走 —— 属于「无 fallback 兜底」铁律禁止的静默兜底。
+  // 与下面「主键数 = 0」是同一个目标实体的同一类声明错误，因此走同一种结构化错误：
+  // 调用方 catch EntityRelationResolutionError 后能照样从 details 拿到字段归属。
   if (primaries.length > 1) {
     const names = primaries.map(prop => prop.name).join('、');
-    throw new RxDBError(`${location} 的目标实体 ${namespace}/${relation.mappedEntity} 声明了多个主键：${names}`);
+    throw new EntityRelationResolutionError(
+      `${location} 的目标实体 ${namespace}/${relation.mappedEntity} 声明了多个主键：${names}`,
+      { ...details, rule: 'multipleRelationPrimaries' }
+    );
   }
   const primary = primaries[0];
   if (!primary) {
@@ -623,19 +627,32 @@ const FIELD_SOURCE_RANK: Record<FieldSource, number> = { property: 0, system: 0,
 const parseError = (path: string, reason: string): RxDBError =>
   new RxDBError(`实体字段描述解析失败：${path} ${reason}`);
 
-/** 递归判定输入是否严格 JSON-safe；不安全值直接失败，不做静默丢弃。 */
-function assertJsonSafe(value: unknown, path: string): void {
+/**
+ * 递归判定输入是否严格 JSON-safe；不安全值直接失败，不做静默丢弃。
+ *
+ * @remarks
+ * 循环引用也算不安全：不拦就是 `RangeError: Maximum call stack size exceeded`，
+ * 会漏过调用方 `catch (e) { if (e instanceof RxDBError) }` 的分支，破坏本函数
+ * 「解析失败抛 {@link RxDBError}」的契约。进出场纪律与 `entity-value.utils.ts`
+ * 的两个遍历器共用 {@link walkJsonContainer}。
+ */
+function assertJsonSafe(value: unknown, path: string, walked: JsonWalkPath = new WeakSet()): void {
   if (value === null || typeof value === 'boolean' || typeof value === 'string') return;
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) throw parseError(path, '不是有限数值');
     return;
   }
+  const onCycle = (): never => {
+    throw parseError(path, '存在循环引用');
+  };
   if (Array.isArray(value)) {
-    value.forEach((item, index) => assertJsonSafe(item, `${path}[${index}]`));
+    const visit = (): void => value.forEach((item, index) => assertJsonSafe(item, `${path}[${index}]`, walked));
+    walkJsonContainer(value as object, walked, visit, onCycle);
     return;
   }
   if (!isPlainRecord(value)) throw parseError(path, `不是 JSON-safe 的值（${Object.prototype.toString.call(value)}）`);
-  Object.entries(value).forEach(([key, item]) => assertJsonSafe(item, `${path}.${key}`));
+  const visit = (): void => Object.entries(value).forEach(([key, item]) => assertJsonSafe(item, `${path}.${key}`, walked));
+  walkJsonContainer(value, walked, visit, onCycle);
 }
 
 /** 取必填字符串。 */

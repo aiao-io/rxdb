@@ -47,7 +47,10 @@ export type MetadataValidationRule =
  * 与 {@link MetadataValidationRule} 故意不合并：两者的产出方、产出时机和错误类型都不同。
  * 本联合由字段描述 DTO 的生成入口产出。
  */
-export type RelationResolutionRule = 'missingRelationPrimary' | 'unsupportedRelationValueType';
+export type RelationResolutionRule =
+  | 'missingRelationPrimary'
+  | 'multipleRelationPrimaries'
+  | 'unsupportedRelationValueType';
 
 /**
  * 单条元数据违规。

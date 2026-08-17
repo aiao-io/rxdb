@@ -17,7 +17,7 @@ import type {
   EntityRelationFieldDescriptor
 } from './entity-field.utils.js';
 import { isOnStep, PERCENTAGE_DOMAIN } from './format-rules.js';
-import { isPlainRecord } from './json-safe.js';
+import { isPlainRecord, walkJsonContainer, type JsonWalkPath } from './json-safe.js';
 import type {
   CurrencyFormat,
   DurationFormat,
@@ -323,39 +323,26 @@ const toUrl = (text: string): URL | null => {
 };
 
 /**
- * 递归路径上的祖先容器集合，用于识别循环引用。
- *
- * @remarks
- * 是「当前路径」而不是「已访问过」：`{ a: shared, b: shared }` 里同一个对象出现两次并不是环，
- * 按已访问集合判会把合法的 DAG 误判成不可序列化。因此下钻前 `add`、回溯后 `delete`。
- */
-type JsonWalkPath = WeakSet<object>;
-
-/**
  * 严格 JSON 形状判定：`Date`、`Uint8Array`、`Map`、类实例、`bigint`、`NaN` 与循环引用一律不算。
  *
  * @remarks
  * `.every(isStrictJsonValue)` 这种点自由写法会把数组下标当第二个实参传进来，必须显式包一层箭头。
  */
-const isStrictJsonValue = (value: unknown, path: JsonWalkPath = new WeakSet()): boolean => {
+const isStrictJsonValue = (value: unknown, walked: JsonWalkPath = new WeakSet()): boolean => {
   if (value === null || typeof value === 'boolean' || typeof value === 'string') return true;
   if (typeof value === 'number') return Number.isFinite(value);
   const isList = Array.isArray(value);
   if (!isList && !isPlainRecord(value)) return false;
 
-  const container = value as object;
-  if (path.has(container)) return false;
-  path.add(container);
   const items = isList ? (value as readonly unknown[]) : Object.values(value as Record<string, unknown>);
-  const ok = items.every(item => isStrictJsonValue(item, path));
-  path.delete(container);
-  return ok;
+  const visit = (): boolean => items.every(item => isStrictJsonValue(item, walked));
+  return walkJsonContainer(value as object, walked, visit, () => false);
 };
 
-function normalizeJsonList(items: readonly unknown[], path: JsonWalkPath): NormalizedValue {
+function normalizeJsonList(items: readonly unknown[], walked: JsonWalkPath): NormalizedValue {
   const result: JsonValue[] = [];
   for (const item of items) {
-    const normalized = normalizeJsonValue(item, path);
+    const normalized = normalizeJsonValue(item, walked);
     if (normalized === UNSAFE_VALUE) return UNSAFE_VALUE;
     result.push(normalized);
   }
@@ -370,30 +357,27 @@ function normalizeJsonList(items: readonly unknown[], path: JsonWalkPath): Norma
  * 赋值形式会命中原型 setter，把结果对象的原型改掉并丢掉这个键，
  * 导致 {@link FieldValidationError.value} 无法 JSON 往返。
  */
-function normalizeJsonRecord(record: Record<string, unknown>, path: JsonWalkPath): NormalizedValue {
+function normalizeJsonRecord(record: Record<string, unknown>, walked: JsonWalkPath): NormalizedValue {
   const entries: [string, JsonValue][] = [];
   for (const [key, item] of Object.entries(record)) {
-    const normalized = normalizeJsonValue(item, path);
+    const normalized = normalizeJsonValue(item, walked);
     if (normalized === UNSAFE_VALUE) return UNSAFE_VALUE;
     entries.push([key, normalized]);
   }
   return Object.fromEntries(entries);
 }
 
-function normalizeJsonObject(value: object, path: JsonWalkPath): NormalizedValue {
+function normalizeJsonObject(value: object, walked: JsonWalkPath): NormalizedValue {
   if (value instanceof Date) return isNaN(value.getTime()) ? UNSAFE_VALUE : value.toISOString();
   if (value instanceof Uint8Array) return toHexText(value);
   const isList = Array.isArray(value);
   if (!isList && !isPlainRecord(value)) return UNSAFE_VALUE;
-  if (path.has(value)) return UNSAFE_VALUE;
 
-  path.add(value);
-  const result =
+  const visit = (): NormalizedValue =>
     isList ?
-      normalizeJsonList(value as readonly unknown[], path)
-    : normalizeJsonRecord(value as Record<string, unknown>, path);
-  path.delete(value);
-  return result;
+      normalizeJsonList(value as readonly unknown[], walked)
+    : normalizeJsonRecord(value as Record<string, unknown>, walked);
+  return walkJsonContainer(value, walked, visit, () => UNSAFE_VALUE);
 }
 
 /**
@@ -403,7 +387,7 @@ function normalizeJsonObject(value: object, path: JsonWalkPath): NormalizedValue
  * `Date` → ISO 8601 字符串，`bigint` → 十进制字符串，`Uint8Array` → 小写 hex。
  * 函数、`symbol`、`Map`、实体实例、循环引用与 `NaN` / `Infinity` 都不可安全转换。
  */
-function normalizeJsonValue(value: unknown, path: JsonWalkPath = new WeakSet()): NormalizedValue {
+function normalizeJsonValue(value: unknown, walked: JsonWalkPath = new WeakSet()): NormalizedValue {
   if (value === null) return null;
   switch (typeof value) {
     case 'boolean':
@@ -414,7 +398,7 @@ function normalizeJsonValue(value: unknown, path: JsonWalkPath = new WeakSet()):
     case 'bigint':
       return value.toString(10);
     case 'object':
-      return normalizeJsonObject(value, path);
+      return normalizeJsonObject(value, walked);
     default:
       return UNSAFE_VALUE;
   }

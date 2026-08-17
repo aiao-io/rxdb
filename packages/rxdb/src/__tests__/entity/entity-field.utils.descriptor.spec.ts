@@ -307,14 +307,22 @@ describe('AC#16～19 — 关系字段', () => {
     });
   });
 
-  it('AC#18 — 目标声明多个主键：抛错而不是按 Map 顺序取第一个', () => {
+  it('AC#18 — 目标声明多个主键：抛结构化错误而不是按 Map 顺序取第一个', () => {
     // `find()` 会让外键类型跟着属性插入顺序走 —— 换个声明次序就换个 valueType，
     // 正是「无 fallback 兜底」铁律禁止的静默兜底。
+    // 错误类型必须与「主键数 = 0」的 missingRelationPrimary 一致：同一个目标实体的同一类声明错误，
+    // 只断言 RxDBError 的话裸错和结构化错误都能过，钉不住这个决定。
     const error = captureError(() => describeEntityFields(TWIN_HOST_METADATA, FIELD_RESOLVER));
 
-    expect(error).toBeInstanceOf(RxDBError);
-    expect((error as Error).message).toContain('ref');
+    expect(error).toBeInstanceOf(EntityRelationResolutionError);
+    expect((error as EntityRelationResolutionError).details).toStrictEqual({
+      namespace: 'public',
+      entity: 'TwinHost',
+      field: 'ref',
+      rule: 'multipleRelationPrimaries'
+    });
     expect((error as Error).message).toContain('Twin');
+    expect((error as Error).message).toContain('id');
     expect((error as Error).message).toContain('code');
   });
 
@@ -696,6 +704,31 @@ describe('AC#23～24 — DTO 往返与解析器键策略', () => {
 
     expect(() => parseEntityFieldsDescriptor(withDate)).toThrow(RxDBError);
     expect(() => parseEntityFieldsDescriptor(withNaN)).toThrow(RxDBError);
+  });
+
+  it('AC#24 — 循环引用返回 RxDBError 而不是栈溢出', () => {
+    // 本函数的契约是「解析失败抛 RxDBError」，RangeError 会漏过调用方的 instanceof 分支。
+    // 兄弟模块 entity-value.utils 已按同一判据处理循环引用，两边不能给出不同契约。
+    const cyclicRecord = clone(ARTICLE);
+    looseSet(looseField(cyclicRecord, 'title'), 'self', looseField(cyclicRecord, 'title'));
+    const cyclicList = clone(ARTICLE);
+    const list: unknown[] = ['a'];
+    list.push(list);
+    looseSet(looseField(cyclicList, 'tags'), 'enum', list);
+
+    [cyclicRecord, cyclicList].forEach(input => expect(() => parseEntityFieldsDescriptor(input)).toThrow(RxDBError));
+  });
+
+  it('AC#24 — 同一对象出现多次但无环时正常解析', () => {
+    // 判据必须是「当前递归路径」而不是「见过的对象」：DTO 里同一个 options 展示项复用两次是合法 DAG
+    const input = clone(SEMANTIC);
+    const display = { label: '共享' };
+    looseSet(looseField(input, 'state'), 'options', { review: display, draft: display });
+
+    expect(fieldOf(parseEntityFieldsDescriptor(input), 'state').options).toStrictEqual({
+      review: { label: '共享' },
+      draft: { label: '共享' }
+    });
   });
 
   it('AC#24 — 给 1:m / m:n 塞 nullable / unique 必须失败，不能当未知键丢弃', () => {
