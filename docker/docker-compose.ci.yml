@@ -37,8 +37,14 @@ services:
       - postgres
       - -c
       - config_file=/etc/postgresql/postgresql.conf
+      # 不能压到 fatal：ERROR 级别的服务端日志（含死锁的 DETAIL/语句上下文）会被一并
+      # 吞掉，客户端只剩一句 “HINT: See server log for query details.” 指向空日志。
+      # 排查那次 `deadlock detected` 时就是这样，多花了一整轮复现才拿到锁表。
       - -c
-      - log_min_messages=fatal
+      - log_min_messages=error
+      # 死锁/长时间等锁时打印是谁挡着谁，等价信息在客户端拿不到。
+      - -c
+      - log_lock_waits=on
 
   kong:
     container_name: supabase-kong

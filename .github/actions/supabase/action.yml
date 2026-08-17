@@ -33,12 +33,40 @@ runs:
         dump_and_fail() {
           echo "❌ $1"
           docker ps -a --format "table {{.Names}}\t{{.Status}}" | grep -E 'supabase|realtime' || true
-          for c in supabase-kong supabase-rest realtime-dev.supabase-realtime; do
+          for c in supabase-kong supabase-rest supabase-auth realtime-dev.supabase-realtime; do
             echo "--- $c ---"
             docker logs "$c" --tail 30 2>&1 || true
           done
           exit 1
         }
+
+        # compose 的 depends_on 只保证容器起来了，不保证它跑完自己的库迁移。
+        # 这里复用 compose 里已声明的 healthcheck 结论：容器一旦退出立即失败，
+        # 而不是干等满 60s 再报一个没有信息量的超时。
+        wait_healthy() {
+          local container=$1 label=$2 state=''
+          for i in $(seq 1 60); do
+            # 容器不存在时 docker inspect 会先往 stdout 吐一个空行再以非零码退出，
+            # 用 `|| echo` 兜底会拼出带前导换行的值、把报错信息断成两行 —— 取末行 + 判空。
+            state=$(docker inspect -f '{{.State.Status}}/{{.State.Health.Status}}' "$container" 2>/dev/null | tail -n1)
+            [ -n "$state" ] || state='missing/missing'
+            case "$state" in
+              running/healthy) echo "✅ $label ready (${i}s)"; return 0 ;;
+              running/*) sleep 1 ;;
+              *) dump_and_fail "$label container is not running ($state)" ;;
+            esac
+          done
+          dump_and_fail "$label failed to become healthy after 60s ($state)"
+        }
+
+        # GoTrue 一被 db 的 healthcheck 放行就开始在同一个库里跑它那 69 个建表迁移
+        # （auth.users / auth.sessions / auth.refresh_tokens …），耗时几秒。初始化 SQL
+        # 和它并发时两边的 DDL 会互等锁 —— `e2e (supabase remote)` 就是这样间歇性挂在
+        # 01-rxdb-system-tables.sql 上报 `deadlock detected` 的。根因已在 SQL 侧修掉
+        # （不再用 DROP TRIGGER 全库加锁），这里再补一道顺序保证：GoTrue 的 /health
+        # 只有在迁移全部跑完之后才应答，等到它 healthy 就等于等到 auth.* 的 DDL 收工。
+        echo "⏳ Waiting for Auth migrations..."
+        wait_healthy supabase-auth Auth
 
         # `-v ON_ERROR_STOP=1`：psql 非交互执行脚本时默认「报错继续、exit 0」，
         # 不加这个开关，建表失败的库会带着绿色的 setup 进入测试。
@@ -66,25 +94,8 @@ runs:
         [ -n "$rest_ready" ] || dump_and_fail "REST API failed to start after 60s"
 
         # realtime 不在 Kong 的就绪路径上，此前它整轮 CI 死着也没人发现：容器
-        # migrate 失败会直接退出，测试只会报一堆莫名其妙的订阅超时。这里复用
-        # compose 里已定义的 healthcheck 结论，容器一旦退出立即失败而不是干等 60s。
+        # migrate 失败会直接退出，测试只会报一堆莫名其妙的订阅超时。
         echo "⏳ Waiting for Realtime..."
-        realtime_ready=""
-        for i in $(seq 1 60); do
-          # 容器不存在时 docker inspect 会先往 stdout 吐一个空行再以非零码退出，
-          # 用 `|| echo` 兜底会拼出带前导换行的值、把报错信息断成两行 —— 取末行 + 判空。
-          state=$(docker inspect -f '{{.State.Status}}/{{.State.Health.Status}}' realtime-dev.supabase-realtime 2>/dev/null | tail -n1)
-          [ -n "$state" ] || state='missing/missing'
-          if [ "$state" = 'running/healthy' ]; then
-            echo "✅ Realtime ready (${i}s)"
-            realtime_ready=1
-            break
-          fi
-          case "$state" in
-            running/*) sleep 1 ;;
-            *) dump_and_fail "Realtime container is not running ($state)" ;;
-          esac
-        done
-        [ -n "$realtime_ready" ] || dump_and_fail "Realtime failed to become healthy after 60s ($state)"
+        wait_healthy realtime-dev.supabase-realtime Realtime
 
         echo "✅ Supabase ready"

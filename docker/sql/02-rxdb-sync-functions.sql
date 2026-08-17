@@ -350,22 +350,26 @@ BEGIN
     ) INTO v_has_updated_at;
 
     -- 2. 如果存在 updatedAt，创建自动更新触发器 (BEFORE UPDATE)
+    --
+    -- 这里和下面都用 `CREATE OR REPLACE TRIGGER`（PG 14+）而不是
+    -- `DROP TRIGGER IF EXISTS` + `CREATE TRIGGER`：后者在 Supabase 库里会对全库的
+    -- auth.*/realtime.* 表加 AccessExclusiveLock（详见 01-rxdb-system-tables.sql
+    -- 的说明）。这个函数是测试运行期按表反复调用的，留着等于给每次建表都埋一次
+    -- 和 auth/realtime 后台 DDL 互锁的机会。
     IF v_has_updated_at THEN
         EXECUTE pg_catalog.format('
-            DROP TRIGGER IF EXISTS rxdb_timestamp_trigger ON %I.%I;
-            CREATE TRIGGER rxdb_timestamp_trigger
+            CREATE OR REPLACE TRIGGER rxdb_timestamp_trigger
             BEFORE UPDATE ON %I.%I
             FOR EACH ROW EXECUTE FUNCTION public.rxdb_update_timestamp_trigger();
-        ', p_namespace, p_table_name, p_namespace, p_table_name);
+        ', p_namespace, p_table_name);
     END IF;
 
     -- 3. 创建变更日志触发器 (AFTER I/U/D)
     EXECUTE pg_catalog.format('
-        DROP TRIGGER IF EXISTS rxdb_sync_trigger ON %I.%I;
-        CREATE TRIGGER rxdb_sync_trigger
+        CREATE OR REPLACE TRIGGER rxdb_sync_trigger
         AFTER INSERT OR UPDATE OR DELETE ON %I.%I
         FOR EACH ROW EXECUTE FUNCTION public.rxdb_log_change_trigger(%L, %L);
-    ', p_namespace, p_table_name, p_namespace, p_table_name, p_namespace, v_entity_name);
+    ', p_namespace, p_table_name, p_namespace, v_entity_name);
 END;
 $$;
 
