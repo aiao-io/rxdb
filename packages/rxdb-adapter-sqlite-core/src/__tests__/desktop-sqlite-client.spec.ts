@@ -374,8 +374,7 @@ describe('DesktopSqliteClient 的变更事件路由', () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
-  // 退订之后 host 还在推是正常的（IPC 有在途消息），但派发进 RxDB 就不是了
-  it('stops dispatching after disconnect', async () => {
+  it('detaches from the transport on disconnect', async () => {
     const host = createFakeHost();
     const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
     const handler = vi.fn();
@@ -385,6 +384,46 @@ describe('DesktopSqliteClient 的变更事件路由', () => {
     host.push({ kind: 'change', sessionId: SESSION_ID, event: changeEvent });
 
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  /**
+   * 已关闭的客户端连**校验**都不该做，因为它抛出去会砸到同一条通道上的别人。
+   *
+   * @remarks
+   * 「退订即停止收消息」只在 Electron 成立（`ipcRenderer.off` 是同步的）。Tauri 的 `listen`
+   * 交回来的 unlisten 是异步的，退订落定之前 host 发出的事件照样会送到这个监听者手里。
+   * 此时若还去解析负载，一条坏消息就会从监听回调里抛出来——而通道是共享的，派发循环被打断，
+   * 同一个 renderer 里**其他还活着的会话**跟着收不到自己的变更。它们没有任何理由为一个
+   * 已经关掉的会话陪葬，所以关闭标记要挡在解析之前，而不是只挡派发。
+   */
+  it('never throws into the shared transport once it is closed', async () => {
+    const otherSession = '00000000-0000-4000-8000-000000000000';
+    let opened = 0;
+    const host = createFakeHost({
+      open: () => ({
+        kind: 'open',
+        result: opened++ === 0 ? openResult : { ...openResult, sessionId: otherSession }
+      })
+    });
+    // 退订不生效的传输层：模拟 Tauri 那条异步 unlisten
+    const lazy: DesktopHostTransport = {
+      ...host.transport,
+      subscribe: listener => {
+        host.transport.subscribe(listener);
+        return () => undefined;
+      }
+    };
+    const closing = await DesktopSqliteClient.connect(lazy, sqliteStorage);
+    const surviving = await DesktopSqliteClient.connect(lazy, sqliteStorage);
+    const handler = vi.fn();
+    await surviving.addEventListener(SQLiteChangeType.SQLITE_INSERT, handler);
+    await closing.disconnect();
+
+    // 一条发给已关闭会话的**坏**推送，紧跟着一条发给存活会话的好推送
+    host.push({ kind: 'change', sessionId: SESSION_ID, event: { ...changeEvent, rowIds: [7] } });
+    host.push({ kind: 'change', sessionId: otherSession, event: changeEvent });
+
+    expect(handler).toHaveBeenCalledWith(changeEvent);
   });
 
   // 半个事件派发进变更管线，会让本地缓存与库里的真实状态悄悄分叉

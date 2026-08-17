@@ -1,0 +1,47 @@
+{
+  "name": "@aiao/rxdb-adapter-tauri",
+  "version": "0.0.25",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-adapter-tauri"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "nx": {
+    "name": "rxdb-adapter-tauri",
+    "tags": [
+      "js-lib"
+    ]
+  },
+  "dependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-adapter-sqlite-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@aiao/rxdb-test": "workspace:*"
+  }
+}
