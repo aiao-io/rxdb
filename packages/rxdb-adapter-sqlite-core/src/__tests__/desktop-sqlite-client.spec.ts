@@ -22,6 +22,7 @@ import {
 } from '../desktop/desktop-sqlite-client.js';
 import type { DesktopPgliteDirectoryStorage, DesktopSqliteFileStorage } from '../desktop/desktop-storage.js';
 import { SQLiteChangeType } from '../sqlite-backend.interface.js';
+import type { SqliteResult } from '../sqlite-core.interface.js';
 
 const sqliteStorage: DesktopSqliteFileStorage = { engine: 'sqlite', databaseName: 'app.sqlite3' };
 const pgliteStorage: DesktopPgliteDirectoryStorage = { engine: 'pglite', dataDirectoryName: 'app-pgdata' };
@@ -203,6 +204,198 @@ describe('DesktopSqliteClient.connect 对坏应答的处理', () => {
     const host = createFakeHost({ open: () => ({ kind: 'version', result: '3.50.4' }) });
 
     await expectRejectedCode(DesktopSqliteClient.connect(host.transport, sqliteStorage), 'protocol_violation');
+  });
+});
+
+describe('DesktopSqliteClient 的会话回滚', () => {
+  /**
+   * 订阅建不起来时 `connect()` 必须失败，并把 host 上刚开的会话收掉。
+   *
+   * @remarks
+   * 返回一个「能查、但永不刷新」的客户端是所有故障形态里最难查的一种——上层看到的是
+   * 数据写进去了却不更新界面，而每一层看起来都正常。所以订阅失败要在连接这一步就爆。
+   * 会话必须一并关掉：调用方拿不到 client，再没有第二个人握着那个句柄。
+   */
+  it('rolls the freshly opened session back when the event channel cannot be established', async () => {
+    const host = createFakeHost();
+
+    await expectRejectedCode(
+      DesktopSqliteClient.connect(
+        { ...host.transport, subscriptionReady: () => Promise.reject(new Error('listen refused')) },
+        sqliteStorage
+      ),
+      'host_unavailable'
+    );
+    expect(host.kinds).toEqual(['handshake', 'open', 'close']);
+  });
+
+  // 回滚也失败时两件事都要说出来：只报订阅失败的话，那条泄漏的会话就无声无息了
+  it('reports both failures when the rollback close is rejected as well', async () => {
+    const host = createFakeHost({ close: () => ({ kind: 'error', code: 'host_internal_error', message: 'stuck' }) });
+
+    const reason: unknown = await DesktopSqliteClient.connect(
+      { ...host.transport, subscriptionReady: () => Promise.reject(new Error('listen refused')) },
+      sqliteStorage
+    ).then(
+      () => undefined,
+      (error: unknown) => error
+    );
+
+    expect(reason).toBeInstanceOf(RxDBAdapterDesktopError);
+    expect((reason as RxDBAdapterDesktopError).message).toContain('could not subscribe to host change events');
+    expect((reason as RxDBAdapterDesktopError).message).toContain('closing the half-open session also failed');
+    // 原始原因不许被包装吞掉（AC#4）
+    expect((reason as RxDBAdapterDesktopError).cause).toBeInstanceOf(Error);
+    expect(((reason as RxDBAdapterDesktopError).cause as Error).message).toBe('listen refused');
+  });
+});
+
+describe('DesktopSqliteClient 的会话请求', () => {
+  it('carries the locking statements the host chose, verbatim', async () => {
+    const host = createFakeHost();
+    const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
+
+    // 锁模式由 host 定：renderer 没有第二个来源可以推导它
+    expect(client.beginTransactionSql()).toBe(openResult.beginTransactionSql);
+    expect(client.beginSystemMigrationTransactionSql()).toBe(openResult.beginSystemMigrationTransactionSql);
+    expect(client.sessionId).toBe(SESSION_ID);
+    expect(client.resolvedLocation).toBe(openResult.resolvedLocation);
+  });
+
+  it('unwraps execute and version answers', async () => {
+    const rows: SqliteResult = { sql: 'SELECT 1', rowsAffected: 0, elapsed: 2, results: [] };
+    const host = createFakeHost({
+      execute: () => ({ kind: 'execute', result: rows }),
+      version: () => ({ kind: 'version', result: '3.50.4' })
+    });
+    const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
+
+    await expect(client.execute('SELECT 1', [])).resolves.toBe(rows);
+    await expect(client.version()).resolves.toBe('3.50.4');
+  });
+
+  // host 侧的错误码要原样穿过 IPC 边界，调用方的 `switch (error.code)` 才有意义
+  it('restores a host error answer as a typed error carrying the host code', async () => {
+    const host = createFakeHost({
+      execute: () => ({ kind: 'error', code: 'statement_failed', message: 'no such table: todo' })
+    });
+    const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
+
+    await expectRejectedCode(client.execute('SELECT * FROM todo'), 'statement_failed');
+  });
+
+  /**
+   * 一条查询失败不该把整个会话废掉。
+   *
+   * @remarks
+   * 队列的队尾是所有后续请求都要 `then` 上去的那个 promise。它若带着 rejection 留在链上，
+   * 下一条请求会因为**别人的**失败而失败，一条写坏的 SQL 就此让会话再也用不了。
+   */
+  it('keeps serving the session after one request fails', async () => {
+    let attempt = 0;
+    const host = createFakeHost({
+      execute: () => {
+        attempt++;
+        if (attempt === 1) throw new Error('transport hiccup');
+        const result: SqliteResult = { sql: 'INSERT INTO todo VALUES (2)', rowsAffected: 1, elapsed: 1, results: [] };
+        return { kind: 'execute', result };
+      }
+    });
+    const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
+
+    await expect(client.execute('INSERT INTO todo VALUES (1)')).rejects.toThrowError('transport hiccup');
+    await expect(client.execute('INSERT INTO todo VALUES (2)')).resolves.toMatchObject({ rowsAffected: 1 });
+  });
+
+  it('refuses new work once the session is disconnected', async () => {
+    const host = createFakeHost();
+    const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
+    await client.disconnect();
+
+    await expectRejectedCode(client.execute('SELECT 1'), 'session_closed');
+    await expectRejectedCode(client.version(), 'session_closed');
+  });
+
+  // 并发的 disconnect 共享同一个流程：第二个调用方也必须等到句柄真的释放
+  it('closes the host session exactly once for concurrent disconnects', async () => {
+    const host = createFakeHost();
+    const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
+
+    await Promise.all([client.disconnect(), client.disconnect(), client.disconnect()]);
+
+    expect(host.kinds.filter(kind => kind === 'close')).toEqual(['close']);
+  });
+});
+
+describe('DesktopSqliteClient 的变更事件路由', () => {
+  it('delivers a pushed change to the handlers registered for its type', async () => {
+    const host = createFakeHost();
+    const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
+    const onInsert = vi.fn();
+    const onDelete = vi.fn();
+    await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, onInsert);
+    await client.addEventListener(SQLiteChangeType.SQLITE_DELETE, onDelete);
+
+    host.push({ kind: 'change', sessionId: SESSION_ID, event: changeEvent });
+
+    expect(onInsert).toHaveBeenCalledWith(changeEvent);
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  /**
+   * 同一个 renderer 里的两个 RxDB 实例共用一条传输通道。
+   *
+   * @remarks
+   * 通道是广播的：每个客户端都会看到**所有**会话的推送。不按 `sessionId` 过滤的话，
+   * A 库的写入会触发 B 库的响应式查询重跑，读到的却是自己库里没变过的数据——
+   * 表现为莫名其妙的重渲染，且永远复现不稳。
+   */
+  it('ignores changes addressed to another session', async () => {
+    const host = createFakeHost();
+    const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
+    const handler = vi.fn();
+    await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, handler);
+
+    host.push({ kind: 'change', sessionId: '00000000-0000-4000-8000-000000000000', event: changeEvent });
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('ignores messages that are not change pushes', async () => {
+    const host = createFakeHost();
+    const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
+    const handler = vi.fn();
+    await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, handler);
+
+    host.push({ kind: 'log', sessionId: SESSION_ID });
+    host.push(null);
+    host.push('change');
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  // 退订之后 host 还在推是正常的（IPC 有在途消息），但派发进 RxDB 就不是了
+  it('stops dispatching after disconnect', async () => {
+    const host = createFakeHost();
+    const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
+    const handler = vi.fn();
+    await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, handler);
+    await client.disconnect();
+
+    host.push({ kind: 'change', sessionId: SESSION_ID, event: changeEvent });
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  // 半个事件派发进变更管线，会让本地缓存与库里的真实状态悄悄分叉
+  it('refuses to dispatch a malformed change event', async () => {
+    const host = createFakeHost();
+    const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
+    await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, vi.fn());
+
+    expect(() => host.push({ kind: 'change', sessionId: SESSION_ID, event: { ...changeEvent, rowIds: [7] } })).toThrowError(
+      /^\[protocol_violation\]/
+    );
   });
 });
 
