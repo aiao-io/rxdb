@@ -161,6 +161,35 @@ describe('createDesktopSqliteBridge', () => {
     expect(bystander.send).not.toHaveBeenCalled();
   });
 
+  // sessionId 随每条变更事件发到 renderer，它是公开标识而不是凭证。
+  // 不验主的话，任一窗口都能对另一个窗口的连接执行 SQL、提交、回滚，或者直接把它关掉。
+  it('拒绝另一个窗口的会话，且不在 host 上留下任何痕迹', async () => {
+    const owner = createTarget();
+    const intruder = createTarget();
+    const sessionId = await openOn(owner);
+    await openOn(intruder, 'other.sqlite3');
+
+    for (const request of [
+      { kind: 'execute', sessionId, sql: 'SELECT 1' },
+      { kind: 'version', sessionId },
+      { kind: 'close', sessionId }
+    ]) {
+      const response = await bridge.handle(intruder, request);
+      expect(response, `for ${request.kind}`).toMatchObject({ kind: 'error', code: 'permission_denied' });
+    }
+
+    expect(bridge.openSessionCount).toBe(2);
+    await expect(bridge.handle(owner, { kind: 'version', sessionId })).resolves.toMatchObject({ kind: 'version' });
+  });
+
+  // 「不存在」与「不是你的」处理方式相反：前者该重连，后者该放弃。
+  it('未知会话仍然报 session_closed 而不是越权', async () => {
+    const target = createTarget();
+    await expect(
+      bridge.handle(target, { kind: 'version', sessionId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301' })
+    ).resolves.toMatchObject({ kind: 'error', code: 'session_closed' });
+  });
+
   // 写入落库与事件派发之间隔着一个防抖窗口，窗口正好在这中间关掉是常规竞态。
   // 往已销毁的 webContents 上 send 会抛，而此刻数据其实已经写进去了。
   it('窗口销毁后丢弃事件而不是往死的 webContents 上发', async () => {

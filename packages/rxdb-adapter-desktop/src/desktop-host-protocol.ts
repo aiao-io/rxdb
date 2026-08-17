@@ -27,9 +27,14 @@ import { assertSupportedDesktopStorage, type DesktopSqliteFileStorage } from './
  * 线协议版本。
  *
  * @remarks
- * renderer 在 `open` 响应里核对该值。host 与 renderer 来自同一次打包时它恒等，
+ * renderer 在 `open` 响应里核对该值。TS 宿主与 renderer 来自同一次打包时它恒等，
  * 不等只可能发生在混装了不同版本的 `@aiao/rxdb-adapter-desktop` —— 那种情况下
  * 继续跑会产生难以定位的形状错误，因此直接拒绝连接。
+ *
+ * Tauri 宿主是个例外：它活在 Rust 里，版本号只能手抄第二份
+ * （`apps/dev-rxdb-tauri/src-tauri/src/rxdb/protocol.rs` 的 `PROTOCOL_VERSION`）。
+ * 两个常量之间唯一的机械联系是一致性套件的 `conformance/protocol-handshake.spec.ts`，
+ * 它拿真进程报上来的数字与本常量比对；改这个值时那条用例会红。
  */
 export const DESKTOP_HOST_PROTOCOL_VERSION = 1;
 

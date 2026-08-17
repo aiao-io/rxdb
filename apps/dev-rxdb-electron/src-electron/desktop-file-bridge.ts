@@ -16,6 +16,7 @@ import { createDesktopFileHost, type DesktopHostFileResponse } from '@aiao/rxdb-
 import { mkdirSync } from 'node:fs';
 import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { denyForeignSession } from './desktop-session-ownership.js';
 
 /**
  * 文件内容在应用数据目录下的子目录名。
@@ -156,6 +157,11 @@ export function createDesktopFileBridge(options: DesktopFileBridgeOptions): Desk
     whenSwept,
 
     handle: async (target, request) => {
+      // 会话 id 不是凭证。文件侧尤其危险：一把跨窗口的 `lockRelease` 能放掉别人正持有的独占锁，
+      // 而 `file.close` 会把别人未提交的写入连同临时文件一起丢掉。
+      const denial = denyForeignSession(targets, request, target);
+      if (denial) return denial;
+
       const response = await host.handle(request);
       if (response.kind === 'file.open') targets.set(response.result.sessionId, target);
       // 能拿到 file.close 应答就说明请求过了协议校验，`sessionId` 一定是个字符串。

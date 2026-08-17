@@ -17,6 +17,7 @@ import {
   parseDesktopHostChangeEvent,
   parseDesktopHostOpenResult,
   type DesktopHostFileRequest,
+  type DesktopHostOpenResult,
   type DesktopHostRequest
 } from './desktop-host-protocol.js';
 import {
@@ -133,6 +134,44 @@ const isChangeMessage = (message: unknown): message is { sessionId: string; even
   typeof message === 'object' && message !== null && (message as { kind?: unknown }).kind === 'change';
 
 /**
+ * 解析 `open` 结果；解析不过就先把 host 上刚开出来的会话关掉，再把原始错误抛出去。
+ *
+ * @remarks
+ * 版本不匹配（US-207 AC#9）走的正是这条路：host 已经建了库、开了连接、登记了会话，
+ * renderer 才发现协议对不上。此时调用方拿不到 client，也就永远没有关掉那条会话的把手——
+ * 它会一直握着一个打开的 SQLite 连接，直到宿主进程退出。
+ *
+ * 这**不是** AC#9 的完整兑现：真正的「不建库」要求版本协商发生在任何有副作用的请求之前，
+ * 也就是一条新的无副作用握手请求（旧 host 不认识它，只会回 `protocol_violation`，碰不到文件系统）。
+ * 那是协议层改动，两端各加一个请求类型；这里先把「会话泄漏」这一半堵上。
+ *
+ * `sessionId` 防御性地读：结果形状本来就可能是坏的（那正是走到这里的原因之一），
+ * 读不出字符串就没有可关的东西。
+ *
+ * @param transport - 传输层
+ * @param result - host 回的未校验 `open` 结果
+ * @returns 校验通过的打开结果
+ * @throws {@link RxDBAdapterDesktopError} 结果非法或协议版本不匹配时，抛出解析给出的原始错误
+ */
+const parseOpenResultOrClose = async (
+  transport: DesktopHostTransport,
+  result: unknown
+): Promise<DesktopHostOpenResult> => {
+  try {
+    return parseDesktopHostOpenResult(result);
+  } catch (error) {
+    const record = typeof result === 'object' && result !== null ? (result as Record<string, unknown>) : undefined;
+    const sessionId = record?.['sessionId'];
+    if (typeof sessionId === 'string') {
+      // 收摊失败不上报：连接已经带着准确的原因失败了，而一个协议都对不上的 host
+      // 关不掉会话并不令人意外，把它盖在真正的原因前面只会让诊断更远。
+      await transport.request({ kind: 'close', sessionId }).catch(() => undefined);
+    }
+    throw error;
+  }
+};
+
+/**
  * 通过桌面 host 访问本地 SQLite 文件的客户端。
  *
  * @remarks
@@ -210,7 +249,7 @@ export class DesktopSqliteClient implements SqliteClientLike {
 
     const request = { kind: 'open', storage, batchTimeout: options?.batchTimeout } as const;
     const response = assertDesktopHostResponse('open', await transport.request(request));
-    const opened = parseDesktopHostOpenResult(response.result);
+    const opened = await parseOpenResultOrClose(transport, response.result);
     const client = new DesktopSqliteClient(
       transport,
       opened.sessionId,

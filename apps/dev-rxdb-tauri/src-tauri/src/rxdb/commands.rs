@@ -4,7 +4,7 @@
 //! 这是 `rxdb` 模块里唯一依赖 `tauri` 的文件——一致性测试用的 stdio 二进制复用其余全部模块，
 //! 只把这一层换成 stdin/stdout。
 
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -27,25 +27,33 @@ pub const CHANGE_EVENT: &str = "rxdb-desktop-change";
 pub struct DesktopHost(Arc<DesktopRouter>);
 
 impl DesktopHost {
-    /// 在应用数据目录上建 host，变更事件走 `app.emit`。
+    /// 在应用数据目录上建 host，变更事件按会话归属定向投递。
     ///
     /// 物理根目录取自 `app.path().app_data_dir()`——应用作用域，无需任何 `fs` 插件权限
     /// （US-210 AC#1 / US-505 AC#1）。SQLite 库落在 `rxdb-data/`，文件存储落在
     /// `rxdb-files/`，两者同在这个目录之下，因而同属一个备份域（US-505 AC#4）。
+    ///
+    /// # 为什么是 `emit_to` 而不是 `emit`
+    ///
+    /// `emit` 广播给应用的每一个窗口，而每条变更事件里都带着 session id。那等于把所有
+    /// 会话的 id 公开给所有窗口。会话 id 不是凭证（[`DesktopRouter::handle_owned`] 现在会验主），
+    /// 但把它发给不相干的窗口本身就没有意义，只是徒增暴露面。收件人只能是开出这个会话的窗口。
+    ///
+    /// # 为什么是 `Arc::new_cyclic`
+    ///
+    /// 投递闭包要反查会话归属，而归属表在路由器里，路由器又要拿这个闭包才能构造。
+    /// 用 `Weak` 打破这个环：闭包只在路由器还活着时投递，路由器没了也就没有会话可通知。
+    /// 强引用会让路由器永远不被释放——它自己的 host 持有那个闭包。
     pub fn new(app: &AppHandle) -> tauri::Result<Self> {
         let app_data_dir = app.path().app_data_dir()?;
         let emitter = app.clone();
-        Ok(Self(Arc::new(DesktopRouter::new(HostOptions {
-            app_data_dir,
-            deliver: Arc::new(move |message| {
-                // 事件发不出去意味着响应式查询永远不刷新，在 UI 上表现为「数据没变」
-                // ——所有故障形态里最难查的一种。这里没有可以回报错误的调用方，
-                // 至少要在日志里留下痕迹，不能静默吞掉。
-                if let Err(error) = emitter.emit(CHANGE_EVENT, message) {
-                    eprintln!("[rxdb-desktop] failed to emit {CHANGE_EVENT}: {error}");
-                }
-            }),
-        }))))
+        Ok(Self(Arc::new_cyclic(|router: &Weak<DesktopRouter>| {
+            let router = router.clone();
+            DesktopRouter::new(HostOptions {
+                app_data_dir,
+                deliver: Arc::new(move |message| deliver_change(&emitter, &router, &message)),
+            })
+        })))
     }
 
     /// 关闭两套宿主的全部会话，退出路径上调用。
@@ -66,6 +74,30 @@ impl DesktopHost {
     /// 而它看到的现象与死锁不可区分。
     pub fn close_window(&self, label: &str) {
         self.0.close_owner(label);
+    }
+}
+
+/// 把一条变更事件送到开出该会话的那个窗口。
+///
+/// 查不到收件人时**不广播**：那正是这里要避免的行为。会话属于 [`DesktopRouter::handle`]
+/// （一致性测试的 stdio 路径，没有窗口）或已经关掉时都会走到这一支，两种情况下都没有该收的人。
+///
+/// 事件发不出去意味着响应式查询永远不刷新，在 UI 上表现为「数据没变」——所有故障形态里
+/// 最难查的一种。这里没有可以回报错误的调用方，至少要在日志里留下痕迹，不能静默吞掉。
+fn deliver_change(emitter: &AppHandle, router: &Weak<DesktopRouter>, message: &Value) {
+    let Some(router) = router.upgrade() else {
+        return;
+    };
+    let Some(session_id) = message["sessionId"].as_str() else {
+        eprintln!("[rxdb-desktop] dropped a {CHANGE_EVENT} without a session id");
+        return;
+    };
+    let Some(owner) = router.session_owner(session_id) else {
+        eprintln!("[rxdb-desktop] dropped a {CHANGE_EVENT} for unowned session {session_id}");
+        return;
+    };
+    if let Err(error) = emitter.emit_to(owner.as_str(), CHANGE_EVENT, message) {
+        eprintln!("[rxdb-desktop] failed to emit {CHANGE_EVENT} to {owner}: {error}");
     }
 }
 

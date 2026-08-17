@@ -98,6 +98,29 @@ describe('createDesktopFileBridge', () => {
     expect(response).toMatchObject({ kind: 'error', code: 'protocol_violation' });
   });
 
+  // 会话 id 不是凭证。文件侧尤其危险：一把跨窗口的 `lockRelease` 能放掉别人正持有的独占锁，
+  // 而 `file.close` 会把别人未提交的写入连同临时文件一起丢掉。
+  it('拒绝另一个窗口的会话，且不动它持有的任何东西', async () => {
+    const owner = createTarget();
+    const intruder = createTarget();
+    const sessionId = await openSession(owner);
+    await openSession(intruder);
+
+    for (const request of [
+      { kind: 'file.mkdir', sessionId, path: 'notes' },
+      { kind: 'file.lockAcquire', sessionId, name: '/a', mode: 'exclusive' },
+      { kind: 'file.close', sessionId }
+    ]) {
+      const response = await bridge.handle(intruder, request);
+      expect(response, `for ${request.kind}`).toMatchObject({ kind: 'error', code: 'permission_denied' });
+    }
+
+    expect(bridge.openSessionCount).toBe(2);
+    expect(await bridge.handle(owner, { kind: 'file.mkdir', sessionId, path: 'notes' })).toMatchObject({
+      kind: 'file.mkdir'
+    });
+  });
+
   it('窗口销毁时回收该窗口名下的会话', async () => {
     const alive = createTarget();
     const doomed = createTarget();

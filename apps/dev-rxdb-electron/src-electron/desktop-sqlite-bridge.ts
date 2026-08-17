@@ -20,6 +20,7 @@ import {
 } from '@aiao/rxdb-adapter-desktop/host';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { denyForeignSession } from './desktop-session-ownership.js';
 import { DESKTOP_HOST_CHANGE_CHANNEL } from './ipc-contract';
 
 /**
@@ -130,6 +131,10 @@ export function createDesktopSqliteBridge(options: DesktopSqliteBridgeOptions): 
 
   return {
     handle: async (target, request) => {
+      // 会话 id 不是凭证：拿到别的窗口的 id 就能在它的库上跑任意 SQL、或直接把它关掉。
+      const denial = denyForeignSession(targets, request, target);
+      if (denial) return denial;
+
       const response = await host.handle(request);
       if (response.kind === 'open') targets.set(response.result.sessionId, target);
       // 能拿到 close 应答就说明请求过了协议校验，`sessionId` 一定是个字符串。

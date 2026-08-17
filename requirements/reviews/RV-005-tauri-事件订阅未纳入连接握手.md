@@ -50,5 +50,36 @@ host session 必须关闭。不要用延时等待修复，必须把 ready 状态
 
 ## 解决记录
 
+已在 `local-db` 分支落地，等开 PR：
+
+- `DesktopHostTransport` 新增 `subscriptionReady?(): Promise<void>`，就绪状态进了类型契约，
+  不靠任何延时等待
+  - 选**可选成员**而不是改 `subscribe()` 的返回形状：Electron 的 `ipcRenderer.on` 是同步的，
+    `subscribe()` 返回时订阅就已生效，没有可等待的中间态；且 preload 桥接的键集被 e2e 的
+    `bridgeKeys` 断言冻结（恰为 `request` / `subscribe`），加不进第三个键。省略即表示「同步就绪」，
+    异步建通道的传输层必须实现它——TSDoc 里写死了这条
+- `createTauriHostTransport` 把原本只藏在 `starting` 里的注册结果暴露出来：
+  `startListening()` 改为返回本次注册的 Promise 且失败时**继续往外抛**（原来在 `.catch` 里就吞了），
+  `subscribe()` 把它记进 `ready`，`subscriptionReady()` 返回 `ready`
+  - `ready` 与 `starting` 分开：`starting` 在退订收摊或注册失败时被清掉以便重试，
+    而等待方要看的是「上一次注册到底成没成」
+  - 多个 client 共享同一条 channel 时仍复用同一个 Promise（`starting ??=` 未变）
+  - 没人等待时挂一个 no-op `catch`，避免注册失败变成 unhandled rejection（错误已走过 `onListenError`）
+- `DesktopSqliteClient.connect()` 在 `subscribe()` 之后 `await #awaitSubscription()`；失败时
+  `#abandonSession()` 退订并给 host 发 `close`，再抛 `host_unavailable`（原因挂 `cause`）。
+  回滚自身失败不覆盖真正的原因，但也不无痕——拼进错误消息
+- `addEventListener()` 改为 `async` 并 `await` 同一个就绪 Promise：正常路径上早已落定，只花一个微任务
+- 红测先行（4 例）：
+  - `desktop-sqlite-client.spec.ts`：`waits for the transport subscription to become ready before returning`
+    （排空微任务+宏任务后 `connect()` 仍未返回）、
+    `rejects and closes the half-open session when the subscription cannot be established`
+    （`host.openSessionCount === 0`、`listeners.size === 0`、`cause` 为原始错误）
+  - `tauri-host-transport.spec.ts`：`exposes subscription readiness that settles when the channel exists`、
+    `rejects subscription readiness when the channel cannot be registered`
+  - 第一个用例最初是**假绿**：`vi.waitFor` 落定得比 `connect()` 的微任务链还早，
+    补了一次 `setTimeout(0)` 排空才真正变红
+- 验证：`rxdb-adapter-desktop` 931/931 通过；`nx affected -t lint test build` 11 个项目 / 49 个任务全绿；
+  preload 桥接未动，e2e 的 `bridgeKeys` 断言仍是 `['request', 'subscribe']`
+
 - [ ] 开 PR 修复（`pr` 字段记录链接）
 - [ ] PR 合并，`status: Resolved`

@@ -70,6 +70,9 @@ describe('DesktopSqliteClient.connect', () => {
       subscribe: transport.subscribe
     };
     await expect(DesktopSqliteClient.connect(skewed, sqliteStorage)).rejects.toThrowError(/protocol_violation/);
+    // 拒连之后不能把 host 上刚开出来的会话留在那儿。调用方拿不到 client，也就永远没有
+    // 关掉它的把手，而那条会话正握着一个已经打开的 SQLite 连接（US-207 AC#9）。
+    expect(host.openSessionCount).toBe(0);
   });
 
   /**

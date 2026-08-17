@@ -425,7 +425,7 @@ Electron 侧若还没有对偶用例，用 host 层异步重试做同一组断�
 
 ## 解决记录
 
-已在 `local-db` 分支落地 §1 / §2（文档部分）/ §3，等开 PR：
+已在 `local-db` 分支落地 §1 / §2（文档部分）/ §3 / §5，等开 PR：
 
 - **§1（方案 A，改注释）**：三处不实描述改为「host 从不读 `runtime`；每个 host 实现本身绑死一个
   运行时，各自按自己那一行矩阵独立断言」——`desktop-adapter.interface.ts` 的 `DesktopOptions.runtime`、
@@ -440,13 +440,26 @@ Electron 侧若还没有对偶用例，用 host 层异步重试做同一组断�
   `NodeSqliteEngine.#rollbackOpenTransaction()` 用 `DatabaseSync.isTransaction`，
   `Engine::rollback_open_transaction()` 用 `Connection::is_autocommit()`（同为
   `sqlite3_get_autocommit()` 的包装）。既有的 close/rollback 用例继续通过。
-- 验证：`rxdb-adapter-desktop` 927/927 通过，lint + build 绿；`cargo test --lib` 125/125，clippy 无告警
+- **§5**：一致性套件新增 `conformance/protocol-handshake.spec.ts`——用真的 stdio 宿主进程做一次
+  `open`，断言它报上来的 `protocolVersion` 等于 TS 的 `DESKTOP_HOST_PROTOCOL_VERSION`。
+  这是两个手抄常量之间**唯一**的机械联系。
+  - 断言写成直接比数，不走 `parseDesktopHostOpenResult`：后者不匹配时抛的是 `protocol_violation`，
+    读起来像「宿主坏了」，而这里要说的是「两份常量漂移了」
+  - 不进共享套件：套件按后端并行铺开，而这条只对 Rust 宿主成立——Electron host 回的就是同一个
+    TS 常量，没有第二份真相源可漂
+  - 未起 codegen / 共享 JSON：协议里只有一个 `1`，一条握手断言就够（评审原文同此结论）
+  - `DESKTOP_HOST_PROTOCOL_VERSION` 的 TSDoc 补上 Tauri 这个例外与这条用例的位置——
+    原文「不等只可能发生在混装了不同版本的包」对 Rust 侧不成立
+  - **验过它真的会红**：把 Rust 的 `PROTOCOL_VERSION` 临时改成 `2`，该用例失败
+    （`expected 2 to be 1`）后随即改回。不这么验，一条恒绿的断言与没有断言无法区分
+- 验证：`rxdb-adapter-desktop` 927/927 通过，lint + build 绿；`cargo test --lib` 125/125，clippy 无告警；
+  §5 后一致性套件 597/597（原 596）；`nx affected -t lint test build` 11 个项目 / 49 个任务全绿
 
 - [x] 1. `runtime` 二次校验契约：已改注释（方案 A），待 PR
 - [ ] 2. Tauri host 随包发布：README 措辞已改；迁包（US-210 阶段 4）未动
 - [x] 3. `NO_ACTIVE_TRANSACTION` 换结构化 API：已改，待 PR
 - [ ] 4. renderer 双入口 tarball 门禁：开 PR 修复
-- [ ] 5. 协议版本常量两侧绑定：开 PR 修复
+- [x] 5. 协议版本常量两侧绑定：已加跨语言握手断言，待 PR
 - [ ] 6. 跨重启持久化打包门禁：开 PR 修复
 - [ ] 7. `ADAPTER_NAME` / `runtime` 双真相源改名：开 PR 修复
 - [ ] 8. Tauri 两会话争写锁直接用例：开 PR 修复
