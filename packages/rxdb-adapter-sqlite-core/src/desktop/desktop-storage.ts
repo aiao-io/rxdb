@@ -6,9 +6,6 @@
 
 import { RxDBAdapterDesktopError } from './desktop-error.js';
 
-/** 支持的桌面运行时。 */
-export type DesktopRuntime = 'electron' | 'tauri';
-
 /**
  * SQLite 单文件桌面存储。
  *
@@ -27,9 +24,10 @@ export interface DesktopSqliteFileStorage {
  *
  * @remarks
  * 字段名刻意与 {@link DesktopSqliteFileStorage} 不同：PGlite 的 data directory 是**一个目录**，
- * 里面有多个文件，绝不能被描述或序列化成单文件数据库。本包只固定形状，
- * 实际落地见 US-208；在此之前任何 runtime 传入本形状都会被
- * {@link assertSupportedDesktopStorage} 以 `unsupported_runtime_engine` 拒绝。
+ * 里面有多个文件，绝不能被描述或序列化成单文件数据库。本形状**不属于任何现有适配器**：
+ * Tauri 侧永不支持（没有 Node 主进程可服务 PGlite 的同步 filesystem 契约），
+ * Electron 侧要等 US-208 立起 `pglite-electron`。在那之前把它交给 SQLite 客户端，
+ * 会被 {@link assertDesktopSqliteStorage} 以 `unsupported_runtime_engine` 拒绝。
  */
 export interface DesktopPgliteDirectoryStorage {
   readonly engine: 'pglite';
@@ -39,17 +37,6 @@ export interface DesktopPgliteDirectoryStorage {
 
 /** 桌面存储配置的可辨识联合，按 `engine` 区分。 */
 export type DesktopStorage = DesktopSqliteFileStorage | DesktopPgliteDirectoryStorage;
-
-/**
- * 按运行时收敛出的合法存储配置。
- *
- * @remarks
- * Tauri 没有 Node 主进程，PGlite 的同步 filesystem 契约无法用异步 command 逐次代理，
- * 因此 `tauri` 分支在**类型层**就不包含 PGlite —— 非法组合不必等到运行时才发现。
- * 运行时仍会再校验一次，因为 JavaScript 调用方可以绕过类型。
- */
-export type SupportedDesktopStorage<TRuntime extends DesktopRuntime> =
-  TRuntime extends 'electron' ? DesktopStorage : DesktopSqliteFileStorage;
 
 /**
  * 逻辑数据库名允许的字符：不含任何路径分隔符，因此天然无法做目录穿越。
@@ -138,25 +125,25 @@ export function isDesktopPgliteDirectoryStorage(value: unknown): value is Deskto
   return candidate.engine === 'pglite' && typeof candidate.dataDirectoryName === 'string';
 }
 
-const SUPPORTED_RUNTIMES: readonly DesktopRuntime[] = ['electron', 'tauri'];
-
 /**
- * 校验 runtime 与 engine 的组合是否在能力矩阵内。
+ * 校验存储配置确实是本协议唯一承载的那个引擎——SQLite 单文件。
  *
  * @remarks
- * 不受支持时直接抛错，**不回退**到 memory/OPFS/IndexedDB，也不静默切换引擎：
+ * 引擎不对时直接抛错，**不回退**到 memory/OPFS/IndexedDB，也不静默切换引擎：
  * 用户必须能确信数据确实写进了他指定的那个后端（AC#4）。
  *
- * 当前矩阵：Electron + SQLite ✅、Tauri + SQLite ✅、PGlite ❌（Electron 侧见 US-208，Tauri 侧永不支持）。
+ * 判据里没有「运行时」这一维：适配器注册名已经把运行时写死了（`sqlite-electron` /
+ * `sqlite-tauri`），能走到这里的调用方**只可能**是 SQLite 那一行，再传一个 `runtime`
+ * 进来无非是让调用方自报家门——而它报什么都不改变结论。PGlite 将来由 US-208 的
+ * `pglite-electron` 自己那条路径承载，与本函数无关。
  *
- * @param runtime - 桌面运行时
+ * 类型层已经收敛过一次（`DesktopSqliteClient.connect` 只收 {@link DesktopSqliteFileStorage}），
+ * 这里仍然重校验，因为 JavaScript 调用方可以绕过类型，而 host 侧解析 IPC 入参时也复用本函数。
+ *
  * @param storage - 存储配置
- * @throws 组合不受支持时抛 `unsupported_runtime_engine`；名字非法时抛 `invalid_database_name`
+ * @throws 引擎不受支持时抛 `unsupported_runtime_engine`；名字非法时抛 `invalid_database_name`
  */
-export function assertSupportedDesktopStorage(runtime: DesktopRuntime, storage: DesktopStorage): void {
-  if (!SUPPORTED_RUNTIMES.includes(runtime)) {
-    throw new RxDBAdapterDesktopError('unsupported_runtime_engine', `unknown desktop runtime ${String(runtime)}`);
-  }
+export function assertDesktopSqliteStorage(storage: DesktopStorage): asserts storage is DesktopSqliteFileStorage {
   if (isDesktopSqliteFileStorage(storage)) {
     assertValidDesktopDatabaseName(storage.databaseName);
     return;
@@ -164,9 +151,9 @@ export function assertSupportedDesktopStorage(runtime: DesktopRuntime, storage: 
   if (isDesktopPgliteDirectoryStorage(storage)) {
     throw new RxDBAdapterDesktopError(
       'unsupported_runtime_engine',
-      runtime === 'tauri' ?
-        'tauri cannot host a PGlite data directory: there is no Node main process to serve PGlite synchronous filesystem contract'
-      : 'electron PGlite data directory is not implemented yet; it is tracked by US-208'
+      'a PGlite data directory cannot be opened over the desktop SQLite protocol; ' +
+        'electron support is tracked by US-208 as a separate adapter, and tauri will never have it ' +
+        'because there is no Node main process to serve PGlite synchronous filesystem contract'
     );
   }
   throw new RxDBAdapterDesktopError(

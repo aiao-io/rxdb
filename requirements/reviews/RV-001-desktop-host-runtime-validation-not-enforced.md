@@ -30,7 +30,7 @@ export const TAURI_DESKTOP_REQUEST_COMMAND = 'rxdb_desktop_request';
 - `apps/dev-rxdb-tauri/src-tauri/src/rxdb/engine.rs` / `session.rs`
 - demo 接线 `setup_rxdb_desktop.ts` 把 `invoke` / `listen` 注进去再 `runtime: 'tauri'`
 
-复验：`packages/rxdb-adapter-desktop/package.json` 的 `exports` 与 `files` 不含任何 `.rs` / crate；`grep` `createDesktopSqliteHost` 只命中 Electron `/host`。US-210「Tauri 包化」节原文：
+复验：`packages/rxdb-adapter-desktop/package.json` 的 `exports` 与 `files` 不含任何 `.rs` / crate；`grep` `createElectronSqliteHost` 只命中 Electron `/host`。US-210「Tauri 包化」节原文：
 
 > 本故事的实现今天没有一行在 packages 里……装了 npm 包的用户拿到的只是一根传输管子，管子那头的 `rusqlite` 引擎要自己照着 demo 重写一遍——AC#2/#3 承诺的「与其它后端行为一致」于是只对本仓库成立。
 

@@ -19,7 +19,7 @@
  */
 
 import { DESKTOP_ADAPTER_NAME, type DesktopHostTransport } from '@aiao/rxdb-adapter-desktop';
-import { createDesktopFileHost, type DesktopFileHost } from '@aiao/rxdb-adapter-desktop/host';
+import { createElectronFileHost, type ElectronFileHost } from '@aiao/rxdb-adapter-desktop/host';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -80,7 +80,7 @@ const createOpfsBackend = (): ParityBackend => {
 
 const createDesktopBackend = (): ParityBackend => {
   let workspace = '';
-  let host: DesktopFileHost | null = null;
+  let host: ElectronFileHost | null = null;
   let transport: DesktopHostTransport | null = null;
 
   return {
@@ -88,7 +88,7 @@ const createDesktopBackend = (): ParityBackend => {
     localAdapterName: DESKTOP_ADAPTER_NAME,
     async setup() {
       workspace = await mkdtemp(join(tmpdir(), 'rxdb-parity-'));
-      const created = createDesktopFileHost({ resolveStorageRoot: () => join(workspace, 'rxdb-files') });
+      const created = createElectronFileHost({ resolveStorageRoot: () => join(workspace, 'rxdb-files') });
       host = created;
       // 直连 host：renderer 侧后端接的是真实文件系统，不是断言 mock。
       transport = { request: payload => created.handle(payload), subscribe: () => () => undefined };

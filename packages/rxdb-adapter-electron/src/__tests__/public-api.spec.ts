@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
-  createDesktopFileHost,
-  createDesktopSqliteHost,
+  createElectronFileHost,
+  createElectronSqliteHost,
   isDesktopHostFileRequestKind,
   NodeSqliteEngine,
   parseDesktopHostFileRequest,
@@ -83,14 +83,14 @@ describe('renderer entry', () => {
 
 describe('host entry', () => {
   it('exposes the host factory, the engine and the request validator', () => {
-    expect(typeof createDesktopSqliteHost).toBe('function');
+    expect(typeof createElectronSqliteHost).toBe('function');
     expect(typeof NodeSqliteEngine).toBe('function');
     expect(typeof parseDesktopHostRequest).toBe('function');
   });
 
   // US-504：文件 host 与它的分派判据同样只在特权侧
   it('exposes the file host and the dispatch predicate', () => {
-    expect(typeof createDesktopFileHost).toBe('function');
+    expect(typeof createElectronFileHost).toBe('function');
     expect(typeof parseDesktopHostFileRequest).toBe('function');
     expect(isDesktopHostFileRequestKind('file.open')).toBe(true);
     expect(isDesktopHostFileRequestKind('execute')).toBe(false);
@@ -99,7 +99,7 @@ describe('host entry', () => {
   // 特权侧的东西泄漏到 renderer 入口，隔离就只剩文档上的一句话
   it('does not re-export the host factories from the renderer entry', async () => {
     const rendererExports = Object.keys(await import('../index.js'));
-    expect(rendererExports).not.toContain('createDesktopSqliteHost');
-    expect(rendererExports).not.toContain('createDesktopFileHost');
+    expect(rendererExports).not.toContain('createElectronSqliteHost');
+    expect(rendererExports).not.toContain('createElectronFileHost');
   });
 });

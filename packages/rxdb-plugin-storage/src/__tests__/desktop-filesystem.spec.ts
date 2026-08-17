@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { DESKTOP_ADAPTER_NAME, type DesktopHostTransport } from '@aiao/rxdb-adapter-desktop';
-import { createDesktopFileHost, type DesktopFileHost } from '@aiao/rxdb-adapter-desktop/host';
+import { createElectronFileHost, type ElectronFileHost } from '@aiao/rxdb-adapter-desktop/host';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,12 +12,12 @@ import { isStorageNotFoundError } from '../filesystem/storage-filesystem.js';
 const CONTEXT: StorageFilesystemContext = { localAdapterName: DESKTOP_ADAPTER_NAME };
 
 let workspace: string;
-let host: DesktopFileHost;
+let host: ElectronFileHost;
 let transport: DesktopHostTransport;
 let filesystem: StorageFilesystem;
 
 /** 直连 host 的传输层：把 renderer 侧后端接到真实文件系统上，而不是接到断言 mock 上。 */
-const createDirectTransport = (target: DesktopFileHost): DesktopHostTransport => ({
+const createDirectTransport = (target: ElectronFileHost): DesktopHostTransport => ({
   request: payload => target.handle(payload),
   subscribe: () => () => undefined
 });
@@ -66,7 +66,7 @@ const collect = (directoryPath: string): Promise<string[]> => collectFrom(filesy
 
 beforeEach(async () => {
   workspace = await mkdtemp(join(tmpdir(), 'rxdb-desktop-fs-'));
-  host = createDesktopFileHost({ resolveStorageRoot: () => join(workspace, 'rxdb-files') });
+  host = createElectronFileHost({ resolveStorageRoot: () => join(workspace, 'rxdb-files') });
   transport = createDirectTransport(host);
   filesystem = createDesktopStorageFilesystem({ transport })('files', CONTEXT);
 });

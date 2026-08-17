@@ -19,12 +19,12 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ADAPTER_NAME } from '../desktop-adapter.interface.js';
-import { createDesktopSqliteHost, type DesktopSqliteHost } from '../desktop-sqlite-host.js';
+import { createElectronSqliteHost, type ElectronSqliteHost } from '../desktop-sqlite-host.js';
 import { RxDBAdapterDesktop } from '../RxDBAdapterDesktop.js';
 
 interface DesktopTestHost {
   readonly workspace: string;
-  readonly host: DesktopSqliteHost;
+  readonly host: ElectronSqliteHost;
   readonly transport: DesktopHostTransport;
 }
 
@@ -35,7 +35,7 @@ const deliveryErrors: unknown[] = [];
 const startHost = (): DesktopTestHost => {
   const workspace = mkdtempSync(join(tmpdir(), 'rxdb-desktop-suite-'));
   const listeners = new Set<(message: unknown) => void>();
-  const host = createDesktopSqliteHost({
+  const host = createElectronSqliteHost({
     resolveDatabasePath: databaseName => join(workspace, databaseName),
     postChange: message => {
       for (const listener of listeners) listener(message);

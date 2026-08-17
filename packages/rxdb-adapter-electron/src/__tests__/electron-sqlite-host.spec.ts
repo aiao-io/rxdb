@@ -7,16 +7,16 @@ import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDesktopSqliteHost, type DesktopSqliteHost } from '../desktop-sqlite-host.js';
+import { createElectronSqliteHost, type ElectronSqliteHost } from '../desktop-sqlite-host.js';
 
 let workspace: string;
-let host: DesktopSqliteHost;
+let host: ElectronSqliteHost;
 let changes: DesktopHostChangeEventMessage[];
 
 const sqliteStorage = { engine: 'sqlite', databaseName: 'app.sqlite3' } as const;
 
 // 变更事件是防抖派发的；`batchTimeout: 0` 把窗口压到「下一个宏任务」，用例才不用等真实毫秒。
-const openSessionOn = async (target: DesktopSqliteHost, databaseName = 'app.sqlite3'): Promise<string> => {
+const openSessionOn = async (target: ElectronSqliteHost, databaseName = 'app.sqlite3'): Promise<string> => {
   const response = await target.handle({
     kind: 'open',
     storage: { engine: 'sqlite', databaseName },
@@ -37,7 +37,7 @@ const execute = async (sessionId: string, sql: string, bindings: unknown[] = [])
 beforeEach(() => {
   workspace = mkdtempSync(join(tmpdir(), 'rxdb-desktop-host-'));
   changes = [];
-  host = createDesktopSqliteHost({
+  host = createElectronSqliteHost({
     resolveDatabasePath: databaseName => join(workspace, databaseName),
     postChange: message => changes.push(message)
   });
@@ -67,7 +67,7 @@ describe('handshake', () => {
   // 握手碰了它，等于绕过上面那条断言从另一头碰了文件系统。
   it('does not even consult the path resolver', async () => {
     const resolveDatabasePath = vi.fn((databaseName: string) => join(workspace, databaseName));
-    const isolated = createDesktopSqliteHost({ resolveDatabasePath, postChange: () => undefined });
+    const isolated = createElectronSqliteHost({ resolveDatabasePath, postChange: () => undefined });
     await isolated.handle({ kind: 'handshake' });
     expect(resolveDatabasePath).not.toHaveBeenCalled();
   });
@@ -108,7 +108,7 @@ describe('open', () => {
   });
 
   it('reports open_failed when the application cannot resolve a path', async () => {
-    const failing = createDesktopSqliteHost({
+    const failing = createElectronSqliteHost({
       resolveDatabasePath: () => {
         throw new Error('no app data directory yet');
       },
@@ -201,7 +201,7 @@ describe('busy retry', () => {
   });
 
   it('reports database_busy once the retry budget runs out', async () => {
-    const impatient = createDesktopSqliteHost({
+    const impatient = createElectronSqliteHost({
       resolveDatabasePath: databaseName => join(workspace, databaseName),
       postChange: message => changes.push(message),
       busyRetryBudgetMs: 20
@@ -280,7 +280,7 @@ describe('change notification', () => {
   // 窗口在写入途中被销毁是常规竞态：写已经落库，此时报写失败会让调用方重试出重复数据
   it('does not fail a write when delivery to the renderer throws', async () => {
     const onDeliveryError = vi.fn();
-    const failing = createDesktopSqliteHost({
+    const failing = createElectronSqliteHost({
       resolveDatabasePath: databaseName => join(workspace, databaseName),
       postChange: () => {
         throw new Error('renderer window was destroyed');
@@ -309,7 +309,7 @@ describe('change notification', () => {
   // 一个订阅者的缺陷会把整个 Electron 应用带走，而此刻写入其实早已落库。
   it('survives an error reporter that is itself broken', async () => {
     const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const failing = createDesktopSqliteHost({
+    const failing = createElectronSqliteHost({
       resolveDatabasePath: databaseName => join(workspace, databaseName),
       postChange: () => {
         throw new Error('renderer window was destroyed');

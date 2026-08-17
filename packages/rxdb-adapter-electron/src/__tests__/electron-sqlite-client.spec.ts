@@ -8,12 +8,12 @@ import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDesktopSqliteHost, type DesktopSqliteHost } from '../desktop-sqlite-host.js';
+import { createElectronSqliteHost, type ElectronSqliteHost } from '../desktop-sqlite-host.js';
 
 const sqliteStorage = { engine: 'sqlite', databaseName: 'app.sqlite3' } as const;
 
 let workspace: string;
-let host: DesktopSqliteHost;
+let host: ElectronSqliteHost;
 let transport: DesktopHostTransport;
 let listeners: Set<(message: unknown) => void>;
 
@@ -49,7 +49,7 @@ const skewProtocolVersion = (protocolVersion: number): DesktopHostTransport => (
 beforeEach(() => {
   workspace = mkdtempSync(join(tmpdir(), 'rxdb-desktop-client-'));
   listeners = new Set();
-  host = createDesktopSqliteHost({
+  host = createElectronSqliteHost({
     resolveDatabasePath: databaseName => join(workspace, databaseName),
     postChange: message => {
       for (const listener of listeners) listener(message);
@@ -188,7 +188,7 @@ describe('DesktopSqliteClient.connect', () => {
 
   // AC#4：错误码要跨传输层活着到达调用方，而不是被压平成一句字符串
   it('rebuilds the host error code on this side of the transport', async () => {
-    const failing = createDesktopSqliteHost({
+    const failing = createElectronSqliteHost({
       resolveDatabasePath: () => {
         throw new Error('no app data directory yet');
       },

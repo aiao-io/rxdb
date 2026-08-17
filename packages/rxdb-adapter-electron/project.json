@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "name": "rxdb-adapter-desktop",
+  "name": "rxdb-adapter-electron",
   "tags": ["js-lib"],
   "targets": {
     "typecheck": {

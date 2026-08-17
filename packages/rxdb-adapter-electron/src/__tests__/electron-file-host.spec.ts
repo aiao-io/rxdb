@@ -7,7 +7,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createDesktopFileHost, type DesktopFileHost } from '../desktop-file-host.js';
+import { createElectronFileHost, type ElectronFileHost } from '../desktop-file-host.js';
 
 const textOf = (value: string): Uint8Array => new TextEncoder().encode(value);
 
@@ -24,10 +24,10 @@ const expectError = (response: DesktopHostFileResponse, code: string): void => {
   expect(response).toMatchObject({ kind: 'error', code });
 };
 
-describe('createDesktopFileHost', () => {
+describe('createElectronFileHost', () => {
   let workspace: string;
   let storageRoot: string;
-  let host: DesktopFileHost;
+  let host: ElectronFileHost;
   let sessionId: string;
 
   const openSession = async (): Promise<string> => {
@@ -45,7 +45,7 @@ describe('createDesktopFileHost', () => {
   beforeEach(async () => {
     workspace = await mkdtemp(join(tmpdir(), 'rxdb-file-host-'));
     storageRoot = join(workspace, 'rxdb-files');
-    host = createDesktopFileHost({ resolveStorageRoot: () => storageRoot });
+    host = createElectronFileHost({ resolveStorageRoot: () => storageRoot });
     sessionId = await openSession();
     await host.handle({ kind: 'file.mkdir', sessionId, path: '' });
   });
@@ -297,7 +297,7 @@ describe('createDesktopFileHost', () => {
   });
 
   it('never rejects, even when the storage root cannot be resolved', async () => {
-    const broken = createDesktopFileHost({
+    const broken = createElectronFileHost({
       resolveStorageRoot: () => {
         throw new Error('no user data path yet');
       }

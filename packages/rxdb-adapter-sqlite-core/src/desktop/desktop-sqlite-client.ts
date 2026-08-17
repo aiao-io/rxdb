@@ -17,11 +17,7 @@ import {
   type DesktopHostOpenResult,
   type DesktopHostRequest
 } from './desktop-host-protocol.js';
-import {
-  assertSupportedDesktopStorage,
-  type DesktopRuntime,
-  type DesktopSqliteFileStorage
-} from './desktop-storage.js';
+import { assertDesktopSqliteStorage, type DesktopSqliteFileStorage } from './desktop-storage.js';
 
 /**
  * renderer 与 host 之间的传输层。
@@ -78,18 +74,6 @@ export interface DesktopSqliteClientOptions {
    * 与 wasm 客户端的同名选项同义，只是批处理发生在 host 侧——合并在事件跨进程之前完成。
    */
   readonly batchTimeout?: number;
-  /**
-   * host 所在的桌面运行时，省略时按 `'electron'` 解读。
-   *
-   * @remarks
-   * 只影响 renderer 侧那次前置校验的**判据与措辞**——能力矩阵按 runtime 收敛
-   * （Tauri 永不支持 PGlite，见 {@link ./desktop-storage.js | assertSupportedDesktopStorage}）。
-   *
-   * 传错不会放宽任何东西，但把关的**不是**这个字段：host 从不读它。每个 host 实现本身就绑死了
-   * 一个运行时——`createDesktopSqliteHost` 只跑在 Electron 主进程，Tauri 侧是 Rust 宿主——
-   * 各自按自己那一行矩阵在信任边界上重新断言一次。
-   */
-  readonly runtime?: DesktopRuntime;
 }
 
 /**
@@ -262,7 +246,7 @@ export class DesktopSqliteClient implements SqliteClientLike {
       );
     }
     // renderer 侧先校验一次，非法配置连 IPC 都不用发；host 侧还会再校验一次。
-    assertSupportedDesktopStorage(options?.runtime ?? 'electron', storage);
+    assertDesktopSqliteStorage(storage);
     // 先握手再 open：版本对不上时，磁盘上不该多出一个空库文件。
     await negotiateProtocolVersion(transport);
 

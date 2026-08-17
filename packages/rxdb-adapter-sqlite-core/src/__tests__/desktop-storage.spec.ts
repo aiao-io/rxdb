@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { RxDBAdapterDesktopError } from '../desktop/desktop-error.js';
 import {
-  assertSupportedDesktopStorage,
+  assertDesktopSqliteStorage,
   assertValidDesktopDatabaseName,
-  isDesktopSqliteFileStorage
+  isDesktopSqliteFileStorage,
+  type DesktopStorage
 } from '../desktop/desktop-storage.js';
 
 const sqliteStorage = { engine: 'sqlite', databaseName: 'app.sqlite3' } as const;
@@ -77,51 +78,48 @@ describe('assertValidDesktopDatabaseName', () => {
   });
 });
 
-describe('assertSupportedDesktopStorage', () => {
-  it('accepts electron + sqlite', () => {
-    expect(() => assertSupportedDesktopStorage('electron', sqliteStorage)).not.toThrow();
+describe('assertDesktopSqliteStorage', () => {
+  it('accepts a sqlite single-file storage', () => {
+    expect(() => assertDesktopSqliteStorage(sqliteStorage)).not.toThrow();
   });
 
-  it('accepts tauri + sqlite', () => {
-    expect(() => assertSupportedDesktopStorage('tauri', sqliteStorage)).not.toThrow();
-  });
-
-  // 能力矩阵：Tauri 没有 Node 主进程，PGlite 的同步 filesystem 契约无法异步代理
-  it('rejects tauri + pglite with a discriminable code', () => {
+  /**
+   * PGlite 的 data directory 永远不该经这条线协议打开。
+   *
+   * @remarks
+   * Tauri 侧是**永久**的：没有 Node 主进程，PGlite 的同步 filesystem 契约无法用异步 command
+   * 逐次代理。Electron 侧是**暂时**的，US-208 会立一个独立的 `pglite-electron` 适配器去承载它。
+   * 两种情况在这里合流成同一条拒绝：无论哪个运行时，「拿 SQLite 客户端开 PGlite 目录」
+   * 都是调用方搞错了适配器，而不是缺一个开关。
+   */
+  it('rejects a pglite data directory with a discriminable code', () => {
     try {
-      assertSupportedDesktopStorage('tauri', pgliteStorage);
+      assertDesktopSqliteStorage(pgliteStorage);
       expect.unreachable('should have thrown');
     } catch (error) {
       expect((error as RxDBAdapterDesktopError).code).toBe('unsupported_runtime_engine');
     }
   });
 
-  // US-208 未落地前，Electron + PGlite 也必须显式报缺失能力，而不是悄悄当成 sqlite
-  it('rejects electron + pglite until US-208 lands', () => {
-    try {
-      assertSupportedDesktopStorage('electron', pgliteStorage);
-      expect.unreachable('should have thrown');
-    } catch (error) {
-      expect((error as RxDBAdapterDesktopError).code).toBe('unsupported_runtime_engine');
-    }
-  });
-
-  it('rejects an unknown runtime', () => {
-    expect(() => assertSupportedDesktopStorage('web' as unknown as 'electron', sqliteStorage)).toThrowError(
+  it('rejects an unknown engine', () => {
+    expect(() => assertDesktopSqliteStorage({ engine: 'mysql' } as unknown as typeof sqliteStorage)).toThrowError(
       /unsupported_runtime_engine/
     );
   });
 
-  it('rejects an unknown engine', () => {
-    expect(() =>
-      assertSupportedDesktopStorage('electron', { engine: 'mysql' } as unknown as typeof sqliteStorage)
-    ).toThrowError(/unsupported_runtime_engine/);
+  it('validates the database name of a sqlite storage', () => {
+    expect(() => assertDesktopSqliteStorage({ engine: 'sqlite', databaseName: '../escape' })).toThrowError(
+      /invalid_database_name/
+    );
   });
 
-  it('validates the database name of a sqlite storage', () => {
-    expect(() =>
-      assertSupportedDesktopStorage('electron', { engine: 'sqlite', databaseName: '../escape' })
-    ).toThrowError(/invalid_database_name/);
+  // 断言签名：过了这一关，调用方手里的联合已经收敛成单文件形状，不必再自己 narrow 一次
+  it('narrows the storage union for the caller', () => {
+    const storage: DesktopStorage = { engine: 'sqlite', databaseName: 'app.sqlite3' };
+
+    assertDesktopSqliteStorage(storage);
+
+    expect(storage.databaseName).toBe('app.sqlite3');
   });
 });
 

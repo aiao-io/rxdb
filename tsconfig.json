@@ -136,10 +136,13 @@
       "path": "./packages/rxdb-adapter-miniprogram"
     },
     {
-      "path": "./packages/rxdb-adapter-desktop"
+      "path": "./packages/rxdb-adapter-electron"
     },
     {
       "path": "./apps/dev-rxdb-tauri-e2e"
+    },
+    {
+      "path": "./packages/rxdb-adapter-tauri"
     }
   ]
 }

@@ -38,7 +38,7 @@ const LOGICAL_LOCATION_SCHEME = 'desktop-sqlite://app-scope';
  * 而 `BEGIN` 是延迟取锁的——写锁要等到事务里第一条写语句才拿，撞锁于是发生在**事务中途**。
  * 那时已经读过一份快照，SQLite 要求整个事务回滚重来，重试语义远比在起点重试复杂。
  * `IMMEDIATE` 把取锁挪到起点，撞锁时事务根本还没开，重试就是无副作用地再发一次
- * （见 {@link createDesktopSqliteHost} 的 busy 重试）。
+ * （见 {@link createElectronSqliteHost} 的 busy 重试）。
  * wa-sqlite 的多连接模式出于同样的理由用 `BEGIN IMMEDIATE`。
  */
 const BEGIN_TRANSACTION_SQL = 'BEGIN IMMEDIATE;';
@@ -67,8 +67,8 @@ const delay = (ms: number): Promise<void> =>
     setTimeout(resolve, ms);
   });
 
-/** {@link createDesktopSqliteHost} 的入参。 */
-export interface DesktopSqliteHostOptions {
+/** {@link createElectronSqliteHost} 的入参。 */
+export interface ElectronSqliteHostOptions {
   /**
    * 把逻辑数据库名解析成物理绝对路径。
    *
@@ -102,7 +102,7 @@ export interface DesktopSqliteHostOptions {
 }
 
 /** 桌面 SQLite host 实例。 */
-export interface DesktopSqliteHost {
+export interface ElectronSqliteHost {
   /**
    * 处理一条来自 renderer 的请求。
    *
@@ -157,7 +157,7 @@ const toErrorResponse = (error: unknown): DesktopHostResponse => {
  * @param options - host 配置
  * @returns host 实例
  */
-export function createDesktopSqliteHost(options: DesktopSqliteHostOptions): DesktopSqliteHost {
+export function createElectronSqliteHost(options: ElectronSqliteHostOptions): ElectronSqliteHost {
   const sessions = new Map<string, NodeSqliteEngine>();
 
   const deliver = (sessionId: string, event: SqliteChangeEvent): void => {

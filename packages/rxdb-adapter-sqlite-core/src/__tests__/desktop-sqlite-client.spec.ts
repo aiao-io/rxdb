@@ -134,14 +134,12 @@ describe('resolveDesktopHostTransport', () => {
 });
 
 describe('DesktopSqliteClient.connect 的前置校验', () => {
-  // 非法组合连 IPC 都不该发：host 侧还会再拦一次，但那一次已经跨了进程边界
-  it('rejects an engine outside the runtime capability matrix before it sends anything', async () => {
+  // 非法引擎连 IPC 都不该发：host 侧还会再拦一次，但那一次已经跨了进程边界
+  it('rejects an engine this protocol does not carry before it sends anything', async () => {
     const host = createFakeHost();
 
     await expectRejectedCode(
-      DesktopSqliteClient.connect(host.transport, pgliteStorage as unknown as DesktopSqliteFileStorage, {
-        runtime: 'tauri'
-      }),
+      DesktopSqliteClient.connect(host.transport, pgliteStorage as unknown as DesktopSqliteFileStorage),
       'unsupported_runtime_engine'
     );
     expect(host.kinds).toEqual([]);

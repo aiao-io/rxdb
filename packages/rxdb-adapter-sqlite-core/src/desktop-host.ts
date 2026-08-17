@@ -14,12 +14,19 @@
  *
  * 本入口里的符号刻意**不含任何运行时特有的东西**：没有 `node:` 内建、没有 Tauri `invoke`，
  * 因此浏览器 renderer 与 Node 主进程都能安全加载。适配器注册名（`ADAPTER_NAME`）也不在这里——
- * 那是每个运行时包各自的身份。
+ * 那是每个运行时包各自的身份；这里只有一张**登记表**（`DESKTOP_HOST_ADAPTER_NAMES`），
+ * 供第三方判定「本地适配器是不是桌面的」而不必装上每个运行时包。
  *
  * @module @aiao/rxdb-adapter-sqlite-core/desktop-host
  */
 
 export { DEFAULT_DATABASE_SUFFIX, type DesktopOptions } from './desktop/desktop-options.interface.js';
+
+export {
+  DESKTOP_HOST_ADAPTER_NAMES,
+  isDesktopHostAdapterName,
+  type DesktopHostAdapterName
+} from './desktop/desktop-adapter-name.js';
 
 export {
   RxDBAdapterDesktopError,
@@ -28,15 +35,13 @@ export {
 } from './desktop/desktop-error.js';
 
 export {
-  assertSupportedDesktopStorage,
+  assertDesktopSqliteStorage,
   assertValidDesktopDatabaseName,
   isDesktopPgliteDirectoryStorage,
   isDesktopSqliteFileStorage,
   type DesktopPgliteDirectoryStorage,
-  type DesktopRuntime,
   type DesktopSqliteFileStorage,
-  type DesktopStorage,
-  type SupportedDesktopStorage
+  type DesktopStorage
 } from './desktop/desktop-storage.js';
 
 export {

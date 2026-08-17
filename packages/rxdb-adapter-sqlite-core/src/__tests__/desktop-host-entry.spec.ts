@@ -16,7 +16,7 @@ import {
   DESKTOP_HOST_TRANSPORT_KEY,
   DesktopSqliteClient,
   RxDBAdapterDesktopError,
-  assertSupportedDesktopStorage,
+  assertDesktopSqliteStorage,
   assertValidDesktopDatabaseName,
   isDesktopHostFileRequestKind,
   isDesktopPgliteDirectoryStorage,
@@ -36,7 +36,7 @@ const DESKTOP_ONLY_VALUE_EXPORTS = [
   'DESKTOP_HOST_TRANSPORT_KEY',
   'DesktopSqliteClient',
   'RxDBAdapterDesktopError',
-  'assertSupportedDesktopStorage',
+  'assertDesktopSqliteStorage',
   'assertValidDesktopDatabaseName',
   'parseDesktopHostRequest',
   'resolveDesktopHostTransport'
@@ -87,15 +87,24 @@ describe('desktop-host subpath', () => {
   it('re-exports the checks as live bindings rather than copies', () => {
     const storage: DesktopStorage = { engine: 'pglite', dataDirectoryName: 'pgdata' };
 
-    expect(() => assertSupportedDesktopStorage('tauri', storage)).toThrowError(/^\[unsupported_runtime_engine\]/);
+    expect(() => assertDesktopSqliteStorage(storage)).toThrowError(/^\[unsupported_runtime_engine\]/);
     expect(() => assertValidDesktopDatabaseName('../escape')).toThrowError(/^\[invalid_database_name\]/);
   });
 
-  it('types the cross-runtime option shape', () => {
-    const options: DesktopOptions = { databaseName: `app${DEFAULT_DATABASE_SUFFIX}`, runtime: 'tauri' };
+  /**
+   * 选项形状是**跨运行时**的，因此不含任何指认运行时的字段。
+   *
+   * @remarks
+   * 曾经有过一个 `runtime?: 'electron' | 'tauri'`，US-207 E3 把它删了：适配器注册名
+   * （`sqlite-electron` / `sqlite-tauri`）已经把运行时定死在包的身份里，再让调用方自报一次
+   * 家门，只会多出「名字说 electron、字段说 tauri」这种自相矛盾的配置。
+   */
+  it('types the cross-runtime option shape without naming a runtime', () => {
+    const options: DesktopOptions = { databaseName: `app${DEFAULT_DATABASE_SUFFIX}` };
     const transport: DesktopHostTransport = { request: () => Promise.resolve(null), subscribe: () => () => undefined };
 
     expect(options.databaseName).toBe('app.sqlite3');
     expect(transport.subscriptionReady).toBeUndefined();
+    expect(Object.keys(options)).not.toContain('runtime');
   });
 });

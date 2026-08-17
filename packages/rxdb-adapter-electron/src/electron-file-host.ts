@@ -2,7 +2,7 @@
  * 桌面文件 host：把 renderer 送来的 `file.*` 请求落到应用数据目录里的原生文件。
  *
  * @remarks
- * 与 {@link createDesktopSqliteHost} 一样运行在**特权侧**，是唯一接触文件系统的地方。
+ * 与 {@link createElectronSqliteHost} 一样运行在**特权侧**，是唯一接触文件系统的地方。
  * 存在的理由见 US-504：文件内容此前写在 WebView 的 OPFS 里，与桌面 SQLite 不在同一个
  * 备份域 —— 拷贝应用数据目录只带走 metadata，恢复后 meta 指向不存在的文件。
  *
@@ -11,7 +11,7 @@
  *   目标要么是旧内容要么是新内容，不会是半写。
  * - **会话归属**：未提交的写入与已持有的锁都挂在会话上，窗口销毁即整体回收。
  * - **永不 reject**：失败一律以 `{ kind:'error', code, message }` 返回，见
- *   {@link DesktopFileHost.handle}。
+ *   {@link ElectronFileHost.handle}。
  *
  * @module desktop-file-host
  */
@@ -53,8 +53,8 @@ const isWriteRequest = (request: DesktopHostFileRequest): request is FileWriteRe
 const isLockRequest = (request: DesktopHostFileRequest): request is FileLockRequest =>
   request.kind.startsWith('file.lock');
 
-/** {@link createDesktopFileHost} 的入参。 */
-export interface DesktopFileHostOptions {
+/** {@link createElectronFileHost} 的入参。 */
+export interface ElectronFileHostOptions {
   /**
    * 解析文件存储根的物理绝对路径。
    *
@@ -67,7 +67,7 @@ export interface DesktopFileHostOptions {
 }
 
 /** 桌面文件 host 实例。 */
-export interface DesktopFileHost {
+export interface ElectronFileHost {
   /**
    * 处理一条来自 renderer 的文件请求。
    *
@@ -203,7 +203,7 @@ const isInside = (root: string, absolute: string): boolean => absolute === root 
  * 只有规范化之后才知道路径最终指向哪里。
  *
  * `resolve` 不读文件系统，因此这一层**拦不住符号链接** —— 那由
- * {@link createDesktopFileHost} 内的 `containedPath` 用 `realpath` 兜住。两层都要：
+ * {@link createElectronFileHost} 内的 `containedPath` 用 `realpath` 兜住。两层都要：
  * 词法这层不碰磁盘，能在完全不存在的路径上给出确定答案，也是 `realpath` 逐级上探时的起点。
  */
 const resolveWithinRoot = (root: string, relativePath: string): string => {
@@ -250,7 +250,7 @@ const toEntryKind = (isDirectory: boolean): DesktopHostFileEntry['kind'] => (isD
  * @param options - host 配置
  * @returns host 实例
  */
-export function createDesktopFileHost(options: DesktopFileHostOptions): DesktopFileHost {
+export function createElectronFileHost(options: ElectronFileHostOptions): ElectronFileHost {
   const sessions = new Map<string, FileSession>();
   const queues = new Map<string, LockQueue>();
 

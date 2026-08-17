@@ -93,17 +93,17 @@ import {
   DESKTOP_HOST_PROTOCOL_VERSION,
   NodeSqliteEngine,
   assertValidDesktopDatabaseName,
-  createDesktopSqliteHost,
+  createElectronSqliteHost,
   parseDesktopHostRequest,
-  type DesktopSqliteHost,
-  type DesktopSqliteHostOptions
+  type ElectronSqliteHost,
+  type ElectronSqliteHostOptions
 } from '${packageName}/host';
 
-const options: DesktopSqliteHostOptions = {
+const options: ElectronSqliteHostOptions = {
   resolveDatabasePath: name => name,
   postChange: () => undefined
 };
-const host: DesktopSqliteHost = createDesktopSqliteHost(options);
+const host: ElectronSqliteHost = createElectronSqliteHost(options);
 
 void host;
 void DESKTOP_HOST_PROTOCOL_VERSION;
@@ -140,7 +140,7 @@ for (const name of [
 assert.equal(typeof renderer.DESKTOP_ADAPTER_NAME, 'string');
 assert.equal(typeof renderer.DESKTOP_HOST_PROTOCOL_VERSION, 'number');
 
-for (const name of ['createDesktopSqliteHost', 'NodeSqliteEngine', 'parseDesktopHostRequest', 'assertValidDesktopDatabaseName']) {
+for (const name of ['createElectronSqliteHost', 'NodeSqliteEngine', 'parseDesktopHostRequest', 'assertValidDesktopDatabaseName']) {
   assert.equal(typeof host[name], 'function', 'host entry is missing ' + name);
 }
 
@@ -158,7 +158,7 @@ assert.ok(
 // host 入口真的能开库、建表、读回来。
 const workspaceDir = await mkdtemp(path.join(tmpdir(), 'desktop-consumer-db-'));
 try {
-  const sqliteHost = host.createDesktopSqliteHost({
+  const sqliteHost = host.createElectronSqliteHost({
     resolveDatabasePath: databaseName => path.join(workspaceDir, databaseName),
     postChange: () => undefined
   });

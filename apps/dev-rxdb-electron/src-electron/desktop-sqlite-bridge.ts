@@ -14,7 +14,7 @@
 
 import {
   assertValidDesktopDatabaseName,
-  createDesktopSqliteHost,
+  createElectronSqliteHost,
   type DesktopHostChangeEventMessage,
   type DesktopHostResponse
 } from '@aiao/rxdb-adapter-desktop/host';
@@ -117,7 +117,7 @@ export interface DesktopSqliteBridge {
 export function createDesktopSqliteBridge(options: DesktopSqliteBridgeOptions): DesktopSqliteBridge {
   const targets = new Map<string, DesktopChangeEventTarget>();
 
-  const host = createDesktopSqliteHost({
+  const host = createElectronSqliteHost({
     resolveDatabasePath: options.resolveDatabasePath,
     postChange: message => {
       const target = targets.get(message.sessionId);

@@ -59,7 +59,7 @@ pnpm add @aiao/rxdb-adapter-desktop
 ### 1. 主进程：起 host
 
 ```typescript
-import { createDesktopSqliteHost } from '@aiao/rxdb-adapter-desktop/host';
+import { createElectronSqliteHost } from '@aiao/rxdb-adapter-desktop/host';
 import { app, ipcMain, type WebContents } from 'electron';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -69,7 +69,7 @@ const root = join(app.getPath('userData'), 'rxdb-data');
 // sessionId → 该会话归属的窗口。open 应答里带 sessionId，变更事件按它回送。
 const targets = new Map<string, WebContents>();
 
-const host = createDesktopSqliteHost({
+const host = createElectronSqliteHost({
   // 只有宿主应用知道自己的数据目录。传进来的名字已过白名单校验，不含任何路径分隔符。
   resolveDatabasePath: databaseName => {
     mkdirSync(root, { recursive: true });

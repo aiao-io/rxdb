@@ -322,7 +322,7 @@ export class NodeSqliteEngine {
    * 而桌面路径上所有窗口的连接都活在 Electron 主进程的同一条线程上。持锁那个窗口的
    * `COMMIT` 是一个还排在事件循环里的 JS 续体——线程被 busy_timeout 占住，它就永远轮不到，
    * 于是必然等满整个超时再失败，中途整个应用还是冻的。撞锁只能在**异步**层面退让重试，
-   * 见 `createDesktopSqliteHost` 里的 busy 重试。
+   * 见 `createElectronSqliteHost` 里的 busy 重试。
    */
   #initialize(cacheSizeKb: number): void {
     // 先装授权器再跑任何 SQL：初始化本身也走同一条边界，不给「初始化期间不设防」留窗口。

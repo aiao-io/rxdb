@@ -6,7 +6,7 @@ import dts from 'vite-plugin-dts';
 
 export default defineConfig(() => ({
   root: import.meta.dirname,
-  cacheDir: '../../node_modules/.vite/packages/rxdb-adapter-desktop',
+  cacheDir: '../../node_modules/.vite/packages/rxdb-adapter-electron',
   // 单测必须打在**源码**上，而不是 workspace 链接指过去的 `dist/`。
   // 少了这一行，`@aiao/rxdb-adapter-sqlite-core` 会走 node_modules 软链读它的产物，
   // 再由产物去读 `@aiao/rxdb-adapter-encrypted/dist`（压缩过）—— 于是 `EncryptedError`
@@ -27,7 +27,7 @@ export default defineConfig(() => ({
         codecovVitePlugin({
           enableBundleAnalysis: true,
           telemetry: false,
-          bundleName: 'rxdb-adapter-desktop',
+          bundleName: 'rxdb-adapter-electron',
           uploadToken: process.env.CODECOV_TOKEN
         })
       ]
@@ -46,7 +46,7 @@ export default defineConfig(() => ({
         index: 'src/index.ts',
         host: 'src/host.ts'
       },
-      name: '@aiao/rxdb-adapter-desktop',
+      name: '@aiao/rxdb-adapter-electron',
       fileName: (_, entryName) => `${entryName}.js`,
       formats: ['es' as const]
     },
@@ -67,7 +67,7 @@ export default defineConfig(() => ({
     }
   },
   test: {
-    name: 'rxdb-adapter-desktop',
+    name: 'rxdb-adapter-electron',
     watch: false,
     globals: true,
     environment: 'node',
@@ -76,11 +76,11 @@ export default defineConfig(() => ({
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default', 'junit'],
     outputFile: {
-      junit: '../../coverage/packages/rxdb-adapter-desktop/junit.xml'
+      junit: '../../coverage/packages/rxdb-adapter-electron/junit.xml'
     },
     coverage: {
       enabled: true,
-      reportsDirectory: '../../coverage/packages/rxdb-adapter-desktop',
+      reportsDirectory: '../../coverage/packages/rxdb-adapter-electron',
       provider: 'v8' as const,
       reporter: ['text', 'json', 'json-summary', 'clover', 'lcovonly', 'html'],
       include: ['src/**/*.ts'],

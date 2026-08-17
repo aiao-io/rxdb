@@ -12,7 +12,7 @@
  * @module desktop-file-bridge
  */
 
-import { createDesktopFileHost, type DesktopHostFileResponse } from '@aiao/rxdb-adapter-desktop/host';
+import { createElectronFileHost, type DesktopHostFileResponse } from '@aiao/rxdb-adapter-desktop/host';
 import { mkdirSync } from 'node:fs';
 import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -146,7 +146,7 @@ const sweepTemporaryFiles = async (directory: string): Promise<void> => {
  */
 export function createDesktopFileBridge(options: DesktopFileBridgeOptions): DesktopFileBridge {
   const targets = new Map<string, DesktopFileEventTarget>();
-  const host = createDesktopFileHost({ resolveStorageRoot: options.resolveStorageRoot });
+  const host = createElectronFileHost({ resolveStorageRoot: options.resolveStorageRoot });
   // 清扫失败只记一笔：它是一次垃圾回收，不是功能路径。让它把 bridge 的创建带崩，
   // 等于一个没人读的临时文件就能让应用打不开自己的文件。
   const whenSwept = sweepTemporaryFiles(options.resolveStorageRoot()).catch((error: unknown) => {

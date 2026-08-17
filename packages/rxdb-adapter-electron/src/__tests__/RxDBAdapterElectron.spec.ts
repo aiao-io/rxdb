@@ -10,7 +10,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createDesktopSqliteHost, type DesktopSqliteHost } from '../desktop-sqlite-host.js';
+import { createElectronSqliteHost, type ElectronSqliteHost } from '../desktop-sqlite-host.js';
 import { RxDBAdapterDesktop } from '../RxDBAdapterDesktop.js';
 
 /** `createClient` 是 protected：测试子类只把它开出来，不改任何行为。 */
@@ -21,7 +21,7 @@ class TestDesktopAdapter extends RxDBAdapterDesktop {
 }
 
 let workspace: string;
-let host: DesktopSqliteHost;
+let host: ElectronSqliteHost;
 let transport: DesktopHostTransport;
 
 const rxdbWith = (dbName: string): RxDB => ({ config: { dbName } }) as RxDB;
@@ -31,7 +31,7 @@ const createAdapter = (dbName: string, options: DesktopOptions = {}): TestDeskto
 
 beforeEach(() => {
   workspace = mkdtempSync(join(tmpdir(), 'rxdb-desktop-adapter-'));
-  host = createDesktopSqliteHost({
+  host = createElectronSqliteHost({
     resolveDatabasePath: databaseName => join(workspace, databaseName),
     postChange: () => undefined
   });
