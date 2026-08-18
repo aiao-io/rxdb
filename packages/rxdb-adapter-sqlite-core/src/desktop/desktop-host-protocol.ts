@@ -411,14 +411,25 @@ const readSql = (record: Record<string, unknown>): string => {
   return sql;
 };
 
-const isNumberArray = (value: readonly unknown[]): boolean => value.every(item => typeof item === 'number');
+/**
+ * 数组形态的 blob 是否逐元素都是字节。
+ *
+ * @remarks
+ * 不能只查 `typeof item === 'number'`：host 侧走 `Uint8Array.from(binding)`，它对越界 /
+ * 小数 / NaN 一律静默按模 256 折回，`[300, -1, 1.5]` 会落库成 `[44, 255, 1]` 且报告成功。
+ * 信任边界要么拒绝，要么原样接受，不能替调用方改写字节。
+ */
+const isByteArray = (value: readonly unknown[]): boolean =>
+  value.every(item => typeof item === 'number' && Number.isInteger(item) && item >= 0 && item <= 255);
 
 const isBindingValue = (value: unknown): value is SQLiteCompatibleType => {
   if (value === null) return true;
   const type = typeof value;
   if (type === 'number' || type === 'string' || type === 'bigint') return true;
   if (value instanceof Uint8Array) return value.byteLength <= DESKTOP_HOST_MAX_BLOB_BYTES;
-  if (Array.isArray(value)) return value.length <= DESKTOP_HOST_MAX_BLOB_BYTES && isNumberArray(value);
+  // 数组形态的 blob 一个元素就是一个字节（host 侧 `Uint8Array.from(binding)`），
+  // 所以 `length` 与上面的 `byteLength` 量纲相同 —— 这里比的确实是字节数，不是「元素个数」。
+  if (Array.isArray(value)) return value.length <= DESKTOP_HOST_MAX_BLOB_BYTES && isByteArray(value);
   return false;
 };
 

@@ -115,6 +115,35 @@ describe('parseDesktopHostRequest', () => {
     );
   });
 
+  /**
+   * 数组形态的 blob 必须逐元素是字节。
+   *
+   * @remarks
+   * host 侧的绑定路径是 `Uint8Array.from(binding)`（node-sqlite-engine.ts:109），而它对
+   * 越界 / 小数 / NaN 一律**静默**按模 256 折回：`[300, -1, 1.5, NaN]` 落库成 `[44, 255, 1, 0]`。
+   * 只校验 `typeof item === 'number'` 的话，一次写入就能在库里留下与调用方本意无关的字节，
+   * 而且读回来还是「成功」—— 信任边界上最不该放过的那类静默改写。
+   */
+  it.each([
+    ['out of range', [300]],
+    ['negative', [-1]],
+    ['fractional', [1.5]],
+    ['NaN', [Number.NaN]],
+    ['Infinity', [Number.POSITIVE_INFINITY]]
+  ])('rejects a %s element in an array blob', (_label, binding) => {
+    expect(() => parseDesktopHostRequest({ ...executeRequest, bindings: [binding] })).toThrowError(
+      /protocol_violation/
+    );
+  });
+
+  it('accepts the full byte range in an array blob', () => {
+    const binding = [0, 1, 127, 128, 255];
+    expect(parseDesktopHostRequest({ ...executeRequest, bindings: [binding] })).toEqual({
+      ...executeRequest,
+      bindings: [binding]
+    });
+  });
+
   // storage 是 open 请求里唯一可以影响物理落盘位置的字段
   it('rejects an open request whose database name escapes the app scope', () => {
     const request = { kind: 'open', storage: { engine: 'sqlite', databaseName: '../escape' } };

@@ -132,6 +132,14 @@ interface LockQueue {
 /** 一个会话持有的全部资源。 */
 interface FileSession {
   readonly writes: Map<string, PendingWrite>;
+  /**
+   * 已占额度、句柄尚未就位的写入。
+   *
+   * @remarks
+   * 存在的唯一理由是让额度检查与占位落在同一段同步代码里，见 `beginWrite`。
+   * 这里的条目还没有 fd，因此 `closeSession` 不必扫它。
+   */
+  readonly reservations: Set<string>;
   readonly lockNames: Map<string, string>;
 }
 
@@ -492,8 +500,23 @@ export function createElectronFileHost(options: ElectronFileHostOptions): Electr
     }
   };
 
+  /** 打开临时文件；errno 在这里就收敛成稳定错误码。 */
+  const openTemporary = async (temporaryPath: string, relativePath: string): Promise<FileHandle> => {
+    try {
+      // 'wx' 而不是 'w'：临时名带 UUID，撞名只可能是同名文件已被别处占用，静默覆盖会丢它的内容。
+      return await open(temporaryPath, 'wx');
+    } catch (error) {
+      throw toFilesystemError(error, relativePath);
+    }
+  };
+
   const beginWrite = async (session: FileSession, relativePath: string): Promise<string> => {
-    if (session.writes.size >= DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION) {
+    const writeId = randomUUID();
+    // 额度检查与占位之间不能有 await。中间隔着 containedPath / mkdir / open 时，并发的
+    // file.writeBegin 会在任何一次 set 落地之前集体通过检查，上限被并发窗口整体绕过 ——
+    // 那正是这道上限本来要防的 DoS。Rust 侧的 register_write 在同一把锁内 check + insert，
+    // 拿到的是同一个不变式；JS 这边靠「同步段内完成检查与占位」达成。
+    if (session.writes.size + session.reservations.size >= DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION) {
       // 每个挂起的写入都占着一个打开的临时文件句柄，只有 commit/abort 才归还。
       // 不设上限，一个只 begin 不 commit 的 renderer 就能把宿主的 fd 耗光，连带数据库也打不开。
       throw new RxDBAdapterDesktopError(
@@ -501,21 +524,21 @@ export function createElectronFileHost(options: ElectronFileHostOptions): Electr
         `session already has ${DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION} pending writes`
       );
     }
-    const target = await containedPath(relativePath);
-    const writeId = randomUUID();
-    const temporaryPath = join(dirname(target), `.${writeId}.rxdb-tmp`);
-    await runPathOperation(() => mkdir(dirname(target), { recursive: true }), relativePath);
+    session.reservations.add(writeId);
     try {
-      // 'wx' 而不是 'w'：临时名带 UUID，撞名只可能是同名文件已被别处占用，静默覆盖会丢它的内容。
+      const target = await containedPath(relativePath);
+      const temporaryPath = join(dirname(target), `.${writeId}.rxdb-tmp`);
+      await runPathOperation(() => mkdir(dirname(target), { recursive: true }), relativePath);
       session.writes.set(writeId, {
         logicalPath: relativePath,
         targetPath: target,
         temporaryPath,
-        handle: await open(temporaryPath, 'wx')
+        handle: await openTemporary(temporaryPath, relativePath)
       });
       return writeId;
-    } catch (error) {
-      throw toFilesystemError(error, relativePath);
+    } finally {
+      // 占位只是额度的凭据：成功时额度改由 session.writes 记着，失败时本就该归还。
+      session.reservations.delete(writeId);
     }
   };
 
@@ -559,6 +582,12 @@ export function createElectronFileHost(options: ElectronFileHostOptions): Electr
       await rename(pending.temporaryPath, pending.targetPath);
       await syncDirectory(dirname(pending.targetPath));
     } catch (error) {
+      // 句柄必须在这里关：本次写入在 555 行就已从 session.writes 摘掉，closeSession 的
+      // discardWrite 扫描和 file.writeAbort 都够不着它 —— 不关就泄漏到宿主进程退出为止，
+      // 顺带绕过 beginWrite 那道 fd 上限。Rust 侧靠 File 的 Drop 拿到同样的保证。
+      // 带 .catch：失败发生在 close 之后（rename / 目录 sync）时二次 close 会 reject，
+      // 与 discardWrite 同样处理 —— 回收路径的失败不该盖住真正的原因。
+      await pending.handle.close().catch(() => undefined);
       await rm(pending.temporaryPath, { force: true }).catch(() => undefined);
       throw toFilesystemError(error, pending.logicalPath);
     }
@@ -620,7 +649,7 @@ export function createElectronFileHost(options: ElectronFileHostOptions): Electr
   const dispatch = async (request: DesktopHostFileRequest): Promise<DesktopHostFileResponse> => {
     if (request.kind === 'file.open') {
       const sessionId = randomUUID();
-      sessions.set(sessionId, { writes: new Map(), lockNames: new Map() });
+      sessions.set(sessionId, { writes: new Map(), reservations: new Set(), lockNames: new Map() });
       return { kind: 'file.open', result: { sessionId, protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION } };
     }
     if (request.kind === 'file.close') {

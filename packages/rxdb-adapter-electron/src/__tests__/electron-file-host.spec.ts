@@ -467,6 +467,23 @@ describe('createElectronFileHost', () => {
     );
   });
 
+  it('holds the pending-write cap against concurrent writeBegin', async () => {
+    // 额度检查与占位之间隔着 containedPath / mkdir / open 三个 await，并发的 writeBegin
+    // 会在任何一个 set 发生之前集体通过检查 —— 上限被并发窗口整体绕过，正是它要防的那种 DoS。
+    const attempts = DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION * 2;
+    const responses = await Promise.all(
+      Array.from({ length: attempts }, (_unused, index) =>
+        host.handle({ kind: 'file.writeBegin', sessionId, path: `race/${index}.txt` })
+      )
+    );
+
+    const granted = responses.filter(response => response.kind === 'file.writeBegin');
+    expect(granted).toHaveLength(DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION);
+    for (const rejected of responses.filter(response => response.kind !== 'file.writeBegin')) {
+      expectError(rejected, 'protocol_violation');
+    }
+  });
+
   it('caps queued lock waiters per name instead of growing the queue without bound', async () => {
     const other = await openSession();
     await host.handle({ kind: 'file.lockAcquire', sessionId, name: 'files:/a', mode: 'exclusive' });

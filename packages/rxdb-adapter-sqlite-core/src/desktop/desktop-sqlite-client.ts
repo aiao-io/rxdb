@@ -115,6 +115,24 @@ const isChangeMessage = (message: unknown): message is { sessionId: string; even
   typeof message === 'object' && message !== null && (message as { kind?: unknown }).kind === 'change';
 
 /**
+ * 把监听回调里的异常挪出传输层的调用栈。
+ *
+ * @remarks
+ * 变更推送的通道是共享的：同一个 renderer 里的每个 `DesktopSqliteClient` 都在同一条通道上
+ * 挂着监听者。Electron 的 `ipcRenderer.on` 是同步扇出，异常会一路抛回 Electron 自己的 IPC
+ * 派发循环 —— 排在后面的监听者收不到这条消息，表现为「某个库的响应式查询不刷新」，
+ * 所有故障形态里最难查的一种。Tauri 的 `deliver` 早就逐个监听者包了 try/catch，两侧应对称。
+ *
+ * 不吞：丢进微任务里原样重抛，落成一条 uncaught error，与 Tauri 的 `reportListenError` 同一手法。
+ * 传输层不该替调用方决定「这个错误不重要」，它只是不该由传输层来接。
+ */
+const reportOutOfBand = (error: unknown): void => {
+  queueMicrotask(() => {
+    throw error;
+  });
+};
+
+/**
  * 在任何有副作用的请求之前核对两端的线协议版本（US-207 AC#9 / US-210 AC#10）。
  *
  * @remarks
@@ -446,9 +464,23 @@ export class DesktopSqliteClient implements SqliteClientLike {
 
   #onMessage(message: unknown): void {
     if (this.#closed || !isChangeMessage(message) || message.sessionId !== this.#sessionId) return;
-    const event = parseDesktopHostChangeEvent(message.event);
+    let event: SqliteChangeEvent;
+    try {
+      event = parseDesktopHostChangeEvent(message.event);
+    } catch (error) {
+      reportOutOfBand(error);
+      return;
+    }
     const handlers = this.#handlers.get(event.type);
     if (!handlers) return;
-    for (const handler of handlers) handler(event);
+    // 逐个包：同一个类型上的 handler 互相独立（不同仓库、不同查询），
+    // 一个抛出不该让排在它后面的收不到这条变更。
+    for (const handler of handlers) {
+      try {
+        handler(event);
+      } catch (error) {
+        reportOutOfBand(error);
+      }
+    }
   }
 }

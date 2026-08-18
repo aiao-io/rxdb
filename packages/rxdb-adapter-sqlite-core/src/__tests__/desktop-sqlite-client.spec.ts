@@ -11,7 +11,7 @@
  * 「拒连之后不能把会话留在 host 上」与「非法配置连 IPC 都不该发」两条性质的唯一入口。
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from '../desktop/desktop-error.js';
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../desktop/desktop-host-protocol.js';
 import {
@@ -44,6 +44,33 @@ interface FakeHost {
   /** 把一条消息推给所有 `subscribe` 上来的监听者，模拟 host 主动推送。 */
   push(message: unknown): void;
 }
+
+// captureMicrotaskThrows 会替换全局 queueMicrotask；留到下个用例就会静默改写它的行为。
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+/**
+ * 截下「丢进微任务里重抛」的那些异常。
+ *
+ * @remarks
+ * 客户端把监听回调里的异常交给 `queueMicrotask` 重抛（与 Tauri 的 `reportListenError` 同一手法）：
+ * 不吞掉，但也不交还给传输层。测试里要断言的正是这批异常，放它们真的抛出去只会变成
+ * 一条与用例无关的 unhandled error，所以在这里截住。
+ *
+ * @returns 取出至今截获异常的函数；spy 在用例结束时由 `restoreAllMocks` 收摊
+ */
+const captureMicrotaskThrows = (): (() => unknown[]) => {
+  const raised: unknown[] = [];
+  vi.spyOn(globalThis, 'queueMicrotask').mockImplementation(task => {
+    try {
+      task();
+    } catch (error) {
+      raised.push(error);
+    }
+  });
+  return () => raised;
+};
 
 /** 一条形状合法的变更事件负载。 */
 const changeEvent = {
@@ -428,11 +455,42 @@ describe('DesktopSqliteClient 的变更事件路由', () => {
   it('refuses to dispatch a malformed change event', async () => {
     const host = createFakeHost();
     const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
-    await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, vi.fn());
+    const handler = vi.fn();
+    await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, handler);
+    const raised = captureMicrotaskThrows();
 
-    expect(() =>
-      host.push({ kind: 'change', sessionId: SESSION_ID, event: { ...changeEvent, rowIds: [7] } })
-    ).toThrowError(/^\[protocol_violation\]/);
+    host.push({ kind: 'change', sessionId: SESSION_ID, event: { ...changeEvent, rowIds: [7] } });
+
+    expect(handler).not.toHaveBeenCalled();
+    expect(raised()).toMatchObject([{ message: expect.stringMatching(/^\[protocol_violation\]/) }]);
+  });
+
+  /**
+   * 监听回调不得把异常交还给传输层。
+   *
+   * @remarks
+   * Electron 的 `ipcRenderer.on` 是同步扇出，异常会一路抛回 Electron 自己的 IPC 派发循环；
+   * Tauri 的 `deliver` 早就逐个监听者包了 try/catch（见 tauri-host-transport.ts），
+   * 两条传输层应对称 —— 而对称点只能落在**客户端**这一侧，因为 preload 是各家应用自己写的。
+   *
+   * 异常不被吞掉：与 Tauri 的 `reportListenError` 同一手法，丢进微任务里重抛，
+   * 变成一条 uncaught error，而不是一次静默的 fallback。
+   */
+  it('never throws into the transport when a business handler fails', async () => {
+    const host = createFakeHost();
+    const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
+    const failure = new Error('handler blew up');
+    await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, () => {
+      throw failure;
+    });
+    const later = vi.fn();
+    await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, later);
+    const raised = captureMicrotaskThrows();
+
+    host.push({ kind: 'change', sessionId: SESSION_ID, event: changeEvent });
+
+    expect(raised()).toEqual([failure]);
+    expect(later).toHaveBeenCalledWith(changeEvent);
   });
 });
 
