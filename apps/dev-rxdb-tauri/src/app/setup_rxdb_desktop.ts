@@ -12,7 +12,6 @@ import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-tes
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { DESKTOP_DEMO_DB_NAME } from './db-names';
-import { probe } from './dev-probe';
 import { DesktopLaunch } from './desktop-launch.entity';
 
 /**
@@ -66,40 +65,6 @@ export const createDesktopStorageOptions = (transport: DesktopHostTransport): Rx
  * 模块级单例也一并去掉了：唯一的调用点是 `setup_rxdb.ts` 的 `localDatabase()`，
  * 那里已经把建库 Promise 记住了。两层缓存等于两个「哪个才是本 app 的实例」的答案。
  */
-// ⚠️ 临时诊断代码（不提交）：记录每一次 invoke / listen 的进出，找出永不返回的那一次。
-let seq = 0;
-const probeInvoke = async (command: string, args: Record<string, unknown>): Promise<unknown> => {
-  const payload = args['payload'] as Record<string, unknown> | undefined;
-  const id = ++seq;
-  const kind = `${String(payload?.['kind'] ?? '?')}#${String(id)}`;
-  probe(`>req ${kind} ${String(payload?.['sql'] ?? '').slice(0, 120)}`);
-  try {
-    const result = await invoke(command, args);
-    probe(`<res ${kind}`);
-    return result;
-  } catch (error) {
-    probe(`xreq ${kind}: ${String(error)}`);
-    throw error;
-  }
-};
-const probeListen = async (
-  event: string,
-  handler: (event: { payload: unknown }) => void
-): Promise<() => void> => {
-  probe('>listen');
-  try {
-    const stop = await listen(event, e => {
-      probe('!event');
-      handler(e as { payload: unknown });
-    });
-    probe('<listen');
-    return stop;
-  } catch (error) {
-    probe(`xlisten: ${String(error)}`);
-    throw error;
-  }
-};
-
 export default () => {
   const rxdb = new RxDB({
     dbName: DESKTOP_DEMO_DB_NAME,
@@ -122,8 +87,8 @@ export default () => {
   // 那一条通道同构。各建一个也能跑，但那就是两条事件订阅、两份重连状态，
   // 而 host 侧的会话表根本不知道它们本属同一个窗口。
   const transport = createTauriHostTransport({
-    invoke: probeInvoke,
-    listen: probeListen,
+    invoke,
+    listen,
     // 事件通道注册失败意味着响应式查询永远不刷新，在 UI 上表现为「数据没变」
     // ——所有故障形态里最难查的一种。默认行为是抛到全局，这里补一条明确的日志。
     onListenError: error => console.error('rxdb desktop change channel failed to register', error)

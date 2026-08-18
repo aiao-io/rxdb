@@ -1,7 +1,17 @@
 import type { RxDB } from '@aiao/rxdb';
-import { probe } from './dev-probe';
 import type { RxDBConnectionStateWriter } from './rxdb-connection-state';
+import type { LaunchRecordDatabase } from './services/desktop-launch.service';
 import type { SelfCheckOutcome } from './services/selfcheck-reporter';
+
+/**
+ * {@link startLocalDatabase} 用得到的那一小块 RxDB 表面：连接，以及写启动记录。
+ *
+ * @remarks
+ * TAURI-07：`record()` 收的就是这里 `openDatabase()` 交出来的**同一个**实例。
+ * 让记录者自己去 `inject(RxDB)` 的话，它会在 `provideRxDB` 的异步 source 就绪之前
+ * 就被构造 —— 抛在 initializer 的第一行之前，整条启动链一句都不会跑。
+ */
+export type LocalDatabase = Pick<RxDB, 'connect'> & LaunchRecordDatabase;
 
 /**
  * 建立本地适配器连接。**失败不向上抛。**
@@ -49,11 +59,16 @@ export interface LocalDatabaseStartup {
    * 允许 reject：建库失败与连接失败在这里是同一类事（用户看到的都是「用不了」），
    * 都会落成应用内状态而不是向上抛，见 {@link startLocalDatabase}。
    */
-  readonly openDatabase: () => Promise<Pick<RxDB, 'connect'>>;
+  readonly openDatabase: () => Promise<LocalDatabase>;
   /** 连接状态：既要写失败，也要读回来判断连接到底成没成。 */
   readonly state: RxDBConnectionStateWriter & { readonly $error: () => unknown };
-  /** 启动次数记录者。 */
-  readonly launches: { record(): Promise<number> };
+  /**
+   * 启动次数记录者。
+   *
+   * @remarks
+   * 库由**这里**传给它（TAURI-07），传的正是 `openDatabase()` 交出来的那一个。
+   */
+  readonly launches: { record(database: LocalDatabase): Promise<number> };
   /** 要连的本地适配器名。 */
   readonly adapterName: string;
   /** 自检结论的出口；非自检模式下是一次空操作。 */
@@ -88,12 +103,9 @@ const describeError = (error: unknown): string => (error instanceof Error ? erro
  * 读回 `$error` 再显式报一次 `failed`，拿到的才是根因。
  */
 export const startLocalDatabase = async (startup: LocalDatabaseStartup): Promise<void> => {
-  // ⚠️ 临时诊断代码（不提交）。
-  probe('[open]');
-  let database: Pick<RxDB, 'connect'>;
+  let database: LocalDatabase;
   try {
     database = await startup.openDatabase();
-    probe('[opened]');
   } catch (error) {
     // 建库失败时 `inject(RxDB)` 之后也会抛同一个错，但那要等到有人去注入；
     // 状态与报告都得在**这一刻**就说明白，否则自检那条路径只剩看门狗超时。
@@ -102,9 +114,7 @@ export const startLocalDatabase = async (startup: LocalDatabaseStartup): Promise
     return;
   }
 
-  probe('[connect]');
   await connectRxDB(database, startup.state, startup.adapterName);
-  probe('[connected]');
   const connectionError = startup.state.$error();
   if (connectionError !== null) {
     await startup.report({ status: 'failed', message: describeError(connectionError) });
@@ -114,9 +124,7 @@ export const startLocalDatabase = async (startup: LocalDatabaseStartup): Promise
   // 于是报告里写的是一个从没发生过的原因。
   let launchCount: number;
   try {
-    probe('[record]');
-    launchCount = await startup.launches.record();
-    probe('[recorded]');
+    launchCount = await startup.launches.record(database);
   } catch (error) {
     // 连上了却写不进去，对用户来说和没连上没有区别，因此照样落到失败态。
     startup.state.markFailed(error);

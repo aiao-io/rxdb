@@ -91,23 +91,15 @@ export const appConfig: ApplicationConfig = {
     // 上面那个 provider 的 source 现在是异步的，两个 initializer 并发跑时
     // `inject(RxDB)` 会撞上「尚未就绪」。这里改为 await `localDatabase()` 记住的
     // 同一个 Promise，两条链因此汇到一处，不必猜谁先谁后。
-    provideAppInitializer(() => {
-      // ⚠️ 临时诊断代码（不提交）：25s 后把面包屑当作失败原因报上去，抢在 Rust 看门狗之前。
-      const started = startLocalDatabase({
+    provideAppInitializer(() =>
+      startLocalDatabase({
         openDatabase: localDatabase,
         state: inject(RxDBConnectionState),
         launches: inject(DesktopLaunchService),
         adapterName: resolveLocalBackend(globalThis).adapter,
         report: outcome => reportSelfCheck(outcome, globalThis)
-      });
-      const guard = new Promise<void>(resolve => {
-        setTimeout(() => {
-          const probe = ((globalThis as Record<string, unknown>)['__probe'] ?? []) as string[];
-          void reportSelfCheck({ status: 'failed', message: `PROBE ${probe.join(' ')}` }, globalThis).then(resolve);
-        }, 25_000);
-      });
-      return Promise.race([started, guard]);
-    }),
+      })
+    ),
     provideHttpClient(withFetch(), withInterceptorsFromDi()),
     provideLoadingBarInterceptor(),
     provideLoadingBarRouter()
