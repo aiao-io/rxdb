@@ -2,9 +2,10 @@
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
     "types": ["chrome", "node", "vitest/globals"],
-    "rootDir": "."
+    "rootDir": ".",
+    "module": "esnext"
   },
   "exclude": [],
   "extends": "./tsconfig.app.json",
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "manifest.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "manifest.config.ts", "vite.config.ts"]
 }
