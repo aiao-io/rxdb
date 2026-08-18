@@ -27,7 +27,7 @@ pr:
 
 ### 1. P1：Electron 锁会重新授予正在关闭的会话 —— ✅ 已修复
 
-[electron-file-host.ts:421](../../packages/rxdb-adapter-electron/src/electron-file-host.ts#L421)
+[electron-file-host.ts:429](../../packages/rxdb-adapter-electron/src/electron-file-host.ts#L429)
 
 `closeSession()` 原先先释放已持有锁并在每把锁上调用 `pump()`，之后才执行 `dropWaiters(sessionId)`。当同一会话既持有某文件锁、又排队申请同名锁时，`pump()` 会先把锁授予正在关闭的会话。会话随后从 `sessions` 删除，新的锁既不在旧快照中，也不再能被 `dropWaiters()` 回收，其他窗口会永久等待。
 
@@ -39,7 +39,7 @@ pr:
 
 ### 2. P2（初判 P1）：`file.writeBegin` 与关闭并发时泄漏 fd 和临时文件 —— ✅ 已修复
 
-[electron-file-host.ts:529](../../packages/rxdb-adapter-electron/src/electron-file-host.ts#L529)
+[electron-file-host.ts:526](../../packages/rxdb-adapter-electron/src/electron-file-host.ts#L526)
 
 `beginWrite()` 在多个 `await` 后才把 `FileHandle` 放入 `session.writes`。窗口销毁触发 `closeSession()` 时，会话已经从表中删除，并且只扫描当时已有的写入；异步的 `beginWrite()` 随后仍可把句柄写回这个脱离宿主的 session。之后 `closeAll()` 和 `file.writeAbort` 都找不到它。
 
@@ -53,13 +53,13 @@ pr:
 
 [desktop-file-bridge.ts:152](../../apps/dev-rxdb-electron/src-electron/desktop-file-bridge.ts#L152) 启动递归后台清扫，而请求路径不等待 `whenSwept`。递归清扫已有目录期间，新会话可以创建同后缀的临时文件，随后被清扫逻辑误删。
 
-**降级理由**：清扫在 bridge 创建时启动，早于窗口加载与 renderer 建库若干个数量级；且 [该函数注释](../../apps/dev-rxdb-electron/src-electron/desktop-file-bridge.ts#L120-L128) 已论证过误删的后果是一次**报出来的** `file_not_found`，不是静默的坏数据。
+**降级理由**：清扫在 bridge 创建时启动，早于窗口加载与 renderer 建库若干个数量级；且 [该函数注释](../../apps/dev-rxdb-electron/src-electron/desktop-file-bridge.ts#L118-L128) 已论证过误删的后果是一次**报出来的** `file_not_found`，不是静默的坏数据。
 
 **若要修**：在 `handle` 开头 `await whenSwept` 即可（一行，只延迟首条请求）。原建议的「只清扫创建 bridge 时拍下的不可变文件快照」是过度设计，不采纳。
 
 ### 4. P2：Electron/Tauri 都有「窗口销毁后才登记会话」的竞态 —— ✅ Electron 侧已修复
 
-Electron 在 [desktop-sqlite-bridge.ts:138](../../apps/dev-rxdb-electron/src-electron/desktop-sqlite-bridge.ts#L138) 和 [desktop-file-bridge.ts:165](../../apps/dev-rxdb-electron/src-electron/desktop-file-bridge.ts#L165) 等待 host 返回后才登记 owner；Tauri 在 [router.rs:83](../../packages/rxdb-adapter-tauri/rust/src/router.rs#L83) 派发后才执行 `track()`。
+Electron 在 [desktop-sqlite-bridge.ts:139](../../apps/dev-rxdb-electron/src-electron/desktop-sqlite-bridge.ts#L139) 和 [desktop-file-bridge.ts:166](../../apps/dev-rxdb-electron/src-electron/desktop-file-bridge.ts#L166) 等待 host 返回后才登记 owner；Tauri 在 [router.rs:83](../../packages/rxdb-adapter-tauri/rust/src/router.rs#L83) 派发后才执行 `track()`。
 
 若 `open` 已在 host 创建会话、但窗口先触发销毁回收，回收看到的是空归属表；请求恢复后才把 session 记到已销毁窗口名下。该 session 会一直持有数据库/文件 host 资源直到整个应用退出。
 
@@ -69,7 +69,7 @@ Electron 在 [desktop-sqlite-bridge.ts:138](../../apps/dev-rxdb-electron/src-ele
 
 ### 5. P3（初判 P2）：窗口销毁触发的异步文件清理不在退出流程中等待 —— ⏭ follow-up
 
-[desktop-file-bridge.ts:182](../../apps/dev-rxdb-electron/src-electron/desktop-file-bridge.ts#L182) 对 `file.close` fire-and-forget，并立即删除 owner 记录；随后 [main.ts:199](../../apps/dev-rxdb-electron/src-electron/main.ts#L199) 调用 `closeAll()` 时，host 的 session 表可能已经为空，因此无法等待仍在进行的 fd 关闭和临时文件删除。这确实违反 `closeAll()` 的「必须等它落地」契约。
+[desktop-file-bridge.ts:191](../../apps/dev-rxdb-electron/src-electron/desktop-file-bridge.ts#L191) 对 `file.close` fire-and-forget，并立即删除 owner 记录；随后 [main.ts:199](../../apps/dev-rxdb-electron/src-electron/main.ts#L199) 调用 `closeAll()` 时，host 的 session 表可能已经为空，因此无法等待仍在进行的 fd 关闭和临时文件删除。这确实违反 `closeAll()` 的「必须等它落地」契约。
 
 **降级理由**：进程正在退出，fd 无所谓；实际残留只有一个临时文件，而它在下次启动的清扫里就会消失。SQLite 侧不受影响——那一族的 `closeAll()` 是同步的，没有这个窗口。
 
@@ -78,8 +78,8 @@ Electron 在 [desktop-sqlite-bridge.ts:138](../../apps/dev-rxdb-electron/src-ele
 ### 6. P1（初判 P2）：Angular/React/Vue provider 都漏接同步工厂异常 —— ✅ 已修复
 
 - [rxdb.provider.ts:56](../../packages/rxdb-angular/src/rxdb.provider.ts#L56)
-- [rxdb-react.tsx:150](../../packages/rxdb-react/src/rxdb-react.tsx#L150)
-- [rxdb-vue.ts:124](../../packages/rxdb-vue/src/rxdb-vue.ts#L124)
+- [rxdb-react.tsx:143](../../packages/rxdb-react/src/rxdb-react.tsx#L143)
+- [rxdb-vue.ts:126](../../packages/rxdb-vue/src/rxdb-vue.ts#L126)
 
 三处实现都先执行工厂、再进入 Promise 链，`(() => { throw error })` 因此不会进入 `failure` 槽位。Angular 直接中止 bootstrap，React/Vue 则从 effect/setup 逃逸。
 
