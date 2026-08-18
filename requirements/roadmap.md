@@ -8,13 +8,10 @@
 
 | 优先级 | 建议功能                            | 对应 story                                                                                                                   | 建议理由                                                                                                                            | 主要交付边界                                                                                                                              |
 | :----: | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-|   P1   | 字段 format 声明与注册期校验        | [US-012 阶段 A](stories/core/US-012-field-semantic-metadata.md)                                                              | US-012 的地基：`FieldFormat` 判别联合不冻结，DTO 和值校验都无从落地                                                                 | 16 个 format 接口、`PropertyType × format` 相容表、注册期聚合校验                                                                         |
-|   P1   | 实体字段描述 DTO                    | [US-012 阶段 B](stories/core/US-012-field-semantic-metadata.md)                                                              | 让生成器、三框架和 DevTools 使用同一份字段语义，避免按字段名猜测展示规则                                                            | 派生 `cardinality/source`、`ENTITY_FIELDS_DTO_VERSION`、`describeEntityFields()` / `parseEntityFieldsDescriptor()`                        |
 |   P1   | 桌面本地 SQLite（Electron / Tauri） | [US-207](stories/adapter/US-207-desktop-local-database.md) / [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md) | 补齐 Electron 与 Tauri 的文件持久化和重启恢复；两条路径共用 host 契约，缺一则桌面 Local-first 不完整                                | Electron `node:sqlite` 文件路径 + Tauri 应用作用域 SQLite、共享桌面 host 契约、类型化 IPC / Rust command、真实文件 smoke test             |
 |   P1   | LifecycleScope 生命周期作用域原语   | [US-013](stories/core/US-013-lifecycle-scope-primitive.md)                                                                   | 同一件「登记副作用 → 拆卸时撤销」的事在仓库里被手工写了九遍，没有两处写法相同                                                       | `@aiao/utils` 侧的类与语义（逆序、幂等、异步、错误隔离、可嵌套），语义由测试冻结                                                          |
 |   P1   | 插件作用域契约                      | [US-014](stories/core/US-014-plugin-scope-contract.md)                                                                       | 三处既有泄漏：graph 的 `destroy()` 是空的且契约里没有位置可写；`rxdb.storage` 断连一次即永久消失；workspace 拆卸后无法重装          | `install(scope)` 契约、`repository(name, config, scope?)`、四个插件包迁移、`destroy()` 转可选的废弃周期、类型契约测试                     |
 |   P2   | 提交图与 HEAD 持久化                | [US-305](stories/collaboration/US-305-commit-graph-head.md)                                                                  | 旧暂存导出已在 `0.0.24` 删除，能力缺口现在完全敞开                                                                                  | 独立命名空间的新契约、commit 存储布局、baseline commit 与一次性迁移                                                                       |
-|   P2   | 字段值校验与语义透传                | [US-012 阶段 C](stories/core/US-012-field-semantic-metadata.md)                                                              | 有了 DTO 才谈得上运行时校验；单独成阶段以免和 DTO 一起变成不可验收的大块                                                            | `validateFieldValue()`、D12 归一化、`format`/`enum`/`options` 透传、三框架 fixture 复用                                                   |
 |   P2   | 生成器 default 序列化与显式失败     | [US-018](stories/core/US-018-generator-default-serialization.md)                                                             | 今天 bigint `default` 直接抛原生 `TypeError`、`Uint8Array` 塌缩成 `{"0":1,...}`、函数工厂被静默丢弃，生成的客户端行为与源实体不一致 | 拆 JSON 往返改运行时分派、`default` → 源码字面量映射表、`unsupportedDefaultFactory` / `unsupportedDefaultValue`、`BREAKING CHANGE` 迁移表 |
 |   P2   | Electron PGlite 数据目录与事务宿主  | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)                                                           | PGlite callback transaction 不能跨 IPC 序列化，需要 SQLite 路径不需要的事务 host 协议                                               | 主进程 data directory、事务 ID 协议或主进程托管 adapter、跨进程类型保真                                                                   |
 |   P2   | PGlite 原生全文搜索                 | [US-703](stories/future/US-703-pglite-full-text-search.md)                                                                   | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                                                                           | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                                              |
@@ -24,20 +21,26 @@
 > US-306 / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
 > [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定依赖关系。
 >
+> [US-012](stories/core/US-012-field-semantic-metadata.md) 已 Done（阶段 A / B / C 全绿，2026-08-17），
+> 不再作为建议功能列出；其 DTO 的 wire codec 不变量见下方约束 1。
+>
 > [US-015](stories/core/US-015-plugin-inject-dependency.md) 同理不单列——它排在 US-014 之后，
-> 且阶段 B 的用户价值待证，见下方约束 9。
+> 且阶段 B 的用户价值待证，见下方约束 8。
 
 ## 排期约束
 
-1. US-012 的 DTO 不得重新定义 `bigint/binary` 的值 wire codec。
-   内部必须按 **阶段 A → 阶段 B → 阶段 C** 顺序交付，三个阶段同在
-   [US-012](stories/core/US-012-field-semantic-metadata.md) 一个文件里。
-   [US-018](stories/core/US-018-generator-default-serialization.md) 与 US-012 **无依赖**，可并行：
-   阶段 C 只透传 `format` / `enum` / `options` 三项 JSON-safe 数据，不碰生成器的序列化管线结构。
+1. US-012 已 Done（阶段 A / B / C 全绿，2026-08-17）。其 DTO 不得重新定义 `bigint/binary` 的值 wire codec
+   ——该不变量随 DTO 发布而永久成立。
+   [US-018](stories/core/US-018-generator-default-serialization.md) 与 US-012 **无依赖**，可独立推进；
+   阶段 C 的透传只涉及 `format` / `enum` / `options` 三项 JSON-safe 数据，不碰生成器的序列化管线结构。
    US-018 含 `BREAKING CHANGE`（函数工厂 `default` 生成期抛错），必须与迁移表同 PR 发布。
-2. US-207 必须先锁定 Electron SQLite 的真实连接语义并抽出共享桌面 host 契约；无法保证单连接事务时应 fail-fast，不得降级成伪事务。
-3. US-208 与 US-210 均排在 US-207 之后，复用其抽出的 host 契约。US-208 的两种事务 host 方案（IPC 事务 ID 协议 /
-   adapter 完整托管在主进程）、US-210 的两种事务方案（配置单连接池 / Rust command 持有事务）都必须先通过同一套事务与事件测试再冻结选择。
+2. US-207 已锁定 Electron SQLite 的真实连接语义并抽出共享桌面 host 契约
+   （`rxdb-adapter-sqlite-core/desktop-host` 子路径，US-208 / US-210 复用）。「无法保证单连接事务时应
+   fail-fast、不得降级成伪事务」作为长期铁律保留，对所有复用该契约的后端同样成立。
+3. US-208 与 US-210 均排在 US-207 之后，复用其抽出的 host 契约。US-210 的事务方案已冻结：
+   采用「Rust command 持有 `rusqlite::Connection`」（一个 session 一条连接，单连接语义由构造保证），
+   「配置单连接池」因做不到（`sqlx` 池连续调用可能落在不同物理连接）被否决。US-208 的两种事务 host 方案
+   （IPC 事务 ID 协议 / adapter 完整托管在主进程）仍在 Backlog 未选，选定前必须先通过同一套事务与事件测试再冻结。
 4. [US-904](stories/future/US-904-devtools-native-storage-contract.md) 内部四阶段：
    共享链与 Electron 可行性门禁并行 **阶段 A ∥ (阶段 B → 阶段 C)**；只有 Electron 集成要求
    **阶段 A(supported) + 阶段 C + US-207 + US-504 → 阶段 D**。Tauri 按 **US-904 阶段 C → US-905** 推进，

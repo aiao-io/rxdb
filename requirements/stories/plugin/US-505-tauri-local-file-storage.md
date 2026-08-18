@@ -5,7 +5,7 @@ status: In Progress
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-15
-updated: 2026-08-16
+updated: 2026-08-18
 tags: [plugin, storage, desktop, tauri, filesystem]
 ---
 
@@ -37,7 +37,7 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
    adapter（`ensureLocalReady` 只校验其存在并 `connect()` 成功，**无**「本地/桌面」类型
    判别，见 US-504 技术笔记）；「同域备份」要成立，meta 必须落在 Tauri 的桌面
    SQLite adapter 上，而它是
-   [US-210](../adapter/US-210-tauri-sqlite-local-database.md)（In Progress，AC#2–#8 通过）。
+   [US-210](../adapter/US-210-tauri-sqlite-local-database.md)（In Progress，10 条 AC 全绿）。
    US-210 不落地，meta 只能留在 webview 存储 —— 恰是 US-504 AC#9 明令拒绝的「备份域
    撕裂」组合；该错配拒绝在 Tauri 侧同样适用（本故事 AC#11 钉住）。
 2. **接缝未抽出**：文件系统后端接缝由 US-504 定义并冻结（含物理名编码与锁归宿决策），
@@ -65,8 +65,8 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 - capability 权限面收敛到应用数据目录下的存储根子目录，不授予 shell 或全文件系统读写
 - 存储根与 US-210 的 SQLite 文件同在应用作用域数据目录，备份拷贝一次带走两者
 - 流式分帧与「临时文件 + rename 原子替换」语义与 US-504 对齐
-- `dev-rxdb-tauri` 演示接入 + 在 US-210 / US-905 阶段 1 先开工者创建的 `apps/dev-rxdb-tauri-e2e`
-  上扩展本故事拥有的重启持久化用例
+- `dev-rxdb-tauri` 演示接入 + 在 US-210 已创建的 `apps/dev-rxdb-tauri-e2e` 上扩展本故事拥有的
+  重启持久化用例
 
 ### Out of Scope
 
@@ -99,26 +99,28 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 > `download()` / `fetch()` 这两个**不经 host** 的 renderer 侧路径在三家上的行为差异必须
 > 被测试钉住，而不是假设与 Chromium 一致。
 >
-> AC#7 复用 US-210 / US-905 阶段 1 先开工者建立的 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵；打包 smoke
-> test 成本高，只在 release 分支或 tag 触发，不进 PR 门禁。
+> AC#7 复用 US-210 已建立的 `apps/dev-rxdb-tauri-e2e`（`desktop-smoke` target）与三平台打包矩阵；打包
+> smoke test 成本高，只在 release 分支或 tag 触发，不进 PR 门禁。
 
 ## 交付状态
 
 传输层与 Rust 文件宿主已实现并接入 demo，11 条 AC 中 **5 条 ✅、4 条 ⚠️、2 条 ⬜**。
 
-**US-210 不是本故事的整体前置**，被它前置的只有 AC#1 / #7：这两条缺的是
-`apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵，与 US-210 自己敞开的 AC#1 / #9 是同一个缺口，
-不是本故事**特有**的阻塞；其余 9 条不依赖打包。AC#11 的通过分支也一直存在——
+**US-210 不是本故事的整体前置**，被它前置的只有 AC#1 / #7。这条前置（`apps/dev-rxdb-tauri-e2e`
+project + 三平台打包矩阵）已于 2026-08-17 由 US-210 建好（其 AC#1 / #9 同日关闭），
+缺的只剩本故事自己的文件持久化 specs；其余 9 条不依赖打包。AC#11 的通过分支也一直存在——
 `apps/dev-rxdb-tauri/src/app/setup_rxdb_desktop.ts` 已把 `sync.local.adapter` 配成
 `DESKTOP_ADAPTER_NAME`（`selectLocalBackend()` 在 Tauri 窗口下选它、浏览器预览下回落
 wa-sqlite），「跑的是 wa-sqlite」只在浏览器预览分支为真。
 可达性按**逐条 AC** 核对，不按依赖故事的整体状态一票否决。
 
-### 范围决策：e2e 工程不由本故事建
+### 范围决策：e2e 工程不由本故事建（前置已由 US-210 落地）
 
-`apps/dev-rxdb-tauri-e2e` **不在本故事范围内**。tauri-driver 不支持 macOS（本机无法验证），且它
-与 US-210 AC#1 / #9 卡在同一处；建一个只能在 CI 上盲跑的 e2e 工程，代价与风险都由本故事
-独担而收益归两者。代价是 AC#1 / #3 / #6 / #7 只能如实留在 ⚠️ / ⬜，不粉饰。
+`apps/dev-rxdb-tauri-e2e` **不在本故事范围内**——本故事当年卡在「tauri-driver 不支持 macOS，
+建一个只能在 CI 上盲跑的 e2e 工程，代价与风险都由本故事独担而收益归两者」。这条前置已于
+2026-08-17 由 US-210 建好，且方案是**进程级驱动、三平台统一不上 WebDriver**（比 tauri-driver
+更强，详见 [US-210 AC#9](../adapter/US-210-tauri-sqlite-local-database.md) 的改判说明）。
+本故事只需在其上扩展自己拥有的文件持久化用例，不再背负建 e2e 工程的代价。
 
 ### 证据落点
 
@@ -139,10 +141,10 @@ lint/test/build 全绿。
 
 ### 剩余缺口（本故事关闭前必须补）
 
-1. **AC#6 / #7**：需要 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵，与
-   [US-210](../adapter/US-210-tauri-sqlite-local-database.md) AC#1 / #9 是同一件事，
-   由先开工者建一次。AC#6 还额外要求三家真实 webview，本机无法覆盖。
-2. **AC#1 / #3**：上条落地后补「打包应用真实重启」与「拷贝应用数据目录后启动」两段 e2e，
+1. **AC#6 / #7**：前置（`apps/dev-rxdb-tauri-e2e` + 三平台打包矩阵）已于 2026-08-17 由
+   [US-210](../adapter/US-210-tauri-sqlite-local-database.md) 建好，缺的只剩本故事自己的
+   specs——AC#7 的文件持久化 smoke、AC#6 的三家真实 webview 门禁（本机无法覆盖）。
+2. **AC#1 / #3**：前置已解除，补「打包应用真实重启」与「拷贝应用数据目录后启动」两段 e2e，
    届时可从 ⚠️ 升 ✅。
 3. **AC#5 / #8**：≥ 50 MiB 实测 + 内存观测；磁盘满用例（可用小容量 loopback / ramdisk）。
 
@@ -174,8 +176,8 @@ lint/test/build 全绿。
 | S4 ✅ | AC#11 的 `adapter_mismatch` 判据跟随 US-207 E3 的 `ADAPTER_NAME` 分裂（`desktop` → `sqlite-electron` / `sqlite-tauri`）重写拒绝条件            | 已达成：判据从单个名字改为集合 `DESKTOP_HOST_ADAPTER_NAMES`（`desktop-adapter-name.ts`），逐个点名换成 `isDesktopHostAdapterName`；`refuses to build on a non-desktop adapter` 的用例名对应的正是这个集合，仍名副其实 |
 | S5    | 「传输二选一」小节引用的 `rxdb/mod.rs` capability 论证跟随 US-210 的插件形态决策                                                               | 若宿主定形为 Tauri 插件，本故事「`capabilities/` 全程零改动」与「一条 capability 都不用加」两处论证同步失效，须与 US-210 AC#1 一起改，不得两处各说各话                                                                |
 
-搬迁不解「剩余缺口」里的任何一条：AC#1 / #3 / #6 / #7 仍卡在
-`apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵上。
+搬迁不解「剩余缺口」里的任何一条：AC#1 / #3 / #6 / #7 缺的只是本故事自己的 specs
+（`apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵已于 2026-08-17 由 US-210 建好）。
 
 ## 技术笔记
 
@@ -214,9 +216,9 @@ webview 窗口语义因此不影响 AC#9，无需验证。
 
 - [US-210](../adapter/US-210-tauri-sqlite-local-database.md) — meta 的 Tauri 桌面 SQLite adapter。
   该 adapter 已可被 `sync.local` 配置，AC#11 的通过
-  分支存在（见「交付状态」）；实际共享的只剩 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵，
-  它同样卡着 US-210 自己的 AC#1 / #9，可由 [US-905](../future/US-905-tauri-native-devtools.md)
-  阶段 1 先创建，不构成业务前置
+  分支存在（见「交付状态」）；共享的 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵已由
+  US-210 建好（2026-08-17，其 AC#1 / #9 同日关闭），本故事只需在其上扩展自己的 specs，
+  不构成业务前置
 - [US-504](./US-504-electron-local-file-storage.md) — 文件系统接缝、协议消息形状、物理名
   编码与锁归宿决策
 
@@ -238,8 +240,8 @@ webview 窗口语义因此不影响 AC#9，无需验证。
   一个 transport 同时喂 storage 插件与桌面 adapter；单文件保存一律走 `service.download()`，
   不新增第四份手写 `showSaveFilePicker`
 - `apps/dev-rxdb-tauri/src-tauri/capabilities/` — **零改动**（自定义命令不受 capability 门禁）
-- `apps/dev-rxdb-tauri-e2e/` — 共享 project，由 US-210 / US-905 阶段 1 先开工者创建一次；本故事只拥有
-  AC#1 / #3 / #7 / #9 的重启、备份、打包与双窗口 specs。**尚未创建**，见「范围决策」
+- `apps/dev-rxdb-tauri-e2e/` — 共享 project，由 US-210 创建（2026-08-17）；本故事只拥有
+  AC#1 / #3 / #7 / #9 的重启、备份、打包与双窗口 specs。**已建好**，见「范围决策」
 - `requirements/api-baseline/` — 若新增公开 API 则同步基线
 
 ## References
