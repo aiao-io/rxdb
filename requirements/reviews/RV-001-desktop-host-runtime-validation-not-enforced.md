@@ -24,8 +24,9 @@ review 文件，现合并为单一 `RV-001`，按主题分 5 节。
 > | `rxdb-adapter-desktop/src/index.ts`、`README.md`、`package.json` | 一分为二：`rxdb-adapter-electron/` 与 `rxdb-adapter-tauri/` 各自一份（`./host` 只留在 electron 侧）                                |
 > | `rxdb-adapter-desktop/src/__tests__/public-api.spec.ts`          | `rxdb-adapter-electron/src/__tests__/public-api.spec.ts`                                                                           |
 >
-> `@aiao/rxdb-adapter-desktop@0.0.25` 这个 registry 上的旧包**没有**跟着改——它的收口动作是
-> US-207 E6 的 `npm deprecate`，尚未执行。
+> `@aiao/rxdb-adapter-desktop@0.0.25` 这个 registry 上的旧包**没有**跟着改，也不会被标 `deprecated`
+> ——2026-08-18 判定旧包保留、未来仍可更新（US-207 E6），迁移只由
+> [desktop-split.md](../../website/docs/migration/desktop-split.md) 指路。
 
 ## 1. Tauri rusqlite host 未随 npm 包发布，用户只拿到一根传输管子
 

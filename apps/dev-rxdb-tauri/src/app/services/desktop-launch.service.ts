@@ -16,8 +16,10 @@ import { DesktopLaunch } from '../desktop-launch.entity';
  * 每次正常启动都写 —— 自检模式只是在这之上加了「观察 + 退出」。被观察的必须是产品路径
  * 本身，否则 e2e 证明的只是自检模式自己跑通了。
  *
- * 镜像 `apps/dev-rxdb-electron/src/app/services/desktop-database.service.ts` 的 `#start()`：
+ * 镜像 `apps/dev-rxdb-electron/src/app/services/local-database.service.ts` 里 `start()` 的写入段：
  * 两个桌面 demo 的可观察行为一致，US-207 与 US-210 的 e2e 才能用同一套判据。
+ * （Electron 那边把连接与写入收在一个服务里；这边连接归 `startLocalDatabase`，
+ * 本服务只管写入与读回 —— 分工不同，落在页面上的那个数字是同一个。）
  *
  * 构造函数里**什么都不做**（除了取 `RxDB`）：写入时机由 app initializer 决定，
  * 必须排在 `connect()` 之后。服务自己在构造时开跑的话，注入它的任何一个组件都会成为

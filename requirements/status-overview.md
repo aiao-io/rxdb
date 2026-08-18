@@ -45,8 +45,7 @@
 > 同日判定**不做成公开 API**，从 `@aiao/rxdb` 撤回到应用里，理由见故事内「为什么不做成公开 API」）、
 > US-210 T3（JS 传输层迁入）与 US-505 S3+S4、
 > 三端 provider 统一异步契约（2026-08-18，见下）。
-> **未完成**：E6 的 `npm deprecate` 旧包（**对外不可逆，需人工确认后执行**）、
-> E8 的 `dev-rxdb-electron` 半边（它要求把 demo 的两张卡合并成一张，是 demo 形态变更，需先确认）、
+> **未完成**：E8 的 `dev-rxdb-electron` 半边（它要求把 demo 的两张卡合并成一张，是 demo 形态变更，需先确认）、
 > E9 的页面展示 / E10 / E11（E11 的前置已解除，见下）、
 > US-210 T1/T2/T4～T7——Tauri 的 Rust 宿主与一致性用例（写本条时 SQL 侧 585 条）仍在 `apps/dev-rxdb-tauri/`，
 > 搬进新包后 demo 才反向依赖。US-504 只需事后同步路径。
@@ -54,10 +53,11 @@
 > `ADAPTER_NAME` 的分裂已于 2026-08-17 落定：`desktop` → `sqlite-electron` / `sqlite-tauri` / `pglite-electron`
 > （PGlite 单列，归 US-208），依据与 7 项连带改动见
 > [US-207「已落定的决策」](stories/adapter/US-207-desktop-local-database.md#已落定的决策adapter_name-分裂2026-08-17)。
-> 仍未落定的只剩一条：**Rust 宿主做成 Tauri 插件还是普通 crate**——它会决定 US-210 AC#1 与
-> US-505「`capabilities/` 零改动」的论证是否需要重写。
-> 拖延成本随时间上涨：`@aiao/rxdb-adapter-desktop@0.0.25` 仍挂在 registry 上，指向一个仓库里已经不存在的包——
-> 这条要等 E6 的 `npm deprecate` 才算收口。
+> **Rust 宿主形态**已于 2026-08-18 落定：做成**普通 crate**，宿主应用自己 `generate_handler!` 注册命令——
+> 应用命令不过 capability 闸门（只有 `core:` / `plugin:` 前缀才过），因此 US-210 AC#1 与
+> US-505「`capabilities/` 零改动」的论证原样成立，不需要重写。
+> `@aiao/rxdb-adapter-desktop@0.0.25` 保留在 registry 上、未来仍可更新，**不打 `deprecated` 标记**
+> （2026-08-18 判定，见 US-207 E6）；迁移路径由 `website/docs/migration/desktop-split.md` 指路。
 >
 > **三端 provider 统一异步契约（2026-08-18）**：Angular / React / Vue 的 provider 现在收同一个
 > `RxDBSource = RxDB | Promise<RxDB> | (() => RxDB | Promise<RxDB>)`，读取统一为

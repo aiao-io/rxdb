@@ -22,6 +22,19 @@ const read = (relative: string): string => readFileSync(resolve(appDir, relative
 const stripHtmlComments = (html: string): string => html.replace(/<!--[\s\S]*?-->/g, '');
 
 /**
+ * 去掉 TS 注释后再断言。
+ *
+ * 同 {@link stripHtmlComments}：被测的 `setup_rxdb_*.ts` 会在 TSDoc 里逐字解释
+ * 「本模块**不调用** `inject()`」，`home.page.html` 的注释里也写着两个后端名 ——
+ * 不剥注释的话，正是那句说明理由的话把断言打红。
+ *
+ * 只剥不含引号的行注释：`'https://…'` 这类字符串里的 `//` 不该被当成注释切掉。
+ * 本仓的源码里没有「字符串里带 `//` 且同行还有真注释」的写法，这个近似足够了。
+ */
+const stripTsComments = (source: string): string =>
+  source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[^'"`\n]*?\/\/.*$/gm, '');
+
+/**
  * 从一份 HTML 里取出 meta CSP 的 `content`，并按指令名拆成表。
  *
  * 属性顺序不固定：源文件是 `content` 在前，构建产物经 Angular 重排后仍是
@@ -152,8 +165,31 @@ describe('ELEC-10 file: 协议下的生产外壳', () => {
   // 「连接中…」且零诊断信号：无 worker、无请求、无报错），以及别再手写那一刀补偿式注入。
   it('RxDB 由 provideRxDB 在 bootstrap 阶段接管', () => {
     const source = read('src/app/app.config.ts');
-    expect(source).toMatch(/provideRxDB\(setup_rxdb\)/);
+    // US-207 E11 起 source 是个异步工厂（候选的 create 走动态 import），不再是裸函数引用。
+    expect(source).toMatch(/provideRxDB\(\(\)\s*=>\s*\{/);
+    expect(source).toContain('return localDatabase();');
     expect(source).not.toMatch(/provideAppInitializer\(\(\)\s*=>\s*\{\s*\n\s*inject\(RxDB\);/);
+  });
+
+  // US-207 E11：`inject()` 一旦跨过 `await` 就离开注入上下文，NG0203 的报错文案与存储
+  // 毫无关系 —— 排查会从「数据库没起来」一路绕到依赖注入上。工厂模块由动态 `import()`
+  // 加载，调用点必然已在 await 之后，因此那道浏览器闸必须留在 app.config.ts 的工厂里。
+  it('运行时判定留在 provideRxDB 工厂内，两个建库模块不调用 inject()', () => {
+    expect(read('src/app/app.config.ts')).toContain('isPlatformBrowser(inject(PLATFORM_ID))');
+    for (const file of ['src/app/setup_rxdb_desktop.ts', 'src/app/setup_rxdb_wa-sqlite.ts']) {
+      // 剥注释：这两个模块的 TSDoc 里逐字写着「本模块不调用 `inject()`」。
+      expect(stripTsComments(read(file)), file).not.toMatch(/\binject\(/);
+    }
+  });
+
+  // 候选表必须 `import()` 而不是静态 import：静态导入会把桌面适配器与 wa-sqlite 一起
+  // 拉进首包，「没被选中的那条后端不进产物」这条结论随之失效（下面的产物断言由
+  // scripts/audit 负责，这里先拦住源码形态）。
+  it('两个后端各自走动态 import 加载', () => {
+    const source = read('src/app/setup_rxdb.ts');
+    expect(source).toMatch(/await import\('\.\/setup_rxdb_desktop'\)/);
+    expect(source).toMatch(/await import\('\.\/setup_rxdb_wa-sqlite'\)/);
+    expect(source).not.toMatch(/^import .*setup_rxdb_(desktop|wa-sqlite)/m);
   });
 
   // wasmPath 曾用 APP_BASE_HREF 拼；该 token 现在固定空串，拼出来是裸相对路径，
@@ -196,49 +232,82 @@ describe('US-207 桌面 SQLite 在渲染进程一侧的接线', () => {
   // renderer 误导入 `/host` 时 Angular 解析不了 `node:` 内建，构建直接失败；
   // 真正危险的是被某个 polyfill 接住的情形 —— 那就成了一份跑在渲染进程里的空壳库，
   // 写入落在内存、重启即失，而 US-207 的全部意义正是「别再只存在于 WebView 里」。
-  it('renderer 只用包根入口，不碰 /host 子路径', () => {
-    const source = read('src/app/services/desktop-database.service.ts');
-    expect(source).toContain("from '@aiao/rxdb-adapter-electron'");
-    expect(source).not.toContain('@aiao/rxdb-adapter-electron/host');
-  });
+  it.each(['src/app/setup_rxdb_desktop.ts', 'src/app/services/desktop-environment.ts'])(
+    '%s 只用包根入口，不碰 /host 子路径',
+    file => {
+      const source = read(file);
+      expect(source).toContain("from '@aiao/rxdb-adapter-electron'");
+      expect(source).not.toContain('@aiao/rxdb-adapter-electron/host');
+    }
+  );
 
   // 与 ELEC-11 同一个坑的另一种形态：`providedIn: 'root'` 的服务同样是惰性的，
   // 没有组件注入它就永远不构造 —— 卡片停在「连接中…」，且没有 worker、没有请求、没有报错。
-  it('首页注入桌面数据库服务，连接才真的会发生', () => {
-    expect(read('src/app/pages/home/home.page.ts')).toMatch(/inject\(DesktopDatabaseService\)/);
+  // US-207 E8 起改由 initializer 拉起（首页只读信号，不再承担「注入即触发」的职责）。
+  it('连接由 app initializer 拉起，而不是等首页注入', () => {
+    expect(read('src/app/app.config.ts')).toMatch(
+      /provideAppInitializer\(\(\)\s*=>\s*inject\(LocalDatabaseService\)\.start\(\)\)/
+    );
   });
 
-  // AC#8 的打包 e2e 靠这三个 testid 断言「重启后计数 +1」。
-  // 改名不会让 e2e 变红，只会让它在等待选择器时超时 —— 排查成本远高于这条断言。
-  it.each(['desktop-status', 'desktop-error', 'desktop-launch-count'])('首页暴露 %s', testId => {
-    expect(read('src/app/pages/home/home.page.html')).toContain(`data-testid="${testId}"`);
+  // AC#8 的打包 e2e 靠这几个 testid 断言「重启后计数 +1」，E9 还靠 `rxdb-backend` 断言
+  // 选中的确实是桌面后端。改名不会让 e2e 变红，只会让它在等待选择器时超时 ——
+  // 排查成本远高于这条断言。（合并成一张卡之前它们叫 `desktop-*`。）
+  it.each(['rxdb-status', 'rxdb-error', 'rxdb-launch-count', 'rxdb-backend', 'rxdb-db-name'])(
+    '首页暴露 %s',
+    testId => {
+      expect(read('src/app/pages/home/home.page.html')).toContain(`data-testid="${testId}"`);
+    }
+  );
+
+  // E9：后端名必须从选中的候选读出，而不是模板里另写一遍字面量 ——
+  // 否则「卡片写着 A、数据落在 B」这种自相矛盾的显示看不出来，e2e 也就失去了判据。
+  it('首页显示的后端名来自选中的候选而非硬编码', () => {
+    // 剥注释：模板顶上那段说明合并缘由的注释里就写着两个后端名。
+    const template = stripHtmlComments(read('src/app/pages/home/home.page.html'));
+    expect(template).toMatch(/data-testid="rxdb-backend">\{\{ backend \}\}/);
+    expect(template).not.toContain('sqlite-electron');
+    expect(template).not.toContain('wa-sqlite');
   });
 });
 
 describe('US-504 本地文件存储在渲染进程一侧的接线', () => {
-  const service = read('src/app/services/desktop-database.service.ts');
-
   // 插件的 install() 是往 `config.entities` 里追加 StorageFileMeta。`init()` 之后再 use()，
   // 建表那一步早已跑完 —— metadata 表不存在，而症状是运行期某次 upload 才炸，
   // 离真正的原因隔着一整个启动流程。顺序在这里钉死，比事后排查便宜得多。
-  it('use(rxDBPluginStorage) 排在 init() 之前', () => {
-    const useAt = service.indexOf('use(rxDBPluginStorage');
-    const initAt = service.indexOf('.init()');
-    expect(useAt).toBeGreaterThan(-1);
-    expect(initAt).toBeGreaterThan(-1);
-    expect(useAt).toBeLessThan(initAt);
-  });
+  //
+  // 两个后端都要查：浏览器预览那份漏了 use()，`/storage` 页在 `nx serve` 下会直接炸在
+  // `rxdb.storage` 上 —— 而这个 demo 想让人看见的恰恰是「同一个页面、同一套 API」。
+  it.each(['src/app/setup_rxdb_desktop.ts', 'src/app/setup_rxdb_wa-sqlite.ts'])(
+    '%s 的 use(rxDBPluginStorage) 排在 init() 之前',
+    file => {
+      const source = read(file);
+      const useAt = source.indexOf('use(rxDBPluginStorage');
+      const initAt = source.indexOf('.init()');
+      expect(useAt).toBeGreaterThan(-1);
+      expect(initAt).toBeGreaterThan(-1);
+      expect(useAt).toBeLessThan(initAt);
+    }
+  );
 
   // 后端不接进来，文件内容仍旧落在 WebView 的 OPFS 里 —— 页面照常能用，
   // 只有「拷走 userData 再恢复」时才暴露：meta 还在，文件没了。
-  it('接入桌面文件后端并显式指定 rootDir', () => {
-    expect(service).toContain("from '@aiao/rxdb-plugin-storage/desktop'");
-    expect(service).toContain('createDesktopStorageFilesystem()');
-    expect(service).toMatch(/rootDir:\s*DESKTOP_STORAGE_ROOT_DIR/);
+  it('桌面分支接入桌面文件后端并显式指定 rootDir', () => {
+    const factory = read('src/app/setup_rxdb_desktop.ts');
+    expect(factory).toContain("from '@aiao/rxdb-plugin-storage/desktop'");
+    expect(factory).toContain('createDesktopStorageFilesystem()');
+    expect(factory).toMatch(/rootDir:\s*DESKTOP_STORAGE_ROOT_DIR/);
+  });
+
+  // US-207 E10：storage 后端不自己探测运行时，跟着同一次后端判定走。浏览器预览那份
+  // 一旦也接上桌面文件系统，插件的 `adapter_mismatch` 会在启用时直接拒绝 ——
+  // 症状离「选错后端」很远，先在源码形态上拦住。
+  it('浏览器预览分支不接桌面文件后端', () => {
+    expect(read('src/app/setup_rxdb_wa-sqlite.ts')).not.toContain('@aiao/rxdb-plugin-storage/desktop');
   });
 
   // 与 US-207 同型：`/host` 会把 node:sqlite 拖进 renderer bundle。
-  it.each(['src/app/services/desktop-database.service.ts', 'src/app/pages/storage/storage.page.ts'])(
+  it.each(['src/app/setup_rxdb_desktop.ts', 'src/app/pages/storage/storage.page.ts'])(
     '%s 不碰适配器的 /host 子路径',
     file => {
       expect(read(file)).not.toContain('@aiao/rxdb-adapter-electron/host');
