@@ -55,7 +55,6 @@ const RXDB_HOLDER = new InjectionToken<RxDBHolder>('RXDB_HOLDER');
  */
 const createHolder = (source: RxDBSource, destroyRef: DestroyRef): RxDBHolder => {
   const owned = typeof source === 'function' || isThenable(source);
-  const produced = typeof source === 'function' ? source() : source;
 
   let instance: RxDB | undefined;
   let failure: unknown;
@@ -63,13 +62,26 @@ const createHolder = (source: RxDBSource, destroyRef: DestroyRef): RxDBHolder =>
   // 失败在这里被吸收：ready() 交给 provideAppInitializer，而 initializer 一旦 reject，
   // Angular 会中止 bootstrap —— 组件树不渲染、窗口全白，为这种失败准备的应用内诊断面板
   // 反而被失败本身挡在门外。所以错误留到 require() 再抛，那时页面已经渲染出来了。
-  const ready: Promise<void> =
-    isThenable(produced) ?
-      Promise.resolve(produced).then(
-        database => void (instance = database),
-        error => void (failure = error)
-      )
-    : Promise.resolve(void (instance = produced));
+  //
+  // 工厂**同步**抛出时走的必须是同一条路径，因此这里包一层 try：漏接的话异常直接从 provider
+  // 工厂里逃出去，连 initializer 都轮不到，bootstrap 照样中止 —— 正是上一段要避免的结果。
+  // 已就绪的 source 仍走同步赋值：`inject(RxDB)` 首帧即可读，这条不能因为接异常而丢掉。
+  const settle = (): Promise<void> => {
+    let produced: RxDB | PromiseLike<RxDB>;
+    try {
+      produced = typeof source === 'function' ? source() : source;
+    } catch (error) {
+      failure = error;
+      return Promise.resolve();
+    }
+    if (!isThenable(produced)) return Promise.resolve(void (instance = produced));
+    return Promise.resolve(produced).then(
+      database => void (instance = database),
+      error => void (failure = error)
+    );
+  };
+
+  const ready: Promise<void> = settle();
 
   if (owned) {
     destroyRef.onDestroy(() => {

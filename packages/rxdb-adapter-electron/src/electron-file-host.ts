@@ -542,12 +542,21 @@ export function createElectronFileHost(options: ElectronFileHostOptions): Electr
       const target = await containedPath(relativePath);
       const temporaryPath = join(dirname(target), `.${writeId}.rxdb-tmp`);
       await runPathOperation(() => mkdir(dirname(target), { recursive: true }), relativePath);
-      session.writes.set(writeId, {
+      const pending: PendingWrite = {
         logicalPath: relativePath,
         targetPath: target,
         temporaryPath,
         handle: await openTemporary(temporaryPath, relativePath)
-      });
+      };
+      // 上面几个 await 期间会话可能已经被回收（窗口销毁走的就是这条路）。`closeSession` 只扫它
+      // 当时看到的那些写入，此刻再 set 进去，句柄就挂在一个脱离宿主的 session 上：`closeAll` 与
+      // `file.writeAbort` 都够不着它，fd 与临时文件泄漏到进程退出为止，重复走还能绕开
+      // 每会话的 pending-write 上限。所以在这里自己收掉，并按可重连的语义报回去。
+      if (session.closed) {
+        await discardWrite(pending);
+        throw new RxDBAdapterDesktopError('session_closed', 'file session closed while the write was being opened');
+      }
+      session.writes.set(writeId, pending);
       return writeId;
     } finally {
       // 占位只是额度的凭据：成功时额度改由 session.writes 记着，失败时本就该归还。
@@ -662,7 +671,7 @@ export function createElectronFileHost(options: ElectronFileHostOptions): Electr
   const dispatch = async (request: DesktopHostFileRequest): Promise<DesktopHostFileResponse> => {
     if (request.kind === 'file.open') {
       const sessionId = randomUUID();
-      sessions.set(sessionId, { writes: new Map(), reservations: new Set(), lockNames: new Map() });
+      sessions.set(sessionId, { writes: new Map(), reservations: new Set(), lockNames: new Map(), closed: false });
       return { kind: 'file.open', result: { sessionId, protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION } };
     }
     if (request.kind === 'file.close') {
