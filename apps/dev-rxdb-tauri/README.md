@@ -38,9 +38,14 @@ corepack pnpm nx run dev-rxdb-tauri:dev
 
 开发端口固定为 `1420`，与 `src-tauri/tauri.conf.json` 的 `devUrl` 对应。
 
-两条路径跑的是**同一份 Angular 代码**，只有本地后端不同：[setup_rxdb.ts](src/app/setup_rxdb.ts) 的 `selectLocalBackend`
+两条路径跑的是**同一份 Angular 代码**，只有本地后端不同：候选表在
+[setup_rxdb.ts](src/app/setup_rxdb.ts)，选择器在 [local-backend.ts](src/app/local-backend.ts)，
 按 `window.__TAURI_INTERNALS__` 是否存在判定——Tauri 窗口里用桌面适配器，浏览器预览里用 wa-sqlite。
 适配器名与建库工厂是打包返回的，避免 `provideRxDB` 注册的适配器和 initializer 要连的适配器漂移。
+
+这两个文件都是**应用代码**，不是框架 API：判定只有二十来行，输入（候选、探针）本来就来自应用，
+上移到 `@aiao/rxdb` 换不到复用，只会多一个要长期兼容的公开导出。要在自己的应用里做同样的事，
+照抄这两个文件即可。
 
 ## 验证
 
@@ -93,7 +98,7 @@ _逻辑名_，拿到物理路径等于拿到额外的文件系统情报，而它
 demo 的完整路径：
 
 ```text
-<AppData>/io.aiao.dev-rxdb-tauri/rxdb-data/test_6@0_1.sqlite3
+<AppData>/io.aiao.dev-rxdb-tauri/rxdb-data/desktop_demo@0_1.sqlite3
 ```
 
 | 平台    | 目录                                                                          |
@@ -106,10 +111,13 @@ demo 的完整路径：
 
 文件名三段各有出处，改任意一段都会挪动落点：
 
-- `test_6` —— [setup_rxdb_desktop.ts](src/app/setup_rxdb_desktop.ts) 传给 `RxDB` 的 `dbName`
+- `desktop_demo` —— [setup_rxdb_desktop.ts](src/app/setup_rxdb_desktop.ts) 传给 `RxDB` 的 `dbName`
+  （常量 `DESKTOP_DEMO_DB_NAME`）。浏览器预览那份叫 `test_6`，**两个后端刻意不同名**：
+  它们写的是两份永不互通的数据，同名会让「现在连的是哪个库」无从回答（US-207 E9），
+  这条已由 `selectLocalBackend` 的候选表校验强制
 - `@0_1` —— RxDB 给物理库名追加的 `RXDB_DB_NAME_SUFFIX`（`packages/rxdb/src/version.ts`，**已永久冻结**，
   它是用户数据的物理地址，改一个字符等于让既有数据凭空消失）
-- `.sqlite3` —— 桌面适配器的 `DEFAULT_DATABASE_SUFFIX`（`packages/rxdb-adapter-desktop`）
+- `.sqlite3` —— 桌面适配器的 `DEFAULT_DATABASE_SUFFIX`（`packages/rxdb-adapter-sqlite-core`）
 
 ### WAL 侧车文件
 
@@ -117,9 +125,9 @@ demo 的完整路径：
 `wal_autocheckpoint=1000`、`busy_timeout=5000ms`、`foreign_keys=ON`），因此运行期同目录下还有两个侧车文件：
 
 ```text
-test_6@0_1.sqlite3
-test_6@0_1.sqlite3-wal
-test_6@0_1.sqlite3-shm
+desktop_demo@0_1.sqlite3
+desktop_demo@0_1.sqlite3-wal
+desktop_demo@0_1.sqlite3-shm
 ```
 
 拷贝或备份必须**连它们一起**，或先正常关闭应用：`RunEvent::Exit` 会调用 `DesktopHost::close_all()`，
@@ -136,7 +144,7 @@ US-207 踩过这个坑，实测记录见 `paths.rs` 中 `DATABASE_DIRECTORY` 的
 `open` 应答里的 `resolvedLocation` 是一个**逻辑 URI**，不是路径：
 
 ```text
-desktop-sqlite://app-scope/test_6@0_1.sqlite3
+desktop-sqlite://app-scope/desktop_demo@0_1.sqlite3
 ```
 
 逻辑名过白名单校验（`^[A-Za-z0-9][A-Za-z0-9._@-]*$`、≤128 字符、拒绝 Windows 保留设备名），
@@ -153,7 +161,7 @@ rm -rf ~/Library/Application\ Support/io.aiao.dev-rxdb-tauri/rxdb-data
 直接查看内容（需要 `sqlite3`）：
 
 ```bash
-sqlite3 ~/Library/Application\ Support/io.aiao.dev-rxdb-tauri/rxdb-data/test_6@0_1.sqlite3 '.tables'
+sqlite3 ~/Library/Application\ Support/io.aiao.dev-rxdb-tauri/rxdb-data/desktop_demo@0_1.sqlite3 '.tables'
 ```
 
 ### 浏览器预览（`nx serve`）
@@ -183,7 +191,7 @@ renderer 与宿主之间只有两个名字，跨语言且编译器帮不上忙�
 - **命令是 `async` + `spawn_blocking`**：Tauri 只把 async 命令派到独立任务上，同步命令跑主线程，
   两个会话争写锁时会死锁；而 `rusqlite` 是纯阻塞 API，直接 `async fn` 只会耗光异步运行时的 worker。
 - **transport 由应用注入**：Tauri 没有 preload 层，`invoke` / `listen` 是 renderer 直接 import 的模块，
-  所以在 [setup_rxdb_desktop.ts](src/app/setup_rxdb_desktop.ts) 里显式注入，`@aiao/rxdb-adapter-desktop` 本身保持运行时无关。
+  所以在 [setup_rxdb_desktop.ts](src/app/setup_rxdb_desktop.ts) 里显式注入，`@aiao/rxdb-adapter-tauri` 本身保持运行时无关。
 - **不需要任何 `fs` 插件权限**：库文件在应用作用域内，`capabilities/default.json` 只声明了 `core:default` 与四个窗口权限。
 - **连接失败不中止 bootstrap**：`connectRxDB` 把失败降级成应用内状态（[rxdb-initializer.ts](src/app/rxdb-initializer.ts)），
   否则窗口全白，而首页那块 `@case ('error')` 诊断面板恰恰会被失败本身挡在门外。

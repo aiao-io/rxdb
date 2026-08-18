@@ -13,9 +13,9 @@
     }
   },
   "build": {
-    "beforeDevCommand": "corepack pnpm exec nx serve dev-rxdb-tauri --configuration development",
+    "beforeDevCommand": "pnpm exec nx serve dev-rxdb-tauri --configuration development",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "corepack pnpm exec nx build dev-rxdb-tauri --configuration production",
+    "beforeBuildCommand": "pnpm exec nx build dev-rxdb-tauri --configuration production",
     "frontendDist": "../../../dist/apps/dev-rxdb-tauri/browser"
   },
   "bundle": {

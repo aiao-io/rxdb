@@ -14,11 +14,11 @@
  */
 
 import {
-  DESKTOP_ADAPTER_NAME,
+  ELECTRON_ADAPTER_NAME,
   type DesktopHostTransport,
   type RxDBAdapterDesktopErrorCode
-} from '@aiao/rxdb-adapter-desktop';
-import { createDesktopFileHost, type DesktopFileHost } from '@aiao/rxdb-adapter-desktop/host';
+} from '@aiao/rxdb-adapter-electron';
+import { createElectronFileHost, type ElectronFileHost } from '@aiao/rxdb-adapter-electron/host';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -40,7 +40,7 @@ interface InjectedFault {
 }
 
 let workspace: string;
-let host: DesktopFileHost;
+let host: ElectronFileHost;
 let service: RxdbFileStorage;
 let faults: InjectedFault[];
 
@@ -76,7 +76,7 @@ beforeEach(async () => {
   FakeStorageFileMeta.reset();
   faults = [];
   workspace = await mkdtemp(join(tmpdir(), 'rxdb-desktop-fail-'));
-  host = createDesktopFileHost({ resolveStorageRoot: () => join(workspace, 'rxdb-files') });
+  host = createElectronFileHost({ resolveStorageRoot: () => join(workspace, 'rxdb-files') });
   const transport: DesktopHostTransport = {
     request: async payload => {
       const fault = faults.find(candidate => candidate.kind === payload.kind);
@@ -89,7 +89,7 @@ beforeEach(async () => {
     { filesystem: createDesktopStorageFilesystem({ transport }) },
     new ObjectUrlRegistry(() => 'blob:x', vi.fn()),
     FakeStorageFileMeta,
-    DESKTOP_ADAPTER_NAME
+    ELECTRON_ADAPTER_NAME
   ).service;
 });
 

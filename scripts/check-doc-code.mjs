@@ -28,7 +28,22 @@ const validPackageNames = new Set(
     .filter(Boolean)
 );
 
-const CODE_BLOCK_RE = /^```(?:typescript|ts|tsx|javascript|js|jsx)(?:\s.*)?$\n([\s\S]*?)^```$/gm;
+const MIGRATION_DIR = join(DOCS_DIR, 'migration');
+
+/**
+ * 已经不在 `packages/` 里、但迁移文档必须叫得出名字的包：`name → 替代品`。
+ *
+ * 迁移页要写「旧代码长什么样」，那段 import 指向的正是一个故意删掉的包。这类引用只在
+ * `website/docs/migration/` 下放行；其余文档写到它仍然报错，且直接把替代品报出来——
+ * 比「not found in packages/」更省一次翻查。
+ */
+const RETIRED_PACKAGES = new Map([
+  ['@aiao/rxdb-adapter-desktop', '@aiao/rxdb-adapter-electron / @aiao/rxdb-adapter-tauri']
+]);
+
+// 信息串的尾巴用 `[^\n]*` 而不是 `.*`，前导也钉成 `[ \t]`：`\s` 会吃掉换行，于是围栏行后面
+// 紧跟的**第一行**被算进信息串而不是块体——而 import 通常正写在那一行，等于漏检。
+const CODE_BLOCK_RE = /^```(?:typescript|ts|tsx|javascript|js|jsx)(?:[ \t][^\n]*)?$\n([\s\S]*?)^```$/gm;
 const IMPORT_RE = /(?:import|from)\s+['"](@aiao\/[^/'"]+)/g;
 
 function extractCodeBlocks(content, filePath) {
@@ -42,14 +57,22 @@ function extractCodeBlocks(content, filePath) {
   return blocks;
 }
 
-function checkImports(code) {
+function checkImports(code, filePath) {
   const errors = [];
+  const inMigrationDocs = filePath.startsWith(MIGRATION_DIR);
   let match;
   IMPORT_RE.lastIndex = 0;
   while ((match = IMPORT_RE.exec(code)) !== null) {
-    if (!validPackageNames.has(match[1])) {
-      errors.push({ type: 'import', message: `Invalid package: "${match[1]}" not found in packages/` });
+    const name = match[1];
+    if (validPackageNames.has(name)) continue;
+
+    const replacement = RETIRED_PACKAGES.get(name);
+    if (replacement === undefined) {
+      errors.push({ type: 'import', message: `Invalid package: "${name}" not found in packages/` });
+      continue;
     }
+    if (inMigrationDocs) continue;
+    errors.push({ type: 'import', message: `Retired package: "${name}" — use ${replacement}` });
   }
   return errors;
 }
@@ -123,7 +146,7 @@ for (const dir of targetDirs) {
     for (const block of blocks) {
       totalBlocks++;
       const relPath = relative(ROOT, block.file);
-      const importErrors = checkImports(block.code);
+      const importErrors = checkImports(block.code, block.file);
       const syntaxErrors = strict ? checkSyntax(block.code, `${relPath}#L${block.line}.tsx`) : [];
       const allErrors = [...importErrors, ...syntaxErrors];
 

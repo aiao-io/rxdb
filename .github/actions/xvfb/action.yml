@@ -1,0 +1,44 @@
+name: Start Xvfb
+description: 在 Linux runner 上拉起常驻 Xvfb 并把 DISPLAY 写进 $GITHUB_ENV。
+
+# Electron 没有 headless 模式。打包产物的主进程一定要连上一个 X server ——
+# ubuntu-latest 上没有，于是 Ozone 后端直接放弃：
+#   ERROR:ozone_platform_x11.cc: Missing X server or $DISPLAY
+#   ERROR:aura/env.cc: The platform failed to initialize.  Exiting.
+#   <process did exit: exitCode=null, signal=SIGSEGV>
+# Playwright 把这一串收敛成 `electron.launch: Process failed to launch!`，
+# 看上去像产物坏了，实际只是没有显示后端。Chromium 的 headless 覆盖不到这里。
+# Tauri 在 Linux 上经 wry 走 WebKitGTK，同样要显示后端，症状不同但根因一样。
+#
+# 用常驻 Xvfb + 写 $GITHUB_ENV，而不是把 `xvfb-run` 套在 nx 命令外面：
+# nx 会派生多层子进程（run-commands → playwright / vitest → 应用进程），DISPLAY 靠环境
+# 继承传下去比 wrapper 稳；而且写进 $GITHUB_ENV 后，后续步骤（重跑、trace 复现）
+# 也都有显示可用。
+#
+# ⚠️ 只能在 Linux 上调用（macOS 有 Quartz、Windows 有 DWM，都不需要）。
+# 调用方自己加 `if: runner.os == 'Linux'` —— 复合 action 内部无法跳过自身。
+#
+# 这段逻辑与 `ci-template.yml` 里内联的那份同源。本轮**没有**去改 ci-template
+# 换用这个 action：那会把一处纯重构的改动牵进 PR 门禁的关键路径，留作后续单独的 PR。
+
+runs:
+  using: composite
+  steps:
+    - name: Start Xvfb
+      shell: bash
+      run: |
+        set -e
+        command -v Xvfb >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y xvfb; }
+        nohup Xvfb :99 -screen 0 1280x1024x24 -nolisten tcp >/tmp/xvfb.log 2>&1 &
+        echo "DISPLAY=:99" >> "$GITHUB_ENV"
+        # 用 socket 文件判就绪，不用 xdpyinfo —— x11-utils 不保证装了，多一个依赖就多一个失败点。
+        for _ in {1..30}; do
+          if [ -S /tmp/.X11-unix/X99 ]; then
+            echo "✅ Xvfb ready on :99"
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "❌ Xvfb 未能在 30s 内就绪"
+        cat /tmp/xvfb.log || true
+        exit 1

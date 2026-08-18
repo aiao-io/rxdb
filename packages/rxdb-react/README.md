@@ -10,7 +10,7 @@ pnpm add @aiao/rxdb @aiao/rxdb-react react react-dom rxjs
 
 ## Provider
 
-`RxDBProvider` 必须接收已经创建完成的数据库实例。`useRxDB()` 会读取最近的 Provider；也可以把数据库实例直接传给 `useRxDB(db)`。
+`RxDBProvider` 的 `db` 收 `RxDBSource`：实例、`Promise`，或返回二者之一的工厂。三个框架包收的是同一个联合类型。`db` 仍是**必填** —— 少传时报错要指得出「你没给数据库」，而不是把正在用 Provider 的人指回 Provider。
 
 ```tsx
 import type { RxDB } from '@aiao/rxdb';
@@ -28,6 +28,25 @@ export function App({ db }: AppProps) {
   );
 }
 ```
+
+异步形态用于「后端按运行环境动态选择」这类场景 —— 静态 import 会把桌面分支打进 web bundle：
+
+```tsx
+// 注意：非实例的 source 必须是稳定引用（模块级常量或 useMemo 包住）。
+// 每次 render 新建一个工厂，会让 Provider 反复重建数据库。
+const source = useMemo(() => async () => (await import('./setup-desktop')).setupDesktop(), []);
+
+<RxDBProvider db={source}>…</RxDBProvider>;
+```
+
+读取分两条，区别只有「没就绪该怎么办」：
+
+```tsx
+const database = useRxDB(); // 未就绪抛错，创建失败原样抛出创建异常
+const maybe = useRxDBOptional(); // 无 Provider 或未就绪时返回 undefined，用于渲染 loading 态
+```
+
+**生命周期所有权：Provider 只销毁自己造的东西。** 传工厂或 `Promise`，实例由 Provider 等来，卸载时它负责 `disconnectAll()`；传已就绪的实例，它归调用方所有，Provider 不碰 —— 否则 `StrictMode` 的双挂载（挂载 → 卸载 → 挂载）会断掉调用方的模块级单例，留下一个没人会去重连的死库。这条规则三端逐字相同。
 
 需要隔离多个数据库 context 时使用 `makeRxDBProvider<T>()` 创建独立的 Provider/hook 对。
 

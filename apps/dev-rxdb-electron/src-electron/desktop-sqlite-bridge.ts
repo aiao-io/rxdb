@@ -2,7 +2,7 @@
  * @fileoverview US-207：主进程侧的桌面 SQLite host 接线。
  *
  * @remarks
- * `@aiao/rxdb-adapter-desktop/host` 负责协议校验与 `node:sqlite` 连接，本文件只补它
+ * `@aiao/rxdb-adapter-electron/host` 负责协议校验与 `node:sqlite` 连接，本文件只补它
  * 刻意不管的那两件事——库文件放在哪，以及变更事件该送给哪个窗口。这两件事都只有宿主应用知道。
  *
  * 本文件不 import `electron`：窗口在这里被收窄成 {@link DesktopChangeEventTarget}，
@@ -14,12 +14,13 @@
 
 import {
   assertValidDesktopDatabaseName,
-  createDesktopSqliteHost,
+  createElectronSqliteHost,
   type DesktopHostChangeEventMessage,
   type DesktopHostResponse
-} from '@aiao/rxdb-adapter-desktop/host';
+} from '@aiao/rxdb-adapter-electron/host';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { denyForeignSession, readSessionId } from './desktop-session-ownership.js';
 import { DESKTOP_HOST_CHANGE_CHANNEL } from './ipc-contract';
 
 /**
@@ -116,7 +117,7 @@ export interface DesktopSqliteBridge {
 export function createDesktopSqliteBridge(options: DesktopSqliteBridgeOptions): DesktopSqliteBridge {
   const targets = new Map<string, DesktopChangeEventTarget>();
 
-  const host = createDesktopSqliteHost({
+  const host = createElectronSqliteHost({
     resolveDatabasePath: options.resolveDatabasePath,
     postChange: message => {
       const target = targets.get(message.sessionId);
@@ -130,10 +131,18 @@ export function createDesktopSqliteBridge(options: DesktopSqliteBridgeOptions): 
 
   return {
     handle: async (target, request) => {
+      // 会话 id 不是凭证：拿到别的窗口的 id 就能在它的库上跑任意 SQL、或直接把它关掉。
+      const denial = denyForeignSession(targets, request, target);
+      if (denial) return denial;
+
       const response = await host.handle(request);
       if (response.kind === 'open') targets.set(response.result.sessionId, target);
-      // 能拿到 close 应答就说明请求过了协议校验，`sessionId` 一定是个字符串。
-      if (response.kind === 'close') targets.delete((request as { sessionId: string }).sessionId);
+      // 会话关掉了就销账。id 走 `readSessionId` 而不是断言：close 应答本身不带 id，
+      // 只能回头读请求，而请求是 renderer 原文（见 `readSessionId` 的 remarks）。
+      if (response.kind === 'close') {
+        const sessionId = readSessionId(request);
+        if (sessionId !== undefined) targets.delete(sessionId);
+      }
       return response;
     },
 

@@ -121,7 +121,7 @@
             "forwardAllArgs": false
           },
           {
-            "command": "cp package.json ../../dist/apps/dev-rxdb-electron/",
+            "command": "node tools/copy-app-manifest.mjs",
             "forwardAllArgs": false
           },
           {
@@ -149,7 +149,7 @@
             "forwardAllArgs": false
           },
           {
-            "command": "cp package.json ../../dist/apps/dev-rxdb-electron/",
+            "command": "node tools/copy-app-manifest.mjs",
             "forwardAllArgs": false
           },
           {

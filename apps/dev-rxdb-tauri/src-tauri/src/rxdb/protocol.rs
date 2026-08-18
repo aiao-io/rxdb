@@ -1,4 +1,4 @@
-//! renderer 与 host 之间的线协议，`packages/rxdb-adapter-desktop/src/desktop-host-protocol.ts` 的镜像。
+//! renderer 与 host 之间的线协议，`packages/rxdb-adapter-sqlite-core/src/desktop/desktop-host-protocol.ts` 的镜像。
 //!
 //! 这是 host 的**信任边界**：入参来自 WebView，不可信。解析结果是重新构造出来的
 //! `Request`，而不是把原始 JSON 往下传——契约之外的字段因此不会顺着流进 host。
@@ -13,7 +13,7 @@ use super::error::{ErrorCode, HostError, HostResult};
 use super::paths::validate_database_name;
 use super::value::decode_binding;
 
-/// 线协议版本；renderer 在 `open` 应答里核对该值。
+/// 线协议版本；renderer 在 `handshake` 应答里核对该值（`open` 应答里也带一份）。
 pub const PROTOCOL_VERSION: i64 = 1;
 
 /// 单条 SQL 文本的长度上限。
@@ -28,6 +28,16 @@ pub const MAX_BLOB_BYTES: usize = 64 * 1024 * 1024;
 /// renderer 可以发给 host 的请求。
 #[derive(Debug, Clone, PartialEq)]
 pub enum Request {
+    /// 协商线协议版本。
+    ///
+    /// **不带任何参数，也不产生任何副作用**——这正是它存在的理由。版本核对必须排在 `open`
+    /// 之前：`open` 会建库、开连接、登记会话，等 renderer 从 `open` 应答里读出版本不匹配时，
+    /// 磁盘上已经多了一个空库文件，而调用方拿不到 client，也就没有把手去收拾它（US-210 AC#10）。
+    ///
+    /// 加入本请求**没有**抬高 [`PROTOCOL_VERSION`]：它对 host 是纯增量的，老 renderer 直接发
+    /// `open`，行为一字不变；而老到不认识这个 kind 的 host 会回 `protocol_violation`，那条路径
+    /// 同样碰不到文件系统，于是「版本对不上就不建库」在新旧两种 host 上都成立。
+    Handshake,
     /// 打开（必要时创建）一个数据库会话。
     Open {
         /// 应用作用域内的逻辑数据库名。
@@ -184,6 +194,8 @@ pub fn parse_request(value: &Value) -> HostResult<Request> {
     let record = as_object(value)?;
     let kind = record.get("kind").and_then(Value::as_str).unwrap_or("<missing>");
     match kind {
+        // 握手没有任何字段可读：重新构造出来的值里因此只剩 kind 本身，renderer 多塞的东西一概进不来。
+        "handshake" => Ok(Request::Handshake),
         "open" => Ok(Request::Open {
             database_name: read_storage(record)?,
             batch_timeout: read_batch_timeout(record)?,
@@ -224,6 +236,18 @@ mod tests {
 
     fn open(storage: Value) -> Value {
         json!({ "kind": "open", "storage": storage })
+    }
+
+    /// 握手是协议里唯一**无副作用**的请求：它没有会话可指、也没有存储可开。
+    /// 多带来的字段一律留在信任边界外，否则「无副作用」就成了一句只在正常入参下成立的话。
+    #[test]
+    fn parses_a_handshake_that_carries_nothing() {
+        let noisy = json!({
+            "kind": "handshake",
+            "sessionId": SESSION,
+            "storage": { "engine": "pglite", "databaseName": "../escape" }
+        });
+        assert_eq!(parse_request(&noisy).unwrap(), Request::Handshake);
     }
 
     #[test]

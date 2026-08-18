@@ -2,7 +2,7 @@
  * @fileoverview US-504：主进程侧的桌面文件 host 接线。
  *
  * @remarks
- * 与 {@link module:desktop-sqlite-bridge} 分工一致：`@aiao/rxdb-adapter-desktop/host`
+ * 与 {@link module:desktop-sqlite-bridge} 分工一致：`@aiao/rxdb-adapter-electron/host`
  * 负责协议校验、原子提交与锁仲裁，本文件只补它刻意不管的两件事——文件根放在哪，
  * 以及某个窗口消失时该回收哪些会话。这两件事都只有宿主应用知道。
  *
@@ -12,10 +12,11 @@
  * @module desktop-file-bridge
  */
 
-import { createDesktopFileHost, type DesktopHostFileResponse } from '@aiao/rxdb-adapter-desktop/host';
+import { createElectronFileHost, type DesktopHostFileResponse } from '@aiao/rxdb-adapter-electron/host';
 import { mkdirSync } from 'node:fs';
 import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { denyForeignSession, readSessionId } from './desktop-session-ownership.js';
 
 /**
  * 文件内容在应用数据目录下的子目录名。
@@ -145,7 +146,7 @@ const sweepTemporaryFiles = async (directory: string): Promise<void> => {
  */
 export function createDesktopFileBridge(options: DesktopFileBridgeOptions): DesktopFileBridge {
   const targets = new Map<string, DesktopFileEventTarget>();
-  const host = createDesktopFileHost({ resolveStorageRoot: options.resolveStorageRoot });
+  const host = createElectronFileHost({ resolveStorageRoot: options.resolveStorageRoot });
   // 清扫失败只记一笔：它是一次垃圾回收，不是功能路径。让它把 bridge 的创建带崩，
   // 等于一个没人读的临时文件就能让应用打不开自己的文件。
   const whenSwept = sweepTemporaryFiles(options.resolveStorageRoot()).catch((error: unknown) => {
@@ -156,10 +157,19 @@ export function createDesktopFileBridge(options: DesktopFileBridgeOptions): Desk
     whenSwept,
 
     handle: async (target, request) => {
+      // 会话 id 不是凭证。文件侧尤其危险：一把跨窗口的 `lockRelease` 能放掉别人正持有的独占锁，
+      // 而 `file.close` 会把别人未提交的写入连同临时文件一起丢掉。
+      const denial = denyForeignSession(targets, request, target);
+      if (denial) return denial;
+
       const response = await host.handle(request);
       if (response.kind === 'file.open') targets.set(response.result.sessionId, target);
-      // 能拿到 file.close 应答就说明请求过了协议校验，`sessionId` 一定是个字符串。
-      if (response.kind === 'file.close') targets.delete((request as { sessionId: string }).sessionId);
+      // 会话关掉了就销账。id 走 `readSessionId` 而不是断言：close 应答本身不带 id，
+      // 只能回头读请求，而请求是 renderer 原文（见 `readSessionId` 的 remarks）。
+      if (response.kind === 'file.close') {
+        const sessionId = readSessionId(request);
+        if (sessionId !== undefined) targets.delete(sessionId);
+      }
       return response;
     },
 

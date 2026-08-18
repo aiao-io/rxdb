@@ -15,7 +15,7 @@
  * @vitest-environment happy-dom
  */
 
-import { DESKTOP_ADAPTER_NAME } from '@aiao/rxdb-adapter-desktop';
+import { TAURI_ADAPTER_NAME } from '@aiao/rxdb-adapter-tauri';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
 import {
   isTemporaryStorageName,
@@ -58,7 +58,7 @@ const createRustBackend = (): ParityBackend => {
 
   return {
     name: 'tauri-rust-host',
-    localAdapterName: DESKTOP_ADAPTER_NAME,
+    localAdapterName: TAURI_ADAPTER_NAME,
     async setup() {
       workspace = await mkdtemp(join(tmpdir(), 'rxdb-tauri-parity-'));
       host = createRustHostTransport(workspace);
@@ -74,7 +74,7 @@ const createRustBackend = (): ParityBackend => {
     },
     createRawFilesystem() {
       return createDesktopStorageFilesystem({ transport: requireHost().transport })('files', {
-        localAdapterName: DESKTOP_ADAPTER_NAME
+        localAdapterName: TAURI_ADAPTER_NAME
       });
     },
     async temporaryNames() {

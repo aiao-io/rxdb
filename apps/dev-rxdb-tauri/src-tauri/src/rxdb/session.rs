@@ -1,4 +1,4 @@
-//! 请求派发与会话表，`packages/rxdb-adapter-desktop/src/desktop-sqlite-host.ts` 的 Rust 对照实现。
+//! 请求派发与会话表，`packages/rxdb-adapter-electron/src/electron-sqlite-host.ts` 的 Rust 对照实现。
 //!
 //! 这里是唯一接触文件系统的地方：入参先过 [`super::protocol::parse_request`] 的信任边界，
 //! 再落到 [`super::engine::Engine`]。
@@ -15,7 +15,7 @@
 //! 因此退避交给 [`super::engine`] 里的 `busy_timeout`，这一层不再重复实现。
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use serde_json::{json, Value};
@@ -84,6 +84,14 @@ impl Host {
         }
     }
 
+    /// 建库所依据的应用数据根目录。
+    ///
+    /// 自检模式据此上报「库到底落在了哪里」（见 `selfcheck.rs`）。报的是**这个活着的 host**
+    /// 手里的值而不是环境变量原文：后者只能证明变量被读到过，证明不了它接上了。
+    pub fn app_data_dir(&self) -> &Path {
+        &self.app_data_dir
+    }
+
     /// 当前打开的会话数，用于诊断与关停检查。
     pub fn open_session_count(&self) -> usize {
         self.sessions.lock().expect("session table mutex poisoned").len()
@@ -104,6 +112,12 @@ impl Host {
 
     fn dispatch(&self, request: &Value) -> HostResult<Value> {
         match parse_request(request)? {
+            // 握手排在最前，且不碰会话表、不碰 `resolve_database_path`：它的全部意义就是让
+            // renderer 在 `open` 建库之前把版本对上，一旦这里有了任何副作用，那半条 AC 就不成立了。
+            Request::Handshake => Ok(json!({
+                "kind": "handshake",
+                "result": { "protocolVersion": PROTOCOL_VERSION }
+            })),
             Request::Open {
                 database_name,
                 batch_timeout,
@@ -301,6 +315,28 @@ mod tests {
         let response = host.handle(&json!({ "kind": "execute", "sessionId": session_id, "sql": sql }));
         assert_eq!(response["kind"], "execute", "{sql} -> {response}");
         response["result"].clone()
+    }
+
+    /// 无副作用的版本协商（US-210 AC#10）。
+    ///
+    /// 「版本对不上就不建库」全靠这条请求成立：`open` 一旦发出，库文件、连接与会话就都有了，
+    /// 之后再发现版本不匹配也收不回来。因此这里断言的不是「答得对」，而是「什么都没碰」——
+    /// 数据目录**故意不预先创建**，握手碰过 `resolve_database_path`（它会 `create_dir_all`）
+    /// 的话，目录就会凭空出现。
+    #[test]
+    fn handshake_reports_the_protocol_version_without_touching_the_disk() {
+        let directory = std::env::temp_dir().join(format!("rxdb-handshake-{}", uuid::Uuid::new_v4()));
+        let host = Host::new(HostOptions {
+            app_data_dir: directory.clone(),
+            deliver: Arc::new(|_| ()),
+        });
+        let response = host.handle(&json!({ "kind": "handshake" }));
+        assert_eq!(
+            response,
+            json!({ "kind": "handshake", "result": { "protocolVersion": PROTOCOL_VERSION } })
+        );
+        assert_eq!(host.open_session_count(), 0);
+        assert!(!directory.exists(), "{}", directory.display());
     }
 
     #[test]

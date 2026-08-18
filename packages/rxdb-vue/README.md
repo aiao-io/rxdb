@@ -31,15 +31,27 @@ provideRxDB(database);
 同步消费者可以使用：
 
 ```ts
-import { injectRxDB, useRxDB } from '@aiao/rxdb-vue';
+import { injectRxDB, useRxDB, useRxDBOptional } from '@aiao/rxdb-vue';
 
-const optionalDatabase = injectRxDB(); // RxDB | undefined
-const database = useRxDB(); // 缺少 provider 或当前值为空时抛错
+const optionalDatabase = injectRxDB(); // RxDB | undefined；无 provider 时 dev 下有 Vue 告警
+const maybe = useRxDBOptional(); // 同上，但缺 provider 不告警 —— 可选读取本就允许没有 provider
+const database = useRxDB(); // 无 provider / 未就绪各抛一条不同文案；创建失败原样抛出创建异常
 ```
 
 ### 异步初始化
 
-`provideRxDB` 也接受 `Ref<RxDB | undefined>`。需要等待数据库就绪的消费者应使用 ref API：
+`provideRxDB` 收 `RxDBInput`：三端共享的 `RxDBSource`（实例、`Promise`，或返回二者之一的工厂）之外，Vue 还多收 `Ref<RxDB | undefined>` 与 `undefined`。
+
+`Promise` / 工厂形态用于「后端按运行环境动态选择」这类场景 —— 静态 import 会把桌面分支打进 web bundle：
+
+```ts
+provideRxDB(async () => {
+  const { setupDesktop } = await import('./setup-desktop');
+  return setupDesktop();
+});
+```
+
+`Ref` 形态是 Vue 独有的：由调用方自己持有、自己决定何时填上。
 
 ```ts
 import type { RxDB } from '@aiao/rxdb';
@@ -54,6 +66,8 @@ const database = useRxDBRef();
 ```
 
 `injectRxDBRef()` 是可选版本；没有 provider 时返回 `undefined`。`useInfiniteScroll` 会在 provider 存在但数据库仍为 `undefined` 时等待，并在 ref 就绪后自动加载。
+
+**生命周期所有权：provider 只销毁自己造的东西。** 传工厂或 `Promise`，实例由 provider 等来，作用域销毁时它负责 `disconnectAll()`；传已就绪的实例或你自己的 `Ref`，它归调用方所有，provider 不碰 —— 否则一个模块级单例会被某个子组件的卸载顺手断掉，而没有人会去重连。这条规则三端逐字相同。
 
 ## 响应式查询
 

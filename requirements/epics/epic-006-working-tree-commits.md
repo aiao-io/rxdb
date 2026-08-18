@@ -235,7 +235,7 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
   `RxDBSync` 与工作树全部不变。最终 switch 事务复核完整 scope、终止水位、fingerprint 与 active token 后一次性物化；
   网络失败、scope 漂移、配额不足或不收敛只留下可安全重试/清理的 staging，不得留下部分目标投影。
 - v1 支持矩阵为 **6 个后端**：PGlite、四个 SQLite 浏览器适配器（wa-sqlite / sqlite-wasm / sqlite / sqliteai）、
-  以及 `@aiao/rxdb-adapter-desktop` 的 **Electron `node:sqlite` host**。实验性的 miniprogram 适配器不承诺崩溃恢复，
+  以及 `@aiao/rxdb-adapter-electron` 的 **Electron `node:sqlite` host**。实验性的 miniprogram 适配器不承诺崩溃恢复，
   不在矩阵内。
 - **入矩阵的判据是宿主能力，不是它所属 story 的 status**。承诺一个后端的前提固定为两条：该 host 已在既有
   跨后端共享套件上全绿，且**没有已知的非确定性失败**。按 status 判定会得出错误结论——

@@ -67,7 +67,7 @@ const EXCLUDED = new Set(['rxdb-test']);
  * 都指回这里），并由 `auditSubpathInventory()` 逐包核对：新增或删除子路径而不同步本表 → 门禁红。
  * 这样清单不会随包演进静默过期，作者也会在动到无保护的公开 API 时被拦一次。
  *
- * 10 个包共 15 个入口。其中 `rxdb-adapter-miniprogram` 的两个 `./assets/*` 是二进制/CJS 资产，
+ * 10 个包共 16 个入口。其中 `rxdb-adapter-miniprogram` 的两个 `./assets/*` 是二进制/CJS 资产，
  * 没有导出表面可扫，改由 `scripts/audit/wa-sqlite-integrity.mjs` 的 SHA-256 固定守护。
  * `@aiao/rxdb-test/*`（5 个子路径）不在此列——整包已由 EXCLUDED 排除，非产品 API。
  *
@@ -77,12 +77,17 @@ const EXCLUDED = new Set(['rxdb-test']);
  * @type {Map<string, string[]>}
  */
 const KNOWN_UNCOVERED_SUBPATHS = new Map([
-  ['rxdb-adapter-desktop', ['./host']],
+  // ./host = node:sqlite 引擎 + SQL/文件宿主。特权侧独立成入口，免得被打进 renderer bundle。
+  // Tauri 侧没有对应项：它的特权侧是 Rust，随应用二进制走，不经 npm 分发。
+  ['rxdb-adapter-electron', ['./host']],
   ['rxdb-adapter-encrypted', ['./testing']],
   // ./runtime = prepareMiniProgramRuntime 等 5 个值 + 6 个类型，共 11 个符号。
   ['rxdb-adapter-miniprogram', ['./assets/wa-sqlite.cjs', './assets/wa-sqlite.wasm', './runtime']],
   ['rxdb-adapter-pglite', ['./testing']],
-  ['rxdb-adapter-sqlite-core', ['./testing']],
+  // ./desktop-host = 桌面 host 契约（线协议 + renderer client + 存储联合 + 错误类型），
+  // Electron 与 Tauri 两个运行时包共用。不进主入口：另外五个下游适配器一行都用不上，
+  // 却要跟着进 bundle。
+  ['rxdb-adapter-sqlite-core', ['./desktop-host', './testing']],
   ['rxdb-adapter-wa-sqlite', ['./client']],
   ['rxdb-client-generator', ['./cli', './vite']],
   // ./testing = conformance driver 接缝 + wire hygiene 套件 + fake clock/driver，

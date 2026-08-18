@@ -1,4 +1,3 @@
-import { RxDB } from '@aiao/rxdb';
 import { provideRxDB } from '@aiao/rxdb-angular';
 import { APP_BASE_HREF, registerLocaleData } from '@angular/common';
 import { provideHttpClient, withFetch, withInterceptorsFromDi } from '@angular/common/http';
@@ -6,8 +5,6 @@ import localeZh from '@angular/common/locales/zh-Hans';
 import {
   ApplicationConfig,
   LOCALE_ID,
-  inject,
-  provideAppInitializer,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection
 } from '@angular/core';
@@ -72,14 +69,12 @@ export const appConfig: ApplicationConfig = {
         skipInitialTransition: true
       })
     ),
+    // ELEC-11：这里原先跟着一个手写的 app initializer 去强行注入一次 RxDB。
+    // 当时 `provideRxDB` 只是个惰性 `useFactory`，而首页只读连接状态信号、并不注入
+    // RxDB，工厂于是永不执行，状态卡永久停在「连接中…」：没有 worker、没有 wasm 请求、
+    // 也没有任何报错，一个纯粹的假象。现在 `provideRxDB` 自带 initializer（先建 holder
+    // 触发工厂，再等 source 就绪），bootstrap 阶段必然实例化，这里不必再补一刀。
     provideRxDB(setup_rxdb),
-    // ELEC-11：`provideRxDB` 只是个 `useFactory`，**惰性**的 —— 没有组件注入 `RxDB`
-    // 就永远不会实例化。首页只读连接状态信号、并不注入 RxDB，于是实测下来
-    // 状态卡永久停在「连接中…」：没有 worker、没有 wasm 请求、没有任何报错，
-    // 一个纯粹的假象。这里在 bootstrap 阶段强制实例化，让状态卡反映真实连接。
-    provideAppInitializer(() => {
-      inject(RxDB);
-    }),
     provideHttpClient(withFetch(), withInterceptorsFromDi()),
     provideLoadingBarInterceptor(),
     provideLoadingBarRouter()

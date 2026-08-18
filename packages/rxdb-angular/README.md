@@ -29,16 +29,40 @@ pnpm add @aiao/rxdb @aiao/rxdb-angular
 
 ### 注册 RxDB
 
+`provideRxDB` 接受 `RxDBSource`：实例、`Promise`，或返回二者之一的工厂。三个框架包收的是同一个联合类型。
+
 ```typescript
 import { provideRxDB } from '@aiao/rxdb-angular';
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    // 传入返回 RxDB 实例的工厂函数
+    // 工厂 / 实例 / Promise / 异步工厂都可以
     provideRxDB(() => rxdb)
   ]
 };
 ```
+
+异步形态用于「后端按运行环境动态选择」这类场景 —— 静态 import 会把桌面分支打进 web bundle：
+
+```typescript
+provideRxDB(async () => {
+  const { setupDesktop } = await import('./setup-desktop');
+  return setupDesktop();
+});
+```
+
+`provideRxDB` 自带 app initializer，会在 bootstrap 阶段建好数据库再放行首帧，因此组件里 `inject(RxDB)` 始终同步可用。**初始化器不会 reject** —— 创建失败时 bootstrap 照常完成（否则窗口全白，为这种失败准备的诊断界面反而被失败本身挡在门外），原始异常留到读取时抛出。
+
+在初始化器之外（比如 bootstrap 途中）读取时，用哪个入口取决于「没就绪该怎么办」：
+
+```typescript
+import { useRxDB, useRxDBOptional } from '@aiao/rxdb-angular';
+
+const database = useRxDB(); // 等价于 inject(RxDB)：未就绪抛错，创建失败原样抛出创建异常
+const maybe = useRxDBOptional(); // 无 provider 或未就绪时返回 undefined，用于渲染 loading 态
+```
+
+**生命周期所有权：provider 只销毁自己造的东西。** 传工厂或 `Promise`，实例由 provider 等来，注入器销毁时它负责 `disconnectAll()`；传已就绪的实例，它归调用方所有，provider 不碰 —— 否则一个模块级单例会被某个子注入器的销毁顺手断掉，而没有人会去重连。这条规则三端逐字相同。
 
 ### 查询数据
 

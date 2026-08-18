@@ -695,7 +695,8 @@ fake 能证明的部分已证明，剩下的部分不是「还没写测试」，
 | `apps/dev-rxdb-electron/`              | A / D      | A 做最小加载 fixture 与 Electron 43 加载脚本；D 做开发态加载、preload/main 接线与生产隔离            |
 | `apps/dev-rxdb-electron-e2e/`          | A / D      | A 提供真实 DevTools panel、Port 和生命周期证据；D 提供持久化、重启与安全边界 E2E                     |
 | `apps/dev-rxdb-tauri/`                 | US-905     | DevTools bootstrap、Tauri transport adapter、受限窗口与 dev-only capability                          |
-| `packages/rxdb-adapter-desktop/`       | D / US-905 | Electron / Tauri SQLite 只读诊断 provider，不增加任意 SQL                                            |
+| `packages/rxdb-adapter-electron/`      | D          | Electron SQLite 只读诊断 provider，不增加任意 SQL                                                    |
+| `packages/rxdb-adapter-tauri/`         | US-905     | Tauri SQLite 只读诊断 provider，不增加任意 SQL                                                       |
 | `packages/rxdb-plugin-storage/`        | D / US-905 | Electron / Tauri 原生文件调试 provider，复用业务路径与流式语义                                       |
 | `apps/dev-rxdb-tauri-e2e/`             | 共享       | US-210 / US-905 先开工者用 generator 创建一次；各故事只拥有自己的 specs                              |
 | `requirements/api-baseline/`           | 改动方     | 只有新增公开 API 时同步                                                                              |

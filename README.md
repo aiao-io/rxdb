@@ -149,7 +149,8 @@ aiao/
 │   ├── rxdb-adapter-sqlite-core/    # SQLite 核心共享代码
 │   ├── rxdb-adapter-sqlite-wasm/    # SQLite WASM 适配器
 │   ├── rxdb-adapter-sqliteai/       # SQLite AI 适配器（向量 + AI 函数）
-│   ├── rxdb-adapter-desktop/        # 桌面适配器（Electron + node:sqlite 文件）
+│   ├── rxdb-adapter-electron/       # Electron 适配器（node:sqlite 特权宿主）
+│   ├── rxdb-adapter-tauri/          # Tauri 适配器（Rust rusqlite 宿主，WebView 侧）
 │   ├── rxdb-adapter-encrypted/      # 字段级加密（AES-GCM-256）
 │   ├── rxdb-adapter-miniprogram/    # 小程序适配器（仅微信，实验性）
 │   ├── rxdb-adapter-pglite/         # PGlite 适配器（PostgreSQL）

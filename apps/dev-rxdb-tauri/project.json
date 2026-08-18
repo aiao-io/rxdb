@@ -102,6 +102,20 @@
       },
       "dependsOn": ["cargo-check", "cargo-clippy", "cargo-test"]
     },
+    "tauri-package-release": {
+      "// 不继承 tauri-build 的 dependsOn": "cargo-check / cargo-clippy / cargo-test 已在 PR 门禁跑过；发布 workflow 里 ×3 平台重跑一遍是纯亏。",
+      "// --no-bundle": "前端产物照样编进二进制（frontendDist 不变），但省掉 macOS 签名、Windows 安装器、以及 Linux AppImage 构建期下载 linuxdeploy + 依赖 FUSE 这个 Tauri CI 最经典的 flaky 源。代价：这条路**不验证安装包本身**（Info.plist / MSI / NSIS）——AC#9 要的是「启动产物、写入、退出、再次启动」，release 二进制满足，但读者不该靠猜。",
+      "// 不设 cache": "输入面横跨 Angular 源码 + Rust 源码 + tauri.conf.json + icons，手写一份 inputs 漏一项就会拿旧二进制跑出绿的 smoke —— 正是本轮在防的那种静默绿。重复执行的代价由 nx 的 build 缓存与 cargo 增量编译兜住，不必再叠一层。",
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-tauri",
+        "command": "tauri build --ci --no-bundle",
+        "parallel": false
+      },
+      "metadata": {
+        "description": "US-210 AC#9：跨进程 smoke 用的 release 产物（src-tauri/target/release/dev-rxdb-tauri[.exe]）"
+      }
+    },
     "tauri-update": {
       "executor": "nx:run-commands",
       "options": {

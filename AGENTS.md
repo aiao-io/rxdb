@@ -56,7 +56,7 @@ pnpm test-all                               # 全量门禁（affected: lint/type
 - `--parallel=4` 在本机 32GB 上仍会把 vitest forks 和 Angular 构建打崩。假失败先串行复跑；不要为了「稳」把并行调到 8。
 - 共享套件删了就同步删所有后端入口（尤其 `apps/dev-rxdb-tauri/conformance/`）。`rowsAffectedConformanceSuite` 已随 writer lease 删除，不要再加回来。
 - Nx Cloud FREE 已超限（401），本地加 `--skipRemoteCache`；不要把云缓存 miss 当成测试失败。
-- `rxdb-adapter-desktop:typecheck` 被 Nx 记过 flaky；单独复跑绿了就当并发抖动，不要扩 scope。
+- `rxdb-adapter-electron:typecheck` 被 Nx 记过 flaky（US-207 拆包前记在 `rxdb-adapter-desktop` 名下，`node:sqlite` 宿主那一半留在了 electron）；单独复跑绿了就当并发抖动，不要扩 scope。
 
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->

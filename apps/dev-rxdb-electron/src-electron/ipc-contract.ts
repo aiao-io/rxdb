@@ -23,7 +23,7 @@ export const DESKTOP_HOST_CHANGE_CHANNEL = 'desktop-sqlite:change';
  * preload 把桌面传输层挂到 renderer 全局时使用的键。
  *
  * @remarks
- * 必须与 `@aiao/rxdb-adapter-desktop` 的 `DESKTOP_HOST_TRANSPORT_KEY` 逐字相同——
+ * 必须与 `@aiao/rxdb-adapter-electron` 的 `DESKTOP_HOST_TRANSPORT_KEY` 逐字相同——
  * 适配器就是按这个名字去 `globalThis` 上找桥接的。两者的一致性由
  * `desktop-sqlite-bridge.spec.ts` 钉住，而不是靠人记得。
  */
@@ -33,7 +33,7 @@ export const DESKTOP_HOST_BRIDGE_KEY = '__aiaoRxdbDesktopHost__';
  * preload 暴露给 renderer 的桌面 SQLite 传输层。
  *
  * @remarks
- * 结构上等同于 `@aiao/rxdb-adapter-desktop` 的 `DesktopHostTransport`，但在这里独立声明：
+ * 结构上等同于 `@aiao/rxdb-adapter-electron` 的 `DesktopHostTransport`，但在这里独立声明：
  * preload 在 `sandbox: true` 下不 bundle，连同目录的兄弟文件都 require 不到（ELEC-15），
  * 更不可能 require 一个 node_modules 里的 ESM 包。
  *

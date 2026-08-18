@@ -31,7 +31,8 @@ serde_json = "1"
 # 一个 session 一条物理连接（US-210 AC#2 由构造保证）。
 # `bundled` 固定 SQLite 版本，不受各平台系统库版本影响；`functions` 用于触发器回调的
 # 标量函数 `rxdb_desktop_notify`；`blob` 用于 BLOB 绑定与读取。
-rusqlite = { version = "0.32", features = ["bundled", "functions", "blob"] }
+# hooks：SQLite authorizer，用来把 ATTACH/DETACH 挡在应用作用域之外（见 Engine::initialize）
+rusqlite = { version = "0.32", features = ["bundled", "functions", "blob", "hooks"] }
 # sessionId 由 host 生成，形状必须匹配协议里的 UUID 正则。
 uuid = { version = "1", features = ["v4"] }
 

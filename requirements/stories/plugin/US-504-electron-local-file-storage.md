@@ -139,7 +139,7 @@ INVEST 检查清单:
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | #1 #3 #5 | `apps/dev-rxdb-electron-e2e/src/storage-persistence.spec.ts` —— 打包产物真实重启 / 整目录拷贝 / SIGKILL 三段；与既有 9 条 smoke + SQLite 持久化用例合计 11/11 绿            |
 | #2       | `packages/rxdb-plugin-storage/src/__tests__/backend-parity.spec.ts` —— 15 组行为 × 2 后端 = 30 用例，测试体不知道自己跑在哪个后端上，无跳过项                               |
-| #4       | `packages/rxdb-adapter-desktop/src/__tests__/desktop-file-host.spec.ts` 的恶意路径矩阵 + 存储根外零写入断言                                                                 |
+| #4       | `packages/rxdb-adapter-electron/src/__tests__/electron-file-host.spec.ts` 的恶意路径矩阵 + 存储根外零写入断言                                                               |
 | #6       | `packages/rxdb-plugin-storage/src/__tests__/desktop-failure.spec.ts` —— 故障注入在**传输层**，host 与磁盘都是真的，补偿路径发出的 `writeAbort` / `remove` 走真实实现        |
 | #7       | 同 `desktop-file-host.spec.ts` 的锁仲裁段：两个独立 session（等价于两个窗口）在同一路径上串行、共享锁并发、无关锁名不互相阻塞、session 关闭释放持有与排队中的锁             |
 | #8       | `public-api.spec.ts` 的 import 图断言（以每个 renderer 入口为图根，含 `desktop.ts`）+ `scripts/audit/api-surface.mjs` 的 `KNOWN_UNCOVERED_SUBPATHS` 登记 + 浏览器套件 20/20 |
@@ -202,14 +202,16 @@ AC（#4 / #8 / #11）跟随本决策，不另订载体。
 
 ### 传输与协议
 
-- 文件消息复用 `@aiao/rxdb-adapter-desktop` 的 host 协议通道与
-  `DESKTOP_HOST_PROTOCOL_VERSION` 协商；版本不一致按既有拒绝路径处理 —— 注意
-  该路径是**单向**的：客户端在 open 应答里拒绝异版本
-  host（`parseDesktopHostOpenResult`），host 不校验 renderer 声称的版本。文件消息
+- 文件消息复用 `@aiao/rxdb-adapter-sqlite-core/desktop-host` 的 host 协议通道与
+  `DESKTOP_HOST_PROTOCOL_VERSION` 协商（US-207 E1 之前这两样在 `@aiao/rxdb-adapter-desktop` 里）；
+  版本不一致按既有拒绝路径处理 —— 注意
+  该路径是**单向**的：客户端在 `open` **之前**先发一次无副作用的 `handshake` 拒绝异版本
+  host（`negotiateProtocolVersion`；RV-003 之前这个判断在 `parseDesktopHostOpenResult` 里，
+  即 open 应答上，那时 host 已经把库建出来了），host 不校验 renderer 声称的版本。文件消息
   沿用此方向即可，但 renderer 不可信侧的兜底是 host 对消息形状的类型化校验与
   AC#4 的路径校验，不是版本协商
 - renderer 入口不得出现 `node:fs` —— 同 US-207 对 `node:sqlite` 的承诺。源码层已有自动
-  防线：`packages/rxdb-adapter-desktop/src/__tests__/public-api.spec.ts` 的
+  防线：`packages/rxdb-adapter-electron/src/__tests__/public-api.spec.ts` 的
   「keeps every Node builtin behind the host entry」import 图断言，
   但其机制是**从 `src/index.ts` 出发递归跟随静态 `from '...'` import**，
   自动覆盖仅限与主入口连边的模块。桌面客户端若按 AC#8 以新**子路径入口**暴露，
@@ -217,7 +219,7 @@ AC（#4 / #8 / #11）跟随本决策，不另订载体。
   renderer 侧入口（含新增子路径）为图根；side-effect import（`import 'node:fs'`）
   与动态 `import()` 也不被该正则捕获，新增代码避开这两种写法或另加断言；另
   该遍历遇到 workspace 包 specifier（如
-  `@aiao/rxdb-adapter-desktop`）记录但**不跨包递归** —— storage 客户端经 adapter
+  `@aiao/rxdb-adapter-electron`）记录但**不跨包递归** —— storage 客户端经 adapter
   renderer 入口间接可达的 builtin 由 adapter 自己的同型断言把关，两道断言缺一不可。产物层
   （minify / bundle 后）的自动门禁已移除（见 US-207），发布前手工 `pnpm pack`
   验证仍是最后一道
@@ -228,7 +230,8 @@ AC（#4 / #8 / #11）跟随本决策，不另订载体。
 ### 依赖
 
 - [US-207](../adapter/US-207-desktop-local-database.md) 的 host / preload / 协议版本模式
-  （已随 `@aiao/rxdb-adapter-desktop@0.0.25` 发布）；不依赖其未关闭的 AC#8 打包矩阵
+  （写本条时随 `@aiao/rxdb-adapter-desktop@0.0.25` 发布；US-207 E2 之后 Electron 半边改由
+  `@aiao/rxdb-adapter-electron` 承载）；不依赖其 AC#8 打包矩阵（该 AC 此后已关闭）
 - metadata 侧无新依赖：桌面场景下 `rxdb.config.sync.local` 应配置桌面 SQLite adapter
   （US-207 已交付）。注意 `ensureLocalReady` 实际只校验 `config.sync.local` 存在并
   `connect()` 成功（严格顺序为 `assertActive()` → `connect()` → 二次 `assertActive()` →
@@ -239,19 +242,20 @@ AC（#4 / #8 / #11）跟随本决策，不另订载体。
 ## 实现文件
 
 - `packages/rxdb-plugin-storage/src/` — 文件系统接缝、OPFS 默认后端、桌面后端 renderer 客户端
-- `packages/rxdb-adapter-desktop/src/` — host 协议新增文件消息类型（renderer 入口零 node 依赖不变式保持）
+- `packages/rxdb-adapter-sqlite-core/src/desktop/` — host 协议新增文件消息类型（US-207 E1 后协议层在此）
+- `packages/rxdb-adapter-electron/src/` — Electron 文件宿主（renderer 入口零 node 依赖不变式保持）
 - `apps/dev-rxdb-electron/src-electron/` — 文件 host：存储根解析、路径校验、流式落盘
 - `apps/dev-rxdb-electron-e2e/` — AC#1 / #3 的重启与备份恢复 e2e
 - `requirements/api-baseline/` — 新公开 API 基线；新增子路径入口同步 `KNOWN_UNCOVERED_SUBPATHS`
 
-> 本故事已 Done，但上表第二行会被
-> [US-207「包边界重整」](../adapter/US-207-desktop-local-database.md#包边界重整未开工)
-> 改写：`@aiao/rxdb-adapter-desktop` 拆成 `@aiao/rxdb-adapter-electron` 与
-> `@aiao/rxdb-adapter-tauri`，共享协议下沉 `rxdb-adapter-sqlite-core` 子路径。本故事引用的
-> `desktop-file-host.ts` / `desktop-filesystem.spec.ts` / `desktop-failure.spec.ts` /
-> `public-api.spec.ts` 随 Electron 半边迁入新包，**九条 AC 与其证据的内容一字不改，只换路径**；
-> 「renderer 入口零 node 依赖」这条不变式由 US-207 E2 的双入口断言继续守着。搬迁完成后
-> 回来同步本节路径即可，不需要重开验收。
+> 本故事已 Done。上表已按
+> [US-207「包边界重整」](../adapter/US-207-desktop-local-database.md#包边界重整)
+> 同步过一次（E1～E5）：`@aiao/rxdb-adapter-desktop` 拆成 `@aiao/rxdb-adapter-electron` 与
+> `@aiao/rxdb-adapter-tauri`，共享协议下沉 `@aiao/rxdb-adapter-sqlite-core/desktop-host`。本故事引用的
+> `desktop-file-host.ts` → `electron-file-host.ts`、`desktop-filesystem.spec.ts` /
+> `desktop-failure.spec.ts` → `electron-file-host.spec.ts`、`public-api.spec.ts` 随 Electron
+> 半边迁入新包，**九条 AC 与其证据的内容一字未改，只换了路径**；
+> 「renderer 入口零 node 依赖」这条不变式由 US-207 E2 的双入口断言继续守着，未重开验收。
 
 ## References
 

@@ -10,7 +10,7 @@
 import { createJiti } from 'jiti';
 import { existsSync, realpathSync } from 'node:fs';
 import { dirname, normalize, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import buildClientLibrary from './build-client-lib.js';
 import type { RxDBClientCLIentGeneratorOptions } from './cli.interface.js';
 import { validateUniqueConfigOutDirs } from './out-dir.js';
@@ -97,6 +97,30 @@ export async function main(): Promise<void> {
 }
 
 /**
+ * 比较两条 file URL 是否指向同一 CLI 入口。
+ *
+ * 必须先 `fileURLToPath` 再比真实路径：Windows 上 `import.meta.url` 可能是
+ * `file:///d:/...`、`file:///D%3A/...`、`file://localhost/D:/...`，
+ * 只比 URL pathname 会漏掉编码和反斜杠形态。
+ */
+export const sameCliFileUrl = (left: string, right: string): boolean => {
+  try {
+    return comparableCliPath(left) === comparableCliPath(right);
+  } catch {
+    return left === right;
+  }
+};
+
+const comparableCliPath = (fileUrl: string): string => {
+  const url = new URL(fileUrl);
+  if (url.protocol !== 'file:') return fileUrl;
+  // POSIX 上 fileURLToPath('file:///D:/...') 得到 `/D:/...`；Windows 上是 `D:\...`。
+  return fileURLToPath(url)
+    .replaceAll('\\', '/')
+    .replace(/^\/?([A-Za-z]):/u, (_match, letter: string) => `${letter.toLowerCase()}:`);
+};
+
+/**
  * 判断本模块是否作为 CLI 入口被直接执行。
  *
  * @remarks
@@ -108,7 +132,7 @@ export const isCliEntry = (importMetaUrl: string, argvEntry: string | undefined)
   if (argvEntry === undefined) return false;
   const entryPath = resolve(argvEntry);
   if (!existsSync(entryPath)) return false;
-  return importMetaUrl === pathToFileURL(realpathSync(entryPath)).href;
+  return sameCliFileUrl(importMetaUrl, pathToFileURL(realpathSync(entryPath)).href);
 };
 
 if (isCliEntry(import.meta.url, process.argv[1])) {

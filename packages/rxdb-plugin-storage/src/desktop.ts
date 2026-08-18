@@ -12,9 +12,10 @@
  */
 
 import {
-  DESKTOP_ADAPTER_NAME,
+  DESKTOP_HOST_ADAPTER_NAMES,
   DESKTOP_HOST_MAX_FILE_CHUNK_BYTES,
   DESKTOP_HOST_PROTOCOL_VERSION,
+  isDesktopHostAdapterName,
   resolveDesktopHostTransport,
   type DesktopHostFileEntry,
   type DesktopHostFileLockMode,
@@ -24,7 +25,7 @@ import {
   type DesktopHostFileStat,
   type DesktopHostTransport,
   type RxDBAdapterDesktopErrorCode
-} from '@aiao/rxdb-adapter-desktop';
+} from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { StorageBackendError, type StorageBackendErrorCode } from './errors.js';
 import { decodePhysicalName, encodePhysicalName } from './filesystem/physical-name.js';
 import type {
@@ -517,6 +518,11 @@ const assertReadResult = (result: DesktopHostFileReadResult): DesktopHostFileRea
  * 二者错配时**拒绝启用**而不是降级回 OPFS —— 降级会把「两个备份域」这个问题
  * 悄悄留下，而这正是 US-504 要消灭的东西。
  *
+ * 判据是**适配器名在册**，而不是某个具体的名字：Electron 与 Tauri 各有各的注册名
+ * （`sqlite-electron` / `sqlite-tauri`，见 US-207 E3 的分裂），但备份域这件事上两者同构——
+ * 文件与 metadata 都落在宿主的应用数据目录里。登记表在协议层，因此本插件不必为了读两个
+ * 字符串常量而依赖两个运行时适配器包。
+ *
  * @param options - 可选的传输层覆盖
  * @returns 可直接交给 `RxDBStoragePluginOptions.filesystem` 的工厂
  * @throws {@link StorageBackendError} 本地适配器不是桌面适配器时抛 `adapter_mismatch`
@@ -525,10 +531,10 @@ export const createDesktopStorageFilesystem = (
   options: DesktopStorageFilesystemOptions = {}
 ): StorageFilesystemFactory => {
   return (rootDir: string, context: StorageFilesystemContext): StorageFilesystem => {
-    if (context.localAdapterName !== DESKTOP_ADAPTER_NAME) {
+    if (!isDesktopHostAdapterName(context.localAdapterName)) {
       throw new StorageBackendError(
         'adapter_mismatch',
-        `desktop storage backend requires sync.local.adapter === '${DESKTOP_ADAPTER_NAME}', got '${String(context.localAdapterName)}'`
+        `desktop storage backend requires sync.local.adapter to be one of ${DESKTOP_HOST_ADAPTER_NAMES.join(' / ')}, got '${String(context.localAdapterName)}'`
       );
     }
 

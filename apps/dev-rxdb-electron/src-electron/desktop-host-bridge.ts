@@ -19,7 +19,7 @@ import {
   isDesktopHostFileRequestKind,
   type DesktopHostFileResponse,
   type DesktopHostResponse
-} from '@aiao/rxdb-adapter-desktop/host';
+} from '@aiao/rxdb-adapter-electron/host';
 import { createDesktopFileBridge, type DesktopFileBridge, type DesktopFileEventTarget } from './desktop-file-bridge.js';
 import {
   createDesktopSqliteBridge,

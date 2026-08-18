@@ -6,9 +6,19 @@ import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-tes
 import { checkOPFSAvailable } from '@aiao/utils';
 import { APP_BASE_HREF, isPlatformBrowser } from '@angular/common';
 import { inject, PLATFORM_ID } from '@angular/core';
+import { DesktopLaunch } from './desktop-launch.entity';
 import { selectWaSqliteBackend } from './wa-sqlite-backend';
 
 let rxdb: RxDB | null | undefined;
+
+/**
+ * 浏览器预览后端的逻辑库名（落在 WebView 的 OPFS/IDB 里）。
+ *
+ * @remarks
+ * 与其余三个 web demo 取同一个名字；桌面那份另叫 `desktop_demo`，理由见
+ * `setup_rxdb_desktop.ts` 的 {@link DESKTOP_DEMO_DB_NAME}。
+ */
+export const WEB_PREVIEW_DB_NAME = 'test_6';
 
 /**
  * 构建本 app 的 RxDB 单例（纯本地 wa-sqlite，无远端同步）。
@@ -28,9 +38,10 @@ export default () => {
 
   if (rxdb) return rxdb;
   rxdb = new RxDB({
-    dbName: 'test_6',
+    dbName: WEB_PREVIEW_DB_NAME,
     context: { userId: 'userId' },
-    entities: [Todo, MenuLarge, MenuSimple, FileNode, FileLarge],
+    // `DesktopLaunch` 两个后端都注册，理由见 `setup_rxdb_desktop.ts` 同一处。
+    entities: [Todo, MenuLarge, MenuSimple, FileNode, FileLarge, DesktopLaunch],
     // TAURI-04：这里原先还声明了 `remote: { adapter: 'supabase' }`，可全文件只
     // 注册了 `wa-sqlite` 一个适配器。声明会让 `remoteAdapter$` 去解析一个不存在的
     // 适配器名，谁订阅谁炸；`SyncType.None` 没人订阅把这条故障暂时掩住了。

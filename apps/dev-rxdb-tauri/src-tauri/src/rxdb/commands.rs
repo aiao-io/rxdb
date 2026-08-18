@@ -4,17 +4,18 @@
 //! 这是 `rxdb` 模块里唯一依赖 `tauri` 的文件——一致性测试用的 stdio 二进制复用其余全部模块，
 //! 只把这一层换成 stdin/stdout。
 
-use std::sync::Arc;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Weak};
 
 use serde_json::Value;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, State};
 
 use super::router::DesktopRouter;
 use super::session::HostOptions;
 
 /// 变更事件的事件名。
 ///
-/// 必须与 `@aiao/rxdb-adapter-desktop` 的 `TAURI_DESKTOP_CHANGE_EVENT` 逐字相同；
+/// 必须与 `@aiao/rxdb-adapter-tauri` 的 `TAURI_DESKTOP_CHANGE_EVENT` 逐字相同；
 /// 命令名同理，但它由 [`rxdb_desktop_request`] 的**函数名**决定
 /// （`generate_handler!` 取的是标识符），改名时两处一起改。
 pub const CHANGE_EVENT: &str = "rxdb-desktop-change";
@@ -27,25 +28,44 @@ pub const CHANGE_EVENT: &str = "rxdb-desktop-change";
 pub struct DesktopHost(Arc<DesktopRouter>);
 
 impl DesktopHost {
-    /// 在应用数据目录上建 host，变更事件走 `app.emit`。
+    /// 在给定的根目录上建 host，变更事件按会话归属定向投递。
     ///
-    /// 物理根目录取自 `app.path().app_data_dir()`——应用作用域，无需任何 `fs` 插件权限
-    /// （US-210 AC#1 / US-505 AC#1）。SQLite 库落在 `rxdb-data/`，文件存储落在
+    /// 生产路径上 `app_data_dir` 来自 `app.path().app_data_dir()`——应用作用域，无需任何
+    /// `fs` 插件权限（US-210 AC#1 / US-505 AC#1）。SQLite 库落在 `rxdb-data/`，文件存储落在
     /// `rxdb-files/`，两者同在这个目录之下，因而同属一个备份域（US-505 AC#4）。
-    pub fn new(app: &AppHandle) -> tauri::Result<Self> {
-        let app_data_dir = app.path().app_data_dir()?;
+    ///
+    /// # 为什么根目录是参数而不是自己去读
+    ///
+    /// 自检模式要把它换到测试给的临时目录（`selfcheck.rs`）。若在这里写成
+    /// `env::var(...).unwrap_or(app.path().app_data_dir()?)`，一个手滑的变量名就会让测试
+    /// 悄悄写进用户真实的应用数据目录——那是铁律禁掉的兜底形状。选择因此上提到唯一的调用点，
+    /// 在那里两个分支都是被显式选出来的，没有哪一个是另一个的退路。
+    ///
+    /// # 为什么是 `emit_to` 而不是 `emit`
+    ///
+    /// `emit` 广播给应用的每一个窗口，而每条变更事件里都带着 session id。那等于把所有
+    /// 会话的 id 公开给所有窗口。会话 id 不是凭证（[`DesktopRouter::handle_owned`] 现在会验主），
+    /// 但把它发给不相干的窗口本身就没有意义，只是徒增暴露面。收件人只能是开出这个会话的窗口。
+    ///
+    /// # 为什么是 `Arc::new_cyclic`
+    ///
+    /// 投递闭包要反查会话归属，而归属表在路由器里，路由器又要拿这个闭包才能构造。
+    /// 用 `Weak` 打破这个环：闭包只在路由器还活着时投递，路由器没了也就没有会话可通知。
+    /// 强引用会让路由器永远不被释放——它自己的 host 持有那个闭包。
+    pub fn new(app: &AppHandle, app_data_dir: PathBuf) -> Self {
         let emitter = app.clone();
-        Ok(Self(Arc::new(DesktopRouter::new(HostOptions {
-            app_data_dir,
-            deliver: Arc::new(move |message| {
-                // 事件发不出去意味着响应式查询永远不刷新，在 UI 上表现为「数据没变」
-                // ——所有故障形态里最难查的一种。这里没有可以回报错误的调用方，
-                // 至少要在日志里留下痕迹，不能静默吞掉。
-                if let Err(error) = emitter.emit(CHANGE_EVENT, message) {
-                    eprintln!("[rxdb-desktop] failed to emit {CHANGE_EVENT}: {error}");
-                }
-            }),
-        }))))
+        Self(Arc::new_cyclic(|router: &Weak<DesktopRouter>| {
+            let router = router.clone();
+            DesktopRouter::new(HostOptions {
+                app_data_dir,
+                deliver: Arc::new(move |message| deliver_change(&emitter, &router, &message)),
+            })
+        }))
+    }
+
+    /// host 实际建库所在的根目录，见 [`DesktopRouter::app_data_dir`]。
+    pub fn app_data_dir(&self) -> &Path {
+        self.0.app_data_dir()
     }
 
     /// 关闭两套宿主的全部会话，退出路径上调用。
@@ -66,6 +86,30 @@ impl DesktopHost {
     /// 而它看到的现象与死锁不可区分。
     pub fn close_window(&self, label: &str) {
         self.0.close_owner(label);
+    }
+}
+
+/// 把一条变更事件送到开出该会话的那个窗口。
+///
+/// 查不到收件人时**不广播**：那正是这里要避免的行为。会话属于 [`DesktopRouter::handle`]
+/// （一致性测试的 stdio 路径，没有窗口）或已经关掉时都会走到这一支，两种情况下都没有该收的人。
+///
+/// 事件发不出去意味着响应式查询永远不刷新，在 UI 上表现为「数据没变」——所有故障形态里
+/// 最难查的一种。这里没有可以回报错误的调用方，至少要在日志里留下痕迹，不能静默吞掉。
+fn deliver_change(emitter: &AppHandle, router: &Weak<DesktopRouter>, message: &Value) {
+    let Some(router) = router.upgrade() else {
+        return;
+    };
+    let Some(session_id) = message["sessionId"].as_str() else {
+        eprintln!("[rxdb-desktop] dropped a {CHANGE_EVENT} without a session id");
+        return;
+    };
+    let Some(owner) = router.session_owner(session_id) else {
+        eprintln!("[rxdb-desktop] dropped a {CHANGE_EVENT} for unowned session {session_id}");
+        return;
+    };
+    if let Err(error) = emitter.emit_to(owner.as_str(), CHANGE_EVENT, message) {
+        eprintln!("[rxdb-desktop] failed to emit {CHANGE_EVENT} to {owner}: {error}");
     }
 }
 
@@ -114,7 +158,7 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    fn test_host() -> (DesktopHost, std::path::PathBuf) {
+    fn test_host() -> (DesktopHost, PathBuf) {
         let root = std::env::temp_dir().join(format!("rxdb-commands-{}", uuid::Uuid::new_v4()));
         let router = DesktopRouter::new(HostOptions {
             app_data_dir: root.clone(),
@@ -128,6 +172,15 @@ mod tests {
     #[test]
     fn change_event_name_matches_the_renderer_contract() {
         assert_eq!(CHANGE_EVENT, "rxdb-desktop-change");
+    }
+
+    /// 自检报告里的 `appDataDir` 就取自这里，所以它必须报的是**构造时收到的那个目录**。
+    /// 这一条一旦退化（比如有人把它改回去自己读 `app.path()`），
+    /// `apps/dev-rxdb-tauri-e2e` 的目录断言会变成一句同义反复而照旧全绿。
+    #[test]
+    fn reports_the_app_data_dir_it_was_built_on() {
+        let (host, root) = test_host();
+        assert_eq!(host.app_data_dir(), root.as_path());
     }
 
     /// state 里托管的 host 与 renderer 直连的 host 是同一个东西：命令层不加工请求。

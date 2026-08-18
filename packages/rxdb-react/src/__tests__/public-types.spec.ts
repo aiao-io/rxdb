@@ -10,12 +10,15 @@ import {
   makeRxDBProvider,
   RxDBProvider,
   useRxDB,
+  useRxDBOptional,
   type ProviderProps,
   type RxDBProviderSet,
   type RxDBProviderType,
   type RxDBResource,
+  type RxDBSource,
   type UseOptions,
-  type UseRxDB
+  type UseRxDB,
+  type UseRxDBOptional
 } from '../index.js';
 
 interface QueryOptions {
@@ -34,10 +37,14 @@ describe('公开类型可具名消费（RRE-011）', () => {
   it('Provider 的公开类型可标注默认导出与自定义 provider 对', () => {
     const provider: RxDBProviderType<RxDB> = RxDBProvider;
     const reader: UseRxDB<RxDB> = useRxDB;
+    const optionalReader: UseRxDBOptional<RxDB> = useRxDBOptional;
     const factory: <T extends RxDB>() => RxDBProviderSet<T> = makeRxDBProvider;
-    const acceptProps = <T extends RxDB>(props: ProviderProps<T>): T => props.db;
+    // `db` 是 RxDBSource<T> 而非 T：实例、Promise、工厂三种形态都收（三端同一契约）。
+    const acceptProps = <T extends RxDB>(props: ProviderProps<T>): RxDBSource<T> => props.db;
 
-    expect([provider, reader, factory, acceptProps].every(value => typeof value === 'function')).toBe(true);
+    expect([provider, reader, optionalReader, factory, acceptProps].every(value => typeof value === 'function')).toBe(
+      true
+    );
   });
 
   it('RxDBResource 可作为调用方封装的具名返回类型', () => {

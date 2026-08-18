@@ -12,7 +12,7 @@ npm install @aiao/rxdb @aiao/rxdb-angular
 
 ### 提供 RxDB 实例
 
-使用 `provideRxDB` 在应用或模块级别提供 RxDB 实例。参数是**工厂函数**（不是实例），工厂在注入上下文中执行：
+使用 `provideRxDB` 在应用或模块级别提供 RxDB 实例。参数是 `RxDBSource` —— 实例、`Promise`，或返回二者之一的工厂；工厂在注入上下文中执行：
 
 ```typescript
 import { ApplicationConfig } from '@angular/core';
@@ -35,6 +35,34 @@ export const appConfig: ApplicationConfig = {
 ```
 
 组件里用 `inject(RxDB)` 取同一个实例；`useGet` / `useFind` 会自己注入，不必再包一层服务。
+
+`provideRxDB` 自带 app initializer，bootstrap 阶段就会执行工厂并等待数据库就绪，因此 `inject(RxDB)` 始终同步可用 —— 不需要在应用里再补一个「强制实例化」的初始化器。
+
+### 异步 source
+
+工厂可以是 async 的。桌面/浏览器分流常用这一形态：静态 `import` 会把桌面分支打进 web bundle，`await import()` 才不会。
+
+```typescript
+provideRxDB(async () => {
+  const { setupDesktop } = await import('./setup-desktop');
+  return setupDesktop();
+});
+```
+
+**初始化器永远不会 reject。** Angular 的 app initializer 一旦 reject 就会中止 bootstrap —— 窗口全白，为这种失败准备的应用内诊断面板反而被失败本身挡在门外。所以创建异常被留到读取时才抛，页面先渲染出来。
+
+读取分两条，区别只有「没就绪该怎么办」：
+
+```typescript
+import { useRxDB, useRxDBOptional } from '@aiao/rxdb-angular';
+
+const database = useRxDB(); // 等价于 inject(RxDB)：未就绪抛错，创建失败原样抛出创建异常
+const maybe = useRxDBOptional(); // 无 provider 或未就绪时返回 undefined，用于渲染 loading 态
+```
+
+### 生命周期所有权
+
+**provider 只销毁自己造的东西。** 传工厂或 `Promise`，实例由 provider 等来，注入器销毁时它负责 `disconnectAll()`；传已就绪的实例，它归调用方所有，provider 不碰 —— 否则一个模块级单例会被某个子注入器的销毁顺手断掉，而没有人会去重连。这条规则在 React / Vue 侧逐字相同。
 
 ## Hooks API
 

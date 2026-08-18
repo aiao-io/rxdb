@@ -146,12 +146,14 @@ describe('ELEC-10 file: 协议下的生产外壳', () => {
     expect(stripHtmlComments(read(file))).not.toMatch(/<base\b/);
   });
 
-  // `provideRxDB` 只是 useFactory，惰性；首页不注入 RxDB，工厂就永不执行，
-  // 状态卡会永久停在「连接中…」且零诊断信号（实测：无 worker、无请求、无报错）。
-  it('bootstrap 阶段强制实例化 RxDB', () => {
+  // ELEC-11：`provideRxDB` 现在自带 app initializer，bootstrap 阶段必然跑到工厂 ——
+  // 「初始化器确实实例化了数据库」由 packages/rxdb-angular 的 rxdb.provider.spec.ts 锁定。
+  // 这里只钉两件 demo 侧的事：source 确实交给了 provideRxDB（漏掉的话状态卡会永久停在
+  // 「连接中…」且零诊断信号：无 worker、无请求、无报错），以及别再手写那一刀补偿式注入。
+  it('RxDB 由 provideRxDB 在 bootstrap 阶段接管', () => {
     const source = read('src/app/app.config.ts');
-    expect(source).toContain('provideAppInitializer');
-    expect(source).toMatch(/provideAppInitializer\(\(\) => \{\s*\n\s*inject\(RxDB\);/);
+    expect(source).toMatch(/provideRxDB\(setup_rxdb\)/);
+    expect(source).not.toMatch(/provideAppInitializer\(\(\)\s*=>\s*\{\s*\n\s*inject\(RxDB\);/);
   });
 
   // wasmPath 曾用 APP_BASE_HREF 拼；该 token 现在固定空串，拼出来是裸相对路径，
@@ -196,8 +198,8 @@ describe('US-207 桌面 SQLite 在渲染进程一侧的接线', () => {
   // 写入落在内存、重启即失，而 US-207 的全部意义正是「别再只存在于 WebView 里」。
   it('renderer 只用包根入口，不碰 /host 子路径', () => {
     const source = read('src/app/services/desktop-database.service.ts');
-    expect(source).toContain("from '@aiao/rxdb-adapter-desktop'");
-    expect(source).not.toContain('@aiao/rxdb-adapter-desktop/host');
+    expect(source).toContain("from '@aiao/rxdb-adapter-electron'");
+    expect(source).not.toContain('@aiao/rxdb-adapter-electron/host');
   });
 
   // 与 ELEC-11 同一个坑的另一种形态：`providedIn: 'root'` 的服务同样是惰性的，
@@ -239,7 +241,7 @@ describe('US-504 本地文件存储在渲染进程一侧的接线', () => {
   it.each(['src/app/services/desktop-database.service.ts', 'src/app/pages/storage/storage.page.ts'])(
     '%s 不碰适配器的 /host 子路径',
     file => {
-      expect(read(file)).not.toContain('@aiao/rxdb-adapter-desktop/host');
+      expect(read(file)).not.toContain('@aiao/rxdb-adapter-electron/host');
     }
   );
 
