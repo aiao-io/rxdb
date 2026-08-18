@@ -61,7 +61,31 @@ beforeEach(() => {
 afterEach(() => {
   host.closeAll();
   rmSync(workspace, { recursive: true, force: true });
+  // captureMicrotaskThrows 换掉了全局 queueMicrotask；本包没开 restoreMocks，得自己还回去。
+  vi.restoreAllMocks();
 });
+
+/**
+ * 截下「丢进微任务里重抛」的那些异常。
+ *
+ * @remarks
+ * 变更派发路径上的异常不再抛回传输层，而是原样丢进微任务落成一条 uncaught error。
+ * 测试里没法直接观测 uncaught error，就把 `queueMicrotask` 换成同步执行并收集抛出物 ——
+ * 断言的仍是「错误没有被吞掉」，只是换了个观测点。
+ *
+ * @returns 取回目前已截下的异常
+ */
+const captureMicrotaskThrows = (): (() => unknown[]) => {
+  const raised: unknown[] = [];
+  vi.spyOn(globalThis, 'queueMicrotask').mockImplementation(task => {
+    try {
+      task();
+    } catch (error) {
+      raised.push(error);
+    }
+  });
+  return () => raised;
+};
 
 describe('DesktopSqliteClient.connect', () => {
   it('reports the logical location the host resolved', async () => {
@@ -299,16 +323,46 @@ describe('DesktopSqliteClient change events', () => {
     });
   });
 
-  // 半个事件流进 RxDB 变更管线会让本地缓存与库里的真实状态悄悄分叉，宁可炸出来
-  it('refuses a malformed change message instead of dispatching half of it', async () => {
+  /**
+   * 半个事件流进 RxDB 变更管线会让本地缓存与库里的真实状态悄悄分叉，宁可炸出来。
+   *
+   * @remarks
+   * 但「炸」不能炸在传输层的派发栈上。`ipcRenderer.on` 是**同步扇出**：异常一路抛回
+   * Electron 自己的 IPC 派发循环，这条消息在同一条通道上排在后面的监听者就整个收不到，
+   * 表现为「某个库的响应式查询不刷新」—— 所有故障形态里最难查的一种。
+   *
+   * 所以改成丢进微任务原样重抛（落成 uncaught error）：不吞、不改语义，只是不由传输层来接。
+   */
+  it('refuses a malformed change message without throwing into the transport', async () => {
     const client = await DesktopSqliteClient.connect(transport, sqliteStorage);
-    await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, () => undefined);
-    const deliver = (): void => {
-      for (const listener of listeners) {
-        listener({ kind: 'change', sessionId: client.sessionId, event: { type: 99 } });
-      }
+    const onInsert = vi.fn();
+    await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, onInsert);
+    const raised = captureMicrotaskThrows();
+
+    const deliver = (message: unknown): void => {
+      for (const listener of listeners) listener(message);
     };
-    expect(deliver).toThrowError(/protocol_violation/);
+    deliver({ kind: 'change', sessionId: client.sessionId, event: { type: 99 } });
+
+    // 半个事件没有进管线，异常也没被吞。
+    expect(onInsert).not.toHaveBeenCalled();
+    expect(raised()).toHaveLength(1);
+    expect(raised()[0]).toBeInstanceOf(RxDBAdapterDesktopError);
+    expect((raised()[0] as RxDBAdapterDesktopError).code).toBe('protocol_violation');
+
+    // 通道没被这条坏消息带塌：紧接着的合法变更照常送达。
+    deliver({
+      kind: 'change',
+      sessionId: client.sessionId,
+      event: {
+        type: SQLiteChangeType.SQLITE_INSERT,
+        dbName: 'main',
+        tableName: 'rxdb$rxdb_change',
+        rowIds: [1n],
+        recordAt: new Date(0)
+      }
+    });
+    expect(onInsert).toHaveBeenCalledOnce();
   });
 
   it('ignores messages that are not change notifications', async () => {

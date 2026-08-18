@@ -251,11 +251,90 @@ pglite 拒绝而非静默替换、adapter 不匹配硬失败不降级 OPFS、自
 - [x] 三端对称由 `tri-framework-provider.spec.ts` 编译期锁住
 - [x] 协议双源由 conformance 断言 Rust 源文件常量
 - [ ] squash / rebase，清掉 40 个噪声提交
-- [ ] 🟠 #1 `commitWrite` fd 泄漏
-- [ ] 🟠 #2 `#onMessage` 抛出 Electron 传输回调
-- [ ] 🟠 #3 React sync 工厂 + StrictMode 断掉共享实例
-- [ ] 🟠 #4–#7（数组字节预算、`BigInt` canonical、`beginWrite` TOCTOU、审计吞 tsc 诊断）
+- [x] 🟠 #1 `commitWrite` fd 泄漏 —— 失败路径补 `handle.close()`，新增 `electron-file-host-faults.spec.ts` 注入 `sync()` 故障
+- [x] 🟠 #2 `#onMessage` 抛出 Electron 传输回调 —— 改走 `reportOutOfBand`（`queueMicrotask` 重抛），逐 handler 包 try/catch，与 Tauri `deliver` 对称
+- [x] 🟠 #3 React sync 工厂 + StrictMode 断掉共享实例 —— 引入 `RxDBLease`，断开由「还有没有挂载持有」决定；顺带消掉工厂被调用两次
+- [x] 🟠 #5 `BigInt` canonical —— TS 侧 `CANONICAL_BIGINT`、Rust 侧 `is_canonical_bigint`，两端拒同一组写法
+- [x] 🟠 #6 `beginWrite` TOCTOU —— 额度检查与占位落进同一段同步代码（`reservations`）
+- [x] 🟠 #7 审计吞 tsc 诊断 —— `run()` 失败路径转发 `error.stdout` / `error.stderr` 后再抛
+- [x] 🟠 #4 数组字节预算 —— **误报**，见下
+- [x] 破坏性 / 行为变化清单（versioning-policy §5），见下
 - [ ] E6：`npm deprecate @aiao/rxdb-adapter-desktop`（对外不可逆，需人工确认）
 - [ ] 文档写明 Tauri npm 包尚未包含可发布 Rust host
 - [ ] 🟡 项（`dispatch` 穷尽、`close` 记账从应答取 id、死 external、`pending` 文档、无关变更拆分）可另开
 - [ ] PR 合并，`status: Resolved`
+
+### 🟠 #4 复核结论：误报，但同处挖出一个真缺陷
+
+评审称 `desktop-host-protocol.ts` 把 64 MiB 当成了数组 blob 的**元素个数**上限。实际不是：
+`SQLiteCompatibleType` 里的数组形态 blob 一个元素就是一个字节，host 侧的绑定路径是
+`Uint8Array.from(binding)`（`node-sqlite-engine.ts:109`），因此 `length` 与 `Uint8Array` 分支的
+`byteLength` 量纲相同，上限本就是字节数。未改上限，只在原处加注释说明量纲，避免日后被「修正」。
+
+同一段代码上的真问题是另一件事：原校验只查 `typeof item === 'number'`，而 `Uint8Array.from`
+对越界 / 小数 / NaN 一律**静默**按模 256 折回 —— `[300, -1, 1.5]` 会落库成 `[44, 255, 1]` 并报告成功。
+已收严为 `isByteArray`（整数且 0..=255），信任边界不再替调用方改写字节。
+
+## 破坏性 / 行为变化清单
+
+按 [versioning-policy §5](../versioning-policy.md) 给出本分支合入时该打的级别。**判据一律是「相对 `origin/main`
+已发布的表面」，不是「相对分支上某个中间提交」** —— 分支内加了又删的东西对使用者不可见，写进 release note
+只会制造不存在的迁移负担。基线口径：`git merge-base HEAD origin/main` = `91cb5a1`。
+
+### BREAKING CHANGE（主版本）
+
+**`@aiao/rxdb-adapter-desktop@0.0.25` 被拆分下线**，由 `@aiao/rxdb-adapter-electron` 与
+`@aiao/rxdb-adapter-tauri` 取代；`packages/rxdb-adapter-desktop/` 已从工作区移除，
+`requirements/api-baseline/rxdb-adapter-desktop.json` 随之改名到 `rxdb-adapter-tauri.json`。
+
+迁移：按宿主二选一换依赖与 import。两个新包的适配器选项、错误码与所有权规则与原包同源，
+差异集中在 host 侧（Electron 走 `node:sqlite` + IPC，Tauri 走 Rust host + `invoke`）。
+
+> 注意这一条与 §3 废弃周期的常规路径不同：原包**没有**经过「先标 `@deprecated` 保留一个次版本」
+> 就直接移除。补偿手段是 registry 侧的 `npm deprecate`（E6），它把替代方案推到 `npm install` 的输出上。
+> **该命令对外不可逆，仍等人工确认，未执行。**
+
+### feat（次版本，纯加法）
+
+| 包                               | 变化                                                                                        |
+| :------------------------------- | :------------------------------------------------------------------------------------------ |
+| `@aiao/rxdb-adapter-electron`    | 新包                                                                                        |
+| `@aiao/rxdb-adapter-tauri`       | 新包（npm 侧只含 transport，Rust host 不经 npm 分发）                                       |
+| `@aiao/rxdb-adapter-sqlite-core` | 新增子路径导出 `./desktop-host`；主入口未变                                                 |
+| `@aiao/rxdb-angular`             | `provideRxDB` 入参放宽为 `RxDBSource`；新增 `useRxDB` / `useRxDBOptional` / `RxDBSource`    |
+| `@aiao/rxdb-react`               | `db` prop 放宽为 `RxDBSource<T>`；新增 `useRxDBOptional` / `RxDBSource` / `UseRxDBOptional` |
+| `@aiao/rxdb-vue`                 | `RxDBInput` 放宽为 `RxDBSource` 超集；新增 `useRxDBOptional` / `RxDBSource`                 |
+
+三端的入参都是**放宽**（`() => RxDB` 与裸实例仍是新联合类型的成员），现存调用点无一需要改写。
+`@aiao/rxdb` 的公开入口与 `main` **逐字节相同** —— `selectLocalBackend` 那一组四个导出是分支内
+加了又撤回的，从未随 `main` 发布，不构成任何迁移。
+
+### 行为变化（不破坏类型，但要写进 release note）
+
+面向用户的版本已落在 [website/docs/migration/frameworks.md](../../website/docs/migration/frameworks.md)
+的「升级绑定包」一节（第 1 / 2 / 4 条）；第 3 条由该文件「三框架 API 对照」表的「谁负责断开」一行承载。
+
+1. **Angular：工厂的调用时机从惰性提前到 bootstrap 前。** 改动前 `() => RxDB` 在首次
+   `inject(RxDB)` 时才执行；现在 `provideRxDB` 一并注册 `provideAppInitializer`，工厂在
+   bootstrap **之前**执行。`inject(RxDB)` 的同步性不变，可观测差异只在「建库这件事发生得更早」。
+   另：`provideAppInitializer` 只在**根**环境注入器生效，把 `provideRxDB` 挂到路由级 providers
+   上且传异步 source 时没有人替你等，`inject(RxDB)` 会抛 `RxDB is not ready yet`。
+2. **React：「有 Provider 但 `db` 为空」的报错文案变了。** 由
+   `No RxDB instance found, use RxDBProvider to provide one` 改为
+   `RxDBProvider received no database: …` —— 旧文案把人指回 Provider，而他们正用着 Provider。
+   `db` 本就是必填，只有绕过类型检查才走得到这条；影响面是断言了旧文案的测试。
+3. **三端：provider 现在会断开自己造出来的实例。** 传工厂 / Promise → 销毁时
+   `disconnectAll()`；传已就绪实例或 Vue 的 `Ref` → 不碰。改动前 React / Vue 从不断开，
+   但它们那时的 `db` 类型也压根不接受工厂，所以**现存用法无一受影响**；Angular 改动前后
+   都断开工厂产物，语义不变。
+4. **React：`disconnectAll()` 推迟一个微任务。** `StrictMode` 的「卸载 → 再挂载」落在同一批
+   同步提交里，租约要等过一拍才知道有没有人接手（见 `rxdb-react.tsx` 的 `closeLease`）。
+   影响面同样是测试：`unmount()` 之后需 `await waitFor(...)` 才观察得到断开。
+
+### 不进 release note 的（记在这里免得被重新捡回去）
+
+🟠 #2（`#onMessage` 不再同步抛进传输层）、#5（`$bigint` 收严为 canonical 十进制，两端同时拒
+`+1` / `007` / `-0` / `0x10` / 空白 / 空串）、#4 旁边的 `isByteArray` 收严，都落在
+`packages/rxdb-adapter-sqlite-core/src/desktop/`、`rxdb-adapter-electron`、`rxdb-adapter-tauri` ——
+这三处在 `main` 上**都不存在**，属于本分支的新代码。它们是「新包首发时的正确行为」，
+不是对已发布行为的收紧，写成迁移说明会误导使用者去找一段他们从未写过的代码。

@@ -1,5 +1,5 @@
 import { RxDB } from '@aiao/rxdb';
-import { createContext, useContext, useEffect, useMemo, useState, type JSX, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react';
 
 /**
  * `RxDBProvider` 接受的数据库形态：实例、Promise，或返回二者之一的工厂。
@@ -103,6 +103,66 @@ const isDeferred = <T extends RxDB>(source: RxDBSource<T>): boolean =>
 /** 尚未解析出结果的初始态；共享同一个引用，`setState` 回到它时 React 会跳过重渲染。 */
 const UNRESOLVED = { db: undefined, failure: undefined } as const;
 
+const shutdown = (database: RxDB): void => {
+  void database.disconnectAll().catch(error => console.error('RxDB shutdown failed', error));
+};
+
+/**
+ * 一次 source 解析的**租约**：解析只发生一次，断不断开取决于「还有没有挂载持有它」。
+ *
+ * @remarks
+ * 把断开直接挂在 effect 清理上是不够的。`StrictMode` 的「挂载 → 卸载 → 再挂载」会把第一次
+ * 生命周期整个丢弃，而 provider 判所有权靠的是 source 的**形状**（工厂 / Promise），
+ * 看不出 `db={() => sharedDb}` 这种工厂里其实什么都没造 —— 于是被丢弃的那次清理断开了
+ * 调用方的模块级单例，第二次挂载拿到的是一个已经断掉、且没有人会重连的库。
+ *
+ * 租约把判据从「这次 effect 结束了吗」换成「还有挂载持有它吗」，两个症状一并消失：
+ * 单例不再被误断，真工厂也不再被调用两次（开发期少建一整套表）。
+ */
+interface RxDBLease<T extends RxDB> {
+  /** 建立本租约的 source；换了 source 就得换租约。 */
+  readonly source: RxDBSource<T>;
+  /** source 的唯一一次解析。 */
+  readonly resolved: Promise<T>;
+  /** 当前是否有挂载持有它。 */
+  held: boolean;
+  /** 已经断开，不可再被接手。 */
+  closed: boolean;
+}
+
+/** 租约存放处。每个 Provider 各持一份：两棵子树传同一个工厂时仍各建各的库，与改动前一致。 */
+type RxDBLeaseSlot<T extends RxDB> = { current: RxDBLease<T> | undefined };
+
+const openLease = <T extends RxDB>(slot: RxDBLeaseSlot<T>, source: RxDBSource<T>): RxDBLease<T> => {
+  const existing = slot.current;
+  // 同一个 source 的租约还没关掉：接手它，不再解析第二次。
+  if (existing !== undefined && existing.source === source && !existing.closed) {
+    existing.held = true;
+    return existing;
+  }
+  const lease: RxDBLease<T> = {
+    source,
+    held: true,
+    closed: false,
+    resolved: Promise.resolve(typeof source === 'function' ? source() : source)
+  };
+  slot.current = lease;
+  return lease;
+};
+
+const closeLease = <T extends RxDB>(lease: RxDBLease<T>): void => {
+  lease.held = false;
+  // 推迟一个微任务再决定：`StrictMode` 的「卸载 → 再挂载」落在同一批同步提交里，
+  // 第二次挂载会赶在这之前把 `held` 置回 true。真正的卸载没有人来接，那时才断开。
+  queueMicrotask(() => {
+    if (lease.held || lease.closed) return;
+    lease.closed = true;
+    // 还没解析完也照挂：实例到货时已经没有挂载在等它，仍旧该由本 provider 收掉。
+    // 创建失败的那一路由 `failure` 槽位负责报告，这里只要别炸。
+    void lease.resolved.then(shutdown, () => undefined);
+  });
+};
+
 /**
  * 把 source 解析成槽位，并按所有权决定要不要在卸载时断开。
  *
@@ -113,6 +173,8 @@ const UNRESOLVED = { db: undefined, failure: undefined } as const;
  *
  * 后半条不是洁癖，是 `StrictMode` 下的正确性：开发期的双挂载会跑一次「挂载 → 卸载 → 挂载」，
  * 若对调用方传进来的模块级单例执行断开，第二次挂载拿到的就是一个已经断掉、且没有人会重连的库。
+ * 「传进来的是工厂」这一半同样会踩到它 —— `() => sharedDb` 从形状上看不出没造东西 ——
+ * 因此解析与断开都走 {@link RxDBLease}，由「还有没有挂载持有」决定，而不是由某一次 effect 决定。
  *
  * 已就绪的实例走同步路径（首帧即可读），工厂与 Promise 走 effect —— 后者首帧读到 `undefined`，
  * 这正是 {@link useRxDBOptional} 要表达的 loading 态。
@@ -121,22 +183,17 @@ const useResolvedRxDB = <T extends RxDB>(source: RxDBSource<T>): RxDBSlot<T> => 
   const pending = isDeferred(source);
   const ready = pending ? undefined : (source as T | undefined);
   const [state, setState] = useState<{ readonly db: T | undefined; readonly failure: unknown }>(UNRESOLVED);
+  const slot = useRef<RxDBLease<T> | undefined>(undefined);
 
   useEffect(() => {
     if (!pending) return;
 
+    const lease = openLease(slot, source);
     let disposed = false;
-    let owned: T | undefined;
-    const shutdown = (database: T): void => {
-      void database.disconnectAll().catch(error => console.error('RxDB shutdown failed', error));
-    };
 
-    void Promise.resolve(typeof source === 'function' ? source() : source).then(
+    void lease.resolved.then(
       database => {
-        owned = database;
-        // 已经卸载了才 resolve：实例仍然是本 Provider 造的，仍要负责断开。
-        if (disposed) shutdown(database);
-        else setState({ db: database, failure: undefined });
+        if (!disposed) setState({ db: database, failure: undefined });
       },
       failure => {
         if (!disposed) setState({ db: undefined, failure });
@@ -146,7 +203,7 @@ const useResolvedRxDB = <T extends RxDB>(source: RxDBSource<T>): RxDBSlot<T> => 
     return () => {
       disposed = true;
       setState(UNRESOLVED);
-      if (owned !== undefined) shutdown(owned);
+      closeLease(lease);
     };
   }, [source, pending]);
 

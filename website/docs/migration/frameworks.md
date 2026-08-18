@@ -62,6 +62,29 @@ const { value: todos, isLoading } = useFind(Todo, {
 </template>
 ```
 
+## 升级绑定包：`provideRxDB` / `RxDBProvider` 的行为变化
+
+三端的入参都是**放宽**——`() => RxDB` 与已就绪实例仍是 `RxDBSource` 的成员，现存调用点无需改写。
+但有两处**行为**变了，升级时值得看一眼：
+
+**Angular：工厂的调用时机提前到 bootstrap 之前。** 从前 `provideRxDB(() => setup())` 里的工厂在
+首次 `inject(RxDB)` 时才执行；现在 `provideRxDB` 会一并注册一个 app initializer，工厂在 bootstrap
+**之前**执行。`inject(RxDB)` 依旧是同步的，差异只在「建库这件事发生得更早」——如果你依赖它推迟到
+某个组件首次注入（例如想等某个运行时配置就位），把那段等待搬进工厂本身。
+
+另外 app initializer 只在**根**环境注入器生效。把 `provideRxDB` 挂在路由级 `providers` 上且传异步
+source 时没有人替你等，`inject(RxDB)` 会抛 `RxDB is not ready yet`；这种场景改用
+`useRxDBOptional()` 自行渲染 loading 态。
+
+**React：「有 Provider 但 `db` 为空」的报错文案变了。**
+`No RxDB instance found, use RxDBProvider to provide one` 改为 `RxDBProvider received no database: …`
+——旧文案把人指回 Provider，而他们正用着 Provider。`db` 一直是必填项，只有绕过类型检查才走得到这条，
+所以影响面通常只有断言了旧文案的测试。
+
+**React：`disconnectAll()` 推迟一个微任务。** provider 造出来的实例在卸载后延后一拍才断开，
+这样 `StrictMode` 的「卸载 → 立刻重新挂载」不会误伤实例。测试里 `unmount()` 之后需要
+`await waitFor(...)` 才观察得到断开。
+
 ## 升级框架主版本
 
 - 框架绑定通过 `peerDependencies` 声明框架版本范围（见[兼容矩阵](../compatibility.md)）。

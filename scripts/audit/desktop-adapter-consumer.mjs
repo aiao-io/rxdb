@@ -101,14 +101,32 @@ const RENDERER_CALLABLE_EXPORTS = [
   'resolveDesktopHostTransport'
 ];
 
+/**
+ * 跑一条子命令；失败时**一定**把两个流都转出去。
+ *
+ * @remarks
+ * `execFile` 的拒绝理由只有一行 `Command failed: <cmd>` 外加 stderr，而 `tsc` 把诊断写在
+ * **stdout** 上——不显式转发的话，这道门禁在 CI 上失败时只留下一行「命令失败了」，
+ * 具体哪个导出、哪种解析模式炸的全部丢失，而这正是本脚本存在的全部意义。
+ *
+ * 失败路径不看 `forwardOutput`：那个开关是用来压掉 `pnpm pack` 成功时的正常噪声的，
+ * 而失败时的输出恰恰是唯一的线索。
+ */
 const run = async (command, args, cwd, forwardOutput = true) => {
-  const { stdout, stderr } = await execFileAsync(command, args, {
-    cwd,
-    maxBuffer: 16 * 1024 * 1024
-  });
-  if (forwardOutput) {
-    process.stdout.write(stdout);
-    process.stderr.write(stderr);
+  try {
+    const { stdout, stderr } = await execFileAsync(command, args, {
+      cwd,
+      maxBuffer: 16 * 1024 * 1024
+    });
+    if (forwardOutput) {
+      process.stdout.write(stdout);
+      process.stderr.write(stderr);
+    }
+  } catch (error) {
+    // 进程根本没起来（ENOENT）时这两个字段是 undefined，与「起来了但没输出」一样按空串处理。
+    process.stdout.write(error.stdout ?? '');
+    process.stderr.write(error.stderr ?? '');
+    throw error;
   }
 };
 
