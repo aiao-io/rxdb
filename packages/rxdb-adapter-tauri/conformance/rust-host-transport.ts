@@ -4,8 +4,8 @@
  * @remarks
  * 一致性测试要证明的是「**Rust 引擎**与 Electron / wasm 后端行为一致」，所以被测对象
  * 必须是真的 Rust 进程，不能是 in-process 的替身。但 `tauri::App` 需要一个窗口和事件循环，
- * 在 Vitest 里跑不起来——于是走 `src-tauri/src/bin/rxdb_host_stdio.rs`：同一份
- * `rxdb::session::Host`，只是把 `invoke` 换成了 stdin、把 `emit` 换成了 stdout。
+ * 在 Vitest 里跑不起来——于是走 `rust/src/bin/rxdb_host_stdio.rs`：同一份
+ * `aiao_rxdb_tauri::session::Host`，只是把 `invoke` 换成了 stdin、把 `emit` 换成了 stdout。
  *
  * 换掉的只有最外层那根管子，且**连传输层都不换**：本模块产出的 `invoke` / `listen`
  * 直接喂给包里的 `createTauriHostTransport`，因此标签编解码、事件扇出、退订这些
@@ -14,11 +14,11 @@
  * @module conformance/rust-host-transport
  */
 
-import { createTauriHostTransport, type DesktopHostTransport } from '@aiao/rxdb-adapter-tauri';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { platform, env as processEnv } from 'node:process';
+import { createTauriHostTransport, type DesktopHostTransport } from '../src/index.js';
 
 /**
  * 测试宿主二进制的位置，由 Nx 的 `build-test-host` target 产出。
@@ -30,7 +30,7 @@ import { platform, env as processEnv } from 'node:process';
 const HOST_BINARY = resolve(
   import.meta.dirname,
   '..',
-  'src-tauri',
+  'rust',
   'target',
   'debug',
   `rxdb_host_stdio${platform === 'win32' ? '.exe' : ''}`
@@ -57,7 +57,7 @@ const requireBinary = (): string => {
   if (existsSync(HOST_BINARY)) return HOST_BINARY;
   throw new Error(
     `the conformance host binary is missing at ${HOST_BINARY}; ` +
-      `run \`pnpm nx run dev-rxdb-tauri:build-test-host\` (the test-conformance target does this for you)`
+      `run \`pnpm nx run rxdb-adapter-tauri:build-test-host\` (the test-conformance target does this for you)`
   );
 };
 
@@ -66,7 +66,7 @@ const requireBinary = (): string => {
  *
  * @param root - 数据库根目录，宿主会在其下建 `rxdb-data/`
  * @param env - 追加到宿主进程的环境变量，用于打开宿主自己的测试开关
- *   （目前只有 `RXDB_HOST_STDIO_PROTOCOL_VERSION`，见 `src-tauri/src/bin/rxdb_host_stdio.rs`）。
+ *   （目前只有 `RXDB_HOST_STDIO_PROTOCOL_VERSION`，见 `rust/src/bin/rxdb_host_stdio.rs`）。
  *   省略即完全继承当前进程的环境。
  * @returns 进程句柄与两个 Tauri API 替身
  */
@@ -187,7 +187,7 @@ export function createRustHostTransport(
 }
 
 /**
- * 逻辑库名 → 物理文件路径，与 `src-tauri/src/rxdb/paths.rs` 的 `DATABASE_DIRECTORY` 保持一致。
+ * 逻辑库名 → 物理文件路径，与 `rust/src/paths.rs` 的 `DATABASE_DIRECTORY` 保持一致。
  *
  * @param root - 数据库根目录
  * @param databaseName - 应用作用域内的逻辑库名

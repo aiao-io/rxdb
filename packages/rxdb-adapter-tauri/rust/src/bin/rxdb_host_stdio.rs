@@ -45,8 +45,8 @@ use std::io::{BufRead, Write};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
-use dev_rxdb_tauri_lib::rxdb::router::DesktopRouter;
-use dev_rxdb_tauri_lib::rxdb::session::HostOptions;
+use aiao_rxdb_tauri::router::DesktopRouter;
+use aiao_rxdb_tauri::session::HostOptions;
 use serde_json::{json, Value};
 
 /// stdout 的独占写入口。

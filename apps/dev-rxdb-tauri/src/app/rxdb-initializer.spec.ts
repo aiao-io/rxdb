@@ -110,9 +110,7 @@ describe('startLocalDatabase', () => {
     await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
     expect(context.order).toEqual(['open', 'report']);
     expect(context.markFailed).toHaveBeenCalledWith(failure);
-    expect(context.reports).toEqual([
-      { status: 'failed', message: 'Failed to fetch dynamically imported module' }
-    ]);
+    expect(context.reports).toEqual([{ status: 'failed', message: 'Failed to fetch dynamically imported module' }]);
   });
 
   /**

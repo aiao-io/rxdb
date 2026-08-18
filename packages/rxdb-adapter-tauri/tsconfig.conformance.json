@@ -1,6 +1,6 @@
 {
   // US-210：Rust 宿主一致性套件。与 tsconfig.spec.json 分开，因为它跑在 node 环境、
-  // 不经过 Angular 编译器，也不需要 `src/test-setup.ts`。
+  // 要 `spawn` 一个 Rust 二进制，而 spec 那份只跑纯 renderer 的单测。
   "compilerOptions": {
     "emitDeclarationOnly": false,
     "noEmit": true,
@@ -14,25 +14,25 @@
   "include": ["vitest.conformance.mts", "conformance/**/*.ts"],
   "references": [
     {
-      "path": "../../packages/rxdb/tsconfig.lib.json"
+      "path": "./tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-test/tsconfig.lib.json"
+      "path": "../rxdb/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-adapter-tauri/tsconfig.lib.json"
+      "path": "../rxdb-test/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json"
+      "path": "../rxdb-adapter-sqlite-core/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-adapter-encrypted/tsconfig.lib.json"
+      "path": "../rxdb-adapter-encrypted/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-plugin-storage/tsconfig.lib.json"
+      "path": "../rxdb-plugin-storage/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/utils/tsconfig.lib.json"
+      "path": "../utils/tsconfig.lib.json"
     }
   ]
 }

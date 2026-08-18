@@ -233,13 +233,18 @@ describe('US-207 桌面 SQLite 在渲染进程一侧的接线', () => {
   // 真正危险的是被某个 polyfill 接住的情形 —— 那就成了一份跑在渲染进程里的空壳库，
   // 写入落在内存、重启即失，而 US-207 的全部意义正是「别再只存在于 WebView 里」。
   it.each(['src/app/setup_rxdb_desktop.ts', 'src/app/services/desktop-environment.ts'])(
-    '%s 只用包根入口，不碰 /host 子路径',
+    '%s 不碰 /host 子路径',
     file => {
-      const source = read(file);
-      expect(source).toContain("from '@aiao/rxdb-adapter-electron'");
-      expect(source).not.toContain('@aiao/rxdb-adapter-electron/host');
+      expect(read(file)).not.toContain('@aiao/rxdb-adapter-electron/host');
     }
   );
+
+  // 只有建库模块该用包根入口。它经由动态 `import()` 落在自己的 chunk 里，
+  // 整个 barrel 跟进来无妨 —— 而 `desktop-environment.ts` 在主 chunk 里，
+  // US-207 E11 起它连包根都不 import（键名改抄字面量，由单测钉住；理由见那边的 TSDoc）。
+  it('setup_rxdb_desktop.ts 走包根入口取适配器', () => {
+    expect(read('src/app/setup_rxdb_desktop.ts')).toContain("from '@aiao/rxdb-adapter-electron'");
+  });
 
   // 与 ELEC-11 同一个坑的另一种形态：`providedIn: 'root'` 的服务同样是惰性的，
   // 没有组件注入它就永远不构造 —— 卡片停在「连接中…」，且没有 worker、没有请求、没有报错。
@@ -253,12 +258,9 @@ describe('US-207 桌面 SQLite 在渲染进程一侧的接线', () => {
   // AC#8 的打包 e2e 靠这几个 testid 断言「重启后计数 +1」，E9 还靠 `rxdb-backend` 断言
   // 选中的确实是桌面后端。改名不会让 e2e 变红，只会让它在等待选择器时超时 ——
   // 排查成本远高于这条断言。（合并成一张卡之前它们叫 `desktop-*`。）
-  it.each(['rxdb-status', 'rxdb-error', 'rxdb-launch-count', 'rxdb-backend', 'rxdb-db-name'])(
-    '首页暴露 %s',
-    testId => {
-      expect(read('src/app/pages/home/home.page.html')).toContain(`data-testid="${testId}"`);
-    }
-  );
+  it.each(['rxdb-status', 'rxdb-error', 'rxdb-launch-count', 'rxdb-backend', 'rxdb-db-name'])('首页暴露 %s', testId => {
+    expect(read('src/app/pages/home/home.page.html')).toContain(`data-testid="${testId}"`);
+  });
 
   // E9：后端名必须从选中的候选读出，而不是模板里另写一遍字面量 ——
   // 否则「卡片写着 A、数据落在 B」这种自相矛盾的显示看不出来，e2e 也就失去了判据。

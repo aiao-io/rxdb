@@ -30,7 +30,7 @@ import { assertDesktopSqliteStorage, type DesktopSqliteFileStorage, type Desktop
  * 继续跑会产生难以定位的形状错误，因此直接拒绝连接。
  *
  * Tauri 宿主是个例外：它活在 Rust 里，版本号只能手抄第二份
- * （`apps/dev-rxdb-tauri/src-tauri/src/rxdb/protocol.rs` 的 `PROTOCOL_VERSION`）。
+ * （`packages/rxdb-adapter-tauri/rust/src/protocol.rs` 的 `PROTOCOL_VERSION`）。
  * 两个常量之间唯一的机械联系是一致性套件的 `conformance/protocol-handshake.spec.ts`，
  * 它拿真进程报上来的数字与本常量比对；改这个值时那条用例会红。
  */
@@ -800,7 +800,7 @@ export function assertDesktopHostResponse<TKind extends Exclude<DesktopHostRespo
  *
  * @remarks
  * 消息里同时点出两端的数字：只说「协议不匹配」的话，排查的人还得自己去两个仓位翻常量——
- * 而其中一份常量在 Rust 里（`apps/dev-rxdb-tauri/src-tauri/src/rxdb/protocol.rs`）。
+ * 而其中一份常量在 Rust 里（`packages/rxdb-adapter-tauri/rust/src/protocol.rs`）。
  *
  * 返回本地常量而不是入参：两者判等通过时它们本就是同一个数字，回本地那份能让调用方
  * 拿到的类型是 `number` 而不是 `unknown`。

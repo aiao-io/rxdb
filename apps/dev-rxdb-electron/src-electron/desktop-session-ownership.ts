@@ -6,7 +6,7 @@
  * 请求路径上并不校验。于是任何一个渲染进程只要拿到别的窗口的 session id，就能拿它执行 SQL、
  * 关掉对方的会话、或放掉对方正持有的文件锁 —— 相当于把「UUID 不好猜」当成了授权。
  *
- * 判据与 Tauri 侧的 `reject_foreign_session`（`src-tauri/src/rxdb/router.rs`）逐字对应：
+ * 判据与 Tauri 侧的 `reject_foreign_session`（`packages/rxdb-adapter-tauri/rust/src/router.rs`）逐字对应：
  * 只拒**属于别人**的会话；查不到持有者的一律放行，让 host 去答 `session_closed`。
  * 两族共用这一份实现而不是各抄一遍 —— 抄两份，改一份就是另一份悄悄失效。
  *

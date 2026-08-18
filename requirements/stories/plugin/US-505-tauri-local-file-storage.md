@@ -110,8 +110,9 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 project + 三平台打包矩阵）已于 2026-08-17 由 US-210 建好（其 AC#1 / #9 同日关闭），
 缺的只剩本故事自己的文件持久化 specs；其余 9 条不依赖打包。AC#11 的通过分支也一直存在——
 `apps/dev-rxdb-tauri/src/app/setup_rxdb_desktop.ts` 已把 `sync.local.adapter` 配成
-`DESKTOP_ADAPTER_NAME`（`selectLocalBackend()` 在 Tauri 窗口下选它、浏览器预览下回落
-wa-sqlite），「跑的是 wa-sqlite」只在浏览器预览分支为真。
+`TAURI_ADAPTER_NAME`（US-207 E3 把原来的 `DESKTOP_ADAPTER_NAME` 拆成
+`sqlite-electron` / `sqlite-tauri` 两个名字；`selectLocalBackend()` 在 Tauri 窗口下选它、
+浏览器预览下回落 wa-sqlite），「跑的是 wa-sqlite」只在浏览器预览分支为真。
 可达性按**逐条 AC** 核对，不按依赖故事的整体状态一票否决。
 
 ### 范围决策：e2e 工程不由本故事建（前置已由 US-210 落地）
@@ -126,18 +127,24 @@ wa-sqlite），「跑的是 wa-sqlite」只在浏览器预览分支为真。
 
 | AC       | 证据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #2       | `apps/dev-rxdb-tauri/conformance/storage-parity.spec.ts` —— US-504 的 15 组行为套件经 `@aiao/rxdb-plugin-storage/testing` 原样跑在真实 Rust 宿主进程 + 真实临时目录上，测试体不知道自己跑在哪个后端上，零跳过                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| #2       | `packages/rxdb-adapter-tauri/conformance/storage-parity.spec.ts` —— US-504 的 15 组行为套件经 `@aiao/rxdb-plugin-storage/testing` 原样跑在真实 Rust 宿主进程 + 真实临时目录上，测试体不知道自己跑在哪个后端上，零跳过                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | #4       | `file/protocol.rs` 的 `rejects_every_path_shape_that_could_escape_the_storage_root`（26 种形状：`..` / 绝对路径 / 盘符 / 反斜杠 / NUL / 控制字符 / 尾点尾空格 / Windows 保留名 / 超长段）+ `file/mod.rs` 的 `refuses_paths_that_resolve_outside_the_storage_root`（拼完再比根前缀）、`refuses_symlinks_that_point_outside_the_storage_root`（根与目标各取规范形式再比一次，读 / 写 / 移动 / 删除四条通路全挡，根外内容零改动）与 `follows_symlinks_that_stay_inside_the_storage_root`（解析后仍在根内的链接照常放行，不过度封堵）、`never_leaks_the_physical_root_in_a_response`。越界路径在**解析层**即被拒，根本走不到任何 fs 调用；`capabilities/default.json` 全程零改动，只有 `core:*` 窗口权限，无 `fs`、无 `shell` |
-| #9       | `file/locks.rs` 的 12 条仲裁用例 + `file/mod.rs` 的 `blocks_a_second_writer_until_the_first_releases`（两个真实线程经派发器争同一把独占锁）与 `wakes_a_queued_waiter_when_its_session_closes`（两个独立会话 = 两个窗口，沿用 US-504 AC#7 的口径）。跨窗口成立的结构依据是 `DesktopHost` 由 `app.manage()` 托管在 Tauri `State` 上，全应用一个实例，SQL 与文件两套协议共用                                                                                                                                                                                                                                                                                                                                                 |
-| #10      | `scripts/audit/api-surface.mjs` 的 `KNOWN_UNCOVERED_SUBPATHS` 已登记 `rxdb-plugin-storage` 的 `./testing`（28 包 API 表面核对通过）；`rxdb-plugin-storage` node 200/200 + browser 20/20 未变。Tauri 传输客户端本来就在运行时包里（US-207 拆包后是 `@aiao/rxdb-adapter-tauri`，当时叫 `@aiao/rxdb-adapter-desktop`），浏览器 bundle 走 `setup_rxdb_wa-sqlite.ts` 的 OPFS 默认后端                                                                                                                                                                                                                                                                                                                                          |
+| #9       | `file/locks.rs` 的 11 条仲裁用例 + `file/mod.rs` 的 `blocks_a_second_writer_until_the_first_releases`（两个真实线程经派发器争同一把独占锁）与 `wakes_a_queued_waiter_when_its_session_closes`（两个独立会话 = 两个窗口，沿用 US-504 AC#7 的口径）。跨窗口成立的结构依据是 `DesktopHost` 由 `app.manage()` 托管在 Tauri `State` 上，全应用一个实例，SQL 与文件两套协议共用                                                                                                                                                                                                                                                                                                                                                 |
+| #10      | `scripts/audit/api-surface.mjs` 的 `KNOWN_UNCOVERED_SUBPATHS` 已登记 `rxdb-plugin-storage` 的 `./testing`（现为 29 包 API 表面核对通过）；`rxdb-plugin-storage` node 214/214 + browser 20/20 全绿（2026-08-18 复测；node 侧从 200 涨到 214 是 US-504／US-505 后续补的用例，browser 侧一条未动）。Tauri 传输客户端本来就在运行时包里（US-207 拆包后是 `@aiao/rxdb-adapter-tauri`，当时叫 `@aiao/rxdb-adapter-desktop`），浏览器 bundle 走 `setup_rxdb_wa-sqlite.ts` 的 OPFS 默认后端                                                                                                                                                                                                                                       |
 | #11      | `apps/dev-rxdb-tauri/src/app/setup_rxdb_storage.spec.ts` 的 `refuses to build on a non-desktop adapter`（连 `code === 'adapter_mismatch'` 一起断言）+ US-504 `desktop-filesystem.spec.ts` 的两例上游覆盖                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| #1 #3 ⚠️ | `apps/dev-rxdb-tauri/conformance/storage-persistence.spec.ts` —— 宿主进程被杀后字节仍在磁盘上（并逐字节比对 `rxdb-files/` 下那个**原生文件**，堵死「内容藏在别处也能通过读回断言」）、整目录 `cp -r` 到新位置后结构与字节完整。**缺口**：杀的是 stdio 宿主进程而不是装好的 .app / .exe，窗口生命周期、单实例锁、安装包布局都没覆盖；「webview data store 无新增内容」无 webview 可断言；AC#3 的「与 SQLite 同一备份域」由 `paths.rs` 的 `rxdb-data` / `rxdb-files` 同挂 `app_data_dir()` 结构性成立，未在同一用例里连 SQLite 一起拷                                                                                                                                                                                       |
+| #1 #3 ⚠️ | `packages/rxdb-adapter-tauri/conformance/storage-persistence.spec.ts` —— 宿主进程被杀后字节仍在磁盘上（并逐字节比对 `rxdb-files/` 下那个**原生文件**，堵死「内容藏在别处也能通过读回断言」）、整目录 `cp -r` 到新位置后结构与字节完整。**缺口**：杀的是 stdio 宿主进程而不是装好的 .app / .exe，窗口生命周期、单实例锁、安装包布局都没覆盖；「webview data store 无新增内容」无 webview 可断言；AC#3 的「与 SQLite 同一备份域」由 `paths.rs` 的 `rxdb-data` / `rxdb-files` 同挂 `app_data_dir()` 结构性成立，未在同一用例里连 SQLite 一起拷                                                                                                                                                                               |
 | #5 ⚠️    | 分帧（`reports_eof_only_on_the_last_frame`）、提交前目标不动（`keeps_the_target_untouched_until_the_write_commits`）、abort 不碰目标（`abandons_a_write_without_touching_the_target`）、会话关闭清理未提交写入与临时文件（`discards_pending_writes_when_the_session_closes`）均已钉住。**缺口**：≥ 50 MiB 的实测与「内容不整体进 JS 堆」的内存观测都没做 —— 语义正确 ≠ 规模验证                                                                                                                                                                                                                                                                                                                                           |
 | #8 ⚠️    | `file/mod.rs` 的 `reports_an_unwritable_storage_root_as_permission_denied`（`chmod 0o555` 真封目录，unix-only：Windows 目录 ACL 不吃 `chmod`）。**缺口**：磁盘满只有 `error_code_for` 的映射表兜着，没有用例真把盘写满；补偿语义（meta 与文件不脱钩）由 US-504 `desktop-failure.spec.ts` 在服务层覆盖，未在 Rust 宿主上重跑                                                                                                                                                                                                                                                                                                                                                                                               |
 
-门禁：`cargo test` 113 条、`cargo clippy` 零警告、`test-conformance` 9 文件 602 条、
-`dev-rxdb-tauri` 单测 12 文件 70 条、`rxdb-plugin-storage` + `rxdb-adapter-desktop`
-lint/test/build 全绿。
+门禁（2026-08-18 迁包后实测，括号内为本故事初次交付时记录的旧值）：`cargo test` **147 条**
+（crate 131 + demo 16，其中文件宿主 `file/` 占 41 条 = `locks.rs` 11 + `mod.rs` 19 +
+`protocol.rs` 11；旧值 113）、`cargo clippy` 零警告、`test-conformance` **10 文件 605 条**
+（旧值 9 文件 602 条）、`dev-rxdb-tauri` 单测 **14 文件 94 条**（旧值 12 文件 70 条）、
+`rxdb-plugin-storage` node **9 文件 214 条**（旧值 200 条）、`rxdb-adapter-tauri`
+（原 `rxdb-adapter-desktop`，US-207 E3 拆包后更名）lint/test/build 全绿。
+
+> 数字变动与「迁包」无关：`#[test]` 总数在迁包前（`39dba16`）与迁包后都是 **147**，
+> 一条不多一条不少；增长来自 US-207／US-210 期间补的用例，迁包只搬位置。
 
 ### 剩余缺口（本故事关闭前必须补）
 
@@ -160,21 +167,24 @@ lint/test/build 全绿。
 字节即抛 `StorageBackendError('name_too_long')`，不做哈希截断（截断不可逆，会打断
 `copyDirectory` / `listEntries` 的物理名 → 逻辑路径回推）。
 
-## 随 Tauri 包化搬迁（Rust 侧未开工）
+## 随 Tauri 包化搬迁（已完成，2026-08-18）
 
-本故事的 Rust 文件宿主与两条一致性 spec 都在 `apps/dev-rxdb-tauri/` 里，会跟着
+本故事的 Rust 文件宿主与两条一致性 spec 原先都在 `apps/dev-rxdb-tauri/` 里，已跟着
 [US-210「Tauri 包化」](../adapter/US-210-tauri-sqlite-local-database.md#tauri-包化)
-一起搬进 `packages/rxdb-adapter-tauri`（T1／T2 未开工）；renderer 侧受
+（T1～T7 于 2026-08-18 全部关闭）搬进 `packages/rxdb-adapter-tauri`：Rust 侧落
+`rust/src/file/`，一致性 spec 落 `conformance/`；renderer 侧受
 [US-207「包边界重整」](../adapter/US-207-desktop-local-database.md#包边界重整)
-的改名影响，该半边已随 E1～E5 落地。搬迁**不改本故事任何一条 AC 的语义**，但有两处论证要跟着改口径。
+的改名影响，该半边已随 E1～E5 落地。搬迁**没改本故事任何一条 AC 的语义**——
+`#[test]` 总数迁包前后都是 147，两条一致性 spec 的断言一个字未动，
+S3／S4 两处口径按下表改完，S5 因 US-210 定形为**普通 crate**而无需改。
 
-| #     | 任务                                                                                                                                           | 完成判据                                                                                                                                                                                                              |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| S1    | `src-tauri/src/rxdb/file/`（`protocol.rs` / `locks.rs` / `mod.rs`）与 `router.rs` 的两协议分流随 crate 迁入新包，`error.rs` 的四个文件变体同行 | `cargo test` 的 113 条在新位置全绿；`is_file_request` 精确成员判定仍**先于** SQL 解析器（顺序颠倒是静默 bug，不是编译错误）                                                                                           |
-| S2    | `conformance/storage-parity.spec.ts` / `storage-persistence.spec.ts` 迁入新包                                                                  | 与 US-210 的 7 条 SQL spec 合计复现 **602 条 / 9 文件**；`storage-parity` 仍从 `@aiao/rxdb-plugin-storage/testing` 取套件，不在新包里复制一份                                                                         |
-| S3 ✅ | AC#10 证据句改口径为新包名（`@aiao/rxdb-adapter-tauri`）；`rxdb-plugin-storage` 的 `./desktop` 子路径按 US-207 E5 改指共享层而非运行时包       | 已达成：`src/desktop.ts` 只 import `@aiao/rxdb-adapter-sqlite-core/desktop-host`，运行时包降为 devDependency（仅测试用），浏览器 bundle 不含 Node builtin 与 Tauri 依赖                                               |
-| S4 ✅ | AC#11 的 `adapter_mismatch` 判据跟随 US-207 E3 的 `ADAPTER_NAME` 分裂（`desktop` → `sqlite-electron` / `sqlite-tauri`）重写拒绝条件            | 已达成：判据从单个名字改为集合 `DESKTOP_HOST_ADAPTER_NAMES`（`desktop-adapter-name.ts`），逐个点名换成 `isDesktopHostAdapterName`；`refuses to build on a non-desktop adapter` 的用例名对应的正是这个集合，仍名副其实 |
-| S5    | 「传输二选一」小节引用的 `rxdb/mod.rs` capability 论证跟随 US-210 的插件形态决策                                                               | 若宿主定形为 Tauri 插件，本故事「`capabilities/` 全程零改动」与「一条 capability 都不用加」两处论证同步失效，须与 US-210 AC#1 一起改，不得两处各说各话                                                                |
+| #     | 任务                                                                                                                                           | 完成判据                                                                                                                                                                                                                                                                                                                                                                       |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| S1 ✅ | `src-tauri/src/rxdb/file/`（`protocol.rs` / `locks.rs` / `mod.rs`）与 `router.rs` 的两协议分流随 crate 迁入新包，`error.rs` 的四个文件变体同行 | 已达成：三个文件落 `packages/rxdb-adapter-tauri/rust/src/file/`，`router.rs` 与 `error.rs`（`FileNotFound` / `InvalidFilePath` / `DiskFull` / `WriteAborted` 四变体）同行；`cargo test` 在新位置全绿（crate 131 条，含 `file/` 的 41 条）；`is_file_request` 精确成员判定在 `handle()` 与 `handle_owned()` 两条通路上仍**先于** SQL 解析器（顺序颠倒是静默 bug，不是编译错误） |
+| S2 ✅ | `conformance/storage-parity.spec.ts` / `storage-persistence.spec.ts` 迁入新包                                                                  | 已达成：两条 spec 落 `packages/rxdb-adapter-tauri/conformance/`，与 US-210 的 8 条 SQL spec 合计复现 **605 条 / 10 文件**（0 skipped）；`storage-parity` 仍从 `@aiao/rxdb-plugin-storage/testing` 取套件，不在新包里复制一份                                                                                                                                                   |
+| S3 ✅ | AC#10 证据句改口径为新包名（`@aiao/rxdb-adapter-tauri`）；`rxdb-plugin-storage` 的 `./desktop` 子路径按 US-207 E5 改指共享层而非运行时包       | 已达成：`src/desktop.ts` 只 import `@aiao/rxdb-adapter-sqlite-core/desktop-host`，运行时包降为 devDependency（仅测试用），浏览器 bundle 不含 Node builtin 与 Tauri 依赖                                                                                                                                                                                                        |
+| S4 ✅ | AC#11 的 `adapter_mismatch` 判据跟随 US-207 E3 的 `ADAPTER_NAME` 分裂（`desktop` → `sqlite-electron` / `sqlite-tauri`）重写拒绝条件            | 已达成：判据从单个名字改为集合 `DESKTOP_HOST_ADAPTER_NAMES`（`desktop-adapter-name.ts`），逐个点名换成 `isDesktopHostAdapterName`；`refuses to build on a non-desktop adapter` 的用例名对应的正是这个集合，仍名副其实                                                                                                                                                          |
+| S5 ✅ | 「传输二选一」小节引用的 `rxdb/mod.rs` capability 论证跟随 US-210 的插件形态决策                                                               | 已达成且**论证零改动**：US-210 于 2026-08-18 定形为**普通 crate 而非 Tauri 插件**，命令仍由宿主应用 `generate_handler!` 注册，不带 `plugin:` 前缀 ⇒ 不进 capability 门禁。本故事「`capabilities/` 全程零改动」「一条 capability 都不用加」两句原样成立；引用位置从 `rxdb/mod.rs` 迁到 `packages/rxdb-adapter-tauri/rust/src/lib.rs` 的「权限面」小节                           |
 
 搬迁不解「剩余缺口」里的任何一条：AC#1 / #3 / #6 / #7 缺的只是本故事自己的 specs
 （`apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵已于 2026-08-17 由 US-210 建好）。
@@ -193,7 +203,8 @@ lint/test/build 全绿。
 读写原语，**给不出跨窗口的锁仲裁**，选它就等于 AC#9 无法成立。附带的两条：plugin-fs
 路线要在 renderer 侧复制 `desktop.ts` 约 490 行等价逻辑；而复用既有 `rxdb_desktop_request`
 命令则**一条 capability 都不用加**——`generate_handler!` 注册的自定义命令不受 capability
-门禁约束（只有 `core:` / `plugin:` 前缀才是，见 `rxdb/mod.rs`），物理根由 Rust 侧写死为
+门禁约束（只有 `core:` / `plugin:` 前缀才是，见
+`packages/rxdb-adapter-tauri/rust/src/lib.rs` 的「权限面」小节），物理根由 Rust 侧写死为
 `app_data_dir()` 子目录，比 AC#1 原本设想的「capability 收敛到子目录」更强。
 
 plugin-fs 路线的那几项验证（`open() / read() / write() / seek()` 的异步形状、
@@ -224,18 +235,21 @@ webview 窗口语义因此不影响 AC#9，无需验证。
 
 ## 实现文件
 
-- `apps/dev-rxdb-tauri/src-tauri/src/rxdb/file/` — Rust 文件宿主，本故事的主体：
+- `packages/rxdb-adapter-tauri/rust/src/file/` — Rust 文件宿主，本故事的主体（US-210 T2
+  于 2026-08-18 从 `apps/dev-rxdb-tauri/src-tauri/src/rxdb/file/` 迁入本包）：
   `protocol.rs`（请求解析与路径校验，逐条对齐 `desktop-host-protocol.ts`）、
   `locks.rs`（FIFO 的 shared / exclusive 仲裁，队首拿不到就整队停住，独占请求不被共享流饿死）、
   `mod.rs`（派发；临时文件 `fsync` 后 `rename` 原子替换、资源挂在会话上、永不 reject）
-- `apps/dev-rxdb-tauri/src-tauri/src/rxdb/router.rs` — 一条 IPC 通道上的两套协议：按
+- `packages/rxdb-adapter-tauri/rust/src/router.rs` — 一条 IPC 通道上的两套协议：按
   `kind` **精确成员判定**（`is_file_request`，不是 `file.` 前缀匹配）分流，且**必须先于**
   SQL 解析器；`error.rs` 补 `FileNotFound` / `InvalidFilePath` / `DiskFull` / `WriteAborted`
   四个变体对齐 renderer 侧错误码
 - `packages/rxdb-plugin-storage/src/testing.ts` + `src/__tests__/storage-backend-parity.suite.ts`
   — US-504 的行为套件抽成 `./testing` 子路径，供包外后端复用（AC#2 的载体）
-- `apps/dev-rxdb-tauri/conformance/storage-parity.spec.ts` / `storage-persistence.spec.ts`
-  — 在真实 Rust 宿主进程上跑上述套件（AC#2）与持久性用例（AC#1 / #3 的进程级证据）
+- `packages/rxdb-adapter-tauri/conformance/storage-parity.spec.ts` / `storage-persistence.spec.ts`
+  — 在真实 Rust 宿主进程上跑上述套件（AC#2）与持久性用例（AC#1 / #3 的进程级证据）。
+  两条 spec 随 US-210 T4 从 `apps/dev-rxdb-tauri/conformance/` 迁入本包，一律经
+  `../src/index.js` 桶文件取符号（自引用不能走包名，见该包 `conformance/rust-adapter-factory.ts` 的说明）
 - `apps/dev-rxdb-tauri/src/app/setup_rxdb_desktop.ts` + `pages/storage/` — 演示接入：
   一个 transport 同时喂 storage 插件与桌面 adapter；单文件保存一律走 `service.download()`，
   不新增第四份手写 `showSaveFilePicker`

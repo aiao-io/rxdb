@@ -216,6 +216,13 @@
       "options": {
         "command": "corepack pnpm exec wait-on tcp:4120 dist/apps/dev-rxdb-electron/src-electron/main.js dist/apps/dev-rxdb-electron/src-electron/desktop-host-bridge.bundle.js && mkdir -p dist/apps/dev-rxdb-electron && cp apps/dev-rxdb-electron/package.json dist/apps/dev-rxdb-electron/"
       }
+    },
+    "audit-lazy-backend": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "node scripts/audit/desktop-lazy-backend.mjs dev-rxdb-electron"
+      }
     }
   }
 }

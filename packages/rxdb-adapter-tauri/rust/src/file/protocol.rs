@@ -1,6 +1,6 @@
 //! `file.*` 线协议，`packages/rxdb-adapter-sqlite-core/src/desktop/desktop-host-protocol.ts` 的镜像。
 //!
-//! 与 SQL 协议 [`crate::rxdb::protocol`] **刻意分成两个解析器**而不是合并成一个大枚举：
+//! 与 SQL 协议 [`crate::protocol`] **刻意分成两个解析器**而不是合并成一个大枚举：
 //! TS 侧的注释已经写明理由——SQLite host 的 dispatch 把「不是 open/close/version 的」
 //! 一律当 `execute` 处理，一旦 `file.*` 能通过那个解析器，一条文件请求就会被当成 SQL 执行。
 //! 两个解析器互不接受对方的 `kind`，这条路径在运行时上不存在。
@@ -11,10 +11,10 @@
 
 use serde_json::{Map, Value};
 
-use crate::rxdb::error::{ErrorCode, HostError, HostResult};
-use crate::rxdb::paths::is_windows_reserved_device_name;
-use crate::rxdb::protocol::is_session_id;
-use crate::rxdb::value::decode_bytes;
+use crate::error::{ErrorCode, HostError, HostResult};
+use crate::paths::is_windows_reserved_device_name;
+use crate::protocol::is_session_id;
+use crate::value::decode_bytes;
 
 /// 单个分片的字节上限，与 TS 侧 `DESKTOP_HOST_MAX_FILE_CHUNK_BYTES` 相同。
 pub const MAX_FILE_CHUNK_BYTES: usize = 4 * 1024 * 1024;

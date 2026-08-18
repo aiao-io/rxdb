@@ -1,11 +1,25 @@
 import type { RxDB } from '@aiao/rxdb';
-import { ELECTRON_ADAPTER_NAME } from '@aiao/rxdb-adapter-electron';
 import { DESKTOP_DEMO_DB_NAME, WEB_PREVIEW_DB_NAME } from './db-names';
 import { selectLocalBackend, type LocalBackendCandidate } from './local-backend';
 import { isDesktopHostRuntime } from './services/desktop-environment';
 
 /** wa-sqlite 适配器在 `RxDBAdapters` 注册表中的名字。 */
 export const WA_SQLITE_ADAPTER_NAME = 'wa-sqlite';
+
+/**
+ * Electron 适配器在 `RxDBAdapters` 注册表中的名字。
+ *
+ * @remarks
+ * 这里刻意**抄一份字面量**，而不是 `import` 适配器包里的同名常量。本模块在主 chunk 里
+ * （候选表要在建库之前就能报出后端身份），而那句 import 会把适配器包的 barrel 一起拽进来 ——
+ * barrel 转出的 `DesktopSqliteClient` 于是跟着进了 `main.js`，正是 US-207 E11 与
+ * US-505 AC#10 要挡的「桌面传输客户端代码进浏览器 bundle」。上面 `WA_SQLITE_ADAPTER_NAME`
+ * 一直是字面量，同样是这个原因；两条候选现在口径一致。
+ *
+ * 抄字面量的代价由 `setup_rxdb.spec.ts` 兜住：那里 import 包里的常量并断言二者相等。
+ * 单测走源码、不进产物，因此这个 import 不花 bundle 的钱，而包里改了名字会当场变红。
+ */
+export const ELECTRON_ADAPTER_NAME = 'sqlite-electron';
 
 /**
  * 本 demo 的本地后端候选表（US-207 E8）。**顺序即优先级。**
