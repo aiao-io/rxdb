@@ -7,7 +7,7 @@ export type { GraphPath, GraphQueryResult, NeighborResult } from '@aiao/rxdb-plu
 export * from './hooks';
 export * from './InfiniteScrollingList';
 export { RxDBEntityChangeDirective } from './rxdb-change-detector.directive';
-export { provideRxDB } from './rxdb.provider';
+export { provideRxDB, useRxDB, useRxDBOptional, type RxDBSource } from './rxdb.provider';
 export * from './use-action';
 export * from './use-infinite-scroll';
 export * from './use-persisted-state';

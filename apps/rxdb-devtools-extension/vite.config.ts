@@ -5,7 +5,8 @@ import path from 'node:path';
 import { defineConfig, type PluginOption } from 'vite';
 import zip from 'vite-plugin-zip-pack';
 import manifest from './manifest.config.js';
-import { name, version } from './package.json';
+// JSON 模块只提供 default 导出：具名导入在 Vite 的 native config loader 下会直接报错。
+import pkg from './package.json' with { type: 'json' };
 
 export default defineConfig(({ command }) => ({
   base: './',
@@ -13,14 +14,14 @@ export default defineConfig(({ command }) => ({
     tsconfigPaths: true,
     mainFields: ['module'],
     alias: {
-      '@': `${path.resolve(__dirname, 'src')}`
+      '@': `${path.resolve(import.meta.dirname, 'src')}`
     }
   },
   plugins: [
     crx({ manifest }) as PluginOption,
     angular({
       jit: false,
-      tsconfig: path.resolve(__dirname, 'tsconfig.app.json'),
+      tsconfig: path.resolve(import.meta.dirname, 'tsconfig.app.json'),
       transformFilter: (_code: string, id: string) => {
         // crxjs 的 `?script` / `?iife` 会被解析成 `<file>.ts?scriptId=xxx` 虚拟模块，
         // 其内容是 crxjs 生成的 `export default "<fileName>"`。analog 的 transform
@@ -39,7 +40,7 @@ export default defineConfig(({ command }) => ({
       }
     }),
     tailwindcss(),
-    zip({ outDir: 'release', outFileName: `crx-${name}-${version}.zip` }) as PluginOption
+    zip({ outDir: 'release', outFileName: `crx-${pkg.name}-${pkg.version}.zip` }) as PluginOption
   ],
   publicDir: 'public',
   server: {
@@ -60,8 +61,8 @@ export default defineConfig(({ command }) => ({
     chunkSizeWarningLimit: 1024,
     rolldownOptions: {
       input: {
-        devtools: path.resolve(__dirname, 'devtools.html'),
-        panel: path.resolve(__dirname, 'panel.html')
+        devtools: path.resolve(import.meta.dirname, 'devtools.html'),
+        panel: path.resolve(import.meta.dirname, 'panel.html')
       },
       output: {
         manualChunks: undefined

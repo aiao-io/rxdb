@@ -5,6 +5,7 @@
 - [v0 → 1.0 升级](./v1.md)：破坏性变更清单与升级步骤
 - [框架绑定迁移](./frameworks.md)：Angular / React / Vue 之间或版本升级
 - [适配器切换与数据迁移](./adapters.md)：更换存储后端
+- [桌面适配器拆包](./desktop-split.md)：`rxdb-adapter-desktop` 拆成 `-electron` / `-tauri` 两个包
 - [插件升级与启用](./plugins.md)：启用/升级插件（如全文搜索）
 - [Schema 迁移](./schema.md)：实体结构变更时的数据迁移
 

@@ -1,4 +1,4 @@
-//! 线协议的 **JSON 传输编码**，`packages/rxdb-adapter-desktop/src/desktop-json-codec.ts` 的镜像。
+//! 线协议的 **JSON 传输编码**，`packages/rxdb-adapter-tauri/src/desktop-json-codec.ts` 的镜像。
 //!
 //! 协议本身只承诺结构化克隆可传，实际携带 `bigint` rowId、`Uint8Array` blob 与 `Date`。
 //! Tauri 的 IPC 是 JSON，这三类会丢失，因此两侧各实现一份带标签的编码：
@@ -210,14 +210,32 @@ fn decode_number_array(items: &[Value]) -> HostResult<Vec<u8>> {
         .collect()
 }
 
+/// 编码器会产出的**唯一**十进制写法，也就是 `i64::to_string` 的值域。
+///
+/// `i64::from_str` 比这宽：`+1` / `007` / `-0` 都收，而它们没有一种能由 [`encode_bigint`]
+/// 产生，只可能来自手写或被篡改的载荷。TS 侧 `desktop-json-codec.ts` 的 `CANONICAL_BIGINT`
+/// 卡的是同一组写法——两侧的解码器必须在同一组载荷上给出同一个判断，否则一条被 JS 拒掉的
+/// 载荷换到 Rust 宿主上就能写进库。
+fn is_canonical_bigint(text: &str) -> bool {
+    let digits = text.strip_prefix('-').unwrap_or(text);
+    match digits.as_bytes() {
+        // `-0` 也不合法：`0_i64.to_string()` 只会是 `"0"`。
+        [b'0'] => digits.len() == text.len(),
+        [b'1'..=b'9', rest @ ..] => rest.iter().all(u8::is_ascii_digit),
+        _ => false,
+    }
+}
+
 fn decode_tagged_binding(object: &Map<String, Value>) -> HostResult<rusqlite::types::Value> {
     let (tag, payload) = object.iter().next().expect("caller checked the map has one entry");
     if tag == BIGINT_TAG {
         let text = payload
             .as_str()
-            .ok_or_else(|| violation(format!("{BIGINT_TAG} must carry a decimal string")))?;
+            .filter(|text| is_canonical_bigint(text))
+            .ok_or_else(|| violation(format!("{BIGINT_TAG} must carry a canonical decimal string")))?;
+        // 到这里只剩溢出一种失败：位数超出 i64。
         let integer = text.parse::<i64>().map_err(|_| {
-            violation(format!("{BIGINT_TAG} carried \"{text}\", which is not a 64 bit decimal integer"))
+            violation(format!("{BIGINT_TAG} carried \"{text}\", which does not fit in a 64 bit integer"))
         })?;
         return Ok(rusqlite::types::Value::Integer(integer));
     }
@@ -418,6 +436,28 @@ mod tests {
         for value in malformed {
             let error = decode_binding(&value).unwrap_err();
             assert_eq!(error.code, ErrorCode::ProtocolViolation, "for {value}");
+        }
+    }
+
+    /// 与 `desktop-json-codec.spec.ts` 的「只认 canonical 十进制」一节逐条对齐。
+    ///
+    /// `i64::from_str` 比「十进制整数」宽：`+1` / `007` / `-0` 都收。两侧的解码器必须在
+    /// 同一组载荷上给出同一个判断，否则一条被 JS 拒掉的载荷换到 Rust 宿主上就能写进库。
+    #[test]
+    fn rejects_non_canonical_bigint_payloads() {
+        let malformed = ["+1", "007", "-0", "", "-", " 1", "1 ", "0x10", "1e3", "1.0"];
+        for text in malformed {
+            let value = json!({ "$bigint": text });
+            let error = decode_binding(&value).unwrap_err();
+            assert_eq!(error.code, ErrorCode::ProtocolViolation, "for {value}");
+        }
+    }
+
+    #[test]
+    fn keeps_accepting_every_shape_the_encoder_produces() {
+        for integer in [0_i64, 1, -1, 9_007_199_254_740_993, i64::MIN, i64::MAX] {
+            let encoded = encode_bigint(integer);
+            assert_eq!(decode_binding(&encoded).unwrap(), rusqlite::types::Value::Integer(integer));
         }
     }
 }

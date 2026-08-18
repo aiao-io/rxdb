@@ -58,10 +58,13 @@ export default defineConfig(() => ({
     rolldownOptions: {
       // dts 插件生成声明文件天然比 Rolldown 原生链接阶段慢，抑制误报的 PLUGIN_TIMINGS 警告
       checks: { pluginTimings: false },
-      // desktop 入口经 host 协议说话，桌面适配器必须外置：内联会把它复制进浏览器主入口的依赖图。
+      // desktop 入口经 host 协议说话，协议层必须外置：内联会把它复制进浏览器主入口的依赖图。
       // vitest 同理且更硬：testing 入口的断言必须跑在**调用方那一个** vitest 实例上，
       // 内联一份进来，`expect` 就登记不到调用方的测试上下文里。
-      external: ['@aiao/rxdb', '@aiao/rxdb-adapter-desktop', 'rxjs', 'vitest']
+      // `@aiao/rxdb-adapter-electron` 不在表内：三个构建入口（index / desktop / testing）
+      // 都不引它，desktop 入口只经 `sqlite-core/desktop-host` 说话。它只出现在 `__tests__`
+      // 里，那条路径由下面 vitest 的 `server.deps.external` 负责，两处别混。
+      external: ['@aiao/rxdb', '@aiao/rxdb-adapter-sqlite-core/desktop-host', 'rxjs', 'vitest']
     }
   },
   server: {
@@ -116,10 +119,10 @@ export default defineConfig(() => ({
         include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
         exclude: ['{src,tests}/**/*.browser.{test,spec}.{ts,tsx}'],
         // 桌面后端的一致性用例既要 DOM（套件会装 window、点锚点下载），又要真的把
-        // `@aiao/rxdb-adapter-desktop/host` 加载起来（它 import `node:sqlite`）。happy-dom 走的是
+        // `@aiao/rxdb-adapter-electron/host` 加载起来（它 import `node:sqlite`）。happy-dom 走的是
         // client 环境，Vite 会尝试把这条依赖内联进 bundle 并在 node 内置模块上炸掉；externalize
         // 之后由 Node 原生 ESM 直接加载，两个要求才同时成立。
-        server: { deps: { external: [/rxdb-adapter-desktop/] } }
+        server: { deps: { external: [/rxdb-adapter-electron/] } }
       }),
     reporters: ['default', 'junit'],
     // Node / browser 并行时不能共用 coverage 与 junit 产物（Vitest .tmp 会互相删除）。

@@ -1,4 +1,4 @@
-//! 跨上下文锁的仲裁表，`packages/rxdb-adapter-desktop/src/desktop-file-host.ts` 的
+//! 跨上下文锁的仲裁表，`packages/rxdb-adapter-electron/src/electron-file-host.ts` 的
 //! `queueOf` / `canGrant` / `pump` / `dropWaiters` 在 Rust 侧的对应物。
 //!
 //! **这里只有数据结构，没有阻塞、没有 I/O。** TS 侧靠 promise 队列，在事件循环上天然串行；

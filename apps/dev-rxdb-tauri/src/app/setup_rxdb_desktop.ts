@@ -1,10 +1,10 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import {
   createTauriHostTransport,
-  DESKTOP_ADAPTER_NAME,
-  type DesktopHostTransport,
-  RxDBAdapterDesktop
-} from '@aiao/rxdb-adapter-desktop';
+  RxDBAdapterTauri,
+  TAURI_ADAPTER_NAME,
+  type DesktopHostTransport
+} from '@aiao/rxdb-adapter-tauri';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginStorage, type RxDBStoragePluginOptions } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
@@ -13,6 +13,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { inject, PLATFORM_ID } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { DesktopLaunch } from './desktop-launch.entity';
 
 let rxdb: RxDB | null | undefined;
 
@@ -25,6 +26,19 @@ let rxdb: RxDB | null | undefined;
  * 名字 —— 两个 demo 的磁盘布局一致，才谈得上「换掉的只是宿主」。
  */
 export const DESKTOP_STORAGE_ROOT_DIR = 'files';
+
+/**
+ * 桌面后端的逻辑库名（落盘为 `rxdb-data/desktop_demo@<schema>.sqlite3`）。
+ *
+ * @remarks
+ * 与浏览器预览的 `test_6` **必须不同名**，且这条已经由 `selectLocalBackend` 的候选表校验
+ * 强制：两个候选写的是两个永不互通的物理存储（Rust 宿主的原生文件 vs WebView 的 OPFS），
+ * 共用一个逻辑名等于让「现在连的是哪个库」这个问题没有答案。
+ *
+ * 取值与 Electron demo 的 `DESKTOP_DEMO_DB_NAME` 一致 —— 两个 demo 摆在一起时，
+ * 磁盘布局与库名都对得上，差别才真的只剩宿主。
+ */
+export const DESKTOP_DEMO_DB_NAME = 'desktop_demo';
 
 /**
  * 桌面文件后端的 storage 插件选项。
@@ -50,11 +64,15 @@ export const createDesktopStorageOptions = (transport: DesktopHostTransport): Rx
  * @throws 运行在非浏览器运行时（SSR）时抛出
  *
  * @remarks
- * US-210：与 `setup_rxdb_wa-sqlite.ts` 同构 —— 相同实体集、相同 `dbName`、同样纯本地。
- * 唯一的差别是数据落在哪：wa-sqlite 落在 WebView 的 OPFS/IDB 里，这里落在
- * `<AppData>/io.aiao.dev-rxdb-tauri/rxdb-data/test_6@0_1.sqlite3`，一个可备份、可迁移的真实文件（AC#1）。
+ * US-210：与 `setup_rxdb_wa-sqlite.ts` 同构 —— 相同实体集、同样纯本地。数据落在
+ * `<AppData>/io.aiao.dev-rxdb-tauri/rxdb-data/desktop_demo@0_1.sqlite3`，
+ * 一个可备份、可迁移的真实文件（AC#1）；wa-sqlite 那份落在 WebView 的 OPFS/IDB 里。
  *
- * 选路由 `setup_rxdb.ts` 的 `selectLocalBackend` 负责，本模块只在 Tauri 窗口里被调用。
+ * `dbName` **刻意与浏览器预览那份不同**（US-207 E9）：两个后端对着两份永不互通的数据，
+ * 同名会让「现在连的是哪个库」无从回答。
+ *
+ * 选路由 `setup_rxdb.ts` 的候选表 + `local-backend.ts` 的 `selectLocalBackend` 负责，
+ * 本模块只在 Tauri 窗口里被调用。
  *
  * 必须在注入上下文中调用（读 `PLATFORM_ID`）。实例按模块作用域缓存，重复调用返回同一个。
  */
@@ -64,12 +82,14 @@ export default () => {
 
   if (rxdb) return rxdb;
   rxdb = new RxDB({
-    dbName: 'test_6',
+    dbName: DESKTOP_DEMO_DB_NAME,
     context: { userId: 'userId' },
-    entities: [Todo, MenuLarge, MenuSimple, FileNode, FileLarge],
+    // `DesktopLaunch` 两个后端都要注册：AC#1 的判据是跨进程累计计数，而计数只有在
+    // 表存在时才写得进去。浏览器预览那份也留着，否则同一份代码在两条路径上行为不同。
+    entities: [Todo, MenuLarge, MenuSimple, FileNode, FileLarge, DesktopLaunch],
     sync: {
       local: {
-        adapter: DESKTOP_ADAPTER_NAME
+        adapter: TAURI_ADAPTER_NAME
       },
       type: SyncType.None
     }
@@ -95,7 +115,7 @@ export default () => {
   rxdb
     .use(rxDBPluginGraph)
     .use(rxDBPluginStorage, createDesktopStorageOptions(transport))
-    .adapter(DESKTOP_ADAPTER_NAME, async db => new RxDBAdapterDesktop(db, { transport, runtime: 'tauri' }));
+    .adapter(TAURI_ADAPTER_NAME, async db => new RxDBAdapterTauri(db, { transport }));
 
   rxdb.init();
   return rxdb;

@@ -31,6 +31,11 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./desktop-host": {
+      "types": "./dist/desktop-host.d.ts",
+      "import": "./dist/desktop-host.js",
+      "default": "./dist/desktop-host.js"
+    },
     "./testing": {
       "types": "./dist/testing.d.ts",
       "import": "./dist/testing.js",

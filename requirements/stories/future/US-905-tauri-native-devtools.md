@@ -169,7 +169,7 @@ US-210 SQLite host / US-505 native file host
 
 - `apps/dev-rxdb-tauri/src/` — 共享 panel bootstrap、Tauri transport adapter、provider 注册与开发入口
 - `apps/dev-rxdb-tauri/src-tauri/` — label/sender 绑定的窗口、消息桥、受限 Rust host 接线与 dev-only capability
-- `packages/rxdb-adapter-desktop/src/` — Tauri SQLite 只读诊断 provider
+- `packages/rxdb-adapter-tauri/src/` — Tauri SQLite 只读诊断 provider
 - `packages/rxdb-plugin-storage/src/` — Tauri native files 调试 provider
 - `apps/dev-rxdb-tauri-e2e/` — 共享 project，由 US-210 / US-905 先开工者创建一次；本故事拥有窗口、
   transport、release 隔离、native provider、重启、安全边界与三平台 specs

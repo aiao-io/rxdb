@@ -8,10 +8,12 @@
   "targets": {
     "build": {
       "//": "ELEC-21：真正的构建在 ng-build；这层只为把 NG_BUILD_OPTIMIZE_CHUNKS=0 传进去。该开关是 @angular/build 的环境变量，没有对应的 builder 选项，所以只能包一层。理由见 renderer-shell.spec.ts 的同名用例。",
+      "//dependsOn": "dependsOn 与命令末尾的 --excludeTaskDependencies 是一对：依赖由**外层**这一个 nx 进程建好，内层只跑 ng-build 自己。少了后者，内层会把 ng-build 的 ^build 再展开一遍，两个 nx 同时往 packages/*/dist 里写，读那批 dist 的兄弟任务会随机炸。见 renderer-shell.spec.ts 里同名用例的排障记录。",
       "executor": "nx:run-commands",
       "cache": false,
+      "dependsOn": ["^build"],
       "options": {
-        "command": "corepack pnpm exec nx run dev-rxdb-electron:ng-build",
+        "command": "corepack pnpm exec nx run dev-rxdb-electron:ng-build --excludeTaskDependencies",
         "env": {
           "NG_BUILD_OPTIMIZE_CHUNKS": "0"
         }
@@ -121,7 +123,7 @@
             "forwardAllArgs": false
           },
           {
-            "command": "cp package.json ../../dist/apps/dev-rxdb-electron/",
+            "command": "node tools/copy-app-manifest.mjs",
             "forwardAllArgs": false
           },
           {
@@ -149,7 +151,7 @@
             "forwardAllArgs": false
           },
           {
-            "command": "cp package.json ../../dist/apps/dev-rxdb-electron/",
+            "command": "node tools/copy-app-manifest.mjs",
             "forwardAllArgs": false
           },
           {

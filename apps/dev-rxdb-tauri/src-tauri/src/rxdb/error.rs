@@ -1,4 +1,4 @@
-//! 桌面适配器的稳定错误码，与 `packages/rxdb-adapter-desktop/src/desktop-error.ts` 一一对应。
+//! 桌面适配器的稳定错误码，与 `packages/rxdb-adapter-sqlite-core/src/desktop/desktop-error.ts` 一一对应。
 //!
 //! 这些码是**契约的一部分**：renderer 按 `code` 分支处理，消息文本才是可变的。
 //! `serde` 的 `snake_case` 重命名保证序列化结果与 TS 侧的字面量逐字相同——

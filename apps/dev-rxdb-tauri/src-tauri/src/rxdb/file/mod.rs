@@ -1,6 +1,6 @@
 //! 桌面文件宿主：把 renderer 送来的 `file.*` 请求落到应用数据目录里的原生文件。
 //!
-//! 是 `packages/rxdb-adapter-desktop/src/desktop-file-host.ts` 的 Rust 对应物，
+//! 是 `packages/rxdb-adapter-electron/src/electron-file-host.ts` 的 Rust 对应物，
 //! 存在的理由见 US-505：文件内容此前写在 WebView 的 OPFS 里，与 US-210 的桌面 SQLite
 //! 不在同一个备份域——拷走应用数据目录只带走 metadata，恢复后 meta 指向不存在的文件。
 //!

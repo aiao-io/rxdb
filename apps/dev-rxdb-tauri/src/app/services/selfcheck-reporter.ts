@@ -1,0 +1,56 @@
+/**
+ * @fileoverview 把本次启动的自检结论报给 Rust 侧（US-210 AC#9）。
+ *
+ * @module services/selfcheck-reporter
+ */
+
+import { invoke } from '@tauri-apps/api/core';
+import { isTauriRuntime } from './tauri-environment';
+
+/**
+ * 自检结论的三个取值。
+ *
+ * @remarks
+ * 与 `src-tauri/src/selfcheck.rs` 的 `SelfCheckStatus` 逐字对应，那边有一条单测把这三个
+ * 字面量钉死。漂了的表现是「上报了但 Rust 侧反序列化失败」→ 没有报告 → 只能等看门狗超时，
+ * 编译器在这条缝上帮不上任何忙。
+ */
+export type SelfCheckStatus = 'ok' | 'failed' | 'timedOut';
+
+/** 上报给 Rust 侧的结论。 */
+export interface SelfCheckOutcome {
+  /** 结论本身。 */
+  readonly status: SelfCheckStatus;
+  /** 本次读回的累计启动次数；只有 `ok` 时有值。 */
+  readonly launchCount?: number;
+  /** 失败原因；只有失败方向有值。 */
+  readonly message?: string;
+}
+
+/** Rust 侧命令名，由 `#[tauri::command] rxdb_selfcheck_report` 的函数名决定。 */
+const SELFCHECK_COMMAND = 'rxdb_selfcheck_report';
+
+/**
+ * 上报自检结论。**永不 reject。**
+ *
+ * @param outcome - 本次启动的结论
+ * @param runtime - 运行时对象，实际调用传 `globalThis`；参数化是为了让两条分支都能被测到
+ *
+ * @remarks
+ * 非 Tauri 运行时直接返回：`invoke` 会去读 `window.__TAURI_INTERNALS__.invoke`，在浏览器
+ * 预览（`nx serve`）里那是一次 `TypeError`。这是**运行时能力**判定，不是「是不是自检模式」
+ * 的判定 —— 后者的真相源在 Rust 侧（没设环境变量就查不到观察者），renderer 无条件上报即可。
+ * 让 renderer 也去判断一次自检模式的话，判断依据只能是另一份从 Rust 传过来的状态，
+ * 于是凭空多出第二个真相源。
+ *
+ * 失败只写 console：这条调用挂在 app initializer 的链上，而那条链一旦 reject，Angular 会
+ * 中止 bootstrap（TAURI-01）。上报失败时 Rust 侧的看门狗仍会给出一份写着 `timedOut` 的报告。
+ */
+export const reportSelfCheck = async (outcome: SelfCheckOutcome, runtime: unknown): Promise<void> => {
+  if (!isTauriRuntime(runtime)) return;
+  try {
+    await invoke(SELFCHECK_COMMAND, { outcome });
+  } catch (error) {
+    console.error('self-check report failed', error);
+  }
+};

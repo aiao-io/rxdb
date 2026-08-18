@@ -1,0 +1,204 @@
+{
+  "exports": [
+    {
+      "name": "assertDesktopHostResponse",
+      "kind": "value"
+    },
+    {
+      "name": "assertDesktopSqliteStorage",
+      "kind": "value"
+    },
+    {
+      "name": "assertValidDesktopDatabaseName",
+      "kind": "value"
+    },
+    {
+      "name": "createTauriHostTransport",
+      "kind": "value"
+    },
+    {
+      "name": "decodeDesktopJsonPayload",
+      "kind": "value"
+    },
+    {
+      "name": "DESKTOP_DEFAULT_DATABASE_SUFFIX",
+      "kind": "value"
+    },
+    {
+      "name": "DESKTOP_HOST_MAX_BINDINGS",
+      "kind": "value"
+    },
+    {
+      "name": "DESKTOP_HOST_MAX_BLOB_BYTES",
+      "kind": "value"
+    },
+    {
+      "name": "DESKTOP_HOST_MAX_FILE_CHUNK_BYTES",
+      "kind": "value"
+    },
+    {
+      "name": "DESKTOP_HOST_MAX_SQL_LENGTH",
+      "kind": "value"
+    },
+    {
+      "name": "DESKTOP_HOST_PROTOCOL_VERSION",
+      "kind": "value"
+    },
+    {
+      "name": "DESKTOP_HOST_TRANSPORT_KEY",
+      "kind": "value"
+    },
+    {
+      "name": "DesktopHostChangeEventMessage",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostCloseRequest",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostExecuteRequest",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostFileEntry",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostFileLockMode",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostFileReadResult",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostFileRequest",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostFileResponse",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostFileStat",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostHandshakeRequest",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostHandshakeResult",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostOpenRequest",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostOpenResult",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostRequest",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostResponse",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostTransport",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopHostVersionRequest",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopOptions",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopPgliteDirectoryStorage",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopSqliteClient",
+      "kind": "both"
+    },
+    {
+      "name": "DesktopSqliteClientOptions",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopSqliteFileStorage",
+      "kind": "type"
+    },
+    {
+      "name": "DesktopStorage",
+      "kind": "type"
+    },
+    {
+      "name": "encodeDesktopJsonPayload",
+      "kind": "value"
+    },
+    {
+      "name": "isDesktopPgliteDirectoryStorage",
+      "kind": "value"
+    },
+    {
+      "name": "isDesktopSqliteFileStorage",
+      "kind": "value"
+    },
+    {
+      "name": "parseDesktopHostChangeEvent",
+      "kind": "value"
+    },
+    {
+      "name": "parseDesktopHostHandshakeResult",
+      "kind": "value"
+    },
+    {
+      "name": "parseDesktopHostOpenResult",
+      "kind": "value"
+    },
+    {
+      "name": "resolveDesktopHostTransport",
+      "kind": "value"
+    },
+    {
+      "name": "RxDBAdapterDesktopError",
+      "kind": "both"
+    },
+    {
+      "name": "RxDBAdapterDesktopErrorCode",
+      "kind": "type"
+    },
+    {
+      "name": "RxDBAdapterTauri",
+      "kind": "both"
+    },
+    {
+      "name": "TAURI_ADAPTER_NAME",
+      "kind": "value"
+    },
+    {
+      "name": "TAURI_DESKTOP_CHANGE_EVENT",
+      "kind": "value"
+    },
+    {
+      "name": "TAURI_DESKTOP_REQUEST_COMMAND",
+      "kind": "value"
+    },
+    {
+      "name": "TauriHostTransportOptions",
+      "kind": "type"
+    },
+    {
+      "name": "TauriOptions",
+      "kind": "type"
+    }
+  ]
+}

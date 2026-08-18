@@ -1,5 +1,6 @@
 import { EntityType, RxDB } from '@aiao/rxdb';
 import {
+  ApplicationInitStatus,
   Component,
   createEnvironmentInjector,
   EnvironmentInjector,
@@ -9,7 +10,7 @@ import {
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
-import { provideRxDB } from '../rxdb.provider';
+import { provideRxDB, useRxDB, useRxDBOptional, type RxDBSource } from '../rxdb.provider';
 
 // 模拟 RxDB 实例。
 const createMockRxDB = () =>
@@ -22,6 +23,17 @@ const createMockRxDB = () =>
     close: vi.fn()
   }) as unknown as RxDB;
 
+/**
+ * 等 app initializer 跑完。
+ *
+ * @remarks
+ * 不必自己触发：`TestBed.inject` 会 finalize 测试模块，而 finalize 的最后一步就是
+ * `runInitializers()`（`@internal`，不在公开类型里）。这里只等它的结果。
+ */
+const settleInitializers = async (): Promise<void> => {
+  await TestBed.inject(ApplicationInitStatus).donePromise;
+};
+
 describe('rxdb.provider', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -30,8 +42,8 @@ describe('rxdb.provider', () => {
   });
 
   describe('provideRxDB', () => {
-    it('requires an RxDB factory in its public signature', () => {
-      expectTypeOf(provideRxDB).toEqualTypeOf<(useFactory: () => RxDB) => EnvironmentProviders>();
+    it('accepts the tri-framework RxDBSource union in its public signature', () => {
+      expectTypeOf(provideRxDB).toEqualTypeOf<(source: RxDBSource) => EnvironmentProviders>();
     });
 
     it('should provide RxDB instance using factory function', () => {
@@ -134,6 +146,107 @@ describe('rxdb.provider', () => {
 
       resolveInit!();
       await initPromise;
+    });
+  });
+
+  // 三框架统一异步契约：provider 收 `RxDB | Promise<RxDB> | (() => RxDB | Promise<RxDB>)`，
+  // 读取分 useRxDB（未就绪抛错）与 useRxDBOptional（未就绪返回 undefined）两条。
+  describe('异步 source', () => {
+    it('accepts a ready instance without wrapping it in a factory', () => {
+      const mockRxDB = createMockRxDB();
+
+      TestBed.configureTestingModule({
+        providers: [provideZonelessChangeDetection(), provideRxDB(mockRxDB)]
+      });
+
+      expect(TestBed.inject(RxDB)).toBe(mockRxDB);
+    });
+
+    it('awaits an async source in the app initializer so inject(RxDB) stays synchronous', async () => {
+      const mockRxDB = createMockRxDB();
+
+      TestBed.configureTestingModule({
+        providers: [provideZonelessChangeDetection(), provideRxDB(() => Promise.resolve(mockRxDB))]
+      });
+
+      await settleInitializers();
+
+      expect(TestBed.inject(RxDB)).toBe(mockRxDB);
+    });
+
+    it('accepts a bare promise', async () => {
+      const mockRxDB = createMockRxDB();
+
+      TestBed.configureTestingModule({
+        providers: [provideZonelessChangeDetection(), provideRxDB(Promise.resolve(mockRxDB))]
+      });
+
+      await settleInitializers();
+
+      expect(TestBed.inject(RxDB)).toBe(mockRxDB);
+    });
+
+    it('separates "not ready" from "no provider" before an async source settles', () => {
+      TestBed.configureTestingModule({
+        providers: [provideZonelessChangeDetection(), provideRxDB(() => Promise.resolve(createMockRxDB()))]
+      });
+
+      TestBed.runInInjectionContext(() => {
+        expect(() => useRxDB()).toThrow(/RxDB is not ready yet/);
+        expect(useRxDBOptional()).toBeUndefined();
+      });
+    });
+
+    it('returns undefined from useRxDBOptional when no provider exists', () => {
+      TestBed.runInInjectionContext(() => {
+        expect(useRxDBOptional()).toBeUndefined();
+      });
+    });
+
+    // initializer 一旦 reject，Angular 会中止 bootstrap —— 窗口全白，为这种失败准备的
+    // 应用内诊断面板反而被失败本身挡在门外。所以错误留到读取时再抛。
+    it('never rejects the app initializer, and rethrows the original error on read', async () => {
+      const failure = new Error('storage unavailable');
+
+      TestBed.configureTestingModule({
+        providers: [provideZonelessChangeDetection(), provideRxDB(() => Promise.reject(failure))]
+      });
+
+      await expect(settleInitializers()).resolves.toBeUndefined();
+
+      TestBed.runInInjectionContext(() => {
+        expect(() => useRxDB()).toThrow(failure);
+        expect(useRxDBOptional()).toBeUndefined();
+      });
+    });
+  });
+
+  // 所有权规则：provider 只销毁自己造的东西。调用方传进来的实例不该被顺手断掉 ——
+  // 否则一个模块级单例会随某个子注入器的销毁而失效，且没有人会去重连。
+  describe('生命周期所有权', () => {
+    it('leaves a caller-supplied instance alone when its injector is destroyed', async () => {
+      const mockRxDB = createMockRxDB();
+      const injector = createEnvironmentInjector([provideRxDB(mockRxDB)], TestBed.inject(EnvironmentInjector));
+      injector.get(RxDB);
+
+      injector.destroy();
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockRxDB.disconnectAll).not.toHaveBeenCalled();
+    });
+
+    it('disconnects an async source that settles after the injector is destroyed', async () => {
+      const mockRxDB = createMockRxDB();
+      let settle: (value: RxDB) => void = () => undefined;
+      const pending = new Promise<RxDB>(resolve => (settle = resolve));
+      const injector = createEnvironmentInjector([provideRxDB(() => pending)], TestBed.inject(EnvironmentInjector));
+      // 这次读取只为把 holder 建出来（子注入器没有 app initializer 替它等），必然抛「未就绪」。
+      expect(() => injector.get(RxDB)).toThrow(/RxDB is not ready yet/);
+
+      injector.destroy();
+      settle(mockRxDB);
+
+      await vi.waitFor(() => expect(mockRxDB.disconnectAll).toHaveBeenCalledOnce());
     });
   });
 

@@ -5,7 +5,7 @@
  */
 
 import { RxDB, SyncType } from '@aiao/rxdb';
-import { DESKTOP_ADAPTER_NAME, RxDBAdapterDesktop } from '@aiao/rxdb-adapter-desktop';
+import { ELECTRON_ADAPTER_NAME, RxDBAdapterElectron } from '@aiao/rxdb-adapter-electron';
 import { rxDBPluginStorage, type RxdbFileStorage } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
@@ -79,7 +79,7 @@ export class DesktopDatabaseService {
       context: { userId: 'userId' },
       entities: [DesktopLaunch],
       sync: {
-        local: { adapter: DESKTOP_ADAPTER_NAME },
+        local: { adapter: ELECTRON_ADAPTER_NAME },
         type: SyncType.None
       }
     });
@@ -93,7 +93,7 @@ export class DesktopDatabaseService {
     });
     // 不传 transport：适配器自己去全局键上找 preload 暴露的桥接，
     // 渲染进程因此拿不到、也不需要知道库文件的物理路径（AC#3）。
-    this.#db.adapter(DESKTOP_ADAPTER_NAME, async db => new RxDBAdapterDesktop(db));
+    this.#db.adapter(ELECTRON_ADAPTER_NAME, async db => new RxDBAdapterElectron(db));
     this.#db.init();
 
     // AC#7：injector 销毁时把连接交还给 host。少了这一步，主进程侧的会话要等到
@@ -118,7 +118,7 @@ export class DesktopDatabaseService {
    */
   async #start(): Promise<void> {
     let adapterConnected = false;
-    await connectLocalAdapter(this.#db, DESKTOP_ADAPTER_NAME, (status, error) => {
+    await connectLocalAdapter(this.#db, ELECTRON_ADAPTER_NAME, (status, error) => {
       adapterConnected = status === 'connected';
       if (!adapterConnected) this.#status.set(status);
       this.#error.set(error);

@@ -1,6 +1,6 @@
 //! Tauri 侧的桌面 SQLite 宿主（US-210）。
 //!
-//! `@aiao/rxdb-adapter-desktop` 把 renderer 与 host 之间的一切收敛成一个
+//! `@aiao/rxdb-adapter-tauri` 把 renderer 与 host 之间的一切收敛成一个
 //! `DesktopHostTransport`，Electron 用 `ipcRenderer.invoke` 实现，Tauri 用
 //! `invoke` + `listen` 实现。线协议两侧共用，本模块是它的 Rust 宿主实现。
 //!

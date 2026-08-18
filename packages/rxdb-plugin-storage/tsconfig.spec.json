@@ -26,6 +26,9 @@
     },
     {
       "path": "../rxdb-adapter-wa-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-adapter-electron/tsconfig.lib.json"
     }
   ]
 }

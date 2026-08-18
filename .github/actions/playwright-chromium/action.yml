@@ -7,6 +7,13 @@ description: 装 Playwright chromium（含系统依赖），带缓存。
 # 旧 CI 在 test job 里 `playwright install --with-deps` 装全套、e2e job 只装 chromium，
 # 两边被迫用不同的 cache key 才不会互相污染。现在统一成一个 key，缓存复用率也上来了。
 # 将来若真放开 firefox/webkit：改这里的安装参数**和** key，两者必须同时改。
+#
+# 系统依赖不走 `--with-deps`，改成「探测缺库才装」，见下方两个 Linux-only 步骤。
+# 背景：run 里 `install-deps` 单步跑了 31 分钟（job timeout 才 40 分钟）。不是 apt
+# 装得慢，是 GitHub runner 默认的 azure.archive.ubuntu.com 那会儿不可达，日志里
+# 一片 `Ign:` 就是证据；apt 默认 Timeout 120s / Retries 3，六个 repo 条目轮着超时
+# 重试才回落到 archive.ubuntu.com。这个 action 一轮 CI 被引用 5 处（test lane × N /
+# test-browser / acceptance / e2e / benchmark），等于每轮都要赌好几次。
 
 runs:
   using: composite
@@ -27,13 +34,58 @@ runs:
         path: ~/.cache/ms-playwright
         key: playwright-chromium-${{ runner.os }}-${{ steps.version.outputs.version }}
 
+    # 只下二进制，不碰 apt —— 系统依赖交给下面的探测步骤统一处理，
+    # 这样 cache 命中与否走的是同一条依赖路径，少一种只在冷缓存下才炸的组合。
     - name: Install chromium
       if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
-      run: pnpm exec playwright install --with-deps chromium
+      run: pnpm exec playwright install chromium
 
-    # 缓存只覆盖 ~/.cache/ms-playwright 里的浏览器二进制，apt 装的系统库不在里面。
-    - name: Install system dependencies
-      if: steps.cache.outputs.cache-hit == 'true'
+    # 这份 conf 对整个 job 生效（不止本 action），有意为之：任何 apt 使用者都该有上界。
+    # Timeout 管的是「连接建立 / 数据停滞」而非总下载时长，镜像正常时 15s 绰绰有余，
+    # 只有卡死的连接会被砍掉。
+    - name: Bound apt timeouts
+      if: runner.os == 'Linux'
       shell: bash
-      run: pnpm exec playwright install-deps chromium
+      run: |
+        sudo tee /etc/apt/apt.conf.d/99-ci-timeout >/dev/null <<'EOF'
+        Acquire::Retries "2";
+        Acquire::http::Timeout "15";
+        Acquire::https::Timeout "15";
+        EOF
+
+    # 缓存只覆盖 ~/.cache/ms-playwright 里的浏览器二进制，apt 装的系统库不在里面，
+    # 所以缓存命中时依赖仍需确认 —— 但 ubuntu-latest 镜像本身预装了 Chrome/Chromium/
+    # Firefox，chromium 要的那批库（libnss3 / libatk / libgbm / libasound2t64 …）本来就在。
+    # 与其无条件跑 apt，不如 ldd 探一把：正常情况 0 秒，镜像哪天真裁了库也能自愈。
+    # 探不到二进制（理论上不该发生）时按「需要装」处理，宁可慢也不要跑到测试里才炸。
+    - name: Ensure system dependencies
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        set -euo pipefail
+        need=0
+        found=0
+        for bin in ~/.cache/ms-playwright/*/chrome-linux*/chrome \
+                   ~/.cache/ms-playwright/*/chrome-linux*/headless_shell; do
+          [ -x "$bin" ] || continue
+          found=1
+          if ldd "$bin" 2>/dev/null | grep -q 'not found'; then
+            need=1
+            echo "缺库：$bin"
+            ldd "$bin" 2>/dev/null | grep 'not found' || true
+          fi
+        done
+
+        if [ "$found" = 0 ]; then
+          echo "未找到 chromium 二进制，保守起见执行 install-deps"
+          need=1
+        fi
+
+        if [ "$need" = 0 ]; then
+          echo "runner 镜像已含 chromium 全部系统依赖，跳过 apt"
+          exit 0
+        fi
+
+        # 有上界地失败，而不是磨到 job timeout 才被掐。
+        timeout 600 pnpm exec playwright install-deps chromium

@@ -58,11 +58,11 @@
     "rxjs": "^7.8.2"
   },
   "peerDependencies": {
-    "@aiao/rxdb-adapter-desktop": "workspace:*",
+    "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
     "vitest": ">=4.0.0"
   },
   "peerDependenciesMeta": {
-    "@aiao/rxdb-adapter-desktop": {
+    "@aiao/rxdb-adapter-sqlite-core": {
       "optional": true
     },
     "vitest": {
@@ -70,7 +70,8 @@
     }
   },
   "devDependencies": {
-    "@aiao/rxdb-adapter-desktop": "workspace:*",
+    "@aiao/rxdb-adapter-electron": "workspace:*",
+    "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
     "vitest": "4.1.10"
   }

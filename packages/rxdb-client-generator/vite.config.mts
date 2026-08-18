@@ -1,36 +1,26 @@
 /// <reference types='vitest' />
 import { codecovVitePlugin } from '@codecov/vite-plugin';
+import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
+import { rxdbClientGeneratorCliShebangPlugin } from './src/plugins/cli-shebang.js';
 
-const CLI_ENTRY_SUFFIX = `${path.sep}src${path.sep}cli${path.sep}cli.ts`;
+const MIN_CLI_BUNDLE_BYTES = 500;
 
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/packages/rxdb-client-generator',
   plugins: [
+    rxdbClientGeneratorCliShebangPlugin(),
     {
-      name: 'rxdb-client-generator-cli-shebang',
-      transform(code, id) {
-        if (id.endsWith(CLI_ENTRY_SUFFIX) && code.startsWith('#!/usr/bin/env node')) {
-          return {
-            code: code.replace(/^#!\/usr\/bin\/env node\n/, ''),
-            map: null
-          };
+      name: 'rxdb-client-generator-cli-size-guard',
+      closeBundle() {
+        const cliPath = path.join(import.meta.dirname, 'dist/cli.js');
+        const bytes = existsSync(cliPath) ? statSync(cliPath).size : 0;
+        if (bytes < MIN_CLI_BUNDLE_BYTES) {
+          throw new Error(`CLI 产物过小（${bytes} bytes），shebang 剥离很可能没命中: ${cliPath}`);
         }
-
-        return null;
-      },
-      renderChunk(code, chunk) {
-        if (chunk.fileName === 'cli.js') {
-          return {
-            code: `#!/usr/bin/env node\n${code}`,
-            map: null
-          };
-        }
-
-        return null;
       }
     },
     dts({

@@ -24,7 +24,7 @@
   "include": ["src/**/*.ts"],
   "nx": {
     "sync": {
-      "ignoredDependencies": ["rxdb-adapter-wa-sqlite"]
+      "ignoredDependencies": ["rxdb-adapter-wa-sqlite", "rxdb-adapter-electron"]
     }
   },
   "references": [
@@ -32,7 +32,7 @@
       "path": "../rxdb/tsconfig.lib.json"
     },
     {
-      "path": "../rxdb-adapter-desktop/tsconfig.lib.json"
+      "path": "../rxdb-adapter-sqlite-core/tsconfig.lib.json"
     }
   ]
 }

@@ -146,12 +146,14 @@ describe('ELEC-10 file: 协议下的生产外壳', () => {
     expect(stripHtmlComments(read(file))).not.toMatch(/<base\b/);
   });
 
-  // `provideRxDB` 只是 useFactory，惰性；首页不注入 RxDB，工厂就永不执行，
-  // 状态卡会永久停在「连接中…」且零诊断信号（实测：无 worker、无请求、无报错）。
-  it('bootstrap 阶段强制实例化 RxDB', () => {
+  // ELEC-11：`provideRxDB` 现在自带 app initializer，bootstrap 阶段必然跑到工厂 ——
+  // 「初始化器确实实例化了数据库」由 packages/rxdb-angular 的 rxdb.provider.spec.ts 锁定。
+  // 这里只钉两件 demo 侧的事：source 确实交给了 provideRxDB（漏掉的话状态卡会永久停在
+  // 「连接中…」且零诊断信号：无 worker、无请求、无报错），以及别再手写那一刀补偿式注入。
+  it('RxDB 由 provideRxDB 在 bootstrap 阶段接管', () => {
     const source = read('src/app/app.config.ts');
-    expect(source).toContain('provideAppInitializer');
-    expect(source).toMatch(/provideAppInitializer\(\(\) => \{\s*\n\s*inject\(RxDB\);/);
+    expect(source).toMatch(/provideRxDB\(setup_rxdb\)/);
+    expect(source).not.toMatch(/provideAppInitializer\(\(\)\s*=>\s*\{\s*\n\s*inject\(RxDB\);/);
   });
 
   // wasmPath 曾用 APP_BASE_HREF 拼；该 token 现在固定空串，拼出来是裸相对路径，
@@ -196,8 +198,8 @@ describe('US-207 桌面 SQLite 在渲染进程一侧的接线', () => {
   // 写入落在内存、重启即失，而 US-207 的全部意义正是「别再只存在于 WebView 里」。
   it('renderer 只用包根入口，不碰 /host 子路径', () => {
     const source = read('src/app/services/desktop-database.service.ts');
-    expect(source).toContain("from '@aiao/rxdb-adapter-desktop'");
-    expect(source).not.toContain('@aiao/rxdb-adapter-desktop/host');
+    expect(source).toContain("from '@aiao/rxdb-adapter-electron'");
+    expect(source).not.toContain('@aiao/rxdb-adapter-electron/host');
   });
 
   // 与 ELEC-11 同一个坑的另一种形态：`providedIn: 'root'` 的服务同样是惰性的，
@@ -239,7 +241,7 @@ describe('US-504 本地文件存储在渲染进程一侧的接线', () => {
   it.each(['src/app/services/desktop-database.service.ts', 'src/app/pages/storage/storage.page.ts'])(
     '%s 不碰适配器的 /host 子路径',
     file => {
-      expect(read(file)).not.toContain('@aiao/rxdb-adapter-desktop/host');
+      expect(read(file)).not.toContain('@aiao/rxdb-adapter-electron/host');
     }
   );
 
@@ -297,5 +299,27 @@ describe('ELEC-21 worker 共享 chunk 不能被 chunk optimizer 删掉', () => {
     for (const configuration of Object.values<{ buildTarget?: string }>(project.targets.serve.configurations)) {
       expect(configuration.buildTarget).toMatch(/^dev-rxdb-electron:ng-build:/);
     }
+  });
+
+  // 这层包装会 fork 出**第二个 nx 进程**。默认情况下那个进程会把 ng-build 的
+  // `dependsOn: ["^build"]` 再展开一遍，于是同一场构建里两个 nx 同时管理
+  // `packages/*/dist`：外层 run-many 正在跑 dev-rxdb-supabase:build 读
+  // `packages/rxdb-test/dist/entities/index.d.ts`，内层 nx 同时把 rxdb-test:build
+  // 从本地缓存重新落盘（落盘 = 先删目标目录再拷贝），读到一半文件就没了。
+  //
+  // 实测：run 32102602589（main）—— 05:27:11 内层打出
+  // `> nx run rxdb-test:build [local cache]`，05:27:22 外层
+  // dev-rxdb-supabase 报 `TS2307: Cannot find module '@aiao/rxdb-test/entities'`。
+  // 本机跑同一条命令是绿的，因为内层命中的是「existing outputs match the cache,
+  // left as is」这条不落盘的分支 —— 这个 bug 只在缓存状态刚好不同时现形。
+  //
+  // 修法是让内层只跑 ng-build 这一个任务：依赖由外层 build 的 `^build` 保证已就绪，
+  // 内层再算一遍纯属重复劳动，而这份重复劳动正是唯一的写冲突来源。
+  // 两条断言互为前提，缺一不可 —— 去掉 `^build`，`--excludeTaskDependencies`
+  // 就变成「依赖根本没人建」。
+  it('build 自己声明 ^build，且禁止内层 nx 再展开一遍依赖图', () => {
+    const build = project.targets.build;
+    expect(build.dependsOn).toEqual(['^build']);
+    expect(build.options.command).toContain('--excludeTaskDependencies');
   });
 });

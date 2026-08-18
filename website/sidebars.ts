@@ -155,7 +155,14 @@ const sidebars: SidebarsConfig = {
         type: 'doc',
         id: 'migration/README'
       },
-      items: ['migration/v1', 'migration/frameworks', 'migration/adapters', 'migration/plugins', 'migration/schema']
+      items: [
+        'migration/v1',
+        'migration/frameworks',
+        'migration/adapters',
+        'migration/desktop-split',
+        'migration/plugins',
+        'migration/schema'
+      ]
     },
     {
       type: 'doc',

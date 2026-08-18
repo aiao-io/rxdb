@@ -57,6 +57,10 @@
       "kind": "type"
     },
     {
+      "name": "RxDBSource",
+      "kind": "type"
+    },
+    {
       "name": "useAction",
       "kind": "value"
     },
@@ -142,6 +146,14 @@
     },
     {
       "name": "UseRxDB",
+      "kind": "type"
+    },
+    {
+      "name": "useRxDBOptional",
+      "kind": "value"
+    },
+    {
+      "name": "UseRxDBOptional",
       "kind": "type"
     }
   ]

@@ -15,9 +15,12 @@ import { provideRouter, withComponentInputBinding, withInMemoryScrolling, withVi
 import { provideLoadingBarInterceptor } from '@ngx-loading-bar/http-client';
 import { provideLoadingBarRouter } from '@ngx-loading-bar/router';
 import { appRoutes } from './app.routes';
+import { selectLocalBackend } from './local-backend';
 import { RxDBConnectionState } from './rxdb-connection-state';
-import { connectRxDB } from './rxdb-initializer';
-import { selectLocalBackend } from './setup_rxdb';
+import { startLocalDatabase } from './rxdb-initializer';
+import { DesktopLaunchService } from './services/desktop-launch.service';
+import { reportSelfCheck } from './services/selfcheck-reporter';
+import { localBackends } from './setup_rxdb';
 
 /** 按浏览器/系统语言挑 locale id。 */
 const resolveLocaleId = (): string => (Intl.DateTimeFormat().resolvedOptions().locale.includes('zh') ? 'zh' : 'en-US');
@@ -35,6 +38,9 @@ const registerLocaleIfNeeded = async (localeId: string): Promise<void> => {
  * @remarks
  * 两个 `provideAppInitializer` 都**不允许 reject** —— initializer 一旦失败，
  * Angular 会中止 bootstrap，窗口全白且页面内没有任何诊断出口（TAURI-01）。
+ *
+ * 它们之间也**没有先后顺序**：Angular 并发执行全部 initializer。有依赖关系的步骤必须
+ * 写在同一个里，见下面数据库那一条。
  */
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -69,9 +75,21 @@ export const appConfig: ApplicationConfig = {
     // US-210：Tauri 窗口里数据落在宿主持有的 SQLite 文件，浏览器预览里落在 wa-sqlite。
     // 判定放在 provider 工厂里（惰性），因为 `__TAURI_INTERNALS__` 由 Tauri 的初始化脚本注入，
     // 模块求值期读它等于赌两段脚本的先后顺序。
-    provideRxDB(() => selectLocalBackend(globalThis).create()),
+    provideRxDB(() => selectLocalBackend(localBackends(globalThis)).create()),
+    // 「连接 → 记一次启动 → 上报结论」必须串在**同一个** initializer 里：
+    // 多个 initializer 是并发跑的，拆开就等于赌「连接先于写入完成」，
+    // 而那是一条只在慢机器上偶发的竞态。理由详见 `startLocalDatabase` 的 TSDoc。
+    //
+    // 所有 `inject()` 都在这一行同步取到：initializer 工厂返回 Promise 之后就离开了注入
+    // 上下文，第一个 `await` 之后再 inject 会抛 NG0203。
     provideAppInitializer(() =>
-      connectRxDB(inject(RxDB), inject(RxDBConnectionState), selectLocalBackend(globalThis).adapter)
+      startLocalDatabase({
+        database: inject(RxDB),
+        state: inject(RxDBConnectionState),
+        launches: inject(DesktopLaunchService),
+        adapterName: selectLocalBackend(localBackends(globalThis)).adapter,
+        report: outcome => reportSelfCheck(outcome, globalThis)
+      })
     ),
     provideHttpClient(withFetch(), withInterceptorsFromDi()),
     provideLoadingBarInterceptor(),

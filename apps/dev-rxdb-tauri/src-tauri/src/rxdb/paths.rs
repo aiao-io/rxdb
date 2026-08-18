@@ -1,6 +1,6 @@
 //! 逻辑数据库名 → 应用作用域内的物理路径。
 //!
-//! 对应 `packages/rxdb-adapter-desktop/src/desktop-storage.ts` 的
+//! 对应 `packages/rxdb-adapter-sqlite-core/src/desktop/desktop-storage.ts` 的
 //! `assertValidDesktopDatabaseName` 与 Electron 侧 `desktop-sqlite-bridge.ts` 的目录解析。
 //!
 //! renderer 传来的永远是**逻辑名**，物理根目录由 host 自己决定并且不回传（AC#4）：

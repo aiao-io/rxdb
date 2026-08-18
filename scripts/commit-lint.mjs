@@ -21,7 +21,7 @@
  *                                    `git symbolic-ref` 会直接抛错，根本走不到分支判断）。
  *
  * CI 里用的是 3 而不是 4，这是被合并策略决定的：本仓库走 squash merge
- * （`main` 上的提交长这样：`feat(rxdb-adapter-desktop): 添加 tauri 本地数据库支持 (#7)`），
+ * （`main` 上的提交长这样：`feat(rxdb-adapter-tauri): 添加 tauri 本地数据库支持 (#7)`），
  * 分支上的中间提交在合并时会被丢弃，落进 main 的只有 GitHub 从 **PR 标题** 生成的那一条。
  * 卡中间提交既拦不住坏历史，又会把「随手 commit、合并前整理」这种正常节奏堵死。
  * 若哪天改成 merge commit / rebase merge，把 CI 换成 4（`--range=main..HEAD`）即可，

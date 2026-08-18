@@ -16,9 +16,11 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use serde_json::Value;
 
+use super::error::{ErrorCode, HostError};
 use super::file::protocol::is_file_request;
 use super::file::FileHost;
 use super::paths::STORAGE_DIRECTORY;
+use super::protocol::error_response;
 use super::session::{Host, HostOptions};
 
 /// 一个窗口开出的会话，按协议分开记。
@@ -74,14 +76,33 @@ impl DesktopRouter {
     /// `owner` 是 Tauri 的 window label。窗口销毁后没有任何一条 renderer 请求会再来关它的
     /// 会话，唯一的回收时机是 [`Self::close_owner`]，而那时只剩下一个 label 可用——
     /// 所以归属必须在请求经过时就记下来。
+    ///
+    /// 归属同时是**授权判据**：带 session 的请求在派发前先过 [`Self::reject_foreign_session`]，
+    /// 别的窗口的会话根本进不到宿主里。会话 id 随每条变更事件发到 renderer，它是个公开的
+    /// 标识而不是凭证；不验主的话，任一窗口都能对另一个窗口的连接执行 SQL、提交、回滚或直接关掉。
     pub fn handle_owned(&self, request: &Value, owner: &str) -> Value {
         let files = is_file_request(request);
+        if let Some(denial) = self.reject_foreign_session(request, owner, files) {
+            return denial;
+        }
         let response = match files {
             true => self.files.handle(request),
             false => self.sqlite.handle(request),
         };
         self.track(owner, request, &response, files);
         response
+    }
+
+    /// 一个会话记在哪个窗口名下。
+    ///
+    /// 变更事件靠它定向投递：事件里带着 session id，收件人只能是开出这个会话的那个窗口。
+    /// 两套协议的 id 都是 UUID，不会串；查不到即表示该会话不属于任何活着的窗口
+    /// （由 [`Self::handle`] 开出，或已经关掉）。
+    pub fn session_owner(&self, session_id: &str) -> Option<String> {
+        self.owners()
+            .iter()
+            .find(|(_, owned)| owned.files.contains(session_id) || owned.sqlite.contains(session_id))
+            .map(|(label, _)| label.clone())
     }
 
     /// 回收一个窗口的全部会话：放掉它持有的锁、丢弃它未提交的写入、关掉它的数据库连接。
@@ -115,6 +136,11 @@ impl DesktopRouter {
             .map_or(0, |owned| owned.files.len() + owned.sqlite.len())
     }
 
+    /// 两套宿主共同的应用数据根目录，见 [`Host::app_data_dir`]。
+    pub fn app_data_dir(&self) -> &Path {
+        self.sqlite.app_data_dir()
+    }
+
     /// SQL 宿主，供诊断与关停检查使用。
     pub fn sqlite(&self) -> &Host {
         &self.sqlite
@@ -123,6 +149,30 @@ impl DesktopRouter {
     /// 文件宿主，供诊断与关停检查使用。
     pub fn files(&self) -> &FileHost {
         &self.files
+    }
+
+    /// 跨窗口访问会话时的拒绝应答，放行时返回 `None`。
+    ///
+    /// 只拒绝**确实属于别人**的会话：查不到归属就交给宿主，由它照旧回 `session_closed`。
+    /// 把「不存在」也说成越权会误导 renderer——那两件事的处理方式相反，
+    /// `session_closed` 该重连，`permission_denied` 该放弃。
+    ///
+    /// 判据用的是路由器自己的归属表，不是请求里的任何字段：请求整个来自 renderer。
+    fn reject_foreign_session(&self, request: &Value, owner: &str, files: bool) -> Option<Value> {
+        let session_id = request["sessionId"].as_str()?;
+        let owners = self.owners();
+        let holder = owners.iter().find(|(_, owned)| match files {
+            true => owned.files.contains(session_id),
+            false => owned.sqlite.contains(session_id),
+        })?;
+        if holder.0 == owner {
+            return None;
+        }
+        // 不回显持有者的 label：那是另一个窗口的信息，对发起方没有用处。
+        Some(error_response(&HostError::new(
+            ErrorCode::PermissionDenied,
+            format!("session {session_id} belongs to another window"),
+        )))
     }
 
     /// 按**应答**更新归属表。
@@ -327,6 +377,91 @@ mod tests {
         let closed = router.handle_owned(&json!({ "kind": "file.close", "sessionId": session }), "main");
         assert_eq!(closed["kind"], "file.close");
         assert_eq!(router.owned_session_count("main"), 0);
+
+        router.close_all();
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// 会话 id 会随每条变更事件发给 renderer，所以它**不是**凭证。
+    /// 另一个窗口拿到它之后必须什么都做不了——尤其是不能关掉别人正在用的连接。
+    #[test]
+    fn refuses_a_sql_session_owned_by_another_window() {
+        let root = std::env::temp_dir().join(format!("rxdb-router-{}", uuid::Uuid::new_v4()));
+        let router = router(&root);
+        let session = open_sql_session(&router, "main", "main.sqlite3");
+
+        for request in [
+            json!({ "kind": "execute", "sessionId": session, "sql": "SELECT 1", "bindings": [] }),
+            json!({ "kind": "version", "sessionId": session }),
+            json!({ "kind": "close", "sessionId": session }),
+        ] {
+            let response = router.handle_owned(&request, "second");
+            assert_eq!(response["kind"], "error", "for {request}");
+            assert_eq!(response["code"], "permission_denied", "for {request}");
+        }
+
+        // 被拒的请求不能留下任何痕迹：连接还在，归属也还记在原窗口名下。
+        assert_eq!(router.sqlite().open_session_count(), 1);
+        assert_eq!(router.owned_session_count("main"), 1);
+
+        router.close_all();
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// 文件侧同理，而且更危险：一把跨窗口 `lockRelease` 能放掉别人正持有的独占锁。
+    #[test]
+    fn refuses_a_file_session_owned_by_another_window() {
+        let root = std::env::temp_dir().join(format!("rxdb-router-{}", uuid::Uuid::new_v4()));
+        let router = router(&root);
+        let session = open_file_session(&router, "main");
+
+        for request in [
+            acquire(&session, "/a"),
+            json!({ "kind": "file.mkdir", "sessionId": session, "path": "" }),
+            json!({ "kind": "file.close", "sessionId": session }),
+        ] {
+            let response = router.handle_owned(&request, "second");
+            assert_eq!(response["kind"], "error", "for {request}");
+            assert_eq!(response["code"], "permission_denied", "for {request}");
+        }
+
+        assert_eq!(router.files().open_session_count(), 1);
+        assert_eq!(router.owned_session_count("main"), 1);
+
+        router.close_all();
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// 归属校验不能顺手把「会话不存在」也吞成越权：那两件事的处理方式完全不同，
+    /// renderer 侧按 `session_closed` 重连，按 `permission_denied` 则是放弃。
+    #[test]
+    fn still_answers_an_unknown_session_with_session_closed() {
+        let root = std::env::temp_dir().join(format!("rxdb-router-{}", uuid::Uuid::new_v4()));
+        let router = router(&root);
+        let response = router.handle_owned(
+            &json!({ "kind": "version", "sessionId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301" }),
+            "main",
+        );
+        assert_eq!(response["code"], "session_closed");
+        router.close_all();
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// 变更事件按 owner 定向投递，所以路由器必须能反查一个会话属于哪个窗口。
+    #[test]
+    fn reports_which_window_owns_a_session() {
+        let root = std::env::temp_dir().join(format!("rxdb-router-{}", uuid::Uuid::new_v4()));
+        let router = router(&root);
+        let session = open_sql_session(&router, "main", "main.sqlite3");
+
+        assert_eq!(router.session_owner(&session).as_deref(), Some("main"));
+        assert_eq!(router.session_owner("3f2504e0-4f89-41d3-9a0c-0305e82c3301"), None);
+
+        assert_eq!(
+            router.handle_owned(&json!({ "kind": "close", "sessionId": session }), "main")["kind"],
+            "close"
+        );
+        assert_eq!(router.session_owner(&session), None);
 
         router.close_all();
         let _ = std::fs::remove_dir_all(&root);

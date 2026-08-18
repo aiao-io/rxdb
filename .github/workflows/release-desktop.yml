@@ -1,0 +1,248 @@
+name: Release Desktop
+
+# 桌面发布形态的门禁：US-207 AC#8 与 US-210 AC#1 / AC#9。
+#
+# 这里验的三件事，PR 门禁一件都验不到，而且**只有真的打包才验得到**：
+#
+#   1. Electron 打包产物在三个平台上都能起来、写库、重启后数据还在（US-207 AC#8）
+#   2. Tauri 打包产物同上（US-210 AC#1 + AC#9）
+#   3. `@aiao/rxdb-adapter-electron` 与 `@aiao/rxdb-adapter-tauri` 的发布 tarball
+#      可解析、可类型检查、可运行（US-207 的「三条发布性质」，E7 后两个包各跑一遍）
+#
+# 为什么不并进 `pr.yml` / `main.yml`：三平台冷编译 Rust release + 解包 Electron
+# 发行包，墙钟以十分钟计，而这三条性质只在打包配置、`exports` 字段、入口切分或
+# 宿主协议变动时才可能退化 —— 那是发布必经的路口，不是每次 PR 都会路过的地方。
+# `ci-template.yml` 因此一个字都没改。
+#
+# ⚠️ 新增 job 必须同步加进 `gate` 的 `needs` 和断言列表，否则新门禁形同虚设。
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+  # 只在**本 workflow 自身**被改动的 PR 上触发。
+  # 没有这一条的话，这份文件的第一次真实运行会发生在打 tag 之后 —— 发布当天才发现
+  # 语法写错、runner 上缺个系统库，是最不该省的那点时间。
+  pull_request:
+    paths:
+      - '.github/workflows/release-desktop.yml'
+      - '.github/actions/xvfb/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-desktop-${{ github.event.release.tag_name || github.ref }}
+  # 刻意**不**取消在跑的运行。发布验证是稀有信号：取消掉就没有第二次机会，
+  # 而重新触发要么得重新发一次 release，要么得手动 dispatch。
+  cancel-in-progress: false
+
+env:
+  CI: true
+  NX_DAEMON: false
+  NX_TUI: false
+  # Nx Cloud 因免费额度用尽而被硬关，详见 ci-template.yml 里的长注释。
+  # 不关的话 nx 会在握手处被直接掐掉（401，消息正文是 "exceeding the FREE plan"）。
+  NX_NO_CLOUD: true
+  NODE_OPTIONS: '--max-old-space-size=6144'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # US-207 AC#8：electron-builder 的真实产物在三平台上跑通打包 smoke。
+  #
+  # `dev-rxdb-electron-e2e:e2e` 的 dependsOn 已指向 `electron-package-dir`，
+  # Nx 会自动先打包，这里不必也不该再手写一遍打包命令。
+  # ---------------------------------------------------------------------------
+  electron-smoke:
+    name: electron-smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    # 冷跑要装全量依赖 + 建整棵依赖子树 + 下载并解包 Electron 发行包（约 100MB）。
+    timeout-minutes: 60
+    strategy:
+      # 三个平台各自独立：Windows 挂了不该掩盖 macOS 的结果，反之亦然。
+      # 发布前需要看到的是**完整的**平台矩阵，不是第一个红。
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          filter: tree:0
+
+      # free-disk 删的是 runner 预装的 android / dotnet / CodeQL 等，只有 Linux 镜像有。
+      - uses: ./.github/actions/setup-workspace
+        with:
+          free-disk: ${{ runner.os == 'Linux' }}
+      - uses: ./.github/actions/nx-cache-restore
+
+      # Electron 没有 headless 模式，Linux 上必须有 X server。详见该 action 的注释。
+      - uses: ./.github/actions/xvfb
+        if: runner.os == 'Linux'
+
+      # 刻意**不**装 Playwright 浏览器：这套 e2e 全程走 `_electron.launch()`，用的是
+      # 产物自带的 Chromium；`playwright.config.ts` 里既没有 `projects` 也没有用到
+      # `page` / `browser` fixture，装 chromium 是三个平台上白交的下载时间。
+      # （顺带：`.github/actions/playwright-chromium` 的缓存路径写死了 Linux 的
+      # `~/.cache/ms-playwright`，本来也不能直接用在 macOS / Windows 上。）
+      #
+      # ELECTRON_MIRROR / ELECTRON_BUILDER_BINARIES_MIRROR 是 electron-builder 唯一
+      # 认的两个镜像变量（`.npmrc` 里的 `electron_mirror` 它**不读**）—— 这里刻意不设，
+      # 写下来是为了让排查下载失败的人不必再查一遍。
+      - name: Run Electron packaging smoke
+        run: pnpm exec nx run dev-rxdb-electron-e2e:e2e --output-style=stream
+
+      # 失败复盘用：`trace: 'on-first-retry'` 开着，重试产生的 trace.zip 落在
+      # test-output/playwright/output/ 下，`pnpm exec playwright show-trace <zip>` 打开。
+      - name: Upload Playwright artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: electron-smoke-${{ matrix.os }}
+          path: |
+            apps/dev-rxdb-electron-e2e/test-output/playwright/output/
+            apps/dev-rxdb-electron-e2e/test-output/playwright/report/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # US-210 AC#1 + AC#9：Tauri 打包产物跨进程持久化。
+  #
+  # 与 electron-smoke 分开而不是合成一个 job：两套工具链完全不重叠（Tauri 要 Rust +
+  # WebKitGTK 开发库，Electron 要下发行包），合并后每个 runner 都得付两份安装税，
+  # 而且两个 smoke 会串行 —— 墙钟从 max 变成 sum。
+  # ---------------------------------------------------------------------------
+  tauri-smoke:
+    name: tauri-smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    # Rust 冷编译（tauri + rusqlite bundled 的依赖树，release profile）在 Windows 上
+    # 实测量级是 20-30 分钟。60 是下界不是余量。
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          filter: tree:0
+
+      - uses: ./.github/actions/setup-workspace
+        with:
+          free-disk: ${{ runner.os == 'Linux' }}
+      - uses: ./.github/actions/nx-cache-restore
+
+      # tauri 2 在 Linux 上经 wry 链到 WebKitGTK，这些是**编译期**依赖：
+      # 缺了连 `cargo check` 都过不去（build script 的 pkg-config 就会失败）。
+      # 清单与 ci-template.yml 的 rust job 逐字一致。
+      - name: Install Tauri system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libssl-dev
+
+      # 不用 @stable：那是会移动的分支引用，等于把 CI 的执行内容交给上游。
+      # toolchain 版本仍然是 stable（下面的 with.toolchain），只是 action 代码钉死。
+      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          toolchain: stable
+
+      # WebKitGTK 在 ubuntu 上默认走 DMA-BUF 渲染器；Xvfb 下没有 GPU、也没有 DRM 节点，
+      # 典型表现是**窗口起来了但页面永远白屏** —— 症状与「应用真有 bug」不可区分。
+      # 这个变量把它退回软件渲染路径。设在 job 级而不是某一步：`tauri build` 与
+      # smoke 里拉起的产物是两个不同的进程，都需要它。
+      - uses: ./.github/actions/xvfb
+        if: runner.os == 'Linux'
+
+      # 刻意**不缓存** `src-tauri/target/`：
+      #   - 照抄 ci-template 的 key 会与 PR 门禁的 rust job 撞上，但两边 profile 不同
+      #     （debug vs release）—— 白读约 800MB 又一条都用不上，且本 workflow 不回写。
+      #   - 换独立 key 则 3 OS × ~1GB 会啃掉 10GB 配额的一大块，而 ci-template 里已经
+      #     记录过一次事故：缓存涨到 9.43 GiB 后 LRU 开始驱逐 playwright 与 pnpm store，
+      #     「加缓存」反而让别的 job 冷跑。
+      # 发布是稀有事件，PR 门禁每天几十次 —— 不该让前者挤后者。冷编译由 timeout 兜住。
+      #
+      # desktop-smoke 的 dependsOn 指向 `dev-rxdb-tauri:tauri-package-release`，
+      # Nx 会自动先 `tauri build --ci --no-bundle`。
+      # ⚠️ `--no-bundle` 意味着这条路**不验证安装包本身**（Info.plist / MSI / NSIS）；
+      # 验的是 release 二进制的启动、写入、退出、再启动，正是 AC#9 的文本所要求的。
+      - name: Run Tauri packaging smoke
+        env:
+          WEBKIT_DISABLE_DMABUF_RENDERER: 1
+        run: pnpm exec nx run dev-rxdb-tauri-e2e:desktop-smoke --output-style=stream
+
+  # ---------------------------------------------------------------------------
+  # US-207 的「三条发布性质」：只有对着 `pnpm pack` 的产物才验得到。
+  #
+  # 不上矩阵：`pnpm pack` → 临时消费者 → tsc（NodeNext + Bundler）→ host 真开库往返，
+  # 全程与 OS 无关。三份一样的结论不值三个 runner。
+  #
+  # E7 之后一个 job 跑两个包（electron / tauri）：脚本内部参数化，共享闭包只 pack 一次，
+  # 拆成两个 job 反而要把 `pnpm install` 与 `pnpm pack` 各付一遍。
+  # ---------------------------------------------------------------------------
+  adapter-consumer:
+    name: adapter-consumer
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          filter: tree:0
+
+      - uses: ./.github/actions/setup-workspace
+      - uses: ./.github/actions/nx-cache-restore
+
+      # 脚本 pack 的是 `files` 里声明的 `dist/`，所以必须先构建 —— 否则打出来的 tarball
+      # 里 `exports` 指向的文件根本不存在，报的会是「模块找不到」这种和真实原因无关的错。
+      - name: Build packages under audit
+        run: |
+          pnpm exec nx run-many -t build --output-style=stream \
+            --projects=utils,rxdb,rxdb-adapter-encrypted,rxdb-adapter-sqlite-core,rxdb-adapter-electron,rxdb-adapter-tauri
+
+      # 脚本用 `process.cwd()` 当 workspace root，必须从仓库根目录跑。
+      - name: Audit published consumer
+        run: node scripts/audit/desktop-adapter-consumer.mjs
+
+  # ---------------------------------------------------------------------------
+  # 分支保护 / 发布检查只需要挂这一个 status check。
+  # ---------------------------------------------------------------------------
+  gate:
+    name: gate
+    needs: [electron-smoke, tauri-smoke, adapter-consumer]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # 与 ci-template 的 gate 有一处**刻意的差异**：这里 `skipped` 也算失败。
+      # 那边大部分 job 在 affected 模式下本来就该跳过，这里没有任何条件 job ——
+      # 一条 smoke 被跳过只可能意味着接线断了，而那正是最该红的时候。
+      - name: Assert all jobs green
+        run: |
+          set -uo pipefail
+
+          failed=()
+          check() {
+            case "$2" in
+              success) printf '  %-18s %s\n' "$1" "$2" ;;
+              *)
+                printf '  %-18s %s  ⟵\n' "$1" "$2"
+                failed+=("$1")
+                ;;
+            esac
+          }
+
+          echo "job 结果："
+          check electron-smoke   "${{ needs.electron-smoke.result }}"
+          check tauri-smoke      "${{ needs.tauri-smoke.result }}"
+          check adapter-consumer "${{ needs.adapter-consumer.result }}"
+
+          if [ ${#failed[@]} -gt 0 ]; then
+            echo
+            echo "❌ 未通过：${failed[*]}"
+            exit 1
+          fi
+
+          echo
+          echo "✅ 桌面发布形态三项门禁全绿"
