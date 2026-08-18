@@ -108,6 +108,20 @@ const decodeBase64 = (text: string): Uint8Array => {
   return bytes;
 };
 
+/**
+ * 编码器会产出的**唯一**十进制写法，也就是 `BigInt.prototype.toString` 的值域。
+ *
+ * @remarks
+ * `BigInt()` 的字符串转换远比「十进制整数」宽：`0x` / `0o` / `0b` 前缀、前后空白、`+` 号、
+ * 前导零都收，空串还读成 `0n`。这些写法没有一种能由本协议的编码器产生，只可能来自手写或
+ * 被篡改的载荷——而 `$bigint` 承载的正是 rowId：`{"$bigint":"0x10"}` 被读成 `16n` 而不是拒绝，
+ * 等于让对端替本地决定刷新哪一行。
+ *
+ * 与旁边 `decodeBase64` 同一条理由：编码单射，同一个数只有一种合法写法。`-0` 也在拒绝之列，
+ * 因为 `(-0n).toString()` 就是 `'0'`。
+ */
+const CANONICAL_BIGINT = /^(?:0|-?[1-9]\d*)$/;
+
 const isTagShaped = (value: Record<string, unknown>): boolean => {
   const keys = Object.keys(value);
   return keys.length === 1 && TAG_KEYS.has(keys[0]);
@@ -156,11 +170,10 @@ const decodeEntries = (value: Record<string, unknown>): Record<string, unknown> 
 const decodeTag = (tag: string, payload: unknown): unknown => {
   if (tag === BIGINT_TAG) {
     if (typeof payload !== 'string') throw violation(`${BIGINT_TAG} must carry a decimal string`);
-    try {
-      return BigInt(payload);
-    } catch {
-      throw violation(`${BIGINT_TAG} carried ${JSON.stringify(payload)}, which is not a decimal integer`);
+    if (!CANONICAL_BIGINT.test(payload)) {
+      throw violation(`${BIGINT_TAG} carried ${JSON.stringify(payload)}, which is not a canonical decimal integer`);
     }
+    return BigInt(payload);
   }
   if (tag === BYTES_TAG) {
     if (typeof payload !== 'string') throw violation(`${BYTES_TAG} must carry a base64 string`);

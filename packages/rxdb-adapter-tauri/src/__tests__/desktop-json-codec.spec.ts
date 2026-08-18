@@ -112,6 +112,42 @@ describe('desktop json codec', () => {
     expect(() => decodeDesktopJsonPayload({ $u8: 'Zh==' })).toThrow(/not canonical/);
   });
 
+  /**
+   * `$bigint` 与 `$u8` 在同一个 codec 里，松紧度必须一致。
+   *
+   * @remarks
+   * `BigInt()` 的字符串转换比「十进制整数」宽得多：它认 `0x` / `0o` / `0b` 前缀、认前后空白、
+   * 认 `+` 号、认前导零，还把空串读成 `0n`。而编码器只产出 `value.toString()`，也就是
+   * `/^(0|-?[1-9]\d*)$/` 这一种写法——多认的每一种都不可能由本协议的编码器产生，只可能来自
+   * 手写或被篡改的载荷。rowId 恰恰是这条通道上最要紧的值：`{"$bigint":"0x10"}` 被读成 `16n`
+   * 而不是拒绝，等于让对端替本地决定了刷新哪一行。
+   *
+   * 与 `decodeBase64` 同一个理由：编码是单射的，同一个数只有一种合法写法。
+   */
+  it.each([
+    ['hex', '0x10'],
+    ['octal', '0o17'],
+    ['binary', '0b101'],
+    ['leading whitespace', ' 1'],
+    ['trailing whitespace', '1 '],
+    ['an explicit plus', '+1'],
+    ['a leading zero', '007'],
+    ['negative zero', '-0'],
+    ['the empty string', ''],
+    ['a lone minus', '-'],
+    ['an exponent', '1e3'],
+    ['a decimal point', '1.0']
+  ])('rejects %s as a $bigint payload', (_label, payload) => {
+    expect(() => decodeDesktopJsonPayload({ $bigint: payload })).toThrow(RxDBAdapterDesktopError);
+    expect(() => decodeDesktopJsonPayload({ $bigint: payload })).toThrow(/protocol_violation/);
+  });
+
+  it('keeps accepting every shape the encoder produces', () => {
+    for (const value of [0n, 1n, -1n, 9_007_199_254_740_993n, -9_007_199_254_740_993n]) {
+      expect(decodeDesktopJsonPayload({ $bigint: value.toString() })).toBe(value);
+    }
+  });
+
   it('keeps accepting every canonical padding shape', () => {
     expect(decodeDesktopJsonPayload({ $u8: '' })).toEqual(new Uint8Array([]));
     expect(decodeDesktopJsonPayload({ $u8: 'Zg==' })).toEqual(new Uint8Array([102]));
