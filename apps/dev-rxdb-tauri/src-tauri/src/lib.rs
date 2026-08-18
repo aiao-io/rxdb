@@ -24,6 +24,19 @@ struct AppVersions {
     tauri: &'static str,
 }
 
+// ⚠️ 临时诊断代码（不提交）：renderer 的面包屑出口。
+#[tauri::command]
+fn dev_probe(msg: String) {
+    use std::io::Write;
+    eprintln!("[probe] {msg}");
+    let _ = std::io::stderr().flush();
+    if let Ok(path) = std::env::var("DEV_RXDB_TAURI_PROBE_LOG") {
+        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+            let _ = writeln!(file, "{msg}");
+        }
+    }
+}
+
 #[tauri::command]
 fn get_platform() -> String {
     std::env::consts::OS.to_string()
@@ -57,6 +70,7 @@ pub fn run() {
     let plan = selfcheck::plan_or_exit();
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
+            dev_probe,
             get_platform,
             get_versions,
             check_runtime,

@@ -1,6 +1,11 @@
 import { bootstrapApplication } from '@angular/platform-browser';
 import { AppComponent } from './app/app.component';
 import { appConfig } from './app/app.config';
+import { installProbe, probe } from './app/dev-probe';
+
+// ⚠️ 临时诊断代码（不提交）
+installProbe();
+probe('bootstrap start');
 
 /**
  * TAURI-01：桌面端的 bootstrap 失败不能只写 console。
@@ -10,7 +15,9 @@ import { appConfig } from './app/app.config';
  * 数据库连接失败已经改成应用内状态（见 `rxdb-initializer.ts`），
  * 这里兜住的是其余任何让 bootstrap 起不来的原因。
  */
-bootstrapApplication(AppComponent, appConfig).catch((error: unknown) => {
+bootstrapApplication(AppComponent, appConfig)
+  .then(() => probe('bootstrap done'))
+  .catch((error: unknown) => {
   console.error(error);
   const message = error instanceof Error ? error.message : String(error);
   const root = document.querySelector('app-root') ?? document.body;
