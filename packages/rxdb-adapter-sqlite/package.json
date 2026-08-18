@@ -1,6 +1,19 @@
 {
   "name": "@aiao/rxdb-adapter-sqlite",
   "version": "0.0.25",
+  "description": "Official SQLite WASM adapter for Aiao RxDB.",
+  "homepage": "https://rxdb.netlify.app/docs/adapters/sqlite",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "sqlite",
+    "wasm",
+    "opfs",
+    "local-first"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",

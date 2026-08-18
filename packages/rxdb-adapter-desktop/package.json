@@ -1,6 +1,19 @@
 {
   "name": "@aiao/rxdb-adapter-desktop",
   "version": "0.0.25",
+  "description": "Desktop host adapter for local SQLite files in Electron and Tauri applications.",
+  "homepage": "https://rxdb.netlify.app/docs/adapters",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "sqlite",
+    "electron",
+    "tauri",
+    "desktop"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",

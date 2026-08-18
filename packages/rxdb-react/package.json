@@ -1,6 +1,19 @@
 {
   "name": "@aiao/rxdb-react",
   "version": "0.0.25",
+  "description": "React integration for Aiao RxDB reactive data.",
+  "homepage": "https://rxdb.netlify.app/docs/frameworks/react",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "react",
+    "rxjs",
+    "hooks",
+    "local-first"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -1,6 +1,19 @@
 {
   "name": "@aiao/rxdb-client-generator",
   "version": "0.0.25",
+  "description": "Type-safe client and repository generator for Aiao RxDB models.",
+  "homepage": "https://rxdb.netlify.app/docs/client-generator",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "code-generation",
+    "typescript",
+    "repository",
+    "ts-morph"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",

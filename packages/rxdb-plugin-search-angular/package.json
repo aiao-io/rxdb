@@ -1,6 +1,19 @@
 {
   "name": "@aiao/rxdb-plugin-search-angular",
   "version": "0.0.25",
+  "description": "Angular bindings for the Aiao RxDB full-text search plugin.",
+  "homepage": "https://rxdb.netlify.app/docs/plugins",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "angular",
+    "full-text-search",
+    "fts5",
+    "rxjs"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",

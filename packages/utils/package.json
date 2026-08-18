@@ -1,6 +1,18 @@
 {
   "name": "@aiao/utils",
   "version": "0.0.25",
+  "description": "Shared TypeScript utilities for Aiao packages.",
+  "homepage": "https://rxdb.netlify.app/docs/",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "typescript",
+    "utilities",
+    "library"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",

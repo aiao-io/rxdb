@@ -2,13 +2,15 @@
 
 # RxDB
 
+[![PR CI](https://github.com/aiao-io/rxdb/actions/workflows/pr.yml/badge.svg?branch=main)](https://github.com/aiao-io/rxdb/actions/workflows/pr.yml)
+[![npm](https://img.shields.io/npm/v/@aiao/rxdb)](https://www.npmjs.com/package/@aiao/rxdb)
 [![codecov](https://codecov.io/gh/aiao-io/rxdb/graph/badge.svg?token=VJW8U2PNBG)](https://codecov.io/gh/aiao-io/rxdb)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![User Stories](https://img.shields.io/badge/User_Stories-35%2F61_Done-green)](requirements/status-overview.md)
+[![Docs](https://img.shields.io/badge/docs-rxdb.netlify.app-0ea5e9)](https://rxdb.netlify.app)
 
 </div>
 
-RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。
+RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/*` 公开包当前同步发布为 `0.0.25`，仍处于 0.x 演进阶段。
 
 - 使用装饰器定义的实体模型，自动生成类型安全的 Repository 和查询 API
 - 一份模型声明同时驱动数据库 schema、TypeScript 类型和响应式数据流。
@@ -35,7 +37,9 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri        |
 
 > [!NOTE]
-> ⚠️ 核心 MVP 已完成（[35/61 stories](requirements/status-overview.md)），当前处于 1.0 发布冲刺阶段。API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。
+> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态与数字以 [状态概览](requirements/status-overview.md) 为准，本 README 不重复维护统计口径。
+
+支持与反馈：可复现的 bug 请提交 [Bug Issue](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml)，功能建议提交 [Feature Issue](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml)，使用问题请提交 [Question Issue](https://github.com/aiao-io/rxdb/issues/new?template=question.yml)。
 
 ## RxDB 解决什么问题？
 
@@ -193,7 +197,7 @@ aiao/
 
 ## 当前进展
 
-34/50 个 story 已交付（口径见 [status-overview](requirements/status-overview.md)）。核心引擎、七种本地存储适配器、三框架集成、插件体系和协作能力均已就绪。
+交付状态见 [status-overview](requirements/status-overview.md)。核心引擎、七种本地存储适配器、三框架集成、插件体系和协作能力均已就绪。
 
 ### 已验证场景
 
