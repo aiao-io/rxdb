@@ -244,16 +244,39 @@ export function createElectronSqliteHost(options: ElectronSqliteHostOptions): El
     }
   };
 
+  /**
+   * 按种类派发一条已通过协议校验的请求。
+   *
+   * @remarks
+   * 穷尽 `switch` 而不是「若干 `if` + 落空走 `execute`」：后者把「未知种类」这件事
+   * 交给了调用约定去保证（今天成立，因为 {@link parseDesktopHostRequest} 先跑）。
+   * 一旦协议加了新种类而这里忘记补分支，落空写法会把它当 `execute` 跑，
+   * 读一个不存在的 `request.sql` —— 变成运行期的怪异失败而不是编译期的红。
+   * `_exhaustive: never` 让这种遗漏在 `tsc` 阶段就挡住。
+   */
   const dispatch = (request: DesktopHostRequest): DesktopHostResponse | Promise<DesktopHostResponse> => {
-    // 握手排在最前，且不碰会话表、不碰 `resolveDatabasePath`：它的全部意义就是让 renderer
-    // 在 `open` 建库之前把版本对上，一旦这里有了任何副作用，那半条 AC 就不成立了。
-    if (request.kind === 'handshake') {
-      return { kind: 'handshake', result: { protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION } };
+    switch (request.kind) {
+      // 握手排在最前，且不碰会话表、不碰 `resolveDatabasePath`：它的全部意义就是让 renderer
+      // 在 `open` 建库之前把版本对上，一旦这里有了任何副作用，那半条 AC 就不成立了。
+      case 'handshake':
+        return { kind: 'handshake', result: { protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION } };
+      case 'open':
+        return open(request);
+      case 'close':
+        return close(request.sessionId);
+      case 'version':
+        return { kind: 'version', result: requireSession(request.sessionId).version() };
+      case 'execute':
+        return execute(request);
+      default: {
+        const _exhaustive: never = request;
+        // 走到这里说明校验层放进了一个本模块不认识的种类，按协议违规回给调用方。
+        throw new RxDBAdapterDesktopError(
+          'protocol_violation',
+          `unsupported request kind: ${String((_exhaustive as { kind?: unknown }).kind)}`
+        );
+      }
     }
-    if (request.kind === 'open') return open(request);
-    if (request.kind === 'close') return close(request.sessionId);
-    if (request.kind === 'version') return { kind: 'version', result: requireSession(request.sessionId).version() };
-    return execute(request);
   };
 
   return {

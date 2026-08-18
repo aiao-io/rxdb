@@ -61,13 +61,10 @@ export default defineConfig(() => ({
       // desktop 入口经 host 协议说话，协议层必须外置：内联会把它复制进浏览器主入口的依赖图。
       // vitest 同理且更硬：testing 入口的断言必须跑在**调用方那一个** vitest 实例上，
       // 内联一份进来，`expect` 就登记不到调用方的测试上下文里。
-      external: [
-        '@aiao/rxdb',
-        '@aiao/rxdb-adapter-electron',
-        '@aiao/rxdb-adapter-sqlite-core/desktop-host',
-        'rxjs',
-        'vitest'
-      ]
+      // `@aiao/rxdb-adapter-electron` 不在表内：三个构建入口（index / desktop / testing）
+      // 都不引它，desktop 入口只经 `sqlite-core/desktop-host` 说话。它只出现在 `__tests__`
+      // 里，那条路径由下面 vitest 的 `server.deps.external` 负责，两处别混。
+      external: ['@aiao/rxdb', '@aiao/rxdb-adapter-sqlite-core/desktop-host', 'rxjs', 'vitest']
     }
   },
   server: {

@@ -70,7 +70,14 @@ interface RxDBSlot<T extends RxDB> {
   readonly db: T | undefined;
   /** 异步 source 的创建异常；由 `useRxDB()` 原样抛出。 */
   readonly failure: unknown;
-  /** source 是异步的且尚未解析完成。 */
+  /**
+   * source 需要异步解析（工厂或 Promise）。
+   *
+   * @remarks
+   * 取值是 source 的**形态**，解析完成后依旧为 `true`，不是「此刻还在解析」。
+   * 它只在 `db === undefined` 时被读，用于把「有 Provider 但没给 `db`」与
+   * 「给了异步 source 还没解析完」这两种失败分开 —— 而 `db` 有值时二者都不成立。
+   */
   readonly pending: boolean;
 }
 

@@ -16,7 +16,7 @@ import { createElectronFileHost, type DesktopHostFileResponse } from '@aiao/rxdb
 import { mkdirSync } from 'node:fs';
 import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { denyForeignSession } from './desktop-session-ownership.js';
+import { denyForeignSession, readSessionId } from './desktop-session-ownership.js';
 
 /**
  * 文件内容在应用数据目录下的子目录名。
@@ -164,8 +164,12 @@ export function createDesktopFileBridge(options: DesktopFileBridgeOptions): Desk
 
       const response = await host.handle(request);
       if (response.kind === 'file.open') targets.set(response.result.sessionId, target);
-      // 能拿到 file.close 应答就说明请求过了协议校验，`sessionId` 一定是个字符串。
-      if (response.kind === 'file.close') targets.delete((request as { sessionId: string }).sessionId);
+      // 会话关掉了就销账。id 走 `readSessionId` 而不是断言：close 应答本身不带 id，
+      // 只能回头读请求，而请求是 renderer 原文（见 `readSessionId` 的 remarks）。
+      if (response.kind === 'file.close') {
+        const sessionId = readSessionId(request);
+        if (sessionId !== undefined) targets.delete(sessionId);
+      }
       return response;
     },
 

@@ -260,9 +260,43 @@ pglite 拒绝而非静默替换、adapter 不匹配硬失败不降级 OPFS、自
 - [x] 🟠 #4 数组字节预算 —— **误报**，见下
 - [x] 破坏性 / 行为变化清单（versioning-policy §5），见下
 - [ ] E6：`npm deprecate @aiao/rxdb-adapter-desktop`（对外不可逆，需人工确认）
-- [ ] 文档写明 Tauri npm 包尚未包含可发布 Rust host
-- [ ] 🟡 项（`dispatch` 穷尽、`close` 记账从应答取 id、死 external、`pending` 文档、无关变更拆分）可另开
+- [x] 文档写明 Tauri npm 包尚未包含可发布 Rust host —— **本就已写**，见下
+- [x] 🟡 项复核并采纳（`dispatch` 穷尽、`close` 记账去断言、死 external、`pending` 文档），见下
 - [ ] PR 合并，`status: Resolved`
+
+### 🟡 复核：采纳 4 项，1 项归并，2 项判为不必改
+
+逐条判过「是真问题还是洁癖」，只改判据站得住、且改法不引入新结构的。
+
+#### 已采纳
+
+| 项                 | 落点                                                                                        | 改法                                                                                                                  |
+| :----------------- | :------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------- |
+| `dispatch` 落空    | [electron-sqlite-host.ts](../../packages/rxdb-adapter-electron/src/electron-sqlite-host.ts) | 改穷尽 `switch` + `_exhaustive: never`，落空分支抛 `protocol_violation`。沿用 `getRxDBChangeEventType` 已有的同款写法 |
+| `close` 记账用断言 | sqlite / file **两族** bridge                                                               | 抽 `readSessionId(request)` 进 `desktop-session-ownership.ts`，`denyForeignSession` 一并改用，断言消失                |
+| 死 external        | [vite.config.mts](../../packages/rxdb-plugin-storage/vite.config.mts)                       | 删 `@aiao/rxdb-adapter-electron`，并注明它只属 vitest 那一处，别把两处混起来                                          |
+| `pending` 文档不符 | [rxdb-react.tsx](../../packages/rxdb-react/src/rxdb-react.tsx)                              | 不改行为、不改名，改文案：写明取值是 source 的**形态**，且只在 `db === undefined` 时被读                              |
+
+评审给 `close` 记账的建议是「从**应答**取 id」，未采纳：`close` / `file.close` 应答体里根本没有 `sessionId`，要照办就得改协议——而协议是 TS + Rust 双实现，为一处断言动线协议是过度设计。安全读请求即可，同一份 `readSessionId` 两族共用。
+
+`dispatch` 的 `never` 分支运行期不可达（`parseDesktopHostRequest` 在前面就挡掉了未知 kind），覆盖率上表现为 3 行未覆盖 —— 它的价值在编译期：协议加了新 kind 而这里忘记补分支时，`tsc` 直接红，而不是把它当 `execute` 去读一个不存在的 `request.sql`。
+
+#### 归并
+
+无关变更拆分（`@types/pg` / `verdaccio` / `onlyBuiltDependencies`）是提交历史问题，随 squash 一并处理，不单独改代码。
+
+#### 判为不必改
+
+- **忙等 deadline 起算点**：选项就叫 `busyRetryBudgetMs`——「**重试**预算」，从首次失败起算与名字精确一致。改成请求起算反而让配置值与它字面意思不符。这条撤销。
+- **`rxdb-adapter-tauri` 单测偏薄 / Angular `provideAppInitializer` 缺测**：都是补测试，判据成立但属独立工作量，不塞进本轮。另开。
+
+#### 核实为已完成
+
+Tauri 的「Rust 宿主自备」在 [README](../../packages/rxdb-adapter-tauri/README.md)（「⚠️ Rust 宿主需自备」）与 [desktop-split.md §5](../../website/docs/migration/desktop-split.md) 两处都写明，合入条件第 4 条无需再动。
+
+#### 验证
+
+（本轮改动范围内，非全量）`tsc --noEmit` 单独跑过 `rxdb-adapter-electron` 与 dev-rxdb-electron 的 serve / spec 两份 tsconfig，均无诊断；`dev-rxdb-electron` / `rxdb-adapter-electron` / `rxdb-react` 测试 765 passed；`rxdb-plugin-storage` build + test 通过，并确认 `dist/*.js` 内不含 `node:sqlite` / `rxdb-adapter-electron`（证明那条 external 确属死条目）；四个项目 lint 零警告。
 
 ### 🟠 #4 复核结论：误报，但同处挖出一个真缺陷
 

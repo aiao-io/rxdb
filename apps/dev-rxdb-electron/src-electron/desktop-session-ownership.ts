@@ -24,6 +24,24 @@ export interface DesktopForeignSessionDenial {
 }
 
 /**
+ * 从未经校验的请求负载上读出会话 id。
+ *
+ * @remarks
+ * 负载来自 renderer，形状上不做任何假设：不是对象、没有 `sessionId`、`sessionId` 不是字符串，
+ * 一律返回 `undefined`。归属记账因此不需要 `request as { sessionId: string }` 这种断言 ——
+ * 断言在「应答是 close 就说明请求过了校验」这条推理上成立，但那条推理写不进类型，
+ * 一旦 host 的校验或应答形状变了，编译期没有任何东西会提醒这里。
+ *
+ * @param request - 未经校验的请求负载
+ * @returns 会话 id；形状不符时 `undefined`
+ */
+export function readSessionId(request: unknown): string | undefined {
+  if (typeof request !== 'object' || request === null) return undefined;
+  const sessionId = (request as Record<string, unknown>)['sessionId'];
+  return typeof sessionId === 'string' ? sessionId : undefined;
+}
+
+/**
  * 请求指向的会话若属于别的窗口，给出拒绝应答。
  *
  * @remarks
@@ -45,9 +63,8 @@ export function denyForeignSession<TTarget>(
   request: unknown,
   target: TTarget
 ): DesktopForeignSessionDenial | undefined {
-  if (typeof request !== 'object' || request === null) return undefined;
-  const sessionId = (request as Record<string, unknown>)['sessionId'];
-  if (typeof sessionId !== 'string') return undefined;
+  const sessionId = readSessionId(request);
+  if (sessionId === undefined) return undefined;
   const holder = targets.get(sessionId);
   if (holder === undefined || holder === target) return undefined;
   // 不回显持有者：那是另一个窗口的信息，对发起方没有用处，只会多暴露一点东西。

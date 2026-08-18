@@ -20,7 +20,7 @@ import {
 } from '@aiao/rxdb-adapter-electron/host';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { denyForeignSession } from './desktop-session-ownership.js';
+import { denyForeignSession, readSessionId } from './desktop-session-ownership.js';
 import { DESKTOP_HOST_CHANGE_CHANNEL } from './ipc-contract';
 
 /**
@@ -137,8 +137,12 @@ export function createDesktopSqliteBridge(options: DesktopSqliteBridgeOptions): 
 
       const response = await host.handle(request);
       if (response.kind === 'open') targets.set(response.result.sessionId, target);
-      // 能拿到 close 应答就说明请求过了协议校验，`sessionId` 一定是个字符串。
-      if (response.kind === 'close') targets.delete((request as { sessionId: string }).sessionId);
+      // 会话关掉了就销账。id 走 `readSessionId` 而不是断言：close 应答本身不带 id，
+      // 只能回头读请求，而请求是 renderer 原文（见 `readSessionId` 的 remarks）。
+      if (response.kind === 'close') {
+        const sessionId = readSessionId(request);
+        if (sessionId !== undefined) targets.delete(sessionId);
+      }
       return response;
     },
 
