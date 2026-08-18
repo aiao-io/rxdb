@@ -300,4 +300,26 @@ describe('ELEC-21 worker 共享 chunk 不能被 chunk optimizer 删掉', () => {
       expect(configuration.buildTarget).toMatch(/^dev-rxdb-electron:ng-build:/);
     }
   });
+
+  // 这层包装会 fork 出**第二个 nx 进程**。默认情况下那个进程会把 ng-build 的
+  // `dependsOn: ["^build"]` 再展开一遍，于是同一场构建里两个 nx 同时管理
+  // `packages/*/dist`：外层 run-many 正在跑 dev-rxdb-supabase:build 读
+  // `packages/rxdb-test/dist/entities/index.d.ts`，内层 nx 同时把 rxdb-test:build
+  // 从本地缓存重新落盘（落盘 = 先删目标目录再拷贝），读到一半文件就没了。
+  //
+  // 实测：run 32102602589（main）—— 05:27:11 内层打出
+  // `> nx run rxdb-test:build [local cache]`，05:27:22 外层
+  // dev-rxdb-supabase 报 `TS2307: Cannot find module '@aiao/rxdb-test/entities'`。
+  // 本机跑同一条命令是绿的，因为内层命中的是「existing outputs match the cache,
+  // left as is」这条不落盘的分支 —— 这个 bug 只在缓存状态刚好不同时现形。
+  //
+  // 修法是让内层只跑 ng-build 这一个任务：依赖由外层 build 的 `^build` 保证已就绪，
+  // 内层再算一遍纯属重复劳动，而这份重复劳动正是唯一的写冲突来源。
+  // 两条断言互为前提，缺一不可 —— 去掉 `^build`，`--excludeTaskDependencies`
+  // 就变成「依赖根本没人建」。
+  it('build 自己声明 ^build，且禁止内层 nx 再展开一遍依赖图', () => {
+    const build = project.targets.build;
+    expect(build.dependsOn).toEqual(['^build']);
+    expect(build.options.command).toContain('--excludeTaskDependencies');
+  });
 });
