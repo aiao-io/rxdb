@@ -141,6 +141,14 @@ interface FileSession {
    */
   readonly reservations: Set<string>;
   readonly lockNames: Map<string, string>;
+  /**
+   * 会话是否已被回收。
+   *
+   * @remarks
+   * 光靠「还在不在 `sessions` 表里」不够：`beginWrite` 拿着的是 session **对象**，
+   * 回收之后它仍能往里写。这个标志让每个异步边界都能问出「我还属于这个 host 吗」。
+   */
+  closed: boolean;
 }
 
 /**
@@ -422,14 +430,19 @@ export function createElectronFileHost(options: ElectronFileHostOptions): Electr
     const session = sessions.get(sessionId);
     if (!session) return;
     sessions.delete(sessionId);
+    session.closed = true;
 
+    // 顺序不能反：先放持有的锁，那一步的 `pump` 有可能把锁授给这个正在关闭的会话自己还排着的
+    // 申请 —— 新锁既不在下面这轮回收的快照里，`dropWaiters` 也够不着它（它已经从队列里被摘走），
+    // 于是同名的后续申请永远排在一把没人释放的锁后面。先把队列清干净，这条路径就不存在。
+    // Rust 侧 `LockTable::drop_session` 用的正是这个顺序，两端必须一致。
+    dropWaiters(sessionId);
     for (const lockId of [...session.lockNames.keys()]) {
       const name = session.lockNames.get(lockId) as string;
       session.lockNames.delete(lockId);
       queues.get(name)?.held.delete(lockId);
       pump(name);
     }
-    dropWaiters(sessionId);
 
     await Promise.all([...session.writes.values()].map(discardWrite));
     session.writes.clear();
