@@ -105,6 +105,18 @@ describe('rewriteShadowCss', () => {
       expect(out).toMatch(/^:host\{/);
       expect(out).toMatch(/data:image\/svg\+xml/);
     });
+
+    it('声明值里的 :root 字面量不被改写 —— 只有选择器位置才该换成 :host', () => {
+      const input = '.snippet::after{content:":root"}';
+      expect(rewriteShadowCss(input)).toBe(input);
+    });
+
+    it('url() 里的 :root 不被改写', () => {
+      const input = ':root{--sel:url("/theme/:root.css")}';
+      const out = rewriteShadowCss(input);
+      expect(out).toMatch(/^:host\{/);
+      expect(out).toContain('url("/theme/:root.css")');
+    });
   });
 
   it('幂等：重复改写不会叠加 :host(...)', () => {

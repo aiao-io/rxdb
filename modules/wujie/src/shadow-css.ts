@@ -120,16 +120,19 @@ function expandSelectorList(selectorList: string): string {
  *
  * 作为无界 `plugins[].cssLoader` 使用。函数是幂等的。
  *
+ * `:root` 只在选择器位置改写 —— 全文替换会顺手改坏声明值里的 `:root` 字面量
+ * （`content:":root"`、`url("…/:root.css")`），那些位置的 `:root` 是数据不是选择器。
+ *
  * @param code - 子应用原始 CSS
  * @returns 改写后的 CSS；`@media` / `@property` / `@keyframes` 等 at-rule 的 prelude 保持原样
  */
 export function rewriteShadowCss(code: string): string {
-  return code.replaceAll(':root', ':host').replace(RULE_PRELUDE, (full, prelude: string) => {
+  return code.replace(RULE_PRELUDE, (full, prelude: string) => {
     // prelude 可能粘着上一条以 `;` 结尾的语句（如 `@charset "utf-8";.a`），只取最后一段当选择器
     const cut = prelude.lastIndexOf(';');
     const head = cut === -1 ? '' : prelude.slice(0, cut + 1);
     const selectorList = cut === -1 ? prelude : prelude.slice(cut + 1);
     if (!selectorList.trim() || selectorList.includes('@')) return full;
-    return `${head}${expandSelectorList(selectorList)}{`;
+    return `${head}${expandSelectorList(selectorList.replaceAll(':root', ':host'))}{`;
   });
 }
