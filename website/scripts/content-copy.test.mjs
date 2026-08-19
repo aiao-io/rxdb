@@ -11,10 +11,10 @@ const contentFiles = [
   'src/pages/architecture.tsx',
   'src/pages/benchmarks.tsx',
   'src/pages/comparison.tsx',
-  'src/pages/demos/angular.tsx',
+  'src/demos/angular.tsx',
+  'src/demos/react.tsx',
+  'src/demos/vue.tsx',
   'src/pages/demos/index.tsx',
-  'src/pages/demos/react.tsx',
-  'src/pages/demos/vue.tsx',
   'src/pages/index.tsx'
 ];
 

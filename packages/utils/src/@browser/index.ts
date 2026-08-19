@@ -10,6 +10,11 @@
 export * from './broadcast-channel-pool.js';
 
 /**
+ * 文档站 / 无界宿主路由协议
+ */
+export * from './host-route.js';
+
+/**
  * 文档站 / 无界宿主主题协议
  */
 export * from './host-theme.js';

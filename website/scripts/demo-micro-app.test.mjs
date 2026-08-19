@@ -6,18 +6,73 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
+const DEMOS = ['angular', 'react', 'vue'];
+
 test('demo and benchmark pages embed sub-apps through wujie, not a raw iframe', () => {
-  const files = [
-    'src/pages/demos/angular.tsx',
-    'src/pages/demos/react.tsx',
-    'src/pages/demos/vue.tsx',
-    'src/pages/benchmarks.tsx'
-  ];
+  // demo 页组件不在 src/pages 下：pages 插件只生成 exact 路由，匹配不到 /demos/vue/todo
+  const files = [...DEMOS.map(demo => `src/demos/${demo}.tsx`), 'src/pages/benchmarks.tsx'];
 
   for (const file of files) {
     const source = readFileSync(join(root, file), 'utf8');
     assert.match(source, /DemoMicroApp/, `${file} should render DemoMicroApp`);
     assert.doesNotMatch(source, /<iframe[\s>]/, `${file} should not use a raw iframe`);
+  }
+});
+
+test('demo pages hand the host their own path prefix so routes can be synced', () => {
+  for (const demo of DEMOS) {
+    const source = readFileSync(join(root, `src/demos/${demo}.tsx`), 'utf8');
+    assert.match(source, new RegExp(`basePath='/demos/${demo}'`), `src/demos/${demo}.tsx should pass basePath`);
+  }
+});
+
+test('demo routes are registered as non-exact so sub-app paths land on the same page', () => {
+  const source = readFileSync(join(root, 'src/plugins/demo-routes.js'), 'utf8');
+  assert.match(source, /exact:\s*false/, 'demo routes must not be exact');
+  assert.match(source, /@site\/src\/demos\//, 'the plugin should own the components moved out of src/pages');
+
+  const config = readFileSync(join(root, 'docusaurus.config.ts'), 'utf8');
+  assert.match(config, /demo-routes\.js/, 'docusaurus.config.ts should register the demo routes plugin');
+});
+
+test('static hosting falls back to the demo host page for deep links', () => {
+  const source = readFileSync(join(root, 'public/_redirects'), 'utf8');
+  for (const demo of DEMOS) {
+    // trailingSlash: false 产出的是 demos/<name>.html，不是目录，所以目标写全文件名
+    assert.match(
+      source,
+      new RegExp(`/demos/${demo}/\\*\\s+/demos/${demo}\\.html\\s+200`),
+      `_redirects should rewrite /demos/${demo}/* to the built page`
+    );
+  }
+});
+
+test('wujie host syncs routes in both directions behind the shared protocol', () => {
+  const source = readFileSync(join(root, 'src/components/DemoMicroAppClient.tsx'), 'utf8');
+  // 协议本身（归一化、name 过滤、TTL 闸门）由 packages/utils 的 host-route.spec.ts 覆盖，这里只锁接线
+  assert.match(source, /useLocation/, 'host should read its own pathname from the Docusaurus router');
+  assert.match(source, /emitHostRoute\(bus, name/, 'host should push its path down to the sub-app');
+  assert.match(source, /subscribeSubRoute/, 'host should subscribe to the sub-app route reports');
+  assert.match(source, /HostRouteSync/, 'host should gate reports through the TTL sync lock');
+  // 裸 replaceState 不更新 react-router 的内部 location，useLocation() 会停在旧路径
+  assert.match(source, /useHistory/, 'host should write back through the Docusaurus history');
+  // 子应用的返回栈由无界代理的 iframe history 维护，宿主再 push 会双份
+  assert.match(source, /history\.replace\(next\)/, 'host should replace rather than push its URL');
+  assert.doesNotMatch(source, /history\.replaceState/, 'host must not bypass react-router with raw replaceState');
+  // 子应用起来之前 bus 上没有订阅者，初始路径必须搭 props 进去
+  assert.match(source, /route:\s*initialRoute\.current/, 'initial route should ride on props');
+});
+
+test('sub-apps bind the wujie route adapter at bootstrap', () => {
+  const files = [
+    '../apps/dev-rxdb-angular/src/main.ts',
+    '../apps/dev-rxdb-react/src/main.tsx',
+    '../apps/dev-rxdb-vue/src/main.ts'
+  ];
+
+  for (const file of files) {
+    const source = readFileSync(join(root, file), 'utf8');
+    assert.match(source, /bindWujieRoute/, `${file} should bind the shared route adapter`);
   }
 });
 

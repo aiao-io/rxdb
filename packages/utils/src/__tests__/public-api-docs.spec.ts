@@ -102,6 +102,32 @@ describe('UTL-033 公开 API 的 TSDoc 与类型导出', () => {
     });
   });
 
+  describe('@browser/host-route.ts', () => {
+    const source = read('@browser/host-route.ts');
+
+    it('公开类型可具名导入', () => {
+      expect(source).toContain('export interface WujieRoutePayload');
+      expect(source).toContain('export interface WujieRouteAdapter');
+      expect(source).toContain('export interface HostRouteSyncOptions');
+    });
+
+    it('公开函数与类都有 TSDoc', () => {
+      const declarations = [
+        'export function normalizeRoutePath',
+        'export function getWujieAppId',
+        'export function emitHostRoute',
+        'export function subscribeSubRoute',
+        'export function subscribeHostRoute',
+        'export function reportSubRoute',
+        'export function bindWujieRoute',
+        'export class HostRouteSync',
+        'expect(',
+        'accept('
+      ];
+      expect(declarations.filter(declaration => !documented(source, declaration))).toEqual([]);
+    });
+  });
+
   describe('@browser/host-theme.ts', () => {
     const source = read('@browser/host-theme.ts');
 

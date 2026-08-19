@@ -12,6 +12,13 @@ export interface DemoMicroAppProps {
   title: string;
   /** 传给内部 iframe 的 `allow`，基准测试需要 `cross-origin-isolated`。 */
   allow?: string;
+  /**
+   * 宿主页在文档站里的路径前缀，例如 `/demos/vue`。
+   *
+   * 传了才双向同步路由：宿主 `${basePath}/todo` ←→ 子应用 `/todo`。
+   * 不传则只挂载子应用，地址栏不动。
+   */
+  basePath?: string;
 }
 
 function ClientHost(props: DemoMicroAppProps): ReactElement | null {
