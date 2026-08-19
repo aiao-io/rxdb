@@ -38,6 +38,26 @@ describe('isMSTime', () => {
       expect(isMSTime(value)).toBe(true);
     });
   });
+
+  describe('CS-006 数值部分不得有歧义（ReDoS）', () => {
+    it('长数字串后跟非法字符时线性返回 false', () => {
+      // 原 `-?(?:\d+)?\.?\d+`：前后两个 \d+ 对同一串数字有 O(n) 种切分，
+      // 末尾一个不匹配的字符就逼引擎把所有切分走一遍 → O(n²)。
+      const hostile = `${'0'.repeat(50_000)}x`;
+      const startedAt = performance.now();
+
+      expect(isMSTime(hostile)).toBe(false);
+      expect(performance.now() - startedAt).toBeLessThan(200);
+    });
+
+    it.each([['100'], ['1.5'], ['.5'], ['-1'], ['-.5'], ['2.5 hrs'], ['0']])('合法数值 %s 仍然通过', value => {
+      expect(isMSTime(value)).toBe(true);
+    });
+
+    it.each([['1.'], ['1.2.3'], ['.'], ['-'], ['1e3']])('非法数值 %s 仍然被拒', value => {
+      expect(isMSTime(value)).toBe(false);
+    });
+  });
 });
 
 describe('isMilliseconds', () => {

@@ -152,9 +152,31 @@ export const __decorateClass = <TTarget extends object>(
 
 export const uuid = () => v7_uuid() as UUID;
 
-// 关闭/断连类错误 message 的统一匹配模式，提前编译避免每次调用重新解析。
-const ADAPTER_SHUTDOWN_ERROR_PATTERN =
-  /adapter is disconnected|adapter.*closed|database is closing|database is closed|pglite is closing|pglite is closed|connection is closing/i;
+// 关闭/断连类错误 message 的固定短语，全部按小写比较。
+const ADAPTER_SHUTDOWN_PHRASES = [
+  'adapter is disconnected',
+  'database is closing',
+  'database is closed',
+  'pglite is closing',
+  'pglite is closed',
+  'connection is closing'
+];
+
+const ADAPTER_TOKEN = 'adapter';
+
+/**
+ * 「`adapter` 之后出现 `closed`」单独判。
+ *
+ * 原先与上面的短语写在同一条正则里（`adapter is disconnected|adapter.*closed|…`），
+ * 两个分支共享 `adapter` 前缀而后半段歧义，`'adapter'.repeat(20000)` 这类 message
+ * 会让引擎把每个起点的每种切分都走一遍，退化成 O(n²)（CS-003）。
+ * 两次 indexOf 是线性的，语义上只差一点：正则的 `.` 不跨行，indexOf 跨行 ——
+ * 多行 message 里 `adapter` 与 `closed` 分处两行，同样属于关闭错误。
+ */
+const hasAdapterClosed = (message: string): boolean => {
+  const adapterAt = message.indexOf(ADAPTER_TOKEN);
+  return adapterAt >= 0 && message.includes('closed', adapterAt + ADAPTER_TOKEN.length);
+};
 
 /**
  * 判断错误是否由 adapter 关闭/断连引起。
@@ -165,8 +187,11 @@ const ADAPTER_SHUTDOWN_ERROR_PATTERN =
  */
 export const isAdapterShutdownError = (err: unknown): boolean => {
   if (!err) return false;
-  const message = err instanceof Error ? err.message : String((err as { message?: unknown })?.message ?? err);
-  return ADAPTER_SHUTDOWN_ERROR_PATTERN.test(message);
+  const message = (
+    err instanceof Error ?
+      err.message
+    : String((err as { message?: unknown })?.message ?? err)).toLowerCase();
+  return ADAPTER_SHUTDOWN_PHRASES.some(phrase => message.includes(phrase)) || hasAdapterClosed(message);
 };
 
 /**

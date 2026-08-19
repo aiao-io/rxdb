@@ -26,7 +26,7 @@
 
 ### 必需工具
 
-- **Node.js** ≥ 22 (最低要求，见 `package.json` engines)；推荐 24（见 `.nvmrc`，可用 nvm 管理版本）
+- **Node.js** ≥ 26 (最低要求，见 `package.json` engines；`.nvmrc` 固定为 26，可用 nvm 管理版本)
 - **pnpm** 10 (包管理器)
 - **Git** (版本控制；仓库根 `.gitattributes` 把文本钉为 LF。Windows 上不要开 `core.autocrlf=true` 覆盖它，否则 `pnpm install` 的 wa-sqlite SHA 校验会红)
 

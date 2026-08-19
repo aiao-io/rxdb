@@ -23,7 +23,16 @@
   "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "references": [
     {
+      "path": "../../modules/wujie/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-adapter-sqliteai/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-sqlite/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-plugin-search/tsconfig.lib.json"
@@ -33,12 +42,6 @@
     },
     {
       "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
-    },
-    {
-      "path": "../../packages/rxdb-adapter-sqlite-wasm/tsconfig.lib.json"
-    },
-    {
-      "path": "../../packages/rxdb-adapter-sqlite/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-plugin-workspace/tsconfig.lib.json"
@@ -53,7 +56,7 @@
       "path": "../../packages/rxdb-client-generator/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
+      "path": "../../packages/rxdb-adapter-sqlite-wasm/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json"

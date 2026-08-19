@@ -1,4 +1,4 @@
-import { Navigate, type LazyRouteFunction, type RouteObject } from 'react-router-dom';
+import { redirect, type LazyRouteFunction, type RouteObject } from 'react-router-dom';
 import AppLayout from './app';
 import HomePage from './pages/home';
 import TodoPage from './pages/todo';
@@ -20,8 +20,11 @@ export const routes: RouteObject[] = [
     element: <AppLayout />,
     children: [
       {
+        // 用 loader 重定向而不是渲染期的 <Navigate>：后者要等首屏渲染完才跳，
+        // 会覆盖掉宿主在初始化后下发的深链路径（懒加载路由尤其跑不过它）。
+        // 与 Vue / Angular 的配置级 redirect 对齐。
         index: true,
-        element: <Navigate to='home' replace />
+        loader: () => redirect('/home')
       },
       {
         path: 'home',
@@ -65,7 +68,7 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'file-manager',
-        element: <Navigate to='file-manager-simple' replace />
+        loader: () => redirect('/file-manager-simple')
       },
       {
         path: 'branch-manager',

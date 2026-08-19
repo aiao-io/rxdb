@@ -1,6 +1,19 @@
 {
   "name": "@aiao/rxdb-adapter-sqlite-core",
   "version": "0.0.25",
+  "description": "Shared SQLite storage primitives for Aiao RxDB adapters.",
+  "homepage": "https://rxdb.netlify.app/docs/adapters",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "sqlite",
+    "storage",
+    "adapter",
+    "typescript"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",

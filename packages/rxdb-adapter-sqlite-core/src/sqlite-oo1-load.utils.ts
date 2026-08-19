@@ -95,15 +95,30 @@ export function resolveLocateFile(options?: Oo1LoadOptions): ((name: string) => 
   return undefined;
 }
 
+/**
+ * proxy worker 的文件名，允许 bundler 追加 `-<hash>` 后缀。
+ *
+ * 两端都锚死：原先写成无起点锚的 `/sqlite3-opfs-async-proxy(?:-[^/]+)?\.js$/`，
+ * 在 `'sqlite3-opfs-async-proxy-'.repeat(20000)` 这类重复前缀的路径上，每个起点都要
+ * 用 `[^/]+` 扫到段尾才失败，退化成 O(n²)（CS-005）。只对 basename 做全串匹配后，
+ * 起点唯一，整体线性。
+ */
+const OPFS_PROXY_BASENAME_PATTERN = /^sqlite3-opfs-async-proxy(?:-[^/]+)?\.js$/;
+
+/** 取路径最后一段并按 basename 全串匹配 */
+const isOpfsProxyBasename = (pathname: string): boolean =>
+  OPFS_PROXY_BASENAME_PATTERN.test(pathname.slice(pathname.lastIndexOf('/') + 1));
+
 function isOpfsProxyWorkerUrl(scriptUrl: string | URL): boolean {
   const urlValue = typeof scriptUrl === 'string' ? scriptUrl : scriptUrl.toString();
   if (urlValue.includes('sqlite3-opfs-async-proxy.js')) return true;
 
   try {
     const parsedUrl = new URL(urlValue, globalThis.location?.href ?? 'http://localhost');
-    return /sqlite3-opfs-async-proxy(?:-[^/]+)?\.js$/.test(parsedUrl.pathname);
+    return isOpfsProxyBasename(parsedUrl.pathname);
   } catch {
-    return /sqlite3-opfs-async-proxy(?:-[^/]+)?\.js(?:$|[?#])/.test(urlValue);
+    // URL 解析不了就手动剥掉 query / hash，等价于原正则的 `(?:$|[?#])` 收尾
+    return isOpfsProxyBasename(urlValue.split('#')[0].split('?')[0]);
   }
 }
 

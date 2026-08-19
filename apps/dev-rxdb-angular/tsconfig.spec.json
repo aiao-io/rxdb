@@ -74,6 +74,9 @@
       "path": "../../packages/utils/tsconfig.lib.json"
     },
     {
+      "path": "../../modules/wujie/tsconfig.lib.json"
+    },
+    {
       "path": "../../modules/angular/tsconfig.lib.json"
     },
     {

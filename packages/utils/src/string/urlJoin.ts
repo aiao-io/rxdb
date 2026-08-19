@@ -3,6 +3,21 @@ import { isNumber, isString } from '../types/index.js';
 const regPrefix = /^([^/:]+):\/*/;
 
 /**
+ * 剥掉末尾连续的 `/`
+ *
+ * 用线性扫描而不是 `replace(/\/+$/, '')`：后者在 `/` 串后面还有内容时
+ * （`'a' + '/'.repeat(30000) + 'b'`），每个起点都要吃完整串再逐个回退，
+ * 整体 O(n²)（CS-010 / CS-011）。开头的 `/^\/+/` 只有一个起点，不受影响。
+ */
+const stripTrailingSlash = (value: string): string => {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === '/') {
+    end--;
+  }
+  return end === value.length ? value : value.slice(0, end);
+};
+
+/**
  * 前缀之上是否还有可被 `..` 弹出的路径段
  *
  * 只有「绝对且不含路径段」的前缀（`/`、`//`、`scheme://host`）才是真正的根 ——
@@ -16,7 +31,7 @@ const isRootPrefix = (prefix: string): boolean => {
     return false;
   }
   const withoutScheme = prefix.replace(regPrefix, '');
-  return !withoutScheme.replace(/^\/+/, '').replace(/\/+$/, '').includes('/');
+  return !stripTrailingSlash(withoutScheme.replace(/^\/+/, '')).includes('/');
 };
 
 /**
@@ -102,12 +117,7 @@ export const urlJoin = (...paths: Array<string | number>) => {
 
   const pathStr = normalizeSegments(
     paths
-      .map(path =>
-        `${path}`
-          .replace(/^\/+/, '')
-          .replace(/^\.\/+/, '')
-          .replace(/\/+$/, '')
-      )
+      .map(path => stripTrailingSlash(`${path}`.replace(/^\/+/, '').replace(/^\.\/+/, '')))
       .filter(d => d !== '')
       .join('/'),
     prefix,

@@ -12,7 +12,13 @@ import { execSync } from 'node:child_process';
 // prettier-ignore
 const scopes = [
   { value: 'aiao',                        name: 'aiao:                           框架变更' },
+  { value: 'website',                     name: 'website:                        website 变更' },
+  { value: 'utils',                       name: 'utils:                          utils 变更' },
+  { value: 'code-editor',                 name: 'code-editor:                    code-editor 变更' },
   { value: 'rxdb',                        name: 'rxdb:                           rxdb 变更' },
+  { value: 'rxdb-test',                   name: 'rxdb-test:                      rxdb-test 变更' },
+  { value: 'rxdb-devtools',               name: 'rxdb-devtools:                  rxdb-devtools 变更' },
+  { value: 'rxdb-client-generator',       name: 'rxdb-client-generator:          rxdb-client-generator 变更' },
   { value: 'rxdb-adapter-electron',       name: 'rxdb-adapter-electron:          rxdb-adapter-electron 变更' },
   { value: 'rxdb-adapter-encrypted',      name: 'rxdb-adapter-encrypted:         rxdb-adapter-encrypted 变更' },
   { value: 'rxdb-adapter-miniprogram',    name: 'rxdb-adapter-miniprogram:       rxdb-adapter-miniprogram 变更' },
@@ -24,24 +30,10 @@ const scopes = [
   { value: 'rxdb-adapter-supabase',       name: 'rxdb-adapter-supabase:          rxdb-adapter-supabase 变更' },
   { value: 'rxdb-adapter-tauri',          name: 'rxdb-adapter-tauri:             rxdb-adapter-tauri 变更' },
   { value: 'rxdb-adapter-wa-sqlite',      name: 'rxdb-adapter-wa-sqlite:         rxdb-adapter-wa-sqlite 变更' },
-  { value: 'rxdb-angular',                name: 'rxdb-angular:                   rxdb-angular 变更' },
-  { value: 'rxdb-client-generator',       name: 'rxdb-client-generator:          rxdb-client-generator 变更' },
-  { value: 'rxdb-devtools',               name: 'rxdb-devtools:                  rxdb-devtools 变更' },
   { value: 'rxdb-plugin-graph',           name: 'rxdb-plugin-graph:              rxdb-plugin-graph 变更' },
   { value: 'rxdb-plugin-search',          name: 'rxdb-plugin-search:             rxdb-plugin-search 变更' },
-  { value: 'rxdb-plugin-search-angular',  name: 'rxdb-plugin-search-angular:     rxdb-plugin-search-angular 变更' },
-  { value: 'rxdb-plugin-search-react',    name: 'rxdb-plugin-search-react:       rxdb-plugin-search-react 变更' },
-  { value: 'rxdb-plugin-search-vue',      name: 'rxdb-plugin-search-vue:         rxdb-plugin-search-vue 变更' },
   { value: 'rxdb-plugin-storage',         name: 'rxdb-plugin-storage:            rxdb-plugin-storage 变更' },
   { value: 'rxdb-plugin-workspace',       name: 'rxdb-plugin-workspace:          rxdb-plugin-workspace 变更' },
-  { value: 'rxdb-react',                  name: 'rxdb-react:                     rxdb-react 变更' },
-  { value: 'rxdb-test',                   name: 'rxdb-test:                      rxdb-test 变更' },
-  { value: 'rxdb-vue',                    name: 'rxdb-vue:                       rxdb-vue 变更' },
-  { value: 'code-editor',                 name: 'code-editor:                    code-editor 变更' },
-  { value: 'code-editor-angular',         name: 'code-editor-angular:            code-editor-angular 变更' },
-  { value: 'code-editor-react',           name: 'code-editor-react:              code-editor-react 变更' },
-  { value: 'code-editor-vue',             name: 'code-editor-vue:                code-editor-vue 变更' },
-  { value: 'utils',                       name: 'utils:                          utils 变更' }
 ];
 
 // 根据 `git status` 推测当前改动的包作为默认 scope：
@@ -81,8 +73,9 @@ export default {
   allowCustomIssuePrefix: false,
   allowEmptyIssuePrefix: false,
   types: [
+    // prettier-ignore
     { value: 'feat', name: 'feat:     ✨ 新功能' },
-    { value: 'fix', name: 'fix:      🐛 修复错误' },
+    { value: 'fix', name: 'fix:       🐛 修复错误' },
     { value: 'docs', name: 'docs:     📖 修改文档' },
     {
       value: 'cleanup',

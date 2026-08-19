@@ -24,11 +24,16 @@ description: 在 Linux runner 上拉起常驻 Xvfb 并把 DISPLAY 写进 $GITHUB
 runs:
   using: composite
   steps:
+    - uses: ./.github/actions/configure-apt
+      if: runner.os == 'Linux'
     - name: Start Xvfb
       shell: bash
       run: |
         set -e
-        command -v Xvfb >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y xvfb; }
+        if ! command -v Xvfb >/dev/null 2>&1; then
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb
+        fi
         nohup Xvfb :99 -screen 0 1280x1024x24 -nolisten tcp >/tmp/xvfb.log 2>&1 &
         echo "DISPLAY=:99" >> "$GITHUB_ENV"
         # 用 socket 文件判就绪，不用 xdpyinfo —— x11-utils 不保证装了，多一个依赖就多一个失败点。

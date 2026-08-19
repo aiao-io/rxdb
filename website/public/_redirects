@@ -10,4 +10,11 @@
 # Vue demo - 所有路由回退到 index.html
 /demo/vue/*  /demo/vue/index.html  200
 
-# 文档站点本身由 Docusaurus 处理，不需要额外配置
+# 文档站的 demo 宿主页 - 子应用路径回退到同一份静态产物
+# trailingSlash: false 产出的是 demos/<name>.html，不是目录，所以目标写全文件名。
+# 页面路由由 src/plugins/demo-routes.js 注册成非 exact，落地后由客户端路由接管。
+/demos/angular/*  /demos/angular.html  200
+/demos/react/*    /demos/react.html    200
+/demos/vue/*      /demos/vue.html      200
+
+# 文档站点其余部分由 Docusaurus 处理，不需要额外配置

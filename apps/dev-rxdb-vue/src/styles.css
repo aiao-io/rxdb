@@ -6,6 +6,8 @@
   themes:
     light --default,
     dark --prefersdark;
+  /* 无界 Shadow DOM 用 :host；独立打开仍要 :root。必须用 :is()，daisyUI 会把 root 当前缀拼接 */
+  root: ':is(:host, :root)';
 }
 
 @source './app/App.vue';

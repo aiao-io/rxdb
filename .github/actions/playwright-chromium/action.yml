@@ -41,18 +41,11 @@ runs:
       shell: bash
       run: pnpm exec playwright install chromium
 
-    # 这份 conf 对整个 job 生效（不止本 action），有意为之：任何 apt 使用者都该有上界。
-    # Timeout 管的是「连接建立 / 数据停滞」而非总下载时长，镜像正常时 15s 绰绰有余，
-    # 只有卡死的连接会被砍掉。
-    - name: Bound apt timeouts
+    # 这份配置对整个 job 生效（不止本 action），有意为之：任何 apt 使用者都该有上界，
+    # 同时把 runner 偶发不可达的 azure 镜像切到 archive 镜像。
+    - name: Configure apt network
       if: runner.os == 'Linux'
-      shell: bash
-      run: |
-        sudo tee /etc/apt/apt.conf.d/99-ci-timeout >/dev/null <<'EOF'
-        Acquire::Retries "2";
-        Acquire::http::Timeout "15";
-        Acquire::https::Timeout "15";
-        EOF
+      uses: ./.github/actions/configure-apt
 
     # 缓存只覆盖 ~/.cache/ms-playwright 里的浏览器二进制，apt 装的系统库不在里面，
     # 所以缓存命中时依赖仍需确认 —— 但 ubuntu-latest 镜像本身预装了 Chrome/Chromium/

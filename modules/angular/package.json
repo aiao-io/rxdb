@@ -5,6 +5,7 @@
     "@angular/common": "^22.0.0",
     "@angular/core": "^22.0.0",
     "@aiao/rxdb": ">=0.0.9",
+    "@modules/wujie": "workspace:*",
     "@angular/cdk": ">=21.0.5",
     "@lucide/angular": "^1.16.0",
     "@angular/service-worker": ">=21.0.6",

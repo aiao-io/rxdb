@@ -23,6 +23,7 @@
     "@aiao/rxdb-test": "workspace:*",
     "@aiao/rxdb-vue": "workspace:*",
     "@aiao/utils": "workspace:*",
+    "@modules/wujie": "workspace:*",
     "@lucide/vue": "^1.31.0",
     "@tanstack/vue-virtual": "^3.13.35",
     "@vueuse/rxjs": "^14.4.0",

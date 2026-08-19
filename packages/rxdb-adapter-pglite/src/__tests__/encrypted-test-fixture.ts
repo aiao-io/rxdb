@@ -28,7 +28,9 @@ const encryptedQueryCounts = new WeakMap<object, () => number>();
 function toPGSql(sql: string): string {
   let i = 0;
   const withParams = sql.replace(/\?/g, () => `$${++i}`);
-  return withParams.replace(/(?<![A-Za-z"$\w])([A-Za-z_][A-Za-z0-9_]*)(?!["\w])/g, m => {
+  // 后顾断言写 `[\w"$]` 而不是 `[A-Za-z"$\w]`：`\w` 已经包含 `A-Za-z`，
+  // 重复的范围只会让 CodeQL 把它当成写错的字符类（CS-013 / CS-014），匹配集合完全相同。
+  return withParams.replace(/(?<![\w"$])([A-Za-z_][A-Za-z0-9_]*)(?!["\w])/g, m => {
     if (
       /[A-Z]/.test(m) &&
       !/^(SELECT|FROM|WHERE|AND|OR|ORDER|BY|GROUP|HAVING|LIMIT|OFFSET|INSERT|INTO|VALUES|UPDATE|SET|DELETE|NULL|TRUE|FALSE|IS|NOT|IN|AS|ON|JOIN|LEFT|RIGHT|INNER|OUTER|UNION|ALL|DISTINCT|COUNT|SUM|AVG|MIN|MAX|LIKE|ILIKE|BETWEEN|EXISTS|CASE|WHEN|THEN|ELSE|END|ASC|DESC)$/i.test(

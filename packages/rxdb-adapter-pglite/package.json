@@ -1,6 +1,19 @@
 {
   "name": "@aiao/rxdb-adapter-pglite",
   "version": "0.0.25",
+  "description": "PGlite adapter for running PostgreSQL locally in the browser.",
+  "homepage": "https://rxdb.netlify.app/docs/adapters/pglite",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "pglite",
+    "postgresql",
+    "local-first",
+    "wasm"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
