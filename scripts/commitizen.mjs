@@ -73,8 +73,9 @@ export default {
   allowCustomIssuePrefix: false,
   allowEmptyIssuePrefix: false,
   types: [
+    // prettier-ignore
     { value: 'feat', name: 'feat:     ✨ 新功能' },
-    { value: 'fix', name: 'fix:      🐛 修复错误' },
+    { value: 'fix', name: 'fix:       🐛 修复错误' },
     { value: 'docs', name: 'docs:     📖 修改文档' },
     {
       value: 'cleanup',
