@@ -50,3 +50,8 @@ export * from './persisted-state.js';
  * requestIdleCallback 兼容实现。
  */
 export * from './requestIdleCallbackPolyfill.js';
+
+/**
+ * 无界 Shadow DOM 的 daisyUI 样式改写
+ */
+export * from './shadow-css.js';
