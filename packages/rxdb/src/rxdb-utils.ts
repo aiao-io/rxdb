@@ -188,8 +188,9 @@ const hasAdapterClosed = (message: string): boolean => {
 export const isAdapterShutdownError = (err: unknown): boolean => {
   if (!err) return false;
   const message = (
-    err instanceof Error ? err.message : String((err as { message?: unknown })?.message ?? err)
-  ).toLowerCase();
+    err instanceof Error ?
+      err.message
+    : String((err as { message?: unknown })?.message ?? err)).toLowerCase();
   return ADAPTER_SHUTDOWN_PHRASES.some(phrase => message.includes(phrase)) || hasAdapterClosed(message);
 };
 

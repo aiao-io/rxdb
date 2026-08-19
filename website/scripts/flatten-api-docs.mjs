@@ -204,10 +204,7 @@ async function fixHtmlEntities(dirPath) {
         // 先解码所有 HTML 实体：一次扫描扫完，不能链式 replace。
         // 链式写法里 `&amp;` 先变成 `&`，后面的 `&quot;` / `&#39;` 会再解一次 ——
         // `&amp;quot;`（本意是字面量 `&quot;`）被解成 `"`，属于双重解码（CS-015）。
-        processedTitle = processedTitle.replace(
-          /&(?:lt|gt|amp|quot|#39);/g,
-          entity => HTML_ENTITY_DECODE_MAP[entity]
-        );
+        processedTitle = processedTitle.replace(/&(?:lt|gt|amp|quot|#39);/g, entity => HTML_ENTITY_DECODE_MAP[entity]);
 
         // 移除反引号包裹（如果之前已经添加过）
         processedTitle = processedTitle.replace(/`([^`]+)`/g, '$1');

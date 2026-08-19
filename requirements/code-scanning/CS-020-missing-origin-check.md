@@ -35,7 +35,7 @@ Postmessage handler has no origin check.
 基线 `1b09d39` 上 `benchmarks/src/hooks/useTheme.ts:36` 是一个裸的
 `window.addEventListener('message', handleMessage)`，只看 `event.data.type`，完全不看 `event.origin` —— 告警属实。
 
-commit `5f68b0b`（*fix(wujie): 主题兼容通道只认同源，CSS 改写改为线性扫描*）把这个监听器整体挪进了共享模块
+commit `5f68b0b`（_fix(wujie): 主题兼容通道只认同源，CSS 改写改为线性扫描_）把这个监听器整体挪进了共享模块
 `@modules/wujie` 的 `subscribeHostTheme`，并在那里补上同源校验：
 
 - 校验点：[modules/wujie/src/host-theme.ts:145](../../modules/wujie/src/host-theme.ts#L145) —— `if (message.origin !== scopeOrigin) return;`

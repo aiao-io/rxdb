@@ -407,14 +407,12 @@ describe('rxdb-utils', () => {
       expect(isAdapterShutdownError(new Error(message))).toBe(true);
     });
 
-    it.each([
-      'syntax error near SELECT',
-      'adapter is busy',
-      'closed the wrong adapter',
-      'database is locked'
-    ])('不把普通错误当关闭：%s', message => {
-      expect(isAdapterShutdownError(new Error(message))).toBe(false);
-    });
+    it.each(['syntax error near SELECT', 'adapter is busy', 'closed the wrong adapter', 'database is locked'])(
+      '不把普通错误当关闭：%s',
+      message => {
+        expect(isAdapterShutdownError(new Error(message))).toBe(false);
+      }
+    );
 
     it.each([[null], [undefined], [''], [0]])('空值 %s 不是关闭错误', value => {
       expect(isAdapterShutdownError(value)).toBe(false);
