@@ -3,8 +3,11 @@ import {
   emitHostTheme,
   getWujieHost,
   parseResolvedTheme,
+  requestHostTheme,
   subscribeHostTheme,
-  WUJIE_THEME_EVENT
+  subscribeThemeRequest,
+  WUJIE_THEME_EVENT,
+  WUJIE_THEME_REQUEST_EVENT
 } from '../../@browser/host-theme.js';
 
 function createBus() {
@@ -138,6 +141,55 @@ describe('host-theme', () => {
 
     it('is a no-op without a bus', () => {
       expect(() => emitHostTheme(undefined, 'light')).not.toThrow();
+    });
+  });
+
+  describe('requestHostTheme', () => {
+    it('子应用把切换请求发到 $wujie.bus 上', () => {
+      const bus = createBus();
+      const onRequest = vi.fn();
+      bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+
+      requestHostTheme('dark', { $wujie: { bus } });
+      expect(onRequest).toHaveBeenCalledWith({ theme: 'dark' });
+    });
+
+    it('走独立的事件名，不会触发宿主下发通道', () => {
+      const bus = createBus();
+      const onHostTheme = vi.fn();
+      bus.$on(WUJIE_THEME_EVENT, onHostTheme);
+
+      requestHostTheme('dark', { $wujie: { bus } });
+      expect(onHostTheme).not.toHaveBeenCalled();
+    });
+
+    it('独立运行（没有 $wujie）时静默跳过', () => {
+      expect(() => requestHostTheme('dark', {})).not.toThrow();
+    });
+  });
+
+  describe('subscribeThemeRequest', () => {
+    it('宿主收到子应用请求并解析成已解析主题', () => {
+      const bus = createBus();
+      const onTheme = vi.fn();
+
+      subscribeThemeRequest(onTheme, bus);
+      bus.$emit(WUJIE_THEME_REQUEST_EVENT, { theme: 'dark' });
+      expect(onTheme).toHaveBeenCalledWith('dark');
+    });
+
+    it('退订之后不再收到请求', () => {
+      const bus = createBus();
+      const onTheme = vi.fn();
+
+      const stop = subscribeThemeRequest(onTheme, bus);
+      stop();
+      bus.$emit(WUJIE_THEME_REQUEST_EVENT, { theme: 'dark' });
+      expect(onTheme).not.toHaveBeenCalled();
+    });
+
+    it('没有 bus 时返回可安全调用的退订函数', () => {
+      expect(() => subscribeThemeRequest(vi.fn(), undefined)()).not.toThrow();
     });
   });
 });

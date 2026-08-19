@@ -1,4 +1,4 @@
-import { subscribeHostTheme } from '@aiao/utils';
+import { requestHostTheme, subscribeHostTheme } from '@aiao/utils';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { Platform } from '@angular/cdk/platform';
 import { DOCUMENT, Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
@@ -68,6 +68,8 @@ export class ThemeService implements OnDestroy {
       localStorage.setItem(THEME_KEY, themeValue);
     }
     this.#setThemeAttribute(nextTheme);
+    // persist 恰好等价于「用户主动切换」——宿主下发走 persist=false，不回推就不会两端互相触发
+    if (persist) requestHostTheme(nextTheme === 'dark' ? 'dark' : 'light');
   }
 
   #setThemeAttribute(theme: string) {

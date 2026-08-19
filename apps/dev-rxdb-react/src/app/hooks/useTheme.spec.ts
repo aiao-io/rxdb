@@ -1,6 +1,6 @@
-import { WUJIE_THEME_EVENT } from '@aiao/utils';
+import { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } from '@aiao/utils';
 import { act, renderHook } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseThemeValue, useTheme } from './useTheme';
 
 function createStorage(): Storage {
@@ -77,5 +77,41 @@ describe('useTheme host sync', () => {
 
     expect(result.current.currentTheme).toBe('light');
     expect(localStorage.getItem('theme')).toBeNull();
+  });
+
+  it('用户切换主题时把请求推给宿主', () => {
+    const bus = createBus();
+    const onRequest = vi.fn();
+    window.$wujie = { bus, props: { theme: 'light' } };
+    bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+
+    const { result } = renderHook(() => useTheme());
+    act(() => result.current.setTheme('dark'));
+
+    expect(onRequest).toHaveBeenCalledWith({ theme: 'dark' });
+  });
+
+  it('切到 auto 时推的是解析后的主题，宿主只认 light / dark', () => {
+    const bus = createBus();
+    const onRequest = vi.fn();
+    window.$wujie = { bus, props: { theme: 'light' } };
+    bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+
+    const { result } = renderHook(() => useTheme());
+    act(() => result.current.setTheme('auto'));
+
+    expect(onRequest).toHaveBeenCalledWith({ theme: 'light' });
+  });
+
+  it('宿主下发的主题不回推，避免两端互相触发', () => {
+    const bus = createBus();
+    const onRequest = vi.fn();
+    window.$wujie = { bus, props: { theme: 'light' } };
+    bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+
+    renderHook(() => useTheme());
+    act(() => bus.$emit(WUJIE_THEME_EVENT, { theme: 'dark' }));
+
+    expect(onRequest).not.toHaveBeenCalled();
   });
 });

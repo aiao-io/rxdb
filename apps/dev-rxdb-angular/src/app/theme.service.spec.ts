@@ -1,11 +1,11 @@
-import { WUJIE_THEME_EVENT } from '@aiao/utils';
+import { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } from '@aiao/utils';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { Platform } from '@angular/cdk/platform';
 import { DOCUMENT, provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ThemeService } from '@modules/angular';
 import { of } from 'rxjs';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 function createStorage(): Storage {
   const values = new Map<string, string>();
@@ -102,5 +102,41 @@ describe('ThemeService', () => {
 
     expect(localStorage.getItem('theme')).toBe('dark');
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+  });
+
+  it('用户切换主题时把请求推给宿主', () => {
+    const bus = createBus();
+    const onRequest = vi.fn();
+    window.$wujie = { bus, props: { theme: 'light' } };
+    bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+
+    const service = TestBed.inject(ThemeService);
+    service.setTheme('dark');
+
+    expect(onRequest).toHaveBeenCalledWith({ theme: 'dark' });
+  });
+
+  it('切到 auto 时推的是解析后的主题', () => {
+    const bus = createBus();
+    const onRequest = vi.fn();
+    window.$wujie = { bus, props: { theme: 'dark' } };
+    bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+
+    const service = TestBed.inject(ThemeService);
+    service.setTheme('auto');
+
+    expect(onRequest).toHaveBeenCalledWith({ theme: 'light' });
+  });
+
+  it('宿主下发的主题不回推，避免两端互相触发', () => {
+    const bus = createBus();
+    const onRequest = vi.fn();
+    window.$wujie = { bus, props: { theme: 'light' } };
+    bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+
+    TestBed.inject(ThemeService);
+    bus.$emit(WUJIE_THEME_EVENT, { theme: 'dark' });
+
+    expect(onRequest).not.toHaveBeenCalled();
   });
 });

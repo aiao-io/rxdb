@@ -1,4 +1,4 @@
-import { getWujieHost, parseResolvedTheme, subscribeHostTheme } from '@aiao/utils';
+import { getWujieHost, parseResolvedTheme, requestHostTheme, subscribeHostTheme } from '@aiao/utils';
 import { computed, ref, watchEffect } from 'vue';
 
 const THEME_KEY = 'theme';
@@ -42,9 +42,11 @@ export function useTheme() {
     });
   }
 
+  // 只有用户主动切换才回推宿主；subscribeHostTheme 收到的下发不回推，否则两端互相触发
   const setTheme = (theme: ThemeValue) => {
     currentTheme.value = theme;
     localStorage.setItem(THEME_KEY, theme);
+    requestHostTheme(theme === 'auto' ? (systemIsDark.value ? 'dark' : 'light') : theme);
   };
 
   const currentThemeIsDark = computed(() => {

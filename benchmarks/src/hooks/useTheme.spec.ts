@@ -1,7 +1,7 @@
 /** @vitest-environment happy-dom */
-import { WUJIE_THEME_EVENT } from '@aiao/utils';
+import { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } from '@aiao/utils';
 import { act, renderHook } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useTheme } from './useTheme';
 
 function createStorage(): Storage {
@@ -52,6 +52,21 @@ describe('useTheme host sync', () => {
     delete window.$wujie;
     localStorage.clear();
     document.documentElement.removeAttribute('data-theme');
+  });
+
+  it('用户切换主题时把请求推给宿主，宿主下发的不回推', () => {
+    const bus = createBus();
+    const onRequest = vi.fn();
+    window.$wujie = { bus, props: { theme: 'light' } };
+    bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+
+    const { result } = renderHook(() => useTheme());
+    act(() => result.current.toggleTheme());
+    expect(onRequest).toHaveBeenCalledWith({ theme: 'dark' });
+
+    onRequest.mockClear();
+    act(() => bus.$emit(WUJIE_THEME_EVENT, { theme: 'light' }));
+    expect(onRequest).not.toHaveBeenCalled();
   });
 
   it('follows the wujie host theme and still accepts the legacy postMessage fallback', () => {

@@ -1,4 +1,10 @@
-import { getWujieHost, parseResolvedTheme, subscribeHostTheme, type ResolvedTheme } from '@aiao/utils';
+import {
+  getWujieHost,
+  parseResolvedTheme,
+  requestHostTheme,
+  subscribeHostTheme,
+  type ResolvedTheme
+} from '@aiao/utils';
 import { useCallback, useEffect, useState } from 'react';
 
 const THEME_KEY = 'rxdb-benchmarks-theme';
@@ -40,9 +46,13 @@ export function useTheme() {
 
   useEffect(() => subscribeHostTheme(next => setThemeState(next as ResolvedTheme)), []);
 
+  // 只有用户主动切换才回推宿主；subscribeHostTheme 收到的下发不回推，否则两端互相触发。
+  // 副作用放在 updater 外面 —— StrictMode 会把 updater 调两次。
   const toggleTheme = useCallback(() => {
-    setThemeState(prev => (prev === LIGHT_THEME ? DARK_THEME : LIGHT_THEME));
-  }, []);
+    const next = theme === LIGHT_THEME ? DARK_THEME : LIGHT_THEME;
+    setThemeState(next);
+    requestHostTheme(next);
+  }, [theme]);
 
   return {
     theme,

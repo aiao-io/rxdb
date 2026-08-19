@@ -106,4 +106,46 @@ describe('useTheme', () => {
     expect(currentTheme.value).toBe('light');
     expect(localStorage.getItem('theme')).toBeNull();
   });
+
+  it('用户切换主题时把请求推给宿主，宿主下发的不回推', async () => {
+    const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
+    const bus = {
+      $on(event: string, fn: (...args: unknown[]) => void) {
+        const bucket = listeners.get(event) ?? new Set();
+        bucket.add(fn);
+        listeners.set(event, bucket);
+      },
+      $off(event: string, fn: (...args: unknown[]) => void) {
+        listeners.get(event)?.delete(fn);
+      },
+      $emit(event: string, ...args: unknown[]) {
+        listeners.get(event)?.forEach(listener => listener(...args));
+      }
+    };
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => createMediaQueryList(false))
+    );
+    vi.stubGlobal('localStorage', createStorage());
+    window.$wujie = { bus, props: { theme: 'light' } };
+
+    const { useTheme } = await import('./useTheme');
+    const { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } = await import('@aiao/utils');
+    const onRequest = vi.fn();
+    bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+
+    const { setTheme } = useTheme();
+    setTheme('dark');
+    expect(onRequest).toHaveBeenCalledWith({ theme: 'dark' });
+
+    // auto 要先落到 light / dark，宿主不认第三种状态
+    onRequest.mockClear();
+    setTheme('auto');
+    expect(onRequest).toHaveBeenCalledWith({ theme: 'light' });
+
+    onRequest.mockClear();
+    bus.$emit(WUJIE_THEME_EVENT, { theme: 'dark' });
+    await nextTick();
+    expect(onRequest).not.toHaveBeenCalled();
+  });
 });

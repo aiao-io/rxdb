@@ -4,8 +4,16 @@
  * 优先走无界 `eventBus`；独立打开子应用时仍兼容旧的 `postMessage({ type: 'setTheme' })`。
  */
 
-/** 无界 bus 上的主题事件名。 */
+/** 无界 bus 上的主题事件名：宿主下发已解析主题。 */
 export const WUJIE_THEME_EVENT = 'aiao:theme';
+
+/**
+ * 无界 bus 上的主题请求事件名：子应用请求宿主切换主题。
+ *
+ * 刻意与 {@link WUJIE_THEME_EVENT} 分开 —— 无界的 `$emit` 会遍历所有 bus，
+ * 两个方向共用一个事件名会让宿主收到自己发出的广播，绕成回环。
+ */
+export const WUJIE_THEME_REQUEST_EVENT = 'aiao:theme-request';
 
 /** 已经解析成可直接写到 `data-theme` 的主题。 */
 export type ResolvedTheme = 'light' | 'dark';
@@ -124,4 +132,34 @@ export function subscribeHostTheme(
  */
 export function emitHostTheme(bus: WujieBus | undefined, theme: ResolvedTheme): void {
   bus?.$emit?.(WUJIE_THEME_EVENT, { theme });
+}
+
+/**
+ * 子应用请求宿主切换主题。
+ *
+ * 只该在**用户主动切换**时调用；{@link subscribeHostTheme} 回调里收到宿主下发的主题后
+ * 不要回推，否则两端互相触发。独立运行（拿不到 `$wujie`）时静默跳过。
+ *
+ * @param theme - 已解析主题；子应用的 `auto` 要先落到 `light` / `dark`
+ * @param target - 默认 `globalThis`；测试里可传入假 window
+ */
+export function requestHostTheme(theme: ResolvedTheme, target: unknown = globalThis): void {
+  getWujieHost(target)?.bus?.$emit?.(WUJIE_THEME_REQUEST_EVENT, { theme });
+}
+
+/**
+ * 宿主订阅子应用发来的主题切换请求。
+ *
+ * @param onTheme - 收到请求时的回调，参数已收敛成 `light` / `dark`
+ * @param bus - 无界主应用 `bus`；缺省时返回空退订函数
+ * @returns 取消订阅
+ */
+export function subscribeThemeRequest(onTheme: (theme: ResolvedTheme) => void, bus: WujieBus | undefined): () => void {
+  if (!bus?.$on) return () => undefined;
+
+  const handler = (payload: unknown) => onTheme(parseResolvedTheme(payload));
+  bus.$on(WUJIE_THEME_REQUEST_EVENT, handler);
+  return () => {
+    bus.$off?.(WUJIE_THEME_REQUEST_EVENT, handler);
+  };
 }

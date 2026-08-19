@@ -1,4 +1,4 @@
-import { getWujieHost, parseResolvedTheme, subscribeHostTheme } from '@aiao/utils';
+import { getWujieHost, parseResolvedTheme, requestHostTheme, subscribeHostTheme } from '@aiao/utils';
 import { useEffect, useState } from 'react';
 
 const THEME_KEY = 'theme';
@@ -59,9 +59,11 @@ export function useTheme(): UseThemeReturn {
     document.documentElement.setAttribute('data-theme', effectiveTheme);
   }, [currentTheme, systemIsDark]);
 
+  // 只有用户主动切换才回推宿主；subscribeHostTheme 收到的下发不回推，否则两端互相触发
   const setTheme = (theme: ThemeValue) => {
     setCurrentTheme(theme);
     localStorage.setItem(THEME_KEY, theme);
+    requestHostTheme(theme === 'auto' ? (systemIsDark ? 'dark' : 'light') : theme);
   };
 
   const currentThemeIsDark = currentTheme === 'auto' ? systemIsDark : currentTheme === 'dark';

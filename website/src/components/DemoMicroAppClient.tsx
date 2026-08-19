@@ -3,8 +3,10 @@ import {
   HOST_THEME_ATTRIBUTE,
   parseResolvedTheme,
   rewriteShadowCss,
+  subscribeThemeRequest,
   type ResolvedTheme
 } from '@aiao/utils';
+import { useColorMode } from '@docusaurus/theme-common';
 import { useEffect, useRef, useState, type ComponentType, type ReactElement } from 'react';
 import WujieReact from 'wujie-react';
 
@@ -35,13 +37,18 @@ const shadowCssPlugins = [{ cssLoader: rewriteShadowCss }];
 /**
  * 仅在浏览器里加载的无界宿主。由 {@link DemoMicroApp} 通过 `BrowserOnly` 引入。
  *
- * 主题是**单向从外往内**推的：子应用只能把 `data-theme` 写到 Shadow 内的 `<html>` 上，
- * 够不到承载底色的 `<wujie-app>` 宿主元素，所以这里由宿主直接给它打 `data-theme`，
- * 配合 {@link rewriteShadowCss} 补出的 `:host([data-theme=X])` 规则让底色跟着主题走。
+ * 主题双向同步，两个方向都由宿主落地：
+ *
+ * - **外 → 内**：子应用只能把 `data-theme` 写到 Shadow 内的 `<html>` 上，够不到承载底色的
+ *   `<wujie-app>` 宿主元素，所以这里由宿主直接给它打 `data-theme`，配合
+ *   {@link rewriteShadowCss} 补出的 `:host([data-theme=X])` 规则让底色跟着主题走。
+ * - **内 → 外**：子应用里切主题时发 `subscribeThemeRequest` 监听的请求事件，宿主转成
+ *   Docusaurus 的 `setColorMode`。走独立事件名，不与下发通道共用，避免绕成回环。
  */
 export default function DemoMicroAppClient({ name, url, title, allow }: DemoMicroAppProps): ReactElement {
   const [theme, setTheme] = useState<ResolvedTheme>(readHostTheme);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { setColorMode } = useColorMode();
   // 初始主题跟着 `props.theme` 进子应用（subscribeHostTheme 先读 props 再订阅 bus），
   // 子应用起来之前 bus 上没有订阅者，抢跑的 $emit 只会换来无界的「事件订阅数量为空」告警。
   // 所以这里只广播**变化**。
@@ -81,6 +88,10 @@ export default function DemoMicroAppClient({ name, url, title, allow }: DemoMicr
       mountObserver.disconnect();
     };
   }, []);
+
+  // 子应用里切主题 → 带动整个文档站。走 setColorMode 而不是直接改属性：
+  // 直接 setAttribute 会被 Docusaurus 的 colorMode 状态覆盖，也不会持久化。
+  useEffect(() => subscribeThemeRequest(next => setColorMode(next), bus), [setColorMode]);
 
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%' }}>

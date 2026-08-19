@@ -116,7 +116,9 @@ describe('UTL-033 公开 API 的 TSDoc 与类型导出', () => {
         'export function parseResolvedTheme',
         'export function getWujieHost',
         'export function subscribeHostTheme',
-        'export function emitHostTheme'
+        'export function emitHostTheme',
+        'export function requestHostTheme',
+        'export function subscribeThemeRequest'
       ];
       expect(declarations.filter(declaration => !documented(source, declaration))).toEqual([]);
     });

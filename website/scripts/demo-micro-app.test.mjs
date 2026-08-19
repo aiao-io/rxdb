@@ -53,6 +53,35 @@ test('wujie host pushes data-theme onto the <wujie-app> element itself', () => {
   assert.match(source, /childList:\s*true/, 'host should observe the container for the async <wujie-app> insert');
 });
 
+test('wujie host applies theme change requests coming back from the sub-app', () => {
+  const source = readFileSync(join(root, 'src/components/DemoMicroAppClient.tsx'), 'utf8');
+  // 子应用里切主题要能带动整个文档站，回推走独立的 request 事件，不与下发通道共用
+  assert.match(source, /subscribeThemeRequest/, 'host should subscribe to sub-app theme requests');
+  // 直接 setAttribute 会被 Docusaurus 的 colorMode 状态覆盖，也不会持久化
+  assert.match(source, /useColorMode/, 'host should write back through the Docusaurus colorMode API');
+  assert.match(source, /setColorMode/, 'host should apply the requested theme via setColorMode');
+});
+
+test('sub-apps push theme changes back to the host on user-driven switches only', () => {
+  const files = [
+    '../modules/angular/src/services/theme.service.ts',
+    '../apps/dev-rxdb-react/src/app/hooks/useTheme.ts',
+    '../apps/dev-rxdb-vue/src/app/composables/useTheme.ts',
+    '../benchmarks/src/hooks/useTheme.ts'
+  ];
+
+  for (const file of files) {
+    const source = readFileSync(join(root, file), 'utf8');
+    assert.match(source, /requestHostTheme/, `${file} should push user-driven theme changes to the host`);
+    // 回推必须留在用户动作路径上；写进 subscribeHostTheme 的回调就成环了
+    assert.doesNotMatch(
+      source,
+      /subscribeHostTheme\([^)]*requestHostTheme/s,
+      `${file} must not echo the host theme back to the host`
+    );
+  }
+});
+
 test('sub-apps declare daisyUI root as :is(:host, :root) so standalone and Shadow DOM both get tokens', () => {
   const files = [
     '../apps/dev-rxdb-angular/src/styles.scss',
