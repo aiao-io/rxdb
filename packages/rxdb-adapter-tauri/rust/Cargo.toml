@@ -1,0 +1,37 @@
+[package]
+name = "aiao-rxdb-tauri"
+version = "0.0.25"
+description = "Rust host for @aiao/rxdb-adapter-tauri: app-scoped SQLite and local file storage over the desktop host protocol"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/aiao-io/rxdb"
+# 未发布到 crates.io（US-210 T7），理由与后果见 README。`publish = false` 让
+# 一次手滑的 `cargo publish` 直接失败，而不是把一个还没定名的 crate 占了坑。
+publish = false
+
+# 版本号与 npm 侧的 `@aiao/rxdb-adapter-tauri` 手工对齐。两者是同一份线协议的两端，
+# 版本对不上时 renderer 会在 `handshake` 上以 `protocol_violation` 拒绝连接（US-210 AC#10）——
+# 也就是说漂移不会静默，但排查成本由用户承担，所以改一侧就要改另一侧。
+# Nx 的 fixed release group 管不到 cargo，这条对齐今天没有机械保证。
+
+[lib]
+name = "aiao_rxdb_tauri"
+
+# `src/bin/rxdb_host_stdio.rs` 由 cargo 自动发现为二进制：一致性测试专用，
+# 在 stdin/stdout 上跑同一套宿主而不启动 `tauri::App`，见 `../conformance/`。
+
+[dependencies]
+# 只有 `commands.rs` 用得到：`#[tauri::command]`、`AppHandle`、`State`、`spawn_blocking`。
+# 其余模块（引擎、协议、路由、文件宿主）对 tauri 零依赖，stdio 测试宿主正是靠这一点
+# 原样复用它们。
+tauri = { version = "=2.11.2", features = [] }
+serde = { version = "1", features = ["derive"] }
+# 线协议是 JSON：本 crate 要自己解析 renderer 请求、构造应答，不能只靠 tauri 的 IPC 层。
+serde_json = "1"
+# 一个 session 一条物理连接（US-210 AC#2 由构造保证）。
+# `bundled` 固定 SQLite 版本，不受各平台系统库版本影响；`functions` 用于触发器回调的
+# 标量函数 `rxdb_desktop_notify`；`blob` 用于 BLOB 绑定与读取。
+# hooks：SQLite authorizer，用来把 ATTACH/DETACH 挡在应用作用域之外（见 Engine::initialize）
+rusqlite = { version = "0.32", features = ["bundled", "functions", "blob", "hooks"] }
+# sessionId 由 host 生成，形状必须匹配协议里的 UUID 正则。
+uuid = { version = "1", features = ["v4"] }

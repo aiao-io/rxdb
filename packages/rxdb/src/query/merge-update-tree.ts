@@ -65,25 +65,31 @@ export const handleFindDescendantsUpdate = <T extends EntityType>(
       // 情况2: 实体更新后仍然匹配，检查是否还是后代且在 level 范围内
       if (classification.matchNowIds.has(entityId)) {
         const eventData = cache.getData(entityId);
-        // 🐛 BUG 修复: 检查 patch 中是否包含 parentId
-        // 如果 patch 中没有 parentId，说明 parentId 没有改变
-        // 此时不需要重新判断树关系，实体应该保持在原位置
-        const hasParentIdChanged = eventData && 'parentId' in eventData.patch;
+        // key 是否存在不代表值真的变了，必须比较 patch 与 inversePatch 的实际值
+        // （与添加 / count 路径一致）。
+        const hasParentIdChanged =
+          !!eventData &&
+          'parentId' in eventData.patch &&
+          get_tree_parent_id(eventData.patch as InstanceType<T>) !==
+            get_tree_parent_id(eventData.inversePatch as InstanceType<T>);
 
         if (hasParentIdChanged) {
-          // parentId 在 patch 中存在，需要检查树关系是否改变
+          // 序列化结果比裸 patch 更可信：`QueryManager.#serialize` 带 P0-004 单调性守卫，
+          // 迟到事件会原样返回更新的缓存实体，用它的 parentId 才是当前真实层级。
+          // 只有序列化缺失（实体不在缓存里）时才退回 patch.parentId —— 此时 patch 是
+          // 唯一信息来源，保守保留会把已移出子树的节点留在结果里。
           const updatedEntity = cache.getSerializedUpdate(entityId);
-          if (updatedEntity) {
-            const { isDescendant, level: entityLevel } = helper.isEntityDescendant(updatedEntity, targetEntityId);
-            // 不再是后代 或 超出层级限制 → 移除
-            if (!isDescendant || (level !== undefined && entityLevel > level)) {
-              hasChanges = true;
-              removedDueToMove.add(entityId);
-              return false;
-            }
+          const entityForTree = (updatedEntity ?? {
+            id: entityId,
+            parentId: get_tree_parent_id(eventData.patch as InstanceType<T>)
+          }) as InstanceType<T>;
+          const { isDescendant, level: entityLevel } = helper.isEntityDescendant(entityForTree, targetEntityId);
+          if (!isDescendant || (level !== undefined && entityLevel > level)) {
+            hasChanges = true;
+            removedDueToMove.add(entityId);
+            return false;
           }
         }
-        // 如果 parentId 没有改变，保留实体（树关系未变）
       }
     }
     return true; // 保留该实体

@@ -23,7 +23,7 @@ import { launchEnv, resolveExecutable } from './packaged-app';
  * @remarks
  * 由两段拼成，各有出处：
  * - `rxdb-files/` —— `desktop-file-bridge.ts` 的 `DESKTOP_STORAGE_DIRECTORY`，与 `rxdb-data/` 同级
- * - `files/` —— demo 传给插件的 `DESKTOP_STORAGE_ROOT_DIR`（`desktop-database.service.ts`）
+ * - `files/` —— demo 传给插件的 `DESKTOP_STORAGE_ROOT_DIR`（`setup_rxdb_desktop.ts`）
  *
  * 写死而不 import：本文件跑在打包产物之外的纯 Node 进程里，import 这两个常量要把
  * Electron 主进程与 `@aiao/rxdb-plugin-storage` 一起拖进 e2e 的依赖里。写死也不会悄悄放行 ——

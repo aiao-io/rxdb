@@ -6,7 +6,7 @@
  * 请求路径上并不校验。于是任何一个渲染进程只要拿到别的窗口的 session id，就能拿它执行 SQL、
  * 关掉对方的会话、或放掉对方正持有的文件锁 —— 相当于把「UUID 不好猜」当成了授权。
  *
- * 判据与 Tauri 侧的 `reject_foreign_session`（`src-tauri/src/rxdb/router.rs`）逐字对应：
+ * 判据与 Tauri 侧的 `reject_foreign_session`（`packages/rxdb-adapter-tauri/rust/src/router.rs`）逐字对应：
  * 只拒**属于别人**的会话；查不到持有者的一律放行，让 host 去答 `session_closed`。
  * 两族共用这一份实现而不是各抄一遍 —— 抄两份，改一份就是另一份悄悄失效。
  *
@@ -21,6 +21,39 @@ export interface DesktopForeignSessionDenial {
   readonly code: 'permission_denied';
   /** 面向调用方的说明，不含持有者身份。 */
   readonly message: string;
+}
+
+/** 窗口在会话建立途中消失时的应答；结构上同样是两族响应联合里的 `error` 分支。 */
+export interface DesktopDestroyedTargetDenial {
+  /** 恒为 `error`。 */
+  readonly kind: 'error';
+  /** 恒为 `session_closed`：语义是「这条会话没了，重连即可」，与终局的 `permission_denied` 相对。 */
+  readonly code: 'session_closed';
+  /** 面向调用方的说明。 */
+  readonly message: string;
+}
+
+/**
+ * 会话开出来时归属窗口已经销毁，给出拒绝应答。
+ *
+ * @remarks
+ * 归属登记发生在 host 应答**之后**，而窗口销毁的回收扫的是登记表。两者撞在一起时，回收先跑、
+ * 看到的是一张还没有这条记录的表，随后的登记就把会话挂到了一个不会再有回收时机的窗口名下 ——
+ * 它一直占着 host 的连接 / fd / 锁，直到整个应用退出。两族 bridge 因此都要在登记前补一次判定，
+ * 并把已经开出来的会话当场关掉。
+ *
+ * 判据放在这里而不是各 bridge 里，与 {@link denyForeignSession} 同一个理由：抄两份，
+ * 改一份就是另一份悄悄失效。
+ *
+ * @param sessionId - 已经在 host 上建好、但无人可归属的会话 id
+ * @returns 拒绝应答
+ */
+export function denyDestroyedTarget(sessionId: string): DesktopDestroyedTargetDenial {
+  return {
+    kind: 'error',
+    code: 'session_closed',
+    message: `the window that opened session ${sessionId} was destroyed before it was registered`
+  };
 }
 
 /**

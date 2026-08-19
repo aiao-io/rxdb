@@ -26,7 +26,19 @@
       "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-test/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-tauri/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-storage/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
     },
     {
       "path": "../../modules/angular/tsconfig.lib.json"
@@ -39,21 +51,6 @@
     },
     {
       "path": "../../packages/utils/tsconfig.lib.json"
-    },
-    {
-      "path": "../../packages/rxdb-plugin-storage/tsconfig.lib.json"
-    },
-    {
-      "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json"
-    },
-    {
-      "path": "../../packages/rxdb/tsconfig.lib.json"
-    },
-    {
-      "path": "../../packages/rxdb-adapter-tauri/tsconfig.lib.json"
-    },
-    {
-      "path": "../../packages/rxdb-test/tsconfig.lib.json"
     }
   ]
 }

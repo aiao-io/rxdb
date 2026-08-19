@@ -63,21 +63,22 @@ corepack pnpm nx run dev-rxdb-tauri:cargo-clippy    # clippy -D warnings，零�
 corepack pnpm nx run dev-rxdb-tauri:cargo-test      # cargo test --locked
 ```
 
-一致性套件——Rust 引擎跑 `@aiao/rxdb-adapter-sqlite-core/testing` 的 21 个共享套件 + 5 个加密套件，
-断言与 Electron / wasm 后端逐字相同：
+这三条只覆盖**本应用自己的 crate**（接线、自检模式、入口）。桌面宿主本体住在
+[packages/rxdb-adapter-tauri/rust/](../../packages/rxdb-adapter-tauri/rust/)，门禁与一致性套件在那个项目里：
 
 ```bash
-corepack pnpm nx run dev-rxdb-tauri:test-conformance
+corepack pnpm nx run rxdb-adapter-tauri:cargo-clippy
+corepack pnpm nx run rxdb-adapter-tauri:cargo-test
+corepack pnpm nx run rxdb-adapter-tauri:test-conformance
 ```
 
-它 `dependsOn` `build-test-host`，会先编出 [rxdb_host_stdio.rs](src-tauri/src/bin/rxdb_host_stdio.rs)——
-一个在 stdin/stdout 上跑同一套宿主、不启动 `tauri::App` 的测试专用二进制（**不进产品包**）。
-需要 Rust 工具链，因此没有并进 `dev-rxdb-tauri:test`。
+`cargo` 只把 path 依赖当普通依赖编译，clippy 一条 lint 都不会落在它上面——所以两边都要各点一次名，
+`tauri-build` 的 `dependsOn` 里列了全部六条，正是这个缘故。
 
 打包：
 
 ```bash
-corepack pnpm nx run dev-rxdb-tauri:tauri-build     # dependsOn: cargo-check / cargo-clippy / cargo-test
+corepack pnpm nx run dev-rxdb-tauri:tauri-build     # dependsOn: 两个项目各自的 cargo-check / cargo-clippy / cargo-test
 ```
 
 renderer production build 输出到 `dist/apps/dev-rxdb-tauri/browser/`（`frontendDist` 指向此处）。
@@ -89,11 +90,13 @@ renderer production build 输出到 `dist/apps/dev-rxdb-tauri/browser/`（`front
 物理根目录由 **Rust 宿主自己决定，且不回传给 renderer**：renderer 递交的永远是应用作用域内的
 _逻辑名_，拿到物理路径等于拿到额外的文件系统情报，而它并不需要这份情报就能工作。
 
-落点由两处代码共同决定：
+落点由两处代码共同决定（都在宿主包里）：
 
-- [commands.rs](src-tauri/src/rxdb/commands.rs) 的 `DesktopHost::new` 取 `app.path().app_data_dir()`，
+- [commands.rs](../../packages/rxdb-adapter-tauri/rust/src/commands.rs) 的 `DesktopHost::new` 取
+  [lib.rs](src-tauri/src/lib.rs) 传进来的 `app.path().app_data_dir()`，
   即 `<平台 data 目录>/<identifier>`，`identifier` 是 `tauri.conf.json` 里的 `io.aiao.dev-rxdb-tauri`；
-- [paths.rs](src-tauri/src/rxdb/paths.rs) 的 `resolve_database_path` 在其下再开一层 `rxdb-data/`（常量 `DATABASE_DIRECTORY`）。
+- [paths.rs](../../packages/rxdb-adapter-tauri/rust/src/paths.rs) 的 `resolve_database_path` 在其下再开一层
+  `rxdb-data/`（常量 `DATABASE_DIRECTORY`）。
 
 demo 的完整路径：
 
@@ -121,7 +124,7 @@ demo 的完整路径：
 
 ### WAL 侧车文件
 
-引擎按 WAL 打开（[engine.rs](src-tauri/src/rxdb/engine.rs)：`journal_mode=WAL`、`synchronous=NORMAL`、
+引擎按 WAL 打开（[engine.rs](../../packages/rxdb-adapter-tauri/rust/src/engine.rs)：`journal_mode=WAL`、`synchronous=NORMAL`、
 `wal_autocheckpoint=1000`、`busy_timeout=5000ms`、`foreign_keys=ON`），因此运行期同目录下还有两个侧车文件：
 
 ```text
@@ -171,7 +174,8 @@ sqlite3 ~/Library/Application\ Support/io.aiao.dev-rxdb-tauri/rxdb-data/desktop_
 
 ### 一致性测试用的库
 
-全部落在临时工作区：工厂 `mkdtempSync(tmpdir(), 'rxdb-tauri-suite-')` 建目录，宿主在其下同样开
+套件在宿主包里（[packages/rxdb-adapter-tauri/conformance/](../../packages/rxdb-adapter-tauri/conformance/)），
+库文件全部落在临时工作区：工厂 `mkdtempSync(tmpdir(), 'rxdb-tauri-suite-')` 建目录，宿主在其下同样开
 `rxdb-data/`，`afterAll` 里整个删掉。stdio 宿主的根目录由 `argv[1]` 强制给出，**缺参数直接 `exit(2)`**——
 默认到某个「合理」位置只会让测试悄悄写进真实的用户数据目录。
 
@@ -200,10 +204,6 @@ renderer 与宿主之间只有两个名字，跨语言且编译器帮不上忙�
 
 ```text
 apps/dev-rxdb-tauri/
-├── conformance/               # Rust 宿主一致性套件（Vitest，node 环境，驱动 stdio 二进制）
-│   ├── rust-host-transport.ts # 子进程 + 行协议
-│   ├── rust-adapter-factory.ts# 共享套件要的适配器工厂
-│   └── *.spec.ts              # setup / storage-* / encrypted-*
 ├── public/                    # renderer 静态资源
 ├── src/                       # Angular renderer
 │   └── app/
@@ -211,15 +211,28 @@ apps/dev-rxdb-tauri/
 │       ├── setup_rxdb_desktop.ts     # Tauri 窗口：桌面适配器 + Tauri transport
 │       ├── setup_rxdb_wa-sqlite.ts   # 浏览器预览：wa-sqlite
 │       └── rxdb-initializer.ts       # 连接失败 → 应用内状态
-├── src-tauri/                 # Tauri 宿主
-│   ├── src/lib.rs             # 命令注册、setup、退出钩子
-│   ├── src/rxdb/              # 宿主实现（engine / session / protocol / paths / value / script）
-│   ├── src/bin/rxdb_host_stdio.rs  # 一致性测试专用二进制
+├── src-tauri/                 # Tauri 宿主应用（只剩接线）
+│   ├── src/lib.rs             # 命令注册、setup、窗口/进程两处回收钩子
+│   ├── src/selfcheck.rs       # 打包产物的自检模式（e2e 用，非产品路径）
+│   ├── src/main.rs            # 入口
 │   ├── capabilities/          # 窗口权限
 │   └── tauri.conf.json        # identifier / CSP / dev 与 build 命令
 ├── project.json               # Nx targets
-├── vite.config.mts            # renderer 单元测试配置
-└── vitest.conformance.mts     # 一致性套件配置（独立，需 Rust 工具链）
+└── vite.config.mts            # renderer 单元测试配置
 ```
+
+宿主实现与一致性套件都不在这里，而在包侧：
+
+```text
+packages/rxdb-adapter-tauri/
+├── src/                       # renderer 侧的 TS（适配器 + Tauri transport）
+├── rust/                      # 宿主实现（engine / session / protocol / paths / value / script / file）
+│   └── src/bin/rxdb_host_stdio.rs  # 一致性测试专用二进制（不进产品包）
+├── conformance/               # Rust 宿主一致性套件（Vitest，node 环境，驱动上面那个二进制）
+└── vitest.conformance.mts
+```
+
+线协议的两端住在同一个项目里，是为了让它们一起改、一起发；demo 反过来 path 依赖那个 crate，
+证明「用户照着 demo 抄」这条路是通的。
 
 依赖统一由 workspace 管理；`src-tauri/` 下不维护第二份 JS package manifest。

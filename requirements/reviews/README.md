@@ -9,17 +9,18 @@
 
 ## 目录结构
 
-| 文件                                                                                                               | 说明                                                    | 状态 |
-| ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- | ---- |
-| `README.md`                                                                                                        | 本说明与状态约定                                        | —    |
-| `review.template.md`                                                                                               | 新建 review 记录的模板                                  | —    |
-| [RV-001-desktop-host-runtime-validation-not-enforced.md](./RV-001-desktop-host-runtime-validation-not-enforced.md) | Desktop adapter（Electron / Tauri）发布面问题集（8 项） | Open |
-| [RV-002-desktop-sqlite-任意-sql-可越出应用目录.md](./RV-002-desktop-sqlite-任意-sql-可越出应用目录.md)             | Desktop SQLite 任意 SQL 可越出应用目录                  | Open |
-| [RV-003-协议握手在建库后执行.md](./RV-003-协议握手在建库后执行.md)                                                 | 协议握手在建库后执行                                    | Open |
-| [RV-004-tauri-会话未绑定窗口.md](./RV-004-tauri-会话未绑定窗口.md)                                                 | Tauri 会话未绑定窗口                                    | Open |
-| [RV-005-tauri-事件订阅未纳入连接握手.md](./RV-005-tauri-事件订阅未纳入连接握手.md)                                 | Tauri 事件订阅未纳入连接握手                            | Open |
-| [RV-006-并发-disconnect-提前返回.md](./RV-006-并发-disconnect-提前返回.md)                                         | 并发 `disconnect()` 提前返回                            | Open |
-| [RV-007-local-db-vs-main.md](./RV-007-local-db-vs-main.md)                                                         | `local-db` 相对 `main` 的分支评审（185 文件全量）       | Open |
+| 文件                                                                                                               | 说明                                                                    | 状态 |
+| ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- | ---- |
+| `README.md`                                                                                                        | 本说明与状态约定                                                        | —    |
+| `review.template.md`                                                                                               | 新建 review 记录的模板                                                  | —    |
+| [RV-001-desktop-host-runtime-validation-not-enforced.md](./RV-001-desktop-host-runtime-validation-not-enforced.md) | Desktop adapter（Electron / Tauri）发布面问题集（8 项）                 | Open |
+| [RV-002-desktop-sqlite-任意-sql-可越出应用目录.md](./RV-002-desktop-sqlite-任意-sql-可越出应用目录.md)             | Desktop SQLite 任意 SQL 可越出应用目录                                  | Open |
+| [RV-003-协议握手在建库后执行.md](./RV-003-协议握手在建库后执行.md)                                                 | 协议握手在建库后执行                                                    | Open |
+| [RV-004-tauri-会话未绑定窗口.md](./RV-004-tauri-会话未绑定窗口.md)                                                 | Tauri 会话未绑定窗口                                                    | Open |
+| [RV-005-tauri-事件订阅未纳入连接握手.md](./RV-005-tauri-事件订阅未纳入连接握手.md)                                 | Tauri 事件订阅未纳入连接握手                                            | Open |
+| [RV-006-并发-disconnect-提前返回.md](./RV-006-并发-disconnect-提前返回.md)                                         | 并发 `disconnect()` 提前返回                                            | Open |
+| [RV-007-local-db-vs-main.md](./RV-007-local-db-vs-main.md)                                                         | `local-db` 相对 `main` 的分支评审（185 文件全量）                       | Open |
+| [RV-008-local-db-vs-main-review.md](./RV-008-local-db-vs-main-review.md)                                           | `local-db` 相对 `main` 的全量代码复审（7 项：4 已修，3 降级 follow-up） | Open |
 
 ## 状态约定
 

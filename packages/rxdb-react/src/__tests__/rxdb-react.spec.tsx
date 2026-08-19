@@ -126,6 +126,28 @@ describe('异步 source', () => {
 
     await waitFor(() => expect(result.current.error).toBe(failure));
   });
+
+  // 同步抛出的工厂走的必须是同一条路径。不接住的话异常从 effect 里逃出去，掀掉最近的
+  // error boundary —— 而 `useRxDBOptional` 承诺的是 loading/error 态。三端逐字对齐。
+  it('routes a synchronously thrown factory error to the same failure slot', async () => {
+    const failure = new Error('storage unavailable');
+    const { result } = renderHook(
+      () => {
+        try {
+          return { db: useRxDB(), error: undefined as unknown };
+        } catch (error) {
+          return { db: undefined, error };
+        }
+      },
+      {
+        wrapper: wrap(() => {
+          throw failure;
+        })
+      }
+    );
+
+    await waitFor(() => expect(result.current.error).toBe(failure));
+  });
 });
 
 // 所有权规则：provider 只销毁自己造的东西。后一条是 StrictMode 双挂载下的正确性要求 ——

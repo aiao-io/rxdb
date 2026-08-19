@@ -15,6 +15,85 @@
       "options": {
         "command": "vite build && node ../../scripts/audit/package-api-docs.mjs ."
       }
+    },
+    "cargo-check": {
+      "// 下面五个 target 是 Rust 那半的": "本包有两半：renderer 侧的 TS（src/）与 Rust 宿主（rust/）。这五个 target 的 cwd 都是 rust/，输入面也只圈到 rust/ —— 宿主应用的 tauri.conf.json / capabilities/ 不在这里，那些属于 apps/dev-rxdb-tauri 自己的 cargo target。",
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["{projectRoot}/rust/**/*.rs", "{projectRoot}/rust/Cargo.toml", "{projectRoot}/rust/Cargo.lock"],
+      "options": {
+        "cwd": "packages/rxdb-adapter-tauri/rust",
+        "command": "cargo check --locked --all-targets",
+        "parallel": false
+      },
+      "metadata": {
+        "description": "US-210：Rust 宿主的类型/编译门禁"
+      }
+    },
+    "cargo-clippy": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["{projectRoot}/rust/**/*.rs", "{projectRoot}/rust/Cargo.toml", "{projectRoot}/rust/Cargo.lock"],
+      "options": {
+        "cwd": "packages/rxdb-adapter-tauri/rust",
+        "command": "cargo clippy --locked --all-targets -- -D warnings",
+        "parallel": false
+      },
+      "metadata": {
+        "description": "US-210：Rust 宿主的 lint 门禁（零警告）"
+      }
+    },
+    "cargo-test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["{projectRoot}/rust/**/*.rs", "{projectRoot}/rust/Cargo.toml", "{projectRoot}/rust/Cargo.lock"],
+      "options": {
+        "cwd": "packages/rxdb-adapter-tauri/rust",
+        "command": "cargo test --locked",
+        "parallel": false
+      },
+      "metadata": {
+        "description": "US-210：Rust 宿主的单元测试"
+      }
+    },
+    "build-test-host": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["{projectRoot}/rust/**/*.rs", "{projectRoot}/rust/Cargo.toml", "{projectRoot}/rust/Cargo.lock"],
+      "outputs": [
+        "{projectRoot}/rust/target/debug/rxdb_host_stdio",
+        "{projectRoot}/rust/target/debug/rxdb_host_stdio.exe"
+      ],
+      "options": {
+        "cwd": "packages/rxdb-adapter-tauri/rust",
+        "command": "cargo build --locked --bin rxdb_host_stdio",
+        "parallel": false
+      },
+      "metadata": {
+        "description": "US-210：一致性套件驱动的 stdio 宿主二进制（不进产品包）"
+      }
+    },
+    "test-conformance": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "dependsOn": ["build-test-host", "^build"],
+      "inputs": [
+        "{projectRoot}/conformance/**/*.ts",
+        "{projectRoot}/vitest.conformance.mts",
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/rust/**/*.rs",
+        "{projectRoot}/rust/Cargo.toml",
+        "{projectRoot}/rust/Cargo.lock",
+        "^production"
+      ],
+      "options": {
+        "cwd": "packages/rxdb-adapter-tauri",
+        "command": "vitest run --config vitest.conformance.mts",
+        "parallel": false
+      },
+      "metadata": {
+        "description": "US-210 AC#2/#3/#5/#7 + US-505 AC#2：Rust 引擎跑 21 个共享套件 + 5 个加密套件，Rust 文件宿主跑 storage 后端一致性套件"
+      }
     }
   }
 }

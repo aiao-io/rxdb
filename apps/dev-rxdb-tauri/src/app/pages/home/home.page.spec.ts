@@ -5,6 +5,7 @@ import { EMPTY, of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RxDBConnectionState } from '../../rxdb-connection-state';
 import { TauriService } from '../../services/tauri.service';
+import { resolveLocalBackend } from '../../setup_rxdb';
 import HomePage from './home.page';
 
 vi.mock('@aiao/utils', async importOriginal => ({
@@ -42,6 +43,10 @@ const render = async (localAdapter$ = of({})): Promise<ComponentFixture<HomePage
 
 const textOf = (fixture: ComponentFixture<HomePage>): string => fixture.nativeElement.textContent ?? '';
 
+/** 按 `data-testid` 取一格文本；取不到就是 `null`，好和"这格根本没渲染"区分开。 */
+const testId = (fixture: ComponentFixture<HomePage>, id: string): string | null =>
+  fixture.nativeElement.querySelector(`[data-testid="${id}"]`)?.textContent?.trim() ?? null;
+
 describe('HomePage', () => {
   beforeEach(() => {
     tauri = new TauriServiceStub();
@@ -72,6 +77,21 @@ describe('HomePage', () => {
     const fixture = await render(throwError(() => new Error('worker 已退出')));
 
     expect(textOf(fixture)).toContain('worker 已退出');
+    expect(testId(fixture, 'rxdb-error')).toBe('worker 已退出');
+  });
+
+  /**
+   * US-207 E9：这两格此前是模板里写死的 `wa-sqlite`，在 Tauri 窗口里**永远是错的**。
+   *
+   * 断言比的是 `selectLocalBackend` 的判定结果本身，而不是另写一遍 `'wa-sqlite'` 字面量 ——
+   * 后者会在"模板与判定各说各话"时照样通过，正是它要防的那个 bug。
+   */
+  it('shows the backend actually selected for this run, not a hardcoded name', async () => {
+    const fixture = await render();
+    const selected = resolveLocalBackend(globalThis);
+
+    expect(testId(fixture, 'rxdb-backend')).toBe(selected.adapter);
+    expect(testId(fixture, 'rxdb-db-name')).toBe(selected.dbName);
   });
 
   it('renders the tauri version reported over IPC', async () => {

@@ -29,6 +29,9 @@
     },
     {
       "path": "../rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-plugin-storage/tsconfig.lib.json"
     }
   ]
 }
