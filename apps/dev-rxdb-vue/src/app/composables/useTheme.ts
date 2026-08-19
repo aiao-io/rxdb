@@ -1,5 +1,5 @@
 import { getWujieHost, parseResolvedTheme, requestHostTheme, subscribeHostTheme } from '@modules/wujie';
-import { computed, ref, watchEffect } from 'vue';
+import { computed, effectScope, onScopeDispose, ref, watchEffect } from 'vue';
 
 const THEME_KEY = 'theme';
 export type ThemeValue = 'light' | 'dark' | 'auto';
@@ -21,24 +21,38 @@ export function useTheme() {
       const stored = localStorage.getItem(THEME_KEY);
       if (stored === 'light' || stored === 'dark' || stored === 'auto') currentTheme.value = stored;
     }
-    systemIsDark.value = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    subscribeHostTheme(theme => {
-      currentTheme.value = theme;
-    });
+    // 状态是模块级单例，副作用也必须归单例所有：detached scope 让它们不挂在「第一个调用
+    // useTheme 的组件」身上。否则 watchEffect 会绑进那个组件的 scope，它一卸载，全站主题
+    // 就不再写 data-theme —— 今天只是恰好 App.vue 先调才没出事。
+    const scope = effectScope(true);
+    scope.run(() => {
+      const media = window.matchMedia('(prefers-color-scheme: dark)');
+      systemIsDark.value = media.matches;
 
-    // Listen for system changes
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-      systemIsDark.value = e.matches;
-    });
+      const stopHostTheme = subscribeHostTheme(theme => {
+        currentTheme.value = theme;
+      });
 
-    // Apply theme
-    watchEffect(() => {
-      let effectiveTheme = currentTheme.value;
-      if (effectiveTheme === 'auto') {
-        effectiveTheme = systemIsDark.value ? 'dark' : 'light';
-      }
+      // Listen for system changes
+      const onSystemChange = (e: MediaQueryListEvent) => {
+        systemIsDark.value = e.matches;
+      };
+      media.addEventListener('change', onSystemChange);
 
-      document.documentElement.setAttribute('data-theme', effectiveTheme);
+      onScopeDispose(() => {
+        stopHostTheme();
+        media.removeEventListener('change', onSystemChange);
+      });
+
+      // Apply theme
+      watchEffect(() => {
+        let effectiveTheme = currentTheme.value;
+        if (effectiveTheme === 'auto') {
+          effectiveTheme = systemIsDark.value ? 'dark' : 'light';
+        }
+
+        document.documentElement.setAttribute('data-theme', effectiveTheme);
+      });
     });
   }
 

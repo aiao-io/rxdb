@@ -1,4 +1,5 @@
 import { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } from '@modules/wujie';
+import { createFakeWujieBus } from '@modules/wujie/testing';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseThemeValue, useTheme } from './useTheme';
@@ -17,23 +18,6 @@ function createStorage(): Storage {
     },
     setItem: (key, value) => {
       values.set(key, value);
-    }
-  };
-}
-
-function createBus() {
-  const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
-  return {
-    $on(event: string, fn: (...args: unknown[]) => void) {
-      const bucket = listeners.get(event) ?? new Set();
-      bucket.add(fn);
-      listeners.set(event, bucket);
-    },
-    $off(event: string, fn: (...args: unknown[]) => void) {
-      listeners.get(event)?.delete(fn);
-    },
-    $emit(event: string, ...args: unknown[]) {
-      listeners.get(event)?.forEach(listener => listener(...args));
     }
   };
 }
@@ -64,7 +48,7 @@ describe('useTheme host sync', () => {
   });
 
   it('applies the host theme from $wujie without persisting it', () => {
-    const bus = createBus();
+    const bus = createFakeWujieBus();
     window.$wujie = { bus, props: { theme: 'dark' } };
 
     const { result } = renderHook(() => useTheme());
@@ -80,7 +64,7 @@ describe('useTheme host sync', () => {
   });
 
   it('用户切换主题时把请求推给宿主', () => {
-    const bus = createBus();
+    const bus = createFakeWujieBus();
     const onRequest = vi.fn();
     window.$wujie = { bus, props: { theme: 'light' } };
     bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
@@ -92,7 +76,7 @@ describe('useTheme host sync', () => {
   });
 
   it('切到 auto 时推的是解析后的主题，宿主只认 light / dark', () => {
-    const bus = createBus();
+    const bus = createFakeWujieBus();
     const onRequest = vi.fn();
     window.$wujie = { bus, props: { theme: 'light' } };
     bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
@@ -104,7 +88,7 @@ describe('useTheme host sync', () => {
   });
 
   it('宿主下发的主题不回推，避免两端互相触发', () => {
-    const bus = createBus();
+    const bus = createFakeWujieBus();
     const onRequest = vi.fn();
     window.$wujie = { bus, props: { theme: 'light' } };
     bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);

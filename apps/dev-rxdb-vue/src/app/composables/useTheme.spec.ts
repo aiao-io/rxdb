@@ -1,4 +1,5 @@
 import { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } from '@modules/wujie';
+import { createFakeWujieBus } from '@modules/wujie/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 
@@ -72,20 +73,7 @@ describe('useTheme', () => {
   });
 
   it('applies the host theme from $wujie without persisting it', async () => {
-    const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
-    const bus = {
-      $on(event: string, fn: (...args: unknown[]) => void) {
-        const bucket = listeners.get(event) ?? new Set();
-        bucket.add(fn);
-        listeners.set(event, bucket);
-      },
-      $off(event: string, fn: (...args: unknown[]) => void) {
-        listeners.get(event)?.delete(fn);
-      },
-      $emit(event: string, ...args: unknown[]) {
-        listeners.get(event)?.forEach(listener => listener(...args));
-      }
-    };
+    const bus = createFakeWujieBus();
     vi.stubGlobal(
       'matchMedia',
       vi.fn(() => createMediaQueryList(false))
@@ -108,20 +96,7 @@ describe('useTheme', () => {
   });
 
   it('用户切换主题时把请求推给宿主，宿主下发的不回推', async () => {
-    const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
-    const bus = {
-      $on(event: string, fn: (...args: unknown[]) => void) {
-        const bucket = listeners.get(event) ?? new Set();
-        bucket.add(fn);
-        listeners.set(event, bucket);
-      },
-      $off(event: string, fn: (...args: unknown[]) => void) {
-        listeners.get(event)?.delete(fn);
-      },
-      $emit(event: string, ...args: unknown[]) {
-        listeners.get(event)?.forEach(listener => listener(...args));
-      }
-    };
+    const bus = createFakeWujieBus();
     vi.stubGlobal(
       'matchMedia',
       vi.fn(() => createMediaQueryList(false))

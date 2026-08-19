@@ -4,6 +4,7 @@ import { DOCUMENT, provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ThemeService } from '@modules/angular';
 import { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } from '@modules/wujie';
+import { createFakeWujieBus } from '@modules/wujie/testing';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -21,23 +22,6 @@ function createStorage(): Storage {
     },
     setItem: (key, value) => {
       values.set(key, value);
-    }
-  };
-}
-
-function createBus() {
-  const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
-  return {
-    $on(event: string, fn: (...args: unknown[]) => void) {
-      const bucket = listeners.get(event) ?? new Set();
-      bucket.add(fn);
-      listeners.set(event, bucket);
-    },
-    $off(event: string, fn: (...args: unknown[]) => void) {
-      listeners.get(event)?.delete(fn);
-    },
-    $emit(event: string, ...args: unknown[]) {
-      listeners.get(event)?.forEach(listener => listener(...args));
     }
   };
 }
@@ -74,7 +58,7 @@ describe('ThemeService', () => {
   });
 
   it('applies the initial host theme without writing localStorage', () => {
-    const bus = createBus();
+    const bus = createFakeWujieBus();
     window.$wujie = { bus, props: { theme: 'dark' } };
 
     const service = TestBed.inject(ThemeService);
@@ -85,7 +69,7 @@ describe('ThemeService', () => {
   });
 
   it('updates from later host bus events without persisting', () => {
-    const bus = createBus();
+    const bus = createFakeWujieBus();
     window.$wujie = { bus, props: { theme: 'light' } };
 
     const service = TestBed.inject(ThemeService);
@@ -105,7 +89,7 @@ describe('ThemeService', () => {
   });
 
   it('用户切换主题时把请求推给宿主', () => {
-    const bus = createBus();
+    const bus = createFakeWujieBus();
     const onRequest = vi.fn();
     window.$wujie = { bus, props: { theme: 'light' } };
     bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
@@ -117,7 +101,7 @@ describe('ThemeService', () => {
   });
 
   it('切到 auto 时推的是解析后的主题', () => {
-    const bus = createBus();
+    const bus = createFakeWujieBus();
     const onRequest = vi.fn();
     window.$wujie = { bus, props: { theme: 'dark' } };
     bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
@@ -129,7 +113,7 @@ describe('ThemeService', () => {
   });
 
   it('宿主下发的主题不回推，避免两端互相触发', () => {
-    const bus = createBus();
+    const bus = createFakeWujieBus();
     const onRequest = vi.fn();
     window.$wujie = { bus, props: { theme: 'light' } };
     bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
