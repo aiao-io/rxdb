@@ -19,6 +19,8 @@
   "sideEffects": false,
   "nx": {
     "name": "wujie",
-    "tags": ["js-lib"]
+    "tags": [
+      "js-lib"
+    ]
   }
 }

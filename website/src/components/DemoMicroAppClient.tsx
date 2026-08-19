@@ -1,3 +1,5 @@
+import { useHistory, useLocation } from '@docusaurus/router';
+import { useColorMode } from '@docusaurus/theme-common';
 import {
   emitHostRoute,
   emitHostTheme,
@@ -10,8 +12,6 @@ import {
   subscribeThemeRequest,
   type ResolvedTheme
 } from '@modules/wujie';
-import { useHistory, useLocation } from '@docusaurus/router';
-import { useColorMode } from '@docusaurus/theme-common';
 import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactElement } from 'react';
 import WujieReact from 'wujie-react';
 

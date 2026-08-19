@@ -1,9 +1,9 @@
-import { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } from '@modules/wujie';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { Platform } from '@angular/cdk/platform';
 import { DOCUMENT, provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ThemeService } from '@modules/angular';
+import { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } from '@modules/wujie';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 

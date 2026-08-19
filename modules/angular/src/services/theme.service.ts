@@ -1,8 +1,8 @@
-import { requestHostTheme, subscribeHostTheme } from '@modules/wujie';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { Platform } from '@angular/cdk/platform';
 import { DOCUMENT, Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { requestHostTheme, subscribeHostTheme } from '@modules/wujie';
 import { filter, map, of, shareReplay, switchMap } from 'rxjs';
 
 const THEME_KEY = 'theme';
