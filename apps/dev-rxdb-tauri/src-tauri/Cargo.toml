@@ -4,8 +4,9 @@ version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
-# 本 crate 有两个二进制（见下方 `[build-dependencies]` 后的说明），
-# 不指定 `default-run` 时 `cargo run`（`tauri dev` 的 DevCommand）会因无法选择而失败。
+# 曾经有第二个二进制（一致性测试的 stdio 宿主），它已随宿主一起迁进
+# `packages/rxdb-adapter-tauri/rust`。`default-run` 保留：`tauri dev` 的 DevCommand 走
+# `cargo run`，将来再多一个 example/bin 时不指定它就会因无法选择而失败。
 default-run = "dev-rxdb-tauri"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -20,19 +21,18 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "=2.6.3", features = [] }
 
-# `src/bin/rxdb_host_stdio.rs` 由 cargo 自动发现为第二个二进制：一致性测试专用，
-# 在 stdin/stdout 上跑同一套 `rxdb` 宿主而不启动 `tauri::App`，见 `conformance/`。
-
 [dependencies]
 tauri = { version = "=2.11.5", features = [] }
 serde = { version = "1", features = ["derive"] }
-# 线协议是 JSON：`rxdb` 模块要自己解析 renderer 请求、构造应答，不能只靠 tauri 的 IPC 层。
+# 自检报告是 JSON（`selfcheck.rs`），前端契约测试断言的就是它的形状。
 serde_json = "1"
-# 一个 session 一条物理连接（US-210 AC#2 由构造保证）。
-# `bundled` 固定 SQLite 版本，不受各平台系统库版本影响；`functions` 用于触发器回调的
-# 标量函数 `rxdb_desktop_notify`；`blob` 用于 BLOB 绑定与读取。
-# hooks：SQLite authorizer，用来把 ATTACH/DETACH 挡在应用作用域之外（见 Engine::initialize）
-rusqlite = { version = "0.32", features = ["bundled", "functions", "blob", "hooks"] }
-# sessionId 由 host 生成，形状必须匹配协议里的 UUID 正则。
+# 桌面宿主本体（US-210 T2）。**path 依赖**：这个 crate 没有发到 crates.io，
+# 外部用户今天只能 path / git 依赖，理由与后果见 `../../../packages/rxdb-adapter-tauri/rust/README.md`。
+# demo 反过来依赖包，是包化的验收方式本身——它证明「用户照着 demo 抄」这条路是通的。
+# `rusqlite` / `uuid` 不再直接出现在这里：它们是宿主的实现细节，随宿主一起搬走了。
+aiao-rxdb-tauri = { path = "../../../packages/rxdb-adapter-tauri/rust" }
+
+[dev-dependencies]
+# 只有 `selfcheck.rs` 的测试用来给临时目录起唯一名字。
 uuid = { version = "1", features = ["v4"] }
 

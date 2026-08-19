@@ -182,6 +182,20 @@ describe('createDesktopFileBridge', () => {
     expect(readdirSync(join(workspace, DESKTOP_STORAGE_DIRECTORY))).toEqual([]);
   });
 
+  // 窗口可能恰好在 host 建会话的那一拍里销毁：那次 releaseTarget 扫到的归属表里还没有这条
+  // 记录，等 open 应答回来再登记，会话就挂在一个不会再有回收时机的窗口名下 ——
+  // 它一直占着 host 的 fd 与锁，直到整个应用退出。
+  it('窗口在 open 途中销毁时不登记会话，并当场把它关掉', async () => {
+    const target = { alive: true, isDestroyed: (): boolean => !target.alive, send: (): void => undefined };
+
+    const opening = bridge.handle(target, { kind: 'file.open' });
+    target.alive = false;
+
+    expect(await opening).toMatchObject({ kind: 'error', code: 'session_closed' });
+    expect(bridge.releaseTarget(target)).toBe(0);
+    expect(bridge.openSessionCount).toBe(0);
+  });
+
   it('会话正常关闭后窗口释放不再计数', async () => {
     const target = createTarget();
     const sessionId = await openSession(target);

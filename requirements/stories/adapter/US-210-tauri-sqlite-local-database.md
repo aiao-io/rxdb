@@ -1,11 +1,11 @@
 ---
 id: US-210
 title: Tauri 连接应用作用域 SQLite 文件
-status: In Progress
+status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-08-13
-updated: 2026-08-17
+updated: 2026-08-18
 tags: [adapter, desktop, tauri, sqlite, transaction]
 inherited_acs:
   - from: US-207
@@ -154,17 +154,22 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 
 ### 当前证据
 
-`apps/dev-rxdb-tauri/conformance/setup.spec.ts` 把 `@aiao/rxdb-adapter-sqlite-core/testing` 的
+`packages/rxdb-adapter-tauri/conformance/setup.spec.ts` 把 `@aiao/rxdb-adapter-sqlite-core/testing` 的
 21 个共享套件 + `@aiao/rxdb-test/encrypted` 的 5 套加密套件**原样**跑在 Rust 宿主上
 （只排除 `createSqliteClientSuite`，它校验的是 wasm 后端的 worker 选项组合，桌面客户端不接受
-任何 worker 选项）。`pnpm nx run dev-rxdb-tauri:test-conformance` 跑 `conformance/` 全部 10 个 spec，
-为 **604 passed / 10 files / 0 skipped**；其中本故事的 SQL 侧是 8 个 spec / **585 passed**
-（含 2026-08-17 新增的 `write-lock-contention` 3 条与 `protocol-handshake` 增补的 4 条），
-另 2 个（`storage-parity` / `storage-persistence`，19 条）属
+任何 worker 选项）。`pnpm nx run rxdb-adapter-tauri:test-conformance` 跑 `conformance/` 全部 10 个 spec，
+为 **605 passed / 10 files / 0 skipped**（2026-08-18 T4 迁包后实测）；其中本故事的 SQL 侧是
+8 个 spec / **586 passed**（含 2026-08-17 新增的 `write-lock-contention` 3 条与
+`protocol-handshake` 增补的 4 条），另 2 个（`storage-parity` / `storage-persistence`，19 条）属
 [US-505](../plugin/US-505-tauri-local-file-storage.md)。
 
 > 上面的条数是**快照，不是判据**。判据是「0 skipped 且不低于上次基线」——
 > 把具体数字写进完成判据，过期后要么假红、要么被人默默改小对齐，两种都比不写更糟。
+>
+> 这条判据在 T4 迁包当天派上了用场：本文原记 604，迁完实测 605。多出来的那一条**不是迁移带来的**——
+> 迁移只改了四个文件里的注释与路径（`git diff` 逐行核过，零处 `it(` 增删），本轮对包侧源码的改动
+> 也全是注释（过滤掉 `*` / `//` 开头的行后 diff 为空）。604 只是写文档那天的旧快照。
+> 若当初把 604 写成完成判据，这里就会变成一次假红，然后有人把 605 改回 604 对齐。
 
 这批套件与 Electron 路径跑的是同一份断言、同一批工厂形状，只把 in-process 的 `node:sqlite`
 换成 stdio 子进程里的 `rusqlite`。「Tauri 路径的行为与其它后端一致」这句话因此有机械保证，
@@ -239,21 +244,26 @@ INVEST「Small」，**不拆新故事**，改为划阶段，每阶段独立验�
 | 1    | 核心能力：AC#2～#5、AC#7、AC#8 | 6 条 AC 全绿，一致性套件 0 skipped                                                                                                         | ✅ 已交付 |
 | 2    | 收尾保留项：AC#6、AC#10        | AC#6 补一条两会话争写锁的直接用例；AC#10 把两侧协议常量绑起来，并加一条无副作用的 `handshake` 请求在 `open` 之前协商版本。两条 AC 均已全绿 | ✅ 已交付 |
 | 3    | 打包验证：AC#1、AC#9           | 三平台 release workflow 绿；两者是同一次实现，见 AC#9 上方说明。本机 macOS 已跑通（含反向验证），三平台待首轮 workflow 确认                | ✅ 已交付 |
-| 4    | Tauri 包化：T1～T7             | 见各任务判据；与 [US-207 E1～E7](./US-207-desktop-local-database.md#包边界重整) 同批做，共用一次改名。T3（JS 侧迁入）已随 E2/E3 交付       | ⚠️ 进行中 |
+| 4    | Tauri 包化：T1～T7             | 见各任务判据；与 [US-207 E1～E7](./US-207-desktop-local-database.md#包边界重整) 同批做，共用一次改名。T3（JS 侧迁入）已随 E2/E3 交付       | ✅ 已交付 |
 
-本故事只有在四个阶段都完成后才标 `Done`。阶段 2 与阶段 3 之间没有依赖，可并行；
+四个阶段于 2026-08-18 全部关闭，本故事随之标 `Done`。阶段 2 与阶段 3 之间没有依赖，可并行；
 阶段 4 的前置——[US-207 E1](./US-207-desktop-local-database.md#任务) 把共享层下沉到
 `@aiao/rxdb-adapter-sqlite-core/desktop-host`——已完成，T1～T7 不再被它挡住。
 
 ## Tauri 包化
 
-**JS 侧已经搬完（T3）**：`packages/rxdb-adapter-tauri` 现在装着传输层与 JSON codec，
-协议、renderer client、存储联合与错误类型从 `@aiao/rxdb-adapter-sqlite-core/desktop-host` 转出。
-**Rust 侧还没动（T2）**：宿主、stdio 测试二进制与全部一致性用例（写本条时 SQL 侧 585 条）
-仍在 `apps/dev-rxdb-tauri/` 这个 demo 应用里。装了 npm 包的用户拿到的只是一根传输管子，管子那头的
-`rusqlite` 引擎要自己照着 demo 重写一遍——AC#2/#3 承诺的「与其它后端行为一致」于是只对本仓库成立。
+**两侧都搬完了（2026-08-18）**：`packages/rxdb-adapter-tauri` 现在一个 Nx project 同时装着
+**npm 包**（`src/`：传输层与 JSON codec，协议、renderer client、存储联合与错误类型从
+`@aiao/rxdb-adapter-sqlite-core/desktop-host` 转出）与 **Rust crate**（`rust/`：`aiao-rxdb-tauri`，
+宿主本体 + stdio 测试二进制），一致性套件（`conformance/`）跟着 crate 一起进来。
+demo 反过来 path 依赖这个 crate——**demo 依赖包，正是包化的验收方式本身**：它证明「用户照着 demo 抄」
+这条路真的通，而不是仓库内部另有一套接线。
 
-目标是 `packages/rxdb-adapter-tauri` 一个包同时装 **npm 包与 Rust crate**，demo 反过来依赖它。
+搬之前的问题是：装了 npm 包的用户拿到的只是一根传输管子，管子那头的 `rusqlite` 引擎要自己照着
+demo 重写一遍——AC#2/#3 承诺的「与其它后端行为一致」于是只对本仓库成立。现在引擎随 crate 分发，
+这句话对包的使用者也成立了；**但只在 git / path 依赖的前提下**，见 T7 与
+[`rust/README.md`](../../../packages/rxdb-adapter-tauri/rust/README.md)。
+
 Electron 半边的改名与共享层下沉见 [US-207「包边界重整」](./US-207-desktop-local-database.md#包边界重整)。
 
 **`ADAPTER_NAME` 分裂已于 2026-08-17 落定**（决策、命名惯例与七处连带改动见
@@ -262,7 +272,7 @@ Electron 半边的改名与共享层下沉见 [US-207「包边界重整」](./US
 本节不另起一套命名，改名与 US-207 E3 同批执行——两个包共用一次破坏性变更，
 分两次做等于让用户改两遍代码。
 
-### 开工前仍未落定的决策：插件形态会让权限面结论反转
+### 已落定的决策：普通 crate，不做 Tauri 插件（2026-08-18）
 
 「权限面」小节今天的论证是**根本没有可授的东西**：`generate_handler!` 注册的 app 自定义命令
 不受 capability 门禁约束，只有 `core:` / `plugin:` 前缀的命令才是，于是
@@ -277,21 +287,32 @@ Electron 半边的改名与共享层下沉见 [US-207「包边界重整」](./US
 | Tauri 插件（`tauri::plugin::Builder`）   | 命令进 capability 门禁，宿主须显式授权；插件可自带默认权限集 | 接入是一行 `.plugin(rxdb::init())`，生态惯例，但 AC#1 与「权限面」小节要重写 |
 | 普通 crate，宿主自己 `generate_handler!` | 维持现状：无可授之物，`capabilities/` 零改动                 | 接入要抄一段注册代码；「一行接入」的包化收益打折                             |
 
-**结论必须写回 AC#1 与「权限面」小节**，不能让两处各说各话。
+**选了第二行：普通 crate。** 换来的是 AC#1 与「权限面」小节**一个字都不用改**——
+`capabilities/default.json` 在整个 T2 里零改动，「未授予额外 shell 或全文件系统权限」继续是
+结构性事实（根本没有可授的东西），而不是退化成「授予面收敛到两个命令」这种要靠配置维持的承诺。
+
+付的代价是接入不再是一行：宿主应用要自己抄三个钩子——`generate_handler!` 注册命令、`setup` 里
+`app.manage(DesktopHost::new(...))`、以及 `WindowEvent::Destroyed` / `RunEvent::Exit` 两处回收。
+完整那段就在 `apps/dev-rxdb-tauri/src-tauri/src/lib.rs` 里，也原样抄进了包 README——
+**demo 的接线代码就是文档**，两份不会漂。
+
+这笔交换是划算的：三个钩子抄一次，写完就不动了；而 capability 门禁一旦进来，是每个使用本包的
+应用都要长期维护的一份权限清单，且 AC#1 那条「结构性事实」从此需要靠人读配置来复核。
 
 ### 任务
 
-| #     | 任务                                                                                                                                                                                                                                   | 完成判据                                                                                                                                                                                                                                                      |
-| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| T1    | 新建 `packages/rxdb-adapter-tauri`：npm 包（`src/`）与 Rust crate（`rust/`）同居一个 Nx project                                                                                                                                        | `tag:js-lib` 的 `run-many -t lint test build` 覆盖到它；crate 名与是否发 crates.io 一并定（见 T7）                                                                                                                                                            |
-| T2    | Rust 宿主整体迁入：`apps/dev-rxdb-tauri/src-tauri/src/rxdb/`（`protocol.rs` / `value.rs` / `engine.rs` / `session.rs` / `paths.rs` / `router.rs` / `script.rs` / `error.rs` / `commands.rs` + `file/`）与 `src/bin/rxdb_host_stdio.rs` | 按上述决策定形为插件或普通 crate；`apps/dev-rxdb-tauri/src-tauri/src/rxdb/` 目录不再存在；`cargo test` 现有用例（写本条时 143 条）在新位置全绿、零忽略，条数以迁移当天实测为准。注意 `selfcheck.rs` **不迁**——它是 demo 应用的自检接线，不属于宿主            |
-| T3 ✅ | JS 侧迁入：`tauri-host-transport.ts` 与 `desktop-json-codec.ts` 及其单测从 desktop 包迁入。codec 跟着 Tauri 走而不是留共享层——`grep` 证实其唯一消费者是 `tauri-host-transport.ts`，Rust 侧有对应实现                                   | 已达成：`packages/rxdb-adapter-tauri` renderer 入口不含任何 Node builtin（`tsconfig.lib.json` 的 `types: []` + `desktop-adapter-consumer.mjs` 的产物依赖图遍历双重钉住）；`DESKTOP_HOST_PROTOCOL_VERSION` 仍为 `1`（拆包不是协议变更，Electron 路径一字未动） |
-| T4    | 一致性套件迁入：`conformance/` 的 `rust-adapter-factory.ts` / `rust-host-transport.ts` + 8 个 SQL 侧 spec 归本故事；`storage-parity.spec.ts` / `storage-persistence.spec.ts` 归 [US-505](../plugin/US-505-tauri-local-file-storage.md) | 迁移前后同一命令的用例数一致且 0 skipped（以迁移当天的迁移前实测为基线，写本条时为 SQL 侧 585 / 8 files、含 storage 604 / 10 files）；`rust-host-transport.ts` 里指向 `../src-tauri/target/debug/` 的 `HOST_BINARY` 路径同步                                  |
-| T5    | Nx target 搬家：`cargo-check` / `cargo-clippy` / `cargo-test` / `build-test-host` / `test-conformance` 五个 target 从 `apps/dev-rxdb-tauri/project.json` 移到新包                                                                      | `pnpm nx run rxdb-adapter-tauri:test-conformance` 绿；demo 只保留 `dev` / `serve` / `tauri-build`，后者 `dependsOn` 新包的三条 Rust 门禁                                                                                                                      |
-| T6    | demo 反向依赖：`src-tauri/Cargo.toml` 以 path 依赖引用新 crate，`src-tauri/src/` 只剩 `main.rs` / `lib.rs`；`src/app/setup_rxdb*.ts` 与 `README.md` 改指 `@aiao/rxdb-adapter-tauri`                                                    | `pnpm nx run dev-rxdb-tauri:tauri-build` 绿；demo 的接入代码就是文档里给用户看的那段                                                                                                                                                                          |
-| T7    | Rust crate 的发布形态：crate 名（生态惯例是 `tauri-plugin-*`）、是否发 crates.io、与 npm 包的版本联动                                                                                                                                  | 不发 crates.io 则用户只能 path / git 依赖，「用户能复用」这个包化目标只兑现一半——要么发，要么把这条限制写进包 README；npm 侧在 Nx fixed release group 内，cargo 版本号需另行对齐                                                                              |
+| #     | 任务                                                                                                                                                                                                                                   | 完成判据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T1 ✅ | 新建 `packages/rxdb-adapter-tauri`：npm 包（`src/`）与 Rust crate（`rust/`）同居一个 Nx project                                                                                                                                        | 已达成：crate 名 `aiao-rxdb-tauri`（`[lib] name = "aiao_rxdb_tauri"`），`publish = false`（见 T7）。`tag:js-lib` 的 `run-many -t lint test build` 本来就覆盖它（T3 时已建包），本轮补进 Rust 那五个 target                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| T2 ✅ | Rust 宿主整体迁入：`apps/dev-rxdb-tauri/src-tauri/src/rxdb/`（`protocol.rs` / `value.rs` / `engine.rs` / `session.rs` / `paths.rs` / `router.rs` / `script.rs` / `error.rs` / `commands.rs` + `file/`）与 `src/bin/rxdb_host_stdio.rs` | 已达成：定形为**普通 crate**（见上节决策）；`src-tauri/src/rxdb/` 目录已不存在，全部 `git mv` 到 `packages/rxdb-adapter-tauri/rust/src/`（`rxdb/mod.rs` → `lib.rs`）。`cargo test --locked` 实测 **crate 131 + demo 16 = 147 条**全绿零忽略——本条原写「143 条」是旧快照，147 与 `HEAD` 里 `src-tauri/src` 的 `#[test]` 计数逐条对得上，一条没丢。注意 `selfcheck.rs` **不迁**——它是 demo 应用的自检接线，不属于宿主                                                                                                                                                                                                                    |
+| T3 ✅ | JS 侧迁入：`tauri-host-transport.ts` 与 `desktop-json-codec.ts` 及其单测从 desktop 包迁入。codec 跟着 Tauri 走而不是留共享层——`grep` 证实其唯一消费者是 `tauri-host-transport.ts`，Rust 侧有对应实现                                   | 已达成：`packages/rxdb-adapter-tauri` renderer 入口不含任何 Node builtin（`tsconfig.lib.json` 的 `types: []` + `desktop-adapter-consumer.mjs` 的产物依赖图遍历双重钉住）；`DESKTOP_HOST_PROTOCOL_VERSION` 仍为 `1`（拆包不是协议变更，Electron 路径一字未动）                                                                                                                                                                                                                                                                                                                                                                          |
+| T4 ✅ | 一致性套件迁入：`conformance/` 的 `rust-adapter-factory.ts` / `rust-host-transport.ts` + 8 个 SQL 侧 spec 归本故事；`storage-parity.spec.ts` / `storage-persistence.spec.ts` 归 [US-505](../plugin/US-505-tauri-local-file-storage.md) | 已达成：`605 passed / 10 files / 0 skipped`，判据「0 skipped 且不低于上次基线」成立（604 → 605 的由来见「当前证据」下的注记）。`HOST_BINARY` 已改指 `../rust/target/debug/`。连带修掉两处只有搬家才会暴露的问题：`conformance/` 进包后 `@aiao/rxdb-adapter-tauri` 成了自引用（`@nx/enforce-module-boundaries` 报错），六个文件改走 `../src/index.js`——**仍走桶文件**，绕过桶去 sqlite-core 取 `DESKTOP_HOST_PROTOCOL_VERSION` 会让 AC#10 那条机械链接当场失效；`vitest.conformance.mts` 进 `eslint.config.mjs` 的 `ignoredFiles`，否则 `@nx/dependency-checks` 要求把 `vitest` 写进本包 `dependencies`（等于让每个用户拖一份测试框架） |
+| T5 ✅ | Nx target 搬家：`cargo-check` / `cargo-clippy` / `cargo-test` / `build-test-host` / `test-conformance` 五个 target 从 `apps/dev-rxdb-tauri/project.json` 移到新包                                                                      | 已达成：`pnpm nx run rxdb-adapter-tauri:test-conformance` 绿。**但 demo 的三个 cargo target 没有删**——`cargo clippy` 不 lint path 依赖，只 lint 主包，删了等于让 `lib.rs` + `selfcheck.rs` 这 500 多行彻底脱离门禁。于是 `tauri-build` 的 `dependsOn` 是**六条**：两个项目各三条。CI 侧无需改清单：`ci-template.yml` 的 rust job 由 `nx show projects --withTarget=cargo-test` 动态取，实测已含新包                                                                                                                                                                                                                                    |
+| T6 ✅ | demo 反向依赖：`src-tauri/Cargo.toml` 以 path 依赖引用新 crate，`src-tauri/src/` 只剩 `main.rs` / `lib.rs` / `selfcheck.rs`；`src/app/setup_rxdb*.ts` 与 `README.md` 改指 `@aiao/rxdb-adapter-tauri`                                   | 已达成：`pnpm nx run dev-rxdb-tauri:tauri-build` 绿（`.app` + `.dmg` 都出，六条 cargo 门禁全过）。本条原写「只剩 `main.rs` / `lib.rs`」与 T2 的「`selfcheck.rs` 不迁」自相矛盾，按 T2 更正——demo 侧留三个文件                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| T7 ✅ | Rust crate 的发布形态：crate 名（生态惯例是 `tauri-plugin-*`）、是否发 crates.io、与 npm 包的版本联动                                                                                                                                  | 已决：crate 名 `aiao-rxdb-tauri`（不用 `tauri-plugin-*`——它不是插件，见上节决策），**本轮不发 crates.io**，`publish = false` 让手滑的 `cargo publish` 直接失败。限制与四条代价（依赖方也发不了 crates.io、无 semver 解析、要能访问 GitHub、版本对齐靠手工）逐条写进 [`rust/README.md`](../../../packages/rxdb-adapter-tauri/rust/README.md)。**「用户能复用」因此只兑现一半**：写应用（binary）不受影响，写库的人会撞墙。发布本身留作后续任务                                                                                                                                                                                          |
 
-拆包不改本故事任何一条 AC 的语义，只换证据锚点的路径；唯一有实质影响的是上面那条权限面决策。
+拆包不改本故事任何一条 AC 的语义，只换证据锚点的路径；唯一有实质影响的是上面那条权限面决策，
+而它的结论恰好是「维持现状」——AC#1 与「权限面」小节一字未改。
 
 本故事另有一段代码曾被提名上移：`selectLocalBackend()` —— 「Tauri 窗口走宿主 SQLite、
 浏览器预览走 wa-sqlite」的判定。**2026-08-18 判定为不上移**，它留在 demo 里
@@ -443,11 +464,16 @@ Tauri 的 WebView 不是 Chromium（macOS 上是 WKWebView），但目录名沿�
 - `packages/rxdb-adapter-tauri/src/desktop-json-codec.ts` — `$bigint` / `$u8` / `$date` / `$esc`
   标签编码。Tauri 的 IPC 是 JSON，而协议实际携带 `bigint` / `Uint8Array` / `Date`。
   这是**传输层编码，不是协议变更**：`DESKTOP_HOST_PROTOCOL_VERSION` 仍为 `1`，Electron 路径一字未动
-- `apps/dev-rxdb-tauri/src-tauri/src/rxdb/` — Rust 宿主：`protocol.rs` / `value.rs` / `engine.rs` /
-  `session.rs` / `paths.rs` / `commands.rs`
-- `apps/dev-rxdb-tauri/src-tauri/src/bin/rxdb_host_stdio.rs` — **测试专用**二进制，不含 `tauri::App`；
-  stdin 逐行读请求、stdout 逐行写应答，供一致性套件 spawn
-- `apps/dev-rxdb-tauri/conformance/` — 共享套件的 Rust 宿主入口
+- `packages/rxdb-adapter-tauri/rust/` — Rust 宿主 crate `aiao-rxdb-tauri`：`src/protocol.rs` /
+  `value.rs` / `engine.rs` / `session.rs` / `paths.rs` / `router.rs` / `script.rs` / `error.rs` /
+  `commands.rs` + `file/`。**只有 `commands.rs` 依赖 `tauri`**——正是这一点让 stdio 二进制能在
+  没有 `tauri::App` 的情况下原样复用其余全部代码。`publish = false`，引用方式见同目录 README
+- `packages/rxdb-adapter-tauri/rust/src/bin/rxdb_host_stdio.rs` — **测试专用**二进制，不含 `tauri::App`；
+  stdin 逐行读请求、stdout 逐行写应答，供一致性套件 spawn（不进任何产品包）
+- `packages/rxdb-adapter-tauri/conformance/` — 共享套件的 Rust 宿主入口。一律从 `../src/index.js`
+  取符号：包内自引用过不了 `@nx/enforce-module-boundaries`，而绕过桶文件会让 AC#10 失效
+- `apps/dev-rxdb-tauri/src-tauri/src/lib.rs` — 宿主应用侧的**接线**（`generate_handler!` +
+  `app.manage` + 两处回收钩子）。这段就是包 README 里给用户抄的那份，两边不会漂
 - `apps/dev-rxdb-tauri/src/app/setup_rxdb.ts` — 运行时选路：Tauri 窗口用 desktop 适配器，
   浏览器预览用 wa-sqlite。适配器名与工厂**成对返回**，避免两处判定漂移
 - `apps/dev-rxdb-tauri/src-tauri/src/selfcheck.rs` — 自检模式的纯函数 `plan_from_env`：两个环境变量
@@ -461,7 +487,10 @@ Tauri 的 WebView 不是 Chromium（macOS 上是 WKWebView），但目录名沿�
   附带 Corepack**（Node.js TSC 决议），原写法在任何一台照 `.nvmrc` 装 Node 的机器上都会
   `command not found`。以前从没炸过，只是因为**没有任何 CI job 跑过 `tauri build`**——
   AC#9 的 workflow 是第一个。这条理由只能写在这里：`tauri.conf.json` 是严格 JSON，注释放不进去
-- `requirements/api-baseline/rxdb-adapter-desktop.json` — 已同步；条目总数以 `api-surface.mjs --check` 为准，不在本文写死（写本条时 48 项）
+- `requirements/api-baseline/rxdb-adapter-tauri.json` — 已同步（US-207 E2/E3 拆包后由
+  `rxdb-adapter-desktop.json` 分成 electron / tauri 两份）；条目总数以 `api-surface.mjs --check`
+  为准，不在本文写死（写本条时 50 项）。**Rust crate 不在这份基线里**——`api-surface.mjs` 只扫
+  npm 包的导出，crate 的公开表面今天没有任何机械约束，这也是 T7 暂不发 crates.io 的理由之一
 
 ## References
 

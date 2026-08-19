@@ -4,16 +4,20 @@ import { defineConfig } from 'vitest/config';
 /**
  * Rust 宿主一致性套件的独立配置（US-210）。
  *
- * 为什么不并进 `vite.config.mts`：那份配置跑的是 `happy-dom` 里的 Angular 组件测试，
- * 而这里要 `spawn` 一个 Rust 二进制、读写临时目录 —— 需要 node 环境，也需要 Rust 工具链。
- * 合在一起会让 `dev-rxdb-tauri:test` 平白多出一条工具链依赖。
+ * 为什么不并进 `vite.config.mts`：那份配置既是包的构建配置也是它的单测配置，跑的是纯
+ * renderer 侧的代码；而这里要 `spawn` 一个 Rust 二进制、读写临时目录 —— 需要 Rust 工具链。
+ * 合在一起会让 `rxdb-adapter-tauri:test` 平白多出一条工具链依赖，本来只想跑单测的人
+ * 得先装 cargo。
+ *
+ * 套件与被测的 Rust 宿主同住 `packages/rxdb-adapter-tauri/`：线协议的两端一起改、一起发，
+ * 证明两端一致的用例自然也归在这里（US-210 T4）。
  */
 export default defineConfig({
   root: import.meta.dirname,
-  cacheDir: '../../node_modules/.vite/apps/dev-rxdb-tauri-conformance',
+  cacheDir: '../../node_modules/.vite/packages/rxdb-adapter-tauri-conformance',
   resolve: { tsconfigPaths: true },
   test: {
-    name: 'dev-rxdb-tauri-conformance',
+    name: 'rxdb-adapter-tauri-conformance',
     watch: false,
     globals: true,
     environment: 'node',

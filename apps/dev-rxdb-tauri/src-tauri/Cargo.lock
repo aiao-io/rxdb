@@ -30,6 +30,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "aiao-rxdb-tauri"
+version = "0.0.25"
+dependencies = [
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tauri",
+ "uuid",
+]
+
+[[package]]
 name = "alloc-no-stdlib"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -547,7 +558,7 @@ dependencies = [
 name = "dev-rxdb-tauri"
 version = "0.1.0"
 dependencies = [
- "rusqlite",
+ "aiao-rxdb-tauri",
  "serde",
  "serde_json",
  "tauri",

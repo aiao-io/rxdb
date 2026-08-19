@@ -13,11 +13,21 @@ Electron 请改用 [`@aiao/rxdb-adapter-electron`](https://www.npmjs.com/package
 - **不回退**：存储配置不受支持时直接抛错，绝不静默切到 memory/OPFS/IndexedDB
 - **复用 SQL 核心**：查询、事务、分支切换全部来自 `@aiao/rxdb-adapter-sqlite-core`，与 wa-sqlite / sqlite-wasm 同语义
 
-## ⚠️ Rust 宿主需自备
+## ⚠️ Rust 宿主：同一个项目，但不经 npm 分发
 
-本包**只有 WebView 这一侧**：`createTauriHostTransport` 是一根把 `invoke` / `listen` 接上协议的管子。管子那头真正开库的 `rusqlite` 宿主（`rxdb_desktop_request` 命令、引擎、会话表）**不在这个 npm 包里**——Rust 代码随应用二进制走，不经 npm 分发。
+本 npm 包**只有 WebView 这一侧**：`createTauriHostTransport` 是一根把 `invoke` / `listen` 接上协议的管子。管子那头真正开库的 `rusqlite` 宿主（`rxdb_desktop_request` 命令、引擎、会话表）是一个 Rust crate，随应用二进制走，npm 装不来。
 
-目前它存在于本仓库的 [`apps/dev-rxdb-tauri/src-tauri/src/rxdb/`](https://github.com/aiao-io/rxdb/tree/main/apps/dev-rxdb-tauri/src-tauri/src/rxdb)，可直接抄进自己的应用。把它抽成可发布的 crate 是 US-210 阶段 4 的工作，尚未完成。
+它就在本包目录下的 [`rust/`](https://github.com/aiao-io/rxdb/tree/main/packages/rxdb-adapter-tauri/rust)（crate 名 `aiao-rxdb-tauri`）——线协议的两端住在同一个项目里，改一端必然看见另一端。
+
+**该 crate 尚未发布到 crates.io**，因此今天只能按 git 依赖引用：
+
+```toml
+# src-tauri/Cargo.toml
+[dependencies]
+aiao-rxdb-tauri = { git = "https://github.com/aiao-io/rxdb", tag = "v0.0.25" }
+```
+
+限制说明与后续计划见 [`rust/README.md`](https://github.com/aiao-io/rxdb/blob/main/packages/rxdb-adapter-tauri/rust/README.md)。
 
 ## 能力矩阵
 
@@ -38,32 +48,43 @@ pnpm add @aiao/rxdb-adapter-tauri
 
 ## 使用
 
-### 1. Rust 侧：注册命令与事件
+### 1. Rust 侧：注册命令、托管宿主、接上两处回收
 
-宿主需要提供一个命令和一个事件，名字由本包的两个常量钉住（`TAURI_DESKTOP_REQUEST_COMMAND` / `TAURI_DESKTOP_CHANGE_EVENT`），改名两边就对不上：
+`aiao-rxdb-tauri` 是**普通 crate，不是 Tauri 插件**，命令因此由应用自己 `generate_handler!` 注册：
 
 ```rust
-#[tauri::command]
-pub async fn rxdb_desktop_request(
-    payload: serde_json::Value,
-    window: tauri::Window,
-    host: tauri::State<'_, DesktopHost>,
-) -> Result<serde_json::Value, String> {
-    // 协议内的失败走应答体（`kind: "error"`）而不是 Err：经 invoke 抛回去的错误会被
-    // 压平成字符串，自定义错误码随之丢失。Err 只留给宿主自身 panic 这类协议外故障。
-    //
-    // 会话按**发起窗口**记账，窗口销毁时据此回收 —— 归属只能在请求经过时记下来。
-    let host = std::sync::Arc::clone(&host.0);
-    let owner = window.label().to_string();
-    tauri::async_runtime::spawn_blocking(move || host.handle_owned(&payload, &owner))
-        .await
-        .map_err(|error| format!("rxdb desktop host panicked: {error}"))
-}
+use aiao_rxdb_tauri::commands::{rxdb_desktop_request, DesktopHost};
+use tauri::Manager;
+
+tauri::Builder::default()
+    .invoke_handler(tauri::generate_handler![rxdb_desktop_request])
+    .setup(|app| {
+        let dir = app.path().app_data_dir()?;
+        app.manage(DesktopHost::new(app.handle(), dir));
+        Ok(())
+    })
+    // 窗口没了就回收它的会话，不等整个应用退出：挂 `Destroyed` 而不是 `CloseRequested`，
+    // 后者可被阻止，也不会在窗口崩溃时触发。带着独占文件锁消失的窗口会让另一个窗口的
+    // `lockAcquire` 无限期等下去。
+    .on_window_event(|window, event| {
+        if matches!(event, tauri::WindowEvent::Destroyed) {
+            window.state::<DesktopHost>().close_window(window.label());
+        }
+    })
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application")
+    // 退出前显式关掉全部会话，否则 `-wal` / `-shm` 与文件句柄会活到进程被杀为止，
+    // 库文件在应用关闭后仍被占用。
+    .run(|app, event| {
+        if matches!(event, tauri::RunEvent::Exit) {
+            app.state::<DesktopHost>().close_all();
+        }
+    });
 ```
 
-`generate_handler!` 注册的应用自定义命令不受 capability 门禁约束：接上桌面数据库**不需要**给应用授予 `sql` / `fs` / `shell` 任何插件权限。
+做成普通 crate 而不是插件是刻意的：`generate_handler!` 注册的应用自定义命令**不受 capability 门禁约束**（只有 `core:` / `plugin:` 前缀的命令才是），于是接上桌面数据库**不需要**给应用授予 `sql` / `fs` / `shell` 任何插件权限，`capabilities/` 一个字都不用改。做成插件的话命令会带上 `plugin:` 前缀，恰好落进门禁——省下的只是上面这段样板，换掉的却是一条结构性的安全性质。
 
-变更事件按 `sessionId` 回送，事件名为 `rxdb-desktop-change`（即 `TAURI_DESKTOP_CHANGE_EVENT`）。完整实现见 `apps/dev-rxdb-tauri/src-tauri/src/rxdb/`。
+命令名与事件名由本包的两个常量钉住（`TAURI_DESKTOP_REQUEST_COMMAND` / `TAURI_DESKTOP_CHANGE_EVENT`），改名两边就对不上。变更事件按 `sessionId` 回送，事件名为 `rxdb-desktop-change`。
 
 ### 2. WebView 侧：像用别的适配器一样用
 
@@ -108,7 +129,7 @@ SQLite 的值经 JSON 往返，`encodeDesktopJsonPayload` / `decodeDesktopJsonPa
 - **`Uint8Array` ↔ base64**：JSON 没有二进制类型，BLOB 直接 `JSON.stringify` 会变成 `{"0":1,"1":2}` 这种按下标展开的对象；
 - **大整数**：超出 `Number.MAX_SAFE_INTEGER` 的 `INTEGER` 以字符串承载，避免静默丢精度。
 
-两端的编码由 `apps/dev-rxdb-tauri/conformance/` 下的一致性套件按真进程往返验证，`value.rs` 是它的 Rust 对侧。
+两端的编码由本包 `conformance/` 下的一致性套件按真进程往返验证，`rust/src/value.rs` 是它的 Rust 对侧。
 
 ## 错误码
 
@@ -134,10 +155,10 @@ SQLite 的值经 JSON 往返，`encodeDesktopJsonPayload` / `decodeDesktopJsonPa
 
 ## 协议版本
 
-线协议版本号在 TS 与 Rust 两侧各存一份（`DESKTOP_HOST_PROTOCOL_VERSION` 与 `protocol.rs` 的 `PROTOCOL_VERSION`）。两个常量之间唯一的机械联系是一致性套件的 `conformance/protocol-handshake.spec.ts`：它拿真进程报上来的数字与常量比对，改一侧忘了改另一侧时那条用例会红。
+线协议版本号在 TS 与 Rust 两侧各存一份（`DESKTOP_HOST_PROTOCOL_VERSION` 与 `rust/src/protocol.rs` 的 `PROTOCOL_VERSION`）。两个常量之间唯一的机械联系是一致性套件的 `conformance/protocol-handshake.spec.ts`：它拿真进程报上来的数字与常量比对，改一侧忘了改另一侧时那条用例会红。
 
 renderer 在 `open` 之前先发一次无副作用的 `handshake` 协商版本，握手不过就不建库——版本不匹配时磁盘上不该多出一个空文件。
 
 ## 完整示例
 
-参考 [dev-rxdb-tauri](https://github.com/aiao-io/rxdb/tree/main/apps/dev-rxdb-tauri)：`src-tauri/src/rxdb/`（Rust 宿主）、`src/app/setup_rxdb_desktop.ts`（WebView 侧接线）、`conformance/`（跨进程一致性套件）。
+参考 [dev-rxdb-tauri](https://github.com/aiao-io/rxdb/tree/main/apps/dev-rxdb-tauri)：`src-tauri/src/lib.rs`（Rust 侧接线，就是上面那段）、`src/app/setup_rxdb_desktop.ts`（WebView 侧接线）。宿主实现与跨进程一致性套件在本包的 `rust/` 与 `conformance/`。

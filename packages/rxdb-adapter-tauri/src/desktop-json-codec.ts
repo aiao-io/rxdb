@@ -16,7 +16,7 @@
  * - `{ "$date": 1699999999999 }` —— epoch 毫秒
  * - `{ "$esc": { ... } }` —— 用户数据本身长得像标签时的转义
  *
- * Rust 侧的镜像实现在 `apps/dev-rxdb-tauri/src-tauri/src/rxdb/value.rs`，
+ * Rust 侧的镜像实现在 `packages/rxdb-adapter-tauri/rust/src/value.rs`，
  * 两边共用同一批 fixture（见 `__tests__/desktop-json-codec.spec.ts`）。
  *
  * @module desktop-json-codec

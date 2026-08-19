@@ -1,8 +1,11 @@
-pub mod rxdb;
-// 私有：只有 `run()` 用得到。`rxdb` 之所以是 `pub`，是因为 stdio 测试二进制要复用它；
-// 自检模式没有第二个消费者，导出它等于凭空多一片公开表面。
+// 私有：只有 `run()` 用得到。自检模式没有第二个消费者，导出它等于凭空多一片公开表面。
+//
+// 桌面宿主本身已经不在这里了——它是 `aiao_rxdb_tauri`（`packages/rxdb-adapter-tauri/rust`），
+// 由 `[dependencies]` 的 path 依赖引入。本文件从此只剩「宿主应用要写的接线」，
+// 也就是文档里给用户抄的那一份。
 mod selfcheck;
 
+use aiao_rxdb_tauri::commands::DesktopHost;
 use tauri::Manager;
 
 #[derive(serde::Serialize)]
@@ -57,7 +60,7 @@ pub fn run() {
             get_platform,
             get_versions,
             check_runtime,
-            rxdb::commands::rxdb_desktop_request,
+            aiao_rxdb_tauri::commands::rxdb_desktop_request,
             selfcheck::rxdb_selfcheck_report
         ])
         .setup(move |app| {
@@ -68,7 +71,7 @@ pub fn run() {
                 Some(plan) => plan.app_data_dir.clone(),
                 None => app.path().app_data_dir()?,
             };
-            app.manage(rxdb::commands::DesktopHost::new(app.handle(), app_data_dir));
+            app.manage(DesktopHost::new(app.handle(), app_data_dir));
             // host 先托管再挂看门狗：看门狗到期时要读 host 的根目录写进报告。
             if let Some(plan) = plan {
                 selfcheck::arm(app.handle(), plan);
@@ -83,7 +86,7 @@ pub fn run() {
         .on_window_event(|window, event| {
             if matches!(event, tauri::WindowEvent::Destroyed) {
                 window
-                    .state::<rxdb::commands::DesktopHost>()
+                    .state::<DesktopHost>()
                     .close_window(window.label());
             }
         })
@@ -91,7 +94,7 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::Exit) {
-                app.state::<rxdb::commands::DesktopHost>().close_all();
+                app.state::<DesktopHost>().close_all();
             }
         });
 }

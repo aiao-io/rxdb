@@ -45,7 +45,7 @@ export const CONFIG_EXIT_CODE = 3;
  * @remarks
  * 由三段拼成，少一段就指到一个不存在的路径上：
  * - `rxdb-data/` —— Rust 宿主 `session.rs` 建库用的子目录名
- * - `desktop_demo` —— demo 传给 `RxDB` 的 `dbName`（`setup_rxdb_desktop.ts` 的 `DESKTOP_DEMO_DB_NAME`）；
+ * - `desktop_demo` —— demo 传给 `RxDB` 的 `dbName`（`src/app/db-names.ts` 的 `DESKTOP_DEMO_DB_NAME`）；
  *   浏览器预览那份另叫 `test_6`，两个后端不同名是 US-207 E9 的要求
  * - `@0_1` —— `RxDB` 给物理库名加的 `RXDB_DB_NAME_SUFFIX`，**已永久冻结**（`packages/rxdb/src/version.ts`）
  * - `.sqlite3` —— 桌面适配器的 `DEFAULT_DATABASE_SUFFIX`

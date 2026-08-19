@@ -7,7 +7,7 @@
 | `@aiao/rxdb-adapter-desktop`               | `@aiao/rxdb-adapter-electron` |
 | `@aiao/rxdb-adapter-desktop`（Tauri 半边） | `@aiao/rxdb-adapter-tauri`    |
 
-最后一个以旧包名发布的版本是 `0.0.25`。它不会被撤回，现有安装照常工作；registry 上的旧包只是被标为 `deprecated` 并指向新包名。按[版本与 API 稳定性策略](../versioning.md)，0.x 期间次版本即可包含破坏性变更。
+以旧包名发布的最新版本是 `0.0.25`。它不会被撤回，也**不会被标记为 `deprecated`**——旧包保留在 registry 上，未来仍可能继续更新，因此不会出现「安装时报废弃警告」这回事。现有安装照常工作，迁移由本文指路而不是靠 registry 元数据推着走。按[版本与 API 稳定性策略](../versioning.md)，0.x 期间次版本即可包含破坏性变更。
 
 **不涉及数据迁移。** 磁盘上的库文件、逻辑库名的推导规则（`${dbName}.sqlite3`）、线协议版本（`1`）、preload 注入用的全局键（`__aiaoRxdbDesktopHost__`）、全部错误码——一样都没动。要改的只有 import 路径、五个符号名，以及适配器注册名。
 

@@ -339,6 +339,20 @@ describe('createElectronFileHost', () => {
     expect(host.openSessionCount).toBe(0);
   });
 
+  // `beginWrite` 在几个 await 之后才把句柄挂进 `session.writes`，而回收只扫它当时看到的那些。
+  // 晚到的句柄于是挂在一个已经脱离宿主的 session 上：closeAll 与 file.writeAbort 都够不着它，
+  // fd 与临时文件泄漏到进程退出为止，重复走这条路还能绕开每会话的 pending-write 上限。
+  it('discards a write whose session closed while it was being opened', async () => {
+    const begin = host.handle({ kind: 'file.writeBegin', sessionId, path: 'racy.txt' });
+    const closed = host.handle({ kind: 'file.close', sessionId });
+
+    expectOk(await closed, 'file.close');
+    expectError(await begin, 'session_closed');
+
+    expect(host.openSessionCount).toBe(0);
+    await expect(readdir(storageRoot)).resolves.toEqual([]);
+  });
+
   // AC#7：锁下沉到 host 后，两个独立会话（两个窗口）在同一路径上必须串行
   it('serializes exclusive lock holders across sessions', async () => {
     const other = await openSession();
@@ -422,6 +436,25 @@ describe('createElectronFileHost', () => {
     await host.handle({ kind: 'file.close', sessionId: other });
 
     expectError(await pending, 'session_closed');
+  });
+
+  // 回收顺序是不变式：先放持有的锁，那一步的 pump 会把锁授给这个正在关闭的会话自己还排着的
+  // 申请 —— 新锁既不在回收快照里，也不再有人释放，同名的后续申请永远排在它后面。
+  // Rust 侧 `LockTable::drop_session` 的注释写的就是这条路径，两端顺序必须一致。
+  it('denies a closing session its own queued lock instead of granting it on the way out', async () => {
+    const other = await openSession();
+    await host.handle({ kind: 'file.lockAcquire', sessionId: other, name: 'files:/a', mode: 'exclusive' });
+    const requeued = host.handle({ kind: 'file.lockAcquire', sessionId: other, name: 'files:/a', mode: 'exclusive' });
+
+    await host.handle({ kind: 'file.close', sessionId: other });
+
+    expectError(await requeued, 'session_closed');
+    // 锁名整个消失才说明持有与排队都清干净了；留一条就是留了一把没人释放的锁。
+    expect(host.trackedLockNameCount).toBe(0);
+    expectOk(
+      await host.handle({ kind: 'file.lockAcquire', sessionId, name: 'files:/a', mode: 'exclusive' }),
+      'file.lockAcquire'
+    );
   });
 
   it('rejects releasing a lock token the host never issued', async () => {

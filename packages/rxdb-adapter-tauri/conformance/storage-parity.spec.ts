@@ -15,7 +15,6 @@
  * @vitest-environment happy-dom
  */
 
-import { TAURI_ADAPTER_NAME } from '@aiao/rxdb-adapter-tauri';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
 import {
   isTemporaryStorageName,
@@ -26,6 +25,7 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, expect } from 'vitest';
+import { TAURI_ADAPTER_NAME } from '../src/index.js';
 import { createRustHostTransport } from './rust-host-transport.js';
 
 /** 每个宿主进程退出时留下的诊断信号，攒到 afterAll 一次性断言。 */

@@ -121,15 +121,19 @@ const createSlot = <T extends RxDB>(db: RxDBInput<T>): RxDBSlot<T> => {
   let disposed = false;
   let owned: T | undefined;
 
-  void Promise.resolve(typeof db === 'function' ? db() : db).then(
-    database => {
-      owned = database;
-      // 作用域已销毁才 resolve：实例仍然是本 provider 造的，仍要负责断开。
-      if (disposed) shutdown(database);
-      else databaseRef.value = database;
-    },
-    error => (failure.value = error)
-  );
+  // 工厂在 `then` 回调**里**求值，同步抛出因此也变成一次 reject，落进 failure 而不是从 setup
+  // 里逃出去掀掉整棵子树 —— `useRxDBOptional` 承诺的是 loading/error 态。Angular / React 侧同理。
+  void Promise.resolve()
+    .then(() => (typeof db === 'function' ? db() : db))
+    .then(
+      database => {
+        owned = database;
+        // 作用域已销毁才 resolve：实例仍然是本 provider 造的，仍要负责断开。
+        if (disposed) shutdown(database);
+        else databaseRef.value = database;
+      },
+      error => (failure.value = error)
+    );
 
   // provideRxDB 在 setup 里调用，作用域必定存在；failSilently 只是为了在无作用域环境
   // （比如直接在测试里调用）复用时不发多余警告。

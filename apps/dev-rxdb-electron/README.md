@@ -78,7 +78,7 @@ corepack pnpm nx run dev-rxdb-electron:electron-build
 
 文件名三段各有出处，改任意一段都会挪动落点：
 
-- `desktop_demo` —— demo 传给 RxDB 的 `dbName`（`src/app/services/desktop-database.service.ts` 的 `DESKTOP_DEMO_DB_NAME`）
+- `desktop_demo` —— demo 传给 RxDB 的 `dbName`（`src/app/db-names.ts` 的 `DESKTOP_DEMO_DB_NAME`）
 - `@0_1` —— RxDB 给物理库名加的 `RXDB_DB_NAME_SUFFIX`（`packages/rxdb/src/version.ts`，已永久冻结）
 - `.sqlite3` —— 桌面适配器的 `DEFAULT_DATABASE_SUFFIX`
 

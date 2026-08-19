@@ -8,8 +8,8 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 36   |
-| 🚧 In Progress | 4    |
+| ✅ Done        | 38   |
+| 🚧 In Progress | 2    |
 | 👀 In Review   | 0    |
 | 📝 Backlog     | 13   |
 | 🚫 Blocked     | 0    |
@@ -23,41 +23,46 @@
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🅰️ 多阶段故事 · 🚫 Blocked
 
-## 进行中（4 条）
+## 进行中（2 条）
 
-| Story                                                                                            | 卡在哪                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)         | 阶段 1～2 已交付（**9 条 AC 全绿**，2026-08-17 关闭 AC#8 + 三条发布性质）；**阶段 3**（包边界重整）E1～E5、E7 已交付，E6 已交付可逆的那半（迁移文档 `website/docs/migration/desktop-split.md`），只剩 `npm deprecate` 旧包（对外不可逆，需人工确认）；**阶段 4**（Web 回落）E8 的选择器与 E9 的同名断言已落进 `dev-rxdb-tauri` 的应用代码（`src/app/local-backend.ts`；「是否做成公开 API」已判定为**否**），欠 `dev-rxdb-electron` 半边（要求把 demo 的两张卡合并，需先确认）、E9 的页面展示、E10、E11。见该文件[交付阶段](stories/adapter/US-207-desktop-local-database.md#交付阶段) |
-| [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) | 阶段 1～3 已交付（2026-08-17 关闭 AC#1/#6/#9/#10；AC#10 的「不建库」半条靠新增的无副作用 `handshake` 请求兑现，两端各加一个请求类型）；**停在阶段 4** = Tauri 包化，T3（JS 传输层迁入新包）已随 US-207 E2/E3 交付，剩 T1/T2/T4～T7（Rust 宿主与一致性套件搬家）。见该文件[交付阶段](stories/adapter/US-210-tauri-sqlite-local-database.md#交付阶段)                                                                                                                                                                                                                                    |
-| [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                   | AC#6 / #7 的两个前置（`apps/dev-rxdb-tauri-e2e` project、三平台打包矩阵）已由 US-210 建好，缺的只剩 US-505 自己的 specs；AC#1/#3/#5/#8 仍 ⚠️                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)    | 阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 A / C / D 未开始                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Story                                                                                         | 卡在哪                                                                                                                                                                                                                     |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                | AC#6 / #7 的两个前置（`apps/dev-rxdb-tauri-e2e` project、三平台打包矩阵）已由 US-210 建好，缺的只剩 US-505 自己的 specs；AC#1/#3/#5/#8 仍 ⚠️。随包化搬迁的 S1～S5 已于 2026-08-18 全部关闭，但搬迁**不解**上述任何一条缺口 |
+| [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) | 阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 A / C / D 未开始                                                                                                                                                         |
 
 > US-207 / US-210 / US-505 的三条尾巴曾是**同一个下游缺口**：真实打包应用的重启与三平台矩阵。
 > 该缺口已于 2026-08-17 补上（`release-desktop.yml` + 两个 e2e project），US-505 只剩自己的 specs。
 >
-> **桌面包边界重整（JS 侧已落地，Rust 侧未动；横跨 US-207 / US-210 / US-505 / US-504）**：
+> **桌面包边界重整（已全部收口；横跨 US-207 / US-210 / US-505 / US-504）**：
 > `@aiao/rxdb-adapter-desktop` 拆成 `@aiao/rxdb-adapter-electron` 与 `@aiao/rxdb-adapter-tauri`，
 > 共享协议与 renderer client 下沉 `rxdb-adapter-sqlite-core/desktop-host` 子路径，`desktop` 这个包名消失。
-> **已完成**：E1～E5（下沉 / 改包名 / `ADAPTER_NAME` 分裂 / api-baseline 拆分 / 引用点更新）、
-> E7（`desktop-adapter-consumer.mjs` 参数化到两个包，2026-08-17 对真 `pnpm pack` 产物跑通三条发布性质）、
-> E6 的迁移文档（2026-08-18，`website/docs/migration/desktop-split.md`）、
-> E8 的选择器本体 + E9 的同名断言（2026-08-18，`apps/dev-rxdb-tauri/src/app/local-backend.ts`；
-> 同日判定**不做成公开 API**，从 `@aiao/rxdb` 撤回到应用里，理由见故事内「为什么不做成公开 API」）、
-> US-210 T3（JS 传输层迁入）与 US-505 S3+S4、
-> 三端 provider 统一异步契约（2026-08-18，见下）。
-> **未完成**：E6 的 `npm deprecate` 旧包（**对外不可逆，需人工确认后执行**）、
-> E8 的 `dev-rxdb-electron` 半边（它要求把 demo 的两张卡合并成一张，是 demo 形态变更，需先确认）、
-> E9 的页面展示 / E10 / E11（E11 的前置已解除，见下）、
-> US-210 T1/T2/T4～T7——Tauri 的 Rust 宿主与一致性用例（写本条时 SQL 侧 585 条）仍在 `apps/dev-rxdb-tauri/`，
-> 搬进新包后 demo 才反向依赖。US-504 只需事后同步路径。
+> **JS 侧于 2026-08-18 全部关闭**（US-207 E1～E11 与 US-210 T3、US-505 S3+S4）：拆包本体、
+> `ADAPTER_NAME` 分裂、api-baseline 拆分、`pnpm pack` 产物上的三条发布性质、迁移文档、
+> 两个 demo 同构的 `selectLocalBackend()` 与页面展示、以及 E11 那道**产物**门禁
+> （`scripts/audit/desktop-lazy-backend.mjs`，实测 electron 首屏 9 / 惰性 39，tauri 首屏 4 / 惰性 41）。
+> **Rust 侧同日关闭**（US-210 T1/T2/T4～T7 与 US-505 S1+S2）：Tauri 的 Rust 宿主搬到
+> `packages/rxdb-adapter-tauri/rust/`（普通 crate，`publish = false`，本轮不发 crates.io），
+> 一致性套件搬到该包 `conformance/`，`apps/dev-rxdb-tauri/src-tauri/` 只剩
+> `main.rs` / `lib.rs` / `selfcheck.rs` 并**反过来 path 依赖这个 crate**——demo 依赖包，
+> 正是包化的验收方式本身。实测 `test-conformance` 10 文件 605 条 0 skipped、
+> `cargo test` 147 条（迁包前后一条不差）、`tauri-build` 六道 cargo 门禁全绿。
+> US-504 只需事后同步路径。
+>
+> **后续项（无人认领，从 US-207 溢出）**：`rxdb-adapter-sqlite-core` / `rxdb-plugin-storage` /
+> `utils` 三个包的 `package.json` 缺 `sideEffects` 声明。E11 已用「主 chunk 里只抄字面量、
+> 一个符号都不从 barrel 取」把桌面 demo 这条路堵住，但那是**在调用方**兜的；补上声明才是
+> 在包这一侧收紧。改动很小，风险在于误标 `false` 会让真有副作用的模块被摇掉，
+> 因此要逐包确认后再改，见
+> [US-207「barrel 会把实现一起带进主 chunk」](stories/adapter/US-207-desktop-local-database.md#barrel-会把实现一起带进主-chunk)。
 >
 > `ADAPTER_NAME` 的分裂已于 2026-08-17 落定：`desktop` → `sqlite-electron` / `sqlite-tauri` / `pglite-electron`
 > （PGlite 单列，归 US-208），依据与 7 项连带改动见
 > [US-207「已落定的决策」](stories/adapter/US-207-desktop-local-database.md#已落定的决策adapter_name-分裂2026-08-17)。
-> 仍未落定的只剩一条：**Rust 宿主做成 Tauri 插件还是普通 crate**——它会决定 US-210 AC#1 与
-> US-505「`capabilities/` 零改动」的论证是否需要重写。
-> 拖延成本随时间上涨：`@aiao/rxdb-adapter-desktop@0.0.25` 仍挂在 registry 上，指向一个仓库里已经不存在的包——
-> 这条要等 E6 的 `npm deprecate` 才算收口。
+> **Rust 宿主形态**已于 2026-08-18 落定：做成**普通 crate**，宿主应用自己 `generate_handler!` 注册命令——
+> 应用命令不过 capability 闸门（只有 `core:` / `plugin:` 前缀才过），因此 US-210 AC#1 与
+> US-505「`capabilities/` 零改动」的论证原样成立，不需要重写。
+> `@aiao/rxdb-adapter-desktop@0.0.25` 保留在 registry 上、未来仍可更新，**不打 `deprecated` 标记**
+> （2026-08-18 判定，见 US-207 E6）；迁移路径由 `website/docs/migration/desktop-split.md` 指路。
 >
 > **三端 provider 统一异步契约（2026-08-18）**：Angular / React / Vue 的 provider 现在收同一个
 > `RxDBSource = RxDB | Promise<RxDB> | (() => RxDB | Promise<RxDB>)`，读取统一为
@@ -150,8 +155,8 @@
   - ⬜ 阶段 B 第一个非微信 host — 默认候选支付宝，以阶段 A 矩阵为准
   - ⬜ 阶段 C 抖音 / 百度 / QQ — 每平台独立 `supported` 才实现
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md) — 文件落 `userData/rxdb-files`，与 US-207 的 SQLite 同一备份域
-- 🅰️ 🚧 [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md) — 四阶段单文件故事；见上方[进行中](#进行中4-条)
-- 🅰️ 🚧 [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) — 四阶段单文件故事；从 US-207 二次拆出，自写 Rust command 持有 `rusqlite::Connection`
+- 🅰️ ✅ [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md) — 四阶段单文件故事，2026-08-18 四阶段全关；桌面包边界重整的 JS 侧收在这里
+- 🅰️ ✅ [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md) — 四阶段单文件故事，2026-08-18 四阶段全关；从 US-207 二次拆出，自写 Rust command 持有 `rusqlite::Connection`；桌面包边界重整的 Rust 侧收在这里
 - 🚧 [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边
 - ⬜ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md) — PGlite callback transaction 不能跨 IPC 序列化
 - ⬜ [US-703 PGlite 全文搜索](stories/future/US-703-pglite-full-text-search.md)

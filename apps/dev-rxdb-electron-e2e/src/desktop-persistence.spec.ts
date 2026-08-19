@@ -26,7 +26,7 @@ import { launchEnv, resolveExecutable } from './packaged-app';
  * 由四段拼成，少一段就指到一个不存在的路径上：
  * - `rxdb-data/` —— `desktop-sqlite-bridge.ts` 的 `DESKTOP_DATABASE_DIRECTORY`，
  *   **不叫 `databases`**：那个名字归 Chromium，里面的文件每次启动都会被它清掉（详见该常量的注释）
- * - `desktop_demo` —— demo 传给 `RxDB` 的 `dbName`（`desktop-database.service.ts`）
+ * - `desktop_demo` —— demo 传给 `RxDB` 的 `dbName`（`src/app/db-names.ts` 的 `DESKTOP_DEMO_DB_NAME`）
  * - `@0_1` —— `RxDB` 给物理库名加的 `RXDB_DB_NAME_SUFFIX`，**已永久冻结**（`packages/rxdb/src/version.ts`）
  * - `.sqlite3` —— 桌面适配器的 `DEFAULT_DATABASE_SUFFIX`
  *
@@ -42,6 +42,15 @@ const DATABASE_FILE = join('rxdb-data', 'desktop_demo@0_1.sqlite3');
  * 三者分属三个不打包在一起的运行环境，共享常量反而会把 preload 弄坏。
  */
 const BRIDGE_KEY = '__aiaoRxdbDesktopHost__';
+
+/**
+ * 桌面适配器的注册名，与适配器包的 `ELECTRON_ADAPTER_NAME` 一致。
+ *
+ * @remarks
+ * 同样写死（理由见 {@link BRIDGE_KEY}）。US-207 E9 把它显示在首页上，本套件据此确认
+ * 打包窗口里选中的确实是桌面后端，而不是探测失败后静默退回的 wa-sqlite。
+ */
+const DESKTOP_ADAPTER_NAME = 'sqlite-electron';
 
 /**
  * 拉起打包产物、跑一段断言、再正常关闭。
@@ -68,23 +77,32 @@ async function withPackagedApp<T>(userDataDir: string, use: (page: Page) => Prom
 }
 
 /**
- * 等桌面卡片走到终态并读回累计启动次数。
+ * 等本地数据库卡片走到终态并读回累计启动次数。
  *
  * @param page - 已完成 domcontentloaded 的首窗口
  * @returns 卡片上显示的次数文本
- * @throws 连接失败时抛出，并带上卡片里的真实原因
+ * @throws 连接失败、或选中的后端不是桌面适配器时抛出
+ *
+ * @remarks
+ * US-207 E8/E9：首页此前是两张卡（wa-sqlite 一张、桌面一张），testid 也因此带 `desktop-` 前缀。
+ * 合并成一张之后统一叫 `rxdb-*`，后端身份则由 `rxdb-backend` 单独读出。
+ *
+ * 后端名要**先于**计数断言：合并后走哪条路径由运行时探测决定（E11），探测一旦坏掉就会
+ * 静默落到 wa-sqlite —— 计数照样从 1 涨到 2，只是涨在 OPFS 里。下面那条「库文件在不在」
+ * 最终能拦住它，但报出来的是「文件不见了」，离真正的原因隔着整条选路逻辑。
  */
 async function readLaunchCount(page: Page): Promise<string> {
-  const status = page.getByTestId('desktop-status');
-  // 先等它离开「连接中」，而不是直接等 desktop-launch-count：
+  const status = page.getByTestId('rxdb-status');
+  // 先等它离开「连接中」，而不是直接等 rxdb-launch-count：
   // 后者在失败态下压根不渲染，超时只会报一句「找不到元素」，把真正的原因盖掉。
   await expect(status).not.toHaveText(/连接中/, { timeout: 60000 });
 
-  const failure = page.getByTestId('desktop-error');
-  if (await failure.count()) throw new Error(`桌面适配器连接失败：${await failure.textContent()}`);
+  const failure = page.getByTestId('rxdb-error');
+  if (await failure.count()) throw new Error(`本地适配器连接失败：${await failure.textContent()}`);
 
   await expect(status).toHaveText(/已连接/);
-  return (await page.getByTestId('desktop-launch-count').textContent()) ?? '';
+  await expect(page.getByTestId('rxdb-backend')).toHaveText(DESKTOP_ADAPTER_NAME);
+  return (await page.getByTestId('rxdb-launch-count').textContent()) ?? '';
 }
 
 test.describe('打包产物的桌面 SQLite 持久化', () => {
