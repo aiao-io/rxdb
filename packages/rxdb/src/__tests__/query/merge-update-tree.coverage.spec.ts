@@ -2,10 +2,10 @@ import { EMPTY } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { SyncType } from '../../entity/metadata-options.interface.js';
 import {
-    handleCountAncestorsUpdate,
-    handleCountDescendantsUpdate,
-    handleFindAncestorsUpdate,
-    handleFindDescendantsUpdate
+  handleCountAncestorsUpdate,
+  handleCountDescendantsUpdate,
+  handleFindAncestorsUpdate,
+  handleFindDescendantsUpdate
 } from '../../query/merge-update-tree.js';
 import { UpdateDataCache, type UpdateClassification } from '../../query/merge-update.utils.js';
 import type { RuleGroup } from '../../repository/query.interface.js';
