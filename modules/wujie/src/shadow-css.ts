@@ -20,8 +20,14 @@ export const HOST_THEME_ATTRIBUTE = 'data-theme';
 /** 选择器开头的 `[data-theme=X]`，捕获属性值（允许带引号）。 */
 const THEME_PREFIX = /^\s*\[data-theme=("[^"]*"|'[^']*'|[^\]]*)\]/;
 
-/** 每个规则块的 prelude（`{` 之前的部分）。`[^{}]` 保证不跨越相邻规则。 */
-const RULE_PRELUDE = /([^{}]*)\{/g;
+/**
+ * 花括号定位器，用来把 CSS 切成「规则边界 + 边界之间的片段」。
+ *
+ * 不用 `/([^{}]*)\{/g` 那种「贪婪吃到底再回退找 `{`」的写法：整段没有 `{` 时，
+ * 引擎要从每个起始位置重扫一遍，复杂度退化成 O(n²)（CodeQL: polynomial regex）。
+ * 单字符类没有回溯，配合下面的线性扫描是 O(n)。
+ */
+const BRACE = /[{}]/g;
 
 /**
  * 按顶层逗号切分选择器列表。
@@ -115,6 +121,16 @@ function expandSelectorList(selectorList: string): string {
   return [...new Set(expanded)].join(',');
 }
 
+/** 改写一条规则的 prelude（`{` 之前、上一个花括号之后的片段），返回值含结尾的 `{`。 */
+function rewritePrelude(prelude: string): string {
+  // prelude 可能粘着上一条以 `;` 结尾的语句（如 `@charset "utf-8";.a`），只取最后一段当选择器
+  const cut = prelude.lastIndexOf(';');
+  const head = cut === -1 ? '' : prelude.slice(0, cut + 1);
+  const selectorList = cut === -1 ? prelude : prelude.slice(cut + 1);
+  if (!selectorList.trim() || selectorList.includes('@')) return `${prelude}{`;
+  return `${head}${expandSelectorList(selectorList.replaceAll(':root', ':host'))}{`;
+}
+
 /**
  * 改写子应用 CSS，使其在无界 Shadow DOM 中正确响应宿主下发的主题。
  *
@@ -127,12 +143,16 @@ function expandSelectorList(selectorList: string): string {
  * @returns 改写后的 CSS；`@media` / `@property` / `@keyframes` 等 at-rule 的 prelude 保持原样
  */
 export function rewriteShadowCss(code: string): string {
-  return code.replace(RULE_PRELUDE, (full, prelude: string) => {
-    // prelude 可能粘着上一条以 `;` 结尾的语句（如 `@charset "utf-8";.a`），只取最后一段当选择器
-    const cut = prelude.lastIndexOf(';');
-    const head = cut === -1 ? '' : prelude.slice(0, cut + 1);
-    const selectorList = cut === -1 ? prelude : prelude.slice(cut + 1);
-    if (!selectorList.trim() || selectorList.includes('@')) return full;
-    return `${head}${expandSelectorList(selectorList.replaceAll(':root', ':host'))}{`;
-  });
+  let out = '';
+  let segmentStart = 0;
+
+  BRACE.lastIndex = 0;
+  for (let brace = BRACE.exec(code); brace; brace = BRACE.exec(code)) {
+    const segment = code.slice(segmentStart, brace.index);
+    // `}` 之后才是下一条规则的 prelude，声明体原样带过
+    out += brace[0] === '{' ? rewritePrelude(segment) : `${segment}}`;
+    segmentStart = brace.index + 1;
+  }
+
+  return out + code.slice(segmentStart);
 }

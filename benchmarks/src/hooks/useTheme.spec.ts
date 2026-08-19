@@ -86,7 +86,10 @@ describe('useTheme host sync', () => {
 
     const standalone = renderHook(() => useTheme());
     act(() => {
-      window.dispatchEvent(new MessageEvent('message', { data: { type: 'setTheme', theme: 'dark' } }));
+      // 带上同源 origin：兼容通道只认与自身 origin 相同的消息
+      window.dispatchEvent(
+        new MessageEvent('message', { origin: window.location.origin, data: { type: 'setTheme', theme: 'dark' } })
+      );
     });
     expect(standalone.result.current.theme).toBe('dark');
   });

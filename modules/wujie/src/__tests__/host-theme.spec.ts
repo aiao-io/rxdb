@@ -27,6 +27,27 @@ function createBus() {
   };
 }
 
+const SCOPE_ORIGIN = 'https://docs.example';
+
+/** 假 window：只提供 message 订阅面与 `location.origin`，用来驱动 postMessage 兼容通道。 */
+function createMessageTarget(location: object = { origin: SCOPE_ORIGIN }) {
+  const listeners = new Map<string, Set<EventListener>>();
+  const target = {
+    location,
+    addEventListener(type: string, listener: EventListener) {
+      const bucket = listeners.get(type) ?? new Set();
+      bucket.add(listener);
+      listeners.set(type, bucket);
+    },
+    removeEventListener(type: string, listener: EventListener) {
+      listeners.get(type)?.delete(listener);
+    }
+  };
+  const dispatch = (event: Partial<MessageEvent>) =>
+    listeners.get('message')?.forEach(listener => listener(event as MessageEvent));
+  return { target, listeners, dispatch };
+}
+
 describe('host-theme', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -83,49 +104,51 @@ describe('host-theme', () => {
     });
 
     it('falls back to postMessage when the app is not hosted by wujie', () => {
-      const listeners = new Map<string, Set<EventListener>>();
-      const target = {
-        addEventListener(type: string, listener: EventListener) {
-          const bucket = listeners.get(type) ?? new Set();
-          bucket.add(listener);
-          listeners.set(type, bucket);
-        },
-        removeEventListener(type: string, listener: EventListener) {
-          listeners.get(type)?.delete(listener);
-        }
-      };
+      const { target, dispatch } = createMessageTarget();
       const onTheme = vi.fn();
       const stop = subscribeHostTheme(onTheme, target);
 
-      listeners
-        .get('message')
-        ?.forEach(listener => listener({ data: { type: 'setTheme', theme: 'dark' } } as MessageEvent));
+      dispatch({ origin: SCOPE_ORIGIN, data: { type: 'setTheme', theme: 'dark' } });
       expect(onTheme).toHaveBeenCalledWith('dark');
 
       stop();
-      listeners
-        .get('message')
-        ?.forEach(listener => listener({ data: { type: 'setTheme', theme: 'light' } } as MessageEvent));
+      dispatch({ origin: SCOPE_ORIGIN, data: { type: 'setTheme', theme: 'light' } });
       expect(onTheme).toHaveBeenCalledTimes(1);
     });
 
     it('ignores unrelated postMessage payloads', () => {
-      const listeners = new Map<string, Set<EventListener>>();
-      const target = {
-        addEventListener(type: string, listener: EventListener) {
-          const bucket = listeners.get(type) ?? new Set();
-          bucket.add(listener);
-          listeners.set(type, bucket);
-        },
-        removeEventListener() {
-          /* noop */
-        }
-      };
+      const { target, dispatch } = createMessageTarget();
       const onTheme = vi.fn();
       subscribeHostTheme(onTheme, target);
 
-      listeners.get('message')?.forEach(listener => listener({ data: { type: 'other' } } as MessageEvent));
+      dispatch({ origin: SCOPE_ORIGIN, data: { type: 'other' } });
       expect(onTheme).not.toHaveBeenCalled();
+    });
+
+    it('丢弃跨域窗口发来的 setTheme', () => {
+      const { target, dispatch } = createMessageTarget();
+      const onTheme = vi.fn();
+      subscribeHostTheme(onTheme, target);
+
+      dispatch({ origin: 'https://evil.example', data: { type: 'setTheme', theme: 'dark' } });
+      expect(onTheme).not.toHaveBeenCalled();
+    });
+
+    it('丢弃空 origin（sandboxed iframe / data: 文档）发来的 setTheme', () => {
+      const { target, dispatch } = createMessageTarget();
+      const onTheme = vi.fn();
+      subscribeHostTheme(onTheme, target);
+
+      dispatch({ origin: '', data: { type: 'setTheme', theme: 'dark' } });
+      expect(onTheme).not.toHaveBeenCalled();
+    });
+
+    it('拿不到自身 origin 时根本不订阅 message', () => {
+      const { target, listeners } = createMessageTarget({});
+      const onTheme = vi.fn();
+
+      expect(() => subscribeHostTheme(onTheme, target)()).not.toThrow();
+      expect(listeners.get('message')).toBeUndefined();
     });
   });
 

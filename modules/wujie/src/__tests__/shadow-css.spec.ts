@@ -119,6 +119,14 @@ describe('rewriteShadowCss', () => {
     });
   });
 
+  it('不含 { 的长输入线性返回，不退化成 O(n²) 回溯', () => {
+    // 旧的 /([^{}]*)\{/g 在这个输入上要跑 ~60s（每个起始位置重扫一遍）
+    const input = 'z'.repeat(200_000);
+    const started = performance.now();
+    expect(rewriteShadowCss(input)).toBe(input);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
   it('幂等：重复改写不会叠加 :host(...)', () => {
     const once = rewriteShadowCss('[data-theme=dark]{color:white}');
     expect(rewriteShadowCss(once)).toBe(once);

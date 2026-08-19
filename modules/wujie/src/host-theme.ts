@@ -1,7 +1,8 @@
 /**
  * 文档站宿主与演示子应用之间的主题协议。
  *
- * 优先走无界 `eventBus`；独立打开子应用时仍兼容旧的 `postMessage({ type: 'setTheme' })`。
+ * 优先走无界 `eventBus`；独立打开子应用时仍兼容旧的 `postMessage({ type: 'setTheme' })`，
+ * 该兼容通道只接受同源消息。
  */
 
 /** 无界 bus 上的主题事件名：宿主下发已解析主题。 */
@@ -37,6 +38,7 @@ export interface WujieHost {
 export interface HostThemeScope {
   $wujie?: WujieHost;
   window?: { $wujie?: WujieHost };
+  location?: { origin?: string };
   addEventListener?(type: string, listener: EventListener): void;
   removeEventListener?(type: string, listener: EventListener): void;
 }
@@ -87,10 +89,26 @@ export function getWujieHost(target: unknown = globalThis): WujieHost | undefine
 const hasOwnTheme = (host: WujieHost | undefined): boolean => !!host?.props && Object.hasOwn(host.props, 'theme');
 
 /**
+ * 取当前执行上下文自身的 origin，用来校验 `message` 事件来源。
+ *
+ * @returns 拿不到非空 origin 时返回 `undefined`
+ */
+function getScopeOrigin(target: unknown): string | undefined {
+  if (!isRecord(target)) return undefined;
+  const location = target['location'];
+  if (!isRecord(location)) return undefined;
+  const origin = location['origin'];
+  return typeof origin === 'string' && origin.length > 0 ? origin : undefined;
+}
+
+/**
  * 订阅宿主主题。
  *
  * 在无界里先应用 `props.theme`，再听 {@link WUJIE_THEME_EVENT}；
  * 独立运行时退回 `message` 事件上的 `{ type: 'setTheme', theme }`。
+ *
+ * `message` 通道只接受与自身 origin 严格相同的消息；跨域窗口、空 origin 的
+ * sandboxed iframe，以及取不到 `location.origin` 的上下文一律不接线。
  *
  * @returns 取消订阅
  */
@@ -116,8 +134,16 @@ export function subscribeHostTheme(
   const eventTarget = target as HostThemeScope | undefined;
   if (!eventTarget?.addEventListener || !eventTarget.removeEventListener) return () => undefined;
 
+  // 任何窗口都能往这里 postMessage，`message` 通道只认同源来源。
+  // 拿不到自身 origin 就无从校验，宁可不订阅，也不留一个「空 origin 放行」的口子 ——
+  // sandboxed iframe / `data:` / `blob:` 文档的 origin 正是空串。
+  const scopeOrigin = getScopeOrigin(target);
+  if (!scopeOrigin) return () => undefined;
+
   const handler = (event: Event) => {
-    const data = (event as MessageEvent).data;
+    const message = event as MessageEvent;
+    if (message.origin !== scopeOrigin) return;
+    const data = message.data;
     if (!isRecord(data) || data['type'] !== 'setTheme') return;
     onTheme(parseResolvedTheme(data));
   };
