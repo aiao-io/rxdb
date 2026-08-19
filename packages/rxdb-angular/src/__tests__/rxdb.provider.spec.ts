@@ -219,6 +219,28 @@ describe('rxdb.provider', () => {
         expect(useRxDBOptional()).toBeUndefined();
       });
     });
+
+    // 同步抛出的工厂走的必须是同一条路径。不接住的话异常从 provider 工厂里逃出去，
+    // bootstrap 直接中止 —— 窗口全白，比上面那条 reject 更糟。三端逐字对齐。
+    it('routes a synchronously thrown factory error to the same failure slot', async () => {
+      const failure = new Error('storage unavailable');
+
+      TestBed.configureTestingModule({
+        providers: [
+          provideZonelessChangeDetection(),
+          provideRxDB(() => {
+            throw failure;
+          })
+        ]
+      });
+
+      await expect(settleInitializers()).resolves.toBeUndefined();
+
+      TestBed.runInInjectionContext(() => {
+        expect(() => useRxDB()).toThrow(failure);
+        expect(useRxDBOptional()).toBeUndefined();
+      });
+    });
   });
 
   // 所有权规则：provider 只销毁自己造的东西。调用方传进来的实例不该被顺手断掉 ——

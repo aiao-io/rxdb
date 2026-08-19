@@ -31,7 +31,7 @@ use std::time::Duration;
 
 use tauri::{AppHandle, Manager};
 
-use crate::rxdb::commands::DesktopHost;
+use aiao_rxdb_tauri::commands::DesktopHost;
 
 /// 报告 JSON 的绝对路径；它的存在即自检模式的开关。
 pub const REPORT_PATH_ENV: &str = "DEV_RXDB_TAURI_SELFCHECK_REPORT";

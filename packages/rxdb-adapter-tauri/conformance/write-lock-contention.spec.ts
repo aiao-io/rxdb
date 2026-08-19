@@ -18,17 +18,17 @@
  * 两侧的实现**有意**不同，照抄 Electron 的用例形态会做出错的东西：Node 版在 host 层写异步退避
  * （`node:sqlite` 是同步接口，在 Electron 主进程那条唯一的线程上等锁，会把持锁方的 `COMMIT`
  * 续体一起卡死）；Rust 版每条连接活在自己的线程上，于是直接用 SQLite 自己的忙等。
- * 理由写在 `src-tauri/src/rxdb/engine.rs` 的模块头。
+ * 理由写在 `rust/src/engine.rs` 的模块头。
  *
- * 争锁能成立还依赖一个前提：`src-tauri/src/bin/rxdb_host_stdio.rs` 每条请求开一个线程。
+ * 争锁能成立还依赖一个前提：`rust/src/bin/rxdb_host_stdio.rs` 每条请求开一个线程。
  * 串行处理会让本文件里的每条用例都死锁在等待方身上——那是宿主替身的产物，不是引擎的性质。
  */
 
-import { DesktopSqliteClient, RxDBAdapterDesktopError, type DesktopHostTransport } from '@aiao/rxdb-adapter-tauri';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { DesktopSqliteClient, RxDBAdapterDesktopError, type DesktopHostTransport } from '../src/index.js';
 import { createRustHostTransport } from './rust-host-transport.js';
 
 /** 两个会话共用的逻辑库名——本文件的全部前提。 */

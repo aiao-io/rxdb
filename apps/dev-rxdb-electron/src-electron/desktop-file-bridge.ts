@@ -16,7 +16,7 @@ import { createElectronFileHost, type DesktopHostFileResponse } from '@aiao/rxdb
 import { mkdirSync } from 'node:fs';
 import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { denyForeignSession, readSessionId } from './desktop-session-ownership.js';
+import { denyDestroyedTarget, denyForeignSession, readSessionId } from './desktop-session-ownership.js';
 
 /**
  * 文件内容在应用数据目录下的子目录名。
@@ -163,7 +163,16 @@ export function createDesktopFileBridge(options: DesktopFileBridgeOptions): Desk
       if (denial) return denial;
 
       const response = await host.handle(request);
-      if (response.kind === 'file.open') targets.set(response.result.sessionId, target);
+      if (response.kind === 'file.open') {
+        const { sessionId } = response.result;
+        // 窗口可能在 host 建会话的这一拍里就销毁了，那次 releaseTarget 扫到的表里还没有这条
+        // 记录。登记前补一次判定，会话就不会挂在一个不再有回收时机的窗口名下（见 denyDestroyedTarget）。
+        if (target.isDestroyed()) {
+          await host.handle({ kind: 'file.close', sessionId });
+          return denyDestroyedTarget(sessionId);
+        }
+        targets.set(sessionId, target);
+      }
       // 会话关掉了就销账。id 走 `readSessionId` 而不是断言：close 应答本身不带 id，
       // 只能回头读请求，而请求是 renderer 原文（见 `readSessionId` 的 remarks）。
       if (response.kind === 'file.close') {

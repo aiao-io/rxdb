@@ -29,9 +29,9 @@ use std::time::SystemTime;
 
 use serde_json::{json, Value};
 
-use crate::rxdb::error::{ErrorCode, HostError, HostResult};
-use crate::rxdb::protocol::{error_response, PROTOCOL_VERSION};
-use crate::rxdb::value::encode_bytes;
+use crate::error::{ErrorCode, HostError, HostResult};
+use crate::protocol::{error_response, PROTOCOL_VERSION};
+use crate::value::encode_bytes;
 
 use self::locks::{LockOutcome, LockTable};
 use self::protocol::{
@@ -377,7 +377,7 @@ impl FileHost {
     /// `pub(crate)`：除了 renderer 发来的 `file.close`，[`DesktopRouter::close_owner`] 也要
     /// 按 id 关会话——窗口销毁时没有任何一条 renderer 请求会再来。
     ///
-    /// [`DesktopRouter::close_owner`]: crate::rxdb::router::DesktopRouter::close_owner
+    /// [`DesktopRouter::close_owner`]: crate::router::DesktopRouter::close_owner
     pub(crate) fn close_session(&self, session_id: &str) -> HostResult<Value> {
         let mut state = self.lock_state();
         let session = state
@@ -752,7 +752,7 @@ mod tests {
     }
 
     fn decoded(response: &Value) -> Vec<u8> {
-        crate::rxdb::value::decode_bytes(&response["result"]["chunk"]).expect("read frames carry $u8 chunks")
+        crate::value::decode_bytes(&response["result"]["chunk"]).expect("read frames carry $u8 chunks")
     }
 
     #[test]

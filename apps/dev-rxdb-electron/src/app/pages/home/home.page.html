@@ -13,13 +13,29 @@
     </div>
   </div>
 
-  <!-- ELEC-11：本地数据库连接状态。失败此前只进控制台，页面看起来一切正常。 -->
+  <!--
+    US-207 E8/E9：本地数据库只有一张卡。此前这里是两张（wa-sqlite 一张、主进程 SQLite
+    一张），对着两个各自连接的 RxDB 实例 —— 而 demo 想说明的恰恰是「同一个库，换掉的
+    只是宿主」。合并之后后端身份由 `selectLocalBackend` 的判定结果直接读出，
+    不是模板里另写一遍的字面量。
+  -->
   <div class="card bg-base-200" data-testid="rxdb-status-card">
     <div class="card-body">
-      <h2 class="card-title">🗄️ 本地数据库（wa-sqlite）</h2>
+      <h2 class="card-title">🗄️ 本地数据库</h2>
+      <dl class="grid grid-cols-[auto_1fr] gap-x-4 text-sm opacity-70">
+        <dt class="font-medium">当前后端</dt>
+        <dd class="font-mono" data-testid="rxdb-backend">{{ backend }}</dd>
+        <dt class="font-medium">库名</dt>
+        <dd class="font-mono" data-testid="rxdb-db-name">{{ dbName }}</dd>
+      </dl>
       @switch (rxdbStatus()) {
         @case ('connected') {
           <div class="badge badge-success gap-2" data-testid="rxdb-status">✅ 已连接</div>
+          <p class="text-sm opacity-70">
+            累计启动次数：
+            <span class="font-mono font-bold" data-testid="rxdb-launch-count">{{ rxdbLaunchCount() }}</span>
+          </p>
+          <p class="text-xs opacity-50">关闭应用再打开，这个数字应当 +1 —— 数据存活于渲染进程之外。</p>
         }
         @case ('failed') {
           <div class="badge badge-error gap-2" data-testid="rxdb-status">❌ 连接失败</div>
@@ -27,33 +43,6 @@
         }
         @default {
           <div class="badge badge-ghost gap-2" data-testid="rxdb-status">
-            <span class="loading loading-spinner loading-xs"></span>
-            连接中...
-          </div>
-        }
-      }
-    </div>
-  </div>
-
-  <!-- US-207：数据落在主进程持有的真实 SQLite 文件里，而不是 WebView 的 OPFS / IndexedDB。 -->
-  <div class="card bg-base-200" data-testid="desktop-status-card">
-    <div class="card-body">
-      <h2 class="card-title">🗄️ 本地 SQLite 文件（主进程）</h2>
-      @switch (desktopStatus()) {
-        @case ('connected') {
-          <div class="badge badge-success gap-2" data-testid="desktop-status">✅ 已连接</div>
-          <p class="text-sm opacity-70">
-            累计启动次数：
-            <span class="font-mono font-bold" data-testid="desktop-launch-count">{{ desktopLaunchCount() }}</span>
-          </p>
-          <p class="text-xs opacity-50">关闭应用再打开，这个数字应当 +1 —— 数据存活于渲染进程之外。</p>
-        }
-        @case ('failed') {
-          <div class="badge badge-error gap-2" data-testid="desktop-status">❌ 连接失败</div>
-          <p class="text-error mt-2 text-sm" data-testid="desktop-error">{{ desktopErrorMessage() }}</p>
-        }
-        @default {
-          <div class="badge badge-ghost gap-2" data-testid="desktop-status">
             <span class="loading loading-spinner loading-xs"></span>
             连接中...
           </div>

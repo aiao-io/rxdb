@@ -1,32 +1,54 @@
-import { TAURI_ADAPTER_NAME } from '@aiao/rxdb-adapter-tauri';
+import { TAURI_ADAPTER_NAME as PACKAGE_TAURI_ADAPTER_NAME } from '@aiao/rxdb-adapter-tauri';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { DESKTOP_DEMO_DB_NAME, WEB_PREVIEW_DB_NAME } from './db-names';
 import { RxDBLocalBackendTableError, selectLocalBackend } from './local-backend';
-import { localBackends, WA_SQLITE_ADAPTER_NAME } from './setup_rxdb';
-import setup_rxdb_desktop from './setup_rxdb_desktop';
-import setup_rxdb_wa_sqlite from './setup_rxdb_wa-sqlite';
+import { localBackends, TAURI_ADAPTER_NAME, WA_SQLITE_ADAPTER_NAME } from './setup_rxdb';
+
+/** 读同目录下的源文件；下面几条静态门禁都靠它。 */
+const read = (file: string): string => readFileSync(resolve(import.meta.dirname, file), 'utf8');
+
+/**
+ * 去掉 TS 注释后再断言。
+ *
+ * @remarks
+ * 下面几条门禁挡的都是某个具体写法，而源码里**解释为什么不这么写**的那句 TSDoc
+ * 恰好逐字包含它 —— 「本模块不调用 `inject()`」「`inject(RxDB)` 会撞上尚未就绪」
+ * 「而不是 import `@aiao/rxdb-adapter-tauri`」。不剥注释的话，写得越清楚红得越快。
+ *
+ * 只剥不含引号的行注释：`'https://…'` 这类字符串里的 `//` 不该被当成注释切掉。
+ * 本仓的源码里没有「字符串里带 `//` 且同行还有真注释」的写法，这个近似足够了。
+ */
+const stripTsComments = (source: string): string =>
+  source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[^'"`\n]*?\/\/.*$/gm, '');
 
 describe('localBackends', () => {
   it('picks the Tauri host-backed SQLite file inside a Tauri window', () => {
     const backend = selectLocalBackend(localBackends({ __TAURI_INTERNALS__: {} }));
     expect(backend.adapter).toBe(TAURI_ADAPTER_NAME);
-    expect(backend.create).toBe(setup_rxdb_desktop);
+    expect(backend.dbName).toBe(DESKTOP_DEMO_DB_NAME);
   });
 
   it('falls back to wa-sqlite in a plain browser preview', () => {
     const backend = selectLocalBackend(localBackends({}));
     expect(backend.adapter).toBe(WA_SQLITE_ADAPTER_NAME);
-    expect(backend.create).toBe(setup_rxdb_wa_sqlite);
+    expect(backend.dbName).toBe(WEB_PREVIEW_DB_NAME);
   });
 
   /**
-   * 适配器名与工厂必须来自**同一次**判定。分开算的话，
-   * `provideRxDB` 注册了 desktop 而 initializer 去连 wa-sqlite，
+   * 适配器名与库名必须来自**同一条**候选。分开算的话，
+   * `provideRxDB` 建的是 desktop 库而 initializer 去连 wa-sqlite，
    * 症状是「连接一个不存在的适配器」——错误信息指不到真正的原因。
+   *
+   * US-207 E11 之后 `create` 是个当场新建的箭头函数（里面裹着动态 `import()`），
+   * 不再能拿工厂的**引用相等**来表达这件事；`dbName` 是同一条候选上唯一另一个
+   * 可观察字段，绑的是同一件事。
    */
-  it('keeps the adapter name and the factory in the same branch', () => {
+  it('keeps the adapter name and the dbName in the same branch', () => {
     for (const runtime of [{ __TAURI_INTERNALS__: {} }, {}, null, undefined]) {
       const backend = selectLocalBackend(localBackends(runtime));
-      const expected = backend.create === setup_rxdb_desktop ? TAURI_ADAPTER_NAME : WA_SQLITE_ADAPTER_NAME;
-      expect(backend.adapter).toBe(expected);
+      const expected = backend.adapter === TAURI_ADAPTER_NAME ? DESKTOP_DEMO_DB_NAME : WEB_PREVIEW_DB_NAME;
+      expect(backend.dbName).toBe(expected);
     }
   });
 
@@ -40,5 +62,69 @@ describe('localBackends', () => {
 
     expect(new Set(dbNames).size).toBe(dbNames.length);
     expect(() => selectLocalBackend(localBackends({}))).not.toThrow(RxDBLocalBackendTableError);
+  });
+});
+
+/**
+ * US-207 E11：只有被选中的那个后端才应该被下载、求值。
+ *
+ * @remarks
+ * 这几条是**静态**门禁：真正的证据在打包产物里（见 `scripts/audit/`），但那要先打包才验得到，
+ * 而把静态 import 写回去只需要一次「顺手补个常量」。门禁先红，产物审计兜底。
+ */
+describe('本地后端按需加载', () => {
+  it('两个后端各自走动态 import 加载', () => {
+    const source = read('setup_rxdb.ts');
+    expect(source).toMatch(/await import\('\.\/setup_rxdb_desktop'\)/);
+    expect(source).toMatch(/await import\('\.\/setup_rxdb_wa-sqlite'\)/);
+    // 静态 import 会把整个模块（连同它的适配器）拉回主 chunk，动态 import 也就白做了。
+    expect(source).not.toMatch(/^import .*setup_rxdb_(desktop|wa-sqlite)/m);
+  });
+
+  /**
+   * `setup_rxdb.ts` 里的 `'sqlite-tauri'` 是**抄**的字面量，不是从 `@aiao/rxdb-adapter-tauri`
+   * import 来的常量：本模块在主 chunk 里（候选表要在建库之前就报出后端身份），而那句 import
+   * 会把适配器包的 barrel 一起拽进主 chunk —— 实测连 `createTauriHostTransport` 的
+   * `rxdb_desktop_request` / `rxdb-desktop-change` 都进了 `main.js`，正是 E11 与 US-505 AC#10
+   * 要挡的「Tauri 传输客户端代码进浏览器 bundle」。
+   *
+   * 抄的代价在这一条里还清：单测走源码、不进产物，所以这个 import 不花 bundle 的钱，
+   * 而包里改了名字会在这里当场变红，不会拖到运行时变成「连接一个不存在的适配器」。
+   */
+  it('适配器名与包里的常量一致，且不靠 import 保证', () => {
+    expect(TAURI_ADAPTER_NAME).toBe(PACKAGE_TAURI_ADAPTER_NAME);
+    // 剥注释：上面那段 TSDoc 里逐字写着这个包名 —— 解释理由的话不该把断言打红。
+    expect(stripTsComments(read('setup_rxdb.ts'))).not.toContain('@aiao/rxdb-adapter-tauri');
+  });
+
+  it('库名走 db-names.ts，不从工厂模块里 import', () => {
+    expect(read('setup_rxdb.ts')).toContain("from './db-names'");
+    for (const file of ['setup_rxdb_desktop.ts', 'setup_rxdb_wa-sqlite.ts']) {
+      expect(read(file), file).toContain("from './db-names'");
+    }
+  });
+
+  it('运行时判定留在 provideRxDB 工厂内，两个建库模块不调用 inject()', () => {
+    const config = read('app.config.ts');
+    expect(config).toContain('isPlatformBrowser(inject(PLATFORM_ID))');
+    expect(config).toContain('return localDatabase();');
+    for (const file of ['setup_rxdb_desktop.ts', 'setup_rxdb_wa-sqlite.ts']) {
+      // 剥注释：这两个模块的 TSDoc 里逐字写着「本模块不调用 `inject()`」。
+      expect(stripTsComments(read(file)), file).not.toMatch(/\binject\(/);
+    }
+  });
+
+  /**
+   * 建库 Promise 只能有一份：`provideRxDB` 的工厂与 `startLocalDatabase` 是两个并发跑的
+   * app initializer（Angular 用 `Promise.all`），各建各的就成了两个实例 —— 页面读到的
+   * 状态属于其中一个，数据却写进另一个。
+   */
+  it('建库 Promise 由 localDatabase 记住，两个 initializer 共用一份', () => {
+    expect(read('setup_rxdb.ts')).toMatch(/database \?\?= resolveLocalBackend\(globalThis\)\.create\(\)/);
+    const config = read('app.config.ts');
+    expect(config).toContain('openDatabase: localDatabase');
+    // 剥注释：`app.config.ts` 的注释里逐字写着「`inject(RxDB)` 会撞上尚未就绪」——
+    // 那句解释理由的话不该把它自己禁止的东西给判红。
+    expect(stripTsComments(config)).not.toContain('inject(RxDB)');
   });
 });

@@ -9,7 +9,7 @@ import { HIDE_WINDOW_ENV, launchEnv, resolveExecutable } from './packaged-app';
  *
  * @remarks
  * 这套用例的存在意义是「只有真实打包才能验到」的那三件事：
- * 生产 CSP 是否匹配、hash 路由能否完成首次导航、wa-sqlite 的 WASM 能否实例化。
+ * 生产 CSP 是否匹配、hash 路由能否完成首次导航、`.wasm` 能否在自定义协议下取回并编译。
  * 跑 dev server 一件都验不到 —— dev 是 `http://localhost`，
  * 生产是自定义协议 `app://-`，两者在 CSP、History API、存储配额上的行为都不同。
  *
@@ -111,12 +111,35 @@ test.describe('打包产物 smoke', () => {
     await expect(page.getByText('运行在 Electron 环境')).toBeVisible();
   });
 
-  // ELEC-10 三个「待实测」里的最后一个：WASM 能否实例化。
-  // 这条同时守住 ELEC-11 —— 状态卡必须真的反映连接结果，而不是永久停在「连接中」。
-  test('wa-sqlite WASM 实例化并完成连接', async () => {
+  // ELEC-11：状态卡必须真的反映连接结果，而不是永久停在「连接中」。
+  // US-207 E8/E9：合并成一张卡之后，打包窗口里选中的是桌面后端 —— 后端名一并断言，
+  // 否则运行时探测坏掉时会静默退回 wa-sqlite，而这条用例照样绿。
+  test('本地数据库完成连接，且跑在桌面后端上', async () => {
     const status = page.getByTestId('rxdb-status');
     await expect(status).toHaveText(/已连接/, { timeout: 60000 });
     await expect(page.getByTestId('rxdb-error')).toBeHidden();
+    await expect(page.getByTestId('rxdb-backend')).toHaveText('sqlite-electron');
+  });
+
+  // ELEC-10 三个「待实测」里的最后一个：WASM 能否在自定义协议下取到并编译。
+  //
+  // 这条原本是搭在「wa-sqlite 状态卡变成已连接」上的。US-207 E8 合并成单实例之后，
+  // 打包窗口一律选桌面后端，wa-sqlite 那条分支在产物里根本不会被执行 —— 再挂在状态卡上
+  // 就成了一条名字说 WASM、实际只验 SQLite over IPC 的用例。
+  //
+  // 改为直接探测两件 `app://` 协议独有的事：.wasm 取不取得到（supportFetchAPI + 资源确实
+  // 拷进了产物），以及 CSP 的 'wasm-unsafe-eval' 放不放行编译。缺任一件，`nx serve`
+  // 的浏览器预览照常能用，只有打包产物会在加载 wa-sqlite 时炸 —— 正是本套件该拦的那类问题。
+  test('自定义协议下 .wasm 可取回并通过 CSP 编译', async () => {
+    const outcome = await page.evaluate(async () => {
+      const response = await fetch('app://-/wa-sqlite/wa-sqlite.wasm');
+      if (!response.ok) return { status: response.status, compiled: false };
+      // compileStreaming 而不是 instantiate：这里要验的是取回 + 编译两步，
+      // 实例化还需要 wa-sqlite 的 import 对象，与协议和 CSP 都无关。
+      await WebAssembly.compileStreaming(response);
+      return { status: response.status, compiled: true };
+    });
+    expect(outcome).toEqual({ status: 200, compiled: true });
   });
 
   test('IPC 往返可用', async () => {

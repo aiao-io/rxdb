@@ -159,7 +159,8 @@ jobs:
       - uses: ./.github/actions/xvfb
         if: runner.os == 'Linux'
 
-      # 刻意**不缓存** `src-tauri/target/`：
+      # 刻意**不缓存**任何 cargo target 目录（US-210 T2 之后有两个：
+      # `apps/dev-rxdb-tauri/src-tauri/target/` 与 `packages/rxdb-adapter-tauri/rust/target/`）：
       #   - 照抄 ci-template 的 key 会与 PR 门禁的 rust job 撞上，但两边 profile 不同
       #     （debug vs release）—— 白读约 800MB 又一条都用不上，且本 workflow 不回写。
       #   - 换独立 key 则 3 OS × ~1GB 会啃掉 10GB 配额的一大块，而 ci-template 里已经

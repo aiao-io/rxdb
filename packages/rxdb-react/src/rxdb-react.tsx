@@ -151,7 +151,10 @@ const openLease = <T extends RxDB>(slot: RxDBLeaseSlot<T>, source: RxDBSource<T>
     source,
     held: true,
     closed: false,
-    resolved: Promise.resolve(typeof source === 'function' ? source() : source)
+    // 工厂在 `then` 回调**里**求值，同步抛出因此也变成一次 reject，与 Promise source 走同一条路。
+    // 在外面求值的话，异常会从调用它的 effect 里逃出去掀掉最近的 error boundary，
+    // 而 `useRxDBOptional` 承诺的是 loading/error 态。Angular / Vue 侧同理。
+    resolved: Promise.resolve().then(() => (typeof source === 'function' ? source() : source))
   };
   slot.current = lease;
   return lease;
