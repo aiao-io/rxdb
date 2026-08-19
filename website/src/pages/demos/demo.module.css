@@ -1,5 +1,5 @@
-/* 满屏 iframe 样式 */
-.fullscreenIframe {
+/* 满屏无界宿主容器 */
+.fullscreenMicroApp {
   position: fixed;
   top: var(--ifm-navbar-height);
   left: 0;

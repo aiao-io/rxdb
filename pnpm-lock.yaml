@@ -1477,6 +1477,9 @@ importers:
       '@aiao/rxdb-adapter-wa-sqlite':
         specifier: workspace:*
         version: link:../packages/rxdb-adapter-wa-sqlite
+      '@aiao/utils':
+        specifier: workspace:*
+        version: link:../packages/utils
       '@docusaurus/core':
         specifier: ^3.10.2
         version: 3.10.2(@docusaurus/faster@3.10.2(@docusaurus/types@3.10.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(esbuild@0.28.2)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@swc/helpers@0.5.23)(esbuild@0.28.2)(postcss@8.5.26))(@mdx-js/react@3.1.1(@types/react@19.2.18)(react@19.2.8))(@rspack/core@1.7.12(@swc/helpers@0.5.23))(@swc/core@1.15.47(@swc/helpers@0.5.23))(esbuild@0.28.2)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))
@@ -1555,6 +1558,9 @@ importers:
       react-dom:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
+      wujie-react:
+        specifier: ^2.1.0
+        version: 2.1.0(react@19.2.8)
     devDependencies:
       '@docusaurus/module-type-aliases':
         specifier: 3.10.2
@@ -17259,6 +17265,14 @@ packages:
   wsl-utils@0.1.0:
     resolution: {integrity: sha512-h3Fbisa2nKGPxCpm89Hk33lBLsnaGBvctQopaBSOW/uIs6FTe1ATyAnKFJrzVs9vpGdsTe73WF3V4lIsk4Gacw==}
     engines: {node: '>=18'}
+
+  wujie-react@2.1.0:
+    resolution: {integrity: sha512-kXS0uGlITYt0/tBse5Wl4uU0q35me3l+u2sDvpAfSW2rHifDEaSObt6nW4Br/qjfoxPrQ/99FgDgJCVtJqE8Ng==}
+    peerDependencies:
+      react: ^19.2.8
+
+  wujie@2.1.0:
+    resolution: {integrity: sha512-qLkI9M30WRlQGlqJJKUDz0FJon30XnH0amUepOaCWwOohhqhvgfP7jeLTykuQfoGm1R7tnqvB7U59G/DW+ud4A==}
 
   xdg-basedir@5.1.0:
     resolution: {integrity: sha512-GCPAHLvrIH13+c0SuacwvRYj2SxJXQ4kaVTT5xgL3kPrz56XxkF21IGhjSE1+W0aw7gpBWRGXLCPnPby6lSpmQ==}
@@ -36858,6 +36872,16 @@ snapshots:
   wsl-utils@0.1.0:
     dependencies:
       is-wsl: 3.1.1
+
+  wujie-react@2.1.0(react@19.2.8):
+    dependencies:
+      prop-types: 15.8.1
+      react: 19.2.8
+      wujie: 2.1.0
+
+  wujie@2.1.0:
+    dependencies:
+      '@babel/runtime': 7.29.7
 
   xdg-basedir@5.1.0: {}
 

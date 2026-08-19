@@ -1,7 +1,25 @@
 import { WUJIE_THEME_EVENT } from '@aiao/utils';
 import { act, renderHook } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parseThemeValue, useTheme } from './useTheme';
+
+function createStorage(): Storage {
+  const values = new Map<string, string>();
+  return {
+    get length() {
+      return values.size;
+    },
+    clear: () => values.clear(),
+    getItem: key => values.get(key) ?? null,
+    key: index => [...values.keys()][index] ?? null,
+    removeItem: key => {
+      values.delete(key);
+    },
+    setItem: (key, value) => {
+      values.set(key, value);
+    }
+  };
+}
 
 function createBus() {
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
@@ -31,6 +49,14 @@ describe('parseThemeValue', () => {
 });
 
 describe('useTheme host sync', () => {
+  beforeEach(() => {
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: createStorage(),
+      writable: true,
+      configurable: true
+    });
+  });
+
   afterEach(() => {
     delete window.$wujie;
     localStorage.removeItem('theme');
