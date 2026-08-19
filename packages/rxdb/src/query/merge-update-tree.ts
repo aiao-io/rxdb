@@ -66,8 +66,7 @@ export const handleFindDescendantsUpdate = <T extends EntityType>(
       if (classification.matchNowIds.has(entityId)) {
         const eventData = cache.getData(entityId);
         // key 是否存在不代表值真的变了，必须比较 patch 与 inversePatch 的实际值
-        // （与添加 / count 路径一致）。层级判定以 patch.parentId 为第一跳：
-        // 迟到事件可能把 serialized.parentId 盖回旧值，serialized 缺失时也不能保守保留。
+        // （与添加 / count 路径一致）。
         const hasParentIdChanged =
           !!eventData &&
           'parentId' in eventData.patch &&
@@ -75,11 +74,15 @@ export const handleFindDescendantsUpdate = <T extends EntityType>(
             get_tree_parent_id(eventData.inversePatch as InstanceType<T>);
 
         if (hasParentIdChanged) {
+          // 序列化结果比裸 patch 更可信：`QueryManager.#serialize` 带 P0-004 单调性守卫，
+          // 迟到事件会原样返回更新的缓存实体，用它的 parentId 才是当前真实层级。
+          // 只有序列化缺失（实体不在缓存里）时才退回 patch.parentId —— 此时 patch 是
+          // 唯一信息来源，保守保留会把已移出子树的节点留在结果里。
           const updatedEntity = cache.getSerializedUpdate(entityId);
-          const entityForTree = {
-            ...(updatedEntity ?? { id: entityId }),
+          const entityForTree = (updatedEntity ?? {
+            id: entityId,
             parentId: get_tree_parent_id(eventData.patch as InstanceType<T>)
-          } as InstanceType<T>;
+          }) as InstanceType<T>;
           const { isDescendant, level: entityLevel } = helper.isEntityDescendant(entityForTree, targetEntityId);
           if (!isDescendant || (level !== undefined && entityLevel > level)) {
             hasChanges = true;

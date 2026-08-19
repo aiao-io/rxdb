@@ -184,20 +184,20 @@ describe('merge-update-tree direct coverage', () => {
       expect(idsOf(next.mock.calls[0][0])).toEqual([]);
     });
 
-    it('removes a descendant even when serialization still has the old parentId', () => {
-      // 复现 CI flake：迟到事件把 serialized.parentId 盖回 root，但 patch 已是 child。
-      // level=1 必须按 patch 判定层级，把 grand 从结果里摘掉。
+    it('judges level by the serialized parentId when the event patch is stale', () => {
+      // 迟到事件：patch 还停留在「grand 挂到 root」那一版，序列化结果已是最新的 child。
+      // 序列化侧带 P0-004 单调性守卫，层级必须按它判定，把 grand 从 level=1 结果里摘掉。
       const root = createNode('root', null);
       const child = createNode('child', 'root');
-      const grand = createNode('grand', 'root');
-      const updates = [createUpdate('grand', { id: 'grand', parentId: 'child' }, { parentId: 'root' })];
+      const grand = createNode('grand', 'child');
+      const updates = [createUpdate('grand', { id: 'grand', parentId: 'root' }, { parentId: 'child' })];
       const { task, next } = createFindDescendantsTask({ entityId: 'root', level: 1 }, [root, child, grand]);
 
       handleFindDescendantsUpdate(
         task,
         updates,
         createClassification({ updatedIds: ['grand'], matchNowIds: ['grand'] }),
-        createCache(updates, [['grand', createNode('grand', 'root')]])
+        createCache(updates, [['grand', createNode('grand', 'child')]])
       );
 
       expect(next).toHaveBeenCalledTimes(1);
