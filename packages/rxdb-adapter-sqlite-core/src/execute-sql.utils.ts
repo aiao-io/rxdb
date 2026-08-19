@@ -4,14 +4,22 @@ const RETURNING_CLAUSE = /\breturning\b/i;
 /**
  * 去除末尾分号与空白，便于后续判断是否为单语句。
  *
+ * @remarks
+ * 末尾分号用线性扫描剥掉而不是 `replace(/;+\s*$/u, '')`：后者在分号串后面还有内容时
+ * （`'a' + ';'.repeat(30000) + 'b'`），每个起点都要吃完整串再逐个回退，整体 O(n²)（CS-004）。
+ * 语义不变 —— `trim()` 之后 `\s*$` 只能匹配空串，正则实际只剥「末尾连续的分号」，
+ * 被空格隔开的分号（`'select 1; ;'`）两种写法都保留。
+ *
  * @param sql - 原始 SQL 字符串
  * @returns 不含尾部分号、空白的 SQL
  */
 export function normalizeSingleStatementSql(sql: string): string {
-  return sql
-    .trim()
-    .replace(/;+\s*$/u, '')
-    .trimEnd();
+  const trimmedSql = sql.trim();
+  let end = trimmedSql.length;
+  while (end > 0 && trimmedSql[end - 1] === ';') {
+    end--;
+  }
+  return trimmedSql.slice(0, end).trimEnd();
 }
 
 /**

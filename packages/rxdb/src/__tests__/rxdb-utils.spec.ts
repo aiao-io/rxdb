@@ -8,6 +8,7 @@ import {
   deterministicStringify,
   getEntityMetadata,
   getEntityStatus,
+  isAdapterShutdownError,
   isRxDBEntity,
   uuid
 } from '../rxdb-utils.js';
@@ -388,6 +389,50 @@ describe('rxdb-utils', () => {
 
         expect(() => deterministicStringify(circular)).toThrow(TypeError);
       });
+    });
+  });
+
+  describe('isAdapterShutdownError', () => {
+    it.each([
+      'adapter is disconnected',
+      'Adapter is disconnected',
+      'database is closing',
+      'database is closed',
+      'PGlite is closing',
+      'pglite is closed',
+      'connection is closing',
+      'adapter has been closed',
+      'SQLite adapter was already closed'
+    ])('识别关闭类错误：%s', message => {
+      expect(isAdapterShutdownError(new Error(message))).toBe(true);
+    });
+
+    it.each([
+      'syntax error near SELECT',
+      'adapter is busy',
+      'closed the wrong adapter',
+      'database is locked'
+    ])('不把普通错误当关闭：%s', message => {
+      expect(isAdapterShutdownError(new Error(message))).toBe(false);
+    });
+
+    it.each([[null], [undefined], [''], [0]])('空值 %s 不是关闭错误', value => {
+      expect(isAdapterShutdownError(value)).toBe(false);
+    });
+
+    it('非 Error 的对象与裸字符串都按 message 取值', () => {
+      expect(isAdapterShutdownError({ message: 'database is closed' })).toBe(true);
+      expect(isAdapterShutdownError('connection is closing')).toBe(true);
+    });
+
+    it('CS-003 超长 message 不触发回溯（ReDoS）', () => {
+      // 原 `/…|adapter.*closed|…/`：`adapter` 字面量分支与 `.*` 对同一串输入歧义，
+      // 全是 `adapter` 而没有 `closed` 的 message 上退化成 O(n²)。
+      const hostile = 'adapter'.repeat(20_000);
+      const startedAt = performance.now();
+
+      expect(isAdapterShutdownError(new Error(hostile))).toBe(false);
+      expect(performance.now() - startedAt).toBeLessThan(200);
     });
   });
 });

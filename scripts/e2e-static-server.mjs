@@ -216,8 +216,10 @@ export function createStaticServer(rootPath) {
     try {
       body = readFileSync(filePath);
     } catch (error) {
-      // filePath 来自 req.url，不能插进 console 的 format string（%s 会被当占位符）。
-      console.error('[e2e-static-server] Failed to read file:', filePath, error);
+      // filePath 来自 req.url：既不能插进 console 的 format string（%s 会被当占位符），
+      // 也要挡住 CR/LF —— 否则一个 `%0A[ok] ...` 的请求就能在日志里伪造出一整行（CS-021）。
+      // JSON.stringify 把控制字符转义成 `\n`，一条请求永远只占一行。
+      console.error('[e2e-static-server] Failed to read file:', JSON.stringify(filePath), error);
       return send(res, 500, 'Internal Server Error');
     }
 

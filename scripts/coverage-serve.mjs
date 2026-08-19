@@ -370,6 +370,22 @@ function isWithinRoot(realRoot, target) {
 }
 
 /**
+ * 读文件，读不到（不存在 / 是目录 / 权限不足 / 竞态被删）就返回 null。
+ *
+ * 请求处理器里抛出的异常会冒到 'request' 之外直接终结进程，
+ * 一次并发写就能让 dev server 悄无声息地消失，因此这里必须吞掉所有错误。
+ * @param {string} target
+ * @returns {Buffer | null}
+ */
+function tryReadFile(target) {
+  try {
+    return readFileSync(target);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * 统一写响应头 + body。
  * 默认 `Cache-Control: no-store` —— 本地覆盖率产物随时被覆盖，缓存反而误导。
  * @param {import('node:http').ServerResponse} res
@@ -710,23 +726,23 @@ function serve(port, focusHref = '/') {
     let filePath = safeJoin(coverageRoot, rawPath);
     if (!filePath) return send(res, 403, 'Forbidden');
 
-    if (existsSync(filePath) && statSync(filePath).isDirectory()) {
+    // 直接读，不做 existsSync/statSync 预检：预检与真正的读之间文件可能被换掉或删掉
+    // （覆盖率报告正是被 vitest 并发重写的目录），预检结果一到手就已经过期（CS-017）。
+    // 更要命的是原来的 readFileSync 不在任何 try 里 —— 一次这样的竞态就能把整个 dev
+    // server 抛死。读不到就当 404，读得到才继续。
+    let body = tryReadFile(filePath);
+    if (!body) {
       const indexFile = join(filePath, 'index.html');
-      if (existsSync(indexFile)) {
-        filePath = indexFile;
-      } else {
-        return send(res, 404, `Not found: ${rawPath}`);
-      }
+      body = tryReadFile(indexFile);
+      if (!body) return send(res, 404, `Not found: ${rawPath}`);
+      filePath = indexFile;
     }
 
-    if (!existsSync(filePath) || !statSync(filePath).isFile()) {
-      return send(res, 404, `Not found: ${rawPath}`);
-    }
-
+    // 越界判定仍在**发送之前**：内容虽已读进内存，但根外的字节一个都不会写给客户端。
     if (!isWithinRoot(realRoot, filePath)) return send(res, 403, 'Forbidden');
 
     const type = MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream';
-    send(res, 200, readFileSync(filePath), type);
+    send(res, 200, body, type);
   });
 
   server.listen(port, '127.0.0.1', () => {

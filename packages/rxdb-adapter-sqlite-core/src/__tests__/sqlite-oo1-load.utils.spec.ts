@@ -86,6 +86,28 @@ describe('sqlite-oo1-load.utils', () => {
 
       expect(result).toBe('http://[');
     });
+
+    describe('CS-005 重复文件名前缀不得回溯（ReDoS）', () => {
+      // 原 `/sqlite3-opfs-async-proxy(?:-[^/]+)?\.js$/` 没有起点锚，重复前缀的路径上
+      // 每个起点都要用 `[^/]+` 扫到段尾才失败 → O(n²)。改成只匹配 basename 后仅剩一个起点。
+      const hostile = `${'sqlite3-opfs-async-proxy-'.repeat(20_000)}x`;
+
+      it('可解析 URL 的重复前缀路径线性返回', () => {
+        const startedAt = performance.now();
+
+        expect(rewriteOpfsProxyWorkerUrl(`http://localhost:4200/${hostile}`, '/assets/p.js')).toBe(
+          `http://localhost:4200/${hostile}`
+        );
+        expect(performance.now() - startedAt).toBeLessThan(200);
+      });
+
+      it('不可解析 URL 的兜底分支同样线性返回', () => {
+        const startedAt = performance.now();
+
+        expect(rewriteOpfsProxyWorkerUrl(`http://[/${hostile}`, '/assets/p.js')).toBe(`http://[/${hostile}`);
+        expect(performance.now() - startedAt).toBeLessThan(200);
+      });
+    });
   });
 
   describe('shouldIgnoreSqliteMessage', () => {
