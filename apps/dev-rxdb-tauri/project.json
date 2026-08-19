@@ -95,12 +95,20 @@
       }
     },
     "tauri-build": {
+      "// 六个 dependsOn": "Rust 侧现在有两个 crate：本 demo（lib.rs / selfcheck.rs / main.rs）与它 path 依赖的宿主包 packages/rxdb-adapter-tauri/rust。cargo 只会把 path 依赖当普通依赖编译，clippy 一条 lint 都不会落在它上面 —— 所以打包前的门禁必须两边各点一次名，否则宿主那几千行在这条路径上不受任何检查。",
       "executor": "nx:run-commands",
       "options": {
         "commands": ["tauri build --ci"],
         "parallel": false
       },
-      "dependsOn": ["cargo-check", "cargo-clippy", "cargo-test"]
+      "dependsOn": [
+        "cargo-check",
+        "cargo-clippy",
+        "cargo-test",
+        "rxdb-adapter-tauri:cargo-check",
+        "rxdb-adapter-tauri:cargo-clippy",
+        "rxdb-adapter-tauri:cargo-test"
+      ]
     },
     "tauri-package-release": {
       "// 不继承 tauri-build 的 dependsOn": "cargo-check / cargo-clippy / cargo-test 已在 PR 门禁跑过；发布 workflow 里 ×3 平台重跑一遍是纯亏。",
@@ -125,6 +133,7 @@
       }
     },
     "cargo-check": {
+      "// 三个 cargo target 只管本 demo 的 crate": "桌面宿主已经搬进 packages/rxdb-adapter-tauri/rust（US-210 T2），它的 check / clippy / test 在那个项目里。这里剩下的是宿主应用自己的那一半：接线（lib.rs）、自检模式（selfcheck.rs）、入口（main.rs）。inputs 里保留 tauri.conf.json 与 capabilities/ —— 它们参与 tauri::generate_context! 的编译期展开，改了要重编，而它们同样没有跟着宿主走；再加上宿主 crate 的源码，因为 path 依赖变了本地也必须重编。",
       "executor": "nx:run-commands",
       "cache": true,
       "inputs": [
@@ -132,7 +141,9 @@
         "{projectRoot}/src-tauri/Cargo.toml",
         "{projectRoot}/src-tauri/Cargo.lock",
         "{projectRoot}/src-tauri/tauri.conf.json",
-        "{projectRoot}/src-tauri/capabilities/**/*.json"
+        "{projectRoot}/src-tauri/capabilities/**/*.json",
+        "{workspaceRoot}/packages/rxdb-adapter-tauri/rust/**/*.rs",
+        "{workspaceRoot}/packages/rxdb-adapter-tauri/rust/Cargo.toml"
       ],
       "options": {
         "cwd": "apps/dev-rxdb-tauri/src-tauri",
@@ -140,7 +151,7 @@
         "parallel": false
       },
       "metadata": {
-        "description": "TAURI-FRESH-01：Rust 侧的类型/编译门禁"
+        "description": "TAURI-FRESH-01：宿主应用侧的类型/编译门禁"
       }
     },
     "cargo-clippy": {
@@ -151,7 +162,9 @@
         "{projectRoot}/src-tauri/Cargo.toml",
         "{projectRoot}/src-tauri/Cargo.lock",
         "{projectRoot}/src-tauri/tauri.conf.json",
-        "{projectRoot}/src-tauri/capabilities/**/*.json"
+        "{projectRoot}/src-tauri/capabilities/**/*.json",
+        "{workspaceRoot}/packages/rxdb-adapter-tauri/rust/**/*.rs",
+        "{workspaceRoot}/packages/rxdb-adapter-tauri/rust/Cargo.toml"
       ],
       "options": {
         "cwd": "apps/dev-rxdb-tauri/src-tauri",
@@ -159,49 +172,7 @@
         "parallel": false
       },
       "metadata": {
-        "description": "TAURI-FRESH-01：Rust 侧的 lint 门禁（零警告）"
-      }
-    },
-    "build-test-host": {
-      "executor": "nx:run-commands",
-      "cache": true,
-      "inputs": [
-        "{projectRoot}/src-tauri/**/*.rs",
-        "{projectRoot}/src-tauri/Cargo.toml",
-        "{projectRoot}/src-tauri/Cargo.lock"
-      ],
-      "outputs": [
-        "{projectRoot}/src-tauri/target/debug/rxdb_host_stdio",
-        "{projectRoot}/src-tauri/target/debug/rxdb_host_stdio.exe"
-      ],
-      "options": {
-        "cwd": "apps/dev-rxdb-tauri/src-tauri",
-        "command": "cargo build --locked --bin rxdb_host_stdio",
-        "parallel": false
-      },
-      "metadata": {
-        "description": "US-210：一致性套件驱动的 stdio 宿主二进制（不进产品包）"
-      }
-    },
-    "test-conformance": {
-      "executor": "nx:run-commands",
-      "cache": true,
-      "dependsOn": ["build-test-host", "^build"],
-      "inputs": [
-        "{projectRoot}/conformance/**/*.ts",
-        "{projectRoot}/vitest.conformance.mts",
-        "{projectRoot}/src-tauri/**/*.rs",
-        "{projectRoot}/src-tauri/Cargo.toml",
-        "{projectRoot}/src-tauri/Cargo.lock",
-        "^production"
-      ],
-      "options": {
-        "cwd": "apps/dev-rxdb-tauri",
-        "command": "vitest run --config vitest.conformance.mts",
-        "parallel": false
-      },
-      "metadata": {
-        "description": "US-210 AC#2/#3/#5/#7 + US-505 AC#2：Rust 引擎跑 21 个共享套件 + 5 个加密套件，Rust 文件宿主跑 storage 后端一致性套件"
+        "description": "TAURI-FRESH-01：宿主应用侧的 lint 门禁（零警告）"
       }
     },
     "cargo-test": {
@@ -212,7 +183,9 @@
         "{projectRoot}/src-tauri/Cargo.toml",
         "{projectRoot}/src-tauri/Cargo.lock",
         "{projectRoot}/src-tauri/tauri.conf.json",
-        "{projectRoot}/src-tauri/capabilities/**/*.json"
+        "{projectRoot}/src-tauri/capabilities/**/*.json",
+        "{workspaceRoot}/packages/rxdb-adapter-tauri/rust/**/*.rs",
+        "{workspaceRoot}/packages/rxdb-adapter-tauri/rust/Cargo.toml"
       ],
       "options": {
         "cwd": "apps/dev-rxdb-tauri/src-tauri",
@@ -220,7 +193,14 @@
         "parallel": false
       },
       "metadata": {
-        "description": "TAURI-FRESH-01：Rust 单元测试"
+        "description": "TAURI-FRESH-01：宿主应用侧的 Rust 单元测试（接线 + 自检模式）"
+      }
+    },
+    "audit-lazy-backend": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "node scripts/audit/desktop-lazy-backend.mjs dev-rxdb-tauri"
       }
     }
   }

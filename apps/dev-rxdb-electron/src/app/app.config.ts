@@ -1,10 +1,13 @@
 import { provideRxDB } from '@aiao/rxdb-angular';
-import { APP_BASE_HREF, registerLocaleData } from '@angular/common';
+import { APP_BASE_HREF, isPlatformBrowser, registerLocaleData } from '@angular/common';
 import { provideHttpClient, withFetch, withInterceptorsFromDi } from '@angular/common/http';
 import localeZh from '@angular/common/locales/zh-Hans';
 import {
   ApplicationConfig,
+  inject,
   LOCALE_ID,
+  PLATFORM_ID,
+  provideAppInitializer,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection
 } from '@angular/core';
@@ -19,7 +22,8 @@ import { provideLoadingBarInterceptor } from '@ngx-loading-bar/http-client';
 import { provideLoadingBarRouter } from '@ngx-loading-bar/router';
 import { appRoutes } from './app.routes';
 import { resolveLocaleId } from './locale';
-import setup_rxdb from './setup_rxdb_wa-sqlite';
+import { LocalDatabaseService } from './services/local-database.service';
+import { localDatabase } from './setup_rxdb';
 
 registerLocaleData(localeZh, 'zh');
 
@@ -74,7 +78,19 @@ export const appConfig: ApplicationConfig = {
     // RxDB，工厂于是永不执行，状态卡永久停在「连接中…」：没有 worker、没有 wasm 请求、
     // 也没有任何报错，一个纯粹的假象。现在 `provideRxDB` 自带 initializer（先建 holder
     // 触发工厂，再等 source 就绪），bootstrap 阶段必然实例化，这里不必再补一刀。
-    provideRxDB(setup_rxdb),
+    //
+    // US-207 E11：候选的 `create` 走动态 `import()`，所以这个工厂是**异步**的。
+    // 浏览器运行时那道闸必须留在**这里**——`inject()` 一旦跨过 `await` 就离开注入上下文，
+    // 在 NG0203 面前，把它写进 `setup_rxdb_*.ts` 只会换来一句与存储毫无关系的报错。
+    provideRxDB(() => {
+      if (!isPlatformBrowser(inject(PLATFORM_ID))) throw new Error('dev-rxdb-electron requires a browser runtime');
+      return localDatabase();
+    }),
+    // US-207 E8：连接、启动计数与状态发布都在这个服务里，由 initializer 拉起而不是
+    // 等首页注入（惰性单例没人注入就永远不构造，与 ELEC-11 同一个坑）。
+    // 它内部 await 的是 `localDatabase()` 记住的同一个 Promise，因此与上面那个
+    // initializer 并发跑也不会读到「尚未就绪」。
+    provideAppInitializer(() => inject(LocalDatabaseService).start()),
     provideHttpClient(withFetch(), withInterceptorsFromDi()),
     provideLoadingBarInterceptor(),
     provideLoadingBarRouter()

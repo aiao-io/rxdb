@@ -32,7 +32,7 @@ const createInProcessTransport = (): DesktopHostTransport => ({
  * @remarks
  * 按**字段**改而不是按 `kind` 分支：`handshake` 与 `open` 两族应答都带这个字段，
  * 照 `kind` 枚举的话，将来多一族就会悄悄漏掉。与一致性测试的 stdio 二进制按
- * JSON 指针改写是同一手法（`src-tauri/src/bin/rxdb_host_stdio.rs`）。
+ * JSON 指针改写是同一手法（`packages/rxdb-adapter-tauri/rust/src/bin/rxdb_host_stdio.rs`）。
  *
  * @param protocolVersion - 宿主谎报的版本号
  * @returns 会改写应答的传输层

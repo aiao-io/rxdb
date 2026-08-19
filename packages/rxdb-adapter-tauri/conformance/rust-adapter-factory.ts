@@ -8,21 +8,21 @@
  *
  * 所有库文件落在一个临时工作区里，用完由 {@link stopRustTestHost} 整个删掉。
  *
+ * 本目录一律从 `../src/index.js` 取符号，而不是像 electron 那边直接深入具体模块：套件搬进本包后
+ * `@aiao/rxdb-adapter-tauri` 变成自引用（`@nx/enforce-module-boundaries` 会直接报错），而这些
+ * 用例要验的恰好是**桶文件转出的那一份**——`DESKTOP_HOST_PROTOCOL_VERSION` 绕过桶去
+ * sqlite-core 取，验的就成了另一个包的常量，US-210 AC#10 那条机械链接会当场失效。
+ *
  * @module conformance/rust-adapter-factory
  */
 
 import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
-import {
-  DesktopSqliteClient,
-  RxDBAdapterTauri,
-  TAURI_ADAPTER_NAME,
-  type DesktopHostTransport
-} from '@aiao/rxdb-adapter-tauri';
 import type { EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DesktopSqliteClient, RxDBAdapterTauri, TAURI_ADAPTER_NAME, type DesktopHostTransport } from '../src/index.js';
 import { createRustHostTransport, rustDatabasePath, type RustHostProcess } from './rust-host-transport.js';
 
 interface RustTestHost {

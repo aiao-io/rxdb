@@ -223,6 +223,33 @@ describe('异步 source', () => {
     expect(seen.at(0)).toHaveProperty('message', expect.stringContaining('RxDB is not ready yet'));
     wrapper.unmount();
   });
+
+  // 同步抛出的工厂走的必须是同一条路径。不接住的话异常从 setup 里逃出去，
+  // 整棵子树挂掉 —— 而 `useRxDBOptional` 承诺的是 loading/error 态。三端逐字对齐。
+  it('routes a synchronously thrown factory error to the same failure slot', async () => {
+    const failure = new Error('storage unavailable');
+    const seen: unknown[] = [];
+    const Consumer = defineComponent({
+      setup: () => () => {
+        try {
+          RxDBVue.useRxDB();
+        } catch (error) {
+          seen.push(error);
+        }
+        return h('div');
+      }
+    });
+    const wrapper = mount(
+      createRxDBProviderHarness(() => {
+        throw failure;
+      }, Consumer)
+    );
+
+    await flushPromises();
+
+    expect(seen.at(-1)).toBe(failure);
+    wrapper.unmount();
+  });
 });
 
 // 所有权规则：provider 只销毁自己造的东西。调用方自己的实例或 Ref 不该被顺手断掉 ——

@@ -13,16 +13,16 @@
  * @vitest-environment happy-dom
  */
 
-import { TAURI_ADAPTER_NAME } from '@aiao/rxdb-adapter-tauri';
 import type { StorageFilesystem } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
 import { cp, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { TAURI_ADAPTER_NAME } from '../src/index.js';
 import { createRustHostTransport } from './rust-host-transport.js';
 
-/** 与 `src-tauri/src/rxdb/paths.rs` 的 `STORAGE_DIRECTORY` 逐字相同。 */
+/** 与 `rust/src/paths.rs` 的 `STORAGE_DIRECTORY` 逐字相同。 */
 const STORAGE_DIRECTORY = 'rxdb-files';
 
 /** 与 `src/app/setup_rxdb_desktop.ts` 的 `DESKTOP_STORAGE_ROOT_DIR` 逐字相同。 */

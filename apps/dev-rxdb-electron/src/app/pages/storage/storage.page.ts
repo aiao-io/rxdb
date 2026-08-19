@@ -1,6 +1,6 @@
+import { RxDB } from '@aiao/rxdb';
 import { StorageBackendError, type StorageBrowserEntry } from '@aiao/rxdb-plugin-storage';
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
-import { DesktopDatabaseService } from '../../services/desktop-database.service';
 
 /**
  * 生成测试内容用的分块大小。
@@ -71,7 +71,20 @@ interface VerifyResult {
   standalone: true
 })
 export default class StoragePage implements OnInit, OnDestroy {
-  private readonly desktopDatabase = inject(DesktopDatabaseService);
+  /**
+   * 本 app 唯一那个 RxDB 实例上的文件存储服务。
+   *
+   * @remarks
+   * US-207 E8：这里原先注入的是「桌面专用」的第二个 RxDB 实例，于是本页面只在
+   * Electron 窗口里有意义，`nx serve` 的浏览器预览一进来就炸。合并成单实例之后，
+   * 内容后端跟着 `selectLocalBackend()` 的同一次判定走：桌面窗口里是主进程的原生文件，
+   * 浏览器预览里是插件默认的 OPFS —— 页面代码一个字都不用变，这正是 US-504 想演示的。
+   *
+   * 取 `.storage` 而不是留着 RxDB 引用：插件在 `use()` 时就把它 `defineProperty` 到实例上，
+   * 本页面构造时（bootstrap 早已结束）必然已经在；多存一个 RxDB 字段只会诱使别处
+   * 绕过 storage 去动数据库。
+   */
+  private readonly storage = inject(RxDB).storage;
 
   /** 切换预览时先回收上一个，否则上一次的对象 URL 始终活着。 */
   private previewDispose: (() => void) | null = null;
@@ -119,7 +132,7 @@ export default class StoragePage implements OnInit, OnDestroy {
 
   createDirectory(name: string): Promise<void> {
     return this.run(async () => {
-      await this.desktopDatabase.storage.createDirectory(name, { path: this.currentPath() });
+      await this.storage.createDirectory(name, { path: this.currentPath() });
       await this.loadEntries();
     });
   }
@@ -161,7 +174,7 @@ export default class StoragePage implements OnInit, OnDestroy {
 
     return this.run(async () => {
       this.verifyResult.set(null);
-      const blob = await this.desktopDatabase.storage.read(entry.meta.id);
+      const blob = await this.storage.read(entry.meta.id);
       const bytes = await blob.arrayBuffer();
       this.verifyResult.set({
         name: entry.name,
@@ -175,7 +188,7 @@ export default class StoragePage implements OnInit, OnDestroy {
     if (entry.kind !== 'file') return Promise.resolve();
 
     return this.run(async () => {
-      const result = await this.desktopDatabase.storage.preview(entry.meta.id);
+      const result = await this.storage.preview(entry.meta.id);
       this.disposePreview();
       this.previewDispose = result.dispose;
       this.previewUrl.set(result.url);
@@ -185,14 +198,14 @@ export default class StoragePage implements OnInit, OnDestroy {
   download(entry: StorageBrowserEntry): Promise<void> {
     if (entry.kind !== 'file') return Promise.resolve();
 
-    return this.run(() => this.desktopDatabase.storage.download(entry.meta.id));
+    return this.run(() => this.storage.download(entry.meta.id));
   }
 
   rename(entry: StorageBrowserEntry, newName: string): Promise<void> {
     if (entry.kind !== 'file') return Promise.resolve();
 
     return this.run(async () => {
-      await this.desktopDatabase.storage.rename(entry.meta.id, newName, { overwrite: true });
+      await this.storage.rename(entry.meta.id, newName, { overwrite: true });
       await this.loadEntries();
     });
   }
@@ -201,7 +214,7 @@ export default class StoragePage implements OnInit, OnDestroy {
     if (entry.kind !== 'file') return Promise.resolve();
 
     return this.run(async () => {
-      await this.desktopDatabase.storage.delete(entry.meta.id);
+      await this.storage.delete(entry.meta.id);
       await this.loadEntries();
     });
   }
@@ -220,7 +233,7 @@ export default class StoragePage implements OnInit, OnDestroy {
    */
   private async initialize(): Promise<void> {
     try {
-      await this.desktopDatabase.storage.init();
+      await this.storage.init();
       await this.loadEntries();
     } catch (error) {
       this.status.set('failed');
@@ -240,11 +253,11 @@ export default class StoragePage implements OnInit, OnDestroy {
    * 读起来正是「这个目录里什么都没有」，而真相是它一个条目都没读到。
    */
   private async loadEntries(): Promise<void> {
-    this.entries.set(await this.desktopDatabase.storage.listEntries({ path: this.currentPath() }));
+    this.entries.set(await this.storage.listEntries({ path: this.currentPath() }));
   }
 
   private async uploadOne(file: File): Promise<void> {
-    await this.desktopDatabase.storage.upload(file, { path: this.currentPath(), overwrite: true });
+    await this.storage.upload(file, { path: this.currentPath(), overwrite: true });
   }
 
   /**

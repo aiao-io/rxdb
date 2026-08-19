@@ -2,7 +2,7 @@
  * JSON 传输编码的契约测试（US-210 AC#2 / AC#3）。
  *
  * @remarks
- * 这些 fixture 同时被 Rust 侧的 `src-tauri/src/rxdb/value.rs` 单测逐字复刻。
+ * 这些 fixture 同时被 Rust 侧的 `packages/rxdb-adapter-tauri/rust/src/value.rs` 单测逐字复刻。
  * 两边只要有一处走形，Tauri 传输就会在 rowId 或 blob 上悄悄丢数据——
  * 因此这里断言的是**编码后的 JSON 文本**，而不只是往返相等。
  */

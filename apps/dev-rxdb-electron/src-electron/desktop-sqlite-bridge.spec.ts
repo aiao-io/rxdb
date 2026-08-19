@@ -224,6 +224,24 @@ describe('createDesktopSqliteBridge', () => {
     });
   });
 
+  // 窗口可能恰好在 host 建会话的那一拍里销毁：那次 releaseTarget 扫到的归属表里还没有这条
+  // 记录，等 open 应答回来再登记，会话就挂在一个不会再有回收时机的窗口名下 ——
+  // 它一直占着连接与 WAL，直到整个应用退出。
+  it('窗口在 open 途中销毁时不登记会话，并当场把它关掉', async () => {
+    const target = createTarget();
+
+    const opening = bridge.handle(target, {
+      kind: 'open',
+      storage: { engine: 'sqlite', databaseName: 'doomed.sqlite3' },
+      batchTimeout: 0
+    });
+    target.alive = false;
+
+    expect(await opening).toMatchObject({ kind: 'error', code: 'session_closed' });
+    expect(bridge.releaseTarget(target)).toBe(0);
+    expect(bridge.openSessionCount).toBe(0);
+  });
+
   // 正常 disconnect 后窗口才关是最常见的顺序；映射不清就是每开一次库泄漏一个条目，
   // 长跑的应用最终会拿着一堆早已作废的 sessionId。
   it('会话显式关闭后不再挂在窗口名下', async () => {

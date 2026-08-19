@@ -9,13 +9,10 @@ import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginStorage, type RxDBStoragePluginOptions } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
-import { isPlatformBrowser } from '@angular/common';
-import { inject, PLATFORM_ID } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { DESKTOP_DEMO_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
-
-let rxdb: RxDB | null | undefined;
 
 /**
  * 文件内容在存储根下的子目录名（US-505）。
@@ -26,19 +23,6 @@ let rxdb: RxDB | null | undefined;
  * 名字 —— 两个 demo 的磁盘布局一致，才谈得上「换掉的只是宿主」。
  */
 export const DESKTOP_STORAGE_ROOT_DIR = 'files';
-
-/**
- * 桌面后端的逻辑库名（落盘为 `rxdb-data/desktop_demo@<schema>.sqlite3`）。
- *
- * @remarks
- * 与浏览器预览的 `test_6` **必须不同名**，且这条已经由 `selectLocalBackend` 的候选表校验
- * 强制：两个候选写的是两个永不互通的物理存储（Rust 宿主的原生文件 vs WebView 的 OPFS），
- * 共用一个逻辑名等于让「现在连的是哪个库」这个问题没有答案。
- *
- * 取值与 Electron demo 的 `DESKTOP_DEMO_DB_NAME` 一致 —— 两个 demo 摆在一起时，
- * 磁盘布局与库名都对得上，差别才真的只剩宿主。
- */
-export const DESKTOP_DEMO_DB_NAME = 'desktop_demo';
 
 /**
  * 桌面文件后端的 storage 插件选项。
@@ -61,7 +45,6 @@ export const createDesktopStorageOptions = (transport: DesktopHostTransport): Rx
  * 构建本 app 的 RxDB 单例（Tauri 宿主持有的应用作用域 SQLite 文件，无远端同步）。
  *
  * @returns 已 `init()` 但**尚未 `connect()`** 的 RxDB 实例；连接由 `connectRxDB` 负责
- * @throws 运行在非浏览器运行时（SSR）时抛出
  *
  * @remarks
  * US-210：与 `setup_rxdb_wa-sqlite.ts` 同构 —— 相同实体集、同样纯本地。数据落在
@@ -74,14 +57,16 @@ export const createDesktopStorageOptions = (transport: DesktopHostTransport): Rx
  * 选路由 `setup_rxdb.ts` 的候选表 + `local-backend.ts` 的 `selectLocalBackend` 负责，
  * 本模块只在 Tauri 窗口里被调用。
  *
- * 必须在注入上下文中调用（读 `PLATFORM_ID`）。实例按模块作用域缓存，重复调用返回同一个。
+ * **本模块不调用 `inject()`。** 它经由动态 `import()` 加载（US-207 E11），调用点已经在
+ * 至少一个 `await` 之后 —— 注入上下文那时已经离开，`inject()` 会以 NG0203 失败。
+ * 浏览器运行时那道闸因此上移到 `app.config.ts` 的 `provideRxDB` 工厂里，在 `await` 之前执行；
+ * 连接与拆卸则分别归 `startLocalDatabase` 与 `provideRxDB` 自己（工厂产出的实例由它负责销毁）。
+ *
+ * 模块级单例也一并去掉了：唯一的调用点是 `setup_rxdb.ts` 的 `localDatabase()`，
+ * 那里已经把建库 Promise 记住了。两层缓存等于两个「哪个才是本 app 的实例」的答案。
  */
 export default () => {
-  const isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
-  if (!isBrowser) throw new Error('dev-rxdb-tauri requires a browser runtime');
-
-  if (rxdb) return rxdb;
-  rxdb = new RxDB({
+  const rxdb = new RxDB({
     dbName: DESKTOP_DEMO_DB_NAME,
     context: { userId: 'userId' },
     // `DesktopLaunch` 两个后端都要注册：AC#1 的判据是跨进程累计计数，而计数只有在

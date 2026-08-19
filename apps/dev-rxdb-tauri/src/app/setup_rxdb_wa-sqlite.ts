@@ -4,40 +4,34 @@ import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { checkOPFSAvailable } from '@aiao/utils';
-import { APP_BASE_HREF, isPlatformBrowser } from '@angular/common';
-import { inject, PLATFORM_ID } from '@angular/core';
+import { WEB_PREVIEW_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
 import { selectWaSqliteBackend } from './wa-sqlite-backend';
-
-let rxdb: RxDB | null | undefined;
-
-/**
- * 浏览器预览后端的逻辑库名（落在 WebView 的 OPFS/IDB 里）。
- *
- * @remarks
- * 与其余三个 web demo 取同一个名字；桌面那份另叫 `desktop_demo`，理由见
- * `setup_rxdb_desktop.ts` 的 {@link DESKTOP_DEMO_DB_NAME}。
- */
-export const WEB_PREVIEW_DB_NAME = 'test_6';
 
 /**
  * 构建本 app 的 RxDB 单例（纯本地 wa-sqlite，无远端同步）。
  *
  * @returns 已 `init()` 但**尚未 `connect()`** 的 RxDB 实例；连接由 `connectRxDB` 负责
- * @throws 运行在非浏览器运行时（SSR）时抛出
  *
  * @remarks
- * 必须在注入上下文中调用（读 `PLATFORM_ID` 与 `APP_BASE_HREF`）。
- * 实例按模块作用域缓存，重复调用返回同一个。
+ * 这条分支只在**非** Tauri 运行时被选中 —— 也就是 `nx serve dev-rxdb-tauri` 直接开浏览器
+ * 预览的场景。打包后的 Tauri 窗口一律走 `setup_rxdb_desktop.ts`。
+ *
+ * **本模块不调用 `inject()`。** 它经由动态 `import()` 加载（US-207 E11），调用点已经在
+ * 至少一个 `await` 之后 —— 注入上下文那时已经离开，`inject()` 会以 NG0203 失败。
+ * 浏览器运行时那道闸因此上移到 `app.config.ts` 的 `provideRxDB` 工厂里，在 `await` 之前执行。
+ *
+ * wasm 路径随之从 `APP_BASE_HREF` 改为相对 `document.baseURI` 解析（与 Electron demo 同一
+ * 写法）：解析结果是绝对 URL，而 worker 里的相对路径本来是按 **worker 脚本**的位置解析的 ——
+ * 两者恰好都能用，但后者纯属巧合。
+ *
+ * 模块级单例也一并去掉了：唯一的调用点是 `setup_rxdb.ts` 的 `localDatabase()`，
+ * 那里已经把建库 Promise 记住了。两层缓存等于两个「哪个才是本 app 的实例」的答案。
  */
 export default () => {
-  const isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
-  if (!isBrowser) throw new Error('dev-rxdb-tauri requires a browser runtime');
+  const wasmBase = new URL('wa-sqlite/', document.baseURI).href;
 
-  const baseHref = inject(APP_BASE_HREF);
-
-  if (rxdb) return rxdb;
-  rxdb = new RxDB({
+  const rxdb = new RxDB({
     dbName: WEB_PREVIEW_DB_NAME,
     context: { userId: 'userId' },
     // `DesktopLaunch` 两个后端都注册，理由见 `setup_rxdb_desktop.ts` 同一处。
@@ -76,7 +70,7 @@ export default () => {
             name: 'rxdb-wa-sqlite-worker'
           }),
           workerOwnership: 'client',
-          wasmPath: `${baseHref}wa-sqlite/wa-sqlite.wasm`
+          wasmPath: `${wasmBase}wa-sqlite.wasm`
         };
       } else if (backend === 'IDBBatchAtomicVFS') {
         options = {
@@ -87,7 +81,7 @@ export default () => {
             name: 'rxdb-wa-sqlite-shared-worker'
           }),
           workerOwnership: 'client',
-          wasmPath: `${baseHref}wa-sqlite/wa-sqlite-async.wasm`
+          wasmPath: `${wasmBase}wa-sqlite-async.wasm`
         };
       } else {
         throw new Error('wa-sqlite requires OPFS or SharedWorker support');

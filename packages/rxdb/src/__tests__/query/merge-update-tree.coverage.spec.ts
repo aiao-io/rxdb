@@ -167,7 +167,8 @@ describe('merge-update-tree direct coverage', () => {
       expect(stale.label).toBe('before');
     });
 
-    it('retains and patches a moved result when updated serialization is unavailable', () => {
+    it('removes a moved result using patch.parentId when updated serialization is unavailable', () => {
+      // 无序列化时不能保守保留：patch.parentId 已经证明节点离开了目标子树
       const child = createNode('child', 'root');
       const updates = [createUpdate('child', { parentId: 'outside', label: 'after' }, { parentId: 'root' })];
       const { task, next } = createFindDescendantsTask({ entityId: 'root' }, [child]);
@@ -179,8 +180,28 @@ describe('merge-update-tree direct coverage', () => {
         createCache(updates, [['child', undefined]])
       );
 
-      expect(idsOf(next.mock.calls[0][0])).toEqual(['child']);
-      expect(next.mock.calls[0][0][0]).toMatchObject({ parentId: 'outside', label: 'after' });
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(idsOf(next.mock.calls[0][0])).toEqual([]);
+    });
+
+    it('judges level by the serialized parentId when the event patch is stale', () => {
+      // 迟到事件：patch 还停留在「grand 挂到 root」那一版，序列化结果已是最新的 child。
+      // 序列化侧带 P0-004 单调性守卫，层级必须按它判定，把 grand 从 level=1 结果里摘掉。
+      const root = createNode('root', null);
+      const child = createNode('child', 'root');
+      const grand = createNode('grand', 'child');
+      const updates = [createUpdate('grand', { id: 'grand', parentId: 'root' }, { parentId: 'child' })];
+      const { task, next } = createFindDescendantsTask({ entityId: 'root', level: 1 }, [root, child, grand]);
+
+      handleFindDescendantsUpdate(
+        task,
+        updates,
+        createClassification({ updatedIds: ['grand'], matchNowIds: ['grand'] }),
+        createCache(updates, [['grand', createNode('grand', 'child')]])
+      );
+
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(idsOf(next.mock.calls[0][0])).toEqual(['root', 'child']);
     });
 
     it('removes newly unmatched entities and patches retained descendants', () => {

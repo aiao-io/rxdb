@@ -182,7 +182,7 @@ impl Host {
     /// `pub(crate)`：除了 renderer 发来的 `close`，[`DesktopRouter::close_owner`] 也要按 id
     /// 关会话——窗口销毁后不会再有任何一条 renderer 请求来关它。
     ///
-    /// [`DesktopRouter::close_owner`]: crate::rxdb::router::DesktopRouter::close_owner
+    /// [`DesktopRouter::close_owner`]: crate::router::DesktopRouter::close_owner
     pub(crate) fn close(&self, session_id: &str) -> HostResult<Value> {
         let engine = self.take_session(session_id)?;
         engine.lock().expect("engine mutex poisoned").close()?;

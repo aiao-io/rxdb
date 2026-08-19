@@ -3,7 +3,7 @@
  *
  * @remarks
  * 线协议版本号在仓库里有两份：TS 的 `DESKTOP_HOST_PROTOCOL_VERSION` 与 Rust 的
- * `PROTOCOL_VERSION`（`src-tauri/src/rxdb/protocol.rs`）。两者之间没有任何机械联系——
+ * `PROTOCOL_VERSION`（`rust/src/protocol.rs`）。两者之间没有任何机械联系——
  * 改了一侧，另一侧的测试一条不红。Rust 侧原有的断言只证明「应答里出现了**它自己的**常量」，
  * 而客户端单测里「host 报 99 则拒连」验的是共享层的拒绝动作，绑不住手抄的那个数字。
  *
@@ -15,23 +15,23 @@
  * 同一个 TS 常量，没有第二份真相源可漂）。
  */
 
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
 import {
   assertDesktopHostResponse,
   DESKTOP_HOST_PROTOCOL_VERSION,
   DesktopSqliteClient,
   RxDBAdapterDesktopError,
   type DesktopHostTransport
-} from '@aiao/rxdb-adapter-tauri';
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+} from '../src/index.js';
 import { createRustHostTransport } from './rust-host-transport.js';
 
 /**
  * Rust 常量的所在文件，与 {@link RUST_PROTOCOL_VERSION_PATTERN} 一起构成两份常量之间的机械链接。
  */
-const RUST_PROTOCOL_SOURCE = join(import.meta.dirname, '..', 'src-tauri', 'src', 'rxdb', 'protocol.rs');
+const RUST_PROTOCOL_SOURCE = join(import.meta.dirname, '..', 'rust', 'src', 'protocol.rs');
 
 /**
  * 抓 `pub const PROTOCOL_VERSION: i64 = <n>;`。
@@ -122,7 +122,7 @@ describe('Rust 宿主的协议握手', () => {
  *
  * @remarks
  * 宿主进程由 `RXDB_HOST_STDIO_PROTOCOL_VERSION` 强行报一个不同的版本号。改写只在
- * stdio 测试二进制里，产品代码一行不动——见 `src-tauri/src/bin/rxdb_host_stdio.rs` 模块头。
+ * stdio 测试二进制里，产品代码一行不动——见 `rust/src/bin/rxdb_host_stdio.rs` 模块头。
  * 它按 JSON 指针 `/result/protocolVersion` 改写，`handshake` 与 `open` 两族应答因此都被盖到。
  *
  * 这组用例盯的是**顺序**：版本协商排在 `open` 之前，所以一次注定失败的连接既不泄漏会话、

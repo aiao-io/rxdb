@@ -43,27 +43,37 @@
           <svg [lucideIcon]="Database" aria-hidden="true" size="20"></svg>
           数据库状态
         </h2>
+        <!--
+          US-207 E9：本地适配器名此前是模板里写死的一行字。它在 Tauri 窗口里**永远是错的** ——
+          那里选中的是宿主持有的原生 SQLite，卡片却言之凿凿地写着 wa-sqlite。现在两个字段
+          都从 `selectLocalBackend` 的判定结果直接读出，与真正 `connect()` 的适配器同源。
+        -->
         <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-          <dt class="font-medium">数据库</dt>
-          <dd>RxDB</dd>
           <dt class="font-medium">本地适配器</dt>
-          <dd>wa-sqlite</dd>
+          <dd class="font-mono" data-testid="rxdb-backend">{{ backend }}</dd>
+          <dt class="font-medium">库名</dt>
+          <dd class="font-mono" data-testid="rxdb-db-name">{{ dbName }}</dd>
         </dl>
         @switch (databaseStatus()) {
           @case ('ready') {
-            <div class="badge badge-success gap-2">
+            <div class="badge badge-success gap-2" data-testid="rxdb-status">
               <svg [lucideIcon]="CircleCheck" aria-hidden="true" size="14"></svg>
               已连接
             </div>
+            <p class="text-sm opacity-70">
+              累计启动次数：
+              <span class="font-mono font-bold" data-testid="rxdb-launch-count">{{ launchCount() }}</span>
+            </p>
+            <p class="text-xs opacity-50">关闭应用再打开，这个数字应当 +1 —— 数据存活于 WebView 之外。</p>
           }
           @case ('error') {
-            <div class="alert alert-error">
+            <div class="alert alert-error" data-testid="rxdb-status">
               <svg [lucideIcon]="CircleAlert" aria-hidden="true" size="18"></svg>
-              <span>{{ databaseError() }}</span>
+              <span data-testid="rxdb-error">{{ databaseError() }}</span>
             </div>
           }
           @default {
-            <div class="badge badge-ghost gap-2">
+            <div class="badge badge-ghost gap-2" data-testid="rxdb-status">
               <span class="loading loading-spinner loading-xs"></span>
               正在连接
             </div>

@@ -37,6 +37,7 @@ describe('startLocalDatabase', () => {
   /** 造一套协作方，并把连接失败真的反映到 `$error` 上（真实的 state 就是这么联动的）。 */
   const startup = (
     overrides: {
+      open?: () => Promise<unknown>;
       connect?: () => Promise<unknown>;
       record?: () => Promise<number>;
     } = {}
@@ -57,12 +58,16 @@ describe('startLocalDatabase', () => {
       order,
       markFailed,
       startup: {
-        database: {
-          connect: async () => {
-            order.push('connect');
-            await (overrides.connect ?? (() => Promise.resolve({})))();
-          }
-        } as never,
+        openDatabase: async () => {
+          order.push('open');
+          await (overrides.open ?? (() => Promise.resolve({})))();
+          return {
+            connect: async () => {
+              order.push('connect');
+              await (overrides.connect ?? (() => Promise.resolve({})))();
+            }
+          } as never;
+        },
         state: { markFailed, $error: () => error },
         launches: {
           record: async () => {
@@ -80,17 +85,32 @@ describe('startLocalDatabase', () => {
   };
 
   /**
-   * US-210 AC#9：三步必须**按序**发生。
+   * US-210 AC#9：四步必须**按序**发生。
    *
    * Angular 的多个 initializer 是并发跑的，所以把它们串起来是本函数存在的全部理由；
    * 顺序一旦松掉，故障形态是「写入偶发地先于连接完成」——只在慢机器上出现。
    */
-  it('先连接、再记一次启动、最后带着次数上报', async () => {
+  it('先建库、再连接、再记一次启动、最后带着次数上报', async () => {
     const context = startup({ record: () => Promise.resolve(7) });
     await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
-    expect(context.order).toEqual(['connect', 'record', 'report']);
+    expect(context.order).toEqual(['open', 'connect', 'record', 'report']);
     expect(context.reports).toEqual([{ status: 'ok', launchCount: 7 }]);
     expect(context.markFailed).not.toHaveBeenCalled();
+  });
+
+  /**
+   * US-207 E11：建库本身现在是异步的（后端实现走动态 `import()`），于是多了一种新的失败
+   * 方式 —— chunk 取不回来。让它顺着 initializer 抛上去就退回了 TAURI-01 的白屏，而且这一次
+   * 连 `RxDBConnectionState` 都还没被写过，诊断面板里连个原因都没有；自检那条路径上则只剩
+   * 一次 60s 看门狗超时。
+   */
+  it('建库失败时不得让 bootstrap 中止，且要把根因同时写进状态与报告', async () => {
+    const failure = new Error('Failed to fetch dynamically imported module');
+    const context = startup({ open: () => Promise.reject(failure) });
+    await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
+    expect(context.order).toEqual(['open', 'report']);
+    expect(context.markFailed).toHaveBeenCalledWith(failure);
+    expect(context.reports).toEqual([{ status: 'failed', message: 'Failed to fetch dynamically imported module' }]);
   });
 
   /**
@@ -100,7 +120,7 @@ describe('startLocalDatabase', () => {
   it('连接失败时上报根因，且不再去写启动记录', async () => {
     const context = startup({ connect: () => Promise.reject(new Error('OPFS 不可用')) });
     await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
-    expect(context.order).toEqual(['connect', 'report']);
+    expect(context.order).toEqual(['open', 'connect', 'report']);
     expect(context.reports).toEqual([{ status: 'failed', message: 'OPFS 不可用' }]);
   });
 

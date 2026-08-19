@@ -11,7 +11,7 @@
 
 use std::collections::{HashMap, VecDeque};
 
-use crate::rxdb::error::{ErrorCode, HostError, HostResult};
+use crate::error::{ErrorCode, HostError, HostResult};
 
 use super::protocol::LockMode;
 

@@ -258,6 +258,7 @@ jobs:
           DOC_CODE_JSON=$(projects_json check-doc-code)
           API_DOCS_JSON=$(projects_json api-docs)
           AUDIT_SECRETS_JSON=$(projects_json audit-secrets)
+          LAZY_BACKEND_JSON=$(projects_json audit-lazy-backend)
 
           # lint / typecheck / spec-typecheck 合成一个 job 跑，项目集取并集
           # （三者的 target 归属并不总是重合）。
@@ -269,13 +270,17 @@ jobs:
           ACCEPTANCE=$(jq -r 'sort | join(",")' <<<"$ACCEPTANCE_JSON")
           RUST=$(jq -r 'sort | join(",")' <<<"$RUST_JSON")
 
-          # extras：三个此前完全没进过 CI 的 target，共用一个 job。
-          #   check-doc-code  文档里的代码块能否编译（website）
-          #   api-docs        TypeDoc 能否产出（website）—— 挂了等于发布日才发现文档站崩了
-          #   audit-secrets   扫**已构建产物**里有没有泄漏的凭据（dev-rxdb-supabase）；
-          #                   它 dependsOn build，是这一组里唯一有安全含义的门禁
+          # extras：四个不属于常规 lane 的 target，共用一个 job。前三个此前完全没进过 CI。
+          #   check-doc-code     文档里的代码块能否编译（website）
+          #   api-docs           TypeDoc 能否产出（website）—— 挂了等于发布日才发现文档站崩了
+          #   audit-secrets      扫**已构建产物**里有没有泄漏的凭据（dev-rxdb-supabase）
+          #   audit-lazy-backend 扫**已构建产物**里桌面后端有没有被摇进首屏图
+          #                      （dev-rxdb-electron / dev-rxdb-tauri，US-207 E11）
+          # 后两个都 dependsOn build，也是这一组里仅有的两道有安全/隐私含义的门禁 ——
+          # 前者防凭据外泄，后者防桌面传输客户端代码进浏览器 bundle（US-505 AC#10）。
           EXTRAS=$(jq -r -n --argjson a "$DOC_CODE_JSON" --argjson b "$API_DOCS_JSON" --argjson c "$AUDIT_SECRETS_JSON" \
-            '($a + $b + $c) | unique | join(",")')
+            --argjson d "$LAZY_BACKEND_JSON" \
+            '($a + $b + $c + $d) | unique | join(",")')
 
           # 每个 (项目, target) 一个 e2e job。不写死清单：新增 e2e 应用自动进矩阵。
           # e2e-remote 需要本地 Supabase 栈，本地 e2e 不需要。
@@ -350,7 +355,7 @@ jobs:
             echo "| coverage-acceptance | $(jq -r 'length' <<<"$ACCEPTANCE_JSON") | \`$ACCEPTANCE\` |"
             echo "| e2e | $(jq -r '.include | length' <<<"$E2E_MATRIX") | \`$(jq -r '.include | map(.project + ":" + .target) | join(", ")' <<<"$E2E_MATRIX")\` |"
             echo "| rust | $(jq -r 'length' <<<"$RUST_JSON") | \`$RUST\` |"
-            echo "| extras | $(jq -r -n --argjson a "$DOC_CODE_JSON" --argjson b "$API_DOCS_JSON" --argjson c "$AUDIT_SECRETS_JSON" '($a+$b+$c)|unique|length') | \`$EXTRAS\` |"
+            echo "| extras | $(jq -r -n --argjson a "$DOC_CODE_JSON" --argjson b "$API_DOCS_JSON" --argjson c "$AUDIT_SECRETS_JSON" --argjson d "$LAZY_BACKEND_JSON" '($a+$b+$c+$d)|unique|length') | \`$EXTRAS\` |"
             echo
 
             # job 名里只有 label（`test (rxdb-adapter-pglite +8)`），lane 序号只在
@@ -709,8 +714,8 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Rust 侧的门禁。`lint` / `test` 两个 job 走的都是 `nx run-many -t lint test`，
-  # 而 Tauri 宿主的 target 叫 cargo-clippy / cargo-test / test-conformance ——
-  # 名字对不上，于是 src-tauri/ 下的几千行 Rust 在别的 job 里一行都不会被编译。
+  # 而 Rust 的 target 叫 cargo-clippy / cargo-test / test-conformance ——
+  # 名字对不上，于是那几千行 Rust 在别的 job 里一行都不会被编译。
   # 单开一个 job 而不是并进 lint/test：它要 Rust 工具链和一整套 GTK/WebKit 系统库，
   # 让每条 test lane 都背上这份安装成本是纯亏。
   rust:
@@ -756,6 +761,12 @@ jobs:
       # pnpm store —— 「加缓存」反而让别的 job 冷跑。
       # 现在 key 只由 Cargo.lock 决定：lockfile 不变就只有一份，命中即精确命中，
       # save 步骤会自动跳过（同 key 已存在）。
+      #
+      # 两个 target 目录、两份 lockfile：宿主 crate 在 packages/rxdb-adapter-tauri/rust，
+      # demo 应用在 apps/dev-rxdb-tauri/src-tauri 且 path 依赖前者（US-210 T2/T6）。
+      # 刻意**不建 cargo workspace**：那会把 target/ 挪到仓库根，连带 HOST_BINARY、
+      # e2e 的二进制路径、.gitignore 与本处 key 全要改一遍。代价是 rusqlite(bundled)
+      # 在两个目录里各编一次。
       - name: Restore cargo cache
         id: cargo-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -765,7 +776,8 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             apps/dev-rxdb-tauri/src-tauri/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('apps/dev-rxdb-tauri/src-tauri/Cargo.lock') }}
+            packages/rxdb-adapter-tauri/rust/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('apps/dev-rxdb-tauri/src-tauri/Cargo.lock', 'packages/rxdb-adapter-tauri/rust/Cargo.lock') }}
           restore-keys: |
             cargo-${{ runner.os }}-
 
@@ -773,8 +785,9 @@ jobs:
       # 再跑一遍只是换个 cargo 缓存目录把依赖树重编一次。
       #
       # test-conformance 自带 `dependsOn: build-test-host`，Nx 会先编出 stdio 宿主二进制。
-      # --parallel=1：三个 target 共享同一个 src-tauri/target/ 目录，cargo 的文件锁会让
-      # 并行退化成串行等待，还看不出是在等谁。
+      # --parallel=1：同一个 target/ 目录下的几个 target 会撞上 cargo 的文件锁，
+      # 并行退化成串行等待，还看不出是在等谁。两个项目之间本可以并行，但 Nx 的
+      # --parallel 是全局的，分不出这个粒度。
       - name: Rust gates
         env:
           PROJECTS: ${{ needs.setup.outputs.rust_projects }}
@@ -795,16 +808,22 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             apps/dev-rxdb-tauri/src-tauri/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('apps/dev-rxdb-tauri/src-tauri/Cargo.lock') }}
+            packages/rxdb-adapter-tauri/rust/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('apps/dev-rxdb-tauri/src-tauri/Cargo.lock', 'packages/rxdb-adapter-tauri/rust/Cargo.lock') }}
 
   # ---------------------------------------------------------------------------
-  # extras：三个此前完全没进过 CI 的 target，共用一个 job（各自单开要多交三次
-  # ~74s 的 checkout + pnpm install，还多占两个并发位）。
+  # extras：四个进不了别的 job 的 target，共用一个 job（各自单开要多交四次
+  # ~74s 的 checkout + pnpm install，还多占三个并发位）。
   #
-  #   check-doc-code  文档里的代码块能否编译 —— 文档腐烂唯一的自动化防线
-  #   api-docs        TypeDoc 能否产出；挂了会在发布文档站那天才暴露
-  #   audit-secrets   扫**构建产物**里有没有泄漏的凭据（dependsOn build）。
-  #                   这一组里唯一有安全含义的门禁，此前从没跑过。
+  #   check-doc-code      文档里的代码块能否编译 —— 文档腐烂唯一的自动化防线
+  #   api-docs            TypeDoc 能否产出；挂了会在发布文档站那天才暴露
+  #   audit-secrets       扫**构建产物**里有没有泄漏的凭据（dependsOn build）。
+  #                       这一组里唯一有安全含义的门禁，此前从没跑过。
+  #   audit-lazy-backend  桌面 demo 的两条本地后端分支是否真的按需加载（dependsOn build）。
+  #                       US-207 E11 的原话是「改后需有产物断言，否则这条只是口头承诺」——
+  #                       它读的是打包结果，因此和 audit-secrets 一样只能落在这个 job 里。
+  #
+  # 后两个都带 `dependsOn: ["build"]`，这也正是它们不能并进 setup 那个免构建门禁 job 的原因。
   extras:
     name: extras
     needs: setup
@@ -819,7 +838,9 @@ jobs:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
         with:
-          # audit-secrets 要先 build dev-rxdb-supabase（Angular 生产构建）。
+          # 两道产物审计各自要先 build：audit-secrets 建 dev-rxdb-supabase，
+          # audit-lazy-backend 再建 dev-rxdb-electron 与 dev-rxdb-tauri ——
+          # 三个 Angular 生产构建，加上下面 TypeDoc 那 26 个包的产物。
           free-disk: 'true'
       - uses: ./.github/actions/nx-cache-restore
 
@@ -838,19 +859,19 @@ jobs:
           echo "typedoc packages: $TYPEDOC_PKGS"
           pnpm exec nx run-many -t build -p "$TYPEDOC_PKGS" --output-style=stream
 
-      # 不加 --nxBail：一轮看全三个的结果。
+      # 不加 --nxBail：一轮看全四个的结果。
       #
-      # --parallel=1 是刻意的，不是保守：audit-secrets 声明 `dependsOn: ["build"]`，
-      # 会把 dev-rxdb-supabase 依赖的那批 @aiao 包全建一遍；而 api-docs 的 TypeDoc
+      # --parallel=1 是刻意的，不是保守：两道产物审计都声明 `dependsOn: ["build"]`，
+      # 会把三个 demo 依赖的那批 @aiao 包全建一遍；而 api-docs 的 TypeDoc
       # 带 `skipErrorChecking: false`，正在对同一批包做完整 TS 编译。两者并发就是
       # 「一边写包产物一边编译同一个包」，本仓库已经在 website:build 上吃过这个亏
-      # （被 Nx 标成 flaky，串行跑则稳定绿）。这三个 target 加起来也就几分钟，
+      # （被 Nx 标成 flaky，串行跑则稳定绿）。这四个 target 加起来也就几分钟，
       # 30 分钟预算足够，没必要拿确定性换这点墙钟。
-      - name: Docs and secret gates
+      - name: Docs and artifact gates
         env:
           PROJECTS: ${{ needs.setup.outputs.extras_projects }}
         run: |
-          pnpm exec nx run-many -t check-doc-code api-docs audit-secrets \
+          pnpm exec nx run-many -t check-doc-code api-docs audit-secrets audit-lazy-backend \
             -p "$PROJECTS" --output-style=stream --parallel=1
 
   # ---------------------------------------------------------------------------
