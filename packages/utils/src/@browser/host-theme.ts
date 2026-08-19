@@ -51,8 +51,9 @@ const isWujieHost = (value: unknown): value is WujieHost => isRecord(value);
  */
 export function parseResolvedTheme(value: unknown): ResolvedTheme {
   if (value === 'dark' || value === 'light') return value;
-  if (isRecord(value) && (value.theme === 'dark' || value.theme === 'light')) {
-    return value.theme;
+  if (isRecord(value)) {
+    const theme = value['theme'];
+    if (theme === 'dark' || theme === 'light') return theme;
   }
   return 'light';
 }
@@ -64,10 +65,14 @@ export function parseResolvedTheme(value: unknown): ResolvedTheme {
  */
 export function getWujieHost(target: unknown = globalThis): WujieHost | undefined {
   if (!isRecord(target)) return undefined;
-  if (isWujieHost(target.$wujie)) return target.$wujie;
+  const direct = target['$wujie'];
+  if (isWujieHost(direct)) return direct;
 
-  const nested = target.window;
-  if (isRecord(nested) && isWujieHost(nested.$wujie)) return nested.$wujie;
+  const nested = target['window'];
+  if (isRecord(nested)) {
+    const nestedHost = nested['$wujie'];
+    if (isWujieHost(nestedHost)) return nestedHost;
+  }
   return undefined;
 }
 
@@ -105,7 +110,7 @@ export function subscribeHostTheme(
 
   const handler = (event: Event) => {
     const data = (event as MessageEvent).data;
-    if (!isRecord(data) || data.type !== 'setTheme') return;
+    if (!isRecord(data) || data['type'] !== 'setTheme') return;
     onTheme(parseResolvedTheme(data));
   };
   eventTarget.addEventListener('message', handler);
