@@ -20,6 +20,9 @@
       "path": "../../packages/utils/tsconfig.lib.json"
     },
     {
+      "path": "../../modules/wujie/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-vue/tsconfig.lib.json"
     },
     {

@@ -49,7 +49,7 @@ test('static hosting falls back to the demo host page for deep links', () => {
 
 test('wujie host syncs routes in both directions behind the shared protocol', () => {
   const source = readFileSync(join(root, 'src/components/DemoMicroAppClient.tsx'), 'utf8');
-  // 协议本身（归一化、name 过滤、TTL 闸门）由 packages/utils 的 host-route.spec.ts 覆盖，这里只锁接线
+  // 协议本身（归一化、name 过滤、TTL 闸门）由 modules/wujie 的 host-route.spec.ts 覆盖，这里只锁接线
   assert.match(source, /useLocation/, 'host should read its own pathname from the Docusaurus router');
   assert.match(source, /emitHostRoute\(bus, name/, 'host should push its path down to the sub-app');
   assert.match(source, /subscribeSubRoute/, 'host should subscribe to the sub-app route reports');
@@ -78,7 +78,7 @@ test('sub-apps bind the wujie route adapter at bootstrap', () => {
 
 test('wujie host wires the shared cssLoader and the theme bus', () => {
   const source = readFileSync(join(root, 'src/components/DemoMicroAppClient.tsx'), 'utf8');
-  // 选择器改写的行为由 packages/utils 的 shadow-css.spec.ts 覆盖，这里只锁接线
+  // 选择器改写的行为由 modules/wujie 的 shadow-css.spec.ts 覆盖，这里只锁接线
   assert.match(source, /cssLoader:\s*rewriteShadowCss/, 'cssLoader should use the shared rewriteShadowCss');
   assert.doesNotMatch(source, /rewriteRootToHost/, 'the local :root→:host hack should be gone');
   assert.match(source, /WujieReact\.bus/);

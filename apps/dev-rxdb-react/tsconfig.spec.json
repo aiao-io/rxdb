@@ -35,6 +35,9 @@
       "path": "../../packages/utils/tsconfig.lib.json"
     },
     {
+      "path": "../../modules/wujie/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-test/tsconfig.lib.json"
     },
     {

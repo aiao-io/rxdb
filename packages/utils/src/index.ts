@@ -8,7 +8,6 @@
 /**
  * 浏览器特定 API 封装
  * - IdleTimer: 空闲计时器
- * - host-theme: 文档站 / 无界宿主主题协议
  * - leader-election: Leader 选举
  * - broadcast-channel-pool: 广播频道池
  * - opfs-detection: OPFS 检测
