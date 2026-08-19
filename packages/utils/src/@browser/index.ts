@@ -10,16 +10,6 @@
 export * from './broadcast-channel-pool.js';
 
 /**
- * 文档站 / 无界宿主路由协议
- */
-export * from './host-route.js';
-
-/**
- * 文档站 / 无界宿主主题协议
- */
-export * from './host-theme.js';
-
-/**
  * 空闲计时器
  */
 export * from './IdleTimer.js';
@@ -55,8 +45,3 @@ export * from './persisted-state.js';
  * requestIdleCallback 兼容实现。
  */
 export * from './requestIdleCallbackPolyfill.js';
-
-/**
- * 无界 Shadow DOM 的 daisyUI 样式改写
- */
-export * from './shadow-css.js';

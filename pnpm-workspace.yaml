@@ -1,6 +1,9 @@
 packages:
   - 'packages/*'
   - 'apps/*'
+  # modules/ 其余成员只靠 tsconfig paths 被消费，不必进 workspace；wujie 是唯一例外：
+  # Docusaurus 的 webpack 不认 tsconfig paths，只能顺着 node_modules 软链找它。
+  - 'modules/wujie'
   - 'website'
   - 'benchmarks'
   - '!examples/*'

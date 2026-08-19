@@ -1,4 +1,4 @@
-import { getWujieHost, parseResolvedTheme, requestHostTheme, subscribeHostTheme } from '@aiao/utils';
+import { getWujieHost, parseResolvedTheme, requestHostTheme, subscribeHostTheme } from '@modules/wujie';
 import { useEffect, useState } from 'react';
 
 const THEME_KEY = 'theme';

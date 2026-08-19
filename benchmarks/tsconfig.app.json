@@ -34,6 +34,9 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
+      "path": "../modules/wujie/tsconfig.lib.json"
+    },
+    {
       "path": "../packages/utils/tsconfig.lib.json"
     },
     {

@@ -15,7 +15,7 @@
       "path": "../packages/code-editor-react"
     },
     {
-      "path": "../packages/utils"
+      "path": "../modules/wujie"
     }
   ]
 }

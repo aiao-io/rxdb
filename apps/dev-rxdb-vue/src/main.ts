@@ -1,4 +1,5 @@
-import { bindWujieRoute, requestIdleCallbackPolyfill } from '@aiao/utils';
+import { requestIdleCallbackPolyfill } from '@aiao/utils';
+import { bindWujieRoute } from '@modules/wujie';
 import { createApp } from 'vue';
 import App from './app/App.vue';
 import router from './router';

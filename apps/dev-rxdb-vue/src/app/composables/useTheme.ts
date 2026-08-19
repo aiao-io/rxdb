@@ -1,4 +1,4 @@
-import { getWujieHost, parseResolvedTheme, requestHostTheme, subscribeHostTheme } from '@aiao/utils';
+import { getWujieHost, parseResolvedTheme, requestHostTheme, subscribeHostTheme } from '@modules/wujie';
 import { computed, ref, watchEffect } from 'vue';
 
 const THEME_KEY = 'theme';

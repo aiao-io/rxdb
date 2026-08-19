@@ -4,7 +4,7 @@ import {
   requestHostTheme,
   subscribeHostTheme,
   type ResolvedTheme
-} from '@aiao/utils';
+} from '@modules/wujie';
 import { useCallback, useEffect, useState } from 'react';
 
 const THEME_KEY = 'rxdb-benchmarks-theme';

@@ -40,7 +40,10 @@ export function getPackageNames() {
 export const steps = [
   {
     name: '构建核心库',
-    command: `pnpm nx run-many -t build -p ${getPackageNames().join(' ')}`
+    // wujie 不在 packages/ 下，getPackageNames() 扫不到，只能显式列上。它是文档站宿主唯一
+    // 需要的 modules/ 成员：Docusaurus 的 webpack 不认 tsconfig paths，只能顺着 node_modules
+    // 软链读 package.json 的 exports，也就是这份 dist。
+    command: `pnpm nx run-many -t build -p ${getPackageNames().join(' ')} wujie`
   },
   {
     name: '构建 React 演示',

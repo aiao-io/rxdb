@@ -11,7 +11,7 @@ import {
   WUJIE_ROUTE_CHANGE_EVENT,
   WUJIE_ROUTE_EVENT,
   type WujieRouteAdapter
-} from '../../@browser/host-route.js';
+} from '../host-route.js';
 
 function createBus() {
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>();

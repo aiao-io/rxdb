@@ -1,4 +1,4 @@
-import { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } from '@aiao/utils';
+import { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } from '@modules/wujie';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseThemeValue, useTheme } from './useTheme';

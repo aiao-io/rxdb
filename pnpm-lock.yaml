@@ -581,6 +581,9 @@ importers:
       '@aiao/utils':
         specifier: workspace:*
         version: link:../../packages/utils
+      '@modules/wujie':
+        specifier: workspace:*
+        version: link:../../modules/wujie
       '@tanstack/react-virtual':
         specifier: ^3.14.9
         version: 3.14.9(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -654,6 +657,9 @@ importers:
       '@lucide/vue':
         specifier: ^1.31.0
         version: 1.31.0(vue@3.5.41(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb)))
+      '@modules/wujie':
+        specifier: workspace:*
+        version: link:../../modules/wujie
       '@tanstack/vue-virtual':
         specifier: ^3.13.35
         version: 3.13.35(vue@3.5.41(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb)))
@@ -775,6 +781,9 @@ importers:
       '@aiao/utils':
         specifier: workspace:*
         version: link:../packages/utils
+      '@modules/wujie':
+        specifier: workspace:*
+        version: link:../modules/wujie
       '@tailwindcss/postcss':
         specifier: ^4.3.3
         version: 4.3.3
@@ -818,6 +827,8 @@ importers:
       vite-plugin-static-copy:
         specifier: ^4.1.1
         version: 4.1.1(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0)(sass-embedded@1.102.0)(sass@1.102.0)(terser@5.50.0)(yaml@2.9.0))
+
+  modules/wujie: {}
 
   packages/code-editor:
     dependencies:
@@ -1477,9 +1488,6 @@ importers:
       '@aiao/rxdb-adapter-wa-sqlite':
         specifier: workspace:*
         version: link:../packages/rxdb-adapter-wa-sqlite
-      '@aiao/utils':
-        specifier: workspace:*
-        version: link:../packages/utils
       '@docusaurus/core':
         specifier: ^3.10.2
         version: 3.10.2(@docusaurus/faster@3.10.2(@docusaurus/types@3.10.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(esbuild@0.28.2)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@swc/helpers@0.5.23)(esbuild@0.28.2)(postcss@8.5.26))(@mdx-js/react@3.1.1(@types/react@19.2.18)(react@19.2.8))(@rspack/core@1.7.12(@swc/helpers@0.5.23))(@swc/core@1.15.47(@swc/helpers@0.5.23))(esbuild@0.28.2)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))
@@ -1513,6 +1521,9 @@ importers:
       '@mdx-js/react':
         specifier: ^3.1.1
         version: 3.1.1(@types/react@19.2.18)(react@19.2.8)
+      '@modules/wujie':
+        specifier: workspace:*
+        version: link:../modules/wujie
       '@radix-ui/react-avatar':
         specifier: ^1.2.6
         version: 1.2.6(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

@@ -1,0 +1,24 @@
+{
+  "name": "@modules/wujie",
+  "version": "0.0.1",
+  "description": "文档站宿主与无界演示子应用之间的主题 / 路由 / 样式协议（内部模块，不发布）。",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@aiao/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "nx": {
+    "name": "wujie",
+    "tags": ["js-lib"]
+  }
+}

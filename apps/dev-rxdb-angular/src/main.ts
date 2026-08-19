@@ -1,4 +1,4 @@
-import { bindWujieRoute } from '@aiao/utils';
+import { bindWujieRoute } from '@modules/wujie';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter, take } from 'rxjs';

@@ -21,6 +21,7 @@
     "@aiao/rxdb-plugin-search": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
     "@aiao/utils": "workspace:*",
+    "@modules/wujie": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
     "comlink": "^4.4.2",
     "lucide-react": "^1.31.0",

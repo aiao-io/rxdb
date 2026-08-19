@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rewriteShadowCss } from '../../@browser/shadow-css.js';
+import { rewriteShadowCss } from '../shadow-css.js';
 
 describe('rewriteShadowCss', () => {
   describe(':root → :host', () => {

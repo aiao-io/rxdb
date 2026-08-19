@@ -8,7 +8,7 @@ import {
   subscribeThemeRequest,
   WUJIE_THEME_EVENT,
   WUJIE_THEME_REQUEST_EVENT
-} from '../../@browser/host-theme.js';
+} from '../host-theme.js';
 
 function createBus() {
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>();

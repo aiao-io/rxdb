@@ -93,7 +93,7 @@ describe('useTheme', () => {
     window.$wujie = { bus, props: { theme: 'dark' } };
 
     const { useTheme } = await import('./useTheme');
-    const { WUJIE_THEME_EVENT } = await import('@aiao/utils');
+    const { WUJIE_THEME_EVENT } = await import('@modules/wujie');
     const { currentTheme } = useTheme();
 
     expect(currentTheme.value).toBe('dark');
@@ -130,7 +130,7 @@ describe('useTheme', () => {
     window.$wujie = { bus, props: { theme: 'light' } };
 
     const { useTheme } = await import('./useTheme');
-    const { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } = await import('@aiao/utils');
+    const { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } = await import('@modules/wujie');
     const onRequest = vi.fn();
     bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
 

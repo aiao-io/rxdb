@@ -1,4 +1,4 @@
-import { bindWujieRoute } from '@aiao/utils';
+import { bindWujieRoute } from '@modules/wujie';
 import { StrictMode } from 'react';
 import * as ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';

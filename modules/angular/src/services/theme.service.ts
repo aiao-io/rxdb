@@ -1,4 +1,4 @@
-import { requestHostTheme, subscribeHostTheme } from '@aiao/utils';
+import { requestHostTheme, subscribeHostTheme } from '@modules/wujie';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { Platform } from '@angular/cdk/platform';
 import { DOCUMENT, Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
@@ -14,6 +14,7 @@ export class ThemeService implements OnDestroy {
   #breakpointObserver = inject(BreakpointObserver);
   #platform = inject(Platform);
   #document = inject(DOCUMENT);
+  #stopHostTheme?: () => void;
 
   systemIsDark$ = of(this.#platform.isBrowser).pipe(
     filter(Boolean),
@@ -23,7 +24,6 @@ export class ThemeService implements OnDestroy {
   );
   $systemIsDark = toSignal(this.systemIsDark$);
   $currentTheme = signal<string | undefined>(undefined);
-  #stopHostTheme?: () => void;
 
   $currentThemeIsDark = computed(() => {
     const theme = this.$currentTheme();
