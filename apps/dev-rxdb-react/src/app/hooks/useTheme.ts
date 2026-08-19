@@ -1,3 +1,4 @@
+import { getWujieHost, parseResolvedTheme, subscribeHostTheme } from '@aiao/utils';
 import { useEffect, useState } from 'react';
 
 const THEME_KEY = 'theme';
@@ -6,6 +7,15 @@ export type ThemeValue = 'light' | 'dark' | 'auto';
 
 export function parseThemeValue(value: string | null): ThemeValue {
   return value === 'light' || value === 'dark' || value === 'auto' ? value : 'auto';
+}
+
+function readInitialTheme(): ThemeValue {
+  const host = getWujieHost();
+  if (host?.props && Object.hasOwn(host.props, 'theme')) {
+    return parseResolvedTheme(host.props.theme);
+  }
+  if (typeof window === 'undefined') return 'auto';
+  return parseThemeValue(localStorage.getItem(THEME_KEY));
 }
 
 interface UseThemeReturn {
@@ -17,10 +27,7 @@ interface UseThemeReturn {
 }
 
 export function useTheme(): UseThemeReturn {
-  const [currentTheme, setCurrentTheme] = useState<ThemeValue>(() => {
-    if (typeof window === 'undefined') return 'auto';
-    return parseThemeValue(localStorage.getItem(THEME_KEY));
-  });
+  const [currentTheme, setCurrentTheme] = useState<ThemeValue>(readInitialTheme);
 
   const [systemIsDark, setSystemIsDark] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
@@ -38,6 +45,8 @@ export function useTheme(): UseThemeReturn {
     mediaQuery.addEventListener('change', handler);
     return () => mediaQuery.removeEventListener('change', handler);
   }, []);
+
+  useEffect(() => subscribeHostTheme(theme => setCurrentTheme(theme)), []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

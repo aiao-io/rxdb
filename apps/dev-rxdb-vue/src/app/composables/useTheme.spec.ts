@@ -44,6 +44,8 @@ describe('useTheme', () => {
   afterEach(() => {
     vi.resetModules();
     vi.unstubAllGlobals();
+    delete window.$wujie;
+    document.documentElement.removeAttribute('data-theme');
   });
 
   it('reactively resolves auto theme to a light or dark editor theme', async () => {
@@ -67,4 +69,42 @@ describe('useTheme', () => {
     expect(currentThemeIsDark.value).toBe(true);
     expect(currentThemeLightDark.value).toBe('dark');
   });
+
+  it('applies the host theme from $wujie without persisting it', async () => {
+    const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
+    const bus = {
+      $on(event: string, fn: (...args: unknown[]) => void) {
+        const bucket = listeners.get(event) ?? new Set();
+        bucket.add(fn);
+        listeners.set(event, bucket);
+      },
+      $off(event: string, fn: (...args: unknown[]) => void) {
+        listeners.get(event)?.delete(fn);
+      },
+      $emit(event: string, ...args: unknown[]) {
+        listeners.get(event)?.forEach(listener => listener(...args));
+      }
+    };
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => createMediaQueryList(false))
+    );
+    vi.stubGlobal('localStorage', createStorage());
+    window.$wujie = { bus, props: { theme: 'dark' } };
+
+    const { useTheme } = await import('./useTheme');
+    const { WUJIE_THEME_EVENT } = await import('@aiao/utils');
+    const { currentTheme } = useTheme();
+
+    expect(currentTheme.value).toBe('dark');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    expect(localStorage.getItem('theme')).toBeNull();
+
+    bus.$emit(WUJIE_THEME_EVENT, { theme: 'light' });
+    await nextTick();
+
+    expect(currentTheme.value).toBe('light');
+    expect(localStorage.getItem('theme')).toBeNull();
+  });
 });
+

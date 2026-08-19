@@ -1,3 +1,4 @@
+import { getWujieHost, parseResolvedTheme, subscribeHostTheme } from '@aiao/utils';
 import { computed, ref, watchEffect } from 'vue';
 
 const THEME_KEY = 'theme';
@@ -13,9 +14,17 @@ export function useTheme() {
   if (!initialized && typeof window !== 'undefined') {
     initialized = true;
 
-    const stored = localStorage.getItem(THEME_KEY);
-    if (stored === 'light' || stored === 'dark' || stored === 'auto') currentTheme.value = stored;
+    const host = getWujieHost();
+    if (host?.props && Object.hasOwn(host.props, 'theme')) {
+      currentTheme.value = parseResolvedTheme(host.props.theme);
+    } else {
+      const stored = localStorage.getItem(THEME_KEY);
+      if (stored === 'light' || stored === 'dark' || stored === 'auto') currentTheme.value = stored;
+    }
     systemIsDark.value = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    subscribeHostTheme(theme => {
+      currentTheme.value = theme;
+    });
 
     // Listen for system changes
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {

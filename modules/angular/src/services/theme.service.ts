@@ -1,6 +1,7 @@
+import { subscribeHostTheme } from '@aiao/utils';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { Platform } from '@angular/cdk/platform';
-import { DOCUMENT, Injectable, computed, inject, signal } from '@angular/core';
+import { DOCUMENT, Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, of, shareReplay, switchMap } from 'rxjs';
 
@@ -9,7 +10,7 @@ const THEME_KEY = 'theme';
 @Injectable({
   providedIn: 'root'
 })
-export class ThemeService {
+export class ThemeService implements OnDestroy {
   #breakpointObserver = inject(BreakpointObserver);
   #platform = inject(Platform);
   #document = inject(DOCUMENT);
@@ -22,6 +23,7 @@ export class ThemeService {
   );
   $systemIsDark = toSignal(this.systemIsDark$);
   $currentTheme = signal<string | undefined>(undefined);
+  #stopHostTheme?: () => void;
 
   $currentThemeIsDark = computed(() => {
     const theme = this.$currentTheme();
@@ -34,22 +36,35 @@ export class ThemeService {
 
   constructor() {
     if (this.#platform.isBrowser) {
-      const theme = localStorage.getItem(THEME_KEY) || 'auto';
-      this.$currentTheme.set(theme);
+      let receivedHostTheme = false;
+      this.#stopHostTheme = subscribeHostTheme(theme => {
+        receivedHostTheme = true;
+        this.#applyTheme(theme, false);
+      });
+      if (!receivedHostTheme) {
+        this.setTheme(localStorage.getItem(THEME_KEY) || 'auto');
+      }
       this.systemIsDark$.subscribe(() => {
-        this.setTheme(this.$currentTheme()!);
+        if (this.$currentTheme() === 'auto') this.#applyTheme('auto', true);
       });
     }
   }
 
+  ngOnDestroy() {
+    this.#stopHostTheme?.();
+  }
+
   setTheme(themeValue: string) {
+    this.#applyTheme(themeValue, true);
+  }
+
+  #applyTheme(themeValue: string, persist: boolean) {
     this.$currentTheme.set(themeValue);
     let nextTheme = themeValue;
     if (themeValue === 'auto') {
-      const systemIsDark = this.$systemIsDark();
-      nextTheme = systemIsDark ? 'dark' : 'light';
-      localStorage.setItem(THEME_KEY, 'auto');
-    } else {
+      nextTheme = this.$systemIsDark() ? 'dark' : 'light';
+      if (persist) localStorage.setItem(THEME_KEY, 'auto');
+    } else if (persist) {
       localStorage.setItem(THEME_KEY, themeValue);
     }
     this.#setThemeAttribute(nextTheme);

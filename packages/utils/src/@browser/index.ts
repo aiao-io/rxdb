@@ -10,6 +10,11 @@
 export * from './broadcast-channel-pool.js';
 
 /**
+ * 文档站 / 无界宿主主题协议
+ */
+export * from './host-theme.js';
+
+/**
  * 空闲计时器
  */
 export * from './IdleTimer.js';

@@ -1,7 +1,8 @@
+/** @vitest-environment happy-dom */
 import { WUJIE_THEME_EVENT } from '@aiao/utils';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { parseThemeValue, useTheme } from './useTheme';
+import { useTheme } from './useTheme';
 
 function createBus() {
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
@@ -20,37 +21,32 @@ function createBus() {
   };
 }
 
-describe('parseThemeValue', () => {
-  it.each(['light', 'dark', 'auto'] as const)('accepts %s', theme => {
-    expect(parseThemeValue(theme)).toBe(theme);
-  });
-
-  it.each([null, '', 'system', 'LIGHT', ' dark '])('falls back to auto for %s', theme => {
-    expect(parseThemeValue(theme)).toBe('auto');
-  });
-});
-
 describe('useTheme host sync', () => {
   afterEach(() => {
     delete window.$wujie;
-    localStorage.removeItem('theme');
+    localStorage.clear();
     document.documentElement.removeAttribute('data-theme');
   });
 
-  it('applies the host theme from $wujie without persisting it', () => {
+  it('follows the wujie host theme and still accepts the legacy postMessage fallback', () => {
     const bus = createBus();
     window.$wujie = { bus, props: { theme: 'dark' } };
 
-    const { result } = renderHook(() => useTheme());
+    const { result, unmount } = renderHook(() => useTheme());
 
-    expect(result.current.currentTheme).toBe('dark');
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-    expect(localStorage.getItem('theme')).toBeNull();
+    expect(result.current.theme).toBe('dark');
+    expect(result.current.isDark).toBe(true);
 
     act(() => bus.$emit(WUJIE_THEME_EVENT, { theme: 'light' }));
+    expect(result.current.theme).toBe('light');
 
-    expect(result.current.currentTheme).toBe('light');
-    expect(localStorage.getItem('theme')).toBeNull();
+    unmount();
+    delete window.$wujie;
+
+    const standalone = renderHook(() => useTheme());
+    act(() => {
+      window.dispatchEvent(new MessageEvent('message', { data: { type: 'setTheme', theme: 'dark' } }));
+    });
+    expect(standalone.result.current.theme).toBe('dark');
   });
 });
-

@@ -102,6 +102,26 @@ describe('UTL-033 公开 API 的 TSDoc 与类型导出', () => {
     });
   });
 
+  describe('@browser/host-theme.ts', () => {
+    const source = read('@browser/host-theme.ts');
+
+    it('公开类型可具名导入', () => {
+      expect(source).toContain('export type ResolvedTheme');
+      expect(source).toContain('export interface WujieBus');
+      expect(source).toContain('export interface WujieHost');
+    });
+
+    it('公开函数都有 TSDoc', () => {
+      const declarations = [
+        'export function parseResolvedTheme',
+        'export function getWujieHost',
+        'export function subscribeHostTheme',
+        'export function emitHostTheme'
+      ];
+      expect(declarations.filter(declaration => !documented(source, declaration))).toEqual([]);
+    });
+  });
+
   describe('@browser/opfs-route-sync.ts', () => {
     const source = read('@browser/opfs-route-sync.ts');
 
