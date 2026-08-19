@@ -21,8 +21,8 @@ export interface WujieBus {
 export interface WujieHost {
   bus?: WujieBus;
   props?: {
-    theme?: unknown;
     [key: string]: unknown;
+    theme?: unknown;
   };
 }
 
