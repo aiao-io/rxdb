@@ -2,10 +2,10 @@ import { EMPTY } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { SyncType } from '../../entity/metadata-options.interface.js';
 import {
-  handleCountAncestorsUpdate,
-  handleCountDescendantsUpdate,
-  handleFindAncestorsUpdate,
-  handleFindDescendantsUpdate
+    handleCountAncestorsUpdate,
+    handleCountDescendantsUpdate,
+    handleFindAncestorsUpdate,
+    handleFindDescendantsUpdate
 } from '../../query/merge-update-tree.js';
 import { UpdateDataCache, type UpdateClassification } from '../../query/merge-update.utils.js';
 import type { RuleGroup } from '../../repository/query.interface.js';
@@ -167,7 +167,8 @@ describe('merge-update-tree direct coverage', () => {
       expect(stale.label).toBe('before');
     });
 
-    it('retains and patches a moved result when updated serialization is unavailable', () => {
+    it('removes a moved result using patch.parentId when updated serialization is unavailable', () => {
+      // 无序列化时不能保守保留：patch.parentId 已经证明节点离开了目标子树
       const child = createNode('child', 'root');
       const updates = [createUpdate('child', { parentId: 'outside', label: 'after' }, { parentId: 'root' })];
       const { task, next } = createFindDescendantsTask({ entityId: 'root' }, [child]);
@@ -179,8 +180,28 @@ describe('merge-update-tree direct coverage', () => {
         createCache(updates, [['child', undefined]])
       );
 
-      expect(idsOf(next.mock.calls[0][0])).toEqual(['child']);
-      expect(next.mock.calls[0][0][0]).toMatchObject({ parentId: 'outside', label: 'after' });
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(idsOf(next.mock.calls[0][0])).toEqual([]);
+    });
+
+    it('removes a descendant even when serialization still has the old parentId', () => {
+      // 复现 CI flake：迟到事件把 serialized.parentId 盖回 root，但 patch 已是 child。
+      // level=1 必须按 patch 判定层级，把 grand 从结果里摘掉。
+      const root = createNode('root', null);
+      const child = createNode('child', 'root');
+      const grand = createNode('grand', 'root');
+      const updates = [createUpdate('grand', { id: 'grand', parentId: 'child' }, { parentId: 'root' })];
+      const { task, next } = createFindDescendantsTask({ entityId: 'root', level: 1 }, [root, child, grand]);
+
+      handleFindDescendantsUpdate(
+        task,
+        updates,
+        createClassification({ updatedIds: ['grand'], matchNowIds: ['grand'] }),
+        createCache(updates, [['grand', createNode('grand', 'root')]])
+      );
+
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(idsOf(next.mock.calls[0][0])).toEqual(['root', 'child']);
     });
 
     it('removes newly unmatched entities and patches retained descendants', () => {
