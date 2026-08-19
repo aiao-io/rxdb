@@ -79,4 +79,3 @@ describe('useTheme host sync', () => {
     expect(localStorage.getItem('theme')).toBeNull();
   });
 });
-

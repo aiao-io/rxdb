@@ -23,9 +23,10 @@ test('demo and benchmark pages embed sub-apps through wujie, not a raw iframe', 
 
 test('wujie cssLoader rewrites :root to :host so daisyUI tokens stay in Shadow DOM', async () => {
   const source = readFileSync(join(root, 'src/components/DemoMicroAppClient.tsx'), 'utf8');
-  const match = /function rewriteRootToHost\(code: string\): string \{\n  return code\.replaceAll\('([^']+)', '([^']+)'\);\n\}/.exec(
-    source
-  );
+  const match =
+    /function rewriteRootToHost\(code: string\): string \{\n  return code\.replaceAll\('([^']+)', '([^']+)'\);\n\}/.exec(
+      source
+    );
   assert.ok(match, 'rewriteRootToHost should replace a CSS selector');
   const [, from, to] = match;
   assert.equal(from, ':root');
@@ -35,8 +36,7 @@ test('wujie cssLoader rewrites :root to :host so daisyUI tokens stay in Shadow D
   assert.doesNotMatch(rewritten, /:root/);
   assert.match(source, /cssLoader/);
   assert.match(source, /WujieReact\.bus/);
-  const daisySelector =
-    ':where(:is(:host, :root)),:is(:host, :root):has(.theme-controller:checked),[data-theme=light]';
+  const daisySelector = ':where(:is(:host, :root)),:is(:host, :root):has(.theme-controller:checked),[data-theme=light]';
   assert.equal(
     daisySelector.replaceAll(from, to),
     ':where(:is(:host, :host)),:is(:host, :host):has(.theme-controller:checked),[data-theme=light]'
@@ -54,10 +54,6 @@ test('sub-apps declare daisyUI root as :is(:host, :root) so standalone and Shado
 
   for (const file of files) {
     const source = readFileSync(join(root, file), 'utf8');
-    assert.match(
-      source,
-      /root:\s*':is\(:host, :root\)'/,
-      `${file} should scope daisyUI to :is(:host, :root)`
-    );
+    assert.match(source, /root:\s*':is\(:host, :root\)'/, `${file} should scope daisyUI to :is(:host, :root)`);
   }
 });

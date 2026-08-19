@@ -107,4 +107,3 @@ describe('useTheme', () => {
     expect(localStorage.getItem('theme')).toBeNull();
   });
 });
-

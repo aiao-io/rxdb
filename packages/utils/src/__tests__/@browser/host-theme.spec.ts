@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-    emitHostTheme,
-    getWujieHost,
-    parseResolvedTheme,
-    subscribeHostTheme,
-    WUJIE_THEME_EVENT
+  emitHostTheme,
+  getWujieHost,
+  parseResolvedTheme,
+  subscribeHostTheme,
+  WUJIE_THEME_EVENT
 } from '../../@browser/host-theme.js';
 
 function createBus() {
@@ -94,15 +94,15 @@ describe('host-theme', () => {
       const onTheme = vi.fn();
       const stop = subscribeHostTheme(onTheme, target);
 
-      listeners.get('message')?.forEach(listener =>
-        listener({ data: { type: 'setTheme', theme: 'dark' } } as MessageEvent)
-      );
+      listeners
+        .get('message')
+        ?.forEach(listener => listener({ data: { type: 'setTheme', theme: 'dark' } } as MessageEvent));
       expect(onTheme).toHaveBeenCalledWith('dark');
 
       stop();
-      listeners.get('message')?.forEach(listener =>
-        listener({ data: { type: 'setTheme', theme: 'light' } } as MessageEvent)
-      );
+      listeners
+        .get('message')
+        ?.forEach(listener => listener({ data: { type: 'setTheme', theme: 'light' } } as MessageEvent));
       expect(onTheme).toHaveBeenCalledTimes(1);
     });
 
