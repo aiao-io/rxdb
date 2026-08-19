@@ -84,8 +84,18 @@ export default function DemoMicroAppClient({ name, url, title, allow, basePath }
   // 两端最后一次达成一致的路径。宿主自己回写地址栏引起的变化不该再打回子应用
   const agreedRoute = useRef<string>(subRoute);
 
+  /**
+   * 上闸保护一条期望路径。
+   *
+   * 根路径不上闸：宿主停在 `/demos/vue` 时本就没有要保护的深链，此时上闸只会把子应用
+   * 自己的首个路由（以及 TTL 窗口内用户的第一次点击）一并挡掉。
+   */
+  const expectRoute = useCallback((route: string) => {
+    if (route !== '/') routeSync.current.expect(route);
+  }, []);
+
   /** 子应用（重新）挂载时重置闸门：TTL 得从它真正开始跑的那一刻算起，而不是宿主挂载时。 */
-  const armRouteSync = useCallback(() => routeSync.current.expect(agreedRoute.current), []);
+  const armRouteSync = useCallback(() => expectRoute(agreedRoute.current), [expectRoute]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -130,9 +140,9 @@ export default function DemoMicroAppClient({ name, url, title, allow, basePath }
   useEffect(() => {
     if (!basePath || subRoute === agreedRoute.current) return;
     agreedRoute.current = subRoute;
-    routeSync.current.expect(subRoute);
+    expectRoute(subRoute);
     emitHostRoute(bus, name, subRoute);
-  }, [basePath, name, subRoute]);
+  }, [basePath, expectRoute, name, subRoute]);
 
   // 子 → 宿主：子应用内部导航回写地址栏。
   //

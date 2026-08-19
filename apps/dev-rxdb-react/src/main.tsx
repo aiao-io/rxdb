@@ -37,12 +37,16 @@ root.render(
 
 // data router 由 RouterProvider 挂载时才 initialize，此前的 navigate 会被初始加载顶掉；
 // 已经初始化就直接接，否则会一直等一个可能永远不来的下一次状态更新。
+//
+// queueMicrotask 不能省：订阅回调是在 router 自己的 completeNavigation 里同步触发的，
+// 此时它还没收尾（pendingNavigationController 等状态在通知之后才复位），
+// 在回调里重入 navigate 会被这次收尾清掉，深链路径就丢了。
 if (router.state.initialized) bindHostRoute();
 else {
   let stop: () => void = () => undefined;
   stop = router.subscribe(state => {
     if (!state.initialized) return;
     stop();
-    bindHostRoute();
+    queueMicrotask(bindHostRoute);
   });
 }
