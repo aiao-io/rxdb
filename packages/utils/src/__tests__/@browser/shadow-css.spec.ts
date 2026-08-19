@@ -81,9 +81,7 @@ describe('rewriteShadowCss', () => {
   describe('不破坏 at-rule 与非选择器内容', () => {
     it('@media 内部的具名主题照常扩展，@media 本身不动', () => {
       const out = rewriteShadowCss('@media (prefers-color-scheme:dark){[data-theme=dark]{color:white}}');
-      expect(out).toBe(
-        '@media (prefers-color-scheme:dark){:host([data-theme=dark]),[data-theme=dark]{color:white}}'
-      );
+      expect(out).toBe('@media (prefers-color-scheme:dark){:host([data-theme=dark]),[data-theme=dark]{color:white}}');
     });
 
     it('@property 块不被当作选择器改写', () => {

@@ -63,7 +63,12 @@ export function useTheme(): UseThemeReturn {
   const setTheme = (theme: ThemeValue) => {
     setCurrentTheme(theme);
     localStorage.setItem(THEME_KEY, theme);
-    requestHostTheme(theme === 'auto' ? (systemIsDark ? 'dark' : 'light') : theme);
+    requestHostTheme(
+      theme === 'auto' ?
+        systemIsDark ? 'dark'
+        : 'light'
+      : theme
+    );
   };
 
   const currentThemeIsDark = currentTheme === 'auto' ? systemIsDark : currentTheme === 'dark';
