@@ -26,6 +26,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/release-desktop.yml'
+      - '.github/actions/configure-apt/**'
       - '.github/actions/xvfb/**'
 
 permissions:
@@ -134,6 +135,8 @@ jobs:
       # tauri 2 在 Linux 上经 wry 链到 WebKitGTK，这些是**编译期**依赖：
       # 缺了连 `cargo check` 都过不去（build script 的 pkg-config 就会失败）。
       # 清单与 ci-template.yml 的 rust job 逐字一致。
+      - uses: ./.github/actions/configure-apt
+        if: runner.os == 'Linux'
       - name: Install Tauri system dependencies
         if: runner.os == 'Linux'
         run: |

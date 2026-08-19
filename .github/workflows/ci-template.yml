@@ -652,10 +652,14 @@ jobs:
       # nx 会派生多层子进程（run-commands → playwright → electron），DISPLAY 靠环境
       # 继承传下去比 wrapper 稳；而且写进 $GITHUB_ENV 后，后续步骤（重跑、trace 复现）
       # 也都有显示可用。无条件跑：headless Chromium 在 Xvfb 下行为不变，代价几百毫秒。
+      - uses: ./.github/actions/configure-apt
       - name: Start Xvfb (Electron need X server)
         run: |
           set -e
-          command -v Xvfb >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y xvfb; }
+          if ! command -v Xvfb >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends xvfb
+          fi
           nohup Xvfb :99 -screen 0 1280x1024x24 -nolisten tcp >/tmp/xvfb.log 2>&1 &
           echo "DISPLAY=:99" >> "$GITHUB_ENV"
           # 用 socket 文件判就绪，不用 xdpyinfo —— x11-utils 不保证装了，多一个依赖就多一个失败点。
@@ -731,6 +735,7 @@ jobs:
 
       # tauri 2 在 Linux 上经 wry 链到 WebKitGTK，这些是**编译期**依赖：
       # 缺了连 `cargo clippy` 都过不去（build script 的 pkg-config 就会失败）。
+      - uses: ./.github/actions/configure-apt
       - name: Install Tauri system dependencies
         run: |
           set -euo pipefail

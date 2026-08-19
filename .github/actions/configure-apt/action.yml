@@ -1,0 +1,23 @@
+name: Configure Ubuntu apt
+description: 配置 GitHub Ubuntu runner 的 apt 镜像和超时上限。
+
+runs:
+  using: composite
+  steps:
+    - name: Configure apt mirror and timeouts
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        # GitHub runner 的 mirrorlist 偶发把 azure.archive.ubuntu.com 放在首位。
+        # 该域名不可达时，apt 会按默认 120s × 多次重试，拖垮整个 job。
+        for source in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/*; do
+          [ -f "$source" ] || continue
+          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' "$source"
+        done
+
+        sudo tee /etc/apt/apt.conf.d/99-ci-timeout >/dev/null <<'EOF'
+        Acquire::Retries "2";
+        Acquire::http::Timeout "15";
+        Acquire::https::Timeout "15";
+        EOF
