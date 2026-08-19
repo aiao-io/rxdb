@@ -1,5 +1,11 @@
-import { emitHostTheme, parseResolvedTheme, type ResolvedTheme } from '@aiao/utils';
-import { useEffect, useState, type ComponentType, type ReactElement } from 'react';
+import {
+  emitHostTheme,
+  HOST_THEME_ATTRIBUTE,
+  parseResolvedTheme,
+  rewriteShadowCss,
+  type ResolvedTheme
+} from '@aiao/utils';
+import { useEffect, useRef, useState, type ComponentType, type ReactElement } from 'react';
 import WujieReact from 'wujie-react';
 
 import type { DemoMicroAppProps } from './DemoMicroApp';
@@ -21,55 +27,73 @@ interface WujieReactProps {
 const WujieApp = WujieReact as unknown as ComponentType<WujieReactProps>;
 
 function readHostTheme(): ResolvedTheme {
-  return parseResolvedTheme(document.documentElement.getAttribute('data-theme'));
+  return parseResolvedTheme(document.documentElement.getAttribute(HOST_THEME_ATTRIBUTE));
 }
 
-/**
- * 把 daisyUI `:root` 变量改写到 `:host`。
- *
- * 无界 Shadow DOM 里 `document.documentElement` 指向 shadow 子节点，
- * `:root` 仍会打到真实 document，必须去掉而不能写成 `:host, :root`。
- */
-function rewriteRootToHost(code: string): string {
-  return code.replaceAll(':root', ':host');
-}
-
-export { rewriteRootToHost };
-
-const shadowCssPlugins = [
-  {
-    cssLoader: (code: string) => rewriteRootToHost(code)
-  }
-];
+const shadowCssPlugins = [{ cssLoader: rewriteShadowCss }];
 
 /**
  * 仅在浏览器里加载的无界宿主。由 {@link DemoMicroApp} 通过 `BrowserOnly` 引入。
+ *
+ * 主题是**单向从外往内**推的：子应用只能把 `data-theme` 写到 Shadow 内的 `<html>` 上，
+ * 够不到承载底色的 `<wujie-app>` 宿主元素，所以这里由宿主直接给它打 `data-theme`，
+ * 配合 {@link rewriteShadowCss} 补出的 `:host([data-theme=X])` 规则让底色跟着主题走。
  */
 export default function DemoMicroAppClient({ name, url, title, allow }: DemoMicroAppProps): ReactElement {
   const [theme, setTheme] = useState<ResolvedTheme>(readHostTheme);
+  const containerRef = useRef<HTMLDivElement>(null);
+  // 初始主题跟着 `props.theme` 进子应用（subscribeHostTheme 先读 props 再订阅 bus），
+  // 子应用起来之前 bus 上没有订阅者，抢跑的 $emit 只会换来无界的「事件订阅数量为空」告警。
+  // 所以这里只广播**变化**。
+  const emittedTheme = useRef<ResolvedTheme>(theme);
 
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
     const sync = () => {
       const next = readHostTheme();
       setTheme(next);
-      emitHostTheme(bus, next);
+      if (emittedTheme.current !== next) {
+        emittedTheme.current = next;
+        emitHostTheme(bus, next);
+      }
+      const shadowHost = container.querySelector('wujie-app');
+      if (shadowHost && shadowHost.getAttribute(HOST_THEME_ATTRIBUTE) !== next) {
+        shadowHost.setAttribute(HOST_THEME_ATTRIBUTE, next);
+      }
     };
     sync();
-    const observer = new MutationObserver(sync);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    return () => observer.disconnect();
+
+    const themeObserver = new MutationObserver(sync);
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: [HOST_THEME_ATTRIBUTE]
+    });
+
+    // `<wujie-app>` 由异步的 startApp 插入，挂载时还不存在，出现时得补一次。
+    // Shadow DOM 不透出内部变更，这里只会被宿主元素本身的插入触发。
+    const mountObserver = new MutationObserver(sync);
+    mountObserver.observe(container, { childList: true, subtree: true });
+
+    return () => {
+      themeObserver.disconnect();
+      mountObserver.disconnect();
+    };
   }, []);
 
   return (
-    <WujieApp
-      name={name}
-      url={url}
-      width='100%'
-      height='100%'
-      alive
-      props={{ theme }}
-      attrs={allow ? { allow, title } : { title }}
-      plugins={shadowCssPlugins}
-    />
+    <div ref={containerRef} style={{ width: '100%', height: '100%' }}>
+      <WujieApp
+        name={name}
+        url={url}
+        width='100%'
+        height='100%'
+        alive
+        props={{ theme }}
+        attrs={allow ? { allow, title } : { title }}
+        plugins={shadowCssPlugins}
+      />
+    </div>
   );
 }

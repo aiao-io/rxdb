@@ -47,6 +47,31 @@ describe('rewriteShadowCss', () => {
       expect(out).not.toMatch(/:root/);
     });
 
+    it('把包在 :is() 里的具名主题分支提升到顶层', () => {
+      // daisyUI 对非默认主题生成的真实形态：[data-theme=dark] 在 :is() 内部而非顶层逗号列表上
+      const input =
+        ':is(:is(:host,:root):has(input.theme-controller[value=dark]:checked),[data-theme=dark]){color-scheme:dark}';
+      const out = rewriteShadowCss(input);
+      expect(out).toBe(
+        ':host([data-theme=dark]),:is(:is(:host,:host):has(input.theme-controller[value=dark]:checked),[data-theme=dark]){color-scheme:dark}'
+      );
+    });
+
+    it('提升时保留 :is() 之后的后缀', () => {
+      const out = rewriteShadowCss(':is([data-theme=dark]) .btn{color:white}');
+      expect(out).toBe(':host([data-theme=dark]) .btn,:is([data-theme=dark]) .btn{color:white}');
+    });
+
+    it(':where() 包裹的分支同样提升', () => {
+      const out = rewriteShadowCss(':where([data-theme=dark]){color:white}');
+      expect(out).toBe(':host([data-theme=dark]),:where([data-theme=dark]){color:white}');
+    });
+
+    it('不含具名主题的 :is() 包裹保持原样', () => {
+      const out = rewriteShadowCss(':where(:is(:root,:root)){color-scheme:light}');
+      expect(out).toBe(':where(:is(:host,:host)){color-scheme:light}');
+    });
+
     it('支持带引号的属性值', () => {
       const out = rewriteShadowCss('[data-theme="dark"]{color:white}');
       expect(out).toBe(':host([data-theme="dark"]),[data-theme="dark"]{color:white}');

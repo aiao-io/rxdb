@@ -55,17 +55,56 @@ function splitSelectorList(input: string): string[] {
   return parts;
 }
 
+/** 选择器开头的 `:is(` / `:where(`，daisyUI 用它包裹具名主题分支。 */
+const WRAPPER_PREFIX = /^\s*:(?:is|where)\(/;
+
+/** 已经扩展出来的宿主主题选择器，用于从递归结果里挑出可提升的分支。 */
+const HOST_THEME_START = new RegExp(`^\\s*:host\\(\\[${HOST_THEME_ATTRIBUTE}=`);
+
+/** 拆开 `:is(<inner>)<rest>`；括号不配对时返回 undefined。 */
+function unwrapFunctional(selector: string): { inner: string; rest: string } | undefined {
+  const matched = WRAPPER_PREFIX.exec(selector);
+  if (!matched) return undefined;
+
+  let depth = 1;
+  for (let i = matched[0].length; i < selector.length; i++) {
+    const char = selector[i];
+    if (char === '(' || char === '[') depth++;
+    else if (char === ')' || char === ']') depth--;
+    if (depth === 0) return { inner: selector.slice(matched[0].length, i), rest: selector.slice(i + 1) };
+  }
+  return undefined;
+}
+
 /**
- * 把 `[data-theme=X]<rest>` 扩展成 `:host([data-theme=X])<rest>` + 原选择器。
+ * 把具名主题分支扩展成 `:host([data-theme=X])…` + 原选择器。
  *
- * 只在**前缀**位置扩展：`.wrap [data-theme=dark]` 的主题属性在后代上，提升到 `:host`
- * 会让规则错误地作用于整个宿主。
+ * 两种形态都要认：
+ * - 顶层前缀 `[data-theme=X] .btn`（默认主题分支）
+ * - 包在 `:is()` / `:where()` 里的 `:is(…,[data-theme=X])`（非默认主题分支）
+ *
+ * 后者把内部分支**提升**到顶层而非就地替换 —— `:is(:host(…))` 能否命中宿主各引擎并不一致，
+ * 提升出来的独立选择器没有这个歧义。原选择器一律保留。
+ *
+ * 只认**复合选择器起始**位置：`.wrap [data-theme=dark]` 的主题属性在后代上，
+ * 提升到 `:host` 会让规则错误地作用于整个宿主。
  */
 function expandThemeSelector(selector: string): string[] {
   const matched = THEME_PREFIX.exec(selector);
-  if (!matched) return [selector];
-  const rest = selector.slice(matched[0].length);
-  return [`:host([${HOST_THEME_ATTRIBUTE}=${matched[1]}])${rest}`, selector];
+  if (matched) {
+    const rest = selector.slice(matched[0].length);
+    return [`:host([${HOST_THEME_ATTRIBUTE}=${matched[1]}])${rest}`, selector];
+  }
+
+  const unwrapped = unwrapFunctional(selector);
+  if (!unwrapped) return [selector];
+
+  const hoisted = splitSelectorList(unwrapped.inner)
+    .flatMap(expandThemeSelector)
+    .filter(branch => HOST_THEME_START.test(branch))
+    .map(branch => `${branch.trim()}${unwrapped.rest}`);
+
+  return hoisted.length > 0 ? [...hoisted, selector] : [selector];
 }
 
 /** 扩展整个选择器列表并去重，保证重复改写是幂等的。 */
