@@ -48,11 +48,12 @@
 > `cargo test` 147 条（迁包前后一条不差）、`tauri-build` 六道 cargo 门禁全绿。
 > US-504 只需事后同步路径。
 >
-> **后续项（无人认领，从 US-207 溢出）**：`rxdb-adapter-sqlite-core` / `rxdb-plugin-storage` /
-> `utils` 三个包的 `package.json` 缺 `sideEffects` 声明。E11 已用「主 chunk 里只抄字面量、
-> 一个符号都不从 barrel 取」把桌面 demo 这条路堵住，但那是**在调用方**兜的；补上声明才是
-> 在包这一侧收紧。改动很小，风险在于误标 `false` 会让真有副作用的模块被摇掉，
-> 因此要逐包确认后再改，见
+> **~~后续项（无人认领，从 US-207 溢出）~~ 已关（2026-08-20）**：`rxdb-adapter-sqlite-core` /
+> `rxdb-plugin-storage` / `utils` 三个包的 `package.json` 已补上 `"sideEffects": false`。
+> E11 用「主 chunk 里只抄字面量、一个符号都不从 barrel 取」把桌面 demo 这条路堵在**调用方**，
+> 补声明是在**包这一侧**收紧。「误标 `false` 摇掉真有副作用的模块」的风险已逐包排除：
+> 无裸 `import 'x'`、无顶层执行语句、无模块级全局写入，`@Entity` 只把 metadata 挂到类自身、
+> 实体靠 `entities` 数组显式注册。三包 `lint` / `test` / `build` 复跑全绿。背景见
 > [US-207「barrel 会把实现一起带进主 chunk」](stories/adapter/US-207-desktop-local-database.md#barrel-会把实现一起带进主-chunk)。
 >
 > `ADAPTER_NAME` 的分裂已于 2026-08-17 落定：`desktop` → `sqlite-electron` / `sqlite-tauri` / `pglite-electron`

@@ -517,9 +517,10 @@ barrel 成为实际的打包边界。
 这两个 import 不花 bundle 的钱，而包里改了名字会当场变红。两处还各配一条「源码里不出现这个
 包名」的静态门禁 —— 少了它，把字面量改回 import 只会让相等性断言更加成立，而 bundle 悄悄胖回去。
 
-> 顺带记一笔：`rxdb-adapter-sqlite-core` / `rxdb-plugin-storage` / `utils` 三个包至今没有
-> `sideEffects` 声明。本条没有依赖它（字面量方案与该声明无关），但它是同一类问题的另一半，
-> 已作为后续项记入 [status-overview.md](../../status-overview.md)。
+> 顺带记一笔：`rxdb-adapter-sqlite-core` / `rxdb-plugin-storage` / `utils` 三个包的
+> `sideEffects` 声明**已于 2026-08-20 补上**（`"sideEffects": false`，逐包确认过没有导入期副作用）。
+> 本条没有依赖它（字面量方案与该声明无关），它是同一类问题的另一半，
+> 收口记录见 [status-overview.md](../../status-overview.md) 与 [roadmap.md 零散收尾项](../../roadmap.md)。
 
 ## 技术笔记
 

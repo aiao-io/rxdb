@@ -6,17 +6,16 @@
 
 ## 功能建议
 
-| 优先级 | 建议功能                            | 对应 story                                                                                                                                 | 建议理由                                                                                                                                                                                                                                                                                                                                                      | 主要交付边界                                                                                                                                                                                                        |
-| :----: | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-|   ✅   | 桌面本地 SQLite（Electron / Tauri） | ~~[US-207](stories/adapter/US-207-desktop-local-database.md)~~ ✅ / ~~[US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)~~ ✅ | **2026-08-18 两条全关**，本行保留作为完成记录；**三平台打包 CI 已首跑全绿**（2026-08-17 / 2026-08-19 各一次，6 个 smoke job + `adapter-consumer` + `gate` 全 success），AC#8 / AC#9 不再有「待首轮触发确认」的尾巴。Electron 与 Tauri 的文件持久化、重启恢复与共享 host 契约齐备；桌面包边界重整的 JS 侧（US-207 E1～E11）与 Rust 侧（US-210 T1～T7）同日收口 | 已交付：Electron `node:sqlite` 文件路径 + Tauri 应用作用域 SQLite、`rxdb-adapter-sqlite-core/desktop-host` 共享契约、类型化 IPC / Rust command、`packages/rxdb-adapter-tauri/rust/` 普通 crate、真实文件 smoke test |
-|   P1   | LifecycleScope 生命周期作用域原语   | [US-013](stories/core/US-013-lifecycle-scope-primitive.md)                                                                                 | 同一件「登记副作用 → 拆卸时撤销」的事在仓库里被手工写了九遍，没有两处写法相同                                                                                                                                                                                                                                                                                 | `@aiao/utils` 侧的类与语义（逆序、幂等、异步、错误隔离、可嵌套），语义由测试冻结                                                                                                                                    |
-|   P1   | 插件作用域契约                      | [US-014](stories/core/US-014-plugin-scope-contract.md)                                                                                     | 三处既有泄漏：graph 的 `destroy()` 是空的且契约里没有位置可写；`rxdb.storage` 断连一次即永久消失；workspace 拆卸后无法重装                                                                                                                                                                                                                                    | `install(scope)` 契约、`repository(name, config, scope?)`、四个插件包迁移、`destroy()` 转可选的废弃周期、类型契约测试                                                                                               |
-|   P2   | 提交图与 HEAD 持久化                | [US-305](stories/collaboration/US-305-commit-graph-head.md)                                                                                | 旧暂存导出已在 `0.0.24` 删除，能力缺口现在完全敞开                                                                                                                                                                                                                                                                                                            | 独立命名空间的新契约、commit 存储布局、baseline commit 与一次性迁移                                                                                                                                                 |
-|   P2   | 生成器 default 序列化与显式失败     | [US-018](stories/core/US-018-generator-default-serialization.md)                                                                           | 今天 bigint `default` 直接抛原生 `TypeError`、`Uint8Array` 塌缩成 `{"0":1,...}`、函数工厂被静默丢弃，生成的客户端行为与源实体不一致                                                                                                                                                                                                                           | 拆 JSON 往返改运行时分派、`default` → 源码字面量映射表、`unsupportedDefaultFactory` / `unsupportedDefaultValue`、`BREAKING CHANGE` 迁移表                                                                           |
-|   P2   | Electron PGlite 数据目录与事务宿主  | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)                                                                         | PGlite callback transaction 不能跨 IPC 序列化，需要 SQLite 路径不需要的事务 host 协议                                                                                                                                                                                                                                                                         | 主进程 data directory、事务 ID 协议或主进程托管 adapter、跨进程类型保真                                                                                                                                             |
-|   P2   | PGlite 原生全文搜索                 | [US-703](stories/future/US-703-pglite-full-text-search.md)                                                                                 | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                                                                                                                                                                                                                                                                                                     | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                                                                                                                        |
-|   P2   | 子路径入口纳入 API 表面基线         | [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)                                                                           | 版本策略把子路径承诺为公开 API，门禁却只扫主入口——承诺与门禁的差额只能靠人工审查补                                                                                                                                                                                                                                                                            | 源入口声明收敛到单一真相源、基线格式扩到多入口、资产入口白名单跳过、三处文档收口                                                                                                                                    |
-|   P3   | 多端小程序宿主（先抽契约）          | [US-211 阶段 A](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                                     | Taro 有 `build:alipay/tt/qq/swan`，适配器只认 `wx`；先抽 host + 可行性矩阵，**不**扩大公开支持声明                                                                                                                                                                                                                                                            | `MiniProgramHost`、微信路径零回归、`miniprogram-platform-feasibility.md`；B/C 只吃矩阵 `supported`                                                                                                                  |
+| 优先级 | 建议功能                           | 对应 story                                                             | 建议理由                                                                                                                            | 主要交付边界                                                                                                                              |
+| :----: | ---------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+|   P1   | LifecycleScope 生命周期作用域原语  | [US-013](stories/core/US-013-lifecycle-scope-primitive.md)             | 同一件「登记副作用 → 拆卸时撤销」的事在仓库里被手工写了九遍，没有两处写法相同                                                       | `@aiao/utils` 侧的类与语义（逆序、幂等、异步、错误隔离、可嵌套），语义由测试冻结                                                          |
+|   P1   | 插件作用域契约                     | [US-014](stories/core/US-014-plugin-scope-contract.md)                 | 三处既有泄漏：graph 的 `destroy()` 是空的且契约里没有位置可写；`rxdb.storage` 断连一次即永久消失；workspace 拆卸后无法重装          | `install(scope)` 契约、`repository(name, config, scope?)`、四个插件包迁移、`destroy()` 转可选的废弃周期、类型契约测试                     |
+|   P2   | 提交图与 HEAD 持久化               | [US-305](stories/collaboration/US-305-commit-graph-head.md)            | 旧暂存导出已在 `0.0.24` 删除，能力缺口现在完全敞开                                                                                  | 独立命名空间的新契约、commit 存储布局、baseline commit 与一次性迁移                                                                       |
+|   P2   | 生成器 default 序列化与显式失败    | [US-018](stories/core/US-018-generator-default-serialization.md)       | 今天 bigint `default` 直接抛原生 `TypeError`、`Uint8Array` 塌缩成 `{"0":1,...}`、函数工厂被静默丢弃，生成的客户端行为与源实体不一致 | 拆 JSON 往返改运行时分派、`default` → 源码字面量映射表、`unsupportedDefaultFactory` / `unsupportedDefaultValue`、`BREAKING CHANGE` 迁移表 |
+|   P2   | Electron PGlite 数据目录与事务宿主 | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)     | PGlite callback transaction 不能跨 IPC 序列化，需要 SQLite 路径不需要的事务 host 协议                                               | 主进程 data directory、事务 ID 协议或主进程托管 adapter、跨进程类型保真                                                                   |
+|   P2   | PGlite 原生全文搜索                | [US-703](stories/future/US-703-pglite-full-text-search.md)             | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                                                                           | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                                              |
+|   P2   | 子路径入口纳入 API 表面基线        | [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)       | 版本策略把子路径承诺为公开 API，门禁却只扫主入口——承诺与门禁的差额只能靠人工审查补                                                  | 源入口声明收敛到单一真相源、基线格式扩到多入口、资产入口白名单跳过、三处文档收口                                                          |
+|   P3   | 多端小程序宿主（先抽契约）         | [US-211 阶段 A](stories/adapter/US-211-multi-miniprogram-platforms.md) | Taro 有 `build:alipay/tt/qq/swan`，适配器只认 `wx`；先抽 host + 可行性矩阵，**不**扩大公开支持声明                                  | `MiniProgramHost`、微信路径零回归、`miniprogram-platform-feasibility.md`；B/C 只吃矩阵 `supported`                                        |
 
 > US-306 / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
 > [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定依赖关系。
@@ -26,6 +25,24 @@
 >
 > [US-015](stories/core/US-015-plugin-inject-dependency.md) 同理不单列——它排在 US-014 之后，
 > 且阶段 B 的用户价值待证，见下方约束 8。
+
+## 已完成（保留记录）
+
+本节存放**已全部关闭、但值得留档**的条目：它们不再参与排期，从上表移出以免被误读成待办。
+
+### 桌面本地 SQLite（Electron / Tauri）✅
+
+- **对应 story**：~~[US-207](stories/adapter/US-207-desktop-local-database.md)~~ ✅ /
+  ~~[US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)~~ ✅
+- **收口**：**2026-08-18 两条全关**。**三平台打包 CI 已首跑全绿**（2026-08-17 / 2026-08-19 各一次，
+  6 个 smoke job + `adapter-consumer` + `gate` 全 success），AC#8 / AC#9 不再有「待首轮触发确认」的尾巴；
+  2026-08-20 确认**以 PR 触发的那两次绿为准，不等真实发布触发**。Electron 与 Tauri 的文件持久化、
+  重启恢复与共享 host 契约齐备；桌面包边界重整的 JS 侧（US-207 E1～E11）与 Rust 侧（US-210 T1～T7）同日收口。
+- **已交付**：Electron `node:sqlite` 文件路径 + Tauri 应用作用域 SQLite、
+  `rxdb-adapter-sqlite-core/desktop-host` 共享契约、类型化 IPC / Rust command、
+  `packages/rxdb-adapter-tauri/rust/` 普通 crate、真实文件 smoke test。
+- **留在别处、不阻塞本行的尾巴**：crate 发 crates.io 与桌面安装包验证见「明确不排期」；
+  US-505 的 AC#6/#7 见批次 1 线 C（缺的是那个故事自己的 specs）。
 
 ## 完成计划（2026-08-18 排定）
 
@@ -67,9 +84,14 @@
    `bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` 目前只在打 tag 时跑，
    单测里被 `passingHooks` 桩掉。三条只对 `kind=migration` 生效，桥接发布用不上，
    但下一个迁移周期（US-305）会用上，且这一条**不依赖发布**，可立即做。
-2. **补 `sideEffects` 声明**：`rxdb-adapter-sqlite-core` / `rxdb-plugin-storage` / `utils`
-   三个包的 `package.json` 都缺。US-207 E11 已在**调用方**用「主 chunk 里只抄字面量」堵住桌面 demo 这条路，
-   补声明才是在**包这一侧**收紧。改动很小，风险在误标 `false` 会让真有副作用的模块被摇掉，逐包确认后再改。
+2. ~~**补 `sideEffects` 声明**~~ **已补（2026-08-20）**：`rxdb-adapter-sqlite-core` / `rxdb-plugin-storage` /
+   `utils` 三个包的 `package.json` 均已写上 `"sideEffects": false`，与 `rxdb` / `rxdb-adapter-electron` /
+   `rxdb-adapter-tauri` 等既有声明对齐。「误标 `false` 把真有副作用的模块摇掉」这个风险已逐包排除：
+   源码里无裸 `import 'x'`、无顶层执行语句、无模块级全局写入；`@Entity` 只把 metadata 挂到类自身，
+   实体靠 `RxDB` 的 `entities` 数组**显式注册**，不依赖模块被加载；`@aiao/utils` 的 `pool` 单例
+   所属类没有构造函数，只有一个 `Map` 字段；`requestIdleCallbackPolyfill` 是导出的函数、不在导入期执行。
+   三包 `lint` / `test` / `build` 复跑全绿。US-207 E11 在**调用方**用「主 chunk 里只抄字面量」堵的那条路，
+   现在**包这一侧**也收紧了。
 3. ~~**三平台打包 CI 的首轮结果**~~ **已兑现（2026-08-17 首跑，2026-08-19 复跑）**：
    `release-desktop.yml` 不只在 release 上触发，它对**改动自身**的 PR 也触发（`on.pull_request.paths`
    含这份 workflow 与两个 composite action）——落地当天那条 PR 就是首跑。两次都是
@@ -81,12 +103,13 @@
 
 ### 明确不排期
 
-| 项                                                      | 判定                                                                                                                                                          |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| US-015 阶段 B（插件间依赖图）                           | **价值待证**。US-014 关闭三处泄漏后，必须写出「今天用户踩得到的具体症状」才允许排期；写不出就留在 Backlog（约束 8，这是判据不是建议）                         |
-| `US-016` 连接纪元与停机收敛 / `US-017` 三框架宿主作用域 | 文件未创建，不计入任何统计。US-016 价值已证待切片，US-017 价值待证                                                                                            |
-| `npm deprecate @aiao/rxdb-adapter-desktop`（US-207 E6） | **已判定不做**（2026-08-18）。`@aiao/rxdb-adapter-desktop@0.0.25` 保留在 registry 上，未来仍可更新；迁移路径由 `website/docs/migration/desktop-split.md` 指路 |
-| `packages/rxdb-adapter-tauri/rust/` 发 crates.io        | 本轮不发（US-210 T7，`publish = false`）。README 已写清 path / git 依赖的用法与限制，留作后续任务                                                             |
+| 项                                                      | 判定                                                                                                                                                                                       |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| US-015 阶段 B（插件间依赖图）                           | **价值待证**。US-014 关闭三处泄漏后，必须写出「今天用户踩得到的具体症状」才允许排期；写不出就留在 Backlog（约束 8，这是判据不是建议）                                                      |
+| `US-016` 连接纪元与停机收敛 / `US-017` 三框架宿主作用域 | 文件未创建，不计入任何统计。US-016 价值已证待切片，US-017 价值待证                                                                                                                         |
+| `npm deprecate @aiao/rxdb-adapter-desktop`（US-207 E6） | **已判定不做**（2026-08-18）。`@aiao/rxdb-adapter-desktop@0.0.25` 保留在 registry 上，未来仍可更新；迁移路径由 `website/docs/migration/desktop-split.md` 指路                              |
+| `packages/rxdb-adapter-tauri/rust/` 发 crates.io        | 本轮不发（US-210 T7，`publish = false`）。README 已写清 path / git 依赖的用法与限制，留作后续任务。**2026-08-20 复核：维持不发**，以后再说，不占本轮任何判据                               |
+| 桌面安装包（installer / bundle）的自动化验证            | **人工验收，不排自动化**（2026-08-20 判定）。`release-desktop.yml` 跑的是 `tauri build --ci --no-bundle`，只验编译与 smoke、不产安装包；装包能否安装启动由人工过一遍即可，不为此加 CI 作业 |
 
 > **线 A 是一次对外的不可逆动作**（推 tag + `pnpm publish`），本节只做排期，不代表已获授权执行；
 > 真要发布时按 release-plan.md 第 4 步跑绿门禁、并单独确认。另注意
