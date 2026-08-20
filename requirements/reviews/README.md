@@ -21,7 +21,8 @@
 | [RV-006-并发-disconnect-提前返回.md](./RV-006-并发-disconnect-提前返回.md)                                         | 并发 `disconnect()` 提前返回                                             | Open |
 | [RV-007-local-db-vs-main.md](./RV-007-local-db-vs-main.md)                                                         | `local-db` 相对 `main` 的分支评审（185 文件全量）                        | Open |
 | [RV-008-local-db-vs-main-review.md](./RV-008-local-db-vs-main-review.md)                                           | `local-db` 相对 `main` 的全量代码复审（7 项：4 已修，3 降级 follow-up）  | Open |
-| [RV-009-next-lifecycle-vs-main.md](./RV-009-next-lifecycle-vs-main.md)                                             | `next-lifecycle` 相对 `main` 的分支评审（8 项：2 卡合并，6 文档/需求件） | Open |
+| [RV-009-next-lifecycle-vs-main.md](./RV-009-next-lifecycle-vs-main.md)                                             | `next-lifecycle` 相对 `main` 的分支评审（8 项：全部已修，待开 PR）        | Open |
+| [RV-010-next-lifecycle-vs-main-复审.md](./RV-010-next-lifecycle-vs-main-复审.md)                                   | `next-lifecycle` 相对 `main` 的独立复审（RV-009 修完后：1 项 P2 + 2 项 P3） | Open |
 
 ## 状态约定
 
