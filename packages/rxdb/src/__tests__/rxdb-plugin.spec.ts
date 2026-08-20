@@ -1,4 +1,4 @@
-import { emptyFunction } from '@aiao/utils';
+import { emptyFunction, LifecycleScope } from '@aiao/utils';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { RxDB } from '../RxDB.js';
 import { EntityBase } from '../entity/entity-base.js';
@@ -8,6 +8,12 @@ import { PropertyType, SyncType } from '../entity/metadata-options.interface.js'
 import { IRepository } from '../repository/repository.interface.js';
 import { IRxDBAdapter } from '../rxdb-adapter.js';
 import { IRxDBPlugin, Plugin, RxDBPluginBase } from '../rxdb-plugin.js';
+
+/**
+ * 本文件的用例只验证接口形状，不经宿主安装，`install()` 的形参给一个空作用域即可。
+ * 每次新建而不是共用一个：作用域是**单向状态机**，共用会让先跑的用例影响后跑的用例。
+ */
+const anyScope = (): LifecycleScope => new LifecycleScope('rxdb-plugin-spec');
 
 const createRepository = <T extends EntityType>(): IRepository<T> => ({
   find: async () => [],
@@ -87,7 +93,7 @@ describe('rxdb-plugin', () => {
         }
       };
 
-      await plugin.install();
+      await plugin.install(anyScope());
       expect(installMock).toHaveBeenCalledTimes(1);
     });
 
@@ -101,7 +107,7 @@ describe('rxdb-plugin', () => {
         destroy: destroyMock
       };
 
-      await plugin.destroy();
+      await plugin.destroy?.();
       expect(destroyMock).toHaveBeenCalledTimes(1);
     });
 
@@ -209,7 +215,7 @@ describe('rxdb-plugin', () => {
       });
 
       const plugin = pluginFactory(rxdb, { enabled: true, timeout: 5000 });
-      await expect(plugin.install()).resolves.toBeUndefined();
+      await expect(plugin.install(anyScope())).resolves.toBeUndefined();
     });
 
     it('应支持不带参数创建插件', async () => {
@@ -224,7 +230,7 @@ describe('rxdb-plugin', () => {
       });
 
       const plugin = pluginFactory(rxdb);
-      await expect(plugin.install()).resolves.toBeUndefined();
+      await expect(plugin.install(anyScope())).resolves.toBeUndefined();
     });
 
     it('应处理带默认参数的插件工厂', async () => {
@@ -243,7 +249,7 @@ describe('rxdb-plugin', () => {
       });
 
       const plugin = pluginFactory(rxdb);
-      await expect(plugin.install()).resolves.toBeUndefined();
+      await expect(plugin.install(anyScope())).resolves.toBeUndefined();
     });
   });
 
@@ -261,10 +267,10 @@ describe('rxdb-plugin', () => {
         }
       };
 
-      await plugin.install();
+      await plugin.install(anyScope());
       expect(lifecycle).toEqual(['install']);
 
-      await plugin.destroy();
+      await plugin.destroy?.();
       expect(lifecycle).toEqual(['install', 'destroy']);
     });
 
@@ -279,7 +285,7 @@ describe('rxdb-plugin', () => {
         }
       };
 
-      await expect(plugin.install()).rejects.toThrow('Install failed');
+      await expect(plugin.install(anyScope())).rejects.toThrow('Install failed');
     });
 
     it('应处理 destroy 错误', async () => {
@@ -293,7 +299,7 @@ describe('rxdb-plugin', () => {
         }
       };
 
-      await expect(plugin.destroy()).rejects.toThrow('Destroy failed');
+      await expect(plugin.destroy?.()).rejects.toThrow('Destroy failed');
     });
 
     it('应在生命周期中支持异步操作', async () => {
@@ -310,12 +316,12 @@ describe('rxdb-plugin', () => {
       };
 
       const installStart = Date.now();
-      await plugin.install();
+      await plugin.install(anyScope());
       const installDuration = Date.now() - installStart;
       expect(installDuration).toBeGreaterThanOrEqual(10);
 
       const destroyStart = Date.now();
-      await plugin.destroy();
+      await plugin.destroy?.();
       const destroyDuration = Date.now() - destroyStart;
       expect(destroyDuration).toBeGreaterThanOrEqual(10);
     });
@@ -380,8 +386,8 @@ describe('rxdb-plugin', () => {
 
       const plugin = createCachePlugin(rxdb, { maxSize: 50 });
       expect(plugin.name).toBe('cache');
-      await expect(plugin.install()).resolves.toBeUndefined();
-      await expect(plugin.destroy()).resolves.toBeUndefined();
+      await expect(plugin.install(anyScope())).resolves.toBeUndefined();
+      await expect(plugin.destroy?.()).resolves.toBeUndefined();
     });
   });
 
@@ -433,8 +439,8 @@ describe('rxdb-plugin', () => {
         }
       };
 
-      await plugin1.install();
-      await plugin2.install();
+      await plugin1.install(anyScope());
+      await plugin2.install(anyScope());
       expect(order).toEqual([1, 2]);
     });
 
@@ -461,8 +467,8 @@ describe('rxdb-plugin', () => {
         }
       };
 
-      await plugin2.destroy();
-      await plugin1.destroy();
+      await plugin2.destroy?.();
+      await plugin1.destroy?.();
       expect(order).toEqual([2, 1]);
     });
   });
