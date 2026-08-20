@@ -1,5 +1,20 @@
+/**
+ * 安装时序回归。
+ *
+ * 本文件原来守的是插件**自己**等依赖那一套：先 `rxdb.connect(localAdapterName)`，
+ * 再 `firstValueFrom(adapterConnected$(localAdapterName))`，靠「等的是按适配器的信号
+ * 而不是聚合的 `connected$`」避免把 FTS DDL 打在还没建出来的主表上。
+ *
+ * US-015 之后这段等待整体交给了宿主：插件声明 `inject: ['adapter:local']`，
+ * `install()` 被调用即代表引导链跑完。时序保证因此从「插件等对了信号」变成
+ * 「宿主装晚了才装」，宿主侧的证据在
+ * [RxDB.plugin-inject.spec.ts](../../../rxdb/src/__tests__/RxDB.plugin-inject.spec.ts) AC#2。
+ *
+ * 留在这一层的是两条**结构性**保证，它们不依赖任何时序约定：
+ *  1. 插件不再触碰 `connect()` / `adapterConnected$`——死锁的两条边少了一条；
+ *  2. FTS DDL 只走 `bootstrapTransaction`，不碰会自等 `connect()` 的 `adapter.rawQuery` / repo。
+ */
 import { Entity, EntityBase, PropertyType, type RxDB } from '@aiao/rxdb';
-import { BehaviorSubject, type Observable } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { FtsInstallPlan } from '../core/fts5-installer.js';
@@ -59,32 +74,22 @@ import { disposeScopes, installScoped } from './scoped-install.js';
 })
 class FakeArticle extends EntityBase {}
 
-/**
- * 造一组「按适配器名分开」的连接状态源，模拟 RxDB.adapterConnected$。
- *
- * 名字没出现过就返回一个常驻 false 的流 —— 真实实现同样如此（未连接的适配器
- * 永远是 false），插件不该因为问了一个陌生名字就拿到 true。
- */
-function createAdapterConnections(names: readonly string[]) {
-  const subjects = new Map(names.map(name => [name, new BehaviorSubject(false)]));
-  const never = new BehaviorSubject(false);
-  return {
-    subjects,
-    adapterConnected$: (name: string): Observable<boolean> => subjects.get(name) ?? never
-  };
-}
-
 describe('search plugin install ordering', () => {
   afterEach(async () => {
     await disposeScopes();
     vi.clearAllMocks();
   });
 
-  it('waits for the local adapter specifically before installing FTS and refreshes handles created before ready', async () => {
-    let resolveConnect!: () => void;
-    const connectGate = new Promise<void>(resolve => {
-      resolveConnect = resolve;
+  it('声明 inject 之后不自己等依赖：不调 connect()、不订阅 adapterConnected$', async () => {
+    let landInstall!: () => void;
+    const installGate = new Promise<void>(resolve => {
+      landInstall = resolve;
     });
+    installFtsForEntity.mockImplementationOnce(async () => {
+      await installGate;
+      return { tableName: 'article', status: 'installed' as const, fields: [{ name: 'title', isArray: false }] };
+    });
+
     const rawQuery = vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] }));
     const migrationRepository = {
       find: vi.fn(async () => []),
@@ -99,59 +104,45 @@ describe('search plugin install ordering', () => {
         ) => fn({ query: rawQuery, getRepository: () => migrationRepository })
       )
     };
-
-    const connected$ = new BehaviorSubject(false);
-    const connections = createAdapterConnections(['sqlite-wasm', 'supabase']);
+    const connect = vi.fn(async () => adapter);
+    const adapterConnected$ = vi.fn();
     const fakeRxdb = {
       config: {
-        // 同时配上 remote：聚合的 connected$ 会被先连上的 remote 拉成 true，
-        // 这一路正是回归点 —— 插件必须只认 local 那一个适配器。
+        // 同时配上 remote：宿主的 `inject` 解析只认 local 那一个键，配了 remote 不影响判定
         sync: { local: { adapter: 'sqlite-wasm' }, remote: { adapter: 'supabase' } },
         entities: [FakeArticle]
       },
-      localAdapter$: new BehaviorSubject(adapter),
-      connected$,
-      adapterConnected$: connections.adapterConnected$,
-      connect: vi.fn(async () => {
-        await connectGate;
-        return adapter;
-      }),
+      localAdapterSync: adapter,
+      connect,
+      adapterConnected$,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn()
     } as unknown as RxDB;
 
     const plugin = rxDBPluginSearch(fakeRxdb, { debounce: 0 }) as RxDBPluginSearch;
-    const { installing: installation } = installScoped(plugin);
-    expect(installation).toBe(plugin.ready);
+    installScoped(plugin);
 
+    // 在 ready 之前建的 handle：FTS 落库后必须被唤醒重查，否则首屏永久空
     const handle = fakeRxdb.search('alpha');
     const emissions: string[][] = [];
     const sub = handle.results$.subscribe((results: readonly Readonly<SearchResult>[]) => {
       emissions.push(results.map(result => result.id));
     });
 
-    await Promise.resolve();
-    expect(fakeRxdb.connect).toHaveBeenCalledWith('sqlite-wasm');
-    expect(adapter.bootstrapTransaction).not.toHaveBeenCalled();
-    expect(installFtsForEntity).not.toHaveBeenCalled();
+    // 安装已经在跑（卡在 FTS 那一步），此刻插件一次都没回头找宿主要连接
+    await vi.waitFor(() => expect(installFtsForEntity).toHaveBeenCalledTimes(1));
+    expect(connect).not.toHaveBeenCalled();
+    expect(adapterConnected$).not.toHaveBeenCalled();
     expect(emissions.at(-1) ?? []).toEqual([]);
 
-    resolveConnect();
-    await Promise.resolve();
-    expect(installFtsForEntity).not.toHaveBeenCalled();
-
-    // remote 先连上：聚合的 connected$ 变成 true，但主表还没建出来。
-    // 这里放行就等于把 FTS DDL 打在不存在的表上。
-    connections.subjects.get('supabase')?.next(true);
-    connected$.next(true);
-    await Promise.resolve();
-    expect(installFtsForEntity).not.toHaveBeenCalled();
-
-    connections.subjects.get('sqlite-wasm')?.next(true);
+    landInstall();
     await plugin.ready;
 
     expect(adapter.bootstrapTransaction).toHaveBeenCalledTimes(1);
-    expect(installFtsForEntity).toHaveBeenCalledTimes(1);
+    // 死锁的两条边：宿主等插件安装是一条，插件回头等宿主连接是另一条。后者被结构性地删掉了
+    expect(connect).not.toHaveBeenCalled();
+    expect(adapterConnected$).not.toHaveBeenCalled();
+
     await vi.waitFor(() => {
       expect(engineSearch).toHaveBeenCalled();
       expect(emissions.at(-1)).toEqual(['article-1']);
@@ -161,7 +152,7 @@ describe('search plugin install ordering', () => {
     handle.destroy();
   });
 
-  it('does not deadlock when FTS rawQuery / migration repo re-enter RxDB.connect()', async () => {
+  it('FTS DDL 走 bootstrapTransaction，不碰会自等 connect() 的 adapter.rawQuery / repo', async () => {
     installFtsForEntity.mockImplementationOnce(async (_plan, executor, store) => {
       await executor.rawQuery('SELECT 1');
       await store.listInstallMigrationsForTable('article');
@@ -172,28 +163,11 @@ describe('search plugin install ordering', () => {
       };
     });
 
-    let finishPlugins!: () => void;
-    const pluginGate = new Promise<void>(resolve => {
-      finishPlugins = resolve;
-    });
-    const connections = createAdapterConnections(['sqlite-wasm']);
-    const reenterConnect = async () => {
-      await fakeRxdb.connect('sqlite-wasm');
-    };
-    const rawQuery = vi.fn(async () => {
-      await reenterConnect();
-      return { rowsAffected: 0, rows: [], columns: [] };
-    });
-    const migrationRepository = {
-      find: vi.fn(async () => {
-        await reenterConnect();
-        return [];
-      }),
-      create: vi.fn(async (entity: unknown) => {
-        await reenterConnect();
-        return entity;
-      })
-    };
+    // 插件外的常规入口在 connect() 结算之前一律挂起：`RxDB.connect()` 此刻还卡在
+    // `#await_plugin_installs`，任何 `ready()` → 等 connect() 的调用都是等自己
+    const hangForever = () => new Promise<never>(() => undefined);
+    const rawQuery = vi.fn(hangForever);
+    const migrationRepository = { find: vi.fn(hangForever), create: vi.fn(hangForever) };
     const installQuery = vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] }));
     const installRepository = {
       find: vi.fn(async () => []),
@@ -209,18 +183,8 @@ describe('search plugin install ordering', () => {
       )
     };
     const fakeRxdb = {
-      config: {
-        sync: { local: { adapter: 'sqlite-wasm' } },
-        entities: [FakeArticle]
-      },
-      localAdapter$: new BehaviorSubject(adapter),
-      connected$: new BehaviorSubject(false),
-      adapterConnected$: connections.adapterConnected$,
-      connect: vi.fn(async () => {
-        connections.subjects.get('sqlite-wasm')?.next(true);
-        await pluginGate;
-        return adapter;
-      }),
+      config: { sync: { local: { adapter: 'sqlite-wasm' } }, entities: [FakeArticle] },
+      localAdapterSync: adapter,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn()
     } as unknown as RxDB;
@@ -228,17 +192,17 @@ describe('search plugin install ordering', () => {
     const plugin = rxDBPluginSearch(fakeRxdb, { debounce: 0 }) as RxDBPluginSearch;
     installScoped(plugin);
 
-    const hung = Promise.race([
+    const hung = await Promise.race([
       plugin.ready.then(() => 'ready' as const),
       new Promise<'hung'>(resolve => {
         setTimeout(() => resolve('hung'), 50);
       })
     ]);
 
-    await expect(hung).resolves.toBe('ready');
-    expect(adapter.bootstrapTransaction).toHaveBeenCalled();
+    expect(hung).toBe('ready');
+    expect(adapter.bootstrapTransaction).toHaveBeenCalledTimes(1);
+    expect(installQuery).toHaveBeenCalled();
     expect(rawQuery).not.toHaveBeenCalled();
-    finishPlugins();
-    await plugin.ready;
+    expect(migrationRepository.find).not.toHaveBeenCalled();
   });
 });

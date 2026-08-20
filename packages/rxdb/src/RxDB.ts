@@ -26,7 +26,8 @@ import {
   type TransactionCommitEvent,
   type TransactionRollbackEvent
 } from './rxdb-events.js';
-import { IRxDBPlugin, Plugin } from './rxdb-plugin.js';
+import { PluginDependencyScheduler } from './plugin/dependency-scheduler.js';
+import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
 import { uuid } from './rxdb-utils.js';
 import { MigrationType, RxDBContext, RxDBOptions } from './rxdb.interface.js';
 import { isLocalAdapter, isTransactionEvent } from './rxdb.private.js';
@@ -128,7 +129,20 @@ export class RxDB {
 
   #plugin_map = new Map<Plugin, IRxDBPlugin>();
 
-  #plugin_install_promises = new Map<IRxDBPlugin, Promise<void>>();
+  /**
+   * 插件激活状态与安装 Promise 的唯一持有者。
+   *
+   * @remarks
+   * 「什么时候装哪个插件」全部收口在这里，`#install_one_plugin` / `#destroy_plugin`
+   * 都不做纪元比较（US-015 实现约束）。宿主只提供四件事：解析依赖、建作用域、
+   * 释放作用域、跑 `install()`。
+   */
+  #scheduler: PluginDependencyScheduler = new PluginDependencyScheduler({
+    resolveDependency: dependency => this.#resolve_dependency(dependency),
+    createScope: plugin => this.#create_plugin_scope(plugin),
+    releaseScope: (plugin, scope) => this.#discard_plugin_scope(plugin, scope),
+    runInstall: (plugin, scope) => this.#track_plugin_install(plugin, scope)
+  });
 
   /**
    * 连接纪元作用域：`init()` 建、`#shutdown()` 释放，所有插件激活作用域挂在它下面。
@@ -143,8 +157,8 @@ export class RxDB {
    * 插件 → 它在本纪元的激活作用域。
    *
    * @remarks
-   * 与 {@link RxDB.#plugin_install_promises} 一样按纪元清空。不放到插件实例上：
-   * 插件实例跨纪元存活（`#plugin_map` 不清），作用域不跨纪元存活，放一起必然读到上一轮的死对象。
+   * 与调度器里的安装记录一样按纪元清空。不放到插件实例上：插件实例跨纪元存活
+   * （`#plugin_map` 不清），作用域不跨纪元存活，放一起必然读到上一轮的死对象。
    */
   #plugin_scopes = new Map<IRxDBPlugin, LifecycleScope>();
 
@@ -218,6 +232,20 @@ export class RxDB {
    */
   #connected_adapters = new Set<string>();
 
+  /**
+   * 已连接适配器名 → **实例引用**。
+   *
+   * @remarks
+   * 与 {@link RxDB.#connected_adapters} 一一对应，增删点完全相同。多出来的这份是给
+   * {@link PluginDependencyScheduler} 用的：依赖纪元按实例引用判定（US-015 INV-3），
+   * 只看名字会漏掉「同名换了新实例」这一类变化——名字没变、布尔位没变，而插件手里
+   * 握着的却是一条已经作废的连接。
+   *
+   * 也是 {@link RxDB.localAdapterSync} 的唯一数据源：插件读到的一定是调度器为本纪元
+   * 绑定的那个实例，而不是按名字重新解析出来的另一个。
+   */
+  #connected_adapter_instances = new Map<string, IRxDBAdapter>();
+
   /** {@link RxDB.#connected_adapters} 的快照流，供 {@link RxDB.adapterConnected$} 派生。 */
   #adapter_connected_sub = new BehaviorSubject<ReadonlySet<string>>(new Set<string>());
 
@@ -248,6 +276,36 @@ export class RxDB {
       ),
       shareReplay({ bufferSize: 1, refCount: true })
     );
+
+  /**
+   * 当前已连接的本地适配器实例，**同步**读取。
+   *
+   * @returns 本地适配器实例
+   * @throws 本地适配器未配置或尚未连接时抛错
+   *
+   * @remarks
+   * 给声明了 `inject: ['adapter:local']` 的插件用：`install()` 被调用时依赖必然已就绪，
+   * 再走一次 `await firstValueFrom(localAdapter$)` 只是把一个确定的值绕成异步的。
+   *
+   * 与 {@link RxDB.localAdapter$} 的分工：这里读的是**调度器为本纪元绑定的那个实例**，
+   * 而 `localAdapter$` 按名字经 {@link RxDB.getAdapter} 重新解析。纪元交替时两者可能
+   * 指向不同对象，依赖纪元身份的代码（US-015 INV-3）必须用这个。需要跨纪元持续跟踪
+   * 适配器变化的响应式代码仍然用 `localAdapter$`。
+   *
+   * 未连接时**抛错而不是返回 `undefined`**：没有依赖声明就来同步取适配器是调用方的时序
+   * 错误，返回空值只会把它推迟到某个更远的地方再炸。
+   */
+  public get localAdapterSync(): IRxDBAdapter & RxDBAdapterLocalBase {
+    const adapterName = this.#config.sync.local?.adapter;
+    if (adapterName === undefined) {
+      throw new Error('[RxDB] local adapter is not configured (sync.local.adapter)');
+    }
+    const adapter = this.#connected_adapter_instances.get(adapterName);
+    if (adapter === undefined) {
+      throw new Error(`[RxDB] local adapter '${adapterName}' is not connected; await connect('${adapterName}') first`);
+    }
+    return adapter as IRxDBAdapter & RxDBAdapterLocalBase;
+  }
 
   /**
    * 远程适配器
@@ -340,7 +398,7 @@ export class RxDB {
     if (local) this.#local_adapter_sub.next(local.adapter);
     if (remote) this.#remote_adapter_sub.next(remote.adapter);
     // 安装插件并初始化各个管理器
-    // #install_plugin 同步不抛（错误记入 #plugin_install_promises），故意留在 try 外——
+    // #install_plugin 同步不抛（错误记进调度器的安装记录），故意留在 try 外——
     // Schema/Entity 初始化失败仍只回滚管理器；插件失败由 connect() 传播。
     this.#ensure_connection_scope();
     this.#install_plugin();
@@ -359,6 +417,9 @@ export class RxDB {
       // 否则重新 init() 会把第二份登记叠在第一份上。init() 是同步 API 不能 await，
       // 但字段置空发生在同步段内，重跑一定拿到全新作用域。
       void this.#release_connection_scope();
+      // 与上一行同步成对：作用域没了而调度记录还停在 active，重新 init() 时调度器会认为
+      // 「依赖纪元没变、插件还装着」而一个都不重装，拿到的是个从没重新登记过的空壳。
+      this.#reset_plugin_scheduling();
       throw error;
     }
   }
@@ -528,15 +589,19 @@ export class RxDB {
         }
         await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
       }
-      // 先于 #await_plugin_installs 置位：插件的 install() 正是靠这个信号确认
-      // 「本适配器的表已经建好」，而它们跑在下一行的 await 里面。
-      this.#set_adapter_connected(adapterName, true);
+      // 先于 #await_plugin_installs 置位：这一步同时是「adapter:local / adapter:remote 就绪」
+      // 的判据（见 #resolve_dependency），调度器要靠它才会放行声明了该依赖的插件，
+      // 而那批安装恰好跑在下一行的 await 里面。
+      this.#set_adapter_connected(adapterName, adapter);
       try {
         await this.#await_plugin_installs();
       } catch (error) {
         // 本适配器的引导没有走完，不能留在已连接集合里。聚合信号只在真的一个都不剩时才落下，
         // 否则别的连着的适配器会被一起误报成断开。
-        this.#set_adapter_connected(adapterName, false);
+        this.#set_adapter_connected(adapterName, undefined);
+        // 依赖已经作废：让调度器把靠它装起来的插件释放掉，别留着一份绑在死连接上的登记。
+        this.#scheduler.reconcile();
+        await this.#scheduler.settle();
         throw error;
       }
       return adapter;
@@ -593,9 +658,16 @@ export class RxDB {
     const adapter = await cached;
     // 断开最后一个**已连接**适配器前先执行全局拆卸（插件须在适配器断开前销毁）。
     // 判定依据是 #connected_adapters 而非 #adapter_map.size，理由见前者的 @remarks。
-    const wasConnected = this.#set_adapter_connected(adapterName, false);
-    if (wasConnected && this.#connected_adapters.size === 0) {
-      await this.#shutdown();
+    const wasConnected = this.#set_adapter_connected(adapterName, undefined);
+    if (wasConnected) {
+      if (this.#connected_adapters.size === 0) await this.#shutdown();
+      // 还有别的适配器连着：只把靠**这一个**适配器活着的插件释放掉，其余不受影响（AC#4）。
+      // 释放必须早于下面的 adapter.disconnect()（INV-7）——插件的撤销条目多半还要用这条连接
+      // （删触发器、drop 影子表），适配器先断开会让它们在一个已关闭的连接上执行。
+      else {
+        this.#scheduler.reconcile();
+        await this.#scheduler.settle();
+      }
     }
     try {
       await adapter.disconnect();
@@ -653,32 +725,67 @@ export class RxDB {
   }
 
   /**
-   * 增删 {@link RxDB.#connected_adapters} 并推送快照。
+   * 增删 {@link RxDB.#connected_adapters} 与 {@link RxDB.#connected_adapter_instances} 并推送快照。
    *
    * @param adapterName - 适配器名称
-   * @param connected - 目标状态
+   * @param adapter - 连上时传本纪元的适配器实例；断开时传 `undefined`
    * @returns 状态是否真的发生了变化（`false` 表示原本就是这个状态）
    *
    * @remarks
    * 聚合的 {@link RxDB.connected$} 在这里跟着算：`true` 只要有一个连上就发，`false` 只在
    * 最后一个也掉线时才发。此前失败路径直接 `next(false)`，会把仍然连着的适配器一起报成断开。
+   *
+   * 目标状态用「实例还是 `undefined`」表达而不是一个布尔参数：两张表必须同进同出，
+   * 而带布尔参数的入口允许「标记为已连接却没登记实例」这种写法——
+   * 那时 {@link RxDB.localAdapterSync} 会在插件毫不知情的情况下抛「未连接」。
    */
-  #set_adapter_connected(adapterName: string, connected: boolean): boolean {
+  #set_adapter_connected(adapterName: string, adapter: IRxDBAdapter | undefined): boolean {
+    const connected = adapter !== undefined;
     const changed =
       connected ? !this.#connected_adapters.has(adapterName) : this.#connected_adapters.delete(adapterName);
-    if (connected) this.#connected_adapters.add(adapterName);
+    if (adapter !== undefined) {
+      this.#connected_adapters.add(adapterName);
+      this.#connected_adapter_instances.set(adapterName, adapter);
+    } else {
+      this.#connected_adapter_instances.delete(adapterName);
+    }
     if (!changed) return false;
     this.#adapter_connected_sub.next(new Set(this.#connected_adapters));
     this.#connected_sub.next(this.#connected_adapters.size > 0);
     return true;
   }
 
-  /** 清空已连接集合并推送一次空快照（拆卸路径专用）。 */
+  /** 清空已连接集合与实例表并推送一次空快照（拆卸路径专用）。 */
   #clear_adapter_connected(): void {
+    this.#connected_adapter_instances.clear();
     if (this.#connected_adapters.size === 0) return;
     this.#connected_adapters.clear();
     this.#adapter_connected_sub.next(new Set<string>());
     this.#connected_sub.next(false);
+  }
+
+  /**
+   * 依赖键 → 当前实例引用（{@link PluginSchedulerHost.resolveDependency}）。
+   *
+   * @param dependency - 依赖键
+   * @returns 就绪时返回实例引用；未就绪返回 `undefined`
+   *
+   * @remarks
+   * 「就绪」= 引导链（迁移、建表、索引 reconcile）已经跑完，因为 {@link RxDB.#connected_adapter_instances}
+   * 的唯一写入点就在引导之后。返回的是实例本身而不是名字：纪元按引用判定（US-015 INV-3）。
+   *
+   * `plugin:*` 阶段 A 恒为未就绪 —— 声明它的插件会停在等待态并触发一次告警，而不是静默消失。
+   */
+  #resolve_dependency(dependency: RxDBPluginDependency): object | undefined {
+    if (dependency === 'adapter:local') return this.#resolve_adapter_instance(this.#config.sync.local?.adapter);
+    if (dependency === 'adapter:remote') return this.#resolve_adapter_instance(this.#config.sync.remote?.adapter);
+    return undefined;
+  }
+
+  /** 按配置里声明的适配器名查已连接实例；未配置或未连接都返回 `undefined`。 */
+  #resolve_adapter_instance(adapterName: string | undefined): IRxDBAdapter | undefined {
+    if (adapterName === undefined) return undefined;
+    return this.#connected_adapter_instances.get(adapterName);
   }
 
   /**
@@ -761,8 +868,11 @@ export class RxDB {
     this.#local_adapter_sub.next('');
     this.#remote_adapter_sub.next('');
     this.#transaction_stack = [];
-    // 清空安装记录：这是失败插件唯一的解锁点（见 #await_plugin_installs 的 @remarks）。
-    this.#plugin_install_promises.clear();
+    // 复位放在同步收尾段的最后，而不是随 #release_connection_scope() 一起：上面每个 await
+    // 都是一次让路，此刻仍有别的 connect() 卡在自己的引导链里、还没走到 #await_plugin_installs()。
+    // 提前抹掉安装记录，那个 connect() 醒来时会发现无事可等——一次本该带着安装错误失败的
+    // connect() 于是静默地成功返回。
+    this.#reset_plugin_scheduling();
     this.#rxdb_initialized = false;
     this.#shutting_down = false;
     this.#clear_adapter_connected();
@@ -841,35 +951,40 @@ export class RxDB {
     );
   }
 
+  /**
+   * 登记全部插件后**只**对齐一趟。
+   *
+   * @remarks
+   * 逐个 `#install_one_plugin` 会退化成每个插件一趟扫描：N 个插件、N 趟全表扫描，而且第 k 趟
+   * 看到的依赖状态与第 N 趟没有区别。批量登记 + 一次 `reconcile()` 与「多个依赖同时就绪只跑
+   * 一趟」（US-015 强制测试 5）是同一条要求的两面。
+   */
   #install_plugin() {
-    for (const plugin of this.#plugin_map.values()) {
-      this.#install_one_plugin(plugin);
-    }
+    if (!this.#rxdb_initialized || this.#shutting_down) return;
+    for (const plugin of this.#plugin_map.values()) this.#scheduler.register(plugin);
+    this.#scheduler.reconcile();
   }
 
   /**
-   * `use()` / `init()` 保持同步且不抛：同步 throw 转成 rejected Promise。
-   * 异步 reject 不再吞掉，由 {@link RxDB.#await_plugin_installs} 在 `connect()` 里传播。
+   * 把插件交给调度器，并立刻对齐一次当前依赖状态。
    *
    * @remarks
    * 「本纪元是否还收安装」的判定收口在这里，而不是散在三个调用点（`use()` /
    * {@link RxDB.#install_plugin} / {@link RxDB.#await_plugin_installs}）。散着写漏过一处：
-   * 停机期间在飞的 `connect()` 恢复执行时，`#shutting_down` 已经复位、
-   * {@link RxDB.#plugin_install_promises} 已经清空，`#await_plugin_installs` 于是把**每个**插件
-   * 都重装一遍——装进一个 `#ensure_connection_scope()` 顺手新建、而 `init()` 从没走过的纪元里，
-   * 那时 `entityManager` / `versionManager` / 网关都已经拆掉了。
+   * 停机期间在飞的 `connect()` 恢复执行时，`#shutting_down` 已经复位、调度记录已经复位，
+   * `#await_plugin_installs` 于是把**每个**插件都重装一遍——装进一个 `#ensure_connection_scope()`
+   * 顺手新建、而 `init()` 从没走过的纪元里，那时 `entityManager` / `versionManager` / 网关都已经拆掉了。
    *
    * 两个条件都要：`#shutting_down` 只覆盖拆卸窗口**之内**，`#rxdb_initialized` 才覆盖拆完之后。
    * 被跳过的插件留在 {@link RxDB.#plugin_map} 里，下一次 `init()` 统一安装。
+   *
+   * 「装还是不装」不在这里判——依赖是否就绪由 {@link PluginDependencyScheduler} 说了算，
+   * 未就绪的插件登记完就停在等待态，不产生作用域也不进入安装等待集合（INV-4 / AC#1）。
    */
   #install_one_plugin(plugin: IRxDBPlugin) {
     if (!this.#rxdb_initialized || this.#shutting_down) return;
-    const tracked = this.#track_plugin_install(plugin);
-    void tracked.then(
-      () => undefined,
-      () => undefined
-    );
-    this.#plugin_install_promises.set(plugin, tracked);
+    this.#scheduler.register(plugin);
+    this.#scheduler.reconcile();
   }
 
   /**
@@ -884,11 +999,16 @@ export class RxDB {
    * 同形，且同时覆盖「纪元没了」（`#release_connection_scope()` 清空过这张表）与「已经换了
    * 更晚的纪元」两种情况。手里这一个不再登记在册时直接收手：它的资源已经随纪元释放，
    * 没有需要回收的残留。
+   *
+   * 失败时**只**记日志并重抛，不自己释放作用域：回滚统一归 {@link PluginDependencyScheduler}
+   * （见 {@link PluginSchedulerHost.runInstall}），两边都释放会让「恰好释放一次」这条断言失去意义。
+   *
+   * @param plugin - 插件实例
+   * @param scope - 调度器为本次安装建好的激活作用域
    */
-  async #track_plugin_install(plugin: IRxDBPlugin): Promise<void> {
-    // 作用域**同步**建好（登记顺序即插件顺序，`#plugin_scopes` 立刻可见），
-    // 只把 `install()` 推到上一纪元释放完之后。理由见 {@link RxDB.#connection_release}。
-    const scope = this.#create_plugin_scope(plugin);
+  async #track_plugin_install(plugin: IRxDBPlugin, scope: LifecycleScope): Promise<void> {
+    // 作用域由调度器**同步**建好（登记顺序即插件顺序，`#plugin_scopes` 立刻可见），
+    // 这里只把 `install()` 推到上一纪元释放完之后。理由见 {@link RxDB.#connection_release}。
     const pending_release = this.#connection_release;
     if (pending_release !== undefined) await pending_release;
     if (this.#plugin_scopes.get(plugin) !== scope) return;
@@ -897,10 +1017,6 @@ export class RxDB {
       if (isPromise(result)) await result;
     } catch (err) {
       console.error(`[RxDB] Plugin '${plugin.name}' install failed:`, err);
-      // 半途失败的插件已经把一部分改动登记进 scope 了。旧契约下这批改动无人认领——
-      // 插件没走到自己的收尾代码，宿主又只有一个 destroy() 可调（而失败的插件恰恰
-      // 不该被当成装好了去 destroy）。现在宿主手里有清单，能替它逆序退回去。
-      await this.#discard_plugin_scope(plugin, scope);
       throw err;
     }
   }
@@ -949,6 +1065,10 @@ export class RxDB {
    *
    * 但「拿到新作用域」不等于「旧纪元已经退干净」：撤销动作本身还在微任务里排着。
    * 结果记进 {@link RxDB.#connection_release}，新纪元的 `install()` 会等它落地。
+   *
+   * 调度记录**不在**这里复位，尽管两者都是「纪元死亡」的一部分：`#shutdown()` 要把复位
+   * 留到同步收尾段的最后（见那里的 `@remarks`），而 `init()` 的失败回滚必须当场复位。
+   * 两个调用点各自负责，见 {@link RxDB.#reset_plugin_scheduling}。
    */
   #release_connection_scope(): Promise<void> {
     const scope = this.#connection_scope;
@@ -967,6 +1087,24 @@ export class RxDB {
     return release;
   }
 
+  /**
+   * 纪元结束时复位调度记录。
+   *
+   * @remarks
+   * 与 {@link RxDB.#release_connection_scope} 同为「纪元死亡」的一半：作用域没了，调度器手里的
+   * `active` 状态与作用域引用也就全部作废。漏掉这一步，重新 `init()` 时调度器会认为插件仍然
+   * `active` 且依赖纪元没变，于是一个都不重装。
+   *
+   * 也是安装失败的插件在「依赖纪元没变」时唯一的解锁点
+   * （见 {@link PluginDependencyScheduler.startedInstalls} 的 `@remarks`）。
+   *
+   * 两个调用点的**时机**不同，因此没有合进 `#release_connection_scope()`：`init()` 的失败
+   * 回滚要当场复位（紧接着可能就是一次同步重试），`#shutdown()` 则要留到同步收尾段的最后。
+   */
+  #reset_plugin_scheduling(): void {
+    this.#scheduler.reset();
+  }
+
   /** 撤销 {@link RxDB.repository} 的一次注册，按配置对象身份守卫。 */
   #unregister_repository(repositoryName: string, config: IRepositoryConfig): void {
     if (this.#repository_config_map.get(repositoryName) !== config) return;
@@ -977,26 +1115,30 @@ export class RxDB {
    * 表就绪后等待插件安装。
    *
    * @remarks
-   * 失败的插件**保留**在 {@link RxDB.#plugin_install_promises} 里，后续 `connect()` 会拿到
-   * 同一个 rejected promise 而不是重跑 `install()`。
+   * 只等**已经开工**的那些（{@link PluginDependencyScheduler.startedInstalls}）。依赖没满足的
+   * 插件从不进入安装态，因此 `connect('local')` 遇上 `inject: ['adapter:remote']` 的插件时
+   * 照常 resolve 而不是挂起（INV-4 / AC#3）。
    *
-   * 这不是偷懒：`install()` 没有幂等契约。搜索插件失败时可能已经建了一半 FTS 表、写了一部分
-   * 迁移水位线；重跑会在半成品上再来一遍，第二次的报错还会盖掉第一次的真实原因。宁可让每次
-   * `connect()` 都用同一个错误明确地失败。
+   * 失败的插件在同一依赖纪元内**保留**失败的 Promise，后续 `connect()` 拿到同一个错误而不是
+   * 重跑 `install()`。这不是偷懒：`install()` 没有幂等契约。搜索插件失败时可能已经建了一半
+   * FTS 表、写了一部分迁移水位线；重跑会在半成品上再来一遍，第二次的报错还会盖掉第一次的真实原因。
    *
-   * 唯一的解锁点是 `disconnect()` / `disconnectAll()` —— 它们经 {@link RxDB.#shutdown}
-   * 先 `destroy()` 掉插件再清空这张表，此时重装才有干净的起点。
+   * 解锁点有二：依赖纪元真的变了（此时是一次合法的重装，AC#9），或
+   * `disconnect()` / `disconnectAll()` 经 {@link RxDB.#shutdown} 复位调度记录。
    *
    * 补装那一步会不会真的装，由 {@link RxDB.#install_one_plugin} 判：本纪元已经退场时它是空操作，
    * 于是 `pending` 为空、本次 `connect()` 不等任何插件。这是有意的——那时该等的东西已经没了。
    */
   async #await_plugin_installs(): Promise<void> {
-    for (const plugin of this.#plugin_map.values()) {
-      if (!this.#plugin_install_promises.has(plugin)) {
-        this.#install_one_plugin(plugin);
-      }
-    }
-    const pending = [...this.#plugin_install_promises.values()];
+    this.#install_plugin();
+    // 先照一张同步快照：`reconcile()` 是同步的，本轮该开工的这时已经全部开工。
+    // 不照的话，本次 connect() 等在 settle() 里的期间若发生一次停机（调度记录被复位），
+    // 醒来时那份安装记录已经没了，一个失败的 connect() 会变成成功返回。
+    const pending = new Set(this.#scheduler.startedInstalls());
+    // settle 之后再收一次：安装可能被推迟到上一纪元释放之后（见 #connection_release），
+    // 也可能因依赖在飞期间换了纪元而重来一轮——那时换上的是另一个 Promise。
+    await this.#scheduler.settle();
+    for (const install of this.#scheduler.startedInstalls()) pending.add(install);
     const results = await Promise.allSettled(pending);
     const failure = results.find(result => result.status === 'rejected');
     if (failure !== undefined) throw failure.reason;

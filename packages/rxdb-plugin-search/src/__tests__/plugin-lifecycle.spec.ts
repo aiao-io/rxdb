@@ -88,12 +88,7 @@ class InvalidArticle extends EntityBase {}
 
 type EntityChangeEvent = EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent;
 
-const buildFakeRxdb = (
-  entities: unknown[] = [FakeArticle],
-  exposesRawQuery = true,
-  /** 适配器就绪信号。默认立即为真；传入 `Subject` 可把 `#runInstall` 卡在 FTS DDL **之前**。 */
-  adapterConnected: Observable<boolean> = new BehaviorSubject(true)
-) => {
+const buildFakeRxdb = (entities: unknown[] = [FakeArticle], exposesRawQuery = true) => {
   const rawQuery = vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] }));
   const migrationRepository = {
     find: vi.fn(async () => []),
@@ -115,10 +110,10 @@ const buildFakeRxdb = (
       sync: { local: { adapter: 'sqlite-wasm' } },
       entities
     },
-    localAdapter$: new BehaviorSubject(activeAdapter),
-    connected$: new BehaviorSubject(true),
-    adapterConnected$: () => adapterConnected,
-    connect: vi.fn(async () => activeAdapter),
+    // 插件按 `inject: ['adapter:local']` 拿实例：宿主保证调用 `install()` 时它已就绪。
+    // 连接信号（`connect` / `adapterConnected$` / `localAdapter$`）插件已经不再读，
+    // 假宿主也就不提供——真读了会立刻 TypeError，而不是静默走回老路。
+    localAdapterSync: activeAdapter,
     addEventListener: vi.fn((type: string, listener: (event: EntityChangeEvent) => void) => {
       const list = listeners.get(type) ?? [];
       list.push(listener);
@@ -357,12 +352,13 @@ describe('search plugin lifecycle', () => {
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
     const { scope, installing } = installScoped(plugin);
-    expect(plugin.ready).toBe(installing);
     const handle = plugin.search('');
     expect(fake.listeners.get(ENTITY_LOCAL_CREATE_EVENT)).toHaveLength(1);
 
     await expect(installing).rejects.toBe(failure);
-    expect(plugin.ready).toBe(installing);
+    // `ready` 与 `install()` 的返回值是两个对象，但同一个失败：宿主靠后者把错误传给
+    // `connect()`，调用方靠前者拿到同一个原因
+    await expect(plugin.ready).rejects.toBe(failure);
 
     expect(consoleError).not.toHaveBeenCalled();
     // 半途失败的插件自己不收尾：宿主握着清单，替它逆序退回去（`#discard_plugin_scope`）
