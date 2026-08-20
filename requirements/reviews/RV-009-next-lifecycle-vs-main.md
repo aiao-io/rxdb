@@ -9,7 +9,7 @@ pr:
 
 # Review：`next-lifecycle` vs `main`
 
-**判定：🟡 修完 #1 #2 可合并。** 这个分支要做的事——把散在各插件里的手写拆卸记账换成一个作用域原语——在设计上是成立的，实现也基本兑现了它承诺的语义。8 条 finding 逐条对着代码复核后全部成立（另有 2 条初判被推翻，已剔除）。真正卡合并的是 #1（原语的自释放死锁，已复现）与 #2（停机窗口有一条未设防的安装路径）。其余 6 条是文档与需求件的一致性问题，不影响运行时。
+**判定：🟢 可合并。** 这个分支要做的事——把散在各插件里的手写拆卸记账换成一个作用域原语——在设计上是成立的，实现也基本兑现了它承诺的语义。8 条 finding 逐条对着代码复核后全部成立并已修复（另有 2 条初判被推翻，已剔除；复评审又确认 1 条非阻塞残角 #9，记录在案）。真正卡合并的 #1（原语的自释放死锁，已复现）与 #2（停机窗口有一条未设防的安装路径）已修；其余为文档与需求件的一致性问题，不影响运行时。
 
 设计本身不需要返工。
 
@@ -161,6 +161,21 @@ scope.acquire(() => {
 
 **修复**：把 search 那行改成实际的 `destroyed` 文案。
 
+### 9. P3：在飞的 `#track_plugin_install` 跨过停机窗口，会在已释放作用域上跑一次 `install()` —— 🟢 记录在案（非阻塞，暂不修）
+
+[RxDB.ts:875](../../packages/rxdb/src/RxDB.ts#L875) `#track_plugin_install`
+
+#2 的守卫（`#install_one_plugin` 首句）只在**启动**安装时判定；一旦 `#track_plugin_install` 已经跑起来，就没人再拦它。它的作用域是**同步**建的（`#create_plugin_scope`，[:895](../../packages/rxdb/src/RxDB.ts#L895)），然后才 `await pending_release`。触发序列：
+
+1. `init()` 失败 → catch 里 `void this.#release_connection_scope()`（[:361](../../packages/rxdb/src/RxDB.ts#L361)），`#connection_release` 置为在飞的释放，而 `#rxdb_initialized` 已复位、`#shutting_down` 为 false。
+2. 同步重试 `init()`（被支持的路径）→ `#install_plugin` → `#track_plugin_install` 捕获这个在飞的 `#connection_release` 并 `await`，安装被推迟。
+3. 推迟期间 `disconnectAll()` → `#shutdown()` 把刚建好的（空）插件作用域连同连接作用域一起释放。
+4. `#track_plugin_install` 恢复，`plugin.install(scope)` 撞上已释放的作用域 → `scope.acquire()` 抛 `LifecycleScopeDisposedError` → 被 `console.error` 记下并 rethrow。
+
+**后果**：一次噪声日志 + 一个已 reject 的安装 promise。它已被 `void tracked.then(…)` 处理，map 条目被第二次 shutdown 清空，下次 `connect()` 干净重装——**自愈、无泄漏、无损坏**。
+
+这与 #2 不同：#2 修的是「停机窗口内**新装**」，这条是它修完之后剩下来的「**已推迟**安装再跨停机」残角。触发窗口极窄（init 失败 → 同步重试 → 再 disconnect 落在同一微任务间隙），且结局可恢复。要彻底关掉，需要在 `#track_plugin_install` 恢复后、`install()` 之前再校验一次作用域仍为 active（或校验 `#plugin_scopes.get(plugin) === scope`）。
+
 ## 已确认通过
 
 以下是评审中重点攻击但**未发现问题**的部分，记下来避免下次重复投入：
@@ -208,5 +223,6 @@ scope.acquire(() => {
 - [x] #6 `repository()` 拒绝语义补 RxDB 层用例（follow-up）
 - [x] #7 `epic-008` 勾上 US-013 / US-014
 - [x] #8 迁移文档修正 search 的错误串
+- [x] #9 在飞 `#track_plugin_install` 跨停机（P3，自愈无泄漏；记录在案，暂不修）
 - [ ] 开 PR 修复（`pr` 字段记录链接）
 - [ ] PR 合并，`status: Resolved`
