@@ -40,15 +40,15 @@ owner: jimmy
 
 | #   | 位置                                                                                               | 手工机制                                                                       | 已知代价                                                                                                                                                                             |
 | --- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | [RxDB.ts:605-621](../../packages/rxdb/src/RxDB.ts#L605-L621) `#shutdown()`                         | 一次手工复位 8 处状态                                                          | 注释自陈「复位是拆卸的一半」；漏一处 = 重连后拿到空壳实例                                                                                                                            |
+| 1   | [RxDB.ts:670-688](../../packages/rxdb/src/RxDB.ts#L670-L688) `#shutdown()`                         | 一次手工复位 8 处状态                                                          | 注释自陈「复位是拆卸的一半」；漏一处 = 重连后拿到空壳实例                                                                                                                            |
 | 2   | [RxDB.ts:142](../../packages/rxdb/src/RxDB.ts#L142) `#event_initialized`                           | 「只装一次」布尔守卫                                                           | 事件监听器**没有**卸载路径，只能靠不重复装来防泄漏                                                                                                                                   |
 | 3   | [RxDB.ts:118](../../packages/rxdb/src/RxDB.ts#L118) `#plugin_install_promises`                     | `Map<IRxDBPlugin, Promise<void>>` 记账 + 失败后删条目允许重试                  | 安装态、失败态、重试态三件事挤在一个 Map 里                                                                                                                                          |
 | 4   | [storage/plugin.ts:19-20](../../packages/rxdb-plugin-storage/src/plugin.ts#L19-L20)                | `#ownsStorage` + `#registeredEntity` 双布尔                                    | `defineProperty` / `deleteProperty` 与 `entities.push` / `splice` 两对配对散在 install / destroy                                                                                     |
 | 5   | [search/plugin.ts:84,98-100](../../packages/rxdb-plugin-search/src/plugin.ts#L84)                  | `SearchPluginPhase` 五态枚举 + `#installPromise` 身份比对                      | 为了处理「destroy 与异步 install 竞态」自建了一套状态机                                                                                                                              |
-| 6   | [search/plugin.ts:109,479-480](../../packages/rxdb-plugin-search/src/plugin.ts#L109)               | `Array<{type, listener}>` 手工监听器清单，destroy 时逐个 `removeEventListener` | 新增一处 `addEventListener` 必须记得 push 进同一个数组                                                                                                                               |
+| 6   | [search/plugin.ts:109,495-498](../../packages/rxdb-plugin-search/src/plugin.ts#L109)               | `Array<{type, listener}>` 手工监听器清单，destroy 时逐个 `removeEventListener` | 新增一处 `addEventListener` 必须记得 push 进同一个数组                                                                                                                               |
 | 7   | [workspace:173-174,196](../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L173-L174) | `#installPromise` + `#installFailed` + `#destroyed` 三标志                     | 第三套语义不同的安装状态机；`#destroyed` 需要在每个 `await` 之后重新检查                                                                                                             |
 | 8   | [workspace:185,412-425](../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L185)      | `Map<CacheId, Subscription>` + 独立的 `#taskSubscription`                      | 两处订阅两套释放路径；`rollback(() => …)`（:295）已经是本原语的临时手写版                                                                                                            |
-| 9   | [graph/plugin.ts:33-35](../../packages/rxdb-plugin-graph/src/plugin.ts#L33-L35)                    | `destroy()` 空实现，注释只写「注销」                                           | **契约里没有位置可写**：`install()` 调 `rxdb.repository()` 写进 `#repository_config_map`，而 RxDB 全文只有 `.set`（:310）与 `.get`（:391），**没有反注册 API**——这不是忘写，是写不了 |
+| 9   | [graph/plugin.ts:33-35](../../packages/rxdb-plugin-graph/src/plugin.ts#L33-L35)                    | `destroy()` 空实现，注释只写「注销」                                           | **契约里没有位置可写**：`install()` 调 `rxdb.repository()` 写进 `#repository_config_map`，而 RxDB 全文只有 `.set`（:323）与 `.get`（:404），**没有反注册 API**——这不是忘写，是写不了 |
 
 第 9 条是本 Epic 的直接触发点：它证明「靠自觉写对称的 destroy」在当前契约下**做不到**，
 因为宿主根本没提供撤销入口。补一个 `unregisterRepository()` 只能解决这一处；同样的洞会在
@@ -57,13 +57,13 @@ owner: jimmy
 ### 两处「拆了装不回来」的既有泄漏
 
 第 4 / 第 7 条不只是写法不统一，它们**今天就会产生用户可见的坏结果**——因为插件实例由
-[`#plugin_map`](../../packages/rxdb/src/RxDB.ts#L338-L349) 缓存、**构造器只跑一次**，而 `destroy()`
+[`#plugin_map`](../../packages/rxdb/src/RxDB.ts#L351-L361) 缓存、**构造器只跑一次**，而 `destroy()`
 每次停机都跑：
 
 - **storage**：`new RxdbFileStorage(...)` 与 `Object.defineProperty(rxdb, 'storage', …)` 都在
   [构造器:27-41](../../packages/rxdb-plugin-storage/src/plugin.ts#L27-L41)，`destroy()` 却
   `Reflect.deleteProperty(this.rxdb, 'storage')`（:53-64）。**断连一次之后 `rxdb.storage` 永久消失**，
-  重连不会把它装回来。且 [storage.service.ts:822-832](../../packages/rxdb-plugin-storage/src/storage.service.ts#L822-L832)
+  重连不会把它装回来。且 [storage.service.ts:782-793](../../packages/rxdb-plugin-storage/src/storage.service.ts#L782-L793)
   的 `destroy()` 是终态，同一个实例即便留着也已经 `StorageDestroyedError`。
 - **workspace**：`#destroyed`（:196）是终态标志，从不复位；`#indexedDBStore` 是
   `readonly` + definite assignment（:169），构造器之后无法重新赋值。拆卸后同样装不回来。
@@ -73,9 +73,9 @@ US-014 独立交付即可关闭。后续故事必须各自证明自己的症状�
 
 ### 一处贯穿全部九项的不对称
 
-[RxDB.ts:765-775](../../packages/rxdb/src/RxDB.ts#L765-L775) 的 `#destroy_plugin()` 用 `Promise.all`
+[RxDB.ts:838-848](../../packages/rxdb/src/RxDB.ts#L838-L848) 的 `#destroy_plugin()` 用 `Promise.all`
 并发调用，把每个插件 `destroy()` 的异常 `console.error` 后**吞掉**；而
-`#track_plugin_install()`（:714-728）会把 `install()` 的异常经 `#await_plugin_installs()` 抛给 `connect()`。
+`#track_plugin_install()`（:781-795）会把 `install()` 的异常经 `#await_plugin_installs()` 抛给 `connect()`。
 同一个生命周期的两端，一端硬失败一端静默，且拆卸端连**逆序**都没有——
 这不是某个插件的 bug，是「拆卸没有统一语义」的直接后果。
 

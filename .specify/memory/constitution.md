@@ -1,7 +1,12 @@
 <!--
 Sync Impact Report
-- Version change: 2.0.0 → 2.0.1
-- Modified principles: none (wording preserved)
+- Version change: 2.0.1 → 2.0.2
+- Modified principles: II. Testing Standards — the coverage-gate sentence described tiers
+  that `scripts/audit/coverage-check.mjs` does not implement (it named `rxdb-model`,
+  adapters and plugins as 90% while omitting the three framework bindings). Six packages
+  were below the stated bar with CI green, confirming the text was stale rather than
+  aspirational. Corrected to describe the enforced tiers and to name the script as the
+  single source of truth. No enforced threshold changed.
 - Added sections: none
 - Removed sections: none
 - Templates requiring updates:
@@ -42,8 +47,12 @@ red → green → refactor. Tests MUST fail for the intended reason before imple
 begins, or reuse an existing failing regression test with explicit confirmation in the
 plan. Every bug fix MUST include a regression test that fails without the fix.
 
-Coverage gates: core packages (`rxdb`, `rxdb-model`, adapters, plugins) MUST maintain
-at least 90% coverage; all other packages MUST maintain at least 80%. Unit,
+Coverage gates are defined by `scripts/audit/coverage-check.mjs`, which is the single
+source of truth — this document describes it and MUST NOT diverge from it. Core packages
+(`rxdb` and the three framework bindings `rxdb-angular` / `rxdb-react` / `rxdb-vue`) MUST
+maintain at least 90% on all four metrics; every other package — adapters, plugins,
+`rxdb-model`, and shared utilities alike — MUST maintain at least 80%. Raising a package
+into the core tier MUST be done by editing that script, not by asserting it here. Unit,
 integration, and end-to-end coverage MUST be sized to the blast radius of the change.
 
 Tests MUST be deterministic: no `setTimeout` races, no uncontrolled network calls, no
@@ -138,4 +147,4 @@ Any exception MUST name the violated principle, explain why the exception is
 necessary, identify the simpler alternative that was rejected, and record the
 approval path in the relevant artifact.
 
-**Version**: 2.0.1 | **Ratified**: 2026-04-09 | **Last Amended**: 2026-05-13
+**Version**: 2.0.2 | **Ratified**: 2026-04-09 | **Last Amended**: 2026-08-20
