@@ -18,6 +18,20 @@ const tick = async (times = 1): Promise<void> => {
   for (let i = 0; i < times; i++) await Promise.resolve();
 };
 
+/**
+ * 给可能自锁的 `dispose()` 加一条判定期限。
+ *
+ * 不加的话「永不结算」会被 vitest 报成整体超时——一条与被测语义无关的错误信息，
+ * 而且要等到默认超时才落地。这里让它以明确的原因快速失败。
+ */
+const withDeadline = <T>(task: Promise<T>, ms = 200): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`未在 ${ms}ms 内结算：dispose() 自锁`)), ms);
+  });
+  return Promise.race([task, deadline]).finally(() => clearTimeout(timer));
+};
+
 describe('US-013 LifecycleScope 生命周期作用域原语', () => {
   describe('AC#1 逆序释放与三态推进', () => {
     it('按登记的反序执行，且首个 disposer 执行前状态已是 disposing', async () => {
@@ -243,6 +257,85 @@ describe('US-013 LifecycleScope 生命周期作用域原语', () => {
 
       await expect(scope.dispose()).rejects.toBeInstanceOf(LifecycleScopeDisposedError);
       expect(calls).toEqual(['A']);
+    });
+  });
+
+  describe('AC#6b disposer 内部释放本作用域', () => {
+    it('多条登记时不自锁：后跑的自释放条目立即得到一个已结算的 Promise', async () => {
+      const { calls, disposer } = tracer();
+      const scope = new LifecycleScope('multi');
+
+      // 先登记 → 后执行：它跑到时 #disposeTask 已经指向本轮 in-flight 的那个 Promise
+      scope.acquire(() => () => scope.dispose(), 'self');
+      scope.acquire(() => disposer('later'), 'later');
+
+      await expect(withDeadline(scope.dispose())).resolves.toBeUndefined();
+      expect(scope.state).toBe('disposed');
+      // 重入的那次没有再起一轮：清单只跑了一遍
+      expect(calls).toEqual(['later']);
+    });
+
+    it('单条登记时行为一致（重入发生在赋值之前，同样不重复执行清单）', async () => {
+      const { calls, disposer } = tracer();
+      const scope = new LifecycleScope('single');
+
+      scope.acquire(() => () => {
+        calls.push('self');
+        return scope.dispose();
+      }, 'self');
+      void disposer;
+
+      await expect(withDeadline(scope.dispose())).resolves.toBeUndefined();
+      expect(scope.state).toBe('disposed');
+      expect(calls).toEqual(['self']);
+    });
+
+    it('子作用域在场时同样不自锁', async () => {
+      const scope = new LifecycleScope('parent');
+
+      scope.acquire(() => () => scope.dispose(), 'self');
+      const child = scope.child('child');
+
+      await expect(withDeadline(scope.dispose())).resolves.toBeUndefined();
+      expect(scope.state).toBe('disposed');
+      expect(child.state).toBe('disposed');
+    });
+
+    it('重入判定只圈住 disposer 的同步调用帧，不影响外部并发调用拿到同一个 Promise', async () => {
+      const scope = new LifecycleScope('concurrent');
+      let releaseSlow: (() => void) | undefined;
+
+      scope.acquire(
+        () => () =>
+          new Promise<void>(resolve => {
+            releaseSlow = resolve;
+          }),
+        'slow'
+      );
+
+      const first = scope.dispose();
+      await tick();
+      // 此刻 #runDispose 正挂在 slow 的 await 上——标志必须已经关掉，
+      // 否则外部这次调用会被误判成重入而拿到一个新的 no-op Promise（AC#4 失效）
+      const concurrent = scope.dispose();
+      expect(concurrent).toBe(first);
+
+      releaseSlow?.();
+      await first;
+    });
+
+    it('disposer 抛错后标志复位，后续条目的重入判定不受影响', async () => {
+      const scope = new LifecycleScope('after-throw');
+      const seen: Array<Promise<void>> = [];
+
+      scope.acquire(() => () => void seen.push(scope.dispose()), 'self');
+      scope.acquire(() => () => {
+        throw new Error('boom');
+      }, 'boom');
+
+      await expect(withDeadline(scope.dispose())).rejects.toThrow('boom');
+      expect(scope.state).toBe('disposed');
+      await expect(withDeadline(seen[0]!)).resolves.toBeUndefined();
     });
   });
 
