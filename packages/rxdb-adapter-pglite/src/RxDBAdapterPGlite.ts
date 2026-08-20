@@ -1,38 +1,38 @@
 import type {
-  EntityMetadata,
-  EntityType,
-  IRepository,
-  IRxDBAdapter,
-  RawQueryResult,
-  RestoreEntityOptions,
-  RxDBMutationsMap,
-  SwitchBranchOptions,
-  SwitchVersionActions
+    EntityMetadata,
+    EntityType,
+    IRepository,
+    IRxDBAdapter,
+    RawQueryResult,
+    RestoreEntityOptions,
+    RxDBMutationsMap,
+    SwitchBranchOptions,
+    SwitchVersionActions
 } from '@aiao/rxdb';
 import {
-  assertSupportedRxDBSystemVersions,
-  getEntityMetadata,
-  getEntityStatus,
-  getRxDBSystemVersionState,
-  isCurrentRxDBSystemVersion,
-  RxDB,
-  RXDB_CHANGE_CODEC_WATERMARK,
-  RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
-  RXDB_SYSTEM_SCHEMA_WATERMARK,
-  RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
-  RxDBAdapterLocalBase,
-  RxDBBranch,
-  RxDBChange,
-  RxDBMigration,
-  RxDBSystemMigrationLockError,
-  TransactionFun
+    assertSupportedRxDBSystemVersions,
+    getEntityMetadata,
+    getEntityStatus,
+    getRxDBSystemVersionState,
+    isCurrentRxDBSystemVersion,
+    RxDB,
+    RXDB_CHANGE_CODEC_WATERMARK,
+    RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
+    RXDB_SYSTEM_SCHEMA_WATERMARK,
+    RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
+    RxDBAdapterLocalBase,
+    RxDBBranch,
+    RxDBChange,
+    RxDBMigration,
+    RxDBSystemMigrationLockError,
+    TransactionFun
 } from '@aiao/rxdb';
 import {
-  createKeyring,
-  EncryptedConfigurationError,
-  type Keyring,
-  type UnlockOptions,
-  validateEncryptedPropertyMetadata
+    createKeyring,
+    EncryptedConfigurationError,
+    type Keyring,
+    type UnlockOptions,
+    validateEncryptedPropertyMetadata
 } from '@aiao/rxdb-adapter-encrypted';
 import { AsyncQueueExecutor } from '@aiao/utils';
 import type { QueryOptions, Results } from '@electric-sql/pglite';
@@ -42,19 +42,19 @@ import generate_entity_inserts_sql, { generate_entity_upserts_sql } from './enti
 import { handle_rxdb_change } from './handle_rxdb_change.js';
 import { PgliteKeyringStorage } from './keyring/pglite-keyring-storage.js';
 import {
-  ADAPTER_NAME,
-  PGliteChangeEvent,
-  PGliteChangeType,
-  PGliteClientOptions,
-  PgliteTableColumn
+    ADAPTER_NAME,
+    PGliteChangeEvent,
+    PGliteChangeType,
+    PGliteClientOptions,
+    PgliteTableColumn
 } from './pglite.interface.js';
 import {
-  type EncryptionContext,
-  getTableColumnIndexName,
-  getTableNameByMetadata,
-  quoteIdentifier,
-  RxdbAdapterPGliteError,
-  rxDBColumnTypeToPGliteTypeIndexName
+    type EncryptionContext,
+    getTableColumnIndexName,
+    getTableNameByMetadata,
+    quoteIdentifier,
+    RxdbAdapterPGliteError,
+    rxDBColumnTypeToPGliteTypeIndexName
 } from './pglite.utils.js';
 import { IPGliteClient, PGliteClient } from './PGliteClient.js';
 import { resolveQueryCacheTarget, resolveUpdatedAtColumn } from './query-cache/query_cache_target.js';
@@ -992,7 +992,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   public query<T = Record<string, unknown>>(sql: string, bindings?: unknown[]): Promise<Results<T>> {
     if (this.#lifecycle_state !== 'bootstrap') return this.writeQuery<T>(sql, bindings);
     // 否则加入队列，保证并发调用的执行顺序。
-    // 就绪等待在**入队之前**完成：留在队列任务里会占着唯一槽位等一个只能由队列后方任务
+    // 就绪等待在**入队之前**完成：留在队列任务里会占用唯一槽位等一个只能由队列后方任务
     // 完成的 promise（首装死锁）。代价是「调用顺序」变成「就绪顺序」——已就绪时两者一致。
     return this.ready().then(() =>
       this.#queue.addTask(async () => {

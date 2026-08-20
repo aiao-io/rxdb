@@ -160,7 +160,7 @@ const executedSqls = (client: SqliteClientLike): string[] =>
  * C2 起 `#run_transaction` 在 BEGIN 之前会先读一次当前分支（供 `switch_transaction_id` 用），
  * 于是它排在 `executedSqls()` 的最前面。断言 `sqls[0]` 是 BEGIN 的用例本意是「事务的第一条
  * 语句」，不是「client 收到的第一条语句」—— 用这个过滤器表达该本意，避免把序幕的调度
- * 细节钉死在测试里。
+ * 细节固定在测试里。
  */
 const transactionSqls = (client: SqliteClientLike): string[] =>
   executedSqls(client).filter(sql => !BRANCH_TABLE_PATTERN.test(sql));
@@ -1157,7 +1157,7 @@ describe('RxDBAdapterSqliteBase', () => {
       // C2 语义反转。旧契约是「事务内部调用 QueryCache 写入仍走快路径」——那意味着
       // QueryCache 的写会落进当时正开着的事务并跟着它回滚，正是 `SQLC-001`。
       // 新契约：QueryCache 是外部写入方，一律重新排队，因此它**必然**排在 COMMIT 之后。
-      // 注意不能在事务体内 `await` 它：队列的唯一槽位正被本事务占着，那样写会挂起
+      // 注意不能在事务体内 `await` 它：队列的唯一槽位正被本事务占用，那样写会挂起
       //（这是 C2 明确接受的故障形态——把静默数据损坏换成明确挂起）。
       const { client, order } = createOrderedClient();
       const adapter = new TestAdapter(createRxdbMock(), () => client);

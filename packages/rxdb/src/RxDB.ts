@@ -6,25 +6,25 @@ import { EntityMetadata } from './entity/metadata.interface.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
 import { MergeQueryTaskCreateFn, MergeQueryTaskRemoveFn, MergeQueryTaskUpdateFn } from './repository/QueryManager.js';
 import {
-  AdapterFactory,
-  IRxDBAdapter,
-  RepositoryConstructor,
-  RepositoryInstance,
-  RxDBAdapterLocalBase,
-  RxDBAdapterName,
-  RxDBAdapterRemoteBase,
-  RxDBAdapters
+    AdapterFactory,
+    IRxDBAdapter,
+    RepositoryConstructor,
+    RepositoryInstance,
+    RxDBAdapterLocalBase,
+    RxDBAdapterName,
+    RxDBAdapterRemoteBase,
+    RxDBAdapters
 } from './rxdb-adapter.js';
 import {
-  isCrossTabEvent,
-  RxDBEvent,
-  RxDBEventMap,
-  TRANSACTION_BEGIN,
-  TRANSACTION_COMMIT,
-  TRANSACTION_ROLLBACK,
-  type TransactionBeginEvent,
-  type TransactionCommitEvent,
-  type TransactionRollbackEvent
+    isCrossTabEvent,
+    RxDBEvent,
+    RxDBEventMap,
+    TRANSACTION_BEGIN,
+    TRANSACTION_COMMIT,
+    TRANSACTION_ROLLBACK,
+    type TransactionBeginEvent,
+    type TransactionCommitEvent,
+    type TransactionRollbackEvent
 } from './rxdb-events.js';
 import { IRxDBPlugin, Plugin } from './rxdb-plugin.js';
 import { uuid } from './rxdb-utils.js';
@@ -58,10 +58,10 @@ type RxDBConfig = RxDBOptions;
 const LIVE_BEHAVIOUR_CONFIG_KEYS: ReadonlySet<string> = new Set(['entities', 'migrations']);
 
 /**
- * 迁移占坑冲突的重试次数
+ * 迁移执行权竞争的重试次数
  *
  * 每次重试都会重读一遍已提交的迁移名，正常竞争下一次就能收敛（对手的记录已可见）。
- * 给到 3 次是为了容忍多实例同时启动；再抢不到就是异常，宁可抛错也不静默跳过迁移。
+ * 给到 3 次是为了容忍多实例同时启动；再认领失败就是异常，宁可抛错也不静默跳过迁移。
  */
 const MIGRATION_CLAIM_RETRIES = 3;
 
@@ -274,7 +274,7 @@ export class RxDB {
    * 必须用 {@link RxDB.adapterConnected$} —— 多适配器配置下，远程适配器先连上就会把这里
    * 置 `true`，此时本地适配器可能还停在 `createTables()`。
    *
-   * 去重后发射：多适配器下每一次单独的连/断都会重算聚合值，但聚合值没变时不该惊动订阅者。
+   * 去重后发射：多适配器下每一次单独的连/断都会重算聚合值，但聚合值没变时不该通知订阅者。
    */
   public readonly connected$ = this.#connected_sub.pipe(distinctUntilChanged());
 
@@ -494,7 +494,7 @@ export class RxDB {
       return pending;
     }
 
-    // 先入缓存再启动：插件 install 可能同步回呼 connect()，必须命中同一条 Promise。
+    // 先入缓存再启动：插件 install 可能同步回调 connect()，必须命中同一条 Promise。
     // init() 必须在 connect() 返回前同步跑完，同一轮 `new Entity()` 才能命中 registry。
     let startConnect!: () => void;
     let failConnect!: (error: unknown) => void;
@@ -805,7 +805,7 @@ export class RxDB {
     // 事务结束，发送**本事务**期间记录的实体事件
     const on_commit = (event: TransactionCommitEvent) => {
       const context = this.#findTransactionContext(event.transactionId);
-      // 没有匹配的打开中事务：迟到或重复的 COMMIT，不能拿别人的队列顶账
+      // 没有匹配的打开中事务：迟到或重复的 COMMIT，不能把其他事务的队列当作当前队列
       if (context === undefined) return;
       if (context.depth > 1) {
         context.depth -= 1;
@@ -1053,8 +1053,8 @@ export class RxDB {
    *
    * @remarks
    * 「读出已执行集合」只是一次快照，两个实例可以读到同一份空快照并各跑一遍同一条
-   * 非幂等迁移。仲裁只能交给 `rxdb_migration.name` 上的唯一索引：先占坑（INSERT）
-   * 再执行 `up()`，输掉竞争的一方在占坑处就被数据库挡下。
+   * 非幂等迁移。仲裁只能交给 `rxdb_migration.name` 上的唯一索引：先认领执行权（INSERT）
+   * 再执行 `up()`，输掉竞争的一方在认领处就被数据库挡下。
    *
    * 冲突不能在事务内 `continue` —— Postgres 里一条失败语句会让整个事务进入 aborted
    * 状态，后续语句一律报错。所以整批回滚、重读、重跑；已经提交的那些名字会在重读时
@@ -1071,7 +1071,7 @@ export class RxDB {
         await this.#runMigrationsOnce(adapter, sorted);
         return;
       } catch (error) {
-        // 只有占坑冲突可以重试。重试次数用尽仍抢不到说明不是正常竞争（例如唯一索引
+        // 只有执行权竞争可以重试。重试次数用尽仍认领失败说明不是正常竞争（例如唯一索引
         // 挡下的是别的东西），静默跳过会让这条迁移永远不执行，必须抛出来。
         if (!(error instanceof RxDBMigrationClaimConflictError) || attempt >= MIGRATION_CLAIM_RETRIES) throw error;
       }
@@ -1079,11 +1079,11 @@ export class RxDB {
   }
 
   /**
-   * 单趟迁移事务：占坑成功才执行，任一处失败整批回滚
+   * 单次迁移事务：认领执行权成功才执行，任一处失败整批回滚
    *
    * @param adapter - 本地适配器
    * @param sorted - 已按名称排序的迁移列表
-   * @throws RxDBMigrationClaimConflictError 占坑撞唯一约束（可重试）
+   * @throws RxDBMigrationClaimConflictError 认领执行权撞唯一约束（可重试）
    */
   async #runMigrationsOnce(adapter: RxDBAdapterLocalBase, sorted: MigrationType[]): Promise<void> {
     // 引导期事务：此刻 `connect()` 的 promise 还没 settle，走普通 transaction() 会撞上
@@ -1105,7 +1105,7 @@ export class RxDB {
           await repository.create(record);
         } catch (error) {
           // 唯一约束判定只夹在这一条 INSERT 上。放宽到整段就会把用户迁移自己撞到的
-          // 唯一约束当成占坑冲突重试，非幂等的 up() 被跑第二遍。
+          // 唯一约束当成执行权竞争重试，非幂等的 up() 被跑第二遍。
           if (isUniqueConstraintViolation(error)) {
             throw new RxDBMigrationClaimConflictError(migration.name, error);
           }

@@ -195,7 +195,7 @@ describe('首装原子提交（RXD-051）', () => {
  * 空快照，同一条非幂等迁移会被执行两遍。快照与写之间的窗口是无法靠读消除的，
  * 只能让写本身去竞争。
  *
- * 新实现：先 `create()` 占坑再 `up()`。谁的 INSERT 先落谁执行；输的那个撞唯一索引，
+ * 新实现：先 `create()` 认领执行权再 `up()`。谁的 INSERT 先落谁执行；输的那个撞唯一索引，
  * 整个事务回滚，重读后发现名字已在，直接跳过 —— `up()` 一次都不会跑。
  */
 describe('迁移占坑与唯一约束（RXD-036）', () => {
@@ -213,7 +213,7 @@ describe('迁移占坑与唯一约束（RXD-036）', () => {
       ...repository
     };
     // 只替换 RxDBMigration 的仓库。全量替换会让引导期的其它读（RxDBSync / RxDBBranch）
-    // 也吃掉 find 的 mockResolvedValueOnce 序列，占坑冲突的重放脚本会错位。
+    // 也消耗 find 的 mockResolvedValueOnce 序列，执行权竞争的重放脚本会错位。
     const defaultRepository = adapter.getRepository(RxDBMigration as never);
     vi.mocked(adapter.getRepository).mockImplementation((EntityType: unknown) =>
       EntityType === RxDBMigration ? (migrationRepository as never) : (defaultRepository as never)
@@ -252,7 +252,7 @@ describe('迁移占坑与唯一约束（RXD-036）', () => {
     const up = vi.fn(async () => undefined);
     const migrations: RxDBOptions['migrations'] = [{ name: 'add-column', up, down: vi.fn(async () => undefined) }];
 
-    // 第一趟读到空快照 → 占坑撞唯一索引；第二趟读到对手已提交的记录 → 直接跳过
+    // 第一趟读到空快照 → 认领执行权撞唯一索引；第二趟读到对手已提交的记录 → 直接跳过
     const find = vi
       .fn<() => Promise<{ name: string }[]>>()
       .mockResolvedValueOnce([])
@@ -275,7 +275,7 @@ describe('迁移占坑与唯一约束（RXD-036）', () => {
     const migrations: RxDBOptions['migrations'] = [{ name: 'add-column', up, down: vi.fn(async () => undefined) }];
 
     const { database } = createExistingDatabase(migrations, {
-      // 每次重读都还说「没人跑过」，但每次占坑都被抢先 —— 活锁必须报出来
+      // 每次重读都还说「没人跑过」，但每次认领执行权都被抢先 —— 活锁必须报出来
       find: vi.fn(async () => []),
       create: vi.fn(async () => {
         throw new Error('UNIQUE constraint failed: rxdb_migration.name');
@@ -312,7 +312,7 @@ describe('迁移占坑与唯一约束（RXD-036）', () => {
     });
 
     await expect(database.connect('local')).rejects.toThrow('UNIQUE constraint failed: user.email');
-    // 误判成占坑冲突就会重试，非幂等迁移被跑第二遍
+    // 误判成执行权竞争就会重试，非幂等迁移被跑第二遍
     expect(up).toHaveBeenCalledTimes(1);
   });
 });

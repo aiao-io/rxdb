@@ -89,7 +89,7 @@ describe('EntityIdentityCache（RXD-011）', () => {
     const ref = setUnreferenced(cache, 'dead');
 
     expect(await collectGarbageUntil(() => ref.deref() === undefined)).toBe(true);
-    // WeakRef 死了，Map 的 key 不会自己消失——槽位还占着
+    // WeakRef 死了，Map 的 key 不会自己消失——槽位还被占用
     expect(cache.size).toBe(1);
 
     expect(cache.get('dead')).toBeUndefined();

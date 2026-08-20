@@ -438,7 +438,7 @@ describe('CodeEditor', () => {
       stable.resolve('stable');
       await settle(stable.promise);
 
-      // 先钉住 arrange：没有这一步，下面的「没多加载」会在「压根没加载过」时也成立。
+      // 先固定 arrange：没有这一步，下面的「没多加载」会在「压根没加载过」时也成立。
       expect(stable.load).toHaveBeenCalledTimes(1);
       expect(view.state.facet(languageMarker)).toEqual(['stable']);
 

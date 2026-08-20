@@ -49,7 +49,7 @@ type GetAllRepositorySyncStatusFilter = NonNullable<Parameters<VersionManagerApi
 type SyncTypeValue = RepositorySyncStatus['syncType'];
 
 // 下面三个 `as const` 数组同时被类型断言和运行时断言使用，这是本文件的关键接缝：
-// 类型侧钉住 `keyof`，运行时侧钉住 `Object.keys()`，两侧对同一个常量。
+// 类型侧固定 `keyof`，运行时侧固定 `Object.keys()`，两侧对同一个常量。
 const STATUS_KEYS = [
   'repository',
   'branchId',

@@ -13,9 +13,9 @@
 import { SQLiteChangeType } from '../sqlite-backend.interface.js';
 import type { SqliteChangeEvent, SQLiteCompatibleType, SqliteResult } from '../sqlite-core.interface.js';
 import {
-  isRxDBAdapterDesktopErrorCode,
-  RxDBAdapterDesktopError,
-  type RxDBAdapterDesktopErrorCode
+    isRxDBAdapterDesktopErrorCode,
+    RxDBAdapterDesktopError,
+    type RxDBAdapterDesktopErrorCode
 } from './desktop-error.js';
 import { assertDesktopSqliteStorage, type DesktopSqliteFileStorage, type DesktopStorage } from './desktop-storage.js';
 
@@ -72,7 +72,7 @@ export const DESKTOP_HOST_MAX_PATH_SEGMENT_BYTES = 255;
  * 单个会话允许同时挂起的未提交写入数上限。
  *
  * @remarks
- * 每个未提交的写入都占着一个打开的临时文件句柄，只有 commit 或 abort 才归还。
+ * 每个未提交的写入都占用一个打开的临时文件句柄，只有 commit 或 abort 才归还。
  * renderer 不可信：不设上限，一个只 begin 不 commit 的循环就能把宿主进程的 fd 耗光，
  * 而 fd 耗尽会连带打不开数据库 —— 一个 renderer 的错误由此升级成整个应用不可用。
  * 取 256 远高于任何真实并发（服务层的写入是按路径串行的），越过它意味着调用方有 bug。

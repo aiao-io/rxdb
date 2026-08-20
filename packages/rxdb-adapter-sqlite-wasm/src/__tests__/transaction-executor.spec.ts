@@ -61,7 +61,7 @@ describe('SqliteTransactionExecutor', () => {
         note.label = 'rolled-back';
         await executor.getRepository(ExecNote).create(note);
         // 事务内的读**必须**走 executor：`adapter.query()` 是外部调用，翻转后一律重新排队，
-        // 而队列的唯一槽位正被本事务占着 —— 那样写会挂死（这正是 C2 的预期语义）。
+        // 而队列的唯一槽位正被本事务占用 —— 那样写会挂死（这正是 C2 的预期语义）。
         const inside = await executor.query('SELECT COUNT(*) FROM "exec$exec_note";');
         expect(Number(inside.rows[0]?.[0] ?? 0)).toBe(1);
         throw new Error('rollback on purpose');

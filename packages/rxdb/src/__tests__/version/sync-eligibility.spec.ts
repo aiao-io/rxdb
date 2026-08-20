@@ -7,7 +7,7 @@
  * `sync-repository` 的 `shouldPull` / `shouldPush`。它们对 `querycache` 的判断互相矛盾
  * （批量拉它，报表说它没得拉），而 `enabled` 根本没有任何一条调度路径读过。
  *
- * 这里先把矩阵钉死，再让所有入口从它派生 —— 谁漂了谁红。
+ * 这里先把矩阵固定，再让所有入口从它派生 —— 谁漂了谁红。
  */
 
 import { describe, expect, it } from 'vitest';

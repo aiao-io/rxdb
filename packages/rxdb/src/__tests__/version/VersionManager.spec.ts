@@ -789,7 +789,7 @@ describe('VersionManager', () => {
 
   // RXD-041：这两组原本是 `try { await ... } catch {} expect(true).toBe(true)` ——
   // 无论委托到哪、无论抛什么都绿。改成断言错误**原样冒泡**：既证明确实走进了
-  // create_branch / remove_branch，也钉住「包装层不吞异常」这条真实契约。
+  // create_branch / remove_branch，也固定「包装层不吞异常」这条真实契约。
   describe('createBranch', () => {
     it('委托给 create_branch，其重名校验的错误原样冒泡', async () => {
       // find 对任何查询都返回一条记录 ⇒ create_branch 的「分支已存在」校验必然命中，

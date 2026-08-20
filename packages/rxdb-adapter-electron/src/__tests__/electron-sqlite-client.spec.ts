@@ -188,7 +188,7 @@ describe('DesktopSqliteClient.connect', () => {
 
   /**
    * 订阅建不起来等于永远收不到变更。这时 `connect()` 不能返回一个「能查但永不刷新」的客户端，
-   * 半开的会话也不能留在 host 上占着文件锁。
+   * 半开的会话也不能留在 host 上占用文件锁。
    */
   it('rejects and closes the half-open session when the subscription cannot be established', async () => {
     const failure = new Error('event system unavailable');

@@ -5,10 +5,10 @@ import { EntityType } from '../entity/entity.interface.js';
 import { setSafeObjectKey } from '../entity/entity.utils.js';
 import generate_many_to_many_entity, { ManyToManyRelation } from '../entity/many-to-many-entity.js';
 import {
-  EntityPropertyMetadata,
-  EntityRelationManyToManyMetadata,
-  EntityRelationMetadata,
-  RelationKind
+    EntityPropertyMetadata,
+    EntityRelationManyToManyMetadata,
+    EntityRelationMetadata,
+    RelationKind
 } from '../entity/metadata-options.interface.js';
 import { EntityMetadata } from '../entity/metadata.interface.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
@@ -195,7 +195,7 @@ export class SchemaManager {
     // DualParty 上声明在前的 auditedDoc；ONE_TO_MANY / MANY_TO_ONE 也各只校验半边字段。
     //
     // 补齐后不需要再做「匹配不唯一就 fail-fast」：`mapped.name === relation.mappedProperty`
-    // 已经把候选钉死到唯一一个属性名上，而属性名在单个实体内本就唯一。
+    // 已经把候选约束到唯一一个属性名上，而属性名在单个实体内本就唯一。
     const expectedKind = REVERSE_RELATION_KIND[relation.kind];
     if (!expectedKind) return void 0;
     const filterFn = (mapped: EntityRelationMetadata): boolean =>

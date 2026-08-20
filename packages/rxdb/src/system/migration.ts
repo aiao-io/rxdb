@@ -3,12 +3,12 @@ import { Entity } from '../entity/entity.decorator.js';
 import { ENTITY_STATIC_TYPES } from '../entity/entity.interface.js';
 import { PropertyType } from '../entity/metadata-options.interface.js';
 import {
-  CountOptions,
-  FindAllOptions,
-  FindByCursorOptions,
-  FindOneOptions,
-  FindOneOrFailOptions,
-  FindOptions
+    CountOptions,
+    FindAllOptions,
+    FindByCursorOptions,
+    FindOneOptions,
+    FindOneOrFailOptions,
+    FindOptions
 } from '../repository/query-options.interface.js';
 import { RXDB_CHANGE_CODEC_VERSION } from './change-codec.js';
 import { RxDBMigrationOrderByField, RxDBMigrationRuleGroup, RxDBMigrationStaticTypes } from './types.js';
@@ -74,10 +74,10 @@ export const isUniqueConstraintViolation = (cause: unknown): boolean => {
 };
 
 /**
- * 同名迁移已被另一个 RxDB 实例占坑
+ * 同名迁移已被另一个 RxDB 实例认领执行权
  *
  * @remarks
- * 只在「占坑 INSERT」这一条语句上产生。迁移自己的 `up` 里撞到的唯一约束
+ * 只在「认领执行权的 INSERT」这一条语句上产生。迁移自己的 `up` 里撞到的唯一约束
  * 不会变成这个错误 —— 那是用户数据的问题，静默重试会把一条非幂等迁移跑第二遍。
  *
  * 收到它意味着本次迁移事务已整体回滚，调用方应重新读取已执行集合后重试。
@@ -86,7 +86,7 @@ export class RxDBMigrationClaimConflictError extends Error {
   override readonly name = 'RxDBMigrationClaimConflictError';
 
   constructor(
-    /** 被抢走的迁移名 */
+    /** 被抢先认领的迁移名 */
     readonly migrationName: string,
     override readonly cause: unknown
   ) {

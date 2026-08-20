@@ -272,7 +272,7 @@ describe('connector endpoint request dispatch', () => {
 
     // 契约要求 provider 只用错误联合说话，但契约挡不住 bug：一次 reject 会顺着
     // `void #invoke(...)` 逃到全局，这条请求则永不结算 —— 面板只能白等满 15 秒的时限，
-    // 而这段时间里名额一直被占着。归类只能是 operation_failed：平台细节已经无从得知。
+    // 而这段时间里名额一直被占用。归类只能是 operation_failed：平台细节已经无从得知。
     expect(harness.framesOf('ERROR')[0]?.payload).toEqual({
       requestId: 'r1',
       error: { code: 'operation_failed', retryable: false }

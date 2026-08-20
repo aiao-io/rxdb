@@ -29,7 +29,7 @@ export interface MigrationType {
    * @remarks
    * `up()` 是**唯一**能在事务体内运行的用户代码。迁移里的所有数据写入必须经
    * `executor.getRepository(X)` / `executor.query()` 发出 —— 直接 `entity.save()` 或
-   * `adapter.query()` 会落回适配器队列，而队列的唯一槽位正被本次迁移所在的事务占着，
+   * `adapter.query()` 会落回适配器队列，而队列的唯一槽位正被本次迁移所在的事务占用，
    * 于是永久挂起（设计见 `code-reviews/transaction-executor-design.md` 裁决④）。
    *
    * 形参可以省略（TS 允许形参更少的实现），不写数据的迁移无需关心它。

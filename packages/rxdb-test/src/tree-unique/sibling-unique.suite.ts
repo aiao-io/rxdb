@@ -107,7 +107,7 @@ export function runTreeSiblingUniqueSuite(options: TreeSiblingUniqueSuiteOptions
 
     it('does not confuse a NULL extension with an empty-string extension', async () => {
       // normalized 把 NULL 折成 ''：这会不会把「无扩展名」和「空扩展名」两行误判成重复？
-      // 二者在业务上确实是同一个 fullName，所以**应该**冲突 —— 这条把口径钉死，
+      // 二者在业务上确实是同一个 fullName，所以**应该**冲突 —— 这条把口径固定，
       // 免得日后有人「顺手」把 COALESCE 去掉。
       await saveFile({ name: 'notes', type: 'file', extension: null });
 

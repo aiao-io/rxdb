@@ -30,14 +30,14 @@ import { createDevToolsSession } from './session.js';
 import type { DevToolsTransferOutcome, DevToolsTransferTable } from './transfer.js';
 import { createDevToolsTransferTable } from './transfer.js';
 import type {
-  DevToolsRequestPayload,
-  DevToolsTransferChunkPayload,
-  DevToolsTransferIdPayload,
-  DevToolsTransferStartPayload,
-  DevToolsV2EnvelopeShape,
-  DevToolsV2Message,
-  DevToolsV2MessageOptions,
-  DevToolsV2MessageType
+    DevToolsRequestPayload,
+    DevToolsTransferChunkPayload,
+    DevToolsTransferIdPayload,
+    DevToolsTransferStartPayload,
+    DevToolsV2EnvelopeShape,
+    DevToolsV2Message,
+    DevToolsV2MessageOptions,
+    DevToolsV2MessageType
 } from './wire.js';
 import { createDevToolsV2Message, isDevToolsV2Envelope, isDevToolsV2Message } from './wire.js';
 
@@ -293,7 +293,7 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
    * @remarks
    * 契约要求 provider 只用错误联合说话（见 `provider/types.ts`），但契约挡不住 bug：
    * 一次 reject 会顺着调用点的 `void` 逃到全局，而请求**永不结算** —— 对端只能白等满
-   * 15 秒的时限，这段时间里在途名额一直被占着，墓碑也永远不会记上。
+   * 15 秒的时限，这段时间里在途名额一直被占用，墓碑也永远不会记上。
    *
    * 这里不做平台映射：能抛到这一层，说明它绕过了 provider 自己的映射，剩下的信息不足以
    * 安全归类。`operation_failed` 是唯一诚实的答案。

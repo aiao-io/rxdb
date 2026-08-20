@@ -610,7 +610,7 @@ export function versionBranchSuite(factory: AdapterFactory) {
         // ⚠️ 不能 `.bind(adapter)`：C2 起 executor 通过一个 `query` 被改写过的**门面**调用
         // `mergeChanges`（`this` = 门面），内部 helper 收到的 adapter 就是门面，其 query 才落在
         // 本事务里。把 `this` 绑死在真实适配器上，helper 会走真实 `runInTransaction` 再开一个
-        // 事务 —— 而队列的唯一槽位正被当前事务占着，于是死锁并毒化本文件后续所有用例。
+        // 事务 —— 而队列的唯一槽位正被当前事务占用，于是死锁并毒化本文件后续所有用例。
         const original = adapter.mergeChanges;
         let call = 0;
         const spy = vi.spyOn(adapter, 'mergeChanges').mockImplementation(async function (
