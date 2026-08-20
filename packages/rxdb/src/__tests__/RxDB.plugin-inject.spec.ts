@@ -15,26 +15,29 @@
 import type { LifecycleScope } from '@aiao/utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SyncType } from '../entity/metadata-options.interface.js';
-import type { IRxDBAdapter } from '../rxdb-adapter.js';
+import type { IRxDBAdapter, RxDBAdapterLocalBase } from '../rxdb-adapter.js';
 import type { IRxDBPlugin } from '../rxdb-plugin.js';
 import { RxDB } from '../RxDB.js';
 import { createMockAdapter } from './fixtures/test-db-setup.js';
+
+/** `createTables` 声明在本地适配器基类上，`IRxDBAdapter` 不含它；假适配器两边都实现了。 */
+type LocalAdapterMock = IRxDBAdapter & Pick<RxDBAdapterLocalBase, 'createTables'>;
 
 const databases = new Set<RxDB>();
 let databaseSequence = 0;
 
 /** 每次工厂调用都建**新实例**：断连重连时 `#adapter_map` 已清空，于是拿到的是另一个引用（AC#6）。 */
-function createDatabase(): { database: RxDB; localAdapters: IRxDBAdapter[]; remoteAdapters: IRxDBAdapter[] } {
+function createDatabase(): { database: RxDB; localAdapters: LocalAdapterMock[]; remoteAdapters: IRxDBAdapter[] } {
   databaseSequence += 1;
   const database = new RxDB({
     dbName: `rxdb-plugin-inject-${databaseSequence}`,
     entities: [],
     sync: { local: { adapter: 'sqlite' }, remote: { adapter: 'remote' }, type: SyncType.Full }
   });
-  const localAdapters: IRxDBAdapter[] = [];
+  const localAdapters: LocalAdapterMock[] = [];
   const remoteAdapters: IRxDBAdapter[] = [];
   database.adapter('sqlite', () => {
-    const adapter = createMockAdapter();
+    const adapter = createMockAdapter() as LocalAdapterMock;
     localAdapters.push(adapter);
     return adapter;
   });
@@ -395,7 +398,8 @@ describe('localAdapterSync', () => {
     const database = new RxDB({
       dbName: 'rxdb-plugin-inject-remote-only',
       entities: [],
-      sync: { remote: { adapter: 'remote' }, type: SyncType.Remote }
+      // 只配远程（`SyncType.None` 下 `local` 可省）：`adapter:local` 解析不出任何名字
+      sync: { remote: { adapter: 'remote' }, type: SyncType.None }
     });
     databases.add(database);
 
