@@ -3,13 +3,13 @@ id: RV-009
 title: next-lifecycle 相对 main 的全量代码评审
 status: Open
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-08-21
 pr:
 ---
 
 # Review：`next-lifecycle` vs `main`
 
-**判定：🟢 可合并。** 这个分支要做的事——把散在各插件里的手写拆卸记账换成一个作用域原语——在设计上是成立的，实现也基本兑现了它承诺的语义。8 条 finding 逐条对着代码复核后全部成立并已修复（另有 2 条初判被推翻，已剔除；复评审又确认 1 条非阻塞残角 #9，记录在案）。真正卡合并的 #1（原语的自释放死锁，已复现）与 #2（停机窗口有一条未设防的安装路径）已修；其余为文档与需求件的一致性问题，不影响运行时。
+**判定：🟢 可合并。** 这个分支要做的事——把散在各插件里的手写拆卸记账换成一个作用域原语——在设计上是成立的，实现也基本兑现了它承诺的语义。9 条 finding 逐条对着代码复核后全部成立并已修复（另有 2 条初判被推翻，已剔除；#9 是复评审补上的残角，初评给的「窗口极窄、暂不修」随后也被复现推翻并修掉）。真正卡合并的 #1（原语的自释放死锁，已复现）与 #2（停机窗口有一条未设防的安装路径）已修；其余为文档与需求件的一致性问题，不影响运行时。
 
 设计本身不需要返工。
 
@@ -161,20 +161,28 @@ scope.acquire(() => {
 
 **修复**：把 search 那行改成实际的 `destroyed` 文案。
 
-### 9. P3：在飞的 `#track_plugin_install` 跨过停机窗口，会在已释放作用域上跑一次 `install()` —— 🟢 记录在案（非阻塞，暂不修）
+### 9. P3：在飞的 `#track_plugin_install` 跨过停机窗口，会在已释放作用域上跑一次 `install()` —— ✅ 已修
 
 [RxDB.ts:875](../../packages/rxdb/src/RxDB.ts#L875) `#track_plugin_install`
 
-#2 的守卫（`#install_one_plugin` 首句）只在**启动**安装时判定；一旦 `#track_plugin_install` 已经跑起来，就没人再拦它。它的作用域是**同步**建的（`#create_plugin_scope`，[:895](../../packages/rxdb/src/RxDB.ts#L895)），然后才 `await pending_release`。触发序列：
+#2 的守卫（`#install_one_plugin` 首句）只在**启动**安装时判定；一旦 `#track_plugin_install` 已经跑起来，就没人再拦它。它的作用域是**同步**建的（`#create_plugin_scope`，调用点在 [:878](../../packages/rxdb/src/RxDB.ts#L878)），然后才 `await pending_release`。触发序列：
 
 1. `init()` 失败 → catch 里 `void this.#release_connection_scope()`（[:361](../../packages/rxdb/src/RxDB.ts#L361)），`#connection_release` 置为在飞的释放，而 `#rxdb_initialized` 已复位、`#shutting_down` 为 false。
 2. 同步重试 `init()`（被支持的路径）→ `#install_plugin` → `#track_plugin_install` 捕获这个在飞的 `#connection_release` 并 `await`，安装被推迟。
 3. 推迟期间 `disconnectAll()` → `#shutdown()` 把刚建好的（空）插件作用域连同连接作用域一起释放。
 4. `#track_plugin_install` 恢复，`plugin.install(scope)` 撞上已释放的作用域 → `scope.acquire()` 抛 `LifecycleScopeDisposedError` → 被 `console.error` 记下并 rethrow。
 
-**后果**：一次噪声日志 + 一个已 reject 的安装 promise。它已被 `void tracked.then(…)` 处理，map 条目被第二次 shutdown 清空，下次 `connect()` 干净重装——**自愈、无泄漏、无损坏**。
+**后果**（`lifecycle: 'scoped'` 的插件）：一次噪声日志 + 一个已 reject 的安装 promise。它已被 `void tracked.then(…)` 处理，map 条目由**本次** shutdown 的 `#plugin_install_promises.clear()`（[:765](../../packages/rxdb/src/RxDB.ts#L765)）清掉——不需要第二次停机，复现里紧接着的 `connect()` 就干净重装了。这一支确实**自愈、无泄漏、无损坏**。
 
-这与 #2 不同：#2 修的是「停机窗口内**新装**」，这条是它修完之后剩下来的「**已推迟**安装再跨停机」残角。触发窗口极窄（init 失败 → 同步重试 → 再 disconnect 落在同一微任务间隙），且结局可恢复。要彻底关掉，需要在 `#track_plugin_install` 恢复后、`install()` 之前再校验一次作用域仍为 active（或校验 `#plugin_scopes.get(plugin) === scope`）。
+**但保留 `destroy()` 的插件（本仓库只有 search）落到的是另一支**：实际顺序是 `install → destroy → install`，即 `install()` 落在 `destroy()` **之后**。search 扛得住——抛点在 [`#bindEntityEvents`](../../packages/rxdb-plugin-search/src/plugin.ts#L159)，而 `#phase = 'installing'` / `#installPromise` 的赋值排在它**之后**（[plugin.ts:173-174](../../packages/rxdb-plugin-search/src/plugin.ts#L173-L174)），所以状态机停在 `'destroyed'`、`ready` 仍按 destroyed 拒绝。可抛点**之前**的两句会真跑在已销毁的实例上：`#primeSearchEntries()` 把 `#searchPlans` / `#searchEntries` / `#entityNameToTable` 重新填满，`#installEpoch` 再走一格。靠 `#primeSearchEntries` 的 `if (this.#searchPlans.length > 0) return` 幂等守卫和纪元号单调才无害——是**算出来**的无害，不是结构上保证的。
+
+这与 #2 不同：#2 修的是「停机窗口内**新装**」，这条是它修完之后剩下来的「**已推迟**安装再跨停机」残角。
+
+**触发窗口不窄**：宽度等于**上一纪元作用域拆完所需的全部时间**（在飞的那一轮等的是 `pending_release`），不是微任务间隙。仓库里现成就有一条异步 IO disposer——[rxdb-plugin-storage/src/plugin.ts:51-53](../../packages/rxdb-plugin-storage/src/plugin.ts#L51-L53) 的 `return async () => { await this.#storage?.destroy(); }`——足以把窗口撑到真实墙钟时间。初评「极窄（落在同一微任务间隙）」的判断是错的，回归用例正是用同形的异步 disposer 把闸门卡死来复现的。
+
+**实修**：`#track_plugin_install` 在 `await pending_release` 之后补一句 `if (this.#plugin_scopes.get(plugin) !== scope) return;`。按 `(plugin, scope)` **身份**判而不是 `scope.state`：与 [`#discard_plugin_scope`](../../packages/rxdb/src/RxDB.ts#L914) 已有的守卫同形，且一次覆盖两种情况——「纪元没了」（`#release_connection_scope()` 清空过 `#plugin_scopes`）与「已经换了更晚的纪元」。后者也是**光重跑 #2 那句守卫不够**的原因：停机后若新纪元已经开出来，`#rxdb_initialized` 又是 `true`，陈旧的那一轮照样会拿着旧 scope 往下走。手里这一个不再登记在册时直接收手即可，资源已随纪元释放，没有需要回收的残留。
+
+回归用例 `'停机跨过一次被推迟的安装：在飞的 #track_plugin_install 不往已释放的作用域里装'`（`RxDB.plugin-scope.spec.ts`）。改实现前跑过一次，红在 `expected [ 'install1:active', 'install2:disposed' ] to deeply equal [ 'install1:active' ]`——`install2` 拿到的作用域状态就是 `disposed`。
 
 ## 已确认通过
 
@@ -193,7 +201,7 @@ scope.acquire(() => {
 
 | 门禁                                       | 结果                                                                                          |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| `nx run-many -t test`（6 个受影响包）      | ✅ 3990 passed（utils 902 / rxdb 2370 / storage 215 / search 228 / graph 182 / workspace 93） |
+| `nx run-many -t test`（6 个受影响包）      | ✅ 3999 passed（utils 907 / rxdb 2373 / storage 215 / search 228 / graph 182 / workspace 94） |
 | `nx run-many -t lint`（6 个受影响包）      | ✅ 0 error，3 warning（均为 `main` 既有）                                                     |
 | `tsc --noEmit`（逐包 `tsconfig.lib.json`） | ✅ 6 个包全部干净                                                                             |
 | `nx affected -t typecheck --base=main`     | ✅ 48 个项目全部通过，无下游破坏                                                              |
@@ -223,6 +231,6 @@ scope.acquire(() => {
 - [x] #6 `repository()` 拒绝语义补 RxDB 层用例（follow-up）
 - [x] #7 `epic-008` 勾上 US-013 / US-014
 - [x] #8 迁移文档修正 search 的错误串
-- [x] #9 在飞 `#track_plugin_install` 跨停机（P3，自愈无泄漏；记录在案，暂不修）
+- [x] #9 `#track_plugin_install` 在 `await` 后补 `(plugin, scope)` 身份守卫 + 回归用例（初评「窗口极窄、暂不修」已推翻，见 #9 的「触发窗口不窄」）
 - [ ] 开 PR 修复（`pr` 字段记录链接）
 - [ ] PR 合并，`status: Resolved`
