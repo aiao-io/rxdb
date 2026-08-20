@@ -25,7 +25,7 @@ import { isPageSize, isSafeIntegerInRange, isSupportedVersionList } from '../../
 describe('v2 frozen constants', () => {
   it('MUST match the values frozen by US-904 阶段 B', () => {
     // 这些数字是 US-904 阶段 C / D 与 US-905 共同引用的唯一真相源。
-    // 改动任何一个都会让三端行为分叉，所以在这里钉死。
+    // 改动任何一个都会让三端行为分叉，所以在这里固定。
     expect(DEVTOOLS_PROTOCOL_VERSION_V2).toBe(2);
     expect(DEVTOOLS_NEGOTIATION_WINDOW_MS).toBe(1_000);
     expect(DEVTOOLS_MAX_SUPPORTED_VERSIONS).toBe(8);

@@ -19,15 +19,17 @@ import {
   type EntityPropertyMetadataOptions,
   type RxDB
 } from '@aiao/rxdb';
-import { BehaviorSubject, firstValueFrom, Subject, throwError } from 'rxjs';
+import { LifecycleScope } from '@aiao/utils';
+import { BehaviorSubject, firstValueFrom, Subject, throwError, type Observable } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const { installFtsForEntity } = vi.hoisted(() => ({
+const { installFtsForEntity, createSearchEngine } = vi.hoisted(() => ({
   installFtsForEntity: vi.fn(async () => ({
     tableName: 'article',
     status: 'installed' as const,
     fields: [{ name: 'title', isArray: false }]
-  }))
+  })),
+  createSearchEngine: vi.fn(() => ({ search: vi.fn(async () => []) }))
 }));
 
 vi.mock('../core/fts5-runtime.js', async () => {
@@ -42,13 +44,14 @@ vi.mock('../core/search-engine.js', async () => {
   const actual = await vi.importActual<typeof import('../core/search-engine.js')>('../core/search-engine.js');
   return {
     ...actual,
-    createSearchEngine: vi.fn(() => ({ search: vi.fn(async () => []) }))
+    createSearchEngine
   };
 });
 
 import { MAX_QUERY_LENGTH } from '../core/query-compiler.js';
 import { rxDBPluginSearch, type RxDBPluginSearch } from '../plugin.js';
 import { SearchError, SearchExecutionError, SearchQueryLimitError, type SearchState } from '../types.js';
+import { disposeScopes, installScoped } from './scoped-install.js';
 
 const invalidSearchableIntegerProperty = {
   name: 'views',
@@ -67,6 +70,16 @@ const invalidSearchableIntegerProperty = {
 class FakeArticle extends EntityBase {}
 
 @Entity({
+  name: 'Note',
+  tableName: 'note',
+  properties: [
+    { name: 'id', type: PropertyType.string, primary: true },
+    { name: 'body', type: PropertyType.string, searchable: true }
+  ]
+})
+class FakeNote extends EntityBase {}
+
+@Entity({
   name: 'InvalidArticle',
   tableName: 'invalid_article',
   properties: [{ name: 'id', type: PropertyType.string, primary: true }, invalidSearchableIntegerProperty]
@@ -75,7 +88,12 @@ class InvalidArticle extends EntityBase {}
 
 type EntityChangeEvent = EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent;
 
-const buildFakeRxdb = (entities = [FakeArticle], exposesRawQuery = true) => {
+const buildFakeRxdb = (
+  entities: unknown[] = [FakeArticle],
+  exposesRawQuery = true,
+  /** 适配器就绪信号。默认立即为真；传入 `Subject` 可把 `#runInstall` 卡在 FTS DDL **之前**。 */
+  adapterConnected: Observable<boolean> = new BehaviorSubject(true)
+) => {
   const rawQuery = vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] }));
   const migrationRepository = {
     find: vi.fn(async () => []),
@@ -99,7 +117,7 @@ const buildFakeRxdb = (entities = [FakeArticle], exposesRawQuery = true) => {
     },
     localAdapter$: new BehaviorSubject(activeAdapter),
     connected$: new BehaviorSubject(true),
-    adapterConnected$: () => new BehaviorSubject(true),
+    adapterConnected$: () => adapterConnected,
     connect: vi.fn(async () => activeAdapter),
     addEventListener: vi.fn((type: string, listener: (event: EntityChangeEvent) => void) => {
       const list = listeners.get(type) ?? [];
@@ -124,21 +142,24 @@ const buildFakeRxdb = (entities = [FakeArticle], exposesRawQuery = true) => {
 };
 
 describe('search plugin lifecycle', () => {
-  afterEach(() => {
+  afterEach(async () => {
+    await disposeScopes();
     vi.clearAllMocks();
   });
 
   it('install() synchronously rejects invalid `searchable` declarations (fail-fast)', () => {
     const fake = buildFakeRxdb([InvalidArticle]);
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
-    expect(() => plugin.install()).toThrow(/Invalid "searchable"/);
+    expect(() => installScoped(plugin)).toThrow(/Invalid "searchable"/);
+    // schema 校验先于 `scope.acquire()`，作用域里一条登记都没有
+    expect(fake.rxdb.addEventListener).not.toHaveBeenCalled();
   });
 
   it('install() binds entity events synchronously, before the install promise resolves', () => {
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
-    plugin.install();
+    installScoped(plugin);
     // 不 await ready：事件通道必须在同步阶段就挂载，否则在慢 install 期间
     // 已注册的 handle 会 silent miss 事件
     expect(fake.rxdb.addEventListener).toHaveBeenCalledWith(ENTITY_LOCAL_CREATE_EVENT, expect.any(Function));
@@ -150,7 +171,7 @@ describe('search plugin lifecycle', () => {
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
-    plugin.install();
+    installScoped(plugin);
     const handle = plugin.search('', { collections: ['Article'] });
 
     expect(() => plugin.search('', { collections: ['Article', 'Missing'] })).toThrow(
@@ -168,7 +189,7 @@ describe('search plugin lifecycle', () => {
       debounce: 0,
       excludedCollections: ['Article']
     }) as RxDBPluginSearch;
-    excludedPlugin.install();
+    installScoped(excludedPlugin);
 
     expect(() => excludedPlugin.searchCollection('Article', '')).toThrow(/excludedCollections/);
     await excludedPlugin.ready;
@@ -176,7 +197,7 @@ describe('search plugin lifecycle', () => {
 
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
-    plugin.install();
+    installScoped(plugin);
 
     expect(() => plugin.searchCollection('Missing', '')).toThrow(/not searchable/);
     await plugin.ready;
@@ -188,7 +209,7 @@ describe('search plugin lifecycle', () => {
       const source = new Subject<string>();
       const fake = buildFakeRxdb();
       const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
-      plugin.install();
+      installScoped(plugin);
       await plugin.ready;
       const handle = plugin.search(source);
       const states: SearchState[] = [];
@@ -208,7 +229,7 @@ describe('search plugin lifecycle', () => {
       const failure = new Error('同步 query source 失败');
       const fake = buildFakeRxdb();
       const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
-      plugin.install();
+      installScoped(plugin);
       const handle = plugin.search(throwError(() => failure));
       const errors: Array<SearchExecutionError | undefined> = [];
       const sub = handle.error$.subscribe(error => errors.push(error));
@@ -227,7 +248,7 @@ describe('search plugin lifecycle', () => {
       const source = new Subject<string>();
       const fake = buildFakeRxdb();
       const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
-      plugin.install();
+      installScoped(plugin);
       const handle = plugin.search(source);
       const errors: Array<SearchExecutionError | undefined> = [];
       const sub = handle.error$.subscribe(error => errors.push(error));
@@ -247,7 +268,7 @@ describe('search plugin lifecycle', () => {
       const source = new Subject<string>();
       const fake = buildFakeRxdb();
       const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
-      plugin.install();
+      installScoped(plugin);
       await plugin.ready;
       const handle = plugin.search(source);
 
@@ -266,7 +287,7 @@ describe('search plugin lifecycle', () => {
       const source = new Subject<string>();
       const fake = buildFakeRxdb();
       const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
-      plugin.install();
+      installScoped(plugin);
       const handle = plugin.search(source);
 
       expect(source.observed).toBe(true);
@@ -282,7 +303,7 @@ describe('search plugin lifecycle', () => {
   it('纯标点 setQuery 保持 idle，不经过 loading/empty', async () => {
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
-    plugin.install();
+    installScoped(plugin);
     await plugin.ready;
     const handle = plugin.search('');
     const states: SearchState[] = [];
@@ -301,7 +322,7 @@ describe('search plugin lifecycle', () => {
   it('查询预算超限进入 error$，不执行搜索 SQL', async () => {
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
-    plugin.install();
+    installScoped(plugin);
     await plugin.ready;
     const handle = plugin.search('');
     handle.setQuery('a'.repeat(MAX_QUERY_LENGTH + 1));
@@ -315,13 +336,15 @@ describe('search plugin lifecycle', () => {
     plugin.destroy();
   });
 
-  it('missing rawQuery rejects ready and tears down listeners', async () => {
+  it('missing rawQuery rejects ready; releasing the scope tears down listeners', async () => {
     const fake = buildFakeRxdb([FakeArticle], false);
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
-    plugin.install();
+    const { scope } = installScoped(plugin);
 
     await expect(plugin.ready).rejects.toThrow(/does not implement rawQuery/);
+
+    await scope.dispose();
     expect(fake.rxdb.removeEventListener).toHaveBeenCalledTimes(3);
     expect(fake.listeners.get(ENTITY_LOCAL_CREATE_EVENT)).toHaveLength(0);
   });
@@ -333,7 +356,7 @@ describe('search plugin lifecycle', () => {
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
-    const installing = plugin.install();
+    const { scope, installing } = installScoped(plugin);
     expect(plugin.ready).toBe(installing);
     const handle = plugin.search('');
     expect(fake.listeners.get(ENTITY_LOCAL_CREATE_EVENT)).toHaveLength(1);
@@ -342,6 +365,8 @@ describe('search plugin lifecycle', () => {
     expect(plugin.ready).toBe(installing);
 
     expect(consoleError).not.toHaveBeenCalled();
+    // 半途失败的插件自己不收尾：宿主握着清单，替它逆序退回去（`#discard_plugin_scope`）
+    await scope.dispose();
     expect(fake.rxdb.removeEventListener).toHaveBeenCalledTimes(3);
     expect(fake.listeners.get(ENTITY_LOCAL_CREATE_EVENT)).toHaveLength(0);
     expect(() => plugin.search('later')).toThrow(failure);
@@ -404,7 +429,7 @@ describe('search plugin lifecycle', () => {
     await expect(plugin.ready).rejects.toThrow(SearchError);
     await expect(plugin.ready).rejects.toThrow(/not installed/);
 
-    const installing = plugin.install();
+    const { installing } = installScoped(plugin);
     expect(plugin.ready).toBe(installing);
     await installing;
     expect(plugin.ready).toBe(installing);
@@ -416,7 +441,7 @@ describe('search plugin lifecycle', () => {
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
-    plugin.install();
+    installScoped(plugin);
     await plugin.ready;
     plugin.destroy();
 
@@ -428,10 +453,10 @@ describe('search plugin lifecycle', () => {
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
-    plugin.install();
+    installScoped(plugin);
     await plugin.ready;
     plugin.destroy();
-    plugin.install();
+    installScoped(plugin);
     await plugin.ready;
 
     // 守卫只看安装状态，不是一次性闸门
@@ -440,19 +465,131 @@ describe('search plugin lifecycle', () => {
     plugin.destroy();
   });
 
-  it('destroy() rejects ready and unsubscribes entity events', async () => {
+  it('旧纪元迟到的 install 只丢弃结果，不改写新纪元的 engine', async () => {
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
-    plugin.install();
+    // 第一纪元卡在 FTS 安装上：此时还没走到建 engine 那一步
+    let landStaleInstall: (() => void) | undefined;
+    installFtsForEntity.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          landStaleInstall = () =>
+            resolve({ tableName: 'article', status: 'installed', fields: [{ name: 'title', isArray: false }] });
+        })
+    );
+    const stale = installScoped(plugin);
+    await vi.waitFor(() => expect(landStaleInstall).toBeTypeOf('function'));
+
+    // 断连：宿主先释放作用域，再 destroy() 复位状态机
+    await stale.scope.dispose();
+    plugin.destroy();
+
+    // 第二纪元正常装好，engine 属于新纪元
+    const fresh = installScoped(plugin);
+    await fresh.installing;
+    expect(createSearchEngine).toHaveBeenCalledTimes(1);
+    const freshEngine = createSearchEngine.mock.results.at(-1)?.value;
+
+    // 旧纪元现在才跑完 FTS：它手里的 rawQuery 绑的是上一纪元的适配器
+    landStaleInstall?.();
+    await stale.installing;
+
+    // 迟到结果被丢弃：没有第二个 engine，新纪元的 handle 也没被它唤醒
+    expect(createSearchEngine).toHaveBeenCalledTimes(1);
+
+    const handle = plugin.search('title');
+    await vi.waitFor(() => expect(freshEngine?.search).toHaveBeenCalled());
+
+    handle.destroy();
+    plugin.destroy();
+  });
+
+  it('作用域已释放但没 destroy()（init() 回滚 + 同步重试）：旧纪元不再重跑 FTS DDL', async () => {
+    // 宿主的 `init()` 失败回滚只释放作用域，**不**调 destroy()——本插件是唯一没声明
+    // `lifecycle: 'scoped'` 的内置插件，于是状态机跨过回滚活了下来。此时旧纪元那一轮
+    // 从没拿到过适配器：它和重试那一轮等的是同一个 `adapterConnected$`，一起醒来时
+    // 拿到的是同一条**活**连接。纪元校验必须在 DDL 之前，否则同一批 DDL 打两遍。
+    const gate = new Subject<boolean>();
+    const fake = buildFakeRxdb([FakeArticle], true, gate);
+    const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
+
+    const stale = installScoped(plugin);
+    // 宿主回滚：作用域释放，destroy() 不调
+    await stale.scope.dispose();
+    // 同步重试 init() → 同一个插件实例再装一轮
+    const fresh = installScoped(plugin);
+
+    // 适配器这才连上：两轮同时放行
+    gate.next(true);
+    await Promise.all([fresh.installing, stale.installing]);
+
+    // 一个 entity 一个 plan：DDL 只该跑重试那一轮
+    expect(installFtsForEntity).toHaveBeenCalledTimes(1);
+    expect(createSearchEngine).toHaveBeenCalledTimes(1);
+    await expect(plugin.ready).resolves.toBeUndefined();
+    expect(() => plugin.searchCollection('Article', 'hello')).not.toThrow();
+
+    plugin.destroy();
+  });
+
+  it('作用域已释放但没 destroy()：重装按当下的 entities 重扫，不复用上一轮 plan', async () => {
+    const entities: unknown[] = [FakeArticle];
+    const fake = buildFakeRxdb(entities);
+    const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
+
+    const first = installScoped(plugin);
+    await first.installing;
+    await first.scope.dispose();
+
+    // `entities` 是 LIVE_BEHAVIOUR_CONFIG_KEYS 里的字段，宿主有意不深冻结它
+    entities.push(FakeNote);
+    const second = installScoped(plugin);
+    await second.installing;
+
+    expect(() => plugin.searchCollection('Note', 'hello')).not.toThrow();
+    // 两个 plan 都装：第一轮 1 次 + 第二轮 2 次
+    expect(installFtsForEntity).toHaveBeenCalledTimes(3);
+
+    plugin.destroy();
+  });
+
+  it('三路 entity 事件各自一条登记，第二条注册失败时第一条不会留在宿主上', async () => {
+    const fake = buildFakeRxdb();
+    const boom = new Error('addEventListener 第二条炸了');
+    const addEventListener = vi.mocked(fake.rxdb.addEventListener);
+    addEventListener.mockImplementationOnce(addEventListener.getMockImplementation()!).mockImplementationOnce(() => {
+      throw boom;
+    });
+    const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
+
+    const scope = new LifecycleScope('search-spec-partial-bind');
+    expect(() => plugin.install(scope)).toThrow(boom);
+
+    // 第一条已经挂上去了，作用域必须握着它的撤销条目
+    expect(fake.listeners.get(ENTITY_LOCAL_CREATE_EVENT)).toHaveLength(1);
+    await scope.dispose();
+    expect(fake.listeners.get(ENTITY_LOCAL_CREATE_EVENT)).toHaveLength(0);
+
+    plugin.destroy();
+  });
+
+  // 拆卸分两步，顺序由宿主固定：先释放作用域摘掉本纪元的宿主改动，再 destroy() 复位状态机。
+  // 搜索插件没有声明 `lifecycle: 'scoped'`，两步都会走到。
+  it('releasing the scope unsubscribes entity events; destroy() rejects ready', async () => {
+    const fake = buildFakeRxdb();
+    const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
+
+    const { scope } = installScoped(plugin);
     await plugin.ready;
     expect(fake.listeners.get(ENTITY_LOCAL_CREATE_EVENT)?.length ?? 0).toBe(1);
 
-    plugin.destroy();
+    await scope.dispose();
 
     expect(fake.rxdb.removeEventListener).toHaveBeenCalledTimes(3);
     expect(fake.listeners.get(ENTITY_LOCAL_CREATE_EVENT)?.length ?? 0).toBe(0);
 
+    plugin.destroy();
     await expect(plugin.ready).rejects.toThrow(SearchError);
     await expect(plugin.ready).rejects.toThrow(/destroyed/);
   });

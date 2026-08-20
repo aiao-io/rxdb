@@ -279,7 +279,7 @@ describe('createElectronFileHost', () => {
       await expect(readFile(join(outside, 'secret.txt'), 'utf8')).resolves.toBe('classified');
     });
 
-    // 反向的那半同样要钉住：封堵的判据是「解析后落在根外」，不是「路径上有链接」。
+    // 反向的那半同样要固定：封堵的判据是「解析后落在根外」，不是「路径上有链接」。
     // 把根内链接一并拒掉会误伤合法的存储布局，而这种过度封堵只会在真实用户那里才暴露。
     it('still serves a symlink that resolves back inside the root', async () => {
       expectOk(await writeThrough('docs/note.txt', 'kept'), 'file.writeCommit');
@@ -489,7 +489,7 @@ describe('createElectronFileHost', () => {
   });
 
   it('caps pending writes per session instead of holding unbounded file handles', async () => {
-    // 每个未提交的写入都占着一个打开的 fd；不设上限，一个 renderer 就能把 host 的 fd 耗尽。
+    // 每个未提交的写入都占用一个打开的 fd；不设上限，一个 renderer 就能把 host 的 fd 耗尽。
     for (let index = 0; index < DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION; index++) {
       expectOk(await host.handle({ kind: 'file.writeBegin', sessionId, path: `bulk/${index}.txt` }), 'file.writeBegin');
     }

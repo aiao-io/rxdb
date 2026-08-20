@@ -5,7 +5,7 @@
     <!--
       生产态 CSP。产物由 Electron 以 `file:` 协议 loadFile 加载，不存在 dev server，
       因此 connect-src 收成 'self'。其余指令与 src/index.html 逐字一致，
-      由 src-electron/renderer-shell.spec.ts 钉住两者不漂移。
+      由 src-electron/renderer-shell.spec.ts 固定两者不漂移。
     -->
     <meta
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-src 'none'; form-action 'none'"

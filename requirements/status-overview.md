@@ -8,10 +8,10 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 38   |
+| ✅ Done        | 40   |
 | 🚧 In Progress | 2    |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 13   |
+| 📝 Backlog     | 11   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 53   |
 
@@ -196,14 +196,14 @@
 
 - ⬜ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md) — 认领 [capability-matrix](capability-matrix.md#已知的需求覆盖缺口) 第 2 条缺口
 
-[specs/002-lifecycle-effect-scope/spec.md](../specs/002-lifecycle-effect-scope/spec.md) 仍是 Draft；`packages/` 无 `LifecycleScope` 实现，YAML 保持 Backlog。
+[specs/002-lifecycle-effect-scope/spec.md](../specs/002-lifecycle-effect-scope/spec.md) 仍是 Draft：它覆盖 US-013 → US-017 整条链，US-013 / US-014 交付后其余三条尚未开工。原语已落在 [`packages/utils/src/lifecycle/`](../packages/utils/src/lifecycle/)，四个插件包已全部迁移到 `install(scope)`——本 Epic 的三处已知泄漏均已关闭。
 
 ### [生命周期作用域](epics/epic-008-lifecycle-scope.md)
 
-**US-013 → US-014 为硬序，不可交换。** US-014 完成时本 Epic 的三处已知泄漏全部关闭。
+**US-013 → US-014 为硬序，不可交换。** 两条均已交付，本 Epic 的三处已知泄漏全部关闭。
 
-- ⬜ [US-013 LifecycleScope 生命周期作用域原语](stories/core/US-013-lifecycle-scope-primitive.md) — `@aiao/utils` 侧的原语，语义由测试冻结
-- ⬜ [US-014 插件作用域契约](stories/core/US-014-plugin-scope-contract.md) — `install(scope)`，四个插件包迁移；独立关闭三处已知泄漏（graph 注册、storage 属性、workspace 订阅）
+- ✅ [US-013 LifecycleScope 生命周期作用域原语](stories/core/US-013-lifecycle-scope-primitive.md) — `@aiao/utils` 侧的原语，19 条 AC 由 26 个用例冻结；只交付原语，不迁移任何调用方
+- ✅ [US-014 插件作用域契约](stories/core/US-014-plugin-scope-contract.md) — `install(scope)`，四个插件包已迁移；三处已知泄漏（graph 注册、storage 属性、workspace 订阅）关闭。三处有意的可观察行为变化见 [插件作用域契约迁移](../website/docs/migration/plugin-scope.md)
 - 🅰️ ⬜ [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) — 两阶段单文件故事
   - ⬜ 阶段 A 适配器依赖纪元 — `inject: ['adapter:local']`，关闭 search 插件的 phase 机
   - ⬜ 阶段 B 插件间依赖图 — 拓扑序与环检测；**价值待证**，未证不开工
@@ -215,9 +215,11 @@
 > US-015 阶段 B 之后的每一条都要写出「今天用户踩得到的具体症状」，写不出就留在 Backlog——
 > 这是过度设计判据，不是建议（见 [roadmap 约束 9](roadmap.md#排期约束)）。
 >
-> 本 Epic 会制造一次 `IRxDBPlugin` 成员签名变更（含 `destroy()` 由必选转可选），
-> 而 [api-surface.mjs](../scripts/audit/api-surface.mjs) 只记录 `{name, kind}`，**成员怎么改都不产生 diff**。
-> 该盲区由 US-014 用类型契约测试就地补上，不扩大 [epic-007](epics/epic-007-public-api-gates.md) 的范围。
+> 本 Epic 已制造一次 `IRxDBPlugin` 成员签名变更（`destroy()` 由必选转可选、新增可选 `lifecycle`、
+> `install()` 收形参），而 [api-surface.mjs](../scripts/audit/api-surface.mjs) 只记录 `{name, kind}`，
+> **成员怎么改都不产生 diff**。该盲区已由 US-014 的类型契约测试
+> [plugin-scope-contract.spec.ts](../packages/rxdb/src/__tests__/contracts/plugin-scope-contract.spec.ts)
+> 就地补上，未扩大 [epic-007](epics/epic-007-public-api-gates.md) 的范围。
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 
@@ -226,7 +228,7 @@
 | 被挡住的                                                                                         | 硬前置                                                                                                                                                                                                                                                                                                                                             |
 | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`，历史 `v0.0.25` 又已被 squash 移出主线——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。这一条不随代码进度自动解除，需单独排期 |
-| epic-008 中 US-014 之后的一切                                                                    | [US-013](stories/core/US-013-lifecycle-scope-primitive.md) → [US-014](stories/core/US-014-plugin-scope-contract.md) 是硬序；[US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 A 消费 US-014 的 `install(scope)` 签名，阶段 B 另需先证明用户价值                                                                                       |
+| epic-008 中 US-014 之后的一切                                                                    | [US-013](stories/core/US-013-lifecycle-scope-primitive.md) 与 [US-014](stories/core/US-014-plugin-scope-contract.md) 均已交付，硬序解除；[US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 A 的前置（`install(scope)` 签名）已满足、可开工，阶段 B 另需先证明用户价值                                                                 |
 | [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D                       | 同一文件的阶段 A 必须先给出 `decision: supported`                                                                                                                                                                                                                                                                                                  |
 
 > **US-210 AC#9 已于 2026-08-17 解除阻塞**，从本表移除。原判定「macOS 没有官方 WKWebView WebDriver，

@@ -6,7 +6,7 @@
  * `fetchMetadata<TEntity>(entityName: string, query: RuleGroup<TEntity>)`。参数个数、
  * 顺序、类型三项全错，测试仍然全绿，因为它断言的是自己那份抄件。
  *
- * 现在：类型从公开入口 `../../index.js` 取并用 `expectTypeOf` / `@ts-expect-error` 钉死
+ * 现在：类型从公开入口 `../../index.js` 取并用 `expectTypeOf` / `@ts-expect-error` 固定
  * （由 `tsc -p tsconfig.spec.json --noEmit` 执行），行为断言穿真实 `QueryCacheRepository`。
  */
 

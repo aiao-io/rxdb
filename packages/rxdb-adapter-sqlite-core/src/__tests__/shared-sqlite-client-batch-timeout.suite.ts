@@ -27,7 +27,7 @@ export function sqliteClientBatchTimeoutSuite(factory: AdapterFactory) {
     /**
      * 判据是「flush 发生在写入循环还没结束的时候」，而不是「flush 在某个毫秒数内到达」。
      *
-     * 两条前提（下面用断言钉死）保证了这个判据等价于「硬上限触发过」：
+     * 两条前提（下面用断言固定）保证了这个判据等价于「硬上限触发过」：
      * debounce 间隔远大于写入间隔 ⇒ 纯 debounce 在循环期间永不自然触发；
      * 循环名义时长跨过硬上限 ⇒ 硬上限本来就该在循环期间触发至少一次。
      * 于是循环期间出现的任何 flush 都只可能来自硬上限。

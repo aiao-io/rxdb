@@ -62,7 +62,7 @@ describe('published entity model contract', () => {
   // 光有 `unique: true` 不够 —— SQL 规定每个 NULL 互不相等，树形实体的根节点
   // （`parentId IS NULL`）和无扩展名的文件夹（`extension IS NULL`）会让整条索引失效；
   // `normalized` 才把 NULL 折成可比值，并顺带对齐 UI 侧的大小写不敏感判定。
-  // 行为端由 `src/tree-unique/` 的跨适配器契约套件守着，这里只钉住**模型声明**。
+  // 行为端由 `src/tree-unique/` 的跨适配器契约套件守着，这里只固定**模型声明**。
   it.each([
     ['FileNode', FileNode, 'parent_fullname', ['parentId', 'name', 'extension']],
     ['FileLarge', FileLarge, 'parent_fullname', ['parentId', 'name', 'extension']],
@@ -79,7 +79,7 @@ describe('published entity model contract', () => {
 
   // RXT-011：`SKUAttributes` 的 skuId / attributeId / valueId 是三条互不关联的 FK，
   // 「同一 SKU 上同一属性出现两次」在库里合法，读出来是两条互相冲突的记录。
-  // 这里只钉住**模型声明**，行为端在 sqlite-core 的 `shared-crud.suite.ts`
+  // 这里只固定**模型声明**，行为端在 sqlite-core 的 `shared-crud.suite.ts`
   // 与 pglite 的 `sku-attribute-unique.spec.ts`。
   // 不加 `normalized`：两列都是 NOT NULL 的 uuid FK，没有 NULL 要折、也没有大小写变体要归一，
   // 裸列 UNIQUE 就是准确口径。

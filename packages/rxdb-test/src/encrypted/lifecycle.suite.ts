@@ -343,7 +343,7 @@ export function runLifecycleSuite(options: EncryptedSuiteOptions): void {
         u.creditCardInfo = ROTATED_CC;
         await u.save();
 
-        // arrange 的后果先钉住：没有这一步，下面的 redo 断言会退化成恒真。
+        // arrange 的后果先固定：没有这一步，下面的 redo 断言会退化成恒真。
         expect((await readFixture(userId))?.creditCardInfo).toBe(ROTATED_CC);
 
         await history.undo();

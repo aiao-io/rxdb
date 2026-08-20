@@ -58,7 +58,7 @@ describe('desktop-host subpath', () => {
    * @remarks
    * 主入口某天顺手 `export * from './desktop-host.js'` 的话，构建照样绿、类型照样对，
    * 五个浏览器适配器的 bundle 里却多出了一整套它们永远不会调用的桌面协议——
-   * 而这件事没有任何别的信号，所以只能在这里钉住。
+   * 而这件事没有任何别的信号，所以只能在这里固定。
    */
   it('never leaks the desktop protocol into the main entry', async () => {
     const mainExports = Object.keys(await import('../index.js'));

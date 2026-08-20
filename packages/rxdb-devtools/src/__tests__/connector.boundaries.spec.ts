@@ -901,7 +901,7 @@ describe('DevToolsConnector boundaries', () => {
     dispatchCommand('QUERY_ENTITY', { entityName: 'User' });
 
     // 环引用不是「无法序列化」：safeSerialize 会把成环的那个节点降级成 '[Circular]'，
-    // 兄弟字段照常输出。整条记录塌成 { id, _error } 等于调试工具把要调试的数据吃掉了。
+    // 兄弟字段照常输出。整条记录塌成 { id, _error } 等于调试工具把要调试的数据抹掉了。
     expect(postedMessages(postMessageSpy, 'ENTITY_DATA')[0]?.payload).toEqual({
       entityName: 'User',
       error: null,
@@ -1508,7 +1508,7 @@ describe('DevToolsConnector boundaries', () => {
       expect(disconnectAll).toHaveBeenCalledTimes(1);
 
       // 闩锁只覆盖"这一次"断开。失败时实例与监听按约定保留，重试必须真的重跑，
-      // 否则第一次失败会把连接器永久钉死在失败态。
+      // 否则第一次失败会把连接器永久卡死在失败态。
       const retry = await helper.disconnectRxdb(5000);
 
       expect(retry).toEqual({ success: true, error: null, status: 'graceful' });

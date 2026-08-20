@@ -96,7 +96,7 @@ export function createWorkspaceStore(dbName: string, storeName: string): Workspa
         settled = true;
         reject(request.error);
       };
-      // 其他 tab 占着旧版本连接时升级会 blocked。必须显式失败：
+      // 其他 tab 占用旧版本连接时升级会 blocked。必须显式失败：
       // 不处理的话这个 Promise 永不 settle，getDb() 的所有等待者（含每一次 flush）一起挂死。
       request.onblocked = () => {
         if (settled) return;

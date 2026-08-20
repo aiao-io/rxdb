@@ -7,7 +7,7 @@
  *
  * 改法两条：
  *
- * 1. 类型一律从包公开入口 `../../index.js` 取，用 `expectTypeOf` + `@ts-expect-error` 钉死签名。
+ * 1. 类型一律从包公开入口 `../../index.js` 取，用 `expectTypeOf` + `@ts-expect-error` 固定签名。
  *    这些断言在 vitest 运行时是 no-op，真正执行它们的是 `tsc -p tsconfig.spec.json --noEmit`
  *    ——签名再漂就是编译错误，而不是绿灯。
  * 2. 行为断言穿过真实 `QueryCacheRepository`，证明适配器是按 `(entityName, ids)` 被调用的，

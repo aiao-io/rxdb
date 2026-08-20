@@ -69,7 +69,7 @@ export const runBootstrapAtomicitySuite = ({ factory }: TransactionSuiteOptions)
 
       // 断言**包含**而非相等：同一张表还存放 RxDB 自己的系统水位线
       // （`__rxdb_system_schema__:N` / `__rxdb_change_codec__:N`，见 system/migration.ts）。
-      // 断言相等会把「系统水位线的条数」这个与本契约无关的实现细节钉死在测试里。
+      // 断言相等会把「系统水位线的条数」这个与本契约无关的实现细节固定在测试里。
       for (const name of MIGRATION_NAMES) expect(names).toContain(name);
     });
 

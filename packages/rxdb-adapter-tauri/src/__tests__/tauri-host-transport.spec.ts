@@ -191,7 +191,7 @@ describe('createTauriHostTransport', () => {
     await vi.waitFor(() => expect(onListenError).toHaveBeenCalledWith(failure));
     expect(listen).toHaveBeenCalledWith(TAURI_DESKTOP_CHANGE_EVENT, expect.any(Function));
 
-    // 失败不能把传输层钉死：下一个订阅者要能重新尝试注册。
+    // 失败不能把传输层卡死：下一个订阅者要能重新尝试注册。
     transport.subscribe(vi.fn());
     await vi.waitFor(() => expect(listen).toHaveBeenCalledTimes(2));
   });

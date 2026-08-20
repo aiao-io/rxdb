@@ -17,6 +17,7 @@ vi.mock('../core/search-engine.js', async () => {
 });
 
 import { rxDBPluginSearch, type RxDBPluginSearch } from '../plugin.js';
+import { disposeScopes, installScoped } from './scoped-install.js';
 
 @Entity({
   name: 'Article',
@@ -58,7 +59,8 @@ const buildFakeRxdb = (migrationRecords: { name: string }[] = []) => {
 };
 
 describe('search plugin migration store', () => {
-  afterEach(() => {
+  afterEach(async () => {
+    await disposeScopes();
     vi.clearAllMocks();
   });
 
@@ -68,7 +70,7 @@ describe('search plugin migration store', () => {
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
-    plugin.install();
+    installScoped(plugin);
     await plugin.ready;
 
     expect(fake.find).toHaveBeenCalledWith({
@@ -89,7 +91,7 @@ describe('search plugin migration store', () => {
     const fake = buildFakeRxdb([{ name: 'fts5!!public$article!!v1!!install!!deadbeef' }]);
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
-    plugin.install();
+    installScoped(plugin);
 
     await expect(plugin.ready).resolves.toBeUndefined();
     plugin.destroy();

@@ -111,6 +111,16 @@ export * from './function/index.js';
 export * from './indexing/fractional-indexing.js';
 
 /**
+ * 生命周期作用域
+ * - LifecycleScope: 成对登记「取得所有权 + 如何放弃」，到期逆序、串行撤销
+ * - ScopeDisposer: 撤销一次登记的句柄
+ * - AcquireResult: acquire() 的 setup 返回值
+ * - ScopeEntry: getEntries() 的快照节点
+ * - LifecycleScopeDisposedError: 在非 active 作用域上登记时抛出
+ */
+export * from './lifecycle/index.js';
+
+/**
  * 数字工具
  * - canBeNumber: 是否可以转换为数字
  * - toInt: 转换为整数

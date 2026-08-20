@@ -515,7 +515,7 @@ describe('EntityStatus', () => {
     // 走的正是 `replace` / `mergeExternal` / proxy set 这三条改值路径。在它们内部推进，
     // 树查询就会把自己的回填看成「结果变了」再发一次（自激）。所以推进条件是
     // 「这次改动来自**外部事件**」，只有 `QueryManager` 知道，由它显式调 `markContentChanged`。
-    // 下面几条把这套非对称契约钉住：改值路径全都不推进，只有外部入口推进。
+    // 下面几条把这套非对称契约固定：改值路径全都不推进，只有外部入口推进。
     //
     // 走 `replace` 的用例必须用实体自带的 status（`getEntityStatus`）而不是另建一个
     // `new EntityStatus(rxdb, { target: entity })`：`new TestEntity()` 返回的是**代理**，

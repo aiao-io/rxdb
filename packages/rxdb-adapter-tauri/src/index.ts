@@ -5,7 +5,7 @@
  * 本包**只有一侧**：WebView。Electron 那边分 `.` 与 `./host` 两个入口，是因为特权侧的
  * `node:sqlite` 宿主也是 TypeScript 写的，必须挡在单独的入口后面，免得被打进 renderer bundle。
  * Tauri 的特权侧是 Rust——它随应用二进制走，不经 npm 分发，也就没有第二个入口可分。
- * 相应地，本包内不该出现任何 `node:` 内建（`tsconfig.lib.json` 的 `types: []` 钉住了这一点）。
+ * 相应地，本包内不该出现任何 `node:` 内建（`tsconfig.lib.json` 的 `types: []` 约束了这一点）。
  *
  * 协议、renderer client、存储联合与错误类型的**实现**在
  * `@aiao/rxdb-adapter-sqlite-core/desktop-host`（US-207 E1），两个桌面运行时共用一份，

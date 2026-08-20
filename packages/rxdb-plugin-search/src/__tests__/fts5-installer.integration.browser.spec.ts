@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { extractFtsPlanFromMetadata, ftsMigrationName } from '../core/fts5-installer.js';
 import { RxDBPluginSearch, rxDBPluginSearch } from '../plugin.js';
 import { Article } from './fixtures/article.entity.js';
+import { disposeScopes, installScoped } from './scoped-install.js';
 
 interface Harness {
   readonly rxdb: RxDB;
@@ -129,6 +130,7 @@ describe('fts5 installer browser integration', () => {
     while (cleanups.length > 0) {
       await cleanups.pop()?.();
     }
+    await disposeScopes();
   });
 
   it('T024 installs the FTS table, triggers, and install migration on first mount', async () => {
@@ -161,8 +163,12 @@ describe('fts5 installer browser integration', () => {
     await createArticle(harness.rxdb);
 
     const plugin = rxDBPluginSearch(harness.rxdb, { debounce: 0 }) as RxDBPluginSearch;
-    plugin.install();
-    cleanups.push(async () => plugin.destroy());
+    const { scope: pluginScope } = installScoped(plugin);
+    // 与宿主同序：先释放作用域摘掉 entity 监听，再 destroy() 复位状态机
+    cleanups.push(async () => {
+      await pluginScope.dispose();
+      plugin.destroy();
+    });
     await plugin.ready;
 
     const plan = extractFtsPlanFromMetadata(getEntityMetadata(Article))!;
@@ -181,8 +187,12 @@ describe('fts5 installer browser integration', () => {
     expect(await queryMatchCount(harness.adapter, ftsTable, 'alpha')).toBe(1);
 
     const secondPlugin = rxDBPluginSearch(harness.rxdb, { debounce: 0 }) as RxDBPluginSearch;
-    secondPlugin.install();
-    cleanups.push(async () => secondPlugin.destroy());
+    const { scope: secondPluginScope } = installScoped(secondPlugin);
+    // 与宿主同序：先释放作用域摘掉 entity 监听，再 destroy() 复位状态机
+    cleanups.push(async () => {
+      await secondPluginScope.dispose();
+      secondPlugin.destroy();
+    });
     await secondPlugin.ready;
 
     expect(await queryFtsRowCount(harness.adapter, ftsTable)).toBe(1);
@@ -205,8 +215,12 @@ describe('fts5 installer browser integration', () => {
     await createArticle(harness.rxdb);
 
     const plugin = rxDBPluginSearch(harness.rxdb, { debounce: 0 }) as RxDBPluginSearch;
-    plugin.install();
-    cleanups.push(async () => plugin.destroy());
+    const { scope: pluginScope } = installScoped(plugin);
+    // 与宿主同序：先释放作用域摘掉 entity 监听，再 destroy() 复位状态机
+    cleanups.push(async () => {
+      await pluginScope.dispose();
+      plugin.destroy();
+    });
 
     await expect(plugin.ready).rejects.toThrow('forced backfill failure');
     const migrationNames = await listMigrationNames(harness.rxdb);
@@ -254,8 +268,12 @@ describe('fts5 installer browser integration', () => {
     await createArticle(harness.rxdb);
 
     const plugin = rxDBPluginSearch(harness.rxdb, { debounce: 0 }) as RxDBPluginSearch;
-    plugin.install();
-    cleanups.push(async () => plugin.destroy());
+    const { scope: pluginScope } = installScoped(plugin);
+    // 与宿主同序：先释放作用域摘掉 entity 监听，再 destroy() 复位状态机
+    cleanups.push(async () => {
+      await pluginScope.dispose();
+      plugin.destroy();
+    });
     await plugin.ready;
 
     expect(windows).toBeGreaterThanOrEqual(2);

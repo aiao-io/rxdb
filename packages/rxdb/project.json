@@ -7,7 +7,9 @@
   "tags": ["js-lib"],
   "targets": {
     "typecheck": {
-      "dependsOn": ["build", "^typecheck"]
+      "dependsOn": ["build", "^typecheck"],
+      "// inputs": "@nx/js/typescript 推断出的 inputs 是 production，把 spec 全排除了——src/__tests__/contracts/ 的编译期契约改一行也命中缓存，等于没有门禁。这里换成 default 把 spec 纳入哈希。",
+      "inputs": ["default", "^production", { "externalDependencies": ["typescript"] }]
     },
     "lint": {
       "executor": "nx:run-commands",

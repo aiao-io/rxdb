@@ -10,7 +10,7 @@ import {
 describe('capability catalogue', () => {
   it('MUST keep the catalogue and the rank table in lockstep', () => {
     // 两者分别由 `satisfies readonly DevToolsCapability[]` 与 `satisfies Record<DevToolsCapability, number>`
-    // 约束住「不许多」和「不许少」，这条断言把两侧钉在一起，防止只改其中一处。
+    // 约束住「不许多」和「不许少」，这条断言把两侧绑定在一起，防止只改其中一处。
     expect([...DEVTOOLS_CAPABILITIES]).toEqual(Object.keys(DEVTOOLS_CAPABILITY_RANK));
   });
 

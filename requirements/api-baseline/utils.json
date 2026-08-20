@@ -1,6 +1,10 @@
 {
   "exports": [
     {
+      "name": "AcquireResult",
+      "kind": "type"
+    },
+    {
       "name": "aesDecrypt",
       "kind": "value"
     },
@@ -389,6 +393,14 @@
       "kind": "both"
     },
     {
+      "name": "LifecycleScope",
+      "kind": "both"
+    },
+    {
+      "name": "LifecycleScopeDisposedError",
+      "kind": "both"
+    },
+    {
       "name": "logError",
       "kind": "value"
     },
@@ -567,6 +579,14 @@
     {
       "name": "rsaGenerateKey",
       "kind": "value"
+    },
+    {
+      "name": "ScopeDisposer",
+      "kind": "type"
+    },
+    {
+      "name": "ScopeEntry",
+      "kind": "type"
     },
     {
       "name": "set",

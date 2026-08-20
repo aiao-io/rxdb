@@ -187,9 +187,9 @@ describe('RxDB coverage', () => {
     expect(repository.find).toHaveBeenCalledTimes(2);
     expect(alreadyApplied).not.toHaveBeenCalled();
     expect(retryMigration).toHaveBeenCalledTimes(2);
-    // 每次尝试都先占坑再执行（RXD-036），失败的那次连同占坑一起回滚 —— 但这里的
+    // 每次尝试都先认领执行权再执行（RXD-036），失败的那次连同认领执行权一起回滚 —— 但这里的
     // `created` 是内存数组，回滚不到它，所以两次尝试各留下一条。真库上只会剩最后一条。
-    // 关键契约是：只有 z-retry 被占坑，已执行的 a-applied 一次都没碰。
+    // 关键契约是：只有 z-retry 认领了执行权，已执行的 a-applied 一次都没碰。
     expect(created.map(record => record.name)).toEqual(['z-retry', 'z-retry']);
     expect(vi.mocked(adapter.createTables)).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledWith('Migration failed: z-retry', migrationFailure);

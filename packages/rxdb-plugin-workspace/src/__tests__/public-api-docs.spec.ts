@@ -94,6 +94,7 @@ describe('RWS-010 发布声明 TSDoc 契约', () => {
       /id: UUID/,
       /data: Record<string, unknown>/,
       /export declare class RxDBPluginWorkspace/,
+      /readonly lifecycle:/,
       /readonly name:/,
       /readonly changes\$/,
       /get ready\(\):/,
@@ -101,7 +102,7 @@ describe('RWS-010 发布声明 TSDoc 契约', () => {
       /get corruptedEntries\(\):/,
       /constructor\(rxdb:/,
       /flush\(\):/,
-      /install\(\):/,
+      /install\(scope:/,
       /list\(\): WorkspaceCacheEntry\[\]/,
       /discard\(cacheId:/,
       /destroy\(\):/,
@@ -112,12 +113,14 @@ describe('RWS-010 发布声明 TSDoc 契约', () => {
     expect(declarations.filter(declaration => documentationFor(workspace, declaration) === '')).toEqual([]);
   });
 
-  it('快照、异常与终态语义存在于生成声明', () => {
+  it('快照、异常与拆卸语义存在于生成声明', () => {
     expect(documentationFor(workspace, /list\(\): WorkspaceCacheEntry\[\]/)).toContain('深快照');
     expect(documentationFor(workspace, /list\(\): WorkspaceCacheEntry\[\]/)).toContain('@throws');
     expect(documentationFor(workspace, /flush\(\):/)).toContain('@throws');
     expect(documentationFor(workspace, /constructor\(rxdb:/)).toContain('@throws');
     expect(documentationFor(workspace, /discard\(cacheId:/)).toContain('不是落盘屏障');
-    expect(documentationFor(workspace, /destroy\(\):/)).toContain('终态');
+    // destroy() 已让位给作用域释放，声明里必须写明它被弃用且不再是终态
+    expect(documentationFor(workspace, /destroy\(\):/)).toContain('@deprecated');
+    expect(documentationFor(workspace, /destroy\(\):/)).toContain('不再是终态');
   });
 });

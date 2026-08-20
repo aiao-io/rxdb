@@ -47,6 +47,7 @@ vi.mock('../core/search-engine.js', async () => {
 });
 
 import { RxDBPluginSearch, rxDBPluginSearch } from '../plugin.js';
+import { disposeScopes, installScoped } from './scoped-install.js';
 
 @Entity({
   name: 'Article',
@@ -74,7 +75,8 @@ function createAdapterConnections(names: readonly string[]) {
 }
 
 describe('search plugin install ordering', () => {
-  afterEach(() => {
+  afterEach(async () => {
+    await disposeScopes();
     vi.clearAllMocks();
   });
 
@@ -119,7 +121,7 @@ describe('search plugin install ordering', () => {
     } as unknown as RxDB;
 
     const plugin = rxDBPluginSearch(fakeRxdb, { debounce: 0 }) as RxDBPluginSearch;
-    const installation = plugin.install();
+    const { installing: installation } = installScoped(plugin);
     expect(installation).toBe(plugin.ready);
 
     const handle = fakeRxdb.search('alpha');
@@ -224,7 +226,7 @@ describe('search plugin install ordering', () => {
     } as unknown as RxDB;
 
     const plugin = rxDBPluginSearch(fakeRxdb, { debounce: 0 }) as RxDBPluginSearch;
-    plugin.install();
+    installScoped(plugin);
 
     const hung = Promise.race([
       plugin.ready.then(() => 'ready' as const),

@@ -318,7 +318,7 @@ describe('createWorkspaceStore', () => {
     expect(idb.state.version).toBe(1);
   });
 
-  // 另一个 tab 占着旧版本连接时升级会 blocked。必须显式失败，
+  // 另一个 tab 占用旧版本连接时升级会 blocked。必须显式失败，
   // 否则 `getDb()` 的 Promise 永不 settle，所有 flush() 一起挂死。
   it('rejects instead of hanging when the upgrade is blocked by another connection', async () => {
     vi.unstubAllGlobals();

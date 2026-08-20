@@ -6,7 +6,7 @@
  * 6 个 `it` 里只有 2 个 `expect` —— S3b 甚至明确打印「instanceof Error = false」
  * 却照样通过。于是 100% 行覆盖率把 RAN-001 ~ RAN-008 一并盖住。
  *
- * 这里逐条改成**会失败**的断言，钉住的正是当时被打印出来、后来才修掉的行为：
+ * 这里逐条改成**会失败**的断言，固定的正是当时被打印出来、后来才修掉的行为：
  * 错误态不算空、非 Error 载荷归一化成 Error、同键复用同一 signal、跨注入器读盘。
  */
 import { ENTITY_STATIC_TYPES, EntityType, RxDB, type FindByCursorOptions, type UUID } from '@aiao/rxdb';

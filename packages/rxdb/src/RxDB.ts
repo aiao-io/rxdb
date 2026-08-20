@@ -1,4 +1,4 @@
-import { deepFreeze, isPromise } from '@aiao/utils';
+import { deepFreeze, isPromise, LifecycleScope } from '@aiao/utils';
 import { BehaviorSubject, defer, distinctUntilChanged, filter, map, Observable, shareReplay, switchMap } from 'rxjs';
 import { EntityManager } from './entity/entity-manager.js';
 import { EntityType } from './entity/entity.interface.js';
@@ -58,10 +58,10 @@ type RxDBConfig = RxDBOptions;
 const LIVE_BEHAVIOUR_CONFIG_KEYS: ReadonlySet<string> = new Set(['entities', 'migrations']);
 
 /**
- * 迁移占坑冲突的重试次数
+ * 迁移执行权竞争的重试次数
  *
  * 每次重试都会重读一遍已提交的迁移名，正常竞争下一次就能收敛（对手的记录已可见）。
- * 给到 3 次是为了容忍多实例同时启动；再抢不到就是异常，宁可抛错也不静默跳过迁移。
+ * 给到 3 次是为了容忍多实例同时启动；再认领失败就是异常，宁可抛错也不静默跳过迁移。
  */
 const MIGRATION_CLAIM_RETRIES = 3;
 
@@ -111,11 +111,58 @@ export class RxDB {
 
   #rxdb_initialized = false;
 
+  /**
+   * 停机窗口标记：{@link RxDB.#shutdown} 一进来就置位，与 `#rxdb_initialized` 一起复位。
+   *
+   * @remarks
+   * `#rxdb_initialized` 在整个异步拆卸期间都还是 `true`——它标的是「本纪元已初始化」，
+   * 复位必须等拆完。于是拆卸的这段时间里两个判断重合不了：已初始化 ≠ 可以往里装东西。
+   * 少了这个标记，窗口内的 `use()` 会把插件装进正在释放的纪元（随后被总闸一起释放），
+   * 或者更糟——`#ensure_connection_scope()` 在 {@link RxDB.#release_connection_scope}
+   * 置空之后建出一个**脱离本次停机**的新作用域，安装在停机结束后继续跑，而这一纪元
+   * 已经没有任何拆卸入口会经过它了。
+   */
+  #shutting_down = false;
+
   #repository_config_map = new Map<string, IRepositoryConfig>();
 
   #plugin_map = new Map<Plugin, IRxDBPlugin>();
 
   #plugin_install_promises = new Map<IRxDBPlugin, Promise<void>>();
+
+  /**
+   * 连接纪元作用域：`init()` 建、`#shutdown()` 释放，所有插件激活作用域挂在它下面。
+   *
+   * @remarks
+   * 它是「本次连接期间产生的宿主改动」的总闸。`#shutdown()` 里即便 {@link RxDB.#destroy_plugin}
+   * 漏掉了谁，这一闸也会把整棵子树释放掉，并把字段置空——**不跨纪元复用**是 `init()` 能重跑的前提。
+   */
+  #connection_scope?: LifecycleScope;
+
+  /**
+   * 插件 → 它在本纪元的激活作用域。
+   *
+   * @remarks
+   * 与 {@link RxDB.#plugin_install_promises} 一样按纪元清空。不放到插件实例上：
+   * 插件实例跨纪元存活（`#plugin_map` 不清），作用域不跨纪元存活，放一起必然读到上一轮的死对象。
+   */
+  #plugin_scopes = new Map<IRxDBPlugin, LifecycleScope>();
+
+  /**
+   * 上一纪元尚未结算的释放；没有在飞的释放时为 `undefined`。
+   *
+   * @remarks
+   * 存在的唯一理由是 `init()` 是**同步** API：失败回滚只能 `void` 掉释放 Promise
+   * （见 {@link RxDB.#release_connection_scope}），而紧接着的**同步**重试是被明确支持的路径
+   * （修好 repository 配置后再 `init()` 一次）。此时上一纪元的撤销动作大多还排在微任务里——
+   * 逆序释放只有**最后登记**的那一条落在同步段内，其余都在 `await` 之后。
+   *
+   * 插件普遍用「某个实例字段是否有值」判断「本纪元已装」（`workspace` 的 store、
+   * `storage` 挂在 `rxdb` 上的属性）。不等这批撤销跑完就开新纪元，守卫读到的是上一纪元的
+   * 残值，`install()` 直接跳过；随后旧撤销再把字段清空，新纪元就成了一个什么都没登记的空壳，
+   * 而且**不报错**。所以新纪元的 `install()` 统一在这个 Promise 之后才执行。
+   */
+  #connection_release?: Promise<void>;
 
   #connected_sub = new BehaviorSubject<boolean>(false);
 
@@ -227,7 +274,7 @@ export class RxDB {
    * 必须用 {@link RxDB.adapterConnected$} —— 多适配器配置下，远程适配器先连上就会把这里
    * 置 `true`，此时本地适配器可能还停在 `createTables()`。
    *
-   * 去重后发射：多适配器下每一次单独的连/断都会重算聚合值，但聚合值没变时不该惊动订阅者。
+   * 去重后发射：多适配器下每一次单独的连/断都会重算聚合值，但聚合值没变时不该通知订阅者。
    */
   public readonly connected$ = this.#connected_sub.pipe(distinctUntilChanged());
 
@@ -295,6 +342,7 @@ export class RxDB {
     // 安装插件并初始化各个管理器
     // #install_plugin 同步不抛（错误记入 #plugin_install_promises），故意留在 try 外——
     // Schema/Entity 初始化失败仍只回滚管理器；插件失败由 connect() 传播。
+    this.#ensure_connection_scope();
     this.#install_plugin();
     try {
       this.schemaManager.init();
@@ -307,6 +355,10 @@ export class RxDB {
       // （如补齐 repository 配置）后重新 init()/connect() 时能真正重跑剩余步骤，
       // 而不是被这里提前置 true 的标记挡住，之后每次都静默空跑。
       this.#rxdb_initialized = false;
+      // 插件已经装了半套（#install_plugin 在 try 之外），这批登记必须跟着一起回滚，
+      // 否则重新 init() 会把第二份登记叠在第一份上。init() 是同步 API 不能 await，
+      // 但字段置空发生在同步段内，重跑一定拿到全新作用域。
+      void this.#release_connection_scope();
       throw error;
     }
   }
@@ -317,10 +369,31 @@ export class RxDB {
    *
    * @param repositoryName - Repository 名称
    * @param config - Repository 配置对象
+   * @param scope - 传入时，本次注册会随作用域释放而撤销；不传则永久有效（与改造前一致）
+   *
+   * @remarks
+   * 撤销按**配置对象身份**守卫：释放时表里已经换成别人的配置，说明有更晚的注册覆盖了本次，
+   * 此时什么都不做——否则先装后卸的插件会把后来者的注册一并删掉。
+   *
+   * 传了 `scope` 时**写表这一步本身**就在 `setup` 里：作用域已不是 `active` 时
+   * `acquire()` 同步抛且不执行 `setup`，注册于是也不发生。写在 `acquire()` 之外的话，
+   * 这条注册会留在表里而没有任何人能撤销它——正是本原语「setup 抛错时这一条不进清单」
+   * 要杜绝的那种孤儿。
    */
-  public repository<RT extends RepositoryInstance>(repositoryName: string, config: IRepositoryConfig<RT>): this;
-  public repository(repositoryName: string, config: IRepositoryConfig): this {
-    this.#repository_config_map.set(repositoryName, config);
+  public repository<RT extends RepositoryInstance>(
+    repositoryName: string,
+    config: IRepositoryConfig<RT>,
+    scope?: LifecycleScope
+  ): this;
+  public repository(repositoryName: string, config: IRepositoryConfig, scope?: LifecycleScope): this {
+    if (scope === undefined) {
+      this.#repository_config_map.set(repositoryName, config);
+      return this;
+    }
+    scope.acquire(() => {
+      this.#repository_config_map.set(repositoryName, config);
+      return () => this.#unregister_repository(repositoryName, config);
+    }, `rxdb:repository:${repositoryName}`);
     return this;
   }
 
@@ -341,6 +414,10 @@ export class RxDB {
    * `init()` 之前注册的插件在 `init()` 时统一安装；
    * `init()` 之后注册的插件立即安装，保证与 `shutdown` 时的 destroy 对称。
    *
+   * 停机窗口（`disconnect()` / `disconnectAll()` 已开始拆卸、尚未拆完）内调用只**登记**，
+   * 安装推迟到下一次 `init()`——本纪元正在退场，往里装的东西没有对称的拆卸入口。
+   * 见 {@link RxDB.#shutting_down}。
+   *
    * 同步 `install()` 失败只 `console.error`，`use()` / `init()` 本身不抛。
    * 异步或同步失败都会记入安装 Promise，由后续 `connect()` 传播。
    *
@@ -354,9 +431,8 @@ export class RxDB {
     } else {
       const plugin_instance = plugin(this, options);
       this.#plugin_map.set(plugin, plugin_instance);
-      if (this.#rxdb_initialized) {
-        this.#install_one_plugin(plugin_instance);
-      }
+      // 装不装由 #install_one_plugin 自己判——它是全部安装入口的收口点。
+      this.#install_one_plugin(plugin_instance);
     }
     return this;
   }
@@ -418,7 +494,7 @@ export class RxDB {
       return pending;
     }
 
-    // 先入缓存再启动：插件 install 可能同步回呼 connect()，必须命中同一条 Promise。
+    // 先入缓存再启动：插件 install 可能同步回调 connect()，必须命中同一条 Promise。
     // init() 必须在 connect() 返回前同步跑完，同一轮 `new Entity()` 才能命中 registry。
     let startConnect!: () => void;
     let failConnect!: (error: unknown) => void;
@@ -668,7 +744,12 @@ export class RxDB {
    * 不复位则重连后每个实体事件都会被塞进 `#need_dispatch_events` 永不派发）。
    */
   async #shutdown(): Promise<void> {
+    // 先于任何 await 置位：拆卸期间进来的 use() 只登记不安装（见 #shutting_down）。
+    this.#shutting_down = true;
     await this.#destroy_plugin();
+    // 总闸：#destroy_plugin 漏掉的（安装失败后残留的子作用域等）在这里一并释放，
+    // 并把字段置空 —— 下一次 init() 拿到的是全新的连接纪元作用域。
+    await this.#release_connection_scope();
     this.versionManager.destroy();
     this.#gateway?.destroy();
     this.#gateway = undefined;
@@ -683,6 +764,7 @@ export class RxDB {
     // 清空安装记录：这是失败插件唯一的解锁点（见 #await_plugin_installs 的 @remarks）。
     this.#plugin_install_promises.clear();
     this.#rxdb_initialized = false;
+    this.#shutting_down = false;
     this.#clear_adapter_connected();
     this.#connected_sub.next(false);
   }
@@ -723,7 +805,7 @@ export class RxDB {
     // 事务结束，发送**本事务**期间记录的实体事件
     const on_commit = (event: TransactionCommitEvent) => {
       const context = this.#findTransactionContext(event.transactionId);
-      // 没有匹配的打开中事务：迟到或重复的 COMMIT，不能拿别人的队列顶账
+      // 没有匹配的打开中事务：迟到或重复的 COMMIT，不能把其他事务的队列当作当前队列
       if (context === undefined) return;
       if (context.depth > 1) {
         context.depth -= 1;
@@ -768,8 +850,20 @@ export class RxDB {
   /**
    * `use()` / `init()` 保持同步且不抛：同步 throw 转成 rejected Promise。
    * 异步 reject 不再吞掉，由 {@link RxDB.#await_plugin_installs} 在 `connect()` 里传播。
+   *
+   * @remarks
+   * 「本纪元是否还收安装」的判定收口在这里，而不是散在三个调用点（`use()` /
+   * {@link RxDB.#install_plugin} / {@link RxDB.#await_plugin_installs}）。散着写漏过一处：
+   * 停机期间在飞的 `connect()` 恢复执行时，`#shutting_down` 已经复位、
+   * {@link RxDB.#plugin_install_promises} 已经清空，`#await_plugin_installs` 于是把**每个**插件
+   * 都重装一遍——装进一个 `#ensure_connection_scope()` 顺手新建、而 `init()` 从没走过的纪元里，
+   * 那时 `entityManager` / `versionManager` / 网关都已经拆掉了。
+   *
+   * 两个条件都要：`#shutting_down` 只覆盖拆卸窗口**之内**，`#rxdb_initialized` 才覆盖拆完之后。
+   * 被跳过的插件留在 {@link RxDB.#plugin_map} 里，下一次 `init()` 统一安装。
    */
   #install_one_plugin(plugin: IRxDBPlugin) {
+    if (!this.#rxdb_initialized || this.#shutting_down) return;
     const tracked = this.#track_plugin_install(plugin);
     void tracked.then(
       () => undefined,
@@ -778,20 +872,105 @@ export class RxDB {
     this.#plugin_install_promises.set(plugin, tracked);
   }
 
-  #track_plugin_install(plugin: IRxDBPlugin): Promise<void> {
+  /**
+   * @remarks
+   * {@link RxDB.#install_one_plugin} 的判定只覆盖**发起**安装的那一刻；这里的 `await` 之后
+   * 是第二个入口——被推迟的这一轮可能整个跨过了一次停机（`init()` 失败 → 同步重试建出新纪元
+   * 的作用域 → `disconnectAll()` 把它连同连接作用域一起释放 → 上一纪元的释放这才落地）。
+   * 那时 `install()` 拿到的是一个已释放的作用域，首个 `acquire()` 抛 `LifecycleScopeDisposedError`，
+   * 而抛点**之前**的插件副作用照跑不误（`search` 的 `#primeSearchEntries()` 就在那一段）。
+   *
+   * 判据用 `(plugin, scope)` 身份而不是 `scope.state`——与 {@link RxDB.#discard_plugin_scope}
+   * 同形，且同时覆盖「纪元没了」（`#release_connection_scope()` 清空过这张表）与「已经换了
+   * 更晚的纪元」两种情况。手里这一个不再登记在册时直接收手：它的资源已经随纪元释放，
+   * 没有需要回收的残留。
+   */
+  async #track_plugin_install(plugin: IRxDBPlugin): Promise<void> {
+    // 作用域**同步**建好（登记顺序即插件顺序，`#plugin_scopes` 立刻可见），
+    // 只把 `install()` 推到上一纪元释放完之后。理由见 {@link RxDB.#connection_release}。
+    const scope = this.#create_plugin_scope(plugin);
+    const pending_release = this.#connection_release;
+    if (pending_release !== undefined) await pending_release;
+    if (this.#plugin_scopes.get(plugin) !== scope) return;
     try {
-      const result = plugin.install();
-      if (isPromise(result)) {
-        return result.catch(err => {
-          console.error(`[RxDB] Plugin '${plugin.name}' install failed:`, err);
-          throw err;
-        });
-      }
-      return Promise.resolve();
+      const result = plugin.install(scope);
+      if (isPromise(result)) await result;
     } catch (err) {
       console.error(`[RxDB] Plugin '${plugin.name}' install failed:`, err);
-      return Promise.reject(err);
+      // 半途失败的插件已经把一部分改动登记进 scope 了。旧契约下这批改动无人认领——
+      // 插件没走到自己的收尾代码，宿主又只有一个 destroy() 可调（而失败的插件恰恰
+      // 不该被当成装好了去 destroy）。现在宿主手里有清单，能替它逆序退回去。
+      await this.#discard_plugin_scope(plugin, scope);
+      throw err;
     }
+  }
+
+  /** 从连接纪元作用域上派生一个插件激活作用域，并登记进 {@link RxDB.#plugin_scopes}。 */
+  #create_plugin_scope(plugin: IRxDBPlugin): LifecycleScope {
+    const scope = this.#ensure_connection_scope().child(`plugin:${plugin.name}`);
+    this.#plugin_scopes.set(plugin, scope);
+    return scope;
+  }
+
+  /**
+   * 回收安装失败插件的部分登记。
+   *
+   * @remarks
+   * 这里**必须**吞掉清理错误：调用方紧接着要抛出安装错误，也就是失败的**原因**。
+   * 让清理错误逃出去会把原因换成后果，排查时看到的是「关闭 channel 失败」而不是
+   * 「建表失败」。清理错误另行 `console.error`，两个都不丢。
+   *
+   * 删映射按 `(plugin, scope)` 身份守卫：`install()` 可以跨越一次断连重连，此时
+   * `#plugin_scopes` 里躺的已经是新纪元的作用域。无条件 `delete` 会把新映射抹掉，
+   * 新纪元的 `#destroy_plugin()` 随后找不到 scope——资源只剩总闸兜底，插件级的
+   * 拆卸顺序和错误归因一起失真。旧 scope 该释放照样释放，只是不碰新纪元的账。
+   */
+  async #discard_plugin_scope(plugin: IRxDBPlugin, scope: LifecycleScope): Promise<void> {
+    if (this.#plugin_scopes.get(plugin) === scope) this.#plugin_scopes.delete(plugin);
+    try {
+      await scope.dispose();
+    } catch (err) {
+      console.error(`[RxDB] Plugin '${plugin.name}' scope cleanup failed:`, err);
+    }
+  }
+
+  /** 连接纪元作用域的唯一创建点：`init()` 与 `init()` 之后的 `use()` 都经由这里。 */
+  #ensure_connection_scope(): LifecycleScope {
+    this.#connection_scope ??= new LifecycleScope(`rxdb:${this.#config.dbName}`);
+    return this.#connection_scope;
+  }
+
+  /**
+   * 释放并置空连接纪元作用域。
+   *
+   * @remarks
+   * 置空是**同步**的，dispose 是异步的——`init()` 的失败回滚拿不到 `await`，靠的正是这一点：
+   * 同步段结束时字段已经空了，下一次 `init()` 一定建新的，不会碰到正在释放的旧对象。
+   *
+   * 但「拿到新作用域」不等于「旧纪元已经退干净」：撤销动作本身还在微任务里排着。
+   * 结果记进 {@link RxDB.#connection_release}，新纪元的 `install()` 会等它落地。
+   */
+  #release_connection_scope(): Promise<void> {
+    const scope = this.#connection_scope;
+    this.#connection_scope = undefined;
+    this.#plugin_scopes.clear();
+    if (scope === undefined) return Promise.resolve();
+    const release = scope.dispose().catch((error: unknown) => {
+      console.error('[RxDB] Connection scope dispose failed:', error);
+    });
+    this.#connection_release = release;
+    // 结算后清掉自己那一份：没有在飞的释放时后续安装不该白等一个微任务。
+    // 身份比较是必需的——期间可能已经开始了更晚的一次释放，那一份不能被这里抹掉。
+    void release.then(() => {
+      if (this.#connection_release === release) this.#connection_release = undefined;
+    });
+    return release;
+  }
+
+  /** 撤销 {@link RxDB.repository} 的一次注册，按配置对象身份守卫。 */
+  #unregister_repository(repositoryName: string, config: IRepositoryConfig): void {
+    if (this.#repository_config_map.get(repositoryName) !== config) return;
+    this.#repository_config_map.delete(repositoryName);
   }
 
   /**
@@ -807,6 +986,9 @@ export class RxDB {
    *
    * 唯一的解锁点是 `disconnect()` / `disconnectAll()` —— 它们经 {@link RxDB.#shutdown}
    * 先 `destroy()` 掉插件再清空这张表，此时重装才有干净的起点。
+   *
+   * 补装那一步会不会真的装，由 {@link RxDB.#install_one_plugin} 判：本纪元已经退场时它是空操作，
+   * 于是 `pending` 为空、本次 `connect()` 不等任何插件。这是有意的——那时该等的东西已经没了。
    */
   async #await_plugin_installs(): Promise<void> {
     for (const plugin of this.#plugin_map.values()) {
@@ -835,16 +1017,35 @@ export class RxDB {
     Object.freeze(this.#config);
   }
 
+  /**
+   * 逆插入序**串行**拆卸所有插件：先释放插件作用域，未迁移的再补一次 `destroy()`。
+   *
+   * @remarks
+   * 从 `Promise.all` 改成串行是有意的行为变更。插件之间存在事实上的依赖（搜索插件的索引
+   * 建在工作区插件的实体上），并发拆卸会让后装的插件在先装的插件已经拆到一半时还在读它。
+   * 逆序串行是「后装的先拆」，与安装顺序严格对称。
+   *
+   * 不短路：任一插件的作用域或 `destroy()` 抛错只记日志，后面的插件照拆——半拆的实例
+   * 比拆干净的实例危险得多（见 D5，`disconnectAll()` 因此始终 resolve）。
+   */
   async #destroy_plugin(): Promise<void> {
-    await Promise.all(
-      Array.from(this.#plugin_map.values(), async plugin => {
-        try {
-          await plugin.destroy();
-        } catch (err) {
-          console.error(`[RxDB] Plugin '${plugin.name}' destroy failed:`, err);
-        }
-      })
-    );
+    for (const plugin of Array.from(this.#plugin_map.values()).reverse()) {
+      const scope = this.#plugin_scopes.get(plugin);
+      this.#plugin_scopes.delete(plugin);
+      try {
+        await scope?.dispose();
+      } catch (err) {
+        console.error(`[RxDB] Plugin '${plugin.name}' scope dispose failed:`, err);
+      }
+      // 已迁移的插件（lifecycle: 'scoped'）作用域释放完就收手。双版本插件两样都写，
+      // 靠这一句避免在新宿主里被清理两次。
+      if (plugin.lifecycle === 'scoped') continue;
+      try {
+        await plugin.destroy?.();
+      } catch (err) {
+        console.error(`[RxDB] Plugin '${plugin.name}' destroy failed:`, err);
+      }
+    }
   }
 
   /**
@@ -866,8 +1067,8 @@ export class RxDB {
    *
    * @remarks
    * 「读出已执行集合」只是一次快照，两个实例可以读到同一份空快照并各跑一遍同一条
-   * 非幂等迁移。仲裁只能交给 `rxdb_migration.name` 上的唯一索引：先占坑（INSERT）
-   * 再执行 `up()`，输掉竞争的一方在占坑处就被数据库挡下。
+   * 非幂等迁移。仲裁只能交给 `rxdb_migration.name` 上的唯一索引：先认领执行权（INSERT）
+   * 再执行 `up()`，输掉竞争的一方在认领处就被数据库挡下。
    *
    * 冲突不能在事务内 `continue` —— Postgres 里一条失败语句会让整个事务进入 aborted
    * 状态，后续语句一律报错。所以整批回滚、重读、重跑；已经提交的那些名字会在重读时
@@ -884,7 +1085,7 @@ export class RxDB {
         await this.#runMigrationsOnce(adapter, sorted);
         return;
       } catch (error) {
-        // 只有占坑冲突可以重试。重试次数用尽仍抢不到说明不是正常竞争（例如唯一索引
+        // 只有执行权竞争可以重试。重试次数用尽仍认领失败说明不是正常竞争（例如唯一索引
         // 挡下的是别的东西），静默跳过会让这条迁移永远不执行，必须抛出来。
         if (!(error instanceof RxDBMigrationClaimConflictError) || attempt >= MIGRATION_CLAIM_RETRIES) throw error;
       }
@@ -892,11 +1093,11 @@ export class RxDB {
   }
 
   /**
-   * 单趟迁移事务：占坑成功才执行，任一处失败整批回滚
+   * 单次迁移事务：认领执行权成功才执行，任一处失败整批回滚
    *
    * @param adapter - 本地适配器
    * @param sorted - 已按名称排序的迁移列表
-   * @throws RxDBMigrationClaimConflictError 占坑撞唯一约束（可重试）
+   * @throws RxDBMigrationClaimConflictError 认领执行权撞唯一约束（可重试）
    */
   async #runMigrationsOnce(adapter: RxDBAdapterLocalBase, sorted: MigrationType[]): Promise<void> {
     // 引导期事务：此刻 `connect()` 的 promise 还没 settle，走普通 transaction() 会撞上
@@ -918,7 +1119,7 @@ export class RxDB {
           await repository.create(record);
         } catch (error) {
           // 唯一约束判定只夹在这一条 INSERT 上。放宽到整段就会把用户迁移自己撞到的
-          // 唯一约束当成占坑冲突重试，非幂等的 up() 被跑第二遍。
+          // 唯一约束当成执行权竞争重试，非幂等的 up() 被跑第二遍。
           if (isUniqueConstraintViolation(error)) {
             throw new RxDBMigrationClaimConflictError(migration.name, error);
           }

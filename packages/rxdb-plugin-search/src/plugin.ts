@@ -13,6 +13,7 @@ import {
   type IRxDBPlugin,
   type Plugin
 } from '@aiao/rxdb';
+import type { LifecycleScope } from '@aiao/utils';
 import { filter, firstValueFrom, from, ignoreElements, isObservable, merge, type Observable } from 'rxjs';
 
 import type { FtsField } from '@aiao/rxdb-adapter-sqlite-core';
@@ -36,6 +37,9 @@ import {
 } from './types.js';
 
 type EntityChangeEvent = EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent;
+
+/** 触发已注册 handle 静默重查的三路本地实体事件。 */
+const ENTITY_EVENT_TYPES = [ENTITY_LOCAL_CREATE_EVENT, ENTITY_LOCAL_UPDATE_EVENT, ENTITY_LOCAL_REMOVE_EVENT] as const;
 
 const DEFAULT_PAGE_SIZE = 50;
 const DEFAULT_SNIPPET_LENGTH = 120;
@@ -105,9 +109,21 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
   readonly #entityNameToTable = new Map<string, string>();
   /** 活动 handle 列表，entity 事件派发时遍历。 */
   readonly #handleRegistrations = new Set<HandleRegistration>();
-  /** 便于 destroy() 时解除 addEventListener */
-  readonly #entityEventListeners: Array<{ type: string; listener: (e: EntityChangeEvent) => void }> = [];
   #engine?: SearchEngine;
+
+  /**
+   * 安装纪元号：`install()` 与 `destroy()` 各递增一次。
+   *
+   * @remarks
+   * `#installPromise` 判不出「旧纪元的安装还在飞」：`destroy()` 会把它清空，紧接着新纪元
+   * 又填一个新的，两次比较都是「不等于我」，而 {@link RxDBPluginSearch.#runInstall} 内部
+   * 压根没参与这个比较。一个单调递增的号才能让迟到的那一轮认出自己已经过期——它手里的
+   * `rawQuery` 绑的是上一纪元的适配器，写进 `#engine` 就是把死连接装进活纪元。
+   *
+   * 校验点有两处，都在 {@link RxDBPluginSearch.#runInstall} 里：FTS DDL 的每一轮之前，
+   * 以及写 `#engine` 之前。前者不是冗余——旧纪元并不总是握着一条死连接，见那里的注释。
+   */
+  #installEpoch = 0;
 
   readonly name: Uncapitalize<string> = 'search';
   /** 插件级默认项（页大小、防抖、snippet、排除 collection） */
@@ -136,14 +152,16 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     assertSupportedAdapter(rxdb?.config?.sync?.local?.adapter);
   }
 
-  install(): Promise<void> {
+  install(scope: LifecycleScope): Promise<void> {
     this.#installFailure = undefined;
     this.#primeSearchEntries();
+    const epoch = ++this.#installEpoch;
     // entity 事件通道在同步阶段就挂载：保证用户在 `await ready` 之前调用 `db.search()`
     // 也能立即接到数据变更（避免 install 失败 / 慢 install 期间 silent miss）。
-    this.#bindEntityEvents();
+    // 解绑不再由本插件记账——安装失败时宿主会释放 scope，正常拆卸时同样如此。
+    this.#bindEntityEvents(scope);
     // 立刻返回；真实安装在 adapter 可用后异步执行，结果通过 {@link ready} 暴露
-    const installPromise = this.#runInstall()
+    const installPromise = this.#runInstall(epoch)
       .then(() => {
         if (this.#installPromise === installPromise) this.#phase = 'ready';
       })
@@ -151,7 +169,6 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
         if (this.#installPromise !== installPromise) throw error;
         this.#phase = 'failed';
         this.#installFailure = { error };
-        this.#unbindEntityEvents();
         this.#handleRegistrations.clear();
         this.#engine = undefined;
         throw error;
@@ -161,9 +178,20 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     return installPromise;
   }
 
+  /**
+   * 复位插件状态机与各级缓存。
+   *
+   * @remarks
+   * 本插件**不**声明 `lifecycle: 'scoped'`：entity 事件监听已经交给作用域，但
+   * {@link SearchPluginPhase} 描述的是插件实例跨纪元的可用性（`ready` 在未安装、
+   * 安装中、已拆卸时给出的错误各不相同），不属于「本次连接产生的宿主改动」。
+   * 因此宿主释放完作用域后仍会调用这里，把状态机复位到可重装的起点。
+   */
   destroy(): void {
     this.#phase = 'destroyed';
-    this.#unbindEntityEvents();
+    // 纪元号在这里也走一格：拆卸之后、下一次 install() 之前落地的旧安装同样必须作废，
+    // 否则它会把 engine 装回一个已经复位的实例上，`ready` 已 reject 而 search 却能跑。
+    this.#installEpoch += 1;
     this.#handleRegistrations.clear();
     this.#searchEntries.clear();
     this.#entityNameToTable.clear();
@@ -344,7 +372,12 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     };
   }
 
-  async #runInstall(): Promise<void> {
+  /**
+   * 真实安装流程。
+   *
+   * @param epoch - 本轮安装的纪元号，来自 {@link RxDBPluginSearch.#installEpoch}
+   */
+  async #runInstall(epoch: number): Promise<void> {
     const localAdapterName = this.rxdb.config.sync?.local?.adapter;
     if (!localAdapterName) {
       throw new Error('[rxdb-plugin-search] local adapter is not configured; search requires a local SQLite adapter');
@@ -388,6 +421,14 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     // RxDBMigrationClaimConflictError（另一个 tab 正在装同一张表），会把已经装好的
     // 其它实体一起回滚。逐个提交时冲突只影响它自己。
     for (const plan of this.#searchPlans) {
+      // 每一轮之前都验纪元。**不能**只在循环之后验一次：那种写法的理由是「DDL 全打在捕获的
+      // 那个适配器上，纪元换了它自己会失败」，而这个理由只在旧纪元**曾经**连上过时成立。
+      // `init()` 抛错回滚（作用域释放，插件状态机不复位）之后同步重试的那条路上，旧那一轮
+      // 从没拿到过适配器：它和重试那一轮等的是同一个 `adapterConnected$`，醒来时拿到的是
+      // 同一条**活**连接，于是同一批 FTS DDL 会在活库上原样重跑一遍。
+      //
+      // 中途收手不留半成品：`installFtsForEntity` 幂等，剩下的 plan 由新纪元那一轮从头装完。
+      if (epoch !== this.#installEpoch) return;
       await adapter.bootstrapTransaction(async tx => {
         const executor: RuntimeSqlExecutor = {
           rawQuery: (sql, params?) => tx.query(sql, params ? [...params] : undefined)
@@ -396,14 +437,30 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
       }, false);
     }
 
+    // 末轮 DDL 之后仍要再验一次：`callRaw` 闭包绑死了本轮的适配器，
+    // 而 `#refreshRegisteredHandles()` 唤醒的却是新纪元的 handle。
+    if (epoch !== this.#installEpoch) return;
+
     this.#engine = createSearchEngine(async (sql, params) => mapRowsToFtsRows(await callRaw(sql, params)));
 
     // entity 事件通道已在 install() 同步阶段绑定；FTS 落库后唤醒已注册 handle 重新查询
     this.#refreshRegisteredHandles();
   }
 
+  /**
+   * 按当前 `config.entities` 重扫可搜索字段，整体覆盖三张表。
+   *
+   * @remarks
+   * 每次 `install()` 都重扫，而不是「已有 plan 就跳过」：`entities` 是
+   * `LIVE_BEHAVIOUR_CONFIG_KEYS` 里的字段，宿主有意不深冻结它。正常重连路径上
+   * `destroy()` 会先清空 plan，重扫本来就会发生；跳过只在「`init()` 抛错回滚后同步重试」
+   * 这一条不走 `destroy()` 的路上生效——那正是最不该复用上一轮快照的地方。
+   * 扫描是纯内存的元数据遍历，一个纪元一次，代价可忽略。
+   */
   #primeSearchEntries(): void {
-    if (this.#searchPlans.length > 0) return;
+    this.#searchPlans.length = 0;
+    this.#searchEntries.clear();
+    this.#entityNameToTable.clear();
 
     const excludedSrc = this.options.excludedCollections;
     const excluded = excludedSrc?.length ? new Set(excludedSrc) : null;
@@ -462,8 +519,17 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     );
   }
 
-  #bindEntityEvents(): void {
-    if (this.#entityEventListeners.length > 0) return;
+  /**
+   * 把三路 entity 事件监听挂到作用域上。
+   *
+   * @param scope - 本次安装的作用域
+   *
+   * @remarks
+   * 一条监听一条 `acquire()`，不合成一条：合成时第二条 `addEventListener()` 抛错会让整个
+   * setup 失败，作用域于是一条撤销条目都没登记，而第一条监听已经挂在宿主上了——没有任何
+   * 路径能再把它摘下来。
+   */
+  #bindEntityEvents(scope: LifecycleScope): void {
     const dispatch = (event: EntityChangeEvent) => {
       if (this.#handleRegistrations.size === 0) return;
       const changedTables = new Set<string>();
@@ -484,18 +550,12 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
         }
       }
     };
-    const types = [ENTITY_LOCAL_CREATE_EVENT, ENTITY_LOCAL_UPDATE_EVENT, ENTITY_LOCAL_REMOVE_EVENT] as const;
-    for (const type of types) {
-      this.rxdb.addEventListener(type, dispatch as never);
-      this.#entityEventListeners.push({ type, listener: dispatch });
+    for (const type of ENTITY_EVENT_TYPES) {
+      scope.acquire(() => {
+        this.rxdb.addEventListener(type, dispatch as never);
+        return () => this.rxdb.removeEventListener(type as never, dispatch as never);
+      }, `search:entityEvents:${type}`);
     }
-  }
-
-  #unbindEntityEvents(): void {
-    for (const { type, listener } of this.#entityEventListeners) {
-      this.rxdb.removeEventListener(type as never, listener as never);
-    }
-    this.#entityEventListeners.length = 0;
   }
 
   #createMigrationStore(repo: Pick<IRepository<typeof RxDBMigration>, 'find' | 'create'>): MigrationRecordStore {

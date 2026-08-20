@@ -54,16 +54,24 @@ await db.workspace.flush();
 - 对同一数据库重复调用 `rxDBPluginWorkspace(db)` 会返回已安装实例，不会增加监听器。
 - 直接重复调用内部构造函数（`new RxDBPluginWorkspace(db)`，未从包入口导出）会在注册监听器前抛错。
 - 第一次安装时传入的 options 在该数据库生命周期内有效，后续重复 factory 调用不会替换配置。
-- `destroy()` 会移除 RxDB/BroadcastChannel 监听器、关闭 channel、停止刷盘订阅并清空内存队列；它不会隐式执行 `flush()`。
-- `destroy()` 对该 `RxDB` 实例是终态。需要重新安装时应创建新的 `RxDB` 实例。
 
-正常使用应通过 `db.use(rxDBPluginWorkspace, options)` 让 RxDB 管理 `install()` 和 `destroy()`。
+### 连接纪元
+
+本插件声明 `lifecycle: 'scoped'`：IndexedDB store、BroadcastChannel、刷盘订阅与实体监听器全部按**连接纪元**登记在 `install(scope)` 收到的作用域上，`disconnectAll()` 时由宿主逆序释放。
+
+- 插件身份 `db.workspace` 在构造时发布，摘不掉，**跨纪元存活**。断开连接不是终态，重新 `connect()` 会复用同一实例并进入新纪元。
+- 两个纪元之间调用需要纪元资源的方法会抛 `workspace plugin is not installed in the current connection epoch`；`await db.connect()` 后恢复可用。
+- `changes$` 比任何一个纪元活得久：断开连接时只停止发射，**不会** complete。
+- 拆卸不隐式 `flush()`，未落盘变更会被丢弃，已挂起的 `flush()` 随之 reject。
+- `destroy()` 已废弃，仅作为释放同一作用域的手动入口保留；宿主不会调用它。
+
+正常使用应通过 `db.use(rxDBPluginWorkspace, options)` 让 RxDB 管理安装与拆卸。
 
 ## 浏览器、SSR 与持久化边界
 
-插件依赖浏览器的 `crypto.randomUUID()`、`structuredClone()` 和 IndexedDB；BroadcastChannel 可用时才启用跨标签页同步。因此不要在 SSR 渲染阶段构造插件，应在浏览器 hydration 后创建并初始化 RxDB。
+插件依赖浏览器的 `crypto.randomUUID()`、`structuredClone()` 和 IndexedDB；BroadcastChannel 可用时才启用跨标签页同步。这些资源全部在 `install()`（即 `db.connect()`）时获取，构造插件本身不碰它们——因此不要在 SSR 渲染阶段连接数据库，应在浏览器 hydration 后再 `connect()`。
 
-IndexedDB 中的 workspace 数据是草稿副本，不是数据库事务日志。`destroy()`、浏览器清理站点数据或存储配额错误都可能使未刷盘数据丢失。关键流程必须显式 `await flush()`。
+IndexedDB 中的 workspace 数据是草稿副本，不是数据库事务日志。断开连接、浏览器清理站点数据或存储配额错误都可能使未刷盘数据丢失。关键流程必须显式 `await flush()`。
 
 ## 通信与数据安全
 

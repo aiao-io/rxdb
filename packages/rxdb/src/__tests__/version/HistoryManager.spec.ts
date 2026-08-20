@@ -979,7 +979,7 @@ describe('HistoryManager - Class Methods', () => {
 
   /**
    * histories$ / count$ / undoHistories$ 等派生流用的是无 refCount 的 shareReplay(1)：
-   * 一旦被订阅过，上游那条 RxDBChange 活查询就被永久钉住，订阅者归零也不释放，
+   * 一旦被订阅过，上游那条 RxDBChange 活查询就被永久固定，订阅者归零也不释放，
    * destroy() 也不碰它。VersionManager 销毁 / 断连重连每走一次就泄漏一条查询管道。
    */
   describe('destroy() 的订阅生命周期', () => {

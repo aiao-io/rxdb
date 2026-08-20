@@ -7,6 +7,7 @@
 - [适配器切换与数据迁移](./adapters.md)：更换存储后端
 - [桌面适配器拆包](./desktop-split.md)：`rxdb-adapter-desktop` 拆成 `-electron` / `-tauri` 两个包
 - [插件升级与启用](./plugins.md)：启用/升级插件（如全文搜索）
+- [插件作用域契约迁移](./plugin-scope.md)：`install(scope)` 新契约、`destroy()` 废弃与随之而来的行为变化
 - [Schema 迁移](./schema.md)：实体结构变更时的数据迁移
 
 > 版本策略与兼容承诺见[版本与 API 稳定性策略](../versioning.md)，各包版本对应关系见[兼容矩阵](../compatibility.md)。

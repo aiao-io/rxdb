@@ -10,6 +10,7 @@ import { RxDBPluginSearch, rxDBPluginSearch } from '../plugin.js';
 import type { SearchHandle, SearchResult, SearchState } from '../types.js';
 import { Article } from './fixtures/article.entity.js';
 import { Comment } from './fixtures/comment.entity.js';
+import { disposeScopes, installScoped } from './scoped-install.js';
 
 interface Harness {
   readonly rxdb: RxDB;
@@ -134,7 +135,7 @@ const createHarness = async (): Promise<Harness> => {
   };
 
   const plugin = rxDBPluginSearch(rxdb, { debounce: 0, pageSize: 10, snippetLength: 24 }) as RxDBPluginSearch;
-  plugin.install();
+  const { scope } = installScoped(plugin);
   await plugin.ready;
 
   return {
@@ -148,6 +149,8 @@ const createHarness = async (): Promise<Harness> => {
     ranContainsFallback: () => executedSql.some(sql => sql.includes('instr(')),
     executedSqlCount: () => executedSql.length,
     async cleanup() {
+      // 与宿主同序：先释放作用域摘掉 entity 监听，再 destroy() 复位状态机
+      await scope.dispose();
       plugin.destroy();
       await rxdb.disconnectAll();
     }
@@ -207,6 +210,7 @@ describe('search engine browser integration', () => {
     while (cleanups.length > 0) {
       await cleanups.pop()?.();
     }
+    await disposeScopes();
   });
 
   it('quotes hostile column names in real FTS5 column filters', async () => {

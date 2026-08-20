@@ -530,7 +530,7 @@ export function createElectronFileHost(options: ElectronFileHostOptions): Electr
     // 那正是这道上限本来要防的 DoS。Rust 侧的 register_write 在同一把锁内 check + insert，
     // 拿到的是同一个不变式；JS 这边靠「同步段内完成检查与占位」达成。
     if (session.writes.size + session.reservations.size >= DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION) {
-      // 每个挂起的写入都占着一个打开的临时文件句柄，只有 commit/abort 才归还。
+      // 每个挂起的写入都占用一个打开的临时文件句柄，只有 commit/abort 才归还。
       // 不设上限，一个只 begin 不 commit 的 renderer 就能把宿主的 fd 耗光，连带数据库也打不开。
       throw new RxDBAdapterDesktopError(
         'protocol_violation',

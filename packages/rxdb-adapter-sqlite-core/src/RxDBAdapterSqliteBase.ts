@@ -540,7 +540,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     // C2：**永远重新排队**。事务内的读写必须经 executor（其门面把 query 直发到事务连接），
     // 未持有 executor 的调用一律是外部调用，不得被进行中的事务卷走。
     //
-    // 就绪等待在**入队之前**完成；把它留在队列任务里会占着唯一槽位等一个只能由队列后方
+    // 就绪等待在**入队之前**完成；把它留在队列任务里会占用唯一槽位等一个只能由队列后方
     // 任务完成的 promise（首装死锁）。代价是「调用顺序」变成「就绪顺序」——已就绪时两者一致。
     if (this.#lifecycle_state !== 'bootstrap') return this.writeQuery(sql, bindings);
     return this.ready().then(() => this.#queue.addTask(() => this.#exec(sql, bindings)));

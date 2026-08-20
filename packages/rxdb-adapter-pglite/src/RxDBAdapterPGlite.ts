@@ -992,7 +992,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   public query<T = Record<string, unknown>>(sql: string, bindings?: unknown[]): Promise<Results<T>> {
     if (this.#lifecycle_state !== 'bootstrap') return this.writeQuery<T>(sql, bindings);
     // 否则加入队列，保证并发调用的执行顺序。
-    // 就绪等待在**入队之前**完成：留在队列任务里会占着唯一槽位等一个只能由队列后方任务
+    // 就绪等待在**入队之前**完成：留在队列任务里会占用唯一槽位等一个只能由队列后方任务
     // 完成的 promise（首装死锁）。代价是「调用顺序」变成「就绪顺序」——已就绪时两者一致。
     return this.ready().then(() =>
       this.#queue.addTask(async () => {
