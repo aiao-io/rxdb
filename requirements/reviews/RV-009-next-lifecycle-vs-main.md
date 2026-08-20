@@ -35,7 +35,7 @@ pr:
 
 ## Findings
 
-### 1. P1：`dispose()` 无重入保护，自释放 disposer 会死锁 —— ❗ 待修
+### 1. P1：`dispose()` 无重入保护，自释放 disposer 会死锁 —— ✅ 已修
 
 [lifecycle-scope.ts:154](../../packages/utils/src/lifecycle/lifecycle-scope.ts#L154)
 
@@ -56,7 +56,15 @@ pr:
 
 **修复**：`dispose()` 增加重入判定——正处在 `#runDispose()` 内部时不返回 in-flight promise（返回 no-op 或抛 `LifecycleScopeDisposedError`）；或在 TSDoc 明确禁止 disposer 调用自身作用域的 `dispose()`。`lifecycle-scope.spec.ts` 目前没有「disposer 内部释放本作用域」的用例，需补。
 
-### 2. P1：`#await_plugin_installs` 未受 `#shutting_down` 保护 —— ❗ 待修
+**实修（与上一段的处方不同，按这条为准）**：标志位只圈住 disposer 的**同步调用帧**，不是整个 `#runDispose()`。
+
+「正处在 `#runDispose()` 内部」这个判据会连带打死 AC#4：外部的并发 `dispose()` 与 disposer 内部的重入落在**完全相同**的内部状态上，按整个释放过程判的话，外部并发调用会被误判成重入、拿到一个新的 no-op promise，`expect(concurrent).toBe(first)`（[spec:133](../../packages/utils/src/__tests__/lifecycle/lifecycle-scope.spec.ts#L133)）当场失效。实现改成 `#callDisposer()` 里 `flag = true; try { return disposer(); } finally { flag = false; }`——`finally` 在 disposer 返回时就跑，串行等待仍由调用方的 `await` 负责，标志活不过同步帧。
+
+代价是有个够不着的缺口：disposer 在自己的 `await` **之后**再调本作用域的 `dispose()` 仍会自锁。那时已经出了同步帧，除了给整个释放过程建异步上下文（`AsyncLocalStorage`，浏览器没有）之外没有别的判据。这一条由 TSDoc 明令禁止 + US-013 的 AC#6b 记在案，不靠代码挡。
+
+回归用例落在 `lifecycle-scope.spec.ts` 的 `AC#6b` 一节，5 条：多条登记、单条登记（重入发生在 `??=` 赋值之前，路径不同但结果须一致）、有子作用域、外部并发调用仍拿同一个 promise（守 AC#4）、disposer 抛错后标志复位。改实现前先跑过：多条登记与有子作用域两条红，其余三条本来就绿——与本文「只测单条登记会漏掉这个 bug」的判断一致。
+
+### 2. P1：`#await_plugin_installs` 未受 `#shutting_down` 保护 —— ✅ 已修
 
 [RxDB.ts:965](../../packages/rxdb/src/RxDB.ts#L965)
 
@@ -70,7 +78,17 @@ pr:
 
 **修复**：把 `#shutting_down` 判定下沉到 `#install_one_plugin`（或 `#await_plugin_installs`）——停机在飞时跳过安装，交给下一次 `init()` 的 `#install_plugin`。
 
-### 3. P2：`authoring.md` 的「双版本插件」示例在旧宿主上必崩 —— ⏭ 待修
+**实修（判据比上一段更宽，按这条为准）**：`#install_one_plugin` 的首句是 `if (!this.#rxdb_initialized || this.#shutting_down) return;`，`use()` 里原来那处判定随之删掉——全部安装入口收口到这一个点，装不装由它自己判。
+
+只判 `#shutting_down` 会漏掉停机**之后**才恢复的在飞 `connect()`：那时 `disconnectAll()` 已经结算，`#shutting_down` 早已复位为 `false`，而 `#rxdb_initialized` 也已置空、`#plugin_install_promises` 在 `#release_connection_scope()` 里被清过一遍。于是那条在 `await` 里睡了一觉的 `connect()` 醒来发现「插件全都缺记录」，把它们补装进一个 `init()` 从没走过的纪元里——同样建出脱离停机的新作用域，只是触发窗口在停机窗口之外。`#rxdb_initialized` 才是「本纪元还在不在」的那个判据。
+
+`init()` 里的赋值序保证了这个判据不会误伤正常安装：`#rxdb_initialized = true` 发生在 `#install_plugin()` 调用**之前**（[RxDB.ts](../../packages/rxdb/src/RxDB.ts) 的 `init()`），下沉后的判定在首次安装时读到的是 `true`。
+
+连带效果：`#await_plugin_installs` 在退场纪元里收集到的 `pending` 为空，那次 `connect()` 不等任何插件——有意为之，那时该等的东西已经没了，这一句写进了它的 TSDoc。
+
+回归用例 `'停机后才恢复的在飞 connect() 不把插件重装进一个 init() 从没走过的纪元'`（`RxDB.plugin-scope.spec.ts`）：把判定还原成本分支改前的样子（`use()` 里判、`#install_one_plugin` 不判）跑过一次，只有这一条红。
+
+### 3. P2：`authoring.md` 的「双版本插件」示例在旧宿主上必崩 —— ✅ 已修
 
 [authoring.md:168](../../website/docs/plugins/authoring.md#L168)
 
@@ -80,7 +98,7 @@ pr:
 
 **修复**：签名改 `install(scope?: LifecycleScope)` 并加判空分支，或显式给出旧宿主的 fallback 写法。
 
-### 4. P2：`CONVENTIONS.md` 的词汇约定与 `zh-glossary.md` 互相矛盾 —— ⏭ 待修
+### 4. P2：`CONVENTIONS.md` 的词汇约定与 `zh-glossary.md` 互相矛盾 —— ✅ 已修
 
 [CONVENTIONS.md:168](../CONVENTIONS.md#L168)
 
@@ -96,7 +114,7 @@ pr:
 
 **修复**：改为「占坑→认领执行权、回呼→回调、惊动→通知订阅者」。
 
-### 5. P3：`workspace:syncChannel` 的 acquire 包了两步可抛错的获取 —— ⏭ 待修
+### 5. P3：`workspace:syncChannel` 的 acquire 包了两步可抛错的获取 —— ✅ 已修
 
 [RxDBPluginWorkspace.ts:442](../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L442)
 
@@ -117,7 +135,7 @@ scope.acquire(() => {
 
 **修复**：把 `const clientId = crypto.randomUUID()` 提到 `scope.acquire(...)` 之前（或至少提到 `new BroadcastChannel` 之前）。
 
-### 6. P3：`repository(name, cfg, scope)` 的拒绝语义没有 RxDB 层用例 —— ⏭ follow-up
+### 6. P3：`repository(name, cfg, scope)` 的拒绝语义没有 RxDB 层用例 —— ✅ 已修
 
 [RxDB.ts:388](../../packages/rxdb/src/RxDB.ts#L388)
 
@@ -125,7 +143,7 @@ scope.acquire(() => {
 
 **修复**：`RxDB.plugin-scope.spec.ts` 补一条——传已释放的 scope，断言抛 `LifecycleScopeDisposedError` 且 `#repository_config_map` 无新增。
 
-### 7. P3：`epic-008` 的目标清单仍把 US-013 / US-014 标为未完成 —— ⏭ 待修
+### 7. P3：`epic-008` 的目标清单仍把 US-013 / US-014 标为未完成 —— ✅ 已修
 
 [epic-008-lifecycle-scope.md:129](../epics/epic-008-lifecycle-scope.md#L129)、[:133](../epics/epic-008-lifecycle-scope.md#L133)
 
@@ -133,7 +151,7 @@ scope.acquire(() => {
 
 **修复**：勾上 129 / 133 两行。
 
-### 8. P3：迁移文档引用的错误串与实际不符 —— ⏭ 待修
+### 8. P3：迁移文档引用的错误串与实际不符 —— ✅ 已修
 
 [plugin-scope.md:89](../../website/docs/migration/plugin-scope.md#L89)
 
@@ -182,13 +200,13 @@ scope.acquire(() => {
 
 ## 解决记录
 
-- [ ] #1 `dispose()` 重入保护 + 回归用例
-- [ ] #2 `#install_one_plugin` 补 `#shutting_down` 判定
-- [ ] #3 `authoring.md` 双版本示例判空
-- [ ] #4 `CONVENTIONS.md` 词汇对齐 glossary
-- [ ] #5 `crypto.randomUUID()` 提到 acquire 之外
-- [ ] #6 `repository()` 拒绝语义补 RxDB 层用例（follow-up）
-- [ ] #7 `epic-008` 勾上 US-013 / US-014
-- [ ] #8 迁移文档修正 search 的错误串
+- [x] #1 `dispose()` 重入保护 + 回归用例（实修方案与本文所提不同，见 #1 的「实修」）
+- [x] #2 `#install_one_plugin` 补安装判定（判据比本文所提更宽，见 #2 的「实修」）
+- [x] #3 `authoring.md` 双版本示例判空
+- [x] #4 `CONVENTIONS.md` 词汇对齐 glossary
+- [x] #5 `crypto.randomUUID()` 提到 acquire 之外
+- [x] #6 `repository()` 拒绝语义补 RxDB 层用例（follow-up）
+- [x] #7 `epic-008` 勾上 US-013 / US-014
+- [x] #8 迁移文档修正 search 的错误串
 - [ ] 开 PR 修复（`pr` 字段记录链接）
 - [ ] PR 合并，`status: Resolved`

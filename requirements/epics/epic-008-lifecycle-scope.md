@@ -126,11 +126,11 @@ rxdb 的 ~30 处 `setTimeout` 全部在适配器内部，已有 47 处配对的 
 
 已认领，构成本 Epic 的承诺范围：
 
-- [ ] 在 `@aiao/utils` 提供 `LifecycleScope` 生命周期作用域原语，语义（逆序、幂等、**异步释放**、错误隔离、可嵌套）
+- [x] 在 `@aiao/utils` 提供 `LifecycleScope` 生命周期作用域原语，语义（逆序、幂等、**异步释放**、错误隔离、可嵌套）
       由测试冻结（[US-013](../stories/core/US-013-lifecycle-scope-primitive.md)）。
       **异步获取**（`acquireAsync()` + `AbortSignal`）不在承诺范围：本 Epic 四个迁移点的资源获取全部是同步的，
       零调用方；它是纯可加性 API，出现第一个「获取跨 `await`」的调用方时再补
-- [ ] `IRxDBPlugin` 契约改为 `install(scope)`，四个插件包全部迁移，`destroy()` 转为可选并进入废弃周期；
+- [x] `IRxDBPlugin` 契约改为 `install(scope)`，四个插件包全部迁移，`destroy()` 转为可选并进入废弃周期；
       **关闭上表第 4 / 7 / 9 条三处既有泄漏**（[US-014](../stories/core/US-014-plugin-scope-contract.md)）
 
 已冻结契约，分两阶段交付：

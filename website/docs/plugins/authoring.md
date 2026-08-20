@@ -159,15 +159,21 @@ this.#rows = rows;
 既要能装进旧宿主又要能装进新宿主时，两样都写：
 
 ```typescript
+// 这里 LifecycleScope 当值用，import 不能带 type
+import { LifecycleScope } from '@aiao/utils';
+
 export class RxDBPluginDual extends RxDBPluginBase implements IRxDBPlugin {
   readonly lifecycle = 'scoped' as const;
   readonly name: Uncapitalize<string> = 'dual';
 
   #scope?: LifecycleScope;
 
-  install(scope: LifecycleScope) {
-    this.#scope = scope;
-    scope.acquire(/* … */);
+  // 形参必须可选：旧宿主调的是 `plugin.install()`，一个实参都不传
+  install(scope?: LifecycleScope) {
+    // 旧宿主没有作用域可发，插件自己开一个；它的释放入口就是下面的 destroy()
+    const epoch = scope ?? new LifecycleScope(this.name);
+    this.#scope = epoch;
+    epoch.acquire(/* … */);
   }
 
   /** @deprecated 新宿主不会调用它 */
@@ -178,6 +184,8 @@ export class RxDBPluginDual extends RxDBPluginBase implements IRxDBPlugin {
 ```
 
 旧宿主不认识 `lifecycle` 字段、只会走 `destroy()`；新宿主认识，于是只走作用域。两边都不会清理两次——`dispose()` 幂等，即便被调两次也只执行一轮。
+
+自建的那个作用域**不要**在新宿主下也建：宿主发的作用域已经挂在连接纪元上，再包一层只会多一处要自己记得释放的东西。`scope ?? …` 的两条分支互斥，靠的就是「新宿主一定传、旧宿主一定不传」。
 
 之所以要**显式**标记而不是去看 `install.length` 有没有形参：转译产物、`Function.prototype.bind` 与压缩器都会改写形参个数，把它当契约会误判。
 

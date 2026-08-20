@@ -995,6 +995,30 @@ describe('installation and lifecycle boundaries', () => {
     }
   });
 
+  it('clientId 生成失败时不留下一个没人关的 channel', async () => {
+    vi.stubGlobal('BroadcastChannel', BroadcastChannelStub as unknown as typeof BroadcastChannel);
+    // crypto.randomUUID 只在安全上下文里有，而 BroadcastChannel 在 http:// 页面照常存在——
+    // 两者都要的这一条因此可能「channel 建成了、id 取不到」
+    const randomUUID = vi.spyOn(crypto, 'randomUUID').mockImplementation(() => {
+      throw new TypeError('crypto.randomUUID is not a function');
+    });
+    const rxdb = createMockRxDB();
+    const { plugin, scope } = createScoped(rxdb);
+
+    try {
+      expect(() => plugin.install(scope)).toThrow(/randomUUID/);
+
+      // 在 acquire 里取 id 的话，new 出来的 channel 不进清单，dispose() 够不着它
+      expect(BroadcastChannelStub.instances).toHaveLength(0);
+
+      await scope.dispose();
+      expect(idbState.stores[0]?.close).toHaveBeenCalledOnce();
+    } finally {
+      // 本 spec 没有全局 restoreMocks，桩留着会毒到后面每一个建 channel 的用例
+      randomUUID.mockRestore();
+    }
+  });
+
   it('workspace store 创建失败时不留残余，重试后 flush 正常完成', async () => {
     const rxdb = createMockRxDB();
     createWorkspaceStoreMock.mockImplementationOnce(() => {

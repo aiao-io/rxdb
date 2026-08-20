@@ -439,10 +439,14 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
     // 建 channel 与挂监听拆成两条：合成一条的话 `addEventListener` 抛错时这条登记不进清单，
     // 刚 new 出来的 channel 就没人关了——一次 acquire 只包一步可能抛错的获取。
     if (typeof BroadcastChannel !== 'undefined') {
+      // 先取 id 再建 channel：`crypto.randomUUID` 只在安全上下文里有，而 BroadcastChannel
+      // 在 http:// 页面照常存在——放进 acquire 里取的话，抛错时 channel 已经 new 出来了
+      // 却没进清单，谁都关不掉它。这一条的「一步可能抛错的获取」是 new BroadcastChannel。
+      const clientId = crypto.randomUUID();
       scope.acquire(() => {
         const channel = new BroadcastChannel(`${dbName}_workspace_sync`);
         this.#syncChannel = channel;
-        this.#syncClientId = crypto.randomUUID();
+        this.#syncClientId = clientId;
         return () => {
           this.#syncChannel = undefined;
           this.#syncClientId = undefined;

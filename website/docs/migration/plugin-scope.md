@@ -86,7 +86,7 @@ await db.workspace.flush();
 // Error: workspace plugin is not installed in the current connection epoch
 
 await db.searchPlugin.ready;
-// SearchError: plugin is not installed — call and await db.connect() before awaiting ready
+// SearchError: plugin is destroyed — call and await db.connect() before awaiting ready
 ```
 
 `await db.connect()` 之后两者恢复可用。

@@ -279,10 +279,13 @@ describe('US-013 LifecycleScope 生命周期作用域原语', () => {
       const calls: string[] = [];
       const scope = new LifecycleScope('single');
 
-      scope.acquire(() => () => {
-        calls.push('self');
-        return scope.dispose();
-      }, 'self');
+      scope.acquire(
+        () => () => {
+          calls.push('self');
+          return scope.dispose();
+        },
+        'self'
+      );
 
       await expect(withDeadline(scope.dispose())).resolves.toBeUndefined();
       expect(scope.state).toBe('disposed');
@@ -328,9 +331,12 @@ describe('US-013 LifecycleScope 生命周期作用域原语', () => {
       const seen: Array<Promise<void>> = [];
 
       scope.acquire(() => () => void seen.push(scope.dispose()), 'self');
-      scope.acquire(() => () => {
-        throw new Error('boom');
-      }, 'boom');
+      scope.acquire(
+        () => () => {
+          throw new Error('boom');
+        },
+        'boom'
+      );
 
       await expect(withDeadline(scope.dispose())).rejects.toThrow('boom');
       expect(scope.state).toBe('disposed');
