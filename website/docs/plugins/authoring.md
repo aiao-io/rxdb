@@ -130,7 +130,9 @@ class ExampleSearchPlugin implements IRxDBPlugin {
   install(scope: LifecycleScope) {
     // 被调用即代表依赖就绪：引导链（迁移、建表、索引）已经跑完
     const adapter = this.rxdb.localAdapterSync;
-    scope.acquire(() => { /* 同步登记 */ }, 'example:entry');
+    scope.acquire(() => {
+      /* 同步登记 */
+    }, 'example:entry');
     return this.#setup(adapter);
   }
 }

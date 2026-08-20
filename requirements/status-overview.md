@@ -9,9 +9,9 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 40   |
-| 🚧 In Progress | 2    |
+| 🚧 In Progress | 3    |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 11   |
+| 📝 Backlog     | 10   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 53   |
 
@@ -23,12 +23,13 @@
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🅰️ 多阶段故事 · 🚫 Blocked
 
-## 进行中（2 条）
+## 进行中（3 条）
 
 | Story                                                                                         | 卡在哪                                                                                                                                                                                                                     |
 | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                | AC#6 / #7 的两个前置（`apps/dev-rxdb-tauri-e2e` project、三平台打包矩阵）已由 US-210 建好，缺的只剩 US-505 自己的 specs；AC#1/#3/#5/#8 仍 ⚠️。随包化搬迁的 S1～S5 已于 2026-08-18 全部关闭，但搬迁**不解**上述任何一条缺口 |
 | [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) | 阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 A / C / D 未开始                                                                                                                                                         |
+| [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md)              | 阶段 A 已交付（AC#1～12、18～20；AC#12 的 `ready` 语义有意改口径）；阶段 B 的 `plugin:*` 依赖图**价值待证**，未证不开工                                                                                                    |
 
 > US-207 / US-210 / US-505 的三条尾巴曾是**同一个下游缺口**：真实打包应用的重启与三平台矩阵。
 > 该缺口已于 2026-08-17 补上（`release-desktop.yml` + 两个 e2e project），US-505 只剩自己的 specs。
@@ -196,7 +197,7 @@
 
 - ⬜ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md) — 认领 [capability-matrix](capability-matrix.md#已知的需求覆盖缺口) 第 2 条缺口
 
-[specs/002-lifecycle-effect-scope/spec.md](../specs/002-lifecycle-effect-scope/spec.md) 仍是 Draft：它覆盖 US-013 → US-017 整条链，US-013 / US-014 交付后其余三条尚未开工。原语已落在 [`packages/utils/src/lifecycle/`](../packages/utils/src/lifecycle/)，四个插件包已全部迁移到 `install(scope)`——本 Epic 的三处已知泄漏均已关闭。
+[specs/002-lifecycle-effect-scope/spec.md](../specs/002-lifecycle-effect-scope/spec.md) 仍是 Draft：它覆盖 US-013 → US-017 整条链，US-013 / US-014 已交付、US-015 交付到阶段 A，US-016 / US-017 尚未开工。原语已落在 [`packages/utils/src/lifecycle/`](../packages/utils/src/lifecycle/)，四个插件包已全部迁移到 `install(scope)`——本 Epic 的三处已知泄漏均已关闭。
 
 ### [生命周期作用域](epics/epic-008-lifecycle-scope.md)
 
@@ -204,8 +205,8 @@
 
 - ✅ [US-013 LifecycleScope 生命周期作用域原语](stories/core/US-013-lifecycle-scope-primitive.md) — `@aiao/utils` 侧的原语，19 条 AC 由 26 个用例冻结；只交付原语，不迁移任何调用方
 - ✅ [US-014 插件作用域契约](stories/core/US-014-plugin-scope-contract.md) — `install(scope)`，四个插件包已迁移；三处已知泄漏（graph 注册、storage 属性、workspace 订阅）关闭。三处有意的可观察行为变化见 [插件作用域契约迁移](../website/docs/migration/plugin-scope.md)
-- 🅰️ ⬜ [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) — 两阶段单文件故事
-  - ⬜ 阶段 A 适配器依赖纪元 — `inject: ['adapter:local']`，关闭 search 插件的 phase 机
+- 🅰️ 🚧 [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) — 两阶段单文件故事
+  - ✅ 阶段 A 适配器依赖纪元（2026-08-21）— `inject: ['adapter:local']` + 纪元调度器 + `localAdapterSync`；search 插件的 `adapterConnected$` 自等与 `SearchPluginPhase` 删除，安装记账从 `#plugin_install_promises` 迁进调度器。AC#12 的 `ready` 语义**有意改口径**（未安装期由 reject 改为 pending），见[插件作用域契约迁移](../website/docs/migration/plugin-scope.md)
   - ⬜ 阶段 B 插件间依赖图 — 拓扑序与环检测；**价值待证**，未证不开工
 - ❔ `US-016` 连接纪元与停机收敛 — **文件未创建**；价值已证，待切片
 - ❔ `US-017` 三框架宿主作用域 — **文件未创建**；价值待证

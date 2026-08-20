@@ -8,7 +8,6 @@
 
 | 优先级 | 建议功能                           | 对应 story                                                             | 建议理由                                                                                                                            | 主要交付边界                                                                                                                              |
 | :----: | ---------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-|   P1   | 插件依赖声明与按需装卸（阶段 A）   | [US-015](stories/core/US-015-plugin-inject-dependency.md)              | US-014 已交付，`install(scope)` 签名冻结、前置解除；search 插件那台 `adapterConnected$` + phase 状态机是**现存**的症状，不是设想    | `inject: ['adapter:local']`、纪元调度与释放时序、search 插件迁移掉 phase 机（阶段 A = AC#1～12）                                          |
 |   P2   | 提交图与 HEAD 持久化               | [US-305](stories/collaboration/US-305-commit-graph-head.md)            | 旧暂存导出已在 `0.0.24` 删除，能力缺口现在完全敞开                                                                                  | 独立命名空间的新契约、commit 存储布局、baseline commit 与一次性迁移                                                                       |
 |   P2   | 生成器 default 序列化与显式失败    | [US-018](stories/core/US-018-generator-default-serialization.md)       | 今天 bigint `default` 直接抛原生 `TypeError`、`Uint8Array` 塌缩成 `{"0":1,...}`、函数工厂被静默丢弃，生成的客户端行为与源实体不一致 | 拆 JSON 往返改运行时分派、`default` → 源码字面量映射表、`unsupportedDefaultFactory` / `unsupportedDefaultValue`、`BREAKING CHANGE` 迁移表 |
 |   P2   | Electron PGlite 数据目录与事务宿主 | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)     | PGlite callback transaction 不能跨 IPC 序列化，需要 SQLite 路径不需要的事务 host 协议                                               | 主进程 data directory、事务 ID 协议或主进程托管 adapter、跨进程类型保真                                                                   |
@@ -22,8 +21,8 @@
 > [US-012](stories/core/US-012-field-semantic-metadata.md) 已 Done（阶段 A / B / C 全绿，2026-08-17），
 > 不再作为建议功能列出；其 DTO 的 wire codec 不变量见下方约束 1。
 >
-> [US-015](stories/core/US-015-plugin-inject-dependency.md) 上表**只列阶段 A**——阶段 B（插件间依赖图）
-> 的用户价值待证，未证不开工，见下方约束 8 与「明确不排期」。
+> [US-015](stories/core/US-015-plugin-inject-dependency.md) **阶段 A 已于 2026-08-21 关闭**，从本表移出，
+> 留档见下方「已完成」；阶段 B（插件间依赖图）的用户价值待证，未证不开工，见下方约束 8 与「明确不排期」。
 >
 > [US-013](stories/core/US-013-lifecycle-scope-primitive.md) / [US-014](stories/core/US-014-plugin-scope-contract.md)
 > 已于 2026-08-20 全关，从本表移出，留档见下方「已完成」。
@@ -64,24 +63,42 @@
 - **有意的可观察行为变化（三条）**：插件之间的拆卸由 `Promise.all` 并发改为注册逆序**串行**；
   `rxdb.workspace` / `rxdb.searchPlugin` 断连后**仍存在**，方法调用抛「本纪元未安装」而非永久终态；
   `workspace.changes$` 跨纪元存活、断连期间静默且不 `complete()`。迁移页按这三条写。
-- **解锁**：US-015 阶段 A 的前置就此解除，已进批次 1 线 B。
+- **解锁**：US-015 阶段 A 的前置就此解除，已进批次 1 线 B（并已于 2026-08-21 关闭，见下一节）。
+
+### epic-008 US-015 阶段 A：插件依赖声明与纪元调度 ✅
+
+- **对应 story**：[US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 A（AC#1～12）与
+  横切 AC#19～20，另含原属阶段 B 的 AC#18（类型契约，取值集合在阶段 A 就要落地）
+- **收口**：**2026-08-21**。批次 1 线 B 关闭；US-015 整条故事仍是 `In Progress`，阶段 B 未开工。
+- **已交付**：`RxDBPluginDependency` 封闭取值与 `IRxDBPlugin.inject`、纪元调度器
+  `packages/rxdb/src/plugin/dependency-scheduler.ts`（唯一持有插件激活状态的地方，按**实例引用**判定纪元）、
+  `RxDB.localAdapterSync` 同步 getter、INV-7 的「释放先于 `adapter.disconnect()`」时序、
+  以及 search 插件的迁移——它现在只声明 `inject: ['adapter:local']` + `lifecycle: 'scoped'`，
+  自等（`connect()` 自触发 + `adapterConnected$` 等待）与 `SearchPluginPhase` 一并删除。
+  类型门禁见 [plugin-inject-contract.spec.ts](../packages/rxdb/src/__tests__/contracts/plugin-inject-contract.spec.ts)。
+- **有意的可观察行为变化（一条）**：`db.searchPlugin.ready` 由「未安装即 reject」改为**一个连接纪元一格**的
+  deferred——`connect()` 之前与安装期间 pending，成功 resolve、失败 reject 原始错误、纪元释放后 reject
+  `destroyed`。旧口径在宿主接管装载时机后会留下「`connect()` 还在飞、`ready` 已经 reject」的竞态窗口。
+  这也是 AC#12「对外语义不变」记 ⚠️ 而非 ✅ 的原因，迁移页按这条写。
+- **未解锁任何后续**：阶段 B 的门禁是「写得出今天用户踩得到的症状」（约束 8），不因阶段 A 关闭而放行。
 
 ## 完成计划（2026-08-18 排定）
 
 桌面本地 SQLite（US-207 + US-210）与 epic-008 链首（US-013 + US-014）收口后，
-仓库还剩 **13 条**未关闭故事（2 条 In Progress + 11 条 Backlog）。本节只排**顺序与并行度，不排日期**——
+仓库还剩 **13 条**未关闭故事（排定时为 2 条 In Progress + 11 条 Backlog；US-015 于 2026-08-21 转入 In Progress
+后是 3 + 10，总数不变）。本节只排**顺序与并行度，不排日期**——
 依据是硬前置与已冻结的决策，不是估时。同一批内的行**彼此无依赖**，可各开各的 PR；
 批次之间才是顺序。每条的关闭判据以对应 story 的 AC 为准，本表只写「什么算这条做完了」。
 
 ### 批次 1：零前置，五条线可同时开工
 
-| 线                       | 内容                                                                                                                               | 排它进第一批的理由                                                                                                                                                                                                         | 关闭判据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **A｜桥接版本发布**      | 按 [release-plan.md 的执行顺序](release-plan.md) 走完 0～6 步，发一个 `kind=bridge` 的**非迁移**版本                               | **单点解锁 epic-006 整条链**——US-305 / US-306（三阶段）/ US-307 / US-308 共 4 条故事今天一条都排不上，卡的不是代码而是这一次发布。投入是一次发布动作，收益是四条故事的开工权，杠杆比全表任何一条都高                       | `migration-release.json` 的 `release.kind` 改为 `bridge`、`release.version` 与 `packages/rxdb/package.json` 同值、tag 已推送且是 `main` 祖先、`migration-release-gate --release-tag=v<版本>` 全绿，并回写 [US-305](stories/collaboration/US-305-commit-graph-head.md) 的 FR-030 / AC14 证据                                                                                                                                                                                                  |
-| **B｜US-015 阶段 A**     | [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 A（AC#1～12）                                                       | 原线 B（US-013 → US-014）已于 **2026-08-20 全关**，见上方「已完成」。前置随之解除：阶段 A 消费的 `install(scope)` 签名已冻结，症状也已证（search 插件那台 `adapterConnected$` + phase 状态机是现存代码，不是设想），零前置 | `inject: ['adapter:local']` 的依赖声明与纪元调度、依赖插件的作用域与 adapter epoch 维护、释放时序、search 插件迁移掉 phase 机。**阶段 B 不含在内**（价值待证，见「明确不排期」）                                                                                                                                                                                                                                                                                                             |
-| **C｜US-505 收尾**       | [US-505](stories/plugin/US-505-tauri-local-file-storage.md) 剩 4 条 ⚠️ + 2 条 ⬜                                                   | 桌面 Local-first 的最后一块。两个前置（`apps/dev-rxdb-tauri-e2e`、三平台打包矩阵）2026-08-17 已建好，S1～S5 迁包 2026-08-18 已关——**缺的纯粹是本故事自己的 spec**，没有任何外部依赖                                        | AC#1/#3：打包应用真实重启 + 拷贝应用数据目录后启动；AC#5：≥ 50 MiB 实测 + 「内容不整体进 JS 堆」的内存观测；AC#8：磁盘满（小容量 loopback / ramdisk）；AC#6/#7：三家 webview 与三平台 smoke——**缺的是本故事自己的 specs，不是触发机会**：`release-desktop.yml` 已首跑全绿（见「零散收尾项」第 3 条），但它跑的是 `dev-rxdb-tauri-e2e:desktop-smoke`，而该 project 里今天只有 US-210 的 `desktop-persistence.spec.ts`。写完 specs 后仍需 `workflow_dispatch` 或一次发布才跑得到，本机跑不出来 |
-| **D｜两张独立小票**      | [US-018](stories/core/US-018-generator-default-serialization.md)、[US-601](stories/tooling/US-601-subpath-api-surface-baseline.md) | 零前置、互不依赖，谁有空谁上。US-601 顺带认领 [capability-matrix](capability-matrix.md#已知的需求覆盖缺口) 第 2 条缺口，关掉「改这 12 个子路径入口的导出必须在 PR 描述里人工声明破坏性」这条**人肉**门禁——人肉门禁迟早会漏 | US-018 含 `BREAKING CHANGE`（函数工厂 `default` 在生成期抛错），**必须与迁移表同 PR 发布**（约束 1）；US-601 以其 AC 为准                                                                                                                                                                                                                                                                                                                                                                    |
-| **E｜US-904 的零前置半** | [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 A（Electron 43 + MV3 stop/go 实证）与阶段 C1（面板抽取）  | 阶段 A 零前置，且它是阶段 D 的**门禁**：判 `unsupported` 则阶段 D 整段不做——这种「可能直接砍掉一整个阶段」的实证越早跑越省。C1 是行为中性的重构，阶段 B 已交付，不必等任何东西                                             | 阶段 A 给出 `decision: supported` 或 `unsupported` 的实证结论（不是推测）；C1 把面板抽成私有 Angular library，行为零变化                                                                                                                                                                                                                                                                                                                                                                     |
+| 线                          | 内容                                                                                                                               | 排它进第一批的理由                                                                                                                                                                                                         | 关闭判据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A｜桥接版本发布**         | 按 [release-plan.md 的执行顺序](release-plan.md) 走完 0～6 步，发一个 `kind=bridge` 的**非迁移**版本                               | **单点解锁 epic-006 整条链**——US-305 / US-306（三阶段）/ US-307 / US-308 共 4 条故事今天一条都排不上，卡的不是代码而是这一次发布。投入是一次发布动作，收益是四条故事的开工权，杠杆比全表任何一条都高                       | `migration-release.json` 的 `release.kind` 改为 `bridge`、`release.version` 与 `packages/rxdb/package.json` 同值、tag 已推送且是 `main` 祖先、`migration-release-gate --release-tag=v<版本>` 全绿，并回写 [US-305](stories/collaboration/US-305-commit-graph-head.md) 的 FR-030 / AC14 证据                                                                                                                                                                                                  |
+| ~~**B｜US-015 阶段 A**~~ ✅ | ~~[US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 A（AC#1～12）~~ **2026-08-21 关闭**，留档见上方「已完成」         | 原线 B（US-013 → US-014）已于 **2026-08-20 全关**。前置随之解除：阶段 A 消费的 `install(scope)` 签名已冻结，症状也已证（search 插件那台 `adapterConnected$` + phase 状态机是现存代码，不是设想），零前置                   | 已达成：`inject: ['adapter:local']` 的依赖声明与纪元调度、依赖插件的作用域与 adapter epoch 维护、释放时序、search 插件迁移掉 phase 机。**阶段 B 不含在内**（价值待证，见「明确不排期」）                                                                                                                                                                                                                                                                                                     |
+| **C｜US-505 收尾**          | [US-505](stories/plugin/US-505-tauri-local-file-storage.md) 剩 4 条 ⚠️ + 2 条 ⬜                                                   | 桌面 Local-first 的最后一块。两个前置（`apps/dev-rxdb-tauri-e2e`、三平台打包矩阵）2026-08-17 已建好，S1～S5 迁包 2026-08-18 已关——**缺的纯粹是本故事自己的 spec**，没有任何外部依赖                                        | AC#1/#3：打包应用真实重启 + 拷贝应用数据目录后启动；AC#5：≥ 50 MiB 实测 + 「内容不整体进 JS 堆」的内存观测；AC#8：磁盘满（小容量 loopback / ramdisk）；AC#6/#7：三家 webview 与三平台 smoke——**缺的是本故事自己的 specs，不是触发机会**：`release-desktop.yml` 已首跑全绿（见「零散收尾项」第 3 条），但它跑的是 `dev-rxdb-tauri-e2e:desktop-smoke`，而该 project 里今天只有 US-210 的 `desktop-persistence.spec.ts`。写完 specs 后仍需 `workflow_dispatch` 或一次发布才跑得到，本机跑不出来 |
+| **D｜两张独立小票**         | [US-018](stories/core/US-018-generator-default-serialization.md)、[US-601](stories/tooling/US-601-subpath-api-surface-baseline.md) | 零前置、互不依赖，谁有空谁上。US-601 顺带认领 [capability-matrix](capability-matrix.md#已知的需求覆盖缺口) 第 2 条缺口，关掉「改这 12 个子路径入口的导出必须在 PR 描述里人工声明破坏性」这条**人肉**门禁——人肉门禁迟早会漏 | US-018 含 `BREAKING CHANGE`（函数工厂 `default` 在生成期抛错），**必须与迁移表同 PR 发布**（约束 1）；US-601 以其 AC 为准                                                                                                                                                                                                                                                                                                                                                                    |
+| **E｜US-904 的零前置半**    | [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 A（Electron 43 + MV3 stop/go 实证）与阶段 C1（面板抽取）  | 阶段 A 零前置，且它是阶段 D 的**门禁**：判 `unsupported` 则阶段 D 整段不做——这种「可能直接砍掉一整个阶段」的实证越早跑越省。C1 是行为中性的重构，阶段 B 已交付，不必等任何东西                                             | 阶段 A 给出 `decision: supported` 或 `unsupported` 的实证结论（不是推测）；C1 把面板抽成私有 Angular library，行为零变化                                                                                                                                                                                                                                                                                                                                                                     |
 
 ### 批次 2：批次 1 解锁后
 
@@ -177,8 +194,9 @@
    在它交付之前，改动这 12 个子路径入口的导出**必须在 PR 描述里人工声明破坏性**。
 8. epic-008 内部 **US-013 → US-014** 为硬序，两条已于 2026-08-20 全关，三处已知泄漏关闭。
    该判据随之生效：**US-015 阶段 B 及其之后的每一条**都必须写出「今天用户踩得到的具体症状」才允许排期；
-   写不出就留在 Backlog。US-015 阶段 A 的症状已证（search 插件的 `adapterConnected$` + phase 机）
-   且前置已解除，见批次 1 线 B；阶段 B（插件间依赖图）价值待证，未证不开工。`US-016` / `US-017` 同样未落盘。
+   写不出就留在 Backlog。US-015 阶段 A 排期时症状已证（search 插件的 `adapterConnected$` 自等与 phase 机），
+   前置也已解除，故已于 2026-08-21 关闭，留档见上方「已完成」——那两处症状随之删除；
+   阶段 B（插件间依赖图）价值待证，未证不开工。`US-016` / `US-017` 同样未落盘。
    US-014 制造的 `IRxDBPlugin` 成员签名变更（`install()` 收形参、`destroy()` 转可选、新增 `lifecycle`）
    由类型契约测试守住，**不扩大 epic-007 的范围**；`destroy()` 的实际移除排在废弃周期结束后，不在本 epic 内。
 

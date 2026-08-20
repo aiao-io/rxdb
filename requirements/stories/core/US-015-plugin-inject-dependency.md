@@ -1,11 +1,11 @@
 ---
 id: US-015
 title: 插件依赖声明与按需装卸
-status: Backlog
+status: In Progress
 priority: Medium
 epic: epic-008-lifecycle-scope
 created: 2026-08-15
-updated: 2026-08-16
+updated: 2026-08-21
 tags: [lifecycle, plugin, public-api, dependency]
 ---
 
@@ -427,7 +427,7 @@ async install(scope: LifecycleScope) {
 | #   | 前置条件     | 操作                                                                   | 预期结果                                                                                                                                                          | 状态 |
 | --- | ------------ | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | 19  | 全部改动完成 | `pnpm nx run-many -t lint test build --projects=tag:js-lib` 与门禁脚本 | 零 ESLint 警告；`@aiao/rxdb` 四项覆盖率 ≥ **90%**，`rxdb-plugin-search` ≥ **80%**；[rxdb.json](../../api-baseline/rxdb.json) 已同步新增导出；`pnpm test-all` 通过 | ⬜   |
-| 20  | 文档         | 检查插件作者文档                                                       | `inject` 的取值、未满足时的行为、纪元变化导致的重装，以及「不要在 `install()` 里再自己等依赖」的指引已写入 `website/docs/plugins/`                                | ⬜   |
+| 20  | 文档         | 检查插件作者文档                                                       | `inject` 的取值、未满足时的行为、纪元变化导致的重装，以及「不要在 `install()` 里再自己等依赖」的指引已写入 `website/docs/plugins/`                                | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -449,6 +449,8 @@ async install(scope: LifecycleScope) {
 | `packages/rxdb/src/plugin/dependency-scheduler.ts`                     | A / B | A 落调度骨架、纪元比较与装卸；B 加拓扑排序与环检测        |
 | `packages/rxdb/src/RxDB.ts`                                            | A / B | A 接入调度器、收窄 `#await_plugin_installs`；B 加名字索引 |
 | `packages/rxdb/src/__tests__/contracts/plugin-inject-contract.spec.ts` | A / B | `inject` 取值的编译期约束                                 |
+| `packages/rxdb/src/plugin/__tests__/dependency-scheduler.spec.ts`      | A / B | 假宿主单测：AC#6 引用身份、强制测试 5 的单趟 reconcile    |
+| `packages/rxdb/src/__tests__/RxDB.plugin-inject.spec.ts`               | A / B | 运行时集成：AC#1～5、7～11 与四条强制并发测试             |
 | `packages/rxdb-plugin-search/src/plugin.ts`                            | A / B | A 声明 `inject` 并删自建等待路径；B 改用宿主名字索引      |
 | `requirements/api-baseline/rxdb.json`                                  | 横切  | 新增导出类型，基线同步                                    |
 | `website/docs/plugins/`                                                | 横切  | `inject` 的语义与迁移指引                                 |
