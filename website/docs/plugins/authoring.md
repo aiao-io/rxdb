@@ -139,7 +139,7 @@ scope.acquire(() => {
 ```typescript
 const store = this.#store;
 const rows = await read(store);
-if (this.#store !== store) return;   // 纪元已换：结果只能丢弃
+if (this.#store !== store) return; // 纪元已换：结果只能丢弃
 this.#rows = rows;
 ```
 
