@@ -418,6 +418,14 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     // RxDBMigrationClaimConflictError（另一个 tab 正在装同一张表），会把已经装好的
     // 其它实体一起回滚。逐个提交时冲突只影响它自己。
     for (const plan of this.#searchPlans) {
+      // 每一轮之前都验纪元。**不能**只在循环之后验一次：那种写法的理由是「DDL 全打在捕获的
+      // 那个适配器上，纪元换了它自己会失败」，而这个理由只在旧纪元**曾经**连上过时成立。
+      // `init()` 抛错回滚（作用域释放，插件状态机不复位）之后同步重试的那条路上，旧那一轮
+      // 从没拿到过适配器：它和重试那一轮等的是同一个 `adapterConnected$`，醒来时拿到的是
+      // 同一条**活**连接，于是同一批 FTS DDL 会在活库上原样重跑一遍。
+      //
+      // 中途收手不留半成品：`installFtsForEntity` 幂等，剩下的 plan 由新纪元那一轮从头装完。
+      if (epoch !== this.#installEpoch) return;
       await adapter.bootstrapTransaction(async tx => {
         const executor: RuntimeSqlExecutor = {
           rawQuery: (sql, params?) => tx.query(sql, params ? [...params] : undefined)
@@ -426,9 +434,8 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
       }, false);
     }
 
-    // 这里是本流程唯一改写实例状态的地方，纪元校验也就只需要这一处：上面的 DDL 全都打在
-    // 捕获的那个适配器上，纪元换了它自己会失败，不会污染新纪元。而下面两行不同——
-    // `callRaw` 闭包绑死了旧适配器，`#refreshRegisteredHandles()` 唤醒的却是新纪元的 handle。
+    // 末轮 DDL 之后仍要再验一次：`callRaw` 闭包绑死了本轮的适配器，
+    // 而 `#refreshRegisteredHandles()` 唤醒的却是新纪元的 handle。
     if (epoch !== this.#installEpoch) return;
 
     this.#engine = createSearchEngine(async (sql, params) => mapRowsToFtsRows(await callRaw(sql, params)));
@@ -437,8 +444,20 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     this.#refreshRegisteredHandles();
   }
 
+  /**
+   * 按当前 `config.entities` 重扫可搜索字段，整体覆盖三张表。
+   *
+   * @remarks
+   * 每次 `install()` 都重扫，而不是「已有 plan 就跳过」：`entities` 是
+   * `LIVE_BEHAVIOUR_CONFIG_KEYS` 里的字段，宿主有意不深冻结它。正常重连路径上
+   * `destroy()` 会先清空 plan，重扫本来就会发生；跳过只在「`init()` 抛错回滚后同步重试」
+   * 这一条不走 `destroy()` 的路上生效——那正是最不该复用上一轮快照的地方。
+   * 扫描是纯内存的元数据遍历，一个纪元一次，代价可忽略。
+   */
   #primeSearchEntries(): void {
-    if (this.#searchPlans.length > 0) return;
+    this.#searchPlans.length = 0;
+    this.#searchEntries.clear();
+    this.#entityNameToTable.clear();
 
     const excludedSrc = this.options.excludedCollections;
     const excluded = excludedSrc?.length ? new Set(excludedSrc) : null;
