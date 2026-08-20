@@ -20,7 +20,7 @@ import {
   type RxDB
 } from '@aiao/rxdb';
 import { LifecycleScope } from '@aiao/utils';
-import { BehaviorSubject, firstValueFrom, Subject, throwError } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, Subject, throwError, type Observable } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const { installFtsForEntity, createSearchEngine } = vi.hoisted(() => ({
@@ -70,6 +70,16 @@ const invalidSearchableIntegerProperty = {
 class FakeArticle extends EntityBase {}
 
 @Entity({
+  name: 'Note',
+  tableName: 'note',
+  properties: [
+    { name: 'id', type: PropertyType.string, primary: true },
+    { name: 'body', type: PropertyType.string, searchable: true }
+  ]
+})
+class FakeNote extends EntityBase {}
+
+@Entity({
   name: 'InvalidArticle',
   tableName: 'invalid_article',
   properties: [{ name: 'id', type: PropertyType.string, primary: true }, invalidSearchableIntegerProperty]
@@ -78,7 +88,12 @@ class InvalidArticle extends EntityBase {}
 
 type EntityChangeEvent = EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent;
 
-const buildFakeRxdb = (entities = [FakeArticle], exposesRawQuery = true) => {
+const buildFakeRxdb = (
+  entities: unknown[] = [FakeArticle],
+  exposesRawQuery = true,
+  /** 适配器就绪信号。默认立即为真；传入 `Subject` 可把 `#runInstall` 卡在 FTS DDL **之前**。 */
+  adapterConnected: Observable<boolean> = new BehaviorSubject(true)
+) => {
   const rawQuery = vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] }));
   const migrationRepository = {
     find: vi.fn(async () => []),
@@ -102,7 +117,7 @@ const buildFakeRxdb = (entities = [FakeArticle], exposesRawQuery = true) => {
     },
     localAdapter$: new BehaviorSubject(activeAdapter),
     connected$: new BehaviorSubject(true),
-    adapterConnected$: () => new BehaviorSubject(true),
+    adapterConnected$: () => adapterConnected,
     connect: vi.fn(async () => activeAdapter),
     addEventListener: vi.fn((type: string, listener: (event: EntityChangeEvent) => void) => {
       const list = listeners.get(type) ?? [];
@@ -487,6 +502,55 @@ describe('search plugin lifecycle', () => {
     await vi.waitFor(() => expect(freshEngine?.search).toHaveBeenCalled());
 
     handle.destroy();
+    plugin.destroy();
+  });
+
+  it('作用域已释放但没 destroy()（init() 回滚 + 同步重试）：旧纪元不再重跑 FTS DDL', async () => {
+    // 宿主的 `init()` 失败回滚只释放作用域，**不**调 destroy()——本插件是唯一没声明
+    // `lifecycle: 'scoped'` 的内置插件，于是状态机跨过回滚活了下来。此时旧纪元那一轮
+    // 从没拿到过适配器：它和重试那一轮等的是同一个 `adapterConnected$`，一起醒来时
+    // 拿到的是同一条**活**连接。纪元校验必须在 DDL 之前，否则同一批 DDL 打两遍。
+    const gate = new Subject<boolean>();
+    const fake = buildFakeRxdb([FakeArticle], true, gate);
+    const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
+
+    const stale = installScoped(plugin);
+    // 宿主回滚：作用域释放，destroy() 不调
+    await stale.scope.dispose();
+    // 同步重试 init() → 同一个插件实例再装一轮
+    const fresh = installScoped(plugin);
+
+    // 适配器这才连上：两轮同时放行
+    gate.next(true);
+    await Promise.all([fresh.installing, stale.installing]);
+
+    // 一个 entity 一个 plan：DDL 只该跑重试那一轮
+    expect(installFtsForEntity).toHaveBeenCalledTimes(1);
+    expect(createSearchEngine).toHaveBeenCalledTimes(1);
+    await expect(plugin.ready).resolves.toBeUndefined();
+    expect(() => plugin.searchCollection('Article', 'hello')).not.toThrow();
+
+    plugin.destroy();
+  });
+
+  it('作用域已释放但没 destroy()：重装按当下的 entities 重扫，不复用上一轮 plan', async () => {
+    const entities: unknown[] = [FakeArticle];
+    const fake = buildFakeRxdb(entities);
+    const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
+
+    const first = installScoped(plugin);
+    await first.installing;
+    await first.scope.dispose();
+
+    // `entities` 是 LIVE_BEHAVIOUR_CONFIG_KEYS 里的字段，宿主有意不深冻结它
+    entities.push(FakeNote);
+    const second = installScoped(plugin);
+    await second.installing;
+
+    expect(() => plugin.searchCollection('Note', 'hello')).not.toThrow();
+    // 两个 plan 都装：第一轮 1 次 + 第二轮 2 次
+    expect(installFtsForEntity).toHaveBeenCalledTimes(3);
+
     plugin.destroy();
   });
 

@@ -119,6 +119,9 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
    * 又填一个新的，两次比较都是「不等于我」，而 {@link RxDBPluginSearch.#runInstall} 内部
    * 压根没参与这个比较。一个单调递增的号才能让迟到的那一轮认出自己已经过期——它手里的
    * `rawQuery` 绑的是上一纪元的适配器，写进 `#engine` 就是把死连接装进活纪元。
+   *
+   * 校验点有两处，都在 {@link RxDBPluginSearch.#runInstall} 里：FTS DDL 的每一轮之前，
+   * 以及写 `#engine` 之前。前者不是冗余——旧纪元并不总是握着一条死连接，见那里的注释。
    */
   #installEpoch = 0;
 

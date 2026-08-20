@@ -91,6 +91,8 @@ await db.searchPlugin.ready;
 
 `await db.connect()` 之后两者恢复可用。
 
+两个插件的 `ready` 口径**不同**，别照着彼此推断：`searchPlugin.ready` 在未安装 / 已拆卸时 reject（如上），而 `workspace.ready` 在未安装时直接 resolve——它只表示「首次 `install()` 已结算」，不是可用性判据。工作区的可用性由 `flush()` 这类方法自己抛错表达。这是既有契约，本次未改。
+
 ### `workspace.changes$` 不再在拆卸时 complete
 
 插件实例跨纪元存活，它的流也就必须比任何一个纪元活得久。断开连接时 `changes$` 只是停止发射，不会 complete。

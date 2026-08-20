@@ -91,7 +91,10 @@ export class LifecycleScope {
    *   按获取顺序分次登记即可安全回滚。
    * @param label - 诊断标签，缺省 `'anonymous'`
    * @returns 提前单独撤销这一条的句柄。调用后该条目出局，作用域释放时不会再碰它；
-   *   重复调用是空操作。
+   *   重复调用是空操作。句柄**不在**释放帧里（见 {@link LifecycleScope.dispose} 的重入约定）：
+   *   从它触发的 disposer 里调本作用域的 `dispose()` 会如实释放整个作用域，而不是被当成
+   *   重入而空转。这条不构成互锁（本条目在 disposer 执行**之前**就已出清单，那一轮释放
+   *   不会等它），但它与释放帧内的行为不对称，依赖其中一种写法前请先确认自己在哪条路上。
    * @throws {@link LifecycleScopeDisposedError} 作用域已不是 `active` 时同步抛出，
    *   且 `setup` **不被执行**（不产生新资源）。
    */
@@ -238,6 +241,14 @@ export class LifecycleScope {
     return id;
   }
 
+  /**
+   * 单独撤销一条登记（{@link LifecycleScope.acquire} 返回的句柄）。
+   *
+   * @remarks
+   * 有意**不**套 `#callDisposer`：那个标志的语义是「正处在 `dispose()` 的清单循环里」，
+   * 而这里没有清单循环在跑。套上去会让 disposer 里的 `scope.dispose()` 变成静默空转——
+   * 调用方明确要求释放整个作用域，却什么都不发生，比不对称更糟。
+   */
   #release(id: number): void | Promise<void> {
     const registration = this.#registrations.get(id);
     if (registration === undefined) return;
