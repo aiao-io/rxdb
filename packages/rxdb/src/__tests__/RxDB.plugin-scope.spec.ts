@@ -10,6 +10,7 @@
 import { LifecycleScope, LifecycleScopeDisposedError } from '@aiao/utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SyncType } from '../entity/metadata-options.interface.js';
+import type { IRxDBAdapter } from '../rxdb-adapter.js';
 import type { IRxDBPlugin } from '../rxdb-plugin.js';
 import { RxDB } from '../RxDB.js';
 import { createMockAdapter } from './fixtures/test-db-setup.js';
@@ -533,8 +534,8 @@ describe('停机窗口与跨纪元迟到任务', () => {
       const adapter = createMockAdapter();
       adapter.connect = vi.fn(
         () =>
-          new Promise<void>(resolve => {
-            openRemote = resolve;
+          new Promise<IRxDBAdapter>(resolve => {
+            openRemote = () => resolve(adapter);
           })
       );
       return adapter;
