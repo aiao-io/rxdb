@@ -87,9 +87,12 @@ FTS installer 有迁移水位线和认领冲突，重复 DDL 大概率不毁库�
 
 ## 解决记录
 
-- [ ] #1 search 在 `init()` 失败路径复位状态机（宿主补 `destroy()`，或 search 把 epoch/plans/promise 挂到 scope disposer）+ 宿主级回归用例
-- [ ] #2 `#release()` 套 `#inDisposerFrame`，或 TSDoc 写明句柄不支持自释放
-- [ ] #3 迁移文档点明 workspace / search 的 `ready` 口径差异
-- [ ] #4 squash / 重写提交信息
+- [x] #1 **确认是真问题，但修在插件里而非宿主**。落点：`#runInstall` 的纪元校验提到 FTS DDL **每一轮之前**（[plugin.ts](../../packages/rxdb-plugin-search/src/plugin.ts#L425-L442)），并改正了那条错误注释。
+      两条备选都没采用：宿主补 `destroy()` **修不掉这个 bug**——`destroy()` 只推进纪元号，陈旧那一轮的 DDL 循环在纪元校验之前，照跑不误；而且 `init()` 的回滚是同步段，在那里调 `destroy()` 会跑在作用域真正释放**之前**，与 `#shutdown()` 的「先释放作用域、再 destroy」顺序相反。scope disposer 方案同理，绕远且不解决 DDL。
+      顺带修掉 `#primeSearchEntries` 的提前 return：改成每次 `install()` 重扫（[:453](../../packages/rxdb-plugin-search/src/plugin.ts#L453)）。`entities` 在 `LIVE_BEHAVIOUR_CONFIG_KEYS` 里、宿主有意不深冻结，正常重连路径本来就因 `destroy()` 清过 plan 而重扫，这一改只影响不走 `destroy()` 的回滚路径。
+      两条红→绿回归用例落在插件级（[plugin-lifecycle.spec.ts](../../packages/rxdb-plugin-search/src/__tests__/plugin-lifecycle.spec.ts)）：`installFtsForEntity` 只跑一轮；重装按当下 `entities` 重扫。未加宿主级用例——判定发生在插件内部，宿主侧只能观察到同一批调用次数，夹具成本换不来额外覆盖。
+- [x] #2 **不是真问题，只补文档**。`#release()` 在执行 disposer **之前**就把该条目移出清单，且此时没有 in-flight 的 `dispose()`，所以句柄 disposer 里 `scope.dispose()` 会如实跑完一次释放，不存在评审说的互锁。反过来，按建议给 `#release()` 套上 `#inDisposerFrame` 才会**引入** bug：调用方明确要求释放整个作用域却静默空转。已在 `acquire()` 的 `@returns` 与 `#release()` 上写明这条不对称及其理由（[lifecycle-scope.ts](../../packages/utils/src/lifecycle/lifecycle-scope.ts#L93-L101)）。
+- [x] #3 迁移文档点明差异（[plugin-scope.md](../../website/docs/migration/plugin-scope.md#L92-L94)）。原文并未把两个插件的 `ready` 并列（workspace 举的是 `flush()`），推断风险比评审说的低，但一句话成本更低。
+- [ ] #4 squash / 重写提交信息 —— 未动，改写他人分支历史需要作者决定。
 - [ ] 开 PR 修复（`pr` 字段记录链接）
 - [ ] PR 合并，`status: Resolved`
