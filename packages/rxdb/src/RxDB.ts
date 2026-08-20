@@ -863,7 +863,6 @@ export class RxDB {
    * 被跳过的插件留在 {@link RxDB.#plugin_map} 里，下一次 `init()` 统一安装。
    */
   #install_one_plugin(plugin: IRxDBPlugin) {
-    if (!this.#rxdb_initialized || this.#shutting_down) return;
     const tracked = this.#track_plugin_install(plugin);
     void tracked.then(
       () => undefined,

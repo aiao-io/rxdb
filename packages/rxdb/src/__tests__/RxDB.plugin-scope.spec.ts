@@ -7,7 +7,7 @@
  * 3. 安装**半途失败**时由宿主回收部分登记 —— 这是新契约独有的失败模式：
  *    旧契约下 `install()` 抛错只是「没装成」，新契约下宿主已经替插件拿着一份部分清单。
  */
-import { LifecycleScope } from '@aiao/utils';
+import { LifecycleScope, LifecycleScopeDisposedError } from '@aiao/utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SyncType } from '../entity/metadata-options.interface.js';
 import type { IRxDBPlugin } from '../rxdb-plugin.js';
@@ -232,6 +232,18 @@ describe('repository() 的作用域撤销', () => {
     await secondScope.dispose();
 
     expect(database.getRepositoryConfig('SharedRepository')).toBeUndefined();
+  });
+
+  it('传已释放的 scope 时同步抛错且不落下注册（US-013 AC#5 沿宿主 API 传导）', async () => {
+    const database = createDatabase();
+    const base = database.getRepositoryConfig('Repository');
+    if (!base) throw new Error('Repository config missing');
+    const scope = new LifecycleScope('stale');
+    await scope.dispose();
+
+    // 静默登记会更糟：注册进了配置表，而撤销它的那一半永远不会跑
+    expect(() => database.repository('StaleRepository', { ...base }, scope)).toThrow(LifecycleScopeDisposedError);
+    expect(database.getRepositoryConfig('StaleRepository')).toBeUndefined();
   });
 
   it('不传 scope 时行为与改造前一致：注册跨纪元存活', async () => {
