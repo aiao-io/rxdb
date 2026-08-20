@@ -431,9 +431,8 @@ export class RxDB {
     } else {
       const plugin_instance = plugin(this, options);
       this.#plugin_map.set(plugin, plugin_instance);
-      if (this.#rxdb_initialized && !this.#shutting_down) {
-        this.#install_one_plugin(plugin_instance);
-      }
+      // 装不装由 #install_one_plugin 自己判——它是全部安装入口的收口点。
+      this.#install_one_plugin(plugin_instance);
     }
     return this;
   }
@@ -851,8 +850,20 @@ export class RxDB {
   /**
    * `use()` / `init()` 保持同步且不抛：同步 throw 转成 rejected Promise。
    * 异步 reject 不再吞掉，由 {@link RxDB.#await_plugin_installs} 在 `connect()` 里传播。
+   *
+   * @remarks
+   * 「本纪元是否还收安装」的判定收口在这里，而不是散在三个调用点（`use()` /
+   * {@link RxDB.#install_plugin} / {@link RxDB.#await_plugin_installs}）。散着写漏过一处：
+   * 停机期间在飞的 `connect()` 恢复执行时，`#shutting_down` 已经复位、
+   * {@link RxDB.#plugin_install_promises} 已经清空，`#await_plugin_installs` 于是把**每个**插件
+   * 都重装一遍——装进一个 `#ensure_connection_scope()` 顺手新建、而 `init()` 从没走过的纪元里，
+   * 那时 `entityManager` / `versionManager` / 网关都已经拆掉了。
+   *
+   * 两个条件都要：`#shutting_down` 只覆盖拆卸窗口**之内**，`#rxdb_initialized` 才覆盖拆完之后。
+   * 被跳过的插件留在 {@link RxDB.#plugin_map} 里，下一次 `init()` 统一安装。
    */
   #install_one_plugin(plugin: IRxDBPlugin) {
+    if (!this.#rxdb_initialized || this.#shutting_down) return;
     const tracked = this.#track_plugin_install(plugin);
     void tracked.then(
       () => undefined,
@@ -961,6 +972,9 @@ export class RxDB {
    *
    * 唯一的解锁点是 `disconnect()` / `disconnectAll()` —— 它们经 {@link RxDB.#shutdown}
    * 先 `destroy()` 掉插件再清空这张表，此时重装才有干净的起点。
+   *
+   * 补装那一步会不会真的装，由 {@link RxDB.#install_one_plugin} 判：本纪元已经退场时它是空操作，
+   * 于是 `pending` 为空、本次 `connect()` 不等任何插件。这是有意的——那时该等的东西已经没了。
    */
   async #await_plugin_installs(): Promise<void> {
     for (const plugin of this.#plugin_map.values()) {

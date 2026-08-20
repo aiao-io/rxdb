@@ -512,6 +512,52 @@ describe('停机窗口与跨纪元迟到任务', () => {
     expect(scopes[0].state).toBe('disposed');
   });
 
+  it('停机后才恢复的在飞 connect() 不把插件重装进一个 init() 从没走过的纪元', async () => {
+    const database = createDatabase();
+    const scopes: LifecycleScope[] = [];
+    let openRemote: (() => void) | undefined;
+    // remote 端卡在 adapter.connect() 上：还没走到 #await_plugin_installs 就被停机越过去了
+    database.adapter('remote', () => {
+      const adapter = createMockAdapter();
+      adapter.connect = vi.fn(
+        () =>
+          new Promise<void>(resolve => {
+            openRemote = resolve;
+          })
+      );
+      return adapter;
+    });
+    database.use((): IRxDBPlugin => ({
+      name: 'inFlight',
+      lifecycle: 'scoped',
+      install: scope => void scopes.push(scope)
+    }));
+
+    await database.connect('sqlite');
+    expect(scopes).toHaveLength(1);
+
+    const connecting = database.connect('remote');
+    await vi.waitFor(() => expect(openRemote).toBeTypeOf('function'));
+
+    await database.disconnectAll();
+    expect(scopes[0].state).toBe('disposed');
+
+    // 闸门开在停机**之后**：#shutting_down 已复位、#plugin_install_promises 已清空，
+    // 只判 #shutting_down 的话这里会补装一遍——装进 #ensure_connection_scope() 顺手新建、
+    // 而 init() 从没走过的纪元，那时 entityManager / 网关都已经拆掉了
+    openRemote?.();
+    await connecting;
+    await tick();
+
+    expect(scopes).toHaveLength(1);
+
+    await database.connect('sqlite');
+
+    // 下一次 init() 才是合法的安装点：这里是 2 而不是 3
+    expect(scopes).toHaveLength(2);
+    expect(scopes[1].state).toBe('active');
+  });
+
   it('旧纪元安装失败的回收不删新纪元的插件作用域', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const database = createDatabase();

@@ -276,14 +276,13 @@ describe('US-013 LifecycleScope 生命周期作用域原语', () => {
     });
 
     it('单条登记时行为一致（重入发生在赋值之前，同样不重复执行清单）', async () => {
-      const { calls, disposer } = tracer();
+      const calls: string[] = [];
       const scope = new LifecycleScope('single');
 
       scope.acquire(() => () => {
         calls.push('self');
         return scope.dispose();
       }, 'self');
-      void disposer;
 
       await expect(withDeadline(scope.dispose())).resolves.toBeUndefined();
       expect(scope.state).toBe('disposed');

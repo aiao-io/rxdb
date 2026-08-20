@@ -57,6 +57,15 @@ export class LifecycleScope {
   /** 首次 `dispose()` 的结果，成功与失败都缓存在这里并原样复用。 */
   #disposeTask: Promise<void> | undefined;
 
+  /**
+   * 是否正处在某条 disposer 的**同步调用帧**里。
+   *
+   * 只圈住同步帧而不是整个释放过程：外部的并发 `dispose()` 与 disposer 内部的重入
+   * 落在完全相同的内部状态上，唯一能把两者分开的就是「调用发生在不在那一帧内」。
+   * 圈大了会把外部并发调用误判成重入，幂等契约（重复调用返回同一个 Promise）随之失效。
+   */
+  #inDisposerFrame = false;
+
   /** 把自己从父作用域清单里摘掉；只由 {@link LifecycleScope.child} 装配。 */
   #detachFromParent: (() => void) | undefined;
 
@@ -150,8 +159,18 @@ export class LifecycleScope {
    * 实例，首次失败时返回的就是那个同一个失败结果。这里的「不抛新错」只指重复调用本身
    * 不引入新错误，绝不是「把失败的首次释放替换成成功的后续释放」——那会在停机路径的
    * 防御性重复释放里静默吞掉首个真实故障。
+   *
+   * disposer **同步地**调用本作用域的 `dispose()`（`return () => scope.dispose()` 这类写法）
+   * 是空操作：清单已经在跑，不重复执行也不自锁。但 disposer 在自己的 `await` **之后**
+   * 再调本作用域的 `dispose()` 属于不支持的写法——那时已经出了同步帧，拿到的是本轮
+   * in-flight 的那个 Promise，而这个 Promise 正等着这条 disposer 返回，必然互锁。
+   * 要在异步收尾里释放，释放的应该是**子作用域**，不是自己。
    */
   dispose(): Promise<void> {
+    // 重入：此刻 #disposeTask 可能还没赋值（`??=` 要等 #runDispose() 首次挂起才落地），
+    // 所以不能靠读它来判定，只能靠调用帧。返回已结算的 Promise 而不是 in-flight 的那个，
+    // 正是为了不让 disposer 等在自己身上。
+    if (this.#inDisposerFrame) return Promise.resolve();
     this.#disposeTask ??= this.#startDispose();
     return this.#disposeTask;
   }
@@ -180,7 +199,7 @@ export class LifecycleScope {
     const errors: unknown[] = [];
     for (const registration of pending) {
       try {
-        await registration.disposer?.();
+        await this.#callDisposer(registration);
       } catch (error: unknown) {
         errors.push(error);
       }
@@ -189,6 +208,21 @@ export class LifecycleScope {
     this.#state = 'disposed';
     if (errors.length === 1) throw errors[0];
     if (errors.length > 1) throw new AggregateError(errors, `LifecycleScope '${this.label}' dispose failed`);
+  }
+
+  /**
+   * 调用一条 disposer，把重入标志精确圈在它的**同步调用帧**上。
+   *
+   * `finally` 在 `disposer()` 返回时就跑（返回的是 Promise 也一样，这里不 `await`），
+   * 标志因此不会活过同步帧——串行等待交给调用方的 `await`。
+   */
+  #callDisposer(registration: Registration): void | Promise<void> {
+    this.#inDisposerFrame = true;
+    try {
+      return registration.disposer?.();
+    } finally {
+      this.#inDisposerFrame = false;
+    }
   }
 
   #assertActive(entryLabel: string): void {
