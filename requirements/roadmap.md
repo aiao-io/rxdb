@@ -8,8 +8,7 @@
 
 | 优先级 | 建议功能                           | 对应 story                                                             | 建议理由                                                                                                                            | 主要交付边界                                                                                                                              |
 | :----: | ---------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-|   P1   | LifecycleScope 生命周期作用域原语  | [US-013](stories/core/US-013-lifecycle-scope-primitive.md)             | 同一件「登记副作用 → 拆卸时撤销」的事在仓库里被手工写了九遍，没有两处写法相同                                                       | `@aiao/utils` 侧的类与语义（逆序、幂等、异步、错误隔离、可嵌套），语义由测试冻结                                                          |
-|   P1   | 插件作用域契约                     | [US-014](stories/core/US-014-plugin-scope-contract.md)                 | 三处既有泄漏：graph 的 `destroy()` 是空的且契约里没有位置可写；`rxdb.storage` 断连一次即永久消失；workspace 拆卸后无法重装          | `install(scope)` 契约、`repository(name, config, scope?)`、四个插件包迁移、`destroy()` 转可选的废弃周期、类型契约测试                     |
+|   P1   | 插件依赖声明与按需装卸（阶段 A）   | [US-015](stories/core/US-015-plugin-inject-dependency.md)              | US-014 已交付，`install(scope)` 签名冻结、前置解除；search 插件那台 `adapterConnected$` + phase 状态机是**现存**的症状，不是设想   | `inject: ['adapter:local']`、纪元调度与释放时序、search 插件迁移掉 phase 机（阶段 A = AC#1～12）                                          |
 |   P2   | 提交图与 HEAD 持久化               | [US-305](stories/collaboration/US-305-commit-graph-head.md)            | 旧暂存导出已在 `0.0.24` 删除，能力缺口现在完全敞开                                                                                  | 独立命名空间的新契约、commit 存储布局、baseline commit 与一次性迁移                                                                       |
 |   P2   | 生成器 default 序列化与显式失败    | [US-018](stories/core/US-018-generator-default-serialization.md)       | 今天 bigint `default` 直接抛原生 `TypeError`、`Uint8Array` 塌缩成 `{"0":1,...}`、函数工厂被静默丢弃，生成的客户端行为与源实体不一致 | 拆 JSON 往返改运行时分派、`default` → 源码字面量映射表、`unsupportedDefaultFactory` / `unsupportedDefaultValue`、`BREAKING CHANGE` 迁移表 |
 |   P2   | Electron PGlite 数据目录与事务宿主 | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)     | PGlite callback transaction 不能跨 IPC 序列化，需要 SQLite 路径不需要的事务 host 协议                                               | 主进程 data directory、事务 ID 协议或主进程托管 adapter、跨进程类型保真                                                                   |
@@ -23,8 +22,11 @@
 > [US-012](stories/core/US-012-field-semantic-metadata.md) 已 Done（阶段 A / B / C 全绿，2026-08-17），
 > 不再作为建议功能列出；其 DTO 的 wire codec 不变量见下方约束 1。
 >
-> [US-015](stories/core/US-015-plugin-inject-dependency.md) 同理不单列——它排在 US-014 之后，
-> 且阶段 B 的用户价值待证，见下方约束 8。
+> [US-015](stories/core/US-015-plugin-inject-dependency.md) 上表**只列阶段 A**——阶段 B（插件间依赖图）
+> 的用户价值待证，未证不开工，见下方约束 8 与「明确不排期」。
+>
+> [US-013](stories/core/US-013-lifecycle-scope-primitive.md) / [US-014](stories/core/US-014-plugin-scope-contract.md)
+> 已于 2026-08-20 全关，从本表移出，留档见下方「已完成」。
 
 ## 已完成（保留记录）
 
@@ -43,6 +45,26 @@
   `packages/rxdb-adapter-tauri/rust/` 普通 crate、真实文件 smoke test。
 - **留在别处、不阻塞本行的尾巴**：crate 发 crates.io 与桌面安装包验证见「明确不排期」；
   US-505 的 AC#6/#7 见批次 1 线 C（缺的是那个故事自己的 specs）。
+
+### epic-008 链首：生命周期作用域原语 + 插件作用域契约 ✅
+
+- **对应 story**：~~[US-013](stories/core/US-013-lifecycle-scope-primitive.md)~~ ✅ /
+  ~~[US-014](stories/core/US-014-plugin-scope-contract.md)~~ ✅
+- **收口**：**2026-08-20 两条全关**，硬序（约束 8）走完。US-013 交付 `@aiao/utils` 侧的原语，
+  19 条 AC 由 26 个用例冻结；US-014 的 23 条 AC（含 11b / 11c 共 25 行）全部通过。
+  **三处已知泄漏已证伪**：graph 的 repository 注册断连后仍在、`rxdb.storage` 断连一次即永久消失、
+  workspace 拆卸后无法重装——三条现在都由「断连 → 重连」的往返测试覆盖。
+- **已交付**：`LifecycleScope`（逆序 / 幂等 / 异步 / 错误隔离 / 可嵌套）、`install(scope)` 契约、
+  `lifecycle: 'scoped'` 显式标记与 `destroy()` 的废弃周期、`repository(name, config, scope?)`、
+  四个插件包迁移、类型契约测试
+  [plugin-scope-contract.spec.ts](../packages/rxdb/src/__tests__/contracts/plugin-scope-contract.spec.ts)
+  （api-surface 只记 `{name, kind}`，成员签名改动不产生 diff，这个盲区只能由契约测试就地补）、
+  [编写插件](../website/docs/plugins/authoring.md) 与
+  [插件作用域契约迁移](../website/docs/migration/plugin-scope.md) 两篇文档。
+- **有意的可观察行为变化（三条）**：插件之间的拆卸由 `Promise.all` 并发改为注册逆序**串行**；
+  `rxdb.workspace` / `rxdb.searchPlugin` 断连后**仍存在**，方法调用抛「本纪元未安装」而非永久终态；
+  `workspace.changes$` 跨纪元存活、断连期间静默且不 `complete()`。迁移页按这三条写。
+- **解锁**：US-015 阶段 A 的前置就此解除，已进批次 1 线 B。
 
 ## 完成计划（2026-08-18 排定）
 
