@@ -1,5 +1,6 @@
 /** @vitest-environment happy-dom */
 import { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } from '@modules/wujie';
+import { createFakeWujieBus } from '@modules/wujie/testing';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useTheme } from './useTheme';
@@ -22,23 +23,6 @@ function createStorage(): Storage {
   };
 }
 
-function createBus() {
-  const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
-  return {
-    $on(event: string, fn: (...args: unknown[]) => void) {
-      const bucket = listeners.get(event) ?? new Set();
-      bucket.add(fn);
-      listeners.set(event, bucket);
-    },
-    $off(event: string, fn: (...args: unknown[]) => void) {
-      listeners.get(event)?.delete(fn);
-    },
-    $emit(event: string, ...args: unknown[]) {
-      listeners.get(event)?.forEach(listener => listener(...args));
-    }
-  };
-}
-
 describe('useTheme host sync', () => {
   beforeEach(() => {
     Object.defineProperty(globalThis, 'localStorage', {
@@ -55,7 +39,7 @@ describe('useTheme host sync', () => {
   });
 
   it('用户切换主题时把请求推给宿主，宿主下发的不回推', () => {
-    const bus = createBus();
+    const bus = createFakeWujieBus();
     const onRequest = vi.fn();
     window.$wujie = { bus, props: { theme: 'light' } };
     bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
@@ -70,7 +54,7 @@ describe('useTheme host sync', () => {
   });
 
   it('follows the wujie host theme and still accepts the legacy postMessage fallback', () => {
-    const bus = createBus();
+    const bus = createFakeWujieBus();
     window.$wujie = { bus, props: { theme: 'dark' } };
 
     const { result, unmount } = renderHook(() => useTheme());

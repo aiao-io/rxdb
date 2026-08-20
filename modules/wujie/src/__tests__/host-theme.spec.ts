@@ -9,23 +9,7 @@ import {
   WUJIE_THEME_EVENT,
   WUJIE_THEME_REQUEST_EVENT
 } from '../host-theme.js';
-
-function createBus() {
-  const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
-  return {
-    $on(event: string, fn: (...args: unknown[]) => void) {
-      const bucket = listeners.get(event) ?? new Set();
-      bucket.add(fn);
-      listeners.set(event, bucket);
-    },
-    $off(event: string, fn: (...args: unknown[]) => void) {
-      listeners.get(event)?.delete(fn);
-    },
-    $emit(event: string, ...args: unknown[]) {
-      listeners.get(event)?.forEach(listener => listener(...args));
-    }
-  };
-}
+import { createFakeWujieBus } from '../testing/index.js';
 
 const SCOPE_ORIGIN = 'https://docs.example';
 
@@ -87,7 +71,7 @@ describe('host-theme', () => {
 
   describe('subscribeHostTheme', () => {
     it('applies the initial props theme and later bus events', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const onTheme = vi.fn();
       const stop = subscribeHostTheme(onTheme, {
         $wujie: { bus, props: { theme: 'dark' } }
@@ -101,6 +85,23 @@ describe('host-theme', () => {
       stop();
       bus.$emit(WUJIE_THEME_EVENT, { theme: 'dark' });
       expect(onTheme).toHaveBeenCalledTimes(2);
+    });
+
+    it('宿主只给 props 没给可用 bus 时，初始主题照样生效', () => {
+      const onTheme = vi.fn();
+
+      // 无界注入 $wujie 与 bus 之间存在时间差，早于 bus 就绪挂载的子应用会走到这条路径。
+      const stop = subscribeHostTheme(onTheme, { $wujie: { props: { theme: 'dark' } } });
+      expect(onTheme).toHaveBeenCalledWith('dark');
+      expect(() => stop()).not.toThrow();
+
+      // bus 只有 $emit 没有 $on（旧版本无界）时同样不该炸，也不该退回 postMessage 通道
+      const emitOnly = { $emit: vi.fn() };
+      onTheme.mockClear();
+      expect(() =>
+        subscribeHostTheme(onTheme, { $wujie: { bus: emitOnly, props: { theme: 'light' } } })()
+      ).not.toThrow();
+      expect(onTheme).toHaveBeenCalledExactlyOnceWith('light');
     });
 
     it('falls back to postMessage when the app is not hosted by wujie', () => {
@@ -154,7 +155,7 @@ describe('host-theme', () => {
 
   describe('emitHostTheme', () => {
     it('emits the namespaced payload on the bus', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const onTheme = vi.fn();
       bus.$on(WUJIE_THEME_EVENT, onTheme);
 
@@ -169,7 +170,7 @@ describe('host-theme', () => {
 
   describe('requestHostTheme', () => {
     it('子应用把切换请求发到 $wujie.bus 上', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const onRequest = vi.fn();
       bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
 
@@ -178,7 +179,7 @@ describe('host-theme', () => {
     });
 
     it('走独立的事件名，不会触发宿主下发通道', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const onHostTheme = vi.fn();
       bus.$on(WUJIE_THEME_EVENT, onHostTheme);
 
@@ -193,7 +194,7 @@ describe('host-theme', () => {
 
   describe('subscribeThemeRequest', () => {
     it('宿主收到子应用请求并解析成已解析主题', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const onTheme = vi.fn();
 
       subscribeThemeRequest(onTheme, bus);
@@ -202,7 +203,7 @@ describe('host-theme', () => {
     });
 
     it('退订之后不再收到请求', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const onTheme = vi.fn();
 
       const stop = subscribeThemeRequest(onTheme, bus);

@@ -15,7 +15,7 @@ Evolu 最有价值的不是某个框架 binding，也不是它自研的函数式
 1. 把同步明确拆成时钟、合并、对账、传输和存储协议。
 2. 用 property-based test、真实消费者 bundle 和可执行文档守住协议与公共 API。
 
-当前 rxdb 的优势是 Repository、关系模型、增量查询缓存、分支、commit、undo/redo，以及多后端和 Angular/React/Vue 三端能力。这些能力比 Evolu 更丰富，不应为了引入 HLC 或端到端加密而重写现有数据层。
+当前 rxdb 的优势是 Repository、关系模型、增量查询缓存、分支、commit、undo/redo，以及多后端和 Angular/React/Vue 三端能力。这些能力比 Evolu 更丰富，不应为了引入 HLC（Hybrid Logical Clock，混合逻辑时钟）或端到端加密而重写现有数据层。
 
 正确路线是：**先补质量门禁，再做可选的类型增强，最后以独立插件验证新同步协议。**
 
@@ -254,7 +254,7 @@ Evolu 的平台层值得参考其消息类型和错误边界，但当前项目�
 
 ### 7.1 不复制 Evolu 的基础设施体量
 
-Evolu 的 `Task.ts` 超过 6,000 行，`Type.ts` 超过 12,000 行。它们服务于 Evolu 自己的整体编程模型，不是引入 HLC 或 RBSR 的前置条件。
+Evolu 的 `Task.ts` 超过 6,000 行，`Type.ts` 超过 12,000 行。它们服务于 Evolu 自己的整体编程模型，不是引入 HLC 或 RBSR（Range-Based Set Reconciliation，范围集合对账）的前置条件。
 
 当前项目应继续使用 TypeScript strict、RxJS、现有 DI 和测试工具，不再造一套通用 effect/type runtime。
 

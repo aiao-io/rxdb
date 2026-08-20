@@ -68,7 +68,8 @@
       "@modules/angular-todo": ["./modules/angular-todo/src/index.ts"],
       "@modules/angular-todo/todo-page": ["./modules/angular-todo/todo-page/index.ts"],
       "@modules/angular-todo/todo-cursor-page": ["./modules/angular-todo/todo-cursor-page/index.ts"],
-      "@modules/wujie": ["./modules/wujie/src/index.ts"]
+      "@modules/wujie": ["./modules/wujie/src/index.ts"],
+      "@modules/wujie/testing": ["./modules/wujie/src/testing/index.ts"]
     },
     "resolveJsonModule": true,
     "skipDefaultLibCheck": true,

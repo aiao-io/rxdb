@@ -12,26 +12,10 @@ import {
   WUJIE_ROUTE_EVENT,
   type WujieRouteAdapter
 } from '../host-route.js';
-
-function createBus() {
-  const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
-  return {
-    $on(event: string, fn: (...args: unknown[]) => void) {
-      const bucket = listeners.get(event) ?? new Set();
-      bucket.add(fn);
-      listeners.set(event, bucket);
-    },
-    $off(event: string, fn: (...args: unknown[]) => void) {
-      listeners.get(event)?.delete(fn);
-    },
-    $emit(event: string, ...args: unknown[]) {
-      listeners.get(event)?.forEach(listener => listener(...args));
-    }
-  };
-}
+import { createFakeWujieBus, type FakeWujieBus } from '../testing/index.js';
 
 /** 模拟子应用侧的沙箱 window：`$wujie` 由无界注入，`__WUJIE.id` 即宿主给的 name。 */
-function createSubWindow(bus: ReturnType<typeof createBus>, id = 'rxdb-demo-vue', props: Record<string, unknown> = {}) {
+function createSubWindow(bus: FakeWujieBus, id = 'rxdb-demo-vue', props: Record<string, unknown> = {}) {
   return { $wujie: { bus, props }, __WUJIE: { id } };
 }
 
@@ -100,7 +84,7 @@ describe('host-route', () => {
 
   describe('emitHostRoute', () => {
     it('宿主把归一化后的期望路径带 name 发到 bus 上', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const onRoute = vi.fn();
       bus.$on(WUJIE_ROUTE_EVENT, onRoute);
 
@@ -115,7 +99,7 @@ describe('host-route', () => {
 
   describe('subscribeSubRoute', () => {
     it('宿主收到同名子应用的回传', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const onRoute = vi.fn();
 
       subscribeSubRoute('rxdb-demo-vue', onRoute, bus);
@@ -124,7 +108,7 @@ describe('host-route', () => {
     });
 
     it('同屏多子应用时丢掉别人的回传', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const onRoute = vi.fn();
 
       subscribeSubRoute('rxdb-demo-vue', onRoute, bus);
@@ -133,7 +117,7 @@ describe('host-route', () => {
     });
 
     it('退订之后不再收到回传', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const onRoute = vi.fn();
 
       const stop = subscribeSubRoute('rxdb-demo-vue', onRoute, bus);
@@ -149,7 +133,7 @@ describe('host-route', () => {
 
   describe('subscribeHostRoute', () => {
     it('先应用 props.route，再听 bus 上的后续下发', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const onRoute = vi.fn();
       const stop = subscribeHostRoute(onRoute, createSubWindow(bus, 'rxdb-demo-vue', { route: '/todo' }));
 
@@ -165,12 +149,12 @@ describe('host-route', () => {
 
     it('props 上没有 route 时不给初始值', () => {
       const onRoute = vi.fn();
-      subscribeHostRoute(onRoute, createSubWindow(createBus()));
+      subscribeHostRoute(onRoute, createSubWindow(createFakeWujieBus()));
       expect(onRoute).not.toHaveBeenCalled();
     });
 
     it('丢掉发给别的子应用的下发', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const onRoute = vi.fn();
       subscribeHostRoute(onRoute, createSubWindow(bus, 'rxdb-demo-vue'));
 
@@ -187,7 +171,7 @@ describe('host-route', () => {
 
   describe('reportSubRoute', () => {
     it('子应用带自己的 __WUJIE.id 上报归一化路径', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const onChange = vi.fn();
       bus.$on(WUJIE_ROUTE_CHANGE_EVENT, onChange);
 
@@ -196,7 +180,7 @@ describe('host-route', () => {
     });
 
     it('走独立事件名，不会触发宿主下发通道', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const onHostRoute = vi.fn();
       bus.$on(WUJIE_ROUTE_EVENT, onHostRoute);
 
@@ -242,7 +226,7 @@ describe('host-route', () => {
 
   describe('bindWujieRoute', () => {
     it('先消化宿主初始路径，再注册上报 —— 首屏不会误报', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const reported = vi.fn();
       bus.$on(WUJIE_ROUTE_CHANGE_EVENT, reported);
       const target = createSubWindow(bus, 'rxdb-demo-vue', { route: '/todo' });
@@ -261,7 +245,7 @@ describe('host-route', () => {
     });
 
     it('子应用自身导航回写宿主', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const reported = vi.fn();
       bus.$on(WUJIE_ROUTE_CHANGE_EVENT, reported);
       const io = createAdapter();
@@ -273,7 +257,7 @@ describe('host-route', () => {
     });
 
     it('宿主后续下发走 push 语义', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const io = createAdapter();
 
       bindWujieRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue', { route: '/todo' }));
@@ -283,7 +267,7 @@ describe('host-route', () => {
     });
 
     it('宿主下发引起的路由变化不再回传，避免绕成回环', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const reported = vi.fn();
       bus.$on(WUJIE_ROUTE_CHANGE_EVENT, reported);
       const io = createAdapter();
@@ -296,7 +280,7 @@ describe('host-route', () => {
     });
 
     it('路径没变时不重复下发导航', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const io = createAdapter();
 
       bindWujieRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue', { route: '/todo' }));
@@ -315,7 +299,7 @@ describe('host-route', () => {
     });
 
     it('退订同时摘掉两个方向', () => {
-      const bus = createBus();
+      const bus = createFakeWujieBus();
       const reported = vi.fn();
       bus.$on(WUJIE_ROUTE_CHANGE_EVENT, reported);
       const io = createAdapter();

@@ -13,8 +13,8 @@
 RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/*` 公开包当前同步发布为 `0.0.25`，仍处于 0.x 演进阶段。
 
 - 使用装饰器定义的实体模型，自动生成类型安全的 Repository 和查询 API
-- 一份模型声明同时驱动数据库 schema、TypeScript 类型和响应式数据流。
-- 浏览器里直接跑 SQLite，用接近原生 App 的体验构建离线优先应用。
+- 一份模型声明同时驱动数据库 schema、TypeScript 类型和响应式数据流
+- 浏览器里直接跑 SQLite，用接近原生 App 的体验构建离线优先应用
 
 ## Demo
 
@@ -37,7 +37,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri        |
 
 > [!NOTE]
-> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态与数字以 [状态概览](requirements/status-overview.md) 为准，本 README 不重复维护统计口径。
+> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [38/53 已交付](requirements/status-overview.md)
 
 支持与反馈：可复现的 bug 请提交 [Bug Issue](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml)，功能建议提交 [Feature Issue](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml)，使用问题请提交 [Question Issue](https://github.com/aiao-io/rxdb/issues/new?template=question.yml)。
 
@@ -45,18 +45,18 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 
 传统 Web 应用中，数据库 schema、TypeScript 类型、状态管理、前后端通信、离线能力往往各自维护 —— 改一处就要同步多处，维护成本高。
 
-RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同时驱动数据库、查询、变更、客户端代码和 UI 集成。对离线优先、复杂数据结构和强类型协作场景，这套方案会让你更顺手。
+RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同时驱动数据库、查询、变更、客户端代码和 UI 集成。面对离线优先、复杂数据结构与强类型协作场景，这套方案会更顺手。
 
 ## 核心特点
 
-| 特点            | 说明                                             |
-| --------------- | ------------------------------------------------ |
-| **响应式**      | 数据变更自动驱动 UI，无需手动同步状态            |
-| **Local-first** | 浏览器内运行数据库，弱网离线同样稳定             |
-| **强类型**      | 从模型定义推导出类型安全的查询、变更和客户端代码 |
-| **数据驱动**    | 原生支持树、图等复杂结构，围绕模型自动生成 CRUD  |
-| **跨框架**      | Angular / React / Vue 三端集成，API 风格一致     |
-| **可协作**      | 围绕数据版本与同步演进，目标多端一致、多人协作   |
+| 特点            | 说明                                                 |
+| --------------- | ---------------------------------------------------- |
+| **响应式**      | 数据变更自动驱动 UI，无需手动同步状态                |
+| **Local-first** | 浏览器内运行数据库，弱网或离线环境同样稳定           |
+| **强类型**      | 从模型定义推导出类型安全的查询、变更和客户端代码     |
+| **数据驱动**    | 原生支持树、图等复杂结构，围绕模型自动生成 CRUD      |
+| **跨框架**      | Angular / React / Vue 三端集成，API 风格一致         |
+| **可协作**      | 围绕数据版本管理与同步演进，目标是多端一致、多人协作 |
 
 参考生态：
 
@@ -88,8 +88,8 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 - PGlite：WASM PostgreSQL，完整 PG 生态
 - desktop：Electron 应用私有目录里的真实 SQLite 文件，`node:sqlite` 落在特权侧，renderer 零文件系统权限
 - Supabase：PostgREST + Realtime + RPC 推送，远程同步
-- 加密包装器：AES-GCM-256 + WebCrypto，透明字段级加解密
-- 小程序：微信小程序逻辑层本地持久化与响应式查询（**实验性**，仅微信，强制单连接、无崩溃恢复保证）
+- 加密包装器：AES-GCM-256 + WebCrypto，对上层透明的字段级加解密
+- 小程序：微信小程序逻辑层本地持久化与响应式查询（**实验性**，仅微信，强制单连接，不保证崩溃恢复）
 
 **插件生态**
 
@@ -228,7 +228,7 @@ aiao/
 
 - ⬜ **US-012** 字段语义元数据：统一前端 DTO 与校验契约
 - **API 冻结**：核心 / 适配器 / 框架集成锁定对外类型，进入 semver
-- **覆盖率门禁**：核心包 ≥ 90%，其余 ≥ 80%（已接入 CI，棘轮式推进）
+- **覆盖率门禁**：核心包 ≥ 90%，其余 ≥ 80%（已接入 CI，门槛只升不降）
 - **1.0 文档**：API 参考（26 包）、迁移指南、兼容矩阵已完成骨架，内容补齐中
 
 ### 阶段 2 生产可靠性
