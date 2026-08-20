@@ -1,5 +1,6 @@
 import type { EntityType, RxDB, RxDBEntityLocalEventData, UUID } from '@aiao/rxdb';
 import { ENTITY_LOCAL_CREATE_EVENT, ENTITY_LOCAL_NEW_EVENT, ENTITY_LOCAL_REMOVE_EVENT } from '@aiao/rxdb';
+import { LifecycleScope } from '@aiao/utils';
 import { delMany, entries, setMany } from 'idb-keyval';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { rxDBPluginWorkspace as exportedFactory } from '../index.js';
@@ -184,6 +185,23 @@ class BroadcastChannelStub {
   }
 }
 
+/**
+ * 建插件并配一条独立的连接纪元作用域。
+ *
+ * 纪元资源（store、BroadcastChannel、任务泵、实体监听器）都在 `install()` 里登记，
+ * 因此断开连接在用例里就是 `await scope.dispose()`；构造函数只发布 `rxdb.workspace`。
+ */
+function createScoped(rxdb: MockRxDB, options?: { autoSave?: boolean }) {
+  const plugin = new RxDBPluginWorkspace(asRxDB(rxdb), options);
+  return { plugin, scope: new LifecycleScope('workspace-spec') };
+}
+
+/** {@link createScoped} 加一次立即安装，供不关心 `install()` 返回值的用例使用。 */
+function installScoped(rxdb: MockRxDB, options?: { autoSave?: boolean }) {
+  const scoped = createScoped(rxdb, options);
+  return { ...scoped, ready: scoped.plugin.install(scoped.scope) };
+}
+
 beforeEach(() => {
   resetIdbMocks();
   BroadcastChannelStub.instances = [];
@@ -196,31 +214,58 @@ afterEach(() => {
 describe('RxDBPluginWorkspace', () => {
   let rxdb: MockRxDB;
   let plugin: RxDBPluginWorkspace;
+  let scope: LifecycleScope;
 
   beforeEach(() => {
     rxdb = createMockRxDB();
-    plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    ({ plugin, scope } = installScoped(rxdb));
   });
 
-  afterEach(() => {
-    plugin.destroy();
+  afterEach(async () => {
+    await scope.dispose();
   });
 
   it('has the workspace name and package entrypoint', () => {
     expect(plugin.name).toBe('workspace');
+    expect(plugin.lifecycle).toBe('scoped');
     expect(exportedFactory).toBe(rxDBPluginWorkspace);
   });
 
-  it('registers and removes entity event listeners', () => {
+  it('registers and removes entity event listeners', async () => {
     expect(rxdb.addEventListener).toHaveBeenCalledWith(ENTITY_LOCAL_NEW_EVENT, expect.any(Function));
     expect(rxdb.addEventListener).toHaveBeenCalledWith(ENTITY_LOCAL_REMOVE_EVENT, expect.any(Function));
     expect(rxdb.addEventListener).toHaveBeenCalledWith(ENTITY_LOCAL_CREATE_EVENT, expect.any(Function));
 
-    plugin.destroy();
+    await scope.dispose();
 
     expect(rxdb.removeEventListener).toHaveBeenCalledWith(ENTITY_LOCAL_NEW_EVENT, expect.any(Function));
     expect(rxdb.removeEventListener).toHaveBeenCalledWith(ENTITY_LOCAL_REMOVE_EVENT, expect.any(Function));
     expect(rxdb.removeEventListener).toHaveBeenCalledWith(ENTITY_LOCAL_CREATE_EVENT, expect.any(Function));
+  });
+
+  it('构造只发布身份，纪元资源要等到 install()', () => {
+    const bare = createMockRxDB();
+    const barePlugin = new RxDBPluginWorkspace(asRxDB(bare));
+
+    // 身份属性摘不掉，属于注册期；监听器与 store 属于连接纪元
+    expect(Object.getOwnPropertyDescriptor(bare, 'workspace')?.value).toBe(barePlugin);
+    expect(bare.addEventListener).not.toHaveBeenCalled();
+  });
+
+  it('断开重连后是全新的纪元资源，同一个实例继续可用', async () => {
+    dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: 'Epoch 1' }));
+    expect(plugin.cacheCount).toBe(1);
+
+    await scope.dispose();
+    // 纪元草稿随纪元一起丢弃，changes$ 不会因此完成
+    expect(plugin.cacheCount).toBe(0);
+
+    scope = new LifecycleScope('workspace-spec-epoch-2');
+    await plugin.install(scope);
+
+    dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_2, { title: 'Epoch 2' }));
+    expect(plugin.cacheCount).toBe(1);
+    expect(idbState.stores).toHaveLength(2);
   });
 
   it('attaches itself as a non-writable rxdb property', () => {
@@ -511,17 +556,29 @@ describe('RxDBPluginWorkspace', () => {
       expect(idbState.store.has(cacheId('Todo', TODO_ID_2))).toBe(false);
     });
 
-    it('destroy() 丢弃未落盘的排队变更时应 reject 挂起的 flush()，而非伪装成功', async () => {
+    it('纪元释放丢弃未落盘的排队变更时应 reject 挂起的 flush()，而非伪装成功', async () => {
       dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: 'Unflushed' }));
 
       const flushPromise = plugin.flush();
-      plugin.destroy();
+      await scope.dispose();
 
-      await expect(flushPromise).rejects.toThrow(/destroyed/);
+      await expect(flushPromise).rejects.toThrow(/released with unflushed changes/);
       expect(setManyMock).not.toHaveBeenCalled();
     });
 
-    it('destroy() 期间存在挂起写入时应 reject 已注册的 flush() waiter', async () => {
+    it('已弃用的 destroy() 与释放作用域是同一条拆卸路径', async () => {
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: 'Unflushed' }));
+
+      const flushPromise = plugin.flush();
+      await plugin.destroy();
+
+      await expect(flushPromise).rejects.toThrow(/released with unflushed changes/);
+      expect(rxdb.removeEventListener).toHaveBeenCalledWith(ENTITY_LOCAL_NEW_EVENT, expect.any(Function));
+      // 幂等：作用域已释放，再走一次不产生新动作
+      await expect(scope.dispose()).resolves.toBeUndefined();
+    });
+
+    it('纪元释放期间存在挂起写入时应 reject 已注册的 flush() waiter', async () => {
       let resolveWrite: (() => void) | undefined;
       setManyMock.mockImplementationOnce(async items => {
         await new Promise<void>(resolve => {
@@ -536,16 +593,17 @@ describe('RxDBPluginWorkspace', () => {
       const flushPromise = plugin.flush();
       await Promise.resolve();
 
-      plugin.destroy();
+      const released = scope.dispose();
       resolveWrite?.();
 
-      await expect(flushPromise).rejects.toThrow(/destroyed/);
+      await expect(flushPromise).rejects.toThrow(/released with unflushed changes/);
+      await released;
     });
 
-    it('destroy() 之后调用 flush() 必须立即 fail-fast，而非永久挂起', async () => {
-      plugin.destroy();
+    it('纪元释放之后调用 flush() 必须立即 fail-fast，而非永久挂起', async () => {
+      await scope.dispose();
 
-      await expect(plugin.flush()).rejects.toThrow(/destroyed/);
+      await expect(plugin.flush()).rejects.toThrow(/not installed in the current connection epoch/);
     });
   });
 });
@@ -556,37 +614,37 @@ describe('installation and lifecycle boundaries', () => {
     idbState.store.set(cacheId('Unknown', UNKNOWN_ID), { id: UNKNOWN_ID, title: 'Unknown' });
     const rxdb = createMockRxDB();
     rxdb.schemaManager.getEntityType.mockImplementation(entity => (entity === 'Todo' ? MockEntity : undefined));
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    const { plugin, scope } = createScoped(rxdb);
 
     try {
-      const installPromise = plugin.install();
+      const installPromise = plugin.install(scope);
       expect(plugin.ready).toBe(installPromise);
       await plugin.ready;
 
       expect(plugin.cacheCount).toBe(2);
       expect(rxdb.entityManager.createEntityRef).toHaveBeenCalledTimes(1);
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
   it('首次 IndexedDB 读取失败后保留 rejected ready，并允许显式重试 install', async () => {
     entriesMock.mockRejectedValueOnce(new Error('indexeddb open failed'));
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    const { plugin, scope } = createScoped(rxdb);
 
     try {
-      const failed = plugin.install();
+      const failed = plugin.install(scope);
       await expect(failed).rejects.toThrow('indexeddb open failed');
       await expect(plugin.ready).rejects.toThrow('indexeddb open failed');
 
       idbState.store.set(cacheId('Todo', TODO_ID_1), { id: TODO_ID_1, title: 'Recovered' });
-      const retried = plugin.install();
+      const retried = plugin.install(scope);
       expect(retried).not.toBe(failed);
       await expect(retried).resolves.toBeUndefined();
       expect(plugin.list()[0]?.data).toMatchObject({ title: 'Recovered' });
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
@@ -602,10 +660,10 @@ describe('installation and lifecycle boundaries', () => {
     rxdb.entityManager.createEntityRef.mockReturnValueOnce(firstRef).mockImplementationOnce(() => {
       throw new Error('hydrate failed');
     });
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    const { plugin, scope } = createScoped(rxdb);
 
     try {
-      await expect(plugin.install()).rejects.toThrow('hydrate failed');
+      await expect(plugin.install(scope)).rejects.toThrow('hydrate failed');
 
       expect(plugin.cacheCount).toBe(0);
       expect(plugin.corruptedEntries).toEqual([]);
@@ -615,13 +673,13 @@ describe('installation and lifecycle boundaries', () => {
       idbState.store.delete(secondId);
       rxdb.entityManager.createEntityRef.mockImplementation((_EntityType, data) => ({ ...data }));
 
-      await expect(plugin.install()).resolves.toBeUndefined();
+      await expect(plugin.install(scope)).resolves.toBeUndefined();
       expect(plugin.list()).toEqual([
         expect.objectContaining({ cacheId: firstId, data: expect.objectContaining({ title: '新快照' }) })
       ]);
       expect(plugin.corruptedEntries).toHaveLength(1);
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
@@ -630,18 +688,18 @@ describe('installation and lifecycle boundaries', () => {
     const id = cacheId('Todo', TODO_ID_1);
     idbState.store.set(id, { id: TODO_ID_1, title: '旧草稿' });
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb), { autoSave: false });
+    const { plugin, scope } = createScoped(rxdb, { autoSave: false });
     const channel = BroadcastChannelStub.instances[0]!;
 
     try {
       channel.emit({ type: 'remove', clientId: 'peer', cacheId: id });
-      await plugin.install();
+      await plugin.install(scope);
 
       expect(plugin.list()).toEqual([]);
       await plugin.flush();
       expect(idbState.store.has(id)).toBe(false);
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
@@ -652,10 +710,10 @@ describe('installation and lifecycle boundaries', () => {
     idbState.store.set(42 as unknown as IDBValidKey, { id: TODO_ID_1, title: 'Numeric key' });
     idbState.store.set(cacheId('Todo', TODO_ID_1), { id: TODO_ID_1, title: 'Good' });
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    const { plugin, scope } = createScoped(rxdb);
 
     try {
-      await expect(plugin.install()).resolves.toBeUndefined();
+      await expect(plugin.install(scope)).resolves.toBeUndefined();
       await expect(plugin.ready).resolves.toBeUndefined();
 
       expect(plugin.cacheCount).toBe(1);
@@ -665,7 +723,7 @@ describe('installation and lifecycle boundaries', () => {
       // flush 仍必须可用
       await expect(plugin.flush()).resolves.toBeUndefined();
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
@@ -679,16 +737,16 @@ describe('installation and lifecycle boundaries', () => {
   ])('拒绝损坏的持久化记录：%s', async (_name, key, data) => {
     idbState.store.set(key as IDBValidKey, data);
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    const { plugin, scope } = createScoped(rxdb);
 
     try {
-      await plugin.install();
+      await plugin.install(scope);
 
       expect(plugin.cacheCount).toBe(0);
       expect(plugin.corruptedEntries).toHaveLength(1);
       expect(rxdb.entityManager.createEntityRef).not.toHaveBeenCalled();
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
@@ -704,10 +762,10 @@ describe('installation and lifecycle boundaries', () => {
         })
     );
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    const { plugin, scope } = createScoped(rxdb);
 
-    const installPromise = plugin.install();
-    plugin.destroy();
+    const installPromise = plugin.install(scope);
+    await scope.dispose();
     resolveEntries?.([[cacheId('Todo', TODO_ID_1), { id: TODO_ID_1, title: 'Late' }]]);
     await installPromise.catch(() => undefined);
 
@@ -724,17 +782,17 @@ describe('installation and lifecycle boundaries', () => {
         })
     );
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    const { plugin, scope } = createScoped(rxdb);
 
     try {
-      const installPromise = plugin.install();
+      const installPromise = plugin.install(scope);
       dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: 'Live draft' }));
       resolveEntries?.([[cacheId('Todo', TODO_ID_1), { id: TODO_ID_1, title: 'Stale draft' }]]);
       await installPromise;
 
       expect(plugin.list()[0]?.data).toMatchObject({ title: 'Live draft' });
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
@@ -743,10 +801,10 @@ describe('installation and lifecycle boundaries', () => {
     idbState.store.set('rxdb:RxDBSync:public:Todo:main', { id: 'public:Todo:main' });
     idbState.store.set('rxdb:RxDBBranch:other', { id: 'mismatch', activated: false });
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    const { plugin, scope } = createScoped(rxdb);
 
     try {
-      await plugin.install();
+      await plugin.install(scope);
 
       expect(idbState.store.has('rxdb:RxDBBranch:main')).toBe(false);
       expect(idbState.store.has('rxdb:RxDBSync:public:Todo:main')).toBe(false);
@@ -755,7 +813,7 @@ describe('installation and lifecycle boundaries', () => {
         { key: 'rxdb:RxDBBranch:other', reason: expect.stringContaining('不是合法 UUID') }
       ]);
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
@@ -775,11 +833,11 @@ describe('installation and lifecycle boundaries', () => {
         })
     );
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    const { plugin, scope } = createScoped(rxdb);
     const id = cacheId('Todo', TODO_ID_1);
 
     try {
-      const installPromise = plugin.install();
+      const installPromise = plugin.install(scope);
 
       // 窗口内：草稿先出现（实时事件），再被用户丢弃
       dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: 'Draft' }));
@@ -792,7 +850,7 @@ describe('installation and lifecycle boundaries', () => {
       expect(plugin.list()).toEqual([]);
       expect(plugin.cacheCount).toBe(0);
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
@@ -808,13 +866,13 @@ describe('installation and lifecycle boundaries', () => {
         })
     );
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb), { autoSave: false });
+    const { plugin, scope } = createScoped(rxdb, { autoSave: false });
     const id = cacheId('Todo', TODO_ID_1);
     const stored = { id: TODO_ID_1, title: '旧草稿' };
     idbState.store.set(id, stored);
 
     try {
-      const installPromise = plugin.install();
+      const installPromise = plugin.install(scope);
       dispatch(rxdb, type, eventData(TODO_ID_1));
       resolveEntries?.([[id, stored]]);
       await installPromise;
@@ -823,7 +881,7 @@ describe('installation and lifecycle boundaries', () => {
       await plugin.flush();
       expect(idbState.store.has(id)).toBe(false);
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
@@ -837,14 +895,15 @@ describe('installation and lifecycle boundaries', () => {
         })
     );
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb), { autoSave: false });
-    const channel = BroadcastChannelStub.instances[0]!;
+    const { plugin, scope } = createScoped(rxdb, { autoSave: false });
     const id = cacheId('Todo', TODO_ID_1);
     const stored = { id: TODO_ID_1, title: '旧草稿' };
     idbState.store.set(id, stored);
 
     try {
-      const installPromise = plugin.install();
+      // channel 由 install() 同步建起，restore 还悬着——这是最早能收到消息的时刻
+      const installPromise = plugin.install(scope);
+      const channel = BroadcastChannelStub.instances[0]!;
       channel.emit({ type: 'remove', clientId: 'peer', cacheId: id });
       resolveEntries?.([[id, stored]]);
       await installPromise;
@@ -853,11 +912,11 @@ describe('installation and lifecycle boundaries', () => {
       await plugin.flush();
       expect(idbState.store.has(id)).toBe(false);
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
-  it('BroadcastChannel 构造失败时安装不留属性或监听器，且可重试', () => {
+  it('BroadcastChannel 构造失败时已登记的那半资源退回，换个作用域即可重试', async () => {
     class ThrowingBroadcastChannel {
       constructor() {
         throw new DOMException('blocked', 'SecurityError');
@@ -865,43 +924,49 @@ describe('installation and lifecycle boundaries', () => {
     }
     vi.stubGlobal('BroadcastChannel', ThrowingBroadcastChannel as unknown as typeof BroadcastChannel);
     const rxdb = createMockRxDB();
+    const { plugin, scope } = createScoped(rxdb);
 
-    expect(() => rxDBPluginWorkspace(asRxDB(rxdb))).toThrow(/blocked/);
-    expect(Object.hasOwn(rxdb, 'workspace')).toBe(false);
-    expect([...rxdb.listeners.values()].every(listeners => listeners.size === 0)).toBe(true);
+    // 身份属于注册期，构造时就发布；纪元资源获取失败不回收它
+    expect(Object.getOwnPropertyDescriptor(rxdb, 'workspace')?.value).toBe(plugin);
+    expect(() => plugin.install(scope)).toThrow(/blocked/);
+
+    await scope.dispose();
     expect(idbState.stores[0]?.close).toHaveBeenCalledOnce();
+    expect([...rxdb.listeners.values()].every(listeners => listeners.size === 0)).toBe(true);
 
     vi.stubGlobal('BroadcastChannel', BroadcastChannelStub as unknown as typeof BroadcastChannel);
-    const plugin = rxDBPluginWorkspace(asRxDB(rxdb)) as RxDBPluginWorkspace;
+    const retryScope = new LifecycleScope('workspace-spec-retry');
     try {
-      expect(Object.getOwnPropertyDescriptor(rxdb, 'workspace')?.value).toBe(plugin);
+      await plugin.install(retryScope);
       expect(rxdb.addEventListener).toHaveBeenCalledTimes(3);
     } finally {
-      plugin.destroy();
+      await retryScope.dispose();
     }
   });
 
-  it('workspace store 创建失败时不发布属性，重试后 flush 正常完成', async () => {
+  it('workspace store 创建失败时不留残余，重试后 flush 正常完成', async () => {
     const rxdb = createMockRxDB();
     createWorkspaceStoreMock.mockImplementationOnce(() => {
       throw new Error('store unavailable');
     });
+    const { plugin, scope } = createScoped(rxdb);
 
-    expect(() => rxDBPluginWorkspace(asRxDB(rxdb))).toThrow('store unavailable');
-    expect(Object.hasOwn(rxdb, 'workspace')).toBe(false);
+    expect(() => plugin.install(scope)).toThrow('store unavailable');
     expect(rxdb.addEventListener).not.toHaveBeenCalled();
+    await scope.dispose();
 
-    const plugin = rxDBPluginWorkspace(asRxDB(rxdb)) as RxDBPluginWorkspace;
+    const retryScope = new LifecycleScope('workspace-spec-retry');
     try {
+      await plugin.install(retryScope);
       dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: 'retry' }));
       await plugin.flush();
       expect(idbState.store.get(cacheId('Todo', TODO_ID_1))).toMatchObject({ title: 'retry' });
     } finally {
-      plugin.destroy();
+      await retryScope.dispose();
     }
   });
 
-  it('BroadcastChannel 监听器注册失败时回滚 channel、store 与属性', () => {
+  it('BroadcastChannel 监听器注册失败时 channel 本身仍被关闭', async () => {
     class ThrowingListenerBroadcastChannel extends BroadcastChannelStub {
       override addEventListener(type: string, listener: (event: MessageEvent<unknown>) => void) {
         super.addEventListener(type, listener);
@@ -910,12 +975,16 @@ describe('installation and lifecycle boundaries', () => {
     }
     vi.stubGlobal('BroadcastChannel', ThrowingListenerBroadcastChannel as unknown as typeof BroadcastChannel);
     const rxdb = createMockRxDB();
+    const { plugin, scope } = createScoped(rxdb);
 
-    expect(() => rxDBPluginWorkspace(asRxDB(rxdb))).toThrow('channel listener unavailable');
-    expect(Object.hasOwn(rxdb, 'workspace')).toBe(false);
-    expect([...rxdb.listeners.values()].every(listeners => listeners.size === 0)).toBe(true);
+    expect(() => plugin.install(scope)).toThrow('channel listener unavailable');
+
+    // 建 channel 与挂监听是两条登记：挂监听这条没进清单，建 channel 那条进了，
+    // 所以 new 出来的 channel 依然有人关——这正是拆成两条的理由
+    await scope.dispose();
     expect(BroadcastChannelStub.instances[0]?.close).toHaveBeenCalledOnce();
     expect(idbState.stores[0]?.close).toHaveBeenCalledOnce();
+    expect([...rxdb.listeners.values()].every(listeners => listeners.size === 0)).toBe(true);
   });
 
   it.each([1, 2, 3])('第 %i 个 RxDB 监听器注册失败时完整回滚并允许重试', async failureAt => {
@@ -924,29 +993,33 @@ describe('installation and lifecycle boundaries', () => {
     const originalAddEventListener = rxdb.addEventListener.getMockImplementation()!;
     let callCount = 0;
     rxdb.addEventListener.mockImplementation((type, listener) => {
-      originalAddEventListener(type, listener);
       callCount++;
+      // 先抛再登记：真实 addEventListener 抛错意味着监听器没挂上去
       if (callCount === failureAt) throw new Error(`listener ${failureAt} unavailable`);
+      originalAddEventListener(type, listener);
     });
+    const { plugin, scope } = createScoped(rxdb);
 
-    expect(() => rxDBPluginWorkspace(asRxDB(rxdb))).toThrow(`listener ${failureAt} unavailable`);
-    expect(Object.hasOwn(rxdb, 'workspace')).toBe(false);
+    expect(() => plugin.install(scope)).toThrow(`listener ${failureAt} unavailable`);
+
+    await scope.dispose();
     expect([...rxdb.listeners.values()].every(listeners => listeners.size === 0)).toBe(true);
     expect(BroadcastChannelStub.instances[0]?.close).toHaveBeenCalledOnce();
     expect(idbState.stores[0]?.close).toHaveBeenCalledOnce();
 
     rxdb.addEventListener.mockImplementation(originalAddEventListener);
-    const plugin = rxDBPluginWorkspace(asRxDB(rxdb)) as RxDBPluginWorkspace;
+    const retryScope = new LifecycleScope('workspace-spec-retry');
     try {
+      await plugin.install(retryScope);
       dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: 'retry' }));
       await plugin.flush();
       expect(idbState.store.get(cacheId('Todo', TODO_ID_1))).toMatchObject({ title: 'retry' });
     } finally {
-      plugin.destroy();
+      await retryScope.dispose();
     }
   });
 
-  it('workspace 属性发布失败时回滚全部资源并允许重试', async () => {
+  it('workspace 属性发布失败时构造期没有任何资源需要回滚', async () => {
     vi.stubGlobal('BroadcastChannel', BroadcastChannelStub as unknown as typeof BroadcastChannel);
     const rxdb = createMockRxDB();
     let rejectWorkspaceDefinition = true;
@@ -962,48 +1035,47 @@ describe('installation and lifecycle boundaries', () => {
 
     expect(() => rxDBPluginWorkspace(asRxDB(proxiedRxDB))).toThrow(TypeError);
     expect(Object.hasOwn(rxdb, 'workspace')).toBe(false);
+    // 发布身份是构造期唯一的宿主写入，失败时连 store 都还没建
+    expect(idbState.stores).toHaveLength(0);
+    expect(BroadcastChannelStub.instances).toHaveLength(0);
     expect([...rxdb.listeners.values()].every(listeners => listeners.size === 0)).toBe(true);
-    expect(BroadcastChannelStub.instances[0]?.close).toHaveBeenCalledOnce();
-    expect(idbState.stores[0]?.close).toHaveBeenCalledOnce();
 
     const plugin = rxDBPluginWorkspace(asRxDB(proxiedRxDB)) as RxDBPluginWorkspace;
+    const scope = new LifecycleScope('workspace-spec-retry');
     try {
+      await plugin.install(scope);
       dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: 'retry' }));
       await plugin.flush();
       expect(idbState.store.get(cacheId('Todo', TODO_ID_1))).toMatchObject({ title: 'retry' });
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
-  it('returns the installed instance from repeated factory calls without new listeners', () => {
+  it('returns the installed instance from repeated factory calls without new listeners', async () => {
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
-    let duplicate: RxDBPluginWorkspace | undefined;
+    const { plugin, scope, ready } = installScoped(rxdb);
 
     try {
-      duplicate = rxDBPluginWorkspace(asRxDB(rxdb));
-      expect(duplicate).toBe(plugin);
+      await ready;
+      // 身份已发布，工厂只会把同一个实例交回来，不会重复获取纪元资源
+      expect(rxDBPluginWorkspace(asRxDB(rxdb))).toBe(plugin);
       expect(rxdb.addEventListener).toHaveBeenCalledTimes(3);
     } finally {
-      if (duplicate && duplicate !== plugin) duplicate.destroy();
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
-  it('rejects direct duplicate construction before registering listeners', () => {
+  it('rejects direct duplicate construction before registering listeners', async () => {
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
-    let duplicate: RxDBPluginWorkspace | undefined;
+    const { scope, ready } = installScoped(rxdb);
 
     try {
-      expect(() => {
-        duplicate = new RxDBPluginWorkspace(asRxDB(rxdb));
-      }).toThrow('workspace plugin is already installed');
+      await ready;
+      expect(() => new RxDBPluginWorkspace(asRxDB(rxdb))).toThrow('workspace plugin is already installed');
       expect(rxdb.addEventListener).toHaveBeenCalledTimes(3);
     } finally {
-      duplicate?.destroy();
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
@@ -1019,9 +1091,10 @@ describe('installation and lifecycle boundaries', () => {
 
   it('honors autoSave false until flush is explicitly requested', async () => {
     const rxdb = createMockRxDB();
-    const plugin = rxDBPluginWorkspace(asRxDB(rxdb), { autoSave: false }) as RxDBPluginWorkspace;
+    const { plugin, scope, ready } = installScoped(rxdb, { autoSave: false });
 
     try {
+      await ready;
       dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: 'Manual flush' }));
       await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -1031,7 +1104,7 @@ describe('installation and lifecycle boundaries', () => {
       await plugin.flush();
       expect(idbState.store.get(cacheId('Todo', TODO_ID_1))).toMatchObject({ title: 'Manual flush' });
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 });
@@ -1043,7 +1116,7 @@ describe('cross-tab synchronization', () => {
 
   it('keeps and persists incoming drafts whose entity type is not registered yet', async () => {
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    const { plugin, scope } = installScoped(rxdb);
     const channel = BroadcastChannelStub.instances[0]!;
     const unknownCacheId = cacheId('Unknown', UNKNOWN_ID);
 
@@ -1065,13 +1138,13 @@ describe('cross-tab synchronization', () => {
       expect(idbState.store.get(unknownCacheId)).toMatchObject({ title: 'Lazy module draft' });
       expect(rxdb.entityManager.createEntityRef).not.toHaveBeenCalled();
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
-  it('广播同步抛错时保留草稿、记录错误并继续派发后续监听器', () => {
+  it('广播同步抛错时保留草稿、记录错误并继续派发后续监听器', async () => {
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    const { plugin, scope } = installScoped(rxdb);
     const channel = BroadcastChannelStub.instances[0]!;
     const downstream = vi.fn();
     rxdb.addEventListener(ENTITY_LOCAL_NEW_EVENT, downstream);
@@ -1088,7 +1161,7 @@ describe('cross-tab synchronization', () => {
         { key: cacheId('Todo', TODO_ID_1), reason: expect.stringContaining('无法跨 tab 同步') }
       ]);
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
@@ -1109,7 +1182,7 @@ describe('cross-tab synchronization', () => {
     ['未知 type', { type: 'evil', clientId: 'x', cacheId: 'public:Todo:id', data: {} }]
   ])('畸形跨 tab 消息（%s）必须被丢弃：不抛错、不写缓存、不持久化', async (_name, payload) => {
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    const { plugin, scope } = installScoped(rxdb);
     const channel = BroadcastChannelStub.instances[0]!;
 
     try {
@@ -1119,16 +1192,16 @@ describe('cross-tab synchronization', () => {
       expect(plugin.list()).toEqual([]);
       expect(idbState.store.size).toBe(0);
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
-  it('removes incoming drafts and closes the channel on destroy', async () => {
+  it('释放纪元时清掉入站草稿并关闭 channel', async () => {
     const rxdb = createMockRxDB();
     const entityRef = { id: TODO_ID_1, title: 'Shared draft' };
     rxdb.schemaManager.getEntityType.mockReturnValue(MockEntity);
     rxdb.entityManager.getEntityRef.mockReturnValue(entityRef);
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    const { plugin, scope } = installScoped(rxdb);
     const channel = BroadcastChannelStub.instances[0]!;
     const todoCacheId = cacheId('Todo', TODO_ID_1);
 
@@ -1140,7 +1213,7 @@ describe('cross-tab synchronization', () => {
     });
     channel.emit({ type: 'remove', clientId: 'other-tab', cacheId: todoCacheId });
     await plugin.flush();
-    plugin.destroy();
+    await scope.dispose();
 
     expect(rxdb.entityManager.createEntityRef).toHaveBeenCalledOnce();
     expect(rxdb.entityManager.removeEntityCache).toHaveBeenCalledWith(entityRef);
@@ -1151,14 +1224,14 @@ describe('cross-tab synchronization', () => {
 
   // 不关这条连接，页面存活期间任何 indexedDB.deleteDatabase(dbName) 都会永久 blocked
   // —— DevTools「清理所有数据」误报 + 二次点击死寂的根因。
-  it('releases the IndexedDB connection on destroy', () => {
+  it('释放纪元时归还 IndexedDB 连接', async () => {
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    const { scope } = installScoped(rxdb);
     const store = idbState.stores.at(-1);
 
     expect(createWorkspaceStore).toHaveBeenCalledWith('test-db', 'workspace');
 
-    plugin.destroy();
+    await scope.dispose();
 
     expect(store?.close).toHaveBeenCalledOnce();
   });
@@ -1167,7 +1240,7 @@ describe('cross-tab synchronization', () => {
     const rxdb = createMockRxDB();
     rxdb.schemaManager.getEntityType.mockReturnValue(MockEntity);
     rxdb.entityManager.getEntityRef.mockReturnValue(undefined);
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    const { plugin, scope } = installScoped(rxdb);
     const channel = BroadcastChannelStub.instances[0]!;
     const todoCacheId = cacheId('Todo', TODO_ID_1);
 
@@ -1194,13 +1267,13 @@ describe('cross-tab synchronization', () => {
       expect(plugin.cacheCount).toBe(0);
       expect(rxdb.entityManager.removeEntityCache).not.toHaveBeenCalled();
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 
   it('does not broadcast cross-tab originated NEW events', async () => {
     const rxdb = createMockRxDB();
-    const plugin = new RxDBPluginWorkspace(asRxDB(rxdb));
+    const { plugin, scope } = installScoped(rxdb);
     const channel = BroadcastChannelStub.instances[0]!;
 
     try {
@@ -1212,7 +1285,7 @@ describe('cross-tab synchronization', () => {
       expect(channel.postMessage).not.toHaveBeenCalled();
       expect(plugin.cacheCount).toBe(1);
     } finally {
-      plugin.destroy();
+      await scope.dispose();
     }
   });
 });

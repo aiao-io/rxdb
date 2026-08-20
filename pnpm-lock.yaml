@@ -1278,6 +1278,9 @@ importers:
       '@aiao/rxdb-client-generator':
         specifier: workspace:*
         version: link:../rxdb-client-generator
+      '@aiao/utils':
+        specifier: workspace:*
+        version: link:../utils
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
@@ -1297,6 +1300,9 @@ importers:
       '@aiao/rxdb-adapter-sqlite-wasm':
         specifier: workspace:*
         version: link:../rxdb-adapter-sqlite-wasm
+      '@aiao/utils':
+        specifier: workspace:*
+        version: link:../utils
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
@@ -1366,6 +1372,9 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../rxdb
+      '@aiao/utils':
+        specifier: workspace:*
+        version: link:../utils
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
@@ -1388,6 +1397,9 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../rxdb
+      '@aiao/utils':
+        specifier: workspace:*
+        version: link:../utils
       idb-keyval:
         specifier: ^6.3.0
         version: 6.3.0

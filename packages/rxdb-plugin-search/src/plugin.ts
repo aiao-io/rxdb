@@ -13,6 +13,7 @@ import {
   type IRxDBPlugin,
   type Plugin
 } from '@aiao/rxdb';
+import type { LifecycleScope, ScopeDisposer } from '@aiao/utils';
 import { filter, firstValueFrom, from, ignoreElements, isObservable, merge, type Observable } from 'rxjs';
 
 import type { FtsField } from '@aiao/rxdb-adapter-sqlite-core';
@@ -105,8 +106,6 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
   readonly #entityNameToTable = new Map<string, string>();
   /** 活动 handle 列表，entity 事件派发时遍历。 */
   readonly #handleRegistrations = new Set<HandleRegistration>();
-  /** 便于 destroy() 时解除 addEventListener */
-  readonly #entityEventListeners: Array<{ type: string; listener: (e: EntityChangeEvent) => void }> = [];
   #engine?: SearchEngine;
 
   readonly name: Uncapitalize<string> = 'search';
@@ -136,12 +135,13 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     assertSupportedAdapter(rxdb?.config?.sync?.local?.adapter);
   }
 
-  install(): Promise<void> {
+  install(scope: LifecycleScope): Promise<void> {
     this.#installFailure = undefined;
     this.#primeSearchEntries();
     // entity 事件通道在同步阶段就挂载：保证用户在 `await ready` 之前调用 `db.search()`
     // 也能立即接到数据变更（避免 install 失败 / 慢 install 期间 silent miss）。
-    this.#bindEntityEvents();
+    // 解绑不再由本插件记账——安装失败时宿主会释放 scope，正常拆卸时同样如此。
+    scope.acquire(() => this.#bindEntityEvents(), 'search:entityEvents');
     // 立刻返回；真实安装在 adapter 可用后异步执行，结果通过 {@link ready} 暴露
     const installPromise = this.#runInstall()
       .then(() => {
@@ -151,7 +151,6 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
         if (this.#installPromise !== installPromise) throw error;
         this.#phase = 'failed';
         this.#installFailure = { error };
-        this.#unbindEntityEvents();
         this.#handleRegistrations.clear();
         this.#engine = undefined;
         throw error;
@@ -161,9 +160,17 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     return installPromise;
   }
 
+  /**
+   * 复位插件状态机与各级缓存。
+   *
+   * @remarks
+   * 本插件**不**声明 `lifecycle: 'scoped'`：entity 事件监听已经交给作用域，但
+   * {@link SearchPluginPhase} 描述的是插件实例跨纪元的可用性（`ready` 在未安装、
+   * 安装中、已拆卸时给出的错误各不相同），不属于「本次连接产生的宿主改动」。
+   * 因此宿主释放完作用域后仍会调用这里，把状态机复位到可重装的起点。
+   */
   destroy(): void {
     this.#phase = 'destroyed';
-    this.#unbindEntityEvents();
     this.#handleRegistrations.clear();
     this.#searchEntries.clear();
     this.#entityNameToTable.clear();
@@ -462,8 +469,8 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     );
   }
 
-  #bindEntityEvents(): void {
-    if (this.#entityEventListeners.length > 0) return;
+  /** 挂上三路 entity 事件监听，返回解绑它们的撤销条目。 */
+  #bindEntityEvents(): ScopeDisposer {
     const dispatch = (event: EntityChangeEvent) => {
       if (this.#handleRegistrations.size === 0) return;
       const changedTables = new Set<string>();
@@ -487,15 +494,12 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     const types = [ENTITY_LOCAL_CREATE_EVENT, ENTITY_LOCAL_UPDATE_EVENT, ENTITY_LOCAL_REMOVE_EVENT] as const;
     for (const type of types) {
       this.rxdb.addEventListener(type, dispatch as never);
-      this.#entityEventListeners.push({ type, listener: dispatch });
     }
-  }
-
-  #unbindEntityEvents(): void {
-    for (const { type, listener } of this.#entityEventListeners) {
-      this.rxdb.removeEventListener(type as never, listener as never);
-    }
-    this.#entityEventListeners.length = 0;
+    return () => {
+      for (const type of types) {
+        this.rxdb.removeEventListener(type as never, dispatch as never);
+      }
+    };
   }
 
   #createMigrationStore(repo: Pick<IRepository<typeof RxDBMigration>, 'find' | 'create'>): MigrationRecordStore {

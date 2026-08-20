@@ -52,6 +52,7 @@
   },
   "dependencies": {
     "@aiao/rxdb": "workspace:*",
+    "@aiao/utils": "workspace:*",
     "idb-keyval": "^6.3.0",
     "rxjs": "^7.8.2"
   },

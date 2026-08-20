@@ -29,6 +29,9 @@
   },
   "references": [
     {
+      "path": "../utils/tsconfig.lib.json"
+    },
+    {
       "path": "../rxdb/tsconfig.lib.json"
     }
   ]
