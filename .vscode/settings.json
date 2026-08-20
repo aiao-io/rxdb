@@ -114,7 +114,8 @@
     "vite",
     "vtable",
     "vueuse",
-    "Wechat"
+    "Wechat",
+    "Wujie"
   ],
   "chat.promptFilesRecommendations": {
     "speckit.constitution": true,

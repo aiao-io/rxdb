@@ -28,7 +28,7 @@ describe('version 常量', () => {
     });
 
     expect(rxdb.config.dbName).toBe('version-spec@0_1');
-    // 版本号已升到 0.0.21，若后缀仍由 version 推导，这里会变成 `@0_0_21`
+    // 版本号已升到 0.0.25，若后缀仍由 version 推导，这里会变成 `@0_0_25`
     expect(rxdb.config.dbName).not.toContain(RXDB_VERSION.replace(/\./g, '_'));
   });
 });

@@ -4,7 +4,7 @@
 
 ## 1. semver 约定
 
-遵循 [semver 2.0](https://semver.org/)。当前处于 `0.x`（`0.0.21`），次版本即可含破坏性变更，公开 API 尚未冻结。1.0 发布即进入稳定维护。
+遵循 [semver 2.0](https://semver.org/)。当前处于 `0.x`（公开包版本 `0.0.25`），次版本即可含破坏性变更，公开 API 尚未冻结。1.0 发布即进入稳定维护。
 
 所有 `@aiao/*` 采用 Nx **fixed release group**，同步版本号（`nx.json` › `release.projects: ["packages/*"]`）。
 

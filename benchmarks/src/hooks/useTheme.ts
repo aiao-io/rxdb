@@ -1,3 +1,10 @@
+import {
+  getWujieHost,
+  parseResolvedTheme,
+  requestHostTheme,
+  subscribeHostTheme,
+  type ResolvedTheme
+} from '@modules/wujie';
 import { useCallback, useEffect, useState } from 'react';
 
 const THEME_KEY = 'rxdb-benchmarks-theme';
@@ -11,9 +18,14 @@ function isTheme(value: unknown): value is Theme {
 }
 
 /**
- * 从 localStorage 或系统偏好中获取当前主题
+ * 从宿主 props、localStorage 或系统偏好中获取当前主题
  */
 function getCurrentTheme(): Theme {
+  const host = getWujieHost();
+  if (host?.props && Object.hasOwn(host.props, 'theme')) {
+    return parseResolvedTheme(host.props.theme);
+  }
+  if (typeof window === 'undefined') return LIGHT_THEME;
   const saved = localStorage.getItem(THEME_KEY);
   if (isTheme(saved)) return saved;
 
@@ -25,26 +37,22 @@ function getCurrentTheme(): Theme {
  */
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(getCurrentTheme);
+  const hosted = Boolean(getWujieHost());
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
+    if (!hosted) localStorage.setItem(THEME_KEY, theme);
+  }, [hosted, theme]);
 
-  // 监听来自父页面的主题同步消息
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'setTheme' && isTheme(event.data.theme)) {
-        setThemeState(event.data.theme);
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  useEffect(() => subscribeHostTheme(next => setThemeState(next as ResolvedTheme)), []);
 
+  // 只有用户主动切换才回推宿主；subscribeHostTheme 收到的下发不回推，否则两端互相触发。
+  // 副作用放在 updater 外面 —— StrictMode 会把 updater 调两次。
   const toggleTheme = useCallback(() => {
-    setThemeState(prev => (prev === LIGHT_THEME ? DARK_THEME : LIGHT_THEME));
-  }, []);
+    const next = theme === LIGHT_THEME ? DARK_THEME : LIGHT_THEME;
+    setThemeState(next);
+    requestHostTheme(next);
+  }, [theme]);
 
   return {
     theme,

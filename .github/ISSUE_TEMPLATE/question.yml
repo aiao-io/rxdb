@@ -1,0 +1,46 @@
+name: 💬 使用问题
+description: 咨询用法、兼容性或设计问题
+title: '[Question]: '
+labels: ['question', 'triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        使用问题请先查阅[文档](https://rxdb.netlify.app)和已有 Issue。
+
+  - type: textarea
+    id: question
+    attributes:
+      label: 你的问题
+      description: 描述你想实现的目标、当前行为和期望行为。
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 环境与上下文
+      description: 请填写包、框架、适配器、运行时和版本。
+      value: |
+        - Aiao 版本:
+        - 框架 (Angular/React/Vue + 版本):
+        - 存储适配器:
+        - 运行时 (浏览器 / Node / Electron / Tauri):
+        - Node.js / pnpm 版本:
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 最小示例
+      description: 如适用，请提供可运行代码、仓库、StackBlitz 或错误日志。
+      render: shell
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 确认项
+      options:
+        - label: 我已阅读相关文档并搜索过已有 Issue
+          required: true

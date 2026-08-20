@@ -69,6 +69,7 @@ const config: Config = {
   ],
   plugins: [
     ['./src/plugins/tailwind-config.js', {}],
+    ['./src/plugins/demo-routes.js', {}],
     [
       'ideal-image',
       {

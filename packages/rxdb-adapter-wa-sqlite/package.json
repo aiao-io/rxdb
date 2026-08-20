@@ -1,6 +1,19 @@
 {
   "name": "@aiao/rxdb-adapter-wa-sqlite",
   "version": "0.0.25",
+  "description": "wa-sqlite adapter for browser-local SQLite storage.",
+  "homepage": "https://rxdb.netlify.app/docs/adapters",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "wa-sqlite",
+    "sqlite",
+    "wasm",
+    "opfs"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",

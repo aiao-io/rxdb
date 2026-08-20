@@ -179,4 +179,30 @@ describe('urlJoin', () => {
       expect(urlJoin('/a', 'b/./c')).toEqual('/a/b/c');
     });
   });
+
+  describe('CS-010 / CS-011 长 `/` 串不得回溯（ReDoS）', () => {
+    // 原 `/\/+$/`：`/` 串后面还有内容时，每个起点都要把整串吃完再逐个回退 → O(n²)。
+    // 触发条件是「长 `/` 串不在末尾」，串在末尾时首次尝试就命中，反而不回溯。
+    const hostile = `a${'/'.repeat(30_000)}b`;
+
+    it('片段中部的超长 `/` 串线性处理', () => {
+      const startedAt = performance.now();
+
+      expect(urlJoin('/root', hostile)).toEqual(`/root/${hostile}`);
+      expect(performance.now() - startedAt).toBeLessThan(200);
+    });
+
+    it('首段前缀里的超长 `/` 串线性处理', () => {
+      const startedAt = performance.now();
+
+      expect(urlJoin(`http://${hostile}`, 'c')).toEqual(`http://${hostile}/c`);
+      expect(performance.now() - startedAt).toBeLessThan(200);
+    });
+
+    it('片段首尾的 `/` 仍被剥掉，中间的仍保留', () => {
+      expect(urlJoin('/a/b//')).toEqual('/a/b');
+      expect(urlJoin('/root', 'a///')).toEqual('/root/a');
+      expect(urlJoin('/root', 'a//b')).toEqual('/root/a//b');
+    });
+  });
 });

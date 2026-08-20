@@ -143,6 +143,9 @@
     },
     {
       "path": "./packages/rxdb-adapter-tauri"
+    },
+    {
+      "path": "./modules/wujie"
     }
   ]
 }

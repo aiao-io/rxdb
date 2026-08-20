@@ -1,6 +1,19 @@
 {
   "name": "@aiao/code-editor-angular",
   "version": "0.0.25",
+  "description": "Angular integration for the Aiao CodeMirror 6 editor.",
+  "homepage": "https://rxdb.netlify.app/docs/code-editor",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "angular",
+    "codemirror",
+    "code-editor",
+    "typescript"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
