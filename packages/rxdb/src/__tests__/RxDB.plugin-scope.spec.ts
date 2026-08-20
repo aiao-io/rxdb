@@ -525,6 +525,65 @@ describe('停机窗口与跨纪元迟到任务', () => {
     expect(scopes[0].state).toBe('disposed');
   });
 
+  it('停机跨过一次被推迟的安装：在飞的 #track_plugin_install 不往已释放的作用域里装', async () => {
+    const errors: string[] = [];
+    vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      errors.push(args.map(arg => (arg instanceof Error ? arg.message : String(arg))).join(' '));
+    });
+    const database = createDatabase();
+    const seen: string[] = [];
+    let openGate: (() => void) | undefined;
+    let installs = 0;
+    database.use((): IRxDBPlugin => ({
+      name: 'straggler',
+      lifecycle: 'scoped',
+      install: scope => {
+        installs += 1;
+        const round = installs;
+        seen.push(`install${round}:${scope.state}`);
+        // 第 1 纪元登记一条**异步**撤销（与 storage 插件的 `await storage.destroy()` 同形）：
+        // 它把上一纪元的释放卡住，撑开的正是本用例要的那个窗口——不是微任务间隙。
+        scope.acquire(
+          () => () =>
+            round === 1 ?
+              new Promise<void>(resolve => {
+                openGate = resolve;
+              })
+            : undefined,
+          `entry${round}`
+        );
+      }
+    }));
+    const schemaInit = vi.spyOn(database.schemaManager, 'init').mockImplementationOnce(() => {
+      throw new Error('schema boom');
+    });
+
+    // 1. init() 失败 → catch 里 void #release_connection_scope()，第 1 纪元的释放卡在闸门上
+    expect(() => database.init()).toThrow('schema boom');
+    schemaInit.mockRestore();
+
+    // 2. 同步重试：第 2 纪元的插件作用域**同步**建好，install() 被推迟到第 1 纪元释放之后
+    database.init();
+    await tick();
+    expect(seen).toEqual(['install1:active']);
+
+    // 3. 停机：第 2 纪元那个还空着的插件作用域连同连接作用域一起被释放
+    await database.disconnectAll();
+
+    // 4. 放闸 → 被推迟的那一轮恢复。此时手里的 scope 已经废了，不该再往里装
+    openGate?.();
+    await tick();
+    await tick();
+
+    expect(seen).toEqual(['install1:active']);
+    expect(errors).toEqual([]);
+
+    // 下一次 connect() 才是合法安装点，且拿到的是全新的活作用域
+    await database.connect('sqlite');
+
+    expect(seen).toEqual(['install1:active', 'install2:active']);
+  });
+
   it('停机后才恢复的在飞 connect() 不把插件重装进一个 init() 从没走过的纪元', async () => {
     const database = createDatabase();
     const scopes: LifecycleScope[] = [];

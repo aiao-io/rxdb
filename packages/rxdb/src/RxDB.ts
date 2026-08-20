@@ -872,12 +872,26 @@ export class RxDB {
     this.#plugin_install_promises.set(plugin, tracked);
   }
 
+  /**
+   * @remarks
+   * {@link RxDB.#install_one_plugin} 的判定只覆盖**发起**安装的那一刻；这里的 `await` 之后
+   * 是第二个入口——被推迟的这一轮可能整个跨过了一次停机（`init()` 失败 → 同步重试建出新纪元
+   * 的作用域 → `disconnectAll()` 把它连同连接作用域一起释放 → 上一纪元的释放这才落地）。
+   * 那时 `install()` 拿到的是一个已释放的作用域，首个 `acquire()` 抛 `LifecycleScopeDisposedError`，
+   * 而抛点**之前**的插件副作用照跑不误（`search` 的 `#primeSearchEntries()` 就在那一段）。
+   *
+   * 判据用 `(plugin, scope)` 身份而不是 `scope.state`——与 {@link RxDB.#discard_plugin_scope}
+   * 同形，且同时覆盖「纪元没了」（`#release_connection_scope()` 清空过这张表）与「已经换了
+   * 更晚的纪元」两种情况。手里这一个不再登记在册时直接收手：它的资源已经随纪元释放，
+   * 没有需要回收的残留。
+   */
   async #track_plugin_install(plugin: IRxDBPlugin): Promise<void> {
     // 作用域**同步**建好（登记顺序即插件顺序，`#plugin_scopes` 立刻可见），
     // 只把 `install()` 推到上一纪元释放完之后。理由见 {@link RxDB.#connection_release}。
     const scope = this.#create_plugin_scope(plugin);
     const pending_release = this.#connection_release;
     if (pending_release !== undefined) await pending_release;
+    if (this.#plugin_scopes.get(plugin) !== scope) return;
     try {
       const result = plugin.install(scope);
       if (isPromise(result)) await result;
