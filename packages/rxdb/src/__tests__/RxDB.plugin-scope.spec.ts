@@ -401,4 +401,54 @@ describe('init() 失败路径与作用域寿命对齐', () => {
 
     expect(log).toEqual(['release', 'release']);
   });
+
+  it('init() 抛错后**同步**重试：新纪元照常安装，不被上一纪元尚未跑完的撤销挡住', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const database = createDatabase();
+    const scopes: LifecycleScope[] = [];
+    // 与 workspace / storage 的「本纪元已装」守卫同形：以某个实例字段是否有值来判断。
+    // 上一纪元的撤销把这个字段清空，新纪元的 install() 才能重新登记。
+    let handle: object | undefined;
+    database.use((): IRxDBPlugin => ({
+      name: 'guardedPlugin',
+      lifecycle: 'scoped',
+      install: scope => {
+        if (handle !== undefined) return;
+        scopes.push(scope);
+        scope.acquire(() => {
+          handle = {};
+          return () => void (handle = undefined);
+        }, 'guarded:handle');
+        // 守卫字段之后还有别的条目——与 workspace 同形（`workspace:store` 之后还有
+        // channel / 监听器 / 事件泵）。逆序释放下清空守卫字段的那一条**不是第一个**跑的，
+        // 于是它落在 `await` 之后：同步段结束时字段仍是上一纪元的残值。
+        scope.acquire(() => () => undefined, 'guarded:later');
+      }
+    }));
+    const schemaInit = vi.spyOn(database.schemaManager, 'init').mockImplementationOnce(() => {
+      throw new Error('schema boom');
+    });
+
+    expect(() => database.init()).toThrow('schema boom');
+    // 关键：**不** await —— init() 是同步 API，修好配置后紧接着重试是被明确支持的路径，
+    // 而此刻上一纪元的 disposer 一条都还没跑（作用域释放整条链都在微任务里）。
+    schemaInit.mockRestore();
+    database.init();
+    await tick();
+
+    expect(scopes).toHaveLength(2);
+    expect(scopes[1]).not.toBe(scopes[0]);
+    expect(scopes[0].state).toBe('disposed');
+    expect(scopes[1].state).toBe('active');
+    // 新纪元真的登记了东西：守卫读到的是上一纪元清空后的值，不是残值
+    expect(scopes[1].getEntries()).toEqual([
+      { label: 'guarded:handle', children: [] },
+      { label: 'guarded:later', children: [] }
+    ]);
+    expect(handle).toBeDefined();
+
+    await database.disconnectAll();
+
+    expect(handle).toBeUndefined();
+  });
 });

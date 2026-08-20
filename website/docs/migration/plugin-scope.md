@@ -16,7 +16,11 @@
 +install(scope: LifecycleScope) {
 +  scope.acquire(() => {
 +    const channel = new BroadcastChannel('example');
-+    return { value: channel, dispose: () => channel.close() };
++    this.#channel = channel;
++    return () => {
++      this.#channel = undefined;
++      channel.close();
++    };
 +  }, 'example:channel');
 +
 +  scope.acquire(() => {
@@ -100,13 +104,14 @@ await db.searchPlugin.ready;
 
 ### 工作区资源获取失败改从 `install()` 抛出
 
-IndexedDB 打开失败、BroadcastChannel 创建失败等过去发生在构造函数里，现在推迟到 `install()`。错误从 `new RxDB(...)` 的位置转移到 `connect()`：
+IndexedDB 打开失败、BroadcastChannel 创建失败等过去发生在插件构造函数里，也就是 `use()` 调用点；现在推迟到 `install()`。错误从 `use()` 的位置转移到 `connect()`：
 
 ```diff
+ const db = new RxDB({ /* … */ });
 -try {
--  const db = new RxDB({ /* … */ plugins: [rxDBPluginWorkspace()] });
+-  db.use(rxDBPluginWorkspace);
 -} catch (err) { /* … */ }
-+const db = new RxDB({ /* … */ plugins: [rxDBPluginWorkspace()] });
++db.use(rxDBPluginWorkspace);
 +try {
 +  await db.connect();
 +} catch (err) { /* … */ }
@@ -115,6 +120,30 @@ IndexedDB 打开失败、BroadcastChannel 创建失败等过去发生在构造�
 ### 跨 tab 消息只在活纪元内投递
 
 BroadcastChannel 按纪元建立和关闭。断开连接后的草稿增删不会广播给其他 tab，也不会抛错——静默跳过。需要跨 tab 同步就先确保连接是活的。
+
+### `db.storage` 的可用窗口收窄到连接期间
+
+存储服务过去在 `use()` 时就建好并一直挂着；现在它是纪元资源：`connect()` 装上、`disconnectAll()` 摘掉。
+
+```diff
+ db.use(rxDBPluginStorage);
+-await db.storage.list();       // use() 之后即可用
++await db.connect();
++await db.storage.list();       // 连接期间才有
+```
+
+`db.storage` 的类型仍是非可选的 `RxdbFileStorage`——它描述的是**连接期间**的形态，也是唯一该碰它的时候。断开连接后属性会被删掉，此时读到的是 `undefined`，类型不会提醒你。断连后仍要跑的收尾逻辑（撤销 object URL 之类）要么放在 `disconnectAll()` 之前，要么自己先判空。
+
+插件实例上的 `storage` 访问器则如实标成了可选：
+
+```diff
+-readonly storage: RxdbFileStorage;
++get storage(): RxdbFileStorage | undefined;
+```
+
+直接持有插件实例（而不是走 `db.storage`）的代码需要补一次判空。
+
+同一个 RxDB 实例上装了两个 storage 插件实例时，后装的那个整个 `install()` 都是空操作——不再有 `#ownsStorage` 之类的记账，「谁装谁拆」由作用域保证。
 
 ## 相关
 

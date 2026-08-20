@@ -87,7 +87,15 @@ export const rxdbStorage = rxDBPluginStorage;
 
 declare module '@aiao/rxdb' {
   interface RxDB {
-    /** 安装 storage 插件后可用的 OPFS 文件服务。 */
+    /**
+     * 安装 storage 插件后、**连接期间**可用的 OPFS 文件服务。
+     *
+     * @remarks
+     * 属性本身是纪元资源：`connect()` 时挂上，`disconnectAll()` 时删掉。
+     * 这里**故意**不标成可选——它描述的是连接期间的形态，也是唯一该访问它的时候；
+     * 标可选会让每一个正常调用点都背上一次无意义的判空。断连后读到的是 `undefined`，
+     * 断连后仍要跑的收尾逻辑请自行判空，或挪到 `disconnectAll()` 之前。
+     */
     storage: RxdbFileStorage;
   }
 }

@@ -79,9 +79,13 @@ scope.acquire(() => {
 }, 'example:everything');
 
 // ✅ N 个资源写 N 次 acquire()，第二步失败时第一步已经在清单里
-const store = scope.acquire(() => {
+scope.acquire(() => {
   const opened = openStore();
-  return { value: opened, dispose: () => opened.close() };
+  this.#store = opened;
+  return () => {
+    this.#store = undefined;
+    opened.close();
+  };
 }, 'example:store');
 scope.acquire(() => {
   const sub = source$.subscribe(handler);
@@ -89,7 +93,9 @@ scope.acquire(() => {
 }, 'example:subscription');
 ```
 
-需要拿到 `setup()` 造出的值时，返回 `{ value, dispose }`；只需要清理动作时直接返回清理函数。
+`setup()` 只返回**清理函数**，或返回 `undefined` 表示这一步无需清理。需要在别处用到造出来的值时，在 `setup()` 里赋给实例字段，并在清理函数里把字段复位——字段的有无就是「本纪元装没装」，不需要额外的布尔量。
+
+`acquire()` 的返回值是**提前单独撤销这一条**的句柄，不是资源本身；不需要提前撤销就忽略它。
 
 ### 子作用域
 

@@ -135,6 +135,22 @@ export class RxDB {
    */
   #plugin_scopes = new Map<IRxDBPlugin, LifecycleScope>();
 
+  /**
+   * 上一纪元尚未结算的释放；没有在飞的释放时为 `undefined`。
+   *
+   * @remarks
+   * 存在的唯一理由是 `init()` 是**同步** API：失败回滚只能 `void` 掉释放 Promise
+   * （见 {@link RxDB.#release_connection_scope}），而紧接着的**同步**重试是被明确支持的路径
+   * （修好 repository 配置后再 `init()` 一次）。此时上一纪元的撤销动作大多还排在微任务里——
+   * 逆序释放只有**最后登记**的那一条落在同步段内，其余都在 `await` 之后。
+   *
+   * 插件普遍用「某个实例字段是否有值」判断「本纪元已装」（`workspace` 的 store、
+   * `storage` 挂在 `rxdb` 上的属性）。不等这批撤销跑完就开新纪元，守卫读到的是上一纪元的
+   * 残值，`install()` 直接跳过；随后旧撤销再把字段清空，新纪元就成了一个什么都没登记的空壳，
+   * 而且**不报错**。所以新纪元的 `install()` 统一在这个 Promise 之后才执行。
+   */
+  #connection_release?: Promise<void>;
+
   #connected_sub = new BehaviorSubject<boolean>(false);
 
   #event_map = new Map<keyof RxDBEventMap, Set<EventListener<RxDBEvent>>>();
@@ -345,6 +361,11 @@ export class RxDB {
    * @remarks
    * 撤销按**配置对象身份**守卫：释放时表里已经换成别人的配置，说明有更晚的注册覆盖了本次，
    * 此时什么都不做——否则先装后卸的插件会把后来者的注册一并删掉。
+   *
+   * 传了 `scope` 时**写表这一步本身**就在 `setup` 里：作用域已不是 `active` 时
+   * `acquire()` 同步抛且不执行 `setup`，注册于是也不发生。写在 `acquire()` 之外的话，
+   * 这条注册会留在表里而没有任何人能撤销它——正是本原语「setup 抛错时这一条不进清单」
+   * 要杜绝的那种孤儿。
    */
   public repository<RT extends RepositoryInstance>(
     repositoryName: string,
@@ -352,9 +373,14 @@ export class RxDB {
     scope?: LifecycleScope
   ): this;
   public repository(repositoryName: string, config: IRepositoryConfig, scope?: LifecycleScope): this {
-    this.#repository_config_map.set(repositoryName, config);
-    if (scope === undefined) return this;
-    scope.acquire(() => () => this.#unregister_repository(repositoryName, config), `rxdb:repository:${repositoryName}`);
+    if (scope === undefined) {
+      this.#repository_config_map.set(repositoryName, config);
+      return this;
+    }
+    scope.acquire(() => {
+      this.#repository_config_map.set(repositoryName, config);
+      return () => this.#unregister_repository(repositoryName, config);
+    }, `rxdb:repository:${repositoryName}`);
     return this;
   }
 
@@ -816,7 +842,11 @@ export class RxDB {
   }
 
   async #track_plugin_install(plugin: IRxDBPlugin): Promise<void> {
+    // 作用域**同步**建好（登记顺序即插件顺序，`#plugin_scopes` 立刻可见），
+    // 只把 `install()` 推到上一纪元释放完之后。理由见 {@link RxDB.#connection_release}。
     const scope = this.#create_plugin_scope(plugin);
+    const pending_release = this.#connection_release;
+    if (pending_release !== undefined) await pending_release;
     try {
       const result = plugin.install(scope);
       if (isPromise(result)) await result;
@@ -866,15 +896,25 @@ export class RxDB {
    * @remarks
    * 置空是**同步**的，dispose 是异步的——`init()` 的失败回滚拿不到 `await`，靠的正是这一点：
    * 同步段结束时字段已经空了，下一次 `init()` 一定建新的，不会碰到正在释放的旧对象。
+   *
+   * 但「拿到新作用域」不等于「旧纪元已经退干净」：撤销动作本身还在微任务里排着。
+   * 结果记进 {@link RxDB.#connection_release}，新纪元的 `install()` 会等它落地。
    */
   #release_connection_scope(): Promise<void> {
     const scope = this.#connection_scope;
     this.#connection_scope = undefined;
     this.#plugin_scopes.clear();
     if (scope === undefined) return Promise.resolve();
-    return scope.dispose().catch((error: unknown) => {
+    const release = scope.dispose().catch((error: unknown) => {
       console.error('[RxDB] Connection scope dispose failed:', error);
     });
+    this.#connection_release = release;
+    // 结算后清掉自己那一份：没有在飞的释放时后续安装不该白等一个微任务。
+    // 身份比较是必需的——期间可能已经开始了更晚的一次释放，那一份不能被这里抹掉。
+    void release.then(() => {
+      if (this.#connection_release === release) this.#connection_release = undefined;
+    });
+    return release;
   }
 
   /** 撤销 {@link RxDB.repository} 的一次注册，按配置对象身份守卫。 */
