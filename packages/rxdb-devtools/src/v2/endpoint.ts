@@ -30,14 +30,14 @@ import { createDevToolsSession } from './session.js';
 import type { DevToolsTransferOutcome, DevToolsTransferTable } from './transfer.js';
 import { createDevToolsTransferTable } from './transfer.js';
 import type {
-    DevToolsRequestPayload,
-    DevToolsTransferChunkPayload,
-    DevToolsTransferIdPayload,
-    DevToolsTransferStartPayload,
-    DevToolsV2EnvelopeShape,
-    DevToolsV2Message,
-    DevToolsV2MessageOptions,
-    DevToolsV2MessageType
+  DevToolsRequestPayload,
+  DevToolsTransferChunkPayload,
+  DevToolsTransferIdPayload,
+  DevToolsTransferStartPayload,
+  DevToolsV2EnvelopeShape,
+  DevToolsV2Message,
+  DevToolsV2MessageOptions,
+  DevToolsV2MessageType
 } from './wire.js';
 import { createDevToolsV2Message, isDevToolsV2Envelope, isDevToolsV2Message } from './wire.js';
 

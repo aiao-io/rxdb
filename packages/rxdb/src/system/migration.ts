@@ -3,12 +3,12 @@ import { Entity } from '../entity/entity.decorator.js';
 import { ENTITY_STATIC_TYPES } from '../entity/entity.interface.js';
 import { PropertyType } from '../entity/metadata-options.interface.js';
 import {
-    CountOptions,
-    FindAllOptions,
-    FindByCursorOptions,
-    FindOneOptions,
-    FindOneOrFailOptions,
-    FindOptions
+  CountOptions,
+  FindAllOptions,
+  FindByCursorOptions,
+  FindOneOptions,
+  FindOneOrFailOptions,
+  FindOptions
 } from '../repository/query-options.interface.js';
 import { RXDB_CHANGE_CODEC_VERSION } from './change-codec.js';
 import { RxDBMigrationOrderByField, RxDBMigrationRuleGroup, RxDBMigrationStaticTypes } from './types.js';

@@ -5,10 +5,10 @@ import { EntityType } from '../entity/entity.interface.js';
 import { setSafeObjectKey } from '../entity/entity.utils.js';
 import generate_many_to_many_entity, { ManyToManyRelation } from '../entity/many-to-many-entity.js';
 import {
-    EntityPropertyMetadata,
-    EntityRelationManyToManyMetadata,
-    EntityRelationMetadata,
-    RelationKind
+  EntityPropertyMetadata,
+  EntityRelationManyToManyMetadata,
+  EntityRelationMetadata,
+  RelationKind
 } from '../entity/metadata-options.interface.js';
 import { EntityMetadata } from '../entity/metadata.interface.js';
 import { getEntityMetadata } from '../rxdb-utils.js';

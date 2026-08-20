@@ -1,34 +1,34 @@
 import type { AdapterRepositoryConstructor, EntityMetadata, EntityType, IRepository, IRxDBAdapter } from '@aiao/rxdb';
 import {
-    assertSupportedRxDBSystemVersions,
-    getEntityMetadata,
-    getEntityMutations,
-    getRxDBSystemVersionState,
-    isCurrentRxDBSystemVersion,
-    RxDB,
-    RXDB_CHANGE_CODEC_WATERMARK,
-    RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
-    RXDB_SYSTEM_SCHEMA_WATERMARK,
-    RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
-    RxDBAdapterLocalBase,
-    RxDBBranch,
-    RxDBChange,
-    RxDBMigration,
-    RxDBMutationsMap,
-    RxDBSystemMigrationLockError,
-    SwitchBranchOptions,
-    SwitchVersionActions,
-    TransactionBeginEvent,
-    TransactionCommitEvent,
-    TransactionRollbackEvent,
-    uuid
+  assertSupportedRxDBSystemVersions,
+  getEntityMetadata,
+  getEntityMutations,
+  getRxDBSystemVersionState,
+  isCurrentRxDBSystemVersion,
+  RxDB,
+  RXDB_CHANGE_CODEC_WATERMARK,
+  RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
+  RXDB_SYSTEM_SCHEMA_WATERMARK,
+  RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
+  RxDBAdapterLocalBase,
+  RxDBBranch,
+  RxDBChange,
+  RxDBMigration,
+  RxDBMutationsMap,
+  RxDBSystemMigrationLockError,
+  SwitchBranchOptions,
+  SwitchVersionActions,
+  TransactionBeginEvent,
+  TransactionCommitEvent,
+  TransactionRollbackEvent,
+  uuid
 } from '@aiao/rxdb';
 import {
-    createKeyring,
-    EncryptedConfigurationError,
-    type Keyring,
-    type UnlockOptions,
-    validateEncryptedPropertyMetadata
+  createKeyring,
+  EncryptedConfigurationError,
+  type Keyring,
+  type UnlockOptions,
+  validateEncryptedPropertyMetadata
 } from '@aiao/rxdb-adapter-encrypted';
 import { AsyncQueueExecutor } from '@aiao/utils';
 import { proxy } from 'comlink';
@@ -41,24 +41,24 @@ import { SqliteRepository } from './repository/SqliteRepository.js';
 import { SqliteTreeRepository } from './repository/SqliteTreeRepository.js';
 import { SQLiteChangeType } from './sqlite-backend.interface.js';
 import type {
-    RowId,
-    SqliteChangeErrorEvent,
-    SqliteChangeErrorListener,
-    SqliteChangeEvent,
-    SQLiteCompatibleType,
-    SqliteResult
+  RowId,
+  SqliteChangeErrorEvent,
+  SqliteChangeErrorListener,
+  SqliteChangeEvent,
+  SQLiteCompatibleType,
+  SqliteResult
 } from './sqlite-core.interface.js';
 import {
-    build_set_sequence_statements,
-    chunkBySqliteBindLimit,
-    type EncryptionContext,
-    get_table_name_by_entity_type,
-    get_table_name_by_metadata,
-    getTableColumnIndexName,
-    isSqlResultEmpty,
-    isTableExistedSql,
-    quote_sql_identifier,
-    RxDBAdapterSqliteError
+  build_set_sequence_statements,
+  chunkBySqliteBindLimit,
+  type EncryptionContext,
+  get_table_name_by_entity_type,
+  get_table_name_by_metadata,
+  getTableColumnIndexName,
+  isSqlResultEmpty,
+  isTableExistedSql,
+  quote_sql_identifier,
+  RxDBAdapterSqliteError
 } from './sqlite-core.utils.js';
 import { create_tables_sql } from './table/create_tables_sql.js';
 import { remove_all_triggers_sql } from './table/remove_trigger_sql.js';

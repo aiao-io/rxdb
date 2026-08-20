@@ -1,38 +1,38 @@
 import type {
-    EntityMetadata,
-    EntityType,
-    IRepository,
-    IRxDBAdapter,
-    RawQueryResult,
-    RestoreEntityOptions,
-    RxDBMutationsMap,
-    SwitchBranchOptions,
-    SwitchVersionActions
+  EntityMetadata,
+  EntityType,
+  IRepository,
+  IRxDBAdapter,
+  RawQueryResult,
+  RestoreEntityOptions,
+  RxDBMutationsMap,
+  SwitchBranchOptions,
+  SwitchVersionActions
 } from '@aiao/rxdb';
 import {
-    assertSupportedRxDBSystemVersions,
-    getEntityMetadata,
-    getEntityStatus,
-    getRxDBSystemVersionState,
-    isCurrentRxDBSystemVersion,
-    RxDB,
-    RXDB_CHANGE_CODEC_WATERMARK,
-    RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
-    RXDB_SYSTEM_SCHEMA_WATERMARK,
-    RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
-    RxDBAdapterLocalBase,
-    RxDBBranch,
-    RxDBChange,
-    RxDBMigration,
-    RxDBSystemMigrationLockError,
-    TransactionFun
+  assertSupportedRxDBSystemVersions,
+  getEntityMetadata,
+  getEntityStatus,
+  getRxDBSystemVersionState,
+  isCurrentRxDBSystemVersion,
+  RxDB,
+  RXDB_CHANGE_CODEC_WATERMARK,
+  RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
+  RXDB_SYSTEM_SCHEMA_WATERMARK,
+  RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
+  RxDBAdapterLocalBase,
+  RxDBBranch,
+  RxDBChange,
+  RxDBMigration,
+  RxDBSystemMigrationLockError,
+  TransactionFun
 } from '@aiao/rxdb';
 import {
-    createKeyring,
-    EncryptedConfigurationError,
-    type Keyring,
-    type UnlockOptions,
-    validateEncryptedPropertyMetadata
+  createKeyring,
+  EncryptedConfigurationError,
+  type Keyring,
+  type UnlockOptions,
+  validateEncryptedPropertyMetadata
 } from '@aiao/rxdb-adapter-encrypted';
 import { AsyncQueueExecutor } from '@aiao/utils';
 import type { QueryOptions, Results } from '@electric-sql/pglite';
@@ -42,19 +42,19 @@ import generate_entity_inserts_sql, { generate_entity_upserts_sql } from './enti
 import { handle_rxdb_change } from './handle_rxdb_change.js';
 import { PgliteKeyringStorage } from './keyring/pglite-keyring-storage.js';
 import {
-    ADAPTER_NAME,
-    PGliteChangeEvent,
-    PGliteChangeType,
-    PGliteClientOptions,
-    PgliteTableColumn
+  ADAPTER_NAME,
+  PGliteChangeEvent,
+  PGliteChangeType,
+  PGliteClientOptions,
+  PgliteTableColumn
 } from './pglite.interface.js';
 import {
-    type EncryptionContext,
-    getTableColumnIndexName,
-    getTableNameByMetadata,
-    quoteIdentifier,
-    RxdbAdapterPGliteError,
-    rxDBColumnTypeToPGliteTypeIndexName
+  type EncryptionContext,
+  getTableColumnIndexName,
+  getTableNameByMetadata,
+  quoteIdentifier,
+  RxdbAdapterPGliteError,
+  rxDBColumnTypeToPGliteTypeIndexName
 } from './pglite.utils.js';
 import { IPGliteClient, PGliteClient } from './PGliteClient.js';
 import { resolveQueryCacheTarget, resolveUpdatedAtColumn } from './query-cache/query_cache_target.js';

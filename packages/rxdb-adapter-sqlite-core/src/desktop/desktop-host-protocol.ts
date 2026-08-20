@@ -13,9 +13,9 @@
 import { SQLiteChangeType } from '../sqlite-backend.interface.js';
 import type { SqliteChangeEvent, SQLiteCompatibleType, SqliteResult } from '../sqlite-core.interface.js';
 import {
-    isRxDBAdapterDesktopErrorCode,
-    RxDBAdapterDesktopError,
-    type RxDBAdapterDesktopErrorCode
+  isRxDBAdapterDesktopErrorCode,
+  RxDBAdapterDesktopError,
+  type RxDBAdapterDesktopErrorCode
 } from './desktop-error.js';
 import { assertDesktopSqliteStorage, type DesktopSqliteFileStorage, type DesktopStorage } from './desktop-storage.js';
 

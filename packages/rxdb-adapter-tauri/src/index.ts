@@ -22,58 +22,61 @@ export type { TauriOptions } from './tauri-options.interface.js';
 export { decodeDesktopJsonPayload, encodeDesktopJsonPayload } from './desktop-json-codec.js';
 
 export {
-    createTauriHostTransport, TAURI_DESKTOP_CHANGE_EVENT,
-    TAURI_DESKTOP_REQUEST_COMMAND, type TauriHostTransportOptions
+  TAURI_DESKTOP_CHANGE_EVENT,
+  TAURI_DESKTOP_REQUEST_COMMAND,
+  createTauriHostTransport,
+  type TauriHostTransportOptions
 } from './tauri-host-transport.js';
 
 export {
-    DEFAULT_DATABASE_SUFFIX as DESKTOP_DEFAULT_DATABASE_SUFFIX,
-    type DesktopOptions
+  DEFAULT_DATABASE_SUFFIX as DESKTOP_DEFAULT_DATABASE_SUFFIX,
+  type DesktopOptions
 } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 
 export { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 
 export {
-    DESKTOP_HOST_TRANSPORT_KEY,
-    DesktopSqliteClient,
-    resolveDesktopHostTransport,
-    type DesktopHostTransport,
-    type DesktopSqliteClientOptions
+  DESKTOP_HOST_TRANSPORT_KEY,
+  DesktopSqliteClient,
+  resolveDesktopHostTransport,
+  type DesktopHostTransport,
+  type DesktopSqliteClientOptions
 } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 
 export {
-    assertDesktopSqliteStorage,
-    assertValidDesktopDatabaseName,
-    isDesktopPgliteDirectoryStorage,
-    isDesktopSqliteFileStorage,
-    type DesktopPgliteDirectoryStorage,
-    type DesktopSqliteFileStorage,
-    type DesktopStorage
+  assertDesktopSqliteStorage,
+  assertValidDesktopDatabaseName,
+  isDesktopPgliteDirectoryStorage,
+  isDesktopSqliteFileStorage,
+  type DesktopPgliteDirectoryStorage,
+  type DesktopSqliteFileStorage,
+  type DesktopStorage
 } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 
 export {
-    assertDesktopHostResponse, DESKTOP_HOST_MAX_BINDINGS,
-    DESKTOP_HOST_MAX_BLOB_BYTES,
-    DESKTOP_HOST_MAX_FILE_CHUNK_BYTES,
-    DESKTOP_HOST_MAX_SQL_LENGTH,
-    DESKTOP_HOST_PROTOCOL_VERSION, parseDesktopHostChangeEvent,
-    parseDesktopHostHandshakeResult,
-    parseDesktopHostOpenResult,
-    type DesktopHostChangeEventMessage,
-    type DesktopHostCloseRequest,
-    type DesktopHostExecuteRequest,
-    type DesktopHostFileEntry,
-    type DesktopHostFileLockMode,
-    type DesktopHostFileReadResult,
-    type DesktopHostFileRequest,
-    type DesktopHostFileResponse,
-    type DesktopHostFileStat,
-    type DesktopHostHandshakeRequest,
-    type DesktopHostHandshakeResult,
-    type DesktopHostOpenRequest,
-    type DesktopHostOpenResult,
-    type DesktopHostRequest,
-    type DesktopHostResponse,
-    type DesktopHostVersionRequest
+  DESKTOP_HOST_MAX_BINDINGS,
+  DESKTOP_HOST_MAX_BLOB_BYTES,
+  DESKTOP_HOST_MAX_FILE_CHUNK_BYTES,
+  DESKTOP_HOST_MAX_SQL_LENGTH,
+  DESKTOP_HOST_PROTOCOL_VERSION,
+  assertDesktopHostResponse,
+  parseDesktopHostChangeEvent,
+  parseDesktopHostHandshakeResult,
+  parseDesktopHostOpenResult,
+  type DesktopHostChangeEventMessage,
+  type DesktopHostCloseRequest,
+  type DesktopHostExecuteRequest,
+  type DesktopHostFileEntry,
+  type DesktopHostFileLockMode,
+  type DesktopHostFileReadResult,
+  type DesktopHostFileRequest,
+  type DesktopHostFileResponse,
+  type DesktopHostFileStat,
+  type DesktopHostHandshakeRequest,
+  type DesktopHostHandshakeResult,
+  type DesktopHostOpenRequest,
+  type DesktopHostOpenResult,
+  type DesktopHostRequest,
+  type DesktopHostResponse,
+  type DesktopHostVersionRequest
 } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
-

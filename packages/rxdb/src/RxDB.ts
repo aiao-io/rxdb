@@ -6,25 +6,25 @@ import { EntityMetadata } from './entity/metadata.interface.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
 import { MergeQueryTaskCreateFn, MergeQueryTaskRemoveFn, MergeQueryTaskUpdateFn } from './repository/QueryManager.js';
 import {
-    AdapterFactory,
-    IRxDBAdapter,
-    RepositoryConstructor,
-    RepositoryInstance,
-    RxDBAdapterLocalBase,
-    RxDBAdapterName,
-    RxDBAdapterRemoteBase,
-    RxDBAdapters
+  AdapterFactory,
+  IRxDBAdapter,
+  RepositoryConstructor,
+  RepositoryInstance,
+  RxDBAdapterLocalBase,
+  RxDBAdapterName,
+  RxDBAdapterRemoteBase,
+  RxDBAdapters
 } from './rxdb-adapter.js';
 import {
-    isCrossTabEvent,
-    RxDBEvent,
-    RxDBEventMap,
-    TRANSACTION_BEGIN,
-    TRANSACTION_COMMIT,
-    TRANSACTION_ROLLBACK,
-    type TransactionBeginEvent,
-    type TransactionCommitEvent,
-    type TransactionRollbackEvent
+  isCrossTabEvent,
+  RxDBEvent,
+  RxDBEventMap,
+  TRANSACTION_BEGIN,
+  TRANSACTION_COMMIT,
+  TRANSACTION_ROLLBACK,
+  type TransactionBeginEvent,
+  type TransactionCommitEvent,
+  type TransactionRollbackEvent
 } from './rxdb-events.js';
 import { IRxDBPlugin, Plugin } from './rxdb-plugin.js';
 import { uuid } from './rxdb-utils.js';
