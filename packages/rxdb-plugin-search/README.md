@@ -33,18 +33,23 @@ handle.destroy();
 await db.disconnect('sqlite-wasm');
 ```
 
-`db.searchPlugin.ready` 在插件于当前连接纪元尚未安装时会 reject；安装中、安装完成或安装失败后，
-始终返回同一个 Promise。不要在 `connect()` 前等待它，否则数据库适配器尚未进入初始化流程。
+`db.searchPlugin.ready` 一个连接纪元一格：`connect()` 之前与安装期间是 **pending**，安装成功
+resolve、失败 reject（原始错误），纪元被释放（断连 / 回滚）后 reject `destroyed`。可以在
+`connect()` 之前就拿到它的引用——那一格会被本纪元的安装续用；但跨断连持有同一个引用读到的
+是**那一纪元**的结果，重连之后要重新读一次。
 
 `db.search()` 返回的 `SearchHandle` 由调用方负责 `destroy()`；Angular、React、Vue 绑定会在组件
 生命周期结束时自动销毁。
 
 ## 连接纪元
 
-entity 事件监听登记在 `install(scope)` 收到的作用域上，`disconnectAll()` 时由宿主逆序释放。
-本插件**不**声明 `lifecycle: 'scoped'`——状态机复位还留在 `destroy()` 里，因此宿主两步都会走：
-先释放作用域摘掉监听，再调 `destroy()`。插件身份 `db.searchPlugin` 跨纪元存活，重新
-`connect()` 会复用同一实例并重新安装 FTS。
+插件声明 `inject: ['adapter:local']`，由宿主决定装载时机：本地适配器的引导链跑完之后才调
+`install()`，插件自己不再等连接信号。因此 `await db.connect()` 返回时 FTS 已经装好——
+`ready` 是给「装了没有 / 装失败了没有」的显式确认，不是必须的等待点。
+
+entity 事件监听与状态复位都登记在 `install(scope)` 收到的作用域上。插件声明了
+`lifecycle: 'scoped'`，宿主释放作用域即完成拆卸，没有第二步 `destroy()`。插件身份
+`db.searchPlugin` 跨纪元存活，重新 `connect()` 会复用同一实例并重新安装 FTS。
 
 框架绑定：Angular 用 [`@aiao/rxdb-plugin-search-angular`](../rxdb-plugin-search-angular)，React 用 [`@aiao/rxdb-plugin-search-react`](../rxdb-plugin-search-react)，Vue 用 [`@aiao/rxdb-plugin-search-vue`](../rxdb-plugin-search-vue)。
 
