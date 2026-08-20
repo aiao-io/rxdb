@@ -593,11 +593,12 @@ describe('RxDBPluginWorkspace', () => {
       const flushPromise = plugin.flush();
       await Promise.resolve();
 
-      const released = scope.dispose();
-      resolveWrite?.();
-
+      // 写入还卡在半路时释放纪元：waiter 不能装作成功
+      await scope.dispose();
       await expect(flushPromise).rejects.toThrow(/released with unflushed changes/);
-      await released;
+
+      // 迟到的写入落回已释放的纪元，不得再唤醒任何人
+      resolveWrite?.();
     });
 
     it('纪元释放之后调用 flush() 必须立即 fail-fast，而非永久挂起', async () => {
@@ -683,21 +684,22 @@ describe('installation and lifecycle boundaries', () => {
     }
   });
 
-  it('install 前收到的跨 tab remove 会阻止旧草稿恢复', async () => {
+  it('纪元之外没有 channel，跨 tab 消息无从送达；恢复只认 IndexedDB', async () => {
     vi.stubGlobal('BroadcastChannel', BroadcastChannelStub as unknown as typeof BroadcastChannel);
     const id = cacheId('Todo', TODO_ID_1);
     idbState.store.set(id, { id: TODO_ID_1, title: '旧草稿' });
     const rxdb = createMockRxDB();
     const { plugin, scope } = createScoped(rxdb, { autoSave: false });
-    const channel = BroadcastChannelStub.instances[0]!;
+
+    // channel 属于纪元：install() 之前它根本不存在，也就没有"漏收"这回事
+    expect(BroadcastChannelStub.instances).toHaveLength(0);
 
     try {
-      channel.emit({ type: 'remove', clientId: 'peer', cacheId: id });
       await plugin.install(scope);
 
-      expect(plugin.list()).toEqual([]);
-      await plugin.flush();
-      expect(idbState.store.has(id)).toBe(false);
+      // 断连期间对端的删除会落在共享的 IndexedDB 上，恢复时自然读不到；
+      // 这里 store 里仍有记录，说明没人删过，草稿就该原样回来
+      expect(plugin.list()).toEqual([expect.objectContaining({ cacheId: id })]);
     } finally {
       await scope.dispose();
     }

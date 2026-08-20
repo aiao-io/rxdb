@@ -162,3 +162,7 @@ try {
 | epic          | [epics/epic.template.md](./epics/epic.template.md)                                   |
 | review        | [reviews/review.template.md](./reviews/review.template.md)                           |
 | code-scanning | [code-scanning/code-scanning.template.md](./code-scanning/code-scanning.template.md) |
+
+## 中文注释词汇约定
+
+`packages` 下 JS/TS 文件的注释词汇统一看 [zh-glossary.md](./zh-glossary.md)：哪些词保留（纪元、宿主、活查询、水位线）、哪些词要改（占坑→抢占、回呼→回调、惊动→唤醒）、按项目分组的差异。改中文注释前先看。

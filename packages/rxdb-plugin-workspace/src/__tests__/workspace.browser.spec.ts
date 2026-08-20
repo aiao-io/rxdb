@@ -187,18 +187,21 @@ describe('RWS-009 真实 Entity / IndexedDB / BroadcastChannel 集成', () => {
     return harness;
   };
 
-  /** 关掉一套夹具（模拟「关标签页」），但保留 IndexedDB 里的数据。 */
-  const closeHarness = (harness: Harness): void => {
-    harness.workspace.destroy();
-    harness.rxdb.entityManager.cleanAllCache();
+  /**
+   * 关掉一套夹具（模拟「关标签页」），但保留 IndexedDB 里的数据。
+   *
+   * 走宿主的 `disconnectAll()` 而不是插件的 `destroy()`：纪元资源现在由连接作用域驱动，
+   * 拆卸路径必须和真实断连完全一致。
+   */
+  const closeHarness = async (harness: Harness): Promise<void> => {
+    await harness.rxdb.disconnectAll();
     const index = opened.indexOf(harness);
     if (index >= 0) opened.splice(index, 1);
   };
 
   afterEach(async () => {
     for (const harness of opened.splice(0)) {
-      harness.workspace.destroy();
-      harness.rxdb.entityManager.cleanAllCache();
+      await harness.rxdb.disconnectAll();
       harness.adapter.cleanAllCache();
     }
     for (const idbName of createdDbs) await deleteDb(idbName);
@@ -252,7 +255,7 @@ describe('RWS-009 真实 Entity / IndexedDB / BroadcastChannel 集成', () => {
 
       expect(first.workspace.list().map(e => e.cacheId)).not.toContain('rxdb:RxDBBranch:main');
       expect((await readStore(first.idbName)).has('rxdb:RxDBBranch:main')).toBe(false);
-      closeHarness(first);
+      await closeHarness(first);
 
       // 模拟旧版已经落盘的污染记录：新版不能只防新写入，还必须迁移存量。
       await writeRaw(first.idbName, 'rxdb:RxDBBranch:main', { id: 'main', activated: true });
@@ -308,7 +311,7 @@ describe('RWS-009 真实 Entity / IndexedDB / BroadcastChannel 集成', () => {
       const draftId = draft.id;
       await settle();
       await first.workspace.flush();
-      closeHarness(first);
+      await closeHarness(first);
 
       // 模拟刷新：同一个 dbName 重新起一套
       const second = await open(dbName);
@@ -393,7 +396,7 @@ describe('RWS-009 真实 Entity / IndexedDB / BroadcastChannel 集成', () => {
       const cacheId = cacheIdOf(draft);
       await settle();
       await first.workspace.flush();
-      closeHarness(first);
+      await closeHarness(first);
 
       const second = await open(dbName);
       await second.workspace.ready;
@@ -419,7 +422,7 @@ describe('RWS-009 真实 Entity / IndexedDB / BroadcastChannel 集成', () => {
       const scaffold = await open(dbName, { autoSave: false });
       await scaffold.workspace.ready;
       const idbName = scaffold.idbName;
-      closeHarness(scaffold);
+      await closeHarness(scaffold);
 
       await writeRaw(idbName, `ws_it:Draft:${goodId}`, { id: goodId, title: '好记录' });
       await writeRaw(idbName, 'not-a-cache-id', { title: '坏 key' });
@@ -437,7 +440,7 @@ describe('RWS-009 真实 Entity / IndexedDB / BroadcastChannel 集成', () => {
       expect((await readStore(idbName)).size).toBe(4);
     });
 
-    it('恢复窗口内 destroy，不会往已销毁的实例回填缓存', async () => {
+    it('恢复窗口内断连，不会往已释放的纪元回填缓存', async () => {
       const dbName = nextDbName();
 
       const first = await open(dbName);
@@ -445,11 +448,11 @@ describe('RWS-009 真实 Entity / IndexedDB / BroadcastChannel 集成', () => {
       new first.Draft({ title: '会被恢复窗口撞上' });
       await settle();
       await first.workspace.flush();
-      closeHarness(first);
+      await closeHarness(first);
 
       const second = await open(dbName);
-      // 故意不 await ready：destroy 落在 entries() 的 await 中间
-      second.workspace.destroy();
+      // 故意不 await ready：断连落在 entries() 的 await 中间
+      await closeHarness(second);
       await second.workspace.ready;
 
       expect(second.workspace.list()).toEqual([]);
@@ -677,31 +680,33 @@ describe('RWS-009 真实 Entity / IndexedDB / BroadcastChannel 集成', () => {
       globalThis.removeEventListener('unhandledrejection', onUnhandled);
     });
 
-    it('destroy 之后再调 flush() 直接拒绝，不会静默 resolve', async () => {
-      const { Draft, workspace } = await open(nextDbName(), { autoSave: false });
+    it('断连之后再调 flush() 直接拒绝，不会静默 resolve', async () => {
+      const harness = await open(nextDbName(), { autoSave: false });
+      const { Draft, workspace } = harness;
       await workspace.ready;
 
       new Draft({ title: '来不及落盘' });
       await settle();
-      workspace.destroy();
+      await closeHarness(harness);
 
-      await expect(workspace.flush()).rejects.toThrow(/has been destroyed/);
+      await expect(workspace.flush()).rejects.toThrow(/not installed in the current connection epoch/);
     });
 
-    it('destroy 丢弃未落盘变更时，已挂起的 flush() 必须 reject', async () => {
-      const { Draft, workspace } = await open(nextDbName(), { autoSave: false });
+    it('断连丢弃未落盘变更时，已挂起的 flush() 必须 reject', async () => {
+      const harness = await open(nextDbName(), { autoSave: false });
+      const { Draft, workspace } = harness;
       await workspace.ready;
 
       new Draft({ title: '来不及落盘' });
       await settle();
 
       // flush() 内部先 `await this.ready` 才登记 waiter；这里让出一轮宏任务，
-      // 确保 destroy 撞上的是「waiter 已登记、写盘任务还没跑」的那个窗口。
+      // 确保断连撞上的是「waiter 已登记、写盘任务还没跑」的那个窗口。
       const pending = workspace.flush();
       await settle();
-      workspace.destroy();
+      await closeHarness(harness);
 
-      await expect(pending).rejects.toThrow(/destroyed with unflushed changes/);
+      await expect(pending).rejects.toThrow(/released with unflushed changes/);
     });
   });
 });
