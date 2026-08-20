@@ -67,16 +67,14 @@ describe('连接纪元作用域与插件激活作用域', () => {
     const database = createDatabase();
     const log: string[] = [];
     for (const name of ['a', 'b', 'c'] as const) {
-      database.use(
-        (): IRxDBPlugin => ({
-          name,
-          lifecycle: 'scoped',
-          install: scope => {
-            acquireTraced(scope, log, `${name}1`);
-            acquireTraced(scope, log, `${name}2`);
-          }
-        })
-      );
+      database.use((): IRxDBPlugin => ({
+        name,
+        lifecycle: 'scoped',
+        install: scope => {
+          acquireTraced(scope, log, `${name}1`);
+          acquireTraced(scope, log, `${name}2`);
+        }
+      }));
     }
 
     await database.connect('sqlite');
@@ -93,16 +91,14 @@ describe('连接纪元作用域与插件激活作用域', () => {
     const database = createDatabase();
     const scopes: LifecycleScope[] = [];
     const releases: number[] = [];
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'epochPlugin',
-        lifecycle: 'scoped',
-        install: scope => {
-          const epoch = scopes.push(scope);
-          scope.acquire(() => () => void releases.push(epoch), 'entry');
-        }
-      })
-    );
+    database.use((): IRxDBPlugin => ({
+      name: 'epochPlugin',
+      lifecycle: 'scoped',
+      install: scope => {
+        const epoch = scopes.push(scope);
+        scope.acquire(() => () => void releases.push(epoch), 'entry');
+      }
+    }));
 
     await database.connect('sqlite');
     await database.disconnectAll();
@@ -123,26 +119,22 @@ describe('连接纪元作用域与插件激活作用域', () => {
   it('AC#3 init() 之后 use() 的插件立即拿到独立作用域并参与逆序释放', async () => {
     const database = createDatabase();
     const log: string[] = [];
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'early',
-        lifecycle: 'scoped',
-        install: scope => void scope.acquire(() => () => void log.push('early'), 'entry')
-      })
-    );
+    database.use((): IRxDBPlugin => ({
+      name: 'early',
+      lifecycle: 'scoped',
+      install: scope => void scope.acquire(() => () => void log.push('early'), 'entry')
+    }));
     await database.connect('sqlite');
 
     let lateScope: LifecycleScope | undefined;
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'late',
-        lifecycle: 'scoped',
-        install: scope => {
-          lateScope = scope;
-          scope.acquire(() => () => void log.push('late'), 'entry');
-        }
-      })
-    );
+    database.use((): IRxDBPlugin => ({
+      name: 'late',
+      lifecycle: 'scoped',
+      install: scope => {
+        lateScope = scope;
+        scope.acquire(() => () => void log.push('late'), 'entry');
+      }
+    }));
 
     // 只断言被测的这一个立即安装：US-015 落地后「所有插件都立即安装」不再成立
     expect(lateScope?.state).toBe('active');
@@ -157,14 +149,12 @@ describe('连接纪元作用域与插件激活作用域', () => {
     const database = createDatabase();
     const destroy = vi.fn();
     const log: string[] = [];
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'dualVersion',
-        lifecycle: 'scoped',
-        install: scope => void scope.acquire(() => () => void log.push('release'), 'entry'),
-        destroy
-      })
-    );
+    database.use((): IRxDBPlugin => ({
+      name: 'dualVersion',
+      lifecycle: 'scoped',
+      install: scope => void scope.acquire(() => () => void log.push('release'), 'entry'),
+      destroy
+    }));
 
     await database.connect('sqlite');
     await database.disconnectAll();
@@ -178,13 +168,11 @@ describe('连接纪元作用域与插件激活作用域', () => {
     const log: string[] = [];
     // 无参 install()：实现方少写形参不破坏契约
     const install = vi.fn(() => void log.push('install'));
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'legacy',
-        install,
-        destroy: () => void log.push('destroy')
-      })
-    );
+    database.use((): IRxDBPlugin => ({
+      name: 'legacy',
+      install,
+      destroy: () => void log.push('destroy')
+    }));
 
     await database.connect('sqlite');
     await database.disconnectAll();
@@ -208,13 +196,11 @@ describe('repository() 的作用域撤销', () => {
     const database = createDatabase();
     const base = database.getRepositoryConfig('Repository');
     if (!base) throw new Error('Repository config missing');
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'graphLike',
-        lifecycle: 'scoped',
-        install: scope => void database.repository('ScopedRepository', { ...base }, scope)
-      })
-    );
+    database.use((): IRxDBPlugin => ({
+      name: 'graphLike',
+      lifecycle: 'scoped',
+      install: scope => void database.repository('ScopedRepository', { ...base }, scope)
+    }));
 
     await database.connect('sqlite');
 
@@ -267,17 +253,15 @@ describe('安装半途失败时的资源回收', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const database = createDatabase();
     const log: string[] = [];
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'syncFailing',
-        lifecycle: 'scoped',
-        install: scope => {
-          scope.acquire(() => () => void log.push('a'), 'a');
-          scope.acquire(() => () => void log.push('b'), 'b');
-          throw new Error('install boom');
-        }
-      })
-    );
+    database.use((): IRxDBPlugin => ({
+      name: 'syncFailing',
+      lifecycle: 'scoped',
+      install: scope => {
+        scope.acquire(() => () => void log.push('a'), 'a');
+        scope.acquire(() => () => void log.push('b'), 'b');
+        throw new Error('install boom');
+      }
+    }));
 
     await expect(database.connect('sqlite')).rejects.toThrow('install boom');
 
@@ -289,19 +273,17 @@ describe('安装半途失败时的资源回收', () => {
     const database = createDatabase();
     const log: string[] = [];
     const scopes: LifecycleScope[] = [];
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'asyncFailing',
-        lifecycle: 'scoped',
-        install: async scope => {
-          scopes.push(scope);
-          scope.acquire(() => () => void log.push('a'), 'a');
-          await tick();
-          scope.acquire(() => () => void log.push('b'), 'b');
-          throw new Error('install boom');
-        }
-      })
-    );
+    database.use((): IRxDBPlugin => ({
+      name: 'asyncFailing',
+      lifecycle: 'scoped',
+      install: async scope => {
+        scopes.push(scope);
+        scope.acquire(() => () => void log.push('a'), 'a');
+        await tick();
+        scope.acquire(() => () => void log.push('b'), 'b');
+        throw new Error('install boom');
+      }
+    }));
 
     await expect(database.connect('sqlite')).rejects.toThrow('install boom');
 
@@ -322,22 +304,20 @@ describe('安装半途失败时的资源回收', () => {
     const database = createDatabase();
     const cleanupError = new Error('cleanup boom');
     const log: string[] = [];
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'messyFailing',
-        lifecycle: 'scoped',
-        install: scope => {
-          scope.acquire(() => () => void log.push('a'), 'a');
-          scope.acquire(
-            () => () => {
-              throw cleanupError;
-            },
-            'b'
-          );
-          throw new Error('install boom');
-        }
-      })
-    );
+    database.use((): IRxDBPlugin => ({
+      name: 'messyFailing',
+      lifecycle: 'scoped',
+      install: scope => {
+        scope.acquire(() => () => void log.push('a'), 'a');
+        scope.acquire(
+          () => () => {
+            throw cleanupError;
+          },
+          'b'
+        );
+        throw new Error('install boom');
+      }
+    }));
 
     // connect() 收到的是安装错误（原因），不是清理错误
     await expect(database.connect('sqlite')).rejects.toThrow('install boom');
@@ -354,29 +334,25 @@ describe('拆卸错误的隔离', () => {
     const database = createDatabase();
     const disposeError = new Error('dispose boom');
     const log: string[] = [];
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'healthy',
-        lifecycle: 'scoped',
-        install: scope => void scope.acquire(() => () => void log.push('healthy'), 'entry')
-      })
-    );
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'brokenTeardown',
-        lifecycle: 'scoped',
-        install: scope => {
-          scope.acquire(() => () => void log.push('broken:first'), 'first');
-          scope.acquire(
-            () => () => {
-              throw disposeError;
-            },
-            'second'
-          );
-          scope.acquire(() => () => void log.push('broken:third'), 'third');
-        }
-      })
-    );
+    database.use((): IRxDBPlugin => ({
+      name: 'healthy',
+      lifecycle: 'scoped',
+      install: scope => void scope.acquire(() => () => void log.push('healthy'), 'entry')
+    }));
+    database.use((): IRxDBPlugin => ({
+      name: 'brokenTeardown',
+      lifecycle: 'scoped',
+      install: scope => {
+        scope.acquire(() => () => void log.push('broken:first'), 'first');
+        scope.acquire(
+          () => () => {
+            throw disposeError;
+          },
+          'second'
+        );
+        scope.acquire(() => () => void log.push('broken:third'), 'third');
+      }
+    }));
 
     await database.connect('sqlite');
 
@@ -393,16 +369,14 @@ describe('init() 失败路径与作用域寿命对齐', () => {
     const database = createDatabase();
     const log: string[] = [];
     const scopes: LifecycleScope[] = [];
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'rollbackPlugin',
-        lifecycle: 'scoped',
-        install: scope => {
-          scopes.push(scope);
-          scope.acquire(() => () => void log.push('release'), 'entry');
-        }
-      })
-    );
+    database.use((): IRxDBPlugin => ({
+      name: 'rollbackPlugin',
+      lifecycle: 'scoped',
+      install: scope => {
+        scopes.push(scope);
+        scope.acquire(() => () => void log.push('release'), 'entry');
+      }
+    }));
     const schemaInit = vi.spyOn(database.schemaManager, 'init').mockImplementationOnce(() => {
       throw new Error('schema boom');
     });
