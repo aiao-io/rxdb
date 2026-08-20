@@ -54,11 +54,11 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 
 **Decision**:
 
-- `RXDB_SYSTEM_SCHEMA_VERSION` 由 `3` 递增到 `4`，沿用既有 [`migration.ts`](../../packages/rxdb/src/system/migration.ts) 的 watermark + `rxdb_migration` 占坑机制，占坑冲突继续走 `RxDBMigrationClaimConflictError` 重试。
+- `RXDB_SYSTEM_SCHEMA_VERSION` 由 `3` 递增到 `4`，沿用既有 [`migration.ts`](../../packages/rxdb/src/system/migration.ts) 的 watermark + `rxdb_migration` 认领执行权机制，执行权竞争继续走 `RxDBMigrationClaimConflictError` 重试。
 - 新表的**建表**随 schema 版本 4 一起发生（仅当启用时），**基线生成**是独立的、可重试的幂等步骤，两步在同一迁移事务内。
 - 启用是数据库级、单向、显式的，配置项落在 [`RxDBOptions`](../../packages/rxdb/src/rxdb.interface.ts#L83) 上：`commits?: { enabled: boolean }`。缺省 `undefined` ≡ 未启用 ≡ 零新表零行为差异（FR-011、SC-008）。
 
-**Rationale**: 复用既有机制意味着多标签页占坑竞争、失败重试、幂等重启这三条都已由 [`RxDB.ts`](../../packages/rxdb/src/RxDB.ts) 现成路径覆盖并有测试。命名用 `commits` 而非 `workingTree`，因为启用的是**整个提交能力**（提交图是底座，工作树是它的必然伴生）。
+**Rationale**: 复用既有机制意味着多标签页执行权竞争、失败重试、幂等重启这三条都已由 [`RxDB.ts`](../../packages/rxdb/src/RxDB.ts) 现成路径覆盖并有测试。命名用 `commits` 而非 `workingTree`，因为启用的是**整个提交能力**（提交图是底座，工作树是它的必然伴生）。
 
 **Alternatives rejected**:
 
@@ -78,7 +78,7 @@ spec.md 的 Assumptions 段落把 5 项决策显式挂起到计划阶段；本�
 
 **Rationale**: `rowsAffected` 是全部 6 个后端都已实现的既有能力（`SqliteBackend` / `IRxDBAdapter` 契约的返回值），无需新增跨方言原语。整数列在两种方言下语义完全一致，无时钟依赖。
 
-> ⚠️ 原先钉死该判据的跨后端套件 `rowsAffectedConformanceSuite` 随 writer lease 于 2026-08-16 一并删除（它的断言建在 lease/guard 表上）。本特性依赖的两条语义——**条件 UPDATE 未命中时 `rowsAffected` 必须为 0**、**紧随写语句的 SELECT 不得继承上一条写语句的计数**（sqlite-core 有同类事故记录 SQLC-030）——目前没有跨后端断言保护，US-305 实施时 MUST 以领域 revision CAS 的形式重建这套 conformance。
+> ⚠️ 原先固定该判据的跨后端套件 `rowsAffectedConformanceSuite` 随 writer lease 于 2026-08-16 一并删除（它的断言建在 lease/guard 表上）。本特性依赖的两条语义——**条件 UPDATE 未命中时 `rowsAffected` 必须为 0**、**紧随写语句的 SELECT 不得继承上一条写语句的计数**（sqlite-core 有同类事故记录 SQLC-030）——目前没有跨后端断言保护，US-305 实施时 MUST 以领域 revision CAS 的形式重建这套 conformance。
 
 **Alternatives rejected**:
 

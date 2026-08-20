@@ -39,7 +39,7 @@ This regular expression that depends on library input may run slow on strings wi
 改写成无歧义的 `-?(?:\d+(?:\.\d+)?|\.\d+)`。接受的字符串集合完全相同 —— `'1.'` 两边都拒（小数点后必须有数字），`'.5'` 两边都收。
 
 - 实现：[ms-time-pattern.ts](../../packages/utils/src/date/ms-time-pattern.ts)
-- 测试：[isMSTime.spec.ts](../../packages/utils/src/__tests__/date/isMSTime.spec.ts) —— 1 条 ReDoS + 7 条合法 + 5 条非法，把边界等价性钉死
+- 测试：[isMSTime.spec.ts](../../packages/utils/src/__tests__/date/isMSTime.spec.ts) —— 1 条 ReDoS + 7 条合法 + 5 条非法，把边界等价性固定
 
 ## 解决记录
 

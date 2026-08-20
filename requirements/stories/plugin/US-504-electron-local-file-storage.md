@@ -122,7 +122,7 @@ INVEST 检查清单:
 > `navigator.locks` 缺失时**静默降级为进程内队列**（`path-lock.ts`），该回退在多窗口下
 > 不提供任何互斥且不报错 —— 锁归宿决策必须把它列为不充分项：缺 Web Locks 时要么临界区
 > 下沉 host 侧，要么以可判别错误拒绝多窗口场景，不得静默单进程化（无 fallback 铁律）。
-> plan 阶段必须决定「继续依赖 Web Locks 并用双窗口 e2e 钉住」还是「临界区下沉 host 侧
+> plan 阶段必须决定「继续依赖 Web Locks 并用双窗口 e2e 固定」还是「临界区下沉 host 侧
 > 兜底」；该决策同时约束 [US-505](./US-505-tauri-local-file-storage.md)（WKWebView 的
 > Web Locks 可用性另算）。另注意：现有 e2e
 > （`desktop-persistence.spec.ts`）只有单窗口用例；且

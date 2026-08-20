@@ -23,7 +23,7 @@ interface MigrationType {
 3. 已执行的迁移记录在内建的 `rxdb_migration` 表中，**不会重复执行**。
 4. 某条迁移 `up()` 抛错会记录错误并中断，修复后重连继续。
 
-> **为什么 `up()` 收 `executor`**：`up()` 是唯一能在迁移事务体内运行的用户代码。迁移里的所有数据写入必须经 `executor.getRepository(X)` 或 `executor.query()` 发出 —— 直接 `entity.save()` 会落回适配器队列并永久挂起（队列的唯一槽位正被本次迁移所在的事务占着）。形参可省略（TS 允许形参更少），不写数据的迁移无需关心它。
+> **为什么 `up()` 收 `executor`**：`up()` 是唯一能在迁移事务体内运行的用户代码。迁移里的所有数据写入必须经 `executor.getRepository(X)` 或 `executor.query()` 发出 —— 直接 `entity.save()` 会落回适配器队列并永久挂起（队列的唯一槽位正被本次迁移所在的事务占用）。形参可省略（TS 允许形参更少），不写数据的迁移无需关心它。
 
 ## 内建系统迁移
 

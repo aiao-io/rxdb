@@ -238,7 +238,7 @@ export type RxDBPluginDependency = 'adapter:local' | 'adapter:remote' | `plugin:
 
 ### D2 — 适配器「就绪」的判据
 
-这条是本 Epic 最容易写错的一处，必须钉死。
+这条是本 Epic 最容易写错的一处，必须固定。
 
 **`localAdapter$` 发出实例 ≠ 适配器可用。** 该 Observable 的
 `switchMap` 只调用 `getAdapter()`（[:193-195](../../../packages/rxdb/src/RxDB.ts#L193-L195)），

@@ -117,7 +117,7 @@ CommitOptions {
   authorId: string           // 必填。调用方提供；空串/纯空白即拒绝（FR-004）
   operationId: string        // 必填。幂等键；同键同内容重试返回原提交
   metadata?: Record<string, unknown>   // 仅扩展审计字段，见下方保留键约束
-  allowEmpty?: false         // 类型上钉死为 false —— 空提交不被支持（FR-005）
+  allowEmpty?: false         // 类型上固定为 false —— 空提交不被支持（FR-005）
 }
 
 CommitSummary {

@@ -93,6 +93,6 @@ await adapter.transaction(async (executor: TransactionExecutor) => {
 });
 ```
 
-**为什么必须用 executor**：直接 `entity.save()` 走的是适配器队列，而队列唯一的并发槽位正被本次事务占着，于是永久挂起（C2 设计见 `code-reviews/transaction-executor-design.md` 裁决④）。
+**为什么必须用 executor**：直接 `entity.save()` 走的是适配器队列，而队列唯一的并发槽位正被本次事务占用，于是永久挂起（C2 设计见 `code-reviews/transaction-executor-design.md` 裁决④）。
 
 零参回调（`async () => {}`）仍然兼容 —— TypeScript 允许形参更少。

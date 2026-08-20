@@ -39,7 +39,7 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
    SQLite adapter 上，而它是
    [US-210](../adapter/US-210-tauri-sqlite-local-database.md)（In Progress，10 条 AC 全绿）。
    US-210 不落地，meta 只能留在 webview 存储 —— 恰是 US-504 AC#9 明令拒绝的「备份域
-   撕裂」组合；该错配拒绝在 Tauri 侧同样适用（本故事 AC#11 钉住）。
+   撕裂」组合；该错配拒绝在 Tauri 侧同样适用（本故事 AC#11 固定）。
 2. **接缝未抽出**：文件系统后端接缝由 US-504 定义并冻结（含物理名编码与锁归宿决策），
    本故事只做 Tauri 传输实现。若 Tauri 侧发现接缝不足以承载，改动回到 US-504 那一层，
    不在本故事另起一套（同 US-210 对 US-207 的纪律）。
@@ -97,7 +97,7 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 
 > AC#6 是本故事特有的未知量：Electron 只有一个 Chromium，Tauri 是三家 webview 的矩阵，
 > `download()` / `fetch()` 这两个**不经 host** 的 renderer 侧路径在三家上的行为差异必须
-> 被测试钉住，而不是假设与 Chromium 一致。
+> 被测试固定，而不是假设与 Chromium 一致。
 >
 > AC#7 复用 US-210 已建立的 `apps/dev-rxdb-tauri-e2e`（`desktop-smoke` target）与三平台打包矩阵；打包
 > smoke test 成本高，只在 release 分支或 tag 触发，不进 PR 门禁。
@@ -133,7 +133,7 @@ project + 三平台打包矩阵）已于 2026-08-17 由 US-210 建好（其 AC#1
 | #10      | `scripts/audit/api-surface.mjs` 的 `KNOWN_UNCOVERED_SUBPATHS` 已登记 `rxdb-plugin-storage` 的 `./testing`（现为 29 包 API 表面核对通过）；`rxdb-plugin-storage` node 214/214 + browser 20/20 全绿（2026-08-18 复测；node 侧从 200 涨到 214 是 US-504／US-505 后续补的用例，browser 侧一条未动）。Tauri 传输客户端本来就在运行时包里（US-207 拆包后是 `@aiao/rxdb-adapter-tauri`，当时叫 `@aiao/rxdb-adapter-desktop`），浏览器 bundle 走 `setup_rxdb_wa-sqlite.ts` 的 OPFS 默认后端                                                                                                                                                                                                                                       |
 | #11      | `apps/dev-rxdb-tauri/src/app/setup_rxdb_storage.spec.ts` 的 `refuses to build on a non-desktop adapter`（连 `code === 'adapter_mismatch'` 一起断言）+ US-504 `desktop-filesystem.spec.ts` 的两例上游覆盖                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | #1 #3 ⚠️ | `packages/rxdb-adapter-tauri/conformance/storage-persistence.spec.ts` —— 宿主进程被杀后字节仍在磁盘上（并逐字节比对 `rxdb-files/` 下那个**原生文件**，堵死「内容藏在别处也能通过读回断言」）、整目录 `cp -r` 到新位置后结构与字节完整。**缺口**：杀的是 stdio 宿主进程而不是装好的 .app / .exe，窗口生命周期、单实例锁、安装包布局都没覆盖；「webview data store 无新增内容」无 webview 可断言；AC#3 的「与 SQLite 同一备份域」由 `paths.rs` 的 `rxdb-data` / `rxdb-files` 同挂 `app_data_dir()` 结构性成立，未在同一用例里连 SQLite 一起拷                                                                                                                                                                               |
-| #5 ⚠️    | 分帧（`reports_eof_only_on_the_last_frame`）、提交前目标不动（`keeps_the_target_untouched_until_the_write_commits`）、abort 不碰目标（`abandons_a_write_without_touching_the_target`）、会话关闭清理未提交写入与临时文件（`discards_pending_writes_when_the_session_closes`）均已钉住。**缺口**：≥ 50 MiB 的实测与「内容不整体进 JS 堆」的内存观测都没做 —— 语义正确 ≠ 规模验证                                                                                                                                                                                                                                                                                                                                           |
+| #5 ⚠️    | 分帧（`reports_eof_only_on_the_last_frame`）、提交前目标不动（`keeps_the_target_untouched_until_the_write_commits`）、abort 不碰目标（`abandons_a_write_without_touching_the_target`）、会话关闭清理未提交写入与临时文件（`discards_pending_writes_when_the_session_closes`）均已固定。**缺口**：≥ 50 MiB 的实测与「内容不整体进 JS 堆」的内存观测都没做 —— 语义正确 ≠ 规模验证                                                                                                                                                                                                                                                                                                                                           |
 | #8 ⚠️    | `file/mod.rs` 的 `reports_an_unwritable_storage_root_as_permission_denied`（`chmod 0o555` 真封目录，unix-only：Windows 目录 ACL 不吃 `chmod`）。**缺口**：磁盘满只有 `error_code_for` 的映射表兜着，没有用例真把盘写满；补偿语义（meta 与文件不脱钩）由 US-504 `desktop-failure.spec.ts` 在服务层覆盖，未在 Rust 宿主上重跑                                                                                                                                                                                                                                                                                                                                                                                               |
 
 门禁（2026-08-18 迁包后实测，括号内为本故事初次交付时记录的旧值）：`cargo test` **147 条**
