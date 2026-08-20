@@ -73,7 +73,9 @@ async function createHarness(): Promise<BenchmarkHarness> {
   rxdb.init();
   const adapter = (await rxdb.connect('sqlite-wasm')) as RxDBAdapterSqlite;
 
-  const articles = makeSearchParityArticles(SEARCH_BENCH_DATASET_SIZE).map(article => Object.assign(new Article(), article));
+  const articles = makeSearchParityArticles(SEARCH_BENCH_DATASET_SIZE).map(article =>
+    Object.assign(new Article(), article)
+  );
   const comments = makeSearchParityComments(SEARCH_BENCH_DATASET_SIZE, SEARCH_BENCH_DATASET_SIZE).map(comment =>
     Object.assign(new Comment(), comment)
   );
