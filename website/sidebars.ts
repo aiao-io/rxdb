@@ -117,6 +117,11 @@ const sidebars: SidebarsConfig = {
       items: [
         {
           type: 'doc',
+          label: '编写插件',
+          id: 'plugins/authoring'
+        },
+        {
+          type: 'doc',
           label: 'rxdb-plugin-storage',
           id: 'plugins/rxdb-plugin-storage/README'
         },
@@ -161,6 +166,7 @@ const sidebars: SidebarsConfig = {
         'migration/adapters',
         'migration/desktop-split',
         'migration/plugins',
+        'migration/plugin-scope',
         'migration/schema'
       ]
     },

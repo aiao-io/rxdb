@@ -7,6 +7,7 @@ import { RxDBPluginSearch, rxDBPluginSearch } from '../plugin.js';
 import type { SearchHandle, SearchResult, SearchState } from '../types.js';
 import { Article } from './fixtures/article.entity.js';
 import { Comment } from './fixtures/comment.entity.js';
+import { disposeScopes, installScoped } from './scoped-install.js';
 
 const mk = async (titles: string[]) => {
   const rxdb = new RxDB({
@@ -31,12 +32,14 @@ const mk = async (titles: string[]) => {
     );
   }
   const plugin = rxDBPluginSearch(rxdb, { debounce: 0, pageSize: 10 }) as RxDBPluginSearch;
-  plugin.install();
+  const { scope } = installScoped(plugin);
   await plugin.ready;
   return {
     rxdb,
     adapter,
     async cleanup() {
+      // 与宿主同序：先释放作用域摘掉 entity 监听，再 destroy() 复位状态机
+      await scope.dispose();
       plugin.destroy();
       await rxdb.disconnectAll();
     }
@@ -71,6 +74,7 @@ describe('probe', () => {
     while (cleanups.length > 0) {
       await cleanups.pop()?.();
     }
+    await disposeScopes();
   });
 
   it('CJK: mid-token recall depends on unrelated docs', async () => {
