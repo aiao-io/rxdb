@@ -1,12 +1,9 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { RxDBPluginSearch, rxDBPluginSearch, type SearchHandle, type SearchState } from '@aiao/rxdb-plugin-search';
+import { makeSearchParityArticles, makeSearchParityComments } from '@aiao/rxdb-test';
 import { Article, Comment } from '@aiao/rxdb-test/entities';
 import { Subscription } from 'rxjs';
-// 该 benchmark 刻意复用 rxdb-plugin-search 的测试语料，以在与单测完全一致的数据集上度量；
-// 这些 seed 仅存在于该包的 __tests__ fixtures（非公共导出），故直接相对引用。
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import { seedArticles, seedComments } from '../../../packages/rxdb-plugin-search/src/__tests__/fixtures/seed.js';
 import { measureWithSamples } from '../utils/performance';
 
 /** 默认 dataset 大小；契约要求 10k records × 5 searchable fields 上验证 */
@@ -76,19 +73,24 @@ async function createHarness(): Promise<BenchmarkHarness> {
   rxdb.init();
   const adapter = (await rxdb.connect('sqlite-wasm')) as RxDBAdapterSqlite;
 
-  const articles = seedArticles(SEARCH_BENCH_DATASET_SIZE).map(article => Object.assign(new Article(), article));
-  const comments = seedComments(SEARCH_BENCH_DATASET_SIZE).map(comment => Object.assign(new Comment(), comment));
+  const articles = makeSearchParityArticles(SEARCH_BENCH_DATASET_SIZE).map(article => Object.assign(new Article(), article));
+  const comments = makeSearchParityComments(SEARCH_BENCH_DATASET_SIZE, SEARCH_BENCH_DATASET_SIZE).map(comment =>
+    Object.assign(new Comment(), comment)
+  );
 
   await rxdb.entityManager.saveMany(articles);
   await rxdb.entityManager.saveMany(comments);
 
-  const plugin = rxDBPluginSearch(rxdb, {
+  // 通过 `rxdb.use()` 注册插件：宿主会为本次连接纪元创建作用域并调用 `install(scope)`，
+  // 再在 `disconnectAll()` 时逆序释放作用域并补一次 `destroy()`。直接调用 `plugin.install()`
+  // 而不传 scope 会让插件内的 `scope.acquire()` 撞上 undefined（US-014 契约）。
+  const installStart = performance.now();
+  rxdb.use(rxDBPluginSearch, {
     debounce: 0,
     pageSize: SEARCH_PAGE_SIZE,
     snippetLength: 80
-  }) as RxDBPluginSearch;
-  const installStart = performance.now();
-  plugin.install();
+  });
+  const plugin = rxdb.searchPlugin;
   await plugin.ready;
   const backfillMs = performance.now() - installStart;
 
