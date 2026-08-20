@@ -357,9 +357,7 @@ describe('并发（强制测试 1～4）', () => {
       expect(scheduler.activationState(plugin)).toBe('waiting');
     }
 
-    expect(host.log).toEqual(
-      Array.from({ length: 3 }, () => ['install:cyclic', 'release:cyclic']).flat()
-    );
+    expect(host.log).toEqual(Array.from({ length: 3 }, () => ['install:cyclic', 'release:cyclic']).flat());
     // 每一轮一个全新作用域，且全部已释放
     expect(plugin.seenScopes).toHaveLength(3);
     expect(new Set(plugin.seenScopes).size).toBe(3);

@@ -285,9 +285,7 @@ export class PluginDependencyScheduler {
     // 只在「从未装过」这一步告警：装过又因断连回到等待是正常纪元行为，再喊一遍是噪音（AC#11）
     if (activation.state === 'registered' && !activation.warned) {
       activation.warned = true;
-      console.warn(
-        `[RxDB] Plugin '${plugin.name}' is not installed: unsatisfied dependencies [${missing.join(', ')}]`
-      );
+      console.warn(`[RxDB] Plugin '${plugin.name}' is not installed: unsatisfied dependencies [${missing.join(', ')}]`);
     }
     activation.state = 'waiting';
     activation.deps = EMPTY_EPOCH;

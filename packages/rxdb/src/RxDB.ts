@@ -4,6 +4,7 @@ import { EntityManager } from './entity/entity-manager.js';
 import { EntityType } from './entity/entity.interface.js';
 import { EntityMetadata } from './entity/metadata.interface.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
+import { PluginDependencyScheduler } from './plugin/dependency-scheduler.js';
 import { MergeQueryTaskCreateFn, MergeQueryTaskRemoveFn, MergeQueryTaskUpdateFn } from './repository/QueryManager.js';
 import {
   AdapterFactory,
@@ -26,7 +27,6 @@ import {
   type TransactionCommitEvent,
   type TransactionRollbackEvent
 } from './rxdb-events.js';
-import { PluginDependencyScheduler } from './plugin/dependency-scheduler.js';
 import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
 import { uuid } from './rxdb-utils.js';
 import { MigrationType, RxDBContext, RxDBOptions } from './rxdb.interface.js';

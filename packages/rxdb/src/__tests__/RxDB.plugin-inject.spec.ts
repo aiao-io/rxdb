@@ -214,18 +214,16 @@ describe('AC#4 / AC#5 依赖失效与回归', () => {
     const { database } = createDatabase();
     const scopes: LifecycleScope[] = [];
     let installs = 0;
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'onRemote',
-        inject: ['adapter:remote'],
-        lifecycle: 'scoped',
-        install: scope => {
-          installs += 1;
-          scopes.push(scope);
-          scope.acquire(() => () => undefined, 'onRemote:entry');
-        }
-      })
-    );
+    database.use((): IRxDBPlugin => ({
+      name: 'onRemote',
+      inject: ['adapter:remote'],
+      lifecycle: 'scoped',
+      install: scope => {
+        installs += 1;
+        scopes.push(scope);
+        scope.acquire(() => () => undefined, 'onRemote:entry');
+      }
+    }));
 
     await database.connect('sqlite');
     await database.connect('remote');
@@ -248,18 +246,16 @@ describe('AC#4 / AC#5 依赖失效与回归', () => {
     const { database } = createDatabase();
     const releases: string[] = [];
     const scopes: LifecycleScope[] = [];
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'cycling',
-        inject: ['adapter:remote'],
-        lifecycle: 'scoped',
-        install: scope => {
-          scopes.push(scope);
-          scope.acquire(() => () => void releases.push('a'), 'cycling:a');
-          scope.acquire(() => () => void releases.push('b'), 'cycling:b');
-        }
-      })
-    );
+    database.use((): IRxDBPlugin => ({
+      name: 'cycling',
+      inject: ['adapter:remote'],
+      lifecycle: 'scoped',
+      install: scope => {
+        scopes.push(scope);
+        scope.acquire(() => () => void releases.push('a'), 'cycling:a');
+        scope.acquire(() => () => void releases.push('b'), 'cycling:b');
+      }
+    }));
 
     await database.connect('sqlite');
     for (let round = 0; round < 3; round += 1) {
@@ -281,20 +277,18 @@ describe('AC#7 安装在飞期间依赖失效', () => {
     let finishInstall: (() => void) | undefined;
     const scopes: LifecycleScope[] = [];
     const releases: string[] = [];
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'slow',
-        inject: ['adapter:remote'],
-        lifecycle: 'scoped',
-        install: scope => {
-          scopes.push(scope);
-          scope.acquire(() => () => void releases.push('slow'), 'slow:entry');
-          return new Promise<void>(resolve => {
-            finishInstall = resolve;
-          });
-        }
-      })
-    );
+    database.use((): IRxDBPlugin => ({
+      name: 'slow',
+      inject: ['adapter:remote'],
+      lifecycle: 'scoped',
+      install: scope => {
+        scopes.push(scope);
+        scope.acquire(() => () => void releases.push('slow'), 'slow:entry');
+        return new Promise<void>(resolve => {
+          finishInstall = resolve;
+        });
+      }
+    }));
 
     await database.connect('sqlite');
     const connecting = database.connect('remote');
@@ -371,14 +365,12 @@ describe('AC#9 安装失败与纪元绑定', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const { database } = createDatabase();
     const healthy = probe('healthy', ['adapter:local']);
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'broken',
-        inject: ['adapter:local'],
-        lifecycle: 'scoped',
-        install: () => Promise.reject(new Error('install boom'))
-      })
-    );
+    database.use((): IRxDBPlugin => ({
+      name: 'broken',
+      inject: ['adapter:local'],
+      lifecycle: 'scoped',
+      install: () => Promise.reject(new Error('install boom'))
+    }));
     database.use(() => healthy);
 
     await expect(database.connect('sqlite')).rejects.toThrow('install boom');
