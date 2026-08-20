@@ -452,3 +452,106 @@ describe('init() 失败路径与作用域寿命对齐', () => {
     expect(handle).toBeUndefined();
   });
 });
+
+describe('停机窗口与跨纪元迟到任务', () => {
+  it('停机期间 use() 只登记不安装，插件留到下一次 init() 才装进新纪元', async () => {
+    const database = createDatabase();
+    const log: string[] = [];
+    let openGate: (() => void) | undefined;
+    let gated = false;
+    database.use((): IRxDBPlugin => ({
+      name: 'slowTeardown',
+      lifecycle: 'scoped',
+      install: scope =>
+        void scope.acquire(
+          () => () => {
+            // 只卡第一次停机：第二次要能自己跑完，否则测尾的 disconnectAll() 无人开闸
+            if (gated) return undefined;
+            gated = true;
+            return new Promise<void>(resolve => {
+              openGate = resolve;
+            });
+          },
+          'gate'
+        )
+    }));
+    await database.connect('sqlite');
+
+    // 停机卡在闸门上：此刻 #rxdb_initialized 仍为 true，而纪元正在拆
+    const shutdown = database.disconnectAll();
+    await vi.waitFor(() => expect(openGate).toBeTypeOf('function'));
+
+    const scopes: LifecycleScope[] = [];
+    database.use((): IRxDBPlugin => ({
+      name: 'lateUse',
+      lifecycle: 'scoped',
+      install: scope => {
+        scopes.push(scope);
+        scope.acquire(() => () => void log.push('lateUse'), 'entry');
+      }
+    }));
+
+    // 装进正在释放的旧纪元会被立刻拆掉；装进新建的纪元则整条作用域逃出本次停机
+    expect(scopes).toHaveLength(0);
+
+    openGate?.();
+    await shutdown;
+
+    expect(scopes).toHaveLength(0);
+    expect(log).toEqual([]);
+
+    await database.connect('sqlite');
+
+    // 只安装一次：逃出停机的纪元被下一次 init() 复用时，这里会是 2
+    expect(scopes).toHaveLength(1);
+    expect(scopes[0].state).toBe('active');
+
+    await database.disconnectAll();
+
+    expect(log).toEqual(['lateUse']);
+    expect(scopes[0].state).toBe('disposed');
+  });
+
+  it('旧纪元安装失败的回收不删新纪元的插件作用域', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const database = createDatabase();
+    const log: string[] = [];
+    let failFirstInstall: ((reason: Error) => void) | undefined;
+    let installs = 0;
+    // 不声明 lifecycle：宿主先释放作用域再调 destroy()，两者的先后正是本用例的判据
+    database.use((): IRxDBPlugin => ({
+      name: 'straggler',
+      install: scope => {
+        installs += 1;
+        scope.acquire(() => () => void log.push('entry'), 'entry');
+        if (installs > 1) return undefined;
+        return new Promise<void>((_, reject) => {
+          failFirstInstall = reject;
+        });
+      },
+      destroy: () => void log.push('destroy')
+    }));
+
+    // 第一纪元的 install 挂着不结算，connect() 会一直等它
+    const connecting = database.connect('sqlite');
+    void connecting.catch(() => undefined);
+    await vi.waitFor(() => expect(failFirstInstall).toBeTypeOf('function'));
+
+    await database.disconnectAll();
+    expect(log).toEqual(['entry', 'destroy']);
+
+    // 第二纪元正常装好，#plugin_scopes 里是新作用域
+    await database.connect('sqlite');
+    expect(installs).toBe(2);
+
+    // 旧纪元的安装现在才失败：它的回收只该碰自己那一个作用域
+    failFirstInstall?.(new Error('stale install boom'));
+    await expect(connecting).rejects.toThrow('stale install boom');
+    await tick();
+
+    await database.disconnectAll();
+
+    // 映射被旧任务抹掉时，#destroy_plugin 找不到 scope，条目改由纪元总闸在 destroy() 之后释放
+    expect(log).toEqual(['entry', 'destroy', 'entry', 'destroy']);
+  });
+});

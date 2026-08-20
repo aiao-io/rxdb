@@ -116,6 +116,35 @@ scope.acquire(() => {
 
 插件自己**不要**在 `install()` 的 catch 里做补偿性清理——清单在宿主手里，重复清理只会把幂等性问题引进来。
 
+## 不要在 `install()` 里等宿主连接
+
+`connect()` 的顺序是「适配器就绪 → `await` 全部插件的 `install()`」。所以 `install()` 里 `await db.connect()` 是在等自己：
+
+```diff
+ install(scope: LifecycleScope) {
+-  return db.connect().then(() => this.#setup());   // 死锁：connect() 正在等这个 promise
++  scope.acquire(() => { /* 同步登记 */ }, 'example:entry');
++  return this.#setup();                            // 需要适配器时等 adapterConnected$，不等 connect()
+ }
+```
+
+要等到某个适配器真的连上，等的是 `db.adapterConnected$(name)` 这类**信号**，不是 `connect()` 本身。同理，`install()` 里不要 `await` 另一个插件的就绪 promise：宿主按注册序串行安装，被等的那个可能排在你后面，谁都不会先完成。
+
+依赖需要由宿主调度（声明依赖、依赖就绪后再安装）这条路还没交付——见 [US-015](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/core/US-015-plugin-inject-dependency.md)。在它落地之前，插件之间的先后靠**注册顺序**表达：`use()` 的调用序就是安装序。
+
+## 跨纪元的迟到任务
+
+`install()` 启动的异步任务可能跨越一次断开重连。每个 `await` 之后、**写实例字段或结算等待者之前**，先复核纪元身份还是不是自己那一轮：
+
+```typescript
+const store = this.#store;
+const rows = await read(store);
+if (this.#store !== store) return;   // 纪元已换：结果只能丢弃
+this.#rows = rows;
+```
+
+比对的是**身份**而不是「是否为 `undefined`」：读取期间断开又重连时字段已经有值了，那份值属于新纪元，不该由这一轮补写。没有稳定字段可比时，用一个每次 `install()` 递增的纪元号。
+
 ## 拆卸顺序
 
 `disconnectAll()` 时宿主按**逆插入序串行**拆卸：后装的先拆。

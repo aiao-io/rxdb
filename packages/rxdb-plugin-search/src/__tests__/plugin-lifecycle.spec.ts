@@ -19,15 +19,17 @@ import {
   type EntityPropertyMetadataOptions,
   type RxDB
 } from '@aiao/rxdb';
+import { LifecycleScope } from '@aiao/utils';
 import { BehaviorSubject, firstValueFrom, Subject, throwError } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const { installFtsForEntity } = vi.hoisted(() => ({
+const { installFtsForEntity, createSearchEngine } = vi.hoisted(() => ({
   installFtsForEntity: vi.fn(async () => ({
     tableName: 'article',
     status: 'installed' as const,
     fields: [{ name: 'title', isArray: false }]
-  }))
+  })),
+  createSearchEngine: vi.fn(() => ({ search: vi.fn(async () => []) }))
 }));
 
 vi.mock('../core/fts5-runtime.js', async () => {
@@ -42,7 +44,7 @@ vi.mock('../core/search-engine.js', async () => {
   const actual = await vi.importActual<typeof import('../core/search-engine.js')>('../core/search-engine.js');
   return {
     ...actual,
-    createSearchEngine: vi.fn(() => ({ search: vi.fn(async () => []) }))
+    createSearchEngine
   };
 });
 
@@ -445,6 +447,66 @@ describe('search plugin lifecycle', () => {
     // 守卫只看安装状态，不是一次性闸门
     expect(() => plugin.search('hello')).not.toThrow();
     expect(() => plugin.searchCollection('Article', 'hello')).not.toThrow();
+    plugin.destroy();
+  });
+
+  it('旧纪元迟到的 install 只丢弃结果，不改写新纪元的 engine', async () => {
+    const fake = buildFakeRxdb();
+    const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
+
+    // 第一纪元卡在 FTS 安装上：此时还没走到建 engine 那一步
+    let landStaleInstall: (() => void) | undefined;
+    installFtsForEntity.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          landStaleInstall = () =>
+            resolve({ tableName: 'article', status: 'installed', fields: [{ name: 'title', isArray: false }] });
+        })
+    );
+    const stale = installScoped(plugin);
+    await vi.waitFor(() => expect(landStaleInstall).toBeTypeOf('function'));
+
+    // 断连：宿主先释放作用域，再 destroy() 复位状态机
+    await stale.scope.dispose();
+    plugin.destroy();
+
+    // 第二纪元正常装好，engine 属于新纪元
+    const fresh = installScoped(plugin);
+    await fresh.installing;
+    expect(createSearchEngine).toHaveBeenCalledTimes(1);
+    const freshEngine = createSearchEngine.mock.results.at(-1)?.value;
+
+    // 旧纪元现在才跑完 FTS：它手里的 rawQuery 绑的是上一纪元的适配器
+    landStaleInstall?.();
+    await stale.installing;
+
+    // 迟到结果被丢弃：没有第二个 engine，新纪元的 handle 也没被它唤醒
+    expect(createSearchEngine).toHaveBeenCalledTimes(1);
+
+    const handle = plugin.search('title');
+    await vi.waitFor(() => expect(freshEngine?.search).toHaveBeenCalled());
+
+    handle.destroy();
+    plugin.destroy();
+  });
+
+  it('三路 entity 事件各自一条登记，第二条注册失败时第一条不会留在宿主上', async () => {
+    const fake = buildFakeRxdb();
+    const boom = new Error('addEventListener 第二条炸了');
+    const addEventListener = vi.mocked(fake.rxdb.addEventListener);
+    addEventListener.mockImplementationOnce(addEventListener.getMockImplementation()!).mockImplementationOnce(() => {
+      throw boom;
+    });
+    const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
+
+    const scope = new LifecycleScope('search-spec-partial-bind');
+    expect(() => plugin.install(scope)).toThrow(boom);
+
+    // 第一条已经挂上去了，作用域必须握着它的撤销条目
+    expect(fake.listeners.get(ENTITY_LOCAL_CREATE_EVENT)).toHaveLength(1);
+    await scope.dispose();
+    expect(fake.listeners.get(ENTITY_LOCAL_CREATE_EVENT)).toHaveLength(0);
+
     plugin.destroy();
   });
 

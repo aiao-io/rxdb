@@ -847,12 +847,21 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
         await delMany(needDeleteIds, store);
       }
     } catch (reason) {
+      // RWS-003：写盘期间断连的话，队列、`#pending`、flush waiter 全都换了主人。
+      // 回队列会把旧纪元的草稿混进新纪元，reject 会用旧故障打掉新纪元的 flush()。
+      // 旧纪元自己的 waiter 已由 `#releaseEpochState()` 结算过，这里丢弃即可。
+      if (this.#indexedDBStore !== store) return;
       // 真正的 IDB 故障：整批（含没能克隆的那些）回队列，语义仍是「重试即可」
       this.#restoreFailedTask([...clonable, ...unclonable], needDeleteIds);
       this.#pending = false;
       this.#rejectFlushWaiters(reason);
       return;
     }
+
+    // 同上：写成功也一样不能越纪元结算。`#pending = false` 会把新纪元正在飞的写盘标成
+    // 空闲，`#resolveFlushWaiters()` 更直接——新纪元的数据一个字节都还没落盘，
+    // 而 `flush()` 的契约是「resolve 时已经进了 IndexedDB」。
+    if (this.#indexedDBStore !== store) return;
 
     if (unclonable.length) {
       // 只回填克隆失败的那些，且回填的是**活引用**而不是快照。

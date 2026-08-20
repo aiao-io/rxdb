@@ -479,6 +479,55 @@ describe('RxDBPluginWorkspace', () => {
       expect(idbState.store.get(cacheId('Todo', TODO_ID_1))).toMatchObject({ title: 'v2' });
     });
 
+    // RWS-003：`await` 之后必须复核纪元。写盘任务跨越一次断连重连时，旧任务手里的
+    // `#pending`、任务队列、flush waiter 都已经属于新纪元——它结算的只能是自己那一批。
+    it('旧纪元迟到的写盘不结算新纪元的 flush()', async () => {
+      let landStaleWrite: (() => void) | undefined;
+      let landFreshWrite: (() => void) | undefined;
+      setManyMock
+        .mockImplementationOnce(async items => {
+          await new Promise<void>(resolve => {
+            landStaleWrite = resolve;
+          });
+          items.forEach(([key, value]) => idbState.store.set(key, value));
+        })
+        .mockImplementationOnce(async items => {
+          await new Promise<void>(resolve => {
+            landFreshWrite = resolve;
+          });
+          items.forEach(([key, value]) => idbState.store.set(key, value));
+        });
+
+      // 第一纪元的写盘卡在 IndexedDB 上
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: 'Epoch 1' }));
+      await vi.waitFor(() => expect(landStaleWrite).toBeTypeOf('function'));
+
+      // 断连重连：纪元状态复位，store 换新，旧任务还在飞
+      await scope.dispose();
+      scope = new LifecycleScope('workspace-spec-epoch-2');
+      await plugin.install(scope);
+
+      // 新纪元自己的写盘同样还没落地
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_2, { title: 'Epoch 2' }));
+      await vi.waitFor(() => expect(landFreshWrite).toBeTypeOf('function'));
+
+      let flushed = false;
+      const flushing = plugin.flush().then(() => void (flushed = true));
+
+      landStaleWrite?.();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // flush() 的语义是「队列里的草稿已经进了 IndexedDB」——旧纪元写完不算数
+      expect(flushed).toBe(false);
+      expect(idbState.store.has(cacheId('Todo', TODO_ID_2))).toBe(false);
+
+      landFreshWrite?.();
+      await flushing;
+
+      expect(flushed).toBe(true);
+      expect(idbState.store.get(cacheId('Todo', TODO_ID_2))).toMatchObject({ title: 'Epoch 2' });
+    });
+
     // RWS-FRESH-02：草稿存的是「用户正在编辑的实体」，字段类型由业务定义，插件管不着。
     // 一个函数字段就足以让 `structuredClone` 失败 —— 旧实现把它送进事务，让 put() 同步抛
     // DataCloneError，而 setMany 的整批 put 共用一个事务、异常穿出后事务不 abort，

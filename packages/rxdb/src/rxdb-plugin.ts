@@ -64,6 +64,10 @@ export interface IRxDBPlugin {
    * @deprecated 改用 `install(scope)` 里的 `scope.acquire()` 登记撤销条目，并声明
    * {@link IRxDBPlugin.lifecycle} 为 `'scoped'`。本方法仅为尚未迁移的插件保留：
    * 未声明 `lifecycle` 时，宿主会在释放完插件作用域**之后**再调用它一次。
+   *
+   * 按仓库废弃周期，本成员至少保留一个次版本（1.0 后为一个主版本周期），移除放在破坏性
+   * 版本里进行，并在迁移文档记录。在此之前调用契约不变——已迁移的插件删掉它即可，
+   * 双版本插件保留它也不会被清理两次。
    */
   destroy?(): void | Promise<void>;
 }

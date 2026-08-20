@@ -111,6 +111,19 @@ export class RxDB {
 
   #rxdb_initialized = false;
 
+  /**
+   * 停机窗口标记：{@link RxDB.#shutdown} 一进来就置位，与 `#rxdb_initialized` 一起复位。
+   *
+   * @remarks
+   * `#rxdb_initialized` 在整个异步拆卸期间都还是 `true`——它标的是「本纪元已初始化」，
+   * 复位必须等拆完。于是拆卸的这段时间里两个判断重合不了：已初始化 ≠ 可以往里装东西。
+   * 少了这个标记，窗口内的 `use()` 会把插件装进正在释放的纪元（随后被总闸一起释放），
+   * 或者更糟——`#ensure_connection_scope()` 在 {@link RxDB.#release_connection_scope}
+   * 置空之后建出一个**脱离本次停机**的新作用域，安装在停机结束后继续跑，而这一纪元
+   * 已经没有任何拆卸入口会经过它了。
+   */
+  #shutting_down = false;
+
   #repository_config_map = new Map<string, IRepositoryConfig>();
 
   #plugin_map = new Map<Plugin, IRxDBPlugin>();
@@ -401,6 +414,10 @@ export class RxDB {
    * `init()` 之前注册的插件在 `init()` 时统一安装；
    * `init()` 之后注册的插件立即安装，保证与 `shutdown` 时的 destroy 对称。
    *
+   * 停机窗口（`disconnect()` / `disconnectAll()` 已开始拆卸、尚未拆完）内调用只**登记**，
+   * 安装推迟到下一次 `init()`——本纪元正在退场，往里装的东西没有对称的拆卸入口。
+   * 见 {@link RxDB.#shutting_down}。
+   *
    * 同步 `install()` 失败只 `console.error`，`use()` / `init()` 本身不抛。
    * 异步或同步失败都会记入安装 Promise，由后续 `connect()` 传播。
    *
@@ -414,7 +431,7 @@ export class RxDB {
     } else {
       const plugin_instance = plugin(this, options);
       this.#plugin_map.set(plugin, plugin_instance);
-      if (this.#rxdb_initialized) {
+      if (this.#rxdb_initialized && !this.#shutting_down) {
         this.#install_one_plugin(plugin_instance);
       }
     }
@@ -728,6 +745,8 @@ export class RxDB {
    * 不复位则重连后每个实体事件都会被塞进 `#need_dispatch_events` 永不派发）。
    */
   async #shutdown(): Promise<void> {
+    // 先于任何 await 置位：拆卸期间进来的 use() 只登记不安装（见 #shutting_down）。
+    this.#shutting_down = true;
     await this.#destroy_plugin();
     // 总闸：#destroy_plugin 漏掉的（安装失败后残留的子作用域等）在这里一并释放，
     // 并把字段置空 —— 下一次 init() 拿到的是全新的连接纪元作用域。
@@ -746,6 +765,7 @@ export class RxDB {
     // 清空安装记录：这是失败插件唯一的解锁点（见 #await_plugin_installs 的 @remarks）。
     this.#plugin_install_promises.clear();
     this.#rxdb_initialized = false;
+    this.#shutting_down = false;
     this.#clear_adapter_connected();
     this.#connected_sub.next(false);
   }
@@ -874,9 +894,14 @@ export class RxDB {
    * 这里**必须**吞掉清理错误：调用方紧接着要抛出安装错误，也就是失败的**原因**。
    * 让清理错误逃出去会把原因换成后果，排查时看到的是「关闭 channel 失败」而不是
    * 「建表失败」。清理错误另行 `console.error`，两个都不丢。
+   *
+   * 删映射按 `(plugin, scope)` 身份守卫：`install()` 可以跨越一次断连重连，此时
+   * `#plugin_scopes` 里躺的已经是新纪元的作用域。无条件 `delete` 会把新映射抹掉，
+   * 新纪元的 `#destroy_plugin()` 随后找不到 scope——资源只剩总闸兜底，插件级的
+   * 拆卸顺序和错误归因一起失真。旧 scope 该释放照样释放，只是不碰新纪元的账。
    */
   async #discard_plugin_scope(plugin: IRxDBPlugin, scope: LifecycleScope): Promise<void> {
-    this.#plugin_scopes.delete(plugin);
+    if (this.#plugin_scopes.get(plugin) === scope) this.#plugin_scopes.delete(plugin);
     try {
       await scope.dispose();
     } catch (err) {
