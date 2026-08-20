@@ -13,8 +13,8 @@
 RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/*` 公开包当前同步发布为 `0.0.25`，仍处于 0.x 演进阶段。
 
 - 使用装饰器定义的实体模型，自动生成类型安全的 Repository 和查询 API
-- 一份模型声明同时驱动数据库 schema、TypeScript 类型和响应式数据流。
-- 浏览器里直接跑 SQLite，用接近原生 App 的体验构建离线优先应用。
+- 一份模型声明同时驱动数据库 schema、TypeScript 类型和响应式数据流
+- 浏览器里直接跑 SQLite，用接近原生 App 的体验构建离线优先应用
 
 ## Demo
 
@@ -37,7 +37,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri        |
 
 > [!NOTE]
-> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态以 [38/53 已交付](requirements/status-overview.md)
+> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [38/53 已交付](requirements/status-overview.md)
 
 支持与反馈：可复现的 bug 请提交 [Bug Issue](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml)，功能建议提交 [Feature Issue](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml)，使用问题请提交 [Question Issue](https://github.com/aiao-io/rxdb/issues/new?template=question.yml)。
 
