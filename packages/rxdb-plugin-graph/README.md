@@ -63,3 +63,9 @@ Person.findNeighbors$({ entityId: alice.id, direction: 'out', level: 1 }).subscr
 `findNeighbors$()`、`countNeighbors$()` 和 `findPaths$()` 返回会随节点或边变更刷新的 Observable。
 邻居查询不包含起始节点，路径查询返回非循环路径及对应边信息。邻居与路径结果默认最多返回
 1000 条，调用方可通过 `limit` 调低或提高，上限为 10000；结果超过 `limit` 或路径搜索触及内部资源上限时，数组的 `truncated` 为 `true`。
+
+## 连接纪元
+
+插件声明 `lifecycle: 'scoped'`，唯一的宿主改动——注册 `GraphRepository`——登记在 `install(scope)`
+收到的作用域上，`disconnectAll()` 时随作用域一起撤销，宿主不会调用 `destroy()`。重新 `connect()`
+会重新注册。改造前这条注册没人管，断连后仓库仍挂在 `rxdb` 上、指向的却是一个已经拆掉的纪元。

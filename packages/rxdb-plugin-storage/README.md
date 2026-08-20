@@ -94,9 +94,14 @@ class RxdbFileStorage {
   delete(fileId: string): Promise<void>;
   clear(path?: string): Promise<void>;
 
-  destroy(): void;
+  destroy(): Promise<void>;
 }
 ```
+
+`db.storage` **只在连接期间存在**：安装前与断开连接后都是 `undefined`。插件声明 `lifecycle: 'scoped'`，
+建服务、挂 `db.storage`、注册 metadata 实体三步各占一条作用域条目，`disconnectAll()` 时逆序退回——
+先摘实体、再摘属性、最后等 storage 排空写任务。重新 `connect()` 会建一个全新的服务实例，
+旧实例上取得的对象 URL 与句柄不再有效。
 
 `list()` 的目录语义：
 
@@ -210,7 +215,7 @@ rxdb.use(rxDBPluginStorage, {
 - 浏览器后端要求运行环境支持 `navigator.storage.getDirectory()`；桌面后端要求 preload 注入的 host 桥接可用。
 - `showSaveFilePicker` 可用时 `download()` 使用文件选择器；否则回退到临时 `<a download>`。
 - `watch()` 监听本插件触发的元数据变化，不监视其他代码绕过插件直接改动文件的行为。
-- `destroy()` 会回收本实例创建的全部对象 URL。
+- 断开连接会回收本实例创建的全部对象 URL（宿主释放作用域时调用服务的 `destroy()`）。
 
 ## 一致性策略
 

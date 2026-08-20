@@ -69,9 +69,9 @@ await db.workspace.flush();
 
 ## 浏览器、SSR 与持久化边界
 
-插件依赖浏览器的 `crypto.randomUUID()`、`structuredClone()` 和 IndexedDB；BroadcastChannel 可用时才启用跨标签页同步。因此不要在 SSR 渲染阶段构造插件，应在浏览器 hydration 后创建并初始化 RxDB。
+插件依赖浏览器的 `crypto.randomUUID()`、`structuredClone()` 和 IndexedDB；BroadcastChannel 可用时才启用跨标签页同步。这些资源全部在 `install()`（即 `db.connect()`）时获取，构造插件本身不碰它们——因此不要在 SSR 渲染阶段连接数据库，应在浏览器 hydration 后再 `connect()`。
 
-IndexedDB 中的 workspace 数据是草稿副本，不是数据库事务日志。`destroy()`、浏览器清理站点数据或存储配额错误都可能使未刷盘数据丢失。关键流程必须显式 `await flush()`。
+IndexedDB 中的 workspace 数据是草稿副本，不是数据库事务日志。断开连接、浏览器清理站点数据或存储配额错误都可能使未刷盘数据丢失。关键流程必须显式 `await flush()`。
 
 ## 通信与数据安全
 

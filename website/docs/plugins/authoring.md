@@ -24,12 +24,12 @@ export class RxDBPluginExample extends RxDBPluginBase implements IRxDBPlugin {
 export const rxDBPluginExample: Plugin = (db: RxDB) => new RxDBPluginExample(db);
 ```
 
-| 成员                 | 必需 | 说明                                                                             |
-| -------------------- | ---- | -------------------------------------------------------------------------------- |
-| `name`               | ✅   | 插件名（首字母小写）                                                             |
-| `install(scope)`     | ✅   | 建立本纪元资源；抛错或 reject 视为安装失败                                       |
-| `lifecycle`          | ⬜   | 取 `'scoped'` 表示拆卸完全交给作用域                                             |
-| `destroy?()`         | ⬜   | 已废弃。仅为尚未迁移的插件保留，未声明 `lifecycle` 时宿主会在释放作用域**之后**再调用一次 |
+| 成员             | 必需 | 说明                                                                                      |
+| ---------------- | ---- | ----------------------------------------------------------------------------------------- |
+| `name`           | ✅   | 插件名（首字母小写）                                                                      |
+| `install(scope)` | ✅   | 建立本纪元资源；抛错或 reject 视为安装失败                                                |
+| `lifecycle`      | ⬜   | 取 `'scoped'` 表示拆卸完全交给作用域                                                      |
+| `destroy?()`     | ⬜   | 已废弃。仅为尚未迁移的插件保留，未声明 `lifecycle` 时宿主会在释放作用域**之后**再调用一次 |
 
 实现方不写形参不破坏契约——`install()` 与 `install(scope)` 同样满足接口。
 
