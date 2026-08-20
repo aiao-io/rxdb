@@ -9,13 +9,10 @@
 
 ## 目录结构
 
-| 文件                                                                                                               | 说明                                                                        | 状态 |
-| ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- | ---- |
-| `README.md`                                                                                                        | 本说明与状态约定                                                            | —    |
-| `review.template.md`                                                                                               | 新建 review 记录的模板                                                      | —    |
-| [RV-001-desktop-host-runtime-validation-not-enforced.md](./RV-001-desktop-host-runtime-validation-not-enforced.md) | Desktop adapter（Electron / Tauri）发布面问题集（5 项）                     | Open |
-| [RV-008-local-db-vs-main-review.md](./RV-008-local-db-vs-main-review.md)                                           | `local-db` 相对 `main` 的全量代码复审（7 项：4 已修，3 降级 follow-up）     | Open |
-| [RV-010-next-lifecycle-vs-main-复审.md](./RV-010-next-lifecycle-vs-main-复审.md)                                   | `next-lifecycle` 相对 `main` 的独立复审（1 项 P2 + 2 项 P3）                | Open |
+| 文件                 | 说明                   | 状态 |
+| -------------------- | ---------------------- | ---- |
+| `README.md`          | 本说明与状态约定       | —    |
+| `review.template.md` | 新建 review 记录的模板 | —    |
 
 ## 状态约定
 
