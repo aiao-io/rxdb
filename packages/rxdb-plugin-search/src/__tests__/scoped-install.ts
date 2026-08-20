@@ -3,13 +3,19 @@
  *
  * 搜索插件的 entity 事件监听登记在 `install(scope)` 收到的作用域上，解绑不再由插件自己
  * 记账（US-014）。测试因此必须像宿主一样递一个作用域进去，并在用例收尾时释放它——
- * `destroy()` 现在只复位状态机，不再摘监听。
+ * 插件声明了 `lifecycle: 'scoped'`（US-015），作用域**就是**它唯一的拆卸入口。
  */
 import { LifecycleScope } from '@aiao/utils';
 
 import type { RxDBPluginSearch } from '../plugin.js';
 
-/** 一次装载的产物。`installing` 与 `plugin.ready` 是同一个 promise 对象。 */
+/**
+ * 一次装载的产物。
+ *
+ * @remarks
+ * `installing` 与 `plugin.ready` 是**两个**对象：前者是宿主用来喂 `connect()` 的安装
+ * promise，后者是跨纪元存活的 deferred（US-015）。两者同成同败，但不可用 `toBe` 互测。
+ */
 export interface ScopedInstall {
   /** 本次装载的作用域；释放它等价于宿主断连或回滚失败的安装。 */
   readonly scope: LifecycleScope;

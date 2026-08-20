@@ -245,7 +245,7 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     this.#scope = scope;
     // 复位条目最先登记 ⇒ 逆序释放时最后执行：排在它前面的撤销条目（entity 监听）
     // 跑的时候读到的仍是本纪元完整的缓存
-    scope.acquire(() => () => this.#teardown(scope, deferred), 'search:state');
+    scope.acquire(() => () => this.#teardown(scope), 'search:state');
     // entity 事件通道在同步阶段就挂载：保证用户在 `await ready` 之前调用 `db.search()`
     // 也能立即接到数据变更（避免 install 失败 / 慢 install 期间 silent miss）。
     // 解绑不再由本插件记账——安装失败时宿主会释放 scope，正常拆卸时同样如此。
@@ -560,23 +560,25 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
    * 纪元结束：结算 `ready` 并复位各级缓存。
    *
    * @param scope - 正在释放的作用域
-   * @param deferred - 该作用域那一轮的 `ready`
    *
    * @remarks
    * 这里是原来的 `destroy()`。挂到作用域上之后，宿主释放完就收手（`lifecycle: 'scoped'`），
    * 不再有「先释放作用域、再补一次 `destroy()`」的两步拆卸。
    *
+   * 旧纪元迟到的释放直接返回，`ready` 一格都不碰：`#readyDeferred` 只在结算之后才换新一格
+   * （见 `install()`），所以「还 pending 的那一格」必定就是当前这一格，动它等于替新纪元
+   * 认输；而旧纪元自己那一格既然已经结算，也没有什么可结算的了。
+   *
    * `#installFailure` **不**复位：作用域释放之后 `search()` 抛「安装为什么失败」比抛
    * 「插件没装」更有归因价值，而下一次 `install()` 起手就会把它清掉，脏值不会跨纪元。
    */
-  #teardown(scope: LifecycleScope, deferred: ReadyDeferred): void {
-    if (this.#scope !== scope) {
-      // 旧纪元迟到的释放：只结算它自己那一格 ready（同一格说明新纪元续用了它，不能动），
-      // 新纪元的缓存一律不碰
-      if (deferred !== this.#readyDeferred) deferred.reject(destroyedError());
-      return;
-    }
-    deferred.reject(destroyedError());
+  #teardown(scope: LifecycleScope): void {
+    if (this.#scope !== scope) return;
+    // 已经结算过的那一格改不动了，换一格 rejected 的顶上：纪元结束之后 `search()` 一定抛，
+    // `ready` 就不能还留着上一纪元的 resolve 骗调用方「可以搜了」。
+    // 失败纪元同理换掉——原始安装错误由 `#installFailure` 留在 `search()` 那条路上归因
+    if (this.#readyDeferred.settled) this.#readyDeferred = createReadyDeferred();
+    this.#readyDeferred.reject(destroyedError());
     this.#scope = undefined;
     this.#handleRegistrations.clear();
     this.#searchEntries.clear();
