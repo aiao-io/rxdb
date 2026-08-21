@@ -18,7 +18,13 @@ import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
 import { uuid } from './rxdb-utils.js';
 import { RxDBContext, RxDBOptions } from './rxdb.interface.js';
 import { isLocalAdapter, isTransactionEvent } from './rxdb.private.js';
-import { emitEvent, handleTransactionBegin, handleTransactionCommit, handleTransactionRollback, runIsolated } from './rxdb.transaction.js';
+import {
+  emitEvent,
+  handleTransactionBegin,
+  handleTransactionCommit,
+  handleTransactionRollback,
+  runIsolated
+} from './rxdb.transaction.js';
 import type { EventListener, IRepositoryConfig, RxDBConfig, TransactionContext } from './rxdb.types.js';
 import { LIVE_BEHAVIOUR_CONFIG_KEYS } from './rxdb.types.js';
 import { SchemaManager } from './schema/SchemaManager.js';
@@ -831,8 +837,12 @@ export class RxDB {
     if (this.#event_initialized) return;
     this.#event_initialized = true;
     this.addEventListener(TRANSACTION_BEGIN, event => handleTransactionBegin(this.#transaction_stack, event));
-    this.addEventListener(TRANSACTION_COMMIT, event => handleTransactionCommit(this.#transaction_stack, this.#event_map, this, event));
-    this.addEventListener(TRANSACTION_ROLLBACK, event => handleTransactionRollback(this.#transaction_stack, this.#event_map, this, event));
+    this.addEventListener(TRANSACTION_COMMIT, event =>
+      handleTransactionCommit(this.#transaction_stack, this.#event_map, this, event)
+    );
+    this.addEventListener(TRANSACTION_ROLLBACK, event =>
+      handleTransactionRollback(this.#transaction_stack, this.#event_map, this, event)
+    );
 
     ['entityManager', 'schemaManager', 'versionManager'].forEach(key =>
       Object.defineProperty(this, key, {

@@ -1,4 +1,11 @@
-import { isCrossTabEvent, RxDBEvent, RxDBEventMap, type TransactionBeginEvent, type TransactionCommitEvent, type TransactionRollbackEvent } from './rxdb-events.js';
+import {
+  isCrossTabEvent,
+  RxDBEvent,
+  RxDBEventMap,
+  type TransactionBeginEvent,
+  type TransactionCommitEvent,
+  type TransactionRollbackEvent
+} from './rxdb-events.js';
 import { EventListener, TransactionContext } from './rxdb.types.js';
 
 /**
@@ -7,7 +14,10 @@ import { EventListener, TransactionContext } from './rxdb.types.js';
  * @remarks
  * 从栈顶往下找：同一身份可能因 savepoint 嵌套出现多次，最内层的那个才是当前上下文。
  */
-export function findTransactionContext(stack: TransactionContext[], transactionId: string | undefined): TransactionContext | undefined {
+export function findTransactionContext(
+  stack: TransactionContext[],
+  transactionId: string | undefined
+): TransactionContext | undefined {
   for (let index = stack.length - 1; index >= 0; index -= 1) {
     if (stack[index].id === transactionId) return stack[index];
   }
