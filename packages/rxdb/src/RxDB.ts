@@ -833,8 +833,6 @@ export class RxDB {
     this.addEventListener(TRANSACTION_BEGIN, event => handleTransactionBegin(this.#transaction_stack, event));
     this.addEventListener(TRANSACTION_COMMIT, event => handleTransactionCommit(this.#transaction_stack, this.#event_map, this, event));
     this.addEventListener(TRANSACTION_ROLLBACK, event => handleTransactionRollback(this.#transaction_stack, this.#event_map, this, event));
-    this.addEventListener(TRANSACTION_COMMIT, on_commit);
-    this.addEventListener(TRANSACTION_ROLLBACK, on_rollback);
 
     ['entityManager', 'schemaManager', 'versionManager'].forEach(key =>
       Object.defineProperty(this, key, {
