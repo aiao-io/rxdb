@@ -164,11 +164,8 @@ describe('fts5 installer browser integration', () => {
 
     const plugin = rxDBPluginSearch(harness.rxdb, { debounce: 0 }) as RxDBPluginSearch;
     const { scope: pluginScope } = installScoped(plugin);
-    // 与宿主同序：先释放作用域摘掉 entity 监听，再 destroy() 复位状态机
-    cleanups.push(async () => {
-      await pluginScope.dispose();
-      plugin.destroy();
-    });
+    // `lifecycle: 'scoped'` 之后释放作用域就是全部拆卸，没有第二步 `destroy()`
+    cleanups.push(() => pluginScope.dispose());
     await plugin.ready;
 
     const plan = extractFtsPlanFromMetadata(getEntityMetadata(Article))!;
@@ -188,11 +185,8 @@ describe('fts5 installer browser integration', () => {
 
     const secondPlugin = rxDBPluginSearch(harness.rxdb, { debounce: 0 }) as RxDBPluginSearch;
     const { scope: secondPluginScope } = installScoped(secondPlugin);
-    // 与宿主同序：先释放作用域摘掉 entity 监听，再 destroy() 复位状态机
-    cleanups.push(async () => {
-      await secondPluginScope.dispose();
-      secondPlugin.destroy();
-    });
+    // `lifecycle: 'scoped'` 之后释放作用域就是全部拆卸，没有第二步 `destroy()`
+    cleanups.push(() => secondPluginScope.dispose());
     await secondPlugin.ready;
 
     expect(await queryFtsRowCount(harness.adapter, ftsTable)).toBe(1);
@@ -215,13 +209,13 @@ describe('fts5 installer browser integration', () => {
     await createArticle(harness.rxdb);
 
     const plugin = rxDBPluginSearch(harness.rxdb, { debounce: 0 }) as RxDBPluginSearch;
-    const { scope: pluginScope } = installScoped(plugin);
-    // 与宿主同序：先释放作用域摘掉 entity 监听，再 destroy() 复位状态机
-    cleanups.push(async () => {
-      await pluginScope.dispose();
-      plugin.destroy();
-    });
+    const { scope: pluginScope, installing } = installScoped(plugin);
+    // `lifecycle: 'scoped'` 之后释放作用域就是全部拆卸，没有第二步 `destroy()`
+    cleanups.push(() => pluginScope.dispose());
 
+    // `installing` 与 `ready` 同成同败，两个都要断言：只等 `ready` 会把宿主那一路
+    // 的 rejection 漏成 unhandledrejection，把整个 vitest 进程拖成非零退出
+    await expect(installing).rejects.toThrow('forced backfill failure');
     await expect(plugin.ready).rejects.toThrow('forced backfill failure');
     const migrationNames = await listMigrationNames(harness.rxdb);
     expect(migrationNames.filter(name => name.startsWith('fts5__'))).toEqual([]);
@@ -269,11 +263,8 @@ describe('fts5 installer browser integration', () => {
 
     const plugin = rxDBPluginSearch(harness.rxdb, { debounce: 0 }) as RxDBPluginSearch;
     const { scope: pluginScope } = installScoped(plugin);
-    // 与宿主同序：先释放作用域摘掉 entity 监听，再 destroy() 复位状态机
-    cleanups.push(async () => {
-      await pluginScope.dispose();
-      plugin.destroy();
-    });
+    // `lifecycle: 'scoped'` 之后释放作用域就是全部拆卸，没有第二步 `destroy()`
+    cleanups.push(() => pluginScope.dispose());
     await plugin.ready;
 
     expect(windows).toBeGreaterThanOrEqual(2);

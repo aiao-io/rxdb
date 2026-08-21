@@ -21,18 +21,22 @@ import type { FtsInstallPlan } from '../core/fts5-installer.js';
 import type { InstallFtsResult, MigrationRecordStore, RuntimeSqlExecutor } from '../core/fts5-runtime.js';
 import type { SearchResult } from '../types.js';
 
+/**
+ * 签名得显式写出来：下面第二条用例的 `mockImplementationOnce(async (_plan, executor, store) => …)`
+ * 全靠它推形参类型。挂在 `vi.fn<T>()` 上而不是给默认实现写三个形参——那三个名字一个都用不到。
+ */
+type InstallFtsForEntity = (
+  plan: FtsInstallPlan,
+  executor: RuntimeSqlExecutor,
+  store: MigrationRecordStore
+) => Promise<InstallFtsResult>;
+
 const { installFtsForEntity, engineSearch } = vi.hoisted(() => ({
-  installFtsForEntity: vi.fn(
-    async (
-      _plan: FtsInstallPlan,
-      _executor: RuntimeSqlExecutor,
-      _store: MigrationRecordStore
-    ): Promise<InstallFtsResult> => ({
-      tableName: 'article',
-      status: 'installed' as const,
-      fields: [{ name: 'title', isArray: false }]
-    })
-  ),
+  installFtsForEntity: vi.fn<InstallFtsForEntity>(async () => ({
+    tableName: 'article',
+    status: 'installed' as const,
+    fields: [{ name: 'title', isArray: false }]
+  })),
   engineSearch: vi.fn(async () => [
     {
       entity: 'Article',

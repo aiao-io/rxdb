@@ -87,7 +87,8 @@ const originalAfterViewInit = TodoCursorPage.prototype.ngAfterViewInit;
 function renderCursorPage() {
   const rxdb = {
     entityManager: {
-      saveMany: vi.fn((_entities: Todo[]) => Promise.resolve())
+      // 签名挂在泛型上而不是形参上：`saveMany.mock.calls[0]?.[0]` 的断言要它，形参名不要
+      saveMany: vi.fn<(entities: Todo[]) => Promise<void>>(() => Promise.resolve())
     }
   };
   vi.spyOn(TodoCursorPage.prototype, 'ngAfterViewInit').mockImplementation(() => undefined);

@@ -6,6 +6,9 @@ coverage/
 # 正常情况不会再出现在包内。这条规则留作兜底：runner 开跑前与 finally 都会整个 rmSync，
 # 一旦哪个配置退回包内路径又被跟踪，跑一次门禁就会把它标成已删除。
 .coverage-acceptance/
+# rxdb-client-generator 的 generated-runtime 夹具目录（mkdtemp 建在包内，finally 里 rm）。
+# 进程被 kill 或用例超时崩掉时会残留，`tmp/` / `*.tmp` 都匹配不到这个前缀。
+.tmp-generated-runtime-*/
 tmp/
 *.log
 /logs/

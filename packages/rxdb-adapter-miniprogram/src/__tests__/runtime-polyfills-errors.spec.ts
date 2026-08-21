@@ -110,7 +110,11 @@ describe('同步随机源', () => {
       { randomPoolSize: 128 }
     );
 
-    expect(() => globalThis.crypto.getRandomValues(null as any)).toThrow('getRandomValues 需要 ArrayBufferView');
+    // 这里要的就是「传了个类型上不该传的东西」，`as unknown as` 把这层故意说清楚，
+    // 又不像 `as any` 那样连后面 `.getRandomValues` 的返回值一起放弃检查
+    const notAView = null as unknown as Uint8Array;
+
+    expect(() => globalThis.crypto.getRandomValues(notAView)).toThrow('getRandomValues 需要 ArrayBufferView');
     expect(() => globalThis.crypto.getRandomValues(new Uint8Array(65_537))).toThrow(
       'getRandomValues 单次不能超过 65536 bytes'
     );

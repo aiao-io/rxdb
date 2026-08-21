@@ -278,36 +278,6 @@ export class RxDB {
     );
 
   /**
-   * 当前已连接的本地适配器实例，**同步**读取。
-   *
-   * @returns 本地适配器实例
-   * @throws 本地适配器未配置或尚未连接时抛错
-   *
-   * @remarks
-   * 给声明了 `inject: ['adapter:local']` 的插件用：`install()` 被调用时依赖必然已就绪，
-   * 再走一次 `await firstValueFrom(localAdapter$)` 只是把一个确定的值绕成异步的。
-   *
-   * 与 {@link RxDB.localAdapter$} 的分工：这里读的是**调度器为本纪元绑定的那个实例**，
-   * 而 `localAdapter$` 按名字经 {@link RxDB.getAdapter} 重新解析。纪元交替时两者可能
-   * 指向不同对象，依赖纪元身份的代码（US-015 INV-3）必须用这个。需要跨纪元持续跟踪
-   * 适配器变化的响应式代码仍然用 `localAdapter$`。
-   *
-   * 未连接时**抛错而不是返回 `undefined`**：没有依赖声明就来同步取适配器是调用方的时序
-   * 错误，返回空值只会把它推迟到某个更远的地方再炸。
-   */
-  public get localAdapterSync(): IRxDBAdapter & RxDBAdapterLocalBase {
-    const adapterName = this.#config.sync.local?.adapter;
-    if (adapterName === undefined) {
-      throw new Error('[RxDB] local adapter is not configured (sync.local.adapter)');
-    }
-    const adapter = this.#connected_adapter_instances.get(adapterName);
-    if (adapter === undefined) {
-      throw new Error(`[RxDB] local adapter '${adapterName}' is not connected; await connect('${adapterName}') first`);
-    }
-    return adapter as IRxDBAdapter & RxDBAdapterLocalBase;
-  }
-
-  /**
    * 远程适配器
    *
    * @remarks
@@ -341,6 +311,36 @@ export class RxDB {
   public readonly entityManager!: EntityManager;
 
   public readonly versionManager!: VersionManager;
+
+  /**
+   * 当前已连接的本地适配器实例，**同步**读取。
+   *
+   * @returns 本地适配器实例
+   * @throws 本地适配器未配置或尚未连接时抛错
+   *
+   * @remarks
+   * 给声明了 `inject: ['adapter:local']` 的插件用：`install()` 被调用时依赖必然已就绪，
+   * 再走一次 `await firstValueFrom(localAdapter$)` 只是把一个确定的值绕成异步的。
+   *
+   * 与 {@link RxDB.localAdapter$} 的分工：这里读的是**调度器为本纪元绑定的那个实例**，
+   * 而 `localAdapter$` 按名字经 {@link RxDB.getAdapter} 重新解析。纪元交替时两者可能
+   * 指向不同对象，依赖纪元身份的代码（US-015 INV-3）必须用这个。需要跨纪元持续跟踪
+   * 适配器变化的响应式代码仍然用 `localAdapter$`。
+   *
+   * 未连接时**抛错而不是返回 `undefined`**：没有依赖声明就来同步取适配器是调用方的时序
+   * 错误，返回空值只会把它推迟到某个更远的地方再炸。
+   */
+  public get localAdapterSync(): IRxDBAdapter & RxDBAdapterLocalBase {
+    const adapterName = this.#config.sync.local?.adapter;
+    if (adapterName === undefined) {
+      throw new Error('[RxDB] local adapter is not configured (sync.local.adapter)');
+    }
+    const adapter = this.#connected_adapter_instances.get(adapterName);
+    if (adapter === undefined) {
+      throw new Error(`[RxDB] local adapter '${adapterName}' is not connected; await connect('${adapterName}') first`);
+    }
+    return adapter as IRxDBAdapter & RxDBAdapterLocalBase;
+  }
 
   get context() {
     return this.#context;

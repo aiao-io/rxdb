@@ -74,12 +74,13 @@ function createHost(): FakeHost {
 
 /** 测试插件：记录每次 `install()` 看到的作用域，安装体可注入。 */
 class TestPlugin implements IRxDBPlugin {
+  #body?: (scope: LifecycleScope) => void | Promise<void>;
+
   readonly lifecycle = 'scoped' as const;
   readonly name: Uncapitalize<string>;
   readonly inject?: readonly RxDBPluginDependency[];
   /** 历次安装拿到的作用域 */
   readonly seenScopes: LifecycleScope[] = [];
-  #body?: (scope: LifecycleScope) => void | Promise<void>;
 
   constructor(
     name: Uncapitalize<string>,

@@ -72,8 +72,9 @@ function renderTodoPage(todos: Todo[] = []) {
   };
   const rxdb = {
     entityManager: {
-      removeMany: vi.fn((_entities: Todo[]) => Promise.resolve()),
-      saveMany: vi.fn((_entities: Todo[]) => Promise.resolve())
+      // 签名挂在泛型上而不是形参上：`toHaveBeenCalledWith` / `mock.calls[0]?.[0]` 的断言要它，形参名不要
+      removeMany: vi.fn<(entities: Todo[]) => Promise<void>>(() => Promise.resolve()),
+      saveMany: vi.fn<(entities: Todo[]) => Promise<void>>(() => Promise.resolve())
     },
     versionManager: {
       history: vi.fn(() => history)

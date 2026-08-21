@@ -95,8 +95,15 @@ export default defineConfig(() => {
       name: 'rxdb-adapter-sqlite-core',
       watch: false,
       globals: true,
-      testTimeout: process.env.CI ? 30000 : 5000,
-      hookTimeout: process.env.CI ? 30000 : 10000,
+      // 本包是 browser-mode，用例里的 `await import('../index.js')` 要在浏览器里现走一遍
+      // Vite transform；`nx affected --parallel=4` 下同时有好几个 browser-mode 项目抢 CPU 与端口
+      // （日志里能看到 `Port 63315 is in use, trying another one...`），import 阶段被拖长。
+      // 实测：`desktop-host-entry.spec.ts > never leaks the desktop protocol into the main entry`
+      // 在全量下 5004ms 超时（整包 Duration 65.63s / import 220.64s），单独跑 46 文件 1046 条全过
+      // （Duration 10.93s / import 47.39s）—— 资源竞争型超时，不是逻辑缺陷。
+      // 取值与同为 browser-mode 的 wa-sqlite / pglite 对齐，别再让这三个包各写各的。
+      testTimeout: process.env.CI ? 120000 : 30000,
+      hookTimeout: process.env.CI ? 120000 : 30000,
       include: ['{src,tests,__tests__}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
       exclude: nodeTestMode ? [] : ['src/__tests__/system-schema-migration.multiprocess.spec.ts'],
       reporters: ['default', 'junit'],
