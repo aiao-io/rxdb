@@ -14,6 +14,8 @@
 |   P2   | PGlite 原生全文搜索                | [US-703](stories/future/US-703-pglite-full-text-search.md)             | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                                                                           | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                                              |
 |   P2   | 子路径入口纳入 API 表面基线        | [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)       | 版本策略把子路径承诺为公开 API，门禁却只扫主入口——承诺与门禁的差额只能靠人工审查补                                                  | 源入口声明收敛到单一真相源、基线格式扩到多入口、资产入口白名单跳过、三处文档收口                                                          |
 |   P3   | 多端小程序宿主（先抽契约）         | [US-211 阶段 A](stories/adapter/US-211-multi-miniprogram-platforms.md) | Taro 有 `build:alipay/tt/qq/swan`，适配器只认 `wx`；先抽 host + 可行性矩阵，**不**扩大公开支持声明                                  | `MiniProgramHost`、微信路径零回归、`miniprogram-platform-feasibility.md`；B/C 只吃矩阵 `supported`                                        |
+|   P2   | QueryCache 接入统一 Repository    | [US-020](stories/core/US-020-querycache-repository.md)                | 配置了 `SyncType.QueryCache` 今天是空操作：find 打本地、save 进 changelog。类存在、supabase ducks 存在，生产路径从不实例化          | 阶段 A 接线；阶段 B orphan / 指纹 / SWR SQL / 错误分类。不 inherit US-203 AC#6。**硬解锁 US-212**                                         |
+|   P3   | HTTP 远程适配器                    | [US-212](stories/adapter/US-212-http-adapter.md)                      | 已有 REST API 没有 RemoteBase 可挂。必须是独立 `adapter:remote` + 独立注册 sqlite 行缓存，禁止 HTTP 内嵌 sqlite                     | 阶段 A handlers + QueryCache ducks + 分页/分块；阶段 B REST mapping。**永远先 US-020 后本包**                                            |
 
 > US-306 / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
 > [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定依赖关系。
@@ -88,8 +90,8 @@
 ## 完成计划（2026-08-18 排定）
 
 桌面本地 SQLite（US-207 + US-210）与 epic-008 链首（US-013 + US-014）收口后，
-仓库还剩 **13 条**未关闭故事（排定时为 2 条 In Progress + 11 条 Backlog；US-015 于 2026-08-21 交付阶段 A
-后置 `In Review`，今天是 2 In Progress + 1 In Review + 10 Backlog，总数不变）。本节只排**顺序与并行度，不排日期**——
+仓库还剩 **15 条**未关闭故事（排定时为 2 条 In Progress + 11 条 Backlog；US-015 于 2026-08-21 交付阶段 A
+后置 `In Review`，随后补入 US-020 / US-212 两条 Backlog，今天是 2 In Progress + 1 In Review + 12 Backlog）。本节只排**顺序与并行度，不排日期**——
 依据是硬前置与已冻结的决策，不是估时。同一批内的行**彼此无依赖**，可各开各的 PR；
 批次之间才是顺序。每条的关闭判据以对应 story 的 AC 为准，本表只写「什么算这条做完了」。
 
@@ -118,6 +120,7 @@
 | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)             | 前置（US-207 的 host 契约）已解除，但**两种事务 host 方案至今未选**（IPC 事务 ID 协议 / adapter 完整托管主进程）。选定前必须先让两案各过同一套事务与事件测试再冻结（约束 3） |
 | [US-703](stories/future/US-703-pglite-full-text-search.md)                     | 纯能力对称性补齐，无人被它挡住。复用现有搜索公开 API 与跨框架 parity fixture，不得为 PGlite 加 SQLite 专属 fallback（约束 6）                                                |
 | [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 阶段 A → B → C | 阶段 A 只抽 host + 写可行性矩阵，**不扩大公开支持声明**；B/C 只吃矩阵里 `decision: supported` 的平台（约束 7）。未关闭的阶段不得改支持声明                                   |
+| [US-020](stories/core/US-020-querycache-repository.md) → [US-212](stories/adapter/US-212-http-adapter.md) | **硬顺序，不可交换**（约束 10）。接线独立有价值（supabase QueryCache 立刻从空操作变真）；HTTP 包不得在接线关闭前标可发布。两条都不进批次 1——不挡桌面收尾、不挡 epic-006 桥接 |
 
 ### 零散收尾项（不成故事，随手可带）
 
@@ -205,10 +208,16 @@
    `US-016` 的原始症状已被阶段 A 大部分修掉、余下的失败回滚资源三步（`versionManager` / `#gateway` /
    `entityManager` 的 `destroy()`）降级为 bugfix 并已补齐，不再解锁；
    `US-017` 三端已各有原生作用域在用。三者都未落盘成文件，不计入任何统计。
-   附带一条口径：**状态变量复位不算病灶**。`#shutdown()` 里 `#transaction_stack = []`、
-   `#connected_sub.next(false)` 这类复位，作用域原语按定义碰不到，不得算进 epic-008 的病灶数。
    US-014 制造的 `IRxDBPlugin` 成员签名变更（`install()` 收形参、`destroy()` 转可选、新增 `lifecycle`）
    由类型契约测试守住，**不扩大 epic-007 的范围**；`destroy()` 的实际移除排在废弃周期结束后，不在本 epic 内。
+9. **过度设计判据，不是建议。** 进入 epic-008 的两条要同时满足：是「资源获取与释放拆成两处」的问题，
+   且能写出今天用户踩得到的具体症状。**状态变量复位不算病灶**——`#shutdown()` 里 `#transaction_stack = []`、
+   `#connected_sub.next(false)` 这类复位，作用域原语按定义碰不到，不得算进 epic-008 的病灶数。
+10. **永远不要在 QueryCache 接线前发 HTTP 包。** [US-212](stories/adapter/US-212-http-adapter.md)
+   硬前置 [US-020](stories/core/US-020-querycache-repository.md)。阶段 A 代码允许并行开发，
+   **包不得在 US-020 全部阶段关闭前标稳定/可发布**——否则开发者配 `SyncType.QueryCache` + HTTP + sqlite，
+   find 仍打本地、save 仍进 changelog，比没有这个包更糟。HTTP 是独立 `adapter:remote`，
+   sqlite 是独立 `adapter:local`，禁止 HTTP 内部拥有 sqlite。v1 changelog 方法必须 throw unsupported，不得假空。
 
 ## 建议补充的验收维度
 
