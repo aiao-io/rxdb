@@ -2,17 +2,17 @@ import { firstValueFrom, Subscription } from 'rxjs';
 import { EntityType } from '../entity/entity.interface.js';
 import { RestoreEntityOptions } from '../rxdb-adapter.js';
 import {
-  ENTITY_LOCAL_CREATE_EVENT,
-  EntityLocalCreatedEvent,
-  MergeBranchBeginEvent,
-  MergeBranchCommitEvent,
-  MergeBranchFailedEvent,
-  SwitchBranchBeginEvent,
-  SwitchBranchCommitEvent,
-  SwitchBranchRollbackEvent,
-  TRANSACTION_BEGIN,
-  TRANSACTION_COMMIT,
-  TRANSACTION_ROLLBACK
+    ENTITY_LOCAL_CREATE_EVENT,
+    EntityLocalCreatedEvent,
+    MergeBranchBeginEvent,
+    MergeBranchCommitEvent,
+    MergeBranchFailedEvent,
+    SwitchBranchBeginEvent,
+    SwitchBranchCommitEvent,
+    SwitchBranchRollbackEvent,
+    TRANSACTION_BEGIN,
+    TRANSACTION_COMMIT,
+    TRANSACTION_ROLLBACK
 } from '../rxdb-events.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
@@ -42,37 +42,17 @@ import { syncBranches, type SyncBranchesResult } from './sync-branches.js';
 import { isIgnorableDetachedVersionEventError, setupVersionSyncListeners } from './sync-listeners.js';
 import { syncRepository, type SyncRepositoryOptions, type SyncRepositoryResult } from './sync-repository.js';
 import { topologicalSort, type SortDirection } from './topological-sort.js';
+import { getEarliestRecordAt, getRxDBChangeEventId, hasSyncedData, partialResultOf } from './version-manager.utils.js';
 import {
-  HistoryScopeAPI,
-  MergeBranchOptions,
-  MergeBranchResult,
-  PullOptions,
-  PullResult,
-  PushOptions,
-  PushResult,
-  SyncResult
+    HistoryScopeAPI,
+    MergeBranchOptions,
+    MergeBranchResult,
+    PullOptions,
+    PullResult,
+    PushOptions,
+    PushResult,
+    SyncResult
 } from './VersionManager.interface.js';
-
-const getPositiveSafeInteger = (value: unknown): number | null =>
-  typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : null;
-
-const getRxDBChangeEventId = (change: { id: unknown; patch?: unknown }): number | null => {
-  const eventId = getPositiveSafeInteger(change.id);
-  if (eventId !== null) return eventId;
-  if (typeof change.patch !== 'object' || change.patch === null || !('id' in change.patch)) return null;
-  return getPositiveSafeInteger(change.patch.id);
-};
-
-const getEarliestRecordAt = (changes: readonly { recordAt?: unknown }[]): Date | null => {
-  let earliest: Date | null = null;
-  for (const change of changes) {
-    if (!(change.recordAt instanceof Date) || !Number.isFinite(change.recordAt.getTime())) continue;
-    if (earliest === null || change.recordAt.getTime() < earliest.getTime()) {
-      earliest = change.recordAt;
-    }
-  }
-  return earliest;
-};
 
 /**
  * 版本管理器
@@ -84,20 +64,6 @@ const getEarliestRecordAt = (changes: readonly { recordAt?: unknown }[]): Date |
  * - Redo 栈的自动失效（当有新操作时）
  * - pull/push 同步到本地缓存
  */
-
-/** 一次仓库同步是否改写了本地实体数据（undo 历史边界因此失效） */
-const hasSyncedData = (result: SyncRepositoryResult | undefined): boolean =>
-  result?.historyInvalidated === true || (result?.pushResult?.pushed ?? 0) > 0;
-
-/**
- * 取出失败项里携带的部分进度。
- *
- * @remarks
- * 仓库在失败前可能已经提交了部分结果，它只存在于 {@link RxDBPartialSyncError.result}。
- * 忽略它会让「远端数据已落库但 undo 边界没推进」的状态逃过检查。
- */
-const partialResultOf = (error: Error | undefined): SyncRepositoryResult | undefined =>
-  error instanceof RxDBPartialSyncError ? (error.result as SyncRepositoryResult) : undefined;
 
 export class VersionManager {
   #event_removers: Array<() => void> = [];
