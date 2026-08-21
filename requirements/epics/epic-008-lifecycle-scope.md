@@ -1,6 +1,6 @@
 ---
 id: epic-008-lifecycle-scope
-status: In Progress
+status: Done
 startDate: 2026-08-15
 targetDate: TBD
 owner: jimmy
@@ -45,7 +45,9 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 1. 「九处手工账本」结算表没有 `未关闭` 行；
 2. 承诺范围内的故事 YAML `status` 均不为 `In Progress`。
 
-当前距离：**零**。结算表第 1 条已随失败回滚的资源三步补齐关闭，[US-015](../stories/core/US-015-plugin-inject-dependency.md) 置 `In Review`（不是 `In Progress`）。
+当前距离：**零，已置 `Done`**。结算表第 1 条随失败回滚的资源三步补齐关闭；
+[US-015](../stories/core/US-015-plugin-inject-dependency.md) 停在 `In Review`（阶段 B 已移出承诺范围），
+`In Review` 不是 `In Progress`，不挡第 2 条。
 
 新缺口进入本 Epic 的判据，两条**同时**满足：
 
@@ -63,21 +65,21 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 
 改造前九处都在做同一件事——记录「装了什么」以便「拆的时候撤销」——但没有两处的写法相同。当前状态：
 
-| #   | 病灶                                                             | 结算                                                                                                                                                                                                                                               |
-| --- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `RxDB.#shutdown()` 手工复位                                      | 关闭（bugfix）——`init()` 失败回滚补齐 `versionManager.destroy()` + `#gateway?.destroy()` + `entityManager.destroy()`，与 `#shutdown()` 的资源三步对称，见下方专节                                                                                   |
-| 2   | `RxDB.#event_initialized` 布尔守卫                               | **改判：不是病灶**，见下方专节                                                                                                                                                                                                                     |
-| 3   | `RxDB.#plugin_install_promises` 安装记账 Map                     | 关闭（US-015 阶段 A）——字段已删，安装态迁进 `PluginDependencyScheduler`                                                                                                                                                                            |
-| 4   | storage 的 `#ownsStorage` / `#registeredEntity` 双布尔           | 关闭（US-014）——`RxDBPluginStorage.install(scope)` 三段 `scope.acquire()`，标签 `storage:service` / `storage:property` / `storage:entity`（[plugin.ts](../../packages/rxdb-plugin-storage/src/plugin.ts)）                                          |
-| 5   | search 的 `SearchPluginPhase` 五态枚举                           | 关闭（US-015 阶段 A）——枚举已删，`installing` / `failed` 由调度器持有                                                                                                                                                                              |
-| 6   | search 的 `Array<{type, listener}>` 手工监听器清单               | 关闭（US-014）——一条监听一条 `scope.acquire()`，注册与撤销同处一个闭包                                                                                                                                                                             |
+| #   | 病灶                                                             | 结算                                                                                                                                                                                                                                                                                                           |
+| --- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `RxDB.#shutdown()` 手工复位                                      | 关闭（bugfix）——`init()` 失败回滚补齐 `versionManager.destroy()` + `#gateway?.destroy()` + `entityManager.destroy()`，与 `#shutdown()` 的资源三步对称，见下方专节                                                                                                                                              |
+| 2   | `RxDB.#event_initialized` 布尔守卫                               | **改判：不是病灶**，见下方专节                                                                                                                                                                                                                                                                                 |
+| 3   | `RxDB.#plugin_install_promises` 安装记账 Map                     | 关闭（US-015 阶段 A）——字段已删，安装态迁进 `PluginDependencyScheduler`                                                                                                                                                                                                                                        |
+| 4   | storage 的 `#ownsStorage` / `#registeredEntity` 双布尔           | 关闭（US-014）——`RxDBPluginStorage.install(scope)` 三段 `scope.acquire()`，标签 `storage:service` / `storage:property` / `storage:entity`（[plugin.ts](../../packages/rxdb-plugin-storage/src/plugin.ts)）                                                                                                     |
+| 5   | search 的 `SearchPluginPhase` 五态枚举                           | 关闭（US-015 阶段 A）——枚举已删，`installing` / `failed` 由调度器持有                                                                                                                                                                                                                                          |
+| 6   | search 的 `Array<{type, listener}>` 手工监听器清单               | 关闭（US-014）——一条监听一条 `scope.acquire()`，注册与撤销同处一个闭包                                                                                                                                                                                                                                         |
 | 7   | workspace 的 `#installPromise` / `#installFailed` / `#destroyed` | 关闭（US-014）——终态标志 `#destroyed` 已删（判据改成 `#indexedDBStore` 随纪元生灭），插件实例可重新 `install()` 进入新纪元。`#installPromise` / `#installFailed` **仍在**：它们是纪元内 IndexedDB 恢复的单飞与失败重试记账，由 `#releaseEpochState()` 复位，不是终态泄漏；US-015 Out of Scope 明确两阶段都不动 |
-| 8   | workspace 的 `Map<CacheId, Subscription>`                        | 关闭（US-014）——纪元级释放经 `scope.acquire(() => () => this.#releaseEpochState())` 登记（[RxDBPluginWorkspace.ts:423](../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L423)）；Map 本身是纪元内的动态缓存，不是「拆成两处的配对」 |
-| 9   | graph 的 `destroy()` 空实现——**契约里没有位置可写**              | 关闭（US-014）——`RxDB.repository()` 收 `scope` 形参，`RxDBPluginGraph.install(scope)` 把注册挂上去（[plugin.ts:23-38](../../packages/rxdb-plugin-graph/src/plugin.ts#L23-L38)）                                                                    |
+| 8   | workspace 的 `Map<CacheId, Subscription>`                        | 关闭（US-014）——纪元级释放经 `RxDBPluginWorkspace.#acquireEpoch()` 的 `scope.acquire(..., 'workspace:epoch')` 登记（[RxDBPluginWorkspace.ts](../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts)）；Map 本身是纪元内的动态缓存，不是「拆成两处的配对」                                            |
+| 9   | graph 的 `destroy()` 空实现——**契约里没有位置可写**              | 关闭（US-014）——`RxDB.repository()` 收 `scope` 形参，`RxDBPluginGraph.install(scope)` 把注册挂上去（[plugin.ts](../../packages/rxdb-plugin-graph/src/plugin.ts)）                                                                                                                                              |
 
 改造前贯穿全部九项的那处不对称——`RxDB.#destroy_plugin()` 用 `Promise.all` 并发拆卸、吞掉异常、且没有逆序
 ——也已随 US-014 关闭：现在是逆序串行 + 错误隔离不短路
-（[RxDB.ts:1232-1250](../../packages/rxdb/src/RxDB.ts#L1232-L1250)）。
+（[`RxDB.#destroy_plugin()`](../../packages/rxdb/src/RxDB.ts)）。
 
 ### 第 1 条：漏写的是**资源三步**，不是缺失的抽象
 
@@ -88,17 +90,17 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 `#shutdown()` 的 `versionManager.destroy()` / `#gateway?.destroy()` / `entityManager.destroy()`
 一步都没做。抛错点落在各自 `init()` 之后时，两处是**今天能踩到的泄漏**、一处是对称缺口：
 
-> - **`versionManager`**：`VersionManager.init()` 每次都 `addEventListener(TRANSACTION_BEGIN /
->   ENTITY_LOCAL_CREATE_EVENT)` 并跑 `#init_sync()` 推进 `#subscriptions` / `#event_removers`，
->   自身**没有幂等守卫**（`#historyManagerDestroyed` 只挡二次 `destroy()`）。重试叠上第二份，
->   症状是 redo 栈被打两次、同步监听跑两遍。
-> - **`#gateway`**：`RxDBTabsGateway` **构造期**就 `createBroadcastTopic()`（内部 `new BroadcastChannel`）
->   与 `new LeaderElection()`（挂 `beforeunload`），通道早于 `init()` 打开；`#destroyed` 是终态，
->   重试只能 `new` 第二个写进 `#gateway`，旧实例从此无人引用也无人 `destroy()`。
->   `multiInstance !== false`（默认）下每失败一次泄漏一条 BroadcastChannel 加一套选举。
-> - **`entityManager`**：`registerEntityManager` 用 `WeakMap<EntityType, Set<EntityManager>>`，
->   同实例 `Set.add` 是空操作，不叠第二份也不误触发多实例抛错——只是 Repository 身份缓存可能残留。
->   对称缺口，随手补齐，不单独计数。
+- **`versionManager`**：`VersionManager.init()` 每次都 `addEventListener()` 挂事务与本地新建事件，
+  并跑 `#init_sync()` 推进 `#subscriptions` / `#event_removers`，自身**没有幂等守卫**
+  （`#historyManagerDestroyed` 只挡二次 `destroy()`）。重试叠上第二份，症状是 redo 栈被打两次、
+  同步监听跑两遍。
+- **`#gateway`**：`RxDBTabsGateway` **构造期**就 `createBroadcastTopic()`（内部 `new BroadcastChannel`）
+  与 `new LeaderElection()`（挂 `beforeunload`），通道早于 `init()` 打开；`#destroyed` 是终态，
+  重试只能 `new` 第二个写进 `#gateway`，旧实例从此无人引用也无人 `destroy()`。
+  `multiInstance !== false`（默认）下每失败一次泄漏一条 BroadcastChannel 加一套选举。
+- **`entityManager`**：`registerEntityManager` 用 `WeakMap<EntityType, Set<EntityManager>>`，
+  同实例 `Set.add` 是空操作，不叠第二份也不误触发多实例抛错——只是 Repository 身份缓存可能残留。
+  对称缺口，随手补齐，不单独计数。
 
 修法是 `catch` 补齐与 `#shutdown()` 对称的资源三步 + 两条红测试，**不单开故事**。红测试的抛错点必须落在
 `versionManager.init()` **之后**（既有的 `schemaManager.init` 失败用例停在两处资源都还没动的时刻，
