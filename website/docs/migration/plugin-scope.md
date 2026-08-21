@@ -52,7 +52,7 @@
 | ------------------------------------------ | --------------------------------------------------------------------- |
 | 清理动作已全部搬进作用域                   | 删掉 `destroy()`                                                      |
 | 需要同时兼容旧宿主                         | 保留 `destroy()`，实现为 `this.#scope?.dispose()`，并标 `@deprecated` |
-| 还需要复位插件自身状态（状态机、内部缓存） | 保留 `destroy()`，且**不要**声明 `lifecycle`，宿主两步都会走          |
+| 还需要复位插件自身状态（状态机、内部缓存） | 登记一条只做复位的作用域条目，仍然声明 `lifecycle`                    |
 
 `destroy()` 未被移除，只是废弃：未声明 `lifecycle` 的插件仍会在作用域释放**之后**被调用一次。
 
@@ -86,12 +86,12 @@ await db.workspace.flush();
 // Error: workspace plugin is not installed in the current connection epoch
 
 await db.searchPlugin.ready;
-// SearchError: plugin is destroyed — call and await db.connect() before awaiting ready
+// SearchError: plugin is destroyed — the connection epoch that installed it was released; await db.connect() again
 ```
 
 `await db.connect()` 之后两者恢复可用。
 
-两个插件的 `ready` 口径**不同**，别照着彼此推断：`searchPlugin.ready` 在未安装 / 已拆卸时 reject（如上），而 `workspace.ready` 在未安装时直接 resolve——它只表示「首次 `install()` 已结算」，不是可用性判据。工作区的可用性由 `flush()` 这类方法自己抛错表达。这是既有契约，本次未改。
+两个插件的 `ready` 口径**不同**，别照着彼此推断：`searchPlugin.ready` 一个连接纪元一格，`connect()` 之前与安装期间 **pending**，成功 resolve、失败 reject 原始错误、纪元释放后 reject `destroyed`（如上）；而 `workspace.ready` 在未安装时直接 resolve——它只表示「首次 `install()` 已结算」，不是可用性判据。工作区的可用性由 `flush()` 这类方法自己抛错表达。
 
 ### `workspace.changes$` 不再在拆卸时 complete
 
@@ -148,6 +148,26 @@ BroadcastChannel 按纪元建立和关闭。断开连接后的草稿增删不会
 直接持有插件实例（而不是走 `db.storage`）的代码需要补一次判空。
 
 同一个 RxDB 实例上装了两个 storage 插件实例时，后装的那个整个 `install()` 都是空操作——不再有 `#ownsStorage` 之类的记账，「谁装谁拆」由作用域保证。
+
+### 搜索插件不再自己发起 `connect()`
+
+`@aiao/rxdb-plugin-search` 过去在 `install()` 里自己调 `db.connect(localAdapterName)` 把连接顶起来。现在它改为声明 `inject: ['adapter:local']`，由调度器在本地适配器就绪之后再装——插件不再替你连接。
+
+```diff
+ db.use(rxDBPluginSearch);
++await db.connect('sqlite-wasm');   // 现在必须显式连接
+ await db.search('keyword');
+```
+
+漏掉这一行的表现是：插件停在等待态，`db.search()` 抛「插件没装」，控制台上有一句
+
+```text
+[RxDB] Plugin 'search' is not installed: unsatisfied dependencies [adapter:local]
+```
+
+按路由懒加载的应用要把 `connect()` 放进进入搜索页的守卫里，别指望搜索插件顺带把连接带起来。
+
+反过来，这条依赖也换掉了旧的死锁绕法：`install()` 里不再需要 `firstValueFrom(adapterConnected$)` 之类的等待，被调用即代表依赖已就绪，同步读 `db.localAdapterSync` 即可。详见[编写插件](../plugins/authoring.md)的依赖注入一节。
 
 ## 相关
 

@@ -53,8 +53,10 @@ export class SearchPage {
 }
 ```
 
-`startSearch()` 必须在创建 `SearchPage` 前完成。`connect()` 会触发插件安装；
-`database.searchPlugin.ready` 等待 FTS 安装与回填，未安装、安装失败或销毁后都会 reject。
+`startSearch()` 必须在创建 `SearchPage` 前完成。插件声明 `inject: ['adapter:local']`，宿主在本地
+适配器就绪后才安装它，因此 `await connect()` 返回时 FTS 已经装好；`database.searchPlugin.ready`
+是「装上没有」的显式确认——安装成功 resolve，失败 reject 原始错误，纪元被释放（断连 / 回滚）后
+reject `destroyed`。它一个连接纪元一格，重连之后要重新读一次。
 
 `useSearch` 返回 `UseSearchReturn`。绑定层持有底层 `SearchHandle`，组件销毁或输入重建时自动
 `destroy()`；调用方不应再次销毁 handle。

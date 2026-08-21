@@ -1,7 +1,7 @@
 ---
 id: epic-008-lifecycle-scope
-status: Backlog
-startDate: TBD
+status: In Progress
+startDate: 2026-08-15
 targetDate: TBD
 owner: jimmy
 ---
@@ -137,7 +137,9 @@ rxdb 的 ~30 处 `setTimeout` 全部在适配器内部，已有 47 处配对的 
 
 - [ ] 插件可声明 `inject` 依赖，依赖未就绪时不安装、依赖消失时自动释放作用域
       （[US-015](../stories/core/US-015-plugin-inject-dependency.md)）。
-      **阶段 A** 适配器依赖纪元——症状已证（search 插件的 `adapterConnected$` 等待与 phase 机），US-014 后可直接排期；
+      **阶段 A** 适配器依赖纪元——**已交付**（2026-08-21）：`inject: ['adapter:local']`、纪元调度器与
+      `localAdapterSync`；search 插件的 `adapterConnected$` 自等与 `SearchPluginPhase` 随之删除，
+      安装记账从 `#plugin_install_promises` 迁进调度器，**上表第 3 / 5 条关闭**；
       **阶段 B** 插件间依赖图（拓扑序、环检测）——**价值待证**，未证不开工
 
 价值已证，尚未切片：

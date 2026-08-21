@@ -47,9 +47,10 @@ export function SearchPage({ database }: { readonly database: RxDB }) {
 }
 ```
 
-`startSearch()` 必须在渲染 `SearchPage` 前完成。`connect()` 会触发数据库 `init()`；
-`database.searchPlugin.ready` 等待 FTS 安装与回填完成。未安装或销毁后访问 `ready` 会 reject，
-不能把它当成永远成功的探针。
+`startSearch()` 必须在渲染 `SearchPage` 前完成。插件声明 `inject: ['adapter:local']`，宿主在本地
+适配器就绪后才安装它，因此 `await connect()` 返回时 FTS 已经装好；`database.searchPlugin.ready`
+是「装上没有」的显式确认——安装成功 resolve，失败 reject 原始错误，纪元被释放（断连 / 回滚）后
+reject `destroyed`。它一个连接纪元一格，重连之后要重新读一次，不能当成永远成功的探针。
 
 `useSearch` 返回 `UseSearchReturn`。hook 持有 `SearchHandle` 的所有权，组件卸载或重建时自动
 `destroy()`；调用方不要再次销毁底层 handle。

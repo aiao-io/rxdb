@@ -4,7 +4,8 @@
  * 覆盖:
  *  - `install()` 同步阶段对 schema 做 fail-fast（接入 `assertSearchableSchemaValid`）
  *  - `install()` 同步阶段就挂载 entity 事件通道（在 `await ready` 之前 handle 也能收到事件）
- *  - `destroy()` 清空 `#installPromise`，避免后续 `await ready` 仍 resolve 旧 promise
+ *  - 作用域释放即拆卸：US-015 之后插件声明 `lifecycle: 'scoped'`，`destroy()` 已删除，
+ *    状态复位挂在作用域的 `'search:state'` 条目上，`ready` 随之 reject
  */
 import {
   Entity,
@@ -20,7 +21,7 @@ import {
   type RxDB
 } from '@aiao/rxdb';
 import { LifecycleScope } from '@aiao/utils';
-import { BehaviorSubject, firstValueFrom, Subject, throwError, type Observable } from 'rxjs';
+import { firstValueFrom, Subject, throwError } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const { installFtsForEntity, createSearchEngine } = vi.hoisted(() => ({
@@ -88,12 +89,25 @@ class InvalidArticle extends EntityBase {}
 
 type EntityChangeEvent = EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent;
 
-const buildFakeRxdb = (
-  entities: unknown[] = [FakeArticle],
-  exposesRawQuery = true,
-  /** 适配器就绪信号。默认立即为真；传入 `Subject` 可把 `#runInstall` 卡在 FTS DDL **之前**。 */
-  adapterConnected: Observable<boolean> = new BehaviorSubject(true)
-) => {
+/**
+ * 探测一个 promise 当前是否已结算。
+ *
+ * @remarks
+ * `pending` 是 `ready` 的一个**正常**状态（依赖未就绪 / 安装中），断言它需要一个
+ * 「等一小会儿仍没动静」的证据，而不是 `rejects` / `resolves` 那种终局断言。
+ */
+const settlementOf = (promise: Promise<unknown>): Promise<'pending' | 'rejected' | 'resolved'> =>
+  Promise.race([
+    promise.then(
+      () => 'resolved' as const,
+      () => 'rejected' as const
+    ),
+    new Promise<'pending'>(resolve => {
+      setTimeout(() => resolve('pending'), 20);
+    })
+  ]);
+
+const buildFakeRxdb = (entities: unknown[] = [FakeArticle], exposesRawQuery = true) => {
   const rawQuery = vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] }));
   const migrationRepository = {
     find: vi.fn(async () => []),
@@ -115,10 +129,10 @@ const buildFakeRxdb = (
       sync: { local: { adapter: 'sqlite-wasm' } },
       entities
     },
-    localAdapter$: new BehaviorSubject(activeAdapter),
-    connected$: new BehaviorSubject(true),
-    adapterConnected$: () => adapterConnected,
-    connect: vi.fn(async () => activeAdapter),
+    // 插件按 `inject: ['adapter:local']` 拿实例：宿主保证调用 `install()` 时它已就绪。
+    // 连接信号（`connect` / `adapterConnected$` / `localAdapter$`）插件已经不再读，
+    // 假宿主也就不提供——真读了会立刻 TypeError，而不是静默走回老路。
+    localAdapterSync: activeAdapter,
     addEventListener: vi.fn((type: string, listener: (event: EntityChangeEvent) => void) => {
       const list = listeners.get(type) ?? [];
       list.push(listener);
@@ -155,6 +169,19 @@ describe('search plugin lifecycle', () => {
     expect(fake.rxdb.addEventListener).not.toHaveBeenCalled();
   });
 
+  it('fail-fast 之后 `ready` 也要结算，不能永久 pending', async () => {
+    const fake = buildFakeRxdb([InvalidArticle]);
+    const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
+
+    expect(() => installScoped(plugin)).toThrow(/Invalid "searchable"/);
+
+    // `ready` 是文档承诺的「装了没有」确认点。schema 校验抛在 `scope.acquire()` 之前，
+    // 于是既没人 reject 这一格，作用域里也没有 `search:state` 条目能在释放时补上——
+    // 不显式结算的话 `await plugin.ready` 会永久挂起，而调用方看不出与「还没轮到装」的区别。
+    expect(await settlementOf(plugin.ready)).toBe('rejected');
+    await expect(plugin.ready).rejects.toThrow(/Invalid "searchable"/);
+  });
+
   it('install() binds entity events synchronously, before the install promise resolves', () => {
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
@@ -180,7 +207,6 @@ describe('search plugin lifecycle', () => {
 
     handle.destroy();
     await plugin.ready;
-    plugin.destroy();
   });
 
   it('searchCollection fails fast for excluded and non-searchable collections', async () => {
@@ -193,7 +219,6 @@ describe('search plugin lifecycle', () => {
 
     expect(() => excludedPlugin.searchCollection('Article', '')).toThrow(/excludedCollections/);
     await excludedPlugin.ready;
-    excludedPlugin.destroy();
 
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
@@ -201,7 +226,6 @@ describe('search plugin lifecycle', () => {
 
     expect(() => plugin.searchCollection('Missing', '')).toThrow(/not searchable/);
     await plugin.ready;
-    plugin.destroy();
   });
 
   describe('Observable query 生命周期', () => {
@@ -222,7 +246,6 @@ describe('search plugin lifecycle', () => {
 
       sub.unsubscribe();
       handle.destroy();
-      plugin.destroy();
     });
 
     it('同步 source error 进入 handle.error$，不逃逸到全局', async () => {
@@ -240,7 +263,6 @@ describe('search plugin lifecycle', () => {
       sub.unsubscribe();
       handle.destroy();
       await plugin.ready;
-      plugin.destroy();
     });
 
     it('异步 source error 进入 handle.error$', async () => {
@@ -261,7 +283,6 @@ describe('search plugin lifecycle', () => {
       sub.unsubscribe();
       handle.destroy();
       await plugin.ready;
-      plugin.destroy();
     });
 
     it('source complete 后仍可通过 setQuery 使用 handle', async () => {
@@ -280,7 +301,6 @@ describe('search plugin lifecycle', () => {
       });
 
       handle.destroy();
-      plugin.destroy();
     });
 
     it('handle destroy 后退订 query source，后续 error 不再派发', async () => {
@@ -296,7 +316,6 @@ describe('search plugin lifecycle', () => {
       source.error(new Error('destroy 后错误'));
 
       await plugin.ready;
-      plugin.destroy();
     });
   });
 
@@ -316,7 +335,6 @@ describe('search plugin lifecycle', () => {
 
     sub.unsubscribe();
     handle.destroy();
-    plugin.destroy();
   });
 
   it('查询预算超限进入 error$，不执行搜索 SQL', async () => {
@@ -333,15 +351,16 @@ describe('search plugin lifecycle', () => {
     expect(await firstValueFrom(handle.error$)).toBeInstanceOf(SearchQueryLimitError);
 
     handle.destroy();
-    plugin.destroy();
   });
 
   it('missing rawQuery rejects ready; releasing the scope tears down listeners', async () => {
     const fake = buildFakeRxdb([FakeArticle], false);
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
-    const { scope } = installScoped(plugin);
+    const { scope, installing } = installScoped(plugin);
 
+    // 宿主拿 `install()` 的返回值喂 `connect()`，调用方拿 `ready`：两个对象，同一个失败
+    await expect(installing).rejects.toThrow(/does not implement rawQuery/);
     await expect(plugin.ready).rejects.toThrow(/does not implement rawQuery/);
 
     await scope.dispose();
@@ -357,12 +376,13 @@ describe('search plugin lifecycle', () => {
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
     const { scope, installing } = installScoped(plugin);
-    expect(plugin.ready).toBe(installing);
     const handle = plugin.search('');
     expect(fake.listeners.get(ENTITY_LOCAL_CREATE_EVENT)).toHaveLength(1);
 
     await expect(installing).rejects.toBe(failure);
-    expect(plugin.ready).toBe(installing);
+    // `ready` 与 `install()` 的返回值是两个对象，但同一个失败：宿主靠后者把错误传给
+    // `connect()`，调用方靠前者拿到同一个原因
+    await expect(plugin.ready).rejects.toBe(failure);
 
     expect(consoleError).not.toHaveBeenCalled();
     // 半途失败的插件自己不收尾：宿主握着清单，替它逆序退回去（`#discard_plugin_scope`）
@@ -422,47 +442,58 @@ describe('search plugin lifecycle', () => {
     expect(Object.hasOwn(fake.rxdb, 'searchCollection')).toBe(false);
   });
 
-  it('ready rejects before install and shares the install promise afterwards', async () => {
+  // 「未安装先 reject」的老口径在 US-015 被 pending 取代：依赖调度落地之后，「还没轮到装」
+  // 与「装不起来」不再是同一件事。老口径下 `await connect()` 与 `await ready` 之间存在
+  // 竞态窗口——connect() 还在飞，ready 已经 reject，调用方拿到的错误与真实原因无关。
+  it('ready 在 install() 之前保持 pending，装好后 resolve 同一格', async () => {
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
-    await expect(plugin.ready).rejects.toThrow(SearchError);
-    await expect(plugin.ready).rejects.toThrow(/not installed/);
+    const pendingBefore = plugin.ready;
+    expect(await settlementOf(pendingBefore)).toBe('pending');
 
     const { installing } = installScoped(plugin);
-    expect(plugin.ready).toBe(installing);
-    await installing;
-    expect(plugin.ready).toBe(installing);
+    // 两个对象：`installing` 归宿主（喂给 `connect()`），`ready` 跨纪元存活
+    expect(plugin.ready).not.toBe(installing);
+    // 安装前拿到的引用不作废：还 pending 的那一格被本纪元续用，不换新
+    expect(plugin.ready).toBe(pendingBefore);
 
-    plugin.destroy();
+    await installing;
+    await expect(pendingBefore).resolves.toBeUndefined();
   });
 
-  it('both entrypoints fail fast after destroy()', async () => {
+  it('both entrypoints fail fast after the scope is released', async () => {
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
-    installScoped(plugin);
+    const { scope } = installScoped(plugin);
     await plugin.ready;
-    plugin.destroy();
+    // `lifecycle: 'scoped'` 之后释放作用域就是全部拆卸，没有第二步 `destroy()`
+    await scope.dispose();
 
     expect(() => plugin.search('hello')).toThrow(/not installed/);
     expect(() => plugin.searchCollection('Article', 'hello')).toThrow(/not installed/);
   });
 
-  it('re-install() after destroy() restores both entrypoints', async () => {
+  it('作用域释放后重装：两个入口恢复可用，ready 换新一格', async () => {
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
-    installScoped(plugin);
+    const first = installScoped(plugin);
     await plugin.ready;
-    plugin.destroy();
-    installScoped(plugin);
-    await plugin.ready;
+    await first.scope.dispose();
+    const released = plugin.ready;
 
-    // 守卫只看安装状态，不是一次性闸门
+    const second = installScoped(plugin);
+    await second.installing;
+
+    // 守卫只看当前作用域是否 active，不是一次性闸门
     expect(() => plugin.search('hello')).not.toThrow();
     expect(() => plugin.searchCollection('Article', 'hello')).not.toThrow();
-    plugin.destroy();
+    // 上一纪元那一格停在 destroyed 上，新纪元另起一格
+    await expect(released).rejects.toThrow(/destroyed/);
+    expect(plugin.ready).not.toBe(released);
+    await expect(plugin.ready).resolves.toBeUndefined();
   });
 
   it('旧纪元迟到的 install 只丢弃结果，不改写新纪元的 engine', async () => {
@@ -481,9 +512,8 @@ describe('search plugin lifecycle', () => {
     const stale = installScoped(plugin);
     await vi.waitFor(() => expect(landStaleInstall).toBeTypeOf('function'));
 
-    // 断连：宿主先释放作用域，再 destroy() 复位状态机
+    // 断连：宿主释放作用域即完成拆卸
     await stale.scope.dispose();
-    plugin.destroy();
 
     // 第二纪元正常装好，engine 属于新纪元
     const fresh = installScoped(plugin);
@@ -502,38 +532,65 @@ describe('search plugin lifecycle', () => {
     await vi.waitFor(() => expect(freshEngine?.search).toHaveBeenCalled());
 
     handle.destroy();
-    plugin.destroy();
   });
 
-  it('作用域已释放但没 destroy()（init() 回滚 + 同步重试）：旧纪元不再重跑 FTS DDL', async () => {
-    // 宿主的 `init()` 失败回滚只释放作用域，**不**调 destroy()——本插件是唯一没声明
-    // `lifecycle: 'scoped'` 的内置插件，于是状态机跨过回滚活了下来。此时旧纪元那一轮
-    // 从没拿到过适配器：它和重试那一轮等的是同一个 `adapterConnected$`，一起醒来时
-    // 拿到的是同一条**活**连接。纪元校验必须在 DDL 之前，否则同一批 DDL 打两遍。
-    const gate = new Subject<boolean>();
-    const fake = buildFakeRxdb([FakeArticle], true, gate);
+  it('init() 回滚 + 同步重试：旧纪元醒来时不再重跑 FTS DDL', async () => {
+    // 宿主 `init()` 失败会回滚（释放作用域）再同步重试，于是同一个插件实例上会有两轮
+    // `install()` 并存。旧那一轮此刻正卡在 FTS 安装里，醒来时手里的 `scope` 已经不是
+    // 当前纪元了。纪元校验必须在**每个** plan 的 DDL 之前，否则同一批 DDL 打两遍。
+    let landStale!: () => void;
+    installFtsForEntity.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          landStale = () =>
+            resolve({ tableName: 'article', status: 'installed', fields: [{ name: 'title', isArray: false }] });
+        })
+    );
+    const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
     const stale = installScoped(plugin);
-    // 宿主回滚：作用域释放，destroy() 不调
+    await vi.waitFor(() => expect(landStale).toBeTypeOf('function'));
+    // 宿主回滚：释放作用域
     await stale.scope.dispose();
     // 同步重试 init() → 同一个插件实例再装一轮
     const fresh = installScoped(plugin);
+    await fresh.installing;
 
-    // 适配器这才连上：两轮同时放行
-    gate.next(true);
-    await Promise.all([fresh.installing, stale.installing]);
+    // 旧那一轮这才醒来
+    landStale();
+    await stale.installing;
 
-    // 一个 entity 一个 plan：DDL 只该跑重试那一轮
-    expect(installFtsForEntity).toHaveBeenCalledTimes(1);
+    // 一个 entity 一个 plan：第一轮卡住那次 + 重试那一轮，engine 只该属于后者
+    expect(installFtsForEntity).toHaveBeenCalledTimes(2);
     expect(createSearchEngine).toHaveBeenCalledTimes(1);
     await expect(plugin.ready).resolves.toBeUndefined();
     expect(() => plugin.searchCollection('Article', 'hello')).not.toThrow();
-
-    plugin.destroy();
   });
 
-  it('作用域已释放但没 destroy()：重装按当下的 entities 重扫，不复用上一轮 plan', async () => {
+  it('旧纪元的作用域迟到释放：不清掉新纪元的缓存，也不动新纪元的 ready', async () => {
+    const fake = buildFakeRxdb();
+    const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
+
+    // 纪元身份就是 scope 的引用，不是一个单调递增的号。两轮 install 并存时，
+    // 迟到的那次释放必须按引用认出自己已经过期，否则新纪元的缓存被旧纪元的收尾清空
+    const staleScope = new LifecycleScope('search-spec-stale');
+    const freshScope = new LifecycleScope('search-spec-fresh');
+    await plugin.install(staleScope);
+    await plugin.install(freshScope);
+
+    await staleScope.dispose();
+
+    expect(() => plugin.searchCollection('Article', 'hello')).not.toThrow();
+    await expect(plugin.ready).resolves.toBeUndefined();
+
+    // 当前纪元自己释放时才真正拆卸
+    await freshScope.dispose();
+    expect(() => plugin.searchCollection('Article', 'hello')).toThrow(/not installed/);
+    await expect(plugin.ready).rejects.toThrow(/destroyed/);
+  });
+
+  it('作用域释放后重装：按当下的 entities 重扫，不复用上一轮 plan', async () => {
     const entities: unknown[] = [FakeArticle];
     const fake = buildFakeRxdb(entities);
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
@@ -550,8 +607,6 @@ describe('search plugin lifecycle', () => {
     expect(() => plugin.searchCollection('Note', 'hello')).not.toThrow();
     // 两个 plan 都装：第一轮 1 次 + 第二轮 2 次
     expect(installFtsForEntity).toHaveBeenCalledTimes(3);
-
-    plugin.destroy();
   });
 
   it('三路 entity 事件各自一条登记，第二条注册失败时第一条不会留在宿主上', async () => {
@@ -570,13 +625,11 @@ describe('search plugin lifecycle', () => {
     expect(fake.listeners.get(ENTITY_LOCAL_CREATE_EVENT)).toHaveLength(1);
     await scope.dispose();
     expect(fake.listeners.get(ENTITY_LOCAL_CREATE_EVENT)).toHaveLength(0);
-
-    plugin.destroy();
   });
 
-  // 拆卸分两步，顺序由宿主固定：先释放作用域摘掉本纪元的宿主改动，再 destroy() 复位状态机。
-  // 搜索插件没有声明 `lifecycle: 'scoped'`，两步都会走到。
-  it('releasing the scope unsubscribes entity events; destroy() rejects ready', async () => {
+  // 拆卸一步到位：插件声明了 `lifecycle: 'scoped'`，宿主释放完作用域就收手，
+  // 状态复位挂在作用域最先登记、因而最后执行的那条 `search:state` 条目上。
+  it('releasing the scope unsubscribes entity events and rejects ready', async () => {
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
 
@@ -589,7 +642,8 @@ describe('search plugin lifecycle', () => {
     expect(fake.rxdb.removeEventListener).toHaveBeenCalledTimes(3);
     expect(fake.listeners.get(ENTITY_LOCAL_CREATE_EVENT)?.length ?? 0).toBe(0);
 
-    plugin.destroy();
+    // 已经 resolve 的那一格改不动，换一格 rejected 顶上：纪元没了，`search()` 一定抛，
+    // `ready` 就不能还留着上一纪元的 resolve
     await expect(plugin.ready).rejects.toThrow(SearchError);
     await expect(plugin.ready).rejects.toThrow(/destroyed/);
   });

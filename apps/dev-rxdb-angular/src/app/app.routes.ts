@@ -1,4 +1,25 @@
-import { Route, UrlMatcher, UrlSegment } from '@angular/router';
+import { RxDB } from '@aiao/rxdb';
+import { inject } from '@angular/core';
+import { CanActivateFn, Route, UrlMatcher, UrlSegment } from '@angular/router';
+
+/**
+ * 进入 `/search` 之前先把本地适配器连上。
+ *
+ * @remarks
+ * rxdb-plugin-search 声明 `inject: ['adapter:local']`（US-015）：宿主要等本地适配器的引导链
+ * （迁移、建表、索引）跑完才调 `install()`。搜索页在字段初始化里**同步**调用 `db.search()`，
+ * 深链直接进来时连接尚未建立，组件构造就会抛「plugin is not installed」。
+ *
+ * 别的页面不需要这道门：它们的首次查询会经适配器 `ready()` 回到 `connect()`，自然把连接带起来。
+ * `connect()` 自带去重，重复进入本路由不会重复连接。
+ */
+const connectLocalAdapter: CanActivateFn = async () => {
+  const db = inject(RxDB);
+  const adapterName = db.config.sync.local?.adapter;
+  if (adapterName === undefined) throw new Error('[demo] sync.local.adapter is not configured');
+  await db.connect(adapterName);
+  return true;
+};
 
 const opfsMatcher: UrlMatcher = (segments: UrlSegment[]) => {
   if (!segments.length || segments[0].path !== 'opfs') return null;
@@ -37,6 +58,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'search',
+    canActivate: [connectLocalAdapter],
     loadComponent: () => import('./pages/search/search.page')
   },
   {

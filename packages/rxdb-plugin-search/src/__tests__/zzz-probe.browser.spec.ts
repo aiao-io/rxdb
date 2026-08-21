@@ -38,9 +38,8 @@ const mk = async (titles: string[]) => {
     rxdb,
     adapter,
     async cleanup() {
-      // 与宿主同序：先释放作用域摘掉 entity 监听，再 destroy() 复位状态机
+      // `lifecycle: 'scoped'` 之后释放作用域就是全部拆卸，没有第二步 `destroy()`
       await scope.dispose();
-      plugin.destroy();
       await rxdb.disconnectAll();
     }
   };

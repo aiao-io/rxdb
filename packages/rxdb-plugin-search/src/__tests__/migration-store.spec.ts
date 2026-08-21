@@ -5,7 +5,6 @@
  * `listInstallMigrationsForTable` 的地方，mock 掉就等于什么都没测。
  */
 import { Entity, EntityBase, PropertyType, type RxDB } from '@aiao/rxdb';
-import { BehaviorSubject } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../core/search-engine.js', async () => {
@@ -48,10 +47,8 @@ const buildFakeRxdb = (migrationRecords: { name: string }[] = []) => {
   };
   const rxdb = {
     config: { sync: { local: { adapter: 'sqlite-wasm' } }, entities: [FakeArticle] },
-    localAdapter$: new BehaviorSubject(adapter),
-    connected$: new BehaviorSubject(true),
-    adapterConnected$: () => new BehaviorSubject(true),
-    connect: vi.fn(async () => adapter),
+    // 插件按 `inject: ['adapter:local']` 拿实例：不再自己 connect / 等 adapterConnected$
+    localAdapterSync: adapter,
     addEventListener: vi.fn(),
     removeEventListener: vi.fn()
   };
@@ -79,7 +76,6 @@ describe('search plugin migration store', () => {
         rules: [{ field: 'name', operator: 'startsWith', value: INSTALL_PREFIX }]
       }
     });
-    plugin.destroy();
   });
 
   // 下推后仍要在 JS 侧做精确前缀复核：SQLite/PG 都把 `startsWith` 编译成不带 ESCAPE 的
@@ -94,6 +90,5 @@ describe('search plugin migration store', () => {
     installScoped(plugin);
 
     await expect(plugin.ready).resolves.toBeUndefined();
-    plugin.destroy();
   });
 });

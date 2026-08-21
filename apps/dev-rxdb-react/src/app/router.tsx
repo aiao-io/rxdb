@@ -2,6 +2,7 @@ import { redirect, type LazyRouteFunction, type RouteObject } from 'react-router
 import AppLayout from './app';
 import HomePage from './pages/home';
 import TodoPage from './pages/todo';
+import setup_rxdb from './rxdb/setup_rxdb_sqlite-wasm';
 
 interface RouteModule {
   default: React.ComponentType;
@@ -13,6 +14,24 @@ const lazyRoute =
     const { default: Component } = await importFn();
     return { Component };
   };
+
+/**
+ * 进入 `/search` 之前先把本地适配器连上。
+ *
+ * rxdb-plugin-search 声明 `inject: ['adapter:local']`（US-015）：宿主要等本地适配器的引导链
+ * （迁移、建表、索引）跑完才调 `install()`。搜索页在渲染期**同步**调用 `db.search()`，
+ * 深链直接进来时连接尚未建立，首次渲染就会抛「plugin is not installed」。
+ *
+ * 别的页面不需要这道门：它们的首次查询会经适配器 `ready()` 回到 `connect()`，自然把连接带起来。
+ * `setup_rxdb()` 是模块级单例，`connect()` 自带去重，重复进入本路由不会重复连接。
+ */
+const connectLocalAdapter = async (): Promise<null> => {
+  const db = setup_rxdb();
+  const adapterName = db.config.sync.local?.adapter;
+  if (adapterName === undefined) throw new Error('[demo] sync.local.adapter is not configured');
+  await db.connect(adapterName);
+  return null;
+};
 
 export const routes: RouteObject[] = [
   {
@@ -88,6 +107,7 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'search',
+        loader: connectLocalAdapter,
         lazy: lazyRoute(() => import('./pages/search'))
       },
       {

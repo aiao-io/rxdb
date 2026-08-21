@@ -28,6 +28,7 @@ export const rxDBPluginExample: Plugin = (db: RxDB) => new RxDBPluginExample(db)
 | ---------------- | ---- | ----------------------------------------------------------------------------------------- |
 | `name`           | ✅   | 插件名（首字母小写）                                                                      |
 | `install(scope)` | ✅   | 建立本纪元资源；抛错或 reject 视为安装失败                                                |
+| `inject`         | ⬜   | 声明依赖；全部就绪后宿主才调 `install()`，未满足则一次都不调                              |
 | `lifecycle`      | ⬜   | 取 `'scoped'` 表示拆卸完全交给作用域                                                      |
 | `destroy?()`     | ⬜   | 已废弃。仅为尚未迁移的插件保留，未声明 `lifecycle` 时宿主会在释放作用域**之后**再调用一次 |
 
@@ -116,21 +117,58 @@ scope.acquire(() => {
 
 插件自己**不要**在 `install()` 的 catch 里做补偿性清理——清单在宿主手里，重复清理只会把幂等性问题引进来。
 
-## 不要在 `install()` 里等宿主连接
+## 声明依赖，不要自己等
+
+需要适配器才能干活的插件，用 `inject` **声明**依赖，由宿主决定装载时机：
+
+```typescript
+class ExampleSearchPlugin implements IRxDBPlugin {
+  readonly name = 'exampleSearch';
+  readonly inject = ['adapter:local'] as const;
+  readonly lifecycle = 'scoped' as const;
+
+  install(scope: LifecycleScope) {
+    // 被调用即代表依赖就绪：引导链（迁移、建表、索引）已经跑完
+    const adapter = this.rxdb.localAdapterSync;
+    scope.acquire(() => {
+      /* 同步登记 */
+    }, 'example:entry');
+    return this.#setup(adapter);
+  }
+}
+```
+
+`inject` 的取值是一个封闭集合：`'adapter:local'`、`'adapter:remote'`、`` `plugin:${string}` ``（首字母小写的插件名）。写错会**编译失败**，不会退化成运行时的静默跳过。
+
+`plugin:*` 属于阶段 B，尚未实现解析：现在声明它等同于「依赖永远不满足」，插件不会被安装，控制台会有一条警告。想表达插件之间的先后，暂时仍靠**注册顺序**——`use()` 的调用序就是安装序，见 [US-015](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/core/US-015-plugin-inject-dependency.md)。
+
+### 依赖没满足会怎样
+
+- 插件**不安装**，也不会拿到作用域——`install()` 一次都不调；
+- 控制台按插件**只警告一次**，不会每轮调度刷屏；
+- `connect()` **照常 resolve**：它只等真正开工了的安装。等一个永远等不到依赖的插件会把整个连接拖死，所以宿主不等。
+
+也就是说，`await db.connect()` 返回不代表你的插件装上了。要确认装没装，读插件自己的就绪信号（例如搜索插件的 `ready`）。
+
+### 依赖变了会重装
+
+依赖的纪元身份按**实例引用**判定，不是按名字。断连重连拿到同名但不同实例的适配器，算一次纪元变化：宿主先释放旧作用域，再用新实例重装一轮。所以 `install()` 必须能被同一个实例调用多次，每轮只认自己收到的那个 `scope`。
+
+同一纪元内安装失败**不会自动重试**——重试的唯一触发点是纪元变化。
+
+### 不要在 `install()` 里等宿主连接
 
 `connect()` 的顺序是「适配器就绪 → `await` 全部插件的 `install()`」。所以 `install()` 里 `await db.connect()` 是在等自己：
 
 ```diff
  install(scope: LifecycleScope) {
 -  return db.connect().then(() => this.#setup());   // 死锁：connect() 正在等这个 promise
-+  scope.acquire(() => { /* 同步登记 */ }, 'example:entry');
-+  return this.#setup();                            // 需要适配器时等 adapterConnected$，不等 connect()
++  const adapter = db.localAdapterSync;             // 声明 inject 之后，被调用即代表已就绪
++  return this.#setup(adapter);
  }
 ```
 
-要等到某个适配器真的连上，等的是 `db.adapterConnected$(name)` 这类**信号**，不是 `connect()` 本身。同理，`install()` 里不要 `await` 另一个插件的就绪 promise：宿主按注册序串行安装，被等的那个可能排在你后面，谁都不会先完成。
-
-依赖需要由宿主调度（声明依赖、依赖就绪后再安装）这条路还没交付——见 [US-015](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/core/US-015-plugin-inject-dependency.md)。在它落地之前，插件之间的先后靠**注册顺序**表达：`use()` 的调用序就是安装序。
+声明了 `inject` 就**不要**再自己等依赖了——不要 `db.connect()`，不要订阅 `db.adapterConnected$(name)`，也不要 `await` 另一个插件的就绪 promise。这些等待在依赖调度落地之前是唯一的办法，现在它们只会把已经解掉的死锁重新绑回去。
 
 ## 跨纪元的迟到任务
 
@@ -143,7 +181,7 @@ if (this.#store !== store) return; // 纪元已换：结果只能丢弃
 this.#rows = rows;
 ```
 
-比对的是**身份**而不是「是否为 `undefined`」：读取期间断开又重连时字段已经有值了，那份值属于新纪元，不该由这一轮补写。没有稳定字段可比时，用一个每次 `install()` 递增的纪元号。
+比对的是**身份**而不是「是否为 `undefined`」：读取期间断开又重连时字段已经有值了，那份值属于新纪元，不该由这一轮补写。没有稳定字段可比时，把 `install()` 收到的 `scope` 存成字段：它天然一纪元一个，`scope.state` 还顺带给出「活着 / 释放中 / 已释放」三态，不必再自己维护一个纪元号和一套状态枚举。
 
 ## 拆卸顺序
 
@@ -189,8 +227,23 @@ export class RxDBPluginDual extends RxDBPluginBase implements IRxDBPlugin {
 
 之所以要**显式**标记而不是去看 `install.length` 有没有形参：转译产物、`Function.prototype.bind` 与压缩器都会改写形参个数，把它当契约会误判。
 
-## 部分迁移
+## 内部状态也挂作用域
 
-作用域只负责撤销**宿主改动**。插件自身的内部状态（状态机、缓存）若还需要在拆卸时复位，就保留 `destroy()` 且**不要**声明 `lifecycle: 'scoped'`，宿主两步都会走到。
+作用域的职责是撤销**宿主改动**，但插件自身的内部状态（缓存、就绪信号）同样可以挂上去——登记一条只做复位的条目就行，不必为它保留 `destroy()` 和两步拆卸：
 
-`@aiao/rxdb-plugin-search` 正是这种情况：entity 事件监听交给作用域，状态机复位留在 `destroy()`。
+```typescript
+install(scope: LifecycleScope) {
+  // 最先登记 ⇒ 逆序释放时最后跑：前面那些条目的清理函数还读得到这些状态
+  scope.acquire(() => () => this.#reset(scope), 'example:state');
+  this.#bindEntityEvents(scope);
+}
+
+#reset(scope: LifecycleScope) {
+  if (this.#scope !== scope) return; // 旧纪元迟到的释放，不许动新纪元刚建好的状态
+  this.#cache.clear();
+}
+```
+
+复位函数同样要比对纪元身份，理由见上面的「跨纪元的迟到任务」。
+
+`@aiao/rxdb-plugin-search` 走的就是这条路：entity 事件监听与状态复位都是作用域条目，插件声明 `lifecycle: 'scoped'`，拆卸只有一步。
