@@ -5,13 +5,13 @@ import { EntityType } from './entity/entity.interface.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
 import { PluginDependencyScheduler } from './plugin/dependency-scheduler.js';
 import {
-    AdapterFactory,
-    IRxDBAdapter,
-    RepositoryInstance,
-    RxDBAdapterLocalBase,
-    RxDBAdapterName,
-    RxDBAdapterRemoteBase,
-    RxDBAdapters
+  AdapterFactory,
+  IRxDBAdapter,
+  RepositoryInstance,
+  RxDBAdapterLocalBase,
+  RxDBAdapterName,
+  RxDBAdapterRemoteBase,
+  RxDBAdapters
 } from './rxdb-adapter.js';
 import { RxDBEvent, RxDBEventMap, TRANSACTION_BEGIN, TRANSACTION_COMMIT, TRANSACTION_ROLLBACK } from './rxdb-events.js';
 import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
