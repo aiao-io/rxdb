@@ -26,8 +26,17 @@ type LocalAdapterMock = IRxDBAdapter & Pick<RxDBAdapterLocalBase, 'createTables'
 const databases = new Set<RxDB>();
 let databaseSequence = 0;
 
-/** 每次工厂调用都建**新实例**：断连重连时 `#adapter_map` 已清空，于是拿到的是另一个引用（AC#6）。 */
-function createDatabase(): { database: RxDB; localAdapters: LocalAdapterMock[]; remoteAdapters: IRxDBAdapter[] } {
+/**
+ * 每次工厂调用都建**新实例**：断连重连时 `#adapter_map` 已清空，于是拿到的是另一个引用（AC#6）。
+ *
+ * @param options - `slowRemote` 让远端适配器的 `connect()` 拖过几个宏任务，用来制造
+ *   「local 已连上、remote 还在引导」这个并行连接才有的中间态
+ */
+function createDatabase(options: { slowRemote?: boolean } = {}): {
+  database: RxDB;
+  localAdapters: LocalAdapterMock[];
+  remoteAdapters: IRxDBAdapter[];
+} {
   databaseSequence += 1;
   const database = new RxDB({
     dbName: `rxdb-plugin-inject-${databaseSequence}`,
@@ -43,6 +52,13 @@ function createDatabase(): { database: RxDB; localAdapters: LocalAdapterMock[]; 
   });
   database.adapter('remote', () => {
     const adapter = createMockAdapter();
+    if (options.slowRemote) {
+      adapter.connect = vi.fn(async () => {
+        await tick();
+        await tick();
+        return adapter;
+      });
+    }
     remoteAdapters.push(adapter);
     return adapter;
   });
@@ -159,6 +175,47 @@ describe('AC#3 / AC#11 依赖不满足不挂起 connect()', () => {
 
     expect(blocked.scopes).toHaveLength(0);
     expect(free.scopes).toHaveLength(1);
+  });
+
+  it('AC#11 依赖装得上时一句都不 warn —— init() 那一刻还没连接，不算「装不上」', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { database } = createDatabase();
+    const injecting = probe('injecting', ['adapter:local']);
+    database.use(() => injecting);
+
+    // init() 在 connect() 里跑，那时本地适配器的引导链还没开始：调度器此刻看到的
+    // 「依赖未满足」是正常的中间态，不是终局。在这里 warn 会让每个用搜索插件的应用
+    // 每次启动都收到一条「插件没装上」，而它几毫秒后就装好了。
+    await database.connect('sqlite');
+
+    expect(injecting.scopes).toHaveLength(1);
+    expect(warn.mock.calls.filter(([message]) => String(message).includes("Plugin 'injecting'"))).toHaveLength(0);
+  });
+
+  it('AC#11 连接建立之后才 use() 的插件，依赖不满足照样当场 warn', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { database } = createDatabase();
+
+    await database.connect('sqlite');
+    // 引导链已经跑完，此刻的「未满足」就是终局判断，不必等下一次 connect()
+    database.use(() => probe('lateComer', ['adapter:remote']));
+
+    expect(warn.mock.calls.filter(([message]) => String(message).includes("Plugin 'lateComer'"))).toHaveLength(1);
+  });
+
+  it('AC#11 并行 connect 时先落地的那条不替还在引导的另一条下结论', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    // remote 的建表故意慢一拍：local 那条链会先跑完 #await_plugin_installs，此时
+    // adapter:remote 确实还没就绪。差别在于它「还在引导」而不是「不会来了」——
+    // 只按 #connected_adapters 非空开闸的话，先落地的这条就会替另一条抢答。
+    const { database } = createDatabase({ slowRemote: true });
+    const injecting = probe('remoteDep', ['adapter:remote']);
+    database.use(() => injecting);
+
+    await Promise.all([database.connect('sqlite'), database.connect('remote')]);
+
+    expect(injecting.scopes).toHaveLength(1);
+    expect(warn.mock.calls.filter(([message]) => String(message).includes("Plugin 'remoteDep'"))).toHaveLength(0);
   });
 
   it('AC#11 依赖永远不满足时只 warn 一次，并列出缺失项', async () => {

@@ -169,6 +169,19 @@ describe('search plugin lifecycle', () => {
     expect(fake.rxdb.addEventListener).not.toHaveBeenCalled();
   });
 
+  it('fail-fast 之后 `ready` 也要结算，不能永久 pending', async () => {
+    const fake = buildFakeRxdb([InvalidArticle]);
+    const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
+
+    expect(() => installScoped(plugin)).toThrow(/Invalid "searchable"/);
+
+    // `ready` 是文档承诺的「装了没有」确认点。schema 校验抛在 `scope.acquire()` 之前，
+    // 于是既没人 reject 这一格，作用域里也没有 `search:state` 条目能在释放时补上——
+    // 不显式结算的话 `await plugin.ready` 会永久挂起，而调用方看不出与「还没轮到装」的区别。
+    expect(await settlementOf(plugin.ready)).toBe('rejected');
+    await expect(plugin.ready).rejects.toThrow(/Invalid "searchable"/);
+  });
+
   it('install() binds entity events synchronously, before the install promise resolves', () => {
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;

@@ -112,7 +112,7 @@ describe('同步随机源', () => {
 
     // 这里要的就是「传了个类型上不该传的东西」，`as unknown as` 把这层故意说清楚，
     // 又不像 `as any` 那样连后面 `.getRandomValues` 的返回值一起放弃检查
-    const notAView = null as unknown as Uint8Array;
+    const notAView = null as unknown as Uint8Array<ArrayBuffer>;
 
     expect(() => globalThis.crypto.getRandomValues(notAView)).toThrow('getRandomValues 需要 ArrayBufferView');
     expect(() => globalThis.crypto.getRandomValues(new Uint8Array(65_537))).toThrow(

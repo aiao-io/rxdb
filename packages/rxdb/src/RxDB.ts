@@ -250,6 +250,22 @@ export class RxDB {
   #adapter_connected_sub = new BehaviorSubject<ReadonlySet<string>>(new Set<string>());
 
   /**
+   * 还在引导中的 `connect()` 数量。
+   *
+   * @remarks
+   * 只服务一件事：判断「依赖来源是否已经尘埃落定」，即
+   * {@link PluginDependencyScheduler.reportUnsatisfied} 的开闸条件（见
+   * {@link RxDB.#report_unsatisfied_plugins}）。计数在 `connect()` 同步段自增，在该适配器
+   * **建表完成、置位已连接之后**归零一次——不是在整条 `connect()` 结束时，因为那时插件
+   * 安装已经跑完了，报告永远等不到开闸。
+   *
+   * 并行 `connect('local')` / `connect('remote')` 时这个计数是唯一能把两条链联系起来的东西：
+   * 先落地的那条看到计数不为零就闭嘴，声明了 `adapter:remote` 的插件才不会在 remote 还在
+   * 建表的时候被喊一句「装不上」。
+   */
+  #bootstrapping_connects = 0;
+
+  /**
    * RxDB 上下文
    */
   #context: RxDBContext = {};
@@ -339,6 +355,9 @@ export class RxDB {
     if (adapter === undefined) {
       throw new Error(`[RxDB] local adapter '${adapterName}' is not connected; await connect('${adapterName}') first`);
     }
+    // 「配置为 local 的适配器实现了 RxDBAdapterLocalBase」是配置层的约定，运行时无从校验：
+    // 该基类的成员（migrateSystemSchema / completeBootstrap …）全是可选的，没有可判别的形状。
+    // 与 {@link RxDB.localAdapter$} 和 `connect()` 的 local 分支同一套信任模型，不额外加检查。
     return adapter as IRxDBAdapter & RxDBAdapterLocalBase;
   }
 
@@ -563,6 +582,14 @@ export class RxDB {
       startConnect = resolve;
       failConnect = reject;
     });
+    // 引导计数：恰好归零一次，成功与失败两条路都要走到（见 #bootstrapping_connects）
+    this.#bootstrapping_connects += 1;
+    let counted = true;
+    const bootstrapDone = () => {
+      if (!counted) return;
+      counted = false;
+      this.#bootstrapping_connects -= 1;
+    };
     const connectPromise = (async () => {
       await started;
       const adapter = await this.getAdapter(adapterName);
@@ -593,6 +620,8 @@ export class RxDB {
       // 的判据（见 #resolve_dependency），调度器要靠它才会放行声明了该依赖的插件，
       // 而那批安装恰好跑在下一行的 await 里面。
       this.#set_adapter_connected(adapterName, adapter);
+      // 本条链的引导到此为止，剩下的是插件安装。先归零再装，最后一条链才有机会开闸报告。
+      bootstrapDone();
       try {
         await this.#await_plugin_installs();
       } catch (error) {
@@ -609,6 +638,9 @@ export class RxDB {
 
     // 连接失败时清除缓存的 rejected promise，允许后续重试（不吞掉错误）
     connectPromise.catch(() => {
+      // 半路失败（getAdapter / 建表 / init 抛错）时补一次归零：否则计数永远挂着，
+      // 后续所有 connect() 都以为还有链在引导，报告再也开不了闸。
+      bootstrapDone();
       if (this.#connect_promise_map.get(adapterName) === connectPromise) {
         this.#connect_promise_map.delete(adapterName);
       }
@@ -963,6 +995,24 @@ export class RxDB {
     if (!this.#rxdb_initialized || this.#shutting_down) return;
     for (const plugin of this.#plugin_map.values()) this.#scheduler.register(plugin);
     this.#scheduler.reconcile();
+    this.#report_unsatisfied_plugins();
+  }
+
+  /**
+   * 依赖来源尘埃落定之后，把始终没装上的插件点名一次。
+   *
+   * @remarks
+   * 「装不上」这个判断调度器自己下不了：它每一趟扫描看到的都只是**当下**的依赖状态，而
+   * `init()` 登记插件的那一刻一条适配器都还没连上——在那里告警，等于对每个正常启动的应用
+   * 喊一句「插件没装」。判据只有宿主有：本轮引导已经有适配器建完表（`#connected_adapters`
+   * 非空），且没有别的 `connect()` 还在引导（`#bootstrapping_connects` 归零）。
+   *
+   * 两个条件缺一不可。只看前者，并行连接时先落地的那条会替还在建表的另一条下结论；只看
+   * 后者，`init()` 阶段的计数本来就是零，误报原封不动。
+   */
+  #report_unsatisfied_plugins() {
+    if (this.#bootstrapping_connects > 0 || this.#connected_adapters.size === 0) return;
+    this.#scheduler.reportUnsatisfied();
   }
 
   /**
@@ -985,6 +1035,7 @@ export class RxDB {
     if (!this.#rxdb_initialized || this.#shutting_down) return;
     this.#scheduler.register(plugin);
     this.#scheduler.reconcile();
+    this.#report_unsatisfied_plugins();
   }
 
   /**
@@ -1029,10 +1080,14 @@ export class RxDB {
   }
 
   /**
-   * 回收安装失败插件的部分登记。
+   * 释放一次插件激活作用域并注销登记，即 {@link PluginSchedulerHost.releaseScope}。
    *
    * @remarks
-   * 这里**必须**吞掉清理错误：调用方紧接着要抛出安装错误，也就是失败的**原因**。
+   * 调用方只有调度器，但触发场景有三种，行为完全相同：安装失败回滚、依赖纪元变化前的
+   * 主动释放（AC#5 / AC#6），以及安装成功但落地时纪元已作废（AC#7）。所以这里不区分
+   * 成败——它就是「把这一次激活登记的东西恰好还回去一次」。
+   *
+   * 这里**必须**吞掉清理错误：调用方在安装失败那一路紧接着要抛出安装错误，也就是失败的**原因**。
    * 让清理错误逃出去会把原因换成后果，排查时看到的是「关闭 channel 失败」而不是
    * 「建表失败」。清理错误另行 `console.error`，两个都不丢。
    *

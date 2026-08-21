@@ -236,12 +236,25 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
 
   install(scope: LifecycleScope): Promise<void> {
     this.#installFailure = undefined;
-    // 先于任何 `acquire()`：非法的 `searchable` 声明在这里同步抛出，作用域一条登记都不留
-    this.#primeSearchEntries();
     // 上一纪元结算过就换新一格；还 pending（首次安装，或依赖迟迟不就绪）则续用同一格，
     // 这样 `connect()` 之前就拿到 `ready` 引用的调用方不必重新读一次
     if (this.#readyDeferred.settled) this.#readyDeferred = createReadyDeferred();
     const deferred = this.#readyDeferred;
+    // 先于任何 `acquire()`：非法的 `searchable` 声明在这里同步抛出，作用域一条登记都不留。
+    // 同步抛出绕开了下面那条 `.then` 的失败分支，`ready` 于是没人结算——而作用域里一条
+    // 登记都没有，宿主释放它时也补不上（`#teardown` 从来没挂上去）。不显式结算的话
+    // `await ready` 会永久挂起，调用方看不出与「还没轮到装」的区别。
+    //
+    // 不走 `#failInstall`：那条路按 `#scope` 身份守卫，而此刻 `#scope` 还没换成本次的
+    // 作用域，状态改写会被守卫整段跳过。这里要落地的恰好只有两件事——归因与结算。
+    // `#primeSearchEntries` 开头就清空了三张表且抛点在填充之前，没有半成品需要回收。
+    try {
+      this.#primeSearchEntries();
+    } catch (error) {
+      this.#installFailure = { error };
+      deferred.reject(error);
+      throw error;
+    }
     this.#scope = scope;
     // 复位条目最先登记 ⇒ 逆序释放时最后执行：排在它前面的撤销条目（entity 监听）
     // 跑的时候读到的仍是本纪元完整的缓存

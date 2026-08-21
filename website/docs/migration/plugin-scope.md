@@ -149,6 +149,26 @@ BroadcastChannel 按纪元建立和关闭。断开连接后的草稿增删不会
 
 同一个 RxDB 实例上装了两个 storage 插件实例时，后装的那个整个 `install()` 都是空操作——不再有 `#ownsStorage` 之类的记账，「谁装谁拆」由作用域保证。
 
+### 搜索插件不再自己发起 `connect()`
+
+`@aiao/rxdb-plugin-search` 过去在 `install()` 里自己调 `db.connect(localAdapterName)` 把连接顶起来。现在它改为声明 `inject: ['adapter:local']`，由调度器在本地适配器就绪之后再装——插件不再替你连接。
+
+```diff
+ db.use(rxDBPluginSearch);
++await db.connect('sqlite-wasm');   // 现在必须显式连接
+ await db.search('keyword');
+```
+
+漏掉这一行的表现是：插件停在等待态，`db.search()` 抛「插件没装」，控制台上有一句
+
+```text
+[RxDB] Plugin 'search' is not installed: unsatisfied dependencies [adapter:local]
+```
+
+按路由懒加载的应用要把 `connect()` 放进进入搜索页的守卫里，别指望搜索插件顺带把连接带起来。
+
+反过来，这条依赖也换掉了旧的死锁绕法：`install()` 里不再需要 `firstValueFrom(adapterConnected$)` 之类的等待，被调用即代表依赖已就绪，同步读 `db.localAdapterSync` 即可。详见[编写插件](../plugins/authoring.md)的依赖注入一节。
+
 ## 相关
 
 - [编写插件](../plugins/authoring.md)：完整契约与作用域用法

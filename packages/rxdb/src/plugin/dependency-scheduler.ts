@@ -61,6 +61,9 @@ export interface PluginSchedulerHost {
 /** 无依赖插件的纪元元组，全局共用一个常量，省掉每轮扫描的空数组分配。 */
 const EMPTY_EPOCH: readonly object[] = Object.freeze([]);
 
+/** 依赖齐备时的缺失列表常量。 */
+const EMPTY_MISSING: readonly RxDBPluginDependency[] = Object.freeze([]);
+
 /** 一个插件的调度记录。字段全部私有于本模块，对外只经 {@link PluginDependencyScheduler} 暴露状态。 */
 interface PluginActivation {
   state: PluginActivationState;
@@ -75,6 +78,10 @@ interface PluginActivation {
   recheck: boolean;
   /** 已因依赖未满足告警过（INV-5：只警告一次） */
   warned: boolean;
+  /** 本纪元内曾经开始过安装。区分「一直没轮到」与「装过又退回等待」 */
+  everInstalled: boolean;
+  /** 最近一次扫描判定的缺失依赖；供 {@link PluginDependencyScheduler.reportUnsatisfied} 列举 */
+  missing: readonly RxDBPluginDependency[];
 }
 
 /** 一次目标解析的结果。 */
@@ -106,7 +113,8 @@ const epochEquals = (a: readonly object[], b: readonly object[]): boolean =>
  * reconcile 只置复查位；转移落地后直接对齐**当前**目标，中间纪元一律不启动。
  *
  * 阶段 A 只解析 `adapter:*`。`plugin:*` 依赖在宿主侧恒为未就绪，因此声明它的插件会停在
- * `waiting` 并触发一次告警，而不是静默消失；阶段 B 的 `active` 边界通知挂载点在
+ * `waiting`，由宿主经 {@link PluginDependencyScheduler.reportUnsatisfied} 点名一次，
+ * 而不是静默消失；阶段 B 的 `active` 边界通知挂载点在
  * {@link PluginDependencyScheduler.#applyInstallResult}——此刻没有依赖方需要被唤醒，
  * 所以非 `active` 的状态转移不会引发任何额外扫描。
  */
@@ -136,7 +144,9 @@ export class PluginDependencyScheduler {
       installPromise: undefined,
       inFlight: undefined,
       recheck: false,
-      warned: false
+      warned: false,
+      everInstalled: false,
+      missing: EMPTY_MISSING
     });
   }
 
@@ -219,6 +229,29 @@ export class PluginDependencyScheduler {
   }
 
   /**
+   * 对本纪元内始终没能开工的插件各告警一次（INV-5 / AC#11）。
+   *
+   * @remarks
+   * 告警**不能**放在 reconcile 里：扫描到「依赖还没就绪」是引导过程中的常态——`init()`
+   * 登记插件的那一刻适配器一条都还没连上，此时喊「装不上」对每个正常启动的应用都是误报。
+   * 判定「装不上」需要的信息扫描本身没有：只有宿主知道依赖来源是否已经全部尘埃落定。
+   * 因此由宿主在合适的时机（至少有一个适配器完成引导之后）显式调用。
+   *
+   * 只有「本纪元内从未开始过安装」的等待者会被点名。装过又因适配器断开退回等待是正常
+   * 纪元行为，重复告警只是噪音；重复调用本方法也不会让同一个插件喊第二遍，直到
+   * {@link PluginDependencyScheduler.reset} 开启新的纪元。
+   */
+  reportUnsatisfied(): void {
+    for (const [plugin, activation] of this.#activations) {
+      if (activation.state !== 'waiting' || activation.everInstalled || activation.warned) continue;
+      activation.warned = true;
+      console.warn(
+        `[RxDB] Plugin '${plugin.name}' is not installed: unsatisfied dependencies [${activation.missing.join(', ')}]`
+      );
+    }
+  }
+
+  /**
    * 把全部插件复位到 `registered`，丢弃安装记录与告警记录。
    *
    * @remarks
@@ -234,6 +267,8 @@ export class PluginDependencyScheduler {
       activation.inFlight = undefined;
       activation.recheck = false;
       activation.warned = false;
+      activation.everInstalled = false;
+      activation.missing = EMPTY_MISSING;
     }
   }
 
@@ -282,11 +317,7 @@ export class PluginDependencyScheduler {
       this.#release(plugin, activation);
       return;
     }
-    // 只在「从未装过」这一步告警：装过又因断连回到等待是正常纪元行为，再喊一遍是噪音（AC#11）
-    if (activation.state === 'registered' && !activation.warned) {
-      activation.warned = true;
-      console.warn(`[RxDB] Plugin '${plugin.name}' is not installed: unsatisfied dependencies [${missing.join(', ')}]`);
-    }
+    activation.missing = missing;
     activation.state = 'waiting';
     activation.deps = EMPTY_EPOCH;
     // 清掉安装记录：依赖纪元已经变了，上一轮的失败不该继续卡住后续 connect()
@@ -316,6 +347,8 @@ export class PluginDependencyScheduler {
     activation.state = 'installing';
     activation.scope = scope;
     activation.deps = deps;
+    activation.everInstalled = true;
+    activation.missing = EMPTY_MISSING;
     const install = this.#host.runInstall(plugin, scope);
     // 预挂一次空 catch：安装 Promise 可能无人 await（依赖未满足的适配器先断开时），
     // 不挂会变成 unhandled rejection

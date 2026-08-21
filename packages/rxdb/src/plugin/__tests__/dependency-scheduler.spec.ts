@@ -220,17 +220,66 @@ describe('依赖未满足（INV-4 / INV-5）', () => {
     const blocked = new TestPlugin('blockedPlugin', [LOCAL, REMOTE]);
 
     await settleWith(blocked);
+    scheduler.reportUnsatisfied();
     scheduler.reconcile();
     await scheduler.settle();
+    scheduler.reportUnsatisfied();
     // 只满足其中一个，仍然不满足整体：也不该再喊第二遍
     host.instances.set(LOCAL, { id: 'local' });
     scheduler.reconcile();
     await scheduler.settle();
+    scheduler.reportUnsatisfied();
 
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0][0]).toContain('blockedPlugin');
     expect(warn.mock.calls[0][0]).toContain('adapter:local');
     expect(warn.mock.calls[0][0]).toContain('adapter:remote');
+  });
+
+  it('reconcile() 自己不告警：等不等得到依赖，扫描的那一刻还不知道', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const blocked = new TestPlugin('blockedPlugin', [LOCAL]);
+
+    await settleWith(blocked);
+
+    // 宿主的引导链可能就在下一行把 LOCAL 填上——这一刻喊「装不上」是误报
+    expect(warn).not.toHaveBeenCalled();
+    host.instances.set(LOCAL, { id: 'local' });
+    scheduler.reconcile();
+    await scheduler.settle();
+    scheduler.reportUnsatisfied();
+
+    expect(scheduler.activationState(blocked)).toBe('active');
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('装过又因依赖失效退回等待的插件不告警：那是正常纪元行为', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    host.instances.set(REMOTE, { id: 'remote' });
+    const plugin = new TestPlugin('remoteDep', [REMOTE]);
+
+    await settleWith(plugin);
+    host.instances.delete(REMOTE);
+    scheduler.reconcile();
+    await scheduler.settle();
+    scheduler.reportUnsatisfied();
+
+    expect(scheduler.activationState(plugin)).toBe('waiting');
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('reset() 之后重新计一个纪元：仍然装不上时再告警一次', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const blocked = new TestPlugin('blockedPlugin', [REMOTE]);
+
+    await settleWith(blocked);
+    scheduler.reportUnsatisfied();
+    scheduler.reset();
+    scheduler.reconcile();
+    await scheduler.settle();
+    scheduler.reportUnsatisfied();
+
+    expect(warn).toHaveBeenCalledTimes(2);
   });
 
   it('AC#4 依赖消失时释放作用域并回到等待，插件记录保留', async () => {

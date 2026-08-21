@@ -51,14 +51,13 @@ fn push_sextet(text: &mut String, bits: u32, shift: u32) {
 
 fn encode_base64(bytes: &[u8]) -> String {
     let mut text = String::with_capacity(bytes.len().div_ceil(3) * 4);
-    let mut chunks = bytes.chunks_exact(3);
-    for chunk in chunks.by_ref() {
+    let (chunks, tail) = bytes.as_chunks::<3>();
+    for chunk in chunks {
         let bits = (u32::from(chunk[0]) << 16) | (u32::from(chunk[1]) << 8) | u32::from(chunk[2]);
         for shift in [18, 12, 6, 0] {
             push_sextet(&mut text, bits, shift);
         }
     }
-    let tail = chunks.remainder();
     if tail.is_empty() {
         return text;
     }
