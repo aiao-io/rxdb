@@ -10,7 +10,9 @@
 import { LifecycleScope, LifecycleScopeDisposedError } from '@aiao/utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SyncType } from '../entity/metadata-options.interface.js';
+import { RxDBTabsGateway } from '../gateway/RxDBTabsGateway.js';
 import type { IRxDBAdapter } from '../rxdb-adapter.js';
+import { ENTITY_LOCAL_CREATE_EVENT } from '../rxdb-events.js';
 import type { IRxDBPlugin } from '../rxdb-plugin.js';
 import { RxDB } from '../RxDB.js';
 import { createMockAdapter } from './fixtures/test-db-setup.js';
@@ -463,6 +465,78 @@ describe('init() 失败路径与作用域寿命对齐', () => {
     await database.disconnectAll();
 
     expect(handle).toBeUndefined();
+  });
+});
+
+/**
+ * 统计 `ENTITY_LOCAL_CREATE` 的**净**监听器数（注册 − 摘除）。
+ *
+ * @remarks
+ * 选这个事件类型是因为在无插件、无 repository 的实例上，只有 `VersionManager.init()`
+ * 与网关的本地事件转发会注册它——多出来的那一份必定是失败回滚漏掉的。
+ */
+function trackEntityCreateListeners(database: RxDB): () => number {
+  let net = 0;
+  const add = database.addEventListener.bind(database);
+  const remove = database.removeEventListener.bind(database);
+  vi.spyOn(database, 'addEventListener').mockImplementation((type, listener) => {
+    if (type === ENTITY_LOCAL_CREATE_EVENT) net += 1;
+    add(type, listener);
+  });
+  vi.spyOn(database, 'removeEventListener').mockImplementation((type, listener) => {
+    if (type === ENTITY_LOCAL_CREATE_EVENT) net -= 1;
+    remove(type, listener);
+  });
+  return () => net;
+}
+
+describe('init() 在 versionManager.init() 之后失败：catch 与 #shutdown() 的资源释放对称', () => {
+  /**
+   * 让 `#init_gateway()` 里的 `gateway.init()` 抛一次。
+   *
+   * 抛错点必须在 `versionManager.init()` **之后**：既有的 `schemaManager.init` 失败用例
+   * 停在 VersionManager 与网关都还没动的时刻，看不见这两处资源。
+   */
+  const throwOnceInGatewayInit = () =>
+    vi.spyOn(RxDBTabsGateway.prototype, 'init').mockImplementationOnce(() => {
+      throw new Error('gateway boom');
+    });
+
+  it('失败重试不叠加 VersionManager 的事件监听器', () => {
+    const failing = createDatabase();
+    const failingNet = trackEntityCreateListeners(failing);
+    throwOnceInGatewayInit();
+
+    expect(() => failing.init()).toThrow('gateway boom');
+    // 调用方修好配置后紧接着重试——`init()` 是同步 API，这是被明确支持的路径。
+    failing.init();
+
+    // 基线取自从没失败过的实例：净监听数必须一致，多出来的那份就是第一轮 init() 的残留。
+    const baseline = createDatabase();
+    const baselineNet = trackEntityCreateListeners(baseline);
+    baseline.init();
+
+    expect(failingNet()).toBe(baselineNet());
+  });
+
+  it('失败时销毁已构造的网关，重试装进全新实例', async () => {
+    const database = createDatabase();
+    const destroySpy = vi.spyOn(RxDBTabsGateway.prototype, 'destroy');
+    throwOnceInGatewayInit();
+
+    expect(() => database.init()).toThrow('gateway boom');
+
+    // 网关在**构造期**就 createBroadcastTopic() + new LeaderElection()，通道早于 init() 打开；
+    // 失败时不销毁就是泄漏一条 BroadcastChannel 加一套选举（Web Locks / timer / beforeunload）。
+    expect(destroySpy).toHaveBeenCalledTimes(1);
+    const leaked = destroySpy.mock.instances[0];
+
+    database.init();
+    await database.disconnectAll();
+
+    // 重试写进 `#gateway` 的是新实例；停机拆的是新的那个，旧的必须已经在失败当场拆掉。
+    expect(destroySpy).toHaveBeenCalledTimes(2);
+    expect(destroySpy.mock.instances[1]).not.toBe(leaked);
   });
 });
 

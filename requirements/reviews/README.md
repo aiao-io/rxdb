@@ -9,10 +9,12 @@
 
 ## 目录结构
 
-| 文件                 | 说明                   | 状态 |
-| -------------------- | ---------------------- | ---- |
-| `README.md`          | 本说明与状态约定       | —    |
-| `review.template.md` | 新建 review 记录的模板 | —    |
+| 文件                                    | 说明                         | 状态   |
+| --------------------------------------- | ---------------------------- | ------ |
+| `README.md`                             | 本说明与状态约定             | —      |
+| `review.template.md`                    | 新建 review 记录的模板       | —      |
+| [RV-010-epic-006-deep-review.md](RV-010-epic-006-deep-review.md) | epic-006 深度评审 | Open   |
+| [RV-011-epic-008-deep-review.md](RV-011-epic-008-deep-review.md) | epic-008 深度评审 | Open   |
 
 ## 状态约定
 

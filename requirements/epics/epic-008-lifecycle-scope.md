@@ -30,6 +30,14 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 
 它是一层**横切的实现约束**：一旦落地，后续每一个插件、每一个框架绑定、每一个 DevTools 探针都受它约束。
 
+## 目标
+
+三条都是可核对的状态，不是产品指标：
+
+- [x] `@aiao/utils` 有一个语义被测试冻结的作用域原语，**登记副作用与登记它的撤销写在同一个闭包里**；
+- [x] 插件契约不再有「装了什么」的自由格式账本——四个插件包的安装态全部经 `install(scope)` 登记；
+- [x] 宿主自己持有的资源（`versionManager` / `#gateway` / `entityManager`）在**成功停机与失败回滚两条路径上对称释放**。
+
 ## 收口判据
 
 本 Epic 在下列两条同时成立时置 `Done`：
@@ -37,7 +45,7 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 1. 「九处手工账本」结算表没有 `未关闭` 行；
 2. 承诺范围内的故事 YAML `status` 均不为 `In Progress`。
 
-当前距离：**一处漏写的调用**（见结算表第 1 条）＋ [US-015](../stories/core/US-015-plugin-inject-dependency.md) 置 `In Review`。
+当前距离：**零**。结算表第 1 条已随失败回滚的资源三步补齐关闭，[US-015](../stories/core/US-015-plugin-inject-dependency.md) 置 `In Review`（不是 `In Progress`）。
 
 新缺口进入本 Epic 的判据，两条**同时**满足：
 
@@ -57,13 +65,13 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 
 | #   | 病灶                                                             | 结算                                                                                                                                                                                                                                               |
 | --- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `RxDB.#shutdown()` 手工复位                                      | **未关闭（1 处漏写）**，见下方专节                                                                                                                                                                                                                 |
+| 1   | `RxDB.#shutdown()` 手工复位                                      | 关闭（bugfix）——`init()` 失败回滚补齐 `versionManager.destroy()` + `#gateway?.destroy()` + `entityManager.destroy()`，与 `#shutdown()` 的资源三步对称，见下方专节                                                                                   |
 | 2   | `RxDB.#event_initialized` 布尔守卫                               | **改判：不是病灶**，见下方专节                                                                                                                                                                                                                     |
 | 3   | `RxDB.#plugin_install_promises` 安装记账 Map                     | 关闭（US-015 阶段 A）——字段已删，安装态迁进 `PluginDependencyScheduler`                                                                                                                                                                            |
-| 4   | storage 的 `#ownsStorage` / `#registeredEntity` 双布尔           | 关闭（US-014）——`RxDBPluginStorage.install(scope)` 三段 `scope.acquire()`（[plugin.ts:44-68](../../packages/rxdb-plugin-storage/src/plugin.ts#L44-L68)）                                                                                           |
+| 4   | storage 的 `#ownsStorage` / `#registeredEntity` 双布尔           | 关闭（US-014）——`RxDBPluginStorage.install(scope)` 三段 `scope.acquire()`，标签 `storage:service` / `storage:property` / `storage:entity`（[plugin.ts](../../packages/rxdb-plugin-storage/src/plugin.ts)）                                          |
 | 5   | search 的 `SearchPluginPhase` 五态枚举                           | 关闭（US-015 阶段 A）——枚举已删，`installing` / `failed` 由调度器持有                                                                                                                                                                              |
 | 6   | search 的 `Array<{type, listener}>` 手工监听器清单               | 关闭（US-014）——一条监听一条 `scope.acquire()`，注册与撤销同处一个闭包                                                                                                                                                                             |
-| 7   | workspace 的 `#installPromise` / `#installFailed` / `#destroyed` | 关闭（US-014）——`#destroyed` 终态标志已删，插件实例可重新 `install()` 进入新纪元                                                                                                                                                                   |
+| 7   | workspace 的 `#installPromise` / `#installFailed` / `#destroyed` | 关闭（US-014）——终态标志 `#destroyed` 已删（判据改成 `#indexedDBStore` 随纪元生灭），插件实例可重新 `install()` 进入新纪元。`#installPromise` / `#installFailed` **仍在**：它们是纪元内 IndexedDB 恢复的单飞与失败重试记账，由 `#releaseEpochState()` 复位，不是终态泄漏；US-015 Out of Scope 明确两阶段都不动 |
 | 8   | workspace 的 `Map<CacheId, Subscription>`                        | 关闭（US-014）——纪元级释放经 `scope.acquire(() => () => this.#releaseEpochState())` 登记（[RxDBPluginWorkspace.ts:423](../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L423)）；Map 本身是纪元内的动态缓存，不是「拆成两处的配对」 |
 | 9   | graph 的 `destroy()` 空实现——**契约里没有位置可写**              | 关闭（US-014）——`RxDB.repository()` 收 `scope` 形参，`RxDBPluginGraph.install(scope)` 把注册挂上去（[plugin.ts:23-38](../../packages/rxdb-plugin-graph/src/plugin.ts#L23-L38)）                                                                    |
 
@@ -71,26 +79,39 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 ——也已随 US-014 关闭：现在是逆序串行 + 错误隔离不短路
 （[RxDB.ts:1232-1250](../../packages/rxdb/src/RxDB.ts#L1232-L1250)）。
 
-### 第 1 条：剩余的是漏写的调用，不是缺失的抽象
+### 第 1 条：漏写的是**资源三步**，不是缺失的抽象
 
 `RxDB.#connection_scope` 连接纪元作用域已经落地：`init()` 建（`#ensure_connection_scope()`），
 `#shutdown()` 与 `init()` 的失败回滚都经 `#release_connection_scope()` 释放
-（[RxDB.ts:1113-1147](../../packages/rxdb/src/RxDB.ts#L1113-L1147)）。总闸已在，剩下的是一处漏写：
+（`RxDB.#release_connection_scope()`）。总闸已在，缺的是**不在作用域里**的那三个管理器：
+`init()` 的 `catch` 原先只复位 `#rxdb_initialized`、释放连接作用域、复位调度记录，
+`#shutdown()` 的 `versionManager.destroy()` / `#gateway?.destroy()` / `entityManager.destroy()`
+一步都没做。抛错点落在各自 `init()` 之后时，两处是**今天能踩到的泄漏**、一处是对称缺口：
 
-> `init()` 的 `catch` 分支复位了 `#rxdb_initialized`、释放了连接作用域、复位了调度记录，
-> **但没有调 `this.versionManager.destroy()`**（[RxDB.ts:430-441](../../packages/rxdb/src/RxDB.ts#L430-L441)）。
-> `#init_gateway()` 抛错时，`VersionManager.init()` 已注册的 4 个事件监听器与 RxJS subscription
-> 留在原地（[VersionManager.ts:144-218](../../packages/rxdb/src/version/VersionManager.ts#L144-L218)），
-> 下一次 `init()` 叠上第二份。
+> - **`versionManager`**：`VersionManager.init()` 每次都 `addEventListener(TRANSACTION_BEGIN /
+>   ENTITY_LOCAL_CREATE_EVENT)` 并跑 `#init_sync()` 推进 `#subscriptions` / `#event_removers`，
+>   自身**没有幂等守卫**（`#historyManagerDestroyed` 只挡二次 `destroy()`）。重试叠上第二份，
+>   症状是 redo 栈被打两次、同步监听跑两遍。
+> - **`#gateway`**：`RxDBTabsGateway` **构造期**就 `createBroadcastTopic()`（内部 `new BroadcastChannel`）
+>   与 `new LeaderElection()`（挂 `beforeunload`），通道早于 `init()` 打开；`#destroyed` 是终态，
+>   重试只能 `new` 第二个写进 `#gateway`，旧实例从此无人引用也无人 `destroy()`。
+>   `multiInstance !== false`（默认）下每失败一次泄漏一条 BroadcastChannel 加一套选举。
+> - **`entityManager`**：`registerEntityManager` 用 `WeakMap<EntityType, Set<EntityManager>>`，
+>   同实例 `Set.add` 是空操作，不叠第二份也不误触发多实例抛错——只是 Repository 身份缓存可能残留。
+>   对称缺口，随手补齐，不单独计数。
 
-修法是补一行调用 + 一条红测试，**不单开故事**。理由：`#shutdown()` 剩余 14 步里只有 3 步是资源释放
-（`versionManager` / `#gateway` / `entityManager` 的 `destroy()`，可挂进连接作用域），其余 9 步是状态复位
-——按上方收口判据，原语碰不到它们。把 3 步资源释放挪进作用域是可选的整洁化，不构成一条独立的用户价值。
+修法是 `catch` 补齐与 `#shutdown()` 对称的资源三步 + 两条红测试，**不单开故事**。红测试的抛错点必须落在
+`versionManager.init()` **之后**（既有的 `schemaManager.init` 失败用例停在两处资源都还没动的时刻，
+看不见它们），见 `RxDB.plugin-scope.spec.ts` 的
+`describe('init() 在 versionManager.init() 之后失败：catch 与 #shutdown() 的资源释放对称')`。
+
+`#shutdown()` 剩余 14 步里只有这 3 步是资源释放，其余 9 步是状态复位——按上方收口判据，原语碰不到它们。
+把 3 步资源释放挪进连接作用域是可选的整洁化，不构成一条独立的用户价值。
 
 ### 第 2 条：`#event_initialized` 不是泄漏
 
 `RxDB.#init_event()` 注册的三个事务监听器挂在**实例自己的** `#event_map` 上
-（`this.addEventListener(TRANSACTION_BEGIN, on_begin)`，[RxDB.ts:974-976](../../packages/rxdb/src/RxDB.ts#L974-L976)），
+（`this.addEventListener(TRANSACTION_BEGIN, on_begin)`），
 不跨对象持有引用——实例被回收时监听器一并消失。布尔守卫防的是「重连时重复注册导致监听器集合膨胀」，
 这是一个正确的设计选择，不是「缺少卸载路径」。改判为非病灶，不占本 Epic 的名额。
 
@@ -108,9 +129,10 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
       （[US-015](../stories/core/US-015-plugin-inject-dependency.md)，2026-08-21）：`inject: ['adapter:local']`、
       `PluginDependencyScheduler` 与 `localAdapterSync`；**关闭结算表第 3 / 5 条**
 
-未交付：
+- [x] `init()` 失败回滚补齐与 `#shutdown()` 对称的资源三步（`versionManager` / `#gateway` / `entityManager`
+      的 `destroy()`）——bugfix，不单开故事（见结算表第 1 条）
 
-- [ ] `init()` 失败回滚补 `versionManager.destroy()`——bugfix，不单开故事（见结算表第 1 条）
+未交付：无。
 
 ## 已移出承诺范围
 

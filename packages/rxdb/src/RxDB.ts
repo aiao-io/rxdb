@@ -439,6 +439,19 @@ export class RxDB {
       // 与上一行同步成对：作用域没了而调度记录还停在 active，重新 init() 时调度器会认为
       // 「依赖纪元没变、插件还装着」而一个都不重装，拿到的是个从没重新登记过的空壳。
       this.#reset_plugin_scheduling();
+      // 三个管理器的资源释放与 {@link RxDB.#shutdown} 逐条对称——它们不在连接作用域里，
+      // 漏掉就没有第二个人会拆。抛错点在各自 init() 之后时具体泄漏什么：
+      // - `versionManager`：4 个事件监听器 + RxJS subscription 留在原地，重试叠第二份
+      //   （`init()` 没有幂等守卫，`#historyManagerDestroyed` 只挡二次 `destroy()`）；
+      // - `#gateway`：构造期就 `createBroadcastTopic()` + `new LeaderElection()`，通道早于
+      //   `init()` 打开；且 `#destroyed` 是终态，重试只能 new 第二个写进 `#gateway`，
+      //   旧实例从此无人引用也无人 `destroy()`——每失败一次泄漏一条 channel 加一套选举。
+      // 三步都是同步的，`init()` 作为同步 API 不需要 await。
+      this.versionManager.destroy();
+      this.#gateway?.destroy();
+      this.#gateway = undefined;
+      // Repository 身份缓存与实体类绑定：未 init 完就抛时是空操作，init 完之后抛才有东西可清。
+      this.entityManager.destroy();
       throw error;
     }
   }
