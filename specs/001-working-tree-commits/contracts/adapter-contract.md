@@ -57,27 +57,38 @@ EntityIndexMetadataOptions {
 
 ## 4. 写入口受信登记
 
-登记表位于 `packages/rxdb/src/working-tree/write-intent.ts`，键为 `{ file, symbol, intent }` 三元组（**不含行号**）。以下 11 项为 v1 全集，逐条对应真实生产代码调用点：
+登记表位于 `packages/rxdb/src/working-tree/write-intent.ts`，键为 `{ file, symbol, intent }` 三元组（**不含行号**）。以下 11 项为 v1 全集，逐条对应真实生产代码调用点。
+
+**符号取实际发起该次批量重写的最内层具名函数**，不是把调用委托出去的公开门面方法——门面方法不出现在扫描
+结果里，用它当键会让 §4.5 的双向差集永远报「登记了但不存在」。本节链接**一律不带行号锚点**：键本身不含行号，
+链接带锚点会让读者误以为行号是键的一部分，且锚点本身会漂移。
 
 ### 4.1 经 `mergeChanges`（本地重载）
 
-| #   | 文件                                                                                             | 语义             | intent           | 产生工作树条目 |
-| --- | ------------------------------------------------------------------------------------------------ | ---------------- | ---------------- | -------------- |
-| 1   | `transaction/*TransactionExecutor` 常规提交路径                                                  | 普通 CRUD        | `local`          | ✅             |
-| 2   | [`version/merge-branch.ts`](../../../packages/rxdb/src/version/merge-branch.ts#L127) 逐条路径    | 合并分支         | `merge`          | ✅             |
-| 3   | [`version/merge-branch.ts`](../../../packages/rxdb/src/version/merge-branch.ts#L151) squash 路径 | 合并分支         | `merge`          | ✅             |
-| 4   | [`version/pull-repository.ts`](../../../packages/rxdb/src/version/pull-repository.ts#L629)       | 远端拉取应用     | `remoteSync`     | ✅             |
-| 5   | [`version/pull-batch.ts`](../../../packages/rxdb/src/version/pull-batch.ts#L380)                 | 远端拉取分批应用 | `remoteSync`     | ✅             |
-| 6   | [`version/cleanup-expired.ts`](../../../packages/rxdb/src/version/cleanup-expired.ts#L201)       | 过期数据清理     | `expiredCleanup` | ✅             |
+| #   | 文件                                                                                  | 符号                                                  | 语义             | intent           | 产生工作树条目 |
+| --- | ------------------------------------------------------------------------------------- | ----------------------------------------------------- | ---------------- | ---------------- | -------------- |
+| 1   | `transaction/*TransactionExecutor`                                                    | `mergeChanges` 常规提交路径                           | 普通 CRUD        | `local`          | ✅             |
+| 2   | [`version/merge-branch.ts`](../../../packages/rxdb/src/version/merge-branch.ts)       | `merge_branch`（逐条路径，`executor.mergeChanges`）   | 合并分支         | `merge`          | ✅             |
+| 3   | [`version/merge-branch.ts`](../../../packages/rxdb/src/version/merge-branch.ts)       | `merge_branch`（squash 路径，`adapter.mergeChanges`） | 合并分支         | `merge`          | ✅             |
+| 4   | [`version/pull-repository.ts`](../../../packages/rxdb/src/version/pull-repository.ts) | `pullSingleRepository`                                | 远端拉取应用     | `remoteSync`     | ✅             |
+| 5   | [`version/pull-batch.ts`](../../../packages/rxdb/src/version/pull-batch.ts)           | `pullBatchOnce`                                       | 远端拉取分批应用 | `remoteSync`     | ✅             |
+| 6   | [`version/cleanup-expired.ts`](../../../packages/rxdb/src/version/cleanup-expired.ts) | `cleanupExpired`                                      | 过期数据清理     | `expiredCleanup` | ✅             |
+
+第 2、3 项**同文件、同符号、同 intent，但调用点不同**（一个走 `executor.mergeChanges`、一个走
+`adapter.mergeChanges`），两条都必须登记。因此漂移扫描 MUST 按**调用点**计数，不得按 `{ file, symbol, intent }`
+三元组去重——去重会让其中一条被静默吞掉，扫描仍报绿。
 
 ### 4.2 经 `switchBranch`
 
-| #   | 文件                                                                                      | 语义                            | intent                  | 产生工作树条目 |
-| --- | ----------------------------------------------------------------------------------------- | ------------------------------- | ----------------------- | -------------- |
-| 7   | [`version/HistoryManager.ts`](../../../packages/rxdb/src/version/HistoryManager.ts#L1472) | undo / redo 应用                | `undoRedo`              | ✅             |
-| 8   | [`version/VersionManager.ts`](../../../packages/rxdb/src/version/VersionManager.ts#L936)  | 单条 change 恢复                | `restore`               | ✅             |
-| 9   | [`version/VersionManager.ts`](../../../packages/rxdb/src/version/VersionManager.ts#L769)  | 切换分支物化                    | `branchMaterialization` | ❌             |
-| 10  | [`version/HistoryManager.ts`](../../../packages/rxdb/src/version/HistoryManager.ts#L948)  | 仅写 `redoInvalidatedAt` 元数据 | `metadataOnly`          | ❌             |
+| #   | 文件                                                                                | 符号                         | 语义                            | intent                  | 产生工作树条目 |
+| --- | ----------------------------------------------------------------------------------- | ---------------------------- | ------------------------------- | ----------------------- | -------------- |
+| 7   | [`version/HistoryManager.ts`](../../../packages/rxdb/src/version/HistoryManager.ts) | `#apply_undo_redo_histories` | undo / redo 应用                | `undoRedo`              | ✅             |
+| 8   | [`version/restore-entity.ts`](../../../packages/rxdb/src/version/restore-entity.ts) | `restore_entity`             | 单条 change 恢复                | `restore`               | ✅             |
+| 9   | [`version/VersionManager.ts`](../../../packages/rxdb/src/version/VersionManager.ts) | `switchBranch`               | 切换分支物化                    | `branchMaterialization` | ❌             |
+| 10  | [`version/HistoryManager.ts`](../../../packages/rxdb/src/version/HistoryManager.ts) | `invalidateRedoStack`        | 仅写 `redoInvalidatedAt` 元数据 | `metadataOnly`          | ❌             |
+
+第 8 项的文件是 **`restore-entity.ts`**，不是 `VersionManager.ts`：`VersionManager.restoreEntity()` 只把调用
+委托给 `restore_entity()`，真正的 `adapter.switchBranch` 发生在后者。
 
 ### 4.3 新增
 
@@ -87,7 +98,7 @@ EntityIndexMetadataOptions {
 
 ### 4.4 明确不在范围内
 
-[`version/push-repository.ts:534`](../../../packages/rxdb/src/version/push-repository.ts#L534) 调用的是**远端重载** `mergeChanges(actions, branchId, changes)`，写的是远端库，不产生本地工作树条目，也不参与登记。漂移扫描必须能区分这两个同名重载。
+[`version/push-repository.ts`](../../../packages/rxdb/src/version/push-repository.ts) 的 `mergePushBatch` 调用的是**远端重载** `mergeChanges(actions, branchId, changes)`，写的是远端库，不产生本地工作树条目，也不参与登记。漂移扫描必须能区分这两个同名重载：本地重载第 2 参是 `localChanges`、第 3 参是 `disableTriggers`；远端重载第 2 参是 `branchId`。仅凭方法名匹配会把 `mergePushBatch` 误报成「未登记调用点」，让门禁永远红。
 
 ### 4.5 漂移门禁
 

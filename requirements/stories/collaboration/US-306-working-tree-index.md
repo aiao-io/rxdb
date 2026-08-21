@@ -369,8 +369,10 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 - **受信路径测试**：登记路径的批量重写通过门禁且零工作树副作用；同一重写走未登记路径时断言 `commit_capability_mismatch`。
 - **意图登记漂移测试**：静态扫描全部 `adapter.switchBranch` / 本地 `mergeChanges(disableTriggers)` 调用点，
   与 epic 登记表逐条比对；出现未登记调用点即失败。扫描口径固定为：
-  - 比对键是**文件 + 符号 + 意图**（如 `merge-branch.ts · mergeBranchChanges · per-change 应用`），不是行号，
-    重排代码不得让门禁变红或漏检；
+  - 比对键是**文件 + 符号 + 意图**（如 `merge-branch.ts · merge_branch · per-change 应用`），不是行号，
+    重排代码不得让门禁变红或漏检。符号取**实际发起该次批量重写的最内层具名函数**，不是把调用委托出去的
+    公开门面方法（例如 restore 那一项登记 `restore-entity.ts · restore_entity`，而不是
+    `VersionManager.ts · restoreEntity`）；
   - 必须区分同名的两个 `mergeChanges` 重载——只有本地重载 `(actions, localChanges?, disableTriggers?)` 进登记表，
     远端重载 `(actions, branchId?, changes?)`（`push-repository` / Supabase 推送）MUST NOT 被登记；
   - 扫描范围 MUST 排除 `dist/`：构建产物虽已 gitignore，但在本地工作副本中常驻，按文本 grep 会命中 `.d.ts` 声明。

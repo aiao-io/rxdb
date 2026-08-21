@@ -27,8 +27,12 @@ owner: jimmy
 - [ ] Angular / React / Vue 三端以对称 API 完成上述操作，且 UI 达到 WCAG 2.1 AA（[US-306 阶段 C](../stories/collaboration/US-306-working-tree-index.md)）
 - [ ] 用户能把数据恢复到任意可达 commit，且不改写历史、不移动 HEAD（[US-307](../stories/collaboration/US-307-restore-session.md)）
 - [ ] 每个分支拥有独立的 HEAD、工作树与暂存区，跨标签页并发不静默覆盖（[US-308](../stories/collaboration/US-308-branch-isolation-conflict.md)）
-- [ ] 公开文档讲清启用方式、工作树与草稿缓存的区别、恢复语义、历史保留旧值的风险与加密边界
+- [ ] 公开文档讲清启用方式、工作树与草稿缓存的区别、恢复语义、历史保留旧值的风险、加密边界、
+      不改写历史的承诺，并明示远端同步会产生 `origin=remote_sync` 的未提交变化
       （[US-306 阶段 C](../stories/collaboration/US-306-working-tree-index.md)，对应发布门禁 9）
+- [ ] status / diff / stage / restore 的性能可被冻结基准复核，环境不匹配时不产出绿色发布结论
+      （[US-306 阶段 C](../stories/collaboration/US-306-working-tree-index.md) 与 [US-307](../stories/collaboration/US-307-restore-session.md)，
+      对应发布门禁 7 与「性能预算的口径」）
 
 ## 术语（与既有 Workspace 插件的命名冲突处置）
 
@@ -69,7 +73,8 @@ v1 不持久化第二份独立 `HEAD`。当前分支仍由既有 `RxDBBranch.act
 | `CommitBranchRef`            | database + branch        | 不可变 `generation`、`headCommitId`、`headRevision`                       | commit 在同一事务内以 generation + revision 做 CAS 后推进   |
 | `WorkingTreeState`           | database + branch        | `baseHeadCommitId`、`workingTreeRevision`、未提交条目数                   | CRUD、commit rebase、restore、discard 改变逻辑工作树时递增  |
 | `WorkingTreeEntry`           | database + branch + unit | 实体/事务身份、操作、patch/inverse patch 或快照、当前指纹、来源 change ID | 与业务 CRUD 同一事务写入；完整事务共享同一 unit             |
-| `IndexState` / `IndexEntry`  | database + branch        | `indexRevision`、完整 staged snapshot、来源 working-tree revision         | stage / unstage / commit 以 `indexRevision` 做 CAS          |
+| `IndexState`                 | database + branch        | `indexRevision`                                                           | stage / unstage / commit 以 `indexRevision` 做 CAS          |
+| `IndexEntry`                 | database + branch + unit | 完整 staged snapshot、来源 working-tree revision、依赖闭包单元 ID         | 随 stage / unstage 原子增删；与 `WorkingTreeEntry` 同粒度   |
 | branch materialization stage | database + attempt       | 目标分支、冻结远端水位、scope manifest、分页 payload、fingerprint         | 只暂存目标分支快照，不写当前业务投影；成功 switch 后删除    |
 
 ### 状态归属（哪个故事负责建表）
@@ -97,7 +102,11 @@ US-306 阶段 B 只负责建表与「从已存在的 session 派生 conflicted�
 创建、`active | conflicted | committed` 生命周期、no-op 与兼容预检全部归 US-307。同理，类型化诊断值
 `CommitConflict` 的定义、TSDoc 与 api-baseline 登记归**首个使用者 US-306 阶段 B**，US-308 只做 activation 维度的扩展。
 
-`WorkingTreeEntry` 是逻辑契约，不强制新增物理表；plan 可以证明复用 `RxDBChange` 或不可变派生表满足同一契约。
+`WorkingTreeEntry` 在本 Epic 层面是**逻辑契约**，本表只约束它必须持久化什么、按什么粒度隔离。
+**物理落法已由 plan 阶段行使并冻结**：见 [data-model.md](../../specs/001-working-tree-commits/data-model.md)
+（`RxDBWorkingTreeEntry` → `rxdb_working_tree_entry`，共 11 张新表）。物理表名、字段、索引、FK、加密 envelope
+与迁移版本以该文件为唯一真相源，本节不再保留「复用 `RxDBChange` 或派生表」的选择空间；要改回复用，
+必须先回改 data-model、adapter contract 与迁移，不能只改本节。
 但 `WorkingTreeState` 只存计数和 revision 不算完成：必须有可枚举、可重放、按分支隔离的未提交变更单元。
 `CommitChangeSet` 与 `IndexEntry` 必须复制完整的不可变恢复数据，不能只引用可能被 undo、清理或删分支删除的
 `RxDBChange` 行。
@@ -170,7 +179,7 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 | 普通 CRUD、显式事务、Workspace 草稿 `save()`                              | 写入/合并本地 `WorkingTreeEntry`，来源为 `local`，递增 working-tree revision                                           |
 | `mergeBranch()`、undo/redo、restore/discard                               | 按各自原子边界写入或重算本地工作树；不得绕过 active token 与 revision CAS                                              |
 | `pull()`、autoSync、`pullRepository()`、`sync()`、`bulkSync()` 的实体应用 | 即使为防回推而关闭 `RxDBChange` trigger，也必须写入来源为 `remote_sync` 的未暂存单元；不生成可 push 的本地 change      |
-| 只更新 remoteId、同步水位或审计时间                                       | 不改变业务表，不创建工作树单元，不递增 working-tree revision                                                           |
+| 只更新 remoteId、同步水位或审计时间                                       | **不构成业务实体净变化**（remoteId 回填本身是对实体行的 UPDATE），不创建工作树单元，不递增 working-tree revision       |
 | `VersionManager.cleanupExpired()` 的过期删除                              | 与 `pull` 同类：写入来源为 `remote_sync` 的未暂存 DELETE 单元，递增 working-tree revision；不生成可 push 的本地 change |
 | branch switch、baseline/restore 物化、commit residual rebase              | 由对应领域操作显式维护工作树；底层投影重写不得被 trigger 二次记录                                                      |
 | metadata-only 目标分支的远端预取                                          | 只写 branch materialization staging 与独立水位，不得更新当前分支 `RxDBSync` 或业务表                                   |
@@ -189,21 +198,28 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 把「受信」挂在这两个函数上，等于让本表的不同行共用同一个判定，必然出错。当前调用方与各自应落的行如下：
 
 **登记键固定为「文件 + 符号 + 意图」，不是行号。** 行号会随任何一次无关编辑漂移，把它当键会让漂移测试
-变成噪音源。下表按符号登记，与代码实际调用点一一对应：
+变成噪音源。符号取**实际发起该次批量重写的最内层具名函数**，不是把调用委托出去的公开门面方法——门面方法
+本身不出现在扫描结果里，用它当键会让漂移门禁永远匹配不上。下表按符号登记，与代码实际调用点一一对应：
 
-| 登记键（文件 + 符号）                                                                                                                     | 传输层                          | 本表归属                                |
-| ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | --------------------------------------- |
-| [VersionManager.ts](../../packages/rxdb/src/version/VersionManager.ts) · `switchBranch()`                                                 | `adapter.switchBranch`          | 受信物化：**不**产生工作树单元          |
-| [VersionManager.ts](../../packages/rxdb/src/version/VersionManager.ts) · `restoreEntity()`                                                | `adapter.switchBranch`          | restore：**必须**产生                   |
-| [HistoryManager.ts](../../packages/rxdb/src/version/HistoryManager.ts) · 失效 redo 栈                                                     | `adapter.switchBranch`          | 只写 `redoInvalidatedAt` 元数据：不产生 |
-| [HistoryManager.ts](../../packages/rxdb/src/version/HistoryManager.ts) · undo/redo 应用                                                   | `adapter.switchBranch`          | undo/redo：**必须**产生                 |
-| [merge-branch.ts](../../packages/rxdb/src/version/merge-branch.ts) · per-change 分支 `executor.mergeChanges`                              | `mergeChanges`（trigger 开启）  | mergeBranch：必须产生                   |
-| [merge-branch.ts](../../packages/rxdb/src/version/merge-branch.ts) · squash 分支 `adapter.mergeChanges`                                   | `mergeChanges`（trigger 开启）  | mergeBranch：必须产生                   |
-| [pull-batch.ts](../../packages/rxdb/src/version/pull-batch.ts) / [pull-repository.ts](../../packages/rxdb/src/version/pull-repository.ts) | `mergeChanges(disableTriggers)` | remote apply：`origin=remote_sync`      |
-| [cleanup-expired.ts](../../packages/rxdb/src/version/cleanup-expired.ts)                                                                  | `mergeChanges(disableTriggers)` | 过期删除：`origin=remote_sync`          |
+| 登记键（文件 + 符号 + 意图）                                                                                             | 传输层                          | 本表归属                                |
+| ------------------------------------------------------------------------------------------------------------------------ | ------------------------------- | --------------------------------------- |
+| [VersionManager.ts](../../packages/rxdb/src/version/VersionManager.ts) · `switchBranch` · 分支物化                       | `adapter.switchBranch`          | 受信物化：**不**产生工作树单元          |
+| [restore-entity.ts](../../packages/rxdb/src/version/restore-entity.ts) · `restore_entity` · 单条 change 恢复             | `adapter.switchBranch`          | restore：**必须**产生                   |
+| [HistoryManager.ts](../../packages/rxdb/src/version/HistoryManager.ts) · `invalidateRedoStack` · 失效 redo 栈            | `adapter.switchBranch`          | 只写 `redoInvalidatedAt` 元数据：不产生 |
+| [HistoryManager.ts](../../packages/rxdb/src/version/HistoryManager.ts) · `#apply_undo_redo_histories` · undo/redo 应用   | `adapter.switchBranch`          | undo/redo：**必须**产生                 |
+| [merge-branch.ts](../../packages/rxdb/src/version/merge-branch.ts) · `merge_branch` · per-change `executor.mergeChanges` | `mergeChanges`（trigger 开启）  | mergeBranch：必须产生                   |
+| [merge-branch.ts](../../packages/rxdb/src/version/merge-branch.ts) · `merge_branch` · squash `adapter.mergeChanges`      | `mergeChanges`（trigger 开启）  | mergeBranch：必须产生                   |
+| [pull-batch.ts](../../packages/rxdb/src/version/pull-batch.ts) · `pullBatchOnce` · 远端分批应用                          | `mergeChanges(disableTriggers)` | remote apply：`origin=remote_sync`      |
+| [pull-repository.ts](../../packages/rxdb/src/version/pull-repository.ts) · `pullSingleRepository` · 远端仓库应用         | `mergeChanges(disableTriggers)` | remote apply：`origin=remote_sync`      |
+| [cleanup-expired.ts](../../packages/rxdb/src/version/cleanup-expired.ts) · `cleanupExpired` · 过期删除                   | `mergeChanges(disableTriggers)` | 过期删除：`origin=remote_sync`          |
 
 `merge-branch.ts` **两个策略分支各是一个独立调用点**（per-change 走 `executor`、squash 走 `adapter`），
-必须各占一行；只登记其中一个会让漂移测试在落地当天就红。
+必须各占一行；只登记其中一个会让漂移测试在落地当天就红。同理 `pull-batch.ts` 与 `pull-repository.ts`
+是两个不同文件里的两个独立调用点，不得合并成一行。
+
+**restore 那一行的文件是 `restore-entity.ts` 而不是 `VersionManager.ts`**：`VersionManager.restoreEntity()`
+只是把调用委托给 `restore_entity()`，真正的 `adapter.switchBranch` 发生在后者。这正是上面「符号取最内层
+具名函数」那条规则要防的错误——按门面方法登记会让漂移扫描报「登记了但不存在」。
 
 **`mergeChanges` 是被重载的名字，扫描必须按签名区分**，否则本表会收进与本地业务表无关的调用：
 
@@ -312,10 +328,20 @@ QueryCache 另测其排除边界，避免一次缓存刷新把工作树永久标
 ## 依赖顺序
 
 1. 当前发布主线先产生新的非迁移 bridge tag；历史 `v0.0.25` 不在当前 ancestry，不能供下一步引用。
-   **这一步由 US-305 自身承接**（FR-030 + AC US2-14），不是无主的流程约定：
    [migration-release.json](../migration-release.json) 的 `bridge.tag` / `bridge.version` 仍为 `null`，
-   而 `release.version` 仍写着已脱链的 `0.0.25`。US-305 的第一个可交付物就是产出新 bridge tag 并修正该 manifest，
-   在此之前 system schema 迁移不得进入发布分支
+   而 `release.version` 仍写着已脱链的 `0.0.25`。
+
+   **这一步是排在 US-305 之前的独立发布事项，不是 US-305 的交付物**（见
+   [plan.md](../../specs/001-working-tree-commits/plan.md) 交付顺序的阶段 0 与
+   [release-plan](../release-plan.md) 的四段顺序）。理由是发布门禁本身：bridge 版本**不得抬升系统版本常量**，
+   而 US-305 的范围含「已有数据库的一次性初始化」，必然是 `kind=migration`；把 bridge 塞进 US-305
+   会让 migration 依赖一个尚不存在的 bridge tag，形成自我死锁。桥接锚点必须由一条**不动
+   `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 的纯功能/适配器路径**先行落成并打 tag。
+
+   US-305 在此只承接**门禁侧**（FR-030 + AC US2-14）：读取 manifest、校验 `bridge.tag` 是候选发布提交的
+   真实祖先 tag、不满足时以门禁失败挡住迁移发布。manifest 的回填只能发生在真实 tag 产生之后，
+   US-305 不得在「bridge 将会存在」的假设上开工
+
 2. [US-305](../stories/collaboration/US-305-commit-graph-head.md) 建立 commit 图、branch ref、`headRevision` CAS、存储布局与每分支基线迁移，
    并一并建立 `WorkingTreeActivationState`（见「状态归属」）
 3. [US-306 阶段 A](../stories/collaboration/US-306-working-tree-index.md) 完成全部写入口的持久工作树捕获。
@@ -383,9 +409,18 @@ QueryCache 另测其排除边界，避免一次缓存刷新把工作树永久标
 6. 支持字段加密的后端通过 commit/index/working-tree/restore 持久化 dump 明文哨兵零命中
 7. `pnpm nx run benchmarks:bench-working-tree` 在普通 CI 通过冻结的归一化相对回归门禁，并在 profile 匹配的固定性能
    runner 上同时通过绝对 p95；环境不匹配不得产出绿色发布结论
-8. api-baseline 新增导出全部使用 `Commit*` / `WorkingTree*` / `Index*` 前缀，无 `Workspace*` 新导出，也不复用既有 `SwitchBranchOptions`
-9. 公开文档说明数据库级显式启用、工作树与草稿缓存的区别、恢复语义、历史保留敏感旧值的风险、
-   加密边界与不改写历史的承诺。**该交付项归 [US-306 阶段 C](../stories/collaboration/US-306-working-tree-index.md)**，
+8. 命名门禁分两层，**正向前缀只约束核心共享契约**：
+   - `@aiao/rxdb` 的 [api-baseline](../api-baseline/rxdb.json) 新增导出（共享类型、选项、错误码）全部使用
+     `Commit*` / `WorkingTree*` / `Index*` 前缀
+   - 三个框架包（`rxdb-angular` / `rxdb-react` / `rxdb-vue`）的 api-baseline 只适用**负向**规则：
+     无 `Workspace*` 新导出、不复用既有 `SwitchBranchOptions`。框架侧运行时入口沿用仓库既有的 `use*` 约定
+     （`useRxDB` / `useFind` / …），因此 `useWorkingTree()` 合规——**不得**用正向前缀规则去拦它，
+     那会拦下本 Epic 自己的核心交付物
+   - 两层都适用横切约束 4（不复活旧导出）
+9. 公开文档说明**这 6 项**：数据库级显式启用、工作树与草稿缓存的区别、恢复语义、历史保留敏感旧值的风险、
+   加密边界、不改写历史的承诺；并**明示远端同步会产生 `origin=remote_sync` 的未提交变化**
+   （承接 [US-306 US4-AC8](../stories/collaboration/US-306-working-tree-index.md)）。
+   **该交付项归 [US-306 阶段 C](../stories/collaboration/US-306-working-tree-index.md)**，
    随 `useWorkingTree()` 的公开契约一并交付，不是无主的发布前补丁
 10. 写入口 conformance 覆盖普通 CRUD、merge、undo/redo、full/filter pull/autoSync/repository sync/bulkSync、
     `cleanupExpired()` 过期删除、QueryCache 排除与 raw bypass 拒绝；任何业务表净变化都能由
@@ -395,11 +430,23 @@ QueryCache 另测其排除边界，避免一次缓存刷新把工作树永久标
 
 ## 与既有 Epic 的边界
 
-| 相邻 Epic                                                  | 边界                                                                                                                                                                                                                               |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [epic-007 公开 API 门禁](./epic-007-public-api-gates.md)   | 发布门禁 8（`Commit*` / `WorkingTree*` / `Index*` 前缀、无 `Workspace*` 新导出）与横切约束 4（不复活旧导出）**只约束本 Epic 新增的导出**，是新功能自带的命名约束；**不扩大 epic-007 的门禁覆盖面范围**，也不改动其既有检查项与阈值 |
-| [epic-004 桌面与适配器](./epic-004-future-features.md)     | 本 Epic 只**消费** adapter 的事务与 trigger 能力并声明 v1 支持矩阵；host 本身的正确性、打包与 flake 收敛归 US-207 / US-210，矩阵变动按「启用与存储边界」的宿主能力判据重新裁决                                                     |
-| [epic-008 生命周期与作用域](./epic-008-lifecycle-scope.md) | 已由 epic-008 单方面声明；本 Epic 不引入新的 scope 原语，工作树状态的持有与释放沿用其结论                                                                                                                                          |
+| 相邻 Epic                                                  | 边界                                                                                                                                                                                                                              |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [epic-007 公开 API 门禁](./epic-007-public-api-gates.md)   | 发布门禁 8（核心包正向前缀、框架包负向规则）与横切约束 4（不复活旧导出）**只约束本 Epic 新增的导出**，是新功能自带的命名约束；**不扩大 epic-007 的门禁覆盖面范围**，也不改动其既有检查项与阈值。bridge 血统门禁的接缝另见下方说明 |
+| [epic-004 桌面与适配器](./epic-004-future-features.md)     | 本 Epic 只**消费** adapter 的事务与 trigger 能力并声明 v1 支持矩阵；host 本身的正确性、打包与 flake 收敛归 US-207 / US-210，矩阵变动按「启用与存储边界」的宿主能力判据重新裁决                                                    |
+| [epic-008 生命周期与作用域](./epic-008-lifecycle-scope.md) | 已由 epic-008 单方面声明；本 Epic 不引入新的 scope 原语，工作树状态的持有与释放沿用其结论                                                                                                                                         |
+
+### bridge 血统门禁的接缝（发布门禁 1）
+
+同一道门禁的「逻辑实现」与「CI 接线」分属两个 Epic，边界必须按**交付物**而不只按覆盖面划：
+
+- **门禁逻辑归 US-305**（FR-030 / AC US2-14）：读取 manifest、校验 `bridge.tag` 为真实祖先 tag、不满足即失败。
+  它 MUST 在**发布流程**中可执行——这是发布门禁 1 的最低保证，不依赖 PR CI 是否接线
+- **钩子接进 PR CI 归 epic-007**：`bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol`
+  三个钩子「不只在打 tag 时跑」是 [epic-007 的目标](./epic-007-public-api-gates.md)且**当前尚无故事认领**，
+  **不属本 Epic 交付范围**
+- **两边都不得在对方未落地的假设上开工**：US-305 不得因「epic-007 将接进 PR CI」而省略发布流程侧的可执行门禁；
+  epic-007 的认领故事也不得重复实现门禁逻辑，只做接线
 
 ## 非目标
 
