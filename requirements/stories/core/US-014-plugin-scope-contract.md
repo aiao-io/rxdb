@@ -68,7 +68,8 @@ INVEST 检查清单:
 ### 不在本故事
 
 `RxDB.#shutdown()`（:605-621）那 8 处手工复位的收敛。本故事只创建并释放**连接纪元作用域**
-这一层容器（D3），把 8 处复位迁进去归 `US-016`（🚧 文件未创建，价值已证，待切片）。
+这一层容器（D3）。把 8 处复位迁进去原归 `US-016`，该故事已于 2026-08-21
+[移出 epic-008 承诺范围](../../epics/epic-008-lifecycle-scope.md)：复位不是资源释放，作用域原语碰不到。
 
 ## 范围边界
 
@@ -86,7 +87,9 @@ INVEST 检查清单:
 ### Out of Scope
 
 - **`inject` 依赖声明与按需装卸**——归 [US-015](US-015-plugin-inject-dependency.md) 系列
-- **`RxDB.#shutdown()` 的 8 处手工复位** 与 `#event_initialized` 守卫的移除——归 `US-016`（🚧 文件未创建，价值已证，待切片）
+- **`RxDB.#shutdown()` 的 8 处手工复位** 与 `#event_initialized` 守卫的移除——原归 `US-016`，
+  已于 2026-08-21 移出 epic-008 承诺范围（复位不是资源释放；`#event_initialized` 守着的监听器挂在 `this` 上，
+  随实例一起回收，不是泄漏），今天没有归属故事
 - **注册期资源的释放**。`use()` 时挂上的实例属性今天**在物理上就不可撤销**：
   [search:552-557](../../../packages/rxdb-plugin-search/src/plugin.ts#L552) 的 `searchPlugin` 与
   [workspace:278-283](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L278) 的 `workspace`
@@ -95,7 +98,8 @@ INVEST 检查清单:
 - **拆卸错误在 `RxDB` 边界的出口**：`#destroy_plugin()`（:765-775）今天把插件拆卸异常 `console.error` 后吞掉，
   改成传播会改变 `disconnect()` / `disconnectAll()` 的可见行为，属独立的破坏性变更（D5）
 - **删除 `destroy()`**：本故事只让它变可选 + `@deprecated`；实际移除排在废弃周期结束后
-- **三框架绑定接入作用域**——归 `US-017`（🚧 文件未创建，价值待证）
+- **三框架绑定接入作用域**——原归 `US-017`，已于 2026-08-21 移出 epic-008 承诺范围
+  （三端各自的原生作用域已在用），解锁条件见 Epic
 - **`#plugin_install_promises` 的记账收敛**：安装态与作用域是两件事，本故事不动安装期错误传播路径
 
 ## 验收标准
@@ -284,12 +288,13 @@ public repository<RT extends RepositoryInstance>(
 ```text
 RxDB 注册期            use() 起；今天没有释放点（无 RxDB.destroy() / unuse()）
 └── 连接纪元作用域      init() 创建，#shutdown() 释放，重连创建全新的（AC#16）
-    ├── 适配器作用域    ← 本故事不创建，归 US-016
+    ├── 适配器作用域    ← 本故事不创建；原归 US-016，该故事已移出承诺范围，今天无人认领
     └── 插件激活作用域  ← 每次 install 一个，逆插入序串行释放（AC#1）
 ```
 
 连接纪元作用域与 `#rxdb_initialized`（[:670-688](../../../packages/rxdb/src/RxDB.ts#L670-L688) 里被复位）
-**寿命完全相同**——这正是 US-016 能把那个布尔换成作用域状态的原因。
+**寿命完全相同**——把那个布尔换成作用域状态因此在技术上成立，但那是**状态复位**不是资源释放，
+已随 `US-016` 移出 epic-008 承诺范围。
 
 这一层级也解释了为什么**注册期资源不在本故事**：`searchPlugin` / `workspace` 两个实例属性是
 `configurable: false` 的，即使有作用域也删不掉。Epic 愿景里的「实例级属性注入」在本故事的
@@ -502,8 +507,9 @@ D7 第 4 条要求「终态销毁的服务每纪元新建」，但 workspace 的
 - [epic-008 生命周期作用域](../../epics/epic-008-lifecycle-scope.md)
 - [US-013 LifecycleScope 生命周期作用域原语](US-013-lifecycle-scope-primitive.md) — 前置故事，提供 `LifecycleScope`
 - [US-015 插件依赖声明与按需装卸](US-015-plugin-inject-dependency.md) — 后继故事族，收敛安装态语义
-- `US-016` 连接纪元作用域与 shutdown 收敛 — 🚧 计划路径 `stories/core/US-016-connection-scope-shutdown.md`，
-  **未创建**，但**价值已证，待切片**：本故事交付后 Epic 的三处已知泄漏已全部关闭
+- `US-016` 连接纪元作用域与 shutdown 收敛 — **文件从未创建，已于 2026-08-21 移出 epic-008 承诺范围**：
+  连接纪元作用域本身已由本故事交付，剩下的 8 处是状态复位；`init()` 失败回滚漏 `versionManager.destroy()`
+  这条降级为 bugfix。判据见 [epic-008 的「已移出承诺范围」](../../epics/epic-008-lifecycle-scope.md)
 - [versioning-policy.md](../../versioning-policy.md) 第 2、3、4 节 — 公开 API 定义、废弃周期与三层守护
 - [epic-007 公开 API 门禁](../../epics/epic-007-public-api-gates.md) — D4 盲区的长期归属
 

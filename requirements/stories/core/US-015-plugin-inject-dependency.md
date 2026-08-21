@@ -345,12 +345,15 @@ Search 当前已经去掉聚合 `connected$`，等待按名的 `adapterConnected
 
 - **依赖注入容器 / `provide()` 式动态服务注册表**——epic-008 明确的非目标
 - **任意字符串依赖键**。扩大 `RxDBPluginDependency` 取值必须另起故事并说明理由（INV-1）
-- **`RxDB.#shutdown()` 的 8 处手工复位收敛**——归 `US-016`（🚧 文件未创建，价值已证，待切片）
+- **`RxDB.#shutdown()` 的 8 处手工复位收敛**——原归 `US-016`，该故事已于 2026-08-21
+  [移出 epic-008 承诺范围](../../epics/epic-008-lifecycle-scope.md)：这 8 处是**状态复位**不是资源释放，
+  作用域原语按定义碰不到，今天没有归属故事
 - **拆卸错误在 `RxDB` 边界的出口**——与 [US-014 D5](./US-014-plugin-scope-contract.md) 保持一致，仍为 `console.error`
 - **workspace 的 `#installPromise` / `#installFailed`**：它等的是 IndexedDB 恢复
   （[:331-346](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L331-L346)），
   **不是 rxdb 侧的依赖**，`inject` 帮不上忙。两个阶段都不动它
-- **三框架绑定接入**——归 `US-017`（🚧 文件未创建，价值待证）
+- **三框架绑定接入**——原归 `US-017`，已于 2026-08-21 移出 epic-008 承诺范围（三端各自的原生作用域
+  `DestroyRef` / `useEffect` cleanup / `onScopeDispose` 已在用），解锁条件见 Epic
 
 ## 目标契约
 
