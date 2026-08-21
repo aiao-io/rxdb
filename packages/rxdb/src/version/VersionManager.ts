@@ -2,17 +2,17 @@ import { firstValueFrom, Subscription } from 'rxjs';
 import { EntityType } from '../entity/entity.interface.js';
 import { RestoreEntityOptions } from '../rxdb-adapter.js';
 import {
-    ENTITY_LOCAL_CREATE_EVENT,
-    EntityLocalCreatedEvent,
-    MergeBranchBeginEvent,
-    MergeBranchCommitEvent,
-    MergeBranchFailedEvent,
-    SwitchBranchBeginEvent,
-    SwitchBranchCommitEvent,
-    SwitchBranchRollbackEvent,
-    TRANSACTION_BEGIN,
-    TRANSACTION_COMMIT,
-    TRANSACTION_ROLLBACK
+  ENTITY_LOCAL_CREATE_EVENT,
+  EntityLocalCreatedEvent,
+  MergeBranchBeginEvent,
+  MergeBranchCommitEvent,
+  MergeBranchFailedEvent,
+  SwitchBranchBeginEvent,
+  SwitchBranchCommitEvent,
+  SwitchBranchRollbackEvent,
+  TRANSACTION_BEGIN,
+  TRANSACTION_COMMIT,
+  TRANSACTION_ROLLBACK
 } from '../rxdb-events.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
@@ -45,14 +45,14 @@ import { syncRepository, type SyncRepositoryOptions, type SyncRepositoryResult }
 import { topologicalSort, type SortDirection } from './topological-sort.js';
 import { getEarliestRecordAt, getRxDBChangeEventId, hasSyncedData, partialResultOf } from './version-manager.utils.js';
 import {
-    HistoryScopeAPI,
-    MergeBranchOptions,
-    MergeBranchResult,
-    PullOptions,
-    PullResult,
-    PushOptions,
-    PushResult,
-    SyncResult
+  HistoryScopeAPI,
+  MergeBranchOptions,
+  MergeBranchResult,
+  PullOptions,
+  PullResult,
+  PushOptions,
+  PushResult,
+  SyncResult
 } from './VersionManager.interface.js';
 
 /**

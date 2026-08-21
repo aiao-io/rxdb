@@ -9,7 +9,6 @@
  */
 
 import type {
-  EntityMetadata,
   EntityType,
   IRepository,
   IRxDBAdapter,
@@ -18,7 +17,6 @@ import type {
   QueryCacheEntityMetadata,
   RemoteBranchInfo,
   RemoteChange,
-  RemoteMergeResult,
   RepositoryInstance,
   RuleGroup,
   RxDB,
@@ -29,7 +27,6 @@ import {
   getEntityMetadata,
   getSyncConfig,
   parseRxDBChangeKey,
-  PropertyType,
   RxDBAdapterRemoteBase,
   tryGetEntityStatus
 } from '@aiao/rxdb';
@@ -43,6 +40,27 @@ import { apply_rule_group } from './rule_group_builder.js';
 import { build_delete_params, build_upsert_params, group_by_type } from './RxDBAdapterSupabase.utils.js';
 import { resolve_supabase_schema } from './schema.utils.js';
 import {
+  ADAPTER_NAME,
+  assertSnapshotFilterSupported,
+  DEFAULT_RLS_CHECK_RPC_NAME,
+  getUnsupportedProperty,
+  isRetryableSupabaseWriteError,
+  REALTIME_RECONNECT_BASE_DELAY_MS,
+  REALTIME_RECONNECT_MAX_DELAY_MS,
+  REALTIME_RECONNECTABLE_STATUSES,
+  RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS,
+  RETRYABLE_SUPABASE_WRITE_RETRY_DELAY_MS,
+  SUPABASE_SDK_VERSION,
+  validateArrayResponse,
+  validateMergeResponse,
+  validateMutationsResponse,
+  validatePushBranchesResponse,
+  wait,
+  type RealtimeState,
+  type RetryableWriteResponse,
+  type SupabaseRlsCheckResult
+} from './supabase.helpers.js';
+import {
   SupabaseAdapterOptions,
   type SupabaseRlsCheckOptions,
   type SupabaseRlsCheckTable
@@ -50,176 +68,7 @@ import {
 import { SupabaseRepository } from './SupabaseRepository.js';
 import { SupabaseTreeRepository } from './SupabaseTreeRepository.js';
 
-export const ADAPTER_NAME = 'supabase';
-
-/** 适配器所基于的 @supabase/supabase-js 最低支持版本（与 package.json peerDependencies 对齐） */
-export const SUPABASE_SDK_VERSION = '2.88.0';
-
-const RETRYABLE_SUPABASE_WRITE_ERROR_PATTERNS = [
-  /invalid response was received from the upstream server/i,
-  /fetch failed/i,
-  /failed to fetch/i,
-  /gateway timeout/i,
-  /upstream connect error/i,
-  /connection terminated/i,
-  /temporarily unavailable/i
-];
-
-const RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS = 3;
-const RETRYABLE_SUPABASE_WRITE_RETRY_DELAY_MS = 150;
-const DEFAULT_RLS_CHECK_RPC_NAME = 'rxdb_check_rls';
-const REALTIME_RECONNECT_BASE_DELAY_MS = 500;
-const REALTIME_RECONNECT_MAX_DELAY_MS = 5_000;
-const REALTIME_RECONNECTABLE_STATUSES = new Set(['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED']);
-
-type RealtimeState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'closed';
-
-const SNAPSHOT_FILTER_OPERATORS = new Set([
-  '=',
-  '!=',
-  '<',
-  '>',
-  '<=',
-  '>=',
-  'contains',
-  'includes',
-  'notContains',
-  'startsWith',
-  'notStartsWith',
-  'endsWith',
-  'notEndsWith',
-  'null',
-  'isNull',
-  'notNull',
-  'isNotNull',
-  'in',
-  'notIn',
-  'between',
-  'notBetween'
-]);
-
-function assertSnapshotFilterSupported(filter: RuleGroup<unknown>): void {
-  for (const node of filter.rules as unknown as Array<Record<string, unknown>>) {
-    if (Array.isArray(node['rules'])) {
-      assertSnapshotFilterSupported(node as unknown as RuleGroup<unknown>);
-      continue;
-    }
-
-    const field = node['field'];
-    const operator = node['operator'];
-    if (typeof field !== 'string' || field.includes('.') || typeof operator !== 'string') {
-      throw new SupabaseConfigError('Snapshot filter sync only supports direct entity fields');
-    }
-    if (!SNAPSHOT_FILTER_OPERATORS.has(operator)) {
-      throw new SupabaseConfigError(`Snapshot filter sync does not support operator: ${operator}`);
-    }
-  }
-}
-
-interface UnsupportedSupabaseProperty {
-  name: string;
-  type: PropertyType.bigint | PropertyType.binary;
-}
-
-function getUnsupportedProperty(
-  metadata: EntityMetadata,
-  resolveEntityMetadata: (entity: string, namespace: string) => EntityMetadata | undefined
-): UnsupportedSupabaseProperty | undefined {
-  for (const property of metadata.propertyMap.values()) {
-    const type = property.type;
-    if (type !== PropertyType.bigint && type !== PropertyType.binary) continue;
-    return {
-      name: property.name,
-      type: type === PropertyType.bigint ? PropertyType.bigint : PropertyType.binary
-    };
-  }
-
-  for (const [foreignKeyName, relation] of metadata.foreignKeyRelationMap) {
-    const targetMetadata = resolveEntityMetadata(relation.mappedEntity, relation.mappedNamespace ?? metadata.namespace);
-    const type = targetMetadata?.propertyMap.get('id')?.type;
-    if (type !== PropertyType.bigint && type !== PropertyType.binary) continue;
-    return {
-      name: foreignKeyName,
-      type: type === PropertyType.bigint ? PropertyType.bigint : PropertyType.binary
-    };
-  }
-
-  return undefined;
-}
-
-interface SupabaseRlsCheckResult {
-  schema: string;
-  table: string;
-  exists: boolean;
-  rlsEnabled: boolean;
-}
-
-type RetryableWriteResponse = {
-  data: unknown;
-  error: { message?: string | null } | null;
-};
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function invalidWriteResponse(operationName: string): never {
-  throw new SupabaseDataError(`Failed to ${operationName}: invalid response data`);
-}
-
-function validateArrayResponse<TResult>(data: unknown, operationName: string): TResult[] {
-  if (!Array.isArray(data)) invalidWriteResponse(operationName);
-  return data as TResult[];
-}
-
-function validateMutationsResponse<TResult>(data: unknown): TResult[] {
-  if (!isRecord(data) || !Array.isArray(data['upserted'])) invalidWriteResponse('execute transaction');
-  return data['upserted'] as TResult[];
-}
-
-function validateMergeResponse(data: unknown): RemoteMergeResult {
-  if (!isRecord(data) || !Array.isArray(data['change_id_mapping'])) invalidWriteResponse('merge changes');
-
-  const maxChangeId = data['max_change_id'];
-  if (maxChangeId !== null && (!Number.isSafeInteger(maxChangeId) || (maxChangeId as number) < 0)) {
-    invalidWriteResponse('merge changes');
-  }
-
-  const changeIdMapping = data['change_id_mapping'];
-  const hasInvalidMapping = changeIdMapping.some(
-    item =>
-      !isRecord(item) ||
-      !Number.isSafeInteger(item['localId']) ||
-      !Number.isSafeInteger(item['remoteId']) ||
-      (item['localId'] as number) < 0 ||
-      (item['remoteId'] as number) < 0
-  );
-  if (hasInvalidMapping) invalidWriteResponse('merge changes');
-
-  return {
-    maxChangeId: maxChangeId === null ? undefined : (maxChangeId as number),
-    changeIdMapping: changeIdMapping as NonNullable<RemoteMergeResult['changeIdMapping']>
-  };
-}
-
-function validatePushBranchesResponse(data: unknown): { synced: number; skipped: string[] } {
-  if (!isRecord(data)) invalidWriteResponse('sync branches');
-  const synced = data['synced'];
-  const skipped = data['skipped'];
-  if (!Number.isSafeInteger(synced) || (synced as number) < 0 || !Array.isArray(skipped)) {
-    invalidWriteResponse('sync branches');
-  }
-  if (!skipped.every(value => typeof value === 'string')) invalidWriteResponse('sync branches');
-  return { synced: synced as number, skipped };
-}
-
-function wait(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function isRetryableSupabaseWriteError(message: string): boolean {
-  return RETRYABLE_SUPABASE_WRITE_ERROR_PATTERNS.some(pattern => pattern.test(message));
-}
+export { ADAPTER_NAME, SUPABASE_SDK_VERSION };
 
 /**
  * Supabase 适配器
