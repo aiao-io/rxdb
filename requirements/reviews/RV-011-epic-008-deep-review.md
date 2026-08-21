@@ -9,16 +9,34 @@ pr:
 
 # Review：epic-008 深度评审
 
-**判定：核心价值没有根本偏离；不能收口。** 横切实现约束的定位、收口判据、新缺口门槛（病灶数 ≥ 抽象数）彼此自洽，US-016 / US-017 移出承诺范围也站得住。挡住 `Done` 的是结算表第 1 条，而且 epic 自己把它写成「一处漏写」——核对源码后，同一条 `catch` 还漏了网关销毁，低估了一处今天能踩到的 BroadcastChannel / LeaderElection 泄漏。结算第 7 条把三个字段打包写成「关闭」，超售。
+**判定：核心价值没有根本偏离；原挡住 `Done` 的两条已修复。** 横切实现约束的定位、收口判据、新缺口门槛（病灶数 ≥ 抽象数）彼此自洽，US-016 / US-017 移出承诺范围也站得住。挡住 `Done` 的是结算表第 1 条，而且 epic 自己把它写成「一处漏写」——核对源码后，同一条 `catch` 还漏了网关销毁，低估了一处今天能踩到的 BroadcastChannel / LeaderElection 泄漏。结算第 7 条把三个字段打包写成「关闭」，超售。
+
+## 修复落地（待 PR 合并后置 `Resolved`）
+
+九条 Findings 全部核对属实，唯一例外是 P3-4——落地时该索引已补齐，无需再改。
+
+| Finding | 处置                                                                                                                                                                                                           |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1-1    | 已修。`RxDB.init()` 的 `catch` 补 `this.versionManager.destroy()`                                                                                                                                              |
+| P1-2    | 已修。同一 `catch` 补 `this.#gateway?.destroy()` + `#gateway = undefined`，并顺带补 `entityManager.destroy()`——三步与 `#shutdown()` 逐条对称                                                                   |
+| 红测试  | `RxDB.plugin-scope.spec.ts` 新增 `describe('init() 在 versionManager.init() 之后失败：catch 与 #shutdown() 的资源释放对称')` 两条：抛错点改到 `RxDBTabsGateway.prototype.init`，断言监听器不叠加、旧网关被销毁 |
+| P2-1    | 已改口。结算第 7 行收窄为「`#destroyed` 已删；另两个字段是纪元内 IndexedDB 恢复记账」                                                                                                                          |
+| P2-2    | 已同步。spec 002 的 Traceability、C 段口径声明、待证附录、口径差异表全部对齐 epic；US-016 / US-017 标「不创建文件」                                                                                            |
+| P3-1    | 已补「目标」节，三条可核对状态，不另编产品目标                                                                                                                                                                 |
+| P3-2    | 已把结算表与专节里的过期行号锚点换成符号名                                                                                                                                                                     |
+| P3-3    | 已扩 [CONVENTIONS](../CONVENTIONS.md#状态定义) 的 epic 状态集合为 `Backlog` / `In Progress` / `Done`                                                                                                           |
+| P3-4    | 落地时 reviews [README](README.md) 已列 RV-010 / RV-011，无需改动                                                                                                                                              |
+
+收口判据两条均已满足，epic-008 置 `Done`。未做（与本评审「不要做」一致）：不建 US-016 / US-017 文件；不把 `#installPromise` 重开为未关闭行；不把资源三步挪进连接作用域。
 
 ## 范围与评审方式
 
-| 项       | 值                                                                                                                                                          |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 评审对象 | [epic-008](../epics/epic-008-lifecycle-scope.md)                                                                                                           |
+| 项       | 值                                                                                                                                                                                                                                                                                                                        |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 评审对象 | [epic-008](../epics/epic-008-lifecycle-scope.md)                                                                                                                                                                                                                                                                          |
 | 关联核对 | [US-013](../stories/core/US-013-lifecycle-scope-primitive.md) / [US-014](../stories/core/US-014-plugin-scope-contract.md) / [US-015](../stories/core/US-015-plugin-inject-dependency.md)、[status-overview](../status-overview.md)、[roadmap](../roadmap.md)、[specs/002](../../specs/002-lifecycle-effect-scope/spec.md) |
-| 代码核对 | `RxDB.init` / `#shutdown` / `#init_gateway` / `#destroy_plugin`、`VersionManager`、`RxDBTabsGateway`、`EntityManager`、四个插件包、`PluginDependencyScheduler` |
-| 评审方式 | 结算表九行逐条对源码；失败路径测试是否真能看见声称的泄漏；承诺范围 / 移出范围 / spec 口径三边对照                                                              |
+| 代码核对 | `RxDB.init` / `#shutdown` / `#init_gateway` / `#destroy_plugin`、`VersionManager`、`RxDBTabsGateway`、`EntityManager`、四个插件包、`PluginDependencyScheduler`                                                                                                                                                            |
+| 评审方式 | 结算表九行逐条对源码；失败路径测试是否真能看见声称的泄漏；承诺范围 / 移出范围 / spec 口径三边对照                                                                                                                                                                                                                         |
 
 行号只作导航。断言以符号名与短引用为准。
 
@@ -34,17 +52,17 @@ pr:
 
 ## 结算表核对
 
-| #   | epic 结算                                                                 | 核对                                                                                                                                                          |
-| --- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **未关闭**：`init()` `catch` 漏 `versionManager.destroy()`                | **属实且低估**。漏写真实；同一 `catch` 还漏 `#gateway?.destroy()`（P1-1 / P1-2）                                                                               |
-| 2   | `#event_initialized` 改判不是病灶                                         | **属实**。守卫在 `RxDB.#init_event()`，监听器挂实例自己的 `#event_map`，防重连重复注册                                                                        |
-| 3   | `#plugin_install_promises` 已删                                           | **属实**。生产代码零字段，只剩 [RxDB.plugin-scope.spec.ts](../../packages/rxdb/src/__tests__/RxDB.plugin-scope.spec.ts) 一处历史注释                             |
-| 4   | storage 三段 `scope.acquire()`                                            | **属实**。`storage:service` / `storage:property` / `storage:entity`；`#ownsStorage` 只在注释里。epic 行号 44-68，代码现约 48-79                                 |
-| 5   | `SearchPluginPhase` 已删                                                  | **属实**。枚举不存在，[plugin.ts](../../packages/rxdb-plugin-search/src/plugin.ts) 只在注释里提                                                                |
-| 6   | search 监听走 `scope.acquire()`                                           | **属实**。`RxDBPluginSearch.#bindEntityEvents()` 一条事件一条 `search:entityEvents:*`                                                                         |
-| 7   | workspace `#installPromise` / `#installFailed` / `#destroyed` 关闭        | **超售**。`#destroyed` 已删；前两个字段仍在，US-015 Out of Scope 明确不动（P2-1）                                                                              |
-| 8   | workspace 纪元释放经 `scope.acquire(..., 'workspace:epoch')`              | **属实**。`RxDBPluginWorkspace.#acquireEpoch()`                                                                                                               |
-| 9   | graph `rxdb.repository(..., scope)`                                       | **属实**。`RxDBPluginGraph.install(scope)`                                                                                                                    |
+| #   | epic 结算                                                          | 核对                                                                                                                                 |
+| --- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | **未关闭**：`init()` `catch` 漏 `versionManager.destroy()`         | **属实且低估**。漏写真实；同一 `catch` 还漏 `#gateway?.destroy()`（P1-1 / P1-2）                                                     |
+| 2   | `#event_initialized` 改判不是病灶                                  | **属实**。守卫在 `RxDB.#init_event()`，监听器挂实例自己的 `#event_map`，防重连重复注册                                               |
+| 3   | `#plugin_install_promises` 已删                                    | **属实**。生产代码零字段，只剩 [RxDB.plugin-scope.spec.ts](../../packages/rxdb/src/__tests__/RxDB.plugin-scope.spec.ts) 一处历史注释 |
+| 4   | storage 三段 `scope.acquire()`                                     | **属实**。`storage:service` / `storage:property` / `storage:entity`；`#ownsStorage` 只在注释里。epic 行号 44-68，代码现约 48-79      |
+| 5   | `SearchPluginPhase` 已删                                           | **属实**。枚举不存在，[plugin.ts](../../packages/rxdb-plugin-search/src/plugin.ts) 只在注释里提                                      |
+| 6   | search 监听走 `scope.acquire()`                                    | **属实**。`RxDBPluginSearch.#bindEntityEvents()` 一条事件一条 `search:entityEvents:*`                                                |
+| 7   | workspace `#installPromise` / `#installFailed` / `#destroyed` 关闭 | **超售**。`#destroyed` 已删；前两个字段仍在，US-015 Out of Scope 明确不动（P2-1）                                                    |
+| 8   | workspace 纪元释放经 `scope.acquire(..., 'workspace:epoch')`       | **属实**。`RxDBPluginWorkspace.#acquireEpoch()`                                                                                      |
+| 9   | graph `rxdb.repository(..., scope)`                                | **属实**。`RxDBPluginGraph.install(scope)`                                                                                           |
 
 贯穿项：`RxDB.#destroy_plugin()` 已是逆序串行 + 错误隔离不短路，不再是 `Promise.all`。
 

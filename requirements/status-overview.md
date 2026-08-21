@@ -11,14 +11,14 @@
 | ✅ Done        | 40   |
 | 🚧 In Progress | 2    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 10   |
+| 📝 Backlog     | 12   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 53   |
+| **合计**       | 55   |
 
 三条口径，读表前必知：
 
 1. 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；合计等于 `stories/*/US-*.md` 的文件数，epic 文件不计入。
-2. 其中 **7 条是多阶段故事**（[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-207](stories/adapter/US-207-desktop-local-database.md)、[US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)、[US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)、[US-306](stories/collaboration/US-306-working-tree-index.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)）：一个编号一个文件一条状态，正文用「交付阶段」表分批交付，**全部阶段关闭后才置 `Done`**。阶段不单独计数，见 [README](README.md#大故事用交付阶段不用子故事文件)。
+2. 其中 **9 条是多阶段故事**（[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-020](stories/core/US-020-querycache-repository.md)、[US-207](stories/adapter/US-207-desktop-local-database.md)、[US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)、[US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)、[US-212](stories/adapter/US-212-http-adapter.md)、[US-306](stories/collaboration/US-306-working-tree-index.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)）：一个编号一个文件一条状态，正文用「交付阶段」表分批交付，**全部阶段关闭后才置 `Done`**。阶段不单独计数，见 [README](README.md#大故事用交付阶段不用子故事文件)。
 3. `🚫 Blocked = 0` 统计的是**故事 YAML 里显式写成 `status: Blocked`** 的数量，**不代表没有前置阻塞**——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。两者不要互相推断。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🅰️ 多阶段故事 · 🚫 Blocked
@@ -135,7 +135,7 @@
 
 - ✅ [US-301 版本控制](stories/collaboration/US-301-version-control.md)
 - ✅ [US-302 撤销/重做](stories/collaboration/US-302-undo-redo.md)
-- ✅ [US-203 Supabase 适配器](stories/adapter/US-203-supabase-adapter.md)
+- ✅ [US-203 Supabase 适配器](stories/adapter/US-203-supabase-adapter.md) — AC#6 QueryCache ducks 已 ✅；**生产路径接线**是 [US-020](stories/core/US-020-querycache-repository.md)，不重开本故事
 - ✅ [US-803 本地数据加密](stories/future/US-803-local-encryption.md)
 
 > 原挂在本 Epic 下的 US-305 已升级为 [epic-006](epics/epic-006-working-tree-commits.md)。
@@ -167,6 +167,12 @@
 - 🚧 [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边
 - ⬜ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md) — PGlite callback transaction 不能跨 IPC 序列化
 - ⬜ [US-703 PGlite 全文搜索](stories/future/US-703-pglite-full-text-search.md)
+- 🅰️ ⬜ [US-020 将 QueryCache 接入统一 Repository](stories/core/US-020-querycache-repository.md) — 两阶段；让 `SyncType.QueryCache` 从空操作变成生产真，解锁 US-212。不 inherit US-203 AC#6
+  - ⬜ 阶段 A 生产接线 — `getRepository` / EntityManager 走 `QueryCacheRepository`；Full/Filter 不变
+  - ⬜ 阶段 B 缓存质量 — orphan 删除、指纹含模式、SWR SQL、错误分类
+- 🅰️ ⬜ [US-212 HTTP 远程适配器](stories/adapter/US-212-http-adapter.md) — 两阶段；硬前置 US-020。远端权威 HTTP + 独立注册 sqlite 行缓存，不内嵌 sqlite
+  - ⬜ 阶段 A handlers 注入 + QueryCache ducks + 分页/分块
+  - ⬜ 阶段 B REST mapping / 可选 ETag、SSE、eviction
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
 
@@ -202,18 +208,18 @@
 
 - ⬜ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md) — 认领 [capability-matrix](capability-matrix.md#已知的需求覆盖缺口) 第 2 条缺口
 
-[specs/002-lifecycle-effect-scope/spec.md](../specs/002-lifecycle-effect-scope/spec.md) 仍是 Draft，且**范围已大于 Epic 的承诺范围**：它覆盖 US-013 → US-017 整条链，而 US-016 / US-017 已按 Epic 收口判据改判移出。原语已落在 [`packages/utils/src/lifecycle/`](../packages/utils/src/lifecycle/)，四个插件包已全部迁移到 `install(scope)`。
+[specs/002-lifecycle-effect-scope/spec.md](../specs/002-lifecycle-effect-scope/spec.md) 仍是 Draft，但范围已与 Epic 承诺范围对齐（US-013 / US-014 / US-015 阶段 A；阶段 B 与 US-016 / US-017 标为已移出，后两者不创建故事文件）。原语已落在 [`packages/utils/src/lifecycle/`](../packages/utils/src/lifecycle/)，四个插件包已全部迁移到 `install(scope)`。
 
 ### [生命周期作用域](epics/epic-008-lifecycle-scope.md)
 
-**US-013 → US-014 为硬序，不可交换。** 两条均已交付，硬序解除。改造前的九处手工账本已关闭 7 条、改判 1 条（`#event_initialized` 不是泄漏），[结算表](epics/epic-008-lifecycle-scope.md#结算九处手工账本)只剩 1 行未关闭。
+**Epic 已置 `Done`。** US-013 → US-014 的硬序已随两条交付解除。改造前的九处手工账本已关闭 8 条、改判 1 条（`#event_initialized` 不是泄漏），[结算表](epics/epic-008-lifecycle-scope.md#结算九处手工账本)零未关闭行。
 
 - ✅ [US-013 LifecycleScope 生命周期作用域原语](stories/core/US-013-lifecycle-scope-primitive.md) — `@aiao/utils` 侧的原语，19 条 AC 由 26 个用例冻结；只交付原语，不迁移任何调用方
 - ✅ [US-014 插件作用域契约](stories/core/US-014-plugin-scope-contract.md) — `install(scope)`，四个插件包已迁移；三处已知泄漏（graph 注册、storage 属性、workspace 订阅）关闭。三处有意的可观察行为变化见 [插件作用域契约迁移](../website/docs/migration/plugin-scope.md)
 - 🅰️ [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) — 阶段 A 已交付，故事置 `In Review`
   - ✅ 阶段 A 适配器依赖纪元（2026-08-21）— `inject: ['adapter:local']` + 纪元调度器 + `localAdapterSync`；search 插件的 `adapterConnected$` 自等与 `SearchPluginPhase` 删除，安装记账从 `#plugin_install_promises` 迁进调度器。AC#12 的 `ready` 语义**有意改口径**（未安装期由 reject 改为 pending），见[插件作用域契约迁移](../website/docs/migration/plugin-scope.md)
   - ⬜ 阶段 B 插件间依赖图 — **已移出承诺范围**：全仓库零 `plugin:*` 声明。解锁条件 = 出现第一个消费方
-- 🐛 `init()` 失败回滚缺 `versionManager.destroy()` — Epic 的最后一行未关闭项，按 bugfix 修，**不单开故事**
+- ✅ `init()` 失败回滚补齐与 `#shutdown()` 对称的资源三步（`versionManager` / `#gateway` / `entityManager` 的 `destroy()`）— Epic 的最后一行未关闭项，按 bugfix 修，**未单开故事**。漏掉网关时 `multiInstance` 默认下每失败一次泄漏一条 BroadcastChannel 加一套 LeaderElection
 
 > `US-016` / `US-017` 曾被引用为后续故事，现已按 Epic 收口判据改判移出，不再是候选项——
 > 理由与解锁条件见 [epic-008 已移出承诺范围](epics/epic-008-lifecycle-scope.md#已移出承诺范围)。
@@ -237,6 +243,7 @@
 | epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`，历史 `v0.0.25` 又已被 squash 移出主线——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。这一条不随代码进度自动解除，需单独排期 |
 | [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 B                                 | 出现第一个 `plugin:*` 依赖声明。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`，拓扑序与环检测目前没有消费方。US-013 / US-014 均已交付，硬序解除，阶段 A 已落地；这一条不随代码进度自动解除                                                                                                                                                |
 | [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D                       | 同一文件的阶段 A 必须先给出 `decision: supported`                                                                                                                                                                                                                                                                                                  |
+| [US-212](stories/adapter/US-212-http-adapter.md) 发布                                            | [US-020](stories/core/US-020-querycache-repository.md) 全部阶段关闭。阶段 A 代码可并行开发，**包不得在接线前标可发布**——否则 QueryCache + HTTP 看起来接上了，find 仍打本地、save 仍进 changelog                                                                 |
 
 > **US-210 AC#9 已于 2026-08-17 解除阻塞**，从本表移除。原判定「macOS 没有官方 WKWebView WebDriver，
 > 该 AC 按字面无法满足」只对**用 WebDriver 驱 UI**这一种实现方式成立。改成

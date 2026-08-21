@@ -202,7 +202,8 @@
    前置也已解除，故已于 2026-08-21 关闭，留档见上方「已完成」——那两处症状随之删除。
    同日按此判据结算剩余三项，全部**移出 epic-008 承诺范围**（判据与解锁条件见
    [epic-008 的「已移出承诺范围」](epics/epic-008-lifecycle-scope.md)）：阶段 B 零 `plugin:*` 消费方；
-   `US-016` 的原始症状已被阶段 A 大部分修掉、余下的 `versionManager.destroy()` 漏写降级为 bugfix，不再解锁；
+   `US-016` 的原始症状已被阶段 A 大部分修掉、余下的失败回滚资源三步（`versionManager` / `#gateway` /
+   `entityManager` 的 `destroy()`）降级为 bugfix 并已补齐，不再解锁；
    `US-017` 三端已各有原生作用域在用。三者都未落盘成文件，不计入任何统计。
    附带一条口径：**状态变量复位不算病灶**。`#shutdown()` 里 `#transaction_stack = []`、
    `#connected_sub.next(false)` 这类复位，作用域原语按定义碰不到，不得算进 epic-008 的病灶数。
