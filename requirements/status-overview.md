@@ -191,12 +191,12 @@
 口径以 [epic-006 依赖顺序](epics/epic-006-working-tree-commits.md) 为准。
 
 - ⬜ [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 基础层：commit 图 / branch ref / baseline；仍被 FR-030 挡住（`migration-release.json` 的 `bridge.tag`/`bridge.version` 为 `null`，`v0.0.25` 不是 HEAD 祖先）
-- 🅰️ ⬜ [US-306 工作树、缓存区与提交操作](stories/collaboration/US-306-working-tree-index.md) — 三阶段单文件故事；其 FR/AC 承接表是发布门禁 2 的审计依据
+- 🅰️ ⬜ [US-306 工作树、暂存区与提交操作](stories/collaboration/US-306-working-tree-index.md) — 三阶段单文件故事；其 FR/AC 承接表是发布门禁 2 的审计依据
   - ⬜ 阶段 A 工作树写入捕获与持久化
-  - ⬜ 阶段 B 缓存区与提交状态机
+  - ⬜ 阶段 B 暂存区与提交状态机
   - ⬜ 阶段 C 三框架工作树交互面与性能门禁 — `useWorkingTree()` 三端契约与 `bench-working-tree` target
-- ⬜ [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — 依赖 US-306 阶段 A/B/C
-- ⬜ [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — 依赖 US-306 的提交状态机；跨 realm 竞争只走 `headRevision` CAS
+- ⬜ [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — 依赖 US-306 阶段 B；核心持久层可与阶段 C 并行，三端入口与 restore benchmark 追加排在阶段 C 之后
+- ⬜ [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — 依赖 US-306 阶段 B；核心持久层可与阶段 C 并行，三端入口排在阶段 C 之后。跨 realm 竞争走 activation / head / index / working-tree 四类 revision CAS（FR-020），不是只走 `headRevision`
 
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 

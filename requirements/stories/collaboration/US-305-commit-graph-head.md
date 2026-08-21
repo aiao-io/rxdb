@@ -11,7 +11,7 @@ tags: [collaboration, commit, head, persistence, migration]
 
 <!--
 INVEST 检查清单:
-- [x] Independent: 不依赖工作树与缓存区的 UI 或状态机
+- [x] Independent: 不依赖工作树与暂存区的 UI 或状态机
 - [x] Negotiable: commit ID 生成方式、存储表名和 ChangeSet 编码可在 plan 阶段调整
 - [x] Valuable: 有了持久 commit 图，历史节点第一次成为可长期引用的锚点
 - [x] Estimable: 存储层次、审计字段和迁移路径已在本文列出
@@ -30,7 +30,7 @@ INVEST 检查清单:
 
 早期的 `stagedChange()` / `unstageChange()` / `commit()` / `stagedCount` 在可复核的 `v0.0.24` 公开表面中已不存在，因此这是全新设计，没有需要兼容的旧暂存契约。
 
-本故事只做**底座**：commit 图、HEAD、分支引用的原子一致性、存储布局与一次性迁移。工作树与缓存区的状态机在 [US-306](./US-306-working-tree-index.md)。
+本故事只做**底座**：commit 图、HEAD、分支引用的原子一致性、存储布局与一次性迁移。工作树与暂存区的状态机在 [US-306](./US-306-working-tree-index.md)。
 
 ## 作为/我想要/以便
 
@@ -225,6 +225,11 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - 桥接血统门禁需独立用例（FR-030 / AC US2-14）：`bridge.tag` 为 `null`、为 `v0.0.25`、或不满足
   `git merge-base --is-ancestor <bridge-tag> <release-commit>` 时门禁均失败；只有真实祖先 tag 才放行。
   用例读真实 git 仓库状态，不 mock 祖先判定。
+- 本故事是无 UI 的核心底座，不适用三框架对称与 UI a11y，但必须满足
+  [epic-006 横切约束 1](../../epics/epic-006-working-tree-commits.md#横切约束按故事适用不单独成故事) 的另一半：
+  全部新增公开类型与入口带 TSDoc（`Commit*` / `WorkingTree*` 命名、参数、抛错与 revision 语义），
+  TSDoc lint 零警告；并有类型契约测试断言公开签名与 api-baseline 一致，新导出不使用 `Workspace*` 前缀、
+  不复用 `SwitchBranchOptions`。
 - 测试文件使用 `*.spec.ts`，不依赖非确定性的固定延时。
 
 ## 实现文件（计划阶段待确认）
@@ -239,6 +244,6 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - [epic-006 本地工作树与提交历史](../../epics/epic-006-working-tree-commits.md)
 - [US-301 版本控制](./US-301-version-control.md) — 现有分支、合并和远程同步边界
 - [US-302 撤销/重做](./US-302-undo-redo.md) — 现有 durable undo 与会话级 redo 语义
-- [US-306 工作树、缓存区与提交操作](./US-306-working-tree-index.md)
+- [US-306 工作树、暂存区与提交操作](./US-306-working-tree-index.md)
 - [US-501 Workspace 插件](../plugin/US-501-workspace-plugin.md) — NEW 草稿持久化现状与明确限制
 - [版本控制文档](../../../website/docs/versioning.md)

@@ -50,7 +50,7 @@ INVEST 检查清单:
 - `restore(commitId)`：把目标 commit 的数据物化到当前工作树，**不移动 HEAD**、不改写历史
 - 恢复会话（`WorkingTreeRestoreSession`）的**创建、`active | conflicted | committed` 生命周期与删除**，
   刷新后据其重建「恢复后未提交」标记并在 UI 中明确呈现（表与迁移由 US-306 阶段 B 提供，本故事不重复建表）
-- 恢复前的 dirty 工作树 / 缓存区检测与拒绝
+- 恢复前的 dirty 工作树 / 暂存区检测与拒绝
 - 恢复目标的当前分支可达性，以及完整物化路径的 schema/change codec 兼容预检
 - restore / discard 的 active branch token 与 head、working tree、index revision CAS
 - restore 只生成未暂存工作树条目，不自动写 index；用户显式 stage 后再 commit
@@ -78,12 +78,13 @@ INVEST 检查清单:
 **验收场景**：
 
 1. **Given** commit 图中存在目标 commit，**When** 用户打开 log 并查看详情，**Then** 能看到消息、作者、时间、父 commit、涉及实体数量和变更摘要。
-2. **Given** 工作树和缓存区均 clean，**When** 用户恢复任意可达 commit，**Then** 目标数据物化到当前工作树，当前分支 HEAD 不移动，恢复状态可被 `status()` 识别为 `restoring`。
+2. **Given** 工作树和暂存区均 clean，**When** 用户恢复任意可达 commit，**Then** 目标数据物化到当前工作树，当前分支 HEAD 不移动，恢复状态可被 `status()` 识别为 `restoring`。
 3. **Given** 用户执行 `restore(commitId)` 尚未 commit，**When** 页面刷新，**Then** 恢复后的工作树继续显示，且明确标记为「恢复后未提交」。
 4. **Given** 历史恢复会话已建立，**When** 用户显式 stage 恢复产生的完整依赖闭包并用新消息 commit，**Then** 生成以原 HEAD 为父节点的新 commit，restore session 在同一事务转为 `committed`，旧 commit 和原有后继节点仍可访问；未 stage 时 commit 仍按 US-306 阶段 B 的空 index 规则拒绝。
 5. **Given** 用户在恢复会话中选择 discard，**When** 操作完成，**Then** 工作树回到当前 HEAD，恢复会话和未提交 stage 一并清除，历史 commit 不变。
 6. **Given** 恢复会话建立后其他 realm 推进了当前分支 HEAD，**When** 用户尝试提交或 discard，**Then** revision CAS 拒绝静默覆盖，恢复结果继续保留并标记为 conflicted。
 7. **Given** 用户从 clean HEAD 恢复当前 HEAD，或目标 commit 虽不同但物化内容与当前 HEAD 完全相同，**When** restore 完成，**Then** 返回类型化 no-op 结果，不创建恢复会话、不递增 revision，后续 commit 仍因 index 为空被拒绝。
+8. **Given** 仅键盘操作三端任一恢复入口，**When** 浏览 log、选择目标 commit、执行 restore 或 discard，**Then** 焦点顺序、可见焦点、可访问名称与 `restoring` / `conflicted` / 错误状态的公告达到 WCAG 2.1 AA；三端行为对称，单端缺失即本故事失败（承接 [epic-006 横切约束 1/3](../../epics/epic-006-working-tree-commits.md#横切约束按故事适用不单独成故事)）。本故事只新增恢复相关的交互元素，其余控件复用 US-306 阶段 C 已收口的组件与 a11y 断言，不重复实现。
 
 ### User Story 2 - 拒绝会造成数据丢失的恢复（Priority: P1）
 
@@ -100,7 +101,7 @@ INVEST 检查清单:
 ## 功能需求
 
 - **FR-013**：系统 MUST 支持将可达历史 commit 恢复到当前工作树；恢复默认不移动 HEAD、不删除历史，并将恢复会话持久化。
-- **FR-014**：系统 MUST 在恢复前检测 dirty 工作树 / 缓存区；未显式处理未提交变更时，恢复操作必须拒绝并保持原状。
+- **FR-014**：系统 MUST 在恢复前检测 dirty 工作树 / 暂存区；未显式处理未提交变更时，恢复操作必须拒绝并保持原状。
 - **FR-015**：系统 MUST 把恢复结果写成普通、未暂存的 `WorkingTreeEntry`，不得自动创建 `IndexEntry` 或递增 `indexRevision`。用户显式 stage 完整依赖闭包后才能 commit；生成的新 commit 不得改写被恢复的历史节点，并须与 restore session 的 `committed` 转换原子提交。
 - **FR-026b**（已改口径，见 [epic-006](../../epics/epic-006-working-tree-commits.md)）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit 下，以 5 次 warmup、50 次采样恢复含 100 个完整变更单元的 `HEAD~1` 并记录 runner profile。普通 CI 以归一化 ratio 不超过 reference median 的 110% 为硬门禁；promise resolve 的 p95 不高于 1 s 只在 `runnerProfileHash` 匹配 reference 的固定性能 runner 上作为发布硬门禁。
 - **FR-033**：v1 只允许恢复当前分支 HEAD 沿父链可达的 commit。系统 MUST 在任何持久写入前选定确定性的物化路径，并校验该路径每个 ChangeSet 涉及实体的 schema fingerprint manifest 与 change codec version 均与当前客户端完全相等；v1 不提供跨 schema/codec patch 转换。拒绝时所有持久状态 MUST 零变化。
@@ -131,6 +132,7 @@ INVEST 检查清单:
 - 拒绝路径（dirty、不可达 commit、跨库 commit、目标不兼容、中间祖先/后继 ChangeSet 不兼容、初次 restore revision/activation CAS 失败）各有独立用例，断言全部持久状态零变化。
 - 已有 session 的 commit/discard 冲突另设用例，断言 session 与工作树保留、状态可在刷新后重新派生为 conflicted。
 - 三端各有等价测试，并用跨框架 E2E 验证 log → restore → refresh → stage → commit 流程；另断言 restore 后未 stage 的 commit 被拒绝。
+- 三端 a11y 断言覆盖 US1-AC8：键盘可达、焦点可见、可访问名称与 `restoring` / `conflicted` / 错误状态公告，达到 WCAG 2.1 AA。
 - 恢复中断的回滚用例必须覆盖含外键依赖的多实体事务。
 
 ## 实现文件（计划阶段待确认）
@@ -147,5 +149,5 @@ INVEST 检查清单:
 - [epic-006 本地工作树与提交历史](../../epics/epic-006-working-tree-commits.md)
 - [US-305 提交图与 HEAD 持久化](./US-305-commit-graph-head.md)
 - [US-306 父契约](./US-306-working-tree-index.md)
-- [US-306 阶段 B 缓存区与提交状态机](./US-306-working-tree-index.md)
+- [US-306 阶段 B 暂存区与提交状态机](./US-306-working-tree-index.md)
 - [US-302 撤销/重做](./US-302-undo-redo.md) — 现有 `restoreEntity` 与 durable undo 语义
