@@ -23,10 +23,10 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 交付                                                                                          | 直接前置 | AC 区段   | 状态 |
-| ---- | --------------------------------------------------------------------------------------------- | -------- | --------- | ---- |
+| 阶段 | 交付                                                                                            | 直接前置 | AC 区段   | 状态 |
+| ---- | ----------------------------------------------------------------------------------------------- | -------- | --------- | ---- |
 | A    | `@aiao/rxdb-adapter-http`：RemoteBase + 注入 handlers + QueryCache ducks + 分页/分块 + 错误分类 | US-020   | AC#1～14  | ⬜   |
-| B    | REST resource URL 模板、可选 ETag/If-None-Match；可选 SSE/invalidation；可选 eviction          | 阶段 A   | AC#15～18 | ⬜   |
+| B    | REST resource URL 模板、可选 ETag/If-None-Match；可选 SSE/invalidation；可选 eviction           | 阶段 A   | AC#15～18 | ⬜   |
 
 **硬前置：[US-020](../core/US-020-querycache-repository.md)。** 阶段 A 代码可以在接线故事并行开发，**包不得在 US-020 关闭前标可发布**。否则开发者配 `SyncType.QueryCache` + HTTP + sqlite，find 仍打本地、save 仍进 sqlite changelog——比没有这个包更糟，因为它看起来「接上了」。
 
@@ -73,31 +73,31 @@ Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另�
 
 ### 阶段 A — handlers 远程适配器
 
-| #   | 前置条件                                      | 操作                                                                 | 预期结果                                                                                          | 状态 |
-| --- | --------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---- |
-| 1   | US-020 已关闭；workspace 可解析新包           | `createRxDatabase` 注册 `{ adapter: 'http', ...handlers }` 为 remote | 适配器作为 `adapter:remote` 连接；`ADAPTER_NAME === 'http'`                                       | ⬜   |
-| 2   | HTTP remote + 独立 sqlite local，`SyncType.QueryCache` | `getRepository(E).find({ where })`                                   | 远端收到 JSON `RuleGroup`，**收不到 SQL**；本地 sqlite 被 `upsertMany` 写成行缓存                 | ⬜   |
-| 3   | 同上                                          | `create` / `update` / `delete`                                       | 走 US-020 的 remote-then-local；HTTP 适配器自身不 `new` sqlite、不打开 OPFS/IDB                   | ⬜   |
-| 4   | handlers 未提供 `create`                      | `repo.create(...)`                                                   | fail-fast（`QueryCacheRepository` 已有的「Remote adapter does not support create」语义），不写本地 | ⬜   |
-| 5   | metadata 结果集超过单页上限                   | `fetchMetadata`                                                      | 必须翻页直到耗尽，语义同 supabase `select_all_pages`；截断的 id **不得**被当成远端已删除          | ⬜   |
-| 6   | `findByIds` 的 id 列表超过单次上限            | 增量 pull                                                            | 分块请求，语义同 supabase `#findByIdsInChunks`；缺块不得静默当空                                  | ⬜   |
-| 7   | HTTP 适配器已连接                             | 调用 `pullChanges` / `mergeChanges` / `getChangeCount` / `pullChangesBatch` | 抛 unsupported（稳定错误码）；返回空数组 / 0 **算失败**——那会让 Full-sync 以为远端没变更        | ⬜   |
-| 8   | 远端返回 HTTP 401                             | QueryCache 读或写                                                    | 可判别鉴权错误，**不**被 US-020 的 `offlineFallback` 吞成缓存命中                                 | ⬜   |
-| 9   | 网络断开                                      | 同上                                                                 | 可判别网络错误；`offlineFallback: true` 且有缓存时才降级（US-020 AC#16）                          | ⬜   |
-| 10  | search / graph 插件已装，`inject: ['adapter:local']` | 连接 HTTP + sqlite                                                   | 插件绑到独立注册的 sqlite，不绑 HTTP、不另开一份库                                                | ⬜   |
-| 11  | 一批 mutations 混入 HTTP-QueryCache 实体与 Full 实体 | `EntityManager.mutations`                                            | 拒绝（US-020 AC#6）；HTTP 适配器不得绕过混批闸门                                                  | ⬜   |
-| 12  | 对照实体仍是 `SyncType.Full` + supabase 或 sqlite | 跑既有套件                                                           | 用户可见行为不变；本包不改 Full/Filter 写本地                                                     | ⬜   |
-| 13  | 新包落地                                      | `pnpm nx lint/test/build`、api-baseline、`inject` 契约测试           | 绿；`declare module` 扩 `RxDBAdapters`；覆盖率按非核心包 ≥ 80%                                    | ⬜   |
-| 14  | 能力矩阵 / 公开文档                           | 关闭阶段 A                                                           | HTTP 行从「待实现」改为已实现但仍写清：v1 只支持 QueryCache，changelog 方法 unsupported           | ⬜   |
+| #   | 前置条件                                               | 操作                                                                        | 预期结果                                                                                           | 状态 |
+| --- | ------------------------------------------------------ | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ---- |
+| 1   | US-020 已关闭；workspace 可解析新包                    | `createRxDatabase` 注册 `{ adapter: 'http', ...handlers }` 为 remote        | 适配器作为 `adapter:remote` 连接；`ADAPTER_NAME === 'http'`                                        | ⬜   |
+| 2   | HTTP remote + 独立 sqlite local，`SyncType.QueryCache` | `getRepository(E).find({ where })`                                          | 远端收到 JSON `RuleGroup`，**收不到 SQL**；本地 sqlite 被 `upsertMany` 写成行缓存                  | ⬜   |
+| 3   | 同上                                                   | `create` / `update` / `delete`                                              | 走 US-020 的 remote-then-local；HTTP 适配器自身不 `new` sqlite、不打开 OPFS/IDB                    | ⬜   |
+| 4   | handlers 未提供 `create`                               | `repo.create(...)`                                                          | fail-fast（`QueryCacheRepository` 已有的「Remote adapter does not support create」语义），不写本地 | ⬜   |
+| 5   | metadata 结果集超过单页上限                            | `fetchMetadata`                                                             | 必须翻页直到耗尽，语义同 supabase `select_all_pages`；截断的 id **不得**被当成远端已删除           | ⬜   |
+| 6   | `findByIds` 的 id 列表超过单次上限                     | 增量 pull                                                                   | 分块请求，语义同 supabase `#findByIdsInChunks`；缺块不得静默当空                                   | ⬜   |
+| 7   | HTTP 适配器已连接                                      | 调用 `pullChanges` / `mergeChanges` / `getChangeCount` / `pullChangesBatch` | 抛 unsupported（稳定错误码）；返回空数组 / 0 **算失败**——那会让 Full-sync 以为远端没变更           | ⬜   |
+| 8   | 远端返回 HTTP 401                                      | QueryCache 读或写                                                           | 可判别鉴权错误，**不**被 US-020 的 `offlineFallback` 吞成缓存命中                                  | ⬜   |
+| 9   | 网络断开                                               | 同上                                                                        | 可判别网络错误；`offlineFallback: true` 且有缓存时才降级（US-020 AC#16）                           | ⬜   |
+| 10  | search / graph 插件已装，`inject: ['adapter:local']`   | 连接 HTTP + sqlite                                                          | 插件绑到独立注册的 sqlite，不绑 HTTP、不另开一份库                                                 | ⬜   |
+| 11  | 一批 mutations 混入 HTTP-QueryCache 实体与 Full 实体   | `EntityManager.mutations`                                                   | 拒绝（US-020 AC#6）；HTTP 适配器不得绕过混批闸门                                                   | ⬜   |
+| 12  | 对照实体仍是 `SyncType.Full` + supabase 或 sqlite      | 跑既有套件                                                                  | 用户可见行为不变；本包不改 Full/Filter 写本地                                                      | ⬜   |
+| 13  | 新包落地                                               | `pnpm nx lint/test/build`、api-baseline、`inject` 契约测试                  | 绿；`declare module` 扩 `RxDBAdapters`；覆盖率按非核心包 ≥ 80%                                     | ⬜   |
+| 14  | 能力矩阵 / 公开文档                                    | 关闭阶段 A                                                                  | HTTP 行从「待实现」改为已实现但仍写清：v1 只支持 QueryCache，changelog 方法 unsupported            | ⬜   |
 
 ### 阶段 B — REST mapping 与可选加速
 
-| #   | 前置条件                         | 操作                                      | 预期结果                                                                 | 状态 |
-| --- | -------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------ | ---- |
-| 15  | 阶段 A handlers 可用             | 用 resource URL 模板代替手写 handlers     | 等价于阶段 A 的 QueryCache ducks；模板解析失败 fail-fast，不发错 URL     | ⬜   |
-| 16  | 远端支持 ETag / If-None-Match    | 重复 `fetchMetadata` / `findByIds`        | 304 时不把「未修改」当成空集或假孤儿                                     | ⬜   |
-| 17  | 可选 SSE / invalidation 未配置   | 正常 QueryCache 查询                      | 行为与阶段 A 相同；缺可选能力不降级、不抛                                | ⬜   |
-| 18  | 可选 eviction 未配置             | 行缓存增长                                | 不自动删业务行；eviction 若实现必须是显式策略，默认不丢用户数据          | ⬜   |
+| #   | 前置条件                       | 操作                                  | 预期结果                                                             | 状态 |
+| --- | ------------------------------ | ------------------------------------- | -------------------------------------------------------------------- | ---- |
+| 15  | 阶段 A handlers 可用           | 用 resource URL 模板代替手写 handlers | 等价于阶段 A 的 QueryCache ducks；模板解析失败 fail-fast，不发错 URL | ⬜   |
+| 16  | 远端支持 ETag / If-None-Match  | 重复 `fetchMetadata` / `findByIds`    | 304 时不把「未修改」当成空集或假孤儿                                 | ⬜   |
+| 17  | 可选 SSE / invalidation 未配置 | 正常 QueryCache 查询                  | 行为与阶段 A 相同；缺可选能力不降级、不抛                            | ⬜   |
+| 18  | 可选 eviction 未配置           | 行缓存增长                            | 不自动删业务行；eviction 若实现必须是显式策略，默认不丢用户数据      | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -129,14 +129,14 @@ YAML 没有 `depends-on` 字段。依赖写在这里、交付阶段表、以及 
 
 ## 实现文件
 
-| 文件 / 动作                                      | 阶段 | 说明                                                                 |
-| ------------------------------------------------ | ---- | -------------------------------------------------------------------- |
-| `packages/rxdb-adapter-http/`（新包）            | A    | RemoteBase 实现、handlers、分页/分块、unsupported changelog          |
-| Nx project / `package.json` workspace 链接       | A    | 用 workspace 协议链接，不手改 tsconfig paths                         |
-| `requirements/api-baseline/`                     | A    | 新包公开 API 基线                                                    |
-| `inject: ['adapter:remote']` 契约测试            | A    | 对齐 US-015 的 adapter inject                                        |
-| website / [capability-matrix.md](../../capability-matrix.md) | A    | AC#14                                                                |
-| REST mapping / ETag / SSE / eviction             | B    | 可选；缺省不得改变阶段 A 语义                                        |
+| 文件 / 动作                                                  | 阶段 | 说明                                                        |
+| ------------------------------------------------------------ | ---- | ----------------------------------------------------------- |
+| `packages/rxdb-adapter-http/`（新包）                        | A    | RemoteBase 实现、handlers、分页/分块、unsupported changelog |
+| Nx project / `package.json` workspace 链接                   | A    | 用 workspace 协议链接，不手改 tsconfig paths                |
+| `requirements/api-baseline/`                                 | A    | 新包公开 API 基线                                           |
+| `inject: ['adapter:remote']` 契约测试                        | A    | 对齐 US-015 的 adapter inject                               |
+| website / [capability-matrix.md](../../capability-matrix.md) | A    | AC#14                                                       |
+| REST mapping / ETag / SSE / eviction                         | B    | 可选；缺省不得改变阶段 A 语义                               |
 
 本故事关闭前不改 US-203。能力矩阵在故事落盘时先加「待实现 / US-212」行（派生视图同步，见本次提交）；包落地后再改成已实现。
 

@@ -9,7 +9,11 @@
  * 这是「实体本身」的元数据；具体「字段」/「关系」/「同步」分别见对应子文件。
  */
 
-import type { EntityForeignKeyMetadataOptions, EntityIndexMetadataOptions, EntityPropertyMetadataOptions } from './property-types.interface.js';
+import type {
+  EntityForeignKeyMetadataOptions,
+  EntityIndexMetadataOptions,
+  EntityPropertyMetadataOptions
+} from './property-types.interface.js';
 import type { EntityRelationMetadataOptions } from './relation-types.interface.js';
 import type { SyncOptions } from './sync-options.interface.js';
 

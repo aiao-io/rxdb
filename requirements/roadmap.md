@@ -14,8 +14,8 @@
 |   P2   | PGlite 原生全文搜索                | [US-703](stories/future/US-703-pglite-full-text-search.md)             | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                                                                           | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                                              |
 |   P2   | 子路径入口纳入 API 表面基线        | [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)       | 版本策略把子路径承诺为公开 API，门禁却只扫主入口——承诺与门禁的差额只能靠人工审查补                                                  | 源入口声明收敛到单一真相源、基线格式扩到多入口、资产入口白名单跳过、三处文档收口                                                          |
 |   P3   | 多端小程序宿主（先抽契约）         | [US-211 阶段 A](stories/adapter/US-211-multi-miniprogram-platforms.md) | Taro 有 `build:alipay/tt/qq/swan`，适配器只认 `wx`；先抽 host + 可行性矩阵，**不**扩大公开支持声明                                  | `MiniProgramHost`、微信路径零回归、`miniprogram-platform-feasibility.md`；B/C 只吃矩阵 `supported`                                        |
-|   P2   | QueryCache 接入统一 Repository    | [US-020](stories/core/US-020-querycache-repository.md)                | 配置了 `SyncType.QueryCache` 今天是空操作：find 打本地、save 进 changelog。类存在、supabase ducks 存在，生产路径从不实例化          | 阶段 A 接线；阶段 B orphan / 指纹 / SWR SQL / 错误分类。不 inherit US-203 AC#6。**硬解锁 US-212**                                         |
-|   P3   | HTTP 远程适配器                    | [US-212](stories/adapter/US-212-http-adapter.md)                      | 已有 REST API 没有 RemoteBase 可挂。必须是独立 `adapter:remote` + 独立注册 sqlite 行缓存，禁止 HTTP 内嵌 sqlite                     | 阶段 A handlers + QueryCache ducks + 分页/分块；阶段 B REST mapping。**永远先 US-020 后本包**                                            |
+|   P2   | QueryCache 接入统一 Repository     | [US-020](stories/core/US-020-querycache-repository.md)                 | 配置了 `SyncType.QueryCache` 今天是空操作：find 打本地、save 进 changelog。类存在、supabase ducks 存在，生产路径从不实例化          | 阶段 A 接线；阶段 B orphan / 指纹 / SWR SQL / 错误分类。不 inherit US-203 AC#6。**硬解锁 US-212**                                         |
+|   P3   | HTTP 远程适配器                    | [US-212](stories/adapter/US-212-http-adapter.md)                       | 已有 REST API 没有 RemoteBase 可挂。必须是独立 `adapter:remote` + 独立注册 sqlite 行缓存，禁止 HTTP 内嵌 sqlite                     | 阶段 A handlers + QueryCache ducks + 分页/分块；阶段 B REST mapping。**永远先 US-020 后本包**                                             |
 
 > US-306 / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
 > [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定依赖关系。
@@ -115,11 +115,11 @@
 
 ### 批次 3：能力补齐（无硬前置，按价值排在后面）
 
-| 故事                                                                           | 为什么不排进批次 1                                                                                                                                                           |
-| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)             | 前置（US-207 的 host 契约）已解除，但**两种事务 host 方案至今未选**（IPC 事务 ID 协议 / adapter 完整托管主进程）。选定前必须先让两案各过同一套事务与事件测试再冻结（约束 3） |
-| [US-703](stories/future/US-703-pglite-full-text-search.md)                     | 纯能力对称性补齐，无人被它挡住。复用现有搜索公开 API 与跨框架 parity fixture，不得为 PGlite 加 SQLite 专属 fallback（约束 6）                                                |
-| [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 阶段 A → B → C | 阶段 A 只抽 host + 写可行性矩阵，**不扩大公开支持声明**；B/C 只吃矩阵里 `decision: supported` 的平台（约束 7）。未关闭的阶段不得改支持声明                                   |
+| 故事                                                                                                      | 为什么不排进批次 1                                                                                                                                                           |
+| --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)                                        | 前置（US-207 的 host 契约）已解除，但**两种事务 host 方案至今未选**（IPC 事务 ID 协议 / adapter 完整托管主进程）。选定前必须先让两案各过同一套事务与事件测试再冻结（约束 3） |
+| [US-703](stories/future/US-703-pglite-full-text-search.md)                                                | 纯能力对称性补齐，无人被它挡住。复用现有搜索公开 API 与跨框架 parity fixture，不得为 PGlite 加 SQLite 专属 fallback（约束 6）                                                |
+| [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 阶段 A → B → C                            | 阶段 A 只抽 host + 写可行性矩阵，**不扩大公开支持声明**；B/C 只吃矩阵里 `decision: supported` 的平台（约束 7）。未关闭的阶段不得改支持声明                                   |
 | [US-020](stories/core/US-020-querycache-repository.md) → [US-212](stories/adapter/US-212-http-adapter.md) | **硬顺序，不可交换**（约束 10）。接线独立有价值（supabase QueryCache 立刻从空操作变真）；HTTP 包不得在接线关闭前标可发布。两条都不进批次 1——不挡桌面收尾、不挡 epic-006 桥接 |
 
 ### 零散收尾项（不成故事，随手可带）
@@ -214,10 +214,10 @@
    且能写出今天用户踩得到的具体症状。**状态变量复位不算病灶**——`#shutdown()` 里 `#transaction_stack = []`、
    `#connected_sub.next(false)` 这类复位，作用域原语按定义碰不到，不得算进 epic-008 的病灶数。
 10. **永远不要在 QueryCache 接线前发 HTTP 包。** [US-212](stories/adapter/US-212-http-adapter.md)
-   硬前置 [US-020](stories/core/US-020-querycache-repository.md)。阶段 A 代码允许并行开发，
-   **包不得在 US-020 全部阶段关闭前标稳定/可发布**——否则开发者配 `SyncType.QueryCache` + HTTP + sqlite，
-   find 仍打本地、save 仍进 changelog，比没有这个包更糟。HTTP 是独立 `adapter:remote`，
-   sqlite 是独立 `adapter:local`，禁止 HTTP 内部拥有 sqlite。v1 changelog 方法必须 throw unsupported，不得假空。
+    硬前置 [US-020](stories/core/US-020-querycache-repository.md)。阶段 A 代码允许并行开发，
+    **包不得在 US-020 全部阶段关闭前标稳定/可发布**——否则开发者配 `SyncType.QueryCache` + HTTP + sqlite，
+    find 仍打本地、save 仍进 changelog，比没有这个包更糟。HTTP 是独立 `adapter:remote`，
+    sqlite 是独立 `adapter:local`，禁止 HTTP 内部拥有 sqlite。v1 changelog 方法必须 throw unsupported，不得假空。
 
 ## 建议补充的验收维度
 

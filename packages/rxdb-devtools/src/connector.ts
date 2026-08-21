@@ -470,13 +470,13 @@ function isClosablePortHolder(value: unknown): value is { port: { close(): void 
  * 当前协议只支持一个 RxDB 实例；同实例重复初始化是幂等操作。
  */
 export class DevToolsConnector {
-   protected _options:
-   protected _connected=
-   protected _buffer:
-   protected _sequence:
-   protected _rxdbInstance:
-   protected _eventListeners:
-   protected _messageHandler:
+  #options: Required<DevToolsOptions>;
+  #connected = false;
+  #buffer: EventBuffer;
+  #sequence: SequenceGenerator;
+  #rxdbInstance: DevToolsRxDB | null = null;
+  #eventListeners: Map<keyof RxDBEventMap, (event: RxDBEvent) => void> = new Map();
+  #messageHandler: ((event: MessageEvent) => void) | null = null;
   /**
    * 握手时建立的私有信道的己方端口，握手之后的收发全部走它。
    *
@@ -484,17 +484,17 @@ export class DevToolsConnector {
    * `null` 表示还没握过手（或已 {@link disconnect}）。此时出站消息退回
    * `window.postMessage` —— 握手本身就必须这么发，没有别的路可走。
    */
-   protected _port:
-   protected _endpoint:
-   protected _hasEntityMetadata=
-   protected _entityInfo:
-   protected _entityTypeMap:
-   protected _encryptedFieldsMap:
-   protected _pendingSubscriptions:
-   protected _branchQueryInFlight=
-   protected _disconnectInFlight:
-   protected _opaqueOriginWarned=
-   protected _windowBusCommandWarned=
+  #port: MessagePort | null = null;
+  #endpoint: DevToolsConnectorEndpoint | null = null;
+  #hasEntityMetadata = false;
+  #entityInfo: EntityInfo[] = [];
+  #entityTypeMap: Map<string, EntityType> = new Map();
+  #encryptedFieldsMap: Map<string, string[]> = new Map();
+  #pendingSubscriptions: Set<Subscription> = new Set();
+  #branchQueryInFlight = false;
+  #disconnectInFlight: Promise<DisconnectResult> | null = null;
+  #opaqueOriginWarned = false;
+  #windowBusCommandWarned = false;
 
   /**
    * DevTools 是否已确认握手。
@@ -504,7 +504,7 @@ export class DevToolsConnector {
    * buffer 会一次性冲出。{@link disconnect} 与 `DISCONNECT` 命令都会把它置回 `false`。
    */
   get connected(): boolean {
-    return this._connected;
+    return this.#connected;
   }
 
   /**
@@ -515,7 +515,7 @@ export class DevToolsConnector {
    * {@link DevToolsOptions.allowOpaqueOrigin} 时，{@link init} 会把它降为 `false`。
    */
   get enabled(): boolean {
-    return this._options.enabled;
+    return this.#options.enabled;
   }
 
   /**
@@ -525,7 +525,7 @@ export class DevToolsConnector {
    * 语义见 {@link DevToolsCapability}；握手时随 payload 一并告知 DevTools。
    */
   get capabilities(): DevToolsCapability {
-    return this._options.capabilities;
+    return this.#options.capabilities;
   }
 
   /**
@@ -533,9 +533,9 @@ export class DevToolsConnector {
    * @throws RangeError 当 `options.maxBufferSize` 不是正安全整数时（由 `EventBuffer` 抛出）
    */
   constructor(options: DevToolsOptions = {}) {
-    this._options = { ...DEFAULT_OPTIONS, ...options };
-    this._buffer = new EventBuffer(this._options.maxBufferSize);
-    this._sequence = new SequenceGenerator();
+    this.#options = { ...DEFAULT_OPTIONS, ...options };
+    this.#buffer = new EventBuffer(this.#options.maxBufferSize);
+    this.#sequence = new SequenceGenerator();
   }
 
   /**
@@ -558,21 +558,21 @@ export class DevToolsConnector {
    * 全部由 {@link disconnect} 撤销。
    */
   init(rxdb: DevToolsRxDB, getEntityMetadata?: GetEntityMetadataFn): void {
-    if (!this._options.enabled || typeof window === 'undefined') return;
-    if (!this._assertUsableOrigin()) return;
-    if (this._rxdbInstance === rxdb) return;
-    if (this._rxdbInstance) {
+    if (!this.#options.enabled || typeof window === 'undefined') return;
+    if (!this.#assertUsableOrigin()) return;
+    if (this.#rxdbInstance === rxdb) return;
+    if (this.#rxdbInstance) {
       throw new Error('DevToolsConnector supports a single RxDB instance');
     }
 
-    const entityInfo = getEntityMetadata ? this._collectEntityInfo(rxdb, getEntityMetadata) : [];
-    this._rxdbInstance = rxdb;
-    this._hasEntityMetadata = getEntityMetadata !== undefined;
-    this._setEntityInfo(entityInfo);
-    this._setupMessageListener();
-    this._startNegotiation();
-    this._syncGlobalHelper();
-    this._subscribeToEvents(rxdb);
+    const entityInfo = getEntityMetadata ? this.#collectEntityInfo(rxdb, getEntityMetadata) : [];
+    this.#rxdbInstance = rxdb;
+    this.#hasEntityMetadata = getEntityMetadata !== undefined;
+    this.#setEntityInfo(entityInfo);
+    this.#setupMessageListener();
+    this.#startNegotiation();
+    this.#syncGlobalHelper();
+    this.#subscribeToEvents(rxdb);
   }
 
   /**
@@ -590,23 +590,23 @@ export class DevToolsConnector {
   disconnect(): void {
     if (typeof window === 'undefined') return;
 
-    this._postMessage(createMessage('DISCONNECT', 'page-to-devtools', null, this._sequence.next()));
-    this._closePort();
-    if (this._messageHandler) {
-      window.removeEventListener('message', this._messageHandler);
-      this._messageHandler = null;
+    this.#postMessage(createMessage('DISCONNECT', 'page-to-devtools', null, this.#sequence.next()));
+    this.#closePort();
+    if (this.#messageHandler) {
+      window.removeEventListener('message', this.#messageHandler);
+      this.#messageHandler = null;
     }
-    if (this._rxdbInstance) this._unsubscribeFromEvents(this._rxdbInstance);
-    this._endpoint?.dispose();
-    this._endpoint = null;
+    if (this.#rxdbInstance) this.#unsubscribeFromEvents(this.#rxdbInstance);
+    this.#endpoint?.dispose();
+    this.#endpoint = null;
 
-    this._rxdbInstance = null;
-    this._clearEntityInfo();
-    this._clearPendingSubscriptions();
-    this._syncGlobalHelper();
-    this._connected = false;
-    this._buffer.clear();
-    this._sequence.reset();
+    this.#rxdbInstance = null;
+    this.#clearEntityInfo();
+    this.#clearPendingSubscriptions();
+    this.#syncGlobalHelper();
+    this.#connected = false;
+    this.#buffer.clear();
+    this.#sequence.reset();
   }
 
   /**
@@ -614,12 +614,12 @@ export class DevToolsConnector {
    *
    * @returns 可以继续初始化时为 `true`
    */
-   protected _assertUsableOrigin(
-    if (location.origin !== OPAQUE_ORIGIN || this._options.allowOpaqueOrigin) return true;
+  #assertUsableOrigin(): boolean {
+    if (location.origin !== OPAQUE_ORIGIN || this.#options.allowOpaqueOrigin) return true;
 
-    this._options = { ...this._options, enabled: false };
-    if (!this._opaqueOriginWarned) {
-      this._opaqueOriginWarned = true;
+    this.#options = { ...this.#options, enabled: false };
+    if (!this.#opaqueOriginWarned) {
+      this.#opaqueOriginWarned = true;
       console.warn(
         `[${RXDB_DEVTOOLS_MESSAGE}] 当前文档处于 opaque origin（location.origin === 'null'），` +
           `以它为 targetOrigin 的 postMessage 会静默失败，连接器已停用。` +
@@ -629,13 +629,13 @@ export class DevToolsConnector {
     return false;
   }
 
-   protected _clearPendingSubscriptions(
-    for (const subscription of this._pendingSubscriptions) subscription.unsubscribe();
-    this._pendingSubscriptions.clear();
-    this._branchQueryInFlight = false;
+  #clearPendingSubscriptions(): void {
+    for (const subscription of this.#pendingSubscriptions) subscription.unsubscribe();
+    this.#pendingSubscriptions.clear();
+    this.#branchQueryInFlight = false;
   }
 
-   protected _collectEntityInfo(
+  #collectEntityInfo(rxdb: DevToolsRxDB, getEntityMetadata: GetEntityMetadataFn): EntityInfo[] {
     const entityInfo: EntityInfo[] = [];
     for (const entityType of rxdb.config.entities) {
       const metadata = getEntityMetadata(entityType);
@@ -650,13 +650,13 @@ export class DevToolsConnector {
     return entityInfo;
   }
 
-   protected _setEntityInfo(
-    this._entityInfo = entityInfo;
+  #setEntityInfo(entityInfo: EntityInfo[]): void {
+    this.#entityInfo = entityInfo;
     // 以 `namespace:name` 为 key：上游允许不同 namespace 下实体重名，
     // 用裸 name 建 key 会后写覆盖前写 —— 查询落到错误 namespace 的仓库，
     // 事件遮罩也会套用另一个 namespace 的加密字段集（明文泄漏）。
-    this._entityTypeMap = new Map(entityInfo.map(info => [entityKey(info.namespace, info.name), info.entityType]));
-    this._encryptedFieldsMap = new Map(
+    this.#entityTypeMap = new Map(entityInfo.map(info => [entityKey(info.namespace, info.name), info.entityType]));
+    this.#encryptedFieldsMap = new Map(
       entityInfo.map(info => [entityKey(info.namespace, info.name), info.encryptedFields])
     );
   }
@@ -666,19 +666,19 @@ export class DevToolsConnector {
    *
    * @returns 命中时返回复合 key；名称存在歧义且未指定 namespace 时返回 `{ ambiguous: true }`
    */
-   protected _resolveEntityKey(
+  #resolveEntityKey(entityName: string, namespace?: string): { key?: string; ambiguous?: boolean } {
     if (namespace) return { key: entityKey(namespace, entityName) };
-    const matches = this._entityInfo.filter(info => info.name === entityName);
+    const matches = this.#entityInfo.filter(info => info.name === entityName);
     if (matches.length === 1) return { key: entityKey(matches[0].namespace, matches[0].name) };
     if (matches.length > 1) return { ambiguous: true };
     return {};
   }
 
-   protected _clearEntityInfo(
-    this._hasEntityMetadata = false;
-    this._entityInfo = [];
-    this._entityTypeMap.clear();
-    this._encryptedFieldsMap.clear();
+  #clearEntityInfo(): void {
+    this.#hasEntityMetadata = false;
+    this.#entityInfo = [];
+    this.#entityTypeMap.clear();
+    this.#encryptedFieldsMap.clear();
   }
 
   /**
@@ -689,9 +689,9 @@ export class DevToolsConnector {
    * 对端在拿到端口之前只有 `PING` 可用。其余命令从这里进来说明对端还在按旧协议发，
    * 丢弃并给一次诊断 —— 静默丢弃会让升级期变成"点了按钮没反应"。
    */
-   protected _setupMessageListener(
-    if (this._messageHandler) return;
-    this._messageHandler = (event: MessageEvent) => {
+  #setupMessageListener(): void {
+    if (this.#messageHandler) return;
+    this.#messageHandler = (event: MessageEvent) => {
       if (event.source !== window) return;
       if (event.origin && event.origin !== location.origin) return;
       // v1 优先且语义不变：`isDevToolsMessage` 是对已知 v1 `type` 的闭集判断，
@@ -701,15 +701,15 @@ export class DevToolsConnector {
         // v1 命令仍受总线白名单约束：握手之后它们只能走私有端口。
         // v2 协商帧不在这条闭集里，走下面的端点分支，与本白名单互不影响。
         if (event.data.type !== WINDOW_BUS_ALLOWED_COMMAND) {
-          this._warnWindowBusCommand(event.data.type);
+          this.#warnWindowBusCommand(event.data.type);
           return;
         }
-        this._handleMessage(event.data);
+        this.#handleMessage(event.data);
         return;
       }
-      this._endpoint?.receive(event.data);
+      this.#endpoint?.receive(event.data);
     };
-    window.addEventListener('message', this._messageHandler);
+    window.addEventListener('message', this.#messageHandler);
   }
 
   /**
@@ -719,30 +719,30 @@ export class DevToolsConnector {
    * 每次握手都新建一对端口，旧端口立刻关掉：`PING` 会触发重新握手，
    * 复用旧端口的话上一次会话的对端仍然连着，权限撤销与断开都作用不到它。
    */
-   protected _createSessionPort(
-    this._closePort();
+  #createSessionPort(): MessagePort {
+    this.#closePort();
     const channel = new MessageChannel();
-    this._port = channel.port1;
-    this._port.onmessage = (event: MessageEvent) => {
+    this.#port = channel.port1;
+    this.#port.onmessage = (event: MessageEvent) => {
       // 端口是点对点的，没有 source/origin 可查 —— 能往里发消息的只有握手时
       // 拿到 port2 的那一方。结构校验照做：对端一样可能发畸形消息。
       if (!isDevToolsMessage(event.data) || !isDevToolsCommandMessage(event.data)) return;
-      this._handleMessage(event.data);
+      this.#handleMessage(event.data);
     };
-    this._port.start();
+    this.#port.start();
     return channel.port2;
   }
 
-   protected _closePort(
-    if (!this._port) return;
-    this._port.onmessage = null;
-    this._port.close();
-    this._port = null;
+  #closePort(): void {
+    if (!this.#port) return;
+    this.#port.onmessage = null;
+    this.#port.close();
+    this.#port = null;
   }
 
-   protected _warnWindowBusCommand(
-    if (this._windowBusCommandWarned) return;
-    this._windowBusCommandWarned = true;
+  #warnWindowBusCommand(type: DevToolsCommandMessage['type']): void {
+    if (this.#windowBusCommandWarned) return;
+    this.#windowBusCommandWarned = true;
     console.warn(
       `[${RXDB_DEVTOOLS_MESSAGE}] 收到从 window 总线发来的 ${type} 命令并已丢弃。` +
         `协议 v${DEVTOOLS_PROTOCOL_VERSION} 起，握手之后的命令必须走 HANDSHAKE 消息随附的 MessagePort。` +
@@ -759,56 +759,56 @@ export class DevToolsConnector {
    * 权限问题误报成运行时故障。DevTools 侧应当读握手里的 `capabilities`
    * 自行禁用按钮，而不是靠试探。
    */
-   protected _isAllowed(
-    return CAPABILITY_RANK[this._options.capabilities] >= CAPABILITY_RANK[COMMAND_REQUIRED_CAPABILITY[type]];
+  #isAllowed(type: DevToolsCommandMessage['type']): boolean {
+    return CAPABILITY_RANK[this.#options.capabilities] >= CAPABILITY_RANK[COMMAND_REQUIRED_CAPABILITY[type]];
   }
 
-   protected _handleMessage(
-    if (!this._isAllowed(message.type)) return;
+  #handleMessage(message: DevToolsCommandMessage): void {
+    if (!this.#isAllowed(message.type)) return;
 
     switch (message.type) {
       case 'HANDSHAKE_ACK':
-        this._onHandshakeAck();
+        this.#onHandshakeAck();
         break;
       case 'PING':
-        this._sendHandshake();
+        this.#sendHandshake();
         break;
       case 'CLEAR':
         // 只清 buffer，**不** reset sequence：sequence 是 wire 上的全局定序键，
         // 会话中途归零会让两条不同事件共用一个序号，DevTools 侧的去重与乱序重排
         // 都会把后来的事件当成重复丢掉。清空历史与重排序号是两件事。
-        this._buffer.clear();
+        this.#buffer.clear();
         break;
       case 'DISCONNECT':
-        this._connected = false;
+        this.#connected = false;
         break;
       case 'DISCONNECT_RXDB':
-        void this._handleDisconnectRxdb(message.payload);
+        void this.#handleDisconnectRxdb(message.payload);
         break;
       case 'INSPECT_DB':
-        this._handleInspectDb();
+        this.#handleInspectDb();
         break;
       case 'QUERY_ENTITY':
-        this._handleQueryEntity(message.payload);
+        this.#handleQueryEntity(message.payload);
         break;
       case 'GET_BRANCHES':
-        this._handleGetBranches();
+        this.#handleGetBranches();
         break;
       case 'SWITCH_BRANCH':
-        this._handleSwitchBranch(message.payload);
+        this.#handleSwitchBranch(message.payload);
         break;
       case 'CREATE_BRANCH':
-        this._handleCreateBranch(message.payload);
+        this.#handleCreateBranch(message.payload);
         break;
       case 'DELETE_BRANCH':
-        this._handleDeleteBranch(message.payload);
+        this.#handleDeleteBranch(message.payload);
         break;
     }
   }
 
   async #handleDisconnectRxdb(payload: { requestId: string }): Promise<void> {
-    const result = await this._disconnectRxdbInstance();
-    this._postMessage(
+    const result = await this.#disconnectRxdbInstance();
+    this.#postMessage(
       createMessage(
         'DISCONNECT_RXDB_RESULT',
         'page-to-devtools',
@@ -818,7 +818,7 @@ export class DevToolsConnector {
           error: result.error,
           status: result.status
         },
-        this._sequence.next()
+        this.#sequence.next()
       )
     );
   }
@@ -835,33 +835,33 @@ export class DevToolsConnector {
    * 失败（`status === 'failed'`）时清掉闩锁：此时实例与监听按约定被保留，
    * 调用方可以显式重试；成功路径上实例已置空，后续调用走 `not-connected` 快路径。
    */
-   protected _disconnectRxdbInstance(
-    this._disconnectInFlight ??= this._runDisconnect(timeoutMs).finally(() => {
-      this._disconnectInFlight = null;
+  #disconnectRxdbInstance(timeoutMs = 3000): Promise<DisconnectResult> {
+    this.#disconnectInFlight ??= this.#runDisconnect(timeoutMs).finally(() => {
+      this.#disconnectInFlight = null;
     });
-    return this._disconnectInFlight;
+    return this.#disconnectInFlight;
   }
 
   async #runDisconnect(timeoutMs: number): Promise<DisconnectResult> {
-    const rxdb = this._rxdbInstance;
+    const rxdb = this.#rxdbInstance;
     if (!rxdb) return { success: true, error: null, status: 'not-connected' };
 
-    const result = await this._disconnectSingleRxdb(rxdb, timeoutMs);
+    const result = await this.#disconnectSingleRxdb(rxdb, timeoutMs);
     if (result.status === 'failed') return result;
 
-    this._unsubscribeFromEvents(rxdb);
-    if (this._rxdbInstance === rxdb) this._rxdbInstance = null;
-    this._clearEntityInfo();
-    this._clearPendingSubscriptions();
-    this._syncGlobalHelper();
+    this.#unsubscribeFromEvents(rxdb);
+    if (this.#rxdbInstance === rxdb) this.#rxdbInstance = null;
+    this.#clearEntityInfo();
+    this.#clearPendingSubscriptions();
+    this.#syncGlobalHelper();
     return result;
   }
 
   async #disconnectSingleRxdb(rxdb: DevToolsRxDB, timeoutMs: number): Promise<DisconnectResult> {
-    const gracefulError = await this._tryGracefulDisconnect(rxdb, timeoutMs);
+    const gracefulError = await this.#tryGracefulDisconnect(rxdb, timeoutMs);
     if (gracefulError === null) return { success: true, error: null, status: 'graceful' };
 
-    const forced = await this._forceReleaseLocalAdapter(rxdb);
+    const forced = await this.#forceReleaseLocalAdapter(rxdb);
     if (forced.success) return { success: true, error: null, status: 'forced' };
 
     const forceError = forced.error ? `; ${forced.error}` : '';
@@ -920,7 +920,7 @@ export class DevToolsConnector {
     }
   }
 
-   protected _syncGlobalHelper(
+  #syncGlobalHelper(): void {
     if (typeof window === 'undefined') return;
 
     type DevtoolsWindow = Window & {
@@ -930,12 +930,12 @@ export class DevToolsConnector {
     };
 
     const devtoolsWindow = window as DevtoolsWindow;
-    if (!this._rxdbInstance) {
+    if (!this.#rxdbInstance) {
       delete devtoolsWindow[DEVTOOLS_GLOBAL_KEY];
       return;
     }
     devtoolsWindow[DEVTOOLS_GLOBAL_KEY] = {
-      disconnectRxdb: (timeoutMs?: number) => this._disconnectRxdbInstance(timeoutMs)
+      disconnectRxdb: (timeoutMs?: number) => this.#disconnectRxdbInstance(timeoutMs)
     };
   }
 
@@ -943,25 +943,25 @@ export class DevToolsConnector {
    * 发一次握手：协议版本 + 本页授予的能力档，并移交本次会话的私有端口。
    *
    * @remarks
-   * `capabilities` 只是**告知**，不是权限来源 —— 真正的判定在 {@link _isAllowed}，
+   * `capabilities` 只是**告知**，不是权限来源 —— 真正的判定在 {@link #isAllowed}，
    * 页面侧独立执行。DevTools 读它是为了把不可用的按钮直接禁掉，
    * 而不是发出去等一个永远不会来的回复。
    *
    * 端口是在 `#postMessage` **之前**建好并挂上 `onmessage` 的：`transfer` 一交出去，
    * 对端可能同一个 task 就回 `HANDSHAKE_ACK`，此时己方端口必须已经在收。
    */
-   protected _buildLegacyHandshake(
+  #buildLegacyHandshake(): AnyDevToolsMessage {
     return createMessage(
       'HANDSHAKE',
       'page-to-devtools',
-      { protocolVersion: DEVTOOLS_PROTOCOL_VERSION, capabilities: this._options.capabilities },
-      this._sequence.next()
+      { protocolVersion: DEVTOOLS_PROTOCOL_VERSION, capabilities: this.#options.capabilities },
+      this.#sequence.next()
     );
   }
 
-   protected _sendHandshake(
-    const remotePort = this._createSessionPort();
-    this._postMessage(this._buildLegacyHandshake(), [remotePort]);
+  #sendHandshake(): void {
+    const remotePort = this.#createSessionPort();
+    this.#postMessage(this.#buildLegacyHandshake(), [remotePort]);
   }
 
   /**
@@ -984,79 +984,79 @@ export class DevToolsConnector {
    * 端点只决定 legacy 握手**何时**出门，不知道 v1 传输层还要求这条握手**随附**本次会话的
    * 私有端口。所以端口在这里就建好，并按对象身份认出那唯一一条要携带它的出站消息——
    * 端点发的就是我们交给它的那个对象，`start()` 只发一次（见 negotiation-connector）。
-   * 不能改成「凡 HANDSHAKE 都附端口」：`PING` 触发的重握手由 {@link _sendHandshake}
+   * 不能改成「凡 HANDSHAKE 都附端口」：`PING` 触发的重握手由 {@link #sendHandshake}
    * 另建新端口，两条路各自持有自己的那一对，混在一起会把上一次会话的端口再送出去一遍。
    */
-   protected _startNegotiation(
-    const legacyHandshake = this._buildLegacyHandshake();
-    const remotePort = this._createSessionPort();
+  #startNegotiation(): void {
+    const legacyHandshake = this.#buildLegacyHandshake();
+    const remotePort = this.#createSessionPort();
     const endpoint = createDevToolsConnectorEndpoint({
       send: (message: DevToolsConnectorNegotiationMessage) =>
-        message === legacyHandshake ? this._postMessage(message, [remotePort]) : this._postMessage(message),
+        message === legacyHandshake ? this.#postMessage(message, [remotePort]) : this.#postMessage(message),
       clock: createSystemClock(),
-      capability: this._options.capabilities,
+      capability: this.#options.capabilities,
       mutationPolicy: CONNECTOR_MUTATION_POLICY,
       providers: CONNECTOR_PROVIDERS,
       legacyHandshake
     });
-    this._endpoint = endpoint;
+    this.#endpoint = endpoint;
     endpoint.start();
   }
 
-   protected _onHandshakeAck(
-    this._connected = true;
-    this._flushBuffer();
+  #onHandshakeAck(): void {
+    this.#connected = true;
+    this.#flushBuffer();
   }
 
-   protected _handleInspectDb(
-    const rxdb = this._rxdbInstance;
-    if (!rxdb || !this._hasEntityMetadata) {
-      this._postMessage(createMessage('DB_INFO', 'page-to-devtools', null, this._sequence.next()));
+  #handleInspectDb(): void {
+    const rxdb = this.#rxdbInstance;
+    if (!rxdb || !this.#hasEntityMetadata) {
+      this.#postMessage(createMessage('DB_INFO', 'page-to-devtools', null, this.#sequence.next()));
       return;
     }
 
     const dbInfo = {
       version: rxdb.version,
       dbName: rxdb.config.dbName,
-      capabilities: this._options.capabilities,
-      entities: this._entityInfo.map(info => ({
+      capabilities: this.#options.capabilities,
+      entities: this.#entityInfo.map(info => ({
         name: info.name,
         namespace: info.namespace,
         encryptedFields: info.encryptedFields
       }))
     };
-    this._postMessage(createMessage('DB_INFO', 'page-to-devtools', dbInfo, this._sequence.next()));
+    this.#postMessage(createMessage('DB_INFO', 'page-to-devtools', dbInfo, this.#sequence.next()));
   }
 
-   protected _replyEntityData(
+  #replyEntityData(
     entityName: string,
     error: string | null,
     data: unknown[],
     meta?: { encryptedFields?: string[]; errorCode?: string },
     namespace?: string
   ): void {
-    this._postMessage(
+    this.#postMessage(
       createMessage(
         'ENTITY_DATA',
         'page-to-devtools',
         { entityName, ...(namespace ? { namespace } : {}), error, data, ...(meta ? { _meta: meta } : {}) },
-        this._sequence.next()
+        this.#sequence.next()
       )
     );
   }
 
-   protected _handleQueryEntity(
-    const rxdb = this._rxdbInstance;
+  #handleQueryEntity(payload: QueryEntityPayload): void {
+    const rxdb = this.#rxdbInstance;
     // 只判「有没有 init 过」。`entityManager` 在真实 `RxDB` 上是构造期就赋值的必填成员，
     // 再加一层 `!rxdb.entityManager` 是给鸭子类型留的兜底 —— 而 init 的入参现在就是真类型。
     if (!rxdb) {
-      this._replyEntityData(payload.entityName, 'RxDB 未初始化', [], undefined, payload.namespace);
+      this.#replyEntityData(payload.entityName, 'RxDB 未初始化', [], undefined, payload.namespace);
       return;
     }
 
-    const resolved = this._resolveEntityKey(payload.entityName, payload.namespace);
+    const resolved = this.#resolveEntityKey(payload.entityName, payload.namespace);
     if (resolved.ambiguous) {
-      this._replyEntityData(
+      this.#replyEntityData(
         payload.entityName,
         `实体 ${payload.entityName} 在多个 namespace 下重名（ambiguous）；请在 QUERY_ENTITY 中指定 namespace`,
         [],
@@ -1066,13 +1066,13 @@ export class DevToolsConnector {
       return;
     }
 
-    const entityType = resolved.key ? this._entityTypeMap.get(resolved.key) : undefined;
+    const entityType = resolved.key ? this.#entityTypeMap.get(resolved.key) : undefined;
     if (!entityType) {
-      this._replyEntityData(payload.entityName, `实体 ${payload.entityName} 不存在`, [], undefined, payload.namespace);
+      this.#replyEntityData(payload.entityName, `实体 ${payload.entityName} 不存在`, [], undefined, payload.namespace);
       return;
     }
 
-    const encryptedFields = (resolved.key && this._encryptedFieldsMap.get(resolved.key)) || [];
+    const encryptedFields = (resolved.key && this.#encryptedFieldsMap.get(resolved.key)) || [];
     try {
       // 必须是 `find` 不是 `findAll`：`findAll` 的选项类型里根本没有 limit，
       // 传进去会被静默忽略 —— DevTools 请求 10 条，整张表被拉进内存并序列化。
@@ -1086,46 +1086,46 @@ export class DevToolsConnector {
         observable,
         documents => {
           const data = documents.map(document =>
-            serializeDocument(document, value => this._maskEncryptedDocument(value, encryptedFields))
+            serializeDocument(document, value => this.#maskEncryptedDocument(value, encryptedFields))
           );
           const meta = encryptedFields.length > 0 ? { encryptedFields } : undefined;
-          this._replyEntityData(payload.entityName, null, data, meta, payload.namespace);
+          this.#replyEntityData(payload.entityName, null, data, meta, payload.namespace);
         },
-        error => this._replyQueryError(payload.entityName, encryptedFields, error, payload.namespace),
+        error => this.#replyQueryError(payload.entityName, encryptedFields, error, payload.namespace),
         {
           timeoutMs: QUERY_SUBSCRIPTION_TIMEOUT_MS,
-          register: subscription => this._pendingSubscriptions.add(subscription),
-          unregister: subscription => this._pendingSubscriptions.delete(subscription)
+          register: subscription => this.#pendingSubscriptions.add(subscription),
+          unregister: subscription => this.#pendingSubscriptions.delete(subscription)
         }
       );
     } catch (error) {
-      this._replyQueryError(payload.entityName, encryptedFields, error, payload.namespace);
+      this.#replyQueryError(payload.entityName, encryptedFields, error, payload.namespace);
     }
   }
 
-   protected _replyQueryError(
+  #replyQueryError(entityName: string, encryptedFields: string[], error: unknown, namespace?: string): void {
     const message = getErrorMessage(error);
     if (error instanceof Error && (error.name === 'EncryptedLockedError' || message.includes('keyring is locked'))) {
-      this._replyEntityData(entityName, message, [], { errorCode: 'KEYRING_LOCKED', encryptedFields }, namespace);
+      this.#replyEntityData(entityName, message, [], { errorCode: 'KEYRING_LOCKED', encryptedFields }, namespace);
       return;
     }
     console.error('[RxDB DevTools Connector] Query error:', error);
-    this._replyEntityData(entityName, message, [], undefined, namespace);
+    this.#replyEntityData(entityName, message, [], undefined, namespace);
   }
 
-   protected _handleGetBranches(
-    if (this._branchQueryInFlight) return;
-    this._branchQueryInFlight = true;
-    this._queryBranches();
+  #handleGetBranches(): void {
+    if (this.#branchQueryInFlight) return;
+    this.#branchQueryInFlight = true;
+    this.#queryBranches();
   }
 
-   protected _queryBranches(
-    const rxdb = this._rxdbInstance;
-    const branchKey = this._resolveEntityKey(BRANCH_ENTITY_NAME).key;
-    const branchEntityType = branchKey ? this._entityTypeMap.get(branchKey) : undefined;
+  #queryBranches(): void {
+    const rxdb = this.#rxdbInstance;
+    const branchKey = this.#resolveEntityKey(BRANCH_ENTITY_NAME).key;
+    const branchEntityType = branchKey ? this.#entityTypeMap.get(branchKey) : undefined;
     if (!rxdb || !branchEntityType) {
-      this._branchQueryInFlight = false;
-      this._postMessage(createMessage('BRANCHES', 'page-to-devtools', [], this._sequence.next()));
+      this.#branchQueryInFlight = false;
+      this.#postMessage(createMessage('BRANCHES', 'page-to-devtools', [], this.#sequence.next()));
       return;
     }
 
@@ -1145,31 +1145,31 @@ export class DevToolsConnector {
               activated: branch['activated'] === true
             };
           });
-          this._branchQueryInFlight = false;
-          this._postMessage(
+          this.#branchQueryInFlight = false;
+          this.#postMessage(
             createMessage(
               'BRANCHES',
               'page-to-devtools',
               serializeDevToolsValue(branchData) as unknown[],
-              this._sequence.next()
+              this.#sequence.next()
             )
           );
         },
         error => {
-          this._branchQueryInFlight = false;
+          this.#branchQueryInFlight = false;
           console.error('[RxDB DevTools Connector] Get branches error:', error);
-          this._postMessage(createMessage('BRANCHES', 'page-to-devtools', [], this._sequence.next()));
+          this.#postMessage(createMessage('BRANCHES', 'page-to-devtools', [], this.#sequence.next()));
         },
         {
           timeoutMs: QUERY_SUBSCRIPTION_TIMEOUT_MS,
-          register: subscription => this._pendingSubscriptions.add(subscription),
-          unregister: subscription => this._pendingSubscriptions.delete(subscription)
+          register: subscription => this.#pendingSubscriptions.add(subscription),
+          unregister: subscription => this.#pendingSubscriptions.delete(subscription)
         }
       );
     } catch (error) {
-      this._branchQueryInFlight = false;
+      this.#branchQueryInFlight = false;
       console.error('[RxDB DevTools Connector] Get branches error:', error);
-      this._postMessage(createMessage('BRANCHES', 'page-to-devtools', [], this._sequence.next()));
+      this.#postMessage(createMessage('BRANCHES', 'page-to-devtools', [], this.#sequence.next()));
     }
   }
 
@@ -1184,13 +1184,13 @@ export class DevToolsConnector {
    * 并不一致（`createBranch` 回 `Promise<RxDBBranch>`，另两个回 `Promise<void>`），
    * 联合索引签名会把它们塌成 `never` 参数。
    */
-   protected _runBranchOp(
-    const rxdb = this._rxdbInstance;
+  #runBranchOp(run: (versionManager: DevToolsRxDB['versionManager']) => Promise<unknown>, logLabel: string): void {
+    const rxdb = this.#rxdbInstance;
     // 同 `#handleQueryEntity`：`versionManager` 在真实 `RxDB` 上必然存在，
     // 唯一真实的失败态是「命令先于 init 到达」。
     if (!rxdb) {
       console.error('[RxDB DevTools Connector] RxDB 未初始化');
-      this._handleGetBranches();
+      this.#handleGetBranches();
       return;
     }
 
@@ -1199,24 +1199,24 @@ export class DevToolsConnector {
         console.error(`[RxDB DevTools Connector] ${logLabel} error:`, error);
       })
       .finally(() => {
-        this._handleGetBranches();
+        this.#handleGetBranches();
       });
   }
 
-   protected _handleSwitchBranch(
-    this._runBranchOp(versionManager => versionManager.switchBranch(branchId), 'Switch branch');
+  #handleSwitchBranch(branchId: string): void {
+    this.#runBranchOp(versionManager => versionManager.switchBranch(branchId), 'Switch branch');
   }
 
-   protected _handleCreateBranch(
-    this._runBranchOp(versionManager => versionManager.createBranch(branchName), 'Create branch');
+  #handleCreateBranch(branchName: string): void {
+    this.#runBranchOp(versionManager => versionManager.createBranch(branchName), 'Create branch');
   }
 
-   protected _handleDeleteBranch(
-    this._runBranchOp(versionManager => versionManager.removeBranch(branchId), 'Delete branch');
+  #handleDeleteBranch(branchId: string): void {
+    this.#runBranchOp(versionManager => versionManager.removeBranch(branchId), 'Delete branch');
   }
 
-   protected _flushBuffer(
-    for (const event of this._buffer.flush()) this._sendEvent(event);
+  #flushBuffer(): void {
+    for (const event of this.#buffer.flush()) this.#sendEvent(event);
   }
 
   /**
@@ -1229,30 +1229,30 @@ export class DevToolsConnector {
    *
    * @param rxdb - 已注册的实例。
    */
-   protected _subscribeToEvents(
-    if (this._options.capabilities === 'none') return;
+  #subscribeToEvents(rxdb: DevToolsRxDB): void {
+    if (this.#options.capabilities === 'none') return;
 
     for (const eventType of RXDB_EVENT_TYPES) {
-      const listener = (event: RxDBEvent): void => this._onRxDBEvent(event);
+      const listener = (event: RxDBEvent): void => this.#onRxDBEvent(event);
       rxdb.addEventListener(eventType, listener);
-      this._eventListeners.set(eventType, listener);
+      this.#eventListeners.set(eventType, listener);
     }
   }
 
-   protected _unsubscribeFromEvents(
-    for (const [eventType, listener] of this._eventListeners) {
+  #unsubscribeFromEvents(rxdb: DevToolsRxDB): void {
+    for (const [eventType, listener] of this.#eventListeners) {
       rxdb.removeEventListener(eventType, listener);
     }
-    this._eventListeners.clear();
+    this.#eventListeners.clear();
   }
 
-   protected _onRxDBEvent(
+  #onRxDBEvent(event: RxDBEvent): void {
     const record = toEventRecord(event);
-    const serialized = serialize(this._maskEncryptedEvent(record), this._sequence.next());
-    if (this._connected) this._sendEvent(serialized);
-    else this._buffer.push(serialized);
+    const serialized = serialize(this.#maskEncryptedEvent(record), this.#sequence.next());
+    if (this.#connected) this.#sendEvent(serialized);
+    else this.#buffer.push(serialized);
 
-    if (this._connected && this._shouldRefreshBranches(record)) this._handleGetBranches();
+    if (this.#connected && this.#shouldRefreshBranches(record)) this.#handleGetBranches();
   }
 
   /**
@@ -1263,16 +1263,16 @@ export class DevToolsConnector {
    * 于是任意业务实体的每一次删除都触发一次全表分支查询 ——
    * 批量删 500 条业务数据 = 500 次与分支毫不相干的查询。
    *
-   * 身份判定走 {@link _resolveEntityKey} 而不是硬编码 `namespace === 'rxdb'`：
+   * 身份判定走 {@link #resolveEntityKey} 而不是硬编码 `namespace === 'rxdb'`：
    * 分支实体的注册身份来自 `rxdb.config.entities` 里那份元数据，
    * 上游改 namespace 时这里自动跟随；同时也支持事件不带 namespace 的场景
    * （只有一个 `RxDBBranch` 时可无歧义解析）。
    */
-   protected _shouldRefreshBranches(
+  #shouldRefreshBranches(event: EventRecord): boolean {
     if (event.type === 'SWITCH_BRANCH_COMMIT') return true;
     if (event.type !== 'ENTITY_LOCAL_REMOVE' && event.type !== 'ENTITY_REMOTE_REMOVE') return false;
 
-    const branchKey = this._resolveEntityKey(BRANCH_ENTITY_NAME).key;
+    const branchKey = this.#resolveEntityKey(BRANCH_ENTITY_NAME).key;
     if (!branchKey) return false;
 
     const entities = event['entities'];
@@ -1280,74 +1280,74 @@ export class DevToolsConnector {
     return entities.some(entity => {
       if (!isRecord(entity) || typeof entity['entity'] !== 'string') return false;
       const namespace = typeof entity['namespace'] === 'string' ? entity['namespace'] : undefined;
-      return this._resolveEntityKey(entity['entity'], namespace).key === branchKey;
+      return this.#resolveEntityKey(entity['entity'], namespace).key === branchKey;
     });
   }
 
   // 按「已知携带实体的字段」遮罩，而不是按事件形状：CONFLICT_* 的载荷是 conflicts[]，
   // 每个 conflict 的 local/remote 带变更，base 则是实体快照，
   // 只认 `{ entities: [...] }` 会让这些明文补丁直接广播出去。
-   protected _maskEncryptedEvent(
+  #maskEncryptedEvent(event: EventRecord): EventRecord {
     const entities = event['entities'];
     const conflicts = event['conflicts'];
     if (!Array.isArray(entities) && !Array.isArray(conflicts)) return event;
 
     const data: EventRecord = { ...event };
     if (Array.isArray(entities)) {
-      data['entities'] = entities.map(entity => this._maskEncryptedEventEntity(entity));
+      data['entities'] = entities.map(entity => this.#maskEncryptedEventEntity(entity));
     }
     if (Array.isArray(conflicts)) {
-      data['conflicts'] = conflicts.map(conflict => this._maskEncryptedConflict(conflict));
+      data['conflicts'] = conflicts.map(conflict => this.#maskEncryptedConflict(conflict));
     }
     return data;
   }
 
-   protected _maskEncryptedConflict(
+  #maskEncryptedConflict(value: unknown): unknown {
     if (!isRecord(value)) return value;
 
     const masked = { ...value };
     for (const side of CONFLICT_CHANGE_FIELDS) {
-      if (Object.hasOwn(value, side)) masked[side] = this._maskEncryptedEventEntity(value[side]);
+      if (Object.hasOwn(value, side)) masked[side] = this.#maskEncryptedEventEntity(value[side]);
     }
     if (Object.hasOwn(value, 'base')) {
       const metadataKey = metadataKeyFromConflictKey(value['entityKey']);
-      const encryptedFields = (metadataKey && this._encryptedFieldsMap.get(metadataKey)) || [];
+      const encryptedFields = (metadataKey && this.#encryptedFieldsMap.get(metadataKey)) || [];
       masked['base'] = maskEncryptedFields(value['base'], encryptedFields);
     }
     return masked;
   }
 
-   protected _maskEncryptedEventEntity(
+  #maskEncryptedEventEntity(value: unknown): unknown {
     if (!isRecord(value) || typeof value['entity'] !== 'string') return value;
     // 必须用事件自带的 namespace 定位 metadata；只按 entity 名取会套用别的 namespace 的规则，
     // 结果是本该遮罩的字段留明文、无关字段反被遮罩。
     const eventNamespace = typeof value['namespace'] === 'string' ? value['namespace'] : undefined;
-    const resolved = this._resolveEntityKey(value['entity'], eventNamespace);
-    const encryptedFields = (resolved.key && this._encryptedFieldsMap.get(resolved.key)) || [];
+    const resolved = this.#resolveEntityKey(value['entity'], eventNamespace);
+    const encryptedFields = (resolved.key && this.#encryptedFieldsMap.get(resolved.key)) || [];
 
     const masked = { ...value };
     for (const field of EVENT_ENTITY_FIELDS) {
       if (!Object.hasOwn(value, field)) continue;
       const redacted = maskEncryptedFields(value[field], encryptedFields);
-      masked[field] = this._maskEmbeddedChangeValue(redacted);
+      masked[field] = this.#maskEmbeddedChangeValue(redacted);
     }
     return masked;
   }
 
-   protected _maskEncryptedDocument(
-    return this._maskEmbeddedChangeValue(maskEncryptedFields(value, encryptedFields));
+  #maskEncryptedDocument(value: unknown, encryptedFields: readonly string[]): unknown {
+    return this.#maskEmbeddedChangeValue(maskEncryptedFields(value, encryptedFields));
   }
 
-   protected _maskEmbeddedChangeValue(
-    if (Array.isArray(value)) return value.map(item => this._maskEmbeddedChangeValue(item));
+  #maskEmbeddedChangeValue(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(item => this.#maskEmbeddedChangeValue(item));
     if (!isRecord(value) || value instanceof Date || value instanceof Uint8Array) return value;
 
     let masked = value;
     const entityName = typeof value['entity'] === 'string' ? value['entity'] : undefined;
     if (entityName) {
       const namespace = typeof value['namespace'] === 'string' ? value['namespace'] : undefined;
-      const resolved = this._resolveEntityKey(entityName, namespace);
-      const encryptedFields = (resolved.key && this._encryptedFieldsMap.get(resolved.key)) || [];
+      const resolved = this.#resolveEntityKey(entityName, namespace);
+      const encryptedFields = (resolved.key && this.#encryptedFieldsMap.get(resolved.key)) || [];
       masked = { ...value };
       for (const field of EVENT_ENTITY_FIELDS) {
         if (Object.hasOwn(value, field)) masked[field] = maskEncryptedFields(value[field], encryptedFields);
@@ -1357,12 +1357,12 @@ export class DevToolsConnector {
     const changes = value['changes'];
     if (!Array.isArray(changes)) return masked;
     if (masked === value) masked = { ...value };
-    masked['changes'] = changes.map(change => this._maskEmbeddedChangeValue(change));
+    masked['changes'] = changes.map(change => this.#maskEmbeddedChangeValue(change));
     return masked;
   }
 
-   protected _sendEvent(
-    this._postMessage(createMessage('EVENT', 'page-to-devtools', event, event.sequence));
+  #sendEvent(event: SerializedEvent): void {
+    this.#postMessage(createMessage('EVENT', 'page-to-devtools', event, event.sequence));
   }
 
   /**
@@ -1373,7 +1373,7 @@ export class DevToolsConnector {
    *
    * @remarks
    * 私有端口是 **v1 命令面**的传输层，v2 帧不走它：入站的 v2 帧由 `window` 总线进来
-   * （端口的 `onmessage` 只收 v1 命令，见 {@link _createSessionPort}），出站若改走端口
+   * （端口的 `onmessage` 只收 v1 命令，见 {@link #createSessionPort}），出站若改走端口
    * 就成了单向的——对端在总线上发 `PROTOCOL_HELLO`，却要去一个它可能压根没在读 v2 的
    * 信道里找回应，协商永远不会闭合。两个协议各自完整地待在自己的信道上。
    *
@@ -1387,11 +1387,11 @@ export class DevToolsConnector {
    * 才退回 `'*'`，否则 {@link init} 早就把连接器停用了。端口路径没有这个问题 ——
    * 点对点信道不看 origin，这也正是握手之后要切过去的原因之一。
    */
-   protected _postMessage(
+  #postMessage(message: DevToolsConnectorNegotiationMessage, transfer?: Transferable[]): void {
     if (typeof window === 'undefined') return;
     try {
-      if (this._port && !transfer && isDevToolsMessage(message)) {
-        this._port.postMessage(message);
+      if (this.#port && !transfer && isDevToolsMessage(message)) {
+        this.#port.postMessage(message);
         return;
       }
       const targetOrigin = location.origin === OPAQUE_ORIGIN ? '*' : location.origin;
