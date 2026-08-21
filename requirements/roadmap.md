@@ -69,7 +69,8 @@
 
 - **对应 story**：[US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 A（AC#1～12）与
   横切 AC#19～20，另含原属阶段 B 的 AC#18（类型契约，取值集合在阶段 A 就要落地）
-- **收口**：**2026-08-21**。批次 1 线 B 关闭；US-015 整条故事仍是 `In Progress`，阶段 B 未开工。
+- **收口**：**2026-08-21**。批次 1 线 B 关闭；阶段 B 与横切 AC#19 已移出承诺范围（零 `plugin:*` 消费方），
+  US-015 整条故事按其自述规则置 `In Review`，解锁前不置 `Done`。
 - **已交付**：`RxDBPluginDependency` 封闭取值与 `IRxDBPlugin.inject`、纪元调度器
   `packages/rxdb/src/plugin/dependency-scheduler.ts`（唯一持有插件激活状态的地方，按**实例引用**判定纪元）、
   `RxDB.localAdapterSync` 同步 getter、INV-7 的「释放先于 `adapter.disconnect()`」时序、
@@ -143,8 +144,9 @@
 
 | 项                                                      | 判定                                                                                                                                                                                       |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| US-015 阶段 B（插件间依赖图）                           | **价值待证**。US-014 已于 2026-08-20 关闭三处泄漏，判据随之生效：必须写出「今天用户踩得到的具体症状」才允许排期；写不出就留在 Backlog（约束 8，这是判据不是建议）                          |
-| `US-016` 连接纪元与停机收敛 / `US-017` 三框架宿主作用域 | 文件未创建，不计入任何统计。US-016 价值已证待切片，US-017 价值待证                                                                                                                         |
+| US-015 阶段 B（插件间依赖图）                           | **已移出 epic-008 承诺范围**（2026-08-21）。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`，零 `plugin:*` 消费方——拓扑序与环检测是为一个不存在的依赖图准备的。**解锁条件 = 出现第一个 `plugin:*` 依赖声明**（约束 8，这是判据不是建议） |
+| `US-016` 连接纪元与停机收敛                             | **已移出，不再解锁**（2026-08-21）。原始症状（`init()` 失败只复位 `#rxdb_initialized`）已随 US-015 阶段 A 大部分修复；剩余的 `versionManager.destroy()` 漏写降级为 bugfix。收益上限是 `#shutdown()` 从 14 步变 11 步——其余 9 步是状态复位，作用域原语按定义碰不到 |
+| `US-017` 三框架宿主作用域                               | **已移出**（2026-08-21）。三端各自已有原生作用域并且在用（Angular `DestroyRef` / React `useEffect` cleanup / Vue `onScopeDispose`），抽第四层需要先有三端各自的泄漏证据。铁律「三框架对称」约束的是对外 API 对称，不是内部实现共用同一原语。**解锁条件 = 三端任一出现可复现的清理泄漏** |
 | `npm deprecate @aiao/rxdb-adapter-desktop`（US-207 E6） | **已判定不做**（2026-08-18）。`@aiao/rxdb-adapter-desktop@0.0.25` 保留在 registry 上，未来仍可更新；迁移路径由 `website/docs/migration/desktop-split.md` 指路                              |
 | `packages/rxdb-adapter-tauri/rust/` 发 crates.io        | 本轮不发（US-210 T7，`publish = false`）。README 已写清 path / git 依赖的用法与限制，留作后续任务。**2026-08-20 复核：维持不发**，以后再说，不占本轮任何判据                               |
 | 桌面安装包（installer / bundle）的自动化验证            | **人工验收，不排自动化**（2026-08-20 判定）。`release-desktop.yml` 跑的是 `tauri build --ci --no-bundle`，只验编译与 smoke、不产安装包；装包能否安装启动由人工过一遍即可，不为此加 CI 作业 |
