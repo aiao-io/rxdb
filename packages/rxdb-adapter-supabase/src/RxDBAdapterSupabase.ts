@@ -26,7 +26,6 @@ import type {
 import {
   getEntityMetadata,
   getSyncConfig,
-  parseRxDBChangeKey,
   RxDBAdapterRemoteBase,
   tryGetEntityStatus
 } from '@aiao/rxdb';
@@ -42,7 +41,6 @@ import { resolve_supabase_schema } from './schema.utils.js';
 import {
   ADAPTER_NAME,
   assertSnapshotFilterSupported,
-  DEFAULT_RLS_CHECK_RPC_NAME,
   getUnsupportedProperty,
   isRetryableSupabaseWriteError,
   REALTIME_RECONNECT_BASE_DELAY_MS,
@@ -62,9 +60,10 @@ import {
 } from './supabase.helpers.js';
 import {
   SupabaseAdapterOptions,
-  type SupabaseRlsCheckOptions,
   type SupabaseRlsCheckTable
 } from './supabase.interface.js';
+import { build_merge_changes_payload } from './supabase.merge-changes.js';
+import { formatRlsRpcError, formatRlsUnexpectedError, getRlsCheckOptions, handleRlsCheckFailure, resolveRlsCheckTables } from './supabase.rls.js';
 import { SupabaseRepository } from './SupabaseRepository.js';
 import { SupabaseTreeRepository } from './SupabaseTreeRepository.js';
 
@@ -424,10 +423,6 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       return;
     }
 
-    const now = new Date().toISOString();
-    const userId = this.rxdb.context.userId;
-    const effectiveBranchId = branchId ?? 'main';
-
     const resolveTableKey = (namespace: string, entityName: string) => {
       const ns = namespace || 'public';
       const meta = this.rxdb.schemaManager.getEntityMetadata(entityName, ns);
@@ -435,142 +430,14 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       return `${ns}.${tableName}`;
     };
 
-    const resolveChangeTable = (namespace: string, entityName: string) => {
-      const [schema, table] = resolveTableKey(namespace, entityName).split('.');
-      return { schema, table };
-    };
-
-    // 1. 构建 RxDBChange 记录
-    const p_changes: Record<string, unknown>[] = [];
-
-    if (changes?.length) {
-      // 使用所有原始变更记录，保留完整历史
-      for (const change of changes) {
-        const table = resolveChangeTable(change.namespace, change.entity);
-        p_changes.push({
-          namespace: change.namespace || 'public',
-          entity: change.entity,
-          entityId: change.entityId,
-          type: change.type,
-          branchId: change.branchId ?? effectiveBranchId,
-          patch: change.patch ?? null,
-          inversePatch: change.inversePatch ?? null,
-          clientId: change.clientId ?? this.rxdb.context.clientId,
-          localId: change.id,
-          ...table,
-          createdAt: now,
-          updatedAt: now
-        });
-      }
-    } else {
-      // 从 actions 构建（向后兼容）
-      for (const [entityKey, { inversePatch }] of actions.deletes) {
-        const [namespace, entity, entityId] = parseRxDBChangeKey(entityKey);
-        const table = resolveChangeTable(namespace, entity);
-        p_changes.push({
-          namespace: namespace || 'public',
-          entity,
-          entityId,
-          type: 'DELETE',
-          branchId: effectiveBranchId,
-          patch: null,
-          inversePatch,
-          ...table,
-          clientId: this.rxdb.context.clientId,
-          createdAt: now,
-          updatedAt: now
-        });
-      }
-      for (const [entityKey, { patch, inversePatch }] of actions.updates) {
-        const [namespace, entity, entityId] = parseRxDBChangeKey(entityKey);
-        const table = resolveChangeTable(namespace, entity);
-        p_changes.push({
-          namespace: namespace || 'public',
-          entity,
-          entityId,
-          type: 'UPDATE',
-          branchId: effectiveBranchId,
-          patch,
-          inversePatch,
-          ...table,
-          clientId: this.rxdb.context.clientId,
-          createdAt: now,
-          updatedAt: now
-        });
-      }
-      for (const [entityKey, { patch, inversePatch }] of actions.inserts) {
-        const [namespace, entity, entityId] = parseRxDBChangeKey(entityKey);
-        const table = resolveChangeTable(namespace, entity);
-        p_changes.push({
-          namespace: namespace || 'public',
-          entity,
-          entityId,
-          type: 'INSERT',
-          branchId: effectiveBranchId,
-          patch,
-          inversePatch,
-          ...table,
-          clientId: this.rxdb.context.clientId,
-          createdAt: now,
-          updatedAt: now
-        });
-      }
-    }
-
-    // 2. 构建 upserts 和 deletes（始终从 actions 构建，用于实体表操作）
-    const upsertsByTable = new Map<string, Record<string, unknown>[]>();
-    const deletesByTable = new Map<string, Array<string | number | bigint>>();
-
-    for (const [entityKey] of actions.deletes) {
-      const [namespace, entity, entityId] = parseRxDBChangeKey(entityKey);
-      const table = resolveTableKey(namespace, entity);
-      const ids = deletesByTable.get(table) ?? [];
-      ids.push(entityId);
-      deletesByTable.set(table, ids);
-    }
-
-    for (const [entityKey, { patch }] of actions.updates) {
-      const [namespace, entity, entityId] = parseRxDBChangeKey(entityKey);
-      const table = resolveTableKey(namespace, entity);
-      const data = upsertsByTable.get(table) ?? [];
-      const updateData: Record<string, unknown> = { id: entityId, ...patch };
-      if (userId) updateData['updatedBy'] = userId;
-      data.push(updateData);
-      upsertsByTable.set(table, data);
-    }
-
-    for (const [entityKey, { patch }] of actions.inserts) {
-      const [namespace, entity, entityId] = parseRxDBChangeKey(entityKey);
-      const table = resolveTableKey(namespace, entity);
-      const data = upsertsByTable.get(table) ?? [];
-      const insertData: Record<string, unknown> = { id: entityId, ...patch };
-      if (userId) {
-        insertData['createdBy'] = userId;
-        insertData['updatedBy'] = userId;
-      }
-      data.push(insertData);
-      upsertsByTable.set(table, data);
-    }
-
-    // 非激活分支只写 RxDBChange 记录，不修改实体表
-    const isActiveBranch = effectiveBranchId === 'main';
-
-    // 构建 RPC 参数
-    const p_upserts =
-      isActiveBranch ?
-        Array.from(upsertsByTable.entries()).map(([table, data]) => {
-          const [schema, tableName] = table.includes('.') ? table.split('.') : ['public', table];
-          return { table: tableName, schema, data };
-        })
-      : [];
-
-    const p_deletes =
-      isActiveBranch ?
-        Array.from(deletesByTable.entries()).map(([table, ids]) => {
-          const [schema, tableName] = table.includes('.') ? table.split('.') : ['public', table];
-          return { table: tableName, schema, ids };
-        })
-      : [];
+    const { p_upserts, p_deletes, p_changes } = build_merge_changes_payload(
+      actions,
+      branchId,
+      changes,
+      this.rxdb.context.userId,
+      this.rxdb.context.clientId,
+      resolveTableKey
+    );
 
     // 调用 RPC（单一事务，跳过触发器；瞬时网络错误自动重试）
     return this.executeRetryableWrite(
@@ -898,8 +765,8 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       return;
     }
 
-    const options = this.#getRlsCheckOptions();
-    const tables = this.#resolveRlsCheckTables(options.tables);
+    const options = getRlsCheckOptions(this.options.rlsCheck);
+    const tables = resolveRlsCheckTables(options.tables, this.rxdb.config.entities);
     if (tables.length === 0) {
       this.#rlsCheckDone = true;
       return;
@@ -910,7 +777,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
         p_tables: tables
       })
     ).catch((error: unknown) => {
-      this.#handleRlsCheckFailure(this.#formatRlsUnexpectedError(error), options.failureMode);
+      handleRlsCheckFailure(formatRlsUnexpectedError(error), options.failureMode);
       return null;
     });
     if (!response) {
@@ -919,7 +786,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
     const { data, error } = response;
     if (error) {
-      this.#handleRlsCheckFailure(this.#formatRlsRpcError(options.rpcName, error.message), options.failureMode);
+      handleRlsCheckFailure(formatRlsRpcError(options.rpcName, error.message), options.failureMode);
       this.#rlsCheckDone = !isRetryableSupabaseWriteError(error.message?.trim() ?? '');
       return;
     }
@@ -939,76 +806,12 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       return result?.exists !== true || result.rlsEnabled !== true;
     });
     if (missingOrDisabled.length > 0) {
-      this.#handleRlsCheckFailure(
+      handleRlsCheckFailure(
         `[RxDB Supabase] RLS is disabled for tables: ${label(missingOrDisabled)}. Fix the policies before exposing this adapter to untrusted clients.`,
         options.failureMode
       );
     }
     this.#rlsCheckDone = true;
-  }
-
-  #getRlsCheckOptions(): Required<SupabaseRlsCheckOptions> {
-    if (this.options.rlsCheck && typeof this.options.rlsCheck === 'object') {
-      return {
-        rpcName: this.options.rlsCheck.rpcName ?? DEFAULT_RLS_CHECK_RPC_NAME,
-        failureMode: this.options.rlsCheck.failureMode ?? 'warn',
-        tables: this.options.rlsCheck.tables ?? []
-      };
-    }
-
-    return {
-      rpcName: DEFAULT_RLS_CHECK_RPC_NAME,
-      failureMode: 'warn',
-      tables: []
-    };
-  }
-
-  #resolveRlsCheckTables(overrideTables: SupabaseRlsCheckTable[]): SupabaseRlsCheckTable[] {
-    const inputTables =
-      overrideTables.length > 0 ?
-        overrideTables
-      : [
-          { schema: 'public', table: 'rxdb_change' },
-          { schema: 'public', table: 'rxdb_branch' },
-          ...this.rxdb.config.entities.map(entity => {
-            const metadata = getEntityMetadata(entity);
-            return {
-              schema: resolve_supabase_schema(metadata.namespace),
-              table: metadata.tableName
-            } satisfies SupabaseRlsCheckTable;
-          })
-        ];
-
-    const deduped = new Map<string, SupabaseRlsCheckTable>();
-    for (const table of inputTables) {
-      const schema = table.schema ?? 'public';
-      const key = `${schema}:${table.table}`;
-      deduped.set(key, {
-        schema,
-        table: table.table
-      });
-    }
-
-    return [...deduped.values()];
-  }
-
-  #formatRlsRpcError(rpcName: string, message?: string | null): string {
-    const detail = message?.trim() || 'unknown error';
-    if (/does not exist/i.test(detail)) {
-      return `[RxDB Supabase] RLS self-check skipped because RPC "${rpcName}" is not installed. Apply docker/sql/04-rxdb-utils-functions.sql or set rlsCheck=false if you intentionally manage RLS verification elsewhere.`;
-    }
-    return `[RxDB Supabase] Failed to verify RLS via RPC "${rpcName}": ${detail}`;
-  }
-
-  #formatRlsUnexpectedError(error: unknown): string {
-    return `[RxDB Supabase] Failed to verify RLS: ${error instanceof Error ? error.message : String(error)}`;
-  }
-
-  #handleRlsCheckFailure(message: string, mode: 'warn' | 'throw'): void {
-    if (mode === 'throw') {
-      throw new SupabaseDataError(message);
-    }
-    console.warn(message);
   }
 
   #createRealtimeChannel(): RealtimeChannel {
