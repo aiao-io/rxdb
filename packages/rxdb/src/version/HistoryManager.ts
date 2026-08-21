@@ -36,8 +36,8 @@ import { getSyncCapability, getSyncType, isRepositorySyncEnabled } from './sync-
 import { HistoryItem, HistoryScope, HistoryScopeAPI } from './VersionManager.interface.js';
 
 // 重新导出供测试和外部消费者使用（移动到独立文件后保持 API 兼容）
-export { generateHistoryDescription } from './history-item-builder.js';
 export { filterHistoriesByScope, filterUndoableHistories, getScopeKey } from './history-filters.js';
+export { generateHistoryDescription } from './history-item-builder.js';
 
 type LocalRxDBSyncRepository = IRepository<typeof RxDBSync> & {
   find(options: FindOptions<typeof RxDBSync, RxDBSyncRuleGroup, RxDBSyncOrderByField>): Promise<RxDBSync[]>;

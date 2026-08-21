@@ -616,7 +616,10 @@ export class RxDB {
           const branch = this.entityManager.instantiate(RxDBBranch);
           branch.id = 'main';
           branch.activated = true;
-          await localAdapter.createTables(this.#config.entities, [branch, ...createMigrationWatermarks(this.#config.migrations, this.entityManager)]);
+          await localAdapter.createTables(this.#config.entities, [
+            branch,
+            ...createMigrationWatermarks(this.#config.migrations, this.entityManager)
+          ]);
           await localAdapter.migrateSystemSchema?.();
           localAdapter.completeBootstrap?.();
         }
