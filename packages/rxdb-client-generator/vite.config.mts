@@ -106,9 +106,11 @@ export default defineConfig(() => ({
     // 写死 15s 在 `nx run-many --parallel=4` 下会被 browser-mode 项目挤到超时：
     // `build-client-lib.spec.ts > removes only stale manifest-owned files` 实测两轮全量各挂一次，
     // 单独跑却 4/4 全过 —— 是资源竞争型超时，不是随机 flake。
-    // 取值与同样偏重的 pglite / wa-sqlite 对齐。
-    testTimeout: process.env.CI ? 120000 : 30000,
-    hookTimeout: process.env.CI ? 120000 : 30000,
+    // 30s 仍不够：`build-client-lib.{spec,atomic,edges}` 与 `plugins/vite.integration` 这四条
+    // 都要连跑 2 次以上 `buildClientLibrary`，单独跑时整文件就已经逼近 35s，全量下四条一起挂。
+    // 提到 60s —— 对单独跑的最坏值仍有 2× 余量，真挂死照样能在 CI 之前暴露。
+    testTimeout: process.env.CI ? 120000 : 60000,
+    hookTimeout: process.env.CI ? 120000 : 60000,
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default', 'junit'],
     outputFile: {

@@ -1,4 +1,23 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import setup_rxdb from '../app/rxdb/setup_rxdb_sqlite-wasm';
+
+/**
+ * 进入 `/search` 之前先把本地适配器连上。
+ *
+ * rxdb-plugin-search 声明 `inject: ['adapter:local']`（US-015）：宿主要等本地适配器的引导链
+ * （迁移、建表、索引）跑完才调 `install()`。搜索页在 `setup()` 里**同步**调用 `db.search()`，
+ * 深链直接进来时连接尚未建立，组件初始化就会抛「plugin is not installed」。
+ *
+ * 别的页面不需要这道门：它们的首次查询会经适配器 `ready()` 回到 `connect()`，自然把连接带起来。
+ * `setup_rxdb()` 是模块级单例，`connect()` 自带去重，重复进入本路由不会重复连接。
+ */
+const connectLocalAdapter = async (): Promise<true> => {
+  const db = setup_rxdb();
+  const adapterName = db.config.sync.local?.adapter;
+  if (adapterName === undefined) throw new Error('[demo] sync.local.adapter is not configured');
+  await db.connect(adapterName);
+  return true;
+};
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -80,6 +99,7 @@ const router = createRouter({
     {
       path: '/search',
       name: 'search',
+      beforeEnter: connectLocalAdapter,
       component: () => import('../pages/SearchPage.vue')
     },
     {

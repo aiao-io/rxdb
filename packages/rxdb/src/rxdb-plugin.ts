@@ -2,6 +2,24 @@ import type { LifecycleScope } from '@aiao/utils';
 import { RxDB } from './RxDB.js';
 
 /**
+ * 插件可声明的依赖，**封闭取值**。
+ *
+ * @remarks
+ * 取值只有三类：本地适配器、远端适配器、以及按名字引用的另一个插件。之所以不开放成任意字符串
+ * （US-015 INV-1）：依赖键同时是编译期契约与运行期查表键，放开之后拼错的键在两侧都只表现为
+ * 「依赖永远不满足」——插件静默不装，而调用方拿不到任何编译期提示。
+ *
+ * `plugin:` 前缀是必需的，裸名 `'search'` 与大写开头的 `'plugin:Search'` 都编译不过：
+ * 前者与未来可能新增的内置资源键撞名，后者与 {@link IRxDBPlugin.name} 的 `Uncapitalize<string>`
+ * 不一致，查表必然落空。
+ *
+ * 就绪判据分两种，语义都是「可用」而不是「存在」：
+ * - `adapter:*` —— 该适配器的引导链（迁移、建表、索引 reconcile）已经跑完
+ * - `plugin:*` —— 该插件已进入 `active`
+ */
+export type RxDBPluginDependency = 'adapter:local' | 'adapter:remote' | `plugin:${Uncapitalize<string>}`;
+
+/**
  * RxDB 插件接口
  *
  * @remarks
@@ -44,6 +62,39 @@ export interface IRxDBPlugin {
 
   /** 插件名，用于日志与宿主侧的错误归因 */
   name: Uncapitalize<string>;
+
+  /**
+   * 声明本插件需要哪些依赖就绪之后才能安装。
+   *
+   * @remarks
+   * 不声明（或声明空数组）= 无依赖，`init()` 时立即安装，行为与本字段引入之前完全一致。
+   *
+   * 声明之后由宿主负责时序，插件**不要**在 `install()` 里再自己等一遍：宿主的
+   * `connect()` 本身就在等插件安装，插件反过来等 `connect()` 会自等死锁。这正是本字段
+   * 存在的理由——在它之前，搜索插件只能靠「`adapterConnected$` 在插件安装之前置位」
+   * 这条脆弱的时序约定绕开死锁。
+   *
+   * 依赖不满足时：该插件**不安装**、不产生作用域、不进入宿主的安装等待集合，因此
+   * `connect()` 照常 resolve 而不是挂起；宿主另有一次 `console.warn` 列出缺失项，不静默。
+   *
+   * 依赖按**实例引用**记账而不是按名字或布尔位。同名适配器换了新实例（中途从未变为空）
+   * 同样算一次纪元变化：旧作用域被释放，插件以新实例重装并拿到全新的子作用域。
+   * 反过来，同一纪元内安装失败**不会**自动重试——重试只发生在纪元真的变了的时候。
+   *
+   * 阶段 A 只解析 `adapter:*`。此时声明 `plugin:*` 语法合法，但解析结果恒为「未就绪」，
+   * 插件会停在等待态并触发上述 warn，不会静默消失。
+   *
+   * @example
+   * ```ts
+   * readonly inject = ['adapter:local'] as const;
+   *
+   * async install(scope: LifecycleScope) {
+   *   // 到这里 adapter:local 一定已就绪，直接取用即可
+   *   const adapter = this.rxdb.localAdapterSync;
+   * }
+   * ```
+   */
+  readonly inject?: readonly RxDBPluginDependency[];
 
   /**
    * 安装插件。

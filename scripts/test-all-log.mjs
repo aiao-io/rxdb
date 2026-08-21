@@ -15,7 +15,9 @@ import { StringDecoder } from 'node:string_decoder';
 import { pathToFileURL } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 
-const defaultTargets = ['lint', 'typecheck', 'test', 'test-browser', 'build', 'e2e'];
+// 与 package.json 的 `test-all` 逐个对齐（含顺序）：两处分叉过一次，
+// `audit-lazy-backend` 只写在 package.json 里，用本脚本跑「全量」时那道门禁被静默跳过。
+const defaultTargets = ['lint', 'typecheck', 'test', 'test-browser', 'build', 'audit-lazy-backend', 'e2e'];
 const outputStyles = new Set(['stream', 'static', 'buffer']);
 const defaultMaxLineLength = 4096;
 
@@ -78,7 +80,7 @@ function help() {
   return `用法：node scripts/test-all-log.mjs [选项] [-- <extra nx flags>]
 
 选项：
-  --targets=<a,b>     限定 Nx target（默认：lint,typecheck,test,test-browser,build,e2e）
+  --targets=<a,b>     限定 Nx target（默认：lint,typecheck,test,test-browser,build,audit-lazy-backend,e2e）
   --style=<mode>      Nx 输出样式：stream | static | buffer（默认：stream）
   --log=<path>        自定义日志路径（默认：./logs/test-all/YYYY-MM-DD/HHMMSS.log）
   --parallel=<n>      并行数（默认：4）

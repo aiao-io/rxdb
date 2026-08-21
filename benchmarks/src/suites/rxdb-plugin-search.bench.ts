@@ -84,8 +84,9 @@ async function createHarness(): Promise<BenchmarkHarness> {
   await rxdb.entityManager.saveMany(comments);
 
   // 通过 `rxdb.use()` 注册插件：宿主会为本次连接纪元创建作用域并调用 `install(scope)`，
-  // 再在 `disconnectAll()` 时逆序释放作用域并补一次 `destroy()`。直接调用 `plugin.install()`
-  // 而不传 scope 会让插件内的 `scope.acquire()` 撞上 undefined（US-014 契约）。
+  // 再在 `disconnectAll()` 时逆序释放作用域——插件声明 `lifecycle: 'scoped'`（US-015），
+  // 释放作用域就是全部拆卸。直接调用 `plugin.install()` 而不传 scope 会让插件内的
+  // `scope.acquire()` 撞上 undefined（US-014 契约）。
   const installStart = performance.now();
   rxdb.use(rxDBPluginSearch, {
     debounce: 0,
@@ -101,7 +102,6 @@ async function createHarness(): Promise<BenchmarkHarness> {
     plugin,
     backfillMs,
     async cleanup() {
-      plugin.destroy();
       adapter.rxdb.entityManager.cleanAllCache();
       adapter.cleanAllCache();
       await rxdb.disconnectAll();

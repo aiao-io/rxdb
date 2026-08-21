@@ -19,6 +19,11 @@ import { useSearch } from '@aiao/rxdb-plugin-search-vue';
 - `useSearch`：返回响应式的 `SearchState`（结果、加载态与错误）
 - 类型：`UseSearchReturn`、`SearchSourceLike`
 
+挂载组件之前先装插件并连接：`database.use(rxDBPluginSearch, …)` → `await database.connect('sqlite-wasm')`。
+插件声明 `inject: ['adapter:local']`，宿主在本地适配器就绪后才安装它，因此 `await connect()` 返回时
+FTS 已经装好；`database.searchPlugin.ready` 是「装上没有」的显式确认——安装成功 resolve，失败 reject
+原始错误，纪元被释放（断连 / 回滚）后 reject `destroyed`。它一个连接纪元一格，重连之后要重新读一次。
+
 ### 响应式入参与重建契约（三端一致）
 
 `source` 与 `options` 都接受 `MaybeRefOrGetter`（值 / `Ref` / `ComputedRef` / getter）。
