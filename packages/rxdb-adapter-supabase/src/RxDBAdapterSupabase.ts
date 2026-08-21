@@ -9,25 +9,25 @@
  */
 
 import type {
-  EntityType,
-  IRepository,
-  IRxDBAdapter,
-  IRxDBChange,
-  PullBatchRequest,
-  QueryCacheEntityMetadata,
-  RemoteBranchInfo,
-  RemoteChange,
-  RepositoryInstance,
-  RuleGroup,
-  RxDB,
-  RxDBMutationsMap,
-  SwitchVersionActions
+    EntityType,
+    IRepository,
+    IRxDBAdapter,
+    IRxDBChange,
+    PullBatchRequest,
+    QueryCacheEntityMetadata,
+    RemoteBranchInfo,
+    RemoteChange,
+    RepositoryInstance,
+    RuleGroup,
+    RxDB,
+    RxDBMutationsMap,
+    SwitchVersionActions
 } from '@aiao/rxdb';
 import {
-  getEntityMetadata,
-  getSyncConfig,
-  RxDBAdapterRemoteBase,
-  tryGetEntityStatus
+    getEntityMetadata,
+    getSyncConfig,
+    RxDBAdapterRemoteBase,
+    tryGetEntityStatus
 } from '@aiao/rxdb';
 import { createClient, RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
 import { defer, from, map, Observable, of } from 'rxjs';
@@ -39,28 +39,28 @@ import { apply_rule_group } from './rule_group_builder.js';
 import { build_delete_params, build_upsert_params, group_by_type } from './RxDBAdapterSupabase.utils.js';
 import { resolve_supabase_schema } from './schema.utils.js';
 import {
-  ADAPTER_NAME,
-  assertSnapshotFilterSupported,
-  getUnsupportedProperty,
-  isRetryableSupabaseWriteError,
-  REALTIME_RECONNECT_BASE_DELAY_MS,
-  REALTIME_RECONNECT_MAX_DELAY_MS,
-  REALTIME_RECONNECTABLE_STATUSES,
-  RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS,
-  RETRYABLE_SUPABASE_WRITE_RETRY_DELAY_MS,
-  SUPABASE_SDK_VERSION,
-  validateArrayResponse,
-  validateMergeResponse,
-  validateMutationsResponse,
-  validatePushBranchesResponse,
-  wait,
-  type RealtimeState,
-  type RetryableWriteResponse,
-  type SupabaseRlsCheckResult
+    ADAPTER_NAME,
+    assertSnapshotFilterSupported,
+    getUnsupportedProperty,
+    isRetryableSupabaseWriteError,
+    REALTIME_RECONNECT_BASE_DELAY_MS,
+    REALTIME_RECONNECT_MAX_DELAY_MS,
+    REALTIME_RECONNECTABLE_STATUSES,
+    RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS,
+    RETRYABLE_SUPABASE_WRITE_RETRY_DELAY_MS,
+    SUPABASE_SDK_VERSION,
+    validateArrayResponse,
+    validateMergeResponse,
+    validateMutationsResponse,
+    validatePushBranchesResponse,
+    wait,
+    type RealtimeState,
+    type RetryableWriteResponse,
+    type SupabaseRlsCheckResult
 } from './supabase.helpers.js';
 import {
-  SupabaseAdapterOptions,
-  type SupabaseRlsCheckTable
+    SupabaseAdapterOptions,
+    type SupabaseRlsCheckTable
 } from './supabase.interface.js';
 import { build_merge_changes_payload } from './supabase.merge-changes.js';
 import { formatRlsRpcError, formatRlsUnexpectedError, getRlsCheckOptions, handleRlsCheckFailure, resolveRlsCheckTables } from './supabase.rls.js';

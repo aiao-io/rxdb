@@ -2,35 +2,25 @@ import { deepFreeze, isPromise, LifecycleScope } from '@aiao/utils';
 import { BehaviorSubject, defer, distinctUntilChanged, filter, map, Observable, shareReplay, switchMap } from 'rxjs';
 import { EntityManager } from './entity/entity-manager.js';
 import { EntityType } from './entity/entity.interface.js';
-import { EntityMetadata } from './entity/metadata.interface.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
 import { PluginDependencyScheduler } from './plugin/dependency-scheduler.js';
-import { MergeQueryTaskCreateFn, MergeQueryTaskRemoveFn, MergeQueryTaskUpdateFn } from './repository/QueryManager.js';
 import {
-  AdapterFactory,
-  IRxDBAdapter,
-  RepositoryConstructor,
-  RepositoryInstance,
-  RxDBAdapterLocalBase,
-  RxDBAdapterName,
-  RxDBAdapterRemoteBase,
-  RxDBAdapters
+    AdapterFactory,
+    IRxDBAdapter,
+    RepositoryInstance,
+    RxDBAdapterLocalBase,
+    RxDBAdapterName,
+    RxDBAdapterRemoteBase,
+    RxDBAdapters
 } from './rxdb-adapter.js';
-import {
-  isCrossTabEvent,
-  RxDBEvent,
-  RxDBEventMap,
-  TRANSACTION_BEGIN,
-  TRANSACTION_COMMIT,
-  TRANSACTION_ROLLBACK,
-  type TransactionBeginEvent,
-  type TransactionCommitEvent,
-  type TransactionRollbackEvent
-} from './rxdb-events.js';
+import { RxDBEvent, RxDBEventMap, TRANSACTION_BEGIN, TRANSACTION_COMMIT, TRANSACTION_ROLLBACK } from './rxdb-events.js';
 import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
 import { uuid } from './rxdb-utils.js';
 import { RxDBContext, RxDBOptions } from './rxdb.interface.js';
 import { isLocalAdapter, isTransactionEvent } from './rxdb.private.js';
+import { emitEvent, handleTransactionBegin, handleTransactionCommit, handleTransactionRollback, runIsolated } from './rxdb.transaction.js';
+import type { EventListener, IRepositoryConfig, RxDBConfig, TransactionContext } from './rxdb.types.js';
+import { LIVE_BEHAVIOUR_CONFIG_KEYS } from './rxdb.types.js';
 import { SchemaManager } from './schema/SchemaManager.js';
 import { RxDBBranch } from './system/branch.js';
 import { RxDBChange } from './system/change.js';
@@ -39,59 +29,7 @@ import { RxDBMigration } from './system/migration.js';
 import { RxDBSync } from './system/sync.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
 import { VersionManager } from './version/VersionManager.js';
-
-type EventListener<T> = (event: T) => void;
-
-type RxDBConfig = RxDBOptions;
-
-/**
- * 不参与深冻结的 {@link RxDBOptions} 字段 —— 它们装的是**活的行为**而非声明式数据。
- *
- * - `entities`：实体构造器数组。它既是 `SchemaManager.init()` 的注册表（还要往里 push
- *   内建实体与多对多中间表），其元素的 prototype 又要被 `EntityManager.init()` 挂上
- *   `ENTITY_MANAGER`。冻住会让 push 抛 `object is not extensible`、让 `new Entity()`
- *   抛 `need init rxdb`。
- * - `migrations`：`up` / `down` 是调用方的回调。深冻结连函数自身的属性一起冻住
- *   （闭包状态、测试替身的调用记录），首次调用即抛 `object is not extensible`。
- *
- * 其余字段（`sync` / `context` 等）是声明式数据，仍然深冻结；新增声明式字段自动受保护。
- * 契约由 `__tests__/RxDB.config-freeze.spec.ts` 锁定。
- */
-const LIVE_BEHAVIOUR_CONFIG_KEYS: ReadonlySet<string> = new Set(['entities', 'migrations']);
-
-/**
- * 一个打开中的事务上下文
- *
- * @remarks
- * `id` 为 `undefined` 表示派发方没有提供事务身份——这些匿名事务共用同一个上下文，
- * 与引入身份之前的语义一致。
- */
-interface TransactionContext {
-  id: string | undefined;
-  depth: number;
-  events: RxDBEvent[];
-}
-
-interface MergeQueryTaskOptions {
-  create: MergeQueryTaskCreateFn;
-  update: MergeQueryTaskUpdateFn;
-  remove: MergeQueryTaskRemoveFn;
-}
-
-/**
- * IRepositoryConfig 统一注册配置
- * 合并 factory、class 和 merge operations 为单一配置对象
- */
-export interface IRepositoryConfig<RT extends RepositoryInstance = RepositoryInstance> {
-  /**
-   * 根据 {@link EntityMetadata} 动态生成 Entity 类（中间表等场景）
-   */
-  entityGenerator?: (metadata: EntityMetadata) => EntityType | EntityType[];
-
-  class: RepositoryConstructor<RT>;
-
-  mergeOperations: MergeQueryTaskOptions;
-}
+export type { IRepositoryConfig } from './rxdb.types.js';
 
 /**
  * RxDB 是个单例对象，负责管理插件、适配器、事件以及上下文等全局功能
@@ -754,7 +692,7 @@ export class RxDB {
     }
 
     if (transactionEvent === false) {
-      this.#emit(event);
+      emitEvent(this.#event_map, this, event);
       return;
     }
 
@@ -762,7 +700,7 @@ export class RxDB {
     // 会被同一次遍历捕获到（Set.forEach 访问遍历期间新增的条目），新监听器错误地收到
     // 本次事件，持续新增还会让派发不终止。
     const listeners = Array.from(this.#listener(event.type as keyof RxDBEventMap));
-    this.#runIsolated(listeners, listener => listener.call(this, event));
+    runIsolated(listeners, listener => listener.call(this, event));
   }
 
   /**
@@ -830,58 +768,6 @@ export class RxDB {
   }
 
   /**
-   * 直接把事件交给监听器，跳过事务排队。
-   *
-   * @remarks
-   * 排空某个事务的队列时必须走这里而不是 {@link dispatchEvent}：并发事务下另一个上下文
-   * 可能还开着，走 `dispatchEvent` 会把刚放行的事件重新塞进它的队列。
-   */
-  #emit(event: RxDBEvent): void {
-    // 快照理由同 dispatchEvent
-    Array.from(this.#listener(event.type as keyof RxDBEventMap)).forEach(listener => listener.call(this, event));
-  }
-
-  /**
-   * 取与该身份匹配、最内层的打开中事务。
-   *
-   * @remarks
-   * 从栈顶往下找：同一身份可能因 savepoint 嵌套出现多次，最内层的那个才是当前上下文。
-   */
-  #findTransactionContext(transactionId: string | undefined): TransactionContext | undefined {
-    for (let index = this.#transaction_stack.length - 1; index >= 0; index -= 1) {
-      if (this.#transaction_stack[index].id === transactionId) return this.#transaction_stack[index];
-    }
-    return undefined;
-  }
-
-  /** 把事务上下文从栈里摘掉——它可能不在栈顶（并发事务先提交内层之外的那个） */
-  #closeTransactionContext(context: TransactionContext): void {
-    const index = this.#transaction_stack.indexOf(context);
-    if (index >= 0) this.#transaction_stack.splice(index, 1);
-  }
-
-  /**
-   * 逐项调用 fn，任一项抛错都不阻断其余项——收集首个异常，全部跑完后重抛。
-   * 用于「批量」语义的场景（事务事件的监听器列表、事务提交/回滚排空的队列事件）：
-   * 单项失败不应该让同批次里排在它后面的项被静默跳过。
-   */
-  #runIsolated<T>(items: Iterable<T>, fn: (item: T) => void): void {
-    let failed = false;
-    let firstError: unknown;
-    for (const item of items) {
-      try {
-        fn(item);
-      } catch (error) {
-        if (!failed) {
-          failed = true;
-          firstError = error;
-        }
-      }
-    }
-    if (failed) throw firstError;
-  }
-
-  /**
    * 全局拆卸：销毁插件、网关与 versionManager，并把实例复位到「可重新 init」的状态。
    * 仅在所有适配器都已断开时调用。
    *
@@ -944,43 +830,9 @@ export class RxDB {
   #init_event() {
     if (this.#event_initialized) return;
     this.#event_initialized = true;
-    // 事务开始：同身份的再次 BEGIN 是 savepoint 嵌套，不同身份另起一个上下文
-    const on_begin = (event: TransactionBeginEvent) => {
-      const top = this.#transaction_stack.at(-1);
-      if (top !== undefined && top.id === event.transactionId) {
-        top.depth += 1;
-        return;
-      }
-      this.#transaction_stack.push({ id: event.transactionId, depth: 1, events: [] });
-    };
-    // 事务结束，发送**本事务**期间记录的实体事件
-    const on_commit = (event: TransactionCommitEvent) => {
-      const context = this.#findTransactionContext(event.transactionId);
-      // 没有匹配的打开中事务：迟到或重复的 COMMIT，不能把其他事务的队列当作当前队列
-      if (context === undefined) return;
-      if (context.depth > 1) {
-        context.depth -= 1;
-        return;
-      }
-
-      this.#closeTransactionContext(context);
-      // 队列已清空，无法重放：某个事件的监听器抛错不能中止排空循环，否则它之后的
-      // 队列事件永久丢失。逐个隔离，全部排空后再重抛首个异常。
-      this.#runIsolated(context.events, queued => this.#emit(queued));
-    };
-    // 事务回滚：回滚中止**本事务**的整个嵌套栈（无 savepoint 语义），不管深度直接摘掉。
-    //
-    // 但只丢弃**本 tab 本次事务**产生的事件：队列里还可能躺着他 tab 的变更，
-    // 那是别处已经成功提交的写入，与本地回滚没有因果关系。一并丢掉会让本 tab 的 UI
-    // 与其他 tab 永久不一致，直到下次全量刷新。跨 tab 事件照常派发。
-    const on_rollback = (event: TransactionRollbackEvent) => {
-      const context = this.#findTransactionContext(event.transactionId);
-      if (context === undefined) return;
-      this.#closeTransactionContext(context);
-      this.#runIsolated(context.events.filter(isCrossTabEvent), queued => this.#emit(queued));
-    };
-
-    this.addEventListener(TRANSACTION_BEGIN, on_begin);
+    this.addEventListener(TRANSACTION_BEGIN, event => handleTransactionBegin(this.#transaction_stack, event));
+    this.addEventListener(TRANSACTION_COMMIT, event => handleTransactionCommit(this.#transaction_stack, this.#event_map, this, event));
+    this.addEventListener(TRANSACTION_ROLLBACK, event => handleTransactionRollback(this.#transaction_stack, this.#event_map, this, event));
     this.addEventListener(TRANSACTION_COMMIT, on_commit);
     this.addEventListener(TRANSACTION_ROLLBACK, on_rollback);
 
