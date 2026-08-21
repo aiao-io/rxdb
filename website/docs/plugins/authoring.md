@@ -138,7 +138,7 @@ class ExampleSearchPlugin implements IRxDBPlugin {
 }
 ```
 
-`inject` 的取值是一个封闭集合：`'adapter:local'`、`'adapter:remote'`、`` `plugin:${string}` ``（首字母小写的插件名）。写错会**编译失败**，不会退化成运行时的静默跳过。
+`inject` 的取值是一个封闭集合：`'adapter:local'`、`'adapter:remote'`、`` `plugin:${string}` ``（首字母小写的插件名）。编译期挡住的是**形状**——裸名 `'search'`、大写开头的 `'plugin:Search'`、未知前缀 `'service:logger'`、拼错的 `'adapter:cache'` 都编译失败。插件名本身拼错（`'plugin:serch'`）形状仍然合法，编译期无从判别，只会在运行时以「依赖永远不满足」的警告暴露，见下一节。
 
 `plugin:*` 属于阶段 B，尚未实现解析：现在声明它等同于「依赖永远不满足」，插件不会被安装，控制台会有一条警告。想表达插件之间的先后，暂时仍靠**注册顺序**——`use()` 的调用序就是安装序，见 [US-015](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/core/US-015-plugin-inject-dependency.md)。
 
