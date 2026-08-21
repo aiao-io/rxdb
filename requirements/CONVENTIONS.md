@@ -38,12 +38,12 @@
 
 ## 状态定义
 
-| 类型          | 状态集合                                                           |
-| ------------- | ------------------------------------------------------------------ |
-| story         | `Backlog` / `In Progress` / `In Review` / `Done` / `Blocked`       |
-| review        | `Open` / `Resolved`                                                |
-| code-scanning | `Open` / `Resolved` / `Dismissed`                                  |
-| epic          | `Backlog`（frontmatter 另含 `startDate` / `targetDate` / `owner`） |
+| 类型          | 状态集合                                                                                    |
+| ------------- | ------------------------------------------------------------------------------------------- |
+| story         | `Backlog` / `In Progress` / `In Review` / `Done` / `Blocked`                                |
+| review        | `Open` / `Resolved`                                                                         |
+| code-scanning | `Open` / `Resolved` / `Dismissed`                                                           |
+| epic          | `Backlog` / `In Progress` / `Done`（frontmatter 另含 `startDate` / `targetDate` / `owner`） |
 
 story 状态含义：
 

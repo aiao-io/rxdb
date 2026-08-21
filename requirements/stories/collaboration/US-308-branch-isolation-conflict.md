@@ -26,7 +26,7 @@ INVEST 检查清单:
 ## 作为/我想要/以便
 
 **作为** 在多个实验分支或标签页中工作的开发者
-**我想要** 每个分支拥有自己的 HEAD、工作树和缓存区，并能发现并发冲突
+**我想要** 每个分支拥有自己的 HEAD、工作树和暂存区，并能发现并发冲突
 **以便** 切换和协作时不会静默覆盖本地修改
 
 ## 前置依赖
@@ -83,7 +83,7 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 
 ### In Scope
 
-- 分支与工作树 / 缓存区的隔离：切换后恢复目标分支自己的状态；没有未提交状态时才物化目标 HEAD
+- 分支与工作树 / 暂存区的隔离：切换后恢复目标分支自己的状态；没有未提交状态时才物化目标 HEAD
 - `requireClean` 显式选项与对应的可操作错误
 - 数据库级 `activationRevision` 的**切换语义**：递增时机与 switch CAS（建表归 US-305 FR-052，
   写路径 token 校验归 US-306 阶段 A），以及跨标签页 switch/CRUD 竞争拒绝
@@ -107,7 +107,7 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 
 **验收场景**：
 
-1. **Given** 分支 A 和 B 指向不同 commit 且都没有未提交状态，**When** 用户切换分支，**Then** 工作树物化为目标分支 HEAD，缓存区不会串到另一分支。
+1. **Given** 分支 A 和 B 指向不同 commit 且都没有未提交状态，**When** 用户切换分支，**Then** 工作树物化为目标分支 HEAD，暂存区不会串到另一分支。
 2. **Given** 当前工作树 dirty，**When** 用户以 `{ requireClean: true }` 切换分支，**Then** 拒绝切换并保留数据，错误说明可用的处理方式（commit / discard）。
 3. **Given** 当前工作树 dirty，**When** 用户调用不带选项的 `switchBranch(branchId)`，**Then** 行为与本故事实施前**完全一致**（切换成功），现有文档示例与 `dev-rxdb-supabase` demo 无需修改即可通过。
 4. **Given** 当前分支存在未提交工作树，**When** 调用既有一参 `createBranch(branchId)`，**Then** 新分支保持现有“从当前物化状态创建”的用户可见语义：共享当前 HEAD、复制一份独立的未提交工作树快照、index 为空；来源与新分支不得共享可变条目。
@@ -118,6 +118,7 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 9. **Given** `syncBranches()` 拉到 `local=false, remote=true` 且没有本地 commit 图的 metadata-only 分支，**When** 用户首次切换，**Then** 系统为目标分支建立独立 materialization attempt，冻结远端终止水位与配置 sync scope；随后按页拉取并把 payload、水位、scope manifest 与 fingerprint 原子写入 durable staging，期间不修改当前业务表、当前分支 `RxDBSync`、active 标记或工作树。完整收敛后，单一 switch 事务复核 active token、目标分支身份、终止水位/scope/fingerprint，物化业务表、建立确定性的本地 `kind=branch_baseline`、创建 branch ref、激活目标、递增 activation revision 并删除 staging；不把它伪装成远端 commit，也不实现 remote commit push/pull。
 10. **Given** metadata-only 远端分支缺少父分支、远端 adapter、change，预取无法收敛到冻结水位，或发生网络/配额/scope 漂移，**When** 用户尝试切换，**Then** 返回 `branch_not_materialized`，来源/目标业务投影、active 标记、activation revision、当前分支同步水位、commit 图和 branch ref 全部零变化；staging 必须可安全续传或按 attempt ID 清理，不得先激活空分支再等待后续 pull 修补。
 11. **Given** 首次物化在任意分页后崩溃，**When** 同一目标分支再次切换，**Then** 系统从已提交 staging 水位继续，不重复应用当前投影、不跳过远端 change；远端分支身份或 scope manifest 已变化时废弃旧 attempt 并从新冻结水位重建。
+12. **Given** 支持 full/filter 同步的实体在分支 A 上经 `pull` / autoSync 产生 `origin=remote_sync` 的未暂存单元，**When** 依次执行 refresh → 切到分支 B → 切回分支 A → `status()` / `diff()`，**Then** 这些单元的来源、内容与业务值与 pull 后完全一致，未被 switch 的物化重写吞掉也未被重复记账。本条是「pull → refresh → switch away/back → status/diff」完整链路的**集成 fixture 收口点**，承接 [US-306](./US-306-working-tree-index.md) US2-AC17 的切出/切回半边（US-306 只验刷新重放半边），见 [epic-006 写入口语义矩阵](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵) 的三段拆分。
 
 ### User Story 2 - 跨标签页并发（Priority: P2）
 
@@ -131,6 +132,7 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 4. **Given** 一个 realm 长时间挂起后恢复，**When** 它以过期 revision 提交，**Then** 走与其他竞争完全相同的 revision CAS 失败路径，不存在额外的 writer 级判定。
 5. **Given** Tab A 在分支 A 读取实体并捕获 active branch token，Tab B 随后切到 B，**When** Tab A 保存旧实体，**Then** 写事务以 `stale_active_branch` 拒绝，A/B 的业务表投影、WorkingTreeEntry 与 revision 均不被错误修改。
 6. **Given** 两个 realm 从同一 `activationRevision` 同时切换到不同分支，**When** 两个事务竞争，**Then** 只有一个 activation CAS 成功；失败方刷新后读取胜出分支，不重放自己的物化动作。
+7. **Given** 仅键盘操作三端任一分支切换与冲突提示入口，**When** 切换分支、被 `requireClean` 拒绝或收到 `stale_active_branch` / CAS 冲突，**Then** 焦点顺序、可见焦点、可访问名称与冲突/错误状态的公告达到 WCAG 2.1 AA，且三端语义对称，单端缺失即本故事失败（承接 [epic-006 横切约束 1/3](../../epics/epic-006-working-tree-commits.md#横切约束按故事适用不单独成故事)）。本故事只新增分支与冲突相关的交互元素，其余控件复用 US-306 阶段 C 已收口的组件与 a11y 断言，不重复实现。
 
 ## 功能需求
 
@@ -157,7 +159,8 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 - 必须有一条回归用例专门断言**不带选项**的 `switchBranch(branchId)` 行为未变（AC User Story 1 场景 3）。
 - 必须有 `public-type-compatibility` 用例断言旧的一参调用继续编译、新的可选参数使用 `WorkingTreeSwitchBranchOptions`，适配器层 `SwitchBranchOptions` 签名不变。
 - 必须有 `createBranch(branchId, fromChangeId?)`、`removeBranch()`、`syncBranches()` 的公开签名与既有行为回归；覆盖 dirty current state、历史 change、删分支状态清理、metadata-only 远端分支本地已有资料/durable staging 两条首次 baseline 路径，以及分页崩溃续传、网络失败、水位/scope 漂移、配额不足、预取不收敛时当前投影零变化。
-- 三端冲突提示的语义、错误分类与恢复建议必须一致，并有等价测试。
+- 三端冲突提示的语义、错误分类与恢复建议必须一致，并有等价测试；a11y 断言覆盖 US2-AC7（键盘可达、焦点可见、冲突与错误状态公告，WCAG 2.1 AA）。
+- 必须有「pull → refresh → switch away/back → status/diff」的完整链路集成 fixture（US1-AC12），断言 `origin=remote_sync` 单元在往返后来源与内容不变；这是该链路唯一的收口点，US-306 只覆盖其刷新重放半边。
 - 测试文件使用 `*.spec.ts`，不依赖非确定性的固定延时。
 
 ## 实现文件（计划阶段待确认）
@@ -174,7 +177,7 @@ commit、clear index、discard 或刷新/重新选择建议，不能只检查业
 - [epic-006 本地工作树与提交历史](../../epics/epic-006-working-tree-commits.md)
 - [US-306 父契约](./US-306-working-tree-index.md)
 - [US-306 阶段 A 工作树写入捕获与持久化](./US-306-working-tree-index.md)
-- [US-306 阶段 B 缓存区与提交状态机](./US-306-working-tree-index.md) — `CommitConflict` 类型与 restore session 表的所有者
+- [US-306 阶段 B 暂存区与提交状态机](./US-306-working-tree-index.md) — `CommitConflict` 类型与 restore session 表的所有者
 - [US-306 阶段 C 三框架工作树交互面与性能门禁](./US-306-working-tree-index.md) — 三端半边扩展所依据的 `useWorkingTree()` 契约
 - [US-301 版本控制](./US-301-version-control.md) — 现有分支能力
 - [分支文档](../../../website/docs/collaboration/branch.md) — 受 FR-017 口径影响的现有示例

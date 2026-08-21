@@ -10,11 +10,25 @@ owner: jimmy
 
 ## 愿景
 
-把 RxDB 的本地变更组织成 Git 式工作流：用户刷新页面、重启应用或意外关闭后，工作树、缓存区、当前提交和历史恢复结果仍然存在且语义一致，且不引入 Git 的远程仓库、权限与代码评审。
+把 RxDB 的本地变更组织成 Git 式工作流：用户刷新页面、重启应用或意外关闭后，工作树、暂存区、当前提交和历史恢复结果仍然存在且语义一致，且不引入 Git 的远程仓库、权限与代码评审。
 
 ## 为什么是 Epic 而不是一个 Story
 
-原 [US-305](../stories/collaboration/US-305-commit-graph-head.md) 单个故事持有 4 个用户故事、28 条 FR、7 个关键实体，横跨 `packages/rxdb/src/version/`、`packages/rxdb/src/system/`、`rxdb-plugin-workspace`、三个框架包和三个 demo。它的 INVEST 里 `Small` 打了勾，但没有任何一条 FR 可以在不落地存储布局的前提下单独验收——即"要么全做要么全不做"，这正是 Small 不成立的定义。拆分后的 [US-306](../stories/collaboration/US-306-working-tree-index.md) 仍同时覆盖全部写入口、Index、三框架和 benchmark，因此在文件内再切成「交付阶段 A/B/C」。现在每个阶段都能独立跑通「写入 → 刷新 → 读回」这条最小闭环。
+拆分前的 US-305（**历史快照，以 git 历史为准；当前文件已是拆分后的形态**）单个故事持有 4 个用户故事、28 条 FR、7 个关键实体，横跨 `packages/rxdb/src/version/`、`packages/rxdb/src/system/`、`rxdb-plugin-workspace`、三个框架包和三个 demo。它的 INVEST 里 `Small` 打了勾，但没有任何一条 FR 可以在不落地存储布局的前提下单独验收——即"要么全做要么全不做"，这正是 Small 不成立的定义。拆分后的 [US-306](../stories/collaboration/US-306-working-tree-index.md) 仍同时覆盖全部写入口、Index、三框架和 benchmark，因此在文件内再切成「交付阶段 A/B/C」。现在每个阶段都能独立跑通「写入 → 刷新 → 读回」这条最小闭环。
+
+## 目标
+
+用户视角的最终能力，每条标注归属故事；**没有归属的条目就是本 Epic 的缺口**，不得靠"发布前统一补"消化。
+
+- [ ] 提交历史与 HEAD 在刷新、重启、崩溃后完整可查（[US-305](../stories/collaboration/US-305-commit-graph-head.md)）
+- [ ] 已在用的数据库能一次性、可重试地打开 commit 能力而不丢数据（[US-305](../stories/collaboration/US-305-commit-graph-head.md)）
+- [ ] 任何入口写入的业务变更都被工作树捕获，刷新后可仅凭 HEAD + 工作树重放（[US-306 阶段 A](../stories/collaboration/US-306-working-tree-index.md)）
+- [ ] 用户能查看 status/diff、选择一部分变更进暂存区并带消息提交，未暂存修改保留（[US-306 阶段 B](../stories/collaboration/US-306-working-tree-index.md)）
+- [ ] Angular / React / Vue 三端以对称 API 完成上述操作，且 UI 达到 WCAG 2.1 AA（[US-306 阶段 C](../stories/collaboration/US-306-working-tree-index.md)）
+- [ ] 用户能把数据恢复到任意可达 commit，且不改写历史、不移动 HEAD（[US-307](../stories/collaboration/US-307-restore-session.md)）
+- [ ] 每个分支拥有独立的 HEAD、工作树与暂存区，跨标签页并发不静默覆盖（[US-308](../stories/collaboration/US-308-branch-isolation-conflict.md)）
+- [ ] 公开文档讲清启用方式、工作树与草稿缓存的区别、恢复语义、历史保留旧值的风险与加密边界
+      （[US-306 阶段 C](../stories/collaboration/US-306-working-tree-index.md)，对应发布门禁 9）
 
 ## 术语（与既有 Workspace 插件的命名冲突处置）
 
@@ -25,11 +39,13 @@ owner: jimmy
 | 概念               | 中文     | 导出前缀       | 归属                               |
 | ------------------ | -------- | -------------- | ---------------------------------- |
 | Git working tree   | 工作树   | `WorkingTree*` | 本 Epic 新契约                     |
-| index / staging    | 缓存区   | `Index*`       | 本 Epic 新契约                     |
+| index / staging    | 暂存区   | `Index*`       | 本 Epic 新契约                     |
 | commit / commit 图 | 提交     | `Commit*`      | 本 Epic 新契约                     |
 | NEW 草稿本地缓存   | 草稿缓存 | `Workspace*`   | 既有 `@aiao/rxdb-plugin-workspace` |
 
 新契约里**不得**出现 `Workspace` 前缀的新导出；文档与 story 正文中"工作区"一词只指草稿缓存。
+需要指代**文件系统上的本地工作目录**（如 `dist/`、git working copy）时固定写"本地工作副本"，
+不复用"工作区"，也不与 Git 语义的"工作树"混用。引用历史原文时保留原字并加译注，不改引文。
 
 恢复会话属于工作树状态，公开名使用 `WorkingTreeRestore*`；分支引用和并发冲突属于提交图，公开名使用
 `CommitBranch*` / `CommitConflict*`。既有适配器契约已经导出 `SwitchBranchOptions`，本 Epic 不复用该名字；
@@ -158,7 +174,7 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 | `VersionManager.cleanupExpired()` 的过期删除                              | 与 `pull` 同类：写入来源为 `remote_sync` 的未暂存 DELETE 单元，递增 working-tree revision；不生成可 push 的本地 change |
 | branch switch、baseline/restore 物化、commit residual rebase              | 由对应领域操作显式维护工作树；底层投影重写不得被 trigger 二次记录                                                      |
 | metadata-only 目标分支的远端预取                                          | 只写 branch materialization staging 与独立水位，不得更新当前分支 `RxDBSync` 或业务表                                   |
-| QueryCache 的 upsert/delete/过期清理                                      | QueryCache 实体不进入 baseline、status、diff、stage 或 commit；它仍是可重建缓存，不能与版本化实体混在同一事务单元中    |
+| QueryCache 的 upsert/delete（orphan 当前**只计数不删除**，见下注）        | QueryCache 实体不进入 baseline、status、diff、stage 或 commit；它仍是可重建缓存，不能与版本化实体混在同一事务单元中    |
 | raw SQL、adapter 直写或其他 trigger bypass                                | 业务表写入前以 `commit_capability_mismatch` 拒绝；只有同时持有内部事务能力并原子维护工作树的受信路径可以关闭 trigger   |
 
 **受信路径必须与 bypass 门禁同批交付。** 表最后一行的拒绝门禁一旦启用，既有的批量投影重写路径就会撞上它——
@@ -197,7 +213,7 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 | 远端 [`mergeChanges(actions, branchId?, changes?)`](../../packages/rxdb/src/rxdb-adapter.ts)             | 推送到远端（`push-repository` / Supabase） |     否     |
 
 远端重载的第三个参数是 `changes` 而不是 `disableTriggers`，它不写本地业务表，MUST NOT 计入本表；
-静态扫描 MUST 同时排除 `dist/`（构建产物虽已 gitignore，但本地工作区常驻，按文本 grep 会命中 `.d.ts` 声明）。
+静态扫描 MUST 同时排除 `dist/`（构建产物虽已 gitignore，但在本地工作副本中常驻，按文本 grep 会命中 `.d.ts` 声明）。
 
 因此写路径必须携带**显式意图标记**（枚举值，plan 阶段冻结名称），由发起领域操作的调用方传入并透传到事务内；
 未携带标记的批量重写一律按未知入口拒绝。新增任何一个本地 `disableTriggers` 调用点都必须先在本表登记，
@@ -209,11 +225,30 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 > 本地投影变化同类，因此复用同一条语义而不是新造第八种。它已在实现里跳过仍有未推送变更的候选，
 > 不会与本地未提交编辑打架。
 
+QueryCache 那一行按**当前代码实际存在的路径**写：[QueryCacheRepository.ts](../../packages/rxdb/src/repository/QueryCacheRepository.ts)
+是 `@experimental` 且没有生产实例化路径，它「计算出 orphan 却不删除」，orphan 只进统计。因此本表登记的是
+upsert/delete；若将来接入真实清理路径，按同一条排除规则登记即可，**排除结论不变**。
+
 远端数据进入工作树不等于 remote commit push/pull：v1 只记录本地可审计的未提交结果，不伪造远端作者、消息或远端 commit。
 支持 full/filter 同步的实体必须覆盖“pull → refresh → switch away/back → status/diff”这条完整链路，但它**跨三个故事**，
 不能整条压在任何单一故事上：US-306 阶段 A 验 `pull → refresh → 仅凭 HEAD + WorkingTreeEntry 重放`（持久层断言，不经
 `switchBranch` 入口），US-306 阶段 B 接上 `status/diff`，US-308 接上 `switch away/back`。三段各自可独立跑；完整链路作为
-US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一次缓存刷新把工作树永久标成 dirty。
+US-308 的集成 fixture 收口。因此 US-306 US2-AC17 只承接**重放半边**，其 Then 中"切出/切回后仍一致"的半边由
+US-308 的集成 fixture 收口，两侧在故事文件中各自标注半边归属，审计时不得视为无人承接。
+QueryCache 另测其排除边界，避免一次缓存刷新把工作树永久标成 dirty。
+
+### 工作树包含远端来源的净变化（已裁决）
+
+`pull` / `autoSync` / `cleanupExpired()` 写入 `origin=remote_sync` 单元的直接后果是：**一次后台同步就会让
+`status()` 出现未提交变化，用户随后的 commit 会把自己的编辑与远端同步结果打包进同一个本地 commit。**
+这与 Git 的心智模型不同——Git 的 `fetch` 不会弄脏工作区。本 Epic **明示接受**这个取舍，理由与口径如下：
+
+- 工作树的定义就是"HEAD 之后的一切净变化"，**不按来源豁免**。豁免 `remote_sync` 会让发布门禁 10 的
+  「任何业务表净变化都能由 HEAD + WorkingTreeEntry 重放」直接失效，也会让远端下发的数据变成不可审计的暗改
+- `status()` / `diff()` **展示全部 origin**，不按来源过滤；`WorkingTreeEntry` 持有来源字段，UI 可据此分组或标注，
+  但默认视图不隐藏任何一类
+- v1 **不提供** auto-baseline（同步后自动把远端变化并入 HEAD）。它会引入"谁在什么时刻替用户提交了什么"的
+  隐式历史，与"不伪造远端作者"和"不改写历史"两条承诺冲突；若产品后续不接受"同步即变脏"，另起讨论，不在本 Epic 夹带
 
 ## 启用与存储边界
 
@@ -238,15 +273,20 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
   以及 `@aiao/rxdb-adapter-electron` 的 **Electron `node:sqlite` host**。实验性的 miniprogram 适配器不承诺崩溃恢复，
   不在矩阵内。
 - **入矩阵的判据是宿主能力，不是它所属 story 的 status**。承诺一个后端的前提固定为两条：该 host 已在既有
-  跨后端共享套件上全绿，且**没有已知的非确定性失败**。按 status 判定会得出错误结论——
-  [US-207](../stories/adapter/US-207-desktop-local-database.md) 同样尚未 Done（只剩 AC#8 三平台打包矩阵），
-  但 Electron host 已用 `@aiao/rxdb-test` 的五套共享套件跑出 786 用例全绿且无 flake，因此计入 v1；
-  打包矩阵不影响 host 在 CI 里的正确性，属于 US-207 自己的收尾项。
+  跨后端共享套件上全绿，且**没有已知的非确定性失败**。这两条都是可复跑的宿主事实，因此本节**只引宿主能力证据，
+  不引任何 story 的 status 或 AC 进度**——后者会随排期变动，把它写进论证等于让本节从写下的那天起就开始过期。
+  Electron `node:sqlite` host 计入 v1 的依据是：它在 `@aiao/rxdb-test` 的共享套件上全绿
+  （当前快照 931 passed / 18 files / 0 skipped，快照数字见 [US-207 的证据栏](../stories/adapter/US-207-desktop-local-database.md)，
+  以该处为准，本节不复制），且在同等 CPU 争抢条件下**没有已复现的非确定性失败**。
 - **Tauri 的 Rust `rusqlite` host 是第 7 个后端，v1 暂不承诺**。它与 Electron host 同属 `rxdb-adapter-desktop`，
-  但宿主实现完全不同（进程外 `rusqlite` vs 进程内 `node:sqlite`），且按上条判据未达标：
-  [US-210](../stories/adapter/US-210-tauri-sqlite-local-database.md) 已知在与 cargo 目标争抢 CPU 时存在变更事件
-  时序 flake（Node 宿主同条件下没有），AC#1 的跨进程重启 e2e 也尚未覆盖。flake 收敛且共享套件稳定全绿后按同一套件
-  补入矩阵，届时更新本节与发布门禁 4，不在本 Epic 内夹带。
+  但宿主实现完全不同（进程外 `rusqlite` vs 进程内 `node:sqlite`），且按上条第二款未达标：**在 stdio 测试宿主上
+  存在可复现的非确定性失败**——CPU 打满或与 `cargo-*` target 并行时随机挂 1–4 条，全落在「改完立刻读到旧值」
+  同一族；把通知 `batchTimeout` 调成 0 更糟（空闲机器上稳定挂 10–12 条），因为套件本身依赖那个 16ms 合并窗口。
+  同条件下 in-process 的 Node 宿主 3 次全绿，所以这是**跨进程管道的调度时序特征**，不是 Tauri 路径本身的缺陷；
+  用真 IPC 的打包 e2e 也确实跑绿了。但判据要的是「没有已知的非确定性失败」，而共享套件上的这一族失败仍可复现，
+  收敛条件（不与其他 target 争抢 CPU）也不是 CI 可依赖的前提，因此暂不入矩阵。
+  该族 flake 收敛、共享套件在争抢条件下稳定全绿后，按同一套件补入矩阵并同步更新本节与发布门禁 4，不在本 Epic 内夹带。
+  证据与复现条件见 [US-210](../stories/adapter/US-210-tauri-sqlite-local-database.md)。
 - 跨后端 conformance 拆成**两套具名套件**，各有唯一归属故事，避免出现「门禁点名、无人认领」：
   - `workingTreeCaptureConformanceSuite` —— 归 [US-306 阶段 A](../stories/collaboration/US-306-working-tree-index.md)，
     覆盖写入口捕获、事务原子性与工作树重放
@@ -257,7 +297,10 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
 
 ## 横切约束（按故事适用，不单独成故事）
 
-原 US-305 把三框架对称（FR-024）、a11y（FR-025）、异步状态（FR-023）和禁止复活旧导出（FR-028）各写成一条 FR，读起来像"最后统一补"。适用范围固定如下：
+拆分前的 US-305 把三框架对称、a11y、异步状态和禁止复活旧导出各写成一条 FR，读起来像"最后统一补"。
+其中只有异步状态保留了编号（FR-023，已迁入 [US-306](../stories/collaboration/US-306-working-tree-index.md)）；
+**三框架对称、a11y、禁止复活旧导出的原编号 FR-024 / FR-025 / FR-028 一律作废**，不在任何故事中承接，
+也不得被新条目复用——它们已整体转为下列横切约束，按故事适用：
 
 1. **三框架对称**：US-306 阶段 C、US-307、US-308 的用户操作面必须在 Angular / React / Vue 提供语义对称的 API；US-305 与 US-306 阶段 A/B 是无 UI 的核心底座，只要求核心公开类型、TSDoc 和类型契约测试。
 2. **异步状态**：命令暴露 loading / success / error，查询在无结果时额外暴露 empty；错误说明操作、对象与恢复建议，不给无 empty 语义的命令伪造 empty 状态。
@@ -283,17 +326,19 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
    `useWorkingTree()` 的三端契约、扩展点协议与 `bench-working-tree` target 本身
 6. [US-307](../stories/collaboration/US-307-restore-session.md) 与 [US-308](../stories/collaboration/US-308-branch-isolation-conflict.md)
    依赖 US-306 阶段 B，两者之间互相独立可并行。但它们**不能整体与 US-306 阶段 C 并行**：US-307 的 `restore` / `restoreState`、
-   US-308 的分支切换与冲突提示都按 US-306 阶段 C 冻结的扩展点协议追加键，FR-026b 也只向 US-306 阶段 C 拥有的 bench target
-   追加采样场景。因此二者的**核心持久层语义可与 US-306 阶段 C 并行开工，三框架入口与 benchmark 半边必须排在 US-306 阶段 C 之后**
+   US-308 的分支切换与冲突提示都按 US-306 阶段 C 冻结的扩展点协议追加键；US-307 的 FR-026b 还要向 US-306 阶段 C 拥有的
+   bench target 追加 restore 采样场景（**benchmark 追加只涉及 US-307，US-308 没有 benchmark 交付项**）。
+   因此二者的**核心持久层语义可与 US-306 阶段 C 并行开工，三框架入口必须排在 US-306 阶段 C 之后；
+   US-307 的 benchmark 追加同样排在其后**
 
 ## 故事
 
 > 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
 
 - [US-305 提交图与 HEAD 持久化](../stories/collaboration/US-305-commit-graph-head.md) (High)
-- [US-306 工作树、缓存区与提交操作](../stories/collaboration/US-306-working-tree-index.md) (High) — 单文件三阶段：
+- [US-306 工作树、暂存区与提交操作](../stories/collaboration/US-306-working-tree-index.md) (High) — 单文件三阶段：
   - 阶段 A 工作树写入捕获与持久化
-  - 阶段 B 缓存区与提交状态机
+  - 阶段 B 暂存区与提交状态机
   - 阶段 C 三框架工作树交互面与性能门禁
 - [US-307 历史恢复会话](../stories/collaboration/US-307-restore-session.md) (Medium)
 - [US-308 分支隔离与跨 realm 冲突检测](../stories/collaboration/US-308-branch-isolation-conflict.md) (Medium)
@@ -340,12 +385,21 @@ US-308 的集成 fixture 收口。QueryCache 另测其排除边界，避免一�
    runner 上同时通过绝对 p95；环境不匹配不得产出绿色发布结论
 8. api-baseline 新增导出全部使用 `Commit*` / `WorkingTree*` / `Index*` 前缀，无 `Workspace*` 新导出，也不复用既有 `SwitchBranchOptions`
 9. 公开文档说明数据库级显式启用、工作树与草稿缓存的区别、恢复语义、历史保留敏感旧值的风险、
-   加密边界与不改写历史的承诺
+   加密边界与不改写历史的承诺。**该交付项归 [US-306 阶段 C](../stories/collaboration/US-306-working-tree-index.md)**，
+   随 `useWorkingTree()` 的公开契约一并交付，不是无主的发布前补丁
 10. 写入口 conformance 覆盖普通 CRUD、merge、undo/redo、full/filter pull/autoSync/repository sync/bulkSync、
     `cleanupExpired()` 过期删除、QueryCache 排除与 raw bypass 拒绝；任何业务表净变化都能由
     HEAD + WorkingTreeEntry 重放。意图标记登记表与代码实际调用点一致——存在未登记的
     `adapter.switchBranch` / `mergeChanges(disableTriggers)` 调用点即门禁失败
 11. index 依赖闭包、active 分支基数、metadata-only 远端分支首次物化和完整 restore 路径预检 fixture 全绿
+
+## 与既有 Epic 的边界
+
+| 相邻 Epic                                                  | 边界                                                                                                                                                                                                                               |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [epic-007 公开 API 门禁](./epic-007-public-api-gates.md)   | 发布门禁 8（`Commit*` / `WorkingTree*` / `Index*` 前缀、无 `Workspace*` 新导出）与横切约束 4（不复活旧导出）**只约束本 Epic 新增的导出**，是新功能自带的命名约束；**不扩大 epic-007 的门禁覆盖面范围**，也不改动其既有检查项与阈值 |
+| [epic-004 桌面与适配器](./epic-004-future-features.md)     | 本 Epic 只**消费** adapter 的事务与 trigger 能力并声明 v1 支持矩阵；host 本身的正确性、打包与 flake 收敛归 US-207 / US-210，矩阵变动按「启用与存储边界」的宿主能力判据重新裁决                                                     |
+| [epic-008 生命周期与作用域](./epic-008-lifecycle-scope.md) | 已由 epic-008 单方面声明；本 Epic 不引入新的 scope 原语，工作树状态的持有与释放沿用其结论                                                                                                                                          |
 
 ## 非目标
 

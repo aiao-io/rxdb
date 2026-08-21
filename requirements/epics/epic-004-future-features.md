@@ -21,6 +21,8 @@ owner: jimmy
 - [ ] `rxdb-plugin-storage` 文件内容落入桌面应用数据目录（Electron 先行，Tauri 随 US-210）
 - [x] 微信小程序逻辑层的实验性 wa-sqlite 路径纳入门禁与公开能力矩阵
 - [ ] 多端小程序宿主：先抽平台无关 host，再按可行性门禁放行支付宝 / 抖音 / 百度 / QQ
+- [ ] QueryCache 生产路径：`getRepository` / EntityManager 在 `SyncType.QueryCache` 时走 `QueryCacheRepository`（远端权威 + sqlite 行缓存）
+- [ ] HTTP 远程适配器：已有 REST API 可挂 `adapter:remote`，本地 sqlite 独立注册为行缓存
 
 ## 故事
 
@@ -35,6 +37,8 @@ owner: jimmy
 - [US-211 多端小程序宿主](../stories/adapter/US-211-multi-miniprogram-platforms.md) — US-209 的后续：抽 host 后按可行性门禁逐个放行非微信平台
 - [US-504 Electron 本地文件存储](../stories/plugin/US-504-electron-local-file-storage.md) — 文件内容落 `userData/rxdb-files`，与桌面 SQLite 同一备份域；窄接口 `StorageFilesystem` + host 侧仲裁路径锁 + `StorageBackendError { code }`
 - [US-505 Tauri 本地文件存储](../stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边；被 US-210 门禁的只有 AC#1 / #7，其余可独立交付
+- [US-020 将 QueryCache 接入统一 Repository](../stories/core/US-020-querycache-repository.md) — 让 `SyncType.QueryCache` 从空操作变成生产真；两阶段（接线 → 缓存质量）；不 inherit US-203 AC#6
+- [US-212 HTTP 远程适配器](../stories/adapter/US-212-http-adapter.md) — 远端权威 HTTP + 独立注册 sqlite 行缓存；硬前置 US-020；v1 不实现 Full changelog
 
 > 拆分理由：PGlite 的 callback transaction 无法跨 IPC 序列化，需要一套 SQLite 路径不需要的
 > 事务 host 协议；混编会让 US-207 在不做这件事的前提下无法验收。Tauri PGlite 明确不在范围内——Tauri 没有 Node
@@ -49,3 +53,5 @@ owner: jimmy
 > US-504 / US-505 同理归入本 Epic：[US-502](../stories/plugin/US-502-storage-plugin.md) 的 OPFS 承诺属于已 `Done`
 > 的 epic-001，桌面原生文件后端是平台扩展。两条故事按 US-207 → US-210 的先例拆分——Electron 半边前置齐备可即刻
 > 排期，Tauri 半边被 US-210（meta 的桌面 adapter）前置，绑在一起会让能交付的一半陪跑。
+>
+> US-020 / US-212 归入本 Epic 而非 [epic-002](epic-002-data-sync.md)：epic-002 已 `Done`，**不得持有未完成故事、不得重开**。QueryCache 生产路径是 US-203 AC#6 / US-006 AC#6 的文档债——类与 supabase ducks 都在，统一 Repository 从不实例化它们。HTTP 是新的远程适配器，与 US-208 / US-211 同属未完成的平台/适配器扩展。两条硬顺序 US-020 → US-212：线路不关就发 HTTP 包，QueryCache 配置仍是空操作且写入污染 local changelog。

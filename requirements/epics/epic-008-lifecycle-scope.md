@@ -1,6 +1,6 @@
 ---
 id: epic-008-lifecycle-scope
-status: In Progress
+status: Done
 startDate: 2026-08-15
 targetDate: TBD
 owner: jimmy
@@ -12,16 +12,16 @@ owner: jimmy
 
 让「一段代码活多久」成为**可声明、可组合、可验证**的东西。
 
-今天 rxdb 里每一个会产生副作用的构件——插件、网关、事件监听器、订阅、实例级属性注入——都各自维护
+改造前 rxdb 里每一个会产生副作用的构件——插件、网关、事件监听器、订阅、实例级属性注入——都各自维护
 一份「安装时做了什么 → 拆卸时逐一撤销」的手工账本。账本是自由格式的，编译器不检查，测试也很难覆盖，
-唯一的保证是作者当时记得写对称的那一半。本 Epic 要把这份账本收敛成**一个原语**：登记副作用时就同时
+唯一的保证是作者当时记得写对称的那一半。本 Epic 把这份账本收敛成**一个原语**：登记副作用时就同时
 登记它的撤销方式，作用域结束时逆序自动释放。
 
-目标状态是：新增一个副作用**没有地方**可以忘记写它的清理；已有的九处手工配对逐步迁移到同一套语义上。
+目标状态是：新增一个副作用**没有地方**可以忘记写它的清理。
 
 ## 为什么单列一个 Epic
 
-现有七个 Epic 里，epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能力、类型系统、工作树），
+epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能力、类型系统、工作树），
 [epic-007](epic-007-public-api-gates.md) 按**发布约束**分组。生命周期作用域两者都不是：
 
 - 它不是用户可见能力——应用开发者不会因为它多出一个功能，挂进 epic-001 会让「核心 MVP」的愿景失真；
@@ -29,148 +29,147 @@ owner: jimmy
   而本 Epic 处理的是**运行时契约缺失**，不是扫描器覆盖面。
 
 它是一层**横切的实现约束**：一旦落地，后续每一个插件、每一个框架绑定、每一个 DevTools 探针都受它约束。
-这类工作需要一个能长期承接的归属，而不是每次现补一个「重构」故事。
-
-新缺口进入本 Epic 的判据只有一条：**它是「资源的获取与释放被拆成两处、靠人工保持对称」的问题**。
-「某个功能还没做」不属于本 Epic，哪怕它顺带要清理几个订阅。
-
-## 现状：同一件事被手工写了九遍
-
-以下九处都在做同一件事——记录「装了什么」以便「拆的时候撤销」——但没有两处的写法相同：
-
-| #   | 位置                                                                                               | 手工机制                                                                       | 已知代价                                                                                                                                                                             |
-| --- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | [RxDB.ts:670-688](../../packages/rxdb/src/RxDB.ts#L670-L688) `#shutdown()`                         | 一次手工复位 8 处状态                                                          | 注释自陈「复位是拆卸的一半」；漏一处 = 重连后拿到空壳实例                                                                                                                            |
-| 2   | [RxDB.ts:142](../../packages/rxdb/src/RxDB.ts#L142) `#event_initialized`                           | 「只装一次」布尔守卫                                                           | 事件监听器**没有**卸载路径，只能靠不重复装来防泄漏                                                                                                                                   |
-| 3   | [RxDB.ts:118](../../packages/rxdb/src/RxDB.ts#L118) `#plugin_install_promises`                     | `Map<IRxDBPlugin, Promise<void>>` 记账 + 失败后删条目允许重试                  | 安装态、失败态、重试态三件事挤在一个 Map 里                                                                                                                                          |
-| 4   | [storage/plugin.ts:19-20](../../packages/rxdb-plugin-storage/src/plugin.ts#L19-L20)                | `#ownsStorage` + `#registeredEntity` 双布尔                                    | `defineProperty` / `deleteProperty` 与 `entities.push` / `splice` 两对配对散在 install / destroy                                                                                     |
-| 5   | [search/plugin.ts:84,98-100](../../packages/rxdb-plugin-search/src/plugin.ts#L84)                  | `SearchPluginPhase` 五态枚举 + `#installPromise` 身份比对                      | 为了处理「destroy 与异步 install 竞态」自建了一套状态机                                                                                                                              |
-| 6   | [search/plugin.ts:109,495-498](../../packages/rxdb-plugin-search/src/plugin.ts#L109)               | `Array<{type, listener}>` 手工监听器清单，destroy 时逐个 `removeEventListener` | 新增一处 `addEventListener` 必须记得 push 进同一个数组                                                                                                                               |
-| 7   | [workspace:173-174,196](../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L173-L174) | `#installPromise` + `#installFailed` + `#destroyed` 三标志                     | 第三套语义不同的安装状态机；`#destroyed` 需要在每个 `await` 之后重新检查                                                                                                             |
-| 8   | [workspace:185,412-425](../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L185)      | `Map<CacheId, Subscription>` + 独立的 `#taskSubscription`                      | 两处订阅两套释放路径；`rollback(() => …)`（:295）已经是本原语的临时手写版                                                                                                            |
-| 9   | [graph/plugin.ts:33-35](../../packages/rxdb-plugin-graph/src/plugin.ts#L33-L35)                    | `destroy()` 空实现，注释只写「注销」                                           | **契约里没有位置可写**：`install()` 调 `rxdb.repository()` 写进 `#repository_config_map`，而 RxDB 全文只有 `.set`（:323）与 `.get`（:404），**没有反注册 API**——这不是忘写，是写不了 |
-
-第 9 条是本 Epic 的直接触发点：它证明「靠自觉写对称的 destroy」在当前契约下**做不到**，
-因为宿主根本没提供撤销入口。补一个 `unregisterRepository()` 只能解决这一处；同样的洞会在
-下一个「注册型」能力上原样重现。
-
-### 两处「拆了装不回来」的既有泄漏
-
-第 4 / 第 7 条不只是写法不统一，它们**今天就会产生用户可见的坏结果**——因为插件实例由
-[`#plugin_map`](../../packages/rxdb/src/RxDB.ts#L351-L361) 缓存、**构造器只跑一次**，而 `destroy()`
-每次停机都跑：
-
-- **storage**：`new RxdbFileStorage(...)` 与 `Object.defineProperty(rxdb, 'storage', …)` 都在
-  [构造器:27-41](../../packages/rxdb-plugin-storage/src/plugin.ts#L27-L41)，`destroy()` 却
-  `Reflect.deleteProperty(this.rxdb, 'storage')`（:53-64）。**断连一次之后 `rxdb.storage` 永久消失**，
-  重连不会把它装回来。且 [storage.service.ts:782-793](../../packages/rxdb-plugin-storage/src/storage.service.ts#L782-L793)
-  的 `destroy()` 是终态，同一个实例即便留着也已经 `StorageDestroyedError`。
-- **workspace**：`#destroyed`（:196）是终态标志，从不复位；`#indexedDBStore` 是
-  `readonly` + definite assignment（:169），构造器之后无法重新赋值。拆卸后同样装不回来。
-
-**这两条 + 第 9 条构成 US-014 的全部必要性**：它们不依赖依赖图、连接纪元或框架宿主，
-US-014 独立交付即可关闭。后续故事必须各自证明自己的症状。
-
-### 一处贯穿全部九项的不对称
-
-[RxDB.ts:838-848](../../packages/rxdb/src/RxDB.ts#L838-L848) 的 `#destroy_plugin()` 用 `Promise.all`
-并发调用，把每个插件 `destroy()` 的异常 `console.error` 后**吞掉**；而
-`#track_plugin_install()`（:781-795）会把 `install()` 的异常经 `#await_plugin_installs()` 抛给 `connect()`。
-同一个生命周期的两端，一端硬失败一端静默，且拆卸端连**逆序**都没有——
-这不是某个插件的 bug，是「拆卸没有统一语义」的直接后果。
-
-## 从 Cordis 迁移什么
-
-对照 `/Users/jimmy/Documents/aiao/cordis` 的 `Fiber`、`EventsService`、`Service.check`、反射通知、
-`registry.ts` / `utils.ts` / `packages/timer` 与对应测试，真正值得迁移的不是 Cordis 的 `Context`、
-Proxy 或完整状态枚举，而是六条可验证的机制：
-
-1. **目标纪元（target epoch）+ 单飞 reconcile。** Cordis 的 `_setEpoch()` 在过渡进行时只更新目标，不并发启动第二个
-   `_reload()` / `_unload()`；当前过渡结束后再比较最新目标。迁移到 RxDB 后，同一插件同一时刻最多一个
-   `install` / 作用域释放过渡：
-   - `install()` 尚未 settle 时依赖消失，必须等它 settle，释放已经登记的 scope，且不能把旧 epoch 标成 `active`；
-   - `disposing` 期间出现新 epoch，旧释放只执行一次，完成后直接安装最新 epoch，不启动中间纪元；
-   - 安装失败绑定到触发它的依赖 epoch，依赖不变时不自动重试，只有新 epoch 才重新 reconcile。
-2. **就绪判定与失效通知分开。** Cordis 用 `Service.check` 判断注入对象当前是否可用，再由反射通知触发依赖重新评估；RxDB
-   应把 `adapterConnected$(adapterName)` 当作“当前表结构已就绪”的谓词信号，把 adapter 实例身份编码进
-   `targetEpoch`。信号变为 `false` 或实例替换只负责触发 reconcile，不负责直接操作插件状态；这样不会重新退化成
-   `firstValueFrom(connected$)` 的聚合猜测，也不会把 Observable 误当成依赖容器。
-3. **注册即返回 disposer。** Cordis `EventsService.on()` 返回幂等 disposer，并把监听器挂进当前 Fiber 的 effect；RxDB
-   现有 `addEventListener()`、VersionManager、HistoryManager、QueryManager、Gateway、Search、Workspace 仍维护多份
-   手工 remover/subscription 清单。`LifecycleScope` 迁移应让事件注册返回幂等 remover，再用 `scope.acquire()` 统一登记，
-   保留现有 `removeEventListener()` 作为兼容路径。
-
-   `@aiao/utils` 的 `EventDispatcher` 使用 `Set` 去重，因此同一 listener 的重复注册仍只有一个集合条目；重复调用返回
-   的 disposer 应为幂等空操作，只有实际插入条目的 disposer 负责移除它。这样既保留现有去重语义，也不会误删另一处注册。
-   该 API 收敛属于本 Epic 的生命周期账本，不另起 Cordis 兼容层。
-
-4. **作用域树是本地读出，不是全局注册表。** cordis 把 `{ label, children }` 挂在 `effect()` 返回的
-   disposer 自己身上，`getEffects()` 只读本 fiber 的清单。据此 US-013 提供 `getEntries()`
-   与 AC#9b（决策见 US-013 D4）。DevTools 作用域树因此缺的从来不是数据源，而是 US-015 的状态机。
-5. **一次 `acquire()` 只包一步会失败的获取。** cordis 用 generator effect 让 setup 半途抛错时
-   已获取的部分照常回滚；rxdb 不引入 generator，改用契约拿到同一保证（US-013 AC#12b 与 D5）。
-   US-014 D7 的 storage 迁移写法据此是三段式：把 `new` 与 `defineProperty` 写进一次 `acquire()`，
-   `defineProperty` 抛错时新造的实例不进清单，等于把 D7 要消灭的泄漏换个位置。
-6. **批量 reconcile + 只在 `active` 边上通知。** cordis 的 `ReflectService.notify(names[])` 一轮扫完
-   一批名字，`_updateState` 只在跨越 `ACTIVE` 时才通知。US-015 的调度器约束与两条并发测试据此而来。
-
-对应测试必须覆盖 Cordis `fiber.spec.ts` 的三类 inertia lock：安装中断连、安装/释放期间重新连上、依赖实例替换但名字不变；
-并覆盖 `dispose.spec.ts` 的重复释放、逆序、嵌套和异步释放。
-
-**不迁移**：Cordis `Context` / `provide()` / Proxy trace、全局 Registry、thenable Fiber、HMR、长异步栈追踪。
-`packages/timer` 的 `ctx.timeout()` / `interval()` / `throttle()` / `debounce()` 一并**否决**：
-rxdb 的 ~30 处 `setTimeout` 全部在适配器内部，已有 47 处配对的 `clear*`，
-且适配器自己拥有 `destroy()`——不满足本 Epic「病灶数 ≥ 抽象数」的判据。
 
 ## 目标
 
-已认领，构成本 Epic 的承诺范围：
+三条都是可核对的状态，不是产品指标：
 
-- [x] 在 `@aiao/utils` 提供 `LifecycleScope` 生命周期作用域原语，语义（逆序、幂等、**异步释放**、错误隔离、可嵌套）
-      由测试冻结（[US-013](../stories/core/US-013-lifecycle-scope-primitive.md)）。
-      **异步获取**（`acquireAsync()` + `AbortSignal`）不在承诺范围：本 Epic 四个迁移点的资源获取全部是同步的，
-      零调用方；它是纯可加性 API，出现第一个「获取跨 `await`」的调用方时再补
+- [x] `@aiao/utils` 有一个语义被测试冻结的作用域原语，**登记副作用与登记它的撤销写在同一个闭包里**；
+- [x] 插件契约不再有「装了什么」的自由格式账本——四个插件包的安装态全部经 `install(scope)` 登记；
+- [x] 宿主自己持有的资源（`versionManager` / `#gateway` / `entityManager`）在**成功停机与失败回滚两条路径上对称释放**。
+
+## 收口判据
+
+本 Epic 在下列两条同时成立时置 `Done`：
+
+1. 「九处手工账本」结算表没有 `未关闭` 行；
+2. 承诺范围内的故事 YAML `status` 均不为 `In Progress`。
+
+当前距离：**零，已置 `Done`**。结算表第 1 条随失败回滚的资源三步补齐关闭；
+[US-015](../stories/core/US-015-plugin-inject-dependency.md) 停在 `In Review`（阶段 B 已移出承诺范围），
+`In Review` 不是 `In Progress`，不挡第 2 条。
+
+新缺口进入本 Epic 的判据，两条**同时**满足：
+
+- 它是「资源的获取与释放被拆成两处、靠人工保持对称」的问题；
+- 它能写出**今天用户踩得到的具体症状**（[病灶数 ≥ 抽象数](../CONVENTIONS.md#价值待证--价值待证)）。
+
+两类东西明确不属于本 Epic，即使它们出现在同一个方法里：
+
+- **「某个功能还没做」**——哪怕它顺带要清理几个订阅；
+- **「状态变量需要复位」**——作用域原语管的是资源释放，不是状态复位。
+  `RxDB.#shutdown()` 里 `#transaction_stack = []`、`#connected_sub.next(false)` 这类复位
+  原语按定义碰不到；把它们算进病灶数会架空上面第二条判据。
+
+## 结算：九处手工账本
+
+改造前九处都在做同一件事——记录「装了什么」以便「拆的时候撤销」——但没有两处的写法相同。当前状态：
+
+| #   | 病灶                                                             | 结算                                                                                                                                                                                                                                                                                                           |
+| --- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `RxDB.#shutdown()` 手工复位                                      | 关闭（bugfix）——`init()` 失败回滚补齐 `versionManager.destroy()` + `#gateway?.destroy()` + `entityManager.destroy()`，与 `#shutdown()` 的资源三步对称，见下方专节                                                                                                                                              |
+| 2   | `RxDB.#event_initialized` 布尔守卫                               | **改判：不是病灶**，见下方专节                                                                                                                                                                                                                                                                                 |
+| 3   | `RxDB.#plugin_install_promises` 安装记账 Map                     | 关闭（US-015 阶段 A）——字段已删，安装态迁进 `PluginDependencyScheduler`                                                                                                                                                                                                                                        |
+| 4   | storage 的 `#ownsStorage` / `#registeredEntity` 双布尔           | 关闭（US-014）——`RxDBPluginStorage.install(scope)` 三段 `scope.acquire()`，标签 `storage:service` / `storage:property` / `storage:entity`（[plugin.ts](../../packages/rxdb-plugin-storage/src/plugin.ts)）                                                                                                     |
+| 5   | search 的 `SearchPluginPhase` 五态枚举                           | 关闭（US-015 阶段 A）——枚举已删，`installing` / `failed` 由调度器持有                                                                                                                                                                                                                                          |
+| 6   | search 的 `Array<{type, listener}>` 手工监听器清单               | 关闭（US-014）——一条监听一条 `scope.acquire()`，注册与撤销同处一个闭包                                                                                                                                                                                                                                         |
+| 7   | workspace 的 `#installPromise` / `#installFailed` / `#destroyed` | 关闭（US-014）——终态标志 `#destroyed` 已删（判据改成 `#indexedDBStore` 随纪元生灭），插件实例可重新 `install()` 进入新纪元。`#installPromise` / `#installFailed` **仍在**：它们是纪元内 IndexedDB 恢复的单飞与失败重试记账，由 `#releaseEpochState()` 复位，不是终态泄漏；US-015 Out of Scope 明确两阶段都不动 |
+| 8   | workspace 的 `Map<CacheId, Subscription>`                        | 关闭（US-014）——纪元级释放经 `RxDBPluginWorkspace.#acquireEpoch()` 的 `scope.acquire(..., 'workspace:epoch')` 登记（[RxDBPluginWorkspace.ts](../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts)）；Map 本身是纪元内的动态缓存，不是「拆成两处的配对」                                            |
+| 9   | graph 的 `destroy()` 空实现——**契约里没有位置可写**              | 关闭（US-014）——`RxDB.repository()` 收 `scope` 形参，`RxDBPluginGraph.install(scope)` 把注册挂上去（[plugin.ts](../../packages/rxdb-plugin-graph/src/plugin.ts)）                                                                                                                                              |
+
+改造前贯穿全部九项的那处不对称——`RxDB.#destroy_plugin()` 用 `Promise.all` 并发拆卸、吞掉异常、且没有逆序
+——也已随 US-014 关闭：现在是逆序串行 + 错误隔离不短路
+（[`RxDB.#destroy_plugin()`](../../packages/rxdb/src/RxDB.ts)）。
+
+### 第 1 条：漏写的是**资源三步**，不是缺失的抽象
+
+`RxDB.#connection_scope` 连接纪元作用域已经落地：`init()` 建（`#ensure_connection_scope()`），
+`#shutdown()` 与 `init()` 的失败回滚都经 `#release_connection_scope()` 释放
+（`RxDB.#release_connection_scope()`）。总闸已在，缺的是**不在作用域里**的那三个管理器：
+`init()` 的 `catch` 原先只复位 `#rxdb_initialized`、释放连接作用域、复位调度记录，
+`#shutdown()` 的 `versionManager.destroy()` / `#gateway?.destroy()` / `entityManager.destroy()`
+一步都没做。抛错点落在各自 `init()` 之后时，两处是**今天能踩到的泄漏**、一处是对称缺口：
+
+- **`versionManager`**：`VersionManager.init()` 每次都 `addEventListener()` 挂事务与本地新建事件，
+  并跑 `#init_sync()` 推进 `#subscriptions` / `#event_removers`，自身**没有幂等守卫**
+  （`#historyManagerDestroyed` 只挡二次 `destroy()`）。重试叠上第二份，症状是 redo 栈被打两次、
+  同步监听跑两遍。
+- **`#gateway`**：`RxDBTabsGateway` **构造期**就 `createBroadcastTopic()`（内部 `new BroadcastChannel`）
+  与 `new LeaderElection()`（挂 `beforeunload`），通道早于 `init()` 打开；`#destroyed` 是终态，
+  重试只能 `new` 第二个写进 `#gateway`，旧实例从此无人引用也无人 `destroy()`。
+  `multiInstance !== false`（默认）下每失败一次泄漏一条 BroadcastChannel 加一套选举。
+- **`entityManager`**：`registerEntityManager` 用 `WeakMap<EntityType, Set<EntityManager>>`，
+  同实例 `Set.add` 是空操作，不叠第二份也不误触发多实例抛错——只是 Repository 身份缓存可能残留。
+  对称缺口，随手补齐，不单独计数。
+
+修法是 `catch` 补齐与 `#shutdown()` 对称的资源三步 + 两条红测试，**不单开故事**。红测试的抛错点必须落在
+`versionManager.init()` **之后**（既有的 `schemaManager.init` 失败用例停在两处资源都还没动的时刻，
+看不见它们），见 `RxDB.plugin-scope.spec.ts` 的
+`describe('init() 在 versionManager.init() 之后失败：catch 与 #shutdown() 的资源释放对称')`。
+
+`#shutdown()` 剩余 14 步里只有这 3 步是资源释放，其余 9 步是状态复位——按上方收口判据，原语碰不到它们。
+把 3 步资源释放挪进连接作用域是可选的整洁化，不构成一条独立的用户价值。
+
+### 第 2 条：`#event_initialized` 不是泄漏
+
+`RxDB.#init_event()` 注册的三个事务监听器挂在**实例自己的** `#event_map` 上
+（`this.addEventListener(TRANSACTION_BEGIN, on_begin)`），
+不跨对象持有引用——实例被回收时监听器一并消失。布尔守卫防的是「重连时重复注册导致监听器集合膨胀」，
+这是一个正确的设计选择，不是「缺少卸载路径」。改判为非病灶，不占本 Epic 的名额。
+
+## 承诺范围
+
+已交付：
+
+- [x] `@aiao/utils` 提供 `LifecycleScope` 原语，语义（逆序、幂等、**异步释放**、错误隔离、可嵌套）
+      由测试冻结（[US-013](../stories/core/US-013-lifecycle-scope-primitive.md)）。260 行实现 / 600 行测试。
+      **异步获取**（`acquireAsync()` + `AbortSignal`）不在承诺范围：四个迁移点的资源获取全部同步，零调用方；
+      它是纯可加性 API，出现第一个「获取跨 `await`」的调用方时再补
 - [x] `IRxDBPlugin` 契约改为 `install(scope)`，四个插件包全部迁移，`destroy()` 转为可选并进入废弃周期；
-      **关闭上表第 4 / 7 / 9 条三处既有泄漏**（[US-014](../stories/core/US-014-plugin-scope-contract.md)）
+      **关闭结算表第 4 / 6 / 7 / 8 / 9 条**（[US-014](../stories/core/US-014-plugin-scope-contract.md)）
+- [x] 插件可声明 `inject` 依赖，依赖未就绪时不安装、依赖消失时自动释放作用域——**阶段 A 适配器依赖纪元**
+      （[US-015](../stories/core/US-015-plugin-inject-dependency.md)，2026-08-21）：`inject: ['adapter:local']`、
+      `PluginDependencyScheduler` 与 `localAdapterSync`；**关闭结算表第 3 / 5 条**
 
-已冻结契约，分两阶段交付：
+- [x] `init()` 失败回滚补齐与 `#shutdown()` 对称的资源三步（`versionManager` / `#gateway` / `entityManager`
+      的 `destroy()`）——bugfix，不单开故事（见结算表第 1 条）
 
-- [ ] 插件可声明 `inject` 依赖，依赖未就绪时不安装、依赖消失时自动释放作用域
-      （[US-015](../stories/core/US-015-plugin-inject-dependency.md)）。
-      **阶段 A** 适配器依赖纪元——**已交付**（2026-08-21）：`inject: ['adapter:local']`、纪元调度器与
-      `localAdapterSync`；search 插件的 `adapterConnected$` 自等与 `SearchPluginPhase` 随之删除，
-      安装记账从 `#plugin_install_promises` 迁进调度器，**上表第 3 / 5 条关闭**；
-      **阶段 B** 插件间依赖图（拓扑序、环检测）——**价值待证**，未证不开工
+未交付：无。
 
-价值已证，尚未切片：
+## 已移出承诺范围
 
-- [ ] `RxDB.#shutdown()` 的手工复位收敛到实例作用域（背景见「现状」表第 1 项）——预留给 `US-016`。
-      当前 `init()` 在 `versionManager.init()` 或 Gateway 初始化失败时只复位 `#rxdb_initialized`，没有销毁已登记的
-      VersionManager 事件和 RxJS subscription；下一次 `init()` 会重复注册副作用。US-016 至少要覆盖 init 失败回滚、
-      `disconnectAll()` 统一释放，以及事件 disposer API。
-- [ ] 三框架绑定（Angular `DestroyRef` / React `useEffect` cleanup / Vue `onScopeDispose`）统一挂接到
-      同一个作用域原语——预留给 `US-017`
+三条曾被本 Epic 引用为后续故事，按收口判据改判。它们不是排期承诺，写明解锁条件后**未解锁不开工**：
 
-> 后两组已被 US-014 / US-015 的正文引用为 `US-016` / `US-017` 的归属，但**故事文件尚未创建**，
-> 因此它们仍不是排期承诺；但 US-016 已有可复现症状，不再是「价值待证」。US-014 交付后本 Epic 的三处已知泄漏即全部关闭；
-> US-015 阶段 A 之后的每一条仍必须写出「今天用户踩得到的具体症状」才允许开工。
+| 条目                        | 改判理由                                                                                                                                                                                                                         | 解锁条件                       |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| US-015 阶段 B 插件间依赖图  | **零消费方**：全仓库唯一的 `inject` 声明是 search 的 `readonly inject = ['adapter:local']`。拓扑序与环检测是为一个不存在的依赖图准备的                                                                                           | 出现第一个 `plugin:*` 依赖声明 |
+| `US-016` 连接纪元与停机收敛 | 原始症状（`init()` 失败只复位 `#rxdb_initialized`）已随阶段 A 大部分修复；剩余部分降级为上方 bugfix。收益上限是「14 步变 11 步」，达不到一条故事的门槛                                                                           | 不再解锁——已被 bugfix 取代     |
+| `US-017` 三框架宿主作用域   | 三端各自已有原生作用域并且在用：Angular `DestroyRef`、React `useEffect` cleanup、Vue `onScopeDispose`。抽第四层需要先有三端各自的泄漏证据，目前一条没有。**铁律「三框架对称」约束的是对外 API 对称，不是内部实现共用同一个原语** | 三端任一出现可复现的清理泄漏   |
 
-## 故事
+## 设计依据：从 Cordis 迁移了什么
 
-> 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
+对照 `/Users/jimmy/Documents/aiao/cordis` 的 `Fiber`、`EventsService`、`Service.check`、反射通知与
+`registry.ts` / `utils.ts`，迁移的不是 Cordis 的 `Context`、Proxy 或完整状态枚举，而是五条可验证的机制：
 
-- [US-013 LifecycleScope 生命周期作用域原语](../stories/core/US-013-lifecycle-scope-primitive.md) (High)
-- [US-014 插件作用域契约](../stories/core/US-014-plugin-scope-contract.md) (High)
-- [US-015 插件依赖声明与按需装卸](../stories/core/US-015-plugin-inject-dependency.md) (Medium) — 单文件两阶段：
-  - 阶段 A 适配器依赖纪元
-  - 阶段 B 插件依赖图 — 价值待证
-- `US-016` 连接纪元与停机收敛 — 文件未创建，价值已证，待切片
-- `US-017` 三框架宿主作用域 — 文件未创建，价值待证
+| 机制                                                                   | 落点                                                                             |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **目标纪元 + 单飞 reconcile**——过渡进行时只更新目标，不并发启动第二次  | `PluginDependencyScheduler`（US-015 阶段 A）                                     |
+| **就绪判定与失效通知分开**——`adapterConnected$` 作谓词，实例身份进纪元 | 同上；因此不会退化成 `firstValueFrom(connected$)` 的聚合猜测                     |
+| **作用域树是本地读出，不是全局注册表**                                 | `LifecycleScope.getEntries()`（US-013 AC#9b）                                    |
+| **一次 `acquire()` 只包一步会失败的获取**                              | US-013 AC#12b；storage 迁移据此写成三段式，`defineProperty` 抛错时新实例不进清单 |
+| **批量 reconcile + 只在 `active` 边上通知**                            | 调度器的两条并发测试                                                             |
 
-**US-013 → US-014 是硬序**，不可交换：US-014 的 `install(scope)` 签名需要 US-013 冻结的
-`LifecycleScope` 类型。US-014 之后的顺序（US-015 阶段 A → 阶段 B → 016 → 017）是**依赖顺序，不是排期承诺**——
-US-015 的「依赖消失时释放」确实需要 US-014 先把插件副作用收进作用域，但「需要 A 先做」
-不等于「B 一定要做」。
+测试覆盖 Cordis `fiber.spec.ts` 的三类 inertia lock（安装中断连、安装/释放期间重新连上、依赖实例替换但名字不变）
+与 `dispose.spec.ts` 的重复释放、逆序、嵌套、异步释放。
+
+**已否决，不再评估**：
+
+- Cordis `Context` / `provide()` / Proxy trace、全局 Registry、thenable Fiber、HMR、长异步栈追踪；
+- `packages/timer` 的 `ctx.timeout()` / `interval()` / `throttle()` / `debounce()`：rxdb 的 ~30 处 `setTimeout`
+  全部在适配器内部，已有 47 处配对的 `clear*`，且适配器自己拥有 `destroy()`——不满足「病灶数 ≥ 抽象数」；
+- **`addEventListener()` 返回幂等 disposer**：Cordis 用它保证注册与撤销同处一点，rxdb 用
+  `scope.acquire(() => { add; return () => remove; })` 拿到了同一个保证。`RxDB.addEventListener()` 保持返回
+  `void`，改签名只是人体工学收益，背后没有症状。
 
 ## 非目标
 
@@ -181,18 +180,27 @@ US-015 的「依赖消失时释放」确实需要 US-014 先把插件副作用�
 - **不引入 Proxy 追踪**。rxdb 已经有 `EntityProxy` 一层代理，再叠一层「谁在调用我」的 traceable 代理
   会让栈和调试同时变糟。作用域的归属靠**显式传参**（`install(scope)`），不靠调用方推断。
 - **不做长异步栈追踪**。「effect 出错时指回 `scope.effect()` 的调用点」是可独立交付的诊断增强，
-  与本 Epic 的正确性目标正交，留给后续故事。
-- **不做词法多实例隔离**。[entity-manager.ts:537-580](../../packages/rxdb/src/entity/entity-manager.ts#L537-L580)
-  的 `resolveEntityManager` 多实例抛错 + 全局动态栈是另一个问题（作用域的**可见性**，不是**存活期**），
-  不在本 Epic 内解决。
-- **不改 `RxDB` 的公开生命周期方法**。`init()` / `connect()` / `disconnect()` 的对外签名与语义不变；
-  本 Epic 只改插件侧契约与内部记账方式。
-- **不做 DevTools 的作用域可视化**。需要先有稳定的作用域树才谈得上展示，排在三个故事之后。
+  与本 Epic 的正确性目标正交。
+- **不做词法多实例隔离**。`resolveEntityManager` 的多实例抛错 + 全局动态栈是另一个问题
+  （作用域的**可见性**，不是**存活期**），不在本 Epic 内解决。
+- **不改 `RxDB` 的公开生命周期方法**。`init()` / `connect()` / `disconnect()` 的对外签名与语义不变。
+- **不做 DevTools 的作用域可视化**。数据源（`getEntries()`）已就位，展示层排在本 Epic 之外。
+
+## 故事
+
+> 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
+
+- [US-013 LifecycleScope 生命周期作用域原语](../stories/core/US-013-lifecycle-scope-primitive.md) (High)
+- [US-014 插件作用域契约](../stories/core/US-014-plugin-scope-contract.md) (High)
+- [US-015 插件依赖声明与按需装卸](../stories/core/US-015-plugin-inject-dependency.md) (Medium) — 阶段 A 已交付，阶段 B 已移出
+
+**US-013 → US-014 是硬序**，不可交换：US-014 的 `install(scope)` 签名需要 US-013 冻结的 `LifecycleScope` 类型。
+两条均已交付，硬序解除。
 
 ## 与既有 Epic 的边界
 
-| 相邻 Epic                                              | 边界                                                                                                                                                                                                                                            |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [epic-001 核心 MVP](epic-001-core-mvp.md)              | 001 交付的是**能力**（查询、变更、事务）；本 Epic 不新增任何能力，只改这些能力的装卸方式                                                                                                                                                        |
-| [epic-007 公开 API 门禁](epic-007-public-api-gates.md) | 007 管「导出表面被增删改能否被门禁发现」；本 Epic 会**制造**一次这样的变更（`IRxDBPlugin` 成员改动），并暴露一个已知盲区：`api-surface.mjs` 只记录 `{name, kind}`，成员签名变化不触发 diff。该盲区由 US-014 用类型契约测试补，不扩大 007 的范围 |
-| [epic-006 工作树](epic-006-working-tree-commits.md)    | 006 的恢复会话/物化暂存有自己的持久化生命周期，不复用本 Epic 的**进程内**作用域；两者不互为前置                                                                                                                                                 |
+| 相邻 Epic                                              | 边界                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [epic-001 核心 MVP](epic-001-core-mvp.md)              | 001 交付的是**能力**（查询、变更、事务）；本 Epic 不新增任何能力，只改这些能力的装卸方式                                                                                                                                                                |
+| [epic-007 公开 API 门禁](epic-007-public-api-gates.md) | 007 管「导出表面被增删改能否被门禁发现」；本 Epic 已**制造**一次这样的变更（`IRxDBPlugin` 成员改动），并暴露一个已知盲区：`api-surface.mjs` 只记录 `{name, kind}`，成员签名变化不触发 diff。该盲区已由 US-014 的类型契约测试就地补上，未扩大 007 的范围 |
+| [epic-006 工作树](epic-006-working-tree-commits.md)    | 006 的恢复会话/物化暂存有自己的持久化生命周期，不复用本 Epic 的**进程内**作用域；两者不互为前置                                                                                                                                                         |
