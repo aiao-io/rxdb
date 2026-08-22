@@ -1,13 +1,12 @@
 ---
 id: US-306
-title: 工作树、暂存区与提交操作
+title: 工作树与提交操作
 status: Backlog
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-08-16
-tags:
-  [collaboration, working-tree, staging, diff, persistence, concurrency, angular, react, vue, accessibility, benchmark]
+updated: 2026-08-22
+tags: [collaboration, working-tree, diff, persistence, concurrency, angular, react, vue, accessibility, benchmark]
 ---
 
 <!--
@@ -15,15 +14,15 @@ INVEST 检查清单:
 - [x] Independent: 依赖 US-305 的 commit graph / `WorkingTreeActivationState`，
       其余契约自包含；不倒挂依赖排在后面的 US-307 / US-308
 - [x] Negotiable: 核心 DTO 字段、物理表名和事件名可在 plan 阶段冻结；三框架入口固定为 `useWorkingTree()`
-- [x] Valuable: 用户第一次能选择性提交，并在刷新后接着上次干
+- [x] Valuable: 用户第一次能给本地变更打点存档，并在刷新后接着上次干
 - [x] Estimable: 状态集合、写入口矩阵、revision 校验矩阵、操作契约与 bench fixture 已列出
-- [ ] Small: 体量偏大——同时覆盖全部业务写入口、六类本地后端、working-tree/index 状态机、三框架、
+- [ ] Small: 体量偏大——同时覆盖全部业务写入口、六类本地后端、工作树/提交状态机、三框架、
       E2E 与 benchmark。按「交付阶段」表的 A → B → C 顺序分批交付，每个阶段有独立可验收的场景区段；
       不拆成独立故事文件
-- [x] Testable: 「改 → stage → 刷新 → commit → 查 status」可独立验收
+- [x] Testable: 「改 → 刷新 → commit → 查 status」可独立验收
 -->
 
-# 用户故事：工作树、暂存区与提交操作
+# 用户故事：工作树与提交操作
 
 > Epic 级的术语表、横切 DoD 与性能口径见 [epic-006](../../epics/epic-006-working-tree-commits.md)。
 > commit 图与 HEAD 的存储契约见 [US-305](./US-305-commit-graph-head.md)。
@@ -31,25 +30,29 @@ INVEST 检查清单:
 ## 作为/我想要/以便
 
 **作为** 需要控制发布边界的开发者
-**我想要** 先在工作树里改，再选择一部分变更进入暂存区，然后用消息提交
-**以便** 一次编辑可以拆成多个有意义的版本，且刷新后不必重新判断上次做到哪一步
+**我想要** 在工作树里改完之后，用一条消息把当前分支的全部未提交变更提交成一个版本点
+**以便** 一段工作可以留下有意义的存档点，且刷新后不必重新判断上次做到哪一步
 
 ## 术语与状态模型
 
-| 概念                    | 含义                                                                | 持久化要求                                                       |
-| ----------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 工作树（`WorkingTree`） | 当前分支 HEAD 叠加未提交 `WorkingTreeEntry` 后的逻辑状态            | 按分支持久化；刷新/切回后恢复                                    |
-| 暂存区（`Index`）       | 用户明确选择、准备放入下一次 commit 的变更集合                      | 按分支持久化；与工作树分离                                       |
-| 工作树状态              | `clean`、`modified`、`staged`、`conflicted`、`restoring` 等可见状态 | `conflicted` 只由 durable restore session 派生；状态不依赖内存栈 |
+| 概念                    | 含义                                                      | 持久化要求                                                       |
+| ----------------------- | --------------------------------------------------------- | ---------------------------------------------------------------- |
+| 工作树（`WorkingTree`） | 当前分支 HEAD 叠加未提交 `WorkingTreeEntry` 后的逻辑状态  | 按分支持久化；刷新/切回后恢复                                    |
+| 工作树状态              | `clean`、`modified`、`conflicted`、`restoring` 等可见状态 | `conflicted` 只由 durable restore session 派生；状态不依赖内存栈 |
 
-变更选择粒度为「实体操作或完整事务」，同一事务不可拆到不同 commit。
-工作树、index 和 HEAD 的唯一真相源及 revision 关系见 Epic 的
+**本故事没有暂存区。** `commit(message, options)` 提交当前分支工作树的**全部**未提交变更单元，
+没有 stage / unstage、没有子集选择。要隔离一条工作线走**分支**（`createBranch()` → 改 →
+`mergeBranch()` 或 `removeBranch()`）。这是 epic 级裁决，理由与代价见
+[epic-006 非目标](../../epics/epic-006-working-tree-commits.md#非目标)，改结论必须先改那一节。
+
+变更单元的粒度为「实体操作或完整事务」，同一事务不可拆到不同 commit。
+工作树与 HEAD 的唯一真相源及 revision 关系见 Epic 的
 [v1 状态模型](../../epics/epic-006-working-tree-commits.md#v1-状态模型唯一真相源)。
 
 **工作树不是草稿缓存**：本故事的「工作树」指主库业务表的当前值（`db.find()` 读得到的那一份），
 不是 `@aiao/rxdb-plugin-workspace` 的 IndexedDB 草稿。`entity.save()` 等价于 Ctrl+S 而不是 commit——
-它让变更进入工作树并立即对全部查询可见。完整的四层对照见 Epic 的
-[四层分层对照](../../epics/epic-006-working-tree-commits.md#四层分层对照读本-epic-前必须先对齐)；
+它让变更进入工作树并立即对全部查询可见。完整的三层对照见 Epic 的
+[三层分层对照](../../epics/epic-006-working-tree-commits.md#三层分层对照读本-epic-前必须先对齐)；
 哪些实体在版本控制之下见 [版本化域](../../epics/epic-006-working-tree-commits.md#版本化域tracked--untracked)。
 
 业务实体表只是当前激活分支的物化投影。每次普通 CRUD 必须在同一事务内写入或合并该分支的
@@ -59,23 +62,25 @@ INVEST 检查清单:
 ### 状态关系
 
 ```text
-                    stage / unstage
-工作树（当前数据） ─────────────────────► 暂存区（下一次 commit）
-       │                                      │
-       │ discard / reset to HEAD              │ commit（原子）
-       ▼                                      ▼
-     HEAD 状态                            新 commit ───► 分支 HEAD
+                          commit(message)（原子，取全部）
+工作树（当前数据） ─────────────────────────────────────► 新 commit ───► 分支 HEAD
+       │                                                        │
+       │ discardWorkingTree()                                   │ commit 成功后
+       ▼                                                        ▼
+     HEAD 状态                                          工作树清空，以新 HEAD 为基线
 ```
+
+没有第二条通往 commit 的路径：工作树里有什么，下一个 commit 就是什么。
 
 ## 交付阶段与边界
 
 阶段顺序是硬约束，阶段之间不可并行；每个阶段有独立可运行的验收场景区段，落地后即可单独回归。
 
-| 阶段 | 交付闭环                             | 主要内容                                                                                                                             | 承接的 FR                                                                                                           | 承接的 AC                                                                                                                                                 |
-| ---- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A    | CRUD / sync 写入 → 刷新 → 工作树重建 | 写入口矩阵、active token、working-tree revision、受信意图登记、加密与后端 conformance                                                | FR-039、FR-046、FR-045（`WorkingTreeEntry` 半边）                                                                   | US1-AC1（工作树半边）、US1-AC3（工作树半边）、US1-AC4（持久层半边）、US2-AC14（工作树半边）、US2-AC17（刷新重放半边）、US2-AC18～19、US2-AC23、US4-AC1～7 |
-| B    | stage → 刷新 → commit → status/diff  | index 独立重放、关系依赖闭包、commit residual rebase、discard 与冲突状态口径，含 `WorkingTreeRestoreSession` 建表与 `CommitConflict` | FR-004、FR-005、FR-006、FR-007、FR-011、FR-016、FR-031、FR-032、FR-040、FR-041、FR-047、FR-045（`IndexEntry` 半边） | US1-AC1（diff 半边）、US1-AC2、US2-AC1～AC16（AC14 只承接 `IndexEntry` 半边）、US2-AC20～22、US3-AC1～AC3                                                 |
-| C    | 三端操作 → 刷新 → 同语义读回         | Angular/React/Vue 公开 API、异步状态、a11y、依赖闭包可解释呈现、E2E、benchmark 与公开文档                                            | FR-023、FR-026                                                                                                      | US5-AC1～AC9                                                                                                                                              |
+| 阶段 | 交付闭环                             | 主要内容                                                                                                             | 承接的 FR                                              | 承接的 AC                                                                                                                                   |
+| ---- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| A    | CRUD / sync 写入 → 刷新 → 工作树重建 | 写入口矩阵、active token、working-tree revision、受信意图登记、加密与后端 conformance                                | FR-039、FR-046、FR-045                                 | US1-AC1（工作树半边）、US1-AC3（工作树半边）、US1-AC4（持久层半边）、US2-AC14、US2-AC17（刷新重放半边）、US2-AC18～19、US2-AC23、US4-AC1～7 |
+| B    | 改 → 刷新 → commit → status/diff     | 提交状态机、CAS、commit 后工作树清空、discard 与冲突状态口径，含 `WorkingTreeRestoreSession` 建表与 `CommitConflict` | FR-004、FR-005、FR-011、FR-016、FR-031、FR-032、FR-041 | US1-AC1（diff 半边）、US1-AC2、US2-AC1～AC16、US2-AC20～22、US3-AC1～AC3                                                                    |
+| C    | 三端操作 → 刷新 → 同语义读回         | Angular/React/Vue 公开 API、异步状态、a11y、E2E、benchmark 与公开文档                                                | FR-023、FR-026                                         | US5-AC1～AC8                                                                                                                                |
 
 阶段 B 依赖阶段 A 的持久工作树；阶段 C 只从 `@aiao/rxdb` 透传阶段 B 冻结的共享类型，不自带业务分支逻辑，
 A 与 B 都未落地时 C 不可开工。整体固定顺序为
@@ -113,28 +118,24 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 
 ### In Scope
 
-- 工作树与暂存区状态的持久化与刷新后重建
+- 工作树状态的持久化与刷新后重建
 - 普通 CRUD、`WorkingTreeEntry` 与 `workingTreeRevision` 的原子双写；active branch token 校验遵守 Epic 矩阵
 - `pull` / autoSync / repository sync / bulk sync、merge、undo/redo 等全部业务表写入口遵守 Epic 写入口矩阵
-- `workingTreeRevision` / `indexRevision` 的事务内 CAS；跨 realm 的数据安全原语在本故事完成，不推迟到 US-308
-- `status()`：至少区分 clean、仅未暂存、仅已暂存、同时存在 staged/unstaged、恢复中、冲突
-- `diff(scope?)`：分别比较 `HEAD ↔ 工作树` 与 `HEAD ↔ 暂存区`
-- `stage` / `unstage` / stage all / `clearIndex`
-- `commit(message, options)`：`authorId`、`operationId` 必填，只提交暂存区内容，保留未暂存修改
+- `workingTreeRevision` 的事务内 CAS；跨 realm 的数据安全原语在本故事完成，不推迟到 US-308
+- `status()`：至少区分 clean、有未提交变更、恢复中、冲突
+- `diff(scope?)`：比较 `HEAD ↔ 工作树`
+- `commit(message, options)`：`authorId`、`operationId` 必填；**提交工作树全部未提交变更**，
+  成功后工作树清空并以新 HEAD 为基线
 - `discardWorkingTree()`：回到当前 HEAD
-- stage 后再次编辑时保留 staged 快照，新增部分标记为 unstaged
-- stage / unstage 对跨实体、跨事务依赖执行可独立从 HEAD 重放的递归闭包，并返回实际选择列表
 - **受信路径的意图登记**：与 raw/未知 bypass 拒绝门禁同批交付，登记以**调用方意图**为键、不以传输层函数为键
 - **adapter 公开批量写方法 `upsertMany()` / `deleteByIds()` 的门禁挂载**（阶段 A）：这两个方法不经 `rawQuery`，
   §4.6 的判定结构上够不到；按目标实体 `sync.type` 判定，复用同一份版本化实体表清单
 - `WorkingTreeRestoreSession` 的**建表与 schema 迁移**，以及「从已存在 session 派生 conflicted」的读路径
-- 共享 DTO（`WorkingTreeStatus`、`WorkingTreeDiff`、`WorkingTreeSelection`、`WorkingTreeStageResult`、
-  `WorkingTreeCommandError`、`CommitConflict`）的定义、TSDoc 与 api-baseline 登记；`CommitConflict` 由本故事
-  首个使用者落地，[US-308](./US-308-branch-isolation-conflict.md) 只做 activation 维度扩展
+- 共享 DTO（`WorkingTreeStatus`、`WorkingTreeDiff`、`WorkingTreeCommandError`、`CommitConflict`）的定义、
+  TSDoc 与 api-baseline 登记；`CommitConflict` 由本故事首个使用者落地，
+  [US-308](./US-308-branch-isolation-conflict.md) 只做 activation 维度扩展
 - Angular / React / Vue 三端对称 API 与演示
-- **依赖闭包扩展结果的可解释呈现**（阶段 C）：三端展示实际单元列表与每个被追加单元的纳入理由，
-  而不只是把 `WorkingTreeStageResult` 原样打印
-- `pnpm nx run benchmarks:bench-working-tree` 中 status / diff / stage 的性能基线（本故事拥有该 target 本身）
+- `pnpm nx run benchmarks:bench-working-tree` 中 status / diff / commit 的性能基线（本故事拥有该 target 本身）
 
 ### Out of Scope
 
@@ -144,58 +145,63 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 - 分支切换入口、冲突记录和三端冲突提示 —— 属 [US-308](./US-308-branch-isolation-conflict.md)；底层 revision CAS 不在其范围
 - Workspace 插件 NEW 草稿本身：草稿留在插件独立 IndexedDB，不进工作树；`save()` 后才作为普通 INSERT 捕获
 - Tauri Rust host 的 conformance —— 待 US-210 Done 后按 epic 统一补入
-- 字段级或代码行级的部分暂存
+- **暂存区与任何形式的选择性提交**（stage / unstage / clear index / 字段级或行级部分暂存）——
+  epic 级已裁决不做，隔离工作线走分支，见
+  [epic-006 非目标](../../epics/epic-006-working-tree-commits.md#非目标)
 - 自动 stash / stash pop
 
 ## 用户场景与验收标准
 
 ### User Story 1 - 刷新后继续未提交工作（Priority: P1）
 
-**独立测试**：创建、修改、删除若干实体，stage 一部分，刷新或关闭并重新打开；只依赖本地存储即可验证。
+**独立测试**：创建、修改、删除若干实体，刷新或关闭并重新打开；只依赖本地存储即可验证。
 
 **验收场景**：
 
-1. **Given** 当前分支有一个已提交的 HEAD，**When** 用户修改实体但不 commit 后刷新，**Then** 工作树数据、未暂存标记和对应 diff 与刷新前一致。
-2. **Given** 暂存区已有实体变更，**When** 用户刷新或重新打开应用，**Then** 暂存区选择、变更顺序和事务边界保持不变。
+1. **Given** 当前分支有一个已提交的 HEAD，**When** 用户修改实体但不 commit 后刷新，**Then** 工作树数据、未提交标记和对应 diff 与刷新前一致。
+2. **Given** 工作树已有若干实体变更，**When** 用户刷新或重新打开应用，**Then** 变更单元集合、顺序和事务边界保持不变。
 3. **Given** Workspace 插件中只有 NEW 草稿，**When** 应用启动，**Then** 草稿仍按 Workspace 插件规则恢复，不出现在 SQL/PGlite 工作树或 baseline 中；草稿 `save()` 后才作为普通 INSERT 进入工作树。
-4. **Given** A 分支存在未暂存 INSERT/UPDATE/DELETE，**When** 用户切到 B、关闭应用、重新打开并切回 A，**Then** A 的业务数据可仅凭 HEAD 与持久化 `WorkingTreeEntry` 完整重建，变更单元身份和 diff 不变。
+4. **Given** A 分支存在未提交 INSERT/UPDATE/DELETE，**When** 用户切到 B、关闭应用、重新打开并切回 A，**Then** A 的业务数据可仅凭 HEAD 与持久化 `WorkingTreeEntry` 完整重建，变更单元身份和 diff 不变。
 
-### User Story 2 - 暂存并提交一组变更（Priority: P1）
+### User Story 2 - 提交一组变更（Priority: P1）
 
-**独立测试**：对两个实体做不同修改，只 stage 其中一个并提交，检查 HEAD、日志和另一个实体的工作树状态。
+**独立测试**：对两个实体做不同修改并提交，检查 HEAD、日志与提交后的工作树状态。
+
+> AC 编号在 2026-08-22 裁掉暂存区后**保持不变**：已作废的条目留空占位，不重排、不复用，
+> 避免既有交叉引用（US2-AC14 / AC17 / AC18～19 / AC20～23）整体漂移。
 
 **验收场景**：
 
-1. **Given** 工作树包含两个实体的修改，**When** 用户只 stage 其中一个并 commit，**Then** 新 commit 只包含被 stage 的变更，另一个修改仍在工作树且未进入该 commit。
-2. **Given** 暂存区为空，**When** 用户提交，**Then** 操作被拒绝，不创建空 commit，工作树和 HEAD 均不改变。
-3. **Given** stage 后实体再次修改，**When** 用户查看 status/diff，**Then** 系统分别展示「已暂存版本」和「未暂存版本」，不会把新修改静默并入旧 stage。
-4. **Given** stage 集合包含一个多实体事务，**When** 用户 commit，**Then** 该事务作为一个不可拆分的变更单元写入 commit。
-5. **Given** 删除实体后 stage，**When** 查看 diff，**Then** 必须显示删除，而不是显示为空或消失。
-6. **Given** commit 成功，**When** 查看工作树，**Then** 只清除已提交的暂存区条目，未暂存变更继续留在工作树并显示准确 diff。
-7. **Given** 空事务、重复 stage、重复 discard，**When** 反复执行，**Then** 幂等，不产生额外 commit 或错误历史。
-8. **Given** stage 后任意 realm 又编辑同一实体，**When** 用户查看 status 或提交原 stage，**Then** staged snapshot 保持不变，后续编辑统一显示为 unstaged；提交不得覆盖或丢弃后续编辑。
-9. **Given** 两个 realm 从相同 index/head revision 开始 stage 或 commit，**When** 它们竞争同一分支，**Then** 条件更新只允许一个操作成功；失败方不留下半成品 index/commit，并返回 expected/actual revision。
-10. **Given** 已 stage 的实体后来又被编辑，**When** 用户再次 stage 同一选择，**Then** staged snapshot 原子替换为当前工作树版本，新增编辑不再显示为 unstaged；工作树未变化时重复 stage 是 no-op 且不递增 revision。
-11. **Given** 用户只选择一个属于多实体事务的实体，**When** stage 或 unstage，**Then** 系统自动扩展到该 `transactionId` 的完整变更单元及其跨事务实体关系依赖，并返回实际选择列表，不允许把事务或可重放依赖拆进不同 commit。
-12. **Given** 另一个 realm 在本次 stage 捕获 token 后修改工作树，**When** stage 尝试落盘，**Then** `workingTreeRevision` CAS 失败，index 零变化；调用方刷新后可重新选择。
+1. **Given** 工作树包含两个实体的修改，**When** 用户 commit，**Then** 新 commit 同时包含这两个变更，没有「留一个在工作树」的选项；commit 成功后工作树为 clean。
+2. **Given** 工作树没有未提交变更，**When** 用户提交，**Then** 操作被拒绝，不创建空 commit，工作树和 HEAD 均不改变。
+3. **Given** commit 成功后实体再次被修改，**When** 用户查看 status/diff，**Then** 新变更相对**新 HEAD** 计算并显示为未提交，不与刚提交的内容混在同一份 diff 里。
+4. **Given** 工作树包含一个多实体事务，**When** 用户 commit，**Then** 该事务作为一个不可拆分的变更单元写入 commit。
+5. **Given** 实体被删除，**When** 查看 diff，**Then** 必须显示删除，而不是显示为空或消失。
+6. **Given** commit 成功，**When** 查看工作树，**Then** 全部已提交单元被清除、工作树状态为 clean 且以新 HEAD 为基线；不存在需要 rebase 的残量。
+7. **Given** 空事务、无变更时重复 commit、重复 discard，**When** 反复执行，**Then** 幂等，不产生额外 commit 或错误历史。
+8. **Given** 任意 realm 编辑了同一实体，**When** 用户查看 status，**Then** 状态按最新持久值计算，不按 writer 身份分叉；本地与其他 realm 的编辑在工作树中一视同仁（FR-032）。
+9. **Given** 两个 realm 从相同 head/working-tree revision 开始 commit，**When** 它们竞争同一分支，**Then** 条件更新只允许一个操作成功；失败方不留下半成品 commit 或半清空的工作树，并返回 expected/actual revision。
+10. _（已随暂存区裁撤，编号保留占位，不得复用。）_
+11. _（已随暂存区裁撤，编号保留占位，不得复用。）_
+12. **Given** 另一个 Tab 在本次 commit 捕获 `workingTreeRevision` 之后、落盘之前调用了 `save()`，**When** commit 尝试提交，**Then** CAS 失败并返回 `CommitConflict`（含 expected/actual revision），HEAD 与工作树零变化；调用方刷新后重新查看 status 即可重试。**这是砍掉暂存区后被显式接受的代价**，不得为了让 commit 成功而放宽该校验——那等于把用户没看过的变更也提交进去，见 [epic-006「commit 取整棵工作树」](../../epics/epic-006-working-tree-commits.md#commit-取整棵工作树无暂存区的直接推论)。
 13. **Given** 普通提交缺少 `authorId`、缺少 `operationId` 或 message trim 后为空，**When** 调用 commit，**Then** 在任何持久状态变化前返回类型化校验错误。
-14. **Given** 实体含 `encrypted: true` 字段，**When** CRUD、stage、刷新并 commit，**Then** 原始 WorkingTreeEntry 与 IndexEntry dump 中明文哨兵零命中，解锁后的 status/diff/commit 语义与未加密字段一致。
-15. **Given** T1 插入 A/B、T2 随后更新 A，且 HEAD 中不存在 A/B，**When** 用户只选择 T2 stage，**Then** 系统递归扩展为 T1+T2 并返回实际单元列表；生成的 index 可仅凭 HEAD 完整重放。unstage T1 时必须同时移除依赖它的 T2，任何一步失败 index 零变化。
-16. **Given** T1 插入 Parent P、T2 插入引用 P 的 Child C，且 HEAD 中均不存在，**When** 用户只选择 T2 stage，**Then** 关系闭包必须包含 T1 并按 Parent→Child 重放；反向 unstage T1 必须移除 T2。父子 DELETE、关系键 UPDATE 与关系环各有稳定拓扑或类型化拒绝结果。
-17. **Given** full/filter 同步通过 `disableTriggers=true` 应用远端实体变更，**When** pull/autoSync/repository sync/bulk sync 提交，**Then** 同一事务写入 `origin=remote_sync` 的未暂存 WorkingTreeEntry，不生成可 push 的本地 `RxDBChange`；**刷新后**status、diff 与业务值保持一致（本故事只承接刷新重放半边，切出/切回半边由 [US-308](./US-308-branch-isolation-conflict.md) US1-AC12 收口，见「交付阶段与边界」的半边表）。
+14. **Given** 实体含 `encrypted: true` 字段，**When** CRUD、刷新并 commit，**Then** 原始 `WorkingTreeEntry` dump 中明文哨兵零命中，解锁后的 status/diff/commit 语义与未加密字段一致。
+15. _（已随暂存区裁撤，编号保留占位，不得复用。）_
+16. _（已随暂存区裁撤，编号保留占位，不得复用。）_
+17. **Given** full/filter 同步通过 `disableTriggers=true` 应用远端实体变更，**When** pull/autoSync/repository sync/bulk sync 提交，**Then** 同一事务写入 `origin=remote_sync` 的 WorkingTreeEntry，不生成可 push 的本地 `RxDBChange`；**刷新后**status、diff 与业务值保持一致（本故事只承接刷新重放半边，切出/切回半边由 [US-308](./US-308-branch-isolation-conflict.md) US1-AC12 收口，见「交付阶段与边界」的半边表）。
 18. **Given** 同步只回填 remoteId、推进水位或更新时间而没有业务实体变化，**When** 事务提交，**Then** 不创建 WorkingTreeEntry、不递增 working-tree revision。
-19. **Given** 实体使用 QueryCache 同步类型，**When** cache upsert/delete/过期清理发生，**Then** 该实体不进入 baseline、status、diff、stage 或 commit；若一个 callback transaction 先后写入 QueryCache 与版本化实体，检测到混用时以 `mixed_versioned_cache_transaction` 终止并回滚整个事务，提交后两类数据均零变化。
+19. **Given** 实体使用 QueryCache 同步类型，**When** cache upsert/delete/过期清理发生，**Then** 该实体不进入 baseline、status、diff 或 commit；若一个 callback transaction 先后写入 QueryCache 与版本化实体，检测到混用时以 `mixed_versioned_cache_transaction` 终止并回滚整个事务，提交后两类数据均零变化。
 20. **Given** commit 响应丢失，**When** 以相同 operation ID 与相同 payload 重试，**Then** 返回原 commit；payload 不同返回 `idempotency_key_reused`。
 21. **Given** 存在 active restore session 且其 expected revision 与当前值分叉（表由本故事阶段 B 建立，fixture **直接写入 session 行**构造分叉，不经 [US-307](./US-307-restore-session.md) 的 `restore()` 入口——与阶段 A 直接推进 `activationRevision` 同源），**When** 调用 `status()`，**Then** 返回 durable conflicted；session 解决或删除后该状态消失。
-22. **Given** 普通 stage/commit 的 CAS 失败，**When** 刷新后调用 `status()`，**Then** 状态按最新持久数据重建，不因历史失败永久显示 conflicted。
+22. **Given** 普通 commit 的 CAS 失败，**When** 刷新后调用 `status()`，**Then** 状态按最新持久数据重建，不因历史失败永久显示 conflicted。
 23. **Given** 调用方对一个**版本化实体**（`sync.type !== QueryCache`）调用 adapter 公开批量写方法 `upsertMany()` 或 `deleteByIds()`，**When** 写入到达业务表前，**Then** 以 `commit_capability_mismatch` 拒绝且业务表与工作树零变化；对 QueryCache 实体调用同样两个方法则正常放行且不产生工作树单元。判定 MUST 复用 [adapter-contract §4.6](../../../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决) 的同一份版本化实体表清单，不得为这两个方法另建第二份；漂移扫描（SC-004）MUST 把「新增的、目标实体不是 QueryCache 的 `upsertMany`/`deleteByIds` 调用点」报为未登记调用点。这两个方法**不经 `rawQuery`**，§4.6 的五步判定结构上够不到它们，因此必须在阶段 A 显式挂载，见 [epic-006 写入口语义矩阵](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)。
 
-### User Story 3 - 丢弃与清空（Priority: P2）
+### User Story 3 - 丢弃未提交变更（Priority: P2）
 
 **验收场景**：
 
-1. **Given** 工作树有未提交修改，**When** 用户 `discardWorkingTree()`，**Then** 工作树回到当前 HEAD，未提交 stage 一并清除，历史 commit 不变。
-2. **Given** 暂存区有条目，**When** 用户 `clearIndex()`，**Then** 只清除暂存选择，工作树数据不变。
+1. **Given** 工作树有未提交修改，**When** 用户 `discardWorkingTree()`，**Then** 工作树整体回到当前 HEAD，历史 commit 不变。
+2. **Given** 工作树已是 clean，**When** 用户 `discardWorkingTree()`，**Then** 是 no-op：不递增 `workingTreeRevision`、不产生事件、不报错。
 3. **Given** 同一事务跨多个实体且含外键依赖，**When** discard，**Then** 在事务边界内整体回滚，不留下部分实体的中间态。
 
 ### User Story 4 - 写入口捕获与绕过防护（Priority: P1，阶段 A）
@@ -215,39 +221,41 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 ### User Story 5 - 三端对称操作面与性能门禁（Priority: P1，阶段 C）
 
 **作为** Angular、React 或 Vue 应用开发者，**我想要** 使用同名、同语义的工作树 API 和状态，
-**以便** 框架选择不会改变 status、stage、commit 与错误处理能力。
+**以便** 框架选择不会改变 status、diff、commit 与错误处理能力。
 
 **验收场景**：
 
-1. **Given** 三端加载同一 fixture，**When** status → stage → refresh → commit，**Then** 三端返回相同状态、依赖闭包、commit 摘要和错误 code。
+1. **Given** 三端加载同一 fixture，**When** status → refresh → commit，**Then** 三端返回相同状态、commit 摘要和错误 code。
 2. **Given** 查询无 diff，**When** 页面渲染，**Then** empty 与 clean 可被辅助技术读取；命令不伪造 empty。
 3. **Given** 命令运行、成功或失败，**When** 状态变化，**Then** 三端均暴露 loading/success/error，错误包含操作、对象和恢复建议。
-4. **Given** 仅键盘操作，**When** 浏览 diff、选择单元、stage、clear 或 commit，**Then** 焦点顺序、可见焦点、名称与状态公告达到 WCAG 2.1 AA。
+4. **Given** 仅键盘操作，**When** 浏览 diff、discard 或 commit，**Then** 焦点顺序、可见焦点、名称与状态公告达到 WCAG 2.1 AA。
 5. **Given** 最长实体名、错误文本和窄视口，**When** 状态更新，**Then** 文本不溢出、遮挡或改变固定工具栏尺寸。
 6. **Given** 任一共享类型或运行时入口只在一到两端导出，**When** parity 门禁运行，**Then** 整个故事失败，不能把单端实现记为 Done。
-7. **Given** Epic 冻结的 Node + PGlite memory fixture 与已签入的 reference 报告，**When** 执行 `pnpm nx run benchmarks:bench-working-tree`（status、完整 diff、批量 stage 50 单元，各 5 次 warmup / 50 次采样），**Then** 输出含 p50/p95、control ratio、fixture hash 与 `runnerProfileHash` 的报告；归一化 ratio 超过 reference median 110% 时门禁失败，且失败后不得以重算基线的方式转绿；`runnerProfileHash` 与 reference 匹配时额外以绝对 p95 100 ms 作为发布门禁，不匹配时该绝对判据 MUST 跳过而非放宽为通过。
+7. **Given** Epic 冻结的 Node + PGlite memory fixture 与已签入的 reference 报告，**When** 执行 `pnpm nx run benchmarks:bench-working-tree`（status、完整 diff、一次提交 100 个单元的 commit，各 5 次 warmup / 50 次采样），**Then** 输出含 p50/p95、control ratio、fixture hash 与 `runnerProfileHash` 的报告；归一化 ratio 超过 reference median 110% 时门禁失败，且失败后不得以重算基线的方式转绿；`runnerProfileHash` 与 reference 匹配时额外以绝对 p95 作为发布门禁（status / diff 为 100 ms，commit 的绝对阈值由首个绿色实现的 reference 中位数冻结，见 [epic-006 性能预算的口径](../../epics/epic-006-working-tree-commits.md#性能预算的口径)），不匹配时该绝对判据 MUST 跳过而非放宽为通过。
 8. **Given** `useWorkingTree()` 的三端契约冻结，**When** 公开文档发布，**Then** 文档说明数据库级显式启用方式、工作树与草稿缓存（`@aiao/rxdb-plugin-workspace`）的区别、恢复语义、commit 历史长期保留敏感旧值的风险、加密边界与不改写历史的承诺，并明示远端同步会产生 `origin=remote_sync` 的未提交变化（承接 [epic-006 发布门禁 9](../../epics/epic-006-working-tree-commits.md#发布门禁)）。
-9. **Given** 用户只勾选一个变更单元、而 FR-047 的依赖闭包把它扩展成多个（如 stage T2 自动带上 T1），**When** 三端渲染 stage 结果，**Then** UI MUST 呈现扩展后的完整单元列表，并给出每个**被追加**单元的纳入理由，理由分类至少区分「同实体前置」「同事务成员」「关系依赖」且三端一致；`index_dependency_cycle` 同样 MUST 给出可读原因与涉及的单元，不得只显示错误码。Git 的文件之间没有外键，`git add a.ts` 永远只暂存 `a.ts`，因此「勾一条带四条」是用户不会预期的行为——见 [epic-006 v1 状态模型](../../epics/epic-006-working-tree-commits.md#v1-状态模型唯一真相源)的闭包段落。
+9. _（已随暂存区裁撤，编号保留占位，不得复用。原条目要求呈现「依赖闭包扩展理由」，而无子集选择即无闭包。）_
 
 ## 功能需求
 
-- **FR-004**：系统 MUST 提供工作树 status，至少区分 clean、仅未暂存、仅已暂存、同时存在 staged/unstaged、恢复中和冲突状态。普通命令 CAS 失败只返回一次性 `CommitConflict`，不得形成 durable conflicted；v1 的 conflicted 只由仍存在且 revision 已分叉的 `WorkingTreeRestoreSession` 重建。
-- **FR-005**：系统 MUST 提供面向实体或完整事务的 diff，能够分别比较 `HEAD ↔ 工作树` 和 `HEAD ↔ 暂存区`。
-- **FR-006**：系统 MUST 支持 stage、unstage、stage all 和 clear index；这些操作不得修改已有 commit，也不得丢弃未选择的工作树变更。
-- **FR-007**：系统 MUST 在 stage 后再次发生编辑时保留 staged 快照，并把新增部分标记为 unstaged；禁止隐式扩大 stage 范围。
-- **FR-011**：系统 MUST 在 commit 成功后只清除已提交的暂存区变更；未暂存变更继续留在工作树并显示准确 diff。
-- **FR-016**：系统 MUST 支持 discard working tree 和 clear index，且两者操作范围明确：前者回到当前 HEAD，后者只清除暂存选择。
+- **FR-004**：系统 MUST 提供工作树 status，至少区分 clean、有未提交变更、恢复中和冲突状态。普通命令 CAS 失败只返回一次性 `CommitConflict`，不得形成 durable conflicted；v1 的 conflicted 只由仍存在且 revision 已分叉的 `WorkingTreeRestoreSession` 重建。
+- **FR-005**：系统 MUST 提供面向实体或完整事务的 diff，比较 `HEAD ↔ 工作树`。**只有这一条 diff 轴**——`HEAD ↔ index` 随暂存区一并裁撤。
+- **FR-006**：_（已裁撤，编号不得复用。）_ 原条目要求 stage / unstage / stage all / clear index，暂存区已于 2026-08-22 裁决不做，见 [epic-006 非目标](../../epics/epic-006-working-tree-commits.md#非目标)。
+- **FR-007**：_（已裁撤，编号不得复用。）_ 原条目要求保留 staged 快照并把后续编辑标为 unstaged，无暂存区即无快照。
+- **FR-011**：系统 MUST 在 commit 成功后清除**全部**已提交的工作树单元，使工作树回到 clean 并以新 commit 为基线；不存在提交后的残量与 rebase。
+- **FR-016**：系统 MUST 支持 `discardWorkingTree()`，范围是把当前分支工作树整体回到当前 HEAD；工作树已 clean 时是 no-op。
 - **FR-023**：系统 MUST 为异步命令提供 loading、success、error，为查询额外提供 empty；错误必须说明操作、对象和恢复建议。
-- **FR-026**（已改口径）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit、100 个 unstaged / 50 个 staged 单元的固定 fixture 下，以 5 次 warmup、50 次采样测完整 status、完整 diff 和批量 stage 50 个单元并输出 p50/p95、runner profile 与 JSON。普通 CI 以归一化 ratio 不超过已签入 reference median 的 110% 为硬门禁；三项 promise resolve 的 p95 不高于 100 ms 只在 `runnerProfileHash` 匹配 reference 的固定性能 runner 上作为发布硬门禁。浏览器 OPFS / IDB 不承诺相同绝对数字。
-- **FR-031**：所有操作 MUST 遵守 Epic revision 矩阵：stage/re-stage 同时校验 expected working-tree 与 index revision；unstage/clear index 校验 index revision；commit 校验 active branch token、head 与 index revision，并在同一事务读取当前工作树完成 residual rebase。commit 不得仅因 stage 后普通编辑改变 working-tree revision 而拒绝，也不得覆盖该编辑。CAS 失败时操作全量回滚。
-- **FR-032**：stage 后发生的实体编辑不按 writer 身份分叉处理；无论来自当前 realm 还是其他 realm，都 MUST 保留为相对 staged snapshot 的 unstaged 变更。writer 身份不得成为提交正确性的必要条件。
+- **FR-026**（已改口径）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit、当前工作树 100 个未提交单元的固定 fixture 下，以 5 次 warmup、50 次采样测完整 status、完整 diff 和一次提交 100 个单元的 commit 并输出 p50/p95、runner profile 与 JSON。普通 CI 以归一化 ratio 不超过已签入 reference median 的 110% 为硬门禁；绝对 p95 只在 `runnerProfileHash` 匹配 reference 的固定性能 runner 上作为发布硬门禁，其中 status / diff 为 100 ms，commit 的阈值由首个绿色实现的 reference 中位数冻结（不沿用原 stage 的 100 ms，量级不同）。浏览器 OPFS / IDB 不承诺相同绝对数字。
+- **FR-031**：所有操作 MUST 遵守 Epic revision 矩阵：commit 校验 active branch token、expected head 与 expected working-tree revision，三者任一不匹配即全量回滚并返回 `CommitConflict`。`workingTreeRevision` 采用**调用方捕获型** CAS：调用方读到 status 之后、commit 落盘之前的任何一次工作树写入都 MUST 让本次 commit 失败，**不得**为了提高成功率而放宽为只校验 head——那等于提交调用方没有看过的变更。discard 同样校验 active token 与 expected working-tree revision。
+- **FR-032**：工作树中的实体编辑不按 writer 身份分叉处理；无论来自当前 realm 还是其他 realm，都 MUST 平等地成为同一份工作树的未提交变更。writer 身份不得成为提交正确性的必要条件；并发保护只由 FR-031 的 revision CAS 提供。
 - **FR-039**：每次普通 CRUD MUST 在同一事务内校验 active branch token、写入业务实体、写入或合并完整 `WorkingTreeEntry` 并递增 `workingTreeRevision`。任一步失败全部回滚；禁止只靠内存 dirty set 重建。
-- **FR-040**：stage/re-stage MUST 同时校验 expected working-tree 与 index revision；已暂存选择在工作树变化后再次 stage 时替换为当前快照，未变化的重复调用是 no-op。实体选择命中多实体事务时 MUST 自动扩展整个事务，stage 与 unstage 规则对称。
-- **FR-041**：普通提交 MUST 接收 trim 后非空 message 与必填 `CommitOptions.authorId`、`CommitOptions.operationId`；调用方 metadata 只能放扩展审计字段，不得覆盖 parent、时间、作者、operation ID、schema/codec manifest 或变更数量。
-- **FR-045**：WorkingTreeEntry 与 IndexEntry MUST 延续字段加密 at-rest 契约；读取可在解锁后返回明文业务值，但任何持久化 dump、错误和摘要不得出现加密字段明文。
-- **FR-046**：所有业务实体写入口 MUST 遵守 Epic 写入口矩阵。full/filter 远端实体应用即使关闭 `RxDBChange` trigger，也 MUST 在同一事务写入 `origin=remote_sync` 的未暂存单元且不得形成 push echo；纯同步元数据更新不改变工作树。QueryCache 实体 MUST 完整排除；callback transaction 在任意时点检测到 QueryCache/版本化实体混用时 MUST 抛 `mixed_versioned_cache_transaction` 并回滚整个事务，不能要求事务系统预知回调未来操作。raw/未知绕过路径 MUST fail-fast，且门禁 MUST 覆盖 adapter 的公开批量写方法 `upsertMany()` / `deleteByIds()`——它们不经 `rawQuery`，[adapter-contract §4.6](../../../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决) 的五步判定够不到，必须在阶段 A 显式挂载（US2-AC23）。
+- **FR-040**：_（已裁撤，编号不得复用。）_ 原条目定义 stage/re-stage 的 CAS 与事务扩展规则，随暂存区一并作废；commit 的 CAS 见 FR-031。
+- **FR-041**：普通提交 MUST 接收 trim 后非空 message 与必填 `CommitOptions.authorId`、`CommitOptions.operationId`；调用方 metadata 只能放扩展审计字段，不得覆盖 parent、时间、作者、operation ID、schema/codec manifest 或变更数量。**`commit()` 不接受变更选择参数**——它没有 selection 入参，提交范围恒为当前分支工作树的全部未提交单元。
+- **FR-045**：WorkingTreeEntry MUST 延续字段加密 at-rest 契约；读取可在解锁后返回明文业务值，但任何持久化 dump、错误和摘要不得出现加密字段明文。
+- **FR-046**：所有业务实体写入口 MUST 遵守 Epic 写入口矩阵。full/filter 远端实体应用即使关闭 `RxDBChange` trigger，也 MUST 在同一事务写入 `origin=remote_sync` 的工作树单元且不得形成 push echo；纯同步元数据更新不改变工作树。QueryCache 实体 MUST 完整排除；callback transaction 在任意时点检测到 QueryCache/版本化实体混用时 MUST 抛 `mixed_versioned_cache_transaction` 并回滚整个事务，不能要求事务系统预知回调未来操作。raw/未知绕过路径 MUST fail-fast，且门禁 MUST 覆盖 adapter 的公开批量写方法 `upsertMany()` / `deleteByIds()`——它们不经 `rawQuery`，[adapter-contract §4.6](../../../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决) 的五步判定够不到，必须在阶段 A 显式挂载（US2-AC23）。
   **混批闸门的分工（避免两套错误码）**：批量入口在**调用前已知全部目标实体**时（如 [US-020 AC#6](../core/US-020-querycache-repository.md) 的 `EntityManager.mutations`、[US-212 AC#11](../adapter/US-212-http-adapter.md)）MUST 做入口预检并**复用 `mixed_versioned_cache_transaction` 这一个 code**，不得另起名字；本 FR 的事务内检测只负责 callback transaction 这种运行时才知道内容的场景。两者是同一条规则的两个触发时机，不是两条规则。
-- **FR-047**：Index MUST 在任何 revision 下都能仅凭当前 HEAD 与自身条目重放。stage 选择 MUST 向前扩展同实体前置单元，并按完整事务、schema relation graph 与实际行引用递归包含跨实体/跨事务依赖；unstage 前置单元 MUST 向后移除失去实体、事务或关系依赖的 staged 单元。闭包按依赖拓扑稳定排序；不能拆分的关系环纳入同一原子单元，无法形成闭包时返回 `index_dependency_cycle`。计算失败或 CAS 失败时 index 零变化。返回的单元列表 MUST 逐项标注它是**用户直接选择**还是**闭包追加**，追加项 MUST 带类型化纳入理由（至少区分同实体前置、同事务成员、关系依赖）；`index_dependency_cycle` MUST 附带构成环的单元。该字段是阶段 C US5-AC9 的唯一数据来源——阶段 C 不承接持久层 FR，理由不能在三端各自重算。
+- **FR-047**：_（已裁撤，编号不得复用。）_ 原条目要求 index 自包含可重放及其依赖闭包与 `index_dependency_cycle`。
+  **无子集选择即无闭包**：commit 取整棵工作树，天然自包含。「工作树可仅凭 HEAD 与自身条目重放」这一条不变量
+  仍然成立，由 FR-039 与 US4-AC2 承接；`index_dependency_cycle` 这个错误码 MUST NOT 出现在实现中。
 
 > FR-026 保留原 100 ms 产品预算，但把环境、数据分布、完成时点、采样数和 p95 口径固定下来；相对门禁使用
 > 同次 control CRUD 归一化与 Epic 冻结的 reference，不照搬 hot-path bench 的 2%。浏览器首次可见状态由三端 E2E 单独记录。
@@ -264,17 +272,17 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
   （枚举名在 plan 阶段冻结），由调用点一直传到事务体；同一函数的不同意图 MUST 得到不同处置。登记表以
   [epic-006 调用点登记表](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)为准，新增
   `disableTriggers` 调用点 MUST 先登记再实现，未登记即拒绝。
-- 新增公开类型（`WorkingTreeState`、`WorkingTreeEntry`、`IndexState`、`IndexEntry` 及全部共享 DTO 与错误码）
+- 新增公开类型（`WorkingTreeState`、`WorkingTreeEntry` 及全部共享 DTO 与错误码）
   MUST 补齐 TSDoc 并登记进 `requirements/api-baseline/rxdb.json`，前缀遵守 epic 术语表（禁止 `Workspace*`）。
+  **MUST NOT 新增 `Index*` 前缀的导出**：该前缀随暂存区一并裁撤。
 - 阶段 C 不承接任何持久层 FR：状态机语义归阶段 B，写入口捕获归阶段 A；三端只做透传与呈现，不得自带业务分支逻辑。
 
 ## 关键实体
 
 - **WorkingTreeState**：数据库/分支级工作树状态；基于哪个 HEAD、是否恢复中、未提交变更计数、`workingTreeRevision`。
 - **WorkingTreeEntry**：数据库/分支级未提交变更单元；实体或完整事务身份、操作、patch/inverse patch 或等价快照、当前指纹、来源 change ID、`local | remote_sync | merge | undo_redo | restore` 来源。
-- **IndexState**：数据库/分支级 index 水位；`indexRevision`、基线 HEAD、条目计数。
-- **IndexEntry**：分支级暂存区条目；变更单元 ID、基线 commit、暂存快照、stage 时工作树 revision、依赖单元 ID、stage 时间。
 - **CommitOptions**：普通提交选项；必填 `authorId`、`operationId`，可选 `metadata`。保留审计字段不能由 metadata 覆盖。
+  **不含变更选择字段**——提交范围恒为整棵工作树。
 
 > 命名遵守 [epic-006](../../epics/epic-006-working-tree-commits.md) 的术语表：不得使用 `Workspace*` 前缀。
 
@@ -284,15 +292,12 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 
 内部 DTO 字段布局在 plan 阶段冻结；核心操作名与语义保持以下边界，公开共享类型和三框架映射见 US-306 阶段 C：
 
-| 操作                       | 语义                                                      | revision 校验                        | 成功变化                                  | 创建 commit |
-| -------------------------- | --------------------------------------------------------- | ------------------------------------ | ----------------------------------------- | :---------: |
-| `status()`                 | 返回工作树、暂存区、HEAD 和冲突摘要                       | 读取一致快照                         | 无                                        |     否      |
-| `diff(scope?)`             | 比较 HEAD、暂存区、工作树的变更                           | 读取一致快照                         | 无                                        |     否      |
-| `stage(selection)`         | 将实体或完整事务的当前版本复制进暂存区；re-stage 刷新快照 | active + working-tree + index        | index；工作树不变                         |     否      |
-| `unstage(selection)`       | 从暂存区移除实体所属的完整事务单元，工作树不变            | active + index                       | index                                     |     否      |
-| `commit(message, options)` | 以必填 author/operation ID 原子写入 commit 并移动 HEAD    | active + head + index                | head、index、working-tree residual rebase |     是      |
-| `discardWorkingTree()`     | 丢弃工作树未提交变更并回到 HEAD                           | active + head + working-tree + index | working-tree；index 非空时同时变化        |     否      |
-| `clearIndex()`             | 清空暂存选择                                              | active + index                       | index                                     |     否      |
+| 操作                       | 语义                                                         | revision 校验                | 成功变化                   | 创建 commit |
+| -------------------------- | ------------------------------------------------------------ | ---------------------------- | -------------------------- | :---------: |
+| `status()`                 | 返回工作树、HEAD 和冲突摘要                                  | 读取一致快照                 | 无                         |     否      |
+| `diff(scope?)`             | 比较 `HEAD ↔ 工作树`                                         | 读取一致快照                 | 无                         |     否      |
+| `commit(message, options)` | 以必填 author/operation ID 原子提交**整棵工作树**并移动 HEAD | active + head + working-tree | head、working-tree（清空） |     是      |
+| `discardWorkingTree()`     | 丢弃工作树全部未提交变更并回到 HEAD                          | active + head + working-tree | working-tree（清空）       |     否      |
 
 所有修改操作按 Epic 的 revision 矩阵接收或内部捕获 expected revision，并在事务内做条件更新。公开 API 是否显式
 暴露 expected revision 在 plan 阶段冻结，但 active branch token 必须随实体/realm 上下文传入写路径，不能在事务开始后
@@ -308,20 +313,18 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 ### 三框架公开契约（阶段 C）
 
 三端都 MUST 导出 `useWorkingTree()`，并从 `@aiao/rxdb` 透传同一组共享类型：
-`WorkingTreeStatus`、`WorkingTreeDiff`、`WorkingTreeSelection`、`WorkingTreeStageResult`、
-`WorkingTreeCommandError`、`CommitOptions`、`CommitConflict`。
+`WorkingTreeStatus`、`WorkingTreeDiff`、`WorkingTreeCommandError`、`CommitOptions`、`CommitConflict`。
 
 `useWorkingTree()` 的返回对象在三端保持同一组语义键：
 
-| 键                                  | 语义                                                          |
-| ----------------------------------- | ------------------------------------------------------------- |
-| `status`                            | 当前持久状态；支持 clean/modified/staged/restoring/conflicted |
-| `diff`                              | HEAD↔working tree 与 HEAD↔index 的当前差异                    |
-| `refresh`                           | 主动读取最新 revision                                         |
-| `stage` / `unstage`                 | 返回实际依赖闭包                                              |
-| `clearIndex` / `discardWorkingTree` | 明确范围的清理命令                                            |
-| `commit`                            | message + CommitOptions 提交                                  |
-| `commandState`                      | 当前命令的 idle/loading/success/error 与类型化错误            |
+| 键                   | 语义                                                   |
+| -------------------- | ------------------------------------------------------ |
+| `status`             | 当前持久状态；支持 clean/modified/restoring/conflicted |
+| `diff`               | `HEAD ↔ working tree` 的当前差异                       |
+| `refresh`            | 主动读取最新 revision                                  |
+| `discardWorkingTree` | 丢弃全部未提交变更                                     |
+| `commit`             | message + CommitOptions 提交整棵工作树                 |
+| `commandState`       | 当前命令的 idle/loading/success/error 与类型化错误     |
 
 Angular 使用 signal、React 使用 state/store、Vue 使用 ref 只是容器差异；导出名、参数、返回键、错误 code、
 empty/loading/success/error 判定和恢复建议必须对称。不得让某一端额外拥有业务能力。
@@ -345,17 +348,19 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
   **本故事拥有该 target 本身**：fixture 构造、warmup/采样参数、`runnerProfileHash`、报告 JSON 结构与
   reference 签入流程。[US-307](./US-307-restore-session.md) FR-026b 只向其中**追加 restore 采样场景**，
   不新建 target、不改报告结构、不重算已冻结的 reference。
-- status、完整 diff、批量 stage 50 单元执行 5 次 warmup、50 次采样，输出 p50/p95、control ratio、fixture hash 与 runner profile。
-- 普通 CI 的归一化 ratio 不得超过冻结 reference median 的 110%；绝对 p95 100 ms 只在 profile 匹配的固定 runner 上作为发布门禁。
+- status、完整 diff、提交 100 个单元的 commit 各执行 5 次 warmup、50 次采样，输出 p50/p95、control ratio、fixture hash 与 runner profile。
+- 普通 CI 的归一化 ratio 不得超过冻结 reference median 的 110%；绝对 p95 只在 profile 匹配的固定 runner 上作为发布门禁
+  （status / diff 为 100 ms，commit 的阈值随首个 reference 冻结）。
 - 三端 E2E 记录首次可见状态耗时，但浏览器 OPFS/IDB 不承诺相同绝对数字。
 
 ### 边界情况
 
-- stage 后实体被任意 realm 删除或更新：不改写 staged snapshot，变化作为 unstaged 保留；只有 head/index/worktree revision CAS 失败才返回并发冲突。
-- commit staged snapshot 时读取当前 `WorkingTreeEntry` 并原子 rebase：与 staged snapshot 相同的部分删除，后续编辑形成的差量保留；不得用 staged snapshot 覆盖业务表。
-- stage/unstage 的实体选择命中 transactionId 时统一扩展完整事务；错误和返回值列出实际受影响的全部实体。
-- 闭包不仅扩展当前 transactionId：同一实体被多个未提交单元顺序修改时，stage 向前包含重放所需前置单元，
-  unstage 向后移除失去前置的 staged 单元；递归跨过事务成员、schema relation 与实际行引用直到 index 自包含。
+- 实体在 commit 捕获 revision 后被任意 realm 删除或更新：`workingTreeRevision` CAS 失败，返回 `CommitConflict`，
+  HEAD 与工作树零变化。**不提供「跳过冲突单元继续提交」的降级路径**——那需要子集选择能力，已裁决不做。
+- commit 在同一事务内读取当前全部 `WorkingTreeEntry` 作为提交内容，成功后原子清空并把基线切到新 HEAD；
+  不存在 staged 快照与工作树的分叉，也就没有需要 rebase 的残量。
+- 同一实体被多个未提交单元顺序修改、或一个事务跨多个实体：整棵工作树一次性提交，天然保持重放顺序与事务边界，
+  不需要额外的依赖闭包计算。
 - 远端实体应用继续关闭本地 change trigger 以避免 push echo，但关闭 trigger 不等于关闭工作树记录；远端 action、
   WorkingTreeEntry 和同步水位必须共享一个事务，任一步失败全部回滚。
 - QueryCache 是可丢弃投影，不参与版本历史。callback transaction 无法预知回调未来操作；一旦检测到 QueryCache 与
@@ -394,30 +399,32 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
   restore / undo/redo / merge / pull 静默吞掉。
 
 - QueryCache fixture 必须证明 cache 刷新/淘汰不污染 status，混合事务在持久化前失败。
+- 支持字段加密的后端必须扫描 `WorkingTreeEntry` 原始 dump，断言明文哨兵零命中（FR-045 / US2-AC14；
+  该 FR 原先在阶段 A/B 各承接一半，`IndexEntry` 半边随暂存区裁撤后整条归阶段 A）。
 
-### 阶段 B — 暂存区与提交状态机
+### 阶段 B — 提交状态机
 
-- 先写 index 不可重放和 residual edit 丢失的失败用例。
-- `workingTreeCommitConformanceSuite` 在同样 6 个 v1 本地后端运行，覆盖 stage/unstage/commit/discard 的
+- 先写「commit 后工作树未清空」和「commit 内容与 status 所示不一致」的失败用例。
+- `workingTreeCommitConformanceSuite` 在同样 6 个 v1 本地后端运行，覆盖 commit/discard 的
   revision CAS、崩溃恢复与幂等。US-305 的 commit 图 / HEAD 断言并入同一 suite（见
   [epic-006 conformance 口径](../../epics/epic-006-working-tree-commits.md)），任一后端缺席即未完成。
-- 依赖闭包 fixture 至少覆盖 INSERT→UPDATE、UPDATE→DELETE、多实体事务、Parent INSERT→Child INSERT、
-  Child DELETE→Parent DELETE、关系键 UPDATE 与关系环；每个成功 index 都必须通过「从 HEAD 在空投影重放」的通用断言。
-- 双 realm fixture 覆盖 stage、re-stage、commit、discard CAS。
+- 提交内容 fixture 至少覆盖 INSERT→UPDATE、UPDATE→DELETE、多实体事务、Parent INSERT→Child INSERT、
+  Child DELETE→Parent DELETE 与关系键 UPDATE；每个成功 commit 都必须通过「从其 parent 在空投影重放」的通用断言。
+- 双 realm fixture 覆盖 commit 与 discard 的 CAS，**并必须包含 US2-AC12 的核心用例**：realm A 读 status →
+  realm B `save()` → realm A commit，断言返回 `CommitConflict` 且 HEAD 与工作树零变化，刷新后重试成功。
 - 幂等 fixture 必须断言「不递增 revision」，而不只是「不报错」。
 - `WorkingTreeRestoreSession` 需独立 fixture：启用后表存在、可直接写入 session 行并派生 `status().conflicted`、
   session 删除后该状态消失；全程不依赖 US-307 的 `restore()` 入口。
-- 支持字段加密的后端必须扫描 `IndexEntry` 原始 dump，断言明文哨兵零命中。
 - API baseline 与类型契约覆盖全部核心 DTO、选项和类型化错误（含 `WorkingTreeStatus` / `WorkingTreeDiff` /
-  `WorkingTreeSelection` / `WorkingTreeStageResult` / `WorkingTreeCommandError` / `CommitConflict`，
-  即阶段 C 三端透传的共享类型全集）。
+  `WorkingTreeCommandError` / `CommitConflict`，即阶段 C 三端透传的共享类型全集）；
+  同时断言 api-baseline 中**没有** `Index*` 前缀的新导出。
 
 ### 阶段 C — 三框架与性能
 
 - 三端 `src/index.ts` 导出与共享类型透传通过 `tri-framework-check`，缺一端即失败。
 - 三端各有等价组件测试，统一 fixture 验证返回键、状态转换、错误 code 和恢复建议。
-- Playwright 覆盖 status → stage → refresh → commit，以及失败、empty、键盘和屏幕阅读器名称。
-- `pnpm nx run benchmarks:bench-working-tree` 按 Epic 固定的 100 dirty / 50 staged fixture、50 次采样与冻结
+- Playwright 覆盖 status → refresh → commit，以及失败、empty、键盘和屏幕阅读器名称。
+- `pnpm nx run benchmarks:bench-working-tree` 按 Epic 固定的 100 个未提交单元 fixture、50 次采样与冻结
   reference ratio 纳入普通 CI；固定性能 runner 额外执行绝对 p95 发布门禁，报告都写入 `benchmarks/reports/`。
   benchmark reference 必须先于候选发布签入；失败后不得重算基线。
 - 公开文档（US5-AC8）随三端契约一并签入，覆盖发布门禁 9 的六项内容；文档中出现的 API 示例必须与
@@ -428,10 +435,10 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 | 路径                                       | 阶段 | 用途                                                                       |
 | ------------------------------------------ | ---- | -------------------------------------------------------------------------- |
 | `packages/rxdb/src/version/`               | A    | 工作树单元与写入口编排、受信路径登记                                       |
-| `packages/rxdb/src/version/`               | B    | status/diff/index/commit 状态机                                            |
+| `packages/rxdb/src/version/`               | B    | status/diff/commit 状态机                                                  |
 | `packages/rxdb/src/system/`                | A    | `WorkingTreeState` / `WorkingTreeEntry`                                    |
-| `packages/rxdb/src/system/`                | B    | `IndexState` / `IndexEntry` / `WorkingTreeRestoreSession`（仅建表与迁移）  |
-| `packages/rxdb/src/__tests__/version/`     | B    | 闭包、CAS、幂等与 residual rebase                                          |
+| `packages/rxdb/src/system/`                | B    | `WorkingTreeRestoreSession`（仅建表与迁移）                                |
+| `packages/rxdb/src/__tests__/version/`     | B    | CAS、幂等与 commit 后工作树清空                                            |
 | `packages/rxdb-test/`                      | A/B  | `workingTreeCaptureConformanceSuite` / `workingTreeCommitConformanceSuite` |
 | 各 v1 本地 adapter                         | A    | 事务内 trigger/capability 接入                                             |
 | `packages/rxdb-{angular,react,vue}/`       | C    | `useWorkingTree()` 与共享类型透传                                          |
