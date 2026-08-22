@@ -7,10 +7,10 @@ import type { FindOptions } from '../../repository/query-options.interface.js';
 import type { RuleGroup } from '../../repository/query.interface.js';
 import type { IRxDBAdapter, RxDBAdapterLocalBase, SwitchBranchOptions } from '../../rxdb-adapter.js';
 import {
-    EntityLocalCreatedEvent,
-    TransactionBeginEvent,
-    TransactionCommitEvent,
-    type RxDBEntityLocalCreatedEventData
+  EntityLocalCreatedEvent,
+  TransactionBeginEvent,
+  TransactionCommitEvent,
+  type RxDBEntityLocalCreatedEventData
 } from '../../rxdb-events.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBBranch } from '../../system/branch.js';
