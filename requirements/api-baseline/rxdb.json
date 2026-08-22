@@ -629,6 +629,10 @@
       "kind": "value"
     },
     {
+      "name": "isNetworkError",
+      "kind": "value"
+    },
+    {
       "name": "isNoSync",
       "kind": "value"
     },
@@ -890,6 +894,10 @@
     },
     {
       "name": "QueryCacheLocalAdapter",
+      "kind": "type"
+    },
+    {
+      "name": "QueryCacheLocalReader",
       "kind": "type"
     },
     {

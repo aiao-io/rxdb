@@ -1017,7 +1017,7 @@ describe('QueryCacheRepository', () => {
       });
 
       it('T047.3 SWR where 无匹配缓存且远端失败时应该进入 offline fallback', async () => {
-        const networkError = offline('fetch failed: offline');
+        const networkError = offline();
         const cachedData: MockProduct[] = [
           { id: 'p1', name: 'Inactive Product', status: 'inactive', updatedAt: '2024-01-01T00:00:00Z' }
         ];

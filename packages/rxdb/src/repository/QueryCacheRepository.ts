@@ -32,6 +32,7 @@ import { deterministicStringify } from '../rxdb-utils.js';
 import { NetworkOfflineError } from '../RxDBError.js';
 import { diffMetadata } from './diff-metadata.js';
 import { isNetworkError } from './network-error.js';
+import { queryCacheFingerprint } from './query-cache-sync-memo.js';
 import type { RuleGroup } from './query.interface.js';
 
 /**
@@ -175,8 +176,20 @@ export interface SyncStats {
  */
 const rowId = (entity: unknown): string => (entity as QueryCacheEntity).id;
 
-/** 取一行的 `updatedAt`（ISO 8601），用于与远端元数据比对新鲜度 */
-const rowUpdatedAt = (entity: unknown): string => (entity as QueryCacheEntity).updatedAt;
+/**
+ * 取一行的 `updatedAt` 并归一成 ISO 8601 串，用于与远端元数据比对新鲜度。
+ *
+ * @remarks
+ * 必须归一，因为本地出口换成 `IRepository` 之后（US-020 D8）读回来的是**实体实例**，
+ * 而 `updatedAt` 在实体上是 `Date`（`PropertyType.date` 存 TEXT、读成 `Date`）。
+ * {@link diffMetadata} 按 ISO 字典序比较，`'2026-08-09T…' > new Date(…)` 会先把两边
+ * 按 number 提示取原始值 —— 字符串那侧转成 `NaN`，比较**恒为 false**，于是所有行都判 fresh、
+ * 远端的更新永远拉不下来。这是静默的：查询照常返回，只是内容停在第一次同步的那一刻。
+ */
+const rowUpdatedAt = (entity: unknown): string => {
+  const updatedAt = (entity as { updatedAt: unknown }).updatedAt;
+  return updatedAt instanceof Date ? updatedAt.toISOString() : (updatedAt as QueryCacheEntity['updatedAt']);
+};
 
 /**
  * QueryCache 同步策略仓库
@@ -694,11 +707,8 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
    * 归一化成布尔而不是原样带上，是为了让 `undefined` 与显式 `false` 命中同一个 key。
    */
   #getQueryFingerprint(options: QueryCacheFindOptions<T>): string {
-    // 使用确定性序列化，保证键顺序不同但语义相同的查询得到同一指纹
-    return deterministicStringify({
-      where: options.where,
-      localCacheFirst: options.localCacheFirst === true,
-      offlineFallback: options.offlineFallback === true
-    });
+    // 与 QueryCacheSyncMemo 共用同一把尺（US-020 D13）：并发去重与「刚同步过」的记忆
+    // 一旦各算各的，同一个 `where` 会在两处得到不同的 key，行为无从对齐。
+    return queryCacheFingerprint(options);
   }
 }

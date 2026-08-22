@@ -20,6 +20,7 @@ import type {
   EntityBaseType,
   QueryCacheEntityMetadata,
   QueryCacheLocalAdapter,
+  QueryCacheLocalReader,
   QueryCacheRemoteAdapter
 } from '../../index.js';
 import { QueryCacheRepository } from '../../index.js';
@@ -55,6 +56,18 @@ const createLocalAdapter = (cached: Product[] = [], metadata = new Map<string, s
   return { adapter, getMetadataByIds, upsertMany, deleteByIds, findByIds };
 };
 
+/**
+ * 本地行仓储（US-020 D8 起 `find` 的本地读出口）。
+ *
+ * @remarks
+ * 契约测试里它不是 `QueryCacheLocalAdapter` 的一部分 —— 生产上传进来的是
+ * `localAdapter.getRepository(EntityType)` 的返回物，不是适配器本身。
+ */
+const createLocalReader = (rows: Product[] = []) => {
+  const find = vi.fn<QueryCacheLocalReader<Product>['find']>(() => Promise.resolve(rows));
+  return { reader: { find } satisfies QueryCacheLocalReader<Product>, find };
+};
+
 const createRemoteAdapter = (metadata: QueryCacheEntityMetadata[] = [], rows: Product[] = []) => {
   const fetchMetadata = vi.fn<QueryCacheRemoteAdapter['fetchMetadata']>(() => of(metadata));
   const remove = vi.fn<NonNullable<QueryCacheRemoteAdapter['delete']>>(() => of(undefined));
@@ -68,6 +81,13 @@ const createRemoteAdapter = (metadata: QueryCacheEntityMetadata[] = [], rows: Pr
 
   return { adapter, fetchMetadata, findByIds, delete: remove };
 };
+
+const buildRepository = (
+  remoteAdapter: QueryCacheRemoteAdapter,
+  localAdapter: QueryCacheLocalAdapter,
+  localReader: QueryCacheLocalReader<Product>
+): QueryCacheRepository<ProductEntityType> =>
+  new QueryCacheRepository<ProductEntityType>(ENTITY_NAME, remoteAdapter, localAdapter, localReader);
 
 describe('QueryCacheLocalAdapter 公开契约', () => {
   describe('签名（由 tsconfig.spec.json --noEmit 强制，vitest 运行时是 no-op）', () => {
@@ -120,45 +140,44 @@ describe('QueryCacheLocalAdapter 公开契约', () => {
   });
 
   describe('真实 QueryCacheRepository 的调用形态', () => {
-    it('getMetadataByIds 收到 (entityName, 远端返回的 id 列表)', async () => {
+    // `find` 自 US-020 D8 起不再问 `getMetadataByIds`（那样问不出孤儿），
+    // 但 `findById` 仍用它做单 id 的新鲜度判断 —— 这也是该方法留在必需集里的唯一理由。
+    it('getMetadataByIds 收到 (entityName, 单 id 数组)', async () => {
       const local = createLocalAdapter();
       const remote = createRemoteAdapter(
-        [
-          { id: 'p-1', updatedAt: '2026-08-01T00:00:00.000Z' },
-          { id: 'p-2', updatedAt: '2026-08-02T00:00:00.000Z' }
-        ],
-        [
-          { id: 'p-1', name: 'A', updatedAt: '2026-08-01T00:00:00.000Z' },
-          { id: 'p-2', name: 'B', updatedAt: '2026-08-02T00:00:00.000Z' }
-        ]
+        [{ id: 'p-1', updatedAt: '2026-08-01T00:00:00.000Z' }],
+        [{ id: 'p-1', name: 'A', updatedAt: '2026-08-01T00:00:00.000Z' }]
       );
-      const repository = new QueryCacheRepository<ProductEntityType>(ENTITY_NAME, remote.adapter, local.adapter);
+      const repository = buildRepository(remote.adapter, local.adapter, createLocalReader().reader);
 
-      await firstValueFrom(repository.find({ where: ALL }));
+      await firstValueFrom(repository.findById('p-1'));
 
-      expect(local.getMetadataByIds).toHaveBeenCalledWith(ENTITY_NAME, ['p-1', 'p-2']);
+      expect(local.getMetadataByIds).toHaveBeenCalledWith(ENTITY_NAME, ['p-1']);
     });
 
     it('upsertMany 收到 (entityName, 远端拉回的整行)', async () => {
       const pulled = { id: 'p-1', name: 'A', updatedAt: '2026-08-01T00:00:00.000Z' };
       const local = createLocalAdapter();
       const remote = createRemoteAdapter([{ id: 'p-1', updatedAt: '2026-08-01T00:00:00.000Z' }], [pulled]);
-      const repository = new QueryCacheRepository<ProductEntityType>(ENTITY_NAME, remote.adapter, local.adapter);
+      const repository = buildRepository(remote.adapter, local.adapter, createLocalReader().reader);
 
       await firstValueFrom(repository.find({ where: ALL }));
 
       expect(local.upsertMany).toHaveBeenCalledWith(ENTITY_NAME, [pulled]);
     });
 
-    it('本地已是最新时走本地 findByIds，不回源也不重复 upsert', async () => {
+    it('本地已是最新时从本地行仓储读，不回源也不重复 upsert', async () => {
       const cached = { id: 'p-1', name: 'A', updatedAt: '2026-08-01T00:00:00.000Z' };
-      const local = createLocalAdapter([cached], new Map([['p-1', '2026-08-01T00:00:00.000Z']]));
+      const local = createLocalAdapter();
+      const reader = createLocalReader([cached]);
       const remote = createRemoteAdapter([{ id: 'p-1', updatedAt: '2026-08-01T00:00:00.000Z' }]);
-      const repository = new QueryCacheRepository<ProductEntityType>(ENTITY_NAME, remote.adapter, local.adapter);
+      const repository = buildRepository(remote.adapter, local.adapter, reader.reader);
 
       const rows = await firstValueFrom(repository.find({ where: ALL }));
 
-      expect(local.findByIds).toHaveBeenCalledWith(ENTITY_NAME, ['p-1']);
+      // 本地这一侧的新鲜度由 `where` 的本地投影给出，而不是「拿远端 id 回来问本地」
+      expect(reader.find).toHaveBeenCalledWith({ where: ALL });
+      expect(local.getMetadataByIds).not.toHaveBeenCalled();
       expect(remote.findByIds).not.toHaveBeenCalled();
       expect(local.upsertMany).not.toHaveBeenCalled();
       expect(rows).toEqual([cached]);
@@ -167,7 +186,7 @@ describe('QueryCacheLocalAdapter 公开契约', () => {
     it('deleteByIds 收到 (entityName, id 数组)，单个 id 也归一成数组', async () => {
       const local = createLocalAdapter();
       const remote = createRemoteAdapter();
-      const repository = new QueryCacheRepository<ProductEntityType>(ENTITY_NAME, remote.adapter, local.adapter);
+      const repository = buildRepository(remote.adapter, local.adapter, createLocalReader().reader);
 
       await firstValueFrom(repository.delete('p-1'));
 
@@ -182,7 +201,7 @@ describe('QueryCacheLocalAdapter 公开契约', () => {
         ...createRemoteAdapter().adapter,
         delete: () => new Observable<void>(subscriber => subscriber.error(failure))
       };
-      const repository = new QueryCacheRepository<ProductEntityType>(ENTITY_NAME, remoteAdapter, local.adapter);
+      const repository = buildRepository(remoteAdapter, local.adapter, createLocalReader().reader);
 
       await expect(firstValueFrom(repository.delete(['p-1', 'p-2']))).rejects.toBe(failure);
       expect(local.deleteByIds).not.toHaveBeenCalled();

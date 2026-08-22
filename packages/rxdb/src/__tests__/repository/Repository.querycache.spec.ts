@@ -55,6 +55,38 @@ Object.assign(CachedSwrEntity, {
   }
 });
 
+/** AC#23 D13：显式关掉同步记忆，证明 `syncStaleTime` 真的可配置到 0（每次读都重新校验） */
+class CachedNoMemoEntity extends CachedEntity {}
+
+Object.assign(CachedNoMemoEntity, {
+  [METADATA]: {
+    name: 'CachedNoMemoEntity',
+    namespace: 'public',
+    repository: 'Repository',
+    sync: {
+      type: SyncType.QueryCache,
+      local: { adapter: 'local', syncStaleTime: 0 },
+      remote: { adapter: 'remote' }
+    }
+  }
+});
+
+/** AC#23 D13：把记忆窗口压到 1ms，用来证明它会过期而不是常驻 */
+class CachedShortMemoEntity extends CachedEntity {}
+
+Object.assign(CachedShortMemoEntity, {
+  [METADATA]: {
+    name: 'CachedShortMemoEntity',
+    namespace: 'public',
+    repository: 'Repository',
+    sync: {
+      type: SyncType.QueryCache,
+      local: { adapter: 'local', syncStaleTime: 1 },
+      remote: { adapter: 'remote' }
+    }
+  }
+});
+
 /** 对照组：同一形状配 Full 同步，用来证明 QueryCache 分支没有渗进版本化路径 */
 class VersionedEntity extends CachedEntity {}
 
@@ -92,7 +124,14 @@ const row = (id: string, updatedAt: string, value = 0): CachedEntity => {
 
 const where = (): RuleGroup<CachedEntity> => ({ combinator: 'and', rules: [] });
 
-/** 本地行仓储（`RxDBAdapterBase.getRepository()` 的返回物），QueryCache 的最终读出口 */
+/**
+ * 本地行仓储（`RxDBAdapterBase.getRepository()` 的返回物）。
+ *
+ * @remarks
+ * US-020 D8 之后它同时承担两个角色：同步流程里读 `where` 的本地投影（算新鲜度与孤儿），
+ * 以及同步跑完后门面读最终结果。因此 QueryCache 的一次 `find` 会打到它两次，
+ * SWR 再多一次缓存首发 —— 用调用次数区分模式很脆，用例改用「交付时远端是否已回来」判定。
+ */
 const createLocalRepo = (rows: CachedEntity[]) => ({
   find: vi.fn(async () => rows),
   count: vi.fn(async () => rows.length),
@@ -101,23 +140,19 @@ const createLocalRepo = (rows: CachedEntity[]) => ({
   remove: vi.fn(async (entity: CachedEntity) => entity)
 });
 
-const createLocalAdapter = (localRepo: ReturnType<typeof createLocalRepo>, cachedRows: CachedEntity[] = []) => ({
+const createLocalAdapter = (localRepo: ReturnType<typeof createLocalRepo>) => ({
   name: 'local',
   getRepository: vi.fn(() => localRepo),
   // QueryCacheLocalAdapter 的三个必需 duck（均为 RxDBAdapterLocalBase 的 abstract）
   getMetadataByIds: vi.fn(() => of(new Map<string, string>())),
   upsertMany: vi.fn(() => of(undefined)),
-  deleteByIds: vi.fn(() => of(undefined)),
-  // SWR 的缓存读出口：只有 localCacheFirst 生效时才会被调用。
-  // `delay(0)` 不是装饰：同步发射时订阅链还没建立完，退订传不上去，
-  // 「缓存一发射就把后台校验取消掉」这个真实故障在同步 mock 下测不出来。
-  findAll: vi.fn(() => of(cachedRows).pipe(delay(0)))
+  deleteByIds: vi.fn(() => of(undefined))
 });
 
-const createRemoteAdapter = () => ({
+const createRemoteAdapter = (delayMs = 0) => ({
   name: 'remote',
   getRepository: vi.fn(),
-  fetchMetadata: vi.fn(() => of([{ id: 'a', updatedAt: '2024-01-02T00:00:00Z' }])),
+  fetchMetadata: vi.fn(() => of([{ id: 'a', updatedAt: '2024-01-02T00:00:00Z' }]).pipe(delay(delayMs))),
   findByIds: vi.fn(() => of([row('a', '2024-01-02T00:00:00Z', 1)])),
   create: vi.fn((_entityName: string, data: CachedEntity) => of(data)),
   update: vi.fn((_entityName: string, id: string, patch: Partial<CachedEntity>) =>
@@ -129,20 +164,22 @@ const createRemoteAdapter = () => ({
 const setup = (
   overrides: {
     localRows?: CachedEntity[];
-    cachedRows?: CachedEntity[];
     localAdapter?: unknown;
     remoteAdapter?: unknown;
+    /** 让远端元数据晚于本地缓存到达，SWR 与标准模式才有可观测差异 */
+    remoteDelayMs?: number;
     EntityType?: CachedEntityCtor;
   } = {}
 ) => {
-  const localRepo = createLocalRepo(overrides.localRows ?? [row('a', '2024-01-02T00:00:00Z', 1)]);
+  // 默认本地比远端旧一档：同步必须真的回源一次，AC#1 的 pull 断言才有意义
+  const localRepo = createLocalRepo(overrides.localRows ?? [row('a', '2024-01-01T00:00:00Z', 1)]);
   // 覆盖项按「完整 stub」类型对待：唯一的例外是 AC#7 那个故意缺 duck 的对象，
   // 而那条用例只断言抛错，不读适配器上的任何成员
   const localAdapter =
-    (overrides.localAdapter as ReturnType<typeof createLocalAdapter> | undefined) ??
-    createLocalAdapter(localRepo, overrides.cachedRows);
+    (overrides.localAdapter as ReturnType<typeof createLocalAdapter> | undefined) ?? createLocalAdapter(localRepo);
   const remoteAdapter =
-    (overrides.remoteAdapter as ReturnType<typeof createRemoteAdapter> | undefined) ?? createRemoteAdapter();
+    (overrides.remoteAdapter as ReturnType<typeof createRemoteAdapter> | undefined) ??
+    createRemoteAdapter(overrides.remoteDelayMs);
   const localAdapter$ = new BehaviorSubject(localAdapter);
   const remoteAdapter$ = new BehaviorSubject(remoteAdapter);
 
@@ -173,16 +210,51 @@ describe('US-020 阶段 A：QueryCache 接入统一 Repository', () => {
     await firstValueFrom(ctx.repository.find({ where: where() }));
 
     expect(ctx.remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(1);
-    expect(ctx.localAdapter.getMetadataByIds).toHaveBeenCalledTimes(1);
     expect(ctx.remoteAdapter.findByIds).toHaveBeenCalledWith('CachedEntity', ['a']);
     expect(ctx.localAdapter.upsertMany).toHaveBeenCalledTimes(1);
+  });
+
+  // AC#1 + D8：本地这一侧的新鲜度也从行仓储读，不再走 getMetadataByIds duck。
+  // 只按远端 id 问本地，永远问不出「本地有、远端没有」的孤儿（AC#11）。
+  it('AC#1 本地投影经 IRepository 下推 where，不经 getMetadataByIds', async () => {
+    await firstValueFrom(ctx.repository.find({ where: where() }));
+
+    expect(ctx.localAdapter.getMetadataByIds).not.toHaveBeenCalled();
+    expect(ctx.localRepo.find).toHaveBeenCalledWith({ where: where() });
+  });
+
+  // AC#1 + D8 回归护栏：本地出口换成 IRepository 之后，读回来的是**实体实例**，
+  // `updatedAt` 在真实实体上是 `Date`（sqlite 里 PropertyType.date 存 TEXT、读成 Date）。
+  // 新鲜度比较按 ISO 字典序做，`'2024-01-02T…' > Date` 会先把两边按 number 提示取原始值 ——
+  // 字符串那侧成 NaN，比较恒为 false，于是所有行都判 fresh、远端更新永远拉不下来。
+  // 这个塌陷是静默的（查询照常返回，内容停在第一次同步那一刻），必须在核心层钉死。
+  it('AC#1 本地 updatedAt 为 Date 时仍能判出 stale', async () => {
+    const local = row('a', '2024-01-01T00:00:00Z', 1);
+    Object.assign(local, { updatedAt: new Date('2024-01-01T00:00:00Z') });
+    const dateCtx = setup({ localRows: [local as CachedEntity] });
+
+    await firstValueFrom(dateCtx.repository.find({ where: where() }));
+
+    expect(dateCtx.remoteAdapter.findByIds).toHaveBeenCalledWith('CachedEntity', ['a']);
+  });
+
+  // 反向：Date 比远端新时不该回源，证明上一条不是「无脑全拉」蒙对的
+  it('AC#1 本地 updatedAt 为 Date 且更新时不回源', async () => {
+    const local = row('a', '2024-01-03T00:00:00Z', 1);
+    Object.assign(local, { updatedAt: new Date('2024-01-03T00:00:00Z') });
+    const dateCtx = setup({ localRows: [local as CachedEntity] });
+
+    await firstValueFrom(dateCtx.repository.find({ where: where() }));
+
+    expect(dateCtx.remoteAdapter.findByIds).not.toHaveBeenCalled();
   });
 
   // AC#21 + D8：最终读出口是本地 IRepository，返回实体实例而不是裸数据
   it('AC#21 结果来自本地 IRepository，是实体实例', async () => {
     const result = await firstValueFrom(ctx.repository.find({ where: where() }));
 
-    expect(ctx.localRepo.find).toHaveBeenCalledTimes(1);
+    // 最后一次读带着调用方的完整 options —— 那次才是交付给调用方的结果
+    expect(ctx.localRepo.find).toHaveBeenLastCalledWith(expect.objectContaining({ where: where() }));
     expect(result[0]).toBeInstanceOf(CachedEntity);
   });
 
@@ -267,36 +339,40 @@ describe('US-020 阶段 A：QueryCache 接入统一 Repository', () => {
   });
 
   // AC#24：不传 localCacheFirst 时用配置值 —— 配置开了就得真的走 SWR
+  //
+  // 判定口径：本地读与远端校验都经同一个 `localRepo.find`，靠调用次数区分模式既脆又有竞态。
+  // 改看**交付时远端有没有回来**：远端延后 20ms，SWR 会在那之前就把缓存交出去。
   it('AC#24 配置 localCacheFirst: true 时 find 走 SWR', async () => {
-    const swr = setup({ EntityType: CachedSwrEntity, cachedRows: [row('a', '2024-01-01T00:00:00Z', 1)] });
+    const swr = setup({ EntityType: CachedSwrEntity, remoteDelayMs: 20 });
 
     await firstValueFrom(swr.repository.find({ where: where() }));
 
-    expect(swr.localAdapter.findAll).toHaveBeenCalledTimes(1);
-    // 缓存先发射不得把后台校验一起取消：否则「一旦有缓存就再也不同步」。
-    // 断言落在 `upsertMany` 而不是 `fetchMetadata`：后者在 Observable 构造期就被调用，
-    // 订阅与否都会被记一次，证明不了校验真的跑完
-    expect(swr.localAdapter.upsertMany).toHaveBeenCalledTimes(1);
+    // 远端还没回来，结果已经交付 → 走的是缓存首发
+    expect(swr.localAdapter.upsertMany).not.toHaveBeenCalled();
+    // 缓存先发射不得把后台校验一起取消：否则「一旦有缓存就再也不同步」
+    await vi.waitFor(() => expect(swr.localAdapter.upsertMany).toHaveBeenCalledTimes(1));
   });
 
   // AC#24：调用级显式值压过配置值
   it('AC#24 调用级 localCacheFirst: false 覆盖配置的 true', async () => {
-    const swr = setup({ EntityType: CachedSwrEntity, cachedRows: [row('a', '2024-01-01T00:00:00Z', 1)] });
+    const swr = setup({ EntityType: CachedSwrEntity, remoteDelayMs: 20 });
 
     await firstValueFrom(swr.repository.find({ where: where(), localCacheFirst: false }));
 
-    expect(swr.localAdapter.findAll).not.toHaveBeenCalled();
+    // 标准模式：等远端校验落盘后才交付
+    expect(swr.localAdapter.upsertMany).toHaveBeenCalledTimes(1);
   });
 
   // AC#24：配置缺省是 false，调用级可以单独开
   it('AC#24 调用级 localCacheFirst: true 覆盖缺省的 false', async () => {
-    const plain = setup({ cachedRows: [row('a', '2024-01-01T00:00:00Z', 1)] });
+    const plain = setup({ remoteDelayMs: 20 });
 
     await firstValueFrom(plain.repository.find({ where: where() }));
-    expect(plain.localAdapter.findAll).not.toHaveBeenCalled();
+    expect(plain.localAdapter.upsertMany).toHaveBeenCalledTimes(1);
 
     await firstValueFrom(plain.repository.find({ where: where(), localCacheFirst: true }));
-    expect(plain.localAdapter.findAll).toHaveBeenCalledTimes(1);
+    expect(plain.localAdapter.upsertMany).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(plain.localAdapter.upsertMany).toHaveBeenCalledTimes(2));
   });
 
   // AC#24 + AC#13：模式进任务指纹；onSyncStats 是函数，进不了指纹也不该进
@@ -347,16 +423,69 @@ describe('US-020 阶段 A：QueryCache 接入统一 Repository', () => {
 
   // AC#3：QueryCache 新增的两个 FindOptions 字段对其余策略是惰性的，不得改变行为
   it('AC#3 Full 实体忽略 localCacheFirst / onSyncStats', async () => {
-    const full = setup({ EntityType: VersionedEntity, cachedRows: [row('a', '2024-01-01T00:00:00Z', 1)] });
+    const full = setup({ EntityType: VersionedEntity });
     const stats: SyncStats[] = [];
 
     await firstValueFrom(
       full.repository.find({ where: where(), localCacheFirst: true, onSyncStats: value => stats.push(value) })
     );
 
-    expect(full.localAdapter.findAll).not.toHaveBeenCalled();
     expect(stats).toHaveLength(0);
+    // Full 只读一次本地（QueryCache 才会为同步多读一次投影）
     expect(full.localRepo.find).toHaveBeenCalledTimes(1);
+  });
+
+  // AC#23 + D13：同步粒度是 `where`，翻页只换 limit / offset —— 第二页不该再问一次远端。
+  //
+  // 记忆的键就是 AC#13 那把尺（`where` + `localCacheFirst` + `offlineFallback`），
+  // 因此 `limit` / `offset` / `orderBy` 变了照样命中。
+  it('AC#23 同一 where 翻第二页只发生一次远端同步', async () => {
+    await firstValueFrom(ctx.repository.find({ where: where(), limit: 10, offset: 0 }));
+    await firstValueFrom(ctx.repository.find({ where: where(), limit: 10, offset: 10 }));
+
+    expect(ctx.remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(1);
+    // 第二页仍然是一次真实的本地读，只是不再重新同步
+    expect(ctx.localRepo.find).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 10, offset: 10 }));
+  });
+
+  // AC#23 + D13：记忆按 `where` 分桶 —— 换查询范围就是另一次同步，不能借上一次的新鲜度
+  it('AC#23 换 where 不复用同步记忆', async () => {
+    await firstValueFrom(ctx.repository.find({ where: where() }));
+    await firstValueFrom(
+      ctx.repository.find({ where: { combinator: 'and', rules: [{ field: 'value', operator: '=', value: 1 }] } })
+    );
+
+    expect(ctx.remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(2);
+  });
+
+  // AC#23 + D13：写之后本地投影已经不是刚才同步出来的那份，记忆必须作废
+  it('AC#23 写入使同步记忆失效', async () => {
+    await firstValueFrom(ctx.repository.find({ where: where() }));
+    await ctx.repository.create(row('b', '2024-01-04T00:00:00Z'));
+    await firstValueFrom(ctx.repository.find({ where: where() }));
+
+    expect(ctx.remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(2);
+  });
+
+  // AC#23 + D13：`syncStaleTime: 0` 关掉记忆，回到「每次读都向远端校验」
+  it('AC#23 syncStaleTime: 0 时每次 find 都重新校验', async () => {
+    const noMemo = setup({ EntityType: CachedNoMemoEntity });
+
+    await firstValueFrom(noMemo.repository.find({ where: where(), offset: 0 }));
+    await firstValueFrom(noMemo.repository.find({ where: where(), offset: 10 }));
+
+    expect(noMemo.remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(2);
+  });
+
+  // AC#23 + D13：记忆是有界的 —— 窗口过了就重新校验，不是「同步过一次就永远新鲜」
+  it('AC#23 记忆窗口过期后重新校验', async () => {
+    const shortMemo = setup({ EntityType: CachedShortMemoEntity });
+
+    await firstValueFrom(shortMemo.repository.find({ where: where() }));
+    await new Promise(resolve => setTimeout(resolve, 10));
+    await firstValueFrom(shortMemo.repository.find({ where: where() }));
+
+    expect(shortMemo.remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(2);
   });
 
   // AC#7：不继承 base 的自定义适配器缺 duck 时 fail-fast，不降级成空数组

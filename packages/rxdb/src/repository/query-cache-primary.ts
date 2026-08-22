@@ -27,6 +27,7 @@ import type {
   SyncStats
 } from './QueryCacheRepository.js';
 import { QueryCacheRepository } from './QueryCacheRepository.js';
+import { queryCacheFingerprint, QueryCacheSyncMemo } from './query-cache-sync-memo.js';
 import type { IRepository } from './repository.interface.js';
 
 /** 远端适配器必须提供的 QueryCache duck（`RxDBAdapterRemoteBase` 的 `abstract` 成员） */
@@ -101,7 +102,9 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
     private readonly remoteAdapter: QueryCacheRemoteAdapter,
     localAdapter: QueryCacheLocalAdapter,
     /** `sync.local.localCacheFirst`：是否走 stale-while-revalidate */
-    private readonly localCacheFirst: boolean
+    private readonly localCacheFirst: boolean,
+    /** 「刚同步过」的记忆；由 `Repository` 持有，跨本类实例存活（US-020 D13） */
+    private readonly syncMemo: QueryCacheSyncMemo
   ) {
     // 本地行仓储既是同步流程的读出口（US-020 D8），也是同步跑完后门面读结果的地方。
     // `QueryCacheRepository` 按 `entityName` 工作、填不出 `IRepository` 的类型参数，
@@ -123,7 +126,8 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
    * @remarks
    * 同步范围是整个 `where`，与 `limit` 无关 —— `fetchMetadata` 的粒度就是 `where`。
    * 因此 QueryCache 适合用 `where` 收窄的有界结果集；靠 `limit` 收窄会拉取放大
-   * （可用 `onSyncStats` 的 `remoteCount` 观测）。同一 `where` 翻第二页不会再同步一次。
+   * （可用 `onSyncStats` 的 `remoteCount` 观测）。同一 `where` 在
+   * `sync.local.syncStaleTime` 窗口内翻第二页不会再同步一次（D13）。
    */
   async find(options: EntityStaticType<T, 'findOptions'>): Promise<InstanceType<T>[]> {
     const { where, localCacheFirst, onSyncStats } = options as QueryCacheFindHints<T>;
@@ -161,6 +165,7 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
    */
   async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
     const created = await firstValueFrom(this.#cache.create(entity));
+    this.syncMemo.clear();
     return Object.assign(entity, created);
   }
 
@@ -174,6 +179,7 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
    */
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
     const updated = await firstValueFrom(this.#cache.update(entityId(entity), patch));
+    this.syncMemo.clear();
     return Object.assign(entity, updated);
   }
 
@@ -186,11 +192,28 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
    */
   async remove(entity: InstanceType<T>): Promise<InstanceType<T>> {
     await firstValueFrom(this.#cache.delete(entityId(entity)));
+    this.syncMemo.clear();
     return entity;
   }
 
   /**
-   * 跑一次同步，第一次发射即返回。
+   * 跑一次同步；窗口内已经同步过同一份 `where` 就直接返回（US-020 AC#23、D13）。
+   *
+   * @remarks
+   * 命中记忆时本次确实没有发生同步，因此 `onSyncStats` 不会被调用 —— 报一份上次的统计
+   * 会让「拉取放大可观测」（AC#25）失真。窗口与失效路径见 {@link QueryCacheSyncMemo}。
+   */
+  async #sync(options: QueryCacheSyncOptions): Promise<void> {
+    const fingerprint = queryCacheFingerprint(options);
+    if (this.syncMemo.has(fingerprint)) {
+      return;
+    }
+    await this.#runSync(options);
+    this.syncMemo.remember(fingerprint);
+  }
+
+  /**
+   * 真的跑一次同步，第一次发射即返回。
    *
    * @remarks
    * 不用 `firstValueFrom`：SWR 模式下第一次发射是本地缓存，`firstValueFrom` 拿到它就退订，
@@ -199,9 +222,9 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
    *
    * 后台阶段的失败不上抛（Promise 已 settle）——缓存已经交付给调用方，
    * `QueryCacheRepository` 本身也在缓存发射后把远端错误吞成 `EMPTY`。
-   * 缓存未发射时的失败照常 reject。
+   * 缓存未发射时的失败照常 reject。失败不进记忆：下次读必须重新校验。
    */
-  #sync(options: QueryCacheSyncOptions): Promise<void> {
+  #runSync(options: QueryCacheSyncOptions): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       this.#cache.find(options).subscribe({
         next: () => resolve(),
@@ -233,6 +256,7 @@ const entityId = <T extends EntityType>(entity: InstanceType<T>): string => (ent
  * @param localAdapter - 本地适配器
  * @param remoteAdapter - 远端适配器
  * @param localCacheFirst - `sync.local.localCacheFirst`
+ * @param syncMemo - 「刚同步过」的记忆，由调用方持有以跨适配器发射存活（D13）
  * @throws {@link RxDBQueryCacheCapabilityError} 适配器缺必需 duck
  */
 export function createQueryCachePrimary<T extends EntityType>(
@@ -240,7 +264,8 @@ export function createQueryCachePrimary<T extends EntityType>(
   EntityType: T,
   localAdapter: QueryCachePrimaryLocalAdapter<T>,
   remoteAdapter: QueryCacheRemoteAdapter,
-  localCacheFirst: boolean
+  localCacheFirst: boolean,
+  syncMemo: QueryCacheSyncMemo
 ): QueryCachePrimaryRepository<T> {
   assertQueryCacheCapabilities(entityName, localAdapter, remoteAdapter);
   return new QueryCachePrimaryRepository<T>(
@@ -248,7 +273,8 @@ export function createQueryCachePrimary<T extends EntityType>(
     localAdapter.getRepository(EntityType),
     remoteAdapter,
     localAdapter,
-    localCacheFirst
+    localCacheFirst,
+    syncMemo
   );
 }
 
