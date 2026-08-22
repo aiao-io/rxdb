@@ -22,7 +22,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "=2.6.3", features = [] }
 
 [dependencies]
-tauri = { version = "=2.11.2", features = [] }
+tauri = { version = "=2.11.5", features = [] }
 serde = { version = "1", features = ["derive"] }
 # 自检报告是 JSON（`selfcheck.rs`），前端契约测试断言的就是它的形状。
 serde_json = "1"
