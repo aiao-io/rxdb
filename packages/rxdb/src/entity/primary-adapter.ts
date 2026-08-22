@@ -137,10 +137,7 @@ export function resolveBatchPrimaryAdapter(
  * 调用点须先跑 {@link resolveBatchPrimaryAdapter}：那样「QueryCache + remote-only」报的是更准确的
  * {@link RxDBMixedPrimaryAdapterError}，而不是被这里当成「版本化实体」。
  */
-export function isQueryCacheBatch(
-  EntityTypes: readonly EntityType[],
-  databaseSync: SyncOptions | undefined
-): boolean {
+export function isQueryCacheBatch(EntityTypes: readonly EntityType[], databaseSync: SyncOptions | undefined): boolean {
   const cacheEntities: string[] = [];
   const versionedEntities: string[] = [];
   for (const EntityType of EntityTypes) {

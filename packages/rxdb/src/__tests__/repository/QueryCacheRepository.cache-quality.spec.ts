@@ -59,9 +59,8 @@ function createLocalReader(rows: Product[]) {
   const store = new Map(rows.map(item => [item.id, item]));
   return {
     store,
-    find: vi.fn(
-      ({ where }: { where: RuleGroup<Product> }): Promise<Product[]> =>
-        Promise.resolve([...store.values()].filter(entity => isEntityMatchWhere(entity, where)))
+    find: vi.fn(({ where }: { where: RuleGroup<Product> }): Promise<Product[]> =>
+      Promise.resolve([...store.values()].filter(entity => isEntityMatchWhere(entity, where)))
     )
   };
 }
@@ -111,7 +110,11 @@ describe('QueryCacheRepository 缓存质量（US-020 阶段 B）', () => {
     });
 
     it('orphanCount 等于实际删除条数，不再是恒为 0 的摆设', async () => {
-      const repo = build([row('p1', '2024-01-01T00:00:00Z'), row('x', '2024-01-01T00:00:00Z'), row('y', '2024-01-01T00:00:00Z')]);
+      const repo = build([
+        row('p1', '2024-01-01T00:00:00Z'),
+        row('x', '2024-01-01T00:00:00Z'),
+        row('y', '2024-01-01T00:00:00Z')
+      ]);
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of([meta('p1', '2024-01-01T00:00:00Z')]));
       const stats: SyncStats[] = [];
 

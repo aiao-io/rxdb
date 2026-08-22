@@ -391,7 +391,6 @@ export class EntityManager {
     return adapter.mutations(options);
   }
 
-
   /**
    * 删除实体
    * 从数据库中删除实体，并分发相关事件

@@ -177,9 +177,7 @@ const createDatabase = (dbName: string, localRows: Row[], remoteRows: Row[], rem
   rxdb.adapter('sqlite', () => local.adapter as unknown as IRxDBAdapter);
   rxdb.adapter('supabase', () => remote.adapter as unknown as IRxDBAdapter);
   rxdb.init();
-  local.attach(
-    data => rxdb.entityManager.createEntityRef(CachedArticle, data, { local: true }) as unknown as Row
-  );
+  local.attach(data => rxdb.entityManager.createEntityRef(CachedArticle, data, { local: true }) as unknown as Row);
   return { rxdb, local, remote };
 };
 

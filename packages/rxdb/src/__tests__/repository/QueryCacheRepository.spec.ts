@@ -57,9 +57,8 @@ function createLocalReader(initial: MockProduct[] = []) {
     seed(next: MockProduct[]): void {
       rows = [...next];
     },
-    find: vi.fn(
-      ({ where }: { where: RuleGroup<MockProduct> }): Promise<MockProduct[]> =>
-        Promise.resolve(rows.filter(entity => isEntityMatchWhere(entity, where)))
+    find: vi.fn(({ where }: { where: RuleGroup<MockProduct> }): Promise<MockProduct[]> =>
+      Promise.resolve(rows.filter(entity => isEntityMatchWhere(entity, where)))
     )
   };
 }

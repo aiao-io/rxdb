@@ -8,6 +8,8 @@ import { RxDB } from '../RxDB.js';
 import { RxDBError } from '../RxDBError.js';
 import { getFingerprintByEntities, getFingerprintByEntity, getFingerprintPrimitive } from './fingerprint.utils.js';
 
+import { createQueryCachePrimary, QueryCachePrimaryLocalAdapter } from './query-cache-primary.js';
+import { QueryCacheSyncMemo } from './query-cache-sync-memo.js';
 import {
   CountOptions,
   FindAllOptions,
@@ -17,8 +19,6 @@ import {
   FindOptions,
   OrderBy
 } from './query-options.interface.js';
-import { createQueryCachePrimary, QueryCachePrimaryLocalAdapter } from './query-cache-primary.js';
-import { QueryCacheSyncMemo } from './query-cache-sync-memo.js';
 import { Rule, RuleGroup } from './query.interface.js';
 import type { QueryCacheRemoteAdapter } from './QueryCacheRepository.js';
 import { QueryManager } from './QueryManager.js';
@@ -124,7 +124,6 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
   destroy() {
     this.queryManager.destroy();
   }
-
 
   /**
    * 根据 id 获取实体

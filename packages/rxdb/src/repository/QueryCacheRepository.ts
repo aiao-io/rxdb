@@ -606,9 +606,7 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
       remoteMetadata: this.remoteAdapter.fetchMetadata(this.entityName, options.where),
       localRows: this.#readLocal(options.where)
     }).pipe(
-      switchMap(({ remoteMetadata, localRows }) =>
-        this.#reconcile(options, remoteMetadata, localRows, startTime)
-      )
+      switchMap(({ remoteMetadata, localRows }) => this.#reconcile(options, remoteMetadata, localRows, startTime))
     );
   }
 
@@ -674,13 +672,15 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
     if (ids.length === 0) {
       return of([]);
     }
-    return this.remoteAdapter.findByIds<InstanceType<T>>(this.entityName, ids).pipe(
-      switchMap(pulledRows =>
-        pulledRows.length === 0
-          ? of(pulledRows)
+    return this.remoteAdapter
+      .findByIds<InstanceType<T>>(this.entityName, ids)
+      .pipe(
+        switchMap(pulledRows =>
+          pulledRows.length === 0 ?
+            of(pulledRows)
           : this.localAdapter.upsertMany(this.entityName, pulledRows).pipe(map(() => pulledRows))
-      )
-    );
+        )
+      );
   }
 
   /**

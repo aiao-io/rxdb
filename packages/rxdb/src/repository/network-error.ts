@@ -47,7 +47,8 @@ const NETWORK_ERROR_NAMES = new Set(['NetworkError', 'TimeoutError']);
  * Safari `Load failed`。没有比匹配消息更可靠的手段 —— 所以这里限定到 `TypeError`
  * 且必须命中已知文本，认不出的 `TypeError`（例如读属性读到 undefined）照常上抛。
  */
-const FETCH_FAILURE_MESSAGE = /failed to fetch|networkerror when attempting to fetch|load failed|network request failed/i;
+const FETCH_FAILURE_MESSAGE =
+  /failed to fetch|networkerror when attempting to fetch|load failed|network request failed/i;
 
 /** 读一个可能不存在的属性，不引入 `any` */
 const readProperty = (value: object, key: string): unknown => (value as Record<string, unknown>)[key];

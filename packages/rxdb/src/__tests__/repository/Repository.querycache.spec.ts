@@ -8,13 +8,13 @@ import { BehaviorSubject, delay, firstValueFrom, Observable, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import { SyncType } from '../../entity/metadata-options.interface.js';
-import type { QueryOptions } from '../../repository/QueryManager.interface.js';
-import type { SyncStats } from '../../repository/QueryCacheRepository.js';
-import { Repository } from '../../repository/Repository.js';
 import type { RuleGroup } from '../../repository/query.interface.js';
-import { METADATA, STATUS } from '../../rxdb.private.js';
+import type { SyncStats } from '../../repository/QueryCacheRepository.js';
+import type { QueryOptions } from '../../repository/QueryManager.interface.js';
+import { Repository } from '../../repository/Repository.js';
 import { deterministicStringify } from '../../rxdb-utils.js';
 import type { RxDB } from '../../RxDB.js';
+import { METADATA, STATUS } from '../../rxdb.private.js';
 import { RxDBQueryCacheCapabilityError } from '../../RxDBError.js';
 
 class CachedEntity {
@@ -377,9 +377,7 @@ describe('US-020 阶段 A：QueryCache 接入统一 Repository', () => {
 
   // AC#24 + AC#13：模式进任务指纹；onSyncStats 是函数，进不了指纹也不该进
   it('AC#24 localCacheFirst 进任务指纹，onSyncStats 不进', async () => {
-    await firstValueFrom(
-      ctx.repository.find({ where: where(), localCacheFirst: true, onSyncStats: () => undefined })
-    );
+    await firstValueFrom(ctx.repository.find({ where: where(), localCacheFirst: true, onSyncStats: () => undefined }));
 
     const key = deterministicStringify(ctx.queryManager.lastOptions);
     expect(key).toContain('"localCacheFirst":true');

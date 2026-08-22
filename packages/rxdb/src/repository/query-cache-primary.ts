@@ -19,6 +19,7 @@ import { firstValueFrom, Observable } from 'rxjs';
 import type { EntityStaticType, EntityType } from '../entity/entity.interface.js';
 import type { QueryCacheEntityMetadata } from '../entity/metadata-options.interface.js';
 import { RxDBQueryCacheCapabilityError } from '../RxDBError.js';
+import { queryCacheFingerprint, QueryCacheSyncMemo } from './query-cache-sync-memo.js';
 import type { RuleGroup } from './query.interface.js';
 import type {
   QueryCacheLocalAdapter,
@@ -27,7 +28,6 @@ import type {
   SyncStats
 } from './QueryCacheRepository.js';
 import { QueryCacheRepository } from './QueryCacheRepository.js';
-import { queryCacheFingerprint, QueryCacheSyncMemo } from './query-cache-sync-memo.js';
 import type { IRepository } from './repository.interface.js';
 
 /** 远端适配器必须提供的 QueryCache duck（`RxDBAdapterRemoteBase` 的 `abstract` 成员） */
