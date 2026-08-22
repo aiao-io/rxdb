@@ -201,6 +201,22 @@ describe('US-020 阶段 A：QueryCache 接入统一 Repository', () => {
     expect(ctx.remoteAdapter.findByIds).not.toHaveBeenCalled();
   });
 
+  // AC#23：D9 矩阵的 8 个入口逐个走通，无一 fail-fast —— 读侧五个入口最终都收敛到 primary.find
+  it('AC#23 D9 矩阵的 8 个入口全部可用', async () => {
+    const orderBy = [{ field: 'id' as const, sort: 'asc' as const }];
+
+    await expect(firstValueFrom(ctx.repository.get('a'))).resolves.toBeInstanceOf(CachedEntity);
+    await expect(firstValueFrom(ctx.repository.findOne({ where: where() }))).resolves.toBeInstanceOf(CachedEntity);
+    await expect(firstValueFrom(ctx.repository.findOneOrFail({ where: where() }))).resolves.toBeInstanceOf(
+      CachedEntity
+    );
+    await expect(firstValueFrom(ctx.repository.find({ where: where() }))).resolves.toHaveLength(1);
+    await expect(firstValueFrom(ctx.repository.findAll({ where: where() }))).resolves.toHaveLength(1);
+    await expect(firstValueFrom(ctx.repository.findByCursor({ where: where(), orderBy }))).resolves.toHaveLength(1);
+    await expect(firstValueFrom(ctx.repository.count({ where: where() }))).resolves.toBe(1);
+    await expect(ctx.repository.create(row('b', '2024-01-04T00:00:00Z'))).resolves.toBeDefined();
+  });
+
   // AC#2：写入远程优先，且返回 Promise 而不是 Observable
   it('AC#2 create 先远程后本地，返回 Promise', async () => {
     const created = ctx.repository.create(row('b', '2024-01-04T00:00:00Z'));

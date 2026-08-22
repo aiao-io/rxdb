@@ -9,9 +9,9 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 40   |
-| 🚧 In Progress | 2    |
+| 🚧 In Progress | 3    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 12   |
+| 📝 Backlog     | 11   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 55   |
 
@@ -23,12 +23,13 @@
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🅰️ 多阶段故事 · 🚫 Blocked
 
-## 进行中（2 条）
+## 进行中（3 条）
 
 | Story                                                                                         | 卡在哪                                                                                                                                                                                                                     |
 | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                | AC#6 / #7 的两个前置（`apps/dev-rxdb-tauri-e2e` project、三平台打包矩阵）已由 US-210 建好，缺的只剩 US-505 自己的 specs；AC#1/#3/#5/#8 仍 ⚠️。随包化搬迁的 S1～S5 已于 2026-08-18 全部关闭，但搬迁**不解**上述任何一条缺口 |
 | [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) | 阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 A / C / D 未开始                                                                                                                                                         |
+| [US-020 将 QueryCache 接入统一 Repository](stories/core/US-020-querycache-repository.md)       | 阶段 A 已接线（生产路径真的走 `QueryCacheRepository`，写 remote-then-local，ducks fail-fast）；AC#21 缺一条接真实 sqlite 的 identity cache 集成用例，AC#23 的「同一 `where` 翻第二页只同步一次」未达成（当前 2 次），失效策略并入阶段 B；阶段 B 未开始 |
 
 ## 待评审（1 条）
 
@@ -167,8 +168,8 @@
 - 🚧 [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边
 - ⬜ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md) — PGlite callback transaction 不能跨 IPC 序列化
 - ⬜ [US-703 PGlite 全文搜索](stories/future/US-703-pglite-full-text-search.md)
-- 🅰️ ⬜ [US-020 将 QueryCache 接入统一 Repository](stories/core/US-020-querycache-repository.md) — 两阶段；让 `SyncType.QueryCache` 从空操作变成生产真，解锁 US-212。不 inherit US-203 AC#6。**排期已提到 [roadmap 批次 1 线 F](roadmap.md#批次-1零前置七条线可同时开工)**
-  - ⬜ 阶段 A 生产接线 — `getRepository` / EntityManager 走 `QueryCacheRepository`；Full/Filter 不变。**关闭即解锁 US-212 发布**
+- 🅰️ 🚧 [US-020 将 QueryCache 接入统一 Repository](stories/core/US-020-querycache-repository.md) — 两阶段；让 `SyncType.QueryCache` 从空操作变成生产真，解锁 US-212。不 inherit US-203 AC#6。**排期已提到 [roadmap 批次 1 线 F](roadmap.md#批次-1零前置七条线可同时开工)**
+  - 🚧 阶段 A 生产接线 — `getRepository` / EntityManager 走 `QueryCacheRepository`；Full/Filter 不变。**关闭即解锁 US-212 发布**。2026-08-22：AC#1～10 / #22 / #24 / #25 已关；AC#21（identity cache 断言需真实 sqlite 集成用例）与 AC#23（同一 `where` 翻第二页仍同步 2 次，失效策略并入阶段 B 的指纹口径）仍 ⚠️
   - ⬜ 阶段 B 缓存质量 — orphan 删除、指纹含模式、SWR SQL、错误分类。**关闭即解锁 US-212 标 `stable`**
 - 🅰️ ⬜ [US-212 HTTP 远程适配器](stories/adapter/US-212-http-adapter.md) — 两阶段；硬前置 US-020。远端权威 HTTP + 独立注册 sqlite 行缓存，不内嵌 sqlite。**排期已提到 [roadmap 批次 1 线 F](roadmap.md#批次-1零前置七条线可同时开工)**；原「不得在 US-306 阶段 A 前发布」的 epic-006 前置已于 2026-08-22 解除，改由 [roadmap 约束 11](roadmap.md#排期约束) 的 QueryCache-only 自持不变量替代
   - ⬜ 阶段 A handlers 注入 + QueryCache ducks + 分页/分块 + QueryCache-only 写路径契约测试
