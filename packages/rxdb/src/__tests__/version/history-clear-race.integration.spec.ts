@@ -231,8 +231,10 @@ describe('HistoryManager clear session race', () => {
 
     expect(visibleChangeIds).not.toContain(oldChange.id);
 
+    // undo 后 live undoHistories$ 会滤掉已撤销项，断言必须冻结 undo 前的可见边界
+    const undoneIds = [...visibleChangeIds];
     await history.undo();
-    expect(getLastUndoneChangeIds(harness)).toEqual(visibleChangeIds);
+    expect(getLastUndoneChangeIds(harness)).toEqual(undoneIds);
     subscription.unsubscribe();
   });
 
@@ -308,8 +310,10 @@ describe('HistoryManager clear session race', () => {
     // 同上：跨 clear 恢复路径涉及多次异步查询，CI 负载高时默认 1s 超时可能不够。
     await vi.waitFor(() => expect(visibleChangeIds).toEqual([newChange.id]), { timeout: 3000 });
 
+    // 同上：live 订阅跨过 undo 后会被空数组覆盖，不能拿事后 UI 对撤销 id
+    const undoneIds = [...visibleChangeIds];
     await history.undo();
-    expect(getLastUndoneChangeIds(harness)).toEqual(visibleChangeIds);
+    expect(getLastUndoneChangeIds(harness)).toEqual(undoneIds);
 
     await history.undo();
     expect(harness.switchBranch).toHaveBeenCalledOnce();
