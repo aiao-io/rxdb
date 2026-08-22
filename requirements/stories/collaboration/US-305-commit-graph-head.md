@@ -30,7 +30,7 @@ INVEST 检查清单:
 
 早期的 `stagedChange()` / `unstageChange()` / `commit()` / `stagedCount` 在可复核的 `v0.0.24` 公开表面中已不存在，因此这是全新设计，没有需要兼容的旧暂存契约。
 
-本故事只做**底座**：commit 图、HEAD、分支引用的原子一致性、存储布局与一次性迁移。工作树与提交状态机在 [US-306](./US-306-working-tree-index.md)。
+本故事只做**底座**：commit 图、HEAD、分支引用的原子一致性、存储布局与一次性迁移。工作树与提交状态机在 [US-306](./US-306-working-tree-commits.md)。
 
 ## 作为/我想要/以便
 
@@ -79,7 +79,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 
 ### Out of Scope
 
-- status / diff / commit / discard 的用户操作面 —— 属 [US-306](./US-306-working-tree-index.md)
+- status / diff / commit / discard 的用户操作面 —— 属 [US-306](./US-306-working-tree-commits.md)
 - 历史恢复会话 —— 属 [US-307](./US-307-restore-session.md)
 - 分支切换入口、冲突诊断和三端提示 —— 属 [US-308](./US-308-branch-isolation-conflict.md)；底层 head revision CAS 在本故事完成
 - 远程 push/pull、rebase、cherry-pick、任意历史改写
@@ -161,7 +161,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - **FR-052**：首次启用 MUST 在同一迁移事务内建立数据库级单行 `WorkingTreeActivationState` 并把 `activationRevision`
   初始化为 0。该状态 MUST NOT 复制第二份 active branch ID——当前分支仍由 `RxDBBranch.activated` 表示。本故事只负责
   建表、初始化与「连接时可读」；递增该 revision 的 switch 语义归 [US-308](./US-308-branch-isolation-conflict.md)，
-  写路径的 token 校验归 [US-306 阶段 A](./US-306-working-tree-index.md)。未启用 commit 能力的数据库 MUST NOT 创建该表。
+  写路径的 token 校验归 [US-306 阶段 A](./US-306-working-tree-commits.md)。未启用 commit 能力的数据库 MUST NOT 创建该表。
 - **FR-051**：commit 图校验 MUST 从每个 branch ref 遍历完整可达父链并区分孤立损坏与可达损坏。可达损坏的分支只允许读取不依赖重放的当前投影、导出诊断和切离；commit、restore、switch-to 及任何历史重放 MUST 返回稳定的 `commit_graph_corrupted`。
 
 ## 关键实体
@@ -244,6 +244,6 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - [epic-006 本地工作树与提交历史](../../epics/epic-006-working-tree-commits.md)
 - [US-301 版本控制](./US-301-version-control.md) — 现有分支、合并和远程同步边界
 - [US-302 撤销/重做](./US-302-undo-redo.md) — 现有 durable undo 与会话级 redo 语义
-- [US-306 工作树与提交操作](./US-306-working-tree-index.md)
+- [US-306 工作树与提交操作](./US-306-working-tree-commits.md)
 - [US-501 Workspace 插件](../plugin/US-501-workspace-plugin.md) — NEW 草稿持久化现状与明确限制
 - [版本控制文档](../../../website/docs/versioning.md)

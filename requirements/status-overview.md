@@ -18,7 +18,7 @@
 三条口径，读表前必知：
 
 1. 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；合计等于 `stories/*/US-*.md` 的文件数，epic 文件不计入。
-2. 其中 **9 条是多阶段故事**（[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-020](stories/core/US-020-querycache-repository.md)、[US-207](stories/adapter/US-207-desktop-local-database.md)、[US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)、[US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)、[US-212](stories/adapter/US-212-http-adapter.md)、[US-306](stories/collaboration/US-306-working-tree-index.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)）：一个编号一个文件一条状态，正文用「交付阶段」表分批交付，**全部阶段关闭后才置 `Done`**。阶段不单独计数，见 [README](README.md#大故事用交付阶段不用子故事文件)。
+2. 其中 **9 条是多阶段故事**（[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-020](stories/core/US-020-querycache-repository.md)、[US-207](stories/adapter/US-207-desktop-local-database.md)、[US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)、[US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)、[US-212](stories/adapter/US-212-http-adapter.md)、[US-306](stories/collaboration/US-306-working-tree-commits.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)）：一个编号一个文件一条状态，正文用「交付阶段」表分批交付，**全部阶段关闭后才置 `Done`**。阶段不单独计数，见 [README](README.md#大故事用交付阶段不用子故事文件)。
 3. `🚫 Blocked = 0` 统计的是**故事 YAML 里显式写成 `status: Blocked`** 的数量，**不代表没有前置阻塞**——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。两者不要互相推断。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🅰️ 多阶段故事 · 🚫 Blocked
@@ -197,7 +197,7 @@
 口径以 [epic-006 依赖顺序](epics/epic-006-working-tree-commits.md) 为准。
 
 - ⬜ [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 基础层：commit 图 / branch ref / baseline；仍被 FR-030 挡住（`migration-release.json` 的 `bridge.tag`/`bridge.version` 为 `null`，`v0.0.25` 不是 HEAD 祖先）
-- 🅰️ ⬜ [US-306 工作树与提交操作](stories/collaboration/US-306-working-tree-index.md) — 三阶段单文件故事；其 FR/AC 承接表是发布门禁 2 的审计依据
+- 🅰️ ⬜ [US-306 工作树与提交操作](stories/collaboration/US-306-working-tree-commits.md) — 三阶段单文件故事；其 FR/AC 承接表是发布门禁 2 的审计依据
   - ⬜ 阶段 A 工作树写入捕获与持久化
   - ⬜ 阶段 B 提交状态机（status / diff / commit / discard，无暂存区）
   - ⬜ 阶段 C 三框架工作树交互面与性能门禁 — `useWorkingTree()` 三端契约与 `bench-working-tree` target

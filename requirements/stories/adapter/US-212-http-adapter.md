@@ -140,7 +140,7 @@ YAML 没有 `depends-on` 字段。依赖写在这里、交付阶段表、以及 
 
 本故事关闭前不改 US-203。能力矩阵在故事落盘时先加「待实现 / US-212」行（派生视图同步，见本次提交）；包落地后再改成已实现。
 
-**排期约束：本包不得在 [US-306](../collaboration/US-306-working-tree-index.md) 阶段 A 的 bypass 门禁冻结前标可发布。**
+**排期约束：本包不得在 [US-306](../collaboration/US-306-working-tree-commits.md) 阶段 A 的 bypass 门禁冻结前标可发布。**
 本包的缓存写路径核心就是 `upsertMany()` / `deleteByIds()`，而这两个方法正是 US-306 阶段 A 要挂门禁的对象。
 先发包、后收门禁，等于对一个已发布包做 breaking change；反过来先冻门禁再发包，本包只需在实现里遵守
 「只对 QueryCache 实体调这两个方法」就自动合规。这条与 US-020 那条「阶段 A 关闭前不得把 HTTP 包标可发布」
@@ -152,8 +152,8 @@ YAML 没有 `depends-on` 字段。依赖写在这里、交付阶段表、以及 
 - [US-203 Supabase 适配器](./US-203-supabase-adapter.md) — 分页/分块与 QueryCache ducks 的对标；不 inherit AC
 - [US-201 SQLite 适配器](./US-201-sqlite-adapter.md) / sqlite-core — 独立 local 缓存后端
 - [US-015](../core/US-015-plugin-inject-dependency.md) — `inject: ['adapter:remote']`
-- [US-306 FR-046](../collaboration/US-306-working-tree-index.md) — cache 排除在 working tree 外（兼容，不实现）。
+- [US-306 FR-046](../collaboration/US-306-working-tree-commits.md) — cache 排除在 working tree 外（兼容，不实现）。
   兼容的**具体机制**是：本包的缓存写路径最终落到 `upsertMany()` / `deleteByIds()`，US-306 阶段 A 会按目标实体
-  `sync.type` 给这两个方法挂 bypass 门禁（[US2-AC23](../collaboration/US-306-working-tree-index.md)）——QueryCache 实体放行，
+  `sync.type` 给这两个方法挂 bypass 门禁（[US2-AC23](../collaboration/US-306-working-tree-commits.md)）——QueryCache 实体放行，
   版本化实体拒绝。本包只要**保证自己只对 QueryCache 实体调这两个方法**即可自动兼容，无须感知工作树
 - [epic-004](../../epics/epic-004-future-features.md)

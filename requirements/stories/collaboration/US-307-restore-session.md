@@ -26,15 +26,15 @@ INVEST 检查清单:
 ## 前置依赖
 
 - [US-305](./US-305-commit-graph-head.md)：commit 图、父链可达性与 baseline，是 restore 的数据源与路径校验依据
-- [US-306 阶段 A](./US-306-working-tree-index.md)：`WorkingTreeEntry` 的持久化布局与写入口捕获。FR-015 要求
+- [US-306 阶段 A](./US-306-working-tree-commits.md)：`WorkingTreeEntry` 的持久化布局与写入口捕获。FR-015 要求
   restore 结果写成**普通的 `WorkingTreeEntry`**，`restoreEntity` 也在 epic 的调用点登记表中被列为
   「必须产生工作树单元」的意图；没有阶段 A 的捕获层，restore 无处落盘
-- [US-306 阶段 B](./US-306-working-tree-index.md)：status/diff/commit 状态机与 revision CAS 口径；
+- [US-306 阶段 B](./US-306-working-tree-commits.md)：status/diff/commit 状态机与 revision CAS 口径；
   本故事的「工作树 clean 时 commit 被拒」直接复用其规则。**`WorkingTreeRestoreSession` 的建表、schema
   迁移与「从已存在 session 派生 conflicted」的读路径也由 US-306 阶段 B 交付**（`status()` 的 durable `conflicted`
   在阶段 B 就必须成立，表不能等到本故事才存在）；本故事只负责会话的**创建与生命周期语义**。
   `CommitConflict` 同理，由 US-306 阶段 B 定义并登记 api-baseline，本故事直接复用
-- [US-306 阶段 C](./US-306-working-tree-index.md)：`useWorkingTree()` 的三端契约。本故事的恢复入口是对
+- [US-306 阶段 C](./US-306-working-tree-commits.md)：`useWorkingTree()` 的三端契约。本故事的恢复入口是对
   该契约的**扩展**（新增 `restore` 与 `restoreState`），不得在某一端另立一套命名或状态机
 
 ## 作为/我想要/以便
@@ -62,12 +62,12 @@ INVEST 检查清单:
 ### Out of Scope
 
 - commit 图与 HEAD 存储 —— 属 [US-305](./US-305-commit-graph-head.md)
-- status / diff / commit 的状态机 —— 属 [US-306 阶段 B](./US-306-working-tree-index.md)
+- status / diff / commit 的状态机 —— 属 [US-306 阶段 B](./US-306-working-tree-commits.md)
 - **恢复结果的选择性提交**（只提交恢复出来的一部分实体）：暂存区已在
   [epic-006「非目标」](../../epics/epic-006-working-tree-commits.md#非目标) 显式裁决不做，
   restore 后只有「整棵工作树一起 commit」或「discard 全部」两条路；要隔离恢复结果就先开分支
 - `WorkingTreeRestoreSession` 的建表 / schema 迁移，以及 `CommitConflict` 的类型定义与 api-baseline 登记
-  —— 同属 [US-306 阶段 B](./US-306-working-tree-index.md)；本故事是它们的使用者，不是所有者
+  —— 同属 [US-306 阶段 B](./US-306-working-tree-commits.md)；本故事是它们的使用者，不是所有者
 - 冲突记录和三端冲突提示 —— 属 [US-308](./US-308-branch-isolation-conflict.md)；底层 revision CAS 已由 US-305 与 US-306 阶段 A/B 提供
 - rebase、cherry-pick、任意历史改写
 - 把恢复实现成「把旧节点改成当前」
@@ -108,7 +108,7 @@ INVEST 检查清单:
 - **FR-015**：系统 MUST 把恢复结果写成普通的 `WorkingTreeEntry`，与用户手写的变更同形、同表、同 revision 轴，不存在「已恢复但未暂存」这一额外状态。用户随后用 `commit(message)` 把当前工作树整体落成新 commit；`commit()` MUST NOT 接受任何只提交恢复结果子集的参数。生成的新 commit 不得改写被恢复的历史节点，并须与 restore session 的 `committed` 转换原子提交。
 - **FR-026b**（已改口径，见 [epic-006](../../epics/epic-006-working-tree-commits.md)）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit 下，以 5 次 warmup、50 次采样恢复含 100 个完整变更单元的 `HEAD~1` 并记录 runner profile。普通 CI 以归一化 ratio 不超过 reference median 的 110% 为硬门禁；promise resolve 的 p95 不高于 1 s 只在 `runnerProfileHash` 匹配 reference 的固定性能 runner 上作为发布硬门禁。
 - **FR-033**：v1 只允许恢复当前分支 HEAD 沿父链可达的 commit。系统 MUST 在任何持久写入前选定确定性的物化路径，并校验该路径每个 ChangeSet 涉及实体的 schema fingerprint manifest 与 change codec version 均与当前客户端完全相等；v1 不提供跨 schema/codec patch 转换。拒绝时所有持久状态 MUST 零变化。
-- **FR-034**：restore / discard MUST 在同一数据库事务内校验 active branch token 与 expected head、working tree revision。初次 restore 要求工作树 clean，成功只递增 working-tree revision。初次 restore CAS 失败时全部回滚且不创建 session；已有 session 的 commit/discard CAS 失败时保留工作树和 session，并由 expected/actual revision 派生 conflicted，不得自动选择任一 writer 的状态。恢复会话上的 commit 与普通 commit 一样是**调用方捕获型** `workingTreeRevision` CAS（见 [US-306 FR-031](./US-306-working-tree-index.md)）：其他 realm 在 restore 之后、commit 之前写入工作树时返回 `CommitConflict`，MUST NOT 为了让恢复结果顺利落盘而放宽该校验。
+- **FR-034**：restore / discard MUST 在同一数据库事务内校验 active branch token 与 expected head、working tree revision。初次 restore 要求工作树 clean，成功只递增 working-tree revision。初次 restore CAS 失败时全部回滚且不创建 session；已有 session 的 commit/discard CAS 失败时保留工作树和 session，并由 expected/actual revision 派生 conflicted，不得自动选择任一 writer 的状态。恢复会话上的 commit 与普通 commit 一样是**调用方捕获型** `workingTreeRevision` CAS（见 [US-306 FR-031](./US-306-working-tree-commits.md)）：其他 realm 在 restore 之后、commit 之前写入工作树时返回 `CommitConflict`，MUST NOT 为了让恢复结果顺利落盘而放宽该校验。
 - **FR-042**：restore 产生的完整 diff 为空时 MUST 返回 no-op，不创建 `WorkingTreeRestoreSession` 或 `WorkingTreeEntry`，也不递增任何 revision。
 - **FR-043**：restore 物化与 session 持久化 MUST 保持字段加密 envelope；任何错误、摘要与 session 诊断不得包含加密字段明文。
 - **FR-050**：restore 兼容性判断 MUST 覆盖实际读取/应用的完整 commit 路径，而不只是目标节点。错误 MUST 稳定返回首个不兼容 commit ID、重放方向、实体和版本 manifest；检查期间不得解码或写入后续 ChangeSet。
@@ -116,7 +116,7 @@ INVEST 检查清单:
 ## 关键实体
 
 - **WorkingTreeRestoreSession**：历史恢复会话；目标 commit、恢复前 HEAD 与各 expected revision、生成的工作树 revision、目标 schema/codec manifest、数据库创建时间、`active | conflicted | committed` 生命周期。discard 成功后删除 session；commit 与 `committed` 转换原子提交。conflicted 可由 session expected revision 与当前 revision 重建，不另建冲突真相表。
-  > **表归属**：schema、建表与迁移由 [US-306 阶段 B](./US-306-working-tree-index.md) 交付，本故事只新增写入与状态转换。本故事若需要给该表加列，MUST 走 US-306 阶段 B 的迁移路径，不得另建第二张会话表。
+  > **表归属**：schema、建表与迁移由 [US-306 阶段 B](./US-306-working-tree-commits.md) 交付，本故事只新增写入与状态转换。本故事若需要给该表加列，MUST 走 US-306 阶段 B 的迁移路径，不得另建第二张会话表。
 
 ## 设计展开
 
@@ -151,6 +151,6 @@ INVEST 检查清单:
 
 - [epic-006 本地工作树与提交历史](../../epics/epic-006-working-tree-commits.md)
 - [US-305 提交图与 HEAD 持久化](./US-305-commit-graph-head.md)
-- [US-306 父契约](./US-306-working-tree-index.md)
-- [US-306 阶段 B 提交状态机](./US-306-working-tree-index.md)
+- [US-306 父契约](./US-306-working-tree-commits.md)
+- [US-306 阶段 B 提交状态机](./US-306-working-tree-commits.md)
 - [US-302 撤销/重做](./US-302-undo-redo.md) — 现有 `restoreEntity` 与 durable undo 语义

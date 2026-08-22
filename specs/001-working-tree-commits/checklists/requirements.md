@@ -61,7 +61,7 @@
 ## Notes
 
 - 本规格**零 [NEEDS CLARIFICATION] 标记**：来源 epic 与 6 个故事已冻结全部有争议决策（命名前缀归属、revision 校验两分类、受信意图登记键、v1 后端矩阵、基准环境与门禁口径、切换分支默认行为兼容性裁定），无需再向用户提问。
-- 唯一真相源是 [epic-006](../../requirements/epics/epic-006-working-tree-commits.md)。本规格是它的规格化承接；若两者口径冲突以 epic 为准，并须同步修订 spec.md。
+- 唯一真相源是 [epic-006](../../../requirements/epics/epic-006-working-tree-commits.md)。本规格是它的规格化承接；若两者口径冲突以 epic 为准，并须同步修订 spec.md。
 - 术语纪律：新增公开导出禁止使用 `Workspace*` 前缀（已被草稿缓存插件占用），切换分支选项固定为 `WorkingTreeSwitchBranchOptions`。该约束已固化为 FR-054，进入 `/speckit-plan` 时不得放宽。
 - 计划阶段需优先冻结的开放项（均已在 Assumptions 中登记，不属于规格缺陷）：物理表名与系统 schema 版本策略、工作树条目的存储载体选型（复用既有变更表 vs 不可变派生表）、意图枚举命名、启用配置项命名、提交标识生成方式。
 - 下一步建议直接进入 `/speckit-plan`；`/speckit-clarify` 无待澄清项可处理。
