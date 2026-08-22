@@ -108,6 +108,44 @@ EntityIndexMetadataOptions {
 - 对登记表与实际调用点求**双向差集**：未登记的调用点 → 失败；登记了但已不存在的条目 → 失败（防止登记表烂掉）。
 - 判据：未登记调用点数量为 **0**（SC-004）。
 
+### 4.6 raw SQL / adapter 直写的 bypass 门禁（已裁决）
+
+§4.1–§4.3 的登记只能约束 RxDB **自己的内部路径**。[`rawQuery?()`](../../../packages/rxdb/src/rxdb-adapter.ts) 是 `IRxDBAdapter` 的**公开可选原语**，用途明确包含绕过 ORM 的条件 UPDATE，6 个 v1 后端全部实现（SQLite 五家共用 `RxDBAdapterSqliteBase`，PGlite 单独实现）。本节冻结它与 epic-006 写入口矩阵最后一行的对应机制。
+
+**「启用后 rawQuery 整体只读」已被否决**：[`@aiao/rxdb-plugin-search`](../../../packages/rxdb-plugin-search/src/core/fts5-runtime.ts) 的 FTS5 建表与回填本身就走 `rawQuery` 写虚拟表，整体只读会连带打死搜索插件。
+
+**裁决：按目标表判定 + 受信 intent 豁免。** 每次 `rawQuery` 调用在**语句执行前**按下列顺序判定：
+
+1. commit 能力**未启用** → 原样放行，零行为差异（与 INV-10 同一口径）。
+2. 调用携带内部受信 `intent`（非公开参数，仅 §4.1–§4.3 登记表内的路径可传）→ 放行。
+3. 非写语句（`SELECT` / `EXPLAIN` / 只读 `PRAGMA` / `WITH … SELECT`）→ 放行。
+4. 写目标表 ∩ **版本化业务实体表** ≠ ∅ → 抛 `commit_capability_mismatch`，**业务表零变化**（拒绝发生在执行前，不是写完回滚）。
+5. 其余写目标（FTS5 虚拟表与影子表、`rxdb_*` 系统表、查询缓存实体表、临时表）→ 放行。
+
+**「版本化业务实体表」**= 已注册实体中 `sync.type !== SyncType.QueryCache` 的那些的 SQL 表名——与 INV-9 / FR-021 引用的是同一个集合，**MUST NOT** 另建第二份清单。
+
+**解析取保守口径（fail-closed）**：
+
+- 目标表**无法确定**（动态拼接、多语句串、方言不认识的构造）→ 按**拒绝**处理。宁可误伤，不可放过。
+- 大小写、引号标识符（SQLite 的 `` ` `` / `[]`、PG 的 `""`）、schema 限定（`public.x`）在比对前归一化。
+- 6 个后端共用**同一份**判定实现，方言差异只体现在词法层，不得每个后端各写一套。
+
+**能力边界（写进公开文档，不假装拦得住）**：本门禁只覆盖**经 adapter 的 `rawQuery`**。绕过 adapter 的外部数据库句柄——另开 `sqlite3` 连接、直接打开 OPFS 文件、用 psql 连 PGlite——**拦不住**，v1 也不承诺拦得住；启用提交能力的数据库 MUST 在文档中声明「业务表只能经 RxDB 写入」。
+
+**为什么不做数据库 trigger fail-closed**：那是唯一能拦住外部句柄的方案，但受信标记的载体在 6 个后端不统一（PGlite 用 session GUC、SQLite 侧需 temp table 或 pragma 承载），且每张版本化表要挂 3 个 trigger。成本与 v1 收益不匹配，**留作后续故事，不在本特性范围内**。
+
+**一致性 fixture（6 个后端各一份，SC-003）**：
+
+| 场景                             | 期望                                        |
+| -------------------------------- | ------------------------------------------- |
+| `rawQuery` 写版本化实体表        | `commit_capability_mismatch` 且业务表零变化 |
+| `rawQuery` 写 FTS5 影子表        | 放行（搜索插件回归）                        |
+| `rawQuery` 写查询缓存实体表      | 放行                                        |
+| `rawQuery` `SELECT` 版本化实体表 | 放行                                        |
+| 目标表无法确定的动态 SQL         | 拒绝                                        |
+| 受信 `intent` 路径写版本化实体表 | 放行，是否产生工作树条目按 §4.1–§4.3 登记表 |
+| **未启用** commit 能力时以上全部 | 一律放行                                    |
+
 ---
 
 ## 5. 事务原子性契约

@@ -233,6 +233,41 @@
 - `conflicted` **只**由「仍存在且 revision 已分叉的恢复会话」派生（FR-033）。一次普通的条件更新失败 **MUST NOT** 形成持久冲突态，刷新后状态按最新持久数据重建（US3-AC8）。
 - FR-043：恢复只能自 **clean** 进入——工作树非空或缓存区非空都拒绝，且「仅已暂存」**MUST NOT** 被误报为 clean。
 
+### 4.4 远端冲突裁决 → 工作树净差重算（已裁决）
+
+`pull()` / `autoSync` / `pullRepository()` 在**同一事务内**先做冲突裁决、再应用实体（[`resolveConflictsAndBuildActions`](../../packages/rxdb/src/version/pull-conflict-utils.ts) → `executor.mergeChanges(actions, undefined, true)`），并把落败的本地 `RxDBChange` 标记 superseded。本节把该事务对 `rxdb_working_tree_entry` 与 `rxdb_index_entry` 的影响写死，否则实现方只能自己发明一套。
+
+两条**已冻结项的推论**（不是本节新增的约束）：
+
+- 本表主键粒度是 **database + branch + unit**（epic-006 v1 状态模型表），**一个单元至多一行**。因此「保留落败的本地条目 + 追加一条 `remote_sync` 条目」在物理上不可实现——它需要同一单元两行。
+- 本表 `patch` / `inversePatch` 是**完整快照**、不引用 `rxdb_change`（§4.1）。因此把本地 `RxDBChange` 标记 superseded **不会**顺带改变本表：必须显式重算。
+
+**三条腿**：
+
+| 裁决                                                        | 业务表             | 工作树条目     | `workingTreeRevision` |
+| ----------------------------------------------------------- | ------------------ | -------------- | --------------------- |
+| `KEEP_LOCAL`                                                | 远端 action 不应用 | 零变化         | 不递增                |
+| 无净变化（压缩后无有效 action，或远端值与当前值逐字段相同） | 零变化             | 零变化         | 不递增                |
+| `KEEP_REMOTE`                                               | 应用远端值         | 就地重算，见下 | 递增（有实体净变化）  |
+
+**`KEEP_REMOTE` 的就地重算**（同一事务内、实体应用之后）：对每个被远端覆盖的单元，按**应用后的业务值**相对 `rxdb_working_tree_state.baseHeadCommitId` 重算净差。
+
+| 情形                         | `rxdb_working_tree_entry`                                                                                                                                                                                                                                                       | `rxdb_index_entry` |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| 净差非空                     | **就地 UPDATE** 该单元既有行（无既有行则 INSERT）：`patch` / `inversePatch` 换成新的完整快照、`type` 按 baseline 与新值重判、`origin = 'remote_sync'`、`sourceChangeId` = 远端 change id、`currentVersion` 更新、`sequence` 取该分支**新的最大值**、`staged` **逐字段保持原值** | **不动**           |
+| 净差为空 且 `staged = FALSE` | **删除**该行                                                                                                                                                                                                                                                                    | 无对应行           |
+| 净差为空 且 `staged = TRUE`  | **保留**该行（记为与 baseline 一致的空差态），**MUST NOT** 删除                                                                                                                                                                                                                 | **不动**           |
+
+**三条硬规则**：
+
+1. **`rxdb_index_entry` 在本路径上逐字段不变**（FR-029）。已暂存快照是用户在 `stage()` 那一刻冻结的意图，远端裁决 **MUST NOT** 静默改写它。用户看到的是：staged 半边仍是自己暂存的值，unstaged 半边出现远端覆盖后的净差——与 `git pull` 之后 `git status` 同时显示已暂存与未暂存修改一致。
+2. **净差为空但已暂存时不得删行**：删了会让 INV-6（`rxdb_index_entry.workingTreeEntryId` 一一对应且对应条目 `staged = TRUE`）立即失败。反过来，本表行只在「净差为空 **且** 未暂存」时才删，该条件蕴含无 index 行，所以本路径**不可能**违反 INV-6。
+3. **依赖闭包不重算**（INV-5）。`rxdb_index_entry` 是完整独立副本、`dependencyUnitIds` 指向的也是 index 内条目；本路径不增删任何 index 行，自包含性按定义不受影响。
+
+**冷重放（INV-4）由此成立**：本表按 `sequence` 重放后该单元的终值 = 远端应用后的业务值 = 当前业务数据。`sequence` 取新最大值这一步是必需的——沿用旧 `sequence` 会让该单元在重放序中排到后续本地编辑之前，终值出错。
+
+**与 `origin` 的关系**：重算后 `origin` 一律记 `remote_sync`，即使该行原本是 `local`。`origin` 是「这一行**当前内容**的来源」，不是「这个单元历史上被谁碰过」——后者由 `rxdb_change` 承担。
+
 ---
 
 ## 5. 缓存区（US3）

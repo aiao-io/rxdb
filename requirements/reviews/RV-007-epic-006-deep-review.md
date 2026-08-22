@@ -110,20 +110,54 @@ staging 路径、以及**仍然**返回 `branch_not_materialized` 的场景清�
 本评审指出的同步水位缺口一并补上：提交屏障 MUST 在**同一事务内**按冻结的终态 watermark 为目标分支
 创建每实体 `RxDBSync` 行——否则下次 pull 会从零重放。
 
-### P1#1 远端冲突裁决 → 工作树重算 — 成立，**未修复，属未闭合设计缺口**
+### P1#1 远端冲突裁决 → 工作树重算 — 成立，**已裁决并修复（2026-08-22）**
 
 核对属实：`KEEP_REMOTE` 在同事务内把本地 `RxDBChange` 标记 superseded，但没有任何文档规定对应
 `WorkingTreeEntry` 是删除、替换还是重算，也没规定 staged snapshot 与依赖闭包怎么变。
-这不是措辞问题，**需要一次真正的设计裁决**，不能在评审修复里顺手编一个算法冻结进契约。
 
-**处置**：本次**明确不修**，留作 US-306 / US-308 进入设计前必须先行裁决的阻塞项。
+**裁决过程中收窄了选项空间**：本评审设想的「只追加 remote entry」方案在物理上不可实现——
+`WorkingTreeEntry` 的主键粒度已冻结为 `database + branch + unit`
+（[epic-006 v1 状态模型表](../epics/epic-006-working-tree-commits.md)），**一个单元至多一行**，
+追加需要同一单元两行。因此真正的分歧点只剩一个：`KEEP_REMOTE` 撞上**已暂存**条目时 index 快照动不动。
 
-### P1#2 raw SQL / adapter bypass 授权机制 — 成立，**未修复，属未闭合设计缺口**
+**已裁决：index 冻结不动。** 已暂存快照是用户在 `stage()` 那一刻冻结的意图，远端裁决 MUST NOT 静默改写它
+（FR-029）；用户看到的是 staged 半边仍是自己的值、unstaged 半边出现远端覆盖后的净差——与 `git pull` 之后
+`git status` 同时显示已暂存与未暂存修改一致。
+
+**已修复**：[data-model.md §4.4](../../specs/001-working-tree-commits/data-model.md) 新增「远端冲突裁决 →
+工作树净差重算（已裁决）」，冻结三条腿（`KEEP_LOCAL` / 无净变化 → 零变化零 revision；`KEEP_REMOTE` → 就地重算）、
+`KEEP_REMOTE` 的三种净差情形、三条硬规则（index 逐字段不变 / 净差为空但已暂存不得删行 / 依赖闭包不重算）
+以及 `sequence` 取新最大值对 INV-4 的必要性。epic-006 写入口矩阵的 pull 行链到该节；
+一致性套件新增 **C-11**。
+
+### P1#2 raw SQL / adapter bypass 授权机制 — 成立，**已裁决并修复（2026-08-22）**
 
 核对属实：[`rawQuery()`](../../packages/rxdb/src/rxdb-adapter.ts) 是公开原语且用途明确包含绕过 ORM 的条件
-UPDATE，调用点登记只能约束 RxDB 自身内部路径。跨 6 个 v1 后端统一「受信能力」机制需要适配器契约级裁决。
+UPDATE，调用点登记只能约束 RxDB 自身内部路径。
 
-**处置**：本次**明确不修**，留作 adapter-contract 的阻塞项。
+**新证据（本评审未提及，但决定了选项）**：`rawQuery?()` 由 `RxDBAdapterSqliteBase` 与 PGlite 各实现一份，
+6 个 v1 后端**全部暴露**；而 [`rxdb-plugin-search` 的 FTS5 建表与回填](../../packages/rxdb-plugin-search/src/core/fts5-runtime.ts)
+本身就走 `rawQuery` 写虚拟表——**「启用后 rawQuery 整体只读」会连带打死搜索插件**，据此否决。
+
+**已裁决：按目标表判定 + 受信 intent 豁免。** 命中「版本化业务实体表」（= `sync.type !== QueryCache` 的注册实体，
+与 INV-9 同一集合）的写语句在**执行前**拒绝；FTS5 / 系统表 / 查询缓存表放行；目标表无法确定时 fail-closed。
+数据库 trigger fail-closed 是唯一能拦住外部句柄的方案，但受信标记载体在 6 后端不统一
+（PGlite session GUC / SQLite temp table 或 pragma）且每张版本化表要挂 3 个 trigger，**留作后续故事**。
+
+**已修复**：[adapter-contract.md §4.6](../../specs/001-working-tree-commits/contracts/adapter-contract.md)
+新增「raw SQL / adapter 直写的 bypass 门禁（已裁决）」，冻结 5 步判定顺序、保守解析口径、
+**明写能力边界**（绕过 adapter 的外部句柄拦不住，v1 不承诺）与 7 条 fixture；epic-006 写入口矩阵最后一行
+链到该节；一致性套件新增 **C-12**。
+
+### 顺带修掉的两条 fixture 漂移（本轮发现）
+
+上一轮 P0#1 / P0#3 只改了契约、漏改对应 fixture，两条仍写着已被推翻的旧口径，现一并订正：
+
+- **B-7 createBranch**：原文「新分支工作树与缓存区为空，不继承源分支未提交内容」正是 core-api §8.4
+  已裁决为**离群项**的那句。改为断言一参复制脏快照（staged 转 unstaged、源分支三个 revision 变化量为 0）
+  与两参都为空两条腿。
+- **B-4 未物化分支**：原文「不自动物化」未留 FR-052 例外。改为限定**本地**分支，并要求仅元数据远端分支
+  按 core-api §8.6 走首次物化路径，两条腿都断言。
 
 ### P1#3 Epic 与冻结物理存储模型不一致 — 判断偏差，但仍做了收口
 
@@ -142,7 +176,12 @@ Epic 不必再复制一份三态定义——复制反而会产生第二个会漂
 ## 解决记录
 
 - [x] P0#1 / P0#2 / P0#3 / P1#3 文档修复已落在工作区（见「审查结论」）
-- [ ] **P1#1 远端冲突裁决 → 工作树重算**：待设计裁决（阻塞 US-306 / US-308）
-- [ ] **P1#2 rawQuery / adapter bypass 授权机制**：待设计裁决（阻塞 adapter-contract）
+- [x] **P1#1 远端冲突裁决 → 工作树重算**：已裁决（index 冻结不动），落在 data-model §4.4 + C-11，
+      US-306 / US-308 的阻塞解除
+- [x] **P1#2 rawQuery / adapter bypass 授权机制**：已裁决（按目标表判定 + 受信 intent），
+      落在 adapter-contract §4.6 + C-12，adapter-contract 的阻塞解除
+- [x] 顺带订正 B-7 / B-4 两条 fixture 漂移
 - [ ] 开 PR 修复（`pr` 字段记录链接）
 - [ ] PR 合并，`status: Resolved`
+
+> **本评审的 7 条问题现已全部有结论**（3 P0 + 3 P1 修复、1 P1 判为偏差后收口），无遗留设计裁决。
