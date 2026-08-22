@@ -23,12 +23,16 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 交付                                                                                            | 直接前置 | AC 区段   | 状态 |
-| ---- | ----------------------------------------------------------------------------------------------- | -------- | --------- | ---- |
-| A    | `@aiao/rxdb-adapter-http`：RemoteBase + 注入 handlers + QueryCache ducks + 分页/分块 + 错误分类 | US-020   | AC#1～14  | ⬜   |
-| B    | REST resource URL 模板、可选 ETag/If-None-Match；可选 SSE/invalidation；可选 eviction           | 阶段 A   | AC#15～18 | ⬜   |
+| 阶段 | 交付                                                                                            | 直接前置        | AC 区段   | 状态 |
+| ---- | ----------------------------------------------------------------------------------------------- | --------------- | --------- | ---- |
+| A    | `@aiao/rxdb-adapter-http`：RemoteBase + 注入 handlers + QueryCache ducks + 分页/分块 + 错误分类 + QueryCache-only 写路径不变量 | US-020 阶段 A（仅发布，代码可并行） | AC#1～15  | ⬜   |
+| B    | REST resource URL 模板、可选 ETag/If-None-Match；可选 SSE/invalidation；可选 eviction           | 阶段 A          | AC#16～19 | ⬜   |
 
-**硬前置：[US-020](../core/US-020-querycache-repository.md)。** 阶段 A 代码可以在接线故事并行开发，**包不得在 US-020 关闭前标可发布**。否则开发者配 `SyncType.QueryCache` + HTTP + sqlite，find 仍打本地、save 仍进 sqlite changelog——比没有这个包更糟，因为它看起来「接上了」。
+**硬前置：[US-020](../core/US-020-querycache-repository.md)。** 阶段 A 代码可以在接线故事并行开发，**包不得在 US-020 阶段 A 关闭前标可发布**。否则开发者配 `SyncType.QueryCache` + HTTP + sqlite，find 仍打本地、save 仍进 sqlite changelog——比没有这个包更糟，因为它看起来「接上了」。
+
+**发布门禁分两档**（[roadmap 约束 10](../../roadmap.md#排期约束)，2026-08-22 收窄）：US-020 **阶段 A** 关闭 → 本包可发布，但 MUST 在包 README 与 npm 描述里标 `experimental`，不得承诺缓存一致性；US-020 **阶段 B** 关闭 → 本包才可标 `stable`。原判据把「可发布」与「稳定」绑在同一个门禁上，而本条要防的病症（find 打本地、save 进 changelog）由阶段 A 就治好了。
+
+**epic-006 前置已解除。** 原先要求本包不得在 [US-306](../collaboration/US-306-working-tree-commits.md) 阶段 A 的 bypass 门禁冻结前发布（理由是本包缓存写路径的核心 `upsertMany()` / `deleteByIds()` 正是该门禁要挂的对象）。2026-08-22 判定该前置过度保守：[adapter-contract §4.6](../../../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决) 第 5 步「查询缓存实体表 → 放行」**已经是裁决结论**，US-306 阶段 A 补的只是覆盖面。替代它的是本故事阶段 A 内一条更窄、完全自持的不变量，见下方 In Scope 与 [roadmap 约束 11](../../roadmap.md#排期约束)。
 
 Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另一种 `SyncType`，**不是本文件的阶段 C**。v1 对这些方法必须 throw unsupported。
 
