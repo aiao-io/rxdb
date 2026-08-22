@@ -1,5 +1,13 @@
 # Contract: 性能基准与门禁
 
+> [!WARNING]
+> **本文件已过期（2026-08-22）。** 上游 [epic-006](../../../requirements/epics/epic-006-working-tree-commits.md) 已裁决
+> **不做暂存区（index / staging area）与任何形式的选择性提交**：没有 `stage` / `unstage` / `clearIndex`，
+> `commit(message)` 只提交当前分支工作树的全部未提交变更，隔离工作线用分支。
+> 本文件仍按「工作树 → 缓存区 → 提交」三层写成，其中所有 `Index*` / `RxDBIndexEntry` / `indexRevision` /
+> `staged` 相关的表、契约、状态迁移、验收项与基准 fixture **均已作废，不得据此实现**。
+> 真相源以 `requirements/` 为准；本目录需要用 `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` 重新生成。
+
 **Feature**: [spec.md](../spec.md) | **Research**: [research.md](../research.md) | **Date**: 2026-08-15
 
 US4（US-306 阶段 C）**拥有** `benchmarks:bench-working-tree` 这个 target 本身：fixture 构造、warmup/采样参数、`runnerProfileHash`、报告 JSON 结构与 reference 签入流程。US5 只向其中**追加 restore 采样场景**，不新建 target、不改报告结构、不重算已冻结的 reference。

@@ -1,5 +1,13 @@
 # Phase 1 Data Model: 本地工作树与提交历史
 
+> [!WARNING]
+> **本文件已过期（2026-08-22）。** 上游 [epic-006](../../requirements/epics/epic-006-working-tree-commits.md) 已裁决
+> **不做暂存区（index / staging area）与任何形式的选择性提交**：没有 `stage` / `unstage` / `clearIndex`，
+> `commit(message)` 只提交当前分支工作树的全部未提交变更，隔离工作线用分支。
+> 本文件仍按「工作树 → 缓存区 → 提交」三层写成，其中所有 `Index*` / `RxDBIndexEntry` / `indexRevision` /
+> `staged` 相关的表、契约、状态迁移、验收项与基准 fixture **均已作废，不得据此实现**。
+> 真相源以 `requirements/` 为准；本目录需要用 `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` 重新生成。
+
 **Feature**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Research**: [research.md](./research.md) | **Date**: 2026-08-15
 
 本文件把 spec.md 的 13 个 Key Entities 落成具体的系统表、字段、关系、约束与状态迁移。全部实体位于 `namespace: 'rxdb'`，`log: false`（系统表自身不进变更日志），随 `RXDB_SYSTEM_SCHEMA_VERSION = 4` 建立，且**仅在数据库启用提交能力时存在**（[R-004](./research.md#r-004-系统-schema-版本与启用迁移)）。

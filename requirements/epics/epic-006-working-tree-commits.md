@@ -110,7 +110,7 @@ v1 不持久化第二份独立 `HEAD`。当前分支仍由既有 `RxDBBranch.act
 | `CommitBranchRef`            | database + branch        | 不可变 `generation`、`headCommitId`、`headRevision`                       | commit 在同一事务内以 generation + revision 做 CAS 后推进   |
 | `WorkingTreeState`           | database + branch        | `baseHeadCommitId`、`workingTreeRevision`、未提交条目数                   | CRUD、commit rebase、restore、discard 改变逻辑工作树时递增  |
 | `WorkingTreeEntry`           | database + branch + unit | 实体/事务身份、操作、patch/inverse patch 或快照、当前指纹、来源 change ID | 与业务 CRUD 同一事务写入；完整事务共享同一 unit             |
-| branch materialization stage | database + attempt       | 目标分支、冻结远端水位、scope manifest、分页 payload、fingerprint         | 只暂存目标分支快照，不写当前业务投影；成功 switch 后删除    |
+| branch materialization stage | database + attempt       | 目标分支、冻结远端水位、scope manifest、分页 payload、fingerprint         | 只落盘目标分支快照，不写当前业务投影；成功 switch 后删除    |
 
 ### 状态归属（哪个故事负责建表）
 
@@ -546,7 +546,7 @@ QueryCache 另测其排除边界，避免一次缓存刷新把工作树永久标
 - 基于时间或大小的 commit 自动清理策略
 - 改变 `VersionManager.switchBranch()` 的现有默认行为（见 US-308）
 - **未提交变更对查询不可见**的长事务 / 预览语义（已裁决）：`save()` 后数据立即对全部查询生效，
-  commit 只是存档打点。「staged 的东西一起生效」需要读时按 HEAD 过滤或影子表，是数量级的成本上升
+  commit 只是存档打点。「未提交的东西攒够了再一起生效」需要读时按 HEAD 过滤或影子表，是数量级的成本上升
   且会波及全部既有查询路径。它在 Git 里的对照物不是 commit，而是「在分支上工作」，应走分支而非 commit
 - **detached HEAD、`checkout` 到历史 commit 与只读历史浏览**（已裁决）：v1 只提供 [US-307](../stories/collaboration/US-307-restore-session.md)
   的 **restore**——把旧版本内容作为**新的未提交变更**写回当前工作树，不移动 HEAD、不改写历史。

@@ -1,5 +1,13 @@
 # Contract: 跨后端一致性套件
 
+> [!WARNING]
+> **本文件已过期（2026-08-22）。** 上游 [epic-006](../../../requirements/epics/epic-006-working-tree-commits.md) 已裁决
+> **不做暂存区（index / staging area）与任何形式的选择性提交**：没有 `stage` / `unstage` / `clearIndex`，
+> `commit(message)` 只提交当前分支工作树的全部未提交变更，隔离工作线用分支。
+> 本文件仍按「工作树 → 缓存区 → 提交」三层写成，其中所有 `Index*` / `RxDBIndexEntry` / `indexRevision` /
+> `staged` 相关的表、契约、状态迁移、验收项与基准 fixture **均已作废，不得据此实现**。
+> 真相源以 `requirements/` 为准；本目录需要用 `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` 重新生成。
+
 **Feature**: [spec.md](../spec.md) | **Data Model**: [data-model.md](../data-model.md) | **Date**: 2026-08-15
 
 两套具名套件，位于 `packages/rxdb-test/src/working-tree/`，经**新增 subpath** `@aiao/rxdb-test/working-tree` 导出，沿用既有 [`@aiao/rxdb-test/transaction`](../../../packages/rxdb-test/src/transaction/index.ts) 的 runner 模式（[R-011](../research.md#r-011-跨后端一致性套件的组织)）。**不设第三套套件。**

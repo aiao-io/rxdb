@@ -1,5 +1,13 @@
 # Contract: 核心包公开 API（`@aiao/rxdb`）
 
+> [!WARNING]
+> **本文件已过期（2026-08-22）。** 上游 [epic-006](../../../requirements/epics/epic-006-working-tree-commits.md) 已裁决
+> **不做暂存区（index / staging area）与任何形式的选择性提交**：没有 `stage` / `unstage` / `clearIndex`，
+> `commit(message)` 只提交当前分支工作树的全部未提交变更，隔离工作线用分支。
+> 本文件仍按「工作树 → 缓存区 → 提交」三层写成，其中所有 `Index*` / `RxDBIndexEntry` / `indexRevision` /
+> `staged` 相关的表、契约、状态迁移、验收项与基准 fixture **均已作废，不得据此实现**。
+> 真相源以 `requirements/` 为准；本目录需要用 `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` 重新生成。
+
 **Feature**: [spec.md](../spec.md) | **Data Model**: [data-model.md](../data-model.md) | **Date**: 2026-08-15
 
 本文件冻结 `@aiao/rxdb` 新增的公开导出。全部经由既有单一入口 `.` 导出（不新增 subpath）。**命名纪律（FR-054）**：新导出禁止使用 `Workspace*` 前缀（已被 [`@aiao/rxdb-plugin-workspace`](../../../packages/rxdb-plugin-workspace/src/index.ts) 占用）；切换分支选项固定为 `WorkingTreeSwitchBranchOptions`，**不得**复用既有 [`SwitchBranchOptions`](../../../packages/rxdb/src/rxdb-adapter.ts#L55)。
