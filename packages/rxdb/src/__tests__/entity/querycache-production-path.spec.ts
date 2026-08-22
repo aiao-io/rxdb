@@ -18,7 +18,7 @@ import { delay, firstValueFrom, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
-import { ENTITY_STATIC_TYPES, UUID } from '../../entity/entity.interface.js';
+import { ENTITY_STATIC_TYPES, type EntityUpdateData } from '../../entity/entity.interface.js';
 import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
 import { isEntityMatchWhere } from '../../query/query-matching.utils.js';
 import type { RuleGroup } from '../../repository/query.interface.js';
@@ -38,7 +38,7 @@ import { RxDB } from '../../RxDB.js';
   }
 })
 class CachedArticle extends EntityBase {
-  static [ENTITY_STATIC_TYPES]: { idType: UUID };
+  static [ENTITY_STATIC_TYPES]: { idType: string };
   title!: string;
   status!: string;
 }
@@ -57,7 +57,7 @@ class CachedArticle extends EntityBase {
   }
 })
 class VersionedArticle extends EntityBase {
-  static [ENTITY_STATIC_TYPES]: { idType: UUID };
+  static [ENTITY_STATIC_TYPES]: { idType: string };
   title!: string;
   status!: string;
 }
@@ -77,7 +77,7 @@ const row = (id: string, updatedAt: string, status = 'published'): Row => ({
 });
 
 /** 只要 `status = 'published'`：用来证明「命中范围外的行不参与同步」 */
-const PUBLISHED: RuleGroup<Row> = {
+const PUBLISHED: RuleGroup<CachedArticle> = {
   combinator: 'and',
   rules: [{ field: 'status', operator: '=', value: 'published' }]
 };
@@ -98,7 +98,7 @@ const createLocalAdapter = (initial: Row[] = []) => {
   let toEntity: (data: Row) => Row = data => data;
 
   const repository = {
-    find: vi.fn(({ where }: { where: RuleGroup<Row> }) =>
+    find: vi.fn(({ where }: { where: RuleGroup<CachedArticle> }) =>
       Promise.resolve([...store.values()].filter(entity => isEntityMatchWhere(entity, where)).map(toEntity))
     ),
     count: vi.fn(() => Promise.resolve(store.size)),
@@ -148,7 +148,7 @@ const createRemoteAdapter = (rows: Row[] = [], delayMs = 0) => {
     name: 'supabase',
     mutations: vi.fn(async () => []),
     getRepository: () => adapter,
-    fetchMetadata: vi.fn((_entityName: string, where: RuleGroup<Row>) =>
+    fetchMetadata: vi.fn((_entityName: string, where: RuleGroup<CachedArticle>) =>
       of(
         [...store.values()]
           .filter(entity => isEntityMatchWhere(entity, where))
@@ -177,7 +177,13 @@ const createDatabase = (dbName: string, localRows: Row[], remoteRows: Row[], rem
   rxdb.adapter('sqlite', () => local.adapter as unknown as IRxDBAdapter);
   rxdb.adapter('supabase', () => remote.adapter as unknown as IRxDBAdapter);
   rxdb.init();
-  local.attach(data => rxdb.entityManager.createEntityRef(CachedArticle, data, { local: true }) as unknown as Row);
+  // `Row` 是适配器口径的原始行（`updatedAt` 是 ISO 串），实体口径是 `Date`，两端在这里对接
+  local.attach(
+    data =>
+      rxdb.entityManager.createEntityRef(CachedArticle, data as unknown as EntityUpdateData<typeof CachedArticle>, {
+        local: true
+      }) as unknown as Row
+  );
   return { rxdb, local, remote };
 };
 

@@ -119,7 +119,7 @@ const dirtyEntity = <T extends { title: string }>(entity: T): T => {
   return entity;
 };
 
-const createDatabase = (dbName: string, entities: Parameters<typeof RxDB>[0]['entities']) => {
+const createDatabase = (dbName: string, entities: ConstructorParameters<typeof RxDB>[0]['entities']) => {
   const local = createLocalAdapter();
   const remote = createRemoteAdapter();
   const rxdb = new RxDB({
