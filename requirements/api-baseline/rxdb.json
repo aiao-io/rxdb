@@ -629,6 +629,10 @@
       "kind": "value"
     },
     {
+      "name": "isNetworkError",
+      "kind": "value"
+    },
+    {
       "name": "isNoSync",
       "kind": "value"
     },
@@ -890,6 +894,10 @@
     },
     {
       "name": "QueryCacheLocalAdapter",
+      "kind": "type"
+    },
+    {
+      "name": "QueryCacheLocalReader",
       "kind": "type"
     },
     {
@@ -1297,6 +1305,10 @@
       "kind": "both"
     },
     {
+      "name": "RxDBMixedVersionedCacheTransactionError",
+      "kind": "both"
+    },
+    {
       "name": "RxDBMutationsMap",
       "kind": "type"
     },
@@ -1315,6 +1327,10 @@
     {
       "name": "RxDBPluginDependency",
       "kind": "type"
+    },
+    {
+      "name": "RxDBQueryCacheCapabilityError",
+      "kind": "both"
     },
     {
       "name": "RxDBScalar",

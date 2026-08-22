@@ -40,6 +40,7 @@ export { query_need_refresh_remove as queryNeedRefreshRemove } from './query/nee
 export { query_need_refresh_update as queryNeedRefreshUpdate } from './query/need_refresh_update.js';
 export { isRuleGroup } from './query/query-matching.utils.js';
 export * from './repository/diff-metadata.js';
+export { isNetworkError } from './repository/network-error.js';
 export * from './repository/query-options.interface.js';
 export * from './repository/query.interface.js';
 export * from './repository/QueryCacheRepository.js';

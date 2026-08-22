@@ -1,6 +1,6 @@
-import { firstValueFrom, map, Observable, shareReplay, switchMap, tap } from 'rxjs';
+import { combineLatest, firstValueFrom, map, Observable, shareReplay, switchMap, tap } from 'rxjs';
 import { EntityStaticType, EntityType } from '../entity/entity.interface.js';
-import { SyncOptions } from '../entity/metadata-options.interface.js';
+import { SyncOptions, SyncType } from '../entity/metadata-options.interface.js';
 import { selectPrimaryAdapterKind } from '../entity/primary-adapter.js';
 import type { RawQueryResult } from '../rxdb-adapter.js';
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
@@ -8,6 +8,8 @@ import { RxDB } from '../RxDB.js';
 import { RxDBError } from '../RxDBError.js';
 import { getFingerprintByEntities, getFingerprintByEntity, getFingerprintPrimitive } from './fingerprint.utils.js';
 
+import { createQueryCachePrimary, QueryCachePrimaryLocalAdapter } from './query-cache-primary.js';
+import { QueryCacheSyncMemo } from './query-cache-sync-memo.js';
 import {
   CountOptions,
   FindAllOptions,
@@ -18,6 +20,7 @@ import {
   OrderBy
 } from './query-options.interface.js';
 import { Rule, RuleGroup } from './query.interface.js';
+import type { QueryCacheRemoteAdapter } from './QueryCacheRepository.js';
 import { QueryManager } from './QueryManager.js';
 import { IRepository } from './repository.interface.js';
 import { RepositoryBase } from './RepositoryBase.js';
@@ -101,10 +104,19 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     );
     const metadata = getEntityMetadata(EntityType);
     this.sync = metadata.sync || rxdb.config.sync;
+    // QueryCache 不是「选 local 还是 remote 一侧」的问题：它的读是 metadata-diff + 增量 pull，
+    // 写是 remote-then-local，两者都跨两侧。因此在 `selectPrimaryAdapterKind` 之前分流，
+    // 而不是给那个枚举加第三种 kind —— 适配器模型仍然只有两侧。
     // 判据只有一份，批量入口（EntityManager.mutations）走的是同一个函数
     this.primary$ =
-      selectPrimaryAdapterKind(this.sync) === 'remote' ?
-        (this.remote$ as Observable<RT>)
+      this.sync?.type === SyncType.QueryCache ?
+        (this.#createQueryCachePrimary(
+          metadata.name,
+          this.sync.local.localCacheFirst === true,
+          // 记忆归 `Repository` 持有：主仓储随适配器流每次发射重建，放在它身上等于没有记忆
+          new QueryCacheSyncMemo(this.sync.local.syncStaleTime)
+        ) as Observable<RT>)
+      : selectPrimaryAdapterKind(this.sync) === 'remote' ? (this.remote$ as Observable<RT>)
       : (this.local$ as Observable<RT>);
     this.queryManager = new QueryManager<T>(rxdb, EntityType, this);
   }
@@ -206,8 +218,13 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
         switchMap(repo => repo.find(normalized)),
         tap(this._setLocals)
       );
+    // `onSyncStats` 不进缓存键：`deterministicStringify` 明确拒绝函数值（同源闭包捕获不同值也会
+    // 得到同一个 key，等于把碰撞藏起来）。观测回调本来也不构成查询身份 —— 置 `undefined` 而不是
+    // 删键，序列化会跳过 `undefined` 值，于是「传了回调」与「没传」得到逐字相同的 key。
+    // 代价是同一 `where` 的并发查询共用任务时，只有先到的那次回调会被触发（已写进 TSDoc）。
+    const keyOptions: FindOptions<T> = { ...normalized, onSyncStats: undefined };
     return this.queryManager.createTask({
-      options: { type: 'find', options: normalized },
+      options: { type: 'find', options: keyOptions },
       runner,
       getFingerprint: getFingerprintByEntities
     }).result$;
@@ -353,6 +370,44 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     status.modified = false;
   };
   protected _setLocals = (entities: InstanceType<T>[]) => entities.forEach(this._setLocal);
+
+  /**
+   * 构造 QueryCache 主仓储流。
+   *
+   * @param entityName - 元数据里的实体名（打包压缩后 `EntityType.name` 不可靠）
+   * @param localCacheFirst - `sync.local.localCacheFirst`，由调用点在联合类型已收窄处取出
+   * @param syncMemo - 「刚同步过」的记忆（US-020 D13），生命周期跟着本 `Repository`
+   *
+   * @remarks
+   * 两侧适配器都从流里取、每次发射重建仓储，理由与 `local$` / `remote$` 相同：
+   * 在构造期 `firstValueFrom` 固化实例，会把上游适配器缓存的引用计数永久钉住，
+   * 断连重连后仍打向已断开的旧适配器。适配器能力校验放在 `map` 里，
+   * 于是「缺 duck」在**首次真正用到它的调用**上抛出，而不是在配置期误伤。
+   *
+   * 正因为「每次发射重建」，同步记忆不能放在主仓储里 —— 订阅归零再订阅也会重建，
+   * 那样记忆活不过一次 `find`。这里把它交给主仓储、并在每次发射时对表：适配器实例
+   * 换了（断连重连，AC#22）即清空，没换则继续沿用。
+   */
+  #createQueryCachePrimary(
+    entityName: string,
+    localCacheFirst: boolean,
+    syncMemo: QueryCacheSyncMemo
+  ): Observable<IRepository<T>> {
+    return combineLatest([this.rxdb.localAdapter$, this.rxdb.remoteAdapter$]).pipe(
+      map(([localAdapter, remoteAdapter]) => {
+        syncMemo.bindAdapters(localAdapter, remoteAdapter);
+        return createQueryCachePrimary<T>(
+          entityName,
+          this.EntityType,
+          localAdapter as unknown as QueryCachePrimaryLocalAdapter<T>,
+          remoteAdapter as unknown as QueryCacheRemoteAdapter,
+          localCacheFirst,
+          syncMemo
+        );
+      }),
+      shareReplay({ bufferSize: 1, refCount: true })
+    );
+  }
 }
 
 /**

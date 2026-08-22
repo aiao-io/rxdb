@@ -26,7 +26,7 @@ import {
   setSafeObjectWritableKey
 } from './entity.utils.js';
 import { formatMetadataViolations, validateEntityMetadataSet } from './metadata-validate.js';
-import { collectMutationEntityTypes, resolveBatchPrimaryAdapter } from './primary-adapter.js';
+import { collectMutationEntityTypes, isQueryCacheBatch, resolveBatchPrimaryAdapter } from './primary-adapter.js';
 import { createEntityProxy } from './proxy.js';
 import entity_relation_helper from './relation-helper.js';
 
@@ -35,6 +35,16 @@ import entity_relation_helper from './relation-helper.js';
  * 提供实体的生命周期管理、缓存、关系处理和仓库访问
  * 作为实体系统的核心组件，协调实体的创建、更新、删除和查询操作
  */
+
+/**
+ * 把 {@link RxDBMutationsMap} 的一个桶摊平成实体数组。
+ *
+ * @remarks
+ * 桶是 `Map<EntityType, Set<Entity>>`，逐条走仓储的路径不关心实体属于哪个类型
+ * ——类型信息在实体的 `constructor` 上，`EntityManager.create/update/remove` 自己会取。
+ */
+const flattenMutationEntities = <T extends EntityType>(bucket: Map<T, Set<InstanceType<T>>>): InstanceType<T>[] =>
+  [...bucket.values()].flatMap(entities => [...entities]);
 
 /**
  * 实体管理器
@@ -98,9 +108,11 @@ export class EntityManager {
   }
 
   init() {
-    // 跨实体聚合校验前置：违规时一条都不绑定，`resolveEntityManager()` 对所有实体一致失败
+    // 跨实体聚合校验前置：违规时一条都不绑定，`resolveEntityManager()` 对所有实体一致失败。
+    // 传数据库级 sync：实体不写 `sync` 时生效的是它，只看元数据会漏掉库级 QueryCache 的组合违规。
     const violations = validateEntityMetadataSet(
-      this.rxdb.config.entities.map(EntityType => getEntityMetadata(EntityType))
+      this.rxdb.config.entities.map(EntityType => getEntityMetadata(EntityType)),
+      this.rxdb.config.sync
     );
     if (violations.length > 0) {
       throw new RxDBError(formatMetadataViolations(violations));
@@ -303,8 +315,8 @@ export class EntityManager {
   async save<T extends EntityType>(entity: InstanceType<T>): Promise<InstanceType<T>> {
     const need_save_entities = getNeedSaveEntities([entity]);
     const need_remove_entities = getNeedRemoveEntities([entity]);
-    // 单条 save / 单条 remove 走 Repository.primary$（sync-aware，支持 remote-only）；
-    // 批量走 localAdapter.mutations（仅本地）—— 行为不一致是历史决定，这里不改。
+    // 单条与批量都走同一套判定：`resolveBatchPrimaryAdapter` 选主端，
+    // QueryCache 批次另走 remote-then-local（见 `mutations`）。
     if (need_save_entities.length === 1 && need_remove_entities.length === 0) {
       const single = need_save_entities[0];
       const status = getEntityStatus(single);
@@ -365,11 +377,14 @@ export class EntityManager {
     // `selectPrimaryAdapterKind`。此前批量硬等 `localAdapter$`，remote-only 配置下那条流
     // 永不发射，`firstValueFrom` 静默挂起——调用方拿到一个不会 settle 的 Promise。
     // 主端缺适配器或批内主端不一致时就地抛错，不再让它挂着。
-    const primary = resolveBatchPrimaryAdapter(
-      collectMutationEntityTypes(options as RxDBMutationsMap),
-      this.rxdb.config.sync
-    );
+    const EntityTypes = collectMutationEntityTypes(options as RxDBMutationsMap);
+    const primary = resolveBatchPrimaryAdapter(EntityTypes, this.rxdb.config.sync);
     if (primary === null) return [];
+    // 主端判定在前：这样「QueryCache + remote-only」报的是主端不一致，
+    // 而不是被 `isQueryCacheBatch` 当成「版本化实体」误报（US-020 AC#5 / AC#6）。
+    if (isQueryCacheBatch(EntityTypes, this.rxdb.config.sync)) {
+      return this.#mutations_query_cache(options);
+    }
     const adapter$: Observable<IRxDBAdapter> =
       primary.kind === 'remote' ? this.rxdb.remoteAdapter$ : this.rxdb.localAdapter$;
     const adapter = await firstValueFrom(adapter$);
@@ -494,6 +509,24 @@ export class EntityManager {
    * @returns 实体仓库实例
    * @throws {RxDBError} 如果仓库类型无效
    */
+  /**
+   * QueryCache 批次的写路径：逐条走 `Repository`，即 remote-then-local。
+   *
+   * @remarks
+   * 不走 `adapter.mutations()`（US-020 D3）：本地那条会把缓存写进 changelog，
+   * 远端那条不会 `upsertMany` 回 sqlite——两条都不是 QueryCache 的语义。
+   *
+   * **本批不是原子的**：QueryCache 的写按实体逐条打远端，中途失败时前面几条已经写出去了。
+   * 远端事务不在本引擎的控制范围内，与其假装原子，不如让失败原样上抛。
+   */
+  async #mutations_query_cache<T extends EntityType>(options: RxDBMutationsMap<T>): Promise<InstanceType<T>[]> {
+    const results: InstanceType<T>[] = [];
+    for (const entity of flattenMutationEntities(options.create)) results.push(await this.create(entity));
+    for (const entity of flattenMutationEntities(options.update)) results.push(await this.update(entity));
+    for (const entity of flattenMutationEntities(options.remove)) results.push(await this.remove(entity));
+    return results;
+  }
+
   #get_entity_repository<T extends EntityType, RT extends Repository<T>>(EntityType: T): RT {
     if (!this.#entity_repository_map.has(EntityType)) {
       const meta = getEntityMetadata(EntityType);

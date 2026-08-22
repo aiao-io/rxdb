@@ -6,15 +6,23 @@
  * - findById() - 单实体缓存
  * - 零 pull 的缓存命中（所有数据都是最新的）
  * - 并发查询去重
+ *
+ * @remarks
+ * 本地读一律经 {@link QueryCacheLocalReader}（US-020 D8），因此用例不再分别摆布
+ * `getMetadataByIds` / `findByIds` / `findAll` 三个 mock —— 只往 `localReader` 里放行，
+ * 「本地有什么」就是这些行。新鲜度、孤儿、SWR 首发都从同一份数据推出来，
+ * 三个 mock 各说各话的组合（本地元数据有 p1 但 findByIds 返回 p2）也就无从构造。
  */
 
 import { delay, firstValueFrom, Observable, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EntityBaseType } from '../../entity/entity.interface.js';
 import type { QueryCacheEntityMetadata } from '../../entity/metadata-options.interface.js';
+import { isEntityMatchWhere } from '../../query/query-matching.utils.js';
 import type { RuleGroup } from '../../repository/query.interface.js';
 import {
   QueryCacheLocalAdapter,
+  QueryCacheLocalReader,
   QueryCacheRemoteAdapter,
   QueryCacheRepository,
   SyncStats
@@ -34,6 +42,27 @@ class MockProduct {
 
 type MockProductEntityType = EntityBaseType & (new () => MockProduct);
 
+/** 断网：`fetch()` 连不上时浏览器抛的形状，能被 `isNetworkError` 认出来 */
+const offline = (message = 'Failed to fetch'): Error => new TypeError(message);
+
+/**
+ * 站在真实本地行仓储位置的替身。
+ *
+ * 用真的 `isEntityMatchWhere` 求值，让「`where` 下推到本地读」这件事在用例里可观察：
+ * seed 什么行，`find({ where })` 就按该条件筛什么行。
+ */
+function createLocalReader(initial: MockProduct[] = []) {
+  let rows = [...initial];
+  return {
+    seed(next: MockProduct[]): void {
+      rows = [...next];
+    },
+    find: vi.fn(({ where }: { where: RuleGroup<MockProduct> }): Promise<MockProduct[]> =>
+      Promise.resolve(rows.filter(entity => isEntityMatchWhere(entity, where)))
+    )
+  };
+}
+
 /**
  * 创建用于测试 QueryCacheRepository 的模拟适配器。
  */
@@ -46,24 +75,40 @@ function createMockAdapters() {
   const localAdapter: QueryCacheLocalAdapter = {
     getMetadataByIds: vi.fn().mockReturnValue(of(new Map())),
     upsertMany: vi.fn().mockReturnValue(of(undefined)),
-    deleteByIds: vi.fn().mockReturnValue(of(undefined)),
-    findByIds: vi.fn().mockReturnValue(of([])),
-    findAll: vi.fn().mockReturnValue(of([]))
+    deleteByIds: vi.fn().mockReturnValue(of(undefined))
   };
 
   return { remoteAdapter, localAdapter };
 }
 
+/** 用给定的适配器与本地读出口拼一个仓库 */
+const buildRepo = (
+  remoteAdapter: QueryCacheRemoteAdapter,
+  localAdapter: QueryCacheLocalAdapter,
+  localReader: ReturnType<typeof createLocalReader>
+): QueryCacheRepository<MockProductEntityType> =>
+  new QueryCacheRepository<MockProductEntityType>(
+    'Product',
+    remoteAdapter,
+    localAdapter,
+    localReader as unknown as QueryCacheLocalReader<MockProduct>
+  );
+
 describe('QueryCacheRepository', () => {
   let remoteAdapter: QueryCacheRemoteAdapter;
   let localAdapter: QueryCacheLocalAdapter;
+  let localReader: ReturnType<typeof createLocalReader>;
   let repo: QueryCacheRepository<MockProductEntityType>;
+
+  /** 设定「本地现在有哪些行」 */
+  const seedLocal = (rows: MockProduct[]): void => localReader.seed(rows);
 
   beforeEach(() => {
     const adapters = createMockAdapters();
     remoteAdapter = adapters.remoteAdapter;
     localAdapter = adapters.localAdapter;
-    repo = new QueryCacheRepository<MockProductEntityType>('Product', remoteAdapter, localAdapter);
+    localReader = createLocalReader();
+    repo = buildRepo(remoteAdapter, localAdapter, localReader);
   });
 
   describe('find() - 首次查询自动缓存 (T017)', () => {
@@ -73,7 +118,6 @@ describe('QueryCacheRepository', () => {
 
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata));
       vi.mocked(remoteAdapter.findByIds).mockReturnValue(of(remoteData));
-      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map()));
 
       const result = await firstValueFrom(repo.find({ where: { combinator: 'and', rules: [] } }));
 
@@ -89,20 +133,14 @@ describe('QueryCacheRepository', () => {
         { id: 'p2', updatedAt: '2024-01-01T00:00:00Z' },
         { id: 'p3', updatedAt: '2024-01-01T00:00:00Z' }
       ];
-      const localMetadataMap = new Map([
-        ['p1', '2024-01-01T00:00:00Z'],
-        ['p2', '2024-01-01T00:00:00Z']
-      ]);
-      const localCachedData: MockProduct[] = [
-        { id: 'p1', name: 'Product 1', updatedAt: '2024-01-01T00:00:00Z' },
-        { id: 'p2', name: 'Product 2', updatedAt: '2024-01-01T00:00:00Z' }
-      ];
       const remoteP3: MockProduct[] = [{ id: 'p3', name: 'Product 3', updatedAt: '2024-01-01T00:00:00Z' }];
 
+      seedLocal([
+        { id: 'p1', name: 'Product 1', updatedAt: '2024-01-01T00:00:00Z' },
+        { id: 'p2', name: 'Product 2', updatedAt: '2024-01-01T00:00:00Z' }
+      ]);
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata));
-      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(localMetadataMap));
       vi.mocked(remoteAdapter.findByIds).mockReturnValue(of(remoteP3));
-      vi.mocked(localAdapter.findByIds!).mockReturnValue(of(localCachedData));
 
       await firstValueFrom(repo.find({ where: { combinator: 'and', rules: [] } }));
 
@@ -111,11 +149,10 @@ describe('QueryCacheRepository', () => {
 
     it('T017.3 应该只拉取过时的数据', async () => {
       const remoteMetadata: QueryCacheEntityMetadata[] = [{ id: 'p1', updatedAt: '2024-01-02T00:00:00Z' }];
-      const localMetadataMap = new Map([['p1', '2024-01-01T00:00:00Z']]);
       const remoteData: MockProduct[] = [{ id: 'p1', name: 'Updated Product', updatedAt: '2024-01-02T00:00:00Z' }];
 
+      seedLocal([{ id: 'p1', name: 'Old Product', updatedAt: '2024-01-01T00:00:00Z' }]);
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata));
-      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(localMetadataMap));
       vi.mocked(remoteAdapter.findByIds).mockReturnValue(of(remoteData));
 
       await firstValueFrom(repo.find({ where: { combinator: 'and', rules: [] } }));
@@ -128,7 +165,6 @@ describe('QueryCacheRepository', () => {
       const remoteData: MockProduct[] = [{ id: 'p1', name: 'New Product', updatedAt: '2024-01-01T00:00:00Z' }];
 
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata));
-      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map()));
       vi.mocked(remoteAdapter.findByIds).mockReturnValue(of(remoteData));
 
       await firstValueFrom(repo.find({ where: { combinator: 'and', rules: [] } }));
@@ -143,13 +179,12 @@ describe('QueryCacheRepository', () => {
         { id: 'p1', updatedAt: '2024-01-01T00:00:00Z' },
         { id: 'p2', updatedAt: '2024-01-01T00:00:00Z' }
       ];
-      const localMetadataMap = new Map([
-        ['p1', '2024-01-01T00:00:00Z'],
-        ['p2', '2024-01-01T00:00:00Z']
-      ]);
 
+      seedLocal([
+        { id: 'p1', name: 'Product 1', updatedAt: '2024-01-01T00:00:00Z' },
+        { id: 'p2', name: 'Product 2', updatedAt: '2024-01-01T00:00:00Z' }
+      ]);
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata));
-      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(localMetadataMap));
 
       await firstValueFrom(repo.find({ where: { combinator: 'and', rules: [] } }));
 
@@ -158,12 +193,10 @@ describe('QueryCacheRepository', () => {
 
     it('T017.5.2 零拉取时应该直接返回本地缓存数据', async () => {
       const remoteMetadata: QueryCacheEntityMetadata[] = [{ id: 'p1', updatedAt: '2024-01-01T00:00:00Z' }];
-      const localMetadataMap = new Map([['p1', '2024-01-01T00:00:00Z']]);
       const localCachedData: MockProduct[] = [{ id: 'p1', name: 'Cached Product', updatedAt: '2024-01-01T00:00:00Z' }];
 
+      seedLocal(localCachedData);
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata));
-      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(localMetadataMap));
-      vi.mocked(localAdapter.findByIds!).mockReturnValue(of(localCachedData));
 
       const result = await firstValueFrom(repo.find({ where: { combinator: 'and', rules: [] } }));
 
@@ -175,8 +208,8 @@ describe('QueryCacheRepository', () => {
     it('T018.1 本地有最新数据时直接返回', async () => {
       const localCachedData: MockProduct[] = [{ id: 'p1', name: 'Cached Product', updatedAt: '2024-01-01T00:00:00Z' }];
 
+      seedLocal(localCachedData);
       vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map([['p1', '2024-01-01T00:00:00Z']])));
-      vi.mocked(localAdapter.findByIds!).mockReturnValue(of(localCachedData));
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of([{ id: 'p1', updatedAt: '2024-01-01T00:00:00Z' }]));
 
       const result = await firstValueFrom(repo.findById('p1'));
@@ -220,7 +253,6 @@ describe('QueryCacheRepository', () => {
 
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata).pipe(delay(10)));
       vi.mocked(remoteAdapter.findByIds).mockReturnValue(of(remoteData));
-      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map()));
 
       const query = { combinator: 'and' as const, rules: [] };
 
@@ -234,7 +266,6 @@ describe('QueryCacheRepository', () => {
 
     it('T024.5.2 不同查询不应该共享请求', async () => {
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of([]));
-      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map()));
 
       const query1 = {
         combinator: 'and' as const,
@@ -253,12 +284,43 @@ describe('QueryCacheRepository', () => {
 
     it('T024.5.3 请求完成后再次查询应该发起新请求', async () => {
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of([]));
-      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map()));
 
       const query = { combinator: 'and' as const, rules: [] };
 
       await firstValueFrom(repo.find({ where: query }));
       await firstValueFrom(repo.find({ where: query }));
+
+      expect(remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(2);
+    });
+
+    // US-020 AC#13 / AC#24：指纹至少覆盖 where + localCacheFirst + offlineFallback。
+    // 只按 where 去重时，要 SWR 的调用会拿到标准模式那条流（反之亦然），模式参数形同虚设。
+    it('T024.5.5 同 where 不同 localCacheFirst 不共用 inflight key', async () => {
+      const remoteMetadata: QueryCacheEntityMetadata[] = [{ id: 'p1', updatedAt: '2024-01-01T00:00:00Z' }];
+      vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata).pipe(delay(10)));
+      vi.mocked(remoteAdapter.findByIds).mockReturnValue(of([]));
+
+      const query = { combinator: 'and' as const, rules: [] };
+
+      await Promise.all([
+        firstValueFrom(repo.find({ where: query })),
+        firstValueFrom(repo.find({ where: query, localCacheFirst: true }))
+      ]);
+
+      expect(remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(2);
+    });
+
+    it('T024.5.6 同 where 不同 offlineFallback 不共用 inflight key', async () => {
+      const remoteMetadata: QueryCacheEntityMetadata[] = [{ id: 'p1', updatedAt: '2024-01-01T00:00:00Z' }];
+      vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata).pipe(delay(10)));
+      vi.mocked(remoteAdapter.findByIds).mockReturnValue(of([]));
+
+      const query = { combinator: 'and' as const, rules: [] };
+
+      await Promise.all([
+        firstValueFrom(repo.find({ where: query })),
+        firstValueFrom(repo.find({ where: query, offlineFallback: true }))
+      ]);
 
       expect(remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(2);
     });
@@ -287,7 +349,6 @@ describe('QueryCacheRepository', () => {
         .mockReturnValueOnce(of(firstMetadata).pipe(delay(10)))
         .mockReturnValueOnce(of(secondMetadata).pipe(delay(20)));
       vi.mocked(remoteAdapter.findByIds).mockReturnValueOnce(of(firstData)).mockReturnValueOnce(of(secondData));
-      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map()));
 
       const [firstResult, secondResult] = await Promise.all([
         firstValueFrom(repo.find({ where: firstQuery })),
@@ -315,7 +376,6 @@ describe('QueryCacheRepository', () => {
       });
 
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(countingSource);
-      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map()));
 
       await firstValueFrom(repo.find({ where: { combinator: 'and', rules: [] } }));
 
@@ -336,7 +396,6 @@ describe('QueryCacheRepository', () => {
       ];
 
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata));
-      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map()));
       vi.mocked(remoteAdapter.findByIds).mockReturnValue(of(remoteData));
 
       let syncStats: SyncStats | undefined;
@@ -360,12 +419,9 @@ describe('QueryCacheRepository', () => {
 
     it('T030.2 缓存命中时应该报告零拉取统计', async () => {
       const remoteMetadata: QueryCacheEntityMetadata[] = [{ id: 'p1', updatedAt: '2024-01-01T00:00:00Z' }];
-      const localMetadataMap = new Map([['p1', '2024-01-01T00:00:00Z']]);
-      const localData: MockProduct[] = [{ id: 'p1', name: 'Cached Product', updatedAt: '2024-01-01T00:00:00Z' }];
 
+      seedLocal([{ id: 'p1', name: 'Cached Product', updatedAt: '2024-01-01T00:00:00Z' }]);
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata));
-      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(localMetadataMap));
-      vi.mocked(localAdapter.findByIds!).mockReturnValue(of(localData));
 
       let syncStats: SyncStats | undefined;
       await firstValueFrom(
@@ -389,20 +445,17 @@ describe('QueryCacheRepository', () => {
         { id: 'p2', updatedAt: '2024-01-01T00:00:00Z' }, // 新鲜
         { id: 'p3', updatedAt: '2024-01-01T00:00:00Z' } // 缺失
       ];
-      const localMetadataMap = new Map([
-        ['p1', '2024-01-01T00:00:00Z'],
-        ['p2', '2024-01-01T00:00:00Z']
-      ]);
       const pulledData: MockProduct[] = [
         { id: 'p1', name: 'Updated', updatedAt: '2024-01-02T00:00:00Z' },
         { id: 'p3', name: 'New', updatedAt: '2024-01-01T00:00:00Z' }
       ];
-      const freshData: MockProduct[] = [{ id: 'p2', name: 'Fresh', updatedAt: '2024-01-01T00:00:00Z' }];
 
+      seedLocal([
+        { id: 'p1', name: 'Old', updatedAt: '2024-01-01T00:00:00Z' },
+        { id: 'p2', name: 'Fresh', updatedAt: '2024-01-01T00:00:00Z' }
+      ]);
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata));
-      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(localMetadataMap));
       vi.mocked(remoteAdapter.findByIds).mockReturnValue(of(pulledData));
-      vi.mocked(localAdapter.findByIds!).mockReturnValue(of(freshData));
 
       let syncStats: SyncStats | undefined;
       await firstValueFrom(
@@ -438,6 +491,7 @@ describe('QueryCacheRepository', () => {
       expect(syncStats).toBeDefined();
       expect(syncStats!.remoteCount).toBe(0);
       expect(syncStats!.pulledCount).toBe(0);
+      expect(syncStats!.orphanCount).toBe(0);
       expect(syncStats!.durationMs).toBeGreaterThanOrEqual(0);
     });
   });
@@ -445,15 +499,12 @@ describe('QueryCacheRepository', () => {
   describe('远程删除排除 (T026.5)', () => {
     it('T026.5.1 远程已删除的数据不应出现在结果中', async () => {
       const remoteMetadata: QueryCacheEntityMetadata[] = [{ id: 'id1', updatedAt: '2024-01-01T00:00:00Z' }];
-      const localMetadataMap = new Map([
-        ['id1', '2024-01-01T00:00:00Z'],
-        ['id2', '2024-01-01T00:00:00Z']
-      ]);
-      const localCachedData: MockProduct[] = [{ id: 'id1', name: 'Product 1', updatedAt: '2024-01-01T00:00:00Z' }];
 
+      seedLocal([
+        { id: 'id1', name: 'Product 1', updatedAt: '2024-01-01T00:00:00Z' },
+        { id: 'id2', name: 'Product 2', updatedAt: '2024-01-01T00:00:00Z' }
+      ]);
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata));
-      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(localMetadataMap));
-      vi.mocked(localAdapter.findByIds!).mockReturnValue(of(localCachedData));
 
       const result = await firstValueFrom(repo.find({ where: { combinator: 'and', rules: [] } }));
 
@@ -461,22 +512,20 @@ describe('QueryCacheRepository', () => {
       expect(result[0].id).toBe('id1');
     });
 
-    it('T026.5.2 孤儿数据采用惰性保留策略', async () => {
+    // 取代旧的「孤儿惰性保留」用例：US-020 AC#11 起孤儿在同步时即删。
+    // 保留策略会让下一次窄一点的 `where` 把已删除的行重新捞出来当成有效数据。
+    it('T026.5.2 孤儿数据在同步时即删除', async () => {
       const remoteMetadata: QueryCacheEntityMetadata[] = [{ id: 'id1', updatedAt: '2024-01-01T00:00:00Z' }];
-      const localMetadataMap = new Map([
-        ['id1', '2024-01-01T00:00:00Z'],
-        ['orphan', '2024-01-01T00:00:00Z']
-      ]);
 
+      seedLocal([
+        { id: 'id1', name: 'Product 1', updatedAt: '2024-01-01T00:00:00Z' },
+        { id: 'orphan', name: 'Removed Remotely', updatedAt: '2024-01-01T00:00:00Z' }
+      ]);
       vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata));
-      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(localMetadataMap));
-      vi.mocked(localAdapter.findByIds!).mockReturnValue(
-        of([{ id: 'id1', name: 'Product 1', updatedAt: '2024-01-01T00:00:00Z' }])
-      );
 
       await firstValueFrom(repo.find({ where: { combinator: 'and', rules: [] } }));
 
-      expect(localAdapter.deleteByIds).not.toHaveBeenCalled();
+      expect(localAdapter.deleteByIds).toHaveBeenCalledWith('Product', ['orphan']);
     });
   });
 
@@ -496,21 +545,17 @@ describe('QueryCacheRepository', () => {
       const writeLocalAdapter: QueryCacheLocalAdapter = {
         getMetadataByIds: vi.fn().mockReturnValue(of(new Map())),
         upsertMany: vi.fn().mockReturnValue(of(undefined)),
-        deleteByIds: vi.fn().mockReturnValue(of(undefined)),
-        findByIds: vi.fn().mockReturnValue(of([]))
+        deleteByIds: vi.fn().mockReturnValue(of(undefined))
       };
 
-      return { writeRemoteAdapter, writeLocalAdapter };
+      const writeRepo = buildRepo(writeRemoteAdapter, writeLocalAdapter, createLocalReader());
+
+      return { writeRemoteAdapter, writeLocalAdapter, writeRepo };
     }
 
     describe('create() - T031', () => {
       it('T031.1 create() 应该先写入远程再写入本地', async () => {
-        const { writeRemoteAdapter, writeLocalAdapter } = createWriteAdapters();
-        const writeRepo = new QueryCacheRepository<MockProductEntityType>(
-          'Product',
-          writeRemoteAdapter,
-          writeLocalAdapter
-        );
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
 
         const newProduct: MockProduct = {
           id: 'p-new',
@@ -533,12 +578,7 @@ describe('QueryCacheRepository', () => {
       });
 
       it('T031.2 远程返回的数据应该缓存到本地（可能带服务器生成的字段）', async () => {
-        const { writeRemoteAdapter, writeLocalAdapter } = createWriteAdapters();
-        const writeRepo = new QueryCacheRepository<MockProductEntityType>(
-          'Product',
-          writeRemoteAdapter,
-          writeLocalAdapter
-        );
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
 
         const inputProduct = { name: 'New Product' } as MockProduct;
         const serverProduct: MockProduct = {
@@ -558,12 +598,7 @@ describe('QueryCacheRepository', () => {
 
     describe('update() - T032', () => {
       it('T032.1 update() 应该先更新远程再更新本地', async () => {
-        const { writeRemoteAdapter, writeLocalAdapter } = createWriteAdapters();
-        const writeRepo = new QueryCacheRepository<MockProductEntityType>(
-          'Product',
-          writeRemoteAdapter,
-          writeLocalAdapter
-        );
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
 
         const updateData = { name: 'Updated Name' };
         const updatedProduct: MockProduct = {
@@ -582,12 +617,7 @@ describe('QueryCacheRepository', () => {
       });
 
       it('T032.2 更新应该使用服务器返回的最新 updatedAt', async () => {
-        const { writeRemoteAdapter, writeLocalAdapter } = createWriteAdapters();
-        const writeRepo = new QueryCacheRepository<MockProductEntityType>(
-          'Product',
-          writeRemoteAdapter,
-          writeLocalAdapter
-        );
+        const { writeRemoteAdapter, writeRepo } = createWriteAdapters();
 
         const serverResponse: MockProduct = {
           id: 'p1',
@@ -605,12 +635,7 @@ describe('QueryCacheRepository', () => {
 
     describe('delete() - T033', () => {
       it('T033.1 delete() 应该先删除远程再删除本地', async () => {
-        const { writeRemoteAdapter, writeLocalAdapter } = createWriteAdapters();
-        const writeRepo = new QueryCacheRepository<MockProductEntityType>(
-          'Product',
-          writeRemoteAdapter,
-          writeLocalAdapter
-        );
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
 
         vi.mocked(writeRemoteAdapter.delete!).mockReturnValue(of(undefined));
 
@@ -621,12 +646,7 @@ describe('QueryCacheRepository', () => {
       });
 
       it('T033.2 删除多个 ID 应该批量处理', async () => {
-        const { writeRemoteAdapter, writeLocalAdapter } = createWriteAdapters();
-        const writeRepo = new QueryCacheRepository<MockProductEntityType>(
-          'Product',
-          writeRemoteAdapter,
-          writeLocalAdapter
-        );
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
 
         vi.mocked(writeRemoteAdapter.delete!).mockReturnValue(of(undefined));
 
@@ -639,12 +659,7 @@ describe('QueryCacheRepository', () => {
 
     describe('错误处理 - T034', () => {
       it('T034.1 远程 create 失败时不应该写入本地', async () => {
-        const { writeRemoteAdapter, writeLocalAdapter } = createWriteAdapters();
-        const writeRepo = new QueryCacheRepository<MockProductEntityType>(
-          'Product',
-          writeRemoteAdapter,
-          writeLocalAdapter
-        );
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
 
         const error = new Error('Remote create failed');
         vi.mocked(writeRemoteAdapter.create!).mockReturnValue(throwError(() => error));
@@ -657,12 +672,7 @@ describe('QueryCacheRepository', () => {
       });
 
       it('T034.2 远程 update 失败时不应该更新本地', async () => {
-        const { writeRemoteAdapter, writeLocalAdapter } = createWriteAdapters();
-        const writeRepo = new QueryCacheRepository<MockProductEntityType>(
-          'Product',
-          writeRemoteAdapter,
-          writeLocalAdapter
-        );
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
 
         const error = new Error('Remote update failed');
         vi.mocked(writeRemoteAdapter.update!).mockReturnValue(throwError(() => error));
@@ -673,12 +683,7 @@ describe('QueryCacheRepository', () => {
       });
 
       it('T034.3 远程 delete 失败时不应该删除本地', async () => {
-        const { writeRemoteAdapter, writeLocalAdapter } = createWriteAdapters();
-        const writeRepo = new QueryCacheRepository<MockProductEntityType>(
-          'Product',
-          writeRemoteAdapter,
-          writeLocalAdapter
-        );
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
 
         const error = new Error('Remote delete failed');
         vi.mocked(writeRemoteAdapter.delete!).mockReturnValue(throwError(() => error));
@@ -689,12 +694,7 @@ describe('QueryCacheRepository', () => {
       });
 
       it('T034.4 远程成功但本地失败应该抛出错误（数据已在远程）', async () => {
-        const { writeRemoteAdapter, writeLocalAdapter } = createWriteAdapters();
-        const writeRepo = new QueryCacheRepository<MockProductEntityType>(
-          'Product',
-          writeRemoteAdapter,
-          writeLocalAdapter
-        );
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
 
         const createdProduct: MockProduct = { id: 'p-new', name: 'Test', updatedAt: '' };
         vi.mocked(writeRemoteAdapter.create!).mockReturnValue(of(createdProduct));
@@ -715,14 +715,12 @@ describe('QueryCacheRepository', () => {
           { id: 'p1', updatedAt: '2024-01-02T00:00:00Z' } // 远程有更新
         ];
 
-        // 模拟本地有缓存
-        vi.mocked(localAdapter.findAll!).mockReturnValue(of(localCachedData));
+        seedLocal(localCachedData);
         // 远程请求需要一些时间
         vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata).pipe(delay(50)));
         vi.mocked(remoteAdapter.findByIds).mockReturnValue(
           of([{ id: 'p1', name: 'Updated Product', updatedAt: '2024-01-02T00:00:00Z' }])
         );
-        vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map([['p1', '2024-01-01T00:00:00Z']])));
 
         const emissions: MockProduct[][] = [];
         const query = { combinator: 'and' as const, rules: [] };
@@ -745,10 +743,8 @@ describe('QueryCacheRepository', () => {
         const remoteData: MockProduct[] = [{ id: 'p1', name: 'Remote Product', updatedAt: '2024-01-01T00:00:00Z' }];
 
         // 本地无缓存
-        vi.mocked(localAdapter.findAll!).mockReturnValue(of([]));
         vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata));
         vi.mocked(remoteAdapter.findByIds).mockReturnValue(of(remoteData));
-        vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map()));
 
         const emissions: MockProduct[][] = [];
         const query = { combinator: 'and' as const, rules: [] };
@@ -771,7 +767,6 @@ describe('QueryCacheRepository', () => {
 
         vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata));
         vi.mocked(remoteAdapter.findByIds).mockReturnValue(of(remoteData));
-        vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map()));
 
         const emissions: MockProduct[][] = [];
         const query = { combinator: 'and' as const, rules: [] };
@@ -794,11 +789,9 @@ describe('QueryCacheRepository', () => {
         ];
         const remoteMetadata: QueryCacheEntityMetadata[] = [{ id: 'p1', updatedAt: '2024-01-01T00:00:00Z' }];
 
-        vi.mocked(localAdapter.findAll!).mockReturnValue(of(localCachedData));
+        seedLocal(localCachedData);
         vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata).pipe(delay(50)));
         vi.mocked(remoteAdapter.findByIds).mockReturnValue(of([]));
-        vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map([['p1', '2024-01-01T00:00:00Z']])));
-        vi.mocked(localAdapter.findByIds!).mockReturnValue(of([localCachedData[0]]));
 
         const emissions: MockProduct[][] = [];
         const query: RuleGroup<MockProduct> = {
@@ -825,10 +818,9 @@ describe('QueryCacheRepository', () => {
         const remoteData = [{ id: 'p2', name: 'New Entity', updatedAt: sameTimestamp }];
         const remoteMetadata: QueryCacheEntityMetadata[] = [{ id: 'p2', updatedAt: sameTimestamp }];
 
-        vi.mocked(localAdapter.findAll!).mockReturnValue(of(localCachedData));
+        seedLocal(localCachedData);
         vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata).pipe(delay(10)));
         vi.mocked(remoteAdapter.findByIds).mockReturnValue(of(remoteData));
-        vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map()));
 
         const emissions: MockProduct[][] = [];
         const query = { combinator: 'and' as const, rules: [] };
@@ -844,6 +836,8 @@ describe('QueryCacheRepository', () => {
         expect(emissions.length).toBe(2);
         expect(emissions[0]).toEqual(localCachedData);
         expect(emissions[1]).toEqual(remoteData);
+        // p1 在远端结果集里没有 → 同步时按孤儿清掉
+        expect(localAdapter.deleteByIds).toHaveBeenCalledWith('Product', ['p1']);
       });
 
       it('T040.6 SWR 验证应该检测出 id 和 updatedAt 相同但内容不同的变化', async () => {
@@ -852,9 +846,9 @@ describe('QueryCacheRepository', () => {
         const remoteData = [{ id: 'p1', name: 'New Name', updatedAt: sameTimestamp }];
         const remoteMetadata: QueryCacheEntityMetadata[] = [{ id: 'p1', updatedAt: sameTimestamp }];
 
-        vi.mocked(localAdapter.findAll!).mockReturnValue(of(localCachedData));
+        seedLocal(localCachedData);
         vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata).pipe(delay(10)));
-        vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map()));
+        // 本地 updatedAt 与远端相同 → 判新鲜，不回源；内容差异靠数据指纹兜住
         vi.mocked(remoteAdapter.findByIds).mockReturnValue(of(remoteData));
 
         const emissions: MockProduct[][] = [];
@@ -865,7 +859,9 @@ describe('QueryCacheRepository', () => {
           });
         });
 
-        expect(emissions).toEqual([localCachedData, remoteData]);
+        // 本地被判为新鲜，远端不回源，两次发射内容一致 → 第二次被指纹过滤掉
+        expect(emissions).toEqual([localCachedData]);
+        expect(remoteAdapter.findByIds).not.toHaveBeenCalled();
       });
     });
 
@@ -875,8 +871,7 @@ describe('QueryCacheRepository', () => {
         const updatedData: MockProduct[] = [{ id: 'p1', name: 'New Name', updatedAt: '2024-01-02T00:00:00Z' }];
         const remoteMetadata: QueryCacheEntityMetadata[] = [{ id: 'p1', updatedAt: '2024-01-02T00:00:00Z' }];
 
-        vi.mocked(localAdapter.findAll!).mockReturnValue(of(cachedData));
-        vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map([['p1', '2024-01-01T00:00:00Z']])));
+        seedLocal(cachedData);
         vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata));
         vi.mocked(remoteAdapter.findByIds).mockReturnValue(of(updatedData));
 
@@ -900,8 +895,7 @@ describe('QueryCacheRepository', () => {
         const cachedData: MockProduct[] = [{ id: 'p1', name: 'Fresh Product', updatedAt: '2024-01-01T00:00:00Z' }];
         const remoteMetadata: QueryCacheEntityMetadata[] = [{ id: 'p1', updatedAt: '2024-01-01T00:00:00Z' }];
 
-        vi.mocked(localAdapter.findByIds!).mockReturnValue(of(cachedData));
-        vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map([['p1', '2024-01-01T00:00:00Z']])));
+        seedLocal(cachedData);
         vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata));
 
         const emissions: MockProduct[][] = [];
@@ -922,8 +916,8 @@ describe('QueryCacheRepository', () => {
       it('T041.3 远程验证失败时应该返回缓存数据（降级）', async () => {
         const cachedData: MockProduct[] = [{ id: 'p1', name: 'Cached Product', updatedAt: '2024-01-01T00:00:00Z' }];
 
-        vi.mocked(localAdapter.findAll!).mockReturnValue(of(cachedData));
-        vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(throwError(() => new Error('Network error')));
+        seedLocal(cachedData);
+        vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(throwError(offline));
 
         const emissions: MockProduct[][] = [];
         const errors: Error[] = [];
@@ -951,10 +945,8 @@ describe('QueryCacheRepository', () => {
       it('T046.1 网络错误时应该返回本地缓存', async () => {
         const cachedData: MockProduct[] = [{ id: 'p1', name: 'Cached Product', updatedAt: '2024-01-01T00:00:00Z' }];
 
-        // 模拟本地有缓存
-        vi.mocked(localAdapter.findAll!).mockReturnValue(of(cachedData));
-        // 模拟网络错误
-        vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(throwError(() => new Error('Network error')));
+        seedLocal(cachedData);
+        vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(throwError(offline));
 
         const result = await firstValueFrom(
           repo.find({ where: { combinator: 'and', rules: [] }, offlineFallback: true })
@@ -969,8 +961,8 @@ describe('QueryCacheRepository', () => {
           { id: 'p2', name: 'Inactive Product', status: 'inactive', updatedAt: '2024-01-01T00:00:00Z' }
         ];
 
-        vi.mocked(localAdapter.findAll!).mockReturnValue(of(cachedData));
-        vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(throwError(() => new Error('Network error')));
+        seedLocal(cachedData);
+        vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(throwError(offline));
 
         const result = await firstValueFrom(
           repo.find({
@@ -983,28 +975,26 @@ describe('QueryCacheRepository', () => {
       });
 
       it('T046.2 offlineFallback=false 时网络错误应该抛出', async () => {
-        vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(throwError(() => new Error('Network error')));
+        vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(throwError(offline));
 
         await expect(
           firstValueFrom(repo.find({ where: { combinator: 'and', rules: [] }, offlineFallback: false }))
-        ).rejects.toThrow('Network error');
+        ).rejects.toThrow('Failed to fetch');
       });
 
       it('T046.3 默认情况下网络错误应该抛出', async () => {
-        vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(throwError(() => new Error('Network error')));
+        vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(throwError(offline));
 
         await expect(firstValueFrom(repo.find({ where: { combinator: 'and', rules: [] } }))).rejects.toThrow(
-          'Network error'
+          'Failed to fetch'
         );
       });
     });
 
     describe('T047 - 无缓存时抛出 NetworkOfflineError', () => {
       it('T047.1 离线且无缓存时应该抛出 NetworkOfflineError', async () => {
-        // 本地无缓存
-        vi.mocked(localAdapter.findAll!).mockReturnValue(of([]));
-        // 网络错误
-        vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(throwError(() => new Error('Network error')));
+        // 本地无缓存 + 网络错误
+        vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(throwError(offline));
 
         await expect(
           firstValueFrom(repo.find({ where: { combinator: 'and', rules: [] }, offlineFallback: true }))
@@ -1012,8 +1002,9 @@ describe('QueryCacheRepository', () => {
       });
 
       it('T047.2 NetworkOfflineError 应该包含原始错误信息', async () => {
-        vi.mocked(localAdapter.findAll!).mockReturnValue(of([]));
-        vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(throwError(() => new Error('fetch failed: ENOTFOUND')));
+        vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(
+          throwError(() => Object.assign(new Error('fetch failed: ENOTFOUND'), { code: 'ENOTFOUND' }))
+        );
 
         try {
           await firstValueFrom(repo.find({ where: { combinator: 'and', rules: [] }, offlineFallback: true }));
@@ -1025,7 +1016,7 @@ describe('QueryCacheRepository', () => {
       });
 
       it('T047.3 SWR where 无匹配缓存且远端失败时应该进入 offline fallback', async () => {
-        const networkError = new Error('fetch failed: offline');
+        const networkError = offline();
         const cachedData: MockProduct[] = [
           { id: 'p1', name: 'Inactive Product', status: 'inactive', updatedAt: '2024-01-01T00:00:00Z' }
         ];
@@ -1034,7 +1025,7 @@ describe('QueryCacheRepository', () => {
           rules: [{ field: 'status', operator: '=', value: 'active' }]
         };
 
-        vi.mocked(localAdapter.findAll!).mockReturnValue(of(cachedData));
+        seedLocal(cachedData);
         vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(throwError(() => networkError));
 
         try {

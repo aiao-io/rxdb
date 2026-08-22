@@ -236,6 +236,103 @@ sync: {
 | 本地存储 | 完整数据集           | 数据子集               |
 | 使用场景 | 小数据集，需完整离线 | 大数据集，只需最近数据 |
 
+## QueryCache 快速入门
+
+`SyncType.QueryCache` 适用于**数据量远超本地能装下的范围**、又希望重复查询能命中本地的场景。
+它与 Full / Filter 的根本区别是：**远端是唯一事实源，本地只是缓存**。
+
+### QueryCache 基本配置
+
+```ts
+import { RxDB, SyncType } from '@aiao/rxdb';
+
+const rxdb = new RxDB({
+  dbName: 'catalog',
+  entities: [Product],
+  sync: {
+    type: SyncType.QueryCache,
+    local: { adapter: 'wa-sqlite' },
+    remote: { adapter: 'supabase' }
+  }
+});
+
+const repo = rxdb.getRepository(Product);
+
+// 与其他策略完全相同的调用面：Promise / 实体实例 / limit / offset / orderBy
+const rows = await repo.find({
+  where: { combinator: 'and', rules: [{ field: 'categoryId', operator: '=', value: 'c-1' }] },
+  limit: 20,
+  offset: 0
+});
+```
+
+### 一次 find 发生了什么
+
+1. `fetchMetadata(where)` 从远端取该查询命中的全部 `{ id, updatedAt }`；
+2. 同时读本地对该 `where` 的投影，得到本地已有的行；
+3. 两侧比对，分成四类：**缺失**（本地没有）、**过时**（本地 `updatedAt` 更旧）、**新鲜**、**孤儿**（本地有、远端已无）；
+4. 孤儿从本地删除，缺失 + 过时经 `findByIds` 拉回并写入本地；
+5. 从本地行仓储按完整查询选项读出结果，`limit` / `offset` / `orderBy` 下推成 SQL。
+
+### 与其他策略的行为差异
+
+| 行为           | Full / Filter                    | QueryCache                                         |
+| :------------- | :------------------------------- | :------------------------------------------------- |
+| 事实源         | 本地（可离线写）                 | 远端                                               |
+| 写路径         | 写本地，随同步推送               | 先写远端，成功后才更新本地缓存；远端失败则本地不动 |
+| 本地 changelog | 记录（支持 undo/redo、冲突解决） | **不记录**，也没有冲突解决                         |
+| 远端删除       | 经变更流下发                     | 同步时按孤儿从本地清除                             |
+| 本地数据完整性 | 完整数据集 / 子集                | 仅「查过的 `where`」的并集                         |
+
+:::warning 同步粒度是 `where`，不是 `limit`
+`fetchMetadata` 的粒度就是整个 `where`：`limit: 20` 不会让同步只处理 20 条。
+用 `where` 收窄结果集；靠 `limit` 收窄会造成拉取放大。放大程度可用 `onSyncStats` 观测。
+:::
+
+### 同步记忆（`syncStaleTime`）
+
+同步的粒度既然是整个 `where`，翻页就只改 `limit` / `offset` —— 同一个 `where` 的第二页
+不该再向远端校验一次。`sync.local.syncStaleTime`（毫秒，默认 `1000`）就是这段「刚同步过」的记忆窗口：
+窗口内对同一 `where` 的重复读直接读本地投影，一次翻页交互只发生一次同步。
+
+```ts
+sync: {
+  type: SyncType.QueryCache,
+  local: { adapter: 'wa-sqlite', syncStaleTime: 5000 },
+  remote: { adapter: 'supabase' }
+}
+```
+
+窗口只**推迟**重新校验，不取消它：到期、本实体发生写、适配器重连，三者任一都会立即让记忆失效。
+配 `0` 表示完全关闭记忆，回到「每次读都向远端校验」。
+
+### 缓存优先与离线降级
+
+```ts
+const rows = await repo.find({
+  where,
+  // 先把本地缓存交出来，远端校验在后台跑完并落本地（stale-while-revalidate）
+  localCacheFirst: true,
+  // 网络故障时降级读本地缓存；本地也没有则抛 NetworkOfflineError
+  offlineFallback: true,
+  onSyncStats: stats => {
+    // remoteCount 是 where 命中的远端总数，据此判断拉取是否放大
+    console.log(stats.remoteCount, stats.pulledCount, stats.durationMs);
+  }
+});
+```
+
+`localCacheFirst` 也可以在 `sync.local.localCacheFirst` 里配成默认值，调用级传入的值优先。
+
+`offlineFallback` **只吞网络故障**（连接失败、DNS、超时）。业务错误——401、唯一键冲突、
+字段校验失败等带 HTTP 状态码的响应——原样上抛，不会被静默换成一份陈旧缓存。
+
+### 适配器能力要求
+
+两侧适配器需实现 QueryCache 的必需方法：本地 `getMetadataByIds` / `upsertMany` / `deleteByIds`，
+远端 `fetchMetadata` / `findByIds`。继承适配器基类时它们是 `abstract`，编译期即有保证；
+自定义适配器对象缺任一项时，构造仓储即抛 `RxDBQueryCacheCapabilityError` 并列出缺失的方法名。
+
 ## 关系查询与同步
 
 **核心规则**：外键只能从本地指向任意位置，不能从远程指向本地

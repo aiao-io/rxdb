@@ -1,5 +1,13 @@
 # Contract: 核心包公开 API（`@aiao/rxdb`）
 
+> [!WARNING]
+> **本文件已过期（2026-08-22）。** 上游 [epic-006](../../../requirements/epics/epic-006-working-tree-commits.md) 已裁决
+> **不做暂存区（index / staging area）与任何形式的选择性提交**：没有 `stage` / `unstage` / `clearIndex`，
+> `commit(message)` 只提交当前分支工作树的全部未提交变更，隔离工作线用分支。
+> 本文件仍按「工作树 → 缓存区 → 提交」三层写成，其中所有 `Index*` / `RxDBIndexEntry` / `indexRevision` /
+> `staged` 相关的表、契约、状态迁移、验收项与基准 fixture **均已作废，不得据此实现**。
+> 真相源以 `requirements/` 为准；本目录需要用 `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` 重新生成。
+
 **Feature**: [spec.md](../spec.md) | **Data Model**: [data-model.md](../data-model.md) | **Date**: 2026-08-15
 
 本文件冻结 `@aiao/rxdb` 新增的公开导出。全部经由既有单一入口 `.` 导出（不新增 subpath）。**命名纪律（FR-054）**：新导出禁止使用 `Workspace*` 前缀（已被 [`@aiao/rxdb-plugin-workspace`](../../../packages/rxdb-plugin-workspace/src/index.ts) 占用）；切换分支选项固定为 `WorkingTreeSwitchBranchOptions`，**不得**复用既有 [`SwitchBranchOptions`](../../../packages/rxdb/src/rxdb-adapter.ts#L55)。
@@ -261,7 +269,10 @@ WorkingTreeSwitchBranchOptions {
 
 ### 8.3 其他约束
 
-- 未物化目标分支 → `branch_not_materialized`（不自动物化）。
+- 未物化目标分支 → `branch_not_materialized`。**唯一例外是 FR-052 的「仅有元数据的远端分支」**
+  （`local=false, remote=true`、无 `rxdb_commit_branch_ref` 行、由 `syncBranches()` 拉到）：首次切换 MUST 走
+  [§8.6 首次物化](#86-仅元数据远端分支的首次物化fr-052)，而不是直接拒绝。除该类分支外，切换 MUST NOT
+  自动物化任何目标——本地分支缺 ref 属迁移未完成，直接 `branch_not_materialized`。
 - 切换成功**只**递增 `activationRevision`，两个分支的 `workingTreeRevision` / `indexRevision` 变化量均为 **0**（FR-049）。
 - 切换后工作树与缓存区严格按分支隔离，互不可见（FR-050）。
 - 并发切换恰好 1 个成功，其余 `stale_active_branch`。
@@ -272,10 +283,30 @@ WorkingTreeSwitchBranchOptions {
 
 | 入口           | 追加语义                                                                                                                               |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `createBranch` | 从源分支 HEAD 派生 `branch_baseline` 根节点并写入 `rxdb_commit_branch_ref`；新分支工作树与缓存区**为空**，不继承源分支的未提交内容     |
+| `createBranch` | 见下方「一参 `createBranch` 的脏工作树语义」——**从当前物化状态创建**，复制源分支未提交工作树的独立快照，缓存区为空                     |
 | `removeBranch` | 删除该分支的工作树条目、缓存区条目、状态行与 `rxdb_commit_branch_ref` 行；**MUST NOT** 删除提交行或 change set——其他分支可能仍可达它们 |
 
 删除当前激活分支 → 拒绝；`removeBranch` 后遗留孤儿工作树/缓存区条目数量 MUST 为 **0**。
+
+#### 一参 `createBranch` 的脏工作树语义（已裁决）
+
+`createBranch(branchId)` 的既有用户可见语义是**从当前物化状态创建**——它把分叉点锚在当前分支的最后一笔
+change 上，新分支切过去看到的就是「创建那一刻的全部数据」，其中自然包含启用提交能力后会被归类为
+「未提交」的那部分。FR-048 / FR-051 把「既有公开签名与用户可见语义保持不变」定为硬约束，因此**裁决为
+复制脏快照**，不是从 HEAD 创建：
+
+| 维度                 | 规则                                                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `baseHeadCommitId`   | 与源分支当前 HEAD **相同**；新分支的 `branch_baseline` 根节点从该 HEAD 确定性派生                                              |
+| 工作树条目           | **逐条复制**源分支全部未提交 `rxdb_working_tree_entry` 为新分支的独立行（新主键），来源与新分支 **MUST NOT** 共享可变条目      |
+| 源分支已 staged 条目 | 在新分支**转为 unstaged**：`rxdb_index_entry` 不复制，新分支缓存区为空（FR-051「缓存区为空」）                                 |
+| revision             | 新 `rxdb_commit_branch_ref` / `rxdb_working_tree_state` / `rxdb_index_state` 均从 **0** 起算；**源分支三个 revision 全部不变** |
+| 原子性               | 复制与建 ref 在**同一事务**内完成；任一步失败则新分支与源分支均零变化                                                          |
+
+**MUST NOT 实现成「新分支工作树与缓存区为空、不继承源分支未提交内容」**——那会让 `createBranch` 的用户可见
+结果在启用提交能力前后不一致，直接违反 FR-048 / FR-051，也与 [US-308 US1-AC4](../../../requirements/stories/collaboration/US-308-branch-isolation-conflict.md)
+相反。带历史标识的两参 `createBranch(branchId, fromChangeId)` 不适用本节：它按确定性分支基线锚定，
+新分支工作树与缓存区**都为空**。
 
 ### 8.5 冲突描述类型
 
@@ -290,6 +321,32 @@ CommitConflict {
 ```
 
 由**调用方捕获型**校验失败时派生（FR-032）。它是从操作、对象与 expected/actual revision 三元组算出来的**纯派生结构**——**MUST NOT** 为它新建第二张冲突表。三端 hook 原样透传该类型（[tri-framework-api §1](./tri-framework-api.md)）。
+
+### 8.6 仅元数据远端分支的首次物化（FR-052）
+
+§8.3 的「不自动物化」有且仅有这一个例外，此处把 §8.3 与 FR-052 的接缝写死，避免实现方在
+「直接拒绝」与「自动物化」之间二选一。
+
+**判定顺序**（`switchBranch` 事务开始前）：
+
+1. 目标分支有 `rxdb_commit_branch_ref` 行 → 正常切换（§8.1–§8.3），不涉及本节。
+2. 无 ref，且**不是** `local=false, remote=true` 的远端分支 → `branch_not_materialized`，**不物化**。
+   本地分支缺 ref 属迁移未完成，自动物化会掩盖迁移缺陷。
+3. 无 ref，且是 `syncBranches()` 拉到的 `local=false, remote=true` 分支 → 进入首次物化路径。
+
+**首次物化路径**依 [data-model §6.2](../data-model.md#62-rxdbcommitbranchmaterializationattempt--rxdb_commit_branch_materialization_attempt)
+的 `rxdb_commit_branch_materialization_attempt` 进行：冻结目标身份、sync scope 与远端终止水位 → 分页
+落盘 payload/水位/fingerprint → 单一提交屏障复核后一次性物化。期间当前业务投影、激活标记、当前分支
+`RxDBSync` 与工作树**全部不变**。
+
+**仍返回 `branch_not_materialized` 的情形**（全量回滚，staging 可续传或按 attempt ID 清理）：依据不足、
+缺父分支/远端 adapter/change、网络失败、scope 漂移、配额不足、不收敛。**MUST NOT** 先激活空分支再等后续同步修补。
+
+**同步水位的落点**（补齐 §8.3 未定义的一环）：`RxDBSync` 按 `entity + branch` 保存水位，而 staging 冻结的是
+**per-repository 的 scope manifest**。提交屏障 MUST 在同一事务内，按 scope manifest **逐实体**为目标分支
+创建 `RxDBSync` 行并写入该实体冻结的终止水位——不得复制当前分支的水位，也不得留空等首次 `pull()` 补写
+（留空会让目标分支的下一次 pull 从头重放）。目标分支已存在 `RxDBSync` 行时以冻结水位**原子覆盖**，
+使「物化 → 立即 pull」不重复应用也不跳过远端 change。
 
 ## 9. 错误契约
 

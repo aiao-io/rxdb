@@ -16,6 +16,7 @@ import type {
   EntityBaseType,
   QueryCacheEntityMetadata,
   QueryCacheLocalAdapter,
+  QueryCacheLocalReader,
   QueryCacheRemoteAdapter,
   RuleGroup
 } from '../../index.js';
@@ -64,6 +65,19 @@ const createRemoteAdapter = (metadata: QueryCacheEntityMetadata[] = [], rows: Pr
   return { adapter, fetchMetadata, findByIds };
 };
 
+/** `find` 的本地读出口（US-020 D8）：生产上是 `localAdapter.getRepository(EntityType)` 的返回物 */
+const createLocalReader = (rows: Product[] = []) => {
+  const find = vi.fn<QueryCacheLocalReader<Product>['find']>(() => Promise.resolve(rows));
+  return { reader: { find } satisfies QueryCacheLocalReader<Product>, find };
+};
+
+const buildRepository = (
+  remoteAdapter: QueryCacheRemoteAdapter,
+  localAdapter: QueryCacheLocalAdapter,
+  localReader: QueryCacheLocalReader<Product> = createLocalReader().reader
+): QueryCacheRepository<ProductEntityType> =>
+  new QueryCacheRepository<ProductEntityType>(ENTITY_NAME, remoteAdapter, localAdapter, localReader);
+
 describe('QueryCacheRemoteAdapter 公开契约', () => {
   describe('签名（由 tsconfig.spec.json --noEmit 强制，vitest 运行时是 no-op）', () => {
     it('两个必需方法的参数与返回值逐个钉死', () => {
@@ -111,7 +125,7 @@ describe('QueryCacheRemoteAdapter 公开契约', () => {
     it('fetchMetadata 收到 (entityName, 原样的 RuleGroup)，而不是被拆开的裸对象', async () => {
       const local = createLocalAdapter();
       const remote = createRemoteAdapter();
-      const repository = new QueryCacheRepository<ProductEntityType>(ENTITY_NAME, remote.adapter, local.adapter);
+      const repository = buildRepository(remote.adapter, local.adapter);
 
       await firstValueFrom(repository.find({ where: ACTIVE_ONLY }));
 
@@ -122,7 +136,7 @@ describe('QueryCacheRemoteAdapter 公开契约', () => {
       const row = { id: 'p-1', name: 'A', updatedAt: '2026-08-01T00:00:00.000Z' };
       const local = createLocalAdapter();
       const remote = createRemoteAdapter([{ id: 'p-1', updatedAt: '2026-08-01T00:00:00.000Z' }], [row]);
-      const repository = new QueryCacheRepository<ProductEntityType>(ENTITY_NAME, remote.adapter, local.adapter);
+      const repository = buildRepository(remote.adapter, local.adapter);
 
       const found = await firstValueFrom(repository.findById('p-1'));
 
@@ -136,15 +150,10 @@ describe('QueryCacheRemoteAdapter 公开契约', () => {
 
     it('findByIds 只收 missing + stale 的 id，本地新鲜的那条不回源', async () => {
       const fresh = { id: 'p-1', name: 'A', updatedAt: '2026-08-01T00:00:00.000Z' };
+      const staleLocal = { id: 'p-2', name: 'B', updatedAt: '2026-08-02T00:00:00.000Z' };
       const stale = { id: 'p-2', name: 'B2', updatedAt: '2026-08-05T00:00:00.000Z' };
       const missing = { id: 'p-3', name: 'C', updatedAt: '2026-08-03T00:00:00.000Z' };
-      const local = createLocalAdapter(
-        [fresh],
-        new Map([
-          ['p-1', '2026-08-01T00:00:00.000Z'],
-          ['p-2', '2026-08-02T00:00:00.000Z']
-        ])
-      );
+      const local = createLocalAdapter();
       const remote = createRemoteAdapter(
         [
           { id: 'p-1', updatedAt: '2026-08-01T00:00:00.000Z' },
@@ -153,7 +162,7 @@ describe('QueryCacheRemoteAdapter 公开契约', () => {
         ],
         [stale, missing]
       );
-      const repository = new QueryCacheRepository<ProductEntityType>(ENTITY_NAME, remote.adapter, local.adapter);
+      const repository = buildRepository(remote.adapter, local.adapter, createLocalReader([fresh, staleLocal]).reader);
 
       const rows = await firstValueFrom(repository.find({ where: ACTIVE_ONLY }));
 
@@ -161,24 +170,23 @@ describe('QueryCacheRemoteAdapter 公开契约', () => {
       expect(rows).toEqual([fresh, stale, missing]);
     });
 
-    it('远端一条都没有时不查本地元数据、也不回源', async () => {
+    it('远端一条都没有时不回源', async () => {
       const local = createLocalAdapter();
       const remote = createRemoteAdapter();
-      const repository = new QueryCacheRepository<ProductEntityType>(ENTITY_NAME, remote.adapter, local.adapter);
+      const reader = createLocalReader();
+      const repository = buildRepository(remote.adapter, local.adapter, reader.reader);
 
       const rows = await firstValueFrom(repository.find({ where: ACTIVE_ONLY }));
 
       expect(rows).toEqual([]);
-      expect(local.getMetadataByIds).not.toHaveBeenCalled();
       expect(remote.findByIds).not.toHaveBeenCalled();
+      // 远端空集**不是**短路条件：本地投影照读，否则本地残留的行永远清不掉（AC#12）
+      expect(reader.find).toHaveBeenCalledWith({ where: ACTIVE_ONLY });
+      expect(local.getMetadataByIds).not.toHaveBeenCalled();
     });
 
     it('可选的写方法缺席时，写操作抛出点名实体的错误而不是静默降级', () => {
-      const repository = new QueryCacheRepository<ProductEntityType>(
-        ENTITY_NAME,
-        createRemoteAdapter().adapter,
-        createLocalAdapter().adapter
-      );
+      const repository = buildRepository(createRemoteAdapter().adapter, createLocalAdapter().adapter);
 
       expect(() => repository.create({ name: 'A' })).toThrow(
         `Remote adapter does not support create operation for ${ENTITY_NAME}`

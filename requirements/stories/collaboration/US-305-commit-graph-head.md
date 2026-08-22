@@ -11,11 +11,11 @@ tags: [collaboration, commit, head, persistence, migration]
 
 <!--
 INVEST 检查清单:
-- [x] Independent: 不依赖工作树与暂存区的 UI 或状态机
+- [x] Independent: 不依赖工作树的 UI 或状态机
 - [x] Negotiable: commit ID 生成方式、存储表名和 ChangeSet 编码可在 plan 阶段调整
 - [x] Valuable: 有了持久 commit 图，历史节点第一次成为可长期引用的锚点
 - [x] Estimable: 存储层次、审计字段和迁移路径已在本文列出
-- [x] Small: 不含 status/diff/stage、不含 restore、不含分支切换改动
+- [x] Small: 不含 status/diff 操作面、不含 restore、不含分支切换改动
 - [x] Testable: 最小闭环「写 commit → 刷新 → 读回 log/show」可独立验收
 -->
 
@@ -30,7 +30,7 @@ INVEST 检查清单:
 
 早期的 `stagedChange()` / `unstageChange()` / `commit()` / `stagedCount` 在可复核的 `v0.0.24` 公开表面中已不存在，因此这是全新设计，没有需要兼容的旧暂存契约。
 
-本故事只做**底座**：commit 图、HEAD、分支引用的原子一致性、存储布局与一次性迁移。工作树与暂存区的状态机在 [US-306](./US-306-working-tree-index.md)。
+本故事只做**底座**：commit 图、HEAD、分支引用的原子一致性、存储布局与一次性迁移。工作树与提交状态机在 [US-306](./US-306-working-tree-commits.md)。
 
 ## 作为/我想要/以便
 
@@ -79,7 +79,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 
 ### Out of Scope
 
-- status / diff / stage / unstage / commit 的用户操作面 —— 属 [US-306](./US-306-working-tree-index.md)
+- status / diff / commit / discard 的用户操作面 —— 属 [US-306](./US-306-working-tree-commits.md)
 - 历史恢复会话 —— 属 [US-307](./US-307-restore-session.md)
 - 分支切换入口、冲突诊断和三端提示 —— 属 [US-308](./US-308-branch-isolation-conflict.md)；底层 head revision CAS 在本故事完成
 - 远程 push/pull、rebase、cherry-pick、任意历史改写
@@ -104,7 +104,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 4. **Given** 变更单元集合为空，**When** 创建 commit，**Then** 操作被拒绝，不产生空节点，HEAD 不变。
 5. **Given** commit message 为空或只含空白，**When** 创建 commit，**Then** 操作被拒绝并保留调用前状态。
 6. **Given** 两个 writer 从相同 `headRevision` 开始提交，**When** 先后尝试推进同一分支，**Then** 只有一个 CAS 成功；失败方不产生可见 commit，并收到包含 expected/actual revision 的稳定冲突错误。
-7. **Given** commit 已在数据库提交但响应在返回前丢失，**When** 调用方用相同 `operationId`、message、author 和 staged payload 重试，**Then** 返回第一次创建的同一 commit，不推进第二次 HEAD；同一 branch generation 内复用 `operationId` 却携带不同 payload 时返回 `idempotency_key_reused`。
+7. **Given** commit 已在数据库提交但响应在返回前丢失，**When** 调用方用相同 `operationId`、message、author 和提交内容重试，**Then** 返回第一次创建的同一 commit，不推进第二次 HEAD；同一 branch generation 内复用 `operationId` 却携带不同 payload 时返回 `idempotency_key_reused`。
 8. **Given** 普通 commit 缺少 `authorId` 或 `operationId`，**When** 用户提交，**Then** 在写事务前拒绝；不得从空值、设备名或 writer ID 伪造作者。
 
 ### User Story 2 - 已有数据库首次启用（Priority: P1）
@@ -161,7 +161,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - **FR-052**：首次启用 MUST 在同一迁移事务内建立数据库级单行 `WorkingTreeActivationState` 并把 `activationRevision`
   初始化为 0。该状态 MUST NOT 复制第二份 active branch ID——当前分支仍由 `RxDBBranch.activated` 表示。本故事只负责
   建表、初始化与「连接时可读」；递增该 revision 的 switch 语义归 [US-308](./US-308-branch-isolation-conflict.md)，
-  写路径的 token 校验归 [US-306 阶段 A](./US-306-working-tree-index.md)。未启用 commit 能力的数据库 MUST NOT 创建该表。
+  写路径的 token 校验归 [US-306 阶段 A](./US-306-working-tree-commits.md)。未启用 commit 能力的数据库 MUST NOT 创建该表。
 - **FR-051**：commit 图校验 MUST 从每个 branch ref 遍历完整可达父链并区分孤立损坏与可达损坏。可达损坏的分支只允许读取不依赖重放的当前投影、导出诊断和切离；commit、restore、switch-to 及任何历史重放 MUST 返回稳定的 `commit_graph_corrupted`。
 
 ## 关键实体
@@ -244,6 +244,6 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - [epic-006 本地工作树与提交历史](../../epics/epic-006-working-tree-commits.md)
 - [US-301 版本控制](./US-301-version-control.md) — 现有分支、合并和远程同步边界
 - [US-302 撤销/重做](./US-302-undo-redo.md) — 现有 durable undo 与会话级 redo 语义
-- [US-306 工作树、暂存区与提交操作](./US-306-working-tree-index.md)
+- [US-306 工作树与提交操作](./US-306-working-tree-commits.md)
 - [US-501 Workspace 插件](../plugin/US-501-workspace-plugin.md) — NEW 草稿持久化现状与明确限制
 - [版本控制文档](../../../website/docs/versioning.md)
