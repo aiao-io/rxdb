@@ -1,9 +1,23 @@
-import type { EntityType, RxDB, RxDBEvent, RxDBEventMap } from '@aiao/rxdb';
+import type { EntityType, RxDBEvent, RxDBEventMap } from '@aiao/rxdb';
 
 import { EventBuffer } from './buffer.js';
-import type { DevToolsProviderDescriptor } from './provider/descriptor.js';
+import { collectEntityInfo, entityIndexMaps, resolveEntityKey, type EntityInfo } from './connector-entity-info.js';
+import { RXDB_EVENT_TYPES, toEventRecord, type EventRecord } from './connector-events.js';
+import { maskEncryptedDocument, maskEncryptedEvent, type ConnectorMaskContext } from './connector-mask.js';
+import { CONNECTOR_MUTATION_POLICY, CONNECTOR_PROVIDERS } from './connector-providers.js';
+import {
+  forceReleaseLocalAdapter,
+  getErrorMessage,
+  serializeDocument,
+  tryGracefulDisconnect,
+  type DisconnectResult,
+  type ForceReleaseResult
+} from './connector-runtime.js';
+import { subscribeOnce, type Subscription } from './connector-subscribe-once.js';
+import type { DevToolsOptions, DevToolsRxDB, GetEntityMetadataFn } from './connector-types.js';
+import { isRecord } from './internal/guards.js';
 import { SequenceGenerator } from './sequence.js';
-import { maskEncryptedFields, serialize, serializeDevToolsValue } from './serializer.js';
+import { serialize, serializeDevToolsValue } from './serializer.js';
 import {
   createMessage,
   DEVTOOLS_PROTOCOL_VERSION,
@@ -13,134 +27,17 @@ import {
   type AnyDevToolsMessage,
   type DevToolsCapability,
   type DevToolsCommandMessage,
-  type DisconnectStatus,
   type QueryEntityPayload,
   type SerializedEvent
 } from './types.js';
-import type { DevToolsMutationPolicy } from './v2/authorization.js';
+import { satisfiesCapability } from './v2/capability.js';
 import { createSystemClock } from './v2/clock.js';
-import type { DevToolsConnectorEndpoint, DevToolsProviderRegistry } from './v2/endpoint.js';
+import type { DevToolsConnectorEndpoint } from './v2/endpoint.js';
 import { createDevToolsConnectorEndpoint } from './v2/endpoint.js';
 import type { DevToolsConnectorNegotiationMessage } from './v2/negotiation-connector.js';
 
-/**
- * DevTools 实际使用的 RxDB 能力子集。
- *
- * @remarks
- * 从 `@aiao/rxdb` 的 `RxDB` 上 `Pick` 而不是本包再抄一份鸭子接口：
- * 抄来的 `addEventListener(type: string, ...)` 和 callback-only 的 repository
- * 契约根本不等于真实泛型 API，于是三端 demo 全部被迫 `as any` 才能调 {@link DevToolsConnector.init}，
- * 而上游签名演进时本包不会有任何编译期信号。
- *
- * `@aiao/rxdb` 是 **peerDependency + type-only import**：类型在编译期擦除，
- * 不进运行时产物，也不给 devtools 的消费者增加安装拓扑负担。
- */
-export type DevToolsRxDB = Pick<
-  RxDB,
-  | 'addEventListener'
-  | 'removeEventListener'
-  | 'disconnectAll'
-  | 'getAdapter'
-  | 'version'
-  | 'config'
-  | 'entityManager'
-  | 'versionManager'
->;
-
-/**
- * DevTools 实际读取的实体元数据子集。
- *
- * @remarks
- * 有意比上游 `EntityMetadata` 宽（`ReadonlyMap<string, unknown>` 而非
- * `Map<string, EntityPropertyMetadata>`）：连接器只取 `keys()` 当作加密字段名单，
- * 不碰值。真实 `EntityMetadata` 可赋值给本类型，该方向由
- * `rxdb-contract.spec.ts` 的编译契约守住。
- */
-export interface DevToolsEntityMetadata {
-  /** 实体名称。 */
-  readonly name: string;
-  /** 实体所属 namespace；省略时按 `'public'` 处理。 */
-  readonly namespace?: string;
-  /** 声明为加密列的字段名集合；只读取键。 */
-  readonly encryptedPropertyMap?: ReadonlyMap<string, unknown>;
-}
-
-/**
- * 实体元数据读取函数。
- *
- * @remarks
- * 上游 `getEntityMetadata`（fail-fast，未装饰即抛）与 `tryGetEntityMetadata`
- * （返回 `undefined`）都满足本签名，由调用方决定要哪种语义。
- */
-export type GetEntityMetadataFn = (entity: EntityType) => DevToolsEntityMetadata | undefined;
-
-interface Subscription {
-  unsubscribe(): void;
-}
-
-interface Subscribable<T> {
-  subscribe(callback: (data: T) => void): Subscription;
-}
-
-/**
- * 事件在遮罩 / 序列化路径上的记录视图。
- *
- * @remarks
- * `RxDBEvent` 是一组类实例的联合，TS 不认为它可赋给带索引签名的记录类型。
- * 遮罩逻辑必须按字段名动态读写（`entities` / `conflicts` / `patch` …），
- * 所以这里做一次显式转换并收口在 {@link toEventRecord}，不散落到各处。
- */
-type EventRecord = { type: string } & Record<string, unknown>;
-
-const toEventRecord = (event: RxDBEvent): EventRecord => event as unknown as EventRecord;
-
-/** RxDB DevTools 配置选项。 */
-export interface DevToolsOptions {
-  /**
-   * 握手完成前缓存的事件条数上限，超出按 FIFO 丢弃最旧的。
-   *
-   * @defaultValue 100
-   * @throws RangeError 构造时传入非正安全整数
-   */
-  maxBufferSize?: number;
-
-  /**
-   * 是否启用连接器。
-   *
-   * @defaultValue true
-   * @remarks
-   * `false` 时 {@link DevToolsConnector.init} 直接返回：不注册 message 监听、
-   * 不订阅 RxDB 事件、不挂全局 helper。生产构建里关掉它即可完全消除
-   * 「页面消息总线上出现实体数据」这条暴露面。
-   */
-  enabled?: boolean;
-
-  /**
-   * 授予 DevTools 的命令能力档。
-   *
-   * @defaultValue 'full'
-   * @remarks
-   * 默认 `'full'` 是为了不破坏已发布的扩展面板（它依赖 SWITCH/CREATE/DELETE_BRANCH）。
-   * 生产环境应显式降到 `'readonly'` 或 `'none'` —— 页面消息总线对同源脚本完全开放，
-   * 档位决定了伪造命令最多能做到什么。语义见 {@link DevToolsCapability}。
-   */
-  capabilities?: DevToolsCapability;
-
-  /**
-   * 是否允许在 opaque origin（`location.origin === 'null'`）下用 `'*'` 广播消息。
-   *
-   * @defaultValue false
-   * @remarks
-   * 连接器一律以 `location.origin` 为 `targetOrigin`。sandbox iframe、`data:`/`blob:`
-   * 文档的 origin 是不透明的，`location.origin` 求值为字符串 `'null'`，
-   * `postMessage(msg, 'null')` 会静默失败 —— 消息不到、也没有任何报错。
-   *
-   * 默认策略是**显式失败**：{@link DevToolsConnector.init} 打一次 warning 并保持停用，
-   * 而不是偷偷退回 `'*'` 把消息广播给同页所有 frame。确实需要在 sandbox 里调试时，
-   * 把本项设为 `true` 显式接受该风险。
-   */
-  allowOpaqueOrigin?: boolean;
-}
+export { RXDB_EVENT_TYPES };
+export type { DevToolsEntityMetadata, DevToolsOptions, DevToolsRxDB, GetEntityMetadataFn } from './connector-types.js';
 
 const DEFAULT_OPTIONS: Required<DevToolsOptions> = {
   maxBufferSize: 100,
@@ -148,52 +45,6 @@ const DEFAULT_OPTIONS: Required<DevToolsOptions> = {
   capabilities: 'full',
   allowOpaqueOrigin: false
 };
-
-/**
- * 事件订阅清单：键穷尽 `RxDBEventMap`，值表示是否转发到 DevTools。
- *
- * @remarks
- * `satisfies Record<keyof RxDBEventMap, boolean>` 是这份清单的**编译期契约**：
- * 上游新增事件时本文件直接编译失败，而不是像手写字符串数组那样静默漏掉。
- * 此前漏掉的正是 `ENTITY_LOCAL_NEW`、`TRANSACTION_*` 与 `MERGE_BRANCH_*` 八项 ——
- * merge 失败「已部分应用、并未回滚」的诊断完全不到 DevTools。
- *
- * 一处有意排除，必须留在这里而不是"忘了写"：
- *
- * - `REMOTE_CHANGES_PENDING`：上游有这个常量但**不在 `RxDBEventMap` 里**，
- *   因此是结构性排除 —— 想加也加不进来，加了就编译不过。
- */
-const RXDB_EVENT_SUBSCRIPTIONS = {
-  ENTITY_LOCAL_NEW: true,
-  ENTITY_LOCAL_CREATE: true,
-  ENTITY_LOCAL_UPDATE: true,
-  ENTITY_LOCAL_REMOVE: true,
-  ENTITY_REMOTE_CREATE: true,
-  ENTITY_REMOTE_UPDATE: true,
-  ENTITY_REMOTE_REMOVE: true,
-  TRANSACTION_BEGIN: true,
-  TRANSACTION_COMMIT: true,
-  TRANSACTION_ROLLBACK: true,
-  SWITCH_BRANCH_BEGIN: true,
-  SWITCH_BRANCH_COMMIT: true,
-  SWITCH_BRANCH_ROLLBACK: true,
-  MERGE_BRANCH_BEGIN: true,
-  MERGE_BRANCH_COMMIT: true,
-  MERGE_BRANCH_FAILED: true,
-  SYNC_BEGIN: true,
-  SYNC_COMPLETE: true,
-  SYNC_ERROR: true,
-  CONFLICT_DETECTED: true,
-  CONFLICT_PENDING: true,
-  REPOSITORY_SYNC_BEGIN: true,
-  REPOSITORY_SYNC_COMPLETE: true,
-  REPOSITORY_SYNC_ERROR: true
-} as const satisfies Record<keyof RxDBEventMap, boolean>;
-
-/** 实际订阅的事件类型（{@link RXDB_EVENT_SUBSCRIPTIONS} 中值为 `true` 的键）。 */
-export const RXDB_EVENT_TYPES: readonly (keyof RxDBEventMap)[] = (
-  Object.keys(RXDB_EVENT_SUBSCRIPTIONS) as (keyof RxDBEventMap)[]
-).filter(type => RXDB_EVENT_SUBSCRIPTIONS[type]);
 
 /**
  * 命令 → 所需最低能力档。
@@ -216,49 +67,6 @@ const COMMAND_REQUIRED_CAPABILITY = {
   DELETE_BRANCH: 'full'
 } as const satisfies Record<DevToolsCommandMessage['type'], DevToolsCapability>;
 
-const CAPABILITY_RANK: Record<DevToolsCapability, number> = { none: 0, readonly: 1, full: 2 };
-
-/**
- * 页内 connector 宣告的 provider descriptor。
- *
- * @remarks
- * 空集是当前的**事实**而不是占位：本包不实现任何原生存储 provider，files / settings
- * 在页内根本不存在，database 的 v2 操作也还没有对着 RxDB 实现。
- * 由 US-904 阶段 C / D 与 US-905 各自接上真实 provider 后填充。
- */
-const CONNECTOR_PROVIDER_DESCRIPTORS: readonly DevToolsProviderDescriptor[] = [];
-
-/**
- * 页内 connector 的写入开关。
- *
- * @remarks
- * 硬编码为 `'omit'`，而不是开成一个选项：三层授权里 mutationPolicy 管的是「已声明的写操作
- * 要不要放行」，而本页宣告的 provider 集是空的，眼下没有任何写操作可管。开成选项等于让
- * 使用者去配一个当前不产生任何效果的开关，等 US-904 阶段 C / D 与 US-905 接上真实 provider
- * 时又得连同默认值一起重新想一遍。届时补上选项即可——默认停在 `'omit'`，
- * 意味着「接上 provider」这一步不会顺带把写路径也悄悄打开。
- */
-const CONNECTOR_MUTATION_POLICY: DevToolsMutationPolicy = 'omit';
-
-/**
- * 页内 connector 的 provider 接缝。
- *
- * @remarks
- * 空 descriptor 集让三层授权的第二层拦下每一个操作（`provider_unsupported`），因此
- * {@link DevToolsProviderRegistry.provider} 与 {@link DevToolsProviderRegistry.createChunkSink}
- * 在结构上不可达。两者因此**抛错**而不是返回一个「什么都不支持」的替身：替身会把一处接线
- * 错误变成一条看起来正常的协议应答，而这里需要的是它立刻炸出来。
- */
-const CONNECTOR_PROVIDERS: DevToolsProviderRegistry = {
-  descriptors: CONNECTOR_PROVIDER_DESCRIPTORS,
-  provider: domain => {
-    throw new Error(`no in-page devtools provider for domain "${domain}"`);
-  },
-  createChunkSink: name => {
-    throw new Error(`no in-page devtools chunk sink for transfer "${name}"`);
-  }
-};
-
 const OPAQUE_ORIGIN = 'null' as const;
 
 /**
@@ -272,9 +80,6 @@ const OPAQUE_ORIGIN = 'null' as const;
 const WINDOW_BUS_ALLOWED_COMMAND = 'PING' as const satisfies DevToolsCommandMessage['type'];
 
 const DEVTOOLS_GLOBAL_KEY = '__AIAO_RXDB_DEVTOOLS__' as const;
-const EVENT_ENTITY_FIELDS = ['patch', 'inversePatch', 'data'] as const;
-/** Conflict 里承载变更记录的两侧，各自形如 `IRxDBChange`（带 entity 与 patch/inversePatch）。 */
-const CONFLICT_CHANGE_FIELDS = ['local', 'remote'] as const;
 const QUERY_SUBSCRIPTION_TIMEOUT_MS = 10_000;
 
 /**
@@ -293,176 +98,6 @@ const BRANCH_QUERY_LIMIT = 1000;
 
 /** 上游分支实体的注册名（`@aiao/rxdb` 的 `RxDBBranch`）。 */
 const BRANCH_ENTITY_NAME = 'RxDBBranch' as const;
-
-/**
- * 实体身份的复合 key。
- *
- * @remarks
- * 上游以 `namespace:name` 唯一标识实体（`SchemaManager` 明确允许不同 namespace 下重名）。
- * 只用 `name` 建索引会后写覆盖前写：查询落到错误 namespace 的仓库，事件遮罩套用
- * 另一个 namespace 的加密字段集 —— 该遮的留明文，不该遮的被遮。
- */
-const entityKey = (namespace: string, name: string): string => `${namespace}:${name}`;
-
-const metadataKeyFromConflictKey = (conflictKey: unknown): string | undefined => {
-  if (typeof conflictKey !== 'string') return undefined;
-  const [namespace, name] = conflictKey.split(':', 2);
-  return namespace && name ? entityKey(namespace, name) : undefined;
-};
-
-type DisconnectResult = { success: boolean; error: string | null; status: DisconnectStatus };
-type ForceReleaseResult = { success: boolean; error: string | null };
-
-type EntityInfo = {
-  name: string;
-  namespace: string;
-  encryptedFields: string[];
-  entityType: EntityType;
-};
-
-interface SubscribeOnceOptions {
-  timeoutMs?: number;
-  register?: (handle: Subscription) => void;
-  unregister?: (handle: Subscription) => void;
-}
-
-function subscribeOnce<T>(
-  observable: Subscribable<T>,
-  callback: (value: T) => void,
-  errorCallback: (error: unknown) => void,
-  options: SubscribeOnceOptions = {}
-): void {
-  let subscription: Subscription | null = null;
-  let unsubscribeAfterSubscribe = false;
-  let handled = false;
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-  const settle = (): void => {
-    handled = true;
-    if (timeoutId !== undefined) clearTimeout(timeoutId);
-    options.unregister?.(handle);
-  };
-
-  const handle: Subscription = {
-    unsubscribe(): void {
-      if (handled) return;
-      settle();
-      subscription?.unsubscribe();
-    }
-  };
-
-  const next = (value: T): void => {
-    if (handled) return;
-    settle();
-    callback(value);
-
-    if (subscription) {
-      subscription.unsubscribe();
-      return;
-    }
-    unsubscribeAfterSubscribe = true;
-  };
-
-  const error = (cause: unknown): void => {
-    if (handled) return;
-    settle();
-    errorCallback(cause);
-    subscription?.unsubscribe();
-  };
-
-  if (options.timeoutMs !== undefined) {
-    timeoutId = setTimeout(() => {
-      if (handled) return;
-      settle();
-      subscription?.unsubscribe();
-      errorCallback(new Error(`query timed out after ${options.timeoutMs}ms`));
-    }, options.timeoutMs);
-  }
-
-  // subscribe() 可能同步抛错。timer 在它之前就建好了，不接住的话：定时器泄漏，
-  // 且调用方要等满超时才收到一条误导性的 "timed out" —— 真实原因被上层 catch 吞掉。
-  // 走 error() 统一收口：它会 settle()（清 timer）并把真实 cause 报出去（RDT-019）
-  try {
-    if (typeof (observable as { pipe?: unknown }).pipe === 'function') {
-      subscription = (
-        observable as unknown as { subscribe(observer: { next: typeof next; error: typeof error }): Subscription }
-      ).subscribe({
-        next,
-        error
-      });
-    } else {
-      subscription = observable.subscribe(next);
-    }
-  } catch (cause) {
-    error(cause);
-    return;
-  }
-  if (unsubscribeAfterSubscribe) {
-    subscription.unsubscribe();
-    return;
-  }
-  if (!handled) options.register?.(handle);
-}
-
-function getDocumentId(document: unknown): unknown {
-  try {
-    return isRecord(document) ? document['id'] : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * 把查询结果文档转成 wire 值。
- *
- * @remarks
- * 与事件路径共用同一个 serializer，因此环引用、BigInt、Map/Set、嵌套 Date
- * 的降级语义**逐字段一致**：只有成环的那个节点变成 `'[Circular]'`，同级字段照常保留。
- *
- * 曾经这里额外做一次 `hasCircularReference` 全树预检，命中就把整条文档换成
- * `{ id, _error }` —— 一个自引用的 `parent` 字段就能让整行数据在 DevTools 里消失。
- * 现在只有 `toJSON()` 自己抛错（文档根本读不出来）才走结构化错误占位。
- */
-function serializeDocument(document: unknown, mask: (value: unknown) => unknown): unknown {
-  try {
-    const value =
-      document && typeof document === 'object' && 'toJSON' in document ?
-        (document as { toJSON(): unknown }).toJSON()
-      : document;
-    return serializeDevToolsValue(mask(value));
-  } catch {
-    return serializeDevToolsValue({ id: getDocumentId(document), _error: 'Cannot serialize' });
-  }
-}
-
-/**
- * 取错误的可读描述，保证非空。
- *
- * @remarks
- * 非空是协议要求：`DISCONNECT_RXDB_RESULT` 的 `status: 'failed'` 必须配非空 `error`
- * （见 `isDisconnectResultPayload` 的语义矩阵）。`new Error('')` 的 `message` 是空串，
- * 直接透出去会让本包自己的 guard 拒掉自己发的消息。
- */
-function getErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.length > 0 ? message : String(error);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/** 结构性识别 `Worker`：`instanceof Worker` 在 worker / Node 宿主里会直接 ReferenceError。 */
-function isTerminable(value: unknown): value is { terminate(): void } {
-  return isRecord(value) && typeof value['terminate'] === 'function';
-}
-
-/** 结构性识别 `SharedWorker`：只关心能不能关掉它的 port。 */
-function isClosablePortHolder(value: unknown): value is { port: { close(): void } } {
-  if (!isRecord(value)) return false;
-  const port = value['port'];
-  return isRecord(port) && typeof port['close'] === 'function';
-}
 
 /**
  * RxDB DevTools 连接器。
@@ -565,7 +200,7 @@ export class DevToolsConnector {
       throw new Error('DevToolsConnector supports a single RxDB instance');
     }
 
-    const entityInfo = getEntityMetadata ? this.#collectEntityInfo(rxdb, getEntityMetadata) : [];
+    const entityInfo = getEntityMetadata ? collectEntityInfo(rxdb, getEntityMetadata) : [];
     this.#rxdbInstance = rxdb;
     this.#hasEntityMetadata = getEntityMetadata !== undefined;
     this.#setEntityInfo(entityInfo);
@@ -635,43 +270,15 @@ export class DevToolsConnector {
     this.#branchQueryInFlight = false;
   }
 
-  #collectEntityInfo(rxdb: DevToolsRxDB, getEntityMetadata: GetEntityMetadataFn): EntityInfo[] {
-    const entityInfo: EntityInfo[] = [];
-    for (const entityType of rxdb.config.entities) {
-      const metadata = getEntityMetadata(entityType);
-      if (!metadata?.name) continue;
-      entityInfo.push({
-        name: metadata.name,
-        namespace: metadata.namespace || 'public',
-        encryptedFields: metadata.encryptedPropertyMap ? [...metadata.encryptedPropertyMap.keys()] : [],
-        entityType
-      });
-    }
-    return entityInfo;
-  }
-
   #setEntityInfo(entityInfo: EntityInfo[]): void {
     this.#entityInfo = entityInfo;
-    // 以 `namespace:name` 为 key：上游允许不同 namespace 下实体重名，
-    // 用裸 name 建 key 会后写覆盖前写 —— 查询落到错误 namespace 的仓库，
-    // 事件遮罩也会套用另一个 namespace 的加密字段集（明文泄漏）。
-    this.#entityTypeMap = new Map(entityInfo.map(info => [entityKey(info.namespace, info.name), info.entityType]));
-    this.#encryptedFieldsMap = new Map(
-      entityInfo.map(info => [entityKey(info.namespace, info.name), info.encryptedFields])
-    );
+    const maps = entityIndexMaps(entityInfo);
+    this.#entityTypeMap = maps.entityTypeMap;
+    this.#encryptedFieldsMap = maps.encryptedFieldsMap;
   }
 
-  /**
-   * 按名称（可选 namespace）解析实体身份。
-   *
-   * @returns 命中时返回复合 key；名称存在歧义且未指定 namespace 时返回 `{ ambiguous: true }`
-   */
-  #resolveEntityKey(entityName: string, namespace?: string): { key?: string; ambiguous?: boolean } {
-    if (namespace) return { key: entityKey(namespace, entityName) };
-    const matches = this.#entityInfo.filter(info => info.name === entityName);
-    if (matches.length === 1) return { key: entityKey(matches[0].namespace, matches[0].name) };
-    if (matches.length > 1) return { ambiguous: true };
-    return {};
+  #maskContext(): ConnectorMaskContext {
+    return { entityInfo: this.#entityInfo, encryptedFieldsMap: this.#encryptedFieldsMap };
   }
 
   #clearEntityInfo(): void {
@@ -760,7 +367,7 @@ export class DevToolsConnector {
    * 自行禁用按钮，而不是靠试探。
    */
   #isAllowed(type: DevToolsCommandMessage['type']): boolean {
-    return CAPABILITY_RANK[this.#options.capabilities] >= CAPABILITY_RANK[COMMAND_REQUIRED_CAPABILITY[type]];
+    return satisfiesCapability(this.#options.capabilities, COMMAND_REQUIRED_CAPABILITY[type]);
   }
 
   #handleMessage(message: DevToolsCommandMessage): void {
@@ -869,18 +476,7 @@ export class DevToolsConnector {
   }
 
   async #tryGracefulDisconnect(rxdb: DevToolsRxDB, timeoutMs: number): Promise<string | null> {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const timeout = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('等待 RxDB 断开超时')), timeoutMs);
-      });
-      await Promise.race([rxdb.disconnectAll(), timeout]);
-      return null;
-    } catch (error) {
-      return getErrorMessage(error);
-    } finally {
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
-    }
+    return tryGracefulDisconnect(() => rxdb.disconnectAll(), timeoutMs);
   }
 
   /**
@@ -897,27 +493,7 @@ export class DevToolsConnector {
   async #forceReleaseLocalAdapter(rxdb: DevToolsRxDB): Promise<ForceReleaseResult> {
     const localAdapterName = rxdb.config.sync.local?.adapter;
     if (!localAdapterName) return { success: false, error: null };
-
-    try {
-      const adapter = await rxdb.getAdapter(localAdapterName);
-      const options = isRecord(adapter) ? adapter['options'] : undefined;
-      if (!isRecord(options)) return { success: false, error: null };
-
-      const workerInstance = options['workerInstance'];
-      if (isTerminable(workerInstance)) {
-        workerInstance.terminate();
-        return { success: true, error: null };
-      }
-
-      const sharedWorker = options['sharedWorkerInstance'];
-      if (isClosablePortHolder(sharedWorker)) {
-        sharedWorker.port.close();
-        return { success: true, error: null };
-      }
-      return { success: false, error: null };
-    } catch (error) {
-      return { success: false, error: getErrorMessage(error) };
-    }
+    return forceReleaseLocalAdapter(() => rxdb.getAdapter(localAdapterName));
   }
 
   #syncGlobalHelper(): void {
@@ -1054,7 +630,7 @@ export class DevToolsConnector {
       return;
     }
 
-    const resolved = this.#resolveEntityKey(payload.entityName, payload.namespace);
+    const resolved = resolveEntityKey(this.#entityInfo, payload.entityName, payload.namespace);
     if (resolved.ambiguous) {
       this.#replyEntityData(
         payload.entityName,
@@ -1086,7 +662,7 @@ export class DevToolsConnector {
         observable,
         documents => {
           const data = documents.map(document =>
-            serializeDocument(document, value => this.#maskEncryptedDocument(value, encryptedFields))
+            serializeDocument(document, value => maskEncryptedDocument(this.#maskContext(), value, encryptedFields))
           );
           const meta = encryptedFields.length > 0 ? { encryptedFields } : undefined;
           this.#replyEntityData(payload.entityName, null, data, meta, payload.namespace);
@@ -1121,7 +697,7 @@ export class DevToolsConnector {
 
   #queryBranches(): void {
     const rxdb = this.#rxdbInstance;
-    const branchKey = this.#resolveEntityKey(BRANCH_ENTITY_NAME).key;
+    const branchKey = resolveEntityKey(this.#entityInfo, BRANCH_ENTITY_NAME).key;
     const branchEntityType = branchKey ? this.#entityTypeMap.get(branchKey) : undefined;
     if (!rxdb || !branchEntityType) {
       this.#branchQueryInFlight = false;
@@ -1248,7 +824,7 @@ export class DevToolsConnector {
 
   #onRxDBEvent(event: RxDBEvent): void {
     const record = toEventRecord(event);
-    const serialized = serialize(this.#maskEncryptedEvent(record), this.#sequence.next());
+    const serialized = serialize(maskEncryptedEvent(this.#maskContext(), record), this.#sequence.next());
     if (this.#connected) this.#sendEvent(serialized);
     else this.#buffer.push(serialized);
 
@@ -1263,7 +839,7 @@ export class DevToolsConnector {
    * 于是任意业务实体的每一次删除都触发一次全表分支查询 ——
    * 批量删 500 条业务数据 = 500 次与分支毫不相干的查询。
    *
-   * 身份判定走 {@link #resolveEntityKey} 而不是硬编码 `namespace === 'rxdb'`：
+   * 身份判定走 {@link resolveEntityKey} 而不是硬编码 `namespace === 'rxdb'`：
    * 分支实体的注册身份来自 `rxdb.config.entities` 里那份元数据，
    * 上游改 namespace 时这里自动跟随；同时也支持事件不带 namespace 的场景
    * （只有一个 `RxDBBranch` 时可无歧义解析）。
@@ -1272,7 +848,7 @@ export class DevToolsConnector {
     if (event.type === 'SWITCH_BRANCH_COMMIT') return true;
     if (event.type !== 'ENTITY_LOCAL_REMOVE' && event.type !== 'ENTITY_REMOTE_REMOVE') return false;
 
-    const branchKey = this.#resolveEntityKey(BRANCH_ENTITY_NAME).key;
+    const branchKey = resolveEntityKey(this.#entityInfo, BRANCH_ENTITY_NAME).key;
     if (!branchKey) return false;
 
     const entities = event['entities'];
@@ -1280,85 +856,8 @@ export class DevToolsConnector {
     return entities.some(entity => {
       if (!isRecord(entity) || typeof entity['entity'] !== 'string') return false;
       const namespace = typeof entity['namespace'] === 'string' ? entity['namespace'] : undefined;
-      return this.#resolveEntityKey(entity['entity'], namespace).key === branchKey;
+      return resolveEntityKey(this.#entityInfo, entity['entity'], namespace).key === branchKey;
     });
-  }
-
-  // 按「已知携带实体的字段」遮罩，而不是按事件形状：CONFLICT_* 的载荷是 conflicts[]，
-  // 每个 conflict 的 local/remote 带变更，base 则是实体快照，
-  // 只认 `{ entities: [...] }` 会让这些明文补丁直接广播出去。
-  #maskEncryptedEvent(event: EventRecord): EventRecord {
-    const entities = event['entities'];
-    const conflicts = event['conflicts'];
-    if (!Array.isArray(entities) && !Array.isArray(conflicts)) return event;
-
-    const data: EventRecord = { ...event };
-    if (Array.isArray(entities)) {
-      data['entities'] = entities.map(entity => this.#maskEncryptedEventEntity(entity));
-    }
-    if (Array.isArray(conflicts)) {
-      data['conflicts'] = conflicts.map(conflict => this.#maskEncryptedConflict(conflict));
-    }
-    return data;
-  }
-
-  #maskEncryptedConflict(value: unknown): unknown {
-    if (!isRecord(value)) return value;
-
-    const masked = { ...value };
-    for (const side of CONFLICT_CHANGE_FIELDS) {
-      if (Object.hasOwn(value, side)) masked[side] = this.#maskEncryptedEventEntity(value[side]);
-    }
-    if (Object.hasOwn(value, 'base')) {
-      const metadataKey = metadataKeyFromConflictKey(value['entityKey']);
-      const encryptedFields = (metadataKey && this.#encryptedFieldsMap.get(metadataKey)) || [];
-      masked['base'] = maskEncryptedFields(value['base'], encryptedFields);
-    }
-    return masked;
-  }
-
-  #maskEncryptedEventEntity(value: unknown): unknown {
-    if (!isRecord(value) || typeof value['entity'] !== 'string') return value;
-    // 必须用事件自带的 namespace 定位 metadata；只按 entity 名取会套用别的 namespace 的规则，
-    // 结果是本该遮罩的字段留明文、无关字段反被遮罩。
-    const eventNamespace = typeof value['namespace'] === 'string' ? value['namespace'] : undefined;
-    const resolved = this.#resolveEntityKey(value['entity'], eventNamespace);
-    const encryptedFields = (resolved.key && this.#encryptedFieldsMap.get(resolved.key)) || [];
-
-    const masked = { ...value };
-    for (const field of EVENT_ENTITY_FIELDS) {
-      if (!Object.hasOwn(value, field)) continue;
-      const redacted = maskEncryptedFields(value[field], encryptedFields);
-      masked[field] = this.#maskEmbeddedChangeValue(redacted);
-    }
-    return masked;
-  }
-
-  #maskEncryptedDocument(value: unknown, encryptedFields: readonly string[]): unknown {
-    return this.#maskEmbeddedChangeValue(maskEncryptedFields(value, encryptedFields));
-  }
-
-  #maskEmbeddedChangeValue(value: unknown): unknown {
-    if (Array.isArray(value)) return value.map(item => this.#maskEmbeddedChangeValue(item));
-    if (!isRecord(value) || value instanceof Date || value instanceof Uint8Array) return value;
-
-    let masked = value;
-    const entityName = typeof value['entity'] === 'string' ? value['entity'] : undefined;
-    if (entityName) {
-      const namespace = typeof value['namespace'] === 'string' ? value['namespace'] : undefined;
-      const resolved = this.#resolveEntityKey(entityName, namespace);
-      const encryptedFields = (resolved.key && this.#encryptedFieldsMap.get(resolved.key)) || [];
-      masked = { ...value };
-      for (const field of EVENT_ENTITY_FIELDS) {
-        if (Object.hasOwn(value, field)) masked[field] = maskEncryptedFields(value[field], encryptedFields);
-      }
-    }
-
-    const changes = value['changes'];
-    if (!Array.isArray(changes)) return masked;
-    if (masked === value) masked = { ...value };
-    masked['changes'] = changes.map(change => this.#maskEmbeddedChangeValue(change));
-    return masked;
   }
 
   #sendEvent(event: SerializedEvent): void {
