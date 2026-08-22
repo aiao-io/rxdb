@@ -51,6 +51,38 @@ owner: jimmy
 需要指代**文件系统上的本地工作目录**（如 `dist/`、git working copy）时固定写"本地工作副本"，
 不复用"工作区"，也不与 Git 语义的"工作树"混用。引用历史原文时保留原字并加译注，不改引文。
 
+### 四层分层对照（读本 Epic 前必须先对齐）
+
+上表解决的是**前缀撞车**，但真正会让人反复读错的是**分层撞车**：Git 的 working directory 不是
+「编辑器里还没保存的内容」，而是「磁盘上编译器真的能读到的内容」。在编辑器里改了没按 Ctrl+S，
+`git status` 看不见它——git 只看磁盘。
+
+对照到 RxDB，「查询真的能读到的内容」是**主库业务表**，因为 `db.find()` 读的是它；
+`@aiao/rxdb-plugin-workspace` 的 IndexedDB 草稿对应的是**编辑器未保存 buffer**，Git 从来不管这一层。
+因此本 Epic 的分层是四层而不是三层：
+
+| Git 概念            | 对照物               | 存放位置             | 归属                               |
+| ------------------- | -------------------- | -------------------- | ---------------------------------- |
+| 编辑器未保存 buffer | 草稿缓存（NEW 草稿） | 插件独立 IndexedDB   | 既有 `@aiao/rxdb-plugin-workspace` |
+| working directory   | 工作树               | **主库业务表当前值** | 本 Epic `WorkingTree*`             |
+| index / staging     | 暂存区               | 主库 `IndexEntry`    | 本 Epic `Index*`                   |
+| commit              | 提交                 | 主库 commit 图       | 本 Epic `Commit*`                  |
+| `.gitignore`        | 未版本化实体域       | —                    | 见「版本化域」                     |
+
+把草稿缓存当成工作树会同时踩三个坑，因此本 Epic **不接受**那种三层分法：
+
+1. **查询语义会反过来**。工作树若在 IndexedDB，`db.find()` 读到的就是 HEAD，等于「编辑器里改了文件，
+   但编译器读的还是上次 commit 的版本」——与 Git 心智完全相反
+2. **草稿层表达不了 modified / deleted**。插件范围是**只覆盖 NEW 草稿**，已存在实体的未保存 UPDATE、
+   回滚到编辑前状态与 DELETE 撤销都不在其内；而工作树必须能表达这三种。要在 IndexedDB 层补齐，
+   等于在主库之外重造一个带外键与关系查询的事务型数据库
+3. **跨不了事务边界**。IndexedDB 与 SQL 主库是两个独立一致性边界，无法在同一事务内原子提交；
+   「标记一批草稿一起保存」天生是两阶段写，崩溃会留下半个保存。`IndexEntry` 落在主库正是为了这一条
+
+由此得到一条贯穿全文的口径：**`entity.save()` 等价于 Ctrl+S，不等价于 commit。**
+`save()` 让变更进入工作树并对全部查询立即可见，commit 只是给这一刻打点存档；
+「未提交的东西不生效」不是本 Epic 的语义，见「非目标」。
+
 恢复会话属于工作树状态，公开名使用 `WorkingTreeRestore*`；分支引用和并发冲突属于提交图，公开名使用
 `CommitBranch*` / `CommitConflict*`。既有适配器契约已经导出 `SwitchBranchOptions`，本 Epic 不复用该名字；
 面向 `VersionManager.switchBranch()` 的新选项固定使用 `WorkingTreeSwitchBranchOptions`。
@@ -121,6 +153,12 @@ index 必须满足**独立可重放不变量**：任意时刻，全部 `IndexEnt
 stage T2 也必须包含 T1。不得提交无法应用到 HEAD 的 INSERT/UPDATE/DELETE，也不得静默把前置效果塞进后续单元。
 闭包计算或 CAS 失败时 index 零变化。
 
+依赖闭包是本 Epic 相对 Git 心智的**唯一一处结构性增量**——Git 的文件之间没有外键，`git add a.ts` 永远
+只暂存 `a.ts`。因此「勾一条带四条」是用户不会预期的行为，扩展结果**不能只出现在 API 返回值里**：
+[US-306 阶段 C](../stories/collaboration/US-306-working-tree-index.md) MUST 把实际单元列表与每个被追加单元的
+纳入理由（同实体前置 / 同事务成员 / 关系依赖）呈现给用户（US5-AC9），`index_dependency_cycle` 同样要给出
+可读原因而不是只抛一个错误码。这是交付项，不是 UI 打磨。
+
 跨 realm 正确性由数据库事务内的 `headRevision` / `workingTreeRevision` / `indexRevision` 条件更新保证。
 revision CAS 是领域数据完整性，不是跨 realm 协调协议；本 Epic 不引入 writer lease 或迁移 epoch fencing。
 
@@ -169,6 +207,35 @@ commit 不因 stage 后的普通编辑单独失败：staged snapshot 已冻结�
 durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` 的 expected revision 与当前 revision 不一致。
 `requireClean` 同样只检查这种可重建冲突，不得把历史上发生过的一次 CAS 失败当成未解决状态。
 
+### 版本化域（tracked / untracked）
+
+「一切都是 entity，就像 Git 的文件」是本 Epic 的出发点，但它需要一个 `.gitignore` 的对照物：**不是每个
+被写进数据库的字节都进版本控制**。这些排除当前散在下面的写入口矩阵里，只能从个别行反推；本节把它提成
+一条正面规则——新增实体类型或新增字段时按此归类，不靠读矩阵猜。
+
+**tracked（版本化实体）**：参与 baseline、status、diff、stage、commit 与 restore 的业务实体。
+判据是「它的净变化必须能由 HEAD + `WorkingTreeEntry` 重放」（发布门禁 10）。**默认全部实体都是 tracked。**
+
+**untracked（未版本化）**：只允许以下两类，**新增第三类必须先改本节**，不得直接在写入口矩阵里加行：
+
+| untracked 对象                            | 为什么不进版本控制                                                                         |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------ |
+| QueryCache 同步类型的实体                 | 可从远端重建的缓存，不是用户编辑的结果；混进 commit 会让一次缓存刷新把工作树永久标成 dirty |
+| 实体行上的 `remoteId`、同步水位、审计时间 | 同步机制自身的簿记字段，不表达用户意图；回填它们是对实体行的 UPDATE，但不构成业务净变化    |
+
+草稿缓存不在本表内——它**根本没进主库**，属于上一节四层对照里的 buffer 层，不需要 untracked 豁免。
+
+两条不变量：
+
+- untracked 与 tracked **不得混进同一个事务单元**。callback transaction 检测到混用时以
+  `mixed_versioned_cache_transaction` 终止并回滚整个事务
+- untracked 的判定是**按实体类型或字段**的静态属性，不按调用方、意图或时机。同一个实体不得在一条写入口上
+  tracked、在另一条上 untracked——那会让「任何业务表净变化都能重放」在个别路径上悄悄失效，
+  而这正是发布门禁 10 想挡住的事
+
+远端来源（`origin=remote_sync`）**不是** untracked 的一种：它是 tracked 实体的一次净变化，只是作者不是本地用户，
+见「工作树包含远端来源的净变化」。
+
 ### 写入口语义矩阵
 
 `HEAD + WorkingTreeEntry` 要成为真相源，不能只拦截 Repository 的普通 CRUD。所有会改业务实体表的入口必须在
@@ -185,6 +252,18 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 | metadata-only 目标分支的远端预取                                          | 只写 branch materialization staging 与独立水位，不得更新当前分支 `RxDBSync` 或业务表                                                                                                                                                                                                                                                                  |
 | QueryCache 的 upsert/delete（orphan 当前**只计数不删除**，见下注）        | QueryCache 实体不进入 baseline、status、diff、stage 或 commit；它仍是可重建缓存，不能与版本化实体混在同一事务单元中                                                                                                                                                                                                                                   |
 | raw SQL、adapter 直写或其他 trigger bypass                                | 业务表写入前以 `commit_capability_mismatch` 拒绝；只有同时持有内部事务能力并原子维护工作树的受信路径可以关闭 trigger。判定机制（**按目标表**判定 + 受信 intent 豁免，非「rawQuery 整体只读」）与其能力边界见 [adapter-contract §4.6](../../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决) |
+| `upsertMany()` / `deleteByIds()` 等 adapter 公开批量写方法                | 与上一行同判定：目标是版本化业务实体表即拒绝，目标是 QueryCache 实体表即放行。**这两个方法不经 `rawQuery`**，US-306 阶段 A 必须显式把门禁挂到它们上，见下注                                                                                                                                                                                           |
+
+**`upsertMany` / `deleteByIds` 是门禁的结构性缺口，阶段 A 必须显式补上。** [adapter-contract §4.6](../../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决)
+的五步判定只覆盖 `rawQuery`，并声明「绕过 adapter 的外部数据库句柄不在 v1 承诺内」。但
+[`upsertMany`](../../packages/rxdb/src/rxdb-adapter.ts) 是 `RxDBAdapterLocalBase` 上的**公开抽象写方法**，
+既不是 `rawQuery` 也不是外部句柄——它落在那条能力边界声明的空隙里：实现走
+`transaction(executor => executor.query(...))`（见 [RxDBAdapterPGlite.ts](../../packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts)），
+门禁结构上够不到。今天唯一的调用方 `QueryCacheRepository` 只写 QueryCache 实体，按 §4.6 第 5 步本来就该放行，
+所以缺口暂时不可见；但方法签名 `upsertMany(entityName, data)` 不带意图，**任何调用方传一个 Full/Filter 实体名
+就能写版本化业务表且不产生工作树单元、也不被任何门禁拦下**，直接违反 INV-4 与发布门禁 10。
+阶段 A 的判定必须按 `entityName` 解析出的 `sync.type` 走**同一份**版本化实体表清单（§4.6 明令不得另建第二份），
+而不是给这两个方法单独写一套。**这条不影响 §4.6 的裁决结论，只是把它的覆盖面补到裁决本来就想覆盖的范围。**
 
 **受信路径必须与 bypass 门禁同批交付。** 表最后一行的拒绝门禁一旦启用，既有的批量投影重写路径就会撞上它——
 最典型的是 [VersionManager.ts](../../packages/rxdb/src/version/VersionManager.ts) 的 `switchBranch()` 经
@@ -425,7 +504,9 @@ QueryCache 另测其排除边界，避免一次缓存刷新把工作树永久标
 10. 写入口 conformance 覆盖普通 CRUD、merge、undo/redo、full/filter pull/autoSync/repository sync/bulkSync、
     `cleanupExpired()` 过期删除、QueryCache 排除与 raw bypass 拒绝；任何业务表净变化都能由
     HEAD + WorkingTreeEntry 重放。意图标记登记表与代码实际调用点一致——存在未登记的
-    `adapter.switchBranch` / `mergeChanges(disableTriggers)` 调用点即门禁失败
+    `adapter.switchBranch` / `mergeChanges(disableTriggers)` / `upsertMany` / `deleteByIds`
+    调用点即门禁失败。后两个方法的登记项以**目标实体的 `sync.type`** 为准：QueryCache 实体登记为放行，
+    版本化实体登记为拒绝；漂移扫描 MUST 能报出「调用 `upsertMany` 但目标实体不是 QueryCache」的新增调用点
 11. index 依赖闭包、active 分支基数、metadata-only 远端分支首次物化和完整 restore 路径预检 fixture 全绿
 
 ## 与既有 Epic 的边界
@@ -457,3 +538,15 @@ QueryCache 另测其排除边界，避免一次缓存刷新把工作树永久标
 - 自动合并冲突的最终解决 UI（只要求检测并阻止静默覆盖）
 - 基于时间或大小的 commit 自动清理策略
 - 改变 `VersionManager.switchBranch()` 的现有默认行为（见 US-308）
+- **未提交变更对查询不可见**的长事务 / 预览语义（已裁决）：`save()` 后数据立即对全部查询生效，
+  commit 只是存档打点。「staged 的东西一起生效」需要读时按 HEAD 过滤或影子表，是数量级的成本上升
+  且会波及全部既有查询路径。它在 Git 里的对照物不是 commit，而是「在分支上工作」，应走分支而非 commit
+- **detached HEAD、`checkout` 到历史 commit 与只读历史浏览**（已裁决）：v1 只提供 [US-307](../stories/collaboration/US-307-restore-session.md)
+  的 **restore**——把旧版本内容作为**新的未提交变更**写回当前工作树，不移动 HEAD、不改写历史。
+  「切过去看一眼再切回来」需要先解禁上面的「自动 stash / 跨分支携带脏工作树」，两条一起解才有意义，
+  不在本 Epic 内夹带
+
+> 上面两条是 2026-08-22 的显式裁决，不是遗漏。它们直接对应两个反复被提起的直觉——
+> 「commit 应该像事务提交一样让一批变更一起生效」和「应该能像 `git checkout` 一样切到历史版本」。
+> 本 Epic 的答案分别是「那是分支，不是 commit」和「那是 restore，不是 checkout」；
+> 要改结论必须先改本节，不能靠在某条 story 里追加 AC 悄悄扩范围。

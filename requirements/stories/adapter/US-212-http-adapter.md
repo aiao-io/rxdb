@@ -85,7 +85,7 @@ Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另�
 | 8   | 远端返回 HTTP 401                                      | QueryCache 读或写                                                           | 可判别鉴权错误，**不**被 US-020 的 `offlineFallback` 吞成缓存命中                                  | ⬜   |
 | 9   | 网络断开                                               | 同上                                                                        | 可判别网络错误；`offlineFallback: true` 且有缓存时才降级（US-020 AC#16）                           | ⬜   |
 | 10  | search / graph 插件已装，`inject: ['adapter:local']`   | 连接 HTTP + sqlite                                                          | 插件绑到独立注册的 sqlite，不绑 HTTP、不另开一份库                                                 | ⬜   |
-| 11  | 一批 mutations 混入 HTTP-QueryCache 实体与 Full 实体   | `EntityManager.mutations`                                                   | 拒绝（US-020 AC#6）；HTTP 适配器不得绕过混批闸门                                                   | ⬜   |
+| 11  | 一批 mutations 混入 HTTP-QueryCache 实体与 Full 实体   | `EntityManager.mutations`                                                   | 拒绝（US-020 AC#6），错误码复用 `mixed_versioned_cache_transaction`；HTTP 适配器不得绕过混批闸门   | ⬜   |
 | 12  | 对照实体仍是 `SyncType.Full` + supabase 或 sqlite      | 跑既有套件                                                                  | 用户可见行为不变；本包不改 Full/Filter 写本地                                                      | ⬜   |
 | 13  | 新包落地                                               | `pnpm nx lint/test/build`、api-baseline、`inject` 契约测试                  | 绿；`declare module` 扩 `RxDBAdapters`；覆盖率按非核心包 ≥ 80%                                     | ⬜   |
 | 14  | 能力矩阵 / 公开文档                                    | 关闭阶段 A                                                                  | HTTP 行从「待实现」改为已实现但仍写清：v1 只支持 QueryCache，changelog 方法 unsupported            | ⬜   |
@@ -140,11 +140,20 @@ YAML 没有 `depends-on` 字段。依赖写在这里、交付阶段表、以及 
 
 本故事关闭前不改 US-203。能力矩阵在故事落盘时先加「待实现 / US-212」行（派生视图同步，见本次提交）；包落地后再改成已实现。
 
+**排期约束：本包不得在 [US-306](../collaboration/US-306-working-tree-index.md) 阶段 A 的 bypass 门禁冻结前标可发布。**
+本包的缓存写路径核心就是 `upsertMany()` / `deleteByIds()`，而这两个方法正是 US-306 阶段 A 要挂门禁的对象。
+先发包、后收门禁，等于对一个已发布包做 breaking change；反过来先冻门禁再发包，本包只需在实现里遵守
+「只对 QueryCache 实体调这两个方法」就自动合规。这条与 US-020 那条「阶段 A 关闭前不得把 HTTP 包标可发布」
+是两个独立的前置，**都要满足**。
+
 ## References
 
 - [US-020 QueryCache 接入统一 Repository](../core/US-020-querycache-repository.md) — **硬前置**
 - [US-203 Supabase 适配器](./US-203-supabase-adapter.md) — 分页/分块与 QueryCache ducks 的对标；不 inherit AC
 - [US-201 SQLite 适配器](./US-201-sqlite-adapter.md) / sqlite-core — 独立 local 缓存后端
 - [US-015](../core/US-015-plugin-inject-dependency.md) — `inject: ['adapter:remote']`
-- [US-306 FR-046](../collaboration/US-306-working-tree-index.md) — cache 排除在 working tree 外（兼容，不实现）
+- [US-306 FR-046](../collaboration/US-306-working-tree-index.md) — cache 排除在 working tree 外（兼容，不实现）。
+  兼容的**具体机制**是：本包的缓存写路径最终落到 `upsertMany()` / `deleteByIds()`，US-306 阶段 A 会按目标实体
+  `sync.type` 给这两个方法挂 bypass 门禁（[US2-AC23](../collaboration/US-306-working-tree-index.md)）——QueryCache 实体放行，
+  版本化实体拒绝。本包只要**保证自己只对 QueryCache 实体调这两个方法**即可自动兼容，无须感知工作树
 - [epic-004](../../epics/epic-004-future-features.md)
