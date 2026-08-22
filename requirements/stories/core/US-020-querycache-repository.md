@@ -30,7 +30,16 @@ INVEST 检查清单:
 
 阶段顺序有向：先让生产调用打到已有类，再修该类从未被真实 EntityManager 验证过的降级。反过来不成立——先打磨一个没有实例化路径的类，网站上的空操作谎言还在。
 
-**不得在阶段 A 关闭前把 HTTP 包（[US-212](../adapter/US-212-http-adapter.md)）标可发布。** QueryCache 接线独立有价值：supabase 已经声明了 QueryCache ducks（[US-203 AC#6](../adapter/US-203-supabase-adapter.md) ✅），缺的是引擎把它当生产路径。
+**本故事的两个阶段各自解锁 HTTP 包（[US-212](../adapter/US-212-http-adapter.md)）发布门禁的一档**（[roadmap 约束 10](../../roadmap.md#排期约束)）：
+
+| 本故事阶段 | 解锁 US-212 的                                                                         |
+| ---------- | -------------------------------------------------------------------------------------- |
+| 阶段 A     | 以 `experimental` 发布（README / npm 描述必须写明 experimental，不得给缓存一致性承诺） |
+| 阶段 B     | 标 `stable`、给缓存一致性承诺                                                          |
+
+即：**阶段 A 关闭前 HTTP 包不得以任何形式标可发布；阶段 B 关闭前不得标 `stable`。** 代码可并行——门禁卡的是发布动作，不是开工。
+
+QueryCache 接线独立有价值：supabase 已经声明了 QueryCache ducks（[US-203 AC#6](../adapter/US-203-supabase-adapter.md) ✅），缺的是引擎把它当生产路径。
 
 ## 作为/我想要/以便
 

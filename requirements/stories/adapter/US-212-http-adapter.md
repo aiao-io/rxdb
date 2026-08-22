@@ -23,10 +23,10 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 交付                                                                                            | 直接前置        | AC 区段   | 状态 |
-| ---- | ----------------------------------------------------------------------------------------------- | --------------- | --------- | ---- |
+| 阶段 | 交付                                                                                                                           | 直接前置                            | AC 区段   | 状态 |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------- | --------- | ---- |
 | A    | `@aiao/rxdb-adapter-http`：RemoteBase + 注入 handlers + QueryCache ducks + 分页/分块 + 错误分类 + QueryCache-only 写路径不变量 | US-020 阶段 A（仅发布，代码可并行） | AC#1～15  | ⬜   |
-| B    | REST resource URL 模板、可选 ETag/If-None-Match；可选 SSE/invalidation；可选 eviction           | 阶段 A          | AC#16～19 | ⬜   |
+| B    | REST resource URL 模板、可选 ETag/If-None-Match；可选 SSE/invalidation；可选 eviction                                          | 阶段 A                              | AC#16～19 | ⬜   |
 
 **硬前置：[US-020](../core/US-020-querycache-repository.md)。** 阶段 A 代码可以在接线故事并行开发，**包不得在 US-020 阶段 A 关闭前标可发布**。否则开发者配 `SyncType.QueryCache` + HTTP + sqlite，find 仍打本地、save 仍进 sqlite changelog——比没有这个包更糟，因为它看起来「接上了」。
 
@@ -58,6 +58,7 @@ Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另�
 - `pullChanges` / `mergeChanges` / `getChangeCount` / `pullChangesBatch` throw unsupported，**不得假空**
 - 401 vs 网络错误可判别（对齐 US-020 阶段 B 的 offlineFallback 分类）
 - auth hook（注入 token / header，不内置 OAuth 流程）
+- **QueryCache-only 写路径不变量**（阶段 A 内自持，替代原先的 epic-006 前置）：本包的缓存写路径 MUST 只对 `sync.type === SyncType.QueryCache` 的实体调用 `upsertMany()` / `deleteByIds()`，任何情况下不得对版本化实体调用这两个方法；由本包内一条契约测试冻结，复用 [adapter-contract §4.6](../../../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决) 的同一份版本化实体表清单
 - 阶段 B：REST mapping、可选条件请求、可选失效与 eviction
 
 ### Out of Scope
@@ -71,37 +72,39 @@ Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另�
 - `plugin:*` inject；encryption 当传输层
 - 未定义协议的 bigint/binary remote wire（US-012 约束：不要在 HTTP JSON 里偷偷发明 codec）
 - 重开 epic-002；改 US-203 的 ✅ AC
-- 在 US-020 关闭前把本包标稳定/可发布
+- 在 US-020 **阶段 A** 关闭前把本包标为可发布（含 `experimental`）
+- 在 US-020 **阶段 B** 关闭前把本包标为 `stable`、或在 README/npm 描述里给出缓存一致性承诺
 
 ## 验收标准
 
 ### 阶段 A — handlers 远程适配器
 
-| #   | 前置条件                                               | 操作                                                                        | 预期结果                                                                                           | 状态 |
-| --- | ------------------------------------------------------ | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ---- |
-| 1   | US-020 已关闭；workspace 可解析新包                    | `createRxDatabase` 注册 `{ adapter: 'http', ...handlers }` 为 remote        | 适配器作为 `adapter:remote` 连接；`ADAPTER_NAME === 'http'`                                        | ⬜   |
-| 2   | HTTP remote + 独立 sqlite local，`SyncType.QueryCache` | `getRepository(E).find({ where })`                                          | 远端收到 JSON `RuleGroup`，**收不到 SQL**；本地 sqlite 被 `upsertMany` 写成行缓存                  | ⬜   |
-| 3   | 同上                                                   | `create` / `update` / `delete`                                              | 走 US-020 的 remote-then-local；HTTP 适配器自身不 `new` sqlite、不打开 OPFS/IDB                    | ⬜   |
-| 4   | handlers 未提供 `create`                               | `repo.create(...)`                                                          | fail-fast（`QueryCacheRepository` 已有的「Remote adapter does not support create」语义），不写本地 | ⬜   |
-| 5   | metadata 结果集超过单页上限                            | `fetchMetadata`                                                             | 必须翻页直到耗尽，语义同 supabase `select_all_pages`；截断的 id **不得**被当成远端已删除           | ⬜   |
-| 6   | `findByIds` 的 id 列表超过单次上限                     | 增量 pull                                                                   | 分块请求，语义同 supabase `#findByIdsInChunks`；缺块不得静默当空                                   | ⬜   |
-| 7   | HTTP 适配器已连接                                      | 调用 `pullChanges` / `mergeChanges` / `getChangeCount` / `pullChangesBatch` | 抛 unsupported（稳定错误码）；返回空数组 / 0 **算失败**——那会让 Full-sync 以为远端没变更           | ⬜   |
-| 8   | 远端返回 HTTP 401                                      | QueryCache 读或写                                                           | 可判别鉴权错误，**不**被 US-020 的 `offlineFallback` 吞成缓存命中                                  | ⬜   |
-| 9   | 网络断开                                               | 同上                                                                        | 可判别网络错误；`offlineFallback: true` 且有缓存时才降级（US-020 AC#16）                           | ⬜   |
-| 10  | search / graph 插件已装，`inject: ['adapter:local']`   | 连接 HTTP + sqlite                                                          | 插件绑到独立注册的 sqlite，不绑 HTTP、不另开一份库                                                 | ⬜   |
-| 11  | 一批 mutations 混入 HTTP-QueryCache 实体与 Full 实体   | `EntityManager.mutations`                                                   | 拒绝（US-020 AC#6），错误码复用 `mixed_versioned_cache_transaction`；HTTP 适配器不得绕过混批闸门   | ⬜   |
-| 12  | 对照实体仍是 `SyncType.Full` + supabase 或 sqlite      | 跑既有套件                                                                  | 用户可见行为不变；本包不改 Full/Filter 写本地                                                      | ⬜   |
-| 13  | 新包落地                                               | `pnpm nx lint/test/build`、api-baseline、`inject` 契约测试                  | 绿；`declare module` 扩 `RxDBAdapters`；覆盖率按非核心包 ≥ 80%                                     | ⬜   |
-| 14  | 能力矩阵 / 公开文档                                    | 关闭阶段 A                                                                  | HTTP 行从「待实现」改为已实现但仍写清：v1 只支持 QueryCache，changelog 方法 unsupported            | ⬜   |
+| #   | 前置条件                                               | 操作                                                                        | 预期结果                                                                                                          | 状态 |
+| --- | ------------------------------------------------------ | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | US-020 **阶段 A** 已关闭；workspace 可解析新包         | `createRxDatabase` 注册 `{ adapter: 'http', ...handlers }` 为 remote        | 适配器作为 `adapter:remote` 连接；`ADAPTER_NAME === 'http'`                                                       | ⬜   |
+| 2   | HTTP remote + 独立 sqlite local，`SyncType.QueryCache` | `getRepository(E).find({ where })`                                          | 远端收到 JSON `RuleGroup`，**收不到 SQL**；本地 sqlite 被 `upsertMany` 写成行缓存                                 | ⬜   |
+| 3   | 同上                                                   | `create` / `update` / `delete`                                              | 走 US-020 的 remote-then-local；HTTP 适配器自身不 `new` sqlite、不打开 OPFS/IDB                                   | ⬜   |
+| 4   | handlers 未提供 `create`                               | `repo.create(...)`                                                          | fail-fast（`QueryCacheRepository` 已有的「Remote adapter does not support create」语义），不写本地                | ⬜   |
+| 5   | metadata 结果集超过单页上限                            | `fetchMetadata`                                                             | 必须翻页直到耗尽，语义同 supabase `select_all_pages`；截断的 id **不得**被当成远端已删除                          | ⬜   |
+| 6   | `findByIds` 的 id 列表超过单次上限                     | 增量 pull                                                                   | 分块请求，语义同 supabase `#findByIdsInChunks`；缺块不得静默当空                                                  | ⬜   |
+| 7   | HTTP 适配器已连接                                      | 调用 `pullChanges` / `mergeChanges` / `getChangeCount` / `pullChangesBatch` | 抛 unsupported（稳定错误码）；返回空数组 / 0 **算失败**——那会让 Full-sync 以为远端没变更                          | ⬜   |
+| 8   | 远端返回 HTTP 401                                      | QueryCache 读或写                                                           | 可判别鉴权错误，**不**被 US-020 的 `offlineFallback` 吞成缓存命中                                                 | ⬜   |
+| 9   | 网络断开                                               | 同上                                                                        | 可判别网络错误；`offlineFallback: true` 且有缓存时才降级（US-020 AC#16）                                          | ⬜   |
+| 10  | search / graph 插件已装，`inject: ['adapter:local']`   | 连接 HTTP + sqlite                                                          | 插件绑到独立注册的 sqlite，不绑 HTTP、不另开一份库                                                                | ⬜   |
+| 11  | 一批 mutations 混入 HTTP-QueryCache 实体与 Full 实体   | `EntityManager.mutations`                                                   | 拒绝（US-020 AC#6），错误码复用 `mixed_versioned_cache_transaction`；HTTP 适配器不得绕过混批闸门                  | ⬜   |
+| 12  | 对照实体仍是 `SyncType.Full` + supabase 或 sqlite      | 跑既有套件                                                                  | 用户可见行为不变；本包不改 Full/Filter 写本地                                                                     | ⬜   |
+| 13  | 新包落地                                               | `pnpm nx lint/test/build`、api-baseline、`inject` 契约测试                  | 绿；`declare module` 扩 `RxDBAdapters`；覆盖率按非核心包 ≥ 80%                                                    | ⬜   |
+| 14  | 能力矩阵 / 公开文档                                    | 关闭阶段 A                                                                  | HTTP 行从「待实现」改为已实现但仍写清：v1 只支持 QueryCache，changelog 方法 unsupported                           | ⬜   |
+| 15  | 契约测试构造一个 `SyncType.Full` 版本化实体            | 让本包缓存写路径尝试对它 `upsertMany()` / `deleteByIds()`                   | 在本包内被拒（不是靠 epic-006 门禁兜底）；只有 `SyncType.QueryCache` 实体放行；版本化实体表清单复用 §4.6 的同一份 | ⬜   |
 
 ### 阶段 B — REST mapping 与可选加速
 
 | #   | 前置条件                       | 操作                                  | 预期结果                                                             | 状态 |
 | --- | ------------------------------ | ------------------------------------- | -------------------------------------------------------------------- | ---- |
-| 15  | 阶段 A handlers 可用           | 用 resource URL 模板代替手写 handlers | 等价于阶段 A 的 QueryCache ducks；模板解析失败 fail-fast，不发错 URL | ⬜   |
-| 16  | 远端支持 ETag / If-None-Match  | 重复 `fetchMetadata` / `findByIds`    | 304 时不把「未修改」当成空集或假孤儿                                 | ⬜   |
-| 17  | 可选 SSE / invalidation 未配置 | 正常 QueryCache 查询                  | 行为与阶段 A 相同；缺可选能力不降级、不抛                            | ⬜   |
-| 18  | 可选 eviction 未配置           | 行缓存增长                            | 不自动删业务行；eviction 若实现必须是显式策略，默认不丢用户数据      | ⬜   |
+| 16  | 阶段 A handlers 可用           | 用 resource URL 模板代替手写 handlers | 等价于阶段 A 的 QueryCache ducks；模板解析失败 fail-fast，不发错 URL | ⬜   |
+| 17  | 远端支持 ETag / If-None-Match  | 重复 `fetchMetadata` / `findByIds`    | 304 时不把「未修改」当成空集或假孤儿                                 | ⬜   |
+| 18  | 可选 SSE / invalidation 未配置 | 正常 QueryCache 查询                  | 行为与阶段 A 相同；缺可选能力不降级、不抛                            | ⬜   |
+| 19  | 可选 eviction 未配置           | 行缓存增长                            | 不自动删业务行；eviction 若实现必须是显式策略，默认不丢用户数据      | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -144,20 +147,26 @@ YAML 没有 `depends-on` 字段。依赖写在这里、交付阶段表、以及 
 
 本故事关闭前不改 US-203。能力矩阵在故事落盘时先加「待实现 / US-212」行（派生视图同步，见本次提交）；包落地后再改成已实现。
 
-**排期约束：本包不得在 [US-306](../collaboration/US-306-working-tree-commits.md) 阶段 A 的 bypass 门禁冻结前标可发布。**
-本包的缓存写路径核心就是 `upsertMany()` / `deleteByIds()`，而这两个方法正是 US-306 阶段 A 要挂门禁的对象。
-先发包、后收门禁，等于对一个已发布包做 breaking change；反过来先冻门禁再发包，本包只需在实现里遵守
-「只对 QueryCache 实体调这两个方法」就自动合规。这条与 US-020 那条「阶段 A 关闭前不得把 HTTP 包标可发布」
-是两个独立的前置，**都要满足**。
+**排期约束（2026-08-22 修订）：本包的发布只前置于 [US-020](../core/US-020-querycache-repository.md) 阶段 A，不再前置于
+[US-306](../collaboration/US-306-working-tree-commits.md) 阶段 A。**
+旧判据是：本包缓存写路径核心的 `upsertMany()` / `deleteByIds()` 正是 US-306 阶段 A 要挂门禁的对象，先发包后收门禁
+等于对已发布包做 breaking change。这条对**本包**不成立——它成立的前提是「门禁怎么裁决还没定」，而
+[adapter-contract §4.6](../../../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决)
+第 5 步已经裁定「查询缓存实体表 → 放行」，US-306 阶段 A（[US2-AC23](../collaboration/US-306-working-tree-commits.md)）补的是
+`upsertMany()` / `deleteByIds()` 这两个入口的**覆盖面**，不是改结论。所以只要本包自己守住 In Scope / AC#15 那条
+「只对 `SyncType.QueryCache` 实体调这两个方法」，US-306 阶段 A 落地时对本包就是 no-op，没有 breaking change 可言。
+代价是这条不变量从此由**本包的契约测试**担保，而不是等引擎门禁兜底——所以它是阶段 A 的一条 AC，不是一句注释。
+US-306 阶段 A 的 SC-004 漂移扫描应把本包纳入扫描范围（[roadmap 约束 11](../../roadmap.md#排期约束)）。
 
 ## References
 
-- [US-020 QueryCache 接入统一 Repository](../core/US-020-querycache-repository.md) — **硬前置**
+- [US-020 QueryCache 接入统一 Repository](../core/US-020-querycache-repository.md) — **唯一硬前置**（阶段 A 卡 `experimental` 发布，阶段 B 卡 `stable`；均不卡开工）
 - [US-203 Supabase 适配器](./US-203-supabase-adapter.md) — 分页/分块与 QueryCache ducks 的对标；不 inherit AC
 - [US-201 SQLite 适配器](./US-201-sqlite-adapter.md) / sqlite-core — 独立 local 缓存后端
 - [US-015](../core/US-015-plugin-inject-dependency.md) — `inject: ['adapter:remote']`
 - [US-306 FR-046](../collaboration/US-306-working-tree-commits.md) — cache 排除在 working tree 外（兼容，不实现）。
   兼容的**具体机制**是：本包的缓存写路径最终落到 `upsertMany()` / `deleteByIds()`，US-306 阶段 A 会按目标实体
   `sync.type` 给这两个方法挂 bypass 门禁（[US2-AC23](../collaboration/US-306-working-tree-commits.md)）——QueryCache 实体放行，
-  版本化实体拒绝。本包只要**保证自己只对 QueryCache 实体调这两个方法**即可自动兼容，无须感知工作树
+  版本化实体拒绝。本包只要**保证自己只对 QueryCache 实体调这两个方法**即可自动兼容，无须感知工作树。
+  该保证由本故事 AC#15 自持，**不构成对 US-306 的排期前置**
 - [epic-004](../../epics/epic-004-future-features.md)

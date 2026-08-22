@@ -102,6 +102,7 @@
    篡改已发布版本的记录比留着它更糟。本步唯一要动的是 `release.version`：
    它必须变成一个 **≠ `0.0.25`** 的新版本号，与 `packages/rxdb/package.json` 同值。
    这条「版本号必须是新的」**没有任何自动化在守**（原因见下方门禁三钩子一节），只能靠这一步的人工确认。
+
 4. **本地预检**：`pnpm nx run @aiao/source:migration-release-gate-test` 与
    `pnpm nx run @aiao/source:migration-release-gate --args="--release-tag=v<实际版本>"` 全绿后才允许提交。
 5. **提交并打 tag 推送**：package.json 与清单在同一个提交里，tag 指向 `main` 上的该提交。
