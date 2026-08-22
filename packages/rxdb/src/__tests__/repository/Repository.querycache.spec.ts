@@ -313,6 +313,36 @@ describe('US-020 阶段 A：QueryCache 接入统一 Repository', () => {
     expect(stats[0].remoteCount).toBe(25);
   });
 
+  // AC#3：Full 实体一步都不许踏进 QueryCache 分支 —— 读仍是本地 find，写仍落本地（进 changelog）
+  it('AC#3 SyncType.Full 的读写不经 QueryCache 路径', async () => {
+    const full = setup({ EntityType: VersionedEntity });
+
+    await firstValueFrom(full.repository.find({ where: where(), limit: 10, offset: 20 }));
+    expect(full.localRepo.find).toHaveBeenCalledWith(expect.objectContaining({ limit: 10, offset: 20 }));
+    expect(full.remoteAdapter.fetchMetadata).not.toHaveBeenCalled();
+    expect(full.localAdapter.getMetadataByIds).not.toHaveBeenCalled();
+
+    await full.repository.create(row('b', '2024-01-04T00:00:00Z'));
+    // 写落本地行仓储（版本化路径靠它进 changelog），而不是 remote-then-local
+    expect(full.localRepo.create).toHaveBeenCalledTimes(1);
+    expect(full.remoteAdapter.create).not.toHaveBeenCalled();
+    expect(full.localAdapter.upsertMany).not.toHaveBeenCalled();
+  });
+
+  // AC#3：QueryCache 新增的两个 FindOptions 字段对其余策略是惰性的，不得改变行为
+  it('AC#3 Full 实体忽略 localCacheFirst / onSyncStats', async () => {
+    const full = setup({ EntityType: VersionedEntity, cachedRows: [row('a', '2024-01-01T00:00:00Z', 1)] });
+    const stats: SyncStats[] = [];
+
+    await firstValueFrom(
+      full.repository.find({ where: where(), localCacheFirst: true, onSyncStats: value => stats.push(value) })
+    );
+
+    expect(full.localAdapter.findAll).not.toHaveBeenCalled();
+    expect(stats).toHaveLength(0);
+    expect(full.localRepo.find).toHaveBeenCalledTimes(1);
+  });
+
   // AC#7：不继承 base 的自定义适配器缺 duck 时 fail-fast，不降级成空数组
   it('AC#7 缺必需 duck 时抛 RxDBQueryCacheCapabilityError 并列出缺失项', async () => {
     const localRepo = createLocalRepo([]);

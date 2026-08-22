@@ -212,6 +212,30 @@ describe('US-020 阶段 A：批量入口的 QueryCache 去向', () => {
     expect(ctx.local.deleteByIds).toHaveBeenCalledTimes(1);
   });
 
+  // AC#3：纯 Full 批次照旧走 adapter.mutations（一次事务写 local changelog），新预检不得改道
+  it('AC#3 纯 Full 批次仍走 local adapter.mutations', async () => {
+    const one = dirtyEntity(ctx.rxdb.entityManager.createEntityRef(VersionedTodo, { title: 'a', id: uuid() }));
+    const two = dirtyEntity(ctx.rxdb.entityManager.createEntityRef(VersionedTodo, { title: 'b', id: uuid() }));
+
+    await ctx.rxdb.entityManager.saveMany([one, two]);
+
+    expect(ctx.local.mutations).toHaveBeenCalledTimes(1);
+    // remote-then-local 的三个出口一个都不该亮
+    expect(ctx.remote.create).not.toHaveBeenCalled();
+    expect(ctx.local.upsertMany).not.toHaveBeenCalled();
+  });
+
+  // AC#3：Full 的批量删除同样留在 mutations 事务里
+  it('AC#3 纯 Full 批量删除仍走 local adapter.mutations', async () => {
+    const one = ctx.rxdb.entityManager.createEntityRef(VersionedTodo, { title: 'a', id: uuid() }, { local: true });
+
+    await ctx.rxdb.entityManager.removeMany([one]);
+
+    expect(ctx.local.mutations).toHaveBeenCalledTimes(1);
+    expect(ctx.remote.delete).not.toHaveBeenCalled();
+    expect(ctx.local.deleteByIds).not.toHaveBeenCalled();
+  });
+
   // AC#8 + D12：纯元数据就能判定的组合，在配置期拒绝，不拖到首次调用
   it('AC#8 TreeRepository + QueryCache 在 init() 即 fail-fast', () => {
     expect(() => createDatabase('TreeQueryCache', [CachedMenu])).toThrow(/QueryCache/);
