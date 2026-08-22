@@ -15,9 +15,9 @@
  */
 import type { RxDBMutationsMap } from '../rxdb-adapter.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
-import { RxDBError } from '../RxDBError.js';
+import { RxDBError, RxDBMixedVersionedCacheTransactionError } from '../RxDBError.js';
 import type { EntityType } from './entity.interface.js';
-import type { SyncOptions } from './metadata-options.interface.js';
+import { type SyncOptions, SyncType } from './metadata-options.interface.js';
 
 /** 写入落到哪一侧适配器 */
 export type PrimaryAdapterKind = 'local' | 'remote';
@@ -115,6 +115,42 @@ export function resolveBatchPrimaryAdapter(
     throw new RxDBMissingPrimaryAdapterError([...kinds][0], EntityTypes.map(entityLabel));
   }
   return resolved;
+}
+
+/**
+ * 判定一批修改是否走 QueryCache 的写路径。
+ *
+ * @param EntityTypes - 本批涉及的实体类型
+ * @param databaseSync - 数据库级同步配置
+ * @returns `true` 表示整批都是 QueryCache 实体，须走 remote-then-local
+ * @throws {@link RxDBMixedVersionedCacheTransactionError} 批内混有 QueryCache 与非 QueryCache 实体
+ *
+ * @remarks
+ * QueryCache 的写不是「落到哪一侧」的问题，因此它不进 {@link selectPrimaryAdapterKind}——
+ * 那个枚举仍然只有 local / remote 两种，适配器模型没变（US-020 D3）。
+ * 这里回答的是另一个问题：这批该交给 `adapter.mutations()`，还是交给
+ * `QueryCacheRepository` 的 remote-then-local。
+ *
+ * 混批一律拒绝而不是拆开各写各的：版本化实体写本地并进 changelog，QueryCache 实体先写远端再落
+ * 可丢弃缓存，拆开执行只会得到「一半进了变更历史、一半没有」。
+ *
+ * 调用点须先跑 {@link resolveBatchPrimaryAdapter}：那样「QueryCache + remote-only」报的是更准确的
+ * {@link RxDBMixedPrimaryAdapterError}，而不是被这里当成「版本化实体」。
+ */
+export function isQueryCacheBatch(
+  EntityTypes: readonly EntityType[],
+  databaseSync: SyncOptions | undefined
+): boolean {
+  const cacheEntities: string[] = [];
+  const versionedEntities: string[] = [];
+  for (const EntityType of EntityTypes) {
+    const isCache = getEntitySync(EntityType, databaseSync)?.type === SyncType.QueryCache;
+    (isCache ? cacheEntities : versionedEntities).push(entityLabel(EntityType));
+  }
+  if (cacheEntities.length > 0 && versionedEntities.length > 0) {
+    throw new RxDBMixedVersionedCacheTransactionError(cacheEntities, versionedEntities);
+  }
+  return cacheEntities.length > 0;
 }
 
 /**

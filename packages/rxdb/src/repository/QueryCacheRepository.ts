@@ -145,11 +145,13 @@ export interface SyncStats {
  * const product = await firstValueFrom(repo.findById('product-123'));
  * ```
  *
+ * @remarks
+ * 生产路径不直接 `new` 本类：`SyncType.QueryCache` 的实体由 {@link Repository} 经
+ * `createQueryCachePrimary` 接入（US-020 阶段 A），本类只负责 metadata-diff 与增量 pull。
+ *
  * @experimental
- * 该类目前**没有生产实例化路径**：`SyncType.QueryCache` 可以配置，但统一 Repository 并未接入它，
- * 只有测试直接 `new` 它。在接入之前不要在应用代码中依赖本类——它的若干降级行为
- * （同 where 不同模式共用 inflight key、缺 `findByIds` 时降级成空数组、offline fallback
- * 吞掉业务错误、计算出 orphan 却不删除）都还没有经过真实 EntityManager / adapter 的验证。
+ * 以下降级行为尚未收口（US-020 阶段 B）：缺 `findByIds` 时 `#getLocalDataByIds` 降级成空数组、
+ * offline fallback 会把业务错误一并吞成「离线」、算出了 `orphanCount` 却不删除本地孤儿。
  */
 export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
   /** 并发查询去重缓存 - 使用查询指纹作为 key */
@@ -199,7 +201,7 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
    * ```
    */
   find(options: QueryCacheFindOptions<T>): Observable<InstanceType<T>[]> {
-    const fingerprint = this.#getQueryFingerprint(options.where);
+    const fingerprint = this.#getQueryFingerprint(options);
 
     // 检查是否有正在进行的相同查询
     const inflight = this.#inflightQueries.get(fingerprint);
@@ -643,11 +645,23 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
   /**
    * 生成查询指纹（用于并发去重）
    *
-   * @param query - 查询条件
+   * @param options - 查询选项
    * @returns 查询指纹字符串
+   *
+   * @remarks
+   * 指纹覆盖 `where` **加上两个模式开关**：三者决定的是不同的结果流形状
+   * （SWR 会先发一次缓存，offlineFallback 会把网络错误换成缓存），只按 `where` 去重
+   * 会让要 SWR 的调用拿到标准模式那条流，模式参数形同虚设（US-020 AC#13）。
+   *
+   * `onSyncStats` 不进指纹：函数没有可靠的值身份，`deterministicStringify` 明确拒绝函数值。
+   * 归一化成布尔而不是原样带上，是为了让 `undefined` 与显式 `false` 命中同一个 key。
    */
-  #getQueryFingerprint(query: RuleGroup<InstanceType<T>>): string {
+  #getQueryFingerprint(options: QueryCacheFindOptions<T>): string {
     // 使用确定性序列化，保证键顺序不同但语义相同的查询得到同一指纹
-    return deterministicStringify(query);
+    return deterministicStringify({
+      where: options.where,
+      localCacheFirst: options.localCacheFirst === true,
+      offlineFallback: options.offlineFallback === true
+    });
   }
 }

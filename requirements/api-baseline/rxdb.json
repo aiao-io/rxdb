@@ -1297,6 +1297,10 @@
       "kind": "both"
     },
     {
+      "name": "RxDBMixedVersionedCacheTransactionError",
+      "kind": "both"
+    },
+    {
       "name": "RxDBMutationsMap",
       "kind": "type"
     },
@@ -1315,6 +1319,10 @@
     {
       "name": "RxDBPluginDependency",
       "kind": "type"
+    },
+    {
+      "name": "RxDBQueryCacheCapabilityError",
+      "kind": "both"
     },
     {
       "name": "RxDBScalar",

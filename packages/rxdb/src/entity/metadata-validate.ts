@@ -19,7 +19,9 @@ import {
   EntityPropertyMetadata,
   EntityRelationMetadata,
   FieldFormat,
-  PropertyType
+  PropertyType,
+  SyncOptions,
+  SyncType
 } from './metadata-options.interface.js';
 import { EntityMetadata } from './metadata.interface.js';
 
@@ -27,7 +29,7 @@ import { EntityMetadata } from './metadata.interface.js';
  * 注册期元数据校验规则。
  *
  * @remarks
- * 全集 13 项，由 {@link validateEntityMetadata} 产出。
+ * 全集 14 项，由 {@link validateEntityMetadata} 产出。
  * `missingRelationPrimary` / `unsupportedRelationValueType` 属于 {@link RelationResolutionRule}，
  * 由字段描述 DTO 的生成阶段产出，不在本联合内。
  */
@@ -44,7 +46,8 @@ export type MetadataValidationRule =
   | 'duplicateEnum'
   | 'enumOptionsMismatch'
   | 'invalidOptionsConfig'
-  | 'cardinalityConflict';
+  | 'cardinalityConflict'
+  | 'unsupportedTreeQueryCache';
 
 /**
  * 关系目标解析规则。
@@ -404,6 +407,37 @@ const validateRelation = (collector: ViolationCollector, relation: EntityRelatio
   }
 };
 
+/**
+ * 校验生效的同步策略与仓储类型的组合。
+ *
+ * @param collector - 违规收集器
+ * @param metadata - 实体元数据
+ * @param databaseSync - 数据库级 `rxdb.config.sync`；实体自己没写 `sync` 时生效
+ *
+ * @remarks
+ * `TreeRepository` 的 `findDescendants` / `findAncestors` 是本地表上的递归查询，前提是祖先链
+ * 完整落在本地；QueryCache 只保证「查过的 `where` 命中的那些行」在本地，中间节点可以整段缺失，
+ * 递归会在缺口处静默截断 —— 返回的是一棵少了枝干的树，不是一个错误。
+ *
+ * 这条判定只看元数据与数据库级配置，不需要适配器，因此归在配置期（US-020 D12）。
+ */
+const validateSyncStrategy = (
+  collector: ViolationCollector,
+  metadata: EntityMetadata,
+  databaseSync: SyncOptions | undefined
+): void => {
+  const sync = metadata.sync ?? databaseSync;
+  if (sync?.type !== SyncType.QueryCache) return;
+  if (metadata.repository !== 'TreeRepository') return;
+  collector.add(
+    'sync',
+    'unsupportedTreeQueryCache',
+    `TreeRepository 不支持 SyncType.QueryCache：树查询依赖本地完整的祖先链，` +
+      `而缓存只覆盖查过的 where 命中的行，递归会在缺口处静默截断。` +
+      `改用 SyncType.Full / Filter，或把该实体换成普通 Repository。`
+  );
+};
+
 /** 稳定排序：namespace → entity → field → rule。 */
 const compareViolations = (a: EntityMetadataValidationError, b: EntityMetadataValidationError): number =>
   a.namespace.localeCompare(b.namespace) ||
@@ -419,6 +453,8 @@ const compareViolations = (a: EntityMetadataValidationError, b: EntityMetadataVa
  * 一律转成违规条目而不是运行时崩溃。跨实体聚合与抛错由 `EntityManager.init()` 负责。
  *
  * @param metadata - `transitionMetadata()` 产出的实体元数据
+ * @param databaseSync - 数据库级 `rxdb.config.sync`；实体没写 `sync` 时由它生效。
+ *   省略即只看实体自己的声明
  * @returns 排序后的违规列表；无违规时为空数组
  *
  * @example
@@ -427,11 +463,15 @@ const compareViolations = (a: EntityMetadataValidationError, b: EntityMetadataVa
  * if (errors.length > 0) throw new RxDBError(errors.map(e => e.message).join('\n'));
  * ```
  */
-export function validateEntityMetadata(metadata: EntityMetadata): readonly EntityMetadataValidationError[] {
+export function validateEntityMetadata(
+  metadata: EntityMetadata,
+  databaseSync?: SyncOptions
+): readonly EntityMetadataValidationError[] {
   const collector = new ViolationCollector(metadata.namespace, metadata.name);
   metadata.propertyMap.forEach(property => validateProperty(collector, property));
   metadata.computedPropertyMap.forEach(property => validateProperty(collector, property));
   metadata.relationMap.forEach(relation => validateRelation(collector, relation));
+  validateSyncStrategy(collector, metadata, databaseSync);
   return collector.drain().sort(compareViolations);
 }
 
@@ -451,9 +491,11 @@ export function formatMetadataViolations(errors: readonly EntityMetadataValidati
  * 跨实体聚合校验，并把全部违规排序后一次性返回。
  *
  * @param metadataList - 待校验的实体元数据集合
+ * @param databaseSync - 数据库级 `rxdb.config.sync`；实体没写 `sync` 时由它生效
  */
 export function validateEntityMetadataSet(
-  metadataList: readonly EntityMetadata[]
+  metadataList: readonly EntityMetadata[],
+  databaseSync?: SyncOptions
 ): readonly EntityMetadataValidationError[] {
-  return metadataList.flatMap(metadata => validateEntityMetadata(metadata)).sort(compareViolations);
+  return metadataList.flatMap(metadata => validateEntityMetadata(metadata, databaseSync)).sort(compareViolations);
 }

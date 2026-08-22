@@ -1,4 +1,5 @@
 import { EntityType } from '../entity/entity.interface.js';
+import type { SyncStats } from './QueryCacheRepository.js';
 import { RuleGroup } from './query.interface.js';
 
 /**
@@ -72,6 +73,29 @@ export interface FindOptions<
    * @default 0
    */
   offset?: number;
+
+  /**
+   * 本地缓存优先（stale-while-revalidate）
+   *
+   * @remarks
+   * 仅对 `sync.type === SyncType.QueryCache` 的实体有效，其余同步策略忽略本字段。
+   * 优先级：**调用 &gt; 配置（`sync.local.localCacheFirst`）&gt; `false`**。
+   * 该值参与查询任务的缓存键，同一 `where` 的两种模式互不复用。
+   */
+  localCacheFirst?: boolean;
+
+  /**
+   * QueryCache 增量同步完成后的统计回调
+   *
+   * @remarks
+   * 仅对 `sync.type === SyncType.QueryCache` 的实体有效。
+   * 同步范围是整个 `where`，与 `limit` 无关，用 `remoteCount` / `pulledCount`
+   * 观测拉取放大。
+   *
+   * 函数没有可靠的值身份，因此**不进**查询任务的缓存键：同一 `where` 的并发查询
+   * 会复用同一个任务，此时只有先到的那次调用的回调会被触发。
+   */
+  onSyncStats?: (stats: SyncStats) => void;
 }
 
 /**

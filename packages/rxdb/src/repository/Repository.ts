@@ -1,6 +1,6 @@
-import { firstValueFrom, map, Observable, shareReplay, switchMap, tap } from 'rxjs';
+import { combineLatest, firstValueFrom, map, Observable, shareReplay, switchMap, tap } from 'rxjs';
 import { EntityStaticType, EntityType } from '../entity/entity.interface.js';
-import { SyncOptions } from '../entity/metadata-options.interface.js';
+import { SyncOptions, SyncType } from '../entity/metadata-options.interface.js';
 import { selectPrimaryAdapterKind } from '../entity/primary-adapter.js';
 import type { RawQueryResult } from '../rxdb-adapter.js';
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
@@ -17,7 +17,9 @@ import {
   FindOptions,
   OrderBy
 } from './query-options.interface.js';
+import { createQueryCachePrimary, QueryCachePrimaryLocalAdapter } from './query-cache-primary.js';
 import { Rule, RuleGroup } from './query.interface.js';
+import type { QueryCacheRemoteAdapter } from './QueryCacheRepository.js';
 import { QueryManager } from './QueryManager.js';
 import { IRepository } from './repository.interface.js';
 import { RepositoryBase } from './RepositoryBase.js';
@@ -101,10 +103,14 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     );
     const metadata = getEntityMetadata(EntityType);
     this.sync = metadata.sync || rxdb.config.sync;
+    // QueryCache 不是「选 local 还是 remote 一侧」的问题：它的读是 metadata-diff + 增量 pull，
+    // 写是 remote-then-local，两者都跨两侧。因此在 `selectPrimaryAdapterKind` 之前分流，
+    // 而不是给那个枚举加第三种 kind —— 适配器模型仍然只有两侧。
     // 判据只有一份，批量入口（EntityManager.mutations）走的是同一个函数
     this.primary$ =
-      selectPrimaryAdapterKind(this.sync) === 'remote' ?
-        (this.remote$ as Observable<RT>)
+      this.sync?.type === SyncType.QueryCache ?
+        (this.#createQueryCachePrimary(metadata.name, this.sync.local.localCacheFirst === true) as Observable<RT>)
+      : selectPrimaryAdapterKind(this.sync) === 'remote' ? (this.remote$ as Observable<RT>)
       : (this.local$ as Observable<RT>);
     this.queryManager = new QueryManager<T>(rxdb, EntityType, this);
   }
@@ -112,6 +118,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
   destroy() {
     this.queryManager.destroy();
   }
+
 
   /**
    * 根据 id 获取实体
@@ -206,8 +213,13 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
         switchMap(repo => repo.find(normalized)),
         tap(this._setLocals)
       );
+    // `onSyncStats` 不进缓存键：`deterministicStringify` 明确拒绝函数值（同源闭包捕获不同值也会
+    // 得到同一个 key，等于把碰撞藏起来）。观测回调本来也不构成查询身份 —— 置 `undefined` 而不是
+    // 删键，序列化会跳过 `undefined` 值，于是「传了回调」与「没传」得到逐字相同的 key。
+    // 代价是同一 `where` 的并发查询共用任务时，只有先到的那次回调会被触发（已写进 TSDoc）。
+    const keyOptions: FindOptions<T> = { ...normalized, onSyncStats: undefined };
     return this.queryManager.createTask({
-      options: { type: 'find', options: normalized },
+      options: { type: 'find', options: keyOptions },
       runner,
       getFingerprint: getFingerprintByEntities
     }).result$;
@@ -353,6 +365,33 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     status.modified = false;
   };
   protected _setLocals = (entities: InstanceType<T>[]) => entities.forEach(this._setLocal);
+
+  /**
+   * 构造 QueryCache 主仓储流。
+   *
+   * @param entityName - 元数据里的实体名（打包压缩后 `EntityType.name` 不可靠）
+   * @param localCacheFirst - `sync.local.localCacheFirst`，由调用点在联合类型已收窄处取出
+   *
+   * @remarks
+   * 两侧适配器都从流里取、每次发射重建仓储，理由与 `local$` / `remote$` 相同：
+   * 在构造期 `firstValueFrom` 固化实例，会把上游适配器缓存的引用计数永久钉住，
+   * 断连重连后仍打向已断开的旧适配器。适配器能力校验放在 `map` 里，
+   * 于是「缺 duck」在**首次真正用到它的调用**上抛出，而不是在配置期误伤。
+   */
+  #createQueryCachePrimary(entityName: string, localCacheFirst: boolean): Observable<IRepository<T>> {
+    return combineLatest([this.rxdb.localAdapter$, this.rxdb.remoteAdapter$]).pipe(
+      map(([localAdapter, remoteAdapter]) =>
+        createQueryCachePrimary<T>(
+          entityName,
+          this.EntityType,
+          localAdapter as unknown as QueryCachePrimaryLocalAdapter<T>,
+          remoteAdapter as unknown as QueryCacheRemoteAdapter,
+          localCacheFirst
+        )
+      ),
+      shareReplay({ bufferSize: 1, refCount: true })
+    );
+  }
 }
 
 /**

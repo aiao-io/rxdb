@@ -263,6 +263,40 @@ describe('QueryCacheRepository', () => {
       expect(remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(2);
     });
 
+    // US-020 AC#13 / AC#24：指纹至少覆盖 where + localCacheFirst + offlineFallback。
+    // 只按 where 去重时，要 SWR 的调用会拿到标准模式那条流（反之亦然），模式参数形同虚设。
+    it('T024.5.5 同 where 不同 localCacheFirst 不共用 inflight key', async () => {
+      const remoteMetadata: QueryCacheEntityMetadata[] = [{ id: 'p1', updatedAt: '2024-01-01T00:00:00Z' }];
+      vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata).pipe(delay(10)));
+      vi.mocked(remoteAdapter.findByIds).mockReturnValue(of([]));
+      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map()));
+
+      const query = { combinator: 'and' as const, rules: [] };
+
+      await Promise.all([
+        firstValueFrom(repo.find({ where: query })),
+        firstValueFrom(repo.find({ where: query, localCacheFirst: true }))
+      ]);
+
+      expect(remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(2);
+    });
+
+    it('T024.5.6 同 where 不同 offlineFallback 不共用 inflight key', async () => {
+      const remoteMetadata: QueryCacheEntityMetadata[] = [{ id: 'p1', updatedAt: '2024-01-01T00:00:00Z' }];
+      vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of(remoteMetadata).pipe(delay(10)));
+      vi.mocked(remoteAdapter.findByIds).mockReturnValue(of([]));
+      vi.mocked(localAdapter.getMetadataByIds).mockReturnValue(of(new Map()));
+
+      const query = { combinator: 'and' as const, rules: [] };
+
+      await Promise.all([
+        firstValueFrom(repo.find({ where: query })),
+        firstValueFrom(repo.find({ where: query, offlineFallback: true }))
+      ]);
+
+      expect(remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(2);
+    });
+
     it('T024.5.4 不同 Date 查询值不应该共享请求或结果', async () => {
       const firstDate = new Date('2026-01-01T00:00:00.000Z');
       const secondDate = new Date('2026-01-02T00:00:00.000Z');
