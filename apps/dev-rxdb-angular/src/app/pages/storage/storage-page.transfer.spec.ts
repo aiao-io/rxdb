@@ -81,11 +81,11 @@ describe('StoragePageTransfer', () => {
       path: '/readme.md',
       meta: { id: '1', name: 'readme.md', size: 1, mimeType: 'text/plain', opfsPath: 'readme.md' } as never
     };
-    const storage = {,
+    const storage = {
+      upload: vi.fn().mockResolvedValue(undefined),
+      download: vi.fn(),
       listEntries: vi.fn(),
       read: vi.fn()
-      upload: vi.fn().mockResolvedValue(undefined),
-      download: vi.fn()
     };
     const refresh = vi.fn().mockResolvedValue(undefined);
     const resolveOverwrite = vi.fn().mockResolvedValue(false);
