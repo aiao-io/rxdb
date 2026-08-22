@@ -37,10 +37,18 @@ export enum SyncType {
   Filter = 'filter',
 
   /**
-   * 查询缓存同步模式
+   * 查询缓存同步模式：远端权威 + 本地行缓存，按查询 `where` 增量同步。
    *
-   * @experimental
-   * 统一 Repository 尚未接入 {@link QueryCacheRepository}，配置该模式当前不会生效。
+   * @remarks
+   * 读路径是「远端元数据 diff 本地投影 → 只拉 missing/stale → 从本地行仓储读结果」，
+   * 写路径是 remote-then-local。因此这条策略下的数据**不进本地 changelog**，
+   * 也没有版本化路径的冲突解决 —— 远端就是唯一事实源。
+   *
+   * 同步粒度是整个 `where`，与 `limit` 无关：适合用 `where` 收窄的有界结果集，
+   * 靠 `limit` 收窄会造成拉取放大（用 `find` 的 `onSyncStats.remoteCount` 观测）。
+   *
+   * 两侧适配器需具备 QueryCache 能力（本地 `getMetadataByIds` / `upsertMany` / `deleteByIds`，
+   * 远端 `fetchMetadata` / `findByIds`）；缺失时构造仓储即抛 `RxDBQueryCacheCapabilityError`。
    */
   QueryCache = 'QueryCache',
 
@@ -117,6 +125,18 @@ interface SyncQueryCacheLocalAdapterOptions extends SyncAdapterOptions {
    * true 查询默认使用本地缓存
    */
   localCacheFirst?: boolean;
+
+  /**
+   * 「刚同步过」的记忆窗口（毫秒），默认 `1000`。
+   *
+   * @remarks
+   * 同步的粒度是整个 `where`，翻页只改 `limit` / `offset`。窗口内对同一个 `where` 的重复读
+   * 直接读本地投影，不再问远端 —— 一次翻页交互只发生一次同步。
+   *
+   * 窗口只推迟重新校验，不取消它：到期、本实体发生写、适配器重连三者任一都会立即失效。
+   * 配 `0` 表示完全关闭记忆，回到「每次读都向远端校验」。
+   */
+  syncStaleTime?: number;
 }
 
 type SyncQueryCacheRemoteAdapterOptions = SyncAdapterOptions;

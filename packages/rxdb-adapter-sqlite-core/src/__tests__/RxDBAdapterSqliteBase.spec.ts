@@ -85,7 +85,10 @@ function createRxdbMock(entities: EntityType[] = []): RxDB {
     context: {},
     connect: vi.fn().mockResolvedValue(undefined),
     dispatchEvent: vi.fn(),
-    schemaManager: { getEntityTypeByTableName: vi.fn(), getEntityMetadata: vi.fn() },
+    // getEntityType：QueryCache 写入口在写完之后要把行同步回 identity cache，
+    // 需要从 entityName 反查实体类。替身默认查不到 → 写入口只落 SQL、不做缓存维护，
+    // 正是这些用例断言的范围（缓存协同由 sqlite-wasm 的 AC#21 集成用例覆盖）。
+    schemaManager: { getEntityTypeByTableName: vi.fn(), getEntityMetadata: vi.fn(), getEntityType: vi.fn() },
     versionManager: {
       getCurrentBranch: vi.fn().mockResolvedValue({ id: 'branch-id' })
     }

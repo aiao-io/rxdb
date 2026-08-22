@@ -57,6 +57,15 @@
      这也意味着算出来的版本号反映的是**提交信息的形态，不是改动的份量**——0.0.25 就是一个全新可发布包
      以 patch 发出去的例子，changelog 上看不出来。
    - 若要指定版本号，需显式传参覆盖推算结果。无论取哪个，**清单、tag、`packages/rxdb/package.json` 三处必须同为那个实际值**。
+   - **当前状态实测（2026-08-22）：那条「零 bump」的坑方向是反的，真正的风险是另一条。**
+     最近 7 条提交（`123` / `123123` 这类）确实解析不到，但 `v0.0.25` 已脱离主线，
+     `git describe --tags --abbrev=0` 解析到的基准 tag 因此**回退成 `v0.0.24`**，
+     而 `v0.0.24..HEAD` 区间里有 **11 条 `feat` + 2 条 `fix`**。两个后果必须在动手前确认：
+     ① 桥接版本会算成 **minor bump（`0.1.0`）而不是 `0.0.26`**；
+     ② 该区间**包含已随 0.0.25 发布过的提交**（`feat(rxdb): 完善桌面端访问本地 sqlite`、
+     `feat(rxdb): 优化字段语义与前端通信契约` 等），**changelog 会把 0.0.25 已发的内容再写一遍**，
+     需要决定是否手工裁剪。先跑 `pnpm nx release version --dry-run` 看真实输出再决定，
+     见 [roadmap 零散收尾项第 5 条](roadmap.md#零散收尾项不成故事随手可带)。
 
 ### 执行顺序
 
@@ -84,9 +93,16 @@
 
    `v0.0.24` 就是栽在这一步：包版本停在 `0.0.24`，清单已经写成 `0.0.25`，两者从未对齐。
 
-3. **更新清单**：`requirements/migration-release.json` 由 `kind=normal` 改为 `kind=bridge`，
-   `release.version` 填上一步实际得到的版本号。`bridge.tag` / `bridge.version` 保持 `null`——
+3. **更新清单**：`requirements/migration-release.json` 的 `release.version` 填上一步实际得到的版本号，
+   `release.kind` 确认为 `bridge`。`bridge.tag` / `bridge.version` 保持 `null`——
    桥接版本不引用桥接 tag，只有 migration 版本才填。
+
+   ⚠️ **清单里今天已经是 `kind=bridge` / `version=0.0.25`**，那是 0.0.25 那次桥接发布的**如实记录**，
+   不是本次的成果。**不要把它当作「这一步已经做完了」**，也**不要为了让门禁变红而改写它**——
+   篡改已发布版本的记录比留着它更糟。本步唯一要动的是 `release.version`：
+   它必须变成一个 **≠ `0.0.25`** 的新版本号，与 `packages/rxdb/package.json` 同值。
+   这条「版本号必须是新的」**没有任何自动化在守**（原因见下方门禁三钩子一节），只能靠这一步的人工确认。
+
 4. **本地预检**：`pnpm nx run @aiao/source:migration-release-gate-test` 与
    `pnpm nx run @aiao/source:migration-release-gate --args="--release-tag=v<实际版本>"` 全绿后才允许提交。
 5. **提交并打 tag 推送**：package.json 与清单在同一个提交里，tag 指向 `main` 上的该提交。
@@ -100,6 +116,24 @@
 真 tag 一条报错都没有，伪造 tag（`v9.9.9`）三条全部报出，fail-closed 成立。
 **门禁本身不需要修**：它在真实 tag 上的行为与桩一致，且对伪造 tag 正确拒绝。
 唯一的缺口是这三条还只在 tag 时跑，未挂进 PR CI（见执行顺序第 0 步）。
+
+⚠️ **这三条只对 `kind=migration` 生效，桥接发布走不到它们**
+（[check-migration-release-gate.mjs](../scripts/check-migration-release-gate.mjs) 的 `validateManifest`
+把它们放在 migration 分支里）。后果是**门禁在当前状态下就是绿的**，实测：
+
+```bash
+$ node scripts/check-migration-release-gate.mjs --check
+Migration release gate passed for bridge 0.0.25.          # exit 0
+$ node scripts/check-migration-release-gate.mjs --check --release-tag=v0.0.25
+Migration release gate passed for bridge 0.0.25.          # exit 0
+$ git merge-base --is-ancestor v0.0.25^{commit} HEAD      # 失败：v0.0.25 不是祖先
+```
+
+也就是说**「门禁全绿」不能作为桥接发布已完成的证据**——今天什么都不做跑它就是绿的。
+桥接发布的两条真判据（版本号 ≠ `0.0.25`、新 tag 是 `main` 祖先）都只能人工确认并留证，
+把第 0 步的 `migration-release-gate` 挂进 PR CI 也守不到它们。
+这也是 [roadmap 批次 1 线 A](roadmap.md#批次-1零前置七条线可同时开工) 的关闭判据要写五条、
+并特别标出「④ 单独没有区分力」的原因。
 
 注意 `bridgeTagSupportsProtocol` 只用 `git cat-file -e` 校验文件存在、不校验内容，
 它单独并不能证明该 tag 含可用的迁移实现，须另行人工确认。

@@ -1,5 +1,13 @@
 # Contract: 适配器与写入口契约
 
+> [!WARNING]
+> **本文件已过期（2026-08-22）。** 上游 [epic-006](../../../requirements/epics/epic-006-working-tree-commits.md) 已裁决
+> **不做暂存区（index / staging area）与任何形式的选择性提交**：没有 `stage` / `unstage` / `clearIndex`，
+> `commit(message)` 只提交当前分支工作树的全部未提交变更，隔离工作线用分支。
+> 本文件仍按「工作树 → 缓存区 → 提交」三层写成，其中所有 `Index*` / `RxDBIndexEntry` / `indexRevision` /
+> `staged` 相关的表、契约、状态迁移、验收项与基准 fixture **均已作废，不得据此实现**。
+> 真相源以 `requirements/` 为准；本目录需要用 `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` 重新生成。
+
 **Feature**: [spec.md](../spec.md) | **Research**: [research.md](../research.md) | **Date**: 2026-08-15
 
 本文件冻结 6 个 v1 后端必须满足的适配器契约，以及写入口的受信登记全集。
@@ -57,27 +65,38 @@ EntityIndexMetadataOptions {
 
 ## 4. 写入口受信登记
 
-登记表位于 `packages/rxdb/src/working-tree/write-intent.ts`，键为 `{ file, symbol, intent }` 三元组（**不含行号**）。以下 11 项为 v1 全集，逐条对应真实生产代码调用点：
+登记表位于 `packages/rxdb/src/working-tree/write-intent.ts`，键为 `{ file, symbol, intent }` 三元组（**不含行号**）。以下 11 项为 v1 全集，逐条对应真实生产代码调用点。
+
+**符号取实际发起该次批量重写的最内层具名函数**，不是把调用委托出去的公开门面方法——门面方法不出现在扫描
+结果里，用它当键会让 §4.5 的双向差集永远报「登记了但不存在」。本节链接**一律不带行号锚点**：键本身不含行号，
+链接带锚点会让读者误以为行号是键的一部分，且锚点本身会漂移。
 
 ### 4.1 经 `mergeChanges`（本地重载）
 
-| #   | 文件                                                                                             | 语义             | intent           | 产生工作树条目 |
-| --- | ------------------------------------------------------------------------------------------------ | ---------------- | ---------------- | -------------- |
-| 1   | `transaction/*TransactionExecutor` 常规提交路径                                                  | 普通 CRUD        | `local`          | ✅             |
-| 2   | [`version/merge-branch.ts`](../../../packages/rxdb/src/version/merge-branch.ts#L127) 逐条路径    | 合并分支         | `merge`          | ✅             |
-| 3   | [`version/merge-branch.ts`](../../../packages/rxdb/src/version/merge-branch.ts#L151) squash 路径 | 合并分支         | `merge`          | ✅             |
-| 4   | [`version/pull-repository.ts`](../../../packages/rxdb/src/version/pull-repository.ts#L629)       | 远端拉取应用     | `remoteSync`     | ✅             |
-| 5   | [`version/pull-batch.ts`](../../../packages/rxdb/src/version/pull-batch.ts#L380)                 | 远端拉取分批应用 | `remoteSync`     | ✅             |
-| 6   | [`version/cleanup-expired.ts`](../../../packages/rxdb/src/version/cleanup-expired.ts#L201)       | 过期数据清理     | `expiredCleanup` | ✅             |
+| #   | 文件                                                                                  | 符号                                                  | 语义             | intent           | 产生工作树条目 |
+| --- | ------------------------------------------------------------------------------------- | ----------------------------------------------------- | ---------------- | ---------------- | -------------- |
+| 1   | `transaction/*TransactionExecutor`                                                    | `mergeChanges` 常规提交路径                           | 普通 CRUD        | `local`          | ✅             |
+| 2   | [`version/merge-branch.ts`](../../../packages/rxdb/src/version/merge-branch.ts)       | `merge_branch`（逐条路径，`executor.mergeChanges`）   | 合并分支         | `merge`          | ✅             |
+| 3   | [`version/merge-branch.ts`](../../../packages/rxdb/src/version/merge-branch.ts)       | `merge_branch`（squash 路径，`adapter.mergeChanges`） | 合并分支         | `merge`          | ✅             |
+| 4   | [`version/pull-repository.ts`](../../../packages/rxdb/src/version/pull-repository.ts) | `pullSingleRepository`                                | 远端拉取应用     | `remoteSync`     | ✅             |
+| 5   | [`version/pull-batch.ts`](../../../packages/rxdb/src/version/pull-batch.ts)           | `pullBatchOnce`                                       | 远端拉取分批应用 | `remoteSync`     | ✅             |
+| 6   | [`version/cleanup-expired.ts`](../../../packages/rxdb/src/version/cleanup-expired.ts) | `cleanupExpired`                                      | 过期数据清理     | `expiredCleanup` | ✅             |
+
+第 2、3 项**同文件、同符号、同 intent，但调用点不同**（一个走 `executor.mergeChanges`、一个走
+`adapter.mergeChanges`），两条都必须登记。因此漂移扫描 MUST 按**调用点**计数，不得按 `{ file, symbol, intent }`
+三元组去重——去重会让其中一条被静默吞掉，扫描仍报绿。
 
 ### 4.2 经 `switchBranch`
 
-| #   | 文件                                                                                      | 语义                            | intent                  | 产生工作树条目 |
-| --- | ----------------------------------------------------------------------------------------- | ------------------------------- | ----------------------- | -------------- |
-| 7   | [`version/HistoryManager.ts`](../../../packages/rxdb/src/version/HistoryManager.ts#L1472) | undo / redo 应用                | `undoRedo`              | ✅             |
-| 8   | [`version/VersionManager.ts`](../../../packages/rxdb/src/version/VersionManager.ts#L936)  | 单条 change 恢复                | `restore`               | ✅             |
-| 9   | [`version/VersionManager.ts`](../../../packages/rxdb/src/version/VersionManager.ts#L769)  | 切换分支物化                    | `branchMaterialization` | ❌             |
-| 10  | [`version/HistoryManager.ts`](../../../packages/rxdb/src/version/HistoryManager.ts#L948)  | 仅写 `redoInvalidatedAt` 元数据 | `metadataOnly`          | ❌             |
+| #   | 文件                                                                                | 符号                         | 语义                            | intent                  | 产生工作树条目 |
+| --- | ----------------------------------------------------------------------------------- | ---------------------------- | ------------------------------- | ----------------------- | -------------- |
+| 7   | [`version/HistoryManager.ts`](../../../packages/rxdb/src/version/HistoryManager.ts) | `#apply_undo_redo_histories` | undo / redo 应用                | `undoRedo`              | ✅             |
+| 8   | [`version/restore-entity.ts`](../../../packages/rxdb/src/version/restore-entity.ts) | `restore_entity`             | 单条 change 恢复                | `restore`               | ✅             |
+| 9   | [`version/VersionManager.ts`](../../../packages/rxdb/src/version/VersionManager.ts) | `switchBranch`               | 切换分支物化                    | `branchMaterialization` | ❌             |
+| 10  | [`version/HistoryManager.ts`](../../../packages/rxdb/src/version/HistoryManager.ts) | `invalidateRedoStack`        | 仅写 `redoInvalidatedAt` 元数据 | `metadataOnly`          | ❌             |
+
+第 8 项的文件是 **`restore-entity.ts`**，不是 `VersionManager.ts`：`VersionManager.restoreEntity()` 只把调用
+委托给 `restore_entity()`，真正的 `adapter.switchBranch` 发生在后者。
 
 ### 4.3 新增
 
@@ -87,7 +106,7 @@ EntityIndexMetadataOptions {
 
 ### 4.4 明确不在范围内
 
-[`version/push-repository.ts:534`](../../../packages/rxdb/src/version/push-repository.ts#L534) 调用的是**远端重载** `mergeChanges(actions, branchId, changes)`，写的是远端库，不产生本地工作树条目，也不参与登记。漂移扫描必须能区分这两个同名重载。
+[`version/push-repository.ts`](../../../packages/rxdb/src/version/push-repository.ts) 的 `mergePushBatch` 调用的是**远端重载** `mergeChanges(actions, branchId, changes)`，写的是远端库，不产生本地工作树条目，也不参与登记。漂移扫描必须能区分这两个同名重载：本地重载第 2 参是 `localChanges`、第 3 参是 `disableTriggers`；远端重载第 2 参是 `branchId`。仅凭方法名匹配会把 `mergePushBatch` 误报成「未登记调用点」，让门禁永远红。
 
 ### 4.5 漂移门禁
 
@@ -96,6 +115,44 @@ EntityIndexMetadataOptions {
 - 扫描 `packages/*/src/**/*.ts`，**排除** `dist/`、`*.spec.ts`、`*.suite.ts`。
 - 对登记表与实际调用点求**双向差集**：未登记的调用点 → 失败；登记了但已不存在的条目 → 失败（防止登记表烂掉）。
 - 判据：未登记调用点数量为 **0**（SC-004）。
+
+### 4.6 raw SQL / adapter 直写的 bypass 门禁（已裁决）
+
+§4.1–§4.3 的登记只能约束 RxDB **自己的内部路径**。[`rawQuery?()`](../../../packages/rxdb/src/rxdb-adapter.ts) 是 `IRxDBAdapter` 的**公开可选原语**，用途明确包含绕过 ORM 的条件 UPDATE，6 个 v1 后端全部实现（SQLite 五家共用 `RxDBAdapterSqliteBase`，PGlite 单独实现）。本节冻结它与 epic-006 写入口矩阵最后一行的对应机制。
+
+**「启用后 rawQuery 整体只读」已被否决**：[`@aiao/rxdb-plugin-search`](../../../packages/rxdb-plugin-search/src/core/fts5-runtime.ts) 的 FTS5 建表与回填本身就走 `rawQuery` 写虚拟表，整体只读会连带打死搜索插件。
+
+**裁决：按目标表判定 + 受信 intent 豁免。** 每次 `rawQuery` 调用在**语句执行前**按下列顺序判定：
+
+1. commit 能力**未启用** → 原样放行，零行为差异（与 INV-10 同一口径）。
+2. 调用携带内部受信 `intent`（非公开参数，仅 §4.1–§4.3 登记表内的路径可传）→ 放行。
+3. 非写语句（`SELECT` / `EXPLAIN` / 只读 `PRAGMA` / `WITH … SELECT`）→ 放行。
+4. 写目标表 ∩ **版本化业务实体表** ≠ ∅ → 抛 `commit_capability_mismatch`，**业务表零变化**（拒绝发生在执行前，不是写完回滚）。
+5. 其余写目标（FTS5 虚拟表与影子表、`rxdb_*` 系统表、查询缓存实体表、临时表）→ 放行。
+
+**「版本化业务实体表」**= 已注册实体中 `sync.type !== SyncType.QueryCache` 的那些的 SQL 表名——与 INV-9 / FR-021 引用的是同一个集合，**MUST NOT** 另建第二份清单。
+
+**解析取保守口径（fail-closed）**：
+
+- 目标表**无法确定**（动态拼接、多语句串、方言不认识的构造）→ 按**拒绝**处理。宁可误伤，不可放过。
+- 大小写、引号标识符（SQLite 的 `` ` `` / `[]`、PG 的 `""`）、schema 限定（`public.x`）在比对前归一化。
+- 6 个后端共用**同一份**判定实现，方言差异只体现在词法层，不得每个后端各写一套。
+
+**能力边界（写进公开文档，不假装拦得住）**：本门禁只覆盖**经 adapter 的 `rawQuery`**。绕过 adapter 的外部数据库句柄——另开 `sqlite3` 连接、直接打开 OPFS 文件、用 psql 连 PGlite——**拦不住**，v1 也不承诺拦得住；启用提交能力的数据库 MUST 在文档中声明「业务表只能经 RxDB 写入」。
+
+**为什么不做数据库 trigger fail-closed**：那是唯一能拦住外部句柄的方案，但受信标记的载体在 6 个后端不统一（PGlite 用 session GUC、SQLite 侧需 temp table 或 pragma 承载），且每张版本化表要挂 3 个 trigger。成本与 v1 收益不匹配，**留作后续故事，不在本特性范围内**。
+
+**一致性 fixture（6 个后端各一份，SC-003）**：
+
+| 场景                             | 期望                                        |
+| -------------------------------- | ------------------------------------------- |
+| `rawQuery` 写版本化实体表        | `commit_capability_mismatch` 且业务表零变化 |
+| `rawQuery` 写 FTS5 影子表        | 放行（搜索插件回归）                        |
+| `rawQuery` 写查询缓存实体表      | 放行                                        |
+| `rawQuery` `SELECT` 版本化实体表 | 放行                                        |
+| 目标表无法确定的动态 SQL         | 拒绝                                        |
+| 受信 `intent` 路径写版本化实体表 | 放行，是否产生工作树条目按 §4.1–§4.3 登记表 |
+| **未启用** commit 能力时以上全部 | 一律放行                                    |
 
 ---
 

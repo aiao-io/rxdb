@@ -37,6 +37,7 @@ import { releaseComlinkProxy } from './create_sqlite_client.js';
 import { generate_upsert_clause } from './entity/insert_sql.js';
 import { handle_rxdb_change } from './handle_rxdb_change.js';
 import { SqliteCoreKeyringStorage } from './keyring/sqlite-core-keyring-storage.js';
+import { generate_sql } from './query/query_sql.js';
 import { SqliteRepository } from './repository/SqliteRepository.js';
 import { SqliteTreeRepository } from './repository/SqliteTreeRepository.js';
 import { SQLiteChangeType } from './sqlite-backend.interface.js';
@@ -53,6 +54,7 @@ import {
   build_set_sequence_statements,
   chunkBySqliteBindLimit,
   type EncryptionContext,
+  get_primary_key_column,
   get_table_name_by_entity_type,
   get_table_name_by_metadata,
   getTableColumnIndexName,
@@ -65,6 +67,7 @@ import { create_tables_sql } from './table/create_tables_sql.js';
 import { remove_all_triggers_sql } from './table/remove_trigger_sql.js';
 import { generate_table_trigger_sql } from './table/trigger_sql.js';
 import { SqliteTransactionExecutor } from './transaction/SqliteTransactionExecutor.js';
+import { remove_entity_ids_from_cache, transaction_sqlite_result } from './transaction_sqlite_result.js';
 import { execute_switch_actions } from './version/execute_switch_actions.js';
 import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { switch_branch } from './version/switch_branch.js';
@@ -665,7 +668,14 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
             );
             await executor.query(sql, values);
           }
-        }, false).then(() => undefined)
+        }, false)
+          .then(() =>
+            this.#refreshQueryCacheEntities(
+              entityName,
+              data.map(item => String((item as Record<string, unknown>)['id']))
+            )
+          )
+          .then(() => undefined)
       );
     });
   }
@@ -683,7 +693,12 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
             const sql = `DELETE FROM ${quote_sql_identifier(tableName)} WHERE id IN (${placeholders})`;
             await executor.query(sql, idsChunk);
           }
-        }, false).then(() => undefined)
+        }, false).then(() => {
+          // 行没了，缓存里那个实例还标着 local=true。不标 removed 的话，
+          // 它会以「仍然存在」的姿态活在任何还持有引用的视图里（SQLC-033 同款）。
+          const EntityType = this.rxdb.schemaManager.getEntityType(entityName, 'public');
+          if (EntityType) remove_entity_ids_from_cache(this, EntityType, ids);
+        })
       );
     });
   }
@@ -704,6 +719,39 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    */
   protected ready(): Promise<void> {
     return this.rxdb.connect(this.name).then(() => undefined);
+  }
+
+  /**
+   * 把刚写下去的行同步回 identity cache 中**已存在**的实例。
+   *
+   * @remarks
+   * `upsertMany` 是绕开仓储的裸 SQL 写（QueryCache 的拉取落地路径），因此它不像
+   * `saveMany` / `mutations` 那样自带缓存维护。少了这一步的后果是**静默**的：
+   * 远端更新确实落进了表，但调用方手里那个实体实例仍停在旧值 —— `SqliteRepository.find`
+   * 走 `addQueryCache(result)`（`forcedUpdate = false`），命中缓存时只刷新计算属性，
+   * 不会把列值盖回实例。于是「查询照常返回，只是内容停在第一次同步的那一刻」。
+   *
+   * 只回查**已被物化**的 id：没进过缓存的行本来就会在下次 `find` 时按新数据创建实例，
+   * 多查一遍纯属浪费（首次同步的冷路径正是全部未缓存，此时一条 SQL 都不发）。
+   * 合并语义用 `mergeExternalChanges`：本地有未保存改动时保留改动、只更新 origin，
+   * 与 `findByRowIds(forceRefresh)` 的外部变更合并保持一致。
+   */
+  async #refreshQueryCacheEntities(entityName: string, ids: string[]): Promise<void> {
+    const EntityType = this.rxdb.schemaManager.getEntityType(entityName, 'public');
+    if (!EntityType) return;
+    const cachedIds = ids.filter(id => this.rxdb.entityManager.hasEntityRef(EntityType, id));
+    if (cachedIds.length === 0) return;
+
+    const metadata = getEntityMetadata(EntityType);
+    const idColumn = quote_sql_identifier(get_primary_key_column(metadata));
+    for (const idsChunk of chunkBySqliteBindLimit(cachedIds)) {
+      const sql = generate_sql({
+        tableName: get_table_name_by_metadata(metadata),
+        where: `${idColumn} IN (${idsChunk.map(() => '?').join(', ')})`,
+        metadata
+      });
+      await transaction_sqlite_result(this, EntityType, await this.query(sql, idsChunk), false, true, true);
+    }
   }
 
   /**
