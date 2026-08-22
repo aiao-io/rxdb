@@ -1,5 +1,5 @@
-import type { SyncOptions } from '../entity/metadata-options.interface.js';
 import type { EntityType } from '../entity/entity.interface.js';
+import type { SyncOptions } from '../entity/metadata-options.interface.js';
 import type { RuleGroup } from '../repository/query.interface.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
 import type { RxDBChange } from '../system/change.js';

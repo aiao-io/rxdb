@@ -5,41 +5,41 @@ import { EntityType } from './entity/entity.interface.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
 import { PluginDependencyScheduler } from './plugin/dependency-scheduler.js';
 import {
-  AdapterFactory,
-  IRxDBAdapter,
-  RepositoryInstance,
-  RxDBAdapterLocalBase,
-  RxDBAdapterName,
-  RxDBAdapterRemoteBase,
-  RxDBAdapters
+    AdapterFactory,
+    IRxDBAdapter,
+    RepositoryInstance,
+    RxDBAdapterLocalBase,
+    RxDBAdapterName,
+    RxDBAdapterRemoteBase,
+    RxDBAdapters
 } from './rxdb-adapter.js';
 import { RxDBEvent, RxDBEventMap, TRANSACTION_BEGIN, TRANSACTION_COMMIT, TRANSACTION_ROLLBACK } from './rxdb-events.js';
 import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
 import { uuid } from './rxdb-utils.js';
 import { RxDBContext, RxDBOptions } from './rxdb.interface.js';
+import {
+    awaitPluginInstalls,
+    createPluginScope,
+    destroyPlugin,
+    discardPluginScope,
+    freezeConfig,
+    installOnePlugin,
+    installPlugin,
+    type PluginLifecycleHost,
+    releaseConnectionScope,
+    reportUnsatisfiedPlugins,
+    resetPluginScheduling,
+    trackPluginInstall,
+    unregisterRepository
+} from './rxdb.plugin-lifecycle.js';
 import { isLocalAdapter, isTransactionEvent } from './rxdb.private.js';
 import {
-  emitEvent,
-  handleTransactionBegin,
-  handleTransactionCommit,
-  handleTransactionRollback,
-  runIsolated
+    emitEvent,
+    handleTransactionBegin,
+    handleTransactionCommit,
+    handleTransactionRollback,
+    runIsolated
 } from './rxdb.transaction.js';
-import {
-  awaitPluginInstalls,
-  createPluginScope,
-  destroyPlugin,
-  discardPluginScope,
-  freezeConfig,
-  installOnePlugin,
-  installPlugin,
-  type PluginLifecycleHost,
-  releaseConnectionScope,
-  reportUnsatisfiedPlugins,
-  resetPluginScheduling,
-  trackPluginInstall,
-  unregisterRepository
-} from './rxdb.plugin-lifecycle.js';
 import type { EventListener, IRepositoryConfig, RxDBConfig, TransactionContext } from './rxdb.types.js';
 import { SchemaManager } from './schema/SchemaManager.js';
 import { RxDBBranch } from './system/branch.js';

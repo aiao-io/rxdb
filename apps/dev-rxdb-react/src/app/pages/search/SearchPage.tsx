@@ -12,11 +12,11 @@ import { SearchCreateModal } from './components/SearchCreateModal';
 import { SearchRecordsPanel } from './components/SearchRecordsPanel';
 import { SearchResultsList } from './components/SearchResultsList';
 import {
-  SEARCH_DEMO_COLLECTIONS,
-  type ArticleCreateDraft,
-  type CommentCreateDraft,
-  type SearchDemoCollection,
-  type SearchDemoMode
+    SEARCH_DEMO_COLLECTIONS,
+    type ArticleCreateDraft,
+    type CommentCreateDraft,
+    type SearchDemoCollection,
+    type SearchDemoMode
 } from './types';
 
 const SEARCH_DEMO_PAGE_SIZE = 20;

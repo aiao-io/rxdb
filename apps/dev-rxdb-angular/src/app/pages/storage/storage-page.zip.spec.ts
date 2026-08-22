@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { StorageBrowserItem } from './utils/storage-utils';
 import { addEntryToZip, downloadEntriesAsZip, ensureZipDirectory, isZipDirectory } from './storage-page.zip';
+import type { StorageBrowserItem } from './utils/storage-utils';
 
 describe('ensureZipDirectory', () => {
   it('creates nested directory nodes', () => {

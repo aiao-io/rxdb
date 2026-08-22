@@ -1,18 +1,18 @@
 import {
-  BehaviorSubject,
-  catchError,
-  combineLatest,
-  EMPTY,
-  filter,
-  firstValueFrom,
-  map,
-  Observable,
-  ReplaySubject,
-  shareReplay,
-  Subject,
-  Subscription,
-  switchMap,
-  takeUntil
+    BehaviorSubject,
+    catchError,
+    combineLatest,
+    EMPTY,
+    filter,
+    firstValueFrom,
+    map,
+    Observable,
+    ReplaySubject,
+    shareReplay,
+    Subject,
+    Subscription,
+    switchMap,
+    takeUntil
 } from 'rxjs';
 import { EntityType } from '../entity/entity.interface.js';
 import { REPOSITORY_SYNC_COMPLETE_EVENT } from '../rxdb-events.js';
@@ -24,22 +24,22 @@ import { filterUndoableHistories, getRepositoryKey } from './history-filters.js'
 import { convertChangesToHistories } from './history-item-builder.js';
 import { createHistoryScopeApi, type HistoryScopeApiHost } from './history-scope-api.js';
 import {
-  INITIAL_UNDO_BOUNDARY,
-  type ActiveUndoSession,
-  type UndoBoundary,
-  type UndoSession,
-  type UndoSessionEvent
+    INITIAL_UNDO_BOUNDARY,
+    type ActiveUndoSession,
+    type UndoBoundary,
+    type UndoSession,
+    type UndoSessionEvent
 } from './history-undo-session.types.js';
 import { settledPullableCount } from './pullable-count.js';
 import { RedoStack } from './redo-stack.js';
 import { RxDBCrossScopeTransactionError, selectScopedHistories } from './scope-selection.js';
 import { get_switch_version_actions } from './switch-branch-actions.js';
 import {
-  applyUndoRedoHistories,
-  fetchLatestHistories,
-  getLocalRxDBSyncRepository,
-  updatePushableCount,
-  type UndoRedoApplyHost
+    applyUndoRedoHistories,
+    fetchLatestHistories,
+    getLocalRxDBSyncRepository,
+    updatePushableCount,
+    type UndoRedoApplyHost
 } from './undo-redo-apply.js';
 import { HistoryItem, HistoryScope, HistoryScopeAPI } from './VersionManager.interface.js';
 

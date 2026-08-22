@@ -1,9 +1,9 @@
 import type { RxDB } from '@aiao/rxdb';
 import {
-  joinDirectoryAndFileName,
-  normalizeDirectoryPath,
-  type StorageBrowserEntry,
-  type StorageFileMeta
+    joinDirectoryAndFileName,
+    normalizeDirectoryPath,
+    type StorageBrowserEntry,
+    type StorageFileMeta
 } from '@aiao/rxdb-plugin-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ToastState } from '../types';

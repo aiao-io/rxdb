@@ -15,7 +15,9 @@ describe('StoragePageTransfer', () => {
   it('refreshes once after a successful file upload', async () => {
     const storage = {
       upload: vi.fn().mockResolvedValue(undefined),
-      download: vi.fn()
+      download: vi.fn(),
+      listEntries: vi.fn(),
+      read: vi.fn()
     };
     const refresh = vi.fn().mockResolvedValue(undefined);
     const showToast = vi.fn();

@@ -1,16 +1,16 @@
-import { describe, expect, it } from 'vitest';
 import type { StorageBrowserEntry } from '@aiao/rxdb-plugin-storage';
+import { describe, expect, it } from 'vitest';
 import {
-  buildUrlFromPath,
-  getBatchArchiveName,
-  getStoredViewMode,
-  getUploadDirectory,
-  mapStorageEntry,
-  normalizeRoutePath,
-  pathSegmentsFrom,
-  pruneSelectedPaths,
-  sortMappedEntries,
-  toTimestamp
+    buildUrlFromPath,
+    getBatchArchiveName,
+    getStoredViewMode,
+    getUploadDirectory,
+    mapStorageEntry,
+    normalizeRoutePath,
+    pathSegmentsFrom,
+    pruneSelectedPaths,
+    sortMappedEntries,
+    toTimestamp
 } from './storage-page.helpers';
 import { isZipDirectory } from './storage-page.zip';
 import type { StorageBrowserItem } from './utils/storage-utils';

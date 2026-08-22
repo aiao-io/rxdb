@@ -1,9 +1,9 @@
 import { Subject } from 'rxjs';
-import { handle_rxdb_change } from './handle_rxdb_change.js';
 import {
-  CHANGE_PIPELINE_TIMEOUT_MS,
-  RxDBChangePipelineTimeoutError
+    CHANGE_PIPELINE_TIMEOUT_MS,
+    RxDBChangePipelineTimeoutError
 } from './change-pipeline.types.js';
+import { handle_rxdb_change } from './handle_rxdb_change.js';
 import type { PGliteChangeEvent } from './pglite.interface.js';
 import { IPGliteClient, PGliteClient } from './PGliteClient.js';
 import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';

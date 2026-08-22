@@ -1,10 +1,5 @@
 import { RxDB } from '@aiao/rxdb';
-import {
-  joinDirectoryAndFileName,
-  normalizeDirectoryPath,
-  StorageBrowserEntry,
-  StorageFileMeta
-} from '@aiao/rxdb-plugin-storage';
+import { normalizeDirectoryPath } from '@aiao/rxdb-plugin-storage';
 import { checkOPFSAvailable, formatFileSize, STORAGE_LABELS, STORAGE_TESTID } from '@aiao/utils';
 import { CommonModule } from '@angular/common';
 import {
@@ -41,15 +36,24 @@ import {
   LucideUpload as Upload,
   LucideX as X
 } from '@lucide/angular';
-import { zipSync, type Zippable } from 'fflate';
 import { map } from 'rxjs';
 import { traverseFileTree } from '../../shared/traverse-file-tree';
 import { StorageFileGridComponent } from './components/storage-file-grid.component';
 import { StorageFileListComponent } from './components/storage-file-list.component';
 import { StorageFilePreviewComponent } from './components/storage-file-preview.component';
+import { StoragePageBrowser } from './storage-page.browser';
+import {
+  buildUrlFromPath,
+  getBatchArchiveName,
+  getStoredViewMode,
+  normalizeRoutePath,
+  pathSegmentsFrom,
+  VIEW_MODE_STORAGE_KEY,
+  type ViewMode
+} from './storage-page.helpers';
+import { nextSelectedPaths } from './storage-page.selection';
+import { StoragePageTransfer } from './storage-page.transfer';
 import { StorageBrowserItem } from './utils/storage-utils';
-
-type ViewMode = 'list' | 'grid';
 
 interface ConfirmDialog {
   show: boolean;
@@ -108,19 +112,20 @@ interface SelectionBox {
     StorageFileGridComponent,
     StorageFilePreviewComponent
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './storage.page.html'
-})
-export default class StoragePage implements OnInit, OnDestroy {
-  private initialized = false;
-  private clickAbortController?: AbortController;
-  private mouseMoveListener?: (event: MouseEvent) => void;
-  private mouseUpListener?: () => void;
-  private toastTimer?: ReturnType<typeof setTimeout>;
-  private readonly viewModeStorageKey = 'storage-view-mode';
-  private readonly destroyRef = inject(DestroyRef);
+  changeDetection: destroyRef = inject(DestroyRef);
+  private readonly browser: StoragePageBrowser;
+  private readonly transfer: StoragePageTransfer;
 
   readonly rxdb = inject(RxDB);
+  readonly router = inject(Router);
+  readonly route = inject(ActivatedRoute);
+
+  readonly currentPath = signal('/');
+  readonly allFiles;
+  readonly entries;
+  readonly loading;
+  readonly error;
+  readonly viewMode = signal<ViewMode>(
   readonly router = inject(Router);
   readonly route = inject(ActivatedRoute);
 
@@ -145,8 +150,13 @@ export default class StoragePage implements OnInit, OnDestroy {
   readonly opfsAvailable = signal(false);
   readonly selectionBox = signal<SelectionBox | null>(null);
 
+  readonly allFiles;
+  readonly entries;
+  readonly loading;
+  readonly error;
+
   readonly routePath = toSignal(
-    this.route.paramMap.pipe(map(params => this.normalizeRoutePath(params.get('storagePath')))),
+    this.route.paramMap.pipe(map(params => normalizeRoutePath(params.get('storagePath')))),
     { initialValue: '/' }
   );
 
@@ -186,19 +196,32 @@ export default class StoragePage implements OnInit, OnDestroy {
   }
 
   get pathSegments() {
-    const path = this.currentPath();
-    if (!path || path === '/') return [];
-
-    return path
-      .split('/')
-      .filter(Boolean)
-      .map((segment, index, allSegments) => ({
-        name: segment,
-        path: '/' + allSegments.slice(0, index + 1).join('/')
-      }));
+    return pathSegmentsFrom(this.currentPath());
   }
 
   constructor() {
+    this.browser = new StoragePageBrowser(this.rxdb.storage, {
+      currentPath: this.currentPath,
+      lastSelectedPath: this.lastSelectedPath,
+      selectedPaths: this.selectedPaths,
+      showToast: (message, type) => this.showToast(message, type)
+    });
+    this.allFiles = this.browser.allFiles;
+    this.entries = this.browser.entries;
+    this.loading = this.browser.loading;
+    this.error = this.browser.error;
+    this.transfer = new StoragePageTransfer(this.rxdb.storage, {
+      currentPath: () => this.currentPath(),
+      fileInputFiles: () => this.fileInputRef?.files,
+      findExistingFileEntry: (fileName, directoryPath) => this.browser.findExistingFileEntry(fileName, directoryPath),
+      refresh: () => this.browser.refreshCurrentDirectory(),
+      resolveOverwrite: (file, existingEntry) =>
+        new Promise<boolean>(resolve => {
+          this.overwriteConfirm.set({ show: true, file, existingEntry, resolve });
+        }),browser.
+      showToast: (message, type) => this.showToast(message, type)
+    });
+
     void checkOPFSAvailable().then(available => {
       if (!this.destroyRef.destroyed) this.opfsAvailable.set(available);
     });
@@ -221,11 +244,11 @@ export default class StoragePage implements OnInit, OnDestroy {
       this.clearSelection();
       this.closeContextMenu();
       this.previewEntry.set(null);
-      void this.refreshCurrentDirectory();
+      void this.browser.refreshCurrentDirectory();
     });
 
     effect(() => {
-      localStorage.setItem(this.viewModeStorageKey, this.viewMode());
+      localStorage.setItem(VIEW_MODE_STORAGE_KEY, this.viewMode());
     });
   }
 

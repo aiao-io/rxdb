@@ -21,12 +21,12 @@ import { useStorageBrowser } from './hooks/useStorageBrowser';
 import { useStorageSelection } from './hooks/useStorageSelection';
 import { useStorageTransfer } from './hooks/useStorageTransfer';
 import type {
-  ConfirmDialog,
-  DeleteConfirm,
-  OverwriteConfirm,
-  RenameDialog,
-  ToastState,
-  ViewMode
+    ConfirmDialog,
+    DeleteConfirm,
+    OverwriteConfirm,
+    RenameDialog,
+    ToastState,
+    ViewMode
 } from './types';
 import type { StorageBrowserItem } from './utils/storage-utils';
 

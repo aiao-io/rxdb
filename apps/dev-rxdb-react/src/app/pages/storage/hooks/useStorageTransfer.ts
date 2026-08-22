@@ -3,9 +3,9 @@ import { normalizeDirectoryPath } from '@aiao/rxdb-plugin-storage';
 import { STORAGE_LABELS } from '@aiao/utils';
 import { zipSync, type Zippable } from 'fflate';
 import { useCallback, useLayoutEffect, useRef } from 'react';
-import { mapStorageEntry } from './useStorageBrowser';
 import type { ToastState } from '../types';
 import type { StorageBrowserItem } from '../utils/storage-utils';
+import { mapStorageEntry } from './useStorageBrowser';
 
 export function waitFor(ms: number): Promise<void> {
   return new Promise(resolve => window.setTimeout(resolve, ms));
