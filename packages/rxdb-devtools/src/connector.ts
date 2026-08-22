@@ -6,12 +6,12 @@ import { RXDB_EVENT_TYPES, toEventRecord, type EventRecord } from './connector-e
 import { maskEncryptedDocument, maskEncryptedEvent, type ConnectorMaskContext } from './connector-mask.js';
 import { CONNECTOR_MUTATION_POLICY, CONNECTOR_PROVIDERS } from './connector-providers.js';
 import {
-    forceReleaseLocalAdapter,
-    getErrorMessage,
-    serializeDocument,
-    tryGracefulDisconnect,
-    type DisconnectResult,
-    type ForceReleaseResult
+  forceReleaseLocalAdapter,
+  getErrorMessage,
+  serializeDocument,
+  tryGracefulDisconnect,
+  type DisconnectResult,
+  type ForceReleaseResult
 } from './connector-runtime.js';
 import { subscribeOnce, type Subscription } from './connector-subscribe-once.js';
 import type { DevToolsOptions, DevToolsRxDB, GetEntityMetadataFn } from './connector-types.js';
@@ -19,16 +19,16 @@ import { isRecord } from './internal/guards.js';
 import { SequenceGenerator } from './sequence.js';
 import { serialize, serializeDevToolsValue } from './serializer.js';
 import {
-    createMessage,
-    DEVTOOLS_PROTOCOL_VERSION,
-    isDevToolsCommandMessage,
-    isDevToolsMessage,
-    RXDB_DEVTOOLS_MESSAGE,
-    type AnyDevToolsMessage,
-    type DevToolsCapability,
-    type DevToolsCommandMessage,
-    type QueryEntityPayload,
-    type SerializedEvent
+  createMessage,
+  DEVTOOLS_PROTOCOL_VERSION,
+  isDevToolsCommandMessage,
+  isDevToolsMessage,
+  RXDB_DEVTOOLS_MESSAGE,
+  type AnyDevToolsMessage,
+  type DevToolsCapability,
+  type DevToolsCommandMessage,
+  type QueryEntityPayload,
+  type SerializedEvent
 } from './types.js';
 import { satisfiesCapability } from './v2/capability.js';
 import { createSystemClock } from './v2/clock.js';

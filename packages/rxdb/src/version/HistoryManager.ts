@@ -1,18 +1,18 @@
 import {
-    BehaviorSubject,
-    catchError,
-    combineLatest,
-    EMPTY,
-    filter,
-    firstValueFrom,
-    map,
-    Observable,
-    ReplaySubject,
-    shareReplay,
-    Subject,
-    Subscription,
-    switchMap,
-    takeUntil
+  BehaviorSubject,
+  catchError,
+  combineLatest,
+  EMPTY,
+  filter,
+  firstValueFrom,
+  map,
+  Observable,
+  ReplaySubject,
+  shareReplay,
+  Subject,
+  Subscription,
+  switchMap,
+  takeUntil
 } from 'rxjs';
 import { EntityType } from '../entity/entity.interface.js';
 import { REPOSITORY_SYNC_COMPLETE_EVENT } from '../rxdb-events.js';
@@ -24,22 +24,22 @@ import { filterUndoableHistories, getRepositoryKey } from './history-filters.js'
 import { convertChangesToHistories } from './history-item-builder.js';
 import { createHistoryScopeApi, type HistoryScopeApiHost } from './history-scope-api.js';
 import {
-    INITIAL_UNDO_BOUNDARY,
-    type ActiveUndoSession,
-    type UndoBoundary,
-    type UndoSession,
-    type UndoSessionEvent
+  INITIAL_UNDO_BOUNDARY,
+  type ActiveUndoSession,
+  type UndoBoundary,
+  type UndoSession,
+  type UndoSessionEvent
 } from './history-undo-session.types.js';
 import { settledPullableCount } from './pullable-count.js';
 import { RedoStack } from './redo-stack.js';
 import { RxDBCrossScopeTransactionError, selectScopedHistories } from './scope-selection.js';
 import { get_switch_version_actions } from './switch-branch-actions.js';
 import {
-    applyUndoRedoHistories,
-    fetchLatestHistories,
-    getLocalRxDBSyncRepository,
-    updatePushableCount,
-    type UndoRedoApplyHost
+  applyUndoRedoHistories,
+  fetchLatestHistories,
+  getLocalRxDBSyncRepository,
+  updatePushableCount,
+  type UndoRedoApplyHost
 } from './undo-redo-apply.js';
 import { HistoryItem, HistoryScope, HistoryScopeAPI } from './VersionManager.interface.js';
 
@@ -662,14 +662,27 @@ export class HistoryManager {
   }
 
   #createScopeHost(): HistoryScopeApiHost {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- 宿主 getter 需捕获 HistoryManager 私有字段
     const manager = this;
     return {
-      get history_cache() { return manager.history_cache; },
-      get history_ref_counts() { return manager.history_ref_counts; },
-      get histories$() { return manager.histories$; },
-      get undoHistories$() { return manager.undoHistories$; },
-      get redoHistories$() { return manager.redoHistories$; },
-      get undoSession$() { return manager.#undoSession$; },
+      get history_cache() {
+        return manager.history_cache;
+      },
+      get history_ref_counts() {
+        return manager.history_ref_counts;
+      },
+      get histories$() {
+        return manager.histories$;
+      },
+      get undoHistories$() {
+        return manager.undoHistories$;
+      },
+      get redoHistories$() {
+        return manager.redoHistories$;
+      },
+      get undoSession$() {
+        return manager.#undoSession$;
+      },
       runSerialized: task => manager.#runSerialized(task),
       fetchLatestHistories: boundary => manager.#fetch_latest_histories(boundary),
       isUndoSessionCurrent: session => manager.#isUndoSessionCurrent(session),
@@ -679,19 +692,42 @@ export class HistoryManager {
   }
 
   #createApplyHost(): UndoRedoApplyHost {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- 宿主 getter 需捕获 HistoryManager 私有字段
     const manager = this;
     return {
-      get rxdb() { return manager.rxdb; },
-      get destroyed() { return manager.#destroyed; },
-      get isUndoRedoInProgress() { return manager.isUndoRedoInProgress; },
-      set isUndoRedoInProgress(v) { manager.isUndoRedoInProgress = v; },
-      get redoInvalidationFloor() { return manager.#redoInvalidationFloor; },
-      set redoInvalidationFloor(v) { manager.#redoInvalidationFloor = v; },
-      get pushableGeneration() { return manager.#pushableGeneration; },
-      set pushableGeneration(v) { manager.#pushableGeneration = v; },
-      get pushableCount$() { return manager.#pushableCount$; },
-      get pushableCountTrigger$() { return manager.#pushableCountTrigger$; },
-      get errors$() { return manager.errors$; },
+      get rxdb() {
+        return manager.rxdb;
+      },
+      get destroyed() {
+        return manager.#destroyed;
+      },
+      get isUndoRedoInProgress() {
+        return manager.isUndoRedoInProgress;
+      },
+      set isUndoRedoInProgress(v) {
+        manager.isUndoRedoInProgress = v;
+      },
+      get redoInvalidationFloor() {
+        return manager.#redoInvalidationFloor;
+      },
+      set redoInvalidationFloor(v) {
+        manager.#redoInvalidationFloor = v;
+      },
+      get pushableGeneration() {
+        return manager.#pushableGeneration;
+      },
+      set pushableGeneration(v) {
+        manager.#pushableGeneration = v;
+      },
+      get pushableCount$() {
+        return manager.#pushableCount$;
+      },
+      get pushableCountTrigger$() {
+        return manager.#pushableCountTrigger$;
+      },
+      get errors$() {
+        return manager.errors$;
+      },
       getFirstConnectedAt: () => manager.#getFirstConnectedAt(),
       isUndoSessionCurrent: s => manager.#isUndoSessionCurrent(s),
       getNextRevertStateUpdatedAt: c => manager.#getNextRevertStateUpdatedAt(c),

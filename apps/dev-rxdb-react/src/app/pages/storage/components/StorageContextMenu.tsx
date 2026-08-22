@@ -12,13 +12,7 @@ interface StorageContextMenuProps {
   onAction: (action: StorageContextMenuAction) => void;
 }
 
-export function StorageContextMenu({
-  entry,
-  show,
-  x,
-  y,
-  onAction
-}: StorageContextMenuProps): React.JSX.Element | null {
+export function StorageContextMenu({ entry, show, x, y, onAction }: StorageContextMenuProps): React.JSX.Element | null {
   const T = STORAGE_TESTID;
 
   if (!show || !entry) {

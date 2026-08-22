@@ -185,91 +185,85 @@ export function useStorageTransfer(deps: StorageTransferDeps) {
     [L.FILE_EXISTS, L.UPLOAD_SUCCESS]
   );
 
-  const handleUploadFolder = useCallback(
-    async (files: File[]) => {
-      if (files.length === 0) return;
+  const handleUploadFolder = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
 
-      const current = depsRef.current;
-      current.showToast(`Uploading folder with ${files.length} files...`, 'info');
-      const root = current.currentPath();
+    const current = depsRef.current;
+    current.showToast(`Uploading folder with ${files.length} files...`, 'info');
+    const root = current.currentPath();
 
-      let successCount = 0;
-      let failedCount = 0;
+    let successCount = 0;
+    let failedCount = 0;
 
-      for (const file of files) {
-        const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
-        const targetDirectory = getUploadDirectory(relativePath, root);
-        const existingFile = current.findExistingFileEntry(file.name, targetDirectory);
-        let overwrite = false;
+    for (const file of files) {
+      const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+      const targetDirectory = getUploadDirectory(relativePath, root);
+      const existingFile = current.findExistingFileEntry(file.name, targetDirectory);
+      let overwrite = false;
 
-        if (existingFile) {
-          const shouldOverwrite = await current.uploadResolver.resolve(file, existingFile);
-          if (!shouldOverwrite) {
-            continue;
-          }
-
-          overwrite = true;
+      if (existingFile) {
+        const shouldOverwrite = await current.uploadResolver.resolve(file, existingFile);
+        if (!shouldOverwrite) {
+          continue;
         }
 
-        try {
-          await current.rxdb.storage.upload(file, { path: targetDirectory, overwrite });
-          successCount++;
-        } catch {
-          failedCount++;
-        }
-      }
-
-      const folderInput = current.folderInput();
-      if (folderInput) {
-        folderInput.value = '';
-      }
-
-      await current.refresh(root);
-      await waitFor(100);
-      await current.refresh(root);
-
-      if (failedCount > 0) {
-        current.showToast(`Upload finished: ${successCount} succeeded, ${failedCount} failed`, 'error');
-      } else {
-        current.showToast(`Uploaded ${successCount} files`, 'success');
-      }
-    },
-    []
-  );
-
-  const handleDownload = useCallback(
-    async (entry: StorageBrowserItem) => {
-      const current = depsRef.current;
-      if (entry.kind === 'directory') {
-        current.showToast(`Preparing ${entry.name}...`, 'info');
-
-        try {
-          const fileCount = await downloadEntriesAsZip(current.rxdb, [entry], `${entry.name}.zip`);
-          current.showToast(
-            fileCount === 0 ?
-              `Downloaded empty folder ${entry.name}`
-            : `Downloaded ${fileCount} files from ${entry.name}`,
-            'success'
-          );
-        } catch (err) {
-          current.showToast(err instanceof Error ? err.message : String(err), 'error');
-        }
-
-        return;
-      }
-
-      if (!entry.meta) {
-        return;
+        overwrite = true;
       }
 
       try {
-        await current.rxdb.storage.download(entry.meta.id);
+        await current.rxdb.storage.upload(file, { path: targetDirectory, overwrite });
+        successCount++;
+      } catch {
+        failedCount++;
+      }
+    }
+
+    const folderInput = current.folderInput();
+    if (folderInput) {
+      folderInput.value = '';
+    }
+
+    await current.refresh(root);
+    await waitFor(100);
+    await current.refresh(root);
+
+    if (failedCount > 0) {
+      current.showToast(`Upload finished: ${successCount} succeeded, ${failedCount} failed`, 'error');
+    } else {
+      current.showToast(`Uploaded ${successCount} files`, 'success');
+    }
+  }, []);
+
+  const handleDownload = useCallback(async (entry: StorageBrowserItem) => {
+    const current = depsRef.current;
+    if (entry.kind === 'directory') {
+      current.showToast(`Preparing ${entry.name}...`, 'info');
+
+      try {
+        const fileCount = await downloadEntriesAsZip(current.rxdb, [entry], `${entry.name}.zip`);
+        current.showToast(
+          fileCount === 0 ?
+            `Downloaded empty folder ${entry.name}`
+          : `Downloaded ${fileCount} files from ${entry.name}`,
+          'success'
+        );
       } catch (err) {
         current.showToast(err instanceof Error ? err.message : String(err), 'error');
       }
-    },
-    []
-  );
+
+      return;
+    }
+
+    if (!entry.meta) {
+      return;
+    }
+
+    try {
+      await current.rxdb.storage.download(entry.meta.id);
+    } catch (err) {
+      current.showToast(err instanceof Error ? err.message : String(err), 'error');
+    }
+  }, []);
 
   const handleBatchDownload = useCallback(
     async (selectedEntries: StorageBrowserItem[]) => {

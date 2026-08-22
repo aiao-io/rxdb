@@ -5,8 +5,8 @@ import type { StorageBrowserItem } from './utils/storage-utils';
 
 export type StorageZipService = Pick<RxDB['storage'], 'listEntries' | 'read'>;
 
-export function isZipDirectory(entry: Zippable[keyof Zippable] | undefined): entry is Zippable {
-  return !!entry && !Array.isArray(entry) && !(entry instanceof Uint8Array);
+export function isZipDirectory(entry: unknown): entry is Zippable {
+  return !!entry && typeof entry === 'object' && !Array.isArray(entry) && !(entry instanceof Uint8Array);
 }
 
 export function ensureZipDirectory(zipTree: Zippable, pathSegments: string[]): Zippable {

@@ -5,40 +5,39 @@ import { EntityType } from './entity/entity.interface.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
 import { PluginDependencyScheduler } from './plugin/dependency-scheduler.js';
 import {
-    AdapterFactory,
-    IRxDBAdapter,
-    RepositoryInstance,
-    RxDBAdapterLocalBase,
-    RxDBAdapterName,
-    RxDBAdapterRemoteBase,
-    RxDBAdapters
+  AdapterFactory,
+  IRxDBAdapter,
+  RepositoryInstance,
+  RxDBAdapterLocalBase,
+  RxDBAdapterName,
+  RxDBAdapterRemoteBase,
+  RxDBAdapters
 } from './rxdb-adapter.js';
 import { RxDBEvent, RxDBEventMap, TRANSACTION_BEGIN, TRANSACTION_COMMIT, TRANSACTION_ROLLBACK } from './rxdb-events.js';
 import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
 import { uuid } from './rxdb-utils.js';
 import { RxDBContext, RxDBOptions } from './rxdb.interface.js';
 import {
-    awaitPluginInstalls,
-    createPluginScope,
-    destroyPlugin,
-    discardPluginScope,
-    freezeConfig,
-    installOnePlugin,
-    installPlugin,
-    type PluginLifecycleHost,
-    releaseConnectionScope,
-    reportUnsatisfiedPlugins,
-    resetPluginScheduling,
-    trackPluginInstall,
-    unregisterRepository
+  awaitPluginInstalls,
+  createPluginScope,
+  destroyPlugin,
+  discardPluginScope,
+  freezeConfig,
+  installOnePlugin,
+  installPlugin,
+  type PluginLifecycleHost,
+  releaseConnectionScope,
+  resetPluginScheduling,
+  trackPluginInstall,
+  unregisterRepository
 } from './rxdb.plugin-lifecycle.js';
 import { isLocalAdapter, isTransactionEvent } from './rxdb.private.js';
 import {
-    emitEvent,
-    handleTransactionBegin,
-    handleTransactionCommit,
-    handleTransactionRollback,
-    runIsolated
+  emitEvent,
+  handleTransactionBegin,
+  handleTransactionCommit,
+  handleTransactionRollback,
+  runIsolated
 } from './rxdb.transaction.js';
 import type { EventListener, IRepositoryConfig, RxDBConfig, TransactionContext } from './rxdb.types.js';
 import { SchemaManager } from './schema/SchemaManager.js';
@@ -205,8 +204,7 @@ export class RxDB {
    *
    * @remarks
    * 只服务一件事：判断「依赖来源是否已经尘埃落定」，即
-   * {@link PluginDependencyScheduler.reportUnsatisfied} 的开闸条件（见
-   * {@link RxDB.#report_unsatisfied_plugins}）。计数在 `connect()` 同步段自增，在该适配器
+   * {@link PluginDependencyScheduler.reportUnsatisfied} 的开闸条件。计数在 `connect()` 同步段自增，在该适配器
    * **建表完成、置位已连接之后**归零一次——不是在整条 `connect()` 结束时，因为那时插件
    * 安装已经跑完了，报告永远等不到开闸。
    *
@@ -872,11 +870,6 @@ export class RxDB {
     installPlugin(this.#pluginHost);
   }
 
-  /** 依赖来源尘埃落定之后，把始终没装上的插件点名一次。 */
-  #report_unsatisfied_plugins() {
-    reportUnsatisfiedPlugins(this.#pluginHost);
-  }
-
   /** 把单个插件交给调度器并对齐一次。守卫与 {@link RxDB.#install_plugin} 故意重复。 */
   #install_one_plugin(plugin: IRxDBPlugin) {
     installOnePlugin(this.#pluginHost, plugin);
@@ -937,18 +930,39 @@ export class RxDB {
   }
 
   #createPluginHost(): PluginLifecycleHost {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- 宿主 getter 需捕获 RxDB 私有字段
     const host = this;
     return {
-      get rxdbInitialized() { return host.#rxdb_initialized; },
-      get shuttingDown() { return host.#shutting_down; },
-      get pluginMap() { return host.#plugin_map; },
-      get scheduler() { return host.#scheduler; },
-      get bootstrappingConnects() { return host.#bootstrapping_connects; },
-      get connectedAdapters() { return host.#connected_adapters; },
-      get pluginScopes() { return host.#plugin_scopes; },
-      get connection() { return host.#connection; },
-      get config() { return host.#config; },
-      get repositoryConfigMap() { return host.#repository_config_map; },
+      get rxdbInitialized() {
+        return host.#rxdb_initialized;
+      },
+      get shuttingDown() {
+        return host.#shutting_down;
+      },
+      get pluginMap() {
+        return host.#plugin_map;
+      },
+      get scheduler() {
+        return host.#scheduler;
+      },
+      get bootstrappingConnects() {
+        return host.#bootstrapping_connects;
+      },
+      get connectedAdapters() {
+        return host.#connected_adapters;
+      },
+      get pluginScopes() {
+        return host.#plugin_scopes;
+      },
+      get connection() {
+        return host.#connection;
+      },
+      get config() {
+        return host.#config;
+      },
+      get repositoryConfigMap() {
+        return host.#repository_config_map;
+      },
       ensureConnectionScope: () => host.#ensure_connection_scope()
     };
   }

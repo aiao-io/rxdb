@@ -1,14 +1,16 @@
-import { describe, expect, it, vi } from 'vitest';
+import type { Zippable } from 'fflate';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { addEntryToZip, downloadEntriesAsZip, ensureZipDirectory, isZipDirectory } from './storage-page.zip';
 import type { StorageBrowserItem } from './utils/storage-utils';
 
 describe('ensureZipDirectory', () => {
   it('creates nested directory nodes', () => {
-    const zipTree = {};
+    const zipTree: Zippable = {};
     const nested = ensureZipDirectory(zipTree, ['docs', 'api']);
+    const docs = zipTree['docs'] as Zippable;
 
-    expect(isZipDirectory(zipTree['docs'])).toBe(true);
-    expect(nested).toBe((zipTree['docs'] as Record<string, unknown>)['api']);
+    expect(isZipDirectory(docs)).toBe(true);
+    expect(nested).toBe(docs['api']);
   });
 });
 
@@ -33,7 +35,7 @@ describe('addEntryToZip', () => {
       size: 4,
       opfsPath: 'docs/readme.md',
       contentVersion: 1
-    };
+    } as never;
     const storage = {
       listEntries: vi.fn().mockResolvedValue([
         {
@@ -57,6 +59,15 @@ describe('addEntryToZip', () => {
 });
 
 describe('downloadEntriesAsZip', () => {
+  const originalCreate = URL.createObjectURL;
+  const originalRevoke = URL.revokeObjectURL;
+
+  afterEach(() => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: originalCreate });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: originalRevoke });
+    vi.restoreAllMocks();
+  });
+
   it('downloads an empty folder as a zero-file zip', async () => {
     const storage = {
       listEntries: vi.fn().mockResolvedValue([]),
@@ -65,17 +76,17 @@ describe('downloadEntriesAsZip', () => {
     const createObjectURL = vi.fn().mockReturnValue('blob:zip');
     const revokeObjectURL = vi.fn();
     const click = vi.fn();
-    const originalCreate = URL.createObjectURL;
-    const originalRevoke = URL.revokeObjectURL;
+    const anchor = { click, download: '', href: '' } as unknown as HTMLAnchorElement;
 
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL });
-    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+    const nativeCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation(((tagName: string) => {
       if (tagName === 'a') {
-        return { click, download: '', href: '' } as HTMLAnchorElement;
+        return anchor;
       }
-      return document.createElement(tagName);
-    });
+      return nativeCreateElement(tagName);
+    }) as typeof document.createElement);
     vi.spyOn(document.body, 'appendChild').mockImplementation(node => node);
     vi.spyOn(document.body, 'removeChild').mockImplementation(node => node);
 
@@ -88,8 +99,6 @@ describe('downloadEntriesAsZip', () => {
     expect(fileCount).toBe(0);
     expect(click).toHaveBeenCalledOnce();
     expect(createObjectURL).toHaveBeenCalledOnce();
-
-    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: originalCreate });
-    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: originalRevoke });
+    expect(revokeObjectURL).toHaveBeenCalledOnce();
   });
 });

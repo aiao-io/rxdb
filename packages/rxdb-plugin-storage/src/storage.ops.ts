@@ -4,13 +4,13 @@ import type { StorageFilesystem, StorageFileWriter } from './filesystem/storage-
 import { isStorageNotFoundError } from './filesystem/storage-filesystem.js';
 import { getFileNameFromOpfsPath } from './paths.js';
 import {
-    readStreamChunk,
-    stripMimeParameters,
-    throwAfterRollback,
-    type FetchRemoteOptions,
-    type StorageFileState,
-    type StorageMetaPatch,
-    type UploadOptions
+  readStreamChunk,
+  stripMimeParameters,
+  throwAfterRollback,
+  type FetchRemoteOptions,
+  type StorageFileState,
+  type StorageMetaPatch,
+  type UploadOptions
 } from './storage.helpers.js';
 
 /** 文件读写 / 拉取 / 上传 sibling 需要的 Host。 */

@@ -12,11 +12,7 @@ function isBatchDeleteEntry(entry: StorageBrowserItem | null): boolean {
   return !!entry && !entry.path;
 }
 
-export function StorageDeleteDialog({
-  entry,
-  show,
-  onRespond
-}: StorageDeleteDialogProps): React.JSX.Element | null {
+export function StorageDeleteDialog({ entry, show, onRespond }: StorageDeleteDialogProps): React.JSX.Element | null {
   const T = STORAGE_TESTID;
 
   if (!show || !entry) {

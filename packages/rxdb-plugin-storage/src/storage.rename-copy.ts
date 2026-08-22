@@ -1,28 +1,28 @@
 import { StorageConflictError } from './errors.js';
 import { StorageFileMeta } from './file-meta.entity.js';
 import {
-    getDirectoryPathFromOpfsPath,
-    isOpfsPathInsideDirectory,
-    joinDirectoryAndFileName,
-    joinDirectoryPath,
-    normalizeDirectoryPath,
-    normalizeRelativeOpfsPath,
-    validateStorageName
+  getDirectoryPathFromOpfsPath,
+  isOpfsPathInsideDirectory,
+  joinDirectoryAndFileName,
+  joinDirectoryPath,
+  normalizeDirectoryPath,
+  normalizeRelativeOpfsPath,
+  validateStorageName
 } from './paths.js';
 import {
-    randomToken,
-    throwAfterRollback,
-    type DirectoryCopyJournal,
-    type RenameOptions,
-    type StorageMetaPatch
+  randomToken,
+  throwAfterRollback,
+  type DirectoryCopyJournal,
+  type RenameOptions,
+  type StorageMetaPatch
 } from './storage.helpers.js';
 import {
-    discardFileState,
-    readFileIfExists,
-    restoreFileState,
-    writeBlobToPath,
-    writeBlobWithoutRollback,
-    type StorageFileOpsHost
+  discardFileState,
+  readFileIfExists,
+  restoreFileState,
+  writeBlobToPath,
+  writeBlobWithoutRollback,
+  type StorageFileOpsHost
 } from './storage.ops.js';
 
 export async function renameLocked(

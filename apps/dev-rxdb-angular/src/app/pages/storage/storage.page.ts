@@ -112,7 +112,16 @@ interface SelectionBox {
     StorageFileGridComponent,
     StorageFilePreviewComponent
   ],
-  changeDetection: destroyRef = inject(DestroyRef);
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './storage.page.html'
+})
+export default class StoragePage implements OnInit, OnDestroy {
+  private initialized = false;
+  private clickAbortController?: AbortController;
+  private mouseMoveListener?: (event: MouseEvent) => void;
+  private mouseUpListener?: () => void;
+  private toastTimer?: ReturnType<typeof setTimeout>;
+  private readonly destroyRef = inject(DestroyRef);
   private readonly browser: StoragePageBrowser;
   private readonly transfer: StoragePageTransfer;
 
@@ -121,20 +130,13 @@ interface SelectionBox {
   readonly route = inject(ActivatedRoute);
 
   readonly currentPath = signal('/');
-  readonly allFiles;
-  readonly entries;
-  readonly loading;
-  readonly error;
-  readonly viewMode = signal<ViewMode>(
-  readonly router = inject(Router);
-  readonly route = inject(ActivatedRoute);
-
-  readonly allFiles = signal<StorageFileMeta[]>([]);
-  readonly entries = signal<StorageBrowserItem[]>([]);
-  readonly currentPath = signal('/');
-  readonly loading = signal(false);
-  readonly error = signal<string | null>(null);
-  readonly viewMode = signal<ViewMode>(this.getStoredViewMode());
+  readonly selectedPaths = signal<Set<string>>(new Set());
+  readonly lastSelectedPath = signal<string | null>(null);
+  readonly allFiles: StoragePageBrowser['allFiles'];
+  readonly entries: StoragePageBrowser['entries'];
+  readonly loading: StoragePageBrowser['loading'];
+  readonly error: StoragePageBrowser['error'];
+  readonly viewMode = signal<ViewMode>(getStoredViewMode());
   readonly previewEntry = signal<StorageBrowserItem | null>(null);
   readonly newFolderName = signal('');
   readonly showNewFolder = signal(false);
@@ -145,15 +147,8 @@ interface SelectionBox {
   readonly deleteConfirm = signal<DeleteConfirm>({ show: false, target: null });
   readonly confirmDialog = signal<ConfirmDialog>({ show: false, message: '' });
   readonly toast = signal<Toast>({ show: false, message: '', type: 'info' });
-  readonly selectedPaths = signal<Set<string>>(new Set());
-  readonly lastSelectedPath = signal<string | null>(null);
   readonly opfsAvailable = signal(false);
   readonly selectionBox = signal<SelectionBox | null>(null);
-
-  readonly allFiles;
-  readonly entries;
-  readonly loading;
-  readonly error;
 
   readonly routePath = toSignal(
     this.route.paramMap.pipe(map(params => normalizeRoutePath(params.get('storagePath')))),
@@ -215,10 +210,10 @@ interface SelectionBox {
       fileInputFiles: () => this.fileInputRef?.files,
       findExistingFileEntry: (fileName, directoryPath) => this.browser.findExistingFileEntry(fileName, directoryPath),
       refresh: () => this.browser.refreshCurrentDirectory(),
-      resolveOverwrite: (file, existingEntry) =>
-        new Promise<boolean>(resolve => {
-          this.overwriteConfirm.set({ show: true, file, existingEntry, resolve });
-        }),browser.
+      resolveOverwrite: (file, existing) =>
+        new Promise(resolve => {
+          this.overwriteConfirm.set({ show: true, file, existingEntry: existing, resolve });
+        }),
       showToast: (message, type) => this.showToast(message, type)
     });
 
@@ -231,7 +226,7 @@ interface SelectionBox {
 
       this.currentPath.set(this.routePath());
       this.initialized = true;
-      void this.refreshCurrentDirectory();
+      void this.browser.refreshCurrentDirectory();
     });
 
     effect(() => {
@@ -347,7 +342,7 @@ interface SelectionBox {
   }
 
   async navigateTo(path: string): Promise<void> {
-    await this.router.navigateByUrl(this.buildUrlFromPath(normalizeDirectoryPath(path)));
+    await this.router.navigateByUrl(buildUrlFromPath(normalizeDirectoryPath(path)));
   }
 
   handleNavigate(entry: StorageBrowserItem): void {
@@ -357,33 +352,7 @@ interface SelectionBox {
   }
 
   async handleDownload(entry: StorageBrowserItem): Promise<void> {
-    if (entry.kind === 'directory') {
-      this.showToast(`Preparing ${entry.name}...`, 'info');
-
-      try {
-        const fileCount = await this.downloadEntriesAsZip([entry], `${entry.name}.zip`);
-        this.showToast(
-          fileCount === 0 ?
-            `Downloaded empty folder ${entry.name}`
-          : `Downloaded ${fileCount} files from ${entry.name}`,
-          'success'
-        );
-      } catch (err) {
-        this.showToast(err instanceof Error ? err.message : String(err), 'error');
-      }
-
-      return;
-    }
-
-    if (!entry.meta) {
-      return;
-    }
-
-    try {
-      await this.rxdb.storage.download(entry.meta.id);
-    } catch (err) {
-      this.showToast(err instanceof Error ? err.message : String(err), 'error');
-    }
+    await this.transfer.handleDownload(entry);
   }
 
   async handleDelete(entry: StorageBrowserItem): Promise<void> {
@@ -408,87 +377,11 @@ interface SelectionBox {
   }
 
   async handleUpload(files?: File[]): Promise<void> {
-    const filesToUpload = files || this.fileInputRef?.files;
-    if (!filesToUpload || filesToUpload.length === 0) {
-      return;
-    }
-
-    const fileList = Array.from(filesToUpload);
-    let successCount = 0;
-
-    for (const file of fileList) {
-      const existingFile = this.findExistingFileEntry(file.name, this.currentPath());
-      let overwrite = false;
-
-      if (existingFile) {
-        const shouldOverwrite = await new Promise<boolean>(resolve => {
-          this.overwriteConfirm.set({ show: true, file, existingEntry: existingFile, resolve });
-        });
-
-        if (!shouldOverwrite) {
-          continue;
-        }
-
-        overwrite = true;
-      }
-
-      try {
-        await this.rxdb.storage.upload(file, { path: this.currentPath(), overwrite });
-        successCount++;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        this.showToast(message.includes('already exists') ? STORAGE_LABELS.FILE_EXISTS : message, 'error');
-        return;
-      }
-    }
-
-    if (successCount > 0) {
-      this.showToast(successCount === 1 ? STORAGE_LABELS.UPLOAD_SUCCESS : `Uploaded ${successCount} files`, 'success');
-      await this.refreshCurrentDirectory();
-    }
+    await this.transfer.handleUpload(files);
   }
 
   async handleUploadFolder(files: File[]): Promise<void> {
-    if (files.length === 0) return;
-
-    this.showToast(`Uploading folder with ${files.length} files...`, 'info');
-
-    let successCount = 0;
-    let failedCount = 0;
-
-    for (const file of files) {
-      const relativePath = file.webkitRelativePath || file.name;
-      const targetDirectory = this.getUploadDirectory(relativePath);
-      const existingFile = this.findExistingFileEntry(file.name, targetDirectory);
-      let overwrite = false;
-
-      if (existingFile) {
-        const shouldOverwrite = await new Promise<boolean>(resolve => {
-          this.overwriteConfirm.set({ show: true, file, existingEntry: existingFile, resolve });
-        });
-
-        if (!shouldOverwrite) {
-          continue;
-        }
-
-        overwrite = true;
-      }
-
-      try {
-        await this.rxdb.storage.upload(file, { path: targetDirectory, overwrite });
-        successCount++;
-      } catch {
-        failedCount++;
-      }
-    }
-
-    await this.refreshCurrentDirectory();
-
-    if (failedCount > 0) {
-      this.showToast(`Upload finished: ${successCount} succeeded, ${failedCount} failed`, 'error');
-    } else {
-      this.showToast(`Uploaded ${successCount} files`, 'success');
-    }
+    await this.transfer.handleUploadFolder(files);
   }
 
   handleOverwriteResponse(confirm: boolean): void {
@@ -506,7 +399,7 @@ interface SelectionBox {
       this.showNewFolder.set(false);
       this.newFolderName.set('');
       this.showToast('Folder created successfully', 'success');
-      await this.refreshCurrentDirectory();
+      await this.browser.refreshCurrentDirectory();
     } catch (err) {
       this.showToast(err instanceof Error ? err.message : String(err), 'error');
     }
@@ -525,7 +418,7 @@ interface SelectionBox {
 
       this.renameDialog.set({ show: false, entry: null, newName: '' });
       this.showToast('Rename successful', 'success');
-      await this.refreshCurrentDirectory();
+      await this.browser.refreshCurrentDirectory();
     } catch (err) {
       this.showToast(err instanceof Error ? err.message : String(err), 'error');
     }
@@ -567,59 +460,19 @@ interface SelectionBox {
 
   async handleBatchDownload(): Promise<void> {
     const selectedEntries = this.entries().filter(entry => this.selectedPaths().has(entry.path));
-
-    if (selectedEntries.length === 0) {
-      this.showToast('No files selected', 'error');
-      return;
-    }
-
-    if (selectedEntries.length === 1) {
-      await this.handleDownload(selectedEntries[0]);
-      return;
-    }
-
-    this.showToast(`Preparing ${selectedEntries.length} items...`, 'info');
-
-    try {
-      const fileCount = await this.downloadEntriesAsZip(selectedEntries, this.getBatchArchiveName());
-      this.showToast(
-        fileCount === 0 ?
-          `Downloaded ${selectedEntries.length} empty folders`
-        : `Downloaded ${selectedEntries.length} items (${fileCount} files)`,
-        'success'
-      );
-    } catch (err) {
-      this.showToast(err instanceof Error ? err.message : String(err), 'error');
-    }
+    await this.transfer.handleBatchDownload(selectedEntries, getBatchArchiveName(this.currentPath()));
   }
 
   handleEntryClick(entry: StorageBrowserItem, event: MouseEvent): void {
-    if (event.ctrlKey || event.metaKey) {
-      const selected = new Set(this.selectedPaths());
-      if (selected.has(entry.path)) {
-        selected.delete(entry.path);
-      } else {
-        selected.add(entry.path);
-      }
-      this.selectedPaths.set(selected);
-      this.lastSelectedPath.set(entry.path);
-    } else if (event.shiftKey && this.lastSelectedPath()) {
-      const entries = this.entries();
-      const startIndex = entries.findIndex(item => item.path === this.lastSelectedPath());
-      const endIndex = entries.findIndex(item => item.path === entry.path);
-
-      if (startIndex !== -1 && endIndex !== -1) {
-        const [start, end] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
-        const selected = new Set(this.selectedPaths());
-        for (let index = start; index <= end; index++) {
-          selected.add(entries[index].path);
-        }
-        this.selectedPaths.set(selected);
-      }
-    } else {
-      this.selectedPaths.set(new Set([entry.path]));
-      this.lastSelectedPath.set(entry.path);
-    }
+    const next = nextSelectedPaths(entry, {
+      entries: this.entries(),
+      lastSelectedPath: this.lastSelectedPath(),
+      metaKey: event.ctrlKey || event.metaKey,
+      selectedPaths: this.selectedPaths(),
+      shiftKey: event.shiftKey
+    });
+    this.selectedPaths.set(next.selectedPaths);
+    this.lastSelectedPath.set(next.lastSelectedPath);
   }
 
   handleContextMenu(event: MouseEvent, entry: StorageBrowserItem): void {
@@ -690,7 +543,7 @@ interface SelectionBox {
   }
 
   async refresh(): Promise<void> {
-    await this.refreshCurrentDirectory();
+    await this.browser.refreshCurrentDirectory();
   }
 
   async handleDrop(event: DragEvent): Promise<void> {
@@ -741,7 +594,7 @@ interface SelectionBox {
       this.clearSelection();
       this.previewEntry.set(null);
       this.showToast(STORAGE_LABELS.CLEAR_SUCCESS, 'success');
-      await this.refreshCurrentDirectory();
+      await this.browser.refreshCurrentDirectory();
     } catch (err) {
       this.showToast(err instanceof Error ? err.message : String(err), 'error');
     }
@@ -759,48 +612,8 @@ interface SelectionBox {
     });
   }
 
-  private setAllFiles(metas: StorageFileMeta[]): void {
-    const sorted = [...metas].sort((left, right) => left.opfsPath.localeCompare(right.opfsPath));
-    this.allFiles.set(sorted);
-  }
-
   private async deleteEntry(entry: StorageBrowserItem): Promise<boolean> {
-    try {
-      if (entry.kind === 'file' && entry.meta) {
-        await this.rxdb.storage.delete(entry.meta.id);
-      } else {
-        await this.rxdb.storage.clear(entry.path);
-      }
-
-      await this.refreshCurrentDirectory();
-      return true;
-    } catch (err) {
-      this.error.set(err instanceof Error ? err.message : String(err));
-      return false;
-    }
-  }
-
-  private normalizeRoutePath(path: string | null): string {
-    if (!path || path === '/') {
-      return '/';
-    }
-
-    const withLeadingSlash = path.startsWith('/') ? path : `/${path}`;
-    return normalizeDirectoryPath(withLeadingSlash);
-  }
-
-  private getStoredViewMode(): ViewMode {
-    const stored = localStorage.getItem(this.viewModeStorageKey);
-    return stored === 'grid' || stored === 'list' ? stored : 'list';
-  }
-
-  private buildUrlFromPath(path: string): string {
-    const segments = path.split('/').filter(Boolean);
-    if (segments.length === 0) {
-      return '/storage';
-    }
-
-    return `/storage/${segments.map(segment => encodeURIComponent(segment)).join('/')}`;
+    return this.browser.deleteEntry(entry);
   }
 
   private handleMouseMove(event: MouseEvent): void {
@@ -863,214 +676,5 @@ interface SelectionBox {
       window.removeEventListener('mouseup', this.mouseUpListener);
       this.mouseUpListener = undefined;
     }
-  }
-
-  private async refreshCurrentDirectory(): Promise<void> {
-    this.loading.set(true);
-    this.error.set(null);
-
-    try {
-      this.setAllFiles(await this.rxdb.storage.list());
-
-      const entries = await this.rxdb.storage.listEntries({ path: this.currentPath() });
-      const mappedEntries = entries
-        .map(entry => this.mapEntry(entry))
-        .sort((left, right) => {
-          if (left.kind !== right.kind) {
-            return left.kind === 'directory' ? -1 : 1;
-          }
-
-          return left.name.localeCompare(right.name);
-        });
-      this.entries.set(mappedEntries);
-      this.syncSelectedPaths(mappedEntries);
-    } catch (err) {
-      this.entries.set([]);
-      this.error.set(err instanceof Error ? err.message : String(err));
-      this.showToast(this.error() || 'Unknown error', 'error');
-    } finally {
-      this.loading.set(false);
-    }
-  }
-
-  private mapEntry(entry: StorageBrowserEntry): StorageBrowserItem {
-    if (entry.kind === 'directory') {
-      return {
-        kind: 'directory',
-        name: entry.name,
-        path: entry.path
-      };
-    }
-
-    return {
-      kind: 'file',
-      name: entry.meta.name,
-      path: entry.path,
-      meta: entry.meta,
-      size: entry.meta.size,
-      type: entry.meta.mimeType,
-      lastModified: this.toTimestamp(entry.meta.updatedAt ?? entry.meta.createdAt)
-    };
-  }
-
-  private toTimestamp(value: unknown): number | undefined {
-    if (typeof value === 'number') {
-      return value;
-    }
-
-    if (value instanceof Date) {
-      return value.getTime();
-    }
-
-    if (typeof value === 'string') {
-      const timestamp = new Date(value).getTime();
-      return Number.isNaN(timestamp) ? undefined : timestamp;
-    }
-
-    return undefined;
-  }
-
-  private findExistingFileEntry(fileName: string, directoryPath: string): StorageBrowserItem | null {
-    const targetOpfsPath = joinDirectoryAndFileName(directoryPath, fileName);
-    const meta = this.allFiles().find(file => file.opfsPath === targetOpfsPath);
-
-    if (!meta) {
-      return null;
-    }
-
-    return this.mapEntry({
-      kind: 'file',
-      name: meta.name,
-      path: `/${meta.opfsPath}`,
-      meta
-    });
-  }
-
-  private getUploadDirectory(relativePath: string): string {
-    const segments = relativePath.replace(/\\/g, '/').split('/').filter(Boolean);
-    if (segments.length <= 1) {
-      return this.currentPath();
-    }
-
-    return normalizeDirectoryPath([this.currentPath(), ...segments.slice(0, -1)].join('/'));
-  }
-
-  private syncSelectedPaths(entries: StorageBrowserItem[]): void {
-    const validPaths = new Set(entries.map(entry => entry.path));
-    const nextSelected = new Set([...this.selectedPaths()].filter(path => validPaths.has(path)));
-
-    if (nextSelected.size !== this.selectedPaths().size) {
-      this.selectedPaths.set(nextSelected);
-    }
-
-    if (this.lastSelectedPath() && !validPaths.has(this.lastSelectedPath()!)) {
-      this.lastSelectedPath.set(null);
-    }
-  }
-
-  private async downloadEntriesAsZip(entries: StorageBrowserItem[], suggestedName: string): Promise<number> {
-    const zipTree: Zippable = {};
-    let fileCount = 0;
-
-    for (const entry of entries) {
-      fileCount += await this.addEntryToZip(zipTree, entry, [entry.name]);
-    }
-
-    const zipData = zipSync(zipTree, { level: 6 });
-    const zipBuffer = new ArrayBuffer(zipData.byteLength);
-    const zipBytes = new Uint8Array(zipBuffer);
-    zipBytes.set(zipData);
-
-    await this.downloadBlob(new Blob([zipBuffer], { type: 'application/zip' }), suggestedName);
-
-    return fileCount;
-  }
-
-  private async addEntryToZip(
-    zipTree: Zippable,
-    entry: StorageBrowserItem,
-    zipPathSegments: string[]
-  ): Promise<number> {
-    if (entry.kind === 'file') {
-      if (!entry.meta) {
-        return 0;
-      }
-
-      const blob = await this.rxdb.storage.read(entry.meta.id);
-      const parentDirectory = this.ensureZipDirectory(zipTree, zipPathSegments.slice(0, -1));
-      const fileName = zipPathSegments[zipPathSegments.length - 1];
-
-      parentDirectory[fileName] = new Uint8Array(await blob.arrayBuffer());
-      return 1;
-    }
-
-    this.ensureZipDirectory(zipTree, zipPathSegments);
-
-    const childEntries = await this.rxdb.storage.listEntries({ path: entry.path });
-    let fileCount = 0;
-
-    for (const childEntry of childEntries) {
-      fileCount += await this.addEntryToZip(zipTree, this.mapEntry(childEntry), [...zipPathSegments, childEntry.name]);
-    }
-
-    return fileCount;
-  }
-
-  private ensureZipDirectory(zipTree: Zippable, pathSegments: string[]): Zippable {
-    let currentDirectory = zipTree;
-
-    for (const segment of pathSegments) {
-      const existingEntry = currentDirectory[segment];
-
-      if (!this.isZipDirectory(existingEntry)) {
-        currentDirectory[segment] = {};
-      }
-
-      currentDirectory = currentDirectory[segment] as Zippable;
-    }
-
-    return currentDirectory;
-  }
-
-  private isZipDirectory(entry: Zippable[keyof Zippable] | undefined): entry is Zippable {
-    return !!entry && !Array.isArray(entry) && !(entry instanceof Uint8Array);
-  }
-
-  private async downloadBlob(blob: Blob, suggestedName: string): Promise<void> {
-    const windowWithPicker = window as Window & {
-      showSaveFilePicker?: (options: { suggestedName: string }) => Promise<FileSystemFileHandle>;
-    };
-
-    if (windowWithPicker.showSaveFilePicker) {
-      try {
-        const saveHandle = await windowWithPicker.showSaveFilePicker({ suggestedName });
-        const writable = await saveHandle.createWritable();
-        await writable.write(blob);
-        await writable.close();
-        return;
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') {
-          return;
-        }
-        throw error;
-      }
-    }
-
-    const url = URL.createObjectURL(blob);
-    try {
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = suggestedName;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  }
-
-  private getBatchArchiveName(): string {
-    const folderName = this.currentPath().split('/').filter(Boolean).pop() || 'storage';
-    return `${folderName}.zip`;
   }
 }

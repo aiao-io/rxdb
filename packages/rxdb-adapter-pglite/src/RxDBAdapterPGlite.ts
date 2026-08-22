@@ -28,10 +28,10 @@ import { AsyncQueueExecutor } from '@aiao/utils';
 import type { QueryOptions, Results } from '@electric-sql/pglite';
 import { defer, from, map, Observable, of, Subject } from 'rxjs';
 import {
+  type ChangePipelineHost,
   drainPendingChangeHandlers,
   flushPendingChangePipeline,
-  trackChangeHandler,
-  type ChangePipelineHost
+  trackChangeHandler
 } from './change-pipeline.js';
 import generate_entity_deletes_sql from './entity/deletes_sql.js';
 import { generate_entity_upserts_sql } from './entity/inserts_sql.js';
@@ -44,12 +44,12 @@ import {
   PgliteTableColumn
 } from './pglite.interface.js';
 import { type EncryptionContext, quoteIdentifier, RxdbAdapterPGliteError } from './pglite.utils.js';
-import { migrateSystemSchema } from './system/migrate_system_schema.js';
 import { IPGliteClient, PGliteClient } from './PGliteClient.js';
 import { resolveQueryCacheTarget, resolveUpdatedAtColumn } from './query-cache/query_cache_target.js';
 import { buildQueryCacheUpsertStatements } from './query-cache/upsert_many_sql.js';
 import { PGliteRepository } from './repository/PGliteRepository.js';
 import { PGliteTreeRepository } from './repository/PGliteTreeRepository.js';
+import { migrateSystemSchema } from './system/migrate_system_schema.js';
 import { create_table_indexes_sql } from './table/create_table_sql.js';
 import { create_tables_statements } from './table/create_tables_sql.js';
 import { generateNotifyInfrastructureSQL, generateNotifyTriggerSQL } from './table/notify_function_sql.js';
@@ -70,10 +70,7 @@ import rxdb_adapter_switch_transaction_id from './version/switch_transaction_id.
  */
 type AdapterLifecycleState = 'bootstrap' | 'ready' | 'closing' | 'closed';
 
-export {
-  type RxDBChangePipelineTimeoutDiagnostics,
-  RxDBChangePipelineTimeoutError
-} from './change-pipeline.types.js';
+export { RxDBChangePipelineTimeoutError, type RxDBChangePipelineTimeoutDiagnostics } from './change-pipeline.types.js';
 
 /**
  * 暴露在 `adapter.encryption` 上的开发者门面，内部转发给 `Keyring`。
@@ -735,10 +732,18 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       pendingChangeHandlers: adapter.#pendingChangeHandlers,
       pendingChangeQueues: adapter.#pendingChangeQueues,
       changeErrors: adapter.#changeErrors,
-      get changePipelineGeneration() { return adapter.#changePipelineGeneration; },
-      set changePipelineGeneration(v: number) { adapter.#changePipelineGeneration = v; },
-      get cachedClient() { return adapter.#cached_client; },
-      get clientPromise() { return adapter.#client_promise; }
+      get changePipelineGeneration() {
+        return adapter.#changePipelineGeneration;
+      },
+      set changePipelineGeneration(v: number) {
+        adapter.#changePipelineGeneration = v;
+      },
+      get cachedClient() {
+        return adapter.#cached_client;
+      },
+      get clientPromise() {
+        return adapter.#client_promise;
+      }
     };
   }
 

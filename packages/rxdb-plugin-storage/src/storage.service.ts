@@ -15,12 +15,12 @@
 import type { IRepository, RxDB } from '@aiao/rxdb';
 import { defer, from, map, Observable, startWith, Subject, switchMap } from 'rxjs';
 import {
-    StorageConflictError,
-    StorageDestroyedError,
-    StorageFetchUrlConflictError,
-    StorageInvalidPathError,
-    StoragePreviewLimitError,
-    StorageUnavailableError
+  StorageConflictError,
+  StorageDestroyedError,
+  StorageFetchUrlConflictError,
+  StorageInvalidPathError,
+  StoragePreviewLimitError,
+  StorageUnavailableError
 } from './errors.js';
 import { StorageFileMeta } from './file-meta.entity.js';
 import { createOpfsStorageFilesystem } from './filesystem/opfs-filesystem.js';
@@ -28,67 +28,67 @@ import type { StorageFilesystem, StorageFilesystemEntry } from './filesystem/sto
 import { ObjectUrlRegistry, StoragePreviewResult } from './object-url.js';
 import { PathLockManager } from './path-lock.js';
 import {
-    getDirectoryPathFromOpfsPath,
-    getFileNameFromOpfsPath,
-    isOpfsPathInDirectory,
-    isOpfsPathInsideDirectory,
-    joinDirectoryAndFileName,
-    joinDirectoryPath,
-    normalizeDirectoryPath,
-    normalizeRelativeOpfsPath,
-    toAbsoluteStoragePath,
-    validateStorageName
+  getDirectoryPathFromOpfsPath,
+  getFileNameFromOpfsPath,
+  isOpfsPathInDirectory,
+  isOpfsPathInsideDirectory,
+  joinDirectoryAndFileName,
+  joinDirectoryPath,
+  normalizeDirectoryPath,
+  normalizeRelativeOpfsPath,
+  toAbsoluteStoragePath,
+  validateStorageName
 } from './paths.js';
 import {
-    cleanupFailedWritable,
-    DEFAULT_PREVIEW_LIMIT_BYTES,
-    EMPTY_WHERE,
-    MAX_PATH_RELOCK_ATTEMPTS,
-    metaNotFoundError,
-    raceAbortSignal,
-    randomToken,
-    RELOCK,
-    type CreateDirectoryOptions,
-    type DownloadOptions,
-    type FetchRemoteOptions,
-    type ListOptions,
-    type LocalAdapterName,
-    type RenameOptions,
-    type RxDBStoragePluginOptions,
-    type StorageBrowserEntry,
-    type StorageFindOptions,
-    type StorageFindWhere,
-    type StorageMetaEntityType,
-    type StorageMetaPatch,
-    type UploadOptions
+  cleanupFailedWritable,
+  DEFAULT_PREVIEW_LIMIT_BYTES,
+  EMPTY_WHERE,
+  MAX_PATH_RELOCK_ATTEMPTS,
+  metaNotFoundError,
+  raceAbortSignal,
+  randomToken,
+  RELOCK,
+  type CreateDirectoryOptions,
+  type DownloadOptions,
+  type FetchRemoteOptions,
+  type ListOptions,
+  type LocalAdapterName,
+  type RenameOptions,
+  type RxDBStoragePluginOptions,
+  type StorageBrowserEntry,
+  type StorageFindOptions,
+  type StorageFindWhere,
+  type StorageMetaEntityType,
+  type StorageMetaPatch,
+  type UploadOptions
 } from './storage.helpers.js';
 import { deleteMetaAndFile, fetchToOpfs, uploadLocked, type StorageFileOpsHost } from './storage.ops.js';
 import { renameDirectoryLocked, renameLocked } from './storage.rename-copy.js';
 
 // 再导出路径工具：让后端实现能复用同一套校验，而不反向依赖服务实现。
 export {
-    getDirectoryPathFromOpfsPath,
-    getFileNameFromOpfsPath,
-    isOpfsPathInDirectory,
-    isOpfsPathInsideDirectory,
-    joinDirectoryAndFileName,
-    joinDirectoryPath,
-    normalizeDirectoryPath,
-    normalizeRelativeOpfsPath,
-    toAbsoluteStoragePath
+  getDirectoryPathFromOpfsPath,
+  getFileNameFromOpfsPath,
+  isOpfsPathInDirectory,
+  isOpfsPathInsideDirectory,
+  joinDirectoryAndFileName,
+  joinDirectoryPath,
+  normalizeDirectoryPath,
+  normalizeRelativeOpfsPath,
+  toAbsoluteStoragePath
 } from './paths.js';
 
 export type {
-    CreateDirectoryOptions,
-    DownloadOptions,
-    FetchRemoteOptions,
-    ListOptions,
-    RenameOptions,
-    RxDBStoragePluginOptions,
-    StorageBrowserEntry,
-    StorageDirectoryEntry,
-    StorageFileEntry,
-    UploadOptions
+  CreateDirectoryOptions,
+  DownloadOptions,
+  FetchRemoteOptions,
+  ListOptions,
+  RenameOptions,
+  RxDBStoragePluginOptions,
+  StorageBrowserEntry,
+  StorageDirectoryEntry,
+  StorageFileEntry,
+  UploadOptions
 } from './storage.helpers.js';
 
 /**

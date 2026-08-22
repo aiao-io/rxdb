@@ -1,8 +1,5 @@
 import { Subject } from 'rxjs';
-import {
-    CHANGE_PIPELINE_TIMEOUT_MS,
-    RxDBChangePipelineTimeoutError
-} from './change-pipeline.types.js';
+import { CHANGE_PIPELINE_TIMEOUT_MS, RxDBChangePipelineTimeoutError } from './change-pipeline.types.js';
 import { handle_rxdb_change } from './handle_rxdb_change.js';
 import type { PGliteChangeEvent } from './pglite.interface.js';
 import { IPGliteClient, PGliteClient } from './PGliteClient.js';
@@ -84,8 +81,7 @@ export async function flushPendingChangePipeline(host: ChangePipelineHost): Prom
       : false;
     await drainPendingChangeHandlers(host, deadline, createTimeoutError);
 
-    const idle =
-      !flushed && host.pendingChangeHandlers.size === 0 && generation === host.changePipelineGeneration;
+    const idle = !flushed && host.pendingChangeHandlers.size === 0 && generation === host.changePipelineGeneration;
     if (Date.now() >= deadline) throw createTimeoutError();
     if (idle) return;
   }

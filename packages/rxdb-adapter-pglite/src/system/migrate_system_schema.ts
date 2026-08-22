@@ -1,26 +1,26 @@
 import type { EntityMetadata, EntityType } from '@aiao/rxdb';
 import {
-    assertSupportedRxDBSystemVersions,
-    getEntityMetadata,
-    getRxDBSystemVersionState,
-    isCurrentRxDBSystemVersion,
-    RXDB_CHANGE_CODEC_WATERMARK,
-    RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
-    RXDB_SYSTEM_SCHEMA_WATERMARK,
-    RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
-    RxDBBranch,
-    RxDBChange,
-    RxDBMigration,
-    RxDBSystemMigrationLockError
+  assertSupportedRxDBSystemVersions,
+  getEntityMetadata,
+  getRxDBSystemVersionState,
+  isCurrentRxDBSystemVersion,
+  RXDB_CHANGE_CODEC_WATERMARK,
+  RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
+  RXDB_SYSTEM_SCHEMA_WATERMARK,
+  RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
+  RxDBBranch,
+  RxDBChange,
+  RxDBMigration,
+  RxDBSystemMigrationLockError
 } from '@aiao/rxdb';
 import { AsyncQueueExecutor } from '@aiao/utils';
 import {
-    type EncryptionContext,
-    getTableColumnIndexName,
-    getTableNameByMetadata,
-    quoteIdentifier,
-    RxdbAdapterPGliteError,
-    rxDBColumnTypeToPGliteTypeIndexName
+  type EncryptionContext,
+  getTableColumnIndexName,
+  getTableNameByMetadata,
+  quoteIdentifier,
+  RxdbAdapterPGliteError,
+  rxDBColumnTypeToPGliteTypeIndexName
 } from '../pglite.utils.js';
 import type { IPGliteClient } from '../PGliteClient.js';
 import { remove_trigger_sql } from '../table/remove_trigger_sql.js';

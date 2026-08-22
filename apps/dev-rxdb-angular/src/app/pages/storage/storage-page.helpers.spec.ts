@@ -1,16 +1,16 @@
-import type { StorageBrowserEntry } from '@aiao/rxdb-plugin-storage';
+import { StorageFileMeta } from '@aiao/rxdb-plugin-storage';
 import { describe, expect, it } from 'vitest';
 import {
-    buildUrlFromPath,
-    getBatchArchiveName,
-    getStoredViewMode,
-    getUploadDirectory,
-    mapStorageEntry,
-    normalizeRoutePath,
-    pathSegmentsFrom,
-    pruneSelectedPaths,
-    sortMappedEntries,
-    toTimestamp
+  buildUrlFromPath,
+  getBatchArchiveName,
+  getStoredViewMode,
+  getUploadDirectory,
+  mapStorageEntry,
+  normalizeRoutePath,
+  pathSegmentsFrom,
+  pruneSelectedPaths,
+  sortMappedEntries,
+  toTimestamp
 } from './storage-page.helpers';
 import { isZipDirectory } from './storage-page.zip';
 import type { StorageBrowserItem } from './utils/storage-utils';
@@ -86,7 +86,7 @@ describe('mapStorageEntry', () => {
       opfsPath: 'docs/readme.md',
       contentVersion: 1,
       updatedAt: '2020-01-02T00:00:00.000Z'
-    } as StorageBrowserEntry extends { kind: 'file' } ? StorageBrowserEntry['meta'] : never;
+    } as unknown as StorageFileMeta;
 
     expect(
       mapStorageEntry({
@@ -159,11 +159,7 @@ describe('getStoredViewMode', () => {
 
 describe('pruneSelectedPaths', () => {
   it('drops stale selected and last-selected paths', () => {
-    const next = pruneSelectedPaths(
-      ['/keep', '/gone'],
-      '/gone',
-      [{ kind: 'file', name: 'keep', path: '/keep' }]
-    );
+    const next = pruneSelectedPaths(['/keep', '/gone'], '/gone', [{ kind: 'file', name: 'keep', path: '/keep' }]);
 
     expect([...next.selectedPaths]).toEqual(['/keep']);
     expect(next.lastSelectedPath).toBeNull();
@@ -171,11 +167,7 @@ describe('pruneSelectedPaths', () => {
   });
 
   it('keeps the last selected path when it is still visible', () => {
-    const next = pruneSelectedPaths(
-      ['/keep'],
-      '/keep',
-      [{ kind: 'file', name: 'keep', path: '/keep' }]
-    );
+    const next = pruneSelectedPaths(['/keep'], '/keep', [{ kind: 'file', name: 'keep', path: '/keep' }]);
 
     expect(next.lastSelectedPath).toBe('/keep');
     expect(next.selectedChanged).toBe(false);

@@ -20,14 +20,7 @@ import { StorageToolbar } from './components/StorageToolbar';
 import { useStorageBrowser } from './hooks/useStorageBrowser';
 import { useStorageSelection } from './hooks/useStorageSelection';
 import { useStorageTransfer } from './hooks/useStorageTransfer';
-import type {
-    ConfirmDialog,
-    DeleteConfirm,
-    OverwriteConfirm,
-    RenameDialog,
-    ToastState,
-    ViewMode
-} from './types';
+import type { ConfirmDialog, DeleteConfirm, OverwriteConfirm, RenameDialog, ToastState, ViewMode } from './types';
 import type { StorageBrowserItem } from './utils/storage-utils';
 
 function getStoredViewMode(): ViewMode {
@@ -106,22 +99,26 @@ export default function StoragePage(): React.JSX.Element {
   } = useStorageBrowser(rxdb, showToast);
   const { clearSelection, handleEntryClick, selectedPaths, selectionBox, startBoxSelection } =
     useStorageSelection(entries);
-  const { handleBatchDownload: downloadSelected, handleDownload, handleUpload, handleUploadFolder } =
-    useStorageTransfer({
-      rxdb,
-      currentPath: () => currentPathRef.current,
-      findExistingFileEntry,
-      refresh: path => refresh(path ?? currentPathRef.current),
-      showToast,
-      uploadResolver: {
-        resolve: (file, existingEntry) =>
-          new Promise<boolean>(resolve => {
-            setOverwriteConfirm({ show: true, file, existingEntry, resolve });
-          })
-      },
-      fileInput: () => fileInputRef.current,
-      folderInput: () => folderInputRef.current
-    });
+  const {
+    handleBatchDownload: downloadSelected,
+    handleDownload,
+    handleUpload,
+    handleUploadFolder
+  } = useStorageTransfer({
+    rxdb,
+    currentPath: () => currentPathRef.current,
+    findExistingFileEntry,
+    refresh: path => refresh(path ?? currentPathRef.current),
+    showToast,
+    uploadResolver: {
+      resolve: (file, existingEntry) =>
+        new Promise<boolean>(resolve => {
+          setOverwriteConfirm({ show: true, file, existingEntry, resolve });
+        })
+    },
+    fileInput: () => fileInputRef.current,
+    folderInput: () => folderInputRef.current
+  });
 
   useEffect(() => {
     void checkOPFSAvailable().then(setOpfsAvailable);
@@ -287,7 +284,7 @@ export default function StoragePage(): React.JSX.Element {
     } catch (err) {
       showToast(err instanceof Error ? err.message : String(err), 'error');
     }
-  }
+  };
 
   const handleBatchDelete = async () => {
     if (selectedPaths.size === 0) return;
@@ -555,11 +552,7 @@ export default function StoragePage(): React.JSX.Element {
         onAction={action => void handleContextMenuAction(action)}
       />
 
-      <StorageDeleteDialog
-        entry={deleteConfirm.entry}
-        show={deleteConfirm.show}
-        onRespond={handleDeleteResponse}
-      />
+      <StorageDeleteDialog entry={deleteConfirm.entry} show={deleteConfirm.show} onRespond={handleDeleteResponse} />
 
       <StorageRenameDialog
         entry={renameDialog.entry}
@@ -570,16 +563,9 @@ export default function StoragePage(): React.JSX.Element {
         onNameChange={name => setRenameDialog(previous => ({ ...previous, newName: name }))}
       />
 
-      <StorageConfirmDialog
-        message={confirmDialog.message}
-        show={confirmDialog.show}
-        onRespond={resolveConfirm}
-      />
+      <StorageConfirmDialog message={confirmDialog.message} show={confirmDialog.show} onRespond={resolveConfirm} />
 
-      <StorageToast
-        toast={toast}
-        onClose={() => setToast({ show: false, message: '', type: 'info' })}
-      />
+      <StorageToast toast={toast} onClose={() => setToast({ show: false, message: '', type: 'info' })} />
 
       <input ref={fileInputRef} className='hidden' data-testid={T.FILE_INPUT} multiple type='file' />
       <input ref={folderInputRef} className='hidden' data-testid={T.FOLDER_INPUT} type='file' />

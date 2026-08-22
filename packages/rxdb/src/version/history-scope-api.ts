@@ -34,9 +34,7 @@ export interface HistoryScopeApiHost {
 /**
  * 解析 `history()` 入参：无参 → database；显式 HistoryScope；否则 EntityType / 实例。
  */
-export function resolveHistoryScope<T extends EntityType>(
-  options?: T | InstanceType<T> | HistoryScope
-): HistoryScope {
+export function resolveHistoryScope<T extends EntityType>(options?: T | InstanceType<T> | HistoryScope): HistoryScope {
   if (!options) return { type: 'database' };
   if (Object.getPrototypeOf(options) === Object.prototype && 'type' in options) {
     return options as HistoryScope;

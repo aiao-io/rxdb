@@ -1,7 +1,7 @@
+import { metadataKeyFromConflictKey, resolveEntityKey, type EntityInfo } from './connector-entity-info.js';
+import type { EventRecord } from './connector-events.js';
 import { isRecord } from './internal/guards.js';
 import { maskEncryptedFields } from './serializer.js';
-import type { EventRecord } from './connector-events.js';
-import { metadataKeyFromConflictKey, resolveEntityKey, type EntityInfo } from './connector-entity-info.js';
 
 const EVENT_ENTITY_FIELDS = ['patch', 'inversePatch', 'data'] as const;
 /** Conflict 里承载变更记录的两侧，各自形如 `IRxDBChange`（带 entity 与 patch/inversePatch）。 */

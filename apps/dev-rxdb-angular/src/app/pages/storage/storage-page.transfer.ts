@@ -35,9 +35,8 @@ export class StoragePageTransfer {
       let overwrite = false;
 
       if (existingFile) {
-        const shouldOverwrite = this.host.resolveOverwrite
-          ? await this.host.resolveOverwrite(file, existingFile)
-          : false;
+        const shouldOverwrite =
+          this.host.resolveOverwrite ? await this.host.resolveOverwrite(file, existingFile) : false;
 
         if (!shouldOverwrite) {
           continue;
@@ -80,9 +79,8 @@ export class StoragePageTransfer {
       let overwrite = false;
 
       if (existingFile) {
-        const shouldOverwrite = this.host.resolveOverwrite
-          ? await this.host.resolveOverwrite(file, existingFile)
-          : false;
+        const shouldOverwrite =
+          this.host.resolveOverwrite ? await this.host.resolveOverwrite(file, existingFile) : false;
 
         if (!shouldOverwrite) {
           continue;
