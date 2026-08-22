@@ -24,14 +24,14 @@
  * ```
  */
 
-import { concat, EMPTY, finalize, forkJoin, Observable, of, throwError } from 'rxjs';
+import { concat, defer, EMPTY, finalize, forkJoin, Observable, of, throwError } from 'rxjs';
 import { catchError, filter, map, shareReplay, switchMap } from 'rxjs/operators';
 import { EntityBaseType, EntityStaticType } from '../entity/entity.interface.js';
 import type { QueryCacheEntityMetadata } from '../entity/metadata-options.interface.js';
-import { isEntityMatchWhere } from '../query/query-matching.utils.js';
 import { deterministicStringify } from '../rxdb-utils.js';
 import { NetworkOfflineError } from '../RxDBError.js';
 import { diffMetadata } from './diff-metadata.js';
+import { isNetworkError } from './network-error.js';
 import type { RuleGroup } from './query.interface.js';
 
 /**
@@ -72,10 +72,46 @@ export interface QueryCacheLocalAdapter {
   upsertMany<T>(entityName: string, data: T[]): Observable<void>;
   /** 批量删除数据 */
   deleteByIds(entityName: string, ids: string[]): Observable<void>;
-  /** 按 ID 获取完整数据 */
+  /**
+   * 按 ID 获取完整数据
+   *
+   * @deprecated 本地读已改走 {@link QueryCacheLocalReader}（US-020 D8）。
+   * 该 duck 不再被 `QueryCacheRepository` 调用：它返回的是裸行不是实体实例，
+   * 且「适配器没实现就当查不到」的降级会把缓存故障伪装成「远端没有数据」。
+   * 保留仅为不破坏已实现它的适配器，下一个大版本移除。
+   */
   findByIds?<T>(entityName: string, ids: string[]): Observable<T[]>;
-  /** 获取所有本地缓存数据（SWR 模式需要） */
+  /**
+   * 获取所有本地缓存数据
+   *
+   * @deprecated 同 {@link QueryCacheLocalAdapter.findByIds}。SWR 的缓存首发现在由
+   * {@link QueryCacheLocalReader} 按 `where` 下推读取，不再「全表进内存再 JS 过滤」。
+   */
   findAll?<T>(entityName: string): Observable<T[]>;
+}
+
+/**
+ * QueryCache 读侧的本地出口（US-020 D8）。
+ *
+ * @typeParam T - 实体实例类型
+ *
+ * @remarks
+ * 生产实现就是该实体的本地 `IRepository`：`where` 下推成 SQL、返回实体实例。
+ * 之所以在这里收窄成只有 `find` 的一个接口，而不是直接依赖 `IRepository`：
+ * 本类按 `entityName` 工作，拿不到实体类，`IRepository<T extends EntityType>` 的
+ * 类型参数在这一层无从填写。
+ *
+ * 契约里没有「读不到」这个分支 —— 读失败必须上抛。缓存读静默降级成空集合，
+ * 对调用方看起来与「远端确实没有数据」完全一样，是最难查的一类故障。
+ */
+export interface QueryCacheLocalReader<T> {
+  /**
+   * 按查询条件读取本地行。
+   *
+   * @param options - 仅 `where`；`limit` / `offset` / `orderBy` 由上层门面负责
+   * @returns 匹配的实体实例
+   */
+  find(options: { where: RuleGroup<T> }): Promise<T[]>;
 }
 
 /**
@@ -130,6 +166,19 @@ export interface SyncStats {
 }
 
 /**
+ * 取一行的主键。
+ *
+ * @remarks
+ * `EntityBaseType` 不在类型上保证 `id` / `updatedAt`，但 QueryCache 策略要求实体满足
+ * {@link QueryCacheEntity}（配置该策略即为承诺）。这里把断言集中到两个函数里，
+ * 而不是散在 diff 逻辑中间。
+ */
+const rowId = (entity: unknown): string => (entity as QueryCacheEntity).id;
+
+/** 取一行的 `updatedAt`（ISO 8601），用于与远端元数据比对新鲜度 */
+const rowUpdatedAt = (entity: unknown): string => (entity as QueryCacheEntity).updatedAt;
+
+/**
  * QueryCache 同步策略仓库
  *
  * @typeParam T - 实体类型
@@ -149,9 +198,9 @@ export interface SyncStats {
  * 生产路径不直接 `new` 本类：`SyncType.QueryCache` 的实体由 {@link Repository} 经
  * `createQueryCachePrimary` 接入（US-020 阶段 A），本类只负责 metadata-diff 与增量 pull。
  *
- * @experimental
- * 以下降级行为尚未收口（US-020 阶段 B）：缺 `findByIds` 时 `#getLocalDataByIds` 降级成空数组、
- * offline fallback 会把业务错误一并吞成「离线」、算出了 `orphanCount` 却不删除本地孤儿。
+ * 远端对 `where` 的答复是权威的：本次 `where` 的本地投影里、远端没有返回的行一律是孤儿，
+ * 同步时删除（US-020 AC#11）。删除范围严格限定在该投影内 —— 不匹配 `where` 的本地行
+ * 不在本次问题域里，不能因为「远端没提」就被清掉。
  */
 export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
   /** 并发查询去重缓存 - 使用查询指纹作为 key */
@@ -160,10 +209,17 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
   /** 实体名称 */
   readonly entityName: string;
 
+  /**
+   * @param entityName - 实体名
+   * @param remoteAdapter - 远端适配器
+   * @param localAdapter - 本地适配器，负责写侧（upsert / delete）与单实体元数据
+   * @param localReader - 本地行读取出口，通常是该实体的本地 `IRepository`（US-020 D8）
+   */
   constructor(
     entityName: string,
     private readonly remoteAdapter: QueryCacheRemoteAdapter,
-    private readonly localAdapter: QueryCacheLocalAdapter
+    private readonly localAdapter: QueryCacheLocalAdapter,
+    private readonly localReader: QueryCacheLocalReader<InstanceType<T>>
   ) {
     this.entityName = entityName;
   }
@@ -276,7 +332,7 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
 
         // 本地有且是新鲜的
         if (localUpdatedAt && localUpdatedAt >= remoteUpdatedAt) {
-          return this.#getLocalDataByIds([id]).pipe(map(data => data[0] || null));
+          return this.#readLocalByIds([id]).pipe(map(data => data[0] ?? null));
         }
 
         // 需要从远程获取
@@ -402,17 +458,11 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
    * 4. 如果远程数据有变化，再次发射
    */
   #executeSWRQuery(options: QueryCacheFindOptions<T>): Observable<InstanceType<T>[]> {
-    // 获取本地缓存（按查询条件过滤，避免把全量缓存当成当前查询结果）
+    // 缓存首发：按查询条件下推读取，读到什么就是本次 `where` 的本地投影。
     //
-    // 契约：本地缓存读失败降级为空缓存，不阻断远程验证。
-    // 错误只写 `console.error`，**不**推给订阅者——SWR 语义下缓存是可选加速层，
-    // 缓存挂掉不应让查询失败。订阅者因此看不到这类失败（可观测性缺口，非数据损坏）。
-    const localCache$ = this.#getLocalCache(options.where).pipe(
-      catchError((error: unknown) => {
-        console.error(`[QueryCacheRepository] Local cache read failed for '${this.entityName}':`, error);
-        return of([] as InstanceType<T>[]);
-      })
-    );
+    // 读失败**不**降级为空缓存：远程校验分支同样要读这一份投影（算孤儿、挑新鲜行），
+    // 本地读挂了两条路都走不通，吞掉只会把「缓存坏了」显示成「远端没数据」（US-020 AC#15）。
+    const localCache$ = this.#readLocal(options.where);
 
     // 跟踪是否已发射缓存
     let cacheEmitted = false;
@@ -445,22 +495,37 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
   }
 
   /**
-   * 获取本地缓存数据
+   * 读取 `where` 的本地投影。
    *
-   * SWR 模式要求本地适配器实现 findAll；无 findAll 时返回空缓存，
-   * 不再用 findByIds([]) 这种"空数组=全部"的歧义语义兜底。
+   * @param where - 查询条件，原样交给本地行仓储下推成 SQL
+   * @returns 匹配的实体实例；读失败时上抛
    *
-   * @param where - 查询条件；提供时用与远程查询同一套 matcher 在内存中过滤，
-   * 保证缓存发射的集合与查询语义一致
+   * @remarks
+   * `defer` 而不是直接 `from(promise)`：后者在 Observable 构造时就把查询发出去了，
+   * 于是 `offlineFallback` 包出来的那条备用流会在主流程还没失败时抢跑一次本地读。
    */
-  #getLocalCache(where?: RuleGroup<InstanceType<T>>): Observable<InstanceType<T>[]> {
-    if (!this.localAdapter.findAll) {
+  #readLocal(where: RuleGroup<InstanceType<T>>): Observable<InstanceType<T>[]> {
+    return defer(() => this.localReader.find({ where }));
+  }
+
+  /**
+   * 按 ID 集合读取本地行。
+   *
+   * @param ids - 目标 ID；空数组直接返回空结果，不发查询
+   *
+   * @remarks
+   * 走 `id in (...)` 而不是 `findByIds` duck：同一个出口才拿得到实体实例，
+   * 也才有 US-021 的 identity cache（同一 id 两次查询是同一个实例）。
+   */
+  #readLocalByIds(ids: string[]): Observable<InstanceType<T>[]> {
+    if (ids.length === 0) {
       return of([]);
     }
-
-    return this.localAdapter
-      .findAll<InstanceType<T>>(this.entityName)
-      .pipe(map(data => (where ? data.filter(entity => isEntityMatchWhere(entity, where)) : data)));
+    const idFilter = {
+      combinator: 'and',
+      rules: [{ field: 'id', operator: 'in', value: ids }]
+    } as RuleGroup<InstanceType<T>>;
+    return this.#readLocal(idFilter);
   }
 
   /**
@@ -474,146 +539,134 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
   }
 
   /**
-   * 包装查询以支持离线降级
+   * 包装查询以支持离线降级。
    *
-   * 当网络错误发生时：
-   * - 如果有本地缓存，返回缓存数据
-   * - 如果没有本地缓存，抛出 NetworkOfflineError
+   * @param query$ - 主查询流
+   * @param where - 查询条件，降级读缓存时沿用
+   *
+   * @remarks
+   * 只有 {@link isNetworkError} 认定的网络故障才降级（US-020 AC#16）：
+   * - 网络故障 + 有缓存 → 发缓存
+   * - 网络故障 + 无缓存 → {@link NetworkOfflineError}
+   * - 其余错误（401、唯一键冲突、字段校验失败……）**原样上抛**
+   *
+   * 分类写成谓词而不是在这里就地判断，是为了和 US-212 的重试策略共用同一套口径。
+   * 拿不准的错误一律算「不是网络错误」：把 401 静默换成陈旧缓存，比让离线查询失败更糟。
    */
   #wrapWithOfflineFallback(
     query$: Observable<InstanceType<T>[]>,
-    where?: RuleGroup<InstanceType<T>>
+    where: RuleGroup<InstanceType<T>>
   ): Observable<InstanceType<T>[]> {
     return query$.pipe(
-      catchError((error: Error) => {
-        // 网络错误时尝试返回本地缓存（按查询条件过滤）
-        return this.#getLocalCache(where).pipe(
-          switchMap(cachedData => {
-            if (cachedData.length > 0) {
-              // 有缓存，返回缓存数据
-              return of(cachedData);
-            }
-            // 无缓存，抛出 NetworkOfflineError
-            throw new NetworkOfflineError(error);
-          })
+      catchError((error: unknown) => {
+        if (!isNetworkError(error)) {
+          return throwError(() => error);
+        }
+        return this.#readLocal(where).pipe(
+          switchMap(cachedData =>
+            cachedData.length > 0 ? of(cachedData) : throwError(() => new NetworkOfflineError(error as Error))
+          )
         );
       })
     );
   }
 
   /**
-   * 执行实际的查询逻辑
+   * 执行一次完整同步并返回该 `where` 的结果集。
+   *
+   * @remarks
+   * 远端元数据与本地投影**并行**取（两者互不依赖），再一次性 diff：
+   * 1. `fetchMetadata(where)` —— 远端权威的 id + updatedAt
+   * 2. `localReader.find({ where })` —— 本次 `where` 的本地投影（行，非元数据）
+   * 3. `diffMetadata` —— 分出 missing / stale / fresh / orphan
+   * 4. 删孤儿 → 拉 missing + stale → 落本地 → 与 fresh 行合并
+   *
+   * 本地这一侧读行而不是读元数据，是因为孤儿只能从「本地投影」里看出来：
+   * 只按远端 id 问本地（旧实现的 `getMetadataByIds(remoteIds)`）永远问不出
+   * 「本地有、远端没有」的那批，`orphanIds` 结构性恒为空。顺带也省掉一次读 ——
+   * fresh 行已经在手上，不必再回本地取一次。
    */
   #executeFindQuery(options: QueryCacheFindOptions<T>): Observable<InstanceType<T>[]> {
-    const query = options.where;
     const startTime = Date.now();
 
-    // Step 1: 获取远程元数据
-    return this.remoteAdapter.fetchMetadata(this.entityName, query).pipe(
-      switchMap(remoteMetadata => {
-        if (remoteMetadata.length === 0) {
-          // 报告空结果统计
-          this.#reportSyncStats(options.onSyncStats, {
-            remoteCount: 0,
-            missingCount: 0,
-            staleCount: 0,
-            freshCount: 0,
-            orphanCount: 0,
-            pulledCount: 0,
-            durationMs: Date.now() - startTime
-          });
-          return of([]);
-        }
+    return forkJoin({
+      remoteMetadata: this.remoteAdapter.fetchMetadata(this.entityName, options.where),
+      localRows: this.#readLocal(options.where)
+    }).pipe(
+      switchMap(({ remoteMetadata, localRows }) =>
+        this.#reconcile(options, remoteMetadata, localRows, startTime)
+      )
+    );
+  }
 
-        // Step 2: 获取远程 ID 对应的本地元数据
-        const remoteIds = remoteMetadata.map(m => m.id);
-        return this.localAdapter.getMetadataByIds(this.entityName, remoteIds).pipe(
-          switchMap(localMetadata => {
-            // Step 3: 对比元数据
-            const diff = diffMetadata(remoteMetadata, localMetadata);
-            const idsToFetch = [...diff.missingIds, ...diff.staleIds];
+  /**
+   * 按 diff 结果执行同步动作并汇总结果。
+   *
+   * @param options - 原始查询选项，取 `onSyncStats`
+   * @param remoteMetadata - 远端元数据
+   * @param localRows - 本次 `where` 的本地投影
+   * @param startTime - 同步起始时刻，用于 `durationMs`
+   */
+  #reconcile(
+    options: QueryCacheFindOptions<T>,
+    remoteMetadata: QueryCacheEntityMetadata[],
+    localRows: InstanceType<T>[],
+    startTime: number
+  ): Observable<InstanceType<T>[]> {
+    const localMetadata = new Map(localRows.map(entity => [rowId(entity), rowUpdatedAt(entity)]));
+    const diff = diffMetadata(remoteMetadata, localMetadata);
+    const freshIds = new Set(diff.freshIds);
+    const freshRows = localRows.filter(entity => freshIds.has(rowId(entity)));
 
-            // Step 4: 根据需要拉取数据
-            if (idsToFetch.length === 0) {
-              // 所有数据都是新鲜的，直接从本地获取
-              return this.#getLocalDataByIds(diff.freshIds).pipe(
-                map(result => {
-                  // 报告缓存命中统计
-                  this.#reportSyncStats(options.onSyncStats, {
-                    remoteCount: remoteMetadata.length,
-                    missingCount: 0,
-                    staleCount: 0,
-                    freshCount: diff.freshIds.length,
-                    orphanCount: diff.orphanIds.length,
-                    pulledCount: 0,
-                    durationMs: Date.now() - startTime
-                  });
-                  return result;
-                })
-              );
-            }
-
-            // 需要从远程拉取部分数据
-            return this.remoteAdapter.findByIds<InstanceType<T>>(this.entityName, idsToFetch).pipe(
-              switchMap(pulledData => {
-                if (pulledData.length === 0) {
-                  // 没有拉取到数据，返回本地新鲜数据
-                  return this.#getLocalDataByIds(diff.freshIds).pipe(
-                    map(result => {
-                      this.#reportSyncStats(options.onSyncStats, {
-                        remoteCount: remoteMetadata.length,
-                        missingCount: diff.missingIds.length,
-                        staleCount: diff.staleIds.length,
-                        freshCount: diff.freshIds.length,
-                        orphanCount: diff.orphanIds.length,
-                        pulledCount: 0,
-                        durationMs: Date.now() - startTime
-                      });
-                      return result;
-                    })
-                  );
-                }
-
-                // Step 5: 写入本地缓存
-                return this.localAdapter.upsertMany(this.entityName, pulledData).pipe(
-                  switchMap(() => {
-                    // Step 6: 合并返回结果
-                    if (diff.freshIds.length === 0) {
-                      // 没有新鲜数据，直接返回拉取的数据
-                      this.#reportSyncStats(options.onSyncStats, {
-                        remoteCount: remoteMetadata.length,
-                        missingCount: diff.missingIds.length,
-                        staleCount: diff.staleIds.length,
-                        freshCount: 0,
-                        orphanCount: diff.orphanIds.length,
-                        pulledCount: pulledData.length,
-                        durationMs: Date.now() - startTime
-                      });
-                      return of(pulledData);
-                    }
-
-                    // 需要合并新鲜数据和拉取的数据
-                    return this.#getLocalDataByIds(diff.freshIds).pipe(
-                      map(freshData => {
-                        this.#reportSyncStats(options.onSyncStats, {
-                          remoteCount: remoteMetadata.length,
-                          missingCount: diff.missingIds.length,
-                          staleCount: diff.staleIds.length,
-                          freshCount: diff.freshIds.length,
-                          orphanCount: diff.orphanIds.length,
-                          pulledCount: pulledData.length,
-                          durationMs: Date.now() - startTime
-                        });
-                        return [...freshData, ...pulledData];
-                      })
-                    );
-                  })
-                );
-              })
-            );
-          })
-        );
+    return this.#evictOrphans(diff.orphanIds).pipe(
+      switchMap(() => this.#pull([...diff.missingIds, ...diff.staleIds])),
+      map(pulledRows => {
+        this.#reportSyncStats(options.onSyncStats, {
+          remoteCount: remoteMetadata.length,
+          missingCount: diff.missingIds.length,
+          staleCount: diff.staleIds.length,
+          freshCount: diff.freshIds.length,
+          orphanCount: diff.orphanIds.length,
+          pulledCount: pulledRows.length,
+          durationMs: Date.now() - startTime
+        });
+        return [...freshRows, ...pulledRows];
       })
+    );
+  }
+
+  /**
+   * 删除本次 `where` 投影里远端已不再返回的行（US-020 AC#11 / AC#12）。
+   *
+   * @param ids - 孤儿 ID；为空时不发删除
+   *
+   * @remarks
+   * 删的是缓存行，不产生 changelog —— QueryCache 的本地库是远端的投影，
+   * 不是待推送的本地变更（US-020 AC#20）。
+   */
+  #evictOrphans(ids: string[]): Observable<void> {
+    if (ids.length === 0) {
+      return of(undefined);
+    }
+    return this.localAdapter.deleteByIds(this.entityName, ids);
+  }
+
+  /**
+   * 从远端拉取缺失/过期的行并落本地缓存。
+   *
+   * @param ids - 待拉取 ID；为空时不发请求
+   * @returns 实际拉到的行
+   */
+  #pull(ids: string[]): Observable<InstanceType<T>[]> {
+    if (ids.length === 0) {
+      return of([]);
+    }
+    return this.remoteAdapter.findByIds<InstanceType<T>>(this.entityName, ids).pipe(
+      switchMap(pulledRows =>
+        pulledRows.length === 0
+          ? of(pulledRows)
+          : this.localAdapter.upsertMany(this.entityName, pulledRows).pipe(map(() => pulledRows))
+      )
     );
   }
 
@@ -624,22 +677,6 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
     if (callback) {
       callback(stats);
     }
-  }
-
-  /**
-   * 从本地获取指定 ID 的数据
-   */
-  #getLocalDataByIds(ids: string[]): Observable<InstanceType<T>[]> {
-    if (ids.length === 0) {
-      return of([]);
-    }
-
-    if (this.localAdapter.findByIds) {
-      return this.localAdapter.findByIds<InstanceType<T>>(this.entityName, ids);
-    }
-
-    // 如果本地适配器没有 findByIds，返回空数组
-    return of([]);
   }
 
   /**

@@ -20,7 +20,12 @@ import type { EntityStaticType, EntityType } from '../entity/entity.interface.js
 import type { QueryCacheEntityMetadata } from '../entity/metadata-options.interface.js';
 import { RxDBQueryCacheCapabilityError } from '../RxDBError.js';
 import type { RuleGroup } from './query.interface.js';
-import type { QueryCacheLocalAdapter, QueryCacheRemoteAdapter, SyncStats } from './QueryCacheRepository.js';
+import type {
+  QueryCacheLocalAdapter,
+  QueryCacheLocalReader,
+  QueryCacheRemoteAdapter,
+  SyncStats
+} from './QueryCacheRepository.js';
 import { QueryCacheRepository } from './QueryCacheRepository.js';
 import type { IRepository } from './repository.interface.js';
 
@@ -98,7 +103,15 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
     /** `sync.local.localCacheFirst`：是否走 stale-while-revalidate */
     private readonly localCacheFirst: boolean
   ) {
-    this.#cache = new QueryCacheRepository(entityName, remoteAdapter, localAdapter);
+    // 本地行仓储既是同步流程的读出口（US-020 D8），也是同步跑完后门面读结果的地方。
+    // `QueryCacheRepository` 按 `entityName` 工作、填不出 `IRepository` 的类型参数，
+    // 因此在这一层收窄成只有 `find` 的读端口。
+    this.#cache = new QueryCacheRepository(
+      entityName,
+      remoteAdapter,
+      localAdapter,
+      localRepository as QueryCacheLocalReader<InstanceType<T>>
+    );
   }
 
   /**
