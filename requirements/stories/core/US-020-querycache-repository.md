@@ -314,17 +314,17 @@ cache 模式离线只读。`offlineFallback` 只对**网络类**错误降级到�
 
 ## 实现文件
 
-| 文件                                                                                                                                                    | 阶段 | 说明                                                                                          |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | --------------------------------------------------------------------------------------------- |
-| [packages/rxdb/src/repository/Repository.ts](../../../packages/rxdb/src/repository/Repository.ts)                                                       | A    | 委托层：`sync.type === QueryCache` 时把 find / 写路径改道，保持 `IRepository` 形状（D9、D10） |
-| [packages/rxdb/src/repository/QueryCacheRepository.ts](../../../packages/rxdb/src/repository/QueryCacheRepository.ts)                                   | A+B  | A 被生产实例化 + 本地读改走 `IRepository`（D8）；B 修 orphan / 指纹 / SWR / 错误分类          |
-| [packages/rxdb/src/entity/primary-adapter.ts](../../../packages/rxdb/src/entity/primary-adapter.ts)                                                     | A    | 写侧判定不得把 QueryCache 继续送进 local changelog；不发明第三 kind                           |
-| [packages/rxdb/src/entity/entity-manager.ts](../../../packages/rxdb/src/entity/entity-manager.ts)                                                       | A    | mutations 入口预检（AC#6）；顺手修 `save()` 过时注释                                          |
+| 文件                                                                                                                                                    | 阶段 | 说明                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | -------------------------------------------------------------------------------------------------------- |
+| [packages/rxdb/src/repository/Repository.ts](../../../packages/rxdb/src/repository/Repository.ts)                                                       | A    | 委托层：`sync.type === QueryCache` 时把 find / 写路径改道，保持 `IRepository` 形状（D9、D10）            |
+| [packages/rxdb/src/repository/QueryCacheRepository.ts](../../../packages/rxdb/src/repository/QueryCacheRepository.ts)                                   | A+B  | A 被生产实例化 + 本地读改走 `IRepository`（D8）；B 修 orphan / 指纹 / SWR / 错误分类                     |
+| [packages/rxdb/src/entity/primary-adapter.ts](../../../packages/rxdb/src/entity/primary-adapter.ts)                                                     | A    | 写侧判定不得把 QueryCache 继续送进 local changelog；不发明第三 kind                                      |
+| [packages/rxdb/src/entity/entity-manager.ts](../../../packages/rxdb/src/entity/entity-manager.ts)                                                       | A    | mutations 入口预检（AC#6）；顺手修 `save()` 过时注释                                                     |
 | [packages/rxdb/src/entity/metadata-validate.ts](../../../packages/rxdb/src/entity/metadata-validate.ts)                                                 | A    | 配置期 fail-fast（AC#8、D12）：给 `validateEntityMetadataSet` 加规则，经 `formatMetadataViolations` 报错 |
-| [packages/rxdb/src/RxDBError.ts](../../../packages/rxdb/src/RxDBError.ts)                                                                               | A    | D11 的三个新错误类型；进 `requirements/api-baseline/rxdb.json`                                |
-| [packages/rxdb/src/entity/sync-options.interface.ts](../../../packages/rxdb/src/entity/sync-options.interface.ts)                                       | B    | 去掉「配置该模式当前不会生效」                                                                |
-| [packages/rxdb/src/**tests**/repository/](../../../packages/rxdb/src/__tests__/repository/)                                                             | A+B  | 生产路径 + 缓存质量；保留直接 `new` 的单元测试作为类级回归                                    |
-| [website/docs/collaboration/sync.md](../../../website/docs/collaboration/sync.md) 与 [adapters/supabase.md](../../../website/docs/adapters/supabase.md) | B    | AC#19；`website/docs/api/**` 是 typedoc 产物，不手改                                          |
+| [packages/rxdb/src/RxDBError.ts](../../../packages/rxdb/src/RxDBError.ts)                                                                               | A    | D11 的三个新错误类型；进 `requirements/api-baseline/rxdb.json`                                           |
+| [packages/rxdb/src/entity/sync-options.interface.ts](../../../packages/rxdb/src/entity/sync-options.interface.ts)                                       | B    | 去掉「配置该模式当前不会生效」                                                                           |
+| [packages/rxdb/src/**tests**/repository/](../../../packages/rxdb/src/__tests__/repository/)                                                             | A+B  | 生产路径 + 缓存质量；保留直接 `new` 的单元测试作为类级回归                                               |
+| [website/docs/collaboration/sync.md](../../../website/docs/collaboration/sync.md) 与 [adapters/supabase.md](../../../website/docs/adapters/supabase.md) | B    | AC#19；`website/docs/api/**` 是 typedoc 产物，不手改                                                     |
 
 ## References
 
