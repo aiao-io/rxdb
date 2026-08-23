@@ -189,10 +189,13 @@ US-212 用 `string[]` 是**遵守 core 契约**。数字主键实体在 QueryCac
 
 ## 解决记录
 
-- [ ] 改正 AC#1 与技术笔记的注册示例；删除适配器身上的 `inject`
-- [ ] 二选一定死 transport owner，同步改 AC#2 / #12 / #13 / #16 的断言主体
-- [ ] 规定 `updatedAt` 的规范化 wire 形式，AC#14 补时区偏移用例
-- [ ] 补：数组形态 server contract、配置校验边界、`version()` / `disconnect()` 语义
-- [ ] 文档同步：AC 错误码措辞、阶段 B 标「设计待定」、epic-004 删硬前置
+- [x] 改正 AC#1 与技术笔记的注册示例；删除适配器身上的 `inject`
+- [x] 二选一定死 transport owner（选定**适配器持有 transport**），同步改 AC#2 / #12 / #13 / #16 的断言主体
+- [x] 规定 `updatedAt` 的规范化 wire 形式，AC#14 补时区偏移用例
+- [x] 补：数组形态 server contract、配置校验边界（新增 AC#31）、`version()` / `disconnect()` 语义
+- [x] 文档同步：AC 错误码措辞、阶段 B 标「设计待定」、epic-004 删硬前置
 - [ ] 开 PR 修复（`pr` 字段记录链接）
 - [ ] PR 合并，`status: Resolved`
+
+> 前五条已改进 `US-212-http-adapter.md` 与 `epic-004-future-features.md` 的工作区文件，尚未开 PR。
+> 按本目录工作流，`status` 停在 `Open` 直到 PR 合并。

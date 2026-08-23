@@ -12,7 +12,7 @@ tags: [adapter, http, remote, querycache]
 <!--
 INVEST 检查清单:
 - [x] Independent: 零前置。US-020 两阶段已于 2026-08-22 全关，两档发布门禁同时解除
-- [x] Negotiable: handler 的字段名与 REST URL 模板细节在 plan 可调整；协议不变量（RuleGroup JSON、不发 SQL、changelog 方法 throw、翻页终止判据、错误分类口径）不可协商
+- [x] Negotiable: handler 的字段名、错误类名与 REST URL 模板细节在 plan 可调整；协议不变量（**transport 归适配器**、RuleGroup JSON、不发 SQL、changelog 方法 throw、翻页终止判据、metadata 时间戳规范化、错误分类口径与判别位）不可协商
 - [x] Valuable: 已有 HTTP/REST API 的开发者今天没有 RemoteBase 可挂，只能 supabase
 - [x] Estimable: 对标 supabase 的 QueryCache ducks + 分页/分块，范围收敛到一个新包
 - [ ] Small: handlers 注入与 REST mapping 失败模式不同。按「交付阶段」A → B；不拆成 US-212a。Full changelog 传输是另一种 SyncType，另开故事，不是本文件阶段
@@ -23,10 +23,10 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 交付                                                                                                                                          | 直接前置 | AC 区段            | 状态 |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------ | ---- |
-| A    | `@aiao/rxdb-adapter-http`：RemoteBase + **适配器持有 transport** + 协议 mapping handler + QueryCache ducks + 翻页/分块 + 发射契约 + 错误分类 + wire 契约 + 结构隔离 | 无       | AC#1～26、#31      | ⬜   |
-| B    | REST resource URL 模板（AC#27，可直接实现）；ETag / SSE / eviction（AC#28～30，**设计待定：需先指定跨包 owner**）                              | 阶段 A   | AC#27；#28～30 🚧 | ⬜   |
+| 阶段 | 交付                                                                                                                                                                | 直接前置 | AC 区段           | 状态 |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------- | ---- |
+| A    | `@aiao/rxdb-adapter-http`：RemoteBase + **适配器持有 transport** + 协议 mapping handler + QueryCache ducks + 翻页/分块 + 发射契约 + 错误分类 + wire 契约 + 结构隔离 | 无       | AC#1～26、#31     | ⬜   |
+| B    | REST resource URL 模板（AC#27，可直接实现）；ETag / SSE / eviction（AC#28～30，**设计待定：需先指定跨包 owner**）                                                   | 阶段 A   | AC#27；#28～30 🚧 | ⬜   |
 
 **前置与发布门禁：已全部解除（2026-08-23 复核）。** 本故事现在零前置，可直接开工并按 `stable` 发布。
 
@@ -45,7 +45,7 @@ Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另�
 
 ## 来源与边界
 
-产品选择：**远端权威 HTTP + 独立注册 sqlite 行缓存**。仓库适配器模型只有 `adapter:local` 与 `adapter:remote` 两种 inject，没有第三种 cache adapter。HTTP **不得内部拥有 sqlite**。search / graph / encryption 绑独立 local adapter——HTTP 若自己 new 一份 sqlite，插件会绑错库。
+产品选择：**远端权威 HTTP + 独立注册 sqlite 行缓存**。仓库的同步配置只有 `sync.local` 与 `sync.remote` 两个槽位（插件侧对应 `adapter:local` / `adapter:remote` 两个依赖 token），没有第三种 cache adapter。HTTP **不得内部拥有 sqlite**。search / graph / encryption 绑独立 local adapter——HTTP 若自己 new 一份 sqlite，插件会绑错库。
 
 **写缓存的是 core，不是本包。** 行缓存最终经 [`QueryCacheRepository`](../../../packages/rxdb/src/repository/QueryCacheRepository.ts) 落到 `localAdapter.upsertMany()` / `deleteByIds()`——那两个方法是 [`RxDBAdapterLocalBase`](../../../packages/rxdb/src/rxdb-adapter.ts) 的 abstract 成员，本包（RemoteBase）身上**没有也不该有**。本包在 QueryCache 里的全部职责是 `fetchMetadata` / `findByIds` 两个 remote duck（见 [`query-cache-primary.ts`](../../../packages/rxdb/src/repository/query-cache-primary.ts) 的 `REMOTE_DUCKS`）加可选写入口。这条边界决定了 AC#19 的形状：本包能担保的是**结构隔离**，不是「调用时挑实体」。
 
@@ -91,15 +91,15 @@ Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另�
 
 这条必须先定，否则后面四条 AC 无处落地。**发请求的是适配器，不是 handler。**
 
-| 关注点                                  | owner      | 依据                                                                        |
-| --------------------------------------- | ---------- | --------------------------------------------------------------------------- |
-| `fetch` 调用、请求生命周期              | **适配器** | 只有发请求的人能保证下面四项                                                |
-| auth hook 调用与 header 注入            | **适配器** | AC#16 的「hook 抛错则请求不发出」只有在发请求前调用 hook 才成立             |
-| HTTP status 提取、错误对象带数字 `status` | **适配器** | AC#12：`isNetworkError` 判据第 2 步靠 `status` 命中                        |
-| 传输失败不包装                          | **适配器** | AC#13：包进自定义 Error 类会让 `isNetworkError` 认不出，静默打死 `offlineFallback` |
-| 翻页循环、分块切分、终止判据            | **适配器** | 见下方两节；handler 只看见单页 / 单块                                       |
-| URL / method / body 的形状              | handler    | 用户的 REST 风格千差万别，这是唯一需要用户填的东西                          |
-| 响应体 → `QueryCacheEntityMetadata[]` 的解析 | handler    | 同上                                                                        |
+| 关注点                                       | owner      | 依据                                                                               |
+| -------------------------------------------- | ---------- | ---------------------------------------------------------------------------------- |
+| `fetch` 调用、请求生命周期                   | **适配器** | 只有发请求的人能保证下面四项                                                       |
+| auth hook 调用与 header 注入                 | **适配器** | AC#16 的「hook 抛错则请求不发出」只有在发请求前调用 hook 才成立                    |
+| HTTP status 提取、错误对象带数字 `status`    | **适配器** | AC#12：`isNetworkError` 判据第 2 步靠 `status` 命中                                |
+| 传输失败不包装                               | **适配器** | AC#13：包进自定义 Error 类会让 `isNetworkError` 认不出，静默打死 `offlineFallback` |
+| 翻页循环、分块切分、终止判据                 | **适配器** | 见下方两节；handler 只看见单页 / 单块                                              |
+| URL / method / body 的形状                   | handler    | 用户的 REST 风格千差万别，这是唯一需要用户填的东西                                 |
+| 响应体 → `QueryCacheEntityMetadata[]` 的解析 | handler    | 同上                                                                               |
 
 因此 handler **不是不透明函数**，而是**纯协议 mapping**：给出请求描述、解析响应体，全程不碰网络。这样翻页归属、错误分类和 auth 三件事都能由本包一条契约测试冻结，而不是退化成「文档里劝用户自己做」。
 
@@ -122,11 +122,11 @@ handler 字段名在 plan 可调，但**不要取成 `fetchMetadata` / `findById
 
 校验判据是 **finite 正整数**，不是 `> 0`：
 
-| 判据                     | 拦掉的东西                                                                 |
-| ------------------------ | -------------------------------------------------------------------------- |
-| `Number.isInteger(v)`    | `pageSize = 1.5` 会让 `offset += limit` 逐页漂移，页边界与远端对不齐        |
-| `Number.isFinite(v)`     | `maxPages = Infinity` 等于放弃触顶保护；`NaN` 虽然过不了 `> 0`，但错误信息含糊 |
-| `v > 0`（`maxEmptyPages` 为 `v >= 0`） | 负数、零                                                     |
+| 判据                                   | 拦掉的东西                                                                     |
+| -------------------------------------- | ------------------------------------------------------------------------------ |
+| `Number.isInteger(v)`                  | `pageSize = 1.5` 会让 `offset += limit` 逐页漂移，页边界与远端对不齐           |
+| `Number.isFinite(v)`                   | `maxPages = Infinity` 等于放弃触顶保护；`NaN` 虽然过不了 `> 0`，但错误信息含糊 |
+| `v > 0`（`maxEmptyPages` 为 `v >= 0`） | 负数、零                                                                       |
 
 `maxEmptyPages` 是唯一允许 `0` 的（语义：不容忍空页），其余三个下界为 `1`。
 
@@ -249,12 +249,12 @@ type FindByIdsHandler = {
 
 `IRxDBAdapter` 的四个必选成员（AC#24）。写清是因为 HTTP 没有「连接」这个天然概念，不定义就会各实现自定，`isTableExisted` 尤其容易退化成恒 `true`。
 
-| 成员                    | HTTP 语义                                                                                                                                                  |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `connect()`             | 不建立长连接。职责是三件事：① 已注册实体的 bigint / binary 扫描并 fail-fast（AC#15）；② 构造期未覆盖的配置交叉校验；③ 返回适配器自身。**不得**在此发探测请求——远端此刻不可达不代表配置错，那是查询期的网络错误，交给 `isNetworkError` 分类 |
-| `disconnect()`          | MUST 取消进行中的请求（`AbortController`），正在跑的翻页循环立即中止并 reject。**已发出的写请求不回滚**——HTTP 没有事务，假装能回滚比不回滚更危险。断开后再调任何 duck MUST 抛错，不得静默返回空 |
-| `version()`             | 返回**远端服务端版本**，与 sqlite / pglite / supabase 三家口径一致（它们都返回后端引擎版本，不是适配器包版本）。HTTP 没有内建 RPC，因此配一个可选 `onVersion` handler；**未配置则抛 unsupported**，不得回落到本包 `package.json` 的版本号——那是拿适配器版本冒充后端版本。core 目前不调用 `version()`，抛错不影响连接流程 |
-| `isTableExisted(entity)` | 按**远端资源可达性**回答，**不得**恒 `true` 蒙混。语义是「该实体对应的远端资源存在且可访问」：2xx → `true`，404 → `false`，其余状态码与传输失败 → 抛错（不是返回 `false`，「不知道」和「不存在」必须区分）。判定用哪个请求由 handler 给，缺省可复用 `onFetchMetadata` 的 `limit: 1` 探测 |
+| 成员                     | HTTP 语义                                                                                                                                                                                                                                                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `connect()`              | 不建立长连接。职责是三件事：① 已注册实体的 bigint / binary 扫描并 fail-fast（AC#15）；② 构造期未覆盖的配置交叉校验；③ 返回适配器自身。**不得**在此发探测请求——远端此刻不可达不代表配置错，那是查询期的网络错误，交给 `isNetworkError` 分类                                                                               |
+| `disconnect()`           | MUST 取消进行中的请求（`AbortController`），正在跑的翻页循环立即中止并 reject。**已发出的写请求不回滚**——HTTP 没有事务，假装能回滚比不回滚更危险。断开后再调任何 duck MUST 抛错，不得静默返回空                                                                                                                          |
+| `version()`              | 返回**远端服务端版本**，与 sqlite / pglite / supabase 三家口径一致（它们都返回后端引擎版本，不是适配器包版本）。HTTP 没有内建 RPC，因此配一个可选 `onVersion` handler；**未配置则抛 unsupported**，不得回落到本包 `package.json` 的版本号——那是拿适配器版本冒充后端版本。core 目前不调用 `version()`，抛错不影响连接流程 |
+| `isTableExisted(entity)` | 按**远端资源可达性**回答，**不得**恒 `true` 蒙混。语义是「该实体对应的远端资源存在且可访问」：2xx → `true`，404 → `false`，其余状态码与传输失败 → 抛错（不是返回 `false`，「不知道」和「不存在」必须区分）。判定用哪个请求由 handler 给，缺省可复用 `onFetchMetadata` 的 `limit: 1` 探测                                 |
 
 > `isTableExisted` 不是可以敷衍的成员——core 在连接流程里会调它（[RxDB.ts](../../../packages/rxdb/src/RxDB.ts)），恒 `true` 会让一个根本连不上的远端一路跑到首次查询才暴露。
 
@@ -262,35 +262,35 @@ type FindByIdsHandler = {
 
 ### 阶段 A — handlers 远程适配器
 
-| #   | 前置条件                                               | 操作                                                                 | 预期结果                                                                                                                                                                                                                                                                                                        | 状态 |
-| --- | ------------------------------------------------------ | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | workspace 可解析新包                                   | `new RxDB({ sync: { local: { adapter: 'sqlite' }, remote: { adapter: 'http' } } })`，再 `rxdb.adapter('http', db => new RxDBAdapterHttp(db, options))` | 适配器解析为 remote 槽位实例；`ADAPTER_NAME === 'http'`；`declare module` 使 `'http'` 出现在 `keyof RxDBAdapters`。未注册工厂即 `connect()` 时 fail-fast（core 已有「Adapter not found」语义），不静默降级 | ⬜   |
-| 2   | HTTP remote + 独立 sqlite local，`SyncType.QueryCache` | `getRepository(E).find({ where })`                                   | **适配器发出的**请求体是 JSON `RuleGroup`，**不含 SQL**（断言主体是本包的 transport，不是 handler）；行缓存由 core 经 `localAdapter.upsertMany` 落到独立 sqlite                                                                                                                                                 | ⬜   |
-| 3   | 同上                                                   | `create` / `update` / `delete`                                       | 走 US-020 的 remote-then-local；HTTP 适配器自身不 `new` sqlite、不打开 OPFS/IDB                                                                                                                                                                                                                                 | ⬜   |
-| 4   | handlers 未提供 `create`                               | `repo.create(...)`                                                   | fail-fast（`QueryCacheRepository` 已有的「Remote adapter does not support create」语义），不写本地                                                                                                                                                                                                              | ⬜   |
-| 5   | handler 返回**数组**，结果集 > `pageSize`              | `fetchMetadata`                                                      | 翻页至 `rows.length < limit` 为止；语义同 supabase `select_all_pages`；截断的 id **不得**被当成远端已删除                                                                                                                                                                                                       | ⬜   |
-| 6   | handler 返回 `{ rows, nextCursor }`                    | `fetchMetadata`                                                      | 翻页至 `nextCursor === undefined` 为止；空 `rows` 但有 `nextCursor` 时继续翻                                                                                                                                                                                                                                    | ⬜   |
-| 7   | 退化的 handler                                         | `fetchMetadata`                                                      | [fail-fast 四条](#fetchmetadata判别式返回)各**一条独立用例**（换形态 / 游标不推进 / 连续空页触顶 / 总页数触顶），各自抛可区分的错误；四条都**不得**返回已拿到的部分结果，不得进死循环。合并成一条「退化则抛错」的用例不算通过                                                                                   | ⬜   |
-| 8   | `findByIds` 的 id 列表 > `idChunkSize`                 | 增量 pull                                                            | 分块请求并合并；语义同 supabase `#findByIdsInChunks`                                                                                                                                                                                                                                                            | ⬜   |
-| 9   | 某一块 reject；另一场景某一块返回少行                  | 增量 pull                                                            | reject → 整体 reject，缺块**不得**静默当空；少行 → 合法，不重试不补空对象                                                                                                                                                                                                                                       | ⬜   |
-| 10  | HTTP 适配器已连接                                      | 调用 `pullChanges` / `mergeChanges` / `getChangeCount`               | 抛 `HttpChangelogUnsupportedError`（**类名**判别，见[两个新错误的判别口径](#两个新错误的判别口径)）；返回空数组 / 0 **算失败**——那会让 Full-sync 以为远端没变更                                                                                                                                                 | ⬜   |
-| 11  | 同上                                                   | 检查 `pullChangesBatch`                                              | 不实现（调用点 [`pull-batch.ts`](../../../packages/rxdb/src/version/pull-batch.ts) 做特性探测，回落到同样 throw 的 `pullChanges`）；若实现则必须 throw，不得返回 `[]`                                                                                                                                           | ⬜   |
-| 12  | 远端返回 HTTP 401                                      | QueryCache 读或写                                                    | **本包 transport** 抛出的错误带数字 `status`，`isNetworkError` 判 `false`，**不**被 `offlineFallback` 吞成缓存命中。断言主体是适配器：handler 不发请求，因此这条可由本包契约测试冻结                                                                                                                            | ⬜   |
-| 13  | 网络断开（fetch reject）                               | 同上                                                                 | **本包 transport** 原样上抛 `TypeError` 或抛 `NetworkOfflineError`，**不包装**；`isNetworkError` 判 `true`；`offlineFallback: true` 且有缓存时才降级（US-020 AC#16）                                                                                                                                            | ⬜   |
-| 14  | 远端 metadata 的 `updatedAt` 是 ISO 字符串             | `fetchMetadata`                                                      | 透出为**规范化 `string`**（UTC `Z` + 3 位毫秒）；**不得**解成 `Date`。三条独立用例：① 已规范化的串原样透出；② 带时区偏移（如 `+08:00`）或缺毫秒的合法 ISO → canonicalize 后再交给 core，**不得**直接透传；③ 非法时间串 → 抛错不吞。理由见[技术笔记](#updatedat-必须是规范化-iso-字符串)                          | ⬜   |
-| 15  | 实体声明 bigint / binary 字段                          | `connect()`（**不是**首次查询）                                      | 连接期扫描已注册实体元数据即抛 `HttpUnsupportedWireTypeError`（类名判别），**不得** `JSON.stringify` 把 `7n` 弄丢或把 `Uint8Array` 塌成 `{"0":1,…}`。放到首次查询才报，等于让一个连得上的库带着注定失败的实体跑到运行期                                                                                          | ⬜   |
-| 16  | 配置了 auth hook                                       | 任意远端请求                                                         | hook 返回的 header 出现在**适配器发出的**请求上；hook 抛错时请求不发出。两条都由本包担保——hook 在 transport 内、发请求前调用                                                                                                                                                                                    | ⬜   |
-| 17  | search / graph 插件已装，`inject: ['adapter:local']`   | 连接 HTTP + sqlite                                                   | 插件绑到独立注册的 sqlite，不绑 HTTP、不另开一份库                                                                                                                                                                                                                                                              | ⬜   |
-| 18  | 一批 mutations 混入 HTTP-QueryCache 实体与 Full 实体   | `EntityManager.mutations`                                            | 拒绝（US-020 AC#6），错误码 `mixed_versioned_cache_transaction`；本包不提供任何绕过该闸门的入口                                                                                                                                                                                                                 | ⬜   |
-| 19  | 本包源码与实例                                         | 结构隔离契约测试                                                     | 本包不实现也不调用 `upsertMany` / `deleteByIds` / `getMetadataByIds`；实例不持有 `QueryCacheLocalAdapter`；构造函数不 `new` 任何本地存储                                                                                                                                                                        | ⬜   |
-| 20  | 新包落地                                               | `pnpm nx lint/test/build`、api-baseline、`inject` 契约测试           | 绿；`declare module` 扩 `RxDBAdapters`；覆盖率按非核心包 ≥ 80%                                                                                                                                                                                                                                                  | ⬜   |
-| 21  | 能力矩阵 / 公开文档                                    | 关闭阶段 A                                                           | HTTP 行从「待实现」改为已实现；具名适配器计数 9 → 10；写清 v1 只支持 QueryCache、changelog 方法 unsupported                                                                                                                                                                                                     | ⬜   |
-| 22  | 对照实体仍是 `SyncType.Full` + supabase 或 sqlite      | 跑既有套件                                                           | 用户可见行为不变；本包不改 Full/Filter 写本地                                                                                                                                                                                                                                                                   | ⬜   |
-| 23  | 结果集跨 N 页（N ≥ 2）                                 | 订阅 `fetchMetadata` 返回的 Observable                               | **恰好发射 1 次**（值为 N 页拼接后的全量）并 `complete`。断言发射计数 === 1，不是「最后一次的内容对」——每页一发也能让后者过（见[发射契约](#fetchmetadata对-core-的发射契约)）                                                                                                                                   | ⬜   |
-| 24  | 适配器实例                                             | `connect` / `disconnect` / `version` / `isTableExisted`              | 四个成员按[生命周期语义表](#生命周期成员的-http-语义)实现，**每个成员至少一条独立用例**：`connect` 完成 AC#15 扫描且不发探测请求；`disconnect` 取消进行中的翻页并使后续 duck 调用抛错；`version` 无 `onVersion` 时抛 unsupported、**不得**回落到包版本号；`isTableExisted` 的 2xx→`true` / 404→`false` / 其余→抛错三分支各一条，**不得**恒 `true` 蒙混 | ⬜   |
-| 25  | 本包源码                                               | 契约测试断言 `rawQuery` 未实现                                       | 本包 **MUST NOT** 实现 `rawQuery`。实现它会让本包落进 [adapter-contract §4.6](../../../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决) 的 bypass 门禁，[roadmap 约束 11](../../roadmap.md#排期约束) 整套「结构隔离取代 epic-006 前置」的论证随之失效 | ⬜   |
-| 26  | 同上                                                   | 检查 `pushBranches` / `branchExists` / `pullBranches`                | 三个 optional 分支成员**不实现**（v1 无 Full-sync，分支语义无处落地）；若实现则必须 throw `HttpChangelogUnsupportedError`，**不得**返回空数组 / `false`                                                                                                                                                         | ⬜   |
-| 31  | 构造适配器时传入退化配置                               | `new RxDBAdapterHttp(db, { pageSize, maxPages, idChunkSize, maxEmptyPages })` | 构造期抛 `HttpConfigError`，错误信息含字段名与实际值。判据是 **finite 正整数**不是 `> 0`：`1.5` / `Infinity` / `NaN` / `0`（`maxEmptyPages` 除外）/ 负数各一条用例。见[可配置项](#可配置项与默认值)                                                                                                            | ⬜   |
+| #   | 前置条件                                               | 操作                                                                                                                                                   | 预期结果                                                                                                                                                                                                                                                                                                                                               | 状态 |
+| --- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 1   | workspace 可解析新包                                   | `new RxDB({ sync: { local: { adapter: 'sqlite' }, remote: { adapter: 'http' } } })`，再 `rxdb.adapter('http', db => new RxDBAdapterHttp(db, options))` | 适配器解析为 remote 槽位实例；`ADAPTER_NAME === 'http'`；`declare module` 使 `'http'` 出现在 `keyof RxDBAdapters`。未注册工厂即 `connect()` 时 fail-fast（core 已有「Adapter not found」语义），不静默降级                                                                                                                                             | ⬜   |
+| 2   | HTTP remote + 独立 sqlite local，`SyncType.QueryCache` | `getRepository(E).find({ where })`                                                                                                                     | **适配器发出的**请求体是 JSON `RuleGroup`，**不含 SQL**（断言主体是本包的 transport，不是 handler）；行缓存由 core 经 `localAdapter.upsertMany` 落到独立 sqlite                                                                                                                                                                                        | ⬜   |
+| 3   | 同上                                                   | `create` / `update` / `delete`                                                                                                                         | 走 US-020 的 remote-then-local；HTTP 适配器自身不 `new` sqlite、不打开 OPFS/IDB                                                                                                                                                                                                                                                                        | ⬜   |
+| 4   | handlers 未提供 `create`                               | `repo.create(...)`                                                                                                                                     | fail-fast（`QueryCacheRepository` 已有的「Remote adapter does not support create」语义），不写本地                                                                                                                                                                                                                                                     | ⬜   |
+| 5   | handler 返回**数组**，结果集 > `pageSize`              | `fetchMetadata`                                                                                                                                        | 翻页至 `rows.length < limit` 为止；语义同 supabase `select_all_pages`；截断的 id **不得**被当成远端已删除                                                                                                                                                                                                                                              | ⬜   |
+| 6   | handler 返回 `{ rows, nextCursor }`                    | `fetchMetadata`                                                                                                                                        | 翻页至 `nextCursor === undefined` 为止；空 `rows` 但有 `nextCursor` 时继续翻                                                                                                                                                                                                                                                                           | ⬜   |
+| 7   | 退化的 handler                                         | `fetchMetadata`                                                                                                                                        | [fail-fast 四条](#fetchmetadata判别式返回)各**一条独立用例**（换形态 / 游标不推进 / 连续空页触顶 / 总页数触顶），各自抛可区分的错误；四条都**不得**返回已拿到的部分结果，不得进死循环。合并成一条「退化则抛错」的用例不算通过                                                                                                                          | ⬜   |
+| 8   | `findByIds` 的 id 列表 > `idChunkSize`                 | 增量 pull                                                                                                                                              | 分块请求并合并；语义同 supabase `#findByIdsInChunks`                                                                                                                                                                                                                                                                                                   | ⬜   |
+| 9   | 某一块 reject；另一场景某一块返回少行                  | 增量 pull                                                                                                                                              | reject → 整体 reject，缺块**不得**静默当空；少行 → 合法，不重试不补空对象                                                                                                                                                                                                                                                                              | ⬜   |
+| 10  | HTTP 适配器已连接                                      | 调用 `pullChanges` / `mergeChanges` / `getChangeCount`                                                                                                 | 抛 `HttpChangelogUnsupportedError`（**类名**判别，见[两个新错误的判别口径](#两个新错误的判别口径)）；返回空数组 / 0 **算失败**——那会让 Full-sync 以为远端没变更                                                                                                                                                                                        | ⬜   |
+| 11  | 同上                                                   | 检查 `pullChangesBatch`                                                                                                                                | 不实现（调用点 [`pull-batch.ts`](../../../packages/rxdb/src/version/pull-batch.ts) 做特性探测，回落到同样 throw 的 `pullChanges`）；若实现则必须 throw，不得返回 `[]`                                                                                                                                                                                  | ⬜   |
+| 12  | 远端返回 HTTP 401                                      | QueryCache 读或写                                                                                                                                      | **本包 transport** 抛出的错误带数字 `status`，`isNetworkError` 判 `false`，**不**被 `offlineFallback` 吞成缓存命中。断言主体是适配器：handler 不发请求，因此这条可由本包契约测试冻结                                                                                                                                                                   | ⬜   |
+| 13  | 网络断开（fetch reject）                               | 同上                                                                                                                                                   | **本包 transport** 原样上抛 `TypeError` 或抛 `NetworkOfflineError`，**不包装**；`isNetworkError` 判 `true`；`offlineFallback: true` 且有缓存时才降级（US-020 AC#16）                                                                                                                                                                                   | ⬜   |
+| 14  | 远端 metadata 的 `updatedAt` 是 ISO 字符串             | `fetchMetadata`                                                                                                                                        | 透出为**规范化 `string`**（UTC `Z` + 3 位毫秒）；**不得**解成 `Date`。三条独立用例：① 已规范化的串原样透出；② 带时区偏移（如 `+08:00`）或缺毫秒的合法 ISO → canonicalize 后再交给 core，**不得**直接透传；③ 非法时间串 → 抛错不吞。理由见[技术笔记](#updatedat-必须是规范化-iso-字符串)                                                                | ⬜   |
+| 15  | 实体声明 bigint / binary 字段                          | `connect()`（**不是**首次查询）                                                                                                                        | 连接期扫描已注册实体元数据即抛 `HttpUnsupportedWireTypeError`（类名判别），**不得** `JSON.stringify` 把 `7n` 弄丢或把 `Uint8Array` 塌成 `{"0":1,…}`。放到首次查询才报，等于让一个连得上的库带着注定失败的实体跑到运行期                                                                                                                                | ⬜   |
+| 16  | 配置了 auth hook                                       | 任意远端请求                                                                                                                                           | hook 返回的 header 出现在**适配器发出的**请求上；hook 抛错时请求不发出。两条都由本包担保——hook 在 transport 内、发请求前调用                                                                                                                                                                                                                           | ⬜   |
+| 17  | search / graph 插件已装，`inject: ['adapter:local']`   | 连接 HTTP + sqlite                                                                                                                                     | 插件绑到独立注册的 sqlite，不绑 HTTP、不另开一份库                                                                                                                                                                                                                                                                                                     | ⬜   |
+| 18  | 一批 mutations 混入 HTTP-QueryCache 实体与 Full 实体   | `EntityManager.mutations`                                                                                                                              | 拒绝（US-020 AC#6），错误码 `mixed_versioned_cache_transaction`；本包不提供任何绕过该闸门的入口                                                                                                                                                                                                                                                        | ⬜   |
+| 19  | 本包源码与实例                                         | 结构隔离契约测试                                                                                                                                       | 本包不实现也不调用 `upsertMany` / `deleteByIds` / `getMetadataByIds`；实例不持有 `QueryCacheLocalAdapter`；构造函数不 `new` 任何本地存储                                                                                                                                                                                                               | ⬜   |
+| 20  | 新包落地                                               | `pnpm nx lint/test/build`、api-baseline、`inject` 契约测试                                                                                             | 绿；`declare module` 扩 `RxDBAdapters`；覆盖率按非核心包 ≥ 80%                                                                                                                                                                                                                                                                                         | ⬜   |
+| 21  | 能力矩阵 / 公开文档                                    | 关闭阶段 A                                                                                                                                             | HTTP 行从「待实现」改为已实现；具名适配器计数 9 → 10；写清 v1 只支持 QueryCache、changelog 方法 unsupported                                                                                                                                                                                                                                            | ⬜   |
+| 22  | 对照实体仍是 `SyncType.Full` + supabase 或 sqlite      | 跑既有套件                                                                                                                                             | 用户可见行为不变；本包不改 Full/Filter 写本地                                                                                                                                                                                                                                                                                                          | ⬜   |
+| 23  | 结果集跨 N 页（N ≥ 2）                                 | 订阅 `fetchMetadata` 返回的 Observable                                                                                                                 | **恰好发射 1 次**（值为 N 页拼接后的全量）并 `complete`。断言发射计数 === 1，不是「最后一次的内容对」——每页一发也能让后者过（见[发射契约](#fetchmetadata对-core-的发射契约)）                                                                                                                                                                          | ⬜   |
+| 24  | 适配器实例                                             | `connect` / `disconnect` / `version` / `isTableExisted`                                                                                                | 四个成员按[生命周期语义表](#生命周期成员的-http-语义)实现，**每个成员至少一条独立用例**：`connect` 完成 AC#15 扫描且不发探测请求；`disconnect` 取消进行中的翻页并使后续 duck 调用抛错；`version` 无 `onVersion` 时抛 unsupported、**不得**回落到包版本号；`isTableExisted` 的 2xx→`true` / 404→`false` / 其余→抛错三分支各一条，**不得**恒 `true` 蒙混 | ⬜   |
+| 25  | 本包源码                                               | 契约测试断言 `rawQuery` 未实现                                                                                                                         | 本包 **MUST NOT** 实现 `rawQuery`。实现它会让本包落进 [adapter-contract §4.6](../../../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决) 的 bypass 门禁，[roadmap 约束 11](../../roadmap.md#排期约束) 整套「结构隔离取代 epic-006 前置」的论证随之失效                                        | ⬜   |
+| 26  | 同上                                                   | 检查 `pushBranches` / `branchExists` / `pullBranches`                                                                                                  | 三个 optional 分支成员**不实现**（v1 无 Full-sync，分支语义无处落地）；若实现则必须 throw `HttpChangelogUnsupportedError`，**不得**返回空数组 / `false`                                                                                                                                                                                                | ⬜   |
+| 31  | 构造适配器时传入退化配置                               | `new RxDBAdapterHttp(db, { pageSize, maxPages, idChunkSize, maxEmptyPages })`                                                                          | 构造期抛 `HttpConfigError`，错误信息含字段名与实际值。判据是 **finite 正整数**不是 `> 0`：`1.5` / `Infinity` / `NaN` / `0`（`maxEmptyPages` 除外）/ 负数各一条用例。见[可配置项](#可配置项与默认值)                                                                                                                                                    | ⬜   |
 
 ### 阶段 B — REST mapping 与可选加速
 
@@ -300,12 +300,12 @@ type FindByIdsHandler = {
 >
 > AC#27 不受此限——REST 模板完全在本包内，可直接实现。
 
-| #   | 前置条件                       | 操作                                  | 预期结果                                                                                                                                     | 状态 |
-| --- | ------------------------------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 27  | 阶段 A handlers 可用           | 用 resource URL 模板代替手写 handlers | 等价于阶段 A 的 QueryCache ducks；模板解析失败 fail-fast，不发错 URL                                                                         | ⬜   |
-| 28  | 远端支持 ETag / If-None-Match  | 重复 `fetchMetadata` / `findByIds`    | 304 时不把「未修改」当成空集或假孤儿。**owner 待定**：响应缓存由谁持有、并发请求如何协调                                                     | 🚧   |
+| #   | 前置条件                       | 操作                                  | 预期结果                                                                                                                                                                                  | 状态 |
+| --- | ------------------------------ | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 27  | 阶段 A handlers 可用           | 用 resource URL 模板代替手写 handlers | 等价于阶段 A 的 QueryCache ducks；模板解析失败 fail-fast，不发错 URL                                                                                                                      | ⬜   |
+| 28  | 远端支持 ETag / If-None-Match  | 重复 `fetchMetadata` / `findByIds`    | 304 时不把「未修改」当成空集或假孤儿。**owner 待定**：响应缓存由谁持有、并发请求如何协调                                                                                                  | 🚧   |
 | 29  | 可选 SSE / invalidation 未配置 | 正常 QueryCache 查询                  | 行为与阶段 A 相同；缺可选能力不降级、不抛。配置后 SSE 只能**触发**下一次查询，**不得**让 `fetchMetadata` 变成不 complete 的长连接流（AC#23）。**owner 待定**：core 的失效通知入口尚不存在 | 🚧   |
-| 30  | 可选 eviction 未配置           | 行缓存增长                            | 不自动删业务行；eviction 若实现必须是显式策略，默认不丢用户数据。**owner 待定**：本包不持有 local adapter，执行者与行选择协议未定           | 🚧   |
+| 30  | 可选 eviction 未配置           | 行缓存增长                            | 不自动删业务行；eviction 若实现必须是显式策略，默认不丢用户数据。**owner 待定**：本包不持有 local adapter，执行者与行选择协议未定                                                         | 🚧   |
 
 状态符号：⬜ 未开始 / 🚧 设计待定（owner 未指定，不可排期） / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -342,11 +342,30 @@ AC#19 是这条的可执行形式。注意它**不是**「调用这两个方法�
 
 分块 `findByIds` 同理。不要发明「一次 POST 全量 id」然后在网关 413 时返回空。
 
-### `updatedAt` 必须是 ISO 字符串
+### `updatedAt` 必须是规范化 ISO 字符串
 
-[`QueryCacheEntityMetadata.updatedAt`](../../../packages/rxdb/src/entity/sync-options.interface.ts) 的类型是 `string`（ISO 8601），新鲜度比较按**字典序**做。US-020 阶段 B 实测踩过：`updatedAt` 一旦经实体解码变成 `Date`，`'2026-08-09T…' > new Date(…)` 会先按 number 提示取原始值，字符串那侧转成 `NaN`，比较**恒为 false**——所有行判 fresh，远端更新永远拉不下来。症状是静默的：查询照常返回，内容停在第一次同步那一刻。
+[`QueryCacheEntityMetadata.updatedAt`](../../../packages/rxdb/src/entity/sync-options.interface.ts) 的类型是 `string`（ISO 8601），新鲜度比较按**字典序**做。这里有**两个**独立的坑，AC#14 两个都要防。
+
+#### 坑一：解成 `Date`（US-020 阶段 B 实测踩过）
+
+`updatedAt` 一旦经实体解码变成 `Date`，`'2026-08-09T…' > new Date(…)` 会先按 number 提示取原始值，字符串那侧转成 `NaN`，比较**恒为 false**——所有行判 fresh，远端更新永远拉不下来。症状是静默的：查询照常返回，内容停在第一次同步那一刻。
 
 HTTP 包最容易复现的姿势就是「把响应过一遍实体解码再返回」。metadata 通道必须绕开实体解码。
+
+#### 坑二：合法但不规范的 ISO 串
+
+**「是合法 ISO 8601」不足以保证字典序等价于时间序。** 比较的两侧形态不同：
+
+- 远端侧：[`diffMetadata`](../../../packages/rxdb/src/repository/diff-metadata.ts) 直接 `remote.updatedAt > localUpdatedAt`，原样比字符串。
+- 本地侧：core 用 `toISOString()` 归一（[`QueryCacheRepository`](../../../packages/rxdb/src/repository/QueryCacheRepository.ts)），**恒为 UTC `Z` + 3 位毫秒**。
+
+于是远端返回 `2026-08-23T18:00:00+08:00`（= UTC 10:00，确实比本地的 `2026-08-23T10:30:00.000Z` 旧）时，字典序逐字符比到时位就得出 `18 > 10` —— 判 stale，无谓重拉。反向的例子会判 fresh，缓存卡死。偏移量、缺省毫秒、`+00:00` 代替 `Z`、多于 3 位的小数秒，四种都会破坏顺序。
+
+`diffMetadata` 自己的 TSDoc 已经写明「两个值都必须是合法 ISO 8601 格式，比较才正确」——这是对**调用方**的要求，本包就是调用方。
+
+**因此 metadata 的 wire 形式必须规范化**：UTC `Z`、毫秒 3 位，即与 `toISOString()` 完全同形。适配器要么在边界 canonicalize 后再交给 core，要么对不规范的串 fail-fast；**不得直接透传**。
+
+> 坑一的防御（不许解成 `Date`）防不住坑二——一个不规范的**字符串**照样是 `string`，类型检查全绿，`diffMetadata` 照常运行，错的只是结论。
 
 ### 错误分类锚定 `isNetworkError`
 
@@ -356,6 +375,8 @@ core 已经把口径冻结在 [`isNetworkError`](../../../packages/rxdb/src/repo
  * QueryCache 的 `offlineFallback`（US-020 AC#16）与后续的同步重试策略（US-212）。
  * 两处口径必须一致 —— 否则「什么算离线」会在两个地方各自漂移。
 ```
+
+这两条能写成本包的 AC，前提是[transport 归本包](#责任划分适配器持有-transport)——若由用户的 handler 发请求，本包既控不住错误形态也插不进 `status`，AC#12 / #13 只能退化成对 handler 的文档劝告。owner 定在适配器这边，两条才是可冻结的契约测试。
 
 本包只需满足它的两条硬性输入：
 
@@ -382,14 +403,22 @@ v1 不实现 Full-sync。`pullChanges` / `mergeChanges` / `getChangeCount` 若�
 
 第三行那条**是特例且已声明为特例**——`RxDBError.ts` 原文写着「`code` 是本仓库唯一用错误码而非 `name` 判别的错误：该字符串由 `US-306 FR-046` 指定，跨故事复用，不得改名」。本包若照抄它的 snake_case 形态，就把「唯一」变成「三个」，那句话连同它保护的跨故事契约一起失效。
 
-**本故事的口径**：新错误以**类名**判别（`HttpChangelogUnsupportedError` / `HttpUnsupportedWireTypeError`，名字在 plan 定），需要跨包字符串断言时附带 UPPER_SNAKE 的 `code`，与 supabase 一致。**不新增 snake_case 主判别位。** AC 表里出现的 `remote_changelog_unsupported` / `unsupported_wire_type` 按此读作症状标识。
+**本故事的口径**：新错误一律以**类名**判别，需要跨包字符串断言时附带 UPPER_SNAKE 的 `code`，与 supabase 一致。**不新增 snake_case 主判别位。**
+
+| 类名（主判别位）                | 附带 `code`             | 抛出时机                                  |
+| ------------------------------- | ----------------------- | ----------------------------------------- |
+| `HttpChangelogUnsupportedError` | `CHANGELOG_UNSUPPORTED` | changelog / 分支成员被调用（AC#10、#26）  |
+| `HttpUnsupportedWireTypeError`  | `UNSUPPORTED_WIRE_TYPE` | `connect()` 扫到 bigint / binary（AC#15） |
+| `HttpConfigError`               | `CONFIG_ERROR`          | 构造期配置校验失败（AC#31）               |
+
+类名与 `code` 字面量在 plan 可微调，**判别位不可调**。AC 表已统一改用类名——早期版本写的 `remote_changelog_unsupported` / `unsupported_wire_type` 是症状标识，不是 `code` 字面量，勿照抄成 snake_case。
 
 ### 协议
 
-- 请求：JSON `RuleGroup` + 实体名 + id 列表 + 翻页参数。不发 SQL，远端不是你的 sqlite。
-- 响应：metadata `{ id, updatedAt }[]`（`updatedAt` 为 ISO 8601 字符串）；实体 JSON 数组。
-- bigint/binary 没有本故事定义的 wire codec——实体字段若声明这些类型，阶段 A 抛 `unsupported_wire_type`（AC#15，**单一行为，不给「或拒绝该实体」的第二选项**）。US-018 已经在生成器上为同一类静默丢失付过学费。
-- auth：hook 注入 header。401 的错误对象必须带数字 `status`，供 `isNetworkError` 正确分类。
+- 请求：JSON `RuleGroup` + 实体名 + id 列表 + 翻页参数。不发 SQL，远端不是你的 sqlite。**请求由适配器发出**，handler 只给 URL / method / body。
+- 响应：metadata `{ id, updatedAt }[]`（`updatedAt` 为**规范化** ISO 8601 串：UTC `Z` + 3 位毫秒）；实体 JSON 数组。
+- bigint/binary 没有本故事定义的 wire codec——实体字段若声明这些类型，阶段 A 抛 `HttpUnsupportedWireTypeError`（AC#15，**单一行为，不给「或拒绝该实体」的第二选项**）。US-018 已经在生成器上为同一类静默丢失付过学费。
+- auth：hook 由适配器在发请求前调用并注入 header。401 的错误对象必须带数字 `status`，供 `isNetworkError` 正确分类。
 
 ### 与 epic-006 的关系
 
@@ -412,7 +441,8 @@ YAML 没有 `depends-on` 字段。本故事当前**零前置**；排期见 [road
 | `packages/rxdb-adapter-http/`（新包）                        | A    | RemoteBase 实现、handlers、翻页/分块、unsupported changelog |
 | Nx project / `package.json` workspace 链接                   | A    | 用 workspace 协议链接，不手改 tsconfig paths                |
 | `requirements/api-baseline/rxdb-adapter-http.json`           | A    | 新包公开 API 基线                                           |
-| `inject: ['adapter:remote']` 契约测试                        | A    | 对齐 US-015 的 adapter inject                               |
+| `declare module` 扩 `RxDBAdapters` + 注册解析契约测试        | A    | AC#1。**不是** `inject`——那是插件字段，适配器身上没有       |
+| transport 归属契约测试（auth / status / 不包装）             | A    | AC#12 / #13 / #16，断言主体是本包的 transport 而非 handler  |
 | 结构隔离契约测试                                             | A    | AC#19                                                       |
 | website / [capability-matrix.md](../../capability-matrix.md) | A    | AC#21（含具名适配器计数 9 → 10）                            |
 | REST mapping / ETag / SSE / eviction                         | B    | 可选；缺省不得改变阶段 A 语义                               |
@@ -424,7 +454,7 @@ YAML 没有 `depends-on` 字段。本故事当前**零前置**；排期见 [road
 - [US-020 QueryCache 接入统一 Repository](../core/US-020-querycache-repository.md) — 曾是唯一硬前置，**已于 2026-08-22 全关，两档发布门禁同时解除**
 - [US-203 Supabase 适配器](./US-203-supabase-adapter.md) — 翻页/分块与 QueryCache ducks 的对标；不 inherit AC
 - [US-201 SQLite 适配器](./US-201-sqlite-adapter.md) / sqlite-core — 独立 local 缓存后端
-- [US-015](../core/US-015-plugin-inject-dependency.md) — `inject: ['adapter:remote']`
+- [US-015](../core/US-015-plugin-inject-dependency.md) — 插件侧的 `inject: ['adapter:remote']` 会解析到本适配器实例。**本适配器自己不声明 `inject`**（那是插件接口的成员，不是适配器的）
 - [US-018](../core/US-018-generator-default-serialization.md) — bigint / binary 静默丢失的同类学费，AC#15 的来源
 - [US-306 FR-046](../collaboration/US-306-working-tree-commits.md) — cache 排除在工作树外（兼容，不实现）。
   兼容机制见[技术笔记](#与-epic-006-的关系)：本包不碰 `upsertMany()` / `deleteByIds()`，门禁挂载时对本包是 no-op。
