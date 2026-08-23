@@ -13,6 +13,10 @@
       "kind": "type"
     },
     {
+      "name": "createRestHandlers",
+      "kind": "value"
+    },
+    {
       "name": "DEFAULT_HTTP_CONFIG",
       "kind": "value"
     },
@@ -118,6 +122,22 @@
     },
     {
       "name": "IsTableExistedHandler",
+      "kind": "type"
+    },
+    {
+      "name": "RestHandlersOptions",
+      "kind": "type"
+    },
+    {
+      "name": "RestOperation",
+      "kind": "type"
+    },
+    {
+      "name": "RestOperationTemplate",
+      "kind": "type"
+    },
+    {
+      "name": "RestPlaceholder",
       "kind": "type"
     },
     {

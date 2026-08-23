@@ -91,6 +91,61 @@ const handlers: HttpHandlers = {
 只读接入方不配这三个即可。
 :::
 
+### REST 模板：不想手抄这份样板
+
+绝大多数 REST 后端的 mapping 长得一模一样：资源路径 + 固定 body 形状。
+`createRestHandlers()` 把它收成一个工厂，**产出的仍是普通 `HttpHandlers`**——
+适配器一行没改，翻页、分块、单次发射、错误分类全部照旧。
+
+```typescript
+import { createRestHandlers, RxDBAdapterHttp } from '@aiao/rxdb-adapter-http';
+
+rxdb.adapter(
+  'http',
+  db =>
+    new RxDBAdapterHttp(db, {
+      baseUrl: 'https://api.example.com/v1',
+      handlers: createRestHandlers({
+        resources: { Recipe: 'recipes' }, // 未列出的实体直接用实体名作路径片段
+        templates: {
+          version: { path: 'meta/version' }, // 覆盖：给对象
+          delete: null // 关闭：只读后端让 repo.delete() fail-fast
+        }
+      })
+    })
+);
+// fetchMetadata → POST  https://api.example.com/v1/recipes/metadata
+// update        → PATCH https://api.example.com/v1/recipes/{id}
+```
+
+| 操作             | 方法    | 默认路径           | 默认产出     |
+| :--------------- | :------ | :----------------- | :----------- |
+| `fetchMetadata`  | `POST`  | `:entity/metadata` | 是（不可关） |
+| `findByIds`      | `POST`  | `:entity/by-ids`   | 是（不可关） |
+| `create`         | `POST`  | `:entity`          | 是           |
+| `update`         | `PATCH` | `:entity/:id`      | 是           |
+| `delete`         | `POST`  | `:entity/delete`   | 是           |
+| `version`        | `GET`   | —                  | 否           |
+| `isTableExisted` | `HEAD`  | `:entity`          | 否           |
+
+请求体形状：`fetchMetadata` 发 `{ where, offset, limit, cursor }`，`findByIds` 与 `delete` 发 `{ ids }`，
+`create` / `update` 直接发调用方给的数据。`version` / `isTableExisted` 默认**不产出**——
+`/version` 与探测端点没有公认形状，替你猜一个等于发明一个不存在的端点。
+
+:::warning 模板校验在构造期
+路径为空 / 含空白、`?`、`#` / 方法非法 / 占位符集合不匹配 / 关掉 `fetchMetadata` 或 `findByIds`，
+都当场抛 `HttpConfigError`。占位符必须**恰好匹配**：`update` 少 `:id` 会 `PATCH` 整个集合，
+任意模板少 `:entity` 会让所有实体共用一个 URL——两种退化在网线上都可能拿到 2xx，
+等发出去再看响应码是看不出来的。
+:::
+
+`delete` 默认走 `POST :entity/delete` 而不是 `DELETE :entity` + body：DELETE 的请求体会被不少代理、
+网关与服务端框架直接丢弃，那样一条「删这 3 行」的请求会以「`DELETE /recipes`」的面目到达服务端。
+需要真 `DELETE` 的显式覆盖 `templates.delete` 即可。
+
+`resources` 的值可以含 `/`（`v1/recipes` 合法）——它来自你的配置，是常量；
+而 `:id` 的取值来自远端行，会先 `encodeURIComponent` 再拼进 URL。
+
 ### `updatedAt` 必须是 ISO 8601 字符串
 
 `onFetchMetadata.parse` 返回的 `updatedAt` 会被规范化成 UTC + 3 位毫秒（`2026-08-23T10:00:00.000Z`）后交给 core。

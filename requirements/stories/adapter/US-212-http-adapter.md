@@ -26,7 +26,7 @@ INVEST 检查清单:
 | 阶段 | 交付                                                                                                                                                                | 直接前置 | AC 区段           | 状态 |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------- | ---- |
 | A    | `@aiao/rxdb-adapter-http`：RemoteBase + **适配器持有 transport** + 协议 mapping handler + QueryCache ducks + 翻页/分块 + 发射契约 + 错误分类 + wire 契约 + 结构隔离 | 无       | AC#1～26、#31～34 | ✅   |
-| B    | REST resource URL 模板（AC#27，可直接实现）；ETag / SSE / eviction（AC#28～30，**设计待定：需先指定跨包 owner**）                                                   | 阶段 A   | AC#27；#28～30 🚧 | ⬜   |
+| B    | REST resource URL 模板（AC#27，2026-08-23 交付）；ETag / SSE / eviction（AC#28～30，**设计待定：需先指定跨包 owner**）                                              | 阶段 A   | AC#27；#28～30 🚧 | ⚠️   |
 
 **前置与发布门禁：已全部解除（2026-08-23 复核）。** 本故事现在零前置，可直接开工并按 `stable` 发布。
 
@@ -344,11 +344,14 @@ QueryCache 的写入口是 `create` / `update` / `delete` 三个 optional duck�
 >
 > 「可选」降低的是**交付风险**，不代表设计已完成。**进入阶段 B 前必须先为这三条各自指定 owner**（本包 / core / 应用），否则会把未定义的跨包 API 偷渡进实现。届时若某条拿不到 owner，从本故事移出另开，不要留成「可选但可验收」的 AC。
 >
-> AC#27 不受此限——REST 模板完全在本包内，可直接实现。
+> AC#27 不受此限——REST 模板完全在本包内，可直接实现。**已于 2026-08-23 交付**（`rest.ts` 的 `createRestHandlers()`）：
+> 它只是一个产出 {@link HttpHandlers} 的工厂，适配器本体一行未改，因此「缺省不得改变阶段 A 语义」是结构性成立的，
+> 不是靠回归测试盯着。校验全在**构造期**——占位符集合必须与操作精确匹配（`update` 缺 `:id`、任意模板缺 `:entity` 都当场抛），
+> 因为这两种退化在网线上都是 2xx，等发出去再看响应码是看不出来的。
 
 | #   | 前置条件                       | 操作                                  | 预期结果                                                                                                                                                                                  | 状态 |
 | --- | ------------------------------ | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 27  | 阶段 A handlers 可用           | 用 resource URL 模板代替手写 handlers | 等价于阶段 A 的 QueryCache ducks；模板解析失败 fail-fast，不发错 URL                                                                                                                      | ⬜   |
+| 27  | 阶段 A handlers 可用           | 用 resource URL 模板代替手写 handlers | 等价于阶段 A 的 QueryCache ducks；模板解析失败 fail-fast，不发错 URL                                                                                                                      | ✅   |
 | 28  | 远端支持 ETag / If-None-Match  | 重复 `fetchMetadata` / `findByIds`    | 304 时不把「未修改」当成空集或假孤儿。**owner 待定**：响应缓存由谁持有、并发请求如何协调                                                                                                  | 🚧   |
 | 29  | 可选 SSE / invalidation 未配置 | 正常 QueryCache 查询                  | 行为与阶段 A 相同；缺可选能力不降级、不抛。配置后 SSE 只能**触发**下一次查询，**不得**让 `fetchMetadata` 变成不 complete 的长连接流（AC#23）。**owner 待定**：core 的失效通知入口尚不存在 | 🚧   |
 | 30  | 可选 eviction 未配置           | 行缓存增长                            | 不自动删业务行；eviction 若实现必须是显式策略，默认不丢用户数据。**owner 待定**：本包不持有 local adapter，执行者与行选择协议未定                                                         | 🚧   |
@@ -498,7 +501,10 @@ YAML 没有 `depends-on` 字段。本故事当前**零前置**；排期见 [road
 | transport 归属契约测试（auth / status / 不包装）             | A    | AC#12 / #13 / #16，断言主体是本包的 transport 而非 handler  |
 | 结构隔离契约测试                                             | A    | AC#19                                                       |
 | website / [capability-matrix.md](../../capability-matrix.md) | A    | AC#21（含具名适配器计数 9 → 10）                            |
-| REST mapping / ETag / SSE / eviction                         | B    | 可选；缺省不得改变阶段 A 语义                               |
+| `packages/rxdb-adapter-http/src/rest.ts` + `rest.spec.ts`    | B    | AC#27。工厂产出普通 handler，适配器一行没改                 |
+| `packages/rxdb-adapter-http/README.md` + `LICENSE`           | B    | 补齐：本包曾是唯一缺 README 的包，npm 页面为空              |
+| website `docs/adapters/http.md` 的「REST 模板」小节          | B    | AC#27 的公开文档：默认模板表、构造期校验、`delete` 的取舍   |
+| ETag / SSE / eviction                                        | B    | AC#28～30，owner 未指定前不实现                             |
 
 本故事关闭前不改 US-203。能力矩阵在包落地后把「待实现 / US-212」行改成已实现。
 

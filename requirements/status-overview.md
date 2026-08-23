@@ -170,9 +170,9 @@
 - 🅰️ ✅ [US-020 将 QueryCache 接入统一 Repository](stories/core/US-020-querycache-repository.md) — 两阶段，2026-08-22 全关；`SyncType.QueryCache` 从空操作变成生产真，**US-212 的两档发布门禁同时解锁**。不 inherit US-203 AC#6
   - ✅ 阶段 A 生产接线 — `getRepository` / EntityManager 走 `QueryCacheRepository`；Full/Filter 不变
   - ✅ 阶段 B 缓存质量 — orphan 删除、指纹含模式、SWR SQL、错误分类；AC#21 由接真实 sqlite-wasm 的 identity 集成用例关闭（顺带揪出 `updatedAt` 解码成 `Date` 后新鲜度恒判 fresh、与 `upsertMany` 裸 SQL 写不维护 identity cache 两个静默缺陷），AC#23 由 D13 的 `syncStaleTime` 同步记忆窗口关闭
-- 🅰️ 🚧 [US-212 HTTP 远程适配器](stories/adapter/US-212-http-adapter.md) — 两阶段，**零前置**。远端权威 HTTP + 独立注册 sqlite 行缓存，不内嵌 sqlite。**排期已提到 [roadmap 批次 1 线 F](roadmap.md#批次-1零前置七条线可同时开工)**；两条历史锁均已解除：epic-006 的「不得在 US-306 阶段 A 前发布」于 2026-08-22 解除，US-020 的两档发布门禁随 US-020 两阶段全关于同日解除。现存的唯一硬约束是 [roadmap 约束 11](roadmap.md#排期约束) 的**结构隔离**不变量（本包 MUST NOT 实现或调用 `upsertMany` / `deleteByIds` / `getMetadataByIds`，MUST NOT 持有本地存储），落在 [US-212 AC#19](stories/adapter/US-212-http-adapter.md)。**阶段 A 已于 2026-08-23 关闭**（`@aiao/rxdb-adapter-http` 185 条用例绿、覆盖率 99%、API baseline 无变化），具名适配器计数随之 9 → 10
+- 🅰️ 🚧 [US-212 HTTP 远程适配器](stories/adapter/US-212-http-adapter.md) — 两阶段，**零前置**。远端权威 HTTP + 独立注册 sqlite 行缓存，不内嵌 sqlite。**排期已提到 [roadmap 批次 1 线 F](roadmap.md#批次-1零前置七条线可同时开工)**；两条历史锁均已解除：epic-006 的「不得在 US-306 阶段 A 前发布」于 2026-08-22 解除，US-020 的两档发布门禁随 US-020 两阶段全关于同日解除。现存的唯一硬约束是 [roadmap 约束 11](roadmap.md#排期约束) 的**结构隔离**不变量（本包 MUST NOT 实现或调用 `upsertMany` / `deleteByIds` / `getMetadataByIds`，MUST NOT 持有本地存储），落在 [US-212 AC#19](stories/adapter/US-212-http-adapter.md)。**阶段 A 已于 2026-08-23 关闭**（`@aiao/rxdb-adapter-http` 185 条用例绿、覆盖率 99%、API baseline 无变化），具名适配器计数随之 9 → 10。**阶段 B 的 AC#27（REST resource URL 模板 `createRestHandlers()`）同日交付**，包内 216 条用例绿；阶段 B 余下的 AC#28～30 是**设计待定**（ETag / SSE / eviction 各需一个跨包 owner），owner 指定前不实现、不排期——故事整体仍是 🚧
   - ✅ 阶段 A handlers 注入 + QueryCache ducks + 分页/分块 + QueryCache-only 写路径契约测试
-  - ⬜ 阶段 B REST mapping / 可选 ETag、SSE、eviction
+  - ⚠️ 阶段 B — ✅ REST resource URL 模板（AC#27，`createRestHandlers()`）；🚧 ETag、SSE、eviction（AC#28～30，设计待定：需先为每条指定跨包 owner）
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
 
