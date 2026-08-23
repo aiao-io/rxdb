@@ -9,14 +9,10 @@
 
 ## 目录结构
 
-| 文件                                                                                     | 说明                                                                               | 状态 |
-| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---- |
-| `README.md`                                                                              | 本说明与状态约定                                                                   | —    |
-| `review.template.md`                                                                     | 新建 review 记录的模板                                                             | —    |
-| [`RV-001-supabase-error-classification.md`](RV-001-supabase-error-classification.md)     | supabase 把传输失败包成 `SupabaseDataError`，`offlineFallback` 永不触发            | Open |
-| [`RV-002-fetchmetadata-emission-contract.md`](RV-002-fetchmetadata-emission-contract.md) | `fetchMetadata` 的「单次发射 + complete」是 `forkJoin` 强加的契约，但没写下        | Open |
-| [`RV-003-http-adapter-requirement-review.md`](RV-003-http-adapter-requirement-review.md) | US-212 的注册示例引用不存在的 API、transport owner 未定、`updatedAt` wire 未规范化 | Open |
-| [`RV-004-http-adapter-second-pass.md`](RV-004-http-adapter-second-pass.md) | US-212 第二轮：RV-002 引用过时、`isTableExisted` 论据失效、Node fetch 错误漏判、必选成员语义空白 | Open |
+| 文件                 | 说明                   | 状态 |
+| -------------------- | ---------------------- | ---- |
+| `README.md`          | 本说明与状态约定       | —    |
+| `review.template.md` | 新建 review 记录的模板 | —    |
 
 ## 状态约定
 
