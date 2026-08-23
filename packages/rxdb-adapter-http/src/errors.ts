@@ -58,7 +58,10 @@ export class HttpConfigError extends HttpAdapterError {
  */
 export class HttpChangelogUnsupportedError extends HttpAdapterError {
   constructor(readonly operation: string) {
-    super(`HTTP adapter does not support changelog operation "${operation}" (v1 has no Full-sync)`, 'CHANGELOG_UNSUPPORTED');
+    super(
+      `HTTP adapter does not support changelog operation "${operation}" (v1 has no Full-sync)`,
+      'CHANGELOG_UNSUPPORTED'
+    );
     this.name = 'HttpChangelogUnsupportedError';
     Object.setPrototypeOf(this, HttpChangelogUnsupportedError.prototype);
   }

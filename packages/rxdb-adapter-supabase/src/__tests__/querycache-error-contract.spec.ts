@@ -17,10 +17,10 @@
 import {
   Entity,
   EntityBase,
+  getEntityMetadata,
   isNetworkError,
   NetworkOfflineError,
   QueryCacheRepository,
-  getEntityMetadata,
   type EntityType,
   type QueryCacheLocalAdapter,
   type QueryCacheLocalReader,
@@ -150,7 +150,11 @@ describe('RV-001 — supabase 抛出的错误必须能被 isNetworkError 正确�
 
 describe('RV-002 — fetchMetadata 的发射契约（forkJoin 承重）', () => {
   it('恰好发射一次并 complete', async () => {
-    const adapter = createAdapter({ data: [{ id: 'a', updatedAt: '2026-01-01T00:00:00.000Z' }], error: null, status: 200 });
+    const adapter = createAdapter({
+      data: [{ id: 'a', updatedAt: '2026-01-01T00:00:00.000Z' }],
+      error: null,
+      status: 200
+    });
 
     let emissions = 0;
     let completed = false;

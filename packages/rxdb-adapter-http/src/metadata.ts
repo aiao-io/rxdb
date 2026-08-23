@@ -51,7 +51,10 @@ const canonicalizeUpdatedAt = (entityName: string, id: string, updatedAt: unknow
   }
   const parsed = new Date(updatedAt);
   if (Number.isNaN(parsed.getTime())) {
-    throw new HttpInvalidMetadataError(entityName, `row "${id}" has updatedAt "${updatedAt}", which is not a real instant`);
+    throw new HttpInvalidMetadataError(
+      entityName,
+      `row "${id}" has updatedAt "${updatedAt}", which is not a real instant`
+    );
   }
   return parsed.toISOString();
 };

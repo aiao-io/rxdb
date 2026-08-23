@@ -264,9 +264,7 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
       // 某一级祖先不匹配即断链，它上面的整条链都不再返回，即使更高处的节点自身匹配。
       // 与 findDescendants 及 sqlite-core 的 children_where 同一套语义。
       const hopQuery = tableClient().select('*').eq('id', currentId);
-      const { data, error, status } = await (currentLevel === 0 ? hopQuery : this.applyWhere(hopQuery, where)).limit(
-        1
-      );
+      const { data, error, status } = await (currentLevel === 0 ? hopQuery : this.applyWhere(hopQuery, where)).limit(1);
       if (error) {
         throw classify_postgrest_error({ error, status }, 'Failed to find ancestors');
       }

@@ -65,7 +65,9 @@ describe('canonicalizeMetadata', () => {
     });
 
     it('响应体不是数组也抛', () => {
-      expect(() => canonicalizeMetadata('Recipe', { rows: [] } as unknown as unknown[])).toThrow(HttpInvalidMetadataError);
+      expect(() => canonicalizeMetadata('Recipe', { rows: [] } as unknown as unknown[])).toThrow(
+        HttpInvalidMetadataError
+      );
     });
 
     it('错误带上实体名与可定位的细节', () => {

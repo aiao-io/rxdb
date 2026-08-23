@@ -43,7 +43,10 @@ const chunk = (ids: string[], size: number): string[][] => {
  * @returns 各块合并后的原始行，顺序即块序
  * @throws 任一块失败即整体抛出该块的错误，**不**降级成空块继续合并
  */
-export const findByIdsInChunks = async (deps: ChunkingDeps, ctx: { entityName: string; ids: string[] }): Promise<unknown[]> => {
+export const findByIdsInChunks = async (
+  deps: ChunkingDeps,
+  ctx: { entityName: string; ids: string[] }
+): Promise<unknown[]> => {
   const { transport, handler, config } = deps;
   const rows: unknown[] = [];
   for (const ids of chunk(ctx.ids, config.idChunkSize)) {
@@ -51,7 +54,11 @@ export const findByIdsInChunks = async (deps: ChunkingDeps, ctx: { entityName: s
     const body = await transport.sendJson(handler.request(chunkCtx), 'findByIds');
     const parsed = handler.parse(body, chunkCtx);
     if (!Array.isArray(parsed)) {
-      throw new HttpHandlerContractError('findByIds', ctx.entityName, `expected an array of rows, received ${typeof parsed}`);
+      throw new HttpHandlerContractError(
+        'findByIds',
+        ctx.entityName,
+        `expected an array of rows, received ${typeof parsed}`
+      );
     }
     // 少于本块 id 数是**合法**的（远端确实删了），不重试、不补空对象——
     // 把它和「这一块请求失败」区分开正是本模块的价值

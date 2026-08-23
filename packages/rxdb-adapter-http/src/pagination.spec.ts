@@ -136,7 +136,11 @@ describe('fetchAllMetadataPages', () => {
 
   describe('fail-fast 四条各自可区分（AC#7）', () => {
     /** 四条都必须 reject 而不是 resolve 出已拿到的部分 */
-    const expectFailure = async (reason: string, bodies: unknown[], config?: Parameters<typeof run>[0]): Promise<void> => {
+    const expectFailure = async (
+      reason: string,
+      bodies: unknown[],
+      config?: Parameters<typeof run>[0]
+    ): Promise<void> => {
       queueBodies(bodies);
       const error = await run(config).catch((e: unknown) => e);
       expect(error).toBeInstanceOf(HttpPaginationError);

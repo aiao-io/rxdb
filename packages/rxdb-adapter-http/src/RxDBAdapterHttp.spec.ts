@@ -63,7 +63,11 @@ class HttpBinaryRecord extends EntityBase {
 /** 最小可用 handlers：只配必选的两个，用来验证「没配的那些确实不存在」 */
 const minimalHandlers: HttpHandlers = {
   onFetchMetadata: {
-    request: ctx => ({ url: 'metadata', method: 'POST', body: { where: ctx.where, offset: ctx.offset, limit: ctx.limit } }),
+    request: ctx => ({
+      url: 'metadata',
+      method: 'POST',
+      body: { where: ctx.where, offset: ctx.offset, limit: ctx.limit }
+    }),
     parse: body => body as never
   },
   onFindByIds: {
@@ -162,9 +166,9 @@ describe('构造期配置校验（AC#31）', () => {
     expect(() => createAdapter({ handlers: { onFindByIds: minimalHandlers.onFindByIds } as HttpHandlers })).toThrow(
       HttpConfigError
     );
-    expect(() => createAdapter({ handlers: { onFetchMetadata: minimalHandlers.onFetchMetadata } as HttpHandlers })).toThrow(
-      HttpConfigError
-    );
+    expect(() =>
+      createAdapter({ handlers: { onFetchMetadata: minimalHandlers.onFetchMetadata } as HttpHandlers })
+    ).toThrow(HttpConfigError);
   });
 });
 
@@ -231,7 +235,9 @@ describe('disconnect（AC#24、AC#34）', () => {
   it('断开后再调 duck 抛错，不静默返回空', async () => {
     const adapter = createAdapter();
     await adapter.disconnect();
-    await expect(firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL))).rejects.toBeInstanceOf(HttpDisconnectedError);
+    await expect(firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL))).rejects.toBeInstanceOf(
+      HttpDisconnectedError
+    );
     await expect(firstValueFrom(adapter.findByIds('HttpRecipe', ['a']))).rejects.toBeInstanceOf(HttpDisconnectedError);
   });
 
@@ -260,7 +266,9 @@ describe('disconnect（AC#24、AC#34）', () => {
 describe('version（AC#24）', () => {
   it('未配 onVersion 时抛 unsupported，不回落到包版本号', async () => {
     // 回落等于拿适配器版本冒充后端版本，与 sqlite / pglite / supabase 三家口径全部不一致
-    const error = await createAdapter().version().catch((e: unknown) => e);
+    const error = await createAdapter()
+      .version()
+      .catch((e: unknown) => e);
     expect(error).toBeInstanceOf(HttpUnsupportedOperationError);
     expect((error as Error).message).not.toMatch(/\d+\.\d+\.\d+/);
   });
@@ -270,7 +278,10 @@ describe('version（AC#24）', () => {
     const adapter = createAdapter({
       handlers: {
         ...minimalHandlers,
-        onVersion: { request: () => ({ url: 'version', method: 'GET' }), parse: body => (body as { version: string }).version }
+        onVersion: {
+          request: () => ({ url: 'version', method: 'GET' }),
+          parse: body => (body as { version: string }).version
+        }
       }
     });
     await expect(adapter.version()).resolves.toBe('my-api/2.1.0');
@@ -321,14 +332,17 @@ describe('isTableExisted（AC#24）', () => {
 });
 
 describe('v1 无实现的必选成员（AC#32）', () => {
-  it.each(['getRepository', 'saveMany', 'removeMany', 'mutations'])('%s 抛 HttpUnsupportedOperationError', async name => {
-    const adapter = createAdapter() as unknown as Record<string, (...args: unknown[]) => unknown>;
-    // 同步 throw 与 rejected promise 都算通过，但**不得**返回空数组 / undefined / 假成功
-    const result = await Promise.resolve()
-      .then(() => adapter[name](HttpRecipe))
-      .catch((e: unknown) => e);
-    expect(result).toBeInstanceOf(HttpUnsupportedOperationError);
-  });
+  it.each(['getRepository', 'saveMany', 'removeMany', 'mutations'])(
+    '%s 抛 HttpUnsupportedOperationError',
+    async name => {
+      const adapter = createAdapter() as unknown as Record<string, (...args: unknown[]) => unknown>;
+      // 同步 throw 与 rejected promise 都算通过，但**不得**返回空数组 / undefined / 假成功
+      const result = await Promise.resolve()
+        .then(() => adapter[name](HttpRecipe))
+        .catch((e: unknown) => e);
+      expect(result).toBeInstanceOf(HttpUnsupportedOperationError);
+    }
+  );
 });
 
 describe('changelog 与分支成员（AC#10、#11、#26）', () => {
@@ -436,7 +450,11 @@ describe('写入口按 handler 存在与否特性探测（AC#4）', () => {
     // 写操作静默「成功」比读静默返回空更糟：调用方会以为远端已落库
     const adapter = createAdapter({ handlers: { ...minimalHandlers, ...writeHandlers } });
     await adapter.disconnect();
-    const call = { create: () => adapter.create?.('HttpRecipe', {}), update: () => adapter.update?.('HttpRecipe', 'a', {}), delete: () => adapter.delete?.('HttpRecipe', 'a') }[duck];
+    const call = {
+      create: () => adapter.create?.('HttpRecipe', {}),
+      update: () => adapter.update?.('HttpRecipe', 'a', {}),
+      delete: () => adapter.delete?.('HttpRecipe', 'a')
+    }[duck];
     const observable = call();
     if (!observable) throw new Error(`配了 handler 却没有 ${duck} duck`);
     await expect(firstValueFrom(observable)).rejects.toBeInstanceOf(HttpDisconnectedError);

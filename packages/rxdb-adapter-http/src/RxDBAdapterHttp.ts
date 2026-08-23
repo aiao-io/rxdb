@@ -35,7 +35,13 @@ import {
   HttpUnsupportedOperationError,
   HttpUnsupportedWireTypeError
 } from './errors.js';
-import type { CreateContext, HttpAdapterOptions, HttpHandlers, HttpNumericConfig, UpdateContext } from './http.interface.js';
+import type {
+  CreateContext,
+  HttpAdapterOptions,
+  HttpHandlers,
+  HttpNumericConfig,
+  UpdateContext
+} from './http.interface.js';
 import { fetchAllMetadataPages } from './pagination.js';
 import { HttpTransport } from './transport.js';
 
@@ -266,7 +272,10 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
     return defer(() => {
       this.#assertConnected('findByIds');
       return from(
-        findByIdsInChunks({ transport: this.#transport, handler: this.#handlers.onFindByIds, config: this.config }, { entityName, ids })
+        findByIdsInChunks(
+          { transport: this.#transport, handler: this.#handlers.onFindByIds, config: this.config },
+          { entityName, ids }
+        )
       ).pipe(map(rows => rows as R[]));
     });
   }
@@ -394,7 +403,9 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
           this.#assertConnected('delete');
           // core 的 duck 签名是 `string | string[]`，归一由本包做：让每个 handler
           // 各自判一次类型，迟早有一个把单个 id 当成字符数组
-          return from(this.#transport.sendVoid(onDelete.request({ entityName, ids: Array.isArray(ids) ? ids : [ids] }), 'delete'));
+          return from(
+            this.#transport.sendVoid(onDelete.request({ entityName, ids: Array.isArray(ids) ? ids : [ids] }), 'delete')
+          );
         });
     }
   }
@@ -457,7 +468,11 @@ const assertRequiredHandlers = (handlers: { onFetchMetadata?: unknown; onFindByI
     if (handlers?.[required]) {
       continue;
     }
-    throw new HttpConfigError(`HTTP adapter config "handlers.${required}" is required`, `handlers.${required}`, handlers?.[required]);
+    throw new HttpConfigError(
+      `HTTP adapter config "handlers.${required}" is required`,
+      `handlers.${required}`,
+      handlers?.[required]
+    );
   }
 };
 
