@@ -724,25 +724,32 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     throw new RxdbAdapterPGliteError(`RxDB adapter is ${this.#lifecycle_state} and requires reconnect.`);
   }
 
+  /**
+   * 把适配器自身投影成 {@link ChangePipelineHost}。
+   *
+   * @remarks
+   * `changePipelineGeneration` 等必须是 getter/setter：宿主读写的是适配器上的活状态，不能快照。
+   * 字面量 getter 里的 `this` 指向 host 本身，因此统一经 `this.adapter` 回跳到适配器 ——
+   * 该属性本就是 {@link ChangePipelineHost} 的一部分，不必再为此额外起一个 `this` 别名。
+   */
   #createPipelineHost(): ChangePipelineHost {
-    const adapter = this;
     return {
-      adapter,
-      suppressedChangeTables: adapter.#suppressedChangeTables,
-      pendingChangeHandlers: adapter.#pendingChangeHandlers,
-      pendingChangeQueues: adapter.#pendingChangeQueues,
-      changeErrors: adapter.#changeErrors,
-      get changePipelineGeneration() {
-        return adapter.#changePipelineGeneration;
+      adapter: this,
+      suppressedChangeTables: this.#suppressedChangeTables,
+      pendingChangeHandlers: this.#pendingChangeHandlers,
+      pendingChangeQueues: this.#pendingChangeQueues,
+      changeErrors: this.#changeErrors,
+      get changePipelineGeneration(): number {
+        return this.adapter.#changePipelineGeneration;
       },
       set changePipelineGeneration(v: number) {
-        adapter.#changePipelineGeneration = v;
+        this.adapter.#changePipelineGeneration = v;
       },
-      get cachedClient() {
-        return adapter.#cached_client;
+      get cachedClient(): IPGliteClient | undefined {
+        return this.adapter.#cached_client;
       },
-      get clientPromise() {
-        return adapter.#client_promise;
+      get clientPromise(): Promise<IPGliteClient> | undefined {
+        return this.adapter.#client_promise;
       }
     };
   }

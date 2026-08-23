@@ -189,7 +189,7 @@ export class RxdbFileStorage {
     private readonly objectUrls: ObjectUrlRegistry = new ObjectUrlRegistry()
   ) {
     // Host 必须在任何会调用 sibling 的路径之前建好。
-    this.#opsHost = this.#createOpsHost();
+    this.#opsHost = RxdbFileStorage.#createOpsHost(this);
   }
 
   /**
@@ -612,31 +612,6 @@ export class RxdbFileStorage {
     return this.#destroyPromise;
   }
 
-  #createOpsHost(): StorageFileOpsHost {
-    const storage = this;
-    return {
-      get filesystem() {
-        return storage.filesystem;
-      },
-      ensureLocalReady: () => storage.ensureLocalReady(),
-      getRequiredMeta: fileId => storage.getRequiredMeta(fileId),
-      findMetaByOpfsPath: opfsPath => storage.findMetaByOpfsPath(opfsPath),
-      hasFile: opfsPath => storage.hasFile(opfsPath),
-      hasDirectory: directoryPath => storage.hasDirectory(directoryPath),
-      getAllMetas: () => storage.getAllMetas(),
-      getMetaPatch: meta => storage.getMetaPatch(meta),
-      createMeta: meta => storage.createMeta(meta),
-      updateMeta: (meta, patch) => storage.updateMeta(meta, patch),
-      removeMeta: meta => storage.removeMeta(meta),
-      instantiateMeta: initData => storage.instantiateMeta(initData),
-      createTemporaryFilePath: purpose => storage.createTemporaryFilePath(purpose),
-      withPathLock: (opfsPaths, fn) => storage.withPathLock(opfsPaths, fn),
-      removeFile: opfsPath => storage.removeFile(opfsPath),
-      removeDirectoryPath: directoryPath => storage.removeDirectoryPath(directoryPath),
-      read: fileId => storage.read(fileId)
-    };
-  }
-
   private assertActive(): void {
     if (this.#lifecycle !== 'active') throw new StorageDestroyedError();
   }
@@ -927,5 +902,37 @@ export class RxdbFileStorage {
     }
 
     return this.filesystem.removeDirectory(directoryPath);
+  }
+
+  /**
+   * 把服务自身包装成 {@link StorageFileOpsHost}，供 `storage.ops` / `storage.rename-copy` 的自由函数调用。
+   *
+   * @remarks
+   * 取实例作参数而非用 `this`：`filesystem` 必须是 getter（后端惰性创建，host 在构造期就已建好），
+   * 而对象字面量的 getter 无法写成箭头函数、拿不到外层 `this`。参数捕获既避开 `this` 别名，
+   * 也让「host 只是实例的一层投影」这件事显式化。
+   */
+  static #createOpsHost(storage: RxdbFileStorage): StorageFileOpsHost {
+    return {
+      get filesystem() {
+        return storage.filesystem;
+      },
+      ensureLocalReady: () => storage.ensureLocalReady(),
+      getRequiredMeta: fileId => storage.getRequiredMeta(fileId),
+      findMetaByOpfsPath: opfsPath => storage.findMetaByOpfsPath(opfsPath),
+      hasFile: opfsPath => storage.hasFile(opfsPath),
+      hasDirectory: directoryPath => storage.hasDirectory(directoryPath),
+      getAllMetas: () => storage.getAllMetas(),
+      getMetaPatch: meta => storage.getMetaPatch(meta),
+      createMeta: meta => storage.createMeta(meta),
+      updateMeta: (meta, patch) => storage.updateMeta(meta, patch),
+      removeMeta: meta => storage.removeMeta(meta),
+      instantiateMeta: initData => storage.instantiateMeta(initData),
+      createTemporaryFilePath: purpose => storage.createTemporaryFilePath(purpose),
+      withPathLock: (opfsPaths, fn) => storage.withPathLock(opfsPaths, fn),
+      removeFile: opfsPath => storage.removeFile(opfsPath),
+      removeDirectoryPath: directoryPath => storage.removeDirectoryPath(directoryPath),
+      read: fileId => storage.read(fileId)
+    };
   }
 }
