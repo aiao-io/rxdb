@@ -1,5 +1,4 @@
 import type {
-  EntityMetadata,
   EntityType,
   IRepository,
   IRxDBAdapter,
@@ -10,21 +9,12 @@ import type {
   SwitchVersionActions
 } from '@aiao/rxdb';
 import {
-  assertSupportedRxDBSystemVersions,
   getEntityMetadata,
   getEntityStatus,
-  getRxDBSystemVersionState,
-  isCurrentRxDBSystemVersion,
   RxDB,
-  RXDB_CHANGE_CODEC_WATERMARK,
-  RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
-  RXDB_SYSTEM_SCHEMA_WATERMARK,
-  RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
   RxDBAdapterLocalBase,
   RxDBBranch,
   RxDBChange,
-  RxDBMigration,
-  RxDBSystemMigrationLockError,
   TransactionFun
 } from '@aiao/rxdb';
 import {
@@ -37,9 +27,14 @@ import {
 import { AsyncQueueExecutor } from '@aiao/utils';
 import type { QueryOptions, Results } from '@electric-sql/pglite';
 import { defer, from, map, Observable, of, Subject } from 'rxjs';
+import {
+  type ChangePipelineHost,
+  drainPendingChangeHandlers,
+  flushPendingChangePipeline,
+  trackChangeHandler
+} from './change-pipeline.js';
 import generate_entity_deletes_sql from './entity/deletes_sql.js';
-import generate_entity_inserts_sql, { generate_entity_upserts_sql } from './entity/inserts_sql.js';
-import { handle_rxdb_change } from './handle_rxdb_change.js';
+import { generate_entity_upserts_sql } from './entity/inserts_sql.js';
 import { PgliteKeyringStorage } from './keyring/pglite-keyring-storage.js';
 import {
   ADAPTER_NAME,
@@ -48,23 +43,16 @@ import {
   PGliteClientOptions,
   PgliteTableColumn
 } from './pglite.interface.js';
-import {
-  type EncryptionContext,
-  getTableColumnIndexName,
-  getTableNameByMetadata,
-  quoteIdentifier,
-  RxdbAdapterPGliteError,
-  rxDBColumnTypeToPGliteTypeIndexName
-} from './pglite.utils.js';
+import { type EncryptionContext, quoteIdentifier, RxdbAdapterPGliteError } from './pglite.utils.js';
 import { IPGliteClient, PGliteClient } from './PGliteClient.js';
 import { resolveQueryCacheTarget, resolveUpdatedAtColumn } from './query-cache/query_cache_target.js';
 import { buildQueryCacheUpsertStatements } from './query-cache/upsert_many_sql.js';
 import { PGliteRepository } from './repository/PGliteRepository.js';
 import { PGliteTreeRepository } from './repository/PGliteTreeRepository.js';
-import generate_table_create_sql, { create_table_indexes_sql } from './table/create_table_sql.js';
+import { migrateSystemSchema } from './system/migrate_system_schema.js';
+import { create_table_indexes_sql } from './table/create_table_sql.js';
+import { create_tables_statements } from './table/create_tables_sql.js';
 import { generateNotifyInfrastructureSQL, generateNotifyTriggerSQL } from './table/notify_function_sql.js';
-import { remove_trigger_sql } from './table/remove_trigger_sql.js';
-import generate_trigger_sql from './table/trigger_sql.js';
 import { PGliteTransactionExecutor } from './transaction/PGliteTransactionExecutor.js';
 import rxdb_adapter_create_branch from './version/create_branch.js';
 import { execute_switch_actions } from './version/execute_switch_actions.js';
@@ -81,31 +69,8 @@ import rxdb_adapter_switch_transaction_id from './version/switch_transaction_id.
  * `RxDB.connect()` 建表完成后调 {@link RxDBAdapterPGlite.completeBootstrap} 翻到 `ready`。
  */
 type AdapterLifecycleState = 'bootstrap' | 'ready' | 'closing' | 'closed';
-type SystemMigrationOutcome = 'current' | 'migrated' | 'storage-peer';
-const CHANGE_PIPELINE_TIMEOUT_MS = 2_000;
 
-export interface RxDBChangePipelineTimeoutDiagnostics {
-  readonly pendingEvents: number;
-  readonly pendingHandlers: number;
-  readonly attempts: number;
-  readonly generation: number;
-  readonly timeoutMs: number;
-}
-
-export class RxDBChangePipelineTimeoutError extends RxdbAdapterPGliteError {
-  readonly diagnostics: RxDBChangePipelineTimeoutDiagnostics;
-
-  constructor(diagnostics: RxDBChangePipelineTimeoutDiagnostics, cause: Error) {
-    super(
-      `PGlite change pipeline did not become idle within ${diagnostics.timeoutMs}ms`,
-      'CHANGE_PIPELINE_TIMEOUT',
-      cause
-    );
-    this.name = 'RxDBChangePipelineTimeoutError';
-    this.diagnostics = diagnostics;
-    Object.setPrototypeOf(this, RxDBChangePipelineTimeoutError.prototype);
-  }
-}
+export { RxDBChangePipelineTimeoutError, type RxDBChangePipelineTimeoutDiagnostics } from './change-pipeline.types.js';
 
 /**
  * 暴露在 `adapter.encryption` 上的开发者门面，内部转发给 `Keyring`。
@@ -150,6 +115,8 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
 
   /** 由显式业务事件接管期间，不再重复处理对应表的 NOTIFY。 */
   #suppressedChangeTables = new Set<string>();
+
+  #pipelineHost!: ChangePipelineHost;
 
   /** 查询任务队列执行器，确保查询按顺序执行 */
   #queue = new AsyncQueueExecutor(1);
@@ -201,35 +168,15 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     return facade;
   }
 
-  /**
-   * 构造函数
-   *
-   * @param rxdb - RxDB 实例
-   * @param options - PGlite 客户端配置选项
-   */
   constructor(
     rxdb: RxDB,
     private readonly options: PGliteClientOptions
   ) {
     super(rxdb);
+    this.#pipelineHost = this.#createPipelineHost();
   }
 
-  // QueryCache 方法
-  //
-  // 三个方法的物理定位一律经 `resolveQueryCacheTarget`：调用方给的是**逻辑实体名**，
-  // 表名、schema、主键列名都要从 metadata 推。旧实现写死 `'public'` 并在查不到
-  // metadata 时回退裸表名，非 public namespace 的实体因此永远找错表（PGL-012）。
-
-  /**
-   * 批量获取实体元数据（QueryCache 专用）
-   *
-   * 返回 id → updatedAt 的映射，用于 diffMetadata 对比。
-   *
-   * @param entityName - 实体名称（不含 schema），或 `namespace:entity` 显式限定名
-   * @param ids - 要查询的 ID 列表
-   * @returns Observable<Map<string, string>> - id → updatedAt 映射
-   * @throws {RxdbAdapterPGliteError} 实体未配置、重名，或没有 `updatedAt` 属性
-   */
+  /** QueryCache：id → updatedAt。物理定位经 `resolveQueryCacheTarget`（PGL-012）。 */
   getMetadataByIds(entityName: string, ids: string[]): Observable<Map<string, string>> {
     return defer(() => {
       if (ids.length === 0) {
@@ -252,21 +199,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     });
   }
 
-  /**
-   * 批量更新或插入实体（QueryCache 专用）
-   *
-   * 使用 INSERT ... ON CONFLICT DO UPDATE 实现 upsert 语义。
-   *
-   * @remarks
-   * 行内键名可以是 JS 属性名，也可以是物理列名（远端适配器 `select('*')` 的返回形态），
-   * 两者都经 metadata 映射到物理列并做类型转换与加密。**不属于该实体的键会 fail-fast**，
-   * 不会进入 SQL 结构；异构行按各自的列集合分组，互不截断。
-   *
-   * @param entityName - 实体名称（不含 schema），或 `namespace:entity` 显式限定名
-   * @param data - 要写入的数据数组
-   * @returns Observable<void>
-   * @throws {RxdbAdapterPGliteError} 实体未配置、重名，或行内存在未知键
-   */
+  /** QueryCache upsert。未知键 fail-fast。 */
   upsertMany<T>(entityName: string, data: T[]): Observable<void> {
     return defer(() => {
       if (data.length === 0) {
@@ -288,14 +221,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     });
   }
 
-  /**
-   * 批量删除实体（QueryCache 专用）
-   *
-   * @param entityName - 实体名称（不含 schema），或 `namespace:entity` 显式限定名
-   * @param ids - 要删除的 ID 列表
-   * @returns Observable<void>
-   * @throws {RxdbAdapterPGliteError} 实体未配置或重名
-   */
+  /** QueryCache 按 id 批量删除。 */
   deleteByIds(entityName: string, ids: string[]): Observable<void> {
     return defer(() => {
       if (ids.length === 0) {
@@ -312,15 +238,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     return this.transaction(executor => executor.mutations(mutations));
   }
 
-  /**
-   * 合并远程变更到本地实体表
-   *
-   * 用于同步时应用远程变更到本地数据库，支持禁用触发器以避免产生本地变更记录
-   *
-   * @param actions - 需要执行的变更操作（插入、更新、删除）
-   * @param localChanges - pglite 适配器中未使用（保留以保持接口兼容性）
-   * @param disableTriggers - 是否禁用触发器（用于 pull 等操作，避免创建 RxDBChange）
-   */
+  /** 合并远程变更。`disableTriggers` 用于 pull，避免再写 RxDBChange。 */
   async mergeChanges(
     actions: SwitchVersionActions,
     localChanges?: Omit<RxDBChange, 'id'>[],
@@ -331,15 +249,10 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   }
 
   /**
-   * 获取 RxDBChange 表当前序列值
-   *
-   * 用于同步时获取本地变更序列的当前值，以便确定需要推送到远程的变更范围。
-   *
-   * @returns 当前序列值
+   * RxDBChange 序列当前值。
+   * 契约对齐 sqlite_sequence：返回最后已用 id；`is_called=false` 时减 1。
    */
   async getRxDBChangeSequence(): Promise<number> {
-    // PostgreSQL 序列名格式: "schema"."tablename_id_seq"
-    // RxDBChange 的 tableName 为 'rxdb_change'
     const sequenceName = '"rxdb"."rxdb_change_id_seq"';
     const client = await this.#getClient();
     const result = await client.query<{ last_value: number | string; is_called: boolean }>(
@@ -348,29 +261,15 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     if (result.rows.length === 0) {
       return 0;
     }
-    // PostgreSQL 返回 string 类型的 bigint，需要转换
     const { last_value, is_called } = result.rows[0];
     const lastValue = typeof last_value === 'string' ? parseInt(last_value, 10) : last_value;
-    // 契约（与 sqlite_sequence 对齐）：返回值 = 最后已用 id，下一个 id = 返回值 + 1。
-    // is_called=false 表示 last_value 尚未被 nextval() 消费（序列初建或 setval(..., false) 后），
-    // 此时最后已用 id 是 last_value - 1；不减一会让 HistoryManager 的 redo 失效水位虚高一位，
-    // undo 后首个新写入被误判为迟到通知而跳过清栈。
     return is_called ? lastValue : lastValue - 1;
   }
 
   /**
-   * 设置 RxDBChange 表序列值
-   *
-   * 用于同步时调整本地变更序列值，通常在 pull 操作后更新序列以避免与远程冲突。
-   *
-   * @param sequence - 要设置的序列值
+   * 设置 RxDBChange 序列。`sequence` 是最后已用 id；`< 1` 用 `setval(1, false)`。
    */
   async setRxDBChangeSequence(sequence: number): Promise<void> {
-    // 契约：sequence = 最后已用 id，下一次 nextval() 必须返回 sequence + 1。
-    // setval 第三参 is_called=true 才有该语义（false 会让 nextval 返回 sequence 本身，
-    // 与 SQLite 端差一位，导致 undo 后的新写入 id 不越过 redo 失效水位）。
-    // 序列名走参数化避免任何拼接，::regclass 显式转换让 PostgreSQL 校验合法性。
-    // sequence < 1 低于序列 minvalue，setval 会报越界，改用 setval(1, false)（下一个 id = 1）。
     const sql = sequence >= 1 ? `SELECT setval($1::regclass, $2, true)` : `SELECT setval($1::regclass, 1, false)`;
     const params = sequence >= 1 ? ['rxdb.rxdb_change_id_seq', sequence] : ['rxdb.rxdb_change_id_seq'];
     await this.transaction(executor => executor.query(sql, params), false);
@@ -402,18 +301,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     return entities;
   }
 
-  /**
-   * 批量保存实体
-   *
-   * 将实体持久化到数据库：
-   * 1. 按实体类型分组（避免混合不同表的数据）
-   * 2. 为每个类型生成批量插入 SQL（使用 UPSERT）
-   * 3. 在事务中执行（如果尚未在事务中）
-   * 4. 更新实体状态标记
-   *
-   * @param entities - 要保存的实体数组
-   * @returns 已保存的实体数组
-   */
+  /** 按类型分组 UPSERT，再更新实体状态。 */
   async saveMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
     if (!entities || entities.length === 0) return Promise.resolve([]);
 
@@ -500,32 +388,14 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     }
   }
 
-  /**
-   * 创建分支
-   *
-   * 分支用于管理数据的不同版本，类似 Git 分支：
-   * 1. 验证分支 ID 不存在
-   * 2. 确定源分支（从当前活跃分支或指定变更点）
-   * 3. 创建新分支记录
-   *
-   * @param branchId - 新分支 ID
-   * @param fromChangeId - 从指定变更 ID 创建分支（可选，默认从当前分支的最新状态）
-   * @throws {RxdbAdapterPGliteError} 分支 ID 已存在或源分支未找到
-   */
+  /** 创建分支后冲刷 NOTIFY。 */
   async createBranch(branchId: string, fromChangeId?: number): Promise<InstanceType<typeof RxDBBranch>> {
     const branch = await rxdb_adapter_create_branch(this, branchId, fromChangeId);
     await this.#flushPendingChangePipeline();
     return branch;
   }
 
-  /**
-   * 切换到指定分支
-   *
-   * 切换数据库分支，包括更新触发器、执行数据迁移操作和更新分支状态
-   *
-   * @param options - 分支切换选项，包含目标分支 ID 和可选的数据迁移操作
-   * @throws {RxdbAdapterPGliteError} 分支切换失败
-   */
+  /** 切换分支期间抑制 `rxdb_branch` NOTIFY。 */
   async switchBranch(options: SwitchBranchOptions): Promise<void> {
     this.#suppressedChangeTables.add('rxdb_branch');
     try {
@@ -537,16 +407,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     }
   }
 
-  /**
-   * 恢复实体到指定状态
-   *
-   * 从变更历史中恢复实体到指定的版本
-   *
-   * @param _entity - 要恢复的实体
-   * @param _options - 恢复选项
-   * @returns 恢复后的实体
-   * @throws {RxdbAdapterPGliteError} 此功能尚未实现
-   */
+  /** 尚未实现。 */
   restoreEntity<T extends EntityType>(
     entity: InstanceType<T>,
     options: RestoreEntityOptions
@@ -567,28 +428,8 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   }
 
   /**
-   * 获取实体类型的仓库实例
-   *
-   * 根据实体元数据中的仓库类型创建相应的仓库实例：
-   * - Repository: 通用仓库
-   * - TreeRepository: 树形仓库（用于层级数据）
-   *
-   * 仓库实例会被缓存，避免重复创建
-   *
-   * @param entity - 实体类型
-   * @returns 仓库实例
-   * @throws {RxdbAdapterPGliteError} 不支持的仓库类型
-   */
-  /**
-   * 新建一个绑定到 `host` 的仓库，**不写入** `#repository_cache`。
-   *
-   * @param entity - 实体类型
-   * @param host - 仓库要绑定到的适配器（事务场景下是 executor 的门面）
-   *
-   * @remarks
-   * 供 {@link PGliteTransactionExecutor.getRepository} 使用。缓存里的仓库生命周期与适配器
-   * 一样长；把事务作用域的仓库写进去，事务结束后它会留在缓存里指向一个已终结的事务上下文，
-   * 之后的**外部**写会打到那上面。与 sqlite-core 的同名方法保持一致。
+   * 新建绑定到 `host` 的仓库，不写入缓存。
+   * 事务作用域的仓库不能进 `#repository_cache`。
    *
    * @internal
    */
@@ -626,88 +467,23 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   }
 
   /**
-   * 创建数据库表
-   *
-   * 分三阶段创建表结构：
-   * 1. 创建表和列（不含外键约束）
-   * 2. 添加外键约束
-   * 3. 创建触发器（用于变更追踪）
-   *
-   * 这样可以避免因表创建顺序导致的外键约束失败
+   * 创建数据库表。建表走引导链路，不能等就绪门。
    *
    * @param EntityTypes - 实体类型数组
    * @param entities - 初始化数据（可选）
    * @returns 是否成功创建
    */
   async createTables<T extends EntityType>(EntityTypes: T[], entities?: InstanceType<T>[]): Promise<boolean> {
-    const run = async (execute: (sql: string, params?: unknown[]) => Promise<unknown>): Promise<boolean> => {
-      const foreignKeyStatements: string[] = [];
-      const tableStatements: string[] = [];
-      const namespaces = new Set<string>();
-
-      for (const EntityType of EntityTypes) {
-        const metadata = getEntityMetadata(EntityType);
-        if (metadata.namespace && metadata.namespace !== 'public') namespaces.add(metadata.namespace);
+    return this.bootstrapTransaction(async executor => {
+      const statements = await create_tables_statements(this, EntityTypes, entities);
+      for (const statement of statements) {
+        await (executor as PGliteTransactionExecutor).queryRaw(statement);
       }
-      for (const namespace of namespaces) await execute(`CREATE SCHEMA IF NOT EXISTS "${namespace}"`);
-
-      for (const EntityType of EntityTypes) {
-        const metadata = getEntityMetadata(EntityType);
-        const statements = generate_table_create_sql(this, metadata)
-          .split(/;\s*\n/)
-          .map(statement => statement.trim())
-          .filter(statement => statement.length > 0 && !statement.startsWith('--'));
-        for (const statement of statements) {
-          const target =
-            statement.includes('ADD CONSTRAINT') && statement.includes('FOREIGN KEY') ?
-              foreignKeyStatements
-            : tableStatements;
-          target.push(statement);
-        }
-      }
-
-      for (const statement of tableStatements) await execute(statement);
-      for (const statement of foreignKeyStatements) await execute(statement);
-
-      for (const EntityType of EntityTypes) {
-        const metadata = getEntityMetadata(EntityType);
-        if (metadata.log === false) continue;
-        const triggerSql = generate_trigger_sql(metadata, {
-          resolveEntityMetadata: this.encryptionContext.resolveEntityMetadata
-        });
-        for (const statement of triggerSql.split('---STATEMENT_SEPARATOR---')) {
-          if (statement.trim()) await execute(statement.trim());
-        }
-      }
-
-      if (entities && entities.length > 0) {
-        const entitiesByType = new Map<EntityType, InstanceType<EntityType>[]>();
-        for (const entity of entities) {
-          const EntityType = entity.constructor as unknown as EntityType;
-          const group = entitiesByType.get(EntityType) ?? [];
-          group.push(entity);
-          entitiesByType.set(EntityType, group);
-        }
-        for (const [EntityType, entitiesOfType] of entitiesByType) {
-          const metadata = getEntityMetadata(EntityType);
-          await execute(
-            await generate_entity_inserts_sql(metadata, entitiesOfType, this.rxdb.context, this.encryptionContext)
-          );
-        }
-      }
-
       for (const tableName of ['rxdb_change', 'rxdb_branch', 'rxdb_migration']) {
-        await execute(generateNotifyTriggerSQL(tableName));
+        await (executor as PGliteTransactionExecutor).queryRaw(generateNotifyTriggerSQL(tableName));
       }
       return true;
-    };
-
-    // 建表也在引导链路上（RxDB.#ensureEntityTables 补建缺失的实体表），同样不能等就绪门；
-    // 何况「表就绪」正是本方法要建立的前提，让它反过来等就绪是循环依赖。
-    return this.bootstrapTransaction(
-      executor => run((sql, params) => (executor as PGliteTransactionExecutor).queryRaw(sql, params)),
-      false
-    );
+    }, false);
   }
 
   override async reconcileEntityIndexes(EntityTypes: EntityType[]): Promise<void> {
@@ -724,134 +500,13 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   }
 
   override async migrateSystemSchema(): Promise<void> {
-    const client = await this.#getClient();
-    this.#suppressedChangeTables.add('rxdb_migration');
-    try {
-      await this.#queue.addTask(async () => {
-        const outcome = await client.transaction<SystemMigrationOutcome>(async tx => {
-          const tableResult = await tx.query<{ table_schema: string; table_name: string }>(
-            `SELECT table_schema, table_name
-             FROM information_schema.tables
-             WHERE table_type = 'BASE TABLE'`
-          );
-          const existingTables = new Set(tableResult.rows.map(row => `${row.table_schema}\u0000${row.table_name}`));
-          const existingMetadata: EntityMetadata[] = [];
-          for (const EntityType of this.rxdb.config.entities) {
-            const metadata = getEntityMetadata(EntityType);
-            if (existingTables.has(`${metadata.namespace}\u0000${metadata.tableName}`)) {
-              existingMetadata.push(metadata);
-            }
-          }
-
-          const migrationMetadata = getEntityMetadata(RxDBMigration);
-          if (!existingTables.has(`${migrationMetadata.namespace}\u0000${migrationMetadata.tableName}`)) {
-            throw new RxdbAdapterPGliteError('RxDB system migration table is missing.');
-          }
-
-          const migrationTable = getTableNameByMetadata(migrationMetadata);
-          const watermarkResult = await tx.query<{ name: string }>(
-            `SELECT "name" FROM ${migrationTable}
-             WHERE left("name", $1::integer) = $2::text OR left("name", $3::integer) = $4::text`,
-            [
-              RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX.length,
-              RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
-              RXDB_CHANGE_CODEC_WATERMARK_PREFIX.length,
-              RXDB_CHANGE_CODEC_WATERMARK_PREFIX
-            ]
-          );
-          const state = getRxDBSystemVersionState(watermarkResult.rows.map(row => row.name));
-          assertSupportedRxDBSystemVersions(state);
-          if (isCurrentRxDBSystemVersion(state)) return 'current';
-
-          if (client.hasStoragePeer?.() === true) return 'storage-peer';
-
-          try {
-            await tx.query(
-              `LOCK TABLE ${existingMetadata.map(getTableNameByMetadata).join(', ')} IN ACCESS EXCLUSIVE MODE NOWAIT`
-            );
-          } catch (cause) {
-            throw new RxDBSystemMigrationLockError(cause);
-          }
-
-          const branchMetadata = getEntityMetadata(RxDBBranch);
-          let activeBranchId = 'main';
-          if (existingTables.has(`${branchMetadata.namespace}\u0000${branchMetadata.tableName}`)) {
-            const branchResult = await tx.query<{ id: string }>(
-              `SELECT "id" FROM ${getTableNameByMetadata(branchMetadata)}
-               WHERE "activated" IS TRUE LIMIT 1`
-            );
-            activeBranchId = branchResult.rows[0]?.id ?? activeBranchId;
-          }
-
-          const loggedMetadata = existingMetadata.filter(metadata => metadata.log !== false);
-          for (const metadata of loggedMetadata) {
-            for (const statement of remove_trigger_sql(metadata).split('---STATEMENT_SEPARATOR---')) {
-              await tx.query(statement.trim());
-            }
-          }
-
-          const changeMetadata = getEntityMetadata(RxDBChange);
-          const columnResult = await tx.query<{ data_type: string }>(
-            `SELECT data_type FROM information_schema.columns
-             WHERE table_schema = $1::text AND table_name = $2::text AND column_name = 'entityId'`,
-            [changeMetadata.namespace, changeMetadata.tableName]
-          );
-          const entityIdType = columnResult.rows[0]?.data_type;
-          if (!entityIdType) {
-            throw new RxdbAdapterPGliteError('RxDBChange.entityId column is missing.');
-          }
-          if (entityIdType !== 'text') {
-            if (entityIdType !== 'uuid' && entityIdType !== 'character varying') {
-              throw new RxdbAdapterPGliteError(`Unsupported legacy RxDBChange.entityId column type: ${entityIdType}`);
-            }
-            const changeTable = getTableNameByMetadata(changeMetadata);
-            await tx.query(`ALTER TABLE ${changeTable} ALTER COLUMN "entityId" TYPE text USING "entityId"::text`);
-          }
-
-          for (const metadata of loggedMetadata) {
-            const triggerSql = generate_trigger_sql(metadata, {
-              branchId: activeBranchId,
-              resolveEntityMetadata: this.encryptionContext.resolveEntityMetadata
-            });
-            for (const statement of triggerSql.split('---STATEMENT_SEPARATOR---')) {
-              await tx.query(statement.trim());
-            }
-          }
-
-          // RXD-036：给 rxdb_migration."name" 补唯一索引 —— 它是「同一条迁移只跑一次」的仲裁者。
-          // 老库在旧实现下可能已经存了重名行（并发实例各写一条），不先去重，建索引这一步会直接失败
-          // 并把整个升级卡死。保留最小 id 的那条：它是最先落库的，`executedAt` 也最接近真实执行时刻。
-          const nameProperty = migrationMetadata.properties.find(property => property.name === 'name');
-          if (!nameProperty) {
-            throw new RxdbAdapterPGliteError('RxDBMigration metadata is missing the "name" property.');
-          }
-          await tx.query(
-            `DELETE FROM ${migrationTable}
-             WHERE "id" NOT IN (SELECT MIN("id") FROM ${migrationTable} GROUP BY "name")`
-          );
-          await tx.query(
-            `CREATE UNIQUE INDEX IF NOT EXISTS ${quoteIdentifier(
-              getTableColumnIndexName(migrationMetadata, nameProperty)
-            )} ON ${migrationTable}("name" ${rxDBColumnTypeToPGliteTypeIndexName(nameProperty)})`
-          );
-
-          for (const watermark of [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATERMARK]) {
-            await tx.query(
-              `INSERT INTO ${migrationTable} ("name", "executedAt")
-               SELECT $1::text, now()
-               WHERE NOT EXISTS (SELECT 1 FROM ${migrationTable} WHERE "name" = $1::text)`,
-              [watermark]
-            );
-          }
-          return 'migrated';
-        });
-        if (outcome === 'storage-peer') {
-          throw new RxDBSystemMigrationLockError(new Error('Another PGlite client owns the same persistent storage.'));
-        }
-      });
-    } finally {
-      this.#suppressedChangeTables.delete('rxdb_migration');
-    }
+    await migrateSystemSchema({
+      entities: this.rxdb.config.entities,
+      encryptionContext: this.encryptionContext,
+      queue: this.#queue,
+      suppressedChangeTables: this.#suppressedChangeTables,
+      getClient: () => this.#getClient()
+    });
   }
 
   /**
@@ -910,21 +565,8 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   }
 
   /**
-   * 执行事务
-   *
-   * 事务管理策略：
-   * - 使用手动 BEGIN/COMMIT/ROLLBACK 控制事务边界
-   * - 使用 SET CONSTRAINTS ALL DEFERRED 延迟外键约束检查到提交时
-   * - 使用 transaction-local setting 向 trigger 传递 transactionId
-   *
-   * 并发语义：transaction() 与 query() 共用 #queue（并发度 1）串行通道，因此两个并发的
-   * transaction() 一定串行执行，不会交错。事务体内的读写必须经回调收到的 executor；
-   * 未持有 executor 的调用一律重新入队，不能被当前事务静默吞并。
-   *
-   * @param transactionFun - 事务函数
-   * @param transactionLog - 是否启用事务日志（默认 true）
-   * @returns 事务函数的返回值
-   * @throws {RxdbAdapterPGliteError} 事务执行失败
+   * 事务入口。与 query() 共用 `#queue`；就绪等待必须在入队之前。
+   * 体内读写必须经回调收到的 executor。
    */
   async transaction<T extends TransactionFun>(
     transactionFun: T,
@@ -936,15 +578,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   }
 
   /**
-   * 引导期事务：与 {@link transaction} 相同，但**跳过就绪门**。
-   *
-   * @param transactionFun - 事务函数
-   * @param transactionLog - 是否启用事务日志（默认 true）
-   *
-   * @remarks
-   * 与 `RxDBAdapterSqliteBase#bootstrapTransaction()` 必须保持同一口径。仅限 `RxDB.connect()`
-   * 的引导链路（水位线、建表、迁移）调用 —— 它们跑在 `RxDB.connect()` 的 promise 里，
-   * 等就绪门就是等自己。表此刻可能尚未建出，顺序由引导链路自己保证。
+   * 引导期事务：跳过就绪门。仅限 `RxDB.connect()` 链路。
    *
    * @internal
    */
@@ -957,43 +591,18 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   }
 
   /**
-   * 执行**内层工作**：已在事务中就复用当前事务，否则开一个新事务。
-   *
-   * @param transactionFun - 内层工作
-   * @returns 内层工作的返回值
-   *
-   * @remarks
-   * 与 `mutations()` / `query()` 的持锁快路径同形（见 {@link transaction} 的并发语义说明）。
-   * **只能用于内层工作**：拿它开语义上独立的并发事务会被静默并进当前事务，
-   * 要开独立事务请直接用 {@link transaction}。
-   *
-   * 存在的理由：编排层（如 `merge_branch` 的 normal 策略）要把 N 次 `mergeChanges`
-   * 包进一个事务才有原子性，而 `mergeChanges` 内部又要开事务 —— `transaction()` 无条件入队、
-   * 队列并发度为 1，外层持槽内层再入队就是永久等待。
+   * 真实适配器一律新开事务。「已在事务中就复用」由 executor 门面接管。
    */
   async runInTransaction<T extends TransactionFun>(
     transactionFun: T,
     transactionLog: boolean = true
   ): Promise<Awaited<ReturnType<T>>> {
-    // C2：真实适配器上的 runInTransaction 一律新开事务。「已在事务中就复用」由 executor
-    // 门面接管（facade: runInTransaction → executor.run），事务体内的调用方拿到的是门面。
     return this.transaction(transactionFun, transactionLog);
   }
 
-  /**
-   * 执行 SQL 查询
-   *
-   * 查询执行策略：真实适配器入口统一加入串行队列；事务体内查询必须使用 callback executor。
-   *
-   * @param sql - SQL 语句
-   * @param bindings - 参数绑定
-   * @returns 查询结果
-   */
+  /** 查询入口。引导窗外走 writeQuery；引导窗就绪后再入队。 */
   public query<T = Record<string, unknown>>(sql: string, bindings?: unknown[]): Promise<Results<T>> {
     if (this.#lifecycle_state !== 'bootstrap') return this.writeQuery<T>(sql, bindings);
-    // 否则加入队列，保证并发调用的执行顺序。
-    // 就绪等待在**入队之前**完成：留在队列任务里会占用唯一槽位等一个只能由队列后方任务
-    // 完成的 promise（首装死锁）。代价是「调用顺序」变成「就绪顺序」——已就绪时两者一致。
     return this.ready().then(() =>
       this.#queue.addTask(async () => {
         const client = await this.#getClient();
@@ -1014,42 +623,12 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     return this.#internal_query<T>(sql, params);
   }
 
-  /**
-   * 执行原始 SQL（IRxDBAdapter 可选方法）
-   *
-   * 用于条件 UPDATE、INSERT 等需要绕过 ORM 的场景。
-   * 使用 `rowMode: 'array'` 让 rows 以数组形式返回，对齐 RawQueryResult 结构。
-   *
-   * @param sql - SQL 语句
-   * @param params - 绑定参数
-   * @returns 原始查询结果（行数、行数据、列名）
-   */
+  /** 原始 SQL。 */
   public async rawQuery(sql: string, params?: unknown[]): Promise<RawQueryResult> {
     return this.transaction(executor => executor.query(sql, params), false);
   }
 
-  /**
-   * 创建 PGlite live query（PGlite 独有特性）
-   *
-   * 在底层查询结果变化时自动回调，避免 NOTIFY 触发器 + 手动 refetch 的额外逻辑。
-   * 适合用户自定义 SQL 场景（聚合、JSONB、全文检索等）。
-   *
-   * @param sql - 查询语句
-   * @param params - 查询参数
-   * @param callback - 初始化以及后续结果变更时的回调
-   * @returns LiveQuery 对象（含 subscribe/unsubscribe/refresh），由调用方负责 unsubscribe
-   *
-   * @example
-   * ```ts
-   * const handle = await adapter.liveQuery(
-   *   'SELECT count(*)::int AS total FROM "public"."todo" WHERE completed = $1',
-   *   [false],
-   *   res => console.log(res.rows[0].total)
-   * );
-   * // 不再使用时：
-   * await handle.unsubscribe();
-   * ```
-   */
+  /** PGlite live query。调用方负责 unsubscribe。 */
   public async liveQuery<T = Record<string, unknown>>(
     sql: string,
     params?: unknown[],
@@ -1063,16 +642,8 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   }
 
   /**
-   * 就绪门：**必须在获取队列槽位之前调用，绝不能在队列任务内部调用**。
-   *
-   * @remarks
-   * 队列并发度为 1。在临界区里等 `RxDB.connect()` 会成环：`RxDB.connect()` 的首装路径要靠
-   * 队列后方的水位线事务才能完成，而那个事务永远拿不到被占住的槽位。
-   * 与 `RxDBAdapterSqliteBase#ready()` 必须保持同一口径。
-   *
-   * 门等的是**整个 `RxDB.connect()`**，不是「本适配器的 client 连上了没」——
-   * 两者之间隔着建表与水位线，按 client 状态放行会让这段窗口内到达的外部写打在还没建出来的
-   * 表上。引导链路自己一律经 {@link bootstrapTransaction} 绕开本门。
+   * 就绪门。必须在获取队列槽位之前调用。
+   * 等的是整个 `RxDB.connect()`，引导链路走 {@link bootstrapTransaction}。
    */
   protected ready(): Promise<void> {
     return this.rxdb.connect(this.name).then(() => undefined);
@@ -1083,15 +654,11 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     void this.#trackChangeHandler(event);
   };
 
-  /**
-   * transaction() 的实际执行体，由 #queue 串行调度（见 transaction() 注释）
-   */
   async #run_transaction<T extends TransactionFun>(
     transactionFun: T,
     transactionLog: boolean
   ): Promise<Awaited<ReturnType<T>>> {
     this.#assertWritable();
-    // 就绪等待已上移到 transaction() 的入队之前，不能留在临界区内（见 ready()）
     const client = await this.#getClient();
     const transactionId = transactionLog ? crypto.randomUUID() : undefined;
 
@@ -1157,116 +724,49 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     throw new RxdbAdapterPGliteError(`RxDB adapter is ${this.#lifecycle_state} and requires reconnect.`);
   }
 
+  /**
+   * 把适配器自身投影成 {@link ChangePipelineHost}。
+   *
+   * @remarks
+   * `changePipelineGeneration` 等必须是 getter/setter：宿主读写的是适配器上的活状态，不能快照。
+   * 字面量 getter 里的 `this` 指向 host 本身，因此统一经 `this.adapter` 回跳到适配器 ——
+   * 该属性本就是 {@link ChangePipelineHost} 的一部分，不必再为此额外起一个 `this` 别名。
+   */
+  #createPipelineHost(): ChangePipelineHost {
+    return {
+      adapter: this,
+      suppressedChangeTables: this.#suppressedChangeTables,
+      pendingChangeHandlers: this.#pendingChangeHandlers,
+      pendingChangeQueues: this.#pendingChangeQueues,
+      changeErrors: this.#changeErrors,
+      get changePipelineGeneration(): number {
+        return this.adapter.#changePipelineGeneration;
+      },
+      set changePipelineGeneration(v: number) {
+        this.adapter.#changePipelineGeneration = v;
+      },
+      get cachedClient(): IPGliteClient | undefined {
+        return this.adapter.#cached_client;
+      },
+      get clientPromise(): Promise<IPGliteClient> | undefined {
+        return this.adapter.#client_promise;
+      }
+    };
+  }
+
   #trackChangeHandler(event: PGliteChangeEvent): Promise<void> {
-    if (this.#suppressedChangeTables.has(event.tableName)) return Promise.resolve();
-    this.#changePipelineGeneration += 1;
-    const queueKey = event.tableName;
-    const previousTask = this.#pendingChangeQueues.get(queueKey) ?? Promise.resolve();
-
-    // 合并 task 与 queuedTask 链式声明；.finally 回调内部引用 queuedTask 依赖
-    // JavaScript 的 TDZ 规则：回调在赋值之后才会执行，所以下方自引用安全。
-    const queuedTask: Promise<void> = previousTask
-      .catch(() => undefined)
-      .then(() => handle_rxdb_change(this, event))
-      .catch((error: unknown) => {
-        this.#changeErrors.next(error instanceof Error ? error : new Error(String(error)));
-      })
-      .finally(() => {
-        if (this.#pendingChangeQueues.get(queueKey) === queuedTask) {
-          this.#pendingChangeQueues.delete(queueKey);
-        }
-        this.#pendingChangeHandlers.delete(queuedTask);
-      });
-
-    this.#pendingChangeQueues.set(queueKey, queuedTask);
-    this.#pendingChangeHandlers.add(queuedTask);
-
-    return queuedTask;
+    return trackChangeHandler(this.#pipelineHost, event);
   }
 
   async #drainPendingChangeHandlers(deadline?: number, createTimeoutError?: () => Error): Promise<void> {
-    while (this.#pendingChangeHandlers.size > 0) {
-      const settlement = Promise.allSettled(Array.from(this.#pendingChangeHandlers));
-      if (deadline === undefined || !createTimeoutError) {
-        await settlement;
-        continue;
-      }
-      await this.#awaitChangePipelineOperation(settlement, deadline, createTimeoutError);
-    }
+    return drainPendingChangeHandlers(this.#pipelineHost, deadline, createTimeoutError);
   }
 
   async #flushPendingChangePipeline(): Promise<void> {
-    const client = this.#cached_client ?? (await this.#client_promise?.catch(() => undefined));
-
-    const deadline = Date.now() + CHANGE_PIPELINE_TIMEOUT_MS;
-    let attempts = 0;
-    const createTimeoutError = (): RxDBChangePipelineTimeoutError =>
-      this.#createChangePipelineTimeoutError(client, attempts);
-
-    while (true) {
-      attempts += 1;
-      const generation = this.#changePipelineGeneration;
-      const flushed =
-        client instanceof PGliteClient ?
-          await this.#awaitChangePipelineOperation(client.flushPendingNotifications(), deadline, createTimeoutError)
-        : false;
-      await this.#drainPendingChangeHandlers(deadline, createTimeoutError);
-
-      const idle = !flushed && this.#pendingChangeHandlers.size === 0 && generation === this.#changePipelineGeneration;
-      if (Date.now() >= deadline) throw createTimeoutError();
-      if (idle) return;
-    }
+    return flushPendingChangePipeline(this.#pipelineHost);
   }
 
-  async #awaitChangePipelineOperation<T>(
-    operation: Promise<T>,
-    deadline: number,
-    createTimeoutError: () => Error
-  ): Promise<T> {
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) throw createTimeoutError();
-
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      return await Promise.race([
-        operation,
-        new Promise<never>((_resolve, reject) => {
-          timer = setTimeout(() => reject(createTimeoutError()), remaining);
-        })
-      ]);
-    } finally {
-      if (timer) clearTimeout(timer);
-    }
-  }
-
-  #createChangePipelineTimeoutError(
-    client: IPGliteClient | undefined,
-    attempts: number
-  ): RxDBChangePipelineTimeoutError {
-    const cause = new Error(`Change pipeline deadline exceeded after ${CHANGE_PIPELINE_TIMEOUT_MS}ms`);
-    cause.name = 'TimeoutError';
-    return new RxDBChangePipelineTimeoutError(
-      {
-        pendingEvents: client?.pendingNotificationCount ?? 0,
-        pendingHandlers: this.#pendingChangeHandlers.size,
-        attempts,
-        generation: this.#changePipelineGeneration,
-        timeoutMs: CHANGE_PIPELINE_TIMEOUT_MS
-      },
-      cause
-    );
-  }
-
-  /**
-   * 内部查询方法
-   *
-   * 直接在客户端上执行查询，不经过队列
-   *
-   * @param query - SQL 查询
-   * @param params - 查询参数
-   * @param options - 查询选项
-   * @returns 查询结果
-   */
+  /** 绕过队列的内部查询。 */
   async #internal_query<T>(query: string, params?: unknown[], options?: QueryOptions): Promise<Results<T>> {
     const client = await this.#getClient();
     return client.query(query, params, options);
@@ -1283,13 +783,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     }
   }
 
-  /**
-   * 获取 PGlite 客户端实例
-   *
-   * 使用单例模式，确保只创建一个客户端实例
-   *
-   * @returns PGlite 客户端 Promise
-   */
+  /** 单例客户端。 */
   #getClient(): Promise<IPGliteClient> {
     if (!this.#client_promise) {
       const client = new PGliteClient();

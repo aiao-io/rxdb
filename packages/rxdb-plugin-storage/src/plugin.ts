@@ -8,7 +8,7 @@
 import { IRxDBPlugin, Plugin, RxDB, RxDBPluginBase } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
 import { StorageFileMeta } from './file-meta.entity.js';
-import { RxdbFileStorage, RxDBStoragePluginOptions } from './storage.service.js';
+import { RxdbFileStorage, type RxDBStoragePluginOptions } from './storage.service.js';
 
 /**
  * 把 {@link RxdbFileStorage} 安装到单个 RxDB 实例的插件生命周期对象。

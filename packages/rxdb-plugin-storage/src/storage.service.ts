@@ -17,23 +17,14 @@ import { defer, from, map, Observable, startWith, Subject, switchMap } from 'rxj
 import {
   StorageConflictError,
   StorageDestroyedError,
-  StorageFetchError,
   StorageFetchUrlConflictError,
   StorageInvalidPathError,
-  StorageMimeTypeMissingError,
-  StorageOfflineError,
   StoragePreviewLimitError,
   StorageUnavailableError
 } from './errors.js';
 import { StorageFileMeta } from './file-meta.entity.js';
 import { createOpfsStorageFilesystem } from './filesystem/opfs-filesystem.js';
-import type {
-  StorageFilesystem,
-  StorageFilesystemEntry,
-  StorageFilesystemFactory,
-  StorageFileWriter
-} from './filesystem/storage-filesystem.js';
-import { isStorageNotFoundError } from './filesystem/storage-filesystem.js';
+import type { StorageFilesystem, StorageFilesystemEntry } from './filesystem/storage-filesystem.js';
 import { ObjectUrlRegistry, StoragePreviewResult } from './object-url.js';
 import { PathLockManager } from './path-lock.js';
 import {
@@ -48,6 +39,31 @@ import {
   toAbsoluteStoragePath,
   validateStorageName
 } from './paths.js';
+import {
+  cleanupFailedWritable,
+  DEFAULT_PREVIEW_LIMIT_BYTES,
+  EMPTY_WHERE,
+  MAX_PATH_RELOCK_ATTEMPTS,
+  metaNotFoundError,
+  raceAbortSignal,
+  randomToken,
+  RELOCK,
+  type CreateDirectoryOptions,
+  type DownloadOptions,
+  type FetchRemoteOptions,
+  type ListOptions,
+  type LocalAdapterName,
+  type RenameOptions,
+  type RxDBStoragePluginOptions,
+  type StorageBrowserEntry,
+  type StorageFindOptions,
+  type StorageFindWhere,
+  type StorageMetaEntityType,
+  type StorageMetaPatch,
+  type UploadOptions
+} from './storage.helpers.js';
+import { deleteMetaAndFile, fetchToOpfs, uploadLocked, type StorageFileOpsHost } from './storage.ops.js';
+import { renameDirectoryLocked, renameLocked } from './storage.rename-copy.js';
 
 // 再导出路径工具：让后端实现能复用同一套校验，而不反向依赖服务实现。
 export {
@@ -62,219 +78,18 @@ export {
   toAbsoluteStoragePath
 } from './paths.js';
 
-const DEFAULT_PREVIEW_LIMIT_BYTES = 50 * 1024 * 1024;
-type StorageMetaEntityType = typeof StorageFileMeta;
-type StorageFindWhere = {
-  combinator: 'and';
-  rules: Array<{
-    field: 'id' | 'opfsPath';
-    operator: '=';
-    value: string;
-  }>;
-};
-type StorageFindOptions = {
-  where: StorageFindWhere;
-  limit?: number;
-  offset?: number;
-};
-type LocalAdapterName = Parameters<RxDB['connect']>[0];
-type StorageMetaPatch = Pick<StorageFileMeta, 'name' | 'mimeType' | 'size' | 'opfsPath' | 'contentVersion'>;
-type StorageFileState = { readonly backupPath: string } | null;
-type DirectoryCopyJournal = {
-  files: Array<{ opfsPath: string; previous: StorageFileState }>;
-  createdDirectories: string[];
-};
-const EMPTY_WHERE: StorageFindWhere = { combinator: 'and', rules: [] };
-
-/** Storage 插件安装选项。 */
-export interface RxDBStoragePluginOptions {
-  /** 存储根目录名；默认值为 `files`。 */
-  rootDir?: string;
-  /** 允许创建预览 URL 的最大字节数；默认值为 50 MiB。 */
-  previewLimitBytes?: number;
-  /**
-   * 文件内容落盘用的后端工厂；缺省即浏览器 OPFS。
-   *
-   * @remarks
-   * 桌面宿主用它把内容写进应用数据目录（US-504），使 metadata 与文件同属一个备份域。
-   */
-  filesystem?: StorageFilesystemFactory;
-}
-
-/** 文件上传选项。 */
-export interface UploadOptions {
-  /** 目标目录；默认值为根目录 `/`。 */
-  path?: string;
-  /** 同路径已存在时是否原位替换内容并递增 `contentVersion`。 */
-  overwrite?: boolean;
-}
-
-/** 文件下载选项。 */
-export interface DownloadOptions {
-  /** 保存对话框或浏览器下载使用的建议文件名；默认使用 metadata 中的名称。 */
-  suggestedName?: string;
-}
-
-/** metadata 列表查询选项。 */
-export interface ListOptions {
-  /**
-   * 要列出的目录，省略即整库。
-   *
-   * @remarks
-   * `''` 与 `'/'` 等价，都表示根目录 —— 二者都会被 {@link normalizeDirectoryPath} 规范化为 `'/'`。
-   * 想要「根目录及其全部子目录」请显式传 {@link ListOptions.recursive}，
-   * 不要靠省略 `path` 来表达（STOR-005）。
-   */
-  path?: string;
-  /**
-   * 是否连同子目录一起返回。
-   *
-   * @defaultValue false（只返回 `path` 下的直属文件）
-   * @remarks
-   * 省略 `path` 时本选项无意义：不限定目录本就返回整库全部 metadata。
-   */
-  recursive?: boolean;
-}
-
-/** 目录创建选项。 */
-export interface CreateDirectoryOptions {
-  /** 新目录的父路径；默认值为根目录 `/`。 */
-  path?: string;
-}
-
-/** 文件或目录重命名选项。 */
-export interface RenameOptions {
-  /**
-   * 是否完整替换同名目标。
-   *
-   * 文件替换保留源 metadata ID；目录替换删除目标独有文件和 metadata，不做树合并。
-   */
-  overwrite?: boolean;
-}
-
-/**
- * 远程拉取选项。
- *
- * `fetch()` 通过它把远程 URL 缓存到 OPFS，并把 Blob 同步返回。
- */
-export interface FetchRemoteOptions {
-  /** 远程资源 URL，需返回 2xx；非 2xx 抛 {@link StorageFetchError}。 */
-  url: string;
-  /**
-   * 强制覆盖返回 Blob 的 MIME 类型。
-   *
-   * 未提供时 fetch 将使用响应的 `Content-Type` 头（自动 strip `; charset=...` 等参数）；
-   * 两者都缺失会抛 {@link StorageMimeTypeMissingError}，不做 `application/octet-stream` 兜底。
-   */
-  mimeType?: string;
-  /** 透传给底层 fetch 的 AbortSignal；触发时抛 `AbortError`。 */
-  signal?: AbortSignal;
-}
-
-/**
- * 从 `Content-Type` 头中剥离参数（charset / boundary 等），仅保留 `type/subtype`。
- *
- * `image/jpeg; charset=binary` → `image/jpeg`
- */
-const stripMimeParameters = (value: string): string => {
-  const semicolon = value.indexOf(';');
-  return (semicolon === -1 ? value : value.slice(0, semicolon)).trim().toLowerCase();
-};
-
-/**
- * 生成临时文件名里的随机段。
- *
- * @remarks
- * 用 `crypto.getRandomValues` 而不是 `crypto.randomUUID`：后者只在安全上下文里有定义，
- * 而本插件在 `http://` 的本地调试页上也要能跑。`Math.random()` 同样不行 ——
- * 它在多个上下文之间没有任何不相撞的保证，而这正是这段随机数存在的全部理由。
- */
-const randomToken = (): string => {
-  const bytes = crypto.getRandomValues(new Uint8Array(8));
-  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
-};
-
-/** 浏览目录时返回的子目录条目。 */
-export interface StorageDirectoryEntry {
-  /** 用于可辨识联合的目录标记。 */
-  kind: 'directory';
-  /** 目录名称。 */
-  name: string;
-  /** 以 `/` 开头的 storage 绝对路径。 */
-  path: string;
-}
-
-/** 浏览目录时返回的文件条目。 */
-export interface StorageFileEntry {
-  /** 用于可辨识联合的文件标记。 */
-  kind: 'file';
-  /** 文件名称。 */
-  name: string;
-  /** 以 `/` 开头的 storage 绝对路径。 */
-  path: string;
-  /** 与 OPFS 文件对应的持久化 metadata。 */
-  meta: StorageFileMeta;
-}
-
-/** {@link RxdbFileStorage.listEntries} 返回的目录或文件条目。 */
-export type StorageBrowserEntry = StorageDirectoryEntry | StorageFileEntry;
-
-/**
- * 等待 `task`，但在 `signal` abort 时**只拒绝本次等待**，不影响 `task` 自身。
- *
- * @remarks
- * STOR-003：多个调用方共享同一个 in-flight 下载时，跟随者取消自己的 signal
- * 不应该、也不能取消别人共用的下载；反过来，跟随者的 signal 也不能被无视 ——
- * 早先直接 `await inFlight` 就是后者，跟随者 abort 后仍会一直挂到下载结束。
- */
-const raceAbortSignal = <T>(task: Promise<T>, signal?: AbortSignal): Promise<T> => {
-  if (!signal) return task;
-  signal.throwIfAborted();
-
-  return new Promise<T>((resolve, reject) => {
-    const onAbort = () => {
-      reject(signal.reason);
-    };
-    signal.addEventListener('abort', onAbort, { once: true });
-    task.then(resolve, reject).finally(() => {
-      signal.removeEventListener('abort', onAbort);
-    });
-  });
-};
-
-const readStreamChunk = async (
-  reader: ReadableStreamDefaultReader<Uint8Array>,
-  signal?: AbortSignal
-): Promise<ReadableStreamReadResult<Uint8Array>> => {
-  if (!signal) return reader.read();
-  signal.throwIfAborted();
-
-  let onAbort: (() => void) | undefined;
-  const abort = new Promise<never>((_, reject) => {
-    onAbort = () => reject(signal.reason);
-    signal.addEventListener('abort', onAbort, { once: true });
-  });
-
-  try {
-    return await Promise.race([reader.read(), abort]);
-  } finally {
-    if (onAbort) signal.removeEventListener('abort', onAbort);
-  }
-};
-
-/**
- * 「按 fileId 锁住它当前所在路径」的最大尝试次数。
- *
- * @remarks
- * 每次尝试都要重读一次 metadata，因此上限不能太大；而路径被连续改名到用光配额，
- * 只可能是调用方在打转。宁可报冲突让上层重试，也不在锁上无界地兜圈子。
- */
-const MAX_PATH_RELOCK_ATTEMPTS = 8;
-
-/** 排队期间路径被改：这把锁保护的已经不是要动的那条路径。 */
-const RELOCK = Symbol('relock');
-
-const metaNotFoundError = (fileId: string): Error => new Error(`Storage file meta not found: ${fileId}`);
+export type {
+  CreateDirectoryOptions,
+  DownloadOptions,
+  FetchRemoteOptions,
+  ListOptions,
+  RenameOptions,
+  RxDBStoragePluginOptions,
+  StorageBrowserEntry,
+  StorageDirectoryEntry,
+  StorageFileEntry,
+  UploadOptions
+} from './storage.helpers.js';
 
 /**
  * 用 {@link StorageFilesystem} 保存文件、用 RxDB 保存 metadata 的文件存储服务。
@@ -304,6 +119,7 @@ export class RxdbFileStorage {
 
   /** 进程内与同源跨上下文共用的路径锁；首次写入时按根目录建立命名空间。 */
   #locks: PathLockManager | null = null;
+  readonly #opsHost: StorageFileOpsHost;
 
   private get previewLimitBytes(): number {
     return this.options.previewLimitBytes ?? DEFAULT_PREVIEW_LIMIT_BYTES;
@@ -371,7 +187,10 @@ export class RxdbFileStorage {
     private readonly options: RxDBStoragePluginOptions = {},
     private readonly entityType: StorageMetaEntityType = StorageFileMeta,
     private readonly objectUrls: ObjectUrlRegistry = new ObjectUrlRegistry()
-  ) {}
+  ) {
+    // Host 必须在任何会调用 sibling 的路径之前建好。
+    this.#opsHost = RxdbFileStorage.#createOpsHost(this);
+  }
 
   /**
    * 初始化存储根目录。
@@ -397,7 +216,7 @@ export class RxdbFileStorage {
       await this.ensureLocalReady();
 
       const opfsPath = joinDirectoryAndFileName(options.path, file.name);
-      return await this.withPathLock([opfsPath], () => this.uploadLocked(file, options, opfsPath));
+      return await this.withPathLock([opfsPath], () => uploadLocked(this.#opsHost, file, options, opfsPath));
     } finally {
       finishWrite();
     }
@@ -466,10 +285,10 @@ export class RxdbFileStorage {
         if (!options.mimeType || options.mimeType === shared.type) {
           return shared;
         }
-        return await this.fetchToOpfs(normalizedPath, options);
+        return await fetchToOpfs(this.#opsHost, normalizedPath, options);
       }
 
-      const task = this.fetchToOpfs(normalizedPath, options);
+      const task = fetchToOpfs(this.#opsHost, normalizedPath, options);
       this.#inFlightFetches.set(normalizedPath, { url: options.url, task });
 
       try {
@@ -545,7 +364,7 @@ export class RxdbFileStorage {
         await writable.write(blob);
         await writable.close();
       } catch (error) {
-        await this.cleanupFailedWritable(writable, error);
+        await cleanupFailedWritable(writable, error);
         throw error;
       }
       return;
@@ -695,7 +514,7 @@ export class RxdbFileStorage {
           const targetOpfsPath = targetOf(current.opfsPath);
           if (targetOpfsPath === current.opfsPath) return current;
 
-          return this.renameLocked(fileId, newName, targetOpfsPath, options);
+          return renameLocked(this.#opsHost, fileId, newName, targetOpfsPath, options);
         }
       );
     } finally {
@@ -715,7 +534,7 @@ export class RxdbFileStorage {
 
       // STOR-002：目录改名影响的路径集合在开始前无法枚举完整（期间还会有新文件落进来），
       // 因此取独占锁而不是逐路径加锁。
-      return await this.withExclusiveLock(() => this.renameDirectoryLocked(directoryPath, newName, options));
+      return await this.withExclusiveLock(() => renameDirectoryLocked(this.#opsHost, directoryPath, newName, options));
     } finally {
       finishWrite();
     }
@@ -734,7 +553,7 @@ export class RxdbFileStorage {
         opfsPath => [opfsPath],
         async current => {
           if (current === null) return;
-          await this.deleteMetaAndFile(current);
+          await deleteMetaAndFile(this.#opsHost, current);
         }
       );
     } finally {
@@ -826,268 +645,6 @@ export class RxdbFileStorage {
     return metas.filter(meta => isOpfsPathInDirectory(meta.opfsPath, directoryPath));
   }
 
-  private async renameLocked(
-    fileId: string,
-    newName: string,
-    targetOpfsPath: string,
-    options: RenameOptions
-  ): Promise<StorageFileMeta> {
-    // 锁内重读：排队期间 meta 可能已被前一个持锁者改动
-    const meta = await this.getRequiredMeta(fileId);
-    const targetMeta = await this.findMetaByOpfsPath(targetOpfsPath);
-    if (targetMeta && targetMeta.id !== fileId && options.overwrite !== true) {
-      throw new StorageConflictError(targetOpfsPath);
-    }
-    if (!targetMeta && options.overwrite !== true && (await this.hasFile(targetOpfsPath))) {
-      throw new StorageConflictError(targetOpfsPath);
-    }
-    const originalMeta = this.getMetaPatch(meta);
-    const previousTarget = await this.readFileIfExists(targetOpfsPath);
-    if (await this.filesystem.supportsFileMove(originalMeta.opfsPath)) {
-      return this.renameFileWithMove(
-        meta,
-        targetMeta,
-        validateStorageName(newName),
-        targetOpfsPath,
-        originalMeta,
-        previousTarget
-      );
-    }
-
-    const blob = await this.read(fileId);
-    let removedTargetMeta: StorageFileMeta | null = null;
-    let updatedMeta: StorageFileMeta | null = null;
-    try {
-      if (targetMeta && targetMeta.id !== fileId) {
-        await this.removeMeta(targetMeta);
-        removedTargetMeta = targetMeta;
-      }
-      await this.writeBlobToPath(targetOpfsPath, blob);
-      updatedMeta = await this.updateMeta(meta, {
-        ...originalMeta,
-        name: validateStorageName(newName),
-        opfsPath: targetOpfsPath
-      });
-      await this.removeFile(originalMeta.opfsPath);
-      await this.discardFileState(previousTarget);
-      return updatedMeta;
-    } catch (error) {
-      return this.throwAfterRollback(
-        error,
-        () => (updatedMeta ? this.updateMeta(updatedMeta, originalMeta).then(() => undefined) : Promise.resolve()),
-        () => (removedTargetMeta ? this.createMeta(removedTargetMeta).then(() => undefined) : Promise.resolve()),
-        () => this.restoreFileState(targetOpfsPath, previousTarget)
-      );
-    }
-  }
-
-  private async renameFileWithMove(
-    meta: StorageFileMeta,
-    targetMeta: StorageFileMeta | null,
-    newName: string,
-    targetOpfsPath: string,
-    originalMeta: StorageMetaPatch,
-    previousTarget: StorageFileState
-  ): Promise<StorageFileMeta> {
-    let removedTargetMeta: StorageFileMeta | null = null;
-    let updatedMeta: StorageFileMeta | null = null;
-    let moved = false;
-
-    try {
-      if (targetMeta && targetMeta.id !== meta.id) {
-        await this.removeMeta(targetMeta);
-        removedTargetMeta = targetMeta;
-      }
-      await this.removeFile(targetOpfsPath);
-      await this.filesystem.moveFile(originalMeta.opfsPath, targetOpfsPath);
-      moved = true;
-      updatedMeta = await this.updateMeta(meta, {
-        ...originalMeta,
-        name: newName,
-        opfsPath: targetOpfsPath
-      });
-      await this.discardFileState(previousTarget);
-      return updatedMeta;
-    } catch (error) {
-      return this.throwAfterRollback(
-        error,
-        () => (updatedMeta ? this.updateMeta(updatedMeta, originalMeta).then(() => undefined) : Promise.resolve()),
-        async () => {
-          if (!moved) return;
-          await this.filesystem.moveFile(targetOpfsPath, originalMeta.opfsPath);
-        },
-        () => (removedTargetMeta ? this.createMeta(removedTargetMeta).then(() => undefined) : Promise.resolve()),
-        () => this.restoreFileState(targetOpfsPath, previousTarget)
-      );
-    }
-  }
-
-  private async renameDirectoryLocked(directoryPath: string, newName: string, options: RenameOptions): Promise<string> {
-    const sourcePath = normalizeDirectoryPath(directoryPath);
-    if (sourcePath === '/') {
-      throw new Error('Root directory cannot be renamed');
-    }
-
-    const targetPath = normalizeDirectoryPath(
-      joinDirectoryPath(getDirectoryPathFromOpfsPath(sourcePath.slice(1)), newName)
-    );
-
-    if (targetPath === sourcePath) {
-      return sourcePath;
-    }
-
-    const targetExists = await this.hasDirectory(targetPath);
-    if (targetExists && options.overwrite !== true) {
-      throw new Error(`Directory already exists at path: ${targetPath}`);
-    }
-
-    const allMetas = await this.getAllMetas();
-    const sourcePrefix = normalizeRelativeOpfsPath(sourcePath);
-    const targetPrefix = normalizeRelativeOpfsPath(targetPath);
-    const moves = allMetas
-      .filter(meta => isOpfsPathInsideDirectory(meta.opfsPath, sourcePath))
-      .map(meta => {
-        const original = this.getMetaPatch(meta);
-        const relativeOpfsPath = original.opfsPath.slice(sourcePrefix.length).replace(/^\//, '');
-        return {
-          meta,
-          original,
-          targetOpfsPath: [targetPrefix, relativeOpfsPath].filter(Boolean).join('/')
-        };
-      });
-
-    const targetMetas = allMetas.filter(meta => isOpfsPathInsideDirectory(meta.opfsPath, targetPath));
-    if (options.overwrite !== true && targetMetas.length > 0) {
-      throw new StorageConflictError(targetMetas[0].opfsPath);
-    }
-
-    const canMoveSource = await this.filesystem.supportsDirectoryMove(sourcePath);
-    const canMoveTarget = targetExists ? await this.filesystem.supportsDirectoryMove(targetPath) : true;
-    if (canMoveSource && canMoveTarget) {
-      return this.renameDirectoryWithMove(targetExists, sourcePath, targetPath, moves, targetMetas);
-    }
-
-    const backupPath = targetExists ? `/.rxdb-storage-journal-${Date.now()}-${randomToken()}` : null;
-    const backupJournal: DirectoryCopyJournal = { files: [], createdDirectories: [] };
-    const copyJournal: DirectoryCopyJournal = { files: [], createdDirectories: [] };
-    const removedTargetMetas: StorageFileMeta[] = [];
-    const attemptedMoves: typeof moves = [];
-
-    if (backupPath) {
-      try {
-        await this.copyDirectory(targetPath, backupPath, backupJournal);
-      } catch (error) {
-        return this.throwAfterRollback(
-          error,
-          () => this.rollbackDirectoryCopy(backupJournal),
-          () => this.removeDirectoryPath(backupPath)
-        );
-      }
-    }
-
-    try {
-      for (const targetMeta of targetMetas) {
-        await this.removeMeta(targetMeta);
-        removedTargetMetas.push(targetMeta);
-      }
-      if (targetExists) await this.removeDirectoryPath(targetPath);
-      await this.copyDirectory(sourcePath, targetPath, copyJournal);
-      for (const move of moves) {
-        attemptedMoves.push(move);
-        await this.updateMeta(move.meta, { ...move.original, opfsPath: move.targetOpfsPath });
-      }
-      await this.removeDirectoryPath(sourcePath);
-    } catch (error) {
-      return this.throwAfterRollback(
-        error,
-        () => this.rollbackMetaMoves(attemptedMoves),
-        () => this.rollbackDirectoryCopy(copyJournal),
-        () => this.removeDirectoryPath(targetPath),
-        () => this.restoreDirectoryBackup(backupPath, targetPath),
-        () => this.restoreRemovedMetas(removedTargetMetas),
-        () => (backupPath ? this.removeDirectoryPath(backupPath) : Promise.resolve())
-      );
-    }
-
-    await this.discardDirectoryJournal(copyJournal);
-    await this.discardDirectoryJournal(backupJournal);
-    if (backupPath) await this.removeDirectoryPath(backupPath);
-    return targetPath;
-  }
-
-  private async renameDirectoryWithMove(
-    targetExists: boolean,
-    sourcePath: string,
-    targetPath: string,
-    moves: ReadonlyArray<{
-      meta: StorageFileMeta;
-      original: StorageMetaPatch;
-      targetOpfsPath: string;
-    }>,
-    targetMetas: readonly StorageFileMeta[]
-  ): Promise<string> {
-    const parentPath = getDirectoryPathFromOpfsPath(targetPath.slice(1));
-    const backupName = this.createTemporaryFilePath('directory');
-    const backupPath = joinDirectoryPath(parentPath, backupName);
-    const removedTargetMetas: StorageFileMeta[] = [];
-    const attemptedMoves: Array<(typeof moves)[number]> = [];
-    let targetMoved = false;
-    let sourceMoved = false;
-
-    try {
-      if (targetExists) {
-        await this.filesystem.moveDirectory(targetPath, backupPath);
-        targetMoved = true;
-      }
-      for (const targetMeta of targetMetas) {
-        await this.removeMeta(targetMeta);
-        removedTargetMetas.push(targetMeta);
-      }
-      await this.filesystem.moveDirectory(sourcePath, targetPath);
-      sourceMoved = true;
-      for (const move of moves) {
-        attemptedMoves.push(move);
-        await this.updateMeta(move.meta, { ...move.original, opfsPath: move.targetOpfsPath });
-      }
-    } catch (error) {
-      return this.throwAfterRollback(
-        error,
-        () => this.rollbackMetaMoves(attemptedMoves),
-        async () => {
-          if (!sourceMoved) return;
-          await this.filesystem.moveDirectory(targetPath, sourcePath);
-        },
-        async () => {
-          if (!targetMoved) return;
-          await this.filesystem.moveDirectory(backupPath, targetPath);
-        },
-        () => this.restoreRemovedMetas(removedTargetMetas)
-      );
-    }
-
-    if (targetMoved) await this.removeDirectoryPath(backupPath);
-    return targetPath;
-  }
-
-  private async restoreDirectoryBackup(backupPath: string | null, targetPath: string): Promise<void> {
-    if (!backupPath || !(await this.hasDirectory(backupPath))) return;
-    const restoreJournal: DirectoryCopyJournal = { files: [], createdDirectories: [] };
-    await this.copyDirectory(backupPath, targetPath, restoreJournal);
-    await this.discardDirectoryJournal(restoreJournal);
-  }
-
-  private async restoreRemovedMetas(metas: readonly StorageFileMeta[]): Promise<void> {
-    const errors: unknown[] = [];
-    for (const meta of metas) {
-      try {
-        await this.createMeta(meta);
-      } catch (error) {
-        errors.push(error);
-      }
-    }
-    if (errors.length > 0) throw new AggregateError(errors, 'Failed to restore overwritten storage metadata');
-  }
-
   private async clearLocked(path?: string): Promise<void> {
     const metas = await this.getAllMetas();
     const shouldRemoveAll = !path || normalizeDirectoryPath(path) === '/';
@@ -1095,7 +652,7 @@ export class RxdbFileStorage {
       shouldRemoveAll ? metas : metas.filter(meta => isOpfsPathInsideDirectory(meta.opfsPath, path));
 
     for (const meta of metasToRemove) {
-      await this.deleteMetaAndFile(meta);
+      await deleteMetaAndFile(this.#opsHost, meta);
     }
 
     if (shouldRemoveAll) {
@@ -1122,112 +679,6 @@ export class RxdbFileStorage {
     }
   }
 
-  private async fetchToOpfs(normalizedPath: string, options: FetchRemoteOptions): Promise<Blob> {
-    await this.ensureLocalReady();
-
-    const existingMeta = await this.findMetaByOpfsPath(normalizedPath);
-
-    if (existingMeta && (await this.hasFile(normalizedPath))) {
-      const cached = await this.filesystem.readBlob(normalizedPath);
-      return options.mimeType ? cached.slice(0, cached.size, options.mimeType) : cached;
-    }
-
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      throw new StorageOfflineError(normalizedPath, options.url);
-    }
-
-    let response: Response;
-    try {
-      response = await globalThis.fetch(options.url, { signal: options.signal });
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        throw error;
-      }
-      if (error instanceof TypeError) {
-        throw new StorageOfflineError(normalizedPath, options.url);
-      }
-      throw error;
-    }
-
-    if (!response.ok) {
-      throw new StorageFetchError(normalizedPath, options.url, response.status);
-    }
-
-    const rawContentType = response.headers.get('content-type');
-    const headerMimeType = rawContentType ? stripMimeParameters(rawContentType) : null;
-    const mimeType = options.mimeType ?? headerMimeType;
-    if (!mimeType) {
-      throw new StorageMimeTypeMissingError(normalizedPath, options.url);
-    }
-
-    const fileName = getFileNameFromOpfsPath(normalizedPath);
-    const temporaryPath = this.createTemporaryFilePath('fetch');
-
-    try {
-      const size = await this.streamResponseToFile(response, temporaryPath, options.signal);
-      options.signal?.throwIfAborted();
-
-      // STOR-002：只对**提交阶段**加锁，不把网络下载圈进临界区 ——
-      // 否则同路径的 upload 会被一次慢下载阻塞整程。提交阶段与 upload / rename 的
-      // 「写文件 → 写 metadata → 补偿」是同一类临界区，必须串行。
-      //
-      // 读回也在锁内：提交完就放锁，下一个持锁者（同路径的 upload / rename / delete）
-      // 会在读到之前把文件换掉甚至删掉 —— 于是 `fetch()` 要么返回别人的内容，要么直接
-      // 撞上「文件不存在」，而调用方拿到的是一次自称成功的下载。
-      const committed = await this.withPathLock([normalizedPath], async () => {
-        await this.commitFetchedFile(normalizedPath, temporaryPath, size, fileName, mimeType);
-        return this.filesystem.readBlob(normalizedPath);
-      });
-
-      return committed.slice(0, committed.size, mimeType);
-    } finally {
-      await this.removeFile(temporaryPath);
-    }
-  }
-
-  private async commitFetchedFile(
-    normalizedPath: string,
-    temporaryPath: string,
-    size: number,
-    fileName: string,
-    mimeType: string
-  ): Promise<void> {
-    // 锁内重读：排队期间同路径可能已被 upload / rename 改写
-    const existingMeta = await this.findMetaByOpfsPath(normalizedPath);
-    const previousFile = await this.readFileIfExists(normalizedPath);
-    const temporaryFile = await this.filesystem.readBlob(temporaryPath);
-    try {
-      await this.writeBlobToPath(normalizedPath, temporaryFile);
-    } catch (error) {
-      return this.throwAfterRollback(error, () => this.restoreFileState(normalizedPath, previousFile));
-    }
-
-    try {
-      if (existingMeta) {
-        await this.updateMeta(existingMeta, {
-          name: fileName,
-          mimeType,
-          size,
-          opfsPath: normalizedPath,
-          contentVersion: (existingMeta.contentVersion || 0) + 1
-        });
-      } else {
-        await this.createMeta(
-          this.instantiateMeta({
-            name: fileName,
-            mimeType,
-            size,
-            opfsPath: normalizedPath,
-            contentVersion: 1
-          })
-        );
-      }
-    } catch (error) {
-      return this.throwAfterRollback(error, () => this.restoreFileState(normalizedPath, previousFile));
-    }
-    await this.discardFileState(previousFile);
-  }
-
   /**
    * 造一个不会与其他上下文相撞的临时文件名。
    *
@@ -1239,45 +690,6 @@ export class RxdbFileStorage {
   private createTemporaryFilePath(purpose: string): string {
     this.#temporaryFileSequence += 1;
     return `.rxdb-storage-${purpose}-${Date.now()}-${this.#temporaryFileSequence}-${randomToken()}`;
-  }
-
-  private async streamResponseToFile(response: Response, opfsPath: string, signal?: AbortSignal): Promise<number> {
-    return this.streamReadableToFile(response.body, opfsPath, signal);
-  }
-
-  private async streamReadableToFile(
-    stream: ReadableStream<Uint8Array> | null,
-    opfsPath: string,
-    signal?: AbortSignal
-  ): Promise<number> {
-    const writer = await this.filesystem.openWrite(opfsPath);
-    const reader = stream?.getReader();
-    let size = 0;
-
-    try {
-      if (!reader) {
-        await writer.write(new Blob([]));
-        await writer.close();
-        return 0;
-      }
-
-      while (true) {
-        signal?.throwIfAborted();
-        const chunk = await readStreamChunk(reader, signal);
-        if (chunk.done) break;
-        size += chunk.value.byteLength;
-        const writableChunk = new Uint8Array(chunk.value.byteLength);
-        writableChunk.set(chunk.value);
-        await writer.write(writableChunk);
-      }
-      signal?.throwIfAborted();
-      await writer.close();
-      return size;
-    } catch (error) {
-      await reader?.cancel(error).catch(() => undefined);
-      await writer.abort(error);
-      throw error;
-    }
   }
 
   private async ensureLocalReady(): Promise<void> {
@@ -1346,16 +758,6 @@ export class RxdbFileStorage {
     };
   }
 
-  private async deleteMetaAndFile(meta: StorageFileMeta): Promise<void> {
-    await this.removeMeta(meta);
-
-    try {
-      await this.removeFile(meta.opfsPath);
-    } catch (error) {
-      return this.throwAfterRollback(error, () => this.createMeta(meta).then(() => undefined));
-    }
-  }
-
   private async getRequiredMeta(fileId: string): Promise<StorageFileMeta> {
     const meta = await this.findMetaById(fileId);
 
@@ -1410,120 +812,6 @@ export class RxdbFileStorage {
         }
       ]
     };
-  }
-
-  /** 带快照补偿的整块写入：失败时把目标恢复成写之前的样子。 */
-  private async writeBlobToPath(opfsPath: string, blob: Blob): Promise<void> {
-    const previous = await this.readFileIfExists(opfsPath);
-    try {
-      await this.writeBlobWithoutRollback(opfsPath, blob);
-    } catch (error) {
-      return this.throwAfterRollback(error, () => this.restoreFileState(opfsPath, previous));
-    }
-    await this.discardFileState(previous);
-  }
-
-  private async writeBlobWithoutRollback(opfsPath: string, blob: Blob): Promise<void> {
-    let writer: StorageFileWriter | undefined;
-    try {
-      writer = await this.filesystem.openWrite(opfsPath);
-      await writer.write(blob);
-      await writer.close();
-    } catch (error) {
-      if (writer) {
-        await writer.abort(error);
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * 清理 `showSaveFilePicker` 拿到的可写流。
-   *
-   * @remarks
-   * 这条路径上的句柄来自用户选择的**存储根之外**的位置，不经 {@link StorageFilesystem}，
-   * 因此这里保留独立的收尾逻辑。语义与后端写入句柄的 `abort()` 一致：优先 `abort()`，
-   * 没有则 `close()`，两者的异常都吞掉 —— 再抛一次会盖住真正的失败原因。
-   */
-  private async cleanupFailedWritable(
-    writable: Pick<FileSystemWritableFileStream, 'close'> & {
-      abort?: (reason?: unknown) => Promise<void>;
-    },
-    error: unknown
-  ): Promise<void> {
-    if (typeof writable.abort === 'function') {
-      try {
-        await writable.abort(error);
-      } catch {
-        return;
-      }
-      return;
-    }
-
-    try {
-      await writable.close();
-    } catch {
-      return;
-    }
-  }
-
-  /**
-   * `upload` 的临界区：检查 → 写文件 → 提交 meta 必须整段串行。
-   *
-   * @param file - 待上传文件
-   * @param options - 上传选项
-   * @param opfsPath - 已解析的目标路径（同时是锁粒度）
-   * @returns 新建或更新后的元数据
-   *
-   * @remarks
-   * 这一段是 check-then-act。无互斥时两个并发的同路径 `upload` 会双双通过冲突检查，
-   * 随后 B 的 meta 因 `opfs_path` 唯一索引写入失败、回滚走 `restoreFileState(path, null)`
-   * → `removeFile(path)`，**把 A 刚成功注册的文件删掉**，留下「meta 在、文件不在」的孤儿 meta。
-   *
-   * 浏览器支持 Web Locks 时，临界区还会经过按 `rootDir` 隔离的同源锁，覆盖不同 tab
-   * 的 storage service；没有该 API 的非浏览器测试环境退回进程内协议。
-   */
-  private async uploadLocked(file: File, options: UploadOptions, opfsPath: string): Promise<StorageFileMeta> {
-    const existingMeta = await this.findMetaByOpfsPath(opfsPath);
-    const previousFile = await this.readFileIfExists(opfsPath);
-
-    if ((existingMeta || previousFile) && options.overwrite !== true) {
-      await this.discardFileState(previousFile);
-      throw new StorageConflictError(opfsPath);
-    }
-
-    try {
-      await this.writeBlobToPath(opfsPath, file);
-    } catch (error) {
-      return this.throwAfterRollback(error, () => this.restoreFileState(opfsPath, previousFile));
-    }
-
-    let result: StorageFileMeta;
-    try {
-      if (existingMeta) {
-        result = await this.updateMeta(existingMeta, {
-          name: file.name,
-          mimeType: file.type || 'application/octet-stream',
-          size: file.size,
-          opfsPath,
-          contentVersion: (existingMeta.contentVersion || 0) + 1
-        });
-      } else {
-        result = await this.createMeta(
-          this.instantiateMeta({
-            name: file.name,
-            mimeType: file.type || 'application/octet-stream',
-            size: file.size,
-            opfsPath,
-            contentVersion: 1
-          })
-        );
-      }
-    } catch (error) {
-      return this.throwAfterRollback(error, () => this.restoreFileState(opfsPath, previousFile));
-    }
-    await this.discardFileState(previousFile);
-    return result;
   }
 
   /**
@@ -1595,149 +883,12 @@ export class RxdbFileStorage {
     return this.locks.withExclusive(fn);
   }
 
-  /**
-   * 把当前内容流式复制到临时文件，作为可回滚快照。
-   *
-   * @param opfsPath - 存储根下的相对路径
-   * @returns 临时备份路径；文件不存在时返回 `null`
-   *
-   * @remarks
-   * 不能保留 {@link StorageFilesystem.readBlob} 返回的 snapshot 后再覆写源文件，也不能用
-   * `arrayBuffer()` 把大文件整体复制进 JS 堆。临时文件与源文件状态脱钩，
-   * 复制过程的内存上限由流 chunk 大小决定。
-   */
-  private async readFileIfExists(opfsPath: string): Promise<StorageFileState> {
-    let backupPath: string | null = null;
-    try {
-      const source = await this.filesystem.openRead(opfsPath);
-      backupPath = this.createTemporaryFilePath('rollback');
-      await this.streamReadableToFile(source, backupPath);
-      return { backupPath };
-    } catch (error) {
-      if (backupPath) await this.removeFile(backupPath);
-      if (isStorageNotFoundError(error)) {
-        return null;
-      }
-      throw error;
-    }
-  }
-
-  private async restoreFileState(opfsPath: string, previous: StorageFileState): Promise<void> {
-    if (previous) {
-      const backup = await this.filesystem.openRead(previous.backupPath);
-      await this.streamReadableToFile(backup, opfsPath);
-      await this.removeFile(previous.backupPath);
-      return;
-    }
-
-    await this.removeFile(opfsPath);
-  }
-
-  private async discardFileState(previous: StorageFileState): Promise<void> {
-    if (previous) await this.removeFile(previous.backupPath);
-  }
-
-  private async throwAfterRollback(error: unknown, ...rollbacks: Array<() => Promise<void>>): Promise<never> {
-    const rollbackErrors: unknown[] = [];
-    for (const rollback of rollbacks) {
-      try {
-        await rollback();
-      } catch (rollbackError) {
-        rollbackErrors.push(rollbackError);
-      }
-    }
-
-    if (rollbackErrors.length > 0) {
-      const message = error instanceof Error ? error.message : 'Storage operation failed';
-      throw new AggregateError([error, ...rollbackErrors], message);
-    }
-
-    throw error;
-  }
-
-  private async rollbackMetaMoves(moves: Array<{ meta: StorageFileMeta; original: StorageMetaPatch }>): Promise<void> {
-    const rollbackErrors: unknown[] = [];
-    for (const move of [...moves].reverse()) {
-      try {
-        await this.updateMeta(move.meta, move.original);
-      } catch (error) {
-        rollbackErrors.push(error);
-      }
-    }
-
-    if (rollbackErrors.length > 0) {
-      throw new AggregateError(rollbackErrors, 'Failed to roll back storage metadata');
-    }
-  }
-
-  private async rollbackDirectoryCopy(journal: DirectoryCopyJournal): Promise<void> {
-    const rollbackErrors: unknown[] = [];
-    for (const file of [...journal.files].reverse()) {
-      try {
-        await this.restoreFileState(file.opfsPath, file.previous);
-      } catch (error) {
-        rollbackErrors.push(error);
-      }
-    }
-
-    for (const directoryPath of [...journal.createdDirectories].reverse()) {
-      try {
-        await this.removeDirectoryPath(directoryPath);
-      } catch (error) {
-        rollbackErrors.push(error);
-      }
-    }
-
-    if (rollbackErrors.length > 0) {
-      throw new AggregateError(rollbackErrors, 'Failed to roll back copied storage directory');
-    }
-  }
-
-  private async discardDirectoryJournal(journal: DirectoryCopyJournal): Promise<void> {
-    const errors: unknown[] = [];
-    for (const file of journal.files) {
-      try {
-        await this.discardFileState(file.previous);
-      } catch (error) {
-        errors.push(error);
-      }
-    }
-    if (errors.length > 0) throw new AggregateError(errors, 'Failed to clean storage rollback journal');
-  }
-
   private hasFile(opfsPath: string): Promise<boolean> {
     return this.filesystem.fileExists(opfsPath);
   }
 
   private hasDirectory(directoryPath: string): Promise<boolean> {
     return this.filesystem.directoryExists(directoryPath);
-  }
-
-  private async copyDirectory(sourcePath: string, targetPath: string, journal: DirectoryCopyJournal): Promise<void> {
-    const targetExists = await this.hasDirectory(targetPath);
-    await this.filesystem.ensureDirectory(targetPath);
-    if (!targetExists) {
-      journal.createdDirectories.push(targetPath);
-    }
-
-    for await (const { name, kind } of this.filesystem.list(sourcePath)) {
-      if (kind === 'directory') {
-        await this.copyDirectory(joinDirectoryPath(sourcePath, name), joinDirectoryPath(targetPath, name), journal);
-        continue;
-      }
-
-      const targetOpfsPath = joinDirectoryAndFileName(targetPath, name);
-      // 这里已经自己持有快照并登记进 journal，因此写入走不带回滚的那条：
-      // 换成 writeBlobToPath 会让它再取一份同样的快照，等于把每个已有目标整份抄两遍。
-      const previous = await this.readFileIfExists(targetOpfsPath);
-      const file = await this.filesystem.readBlob(joinDirectoryAndFileName(sourcePath, name));
-      try {
-        await this.writeBlobWithoutRollback(targetOpfsPath, file);
-      } catch (error) {
-        return this.throwAfterRollback(error, () => this.restoreFileState(targetOpfsPath, previous));
-      }
-      journal.files.push({ opfsPath: targetOpfsPath, previous });
-    }
   }
 
   private removeFile(opfsPath: string): Promise<void> {
@@ -1751,5 +902,37 @@ export class RxdbFileStorage {
     }
 
     return this.filesystem.removeDirectory(directoryPath);
+  }
+
+  /**
+   * 把服务自身包装成 {@link StorageFileOpsHost}，供 `storage.ops` / `storage.rename-copy` 的自由函数调用。
+   *
+   * @remarks
+   * 取实例作参数而非用 `this`：`filesystem` 必须是 getter（后端惰性创建，host 在构造期就已建好），
+   * 而对象字面量的 getter 无法写成箭头函数、拿不到外层 `this`。参数捕获既避开 `this` 别名，
+   * 也让「host 只是实例的一层投影」这件事显式化。
+   */
+  static #createOpsHost(storage: RxdbFileStorage): StorageFileOpsHost {
+    return {
+      get filesystem() {
+        return storage.filesystem;
+      },
+      ensureLocalReady: () => storage.ensureLocalReady(),
+      getRequiredMeta: fileId => storage.getRequiredMeta(fileId),
+      findMetaByOpfsPath: opfsPath => storage.findMetaByOpfsPath(opfsPath),
+      hasFile: opfsPath => storage.hasFile(opfsPath),
+      hasDirectory: directoryPath => storage.hasDirectory(directoryPath),
+      getAllMetas: () => storage.getAllMetas(),
+      getMetaPatch: meta => storage.getMetaPatch(meta),
+      createMeta: meta => storage.createMeta(meta),
+      updateMeta: (meta, patch) => storage.updateMeta(meta, patch),
+      removeMeta: meta => storage.removeMeta(meta),
+      instantiateMeta: initData => storage.instantiateMeta(initData),
+      createTemporaryFilePath: purpose => storage.createTemporaryFilePath(purpose),
+      withPathLock: (opfsPaths, fn) => storage.withPathLock(opfsPaths, fn),
+      removeFile: opfsPath => storage.removeFile(opfsPath),
+      removeDirectoryPath: directoryPath => storage.removeDirectoryPath(directoryPath),
+      read: fileId => storage.read(fileId)
+    };
   }
 }
