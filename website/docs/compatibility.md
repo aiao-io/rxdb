@@ -34,20 +34,21 @@
 
 所有 `@aiao/*` 包同步发布，互相之间始终使用同一 `<aiao>` 版本。
 
-| 包                               | 类型       | 依赖关系                                                                              |
-| :------------------------------- | :--------- | :------------------------------------------------------------------------------------ |
-| `@aiao/rxdb-adapter-wa-sqlite`   | 适配器     | 基于 wa-sqlite；**推荐浏览器 SQLite 默认方案**，依赖 `@aiao/rxdb-adapter-sqlite-core` |
-| `@aiao/rxdb-adapter-sqlite`      | 适配器     | 官方 SQLite WASM，依赖 `@aiao/rxdb-adapter-sqlite-core`                               |
-| `@aiao/rxdb-adapter-sqlite-wasm` | 适配器     | sqlite-wasm，**全文搜索插件的唯一兼容适配器**                                         |
-| `@aiao/rxdb-adapter-sqliteai`    | 适配器     | sqliteai 运行时                                                                       |
-| `@aiao/rxdb-adapter-pglite`      | 适配器     | 浏览器内 PGlite                                                                       |
-| `@aiao/rxdb-adapter-supabase`    | 适配器     | Supabase 远端同步                                                                     |
-| `@aiao/rxdb-adapter-encrypted`   | 适配器封装 | 为底层适配器提供透明加密                                                              |
-| `@aiao/rxdb-adapter-miniprogram` | 适配器     | **实验性**，仅微信小程序逻辑层；基于 wa-sqlite，依赖 `@aiao/rxdb-adapter-wa-sqlite`   |
-| `@aiao/rxdb-plugin-search`       | 插件       | 依赖 `@aiao/rxdb-adapter-sqlite-wasm`；其他适配器 fail-fast                           |
-| `@aiao/rxdb-plugin-graph`        | 插件       | 图结构实体与查询                                                                      |
-| `@aiao/rxdb-plugin-workspace`    | 插件       | NEW 草稿恢复，需浏览器 IndexedDB                                                      |
-| `@aiao/rxdb-plugin-storage`      | 插件       | 存储管理与配额                                                                        |
+| 包                               | 类型       | 依赖关系                                                                               |
+| :------------------------------- | :--------- | :------------------------------------------------------------------------------------- |
+| `@aiao/rxdb-adapter-wa-sqlite`   | 适配器     | 基于 wa-sqlite；**推荐浏览器 SQLite 默认方案**，依赖 `@aiao/rxdb-adapter-sqlite-core`  |
+| `@aiao/rxdb-adapter-sqlite`      | 适配器     | 官方 SQLite WASM，依赖 `@aiao/rxdb-adapter-sqlite-core`                                |
+| `@aiao/rxdb-adapter-sqlite-wasm` | 适配器     | sqlite-wasm，**全文搜索插件的唯一兼容适配器**                                          |
+| `@aiao/rxdb-adapter-sqliteai`    | 适配器     | sqliteai 运行时                                                                        |
+| `@aiao/rxdb-adapter-pglite`      | 适配器     | 浏览器内 PGlite                                                                        |
+| `@aiao/rxdb-adapter-supabase`    | 适配器     | Supabase 远端同步                                                                      |
+| `@aiao/rxdb-adapter-http`        | 适配器     | 自有 REST API 远端；**仅 `SyncType.QueryCache`**，changelog 方法一律 unsupported throw |
+| `@aiao/rxdb-adapter-encrypted`   | 适配器封装 | 为底层适配器提供透明加密                                                               |
+| `@aiao/rxdb-adapter-miniprogram` | 适配器     | **实验性**，仅微信小程序逻辑层；基于 wa-sqlite，依赖 `@aiao/rxdb-adapter-wa-sqlite`    |
+| `@aiao/rxdb-plugin-search`       | 插件       | 依赖 `@aiao/rxdb-adapter-sqlite-wasm`；其他适配器 fail-fast                            |
+| `@aiao/rxdb-plugin-graph`        | 插件       | 图结构实体与查询                                                                       |
+| `@aiao/rxdb-plugin-workspace`    | 插件       | NEW 草稿恢复，需浏览器 IndexedDB                                                       |
+| `@aiao/rxdb-plugin-storage`      | 插件       | 存储管理与配额                                                                         |
 
 ## 运行时能力 × 适配器
 
@@ -58,6 +59,7 @@
 | `rxdb-adapter-pglite`                              | 浏览器     | WASM；IndexedDB                                                 | IDB                              |
 | `rxdb-adapter-sqliteai`                            | 浏览器     | WASM                                                            | 取决于运行时配置                 |
 | `rxdb-adapter-supabase`                            | 浏览器     | fetch / WebSocket（远端）                                       | 远端 + 本地缓存                  |
+| `rxdb-adapter-http`                                | 浏览器     | 全局 `fetch`（远端）                                            | 远端 + 独立注册的本地行缓存      |
 | `rxdb-adapter-miniprogram`                         | 微信小程序 | `WXWebAssembly`、`wx.getFileSystemManager()`、`BigInt` 等 11 项 | `wx.env.USER_DATA_PATH` 下的文件 |
 
 > 全文搜索（`@aiao/rxdb-plugin-search`）基于 SQLite FTS5，仅在 `@aiao/rxdb-adapter-sqlite-wasm` 上可用。

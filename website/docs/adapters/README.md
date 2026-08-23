@@ -16,10 +16,11 @@
 | `@aiao/rxdb-adapter-sqliteai`    | [SQLiteAI](./sqliteai.md)       | @sqliteai/sqlite-wasm     | ✅   | ❌       | ✅      | 本地 AI / 语义检索                       |
 | `@aiao/rxdb-adapter-pglite`      | [PGlite](./pglite.md)           | PGlite (PostgreSQL)       | —    | —        | —       | 更强 SQL / PostgreSQL 兼容               |
 | `@aiao/rxdb-adapter-supabase`    | [Supabase](./supabase.md)       | —                         | —    | —        | —       | 远端 PostgreSQL 同步                     |
+| `@aiao/rxdb-adapter-http`        | [HTTP](./http.md)               | —                         | —    | —        | —       | 自有 REST API 远端，仅 QueryCache        |
 | `@aiao/rxdb-adapter-encrypted`   | [字段加密](./encrypted.md)      | —                         | —    | —        | —       | AES-GCM-256 字段加密，叠加在本地适配器上 |
 | `@aiao/rxdb-adapter-sqlite-core` | —                               | —                         | —    | —        | —       | SQLite 共享核心代码（内部依赖）          |
 
-> **一句话决策**：默认 wa-sqlite → 全文搜索换 sqlite-wasm → AI 换 sqliteai → SQL 复杂换 PGlite → 云同步叠 Supabase → 加密叠 encrypted。
+> **一句话决策**：默认 wa-sqlite → 全文搜索换 sqlite-wasm → AI 换 sqliteai → SQL 复杂换 PGlite → 云同步叠 Supabase（自有 REST API 则叠 HTTP）→ 加密叠 encrypted。
 
 ## 数据类型支持
 
@@ -28,9 +29,10 @@
 | 四个 SQLite 适配器 | SQLite `INTEGER`    | SQLite `BLOB`      | —        |
 | PGlite             | PostgreSQL `bigint` | PostgreSQL `bytea` | —        |
 | Supabase           | ❌                  | ❌                 | ❌       |
+| HTTP               | ❌                  | ❌                 | ❌       |
 
 所有本地适配器均支持 `bigint` 和 `Uint8Array` 的 CRUD、查询、索引及 change 历史。
-Supabase 不支持这两种类型的远程同步；仅在本地使用的实体可与 Supabase 同步实体共存。
+Supabase 与 HTTP 不支持这两种类型的远程同步；仅在本地使用的实体可与远程同步实体共存。
 
 ## 推荐阅读顺序
 
