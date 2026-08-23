@@ -355,6 +355,25 @@ export abstract class RxDBAdapterRemoteBase extends RxDBAdapterBase {
    *     // metadata: [{ id: 'p1', updatedAt: '2026-01-12T10:00:00Z' }, ...]
    *   });
    * ```
+   *
+   * @remarks
+   * 实现必须满足以下两条契约，二者都是调用方**承重**的前提，不是建议（RV-001 / RV-002）：
+   *
+   * **1. 恰好发射一次全量结果，然后 `complete`。**
+   * 分页实现要把所有页拼好再发一次，不能每页一发。原因是两个调用点的语义正好相反：
+   * - `QueryCacheRepository`（`#syncQuery` / `#syncAndReadLocal`）用 `forkJoin` —— 只保留**最后一次**
+   *   发射，且**不 complete 就永远不产出**。逐页发射会静默丢掉除末页以外的全部元数据，
+   *   进而把它们误判成 orphan 并从本地缓存中驱逐。
+   * - `query-cache-primary` 的 `#fetchMetadata` 用 `firstValueFrom` —— 只取**第一次**发射。
+   *   逐页发射会让它只看到首页。
+   *
+   * **2. 传输失败必须能被 `isNetworkError` 判 `true`，业务失败必须判 `false`。**
+   * 最省事也最可靠的做法是传输失败直接抛 `NetworkOfflineError`（`isNetworkError` 的第 1 条
+   * 判据就是 `instanceof`，不依赖任何字符串约定）。注意抛出的错误**不得携带数字 `status`
+   * 属性** —— 第 2 条判据是「带数字 `status` ⇒ 不是网络错误」，会把分类结果原地抵消。
+   *
+   * 分类错了不会报错，只会让 `find({ offlineFallback: true })` 在断网时不返回缓存而是抛异常；
+   * 反向错了（把 RLS 拒绝当成离线）则会让调用方拿到陈旧缓存而看不到真正的失败原因。
    */
   abstract fetchMetadata(entityName: string, query: RuleGroup<unknown>): Observable<QueryCacheEntityMetadata[]>;
 
@@ -374,6 +393,10 @@ export abstract class RxDBAdapterRemoteBase extends RxDBAdapterBase {
    *     // products: [{ id: 'p1', name: 'Product A', ... }, ...]
    *   });
    * ```
+   *
+   * @remarks
+   * 与 {@link RxDBAdapter.fetchMetadata} 同契约：**恰好发射一次**（`ids` 分块查询要合并后再发，
+   * 调用方同样用 `forkJoin`）并 `complete`；传输失败要抛能被 `isNetworkError` 判 `true` 的错误。
    */
   abstract findByIds<T>(entityName: string, ids: string[]): Observable<T[]>;
 

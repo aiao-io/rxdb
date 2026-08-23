@@ -1,7 +1,7 @@
 ---
 id: RV-002
 title: fetchMetadata 必须单次发射并 complete 是 forkJoin 强加的承重契约，但没写在任何面向适配器作者的文档里
-status: Open
+status: Fixed
 created: 2026-08-23
 updated: 2026-08-23
 pr:
@@ -53,5 +53,18 @@ abstract fetchMetadata(entityName: string, query: RuleGroup<unknown>): Observabl
 
 ## 解决记录
 
+- [x] 修复已实现（两条方案落地，第 3 条属 US-212 范围）
 - [ ] 开 PR 修复（`pr` 字段记录链接）
 - [ ] PR 合并，`status: Resolved`
+
+### 已落地的改动
+
+与 [RV-001](./RV-001-supabase-error-classification.md) 同一 PR —— 两者的落点重合（`rxdb-adapter.ts` 的 TSDoc 与同一个新建的 supabase 用例文件），分开改会互相冲突。
+
+**复核时发现本记录漏了第三个消费方**：除 `QueryCacheRepository` 的两处 `forkJoin` 外，[query-cache-primary.ts:238](../../packages/rxdb/src/repository/query-cache-primary.ts#L238) 的 `#fetchMetadata` 用的是 `firstValueFrom`。两者语义**正好相反**——`forkJoin` 只保留**最后一次**发射且不 `complete` 就永不产出；`firstValueFrom` 只取**第一次**发射且不要求 `complete`。逐页发射会让前者静默丢掉除末页外的全部元数据（进而误判成 orphan 并驱逐本地缓存），让后者只看到首页。这使「恰好一次」成为唯一能同时满足两者的实现，比原记录论证的更硬。
+
+1. **契约写进 `rxdb-adapter.ts` 的 TSDoc**：`fetchMetadata` 处完整列出两条 MUST（恰好发射一次全量 + `complete`；传输失败可被 `isNetworkError` 判 `true`），并点名三个调用点各自用的算子，读者一跳可复验；`findByIds` 处引用同一契约（`ids` 分块查询同样要合并后再发）。
+2. **一致性用例**落在真实 supabase 适配器上：`querycache-error-contract.spec.ts` 的 `RV-002` 段订阅 `fetchMetadata` 并断言 `emissions === 1` 且收到 `complete`。断言是**计数**而非「最后一次内容对」——后者在每页一发的实现下同样成立，那正是要拦的实现。
+3. **US-212 的 AC#23 / AC#29 不动**，新包的收口已在该故事内。
+
+验证同 RV-001：新套件 9/9 绿，`rxdb` 2509 + `rxdb-adapter-supabase` 536 全绿，lint 与 typecheck 干净。

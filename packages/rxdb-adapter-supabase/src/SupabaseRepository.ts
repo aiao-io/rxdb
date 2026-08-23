@@ -6,6 +6,7 @@ import type { EntityMetadata, EntityType, IRepository, RuleGroup } from '@aiao/r
 import { EntityStaticType, getEntityMetadata, isRuleGroup, normalizeUpdateEntity, RepositoryBase } from '@aiao/rxdb';
 
 import { SupabaseDataError } from './errors.js';
+import { classify_postgrest_error } from './postgrest-error.js';
 import { apply_rule_group } from './rule_group_builder.js';
 import type { RxDBAdapterSupabase } from './RxDBAdapterSupabase.js';
 import { resolve_supabase_schema } from './schema.utils.js';
@@ -108,8 +109,8 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
       const batchSize = remaining === undefined ? pageSize : Math.min(pageSize, remaining);
       if (batchSize <= 0) break;
 
-      const { data, error } = await build_query().range(from, from + batchSize - 1);
-      if (error) throw new SupabaseDataError(`Failed to find entities: ${error.message}`);
+      const { data, error, status } = await build_query().range(from, from + batchSize - 1);
+      if (error) throw classify_postgrest_error({ error, status }, 'Failed to find entities');
 
       const batch = (data ?? []) as unknown as Record<string, unknown>[];
       rows.push(...batch);
@@ -146,9 +147,9 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
     let query = this.get_client().select(selectFields, { count: 'exact', head: true });
     query = apply_rule_group(query, where, this.metadata, this.adapter.rxdb.schemaManager);
 
-    const { count, error } = await query;
+    const { count, error, status } = await query;
     if (error) {
-      throw new SupabaseDataError(`Failed to count entities: ${error.message || 'unknown error'}`);
+      throw classify_postgrest_error({ error, status }, 'Failed to count entities');
     }
 
     return count ?? 0;
@@ -171,8 +172,8 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
       entityData['updatedBy'] = userId;
     }
 
-    const { data, error } = await this.get_client().insert(entityData).select().single();
-    if (error) throw new SupabaseDataError(`Failed to create entity: ${error.message}`);
+    const { data, error, status } = await this.get_client().insert(entityData).select().single();
+    if (error) throw classify_postgrest_error({ error, status }, 'Failed to create entity');
 
     return transform_row_to_entity(this.EntityType, this.metadata, data as Record<string, unknown>);
   }
@@ -197,12 +198,12 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
       const updatedBy = this.metadata.propertyMap.get('updatedBy');
       if (updatedBy) patchData[updatedBy.columnName] = userId;
     }
-    const { data, error } = await this.get_client()
+    const { data, error, status } = await this.get_client()
       .update<Record<string, unknown>>(patchData)
       .eq('id', entity.id)
       .select()
       .single();
-    if (error) throw new SupabaseDataError(`Failed to update entity: ${error.message}`);
+    if (error) throw classify_postgrest_error({ error, status }, 'Failed to update entity');
     return transform_row_to_entity(this.EntityType, this.metadata, data as Record<string, unknown>);
   }
 
@@ -216,8 +217,8 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
    * @throws {SupabaseDataError} RLS 拒绝 / 网络错误时
    */
   async remove(entity: InstanceType<T>): Promise<InstanceType<T>> {
-    const { data, error } = await this.get_client().delete().eq('id', entity.id).select('id').single();
-    if (error) throw new SupabaseDataError(`Failed to remove entity: ${error.message}`);
+    const { data, error, status } = await this.get_client().delete().eq('id', entity.id).select('id').single();
+    if (error) throw classify_postgrest_error({ error, status }, 'Failed to remove entity');
     if (data?.id !== entity.id) throw new SupabaseDataError('Failed to remove entity: deleted row did not match');
     return entity;
   }

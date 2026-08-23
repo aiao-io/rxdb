@@ -45,6 +45,15 @@ export class SupabaseUnsupportedPropertyTypeError extends SupabaseConfigError {
 
 /**
  * 网络错误
+ *
+ * @deprecated 请改用 core 的 `NetworkOfflineError`。
+ *
+ * @remarks
+ * 本类从未在适配器内被抛出过，且**不可用于表示离线**：core 的 `isNetworkError` 是
+ * `offlineFallback` 的唯一判据，而它认不出这个类（既非 `NetworkOfflineError` 实例，
+ * `name` 也不在 `NETWORK_ERROR_NAMES` 内），会一律判 `false`（RV-001）。
+ * 传输失败的正确抛法见 `classify_postgrest_error`。
+ * 保留仅为不破坏已发布的公开 API。
  */
 export class SupabaseNetworkError extends SupabaseSyncError {
   constructor(message: string) {

@@ -1,7 +1,7 @@
 ---
 id: RV-001
 title: supabase 把传输失败包成 SupabaseDataError，QueryCache 的 offlineFallback 在唯一已发布的远端适配器上永不触发
-status: Open
+status: Fixed
 created: 2026-08-23
 updated: 2026-08-23
 pr:
@@ -79,5 +79,24 @@ vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(throwError(networkDown));
 
 ## 解决记录
 
+- [x] 修复已实现（三条方案全部落地）
 - [ ] 开 PR 修复（`pr` 字段记录链接）
 - [ ] PR 合并，`status: Resolved`
+
+### 已落地的改动
+
+判别位选的是 **`status === 0`**，不是嗅探 message。依据在 postgrest-js 自己的代码里：fetch 失败时它**不 reject**，而是 catch 掉 `TypeError` 后返回 `{ error, data: null, status: 0, statusText: '' }`（`PostgrestBuilder` 的 `res.catch`）。于是 `status === 0` ⇒ 连接没建起来；任何非 0 数字 ⇒ 拿到了 HTTP 状态码，401 / 403 / 502 都是远端给出的**回答**。
+
+放宽 core 那条 `FETCH_FAILURE_MESSAGE` 正则（去掉 `instanceof TypeError` 限制）是被否掉的捷径：RLS 或约束错误的 message 里出现 `load failed` 就会被误判成离线，调用方拿到陈旧缓存而不是失败原因。
+
+1. **新增 `packages/rxdb-adapter-supabase/src/postgrest-error.ts`** —— `classify_postgrest_error(response, prefix)`：传输失败 → core 的 `NetworkOfflineError`，其余 → `SupabaseDataError`。`status` 声明为可选，缺失时按「不是传输失败」处理，与改动前行为逐字一致（既有只解构 `{ data, error }` 的调用点零回归）。
+   - 埋雷已用专用断言拦住：返回的错误**不得携带数字 `status`** —— `isNetworkError` 第 2 条判据是「带数字 `status` ⇒ 不是网络错误」，把 `status: 0` 挂上去会把这次修复原地抵消。
+2. **19 个 `throw` 点改走分类器**：`pagination.ts` 的 `select_all_pages`、`RxDBAdapterSupabase.ts`（含 `executeRetryableWrite` —— 重试耗尽后才分类，传输失败重试到最后仍是传输失败）、`SupabaseRepository.ts`、`SupabaseTreeRepository.ts`。剩余 6 处 `SupabaseDataError` 经核对确非传输失败（3× invalid response data、no row returned、deleted row did not match、`handleRlsCheckFailure`），保持不变。
+3. **`SupabaseNetworkError` 标 `@deprecated`**，指向 `NetworkOfflineError`。该类从未被抛出过，且 `code = 'NETWORK_ERROR'` 不在 `NETWORK_ERRNO` 内、`name` 也不在 `NETWORK_ERROR_NAMES` 内，`isNetworkError` 对它一律判 `false`。删除是 breaking change，故保留。
+4. **core 侧不再二次包裹**：`QueryCacheRepository.#wrapWithOfflineFallback` 改用幂等的 `toOfflineError`，避免 `NetworkOfflineError: NetworkOfflineError: …` 且 `originalError` 指向中间层丢掉真正起因。
+5. **契约写进 `rxdb-adapter.ts` 的 `fetchMetadata` / `findByIds` TSDoc**（与 RV-002 同一处落点），覆盖既有适配器，不再只管新包。
+6. **用例落在真实适配器上**，不在 core 的 mock 套件里：新增 `packages/rxdb-adapter-supabase/src/__tests__/querycache-error-contract.spec.ts`，断言对象全部取自适配器**真正抛出的那一个**。含端到端三条：断网 + 有缓存 → 命中缓存；断网 + 无缓存 → `NetworkOfflineError` 且不重复包裹；业务错误 + 有缓存 → 原样上抛不冒充离线。
+
+> 刻意**不**把用例加进 core 的 `contracts/remote-adapter.spec.ts` —— 那套件通篇 `vi.fn`，在那里断言只会验证替身，正是本记录诊断的那个病灶。
+
+验证：新套件 9/9 绿（红→绿，初次运行 4 failed）；`rxdb` 2509 + `rxdb-adapter-supabase` 536 全绿；两包 lint `--max-warnings=0` 通过；`tsconfig.lib.json` 与 `rxdb` 的 `tsconfig.spec.json` 独立 `tsc --noEmit` 干净（supabase 的 spec config 有 8 处**改动前既存**的 TS 错误，均在未触及的文件里）。
