@@ -44,6 +44,8 @@ INVEST 检查清单:
 
 即：**阶段 A 关闭前 HTTP 包不得以任何形式标可发布；阶段 B 关闭前不得标 `stable`。** 代码可并行——门禁卡的是发布动作，不是开工。
 
+> **本节自 2026-08-22 起为留档。** 两阶段当天全关，上表两档门禁**同时全部解除**，US-212 现在零前置、关闭其阶段 A 即可直接发 `stable`，README / npm 不再需要写 `experimental`。保留本节只为解释当初为何这样排；**不要照字面读成 US-212 仍被本故事挡着**。
+>
 > **阶段边界不因实现顺手而移动。** [D8](#d8--本地读一律走-irepository不再依赖-findall--findbyids-两个-optional-duck) 会让 AC#14 / AC#15 在阶段 A 顺带满足。允许提前打勾，但**阶段 B 的门禁语义不变**：US-212 标 `stable` 仍要求 #11～20 全部关闭，不得因「A 已经把 14/15 关了」而认为 B 已过半。
 
 QueryCache 接线独立有价值：supabase 已经声明了 QueryCache ducks（[US-203 AC#6](../adapter/US-203-supabase-adapter.md) ✅），缺的是引擎把它当生产路径。
@@ -376,6 +378,6 @@ QueryCache 的拉取落地走 `local.upsertMany`，那是**绕开仓储的裸 SQ
 
 - [US-203 Supabase 适配器](../adapter/US-203-supabase-adapter.md) — AC#6 QueryCache ducks 已 ✅；生产接线是本故事
 - [US-006 响应式查询](./US-006-reactive-queries.md) — AC#6 类级 SWR 已 ✅；生产接线是本故事
-- [US-212 HTTP 远程适配器](../adapter/US-212-http-adapter.md) — 硬前置本故事；本故事不实现 HTTP。D11 的错误类型是两边的对齐点
+- [US-212 HTTP 远程适配器](../adapter/US-212-http-adapter.md) — ~~硬前置本故事~~ **前置已于 2026-08-22 随本故事两阶段全关而解除，US-212 现零前置**；本故事不实现 HTTP。D11 的错误类型是两边的对齐点
 - [US-306 FR-046](../collaboration/US-306-working-tree-commits.md) — 兼容 cache 排除在 working tree 外，不实现 epic-006；`mixed_versioned_cache_transaction` 由本故事首次定义
 - [epic-004](../../epics/epic-004-future-features.md) — 归入理由：epic-002 已 Done，不得持有未完成故事

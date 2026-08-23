@@ -9,10 +9,12 @@
 
 ## 目录结构
 
-| 文件                 | 说明                   | 状态 |
-| -------------------- | ---------------------- | ---- |
-| `README.md`          | 本说明与状态约定       | —    |
-| `review.template.md` | 新建 review 记录的模板 | —    |
+| 文件                                                                                 | 说明                                                                         | 状态 |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- | ---- |
+| `README.md`                                                                          | 本说明与状态约定                                                             | —    |
+| `review.template.md`                                                                 | 新建 review 记录的模板                                                       | —    |
+| [`RV-001-supabase-error-classification.md`](RV-001-supabase-error-classification.md) | supabase 把传输失败包成 `SupabaseDataError`，`offlineFallback` 永不触发      | Open |
+| [`RV-002-fetchmetadata-emission-contract.md`](RV-002-fetchmetadata-emission-contract.md) | `fetchMetadata` 的「单次发射 + complete」是 `forkJoin` 强加的契约，但没写下 | Open |
 
 ## 状态约定
 

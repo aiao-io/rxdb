@@ -6,16 +6,16 @@
 
 ## 功能建议
 
-| 优先级 | 建议功能                           | 对应 story                                                             | 建议理由                                                                                                                                                                       | 主要交付边界                                                                                                                              |
-| :----: | ---------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-|   ✅   | QueryCache 接入统一 Repository     | [US-020](stories/core/US-020-querycache-repository.md)                 | **已于 2026-08-22 两阶段全关**（保留在表内是因为约束 10 / 线 F 仍引用它）。`SyncType.QueryCache` 不再是空操作：`getRepository` 走 `QueryCacheRepository`，写 remote-then-local | 两阶段均已交付，**US-212 的两档发布门禁（`experimental` / `stable`）同时解除**                                                            |
-|   P1   | HTTP 远程适配器                    | [US-212](stories/adapter/US-212-http-adapter.md)                       | **产品优先级明确要求靠前。** 已有 REST API 没有 RemoteBase 可挂，今天只能绑 supabase。必须是独立 `adapter:remote` + 独立注册 sqlite 行缓存，禁止 HTTP 内嵌 sqlite              | 阶段 A handlers + QueryCache ducks + 分页/分块 + **QueryCache-only 写路径不变量**（约束 11）；阶段 B REST mapping。发布门禁见约束 10      |
-|   P2   | 提交图与 HEAD 持久化               | [US-305](stories/collaboration/US-305-commit-graph-head.md)            | 旧暂存导出已在 `0.0.24` 删除，能力缺口现在完全敞开                                                                                                                             | 独立命名空间的新契约、commit 存储布局、baseline commit 与一次性迁移                                                                       |
-|   P2   | 生成器 default 序列化与显式失败    | [US-018](stories/core/US-018-generator-default-serialization.md)       | 今天 bigint `default` 直接抛原生 `TypeError`、`Uint8Array` 塌缩成 `{"0":1,...}`、函数工厂被静默丢弃，生成的客户端行为与源实体不一致                                            | 拆 JSON 往返改运行时分派、`default` → 源码字面量映射表、`unsupportedDefaultFactory` / `unsupportedDefaultValue`、`BREAKING CHANGE` 迁移表 |
-|   P2   | 子路径入口纳入 API 表面基线        | [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)       | 版本策略把子路径承诺为公开 API，门禁却只扫主入口——承诺与门禁的差额只能靠人工审查补                                                                                             | 源入口声明收敛到单一真相源、基线格式扩到多入口、资产入口白名单跳过、三处文档收口                                                          |
-|   P2   | Electron PGlite 数据目录与事务宿主 | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)     | PGlite callback transaction 不能跨 IPC 序列化，需要 SQLite 路径不需要的事务 host 协议                                                                                          | **先做两案对照实验**（批次 1 线 G），再做主进程 data directory、事务 ID 协议或主进程托管 adapter、跨进程类型保真                          |
-|   P2   | PGlite 原生全文搜索                | [US-703](stories/future/US-703-pglite-full-text-search.md)             | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                                                                                                                      | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                                              |
-|   P3   | 多端小程序宿主（先抽契约）         | [US-211 阶段 A](stories/adapter/US-211-multi-miniprogram-platforms.md) | Taro 有 `build:alipay/tt/qq/swan`，适配器只认 `wx`；先抽 host + 可行性矩阵，**不**扩大公开支持声明                                                                             | `MiniProgramHost`、微信路径零回归、`miniprogram-platform-feasibility.md`；B/C 只吃矩阵 `supported`                                        |
+| 优先级 | 建议功能                           | 对应 story                                                             | 建议理由                                                                                                                                                                       | 主要交付边界                                                                                                                                          |
+| :----: | ---------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+|   ✅   | QueryCache 接入统一 Repository     | [US-020](stories/core/US-020-querycache-repository.md)                 | **已于 2026-08-22 两阶段全关**（保留在表内是因为约束 10 / 线 F 仍引用它）。`SyncType.QueryCache` 不再是空操作：`getRepository` 走 `QueryCacheRepository`，写 remote-then-local | 两阶段均已交付，**US-212 的两档发布门禁（`experimental` / `stable`）同时解除**                                                                        |
+|   P1   | HTTP 远程适配器                    | [US-212](stories/adapter/US-212-http-adapter.md)                       | **产品优先级明确要求靠前。** 已有 REST API 没有 RemoteBase 可挂，今天只能绑 supabase。必须是独立 `adapter:remote` + 独立注册 sqlite 行缓存，禁止 HTTP 内嵌 sqlite              | 阶段 A handlers + QueryCache ducks + 翻页/分块契约 + 错误分类 + **结构隔离不变量**（约束 11）；阶段 B REST mapping。**发布门禁已全部解除**（约束 10） |
+|   P2   | 提交图与 HEAD 持久化               | [US-305](stories/collaboration/US-305-commit-graph-head.md)            | 旧暂存导出已在 `0.0.24` 删除，能力缺口现在完全敞开                                                                                                                             | 独立命名空间的新契约、commit 存储布局、baseline commit 与一次性迁移                                                                                   |
+|   P2   | 生成器 default 序列化与显式失败    | [US-018](stories/core/US-018-generator-default-serialization.md)       | 今天 bigint `default` 直接抛原生 `TypeError`、`Uint8Array` 塌缩成 `{"0":1,...}`、函数工厂被静默丢弃，生成的客户端行为与源实体不一致                                            | 拆 JSON 往返改运行时分派、`default` → 源码字面量映射表、`unsupportedDefaultFactory` / `unsupportedDefaultValue`、`BREAKING CHANGE` 迁移表             |
+|   P2   | 子路径入口纳入 API 表面基线        | [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)       | 版本策略把子路径承诺为公开 API，门禁却只扫主入口——承诺与门禁的差额只能靠人工审查补                                                                                             | 源入口声明收敛到单一真相源、基线格式扩到多入口、资产入口白名单跳过、三处文档收口                                                                      |
+|   P2   | Electron PGlite 数据目录与事务宿主 | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)     | PGlite callback transaction 不能跨 IPC 序列化，需要 SQLite 路径不需要的事务 host 协议                                                                                          | **先做两案对照实验**（批次 1 线 G），再做主进程 data directory、事务 ID 协议或主进程托管 adapter、跨进程类型保真                                      |
+|   P2   | PGlite 原生全文搜索                | [US-703](stories/future/US-703-pglite-full-text-search.md)             | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                                                                                                                      | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                                                          |
+|   P3   | 多端小程序宿主（先抽契约）         | [US-211 阶段 A](stories/adapter/US-211-multi-miniprogram-platforms.md) | Taro 有 `build:alipay/tt/qq/swan`，适配器只认 `wx`；先抽 host + 可行性矩阵，**不**扩大公开支持声明                                                                             | `MiniProgramHost`、微信路径零回归、`miniprogram-platform-feasibility.md`；B/C 只吃矩阵 `supported`                                                    |
 
 > US-306 / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
 > [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定依赖关系。
@@ -90,16 +90,17 @@
 ## 完成计划（2026-08-18 排定，2026-08-22 重排）
 
 桌面本地 SQLite（US-207 + US-210）与 epic-008 链首（US-013 + US-014）收口后，
-仓库还剩 **15 条**未关闭故事（排定时为 2 条 In Progress + 11 条 Backlog；US-015 于 2026-08-21 交付阶段 A
-后置 `In Review`，随后补入 US-020 / US-212 两条 Backlog，今天是 2 In Progress + 1 In Review + 12 Backlog）。本节只排**顺序与并行度，不排日期**——
+仓库还剩 **14 条**未关闭故事（2 In Progress + 1 In Review + 11 Backlog，口径与计数方式同
+[status-overview 状态汇总](status-overview.md#状态汇总)，那里是唯一维护点）。本节只排**顺序与并行度，不排日期**——
 依据是硬前置与已冻结的决策，不是估时。同一批内的行**彼此无依赖**，可各开各的 PR；
 批次之间才是顺序。每条的关闭判据以对应 story 的 AC 为准，本表只写「什么算这条做完了」。
 
 **2026-08-22 重排的三处**，理由都写在对应行与约束里，不在此处展开：
 
 1. **US-020 + US-212 由批次 3 提到批次 1（线 F）**——产品优先级要求 HTTP 远程适配器尽量靠前。
-   两个原本挡住它的锁按约束 10 / 11 拆掉：epic-006 前置由自持不变量替代，发布门禁收窄到 US-020 阶段 A。
-   拆锁后 US-212 从「全仓库依赖最深的一条」变成只等 US-020 阶段 A。
+   两个原本挡住 US-212 的锁按约束 10 / 11 拆掉：epic-006 前置改由**结构隔离**不变量（约束 11）替代，
+   发布门禁先收窄到 US-020 阶段 A。**该门禁已于 2026-08-22 随 US-020 两阶段全关而彻底解除**
+   （约束 10），US-212 因此从「全仓库依赖最深的一条」变成**零前置**、关闭阶段 A 即可发 `stable`。
 2. **US-208 的选型实验由批次 3 拆出成线 G**——它是决策债不是开发债，零前置，结论会改变实现规模。
 3. **线 A 的关闭判据重写**——原判据里有两条今天就已成立（`kind=bridge` 已在清单里、门禁已绿），
    照字面走会得到假绿并据此回写 US-305 的 FR-030 / AC14 证据，而 US-305 AC US2-14 明文禁止 `v0.0.25`。
@@ -113,7 +114,7 @@
 | **C｜US-505 收尾**          | [US-505](stories/plugin/US-505-tauri-local-file-storage.md) 剩 4 条 ⚠️ + 2 条 ⬜                                                                             | 桌面 Local-first 的最后一块，且是 [US-905](stories/future/US-905-tauri-native-devtools.md) 阶段 2 的硬前置。两个前置（`apps/dev-rxdb-tauri-e2e`、三平台打包矩阵）2026-08-17 已建好，S1～S5 迁包 2026-08-18 已关——代码侧**缺的纯粹是本故事自己的 spec**。但 AC#6 / #7 另含**一次代码之外的触发动作**（与线 A 同性质，只是成本低得多），已单列为零散收尾项第 4 条，不要再写成「没有任何外部依赖」 | AC#1/#3：打包应用真实重启 + 拷贝应用数据目录后启动；AC#5：≥ 50 MiB 实测 + 「内容不整体进 JS 堆」的内存观测；AC#8：磁盘满（小容量 loopback / ramdisk）；AC#6/#7：三家 webview 与三平台 smoke——**缺的是本故事自己的 specs，不是触发机会**：`release-desktop.yml` 已首跑全绿（见「零散收尾项」第 3 条），但它跑的是 `dev-rxdb-tauri-e2e:desktop-smoke`，而该 project 里今天只有 US-210 的 `desktop-persistence.spec.ts`。写完 specs 后仍需 `workflow_dispatch` 或一次发布才跑得到，本机跑不出来                                                                                                                                                                                                                                 |
 | **D｜两张独立小票**         | [US-018](stories/core/US-018-generator-default-serialization.md)、[US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)                           | 零前置、互不依赖，谁有空谁上。US-601 顺带认领 [capability-matrix](capability-matrix.md#已知的需求覆盖缺口) 第 2 条缺口，关掉「改这 12 个子路径入口的导出必须在 PR 描述里人工声明破坏性」这条**人肉**门禁——人肉门禁迟早会漏                                                                                                                                                                      | US-018 含 `BREAKING CHANGE`（函数工厂 `default` 在生成期抛错），**必须与迁移表同 PR 发布**（约束 1），且**不得与线 A 的桥接版本同批发**（约束 12）；US-601 以其 AC 为准                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | **E｜US-904 的零前置半**    | [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 A（Electron 43 + MV3 stop/go 实证）与阶段 C1（面板抽取）                            | 阶段 A 零前置，且它是阶段 D 的**门禁**：判 `unsupported` 则阶段 D 整段不做——这种「可能直接砍掉一整个阶段」的实证越早跑越省。C1 是行为中性的重构，阶段 B 已交付，不必等任何东西                                                                                                                                                                                                                  | 阶段 A 给出 `decision: supported` 或 `unsupported` 的实证结论（不是推测）；C1 把面板抽成私有 Angular library，行为零变化                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| **F｜HTTP 快车道**          | ~~[US-020](stories/core/US-020-querycache-repository.md) 阶段 A → 阶段 B~~（✅ 2026-08-22 全关），余 [US-212](stories/adapter/US-212-http-adapter.md) 阶段 A | **产品优先级要求 HTTP 尽量靠前，因此整条从批次 3 提到批次 1。** 两个锁都已拆掉：US-212 的 epic-006 前置由约束 11 的自持不变量替代，发布门禁由约束 10 收窄到 US-020 阶段 A。US-020 阶段 A 本就零前置，US-212 阶段 A 的代码一直允许并行开发——原本挡住的只有「标可发布」这一步                                                                                                                     | US-020 阶段 A：`getRepository` / EntityManager 在 `sync.type === QueryCache` 时真的走 `QueryCacheRepository`，写路径 remote-then-local，ducks fail-fast；US-212 阶段 A：AC#1～14 + 约束 11 的 QueryCache-only 契约测试。**两者都关 = US-212 可发布**（标 `experimental`）；US-020 阶段 B 再关 = US-212 可标 `stable`                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **F｜HTTP 快车道**          | ~~[US-020](stories/core/US-020-querycache-repository.md) 阶段 A → 阶段 B~~（✅ 2026-08-22 全关），余 [US-212](stories/adapter/US-212-http-adapter.md) 阶段 A | **产品优先级要求 HTTP 尽量靠前，因此整条从批次 3 提到批次 1。** 三个锁现已全拆：US-212 的 epic-006 前置由约束 11 的结构隔离不变量替代；发布门禁由约束 10 收窄到 US-020 阶段 A，而 US-020 两阶段已于 2026-08-22 全关——**US-212 现在零前置，可直接开工并按 `stable` 发布**                                                                                                                        | US-212 阶段 A：AC#1～22（handler 翻页/分块契约、`isNetworkError` 错误分类、`updatedAt` ISO wire、bigint/binary fail-fast、约束 11 的结构隔离契约测试、能力矩阵计数 9 → 10）。**无发布门禁**，关闭即可发 `stable`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | **G｜US-208 两案对照实验**  | 让「IPC 事务 ID 协议」与「adapter 完整托管主进程」两案各过同一套事务与事件测试，产出选型结论                                                                 | 从批次 3 拆出来的**决策债**，不是开发债：零前置，且结论会显著改变 US-208 的规模估计。与线 E 阶段 A 同性质——先花小钱做实证，避免大钱花错方向。捆在实现里等于把决策也一起推迟                                                                                                                                                                                                                     | 两案各有一份可运行实现与同一套事务/事件测试的结果对照，写进 [US-208](stories/adapter/US-208-electron-pglite-data-directory.md) 并**冻结选型**（约束 3）。实现本体留在批次 3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ### 批次 2：批次 1 解锁后
@@ -123,7 +124,7 @@
 | [US-305](stories/collaboration/US-305-commit-graph-head.md) → [US-306](stories/collaboration/US-306-working-tree-commits.md) 阶段 A → B → C →（[US-307](stories/collaboration/US-307-restore-session.md) ∥ [US-308](stories/collaboration/US-308-branch-isolation-conflict.md)） | 线 A       | epic-006 的固定顺序（约束 5），**不可交换**。US-307 / US-308 的核心持久层半边可与 US-306 阶段 C 并行开工，但三框架入口与 benchmark 采样必须复用阶段 C 冻结的 `useWorkingTree()` 与 `bench-working-tree`                                                                               |
 | US-904 阶段 C2 → 阶段 D                                                                                                                                                                                                                                                          | 线 E       | C2 是四段 relay 与 v2 切换；阶段 D 的另外两个前置 US-207 / US-504 **均已 Done**，所以 D 只等 A(supported) + C。**线 E 阶段 A 判 `unsupported` 时本行只剩 C2**：阶段 D 转 `Blocked` 并记录替代故事，US-904 整体 `status` 随之转 `Blocked`，阶段 B / C 与 US-905 **不受影响、继续推进** |
 | [US-905](stories/future/US-905-tauri-native-devtools.md) 阶段 1 → 阶段 2                                                                                                                                                                                                         | 线 E、线 C | 阶段 1 只门禁在 US-904 阶段 C（Chrome 是 v2 的参考实现，让 Tauri 当第一个发现协议缺陷的地方是错的）；阶段 2 的 US-210 前置**已 Done**，只剩 US-505。两阶段必须是独立的 PR 序列                                                                                                        |
-| [US-212](stories/adapter/US-212-http-adapter.md) 阶段 B                                                                                                                                                                                                                          | 线 F       | REST resource URL 模板、可选 ETag/If-None-Match、可选 SSE/invalidation、可选 eviction。阶段 A 已在批次 1 交付并发布，本阶段是增量能力，不再挡任何人                                                                                                                                   |
+| [US-212](stories/adapter/US-212-http-adapter.md) 阶段 B                                                                                                                                                                                                                          | 线 F       | REST resource URL 模板、可选 ETag/If-None-Match、可选 SSE/invalidation、可选 eviction。**待批次 1 线 F 的阶段 A 交付并发布后开工**（阶段 A 今天仍是 ⬜，不要照字面读成已完成）；本阶段是增量能力，不挡任何人                                                                          |
 
 ### 批次 3：能力补齐（无硬前置，按价值排在后面）
 
@@ -172,14 +173,14 @@
 
 ### 明确不排期
 
-| 项                                                      | 判定                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| US-015 阶段 B（插件间依赖图）                           | **已移出 epic-008 承诺范围**（2026-08-21）。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`，零 `plugin:*` 消费方——拓扑序与环检测是为一个不存在的依赖图准备的。**解锁条件 = 出现第一个 `plugin:*` 依赖声明**（约束 8，这是判据不是建议）。**连带结论（2026-08-22 核对）：US-015 的 `In Review` 是稳态，不是过渡态。** 本表其余 14 条未关闭故事（US-020 / US-212 / US-305～308 / US-904 / US-905 / US-208 / US-211 / US-703 / US-601 / US-018 / US-505）**没有任何一条会产生 `plugin:*` 消费方**，所以状态汇总里那个「👀 1」在可预见的排期内是常量。读表时不要把它当待办 |
-| `US-016` 连接纪元与停机收敛                             | **已移出，不再解锁**（2026-08-21）。原始症状（`init()` 失败只复位 `#rxdb_initialized`）已随 US-015 阶段 A 大部分修复；剩余的 `versionManager.destroy()` 漏写降级为 bugfix。收益上限是 `#shutdown()` 从 14 步变 11 步——其余 9 步是状态复位，作用域原语按定义碰不到                                                                                                                                                                                                                                                                                                              |
-| `US-017` 三框架宿主作用域                               | **已移出**（2026-08-21）。三端各自已有原生作用域并且在用（Angular `DestroyRef` / React `useEffect` cleanup / Vue `onScopeDispose`），抽第四层需要先有三端各自的泄漏证据。铁律「三框架对称」约束的是对外 API 对称，不是内部实现共用同一原语。**解锁条件 = 三端任一出现可复现的清理泄漏**                                                                                                                                                                                                                                                                                        |
-| `npm deprecate @aiao/rxdb-adapter-desktop`（US-207 E6） | **已判定不做**（2026-08-18）。`@aiao/rxdb-adapter-desktop@0.0.25` 保留在 registry 上，未来仍可更新；迁移路径由 `website/docs/migration/desktop-split.md` 指路                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `packages/rxdb-adapter-tauri/rust/` 发 crates.io        | 本轮不发（US-210 T7，`publish = false`）。README 已写清 path / git 依赖的用法与限制，留作后续任务。**2026-08-20 复核：维持不发**，以后再说，不占本轮任何判据                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 桌面安装包（installer / bundle）的自动化验证            | **人工验收，不排自动化**（2026-08-20 判定）。`release-desktop.yml` 跑的是 `tauri build --ci --no-bundle`，只验编译与 smoke、不产安装包；装包能否安装启动由人工过一遍即可，不为此加 CI 作业                                                                                                                                                                                                                                                                                                                                                                                     |
+| 项                                                      | 判定                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| US-015 阶段 B（插件间依赖图）                           | **已移出 epic-008 承诺范围**（2026-08-21）。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`，零 `plugin:*` 消费方——拓扑序与环检测是为一个不存在的依赖图准备的。**解锁条件 = 出现第一个 `plugin:*` 依赖声明**（约束 8，这是判据不是建议）。**连带结论（2026-08-22 核对）：US-015 的 `In Review` 是稳态，不是过渡态。** 本表其余 13 条未关闭故事（US-212 / US-305～308 / US-904 / US-905 / US-208 / US-211 / US-703 / US-601 / US-018 / US-505）**没有任何一条会产生 `plugin:*` 消费方**，所以状态汇总里那个「👀 1」在可预见的排期内是常量。读表时不要把它当待办 |
+| `US-016` 连接纪元与停机收敛                             | **已移出，不再解锁**（2026-08-21）。原始症状（`init()` 失败只复位 `#rxdb_initialized`）已随 US-015 阶段 A 大部分修复；剩余的 `versionManager.destroy()` 漏写降级为 bugfix。收益上限是 `#shutdown()` 从 14 步变 11 步——其余 9 步是状态复位，作用域原语按定义碰不到                                                                                                                                                                                                                                                                                                     |
+| `US-017` 三框架宿主作用域                               | **已移出**（2026-08-21）。三端各自已有原生作用域并且在用（Angular `DestroyRef` / React `useEffect` cleanup / Vue `onScopeDispose`），抽第四层需要先有三端各自的泄漏证据。铁律「三框架对称」约束的是对外 API 对称，不是内部实现共用同一原语。**解锁条件 = 三端任一出现可复现的清理泄漏**                                                                                                                                                                                                                                                                               |
+| `npm deprecate @aiao/rxdb-adapter-desktop`（US-207 E6） | **已判定不做**（2026-08-18）。`@aiao/rxdb-adapter-desktop@0.0.25` 保留在 registry 上，未来仍可更新；迁移路径由 `website/docs/migration/desktop-split.md` 指路                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `packages/rxdb-adapter-tauri/rust/` 发 crates.io        | 本轮不发（US-210 T7，`publish = false`）。README 已写清 path / git 依赖的用法与限制，留作后续任务。**2026-08-20 复核：维持不发**，以后再说，不占本轮任何判据                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 桌面安装包（installer / bundle）的自动化验证            | **人工验收，不排自动化**（2026-08-20 判定）。`release-desktop.yml` 跑的是 `tauri build --ci --no-bundle`，只验编译与 smoke、不产安装包；装包能否安装启动由人工过一遍即可，不为此加 CI 作业                                                                                                                                                                                                                                                                                                                                                                            |
 
 > **线 A 是一次对外的不可逆动作**（推 tag + `pnpm publish`），本节只做排期，不代表已获授权执行；
 > 真要发布时按 release-plan.md 第 4 步跑绿门禁、并单独确认。另注意
@@ -238,44 +239,51 @@
 9. **过度设计判据，不是建议。** 进入 epic-008 的两条要同时满足：是「资源获取与释放拆成两处」的问题，
    且能写出今天用户踩得到的具体症状。**状态变量复位不算病灶**——`#shutdown()` 里 `#transaction_stack = []`、
    `#connected_sub.next(false)` 这类复位，作用域原语按定义碰不到，不得算进 epic-008 的病灶数。
-10. **永远不要在 QueryCache 接线前发 HTTP 包**，但门禁按阶段分档，不是一刀切到「全部阶段」。
-    [US-212](stories/adapter/US-212-http-adapter.md) 硬前置 [US-020](stories/core/US-020-querycache-repository.md)，
-    阶段 A 代码允许并行开发。**两档发布门禁**：
+10. ~~**永远不要在 QueryCache 接线前发 HTTP 包**~~ **两档发布门禁已于 2026-08-22 全部解除**（2026-08-23 回填本条）。
+    [US-020](stories/core/US-020-querycache-repository.md) 两阶段全关（`status: Done`）后，
+    [US-212](stories/adapter/US-212-http-adapter.md) **零前置，可直接开工并按 `stable` 发布**。
 
-    | 动作                                  | 门禁              | 依据                                                                                                                                                                      |
-    | ------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-    | US-212 标**可发布**（`experimental`） | US-020 **阶段 A** | 阶段 A 就是「生产路径真的实例化 `QueryCacheRepository`」。本条要防的病症——配了 QueryCache 却 find 打本地、save 进 changelog——**由阶段 A 治好**，阶段 A 关了病症就不存在了 |
-    | US-212 标 **`stable`**                | US-020 **阶段 B** | 阶段 B 是缓存质量（orphan 删除、指纹含模式、SWR SQL、错误分类）。质量未验证的缓存可以发，但不能承诺稳定                                                                   |
+    | 动作                                  | 曾经的门禁        | 现状                              |
+    | ------------------------------------- | ----------------- | --------------------------------- |
+    | US-212 标**可发布**（`experimental`） | US-020 **阶段 A** | ✅ 已解除（2026-08-22 阶段 A 关） |
+    | US-212 标 **`stable`**                | US-020 **阶段 B** | ✅ 已解除（2026-08-22 阶段 B 关） |
 
-    **这是 2026-08-22 对原判据的收窄**：原文写「不得在 US-020 **全部阶段**关闭前标稳定/可发布」，
-    把「可发布」和「稳定」绑在同一个门禁上。收窄的代价说清楚：阶段 A 关闭、阶段 B 未关时发出的 HTTP 包，
-    其行缓存的 orphan 处理与错误分类是 US-020 阶段 A 的原样行为，**必须在包 README 与 npm 描述里标 `experimental`**，
-    不得在文档里承诺缓存一致性。收益是 HTTP 提前一整个阶段可用——这正是产品优先级要求的。
+    留档判据（复查时用来确认不是漏改）：本条要防的病症是「配了 `SyncType.QueryCache` 却 find 打本地、
+    save 进 local changelog」，由 US-020 阶段 A 治好；`experimental` 标注要防的是「缓存质量未验证却承诺一致性」，
+    由阶段 B（orphan 删除、指纹含模式、SWR SQL、错误分类）治好。两者都已关闭，因此 **README / npm 描述
+    不再需要标 `experimental`**。
 
-    协议不变量不受本条收窄影响，仍然是硬的：HTTP 是独立 `adapter:remote`，sqlite 是独立 `adapter:local`，
-    **禁止 HTTP 内部拥有 sqlite**；v1 changelog 方法（`pullChanges` / `mergeChanges` / `getChangeCount` /
-    `pullChangesBatch`）必须 throw unsupported，**不得假空**。
+    协议不变量与本条门禁无关，仍然是硬的：HTTP 是独立 `adapter:remote`，sqlite 是独立 `adapter:local`，
+    **禁止 HTTP 内部拥有 sqlite**；v1 changelog 方法（`pullChanges` / `mergeChanges` / `getChangeCount`）
+    必须 throw unsupported，**不得假空**；`pullChangesBatch` 是 optional 成员，调用点做特性探测，
+    **不实现即可**，实现了也不得返回空数组。
 
-11. **US-212 不再挂在 epic-006 上，改由一条自持不变量替代。** 原判据要求「US-212 不得在
+11. **US-212 不再挂在 epic-006 上，改由一条结构隔离不变量替代。** 原判据要求「US-212 不得在
     [US-306](stories/collaboration/US-306-working-tree-commits.md) 阶段 A 的 bypass 门禁冻结前标可发布」，
     理由是本包的缓存写路径核心 `upsertMany()` / `deleteByIds()` 正是该门禁要挂的对象。
-    **2026-08-22 判定该前置过度保守，予以解除**，依据是规范原文：
+    **2026-08-22 判定该前置过度保守，予以解除**，依据是
+    [epic-006 写入口语义矩阵](epics/epic-006-working-tree-commits.md#写入口语义矩阵)中这两个方法的行
+    及其紧随的注：政策方向（版本化实体表即拒绝、QueryCache 实体表即放行）已定，US-306 阶段 A 补的是
+    **覆盖面**，「不影响 §4.6 的裁决结论」。
 
-    - [adapter-contract §4.6](../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决)
-      第 5 步「查询缓存实体表 → 放行」**已经是裁决结论**，不是待定项；
-    - [epic-006 写入口语义矩阵](epics/epic-006-working-tree-commits.md#写入口语义矩阵)对这两个方法的行明写
-      「目标是版本化业务实体表即拒绝，目标是 QueryCache 实体表即放行」，并在注里明确
-      「**这条不影响 §4.6 的裁决结论，只是把它的覆盖面补到裁决本来就想覆盖的范围**」。
+    ⚠️ **不要单引 [adapter-contract §4.6](../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决) 第 5 步来论证这件事**（本条 2026-08-23 修正）。
+    §4.6 的五步判定只覆盖 `rawQuery`，而这两个方法不经 `rawQuery`——epic-006 的注与
+    [US-306 FR-046](stories/collaboration/US-306-working-tree-commits.md) 都明说「§4.6 的五步判定**够不到**」，
+    它们今天仍落在门禁的结构性缺口里。结论没错，但只引第 5 步会让复查者以为门禁已经生效。
 
-    也就是说 US-306 阶段 A 补的是**覆盖面**，不会改变 QueryCache 实体的放行结论。US-212 真正需要保证的
-    是一条更窄、且完全在自己包内的不变量：
+    **原先写在这里的不变量结构上不成立，2026-08-23 替换。** 旧文写的是「US-212 的缓存写路径 MUST 只对
+    `SyncType.QueryCache` 实体调用 `upsertMany()` / `deleteByIds()`」——但这两个方法是
+    [`RxDBAdapterLocalBase`](../packages/rxdb/src/rxdb-adapter.ts) 的抽象成员，而 US-212 是 **RemoteBase**
+    且明令不得内部拥有 sqlite，**本包身上根本没有这条缓存写路径**（真正的调用方是 core 的
+    `QueryCacheRepository`，写的是应用另行注册的 local adapter）。按旧文写的那条契约测试只能靠临时造一条
+    现实中不存在的调用路径，得到一条永远绿、什么也没证明的用例——而它被用来换掉了一个真实的排期门禁。
+    替换为本包**能**担保的结构性断言：
 
-    > **US-212 的缓存写路径 MUST 只对 `sync.type === SyncType.QueryCache` 的实体调用
-    > `upsertMany()` / `deleteByIds()`，任何情况下不得对版本化实体调用这两个方法。**
+    > **US-212 MUST NOT 实现或调用 `upsertMany()` / `deleteByIds()` / `getMetadataByIds()`，
+    > MUST NOT 持有任何 `QueryCacheLocalAdapter`，构造函数 MUST NOT `new` 任何本地存储。**
 
-    该不变量 MUST 由 US-212 阶段 A 内的契约测试冻结（传版本化实体名即 fail），并 MUST 复用
-    §4.6 那份**同一份**版本化实体表清单口径，不得另建第二份。冻结之后，US-306 阶段 A 的门禁落地时
-    HTTP 包的行为逐字不变，**不构成对已发布包的 breaking change**——原前置要防的正是这一点。
+    该不变量由 US-212 阶段 A 的 AC#19 契约测试冻结。冻结之后，US-306 阶段 A 的门禁落地时 HTTP 包的行为
+    逐字不变，**不构成对已发布包的 breaking change**——原前置要防的正是这一点。
     US-306 阶段 A 落地时 MUST 把 HTTP 包纳入其 SC-004 漂移扫描的核对范围。
 
 12. **US-018 不得与线 A 的桥接版本同批发。** [release-plan.md](release-plan.md) 硬前提 1 只禁了

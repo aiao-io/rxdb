@@ -170,7 +170,7 @@
 - 🅰️ ✅ [US-020 将 QueryCache 接入统一 Repository](stories/core/US-020-querycache-repository.md) — 两阶段，2026-08-22 全关；`SyncType.QueryCache` 从空操作变成生产真，**US-212 的两档发布门禁同时解锁**。不 inherit US-203 AC#6
   - ✅ 阶段 A 生产接线 — `getRepository` / EntityManager 走 `QueryCacheRepository`；Full/Filter 不变
   - ✅ 阶段 B 缓存质量 — orphan 删除、指纹含模式、SWR SQL、错误分类；AC#21 由接真实 sqlite-wasm 的 identity 集成用例关闭（顺带揪出 `updatedAt` 解码成 `Date` 后新鲜度恒判 fresh、与 `upsertMany` 裸 SQL 写不维护 identity cache 两个静默缺陷），AC#23 由 D13 的 `syncStaleTime` 同步记忆窗口关闭
-- 🅰️ ⬜ [US-212 HTTP 远程适配器](stories/adapter/US-212-http-adapter.md) — 两阶段；硬前置 US-020。远端权威 HTTP + 独立注册 sqlite 行缓存，不内嵌 sqlite。**排期已提到 [roadmap 批次 1 线 F](roadmap.md#批次-1零前置七条线可同时开工)**；原「不得在 US-306 阶段 A 前发布」的 epic-006 前置已于 2026-08-22 解除，改由 [roadmap 约束 11](roadmap.md#排期约束) 的 QueryCache-only 自持不变量替代
+- 🅰️ ⬜ [US-212 HTTP 远程适配器](stories/adapter/US-212-http-adapter.md) — 两阶段，**零前置**。远端权威 HTTP + 独立注册 sqlite 行缓存，不内嵌 sqlite。**排期已提到 [roadmap 批次 1 线 F](roadmap.md#批次-1零前置七条线可同时开工)**；两条历史锁均已解除：epic-006 的「不得在 US-306 阶段 A 前发布」于 2026-08-22 解除，US-020 的两档发布门禁随 US-020 两阶段全关于同日解除。现存的唯一硬约束是 [roadmap 约束 11](roadmap.md#排期约束) 的**结构隔离**不变量（本包 MUST NOT 实现或调用 `upsertMany` / `deleteByIds` / `getMetadataByIds`，MUST NOT 持有本地存储），落在 [US-212 AC#19](stories/adapter/US-212-http-adapter.md)
   - ⬜ 阶段 A handlers 注入 + QueryCache ducks + 分页/分块 + QueryCache-only 写路径契约测试
   - ⬜ 阶段 B REST mapping / 可选 ETag、SSE、eviction
 
@@ -238,13 +238,18 @@
 
 以下故事的 YAML `status` 都不是 `Blocked`，但开工前有硬前置：
 
-| 被挡住的                                                                                         | 硬前置                                                                                                                                                                                                                                                                                                                                                                    |
-| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`，历史 `v0.0.25` 又已被 squash 移出主线——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。这一条不随代码进度自动解除，需单独排期                        |
-| [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 B                                 | 出现第一个 `plugin:*` 依赖声明。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`，拓扑序与环检测目前没有消费方。US-013 / US-014 均已交付，硬序解除，阶段 A 已落地；这一条不随代码进度自动解除。**2026-08-22 核对：其余 14 条未关闭故事没有任何一条会产生 `plugin:*` 消费方，所以 US-015 的 `In Review` 是稳态而非过渡态**，上方汇总里的「👀 1」在可预见排期内是常量 |
-| [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D                       | 同一文件的阶段 A 必须先给出 `decision: supported`。判 `unsupported` 时**只有阶段 D** 转 `Blocked`，阶段 B / C 与 US-905 继续推进                                                                                                                                                                                                                                          |
-| [US-212](stories/adapter/US-212-http-adapter.md) 发布                                            | [US-020](stories/core/US-020-querycache-repository.md) **阶段 A** 关闭（标 `experimental`）／**阶段 B** 关闭（标 `stable`）——两档门禁见 [roadmap 约束 10](roadmap.md#排期约束)。阶段 A 代码可并行开发，**包不得在接线前标可发布**——否则 QueryCache + HTTP 看起来接上了，find 仍打本地、save 仍进 changelog                                                                |
+| 被挡住的                                                                                         | 硬前置                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`，历史 `v0.0.25` 又已被 squash 移出主线——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。这一条不随代码进度自动解除，需单独排期       |
+| [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 B                                 | 出现第一个 `plugin:*` 依赖声明。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`，拓扑序与环检测目前没有消费方。US-013 / US-014 均已交付，硬序解除，阶段 A 已落地；这一条不随代码进度自动解除。**其余 13 条未关闭故事没有任何一条会产生 `plugin:*` 消费方，所以 US-015 的 `In Review` 是稳态而非过渡态**，上方汇总里的「👀 1」在可预见排期内是常量 |
+| [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D                       | 同一文件的阶段 A 必须先给出 `decision: supported`。判 `unsupported` 时**只有阶段 D** 转 `Blocked`，阶段 B / C 与 US-905 继续推进                                                                                                                                                                                                                         |
 
+> **US-212 发布门禁已于 2026-08-22 解除**，从本表移除。原两档门禁（[US-020](stories/core/US-020-querycache-repository.md)
+> 阶段 A 关闭才可标 `experimental`、阶段 B 关闭才可标 `stable`）成立的前提是「QueryCache 配了等于空操作」，
+> 而 US-020 两阶段当天全关，`SyncType.QueryCache` 已是生产真，前提消失。**US-212 现在零前置，关闭阶段 A 即可直接发 `stable`**，
+> README / npm 不再需要写 `experimental`。留档见 [roadmap 约束 10](roadmap.md#排期约束)。
+> 注意这不等于该包没有约束：[约束 11](roadmap.md#排期约束) 的结构隔离不变量仍在，只是它是**编码约束**不是排期前置。
+>
 > **US-210 AC#9 已于 2026-08-17 解除阻塞**，从本表移除。原判定「macOS 没有官方 WKWebView WebDriver，
 > 该 AC 按字面无法满足」只对**用 WebDriver 驱 UI**这一种实现方式成立。改成
 > 「环境变量触发自检模式 → 启动两次 → 断言计数器 1→2」后，三平台统一不使用 WebDriver，
