@@ -263,6 +263,76 @@ describe('disconnect（AC#24、AC#34）', () => {
   });
 });
 
+/**
+ * AC#28 在**适配器**这一层的样子。
+ *
+ * @remarks
+ * `transport.spec.ts` 已经把条件请求的机制测透了，但那里的 transport 是手工 `new` 出来的。
+ * 从 `conditionalRequests: true` 到 transport 真的拿到 `conditional` 配置，中间还隔着
+ * `#createTransport()` 里的那个三元——它此前一条用例都没走到，把开关接错线
+ * （常关、或反过来常开）不会让任何现有用例变红。
+ */
+describe('conditionalRequests 开关接线（AC#28）', () => {
+  const ETAG = '"v1"';
+
+  /** 首次 200 带 ETag；此后**只在对方真的带了 if-none-match 时**回 304 */
+  const stubEtagThen304 = (rows: unknown[]): ReturnType<typeof vi.fn> => {
+    let served = false;
+    const mock = vi.fn((_url: string, init: RequestInit) => {
+      const conditional = (init.headers as Record<string, string>)['if-none-match'] === ETAG;
+      if (served && conditional) {
+        return Promise.resolve(new Response(null, { status: 304 }));
+      }
+      served = true;
+      return Promise.resolve(new Response(JSON.stringify(rows), { status: 200, headers: { etag: ETAG } }));
+    });
+    vi.stubGlobal('fetch', mock);
+    return mock;
+  };
+
+  const ifNoneMatch = (mock: ReturnType<typeof vi.fn>, call: number): string | undefined =>
+    ((mock.mock.calls[call][1] as RequestInit).headers as Record<string, string>)['if-none-match'];
+
+  it('开启后第二次 fetchMetadata 带 if-none-match，且 304 还原成上次结果', async () => {
+    const mock = stubEtagThen304([meta('a'), meta('b')]);
+    const adapter = createAdapter({ conditionalRequests: true });
+    const first = await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+    const second = await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+    expect(ifNoneMatch(mock, 0)).toBeUndefined();
+    expect(ifNoneMatch(mock, 1)).toBe(ETAG);
+    // 把 304 读成空集会让整表判成孤儿——AC#28 最危险的失败模式，且不报任何错
+    expect(second.map(m => m.id)).toEqual(first.map(m => m.id));
+    expect(second).not.toBe(first);
+  });
+
+  it('findByIds 同样参与条件缓存', async () => {
+    const mock = stubEtagThen304([{ id: 'a' }]);
+    const adapter = createAdapter({ conditionalRequests: true });
+    await firstValueFrom(adapter.findByIds('HttpRecipe', ['a']));
+    await expect(firstValueFrom(adapter.findByIds('HttpRecipe', ['a']))).resolves.toEqual([{ id: 'a' }]);
+    expect(ifNoneMatch(mock, 1)).toBe(ETAG);
+  });
+
+  it('默认不开启：同一查询发两遍也不带条件头，行为与阶段 A 逐字相同', async () => {
+    const mock = stubEtagThen304([meta('a')]);
+    const adapter = createAdapter();
+    await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+    await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+    expect(ifNoneMatch(mock, 1)).toBeUndefined();
+  });
+
+  it('缓存不跨断开复用：reconnect 后第一个请求不带 if-none-match', async () => {
+    const mock = stubEtagThen304([meta('a')]);
+    const adapter = createAdapter({ conditionalRequests: true });
+    await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+    await adapter.disconnect();
+    await adapter.connect();
+    await expect(firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL))).resolves.toHaveLength(1);
+    // 带着断开前的 ETag 去问，等于让重连后的第一批查询读到上一段连接的世界
+    expect(ifNoneMatch(mock, 1)).toBeUndefined();
+  });
+});
+
 describe('version（AC#24）', () => {
   it('未配 onVersion 时抛 unsupported，不回落到包版本号', async () => {
     // 回落等于拿适配器版本冒充后端版本，与 sqlite / pglite / supabase 三家口径全部不一致

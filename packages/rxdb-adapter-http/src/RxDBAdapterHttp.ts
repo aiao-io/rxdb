@@ -224,15 +224,18 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
           offset: 0,
           limit: 1
         });
-    const response = await this.#transport.execute(spec, 'isTableExisted');
-    if (response.ok || response.status === 404) {
-      // 两支都只看状态码，但 body 仍要读完：node/undici 下未消费的流会把 socket
-      // 挂到 GC 才归还，探测频繁时表现为连接池耗尽，且全程不报错
-      await response.body?.cancel().catch(() => undefined);
-      return response.ok;
-    }
-    const body = await response.text().catch(() => undefined);
-    throw new HttpResponseError(response.status, this.#transport.resolveUrl(spec), body);
+    // 判定写成 consume 回调交给 transport：读 body 这一段同样要罩在超时/断开窗口内，
+    // 否则「状态行秒回、body 挂死」的远端能让这次探测永不 settle
+    return this.#transport.execute(spec, 'isTableExisted', async response => {
+      if (response.ok || response.status === 404) {
+        // 两支都只看状态码，但 body 仍要读完：node/undici 下未消费的流会把 socket
+        // 挂到 GC 才归还，探测频繁时表现为连接池耗尽，且全程不报错
+        await response.body?.cancel().catch(() => undefined);
+        return response.ok;
+      }
+      const body = await response.text().catch(() => undefined);
+      throw new HttpResponseError(response.status, this.#transport.resolveUrl(spec), body);
+    });
   }
 
   // ============================================

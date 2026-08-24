@@ -342,7 +342,9 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
   4. 对比 `requirements/api-baseline/<pkg>.json`，格式为
      `{ entries: { ".": [...], "./testing": [...] } }` —— 每个入口一条：
      - **入口消失 / symbol removed / kind changed** → 退出码非 0，PR 必须附带迁移说明；
-     - **仅新增入口或新增 symbol** → 仅打印警告，提示跑 `:update` 落基线；
+     - **仅新增入口或新增 symbol** → **退出码同样非 0**（🟡 基线漂移），提示跑 `:update` 落基线。
+       与上一条的区别只在于「要不要写迁移说明」，不在于「拦不拦」——新导出一旦合进去就是公开
+       承诺，让它无声通过等于把 API 表面的变更记录交给记性；
      - **完全一致** → 通过。
   5. 跨包 import 用 `tsconfig.base.json` 的 `paths` 解析，不依赖 `node_modules`，本地与 CI 结果一致。
 - **子路径入口**（US-601）：入口 → 源文件的**唯一真相源**是 `@aiao/source` 条件，扫描器不读 tsconfig paths 来猜。
@@ -407,8 +409,8 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 - 所有脚本统一用 **Node ESM**（`import ... from`，无构建产物），最低 Node 26（由 `preinstall.mjs` 强制）；
 - 工作目录默认是仓库根（用 `process.cwd()` 或 `import.meta.dirname` 解析相对路径），所以从根目录直接 `node scripts/<x>.mjs` 即可；
 - 错误约定：
-  - **硬失败（阻断 PR）**：`audit/wa-sqlite-integrity` 锁漂移、`check-doc-code` import 无效、`check-externals` 漏配、`check-migration-release-gate` 字段错、`audit/coverage-check` 低于阈值、`audit/api-surface` 入口消失 / removed / kind changed / 子路径缺 `@aiao/source`、`audit/package-api-docs` 缺 TSDoc；
-  - **软警告**（仅打印）：`audit/coverage-check` 低于历史 baseline、`audit/api-surface` 仅新增；
+  - **硬失败（阻断 PR）**：`audit/wa-sqlite-integrity` 锁漂移、`check-doc-code` import 无效、`check-externals` 漏配、`check-migration-release-gate` 字段错、`audit/coverage-check` 低于阈值、`audit/api-surface` 入口消失 / removed / kind changed / **仅新增（基线漂移）** / 子路径缺 `@aiao/source`、`audit/package-api-docs` 缺 TSDoc；
+  - **软警告**（仅打印）：`audit/coverage-check` 低于历史 baseline；
   - **覆盖率基线更新**总是覆写（含下降），无需显式 `--force`，防止漏声明的「基线外降」被悄悄吞掉；
 - 没在 `package.json` 注册为 npm script 的脚本（`check-doc-code`、`check-externals`、`git-stats*`、`push-docs`）通常是临时排查用，懒得加命令。
 

@@ -106,6 +106,14 @@
         "kind": "type"
       },
       {
+        "name": "HttpRequestBuildError",
+        "kind": "both"
+      },
+      {
+        "name": "HttpRequestBuildFailure",
+        "kind": "type"
+      },
+      {
         "name": "HttpRequestSpec",
         "kind": "type"
       },

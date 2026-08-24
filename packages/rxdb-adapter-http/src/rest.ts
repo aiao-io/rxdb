@@ -328,7 +328,12 @@ const assertRow = (handler: string, entityName: string, body: unknown): unknown 
  * | `update`         | `PATCH` | `:entity/:id`       | 是       |
  * | `delete`         | `POST`  | `:entity/delete`    | 是       |
  * | `version`        | `GET`   | —                   | 否       |
- * | `isTableExisted` | `HEAD`  | `:entity`           | 否       |
+ * | `isTableExisted` | `HEAD`  | —                   | 否       |
+ *
+ * 最后两行的路径栏是 `—` 而**不是**留空：这两个操作没有默认路径，不配
+ * `templates.version.path` / `templates.isTableExisted.path` 就整个不产出 handler。
+ * `isTableExisted` 的方法栏仍写 `HEAD`，那是给了路径之后才生效的默认方法
+ * （不给默认路径的理由见 `REST_OPERATIONS` 里那一条的注释）。
  *
  * 请求体形状：`fetchMetadata` 发 `{ where, offset, limit, cursor }`（`where` 是 JSON
  * `RuleGroup`，**不是 SQL**），`findByIds` 与 `delete` 发 `{ ids }`，

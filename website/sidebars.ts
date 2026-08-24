@@ -164,6 +164,7 @@ const sidebars: SidebarsConfig = {
         'migration/v1',
         'migration/frameworks',
         'migration/adapters',
+        'migration/supabase-network-errors',
         'migration/desktop-split',
         'migration/plugins',
         'migration/plugin-scope',

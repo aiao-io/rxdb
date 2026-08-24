@@ -293,6 +293,55 @@ export class HttpTransport {
   }
 
   /**
+   * 合并 header，**auth hook 优先级最高**。
+   *
+   * @remarks
+   * 顺序：适配器默认 → `spec.headers` → auth hook。auth 排最后是因为它是唯一
+   * 有正确性含义的一组——被 handler 的静态 header 覆盖掉就是发出一个未认证的请求。
+   */
+  private async buildHeaders(spec: HttpRequestSpec): Promise<Record<string, string>> {
+    const headers: Record<string, string> = { ...this.options.headers };
+    if (spec.body !== undefined) {
+      headers['content-type'] = 'application/json';
+    }
+    Object.assign(headers, spec.headers);
+    if (this.options.auth) {
+      Object.assign(headers, await this.options.auth());
+    }
+    return headers;
+  }
+
+  /**
+   * 把 fetch 的失败归类成三种可判别的错误。
+   *
+   * @remarks
+   * 主动断开与超时都表现为 `AbortError`，靠 `timedOut` 标志分流，而不是靠错误对象——
+   * 二者的 `AbortError` 长得一模一样。分错的代价不对称：断开被当成超时会让「用户
+   * 叫停」静默变成「读缓存返回」。
+   *
+   * 传输失败一律包成 core 的 `NetworkOfflineError`，不是自定义类：`isNetworkError`
+   * 的第 1 条判据是 `instanceof NetworkOfflineError`，包成别的它认不出，
+   * 而 node/undici 的失败消息 `fetch failed` 又不命中第 5 条的正则——两头落空。
+   */
+  private classify(error: unknown, ctx: { operation: string; url: string; timedOut: boolean }): Error {
+    // 已经判别过的错误原样放行：`consume` 现在跑在 try 内，`assertOk` 的
+    // `HttpResponseError(409)` 会路过这里。再包一层就是把「远端说不行」降级成
+    // 「远端够不着」，`offlineFallback` 随即把一次业务冲突换成一份陈旧缓存。
+    if (error instanceof HttpAdapterError) {
+      return error;
+    }
+    if (ctx.timedOut) {
+      return new NetworkOfflineError(
+        new Error(`HTTP request to ${ctx.url} exceeded requestTimeoutMs=${this.options.requestTimeoutMs}`)
+      );
+    }
+    if (this.options.disconnectSignal.aborted) {
+      return new HttpDisconnectedError(ctx.operation);
+    }
+    return new NetworkOfflineError(error instanceof Error ? error : new Error(describeError(error)));
+  }
+
+  /**
    * 构造请求：拼 URL、跑 auth hook、校验 header、序列化 body。
    *
    * @remarks
@@ -359,55 +408,6 @@ export class HttpTransport {
     } finally {
       clearTimeout(timer);
     }
-  }
-
-  /**
-   * 合并 header，**auth hook 优先级最高**。
-   *
-   * @remarks
-   * 顺序：适配器默认 → `spec.headers` → auth hook。auth 排最后是因为它是唯一
-   * 有正确性含义的一组——被 handler 的静态 header 覆盖掉就是发出一个未认证的请求。
-   */
-  private async buildHeaders(spec: HttpRequestSpec): Promise<Record<string, string>> {
-    const headers: Record<string, string> = { ...this.options.headers };
-    if (spec.body !== undefined) {
-      headers['content-type'] = 'application/json';
-    }
-    Object.assign(headers, spec.headers);
-    if (this.options.auth) {
-      Object.assign(headers, await this.options.auth());
-    }
-    return headers;
-  }
-
-  /**
-   * 把 fetch 的失败归类成三种可判别的错误。
-   *
-   * @remarks
-   * 主动断开与超时都表现为 `AbortError`，靠 `timedOut` 标志分流，而不是靠错误对象——
-   * 二者的 `AbortError` 长得一模一样。分错的代价不对称：断开被当成超时会让「用户
-   * 叫停」静默变成「读缓存返回」。
-   *
-   * 传输失败一律包成 core 的 `NetworkOfflineError`，不是自定义类：`isNetworkError`
-   * 的第 1 条判据是 `instanceof NetworkOfflineError`，包成别的它认不出，
-   * 而 node/undici 的失败消息 `fetch failed` 又不命中第 5 条的正则——两头落空。
-   */
-  private classify(error: unknown, ctx: { operation: string; url: string; timedOut: boolean }): Error {
-    // 已经判别过的错误原样放行：`consume` 现在跑在 try 内，`assertOk` 的
-    // `HttpResponseError(409)` 会路过这里。再包一层就是把「远端说不行」降级成
-    // 「远端够不着」，`offlineFallback` 随即把一次业务冲突换成一份陈旧缓存。
-    if (error instanceof HttpAdapterError) {
-      return error;
-    }
-    if (ctx.timedOut) {
-      return new NetworkOfflineError(
-        new Error(`HTTP request to ${ctx.url} exceeded requestTimeoutMs=${this.options.requestTimeoutMs}`)
-      );
-    }
-    if (this.options.disconnectSignal.aborted) {
-      return new HttpDisconnectedError(ctx.operation);
-    }
-    return new NetworkOfflineError(error instanceof Error ? error : new Error(describeError(error)));
   }
 
   /** 阶段 A 的原始路径：发、判状态、解码，不碰缓存 */

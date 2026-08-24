@@ -335,6 +335,18 @@ describe('HttpTransport', () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
+    it('body 是函数 —— JSON.stringify 静默返回 undefined，也算构造失败', async () => {
+      const { transport } = createTransport();
+      const error = await transport
+        .sendJson({ url: 'items', method: 'POST', body: () => undefined }, 'create')
+        .catch((e: unknown) => e);
+      // 放过去就是发一个「声明了 content-type: application/json 却没有 body」的请求，
+      // 远端只会回一个看不出原因的 400
+      expect(error).toBeInstanceOf(HttpRequestBuildError);
+      expect((error as HttpRequestBuildError).reason).toBe('body');
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it('开不开条件请求，同一份脏 body 抛同一种错误', async () => {
       const spec = { url: 'items', method: 'POST' as const, body: UNSERIALIZABLE };
       const { transport: plain } = createTransport();

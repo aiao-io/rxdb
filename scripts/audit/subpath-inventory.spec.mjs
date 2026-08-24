@@ -18,10 +18,14 @@ test('没有 exports 字段的包只扫主入口', () => {
 });
 
 test('主入口固定取 src/index.ts，不读 exports 的 `.` 条件', () => {
-  const { entries } = resolveScanEntries(fixture('main-only'));
+  // fixture 的 `.` 故意指向 decoy-not-the-main-entry.ts：让 `.` 也写 src/index.ts 的话，
+  // 「读了」和「没读」得到同一个答案，这条断言就永远是绿的，测不出任何东西
+  const { entries, problems } = resolveScanEntries(fixture('main-only'));
 
   assert.deepEqual(subpathsOf({ entries }), ['.']);
   assert.equal(entries[0].sourceFile, join(fixture('main-only'), 'src', 'index.ts'));
+  // decoy 文件并不存在：真读了它，这里会多出一条「指向的文件不存在」
+  assert.deepEqual(problems, []);
 });
 
 test('声明了 `@aiao/source` 的子路径入口全部纳入扫描', () => {
