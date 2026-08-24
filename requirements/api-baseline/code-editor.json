@@ -1,136 +1,138 @@
 {
-  "exports": [
-    {
-      "name": "buildCodeEditorContentAttributes",
-      "kind": "value"
-    },
-    {
-      "name": "CodeEditorAccessibilityState",
-      "kind": "type"
-    },
-    {
-      "name": "CodeEditorExtension",
-      "kind": "type"
-    },
-    {
-      "name": "CodeEditorLanguageDescription",
-      "kind": "type"
-    },
-    {
-      "name": "CodeEditorLanguageError",
-      "kind": "type"
-    },
-    {
-      "name": "CodeEditorLanguageErrorKind",
-      "kind": "type"
-    },
-    {
-      "name": "codeEditorLanguageLoadFailed",
-      "kind": "value"
-    },
-    {
-      "name": "codeEditorLanguageNotFound",
-      "kind": "value"
-    },
-    {
-      "name": "CodeEditorLanguageSupport",
-      "kind": "type"
-    },
-    {
-      "name": "CodeEditorTheme",
-      "kind": "type"
-    },
-    {
-      "name": "computeMinimalDocumentChange",
-      "kind": "value"
-    },
-    {
-      "name": "CSS",
-      "kind": "value"
-    },
-    {
-      "name": "DocumentChangeSpec",
-      "kind": "type"
-    },
-    {
-      "name": "findLanguageByName",
-      "kind": "value"
-    },
-    {
-      "name": "HTML",
-      "kind": "value"
-    },
-    {
-      "name": "isSameResolvedLanguage",
-      "kind": "value"
-    },
-    {
-      "name": "JavaScript",
-      "kind": "value"
-    },
-    {
-      "name": "JSON",
-      "kind": "value"
-    },
-    {
-      "name": "JSX",
-      "kind": "value"
-    },
-    {
-      "name": "Markdown",
-      "kind": "value"
-    },
-    {
-      "name": "PostgreSQL",
-      "kind": "value"
-    },
-    {
-      "name": "Python",
-      "kind": "value"
-    },
-    {
-      "name": "resolveCodeEditorLanguage",
-      "kind": "value"
-    },
-    {
-      "name": "ResolvedCodeEditorLanguage",
-      "kind": "type"
-    },
-    {
-      "name": "Sass",
-      "kind": "value"
-    },
-    {
-      "name": "SCSS",
-      "kind": "value"
-    },
-    {
-      "name": "shouldAutoFocusCodeEditor",
-      "kind": "value"
-    },
-    {
-      "name": "SQL",
-      "kind": "value"
-    },
-    {
-      "name": "SQLite",
-      "kind": "value"
-    },
-    {
-      "name": "SUPPORT_LANGUAGES",
-      "kind": "value"
-    },
-    {
-      "name": "TSX",
-      "kind": "value"
-    },
-    {
-      "name": "TypeScript",
-      "kind": "value"
-    },
-    {
-      "name": "XML",
-      "kind": "value"
-    }
-  ]
+  "entries": {
+    ".": [
+      {
+        "name": "buildCodeEditorContentAttributes",
+        "kind": "value"
+      },
+      {
+        "name": "CodeEditorAccessibilityState",
+        "kind": "type"
+      },
+      {
+        "name": "CodeEditorExtension",
+        "kind": "type"
+      },
+      {
+        "name": "CodeEditorLanguageDescription",
+        "kind": "type"
+      },
+      {
+        "name": "CodeEditorLanguageError",
+        "kind": "type"
+      },
+      {
+        "name": "CodeEditorLanguageErrorKind",
+        "kind": "type"
+      },
+      {
+        "name": "codeEditorLanguageLoadFailed",
+        "kind": "value"
+      },
+      {
+        "name": "codeEditorLanguageNotFound",
+        "kind": "value"
+      },
+      {
+        "name": "CodeEditorLanguageSupport",
+        "kind": "type"
+      },
+      {
+        "name": "CodeEditorTheme",
+        "kind": "type"
+      },
+      {
+        "name": "computeMinimalDocumentChange",
+        "kind": "value"
+      },
+      {
+        "name": "CSS",
+        "kind": "value"
+      },
+      {
+        "name": "DocumentChangeSpec",
+        "kind": "type"
+      },
+      {
+        "name": "findLanguageByName",
+        "kind": "value"
+      },
+      {
+        "name": "HTML",
+        "kind": "value"
+      },
+      {
+        "name": "isSameResolvedLanguage",
+        "kind": "value"
+      },
+      {
+        "name": "JavaScript",
+        "kind": "value"
+      },
+      {
+        "name": "JSON",
+        "kind": "value"
+      },
+      {
+        "name": "JSX",
+        "kind": "value"
+      },
+      {
+        "name": "Markdown",
+        "kind": "value"
+      },
+      {
+        "name": "PostgreSQL",
+        "kind": "value"
+      },
+      {
+        "name": "Python",
+        "kind": "value"
+      },
+      {
+        "name": "resolveCodeEditorLanguage",
+        "kind": "value"
+      },
+      {
+        "name": "ResolvedCodeEditorLanguage",
+        "kind": "type"
+      },
+      {
+        "name": "Sass",
+        "kind": "value"
+      },
+      {
+        "name": "SCSS",
+        "kind": "value"
+      },
+      {
+        "name": "shouldAutoFocusCodeEditor",
+        "kind": "value"
+      },
+      {
+        "name": "SQL",
+        "kind": "value"
+      },
+      {
+        "name": "SQLite",
+        "kind": "value"
+      },
+      {
+        "name": "SUPPORT_LANGUAGES",
+        "kind": "value"
+      },
+      {
+        "name": "TSX",
+        "kind": "value"
+      },
+      {
+        "name": "TypeScript",
+        "kind": "value"
+      },
+      {
+        "name": "XML",
+        "kind": "value"
+      }
+    ]
+  }
 }

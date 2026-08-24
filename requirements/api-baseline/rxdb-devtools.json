@@ -1,752 +1,920 @@
 {
-  "exports": [
-    {
-      "name": "AnyDevToolsMessage",
-      "kind": "type"
-    },
-    {
-      "name": "authorizeMessage",
-      "kind": "value"
-    },
-    {
-      "name": "authorizeOperation",
-      "kind": "value"
-    },
-    {
-      "name": "BranchesMessage",
-      "kind": "type"
-    },
-    {
-      "name": "ClearMessage",
-      "kind": "type"
-    },
-    {
-      "name": "CreateBranchMessage",
-      "kind": "type"
-    },
-    {
-      "name": "createConnectorNegotiation",
-      "kind": "value"
-    },
-    {
-      "name": "createDevToolsConnectorEndpoint",
-      "kind": "value"
-    },
-    {
-      "name": "createDevToolsError",
-      "kind": "value"
-    },
-    {
-      "name": "createDevToolsSnapshotStore",
-      "kind": "value"
-    },
-    {
-      "name": "createDevToolsV2Message",
-      "kind": "value"
-    },
-    {
-      "name": "createMessage",
-      "kind": "value"
-    },
-    {
-      "name": "createPanelNegotiation",
-      "kind": "value"
-    },
-    {
-      "name": "createProviderError",
-      "kind": "value"
-    },
-    {
-      "name": "createSessionId",
-      "kind": "value"
-    },
-    {
-      "name": "createSystemClock",
-      "kind": "value"
-    },
-    {
-      "name": "DbInfoEntity",
-      "kind": "type"
-    },
-    {
-      "name": "DbInfoMessage",
-      "kind": "type"
-    },
-    {
-      "name": "DbInfoPayload",
-      "kind": "type"
-    },
-    {
-      "name": "decodeCanonicalBase64",
-      "kind": "value"
-    },
-    {
-      "name": "DeleteBranchMessage",
-      "kind": "type"
-    },
-    {
-      "name": "DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_CAPABILITIES",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_CONTROL_PLANE_ERROR_CODES",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_DEFAULT_PAGE_SIZE",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MAX_CHUNK_BYTES",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MAX_ERROR_MESSAGE_LENGTH",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MAX_IDENTIFIER_LENGTH",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MAX_INFLIGHT_REQUESTS",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MAX_INFLIGHT_TRANSFERS",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MAX_PAGE_SIZE",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MAX_PROTOCOL_VERSION",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MAX_REQUEST_TOMBSTONES",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MAX_SNAPSHOT_BYTES",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MAX_SNAPSHOT_EPOCH_RETRIES",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MAX_SNAPSHOT_RECORDS",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MAX_SUPPORTED_VERSIONS",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MAX_TRANSFER_TOMBSTONES",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MESSAGE_REQUIRED_CAPABILITY",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MIN_CHUNK_BYTES",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_MIN_PROTOCOL_VERSION",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_NEGOTIATION_WINDOW_MS",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_OPERATION_REQUIRED_CAPABILITY",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_PLATFORM_ERROR_KEYS",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_PROTOCOL_VERSION",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_PROTOCOL_VERSION_V2",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_PROVIDER_DOMAINS",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_PROVIDER_ERROR_CODES",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_PROVIDER_ERROR_RETRYABLE",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_PROVIDER_KINDS",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_PROVIDER_OPERATIONS",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_PROVIDER_RUNTIMES",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_REQUEST_TIMEOUT_MS",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_SNAPSHOT_CURSOR_IDLE_MS",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_SNAPSHOT_TIMEOUT_MS",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_TRANSFER_IDLE_TIMEOUT_MS",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_TRANSFER_TOTAL_TIMEOUT_MS",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_UNAVAILABLE_REASONS",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_V2_MESSAGE_DIRECTIONS",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_V2_MESSAGE_TYPES",
-      "kind": "value"
-    },
-    {
-      "name": "DEVTOOLS_WIRE_VERSION",
-      "kind": "value"
-    },
-    {
-      "name": "DevToolsAuthorization",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsAuthorizationInput",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsBigIntValue",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsBinaryValue",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsCancelTimer",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsCapability",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsChunkSink",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsClock",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsCommandMessage",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsConnector",
-      "kind": "both"
-    },
-    {
-      "name": "DevToolsConnectorEndpoint",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsConnectorEndpointPorts",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsConnectorNegotiation",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsConnectorNegotiationMessage",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsConnectorNegotiationPorts",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsConnectorNegotiationState",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsControlPlaneErrorCode",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsEntityMetadata",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsErrorCode",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsErrorFramePayload",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsErrorOptions",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsErrorOrigin",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsErrorPayload",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsEventPayload",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsHandshakeCapabilities",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsInvalidDateValue",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsMessage",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsMutationPolicy",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsOptions",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsPanelNegotiation",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsPanelNegotiationMessage",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsPanelNegotiationPorts",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsPanelNegotiationState",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsProtocolHelloPayload",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsProvider",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsProviderDescriptor",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsProviderDomain",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsProviderErrorCode",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsProviderKind",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsProviderLimits",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsProviderOperation",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsProviderRegistry",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsProviderResult",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsProviderRuntime",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsRequestPayload",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsResponsePayload",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsRxDB",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsSnapshotCaptureResult",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsSnapshotCursor",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsSnapshotPage",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsSnapshotPorts",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsSnapshotRecord",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsSnapshotResult",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsSnapshotSide",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsSnapshotSource",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsSnapshotStore",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsTransferChunkPayload",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsTransferIdPayload",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsTransferStartPayload",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsUnavailableReason",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsV2Direction",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsV2Envelope",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsV2EnvelopeShape",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsV2HandshakeAckPayload",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsV2HandshakePayload",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsV2Message",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsV2MessageOptions",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsV2MessageType",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsV2PayloadMap",
-      "kind": "type"
-    },
-    {
-      "name": "DevToolsWireValue",
-      "kind": "type"
-    },
-    {
-      "name": "DisconnectMessage",
-      "kind": "type"
-    },
-    {
-      "name": "DisconnectRxdbMessage",
-      "kind": "type"
-    },
-    {
-      "name": "DisconnectRxdbResultMessage",
-      "kind": "type"
-    },
-    {
-      "name": "DisconnectRxdbResultPayload",
-      "kind": "type"
-    },
-    {
-      "name": "DisconnectStatus",
-      "kind": "type"
-    },
-    {
-      "name": "encodeCanonicalBase64",
-      "kind": "value"
-    },
-    {
-      "name": "EntityDataMessage",
-      "kind": "type"
-    },
-    {
-      "name": "EntityDataPayload",
-      "kind": "type"
-    },
-    {
-      "name": "EventBuffer",
-      "kind": "both"
-    },
-    {
-      "name": "EventMessage",
-      "kind": "type"
-    },
-    {
-      "name": "GetBranchesMessage",
-      "kind": "type"
-    },
-    {
-      "name": "getDevToolsConnector",
-      "kind": "value"
-    },
-    {
-      "name": "GetEntityMetadataFn",
-      "kind": "type"
-    },
-    {
-      "name": "HandshakeAckMessage",
-      "kind": "type"
-    },
-    {
-      "name": "HandshakeMessage",
-      "kind": "type"
-    },
-    {
-      "name": "HandshakePayload",
-      "kind": "type"
-    },
-    {
-      "name": "InspectDbMessage",
-      "kind": "type"
-    },
-    {
-      "name": "isCanonicalUuidV4",
-      "kind": "value"
-    },
-    {
-      "name": "isControlPlaneErrorCode",
-      "kind": "value"
-    },
-    {
-      "name": "isDevToolsCapability",
-      "kind": "value"
-    },
-    {
-      "name": "isDevToolsCommandMessage",
-      "kind": "value"
-    },
-    {
-      "name": "isDevToolsErrorPayload",
-      "kind": "value"
-    },
-    {
-      "name": "isDevToolsIdentifier",
-      "kind": "value"
-    },
-    {
-      "name": "isDevToolsMessage",
-      "kind": "value"
-    },
-    {
-      "name": "isDevToolsProviderDescriptor",
-      "kind": "value"
-    },
-    {
-      "name": "isDevToolsProviderDescriptorSet",
-      "kind": "value"
-    },
-    {
-      "name": "isDevToolsProviderDomain",
-      "kind": "value"
-    },
-    {
-      "name": "isDevToolsV2Envelope",
-      "kind": "value"
-    },
-    {
-      "name": "isDevToolsV2Message",
-      "kind": "value"
-    },
-    {
-      "name": "isMaxTransferBytes",
-      "kind": "value"
-    },
-    {
-      "name": "isMutatingOperation",
-      "kind": "value"
-    },
-    {
-      "name": "isPageSize",
-      "kind": "value"
-    },
-    {
-      "name": "isProviderErrorCode",
-      "kind": "value"
-    },
-    {
-      "name": "isRedactedErrorMessage",
-      "kind": "value"
-    },
-    {
-      "name": "isSupportedVersionList",
-      "kind": "value"
-    },
-    {
-      "name": "isWithinTransferLimit",
-      "kind": "value"
-    },
-    {
-      "name": "mapPlatformError",
-      "kind": "value"
-    },
-    {
-      "name": "MessageDirection",
-      "kind": "type"
-    },
-    {
-      "name": "MessageOfType",
-      "kind": "type"
-    },
-    {
-      "name": "MessageType",
-      "kind": "type"
-    },
-    {
-      "name": "PingMessage",
-      "kind": "type"
-    },
-    {
-      "name": "QueryEntityMessage",
-      "kind": "type"
-    },
-    {
-      "name": "QueryEntityPayload",
-      "kind": "type"
-    },
-    {
-      "name": "resetDevToolsConnector",
-      "kind": "value"
-    },
-    {
-      "name": "resolveNegotiatedTransferLimit",
-      "kind": "value"
-    },
-    {
-      "name": "RXDB_DEVTOOLS_MESSAGE",
-      "kind": "value"
-    },
-    {
-      "name": "RXDB_EVENT_TYPES",
-      "kind": "value"
-    },
-    {
-      "name": "satisfiesCapability",
-      "kind": "value"
-    },
-    {
-      "name": "SequenceGenerator",
-      "kind": "both"
-    },
-    {
-      "name": "serialize",
-      "kind": "value"
-    },
-    {
-      "name": "SerializedEvent",
-      "kind": "type"
-    },
-    {
-      "name": "serializeDevToolsValue",
-      "kind": "value"
-    },
-    {
-      "name": "snapshotRecordBytes",
-      "kind": "value"
-    },
-    {
-      "name": "SwitchBranchMessage",
-      "kind": "type"
-    },
-    {
-      "name": "totalSnapshotBytes",
-      "kind": "value"
-    }
-  ]
+  "entries": {
+    ".": [
+      {
+        "name": "AnyDevToolsMessage",
+        "kind": "type"
+      },
+      {
+        "name": "authorizeMessage",
+        "kind": "value"
+      },
+      {
+        "name": "authorizeOperation",
+        "kind": "value"
+      },
+      {
+        "name": "BranchesMessage",
+        "kind": "type"
+      },
+      {
+        "name": "ClearMessage",
+        "kind": "type"
+      },
+      {
+        "name": "CreateBranchMessage",
+        "kind": "type"
+      },
+      {
+        "name": "createConnectorNegotiation",
+        "kind": "value"
+      },
+      {
+        "name": "createDevToolsConnectorEndpoint",
+        "kind": "value"
+      },
+      {
+        "name": "createDevToolsError",
+        "kind": "value"
+      },
+      {
+        "name": "createDevToolsSnapshotStore",
+        "kind": "value"
+      },
+      {
+        "name": "createDevToolsV2Message",
+        "kind": "value"
+      },
+      {
+        "name": "createMessage",
+        "kind": "value"
+      },
+      {
+        "name": "createPanelNegotiation",
+        "kind": "value"
+      },
+      {
+        "name": "createProviderError",
+        "kind": "value"
+      },
+      {
+        "name": "createSessionId",
+        "kind": "value"
+      },
+      {
+        "name": "createSystemClock",
+        "kind": "value"
+      },
+      {
+        "name": "DbInfoEntity",
+        "kind": "type"
+      },
+      {
+        "name": "DbInfoMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DbInfoPayload",
+        "kind": "type"
+      },
+      {
+        "name": "decodeCanonicalBase64",
+        "kind": "value"
+      },
+      {
+        "name": "DeleteBranchMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_CAPABILITIES",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_CONTROL_PLANE_ERROR_CODES",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_DEFAULT_PAGE_SIZE",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MAX_CHUNK_BYTES",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MAX_ERROR_MESSAGE_LENGTH",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MAX_IDENTIFIER_LENGTH",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MAX_INFLIGHT_REQUESTS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MAX_INFLIGHT_TRANSFERS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MAX_PAGE_SIZE",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MAX_PROTOCOL_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MAX_REQUEST_TOMBSTONES",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MAX_SNAPSHOT_BYTES",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MAX_SNAPSHOT_EPOCH_RETRIES",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MAX_SNAPSHOT_RECORDS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MAX_SUPPORTED_VERSIONS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MAX_TRANSFER_TOMBSTONES",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MESSAGE_REQUIRED_CAPABILITY",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MIN_CHUNK_BYTES",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_MIN_PROTOCOL_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_NEGOTIATION_WINDOW_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_OPERATION_REQUIRED_CAPABILITY",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_PLATFORM_ERROR_KEYS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_PROTOCOL_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_PROTOCOL_VERSION_V2",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_PROVIDER_DOMAINS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_PROVIDER_ERROR_CODES",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_PROVIDER_ERROR_RETRYABLE",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_PROVIDER_KINDS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_PROVIDER_OPERATIONS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_PROVIDER_RUNTIMES",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_REQUEST_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_SNAPSHOT_CURSOR_IDLE_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_SNAPSHOT_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_TRANSFER_IDLE_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_TRANSFER_TOTAL_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_UNAVAILABLE_REASONS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_V2_MESSAGE_DIRECTIONS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_V2_MESSAGE_TYPES",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_WIRE_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "DevToolsAuthorization",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsAuthorizationInput",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsBigIntValue",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsBinaryValue",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsCancelTimer",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsCapability",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsChunkSink",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsClock",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsCommandMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsConnector",
+        "kind": "both"
+      },
+      {
+        "name": "DevToolsConnectorEndpoint",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsConnectorEndpointPorts",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsConnectorNegotiation",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsConnectorNegotiationMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsConnectorNegotiationPorts",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsConnectorNegotiationState",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsControlPlaneErrorCode",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsEntityMetadata",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsErrorCode",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsErrorFramePayload",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsErrorOptions",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsErrorOrigin",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsErrorPayload",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsEventPayload",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsHandshakeCapabilities",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsInvalidDateValue",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsMutationPolicy",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsOptions",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelNegotiation",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelNegotiationMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelNegotiationPorts",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelNegotiationState",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsProtocolHelloPayload",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsProvider",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsProviderDescriptor",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsProviderDomain",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsProviderErrorCode",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsProviderKind",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsProviderLimits",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsProviderOperation",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsProviderRegistry",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsProviderResult",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsProviderRuntime",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsRequestPayload",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsResponsePayload",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsRxDB",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSnapshotCaptureResult",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSnapshotCursor",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSnapshotPage",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSnapshotPorts",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSnapshotRecord",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSnapshotResult",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSnapshotSide",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSnapshotSource",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSnapshotStore",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsTransferChunkPayload",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsTransferIdPayload",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsTransferStartPayload",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsUnavailableReason",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsV2Direction",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsV2Envelope",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsV2EnvelopeShape",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsV2HandshakeAckPayload",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsV2HandshakePayload",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsV2Message",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsV2MessageOptions",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsV2MessageType",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsV2PayloadMap",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsWireValue",
+        "kind": "type"
+      },
+      {
+        "name": "DisconnectMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DisconnectRxdbMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DisconnectRxdbResultMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DisconnectRxdbResultPayload",
+        "kind": "type"
+      },
+      {
+        "name": "DisconnectStatus",
+        "kind": "type"
+      },
+      {
+        "name": "encodeCanonicalBase64",
+        "kind": "value"
+      },
+      {
+        "name": "EntityDataMessage",
+        "kind": "type"
+      },
+      {
+        "name": "EntityDataPayload",
+        "kind": "type"
+      },
+      {
+        "name": "EventBuffer",
+        "kind": "both"
+      },
+      {
+        "name": "EventMessage",
+        "kind": "type"
+      },
+      {
+        "name": "GetBranchesMessage",
+        "kind": "type"
+      },
+      {
+        "name": "getDevToolsConnector",
+        "kind": "value"
+      },
+      {
+        "name": "GetEntityMetadataFn",
+        "kind": "type"
+      },
+      {
+        "name": "HandshakeAckMessage",
+        "kind": "type"
+      },
+      {
+        "name": "HandshakeMessage",
+        "kind": "type"
+      },
+      {
+        "name": "HandshakePayload",
+        "kind": "type"
+      },
+      {
+        "name": "InspectDbMessage",
+        "kind": "type"
+      },
+      {
+        "name": "isCanonicalUuidV4",
+        "kind": "value"
+      },
+      {
+        "name": "isControlPlaneErrorCode",
+        "kind": "value"
+      },
+      {
+        "name": "isDevToolsCapability",
+        "kind": "value"
+      },
+      {
+        "name": "isDevToolsCommandMessage",
+        "kind": "value"
+      },
+      {
+        "name": "isDevToolsErrorPayload",
+        "kind": "value"
+      },
+      {
+        "name": "isDevToolsIdentifier",
+        "kind": "value"
+      },
+      {
+        "name": "isDevToolsMessage",
+        "kind": "value"
+      },
+      {
+        "name": "isDevToolsProviderDescriptor",
+        "kind": "value"
+      },
+      {
+        "name": "isDevToolsProviderDescriptorSet",
+        "kind": "value"
+      },
+      {
+        "name": "isDevToolsProviderDomain",
+        "kind": "value"
+      },
+      {
+        "name": "isDevToolsV2Envelope",
+        "kind": "value"
+      },
+      {
+        "name": "isDevToolsV2Message",
+        "kind": "value"
+      },
+      {
+        "name": "isMaxTransferBytes",
+        "kind": "value"
+      },
+      {
+        "name": "isMutatingOperation",
+        "kind": "value"
+      },
+      {
+        "name": "isPageSize",
+        "kind": "value"
+      },
+      {
+        "name": "isProviderErrorCode",
+        "kind": "value"
+      },
+      {
+        "name": "isRedactedErrorMessage",
+        "kind": "value"
+      },
+      {
+        "name": "isSupportedVersionList",
+        "kind": "value"
+      },
+      {
+        "name": "isWithinTransferLimit",
+        "kind": "value"
+      },
+      {
+        "name": "mapPlatformError",
+        "kind": "value"
+      },
+      {
+        "name": "MessageDirection",
+        "kind": "type"
+      },
+      {
+        "name": "MessageOfType",
+        "kind": "type"
+      },
+      {
+        "name": "MessageType",
+        "kind": "type"
+      },
+      {
+        "name": "PingMessage",
+        "kind": "type"
+      },
+      {
+        "name": "QueryEntityMessage",
+        "kind": "type"
+      },
+      {
+        "name": "QueryEntityPayload",
+        "kind": "type"
+      },
+      {
+        "name": "resetDevToolsConnector",
+        "kind": "value"
+      },
+      {
+        "name": "resolveNegotiatedTransferLimit",
+        "kind": "value"
+      },
+      {
+        "name": "RXDB_DEVTOOLS_MESSAGE",
+        "kind": "value"
+      },
+      {
+        "name": "RXDB_EVENT_TYPES",
+        "kind": "value"
+      },
+      {
+        "name": "satisfiesCapability",
+        "kind": "value"
+      },
+      {
+        "name": "SequenceGenerator",
+        "kind": "both"
+      },
+      {
+        "name": "serialize",
+        "kind": "value"
+      },
+      {
+        "name": "SerializedEvent",
+        "kind": "type"
+      },
+      {
+        "name": "serializeDevToolsValue",
+        "kind": "value"
+      },
+      {
+        "name": "snapshotRecordBytes",
+        "kind": "value"
+      },
+      {
+        "name": "SwitchBranchMessage",
+        "kind": "type"
+      },
+      {
+        "name": "totalSnapshotBytes",
+        "kind": "value"
+      }
+    ],
+    "./testing": [
+      {
+        "name": "assertCanonicalJsonFrame",
+        "kind": "value"
+      },
+      {
+        "name": "connected",
+        "kind": "value"
+      },
+      {
+        "name": "connectorOutput",
+        "kind": "value"
+      },
+      {
+        "name": "createFakeClock",
+        "kind": "value"
+      },
+      {
+        "name": "createFakeEndpointFactory",
+        "kind": "value"
+      },
+      {
+        "name": "createFakeProviders",
+        "kind": "value"
+      },
+      {
+        "name": "createJsonConformanceDriver",
+        "kind": "value"
+      },
+      {
+        "name": "createScenario",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_DEFAULT_SCENARIO",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_ERROR_MAPPING_FIXTURES",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_RELAY_SEGMENTS",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_SUITE_BASE_TIMESTAMP",
+        "kind": "value"
+      },
+      {
+        "name": "DevToolsAnyErrorCode",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsConformanceDriver",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsConformanceScenario",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsConformanceSession",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsErrorFixture",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsFakeClock",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsFakePlatformFailure",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsFakeProviderKinds",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsFakeProviderOptions",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsFakeProviderSet",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsProviderProbe",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsRelaySegment",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSegmentProbe",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSuitePanelClient",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsWireFrame",
+        "kind": "type"
+      },
+      {
+        "name": "encodeFrame",
+        "kind": "value"
+      },
+      {
+        "name": "isCanonicalJsonFrame",
+        "kind": "value"
+      },
+      {
+        "name": "JsonDriverEndpointFactory",
+        "kind": "type"
+      },
+      {
+        "name": "JsonDriverEndpoints",
+        "kind": "type"
+      },
+      {
+        "name": "panelClient",
+        "kind": "value"
+      },
+      {
+        "name": "panelOutput",
+        "kind": "value"
+      },
+      {
+        "name": "readErrorCodes",
+        "kind": "value"
+      },
+      {
+        "name": "readLegacyFramesOfType",
+        "kind": "value"
+      },
+      {
+        "name": "readV2Frames",
+        "kind": "value"
+      },
+      {
+        "name": "readV2FramesOfType",
+        "kind": "value"
+      },
+      {
+        "name": "runDevToolsControlPlaneSuite",
+        "kind": "value"
+      },
+      {
+        "name": "runDevToolsDataPlaneSuite",
+        "kind": "value"
+      },
+      {
+        "name": "runDevToolsWireHygieneSuite",
+        "kind": "value"
+      },
+      {
+        "name": "sessionIdOf",
+        "kind": "value"
+      }
+    ]
+  }
 }

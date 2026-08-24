@@ -4,8 +4,9 @@
  * API 表面基线 / diff 工具 —— 在 PR 改动公共 API 时拦截破坏性变化。
  *
  * 工作方式：
- *   - 对每个公开包（非 private、有 src/index.ts）用 TypeScript 编译器解析入口，
- *     展开 export * / re-export，得到真实可见的 `{ name, kind: 'type' | 'value' | 'both' }[]`；
+ *   - 对每个公开包（非 private、有 src/index.ts）枚举 `exports` 声明的**全部**入口
+ *     （主入口 + 子路径），用 TypeScript 编译器解析各自的源文件，展开 export * / re-export，
+ *     得到真实可见的 `{ name, kind: 'type' | 'value' | 'both' }[]`；
  *   - 对比 requirements/api-baseline/<pkg>.json：
  *       removed / kind changed  → 破坏性，PR 必须附迁移说明；
  *       added only              → 基线漂移，跑 --update 同步即可；
@@ -19,16 +20,17 @@
  */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import ts from 'typescript';
 
-import { auditSubpathInventory } from './subpath-inventory.mjs';
+import { auditAssetWhitelistScope, resolveScanEntries } from './subpath-inventory.mjs';
 
 /**
  * API 表面基线 / diff。
  *
- * 对每个公开包，从其源入口 `src/index.ts` 提取导出符号表面（名称 + 种类），
- * 生成排序后的黄金快照 `requirements/api-baseline/<pkg>.json`。
+ * 对每个公开包的每个公开入口，从其**源文件**提取导出符号表面（名称 + 种类），
+ * 生成排序后的黄金快照 `requirements/api-baseline/<pkg>.json`，格式为
+ * `{ entries: { ".": [...], "./testing": [...] } }`。
  *
  * 用法：
  *   node scripts/audit/api-surface.mjs            # 默认 --check
@@ -36,19 +38,20 @@ import { auditSubpathInventory } from './subpath-inventory.mjs';
  *   node scripts/audit/api-surface.mjs --update    # 重新生成基线（预期变更时使用）
  *
  * 设计取舍：
- * - 基于源 `src/index.ts`（路径稳定），而非 dist 产物 —— 普通包与 ng-packagr 包的
- *   构建输出目录不同，源入口则始终一致，且无需先构建即可运行。
+ * - 基于源文件（路径稳定），而非 dist 产物 —— 普通包与 ng-packagr 包的构建输出目录不同，
+ *   源入口则始终一致，且无需先构建即可运行。
+ * - 入口 → 源文件的唯一真相源是 `package.json` › `exports` › `@aiao/source`（主入口除外，
+ *   固定取 `src/index.ts`）。声明与入口同处一地，不会像「另一份 paths 清单」那样各自漂移；
+ *   没有该条件的子路径入口一律硬失败，不从 `import`/`types` 反推，也不降级为「零导出」。
  * - 跨包引用用 `tsconfig.base.json` 的 paths 解析（而非 node_modules），保证本地与 CI
  *   提取结果一致；无法解析的导出符号直接报错，不降级猜测种类。
- * - 【v1 边界】只扫主入口 `src/index.ts`，不覆盖 package.json `exports` 子路径入口
- *   （如 `@aiao/x/sub`）。子路径的**导出表面**变化不会被本门禁捕获，需人工审查；
- *   但子路径的**清单**受 `KNOWN_UNCOVERED_SUBPATHS` 守护（见其注释），新增或删除
- *   子路径而不同步清单会让本门禁失败。
+ * - 无导出表面的资产入口（wasm / CJS）按 `ASSET_SUBPATHS` 白名单显式跳过，
+ *   其内容由 `scripts/audit/wa-sqlite-integrity.mjs` 的 SHA-256 固定守护。
  * - 通过 TS 编译器解析 `export *` / re-export，得到入口真实可见的导出集合。
  * - 只记录名称与种类（type/value/both），不做完整签名快照 —— 目标是捕获「导出被
  *   增删或改变种类」这类信号，触发人工审查，而非替代类型契约测试。
- * - 判定分级：removed / 种类 changed = 破坏性（需迁移说明）；仅 added = 基线漂移
- *   （更新基线即可）。两者都拦 CI，但对 PR 作者的要求不同。
+ * - 判定分级：入口移除 / 符号 removed / 种类 changed = 破坏性（需迁移说明）；
+ *   仅新增入口或新增符号 = 基线漂移（更新基线即可）。两者都拦 CI，但对 PR 作者的要求不同。
  */
 
 const root = process.cwd();
@@ -59,48 +62,18 @@ const baselineDir = join(root, 'requirements', 'api-baseline');
 const EXCLUDED = new Set(['rxdb-test']);
 
 /**
- * `exports` 子路径入口清单 —— 这些入口**属于公开 API**（见
- * requirements/versioning-policy.md 第 2 节），但**导出表面不受本基线保护**：
- * 本脚本的 v1 边界只解析主入口 `src/index.ts`。改动它们的导出必须在 PR 描述里人工声明破坏性。
+ * **无导出表面**的资产入口白名单 —— 这些 `exports` 子路径指向二进制 / CJS 文件，
+ * 没有 TS 源可解析，因此显式跳过表面扫描，改由
+ * `scripts/audit/wa-sqlite-integrity.mjs` 的 SHA-256 固定守护其内容。
  *
- * 本表是那份「已知不覆盖」清单的**真相源**（versioning-policy.md 与 website/docs/versioning.md
- * 都指回这里），并由 `auditSubpathInventory()` 逐包核对：新增或删除子路径而不同步本表 → 门禁红。
- * 这样清单不会随包演进静默过期，作者也会在动到无保护的公开 API 时被拦一次。
+ * 白名单是**收窄**的：其余子路径入口一律必须声明 `@aiao/source` 并进基线，
+ * 新增一个既不在白名单、又没有源入口声明的子路径 → 门禁红（见 `resolveScanEntries()`）。
+ * 反向也守：白名单登记了包里已不存在的入口，或登记的包已退出扫描范围，同样门禁红。
  *
- * 10 个包共 16 个入口。其中 `rxdb-adapter-miniprogram` 的两个 `./assets/*` 是二进制/CJS 资产，
- * 没有导出表面可扫，改由 `scripts/audit/wa-sqlite-integrity.mjs` 的 SHA-256 固定守护。
  * `@aiao/rxdb-test/*`（5 个子路径）不在此列——整包已由 EXCLUDED 排除，非产品 API。
- *
- * 扩展扫描器以覆盖子路径导出表面由 US-601 认领（Backlog），见
- * requirements/stories/tooling/US-601-subpath-api-surface-baseline.md；
- * 交付后本表的语义应收窄为「无导出表面的资产入口白名单」，常量名一并改掉。
  * @type {Map<string, string[]>}
  */
-const KNOWN_UNCOVERED_SUBPATHS = new Map([
-  // ./host = node:sqlite 引擎 + SQL/文件宿主。特权侧独立成入口，免得被打进 renderer bundle。
-  // Tauri 侧没有对应项：它的特权侧是 Rust，随应用二进制走，不经 npm 分发。
-  ['rxdb-adapter-electron', ['./host']],
-  ['rxdb-adapter-encrypted', ['./testing']],
-  // ./runtime = prepareMiniProgramRuntime 等 5 个值 + 6 个类型，共 11 个符号。
-  ['rxdb-adapter-miniprogram', ['./assets/wa-sqlite.cjs', './assets/wa-sqlite.wasm', './runtime']],
-  ['rxdb-adapter-pglite', ['./testing']],
-  // ./desktop-host = 桌面 host 契约（线协议 + renderer client + 存储联合 + 错误类型），
-  // Electron 与 Tauri 两个运行时包共用。不进主入口：另外五个下游适配器一行都用不上，
-  // 却要跟着进 bundle。
-  ['rxdb-adapter-sqlite-core', ['./desktop-host', './testing']],
-  ['rxdb-adapter-wa-sqlite', ['./client']],
-  ['rxdb-client-generator', ['./cli', './vite']],
-  // ./testing = conformance driver 接缝 + wire hygiene 套件 + fake clock/driver，
-  // 供 US-904c/904d/905 的 Chrome / Electron / Tauri 薄 driver 复跑同一份 v2 协议断言；
-  // 依赖 vitest，只在测试环境使用。
-  ['rxdb-devtools', ['./testing']],
-  ['rxdb-plugin-graph', ['./generator', './sqlite']],
-  // ./desktop = createDesktopStorageFilesystem + DesktopStorageFilesystemOptions。
-  // 该入口依赖桌面 host 传输层，不能进浏览器 bundle，因此不从主入口导出。
-  // ./testing = storageBackendParitySuite + isTemporaryStorageName + ParityBackend，
-  // 供包外后端（Tauri 的 Rust 宿主）证明行为一致；依赖 vitest，只在测试环境使用。
-  ['rxdb-plugin-storage', ['./desktop', './testing']]
-]);
+const ASSET_SUBPATHS = new Map([['rxdb-adapter-miniprogram', ['./assets/wa-sqlite.cjs', './assets/wa-sqlite.wasm']]]);
 
 const mode = process.argv.includes('--update') ? 'update' : 'check';
 
@@ -108,7 +81,7 @@ const mode = process.argv.includes('--update') ? 'update' : 'check';
  * 列出需要纳入 API 表面扫描的公开包。
  * 规则：
  *   - 必须位于 packages/ 下、是目录；
- *   - 必须有 src/index.ts（解析目标固定）；
+ *   - 必须有 src/index.ts（主入口解析目标固定）；
  *   - 必须有 package.json，且 private !== true；
  *   - 默认排除 rxdb-test（测试夹具，不属于产品 API）。
  * @returns {string[]} 包名（目录名）排序后
@@ -199,14 +172,27 @@ function baselinePath(pkg) {
   return join(baselineDir, `${pkg}.json`);
 }
 
+/**
+ * 读取基线文件，返回 `{ [subpath]: exports[] }`。
+ *
+ * 旧的单入口格式（`{ exports: [] }`）不做兼容读取——留一条兼容分支就等于允许一半的包
+ * 停在旧格式；这里直接报错，让作者跑一次 `--update` 全量重写。
+ * @returns {Record<string, Array<{ name: string, kind: string }>> | null} 无基线文件时为 null
+ */
 function loadBaseline(pkg) {
   const p = baselinePath(pkg);
   if (!existsSync(p)) return null;
-  return JSON.parse(readFileSync(p, 'utf8'));
+  const parsed = JSON.parse(readFileSync(p, 'utf8'));
+  if (typeof parsed.entries !== 'object' || parsed.entries === null) {
+    throw new Error('基线为旧的单入口格式，请运行 --update 全量重写为 { entries: { ... } }');
+  }
+  return parsed.entries;
 }
 
-function serialize(exportsList) {
-  return `${JSON.stringify({ exports: exportsList }, null, 2)}\n`;
+/** 按子路径排序序列化，让 diff 只反映真实变化而非枚举顺序。 */
+function serialize(entriesBySubpath) {
+  const sorted = Object.fromEntries(Object.entries(entriesBySubpath).sort(([a], [b]) => a.localeCompare(b)));
+  return `${JSON.stringify({ entries: sorted }, null, 2)}\n`;
 }
 
 /**
@@ -228,89 +214,163 @@ function diff(previous, current) {
   return { removed, added, changed };
 }
 
+/**
+ * 在入口维度与符号维度上同时求差。
+ *
+ * 入口整体消失是破坏性的最强信号（使用者的 import 直接解析失败），必须与
+ * 「入口还在、少了个符号」区分输出；入口新增则只是漂移。
+ * @param {Record<string, Array<{ name: string, kind: string }>>} previous
+ * @param {Record<string, Array<{ name: string, kind: string }>>} current
+ */
+function diffEntries(previous, current) {
+  const removedEntries = Object.keys(previous)
+    .filter(subpath => !(subpath in current))
+    .sort();
+  const addedEntries = Object.keys(current)
+    .filter(subpath => !(subpath in previous))
+    .sort();
+  const perEntry = Object.keys(current)
+    .filter(subpath => subpath in previous)
+    .sort()
+    .map(subpath => ({ subpath, ...diff(previous[subpath], current[subpath]) }))
+    .filter(d => d.removed.length > 0 || d.added.length > 0 || d.changed.length > 0);
+  return { removedEntries, addedEntries, perEntry };
+}
+
 const packages = listPublicPackages();
 if (mode === 'update' && !existsSync(baselineDir)) mkdirSync(baselineDir, { recursive: true });
 
-let breaking = 0; // removed / 种类 changed —— 需迁移说明
-let drift = 0; // 仅 added —— 更新基线即可
-let errors = 0; // 解析失败 / 缺基线 / 子路径清单过期
-let updated = 0;
+// —— 第一遍：枚举入口并解析源文件位置 ——
+// 入口清单错了，基线内容就是错的，因此两种模式下都先拦住：`--update` 若带着「解析不了的
+// 入口」继续写基线，等于把一个入口静默从快照里删掉。
+const scanPlan = new Map();
+const planProblems = [];
+for (const pkg of packages) {
+  const { entries, skippedAssets, problems } = resolveScanEntries(
+    join(packagesDir, pkg),
+    ASSET_SUBPATHS.get(pkg) ?? []
+  );
+  scanPlan.set(pkg, { entries, skippedAssets });
+  for (const problem of problems) planProblems.push(`${pkg} ${problem}`);
+}
+for (const problem of auditAssetWhitelistScope(packages, ASSET_SUBPATHS)) planProblems.push(problem);
 
-// 子路径清单核对：守清单不过期，不是守子路径的导出表面（后者是 v1 边界外）。
-const subpathProblems = auditSubpathInventory(packagesDir, packages, KNOWN_UNCOVERED_SUBPATHS);
-if (subpathProblems.length > 0) {
-  console.log('❌ `exports` 子路径入口清单与仓库现状不一致：');
-  for (const problem of subpathProblems) console.log(`   ${problem}`);
-  console.log('   → 同步 api-surface.mjs 的 KNOWN_UNCOVERED_SUBPATHS。');
-  console.log('     这些入口的导出表面不受本基线保护，改动其导出必须在 PR 描述里人工声明破坏性。');
-  // `--update` 只重建基线，不改这份手工清单，所以那里只提示不阻断。
-  if (mode === 'check') errors += subpathProblems.length;
+if (planProblems.length > 0) {
+  console.log('❌ `exports` 入口与源入口声明不一致：');
+  for (const problem of planProblems) console.log(`   ${problem}`);
+  console.log('   → 有导出表面的子路径请在 package.json 的 exports 里补 `@aiao/source` 指向 .ts 源文件；');
+  console.log('     无导出表面的资产入口请登记进 api-surface.mjs 的 ASSET_SUBPATHS。');
+  process.exit(1);
 }
 
+let breaking = 0; // 入口移除 / 符号 removed / 种类 changed —— 需迁移说明
+let drift = 0; // 仅新增入口或新增符号 —— 更新基线即可
+let errors = 0; // 解析失败 / 缺基线
+let updated = 0;
+let scannedEntries = 0;
+let skippedAssetEntries = 0;
+
 for (const pkg of packages) {
-  const entryFile = join(packagesDir, pkg, 'src', 'index.ts');
-  let current;
-  try {
-    current = extractExports(entryFile, join(packagesDir, pkg, 'src'));
-  } catch (error) {
-    console.log(`❌ ${pkg}: 解析失败 — ${error.message}`);
+  const { entries, skippedAssets } = scanPlan.get(pkg);
+  const srcDir = join(packagesDir, pkg, 'src');
+  skippedAssetEntries += skippedAssets.length;
+  for (const subpath of skippedAssets) {
+    console.log(
+      `⏭️  ${pkg}${subpath.slice(1)}: 资产入口，无导出表面（内容由 wa-sqlite-integrity.mjs 的 SHA-256 守护）`
+    );
+  }
+
+  const current = {};
+  let failed = false;
+  for (const { subpath, sourceFile } of entries) {
+    try {
+      current[subpath] = extractExports(sourceFile, srcDir);
+    } catch (error) {
+      console.log(`❌ ${pkg} ${subpath}: 解析失败（${relative(root, sourceFile)}）— ${error.message}`);
+      failed = true;
+      break;
+    }
+  }
+  if (failed) {
     errors++;
     continue;
   }
+  scannedEntries += entries.length;
+  const symbolCount = Object.values(current).reduce((sum, list) => sum + list.length, 0);
 
   if (mode === 'update') {
     writeFileSync(baselinePath(pkg), serialize(current));
-    console.log(`📝 ${pkg}: 基线已更新（${current.length} 个导出）`);
+    console.log(`📝 ${pkg}: 基线已更新（${entries.length} 个入口 / ${symbolCount} 个导出）`);
     updated++;
     continue;
   }
 
-  const baseline = loadBaseline(pkg);
+  let baseline;
+  try {
+    baseline = loadBaseline(pkg);
+  } catch (error) {
+    console.log(`❌ ${pkg}: ${error.message}`);
+    errors++;
+    continue;
+  }
   if (!baseline) {
     console.log(`⚠️  ${pkg}: 无基线文件，请先运行 --update`);
     errors++;
     continue;
   }
 
-  const { removed, added, changed } = diff(baseline.exports, current);
-  if (removed.length === 0 && added.length === 0 && changed.length === 0) {
-    console.log(`✅ ${pkg}: 表面无变化（${current.length} 个导出）`);
+  const { removedEntries, addedEntries, perEntry } = diffEntries(baseline, current);
+  const hasBreaking = removedEntries.length > 0 || perEntry.some(d => d.removed.length > 0 || d.changed.length > 0);
+  const hasDrift = addedEntries.length > 0 || perEntry.some(d => d.added.length > 0);
+
+  if (!hasBreaking && !hasDrift) {
+    console.log(`✅ ${pkg}: 表面无变化（${entries.length} 个入口 / ${symbolCount} 个导出）`);
     continue;
   }
 
-  if (removed.length > 0 || changed.length > 0) {
+  if (hasBreaking) {
     breaking++;
     console.log(`❌ ${pkg}: 破坏性 API 变化`);
   } else {
     drift++;
-    console.log(`🟡 ${pkg}: 仅新增导出（基线漂移）`);
+    console.log(`🟡 ${pkg}: 仅新增入口 / 导出（基线漂移）`);
   }
-  if (removed.length > 0) console.log(`   移除（破坏性）：${removed.join(', ')}`);
-  if (changed.length > 0) console.log(`   种类变化（破坏性）：${changed.join(', ')}`);
-  if (added.length > 0) console.log(`   新增：${added.join(', ')}`);
+  if (removedEntries.length > 0) console.log(`   入口移除（破坏性）：${removedEntries.join(', ')}`);
+  if (addedEntries.length > 0) console.log(`   入口新增：${addedEntries.join(', ')}`);
+  for (const { subpath, removed, added, changed } of perEntry) {
+    if (removed.length > 0) console.log(`   ${subpath} 移除（破坏性）：${removed.join(', ')}`);
+    if (changed.length > 0) console.log(`   ${subpath} 种类变化（破坏性）：${changed.join(', ')}`);
+    if (added.length > 0) console.log(`   ${subpath} 新增：${added.join(', ')}`);
+  }
 }
 
 if (mode === 'update') {
-  console.log(`\n✅ 已更新 ${updated} 个包的 API 基线。`);
+  if (errors > 0) {
+    console.log(`\n❌ ${errors} 个包解析失败，基线未完整重写。`);
+    process.exit(1);
+  }
+  console.log(`\n✅ 已更新 ${updated} 个包的 API 基线（共 ${scannedEntries} 个入口）。`);
   process.exit(0);
 }
 
 if (breaking + drift + errors > 0) {
   console.log('');
-  if (errors > 0) console.log(`📋 ${errors} 处解析失败 / 缺少基线文件 / 子路径清单过期，请先排查 / 运行 --update。`);
+  if (errors > 0) console.log(`📋 ${errors} 处解析失败 / 缺少基线文件 / 基线格式过期，请先排查 / 运行 --update。`);
   if (breaking > 0) {
     console.log(
-      `📋 ${breaking} 个包存在破坏性变化（移除 / 种类变化）：更新基线之外，` +
+      `📋 ${breaking} 个包存在破坏性变化（入口或符号移除 / 种类变化）：更新基线之外，` +
         `还需在 PR 中提供迁移说明（breaking note）。`
     );
   }
   if (drift > 0) {
-    console.log(`📋 ${drift} 个包仅新增导出：运行 \`node scripts/audit/api-surface.mjs --update\` 同步基线即可。`);
+    console.log(
+      `📋 ${drift} 个包仅新增入口 / 导出：运行 \`node scripts/audit/api-surface.mjs --update\` 同步基线即可。`
+    );
   }
   process.exit(1);
 }
 
 console.log(
-  `\n✅ 全部 ${packages.length} 个公开包 API 表面与基线一致` +
-    `（另核对 ${KNOWN_UNCOVERED_SUBPATHS.size} 个包的子路径清单）。`
+  `\n✅ 全部 ${packages.length} 个公开包、${scannedEntries} 个公开入口的 API 表面与基线一致` +
+    `（另跳过 ${skippedAssetEntries} 个无导出表面的资产入口）。`
 );

@@ -1,120 +1,144 @@
 {
-  "exports": [
-    {
-      "name": "assertWaSqliteDatabaseName",
-      "kind": "value"
-    },
-    {
-      "name": "BATCH_TIMEOUT",
-      "kind": "value"
-    },
-    {
-      "name": "buildRuleGroup",
-      "kind": "value"
-    },
-    {
-      "name": "GenerateSqlResult",
-      "kind": "type"
-    },
-    {
-      "name": "LoadedSqlite",
-      "kind": "type"
-    },
-    {
-      "name": "LoadModuleOptions",
-      "kind": "type"
-    },
-    {
-      "name": "ResolvedWaSqliteClientOptions",
-      "kind": "type"
-    },
-    {
-      "name": "ROWID",
-      "kind": "value"
-    },
-    {
-      "name": "RxDBAdapterSqlite",
-      "kind": "both"
-    },
-    {
-      "name": "RxDBAdapterSqliteBase",
-      "kind": "both"
-    },
-    {
-      "name": "RxDBAdapterSqliteError",
-      "kind": "both"
-    },
-    {
-      "name": "RxDBAdapterWaSqlite",
-      "kind": "both"
-    },
-    {
-      "name": "SqliteClient",
-      "kind": "both"
-    },
-    {
-      "name": "sqliteGetTableName",
-      "kind": "value"
-    },
-    {
-      "name": "sqliteGetTableNameByMetadata",
-      "kind": "value"
-    },
-    {
-      "name": "sqliteLoad",
-      "kind": "value"
-    },
-    {
-      "name": "SqliteOptions",
-      "kind": "type"
-    },
-    {
-      "name": "SqliteRepository",
-      "kind": "both"
-    },
-    {
-      "name": "SqliteRepositoryConstructor",
-      "kind": "type"
-    },
-    {
-      "name": "SupportVFS",
-      "kind": "type"
-    },
-    {
-      "name": "WA_SQLITE_MAX_DATABASE_NAME_BYTES",
-      "kind": "value"
-    },
-    {
-      "name": "WA_SQLITE_VFS_LIST",
-      "kind": "value"
-    },
-    {
-      "name": "WaSqliteClient",
-      "kind": "both"
-    },
-    {
-      "name": "WaSqliteClientRuntime",
-      "kind": "type"
-    },
-    {
-      "name": "waSqliteLoad",
-      "kind": "value"
-    },
-    {
-      "name": "WaSqliteOptions",
-      "kind": "type"
-    },
-    {
-      "name": "WaSqliteRepositoryConstructor",
-      "kind": "type"
-    },
-    {
-      "name": "WaSqliteVfsConfig",
-      "kind": "type"
-    },
-    {
-      "name": "WaSqliteVfsFactory",
-      "kind": "type"
-    }
-  ]
+  "entries": {
+    ".": [
+      {
+        "name": "assertWaSqliteDatabaseName",
+        "kind": "value"
+      },
+      {
+        "name": "BATCH_TIMEOUT",
+        "kind": "value"
+      },
+      {
+        "name": "buildRuleGroup",
+        "kind": "value"
+      },
+      {
+        "name": "GenerateSqlResult",
+        "kind": "type"
+      },
+      {
+        "name": "LoadedSqlite",
+        "kind": "type"
+      },
+      {
+        "name": "LoadModuleOptions",
+        "kind": "type"
+      },
+      {
+        "name": "ResolvedWaSqliteClientOptions",
+        "kind": "type"
+      },
+      {
+        "name": "ROWID",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBAdapterSqlite",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBAdapterSqliteBase",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBAdapterSqliteError",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBAdapterWaSqlite",
+        "kind": "both"
+      },
+      {
+        "name": "SqliteClient",
+        "kind": "both"
+      },
+      {
+        "name": "sqliteGetTableName",
+        "kind": "value"
+      },
+      {
+        "name": "sqliteGetTableNameByMetadata",
+        "kind": "value"
+      },
+      {
+        "name": "sqliteLoad",
+        "kind": "value"
+      },
+      {
+        "name": "SqliteOptions",
+        "kind": "type"
+      },
+      {
+        "name": "SqliteRepository",
+        "kind": "both"
+      },
+      {
+        "name": "SqliteRepositoryConstructor",
+        "kind": "type"
+      },
+      {
+        "name": "SupportVFS",
+        "kind": "type"
+      },
+      {
+        "name": "WA_SQLITE_MAX_DATABASE_NAME_BYTES",
+        "kind": "value"
+      },
+      {
+        "name": "WA_SQLITE_VFS_LIST",
+        "kind": "value"
+      },
+      {
+        "name": "WaSqliteClient",
+        "kind": "both"
+      },
+      {
+        "name": "WaSqliteClientRuntime",
+        "kind": "type"
+      },
+      {
+        "name": "waSqliteLoad",
+        "kind": "value"
+      },
+      {
+        "name": "WaSqliteOptions",
+        "kind": "type"
+      },
+      {
+        "name": "WaSqliteRepositoryConstructor",
+        "kind": "type"
+      },
+      {
+        "name": "WaSqliteVfsConfig",
+        "kind": "type"
+      },
+      {
+        "name": "WaSqliteVfsFactory",
+        "kind": "type"
+      }
+    ],
+    "./client": [
+      {
+        "name": "LoadedWaSqliteClientRuntime",
+        "kind": "type"
+      },
+      {
+        "name": "ResolvedWaSqliteClientOptions",
+        "kind": "type"
+      },
+      {
+        "name": "WaSqliteClientBase",
+        "kind": "both"
+      },
+      {
+        "name": "WaSqliteClientEvents",
+        "kind": "type"
+      },
+      {
+        "name": "WaSqliteClientRuntime",
+        "kind": "type"
+      }
+    ]
+  }
 }

@@ -1,68 +1,70 @@
 {
-  "exports": [
-    {
-      "name": "buildRuleGroup",
-      "kind": "value"
-    },
-    {
-      "name": "createSqliteClient",
-      "kind": "value"
-    },
-    {
-      "name": "GenerateSqlResult",
-      "kind": "type"
-    },
-    {
-      "name": "releaseComlinkProxy",
-      "kind": "value"
-    },
-    {
-      "name": "ROWID",
-      "kind": "value"
-    },
-    {
-      "name": "RxDBAdapterSqlite",
-      "kind": "both"
-    },
-    {
-      "name": "RxDBAdapterSqliteBase",
-      "kind": "both"
-    },
-    {
-      "name": "RxDBAdapterSqliteError",
-      "kind": "both"
-    },
-    {
-      "name": "SQLITE_WASM_VFS_LIST",
-      "kind": "value"
-    },
-    {
-      "name": "SqliteClient",
-      "kind": "both"
-    },
-    {
-      "name": "sqliteGetTableName",
-      "kind": "value"
-    },
-    {
-      "name": "sqliteGetTableNameByMetadata",
-      "kind": "value"
-    },
-    {
-      "name": "sqliteLoad",
-      "kind": "value"
-    },
-    {
-      "name": "SqliteOptions",
-      "kind": "type"
-    },
-    {
-      "name": "SqliteRepository",
-      "kind": "both"
-    },
-    {
-      "name": "SupportVFS",
-      "kind": "type"
-    }
-  ]
+  "entries": {
+    ".": [
+      {
+        "name": "buildRuleGroup",
+        "kind": "value"
+      },
+      {
+        "name": "createSqliteClient",
+        "kind": "value"
+      },
+      {
+        "name": "GenerateSqlResult",
+        "kind": "type"
+      },
+      {
+        "name": "releaseComlinkProxy",
+        "kind": "value"
+      },
+      {
+        "name": "ROWID",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBAdapterSqlite",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBAdapterSqliteBase",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBAdapterSqliteError",
+        "kind": "both"
+      },
+      {
+        "name": "SQLITE_WASM_VFS_LIST",
+        "kind": "value"
+      },
+      {
+        "name": "SqliteClient",
+        "kind": "both"
+      },
+      {
+        "name": "sqliteGetTableName",
+        "kind": "value"
+      },
+      {
+        "name": "sqliteGetTableNameByMetadata",
+        "kind": "value"
+      },
+      {
+        "name": "sqliteLoad",
+        "kind": "value"
+      },
+      {
+        "name": "SqliteOptions",
+        "kind": "type"
+      },
+      {
+        "name": "SqliteRepository",
+        "kind": "both"
+      },
+      {
+        "name": "SupportVFS",
+        "kind": "type"
+      }
+    ]
+  }
 }

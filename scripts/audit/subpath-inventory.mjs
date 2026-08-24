@@ -74,7 +74,9 @@ export function resolveScanEntries(packageDir, assetSubpaths = []) {
     }
     const source = readSourceCondition(packageJson.exports[subpath]);
     if (source === undefined) {
-      problems.push(`${subpath}: 缺少 \`${SOURCE_CONDITION}\` 条件，无法定位源入口（无导出表面的资产入口请登记进白名单）`);
+      problems.push(
+        `${subpath}: 缺少 \`${SOURCE_CONDITION}\` 条件，无法定位源入口（无导出表面的资产入口请登记进白名单）`
+      );
       continue;
     }
     const sourceFile = join(packageDir, source);

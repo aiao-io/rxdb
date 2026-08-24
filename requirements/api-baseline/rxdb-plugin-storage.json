@@ -1,184 +1,210 @@
 {
-  "exports": [
-    {
-      "name": "CreateDirectoryOptions",
-      "kind": "type"
-    },
-    {
-      "name": "createOpfsStorageFilesystem",
-      "kind": "value"
-    },
-    {
-      "name": "DownloadOptions",
-      "kind": "type"
-    },
-    {
-      "name": "FetchRemoteOptions",
-      "kind": "type"
-    },
-    {
-      "name": "getDirectoryPathFromOpfsPath",
-      "kind": "value"
-    },
-    {
-      "name": "getFileNameFromOpfsPath",
-      "kind": "value"
-    },
-    {
-      "name": "isOpfsPathInDirectory",
-      "kind": "value"
-    },
-    {
-      "name": "isOpfsPathInsideDirectory",
-      "kind": "value"
-    },
-    {
-      "name": "isStorageNotFoundError",
-      "kind": "value"
-    },
-    {
-      "name": "joinDirectoryAndFileName",
-      "kind": "value"
-    },
-    {
-      "name": "joinDirectoryPath",
-      "kind": "value"
-    },
-    {
-      "name": "ListOptions",
-      "kind": "type"
-    },
-    {
-      "name": "normalizeDirectoryPath",
-      "kind": "value"
-    },
-    {
-      "name": "normalizeRelativeOpfsPath",
-      "kind": "value"
-    },
-    {
-      "name": "ObjectUrlRegistry",
-      "kind": "both"
-    },
-    {
-      "name": "OpfsStorageFilesystem",
-      "kind": "both"
-    },
-    {
-      "name": "RenameOptions",
-      "kind": "type"
-    },
-    {
-      "name": "RxdbFileStorage",
-      "kind": "both"
-    },
-    {
-      "name": "rxDBPluginStorage",
-      "kind": "value"
-    },
-    {
-      "name": "RxDBPluginStorage",
-      "kind": "both"
-    },
-    {
-      "name": "rxdbStorage",
-      "kind": "value"
-    },
-    {
-      "name": "RxDBStoragePluginOptions",
-      "kind": "type"
-    },
-    {
-      "name": "StorageBackendError",
-      "kind": "both"
-    },
-    {
-      "name": "StorageBackendErrorCode",
-      "kind": "type"
-    },
-    {
-      "name": "StorageBrowserEntry",
-      "kind": "type"
-    },
-    {
-      "name": "StorageConflictError",
-      "kind": "both"
-    },
-    {
-      "name": "StorageDestroyedError",
-      "kind": "both"
-    },
-    {
-      "name": "StorageDirectoryEntry",
-      "kind": "type"
-    },
-    {
-      "name": "StorageFetchError",
-      "kind": "both"
-    },
-    {
-      "name": "StorageFetchUrlConflictError",
-      "kind": "both"
-    },
-    {
-      "name": "StorageFileEntry",
-      "kind": "type"
-    },
-    {
-      "name": "StorageFileMeta",
-      "kind": "both"
-    },
-    {
-      "name": "StorageFilesystem",
-      "kind": "type"
-    },
-    {
-      "name": "StorageFilesystemContext",
-      "kind": "type"
-    },
-    {
-      "name": "StorageFilesystemEntry",
-      "kind": "type"
-    },
-    {
-      "name": "StorageFilesystemFactory",
-      "kind": "type"
-    },
-    {
-      "name": "StorageFileWriter",
-      "kind": "type"
-    },
-    {
-      "name": "StorageInvalidPathError",
-      "kind": "both"
-    },
-    {
-      "name": "StorageMimeTypeMissingError",
-      "kind": "both"
-    },
-    {
-      "name": "StorageOfflineError",
-      "kind": "both"
-    },
-    {
-      "name": "StoragePreviewLimitError",
-      "kind": "both"
-    },
-    {
-      "name": "StoragePreviewResult",
-      "kind": "type"
-    },
-    {
-      "name": "StorageUnavailableError",
-      "kind": "both"
-    },
-    {
-      "name": "toAbsoluteStoragePath",
-      "kind": "value"
-    },
-    {
-      "name": "UploadOptions",
-      "kind": "type"
-    }
-  ]
+  "entries": {
+    ".": [
+      {
+        "name": "CreateDirectoryOptions",
+        "kind": "type"
+      },
+      {
+        "name": "createOpfsStorageFilesystem",
+        "kind": "value"
+      },
+      {
+        "name": "DownloadOptions",
+        "kind": "type"
+      },
+      {
+        "name": "FetchRemoteOptions",
+        "kind": "type"
+      },
+      {
+        "name": "getDirectoryPathFromOpfsPath",
+        "kind": "value"
+      },
+      {
+        "name": "getFileNameFromOpfsPath",
+        "kind": "value"
+      },
+      {
+        "name": "isOpfsPathInDirectory",
+        "kind": "value"
+      },
+      {
+        "name": "isOpfsPathInsideDirectory",
+        "kind": "value"
+      },
+      {
+        "name": "isStorageNotFoundError",
+        "kind": "value"
+      },
+      {
+        "name": "joinDirectoryAndFileName",
+        "kind": "value"
+      },
+      {
+        "name": "joinDirectoryPath",
+        "kind": "value"
+      },
+      {
+        "name": "ListOptions",
+        "kind": "type"
+      },
+      {
+        "name": "normalizeDirectoryPath",
+        "kind": "value"
+      },
+      {
+        "name": "normalizeRelativeOpfsPath",
+        "kind": "value"
+      },
+      {
+        "name": "ObjectUrlRegistry",
+        "kind": "both"
+      },
+      {
+        "name": "OpfsStorageFilesystem",
+        "kind": "both"
+      },
+      {
+        "name": "RenameOptions",
+        "kind": "type"
+      },
+      {
+        "name": "RxdbFileStorage",
+        "kind": "both"
+      },
+      {
+        "name": "rxDBPluginStorage",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBPluginStorage",
+        "kind": "both"
+      },
+      {
+        "name": "rxdbStorage",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBStoragePluginOptions",
+        "kind": "type"
+      },
+      {
+        "name": "StorageBackendError",
+        "kind": "both"
+      },
+      {
+        "name": "StorageBackendErrorCode",
+        "kind": "type"
+      },
+      {
+        "name": "StorageBrowserEntry",
+        "kind": "type"
+      },
+      {
+        "name": "StorageConflictError",
+        "kind": "both"
+      },
+      {
+        "name": "StorageDestroyedError",
+        "kind": "both"
+      },
+      {
+        "name": "StorageDirectoryEntry",
+        "kind": "type"
+      },
+      {
+        "name": "StorageFetchError",
+        "kind": "both"
+      },
+      {
+        "name": "StorageFetchUrlConflictError",
+        "kind": "both"
+      },
+      {
+        "name": "StorageFileEntry",
+        "kind": "type"
+      },
+      {
+        "name": "StorageFileMeta",
+        "kind": "both"
+      },
+      {
+        "name": "StorageFilesystem",
+        "kind": "type"
+      },
+      {
+        "name": "StorageFilesystemContext",
+        "kind": "type"
+      },
+      {
+        "name": "StorageFilesystemEntry",
+        "kind": "type"
+      },
+      {
+        "name": "StorageFilesystemFactory",
+        "kind": "type"
+      },
+      {
+        "name": "StorageFileWriter",
+        "kind": "type"
+      },
+      {
+        "name": "StorageInvalidPathError",
+        "kind": "both"
+      },
+      {
+        "name": "StorageMimeTypeMissingError",
+        "kind": "both"
+      },
+      {
+        "name": "StorageOfflineError",
+        "kind": "both"
+      },
+      {
+        "name": "StoragePreviewLimitError",
+        "kind": "both"
+      },
+      {
+        "name": "StoragePreviewResult",
+        "kind": "type"
+      },
+      {
+        "name": "StorageUnavailableError",
+        "kind": "both"
+      },
+      {
+        "name": "toAbsoluteStoragePath",
+        "kind": "value"
+      },
+      {
+        "name": "UploadOptions",
+        "kind": "type"
+      }
+    ],
+    "./desktop": [
+      {
+        "name": "createDesktopStorageFilesystem",
+        "kind": "value"
+      },
+      {
+        "name": "DesktopStorageFilesystemOptions",
+        "kind": "type"
+      }
+    ],
+    "./testing": [
+      {
+        "name": "isTemporaryStorageName",
+        "kind": "value"
+      },
+      {
+        "name": "ParityBackend",
+        "kind": "type"
+      },
+      {
+        "name": "storageBackendParitySuite",
+        "kind": "value"
+      }
+    ]
+  }
 }
