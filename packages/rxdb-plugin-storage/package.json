@@ -33,11 +33,13 @@
       "default": "./dist/index.js"
     },
     "./desktop": {
+      "@aiao/source": "./src/desktop.ts",
       "types": "./dist/desktop.d.ts",
       "import": "./dist/desktop.js",
       "default": "./dist/desktop.js"
     },
     "./testing": {
+      "@aiao/source": "./src/testing.ts",
       "types": "./dist/testing.d.ts",
       "import": "./dist/testing.js",
       "default": "./dist/testing.js"

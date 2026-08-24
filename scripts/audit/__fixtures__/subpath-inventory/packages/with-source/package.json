@@ -1,0 +1,20 @@
+{
+  "name": "@fixture/with-source",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@aiao/source": "./src/index.ts",
+      "import": "./dist/index.js"
+    },
+    "./client": {
+      "@aiao/source": "./src/client.ts",
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js"
+    },
+    "./testing": {
+      "@aiao/source": "./src/testing.ts",
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
+    }
+  }
+}

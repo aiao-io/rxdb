@@ -33,10 +33,12 @@
       "default": "./dist/index.js"
     },
     "./sqlite": {
+      "@aiao/source": "./src/sqlite.ts",
       "import": "./dist/sqlite.js",
       "types": "./dist/sqlite.d.ts"
     },
     "./generator": {
+      "@aiao/source": "./src/generator/index.ts",
       "import": "./dist/generator.js",
       "types": "./dist/generator/index.d.ts"
     }

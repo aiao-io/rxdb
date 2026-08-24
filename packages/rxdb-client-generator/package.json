@@ -36,10 +36,12 @@
       "default": "./dist/index.js"
     },
     "./cli": {
+      "@aiao/source": "./src/cli/cli.ts",
       "types": "./dist/cli/cli.d.ts",
       "import": "./dist/cli.js"
     },
     "./vite": {
+      "@aiao/source": "./src/plugins/vite.ts",
       "types": "./dist/plugins/vite.d.ts",
       "import": "./dist/vite.js"
     }

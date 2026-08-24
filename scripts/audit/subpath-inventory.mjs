@@ -1,6 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+/** `exports` 里指向源入口的条件名。只被构建期工具读取，Node 运行时永远解析不到它。 */
+const SOURCE_CONDITION = '@aiao/source';
+
 /**
  * 读出一个包 `exports` 里声明的子路径入口（不含主入口 `.` 与 `./package.json`）。
  *
@@ -20,42 +23,89 @@ export function listSubpathExports(packageJson) {
 }
 
 /**
- * 核对「已知不受基线保护的子路径入口」清单是否与仓库现状一致。
+ * 从一个 `exports` 目标里读出 `@aiao/source` 条件。
  *
- * 守的**不是**子路径的导出表面（那是 api-surface.mjs 的 v1 边界，明确不覆盖），
- * 而是清单本身别过期：新增或删除子路径却不同步清单 → 门禁红，
- * 强制作者意识到自己动的是一块没有基线保护的公开 API。
+ * 只接受条件对象形态；字符串目标（`'./assets/x.wasm'`）与 fallback 数组都没有条件可读，
+ * 一律返回 `undefined` 交由调用方按「缺声明」处理——不猜测、不从 `import`/`types` 反推源路径。
  *
- * @param {string} packagesDir packages/ 目录
- * @param {string[]} packages 本次纳入扫描的公开包目录名
- * @param {Map<string, string[]>} known 包名 → 已登记的子路径清单
- * @returns {string[]} 人类可读的问题描述；为空表示清单与现状一致
+ * @param {unknown} target `exports[subpath]` 的值
+ * @returns {string | undefined} 相对包目录的源入口路径
  */
-export function auditSubpathInventory(packagesDir, packages, known) {
+function readSourceCondition(target) {
+  if (typeof target !== 'object' || target === null || Array.isArray(target)) return undefined;
+  const source = target[SOURCE_CONDITION];
+  return typeof source === 'string' ? source : undefined;
+}
+
+/**
+ * 枚举一个包需要纳入 API 表面扫描的入口，并把无导出表面的资产入口挑出来。
+ *
+ * 入口 → 源文件的**唯一真相源**是 `package.json` › `exports` › `@aiao/source`：声明与入口
+ * 同处一地，不会像「另一份 paths 清单」那样各自漂移；`tsconfig.base.json` 的 paths 仍然存在，
+ * 但那是编译期解析跨包 import 用的，本扫描器不读它。主入口是唯一例外——固定取 `src/index.ts`，
+ * 这也是 `listPublicPackages()` 判定「是不是公开包」的依据，不重复声明。
+ *
+ * 失败一律进 `problems` 而不是静默跳过：子路径解析不了却按「零导出」记进基线，
+ * 会让「整个入口被删」显示成「表面无变化」——门禁在最该报警时最安静。
+ *
+ * @param {string} packageDir 包目录（绝对路径）
+ * @param {string[]} assetSubpaths 该包已登记的资产入口（无导出表面，跳过扫描）
+ * @returns {{
+ *   entries: Array<{ subpath: string, sourceFile: string }>,
+ *   skippedAssets: string[],
+ *   problems: string[]
+ * }} `problems` 为空表示该包的入口清单与源入口声明都自洽
+ */
+export function resolveScanEntries(packageDir, assetSubpaths = []) {
+  const pkgJsonPath = join(packageDir, 'package.json');
+  if (!existsSync(pkgJsonPath)) throw new Error(`缺少 package.json：${pkgJsonPath}`);
+  const packageJson = JSON.parse(readFileSync(pkgJsonPath, 'utf8'));
+
+  const entries = [{ subpath: '.', sourceFile: join(packageDir, 'src', 'index.ts') }];
+  const skippedAssets = [];
   const problems = [];
-  const unvisited = new Set(known.keys());
+  const assets = new Set(assetSubpaths);
+  const actual = listSubpathExports(packageJson);
 
-  for (const pkg of packages) {
-    unvisited.delete(pkg);
-    const pkgJsonPath = join(packagesDir, pkg, 'package.json');
-    if (!existsSync(pkgJsonPath)) continue;
-
-    const actual = listSubpathExports(JSON.parse(readFileSync(pkgJsonPath, 'utf8')));
-    const declared = known.get(pkg) ?? [];
-    const undeclared = actual.filter(key => !declared.includes(key));
-    const stale = declared.filter(key => !actual.includes(key));
-
-    if (undeclared.length > 0) {
-      problems.push(`${pkg}: 新增了未登记的子路径入口 ${undeclared.join(', ')}`);
+  for (const subpath of actual) {
+    if (assets.has(subpath)) {
+      skippedAssets.push(subpath);
+      continue;
     }
-    if (stale.length > 0) {
-      problems.push(`${pkg}: 清单登记的子路径已不存在 ${stale.join(', ')}`);
+    const source = readSourceCondition(packageJson.exports[subpath]);
+    if (source === undefined) {
+      problems.push(`${subpath}: 缺少 \`${SOURCE_CONDITION}\` 条件，无法定位源入口（无导出表面的资产入口请登记进白名单）`);
+      continue;
     }
+    const sourceFile = join(packageDir, source);
+    if (!existsSync(sourceFile)) {
+      problems.push(`${subpath}: \`${SOURCE_CONDITION}\` 指向的 ${source} 不存在`);
+      continue;
+    }
+    entries.push({ subpath, sourceFile });
   }
 
-  for (const pkg of [...unvisited].sort()) {
-    problems.push(`${pkg}: 已不在公开包扫描范围，请从清单中移除`);
+  for (const subpath of [...assets].sort()) {
+    if (!actual.includes(subpath)) problems.push(`${subpath}: 资产白名单登记的子路径已不存在`);
   }
 
-  return problems;
+  return { entries, skippedAssets, problems };
+}
+
+/**
+ * 核对资产白名单里的包是否都还在公开包扫描范围内。
+ *
+ * 包被删除 / 转为 private / 进 `EXCLUDED` 时，白名单里的条目就再也不会被
+ * `resolveScanEntries()` 走到，会静默留成孤儿；这里补上那一维。
+ *
+ * @param {string[]} packages 本次纳入扫描的公开包目录名
+ * @param {Map<string, string[]>} assets 包名 → 资产入口白名单
+ * @returns {string[]} 人类可读的问题描述；为空表示白名单没有孤儿条目
+ */
+export function auditAssetWhitelistScope(packages, assets) {
+  const inScope = new Set(packages);
+  return [...assets.keys()]
+    .filter(pkg => !inScope.has(pkg))
+    .sort()
+    .map(pkg => `${pkg}: 已不在公开包扫描范围，请从资产白名单中移除`);
 }
