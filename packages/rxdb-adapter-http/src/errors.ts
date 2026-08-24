@@ -133,10 +133,10 @@ export class HttpHandlerContractError extends HttpAdapterError {
 
 /** 翻页 fail-fast 的四种成因（US-212 AC#7）。 */
 export type HttpPaginationFailure =
-  /** 同一次查询中途换了返回形态（数组 ↔ 游标对象） */
+  /** 同一次查询中途换了返回形态（数组 ↔ `{ rows, nextPageToken }` 对象） */
   | 'shape_switch'
-  /** `nextCursor` 与上一页相同，再翻就是死循环 */
-  | 'cursor_not_advancing'
+  /** `nextPageToken` 与上一页相同，再翻就是死循环 */
+  | 'page_token_not_advancing'
   /** 连续空页达到 `maxEmptyPages`，远端在空转 */
   | 'empty_page_limit'
   /** 总页数超过 `maxPages` */

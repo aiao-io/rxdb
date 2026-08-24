@@ -335,7 +335,7 @@ const assertRow = (handler: string, entityName: string, body: unknown): unknown 
  * `isTableExisted` 的方法栏仍写 `HEAD`，那是给了路径之后才生效的默认方法
  * （不给默认路径的理由见 `REST_OPERATIONS` 里那一条的注释）。
  *
- * 请求体形状：`fetchMetadata` 发 `{ where, offset, limit, cursor }`（`where` 是 JSON
+ * 请求体形状：`fetchMetadata` 发 `{ where, offset, limit, pageToken }`（`where` 是 JSON
  * `RuleGroup`，**不是 SQL**），`findByIds` 与 `delete` 发 `{ ids }`，
  * `create` / `update` 直接发调用方给的数据。
  *
@@ -375,8 +375,8 @@ export const createRestHandlers = (options: RestHandlersOptions = {}): HttpHandl
     onFetchMetadata: {
       request: ctx => ({
         ...entityRequest('fetchMetadata', fetchMetadata, ctx.entityName),
-        // cursor 为 undefined 时 JSON.stringify 直接丢键，首页因此不会带上一个空游标
-        body: { where: ctx.where, offset: ctx.offset, limit: ctx.limit, cursor: ctx.cursor }
+        // pageToken 为 undefined 时 JSON.stringify 直接丢键，首页因此不会带上一个空 token
+        body: { where: ctx.where, offset: ctx.offset, limit: ctx.limit, pageToken: ctx.pageToken }
       }),
       // 两种翻页形态原样透给适配器：形态判别、换形态检测与 updatedAt 规范化都在那一侧，
       // 在这里再判一次只会让同一条契约有两个执行点

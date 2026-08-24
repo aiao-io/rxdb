@@ -128,7 +128,7 @@ rxdb.adapter(
 | `version`        | `GET`   | —                  | 否           |
 | `isTableExisted` | `HEAD`  | `:entity`          | 否           |
 
-请求体形状：`fetchMetadata` 发 `{ where, offset, limit, cursor }`，`findByIds` 与 `delete` 发 `{ ids }`，
+请求体形状：`fetchMetadata` 发 `{ where, offset, limit, pageToken }`，`findByIds` 与 `delete` 发 `{ ids }`，
 `create` / `update` 直接发调用方给的数据。`version` / `isTableExisted` 默认**不产出**——
 `/version` 与探测端点没有公认形状，替你猜一个等于发明一个不存在的端点。
 
@@ -156,21 +156,27 @@ rxdb.adapter(
 
 `onFetchMetadata.parse` 有两种返回形态，**同一次查询中途不得切换**：
 
-| 形态                   | 终止判据                     | 服务端要求                                              |
-| :--------------------- | :--------------------------- | :------------------------------------------------------ |
-| `Metadata[]`           | `rows.length < limit` 即末页 | 不得因限流 / 超时 / max-rows 提前返回短页；跨页排序稳定 |
-| `{ rows, nextCursor }` | `nextCursor === undefined`   | 游标必须推进                                            |
+| 形态                      | 终止判据                      | 服务端要求                                              |
+| :------------------------ | :---------------------------- | :------------------------------------------------------ |
+| `Metadata[]`              | `rows.length < limit` 即末页  | 不得因限流 / 超时 / max-rows 提前返回短页；跨页排序稳定 |
+| `{ rows, nextPageToken }` | `nextPageToken === undefined` | token 必须推进                                          |
 
-任一条保证做不到的服务端**必须**用游标形态——短页截断在客户端侧无法检测。
+任一条保证做不到的服务端**必须**用 token 形态——短页截断在客户端侧无法检测。
+
+:::note `pageToken` 是不透明串，不是 `findByCursor` 的游标
+适配器只判断它「相等 / 不等 / 是否 `undefined`」，从不解析内部结构。core 的
+[`findByCursor`](../model-query/findByCursor.md) 用「游标」指**实体实例**做的 keyset 锚点，那种游标在
+Repository 里就被编译成了 `where` 规则组，适配器根本看不到。两者没有关系。
+:::
 
 :::warning `request()` 必须把翻页位置编码进 URL 或 body
-数组形态编 `ctx.offset`，游标形态编 `ctx.cursor`。适配器只按返回的行数与游标决定要不要继续翻，
+offset 形态编 `ctx.offset`，token 形态编 `ctx.pageToken`。适配器只按返回的行数与 token 决定要不要继续翻，
 **无从检查请求里带没带位置**。漏掉的表现是远端每页都回第一页，翻页一直不推进，
 直到 `maxPages` 触顶抛错——而错误信息指向的是页数上限，不是那个漏掉的参数。
 :::
 
 翻不安全时**抛 `HttpPaginationError` 而不是返回半份结果**，`reason` 区分四种成因：
-`shape_switch` / `cursor_not_advancing` / `empty_page_limit` / `max_pages`。
+`shape_switch` / `page_token_not_advancing` / `empty_page_limit` / `max_pages`。
 返回部分 metadata 会让缺席的 id 被当成「远端已删除」，把还活着的行从本地缓存抹掉。
 
 ## 配置项
@@ -191,14 +197,14 @@ new RxDBAdapterHttp(db, {
 });
 ```
 
-| 字段                   | 默认    | 含义                                                    |
-| :--------------------- | :------ | :------------------------------------------------------ |
-| `pageSize`             | `1000`  | 单页条数，透传为 handler 的 `ctx.limit`                 |
-| `idChunkSize`          | `100`   | `findByIds` 单块 id 数                                  |
-| `maxEmptyPages`        | `3`     | 游标形态下容忍几个连续空页，第 N+1 个抛错；`0` = 不容忍 |
-| `maxPages`             | `1000`  | 单次 `fetchMetadata` 总页数上限，触顶**抛错**           |
-| `requestTimeoutMs`     | `30000` | **单个**请求的超时上限                                  |
-| `conditionalCacheSize` | `256`   | 条件请求响应缓存条目上限，仅在下节的开关打开生效        |
+| 字段                   | 默认    | 含义                                                      |
+| :--------------------- | :------ | :-------------------------------------------------------- |
+| `pageSize`             | `1000`  | 单页条数，透传为 handler 的 `ctx.limit`                   |
+| `idChunkSize`          | `100`   | `findByIds` 单块 id 数                                    |
+| `maxEmptyPages`        | `3`     | token 形态下容忍几个连续空页，第 N+1 个抛错；`0` = 不容忍 |
+| `maxPages`             | `1000`  | 单次 `fetchMetadata` 总页数上限，触顶**抛错**             |
+| `requestTimeoutMs`     | `30000` | **单个**请求的超时上限                                    |
+| `conditionalCacheSize` | `256`   | 条件请求响应缓存条目上限，仅在下节的开关打开生效          |
 
 六个数值都必须是 finite 正整数（`maxEmptyPages` 可为 `0`），否则**构造期**抛 `HttpConfigError` 并带上字段名与实际值。
 

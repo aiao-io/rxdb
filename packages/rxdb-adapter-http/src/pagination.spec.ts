@@ -28,7 +28,7 @@ describe('fetchAllMetadataPages', () => {
     vi.stubGlobal('fetch', fetchMock);
   };
 
-  /** 记录每页拿到的 ctx，用来断言 offset / cursor 的推进 */
+  /** 记录每页拿到的 ctx，用来断言 offset / pageToken 的推进 */
   const contexts: FetchMetadataContext[] = [];
 
   const handler: FetchMetadataHandler = {
@@ -97,39 +97,39 @@ describe('fetchAllMetadataPages', () => {
     });
   });
 
-  describe('游标形态：nextCursor 为 undefined 即末页（AC#6）', () => {
-    it('按 nextCursor 翻页并把 cursor 传回 handler', async () => {
+  describe('token 形态：nextPageToken 为 undefined 即末页（AC#6）', () => {
+    it('按 nextPageToken 翻页并把 pageToken 传回 handler', async () => {
       queueBodies([
-        { rows: [meta('a')], nextCursor: 'c1' },
-        { rows: [meta('b')], nextCursor: 'c2' },
+        { rows: [meta('a')], nextPageToken: 'c1' },
+        { rows: [meta('b')], nextPageToken: 'c2' },
         { rows: [meta('c')] }
       ]);
       const result = await run();
       expect(result.map(r => r.id)).toEqual(['a', 'b', 'c']);
-      expect(contexts.map(c => c.cursor)).toEqual([undefined, 'c1', 'c2']);
+      expect(contexts.map(c => c.pageToken)).toEqual([undefined, 'c1', 'c2']);
     });
 
-    it('空 rows 但仍带 nextCursor 时继续翻', async () => {
+    it('空 rows 但仍带 nextPageToken 时继续翻', async () => {
       // 与「连续空页触顶」不矛盾：前者说第 1…N−1 次，后者说第 N 次
-      queueBodies([{ rows: [], nextCursor: 'c1' }, { rows: [meta('a')], nextCursor: 'c2' }, { rows: [meta('b')] }]);
+      queueBodies([{ rows: [], nextPageToken: 'c1' }, { rows: [meta('a')], nextPageToken: 'c2' }, { rows: [meta('b')] }]);
       await expect(run()).resolves.toHaveLength(2);
     });
 
     it('非空页把连续空页计数清零', async () => {
       queueBodies([
-        { rows: [], nextCursor: 'c1' },
-        { rows: [], nextCursor: 'c2' },
-        { rows: [meta('a')], nextCursor: 'c3' },
-        { rows: [], nextCursor: 'c4' },
-        { rows: [], nextCursor: 'c5' },
+        { rows: [], nextPageToken: 'c1' },
+        { rows: [], nextPageToken: 'c2' },
+        { rows: [meta('a')], nextPageToken: 'c3' },
+        { rows: [], nextPageToken: 'c4' },
+        { rows: [], nextPageToken: 'c5' },
         { rows: [meta('b')] }
       ]);
       await expect(run({ maxEmptyPages: 3 })).resolves.toHaveLength(2);
     });
 
-    it('游标形态下的短页不算末页', async () => {
-      // 数组形态的终止判据不得渗进游标形态，否则第一页就停
-      queueBodies([{ rows: [meta('a')], nextCursor: 'c1' }, { rows: [meta('b')] }]);
+    it('token 形态下的短页不算末页', async () => {
+      // offset 形态的终止判据不得渗进 token 形态，否则第一页就停
+      queueBodies([{ rows: [meta('a')], nextPageToken: 'c1' }, { rows: [meta('b')] }]);
       await expect(run({ pageSize: 10 })).resolves.toHaveLength(2);
     });
   });
@@ -147,18 +147,18 @@ describe('fetchAllMetadataPages', () => {
       expect((error as HttpPaginationError).reason).toBe(reason);
     };
 
-    it('中途由数组换成游标对象', async () => {
+    it('中途由数组换成 token 对象', async () => {
       await expectFailure('shape_switch', [[meta('a'), meta('b')], { rows: [meta('c')] }]);
     });
 
-    it('中途由游标对象换成数组', async () => {
-      await expectFailure('shape_switch', [{ rows: [meta('a')], nextCursor: 'c1' }, [meta('b')]]);
+    it('中途由 token 对象换成数组', async () => {
+      await expectFailure('shape_switch', [{ rows: [meta('a')], nextPageToken: 'c1' }, [meta('b')]]);
     });
 
-    it('nextCursor 与上一页相同 —— 不进死循环', async () => {
-      await expectFailure('cursor_not_advancing', [
-        { rows: [meta('a')], nextCursor: 'same' },
-        { rows: [meta('b')], nextCursor: 'same' }
+    it('nextPageToken 与上一页相同 —— 不进死循环', async () => {
+      await expectFailure('page_token_not_advancing', [
+        { rows: [meta('a')], nextPageToken: 'same' },
+        { rows: [meta('b')], nextPageToken: 'same' }
       ]);
     });
 
@@ -167,10 +167,10 @@ describe('fetchAllMetadataPages', () => {
       await expectFailure(
         'empty_page_limit',
         [
-          { rows: [], nextCursor: 'c1' },
-          { rows: [], nextCursor: 'c2' },
-          { rows: [], nextCursor: 'c3' },
-          { rows: [], nextCursor: 'c4' }
+          { rows: [], nextPageToken: 'c1' },
+          { rows: [], nextPageToken: 'c2' },
+          { rows: [], nextPageToken: 'c3' },
+          { rows: [], nextPageToken: 'c4' }
         ],
         { maxEmptyPages: 3 }
       );
@@ -179,21 +179,21 @@ describe('fetchAllMetadataPages', () => {
     it('恰好 maxEmptyPages 个连续空页不抛', async () => {
       // 与上一条成对：判据是「超过」不是「达到」，边界值本身合法
       queueBodies([
-        { rows: [], nextCursor: 'c1' },
-        { rows: [], nextCursor: 'c2' },
-        { rows: [], nextCursor: 'c3' },
+        { rows: [], nextPageToken: 'c1' },
+        { rows: [], nextPageToken: 'c2' },
+        { rows: [], nextPageToken: 'c3' },
         { rows: [meta('a')] }
       ]);
       await expect(run({ maxEmptyPages: 3 })).resolves.toHaveLength(1);
     });
 
     it('maxEmptyPages: 0 时第一个空页就抛', async () => {
-      await expectFailure('empty_page_limit', [{ rows: [], nextCursor: 'c1' }], { maxEmptyPages: 0 });
+      await expectFailure('empty_page_limit', [{ rows: [], nextPageToken: 'c1' }], { maxEmptyPages: 0 });
     });
 
     it('maxEmptyPages: 1 容忍一个空页 —— 与 0 可区分', async () => {
       // ZERO_ALLOWED 为 maxEmptyPages 开的 0 这个口子，只有在 1 有不同语义时才不是冗余的
-      queueBodies([{ rows: [], nextCursor: 'c1' }, { rows: [meta('a')] }]);
+      queueBodies([{ rows: [], nextPageToken: 'c1' }, { rows: [meta('a')] }]);
       await expect(run({ maxEmptyPages: 1 })).resolves.toHaveLength(1);
     });
 
@@ -201,9 +201,9 @@ describe('fetchAllMetadataPages', () => {
       await expectFailure(
         'max_pages',
         [
-          { rows: [meta('a')], nextCursor: 'c1' },
-          { rows: [meta('b')], nextCursor: 'c2' },
-          { rows: [meta('c')], nextCursor: 'c3' }
+          { rows: [meta('a')], nextPageToken: 'c1' },
+          { rows: [meta('b')], nextPageToken: 'c2' },
+          { rows: [meta('c')], nextPageToken: 'c3' }
         ],
         { maxPages: 2 }
       );
@@ -211,9 +211,9 @@ describe('fetchAllMetadataPages', () => {
 
     it('触顶时不返回已拿到的部分结果', async () => {
       queueBodies([
-        { rows: [meta('a')], nextCursor: 'c1' },
-        { rows: [meta('b')], nextCursor: 'c2' },
-        { rows: [meta('c')], nextCursor: 'c3' }
+        { rows: [meta('a')], nextPageToken: 'c1' },
+        { rows: [meta('b')], nextPageToken: 'c2' },
+        { rows: [meta('c')], nextPageToken: 'c3' }
       ]);
       // 只 reject 不 resolve：拿到半份 metadata 比拿不到更危险
       await expect(run({ maxPages: 2 })).rejects.toBeInstanceOf(HttpPaginationError);
@@ -229,8 +229,28 @@ describe('fetchAllMetadataPages', () => {
       await expect(run()).rejects.toBeInstanceOf(HttpHandlerContractError);
     });
 
+    it('遗留的 nextCursor 键 —— 抛错而不是当成末页', async () => {
+      // `nextCursor` 是改名前的键。默默读 `nextPageToken` 会得到 undefined，于是首页
+      // 即判末页：整表只剩第一页，其余 id 被上层当成远端已删除。这是本包最怕的静默截断，
+      // 而它的触发条件仅仅是「handler 没跟着改名」——必须当场炸，且错误里要点出新名字
+      queueBodies([{ rows: [meta('a')], nextCursor: 'c1' }]);
+      const error = await run().catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(HttpHandlerContractError);
+      expect((error as Error).message).toContain('nextPageToken');
+    });
+
+    it('两个键都在时以 nextPageToken 为准，不算遗留', async () => {
+      // 远端 body 原样透传时可能自带一个同名字段，只要 handler 已经给出 nextPageToken
+      // 就说明它认得新契约，没有静默截断的风险
+      queueBodies([
+        { rows: [meta('a')], nextPageToken: 'c1', nextCursor: 'stale' },
+        { rows: [meta('b')] }
+      ]);
+      await expect(run()).resolves.toHaveLength(2);
+    });
+
     it('maxPages 恰好等于实际页数时正常完成', async () => {
-      queueBodies([{ rows: [meta('a')], nextCursor: 'c1' }, { rows: [meta('b')] }]);
+      queueBodies([{ rows: [meta('a')], nextPageToken: 'c1' }, { rows: [meta('b')] }]);
       await expect(run({ maxPages: 2 })).resolves.toHaveLength(2);
     });
   });

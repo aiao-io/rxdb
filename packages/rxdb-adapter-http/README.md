@@ -12,7 +12,7 @@ RxDB HTTP 适配器 — 让**你自己的 REST API** 充当 QueryCache 的远端
 ## 特性
 
 - ✅ **transport 在包内** — `fetch`、auth 注入、状态码提取、错误分类都由适配器做；handler 只做协议 mapping，拿不到网络
-- ✅ **翻页** — 数组（短页终止）与游标（`nextCursor` 终止）两种形态，中途换形态 / 游标不推进 / 连续空页 / 总页数触顶四种退化各自 fail-fast
+- ✅ **翻页** — offset（短页终止）与 token（`nextPageToken` 终止）两种形态，中途换形态 / token 不推进 / 连续空页 / 总页数触顶四种退化各自 fail-fast
 - ✅ **分块 `findByIds`** — 按 `idChunkSize` 切块并合并；某块失败即整体失败，不当空块吞掉
 - ✅ **单次发射契约** — `fetchMetadata` / `findByIds` 都是「拼完再发一次」并 `complete`，逐页/逐块发射会让 core 的 `forkJoin` 只留最后一份
 - ✅ **REST 模板工厂** — `createRestHandlers()` 一行替掉样板 handler，模板校验全在**构造期**

@@ -52,12 +52,20 @@ export interface HttpRequestSpec {
 export interface FetchMetadataContext {
   entityName: string;
   where: RuleGroup<unknown>;
-  /** 本页起始偏移；游标形态可忽略 */
+  /** 本页起始偏移；token 形态可忽略 */
   offset: number;
   /** 来自 `pageSize`，适配器保证为 finite 正整数 */
   limit: number;
-  /** 上一页返回的 `nextCursor`；首页为 `undefined` */
-  cursor?: string;
+  /**
+   * 上一页返回的 `nextPageToken`；首页为 `undefined`。
+   *
+   * @remarks
+   * **不透明**：适配器只做「相等 / 不等 / 是否 `undefined`」三种判断，不解析内部结构。
+   * 刻意不叫 `cursor`——core 的 `findByCursor` 用「游标」指**实体实例**做的 keyset 锚点，
+   * 那种游标会在 Repository 里被编译成 `where` 规则组、可以拆字段比较，适配器根本看不到；
+   * 这个只能原样送回远端。同名会让人以为后者也能拆开看。
+   */
+  pageToken?: string;
 }
 
 /**
@@ -67,28 +75,32 @@ export interface FetchMetadataContext {
  * 适配器按**首页的返回形状**锁定本次查询的翻页模式，中途换形态即抛错
  * （`HttpPaginationError`，`reason: 'shape_switch'`）——混用会让两条终止判据互相盖掉，
  * 正是本包要防的静默截断。
+ *
+ * 对象形态的键叫 `nextPageToken`。返回改名前的 `nextCursor` 会被当场判为契约错误
+ * （`HttpHandlerContractError`）而**不是**读成 `undefined`：后者等于首页即末页，
+ * 整表只剩第一页而全程不报错。
  */
 export type FetchMetadataResult =
-  /** 形态 1：短页终止（`rows.length < limit` 即末页） */
+  /** 形态 1（`offset`）：短页终止（`rows.length < limit` 即末页） */
   | QueryCacheEntityMetadata[]
-  /** 形态 2：游标终止（`nextCursor === undefined` 即末页） */
-  | { rows: QueryCacheEntityMetadata[]; nextCursor?: string };
+  /** 形态 2（`token`）：token 终止（`nextPageToken === undefined` 即末页） */
+  | { rows: QueryCacheEntityMetadata[]; nextPageToken?: string };
 
 /**
  * `fetchMetadata` 的协议 mapping。
  *
  * @remarks
- * 数组形态依赖一条**服务端保证**：返回少于 `limit` 条即最后一页，不得因限流、超时或
+ * offset 形态依赖一条**服务端保证**：返回少于 `limit` 条即最后一页，不得因限流、超时或
  * 服务端 max-rows 提前返回短页；跨页排序稳定；一次查询内快照一致。
- * **任一条不满足的服务端 MUST 用游标形态**——适配器无法在客户端侧检测短页截断。
+ * **任一条不满足的服务端 MUST 用 token 形态**——适配器无法在客户端侧检测短页截断。
  */
 export interface FetchMetadataHandler {
   /**
    * 产出本页请求描述。纯函数，不碰网络。
    *
    * @remarks
-   * **必须把翻页位置编码进 URL 或 body**：数组形态编 `ctx.offset`，游标形态编 `ctx.cursor`。
-   * 适配器只按返回的行数与游标决定要不要继续翻，无从检查请求里带没带位置——漏掉的表现是
+   * **必须把翻页位置编码进 URL 或 body**：offset 形态编 `ctx.offset`，token 形态编 `ctx.pageToken`。
+   * 适配器只按返回的行数与 token 决定要不要继续翻，无从检查请求里带没带位置——漏掉的表现是
    * 远端每页都回第一页，翻页一直不推进，直到 `maxPages` 触顶抛错，而错误信息指向的是
    * 页数上限，不是漏掉的那个参数。
    *
@@ -239,7 +251,7 @@ export interface HttpNumericConfig {
   pageSize: number;
   /** `findByIds` 单块 id 数。默认 `100`（对标 `SUPABASE_IN_CHUNK_SIZE`） */
   idChunkSize: number;
-  /** 游标形态下连续空页容忍上限。默认 `3`；`0` = 不容忍空页 */
+  /** token 形态下连续空页容忍上限。默认 `3`；`0` = 不容忍空页 */
   maxEmptyPages: number;
   /** 单次 `fetchMetadata` 总页数上限。默认 `1000`；触顶是**抛错不是截断** */
   maxPages: number;

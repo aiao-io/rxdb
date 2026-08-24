@@ -79,7 +79,7 @@ describe('默认模板的 URL、方法与请求体（AC#27）', () => {
     expect(callOf(fetchMock)).toEqual({
       url: 'https://api.example.com/v1/Recipe/metadata',
       method: 'POST',
-      // 不发 SQL：where 原样是 RuleGroup。首页无游标，`cursor: undefined` 被 stringify 丢掉
+      // 不发 SQL：where 原样是 RuleGroup。首页无 token，`pageToken: undefined` 被 stringify 丢掉
       body: { where: ALL, offset: 0, limit: 1000 }
     });
   });
@@ -178,14 +178,14 @@ describe('等价于阶段 A 的 QueryCache ducks（AC#27）', () => {
     expect(callOf(fetchMock, 1).body).toEqual({ where: ALL, offset: 2, limit: 2 });
   });
 
-  it('游标形态照常工作：模板把 cursor 透传进 body（AC#6）', async () => {
+  it('token 形态照常工作：模板把 pageToken 透传进 body（AC#6）', async () => {
     const adapter = createAdapter();
-    const fetchMock = queueResponses([json({ rows: [meta('a')], nextCursor: 'c1' }), json({ rows: [meta('b')] })]);
+    const fetchMock = queueResponses([json({ rows: [meta('a')], nextPageToken: 'c1' }), json({ rows: [meta('b')] })]);
 
     const rows = await firstValueFrom(adapter.fetchMetadata('Recipe', ALL));
 
     expect(rows.map(row => row.id)).toEqual(['a', 'b']);
-    expect(callOf(fetchMock, 1).body).toEqual({ where: ALL, offset: 0, limit: 1000, cursor: 'c1' });
+    expect(callOf(fetchMock, 1).body).toEqual({ where: ALL, offset: 0, limit: 1000, pageToken: 'c1' });
   });
 
   it('分块合并后恰好发射一次（AC#8 / #33）', async () => {

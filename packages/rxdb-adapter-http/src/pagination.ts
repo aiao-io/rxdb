@@ -22,14 +22,19 @@ export interface PaginationDeps {
   config: Pick<HttpNumericConfig, 'pageSize' | 'maxEmptyPages' | 'maxPages'>;
 }
 
-/** 本次查询锁定的翻页模式 */
-type PageShape = 'array' | 'cursor';
+/**
+ * 本次查询锁定的翻页模式。
+ *
+ * @remarks
+ * 两个取值都描述**靠什么推进**，对应下面两条互斥的终止判据；不描述 JSON 长什么样。
+ */
+type PageShape = 'offset' | 'token';
 
 /** 一页解析后的统一形态，抹掉两种 wire 形态的差异 */
 interface NormalizedPage {
   shape: PageShape;
   rows: unknown[];
-  nextCursor?: string;
+  nextPageToken?: string;
 }
 
 /**
@@ -38,20 +43,32 @@ interface NormalizedPage {
  * @remarks
  * 两种合法形态之外的返回值在这里就拦住。放过去的话，`rows` 会是 `undefined`，
  * 最终以「这一页没有行」的面目终止翻页——又一次静默截断。
+ *
+ * 改名前的 `nextCursor` 单独报一条：它的 `rows` 是合法数组，能一路走到底，只是
+ * `nextPageToken` 读出 `undefined`，于是**首页即末页**。症状是整表只剩第一页、
+ * 其余 id 被上层判成远端已删除，而全程没有任何错误——正是这个包整章在防的那一种。
  */
 const normalizePage = (entityName: string, result: unknown): NormalizedPage => {
   if (Array.isArray(result)) {
-    return { shape: 'array', rows: result };
+    return { shape: 'offset', rows: result };
   }
-  const page = result as { rows?: unknown; nextCursor?: string } | null;
+  const page = result as { rows?: unknown; nextPageToken?: string; nextCursor?: string } | null;
   if (!page || !Array.isArray(page.rows)) {
     throw new HttpHandlerContractError(
       'fetchMetadata',
       entityName,
-      `expected an array of rows or { rows, nextCursor }, received ${JSON.stringify(result)}`
+      `expected an array of rows or { rows, nextPageToken }, received ${JSON.stringify(result)}`
     );
   }
-  return { shape: 'cursor', rows: page.rows, nextCursor: page.nextCursor };
+  // 两个键都在时不算遗留：handler 已经给出 nextPageToken，说明它认得新契约
+  if (page.nextPageToken === undefined && page.nextCursor !== undefined) {
+    throw new HttpHandlerContractError(
+      'fetchMetadata',
+      entityName,
+      'returned the removed key "nextCursor"; rename it to "nextPageToken" (reading it as undefined would end pagination at the first page)'
+    );
+  }
+  return { shape: 'token', rows: page.rows, nextPageToken: page.nextPageToken };
 };
 
 /**
@@ -68,7 +85,7 @@ const normalizePage = (entityName: string, result: unknown): NormalizedPage => {
  * @param deps - transport、handler 与三个翻页相关配置
  * @param ctx - 实体名与查询条件，逐页原样透传给 handler
  * @returns 所有页合并、且逐页 canonicalize 过的 metadata
- * @throws HttpPaginationError 换形态 / 游标不推进 / 连续空页触顶 / 总页数触顶
+ * @throws HttpPaginationError 换形态 / token 不推进 / 连续空页触顶 / 总页数触顶
  */
 export const fetchAllMetadataPages = async (
   deps: PaginationDeps,
@@ -78,7 +95,7 @@ export const fetchAllMetadataPages = async (
   const all: QueryCacheEntityMetadata[] = [];
   let shape: PageShape | undefined;
   let offset = 0;
-  let cursor: string | undefined;
+  let pageToken: string | undefined;
   let emptyStreak = 0;
 
   for (let page = 1; ; page++) {
@@ -88,7 +105,7 @@ export const fetchAllMetadataPages = async (
         `fetchMetadata for "${ctx.entityName}" exceeded maxPages=${config.maxPages}; refusing to return a truncated result`
       );
     }
-    const pageCtx: FetchMetadataContext = { ...ctx, offset, limit: config.pageSize, cursor };
+    const pageCtx: FetchMetadataContext = { ...ctx, offset, limit: config.pageSize, pageToken };
     const body = await transport.sendJson(handler.request(pageCtx), 'fetchMetadata');
     const parsed = normalizePage(ctx.entityName, handler.parse(body, pageCtx));
     if (shape && parsed.shape !== shape) {
@@ -100,26 +117,26 @@ export const fetchAllMetadataPages = async (
     shape = parsed.shape;
     all.push(...canonicalizeMetadata(ctx.entityName, parsed.rows));
 
-    if (shape === 'array') {
+    if (shape === 'offset') {
       // 短页即末页——这条判据的前提是服务端保证「不会因限流或 max-rows 提前返回短页」，
-      // 保证不了的服务端 MUST 用游标形态，适配器在客户端侧无从检测
+      // 保证不了的服务端 MUST 用 token 形态，适配器在客户端侧无从检测
       if (parsed.rows.length < config.pageSize) {
         return all;
       }
       offset += parsed.rows.length;
       continue;
     }
-    if (parsed.nextCursor === undefined) {
+    if (parsed.nextPageToken === undefined) {
       return all;
     }
-    if (parsed.nextCursor === cursor) {
+    if (parsed.nextPageToken === pageToken) {
       throw new HttpPaginationError(
-        'cursor_not_advancing',
-        `fetchMetadata for "${ctx.entityName}" received the same nextCursor "${cursor}" twice; refusing to loop forever`
+        'page_token_not_advancing',
+        `fetchMetadata for "${ctx.entityName}" received the same nextPageToken "${pageToken}" twice; refusing to loop forever`
       );
     }
     emptyStreak = assertEmptyStreak(ctx.entityName, parsed.rows.length, emptyStreak, config.maxEmptyPages);
-    cursor = parsed.nextCursor;
+    pageToken = parsed.nextPageToken;
   }
 };
 
@@ -127,7 +144,7 @@ export const fetchAllMetadataPages = async (
  * 维护连续空页计数并在触顶时抛错。
  *
  * @remarks
- * 只在游标形态调用：数组形态下空页就是短页，本来就是正常终止条件，不计数。
+ * 只在 token 形态调用：offset 形态下空页就是短页，本来就是正常终止条件，不计数。
  * **连续计数、非空即清零**——空一页不是故障，空**超过** `maxEmptyPages` 页才是。
  * 计数器按单次 `fetchMetadata` 调用生存，不跨查询累积。
  *

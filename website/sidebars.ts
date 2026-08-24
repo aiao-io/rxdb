@@ -165,6 +165,7 @@ const sidebars: SidebarsConfig = {
         'migration/frameworks',
         'migration/adapters',
         'migration/supabase-network-errors',
+        'migration/http-page-token',
         'migration/desktop-split',
         'migration/plugins',
         'migration/plugin-scope',
