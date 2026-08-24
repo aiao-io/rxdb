@@ -7,19 +7,23 @@ import { HttpConfigError } from './errors.js';
 import type { HttpNumericConfig } from './http.interface.js';
 
 /**
- * 五个数值配置的默认值。
+ * 六个数值配置的默认值。
  *
  * @remarks
  * `pageSize` / `idChunkSize` 对标 supabase 适配器的 `SUPABASE_PAGE_SIZE`（1000）与
  * `SUPABASE_IN_CHUNK_SIZE`（100）——同一份 metadata 契约下两家取值不同没有理由，
  * 只会让「换个适配器就翻页行为变了」变成需要排查的现象。
+ *
+ * `conditionalCacheSize` 只在 `conditionalRequests: true` 时才有作用，但默认值仍然给足：
+ * 它决定的是缓存命中率，取小了只是白发请求，不会产生错误结果。
  */
 export const DEFAULT_HTTP_CONFIG: HttpNumericConfig = {
   pageSize: 1000,
   idChunkSize: 100,
   maxEmptyPages: 3,
   maxPages: 1000,
-  requestTimeoutMs: 30000
+  requestTimeoutMs: 30000,
+  conditionalCacheSize: 256
 };
 
 /**

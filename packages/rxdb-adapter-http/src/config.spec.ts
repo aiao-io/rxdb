@@ -9,7 +9,14 @@ import { HttpConfigError } from './errors.js';
  * `Infinity` 等于放弃触顶保护，两者都能过 `> 0`。
  */
 describe('resolveHttpConfig', () => {
-  const NUMERIC_FIELDS = ['pageSize', 'idChunkSize', 'maxPages', 'requestTimeoutMs', 'maxEmptyPages'] as const;
+  const NUMERIC_FIELDS = [
+    'pageSize',
+    'idChunkSize',
+    'maxPages',
+    'requestTimeoutMs',
+    'maxEmptyPages',
+    'conditionalCacheSize'
+  ] as const;
 
   it('缺省时返回对标 supabase 的默认值', () => {
     expect(resolveHttpConfig({})).toEqual({
@@ -17,7 +24,8 @@ describe('resolveHttpConfig', () => {
       idChunkSize: 100,
       maxEmptyPages: 3,
       maxPages: 1000,
-      requestTimeoutMs: 30000
+      requestTimeoutMs: 30000,
+      conditionalCacheSize: 256
     });
     expect(DEFAULT_HTTP_CONFIG.pageSize).toBe(1000);
   });

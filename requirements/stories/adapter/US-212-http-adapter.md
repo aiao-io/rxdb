@@ -1,11 +1,11 @@
 ---
 id: US-212
 title: HTTP 远程适配器
-status: In Progress
+status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-08-21
-updated: 2026-08-23
+updated: 2026-08-24
 tags: [adapter, http, remote, querycache]
 ---
 
@@ -23,10 +23,10 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 交付                                                                                                                                                                | 直接前置 | AC 区段           | 状态 |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------- | ---- |
-| A    | `@aiao/rxdb-adapter-http`：RemoteBase + **适配器持有 transport** + 协议 mapping handler + QueryCache ducks + 翻页/分块 + 发射契约 + 错误分类 + wire 契约 + 结构隔离 | 无       | AC#1～26、#31～34 | ✅   |
-| B    | REST resource URL 模板（AC#27，2026-08-23 交付）；ETag / SSE / eviction（AC#28～30，**设计待定：需先指定跨包 owner**）                                              | 阶段 A   | AC#27；#28～30 🚧 | ⚠️   |
+| 阶段 | 交付                                                                                                                                                                | 直接前置 | AC 区段            | 状态 |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------ | ---- |
+| A    | `@aiao/rxdb-adapter-http`：RemoteBase + **适配器持有 transport** + 协议 mapping handler + QueryCache ducks + 翻页/分块 + 发射契约 + 错误分类 + wire 契约 + 结构隔离 | 无       | AC#1～26、#31～34  | ✅   |
+| B    | REST resource URL 模板（AC#27，2026-08-23 交付）；ETag / If-None-Match 条件请求（AC#28，2026-08-24 判定 owner = **本包**并交付）                                    | 阶段 A   | AC#27 ✅、AC#28 ✅ | ✅   |
 
 **前置与发布门禁：已全部解除（2026-08-23 复核）。** 本故事现在零前置，可直接开工并按 `stable` 发布。
 
@@ -340,23 +340,25 @@ QueryCache 的写入口是 `create` / `update` / `delete` 三个 optional duck�
 
 ### 阶段 B — REST mapping 与可选加速
 
-> **AC#28～30 是设计待定，不是待实现。** 三条都需要**跨包状态或 API**，而持有者尚未指定：ETag 的 304 处理要有响应缓存的持有者与并发请求策略；SSE/invalidation 要有 core 的失效通知入口；eviction 要在不越过「本包不持有 local adapter」（AC#19）的前提下决定谁删、删哪些行、如何避开正在同步的行。
+> **owner 判定已于 2026-08-24 完成**，阶段 B 的范围随之收敛为 AC#27 + AC#28，两条**均已交付**（AC#28 于 2026-08-24 同日实现，见 `conditional-cache.ts` 与 `transport.ts` 的条件请求路径）。依据与调研见技术笔记[「AC#28～30 的 owner 判定」](#ac2830-的-owner-判定)。
 >
-> 「可选」降低的是**交付风险**，不代表设计已完成。**进入阶段 B 前必须先为这三条各自指定 owner**（本包 / core / 应用），否则会把未定义的跨包 API 偷渡进实现。届时若某条拿不到 owner，从本故事移出另开，不要留成「可选但可验收」的 AC。
+> - **AC#28 ETag / If-None-Match → owner = 本包。** 它不需要 core 的任何新 API。304 的语义就是「你手上那份仍然有效」，因此按请求指纹缓存已解析结果**在定义上不会脏**——服务端一旦认为内容变了就不会回 304。两个原本待定的问题于是各有答案：响应缓存由**本包 transport** 持有（有界内存映射，既不是 `QueryCacheLocalAdapter` 也不是本地存储，与 AC#19 不冲突）；并发按请求指纹 **single-flight** 去重。
+> - **AC#29 SSE / invalidation 与 AC#30 eviction → 拿不到 owner，已从本故事移出。** 两条各需要一个 core 侧今天不存在的抽象，而都拿不出用户今天踩得到的症状。按 [US-016 / US-017 先例](../../roadmap.md#明确不排期)登记进 roadmap 的「明确不排期」表并写明解锁条件，**不新建故事文件**——[CONVENTIONS 的「价值待证」判据](../../CONVENTIONS.md)是病灶数 ≥ 抽象数，为它们建文件恰恰是那条禁止的「凭 Epic 惯性排期」。
 >
-> AC#27 不受此限——REST 模板完全在本包内，可直接实现。**已于 2026-08-23 交付**（`rest.ts` 的 `createRestHandlers()`）：
+> AC#27 完全在本包内，不受上述限制。**已于 2026-08-23 交付**（`rest.ts` 的 `createRestHandlers()`）：
 > 它只是一个产出 {@link HttpHandlers} 的工厂，适配器本体一行未改，因此「缺省不得改变阶段 A 语义」是结构性成立的，
 > 不是靠回归测试盯着。校验全在**构造期**——占位符集合必须与操作精确匹配（`update` 缺 `:id`、任意模板缺 `:entity` 都当场抛），
 > 因为这两种退化在网线上都是 2xx，等发出去再看响应码是看不出来的。
 
-| #   | 前置条件                       | 操作                                  | 预期结果                                                                                                                                                                                  | 状态 |
-| --- | ------------------------------ | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 27  | 阶段 A handlers 可用           | 用 resource URL 模板代替手写 handlers | 等价于阶段 A 的 QueryCache ducks；模板解析失败 fail-fast，不发错 URL                                                                                                                      | ✅   |
-| 28  | 远端支持 ETag / If-None-Match  | 重复 `fetchMetadata` / `findByIds`    | 304 时不把「未修改」当成空集或假孤儿。**owner 待定**：响应缓存由谁持有、并发请求如何协调                                                                                                  | 🚧   |
-| 29  | 可选 SSE / invalidation 未配置 | 正常 QueryCache 查询                  | 行为与阶段 A 相同；缺可选能力不降级、不抛。配置后 SSE 只能**触发**下一次查询，**不得**让 `fetchMetadata` 变成不 complete 的长连接流（AC#23）。**owner 待定**：core 的失效通知入口尚不存在 | 🚧   |
-| 30  | 可选 eviction 未配置           | 行缓存增长                            | 不自动删业务行；eviction 若实现必须是显式策略，默认不丢用户数据。**owner 待定**：本包不持有 local adapter，执行者与行选择协议未定                                                         | 🚧   |
+| #   | 前置条件                                            | 操作                                  | 预期结果                                                                                                                                                                                                                                                                                                                                                                                                                                                            | 状态 |
+| --- | --------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 27  | 阶段 A handlers 可用                                | 用 resource URL 模板代替手写 handlers | 等价于阶段 A 的 QueryCache ducks；模板解析失败 fail-fast，不发错 URL                                                                                                                                                                                                                                                                                                                                                                                                | ✅   |
+| 28  | 远端支持 ETag / If-None-Match，且条件请求已显式启用 | 重复 `fetchMetadata` / `findByIds`    | 命中 304 时返回**上次 200 的解析结果**，**不得**当成空集——那正是本故事全篇在防的假孤儿。缓存由**本包 transport** 持有：按请求指纹（url + method + body）键控、**有界**（条目上限 + `disconnect()` 清空），不实现也不持有 AC#19 禁止的任何面。同一指纹的并发请求 **single-flight** 去重，不得出现「后一个拿到 304 而前一个尚未回填」的空洞。翻页 / 分块按**单页 / 单块**各自校验（offset 变了就是另一个指纹）。**未启用时行为与阶段 A 逐字相同**，由一条对照用例冻结 | ✅   |
 
-状态符号：⬜ 未开始 / 🚧 设计待定（owner 未指定，不可排期） / ⚠️ 进行中或有保留 / ✅ 通过
+状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
+
+> 🚧「设计待定（owner 未指定，不可排期）」曾用于 AC#28～30，2026-08-24 owner 判定后本文件已无此状态：
+> AC#28 判给本包并于同日实现（✅），AC#29 / #30 移出。
 
 ## 技术笔记
 
@@ -476,6 +478,37 @@ v1 不实现 Full-sync。`pullChanges` / `mergeChanges` / `getChangeCount` 若�
 - bigint/binary 没有本故事定义的 wire codec——实体字段若声明这些类型，阶段 A 抛 `HttpUnsupportedWireTypeError`（AC#15，**单一行为，不给「或拒绝该实体」的第二选项**）。US-018 已经在生成器上为同一类静默丢失付过学费。
 - auth：hook 由适配器在发请求前调用并注入 header。401 的错误对象必须带数字 `status`，供 `isNetworkError` 正确分类。
 
+### AC#28～30 的 owner 判定
+
+2026-08-24 完成。阶段 B 原文要求「进入阶段 B 前必须先为这三条各自指定 owner（本包 / core / 应用）」，本节是那次判定的结论与依据。判定只问一件事：**这条 AC 需要的状态或 API，今天有没有一个够得着它的持有者。**
+
+| AC  | 需要什么                      | 今天有没有                                                | owner            |
+| --- | ----------------------------- | --------------------------------------------------------- | ---------------- |
+| 28  | 响应缓存持有者 + 并发协调     | **有**——两者都在 transport 层内，本包已经独占该层         | **本包**，可开工 |
+| 29  | core 的失效通知入口           | **没有**，且不是「没暴露」而是「不存在」                  | 无 → 移出        |
+| 30  | 删本地行的执行者 + 行选择协议 | **没有**——执行面被 AC#19 结构性禁止，选择协议 core 也没有 | 无 → 移出        |
+
+#### AC#28 归本包：304 的语义本身就是缓存有效性证明
+
+原文把 ETag 列为待定，理由是「响应缓存由谁持有、并发请求如何协调」。这两个问题都能在本包内回答，且**不需要 core 任何新 API**：
+
+- **缓存不会脏，所以不需要跨包失效协议。** 服务端回 304 的前提就是它认为该 URL 的内容与请求方持有的 ETag 一致；一旦变了它会回 200 带新 body。因此「按请求指纹缓存上次 200 的解析结果」的正确性由 HTTP 协议本身担保，不依赖任何人来通知失效——这正是它与 AC#29 / #30 的分界。
+- **持有者是 transport，不越 AC#19。** AC#19 禁的是「实现 / 调用 `upsertMany` / `deleteByIds` / `getMetadataByIds`」「持有 `QueryCacheLocalAdapter`」「构造函数 `new` 本地存储」。一个有界的内存 `Map` 三条都不沾。这条要写进 AC 而不只是写在这里，否则将来复查的人会把「响应缓存」与「行缓存」混成一件事——后者才是 core 经 `localAdapter` 落盘的那份。
+- **并发靠 single-flight，不靠锁。** 同一指纹的第二个请求若在第一个回填缓存之前发出，它会带着同一个 `If-None-Match` 拿到 304，而此时缓存里没有 body——空洞由此产生。按指纹合流 in-flight Promise 即可消除，不需要跨包协调。
+- **翻页 / 分块天然按页按块生效。** `offset` 进指纹，所以「第 3 页」的 304 说的就是第 3 页那段区间未变；行若发生位移，该页内容随之改变、ETag 也就不匹配。不存在「拼出一个跨快照的结果集」的风险。
+
+#### AC#29 / #30 拿不到 owner：core 侧缺的是抽象，不是入口
+
+**AC#29（SSE / invalidation）——core 没有失效通知入口。** QueryCache 侧唯一的失效状态是 [`QueryCacheSyncMemo`](../../../packages/rxdb/src/repository/query-cache-sync-memo.ts)（US-020 D13），它的三条失效路径（窗口到期 / 本仓储写 / 换适配器实例）全部由 core 内部触发，`clear()` 没有对外出口，实例也由 `Repository` 私有持有。查询重跑机制确实存在，但 [`QueryManager`](../../../packages/rxdb/src/repository/QueryManager.ts) 只监听 `ENTITY_LOCAL_CREATE / UPDATE / REMOVE` 三个**本地**事件。
+
+`RxDB.dispatchEvent()` 是公开方法，所以适配器**在物理上**能派发那三个事件——但那是错的两次：一是拿「本地写发生了」冒充「远端变了」，二是它清不掉 `syncMemo`，于是被触发的那次重跑会在记忆窗口内命中 memo、跳过同步、读回同一份陈旧本地行。**「能派发」不等于「有入口」**，这正是 owner 判定要拦住的偷渡。
+
+真正需要的是一个 core 新抽象：远端适配器可调用的失效上报口，语义上清 memo 并触发重跑，且不伪装成本地写。设计它需要先决定粒度（整实体 / 按 `where` 指纹 / 按 id 集合）与订阅侧的重跑策略——都是 core 的题，不是本包的。
+
+**AC#30（eviction）——执行面被本故事自己禁止。** 删本地行只能经 `localAdapter.deleteByIds`，core 的 [`QueryCacheRepository#evictOrphans`](../../../packages/rxdb/src/repository/QueryCacheRepository.ts) 独占该路径；本包按 AC#19 连碰都不能碰。而 core 现在只有**孤儿**驱逐（远端已删），没有任何按容量 / 访问时间驱逐的概念，也不记访问元数据。所以这条既不能给本包，也不能在没有设计的情况下丢给 core。
+
+**为什么不建故事文件。** [CONVENTIONS 的「价值待证」](../../CONVENTIONS.md)判据是**病灶数 ≥ 抽象数**：两条各要新增一个 core 抽象，而今天都拿不出用户踩得到的症状——没有 SSE 只是没有实时性（下一次 `find()` 照常回远端校验），没有 eviction 只是行缓存随查询范围累积，都不产生错误结果。按 [US-016 / US-017 先例](../../roadmap.md#明确不排期)登记进 roadmap 的「明确不排期」表并写明解锁条件即可，不计入任何统计。解锁条件见该表。
+
 ### 与 epic-006 的关系
 
 本包不构成对 [US-306](../collaboration/US-306-working-tree-commits.md) 的排期前置，也不被它前置。理由（2026-08-23 修正引用口径）：
@@ -492,19 +525,20 @@ YAML 没有 `depends-on` 字段。本故事当前**零前置**；排期见 [road
 
 ## 实现文件
 
-| 文件 / 动作                                                  | 阶段 | 说明                                                        |
-| ------------------------------------------------------------ | ---- | ----------------------------------------------------------- |
-| `packages/rxdb-adapter-http/`（新包）                        | A    | RemoteBase 实现、handlers、翻页/分块、unsupported changelog |
-| Nx project / `package.json` workspace 链接                   | A    | 用 workspace 协议链接，不手改 tsconfig paths                |
-| `requirements/api-baseline/rxdb-adapter-http.json`           | A    | 新包公开 API 基线                                           |
-| `declare module` 扩 `RxDBAdapters` + 注册解析契约测试        | A    | AC#1。**不是** `inject`——那是插件字段，适配器身上没有       |
-| transport 归属契约测试（auth / status / 不包装）             | A    | AC#12 / #13 / #16，断言主体是本包的 transport 而非 handler  |
-| 结构隔离契约测试                                             | A    | AC#19                                                       |
-| website / [capability-matrix.md](../../capability-matrix.md) | A    | AC#21（含具名适配器计数 9 → 10）                            |
-| `packages/rxdb-adapter-http/src/rest.ts` + `rest.spec.ts`    | B    | AC#27。工厂产出普通 handler，适配器一行没改                 |
-| `packages/rxdb-adapter-http/README.md` + `LICENSE`           | B    | 补齐：本包曾是唯一缺 README 的包，npm 页面为空              |
-| website `docs/adapters/http.md` 的「REST 模板」小节          | B    | AC#27 的公开文档：默认模板表、构造期校验、`delete` 的取舍   |
-| ETag / SSE / eviction                                        | B    | AC#28～30，owner 未指定前不实现                             |
+| 文件 / 动作                                                  | 阶段 | 说明                                                                                |
+| ------------------------------------------------------------ | ---- | ----------------------------------------------------------------------------------- |
+| `packages/rxdb-adapter-http/`（新包）                        | A    | RemoteBase 实现、handlers、翻页/分块、unsupported changelog                         |
+| Nx project / `package.json` workspace 链接                   | A    | 用 workspace 协议链接，不手改 tsconfig paths                                        |
+| `requirements/api-baseline/rxdb-adapter-http.json`           | A    | 新包公开 API 基线                                                                   |
+| `declare module` 扩 `RxDBAdapters` + 注册解析契约测试        | A    | AC#1。**不是** `inject`——那是插件字段，适配器身上没有                               |
+| transport 归属契约测试（auth / status / 不包装）             | A    | AC#12 / #13 / #16，断言主体是本包的 transport 而非 handler                          |
+| 结构隔离契约测试                                             | A    | AC#19                                                                               |
+| website / [capability-matrix.md](../../capability-matrix.md) | A    | AC#21（含具名适配器计数 9 → 10）                                                    |
+| `packages/rxdb-adapter-http/src/rest.ts` + `rest.spec.ts`    | B    | AC#27。工厂产出普通 handler，适配器一行没改                                         |
+| `packages/rxdb-adapter-http/README.md` + `LICENSE`           | B    | 补齐：本包曾是唯一缺 README 的包，npm 页面为空                                      |
+| website `docs/adapters/http.md` 的「REST 模板」小节          | B    | AC#27 的公开文档：默认模板表、构造期校验、`delete` 的取舍                           |
+| ETag 条件请求缓存 + single-flight（transport 内）            | B    | AC#28。owner = 本包（2026-08-24 判定）                                              |
+| ~~SSE / invalidation、eviction~~                             | —    | 原 AC#29 / #30，**已移出**，见 [roadmap「明确不排期」](../../roadmap.md#明确不排期) |
 
 本故事关闭前不改 US-203。能力矩阵在包落地后把「待实现 / US-212」行改成已实现。
 

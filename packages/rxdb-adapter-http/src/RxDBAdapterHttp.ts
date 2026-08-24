@@ -167,9 +167,13 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
    * 静默产出「远端零条」，整表判成孤儿，比抛错危险得多。
    *
    * **已发出的写请求不回滚**——HTTP 没有事务，假装能回滚比不回滚更危险。
+   *
+   * 顺带清空条件请求缓存（AC#28）：那些响应绑定的是断开前的认证身份与远端状态，
+   * 跨越一次断开继续复用，等于让重连后的第一批查询读到上一段连接的世界。
    */
   async disconnect(): Promise<void> {
     this.#disconnected.abort();
+    this.#transport.clearConditionalCache();
     return Promise.resolve();
   }
 
@@ -357,7 +361,11 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
       requestTimeoutMs: this.config.requestTimeoutMs,
       disconnectSignal: this.#disconnected.signal,
       auth: this.options.auth,
-      headers: this.options.headers
+      headers: this.options.headers,
+      // 缺席即禁用：AC#28 要求未启用时行为与阶段 A 逐字相同，
+      // 传一个 `{ enabled: false }` 会让那句话依赖 transport 内部再判一次
+      conditional:
+        this.options.conditionalRequests === true ? { maxEntries: this.config.conditionalCacheSize } : undefined
     });
   }
 

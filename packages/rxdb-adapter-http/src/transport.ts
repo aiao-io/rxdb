@@ -12,6 +12,7 @@
  */
 
 import { NetworkOfflineError } from '@aiao/rxdb';
+import { ConditionalRequestCache, requestFingerprint } from './conditional-cache.js';
 import { HttpDisconnectedError, HttpInvalidResponseError, HttpResponseError } from './errors.js';
 import type { HttpAuthHook, HttpRequestSpec } from './http.interface.js';
 
@@ -26,7 +27,26 @@ export interface HttpTransportOptions {
   auth?: HttpAuthHook;
   /** 附加到所有请求的 header */
   headers?: Record<string, string>;
+  /** 条件请求配置；**缺席即禁用**，此时行为与阶段 A 逐字相同（US-212 AC#28） */
+  conditional?: { maxEntries: number };
 }
+
+/**
+ * 参与条件缓存的操作名。
+ *
+ * @remarks
+ * 只有这两个是**幂等读**：AC#28 的原文就是「重复 `fetchMetadata` / `findByIds`」。
+ * `create` / `update` / `version` 同样走 {@link HttpTransport.sendJson}，但缓存它们
+ * 没有意义（写没有可复用的表示，`version` 一次连接只问一次）。
+ *
+ * 用操作名而不是 HTTP 方法来判：本包文档里 `onFetchMetadata` 的范例就用 `POST`
+ * 递 `RuleGroup`（查询条件放不进 query string 是 JSON 查询 API 的常态），
+ * 按 `GET` 过滤会让最主要的用法一条都命不中。
+ *
+ * 名字对不上的后果是**退回阶段 A 行为**，不是错误结果——这条 fail-safe 由
+ * `transport.spec.ts`「写入口与 version 不参与条件缓存」冻结。
+ */
+const CONDITIONAL_OPERATIONS: ReadonlySet<string> = new Set(['fetchMetadata', 'findByIds']);
 
 /**
  * 拼接请求 URL。
@@ -60,6 +80,25 @@ const assertOk = async (response: Response, url: string): Promise<void> => {
 };
 
 /**
+ * 序列化请求体。
+ *
+ * @remarks
+ * 单一出口：发出去的字节与条件请求的指纹必须**同源**。两处各 `JSON.stringify` 一次迟早
+ * 分叉，而分叉在这里的表现是「指纹换了」——缓存永远不命中，且没有任何报错说明为什么。
+ */
+const serializeBody = (body: unknown): string | undefined => (body === undefined ? undefined : JSON.stringify(body));
+
+/** 解码 2xx 响应体；代理返回 `200` + HTML 错误页时给出带 URL 与状态码的错误 */
+const decodeJson = async (response: Response, url: string): Promise<unknown> => {
+  const text = await response.text();
+  try {
+    return JSON.parse(text) as unknown;
+  } catch (error) {
+    throw new HttpInvalidResponseError(response.status, url, describeError(error));
+  }
+};
+
+/**
  * 执行 handler 产出的请求描述。
  *
  * @remarks
@@ -68,29 +107,48 @@ const assertOk = async (response: Response, url: string): Promise<void> => {
  * 超时可降级（远端暂时够不着），断开不可降级（是调用方自己叫停的）。
  */
 export class HttpTransport {
-  constructor(private readonly options: HttpTransportOptions) {}
+  /** 条件请求的响应缓存；未启用时为 `undefined`，整条 AC#28 路径随之不存在 */
+  readonly #conditional?: ConditionalRequestCache;
+
+  constructor(private readonly options: HttpTransportOptions) {
+    this.#conditional = options.conditional && new ConditionalRequestCache(options.conditional.maxEntries);
+  }
 
   /**
    * 发请求并解码 JSON 响应体，非 2xx 抛错。
    *
+   * @remarks
+   * 启用条件请求且 `operation` 属于 {@link CONDITIONAL_OPERATIONS} 时，本方法额外做两件事
+   * （US-212 AC#28）：带上 `if-none-match`、把 304 还原成上次 200 的解析结果。
+   * 未启用时这两条都不发生，行为与阶段 A 逐字相同。
+   *
    * @param spec - handler 产出的请求描述
    * @param operation - 出错时写进错误的操作名，如 `fetchMetadata`
    * @returns 已 JSON 解码的响应体
-   * @throws HttpResponseError 响应状态非 2xx（带数字 `status`）
+   * @throws HttpResponseError 响应状态非 2xx（带数字 `status`）。**未请求校验却收到 304
+   *   也走这里**——静默当成空集会让整表判成孤儿
    * @throws HttpInvalidResponseError 状态 2xx 但响应体不是合法 JSON
    * @throws NetworkOfflineError 传输失败或单请求超时
    * @throws HttpDisconnectedError 请求被 `disconnect()` 取消
    */
   async sendJson(spec: HttpRequestSpec, operation: string): Promise<unknown> {
-    const response = await this.execute(spec, operation);
-    const url = joinUrl(this.options.baseUrl, spec.url);
-    await assertOk(response, url);
-    const text = await response.text();
-    try {
-      return JSON.parse(text) as unknown;
-    } catch (error) {
-      throw new HttpInvalidResponseError(response.status, url, describeError(error));
+    const cache = this.#conditional;
+    if (!cache || !CONDITIONAL_OPERATIONS.has(operation)) {
+      return this.#sendJsonDirect(spec, operation);
     }
+    const key = requestFingerprint(spec.method, joinUrl(this.options.baseUrl, spec.url), serializeBody(spec.body));
+    return cache.singleFlight(key, () => this.#sendJsonConditional(cache, key, spec, operation));
+  }
+
+  /**
+   * 清空条件请求缓存。
+   *
+   * @remarks
+   * 由适配器的 `disconnect()` 调用（AC#28 的「`disconnect()` 清空」）。未启用条件请求时
+   * 是 no-op——没有缓存可清，不是错误。
+   */
+  clearConditionalCache(): void {
+    this.#conditional?.clear();
   }
 
   /**
@@ -159,7 +217,7 @@ export class HttpTransport {
       return await fetch(url, {
         method: spec.method,
         headers,
-        body: spec.body === undefined ? undefined : JSON.stringify(spec.body),
+        body: serializeBody(spec.body),
         signal
       });
     } catch (error) {
@@ -210,5 +268,52 @@ export class HttpTransport {
       return new HttpDisconnectedError(ctx.operation);
     }
     return new NetworkOfflineError(error instanceof Error ? error : new Error(describeError(error)));
+  }
+
+  /** 阶段 A 的原始路径：发、判状态、解码，不碰缓存 */
+  async #sendJsonDirect(spec: HttpRequestSpec, operation: string): Promise<unknown> {
+    const response = await this.execute(spec, operation);
+    const url = joinUrl(this.options.baseUrl, spec.url);
+    await assertOk(response, url);
+    return decodeJson(response, url);
+  }
+
+  /**
+   * 条件请求路径：带 ETag 去问，按 304 / 200 两分支收口。
+   *
+   * @remarks
+   * **条目在发请求前就地捕获，之后不再回查缓存。** 回查会引入一个真实的空洞：并发的
+   * 另一条链路可能在这期间把条目挤出去（LRU 有界），于是 304 找不到可还原的 body。
+   * 捕获后 304 永远有对应的值，与缓存的后续变动无关。
+   *
+   * `cached` 为空时**不发** `if-none-match`，所以此时的 304 只能是远端不合协议——
+   * 交给 `assertOk` 抛 `HttpResponseError(304)`，绝不还原成空集。
+   */
+  async #sendJsonConditional(
+    cache: ConditionalRequestCache,
+    key: string,
+    spec: HttpRequestSpec,
+    operation: string
+  ): Promise<unknown> {
+    const cached = cache.get(key);
+    const response = await this.execute(
+      cached ? { ...spec, headers: { ...spec.headers, 'if-none-match': cached.etag } } : spec,
+      operation
+    );
+    if (cached && response.status === 304) {
+      return cached.value;
+    }
+    const url = joinUrl(this.options.baseUrl, spec.url);
+    await assertOk(response, url);
+    const value = await decodeJson(response, url);
+    const etag = response.headers.get('etag');
+    if (etag === null) {
+      // 远端停发 ETag：留着旧条目就是拿一个再也换不到 304 的令牌去问，
+      // 每次都白搭一个请求头，且下一次 200 会被误判成「内容变了」
+      cache.delete(key);
+      return value;
+    }
+    cache.set(key, { etag, value });
+    return value;
   }
 }

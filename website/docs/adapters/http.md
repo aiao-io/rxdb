@@ -179,22 +179,52 @@ new RxDBAdapterHttp(db, {
   idChunkSize: 100,
   maxEmptyPages: 3,
   maxPages: 1000,
-  requestTimeoutMs: 30000
+  requestTimeoutMs: 30000,
+  conditionalRequests: false,
+  conditionalCacheSize: 256
 });
 ```
 
-| 字段               | 默认    | 含义                                          |
-| :----------------- | :------ | :-------------------------------------------- |
-| `pageSize`         | `1000`  | 单页条数，透传为 handler 的 `ctx.limit`       |
-| `idChunkSize`      | `100`   | `findByIds` 单块 id 数                        |
-| `maxEmptyPages`    | `3`     | 游标形态下连续空页容忍上限；`0` = 不容忍      |
-| `maxPages`         | `1000`  | 单次 `fetchMetadata` 总页数上限，触顶**抛错** |
-| `requestTimeoutMs` | `30000` | **单个**请求的超时上限                        |
+| 字段                   | 默认    | 含义                                             |
+| :--------------------- | :------ | :----------------------------------------------- |
+| `pageSize`             | `1000`  | 单页条数，透传为 handler 的 `ctx.limit`          |
+| `idChunkSize`          | `100`   | `findByIds` 单块 id 数                           |
+| `maxEmptyPages`        | `3`     | 游标形态下连续空页容忍上限；`0` = 不容忍         |
+| `maxPages`             | `1000`  | 单次 `fetchMetadata` 总页数上限，触顶**抛错**    |
+| `requestTimeoutMs`     | `30000` | **单个**请求的超时上限                           |
+| `conditionalCacheSize` | `256`   | 条件请求响应缓存条目上限，仅在下节的开关打开生效 |
 
-五个数值都必须是 finite 正整数（`maxEmptyPages` 可为 `0`），否则**构造期**抛 `HttpConfigError` 并带上字段名与实际值。
+六个数值都必须是 finite 正整数（`maxEmptyPages` 可为 `0`），否则**构造期**抛 `HttpConfigError` 并带上字段名与实际值。
 
 `auth` 在**每次请求发出前**调用，返回的 header 与 `headers` 冲突时以 `auth` 为准；
 `auth` 抛错则请求不发出。
+
+## 条件请求：让没变的页不再传一遍
+
+缺省关闭。打开后，`fetchMetadata` / `findByIds` 会记住上一次 `200` 的 `ETag` 与解析结果，
+下次同一请求带 `If-None-Match` 去问；远端回 `304` 就直接复用那份结果。
+
+```typescript
+new RxDBAdapterHttp(db, { baseUrl, handlers, conditionalRequests: true });
+```
+
+**为什么要显式开。** 它只在远端真的发 `ETag` 并认 `If-None-Match` 时才有收益，而适配器无从探测这一点。
+关闭时的行为与不带此特性的版本**逐字相同**：不发条件头、不去重并发、`304` 照旧当错误响应抛出。
+
+**304 返回上次的结果，不是空集。** 这条是硬约束：QueryCache 靠 `fetchMetadata` 的 id 集合判断哪些行是孤儿，
+把 304 当成「零条」会把还活着的远端行当孤儿删掉。缓存也因此在定义上不会脏——远端一旦认为内容变了就不会回 304。
+
+**缓存的是响应，不是行。** 行缓存归 core 经本地适配器落盘，本包按结构隔离不碰。这份响应缓存：
+
+- 按请求指纹（method + url + body）键控，翻页 / 分块**逐页、逐块**各占一个条目
+- 有界，`conditionalCacheSize` 条 LRU；取太小只是命中率下降，不会产生错误结果
+- 随适配器实例存活，`disconnect()` 时清空
+- 同一指纹的并发调用 **single-flight** 去重，不会出现「后一个拿到 304 而前一个还没回填」的空洞
+
+:::warning 换用户要走 `disconnect()` / `connect()`
+auth header **不进**请求指纹——否则每次 token 轮换都会让整份缓存失效，等于没开这个特性。
+代价是：在同一个适配器实例上直接换 token，可能读到上一个身份的响应。切换用户时重建连接。
+:::
 
 ## 错误与离线降级
 

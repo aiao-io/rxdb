@@ -166,20 +166,42 @@ new RxDBAdapterHttp(db, {
   idChunkSize: 100,
   maxEmptyPages: 3,
   maxPages: 1000,
-  requestTimeoutMs: 30000
+  requestTimeoutMs: 30000,
+  conditionalRequests: false,
+  conditionalCacheSize: 256
 });
 ```
 
-| 字段               | 默认    | 含义                                          |
-| :----------------- | :------ | :-------------------------------------------- |
-| `pageSize`         | `1000`  | 单页条数，透传为 handler 的 `ctx.limit`       |
-| `idChunkSize`      | `100`   | `findByIds` 单块 id 数                        |
-| `maxEmptyPages`    | `3`     | 游标形态下连续空页容忍上限；`0` = 不容忍      |
-| `maxPages`         | `1000`  | 单次 `fetchMetadata` 总页数上限，触顶**抛错** |
-| `requestTimeoutMs` | `30000` | **单个**请求的超时上限                        |
+| 字段                   | 默认    | 含义                                             |
+| :--------------------- | :------ | :----------------------------------------------- |
+| `pageSize`             | `1000`  | 单页条数，透传为 handler 的 `ctx.limit`          |
+| `idChunkSize`          | `100`   | `findByIds` 单块 id 数                           |
+| `maxEmptyPages`        | `3`     | 游标形态下连续空页容忍上限；`0` = 不容忍         |
+| `maxPages`             | `1000`  | 单次 `fetchMetadata` 总页数上限，触顶**抛错**    |
+| `requestTimeoutMs`     | `30000` | **单个**请求的超时上限                           |
+| `conditionalCacheSize` | `256`   | 条件请求响应缓存条目上限，仅在下方开关打开时生效 |
 
-五个数值都必须是 finite 正整数（`maxEmptyPages` 可为 `0`），否则**构造期**抛 `HttpConfigError` 并带上字段名与实际值。
+六个数值都必须是 finite 正整数（`maxEmptyPages` 可为 `0`），否则**构造期**抛 `HttpConfigError` 并带上字段名与实际值。
 `auth` 在每次请求发出前调用，与 `headers` 冲突时以 `auth` 为准；`auth` 抛错则请求不发出。
+
+### 条件请求（`conditionalRequests`，缺省关闭）
+
+打开后，`fetchMetadata` / `findByIds` 会带上 `If-None-Match` 复用上次 `200` 的解析结果，命中 `304` 时**返回那份结果**——
+不是空集（把 304 当空集就是本包全篇在防的假孤儿）。同一请求指纹的并发调用 **single-flight** 去重，
+不会出现「后一个拿到 304 而前一个还没回填」的空洞。
+
+```typescript
+new RxDBAdapterHttp(db, { baseUrl, handlers, conditionalRequests: true });
+```
+
+三条要点：
+
+- **必须显式开启。** 它只在远端真的发 `ETag` 并认 `If-None-Match` 时才有收益，而这一点适配器无从探测。
+  关闭时行为与不带此特性的版本**逐字相同**：不发条件头、不去重、304 照旧当错误。
+- **缓存的是响应不是行。** 行缓存归 core 经本地适配器落盘，本包不碰。响应缓存按适配器实例存活、
+  按 `conditionalCacheSize` 有界（LRU）、`disconnect()` 时清空。翻页 / 分块按**单页 / 单块**各自键控。
+- **换用户必须走 `disconnect()` / `connect()`。** auth header 不进请求指纹（否则每次 token 轮换都全量失效，
+  等于没有缓存），所以在同一实例上直接换 token 会读到上一个身份的响应。
 
 ## 错误与离线降级
 

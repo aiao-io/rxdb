@@ -246,4 +246,171 @@ describe('HttpTransport', () => {
       );
     });
   });
+
+  /**
+   * US-212 AC#28：ETag / If-None-Match 条件请求。
+   *
+   * 全篇的主张只有一句——**304 必须还原成上次 200 的解析结果，绝不能变成空集**。
+   * 空集会被上层读成「远端一条都没有」，整表判成孤儿，正是本包全程在防的假孤儿。
+   */
+  describe('条件请求（AC#28）', () => {
+    const READ_SPEC = { url: 'items', method: 'POST', body: { offset: 0 } } as const;
+
+    const conditionalTransport = (maxEntries = 8) => createTransport({ conditional: { maxEntries } }).transport;
+
+    const ifNoneMatch = (callIndex: number): string | undefined =>
+      ((fetchMock.mock.calls[callIndex][1] as RequestInit).headers as Record<string, string>)['if-none-match'];
+
+    /** 首次 200 带 ETag，其后一律 304 */
+    const stubEtagThen304 = (body: unknown, etag = '"v1"'): void => {
+      let served = false;
+      stubFetch(() => {
+        if (served) {
+          return Promise.resolve(new Response(null, { status: 304 }));
+        }
+        served = true;
+        return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { etag } }));
+      });
+    };
+
+    it('首次 200 带 ETag 后，同指纹的下一次请求带 if-none-match', async () => {
+      stubEtagThen304({ rows: [1, 2] });
+      const transport = conditionalTransport();
+      await transport.sendJson(READ_SPEC, 'fetchMetadata');
+      await transport.sendJson(READ_SPEC, 'fetchMetadata');
+      expect(ifNoneMatch(0)).toBeUndefined();
+      expect(ifNoneMatch(1)).toBe('"v1"');
+    });
+
+    it('命中 304 时返回上次 200 的解析结果，不是空集', async () => {
+      stubEtagThen304({ rows: [1, 2] });
+      const transport = conditionalTransport();
+      const first = await transport.sendJson(READ_SPEC, 'fetchMetadata');
+      const second = await transport.sendJson(READ_SPEC, 'fetchMetadata');
+      expect(second).toEqual(first);
+      expect(second).toEqual({ rows: [1, 2] });
+    });
+
+    it('200 携带新 ETag 时用新结果替换缓存', async () => {
+      let call = 0;
+      stubFetch(() => {
+        call += 1;
+        return Promise.resolve(
+          new Response(JSON.stringify({ v: call }), { status: 200, headers: { etag: `"v${call}"` } })
+        );
+      });
+      const transport = conditionalTransport();
+      await transport.sendJson(READ_SPEC, 'fetchMetadata');
+      expect(await transport.sendJson(READ_SPEC, 'fetchMetadata')).toEqual({ v: 2 });
+      expect(ifNoneMatch(1)).toBe('"v1"');
+      // 第三次要带的是第二次的 ETag，不是第一次的
+      await transport.sendJson(READ_SPEC, 'fetchMetadata');
+      expect(ifNoneMatch(2)).toBe('"v2"');
+    });
+
+    it('响应不带 ETag 时不进缓存，后续请求不带 if-none-match', async () => {
+      stubFetch(() => Promise.resolve(new Response(JSON.stringify({ rows: [] }), { status: 200 })));
+      const transport = conditionalTransport();
+      await transport.sendJson(READ_SPEC, 'fetchMetadata');
+      await transport.sendJson(READ_SPEC, 'fetchMetadata');
+      expect(ifNoneMatch(1)).toBeUndefined();
+    });
+
+    it('远端停发 ETag 时丢弃旧条目，不再拿旧 ETag 去校验', async () => {
+      let call = 0;
+      stubFetch(() => {
+        call += 1;
+        const headers = call === 1 ? { etag: '"v1"' } : undefined;
+        return Promise.resolve(new Response(JSON.stringify({ v: call }), { status: 200, headers }));
+      });
+      const transport = conditionalTransport();
+      await transport.sendJson(READ_SPEC, 'fetchMetadata');
+      await transport.sendJson(READ_SPEC, 'fetchMetadata');
+      await transport.sendJson(READ_SPEC, 'fetchMetadata');
+      expect(ifNoneMatch(1)).toBe('"v1"');
+      expect(ifNoneMatch(2)).toBeUndefined();
+    });
+
+    it('未请求条件校验却收到 304 时抛错，绝不当成空集', async () => {
+      // 远端行为不合协议。返回 undefined / 空对象会让整表判成孤儿，抛错是唯一诚实行为
+      stubFetch(() => Promise.resolve(new Response(null, { status: 304 })));
+      const transport = conditionalTransport();
+      await expect(transport.sendJson(READ_SPEC, 'fetchMetadata')).rejects.toMatchObject({
+        name: 'HttpResponseError',
+        status: 304
+      });
+    });
+
+    it('同指纹的并发请求 single-flight 去重，不出现「后一个拿到 304 而前一个尚未回填」的空洞', async () => {
+      stubEtagThen304({ rows: [1, 2] });
+      const transport = conditionalTransport();
+      const [a, b] = await Promise.all([
+        transport.sendJson(READ_SPEC, 'fetchMetadata'),
+        transport.sendJson(READ_SPEC, 'fetchMetadata')
+      ]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(a).toEqual({ rows: [1, 2] });
+      expect(b).toEqual({ rows: [1, 2] });
+    });
+
+    it('翻页的相邻两页各自校验，不共享条目', async () => {
+      stubFetch((_url, init) =>
+        Promise.resolve(new Response(String(init.body), { status: 200, headers: { etag: `"${String(init.body)}"` } }))
+      );
+      const transport = conditionalTransport();
+      await transport.sendJson({ url: 'items', method: 'POST', body: { offset: 0 } }, 'fetchMetadata');
+      await transport.sendJson({ url: 'items', method: 'POST', body: { offset: 100 } }, 'fetchMetadata');
+      // 第 2 页是新指纹，没有可校验的 ETag
+      expect(ifNoneMatch(1)).toBeUndefined();
+      await transport.sendJson({ url: 'items', method: 'POST', body: { offset: 100 } }, 'fetchMetadata');
+      expect(ifNoneMatch(2)).toBe('"{"offset":100}"');
+    });
+
+    it('写入口与 version 不参与条件缓存', async () => {
+      // 恒 200 带 ETag：若这三个操作参与了缓存，第二次就会带上 if-none-match。
+      // 用 stubEtagThen304 反而测不出来——不参与的操作拿到 304 会（正确地）抛错
+      stubFetch(() =>
+        Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200, headers: { etag: '"v1"' } }))
+      );
+      const transport = conditionalTransport();
+      for (const operation of ['create', 'update', 'version']) {
+        await transport.sendJson(READ_SPEC, operation);
+      }
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(ifNoneMatch(1)).toBeUndefined();
+      expect(ifNoneMatch(2)).toBeUndefined();
+    });
+
+    it('clearConditionalCache() 后回到无缓存状态', async () => {
+      stubEtagThen304({ rows: [1] });
+      const transport = conditionalTransport();
+      await transport.sendJson(READ_SPEC, 'fetchMetadata');
+      transport.clearConditionalCache();
+      await transport.sendJson(READ_SPEC, 'fetchMetadata').catch(() => undefined);
+      expect(ifNoneMatch(1)).toBeUndefined();
+    });
+
+    /**
+     * AC#28 明写要有的对照用例：**未启用时行为与阶段 A 逐字相同**。
+     */
+    describe('未启用时与阶段 A 逐字相同', () => {
+      it('不带 if-none-match，且 304 不被解读成缓存命中', async () => {
+        stubEtagThen304({ rows: [1] });
+        const { transport } = createTransport();
+        await transport.sendJson(READ_SPEC, 'fetchMetadata');
+        await expect(transport.sendJson(READ_SPEC, 'fetchMetadata')).rejects.toMatchObject({ status: 304 });
+        expect(ifNoneMatch(1)).toBeUndefined();
+      });
+
+      it('并发同指纹请求不去重，两次调用两次 fetch', async () => {
+        stubFetch(() => Promise.resolve(jsonResponse({ rows: [1] })));
+        const { transport } = createTransport();
+        await Promise.all([
+          transport.sendJson(READ_SPEC, 'fetchMetadata'),
+          transport.sendJson(READ_SPEC, 'fetchMetadata')
+        ]);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+      });
+    });
+  });
 });

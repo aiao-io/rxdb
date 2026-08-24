@@ -221,7 +221,7 @@ export interface HttpHandlers {
  */
 export type HttpAuthHook = () => Record<string, string> | Promise<Record<string, string>>;
 
-/** 五个数值配置，全部可覆盖、全部有默认。 */
+/** 六个数值配置，全部可覆盖、全部有默认。 */
 export interface HttpNumericConfig {
   /** 单页条数，透传为 handler 的 `ctx.limit`。默认 `1000`（对标 `SUPABASE_PAGE_SIZE`） */
   pageSize: number;
@@ -233,6 +233,14 @@ export interface HttpNumericConfig {
   maxPages: number;
   /** **单个** HTTP 请求的超时上限（毫秒）。默认 `30000` */
   requestTimeoutMs: number;
+  /**
+   * 条件请求响应缓存的条目上限。默认 `256`；仅在 `conditionalRequests` 为 `true` 时生效。
+   *
+   * @remarks
+   * 一页 / 一块各占一个条目，所以上限要按**并发活跃查询的总页数**估，不是按实体数。
+   * 取太小会让翻页里最热的首页被反复挤出，退化成没有缓存（不产生错误结果）。
+   */
+  conditionalCacheSize: number;
 }
 
 /** `new RxDBAdapterHttp(rxdb, options)` 的配置。 */
@@ -243,4 +251,20 @@ export interface HttpAdapterOptions extends Partial<HttpNumericConfig> {
   auth?: HttpAuthHook;
   /** 附加到所有请求的 header；与 auth hook 冲突时 auth hook 优先 */
   headers?: Record<string, string>;
+  /**
+   * 启用 ETag / If-None-Match 条件请求（US-212 AC#28）。默认 `false`。
+   *
+   * @remarks
+   * **必须显式开启**，因为它只在远端真的发 `ETag` 并认 `If-None-Match` 时才有收益，
+   * 而这一点适配器无从探测。关闭时 `fetchMetadata` / `findByIds` 的行为与阶段 A 逐字相同：
+   * 不带条件头、不去重并发、304 照旧当错误。
+   *
+   * 开启后缓存的是**响应**（上次 200 的 JSON body），不是行——行缓存归 core 经本地适配器
+   * 落盘，本包按 AC#19 不碰。缓存按适配器实例存活、有界（{@link HttpNumericConfig.conditionalCacheSize}）、
+   * `disconnect()` 时清空。
+   *
+   * **换用户必须走 `disconnect()` / `connect()`**：auth header 不进请求指纹（否则每次
+   * token 轮换都全量失效，等于没有缓存），所以同一实例上直接换 token 会读到上一个身份的响应。
+   */
+  conditionalRequests?: boolean;
 }
