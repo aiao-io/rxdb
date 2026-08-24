@@ -224,6 +224,41 @@ export class HttpInvalidResponseError extends HttpAdapterError {
   }
 }
 
+/** 请求还没发出去就构造失败的两种成因 */
+export type HttpRequestBuildFailure =
+  /** `JSON.stringify` 拒绝序列化请求体（bigint、循环引用等） */
+  | 'body'
+  /** auth hook 或静态配置给出了非法的 header 名 / 值 */
+  | 'headers';
+
+/**
+ * 请求在**发出之前**就构造失败（US-212 AC#12 / #34）。
+ *
+ * @remarks
+ * 存在的唯一理由是把「本地数据/配置有问题」从「网络断了」里摘出来。
+ * `JSON.stringify` 遇 bigint 抛的是 `TypeError`，与 `fetch` 传输失败抛的**完全同型**；
+ * 若让它落进 `classify()`，就会被包成 `NetworkOfflineError`，
+ * 进而被 `offlineFallback` 静默换成陈旧缓存——脏数据与配置 bug 从此永远浮不出来。
+ *
+ * 两种成因共用一个类、由 {@link HttpRequestBuildError.reason} 区分，理由同
+ * {@link HttpPaginationError}：调用侧的处置一致（修本地，别重试），
+ * 拆成两个类只会让 catch 侧多写一个 `instanceof`。
+ *
+ * **不带 `status`**，但也**不是**网络错误：`isNetworkError` 的 5 条判据一条都不命中，
+ * 于是既不会被降级回退，也不会被误报成远端故障。
+ */
+export class HttpRequestBuildError extends HttpAdapterError {
+  constructor(
+    readonly reason: HttpRequestBuildFailure,
+    readonly operation: string,
+    detail: string
+  ) {
+    super(`HTTP request for "${operation}" could not be built (${reason}): ${detail}`, 'REQUEST_BUILD_ERROR');
+    this.name = 'HttpRequestBuildError';
+    Object.setPrototypeOf(this, HttpRequestBuildError.prototype);
+  }
+}
+
 /**
  * 远端返回了非 2xx 响应（US-212 AC#12）。
  *

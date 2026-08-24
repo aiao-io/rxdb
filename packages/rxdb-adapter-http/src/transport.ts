@@ -13,7 +13,13 @@
 
 import { NetworkOfflineError } from '@aiao/rxdb';
 import { ConditionalRequestCache, requestFingerprint } from './conditional-cache.js';
-import { HttpDisconnectedError, HttpInvalidResponseError, HttpResponseError } from './errors.js';
+import {
+  HttpAdapterError,
+  HttpDisconnectedError,
+  HttpInvalidResponseError,
+  HttpRequestBuildError,
+  HttpResponseError
+} from './errors.js';
 import type { HttpAuthHook, HttpRequestSpec } from './http.interface.js';
 
 /** {@link HttpTransport} 的构造参数。 */
@@ -101,8 +107,48 @@ const assertOk = async (response: Response, url: string): Promise<void> => {
  * @remarks
  * 单一出口：发出去的字节与条件请求的指纹必须**同源**。两处各 `JSON.stringify` 一次迟早
  * 分叉，而分叉在这里的表现是「指纹换了」——缓存永远不命中，且没有任何报错说明为什么。
+ *
+ * 失败包成 {@link HttpRequestBuildError} 而不是放它裸奔：`JSON.stringify` 遇 bigint /
+ * 循环引用抛的是 `TypeError`，与 `fetch` 传输失败**完全同型**。裸抛出去只要落进
+ * `classify()` 就会变成 `NetworkOfflineError`，被 `offlineFallback` 静默换成陈旧缓存。
+ *
+ * `JSON.stringify` 对函数 / symbol 返回 `undefined` 也算失败：静默发出一个「声明了
+ * `content-type: application/json` 却没有 body」的请求，只会在远端表现为莫名其妙的 400。
  */
-const serializeBody = (body: unknown): string | undefined => (body === undefined ? undefined : JSON.stringify(body));
+const serializeBody = (body: unknown, operation: string): string | undefined => {
+  if (body === undefined) {
+    return undefined;
+  }
+  let serialized: string | undefined;
+  try {
+    serialized = JSON.stringify(body);
+  } catch (error) {
+    throw new HttpRequestBuildError('body', operation, describeError(error));
+  }
+  if (serialized === undefined) {
+    throw new HttpRequestBuildError('body', operation, `JSON.stringify() returned undefined for ${typeof body}`);
+  }
+  return serialized;
+};
+
+/**
+ * 借 `Headers` 的解析器校验 header，返回**普通对象**。
+ *
+ * @remarks
+ * 不自己写 RFC 7230 的 token / field-value 规则：多一份实现就多一处会和 `fetch` 分叉的
+ * 判定。返回 `Record` 而不是 `Headers` 实例，是因为 wire 上原本就是普通对象，换类型会
+ * 让「header 优先级」那组断言换一种写法却测不到新东西。
+ *
+ * 非法 header 必须在这里就地失败：auth hook 拼出带 CRLF 的 token 时，把请求发出去的
+ * 后果是 `fetch` 抛 `TypeError`——又一次和传输失败同型，又一次被当成离线。
+ */
+const validateHeaders = (headers: Record<string, string>, operation: string): Record<string, string> => {
+  try {
+    return Object.fromEntries(new Headers(headers));
+  } catch (error) {
+    throw new HttpRequestBuildError('headers', operation, describeError(error));
+  }
+};
 
 /** 解码 2xx 响应体；代理返回 `200` + HTML 错误页时给出带 URL 与状态码的错误 */
 const decodeJson = async (response: Response, url: string): Promise<unknown> => {
@@ -113,6 +159,24 @@ const decodeJson = async (response: Response, url: string): Promise<unknown> => 
     throw new HttpInvalidResponseError(response.status, url, describeError(error));
   }
 };
+
+/**
+ * 已构造完毕、可以直接上线的请求。
+ *
+ * @remarks
+ * 存在的意义是把「构造」与「发送」切开：构造在超时窗口**之外**（它不涉及网络，
+ * 失败是本地问题），发送在窗口**之内**。切开之后，请求体只序列化一次——条件请求的
+ * 指纹与真正发出去的字节读的是同一个 {@link PreparedRequest.body}，从结构上不可能分叉。
+ */
+interface PreparedRequest {
+  /** 已与 baseUrl 拼接完成的绝对地址 */
+  url: string;
+  method: string;
+  /** 已过 `Headers` 解析器校验的 header */
+  headers: Record<string, string>;
+  /** 已序列化的请求体；无 body 时为 `undefined` */
+  body?: string;
+}
 
 /**
  * 执行 handler 产出的请求描述。
@@ -144,16 +208,19 @@ export class HttpTransport {
    * @throws HttpResponseError 响应状态非 2xx（带数字 `status`）。**未请求校验却收到 304
    *   也走这里**——静默当成空集会让整表判成孤儿
    * @throws HttpInvalidResponseError 状态 2xx 但响应体不是合法 JSON
+   * @throws HttpRequestBuildError 请求体不可序列化，或 header 非法（请求不发出）
    * @throws NetworkOfflineError 传输失败或单请求超时
    * @throws HttpDisconnectedError 请求被 `disconnect()` 取消
    */
   async sendJson(spec: HttpRequestSpec, operation: string): Promise<unknown> {
+    const prepared = await this.#prepare(spec, operation);
     const cache = this.#conditional;
     if (!cache || !CONDITIONAL_OPERATIONS.has(operation)) {
-      return this.#sendJsonDirect(spec, operation);
+      return this.#sendJsonDirect(prepared, operation);
     }
-    const key = requestFingerprint(spec.method, joinUrl(this.options.baseUrl, spec.url), serializeBody(spec.body));
-    return cache.singleFlight(key, () => this.#sendJsonConditional(cache, key, spec, operation));
+    // 指纹读的就是要发出去的那份字节，不再单独 stringify 一次
+    const key = requestFingerprint(prepared.method, prepared.url, prepared.body);
+    return cache.singleFlight(key, () => this.#sendJsonConditional(cache, key, prepared, operation));
   }
 
   /**
@@ -181,13 +248,15 @@ export class HttpTransport {
    * @param spec - handler 产出的请求描述
    * @param operation - 出错时写进错误的操作名
    * @throws HttpResponseError 响应状态非 2xx（带数字 `status`）
+   * @throws HttpRequestBuildError 请求体不可序列化，或 header 非法（请求不发出）
    * @throws NetworkOfflineError 传输失败或单请求超时
    * @throws HttpDisconnectedError 请求被 `disconnect()` 取消
    */
   async sendVoid(spec: HttpRequestSpec, operation: string): Promise<void> {
-    const response = await this.execute(spec, operation);
-    await assertOk(response, this.resolveUrl(spec));
-    await discardBody(response);
+    await this.execute(spec, operation, async response => {
+      await assertOk(response, this.resolveUrl(spec));
+      await discardBody(response);
+    });
   }
 
   /**
@@ -202,27 +271,71 @@ export class HttpTransport {
   }
 
   /**
-   * 发请求并返回原始 `Response`，**不判状态码**。
+   * 发请求，并在**超时窗口内**消费响应。
    *
    * @remarks
    * 给 `isTableExisted` 用：它要把 404 读成「表不存在」而不是失败，
    * 所以判定必须在拿得到 `status` 的这一层做，不能交给会抛错的 {@link sendJson}。
    *
+   * 交出的是 `consume` 回调而不是 `Response`：**响应体也必须罩在同一个 deadline 下**。
+   * 详见 {@link HttpTransport.#send}。
+   *
    * @param spec - handler 产出的请求描述
    * @param operation - 出错时写进错误的操作名
-   * @returns 原始 `Response`，包括非 2xx
+   * @param consume - 在超时窗口内消费 `Response`；抛出的 {@link HttpAdapterError} 原样透出
+   * @returns `consume` 的返回值
+   * @throws HttpRequestBuildError 请求体不可序列化，或 header 非法（请求不发出）
    * @throws NetworkOfflineError 传输失败或单请求超时
    * @throws HttpDisconnectedError 请求被 `disconnect()` 取消
    */
-  async execute(spec: HttpRequestSpec, operation: string): Promise<Response> {
-    const { baseUrl, disconnectSignal, requestTimeoutMs } = this.options;
-    if (disconnectSignal.aborted) {
+  async execute<T>(spec: HttpRequestSpec, operation: string, consume: (response: Response) => Promise<T>): Promise<T> {
+    return this.#send(await this.#prepare(spec, operation), operation, consume);
+  }
+
+  /**
+   * 构造请求：拼 URL、跑 auth hook、校验 header、序列化 body。
+   *
+   * @remarks
+   * 整段刻意留在超时窗口**之外**，因为它一个字节都不上网——这里的失败全是本地问题
+   * （token 刷新失败、配置里的 header 非法、要发的数据带 bigint），
+   * 用「远端够不着」的错误去描述它们，只会把排查方向整个引偏。
+   *
+   * 断开检查放最前：已经 `disconnect()` 了就别再去打扰 auth hook。
+   */
+  async #prepare(spec: HttpRequestSpec, operation: string): Promise<PreparedRequest> {
+    if (this.options.disconnectSignal.aborted) {
       throw new HttpDisconnectedError(operation);
     }
     // auth 在 fetch 之前：hook 抛错则请求不发出，且错误原样上抛不被包装——
     // 包成 NetworkOfflineError 会让 token 过期被 offlineFallback 吞成缓存命中
     const headers = await this.buildHeaders(spec);
-    const url = joinUrl(baseUrl, spec.url);
+    return {
+      url: joinUrl(this.options.baseUrl, spec.url),
+      method: spec.method,
+      headers: validateHeaders(headers, operation),
+      body: serializeBody(spec.body, operation)
+    };
+  }
+
+  /**
+   * 发送已构造好的请求，并在同一个 deadline 下消费响应。
+   *
+   * @remarks
+   * **`consume` 在 `try` 内、`clearTimeout` 之前跑，这是本方法存在的全部理由。**
+   * `fetch` 只 resolve 到 header 为止；此时就清掉定时器、把 `Response` 交出去，
+   * 剩下的 `text()` / `cancel()` 便再无任何时限——远端回一个状态行然后把 body 挂住
+   * （slow loris，也可能只是链路半死），调用方的 Promise 就永不 settle。
+   * AC#34 的「防挂起」于是只在 header 段成立，body 段完全裸奔。
+   *
+   * 同理，此时的 `disconnect()` 会让 body 流抛裸 `AbortError`：它绕过 {@link classify}，
+   * `isNetworkError` 判 false，「断开一律 `HttpDisconnectedError`」的契约随之失守。
+   */
+  async #send<T>(
+    request: PreparedRequest,
+    operation: string,
+    consume: (response: Response) => Promise<T>
+  ): Promise<T> {
+    const { disconnectSignal, requestTimeoutMs } = this.options;
     const timeoutController = new AbortController();
     let timedOut = false;
     const timer = setTimeout(() => {
@@ -234,14 +347,15 @@ export class HttpTransport {
     // any() 对**已经 abort** 的输入信号即刻生效，正好覆盖这个窗口。
     const signal = AbortSignal.any([disconnectSignal, timeoutController.signal]);
     try {
-      return await fetch(url, {
-        method: spec.method,
-        headers,
-        body: serializeBody(spec.body),
+      const response = await fetch(request.url, {
+        method: request.method,
+        headers: request.headers,
+        body: request.body,
         signal
       });
+      return await consume(response);
     } catch (error) {
-      throw this.classify(error, { operation, url, timedOut });
+      throw this.classify(error, { operation, url: request.url, timedOut });
     } finally {
       clearTimeout(timer);
     }
@@ -279,6 +393,12 @@ export class HttpTransport {
    * 而 node/undici 的失败消息 `fetch failed` 又不命中第 5 条的正则——两头落空。
    */
   private classify(error: unknown, ctx: { operation: string; url: string; timedOut: boolean }): Error {
+    // 已经判别过的错误原样放行：`consume` 现在跑在 try 内，`assertOk` 的
+    // `HttpResponseError(409)` 会路过这里。再包一层就是把「远端说不行」降级成
+    // 「远端够不着」，`offlineFallback` 随即把一次业务冲突换成一份陈旧缓存。
+    if (error instanceof HttpAdapterError) {
+      return error;
+    }
     if (ctx.timedOut) {
       return new NetworkOfflineError(
         new Error(`HTTP request to ${ctx.url} exceeded requestTimeoutMs=${this.options.requestTimeoutMs}`)
@@ -291,11 +411,11 @@ export class HttpTransport {
   }
 
   /** 阶段 A 的原始路径：发、判状态、解码，不碰缓存 */
-  async #sendJsonDirect(spec: HttpRequestSpec, operation: string): Promise<unknown> {
-    const response = await this.execute(spec, operation);
-    const url = joinUrl(this.options.baseUrl, spec.url);
-    await assertOk(response, url);
-    return decodeJson(response, url);
+  async #sendJsonDirect(prepared: PreparedRequest, operation: string): Promise<unknown> {
+    return this.#send(prepared, operation, async response => {
+      await assertOk(response, prepared.url);
+      return decodeJson(response, prepared.url);
+    });
   }
 
   /**
@@ -315,21 +435,38 @@ export class HttpTransport {
   async #sendJsonConditional(
     cache: ConditionalRequestCache,
     key: string,
-    spec: HttpRequestSpec,
+    prepared: PreparedRequest,
     operation: string
   ): Promise<unknown> {
     const cached = cache.get(key);
-    const response = await this.execute(
-      cached ? { ...spec, headers: { ...spec.headers, 'if-none-match': cached.etag } } : spec,
-      operation
-    );
-    if (cached && response.status === 304) {
-      // 304 按 RFC 无 body，但代理与打桩实现都可能带一个，仍要收口
-      await discardBody(response);
-      return cached.takeValue();
-    }
-    const url = joinUrl(this.options.baseUrl, spec.url);
-    await assertOk(response, url);
+    // ETag 来自远端响应头，已过一遍 Headers 解析器，不需要再校验一次
+    const request = cached
+      ? { ...prepared, headers: { ...prepared.headers, 'if-none-match': cached.etag } }
+      : prepared;
+    return this.#send(request, operation, async response => {
+      if (cached && response.status === 304) {
+        // 304 按 RFC 无 body，但代理与打桩实现都可能带一个，仍要收口
+        await discardBody(response);
+        return cached.takeValue();
+      }
+      await assertOk(response, prepared.url);
+      return this.#cacheAndReturn(cache, key, prepared.url, response);
+    });
+  }
+
+  /**
+   * 收下 200 的解析结果，顺带维护 ETag 条目。
+   *
+   * @remarks
+   * 从 {@link #sendJsonConditional} 里拆出来纯为压嵌套：`consume` 回调本身已经占掉一层，
+   * 内联写下去 `if (etag === null)` 就是第四层。
+   */
+  async #cacheAndReturn(
+    cache: ConditionalRequestCache,
+    key: string,
+    url: string,
+    response: Response
+  ): Promise<unknown> {
     const value = await decodeJson(response, url);
     const etag = response.headers.get('etag');
     if (etag === null) {

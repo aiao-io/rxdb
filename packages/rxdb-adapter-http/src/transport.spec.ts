@@ -1,6 +1,11 @@
 import { isNetworkError, NetworkOfflineError } from '@aiao/rxdb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpDisconnectedError, HttpInvalidResponseError, HttpResponseError } from './errors.js';
+import {
+  HttpDisconnectedError,
+  HttpInvalidResponseError,
+  HttpRequestBuildError,
+  HttpResponseError
+} from './errors.js';
 import { HttpTransport } from './transport.js';
 
 /**
@@ -239,20 +244,159 @@ describe('HttpTransport', () => {
     });
   });
 
+  describe('超时窗口必须罩住响应体读取（AC#34）', () => {
+    /**
+     * header 已到、body 迟迟不来 —— `fetch` 早已 resolve，此时**只剩** body 这一段还需要保护。
+     *
+     * @remarks
+     * 与 {@link stubHanging} 互补：那个桩里 fetch 永不 resolve，所以只要定时器在 `fetch`
+     * 之后才清理，测试就是绿的。真实的 slow-loris 恰恰相反 —— 状态行秒回、body 挂死。
+     */
+    const stubStallingBody = (status = 200): void => {
+      stubFetch((_url, init) =>
+        Promise.resolve(
+          new Response(
+            new ReadableStream({
+              start: controller => {
+                init.signal?.addEventListener('abort', () =>
+                  controller.error(new DOMException('aborted', 'AbortError'))
+                );
+              }
+            }),
+            { status }
+          )
+        )
+      );
+    };
+
+    it('header 已回、body 不回包 —— 仍在 requestTimeoutMs 内抛 NetworkOfflineError', async () => {
+      vi.useFakeTimers();
+      stubStallingBody();
+      const { transport } = createTransport({ requestTimeoutMs: 1000 });
+      const pending = transport.sendJson({ url: 'items', method: 'GET' }, 'fetchMetadata').catch((e: unknown) => e);
+      await vi.advanceTimersByTimeAsync(1001);
+      // 定时器若在 fetch resolve 时就清掉，这个 Promise 永不 settle：
+      // AC#34 要消灭的挂起只是从 header 段挪到了 body 段，上游 forkJoin 照样卡死
+      const error = await pending;
+      expect(error).toBeInstanceOf(NetworkOfflineError);
+      expect(isNetworkError(error)).toBe(true);
+    });
+
+    it('body 读取期超时会真的 abort 底层流', async () => {
+      vi.useFakeTimers();
+      stubStallingBody();
+      const { transport } = createTransport({ requestTimeoutMs: 1000 });
+      const pending = transport.sendJson({ url: 'items', method: 'GET' }, 'test').catch(() => undefined);
+      await vi.advanceTimersByTimeAsync(1001);
+      await pending;
+      expect((fetchMock.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(true);
+    });
+
+    it('disconnect() 落在 body 读取期间 —— 抛 HttpDisconnectedError，不是裸 AbortError', async () => {
+      stubStallingBody();
+      const { transport, controller } = createTransport();
+      const pending = transport.sendJson({ url: 'items', method: 'GET' }, 'fetchMetadata').catch((e: unknown) => e);
+      await new Promise(resolve => setTimeout(resolve, 0));
+      controller.abort();
+      const error = await pending;
+      // 裸 AbortError 绕过 classify() 后 isNetworkError 判 false，
+      // 「断开一律 HttpDisconnectedError」的契约在 body 段失守
+      expect(error).toBeInstanceOf(HttpDisconnectedError);
+      expect((error as HttpDisconnectedError).operation).toBe('fetchMetadata');
+      expect(isNetworkError(error)).toBe(false);
+    });
+
+    it('拿到状态码的响应即使 body 读不完，仍按状态码分类，不降级成离线', async () => {
+      vi.useFakeTimers();
+      stubStallingBody(409);
+      const { transport } = createTransport({ requestTimeoutMs: 1000 });
+      const pending = transport.sendJson({ url: 'items', method: 'GET' }, 'test').catch((e: unknown) => e);
+      await vi.advanceTimersByTimeAsync(1001);
+      const error = await pending;
+      // 409 是远端给出的回答，连接是通的；判成离线会让 offlineFallback 把冲突静默换成陈旧缓存
+      expect(error).toBeInstanceOf(HttpResponseError);
+      expect((error as HttpResponseError).status).toBe(409);
+      expect(isNetworkError(error)).toBe(false);
+    });
+  });
+
+  describe('请求构造失败不得伪装成离线', () => {
+    /** `JSON.stringify` 遇 bigint 抛 TypeError —— 与 `fetch` 传输失败抛的是同一个类型 */
+    const UNSERIALIZABLE = { nested: { amount: 7n } };
+
+    it('body 不可序列化 → HttpRequestBuildError，isNetworkError 判 false', async () => {
+      const { transport } = createTransport();
+      const error = await transport
+        .sendJson({ url: 'items', method: 'POST', body: UNSERIALIZABLE }, 'create')
+        .catch((e: unknown) => e);
+      // 包成 NetworkOfflineError 会让「数据脏」以「网络断」的面目出现，排查方向整个偏掉
+      expect(error).toBeInstanceOf(HttpRequestBuildError);
+      expect(isNetworkError(error)).toBe(false);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('开不开条件请求，同一份脏 body 抛同一种错误', async () => {
+      const spec = { url: 'items', method: 'POST' as const, body: UNSERIALIZABLE };
+      const { transport: plain } = createTransport();
+      const { transport: conditional } = createTransport({ conditional: { maxEntries: 8 } });
+      const direct = await plain.sendJson(spec, 'fetchMetadata').catch((e: unknown) => e);
+      const cached = await conditional.sendJson(spec, 'fetchMetadata').catch((e: unknown) => e);
+      // 指纹计算与真正上线的字节走同一个出口，两条路径不该给出两种错误
+      expect(cached).toBeInstanceOf(HttpRequestBuildError);
+      expect((cached as Error).constructor).toBe((direct as Error).constructor);
+    });
+
+    it('auth hook 返回非法 header 值 → HttpRequestBuildError，不被 offlineFallback 吞', async () => {
+      const { transport } = createTransport({ auth: () => ({ authorization: 'Bearer a\r\nx-injected: 1' }) });
+      const error = await transport.sendJson({ url: 'items', method: 'GET' }, 'fetchMetadata').catch((e: unknown) => e);
+      // 认证/配置 bug 若被兜底成离线，offlineFallback 会静默回退陈旧缓存，真实故障永远浮不出来
+      expect(error).toBeInstanceOf(HttpRequestBuildError);
+      expect(isNetworkError(error)).toBe(false);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('reason 区分 body 与 headers 两种成因', async () => {
+      const { transport: badHeaders } = createTransport({ auth: () => ({ 'x bad name': 'v' }) });
+      const headerError = await badHeaders
+        .sendJson({ url: 'items', method: 'GET' }, 'fetchMetadata')
+        .catch((e: unknown) => e);
+      expect((headerError as HttpRequestBuildError).reason).toBe('headers');
+
+      const { transport: plain } = createTransport();
+      const bodyError = await plain
+        .sendJson({ url: 'items', method: 'POST', body: UNSERIALIZABLE }, 'create')
+        .catch((e: unknown) => e);
+      expect((bodyError as HttpRequestBuildError).reason).toBe('body');
+      expect((bodyError as HttpRequestBuildError).operation).toBe('create');
+    });
+  });
+
   describe('execute 不判 status（isTableExisted 探测要用）', () => {
-    it('404 不抛错，原样返回 Response', async () => {
+    it('404 不抛错，状态码原样交给 consume', async () => {
       stubFetch(() => Promise.resolve(new Response('', { status: 404 })));
       const { transport } = createTransport();
-      const response = await transport.execute({ url: 'items', method: 'HEAD' }, 'isTableExisted');
-      expect(response.status).toBe(404);
+      const status = await transport.execute({ url: 'items', method: 'HEAD' }, 'isTableExisted', response =>
+        Promise.resolve(response.status)
+      );
+      expect(status).toBe(404);
     });
 
     it('传输失败照样转成 NetworkOfflineError', async () => {
       stubFetch(() => Promise.reject(new TypeError('fetch failed')));
       const { transport } = createTransport();
-      await expect(transport.execute({ url: 'items', method: 'GET' }, 'isTableExisted')).rejects.toBeInstanceOf(
-        NetworkOfflineError
-      );
+      await expect(
+        transport.execute({ url: 'items', method: 'GET' }, 'isTableExisted', response => Promise.resolve(response))
+      ).rejects.toBeInstanceOf(NetworkOfflineError);
+    });
+
+    it('consume 抛的业务错误原样透出，不被 classify 改写成离线', async () => {
+      stubFetch(() => Promise.resolve(new Response('', { status: 200 })));
+      const { transport } = createTransport();
+      const thrown = new HttpResponseError(418, `${BASE}/items`, undefined);
+      // consume 在 try 内执行，若不放行 HttpAdapterError，业务错误会被降级成可回退的离线错误
+      await expect(
+        transport.execute({ url: 'items', method: 'HEAD' }, 'isTableExisted', () => Promise.reject(thrown))
+      ).rejects.toBe(thrown);
     });
   });
 
