@@ -8,10 +8,10 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 41   |
-| 🚧 In Progress | 2    |
+| ✅ Done        | 42   |
+| 🚧 In Progress | 3    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 11   |
+| 📝 Backlog     | 9    |
 | 🚫 Blocked     | 0    |
 | **合计**       | 55   |
 
@@ -176,6 +176,12 @@
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
 
+**八条故事已全部 Done（US-018 于 2026-08-24 收尾），但 epic 仍是 `In Progress`——这是有意的，不是漏改。**
+[epic-005 的发布门禁](epics/epic-005-type-system-evolution.md#发布门禁)有 6 条，条件 1（五条 bigint/binary 故事全 Done）
+已成立，条件 2～6 是**发布动作与回归 gate**（共享 adapter gate、旧库升级/回滚 fixture、public type compatibility、
+encrypted 与 DevTools 回归、公开文档六项说明），需要一次独立审计逐条留证后才能置 `Done`。
+故事清单全绿 ≠ 门禁成立，不要据前者推后者。
+
 - ✅ [US-011 定义 bigint 与 binary 类型及公共 API 契约](stories/core/US-011-property-type-bigint-binary.md)
 - ✅ [US-206 本地适配器持久化与查询 bigint/binary](stories/adapter/US-206-bigint-binary-adapter.md)
 - ✅ [US-303 bigint/binary change codec 与系统迁移](stories/collaboration/US-303-bigint-binary-change-codec.md) — 迁移部分（AC10–AC14）已实现但未被真实发布行使
@@ -186,7 +192,7 @@
   - ✅ 阶段 B 实体字段描述 DTO
   - ✅ 阶段 C 字段值校验、format/enum/options 透传与三框架契约
 - ✅ [US-019 拒绝重复声明的 URL scheme](stories/core/US-019-url-scheme-duplicate-rejection.md) — US-012 阶段 A 的收尾：`['HTTP','http']` 报 `invalidFormatConfig`，不做归一化
-- ⬜ [US-018 生成器元数据序列化管线与 default 语义](stories/core/US-018-generator-default-serialization.md) — 从 US-012 拆出，与其无依赖，可并行
+- ✅ [US-018 生成器元数据序列化管线与 default 语义](stories/core/US-018-generator-default-serialization.md) — `BREAKING CHANGE`：函数工厂 `default` 由静默丢弃改为生成期 `unsupportedDefaultFactory`；迁移表见 [website/docs/migration/generator-default.md](../website/docs/migration/generator-default.md)
 
 ### [本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
 

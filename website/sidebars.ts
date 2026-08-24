@@ -167,6 +167,7 @@ const sidebars: SidebarsConfig = {
         'migration/desktop-split',
         'migration/plugins',
         'migration/plugin-scope',
+        'migration/generator-default',
         'migration/schema'
       ]
     },
