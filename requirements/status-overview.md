@@ -8,10 +8,10 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 42   |
+| ✅ Done        | 43   |
 | 🚧 In Progress | 3    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 9    |
+| 📝 Backlog     | 8    |
 | 🚫 Blocked     | 0    |
 | **合计**       | 55   |
 
@@ -212,7 +212,7 @@ encrypted 与 DevTools 回归、公开文档六项说明），需要一次独立
 
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 
-- ⬜ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md) — 认领 [capability-matrix](capability-matrix.md#已知的需求覆盖缺口) 第 2 条缺口
+- ✅ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md) — 2026-08-24 关闭，[capability-matrix](capability-matrix.md#已知的需求覆盖缺口) 第 2 条缺口随之关闭。基线扩为 `{ entries: {...} }`，30 包 44 入口（净增 14 个子路径入口 / 203 个新纳入守护的符号），主入口表面逐字节不变；源入口收敛到 `package.json` › `exports` › `@aiao/source` 一处真相源。仅剩 2 个资产入口显式跳过（由 wa-sqlite-integrity 的 SHA-256 守护，不是缺口）
 
 [specs/002-lifecycle-effect-scope/spec.md](../specs/002-lifecycle-effect-scope/spec.md) 仍是 Draft，但范围已与 Epic 承诺范围对齐（US-013 / US-014 / US-015 阶段 A；阶段 B 与 US-016 / US-017 标为已移出，后两者不创建故事文件）。原语已落在 [`packages/utils/src/lifecycle/`](../packages/utils/src/lifecycle/)，四个插件包已全部迁移到 `install(scope)`。
 
@@ -247,7 +247,7 @@ encrypted 与 DevTools 回归、公开文档六项说明），需要一次独立
 | 被挡住的                                                                                         | 硬前置                                                                                                                                                                                                                                                                                                                                                   |
 | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`，历史 `v0.0.25` 又已被 squash 移出主线——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。这一条不随代码进度自动解除，需单独排期       |
-| [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 B                                 | 出现第一个 `plugin:*` 依赖声明。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`，拓扑序与环检测目前没有消费方。US-013 / US-014 均已交付，硬序解除，阶段 A 已落地；这一条不随代码进度自动解除。**其余 13 条未关闭故事没有任何一条会产生 `plugin:*` 消费方，所以 US-015 的 `In Review` 是稳态而非过渡态**，上方汇总里的「👀 1」在可预见排期内是常量 |
+| [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 B                                 | 出现第一个 `plugin:*` 依赖声明。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`，拓扑序与环检测目前没有消费方。US-013 / US-014 均已交付，硬序解除，阶段 A 已落地；这一条不随代码进度自动解除。**其余 11 条未关闭故事没有任何一条会产生 `plugin:*` 消费方，所以 US-015 的 `In Review` 是稳态而非过渡态**，上方汇总里的「👀 1」在可预见排期内是常量 |
 | [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D                       | 同一文件的阶段 A 必须先给出 `decision: supported`。判 `unsupported` 时**只有阶段 D** 转 `Blocked`，阶段 B / C 与 US-905 继续推进                                                                                                                                                                                                                         |
 
 > **US-212 发布门禁已于 2026-08-22 解除**，从本表移除。原两档门禁（[US-020](stories/core/US-020-querycache-repository.md)

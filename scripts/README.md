@@ -42,7 +42,7 @@ CI 的 `setup` job 每轮都会执行。表格里各 spec 那一行写的 `node 
 | [ci/probe-nx-cloud.spec.mjs](#ciprobe-nx-cloudspecmjs)                      | 改 Cloud 探测分类后                          | Node test runner，覆盖 2xx / FREE plan / 401 / 超时 / 缺 id                     | `node --test scripts/ci/probe-nx-cloud.spec.mjs`                              |
 | [runner.mjs](#runnermjs)                                                    | 内部依赖                                     | `spawn` 封装：彩色错误打印、参数透传                                            | `import { run } from './runner.mjs'`                                          |
 | [workspace.mjs](#workspacemjs)                                              | 内部依赖                                     | 共享常量：NPM scope、需预构建的库名、需校验的分支                               | `import { NPM_SCOPE, NEED_BUILDS } from './workspace.mjs'`                    |
-| [audit/api-surface.mjs](#auditapi-surfacemjs)                               | PR 改动公共 API                              | 对比基线，捕捉公开包导出符号的增删/种类变化                                     | `pnpm audit:api-surface` / `:update`                                          |
+| [audit/api-surface.mjs](#auditapi-surfacemjs)                               | PR 改动公共 API                              | 对比基线，捕捉每个公开入口（主入口 + 子路径）导出符号的增删/种类变化            | `pnpm audit:api-surface` / `:update`                                          |
 | [audit/package-api-docs.mjs](#auditpackage-apidocsmjs)                      | 受保护包的 build                             | TS 编译器检查根 export；`--members` 递归检查公开成员                            | storage / encrypted / sqlite / sqliteai `:build`                              |
 | `audit/package-api-docs.spec.mjs`                                           | 改公开 API 文档门禁后                        | pass/fail fixture 验证成员路径、非零退出及排除规则                              | `node --test scripts/audit/package-api-docs.spec.mjs`                         |
 | [audit/package-runtime-conditions.mjs](#auditpackage-runtime-conditionsmjs) | 改包 `exports` 后                            | 静态扫 `packages/*/package.json`，揪出指向源码的非可执行 export condition       | `pnpm audit:conditions`                                                       |
@@ -336,13 +336,25 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
   - `pnpm audit:api-surface:update`（更新 `requirements/api-baseline/*.json`）。
 - **做什么**：
   1. 遍历 `packages/`，跳过 `private === true` 或没有 `src/index.ts` 的包（默认排除 `rxdb-test`）；
-  2. 用 TypeScript 编译器解析每个入口的真实可见导出（展开 `export *` / re-export），得到 `{ name, kind: 'type' | 'value' | 'both' }[]`；
-  3. 对比 `requirements/api-baseline/<pkg>.json`：
-     - **removed / kind changed** → 退出码非 0，PR 必须附带迁移说明；
-     - **added only** → 仅打印警告，提示跑 `:update` 落基线；
+  2. 对每个包展开**入口清单**：主入口固定取 `src/index.ts`，每个 `exports` 子路径从
+     `package.json` › `exports` › `@aiao/source` 读源入口（见下方「子路径入口」）；
+  3. 用 TypeScript 编译器解析每个入口的真实可见导出（展开 `export *` / re-export），得到 `{ name, kind: 'type' | 'value' | 'both' }[]`；
+  4. 对比 `requirements/api-baseline/<pkg>.json`，格式为
+     `{ entries: { ".": [...], "./testing": [...] } }` —— 每个入口一条：
+     - **入口消失 / symbol removed / kind changed** → 退出码非 0，PR 必须附带迁移说明；
+     - **仅新增入口或新增 symbol** → 仅打印警告，提示跑 `:update` 落基线；
      - **完全一致** → 通过。
-  4. 路径用 `tsconfig.base.json` 的 `paths` 解析，不依赖 `node_modules`，本地与 CI 结果一致。
-- **何时手动跑**：新增/删除/重命名一个公开导出、调整类型/值性质（type-only ↔ value）、合并 PR 前最后一次本地校验。
+  5. 跨包 import 用 `tsconfig.base.json` 的 `paths` 解析，不依赖 `node_modules`，本地与 CI 结果一致。
+- **子路径入口**（US-601）：入口 → 源文件的**唯一真相源**是 `@aiao/source` 条件，扫描器不读 tsconfig paths 来猜。
+  - 子路径缺该条件、或条件指向的文件不存在 → `--check` 与 `--update` **两种模式都硬失败**，
+    不降级为「零导出」。原因是：静默跳过会让「整个入口被删」显示成「表面无变化」，
+    而 `--update` 带着解析不了的入口写基线，等于把一个公开入口从快照里悄悄抹掉。
+  - 唯一豁免是 `ASSET_SUBPATHS`（当前仅 `rxdb-adapter-miniprogram` 的两个 `./assets/*`）：
+    二进制 / CJS 文件没有导出表面可扫，内容由 `audit/wa-sqlite-integrity.mjs` 的 SHA-256 守护。
+    白名单**双向核对**——登记了包里已不存在的入口、或登记的包已退出扫描范围，同样红。
+  - 入口清单的解析逻辑在 `audit/subpath-inventory.mjs`，由 `subpath-inventory.spec.mjs` 固定。
+- **何时手动跑**：新增/删除/重命名一个公开导出、调整类型/值性质（type-only ↔ value）、
+  给包加一个子路径 `exports`（记得同时补 `@aiao/source`）、合并 PR 前最后一次本地校验。
 
 ### `audit/package-api-docs.mjs`
 
@@ -366,6 +378,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
   `@aiao/source` 从来不由 Node 在运行时解析——它只被三处构建期消费方读取：
   `tsconfig.base.json` 的 `customConditions`、`audit/api-surface.mjs`、各 vite config 的
   `resolve.conditions`。所以它指向 `.ts` 是**设计如此**，与 `types` 指向 `.d.ts` 同性质。
+  US-601 之后它还是**必填**的：子路径入口少了它，`audit/api-surface` 直接红（那边解释了为什么不能静默跳过）。
   豁免按 **condition 名**判定，不是按包或路径：同一个 `exports` 里若有
   `default: './src/x.ts'`，照样报错。`package-runtime-conditions.spec.mjs` 固定住了这条边界。
 - **何时手动跑**：给某个包加/改 `exports`（尤其是新增自定义 condition）之后。
@@ -394,7 +407,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 - 所有脚本统一用 **Node ESM**（`import ... from`，无构建产物），最低 Node 26（由 `preinstall.mjs` 强制）；
 - 工作目录默认是仓库根（用 `process.cwd()` 或 `import.meta.dirname` 解析相对路径），所以从根目录直接 `node scripts/<x>.mjs` 即可；
 - 错误约定：
-  - **硬失败（阻断 PR）**：`audit/wa-sqlite-integrity` 锁漂移、`check-doc-code` import 无效、`check-externals` 漏配、`check-migration-release-gate` 字段错、`audit/coverage-check` 低于阈值、`audit/api-surface` removed/kind changed、`audit/package-api-docs` 缺 TSDoc；
+  - **硬失败（阻断 PR）**：`audit/wa-sqlite-integrity` 锁漂移、`check-doc-code` import 无效、`check-externals` 漏配、`check-migration-release-gate` 字段错、`audit/coverage-check` 低于阈值、`audit/api-surface` 入口消失 / removed / kind changed / 子路径缺 `@aiao/source`、`audit/package-api-docs` 缺 TSDoc；
   - **软警告**（仅打印）：`audit/coverage-check` 低于历史 baseline、`audit/api-surface` 仅新增；
   - **覆盖率基线更新**总是覆写（含下降），无需显式 `--force`，防止漏声明的「基线外降」被悄悄吞掉；
 - 没在 `package.json` 注册为 npm script 的脚本（`check-doc-code`、`check-externals`、`git-stats*`、`push-docs`）通常是临时排查用，懒得加命令。

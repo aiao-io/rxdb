@@ -1,7 +1,7 @@
 ---
 id: epic-007-public-api-gates
-status: Backlog
-startDate: TBD
+status: In Progress
+startDate: 2026-08-24
 targetDate: TBD
 owner: jimmy
 ---
@@ -27,7 +27,9 @@ owner: jimmy
 
 ## 目标
 
-- [ ] `api-surface.mjs` 覆盖 `exports` 子路径入口的导出表面（[US-601](../stories/tooling/US-601-subpath-api-surface-baseline.md)）
+- [x] `api-surface.mjs` 覆盖 `exports` 子路径入口的导出表面（[US-601](../stories/tooling/US-601-subpath-api-surface-baseline.md)，✅ 2026-08-24）——
+      30 个公开包 44 个入口全部进基线；唯一不扫的 2 个资产入口没有导出表面可扫，由 SHA-256 守护。
+      **本 Epic 因此转 `In Progress`**：三条目标关了第一条，剩两条仍无故事认领
 - [ ] 迁移发布门禁的三个 git 钩子（`bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol`）
       进入 PR CI，而不只在打 tag 时跑——**尚无故事认领**，背景见
       [release-plan 的执行顺序第 0 步](../release-plan.md#执行顺序)
