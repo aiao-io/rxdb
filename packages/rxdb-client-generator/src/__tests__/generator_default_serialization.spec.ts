@@ -59,6 +59,15 @@ describe('US-018 生成器 default 序列化', () => {
 
       expect(result).toContain('default: new Uint8Array([])');
     });
+
+    it('Buffer 显式拒绝，不静默降级成 Uint8Array', () => {
+      // Buffer 是 Uint8Array 的子类，`instanceof` 会把它一并收下并渲染成
+      // `new Uint8Array([...])`——生成代码里的类型与实体声明的不再是同一个，
+      // 而这个偏差要到运行期调 Buffer 独有方法时才炸
+      expect(() => transitionMetadata(withDefault('blob', PropertyType.binary, Buffer.from([1, 2, 3])))).toThrow(
+        /unsupportedDefaultValue.*Buffer/s
+      );
+    });
   });
 
   describe('AC#3 Date 与 CURRENT_TIMESTAMP', () => {

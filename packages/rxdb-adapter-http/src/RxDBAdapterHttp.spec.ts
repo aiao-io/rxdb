@@ -329,6 +329,28 @@ describe('isTableExisted（AC#24）', () => {
     queueResponses([new Response(null, { status: 404 })]);
     await expect(probeAdapter().isTableExisted(HttpRecipe)).resolves.toBe(false);
   });
+
+  it.each([
+    ['2xx', 200],
+    ['404', 404]
+  ])('%s 分支也把响应体读完 —— 未消费的 body 会占住 undici 连接', async (_label, status) => {
+    // 这两支都只看状态码就 return，body 从不解析；Node 下未消费的流会把 socket
+    // 挂到 GC 才归还，探测频繁时表现为连接池耗尽，而不是任何一处报错
+    const response = new Response(JSON.stringify({ ignored: true }), { status });
+    queueResponses([response]);
+    await probeAdapter().isTableExisted(HttpRecipe);
+    expect(response.bodyUsed).toBe(true);
+  });
+
+  it('清理响应体失败不影响已由状态码得出的判定', async () => {
+    // 表存不存在这个答案 200 就已经给出了，为一次连接清理动作把它推翻是本末倒置
+    const response = new Response('{}', { status: 200 });
+    Object.defineProperty(response, 'body', {
+      value: { cancel: () => Promise.reject(new Error('socket gone')) }
+    });
+    queueResponses([response]);
+    await expect(probeAdapter().isTableExisted(HttpRecipe)).resolves.toBe(true);
+  });
 });
 
 describe('v1 无实现的必选成员（AC#32）', () => {

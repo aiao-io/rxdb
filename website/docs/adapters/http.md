@@ -163,6 +163,12 @@ rxdb.adapter(
 
 任一条保证做不到的服务端**必须**用游标形态——短页截断在客户端侧无法检测。
 
+:::warning `request()` 必须把翻页位置编码进 URL 或 body
+数组形态编 `ctx.offset`，游标形态编 `ctx.cursor`。适配器只按返回的行数与游标决定要不要继续翻，
+**无从检查请求里带没带位置**。漏掉的表现是远端每页都回第一页，翻页一直不推进，
+直到 `maxPages` 触顶抛错——而错误信息指向的是页数上限，不是那个漏掉的参数。
+:::
+
 翻不安全时**抛 `HttpPaginationError` 而不是返回半份结果**，`reason` 区分四种成因：
 `shape_switch` / `cursor_not_advancing` / `empty_page_limit` / `max_pages`。
 返回部分 metadata 会让缺席的 id 被当成「远端已删除」，把还活着的行从本地缓存抹掉。
@@ -185,14 +191,14 @@ new RxDBAdapterHttp(db, {
 });
 ```
 
-| 字段                   | 默认    | 含义                                             |
-| :--------------------- | :------ | :----------------------------------------------- |
-| `pageSize`             | `1000`  | 单页条数，透传为 handler 的 `ctx.limit`          |
-| `idChunkSize`          | `100`   | `findByIds` 单块 id 数                           |
-| `maxEmptyPages`        | `3`     | 游标形态下连续空页容忍上限；`0` = 不容忍         |
-| `maxPages`             | `1000`  | 单次 `fetchMetadata` 总页数上限，触顶**抛错**    |
-| `requestTimeoutMs`     | `30000` | **单个**请求的超时上限                           |
-| `conditionalCacheSize` | `256`   | 条件请求响应缓存条目上限，仅在下节的开关打开生效 |
+| 字段                   | 默认    | 含义                                                    |
+| :--------------------- | :------ | :------------------------------------------------------ |
+| `pageSize`             | `1000`  | 单页条数，透传为 handler 的 `ctx.limit`                 |
+| `idChunkSize`          | `100`   | `findByIds` 单块 id 数                                  |
+| `maxEmptyPages`        | `3`     | 游标形态下容忍几个连续空页，第 N+1 个抛错；`0` = 不容忍 |
+| `maxPages`             | `1000`  | 单次 `fetchMetadata` 总页数上限，触顶**抛错**           |
+| `requestTimeoutMs`     | `30000` | **单个**请求的超时上限                                  |
+| `conditionalCacheSize` | `256`   | 条件请求响应缓存条目上限，仅在下节的开关打开生效        |
 
 六个数值都必须是 finite 正整数（`maxEmptyPages` 可为 `0`），否则**构造期**抛 `HttpConfigError` 并带上字段名与实际值。
 
@@ -220,6 +226,7 @@ new RxDBAdapterHttp(db, { baseUrl, handlers, conditionalRequests: true });
 - 有界，`conditionalCacheSize` 条 LRU；取太小只是命中率下降，不会产生错误结果
 - 随适配器实例存活，`disconnect()` 时清空
 - 同一指纹的并发调用 **single-flight** 去重，不会出现「后一个拿到 304 而前一个还没回填」的空洞
+- 每个调用方拿到的都是**独立副本**：就地改动返回值既不会污染缓存，也不会串到后续 304 命中或同批 single-flight 的其他调用方身上。开与不开这个特性，对象是否共享的答案是同一个
 
 :::warning 换用户要走 `disconnect()` / `connect()`
 auth header **不进**请求指纹——否则每次 token 轮换都会让整份缓存失效，等于没开这个特性。

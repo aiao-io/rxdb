@@ -62,8 +62,11 @@ export function is_transport_failure(response: PostgrestFailure): boolean {
  * `isNetworkError` 的**第 1 条判据**（`instanceof`），也是唯一不依赖字符串约定的那条 ——
  * 适配器已经分类过了，core 直接采信。
  *
- * 返回的错误**不得携带数字 `status`**：`isNetworkError` 的第 2 条判据是「带数字 `status`
- * ⇒ 不是网络错误」，把 `status: 0` 挂上去会把这次修复原地抵消。
+ * 返回的错误**不挂数字 `status`**。注意这不是 `NetworkOfflineError` 能否被识别的前提 ——
+ * 第 1 条判据是 `instanceof`，命中即 `return true`，第 2 条那句「带数字 `status` ⇒ 不是网络
+ * 错误」对它根本走不到。这里不挂只是为了让判据顺序不成为承重结构：一旦哪天改成抛别的错误
+ * 类型（或 core 调整判据顺序），挂着的 `status: 0` 会立刻把这次修复原地抵消，而症状是
+ * 断网被当成业务失败——与修复前一模一样，无从区分是没修还是修坏了。
  *
  * @example
  * ```typescript

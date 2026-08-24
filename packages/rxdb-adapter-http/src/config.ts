@@ -69,7 +69,7 @@ const assertPositiveInteger = (field: keyof HttpNumericConfig, value: number): v
  * 顺带把「显式传 `undefined`」正确地当成「没传」——展开写法会让它覆盖掉默认值。
  *
  * @param options - 用户覆盖项，缺省字段取 {@link DEFAULT_HTTP_CONFIG}
- * @returns 五个字段齐全且均已校验的配置
+ * @returns 六个字段齐全且均已校验的配置
  * @throws HttpConfigError 任一字段不是 finite 正整数（`maxEmptyPages` 下界为 `0`）
  */
 export const resolveHttpConfig = (options: Partial<HttpNumericConfig>): HttpNumericConfig => {

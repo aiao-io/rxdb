@@ -128,10 +128,15 @@ export const fetchAllMetadataPages = async (
  *
  * @remarks
  * 只在游标形态调用：数组形态下空页就是短页，本来就是正常终止条件，不计数。
- * **连续计数、非空即清零**——空一页不是故障，空 `maxEmptyPages` 页才是。
+ * **连续计数、非空即清零**——空一页不是故障，空**超过** `maxEmptyPages` 页才是。
  * 计数器按单次 `fetchMetadata` 调用生存，不跨查询累积。
  *
- * `maxEmptyPages: 0` 落在同一条判据里：空页让计数变成 `1`，`1 >= 0` 即刻抛错，
+ * 判据是 `>` 不是 `>=`：字段语义是「容忍几个连续空页」，`maxEmptyPages: N` 就该真的
+ * 放过 N 个。写成 `>=` 会让每个取值都少容忍一个，顺带把 `1` 压成和 `0` 一模一样——
+ * 而 `config.ts` 的 `ZERO_ALLOWED` 专为 `maxEmptyPages` 开了 `0` 这个口子，
+ * 只有在 `1` 有不同语义时那个口子才不是冗余的。
+ *
+ * `maxEmptyPages: 0` 仍落在同一条判据里：空页让计数变成 `1`，`1 > 0` 即刻抛错，
  * 语义正是「一个空页都不容忍」。
  */
 const assertEmptyStreak = (entityName: string, rowCount: number, streak: number, maxEmptyPages: number): number => {
@@ -139,7 +144,7 @@ const assertEmptyStreak = (entityName: string, rowCount: number, streak: number,
     return 0;
   }
   const next = streak + 1;
-  if (next >= maxEmptyPages) {
+  if (next > maxEmptyPages) {
     throw new HttpPaginationError(
       'empty_page_limit',
       `fetchMetadata for "${entityName}" received ${next} consecutive empty pages (maxEmptyPages=${maxEmptyPages}); the remote is spinning`

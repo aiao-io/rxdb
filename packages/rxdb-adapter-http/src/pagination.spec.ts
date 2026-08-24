@@ -162,20 +162,39 @@ describe('fetchAllMetadataPages', () => {
       ]);
     });
 
-    it('连续空页达到 maxEmptyPages', async () => {
+    it('连续空页超过 maxEmptyPages —— 第 N+1 个才抛', async () => {
+      // maxEmptyPages: 3 的字面语义是「容忍 3 个连续空页」，所以第 4 个才是故障
       await expectFailure(
         'empty_page_limit',
         [
           { rows: [], nextCursor: 'c1' },
           { rows: [], nextCursor: 'c2' },
-          { rows: [], nextCursor: 'c3' }
+          { rows: [], nextCursor: 'c3' },
+          { rows: [], nextCursor: 'c4' }
         ],
         { maxEmptyPages: 3 }
       );
     });
 
+    it('恰好 maxEmptyPages 个连续空页不抛', async () => {
+      // 与上一条成对：判据是「超过」不是「达到」，边界值本身合法
+      queueBodies([
+        { rows: [], nextCursor: 'c1' },
+        { rows: [], nextCursor: 'c2' },
+        { rows: [], nextCursor: 'c3' },
+        { rows: [meta('a')] }
+      ]);
+      await expect(run({ maxEmptyPages: 3 })).resolves.toHaveLength(1);
+    });
+
     it('maxEmptyPages: 0 时第一个空页就抛', async () => {
       await expectFailure('empty_page_limit', [{ rows: [], nextCursor: 'c1' }], { maxEmptyPages: 0 });
+    });
+
+    it('maxEmptyPages: 1 容忍一个空页 —— 与 0 可区分', async () => {
+      // ZERO_ALLOWED 为 maxEmptyPages 开的 0 这个口子，只有在 1 有不同语义时才不是冗余的
+      queueBodies([{ rows: [], nextCursor: 'c1' }, { rows: [meta('a')] }]);
+      await expect(run({ maxEmptyPages: 1 })).resolves.toHaveLength(1);
     });
 
     it('总页数超过 maxPages', async () => {

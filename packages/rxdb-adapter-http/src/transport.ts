@@ -66,6 +66,22 @@ const joinUrl = (baseUrl: string, url: string): string => {
 const describeError = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 /**
+ * 读完并丢弃不打算解析的响应体。
+ *
+ * @remarks
+ * 「不解析」不等于「不消费」：node/undici 下未消费的 body 会把底层 socket 一直挂着，
+ * 直到该 `Response` 被 GC 才归还连接池。表现是高频调用后请求开始排队，全程没有任何报错，
+ * 所以只能在**每一条**不读 body 的返回路径上显式收口——`sendVoid` 的 2xx、
+ * `isTableExisted` 的 2xx / 404、条件请求的 304 三处。
+ *
+ * `cancel()` 的失败吞掉：连接已经出问题时它会 reject，而此时调用方要的那个结果
+ * （删除成功 / 表存在）已经由状态码给出了，为一次清理动作把它翻成失败是本末倒置。
+ */
+const discardBody = async (response: Response): Promise<void> => {
+  await response.body?.cancel().catch(() => undefined);
+};
+
+/**
  * 非 2xx 即抛，错误里带**数字** `status`。
  *
  * @remarks
@@ -159,6 +175,9 @@ export class HttpTransport {
    * 而 `204 No Content` 的空体喂给 {@link sendJson} 会当场变成「响应体不是合法 JSON」——
    * 一次成功的删除被报成协议错误。
    *
+   * 不解析但要**读完**：理由见 {@link discardBody}。非 2xx 那一支由 `assertOk` 的
+   * `response.text()` 顺带消费掉，只有成功路径需要显式收口。
+   *
    * @param spec - handler 产出的请求描述
    * @param operation - 出错时写进错误的操作名
    * @throws HttpResponseError 响应状态非 2xx（带数字 `status`）
@@ -168,6 +187,7 @@ export class HttpTransport {
   async sendVoid(spec: HttpRequestSpec, operation: string): Promise<void> {
     const response = await this.execute(spec, operation);
     await assertOk(response, this.resolveUrl(spec));
+    await discardBody(response);
   }
 
   /**
@@ -288,6 +308,9 @@ export class HttpTransport {
    *
    * `cached` 为空时**不发** `if-none-match`，所以此时的 304 只能是远端不合协议——
    * 交给 `assertOk` 抛 `HttpResponseError(304)`，绝不还原成空集。
+   *
+   * 304 走 `takeValue()` 取**副本**：返回缓存自己那份对象，上游任何一次就地改行都会
+   * 让之后每次 304 都带着被改过的数据回来（详见 `conditional-cache.ts` 类头「隔离」）。
    */
   async #sendJsonConditional(
     cache: ConditionalRequestCache,
@@ -301,7 +324,9 @@ export class HttpTransport {
       operation
     );
     if (cached && response.status === 304) {
-      return cached.value;
+      // 304 按 RFC 无 body，但代理与打桩实现都可能带一个，仍要收口
+      await discardBody(response);
+      return cached.takeValue();
     }
     const url = joinUrl(this.options.baseUrl, spec.url);
     await assertOk(response, url);

@@ -83,7 +83,19 @@ export type FetchMetadataResult =
  * **任一条不满足的服务端 MUST 用游标形态**——适配器无法在客户端侧检测短页截断。
  */
 export interface FetchMetadataHandler {
-  /** 产出本页请求描述。纯函数，不碰网络 */
+  /**
+   * 产出本页请求描述。纯函数，不碰网络。
+   *
+   * @remarks
+   * **必须把翻页位置编码进 URL 或 body**：数组形态编 `ctx.offset`，游标形态编 `ctx.cursor`。
+   * 适配器只按返回的行数与游标决定要不要继续翻，无从检查请求里带没带位置——漏掉的表现是
+   * 远端每页都回第一页，翻页一直不推进，直到 `maxPages` 触顶抛错，而错误信息指向的是
+   * 页数上限，不是漏掉的那个参数。
+   *
+   * 开了 `conditionalRequests` 会让这个症状更难认：请求指纹取自实际发出的
+   * method + URL + body，位置没进去就意味着所有页共用一个指纹，第 2 页起全是 304，
+   * 重放的还是第一页。
+   */
   request(ctx: FetchMetadataContext): HttpRequestSpec;
   /** 解析已 JSON 解码的响应体。抛错 = 本次 `fetchMetadata` 失败，不吞不重试 */
   parse(body: unknown, ctx: FetchMetadataContext): FetchMetadataResult;

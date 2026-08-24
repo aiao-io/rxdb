@@ -42,8 +42,8 @@ describe('ConditionalRequestCache', () => {
       cache.set('c', entry('"3"', 'C'));
       expect(cache.size).toBe(2);
       expect(cache.get('a')).toBeUndefined();
-      expect(cache.get('b')?.value).toBe('B');
-      expect(cache.get('c')?.value).toBe('C');
+      expect(cache.get('b')?.takeValue()).toBe('B');
+      expect(cache.get('c')?.takeValue()).toBe('C');
     });
 
     it('读命中会刷新 recency，最旧的判定按访问顺序而非写入顺序', () => {
@@ -53,7 +53,7 @@ describe('ConditionalRequestCache', () => {
       cache.set('b', entry('"2"', 'B'));
       cache.get('a');
       cache.set('c', entry('"3"', 'C'));
-      expect(cache.get('a')?.value).toBe('A');
+      expect(cache.get('a')?.takeValue()).toBe('A');
       expect(cache.get('b')).toBeUndefined();
     });
 
@@ -62,7 +62,7 @@ describe('ConditionalRequestCache', () => {
       cache.set('a', entry('"1"', 'A'));
       cache.set('a', entry('"2"', 'A2'));
       expect(cache.size).toBe(1);
-      expect(cache.get('a')?.value).toBe('A2');
+      expect(cache.get('a')?.takeValue()).toBe('A2');
     });
   });
 
@@ -82,7 +82,40 @@ describe('ConditionalRequestCache', () => {
       cache.set('b', entry('"2"', 'B'));
       cache.delete('a');
       expect(cache.get('a')).toBeUndefined();
-      expect(cache.get('b')?.value).toBe('B');
+      expect(cache.get('b')?.takeValue()).toBe('B');
+    });
+  });
+
+  describe('调用方之间不共享对象引用', () => {
+    // 未启用条件请求时每次响应都是 JSON.parse 的新对象，调用方改自己手里那份是安全的。
+    // 缓存若把同一个对象反复发出去，`conditionalRequests: true` 就会引入一条
+    // 「上游改了行 → 之后每次 304 都返回被改过的数据」的静默污染路径，
+    // 与「未启用时行为逐字相同」直接冲突
+    it('set() 存的是私有副本，调用方事后改动不影响缓存', () => {
+      const cache = new ConditionalRequestCache(4);
+      const value = { rows: [{ id: 'a' }] };
+      cache.set('k', entry('"1"', value));
+      value.rows[0].id = 'mutated';
+      expect(cache.get('k')?.takeValue()).toEqual({ rows: [{ id: 'a' }] });
+    });
+
+    it('takeValue() 每次给出独立副本，改一份不影响下一次', () => {
+      const cache = new ConditionalRequestCache(4);
+      cache.set('k', entry('"1"', { rows: [{ id: 'a' }] }));
+      const first = cache.get('k')?.takeValue() as { rows: { id: string }[] };
+      first.rows[0].id = 'mutated';
+      expect(cache.get('k')?.takeValue()).toEqual({ rows: [{ id: 'a' }] });
+      expect(cache.get('k')?.takeValue()).not.toBe(first);
+    });
+
+    it('single-flight 的合流方各拿一份，互不影响', async () => {
+      const cache = new ConditionalRequestCache(4);
+      const factory = vi.fn(() => Promise.resolve({ rows: [{ id: 'a' }] }));
+      const [first, second] = await Promise.all([cache.singleFlight('k', factory), cache.singleFlight('k', factory)]);
+      expect(factory).toHaveBeenCalledTimes(1);
+      expect(second).not.toBe(first);
+      first.rows[0].id = 'mutated';
+      expect(second).toEqual({ rows: [{ id: 'a' }] });
     });
   });
 

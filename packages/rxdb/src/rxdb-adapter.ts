@@ -369,8 +369,12 @@ export abstract class RxDBAdapterRemoteBase extends RxDBAdapterBase {
    *
    * **2. 传输失败必须能被 `isNetworkError` 判 `true`，业务失败必须判 `false`。**
    * 最省事也最可靠的做法是传输失败直接抛 `NetworkOfflineError`（`isNetworkError` 的第 1 条
-   * 判据就是 `instanceof`，不依赖任何字符串约定）。注意抛出的错误**不得携带数字 `status`
-   * 属性** —— 第 2 条判据是「带数字 `status` ⇒ 不是网络错误」，会把分类结果原地抵消。
+   * 判据就是 `instanceof`，不依赖任何字符串约定，命中即 `true`）。
+   *
+   * 抛**其他**错误类型时才要当心数字 `status` 属性：第 2 条判据是「带数字 `status` ⇒ 不是
+   * 网络错误」，会在第 3、4、5 条（`errno` / `name` / `TypeError` + 消息正则）之前把它判死。
+   * 也就是说传输失败挂 `status` 会被判成业务失败，而业务失败**应当**挂上 `status` ——
+   * 那正是 HTTP 适配器让 `HttpResponseError` 带状态码、让 `HttpDisconnectedError` 不带的原因。
    *
    * 分类错了不会报错，只会让 `find({ offlineFallback: true })` 在断网时不返回缓存而是抛异常；
    * 反向错了（把 RLS 拒绝当成离线）则会让调用方拿到陈旧缓存而看不到真正的失败原因。

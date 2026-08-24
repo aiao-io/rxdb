@@ -384,7 +384,15 @@ const renderMetadataValue = (
   }
 
   // instanceof 分派必须排在 isPlainRecord 之前：两者都会被「object」判据吞掉（G4.1）
-  if (value instanceof Uint8Array) return `new Uint8Array([${Array.from(value).join(', ')}])`;
+  if (value instanceof Uint8Array) {
+    // Buffer 等子类同样命中 instanceof，但渲染出来的是 `new Uint8Array([...])`——
+    // 生成代码里的类型与实体声明的不再是同一个，偏差要到运行期调子类独有方法时才炸。
+    // 不改渲染成 `Buffer.from([...])`：那会把 Node 专有的全局塞进可能跑在浏览器的生成代码里
+    if (Object.getPrototypeOf(value) !== Uint8Array.prototype) {
+      throw unsupportedDefaultValue(scope, `${describeNonPlainObject(value)} (a Uint8Array subclass)`);
+    }
+    return `new Uint8Array([${Array.from(value).join(', ')}])`;
+  }
 
   if (value instanceof Date) {
     if (Number.isNaN(value.getTime())) throw unsupportedDefaultValue(scope, 'an invalid Date');

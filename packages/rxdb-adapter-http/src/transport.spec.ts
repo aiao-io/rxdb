@@ -23,6 +23,15 @@ describe('HttpTransport', () => {
   const jsonResponse = (body: unknown, status = 200): Response =>
     new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
+  /** 连接在读 body 之前就断了：`cancel()` 会 reject，而状态码已经拿到了 */
+  const responseWithFailingCancel = (status: number): Response => {
+    const response = new Response('{}', { status });
+    Object.defineProperty(response, 'body', {
+      value: { cancel: () => Promise.reject(new Error('socket gone')) }
+    });
+    return response;
+  };
+
   const createTransport = (
     overrides: Partial<ConstructorParameters<typeof HttpTransport>[0]> = {}
   ): { transport: HttpTransport; controller: AbortController } => {
@@ -247,6 +256,32 @@ describe('HttpTransport', () => {
     });
   });
 
+  describe('sendVoid 不解析响应体，但要把它读完', () => {
+    it('2xx 时丢弃响应体 —— 未消费的 body 会占住 undici 连接直到 GC', async () => {
+      // 「不解析」不等于「不消费」：delete duck 返回 Observable<void>，body 无处可去，
+      // 但 Node 下不读完流就不归还 socket，高频删除会耗尽连接池且全程不报错
+      const response = new Response(JSON.stringify({ deleted: 1 }), { status: 200 });
+      stubFetch(() => Promise.resolve(response));
+      const { transport } = createTransport();
+      await transport.sendVoid({ url: 'items', method: 'DELETE' }, 'delete');
+      expect(response.bodyUsed).toBe(true);
+    });
+
+    it('204 空体不被当成「响应体不是合法 JSON」', async () => {
+      stubFetch(() => Promise.resolve(new Response(null, { status: 204 })));
+      const { transport } = createTransport();
+      await expect(transport.sendVoid({ url: 'items', method: 'DELETE' }, 'delete')).resolves.toBeUndefined();
+    });
+
+    it('清理响应体失败不把已成功的删除翻成失败', async () => {
+      // 2xx 已经给出「删除成功」这个答案了，为一次连接清理动作把它推翻是本末倒置；
+      // 这里吞的是 cleanup 的错误，不是操作本身的错误
+      stubFetch(() => Promise.resolve(responseWithFailingCancel(200)));
+      const { transport } = createTransport();
+      await expect(transport.sendVoid({ url: 'items', method: 'DELETE' }, 'delete')).resolves.toBeUndefined();
+    });
+  });
+
   /**
    * US-212 AC#28：ETag / If-None-Match 条件请求。
    *
@@ -289,6 +324,27 @@ describe('HttpTransport', () => {
       const second = await transport.sendJson(READ_SPEC, 'fetchMetadata');
       expect(second).toEqual(first);
       expect(second).toEqual({ rows: [1, 2] });
+    });
+
+    it('调用方改动返回值不会污染缓存 —— 与未启用时的隔离度一致', async () => {
+      // 未启用条件请求时每次都是 JSON.parse 的新对象；启用后若把同一个对象反复发出去，
+      // 上游任何一次就地改行都会让之后每次 304 都返回被改过的数据，且无处报错
+      stubEtagThen304({ rows: [{ id: 'a' }] });
+      const transport = conditionalTransport();
+      const first = (await transport.sendJson(READ_SPEC, 'fetchMetadata')) as { rows: { id: string }[] };
+      first.rows[0].id = 'mutated';
+      const second = await transport.sendJson(READ_SPEC, 'fetchMetadata');
+      expect(second).toEqual({ rows: [{ id: 'a' }] });
+      expect(second).not.toBe(first);
+    });
+
+    it('连续两次 304 各拿一份独立副本', async () => {
+      stubEtagThen304({ rows: [{ id: 'a' }] });
+      const transport = conditionalTransport();
+      await transport.sendJson(READ_SPEC, 'fetchMetadata');
+      const second = (await transport.sendJson(READ_SPEC, 'fetchMetadata')) as { rows: { id: string }[] };
+      second.rows[0].id = 'mutated';
+      expect(await transport.sendJson(READ_SPEC, 'fetchMetadata')).toEqual({ rows: [{ id: 'a' }] });
     });
 
     it('200 携带新 ETag 时用新结果替换缓存', async () => {

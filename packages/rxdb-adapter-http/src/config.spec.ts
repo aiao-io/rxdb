@@ -3,7 +3,7 @@ import { DEFAULT_HTTP_CONFIG, resolveHttpConfig } from './config.js';
 import { HttpConfigError } from './errors.js';
 
 /**
- * US-212 AC#31：五个数值配置在**构造期**校验并 fail-fast。
+ * US-212 AC#31：六个数值配置在**构造期**校验并 fail-fast。
  *
  * 判据是 **finite 正整数**不是 `> 0` —— `1.5` 会让 `offset += limit` 逐页漂移、
  * `Infinity` 等于放弃触顶保护，两者都能过 `> 0`。
@@ -35,7 +35,7 @@ describe('resolveHttpConfig', () => {
   });
 
   describe.each(NUMERIC_FIELDS)('%s', field => {
-    // 每个退化取值一条用例：AC#31 明写「五个字段都要覆盖」
+    // 每个退化取值一条用例：AC#31 明写「每个字段都要覆盖」
     it.each([
       ['小数', 1.5],
       ['Infinity', Number.POSITIVE_INFINITY],
