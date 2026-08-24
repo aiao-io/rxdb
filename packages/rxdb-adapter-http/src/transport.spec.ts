@@ -1,11 +1,6 @@
 import { isNetworkError, NetworkOfflineError } from '@aiao/rxdb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  HttpDisconnectedError,
-  HttpInvalidResponseError,
-  HttpRequestBuildError,
-  HttpResponseError
-} from './errors.js';
+import { HttpDisconnectedError, HttpInvalidResponseError, HttpRequestBuildError, HttpResponseError } from './errors.js';
 import { HttpTransport } from './transport.js';
 
 /**

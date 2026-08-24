@@ -20,12 +20,12 @@ HTTP 适配器这个是完全不同的东西：远端发的**不透明续页串*
 
 ## 变更清单
 
-| 位置                                      | 变更前                 | 变更后                      |
-| ----------------------------------------- | ---------------------- | --------------------------- |
-| `FetchMetadataContext`                    | `cursor?: string`      | `pageToken?: string`        |
-| `FetchMetadataResult` 对象形态            | `{ rows, nextCursor }` | `{ rows, nextPageToken }`   |
-| `HttpPaginationError.reason`              | `cursor_not_advancing` | `page_token_not_advancing`  |
-| `createRestHandlers()` 发出的请求体       | `{ …, cursor }`        | `{ …, pageToken }`          |
+| 位置                                | 变更前                 | 变更后                     |
+| ----------------------------------- | ---------------------- | -------------------------- |
+| `FetchMetadataContext`              | `cursor?: string`      | `pageToken?: string`       |
+| `FetchMetadataResult` 对象形态      | `{ rows, nextCursor }` | `{ rows, nextPageToken }`  |
+| `HttpPaginationError.reason`        | `cursor_not_advancing` | `page_token_not_advancing` |
+| `createRestHandlers()` 发出的请求体 | `{ …, cursor }`        | `{ …, pageToken }`         |
 
 导出的类型名、类名与函数名都没有变化，`import` 语句不需要改。
 
@@ -63,7 +63,7 @@ onFetchMetadata: {
 parse: body => {
   const page = body as { rows: Metadata[]; next_cursor?: string };
   return { rows: page.rows, nextPageToken: page.next_cursor };
-}
+};
 ```
 
 ### 用 `createRestHandlers()` 的

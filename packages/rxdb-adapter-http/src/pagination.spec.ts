@@ -111,7 +111,11 @@ describe('fetchAllMetadataPages', () => {
 
     it('空 rows 但仍带 nextPageToken 时继续翻', async () => {
       // 与「连续空页触顶」不矛盾：前者说第 1…N−1 次，后者说第 N 次
-      queueBodies([{ rows: [], nextPageToken: 'c1' }, { rows: [meta('a')], nextPageToken: 'c2' }, { rows: [meta('b')] }]);
+      queueBodies([
+        { rows: [], nextPageToken: 'c1' },
+        { rows: [meta('a')], nextPageToken: 'c2' },
+        { rows: [meta('b')] }
+      ]);
       await expect(run()).resolves.toHaveLength(2);
     });
 
@@ -242,10 +246,7 @@ describe('fetchAllMetadataPages', () => {
     it('两个键都在时以 nextPageToken 为准，不算遗留', async () => {
       // 远端 body 原样透传时可能自带一个同名字段，只要 handler 已经给出 nextPageToken
       // 就说明它认得新契约，没有静默截断的风险
-      queueBodies([
-        { rows: [meta('a')], nextPageToken: 'c1', nextCursor: 'stale' },
-        { rows: [meta('b')] }
-      ]);
+      queueBodies([{ rows: [meta('a')], nextPageToken: 'c1', nextCursor: 'stale' }, { rows: [meta('b')] }]);
       await expect(run()).resolves.toHaveLength(2);
     });
 

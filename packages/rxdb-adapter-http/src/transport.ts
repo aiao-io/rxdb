@@ -379,11 +379,7 @@ export class HttpTransport {
    * 同理，此时的 `disconnect()` 会让 body 流抛裸 `AbortError`：它绕过 {@link classify}，
    * `isNetworkError` 判 false，「断开一律 `HttpDisconnectedError`」的契约随之失守。
    */
-  async #send<T>(
-    request: PreparedRequest,
-    operation: string,
-    consume: (response: Response) => Promise<T>
-  ): Promise<T> {
+  async #send<T>(request: PreparedRequest, operation: string, consume: (response: Response) => Promise<T>): Promise<T> {
     const { disconnectSignal, requestTimeoutMs } = this.options;
     const timeoutController = new AbortController();
     let timedOut = false;
@@ -440,9 +436,7 @@ export class HttpTransport {
   ): Promise<unknown> {
     const cached = cache.get(key);
     // ETag 来自远端响应头，已过一遍 Headers 解析器，不需要再校验一次
-    const request = cached
-      ? { ...prepared, headers: { ...prepared.headers, 'if-none-match': cached.etag } }
-      : prepared;
+    const request = cached ? { ...prepared, headers: { ...prepared.headers, 'if-none-match': cached.etag } } : prepared;
     return this.#send(request, operation, async response => {
       if (cached && response.status === 304) {
         // 304 按 RFC 无 body，但代理与打桩实现都可能带一个，仍要收口

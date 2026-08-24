@@ -17,28 +17,28 @@ pr: # 修复 PR 链接，Resolved 时填
 
 本分支关闭三条故事，另含一次错误契约改造与一次基线格式迁移：
 
-| 内容 | 规模 | 说明 |
-| :--- | :--- | :--- |
-| US-212 HTTP 远程适配器 | 新包 ~4.9k 行（含测试） | `@aiao/rxdb-adapter-http`：transport / rest / pagination / chunking / conditional-cache / metadata / config / errors + 9 个 spec |
-| US-018 生成器 default 语义 | +179 实现 / +342 测试 | **破坏性变更**：运行时类型分派序列化，不可表达的值生成期失败 |
-| US-601 子路径 API 基线 | api-surface.mjs 240 行改动 + 30 份基线重写 | 30 包 44 入口进基线，`@aiao/source` 单一真相源 |
-| supabase 错误契约（RV-001 落地） | 15 处分类点 + 新错误分类器 | 传输失败改为抛 core 的 `NetworkOfflineError` |
-| QueryCacheRepository / rxdb-adapter.ts | +27 行 | 幂等收敛 + 发射契约文档化 |
-| api-baseline / requirements / website | 30 份 JSON + 14 份文档 | 格式迁移与故事收口 |
+| 内容                                   | 规模                                       | 说明                                                                                                                             |
+| :------------------------------------- | :----------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------- |
+| US-212 HTTP 远程适配器                 | 新包 ~4.9k 行（含测试）                    | `@aiao/rxdb-adapter-http`：transport / rest / pagination / chunking / conditional-cache / metadata / config / errors + 9 个 spec |
+| US-018 生成器 default 语义             | +179 实现 / +342 测试                      | **破坏性变更**：运行时类型分派序列化，不可表达的值生成期失败                                                                     |
+| US-601 子路径 API 基线                 | api-surface.mjs 240 行改动 + 30 份基线重写 | 30 包 44 入口进基线，`@aiao/source` 单一真相源                                                                                   |
+| supabase 错误契约（RV-001 落地）       | 15 处分类点 + 新错误分类器                 | 传输失败改为抛 core 的 `NetworkOfflineError`                                                                                     |
+| QueryCacheRepository / rxdb-adapter.ts | +27 行                                     | 幂等收敛 + 发射契约文档化                                                                                                        |
+| api-baseline / requirements / website  | 30 份 JSON + 14 份文档                     | 格式迁移与故事收口                                                                                                               |
 
 ## 2. 验证结果（本机实测，全部通过）
 
-| 验证项 | 结果 |
-| :--- | :--- |
-| `pnpm nx test rxdb-adapter-http` | ✅ exit 0；statements 99.35% / lines 99.77% / branches 97.95% |
-| `pnpm nx test rxdb-client-generator` | ✅ 337/337 用例绿；包覆盖率 93.42%（utils.ts 95.4%） |
-| `pnpm nx test rxdb-adapter-supabase rxdb` | ✅ exit 0（9 任务 5 个实际重跑） |
-| `pnpm nx typecheck rxdb-adapter-http` | ✅ 绿（按仓库惯例单独验证，nx build 不拦 TS 错误） |
-| `pnpm nx lint`（http / client-generator / supabase / rxdb） | ✅ 绿 |
-| `node scripts/audit/api-surface.mjs --check` | ✅ 30 包 44 入口全部与基线一致，2 个资产入口按白名单跳过 |
-| `node --test scripts/audit/subpath-inventory.spec.mjs` | ✅ 15/15 |
-| rxdb 基线 3310 行变化 | ✅ 核实为**纯格式迁移**：413 个符号前后零增删 |
-| `package-runtime-conditions` 门禁 | ✅ 8 个包新增的 `@aiao/source` 条件未触发 |
+| 验证项                                                      | 结果                                                          |
+| :---------------------------------------------------------- | :------------------------------------------------------------ |
+| `pnpm nx test rxdb-adapter-http`                            | ✅ exit 0；statements 99.35% / lines 99.77% / branches 97.95% |
+| `pnpm nx test rxdb-client-generator`                        | ✅ 337/337 用例绿；包覆盖率 93.42%（utils.ts 95.4%）          |
+| `pnpm nx test rxdb-adapter-supabase rxdb`                   | ✅ exit 0（9 任务 5 个实际重跑）                              |
+| `pnpm nx typecheck rxdb-adapter-http`                       | ✅ 绿（按仓库惯例单独验证，nx build 不拦 TS 错误）            |
+| `pnpm nx lint`（http / client-generator / supabase / rxdb） | ✅ 绿                                                         |
+| `node scripts/audit/api-surface.mjs --check`                | ✅ 30 包 44 入口全部与基线一致，2 个资产入口按白名单跳过      |
+| `node --test scripts/audit/subpath-inventory.spec.mjs`      | ✅ 15/15                                                      |
+| rxdb 基线 3310 行变化                                       | ✅ 核实为**纯格式迁移**：413 个符号前后零增删                 |
+| `package-runtime-conditions` 门禁                           | ✅ 8 个包新增的 `@aiao/source` 条件未触发                     |
 
 ## 3. 🔴 高危（1 条）
 
