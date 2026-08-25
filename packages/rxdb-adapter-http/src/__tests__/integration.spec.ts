@@ -1,16 +1,16 @@
 import {
-  Entity,
-  EntityBase,
-  PropertyType,
-  RxDB,
-  RxDBMixedVersionedCacheTransactionError,
-  SyncType,
-  type EntityUpdateData,
-  type IRxDBAdapter,
-  type IRxDBPlugin,
-  type QueryCacheEntityMetadata,
-  type RuleGroup,
-  type SyncOptions
+    Entity,
+    EntityBase,
+    PropertyType,
+    RxDB,
+    RxDBMixedVersionedCacheTransactionError,
+    SyncType,
+    type EntityUpdateData,
+    type IRxDBAdapter,
+    type IRxDBPlugin,
+    type QueryCacheEntityMetadata,
+    type RuleGroup,
+    type SyncOptions
 } from '@aiao/rxdb';
 import { firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
