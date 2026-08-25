@@ -1,28 +1,28 @@
 import {
-    Entity,
-    EntityBase,
-    getEntityMetadata,
-    isNetworkError,
-    NetworkOfflineError,
-    PropertyType,
-    RelationKind,
-    RxDB,
-    SyncType,
-    type EntityType,
-    type RuleGroup,
-    type SyncOptions
+  Entity,
+  EntityBase,
+  getEntityMetadata,
+  isNetworkError,
+  NetworkOfflineError,
+  PropertyType,
+  RelationKind,
+  RxDB,
+  SyncType,
+  type EntityType,
+  type RuleGroup,
+  type SyncOptions
 } from '@aiao/rxdb';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { firstValueFrom, lastValueFrom, toArray } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-    HttpChangelogUnsupportedError,
-    HttpConfigError,
-    HttpDisconnectedError,
-    HttpResponseError,
-    HttpUnsupportedOperationError,
-    HttpUnsupportedWireTypeError
+  HttpChangelogUnsupportedError,
+  HttpConfigError,
+  HttpDisconnectedError,
+  HttpResponseError,
+  HttpUnsupportedOperationError,
+  HttpUnsupportedWireTypeError
 } from '../errors.js';
 import type { HttpAdapterOptions, HttpHandlers } from '../http.interface.js';
 import { ADAPTER_NAME, RxDBAdapterHttp } from '../RxDBAdapterHttp.js';
