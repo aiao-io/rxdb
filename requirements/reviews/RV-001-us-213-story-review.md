@@ -17,18 +17,18 @@ pr: # 修复 PR 链接，Resolved 时填
 
 以下断言逐条对照源码 / 文档复验：
 
-| # | 故事断言 | 核实结果 |
-| --- | --- | --- |
-| 1 | 「本包 7 个 spec 全部用 `vi.stubGlobal('fetch')` 打桩」（行 16 / 81 / 161 / 166） | ❌ **不符**。`src/__tests__/` 下共 **9** 个 spec 文件；`vi.stubGlobal` 共 **12** 处调用点、分布在 **6** 个文件（RxDBAdapterHttp 4、integration 3、transport 2、chunking / pagination / rest 各 1）；`config.spec.ts` / `conditional-cache.spec.ts` / `metadata.spec.ts` 是零桩纯单元测试。9 个文件同日（2026-08-25，提交 a63321c）一次性落地，「7」从起草时起就不准确，不是过期计数 |
-| 2 | 「`HttpTransport.#send` 用的是全局 `fetch`，无 import 注入」 | ✅ `transport.ts` 的 `#send` 内 `await fetch(request.url, …)`，无注入点 |
-| 3 | `createLocalAdapter` 是 `integration.spec.ts` 里未导出的局部 const，该文件零 export | ✅ 行 207 `const createLocalAdapter = …`；`grep ^export` 无结果 |
-| 4 | `vite.config.mts` 的 `test.include` 已含 `tests/**`，无需改动 | ✅ 行 63 `include: ['{src,tests}/**/*.{test,spec}.…']` |
-| 5 | tsconfig / eslint / coverage 三处只认 `src/__tests__/` | ✅ `tsconfig.spec.json` include 无 `tests/**`；`eslint.config.mjs` 的 `@nx/dependency-checks.ignoredFiles` 只有 `{projectRoot}/src/__tests__/**`；`vite.config.mts` 的 `coverage.exclude` 只有 `['**/__tests__/**','**/dist/**']` |
-| 6 | US-212 已 `Done`，AC#7 四 fail-fast / AC#9 少行不补空 / AC#24 version 不回落 / AC#28 条件请求 / AC#34 超时可区分 | ✅ 全部对得上 US-212 实文；`conditionalRequests` / `conditionalCacheSize` 配置键、`fetchAllMetadataPages` / `findByIdsInChunks` 符号均存在 |
-| 7 | 协议：七个端点、短页即末页、`POST :entity/delete` + `{ ids }`、`HEAD` 探测、version 不回落包版本号 | ✅ 与 `http-protocol.md` 逐条一致；`rest.ts` 默认 delete 模板确为 `{ method: 'POST', path: ':entity/delete' }` |
-| 8 | 派生视图三处「已随本文件落地」 | ✅ epic-004 清单行、roadmap 批次 3 行 + 约束 13、status-overview 行均已存在；计数 Backlog 9 / 合计 56 与 grep 推导口径一致 |
-| 9 | 「direct close() 会一路挂到 hookTimeout: 10000 超时」 | ⚠️ 见 P2-4 |
-| 10 | ETag / 304 属于「wire 级协议不变量」 | ❌ 见 P1-2 |
+| #   | 故事断言                                                                                                         | 核实结果                                                                                                                                                                                                                                                                                                                                                                            |
+| --- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 「本包 7 个 spec 全部用 `vi.stubGlobal('fetch')` 打桩」（行 16 / 81 / 161 / 166）                                | ❌ **不符**。`src/__tests__/` 下共 **9** 个 spec 文件；`vi.stubGlobal` 共 **12** 处调用点、分布在 **6** 个文件（RxDBAdapterHttp 4、integration 3、transport 2、chunking / pagination / rest 各 1）；`config.spec.ts` / `conditional-cache.spec.ts` / `metadata.spec.ts` 是零桩纯单元测试。9 个文件同日（2026-08-25，提交 a63321c）一次性落地，「7」从起草时起就不准确，不是过期计数 |
+| 2   | 「`HttpTransport.#send` 用的是全局 `fetch`，无 import 注入」                                                     | ✅ `transport.ts` 的 `#send` 内 `await fetch(request.url, …)`，无注入点                                                                                                                                                                                                                                                                                                             |
+| 3   | `createLocalAdapter` 是 `integration.spec.ts` 里未导出的局部 const，该文件零 export                              | ✅ 行 207 `const createLocalAdapter = …`；`grep ^export` 无结果                                                                                                                                                                                                                                                                                                                     |
+| 4   | `vite.config.mts` 的 `test.include` 已含 `tests/**`，无需改动                                                    | ✅ 行 63 `include: ['{src,tests}/**/*.{test,spec}.…']`                                                                                                                                                                                                                                                                                                                              |
+| 5   | tsconfig / eslint / coverage 三处只认 `src/__tests__/`                                                           | ✅ `tsconfig.spec.json` include 无 `tests/**`；`eslint.config.mjs` 的 `@nx/dependency-checks.ignoredFiles` 只有 `{projectRoot}/src/__tests__/**`；`vite.config.mts` 的 `coverage.exclude` 只有 `['**/__tests__/**','**/dist/**']`                                                                                                                                                   |
+| 6   | US-212 已 `Done`，AC#7 四 fail-fast / AC#9 少行不补空 / AC#24 version 不回落 / AC#28 条件请求 / AC#34 超时可区分 | ✅ 全部对得上 US-212 实文；`conditionalRequests` / `conditionalCacheSize` 配置键、`fetchAllMetadataPages` / `findByIdsInChunks` 符号均存在                                                                                                                                                                                                                                          |
+| 7   | 协议：七个端点、短页即末页、`POST :entity/delete` + `{ ids }`、`HEAD` 探测、version 不回落包版本号               | ✅ 与 `http-protocol.md` 逐条一致；`rest.ts` 默认 delete 模板确为 `{ method: 'POST', path: ':entity/delete' }`                                                                                                                                                                                                                                                                      |
+| 8   | 派生视图三处「已随本文件落地」                                                                                   | ✅ epic-004 清单行、roadmap 批次 3 行 + 约束 13、status-overview 行均已存在；计数 Backlog 9 / 合计 56 与 grep 推导口径一致                                                                                                                                                                                                                                                          |
+| 9   | 「direct close() 会一路挂到 hookTimeout: 10000 超时」                                                            | ⚠️ 见 P2-4                                                                                                                                                                                                                                                                                                                                                                          |
+| 10  | ETag / 304 属于「wire 级协议不变量」                                                                             | ❌ 见 P1-2                                                                                                                                                                                                                                                                                                                                                                          |
 
 ## 问题清单
 
@@ -109,7 +109,38 @@ pr: # 修复 PR 链接，Resolved 时填
 
 P1-1、P1-2 必改（前者是已扩散的事实错误，后者动摇了「协议互通验收」的定位），P2-1、P2-2 必改（否则实现时直接撞墙：core 层断言测不到、HEAD 断言必挂），P2-3、P2-4 顺手改，P3 可选。全部是文档编辑、不涉及代码，预计一小时内可完成；修完即可按 Backlog 排期开工。
 
+## 复核（2026-08-25）
+
+对本评审自身的逐条复验：**结论全部成立**，无虚指、无过度断言。关键项的复验证据：
+
+| 条目 | 复验方式                                                      | 结果                                                                                          |
+| ---- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| P1-1 | `ls src/__tests__/` + `grep -c vi.stubGlobal`                 | 9 个文件、12 处调用点、6 个文件含桩；`config`/`conditional-cache`/`metadata` 各 0 —— 完全吻合 |
+| P1-2 | `grep -niE "etag\|if-none-match\|304" http-protocol.md`       | 零命中（全文 351 行）；`http.md` 行 224-235 只有客户端侧 —— 成立                              |
+| P2-1 | `grep -rn offlineFallback packages/rxdb/src`                  | 落在 `repository/QueryCacheRepository.ts`（core），不在本包 —— 成立                           |
+| P2-2 | `rest.ts` 的 `REST_OPERATIONS`                                | `version` / `isTableExisted` 均无 `path`，注释写明缺省复用 `limit: 1` 探测 —— 成立            |
+| P2-3 | `vite.config.mts` 行 73-74                                    | `include: ['src/**/*']` 是显式配置，「侥幸」措辞确实不成立 —— 成立                            |
+| P2-4 | Node ≥ 19 的 `server.close()` 关空闲连接 + 本仓库要求 Node 26 | 「必挂 hookTimeout」的因果确实错，防御动作本身仍有价值 —— 成立                                |
+| P3-2 | `transport.ts:376`                                            | `private classify(...)` —— 成立                                                               |
+| P3-3 | `rest.ts` 请求体形状                                          | `{ where, offset, limit, pageToken }` —— 成立                                                 |
+| 其余 | 核实清单 1-10 逐条对文件复查                                  | 配置三处、`createLocalAdapter` 零 export、派生视图三处落地，全部与评审所述一致                |
+
+**评审漏掉的一条（本次一并修）：** US-213 的四个跨目录相对链接少一级
+（`../../packages/…` / `../../website/…`），从 `requirements/stories/adapter/` 出发全部指向不存在的路径；
+同目录其它 story 用的都是 `../../../`。已全部修正并逐条 `test -e` 验证。
+
 ## 解决记录
 
-- [ ] 按上述清单修改故事与两个派生视图（`pr` 字段记录链接）
+- [x] 按上述清单修改故事与两个派生视图（2026-08-25）
+  - **P1-1** 四处计数改为「9 个 spec / 6 个含桩 / 12 处调用点」，`status-overview.md`、`roadmap.md` 同步
+  - **P1-2** 采用**方案 1**：`http-protocol.md` 新增「条件请求（可选）」一节（服务端 `ETag` / `If-None-Match` /
+    `304` 无 body / 内容变化不得回 304）+ 验收清单一条；故事 In Scope 与实现文件表各加一行标明这是允许的唯一
+    docs 改动；AC#16 改为引用该节。**未采用方案 2**——协议锚点补齐后，「服务端语义为测试自定」的降级措辞已不成立
+  - **P2-1** 前置条件段新增「两类驱动方式」表（① 适配器直调 / ② core 全栈）与 AC 归属，AC#8 / #13 / #15 标注方式 ②
+  - **P2-2** AC#10 拆写两个分支的前置条件，AC#11 补显式 `templates.isTableExisted` 配置
+  - **P2-3** coverage 与 eslint 两行只改理由文字，动作不变
+  - **P2-4** 保留 `closeAllConnections()`，理由改为「防 `faults.hang` 留下的半开连接」
+  - **P3-1～P3-6** 全部落实（`faults` 措辞放宽、`classify` 标注 private、AC#2 写明首页、算子子集与 AC#3 对齐 +
+    `contains` 大小写自选立场、AC#1 补句柄断言机制、行 82 补「若」）
+  - **额外**：修复四个断链
 - [ ] PR 合并，`status: Resolved`

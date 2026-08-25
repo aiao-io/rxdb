@@ -13,7 +13,7 @@ tags: [adapter, http, testing, integration, conformance]
 INVEST 检查清单:
 - [x] Independent: 零前置。US-212 两阶段已全关（status: Done），本故事只加测试、不改适配器
 - [x] Negotiable: 参考后端的文件布局、故障开关命名、端口分配方式可调；「真实 socket + 真实 fetch」不可协商
-- [x] Valuable: 现有 7 个 spec 全部用 vi.stubGlobal('fetch') 在适配器输出层拦截，真实 transport 从未被真实网线打过；http-protocol.md 是「给任意后端看的协议」，需要一份证明「后端照文档实现、前端照文档消费就能互通」的可执行验收
+- [x] Valuable: 现有 9 个 spec 里 6 个用 vi.stubGlobal('fetch') 在适配器输出层拦截（另三个是零桩纯单元测试，根本不经过 transport），真实 transport 从未被真实网线打过；http-protocol.md 是「给任意后端看的协议」，需要一份证明「后端照文档实现、前端照文档消费就能互通」的可执行验收
 - [x] Estimable: 一个 node:http 参考后端 + 一份本地内存 fixture + 一个 spec 文件，另加三处测试目录纳管配置
 - [x] Small: 17 条 AC 但只落三个测试文件；不改 src/ 生产代码（除非暴露「协议本身无法实现」，那属于协议缺陷另行处置）
 - [x] Testable: 每条 AC 都是一条真实网线用例，断言主体是「字节在线上怎么走」而非纯函数返回值
@@ -37,6 +37,10 @@ INVEST 检查清单:
 - 覆盖 wire 级协议不变量：`Content-Type: application/json`、`RuleGroup` 的**求值结果**、翻页两种形态（offset / token）、分块 `findByIds`、写回执由服务端定型 `id`/`updatedAt`、`HEAD` 探测、auth hook 的自定义 header、错误状态码、超时、主动断开、ETag/`If-None-Match` 304
 - 参考后端自身的**协议一致性**断言（它必须能证明「协议是可实现的」：短页只出现在真末页、token 逐页推进、快照一致、稳定排序）
 - 把 `tests/` 目录纳入本包的 tsconfig / eslint / coverage 三处管辖（见[「`tests/` 目录的三处纳管」](#tests-目录的三处纳管)）
+- **本故事允许的唯一 docs 改动**：给 `http-protocol.md` 补一节「条件请求（可选）」的**服务端**语义
+  （何时发 `ETag`、如何认 `If-None-Match`、`304` 不带 body 且语义是「你手上那份仍有效」）。AC#16 要证
+  「后端照协议实现」，而 US-212 阶段 B 只把条件请求写进了客户端文档 `http.md`，协议侧没有锚点——不补
+  这一节，AC#16 的服务端行为就是测试作者自创，证不到协议头上
 
 ### Out of Scope
 
@@ -50,27 +54,43 @@ INVEST 检查清单:
 
 ## 验收标准
 
-前置条件列的「后端已起」统一指：`beforeAll` 已启动参考后端于 `listen(0)` 的随机端口，并把 `baseUrl` 传给 `RxDBAdapterHttp`。
+前置条件列的「后端已起」统一指：`beforeAll` 已启动参考后端于 `listen(0)` 的随机端口，并把 `baseUrl`
+传给 `RxDBAdapterHttp`。
 
-| #   | 前置条件                                                               | 操作                                                   | 预期结果                                                                                                                                                      | 状态 |
-| --- | ---------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 后端已起                                                               | 任意一次读                                             | 全局 `fetch` **不是** mock（`vi.isMockFunction(globalThis.fetch)` 为 `false`）；真实 socket 建立、请求成功；`afterAll` 后端口释放、无句柄泄漏                 | ⬜   |
-| 2   | 后端记录每个请求的实收 header 与原始 body                              | `fetchMetadata`                                        | 服务端实收 `content-type: application/json`；body 反序列化后是 `{ where, offset, limit }`，`where` 是 `RuleGroup` 结构、**一个 SQL 片段都没有**               | ⬜   |
-| 3   | 后端按[算子子集](#rulegroup-求值只做协议子集)求值 `where`              | 多算子组合查询（`=`/`in`/`between`/`contains`/`null`） | 返回集合与本地按同一条件筛出的期望集合**逐 id 相等**——协议的 RuleGroup 翻译指南可被后端照抄实现                                                               | ⬜   |
-| 4   | 后端返回**数组**（offset 形态），总行数 > `pageSize`                   | `fetchMetadata`                                        | 客户端经真实网线翻页至短页终止，拼接结果完整无重无漏；后端每页 `rows.length === limit` 直至真末页                                                             | ⬜   |
-| 5   | 后端开 `faults.truncateAt`，在**非末页**返回短页                       | `fetchMetadata`                                        | 客户端判为末页、静默少拉——用例名与注释写死这是[协议自身的契约边界](#短页即末页是契约不是-bug)、**不是 bug**，锚定「短页只在真末页出现」是服务端责任           | ⬜   |
-| 6   | 后端返回 `{ rows, nextPageToken }`（token 形态）                       | `fetchMetadata`                                        | token 逐页推进、末页缺省 `nextPageToken`；跨页快照一致、排序稳定，拼接无重无漏                                                                                | ⬜   |
-| 7   | 后端按 `faults` 制造四种退化响应                                       | `fetchMetadata`                                        | US-212 AC#7 的四条 fail-fast 在真实后端上**各一条独立用例**：中途换形态 / token 不推进 / 连续空页触顶 / 总页数触顶，`fetchAllMetadataPages` 逐条抛错          | ⬜   |
-| 8   | 后端收到 > `idChunkSize` 的 id                                         | 增量 pull                                              | 客户端按 `idChunkSize` 分块、每块一个真实请求；某块 id 被「真删」时后端返回**少于请求数**的行，客户端不重试不补空对象（对照桩测试 AC#9）                      | ⬜   |
-| 9   | 后端实现 `create` / `update` / `delete`                                | 三个写 duck 各跑一次真实请求                           | 响应体是**后端定型**的完整行（`id`/`updatedAt` 由 server 生成，非回显入参）；后端实收的删除请求是 `POST :entity/delete` + `{ ids }`，**不是** `DELETE` 到集合 | ⬜   |
-| 10  | 后端 `meta/version` 返回版本串                                         | `version()`                                            | 真实 `GET` 请求；配了 `templates.version` 则透出后端版本；未配时抛 unsupported、**不回落包版本号**（US-212 AC#24）                                            | ⬜   |
-| 11  | 后端支持 `HEAD :entity`                                                | `isTableExisted(entity)`                               | 2xx → `true`、404 → `false`、500 → 抛错三分支各一条；后端实收的方法是 `HEAD`，不是复用 `limit:1` 的 `POST`                                                    | ⬜   |
-| 12  | 适配器配了 auth hook，产出自定义 header                                | 任意一次读                                             | 后端实收该 header，值与 hook 返回一致，且与 transport 自带的 `content-type` **共存不互相顶掉**（undici 的 header 合并只有真网线能验）                         | ⬜   |
-| 13  | 后端对某资源回 401 / 409 / 500                                         | 对应读或写                                             | transport 抛 `HttpResponseError`，错误带**数字** `status`；`isNetworkError` 判 `false`、不被 `offlineFallback` 吞成缓存命中                                   | ⬜   |
-| 14  | 后端主动 `destroy` socket / 目标端口拒连                               | 任意请求                                               | 抛 core 的 `NetworkOfflineError`（undici 的真实 `fetch failed` 被归类，`isNetworkError` 判 `true`），**不得**原样上抛 `TypeError`；与 AC#13 两条路径可区分    | ⬜   |
-| 15  | 后端 `faults.hang` 挂起，`requestTimeoutMs` 配小                       | `fetchMetadata` / `findByIds` 各一条                   | 真实超时：请求被 abort、抛 `NetworkOfflineError`、不永久挂起；对照 `disconnect()` 一例抛 `HttpDisconnectedError`（超时判 `true`、断开判 `false` 不降级）      | ⬜   |
-| 16  | 后端发 `ETag` 并认 `If-None-Match`，客户端 `conditionalRequests: true` | 重复 `fetchMetadata` / `findByIds`                     | 后端实收的第二个请求头含 `if-none-match`，回 `304`；客户端还原上次 200 结果**而非空集**                                                                       | ⬜   |
-| 17  | 全套用例绿                                                             | `pnpm nx test rxdb-adapter-http`                       | 绿；新增的 `tests/**` 内**零** `vi.stubGlobal('fetch')`（`src/__tests__/**` 的既有桩原样保留）；`tests/**` 不计入覆盖率分母                                   | ⬜   |
+**两类驱动方式**（AC 的预期落在哪一层由此决定，实现时别混）：
+
+| 驱动方式         | 组成                                                                                            | 覆盖的 AC                                      |
+| :--------------- | :---------------------------------------------------------------------------------------------- | :--------------------------------------------- |
+| ① **适配器直调** | 只 `new RxDBAdapterHttp(db, { baseUrl, … })`，直接调 handler / `version()` / `isTableExisted()` | #1~#7、#9~#12、#14、#16、#17：transport 级断言 |
+| ② **core 全栈**  | `RxDB` + `SyncType.QueryCache` + `tests/local-adapter.fixture.ts` 注册为本地行缓存适配器        | #8、#13、#15：增量 pull 与 `offlineFallback`   |
+
+方式 ② 不可省：`offlineFallback` 是 core `QueryCacheRepository` 的行为（`packages/rxdb/src/repository/QueryCacheRepository.ts`），
+纯适配器直调只能断言错误类型、数字 `status` 与 `isNetworkError` 判值，**观测不到「吞不吞成缓存命中」**；
+「增量 pull 按 `idChunkSize` 分块」同样要走 core 的同步流程才会发生。`local-adapter.fixture.ts` 的
+`getMetadataByIds` / `upsertMany` / `deleteByIds` 三个方法正是 core 侧的消费面（US-212 结构隔离约束下，
+本包 MUST NOT 实现它们）。
+
+默认 harness 统一配 `templates.version` 与 `templates.isTableExisted`（两者**无默认路径**，见 AC#10 / #11）。
+
+| #   | 前置条件                                                                                                                                                                                                                                          | 操作                                                   | 预期结果                                                                                                                                                                                                                                                                       | 状态 |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 1   | 后端已起（方式 ①）                                                                                                                                                                                                                                | 任意一次读                                             | 全局 `fetch` **不是** mock（`vi.isMockFunction(globalThis.fetch)` 为 `false`）；真实 socket 建立、请求成功；`afterAll` 后 `stop()` 的 `close` 回调如期完成（端口释放），且 `process.getActiveResourcesInfo()` 里不残留本 suite 起的 server / socket 句柄                       | ⬜   |
+| 2   | 后端记录每个请求的实收 header 与原始 body                                                                                                                                                                                                         | `fetchMetadata`（**首页**，`pageToken` 缺省）          | 服务端实收 `content-type: application/json`；body 反序列化后是 `{ where, offset, limit }`——客户端发的形状是 `{ where, offset, limit, pageToken }`，首页 `pageToken === undefined` 被 `JSON.stringify` 丢弃，故线上无此键；`where` 是 `RuleGroup` 结构、**一个 SQL 片段都没有** | ⬜   |
+| 3   | 后端按[算子子集](#rulegroup-求值只做协议子集)求值 `where`                                                                                                                                                                                         | 多算子组合查询（`=`/`in`/`between`/`contains`/`null`） | 返回集合与本地按同一条件筛出的期望集合**逐 id 相等**——协议的 RuleGroup 翻译指南可被后端照抄实现                                                                                                                                                                                | ⬜   |
+| 4   | 后端返回**数组**（offset 形态），总行数 > `pageSize`                                                                                                                                                                                              | `fetchMetadata`                                        | 客户端经真实网线翻页至短页终止，拼接结果完整无重无漏；后端每页 `rows.length === limit` 直至真末页                                                                                                                                                                              | ⬜   |
+| 5   | 后端开 `faults.truncateAt`，在**非末页**返回短页                                                                                                                                                                                                  | `fetchMetadata`                                        | 客户端判为末页、静默少拉——用例名与注释写死这是[协议自身的契约边界](#短页即末页是契约不是-bug)、**不是 bug**，锚定「短页只在真末页出现」是服务端责任                                                                                                                            | ⬜   |
+| 6   | 后端返回 `{ rows, nextPageToken }`（token 形态）                                                                                                                                                                                                  | `fetchMetadata`                                        | token 逐页推进、末页缺省 `nextPageToken`；跨页快照一致、排序稳定，拼接无重无漏                                                                                                                                                                                                 | ⬜   |
+| 7   | 后端按 `faults` 与服务端行为制造四种退化响应（换形态 = `shapeSwitchAt`、token 不推进 = `tokenStuck`、连续空页 = 服务端回空 `rows` + 客户端 `maxEmptyPages`、总页数触顶 = 服务端满页 + 客户端小 `maxPages`）                                       | `fetchMetadata`                                        | US-212 AC#7 的四条 fail-fast 在真实后端上**各一条独立用例**：中途换形态 / token 不推进 / 连续空页触顶 / 总页数触顶，`fetchAllMetadataPages` 逐条抛错                                                                                                                           | ⬜   |
+| 8   | 后端收到 > `idChunkSize` 的 id（**方式 ②** core 全栈）                                                                                                                                                                                            | 增量 pull                                              | 客户端按 `idChunkSize` 分块、每块一个真实请求；某块 id 被「真删」时后端返回**少于请求数**的行，客户端不重试不补空对象（对照桩测试 AC#9）                                                                                                                                       | ⬜   |
+| 9   | 后端实现 `create` / `update` / `delete`                                                                                                                                                                                                           | 三个写 duck 各跑一次真实请求                           | 响应体是**后端定型**的完整行（`id`/`updatedAt` 由 server 生成，非回显入参）；后端实收的删除请求是 `POST :entity/delete` + `{ ids }`，**不是** `DELETE` 到集合                                                                                                                  | ⬜   |
+| 10  | 后端 `meta/version` 返回版本串。**两个分支前置条件不同**：透出分支要**显式配** `templates.version`（如 `{ path: 'meta/version' }`）；unsupported 分支要**不配**——`version` 无默认路径，缺省就整个不产出 handler（`rest.ts` 的 `REST_OPERATIONS`） | `version()`                                            | 真实 `GET` 请求；配了 `templates.version` 则透出后端版本；未配时抛 unsupported、**不回落包版本号**（US-212 AC#24）                                                                                                                                                             | ⬜   |
+| 11  | 后端支持 `HEAD :entity`，且客户端**显式配** `templates.isTableExisted`（如 `{ path: ':entity' }`）——`isTableExisted` 同样无默认路径，不配时客户端缺省行为是复用 `onFetchMetadata` 的 `limit: 1` 探测，「实收 `HEAD`」的断言必挂                   | `isTableExisted(entity)`                               | 2xx → `true`、404 → `false`、500 → 抛错三分支各一条；后端实收的方法是 `HEAD`，不是复用 `limit:1` 的 `POST`                                                                                                                                                                     | ⬜   |
+| 12  | 适配器配了 auth hook，产出自定义 header                                                                                                                                                                                                           | 任意一次读                                             | 后端实收该 header，值与 hook 返回一致，且与 transport 自带的 `content-type` **共存不互相顶掉**（undici 的 header 合并只有真网线能验）                                                                                                                                          | ⬜   |
+| 13  | 后端对某资源回 401 / 409 / 500（**方式 ②**，「吞不吞」只在 core 层可观测）                                                                                                                                                                        | 对应读或写                                             | transport 抛 `HttpResponseError`，错误带**数字** `status`；`isNetworkError` 判 `false`、不被 `offlineFallback` 吞成缓存命中                                                                                                                                                    | ⬜   |
+| 14  | 后端主动 `destroy` socket / 目标端口拒连                                                                                                                                                                                                          | 任意请求                                               | 抛 core 的 `NetworkOfflineError`（undici 的真实 `fetch failed` 被归类，`isNetworkError` 判 `true`），**不得**原样上抛 `TypeError`；与 AC#13 两条路径可区分                                                                                                                     | ⬜   |
+| 15  | 后端 `faults.hang` 挂起，`requestTimeoutMs` 配小（降级与否用**方式 ②** 观测）                                                                                                                                                                     | `fetchMetadata` / `findByIds` 各一条                   | 真实超时：请求被 abort、抛 `NetworkOfflineError`、不永久挂起；对照 `disconnect()` 一例抛 `HttpDisconnectedError`（超时判 `true`、断开判 `false` 不降级）                                                                                                                       | ⬜   |
+| 16  | 后端按 `http-protocol.md`「[条件请求（可选）](../../../website/docs/adapters/http-protocol.md)」一节发 `ETag` 并认 `If-None-Match`，客户端 `conditionalRequests: true`                                                                            | 重复 `fetchMetadata` / `findByIds`                     | 后端实收的第二个请求头含 `if-none-match`，回 `304`（无 body）；客户端还原上次 200 结果**而非空集**；内容变更后回 `200` + 新 `ETag`（对照 US-212 AC#28 的客户端契约）                                                                                                           | ⬜   |
+| 17  | 全套用例绿                                                                                                                                                                                                                                        | `pnpm nx test rxdb-adapter-http`                       | 绿；新增的 `tests/**` 内**零** `vi.stubGlobal('fetch')`（`src/__tests__/**` 的既有桩原样保留）；`tests/**` 不计入覆盖率分母                                                                                                                                                    | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -78,9 +98,11 @@ INVEST 检查清单:
 
 ### 为什么现有测试不够：桩拦在错误的一层
 
-本包 7 个 spec 全部用 `vi.stubGlobal('fetch', …)` 打桩，拦截点是**适配器输出**。对
-`src/__tests__/integration.spec.ts` 而言这是**正确的**：US-212 AC#2 原文要证「适配器发出去的东西长
-什么样」，在 handler 层拦截等于拿被测对象的输入冒充它的输出。
+本包 `src/__tests__/` 下 9 个 spec 文件里有 6 个用 `vi.stubGlobal('fetch', …)` 打桩（共 12 处调用
+点），拦截点是**适配器输出**；`config` / `conditional-cache` / `metadata` 三个是零桩纯单元测试，
+不经过 transport。对 `src/__tests__/integration.spec.ts` 而言在 fetch 层打桩是**正确的**：US-212
+AC#2 原文要证「适配器发出去的东西长什么样」，**若**改在 handler 层拦截，等于拿被测对象的输入冒充
+它的输出。
 
 但这套桩对下面这些**真实网线语义**是瞎的：
 
@@ -137,12 +159,17 @@ export const startReferenceServer = async (): Promise<ReferenceServer> => {
 
 ### RuleGroup 求值只做协议子集
 
-`where` 的求值只实现协议要求的算子子集（`=` / `!=` / 大小比较 / `contains` / `in` / `between` /
-`null`），不求全——它是**协议翻译指南的可执行样板**，不是又一个查询引擎。
+`where` 的求值只实现协议要求的算子子集（`=` / `in` / `between` / `contains` / `null`——与 AC#3 的操作
+列**逐字对齐**；`!=` 与大小比较不在本故事的验收面内，参考后端可以不实现，实现了也不算数），不求全
+——它是**协议翻译指南的可执行样板**，不是又一个查询引擎。
 
 AC#3 存在的理由：`http-protocol.md` 里翻译风险最高的一节就是 RuleGroup 算子表，后端最容易在这里实现
 歪（`between` 的开闭区间、`null` 与缺字段、`contains` 的大小写）。只验传输层而不验求值，「协议可
 互通」这个命题就只证了一半。断言口径是「后端返回集合 ≡ 本地按同一条件筛出的期望集合」，逐 id 比对。
+
+其中 **`contains` 的大小写语义协议没有规定**。参考后端必须在实现处的注释里写明自选立场（建议
+**case-sensitive**），并让本地期望集合按同一立场筛选——否则「逐 id 相等」的对照口径会在两边各自漂移，
+用例挂了也说不清是谁错。若将来要把它变成协议约束，那是 `http-protocol.md` 的改动，另开故事。
 
 ### 短页即末页是契约，不是 bug
 
@@ -156,14 +183,14 @@ AC#3 存在的理由：`http-protocol.md` 里翻译风险最高的一节就是 R
 
 ### 与现有测试的分工（不要删 `src/__tests__/`）
 
-| 文件                                       | 拦截点                   | 证明的事                                             |
-| ------------------------------------------ | ------------------------ | ---------------------------------------------------- |
-| `src/__tests__/*.spec.ts`（7 个）          | `vi.stubGlobal('fetch')` | 适配器**输出**正确：谁被调用、请求描述形状、错误分类 |
-| `tests/wire-integration.spec.ts`（本故事） | 真实 `node:http` 后端    | **协议可互通**：后端照文档实现、前端照文档消费能走通 |
+| 文件                                        | 拦截点                   | 证明的事                                             |
+| ------------------------------------------- | ------------------------ | ---------------------------------------------------- |
+| `src/__tests__/*.spec.ts`（9 个，6 个含桩） | `vi.stubGlobal('fetch')` | 适配器**输出**正确：谁被调用、请求描述形状、错误分类 |
+| `tests/wire-integration.spec.ts`（本故事）  | 真实 `node:http` 后端    | **协议可互通**：后端照文档实现、前端照文档消费能走通 |
 
 两条互补，不是替代。删掉桩测试会丢「在 handler 层拦截」的 US-212 AC#2 语义；只留桩则漏掉真实网线
 语义。AC#17 的「零 `vi.stubGlobal('fetch')`」**只约束新增的 `tests/**`**——本包 `src/__tests__/` 下有
-7 处既有桩，一处都不动。
+12 处既有桩（分布在 6 个文件），一处都不动。
 
 ### 本地适配器 fixture 自带一份
 
@@ -183,26 +210,29 @@ AC#3 存在的理由：`http-protocol.md` 里翻译风险最高的一节就是 R
   （如 4000）——CI 容器里多 worker 并发会撞端口。
 - `beforeAll` 起 server 并 `await` `listening` 事件（`listen(0)` 是异步的，不等会导致首个请求
   `ECONNREFUSED`）。
-- **`afterAll` 必须先 `server.closeAllConnections()` 再 `server.close()`。** undici 全局 agent 默认
-  keep-alive，`close()` 只停止接受新连接、要等所有连接空闲关闭才触发 `close` 事件；直接 `close()` 会
-  一路挂到 `hookTimeout: 10000` 超时。这条比端口冲突更容易咬人。
+- **`afterAll` 必须先 `server.closeAllConnections()` 再 `server.close()`。** 理由不是「keep-alive 必挂」
+  ——Node ≥ 19 的 `server.close()` 已会自动关掉**空闲**连接，undici keep-alive 的连接在 body 消费完后即
+  空闲，本仓库硬性要求 Node 26，普通用例不会卡。真正要防的是 **`faults.hang` 那类用例留下的半开连接**
+  （请求还没回包，连接不是空闲态，`close()` 的回调会一直等到 `hookTimeout: 10000`）。`closeAllConnections()`
+  是一句成本为零的确定性防御，别省。
 - AC#14 的「拒连」**不要**用「`listen(0)` 取端口 → `close` → 复用该端口」：中间可能被其它进程抢占，
   CI 上偶发变绿。用确定性写法——连 `http://127.0.0.1:1`（特权端口，稳定 `ECONNREFUSED`），或对已建立
   的连接直接 `socket.destroy()`。
 - 超时用 `requestTimeoutMs` 配小（如 500ms）+ `faults.hang` 挂起，而不是真 `sleep`；「主动断开」用
   `disconnect()` 触发 transport 的 `AbortController`，与超时走同一条 `AbortError` 分流、靠 `timedOut`
-  标志区分（`HttpTransport.classify()`）。
+  标志区分（`transport.ts` 的 `classify()`——它是 **private** 方法，用例只能经 `sendJson` / `execute`
+  间接观测抛出的错误类型，**不是**可直调的断言入口）。
 
 ### `tests/` 目录的三处纳管
 
 `vite.config.mts` 的 `test.include` 已是 `['{src,tests}/**/*.{test,spec}.…']`，**无需改动**。但另有三处
 只认 `src/__tests__/`，新目录必须补进去，否则开工即撞墙：
 
-| 文件                 | 现状                                                         | 需要                                                                                                                  |
-| -------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| `tsconfig.spec.json` | `include` 只有 `src/**/*.spec.ts`、`src/__tests__/**/*.ts`   | 加 `tests/**/*.ts`；否则 `tests/` 不属于任何 project，typed lint 直接报 "not included in any project"，`tsc` 也不校验 |
-| `eslint.config.mjs`  | `@nx/dependency-checks.ignoredFiles` 只有 `src/__tests__/**` | 对称加 `{projectRoot}/tests/**`                                                                                       |
-| `vite.config.mts`    | `coverage.exclude` 只有 `['**/__tests__/**','**/dist/**']`   | 加 `'**/tests/**'`。当前靠 `coverage.include: ['src/**/*']` 侥幸兜住，依据不该是侥幸                                  |
+| 文件                 | 现状                                                         | 需要                                                                                                                                                                                                   |
+| -------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tsconfig.spec.json` | `include` 只有 `src/**/*.spec.ts`、`src/__tests__/**/*.ts`   | 加 `tests/**/*.ts`；否则 `tests/` 不属于任何 project，typed lint 直接报 "not included in any project"，`tsc` 也不校验                                                                                  |
+| `eslint.config.mjs`  | `@nx/dependency-checks.ignoredFiles` 只有 `src/__tests__/**` | 对称加 `{projectRoot}/tests/**`；`tests/reference-server.ts` 要 import `node:http` 与 vitest，不加会被判未声明依赖而报错——与 `src/__tests__/**` 当初被加进去同因                                       |
+| `vite.config.mts`    | `coverage.exclude` 只有 `['**/__tests__/**','**/dist/**']`   | 加 `'**/tests/**'`。当前 `tests/**` 不在分母里，是 `coverage.include: ['src/**/*']` 的**直接结果**（不是侥幸）；写进 `exclude` 是把意图**显式声明**出来，防将来有人放宽 `include` 时测试资产被计入分母 |
 
 ### 可能的「测试暴露协议缺陷」处置
 
@@ -212,26 +242,27 @@ AC#3 存在的理由：`http-protocol.md` 里翻译风险最高的一节就是 R
 
 ## 实现文件
 
-| 文件                                                        | 改动                                                                              |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `packages/rxdb-adapter-http/tests/reference-server.ts`      | 新增：零依赖 `node:http` 参考后端，七个端点 + `received` 记录 + `faults`          |
-| `packages/rxdb-adapter-http/tests/local-adapter.fixture.ts` | 新增：内存本地适配器替身（自带，不从 `src/__tests__/` 抽）                        |
-| `packages/rxdb-adapter-http/tests/wire-integration.spec.ts` | 新增：真实网线端到端用例（AC#1～17）                                              |
-| `packages/rxdb-adapter-http/tsconfig.spec.json`             | `include` 加 `tests/**/*.ts`                                                      |
-| `packages/rxdb-adapter-http/eslint.config.mjs`              | `@nx/dependency-checks.ignoredFiles` 加 `{projectRoot}/tests/**`                  |
-| `packages/rxdb-adapter-http/vite.config.mts`                | `coverage.exclude` 加 `'**/tests/**'`（`test.include` 已含 `tests/**`）           |
-| `requirements/epics/epic-004-future-features.md`            | 故事清单条目 + 「另起故事不重开 US-212」理由（**已随本文件落地**）                |
-| `requirements/status-overview.md`                           | 汇总表计数 Backlog 8 → 9、合计 55 → 56 + 未来功能段 ⬜ 条目（**已随本文件落地**） |
-| `requirements/roadmap.md`                                   | 批次 3 排期行 + 约束 13「禁止改 `src/`」（**已随本文件落地**）                    |
-| 状态流转                                                    | 关闭时把上述三处派生视图的 ⬜ / 未关闭计数改掉，story YAML `status` 是唯一真相源  |
+| 文件                                                        | 改动                                                                                                                                                       |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/rxdb-adapter-http/tests/reference-server.ts`      | 新增：零依赖 `node:http` 参考后端，七个端点 + `received` 记录 + `faults`                                                                                   |
+| `packages/rxdb-adapter-http/tests/local-adapter.fixture.ts` | 新增：内存本地适配器替身（自带，不从 `src/__tests__/` 抽）                                                                                                 |
+| `packages/rxdb-adapter-http/tests/wire-integration.spec.ts` | 新增：真实网线端到端用例（AC#1～17）                                                                                                                       |
+| `packages/rxdb-adapter-http/tsconfig.spec.json`             | `include` 加 `tests/**/*.ts`                                                                                                                               |
+| `packages/rxdb-adapter-http/eslint.config.mjs`              | `@nx/dependency-checks.ignoredFiles` 加 `{projectRoot}/tests/**`                                                                                           |
+| `packages/rxdb-adapter-http/vite.config.mts`                | `coverage.exclude` 加 `'**/tests/**'`（`test.include` 已含 `tests/**`）                                                                                    |
+| `website/docs/adapters/http-protocol.md`                    | 新增「条件请求（可选）」一节：服务端 `ETag` / `If-None-Match` / `304` 语义 + 验收清单一条。**本故事允许的唯一 docs 改动**，AC#16 的协议锚点（见 In Scope） |
+| `requirements/epics/epic-004-future-features.md`            | 故事清单条目 + 「另起故事不重开 US-212」理由（**已随本文件落地**）                                                                                         |
+| `requirements/status-overview.md`                           | 汇总表计数 Backlog 8 → 9、合计 55 → 56 + 未来功能段 ⬜ 条目（**已随本文件落地**）                                                                          |
+| `requirements/roadmap.md`                                   | 批次 3 排期行 + 约束 13「禁止改 `src/`」（**已随本文件落地**）                                                                                             |
+| 状态流转                                                    | 关闭时把上述三处派生视图的 ⬜ / 未关闭计数改掉，story YAML `status` 是唯一真相源                                                                           |
 
 ## References
 
-- 协议规范：[website/docs/adapters/http-protocol.md](../../website/docs/adapters/http-protocol.md)
+- 协议规范：[website/docs/adapters/http-protocol.md](../../../website/docs/adapters/http-protocol.md)
 - 上游故事：[US-212 HTTP 远程适配器](./US-212-http-adapter.md)
-- 桩测试（handler 输出层）：[integration.spec.ts](../../packages/rxdb-adapter-http/src/__tests__/integration.spec.ts)
-- 少行不补空的桩用例（US-212 AC#9）：[chunking.spec.ts](../../packages/rxdb-adapter-http/src/__tests__/chunking.spec.ts) 的 `describe('失败与少行是两件事（AC#9）')`
-- transport 实现：[transport.ts](../../packages/rxdb-adapter-http/src/transport.ts) 的 `HttpTransport.#send` / `HttpTransport.classify`
+- 桩测试（handler 输出层）：[integration.spec.ts](../../../packages/rxdb-adapter-http/src/__tests__/integration.spec.ts)
+- 少行不补空的桩用例（US-212 AC#9）：[chunking.spec.ts](../../../packages/rxdb-adapter-http/src/__tests__/chunking.spec.ts) 的 `describe('失败与少行是两件事（AC#9）')`
+- transport 实现：[transport.ts](../../../packages/rxdb-adapter-http/src/transport.ts) 的 `HttpTransport.#send` / `HttpTransport.classify`
 
 ---
 
