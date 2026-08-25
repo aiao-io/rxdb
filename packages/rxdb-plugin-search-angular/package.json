@@ -33,7 +33,7 @@
     "@angular/compiler": "22.1.2",
     "@angular/core": "22.1.2",
     "@angular/platform-browser": "22.1.2",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   },
   "publishConfig": {
     "access": "public"
