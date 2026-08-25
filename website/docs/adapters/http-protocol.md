@@ -18,9 +18,9 @@ sidebar_position: 2
 
 一个「实体」对应你后端的一张表 / 一个资源；一条记录是一个 JSON 对象，**至少含**：
 
-| 字段 | 类型 | 说明 |
-| :--- | :--- | :--- |
-| `id` | string | 主键，全库唯一 |
+| 字段        | 类型   | 说明                            |
+| :---------- | :----- | :------------------------------ |
+| `id`        | string | 主键，全库唯一                  |
 | `updatedAt` | string | **ISO 8601** 时间串，新鲜度依据 |
 
 其余字段由你的实体定义决定，客户端原样收发。
@@ -38,15 +38,15 @@ sidebar_position: 2
 
 标准模板（客户端 `createRestHandlers()` 的默认形状）一共七个操作，**两个必选、五个可选**：
 
-| 操作 | 方法 | 路径 | 必选 | 请求体 | 响应体 |
-| :--- | :--- | :--- | :---: | :--- | :--- |
-| `fetchMetadata` | `POST` | `:entity/metadata` | 是 | `{ where, offset, limit, pageToken? }` | `[{id,updatedAt}]` 或 `{rows,nextPageToken?}` |
-| `findByIds` | `POST` | `:entity/by-ids` | 是 | `{ ids: string[] }` | 完整行数组 `[…]` |
-| `create` | `POST` | `:entity` | 否 | 完整行数据（无 `id` 或由你生成） | **写入后的完整行** |
-| `update` | `PATCH` | `:entity/:id` | 否 | 部分字段 | **更新后的完整行** |
-| `delete` | `POST` | `:entity/delete` | 否 | `{ ids: string[] }` | 任意（响应体被丢弃） |
-| `version` | `GET` | （自定义） | 否 | — | `"x.y.z"` 或 `{ "version": "x.y.z" }` |
-| `isTableExisted` | `HEAD` | `:entity` | 否 | — | 只看状态码（2xx / 404） |
+| 操作             | 方法    | 路径               | 必选 | 请求体                                 | 响应体                                        |
+| :--------------- | :------ | :----------------- | :--: | :------------------------------------- | :-------------------------------------------- |
+| `fetchMetadata`  | `POST`  | `:entity/metadata` |  是  | `{ where, offset, limit, pageToken? }` | `[{id,updatedAt}]` 或 `{rows,nextPageToken?}` |
+| `findByIds`      | `POST`  | `:entity/by-ids`   |  是  | `{ ids: string[] }`                    | 完整行数组 `[…]`                              |
+| `create`         | `POST`  | `:entity`          |  否  | 完整行数据（无 `id` 或由你生成）       | **写入后的完整行**                            |
+| `update`         | `PATCH` | `:entity/:id`      |  否  | 部分字段                               | **更新后的完整行**                            |
+| `delete`         | `POST`  | `:entity/delete`   |  否  | `{ ids: string[] }`                    | 任意（响应体被丢弃）                          |
+| `version`        | `GET`   | （自定义）         |  否  | —                                      | `"x.y.z"` 或 `{ "version": "x.y.z" }`         |
+| `isTableExisted` | `HEAD`  | `:entity`          |  否  | —                                      | 只看状态码（2xx / 404）                       |
 
 写入口没配就不存在：只读后端不实现 `create` / `update` / `delete`，客户端对应方法会**当场拒绝**，
 而不是发出一个注定失败的请求。
@@ -72,12 +72,12 @@ Content-Type: application/json
 
 ### 请求体字段
 
-| 字段 | 类型 | 说明 |
-| :--- | :--- | :--- |
-| `where` | RuleGroup | 过滤条件，结构见下文「RuleGroup」 |
-| `offset` | number | 本页起始偏移（正整数，首页为 `0`） |
-| `limit` | number | 本页条数（正整数，来自客户端 `pageSize`，默认 1000） |
-| `pageToken` | string? | token 形态的翻页位置；首页或 offset 形态**缺省** |
+| 字段        | 类型      | 说明                                                 |
+| :---------- | :-------- | :--------------------------------------------------- |
+| `where`     | RuleGroup | 过滤条件，结构见下文「RuleGroup」                    |
+| `offset`    | number    | 本页起始偏移（正整数，首页为 `0`）                   |
+| `limit`     | number    | 本页条数（正整数，来自客户端 `pageSize`，默认 1000） |
+| `pageToken` | string?   | token 形态的翻页位置；首页或 offset 形态**缺省**     |
 
 **响应体 —— 两种形态二选一**，客户端按**首页的返回形状**锁定翻页模式：
 
@@ -94,19 +94,17 @@ Content-Type: application/json
 
 ```json
 {
-  "rows": [
-    { "id": "11111111-1111-4111-8111-111111111111", "updatedAt": "2026-08-01T00:00:00.000Z" }
-  ],
-  "nextPageToken": "eyJvZmZzZXQiOjEwMDB9"
+  "nextPageToken": "eyJvZmZzZXQiOjEwMDB9",
+  "rows": [{ "id": "11111111-1111-4111-8111-111111111111", "updatedAt": "2026-08-01T00:00:00.000Z" }]
 }
 ```
 
 ### 翻页语义（后端必须遵守）
 
-| 形态 | 末页判定 | 后端保证 |
-| :--- | :--- | :--- |
-| A | `rows.length < limit`（短页） | 返回少于 `limit` 条**必须**意味着最后一页；不得因限流 / 超时 / 服务端 max-rows 提前返回短页 |
-| B | `nextPageToken` 缺省 | 每页返回的 token 原样回传给你（不透明），你只需保证「token 相等 → 同一页」 |
+| 形态 | 末页判定                      | 后端保证                                                                                    |
+| :--- | :---------------------------- | :------------------------------------------------------------------------------------------ |
+| A    | `rows.length < limit`（短页） | 返回少于 `limit` 条**必须**意味着最后一页；不得因限流 / 超时 / 服务端 max-rows 提前返回短页 |
+| B    | `nextPageToken` 缺省          | 每页返回的 token 原样回传给你（不透明），你只需保证「token 相等 → 同一页」                  |
 
 两种形态的**共性保证**：
 
@@ -134,7 +132,12 @@ Content-Type: application/json
 
 ```json
 [
-  { "id": "11111111-1111-4111-8111-111111111111", "title": "Pasta", "status": "published", "updatedAt": "2026-08-01T00:00:00.000Z" }
+  {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "title": "Pasta",
+    "status": "published",
+    "updatedAt": "2026-08-01T00:00:00.000Z"
+  }
 ]
 ```
 
@@ -158,7 +161,12 @@ Content-Type: application/json
 - **响应体**：**写入后的完整行**——`id`、`updatedAt` 由服务端决定，必须回传，不能回显入参。
 
 ```json
-{ "id": "99999999-9999-4999-8999-999999999999", "title": "Risotto", "status": "draft", "updatedAt": "2026-08-23T12:00:00.000Z" }
+{
+  "id": "99999999-9999-4999-8999-999999999999",
+  "status": "draft",
+  "title": "Risotto",
+  "updatedAt": "2026-08-23T12:00:00.000Z"
+}
 ```
 
 :::warning 必须返回持久化后的行，不能回显入参
@@ -221,10 +229,10 @@ HEAD /v1/recipes
 
 客户端只按**状态码**判定：
 
-| 状态码 | 结论 |
-| :--- | :--- |
-| 2xx | 表存在 |
-| 404 | 表不存在 |
+| 状态码          | 结论                                   |
+| :-------------- | :------------------------------------- |
+| 2xx             | 表存在                                 |
+| 404             | 表不存在                               |
 | 其他 / 传输失败 | 抛错（「不知道」与「不存在」必须区分） |
 
 未实现时客户端复用 `fetchMetadata` 的 `limit: 1` 探测。
@@ -237,7 +245,7 @@ HEAD /v1/recipes
 
 ```json
 {
-  "combinator": "and",           // "and" | "or"
+  "combinator": "and", // "and" | "or"
   "rules": [
     { "field": "status", "operator": "=", "value": "published" },
     {
@@ -253,14 +261,14 @@ HEAD /v1/recipes
 
 **规则形态**（按 `operator` 分五类）：
 
-| `operator` | `value` 形态 | 说明 |
-| :--- | :--- | :--- |
-| `=` `!=` `<` `>` `<=` `>=` | 标量 | 相等 / 不等 / 大小比较 |
-| `contains` `notContains` `startsWith` `notStartsWith` `endsWith` `notEndsWith` | 字符串 | 字符串匹配 |
-| `null` `notNull` | **无 `value`** | 空值判定 |
-| `in` `notIn` | 数组 | 集合包含 |
-| `between` `notBetween` | `[min, max]` 二元数组 | 闭区间 |
-| `exists` `notExists` | **无 `value`**，可选 `where` | 关联存在性（关系查询） |
+| `operator`                                                                     | `value` 形态                 | 说明                   |
+| :----------------------------------------------------------------------------- | :--------------------------- | :--------------------- |
+| `=` `!=` `<` `>` `<=` `>=`                                                     | 标量                         | 相等 / 不等 / 大小比较 |
+| `contains` `notContains` `startsWith` `notStartsWith` `endsWith` `notEndsWith` | 字符串                       | 字符串匹配             |
+| `null` `notNull`                                                               | **无 `value`**               | 空值判定               |
+| `in` `notIn`                                                                   | 数组                         | 集合包含               |
+| `between` `notBetween`                                                         | `[min, max]` 二元数组        | 闭区间                 |
+| `exists` `notExists`                                                           | **无 `value`**，可选 `where` | 关联存在性（关系查询） |
 
 **翻译指南**：你只需把每个 `field` 映射到列名、每个 `operator` 映射到自己的查询条件、
 `and` / `or` 对应 AND / OR。`field` 值是**受信任的列名**（来自客户端实体定义），不是用户输入。
@@ -271,12 +279,12 @@ HEAD /v1/recipes
 
 客户端把响应按状态码与传输结果分类，后端无需返回特定错误格式，但要知道这些后果：
 
-| 场景 | 客户端行为 |
-| :--- | :--- |
-| 网络失败 / 超时 | 抛 `NetworkOfflineError`（可降级到本地缓存） |
-| 非 2xx 响应 | 抛带数字 `status` 的错误（**不降级**，直接失败） |
-| metadata 非法（缺 `id`/`updatedAt` 或时间串不合法） | 抛 `HttpInvalidMetadataError` |
-| 写回执不是对象（`null` / 数组 / 标量） | 抛 `HttpHandlerContractError` |
+| 场景                                                | 客户端行为                                       |
+| :-------------------------------------------------- | :----------------------------------------------- |
+| 网络失败 / 超时                                     | 抛 `NetworkOfflineError`（可降级到本地缓存）     |
+| 非 2xx 响应                                         | 抛带数字 `status` 的错误（**不降级**，直接失败） |
+| metadata 非法（缺 `id`/`updatedAt` 或时间串不合法） | 抛 `HttpInvalidMetadataError`                    |
+| 写回执不是对象（`null` / 数组 / 标量）              | 抛 `HttpHandlerContractError`                    |
 
 :::tip 不要用 5xx 掩盖「无数据」
 「远端没有这条数据」应该表现为「返回空数组 / 404」，而不是 `500`。用 500 表示业务空态
