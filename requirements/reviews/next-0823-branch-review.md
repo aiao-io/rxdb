@@ -17,32 +17,32 @@ pr: # 修复 PR 链接，Resolved 时填
 
 本分支主要包含以下变更：
 
-| 内容 | 说明 |
-| :--- | :--- |
-| US-212 HTTP 远程适配器 | 新增 `@aiao/rxdb-adapter-http`，包含 transport、REST handler、分页、分块、条件缓存、metadata、配置与错误契约 |
-| US-018 生成器 default 语义 | 运行时类型分派序列化，并为不可表达的值增加生成期错误 |
-| US-601 子路径 API 基线 | API surface / subpath inventory 审计与基线迁移 |
-| Supabase 错误契约 | 传输失败统一归类为 core 的 `NetworkOfflineError` |
-| QueryCache / adapter 契约 | 幂等收敛、发射契约和相关 TSDoc 更新 |
+| 内容                       | 说明                                                                                                         |
+| :------------------------- | :----------------------------------------------------------------------------------------------------------- |
+| US-212 HTTP 远程适配器     | 新增 `@aiao/rxdb-adapter-http`，包含 transport、REST handler、分页、分块、条件缓存、metadata、配置与错误契约 |
+| US-018 生成器 default 语义 | 运行时类型分派序列化，并为不可表达的值增加生成期错误                                                         |
+| US-601 子路径 API 基线     | API surface / subpath inventory 审计与基线迁移                                                               |
+| Supabase 错误契约          | 传输失败统一归类为 core 的 `NetworkOfflineError`                                                             |
+| QueryCache / adapter 契约  | 幂等收敛、发射契约和相关 TSDoc 更新                                                                          |
 
 ## 2. Findings
 
 > **复核结论（2026-08-25）**：11 项逐条按源码复核，**10 项属实并已修复**，**P2-2 判定为误报**（见该条下方「复核」）。
 > 每项修复都配了红测试；测试数 277 → 286，另加审计脚本 1 例（15 → 16）。
 
-| 编号 | 复核判定 | 状态 |
-| :--- | :--- | :--- |
-| P1-1 外键目标实体 wire 类型 | ✅ 属实 | 已修复 + 2 例 |
-| P1-2 数组回执被当成行 | ✅ 属实 | 已修复 + 1 例 |
-| P2-1 断开被归类成 `HttpResponseError` | ✅ 属实 | 已修复 + 1 例 |
-| P2-2 offset 推进 | ❌ **误报**，两条论据均不成立 | 不改，改规范表 |
-| P2-3 `nextPageToken` 无运行时校验 | ✅ 属实 | 已修复 + 3 例 |
-| P2-4 auth header 大小写变体 | ✅ 属实（比报告更严重） | 已修复 + 3 例 |
-| P2-5 重复 `connect()` 不掐旧请求 | ✅ 属实 | 已修复 + 1 例 |
-| P2-6 断开态 `version()` 错误优先级 | ✅ 属实 | 已修复 + 1 例 |
-| P3-1 缺 tsconfig paths | ✅ 属实 | 已修复 |
-| P3-2 `@aiao/source` 逃逸包目录 | ✅ 属实 | 已修复 + 1 例 |
-| P3-3 文档写着已删除的默认路径 | ✅ 属实 | 已修复 |
+| 编号                                  | 复核判定                      | 状态           |
+| :------------------------------------ | :---------------------------- | :------------- |
+| P1-1 外键目标实体 wire 类型           | ✅ 属实                       | 已修复 + 2 例  |
+| P1-2 数组回执被当成行                 | ✅ 属实                       | 已修复 + 1 例  |
+| P2-1 断开被归类成 `HttpResponseError` | ✅ 属实                       | 已修复 + 1 例  |
+| P2-2 offset 推进                      | ❌ **误报**，两条论据均不成立 | 不改，改规范表 |
+| P2-3 `nextPageToken` 无运行时校验     | ✅ 属实                       | 已修复 + 3 例  |
+| P2-4 auth header 大小写变体           | ✅ 属实（比报告更严重）       | 已修复 + 3 例  |
+| P2-5 重复 `connect()` 不掐旧请求      | ✅ 属实                       | 已修复 + 1 例  |
+| P2-6 断开态 `version()` 错误优先级    | ✅ 属实                       | 已修复 + 1 例  |
+| P3-1 缺 tsconfig paths                | ✅ 属实                       | 已修复         |
+| P3-2 `@aiao/source` 逃逸包目录        | ✅ 属实                       | 已修复 + 1 例  |
+| P3-3 文档写着已删除的默认路径         | ✅ 属实                       | 已修复         |
 
 ### P1：合入前必须修复
 
@@ -131,22 +131,22 @@ pr: # 修复 PR 链接，Resolved 时填
 
 评审时（修复前）：
 
-| 验证项 | 结果 |
-| :--- | :--- |
-| `pnpm nx test rxdb-adapter-http --outputStyle=static` | ✅ 9 个 spec，274/274 通过；statements 99.59%，lines 99.78% |
-| `pnpm nx typecheck rxdb-adapter-http --outputStyle=static` | ✅ 通过 |
-| `node scripts/audit/subpath-inventory.spec.mjs` | ✅ 15/15 通过 |
-| `node scripts/audit/api-surface.mjs --check` | ✅ 30 个包、44 个入口通过 |
-| `git diff --check` | ✅ 通过 |
+| 验证项                                                     | 结果                                                        |
+| :--------------------------------------------------------- | :---------------------------------------------------------- |
+| `pnpm nx test rxdb-adapter-http --outputStyle=static`      | ✅ 9 个 spec，274/274 通过；statements 99.59%，lines 99.78% |
+| `pnpm nx typecheck rxdb-adapter-http --outputStyle=static` | ✅ 通过                                                     |
+| `node scripts/audit/subpath-inventory.spec.mjs`            | ✅ 15/15 通过                                               |
+| `node scripts/audit/api-surface.mjs --check`               | ✅ 30 个包、44 个入口通过                                   |
+| `git diff --check`                                         | ✅ 通过                                                     |
 
 修复后复跑（全部 `--skip-nx-cache`）：
 
-| 验证项 | 结果 |
-| :--- | :--- |
-| `pnpm nx run-many -t lint test typecheck --projects=rxdb-adapter-http` | ✅ 286/286 通过；statements 99.80%，branches 98.17%，lines 99.79% |
-| `tsc --noEmit -p packages/rxdb-adapter-http/tsconfig.spec.json` | ✅ 通过（`nx build` 不拦 TS 错误，spec 必须单独过一遍） |
-| `node --test scripts/audit/subpath-inventory.spec.mjs` | ✅ 16/16 通过 |
-| `node scripts/audit/api-surface.mjs --check` | ✅ 30 个包、44 个入口通过；`rxdb-adapter-http` 表面无变化（41 个导出，`readErrorBody` 未外溢） |
+| 验证项                                                                 | 结果                                                                                           |
+| :--------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------- |
+| `pnpm nx run-many -t lint test typecheck --projects=rxdb-adapter-http` | ✅ 286/286 通过；statements 99.80%，branches 98.17%，lines 99.79%                              |
+| `tsc --noEmit -p packages/rxdb-adapter-http/tsconfig.spec.json`        | ✅ 通过（`nx build` 不拦 TS 错误，spec 必须单独过一遍）                                        |
+| `node --test scripts/audit/subpath-inventory.spec.mjs`                 | ✅ 16/16 通过                                                                                  |
+| `node scripts/audit/api-surface.mjs --check`                           | ✅ 30 个包、44 个入口通过；`rxdb-adapter-http` 表面无变化（41 个导出，`readErrorBody` 未外溢） |
 
 Nx Cloud 远程缓存连接曾返回 401，但本地任务已成功完成；这不影响上述结果。其他全量集成验证仍受本机 `::1` 监听权限或 Docker socket 权限限制，未将环境失败误记为业务回归。
 
