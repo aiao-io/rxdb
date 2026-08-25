@@ -33,7 +33,7 @@
   "devDependencies": {
     "@aiao/rxdb-plugin-graph": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
-    "@angular/compiler": "22.1.2",
+    "@angular/compiler": "22.1.3",
     "vitest": "4.1.10"
   },
   "publishConfig": {

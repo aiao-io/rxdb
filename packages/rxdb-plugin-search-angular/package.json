@@ -29,10 +29,10 @@
   },
   "devDependencies": {
     "@aiao/rxdb-plugin-search": "workspace:*",
-    "@angular/common": "22.1.2",
-    "@angular/compiler": "22.1.2",
-    "@angular/core": "22.1.2",
-    "@angular/platform-browser": "22.1.2",
+    "@angular/common": "22.1.3",
+    "@angular/compiler": "22.1.3",
+    "@angular/core": "22.1.3",
+    "@angular/platform-browser": "22.1.3",
     "vitest": "4.1.10"
   },
   "publishConfig": {
