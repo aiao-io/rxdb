@@ -11,9 +11,9 @@
 | ✅ Done        | 44   |
 | 🚧 In Progress | 2    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 8    |
+| 📝 Backlog     | 9    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 55   |
+| **合计**       | 56   |
 
 三条口径，读表前必知：
 
@@ -173,6 +173,7 @@
 - 🅰️ ✅ [US-212 HTTP 远程适配器](stories/adapter/US-212-http-adapter.md) — 两阶段，2026-08-24 全关，**零前置**。远端权威 HTTP + 独立注册 sqlite 行缓存，不内嵌 sqlite。**排期已提到 [roadmap 批次 1 线 F](roadmap.md#批次-1零前置七条线可同时开工)**；两条历史锁均已解除：epic-006 的「不得在 US-306 阶段 A 前发布」于 2026-08-22 解除，US-020 的两档发布门禁随 US-020 两阶段全关于同日解除。现存的唯一硬约束是 [roadmap 约束 11](roadmap.md#排期约束) 的**结构隔离**不变量（本包 MUST NOT 实现或调用 `upsertMany` / `deleteByIds` / `getMetadataByIds`，MUST NOT 持有本地存储），落在 [US-212 AC#19](stories/adapter/US-212-http-adapter.md)。**阶段 A 已于 2026-08-23 关闭**（`@aiao/rxdb-adapter-http` 185 条用例绿、覆盖率 99%、API baseline 无变化），具名适配器计数随之 9 → 10。**阶段 B 的 AC#27（REST resource URL 模板 `createRestHandlers()`）同日交付**，包内 216 条用例绿；**阶段 B 的 owner 判定已于 2026-08-24 完成**：AC#28（ETag / If-None-Match）判给**本包**——304 的语义本身担保缓存有效性，响应缓存与 single-flight 都在 transport 层内，不需要 core 新 API、不越 AC#19；AC#29（SSE / invalidation）与 AC#30（eviction）**拿不到 owner，已移出本故事**，按 US-016 / US-017 先例登记进 [roadmap「明确不排期」](roadmap.md#明确不排期)并写明解锁条件、不建故事文件。**AC#28 同日实现并关闭**（`conditional-cache.ts` 的有界 LRU + single-flight，`conditionalRequests` **缺省关闭**、关闭时与阶段 A 逐字相同；包内 245 条用例绿、覆盖率 99%、API baseline 无变化）。34 条 AC 全绿，故事置 `Done`
   - ✅ 阶段 A handlers 注入 + QueryCache ducks + 分页/分块 + QueryCache-only 写路径契约测试
   - ✅ 阶段 B — REST resource URL 模板（AC#27，`createRestHandlers()`）+ ETag / If-None-Match（AC#28，`conditional-cache.ts`，缺省关闭）；SSE 与 eviction（AC#29 / AC#30）在 2026-08-24 的 owner 判定里拿不到 owner，**已移出本故事**，见上一行与 [roadmap「明确不排期」](roadmap.md#明确不排期)
+- ⬜ [US-213 HTTP 适配器 wire 级集成测试](stories/adapter/US-213-http-wire-integration-test.md) — US-212 的验收补票，**不重开该故事**：本包 7 个 spec 全在 `vi.stubGlobal('fetch')` 层拦截，`http-protocol.md` 已随 `stable` 对外却无可执行验收。零依赖 `node:http` 参考后端 + 真实 fetch，17 条 AC，纯测试资产不改 `src/`；协议缺陷另开故事（[roadmap 约束 13](roadmap.md#排期约束)）。排期在 [批次 3](roadmap.md#批次-3能力与验证补齐无硬前置按价值排在后面)
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
 
