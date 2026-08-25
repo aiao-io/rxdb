@@ -126,11 +126,14 @@ rxdb.adapter(
 | `update`         | `PATCH` | `:entity/:id`      | 是           |
 | `delete`         | `POST`  | `:entity/delete`   | 是           |
 | `version`        | `GET`   | —                  | 否           |
-| `isTableExisted` | `HEAD`  | `:entity`          | 否           |
+| `isTableExisted` | `HEAD`  | —                  | 否           |
 
 请求体形状：`fetchMetadata` 发 `{ where, offset, limit, pageToken }`，`findByIds` 与 `delete` 发 `{ ids }`，
 `create` / `update` 直接发调用方给的数据。`version` / `isTableExisted` 默认**不产出**——
-`/version` 与探测端点没有公认形状，替你猜一个等于发明一个不存在的端点。
+`/version` 与探测端点没有公认形状，替你猜一个等于发明一个不存在的端点。这两个操作**没有默认路径**，
+不显式配 `templates.version.path` / `templates.isTableExisted.path` 就整个不产出 handler：
+`version()` 抛 unsupported，`isTableExisted()` 回落到 `onFetchMetadata` 的 `limit: 1` 探测。
+`isTableExisted` 方法栏的 `HEAD` 是**给了路径之后**才生效的默认方法。
 
 :::warning 模板校验在构造期
 路径为空 / 含空白、`?`、`#` / 方法非法 / 占位符集合不匹配 / 关掉 `fetchMetadata` 或 `findByIds`，

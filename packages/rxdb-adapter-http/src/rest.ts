@@ -140,7 +140,17 @@ const UNSAFE_IN_SEGMENT = /[\s?#]/;
 /** `version` 的 parse 出错时没有实体名可报，用它占位 */
 const VERSION_SCOPE = '(server version)';
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+/**
+ * 「普通对象」判定，**数组不算**。
+ *
+ * @remarks
+ * 少了 `Array.isArray` 这一条，`[]` 与 `[row]` 都会被 {@link assertRow} 当成持久化行收下，
+ * 随后原样进 QueryCache 的本地 upsert——本地于是留下一条形状与远端毫无关系的行，
+ * 而回执「是个对象」这句话技术上还成立。返回集合而不是单行是真实后端的常见形态
+ * （`POST /recipes` 回 `[created]`），所以这不是理论边界。
+ */
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const readPlaceholders = (path: string): string[] => [...path.matchAll(PLACEHOLDER_PATTERN)].map(match => match[1]);
 

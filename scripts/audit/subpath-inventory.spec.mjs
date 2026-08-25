@@ -72,6 +72,18 @@ test('`@aiao/source` 指向的文件不存在时硬失败，不降级为零导�
   assert.match(problems[0], /不存在/);
 });
 
+test('`@aiao/source` 指向包外时硬失败，且不因为文件确实存在就放行', () => {
+  // fixture 指向 ../with-source/src/client.ts —— 那个文件是**存在**的，所以只查存在性
+  // 会一路放行，然后照着另一个包的源文件生成这个包的导出基线。之后 with-source 改了导出，
+  // 报警出现在 escaping-source 上，而这边的 exports 一个字都没动：门禁指错地方比不报还难查
+  const { entries, problems } = resolveScanEntries(fixture('escaping-source'));
+
+  assert.deepEqual(subpathsOf({ entries }), ['.']);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /\.\/client/);
+  assert.match(problems[0], /逃出了包目录/);
+});
+
 test('白名单登记了包里已不存在的资产入口时报错', () => {
   const { problems } = resolveScanEntries(fixture('asset-entry'), ['./assets/thing.wasm', './assets/gone.wasm']);
 

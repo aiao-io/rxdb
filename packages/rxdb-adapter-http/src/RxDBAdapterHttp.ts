@@ -43,7 +43,7 @@ import type {
   UpdateContext
 } from './http.interface.js';
 import { fetchAllMetadataPages } from './pagination.js';
-import { HttpTransport } from './transport.js';
+import { HttpTransport, readErrorBody } from './transport.js';
 
 /** 适配器注册名 */
 export const ADAPTER_NAME = 'http';
@@ -153,6 +153,10 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
    */
   async connect(): Promise<IRxDBAdapter> {
     this.#assertConfiguredEntitiesSupported();
+    // 换代之前先收口上一代：重复 connect() 若只是替换字段，旧请求仍绑在旧 signal 上，
+    // 而那个 controller 从此没有任何引用能 abort 它——之后的 disconnect() 只取消得了
+    // 新一代，旧请求只能等自己超时。等价于「重连隐含断开」，与 disconnect() 同一条口径
+    this.#disconnected.abort();
     // 校验通过才重新武装：失败的 connect 不该把上一次的断开状态悄悄解除
     this.#disconnected = new AbortController();
     this.#transport = this.#createTransport();
@@ -185,9 +189,16 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
    * RPC，因此靠可选的 `onVersion` handler；未配置时抛错而**不**回落到本包
    * `package.json` 的版本号——那是拿适配器版本冒充后端版本。
    *
+   * **断开状态先判**：已 `disconnect()` 的适配器上，「未配 `onVersion`」不是调用方
+   * 此刻该看见的答案——配置问题下次连上仍在，而生命周期问题是当下这一次调用的实情。
+   * 反过来（先判 handler）还会让下面那句 `#assertConnected` 在缺 handler 的路径上
+   * 永远走不到，而那条路径正是它存在的两个理由之一（另一个是空 id 列表的 `findByIds`）。
+   *
+   * @throws HttpDisconnectedError 适配器已断开
    * @throws HttpUnsupportedOperationError 未配置 `onVersion`
    */
   async version(): Promise<string> {
+    this.#assertConnected('version');
     const handler = this.#handlers.onVersion;
     if (!handler) {
       throw new HttpUnsupportedOperationError(
@@ -195,7 +206,6 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
         'no "onVersion" handler is configured; the adapter must not report its own package version as the backend version'
       );
     }
-    this.#assertConnected('version');
     const body = await this.#transport.sendJson(handler.request(), 'version');
     return handler.parse(body);
   }
@@ -233,7 +243,10 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
         await response.body?.cancel().catch(() => undefined);
         return response.ok;
       }
-      const body = await response.text().catch(() => undefined);
+      // 读 body 用 transport 那份共享实现：`.catch(() => undefined)` 会把此刻的
+      // disconnect() 一起吞掉，最终报出一个 HttpResponseError，把「调用方叫停」
+      // 说成「服务端返回错误」
+      const body = await readErrorBody(response, this.#disconnected.signal);
       throw new HttpResponseError(response.status, this.#transport.resolveUrl(spec), body);
     });
   }
@@ -423,25 +436,35 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
 
   /** 扫描所有走本适配器 remote 槽位的实体（AC#15） */
   #assertConfiguredEntitiesSupported(): void {
+    // 目标实体的元数据从**同一份实体清单**里查，不走 schemaManager：后者要等
+    // `RxDB.connect()` 里的 `schemaManager.init()` 填好，而本方法在直接调用
+    // `adapter.connect()` 时也必须给出同一个答案，否则扫描会因为一张空表静默放行
+    const byName = new Map<string, EntityMetadata>();
     for (const EntityType of this.rxdb.config.entities) {
-      this.#assertEntitySupported(EntityType);
+      const metadata = getEntityMetadata(EntityType);
+      byName.set(entityKey(metadata.name, metadata.namespace), metadata);
+    }
+    for (const metadata of byName.values()) {
+      this.#assertEntitySupported(metadata, byName);
     }
   }
 
-  #assertEntitySupported(EntityType: EntityType): void {
-    const metadata = getEntityMetadata(EntityType);
+  #assertEntitySupported(metadata: EntityMetadata, byName: Map<string, EntityMetadata>): void {
     const sync = getSyncConfig(metadata, this.rxdb.config.sync);
     // bigint 只有在**要过 HTTP 线**时才是问题：本地实体带 bigint 与本包无关
     if (sync?.remote?.adapter !== ADAPTER_NAME) {
       return;
     }
-    const property = findUnsupportedProperty(metadata);
+    const property = findUnsupportedProperty(metadata, byName);
     if (!property) {
       return;
     }
     throw new HttpUnsupportedWireTypeError(metadata.name, property.name, property.type);
   }
 }
+
+/** 实体在清单里的唯一键；namespace 参与是因为同名实体可以分属不同 namespace */
+const entityKey = (name: string, namespace: string): string => `${namespace}\u0000${name}`;
 
 /**
  * 找出第一个没有 wire codec 的字段。
@@ -450,11 +473,27 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
  * `JSON.stringify` 会把 `7n` 抛成 `TypeError`、把 `Uint8Array` 塌成 `{"0":1,…}`，
  * 后者尤其阴——它不报错，只是把二进制悄悄换成一个对象。US-018 已经为同一类静默丢失
  * 付过一次学费，所以这里在连接期就拦。
+ *
+ * **外键列要单独扫一遍。** 它们不在 `propertyMap` 里——那张表来自 `@Entity` 的
+ * `properties`，而 `authorId` 是 `foreignKeyRelationMap` 从 `relations` 派生出来的。
+ * 只看 `propertyMap` 的话，一个自身字段全合法、却指向 bigint 主键实体的实体会被放行，
+ * 而它的 `authorId` 照样要过这条 HTTP 线。判定口径与 supabase 的
+ * `getUnsupportedProperty()` 逐字一致：取目标实体 `id` 的类型。
  */
-const findUnsupportedProperty = (metadata: EntityMetadata): { name: string; type: string } | undefined => {
+const findUnsupportedProperty = (
+  metadata: EntityMetadata,
+  byName: Map<string, EntityMetadata>
+): { name: string; type: string } | undefined => {
   for (const property of metadata.propertyMap.values()) {
     if (UNSUPPORTED_WIRE_TYPES.has(property.type)) {
       return { name: property.name, type: property.type };
+    }
+  }
+  for (const [foreignKeyName, relation] of metadata.foreignKeyRelationMap) {
+    const target = byName.get(entityKey(relation.mappedEntity, relation.mappedNamespace ?? metadata.namespace));
+    const type = target?.propertyMap.get('id')?.type;
+    if (type !== undefined && UNSUPPORTED_WIRE_TYPES.has(type)) {
+      return { name: foreignKeyName, type };
     }
   }
   return undefined;

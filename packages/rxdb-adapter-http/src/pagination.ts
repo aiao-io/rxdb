@@ -52,7 +52,9 @@ const normalizePage = (entityName: string, result: unknown): NormalizedPage => {
   if (Array.isArray(result)) {
     return { shape: 'offset', rows: result };
   }
-  const page = result as { rows?: unknown; nextPageToken?: string; nextCursor?: string } | null;
+  // 每个键都读成 `unknown`：这是 handler 返回的 wire 数据，声明成 `string` 只是把
+  // 「没校验」写成「已保证」，下面三条校验才是真正的边界
+  const page = result as { rows?: unknown; nextPageToken?: unknown; nextCursor?: unknown } | null;
   if (!page || !Array.isArray(page.rows)) {
     throw new HttpHandlerContractError(
       'fetchMetadata',
@@ -66,6 +68,17 @@ const normalizePage = (entityName: string, result: unknown): NormalizedPage => {
       'fetchMetadata',
       entityName,
       'returned the removed key "nextCursor"; rename it to "nextPageToken" (reading it as undefined would end pagination at the first page)'
+    );
+  }
+  // 类型只是断言，wire 上什么都可能来。`null` 尤其危险：它 `!== undefined`，于是被当成
+  // 一个合法 token 发进下一页请求，直到第二次拿到同一个 `null` 才以「token 不推进」
+  // 的面目报出来——错误指向了一个不存在的死循环，真正的问题（handler 该发 undefined
+  // 却发了 null）反倒不在信息里
+  if (page.nextPageToken !== undefined && typeof page.nextPageToken !== 'string') {
+    throw new HttpHandlerContractError(
+      'fetchMetadata',
+      entityName,
+      `expected "nextPageToken" to be a string or undefined, received ${JSON.stringify(page.nextPageToken)}`
     );
   }
   return { shape: 'token', rows: page.rows, nextPageToken: page.nextPageToken };

@@ -250,6 +250,21 @@ describe('fetchAllMetadataPages', () => {
       await expect(run()).resolves.toHaveLength(2);
     });
 
+    it.each([
+      ['null', null],
+      ['数字', 7],
+      ['对象', { token: 'c1' }]
+    ])('nextPageToken 是 %s 时抛 HttpHandlerContractError，不当成合法 token 发出去', async (_label, token) => {
+      // 类型只是断言。`null` 最阴：它 `!== undefined`，于是被当成一个合法 token 发进
+      // 下一页请求，直到第二次拿到同一个 null 才以「token 不推进」的面目报出来——
+      // 错误指向一个不存在的死循环，真正的问题（handler 该发 undefined 却发了 null）
+      // 一个字都不在信息里
+      queueBodies([{ rows: [meta('a')], nextPageToken: token }]);
+      const error = await run().catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(HttpHandlerContractError);
+      expect((error as Error).message).toContain('nextPageToken');
+    });
+
     it('maxPages 恰好等于实际页数时正常完成', async () => {
       queueBodies([{ rows: [meta('a')], nextPageToken: 'c1' }, { rows: [meta('b')] }]);
       await expect(run({ maxPages: 2 })).resolves.toHaveLength(2);

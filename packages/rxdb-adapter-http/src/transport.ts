@@ -88,17 +88,47 @@ const discardBody = async (response: Response): Promise<void> => {
 };
 
 /**
+ * 读非 2xx 的响应体当错误详情，读不出来就算了——**除非是 `disconnect()` 打断的**。
+ *
+ * @remarks
+ * 两种读失败必须分开，因为「状态码是不是仍算数」的答案相反：
+ *
+ * - **连接中途断 / 超时**：`409` 是远端给出的真实回答，连接当时是通的。丢掉详情、
+ *   保留 `HttpResponseError(409)` 才对——判成离线会让 `offlineFallback` 把一次业务
+ *   冲突静默换成陈旧缓存。这条由「拿到状态码的响应即使 body 读不完」一例冻结。
+ * - **`disconnect()`**：调用方自己叫停，`HttpResponseError` 就是把「我取消了」报成
+ *   「服务端出错了」，两者的处置完全相反。`.catch(() => undefined)` 一把吞掉时，
+ *   {@link HttpTransport.classify} 本来分得清，只是永远收不到那个错误。
+ *
+ * 所以判据是**断开信号**而不是错误的形状：超时与断开的 `AbortError` 长得一模一样。
+ *
+ * @param response - 已拿到状态码的非 2xx 响应
+ * @param disconnectSignal - 适配器的断开信号
+ * @returns 响应体文本；读失败且非主动断开时为 `undefined`
+ */
+export const readErrorBody = async (response: Response, disconnectSignal: AbortSignal): Promise<string | undefined> => {
+  try {
+    return await response.text();
+  } catch (error) {
+    if (disconnectSignal.aborted) {
+      throw error;
+    }
+    return undefined;
+  }
+};
+
+/**
  * 非 2xx 即抛，错误里带**数字** `status`。
  *
  * @remarks
  * 那个数字是 `isNetworkError` 第 2 条判据的命中点：拿到状态码说明连接是通的，
  * 于是 401 / 409 / 422 自动不会被 `offlineFallback` 吞成缓存命中。
  */
-const assertOk = async (response: Response, url: string): Promise<void> => {
+const assertOk = async (response: Response, url: string, disconnectSignal: AbortSignal): Promise<void> => {
   if (response.ok) {
     return;
   }
-  throw new HttpResponseError(response.status, url, await response.text().catch(() => undefined));
+  throw new HttpResponseError(response.status, url, await readErrorBody(response, disconnectSignal));
 };
 
 /**
@@ -129,6 +159,21 @@ const serializeBody = (body: unknown, operation: string): string | undefined => 
     throw new HttpRequestBuildError('body', operation, `JSON.stringify() returned undefined for ${typeof body}`);
   }
   return serialized;
+};
+
+/**
+ * 按 HTTP 语义（大小写不敏感）把一层 header 叠到目标上，后来者覆盖。
+ *
+ * @remarks
+ * 全部小写化再写入：`Headers` 最终也会小写化，提前对齐就不会出现「同一个 header
+ * 以两种拼写共存」的中间态。少了这一步，覆盖会静默退化成 RFC 7230 的字段合并
+ * （`旧, 新`），而认证 header 上那正是「旧凭据没被换掉」。
+ */
+const mergeHeaders = (target: Record<string, string>, source?: Record<string, string>): Record<string, string> => {
+  for (const [name, value] of Object.entries(source ?? {})) {
+    target[name.toLowerCase()] = value;
+  }
+  return target;
 };
 
 /**
@@ -254,7 +299,7 @@ export class HttpTransport {
    */
   async sendVoid(spec: HttpRequestSpec, operation: string): Promise<void> {
     await this.execute(spec, operation, async response => {
-      await assertOk(response, this.resolveUrl(spec));
+      await assertOk(response, this.resolveUrl(spec), this.options.disconnectSignal);
       await discardBody(response);
     });
   }
@@ -298,15 +343,20 @@ export class HttpTransport {
    * @remarks
    * 顺序：适配器默认 → `spec.headers` → auth hook。auth 排最后是因为它是唯一
    * 有正确性含义的一组——被 handler 的静态 header 覆盖掉就是发出一个未认证的请求。
+   *
+   * 合并必须**大小写不敏感**（见 {@link mergeHeaders}），否则「排最后」根本不等于「覆盖」：
+   * 静态配置写 `Authorization`、auth hook 返回 `authorization`，`Object.assign` 按字面键
+   * 当成两个 header 全留下，`Headers` 再按 RFC 把同名字段合并成 `旧, 新`——
+   * 请求带着一个过期凭据和一个新凭据一起上线，且没有任何一步报错。
    */
   private async buildHeaders(spec: HttpRequestSpec): Promise<Record<string, string>> {
-    const headers: Record<string, string> = { ...this.options.headers };
+    const headers: Record<string, string> = mergeHeaders({}, this.options.headers);
     if (spec.body !== undefined) {
       headers['content-type'] = 'application/json';
     }
-    Object.assign(headers, spec.headers);
+    mergeHeaders(headers, spec.headers);
     if (this.options.auth) {
-      Object.assign(headers, await this.options.auth());
+      mergeHeaders(headers, await this.options.auth());
     }
     return headers;
   }
@@ -409,7 +459,7 @@ export class HttpTransport {
   /** 阶段 A 的原始路径：发、判状态、解码，不碰缓存 */
   async #sendJsonDirect(prepared: PreparedRequest, operation: string): Promise<unknown> {
     return this.#send(prepared, operation, async response => {
-      await assertOk(response, prepared.url);
+      await assertOk(response, prepared.url, this.options.disconnectSignal);
       return decodeJson(response, prepared.url);
     });
   }
@@ -443,7 +493,7 @@ export class HttpTransport {
         await discardBody(response);
         return cached.takeValue();
       }
-      await assertOk(response, prepared.url);
+      await assertOk(response, prepared.url, this.options.disconnectSignal);
       return this.#cacheAndReturn(cache, key, prepared.url, response);
     });
   }

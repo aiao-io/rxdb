@@ -1,8 +1,24 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative, resolve, sep } from 'node:path';
 
 /** `exports` 里指向源入口的条件名。只被构建期工具读取，Node 运行时永远解析不到它。 */
 const SOURCE_CONDITION = '@aiao/source';
+
+/**
+ * 判断 `join(packageDir, source)` 解析完 `..` 之后是否仍落在包目录内。
+ *
+ * 只查存在性是不够的：`'../rxdb/src/index.ts'` 指向的文件确实存在，于是这个包的
+ * 导出表面会照着**另一个包的源文件**生成基线。之后那边改了导出，报警出现在这边，
+ * 而这边的 `exports` 一个字都没动——门禁指错了地方比不报还难查。
+ *
+ * @param {string} packageDir 包目录（绝对路径）
+ * @param {string} sourceFile 待校验的源入口（绝对路径）
+ * @returns {boolean} 仍在包目录内为 `true`
+ */
+function isInsidePackage(packageDir, sourceFile) {
+  const rel = relative(resolve(packageDir), resolve(sourceFile));
+  return rel.length > 0 && !rel.startsWith(`..${sep}`) && rel !== '..';
+}
 
 /**
  * 读出一个包 `exports` 里声明的子路径入口（不含主入口 `.` 与 `./package.json`）。
@@ -80,6 +96,10 @@ export function resolveScanEntries(packageDir, assetSubpaths = []) {
       continue;
     }
     const sourceFile = join(packageDir, source);
+    if (!isInsidePackage(packageDir, sourceFile)) {
+      problems.push(`${subpath}: \`${SOURCE_CONDITION}\` 指向的 ${source} 逃出了包目录，会扫到别的包的源文件`);
+      continue;
+    }
     if (!existsSync(sourceFile)) {
       problems.push(`${subpath}: \`${SOURCE_CONDITION}\` 指向的 ${source} 不存在`);
       continue;

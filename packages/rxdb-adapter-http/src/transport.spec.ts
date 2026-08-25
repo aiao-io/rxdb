@@ -98,6 +98,29 @@ describe('HttpTransport', () => {
       expect(headers['x-tag']).toBe('auth');
       expect(headers['x-keep']).toBe('kept');
     });
+
+    it.each([
+      ['静态配置大写 / auth 小写', 'Authorization', 'authorization'],
+      ['静态配置小写 / auth 大写', 'authorization', 'Authorization']
+    ])('%s：auth hook 仍然覆盖，不与旧凭据合并成 "旧, 新"', async (_label, staticName, authName) => {
+      // header 名按 RFC 大小写不敏感，但 `Object.assign` 按字面键合并——两种拼写会双双留下，
+      // 再交给 `Headers` 就变成字段合并 `Bearer OLD, Bearer NEW`。请求于是带着一个
+      // 已经过期的凭据一起上线，且没有任何一步报错
+      const { transport } = createTransport({
+        headers: { [staticName]: 'Bearer OLD' },
+        auth: () => ({ [authName]: 'Bearer NEW' })
+      });
+      await transport.sendJson({ url: 'items', method: 'GET' }, 'test');
+      const headers = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+      expect(Object.fromEntries(new Headers(headers))['authorization']).toBe('Bearer NEW');
+    });
+
+    it('spec header 与适配器默认的大小写变体同样按覆盖处理', async () => {
+      const { transport } = createTransport({ headers: { 'X-Tag': 'default' } });
+      await transport.sendJson({ url: 'items', method: 'GET', headers: { 'x-tag': 'spec' } }, 'test');
+      const headers = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+      expect(Object.fromEntries(new Headers(headers))['x-tag']).toBe('spec');
+    });
   });
 
   describe('auth hook（AC#16）', () => {
@@ -311,6 +334,20 @@ describe('HttpTransport', () => {
       // 409 是远端给出的回答，连接是通的；判成离线会让 offlineFallback 把冲突静默换成陈旧缓存
       expect(error).toBeInstanceOf(HttpResponseError);
       expect((error as HttpResponseError).status).toBe(409);
+      expect(isNetworkError(error)).toBe(false);
+    });
+
+    it('disconnect() 落在非 2xx 的 body 读取期间 —— 仍报 HttpDisconnectedError', async () => {
+      // 与上一例的区别只有「谁按下的停止键」，而结论相反：这里状态码虽然也拿到了，
+      // 但读不完是调用方自己叫停造成的。吞掉这个 AbortError 会让它变成一个
+      // HttpResponseError(409)，把「我取消了」报成「服务端说冲突」，两者的处置完全相反
+      stubStallingBody(409);
+      const { transport, controller } = createTransport();
+      const pending = transport.sendJson({ url: 'items', method: 'GET' }, 'fetchMetadata').catch((e: unknown) => e);
+      await new Promise(resolve => setTimeout(resolve, 0));
+      controller.abort();
+      const error = await pending;
+      expect(error).toBeInstanceOf(HttpDisconnectedError);
       expect(isNetworkError(error)).toBe(false);
     });
   });

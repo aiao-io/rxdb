@@ -5,6 +5,7 @@ import {
   isNetworkError,
   NetworkOfflineError,
   PropertyType,
+  RelationKind,
   RxDB,
   SyncType,
   type EntityType,
@@ -58,6 +59,32 @@ class HttpBigIntRecord extends EntityBase {
 @Entity({ name: 'HttpBinaryRecord', properties: [{ name: 'payload', type: PropertyType.binary }] })
 class HttpBinaryRecord extends EntityBase {
   declare payload: Uint8Array;
+}
+
+/**
+ * 主键是 bigint 的实体，以及一个引用它的**自身字段全合法**的实体。
+ *
+ * @remarks
+ * `HttpComment` 自己只有一个 string 字段，`propertyMap` 扫过去干干净净；但 `authorId`
+ * 这一列照样要过 HTTP 线，且它的类型是 `HttpBigIntAuthor.id` 的 bigint。外键列不在
+ * `propertyMap` 里（那张表来自 `@Entity` 的 `properties`，`authorId` 是从 `relations`
+ * 派生的），所以只看 `propertyMap` 的扫描会原样放行——放行的后果正是 AC#15 要拦的那个：
+ * `JSON.stringify(7n)` 抛 `TypeError`，而它与 fetch 传输失败同型，最后被当成离线。
+ */
+@Entity({ name: 'HttpBigIntAuthor', properties: [{ name: 'id', type: PropertyType.bigint }] })
+class HttpBigIntAuthor extends EntityBase {
+  declare name: string;
+}
+
+@Entity({
+  name: 'HttpComment',
+  properties: [{ name: 'text', type: PropertyType.string }],
+  relations: [
+    { name: 'author', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'HttpBigIntAuthor', mappedProperty: 'comments' }
+  ]
+})
+class HttpComment extends EntityBase {
+  declare text: string;
 }
 
 /** 最小可用 handlers：只配必选的两个，用来验证「没配的那些确实不存在」 */
@@ -202,6 +229,50 @@ describe('connect（AC#15、AC#24）', () => {
     // bigint 只有在**要过 HTTP 线**时才是问题；本地实体带 bigint 与本包无关
     const adapter = createAdapter({}, [HttpBigIntRecord], LOCAL_ONLY);
     await expect(adapter.connect()).resolves.toBe(adapter);
+  });
+
+  it('自身字段全合法、但外键指向 bigint 主键的实体同样被拦', async () => {
+    // 只扫 propertyMap 会放行 HttpComment —— 它自己只有一个 string。而 `authorId`
+    // 一样要过这条线，类型是目标实体 id 的 bigint。放行的代价不是「多传一列」，
+    // 是首次写入时 JSON.stringify 抛 TypeError，再被当成离线降级到陈旧缓存
+    const adapter = createAdapter({}, [HttpComment, HttpBigIntAuthor], HTTP_REMOTE);
+    await expect(adapter.connect()).rejects.toMatchObject({
+      name: 'HttpUnsupportedWireTypeError',
+      entity: 'HttpComment',
+      property: 'authorId',
+      propertyType: PropertyType.bigint
+    });
+  });
+
+  it('外键指向的实体不在配置清单里时不误报', async () => {
+    // 查不到目标实体就查不到它 id 的类型，此时唯一诚实的答案是「不知道」。
+    // 猜一个 bigint 会把一大批正常配置拦在 connect 上，且错误信息指向一个查不到的实体
+    const adapter = createAdapter({}, [HttpComment], HTTP_REMOTE);
+    await expect(adapter.connect()).resolves.toBe(adapter);
+  });
+
+  it('重复 connect 会先掐断上一代的进行中请求', async () => {
+    // 只替换 #disconnected 字段的话，旧 controller 从此没有任何引用能 abort 它：
+    // 之后的 disconnect() 只取消得了新一代，旧请求要一直挂到自己超时
+    const abortError = (): DOMException => new DOMException('aborted', 'AbortError');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            if (init.signal?.aborted) {
+              reject(abortError());
+              return;
+            }
+            init.signal?.addEventListener('abort', () => reject(abortError()));
+          })
+      )
+    );
+    const adapter = createAdapter();
+    await adapter.connect();
+    const pending = firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL)).catch((e: unknown) => e);
+    await adapter.connect();
+    expect(await pending).toBeInstanceOf(HttpDisconnectedError);
   });
 });
 
@@ -355,6 +426,15 @@ describe('version（AC#24）', () => {
       }
     });
     await expect(adapter.version()).resolves.toBe('my-api/2.1.0');
+  });
+
+  it('已断开且未配 onVersion 时报断开，而不是报缺 handler', async () => {
+    // 两个都成立时该说哪个：配置问题下次连上仍在，生命周期问题是当下这一次调用的实情。
+    // 反过来（先判 handler）还会让 version() 里的 #assertConnected 在缺 handler 的路径上
+    // 永远走不到——「断开后所有 duck 一律抛 HttpDisconnectedError」在这条路径上失守
+    const adapter = createAdapter();
+    await adapter.disconnect();
+    await expect(adapter.version()).rejects.toBeInstanceOf(HttpDisconnectedError);
   });
 });
 

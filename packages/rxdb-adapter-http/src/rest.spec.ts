@@ -375,4 +375,19 @@ describe('请求期的取值校验（同样不发错 URL）（AC#27）', () => {
       HttpHandlerContractError
     );
   });
+
+  it('写回执是数组时同样报契约错，不把数组当成一行返回', async () => {
+    // `POST /recipes` 回 `[created]` 是常见的后端形状（PostgREST 默认就是），而数组
+    // `typeof === 'object'`，只判 object 会让它一路通过：调用方拿到的「行」是个数组，
+    // 它的 `id` 是 `undefined`，于是缓存里多出一条 id 为空的记录，且全程没有报错
+    const adapter = createAdapter();
+    queueResponses([json([{ id: 'a', title: 'x' }]), json([{ id: 'a', title: 'x' }])]);
+
+    await expect(firstValueFrom(adapter.create!('Recipe', { title: 'x' }))).rejects.toBeInstanceOf(
+      HttpHandlerContractError
+    );
+    await expect(firstValueFrom(adapter.update!('Recipe', 'a', { title: 'x' }))).rejects.toBeInstanceOf(
+      HttpHandlerContractError
+    );
+  });
 });

@@ -1,7 +1,7 @@
 ---
 id: branch-review-next-0823
 title: next-0823 分支（vs main）全量代码评审
-status: Open
+status: Resolved
 created: 2026-08-24
 updated: 2026-08-25
 pr: # 修复 PR 链接，Resolved 时填
@@ -27,6 +27,23 @@ pr: # 修复 PR 链接，Resolved 时填
 
 ## 2. Findings
 
+> **复核结论（2026-08-25）**：11 项逐条按源码复核，**10 项属实并已修复**，**P2-2 判定为误报**（见该条下方「复核」）。
+> 每项修复都配了红测试；测试数 277 → 286，另加审计脚本 1 例（15 → 16）。
+
+| 编号 | 复核判定 | 状态 |
+| :--- | :--- | :--- |
+| P1-1 外键目标实体 wire 类型 | ✅ 属实 | 已修复 + 2 例 |
+| P1-2 数组回执被当成行 | ✅ 属实 | 已修复 + 1 例 |
+| P2-1 断开被归类成 `HttpResponseError` | ✅ 属实 | 已修复 + 1 例 |
+| P2-2 offset 推进 | ❌ **误报**，两条论据均不成立 | 不改，改规范表 |
+| P2-3 `nextPageToken` 无运行时校验 | ✅ 属实 | 已修复 + 3 例 |
+| P2-4 auth header 大小写变体 | ✅ 属实（比报告更严重） | 已修复 + 3 例 |
+| P2-5 重复 `connect()` 不掐旧请求 | ✅ 属实 | 已修复 + 1 例 |
+| P2-6 断开态 `version()` 错误优先级 | ✅ 属实 | 已修复 + 1 例 |
+| P3-1 缺 tsconfig paths | ✅ 属实 | 已修复 |
+| P3-2 `@aiao/source` 逃逸包目录 | ✅ 属实 | 已修复 + 1 例 |
+| P3-3 文档写着已删除的默认路径 | ✅ 属实 | 已修复 |
+
 ### P1：合入前必须修复
 
 #### P1-1 HTTP wire 类型扫描遗漏外键目标实体的 `bigint` / `binary`
@@ -51,11 +68,18 @@ pr: # 修复 PR 链接，Resolved 时填
 - 非 2xx 分支用 `response.text().catch(() => undefined)` 吞掉了 body 读取期间的 `AbortError`。如果此时执行 `disconnect()`，最终仍会构造 `HttpResponseError`，而不是契约要求的 `HttpDisconnectedError`。
 - 这会使调用方无法区分“服务端返回错误”与“调用方主动取消”，并可能破坏断开请求的错误处理路径。
 
-#### P2-2 offset 分页推进不符合 US-212 规范
+#### P2-2 offset 分页推进不符合 US-212 规范 —— ❌ 误报，不修
 
 - **位置**：[pagination.ts:126](/Users/jimmy/Documents/aiao/rxdb_ai/packages/rxdb-adapter-http/src/pagination.ts:126)、[pagination.spec.ts:69](/Users/jimmy/Documents/aiao/rxdb_ai/packages/rxdb-adapter-http/src/pagination.spec.ts:69)
 - 当前实现使用 `offset += parsed.rows.length`；故事规范要求数组形态固定使用 `offset += limit`：[US-212-http-adapter.md:221](/Users/jimmy/Documents/aiao/rxdb_ai/requirements/stories/adapter/US-212-http-adapter.md:221)。
 - 当服务端返回的行数与请求的 `limit` 不一致时，当前实现会改变下一页起点，可能跳过数据；现有测试反而冻结了错误行为，需要同步修改实现和断言。
+
+**复核**：实现与规范表确有分歧，但支撑「该改实现」的两条论据都不成立，按规范改会让代码变坏：
+
+1. **「现有测试冻结了错误行为」不成立。** [pagination.spec.ts:69](/Users/jimmy/Documents/aiao/rxdb_ai/packages/rxdb-adapter-http/src/pagination.spec.ts:69) 用 pageSize 2、两页各 `2` 行和 `1` 行，断言 offset 序列 `[0, 2]`。两个公式在这组数据下**逐字同解**，它没有冻结任何一边。
+2. **「可能跳过数据」不成立，方向恰好相反。** 循环在 `rows.length < pageSize` 时**立即终止**，所以两式产生分歧的唯一情形是服务端返回**多于** `limit` 行。此时按 `rows.length` 推进不会跳过任何行；按 `limit` 推进会重复拉取，而规范里配套的续页条件（`rows.length === limit`）更会在多返回时直接判末页——**静默截断**，正是本包上上下下所有用例在防的那件事。
+
+结论：陈旧的是规范表那一行，不是实现。代码保持不变，US-212 的分页表待另行更正。
 
 #### P2-3 `nextPageToken` 缺少运行时类型校验
 
@@ -68,6 +92,8 @@ pr: # 修复 PR 链接，Resolved 时填
 - **位置**：[transport.ts:302](/Users/jimmy/Documents/aiao/rxdb_ai/packages/rxdb-adapter-http/src/transport.ts:302)
 - `Object.assign()` 按大小写敏感的对象键合并 header。若静态配置含 `Authorization`、auth hook 返回 `authorization`（或反过来），两个键会同时传给 `Headers`，结果可能变成合并值（如 `old, new`），而不是 auth hook 覆盖旧值。
 - 这违反“auth hook 优先级最高”的契约，可能发出错误凭据。应使用大小写不敏感的合并策略，并补大小写变体测试。
+
+**复核**：属实，且比报告里的「可能」更确定。实测 `new Headers({Authorization: 'Bearer OLD', authorization: 'Bearer NEW'})` 得到 `authorization: "Bearer OLD, Bearer NEW"` —— `Headers` 构造函数是**追加**语义，不是覆盖。也就是说旧凭据不只是「没被换掉」，而是和新凭据拼在一条 header 里一起发出去。已改为写入前统一小写化（`mergeHeaders`），并补三例大小写变体断言。
 
 #### P2-5 重复 `connect()` 不会取消旧 transport 请求
 
@@ -103,6 +129,8 @@ pr: # 修复 PR 链接，Resolved 时填
 
 ## 3. 已验证项目
 
+评审时（修复前）：
+
 | 验证项 | 结果 |
 | :--- | :--- |
 | `pnpm nx test rxdb-adapter-http --outputStyle=static` | ✅ 9 个 spec，274/274 通过；statements 99.59%，lines 99.78% |
@@ -111,10 +139,25 @@ pr: # 修复 PR 链接，Resolved 时填
 | `node scripts/audit/api-surface.mjs --check` | ✅ 30 个包、44 个入口通过 |
 | `git diff --check` | ✅ 通过 |
 
+修复后复跑（全部 `--skip-nx-cache`）：
+
+| 验证项 | 结果 |
+| :--- | :--- |
+| `pnpm nx run-many -t lint test typecheck --projects=rxdb-adapter-http` | ✅ 286/286 通过；statements 99.80%，branches 98.17%，lines 99.79% |
+| `tsc --noEmit -p packages/rxdb-adapter-http/tsconfig.spec.json` | ✅ 通过（`nx build` 不拦 TS 错误，spec 必须单独过一遍） |
+| `node --test scripts/audit/subpath-inventory.spec.mjs` | ✅ 16/16 通过 |
+| `node scripts/audit/api-surface.mjs --check` | ✅ 30 个包、44 个入口通过；`rxdb-adapter-http` 表面无变化（41 个导出，`readErrorBody` 未外溢） |
+
 Nx Cloud 远程缓存连接曾返回 401，但本地任务已成功完成；这不影响上述结果。其他全量集成验证仍受本机 `::1` 监听权限或 Docker socket 权限限制，未将环境失败误记为业务回归。
 
 ## 4. 总体结论
 
-**当前不建议直接合入。** 至少先修复 P1-1、P1-2，以及 P2-1、P2-2、P2-5、P2-6；它们分别影响 wire 数据完整性、缓存一致性、错误语义、分页正确性和请求生命周期。P2-3/P2-4 与 P3 项可并行处理，但不应长期留在公共适配器契约中。
+**10 项已修复并配红测试，1 项（P2-2）判定为误报，可以合入。**
+
+- P1-1 / P1-2 修的是数据完整性：外键列 bigint 与数组回执都会静默污染 QueryCache 的本地缓存。
+- P2-1 / P2-6 修的是错误语义：这两处都把「调用方主动断开」报成了别的东西，而 `offlineFallback` 的分流完全依赖这个判定。
+- P2-4 / P2-5 修的是请求生命周期：一个发错凭据，一个留下收不回的孤儿请求。
+- P2-3 与 P3 三项修的是边界校验与工程一致性。
+- P2-2 不改实现，改的是 US-212 的分页规范表（另行提交）。
 
 旧报告中的“响应体完全没有超时保护”、条件请求适配器接线缺测试、Supabase retry 分类缺测试和 REST 源码 TSDoc 表错误，已被当前实现或测试修复，不再作为本次分支的有效 finding。
