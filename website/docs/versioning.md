@@ -48,23 +48,20 @@ export { SQLiteChangeType as SQliteChangeType } from './sqlite-backend.interface
 
 ## 破坏性变更审查流程
 
-包**主入口**的公开 API 表面由 **API 基线快照**守护：
+公开 API 表面由 **API 基线快照**守护，**主入口与子路径入口同等对待**：
 
-1. 每个公开包在 `requirements/api-baseline/<pkg>.json` 记录导出符号表面。
+1. 每个公开包在 `requirements/api-baseline/<pkg>.json` 记录导出符号表面，主入口
+   （`@aiao/rxdb-plugin-graph`）与每个子路径入口（`@aiao/rxdb-plugin-graph/sqlite`）各占一条。
 2. CI 在每次变更时用 `scripts/audit/api-surface.mjs --check` 对比基线。
-3. 出现未声明的表面变化 → **检查失败**。
+3. 出现未声明的表面变化 → **检查失败**。子路径上少一个导出、或整个子路径入口消失，
+   都按破坏性处理，与主入口用同一套分级。
 4. 确属预期的变更需：更新基线快照、在 PR 标注是否 breaking、必要时补迁移说明。
 
-:::warning 子路径入口不在基线覆盖范围内
+:::note 唯一不扫描的是资产入口
 
-基线只解析主入口 `src/index.ts`。`exports` 里声明的子路径（`@aiao/rxdb-adapter-wa-sqlite/client`、
-`@aiao/rxdb-adapter-miniprogram/runtime`、`@aiao/rxdb-plugin-graph/{sqlite,generator}` 等
-8 个包共 12 个入口）**仍属于上文定义的公开 API，但它们的导出表面不受这道门禁保护**——
-自动化检查抓不到子路径上的破坏性变更，只能靠人工审查与 PR 声明。
-
-依赖这些子路径时请留意：升级次版本前，除对照迁移说明外，建议自行验证子路径导出仍然存在。
-完整清单见 `scripts/audit/api-surface.mjs` 的 `KNOWN_UNCOVERED_SUBPATHS`（清单本身已由门禁核对，
-新增/删除子路径而不同步会让 CI 失败）。
+`@aiao/rxdb-adapter-miniprogram/assets/wa-sqlite.cjs` 与 `.../wa-sqlite.wasm` 指向二进制 / CJS 文件，
+没有导出表面可扫，改由 `scripts/audit/wa-sqlite-integrity.mjs` 的 SHA-256 校验守护内容。
+除此之外，`exports` 里声明的每个子路径入口都在基线里。
 
 :::
 

@@ -1,13 +1,16 @@
-import type { RxDB, SwitchVersionActions } from '@aiao/rxdb';
+import { isNetworkError, NetworkOfflineError, type RxDB, type SwitchVersionActions } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it, vi } from 'vitest';
 import { SupabaseDataError } from '../errors.js';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
+import { RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS } from '../supabase.helpers.js';
 
 type MockWriteResponse<T> = {
   data: T;
   error: { message: string } | null;
+  /** HTTP 状态码；`0` = 传输失败。省略即沿用旧用例「不关心状态码」的写法 */
+  status?: number;
 };
 
 const TRANSIENT_ERROR = { message: 'An invalid response was received from the upstream server' };
@@ -214,5 +217,79 @@ describe('Supabase transient write retry', () => {
     const { adapter } = createDeleteAdapter({ data: [{ id: first.id }], error: null });
 
     await expect(adapter.removeMany([first, second])).rejects.toThrow(second.id);
+  });
+});
+
+/**
+ * RV-001 在**写路径**上的样子。
+ *
+ * @remarks
+ * `querycache-error-contract.spec.ts` 冻结的是读路径（`fetchMetadata` / `findByIds`），
+ * 那里状态码直接就在手边。写路径不一样：它先重试若干次，**重试耗尽之后**才拿最后一次
+ * 的 `status` 去分类。这一段此前一条用例都没有，于是三件事都是敞开的——
+ * 传输失败被包成 `SupabaseDataError`（`offlineFallback` 认不出，可降级的场景硬失败）、
+ * 业务拒绝被包成 `NetworkOfflineError`（403 被静默换成陈旧缓存）、
+ * 以及分类读错了轮次的 `status`。
+ */
+describe('Supabase 写路径的错误分类（RV-001）', () => {
+  const TRANSPORT_FAILURE = { message: 'TypeError: Failed to fetch' };
+  const BUSINESS_FAILURE = { message: 'permission denied for table "Todo"' };
+
+  it('传输失败（status 0）重试耗尽后抛 NetworkOfflineError，且错误不带数字 status', async () => {
+    // 传输失败本身就在可重试名单里，所以「耗尽」是三次全打完，不是一次就抛
+    const offline = { data: null, error: TRANSPORT_FAILURE, status: 0 };
+    const { adapter, select } = createMockAdapter([offline, offline, offline]);
+    const error = await adapter.saveMany([createMockTodo('transport')]).catch((e: unknown) => e);
+
+    expect(select).toHaveBeenCalledTimes(RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS);
+    expect(error).toBeInstanceOf(NetworkOfflineError);
+    expect(isNetworkError(error)).toBe(true);
+    // 带上数字 status 会命中 isNetworkError 第 2 条判据「拿到状态码说明连接是通的」，
+    // 把刚判成网络错误的结论原地抵消
+    expect((error as { status?: unknown }).status).toBeUndefined();
+  });
+
+  it('业务拒绝（403）仍是 SupabaseDataError，isNetworkError 判 false', async () => {
+    const { adapter } = createMockAdapter([{ data: null, error: BUSINESS_FAILURE, status: 403 }]);
+    const error = await adapter.saveMany([createMockTodo('forbidden')]).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(SupabaseDataError);
+    // 判成网络错误的话，offlineFallback 会把一次「你没权限」静默换成一份陈旧缓存
+    expect(isNetworkError(error)).toBe(false);
+  });
+
+  it('先传输失败后被业务拒绝：按**最后一次**响应分类，不是第一次', async () => {
+    const { adapter, select } = createMockAdapter([
+      { data: null, error: TRANSIENT_ERROR, status: 0 },
+      { data: null, error: BUSINESS_FAILURE, status: 403 }
+    ]);
+    const error = await adapter.saveMany([createMockTodo('blip-then-403')]).catch((e: unknown) => e);
+
+    expect(select).toHaveBeenCalledTimes(2);
+    // 一次网络抖动之后远端明确拒绝——报成「离线」等于让调用方一直重试一个永远不会成功的写
+    expect(error).toBeInstanceOf(SupabaseDataError);
+    expect(isNetworkError(error)).toBe(false);
+  });
+
+  it('反向同理：先 5xx 后掉线，最终判成 NetworkOfflineError', async () => {
+    const { adapter, select } = createMockAdapter([
+      { data: null, error: TRANSIENT_ERROR, status: 502 },
+      { data: null, error: TRANSIENT_ERROR, status: 0 },
+      { data: null, error: TRANSIENT_ERROR, status: 0 }
+    ]);
+    const error = await adapter.saveMany([createMockTodo('502-then-offline')]).catch((e: unknown) => e);
+
+    expect(select).toHaveBeenCalledTimes(3);
+    expect(error).toBeInstanceOf(NetworkOfflineError);
+    expect(isNetworkError(error)).toBe(true);
+  });
+
+  it('缺 status 的响应按业务错误处理，不猜成离线', async () => {
+    // 未来若有 handler 忘了透传 status，宁可硬失败也不要静默降级到缓存
+    const { adapter } = createMockAdapter([{ data: null, error: BUSINESS_FAILURE }]);
+    const error = await adapter.saveMany([createMockTodo('no-status')]).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(SupabaseDataError);
+    expect(isNetworkError(error)).toBe(false);
   });
 });

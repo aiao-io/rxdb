@@ -8,10 +8,10 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 41   |
+| ✅ Done        | 44   |
 | 🚧 In Progress | 2    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 11   |
+| 📝 Backlog     | 8    |
 | 🚫 Blocked     | 0    |
 | **合计**       | 55   |
 
@@ -170,11 +170,17 @@
 - 🅰️ ✅ [US-020 将 QueryCache 接入统一 Repository](stories/core/US-020-querycache-repository.md) — 两阶段，2026-08-22 全关；`SyncType.QueryCache` 从空操作变成生产真，**US-212 的两档发布门禁同时解锁**。不 inherit US-203 AC#6
   - ✅ 阶段 A 生产接线 — `getRepository` / EntityManager 走 `QueryCacheRepository`；Full/Filter 不变
   - ✅ 阶段 B 缓存质量 — orphan 删除、指纹含模式、SWR SQL、错误分类；AC#21 由接真实 sqlite-wasm 的 identity 集成用例关闭（顺带揪出 `updatedAt` 解码成 `Date` 后新鲜度恒判 fresh、与 `upsertMany` 裸 SQL 写不维护 identity cache 两个静默缺陷），AC#23 由 D13 的 `syncStaleTime` 同步记忆窗口关闭
-- 🅰️ ⬜ [US-212 HTTP 远程适配器](stories/adapter/US-212-http-adapter.md) — 两阶段；硬前置 US-020。远端权威 HTTP + 独立注册 sqlite 行缓存，不内嵌 sqlite。**排期已提到 [roadmap 批次 1 线 F](roadmap.md#批次-1零前置七条线可同时开工)**；原「不得在 US-306 阶段 A 前发布」的 epic-006 前置已于 2026-08-22 解除，改由 [roadmap 约束 11](roadmap.md#排期约束) 的 QueryCache-only 自持不变量替代
-  - ⬜ 阶段 A handlers 注入 + QueryCache ducks + 分页/分块 + QueryCache-only 写路径契约测试
-  - ⬜ 阶段 B REST mapping / 可选 ETag、SSE、eviction
+- 🅰️ ✅ [US-212 HTTP 远程适配器](stories/adapter/US-212-http-adapter.md) — 两阶段，2026-08-24 全关，**零前置**。远端权威 HTTP + 独立注册 sqlite 行缓存，不内嵌 sqlite。**排期已提到 [roadmap 批次 1 线 F](roadmap.md#批次-1零前置七条线可同时开工)**；两条历史锁均已解除：epic-006 的「不得在 US-306 阶段 A 前发布」于 2026-08-22 解除，US-020 的两档发布门禁随 US-020 两阶段全关于同日解除。现存的唯一硬约束是 [roadmap 约束 11](roadmap.md#排期约束) 的**结构隔离**不变量（本包 MUST NOT 实现或调用 `upsertMany` / `deleteByIds` / `getMetadataByIds`，MUST NOT 持有本地存储），落在 [US-212 AC#19](stories/adapter/US-212-http-adapter.md)。**阶段 A 已于 2026-08-23 关闭**（`@aiao/rxdb-adapter-http` 185 条用例绿、覆盖率 99%、API baseline 无变化），具名适配器计数随之 9 → 10。**阶段 B 的 AC#27（REST resource URL 模板 `createRestHandlers()`）同日交付**，包内 216 条用例绿；**阶段 B 的 owner 判定已于 2026-08-24 完成**：AC#28（ETag / If-None-Match）判给**本包**——304 的语义本身担保缓存有效性，响应缓存与 single-flight 都在 transport 层内，不需要 core 新 API、不越 AC#19；AC#29（SSE / invalidation）与 AC#30（eviction）**拿不到 owner，已移出本故事**，按 US-016 / US-017 先例登记进 [roadmap「明确不排期」](roadmap.md#明确不排期)并写明解锁条件、不建故事文件。**AC#28 同日实现并关闭**（`conditional-cache.ts` 的有界 LRU + single-flight，`conditionalRequests` **缺省关闭**、关闭时与阶段 A 逐字相同；包内 245 条用例绿、覆盖率 99%、API baseline 无变化）。34 条 AC 全绿，故事置 `Done`
+  - ✅ 阶段 A handlers 注入 + QueryCache ducks + 分页/分块 + QueryCache-only 写路径契约测试
+  - ✅ 阶段 B — REST resource URL 模板（AC#27，`createRestHandlers()`）+ ETag / If-None-Match（AC#28，`conditional-cache.ts`，缺省关闭）；SSE 与 eviction（AC#29 / AC#30）在 2026-08-24 的 owner 判定里拿不到 owner，**已移出本故事**，见上一行与 [roadmap「明确不排期」](roadmap.md#明确不排期)
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
+
+**八条故事已全部 Done（US-018 于 2026-08-24 收尾），但 epic 仍是 `In Progress`——这是有意的，不是漏改。**
+[epic-005 的发布门禁](epics/epic-005-type-system-evolution.md#发布门禁)有 6 条，条件 1（五条 bigint/binary 故事全 Done）
+已成立，条件 2～6 是**发布动作与回归 gate**（共享 adapter gate、旧库升级/回滚 fixture、public type compatibility、
+encrypted 与 DevTools 回归、公开文档六项说明），需要一次独立审计逐条留证后才能置 `Done`。
+故事清单全绿 ≠ 门禁成立，不要据前者推后者。
 
 - ✅ [US-011 定义 bigint 与 binary 类型及公共 API 契约](stories/core/US-011-property-type-bigint-binary.md)
 - ✅ [US-206 本地适配器持久化与查询 bigint/binary](stories/adapter/US-206-bigint-binary-adapter.md)
@@ -186,7 +192,7 @@
   - ✅ 阶段 B 实体字段描述 DTO
   - ✅ 阶段 C 字段值校验、format/enum/options 透传与三框架契约
 - ✅ [US-019 拒绝重复声明的 URL scheme](stories/core/US-019-url-scheme-duplicate-rejection.md) — US-012 阶段 A 的收尾：`['HTTP','http']` 报 `invalidFormatConfig`，不做归一化
-- ⬜ [US-018 生成器元数据序列化管线与 default 语义](stories/core/US-018-generator-default-serialization.md) — 从 US-012 拆出，与其无依赖，可并行
+- ✅ [US-018 生成器元数据序列化管线与 default 语义](stories/core/US-018-generator-default-serialization.md) — `BREAKING CHANGE`：函数工厂 `default` 由静默丢弃改为生成期 `unsupportedDefaultFactory`；迁移表见 [website/docs/migration/generator-default.md](../website/docs/migration/generator-default.md)
 
 ### [本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
 
@@ -206,7 +212,7 @@
 
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 
-- ⬜ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md) — 认领 [capability-matrix](capability-matrix.md#已知的需求覆盖缺口) 第 2 条缺口
+- ✅ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md) — 2026-08-24 关闭，[capability-matrix](capability-matrix.md#已知的需求覆盖缺口) 第 2 条缺口随之关闭。基线扩为 `{ entries: {...} }`，30 包 44 入口（净增 14 个子路径入口 / 203 个新纳入守护的符号），主入口表面逐字节不变；源入口收敛到 `package.json` › `exports` › `@aiao/source` 一处真相源。仅剩 2 个资产入口显式跳过（由 wa-sqlite-integrity 的 SHA-256 守护，不是缺口）
 
 [specs/002-lifecycle-effect-scope/spec.md](../specs/002-lifecycle-effect-scope/spec.md) 仍是 Draft，但范围已与 Epic 承诺范围对齐（US-013 / US-014 / US-015 阶段 A；阶段 B 与 US-016 / US-017 标为已移出，后两者不创建故事文件）。原语已落在 [`packages/utils/src/lifecycle/`](../packages/utils/src/lifecycle/)，四个插件包已全部迁移到 `install(scope)`。
 
@@ -238,13 +244,18 @@
 
 以下故事的 YAML `status` 都不是 `Blocked`，但开工前有硬前置：
 
-| 被挡住的                                                                                         | 硬前置                                                                                                                                                                                                                                                                                                                                                                    |
-| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`，历史 `v0.0.25` 又已被 squash 移出主线——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。这一条不随代码进度自动解除，需单独排期                        |
-| [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 B                                 | 出现第一个 `plugin:*` 依赖声明。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`，拓扑序与环检测目前没有消费方。US-013 / US-014 均已交付，硬序解除，阶段 A 已落地；这一条不随代码进度自动解除。**2026-08-22 核对：其余 14 条未关闭故事没有任何一条会产生 `plugin:*` 消费方，所以 US-015 的 `In Review` 是稳态而非过渡态**，上方汇总里的「👀 1」在可预见排期内是常量 |
-| [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D                       | 同一文件的阶段 A 必须先给出 `decision: supported`。判 `unsupported` 时**只有阶段 D** 转 `Blocked`，阶段 B / C 与 US-905 继续推进                                                                                                                                                                                                                                          |
-| [US-212](stories/adapter/US-212-http-adapter.md) 发布                                            | [US-020](stories/core/US-020-querycache-repository.md) **阶段 A** 关闭（标 `experimental`）／**阶段 B** 关闭（标 `stable`）——两档门禁见 [roadmap 约束 10](roadmap.md#排期约束)。阶段 A 代码可并行开发，**包不得在接线前标可发布**——否则 QueryCache + HTTP 看起来接上了，find 仍打本地、save 仍进 changelog                                                                |
+| 被挡住的                                                                                         | 硬前置                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`，历史 `v0.0.25` 又已被 squash 移出主线——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。这一条不随代码进度自动解除，需单独排期       |
+| [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 B                                 | 出现第一个 `plugin:*` 依赖声明。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`，拓扑序与环检测目前没有消费方。US-013 / US-014 均已交付，硬序解除，阶段 A 已落地；这一条不随代码进度自动解除。**其余 11 条未关闭故事没有任何一条会产生 `plugin:*` 消费方，所以 US-015 的 `In Review` 是稳态而非过渡态**，上方汇总里的「👀 1」在可预见排期内是常量 |
+| [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D                       | 同一文件的阶段 A 必须先给出 `decision: supported`。判 `unsupported` 时**只有阶段 D** 转 `Blocked`，阶段 B / C 与 US-905 继续推进                                                                                                                                                                                                                         |
 
+> **US-212 发布门禁已于 2026-08-22 解除**，从本表移除。原两档门禁（[US-020](stories/core/US-020-querycache-repository.md)
+> 阶段 A 关闭才可标 `experimental`、阶段 B 关闭才可标 `stable`）成立的前提是「QueryCache 配了等于空操作」，
+> 而 US-020 两阶段当天全关，`SyncType.QueryCache` 已是生产真，前提消失。**US-212 现在零前置，关闭阶段 A 即可直接发 `stable`**，
+> README / npm 不再需要写 `experimental`。留档见 [roadmap 约束 10](roadmap.md#排期约束)。
+> 注意这不等于该包没有约束：[约束 11](roadmap.md#排期约束) 的结构隔离不变量仍在，只是它是**编码约束**不是排期前置。
+>
 > **US-210 AC#9 已于 2026-08-17 解除阻塞**，从本表移除。原判定「macOS 没有官方 WKWebView WebDriver，
 > 该 AC 按字面无法满足」只对**用 WebDriver 驱 UI**这一种实现方式成立。改成
 > 「环境变量触发自检模式 → 启动两次 → 断言计数器 1→2」后，三平台统一不使用 WebDriver，

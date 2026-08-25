@@ -1003,6 +1003,19 @@ importers:
         specifier: ^7.8.0
         version: 7.8.2
 
+  packages/rxdb-adapter-http:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../rxdb
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb-test':
+        specifier: workspace:*
+        version: link:../rxdb-test
+
   packages/rxdb-adapter-miniprogram:
     dependencies:
       '@aiao/rxdb':

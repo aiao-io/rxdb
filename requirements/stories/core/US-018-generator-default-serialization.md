@@ -1,11 +1,11 @@
 ---
 id: US-018
 title: 生成器元数据序列化管线与 default 语义
-status: Backlog
+status: Done
 priority: High
 epic: epic-005-type-system-evolution
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-24
 tags: [core, codegen, generator, default, serialization, bigint, binary]
 inherited_acs:
   - from: US-012
@@ -85,6 +85,18 @@ return renderMetadataValue(plainMetadata, 0, 'metadata');
 
 运行时函数对象不携带可靠的闭包与 import 信息，本故事禁止用 `Function#toString()` 猜测源码。若未来需要保留工厂，
 必须由独立 story 定义可序列化表达式或基于 AST 的依赖协议。
+
+#### G2.1 — 实施期补两条 G2 未枚举的判定
+
+G2 的表格没有覆盖下面两类值，实现时按以下判定落地，两条都有专门用例锁住：
+
+| 值                                          | 判定                         | 理由                                                                                                                                                                              |
+| ------------------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `undefined`（含显式 `default: undefined`）  | **跳过该键**，不抛错         | 对消费方而言 `default: undefined` 与"没有 default"同义（判据是 `property.default !== undefined`）。往返时代它就被静默跳过，抛错会让显式写了可选键的实体从"能生成"退化成"生成失败" |
+| `Map` / `Set` / 任意类实例（非 plain 对象） | 抛 `unsupportedDefaultValue` | 往返时代它们塌成 `{}`，与本故事要消灭的静默改写同类。`isPlainRecord` 用原型判据（`Object.prototype` 或 `null`）而非 `typeof === 'object'`                                         |
+
+G4.2 把 `undefined` 列进了"改写后守卫的实际落点"，这里是对该行的收窄：`undefined` 落到跳过分支而非抛错分支，
+其余（bigint 走字面量、函数抛 `unsupportedDefaultFactory`）不变。
 
 ### G3 — 关系的 `default` 走同一张表
 
@@ -186,16 +198,16 @@ return renderMetadataValue(plainMetadata, 0, 'metadata');
 
 | #   | 前置条件                                                                                                                   | 操作                 | 预期结果                                                                                                                                                                                | 状态 |
 | --- | -------------------------------------------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 属性 `default` 为 bigint                                                                                                   | 运行生成器           | 输出 `7n` 形式的 bigint 字面量并可编译；不再抛原生 `TypeError: Do not know how to serialize a BigInt`                                                                                   | ⬜   |
-| 2   | 属性 `default` 为 `Uint8Array` 视图（含 `subarray` 得到的偏移视图）                                                        | 运行生成器           | 输出 `new Uint8Array([...])`，**只取当前视图字节**；不再塌成 `{"0":1,...}`。断言输出里不出现数字键对象——`isRecord` 对 `Uint8Array` 为真，分派若排在其后会原样复现旧塌陷（G4.1）         | ⬜   |
-| 3   | 属性 `default` 为有效 `Date` / `'CURRENT_TIMESTAMP'`                                                                       | 运行生成器           | 分别输出 `new Date('<ISO>')` 与原样字符串字面量；两者在生成代码里可区分。断言 `Date` 不生成 `{}`——分派排在 `isRecord` 之后时它会退化成空对象，**比现状更差**（G4.1）                    | ⬜   |
-| 4   | 属性 `default` 为 JSON-safe 常量（字符串、布尔、有限数、数组、普通对象）                                                   | 运行生成器并编译输出 | 输出等价字面量，编译后值语义与声明一致                                                                                                                                                  | ⬜   |
-| 5   | 属性 `default` 为函数工厂（`() => new Date()`、`() => uuid()`、闭包）                                                      | 运行生成器           | 抛 `Error`，message 含实体名、字段名与 `unsupportedDefaultFactory`；**不得**静默丢弃；断言 message **不包含函数源码**（禁用 `String(fn)` / `Function#toString()`，G4.2）                | ⬜   |
-| 6   | `default` 为循环引用、非有限数、非法 `Date` 或其他不支持值                                                                 | 运行生成器           | 抛 `Error`，message 含实体名、字段名与 `unsupportedDefaultValue`；三条旧守卫按 G4.2 归位：前两条随往返删除，`Unsupported metadata value` 被改写而非保留，代码里无死分支也无裸 message   | ⬜   |
-| 7   | 实体继承 `EntityBase`（`id` / `createdAt` / `updatedAt` 均为函数 default），并用 `registerAbstractMetadata()` 登记抽象基类 | 运行生成器           | 生成成功，**不**触发 `unsupportedDefaultFactory`；断言序列化源只含实体自身声明的成员（G1），抽象元数据未被序列化输出                                                                    | ⬜   |
-| 8   | 1:1 / m:1 关系分别声明常量 `default` 与函数 `default`                                                                      | 运行生成器           | 常量按 G2 渲染；函数抛 `unsupportedDefaultFactory` 且 message 用关系名（G3）                                                                                                            | ⬜   |
-| 9   | 元数据带 `enumerable: false` 的内部键（7 个 `setSafeObjectKey` + 5 个惰性 getter）                                         | 运行生成器           | 生成结果不含这 12 个内部键（逐键断言，含函数值 `isForeignKey`）；并断言五个惰性 getter **未被求值**（spy 或计数器），证明遍历没有改用 `Reflect.ownKeys` / `getOwnPropertyNames`（G4.3） | ⬜   |
-| 10  | 既有 `rxdb-client-generator` 测试、三框架与 api-baseline                                                                   | 通过 Nx 执行回归     | 既有生成输出无回归；PR 标注 `BREAKING CHANGE` 并附 G5 迁移表；`packages/rxdb-client-generator` 覆盖率不低于实施前                                                                       | ⬜   |
+| 1   | 属性 `default` 为 bigint                                                                                                   | 运行生成器           | 输出 `7n` 形式的 bigint 字面量并可编译；不再抛原生 `TypeError: Do not know how to serialize a BigInt`                                                                                   | ✅   |
+| 2   | 属性 `default` 为 `Uint8Array` 视图（含 `subarray` 得到的偏移视图）                                                        | 运行生成器           | 输出 `new Uint8Array([...])`，**只取当前视图字节**；不再塌成 `{"0":1,...}`。断言输出里不出现数字键对象——`isRecord` 对 `Uint8Array` 为真，分派若排在其后会原样复现旧塌陷（G4.1）         | ✅   |
+| 3   | 属性 `default` 为有效 `Date` / `'CURRENT_TIMESTAMP'`                                                                       | 运行生成器           | 分别输出 `new Date('<ISO>')` 与原样字符串字面量；两者在生成代码里可区分。断言 `Date` 不生成 `{}`——分派排在 `isRecord` 之后时它会退化成空对象，**比现状更差**（G4.1）                    | ✅   |
+| 4   | 属性 `default` 为 JSON-safe 常量（字符串、布尔、有限数、数组、普通对象）                                                   | 运行生成器并编译输出 | 输出等价字面量，编译后值语义与声明一致                                                                                                                                                  | ✅   |
+| 5   | 属性 `default` 为函数工厂（`() => new Date()`、`() => uuid()`、闭包）                                                      | 运行生成器           | 抛 `Error`，message 含实体名、字段名与 `unsupportedDefaultFactory`；**不得**静默丢弃；断言 message **不包含函数源码**（禁用 `String(fn)` / `Function#toString()`，G4.2）                | ✅   |
+| 6   | `default` 为循环引用、非有限数、非法 `Date` 或其他不支持值                                                                 | 运行生成器           | 抛 `Error`，message 含实体名、字段名与 `unsupportedDefaultValue`；三条旧守卫按 G4.2 归位：前两条随往返删除，`Unsupported metadata value` 被改写而非保留，代码里无死分支也无裸 message   | ✅   |
+| 7   | 实体继承 `EntityBase`（`id` / `createdAt` / `updatedAt` 均为函数 default），并用 `registerAbstractMetadata()` 登记抽象基类 | 运行生成器           | 生成成功，**不**触发 `unsupportedDefaultFactory`；断言序列化源只含实体自身声明的成员（G1），抽象元数据未被序列化输出                                                                    | ✅   |
+| 8   | 1:1 / m:1 关系分别声明常量 `default` 与函数 `default`                                                                      | 运行生成器           | 常量按 G2 渲染；函数抛 `unsupportedDefaultFactory` 且 message 用关系名（G3）                                                                                                            | ✅   |
+| 9   | 元数据带 `enumerable: false` 的内部键（7 个 `setSafeObjectKey` + 5 个惰性 getter）                                         | 运行生成器           | 生成结果不含这 12 个内部键（逐键断言，含函数值 `isForeignKey`）；并断言五个惰性 getter **未被求值**（spy 或计数器），证明遍历没有改用 `Reflect.ownKeys` / `getOwnPropertyNames`（G4.3） | ✅   |
+| 10  | 既有 `rxdb-client-generator` 测试、三框架与 api-baseline                                                                   | 通过 Nx 执行回归     | 既有生成输出无回归；PR 标注 `BREAKING CHANGE` 并附 G5 迁移表；`packages/rxdb-client-generator` 覆盖率不低于实施前                                                                       | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -220,11 +232,14 @@ return renderMetadataValue(plainMetadata, 0, 'metadata');
 
 ## 实现文件
 
-| 文件                                                                   | 内容                                                                           |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `packages/rxdb-client-generator/src/core/RxDBClientGenerator.utils.ts` | 重写 `transitionMetadata()` 序列化管线；`default` 渲染与两类显式失败（G2～G4） |
-| `packages/rxdb-client-generator/src/__tests__/`                        | AC#1～#9 的参数化用例与 EntityBase 继承 fixture                                |
-| `requirements/api-baseline/`                                           | 生成器输出相关基线（若有变化）                                                 |
+| 文件                                                                                   | 内容                                                                           |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `packages/rxdb-client-generator/src/core/RxDBClientGenerator.utils.ts`                 | 重写 `transitionMetadata()` 序列化管线；`default` 渲染与两类显式失败（G2～G4） |
+| `packages/rxdb-client-generator/src/__tests__/generator_default_serialization.spec.ts` | AC#1～#9 的 28 条用例，含 EntityBase 继承与惰性 getter 未求值探针              |
+| `website/docs/migration/generator-default.md`                                          | G5 迁移说明；`website/sidebars.ts` 与 `migration/README.md` 同步挂载           |
+
+`requirements/api-baseline/` 无变化：本次只改生成器内部渲染，公开 API 表面不变
+（`node scripts/audit/api-surface.mjs --check` 30/30 一致）。
 
 ## References
 

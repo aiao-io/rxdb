@@ -1,164 +1,176 @@
 {
-  "exports": [
-    {
-      "name": "buildAAD",
-      "kind": "value"
-    },
-    {
-      "name": "createKeyring",
-      "kind": "value"
-    },
-    {
-      "name": "CryptoEnvelope",
-      "kind": "type"
-    },
-    {
-      "name": "CryptoKeyUnlockOptions",
-      "kind": "type"
-    },
-    {
-      "name": "decodeEnvelope",
-      "kind": "value"
-    },
-    {
-      "name": "DecryptArgs",
-      "kind": "type"
-    },
-    {
-      "name": "deserializeFromEnvelope",
-      "kind": "value"
-    },
-    {
-      "name": "encodeEnvelope",
-      "kind": "value"
-    },
-    {
-      "name": "EncryptArgs",
-      "kind": "type"
-    },
-    {
-      "name": "EncryptedAwareEntity",
-      "kind": "type"
-    },
-    {
-      "name": "EncryptedConfigurationError",
-      "kind": "both"
-    },
-    {
-      "name": "EncryptedDecryptError",
-      "kind": "both"
-    },
-    {
-      "name": "EncryptedEntityResolver",
-      "kind": "type"
-    },
-    {
-      "name": "EncryptedError",
-      "kind": "both"
-    },
-    {
-      "name": "EncryptedErrorCode",
-      "kind": "type"
-    },
-    {
-      "name": "EncryptedErrorInit",
-      "kind": "type"
-    },
-    {
-      "name": "EncryptedLockedError",
-      "kind": "both"
-    },
-    {
-      "name": "EncryptedQueryError",
-      "kind": "both"
-    },
-    {
-      "name": "EncryptedUnlockError",
-      "kind": "both"
-    },
-    {
-      "name": "ENVELOPE_ALG",
-      "kind": "value"
-    },
-    {
-      "name": "ENVELOPE_VERSION",
-      "kind": "value"
-    },
-    {
-      "name": "envelopePlaintextPatches",
-      "kind": "value"
-    },
-    {
-      "name": "EnvelopeVersion",
-      "kind": "type"
-    },
-    {
-      "name": "isEnvelope",
-      "kind": "value"
-    },
-    {
-      "name": "KeyBytesUnlockOptions",
-      "kind": "type"
-    },
-    {
-      "name": "KeyProviderUnlockOptions",
-      "kind": "type"
-    },
-    {
-      "name": "Keyring",
-      "kind": "both"
-    },
-    {
-      "name": "KeyringRow",
-      "kind": "type"
-    },
-    {
-      "name": "KeyringStorageBinding",
-      "kind": "type"
-    },
-    {
-      "name": "LegacyEnvelopePolicy",
-      "kind": "type"
-    },
-    {
-      "name": "PassphraseUnlockOptions",
-      "kind": "type"
-    },
-    {
-      "name": "PatchWalkArgs",
-      "kind": "type"
-    },
-    {
-      "name": "serializeForEnvelope",
-      "kind": "value"
-    },
-    {
-      "name": "unenvelopePlaintextPatches",
-      "kind": "value"
-    },
-    {
-      "name": "UnlockOptions",
-      "kind": "type"
-    },
-    {
-      "name": "validateEncryptedPropertyMetadata",
-      "kind": "value"
-    },
-    {
-      "name": "validateEncryptedQuery",
-      "kind": "value"
-    },
-    {
-      "name": "validateFTSRegistrationAgainstEncryptedColumns",
-      "kind": "value"
-    },
-    {
-      "name": "validateQueryAgainstEncryptedColumns",
-      "kind": "value"
-    },
-    {
-      "name": "VERIFIER_SENTINEL",
-      "kind": "value"
-    }
-  ]
+  "entries": {
+    ".": [
+      {
+        "name": "buildAAD",
+        "kind": "value"
+      },
+      {
+        "name": "createKeyring",
+        "kind": "value"
+      },
+      {
+        "name": "CryptoEnvelope",
+        "kind": "type"
+      },
+      {
+        "name": "CryptoKeyUnlockOptions",
+        "kind": "type"
+      },
+      {
+        "name": "decodeEnvelope",
+        "kind": "value"
+      },
+      {
+        "name": "DecryptArgs",
+        "kind": "type"
+      },
+      {
+        "name": "deserializeFromEnvelope",
+        "kind": "value"
+      },
+      {
+        "name": "encodeEnvelope",
+        "kind": "value"
+      },
+      {
+        "name": "EncryptArgs",
+        "kind": "type"
+      },
+      {
+        "name": "EncryptedAwareEntity",
+        "kind": "type"
+      },
+      {
+        "name": "EncryptedConfigurationError",
+        "kind": "both"
+      },
+      {
+        "name": "EncryptedDecryptError",
+        "kind": "both"
+      },
+      {
+        "name": "EncryptedEntityResolver",
+        "kind": "type"
+      },
+      {
+        "name": "EncryptedError",
+        "kind": "both"
+      },
+      {
+        "name": "EncryptedErrorCode",
+        "kind": "type"
+      },
+      {
+        "name": "EncryptedErrorInit",
+        "kind": "type"
+      },
+      {
+        "name": "EncryptedLockedError",
+        "kind": "both"
+      },
+      {
+        "name": "EncryptedQueryError",
+        "kind": "both"
+      },
+      {
+        "name": "EncryptedUnlockError",
+        "kind": "both"
+      },
+      {
+        "name": "ENVELOPE_ALG",
+        "kind": "value"
+      },
+      {
+        "name": "ENVELOPE_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "envelopePlaintextPatches",
+        "kind": "value"
+      },
+      {
+        "name": "EnvelopeVersion",
+        "kind": "type"
+      },
+      {
+        "name": "isEnvelope",
+        "kind": "value"
+      },
+      {
+        "name": "KeyBytesUnlockOptions",
+        "kind": "type"
+      },
+      {
+        "name": "KeyProviderUnlockOptions",
+        "kind": "type"
+      },
+      {
+        "name": "Keyring",
+        "kind": "both"
+      },
+      {
+        "name": "KeyringRow",
+        "kind": "type"
+      },
+      {
+        "name": "KeyringStorageBinding",
+        "kind": "type"
+      },
+      {
+        "name": "LegacyEnvelopePolicy",
+        "kind": "type"
+      },
+      {
+        "name": "PassphraseUnlockOptions",
+        "kind": "type"
+      },
+      {
+        "name": "PatchWalkArgs",
+        "kind": "type"
+      },
+      {
+        "name": "serializeForEnvelope",
+        "kind": "value"
+      },
+      {
+        "name": "unenvelopePlaintextPatches",
+        "kind": "value"
+      },
+      {
+        "name": "UnlockOptions",
+        "kind": "type"
+      },
+      {
+        "name": "validateEncryptedPropertyMetadata",
+        "kind": "value"
+      },
+      {
+        "name": "validateEncryptedQuery",
+        "kind": "value"
+      },
+      {
+        "name": "validateFTSRegistrationAgainstEncryptedColumns",
+        "kind": "value"
+      },
+      {
+        "name": "validateQueryAgainstEncryptedColumns",
+        "kind": "value"
+      },
+      {
+        "name": "VERIFIER_SENTINEL",
+        "kind": "value"
+      }
+    ],
+    "./testing": [
+      {
+        "name": "scanForPlaintext",
+        "kind": "value"
+      },
+      {
+        "name": "ScanHit",
+        "kind": "type"
+      }
+    ]
+  }
 }

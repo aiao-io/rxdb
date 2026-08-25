@@ -174,15 +174,15 @@ jobs:
       - name: Format check
         run: pnpm check-format
 
-      # 公开包导出发生未声明变化时失败。放前面：不用等 build/test 就能出结果。
+      # 公开包**每个入口**（主入口 + 子路径）的导出发生未声明变化时失败。
+      # 放前面：不用等 build/test 就能出结果。
+      #
+      # US-601 把原先独立的 "Subpath inventory gate" 并进了这一步：子路径入口现在直接进基线，
+      # 清单核对成了扫描前的必要条件（缺 `@aiao/source`、源路径写错、资产白名单有孤儿条目
+      # 都在这里硬失败）。留成两步的话，subpath-inventory.mjs 只剩导出、没有 CLI 入口，
+      # 那个步骤会静默退 0 —— 一个看着在跑、其实什么都不查的门禁，比没有更糟。
       - name: API surface gate
         run: pnpm audit:api-surface
-
-      # 子路径入口清单（KNOWN_UNCOVERED_SUBPATHS）与各包 exports 的一致性。
-      # 此前它只有 spec 没有调用方 —— 文档里写着「已受门禁保护」，实际没有任何
-      # 自动化在跑它。接在这里才算数。
-      - name: Subpath inventory gate
-        run: node scripts/audit/subpath-inventory.mjs
 
       # exports 里指向 .ts 的运行时 condition = 装到用户项目里的死链。
       # `@aiao/source` / `types` 是构建期条件，已在脚本里显式白名单（含 spec 说明理由）。

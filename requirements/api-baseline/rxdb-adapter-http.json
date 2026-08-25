@@ -1,0 +1,170 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "ADAPTER_NAME",
+        "kind": "value"
+      },
+      {
+        "name": "CreateContext",
+        "kind": "type"
+      },
+      {
+        "name": "CreateHandler",
+        "kind": "type"
+      },
+      {
+        "name": "createRestHandlers",
+        "kind": "value"
+      },
+      {
+        "name": "DEFAULT_HTTP_CONFIG",
+        "kind": "value"
+      },
+      {
+        "name": "DeleteContext",
+        "kind": "type"
+      },
+      {
+        "name": "DeleteHandler",
+        "kind": "type"
+      },
+      {
+        "name": "FetchMetadataContext",
+        "kind": "type"
+      },
+      {
+        "name": "FetchMetadataHandler",
+        "kind": "type"
+      },
+      {
+        "name": "FetchMetadataResult",
+        "kind": "type"
+      },
+      {
+        "name": "FindByIdsContext",
+        "kind": "type"
+      },
+      {
+        "name": "FindByIdsHandler",
+        "kind": "type"
+      },
+      {
+        "name": "HttpAdapterError",
+        "kind": "both"
+      },
+      {
+        "name": "HttpAdapterOptions",
+        "kind": "type"
+      },
+      {
+        "name": "HttpAuthHook",
+        "kind": "type"
+      },
+      {
+        "name": "HttpChangelogUnsupportedError",
+        "kind": "both"
+      },
+      {
+        "name": "HttpConfigError",
+        "kind": "both"
+      },
+      {
+        "name": "HttpDisconnectedError",
+        "kind": "both"
+      },
+      {
+        "name": "HttpHandlerContractError",
+        "kind": "both"
+      },
+      {
+        "name": "HttpHandlers",
+        "kind": "type"
+      },
+      {
+        "name": "HttpInvalidMetadataError",
+        "kind": "both"
+      },
+      {
+        "name": "HttpInvalidResponseError",
+        "kind": "both"
+      },
+      {
+        "name": "HttpMethod",
+        "kind": "type"
+      },
+      {
+        "name": "HttpNumericConfig",
+        "kind": "type"
+      },
+      {
+        "name": "HttpPaginationError",
+        "kind": "both"
+      },
+      {
+        "name": "HttpPaginationFailure",
+        "kind": "type"
+      },
+      {
+        "name": "HttpRequestBuildError",
+        "kind": "both"
+      },
+      {
+        "name": "HttpRequestBuildFailure",
+        "kind": "type"
+      },
+      {
+        "name": "HttpRequestSpec",
+        "kind": "type"
+      },
+      {
+        "name": "HttpResponseError",
+        "kind": "both"
+      },
+      {
+        "name": "HttpUnsupportedOperationError",
+        "kind": "both"
+      },
+      {
+        "name": "HttpUnsupportedWireTypeError",
+        "kind": "both"
+      },
+      {
+        "name": "IsTableExistedHandler",
+        "kind": "type"
+      },
+      {
+        "name": "RestHandlersOptions",
+        "kind": "type"
+      },
+      {
+        "name": "RestOperation",
+        "kind": "type"
+      },
+      {
+        "name": "RestOperationTemplate",
+        "kind": "type"
+      },
+      {
+        "name": "RestPlaceholder",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBAdapterHttp",
+        "kind": "both"
+      },
+      {
+        "name": "UpdateContext",
+        "kind": "type"
+      },
+      {
+        "name": "UpdateHandler",
+        "kind": "type"
+      },
+      {
+        "name": "VersionHandler",
+        "kind": "type"
+      }
+    ]
+  }
+}

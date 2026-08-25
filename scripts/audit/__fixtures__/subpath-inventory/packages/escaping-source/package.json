@@ -1,0 +1,14 @@
+{
+  "name": "@fixture/escaping-source",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@aiao/source": "./src/index.ts",
+      "import": "./dist/index.js"
+    },
+    "./client": {
+      "@aiao/source": "../with-source/src/client.ts",
+      "import": "./dist/client.js"
+    }
+  }
+}

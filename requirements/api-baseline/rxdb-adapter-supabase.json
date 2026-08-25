@@ -1,56 +1,58 @@
 {
-  "exports": [
-    {
-      "name": "ADAPTER_NAME",
-      "kind": "value"
-    },
-    {
-      "name": "RxDBAdapterSupabase",
-      "kind": "both"
-    },
-    {
-      "name": "SUPABASE_SDK_VERSION",
-      "kind": "value"
-    },
-    {
-      "name": "SupabaseAdapterOptions",
-      "kind": "type"
-    },
-    {
-      "name": "SupabaseConfigError",
-      "kind": "both"
-    },
-    {
-      "name": "SupabaseDataError",
-      "kind": "both"
-    },
-    {
-      "name": "SupabaseNetworkError",
-      "kind": "both"
-    },
-    {
-      "name": "SupabaseRepository",
-      "kind": "both"
-    },
-    {
-      "name": "SupabaseRlsCheckOptions",
-      "kind": "type"
-    },
-    {
-      "name": "SupabaseRlsCheckTable",
-      "kind": "type"
-    },
-    {
-      "name": "SupabaseSyncError",
-      "kind": "both"
-    },
-    {
-      "name": "SupabaseTreeRepository",
-      "kind": "both"
-    },
-    {
-      "name": "SupabaseUnsupportedPropertyTypeError",
-      "kind": "both"
-    }
-  ]
+  "entries": {
+    ".": [
+      {
+        "name": "ADAPTER_NAME",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBAdapterSupabase",
+        "kind": "both"
+      },
+      {
+        "name": "SUPABASE_SDK_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "SupabaseAdapterOptions",
+        "kind": "type"
+      },
+      {
+        "name": "SupabaseConfigError",
+        "kind": "both"
+      },
+      {
+        "name": "SupabaseDataError",
+        "kind": "both"
+      },
+      {
+        "name": "SupabaseNetworkError",
+        "kind": "both"
+      },
+      {
+        "name": "SupabaseRepository",
+        "kind": "both"
+      },
+      {
+        "name": "SupabaseRlsCheckOptions",
+        "kind": "type"
+      },
+      {
+        "name": "SupabaseRlsCheckTable",
+        "kind": "type"
+      },
+      {
+        "name": "SupabaseSyncError",
+        "kind": "both"
+      },
+      {
+        "name": "SupabaseTreeRepository",
+        "kind": "both"
+      },
+      {
+        "name": "SupabaseUnsupportedPropertyTypeError",
+        "kind": "both"
+      }
+    ]
+  }
 }

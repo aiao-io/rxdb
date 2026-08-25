@@ -1,176 +1,340 @@
 {
-  "exports": [
-    {
-      "name": "assertDesktopHostResponse",
-      "kind": "value"
-    },
-    {
-      "name": "assertDesktopSqliteStorage",
-      "kind": "value"
-    },
-    {
-      "name": "assertValidDesktopDatabaseName",
-      "kind": "value"
-    },
-    {
-      "name": "DESKTOP_DEFAULT_DATABASE_SUFFIX",
-      "kind": "value"
-    },
-    {
-      "name": "DESKTOP_HOST_MAX_BINDINGS",
-      "kind": "value"
-    },
-    {
-      "name": "DESKTOP_HOST_MAX_BLOB_BYTES",
-      "kind": "value"
-    },
-    {
-      "name": "DESKTOP_HOST_MAX_FILE_CHUNK_BYTES",
-      "kind": "value"
-    },
-    {
-      "name": "DESKTOP_HOST_MAX_SQL_LENGTH",
-      "kind": "value"
-    },
-    {
-      "name": "DESKTOP_HOST_PROTOCOL_VERSION",
-      "kind": "value"
-    },
-    {
-      "name": "DESKTOP_HOST_TRANSPORT_KEY",
-      "kind": "value"
-    },
-    {
-      "name": "DesktopHostChangeEventMessage",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopHostCloseRequest",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopHostExecuteRequest",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopHostFileEntry",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopHostFileLockMode",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopHostFileReadResult",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopHostFileRequest",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopHostFileResponse",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopHostFileStat",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopHostHandshakeRequest",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopHostHandshakeResult",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopHostOpenRequest",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopHostOpenResult",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopHostRequest",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopHostResponse",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopHostTransport",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopHostVersionRequest",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopOptions",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopPgliteDirectoryStorage",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopSqliteClient",
-      "kind": "both"
-    },
-    {
-      "name": "DesktopSqliteClientOptions",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopSqliteFileStorage",
-      "kind": "type"
-    },
-    {
-      "name": "DesktopStorage",
-      "kind": "type"
-    },
-    {
-      "name": "ELECTRON_ADAPTER_NAME",
-      "kind": "value"
-    },
-    {
-      "name": "isDesktopPgliteDirectoryStorage",
-      "kind": "value"
-    },
-    {
-      "name": "isDesktopSqliteFileStorage",
-      "kind": "value"
-    },
-    {
-      "name": "parseDesktopHostChangeEvent",
-      "kind": "value"
-    },
-    {
-      "name": "parseDesktopHostHandshakeResult",
-      "kind": "value"
-    },
-    {
-      "name": "parseDesktopHostOpenResult",
-      "kind": "value"
-    },
-    {
-      "name": "resolveDesktopHostTransport",
-      "kind": "value"
-    },
-    {
-      "name": "RxDBAdapterDesktopError",
-      "kind": "both"
-    },
-    {
-      "name": "RxDBAdapterDesktopErrorCode",
-      "kind": "type"
-    },
-    {
-      "name": "RxDBAdapterElectron",
-      "kind": "both"
-    }
-  ]
+  "entries": {
+    ".": [
+      {
+        "name": "assertDesktopHostResponse",
+        "kind": "value"
+      },
+      {
+        "name": "assertDesktopSqliteStorage",
+        "kind": "value"
+      },
+      {
+        "name": "assertValidDesktopDatabaseName",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_DEFAULT_DATABASE_SUFFIX",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_HOST_MAX_BINDINGS",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_HOST_MAX_BLOB_BYTES",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_HOST_MAX_FILE_CHUNK_BYTES",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_HOST_MAX_SQL_LENGTH",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_HOST_PROTOCOL_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_HOST_TRANSPORT_KEY",
+        "kind": "value"
+      },
+      {
+        "name": "DesktopHostChangeEventMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostCloseRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostExecuteRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostFileEntry",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostFileLockMode",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostFileReadResult",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostFileRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostFileResponse",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostFileStat",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostHandshakeRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostHandshakeResult",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostOpenRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostOpenResult",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostResponse",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostTransport",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostVersionRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopOptions",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteDirectoryStorage",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopSqliteClient",
+        "kind": "both"
+      },
+      {
+        "name": "DesktopSqliteClientOptions",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopSqliteFileStorage",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopStorage",
+        "kind": "type"
+      },
+      {
+        "name": "ELECTRON_ADAPTER_NAME",
+        "kind": "value"
+      },
+      {
+        "name": "isDesktopPgliteDirectoryStorage",
+        "kind": "value"
+      },
+      {
+        "name": "isDesktopSqliteFileStorage",
+        "kind": "value"
+      },
+      {
+        "name": "parseDesktopHostChangeEvent",
+        "kind": "value"
+      },
+      {
+        "name": "parseDesktopHostHandshakeResult",
+        "kind": "value"
+      },
+      {
+        "name": "parseDesktopHostOpenResult",
+        "kind": "value"
+      },
+      {
+        "name": "resolveDesktopHostTransport",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBAdapterDesktopError",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBAdapterDesktopErrorCode",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBAdapterElectron",
+        "kind": "both"
+      }
+    ],
+    "./host": [
+      {
+        "name": "assertDesktopSqliteStorage",
+        "kind": "value"
+      },
+      {
+        "name": "assertValidDesktopDatabaseName",
+        "kind": "value"
+      },
+      {
+        "name": "createElectronFileHost",
+        "kind": "value"
+      },
+      {
+        "name": "createElectronSqliteHost",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_HOST_MAX_BINDINGS",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_HOST_MAX_BLOB_BYTES",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_HOST_MAX_FILE_CHUNK_BYTES",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_HOST_MAX_SQL_LENGTH",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_HOST_PROTOCOL_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "DesktopHostChangeEventMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostCloseRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostExecuteRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostFileEntry",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostFileReadResult",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostFileRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostFileResponse",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostFileStat",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostHandshakeRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostHandshakeResult",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostOpenRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostOpenResult",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostResponse",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostVersionRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteDirectoryStorage",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopSqliteFileStorage",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopStorage",
+        "kind": "type"
+      },
+      {
+        "name": "ElectronFileHost",
+        "kind": "type"
+      },
+      {
+        "name": "ElectronFileHostOptions",
+        "kind": "type"
+      },
+      {
+        "name": "ElectronSqliteHost",
+        "kind": "type"
+      },
+      {
+        "name": "ElectronSqliteHostOptions",
+        "kind": "type"
+      },
+      {
+        "name": "isDesktopHostFileRequestKind",
+        "kind": "value"
+      },
+      {
+        "name": "isDesktopPgliteDirectoryStorage",
+        "kind": "value"
+      },
+      {
+        "name": "isDesktopSqliteFileStorage",
+        "kind": "value"
+      },
+      {
+        "name": "NodeSqliteEngine",
+        "kind": "both"
+      },
+      {
+        "name": "NodeSqliteEngineOptions",
+        "kind": "type"
+      },
+      {
+        "name": "parseDesktopHostFileRequest",
+        "kind": "value"
+      },
+      {
+        "name": "parseDesktopHostRequest",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBAdapterDesktopError",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBAdapterDesktopErrorCode",
+        "kind": "type"
+      }
+    ]
+  }
 }

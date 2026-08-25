@@ -115,6 +115,8 @@ export interface SupabaseRlsCheckResult {
 export type RetryableWriteResponse = {
   data: unknown;
   error: { message?: string | null } | null;
+  /** HTTP 状态码；`0` 表示传输失败，用于错误分类（RV-001） */
+  status?: number;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {

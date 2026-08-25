@@ -2,6 +2,9 @@
   "name": "@fixture/main-only",
   "exports": {
     "./package.json": "./package.json",
-    ".": "./src/index.ts"
+    ".": {
+      "@aiao/source": "./src/decoy-not-the-main-entry.ts",
+      "import": "./dist/index.js"
+    }
   }
 }

@@ -98,7 +98,7 @@ const sidebars: SidebarsConfig = {
         type: 'doc',
         id: 'adapters/README'
       },
-      items: ['adapters/sqlite', 'adapters/pglite', 'adapters/supabase']
+      items: ['adapters/sqlite', 'adapters/pglite', 'adapters/supabase', 'adapters/http', 'adapters/http-protocol']
     },
     {
       type: 'category',
@@ -164,9 +164,12 @@ const sidebars: SidebarsConfig = {
         'migration/v1',
         'migration/frameworks',
         'migration/adapters',
+        'migration/supabase-network-errors',
+        'migration/http-page-token',
         'migration/desktop-split',
         'migration/plugins',
         'migration/plugin-scope',
+        'migration/generator-default',
         'migration/schema'
       ]
     },

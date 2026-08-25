@@ -30,6 +30,7 @@ import { resolveEntityScope, type EntityScope } from './entity_scope.js';
 import { SupabaseConfigError, SupabaseDataError, SupabaseUnsupportedPropertyTypeError } from './errors.js';
 import { handleSupabaseChange } from './handle_supabase_change.js';
 import { chunk_values, select_all_pages, SUPABASE_IN_CHUNK_SIZE } from './pagination.js';
+import { classify_postgrest_error } from './postgrest-error.js';
 import { apply_rule_group } from './rule_group_builder.js';
 import { build_delete_params, build_upsert_params, group_by_type } from './RxDBAdapterSupabase.utils.js';
 import { resolve_supabase_schema } from './schema.utils.js';
@@ -150,9 +151,9 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
   async version(): Promise<string> {
     if (this.#databaseVersion) return this.#databaseVersion;
 
-    const { data, error } = await this.#client.rpc('rxdb_server_version');
+    const { data, error, status } = await this.#client.rpc('rxdb_server_version');
     if (error) {
-      throw new SupabaseDataError(`Failed to get database version: ${error.message}`);
+      throw classify_postgrest_error({ error, status }, 'Failed to get database version');
     }
     if (typeof data !== 'string' || data.trim().length === 0) {
       throw new SupabaseDataError('Failed to get database version: invalid response data');
@@ -208,11 +209,11 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     const upserted = await this.executeRetryableWrite(
       'execute transaction',
       async () => {
-        const { data, error } = await this.#client.rpc('rxdb_mutations', {
+        const { data, error, status } = await this.#client.rpc('rxdb_mutations', {
           p_upserts: upserts,
           p_deletes: deletes
         });
-        return { data, error };
+        return { data, error, status };
       },
       validateMutationsResponse<InstanceType<T>>
     );
@@ -259,8 +260,9 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     if (result.status === 200 || result.status === 206) return true;
     if (result.status === 204 || result.status === 404 || result.status === 406) return false;
 
-    throw new SupabaseDataError(
-      `Failed to check table existence: ${result.error?.message || `status ${result.status}`}`
+    throw classify_postgrest_error(
+      { error: result.error ?? { message: `status ${result.status}` }, status: result.status },
+      'Failed to check table existence'
     );
   }
 
@@ -302,7 +304,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       }
       assertSnapshotFilterSupported(filter);
       const scope = scopes[0];
-      const { data, error } = await this.#client.rpc('rxdb_pull_changes', {
+      const { data, error, status } = await this.#client.rpc('rxdb_pull_changes', {
         p_since_id: sinceId,
         p_limit: limit,
         p_namespace: scope.namespace,
@@ -311,7 +313,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
         p_filter: filter
       });
       if (error) {
-        throw new SupabaseDataError(`Failed to pull changes: ${error.message}`);
+        throw classify_postgrest_error({ error, status }, 'Failed to pull changes');
       }
       if (!Array.isArray(data)) {
         throw new SupabaseDataError('Failed to pull changes: invalid response data');
@@ -340,9 +342,9 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       query = query.eq('branchId', branchId);
     }
 
-    const { data, error } = await query;
+    const { data, error, status } = await query;
     if (error) {
-      throw new SupabaseDataError(`Failed to pull changes: ${error.message}`);
+      throw classify_postgrest_error({ error, status }, 'Failed to pull changes');
     }
 
     return (data ?? [])
@@ -393,9 +395,9 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       query = query.eq('branchId', branchId);
     }
 
-    const { data, count, error } = await query.order('id', { ascending: false }).limit(1);
+    const { data, count, error, status } = await query.order('id', { ascending: false }).limit(1);
     if (error) {
-      throw new SupabaseDataError(`Failed to get change count: ${error.message}`);
+      throw classify_postgrest_error({ error, status }, 'Failed to get change count');
     }
 
     return {
@@ -441,13 +443,13 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     return this.executeRetryableWrite(
       'merge changes',
       async () => {
-        const { data, error } = await this.#client.rpc('rxdb_mutations', {
+        const { data, error, status } = await this.#client.rpc('rxdb_mutations', {
           p_upserts,
           p_deletes,
           p_changes,
           p_skip_sync: true
         });
-        return { data, error };
+        return { data, error, status };
       },
       validateMergeResponse
     );
@@ -499,10 +501,10 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       }
     }
 
-    const { data, error } = await query;
+    const { data, error, status } = await query;
 
     if (error) {
-      throw new SupabaseDataError(`Failed to batch pull changes: ${error.message}`);
+      throw classify_postgrest_error({ error, status }, 'Failed to batch pull changes');
     }
 
     return (data ?? []).map(row => ({
@@ -521,25 +523,25 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       return { synced: 0, skipped: [] };
     }
 
-    const { data, error } = await this.#client.rpc('rxdb_enable_sync_for_branch', {
+    const { data, error, status } = await this.#client.rpc('rxdb_enable_sync_for_branch', {
       p_branches: branches
     });
 
     if (error) {
-      throw new SupabaseDataError(`Failed to sync branches: ${error.message}`);
+      throw classify_postgrest_error({ error, status }, 'Failed to sync branches');
     }
 
     return validatePushBranchesResponse(data);
   }
 
   override async branchExists(branchId: string): Promise<boolean> {
-    const { count, error } = await this.#client
+    const { count, error, status } = await this.#client
       .from('rxdb_branch')
       .select('id', { count: 'exact', head: true })
       .eq('id', branchId);
 
     if (error) {
-      throw new SupabaseDataError(`Failed to check branch existence: ${error.message}`);
+      throw classify_postgrest_error({ error, status }, 'Failed to check branch existence');
     }
 
     return (count ?? 0) > 0;
@@ -641,24 +643,31 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     validate: (data: unknown) => TResult
   ): Promise<TResult> {
     let lastMessage = 'Unknown error';
+    let lastStatus: number | undefined;
 
     for (let attempt = 1; attempt <= RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS; attempt++) {
-      const { data, error } = await operation();
+      const { data, error, status } = await operation();
 
       if (!error) {
         return validate(data);
       }
 
       lastMessage = error.message || 'Unknown error';
+      lastStatus = status;
 
       if (!isRetryableSupabaseWriteError(lastMessage) || attempt === RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS) {
-        throw new SupabaseDataError(`Failed to ${operationName}: ${lastMessage}`);
+        break;
       }
 
       await wait(RETRYABLE_SUPABASE_WRITE_RETRY_DELAY_MS * attempt);
     }
 
-    throw new SupabaseDataError(`Failed to ${operationName}: ${lastMessage}`);
+    // 重试耗尽后才分类：传输失败重试到最后仍是传输失败，调用方（US-212 的重试策略、
+    // QueryCache 的 offlineFallback）需要认得出它，不能被包成看起来像远端拒绝的 DATA_ERROR。
+    throw classify_postgrest_error(
+      { error: { message: lastMessage }, status: lastStatus },
+      `Failed to ${operationName}`
+    );
   }
 
   /** 执行 upsert（非事务） */
@@ -691,12 +700,16 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       const result = await this.executeRetryableWrite(
         'upsert',
         async () => {
-          const { data: upsertedData, error } = await client
+          const {
+            data: upsertedData,
+            error,
+            status
+          } = await client
             .from(metadata.tableName)
             .upsert(data as Record<string, unknown>[])
             .select();
 
-          return { data: upsertedData, error };
+          return { data: upsertedData, error, status };
         },
         value => validateArrayResponse<InstanceType<T>>(value, 'upsert')
       );
@@ -722,8 +735,8 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       const deletedRows = await this.executeRetryableWrite(
         'delete',
         async () => {
-          const { data, error } = await client.from(metadata.tableName).delete().in('id', ids).select('id');
-          return { data, error };
+          const { data, error, status } = await client.from(metadata.tableName).delete().in('id', ids).select('id');
+          return { data, error, status };
         },
         value => validateArrayResponse<{ id: unknown }>(value, 'delete')
       );
@@ -939,10 +952,14 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     const rows: T[] = [];
 
     for (const chunk of chunk_values(ids, SUPABASE_IN_CHUNK_SIZE)) {
-      const { data, error } = await this.#client.schema(scope.schema).from(scope.tableName).select('*').in('id', chunk);
+      const { data, error, status } = await this.#client
+        .schema(scope.schema)
+        .from(scope.tableName)
+        .select('*')
+        .in('id', chunk);
 
       if (error) {
-        throw new SupabaseDataError(`Failed to find by ids: ${error.message}`);
+        throw classify_postgrest_error({ error, status }, 'Failed to find by ids');
       }
 
       rows.push(...((data ?? []) as T[]));
