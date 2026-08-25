@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ConditionalRequestCache, requestFingerprint } from './conditional-cache.js';
+import { ConditionalRequestCache, requestFingerprint } from '../conditional-cache.js';
 
 /**
  * US-212 AC#28 的**容器**单元测试：指纹、有界、single-flight。

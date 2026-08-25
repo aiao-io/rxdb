@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { HttpInvalidMetadataError } from './errors.js';
-import { canonicalizeMetadata } from './metadata.js';
+import { HttpInvalidMetadataError } from '../errors.js';
+import { canonicalizeMetadata } from '../metadata.js';
 
 /**
  * US-212 AC#14：metadata 的 `updatedAt` 必须以**规范化 ISO 字符串**交给 core。

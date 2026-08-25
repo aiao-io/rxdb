@@ -1,10 +1,10 @@
 import { Entity, EntityBase, PropertyType, RxDB, SyncType, type RuleGroup, type SyncOptions } from '@aiao/rxdb';
 import { firstValueFrom, lastValueFrom, toArray } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { HttpConfigError, HttpHandlerContractError, HttpUnsupportedOperationError } from './errors.js';
-import type { HttpAdapterOptions } from './http.interface.js';
-import { createRestHandlers, type RestHandlersOptions } from './rest.js';
-import { RxDBAdapterHttp } from './RxDBAdapterHttp.js';
+import { HttpConfigError, HttpHandlerContractError, HttpUnsupportedOperationError } from '../errors.js';
+import type { HttpAdapterOptions } from '../http.interface.js';
+import { createRestHandlers, type RestHandlersOptions } from '../rest.js';
+import { RxDBAdapterHttp } from '../RxDBAdapterHttp.js';
 
 /**
  * US-212 阶段 B AC#27：REST resource URL 模板。

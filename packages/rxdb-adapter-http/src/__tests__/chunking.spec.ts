@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { findByIdsInChunks } from './chunking.js';
-import { HttpHandlerContractError, HttpResponseError } from './errors.js';
-import type { FindByIdsContext, FindByIdsHandler } from './http.interface.js';
-import { HttpTransport } from './transport.js';
+import { findByIdsInChunks } from '../chunking.js';
+import { HttpHandlerContractError, HttpResponseError } from '../errors.js';
+import type { FindByIdsContext, FindByIdsHandler } from '../http.interface.js';
+import { HttpTransport } from '../transport.js';
 
 /**
  * US-212 AC#8 / #9：id 列表分块请求后合并。

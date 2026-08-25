@@ -23,9 +23,9 @@ import {
   HttpResponseError,
   HttpUnsupportedOperationError,
   HttpUnsupportedWireTypeError
-} from './errors.js';
-import type { HttpAdapterOptions, HttpHandlers } from './http.interface.js';
-import { ADAPTER_NAME, RxDBAdapterHttp } from './RxDBAdapterHttp.js';
+} from '../errors.js';
+import type { HttpAdapterOptions, HttpHandlers } from '../http.interface.js';
+import { ADAPTER_NAME, RxDBAdapterHttp } from '../RxDBAdapterHttp.js';
 
 /**
  * US-212 AC#1 / #4 / #10 / #11 / #15 / #19 / #23～26 / #31～34：适配器类本体。

@@ -1,9 +1,9 @@
 import type { QueryCacheEntityMetadata, RuleGroup } from '@aiao/rxdb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpHandlerContractError, HttpPaginationError } from './errors.js';
-import type { FetchMetadataContext, FetchMetadataHandler, FetchMetadataResult } from './http.interface.js';
-import { fetchAllMetadataPages } from './pagination.js';
-import { HttpTransport } from './transport.js';
+import { HttpHandlerContractError, HttpPaginationError } from '../errors.js';
+import type { FetchMetadataContext, FetchMetadataHandler, FetchMetadataResult } from '../http.interface.js';
+import { fetchAllMetadataPages } from '../pagination.js';
+import { HttpTransport } from '../transport.js';
 
 /**
  * US-212 AC#5 / #6 / #7：翻页必须**翻完**，翻不安全时**抛错而不是返回半份**。

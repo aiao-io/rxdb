@@ -1,7 +1,7 @@
 import { isNetworkError, NetworkOfflineError } from '@aiao/rxdb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpDisconnectedError, HttpInvalidResponseError, HttpRequestBuildError, HttpResponseError } from './errors.js';
-import { HttpTransport } from './transport.js';
+import { HttpDisconnectedError, HttpInvalidResponseError, HttpRequestBuildError, HttpResponseError } from '../errors.js';
+import { HttpTransport } from '../transport.js';
 
 /**
  * US-212 AC#12 / #13 / #16 / #34：**transport 归适配器所有**。

@@ -14,9 +14,9 @@ import {
 } from '@aiao/rxdb';
 import { firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { HttpUnsupportedOperationError } from './errors.js';
-import type { HttpHandlers } from './http.interface.js';
-import { RxDBAdapterHttp } from './RxDBAdapterHttp.js';
+import { HttpUnsupportedOperationError } from '../errors.js';
+import type { HttpHandlers } from '../http.interface.js';
+import { RxDBAdapterHttp } from '../RxDBAdapterHttp.js';
 
 /**
  * US-212 AC#2 / #3 / #17 / #18 / #22（含 AC#20 的 inject 契约那一句）：把**真的**

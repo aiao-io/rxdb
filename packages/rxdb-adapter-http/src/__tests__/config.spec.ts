@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_HTTP_CONFIG, resolveHttpConfig } from './config.js';
-import { HttpConfigError } from './errors.js';
+import { DEFAULT_HTTP_CONFIG, resolveHttpConfig } from '../config.js';
+import { HttpConfigError } from '../errors.js';
 
 /**
  * US-212 AC#31：六个数值配置在**构造期**校验并 fail-fast。
