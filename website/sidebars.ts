@@ -98,7 +98,7 @@ const sidebars: SidebarsConfig = {
         type: 'doc',
         id: 'adapters/README'
       },
-      items: ['adapters/sqlite', 'adapters/pglite', 'adapters/supabase', 'adapters/http']
+      items: ['adapters/sqlite', 'adapters/pglite', 'adapters/supabase', 'adapters/http', 'adapters/http-protocol']
     },
     {
       type: 'category',

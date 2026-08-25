@@ -3,6 +3,11 @@
 `@aiao/rxdb-adapter-http` 让**你自己的 REST API** 充当 QueryCache 的远端事实源：
 本地 SQLite 只做行缓存，读写都以远端为准。适合已有一套后端接口、不打算把数据库结构暴露给客户端的场景。
 
+:::tip 后端对接者请看协议规范
+如果你是要**实现后端**（Node / Go / Python …）来对接 RxDB 前端，请看
+[HTTP QueryCache 协议规范](./http-protocol)——一份语言无关的端点 + JSON 契约，不看 TS 源码也能照着实现。
+:::
+
 :::warning v1 只支持 `SyncType.QueryCache`
 本包**没有** Full / Filter 同步：`pullChanges` / `mergeChanges` / `getChangeCount` 一律抛
 `HttpChangelogUnsupportedError`，不会返回空数组或 `0` 假装「远端无变更」。
