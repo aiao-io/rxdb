@@ -1,196 +1,198 @@
 {
-  "exports": [
-    {
-      "name": "assertSearchableSchemaValid",
-      "kind": "value"
-    },
-    {
-      "name": "buildBackfillSql",
-      "kind": "value"
-    },
-    {
-      "name": "buildFieldContainsSql",
-      "kind": "value"
-    },
-    {
-      "name": "buildFieldMatchExpression",
-      "kind": "value"
-    },
-    {
-      "name": "buildFieldSearchSql",
-      "kind": "value"
-    },
-    {
-      "name": "buildResetFtsSql",
-      "kind": "value"
-    },
-    {
-      "name": "buildSourceRowCountSql",
-      "kind": "value"
-    },
-    {
-      "name": "collectInvalidSearchableFields",
-      "kind": "value"
-    },
-    {
-      "name": "createSearchEngine",
-      "kind": "value"
-    },
-    {
-      "name": "createSearchHandle",
-      "kind": "value"
-    },
-    {
-      "name": "CreateSearchHandleOptions",
-      "kind": "type"
-    },
-    {
-      "name": "createSearchState",
-      "kind": "value"
-    },
-    {
-      "name": "FtsExecutor",
-      "kind": "type"
-    },
-    {
-      "name": "FtsInstallPlan",
-      "kind": "type"
-    },
-    {
-      "name": "installFtsForEntity",
-      "kind": "value"
-    },
-    {
-      "name": "InstallFtsResult",
-      "kind": "type"
-    },
-    {
-      "name": "InvalidSearchableField",
-      "kind": "type"
-    },
-    {
-      "name": "MAX_CONTAINS_FALLBACK_ROWS",
-      "kind": "value"
-    },
-    {
-      "name": "MAX_QUERY_LENGTH",
-      "kind": "value"
-    },
-    {
-      "name": "MAX_QUERY_TOKENS",
-      "kind": "value"
-    },
-    {
-      "name": "MAX_TOKEN_LENGTH",
-      "kind": "value"
-    },
-    {
-      "name": "MigrationRecordStore",
-      "kind": "type"
-    },
-    {
-      "name": "PerformSearch",
-      "kind": "type"
-    },
-    {
-      "name": "ResolveScopeInput",
-      "kind": "type"
-    },
-    {
-      "name": "resolveSearchScope",
-      "kind": "value"
-    },
-    {
-      "name": "RuntimeSqlExecutor",
-      "kind": "type"
-    },
-    {
-      "name": "rxDBPluginSearch",
-      "kind": "value"
-    },
-    {
-      "name": "RxDBPluginSearch",
-      "kind": "both"
-    },
-    {
-      "name": "SEARCHABLE_PROPERTY_TYPES",
-      "kind": "value"
-    },
-    {
-      "name": "SearchEncryptedFieldError",
-      "kind": "both"
-    },
-    {
-      "name": "SearchEngine",
-      "kind": "type"
-    },
-    {
-      "name": "SearchEngineQuery",
-      "kind": "type"
-    },
-    {
-      "name": "SearchError",
-      "kind": "both"
-    },
-    {
-      "name": "SearchExecutionError",
-      "kind": "both"
-    },
-    {
-      "name": "SearchHandle",
-      "kind": "type"
-    },
-    {
-      "name": "SearchOptions",
-      "kind": "type"
-    },
-    {
-      "name": "searchOptionsEqual",
-      "kind": "value"
-    },
-    {
-      "name": "SearchPage",
-      "kind": "type"
-    },
-    {
-      "name": "SearchPluginOptions",
-      "kind": "type"
-    },
-    {
-      "name": "SearchQueryLimitError",
-      "kind": "both"
-    },
-    {
-      "name": "SearchQueryLimitKind",
-      "kind": "type"
-    },
-    {
-      "name": "SearchResult",
-      "kind": "type"
-    },
-    {
-      "name": "SearchSchemaMismatchError",
-      "kind": "both"
-    },
-    {
-      "name": "SearchSourceLike",
-      "kind": "type"
-    },
-    {
-      "name": "SearchState",
-      "kind": "type"
-    },
-    {
-      "name": "SearchStateMachine",
-      "kind": "type"
-    },
-    {
-      "name": "SearchStateSnapshot",
-      "kind": "type"
-    },
-    {
-      "name": "SearchUnsupportedAdapterError",
-      "kind": "both"
-    }
-  ]
+  "entries": {
+    ".": [
+      {
+        "name": "assertSearchableSchemaValid",
+        "kind": "value"
+      },
+      {
+        "name": "buildBackfillSql",
+        "kind": "value"
+      },
+      {
+        "name": "buildFieldContainsSql",
+        "kind": "value"
+      },
+      {
+        "name": "buildFieldMatchExpression",
+        "kind": "value"
+      },
+      {
+        "name": "buildFieldSearchSql",
+        "kind": "value"
+      },
+      {
+        "name": "buildResetFtsSql",
+        "kind": "value"
+      },
+      {
+        "name": "buildSourceRowCountSql",
+        "kind": "value"
+      },
+      {
+        "name": "collectInvalidSearchableFields",
+        "kind": "value"
+      },
+      {
+        "name": "createSearchEngine",
+        "kind": "value"
+      },
+      {
+        "name": "createSearchHandle",
+        "kind": "value"
+      },
+      {
+        "name": "CreateSearchHandleOptions",
+        "kind": "type"
+      },
+      {
+        "name": "createSearchState",
+        "kind": "value"
+      },
+      {
+        "name": "FtsExecutor",
+        "kind": "type"
+      },
+      {
+        "name": "FtsInstallPlan",
+        "kind": "type"
+      },
+      {
+        "name": "installFtsForEntity",
+        "kind": "value"
+      },
+      {
+        "name": "InstallFtsResult",
+        "kind": "type"
+      },
+      {
+        "name": "InvalidSearchableField",
+        "kind": "type"
+      },
+      {
+        "name": "MAX_CONTAINS_FALLBACK_ROWS",
+        "kind": "value"
+      },
+      {
+        "name": "MAX_QUERY_LENGTH",
+        "kind": "value"
+      },
+      {
+        "name": "MAX_QUERY_TOKENS",
+        "kind": "value"
+      },
+      {
+        "name": "MAX_TOKEN_LENGTH",
+        "kind": "value"
+      },
+      {
+        "name": "MigrationRecordStore",
+        "kind": "type"
+      },
+      {
+        "name": "PerformSearch",
+        "kind": "type"
+      },
+      {
+        "name": "ResolveScopeInput",
+        "kind": "type"
+      },
+      {
+        "name": "resolveSearchScope",
+        "kind": "value"
+      },
+      {
+        "name": "RuntimeSqlExecutor",
+        "kind": "type"
+      },
+      {
+        "name": "rxDBPluginSearch",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBPluginSearch",
+        "kind": "both"
+      },
+      {
+        "name": "SEARCHABLE_PROPERTY_TYPES",
+        "kind": "value"
+      },
+      {
+        "name": "SearchEncryptedFieldError",
+        "kind": "both"
+      },
+      {
+        "name": "SearchEngine",
+        "kind": "type"
+      },
+      {
+        "name": "SearchEngineQuery",
+        "kind": "type"
+      },
+      {
+        "name": "SearchError",
+        "kind": "both"
+      },
+      {
+        "name": "SearchExecutionError",
+        "kind": "both"
+      },
+      {
+        "name": "SearchHandle",
+        "kind": "type"
+      },
+      {
+        "name": "SearchOptions",
+        "kind": "type"
+      },
+      {
+        "name": "searchOptionsEqual",
+        "kind": "value"
+      },
+      {
+        "name": "SearchPage",
+        "kind": "type"
+      },
+      {
+        "name": "SearchPluginOptions",
+        "kind": "type"
+      },
+      {
+        "name": "SearchQueryLimitError",
+        "kind": "both"
+      },
+      {
+        "name": "SearchQueryLimitKind",
+        "kind": "type"
+      },
+      {
+        "name": "SearchResult",
+        "kind": "type"
+      },
+      {
+        "name": "SearchSchemaMismatchError",
+        "kind": "both"
+      },
+      {
+        "name": "SearchSourceLike",
+        "kind": "type"
+      },
+      {
+        "name": "SearchState",
+        "kind": "type"
+      },
+      {
+        "name": "SearchStateMachine",
+        "kind": "type"
+      },
+      {
+        "name": "SearchStateSnapshot",
+        "kind": "type"
+      },
+      {
+        "name": "SearchUnsupportedAdapterError",
+        "kind": "both"
+      }
+    ]
+  }
 }

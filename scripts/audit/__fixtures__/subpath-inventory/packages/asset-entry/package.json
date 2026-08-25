@@ -1,0 +1,15 @@
+{
+  "name": "@fixture/asset-entry",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@aiao/source": "./src/index.ts",
+      "import": "./dist/index.js"
+    },
+    "./assets/thing.wasm": "./assets/thing.wasm",
+    "./runtime": {
+      "@aiao/source": "./src/runtime.ts",
+      "import": "./dist/runtime.js"
+    }
+  }
+}

@@ -33,6 +33,7 @@
       "default": "./dist/index.js"
     },
     "./host": {
+      "@aiao/source": "./src/host.ts",
       "types": "./dist/host.d.ts",
       "import": "./dist/host.js",
       "default": "./dist/host.js"

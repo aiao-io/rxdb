@@ -192,6 +192,19 @@ const rowUpdatedAt = (entity: unknown): string => {
 };
 
 /**
+ * 把已判定为网络故障的错误收敛成 {@link NetworkOfflineError}，幂等。
+ *
+ * @param error - `isNetworkError` 已判 `true` 的错误
+ * @returns 原对象（若它本就是 `NetworkOfflineError`），否则包一层
+ *
+ * @remarks
+ * 适配器可以自行分类后直接抛 `NetworkOfflineError`（`isNetworkError` 的第 1 条判据），
+ * 这时再包一层只会污染 message 并让 `originalError` 指向中间层。
+ */
+const toOfflineError = (error: unknown): NetworkOfflineError =>
+  error instanceof NetworkOfflineError ? error : new NetworkOfflineError(error as Error);
+
+/**
  * QueryCache 同步策略仓库
  *
  * @typeParam T - 实体类型
@@ -565,6 +578,10 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
    *
    * 分类写成谓词而不是在这里就地判断，是为了和 US-212 的重试策略共用同一套口径。
    * 拿不准的错误一律算「不是网络错误」：把 401 静默换成陈旧缓存，比让离线查询失败更糟。
+   *
+   * 适配器已经把错误分类成 {@link NetworkOfflineError} 时不再重复包裹（RV-001）：
+   * 二次包裹只会得到 `NetworkOfflineError: NetworkOfflineError: …` 的消息，
+   * 且把 `originalError` 指向一个中间层，丢掉真正的起因。
    */
   #wrapWithOfflineFallback(
     query$: Observable<InstanceType<T>[]>,
@@ -576,9 +593,7 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
           return throwError(() => error);
         }
         return this.#readLocal(where).pipe(
-          switchMap(cachedData =>
-            cachedData.length > 0 ? of(cachedData) : throwError(() => new NetworkOfflineError(error as Error))
-          )
+          switchMap(cachedData => (cachedData.length > 0 ? of(cachedData) : throwError(() => toOfflineError(error))))
         );
       })
     );

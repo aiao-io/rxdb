@@ -1,712 +1,714 @@
 {
-  "exports": [
-    {
-      "name": "AcquireResult",
-      "kind": "type"
-    },
-    {
-      "name": "aesDecrypt",
-      "kind": "value"
-    },
-    {
-      "name": "aesEncrypt",
-      "kind": "value"
-    },
-    {
-      "name": "AnyFunction",
-      "kind": "type"
-    },
-    {
-      "name": "AsyncQueueExecutor",
-      "kind": "both"
-    },
-    {
-      "name": "BASE_52_DIGITS",
-      "kind": "value"
-    },
-    {
-      "name": "BASE_62_DIGITS",
-      "kind": "value"
-    },
-    {
-      "name": "base64Decode",
-      "kind": "value"
-    },
-    {
-      "name": "base64Encode",
-      "kind": "value"
-    },
-    {
-      "name": "BooleanObject",
-      "kind": "type"
-    },
-    {
-      "name": "BroadcastTopic",
-      "kind": "type"
-    },
-    {
-      "name": "camelCase",
-      "kind": "value"
-    },
-    {
-      "name": "canBeDate",
-      "kind": "value"
-    },
-    {
-      "name": "canBeNumber",
-      "kind": "value"
-    },
-    {
-      "name": "capitalize",
-      "kind": "value"
-    },
-    {
-      "name": "capitalizeFirst",
-      "kind": "value"
-    },
-    {
-      "name": "checkOPFSAvailable",
-      "kind": "value"
-    },
-    {
-      "name": "chunk",
-      "kind": "value"
-    },
-    {
-      "name": "cloneDeep",
-      "kind": "value"
-    },
-    {
-      "name": "compressToBase64Url",
-      "kind": "value"
-    },
-    {
-      "name": "createBroadcastTopic",
-      "kind": "value"
-    },
-    {
-      "name": "createQueryOptionsKey",
-      "kind": "value"
-    },
-    {
-      "name": "createStableKey",
-      "kind": "value"
-    },
-    {
-      "name": "CronParts",
-      "kind": "type"
-    },
-    {
-      "name": "CronPartsDescription",
-      "kind": "type"
-    },
-    {
-      "name": "dateStringToDate",
-      "kind": "value"
-    },
-    {
-      "name": "dateStringWithTimezone",
-      "kind": "value"
-    },
-    {
-      "name": "debounce",
-      "kind": "value"
-    },
-    {
-      "name": "decodeJWTPayload",
-      "kind": "value"
-    },
-    {
-      "name": "decompressFromBase64Url",
-      "kind": "value"
-    },
-    {
-      "name": "deepFreeze",
-      "kind": "value"
-    },
-    {
-      "name": "DeepPartial",
-      "kind": "type"
-    },
-    {
-      "name": "describeCron",
-      "kind": "value"
-    },
-    {
-      "name": "describeCronParts",
-      "kind": "value"
-    },
-    {
-      "name": "difference",
-      "kind": "value"
-    },
-    {
-      "name": "emptyFunction",
-      "kind": "value"
-    },
-    {
-      "name": "ErrorResult",
-      "kind": "type"
-    },
-    {
-      "name": "EventDispatcher",
-      "kind": "both"
-    },
-    {
-      "name": "EventListener",
-      "kind": "type"
-    },
-    {
-      "name": "EventMap",
-      "kind": "type"
-    },
-    {
-      "name": "ExecutorStatus",
-      "kind": "type"
-    },
-    {
-      "name": "flatten",
-      "kind": "value"
-    },
-    {
-      "name": "flattenDeep",
-      "kind": "value"
-    },
-    {
-      "name": "flattenPathObjectToPlainObject",
-      "kind": "value"
-    },
-    {
-      "name": "formatCountdown",
-      "kind": "value"
-    },
-    {
-      "name": "formatDate",
-      "kind": "value"
-    },
-    {
-      "name": "formatFileSize",
-      "kind": "value"
-    },
-    {
-      "name": "formatPassTime",
-      "kind": "value"
-    },
-    {
-      "name": "generateKeyBetween",
-      "kind": "value"
-    },
-    {
-      "name": "generateKeysBetween",
-      "kind": "value"
-    },
-    {
-      "name": "get",
-      "kind": "value"
-    },
-    {
-      "name": "getFileCategory",
-      "kind": "value"
-    },
-    {
-      "name": "getFileExtension",
-      "kind": "value"
-    },
-    {
-      "name": "getRepositoryMethod",
-      "kind": "value"
-    },
-    {
-      "name": "has",
-      "kind": "value"
-    },
-    {
-      "name": "hasRepositoryMethod",
-      "kind": "value"
-    },
-    {
-      "name": "IdleTimer",
-      "kind": "both"
-    },
-    {
-      "name": "IdleTimerOptions",
-      "kind": "type"
-    },
-    {
-      "name": "IEventDispatcher",
-      "kind": "type"
-    },
-    {
-      "name": "IMAGE_MIN_BASE64_BLACK",
-      "kind": "value"
-    },
-    {
-      "name": "IMAGE_MIN_BASE64_TRANSPARENT",
-      "kind": "value"
-    },
-    {
-      "name": "intersection",
-      "kind": "value"
-    },
-    {
-      "name": "IS_BROWSER",
-      "kind": "value"
-    },
-    {
-      "name": "isActiveTimeWindow",
-      "kind": "value"
-    },
-    {
-      "name": "isArray",
-      "kind": "value"
-    },
-    {
-      "name": "isArrayBuffer",
-      "kind": "value"
-    },
-    {
-      "name": "isBoolean",
-      "kind": "value"
-    },
-    {
-      "name": "isBooleanLike",
-      "kind": "value"
-    },
-    {
-      "name": "isDate",
-      "kind": "value"
-    },
-    {
-      "name": "isEmpty",
-      "kind": "value"
-    },
-    {
-      "name": "isEqual",
-      "kind": "value"
-    },
-    {
-      "name": "isEqualDate",
-      "kind": "value"
-    },
-    {
-      "name": "isEqualUint8Array",
-      "kind": "value"
-    },
-    {
-      "name": "isFloat",
-      "kind": "value"
-    },
-    {
-      "name": "isFunction",
-      "kind": "value"
-    },
-    {
-      "name": "isImageType",
-      "kind": "value"
-    },
-    {
-      "name": "isInt",
-      "kind": "value"
-    },
-    {
-      "name": "isIntArray",
-      "kind": "value"
-    },
-    {
-      "name": "isISODateString",
-      "kind": "value"
-    },
-    {
-      "name": "isMilliseconds",
-      "kind": "value"
-    },
-    {
-      "name": "isMSTime",
-      "kind": "value"
-    },
-    {
-      "name": "isNil",
-      "kind": "value"
-    },
-    {
-      "name": "isNumber",
-      "kind": "value"
-    },
-    {
-      "name": "isNumberArray",
-      "kind": "value"
-    },
-    {
-      "name": "isObject",
-      "kind": "value"
-    },
-    {
-      "name": "isObjectLike",
-      "kind": "value"
-    },
-    {
-      "name": "isOPFSSupported",
-      "kind": "value"
-    },
-    {
-      "name": "isPlainObject",
-      "kind": "value"
-    },
-    {
-      "name": "isPreviewableType",
-      "kind": "value"
-    },
-    {
-      "name": "isPrimitive",
-      "kind": "value"
-    },
-    {
-      "name": "isPromise",
-      "kind": "value"
-    },
-    {
-      "name": "isRegExp",
-      "kind": "value"
-    },
-    {
-      "name": "isString",
-      "kind": "value"
-    },
-    {
-      "name": "isStringArray",
-      "kind": "value"
-    },
-    {
-      "name": "isSymbol",
-      "kind": "value"
-    },
-    {
-      "name": "isUint8Array",
-      "kind": "value"
-    },
-    {
-      "name": "kebabCase",
-      "kind": "value"
-    },
-    {
-      "name": "LeaderElection",
-      "kind": "both"
-    },
-    {
-      "name": "LifecycleScope",
-      "kind": "both"
-    },
-    {
-      "name": "LifecycleScopeDisposedError",
-      "kind": "both"
-    },
-    {
-      "name": "logError",
-      "kind": "value"
-    },
-    {
-      "name": "MSTime",
-      "kind": "type"
-    },
-    {
-      "name": "msTimeToMilliseconds",
-      "kind": "value"
-    },
-    {
-      "name": "needArray",
-      "kind": "value"
-    },
-    {
-      "name": "nextMacroTask",
-      "kind": "value"
-    },
-    {
-      "name": "nextMicroTask",
-      "kind": "value"
-    },
-    {
-      "name": "noop",
-      "kind": "value"
-    },
-    {
-      "name": "numberStep",
-      "kind": "value"
-    },
-    {
-      "name": "numberStepScreenSize",
-      "kind": "value"
-    },
-    {
-      "name": "numberStrip",
-      "kind": "value"
-    },
-    {
-      "name": "omit",
-      "kind": "value"
-    },
-    {
-      "name": "omitBy",
-      "kind": "value"
-    },
-    {
-      "name": "once",
-      "kind": "value"
-    },
-    {
-      "name": "OpfsEntryKind",
-      "kind": "type"
-    },
-    {
-      "name": "OpfsRouteActions",
-      "kind": "type"
-    },
-    {
-      "name": "OpfsRouteSync",
-      "kind": "both"
-    },
-    {
-      "name": "orderBy",
-      "kind": "value"
-    },
-    {
-      "name": "parseChineseNumber",
-      "kind": "value"
-    },
-    {
-      "name": "parseCron",
-      "kind": "value"
-    },
-    {
-      "name": "parseTime",
-      "kind": "value"
-    },
-    {
-      "name": "performChunk",
-      "kind": "value"
-    },
-    {
-      "name": "PerformChunkHandle",
-      "kind": "type"
-    },
-    {
-      "name": "PersistedStateEntry",
-      "kind": "type"
-    },
-    {
-      "name": "PersistedStateRegistry",
-      "kind": "both"
-    },
-    {
-      "name": "PersistedStateRegistryOptions",
-      "kind": "type"
-    },
-    {
-      "name": "pick",
-      "kind": "value"
-    },
-    {
-      "name": "pickBy",
-      "kind": "value"
-    },
-    {
-      "name": "plainObjectToFlattenPathObject",
-      "kind": "value"
-    },
-    {
-      "name": "pool",
-      "kind": "value"
-    },
-    {
-      "name": "QueryMethod",
-      "kind": "type"
-    },
-    {
-      "name": "queryParse",
-      "kind": "value"
-    },
-    {
-      "name": "queryStringify",
-      "kind": "value"
-    },
-    {
-      "name": "randomArrayItem",
-      "kind": "value"
-    },
-    {
-      "name": "randomFloat",
-      "kind": "value"
-    },
-    {
-      "name": "randomInt",
-      "kind": "value"
-    },
-    {
-      "name": "randomString",
-      "kind": "value"
-    },
-    {
-      "name": "randomUintByLength",
-      "kind": "value"
-    },
-    {
-      "name": "randomUintString",
-      "kind": "value"
-    },
-    {
-      "name": "renameOpfsEntry",
-      "kind": "value"
-    },
-    {
-      "name": "requestIdleCallbackPolyfill",
-      "kind": "value"
-    },
-    {
-      "name": "Result",
-      "kind": "type"
-    },
-    {
-      "name": "rmbUppercase",
-      "kind": "value"
-    },
-    {
-      "name": "rsaDecrypt",
-      "kind": "value"
-    },
-    {
-      "name": "rsaEncrypt",
-      "kind": "value"
-    },
-    {
-      "name": "rsaGenerateKey",
-      "kind": "value"
-    },
-    {
-      "name": "ScopeDisposer",
-      "kind": "type"
-    },
-    {
-      "name": "ScopeEntry",
-      "kind": "type"
-    },
-    {
-      "name": "set",
-      "kind": "value"
-    },
-    {
-      "name": "setBase",
-      "kind": "value"
-    },
-    {
-      "name": "setWith",
-      "kind": "value"
-    },
-    {
-      "name": "similarity",
-      "kind": "value"
-    },
-    {
-      "name": "sleep",
-      "kind": "value"
-    },
-    {
-      "name": "snakeCase",
-      "kind": "value"
-    },
-    {
-      "name": "sortBy",
-      "kind": "value"
-    },
-    {
-      "name": "startCase",
-      "kind": "value"
-    },
-    {
-      "name": "STORAGE_LABELS",
-      "kind": "value"
-    },
-    {
-      "name": "STORAGE_TESTID",
-      "kind": "value"
-    },
-    {
-      "name": "stringSingleline",
-      "kind": "value"
-    },
-    {
-      "name": "stringTemplate",
-      "kind": "value"
-    },
-    {
-      "name": "stringTime",
-      "kind": "value"
-    },
-    {
-      "name": "stringToArrayBuffer",
-      "kind": "value"
-    },
-    {
-      "name": "SuccessResult",
-      "kind": "type"
-    },
-    {
-      "name": "TaskId",
-      "kind": "type"
-    },
-    {
-      "name": "throttle",
-      "kind": "value"
-    },
-    {
-      "name": "toInt",
-      "kind": "value"
-    },
-    {
-      "name": "toPlainObject",
-      "kind": "value"
-    },
-    {
-      "name": "traverseObjectKeys",
-      "kind": "value"
-    },
-    {
-      "name": "tryToNumber",
-      "kind": "value"
-    },
-    {
-      "name": "uint8ArrayToString",
-      "kind": "value"
-    },
-    {
-      "name": "uncapitalize",
-      "kind": "value"
-    },
-    {
-      "name": "uncapitalizeFirst",
-      "kind": "value"
-    },
-    {
-      "name": "unionBy",
-      "kind": "value"
-    },
-    {
-      "name": "unixTimestamp",
-      "kind": "value"
-    },
-    {
-      "name": "urlJoin",
-      "kind": "value"
-    },
-    {
-      "name": "utf8StringToArrayBuffer",
-      "kind": "value"
-    },
-    {
-      "name": "withTimeWindows",
-      "kind": "value"
-    },
-    {
-      "name": "zipObject",
-      "kind": "value"
-    }
-  ]
+  "entries": {
+    ".": [
+      {
+        "name": "AcquireResult",
+        "kind": "type"
+      },
+      {
+        "name": "aesDecrypt",
+        "kind": "value"
+      },
+      {
+        "name": "aesEncrypt",
+        "kind": "value"
+      },
+      {
+        "name": "AnyFunction",
+        "kind": "type"
+      },
+      {
+        "name": "AsyncQueueExecutor",
+        "kind": "both"
+      },
+      {
+        "name": "BASE_52_DIGITS",
+        "kind": "value"
+      },
+      {
+        "name": "BASE_62_DIGITS",
+        "kind": "value"
+      },
+      {
+        "name": "base64Decode",
+        "kind": "value"
+      },
+      {
+        "name": "base64Encode",
+        "kind": "value"
+      },
+      {
+        "name": "BooleanObject",
+        "kind": "type"
+      },
+      {
+        "name": "BroadcastTopic",
+        "kind": "type"
+      },
+      {
+        "name": "camelCase",
+        "kind": "value"
+      },
+      {
+        "name": "canBeDate",
+        "kind": "value"
+      },
+      {
+        "name": "canBeNumber",
+        "kind": "value"
+      },
+      {
+        "name": "capitalize",
+        "kind": "value"
+      },
+      {
+        "name": "capitalizeFirst",
+        "kind": "value"
+      },
+      {
+        "name": "checkOPFSAvailable",
+        "kind": "value"
+      },
+      {
+        "name": "chunk",
+        "kind": "value"
+      },
+      {
+        "name": "cloneDeep",
+        "kind": "value"
+      },
+      {
+        "name": "compressToBase64Url",
+        "kind": "value"
+      },
+      {
+        "name": "createBroadcastTopic",
+        "kind": "value"
+      },
+      {
+        "name": "createQueryOptionsKey",
+        "kind": "value"
+      },
+      {
+        "name": "createStableKey",
+        "kind": "value"
+      },
+      {
+        "name": "CronParts",
+        "kind": "type"
+      },
+      {
+        "name": "CronPartsDescription",
+        "kind": "type"
+      },
+      {
+        "name": "dateStringToDate",
+        "kind": "value"
+      },
+      {
+        "name": "dateStringWithTimezone",
+        "kind": "value"
+      },
+      {
+        "name": "debounce",
+        "kind": "value"
+      },
+      {
+        "name": "decodeJWTPayload",
+        "kind": "value"
+      },
+      {
+        "name": "decompressFromBase64Url",
+        "kind": "value"
+      },
+      {
+        "name": "deepFreeze",
+        "kind": "value"
+      },
+      {
+        "name": "DeepPartial",
+        "kind": "type"
+      },
+      {
+        "name": "describeCron",
+        "kind": "value"
+      },
+      {
+        "name": "describeCronParts",
+        "kind": "value"
+      },
+      {
+        "name": "difference",
+        "kind": "value"
+      },
+      {
+        "name": "emptyFunction",
+        "kind": "value"
+      },
+      {
+        "name": "ErrorResult",
+        "kind": "type"
+      },
+      {
+        "name": "EventDispatcher",
+        "kind": "both"
+      },
+      {
+        "name": "EventListener",
+        "kind": "type"
+      },
+      {
+        "name": "EventMap",
+        "kind": "type"
+      },
+      {
+        "name": "ExecutorStatus",
+        "kind": "type"
+      },
+      {
+        "name": "flatten",
+        "kind": "value"
+      },
+      {
+        "name": "flattenDeep",
+        "kind": "value"
+      },
+      {
+        "name": "flattenPathObjectToPlainObject",
+        "kind": "value"
+      },
+      {
+        "name": "formatCountdown",
+        "kind": "value"
+      },
+      {
+        "name": "formatDate",
+        "kind": "value"
+      },
+      {
+        "name": "formatFileSize",
+        "kind": "value"
+      },
+      {
+        "name": "formatPassTime",
+        "kind": "value"
+      },
+      {
+        "name": "generateKeyBetween",
+        "kind": "value"
+      },
+      {
+        "name": "generateKeysBetween",
+        "kind": "value"
+      },
+      {
+        "name": "get",
+        "kind": "value"
+      },
+      {
+        "name": "getFileCategory",
+        "kind": "value"
+      },
+      {
+        "name": "getFileExtension",
+        "kind": "value"
+      },
+      {
+        "name": "getRepositoryMethod",
+        "kind": "value"
+      },
+      {
+        "name": "has",
+        "kind": "value"
+      },
+      {
+        "name": "hasRepositoryMethod",
+        "kind": "value"
+      },
+      {
+        "name": "IdleTimer",
+        "kind": "both"
+      },
+      {
+        "name": "IdleTimerOptions",
+        "kind": "type"
+      },
+      {
+        "name": "IEventDispatcher",
+        "kind": "type"
+      },
+      {
+        "name": "IMAGE_MIN_BASE64_BLACK",
+        "kind": "value"
+      },
+      {
+        "name": "IMAGE_MIN_BASE64_TRANSPARENT",
+        "kind": "value"
+      },
+      {
+        "name": "intersection",
+        "kind": "value"
+      },
+      {
+        "name": "IS_BROWSER",
+        "kind": "value"
+      },
+      {
+        "name": "isActiveTimeWindow",
+        "kind": "value"
+      },
+      {
+        "name": "isArray",
+        "kind": "value"
+      },
+      {
+        "name": "isArrayBuffer",
+        "kind": "value"
+      },
+      {
+        "name": "isBoolean",
+        "kind": "value"
+      },
+      {
+        "name": "isBooleanLike",
+        "kind": "value"
+      },
+      {
+        "name": "isDate",
+        "kind": "value"
+      },
+      {
+        "name": "isEmpty",
+        "kind": "value"
+      },
+      {
+        "name": "isEqual",
+        "kind": "value"
+      },
+      {
+        "name": "isEqualDate",
+        "kind": "value"
+      },
+      {
+        "name": "isEqualUint8Array",
+        "kind": "value"
+      },
+      {
+        "name": "isFloat",
+        "kind": "value"
+      },
+      {
+        "name": "isFunction",
+        "kind": "value"
+      },
+      {
+        "name": "isImageType",
+        "kind": "value"
+      },
+      {
+        "name": "isInt",
+        "kind": "value"
+      },
+      {
+        "name": "isIntArray",
+        "kind": "value"
+      },
+      {
+        "name": "isISODateString",
+        "kind": "value"
+      },
+      {
+        "name": "isMilliseconds",
+        "kind": "value"
+      },
+      {
+        "name": "isMSTime",
+        "kind": "value"
+      },
+      {
+        "name": "isNil",
+        "kind": "value"
+      },
+      {
+        "name": "isNumber",
+        "kind": "value"
+      },
+      {
+        "name": "isNumberArray",
+        "kind": "value"
+      },
+      {
+        "name": "isObject",
+        "kind": "value"
+      },
+      {
+        "name": "isObjectLike",
+        "kind": "value"
+      },
+      {
+        "name": "isOPFSSupported",
+        "kind": "value"
+      },
+      {
+        "name": "isPlainObject",
+        "kind": "value"
+      },
+      {
+        "name": "isPreviewableType",
+        "kind": "value"
+      },
+      {
+        "name": "isPrimitive",
+        "kind": "value"
+      },
+      {
+        "name": "isPromise",
+        "kind": "value"
+      },
+      {
+        "name": "isRegExp",
+        "kind": "value"
+      },
+      {
+        "name": "isString",
+        "kind": "value"
+      },
+      {
+        "name": "isStringArray",
+        "kind": "value"
+      },
+      {
+        "name": "isSymbol",
+        "kind": "value"
+      },
+      {
+        "name": "isUint8Array",
+        "kind": "value"
+      },
+      {
+        "name": "kebabCase",
+        "kind": "value"
+      },
+      {
+        "name": "LeaderElection",
+        "kind": "both"
+      },
+      {
+        "name": "LifecycleScope",
+        "kind": "both"
+      },
+      {
+        "name": "LifecycleScopeDisposedError",
+        "kind": "both"
+      },
+      {
+        "name": "logError",
+        "kind": "value"
+      },
+      {
+        "name": "MSTime",
+        "kind": "type"
+      },
+      {
+        "name": "msTimeToMilliseconds",
+        "kind": "value"
+      },
+      {
+        "name": "needArray",
+        "kind": "value"
+      },
+      {
+        "name": "nextMacroTask",
+        "kind": "value"
+      },
+      {
+        "name": "nextMicroTask",
+        "kind": "value"
+      },
+      {
+        "name": "noop",
+        "kind": "value"
+      },
+      {
+        "name": "numberStep",
+        "kind": "value"
+      },
+      {
+        "name": "numberStepScreenSize",
+        "kind": "value"
+      },
+      {
+        "name": "numberStrip",
+        "kind": "value"
+      },
+      {
+        "name": "omit",
+        "kind": "value"
+      },
+      {
+        "name": "omitBy",
+        "kind": "value"
+      },
+      {
+        "name": "once",
+        "kind": "value"
+      },
+      {
+        "name": "OpfsEntryKind",
+        "kind": "type"
+      },
+      {
+        "name": "OpfsRouteActions",
+        "kind": "type"
+      },
+      {
+        "name": "OpfsRouteSync",
+        "kind": "both"
+      },
+      {
+        "name": "orderBy",
+        "kind": "value"
+      },
+      {
+        "name": "parseChineseNumber",
+        "kind": "value"
+      },
+      {
+        "name": "parseCron",
+        "kind": "value"
+      },
+      {
+        "name": "parseTime",
+        "kind": "value"
+      },
+      {
+        "name": "performChunk",
+        "kind": "value"
+      },
+      {
+        "name": "PerformChunkHandle",
+        "kind": "type"
+      },
+      {
+        "name": "PersistedStateEntry",
+        "kind": "type"
+      },
+      {
+        "name": "PersistedStateRegistry",
+        "kind": "both"
+      },
+      {
+        "name": "PersistedStateRegistryOptions",
+        "kind": "type"
+      },
+      {
+        "name": "pick",
+        "kind": "value"
+      },
+      {
+        "name": "pickBy",
+        "kind": "value"
+      },
+      {
+        "name": "plainObjectToFlattenPathObject",
+        "kind": "value"
+      },
+      {
+        "name": "pool",
+        "kind": "value"
+      },
+      {
+        "name": "QueryMethod",
+        "kind": "type"
+      },
+      {
+        "name": "queryParse",
+        "kind": "value"
+      },
+      {
+        "name": "queryStringify",
+        "kind": "value"
+      },
+      {
+        "name": "randomArrayItem",
+        "kind": "value"
+      },
+      {
+        "name": "randomFloat",
+        "kind": "value"
+      },
+      {
+        "name": "randomInt",
+        "kind": "value"
+      },
+      {
+        "name": "randomString",
+        "kind": "value"
+      },
+      {
+        "name": "randomUintByLength",
+        "kind": "value"
+      },
+      {
+        "name": "randomUintString",
+        "kind": "value"
+      },
+      {
+        "name": "renameOpfsEntry",
+        "kind": "value"
+      },
+      {
+        "name": "requestIdleCallbackPolyfill",
+        "kind": "value"
+      },
+      {
+        "name": "Result",
+        "kind": "type"
+      },
+      {
+        "name": "rmbUppercase",
+        "kind": "value"
+      },
+      {
+        "name": "rsaDecrypt",
+        "kind": "value"
+      },
+      {
+        "name": "rsaEncrypt",
+        "kind": "value"
+      },
+      {
+        "name": "rsaGenerateKey",
+        "kind": "value"
+      },
+      {
+        "name": "ScopeDisposer",
+        "kind": "type"
+      },
+      {
+        "name": "ScopeEntry",
+        "kind": "type"
+      },
+      {
+        "name": "set",
+        "kind": "value"
+      },
+      {
+        "name": "setBase",
+        "kind": "value"
+      },
+      {
+        "name": "setWith",
+        "kind": "value"
+      },
+      {
+        "name": "similarity",
+        "kind": "value"
+      },
+      {
+        "name": "sleep",
+        "kind": "value"
+      },
+      {
+        "name": "snakeCase",
+        "kind": "value"
+      },
+      {
+        "name": "sortBy",
+        "kind": "value"
+      },
+      {
+        "name": "startCase",
+        "kind": "value"
+      },
+      {
+        "name": "STORAGE_LABELS",
+        "kind": "value"
+      },
+      {
+        "name": "STORAGE_TESTID",
+        "kind": "value"
+      },
+      {
+        "name": "stringSingleline",
+        "kind": "value"
+      },
+      {
+        "name": "stringTemplate",
+        "kind": "value"
+      },
+      {
+        "name": "stringTime",
+        "kind": "value"
+      },
+      {
+        "name": "stringToArrayBuffer",
+        "kind": "value"
+      },
+      {
+        "name": "SuccessResult",
+        "kind": "type"
+      },
+      {
+        "name": "TaskId",
+        "kind": "type"
+      },
+      {
+        "name": "throttle",
+        "kind": "value"
+      },
+      {
+        "name": "toInt",
+        "kind": "value"
+      },
+      {
+        "name": "toPlainObject",
+        "kind": "value"
+      },
+      {
+        "name": "traverseObjectKeys",
+        "kind": "value"
+      },
+      {
+        "name": "tryToNumber",
+        "kind": "value"
+      },
+      {
+        "name": "uint8ArrayToString",
+        "kind": "value"
+      },
+      {
+        "name": "uncapitalize",
+        "kind": "value"
+      },
+      {
+        "name": "uncapitalizeFirst",
+        "kind": "value"
+      },
+      {
+        "name": "unionBy",
+        "kind": "value"
+      },
+      {
+        "name": "unixTimestamp",
+        "kind": "value"
+      },
+      {
+        "name": "urlJoin",
+        "kind": "value"
+      },
+      {
+        "name": "utf8StringToArrayBuffer",
+        "kind": "value"
+      },
+      {
+        "name": "withTimeWindows",
+        "kind": "value"
+      },
+      {
+        "name": "zipObject",
+        "kind": "value"
+      }
+    ]
+  }
 }

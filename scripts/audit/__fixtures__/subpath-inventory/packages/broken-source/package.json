@@ -1,0 +1,14 @@
+{
+  "name": "@fixture/broken-source",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@aiao/source": "./src/index.ts",
+      "import": "./dist/index.js"
+    },
+    "./gone": {
+      "@aiao/source": "./src/gone.ts",
+      "import": "./dist/gone.js"
+    }
+  }
+}
