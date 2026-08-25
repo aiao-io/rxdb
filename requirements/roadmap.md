@@ -8,14 +8,11 @@
 
 | 优先级 | 建议功能                           | 对应 story                                                             | 建议理由                                                                                                                                                                       | 主要交付边界                                                                                                                                                                                                                                                                  |
 | :----: | ---------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-|   ✅   | QueryCache 接入统一 Repository     | [US-020](stories/core/US-020-querycache-repository.md)                 | **已于 2026-08-22 两阶段全关**（保留在表内是因为约束 10 / 线 F 仍引用它）。`SyncType.QueryCache` 不再是空操作：`getRepository` 走 `QueryCacheRepository`，写 remote-then-local | 两阶段均已交付，**US-212 的两档发布门禁（`experimental` / `stable`）同时解除**                                                                                                                                                                                                |
-|   ✅   | HTTP 远程适配器                    | [US-212](stories/adapter/US-212-http-adapter.md)                       | **已于 2026-08-24 两阶段全关。** 已有 REST API 没有 RemoteBase 可挂的病症消失：独立 `adapter:remote` + 独立注册 sqlite 行缓存，未内嵌 sqlite                                   | ~~阶段 A handlers + QueryCache ducks + 翻页/分块契约 + 错误分类 + **结构隔离不变量**（约束 11）~~ ✅ 2026-08-23 关；~~阶段 B REST mapping~~ ✅ 同日关；~~AC#28 ETag / If-None-Match~~ ✅ 2026-08-24 关（owner = 本包），AC#29 / #30 已移出。**发布门禁已全部解除**（约束 10） |
 |   P2   | 提交图与 HEAD 持久化               | [US-305](stories/collaboration/US-305-commit-graph-head.md)            | 旧暂存导出已在 `0.0.24` 删除，能力缺口现在完全敞开                                                                                                                             | 独立命名空间的新契约、commit 存储布局、baseline commit 与一次性迁移                                                                                                                                                                                                           |
-|   ✅   | 生成器 default 序列化与显式失败    | [US-018](stories/core/US-018-generator-default-serialization.md)       | **已于 2026-08-24 关闭**（保留在表内是因为约束 1 / 12 与线 D 仍引用它）。bigint / `Uint8Array` / `Date` 不再被改写，函数工厂不再被静默丢弃                                     | 全部交付：运行时类型分派、`default` → 字面量映射表、`unsupportedDefaultFactory` / `unsupportedDefaultValue`、[迁移表](../website/docs/migration/generator-default.md)。**发布仍受约束 12 约束**：不得与线 A 的桥接版本同批发                                                  |
-|   ✅   | 子路径入口纳入 API 表面基线        | [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)       | **已于 2026-08-24 关闭**（保留在表内是因为线 D 与约束 7 仍引用它）。版本策略把子路径承诺为公开 API，门禁却只扫主入口——那份差额已消掉                                           | 全部交付：源入口收敛到 `@aiao/source` 单一真相源、基线扩为 `{ entries: {...} }`（30 包 44 入口）、资产入口白名单跳过、四处文档收口。**无发布门禁**：基线是仓库内部产物，不对外发布                                                                                            |
 |   P2   | Electron PGlite 数据目录与事务宿主 | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md)     | PGlite callback transaction 不能跨 IPC 序列化，需要 SQLite 路径不需要的事务 host 协议                                                                                          | **先做两案对照实验**（批次 1 线 G），再做主进程 data directory、事务 ID 协议或主进程托管 adapter、跨进程类型保真                                                                                                                                                              |
 |   P2   | PGlite 原生全文搜索                | [US-703](stories/future/US-703-pglite-full-text-search.md)             | SQLite FTS5 已完成，PGlite 搜索缺口会造成适配器能力不对称                                                                                                                      | `tsvector/GIN/trigger`、存量回填、`tsquery` 排序/snippet/分页、三框架 parity                                                                                                                                                                                                  |
 |   P3   | 多端小程序宿主（先抽契约）         | [US-211 阶段 A](stories/adapter/US-211-multi-miniprogram-platforms.md) | Taro 有 `build:alipay/tt/qq/swan`，适配器只认 `wx`；先抽 host + 可行性矩阵，**不**扩大公开支持声明                                                                             | `MiniProgramHost`、微信路径零回归、`miniprogram-platform-feasibility.md`；B/C 只吃矩阵 `supported`                                                                                                                                                                            |
+|   P3   | HTTP 适配器 wire 级集成测试        | [US-213](stories/adapter/US-213-http-wire-integration-test.md)         | US-212 已关但 transport 从未被真实 socket 打过；补真实 node HTTP 后端 + 真实 fetch 端到端，证明 `http-protocol.md` 可互通                                                       | 零依赖 `node:http` 参考后端（7 端点 + 故障注入）+ `wire-integration.spec.ts`；**不改 `src/`**，只加测试资产，纳入 `pnpm nx test rxdb-adapter-http`                                                                                                                              |
 
 > US-306 / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
 > [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定依赖关系。
@@ -29,6 +26,12 @@
 >
 > [US-013](stories/core/US-013-lifecycle-scope-primitive.md) / [US-014](stories/core/US-014-plugin-scope-contract.md)
 > 已于 2026-08-20 全关，从本表移出，留档见下方「已完成」。
+>
+> [US-020](stories/core/US-020-querycache-repository.md)（2026-08-22）、
+> [US-212](stories/adapter/US-212-http-adapter.md)（2026-08-24）、
+> [US-018](stories/core/US-018-generator-default-serialization.md) /
+> [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)（2026-08-24）均已 Done，
+> 从本表移出，留档见下方「已完成」；约束 1 / 7 / 10 / 11 / 12 与线 D / F 仍引用它们。
 
 ## 已完成（保留记录）
 
@@ -86,6 +89,18 @@
   这也是 AC#12「对外语义不变」记 ⚠️ 而非 ✅ 的原因，迁移页按这条写。
 - **未解锁任何后续**：阶段 B 已随本次收口移出 epic-008 承诺范围，解锁条件是「出现第一个 `plugin:*`
   依赖声明」，不因阶段 A 关闭而放行（约束 8）。
+
+### QueryCache 快车道（US-020 + US-212）与两张独立小票（US-018 + US-601）✅
+
+- **对应 story**：[US-020](stories/core/US-020-querycache-repository.md)（2026-08-22 两阶段全关）/
+  [US-212](stories/adapter/US-212-http-adapter.md)（2026-08-24 两阶段全关）/
+  [US-018](stories/core/US-018-generator-default-serialization.md)（2026-08-24）/
+  [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)（2026-08-24）
+- **收口**：US-020 让 `SyncType.QueryCache` 不再是空操作（`getRepository` 走 `QueryCacheRepository`，
+  写 remote-then-local），并解除 US-212 的两档发布门禁；US-212 交付 HTTP 远程适配器（远端权威 +
+  独立注册 sqlite 行缓存，结构隔离不变量冻结，AC#28 判给本包，AC#29/#30 移出）；US-018 修掉 bigint /
+  `Uint8Array` / `Date` 被改写与函数工厂被静默丢弃；US-601 把子路径入口纳入 API 表面基线。
+- **发布侧尾巴**：US-018 含 `BREAKING CHANGE`，不得与线 A 的桥接版本同批发（约束 12，尚未行使）。
 
 ## 完成计划（2026-08-18 排定，2026-08-22 重排）
 
