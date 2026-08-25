@@ -6,6 +6,7 @@ import type { EntityMetadata, EntityType, IRepository, RuleGroup } from '@aiao/r
 import { EntityStaticType, getEntityMetadata, isRuleGroup, normalizeUpdateEntity, RepositoryBase } from '@aiao/rxdb';
 
 import { SupabaseDataError } from './errors.js';
+import { classify_postgrest_error } from './postgrest-error.js';
 import { apply_rule_group } from './rule_group_builder.js';
 import type { RxDBAdapterSupabase } from './RxDBAdapterSupabase.js';
 import { resolve_supabase_schema } from './schema.utils.js';
@@ -72,7 +73,8 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
    *
    * @param options - 查询条件（where / orderBy / limit / offset）
    * @returns 满足条件的实体数组（已通过 transform_row_to_entity 还原为类型实例）
-   * @throws {SupabaseDataError} PostgREST 返回错误时
+   * @throws `NetworkOfflineError` 连不上远端（判离线用 core 的 `isNetworkError`，不要按 `SupabaseDataError` 捕获）
+   * @throws {SupabaseDataError} 远端拒绝（RLS / 约束 / 语法等）
    */
   async find(options: EntityStaticType<T, 'findOptions'>): Promise<InstanceType<T>[]> {
     type FindOrder = NonNullable<EntityStaticType<T, 'findOptions'>['orderBy']>[number];
@@ -108,8 +110,8 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
       const batchSize = remaining === undefined ? pageSize : Math.min(pageSize, remaining);
       if (batchSize <= 0) break;
 
-      const { data, error } = await build_query().range(from, from + batchSize - 1);
-      if (error) throw new SupabaseDataError(`Failed to find entities: ${error.message}`);
+      const { data, error, status } = await build_query().range(from, from + batchSize - 1);
+      if (error) throw classify_postgrest_error({ error, status }, 'Failed to find entities');
 
       const batch = (data ?? []) as unknown as Record<string, unknown>[];
       rows.push(...batch);
@@ -135,7 +137,8 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
    * @param options - 查询条件（where / groupBy）
    * @returns 实体总数（无匹配时返回 0）
    * @throws {Error} 传入 groupBy（暂未实现）
-   * @throws {SupabaseDataError} PostgREST 返回错误时
+   * @throws `NetworkOfflineError` 连不上远端（判离线用 core 的 `isNetworkError`，不要按 `SupabaseDataError` 捕获）
+   * @throws {SupabaseDataError} 远端拒绝（RLS / 约束 / 语法等）
    */
   async count(options: EntityStaticType<T, 'countOptions'>): Promise<number> {
     if (options.groupBy) throw new Error('groupBy not supported yet');
@@ -146,9 +149,9 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
     let query = this.get_client().select(selectFields, { count: 'exact', head: true });
     query = apply_rule_group(query, where, this.metadata, this.adapter.rxdb.schemaManager);
 
-    const { count, error } = await query;
+    const { count, error, status } = await query;
     if (error) {
-      throw new SupabaseDataError(`Failed to count entities: ${error.message || 'unknown error'}`);
+      throw classify_postgrest_error({ error, status }, 'Failed to count entities');
     }
 
     return count ?? 0;
@@ -161,7 +164,8 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
    *
    * @param entity - 待创建的实体（必须包含主键 id）
    * @returns 创建后的实体（含数据库回填字段如 createdAt，已通过 `transform_row_to_entity` 还原为类型实例）
-   * @throws {SupabaseDataError} 插入失败（主键冲突 / RLS 拒绝 / 网络错误等）
+   * @throws `NetworkOfflineError` 连不上远端（判离线用 core 的 `isNetworkError`，不要按 `SupabaseDataError` 捕获）
+   * @throws {SupabaseDataError} 远端拒绝插入（主键冲突 / RLS / 约束等）
    */
   async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
     const entityData = { ...entity } as Record<string, unknown>;
@@ -171,8 +175,8 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
       entityData['updatedBy'] = userId;
     }
 
-    const { data, error } = await this.get_client().insert(entityData).select().single();
-    if (error) throw new SupabaseDataError(`Failed to create entity: ${error.message}`);
+    const { data, error, status } = await this.get_client().insert(entityData).select().single();
+    if (error) throw classify_postgrest_error({ error, status }, 'Failed to create entity');
 
     return transform_row_to_entity(this.EntityType, this.metadata, data as Record<string, unknown>);
   }
@@ -188,7 +192,8 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
    * @param entity - 目标实体（仅取 id 用于定位行）
    * @param patch - 增量字段（不含 id）
    * @returns 更新后的实体（已通过 `transform_row_to_entity` 还原为类型实例）
-   * @throws {SupabaseDataError} 行不存在 / RLS 拒绝 / 网络错误时
+   * @throws `NetworkOfflineError` 连不上远端（判离线用 core 的 `isNetworkError`，不要按 `SupabaseDataError` 捕获）
+   * @throws {SupabaseDataError} 行不存在 / RLS 拒绝
    */
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
     const patchData = normalize_supabase_update(this.metadata, patch as Record<string, unknown>);
@@ -197,12 +202,12 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
       const updatedBy = this.metadata.propertyMap.get('updatedBy');
       if (updatedBy) patchData[updatedBy.columnName] = userId;
     }
-    const { data, error } = await this.get_client()
+    const { data, error, status } = await this.get_client()
       .update<Record<string, unknown>>(patchData)
       .eq('id', entity.id)
       .select()
       .single();
-    if (error) throw new SupabaseDataError(`Failed to update entity: ${error.message}`);
+    if (error) throw classify_postgrest_error({ error, status }, 'Failed to update entity');
     return transform_row_to_entity(this.EntityType, this.metadata, data as Record<string, unknown>);
   }
 
@@ -213,11 +218,12 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
    *
    * @param entity - 目标实体（仅取 id 用于定位行）
    * @returns 传入的 entity（删除成功后原样返回）
-   * @throws {SupabaseDataError} RLS 拒绝 / 网络错误时
+   * @throws `NetworkOfflineError` 连不上远端（判离线用 core 的 `isNetworkError`，不要按 `SupabaseDataError` 捕获）
+   * @throws {SupabaseDataError} RLS 拒绝，或删除的行与目标 id 不符
    */
   async remove(entity: InstanceType<T>): Promise<InstanceType<T>> {
-    const { data, error } = await this.get_client().delete().eq('id', entity.id).select('id').single();
-    if (error) throw new SupabaseDataError(`Failed to remove entity: ${error.message}`);
+    const { data, error, status } = await this.get_client().delete().eq('id', entity.id).select('id').single();
+    if (error) throw classify_postgrest_error({ error, status }, 'Failed to remove entity');
     if (data?.id !== entity.id) throw new SupabaseDataError('Failed to remove entity: deleted row did not match');
     return entity;
   }

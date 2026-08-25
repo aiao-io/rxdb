@@ -9,7 +9,7 @@
  *    网关/浏览器的 URL 长度上限，表现为 `TypeError: Failed to fetch` 或 414。
  */
 
-import { SupabaseDataError } from './errors.js';
+import { classify_postgrest_error } from './postgrest-error.js';
 
 /**
  * 单页行数，与 docker compose 里 `PGRST_DB_MAX_ROWS` 的默认值一致。
@@ -27,6 +27,8 @@ export const SUPABASE_IN_CHUNK_SIZE = 100;
 interface PagedResponse<T> {
   data: T[] | null;
   error: { message: string } | null;
+  /** HTTP 状态码；`0` 表示传输失败，用于错误分类（RV-001） */
+  status?: number;
 }
 
 /**
@@ -56,7 +58,8 @@ export function chunk_values<T>(values: readonly T[], chunkSize: number = SUPABA
  * @param errorMessage - 出错时的前缀，例如 `'Failed to pull branches'`
  * @param pageSize - 单页行数，默认 {@link SUPABASE_PAGE_SIZE}
  * @returns 全部行
- * @throws {@link SupabaseDataError} 任一页查询失败
+ * @throws `NetworkOfflineError` 任一页因连不上远端而失败（分类见 {@link classify_postgrest_error}）
+ * @throws `SupabaseDataError` 任一页被远端拒绝（RLS / 约束 / 语法等）
  */
 export async function select_all_pages<T>(
   build_page: (from: number, to: number) => PromiseLike<PagedResponse<T>>,
@@ -66,9 +69,9 @@ export async function select_all_pages<T>(
   const rows: T[] = [];
 
   for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await build_page(offset, offset + pageSize - 1);
+    const { data, error, status } = await build_page(offset, offset + pageSize - 1);
     if (error) {
-      throw new SupabaseDataError(`${errorMessage}: ${error.message}`);
+      throw classify_postgrest_error({ error, status }, errorMessage);
     }
 
     const page = data ?? [];

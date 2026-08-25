@@ -1,0 +1,39 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-adapter-http",
+  "tags": ["js-lib"],
+  "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-adapter-http",
+        "command": "tsc --build tsconfig.lib.json --emitDeclarationOnly"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "outputs": ["{workspaceRoot}/coverage/packages/rxdb-adapter-http"],
+      "options": {
+        "cwd": "packages/rxdb-adapter-http",
+        "command": "vitest"
+      },
+      "metadata": {
+        "technologies": ["vite", "vitest"],
+        "description": "Run Vitest tests in the node environment (US-212 AC#13 requires node, not browser)",
+        "help": {
+          "command": "pnpm exec vitest --help",
+          "example": {
+            "options": {
+              "bail": 1,
+              "coverage": true
+            }
+          }
+        }
+      }
+    }
+  }
+}

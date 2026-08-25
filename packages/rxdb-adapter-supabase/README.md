@@ -55,6 +55,14 @@ pnpm add @aiao/rxdb-adapter-wa-sqlite
 
 > ⚠️ 不存在 `createSupabaseAdapter()` / `createRxdb()` 这类工厂函数，请用下方的类 + `rxdb.adapter()` 注册方式。
 
+### 错误类型的分工
+
+**连不上远端时抛的是 core 的 `NetworkOfflineError`，不是 `SupabaseDataError`**——后者只表示远端给出的拒绝（RLS、约束、语法等）。判离线请用 `@aiao/rxdb` 的 `isNetworkError`，不要按 `SupabaseDataError` 捕获网络失败，否则断网时那条分支不会命中。
+
+导出里的 `SupabaseNetworkError` 已 `@deprecated`，从未被抛出过，也不可用于表示离线。
+
+这是相对早期版本的破坏性变更，迁移步骤见[《Supabase 传输失败错误类型迁移》](https://github.com/aiao-io/rxdb/blob/main/website/docs/migration/supabase-network-errors.md)。
+
 ## 快速开始
 
 ### 1. 配置 RxDB（本地 wa-sqlite + 远程 supabase）

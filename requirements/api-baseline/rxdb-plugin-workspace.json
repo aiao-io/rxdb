@@ -1,28 +1,30 @@
 {
-  "exports": [
-    {
-      "name": "rxDBPluginWorkspace",
-      "kind": "value"
-    },
-    {
-      "name": "RxDBPluginWorkspaceOptions",
-      "kind": "type"
-    },
-    {
-      "name": "WorkspaceCacheEntry",
-      "kind": "type"
-    },
-    {
-      "name": "WorkspaceCacheId",
-      "kind": "type"
-    },
-    {
-      "name": "WorkspaceCorruptedEntry",
-      "kind": "type"
-    },
-    {
-      "name": "WorkspaceFlushError",
-      "kind": "both"
-    }
-  ]
+  "entries": {
+    ".": [
+      {
+        "name": "rxDBPluginWorkspace",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBPluginWorkspaceOptions",
+        "kind": "type"
+      },
+      {
+        "name": "WorkspaceCacheEntry",
+        "kind": "type"
+      },
+      {
+        "name": "WorkspaceCacheId",
+        "kind": "type"
+      },
+      {
+        "name": "WorkspaceCorruptedEntry",
+        "kind": "type"
+      },
+      {
+        "name": "WorkspaceFlushError",
+        "kind": "both"
+      }
+    ]
+  }
 }

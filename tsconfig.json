@@ -146,6 +146,9 @@
     },
     {
       "path": "./modules/wujie"
+    },
+    {
+      "path": "./packages/rxdb-adapter-http"
     }
   ]
 }

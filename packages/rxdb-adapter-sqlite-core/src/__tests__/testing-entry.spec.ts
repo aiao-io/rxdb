@@ -53,7 +53,11 @@ const suiteExports = [
 describe('testing subpath', () => {
   it('keeps the published testing export on executable dist entries', () => {
     expect(packageJson.exports).toHaveProperty('./testing');
+    // `@aiao/source` 是构建期条件（US-601）：Node 的运行时解析器不认识这个条件名，
+    // 因此它指向 `.ts` 不影响下面三条运行时条件仍然落在可执行的 dist 产物上。
+    // 它的用途是让 api-surface.mjs 从一处真相源找到本子路径的源入口并纳入 API 基线。
     expect(Reflect.get(packageJson.exports, './testing')).toEqual({
+      '@aiao/source': './src/testing.ts',
       types: './dist/testing.d.ts',
       import: './dist/testing.js',
       default: './dist/testing.js'

@@ -39,22 +39,30 @@
 
 ### 基线工作流
 
-- 每个公开包在 `requirements/api-baseline/<pkg>.json` 记录排序后的导出符号表面。
+- 每个公开包在 `requirements/api-baseline/<pkg>.json` 记录排序后的导出符号表面，
+  格式为 `{ entries: { ".": [...], "./testing": [...] } }` —— **主入口与每个子路径入口各占一条**。
 - CI 运行 `node scripts/audit/api-surface.mjs --check`；出现未声明的表面变化即失败。
 - 预期内的变更：`node scripts/audit/api-surface.mjs --update` 重新生成基线，PR 标注是否 breaking，必要时补迁移说明。
+- 分级对子路径与主入口一致：**入口整体消失**或符号 removed / kind changed = 破坏性（需迁移说明）；
+  仅新增入口或新增符号 = 基线漂移（跑 `--update` 即可）。
 
-> **已知不覆盖：子路径入口的导出表面。** 基线只扫主入口 `src/index.ts`，`exports` 里声明的子路径
-> （`@aiao/rxdb-adapter-miniprogram/runtime`、`@aiao/rxdb-adapter-wa-sqlite/client` 等，
-> **8 个公开包共 12 个入口**；`@aiao/rxdb-test` 的 5 个不算——整包已排除，非产品 API）
-> **属于第 2 节的公开 API，但导出表面不受本门禁保护**——改动它们的导出必须在 PR 描述里人工声明破坏性。
+### 子路径入口的源入口声明
+
+入口 → 源文件的**唯一真相源**是 `package.json` › `exports` › `@aiao/source`（[US-601](stories/tooling/US-601-subpath-api-surface-baseline.md)）。
+它是构建期条件——Node 的运行时解析器不认识这个条件名，指向 `.ts` 不影响 `types` / `import` / `default`
+仍落在可执行的 dist 产物上（由 [package-runtime-conditions.mjs](../scripts/audit/package-runtime-conditions.mjs) 的白名单守护）。
+
+新增子路径入口时必须同时补上该条件，否则 `--check` 与 `--update` **两种模式都硬失败**：
+`--update` 若带着解析不了的入口继续写基线，等于把一个公开入口静默从快照里删掉。
+源入口写错路径同样硬失败，不降级为「零导出」——否则整个入口被删会被记成「表面无变化」。
+
+> **唯一的例外：无导出表面的资产入口。** `@aiao/rxdb-adapter-miniprogram/assets/wa-sqlite.{cjs,wasm}`
+> 是二进制 / CJS 文件，没有 TS 源可解析，登记在 [api-surface.mjs](../scripts/audit/api-surface.mjs) 的
+> `ASSET_SUBPATHS` 白名单里显式跳过，内容改由 [wa-sqlite-integrity.mjs](../scripts/audit/wa-sqlite-integrity.mjs)
+> 的 SHA-256 固定守护。白名单双向核对：登记了包里已不存在的入口、或登记的包已退出扫描范围，同样门禁红。
 >
-> 清单本身**是受保护的**：真相源为 [api-surface.mjs](../scripts/audit/api-surface.mjs) 的
-> `KNOWN_UNCOVERED_SUBPATHS`，每次 `--check` 都逐包核对 `exports`，新增或删除子路径而不同步清单即失败。
-> 这只保证「没有子路径悄悄溜进公开 API 而无人知晓」，不等于它们的导出表面被守住。
->
-> 扩展扫描器以覆盖子路径**导出表面**由 [US-601](stories/tooling/US-601-subpath-api-surface-baseline.md) 认领
-> （Backlog；不在 [US-209](stories/adapter/US-209-miniprogram-adapter.md) 范围内）。**在它交付之前本条警示继续生效。**
-> 对外呈现见 [website/docs/versioning.md](../website/docs/versioning.md) 的同名警示块。
+> `@aiao/rxdb-test` 的 5 个子路径不在此列——整包已排除，非产品 API。
+> 对外呈现见 [website/docs/versioning.md](../website/docs/versioning.md)。
 
 ## 5. 版本级别决策
 

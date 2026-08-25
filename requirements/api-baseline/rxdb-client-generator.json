@@ -1,48 +1,82 @@
 {
-  "exports": [
-    {
-      "name": "EntitySourceGetter",
-      "kind": "type"
-    },
-    {
-      "name": "GeneratorContext",
-      "kind": "type"
-    },
-    {
-      "name": "IRepositoryGenerator",
-      "kind": "type"
-    },
-    {
-      "name": "NAMESPACE_PUBLIC",
-      "kind": "value"
-    },
-    {
-      "name": "REPOSITORY_TYPE_GRAPH_REPOSITORY",
-      "kind": "value"
-    },
-    {
-      "name": "REPOSITORY_TYPE_REPOSITORY",
-      "kind": "value"
-    },
-    {
-      "name": "REPOSITORY_TYPE_TREE_REPOSITORY",
-      "kind": "value"
-    },
-    {
-      "name": "RepositoryGeneratorBase",
-      "kind": "both"
-    },
-    {
-      "name": "RxDBClientGenerator",
-      "kind": "both"
-    },
-    {
-      "name": "RxDBClientGeneratorOptions",
-      "kind": "type"
-    },
-    {
-      "name": "SourceFile",
-      "kind": "type"
-    }
-  ]
+  "entries": {
+    ".": [
+      {
+        "name": "EntitySourceGetter",
+        "kind": "type"
+      },
+      {
+        "name": "GeneratorContext",
+        "kind": "type"
+      },
+      {
+        "name": "IRepositoryGenerator",
+        "kind": "type"
+      },
+      {
+        "name": "NAMESPACE_PUBLIC",
+        "kind": "value"
+      },
+      {
+        "name": "REPOSITORY_TYPE_GRAPH_REPOSITORY",
+        "kind": "value"
+      },
+      {
+        "name": "REPOSITORY_TYPE_REPOSITORY",
+        "kind": "value"
+      },
+      {
+        "name": "REPOSITORY_TYPE_TREE_REPOSITORY",
+        "kind": "value"
+      },
+      {
+        "name": "RepositoryGeneratorBase",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBClientGenerator",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBClientGeneratorOptions",
+        "kind": "type"
+      },
+      {
+        "name": "SourceFile",
+        "kind": "type"
+      }
+    ],
+    "./cli": [
+      {
+        "name": "isCliEntry",
+        "kind": "value"
+      },
+      {
+        "name": "loadConfig",
+        "kind": "value"
+      },
+      {
+        "name": "main",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBClientCLIentGeneratorOptions",
+        "kind": "type"
+      },
+      {
+        "name": "sameCliFileUrl",
+        "kind": "value"
+      }
+    ],
+    "./vite": [
+      {
+        "name": "rxdbClientGeneratorVitePlugin",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBClientGeneratorVitePluginOptions",
+        "kind": "type"
+      }
+    ]
+  }
 }

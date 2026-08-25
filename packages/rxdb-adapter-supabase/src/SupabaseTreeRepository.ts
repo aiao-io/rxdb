@@ -10,8 +10,8 @@ import {
   type ITreeRepository,
   type RuleGroup
 } from '@aiao/rxdb';
-import { SupabaseDataError } from './errors.js';
 import { chunk_values, select_all_pages, SUPABASE_PAGE_SIZE } from './pagination.js';
+import { classify_postgrest_error } from './postgrest-error.js';
 import { apply_rule_group } from './rule_group_builder.js';
 import type { RxDBAdapterSupabase } from './RxDBAdapterSupabase.js';
 import { resolve_supabase_schema } from './schema.utils.js';
@@ -22,6 +22,8 @@ import { transform_row_to_entity } from './transform.js';
 interface ChildRowsResponse {
   data: unknown[] | null;
   error: { message: string } | null;
+  /** HTTP 状态码；`0` 表示传输失败，用于错误分类（RV-001） */
+  status?: number;
 }
 
 /**
@@ -116,9 +118,9 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
     // 根节点可能有任意多个，必须翻页。
     const loadRoots = async (): Promise<Record<string, unknown>[]> => {
       if (entityId) {
-        const { data, error } = await tableClient.select('*').eq('id', entityId).limit(1);
+        const { data, error, status } = await tableClient.select('*').eq('id', entityId).limit(1);
         if (error) {
-          throw new SupabaseDataError(`Failed to find descendants: ${error.message}`);
+          throw classify_postgrest_error({ error, status }, 'Failed to find descendants');
         }
         return (data ?? []) as Record<string, unknown>[];
       }
@@ -262,9 +264,9 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
       // 某一级祖先不匹配即断链，它上面的整条链都不再返回，即使更高处的节点自身匹配。
       // 与 findDescendants 及 sqlite-core 的 children_where 同一套语义。
       const hopQuery = tableClient().select('*').eq('id', currentId);
-      const { data, error } = await (currentLevel === 0 ? hopQuery : this.applyWhere(hopQuery, where)).limit(1);
+      const { data, error, status } = await (currentLevel === 0 ? hopQuery : this.applyWhere(hopQuery, where)).limit(1);
       if (error) {
-        throw new SupabaseDataError(`Failed to find ancestors: ${error.message}`);
+        throw classify_postgrest_error({ error, status }, 'Failed to find ancestors');
       }
       const node = data?.[0] as Record<string, unknown> | undefined;
       if (!node) break;
@@ -339,9 +341,9 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
       const pending = new Set(chunk);
 
       for (let offset = 0; pending.size > 0; offset += SUPABASE_PAGE_SIZE) {
-        const { data, error } = await build_page(chunk, offset, offset + SUPABASE_PAGE_SIZE - 1);
+        const { data, error, status } = await build_page(chunk, offset, offset + SUPABASE_PAGE_SIZE - 1);
         if (error) {
-          throw new SupabaseDataError(`${errorMessage}: ${error.message}`);
+          throw classify_postgrest_error({ error, status }, errorMessage);
         }
 
         const page = data ?? [];
