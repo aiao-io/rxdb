@@ -14,8 +14,8 @@
 import type { DatabaseSync } from 'node:sqlite';
 
 import { SEED_ROW_COUNT } from './config.ts';
-import { createSchema, deleteDatabaseFile, openDatabase } from './db.ts';
 import type { RecipeRow } from './db.ts';
+import { createSchema, deleteDatabaseFile, openDatabase } from './db.ts';
 
 /** 菜名词表。长度 10 与 `status` 的 3、`tag` 的 4 互质，组合不会周期性重叠。 */
 const DISHES = ['Pasta', 'Risotto', 'Ramen', 'Curry', 'Tacos', 'Paella', 'Gnocchi', 'Pho', 'Bibimbap', 'Falafel'];

@@ -21,14 +21,14 @@ pnpm nx serve dev-rxdb-http
 
 ## 为什么是这些端口
 
-| 端口 | 归属                            |
-| :--- | :------------------------------ |
-| 4200 | `dev-rxdb-angular`              |
-| 4201 | `dev-rxdb-react`                |
-| 4202 | `dev-rxdb-vue`                  |
-| 4203 | `dev-rxdb-supabase`             |
-| 4300 | **本 demo 前端**                |
-| 4301 | **本 demo 后端**                |
+| 端口 | 归属                |
+| :--- | :------------------ |
+| 4200 | `dev-rxdb-angular`  |
+| 4201 | `dev-rxdb-react`    |
+| 4202 | `dev-rxdb-vue`      |
+| 4203 | `dev-rxdb-supabase` |
+| 4300 | **本 demo 前端**    |
+| 4301 | **本 demo 后端**    |
 
 4300 / 4301 端口不同即不同源，AC#9～#12 那一组跨源验收全靠这一条。
 

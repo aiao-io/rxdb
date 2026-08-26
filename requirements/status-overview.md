@@ -8,12 +8,12 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 44   |
+| ✅ Done        | 46   |
 | 🚧 In Progress | 2    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 10   |
+| 📝 Backlog     | 11   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 57   |
+| **合计**       | 60   |
 
 三条口径，读表前必知：
 
@@ -174,7 +174,13 @@
   - ✅ 阶段 A handlers 注入 + QueryCache ducks + 分页/分块 + QueryCache-only 写路径契约测试
   - ✅ 阶段 B — REST resource URL 模板（AC#27，`createRestHandlers()`）+ ETag / If-None-Match（AC#28，`conditional-cache.ts`，缺省关闭）；SSE 与 eviction（AC#29 / AC#30）在 2026-08-24 的 owner 判定里拿不到 owner，**已移出本故事**，见上一行与 [roadmap「明确不排期」](roadmap.md#明确不排期)
 - ⬜ [US-213 HTTP 适配器 wire 级集成测试](stories/adapter/US-213-http-wire-integration-test.md) — US-212 的验收补票，**不重开该故事**：本包 9 个 spec 里 6 个在 `vi.stubGlobal('fetch')` 层拦截（另三个是零桩纯单元测试），transport 从未被真实 socket 打过，`http-protocol.md` 已随 `stable` 对外却无可执行验收。零依赖 `node:http` 参考后端 + 真实 fetch，17 条 AC，纯测试资产不改 `src/`；协议缺陷另开故事（[roadmap 约束 13](roadmap.md#排期约束)）。排期在 [批次 3](roadmap.md#批次-3能力与验证补齐无硬前置按价值排在后面)
-- ⬜ 🅰️ [US-214 HTTP 适配器浏览器端到端 demo](stories/adapter/US-214-http-browser-demo.md) — 与 US-213 **并列不重复**、零先后：`apps/` 下三个新 project（Angular 4300 + `node:http`/`node:sqlite` 4301 + playwright），**故意跨源**。证 US-213 结构上够不到的三件事：CORS 预检与 `Access-Control-Expose-Headers: ETag`（协议文档全篇零处提 CORS，漏配会让条件请求**静默**失效）、`RuleGroup → 参数化 SQL`（US-213 的参考后端在 JS 里过滤）、真 wa-sqlite 行缓存上的孤儿清理与 `offlineFallback`。阶段 A 可手工跑通 / 阶段 B 自动化门禁，17 条 AC，不改 `src/`（[roadmap 约束 14](roadmap.md#排期约束)）。排期在 [批次 3](roadmap.md#批次-3能力与验证补齐无硬前置按价值排在后面)
+- 🅰️ ✅ [US-214 HTTP 适配器浏览器端到端 demo](stories/adapter/US-214-http-browser-demo.md) — 两阶段，2026-08-27 全关。与 US-213 **并列不重复**、零先后：`apps/` 下三个新 project（Angular 4300 + `node:http`/`node:sqlite` 4301 + playwright），**故意跨源**。证 US-213 结构上够不到的三件事：CORS 预检与 `Access-Control-Expose-Headers: ETag`（协议文档全篇零处提 CORS，漏配会让条件请求**静默**失效）、`RuleGroup → 参数化 SQL`（US-213 的参考后端在 JS 里过滤）、真 wa-sqlite 行缓存上的孤儿清理与 `offlineFallback`。17 条 AC 全绿，9 条 playwright 用例覆盖 AC#9～15，`packages/rxdb-adapter-http/src/` 一行未动（[roadmap 约束 14](roadmap.md#排期约束)）
+  - ✅ 阶段 A demo 可跑通 — 零第三方依赖的 `node:sqlite` 后端（七端点 + `RuleGroup → 参数化 SQL` + 确定性种子，`reset seed` 两遍产物 sha256 相同）、协议文档那五条 curl 逐字可跑、Angular 前端带协议流量面板
+  - ✅ 阶段 B 浏览器专属证据 — 跨源预检、ETag 暴露与否的一对反例（AC#10 冻结为**已知症状**用例）、离线降级与 409 不降级的对照、孤儿清理、token 形态水位线；协议文档补「跨源（CORS）」一节
+  - **落地时发现四条，三条已建故事、一条判定不建**：[US-022](stories/core/US-022-querycache-remote-row-contract.md)（行必须带齐实体基类的非空列，少回 `createdAt` 会在客户端 upsert 时撞 `NOT NULL`，报的是后端没听说过的列名）、[US-021](stories/core/US-021-querycache-adapter-fail-fast.md)（QueryCache 实体的远端适配器缺席时 core **静默永挂**，非 QueryCache 路径早有 `RxDBMissingPrimaryAdapterError`）、[US-215](stories/adapter/US-215-conditional-request-silence.md)（跨源读不到 ETag 时 transport 零日志静默降级）；第四条「AC#4 括号里的『250 行 = 5 次请求』实测为 6 次」是**算术笔误不是缺陷**——offset 翻页在满页之后必然再请求一次才知道到底了，已就地更正 AC#4 文本。逐条原始记录见故事的[落地偏差](stories/adapter/US-214-http-browser-demo.md#落地偏差)
+- ✅ [US-021 QueryCache 远端适配器缺席时配置期 fail-fast](stories/core/US-021-querycache-adapter-fail-fast.md) — 出自 US-214，2026-08-27 关闭。实体级 `sync.remote.adapter` 能过类型检查却**不被 `RxDB.init()` 读取**，库级少配时 `remoteAdapter$` 的 `filter(Boolean)` 吞掉初值空串，`combineLatest` 永不发射：页面无限加载、无错误、无日志、无超时。判据纯元数据可得，按 US-020 D12 修在配置期的 `validateSyncStrategy`：新增 `missingQueryCacheAdapter` 规则（`MetadataValidationRule` 全集 14 → 15），文案点破「实体级 adapter 名不参与注册」这条真成因（D3）。规则级 9 条 + 走 `rxdb.init()` 的入口级 7 条用例，包内 2528 条全绿、覆盖率 96.36%/92.15%。**两条与故事原文不符的记录**：AC#7 现场复验只拿到 ⚠️——错误可读且无限加载态确已消失，但 `provideAppInitializer` 抛错会中止 bootstrap，页面是空白 + 控制台报错，不是「页面报错误」，补 UI 属 demo 启动流程另论；AC#8 的「新成员进 api-baseline」**前提写错了**，baseline 只记 `{ name, kind }`、不记联合成员，本次无 baseline diff。两条均落在故事的[落地偏差](stories/core/US-021-querycache-adapter-fail-fast.md#落地偏差)与验收表下方
+- ⬜ [US-022 QueryCache 远端行的列契约与缺列诊断](stories/core/US-022-querycache-remote-row-contract.md) — 出自 US-214。`upsertMany` 的列清单取自 `Object.keys(data[0])`，是绕开仓储的裸 SQL 写，实体 `default` 不参与；而 `http-protocol.md` §2 自己的示例行就没有 `createdAt`。契约归 `sync.md`（Supabase 远端同路径），协议文档只做引用。**不做本地兜底**：补出来的 `createdAt` 是本机拉取时刻，跨设备会各不相同
+- ⬜ [US-215 条件请求被静默停用时给出可观测信号](stories/adapter/US-215-conditional-request-silence.md) — 出自 US-214，文档半边已由其 AC#12 补齐，缺的是给没读文档的人的信号。`#cacheAndReturn` 的 `etag === null` 分支本身正确，但「远端确实没发」与「跨源没暴露」在客户端完全重合，回调**不得断言成因**。包内零 `console`、`HttpAdapterOptions` 通体 hook 形，故走可选诊断 hook 而非日志
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
 
@@ -249,7 +255,7 @@ encrypted 与 DevTools 回归、公开文档六项说明），需要一次独立
 | 被挡住的                                                                                         | 硬前置                                                                                                                                                                                                                                                                                                                                                   |
 | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`，历史 `v0.0.25` 又已被 squash 移出主线——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。这一条不随代码进度自动解除，需单独排期       |
-| [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 B                                 | 出现第一个 `plugin:*` 依赖声明。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`，拓扑序与环检测目前没有消费方。US-013 / US-014 均已交付，硬序解除，阶段 A 已落地；这一条不随代码进度自动解除。**其余 11 条未关闭故事没有任何一条会产生 `plugin:*` 消费方，所以 US-015 的 `In Review` 是稳态而非过渡态**，上方汇总里的「👀 1」在可预见排期内是常量 |
+| [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 B                                 | 出现第一个 `plugin:*` 依赖声明。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`，拓扑序与环检测目前没有消费方。US-013 / US-014 均已交付，硬序解除，阶段 A 已落地；这一条不随代码进度自动解除。**其余 13 条未关闭故事没有任何一条会产生 `plugin:*` 消费方，所以 US-015 的 `In Review` 是稳态而非过渡态**，上方汇总里的「👀 1」在可预见排期内是常量 |
 | [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D                       | 同一文件的阶段 A 必须先给出 `decision: supported`。判 `unsupported` 时**只有阶段 D** 转 `Blocked`，阶段 B / C 与 US-905 继续推进                                                                                                                                                                                                                         |
 
 > **US-212 发布门禁已于 2026-08-22 解除**，从本表移除。原两档门禁（[US-020](stories/core/US-020-querycache-repository.md)

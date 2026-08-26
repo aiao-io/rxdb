@@ -68,11 +68,7 @@ export const applyCorsHeaders = (request: IncomingMessage, response: ServerRespo
  * 回 `204` 而不是 `200`：预检响应本就没有 body，`200` + 空 body 会让部分中间层
  * 补一个 `Content-Length: 0` 之外的东西进来。
  */
-export const handlePreflight = (
-  request: IncomingMessage,
-  response: ServerResponse,
-  exposeEtag: boolean
-): boolean => {
+export const handlePreflight = (request: IncomingMessage, response: ServerResponse, exposeEtag: boolean): boolean => {
   if (request.method !== 'OPTIONS') return false;
 
   applyCorsHeaders(request, response, exposeEtag);

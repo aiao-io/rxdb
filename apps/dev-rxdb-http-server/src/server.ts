@@ -25,7 +25,6 @@ import { createDemoState, handleControlRequest, recordRequest } from './control.
 import { applyCorsHeaders, handlePreflight } from './cors.ts';
 import { openDatabase } from './db.ts';
 import { computeEtag, HttpError, matchesIfNoneMatch, readJsonBody, sendEmpty, sendJson } from './http-utils.ts';
-import { resetDatabase, seedDatabase } from './seed.ts';
 import {
   createRecipe,
   deleteRecipes,
@@ -35,6 +34,7 @@ import {
   recipesTableExists,
   updateRecipe
 } from './recipes-store.ts';
+import { resetDatabase, seedDatabase } from './seed.ts';
 
 /** 建服务器需要的一切。全部显式传入——没有隐式读 `process.env` 的角落，e2e 才好摆布。 */
 export interface DemoServerOptions {
@@ -233,7 +233,11 @@ const dispatch = async (
     return;
   }
 
-  const segments = path.slice(BASE_PATH.length + 1).split('/').filter(Boolean).map(decodeURIComponent);
+  const segments = path
+    .slice(BASE_PATH.length + 1)
+    .split('/')
+    .filter(Boolean)
+    .map(decodeURIComponent);
   applyCorsHeaders(request, response, state.exposeEtag);
 
   if (segments[0] === '__control') {
@@ -267,7 +271,8 @@ const runControl = async (
 
   try {
     const handled = await handleControlRequest(request, response, segments.slice(1), state, reseed);
-    if (!handled) sendJson(response, 404, JSON_ERROR(404, `No control route for ${request.method} ${segments.join('/')}`));
+    if (!handled)
+      sendJson(response, 404, JSON_ERROR(404, `No control route for ${request.method} ${segments.join('/')}`));
   } catch (error) {
     sendJson(response, statusOf(error), JSON_ERROR(statusOf(error), messageOf(error)));
   }

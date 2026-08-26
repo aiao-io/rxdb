@@ -1,7 +1,7 @@
 import { RxDB } from '@aiao/rxdb';
 import { useFind } from '@aiao/rxdb-angular';
 import { JsonPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { resolveApiBaseUrl } from './demo-config';
 import {

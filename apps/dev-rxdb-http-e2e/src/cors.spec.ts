@@ -12,14 +12,7 @@
 import { expect, test } from '@playwright/test';
 
 import { API_BASE_URL, APP_BASE_URL } from './env';
-import {
-  expectRowCount,
-  logEntriesFor,
-  openDemo,
-  readServerLog,
-  resetDemo,
-  SEED_ROW_COUNT
-} from './support';
+import { expectRowCount, logEntriesFor, openDemo, readServerLog, resetDemo, SEED_ROW_COUNT } from './support';
 
 test.beforeEach(async ({ request }) => {
   await resetDemo(request);

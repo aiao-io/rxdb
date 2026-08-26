@@ -43,7 +43,12 @@ describe('buildFilterRules', () => {
       state({ titleContains: 'a', status: 'draft', tags: ['soup'], priceMin: '1', priceMax: '2' })
     );
     expect(group.combinator).toBe('and');
-    expect(group.rules.map(rule => (rule as { operator: string }).operator)).toEqual(['contains', '=', 'in', 'between']);
+    expect(group.rules.map(rule => (rule as { operator: string }).operator)).toEqual([
+      'contains',
+      '=',
+      'in',
+      'between'
+    ]);
   });
 
   describe('between 要求上下界成对', () => {

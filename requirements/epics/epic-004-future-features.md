@@ -43,6 +43,9 @@ owner: jimmy
 - [US-212 HTTP 远程适配器](../stories/adapter/US-212-http-adapter.md) — 远端权威 HTTP + 独立注册 sqlite 行缓存；**零前置**（US-020 已于 2026-08-22 全关，两档发布门禁同时解除）；v1 不实现 Full changelog
 - [US-213 HTTP 适配器 wire 级集成测试](../stories/adapter/US-213-http-wire-integration-test.md) — US-212 的验收补票：零依赖 `node:http` 参考后端 + 真实 fetch 打穿 transport；纯测试资产，**不改 `src/`**
 - [US-214 HTTP 适配器浏览器端到端 demo](../stories/adapter/US-214-http-browser-demo.md) — `apps/` 下三个新 project：Angular 前端 + `node:sqlite` 后端 + playwright，**跨源**；两阶段（可跑通 → 自动化门禁）；唯一允许的产物改动是给协议文档补「跨源（CORS）」一节
+- [US-021 QueryCache 远端适配器缺席时配置期 fail-fast](../stories/core/US-021-querycache-adapter-fail-fast.md) — 出自 US-214：库级 `sync` 少配 remote 时 QueryCache 查询**静默永挂**；在 `validateSyncStrategy` 里配置期拦下
+- [US-022 QueryCache 远端行的列契约与缺列诊断](../stories/core/US-022-querycache-remote-row-contract.md) — 出自 US-214：`upsertMany` 的裸 SQL 写不过仓储，实体 `default` 不生效；补契约文档 + 落地前列集校验，**不做本地兜底**
+- [US-215 条件请求被静默停用时给出可观测信号](../stories/adapter/US-215-conditional-request-silence.md) — 出自 US-214：跨源读不到 `ETag` 时 transport 静默降级；加可选诊断 hook，**不引入 console**、不改数据路径
 
 > 拆分理由：PGlite 的 callback transaction 无法跨 IPC 序列化，需要一套 SQLite 路径不需要的
 > 事务 host 协议；混编会让 US-207 在不做这件事的前提下无法验收。Tauri PGlite 明确不在范围内——Tauri 没有 Node
@@ -69,3 +72,9 @@ owner: jimmy
 > `Content-Type: application/json` 与 `PATCH` 都必然触发预检）、`RuleGroup → 参数化 SQL`（US-213 的参考后端在 JS 里
 > `Array.filter`，等于假设翻译这步没问题，而文档自己写明这是翻译风险最高的一节）、真 wa-sqlite 行缓存上的孤儿清理
 > 与 `offlineFallback`（US-213 明确列为 Out of Scope，用内存替身）。它同样**不改 `src/`**，口径见 [roadmap 约束 14](../roadmap.md#排期约束)。
+>
+> US-021 / US-022 / US-215 是 US-214 的**产出**而非它的遗留工作：那条故事被 [roadmap 约束 14](../roadmap.md#排期约束)
+> 禁止改 `src/`，所以每撞见一个产物侧缺陷就只能冻成用例或记进「落地偏差」，另开故事是当初就定好的出口。
+> 三条各自独立、无先后：US-021 与 US-022 都在 QueryCache 的落地路径上但一个判配置、一个判数据，
+> US-215 只动 `rxdb-adapter-http`。三条的共同点是**症状都是静默**——永挂、约束错误指向陌生列名、
+> 开关全程空转——因此都归在「让失败可被看见」这一类，而不是新增能力。

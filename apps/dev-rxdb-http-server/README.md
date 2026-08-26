@@ -30,26 +30,26 @@ pnpm nx run dev-rxdb-http-server:reset     # 删库文件 → 重建表 → 写�
 
 ### 环境变量
 
-| 变量                         | 默认              | 说明                                                     |
-| ---------------------------- | ----------------- | -------------------------------------------------------- |
-| `RXDB_HTTP_DEMO_PORT`        | `4301`            | 端口                                                     |
-| `RXDB_HTTP_DEMO_DB`          | `.data/demo.sqlite` | 库文件路径。e2e 用临时目录，**不碰**开发库              |
-| `RXDB_HTTP_DEMO_EXPOSE_ETAG` | 开（`0` 关）      | 是否回 `Access-Control-Expose-Headers: ETag`             |
-| `NODE_ENV`                   | —                 | `production` 时不注册 `__control/*`                      |
+| 变量                         | 默认                | 说明                                         |
+| ---------------------------- | ------------------- | -------------------------------------------- |
+| `RXDB_HTTP_DEMO_PORT`        | `4301`              | 端口                                         |
+| `RXDB_HTTP_DEMO_DB`          | `.data/demo.sqlite` | 库文件路径。e2e 用临时目录，**不碰**开发库   |
+| `RXDB_HTTP_DEMO_EXPOSE_ETAG` | 开（`0` 关）        | 是否回 `Access-Control-Expose-Headers: ETag` |
+| `NODE_ENV`                   | —                   | `production` 时不注册 `__control/*`          |
 
 ## 端点
 
 全部挂在 `/v1` 下。资源名 `recipes` 对应实体 `Recipe`，字段 `title` / `status` / `price` / `tag` 与协议文档同名。
 
-| 方法    | 路径                    | 说明                                              |
-| ------- | ----------------------- | ------------------------------------------------- |
-| `POST`  | `recipes/metadata`      | 拉 `{ id, updatedAt }` 列表，带 `where` / 翻页     |
-| `POST`  | `recipes/by-ids`        | 按 id 批量取完整行                                |
-| `POST`  | `recipes`               | 创建，回执是**回读数据库后**的完整行              |
-| `PATCH` | `recipes/:id`           | 更新，同上                                        |
-| `POST`  | `recipes/delete`        | 删除，body `{ ids }`——**不是** `DELETE` 到集合路径 |
-| `GET`   | `meta/version`          | 后端版本串                                        |
-| `HEAD`  | `recipes`               | 表是否存在                                        |
+| 方法    | 路径               | 说明                                               |
+| ------- | ------------------ | -------------------------------------------------- |
+| `POST`  | `recipes/metadata` | 拉 `{ id, updatedAt }` 列表，带 `where` / 翻页     |
+| `POST`  | `recipes/by-ids`   | 按 id 批量取完整行                                 |
+| `POST`  | `recipes`          | 创建，回执是**回读数据库后**的完整行               |
+| `PATCH` | `recipes/:id`      | 更新，同上                                         |
+| `POST`  | `recipes/delete`   | 删除，body `{ ids }`——**不是** `DELETE` 到集合路径 |
+| `GET`   | `meta/version`     | 后端版本串                                         |
+| `HEAD`  | `recipes`          | 表是否存在                                         |
 
 ### 翻页两种形态
 
@@ -72,16 +72,16 @@ pnpm nx run dev-rxdb-http-server:reset     # 删库文件 → 重建表 → 写�
 
 只在 `NODE_ENV !== 'production'` 时注册。双下划线前缀的意思是「照协议实现自己后端的人不用抄这一段」。
 
-| 方法   | 路径                 | body                     | 用途                          |
-| ------ | -------------------- | ------------------------ | ----------------------------- |
-| `GET`  | `__control/state`    | —                        | 当前开关快照                  |
-| `GET`  | `__control/log`      | —                        | 请求日志（含 `OPTIONS` 预检） |
-| `POST` | `__control/log/clear`| `{}`                     | 清空日志                      |
-| `POST` | `__control/reset`    | `{}`                     | 删库重建 + 种子               |
-| `POST` | `__control/offline`  | `{ offline: boolean }`   | 掐断 socket，模拟断网         |
-| `POST` | `__control/fault`    | `{ status: number\|null }`| 强制返回某个非 2xx           |
-| `POST` | `__control/cors`     | `{ exposeEtag: boolean }`| 切 `Expose-Headers: ETag`     |
-| `POST` | `__control/page-mode`| `{ mode: 'offset'\|'token' }` | 切默认翻页形态          |
+| 方法   | 路径                  | body                          | 用途                          |
+| ------ | --------------------- | ----------------------------- | ----------------------------- |
+| `GET`  | `__control/state`     | —                             | 当前开关快照                  |
+| `GET`  | `__control/log`       | —                             | 请求日志（含 `OPTIONS` 预检） |
+| `POST` | `__control/log/clear` | `{}`                          | 清空日志                      |
+| `POST` | `__control/reset`     | `{}`                          | 删库重建 + 种子               |
+| `POST` | `__control/offline`   | `{ offline: boolean }`        | 掐断 socket，模拟断网         |
+| `POST` | `__control/fault`     | `{ status: number\|null }`    | 强制返回某个非 2xx            |
+| `POST` | `__control/cors`      | `{ exposeEtag: boolean }`     | 切 `Expose-Headers: ETag`     |
+| `POST` | `__control/page-mode` | `{ mode: 'offset'\|'token' }` | 切默认翻页形态                |
 
 `offline` 是**掐断传输**而不是回 5xx：只有前者才在客户端侧翻译成网络故障，进而触发 `offlineFallback`。回 5xx 是「远端的回答」，照常上抛——AC#13 的对照实验就是这个区别。
 

@@ -25,10 +25,9 @@ let rxdb: RxDB | undefined;
  * 两个适配器名**都必须**在这里出现，哪怕实体上已经写过一遍：`Repository` 构造
  * QueryCache 主仓储时读的是 `rxdb.localAdapter$` / `rxdb.remoteAdapter$`，而这两条流
  * 只由库级 `sync` 喂（`RxDB.init()`），实体级的 `remote.adapter` 核心并不看。
- * 漏掉 `remote` 时 `remoteAdapter$` 被 `filter(Boolean)` 吞掉，`combineLatest` 永不发射——
- * 查询既不发请求也不报错，页面停在「加载中…」，控制台一行日志都没有。
- * 这是核心的一处静默悬挂（应另开 US 让它抛 `RxDBMissingPrimaryAdapterError` 那样的错），
- * 本 demo 只能先把配置写全。
+ * 漏掉 `remote` 时 `remoteAdapter$` 被 `filter(Boolean)` 吞掉，`combineLatest` 永不发射。
+ * 这条静默悬挂已由 US-021 修成配置期 fail-fast：现在漏配会在 `RxDB.init()` 抛
+ * `missingQueryCacheAdapter` 元数据违规，而不是让页面停在「加载中…」。
  *
  * `handlers` 用 `createRestHandlers()`，并**显式**给了 `version` 与 `isTableExisted`：
  * 这两个操作默认**不产出** handler（`rest.ts` 说得很直白：给它们猜一个默认端点等于

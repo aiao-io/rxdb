@@ -10,7 +10,9 @@ import {
   type EntityPropertyMetadata,
   type EntityRelationMetadata,
   PropertyType,
-  RelationKind
+  RelationKind,
+  type SyncOptions,
+  SyncType
 } from '../../entity/metadata-options.interface.js';
 import {
   FIELD_FORMAT_CARRIERS,
@@ -508,5 +510,96 @@ describe('validateEntityMetadata — AC#12 结构 fixture 单向不变式', () =
       const rules = rulesOf(withProperty({ name: 'field', type: item.type, ...item.extra }));
       expect(rules, item.label).toEqual(item.expected === null ? [] : [item.expected]);
     });
+  });
+});
+
+describe('US-021 missingQueryCacheAdapter — QueryCache 生效但库级 sync 没注册适配器', () => {
+  const queryCacheMeta = (repository = 'Repository'): EntityMetadata =>
+    makeMeta({
+      repository,
+      sync: { type: SyncType.QueryCache, local: { adapter: 'wa-sqlite' }, remote: { adapter: 'http' } }
+    });
+
+  const bothSides: SyncOptions = {
+    type: SyncType.Full,
+    local: { adapter: 'wa-sqlite' },
+    remote: { adapter: 'http' }
+  };
+
+  it('AC#1 库级 sync 缺 remote 时报违规，点名缺失的一侧', () => {
+    const errors = validateEntityMetadata(queryCacheMeta(), {
+      type: SyncType.None,
+      local: { adapter: 'wa-sqlite' }
+    });
+    expect(errors.map(error => error.rule)).toEqual(['missingQueryCacheAdapter']);
+    expect(errors[0].message).toContain('remote');
+    expect(errors[0].entity).toBe('Test');
+  });
+
+  it('AC#1 库级完全没有 sync 时同样报违规，两侧都点名', () => {
+    const errors = validateEntityMetadata(queryCacheMeta());
+    expect(errors.map(error => error.rule)).toEqual(['missingQueryCacheAdapter']);
+    expect(errors[0].message).toContain('local');
+    expect(errors[0].message).toContain('remote');
+  });
+
+  it('AC#2 缺的是 local 时消息指明 local，不牵连 remote', () => {
+    const errors = validateEntityMetadata(queryCacheMeta(), {
+      type: SyncType.None,
+      remote: { adapter: 'http' }
+    });
+    expect(errors.map(error => error.rule)).toEqual(['missingQueryCacheAdapter']);
+    expect(errors[0].message).toContain('local');
+    expect(errors[0].message).not.toContain('remote 与');
+  });
+
+  // D3：不点破这一条，读者会回去反复确认他已经写对了的实体装饰器
+  it('AC#3 消息写明实体级 sync 的 adapter 名不参与注册', () => {
+    const [error] = validateEntityMetadata(queryCacheMeta());
+    expect(error.message).toContain('RxDB.init()');
+    expect(error.message).toContain('库级');
+  });
+
+  it('AC#4 两侧齐全时不报违规', () => {
+    expect(validateEntityMetadata(queryCacheMeta(), bothSides)).toEqual([]);
+  });
+
+  it('AC#4 库级 sync 自身就是 QueryCache 时不报违规', () => {
+    const metadata = makeMeta();
+    const databaseSync: SyncOptions = {
+      type: SyncType.QueryCache,
+      local: { adapter: 'wa-sqlite' },
+      remote: { adapter: 'http' }
+    };
+    expect(validateEntityMetadata(metadata, databaseSync)).toEqual([]);
+  });
+
+  it('AC#5 非 QueryCache 实体的 remote-only / local-only 配置一条都不被误伤', () => {
+    const cases: { label: string; sync: SyncOptions }[] = [
+      { label: 'remote-only', sync: { type: SyncType.None, remote: { adapter: 'http' } } },
+      { label: 'local-only', sync: { type: SyncType.None, local: { adapter: 'wa-sqlite' } } },
+      { label: 'disabled', sync: { type: SyncType.None } },
+      { label: 'full', sync: bothSides }
+    ];
+    cases.forEach(item => {
+      expect(validateEntityMetadata(makeMeta({ sync: item.sync }), item.sync), item.label).toEqual([]);
+    });
+  });
+
+  it('AC#5 实体级 SyncType.None 覆盖库级 QueryCache 时不报违规', () => {
+    const metadata = makeMeta({ sync: { type: SyncType.None, local: { adapter: 'wa-sqlite' } } });
+    const databaseSync: SyncOptions = {
+      type: SyncType.QueryCache,
+      local: { adapter: 'wa-sqlite' },
+      remote: { adapter: 'http' }
+    };
+    expect(validateEntityMetadata(metadata, databaseSync)).toEqual([]);
+  });
+
+  // 两条规则判的是两件事：适配器在不在、树能不能用缓存。同一字段上可以同时成立
+  it('TreeRepository + QueryCache 且适配器缺席时两条规则各报一次，按 rule 稳定排序', () => {
+    const errors = validateEntityMetadata(queryCacheMeta('TreeRepository'));
+    expect(errors.map(error => error.rule)).toEqual(['missingQueryCacheAdapter', 'unsupportedTreeQueryCache']);
+    expect(errors.every(error => error.field === 'sync')).toBe(true);
   });
 });

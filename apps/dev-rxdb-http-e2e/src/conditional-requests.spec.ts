@@ -100,9 +100,13 @@ test('AC#11 暴露 ETag 后第二次查询回 304，客户端沿用上一份结�
   await expect.poll(() => metadataHeaders.length, { timeout: 30_000 }).toBeGreaterThan(firstCount);
 
   await expect
-    .poll(async () => logEntriesFor(await readServerLog(request), 'POST', '/recipes/metadata').filter(e => e.notModified).length, {
-      timeout: 30_000
-    })
+    .poll(
+      async () =>
+        logEntriesFor(await readServerLog(request), 'POST', '/recipes/metadata').filter(e => e.notModified).length,
+      {
+        timeout: 30_000
+      }
+    )
     .toBeGreaterThan(0);
 
   // 第二轮的请求带上了 If-None-Match。

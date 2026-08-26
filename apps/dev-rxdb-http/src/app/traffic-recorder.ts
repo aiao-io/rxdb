@@ -89,7 +89,13 @@ export const wrapFetch = (
     } catch (cause) {
       // 传输失败（离线开关掐断 socket 就是这条路径）也要留痕：
       // 面板上「有一条 status 0」与「什么都没有」表达的是完全不同的两件事。
-      record({ method, path: toDisplayPath(url), status: 0, durationMs: Math.round(now() - startedAt), notModified: false });
+      record({
+        method,
+        path: toDisplayPath(url),
+        status: 0,
+        durationMs: Math.round(now() - startedAt),
+        notModified: false
+      });
       throw cause;
     }
   };

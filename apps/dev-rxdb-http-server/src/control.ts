@@ -132,11 +132,7 @@ export const handleControlRequest = async (
   return false;
 };
 
-const applyOffline = async (
-  request: IncomingMessage,
-  response: ServerResponse,
-  state: DemoState
-): Promise<boolean> => {
+const applyOffline = async (request: IncomingMessage, response: ServerResponse, state: DemoState): Promise<boolean> => {
   const body = (await readJsonBody(request)) as Record<string, unknown>;
   state.offline = readBoolean(body['offline'], 'offline');
   sendJson(response, 200, stateSnapshot(state));

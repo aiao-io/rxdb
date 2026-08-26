@@ -205,7 +205,8 @@ const readIdList = (value: unknown): string[] => {
 };
 
 const readString = (value: unknown, field: string): string => {
-  if (typeof value !== 'string' || value === '') throw new HttpError(400, `Field '${field}' must be a non-empty string`);
+  if (typeof value !== 'string' || value === '')
+    throw new HttpError(400, `Field '${field}' must be a non-empty string`);
   return value;
 };
 

@@ -9,7 +9,13 @@
  * 命令可以叠加：`reset seed` 先删库重建再写种子，`project.json` 的 `reset` target 用的就是它。
  */
 
-import { resolveControlEnabled, resolveDatabasePath, resolveExposeEtag, resolvePort, SEED_ROW_COUNT } from './config.ts';
+import {
+  resolveControlEnabled,
+  resolveDatabasePath,
+  resolveExposeEtag,
+  resolvePort,
+  SEED_ROW_COUNT
+} from './config.ts';
 import { openDatabase } from './db.ts';
 import { resetDatabase, seedDatabase } from './seed.ts';
 import { createDemoServer } from './server.ts';

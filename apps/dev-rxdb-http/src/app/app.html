@@ -23,7 +23,13 @@
     </div>
     <div>
       <dt>ETag 可见</dt>
-      <dd data-testid="expose-etag">{{ $control() === null ? '—' : $control()!.exposeEtag ? '是' : '否' }}</dd>
+      <dd data-testid="expose-etag">
+        {{
+          $control() === null ? '—'
+          : $control()!.exposeEtag ? '是'
+          : '否'
+        }}
+      </dd>
     </div>
   </dl>
 
@@ -51,21 +57,29 @@
 
     <div class="grid">
       <label>
-        <span>title <code>contains</code></span>
+        <span>
+          title
+          <code>contains</code>
+        </span>
         <input
-          type="text"
-          data-testid="filter-title"
           [ngModel]="$draftFilter().titleContains"
           (ngModelChange)="patchFilter({ titleContains: $event })"
-          placeholder="大小写敏感" />
+          data-testid="filter-title"
+          placeholder="大小写敏感"
+          type="text"
+        />
       </label>
 
       <label>
-        <span>status <code>=</code></span>
+        <span>
+          status
+          <code>=</code>
+        </span>
         <select
-          data-testid="filter-status"
           [ngModel]="$draftFilter().status"
-          (ngModelChange)="patchFilter({ status: $event })">
+          (ngModelChange)="patchFilter({ status: $event })"
+          data-testid="filter-status"
+        >
           <option value="">（不过滤）</option>
           @for (option of statusOptions; track option) {
             <option [value]="option">{{ option }}</option>
@@ -74,52 +88,68 @@
       </label>
 
       <label>
-        <span>price <code>between</code></span>
+        <span>
+          price
+          <code>between</code>
+        </span>
         <span class="pair">
           <input
-            type="number"
-            data-testid="filter-price-min"
             [ngModel]="$draftFilter().priceMin"
             (ngModelChange)="patchFilter({ priceMin: $event })"
-            placeholder="下界" />
-          <input
+            data-testid="filter-price-min"
+            placeholder="下界"
             type="number"
-            data-testid="filter-price-max"
+          />
+          <input
             [ngModel]="$draftFilter().priceMax"
             (ngModelChange)="patchFilter({ priceMax: $event })"
-            placeholder="上界" />
+            data-testid="filter-price-max"
+            placeholder="上界"
+            type="number"
+          />
         </span>
         <small>上下界必须成对填写，只填一个整条不下发。</small>
       </label>
 
       <fieldset>
-        <legend>tag <code>in</code></legend>
+        <legend>
+          tag
+          <code>in</code>
+        </legend>
         @for (tag of tagOptions; track tag) {
           <label class="inline">
             <input
-              type="checkbox"
               [attr.data-testid]="'filter-tag-' + tag"
               [checked]="$draftFilter().tags.includes(tag)"
               [disabled]="$draftFilter().tagIsNull"
-              (change)="toggleTag(tag, $any($event.target).checked)" />
+              (change)="toggleTag(tag, $any($event.target).checked)"
+              type="checkbox"
+            />
             <span>{{ tag }}</span>
           </label>
         }
         <label class="inline">
           <input
-            type="checkbox"
-            data-testid="filter-tag-null"
             [ngModel]="$draftFilter().tagIsNull"
-            (ngModelChange)="patchFilter({ tagIsNull: $event })" />
-          <span>tag <code>null</code>（与 <code>in</code> 互斥）</span>
+            (ngModelChange)="patchFilter({ tagIsNull: $event })"
+            data-testid="filter-tag-null"
+            type="checkbox"
+          />
+          <span>
+            tag
+            <code>null</code>
+            （与
+            <code>in</code>
+            互斥）
+          </span>
         </label>
       </fieldset>
     </div>
 
     <div class="actions">
-      <button type="button" data-testid="apply-filter" (click)="applyFilter()">应用</button>
-      <button type="button" data-testid="reset-filter" (click)="resetFilter()">清空</button>
-      <button type="button" data-testid="refetch" (click)="refetch()">重新查询</button>
+      <button (click)="applyFilter()" data-testid="apply-filter" type="button">应用</button>
+      <button (click)="resetFilter()" data-testid="reset-filter" type="button">清空</button>
+      <button (click)="refetch()" data-testid="refetch" type="button">重新查询</button>
     </div>
 
     <details>
@@ -134,14 +164,15 @@
       <label>
         <span>title</span>
         <input
-          type="text"
-          data-testid="draft-title"
           [ngModel]="$draft().title"
-          (ngModelChange)="patchDraft({ title: $event })" />
+          (ngModelChange)="patchDraft({ title: $event })"
+          data-testid="draft-title"
+          type="text"
+        />
       </label>
       <label>
         <span>status</span>
-        <select data-testid="draft-status" [ngModel]="$draft().status" (ngModelChange)="patchDraft({ status: $event })">
+        <select [ngModel]="$draft().status" (ngModelChange)="patchDraft({ status: $event })" data-testid="draft-status">
           @for (option of statusOptions; track option) {
             <option [value]="option">{{ option }}</option>
           }
@@ -150,22 +181,28 @@
       <label>
         <span>price</span>
         <input
-          type="number"
-          data-testid="draft-price"
           [ngModel]="$draft().price"
-          (ngModelChange)="patchDraft({ price: $event })" />
+          (ngModelChange)="patchDraft({ price: $event })"
+          data-testid="draft-price"
+          type="number"
+        />
       </label>
       <label>
         <span>tag（留空 = null）</span>
-        <input type="text" data-testid="draft-tag" [ngModel]="$draft().tag" (ngModelChange)="patchDraft({ tag: $event })" />
+        <input
+          [ngModel]="$draft().tag"
+          (ngModelChange)="patchDraft({ tag: $event })"
+          data-testid="draft-tag"
+          type="text"
+        />
       </label>
     </div>
     <div class="actions">
       @if ($editingId() === null) {
-        <button type="button" data-testid="create" (click)="create()">新建</button>
+        <button (click)="create()" data-testid="create" type="button">新建</button>
       } @else {
-        <button type="button" data-testid="save-edit" (click)="update()">保存 {{ $editingId() }}</button>
-        <button type="button" data-testid="cancel-edit" (click)="cancelEdit()">取消</button>
+        <button (click)="update()" data-testid="save-edit" type="button">保存 {{ $editingId() }}</button>
+        <button (click)="cancelEdit()" data-testid="cancel-edit" type="button">取消</button>
       }
     </div>
     @if ($writeError(); as error) {
@@ -204,8 +241,8 @@
             <td>{{ recipe.updatedAt.toISOString() }}</td>
             <td class="mono id">{{ recipe.id }}</td>
             <td class="actions">
-              <button type="button" (click)="startEdit(recipe)">改</button>
-              <button type="button" (click)="remove(recipe)">删</button>
+              <button (click)="startEdit(recipe)" type="button">改</button>
+              <button (click)="remove(recipe)" type="button">删</button>
             </td>
           </tr>
         } @empty {
@@ -220,42 +257,49 @@
   <section class="panel" aria-labelledby="control-heading">
     <h2 id="control-heading">演示开关</h2>
     <p class="hint">
-      这些开关打到后端的 <code>__control/*</code>，<strong>不是协议的一部分</strong>，也不会出现在下面的流量面板里。
+      这些开关打到后端的
+      <code>__control/*</code>
+      ，
+      <strong>不是协议的一部分</strong>
+      ，也不会出现在下面的流量面板里。
     </p>
     <div class="switches">
       <label class="inline">
         <input
-          type="checkbox"
-          data-testid="switch-offline"
           [checked]="$control()?.offline === true"
-          (change)="toggleOffline($any($event.target).checked)" />
+          (change)="toggleOffline($any($event.target).checked)"
+          data-testid="switch-offline"
+          type="checkbox"
+        />
         <span>离线（后端直接掐断连接）</span>
       </label>
       <label class="inline">
         <input
-          type="checkbox"
-          data-testid="switch-expose-etag"
           [checked]="$control()?.exposeEtag === true"
-          (change)="toggleExposeEtag($any($event.target).checked)" />
+          (change)="toggleExposeEtag($any($event.target).checked)"
+          data-testid="switch-expose-etag"
+          type="checkbox"
+        />
         <span><code>Access-Control-Expose-Headers: ETag</code></span>
       </label>
       <label class="inline">
         <input
-          type="checkbox"
-          data-testid="switch-page-token"
           [checked]="$control()?.pageMode === 'token'"
-          (change)="togglePageMode($any($event.target).checked ? 'token' : 'offset')" />
+          (change)="togglePageMode($any($event.target).checked ? 'token' : 'offset')"
+          data-testid="switch-page-token"
+          type="checkbox"
+        />
         <span>token 翻页（默认 offset）</span>
       </label>
     </div>
     <div class="actions">
-      <button type="button" data-testid="inject-409" (click)="injectStatus(409)">注入 409</button>
-      <button type="button" data-testid="clear-fault" (click)="injectStatus(null)">
+      <button (click)="injectStatus(409)" data-testid="inject-409" type="button">注入 409</button>
+      <button (click)="injectStatus(null)" data-testid="clear-fault" type="button">
         取消注入（当前 {{ $control()?.forcedStatus ?? '无' }}）
       </button>
-      <button type="button" data-testid="reset-backend" (click)="resetBackend()">重置为种子</button>
-      <button type="button" data-testid="refresh-control" (click)="refreshControl()">刷新状态</button>
-      <button type="button" data-testid="clear-logs" (click)="clearLogs()">清空日志</button>
+      <button (click)="resetBackend()" data-testid="reset-backend" type="button">重置为种子</button>
+      <button (click)="refreshControl()" data-testid="refresh-control" type="button">刷新状态</button>
+      <button (click)="clearLogs()" data-testid="clear-logs" type="button">清空日志</button>
     </div>
   </section>
 
@@ -291,7 +335,11 @@
     </table>
 
     <details>
-      <summary>后端视角的日志（含浏览器发的 <code>OPTIONS</code> 预检——那个在 fetch 上看不见）</summary>
+      <summary>
+        后端视角的日志（含浏览器发的
+        <code>OPTIONS</code>
+        预检——那个在 fetch 上看不见）
+      </summary>
       <table>
         <thead>
           <tr>

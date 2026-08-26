@@ -79,10 +79,12 @@ describe('compileRuleGroup', () => {
 
   describe('第二类：集合 in / notIn', () => {
     it('按元素个数展开占位符', () => {
-      expect(compile({ combinator: 'and', rules: [{ field: 'tag', operator: 'in', value: ['sale', 'new'] }] })).toEqual({
-        sql: '("tag" IN (?, ?))',
-        params: ['sale', 'new']
-      });
+      expect(compile({ combinator: 'and', rules: [{ field: 'tag', operator: 'in', value: ['sale', 'new'] }] })).toEqual(
+        {
+          sql: '("tag" IN (?, ?))',
+          params: ['sale', 'new']
+        }
+      );
     });
 
     it('notIn 生成 NOT IN', () => {
