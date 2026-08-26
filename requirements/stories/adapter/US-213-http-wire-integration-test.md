@@ -40,7 +40,9 @@ INVEST 检查清单:
 - **本故事允许的唯一 docs 改动**：给 `http-protocol.md` 补一节「条件请求（可选）」的**服务端**语义
   （何时发 `ETag`、如何认 `If-None-Match`、`304` 不带 body 且语义是「你手上那份仍有效」）。AC#16 要证
   「后端照协议实现」，而 US-212 阶段 B 只把条件请求写进了客户端文档 `http.md`，协议侧没有锚点——不补
-  这一节，AC#16 的服务端行为就是测试作者自创，证不到协议头上
+  这一节，AC#16 的服务端行为就是测试作者自创，证不到协议头上。
+  **该节已于 2026-08-25 随 [RV-001](../../reviews/RV-001-us-213-story-review.md) 先行落地**
+  （`http-protocol.md`「条件请求（可选）」+ 验收清单一条），开工时**不要重复新增**，AC#16 直接引用即可
 
 ### Out of Scope
 
@@ -228,11 +230,11 @@ AC#3 存在的理由：`http-protocol.md` 里翻译风险最高的一节就是 R
 `vite.config.mts` 的 `test.include` 已是 `['{src,tests}/**/*.{test,spec}.…']`，**无需改动**。但另有三处
 只认 `src/__tests__/`，新目录必须补进去，否则开工即撞墙：
 
-| 文件                 | 现状                                                         | 需要                                                                                                                                                                                                   |
-| -------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `tsconfig.spec.json` | `include` 只有 `src/**/*.spec.ts`、`src/__tests__/**/*.ts`   | 加 `tests/**/*.ts`；否则 `tests/` 不属于任何 project，typed lint 直接报 "not included in any project"，`tsc` 也不校验                                                                                  |
-| `eslint.config.mjs`  | `@nx/dependency-checks.ignoredFiles` 只有 `src/__tests__/**` | 对称加 `{projectRoot}/tests/**`；`tests/reference-server.ts` 要 import `node:http` 与 vitest，不加会被判未声明依赖而报错——与 `src/__tests__/**` 当初被加进去同因                                       |
-| `vite.config.mts`    | `coverage.exclude` 只有 `['**/__tests__/**','**/dist/**']`   | 加 `'**/tests/**'`。当前 `tests/**` 不在分母里，是 `coverage.include: ['src/**/*']` 的**直接结果**（不是侥幸）；写进 `exclude` 是把意图**显式声明**出来，防将来有人放宽 `include` 时测试资产被计入分母 |
+| 文件                 | 现状                                                                                                                                              | 需要                                                                                                                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tsconfig.spec.json` | `include` 的测试源全部指向 `src/**`（`src/**/*.spec.ts`、`src/__tests__/**/*.ts` 等），无 `tests/**`                                              | 加 `tests/**/*.ts`；否则 `tests/` 不属于任何 project，typed lint 直接报 "not included in any project"，`tsc` 也不校验                                                                                  |
+| `eslint.config.mjs`  | `@nx/dependency-checks.ignoredFiles` 三条里唯一的测试目录是 `{projectRoot}/src/__tests__/**`（另两条是 `eslint.config.*` / `vite.config.*` 自身） | 对称加 `{projectRoot}/tests/**`；`tests/reference-server.ts` 要 import `node:http` 与 vitest，不加会被判未声明依赖而报错——与 `src/__tests__/**` 当初被加进去同因                                       |
+| `vite.config.mts`    | `coverage.exclude` 只有 `['**/__tests__/**','**/dist/**']`                                                                                        | 加 `'**/tests/**'`。当前 `tests/**` 不在分母里，是 `coverage.include: ['src/**/*']` 的**直接结果**（不是侥幸）；写进 `exclude` 是把意图**显式声明**出来，防将来有人放宽 `include` 时测试资产被计入分母 |
 
 ### 可能的「测试暴露协议缺陷」处置
 
@@ -242,19 +244,19 @@ AC#3 存在的理由：`http-protocol.md` 里翻译风险最高的一节就是 R
 
 ## 实现文件
 
-| 文件                                                        | 改动                                                                                                                                                       |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/rxdb-adapter-http/tests/reference-server.ts`      | 新增：零依赖 `node:http` 参考后端，七个端点 + `received` 记录 + `faults`                                                                                   |
-| `packages/rxdb-adapter-http/tests/local-adapter.fixture.ts` | 新增：内存本地适配器替身（自带，不从 `src/__tests__/` 抽）                                                                                                 |
-| `packages/rxdb-adapter-http/tests/wire-integration.spec.ts` | 新增：真实网线端到端用例（AC#1～17）                                                                                                                       |
-| `packages/rxdb-adapter-http/tsconfig.spec.json`             | `include` 加 `tests/**/*.ts`                                                                                                                               |
-| `packages/rxdb-adapter-http/eslint.config.mjs`              | `@nx/dependency-checks.ignoredFiles` 加 `{projectRoot}/tests/**`                                                                                           |
-| `packages/rxdb-adapter-http/vite.config.mts`                | `coverage.exclude` 加 `'**/tests/**'`（`test.include` 已含 `tests/**`）                                                                                    |
-| `website/docs/adapters/http-protocol.md`                    | 新增「条件请求（可选）」一节：服务端 `ETag` / `If-None-Match` / `304` 语义 + 验收清单一条。**本故事允许的唯一 docs 改动**，AC#16 的协议锚点（见 In Scope） |
-| `requirements/epics/epic-004-future-features.md`            | 故事清单条目 + 「另起故事不重开 US-212」理由（**已随本文件落地**）                                                                                         |
-| `requirements/status-overview.md`                           | 汇总表计数 Backlog 8 → 9、合计 55 → 56 + 未来功能段 ⬜ 条目（**已随本文件落地**）                                                                          |
-| `requirements/roadmap.md`                                   | 批次 3 排期行 + 约束 13「禁止改 `src/`」（**已随本文件落地**）                                                                                             |
-| 状态流转                                                    | 关闭时把上述三处派生视图的 ⬜ / 未关闭计数改掉，story YAML `status` 是唯一真相源                                                                           |
+| 文件                                                        | 改动                                                                                                                                                                                                       |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/rxdb-adapter-http/tests/reference-server.ts`      | 新增：零依赖 `node:http` 参考后端，七个端点 + `received` 记录 + `faults`                                                                                                                                   |
+| `packages/rxdb-adapter-http/tests/local-adapter.fixture.ts` | 新增：内存本地适配器替身（自带，不从 `src/__tests__/` 抽）                                                                                                                                                 |
+| `packages/rxdb-adapter-http/tests/wire-integration.spec.ts` | 新增：真实网线端到端用例（AC#1～17）                                                                                                                                                                       |
+| `packages/rxdb-adapter-http/tsconfig.spec.json`             | `include` 加 `tests/**/*.ts`                                                                                                                                                                               |
+| `packages/rxdb-adapter-http/eslint.config.mjs`              | `@nx/dependency-checks.ignoredFiles` 加 `{projectRoot}/tests/**`                                                                                                                                           |
+| `packages/rxdb-adapter-http/vite.config.mts`                | `coverage.exclude` 加 `'**/tests/**'`（`test.include` 已含 `tests/**`）                                                                                                                                    |
+| `website/docs/adapters/http-protocol.md`                    | 「条件请求（可选）」一节：服务端 `ETag` / `If-None-Match` / `304` 语义 + 验收清单一条。**本故事允许的唯一 docs 改动**，AC#16 的协议锚点（见 In Scope）；**已随 RV-001 落地（2026-08-25），开工时无需再改** |
+| `requirements/epics/epic-004-future-features.md`            | 故事清单条目 + 「另起故事不重开 US-212」理由（**已随本文件落地**）                                                                                                                                         |
+| `requirements/status-overview.md`                           | 汇总表计数 Backlog 8 → 9、合计 55 → 56 + 未来功能段 ⬜ 条目（**已随本文件落地**）                                                                                                                          |
+| `requirements/roadmap.md`                                   | 批次 3 排期行 + 约束 13「禁止改 `src/`」（**已随本文件落地**）                                                                                                                                             |
+| 状态流转                                                    | 关闭时把上述三处派生视图的 ⬜ / 未关闭计数改掉，story YAML `status` 是唯一真相源                                                                                                                           |
 
 ## References
 
