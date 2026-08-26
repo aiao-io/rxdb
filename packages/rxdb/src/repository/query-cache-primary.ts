@@ -54,6 +54,7 @@ type QueryCacheSyncOptions = Parameters<QueryCacheRepository['find']>[0];
 interface QueryCacheFindHints<T extends EntityType> {
   where: RuleGroup<InstanceType<T>>;
   localCacheFirst?: boolean;
+  offlineFallback?: boolean;
   onSyncStats?: (stats: SyncStats) => void;
 }
 
@@ -130,11 +131,14 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
    * `sync.local.syncStaleTime` 窗口内翻第二页不会再同步一次（D13）。
    */
   async find(options: EntityStaticType<T, 'findOptions'>): Promise<InstanceType<T>[]> {
-    const { where, localCacheFirst, onSyncStats } = options as QueryCacheFindHints<T>;
+    const { where, localCacheFirst, offlineFallback, onSyncStats } = options as QueryCacheFindHints<T>;
     await this.#sync({
       where,
       // 调用 > 配置 > false（US-020 AC#24）：`??` 而非 `||`，显式的 `false` 必须压过配置的 `true`
       localCacheFirst: localCacheFirst ?? this.localCacheFirst,
+      // 只有调用级：离线降级是「这一次读能不能吃陈旧数据」的决定，没有配置级默认——
+      // 全局打开会让所有读在断网时静默返回缓存，故障被推迟到不知道多久以后才暴露。
+      offlineFallback,
       onSyncStats
     });
     return this.localRepository.find(options);

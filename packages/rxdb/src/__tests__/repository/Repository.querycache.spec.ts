@@ -4,7 +4,7 @@
  * 这些用例全部经**统一 `Repository`** 断言，而不是直接 `new QueryCacheRepository`：
  * 病灶 1 的核心正是「类是好的，生产路径打不到它」，只测类本身无法证伪。
  */
-import { BehaviorSubject, delay, firstValueFrom, Observable, of } from 'rxjs';
+import { BehaviorSubject, delay, firstValueFrom, Observable, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import { SyncType } from '../../entity/metadata-options.interface.js';
@@ -373,6 +373,38 @@ describe('US-020 阶段 A：QueryCache 接入统一 Repository', () => {
     await firstValueFrom(plain.repository.find({ where: where(), localCacheFirst: true }));
     expect(plain.localAdapter.upsertMany).toHaveBeenCalledTimes(1);
     await vi.waitFor(() => expect(plain.localAdapter.upsertMany).toHaveBeenCalledTimes(2));
+  });
+
+  // AC#16 经统一 Repository 复验（US-214 发现）：`QueryCacheRepository` 早就实现了
+  // offlineFallback，但 `QueryCachePrimaryRepository.find` 只透传 where / localCacheFirst /
+  // onSyncStats，这个字段在生产路径上被丢掉。症状与病灶 1 同型 ——「类是好的，
+  // 生产路径打不到它」，所以断言必须经门面发起。
+  it('AC#16 offlineFallback 经统一 Repository 透传，网络错误时交付本地缓存', async () => {
+    const offline = setup();
+    // 用 `throwError` 而不是同步 `throw`：真实适配器返回的是会 error 的 Observable，
+    // 同步抛会在 `forkJoin` 构造时就逃逸，测的就不是降级路径了。
+    offline.remoteAdapter.fetchMetadata.mockReturnValue(throwError(() => new TypeError('Failed to fetch')));
+
+    const rows = await firstValueFrom(offline.repository.find({ where: where(), offlineFallback: true }));
+
+    expect(rows).toHaveLength(1);
+  });
+
+  // 反向：不开开关时网络错误照常上抛，证明上一条不是「无脑吞异常」蒙对的
+  it('AC#16 未开 offlineFallback 时网络错误上抛', async () => {
+    const offline = setup();
+    // 用 `throwError` 而不是同步 `throw`：真实适配器返回的是会 error 的 Observable，
+    // 同步抛会在 `forkJoin` 构造时就逃逸，测的就不是降级路径了。
+    offline.remoteAdapter.fetchMetadata.mockReturnValue(throwError(() => new TypeError('Failed to fetch')));
+
+    await expect(firstValueFrom(offline.repository.find({ where: where() }))).rejects.toThrow('Failed to fetch');
+  });
+
+  // AC#13：两种模式各自成任务，互不复用缓存 —— 否则先跑的那次会把降级语义带给后跑的
+  it('AC#13 offlineFallback 进任务指纹', async () => {
+    await firstValueFrom(ctx.repository.find({ where: where(), offlineFallback: true }));
+
+    expect(deterministicStringify(ctx.queryManager.lastOptions)).toContain('"offlineFallback":true');
   });
 
   // AC#24 + AC#13：模式进任务指纹；onSyncStats 是函数，进不了指纹也不该进

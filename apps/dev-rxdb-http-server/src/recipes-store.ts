@@ -1,0 +1,228 @@
+/**
+ * `recipes` 资源的七个协议操作对应的 SQL。
+ *
+ * @remarks
+ * 每个导出函数对应 `http-protocol.md` 的一节。这里**没有**抽象出 Store 接口——
+ * 故事的 Out of Scope 写明了：为「将来可能换 PostgreSQL」预留一层间接，
+ * 只会让读者多翻一次文件才看到真正执行的那条 SQL。方言集中在
+ * `rule-group-to-sql.ts`，换库时重写那一个文件即可。
+ */
+
+import type { DatabaseSync } from 'node:sqlite';
+
+import { RECIPE_COLUMNS, RECIPE_WRITABLE_COLUMNS } from './config.ts';
+import type { RecipeMetadataRow, RecipeRow } from './db.ts';
+import { HttpError, newRowId, nowIso } from './http-utils.ts';
+import type { RowCursor } from './page-token.ts';
+import { decodePageToken, encodePageToken, reachedWatermark } from './page-token.ts';
+import type { SqlParam } from './rule-group-to-sql.ts';
+import { compileRuleGroup } from './rule-group-to-sql.ts';
+
+/** 所有列表查询共用的排序。`id` 兜底保证同 `updatedAt` 的行有确定顺序（协议「跨页排序稳定」）。 */
+const ORDER_BY = 'ORDER BY updatedAt, id';
+
+/** token 形态的一页。offset 形态直接返回数组，不走这个类型。 */
+export interface TokenPage {
+  rows: RecipeMetadataRow[];
+  nextPageToken?: string;
+}
+
+const asMetadataRows = (rows: unknown[]): RecipeMetadataRow[] => rows as RecipeMetadataRow[];
+
+const asRecipeRows = (rows: unknown[]): RecipeRow[] => rows as RecipeRow[];
+
+/**
+ * offset 形态的 `fetchMetadata`。
+ *
+ * @remarks
+ * 严格按 `limit` 取：**不得**因为任何服务端理由提前返回短页。协议把「短页」
+ * 定义成末页的唯一信号，提前短页 = 客户端静默丢掉后半段结果。
+ */
+export const listMetadataByOffset = (
+  db: DatabaseSync,
+  where: unknown,
+  limit: number,
+  offset: number
+): RecipeMetadataRow[] => {
+  const filter = compileRuleGroup(where, RECIPE_COLUMNS);
+  const sql = `SELECT id, updatedAt FROM recipes WHERE ${filter.sql} ${ORDER_BY} LIMIT ? OFFSET ?`;
+  return asMetadataRows(db.prepare(sql).all(...filter.params, limit, offset));
+};
+
+/** 取当前过滤集合内的最大坐标，作为一次 token 翻页的读取水位线。 */
+const readWatermark = (db: DatabaseSync, filterSql: string, params: SqlParam[]): RowCursor | undefined => {
+  const sql = `SELECT updatedAt, id FROM recipes WHERE ${filterSql} ORDER BY updatedAt DESC, id DESC LIMIT 1`;
+  const row = db.prepare(sql).get(...params) as RowCursor | undefined;
+  return row;
+};
+
+/**
+ * token 形态的 `fetchMetadata`（AC#15）。
+ *
+ * @remarks
+ * 首页现取水位线并写进 token，后续每页都带着它回来，于是整次翻页锁定在同一份快照上：
+ *
+ * - `(updatedAt, id) > (afterUpdatedAt, afterId)` —— keyset 游标，前面插行不会整体移位；
+ * - `(updatedAt, id) <= (watermarkUpdatedAt, watermarkId)` —— 上界，翻页途中新写入的行被挡在快照外。
+ *
+ * 末页判定用「末行 == 水位线」而不是「短页」：正好整除时最后一整页也是满的，
+ * 靠短页判定就得再发一次空页，而协议明确说连续空页会让客户端抛错。
+ */
+export const listMetadataByToken = (db: DatabaseSync, where: unknown, limit: number, pageToken: unknown): TokenPage => {
+  const filter = compileRuleGroup(where, RECIPE_COLUMNS);
+  const cursor = pageToken === undefined || pageToken === null ? undefined : decodePageToken(pageToken);
+  const watermark = cursor?.watermark ?? readWatermark(db, filter.sql, filter.params);
+
+  // 空集合：没有水位线可言，回一页空数组且不带 token（末页）。
+  if (watermark === undefined) return { rows: [] };
+
+  const bounds: SqlParam[] = cursor === undefined ? [] : [cursor.after.updatedAt, cursor.after.id];
+  const lowerBound = cursor === undefined ? '' : 'AND (updatedAt, id) > (?, ?)';
+  const sql = `SELECT id, updatedAt FROM recipes
+    WHERE ${filter.sql} ${lowerBound} AND (updatedAt, id) <= (?, ?)
+    ${ORDER_BY} LIMIT ?`;
+  const rows = asMetadataRows(
+    db.prepare(sql).all(...filter.params, ...bounds, watermark.updatedAt, watermark.id, limit)
+  );
+
+  const lastRow = rows.at(-1);
+  if (lastRow === undefined || reachedWatermark(lastRow, watermark)) return { rows };
+  return { rows, nextPageToken: encodePageToken({ after: lastRow, watermark }) };
+};
+
+/**
+ * `findByIds`。
+ *
+ * @remarks
+ * 缺失的 id 就是缺失——返回比请求少的行，**不**补空对象、**不**回 500。
+ * 协议专门为这条留了一段 note：QueryCache 靠「远端没回这一行」判定孤儿。
+ */
+export const findByIds = (db: DatabaseSync, ids: unknown): RecipeRow[] => {
+  const list = readIdList(ids);
+  if (list.length === 0) return [];
+
+  const placeholders = list.map(() => '?').join(', ');
+  const sql = `SELECT ${RECIPE_COLUMNS.join(', ')} FROM recipes WHERE id IN (${placeholders}) ${ORDER_BY}`;
+  return asRecipeRows(db.prepare(sql).all(...list));
+};
+
+/** 按 id 回读一整行。`create` / `update` 的回执一律走这里——回执必须来自库，不是入参。 */
+const readRow = (db: DatabaseSync, id: string): RecipeRow | undefined => {
+  const sql = `SELECT ${RECIPE_COLUMNS.join(', ')} FROM recipes WHERE id = ?`;
+  return db.prepare(sql).get(id) as RecipeRow | undefined;
+};
+
+/**
+ * `create`。
+ *
+ * @remarks
+ * `id` 走 `crypto.randomUUID()`、`updatedAt` 取服务端当前时刻，两者都**不看**入参。
+ * 协议的警告：回显客户端给的 `id` 会让本地缓存留下一条远端从不存在的行。
+ * 写完立刻回读整行返回，回执与库里那份必然一致。
+ */
+export const createRecipe = (db: DatabaseSync, input: unknown): RecipeRow => {
+  const body = readObject(input, 'create');
+  const row: RecipeRow = {
+    id: newRowId(),
+    title: readString(body['title'] ?? '', 'title'),
+    status: readString(body['status'] ?? 'draft', 'status'),
+    price: readNumber(body['price'] ?? 0, 'price'),
+    tag: readNullableString(body['tag'] ?? null, 'tag'),
+    updatedAt: nowIso()
+  };
+
+  db.prepare(`INSERT INTO recipes (id, title, status, price, tag, updatedAt) VALUES (?, ?, ?, ?, ?, ?)`).run(
+    row.id,
+    row.title,
+    row.status,
+    row.price,
+    row.tag,
+    row.updatedAt
+  );
+
+  const persisted = readRow(db, row.id);
+  if (persisted === undefined) throw new HttpError(500, 'Row disappeared right after insert');
+  return persisted;
+};
+
+/**
+ * `update`。
+ *
+ * @remarks
+ * 只改请求体里出现过的列；`id` / `updatedAt` 即使出现在请求体里也一律忽略，
+ * `updatedAt` 由服务端重新定型——它是新鲜度依据，让客户端来写就没有意义了。
+ */
+export const updateRecipe = (db: DatabaseSync, id: string, patch: unknown): RecipeRow => {
+  const body = readObject(patch, 'update');
+  if (readRow(db, id) === undefined) throw new HttpError(404, `Recipe '${id}' not found`);
+
+  const assignments: string[] = [];
+  const params: SqlParam[] = [];
+  for (const column of RECIPE_WRITABLE_COLUMNS) {
+    if (!Object.hasOwn(body, column)) continue;
+    assignments.push(`${column} = ?`);
+    params.push(readWritableValue(column, body[column]));
+  }
+
+  assignments.push('updatedAt = ?');
+  params.push(nowIso());
+  db.prepare(`UPDATE recipes SET ${assignments.join(', ')} WHERE id = ?`).run(...params, id);
+
+  const persisted = readRow(db, id);
+  if (persisted === undefined) throw new HttpError(500, 'Row disappeared right after update');
+  return persisted;
+};
+
+/** `delete`。响应体客户端会丢弃，这里仍回条数——curl 手测时能看见结果。 */
+export const deleteRecipes = (db: DatabaseSync, ids: unknown): number => {
+  const list = readIdList(ids);
+  if (list.length === 0) return 0;
+
+  const placeholders = list.map(() => '?').join(', ');
+  const result = db.prepare(`DELETE FROM recipes WHERE id IN (${placeholders})`).run(...list);
+  return Number(result.changes);
+};
+
+/** 表是否存在，供 `HEAD :entity` 用。 */
+export const recipesTableExists = (db: DatabaseSync): boolean => {
+  const sql = `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'recipes'`;
+  return db.prepare(sql).get() !== undefined;
+};
+
+const readObject = (value: unknown, operation: string): Record<string, unknown> => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new HttpError(400, `Request body for '${operation}' must be a JSON object`);
+  }
+  return value as Record<string, unknown>;
+};
+
+const readIdList = (value: unknown): string[] => {
+  const ids = readObject(value, 'ids')['ids'];
+  if (!Array.isArray(ids)) throw new HttpError(400, `Request body must contain an 'ids' array`);
+  if (ids.some(id => typeof id !== 'string')) throw new HttpError(400, `Every entry in 'ids' must be a string`);
+  return ids as string[];
+};
+
+const readString = (value: unknown, field: string): string => {
+  if (typeof value !== 'string' || value === '') throw new HttpError(400, `Field '${field}' must be a non-empty string`);
+  return value;
+};
+
+const readNumber = (value: unknown, field: string): number => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new HttpError(400, `Field '${field}' must be a finite number`);
+  }
+  return value;
+};
+
+const readNullableString = (value: unknown, field: string): string | null => {
+  if (value === null) return null;
+  if (typeof value !== 'string') throw new HttpError(400, `Field '${field}' must be a string or null`);
+  return value;
+};
+
+const readWritableValue = (column: (typeof RECIPE_WRITABLE_COLUMNS)[number], value: unknown): SqlParam => {
+  if (column === 'price') return readNumber(value, column);
+  if (column === 'tag') return readNullableString(value, column);
+  return readString(value, column);
+};

@@ -1,0 +1,275 @@
+/**
+ * 参考后端的端点级测试。
+ *
+ * @remarks
+ * 这一层验的是**协议契约**（回执从库里回读、翻页不重不漏、条件请求语义），
+ * 浏览器一侧的现象（预检、跨源读不到 ETag、离线降级）在 `apps/dev-rxdb-http-e2e` 里验——
+ * 那些只有真浏览器才做得出来。
+ *
+ * 每个用例起一份独立的临时库：`port: 0` 让内核挑端口，测试之间不会抢 4301。
+ */
+
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import { SEED_ROW_COUNT } from '../config.ts';
+import { openDatabase } from '../db.ts';
+import { seedDatabase } from '../seed.ts';
+import type { DemoServer } from '../server.ts';
+import { createDemoServer } from '../server.ts';
+
+interface MetadataRow {
+  id: string;
+  updatedAt: string;
+}
+
+interface TokenPageBody {
+  rows: MetadataRow[];
+  nextPageToken?: string;
+}
+
+let workdir: string;
+let demo: DemoServer;
+let baseUrl: string;
+
+const databasePath = (): string => join(workdir, 'demo.sqlite');
+
+beforeEach(async () => {
+  workdir = mkdtempSync(join(tmpdir(), 'us214-server-'));
+  const db = openDatabase(databasePath());
+  seedDatabase(db);
+  db.close();
+
+  demo = createDemoServer({ databasePath: databasePath(), exposeEtag: true, controlEnabled: true });
+  await new Promise<void>(resolve => demo.server.listen(0, '127.0.0.1', () => resolve()));
+  baseUrl = `http://127.0.0.1:${(demo.server.address() as AddressInfo).port}/v1`;
+});
+
+afterEach(async () => {
+  await demo.close();
+  rmSync(workdir, { recursive: true, force: true });
+});
+
+const post = async (path: string, body: unknown, init: RequestInit = {}): Promise<Response> =>
+  await fetch(`${baseUrl}/${path}`, {
+    ...init,
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...(init.headers ?? {}) },
+    body: JSON.stringify(body)
+  });
+
+const postJson = async <T>(path: string, body: unknown): Promise<T> => {
+  const response = await post(path, body);
+  expect(response.ok).toBe(true);
+  return (await response.json()) as T;
+};
+
+describe('fetchMetadata —— offset 形态（AC#4）', () => {
+  it('每一页都取满 limit，短页只出现在真正的末页', async () => {
+    const pageSize = 50;
+    const lengths: number[] = [];
+    let offset = 0;
+
+    // 与前端 pageSize: 50 同参。循环条件模仿客户端：拿到短页才停。
+    for (;;) {
+      const rows = await postJson<MetadataRow[]>('recipes/metadata', { offset, limit: pageSize });
+      lengths.push(rows.length);
+      offset += rows.length;
+      if (rows.length < pageSize) break;
+    }
+
+    // 250 / 50 正好整除，于是最后多一次空页——这是 offset 形态末页判定的固有代价，
+    // 不是缺陷：客户端只能靠短页判断到底，整除时那个「短页」就只能是空页。
+    expect(lengths).toEqual([50, 50, 50, 50, 50, 0]);
+    expect(offset).toBe(SEED_ROW_COUNT);
+  });
+
+  it('各页拼接起来无重复无遗漏，且跨页排序稳定', async () => {
+    const collected: MetadataRow[] = [];
+    for (let offset = 0; offset < SEED_ROW_COUNT; offset += 50) {
+      collected.push(...(await postJson<MetadataRow[]>('recipes/metadata', { offset, limit: 50 })));
+    }
+
+    expect(collected).toHaveLength(SEED_ROW_COUNT);
+    expect(new Set(collected.map(row => row.id)).size).toBe(SEED_ROW_COUNT);
+
+    const sorted = [...collected].sort((a, b) => a.updatedAt.localeCompare(b.updatedAt) || a.id.localeCompare(b.id));
+    expect(collected.map(row => row.id)).toEqual(sorted.map(row => row.id));
+  });
+});
+
+describe('fetchMetadata —— token 形态（AC#15）', () => {
+  const drainByToken = async (onPage?: (page: number) => Promise<void>): Promise<string[]> => {
+    const ids: string[] = [];
+    let pageToken: string | undefined;
+    let page = 0;
+
+    do {
+      const body = pageToken === undefined ? { limit: 50 } : { limit: 50, pageToken };
+      const response = await post('recipes/metadata?pageMode=token', body);
+      const parsed = (await response.json()) as TokenPageBody;
+      ids.push(...parsed.rows.map(row => row.id));
+      pageToken = parsed.nextPageToken;
+      page += 1;
+      if (onPage !== undefined) await onPage(page);
+    } while (pageToken !== undefined);
+
+    return ids;
+  };
+
+  it('逐页推进，末页缺省 nextPageToken 且不产生尾随空页', async () => {
+    const ids = await drainByToken();
+    expect(ids).toHaveLength(SEED_ROW_COUNT);
+    expect(new Set(ids).size).toBe(SEED_ROW_COUNT);
+  });
+
+  it('token 里的读取水位线挡住翻页途中新插入的行', async () => {
+    const ids = await drainByToken(async page => {
+      if (page !== 2) return;
+      // 另一个「连接」在翻页中途写入。它的 updatedAt 是服务端当前时刻，必然高于水位线。
+      await postJson('recipes', { title: 'Injected mid-paging', status: 'published' });
+    });
+
+    // 既没有被重复计入，也没有把后续行挤掉——这正是 offset 形态做不到的那条快照一致。
+    expect(ids).toHaveLength(SEED_ROW_COUNT);
+    expect(new Set(ids).size).toBe(SEED_ROW_COUNT);
+  });
+
+  it('坏 token 回 400 而不是静默当作首页', async () => {
+    const response = await post('recipes/metadata', { limit: 50, pageToken: 'not-a-token' });
+    expect(response.status).toBe(400);
+  });
+});
+
+describe('写端点回执来自库，不是回显入参（AC#5）', () => {
+  it('create 忽略客户端给的 id / updatedAt，回读持久化后的行', async () => {
+    const forged = { id: 'client-supplied', title: 'Risotto', status: 'draft', updatedAt: '1999-01-01T00:00:00.000Z' };
+    const created = await postJson<Record<string, unknown>>('recipes', forged);
+
+    expect(created['id']).not.toBe('client-supplied');
+    expect(created['updatedAt']).not.toBe('1999-01-01T00:00:00.000Z');
+
+    const [persisted] = await postJson<Record<string, unknown>[]>('recipes/by-ids', { ids: [created['id']] });
+    expect(persisted).toEqual(created);
+  });
+
+  it('update 重新定型 updatedAt 并返回完整行', async () => {
+    const created = await postJson<Record<string, unknown>>('recipes', { title: 'Pho', status: 'draft' });
+    const response = await fetch(`${baseUrl}/recipes/${String(created['id'])}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ status: 'published', updatedAt: '1999-01-01T00:00:00.000Z' })
+    });
+    const updated = (await response.json()) as Record<string, unknown>;
+
+    expect(updated['status']).toBe('published');
+    expect(updated['title']).toBe('Pho');
+    expect(updated['updatedAt']).not.toBe('1999-01-01T00:00:00.000Z');
+    expect(String(updated['updatedAt']) > String(created['updatedAt'])).toBe(true);
+  });
+
+  it('delete 走 POST :entity/delete + { ids }，集合路径上没有 DELETE', async () => {
+    const created = await postJson<Record<string, unknown>>('recipes', { title: 'Tacos', status: 'draft' });
+    await postJson('recipes/delete', { ids: [created['id']] });
+
+    const remaining = await postJson<unknown[]>('recipes/by-ids', { ids: [created['id']] });
+    expect(remaining).toEqual([]);
+
+    const collectionDelete = await fetch(`${baseUrl}/recipes`, { method: 'DELETE' });
+    expect(collectionDelete.status).toBe(404);
+  });
+
+  it('findByIds 对不存在的 id 少返回几行，而不是 500', async () => {
+    const rows = await postJson<unknown[]>('recipes/by-ids', { ids: ['no-such-row', 'also-missing'] });
+    expect(rows).toEqual([]);
+  });
+});
+
+describe('条件请求', () => {
+  it('内容未变回 304 且无 body，内容一变立刻回 200 + 新 ETag', async () => {
+    const first = await post('recipes/metadata', { offset: 0, limit: 5 });
+    const etag = first.headers.get('etag');
+    expect(etag).toBeTruthy();
+
+    const second = await post('recipes/metadata', { offset: 0, limit: 5 }, { headers: { 'if-none-match': etag! } });
+    expect(second.status).toBe(304);
+    expect(await second.text()).toBe('');
+
+    // 改掉首页第一行，同一个请求就必须重新回 200——协议里那条「内容变了不得再回 304」。
+    const [firstRow] = (await first.clone().json()) as MetadataRow[];
+    await fetch(`${baseUrl}/recipes/${firstRow.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'Renamed' })
+    });
+
+    const third = await post('recipes/metadata', { offset: 0, limit: 5 }, { headers: { 'if-none-match': etag! } });
+    expect(third.status).toBe(200);
+    expect(third.headers.get('etag')).not.toBe(etag);
+  });
+});
+
+describe('种子确定性（AC#6）', () => {
+  it('reset + seed 跑两遍产出逐字节相同的库文件', async () => {
+    const first = await readAfterReset();
+    const second = await readAfterReset();
+    expect(Buffer.compare(first, second)).toBe(0);
+  });
+
+  const readAfterReset = async (): Promise<Buffer> => {
+    const response = await post('__control/reset', {});
+    expect(await response.json()).toEqual({ rows: SEED_ROW_COUNT });
+    return readFileSync(databasePath());
+  };
+});
+
+describe('错误与开关', () => {
+  it('过滤字段不在白名单时回 400，且不触达 SQL', async () => {
+    const response = await post('recipes/metadata', {
+      where: { combinator: 'and', rules: [{ field: "title'); DROP TABLE recipes; --", operator: '=', value: 'x' }] },
+      offset: 0,
+      limit: 10
+    });
+    expect(response.status).toBe(400);
+
+    // 表还在——注入载荷连 SQL 都没进去。
+    const rows = await postJson<MetadataRow[]>('recipes/metadata', { offset: 0, limit: 1 });
+    expect(rows).toHaveLength(1);
+  });
+
+  it('带了 Authorization 但形状不对时回 401，完全不带则放行（AC#2 的五条 curl 里四条不带）', async () => {
+    const malformed = await post('recipes/metadata', { offset: 0, limit: 1 }, { headers: { authorization: 'nope' } });
+    expect(malformed.status).toBe(401);
+
+    const anonymous = await post('recipes/metadata', { offset: 0, limit: 1 });
+    expect(anonymous.status).toBe(200);
+  });
+
+  it('__control/fault 注入的非 2xx 仍然带跨源头，才不会被浏览器误判成网络故障', async () => {
+    await postJson('__control/fault', { status: 409 });
+    const response = await post('recipes/metadata', { offset: 0, limit: 1 }, { headers: { origin: 'http://x.test' } });
+
+    expect(response.status).toBe(409);
+    expect(response.headers.get('access-control-allow-origin')).toBe('http://x.test');
+  });
+
+  it('__control/offline 掐断传输（而不是回 5xx），关掉后恢复', async () => {
+    await postJson('__control/offline', { offline: true });
+    await expect(post('recipes/metadata', { offset: 0, limit: 1 })).rejects.toThrow();
+
+    await postJson('__control/offline', { offline: false });
+    const recovered = await post('recipes/metadata', { offset: 0, limit: 1 });
+    expect(recovered.status).toBe(200);
+  });
+
+  it('version 与 isTableExisted 按协议返回', async () => {
+    const version = await fetch(`${baseUrl}/meta/version`);
+    expect(((await version.json()) as { version: string }).version).toMatch(/^node-sqlite-demo\//);
+
+    const head = await fetch(`${baseUrl}/recipes`, { method: 'HEAD' });
+    expect(head.status).toBe(200);
+  });
+});

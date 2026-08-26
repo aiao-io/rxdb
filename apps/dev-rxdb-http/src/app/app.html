@@ -1,0 +1,319 @@
+<header class="topbar">
+  <h1>RxDB HTTP 适配器 demo</h1>
+  <dl class="facts">
+    <div>
+      <dt>后端地址</dt>
+      <dd data-testid="base-url">{{ baseUrl }}</dd>
+    </div>
+    <div>
+      <dt>后端版本</dt>
+      <dd data-testid="backend-version">
+        @if ($backendVersion(); as version) {
+          {{ version }}
+        } @else if ($backendVersionError(); as error) {
+          <span class="bad">读取失败：{{ error }}</span>
+        } @else {
+          读取中…
+        }
+      </dd>
+    </div>
+    <div>
+      <dt>翻页形态</dt>
+      <dd data-testid="page-mode">{{ $control()?.pageMode ?? '—' }}</dd>
+    </div>
+    <div>
+      <dt>ETag 可见</dt>
+      <dd data-testid="expose-etag">{{ $control() === null ? '—' : $control()!.exposeEtag ? '是' : '否' }}</dd>
+    </div>
+  </dl>
+
+  @if ($networkDown()) {
+    <p class="banner offline" data-testid="offline-banner">
+      连不上后端。
+      @if ($servingFromCache()) {
+        列表当前来自 wa-sqlite 本地行缓存。
+      } @else {
+        本地也没有缓存可用。
+      }
+    </p>
+  }
+  @if (recipes.error(); as error) {
+    <p class="banner bad" data-testid="query-error">查询失败：{{ error.message }}</p>
+  }
+  @if ($controlError(); as error) {
+    <p class="banner bad" data-testid="control-error">控制端点失败：{{ error }}</p>
+  }
+</header>
+
+<main>
+  <section class="panel" aria-labelledby="filter-heading">
+    <h2 id="filter-heading">筛选（五类算子）</h2>
+
+    <div class="grid">
+      <label>
+        <span>title <code>contains</code></span>
+        <input
+          type="text"
+          data-testid="filter-title"
+          [ngModel]="$draftFilter().titleContains"
+          (ngModelChange)="patchFilter({ titleContains: $event })"
+          placeholder="大小写敏感" />
+      </label>
+
+      <label>
+        <span>status <code>=</code></span>
+        <select
+          data-testid="filter-status"
+          [ngModel]="$draftFilter().status"
+          (ngModelChange)="patchFilter({ status: $event })">
+          <option value="">（不过滤）</option>
+          @for (option of statusOptions; track option) {
+            <option [value]="option">{{ option }}</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        <span>price <code>between</code></span>
+        <span class="pair">
+          <input
+            type="number"
+            data-testid="filter-price-min"
+            [ngModel]="$draftFilter().priceMin"
+            (ngModelChange)="patchFilter({ priceMin: $event })"
+            placeholder="下界" />
+          <input
+            type="number"
+            data-testid="filter-price-max"
+            [ngModel]="$draftFilter().priceMax"
+            (ngModelChange)="patchFilter({ priceMax: $event })"
+            placeholder="上界" />
+        </span>
+        <small>上下界必须成对填写，只填一个整条不下发。</small>
+      </label>
+
+      <fieldset>
+        <legend>tag <code>in</code></legend>
+        @for (tag of tagOptions; track tag) {
+          <label class="inline">
+            <input
+              type="checkbox"
+              [attr.data-testid]="'filter-tag-' + tag"
+              [checked]="$draftFilter().tags.includes(tag)"
+              [disabled]="$draftFilter().tagIsNull"
+              (change)="toggleTag(tag, $any($event.target).checked)" />
+            <span>{{ tag }}</span>
+          </label>
+        }
+        <label class="inline">
+          <input
+            type="checkbox"
+            data-testid="filter-tag-null"
+            [ngModel]="$draftFilter().tagIsNull"
+            (ngModelChange)="patchFilter({ tagIsNull: $event })" />
+          <span>tag <code>null</code>（与 <code>in</code> 互斥）</span>
+        </label>
+      </fieldset>
+    </div>
+
+    <div class="actions">
+      <button type="button" data-testid="apply-filter" (click)="applyFilter()">应用</button>
+      <button type="button" data-testid="reset-filter" (click)="resetFilter()">清空</button>
+      <button type="button" data-testid="refetch" (click)="refetch()">重新查询</button>
+    </div>
+
+    <details>
+      <summary>下发的 RuleGroup（与网线上的一字不差）</summary>
+      <pre data-testid="rule-group">{{ $rules() | json }}</pre>
+    </details>
+  </section>
+
+  <section class="panel" aria-labelledby="write-heading">
+    <h2 id="write-heading">写入</h2>
+    <div class="grid">
+      <label>
+        <span>title</span>
+        <input
+          type="text"
+          data-testid="draft-title"
+          [ngModel]="$draft().title"
+          (ngModelChange)="patchDraft({ title: $event })" />
+      </label>
+      <label>
+        <span>status</span>
+        <select data-testid="draft-status" [ngModel]="$draft().status" (ngModelChange)="patchDraft({ status: $event })">
+          @for (option of statusOptions; track option) {
+            <option [value]="option">{{ option }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>price</span>
+        <input
+          type="number"
+          data-testid="draft-price"
+          [ngModel]="$draft().price"
+          (ngModelChange)="patchDraft({ price: $event })" />
+      </label>
+      <label>
+        <span>tag（留空 = null）</span>
+        <input type="text" data-testid="draft-tag" [ngModel]="$draft().tag" (ngModelChange)="patchDraft({ tag: $event })" />
+      </label>
+    </div>
+    <div class="actions">
+      @if ($editingId() === null) {
+        <button type="button" data-testid="create" (click)="create()">新建</button>
+      } @else {
+        <button type="button" data-testid="save-edit" (click)="update()">保存 {{ $editingId() }}</button>
+        <button type="button" data-testid="cancel-edit" (click)="cancelEdit()">取消</button>
+      }
+    </div>
+    @if ($writeError(); as error) {
+      <p class="banner bad" data-testid="write-error">{{ error }}</p>
+    }
+  </section>
+
+  <section class="panel wide" aria-labelledby="list-heading">
+    <h2 id="list-heading">
+      Recipe
+      <span class="count" data-testid="row-count">{{ recipes.value().length }} 行</span>
+      @if (recipes.isLoading()) {
+        <span class="count" data-testid="loading">加载中…</span>
+      }
+    </h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>title</th>
+          <th>status</th>
+          <th>price</th>
+          <th>tag</th>
+          <th>updatedAt</th>
+          <th>id</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody data-testid="recipe-rows">
+        @for (recipe of recipes.value(); track recipe.id) {
+          <tr [attr.data-row-id]="recipe.id">
+            <td>{{ recipe.title }}</td>
+            <td>{{ recipe.status }}</td>
+            <td>{{ recipe.price }}</td>
+            <td>{{ recipe.tag ?? '—' }}</td>
+            <td>{{ recipe.updatedAt.toISOString() }}</td>
+            <td class="mono id">{{ recipe.id }}</td>
+            <td class="actions">
+              <button type="button" (click)="startEdit(recipe)">改</button>
+              <button type="button" (click)="remove(recipe)">删</button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="7" data-testid="empty">没有匹配的行</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel" aria-labelledby="control-heading">
+    <h2 id="control-heading">演示开关</h2>
+    <p class="hint">
+      这些开关打到后端的 <code>__control/*</code>，<strong>不是协议的一部分</strong>，也不会出现在下面的流量面板里。
+    </p>
+    <div class="switches">
+      <label class="inline">
+        <input
+          type="checkbox"
+          data-testid="switch-offline"
+          [checked]="$control()?.offline === true"
+          (change)="toggleOffline($any($event.target).checked)" />
+        <span>离线（后端直接掐断连接）</span>
+      </label>
+      <label class="inline">
+        <input
+          type="checkbox"
+          data-testid="switch-expose-etag"
+          [checked]="$control()?.exposeEtag === true"
+          (change)="toggleExposeEtag($any($event.target).checked)" />
+        <span><code>Access-Control-Expose-Headers: ETag</code></span>
+      </label>
+      <label class="inline">
+        <input
+          type="checkbox"
+          data-testid="switch-page-token"
+          [checked]="$control()?.pageMode === 'token'"
+          (change)="togglePageMode($any($event.target).checked ? 'token' : 'offset')" />
+        <span>token 翻页（默认 offset）</span>
+      </label>
+    </div>
+    <div class="actions">
+      <button type="button" data-testid="inject-409" (click)="injectStatus(409)">注入 409</button>
+      <button type="button" data-testid="clear-fault" (click)="injectStatus(null)">
+        取消注入（当前 {{ $control()?.forcedStatus ?? '无' }}）
+      </button>
+      <button type="button" data-testid="reset-backend" (click)="resetBackend()">重置为种子</button>
+      <button type="button" data-testid="refresh-control" (click)="refreshControl()">刷新状态</button>
+      <button type="button" data-testid="clear-logs" (click)="clearLogs()">清空日志</button>
+    </div>
+  </section>
+
+  <section class="panel wide" aria-labelledby="traffic-heading">
+    <h2 id="traffic-heading">协议流量（浏览器视角）</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>方法</th>
+          <th>路径</th>
+          <th>状态码</th>
+          <th>耗时</th>
+          <th>304</th>
+        </tr>
+      </thead>
+      <tbody data-testid="traffic-rows">
+        @for (entry of $traffic(); track entry.seq) {
+          <tr [attr.data-status]="entry.status">
+            <td>{{ entry.seq }}</td>
+            <td>{{ entry.method }}</td>
+            <td class="mono">{{ entry.path }}</td>
+            <td>{{ entry.status === 0 ? '传输失败' : entry.status }}</td>
+            <td>{{ entry.durationMs }} ms</td>
+            <td>{{ entry.notModified ? '是' : '否' }}</td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="6" data-testid="traffic-empty">还没有协议请求</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <details>
+      <summary>后端视角的日志（含浏览器发的 <code>OPTIONS</code> 预检——那个在 fetch 上看不见）</summary>
+      <table>
+        <thead>
+          <tr>
+            <th>方法</th>
+            <th>路径</th>
+            <th>状态码</th>
+            <th>耗时</th>
+            <th>304</th>
+          </tr>
+        </thead>
+        <tbody data-testid="server-log-rows">
+          @for (entry of $serverLog(); track $index) {
+            <tr>
+              <td>{{ entry.method }}</td>
+              <td class="mono">{{ entry.path }}</td>
+              <td>{{ entry.status }}</td>
+              <td>{{ entry.durationMs }} ms</td>
+              <td>{{ entry.notModified ? '是' : '否' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </details>
+  </section>
+</main>

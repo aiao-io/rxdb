@@ -1,0 +1,48 @@
+/**
+ * 全局样式。
+ *
+ * 刻意不引 Tailwind / daisyui：本 demo 要观察的是协议流量与缓存行为，
+ * 少一层构建期插件就少一处「页面白了是不是样式管线的问题」的排查分支。
+ */
+
+:root {
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #6b7280;
+  --border: #d8dbe0;
+  --panel: #fbfbfc;
+  --input: #ffffff;
+  --hover: #f1f2f4;
+  --warn-bg: #fff7e6;
+  --warn-border: #f0c36d;
+  --bad-bg: #fdecec;
+  --bad-border: #e9a3a3;
+  --bad-fg: #b42318;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16181d;
+    --fg: #e6e8eb;
+    --muted: #9aa1ab;
+    --border: #333842;
+    --panel: #1c1f26;
+    --input: #21252d;
+    --hover: #2a2f38;
+    --warn-bg: #3a2f14;
+    --warn-border: #7a6222;
+    --bad-bg: #3a1d1d;
+    --bad-border: #7a3a3a;
+    --bad-fg: #ff9b93;
+  }
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}

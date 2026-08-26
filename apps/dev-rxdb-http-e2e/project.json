@@ -1,0 +1,13 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project dev-rxdb-http-e2e --web",
+  "implicitDependencies": ["dev-rxdb-http", "dev-rxdb-http-server"],
+  "name": "dev-rxdb-http-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-http-e2e/src",
+  "targets": {
+    "e2e": {
+      "dependsOn": ["dev-rxdb-http:build"]
+    }
+  }
+}
