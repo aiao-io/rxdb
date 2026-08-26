@@ -11,14 +11,14 @@
 | ✅ Done        | 44   |
 | 🚧 In Progress | 2    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 9    |
+| 📝 Backlog     | 10   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 56   |
+| **合计**       | 57   |
 
 三条口径，读表前必知：
 
 1. 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；合计等于 `stories/*/US-*.md` 的文件数，epic 文件不计入。
-2. 其中 **9 条是多阶段故事**（[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-020](stories/core/US-020-querycache-repository.md)、[US-207](stories/adapter/US-207-desktop-local-database.md)、[US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)、[US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)、[US-212](stories/adapter/US-212-http-adapter.md)、[US-306](stories/collaboration/US-306-working-tree-commits.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)）：一个编号一个文件一条状态，正文用「交付阶段」表分批交付，**全部阶段关闭后才置 `Done`**。阶段不单独计数，见 [README](README.md#大故事用交付阶段不用子故事文件)。
+2. 其中 **10 条是多阶段故事**（[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-020](stories/core/US-020-querycache-repository.md)、[US-207](stories/adapter/US-207-desktop-local-database.md)、[US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)、[US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)、[US-212](stories/adapter/US-212-http-adapter.md)、[US-214](stories/adapter/US-214-http-browser-demo.md)、[US-306](stories/collaboration/US-306-working-tree-commits.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)）：一个编号一个文件一条状态，正文用「交付阶段」表分批交付，**全部阶段关闭后才置 `Done`**。阶段不单独计数，见 [README](README.md#大故事用交付阶段不用子故事文件)。
 3. `🚫 Blocked = 0` 统计的是**故事 YAML 里显式写成 `status: Blocked`** 的数量，**不代表没有前置阻塞**——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。两者不要互相推断。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🅰️ 多阶段故事 · 🚫 Blocked
@@ -174,6 +174,7 @@
   - ✅ 阶段 A handlers 注入 + QueryCache ducks + 分页/分块 + QueryCache-only 写路径契约测试
   - ✅ 阶段 B — REST resource URL 模板（AC#27，`createRestHandlers()`）+ ETag / If-None-Match（AC#28，`conditional-cache.ts`，缺省关闭）；SSE 与 eviction（AC#29 / AC#30）在 2026-08-24 的 owner 判定里拿不到 owner，**已移出本故事**，见上一行与 [roadmap「明确不排期」](roadmap.md#明确不排期)
 - ⬜ [US-213 HTTP 适配器 wire 级集成测试](stories/adapter/US-213-http-wire-integration-test.md) — US-212 的验收补票，**不重开该故事**：本包 9 个 spec 里 6 个在 `vi.stubGlobal('fetch')` 层拦截（另三个是零桩纯单元测试），transport 从未被真实 socket 打过，`http-protocol.md` 已随 `stable` 对外却无可执行验收。零依赖 `node:http` 参考后端 + 真实 fetch，17 条 AC，纯测试资产不改 `src/`；协议缺陷另开故事（[roadmap 约束 13](roadmap.md#排期约束)）。排期在 [批次 3](roadmap.md#批次-3能力与验证补齐无硬前置按价值排在后面)
+- ⬜ 🅰️ [US-214 HTTP 适配器浏览器端到端 demo](stories/adapter/US-214-http-browser-demo.md) — 与 US-213 **并列不重复**、零先后：`apps/` 下三个新 project（Angular 4300 + `node:http`/`node:sqlite` 4301 + playwright），**故意跨源**。证 US-213 结构上够不到的三件事：CORS 预检与 `Access-Control-Expose-Headers: ETag`（协议文档全篇零处提 CORS，漏配会让条件请求**静默**失效）、`RuleGroup → 参数化 SQL`（US-213 的参考后端在 JS 里过滤）、真 wa-sqlite 行缓存上的孤儿清理与 `offlineFallback`。阶段 A 可手工跑通 / 阶段 B 自动化门禁，17 条 AC，不改 `src/`（[roadmap 约束 14](roadmap.md#排期约束)）。排期在 [批次 3](roadmap.md#批次-3能力与验证补齐无硬前置按价值排在后面)
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
 

@@ -24,6 +24,7 @@ owner: jimmy
 - [x] QueryCache 生产路径：`getRepository` / EntityManager 在 `SyncType.QueryCache` 时走 `QueryCacheRepository`（远端权威 + sqlite 行缓存）
 - [x] HTTP 远程适配器：已有 REST API 可挂 `adapter:remote`，本地 sqlite 独立注册为行缓存
 - [ ] HTTP 协议文档的可执行验收：参考后端 + 真实 fetch 证明 `http-protocol.md` 可互通
+- [ ] HTTP 协议的浏览器端到端 demo：Angular + 真 sqlite 后端 + 跨源，补齐 CORS 与 `RuleGroup → SQL` 两处空白
 
 ## 故事
 
@@ -41,6 +42,7 @@ owner: jimmy
 - [US-020 将 QueryCache 接入统一 Repository](../stories/core/US-020-querycache-repository.md) — 让 `SyncType.QueryCache` 从空操作变成生产真；两阶段（接线 → 缓存质量）；不 inherit US-203 AC#6
 - [US-212 HTTP 远程适配器](../stories/adapter/US-212-http-adapter.md) — 远端权威 HTTP + 独立注册 sqlite 行缓存；**零前置**（US-020 已于 2026-08-22 全关，两档发布门禁同时解除）；v1 不实现 Full changelog
 - [US-213 HTTP 适配器 wire 级集成测试](../stories/adapter/US-213-http-wire-integration-test.md) — US-212 的验收补票：零依赖 `node:http` 参考后端 + 真实 fetch 打穿 transport；纯测试资产，**不改 `src/`**
+- [US-214 HTTP 适配器浏览器端到端 demo](../stories/adapter/US-214-http-browser-demo.md) — `apps/` 下三个新 project：Angular 前端 + `node:sqlite` 后端 + playwright，**跨源**；两阶段（可跑通 → 自动化门禁）；唯一允许的产物改动是给协议文档补「跨源（CORS）」一节
 
 > 拆分理由：PGlite 的 callback transaction 无法跨 IPC 序列化，需要一套 SQLite 路径不需要的
 > 事务 host 协议；混编会让 US-207 在不做这件事的前提下无法验收。Tauri PGlite 明确不在范围内——Tauri 没有 Node
@@ -61,3 +63,9 @@ owner: jimmy
 > US-213 另起故事而非重开 US-212：US-212 已 `Done` 且包已按 `stable` 发布，重开会让一个对外承诺过的版本回到未完成态。
 > 它补的是**验收手段**不是功能——`http-protocol.md` 随 `stable` 对外，第三方后端照它实现却没有任何可执行验收。
 > 因此 US-213 是纯测试资产，**禁止顺手改 `src/`**：真打出协议缺陷就标记待修用例并另开故事，见 [roadmap 约束 13](../roadmap.md#排期约束)。
+>
+> US-214 与 US-213 **并列而非重复**，两条各建各的后端、零先后关系：US-213 在 node/undici 里证 wire 不变量，
+> US-214 在浏览器里证产品路径。三件事只有后者能证——跨源 CORS（`http-protocol.md` 全篇零处提及，而
+> `Content-Type: application/json` 与 `PATCH` 都必然触发预检）、`RuleGroup → 参数化 SQL`（US-213 的参考后端在 JS 里
+> `Array.filter`，等于假设翻译这步没问题，而文档自己写明这是翻译风险最高的一节）、真 wa-sqlite 行缓存上的孤儿清理
+> 与 `offlineFallback`（US-213 明确列为 Out of Scope，用内存替身）。它同样**不改 `src/`**，口径见 [roadmap 约束 14](../roadmap.md#排期约束)。
