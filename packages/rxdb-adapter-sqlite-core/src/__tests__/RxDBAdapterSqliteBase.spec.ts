@@ -3,6 +3,7 @@ import {
   ENTITY_LOCAL_CREATE_EVENT,
   EntityBase,
   EntityLocalCreatedEvent,
+  getEntityMetadata,
   getEntityStatus,
   PropertyType,
   RxDB,
@@ -19,6 +20,7 @@ import {
 import { EncryptedConfigurationError } from '@aiao/rxdb-adapter-encrypted';
 import { firstValueFrom } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { RxDBQueryCacheRowContractError } from '../query-cache-row-contract.js';
 import { SqliteRepository } from '../repository/SqliteRepository.js';
 import { RxDBAdapterSqliteBase, type SqliteBaseOptions, type SqliteClientLike } from '../RxDBAdapterSqliteBase.js';
 import { SQLiteChangeType } from '../sqlite-backend.interface.js';
@@ -37,6 +39,16 @@ class InvalidEncryptedPrimary extends EntityBase {}
   properties: [{ name: 'secret', type: PropertyType.string, encrypted: true, nullable: true }]
 })
 class SecretNote extends EntityBase {}
+
+@Entity({
+  name: 'QcContractRecipe',
+  tableName: 'recipes',
+  properties: [
+    { name: 'title', type: PropertyType.string },
+    { name: 'tag', type: PropertyType.string, nullable: true }
+  ]
+})
+class QcContractRecipe extends EntityBase {}
 
 @Entity({ name: 'MissingRepoEntity', repository: 'MissingRepo', properties: [] })
 class MissingRepoEntity extends EntityBase {}
@@ -1271,6 +1283,59 @@ describe('RxDBAdapterSqliteBase', () => {
       const deleteCalls = vi.mocked(client.execute).mock.calls.filter(([sql]) => String(sql).startsWith('DELETE FROM'));
       expect(deleteCalls).toHaveLength(1);
       expect(deleteCalls[0][0]).toContain('DELETE FROM "unknown_table" WHERE id IN');
+    });
+  });
+
+  // 远端行的列集在落地前就要判：`upsertMany` 的 INSERT 列清单取自 `data[0]` 的键，
+  // 实体元数据在这条路径上一次都没被读过，于是 `EntityBase.createdAt` 的
+  // `default: () => new Date()`（仓储层的东西）根本不参与，而本地表把该列建成了 NOT NULL。
+  // 远端不带这一列时，今天冒出来的是一条 `NOT NULL constraint failed: public$recipes.createdAt`：
+  // 本地表名 + 远端没有的列名 + 适配器内部的调用栈，三重误导（US-022）。
+  describe('QueryCache 远端行的列契约', () => {
+    const createContractRxdb = () => {
+      const rxdb = createRxdbMock();
+      vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue(getEntityMetadata(QcContractRecipe) as never);
+      return rxdb;
+    };
+    const completeRow = (id: string) => ({
+      id,
+      title: `t-${id}`,
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-02T00:00:00.000Z'
+    });
+
+    it('远端行缺非空列时抛列契约错误，且一条 SQL 都不发（AC#1 / AC#2）', async () => {
+      const client = createClient();
+      const adapter = new TestAdapter(createContractRxdb(), () => client);
+
+      await expect(
+        firstValueFrom(adapter.upsertMany('QcContractRecipe', [{ id: 'a', title: 'Pasta', updatedAt: 'x' }]))
+      ).rejects.toBeInstanceOf(RxDBQueryCacheRowContractError);
+
+      // 判在事务之前：既没有 INSERT，也没有 BEGIN —— 半批脏数据无从产生
+      expect(executedSqls(client).filter(sql => sql.startsWith('INSERT INTO'))).toHaveLength(0);
+      expect(executedSqls(client).filter(sql => sql.includes('BEGIN'))).toHaveLength(0);
+    });
+
+    it('异构行集被拦下，不按首行列集把后续行绑成 undefined（AC#4）', async () => {
+      const client = createClient();
+      const adapter = new TestAdapter(createContractRxdb(), () => client);
+
+      await expect(
+        firstValueFrom(adapter.upsertMany('QcContractRecipe', [{ ...completeRow('a'), tag: 'x' }, completeRow('b')]))
+      ).rejects.toBeInstanceOf(RxDBQueryCacheRowContractError);
+      expect(executedSqls(client).filter(sql => sql.startsWith('INSERT INTO'))).toHaveLength(0);
+    });
+
+    it('列集完整时照常落地（AC#5）', async () => {
+      const client = createClient();
+      const adapter = new TestAdapter(createContractRxdb(), () => client);
+
+      await firstValueFrom(adapter.upsertMany('QcContractRecipe', [completeRow('a'), completeRow('b')]));
+
+      const upsertCalls = vi.mocked(client.execute).mock.calls.filter(([sql]) => String(sql).startsWith('INSERT INTO'));
+      expect(upsertCalls).toHaveLength(1);
+      expect(upsertCalls[0][0]).toContain('INSERT INTO "public$recipes"');
     });
   });
 

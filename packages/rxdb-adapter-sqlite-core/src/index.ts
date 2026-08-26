@@ -47,6 +47,13 @@ export {
 } from './create_sqlite_client.js';
 export type { CreateSqliteClientOptions } from './create_sqlite_client.js';
 
+// QueryCache 远端行的列契约
+export {
+  RxDBQueryCacheRowContractError,
+  assertQueryCacheRowContract,
+  requiredQueryCacheColumns
+} from './query-cache-row-contract.js';
+
 // 工具函数
 export {
   ROWID,

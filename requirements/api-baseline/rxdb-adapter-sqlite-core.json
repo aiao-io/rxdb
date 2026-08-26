@@ -14,6 +14,10 @@
         "kind": "value"
       },
       {
+        "name": "assertQueryCacheRowContract",
+        "kind": "value"
+      },
+      {
         "name": "BATCH_TIMEOUT",
         "kind": "value"
       },
@@ -402,6 +406,10 @@
         "kind": "value"
       },
       {
+        "name": "requiredQueryCacheColumns",
+        "kind": "value"
+      },
+      {
         "name": "resolve_column_name",
         "kind": "value"
       },
@@ -440,6 +448,10 @@
       {
         "name": "rxDBColumnTypeToSqliteType",
         "kind": "value"
+      },
+      {
+        "name": "RxDBQueryCacheRowContractError",
+        "kind": "both"
       },
       {
         "name": "serializeForEnvelope",

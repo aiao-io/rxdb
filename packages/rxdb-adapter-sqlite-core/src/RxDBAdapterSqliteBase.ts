@@ -37,6 +37,7 @@ import { releaseComlinkProxy } from './create_sqlite_client.js';
 import { generate_upsert_clause } from './entity/insert_sql.js';
 import { handle_rxdb_change } from './handle_rxdb_change.js';
 import { SqliteCoreKeyringStorage } from './keyring/sqlite-core-keyring-storage.js';
+import { assertQueryCacheRowContract } from './query-cache-row-contract.js';
 import { generate_sql } from './query/query_sql.js';
 import { SqliteRepository } from './repository/SqliteRepository.js';
 import { SqliteTreeRepository } from './repository/SqliteTreeRepository.js';
@@ -653,11 +654,15 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       if (data.length === 0) {
         return of(undefined);
       }
+      // 判在事务之前，不是在事务里 —— 事务体里抛错要靠 ROLLBACK 才回到干净状态，
+      // 而这一批本来一行都不该被尝试写入。判据只需要元数据与行的键集，是同步的。
+      const target = this.#resolveQueryCacheTarget(entityName);
+      assertQueryCacheRowContract(entityName, data as object[], target.metadata);
       return from(
         this.transaction(async executor => {
           const dataColumns = Object.keys(data[0] as object);
           const placeholderGroup = `(${new Array(dataColumns.length).fill('?').join(', ')})`;
-          const { tableName, idColumn, columnNames } = this.#resolveQueryCacheTarget(entityName);
+          const { tableName, idColumn, columnNames } = target;
           const columns = dataColumns.map(column => columnNames.get(column) ?? column);
           const columnList = columns.map(quote_sql_identifier).join(', ');
           for (const dataChunk of chunkBySqliteBindLimit(data, columns.length)) {
@@ -770,12 +775,20 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     idColumn: string;
     updatedAtColumn: string;
     columnNames: ReadonlyMap<string, string>;
+    metadata: EntityMetadata | undefined;
   } {
     const metadata = this.rxdb.schemaManager.getEntityMetadata(entityName, 'public');
     if (!metadata) {
-      return { tableName: entityName, idColumn: 'id', updatedAtColumn: 'updatedAt', columnNames: new Map() };
+      return {
+        tableName: entityName,
+        idColumn: 'id',
+        updatedAtColumn: 'updatedAt',
+        columnNames: new Map(),
+        metadata: undefined
+      };
     }
     return {
+      metadata,
       tableName: get_table_name_by_metadata(metadata),
       idColumn: metadata.propertyMap?.get('id')?.columnName ?? 'id',
       updatedAtColumn: metadata.propertyMap?.get('updatedAt')?.columnName ?? 'updatedAt',
