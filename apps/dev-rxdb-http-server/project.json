@@ -4,10 +4,6 @@
   "projectType": "application",
   "sourceRoot": "apps/dev-rxdb-http-server/src",
   "tags": ["node-app"],
-  "//": [
-    "lint / typecheck / test 由 nx.json 的插件从 eslint.config.mjs / tsconfig.json / vite.config.mts 推断，不在此重复声明。",
-    "reset 是 AC#6 的「删文件重建」入口：先删库文件再建表写种子，而不是 DELETE FROM——后者留下自增状态与页碎片，两遍产物就不再逐字节相同。故事里写的 `reset seed` 两步合成这一个 target。"
-  ],
   "targets": {
     "serve": {
       "continuous": true,

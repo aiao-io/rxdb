@@ -14,13 +14,25 @@ import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
-/** `recipes` 表的一行，字段名与 `http-protocol.md` 的示例逐字一致。 */
+/**
+ * `recipes` 表的一行。
+ *
+ * @remarks
+ * 业务列（`title` / `status` / `price` / `tag`）与 `http-protocol.md` 的示例逐字一致。
+ *
+ * `createdAt` 不在文档示例里，但**必须有**：协议说写端点与 `findByIds` 回「完整行」，
+ * 而「完整」是按实体算的——`Recipe extends EntityBase`，基类预声明的 `createdAt`
+ * 没写 `nullable`，客户端本地行缓存那张表上它就是 `NOT NULL`。少回这一列时网线上
+ * 一切正常，错误发生在 upsert 落盘那一步（`NOT NULL constraint failed`）。
+ * `createdBy` / `updatedBy` 在基类上是 `nullable: true`，所以缺省无妨。
+ */
 export interface RecipeRow {
   id: string;
   title: string;
   status: string;
   price: number;
   tag: string | null;
+  createdAt: string;
   updatedAt: string;
 }
 
@@ -37,6 +49,7 @@ CREATE TABLE IF NOT EXISTS recipes (
   status    TEXT NOT NULL,
   price     REAL NOT NULL,
   tag       TEXT,
+  createdAt TEXT NOT NULL,
   updatedAt TEXT NOT NULL
 )`;
 

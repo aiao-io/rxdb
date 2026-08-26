@@ -67,6 +67,8 @@ export const seedRowAt = (index: number): RecipeRow => ({
   // (i * 37) % 5000 得到 0…4999 的整数，除以 100 后是两位小数的价格，跨平台浮点表示一致。
   price: ((index * 37) % 5000) / 100,
   tag: TAGS[index % TAGS.length],
+  // 种子行「建了就没再改过」，两个时刻相等是诚实取值；`update` 之后才会分叉。
+  createdAt: new Date(SEED_EPOCH_MS + index * HOUR_MS).toISOString(),
   updatedAt: new Date(SEED_EPOCH_MS + index * HOUR_MS).toISOString()
 });
 
@@ -83,13 +85,13 @@ export const seedRows = (count: number = SEED_ROW_COUNT): RecipeRow[] =>
  */
 export const seedDatabase = (db: DatabaseSync, count: number = SEED_ROW_COUNT): number => {
   const insert = db.prepare(
-    `INSERT INTO recipes (id, title, status, price, tag, updatedAt) VALUES (?, ?, ?, ?, ?, ?)`
+    `INSERT INTO recipes (id, title, status, price, tag, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)`
   );
   db.exec('BEGIN');
   try {
     db.exec('DELETE FROM recipes');
     for (const row of seedRows(count)) {
-      insert.run(row.id, row.title, row.status, row.price, row.tag, row.updatedAt);
+      insert.run(row.id, row.title, row.status, row.price, row.tag, row.createdAt, row.updatedAt);
     }
     db.exec('COMMIT');
   } catch (error) {

@@ -28,9 +28,9 @@ export const RECIPES_RESOURCE = 'recipes';
  * 协议文档说 `field` 是「受信任的列名」，但参考实现面向的是公网上任何一个发 JSON 的客户端，
  * 不能把那句话当成前提。
  */
-export const RECIPE_COLUMNS = ['id', 'title', 'status', 'price', 'tag', 'updatedAt'] as const;
+export const RECIPE_COLUMNS = ['id', 'title', 'status', 'price', 'tag', 'createdAt', 'updatedAt'] as const;
 
-/** 客户端可写的列。`id` 与 `updatedAt` 一律由服务端定型（协议第 3 / 4 节的硬要求）。 */
+/** 客户端可写的列。`id` / `createdAt` / `updatedAt` 一律由服务端定型（协议第 3 / 4 节的硬要求）。 */
 export const RECIPE_WRITABLE_COLUMNS = ['title', 'status', 'price', 'tag'] as const;
 
 /** 种子行数。250 行 + 前端 `pageSize: 50` 才能让翻页真实发生（见故事「默认配置会让 demo 白跑」）。 */

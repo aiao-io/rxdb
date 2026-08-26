@@ -17,9 +17,18 @@ let rxdb: RxDB | undefined;
  * @returns 单例；重复调用返回同一个
  *
  * @remarks
- * 库级 `sync` 写成 `SyncType.None` + 只有 local——真正的 QueryCache 策略挂在
- * `Recipe` 类上（理由见 `recipe.ts`）。库级只需要声明「本地落在 wa-sqlite」，
- * 让系统实体有个能建表的去处。
+ * 库级 `sync` 写成 `SyncType.None`——真正的 QueryCache 策略挂在 `Recipe` 类上
+ * （理由见 `recipe.ts`）。`SyncType.None` + 两端都配，是让系统实体留在本地
+ * （`selectPrimaryAdapterKind`：只要配了 local 就选 local）的同时，把 `http` 这个名字
+ * 交给核心。
+ *
+ * 两个适配器名**都必须**在这里出现，哪怕实体上已经写过一遍：`Repository` 构造
+ * QueryCache 主仓储时读的是 `rxdb.localAdapter$` / `rxdb.remoteAdapter$`，而这两条流
+ * 只由库级 `sync` 喂（`RxDB.init()`），实体级的 `remote.adapter` 核心并不看。
+ * 漏掉 `remote` 时 `remoteAdapter$` 被 `filter(Boolean)` 吞掉，`combineLatest` 永不发射——
+ * 查询既不发请求也不报错，页面停在「加载中…」，控制台一行日志都没有。
+ * 这是核心的一处静默悬挂（应另开 US 让它抛 `RxDBMissingPrimaryAdapterError` 那样的错），
+ * 本 demo 只能先把配置写全。
  *
  * `handlers` 用 `createRestHandlers()`，并**显式**给了 `version` 与 `isTableExisted`：
  * 这两个操作默认**不产出** handler（`rest.ts` 说得很直白：给它们猜一个默认端点等于
@@ -36,7 +45,8 @@ export default (): RxDB => {
     entities: [Recipe],
     sync: {
       type: SyncType.None,
-      local: { adapter: 'wa-sqlite' }
+      local: { adapter: 'wa-sqlite' },
+      remote: { adapter: 'http' }
     }
   });
 

@@ -116,29 +116,29 @@ const readRow = (db: DatabaseSync, id: string): RecipeRow | undefined => {
  * `create`。
  *
  * @remarks
- * `id` 走 `crypto.randomUUID()`、`updatedAt` 取服务端当前时刻，两者都**不看**入参。
+ * `id` 走 `crypto.randomUUID()`、`createdAt` / `updatedAt` 取服务端当前时刻，都**不看**入参。
  * 协议的警告：回显客户端给的 `id` 会让本地缓存留下一条远端从不存在的行。
  * 写完立刻回读整行返回，回执与库里那份必然一致。
+ *
+ * 新建行的 `createdAt === updatedAt`：它还没被改过，这是诚实的取值，
+ * 也让「`update` 只动 `updatedAt`」这件事在回执上一眼可见。
  */
 export const createRecipe = (db: DatabaseSync, input: unknown): RecipeRow => {
   const body = readObject(input, 'create');
+  const now = nowIso();
   const row: RecipeRow = {
     id: newRowId(),
     title: readString(body['title'] ?? '', 'title'),
     status: readString(body['status'] ?? 'draft', 'status'),
     price: readNumber(body['price'] ?? 0, 'price'),
     tag: readNullableString(body['tag'] ?? null, 'tag'),
-    updatedAt: nowIso()
+    createdAt: now,
+    updatedAt: now
   };
 
-  db.prepare(`INSERT INTO recipes (id, title, status, price, tag, updatedAt) VALUES (?, ?, ?, ?, ?, ?)`).run(
-    row.id,
-    row.title,
-    row.status,
-    row.price,
-    row.tag,
-    row.updatedAt
-  );
+  db.prepare(
+    `INSERT INTO recipes (id, title, status, price, tag, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(row.id, row.title, row.status, row.price, row.tag, row.createdAt, row.updatedAt);
 
   const persisted = readRow(db, row.id);
   if (persisted === undefined) throw new HttpError(500, 'Row disappeared right after insert');
@@ -149,8 +149,9 @@ export const createRecipe = (db: DatabaseSync, input: unknown): RecipeRow => {
  * `update`。
  *
  * @remarks
- * 只改请求体里出现过的列；`id` / `updatedAt` 即使出现在请求体里也一律忽略，
- * `updatedAt` 由服务端重新定型——它是新鲜度依据，让客户端来写就没有意义了。
+ * 只改请求体里出现过的列；`id` / `createdAt` / `updatedAt` 即使出现在请求体里也一律忽略
+ * （它们不在 {@link RECIPE_WRITABLE_COLUMNS} 里）。`updatedAt` 由服务端重新定型——
+ * 它是新鲜度依据，让客户端来写就没有意义了；`createdAt` 则从此不再变动。
  */
 export const updateRecipe = (db: DatabaseSync, id: string, patch: unknown): RecipeRow => {
   const body = readObject(patch, 'update');

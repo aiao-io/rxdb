@@ -20,8 +20,18 @@ import { buildFilterRules, emptyFilterState, type RecipeFilterState } from './fi
 import { Recipe } from './recipe';
 import { clearTraffic, onTraffic, trafficEntries, type TrafficEntry } from './traffic-recorder';
 
-/** 本地一次能读出的行数上限。种子是 250 行，取 250 让列表能一屏看全。 */
-const LOCAL_READ_LIMIT = 250;
+/**
+ * 本地一次能读出的行数上限。
+ *
+ * @remarks
+ * 刻意**高于**种子的 250 行。取值正好等于种子行数时，列表排序是 `updatedAt asc`，
+ * 而新建行的 `updatedAt` 是服务端当前时刻——必然排在最末，也就必然被这条 `limit` 切掉：
+ * 新建成功、后端也确实多了一行、页面上却什么都没变。
+ *
+ * `limit` 只下推本地读，不改同步范围（同步的粒度是整个 `where`），所以放宽它
+ * 不会多发一个请求，只是别让「显示上限」正好卡在「数据量」上。
+ */
+const LOCAL_READ_LIMIT = 1000;
 
 /** 新建表单的初值。 */
 const emptyDraft = (): { title: string; status: string; price: string; tag: string } => ({

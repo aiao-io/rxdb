@@ -14,6 +14,12 @@ import { Entity, EntityBase, PropertyType, SyncType } from '@aiao/rxdb';
  * 同步策略写在**实体级**而不是库级。库级 QueryCache 会把 `RxDBBranch` 这个系统实体
  * 一起卷进来，而它在 HTTP 后端并不存在，`init()` 会直接拒绝
  * （见 `packages/rxdb-adapter-http/tests/wire-integration.spec.ts` 的同一处注释）。
+ *
+ * `syncStaleTime: 0` 关掉「刚同步过」记忆。默认的 1000ms 窗口是给翻页交互省 round-trip 用的，
+ * 完全合理——但本 demo 的全部意义是**把协议流量摆出来看**，而「重新查询」若落在窗口内
+ * 就直接读本地投影：一次请求都不发、也不报错，页面上什么都没变。
+ * 观测台上没有比「按钮按了但什么都没发生，且这是对的」更坏的现象。
+ * 配 `0` 后每次读都回远端校验，按钮按下去必有流量。
  */
 @Entity({
   name: 'Recipe',
@@ -26,7 +32,7 @@ import { Entity, EntityBase, PropertyType, SyncType } from '@aiao/rxdb';
   ],
   sync: {
     type: SyncType.QueryCache,
-    local: { adapter: 'wa-sqlite' },
+    local: { adapter: 'wa-sqlite', syncStaleTime: 0 },
     remote: { adapter: 'http' }
   }
 })

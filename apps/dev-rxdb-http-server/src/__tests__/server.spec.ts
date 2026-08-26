@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { SEED_ROW_COUNT } from '../config.ts';
 import { openDatabase } from '../db.ts';
-import { seedDatabase } from '../seed.ts';
+import { seedDatabase, seedIdAt } from '../seed.ts';
 import type { DemoServer } from '../server.ts';
 import { createDemoServer } from '../server.ts';
 
@@ -185,6 +185,35 @@ describe('写端点回执来自库，不是回显入参（AC#5）', () => {
   it('findByIds 对不存在的 id 少返回几行，而不是 500', async () => {
     const rows = await postJson<unknown[]>('recipes/by-ids', { ids: ['no-such-row', 'also-missing'] });
     expect(rows).toEqual([]);
+  });
+
+  /**
+   * 「完整行」是按**实体**算的，不是按业务列算的。
+   *
+   * `Recipe extends EntityBase`，而 `EntityBase` 预声明的 `createdAt` 没写 `nullable`，
+   * 于是本地行缓存那张表上它是 `NOT NULL`。后端少回这一列，客户端把远端行 upsert 进
+   * wa-sqlite 时会直接撞 `NOT NULL constraint failed: public$recipes.createdAt`——
+   * 网线上一切正常，错误发生在落盘那一步。
+   *
+   * 所以参考后端必须把 `createdAt` 一起持久化、一起回。`createdBy` / `updatedBy`
+   * 在基类上是 `nullable: true`，缺省即可。
+   */
+  it('回执带齐实体基类的非空字段：createdAt 与 updatedAt 都在，且 createdAt 不随 update 变', async () => {
+    const created = await postJson<Record<string, unknown>>('recipes', { title: 'Gnocchi', status: 'draft' });
+    expect(created['createdAt']).toBe(created['updatedAt']);
+
+    const response = await fetch(`${baseUrl}/recipes/${String(created['id'])}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ status: 'published', createdAt: '1999-01-01T00:00:00.000Z' })
+    });
+    const updated = (await response.json()) as Record<string, unknown>;
+
+    expect(updated['createdAt']).toBe(created['createdAt']);
+    expect(String(updated['updatedAt']) > String(updated['createdAt'])).toBe(true);
+
+    const [seeded] = await postJson<Record<string, unknown>[]>('recipes/by-ids', { ids: [seedIdAt(0)] });
+    expect(typeof seeded['createdAt']).toBe('string');
   });
 });
 

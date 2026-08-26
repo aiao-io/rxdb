@@ -264,6 +264,56 @@ HEAD /v1/recipes
 
 ---
 
+## 跨源（CORS）
+
+协议本身与传输无关，这一节里没有一条是「协议要求」。但浏览器前端几乎不可能与 API 同源，
+而跨源的默认行为会**静默地**改掉上面几节的可观测结果——所以后端必须显式配好三件事。
+
+### 1. 预检：非简单请求会先发 `OPTIONS`
+
+七个端点里，只有 `version` 的 `GET` 和 `isTableExisted` 的 `HEAD` 可能落在「简单请求」里；
+`POST :entity/metadata`、`POST :entity/by-ids`、`POST :entity`、`PATCH :entity/:id`、
+`POST :entity/delete` 全都会先发一次 `OPTIONS` 预检。预检**不出现在 `fetch` 的可观测面上**：
+浏览器自己发、自己收，脚本既拿不到请求也拿不到响应，失败时前端只看到一个没有细节的
+network error。
+
+预检响应必须包含：
+
+| 响应头                         | 值                                                |
+| :----------------------------- | :------------------------------------------------ |
+| `Access-Control-Allow-Origin`  | 回显 `Origin`（或 `*`）                           |
+| `Access-Control-Allow-Methods` | 至少 `GET, HEAD, POST, PATCH, OPTIONS`            |
+| `Access-Control-Allow-Headers` | 至少 `content-type, authorization, if-none-match` |
+
+三个请求头**没有一个**在 CORS 安全列表里：安全列表的 `Content-Type` 只放行三种 MIME，
+`application/json` 不在其中；`Authorization` 从来不是安全列表头；`If-None-Match` 也不是。
+少配任何一个，对应端点在预检阶段就被挡下，请求根本发不出去。
+
+### 2. 错误响应同样要带跨源头
+
+`4xx` / `5xx` 也要走 `Access-Control-Allow-Origin`。少了它，浏览器把一个**成功送达**的
+`409` 变成 network error，客户端于是抛 `NetworkOfflineError` 并按离线降级——
+[错误语义](#错误语义后端只需知道后果)那张表里「非 2xx 不降级」的约定就被跨源配置悄悄推翻了。
+
+### 3. `ETag` 必须显式暴露，否则条件请求全程静默失效
+
+跨源响应默认只有七个响应头对脚本可见，`ETag` **不在其中**。没有
+
+```http
+Access-Control-Expose-Headers: ETag
+```
+
+时，客户端读到的 `ETag` 是 `null`——它据此认为「这个响应没有 ETag」，丢掉缓存条目，
+下一次请求自然不带 `If-None-Match`，后端于是永远回 `200`。
+
+这一路上**没有任何一处报错**：没有异常、没有告警、控制台一行日志都没有，功能完全正常，
+只是条件请求一次都不命中。它表现为带宽白花，而不是故障——因此几乎不可能在联调阶段被发现。
+同源部署时这个头可以省，跨源时它是条件请求能否生效的唯一开关。
+
+浏览器端的完整复现见 `apps/dev-rxdb-http`（前端 4300 / 后端 4301，故意不同源）。
+
+---
+
 ## RuleGroup JSON 结构
 
 `where` 是一棵递归的过滤树，**叶子是规则、非叶子是组合**：
@@ -367,7 +417,8 @@ curl -X POST 'https://api.example.com/v1/recipes/delete' \
 - [ ] `create` / `update` 返回**持久化后**的完整行（服务端定的 `id` / `updatedAt`）；
 - [ ] `findByIds` 对不存在的 id 返回**少于请求数**的行，而不是 `500`；
 - [ ] `delete` 用 `POST` 且从 body 读 `ids`（或与客户端显式约定真 `DELETE`）；
-- [ ] 若实现了条件请求：内容一旦变化就**不得**再回 `304`（`304` 的含义是「客户端手上那份仍有效」）。
+- [ ] 若实现了条件请求：内容一旦变化就**不得**再回 `304`（`304` 的含义是「客户端手上那份仍有效」）；
+- [ ] 若前端跨源：预检放行 `content-type` / `authorization` / `if-none-match`，错误响应也带跨源头，且用 `Access-Control-Expose-Headers: ETag` 把 `ETag` 暴露出去（漏掉最后一条时条件请求会**静默**失效，见[跨源（CORS）](#跨源cors)）。
 
 ---
 

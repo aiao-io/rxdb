@@ -5,10 +5,6 @@
   "projectType": "application",
   "sourceRoot": "apps/dev-rxdb-http/src",
   "tags": ["angular-app"],
-  "//": [
-    "端口 4300：既有 demo 占了 4200 / 4201 / 4202 / 4203，参考后端在 4301。前后端**故意不同源**，AC#9～#12 全靠这一条。",
-    "serve 不配 COOP / COEP —— 这是本 app 唯一一处刻意不抄 dev-rxdb-angular 的地方。`require-corp` 会把跨源资源全挡回去，跨源诊断的现象就分不清是 CORS 还是 COEP 造成的了。代价是 wa-sqlite 用不了 SharedArrayBuffer，本 demo 的三条 VFS 路径都不需要它。"
-  ],
   "targets": {
     "build": {
       "defaultConfiguration": "production",
