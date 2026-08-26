@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc/apps/dev-rxdb-http-server/spec",
+    "types": ["node", "vitest/globals", "vitest/importMeta", "vitest"]
+  },
+  "extends": "./tsconfig.json",
+  "files": [],
+  "include": ["vite.config.mts", "src/**/*.ts"],
+  "references": []
+}
