@@ -462,8 +462,6 @@ AC#8 由此从「照常重跑」改写为「零重跑、零请求、`pullableCou
 | [packages/rxdb/src/repository/query-cache-primary.ts](../../../packages/rxdb/src/repository/query-cache-primary.ts)     | A    | `#sync` 取代次、传代次；失效路径连带作废在飞表（D12 / D13）                                             |
 | [packages/rxdb-devtools/src/connector-events.ts](../../../packages/rxdb-devtools/src/connector-events.ts)               | A    | **编译期契约必改**：新事件补进订阅清单，取值 `true`（D3 / AC#31）                                       |
 
-<!-- 不列 requirements/api-baseline/rxdb-devtools.json：`RXDB_EVENT_SUBSCRIPTIONS` / `RXDB_EVENT_TYPES` 未经 connector.ts 再导出，公共 API 面不变 -->
-
 | [requirements/api-baseline/rxdb.json](../../api-baseline/rxdb.json) | A | AC#25：新导出进基线 |
 | `packages/rxdb-adapter-http/src/`（新增变更通知模块 + 选项） | B | 连接、退避重连、回声抑制、重连全量失效（D5 / D6 / D7） |
 | [requirements/api-baseline/rxdb-adapter-http.json](../../api-baseline/rxdb-adapter-http.json) | B | AC#25 |
@@ -472,6 +470,8 @@ AC#8 由此从「照常重跑」改写为「零重跑、零请求、`pullableCou
 | [apps/dev-rxdb-http/src/app/](../../../apps/dev-rxdb-http/src/app/) | C | `?changefeed=1` 开关 + 面板计数（D11 / AC#24） |
 | [apps/dev-rxdb-http-e2e/src/](../../../apps/dev-rxdb-http-e2e/src/) | C | 双 context 收敛用例 + 关掉开关的对照用例 |
 | [requirements/roadmap.md](../../roadmap.md) | 关闭时 | 把「US-212 AC#29」从「明确不排期」移出，指向本文件 |
+
+<!-- 不列 requirements/api-baseline/rxdb-devtools.json：`RXDB_EVENT_SUBSCRIPTIONS` / `RXDB_EVENT_TYPES` 未经 connector.ts 再导出，公共 API 面不变 -->
 
 ## References
 
