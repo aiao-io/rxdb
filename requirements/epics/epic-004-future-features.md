@@ -25,6 +25,7 @@ owner: jimmy
 - [x] HTTP 远程适配器：已有 REST API 可挂 `adapter:remote`，本地 sqlite 独立注册为行缓存
 - [ ] HTTP 协议文档的可执行验收：参考后端 + 真实 fetch 证明 `http-protocol.md` 可互通
 - [ ] HTTP 协议的浏览器端到端 demo：Angular + 真 sqlite 后端 + 跨源，补齐 CORS 与 `RuleGroup → SQL` 两处空白
+- [ ] QueryCache 的远端变更实时同步：core 失效上报口 + HTTP 可选变更通知通道，让别的客户端的写自己走到屏幕上
 
 ## 故事
 
@@ -46,6 +47,7 @@ owner: jimmy
 - [US-021 QueryCache 远端适配器缺席时配置期 fail-fast](../stories/core/US-021-querycache-adapter-fail-fast.md) — 出自 US-214：库级 `sync` 少配 remote 时 QueryCache 查询**静默永挂**；在 `validateSyncStrategy` 里配置期拦下
 - [US-022 QueryCache 远端行的列契约与缺列诊断](../stories/core/US-022-querycache-remote-row-contract.md) — 出自 US-214：`upsertMany` 的裸 SQL 写不过仓储，实体 `default` 不生效；补契约文档 + 落地前列集校验，**不做本地兜底**
 - [US-215 条件请求被静默停用时给出可观测信号](../stories/adapter/US-215-conditional-request-silence.md) — 出自 US-214：跨源读不到 `ETag` 时 transport 静默降级；加可选诊断 hook，**不引入 console**、不改数据路径
+- [US-023 QueryCache 远端变更的失效上报口与实时同步](../stories/core/US-023-querycache-remote-invalidation.md) — 出自 US-214：别的客户端改了数据，本客户端永不更新；三阶段（core 失效上报口 → HTTP 可选 SSE 通道 → demo 双页面收敛），**承接 US-212 AC#29**，失效粒度=整实体、通知不带行数据
 
 > 拆分理由：PGlite 的 callback transaction 无法跨 IPC 序列化，需要一套 SQLite 路径不需要的
 > 事务 host 协议；混编会让 US-207 在不做这件事的前提下无法验收。Tauri PGlite 明确不在范围内——Tauri 没有 Node
@@ -72,6 +74,13 @@ owner: jimmy
 > `Content-Type: application/json` 与 `PATCH` 都必然触发预检）、`RuleGroup → 参数化 SQL`（US-213 的参考后端在 JS 里
 > `Array.filter`，等于假设翻译这步没问题，而文档自己写明这是翻译风险最高的一节）、真 wa-sqlite 行缓存上的孤儿清理
 > 与 `offlineFallback`（US-213 明确列为 Out of Scope，用内存替身）。它同样**不改 `src/`**，口径见 [roadmap 约束 14](../roadmap.md#排期约束)。
+>
+> US-023 与前三条同源但不同性质：US-021 / US-022 / US-215 治的是**已有路径上的静默失败**，
+> US-023 补的是一条**从来不存在的路径**——远端变了没有任何机制通知客户端。它因此需要一个 core 新抽象，
+> 也因此在 2026-08-24 的 owner 判定里以「拿不到 owner」被移出 US-212（原 AC#29）、按「价值待证」登记进
+> [roadmap「明确不排期」](../roadmap.md#明确不排期)。2026-08-27 该行的两条解锁条件同时满足（真实的实时性需求 +
+> 说得清失效粒度），故建档。它归本 Epic 而非 [epic-002](epic-002-data-sync.md) 的理由与 US-020 / US-212 同：
+> epic-002 已 `Done`，**不得持有未完成故事、不得重开**。
 >
 > US-021 / US-022 / US-215 是 US-214 的**产出**而非它的遗留工作：那条故事被 [roadmap 约束 14](../roadmap.md#排期约束)
 > 禁止改 `src/`，所以每撞见一个产物侧缺陷就只能冻成用例或记进「落地偏差」，另开故事是当初就定好的出口。
