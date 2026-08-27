@@ -232,6 +232,17 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
   /** 并发查询去重缓存 - 使用查询指纹作为 key */
   #inflightQueries = new Map<string, Observable<InstanceType<T>[]>>();
 
+  /**
+   * 作废代次，每次 {@link QueryCacheRepository.invalidateInflight} 递增（US-023 D13）。
+   *
+   * @remarks
+   * 与 `QueryCacheSyncMemo.generation` 是**两个**计数器，不能合用：那一个还被本地写
+   * （`create` / `update` / `remove` 的 `clear()`）推进，而本地写按设计**不**作废在飞查询
+   * ——那条路径上远端已由本仓储自己写过，在飞查询问到的就是写后的状态。拿它当守卫，
+   * 一次并发的 `create` 就会把毫无问题的在飞同步整个判成陈旧、连带丢掉它的落地。
+   */
+  #invalidationGeneration = 0;
+
   /** 实体名称 */
   readonly entityName: string;
 
@@ -336,11 +347,18 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
    * 只是这些流不再被后来者复用。远端数据已变的那一刻，在飞的拉取问的是变更前的
    * 远端状态；让失效后的重跑复用它，重跑就等于没跑。
    *
+   * 「不取消」只管到**结果**这一层：陈旧流照常把它那次的答案发给自己的订阅者，
+   * 但从此不再写本地缓存（{@link QueryCacheRepository.#isCurrent}）。缓存是共享的，
+   * 而那份答案按定义已经过期 —— 让它落地就会把重跑刚写进来的新行盖回旧值，
+   * 且错误会一直留到 `syncStaleTime` 到期：重跑那次的 `remember` 是成功的，
+   * 窗口内不会再有人去校验一遍。
+   *
    * 本地写路径不需要调用它 —— 那条路径上远端已由本仓储自己写过，在飞查询问到的
    * 就是写后的状态。
    */
   invalidateInflight(): void {
     this.#inflightQueries.clear();
+    this.#invalidationGeneration++;
   }
 
   /**
@@ -636,13 +654,32 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
    */
   #executeFindQuery(options: QueryCacheFindOptions<T>): Observable<InstanceType<T>[]> {
     const startTime = Date.now();
+    // 代次在发第一个请求之前取：这次同步问到的是**此刻**的远端状态，
+    // 之后到达的失效上报意味着这份答案按定义已经过期，不该再落共享缓存
+    const generation = this.#invalidationGeneration;
 
     return forkJoin({
       remoteMetadata: this.remoteAdapter.fetchMetadata(this.entityName, options.where),
       localRows: this.#readLocal(options.where)
     }).pipe(
-      switchMap(({ remoteMetadata, localRows }) => this.#reconcile(options, remoteMetadata, localRows, startTime))
+      switchMap(({ remoteMetadata, localRows }) =>
+        this.#reconcile(options, remoteMetadata, localRows, startTime, generation)
+      )
     );
+  }
+
+  /**
+   * 本次同步是否仍属于当前代次。
+   *
+   * @param generation - 同步开始前取到的 {@link QueryCacheRepository.#invalidationGeneration}
+   *
+   * @remarks
+   * 判在**每次写之前**而不是同步开头：`findByIds` 还在飞的那段时间正是失效最可能落进来的
+   * 窗口，早判等于没判。判读不判写同样是有意的 —— 读一次陈旧数据只影响发起方自己，
+   * 写一次陈旧数据影响之后每一个读缓存的人。
+   */
+  #isCurrent(generation: number): boolean {
+    return this.#invalidationGeneration === generation;
   }
 
   /**
@@ -652,20 +689,22 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
    * @param remoteMetadata - 远端元数据
    * @param localRows - 本次 `where` 的本地投影
    * @param startTime - 同步起始时刻，用于 `durationMs`
+   * @param generation - 同步开始前的作废代次，两个写动作各自据此判是否还该落地
    */
   #reconcile(
     options: QueryCacheFindOptions<T>,
     remoteMetadata: QueryCacheEntityMetadata[],
     localRows: InstanceType<T>[],
-    startTime: number
+    startTime: number,
+    generation: number
   ): Observable<InstanceType<T>[]> {
     const localMetadata = new Map(localRows.map(entity => [rowId(entity), rowUpdatedAt(entity)]));
     const diff = diffMetadata(remoteMetadata, localMetadata);
     const freshIds = new Set(diff.freshIds);
     const freshRows = localRows.filter(entity => freshIds.has(rowId(entity)));
 
-    return this.#evictOrphans(diff.orphanIds).pipe(
-      switchMap(() => this.#pull([...diff.missingIds, ...diff.staleIds])),
+    return this.#evictOrphans(diff.orphanIds, generation).pipe(
+      switchMap(() => this.#pull([...diff.missingIds, ...diff.staleIds], generation)),
       map(pulledRows => {
         this.#reportSyncStats(options.onSyncStats, {
           remoteCount: remoteMetadata.length,
@@ -685,25 +724,37 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
    * 删除本次 `where` 投影里远端已不再返回的行（US-020 AC#11 / AC#12）。
    *
    * @param ids - 孤儿 ID；为空时不发删除
+   * @param generation - 同步开始前的作废代次；已被作废时一行都不删
    *
    * @remarks
    * 删的是缓存行，不产生 changelog —— QueryCache 的本地库是远端的投影，
    * 不是待推送的本地变更（US-020 AC#20）。
+   *
+   * 孤儿集算自本次 `where` 的**旧**快照。远端把某行删掉又重新建出来时，重跑会把新行写回本地，
+   * 而这份旧快照仍把它当孤儿 —— 陈旧的删除紧跟其后，刚写回的行又没了。
    */
-  #evictOrphans(ids: string[]): Observable<void> {
+  #evictOrphans(ids: string[], generation: number): Observable<void> {
     if (ids.length === 0) {
       return of(undefined);
     }
-    return this.localAdapter.deleteByIds(this.entityName, ids);
+    return defer(() =>
+      this.#isCurrent(generation) ? this.localAdapter.deleteByIds(this.entityName, ids) : of(undefined)
+    );
   }
 
   /**
    * 从远端拉取缺失/过期的行并落本地缓存。
    *
    * @param ids - 待拉取 ID；为空时不发请求
+   * @param generation - 同步开始前的作废代次；已被作废时拉到的行照常返回，但不落本地
    * @returns 实际拉到的行
+   *
+   * @remarks
+   * 这里是失效竞态唯一真正会写坏数据的地方：`findByIds` 已经发出去、远端随后变更，
+   * 这一次的响应体反映的是变更前的状态。判据放在响应回来之后 —— 请求发出时还没被作废，
+   * 不代表落地时还没有。
    */
-  #pull(ids: string[]): Observable<InstanceType<T>[]> {
+  #pull(ids: string[], generation: number): Observable<InstanceType<T>[]> {
     if (ids.length === 0) {
       return of([]);
     }
@@ -711,7 +762,7 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
       .findByIds<InstanceType<T>>(this.entityName, ids)
       .pipe(
         switchMap(pulledRows =>
-          pulledRows.length === 0 ?
+          pulledRows.length === 0 || !this.#isCurrent(generation) ?
             of(pulledRows)
           : this.localAdapter.upsertMany(this.entityName, pulledRows).pipe(map(() => pulledRows))
         )

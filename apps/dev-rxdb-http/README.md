@@ -1,6 +1,6 @@
 # dev-rxdb-http
 
-`@aiao/rxdb-adapter-http` 的浏览器端到端 demo：Angular 前端 + `dev-rxdb-http-server` 参考后端。
+`@aiao/rxdb-adapter-http` 的浏览器 demo：Angular 前端 + `dev-rxdb-http-server` 参考后端。
 
 用来把三件平时看不见的事**变成能指着看的现象**：网线上真正跑了哪些请求、条件请求有没有命中、
 后端连不上时列表还剩下什么。

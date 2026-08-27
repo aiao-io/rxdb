@@ -627,6 +627,62 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
       await new Promise(resolve => setTimeout(resolve, 20));
     });
 
+    // 作废之后那条还在飞的拉取，问的是失效前的远端状态：结果照常交给它自己的订阅者，
+    // 但不能再落本地 —— 落下去就把重跑刚写进来的新行盖回旧值，且本地库会一直错到
+    // 记忆窗口到期为止（重跑那次的 `remember` 是成功的，窗口内没人会再校验一次）
+    it('AC#27 作废之后的陈旧拉取不再落本地，不覆盖重跑写入的新行', async () => {
+      const stores = createStores();
+      const localRepo = createLocalRepo(stores);
+      const localAdapter = createLocalAdapter(stores, localRepo);
+
+      let remoteMetadata: QueryCacheEntityMetadata[] = [{ id: 'a', updatedAt: '2024-01-01T00:00:00Z' }];
+      // 每次 findByIds 都挂起，由用例决定谁先回来：竞态的方向必须是可控的，不能靠 delay 赌
+      const pulls: ((rows: RecipeEntity[]) => void)[] = [];
+      const remoteAdapter = {
+        name: 'remote',
+        getRepository: vi.fn(),
+        fetchMetadata: vi.fn(() => of(remoteMetadata)),
+        findByIds: vi.fn(
+          () =>
+            new Observable<RecipeEntity[]>(subscriber => {
+              pulls.push(rows => {
+                subscriber.next(rows);
+                subscriber.complete();
+              });
+            })
+        )
+      };
+      const cache = new QueryCacheRepository(
+        'RecipeEntity',
+        remoteAdapter as unknown as QueryCacheRemoteAdapter,
+        localAdapter as unknown as QueryCacheLocalAdapter,
+        {
+          find: (options: { where: RuleGroup<RecipeEntity> }) => localRepo.find(options)
+        } as unknown as QueryCacheLocalReader<IEntity>
+      ) as unknown as InflightCache;
+
+      // 第一次同步：本地空 → 缺 'a' → 拉取停在飞行中
+      subscriptions.push(cache.find({ where: allWhere() }).subscribe());
+      await settle();
+      expect(pulls).toHaveLength(1);
+
+      // 失效上报：作废在飞查询；远端此刻已经是新版本，重跑问到的是它
+      cache.invalidateInflight();
+      remoteMetadata = [{ id: 'a', updatedAt: '2024-01-09T00:00:00Z' }];
+      subscriptions.push(cache.find({ where: allWhere() }).subscribe());
+      await settle();
+      expect(pulls).toHaveLength(2);
+
+      // 重跑先落地新行，陈旧拉取随后才回来
+      pulls[1]([row('a', '2024-01-09T00:00:00Z', 42)]);
+      await settle();
+      pulls[0]([row('a', '2024-01-01T00:00:00Z', 1)]);
+      await settle();
+
+      expect(stores.local.get('a')?.value).toBe(42);
+      expect(localAdapter.upsertMany).toHaveBeenCalledTimes(1);
+    });
+
     // 经统一 Repository 的同款证据：失效瞬间重跑不复用在飞结果
     it('AC#27 在飞窗口内上报失效，重跑发起新的 fetchMetadata', async () => {
       const ctx = setup({ fetchDelayMs: 5 });
