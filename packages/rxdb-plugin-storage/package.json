@@ -77,6 +77,6 @@
     "@aiao/rxdb-adapter-electron": "workspace:*",
     "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   }
 }
