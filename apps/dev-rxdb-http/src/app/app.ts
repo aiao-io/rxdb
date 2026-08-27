@@ -290,6 +290,17 @@ export class App implements OnInit {
     });
   }
 
+  /**
+   * 写入表单里按回车。
+   *
+   * @remarks
+   * 分派到 {@link create} 还是 {@link update} 由编辑态决定——与那两个按钮的显隐是同一个判据，
+   * 所以回车永远等价于「按下此刻看得见的那个主按钮」。
+   */
+  submitDraft(): void {
+    void (this.$editingId() === null ? this.create() : this.update());
+  }
+
   /** 把某一行装进表单准备改。 */
   startEdit(recipe: Recipe): void {
     this.$editingId.set(recipe.id);

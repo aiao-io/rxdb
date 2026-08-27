@@ -1,8 +1,12 @@
 /**
- * 全局样式。
+ * 全局样式：设计令牌 + 表单控件基座。
  *
  * 刻意不引 Tailwind / daisyui：本 demo 要观察的是协议流量与缓存行为，
  * 少一层构建期插件就少一处「页面白了是不是样式管线的问题」的排查分支。
+ *
+ * 控件（button / input / select）的外观放在这里而不是 app.scss：
+ * 元素选择器从全局样式表照样穿透组件的样式封装，而组件样式有 4kb 的构建预算，
+ * 把这份跟布局无关的基座留在全局，app.scss 才能只谈布局。
  */
 
 :root {
@@ -14,11 +18,22 @@
   --panel: #fbfbfc;
   --input: #ffffff;
   --hover: #f1f2f4;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-fg: #ffffff;
+  --accent-border: #a9c4f7;
+  --accent-bg: #eff4ff;
+  --ok-fg: #15803d;
+  --ok-bg: #e9f8ef;
+  --ok-border: #a9dfc0;
   --warn-bg: #fff7e6;
   --warn-border: #f0c36d;
   --bad-bg: #fdecec;
   --bad-border: #e9a3a3;
   --bad-fg: #b42318;
+  --radius: 8px;
+  --ring: 0 0 0 3px rgb(37 99 235 / 30%);
+  --shadow: 0 1px 2px rgb(16 24 40 / 6%);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -30,12 +45,27 @@
     --panel: #1c1f26;
     --input: #21252d;
     --hover: #2a2f38;
+    --accent: #3b82f6;
+    --accent-hover: #2f6fe0;
+    --accent-border: #3b5c96;
+    --accent-bg: #1a2436;
+    --ok-fg: #6ee7a5;
+    --ok-bg: #14301f;
+    --ok-border: #2f6b45;
     --warn-bg: #3a2f14;
     --warn-border: #7a6222;
     --bad-bg: #3a1d1d;
     --bad-border: #7a3a3a;
     --bad-fg: #ff9b93;
+    --ring: 0 0 0 3px rgb(59 130 246 / 40%);
+    --shadow: 0 1px 2px rgb(0 0 0 / 30%);
   }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 html,
@@ -44,6 +74,7 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--fg);
+  -webkit-text-size-adjust: 100%;
   font-family:
     system-ui,
     -apple-system,
@@ -52,4 +83,297 @@ body {
     'Helvetica Neue',
     Arial,
     sans-serif;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.95em;
+}
+
+input,
+select,
+button {
+  font: inherit;
+  font-size: 0.85rem;
+  color: inherit;
+}
+
+input,
+select {
+  width: 100%;
+  min-width: 0;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--input);
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+
+  &:hover:not(:disabled) {
+    border-color: var(--accent-border);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  padding: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--input);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+
+  &:hover:not(:disabled) {
+    background: var(--hover);
+    border-color: var(--accent-border);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  /* 主操作：一屏至多一两个，多了就等于没有。 */
+  &.primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+
+  &.primary:hover:not(:disabled) {
+    border-color: var(--accent-hover);
+    background: var(--accent-hover);
+  }
+
+  /* 破坏性操作：删行、清库。悬停才上红底，静态时只是描边不同。 */
+  &.danger {
+    border-color: var(--bad-border);
+    color: var(--bad-fg);
+  }
+
+  &.danger:hover:not(:disabled) {
+    background: var(--bad-bg);
+    border-color: var(--bad-fg);
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+input:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+
+/*
+ * 表单外壳与只读展示块。同样是「跟版面无关的基座」，放全局是为了给 app.scss
+ * 腾出 4kb 组件样式预算——那份预算该留给真正描述版面的规则。
+ */
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+
+  > span:first-child {
+    color: var(--muted);
+  }
+
+  &.inline {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.45rem;
+    cursor: pointer;
+  }
+
+  small {
+    color: var(--muted);
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+}
+
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  legend {
+    font-size: 0.8rem;
+    color: var(--muted);
+    padding: 0 0.3rem;
+  }
+}
+
+details {
+  margin-top: 0.75rem;
+
+  summary {
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--muted);
+    padding: 0.2rem 0;
+
+    &:hover {
+      color: var(--fg);
+    }
+  }
+}
+
+pre {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  overflow-x: auto;
+  max-height: 18rem;
+  background: var(--input);
+  border: 1px solid var(--border);
+  padding: 0.5rem;
+  border-radius: 6px;
+}
+
+/*
+ * 表格、横幅与几个行内排字助手。都是「换一个页面照样成立」的元素外观，
+ * 和上面的控件基座同一类；留在全局，组件样式里就只剩真正描述版面的规则。
+ */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+
+  th,
+  td {
+    text-align: left;
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  th {
+    color: var(--muted);
+    font-weight: 500;
+    background: var(--panel);
+  }
+
+  /*
+   * 表格铺满面板之后，多出来的宽度默认按比例摊到每一列，列与列之间被拉出大片空档。
+   * 指定一列吃掉全部余量，其余列各自收到内容宽——`路径` / `title` 这种会变长的字段最该吃。
+   */
+  .grow {
+    width: 100%;
+  }
+
+  tbody tr:hover {
+    background: var(--hover);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.banner {
+  margin: 0.6rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+
+  &.offline {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+  }
+
+  &.bad {
+    background: var(--bad-bg);
+    border: 1px solid var(--bad-border);
+  }
+}
+
+.bad {
+  color: var(--bad-fg);
+}
+
+.count {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.badge {
+  font-size: 0.75rem;
+  font-weight: 400;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 1.2rem 0.5rem;
+}
+
+.mono {
+  font-family: var(--mono);
+}
+
+/* 触摸设备上把点击目标撑到 40px：鼠标下 0.85rem 的紧凑控件在手指下点不准。 */
+@media (pointer: coarse) {
+  input,
+  select,
+  button {
+    min-height: 2.5rem;
+  }
+
+  input[type='checkbox'] {
+    min-height: 0;
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

@@ -1,174 +1,163 @@
 :host {
   display: block;
-  padding: 1rem 1.25rem 3rem;
-  max-width: 1400px;
+  max-width: 1560px;
   margin: 0 auto;
+  padding: 0 1rem 3rem;
 }
 
+/* ---- 顶栏 ---------------------------------------------------------------- */
+
+/*
+ * 常驻顶部。后端地址、离线横幅、查询报错都在这儿——正是翻到页面底下看流量面板时
+ * 最需要一眼确认的三件事，滚走了就得来回蹦。
+ */
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 0 -1rem;
+  padding: 0.7rem 1rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+
   h1 {
-    font-size: 1.25rem;
-    margin: 0 0 0.75rem;
+    font-size: 1.05rem;
+    margin: 0 0 0.5rem;
   }
 
   .facts {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.25rem 1.5rem;
+    gap: 0.35rem 0.5rem;
     margin: 0;
 
     div {
       display: flex;
       align-items: baseline;
       gap: 0.4rem;
+      padding: 0.15rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--panel);
     }
 
     dt {
       color: var(--muted);
-      font-size: 0.8rem;
+      font-size: 0.75rem;
     }
 
     dd {
       margin: 0;
       font-family: var(--mono);
-      font-size: 0.85rem;
+      font-size: 0.8rem;
     }
   }
 }
 
-.banner {
-  margin: 0.75rem 0 0;
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.9rem;
+/* ---- 版面 ---------------------------------------------------------------- */
 
-  &.offline {
-    background: var(--warn-bg);
-    border: 1px solid var(--warn-border);
-  }
-
-  &.bad {
-    background: var(--bad-bg);
-    border: 1px solid var(--bad-border);
-  }
-}
-
-.bad {
-  color: var(--bad-fg);
-}
-
+/*
+ * 三档断点，每一档都把面板重新排一遍，而不是让 `auto-fit` 自己填格子——
+ * 后者在 1440px 上会排出「三列里只坐了两块面板」的参差版面。
+ *
+ * 宽屏那一档是「左手操作、右手观察」：筛选 / 写入 / 开关叠在窄栏里，
+ * 列表独占右侧整条。空的第四行是故意留的：列表跨三行，多出来的高度得有个
+ * `1fr` 轨道接着，否则会被平摊进前三行，把左边三块面板互相推开。
+ */
 main {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
   gap: 1rem;
   margin-top: 1rem;
   align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'filter' 'write' 'list' 'control' 'traffic' 'etag';
+}
+
+@media (min-width: 760px) {
+  main {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      'filter write'
+      'list list'
+      'control control'
+      'traffic traffic'
+      'etag etag';
+  }
+}
+
+@media (min-width: 1180px) {
+  main {
+    grid-template-columns: minmax(20rem, 24rem) minmax(0, 1fr);
+    grid-template-rows: auto auto auto 1fr auto auto;
+    grid-template-areas:
+      'filter list'
+      'write list'
+      'control list'
+      '. list'
+      'traffic traffic'
+      'etag etag';
+  }
 }
 
 .panel {
+  min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 0.85rem 1rem 1rem;
   background: var(--panel);
-  min-width: 0;
-
-  &.wide {
-    grid-column: 1 / -1;
-  }
+  box-shadow: var(--shadow);
 
   h2 {
-    font-size: 1rem;
+    font-size: 0.95rem;
     margin: 0 0 0.75rem;
     display: flex;
     align-items: baseline;
-    gap: 0.6rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 }
 
-.count {
-  font-size: 0.8rem;
-  font-weight: 400;
-  color: var(--muted);
+.panel-filter {
+  grid-area: filter;
 }
 
-.hint {
-  margin: 0 0 0.75rem;
-  font-size: 0.8rem;
-  color: var(--muted);
+.panel-write {
+  grid-area: write;
 }
+
+.panel-list {
+  grid-area: list;
+}
+
+.panel-control {
+  grid-area: control;
+}
+
+.panel-traffic {
+  grid-area: traffic;
+}
+
+.panel-etag {
+  grid-area: etag;
+}
+
+/* ---- 面板内部 ------------------------------------------------------------ */
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 0.75rem;
-}
-
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-
-  > span:first-child {
-    color: var(--muted);
-  }
-
-  &.inline {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  small {
-    color: var(--muted);
-    font-size: 0.75rem;
-  }
 }
 
 .pair {
   display: flex;
   gap: 0.4rem;
-
-  input {
-    min-width: 0;
-    flex: 1;
-  }
-}
-
-fieldset {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0.5rem 0.6rem;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-
-  legend {
-    font-size: 0.8rem;
-    color: var(--muted);
-    padding: 0 0.3rem;
-  }
-}
-
-input,
-select {
-  font: inherit;
-  font-size: 0.85rem;
-  padding: 0.3rem 0.4rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--input);
-  color: inherit;
-}
-
-input[type='checkbox'] {
-  padding: 0;
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.4rem;
   margin-top: 0.75rem;
 }
@@ -176,72 +165,197 @@ input[type='checkbox'] {
 .switches {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
 
-button {
-  font: inherit;
-  font-size: 0.85rem;
-  padding: 0.3rem 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--input);
-  color: inherit;
-  cursor: pointer;
+/* ---- 表格 ---------------------------------------------------------------- */
 
-  &:hover {
-    background: var(--hover);
-  }
-}
+/*
+ * 行内的「删」在 50 行里重复 50 次，静态时不该是红的——有意图了再红。
+ *
+ * `nowrap` 是必须的：这一列被 `.grow` 挤到内容宽，继承来的 `flex-wrap: wrap`
+ * 会把两个按钮拆成上下两行，每行凭空高一倍。
+ */
+table td.actions {
+  margin: 0;
+  gap: 0.3rem;
+  flex-wrap: nowrap;
 
-details {
-  margin-top: 0.75rem;
-
-  summary {
-    cursor: pointer;
-    font-size: 0.8rem;
+  .danger {
+    border-color: var(--border);
     color: var(--muted);
   }
-}
 
-pre {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  overflow-x: auto;
-  background: var(--input);
-  padding: 0.5rem;
-  border-radius: 4px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8rem;
-  display: block;
-  overflow-x: auto;
-
-  th,
-  td {
-    text-align: left;
-    padding: 0.25rem 0.5rem;
-    border-bottom: 1px solid var(--border);
-    white-space: nowrap;
-  }
-
-  th {
-    color: var(--muted);
-    font-weight: 500;
-  }
-
-  td.actions {
-    margin: 0;
+  .danger:hover {
+    border-color: var(--bad-border);
+    color: var(--bad-fg);
   }
 }
 
-.mono {
-  font-family: var(--mono);
+/*
+ * 滚动壳套在表格外面，而不是把 `table` 自己设成 `display: block`。
+ *
+ * 后者的表格盒是 shrink-to-fit：列排完就收边，右侧留一条对不齐的空白，
+ * 而且 sticky 表头没有可依附的滚动容器。壳一包，两个毛病一起没了。
+ * 窄屏上「表格能左右拖」也远比「整页能左右拖」好用。
+ */
+.table-scroll {
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/*
+ * 长表格封顶，表头钉住。
+ *
+ * 页长可以切到「全部」（1000 行）——不封顶的话整页会长到两万像素，
+ * 而这个 demo 的重点（流量面板、诊断面板）全在列表**下面**，等于永远够不着。
+ * 表头的下边框走 `box-shadow`：`border-collapse: collapse` 下 sticky 元素的边框会跟着滚走。
+ */
+.panel-list .table-scroll {
+  max-height: min(62vh, 40rem);
+}
+
+.panel-traffic .table-scroll {
+  max-height: 24rem;
+}
+
+.panel-list thead th,
+.panel-traffic thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: none;
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
+/* 正在编辑的那一行。表单里改的是谁，列表上得指得出来。 */
+tr.editing {
+  background: var(--accent-bg);
+  box-shadow: inset 2px 0 var(--accent);
 }
 
 .id {
   color: var(--muted);
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 取数期间压暗列表：行还是旧的，别让它看起来像已经刷新过了。 */
+[aria-busy='true'] table tbody {
+  opacity: 0.55;
+}
+
+/* ---- 分页 ---------------------------------------------------------------- */
+
+.pager {
+  justify-content: space-between;
+
+  .page-size {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
+
+    select {
+      width: auto;
+    }
+  }
+
+  .nav {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+}
+
+/* ---- 流量面板 ------------------------------------------------------------ */
+
+/*
+ * 状态码上色。这张表存在的意义就是一眼扫出哪一条不对劲，
+ * 而 `200` 与 `304` 在等宽字里长得几乎一样。
+ */
+.tag {
+  display: inline-block;
+  min-width: 3.2rem;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--input);
+}
+
+tr[data-status^='2'] .tag {
+  color: var(--ok-fg);
+  background: var(--ok-bg);
+  border-color: var(--ok-border);
+}
+
+tr[data-status='304'] .tag {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+
+tr[data-status='0'] .tag,
+tr[data-status^='4'] .tag,
+tr[data-status^='5'] .tag {
+  color: var(--bad-fg);
+  background: var(--bad-bg);
+  border-color: var(--bad-border);
+}
+
+/* ---- 诊断面板 ------------------------------------------------------------ */
+
+.diagnostics {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+
+  li {
+    border: 1px solid var(--warn-border);
+    background: var(--warn-bg);
+    border-radius: 6px;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.85rem;
+
+    p {
+      margin: 0.3rem 0 0;
+      line-height: 1.5;
+    }
+  }
+
+  li.empty {
+    border: 1px dashed var(--border);
+    background: none;
+  }
+}
+
+/* ---- 窄屏收紧 ------------------------------------------------------------ */
+
+@media (max-width: 480px) {
+  :host {
+    padding: 0 0.6rem 2rem;
+  }
+
+  .topbar {
+    margin: 0 -0.6rem;
+    padding: 0.6rem;
+  }
+
+  .panel {
+    padding: 0.7rem 0.75rem 0.85rem;
+  }
+
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pager {
+    justify-content: flex-start;
+  }
 }
