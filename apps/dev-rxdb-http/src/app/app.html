@@ -63,8 +63,12 @@
       靠原生表单的隐式提交拿到这个行为，而不是在容器上挂 keydown——后者要给一个
       本来不可聚焦的 div 编造 tabindex 和 role。`ngNoForm` 挡掉 NgForm，
       里面的 ngModel 才继续按独立控件工作（否则会要求 name）。
+
+      `novalidate` 不是可省的：原生约束校验不通过时浏览器**直接不派发 submit**，
+      而这些字段一个都没打算受原生约束管（`type=number` 只为数字键盘和微调钮而写）。
+      不关掉它就会出现「点了按钮什么也没发生、也没有任何报错」这种查不出来的行为。
     -->
-    <form (submit)="$event.preventDefault(); applyFilter()" ngNoForm>
+    <form (submit)="$event.preventDefault(); applyFilter()" ngNoForm novalidate>
       <div class="grid">
         <label>
           <span>
@@ -108,6 +112,7 @@
               (ngModelChange)="patchFilter({ priceMin: $event })"
               data-testid="filter-price-min"
               placeholder="下界"
+              step="any"
               type="number"
             />
             <input
@@ -115,6 +120,7 @@
               (ngModelChange)="patchFilter({ priceMax: $event })"
               data-testid="filter-price-max"
               placeholder="上界"
+              step="any"
               type="number"
             />
           </span>
@@ -176,8 +182,8 @@
         <span class="badge">编辑中 {{ id }}</span>
       }
     </h2>
-    <!-- 同上：回车 = 按下此刻看得见的那个主按钮。 -->
-    <form (submit)="$event.preventDefault(); submitDraft()" ngNoForm>
+    <!-- 同上：回车 = 按下此刻看得见的那个主按钮；`novalidate` 的理由同上。 -->
+    <form (submit)="$event.preventDefault(); submitDraft()" ngNoForm novalidate>
       <div class="grid">
         <label>
           <span>title</span>
@@ -206,6 +212,7 @@
             [ngModel]="$draft().price"
             (ngModelChange)="patchDraft({ price: $event })"
             data-testid="draft-price"
+            step="any"
             type="number"
           />
         </label>
