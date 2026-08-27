@@ -37,7 +37,13 @@ import type { HttpAdapterOptions } from '../src/http.interface.js';
 import { createRestHandlers } from '../src/rest.js';
 import { RxDBAdapterHttp } from '../src/RxDBAdapterHttp.js';
 import { createLocalAdapter, type LocalRow } from './local-adapter.fixture.js';
-import { INTRUDER_ID, SERVER_VERSION, startReferenceServer, type ReferenceServer, type Row } from './reference-server.js';
+import {
+  INTRUDER_ID,
+  SERVER_VERSION,
+  startReferenceServer,
+  type ReferenceServer,
+  type Row
+} from './reference-server.js';
 
 /** 实体名，也是 handler 拿到的 `ctx.entityName` */
 const ENTITY = 'WireRecipe';
@@ -117,8 +123,15 @@ const rule = (field: string, operator: string, value?: unknown): RuleGroup<unkno
  * `version` / `isTableExisted` 在 `REST_OPERATIONS` 里**没有默认路径**，不显式给
  * `templates` 就整个不产出 handler。这不是样板，是这两条 AC 的前提。
  */
-const connectAdapter = async (server: ReferenceServer, options: Partial<HttpAdapterOptions> = {}): Promise<RxDBAdapterHttp> => {
-  const rxdb = new RxDB({ dbName: 'rxdb-http-wire', entities: [], sync: { type: SyncType.None, local: { adapter: 'sqlite' } } });
+const connectAdapter = async (
+  server: ReferenceServer,
+  options: Partial<HttpAdapterOptions> = {}
+): Promise<RxDBAdapterHttp> => {
+  const rxdb = new RxDB({
+    dbName: 'rxdb-http-wire',
+    entities: [],
+    sync: { type: SyncType.None, local: { adapter: 'sqlite' } }
+  });
   const adapter = new RxDBAdapterHttp(rxdb, {
     baseUrl: server.baseUrl,
     handlers: createRestHandlers({
@@ -234,7 +247,10 @@ describe('AC#2 请求形状：JSON RuleGroup，不是 SQL', () => {
     await firstValueFrom(adapter.fetchMetadata(ENTITY, rule('status', '=', 'published')));
 
     const body = bodyOf(server, 0);
-    expect(body['where']).toEqual({ combinator: 'and', rules: [{ field: 'status', operator: '=', value: 'published' }] });
+    expect(body['where']).toEqual({
+      combinator: 'and',
+      rules: [{ field: 'status', operator: '=', value: 'published' }]
+    });
     expect(server.received[0].rawBody).not.toMatch(/\bselect\b|\bfrom\b|--/i);
   });
 });
@@ -268,7 +284,13 @@ describe('AC#3 RuleGroup 在后端求值', () => {
     const where = {
       combinator: 'or',
       rules: [
-        { combinator: 'and', rules: [{ field: 'status', operator: '=', value: 'published' }, { field: 'rating', operator: 'between', value: [4, 5] }] },
+        {
+          combinator: 'and',
+          rules: [
+            { field: 'status', operator: '=', value: 'published' },
+            { field: 'rating', operator: 'between', value: [4, 5] }
+          ]
+        },
         { field: 'status', operator: '=', value: 'archived' }
       ]
     } as unknown as RuleGroup<unknown>;
@@ -369,16 +391,24 @@ describe('AC#6 token 形态基于同一数据快照翻页', () => {
 
   afterEach(() => server.stop());
 
-  it('翻页途中后端改了数据，结果仍是首页那一刻的快照', async () => {
-    server.faults.mutateAfterPage = 1;
+  it('翻页途中后端增删改各一行，结果仍是首页那一刻的快照', async () => {
+    // 被删与被改的都挑第 2 页往后的行：挑首页那两行的话，冻不冻结果都一样
+    server.faults.mutateAfterPage = { page: 1, delete: 'p04', touch: 'p02' };
+    const touchedBefore = server.read(RESOURCE, 'p02')!.updatedAt;
     const adapter = await connectAdapter(server, { pageSize: 2 });
     const rows = await firstValueFrom(adapter.fetchMetadata(ENTITY, ALL));
 
-    // 先证明后端真的动过——否则这个用例什么都没测到
+    // 先证明后端真的动过三处——否则这个用例什么都没测到
     expect(server.read(RESOURCE, INTRUDER_ID)).toBeDefined();
-    // 再证明那次改动没有渗进本次翻页
+    expect(server.read(RESOURCE, 'p04')).toBeUndefined();
+    expect(server.read(RESOURCE, 'p02')!.updatedAt).not.toBe(touchedBefore);
+
+    // 再证明那三处都没有渗进本次翻页
     expect(idsOf(rows)).toEqual(SHUFFLED);
     expect(idsOf(rows)).not.toContain(INTRUDER_ID);
+    // 冻的是行内容不只是 id 列表：只冻 id 的实现会在这里交出被改新的时间戳，
+    // 而 core 拿它比新鲜度，结果是本地跳过一次本该发生的拉取
+    expect(rows.find(row => row.id === 'p02')?.updatedAt).toBe(touchedBefore);
   });
 
   it('nextPageToken 逐页透传回后端，末页无 token 即终止', async () => {
@@ -512,7 +542,11 @@ describe('AC#10 version() 只报后端版本', () => {
   });
 
   it('未配 onVersion 时抛 unsupported，不回落到本包版本号', async () => {
-    const rxdb = new RxDB({ dbName: 'rxdb-http-wire', entities: [], sync: { type: SyncType.None, local: { adapter: 'sqlite' } } });
+    const rxdb = new RxDB({
+      dbName: 'rxdb-http-wire',
+      entities: [],
+      sync: { type: SyncType.None, local: { adapter: 'sqlite' } }
+    });
     const adapter = new RxDBAdapterHttp(rxdb, { baseUrl: server.baseUrl, handlers: createRestHandlers() });
     await adapter.connect();
 
@@ -630,7 +664,11 @@ describe('AC#14 传输失败 → NetworkOfflineError', () => {
 
   it('连到一个没人监听的端口', async () => {
     // 不用"刚关掉的端口"：内核会复用端口号，偶尔连上别的进程，症状是随机 flaky
-    const rxdb = new RxDB({ dbName: 'rxdb-http-wire', entities: [], sync: { type: SyncType.None, local: { adapter: 'sqlite' } } });
+    const rxdb = new RxDB({
+      dbName: 'rxdb-http-wire',
+      entities: [],
+      sync: { type: SyncType.None, local: { adapter: 'sqlite' } }
+    });
     const adapter = new RxDBAdapterHttp(rxdb, { baseUrl: 'http://127.0.0.1:1', handlers: createRestHandlers() });
     await adapter.connect();
 
@@ -691,6 +729,10 @@ describe('AC#16 条件请求：ETag / If-None-Match / 304', () => {
 
     expect(server.received[0].headers['if-none-match']).toBeUndefined();
     expect(server.received[1].headers['if-none-match']).toMatch(/^"[0-9a-f]{40}"$/);
+    // 状态码必须断言：只看"两次结果相等"的话，后端压根没实现 304、每次都回 200 的
+    // 情况下用例照样绿——那样测到的是"重复查询结果稳定"，不是条件请求
+    expect(server.received[0].status).toBe(200);
+    expect(server.received[1].status).toBe(304);
     // 304 是"你手上那份还有效"，绝不是"零行"——读成零行会让整表判成孤儿
     expect(second).toEqual(first);
     expect(second).toHaveLength(SAMPLE.length);
@@ -700,9 +742,17 @@ describe('AC#16 条件请求：ETag / If-None-Match / 304', () => {
     const adapter = await connectAdapter(server, { conditionalRequests: true });
     await firstValueFrom(adapter.fetchMetadata(ENTITY, ALL));
 
-    server.mutate(RESOURCE, { id: 'r6', title: 'Late Arrival', status: 'published', updatedAt: '2026-08-09T00:00:00.000Z' });
+    server.mutate(RESOURCE, {
+      id: 'r6',
+      title: 'Late Arrival',
+      status: 'published',
+      updatedAt: '2026-08-09T00:00:00.000Z'
+    });
     const after = await firstValueFrom(adapter.fetchMetadata(ENTITY, ALL));
 
+    // 内容变了却仍回 304，客户端会一直拿着上一份——协议因此把"内容一变就换 ETag"
+    // 写成服务端义务；这里断言的是那条义务被履行了，不只是数据对得上
+    expect(server.received[1].status).toBe(200);
     expect(idsOf(after)).toContain('r6');
     expect(after).toHaveLength(SAMPLE.length + 1);
   });
@@ -724,6 +774,9 @@ describe('AC#16 条件请求：ETag / If-None-Match / 304', () => {
 
     expect(second).toEqual(first);
     expect(server.received[1].headers['if-none-match']).toBeUndefined();
+    // 没 ETag 可存就不该发条件请求头，于是两次都是完整的 200——退化成本是多传一份 body，
+    // 不是把上一份结果当成还有效
+    expect(server.received.map(request => request.status)).toEqual([200, 200]);
   });
 });
 
@@ -773,11 +826,10 @@ describe('AC#8 走 core 全栈：findByIds 按 idChunkSize 分块发真请求', 
   };
 
   const runQuery = (rxdb: RxDB): Promise<unknown> =>
-    firstValueFrom(
-      rxdb.entityManager.getRepository(WireChunkRecipe).find({ where: { combinator: 'and', rules: [] } })
-    );
+    firstValueFrom(rxdb.entityManager.getRepository(WireChunkRecipe).find({ where: { combinator: 'and', rules: [] } }));
 
-  const byIdsRequests = (): typeof server.received => server.received.filter(request => request.path.endsWith('/by-ids'));
+  const byIdsRequests = (): typeof server.received =>
+    server.received.filter(request => request.path.endsWith('/by-ids'));
 
   beforeEach(async () => {
     server = await startReferenceServer();

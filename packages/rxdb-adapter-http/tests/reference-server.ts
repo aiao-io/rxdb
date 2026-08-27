@@ -92,6 +92,15 @@ export interface ReceivedRequest {
   headers: Record<string, string>;
   /** **未解析**的请求体原文；无 body 时为 `undefined` */
   rawBody: string | undefined;
+  /**
+   * 本次真正写出的状态码；`hang` / `destroySocket` 下没有响应，保持 `undefined`。
+   *
+   * @remarks
+   * 是**写出**的那个值，不是路由算出的那个——`304` 由 {@link ReferenceServer} 内部的
+   * 条件请求收口改写，只看路由结果会把它记成 `200`。AC#16 断言的正是这个改写发生过：
+   * 光比对两次结果相等的话，一个从不实现 `304` 的后端也能让用例全绿。
+   */
+  status?: number;
 }
 
 /**
@@ -118,8 +127,14 @@ export interface ReferenceServerFaults {
   emptyPages?: boolean;
   /** 2xx 响应不带 `ETag`，条件请求随之整条失效 */
   dropEtag?: boolean;
-  /** 第 N 页返回**之后**改动存储：验证翻页快照是否冻结 */
-  mutateAfterPage?: number;
+  /**
+   * 第 N 页返回**之后**改动存储：新增 {@link INTRUDER_ID}、删一行、再改一行的时间戳。
+   *
+   * @remarks
+   * `delete` 与 `touch` 必须指名**排在后面几页**的行。挑已经发出去的那几行的话，快照
+   * 冻没冻结果都一样，用例恒绿；而这三种改动各证一件不同的事，见 `applyMutateAfterPage`。
+   */
+  mutateAfterPage?: { page: number; delete: string; touch: string };
   /**
    * 每次 metadata 响应发出后从存储里删掉这些 id。
    *
@@ -255,9 +270,7 @@ const etagOf = (body: string): string => `"${createHash('sha1').update(body).dig
  * @param options - `paging` 选择本实例的翻页形态，缺省 `offset`
  * @returns 已在监听、可直接使用的服务器句柄
  */
-export const startReferenceServer = async (
-  options: { paging?: 'offset' | 'token' } = {}
-): Promise<ReferenceServer> => {
+export const startReferenceServer = async (options: { paging?: 'offset' | 'token' } = {}): Promise<ReferenceServer> => {
   const paging = options.paging ?? 'offset';
   const store = new Map<string, Map<string, Row>>();
   const snapshots = new Map<string, Row[]>();
@@ -288,16 +301,30 @@ export const startReferenceServer = async (
   const filterRows = (entityName: string, where: RuleGroupNode | undefined): Row[] =>
     [...(store.get(entityName)?.values() ?? [])].filter(row => matchGroup(row, where));
 
-  /** 第 N 页发出**之后**改数据：新增一行 + 动一行的时间戳 */
+  /**
+   * 第 N 页发出**之后**改数据：增一行、删一行、改一行的时间戳。
+   *
+   * @remarks
+   * 三种改动各证一件事，缺一件就有一类跨页不一致溜得过去：
+   *
+   * - **增**：新行不得挤进后续页——挤进来就是同一次查询里出现了查询开始时不存在的行；
+   * - **删**：被删的行仍须由后续页照常给出——否则调用方拿到的是一份"前半页按旧状态、
+   *   后半页按新状态"的拼接结果，而它看起来完全正常；
+   * - **改**：后续页给出的 `updatedAt` 必须还是快照那一刻的值。只冻 id 列表的实现
+   *   会漏掉这一件，而它的后果最隐蔽：core 按 `updatedAt` 判新鲜度，一个被改新的
+   *   时间戳会让本地跳过一次本该发生的拉取。
+   */
   const applyMutateAfterPage = (entityName: string, pageNumber: number): void => {
-    if (pageNumber !== faults.mutateAfterPage) {
+    const mutation = faults.mutateAfterPage;
+    if (mutation === undefined || pageNumber !== mutation.page) {
       return;
     }
     const table = tableOf(entityName);
-    const first = [...table.values()][0];
     table.set(INTRUDER_ID, { id: INTRUDER_ID, updatedAt: stamp() });
-    if (first) {
-      table.set(first.id, { ...first, updatedAt: stamp() });
+    table.delete(mutation.delete);
+    const touched = table.get(mutation.touch);
+    if (touched) {
+      table.set(touched.id, { ...touched, updatedAt: stamp() });
     }
   };
 
@@ -331,7 +358,9 @@ export const startReferenceServer = async (
     const offset = body.offset ?? 0;
     const pageNumber = Math.floor(offset / limit) + 1;
     const size = pageNumber === faults.truncateAt ? Math.max(limit - 1, 0) : limit;
-    const rows = filterRows(entityName, body.where).slice(offset, offset + size).map(toMetadata);
+    const rows = filterRows(entityName, body.where)
+      .slice(offset, offset + size)
+      .map(toMetadata);
     applyMutateAfterPage(entityName, pageNumber);
     // 换形态：把本该是数组的一页包成对象，客户端应当立刻抛 shape_switch
     const payload = pageNumber === faults.shapeSwitchAt ? { rows } : rows;
@@ -347,14 +376,18 @@ export const startReferenceServer = async (
     const rows = faults.emptyPages ? [] : snapshot.rows.slice(offset, offset + limit).map(toMetadata);
     const hasMore = faults.emptyPages || offset + limit < snapshot.rows.length;
     applyMutateAfterPage(entityName, pageNumber);
-    const nextPageToken = faults.tokenStuck ? `${snapshot.id}:0` : hasMore ? advanced : undefined;
+    const nextPageToken =
+      faults.tokenStuck ? `${snapshot.id}:0`
+      : hasMore ? advanced
+      : undefined;
     const payload = pageNumber === faults.shapeSwitchAt ? rows : { rows, nextPageToken };
     return { status: 200, payload, conditional: true };
   };
 
   const fetchMetadata = (entityName: string, body: MetadataRequest): RouteResult => {
     const limit = body.limit ?? DEFAULT_LIMIT;
-    const result = paging === 'token' ? metadataToken(entityName, body, limit) : metadataOffset(entityName, body, limit);
+    const result =
+      paging === 'token' ? metadataToken(entityName, body, limit) : metadataOffset(entityName, body, limit);
     // 本页已经定型才删：这一页照常报告这些 id 存在，随后的 findByIds 才会扑空
     for (const id of faults.vanishAfterMetadata ?? []) {
       store.get(entityName)?.delete(id);
@@ -436,15 +469,23 @@ export const startReferenceServer = async (
     throw new ProtocolFault(405, `no route for ${method} /${segments.join('/')}`);
   };
 
-  /** 序列化 + 条件请求收口：ETag 只发给两个幂等读端点 */
-  const respond = (req: IncomingMessage, res: ServerResponse, result: RouteResult): void => {
+  /**
+   * 序列化 + 条件请求收口：ETag 只发给两个幂等读端点。
+   *
+   * @remarks
+   * 写出状态码的地方只有这一处，`entry.status` 因此在这里回填——放到调用方去记会漏掉
+   * `304` 这条分支，而那条正是 AC#16 要证的。
+   */
+  const respond = (entry: ReceivedRequest, req: IncomingMessage, res: ServerResponse, result: RouteResult): void => {
     if (result.payload === undefined) {
+      entry.status = result.status;
       res.writeHead(result.status);
       res.end();
       return;
     }
     const body = JSON.stringify(result.payload);
     if (result.conditional !== true || faults.dropEtag === true) {
+      entry.status = result.status;
       res.writeHead(result.status, { 'content-type': 'application/json' });
       res.end(body);
       return;
@@ -452,27 +493,41 @@ export const startReferenceServer = async (
     const etag = etagOf(body);
     if (req.headers['if-none-match'] === etag) {
       // 304 按 RFC 无 body；"你手上那份还有效"，绝不是"零行"
+      entry.status = 304;
       res.writeHead(304, { etag });
       res.end();
       return;
     }
+    entry.status = result.status;
     res.writeHead(result.status, { 'content-type': 'application/json', etag });
     res.end(body);
   };
 
-  const dispatch = (req: IncomingMessage, res: ServerResponse, path: string, rawBody: string | undefined): void => {
+  const dispatch = (
+    entry: ReceivedRequest,
+    req: IncomingMessage,
+    res: ServerResponse,
+    path: string,
+    rawBody: string | undefined
+  ): void => {
     try {
-      respond(req, res, route(req.method ?? '', path.split('/').filter(Boolean), rawBody));
+      respond(entry, req, res, route(req.method ?? '', path.split('/').filter(Boolean), rawBody));
     } catch (error) {
       const status = error instanceof ProtocolFault ? error.status : 500;
-      respond(req, res, { status, payload: { error: (error as Error).message } });
+      respond(entry, req, res, { status, payload: { error: (error as Error).message } });
     }
   };
 
   const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const path = (req.url ?? '/').split('?')[0];
     const rawBody = await readBody(req);
-    received.push({ method: req.method ?? '', path, headers: { ...req.headers } as Record<string, string>, rawBody });
+    const entry: ReceivedRequest = {
+      method: req.method ?? '',
+      path,
+      headers: { ...req.headers } as Record<string, string>,
+      rawBody
+    };
+    received.push(entry);
     if (faults.destroySocket === true) {
       req.socket.destroy();
       return;
@@ -481,10 +536,13 @@ export const startReferenceServer = async (
       return;
     }
     if (faults.forceStatus !== undefined) {
-      respond(req, res, { status: faults.forceStatus, payload: { error: `forced status ${faults.forceStatus}` } });
+      respond(entry, req, res, {
+        status: faults.forceStatus,
+        payload: { error: `forced status ${faults.forceStatus}` }
+      });
       return;
     }
-    dispatch(req, res, path, rawBody);
+    dispatch(entry, req, res, path, rawBody);
   };
 
   const server = createServer((req, res) => void handle(req, res));
