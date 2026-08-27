@@ -53,11 +53,11 @@ refetch(): void {
 
 ### 断在三层，且每一层都是结构性的
 
-| 层         | 现状                                                                                                                                                  | 证据                                                                                             |
-| :--------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------- |
-| 适配器契约 | `RxDBAdapterRemoteBase` 的抽象成员是 `pullChanges` / `getChangeCount` / `mergeChanges` / `fetchMetadata` / `findByIds`——**清一色由客户端发起的拉取** | [rxdb-adapter.ts](../../../packages/rxdb/src/rxdb-adapter.ts)                                     |
-| 失效状态   | `QueryCacheSyncMemo` 的三条失效路径（窗口到期 / 本仓储写 / 换适配器实例）全部由 core 内部触发，`clear()` 无对外出口，实例由 `Repository` 私有持有     | [query-cache-sync-memo.ts](../../../packages/rxdb/src/repository/query-cache-sync-memo.ts)        |
-| 查询重跑   | `QueryManager` 只 `addEventListener` 了 `ENTITY_LOCAL_CREATE / UPDATE / REMOVE` 三个**本地**事件                                                      | [QueryManager.ts](../../../packages/rxdb/src/repository/QueryManager.ts) `#init_db_changes`       |
+| 层         | 现状                                                                                                                                                 | 证据                                                                                        |
+| :--------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------ |
+| 适配器契约 | `RxDBAdapterRemoteBase` 的抽象成员是 `pullChanges` / `getChangeCount` / `mergeChanges` / `fetchMetadata` / `findByIds`——**清一色由客户端发起的拉取** | [rxdb-adapter.ts](../../../packages/rxdb/src/rxdb-adapter.ts)                               |
+| 失效状态   | `QueryCacheSyncMemo` 的三条失效路径（窗口到期 / 本仓储写 / 换适配器实例）全部由 core 内部触发，`clear()` 无对外出口，实例由 `Repository` 私有持有    | [query-cache-sync-memo.ts](../../../packages/rxdb/src/repository/query-cache-sync-memo.ts)  |
+| 查询重跑   | `QueryManager` 只 `addEventListener` 了 `ENTITY_LOCAL_CREATE / UPDATE / REMOVE` 三个**本地**事件                                                     | [QueryManager.ts](../../../packages/rxdb/src/repository/QueryManager.ts) `#init_db_changes` |
 
 三层各自独立成立，所以**补任何一层都不够**：给适配器加订阅口而不给 core 失效入口，收到的通知无处可去；
 给 core 加失效入口而不清记忆，重跑会在窗口内命中 memo、跳过同步、读回同一份陈旧本地行。
@@ -92,10 +92,10 @@ refetch(): void {
 
 roadmap 的[「明确不排期」](../../roadmap.md#明确不排期)对本条写的解锁条件是两句，逐句核对：
 
-| 解锁条件                       | 是否满足 | 依据                                                                                  |
-| :----------------------------- | :------- | :------------------------------------------------------------------------------------ |
-| 出现一个真实的实时性需求       | ✅       | 用户对 [US-214](../adapter/US-214-http-browser-demo.md) 的 demo 直接报了这个缺口       |
-| 能说清失效粒度                 | ✅       | **整实体**，理由与被否掉的另两种粒度见 D1                                             |
+| 解锁条件                 | 是否满足 | 依据                                                                             |
+| :----------------------- | :------- | :------------------------------------------------------------------------------- |
+| 出现一个真实的实时性需求 | ✅       | 用户对 [US-214](../adapter/US-214-http-browser-demo.md) 的 demo 直接报了这个缺口 |
+| 能说清失效粒度           | ✅       | **整实体**，理由与被否掉的另两种粒度见 D1                                        |
 
 「价值待证」的[判据是病灶数 ≥ 抽象数](../../CONVENTIONS.md)，一并核算：
 
@@ -129,11 +129,11 @@ roadmap 的[「明确不排期」](../../roadmap.md#明确不排期)对本条写
 
 ## 交付阶段
 
-| 阶段 | 范围                       | 关闭判据                                              |
-| :--- | :------------------------- | :---------------------------------------------------- |
-| A    | core 失效上报口            | AC#1–#11，用测试替身即可全绿，不依赖任何适配器        |
-| B    | HTTP 适配器变更通知通道    | AC#12–#19，包内单测 + `http-protocol.md` 新一节       |
-| C    | demo 后端广播 + 双页面 e2e | AC#20–#24，两个真实浏览器页面自动收敛                 |
+| 阶段 | 范围                       | 关闭判据                                        |
+| :--- | :------------------------- | :---------------------------------------------- |
+| A    | core 失效上报口            | AC#1–#11，用测试替身即可全绿，不依赖任何适配器  |
+| B    | HTTP 适配器变更通知通道    | AC#12–#19，包内单测 + `http-protocol.md` 新一节 |
+| C    | demo 后端广播 + 双页面 e2e | AC#20–#24，两个真实浏览器页面自动收敛           |
 
 阶段 A **不得单独关闭故事**。一个没有调用方的失效入口正是
 [US-015 阶段 B 被移出时的那句判词](../../roadmap.md#明确不排期)——「为一个不存在的依赖图准备」。
@@ -145,11 +145,11 @@ roadmap 的[「明确不排期」](../../roadmap.md#明确不排期)对本条写
 
 roadmap 点名要求说清粒度。三选一，逐个算账：
 
-| 粒度         | 判定 | 理由                                                                                                                                                        |
-| :----------- | :--- | :---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `where` 指纹 | 否决 | 服务端不知道客户端在查什么。要它知道，就得把每个客户端的 `where` 上传注册——把一个无状态 HTTP 后端改造成有状态订阅服务器，代价远超收益                       |
-| id 集合      | 否决 | 见下                                                                                                                                                        |
-| **整实体**   | 采纳 | QueryCache 的同步单元本来就是**整个 `where`**（`fetchMetadata(entityName, where)`），实体级失效与它天然同构                                                 |
+| 粒度         | 判定 | 理由                                                                                                                                  |
+| :----------- | :--- | :------------------------------------------------------------------------------------------------------------------------------------ |
+| `where` 指纹 | 否决 | 服务端不知道客户端在查什么。要它知道，就得把每个客户端的 `where` 上传注册——把一个无状态 HTTP 后端改造成有状态订阅服务器，代价远超收益 |
+| id 集合      | 否决 | 见下                                                                                                                                  |
+| **整实体**   | 采纳 | QueryCache 的同步单元本来就是**整个 `where`**（`fetchMetadata(entityName, where)`），实体级失效与它天然同构                           |
 
 **id 集合被否决的理由是它省不掉那次往返。** 客户端拿到「id X 变了」之后仍然回答不了唯一要紧的问题：
 X 是否落在我的 `where` 里、以及**有没有别的行因为这次变更新进入了我的 `where`**。后半句本地判定不了——
@@ -268,33 +268,33 @@ AC#23 那条不是凑数——它把今天的症状冻成用例，证明「不�
 
 ## 验收标准
 
-| #   | 阶段 | 前置条件                                                                | 操作                        | 预期结果                                                                                          | 状态 |
-| --- | ---- | ----------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------- | ---- |
-| 1   | A    | 某 QueryCache 实体上有 N 个活查询                                       | 调一次失效上报口            | N 个查询各重跑一次，且每次都真的走 `fetchMetadata`                                                | ⬜   |
-| 2   | A    | `syncStaleTime` 为默认 1000ms，刚同步完不到 1000ms                      | 上报失效                    | 重跑仍然回远端（证明清记忆发生在重跑**之前**，D2）                                                | ⬜   |
-| 3   | A    | 该实体上没有任何活查询 / 该实体未注册（D9）                             | 连续上报 100 次             | 零请求、不抛错、不留状态                                                                          | ⬜   |
-| 4   | A    | 远端 metadata 与本地完全一致                                            | 上报失效                    | 只发 `fetchMetadata`，**零 `findByIds`**                                                          | ⬜   |
-| 5   | A    | 远端某行 `updatedAt` 变新                                               | 上报失效                    | 该行被拉取并写入行缓存，活查询发射含新值的结果                                                    | ⬜   |
-| 6   | A    | 远端删掉结果集里的一行                                                  | 上报失效                    | 孤儿被 `#evictOrphans` 驱逐，活查询发射不含该行的结果                                             | ⬜   |
-| 7   | A    | 查询 A 的 `relationEntityTypes` 含实体 B                                | 上报 B 失效                 | A 的活查询也重跑（依赖扩散，D1）                                                                  | ⬜   |
-| 8   | A    | 非 QueryCache 实体（`SyncType.None` / 版本化）                          | 上报失效                    | 活查询照常重跑；`pullableCount$` **不变**，不误伤 changelog 路径（D3）                            | ⬜   |
-| 9   | A    | 两个 tab 都连着同一个库                                                 | 在 tab1 上报失效            | tab2 不因此重跑；网关白名单未被扩大（D10）                                                        | ⬜   |
-| 10  | A    | 读上报口的签名                                                          | 静态检查                    | 没有任何参数能承载行数据（D8 的结构保证）                                                         | ⬜   |
-| 11  | A    | 三端 `useFind` / 对应 hook 一行不改                                     | 各跑一遍框架侧用例          | 三端都自动拿到刷新；若任一端需要改，三端同改（铁律：API 对称）                                    | ⬜   |
-| 12  | B    | `changeFeed` 缺省（关）                                                 | 完整跑一遍现有包内用例      | 行为与本故事之前**逐字相同**：零新增请求、零连接                                                  | ⬜   |
-| 13  | B    | `changeFeed` 开启                                                       | `connect()` → `disconnect()` | 连接建立并在断开时关闭；重复连断不泄漏连接                                                        | ⬜   |
-| 14  | B    | 连接已建立                                                              | 服务端推一条变更通知        | 对应实体的失效上报口被调用一次                                                                    | ⬜   |
-| 15  | B    | 通知里的 `clientId` 等于本机 `rxdb.context.clientId`                    | 服务端推该通知              | **不**上报失效（自回声抑制，D6）                                                                  | ⬜   |
-| 16  | B    | 连接断开后重连成功                                                      | 观察重连瞬间                | 立刻对已订阅实体各上报一次失效（D7）；首次连接同样处理                                            | ⬜   |
-| 17  | B    | 服务端不支持该端点 / 连接被拒                                           | 开着开关启动                | 按退避重连；查询路径完全不受影响、不抛错；给出诊断信号（US-215 先例）                             | ⬜   |
-| 18  | B    | US-212 AC#19 的结构隔离契约测试                                         | 把新代码纳入扫描            | 仍不实现/不调用 `upsertMany` / `deleteByIds` / `getMetadataByIds`，仍不持有本地存储                | ⬜   |
-| 19  | B    | [http-protocol.md](../../../website/docs/adapters/http-protocol.md)     | 补「变更通知（可选）」一节  | 写清端点、事件体、`clientId` 字段、CORS 要求、以及**不实现它的后果**（回到今天的行为，不是故障）  | ⬜   |
-| 20  | C    | demo 后端                                                               | 任一写入端点被调用          | 向订阅者广播一条通知；载荷只有实体名与 `clientId`，**不含行数据**（D8）                           | ⬜   |
-| 21  | C    | demo 前端                                                               | 不带 `?changefeed=1` 打开   | 行为与今天逐字相同，US-214 既有 e2e 的请求计数断言全绿（D11）                                     | ⬜   |
-| 22  | C    | 两个页面都带 `?changefeed=1`，查同一份筛选                              | 在页面 A 改一条 recipe      | 页面 B **不做任何交互**，在超时内自动显示新值                                                     | ⬜   |
-| 23  | C    | 同上但两个页面都不带该参数                                              | 同样操作                    | 页面 B 不更新——今天的症状被冻成用例（D11）                                                       | ⬜   |
-| 24  | C    | demo 面板                                                               | 跑一遍 AC#22                | 面板上能看见：收到几条通知、被抑制了几条回声、触发了几次重跑与几次 `fetchMetadata`                | ⬜   |
-| 25  | —    | 实现完成                                                                | 跑门禁                      | `@aiao/rxdb` 与 `@aiao/rxdb-adapter-http` 覆盖率不回退；新导出补 TSDoc 并进 api-baseline          | ⬜   |
+| #   | 阶段 | 前置条件                                                            | 操作                         | 预期结果                                                                                         | 状态 |
+| --- | ---- | ------------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------ | ---- |
+| 1   | A    | 某 QueryCache 实体上有 N 个活查询                                   | 调一次失效上报口             | N 个查询各重跑一次，且每次都真的走 `fetchMetadata`                                               | ⬜   |
+| 2   | A    | `syncStaleTime` 为默认 1000ms，刚同步完不到 1000ms                  | 上报失效                     | 重跑仍然回远端（证明清记忆发生在重跑**之前**，D2）                                               | ⬜   |
+| 3   | A    | 该实体上没有任何活查询 / 该实体未注册（D9）                         | 连续上报 100 次              | 零请求、不抛错、不留状态                                                                         | ⬜   |
+| 4   | A    | 远端 metadata 与本地完全一致                                        | 上报失效                     | 只发 `fetchMetadata`，**零 `findByIds`**                                                         | ⬜   |
+| 5   | A    | 远端某行 `updatedAt` 变新                                           | 上报失效                     | 该行被拉取并写入行缓存，活查询发射含新值的结果                                                   | ⬜   |
+| 6   | A    | 远端删掉结果集里的一行                                              | 上报失效                     | 孤儿被 `#evictOrphans` 驱逐，活查询发射不含该行的结果                                            | ⬜   |
+| 7   | A    | 查询 A 的 `relationEntityTypes` 含实体 B                            | 上报 B 失效                  | A 的活查询也重跑（依赖扩散，D1）                                                                 | ⬜   |
+| 8   | A    | 非 QueryCache 实体（`SyncType.None` / 版本化）                      | 上报失效                     | 活查询照常重跑；`pullableCount$` **不变**，不误伤 changelog 路径（D3）                           | ⬜   |
+| 9   | A    | 两个 tab 都连着同一个库                                             | 在 tab1 上报失效             | tab2 不因此重跑；网关白名单未被扩大（D10）                                                       | ⬜   |
+| 10  | A    | 读上报口的签名                                                      | 静态检查                     | 没有任何参数能承载行数据（D8 的结构保证）                                                        | ⬜   |
+| 11  | A    | 三端 `useFind` / 对应 hook 一行不改                                 | 各跑一遍框架侧用例           | 三端都自动拿到刷新；若任一端需要改，三端同改（铁律：API 对称）                                   | ⬜   |
+| 12  | B    | `changeFeed` 缺省（关）                                             | 完整跑一遍现有包内用例       | 行为与本故事之前**逐字相同**：零新增请求、零连接                                                 | ⬜   |
+| 13  | B    | `changeFeed` 开启                                                   | `connect()` → `disconnect()` | 连接建立并在断开时关闭；重复连断不泄漏连接                                                       | ⬜   |
+| 14  | B    | 连接已建立                                                          | 服务端推一条变更通知         | 对应实体的失效上报口被调用一次                                                                   | ⬜   |
+| 15  | B    | 通知里的 `clientId` 等于本机 `rxdb.context.clientId`                | 服务端推该通知               | **不**上报失效（自回声抑制，D6）                                                                 | ⬜   |
+| 16  | B    | 连接断开后重连成功                                                  | 观察重连瞬间                 | 立刻对已订阅实体各上报一次失效（D7）；首次连接同样处理                                           | ⬜   |
+| 17  | B    | 服务端不支持该端点 / 连接被拒                                       | 开着开关启动                 | 按退避重连；查询路径完全不受影响、不抛错；给出诊断信号（US-215 先例）                            | ⬜   |
+| 18  | B    | US-212 AC#19 的结构隔离契约测试                                     | 把新代码纳入扫描             | 仍不实现/不调用 `upsertMany` / `deleteByIds` / `getMetadataByIds`，仍不持有本地存储              | ⬜   |
+| 19  | B    | [http-protocol.md](../../../website/docs/adapters/http-protocol.md) | 补「变更通知（可选）」一节   | 写清端点、事件体、`clientId` 字段、CORS 要求、以及**不实现它的后果**（回到今天的行为，不是故障） | ⬜   |
+| 20  | C    | demo 后端                                                           | 任一写入端点被调用           | 向订阅者广播一条通知；载荷只有实体名与 `clientId`，**不含行数据**（D8）                          | ⬜   |
+| 21  | C    | demo 前端                                                           | 不带 `?changefeed=1` 打开    | 行为与今天逐字相同，US-214 既有 e2e 的请求计数断言全绿（D11）                                    | ⬜   |
+| 22  | C    | 两个页面都带 `?changefeed=1`，查同一份筛选                          | 在页面 A 改一条 recipe       | 页面 B **不做任何交互**，在超时内自动显示新值                                                    | ⬜   |
+| 23  | C    | 同上但两个页面都不带该参数                                          | 同样操作                     | 页面 B 不更新——今天的症状被冻成用例（D11）                                                       | ⬜   |
+| 24  | C    | demo 面板                                                           | 跑一遍 AC#22                 | 面板上能看见：收到几条通知、被抑制了几条回声、触发了几次重跑与几次 `fetchMetadata`               | ⬜   |
+| 25  | —    | 实现完成                                                            | 跑门禁                       | `@aiao/rxdb` 与 `@aiao/rxdb-adapter-http` 覆盖率不回退；新导出补 TSDoc 并进 api-baseline         | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -325,20 +325,20 @@ AC#23 那条不是凑数——它把今天的症状冻成用例，证明「不�
 
 ## 实现文件
 
-| 文件 / 动作                                                                                              | 阶段 | 说明                                                          |
-| :------------------------------------------------------------------------------------------------------- | :--- | :------------------------------------------------------------ |
-| [packages/rxdb/src/rxdb-events.ts](../../../packages/rxdb/src/rxdb-events.ts)                             | A    | 新事件常量 + 事件类 + 进 `RxDBEventMap`（D3）                 |
-| [packages/rxdb/src/RxDB.ts](../../../packages/rxdb/src/RxDB.ts)                                           | A    | 公开失效上报口（名字可议，语义不可议）                        |
-| [packages/rxdb/src/repository/Repository.ts](../../../packages/rxdb/src/repository/Repository.ts)         | A    | `syncMemo` 存字段 + 监听/注销 + 「先清后跑」的顺序（D2）      |
-| [packages/rxdb/src/repository/QueryManager.ts](../../../packages/rxdb/src/repository/QueryManager.ts)     | A    | 按 `depEntityTypeMap` 选中受影响任务并 `refresh()`（D1）      |
-| [requirements/api-baseline/rxdb.json](../../api-baseline/rxdb.json)                                       | A    | AC#25：新导出进基线                                           |
-| `packages/rxdb-adapter-http/src/`（新增变更通知模块 + 选项）                                             | B    | 连接、退避重连、回声抑制、重连全量失效（D5 / D6 / D7）        |
-| [requirements/api-baseline/rxdb-adapter-http.json](../../api-baseline/rxdb-adapter-http.json)             | B    | AC#25                                                         |
-| [website/docs/adapters/http-protocol.md](../../../website/docs/adapters/http-protocol.md)                 | B    | AC#19：「变更通知（可选）」一节                               |
-| [apps/dev-rxdb-http-server/src/](../../../apps/dev-rxdb-http-server/src/)                                 | C    | 广播端点（协议）+ 订阅者登记（demo 设施），两者分文件         |
-| [apps/dev-rxdb-http/src/app/](../../../apps/dev-rxdb-http/src/app/)                                       | C    | `?changefeed=1` 开关 + 面板计数（D11 / AC#24）                |
-| [apps/dev-rxdb-http-e2e/src/](../../../apps/dev-rxdb-http-e2e/src/)                                       | C    | 双 context 收敛用例 + 关掉开关的对照用例                      |
-| [requirements/roadmap.md](../../roadmap.md)                                                               | 关闭时 | 把「US-212 AC#29」从「明确不排期」移出，指向本文件           |
+| 文件 / 动作                                                                                           | 阶段   | 说明                                                     |
+| :---------------------------------------------------------------------------------------------------- | :----- | :------------------------------------------------------- |
+| [packages/rxdb/src/rxdb-events.ts](../../../packages/rxdb/src/rxdb-events.ts)                         | A      | 新事件常量 + 事件类 + 进 `RxDBEventMap`（D3）            |
+| [packages/rxdb/src/RxDB.ts](../../../packages/rxdb/src/RxDB.ts)                                       | A      | 公开失效上报口（名字可议，语义不可议）                   |
+| [packages/rxdb/src/repository/Repository.ts](../../../packages/rxdb/src/repository/Repository.ts)     | A      | `syncMemo` 存字段 + 监听/注销 + 「先清后跑」的顺序（D2） |
+| [packages/rxdb/src/repository/QueryManager.ts](../../../packages/rxdb/src/repository/QueryManager.ts) | A      | 按 `depEntityTypeMap` 选中受影响任务并 `refresh()`（D1） |
+| [requirements/api-baseline/rxdb.json](../../api-baseline/rxdb.json)                                   | A      | AC#25：新导出进基线                                      |
+| `packages/rxdb-adapter-http/src/`（新增变更通知模块 + 选项）                                          | B      | 连接、退避重连、回声抑制、重连全量失效（D5 / D6 / D7）   |
+| [requirements/api-baseline/rxdb-adapter-http.json](../../api-baseline/rxdb-adapter-http.json)         | B      | AC#25                                                    |
+| [website/docs/adapters/http-protocol.md](../../../website/docs/adapters/http-protocol.md)             | B      | AC#19：「变更通知（可选）」一节                          |
+| [apps/dev-rxdb-http-server/src/](../../../apps/dev-rxdb-http-server/src/)                             | C      | 广播端点（协议）+ 订阅者登记（demo 设施），两者分文件    |
+| [apps/dev-rxdb-http/src/app/](../../../apps/dev-rxdb-http/src/app/)                                   | C      | `?changefeed=1` 开关 + 面板计数（D11 / AC#24）           |
+| [apps/dev-rxdb-http-e2e/src/](../../../apps/dev-rxdb-http-e2e/src/)                                   | C      | 双 context 收敛用例 + 关掉开关的对照用例                 |
+| [requirements/roadmap.md](../../roadmap.md)                                                           | 关闭时 | 把「US-212 AC#29」从「明确不排期」移出，指向本文件       |
 
 ## References
 
