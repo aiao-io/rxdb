@@ -484,13 +484,15 @@ describe('连接失败（AC#17）', () => {
   });
 
   it('通知连接挂掉不影响查询路径：fetchMetadata 照常成功', async () => {
+    const row = { id: '1', updatedAt: '2026-08-27T10:00:00.000Z' };
     const { adapter } = await createConnectedFeed();
     lastSource().fail();
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([{ id: '1', updatedAt: 'x' }]))));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify([row])))
+    );
 
-    await expect(firstValueFrom(adapter.fetchMetadata('FeedRecipe', ALL))).resolves.toEqual([
-      { id: '1', updatedAt: 'x' }
-    ]);
+    await expect(firstValueFrom(adapter.fetchMetadata('FeedRecipe', ALL))).resolves.toEqual([row]);
   });
 
   it('通知连接的失败不是网络错误，不参与 offlineFallback 判定', async () => {

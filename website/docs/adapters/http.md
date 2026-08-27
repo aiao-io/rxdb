@@ -247,6 +247,67 @@ auth header **不进**请求指纹——否则每次 token 轮换都会让整份
 代价是：在同一个适配器实例上直接换 token，可能读到上一个身份的响应。切换用户时重建连接。
 :::
 
+## 变更通知：让远端改动主动打过来
+
+缺省关闭。打开后适配器会连一条 [SSE](./http-protocol.md#变更通知可选) 长连接；远端推来一个
+**实体名**，适配器就调 core 的失效上报口，让挂在该实体上的查询按各自的策略重取。
+
+```typescript
+new RxDBAdapterHttp(db, {
+  baseUrl,
+  handlers,
+  changeFeed: {
+    url: 'changes', // 相对 baseUrl，也可给绝对 URL
+    withCredentials: true, // 跨源时带 cookie（EventSource 带不了 auth header）
+    reconnectBaseDelayMs: 1000,
+    reconnectMaxDelayMs: 30000,
+    onUnavailable: report => console.warn('[change feed]', report.reason, report.message)
+  }
+});
+```
+
+| 字段                   | 默认    | 含义                                          |
+| :--------------------- | :------ | :-------------------------------------------- |
+| `url`                  | —       | 通知端点，相对 `baseUrl` 或绝对 URL；**必填** |
+| `withCredentials`      | `false` | 透传给 `EventSource`，跨源带 cookie           |
+| `reconnectBaseDelayMs` | `1000`  | 指数退避起步延迟                              |
+| `reconnectMaxDelayMs`  | `30000` | 退避上限，必须 `>=` 起步值                    |
+| `onUnavailable`        | （无）  | 通道不可用时的诊断回调，见下                  |
+
+**整个 `changeFeed` 不写就等于关闭**，不发任何连接、不产生任何行为差异。参数嵌在 `changeFeed`
+里而不是平铺，是为了让「配了 `onUnavailable` 却没开通道」这种永不触发的死配置在类型上就不合法。
+
+**通知只带实体名，不带行数据。** 广播的对象是所有订阅者，推行数据在多租户后端上是越权泄露；
+而且「这一行属不属于我当前的 `where`」只有服务端答得出。适配器收到通知后只做一件事：告诉 core
+「这个实体脏了」。重查走的还是原来那条带鉴权和过滤条件的路。
+
+**连上就是全量失效。** 每次连接成功——首次连接与每一次重连**一视同仁**——适配器会为每个订阅
+实体各上报一次失效。这不是保守起见，是必需：断线期间的变更没有任何人补发给你，连上那一刻你
+对这段窗口一无所知。代价是每次重连引来一轮重取。
+
+**自己改的不会绕回来。** 事件里带 `clientId` 且等于本机 `rxdb.context.clientId` 时直接丢弃。
+两边都没有 `clientId` 时**不**算自回声——那是「服务端没报」，不是「就是我」。要让它生效，需要
+你把 `rxdb.context.clientId` 通过 `auth` 注入写请求，并由后端回显进广播。
+
+:::warning `EventSource` 带不了自定义 header
+`auth` hook 对这条连接**不生效**（对普通请求照常生效）。跨源鉴权只能走 cookie
+（`withCredentials: true`）或把票据拼进 `url`。
+:::
+
+**通道的死活不影响查询。** 连不上、连上又断、载荷读不懂，`fetchMetadata` / `findByIds` 全都逐字
+照旧：这条连接**不**抛错、**不**产生 `NetworkOfflineError`、**不**参与 `offlineFallback` 的判定
+——那条降级看的是**查询请求**失败，而一条断掉的通知连接完全可能只是后端没实现这个端点。唯一
+的出口是 `onUnavailable`：
+
+| `reason`              | 触发                                    | 之后                                         |
+| :-------------------- | :-------------------------------------- | :------------------------------------------- |
+| `unsupported-runtime` | 运行时没有全局 `EventSource`（如 Node） | **不重试**——重试再多次也变不出一个构造器     |
+| `connection-error`    | 连接失败 / 断开                         | 按指数退避重连，`retryInMs` 是下次尝试的延迟 |
+| `malformed-message`   | 事件体不是合法 JSON、或缺 `entity`      | 连接保持，仅丢弃这一条                       |
+
+回调只报**事实**不下结论：`EventSource` 不暴露状态码，「端点没实现」「鉴权失败」「真断网」在
+客户端侧完全重合，替你猜一个会在猜错的那一半把人送去改一个本来就对的服务端。
+
 ## 错误与离线降级
 
 判别位是**类名**（`instanceof`），`code` 只作辅助。
@@ -264,12 +325,12 @@ auth header **不进**请求指纹——否则每次 token 轮换都会让整份
 
 ## 生命周期
 
-| 成员                | 行为                                                                              |
-| :------------------ | :-------------------------------------------------------------------------------- |
-| `connect()`         | 不建长连接、**不发探测请求**；扫描已注册实体，遇 bigint / binary 字段即 fail-fast |
-| `disconnect()`      | 取消进行中的请求（走 error 通道）；**已发出的写请求不回滚**——HTTP 没有事务        |
-| `version()`         | 返回**远端服务端**版本，需配 `onVersion`；未配则抛错，不回落到本包版本号          |
-| `isTableExisted(E)` | `2xx` → `true`，`404` → `false`，其余状态码与传输失败 → 抛错                      |
+| 成员                | 行为                                                                                                                  |
+| :------------------ | :-------------------------------------------------------------------------------------------------------------------- |
+| `connect()`         | **不发探测请求**；扫描已注册实体，遇 bigint / binary 字段即 fail-fast；配了 `changeFeed` 才建长连接，且在校验通过之后 |
+| `disconnect()`      | 取消进行中的请求（走 error 通道）、关闭通知连接并停掉重连；**已发出的写请求不回滚**——HTTP 没有事务                    |
+| `version()`         | 返回**远端服务端**版本，需配 `onVersion`；未配则抛错，不回落到本包版本号                                              |
+| `isTableExisted(E)` | `2xx` → `true`，`404` → `false`，其余状态码与传输失败 → 抛错                                                          |
 
 ### 不支持的字段类型
 

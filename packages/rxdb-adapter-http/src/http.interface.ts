@@ -289,6 +289,84 @@ export interface HttpEtagUnreadableReport {
  */
 export type HttpEtagUnreadableHook = (report: HttpEtagUnreadableReport) => void;
 
+/**
+ * 变更通知通道不可用的那一刻的**事实**（US-023 AC#17）。
+ *
+ * @remarks
+ * 与 {@link HttpEtagUnreadableReport} 同一条判例：字段全是观测值，没有结论。
+ * 尤其是**连接为什么失败读不出来**——`EventSource` 的 `error` 事件不带状态码、不带响应体，
+ * 「端点没实现（404）」「认证过期（401）」「网络断了」在它上面完全重合。替调用方猜一个，
+ * 会把人送去修一个本来就对的地方。
+ */
+export interface HttpChangeFeedUnavailableReport {
+  /** 通知端点的绝对 URL */
+  url: string;
+  /**
+   * 观测到的是哪一类事实。
+   *
+   * - `unsupported-runtime`：当前运行时没有 `EventSource`（如 Node）。**不会重连**——
+   *   重试再多次也变不出一个全局构造器。
+   * - `connection-error`：连接建立失败或中途断开。
+   * - `malformed-message`：连接是好的，但这一条消息解析不出实体名。
+   */
+  reason: 'unsupported-runtime' | 'connection-error' | 'malformed-message';
+  /** 自上次连接成功以来的失败次数；`unsupported-runtime` 恒为 `0` */
+  attempt: number;
+  /**
+   * 失败时 `EventSource.readyState` 原样透出，**不作判定**。
+   *
+   * @remarks
+   * `0`（CONNECTING）表示浏览器自己正在重连，本包不插手；`2`（CLOSED）表示浏览器已放弃，
+   * 重连由本包的退避接管。构造器直接抛错时没有实例可读，因此为 `undefined`。
+   */
+  readyState?: number;
+  /** 本包安排的下次重连延迟（毫秒）；本包这次不重连时为 `undefined` */
+  retryInMs?: number;
+  /** `malformed-message` 时的原始 `data` 文本；其余情形为 `undefined` */
+  data?: string;
+  /** 现成的说明文案 */
+  message: string;
+}
+
+/**
+ * 诊断回调：变更通知通道不可用时被调用。
+ *
+ * @remarks
+ * **同步调用、返回值忽略、抛错被丢弃**，与 {@link HttpEtagUnreadableHook} 同一条口径。
+ */
+export type HttpChangeFeedUnavailableHook = (report: HttpChangeFeedUnavailableReport) => void;
+
+/**
+ * 变更通知通道（SSE）的配置（US-023 D5）。
+ *
+ * @remarks
+ * **所有字段都收在这个对象里**，不平铺到 {@link HttpAdapterOptions}：它们离开
+ * `changeFeed` 都没有意义，平铺会让「配了 `onChangeFeedUnavailable` 却没配
+ * `changeFeed`」这种永不触发的死配置在类型上合法。
+ *
+ * **认证走不了 `auth` hook。** `EventSource` 发不出自定义 header，这是它的规格而不是
+ * 本包的取舍。因此通知端点只能靠 cookie（配 {@link HttpChangeFeedOptions.withCredentials}）
+ * 或把凭据编进 `url`。适配器的 `auth` hook **不作用于**这条连接。
+ */
+export interface HttpChangeFeedOptions {
+  /** SSE 端点：绝对 URL，或相对于 `baseUrl` 的路径 */
+  url: string;
+  /** 跨源连接是否携带 cookie，透传给 `EventSource`。默认 `false` */
+  withCredentials?: boolean;
+  /** 退避重连的起步延迟（毫秒）。默认 `1000`；必须是 finite 正整数 */
+  reconnectBaseDelayMs?: number;
+  /** 退避重连的延迟上限（毫秒）。默认 `30000`；必须是 finite 正整数且不小于起步延迟 */
+  reconnectMaxDelayMs?: number;
+  /**
+   * 通道不可用时的诊断回调。
+   *
+   * @remarks
+   * 不配它时通道的行为完全不变（照常退避重连），只是没有嘴——而 D5 明确不给轮询降级，
+   * 「连不上」的唯一出口就是这个回调。抛出的错误被丢弃，理由见 {@link HttpChangeFeedUnavailableHook}。
+   */
+  onUnavailable?: HttpChangeFeedUnavailableHook;
+}
+
 /** 六个数值配置，全部可覆盖、全部有默认。 */
 export interface HttpNumericConfig {
   /** 单页条数，透传为 handler 的 `ctx.limit`。默认 `1000`（对标 `SUPABASE_PAGE_SIZE`） */
@@ -369,4 +447,32 @@ export interface HttpAdapterOptions extends Partial<HttpNumericConfig> {
    * ```
    */
   onEtagUnreadable?: HttpEtagUnreadableHook;
+  /**
+   * 启用变更通知通道（US-023 AC#12）。**缺席即关闭**。
+   *
+   * @remarks
+   * 关着时行为与本故事之前逐字相同：零新增请求、零连接，远端变更靠下一次 `find()`
+   * 回远端校验发现。开着时远端一变，订阅同一实体的活查询立刻重跑。
+   *
+   * 与 `conditionalRequests` 同一条理由必须显式开启：不是所有后端都实现得了推送，
+   * 而适配器无从探测——一个不实现该端点的后端，表现是连接被拒，不是「没有变更」。
+   *
+   * **连不上时不降级成轮询。** 偷偷切一条「每 N 秒问一次」的二等通道，会让接入方拿到一个
+   * 说不清延迟上界的实时性，出问题还查不出走的是哪条路。连不上就是连不上，按退避重连并
+   * 通过 {@link HttpChangeFeedOptions.onUnavailable} 报出来。
+   *
+   * **连接成功（含每次重连）会对所有走本适配器的实体各上报一次失效。** 这是正确性要求
+   * 不是优化：断开期间发生的变更没有任何人会补发，不主动失效一次，客户端会把「没收到消息」
+   * 当成「没有变化」，而这次误判可能一直持续下去。代价是一次 metadata 往返，无变化则零行拉取。
+   *
+   * @example
+   * ```ts
+   * new RxDBAdapterHttp(rxdb, {
+   *   baseUrl,
+   *   handlers,
+   *   changeFeed: { url: 'changes', onUnavailable: report => myLogger.warn(report.message, report) }
+   * });
+   * ```
+   */
+  changeFeed?: HttpChangeFeedOptions;
 }

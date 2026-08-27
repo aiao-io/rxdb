@@ -59,6 +59,9 @@ sidebar_position: 2
 写入口没配就不存在：只读后端不实现 `create` / `update` / `delete`，客户端对应方法会**当场拒绝**，
 而不是发出一个注定失败的请求。
 
+七个操作之外还有一个可选的**非实体级**端点——[变更通知](#变更通知可选)（SSE）：它不属于任何实体，
+一条连接覆盖客户端订阅的全部实体。
+
 ---
 
 ## 1. fetchMetadata（必选）
@@ -282,6 +285,149 @@ HEAD /v1/recipes
 
 ---
 
+## 变更通知（可选）
+
+上面七个端点全是**客户端问、后端答**：远端的行变了，客户端在下一次查询之前无从得知。这一节让
+后端能反过来捅客户端一下——**只捅一下，不递数据**。
+
+后端**不实现也完全合规**。不实现的后果是回到今天的行为：客户端只在自己发起查询时才发现远端
+变了，新鲜度由客户端的 `staleTime` 决定。**这不是故障**，只是「别人改的东西，我要等到下次查询
+才看得见」。
+
+### 端点
+
+| 项目           | 约定                                                                                         |
+| :------------- | :------------------------------------------------------------------------------------------- |
+| 方法 / 路径    | `GET`，路径由客户端配置（`changeFeed.url`），**与实体无关**                                  |
+| `Content-Type` | `text/event-stream`（[SSE](https://html.spec.whatwg.org/multipage/server-sent-events.html)） |
+| 其它响应头     | `Cache-Control: no-cache`；经代理时通常还要 `X-Accel-Buffering: no`                          |
+| 方向           | 单向，服务端 → 客户端；客户端在这条连接上**不发**任何东西                                    |
+| 覆盖面         | 一条连接覆盖该客户端订阅的**全部实体**，不是一个实体一条连接                                 |
+
+### 事件体
+
+用**默认事件类型**推送——即只写 `data:`，**不要**写 `event:` 字段。客户端监听的是 `onmessage`，
+带了自定义 `event:` 名的事件它一条都收不到。
+
+```text
+data: {"entity":"Recipe","namespace":"public","clientId":"c-9f3a"}
+
+data: {"entity":"Tag"}
+
+```
+
+（每条事件以**空行**结束，这是 SSE 的分帧规则。）
+
+`data:` 是一行 JSON 对象：
+
+| 字段        | 类型   | 必选 | 说明                                                                   |
+| :---------- | :----- | :--: | :--------------------------------------------------------------------- |
+| `entity`    | string |  是  | **客户端实体名**（如 `Recipe`），不是表名、也不是 URL 里的资源路径片段 |
+| `namespace` | string |  否  | 缺省 `"public"`                                                        |
+| `clientId`  | string |  否  | 发起这次变更的客户端标识，用于自回声抑制，见下                         |
+
+`entity` 认不出来时客户端**静默忽略**：广播是发给所有订阅者的，其中大多数并不关心你推的这个
+实体，把「别人的实体」当成错误只会在正常运行中制造噪音。
+
+:::warning 事件里**不要**带行数据
+协议规定通知只搬运一个实体名。原因有两条，都不是性能：一，广播的对象是**所有**订阅者，多租户
+后端上推行数据等于把 A 的行发给 B；二，「这一行属不属于某个客户端正挂着的 `where`」只有服务端
+答得出，而服务端并不知道客户端挂了哪些查询。客户端收到通知后会自己回来重查——那条路径上有完整的
+权限校验和过滤条件。
+:::
+
+### `clientId`：让改动的发起方少查一次
+
+写入方自己已经拿到了 `create` / `update` 的响应，它不需要再被通知一次。事件里带上发起方的
+`clientId`，客户端认出是自己就跳过。
+
+**这要求后端能把一次写入归因到某个客户端**，而客户端不会自动带上它——需要应用侧把
+`rxdb.context.clientId` 通过 `auth` hook 注入到写请求的 header 里，后端再回显进广播。
+
+省略 `clientId` 完全合规，代价是发起方多重取一次；**填错**才有害：填成别人的 id 会让那个客户端
+把一次真实变更当成自己的回声丢掉。拿不准就不填。
+
+### 连接成功 = 全量失效（后端不必补发漏掉的事件）
+
+客户端**每次连上**（首次连接与每一次重连一视同仁）都会把所有订阅实体标记为已失效。含义是：
+
+- 断线期间发生的变更**不需要**你补发；
+- `Last-Event-ID` / 事件重放**不必**实现，客户端不发这个头；
+- `id:` 字段可以不写。
+
+代价是每次重连都会引来一轮重取。因此后端要做的只有一件事：**允许客户端随时重连**，别对同一
+来源的频繁重连做惩罚性限流。客户端自己有指数退避（缺省 1s 起、30s 封顶）。
+
+长连接经过代理时容易被空闲超时切断，建议每 15–30 秒发一行注释保活：
+
+```text
+:keep-alive
+
+```
+
+### 认证：`EventSource` 带不了 header
+
+浏览器的 `EventSource` **不能设置自定义请求头**，客户端 `auth` hook 注入的
+`Authorization` 对这条连接**不生效**（对上面七个端点照常生效）。可用的两条路：
+
+- **Cookie**——客户端配 `withCredentials: true`，浏览器带上同源/跨源 cookie；
+- **URL 上带票据**——由应用自己把一次性 token 拼进 `changeFeed.url`（注意 URL 会进日志）。
+
+后端对这条连接的鉴权要按上述两者之一设计，不要指望 `Authorization` 头。
+
+### 跨源
+
+这条连接是 `GET` 且没有自定义头，属于**简单请求**，不会有预检。但它仍需要：
+
+| 场景                     | 必须的响应头                                                                                              |
+| :----------------------- | :-------------------------------------------------------------------------------------------------------- |
+| 跨源                     | `Access-Control-Allow-Origin`                                                                             |
+| 跨源 + `withCredentials` | `Access-Control-Allow-Origin` **回显具体 Origin**（不能是 `*`）+ `Access-Control-Allow-Credentials: true` |
+
+### 端点不存在会怎样
+
+如果客户端配了 `changeFeed` 而你没实现这个端点，连接会失败，然后客户端**按退避一直重试**。
+这不会影响任何查询：`EventSource` 不暴露状态码，客户端因此**分不清**「端点没实现」「鉴权失败」
+「真断网」三者，所以它不把这条连接的死活翻译成网络错误——不抛 `NetworkOfflineError`、不触发
+离线降级，只走一个诊断回调（`changeFeed.onUnavailable`）交给应用去处理。
+
+结论对后端是：**没实现就别让客户端配它**，否则你会看到一个 404 端点被反复叩门；而排查这件事时，
+前端那边只有诊断回调里的一行，没有异常。
+
+### 最小实现（`node:http`）
+
+```js
+const clients = new Set();
+
+// GET /changes
+function subscribe(req, res) {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Access-Control-Allow-Origin': req.headers.origin ?? '*'
+  });
+  res.write(':ok\n\n');
+  clients.add(res);
+  const keepAlive = setInterval(() => res.write(':keep-alive\n\n'), 20000);
+  req.on('close', () => {
+    clearInterval(keepAlive);
+    clients.delete(res);
+  });
+}
+
+// 任何一次写入落库之后调用
+function broadcast(entity, clientId) {
+  const frame = `data:${JSON.stringify({ entity, clientId })}\n\n`;
+  for (const res of clients) {
+    res.write(frame);
+  }
+}
+```
+
+客户端侧的开关、诊断回调与重连参数见[适配器文档](./http.md)。
+
+---
+
 ## 跨源（CORS）
 
 协议本身与传输无关，这一节里没有一条是「协议要求」。但浏览器前端几乎不可能与 API 同源，
@@ -436,6 +582,7 @@ curl -X POST 'https://api.example.com/v1/recipes/delete' \
 - [ ] `findByIds` 对不存在的 id 返回**少于请求数**的行，而不是 `500`；
 - [ ] `delete` 用 `POST` 且从 body 读 `ids`（或与客户端显式约定真 `DELETE`）；
 - [ ] 若实现了条件请求：内容一旦变化就**不得**再回 `304`（`304` 的含义是「客户端手上那份仍有效」）；
+- [ ] 若实现了[变更通知](#变更通知可选)：事件用**默认类型**（只写 `data:`，不写 `event:`），载荷只含实体名**不含行数据**，且不对客户端重连做惩罚性限流（断线期间的事件不必补发）；
 - [ ] 若前端跨源：预检放行 `content-type` / `authorization` / `if-none-match`，错误响应也带跨源头，且用 `Access-Control-Expose-Headers: ETag` 把 `ETag` 暴露出去（漏掉最后一条时条件请求会**静默**失效，见[跨源（CORS）](#跨源cors)）。
 
 ---

@@ -62,6 +62,18 @@
         "kind": "type"
       },
       {
+        "name": "HttpChangeFeedOptions",
+        "kind": "type"
+      },
+      {
+        "name": "HttpChangeFeedUnavailableHook",
+        "kind": "type"
+      },
+      {
+        "name": "HttpChangeFeedUnavailableReport",
+        "kind": "type"
+      },
+      {
         "name": "HttpChangelogUnsupportedError",
         "kind": "both"
       },

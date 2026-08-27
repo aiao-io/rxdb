@@ -25,6 +25,7 @@ import {
   type RxDB
 } from '@aiao/rxdb';
 import { defer, from, map, type Observable } from 'rxjs';
+import { assertChangeFeedUrl, HttpChangeFeed, type ChangeFeedEntity } from './change-feed.js';
 import { findByIdsInChunks } from './chunking.js';
 import { resolveHttpConfig } from './config.js';
 import {
@@ -89,6 +90,8 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
   #handlers: HttpHandlers;
   #disconnected: AbortController;
   #transport: HttpTransport;
+  /** 变更通知通道；未配 `changeFeed` 时**不存在**（US-023 AC#12：缺席即关闭） */
+  readonly #changeFeed: HttpChangeFeed | undefined;
 
   readonly name = ADAPTER_NAME;
 
@@ -133,6 +136,7 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
     this.#handlers = options.handlers;
     this.#disconnected = new AbortController();
     this.#transport = this.#createTransport();
+    this.#changeFeed = this.#createChangeFeed();
     this.#installWriteDucks();
   }
 
@@ -148,6 +152,9 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
    * 交给 `isNetworkError` 分类。想在启动时确认可达性的应用自己调
    * {@link RxDBAdapterHttp.isTableExisted}，那是显式选择而非框架行为。
    *
+   * **配了 `changeFeed` 才有长连接**，且它建在最后：校验没过的 `connect()` 不该留下一条
+   * 活着的通知连接。通道自身连不上不影响本方法的返回——它按 US-023 AC#17 只诊断不抛错。
+   *
    * @returns 适配器自身
    * @throws HttpUnsupportedWireTypeError 已注册实体声明了 bigint / binary 字段
    */
@@ -160,6 +167,8 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
     // 校验通过才重新武装：失败的 connect 不该把上一次的断开状态悄悄解除
     this.#disconnected = new AbortController();
     this.#transport = this.#createTransport();
+    // start() 自带「先收口上一条」，重复 connect() 因此不会留下第二条连接
+    this.#changeFeed?.start();
     return this;
   }
 
@@ -174,10 +183,14 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
    *
    * 顺带清空条件请求缓存（AC#28）：那些响应绑定的是断开前的认证身份与远端状态，
    * 跨越一次断开继续复用，等于让重连后的第一批查询读到上一段连接的世界。
+   *
+   * 变更通知通道一并停掉，**含待执行的重连**：只关连接不取消定时器的话，退避窗口里的那次
+   * 重连会在断开之后把连接重新建起来。
    */
   async disconnect(): Promise<void> {
     this.#disconnected.abort();
     this.#transport.clearConditionalCache();
+    this.#changeFeed?.stop();
     return Promise.resolve();
   }
 
@@ -390,6 +403,55 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
           }
         : undefined
     });
+  }
+
+  /**
+   * 建通知通道，未配 `changeFeed` 时返回 `undefined`。
+   *
+   * @remarks
+   * 与 `conditional` 同一条口径：缺席即禁用。返回一个「停用状态的通道」会让 AC#12
+   * 的「零连接」依赖对象内部再判一次开关，而这里不存在这个对象。
+   *
+   * URL 借 transport 拼：`baseUrl` 的拼接规则只有一份，让通道自己再拼一遍，两处迟早分叉。
+   * 三个回调都是**现读**而不是构造期快照——`clientId` 在登录后会被换掉，实体清单也可能
+   * 在 `connect()` 之后才补齐。
+   */
+  #createChangeFeed(): HttpChangeFeed | undefined {
+    const changeFeed = this.options.changeFeed;
+    if (changeFeed === undefined) {
+      return undefined;
+    }
+    assertChangeFeedUrl(changeFeed.url);
+    return new HttpChangeFeed({
+      url: this.#transport.resolveUrl({ url: changeFeed.url, method: 'GET' }),
+      options: changeFeed,
+      clientId: () => this.rxdb.context.clientId,
+      entities: () => this.#subscribedEntities(),
+      invalidate: (entity, namespace) => this.rxdb.invalidateRemoteEntity(entity, namespace)
+    });
+  }
+
+  /**
+   * 走本适配器 remote 槽位的实体，即 D7 口中的「已订阅实体」。
+   *
+   * @remarks
+   * SSE 不按实体订阅——服务端广播它认识的全部实体。所以「已订阅」只能由本地配置定义：
+   * 连接建立时该失效的，正是那些以本适配器为远端权威的实体。别的实体的行由别的路径维护，
+   * 顺手失效它们是越界。
+   */
+  #subscribedEntities(): readonly ChangeFeedEntity[] {
+    const entities: ChangeFeedEntity[] = [];
+    const seen = new Set<string>();
+    for (const EntityType of this.rxdb.config.entities) {
+      const metadata = getEntityMetadata(EntityType);
+      const key = entityKey(metadata.name, metadata.namespace);
+      if (seen.has(key) || getSyncConfig(metadata, this.rxdb.config.sync)?.remote?.adapter !== ADAPTER_NAME) {
+        continue;
+      }
+      seen.add(key);
+      entities.push({ name: metadata.name, namespace: metadata.namespace });
+    }
+    return entities;
   }
 
   /**
