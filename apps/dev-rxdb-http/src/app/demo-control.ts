@@ -56,6 +56,17 @@ export const clearRequestLog = (baseUrl: string): Promise<unknown> => request(ba
 /** 把数据库重置回种子状态（250 行，逐字节可复现）。 */
 export const resetDatabase = (baseUrl: string): Promise<unknown> => request(baseUrl, 'reset', {});
 
+/**
+ * 清空所有数据，但**保留表结构**。
+ *
+ * @remarks
+ * 与 {@link resetDatabase} 的区别在后端一侧（`recipes-store.ts` 的 `deleteAllRecipes`）：
+ * 重置删库文件重建，清空只删行。表还在，`HEAD :entity` 就继续回 200，客户端看到的是
+ * 「这张表存在，只是一行都不匹配」——QueryCache 的孤儿清理要的正是这一种，
+ * 它会把本地行缓存里那 250 行全部删掉。这是这个按钮真正想演示的东西。
+ */
+export const clearDatabase = (baseUrl: string): Promise<unknown> => request(baseUrl, 'clear', {});
+
 /** 离线开关：打开后后端直接掐断连接，浏览器侧表现为传输失败。 */
 export const setOffline = (baseUrl: string, offline: boolean): Promise<DemoControlState> =>
   request<DemoControlState>(baseUrl, 'offline', { offline });

@@ -213,7 +213,7 @@
   <section class="panel wide" aria-labelledby="list-heading">
     <h2 id="list-heading">
       Recipe
-      <span class="count" data-testid="row-count">{{ recipes.value().length }} 行</span>
+      <span class="count" data-testid="row-count">{{ $cachedTotal() }} 行</span>
       @if (recipes.isLoading()) {
         <span class="count" data-testid="loading">加载中…</span>
       }
@@ -252,6 +252,50 @@
         }
       </tbody>
     </table>
+
+    <div class="actions">
+      <label class="inline">
+        <span>每页</span>
+        <!--
+          选中态标在 option 上，不是 select 上：`[value]` 的更新跑在 `@for` 建出 option 之前，
+          第一帧那会儿 select 里一个 option 都还没有，赋值落空、浏览器退回第一项——
+          页长明明是 50，下拉框却显示 25。
+        -->
+        <select (change)="setPageSize(+$any($event.target).value)" data-testid="page-size" aria-label="每页行数">
+          @for (option of pageSizeOptions; track option.value) {
+            <option [value]="option.value" [selected]="option.value === $pageSize()">{{ option.label }}</option>
+          }
+        </select>
+      </label>
+      <button [disabled]="$page() === 0" (click)="prevPage()" data-testid="prev-page" type="button">上一页</button>
+      <button
+        [disabled]="$page() >= $pageCount() - 1"
+        (click)="nextPage()"
+        data-testid="next-page"
+        type="button"
+      >
+        下一页
+      </button>
+      <span class="count" data-testid="page-info">
+        第 {{ $page() + 1 }} / {{ $pageCount() }} 页 · 本页 {{ recipes.value().length }} 行
+      </span>
+    </div>
+    <p class="hint">
+      <code>limit</code>
+      /
+      <code>offset</code>
+      只下推
+      <strong>本地</strong>
+      读。同步的粒度是整个
+      <code>where</code>
+      （指纹里没有翻页参数），所以翻一页会把这个
+      <code>where</code>
+      整个重新同步一遍——流量面板上是 6 次
+      <code>fetchMetadata</code>
+      、0 次
+      <code>by-ids</code>
+      ：行都还是新鲜的，只是换了一段窗口来看。
+    </p>
   </section>
 
   <section class="panel" aria-labelledby="control-heading">
@@ -297,6 +341,7 @@
       <button (click)="injectStatus(null)" data-testid="clear-fault" type="button">
         取消注入（当前 {{ $control()?.forcedStatus ?? '无' }}）
       </button>
+      <button (click)="clearBackend()" data-testid="clear-backend" type="button">清空所有数据</button>
       <button (click)="resetBackend()" data-testid="reset-backend" type="button">重置为种子</button>
       <button (click)="refreshControl()" data-testid="refresh-control" type="button">刷新状态</button>
       <button (click)="clearLogs()" data-testid="clear-logs" type="button">清空日志</button>

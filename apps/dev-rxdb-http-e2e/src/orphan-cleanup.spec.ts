@@ -14,7 +14,7 @@
 import { expect, test } from '@playwright/test';
 
 import { API_BASE_URL } from './env';
-import { expectRowCount, openDemo, readRowIds, resetDemo, SEED_ROW_COUNT, setOffline } from './support';
+import { expectRowCount, openDemo, readRowIds, resetDemo, SEED_ROW_COUNT, setOffline, showAllRows } from './support';
 
 test.beforeEach(async ({ request }) => {
   await resetDemo(request);
@@ -24,8 +24,13 @@ test('AC#14 后端直接删掉的行，再查询后从本地缓存与页面上�
   await openDemo(page);
   await expectRowCount(page, SEED_ROW_COUNT);
 
+  // 列表默认每页 50 行；下面要断言的是整份 id 集合，先切「全部」。
+  await showAllRows(page);
+
   const ids = await readRowIds(page);
   expect(ids).toHaveLength(SEED_ROW_COUNT);
+  // 取第一行当靶子不只是图省事：排序是 `(updatedAt, id)` 升序，它必然落在第一页。
+  // 于是最后那次 reload（页长跟着回到默认的 50）也照样能证明它没有从缓存里复活。
   const victim = ids[0];
 
   // 绕过前端，直接在后端删——模拟「别人改了数据」。

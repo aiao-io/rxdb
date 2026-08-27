@@ -294,6 +294,28 @@ describe('错误与开关', () => {
     expect(recovered.status).toBe(200);
   });
 
+  /*
+   * `clear` 与 `reset` 是**两件事**，差别全在「表还在不在」上：
+   *
+   * - `reset` 删库文件重建（AC#6 的逐字节可复现），
+   * - `clear` 只清行，表结构留着——于是 `isTableExisted` 继续回 200，
+   *   客户端看到的是「这张表存在，只是一行都不匹配」。
+   *
+   * 后者才是 QueryCache 孤儿清理的极端情形：远端空集 + 本地满缓存。
+   */
+  it('__control/clear 清空数据但保留表，reset 还能把种子灌回来', async () => {
+    expect(await postJson<{ deleted: number }>('__control/clear', {})).toEqual({ deleted: SEED_ROW_COUNT });
+
+    expect(await postJson<MetadataRow[]>('recipes/metadata', { offset: 0, limit: 1000 })).toEqual([]);
+    expect((await fetch(`${baseUrl}/recipes`, { method: 'HEAD' })).status).toBe(200);
+
+    // 清空是幂等的：再清一次删 0 行，不报错。
+    expect(await postJson<{ deleted: number }>('__control/clear', {})).toEqual({ deleted: 0 });
+
+    expect(await postJson('__control/reset', {})).toEqual({ rows: SEED_ROW_COUNT });
+    expect(await postJson<MetadataRow[]>('recipes/metadata', { offset: 0, limit: 1000 })).toHaveLength(SEED_ROW_COUNT);
+  });
+
   it('version 与 isTableExisted 按协议返回', async () => {
     const version = await fetch(`${baseUrl}/meta/version`);
     expect(((await version.json()) as { version: string }).version).toMatch(/^node-sqlite-demo\//);

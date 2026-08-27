@@ -12,7 +12,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { expectRowCount, openDemo, readRowIds, resetDemo, SEED_ROW_COUNT, setPageMode } from './support';
+import { expectRowCount, openDemo, readRowIds, resetDemo, SEED_ROW_COUNT, setPageMode, showAllRows } from './support';
 
 test.beforeEach(async ({ request }) => {
   await resetDemo(request);
@@ -24,6 +24,11 @@ test('AC#15 token 翻页把 250 行完整读回，没有重复也没有遗漏', 
   await openDemo(page);
   await expect(page.getByTestId('page-mode')).toHaveText('token');
   await expectRowCount(page, SEED_ROW_COUNT);
+
+  // 列表默认每页 50 行。这里断言的是**整份**结果集，得先把页长切到「全部」——
+  // 注意这与后端的翻页形态无关：token 翻的是 `fetchMetadata` 的页，
+  // 页长切的是本地读出来铺几行，两者各翻各的。
+  await showAllRows(page);
 
   const ids = await readRowIds(page);
   expect(ids).toHaveLength(SEED_ROW_COUNT);

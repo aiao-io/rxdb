@@ -46,6 +46,21 @@ export interface DemoState {
   log: RequestLogEntry[];
 }
 
+/**
+ * 由 server 注入的数据操作。
+ *
+ * @remarks
+ * 控制模块自己**不碰文件系统、不写 SQL**：它只知道「有这么两件事可以做」。
+ * 库句柄会被 {@link ControlActions.reseed} 换掉（删文件重建），闭包由 server 持有，
+ * 这一层拿到的永远是当前那一个。
+ */
+export interface ControlActions {
+  /** 删库重建 + 写种子，返回写入行数。 */
+  reseed: () => number;
+  /** 清空数据但保留表结构，返回删除行数。 */
+  clear: () => number;
+}
+
 /** 日志容量。够放下一次全量翻页（6 次）加上前后若干次操作，又不会无限涨。 */
 const LOG_CAPACITY = 200;
 
@@ -94,7 +109,7 @@ const stateSnapshot = (state: DemoState): Record<string, unknown> => ({
  * 路由 `__control/*`。
  *
  * @param segments - `__control` 之后的路径片段。
- * @param reseed - 删库重建 + 写种子，返回写入行数。由 server 注入，控制模块不碰文件系统。
+ * @param actions - 由 server 注入的数据操作，见 {@link ControlActions}。
  * @returns 是否命中了某条控制路由。
  */
 export const handleControlRequest = async (
@@ -102,7 +117,7 @@ export const handleControlRequest = async (
   response: ServerResponse,
   segments: string[],
   state: DemoState,
-  reseed: () => number
+  actions: ControlActions
 ): Promise<boolean> => {
   const route = `${request.method ?? 'GET'} ${segments.join('/')}`;
 
@@ -120,7 +135,11 @@ export const handleControlRequest = async (
     return true;
   }
   if (route === 'POST reset') {
-    sendJson(response, 200, { rows: reseed() });
+    sendJson(response, 200, { rows: actions.reseed() });
+    return true;
+  }
+  if (route === 'POST clear') {
+    sendJson(response, 200, { deleted: actions.clear() });
     return true;
   }
 

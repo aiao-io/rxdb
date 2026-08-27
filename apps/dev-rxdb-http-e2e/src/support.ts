@@ -16,6 +16,12 @@ import { API_BASE_URL, APP_BASE_URL, appUrl } from './env';
 /** 种子行数。后端 `config.ts` 的 `SEED_ROW_COUNT`。 */
 export const SEED_ROW_COUNT = 250;
 
+/** 列表默认页长。前端 `paging.ts` 的 `DEFAULT_PAGE_SIZE`。 */
+export const DEFAULT_PAGE_SIZE = 50;
+
+/** 页长选项里「全部」的取值。前端 `paging.ts` 的 `ALL_ROWS_LIMIT`，也是本地读的上限。 */
+export const ALL_ROWS_LIMIT = 1000;
+
 /** `__control/state` 的返回形状。 */
 export interface ControlState {
   offline: boolean;
@@ -84,6 +90,13 @@ export const resetBackendData = async (request: APIRequestContext): Promise<numb
   return ((await response.json()) as { rows: number }).rows;
 };
 
+/** 清空所有数据但保留表结构，返回删除行数。 */
+export const clearBackendData = async (request: APIRequestContext): Promise<number> => {
+  const response = await request.post(controlUrl('clear'), { data: {} });
+  expect(response.status(), 'POST __control/clear').toBe(200);
+  return ((await response.json()) as { deleted: number }).deleted;
+};
+
 /**
  * 把后端恢复到已知起点：开关全默认、数据回到种子、日志清空。
  *
@@ -135,6 +148,57 @@ export const openDemo = async (page: Page, extraQuery: string = ''): Promise<voi
 /** 等列表稳定在指定行数。 */
 export const expectRowCount = async (page: Page, rows: number, timeout: number = 60_000): Promise<void> => {
   await expect(page.getByTestId('row-count')).toHaveText(`${rows} 行`, { timeout });
+};
+
+/** `row-count` 上的总行数（整个筛选集合，不是这一页）。 */
+export const readTotalRowCount = async (page: Page): Promise<number> => {
+  const text = (await page.getByTestId('row-count').textContent()) ?? '';
+  const total = Number.parseInt(text, 10);
+  expect(Number.isNaN(total), `row-count 读出来不是个数字：${text}`).toBe(false);
+  return total;
+};
+
+/**
+ * 切页长。
+ *
+ * @remarks
+ * 只等到选中态生效为止——行是后到的，要断言行请接着用 {@link expectRowIds}。
+ */
+export const setPageSize = async (page: Page, pageSize: number): Promise<void> => {
+  await page.getByTestId('page-size').selectOption(String(pageSize));
+  await expect(page.getByTestId('page-size')).toHaveValue(String(pageSize));
+};
+
+/**
+ * 把页长切到「全部」，让 {@link readRowIds} 读得到整个结果集。
+ *
+ * @remarks
+ * 列表默认每页 50 行。凡是要断言**全量** id 的用例（跨页去重、孤儿清理）都得先调这个，
+ * 否则读到的只是第一页——那种失败看起来像「行丢了」，其实只是没翻到。
+ *
+ * 「全部」的取值就是本地读的上限 `ALL_ROWS_LIMIT`（1000），高于种子的 250 行，
+ * 所以切过去之后一页装得下整份数据。
+ *
+ * 最后那句等待不能省，也不能换成等 `page-info` 的页码：页码是信号直接算出来的，
+ * 切完页长立刻就是「第 1 / 1 页」，而行要等本地读回来才换。只等页码就会读到上一页的 50 行，
+ * 失败现场看起来像「行丢了」，其实是断言跑在了重查前面。
+ */
+export const showAllRows = async (page: Page): Promise<void> => {
+  const total = await readTotalRowCount(page);
+  await setPageSize(page, ALL_ROWS_LIMIT);
+  await expect(page.getByTestId('page-info')).toContainText('第 1 / 1 页');
+  await expect(page.locator('[data-row-id]')).toHaveCount(total);
+};
+
+/**
+ * 等列表铺出来的行**正好**是这一串 id（含顺序）。
+ *
+ * @remarks
+ * 翻页与切页长都是异步重查：页码文案先变、行后到。断言必须落在行本身上且可重试，
+ * 所以这里用 `expect.poll` 而不是读一次 {@link readRowIds} 就比。
+ */
+export const expectRowIds = async (page: Page, expected: readonly string[]): Promise<void> => {
+  await expect.poll(() => readRowIds(page), { timeout: 30_000 }).toEqual([...expected]);
 };
 
 /** 当前列表里所有行的 id，按渲染顺序。 */

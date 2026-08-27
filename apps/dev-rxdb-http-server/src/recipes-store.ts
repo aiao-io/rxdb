@@ -184,6 +184,20 @@ export const deleteRecipes = (db: DatabaseSync, ids: unknown): number => {
   return Number(result.changes);
 };
 
+/**
+ * 清空整张表，**保留表结构**。供 `__control/clear` 用。
+ *
+ * @remarks
+ * 与 `resetDatabase()`（`seed.ts`）的区别不是快慢，是**留下什么**：
+ * 后者删库文件重建，为的是 AC#6 的「跑两遍逐字节相同」；这里必须让表活着，
+ * `HEAD :entity` 才继续回 200——客户端于是看到「这张表存在，只是一行都不匹配」，
+ * 而不是「这个实体在远端根本没有」。QueryCache 的孤儿清理要的正是前一种。
+ *
+ * @returns 删掉的行数。已经空了就是 0，重复调用不报错。
+ */
+export const deleteAllRecipes = (db: DatabaseSync): number =>
+  Number(db.prepare(`DELETE FROM recipes`).run().changes);
+
 /** 表是否存在，供 `HEAD :entity` 用。 */
 export const recipesTableExists = (db: DatabaseSync): boolean => {
   const sql = `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'recipes'`;

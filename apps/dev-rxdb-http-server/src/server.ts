@@ -20,13 +20,14 @@ import { createServer as createHttpServer } from 'node:http';
 import type { DatabaseSync } from 'node:sqlite';
 
 import { BACKEND_VERSION, BASE_PATH, RECIPES_RESOURCE, SEED_ROW_COUNT } from './config.ts';
-import type { DemoState } from './control.ts';
+import type { ControlActions, DemoState } from './control.ts';
 import { createDemoState, handleControlRequest, recordRequest } from './control.ts';
 import { applyCorsHeaders, handlePreflight } from './cors.ts';
 import { openDatabase } from './db.ts';
 import { computeEtag, HttpError, matchesIfNoneMatch, readJsonBody, sendEmpty, sendJson } from './http-utils.ts';
 import {
   createRecipe,
+  deleteAllRecipes,
   deleteRecipes,
   findByIds,
   listMetadataByOffset,
@@ -185,14 +186,19 @@ export const createDemoServer = (options: DemoServerOptions): DemoServer => {
   let db = openDatabase(options.databasePath);
   const state = createDemoState(options.exposeEtag);
 
-  const reseed = (): number => {
-    db.close();
-    db = resetDatabase(options.databasePath);
-    return seedDatabase(db, SEED_ROW_COUNT);
+  // 两个都必须闭包读那个 `let db`：`reseed` 会把句柄整个换掉，`clear` 之后拿到的
+  // 得是换过之后的那一个。
+  const actions: ControlActions = {
+    reseed: (): number => {
+      db.close();
+      db = resetDatabase(options.databasePath);
+      return seedDatabase(db, SEED_ROW_COUNT);
+    },
+    clear: (): number => deleteAllRecipes(db)
   };
 
   const server = createHttpServer((request, response) => {
-    void dispatch(request, response, () => db, state, options.controlEnabled, reseed);
+    void dispatch(request, response, () => db, state, options.controlEnabled, actions);
   });
 
   const close = async (): Promise<void> => {
@@ -210,7 +216,7 @@ const dispatch = async (
   getDb: () => DatabaseSync,
   state: DemoState,
   controlEnabled: boolean,
-  reseed: () => number
+  actions: ControlActions
 ): Promise<void> => {
   const started = Date.now();
   const url = new URL(request.url ?? '/', 'http://127.0.0.1');
@@ -241,7 +247,7 @@ const dispatch = async (
   applyCorsHeaders(request, response, state.exposeEtag);
 
   if (segments[0] === '__control') {
-    await runControl(request, response, segments, state, controlEnabled, reseed);
+    await runControl(request, response, segments, state, controlEnabled, actions);
     return;
   }
   if (state.offline) {
@@ -261,7 +267,7 @@ const runControl = async (
   segments: string[],
   state: DemoState,
   controlEnabled: boolean,
-  reseed: () => number
+  actions: ControlActions
 ): Promise<void> => {
   if (!controlEnabled) {
     sendJson(response, 404, JSON_ERROR(404, `Control endpoints are disabled when NODE_ENV=production`));
@@ -270,7 +276,7 @@ const runControl = async (
   if (handlePreflight(request, response, state.exposeEtag)) return;
 
   try {
-    const handled = await handleControlRequest(request, response, segments.slice(1), state, reseed);
+    const handled = await handleControlRequest(request, response, segments.slice(1), state, actions);
     if (!handled)
       sendJson(response, 404, JSON_ERROR(404, `No control route for ${request.method} ${segments.join('/')}`));
   } catch (error) {
