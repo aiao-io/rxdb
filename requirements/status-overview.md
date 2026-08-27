@@ -28,7 +28,7 @@
 | Story                                                                                         | 卡在哪                                                                                                                                                                                                                     |
 | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                | AC#6 / #7 的两个前置（`apps/dev-rxdb-tauri-e2e` project、三平台打包矩阵）已由 US-210 建好，缺的只剩 US-505 自己的 specs；AC#1/#3/#5/#8 仍 ⚠️。随包化搬迁的 S1～S5 已于 2026-08-18 全部关闭，但搬迁**不解**上述任何一条缺口 |
-| [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) | 阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 A / C / D 未开始                                                                                                                                                         |
+| [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) | 阶段 A 已交付（`decision: supported`）、阶段 B 已交付（5 条 fake 关不掉的 AC 保留）；阶段 C / D 未开始                                                                                                                     |
 
 ## 待评审（1 条）
 
@@ -145,7 +145,7 @@
 - ✅ [US-402 代码编辑器](stories/ui/US-402-code-editor.md)
 - ✅ [US-902 DevTools 面板](stories/future/US-902-devtools-panel.md)
 - 🅰️ 🚧 [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) — 四阶段单文件故事
-  - ⬜ 阶段 A Electron 43 MV3 可行性门禁 — 无前置；只门禁阶段 D
+  - ✅ 阶段 A Electron 43 MV3 可行性门禁 — 2026-08-27 判 `decision: supported`，阶段 D 解锁（[可行性记录](stories/future/US-904-phase-a-evidence.md)）
   - ✅ 阶段 B v2 协议（控制面 + provider 数据面）— v2 全部数值、状态机与错误联合的唯一真相源
   - ⬜ 阶段 C 共享面板 library 与 Chrome v2 迁移 — C1 面板抽取（可与阶段 B 并行）；C2 四段 relay 与 v2 切换
   - ⬜ 阶段 D Electron 原生存储集成 — 依赖 阶段 A(supported) + 阶段 C + US-207 + US-504
@@ -256,7 +256,7 @@ encrypted 与 DevTools 回归、公开文档六项说明），需要一次独立
 | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`，历史 `v0.0.25` 又已被 squash 移出主线——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。这一条不随代码进度自动解除，需单独排期       |
 | [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 B                                 | 出现第一个 `plugin:*` 依赖声明。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`，拓扑序与环检测目前没有消费方。US-013 / US-014 均已交付，硬序解除，阶段 A 已落地；这一条不随代码进度自动解除。**其余 10 条未关闭故事没有任何一条会产生 `plugin:*` 消费方，所以 US-015 的 `In Review` 是稳态而非过渡态**，上方汇总里的「👀 1」在可预见排期内是常量 |
-| [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D                       | 同一文件的阶段 A 必须先给出 `decision: supported`。判 `unsupported` 时**只有阶段 D** 转 `Blocked`，阶段 B / C 与 US-905 继续推进                                                                                                                                                                                                                         |
+| [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D                       | ✅ **2026-08-27 解除**：阶段 A 判 `decision: supported`（[可行性记录](stories/future/US-904-phase-a-evidence.md)）。阶段 D 现在只等阶段 C（US-207 / US-504 均已 Done），并须带上实证出的两条约束：Electron 43 缺整个 `chrome.permissions` 命名空间（需显式能力探测，禁静默 fallback）、扩展面板只在 dock 模式 DevTools 中注册                            |
 
 > **US-212 发布门禁已于 2026-08-22 解除**，从本表移除。原两档门禁（[US-020](stories/core/US-020-querycache-repository.md)
 > 阶段 A 关闭才可标 `experimental`、阶段 B 关闭才可标 `stable`）成立的前提是「QueryCache 配了等于空操作」，
