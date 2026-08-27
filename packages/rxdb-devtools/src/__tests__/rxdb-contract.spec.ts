@@ -19,6 +19,7 @@
 import type { EntityMetadata, EntityType, RxDBEvent } from '@aiao/rxdb';
 import { getEntityMetadata, RxDB, RxDBBranch, SyncType } from '@aiao/rxdb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { RXDB_EVENT_SUBSCRIPTIONS } from '../connector-events.js';
 import type { DevToolsEntityMetadata, DevToolsRxDB, GetEntityMetadataFn } from '../connector.js';
 import { DevToolsConnector, RXDB_EVENT_TYPES } from '../connector.js';
 
@@ -86,6 +87,13 @@ describe('rxdb contract', () => {
       const subscribed = new Set(addEventListener.mock.calls.map(([type]) => type));
 
       expect([...subscribed].sort()).toEqual([...RXDB_EVENT_TYPES].sort());
+    });
+
+    // US-023 AC#31：穷尽性断言对「新事件被填成 false」是绿的 —— 清单里有键就算表过态。
+    // 远端失效是 QueryCache 诊断的关键一环，必须显式钉成转发。
+    it('MUST forward REMOTE_ENTITY_INVALIDATED', () => {
+      expect(RXDB_EVENT_SUBSCRIPTIONS.REMOTE_ENTITY_INVALIDATED).toBe(true);
+      expect(RXDB_EVENT_TYPES).toContain('REMOTE_ENTITY_INVALIDATED');
     });
 
     it('MUST NOT subscribe an event name that RxDB does not dispatch', () => {

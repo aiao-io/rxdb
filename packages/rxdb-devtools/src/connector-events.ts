@@ -38,7 +38,8 @@ export const RXDB_EVENT_SUBSCRIPTIONS = {
   CONFLICT_PENDING: true,
   REPOSITORY_SYNC_BEGIN: true,
   REPOSITORY_SYNC_COMPLETE: true,
-  REPOSITORY_SYNC_ERROR: true
+  REPOSITORY_SYNC_ERROR: true,
+  REMOTE_ENTITY_INVALIDATED: true
 } as const satisfies Record<keyof RxDBEventMap, boolean>;
 
 /** 实际订阅的事件类型（{@link RXDB_EVENT_SUBSCRIPTIONS} 中值为 `true` 的键）。 */

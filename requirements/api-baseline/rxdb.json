@@ -994,12 +994,20 @@
         "kind": "value"
       },
       {
+        "name": "REMOTE_ENTITY_INVALIDATED_EVENT",
+        "kind": "value"
+      },
+      {
         "name": "RemoteBranchInfo",
         "kind": "type"
       },
       {
         "name": "RemoteChange",
         "kind": "type"
+      },
+      {
+        "name": "RemoteEntityInvalidatedEvent",
+        "kind": "both"
       },
       {
         "name": "RemoteMergeResult",

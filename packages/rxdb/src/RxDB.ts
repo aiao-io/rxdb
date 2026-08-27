@@ -13,7 +13,14 @@ import {
   RxDBAdapterRemoteBase,
   RxDBAdapters
 } from './rxdb-adapter.js';
-import { RxDBEvent, RxDBEventMap, TRANSACTION_BEGIN, TRANSACTION_COMMIT, TRANSACTION_ROLLBACK } from './rxdb-events.js';
+import {
+  RemoteEntityInvalidatedEvent,
+  RxDBEvent,
+  RxDBEventMap,
+  TRANSACTION_BEGIN,
+  TRANSACTION_COMMIT,
+  TRANSACTION_ROLLBACK
+} from './rxdb-events.js';
 import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
 import { uuid } from './rxdb-utils.js';
 import { RxDBContext, RxDBOptions } from './rxdb.interface.js';
@@ -690,6 +697,33 @@ export class RxDB {
       this.#connect_promise_map.clear();
       this.#clear_adapter_connected();
     }
+  }
+
+  /**
+   * 上报「远端某个实体的数据已变」（US-023）。
+   *
+   * 供宿主在自己的推送通道（WebSocket / SSE / 轮询）收到变更通知时调用。
+   * 使用 `SyncType.QueryCache` 的仓储会据此丢掉该实体的同步记忆，并重跑所有
+   * 依赖它的活查询 —— 重跑会回远端重新取一次权威数据。
+   *
+   * @param entity - 实体名，即 `@Entity({ name })`；未注册的名字是无操作，不抛错
+   * @param namespace - 命名空间，默认 `'public'`（与 `@Entity` 的默认值一致）
+   *
+   * @remarks
+   * **签名里没有任何位置能承载行数据，这是有意的。** 推送通道给的行体不经
+   * `fetchMetadata` 比对，直接写进本地缓存会让「本地有一份没人验证过的值」
+   * 变成常态；本方法只负责让缓存失效，权威值一律由重跑时的拉取决定。
+   *
+   * 事件不跨标签页转发：每个标签页的宿主各自会收到推送，转发只会让同一次
+   * 变更在 N 个标签页里被放大成 N 次远端拉取。
+   *
+   * @example
+   * ```typescript
+   * socket.on('changed', ({ entity }) => rxdb.invalidateRemoteEntity(entity));
+   * ```
+   */
+  invalidateRemoteEntity(entity: string, namespace = 'public'): void {
+    this.dispatchEvent(new RemoteEntityInvalidatedEvent(namespace, entity));
   }
 
   addEventListener<T extends keyof RxDBEventMap>(type: T, listener: EventListener<RxDBEventMap[T]>): void {

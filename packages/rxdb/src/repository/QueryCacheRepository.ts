@@ -324,6 +324,21 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
   }
 
   /**
+   * 作废全部在飞查询（US-023 D13）。
+   *
+   * @remarks
+   * 只清并发去重表，**不取消**已有订阅：正在等待的调用方照常收到它们那次的结果，
+   * 只是这些流不再被后来者复用。远端数据已变的那一刻，在飞的拉取问的是变更前的
+   * 远端状态；让失效后的重跑复用它，重跑就等于没跑。
+   *
+   * 本地写路径不需要调用它 —— 那条路径上远端已由本仓储自己写过，在飞查询问到的
+   * 就是写后的状态。
+   */
+  invalidateInflight(): void {
+    this.#inflightQueries.clear();
+  }
+
+  /**
    * 按 ID 查询单个实体
    *
    * @param id - 实体 ID

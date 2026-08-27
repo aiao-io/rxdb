@@ -67,6 +67,19 @@ export class QueryCacheSyncMemo {
   readonly #timers = new Map<string, ReturnType<typeof setTimeout>>();
   readonly #staleTime: number;
   #adapters: readonly [unknown, unknown] | undefined;
+  #generation = 0;
+
+  /**
+   * 当前记忆代次，每次 {@link QueryCacheSyncMemo.clear} 递增（US-023 D12）。
+   *
+   * @remarks
+   * 同步是异步的，`clear()` 可能落在「已发出 `fetchMetadata`、还没回来」的窗口里。
+   * 调用方在同步**开始前**取一次代次、结束后原样传回 {@link QueryCacheSyncMemo.remember}，
+   * 代次对不上就说明这次同步的结果按定义已经不新鲜 —— 不许把刚清掉的记忆重新写回去。
+   */
+  get generation(): number {
+    return this.#generation;
+  }
 
   /**
    * @param staleTime - 记忆窗口毫秒数；`0` 或负数表示不记忆
@@ -107,9 +120,11 @@ export class QueryCacheSyncMemo {
    * 记住一次已完成的同步，并安排窗口到期后遗忘。
    *
    * @param fingerprint - {@link queryCacheFingerprint} 的产物
+   * @param generation - 同步**开始前**读到的 {@link QueryCacheSyncMemo.generation}；
+   *   与当前代次不符时本次调用无效果（US-023 D12）
    */
-  remember(fingerprint: string): void {
-    if (this.#staleTime <= 0) {
+  remember(fingerprint: string, generation: number): void {
+    if (this.#staleTime <= 0 || generation !== this.#generation) {
       return;
     }
     this.#forget(fingerprint);
@@ -119,12 +134,19 @@ export class QueryCacheSyncMemo {
     );
   }
 
-  /** 全表遗忘：写入、换适配器时调用 */
+  /**
+   * 全表遗忘：写入、换适配器、远端失效上报时调用。
+   *
+   * @remarks
+   * 同时递增 {@link QueryCacheSyncMemo.generation}，作废所有此刻还在飞的同步 —— 它们
+   * 回来时的 `remember` 会被拒（US-023 D12）。
+   */
   clear(): void {
     for (const timer of this.#timers.values()) {
       clearTimeout(timer);
     }
     this.#timers.clear();
+    this.#generation++;
   }
 
   #forget(fingerprint: string): void {

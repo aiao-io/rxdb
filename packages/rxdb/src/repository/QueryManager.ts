@@ -151,6 +151,46 @@ export class QueryManager<T extends EntityType> {
     return cachedTask;
   }
 
+  /**
+   * 本管理器当前是否有查询依赖该实体类型（US-023）。
+   *
+   * @param entityType - 待判定的实体类型
+   * @returns 依赖计数表里存在该键时为 `true`
+   *
+   * @remarks
+   * 依赖集由每个任务的 `where` 推导（见 `entity_type_dependencies`），因此「A 的查询
+   * 引用了 B」在这里表现为 A 的管理器持有 B 的计数。本仓储自身的实体类型在构造期就
+   * 计过一次，永远为 `true`。
+   *
+   * 内部接口：给 `Repository` 判断一次失效上报要不要往下走，不属于公开 API。
+   */
+  hasDependency(entityType: EntityType): boolean {
+    return this.#dep_entity_type_map.has(entityType);
+  }
+
+  /**
+   * 重跑依赖了给定实体类型之一的查询任务（US-023）。
+   *
+   * @param entityTypes - 被上报失效的实体类型集合
+   *
+   * @remarks
+   * 按**任务粒度**匹配而不是一刀切全表重跑：`QueryTask.relationEntityTypes` 是该任务
+   * 自己的依赖集（构造期必含自身实体类型），与入参有交集才重跑。同一个仓储上
+   * `where` 各不相同的查询，只有真的引用了被上报实体的那些才回远端。
+   *
+   * 内部接口：给 `Repository` 的失效监听器调用，不属于公开 API。
+   */
+  refreshDependentTasks(entityTypes: ReadonlySet<EntityType>): void {
+    for (const task of Array.from(this.#query_task_map.values())) {
+      for (const dependency of task.relationEntityTypes) {
+        if (entityTypes.has(dependency)) {
+          task.refresh();
+          break;
+        }
+      }
+    }
+  }
+
   registerMergeCreateFn(taskType: string, fn: MergeQueryTaskCreateFn<T>) {
     this.#query_task_merge_create_map.set(taskType, fn);
   }

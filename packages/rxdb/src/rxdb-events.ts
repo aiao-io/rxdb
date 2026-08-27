@@ -39,6 +39,19 @@ export const REMOTE_CHANGES_PENDING_EVENT = 'REMOTE_CHANGES_PENDING' as const;
 export const CONFLICT_DETECTED_EVENT = 'CONFLICT_DETECTED' as const;
 export const CONFLICT_PENDING_EVENT = 'CONFLICT_PENDING' as const;
 
+/**
+ * 远端某个实体的数据已变，本地针对它的查询缓存不再可信（US-023）。
+ *
+ * @remarks
+ * 由宿主在收到自己的推送通道（WebSocket / SSE / 轮询）时经
+ * {@link RxDB.invalidateRemoteEntity} 上报。粒度是**整个实体**而不是单行：
+ * `QueryCache` 的失效面由查询的 `where` 决定，行级信息在这一层没有用武之地。
+ *
+ * 与 {@link REMOTE_CHANGES_PENDING_EVENT} 无关 —— 后者不在 {@link RxDBEventMap} 里，
+ * 全仓没有派发点。
+ */
+export const REMOTE_ENTITY_INVALIDATED_EVENT = 'REMOTE_ENTITY_INVALIDATED' as const;
+
 export const REPOSITORY_SYNC_BEGIN_EVENT = 'REPOSITORY_SYNC_BEGIN' as const;
 export const REPOSITORY_SYNC_COMPLETE_EVENT = 'REPOSITORY_SYNC_COMPLETE' as const;
 export const REPOSITORY_SYNC_ERROR_EVENT = 'REPOSITORY_SYNC_ERROR' as const;
@@ -424,6 +437,25 @@ export class RepositorySyncErrorEvent {
   ) {}
 }
 
+/**
+ * 远端实体失效事件（US-023）。
+ *
+ * @remarks
+ * 载荷刻意只有实体名与命名空间：多一个能装行数据的位置，就会有人把推送里的
+ * 行体直接塞进来当权威值写本地 —— 而 `QueryCache` 的权威值只能来自
+ * `fetchMetadata` + `findByIds` 的那次拉取。
+ */
+export class RemoteEntityInvalidatedEvent {
+  readonly type = REMOTE_ENTITY_INVALIDATED_EVENT;
+
+  constructor(
+    /** 命名空间 */
+    public readonly namespace: string,
+    /** 实体名称 */
+    public readonly entity: string
+  ) {}
+}
+
 /** RxDB 实体事件映射接口 */
 export interface RxDBEntityEventMap {
   [ENTITY_LOCAL_NEW_EVENT]: EntityLocalNewEvent;
@@ -454,6 +486,7 @@ export interface RxDBEventMap extends RxDBEntityEventMap {
   [REPOSITORY_SYNC_BEGIN_EVENT]: RepositorySyncBeginEvent;
   [REPOSITORY_SYNC_COMPLETE_EVENT]: RepositorySyncCompleteEvent;
   [REPOSITORY_SYNC_ERROR_EVENT]: RepositorySyncErrorEvent;
+  [REMOTE_ENTITY_INVALIDATED_EVENT]: RemoteEntityInvalidatedEvent;
 }
 
 /** RxDB 实体事件联合类型 */

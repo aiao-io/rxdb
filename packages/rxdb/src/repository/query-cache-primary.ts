@@ -201,19 +201,35 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
   }
 
   /**
+   * 作废在飞查询，让下一次同指纹的读重新回远端（US-023 D13）。
+   *
+   * @remarks
+   * 作废**不是**取消：已经订阅的调用方照常拿到它们那次的结果，只是这条流不再被
+   * 后来者复用。远端失效上报到达时，正在飞的那次拉取问的是失效前的远端状态，
+   * 让重跑复用它等于让失效原地失灵。
+   */
+  invalidateInflight(): void {
+    this.#cache.invalidateInflight();
+  }
+
+  /**
    * 跑一次同步；窗口内已经同步过同一份 `where` 就直接返回（US-020 AC#23、D13）。
    *
    * @remarks
    * 命中记忆时本次确实没有发生同步，因此 `onSyncStats` 不会被调用 —— 报一份上次的统计
    * 会让「拉取放大可观测」（AC#25）失真。窗口与失效路径见 {@link QueryCacheSyncMemo}。
+   *
+   * 代次在 `await` **之前**取（US-023 D12）：远端失效可能正好落在这次同步的飞行窗口里，
+   * 那样这份结果按定义已经过期，不许 `remember` 把刚清掉的记忆重新写回去。
    */
   async #sync(options: QueryCacheSyncOptions): Promise<void> {
     const fingerprint = queryCacheFingerprint(options);
     if (this.syncMemo.has(fingerprint)) {
       return;
     }
+    const generation = this.syncMemo.generation;
     await this.#runSync(options);
-    this.syncMemo.remember(fingerprint);
+    this.syncMemo.remember(fingerprint, generation);
   }
 
   /**

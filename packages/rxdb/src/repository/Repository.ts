@@ -3,12 +3,17 @@ import { EntityStaticType, EntityType } from '../entity/entity.interface.js';
 import { SyncOptions, SyncType } from '../entity/metadata-options.interface.js';
 import { selectPrimaryAdapterKind } from '../entity/primary-adapter.js';
 import type { RawQueryResult } from '../rxdb-adapter.js';
+import { REMOTE_ENTITY_INVALIDATED_EVENT, RemoteEntityInvalidatedEvent } from '../rxdb-events.js';
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
 import { RxDBError } from '../RxDBError.js';
 import { getFingerprintByEntities, getFingerprintByEntity, getFingerprintPrimitive } from './fingerprint.utils.js';
 
-import { createQueryCachePrimary, QueryCachePrimaryLocalAdapter } from './query-cache-primary.js';
+import {
+  createQueryCachePrimary,
+  QueryCachePrimaryLocalAdapter,
+  QueryCachePrimaryRepository
+} from './query-cache-primary.js';
 import { QueryCacheSyncMemo } from './query-cache-sync-memo.js';
 import {
   CountOptions,
@@ -50,6 +55,33 @@ const assertPageBound = (field: 'limit' | 'offset', value: number | undefined): 
  * 根据配置决策实体的具体操作
  */
 export class Repository<T extends EntityType, RT extends IRepository<T> = IRepository<T>> extends RepositoryBase<T> {
+  /**
+   * QueryCache 的「刚同步过」记忆；非 QueryCache 仓储为 `undefined`。
+   *
+   * @remarks
+   * 存成字段而不是构造期的内联临时值，是因为远端失效上报要**同步**清掉它（US-023 D2）。
+   */
+  readonly #syncMemo: QueryCacheSyncMemo | undefined;
+
+  /**
+   * 最近一次求值出的 QueryCache 主仓储。
+   *
+   * @remarks
+   * `primary$` 是异步的，`firstValueFrom` 拿不到「此刻的那一个」。失效上报要在返回前
+   * 就把在飞查询作废（US-023 D13），因此在 `#createQueryCachePrimary` 的 `map` 里
+   * 顺手把当前实例记下来 —— 那是唯一同步够得着它的位置。
+   */
+  #queryCachePrimary: QueryCachePrimaryRepository<T> | undefined;
+
+  /** 本轮合流窗口内累积的失效实体类型（US-023 D14） */
+  readonly #pendingInvalidations = new Set<EntityType>();
+
+  /** 合流窗口是否已排队 */
+  #invalidationFlushScheduled = false;
+
+  /** `destroy()` 之后不再重跑：窗口里可能还压着一次已排队的刷新 */
+  #destroyed = false;
+
   protected static override _STATIC_METHODS = [
     ...super._STATIC_METHODS,
     'get',
@@ -108,20 +140,34 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     // 写是 remote-then-local，两者都跨两侧。因此在 `selectPrimaryAdapterKind` 之前分流，
     // 而不是给那个枚举加第三种 kind —— 适配器模型仍然只有两侧。
     // 判据只有一份，批量入口（EntityManager.mutations）走的是同一个函数
-    this.primary$ =
-      this.sync?.type === SyncType.QueryCache ?
-        (this.#createQueryCachePrimary(
-          metadata.name,
-          this.sync.local.localCacheFirst === true,
-          // 记忆归 `Repository` 持有：主仓储随适配器流每次发射重建，放在它身上等于没有记忆
-          new QueryCacheSyncMemo(this.sync.local.syncStaleTime)
-        ) as Observable<RT>)
-      : selectPrimaryAdapterKind(this.sync) === 'remote' ? (this.remote$ as Observable<RT>)
-      : (this.local$ as Observable<RT>);
+    if (this.sync?.type === SyncType.QueryCache) {
+      // 记忆归 `Repository` 持有：主仓储随适配器流每次发射重建，放在它身上等于没有记忆
+      this.#syncMemo = new QueryCacheSyncMemo(this.sync.local.syncStaleTime);
+      this.primary$ = this.#createQueryCachePrimary(
+        metadata.name,
+        this.sync.local.localCacheFirst === true,
+        this.#syncMemo
+      ) as Observable<RT>;
+    } else {
+      this.primary$ =
+        selectPrimaryAdapterKind(this.sync) === 'remote' ?
+          (this.remote$ as Observable<RT>)
+        : (this.local$ as Observable<RT>);
+    }
     this.queryManager = new QueryManager<T>(rxdb, EntityType, this);
+    // 只有 QueryCache 仓储挂这个监听器（US-023 D15）：版本化路径靠 changelog 拉取，
+    // 没有「远端权威、本地只是投影」这层假设，重跑对它既无意义也无入口。
+    // 把「不做事」做成结构性的 —— 不注册就不可能被触发，胜过在处理器里再判一次同步类型。
+    if (this.#syncMemo !== undefined) {
+      this.rxdb.addEventListener(REMOTE_ENTITY_INVALIDATED_EVENT, this.#onRemoteEntityInvalidated);
+    }
   }
 
   destroy() {
+    this.#destroyed = true;
+    if (this.#syncMemo !== undefined) {
+      this.rxdb.removeEventListener(REMOTE_ENTITY_INVALIDATED_EVENT, this.#onRemoteEntityInvalidated);
+    }
     this.queryManager.destroy();
   }
 
@@ -372,6 +418,58 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
   protected _setLocals = (entities: InstanceType<T>[]) => entities.forEach(this._setLocal);
 
   /**
+   * 远端失效上报的处理器（US-023 D2）。
+   *
+   * @remarks
+   * 三步顺序是固定的，颠倒任何一步都会让失效原地失灵：
+   *
+   * 1. 本仓储不依赖被上报实体 → 立即返回，一次请求都不发；
+   * 2. **同步**清掉记忆与在飞查询 —— 必须早于重跑，否则重跑会命中它们，
+   *    读回失效前的那份本地投影；
+   * 3. 把受影响的实体登记进合流窗口，**推迟**重跑到微任务末尾。
+   *
+   * 挂成箭头函数字段而不是方法：`removeEventListener` 按引用相等注销，
+   * `this.#handler.bind(this)` 每次求值都是新引用，注销会静默失败。
+   */
+  readonly #onRemoteEntityInvalidated = (event: RemoteEntityInvalidatedEvent): void => {
+    // 未注册的实体名是无操作，不抛（US-023 D9）：上报方是宿主的推送通道，
+    // 它认识的实体名集合本来就可能宽于本地注册的那一份。
+    const entityType = this.rxdb.schemaManager.getEntityType(event.entity, event.namespace);
+    if (entityType === undefined || !this.queryManager.hasDependency(entityType)) {
+      return;
+    }
+    this.#syncMemo?.clear();
+    this.#queryCachePrimary?.invalidateInflight();
+    this.#pendingInvalidations.add(entityType);
+    this.#scheduleInvalidationFlush();
+  };
+
+  /**
+   * 把这一轮的失效重跑推迟到微任务末尾（US-023 D14）。
+   *
+   * @remarks
+   * 一次远端事务改动 N 张表，宿主的推送通道就会连着上报 N 次。逐次重跑等于让同一批
+   * 活查询在同一个 tick 内跑 N 遍，每遍都发一轮 `fetchMetadata` —— 前 N-1 遍的结果
+   * 立刻被下一遍覆盖。合流窗口取微任务而不是可配的延时：同步代码块内的连续上报是
+   * 需要合并的那一类，跨 tick 的上报是两件不同的事，不该等在一起。
+   */
+  #scheduleInvalidationFlush(): void {
+    if (this.#invalidationFlushScheduled) {
+      return;
+    }
+    this.#invalidationFlushScheduled = true;
+    queueMicrotask(() => {
+      this.#invalidationFlushScheduled = false;
+      const entityTypes = new Set(this.#pendingInvalidations);
+      this.#pendingInvalidations.clear();
+      if (this.#destroyed) {
+        return;
+      }
+      this.queryManager.refreshDependentTasks(entityTypes);
+    });
+  }
+
+  /**
    * 构造 QueryCache 主仓储流。
    *
    * @param entityName - 元数据里的实体名（打包压缩后 `EntityType.name` 不可靠）
@@ -396,7 +494,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     return combineLatest([this.rxdb.localAdapter$, this.rxdb.remoteAdapter$]).pipe(
       map(([localAdapter, remoteAdapter]) => {
         syncMemo.bindAdapters(localAdapter, remoteAdapter);
-        return createQueryCachePrimary<T>(
+        const primary = createQueryCachePrimary<T>(
           entityName,
           this.EntityType,
           localAdapter as unknown as QueryCachePrimaryLocalAdapter<T>,
@@ -404,6 +502,9 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
           localCacheFirst,
           syncMemo
         );
+        // 记下「此刻的那一个」：失效上报要同步作废它的在飞查询（US-023 D13）
+        this.#queryCachePrimary = primary;
+        return primary;
       }),
       shareReplay({ bufferSize: 1, refCount: true })
     );
