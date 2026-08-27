@@ -737,9 +737,15 @@ describe('结构隔离（AC#19、AC#25）', () => {
     // roadmap 约束 11 用「结构隔离」换掉 epic-006 排期前置的整套论证随之作废。
     // 实例断言拦不住「写了但没挂在原型上」，所以再加一道源码扫描。
     // 剔除注释是刻意的：这条约束管的是**代码**，不是不许在文档里提起这些名字。
-    const dir = import.meta.dirname;
-    const offenders = readdirSync(dir)
-      .filter(file => file.endsWith('.ts') && !file.endsWith('.spec.ts'))
+    // 扫的是**源码目录**（`src/`），不是本文件所在的 `src/__tests__/`：后者里除了
+    // `*.spec.ts` 一个文件都没有，`import.meta.dirname` 会让这条扫描恒扫空列表恒为绿，
+    // 而它恰恰是用来兜住「新增文件带进违禁调用」的（US-023 AC#18 的新模块正是这种情况）
+    const dir = join(import.meta.dirname, '..');
+    const sources = readdirSync(dir).filter(file => file.endsWith('.ts') && !file.endsWith('.spec.ts'));
+    // 扫空列表与「全部通过」在断言上完全重合，所以先钉住扫描面本身
+    expect(sources.length).toBeGreaterThan(5);
+
+    const offenders = sources
       .map(file => ({ file, code: stripComments(readFileSync(join(dir, file), 'utf8')) }))
       .filter(({ code }) => FORBIDDEN.some(name => code.includes(name)))
       .map(({ file }) => file);
