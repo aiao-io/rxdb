@@ -312,7 +312,12 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
     // - shareReplay({ refCount: true }) 当所有 subscriber 退订时取消上游订阅，避免源 Observable 常驻泄漏
     const cached$ = query$.pipe(
       finalize(() => {
-        this.#inflightQueries.delete(fingerprint);
+        // 按身份删，不按指纹删：`invalidateInflight()` 清表后，同指纹的新流会重新入表，
+        // 而本流的收口发生在那之后 —— 照指纹删就把继任者删了，并发去重被静默打穿。
+        // `finalize` 只在退订/完结时跑，那时 `cached$` 早已赋值，不存在 TDZ
+        if (this.#inflightQueries.get(fingerprint) === cached$) {
+          this.#inflightQueries.delete(fingerprint);
+        }
       }),
       shareReplay({ bufferSize: 1, refCount: true })
     );

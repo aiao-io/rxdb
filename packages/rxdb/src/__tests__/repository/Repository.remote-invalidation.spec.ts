@@ -593,6 +593,40 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
       expect(second).toHaveLength(1);
     });
 
+    // 去重表按指纹存，但删除必须按**身份**：失效清表后新流用同一指纹重新入表，
+    // 旧流退订时若照指纹删，删掉的是刚入表的那条 —— 并发去重被静默打穿
+    it('AC#27 旧流退订不得把同指纹的新流从去重表里删掉', async () => {
+      const stores = createStores();
+      stores.local.set('a', row('a', '2024-01-01T00:00:00Z', 1));
+      stores.remote.set('a', row('a', '2024-01-01T00:00:00Z', 1));
+      const localRepo = createLocalRepo(stores);
+      const localAdapter = createLocalAdapter(stores, localRepo);
+      const remoteAdapter = createRemoteAdapter(stores, 5);
+      const cache = new QueryCacheRepository(
+        'RecipeEntity',
+        remoteAdapter as unknown as QueryCacheRemoteAdapter,
+        localAdapter as unknown as QueryCacheLocalAdapter,
+        {
+          find: (options: { where: RuleGroup<RecipeEntity> }) => localRepo.find(options)
+        } as unknown as QueryCacheLocalReader<IEntity>
+      ) as unknown as InflightCache;
+
+      const stale = cache.find({ where: allWhere() }).subscribe();
+      expect(remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(1);
+
+      cache.invalidateInflight();
+      subscriptions.push(cache.find({ where: allWhere() }).subscribe());
+      expect(remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(2);
+
+      // 作废不是取消：旧流照旧跑完并在最后一个订阅者退订时收口
+      stale.unsubscribe();
+      subscriptions.push(cache.find({ where: allWhere() }).subscribe());
+
+      // 第三次 find 该复用还在飞的第二条流，而不是再发一次远端请求
+      expect(remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(2);
+      await new Promise(resolve => setTimeout(resolve, 20));
+    });
+
     // 经统一 Repository 的同款证据：失效瞬间重跑不复用在飞结果
     it('AC#27 在飞窗口内上报失效，重跑发起新的 fetchMetadata', async () => {
       const ctx = setup({ fetchDelayMs: 5 });

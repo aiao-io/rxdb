@@ -543,6 +543,24 @@ describe('连接失败（AC#17）', () => {
     expect(FakeEventSource.instances).toHaveLength(1);
   });
 
+  it('重连时取消上一代排下的退避定时器，不把刚建好的连接拆掉重建', async () => {
+    vi.useFakeTimers();
+    const { adapter, invalidate } = await createConnectedFeed({ reconnectBaseDelayMs: 1000 });
+    // 失败排下一个退避定时器，然后在它触发之前主动重连
+    lastSource().fail();
+    await adapter.connect();
+    const rebuilt = lastSource();
+    rebuilt.open();
+    invalidate.mockClear();
+
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    // 旧定时器若还活着，会 #close() 掉这条连接、再开第三条，并把 D7 全量失效重跑一遍
+    expect(rebuilt.closeCount).toBe(0);
+    expect(FakeEventSource.instances).toHaveLength(2);
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
   it('disconnect() 之后不再重连', async () => {
     vi.useFakeTimers();
     const { adapter } = await createConnectedFeed({ reconnectBaseDelayMs: 1000 });

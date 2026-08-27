@@ -7,11 +7,13 @@ import {
   getEntityStatus,
   PropertyType,
   RxDB,
+  RelationKind,
   RxDBBranch,
   RxDBChange,
   SyncType,
   TRANSACTION_BEGIN,
   TRANSACTION_ROLLBACK,
+  transitionMetadata,
   type EntityType,
   type EntityUpdateData,
   type RxDBMutationsMap,
@@ -1336,6 +1338,85 @@ describe('RxDBAdapterSqliteBase', () => {
       const upsertCalls = vi.mocked(client.execute).mock.calls.filter(([sql]) => String(sql).startsWith('INSERT INTO'));
       expect(upsertCalls).toHaveLength(1);
       expect(upsertCalls[0][0]).toContain('INSERT INTO "public$recipes"');
+    });
+  });
+
+  // 契约显式放行「远端多带本地没有的列」（AC#3），可 INSERT 的列清单却取自 `data[0]` 的**全部**键，
+  // 于是那些多出来的列会原样进 SQL，换来一条 `no such column: remoteOnly` —— 正是契约文件要消灭的
+  // 那类误导性报错。落地的列必须由实体元数据说了算，而不是由远端载荷说了算。
+  describe('QueryCache 写入只落实体认识的列', () => {
+    const createContractRxdb = () => {
+      const rxdb = createRxdbMock();
+      vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue(getEntityMetadata(QcContractRecipe) as never);
+      return rxdb;
+    };
+    const completeRow = (id: string) => ({
+      id,
+      title: `t-${id}`,
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-02T00:00:00.000Z'
+    });
+    const upsertCall = (client: SqliteClientLike) =>
+      vi.mocked(client.execute).mock.calls.find(([sql]) => String(sql).startsWith('INSERT INTO'));
+
+    it('远端多带的未知列既不进列清单也不进绑定值（AC#3）', async () => {
+      const client = createClient();
+      const adapter = new TestAdapter(createContractRxdb(), () => client);
+
+      await firstValueFrom(
+        adapter.upsertMany('QcContractRecipe', [
+          { ...completeRow('a'), remoteOnly: 'x' },
+          { ...completeRow('b'), remoteOnly: 'y' }
+        ])
+      );
+
+      const call = upsertCall(client);
+      expect(call?.[0]).not.toContain('remoteOnly');
+      // 列少一个、绑定值也要少一个：只删列名会让整批的占位符与值错位
+      expect(call?.[1]).not.toContain('x');
+      expect(call?.[1]).toHaveLength(8);
+    });
+
+    it('关系外键列不被当成未知列滤掉', async () => {
+      // 表列 = propertyMap ∪ 有物理列的关系（见 create_table_sql）。只按 propertyMap 过滤，
+      // 会把合法的外键值静默丢掉 —— 比多写一列更难查
+      const client = createClient();
+      const rxdb = createRxdbMock();
+      vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue(
+        transitionMetadata({
+          name: 'QcRelChild',
+          namespace: 'public',
+          tableName: 'rel_children',
+          properties: [
+            { name: 'id', type: PropertyType.uuid, primary: true },
+            { name: 'updatedAt', type: PropertyType.date }
+          ],
+          relations: [
+            { name: 'owner', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'QcOwner', mappedProperty: 'children' }
+          ]
+        }) as never
+      );
+      const adapter = new TestAdapter(rxdb, () => client);
+
+      await firstValueFrom(
+        adapter.upsertMany('QcRelChild', [{ id: 'a', updatedAt: '2026-08-02T00:00:00.000Z', owner: 'owner-1' }])
+      );
+
+      expect(upsertCall(client)?.[0]).toContain('"ownerId"');
+      expect(upsertCall(client)?.[1]).toContain('owner-1');
+    });
+
+    it('metadata 查不到时一列都不滤，照旧按远端键集落地', async () => {
+      // 这条路径上调用方传的是物理表名、列名也已是物理列名，没有可对照的元数据，
+      // 「过滤」就只剩猜 —— 与表名回退同一口径：不擅自加工
+      const client = createClient();
+      const rxdb = createRxdbMock();
+      vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue(undefined);
+      const adapter = new TestAdapter(rxdb, () => client);
+
+      await firstValueFrom(adapter.upsertMany('raw_rows', [{ id: 'a', updatedAt: 'x', whatever: 1 }]));
+
+      expect(upsertCall(client)?.[0]).toContain('"whatever"');
     });
   });
 

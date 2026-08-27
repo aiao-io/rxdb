@@ -142,6 +142,28 @@ describe('requiredQueryCacheColumns —— 本地表的非空且无 SQL 默认�
     expect(required.has('detachable')).toBe(false);
     expect(required.has('defaulted')).toBe(false);
   });
+
+  it('一对一关系的字面量 default 不算豁免：DDL 只给多对一发 DEFAULT 子句', () => {
+    // `create_table_sql` 的 DEFAULT 子句嵌在 `kind === MANY_TO_ONE` 里，一对一列建出来
+    // 只有 `NOT NULL`。这里跟着放行，就是让「过了契约校验的行」在 INSERT 时被 SQLite 拒掉 ——
+    // 契约文件存在的全部意义就是不让这种事发生
+    const metadata = transitionMetadata({
+      name: 'QcProfileOwner',
+      namespace: 'test',
+      properties: [{ name: 'id', type: PropertyType.uuid, primary: true }],
+      relations: [
+        {
+          name: 'profile',
+          kind: RelationKind.ONE_TO_ONE,
+          mappedEntity: 'QcProfile',
+          mappedProperty: 'owner',
+          default: 'profile-1'
+        }
+      ]
+    });
+
+    expect(requiredQueryCacheColumns(metadata).has('profile')).toBe(true);
+  });
 });
 
 describe('assertQueryCacheRowContract —— 缺非空列（AC#1）', () => {

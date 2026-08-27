@@ -155,6 +155,9 @@ export class HttpChangeFeed {
     this.#stopped = false;
     // 显式意图，与「连上过」是两回事：调用方主动开通道时从头数，哪怕上一轮正卡在退避顶格上
     this.#attempt = 0;
+    // 「先收口上一条」也包括上一代排下的退避定时器：留着它，它会在新连接建好之后触发，
+    // 把这条刚开的连接 #close() 掉再重开一条，顺带把 D7 全量失效重跑一遍
+    this.#clearTimer();
     this.#connect();
   }
 

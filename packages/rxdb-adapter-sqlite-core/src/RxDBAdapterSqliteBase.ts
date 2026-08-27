@@ -10,6 +10,7 @@ import {
   RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
   RXDB_SYSTEM_SCHEMA_WATERMARK,
   RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
+  RelationKind,
   RxDBAdapterLocalBase,
   RxDBBranch,
   RxDBChange,
@@ -94,6 +95,43 @@ export type TransactionFun = (executor: SqliteTransactionExecutor) => Promise<un
  * `RxDB.connect()` 建表完成后调 {@link RxDBAdapterSqliteBase.completeBootstrap} 翻到 `ready`。
  */
 type AdapterLifecycleState = 'bootstrap' | 'ready' | 'closing' | 'closed';
+
+/**
+ * 一张表「认得的列」：字段名（逻辑名与物理列名两种口径）→ 物理列名。
+ *
+ * @remarks
+ * 与 `create_table_sql` 同源：物理列 = `propertyMap` 的全部属性 + `relationMap` 里
+ * `ONE_TO_ONE` / `MANY_TO_ONE` 两种有外键列的关系；`ONE_TO_MANY` 等没有本表列，不收。
+ * 远端发过来的键既可能是逻辑名（`owner`）也可能是物理列名（`ownerId`），两种都收进来映到
+ * 同一个物理列，`upsertMany` 才能既做白名单判定又做列名翻译。
+ *
+ * `id` / `updatedAt` 无条件收：调用方已按它们解析出 `idColumn` / `updatedAtColumn`
+ * 并写进 `ON CONFLICT` 子句，白名单再把它们滤掉就自相矛盾了。
+ */
+const query_cache_column_names = (
+  metadata: EntityMetadata,
+  idColumn: string,
+  updatedAtColumn: string
+): ReadonlyMap<string, string> => {
+  const columnNames = new Map<string, string>([
+    ['id', idColumn],
+    [idColumn, idColumn],
+    ['updatedAt', updatedAtColumn],
+    [updatedAtColumn, updatedAtColumn]
+  ]);
+  for (const [name, property] of metadata.propertyMap?.entries() ?? []) {
+    columnNames.set(name, property.columnName);
+    columnNames.set(property.columnName, property.columnName);
+  }
+  for (const relation of metadata.relationMap?.values() ?? []) {
+    if (relation.kind !== RelationKind.ONE_TO_ONE && relation.kind !== RelationKind.MANY_TO_ONE) {
+      continue;
+    }
+    columnNames.set(relation.name, relation.columnName);
+    columnNames.set(relation.columnName, relation.columnName);
+  }
+  return columnNames;
+};
 
 /**
  * 与后端无关的 SQLite adapter 基类。
@@ -660,9 +698,17 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       assertQueryCacheRowContract(entityName, data as object[], target.metadata);
       return from(
         this.transaction(async executor => {
-          const dataColumns = Object.keys(data[0] as object);
+          const { tableName, idColumn, columnNames, metadata } = target;
+          // 契约显式放行「远端多带本地没有的列」（AC#3），所以列清单不能照抄载荷的键：
+          // 抄下来换到的是一条 `no such column: <远端字段名>` —— 契约文件存在的意义正是
+          // 消灭这类把远端 schema 漂移翻译成本地 SQL 错误的报法。
+          // metadata 查不到时一列都不滤：那条路径上调用方传的就是物理表名与物理列名，
+          // 没有可对照的元数据，「过滤」只剩下猜（与表名回退同一口径）。
+          const dataColumns =
+            metadata ? Object.keys(data[0] as object).filter(column => columnNames.has(column)) : (
+              Object.keys(data[0] as object)
+            );
           const placeholderGroup = `(${new Array(dataColumns.length).fill('?').join(', ')})`;
-          const { tableName, idColumn, columnNames } = target;
           const columns = dataColumns.map(column => columnNames.get(column) ?? column);
           const columnList = columns.map(quote_sql_identifier).join(', ');
           for (const dataChunk of chunkBySqliteBindLimit(data, columns.length)) {
@@ -769,6 +815,10 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * 否则自定义 `columnName` 的实体会再次失败。与 PGlite 适配器的同名方法保持一致。
    *
    * metadata 查不到时按原名回退（调用方可能直接传物理表名），不擅自拼 namespace 前缀。
+   *
+   * `columnNames` 是「这张表认得的列」的全集，兼作 `upsertMany` 的白名单，因此它的
+   * 键集必须与 `create_table_sql` 建出来的列一一对应：属性列 + 有物理列的关系列
+   * （`ONE_TO_ONE` / `MANY_TO_ONE`），逻辑名与物理列名都收进来 —— 远端两种口径都可能发。
    */
   #resolveQueryCacheTarget(entityName: string): {
     tableName: string;
@@ -787,14 +837,14 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         metadata: undefined
       };
     }
+    const idColumn = metadata.propertyMap?.get('id')?.columnName ?? 'id';
+    const updatedAtColumn = metadata.propertyMap?.get('updatedAt')?.columnName ?? 'updatedAt';
     return {
       metadata,
+      idColumn,
+      updatedAtColumn,
       tableName: get_table_name_by_metadata(metadata),
-      idColumn: metadata.propertyMap?.get('id')?.columnName ?? 'id',
-      updatedAtColumn: metadata.propertyMap?.get('updatedAt')?.columnName ?? 'updatedAt',
-      columnNames: new Map(
-        Array.from(metadata.propertyMap?.entries() ?? [], ([name, property]) => [name, property.columnName])
-      )
+      columnNames: query_cache_column_names(metadata, idColumn, updatedAtColumn)
     };
   }
 

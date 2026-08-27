@@ -42,7 +42,8 @@ export class RxDBQueryCacheRowContractError extends RxDBAdapterSqliteError {
  *   `default: () => new Date()` 正是这一支：它是**仓储层**的东西，而 QueryCache 的落地
  *   是绕开仓储的裸 SQL，于是列建成 NOT NULL、远端又不带，INSERT 必然被拒。
  *
- * 关系列同理走 `relation.nullable` / `SET NULL` / 字面量 `default` 三道豁免。
+ * 关系列走 `relation.nullable` / `SET NULL` 两道豁免；字面量 `default` 只对 `MANY_TO_ONE`
+ * 豁免 —— DDL 的 DEFAULT 子句只发给这一种，`ONE_TO_ONE` 的默认值一个字都不进建表语句。
  *
  * @param metadata - 实体元数据
  * @returns 属性名（或关系名）→ 物理列名；行里带其中任一个都算带齐
@@ -67,8 +68,16 @@ export const requiredQueryCacheColumns = (metadata: EntityMetadata): ReadonlyMap
     if (relation.kind !== RelationKind.ONE_TO_ONE && relation.kind !== RelationKind.MANY_TO_ONE) continue;
     // SET NULL 的外键列必须可空，DDL 因此不给它 NOT NULL
     if (relation.nullable || relation.onDelete === 'SET NULL' || relation.onUpdate === 'SET NULL') continue;
+    // 字面量 `default` 只对多对一豁免：DDL 的 DEFAULT 子句嵌在 `kind === MANY_TO_ONE` 里，
+    // 一对一列建出来只有 `NOT NULL`。跟着放行就是让「过了校验的行」在 INSERT 时被 SQLite 拒掉
     const relationDefault = (relation as { default?: unknown }).default;
-    if (relationDefault !== undefined && !isFunction(relationDefault)) continue;
+    if (
+      relation.kind === RelationKind.MANY_TO_ONE &&
+      relationDefault !== undefined &&
+      !isFunction(relationDefault)
+    ) {
+      continue;
+    }
     required.set(relation.name, relation.columnName);
   }
 
