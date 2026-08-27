@@ -8,10 +8,12 @@
  * 覆盖 AC#1–#8、#10、#26–#30；AC#9 在 `gateway/RxDBTabsGateway.spec.ts`，
  * AC#31 在 `@aiao/rxdb-devtools` 的 `connector-events.spec.ts`。
  */
-import { BehaviorSubject, delay, of, Subscription } from 'rxjs';
+import { BehaviorSubject, delay, Observable, of, Subscription } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
+import type { IEntity } from '../../entity/entity.interface.js';
 import { SyncType } from '../../entity/metadata-options.interface.js';
+import type { QueryCacheEntityMetadata } from '../../entity/metadata-options.interface.js';
 import { RelationKind } from '../../entity/relation-types.interface.js';
 import { createQueryCachePrimary } from '../../repository/query-cache-primary.js';
 import type { QueryCachePrimaryLocalAdapter } from '../../repository/query-cache-primary.js';
@@ -21,7 +23,11 @@ import {
   queryCacheFingerprint
 } from '../../repository/query-cache-sync-memo.js';
 import { QueryCacheRepository } from '../../repository/QueryCacheRepository.js';
-import type { QueryCacheLocalAdapter, QueryCacheRemoteAdapter } from '../../repository/QueryCacheRepository.js';
+import type {
+  QueryCacheLocalAdapter,
+  QueryCacheLocalReader,
+  QueryCacheRemoteAdapter
+} from '../../repository/QueryCacheRepository.js';
 import type { RuleGroup } from '../../repository/query.interface.js';
 import { Repository } from '../../repository/Repository.js';
 import { REMOTE_ENTITY_INVALIDATED_EVENT, RemoteEntityInvalidatedEvent } from '../../rxdb-events.js';
@@ -37,6 +43,12 @@ class RecipeEntity {
 }
 
 type RecipeEntityCtor = typeof RecipeEntity;
+
+/** AC#27 直接驱动 {@link QueryCacheRepository} 时用到的最小视图 */
+interface InflightCache {
+  find(options: { where: RuleGroup<RecipeEntity> }): Observable<RecipeEntity[]>;
+  invalidateInflight(): void;
+}
 
 /** 被 `RecipeEntity` 的 `where` 引用的关联实体（AC#7 的 B） */
 class IngredientEntity extends RecipeEntity {}
@@ -123,7 +135,9 @@ const createStores = () => ({
 type Stores = ReturnType<typeof createStores>;
 
 const createLocalRepo = (stores: Stores) => ({
-  find: vi.fn(async () => Array.from(stores.local.values())),
+  find: vi.fn<(options?: { where: RuleGroup<RecipeEntity> }) => Promise<RecipeEntity[]>>(async () =>
+    Array.from(stores.local.values())
+  ),
   count: vi.fn(async () => stores.local.size),
   create: vi.fn(async (entity: RecipeEntity) => entity),
   update: vi.fn(async (entity: RecipeEntity) => entity),
@@ -147,10 +161,12 @@ const createLocalAdapter = (stores: Stores, localRepo: ReturnType<typeof createL
 const createRemoteAdapter = (stores: Stores, fetchDelayMs = 0) => ({
   name: 'remote',
   getRepository: vi.fn(),
-  fetchMetadata: vi.fn(() =>
-    of(Array.from(stores.remote.values()).map(entity => ({ id: entity.id, updatedAt: entity.updatedAt }))).pipe(
-      delay(fetchDelayMs)
-    )
+  // 签名写全是为了让 `mock.calls[n][0]` 保留 `entityName` 的类型（AC#7 断言它）
+  fetchMetadata: vi.fn<(entityName: string, where: RuleGroup<RecipeEntity>) => Observable<QueryCacheEntityMetadata[]>>(
+    () =>
+      of(Array.from(stores.remote.values()).map(entity => ({ id: entity.id, updatedAt: entity.updatedAt }))).pipe(
+        delay(fetchDelayMs)
+      )
   ),
   findByIds: vi.fn((_entityName: string, ids: string[]) =>
     of(ids.map(id => stores.remote.get(id)).filter((entity): entity is RecipeEntity => entity !== undefined))
@@ -551,12 +567,16 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
       const localRepo = createLocalRepo(stores);
       const localAdapter = createLocalAdapter(stores, localRepo);
       const remoteAdapter = createRemoteAdapter(stores, 5);
-      const cache = new QueryCacheRepository<RecipeEntityCtor>(
+      // `RecipeEntity.updatedAt` 是 string，撑不起 `EntityBaseType`（那里要 `Date`），
+      // 因此按默认泛型构造再窄回本用例真正用到的两个成员。
+      const cache = new QueryCacheRepository(
         'RecipeEntity',
         remoteAdapter as unknown as QueryCacheRemoteAdapter,
         localAdapter as unknown as QueryCacheLocalAdapter,
-        { find: (options: { where: RuleGroup<RecipeEntity> }) => localRepo.find(options) }
-      );
+        {
+          find: (options: { where: RuleGroup<RecipeEntity> }) => localRepo.find(options)
+        } as unknown as QueryCacheLocalReader<IEntity>
+      ) as unknown as InflightCache;
 
       const first: RecipeEntity[][] = [];
       subscriptions.push(cache.find({ where: allWhere() }).subscribe(rows => first.push(rows)));
