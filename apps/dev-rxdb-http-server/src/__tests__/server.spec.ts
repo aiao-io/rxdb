@@ -316,6 +316,43 @@ describe('错误与开关', () => {
     expect(await postJson<MetadataRow[]>('recipes/metadata', { offset: 0, limit: 1000 })).toHaveLength(SEED_ROW_COUNT);
   });
 
+  /*
+   * `reset` 删库文件重建，旧句柄指向的 inode 已经不在了。库连接因此放在闭包的 `let` 里，
+   * 由 `getDb()` 每次现取——但只有**每次使用前**现取才算数：在 `await readJsonBody` 之前
+   * 取一次、把句柄按值传下去，等于把「当前句柄」冻结在了请求刚进来的那一刻。
+   */
+  it('请求正在等 body 时 reset 换掉句柄，这条请求不能吃 500', async () => {
+    let push!: (chunk: string) => void;
+    let finish!: () => void;
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        push = chunk => controller.enqueue(encoder.encode(chunk));
+        finish = () => controller.close();
+      }
+    });
+
+    // 半双工流式请求体：头部先到，服务端进到 readJsonBody 的等待里，body 还没发完
+    const pending = fetch(`${baseUrl}/recipes/metadata`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body,
+      duplex: 'half'
+    } as RequestInit & { duplex: 'half' });
+    push('{"offset":0,');
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // 飞行中把库整个换掉
+    expect(await postJson('__control/reset', {})).toEqual({ rows: SEED_ROW_COUNT });
+
+    push('"limit":1}');
+    finish();
+
+    const response = await pending;
+    expect(response.status).toBe(200);
+    expect((await response.json()) as MetadataRow[]).toHaveLength(1);
+  });
+
   it('version 与 isTableExisted 按协议返回', async () => {
     const version = await fetch(`${baseUrl}/meta/version`);
     expect(((await version.json()) as { version: string }).version).toMatch(/^node-sqlite-demo\//);

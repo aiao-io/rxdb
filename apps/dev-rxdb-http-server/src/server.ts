@@ -123,7 +123,7 @@ const sendConditional = (request: IncomingMessage, response: ServerResponse, pay
 const handleMetadata = async (
   request: IncomingMessage,
   response: ServerResponse,
-  db: DatabaseSync,
+  getDb: () => DatabaseSync,
   state: DemoState,
   pageModeParam: string | null
 ): Promise<void> => {
@@ -131,6 +131,9 @@ const handleMetadata = async (
   const limit = readPositiveInt(body['limit'], 'limit', 1000);
   // 请求体里带了 pageToken 就必然是形态 B——客户端已经锁定了模式，这里没有选择权。
   const tokenMode = body['pageToken'] !== undefined || pageModeParam === 'token' || state.pageMode === 'token';
+  // 取句柄必须在 await 之后：读 body 让出的这段时间里，`__control/reset` 可能已经
+  // 把库整个换掉，await 之前取到的那个句柄指向的 inode 已经不在了
+  const db = getDb();
 
   if (!tokenMode) {
     const offset = readPositiveInt(body['offset'], 'offset', 0);
@@ -151,11 +154,18 @@ const announce = (request: IncomingMessage, subscribers: ChangeSubscribers): voi
   broadcastChange(subscribers, CLIENT_ENTITY_NAME, readClientId(request));
 };
 
-/** 协议端点的分发（七个数据端点 + 可选的变更通知）。命中不了就是 404。 */
+/**
+ * 协议端点的分发（七个数据端点 + 可选的变更通知）。命中不了就是 404。
+ *
+ * @remarks
+ * 拿到的是 `getDb` 闭包而不是句柄本身，且**每个分支各自在 await 之后现取**：
+ * `f(getDb(), await readBody())` 是假的现取 —— 实参从左到右求值，`getDb()` 仍然跑在
+ * await 之前。所以读 body 的那几支都先 `const body = await …` 再取句柄。
+ */
 const routeProtocol = async (
   request: IncomingMessage,
   response: ServerResponse,
-  db: DatabaseSync,
+  getDb: () => DatabaseSync,
   state: DemoState,
   segments: string[],
   pageModeParam: string | null,
@@ -173,25 +183,28 @@ const routeProtocol = async (
     return;
   }
   if (route === `HEAD ${RECIPES_RESOURCE}`) {
-    sendEmpty(response, recipesTableExists(db) ? 200 : 404);
+    sendEmpty(response, recipesTableExists(getDb()) ? 200 : 404);
     return;
   }
   if (route === `POST ${RECIPES_RESOURCE}/metadata`) {
-    await handleMetadata(request, response, db, state, pageModeParam);
+    await handleMetadata(request, response, getDb, state, pageModeParam);
     return;
   }
   if (route === `POST ${RECIPES_RESOURCE}/by-ids`) {
-    sendConditional(request, response, findByIds(db, await readJsonBody(request)));
+    const body = await readJsonBody(request);
+    sendConditional(request, response, findByIds(getDb(), body));
     return;
   }
   if (route === `POST ${RECIPES_RESOURCE}/delete`) {
-    const deleted = deleteRecipes(db, await readJsonBody(request));
+    const body = await readJsonBody(request);
+    const deleted = deleteRecipes(getDb(), body);
     announce(request, subscribers);
     sendJson(response, 200, { deleted });
     return;
   }
   if (route === `POST ${RECIPES_RESOURCE}`) {
-    const created = createRecipe(db, await readJsonBody(request));
+    const body = await readJsonBody(request);
+    const created = createRecipe(getDb(), body);
     announce(request, subscribers);
     sendJson(response, 201, created);
     return;
@@ -199,7 +212,8 @@ const routeProtocol = async (
   if (method === 'PATCH' && segments.length === 2 && segments[0] === RECIPES_RESOURCE) {
     // segments 进 dispatch 时已经解过一次码，这里直接用。再解一次就不是「按标准解码」而是
     // 解两次：客户端编一次的 `%` 会先还原成 `%`、再被当成残缺转义序列抛 URIError。
-    const updated = updateRecipe(db, segments[1], await readJsonBody(request));
+    const body = await readJsonBody(request);
+    const updated = updateRecipe(getDb(), segments[1], body);
     announce(request, subscribers);
     sendJson(response, 200, updated);
     return;
@@ -302,7 +316,7 @@ const dispatch = async (
   }
   if (handlePreflight(request, response, state.exposeEtag)) return;
 
-  await runProtocol(request, response, getDb(), state, segments, url.searchParams.get('pageMode'), subscribers);
+  await runProtocol(request, response, getDb, state, segments, url.searchParams.get('pageMode'), subscribers);
 };
 
 /**
@@ -351,7 +365,7 @@ const runControl = async (
 const runProtocol = async (
   request: IncomingMessage,
   response: ServerResponse,
-  db: DatabaseSync,
+  getDb: () => DatabaseSync,
   state: DemoState,
   segments: string[],
   pageModeParam: string | null,
@@ -364,7 +378,7 @@ const runProtocol = async (
       // 客户端就会降级到本地缓存，把「非 2xx 不降级」这条对照实验做成假绿。
       throw new HttpError(state.forcedStatus, `Injected failure (__control/fault)`);
     }
-    await routeProtocol(request, response, db, state, segments, pageModeParam, subscribers);
+    await routeProtocol(request, response, getDb, state, segments, pageModeParam, subscribers);
   } catch (error) {
     const status = statusOf(error);
     if (request.method === 'HEAD') {

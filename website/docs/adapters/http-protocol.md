@@ -54,10 +54,16 @@ sidebar_position: 2
 | `update`         | `PATCH` | `:entity/:id`      |  否  | 部分字段                               | **更新后的完整行**                            |
 | `delete`         | `POST`  | `:entity/delete`   |  否  | `{ ids: string[] }`                    | 任意（响应体被丢弃）                          |
 | `version`        | `GET`   | （自定义）         |  否  | —                                      | `"x.y.z"` 或 `{ "version": "x.y.z" }`         |
-| `isTableExisted` | `HEAD`  | `:entity`          |  否  | —                                      | 只看状态码（2xx / 404）                       |
+| `isTableExisted` | `HEAD`  | （自定义）         |  否  | —                                      | 只看状态码（2xx / 404）                       |
 
 写入口没配就不存在：只读后端不实现 `create` / `update` / `delete`，客户端对应方法会**当场拒绝**，
 而不是发出一个注定失败的请求。
+
+`version` 与 `isTableExisted` 的路径栏写「自定义」，意思是**默认根本不产出这两个 handler**：
+模板里它们没有默认路径，配了 `templates.version.path` / `templates.isTableExisted.path` 之后
+上表的 `GET` / `HEAD` 才是生效的默认方法。前五个操作在 REST 里有公认形状，这两个没有，
+替接入方猜一个等于发明一个不存在的端点——`HEAD :entity` 打到不支持 HEAD 的集合上会回 `405`，
+而 `405` 既不是 2xx 也不是 404，正好落进「抛错」那一支，把一次本可以答上来的探测变成故障。
 
 七个操作之外还有一个可选的**非实体级**端点——[变更通知](#变更通知可选)（SSE）：它不属于任何实体，
 一条连接覆盖客户端订阅的全部实体。
@@ -243,6 +249,9 @@ GET /v1/meta/version
 未实现时客户端对应方法抛「不支持」，**不会**回落到客户端的包版本号。
 
 ## 7. isTableExisted（可选）
+
+只有配了 `templates.isTableExisted.path` 才有这个请求，路径与方法都由你给；下面的
+`HEAD /v1/recipes` 是把路径配成 `:entity` 之后的样子，不是缺省行为：
 
 ```http
 HEAD /v1/recipes
