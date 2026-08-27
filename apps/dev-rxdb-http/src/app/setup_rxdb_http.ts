@@ -1,4 +1,4 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { createRestHandlers, RxDBAdapterHttp } from '@aiao/rxdb-adapter-http';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { checkOPFSAvailable } from '@aiao/utils';
@@ -99,5 +99,36 @@ export default (): RxDB => {
       return new RxDBAdapterWaSqlite(db, options);
     });
 
+  connectDevTools(rxdb);
+
   return rxdb;
+};
+
+/**
+ * 把实例挂到 RxDB DevTools 连接器上，供 Chrome 扩展检查。
+ *
+ * @param instance - 本模块刚组装好的实例
+ *
+ * @remarks
+ * 参数而不是读模块级的 `rxdb`：那个变量是 `RxDB | undefined`，收窄到了 `then` 回调里就失效了。
+ *
+ * **动态 `import()` 不是「按需加载」**——连接器每次都装。它换的是初始 chunk 的体积：
+ * `project.json` 的 production budget 卡在 initial 2mb，而 e2e 跑的正是那个构建产物，
+ * 把整套 v2 线协议静态拉进首屏等于让一个调试设施去消耗验收预算。
+ * 晚到不影响可用性：扩展的面板连上后由 background 发 `PING`，连接器收到会重发握手，
+ * 在那之前页面侧的事件进缓冲区。
+ *
+ * **不挂 `?devtools=1` 这类开关**，与隔壁的 `?diagnostics=1` 是两种情况：那个开关保的是
+ * 「没配回调时适配器保持沉默」这一条**默认行为**本身要能演示（见 `demo-config.ts`），
+ * 而连接器在场不改变适配器、网线与 console 的任何一件事——它只订阅事件。
+ * 给它加开关，唯一能新增的现象是「忘了带参数，所以扩展里什么都没有」。
+ *
+ * 时序上早于 `RxDB.init()`：库是在 `app.config.ts` 的 `connect()` 里才初始化的。
+ * 连接器的 `init` 只读 `config.entities` 与装饰器元数据、并挂事件监听，都不要求库已就绪；
+ * 真正要读 `entityManager` 的命令得等面板接上，那已经在首屏之后很久。
+ */
+const connectDevTools = (instance: RxDB): void => {
+  void import('@aiao/rxdb-devtools').then(({ getDevToolsConnector }) => {
+    getDevToolsConnector().init(instance, getEntityMetadata);
+  });
 };

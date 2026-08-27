@@ -63,6 +63,28 @@ pnpm nx serve dev-rxdb-http
 `offlineFallback` 落到 wa-sqlite 行缓存，页面进离线态但**仍看得见数据**。
 换成「注入 409」则不降级——那是一个成功送达的拒绝，不是连不上。
 
+## 用 DevTools 扩展看本地那一侧
+
+页面上的两张表只讲得清**网线**上的事。行缓存里最后存下了什么、事件流按什么顺序发出来，
+得换一件工具：[`apps/rxdb-devtools-extension`](../rxdb-devtools-extension/README.md)。
+
+本 app 已装好 `@aiao/rxdb-devtools` 连接器（`setup_rxdb_http.ts`），**无需任何查询串开关**，
+`nx serve` 与 e2e 跑的构建产物两种形态下都在。
+
+```bash
+pnpm nx build rxdb-devtools-extension    # 产物在 apps/rxdb-devtools-extension/dist/
+```
+
+Chrome 打开 `chrome://extensions` → 开发者模式 → 「加载已解压的扩展程序」选上面那个 `dist/`，
+然后在 4300 这一页按 F12，多出来的就是 **RxDB** 面板。
+
+看这个 demo 时值得对着两张表读的是 **Events**：一次「重新查询」在协议流量面板上是
+`POST recipes/metadata` + `POST recipes/ids`，在 Events 面板上是同一次操作落进 wa-sqlite
+行缓存的那几条写入——`304` 命中的那几次，后者一条都不会有。
+
+**Database** 面板查的是行缓存（wa-sqlite），不是后端。它和「离线」开关是一对：
+离线态下页面还看得见的那些行，就是这里能查到的那些行。
+
 ## 相关
 
 - 协议规范：[`website/docs/adapters/http-protocol.md`](../../website/docs/adapters/http-protocol.md)
