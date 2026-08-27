@@ -169,6 +169,24 @@ export class RxDB {
   #connect_promise_map = new Map<string, Promise<IRxDBAdapter>>();
 
   /**
+   * 适配器名 → 连接纪元。
+   *
+   * @remarks
+   * `disconnect()` / `disconnectAll()` 推进它，`connect()` 在同步段取一次快照，并在引导链的
+   * 每个 await 边界比对（见 {@link RxDB.#assert_connect_alive}）。少了这层比对，引导链会在
+   * 拆卸**完成之后**才醒来并调用 {@link RxDB.#set_adapter_connected}，把刚断开的适配器重新
+   * 标成已连接——`disconnect()` 于是成了一句没有效力的声明：调用方以为停机完成，
+   * 而 `#shutdown()` 根本没被触发（拆卸时它还不在已连接集合里），插件、网关与查询缓存全部留存。
+   *
+   * 断开后立刻重连时更糟：旧链路的写回排在新链路之后，{@link RxDB.#connected_adapter_instances}
+   * 最终留下的是那个已经关掉的实例，而它正是 {@link RxDB.localAdapterSync} 交给插件的东西。
+   *
+   * 永远只增不清。跟着 `#shutdown()` 复位就等于让在飞的旧链路重新对上自己的快照，
+   * 这张表要挡的恰恰是那一条链。
+   */
+  #connect_epochs = new Map<string, number>();
+
+  /**
    * 已成功 `connect()` 的适配器名。
    *
    * @remarks
@@ -527,6 +545,7 @@ export class RxDB {
    * 连接适配器
    * @param adapterName - 适配器名称
    * @returns 返回连接的适配器实例
+   * @throws 引导期间被 `disconnect()` / `disconnectAll()` 中止时抛出（见 {@link RxDB.#connect_epochs}）
    */
   connect<K extends keyof RxDBAdapters>(adapterName: K): Promise<RxDBAdapters[K]>;
   connect(adapterName: RxDBAdapterName): Promise<IRxDBAdapter>;
@@ -536,6 +555,11 @@ export class RxDB {
     if (pending) {
       return pending;
     }
+
+    // 引导链全程是 await，断连可以插进任何一个缝里。纪元在同步段取快照，之后每个 await
+    // 边界比对一次；比对失败就地中止，不做任何清理——连接是 disconnect() 关的，它正等着
+    // 这条链停手（见 #settle_pending_connect）。这条链自己关会和那边撞成两次 disconnect()。
+    const epoch = this.#connect_epochs.get(adapterName) ?? 0;
 
     // 先入缓存再启动：插件 install 可能同步回调 connect()，必须命中同一条 Promise。
     // init() 必须在 connect() 返回前同步跑完，同一轮 `new Entity()` 才能命中 registry。
@@ -555,8 +579,14 @@ export class RxDB {
     };
     const connectPromise = (async () => {
       await started;
+      this.#assert_connect_alive(adapterName, epoch);
       const adapter = await this.getAdapter(adapterName);
+      // 挡「断连已经发生，本链却刚从工厂里建出新实例」：放行就会 open 一条谁都不会关的连接——
+      // disconnect() 清空 #adapter_map 的那一刻，这个实例还没被建出来。
+      this.#assert_connect_alive(adapterName, epoch);
       await adapter.connect();
+      // 建表与迁移是重活，且要写一条可能已被 disconnect() 关掉的连接，先拦一道。
+      this.#assert_connect_alive(adapterName, epoch);
       if (isLocalAdapter(adapterName, this.#config)) {
         // 在 local 分支内统一收口一次 cast，避免分散 3 处 `as unknown as`
         const localAdapter = adapter as unknown as RxDBAdapterLocalBase;
@@ -582,6 +612,9 @@ export class RxDB {
         }
         await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
       }
+      // 引导已经跑完，只剩写回。这是纪元比对的最后一道，也是最关键的一道：整个机制要防的
+      // 就是拆卸之后才落下的这一笔（见 #connect_epochs）。
+      this.#assert_connect_alive(adapterName, epoch);
       // 先于 #await_plugin_installs 置位：这一步同时是「adapter:local / adapter:remote 就绪」
       // 的判据（见 #resolve_dependency），调度器要靠它才会放行声明了该依赖的插件，
       // 而那批安装恰好跑在下一行的 await 里面。
@@ -648,9 +681,14 @@ export class RxDB {
    * 仅断开指定适配器；只有当所有**已连接**的适配器都已断开时，才执行全局拆卸
    * （插件、网关、versionManager 与初始化状态）。避免单适配器断开误拆全局资源。
    *
+   * 该适配器的 `connect()` 还在引导中时，本方法会作废它：那条链在下一个 await 边界以
+   * 中止错误 reject，而不是在拆完之后把适配器标回已连接。作废是同步的，不等它落地
+   * （理由见 {@link RxDB.#invalidate_connect}）。
+   *
    * @param adapterName - 适配器名称
    */
   async disconnect(adapterName: RxDBAdapterName): Promise<void> {
+    this.#invalidate_connect(adapterName);
     const cached = this.#adapter_map.get(adapterName);
     if (!cached) return; // 未实例化，无需断开
     const adapter = await cached;
@@ -678,7 +716,14 @@ export class RxDB {
     }
   }
 
+  /**
+   * 断开全部适配器并执行全局拆卸。
+   *
+   * 与 {@link RxDB.disconnect} 同口径：先作废所有在飞的 `connect()`，它们会以中止错误
+   * reject。不作废的话，它们会在 `#shutdown()` 之后醒来，把刚清空的已连接集合重新填上。
+   */
   async disconnectAll(): Promise<void> {
+    for (const adapterName of this.#connect_promise_map.keys()) this.#invalidate_connect(adapterName);
     const adapters = await Promise.all(this.#adapter_map.values());
     // 插件须在适配器断开前销毁
     await this.#shutdown();
@@ -751,6 +796,39 @@ export class RxDB {
     this.#adapter_connected_sub.next(new Set(this.#connected_adapters));
     this.#connected_sub.next(this.#connected_adapters.size > 0);
     return true;
+  }
+
+  /**
+   * 作废该适配器在飞的 `connect()`：它会在下一个 await 边界自行中止。
+   *
+   * @param adapterName - 适配器名称
+   *
+   * @remarks
+   * **不等**那条链落地，这是刻意的。引导链可以卡在适配器自己的 `connect()` 里任意久
+   * （对端不可达、文件锁），等它就是把「能不能停机」交给一条已经出问题的连接来决定。
+   * 更硬的一条：`connect()` 的收尾 `#await_plugin_installs()` 有时**只能靠 `#shutdown()`
+   * 解锁**（安装挂起的插件），等它等于让停机等自己。
+   *
+   * 于是拆卸与中止是并行的两件事，交接点只有一个：连接一律由 {@link RxDB.disconnect}
+   * 按 `#adapter_map` 关闭，中止的链只抛错、不碰连接，两边撞不成两次 `disconnect()`。
+   */
+  #invalidate_connect(adapterName: string): void {
+    this.#connect_epochs.set(adapterName, (this.#connect_epochs.get(adapterName) ?? 0) + 1);
+  }
+
+  /**
+   * 纪元已被推进（引导期间发生过断连）时抛出中止错误。
+   *
+   * @param adapterName - 适配器名称
+   * @param epoch - `connect()` 在同步段取的纪元快照
+   * @throws 快照与当前纪元不符时抛出
+   *
+   * @remarks
+   * 只抛错，不做清理：连接由 {@link RxDB.disconnect} 关闭，它正等着这条链停手。
+   */
+  #assert_connect_alive(adapterName: string, epoch: number): void {
+    if ((this.#connect_epochs.get(adapterName) ?? 0) === epoch) return;
+    throw new Error(`[RxDB] connect('${adapterName}') aborted: disconnect() ran during connection bootstrap`);
   }
 
   /** 清空已连接集合与实例表并推送一次空快照（拆卸路径专用）。 */
