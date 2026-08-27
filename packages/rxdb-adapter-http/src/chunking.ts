@@ -51,7 +51,7 @@ export const findByIdsInChunks = async (
   const rows: unknown[] = [];
   for (const ids of chunk(ctx.ids, config.idChunkSize)) {
     const chunkCtx: FindByIdsContext = { entityName: ctx.entityName, ids };
-    const body = await transport.sendJson(handler.request(chunkCtx), 'findByIds');
+    const body = await transport.sendJson(handler.request(chunkCtx), 'findByIds', ctx.entityName);
     const parsed = handler.parse(body, chunkCtx);
     if (!Array.isArray(parsed)) {
       throw new HttpHandlerContractError(

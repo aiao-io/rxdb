@@ -20,7 +20,12 @@ import {
   HttpRequestBuildError,
   HttpResponseError
 } from './errors.js';
-import type { HttpAuthHook, HttpRequestSpec } from './http.interface.js';
+import type {
+  HttpAuthHook,
+  HttpEtagUnreadableHook,
+  HttpEtagUnreadableReport,
+  HttpRequestSpec
+} from './http.interface.js';
 
 /** {@link HttpTransport} 的构造参数。 */
 export interface HttpTransportOptions {
@@ -33,8 +38,25 @@ export interface HttpTransportOptions {
   auth?: HttpAuthHook;
   /** 附加到所有请求的 header */
   headers?: Record<string, string>;
-  /** 条件请求配置；**缺席即禁用**，此时行为与阶段 A 逐字相同（US-212 AC#28） */
-  conditional?: { maxEntries: number };
+  /**
+   * 条件请求配置；**缺席即禁用**，此时行为与阶段 A 逐字相同（US-212 AC#28）。
+   *
+   * @remarks
+   * 诊断回调挂在**这个对象里**而不是与它并列，US-215 AC#4「开关关着时回调不触发」
+   * 因此由结构本身担保：开关关着时整个 `conditional` 不存在，回调无处可取，
+   * 不需要在触发点上再判一次开关状态。
+   */
+  conditional?: { maxEntries: number; onEtagUnreadable?: HttpEtagUnreadableHook };
+}
+
+/**
+ * 条件请求路径上，诊断载荷需要而 {@link PreparedRequest} 里没有的两条事实。
+ */
+interface ConditionalCallContext {
+  /** 操作名，必属 {@link CONDITIONAL_OPERATIONS} */
+  operation: string;
+  /** 实体名；两个条件操作都由实体驱动，恒有值 */
+  entityName?: string;
 }
 
 /**
@@ -53,6 +75,28 @@ export interface HttpTransportOptions {
  * `transport.spec.ts`「写入口与 version 不参与条件缓存」冻结。
  */
 const CONDITIONAL_OPERATIONS: ReadonlySet<string> = new Set(['fetchMetadata', 'findByIds']);
+
+/**
+ * 组织诊断文案：只陈述事实与两种可能，**不判定成因**（US-215 D1）。
+ *
+ * @remarks
+ * 客户端在 `headers.get('etag') === null` 上分不开「远端没发」与「跨源没暴露」，
+ * 写死其中一种在另一半情况下就是一句假话，会把人送去改一个本来就对的服务端。
+ * 所以文案给的是**两条待查线索加一个可观测量**，判断留给拿得到部署拓扑的人。
+ *
+ * @param report - 除 `message` 外的全部事实
+ */
+const describeEtagUnreadable = (report: Omit<HttpEtagUnreadableReport, 'message'>): string => {
+  const subject = report.entityName === undefined ? report.operation : `${report.entityName} 的 ${report.operation}`;
+  return (
+    `${subject}：conditionalRequests 已开启，但这次 200 响应里读不到 ETag` +
+    `（${report.url}，Response.type=${report.responseType}），本次与后续同一请求都不会带 If-None-Match。` +
+    `两种可能，客户端分不清：① 远端没有发送 ETag；` +
+    `② 远端发了，但跨源响应没有把它列进 Access-Control-Expose-Headers。` +
+    `跨源响应在浏览器里 Response.type 为 'cors'，可作线索；` +
+    `若服务端日志里看得见 ETag 而这里读不到，请先查 ②。`
+  );
+};
 
 /**
  * 拼接请求 URL。
@@ -249,6 +293,8 @@ export class HttpTransport {
    *
    * @param spec - handler 产出的请求描述
    * @param operation - 出错时写进错误的操作名，如 `fetchMetadata`
+   * @param entityName - 仅用于诊断载荷（US-215）。**不影响任何判定**：传不传都不改变
+   *   是否走条件缓存，免得漏传一个诊断参数变成静默丢缓存——那正是本参数要治的病
    * @returns 已 JSON 解码的响应体
    * @throws HttpResponseError 响应状态非 2xx（带数字 `status`）。**未请求校验却收到 304
    *   也走这里**——静默当成空集会让整表判成孤儿
@@ -257,7 +303,7 @@ export class HttpTransport {
    * @throws NetworkOfflineError 传输失败或单请求超时
    * @throws HttpDisconnectedError 请求被 `disconnect()` 取消
    */
-  async sendJson(spec: HttpRequestSpec, operation: string): Promise<unknown> {
+  async sendJson(spec: HttpRequestSpec, operation: string, entityName?: string): Promise<unknown> {
     const prepared = await this.#prepare(spec, operation);
     const cache = this.#conditional;
     if (!cache || !CONDITIONAL_OPERATIONS.has(operation)) {
@@ -265,7 +311,7 @@ export class HttpTransport {
     }
     // 指纹读的就是要发出去的那份字节，不再单独 stringify 一次
     const key = requestFingerprint(prepared.method, prepared.url, prepared.body);
-    return cache.singleFlight(key, () => this.#sendJsonConditional(cache, key, prepared, operation));
+    return cache.singleFlight(key, () => this.#sendJsonConditional(cache, key, prepared, { operation, entityName }));
   }
 
   /**
@@ -482,19 +528,19 @@ export class HttpTransport {
     cache: ConditionalRequestCache,
     key: string,
     prepared: PreparedRequest,
-    operation: string
+    ctx: ConditionalCallContext
   ): Promise<unknown> {
     const cached = cache.get(key);
     // ETag 来自远端响应头，已过一遍 Headers 解析器，不需要再校验一次
     const request = cached ? { ...prepared, headers: { ...prepared.headers, 'if-none-match': cached.etag } } : prepared;
-    return this.#send(request, operation, async response => {
+    return this.#send(request, ctx.operation, async response => {
       if (cached && response.status === 304) {
         // 304 按 RFC 无 body，但代理与打桩实现都可能带一个，仍要收口
         await discardBody(response);
         return cached.takeValue();
       }
       await assertOk(response, prepared.url, this.options.disconnectSignal);
-      return this.#cacheAndReturn(cache, key, prepared.url, response);
+      return this.#cacheAndReturn(cache, key, prepared.url, response, ctx);
     });
   }
 
@@ -509,7 +555,8 @@ export class HttpTransport {
     cache: ConditionalRequestCache,
     key: string,
     url: string,
-    response: Response
+    response: Response,
+    ctx: ConditionalCallContext
   ): Promise<unknown> {
     const value = await decodeJson(response, url);
     const etag = response.headers.get('etag');
@@ -517,9 +564,41 @@ export class HttpTransport {
       // 远端停发 ETag：留着旧条目就是拿一个再也换不到 304 的令牌去问，
       // 每次都白搭一个请求头，且下一次 200 会被误判成「内容变了」
       cache.delete(key);
+      this.#reportEtagUnreadable(cache, key, url, response, ctx);
       return value;
     }
     cache.set(key, { etag, value });
     return value;
+  }
+
+  /**
+   * 把「条件请求开着却读不到 ETag」这件事交给诊断回调（US-215）。
+   *
+   * @remarks
+   * **三道闸按代价从小到大排**：没配回调就什么都不做（AC#3）；同一指纹只报第一次
+   * （AC#5，去重表随 `disconnect()` 清空）；文案在确定要报之后才拼——它是纯字符串拼接，
+   * 没配回调的部署不该为此付钱。
+   *
+   * **回调抛错被吞掉。** 本方法在数据路径上：此刻 `value` 已经解析完毕、就等着返回给
+   * 调用方，让一个诊断回调的异常把一次成功的查询变成失败，比它要报告的问题严重得多。
+   * 吞掉的异常也没地方转发——正在报告的就是「本包没有输出通道」这件事本身。
+   */
+  #reportEtagUnreadable(
+    cache: ConditionalRequestCache,
+    key: string,
+    url: string,
+    response: Response,
+    ctx: ConditionalCallContext
+  ): void {
+    const hook = this.options.conditional?.onEtagUnreadable;
+    if (!hook || !cache.markEtagUnreadable(key)) {
+      return;
+    }
+    const facts = { operation: ctx.operation, entityName: ctx.entityName, url, responseType: response.type };
+    try {
+      hook({ ...facts, message: describeEtagUnreadable(facts) });
+    } catch {
+      /* 诊断通道自己失败时没有第二条通道可以报告这次失败，见方法头 */
+    }
   }
 }

@@ -50,5 +50,20 @@ export const resolveApiBaseUrl = (search: string): string => {
   return value.replace(/\/+$/, '');
 };
 
+/**
+ * 是否装上 ETag 诊断回调（US-215 AC#8）。
+ *
+ * @param search - `location.search`
+ * @returns `?diagnostics=1` 时为 `true`，缺省 `false`
+ *
+ * @remarks
+ * **默认关着，是为了让两种行为都还能演示。** 适配器对「读不到 ETag」的默认反应就是
+ * 沉默（AC#3：没配回调时不打印任何东西），而 e2e 里已有一条用例守着
+ * 「跨源查询期间 console 不出任何错误」。把回调无条件装上，那条用例守的就不再是
+ * 「默认行为」了。开关让同一个构建产物既能证明默认沉默、又能证明配上之后信号真的到得了。
+ */
+export const resolveDiagnosticsEnabled = (search: string): boolean =>
+  new URLSearchParams(search).get('diagnostics') === '1';
+
 /** `__control/*` 的地址前缀，由 {@link resolveApiBaseUrl} 的结果派生。 */
 export const controlUrl = (baseUrl: string, path: string): string => `${baseUrl}/__control/${path}`;

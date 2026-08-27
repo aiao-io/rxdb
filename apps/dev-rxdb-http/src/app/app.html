@@ -364,4 +364,38 @@
       </table>
     </details>
   </section>
+
+  <section class="panel wide" aria-labelledby="etag-diagnostics-heading">
+    <h2 id="etag-diagnostics-heading">ETag 诊断（适配器视角）</h2>
+    @if (diagnosticsEnabled) {
+      <p class="hint">
+        已装上
+        <code>onEtagUnreadable</code>
+        。条件请求开着却读不到
+        <code>ETag</code>
+        时，下面会出现一条——这在上面的流量面板里是看不出来的，那样的 200 与正常的 200 逐字相同。
+      </p>
+      <ul data-testid="etag-diagnostic-rows">
+        @for (entry of $etagDiagnostics(); track entry.seq) {
+          <li [attr.data-operation]="entry.operation">
+            <strong>{{ entry.entityName }} / {{ entry.operation }}</strong>
+            <span class="mono">（Response.type={{ entry.responseType }}）</span>
+            <p>{{ entry.message }}</p>
+          </li>
+        } @empty {
+          <li data-testid="etag-diagnostic-empty">还没有诊断信号</li>
+        }
+      </ul>
+    } @else {
+      <p class="hint" data-testid="etag-diagnostic-off">
+        未装诊断回调，这是
+        <strong>默认行为</strong>
+        ：读不到
+        <code>ETag</code>
+        时适配器不打印任何东西，条件请求就此静默失效。带
+        <code>?diagnostics=1</code>
+        打开本页可以看到信号。
+      </p>
+    }
+  </section>
 </main>

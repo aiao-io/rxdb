@@ -380,8 +380,15 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
       headers: this.options.headers,
       // 缺席即禁用：AC#28 要求未启用时行为与阶段 A 逐字相同，
       // 传一个 `{ enabled: false }` 会让那句话依赖 transport 内部再判一次
+      // 诊断回调挂在 `conditional` 里面而不是与它并列：条件请求关掉时整个对象就不存在，
+      // 「关掉就不该触发」（US-215 AC#4）由结构保证，不靠触发点再判一次开关
       conditional:
-        this.options.conditionalRequests === true ? { maxEntries: this.config.conditionalCacheSize } : undefined
+        this.options.conditionalRequests === true ?
+          {
+            maxEntries: this.config.conditionalCacheSize,
+            onEtagUnreadable: this.options.onEtagUnreadable
+          }
+        : undefined
     });
   }
 

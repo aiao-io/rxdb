@@ -1,7 +1,7 @@
 ---
 id: US-215
 title: 条件请求被静默停用时给出可观测信号
-status: Backlog
+status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-27
@@ -131,15 +131,36 @@ US-214 AC#10 那条用例今天断言的是「没有任何信号」。本故事�
 
 | #   | 前置条件                                                                | 操作                 | 预期结果                                                                                             | 状态 |
 | --- | ----------------------------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------- | ---- |
-| 1   | `conditionalRequests: true`，配了诊断回调，远端 200 但响应读不到 `ETag` | 一次 `fetchMetadata` | 回调被调用一次，载荷含实体名、请求 URL、`Response.type`                                              | ⬜   |
-| 2   | 同 AC#1，载荷文案                                                       | 读文案               | **不**断言成因；同时点出「远端未发」与「跨源未暴露」两种可能，并指向 `Access-Control-Expose-Headers` | ⬜   |
-| 3   | `conditionalRequests: true`，**未配**回调，远端读不到 `ETag`            | 一次 `fetchMetadata` | 行为与本故事之前逐字相同：缓存条目被删、正常返回值、不抛、控制台零输出                               | ⬜   |
-| 4   | `conditionalRequests: false`，配了回调                                  | 一次 `fetchMetadata` | 回调不触发——关着的开关不该产生噪音                                                                   | ⬜   |
-| 5   | 同一缓存 key 连续 N 次都读不到 `ETag`                                   | 连续拉取             | 回调只触发一次；不同 key 各自触发一次                                                                | ⬜   |
-| 6   | 远端正常发 `ETag`                                                       | 两次 `fetchMetadata` | 回调一次都不触发；304 命中行为不变                                                                   | ⬜   |
-| 7   | 回调自身抛错                                                            | 一次 `fetchMetadata` | 不影响本次请求的结果——诊断通道不得成为新的故障源                                                     | ⬜   |
-| 8   | [dev-rxdb-http-e2e](../../../apps/dev-rxdb-http-e2e/) 的 AC#10 用例     | 跑 e2e               | 按 D3 更新判词后通过；新增的「配了回调有信号」对照用例通过                                           | ⬜   |
-| 9   | 实现完成                                                                | 跑门禁               | `@aiao/rxdb-adapter-http` 覆盖率不回退（当前 99%）；新导出补 TSDoc 并进 api-baseline                 | ⬜   |
+| 1   | `conditionalRequests: true`，配了诊断回调，远端 200 但响应读不到 `ETag` | 一次 `fetchMetadata` | 回调被调用一次，载荷含实体名、请求 URL、`Response.type`                                              | ✅   |
+| 2   | 同 AC#1，载荷文案                                                       | 读文案               | **不**断言成因；同时点出「远端未发」与「跨源未暴露」两种可能，并指向 `Access-Control-Expose-Headers` | ✅   |
+| 3   | `conditionalRequests: true`，**未配**回调，远端读不到 `ETag`            | 一次 `fetchMetadata` | 行为与本故事之前逐字相同：缓存条目被删、正常返回值、不抛、控制台零输出                               | ✅   |
+| 4   | `conditionalRequests: false`，配了回调                                  | 一次 `fetchMetadata` | 回调不触发——关着的开关不该产生噪音                                                                   | ✅   |
+| 5   | 同一缓存 key 连续 N 次都读不到 `ETag`                                   | 连续拉取             | 回调只触发一次；不同 key 各自触发一次                                                                | ✅   |
+| 6   | 远端正常发 `ETag`                                                       | 两次 `fetchMetadata` | 回调一次都不触发；304 命中行为不变                                                                   | ✅   |
+| 7   | 回调自身抛错                                                            | 一次 `fetchMetadata` | 不影响本次请求的结果——诊断通道不得成为新的故障源                                                     | ✅   |
+| 8   | [dev-rxdb-http-e2e](../../../apps/dev-rxdb-http-e2e/) 的 AC#10 用例     | 跑 e2e               | 按 D3 更新判词后通过；新增的「配了回调有信号」对照用例通过                                           | ✅   |
+| 9   | 实现完成                                                                | 跑门禁               | `@aiao/rxdb-adapter-http` 覆盖率不回退（当前 99%）；新导出补 TSDoc 并进 api-baseline                 | ✅   |
+
+AC#1–#7 由 `packages/rxdb-adapter-http` 的单元用例证实（`Tests 350 passed (10 files)`，
+其中 `transport.spec.ts` 66 条、`RxDBAdapterHttp.spec.ts` 74 条、`conditional-cache.spec.ts` 20 条）。
+AC#8 由 `dev-rxdb-http-e2e` 证实（`10 passed`，含新增的对照用例）。
+AC#9 的门禁：`lint test build` 全绿，`tsc -p tsconfig.lib.json --noEmit` 零错误，
+覆盖率 99.81% stmts / 97.81% branches / 100% funcs / 99.8% lines（未回退），
+`pnpm audit:api-surface` 与更新后的基线一致。
+
+## 落地偏差
+
+### 改了 demo 与 e2e——「不改包外运行时代码」在 AC#8 面前不成立
+
+技术笔记最后一条写着「本故事**不改** `packages/rxdb-adapter-http/src/` 之外的任何运行时代码」，
+而 AC#8 要的是一条「配了回调就拿得到信号」的对照用例——回调只能由 demo 配，
+`dev-rxdb-http` 的运行时代码非改不可。两者直接冲突，取 AC#8。
+
+落地形态是一个 **`?diagnostics=1` 开关**（`demo-config.ts` 的 `resolveDiagnosticsEnabled`），
+默认**关**。这不是为了少改代码，而是 D3 的直接要求：AC#10 那条用例守的是
+「未配置诊断回调时的默认行为」，包括 `expect(consoleErrors).toEqual([])`。
+把回调无条件装上，那条用例守的就不再是默认行为了。开关让同一个构建产物同时承载两条用例——
+只差一个查询参数，后端设置、查询动作、症状全都一样，唯一的变量就是有没有配回调。
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -154,6 +175,53 @@ US-214 AC#10 那条用例今天断言的是「没有任何信号」。本故事�
   这本身就是本故事的题眼，值得在 TSDoc 里写明）。
 - 本故事**不改** `packages/rxdb-adapter-http/src/` 之外的任何运行时代码。US-214 立的
   「不改该包」的约束到此解除，因为那条约束的本意是「demo 不夹带库改动」，不是「该包不许再改」。
+
+### 实现阶段的结论
+
+- **D1 那个「未核实」有了答案，而且两边不一样**：Node（undici）下手工构造的 `Response`
+  恒为 `'default'`，浏览器里的跨源响应是 `'cors'`——两个取值分别由单元用例与 e2e 钉住。
+  所以 `Response.type` 按 D1 的预案处理：**载荷带它，但不作为文档承诺的判据**，
+  TSDoc 里明写「线索而非判据」。判断留给拿得到部署拓扑的调用方。
+- **AC#4 由结构保证，不靠运行期再判一次开关**。`onEtagUnreadable` 挂在
+  `HttpTransportOptions.conditional` **里面**而不是与它并列：`conditionalRequests` 关掉时
+  整个 `conditional` 对象就不存在（`RxDBAdapterHttp.#createTransport` 早已如此），
+  回调因此根本不可达。「关着的开关不产生噪音」于是不是一条需要维护的判断。
+- **`entityName` 做成可选，且刻意不参与任何判定**。`sendJson` 对所有操作共用一个签名，
+  而 `version` 这类操作没有实体。两条本可以避免这个可选的路子都被否掉：
+  按 `entityName !== undefined` 决定走不走条件缓存，等于把「漏传一个诊断参数」变成
+  「静默丢缓存」——正是本故事要治的病；缺席就抛，等于把一个纯诊断的疏漏变成数据路径故障。
+  于是维持可选，靠 TSDoc 说明「触发本回调的两个操作都由实体驱动，实际恒有值」。
+- **去重表不能被 `delete()` 清掉**。读不到 ETag 的那一支每次都调 `cache.delete(key)`，
+  去重记录若跟着没了，「一个 key 只报一次」当场退化成「每次查询都报一次」。
+  `ConditionalRequestCache.delete()` 的 TSDoc 里把这条写死了。去重表只在 `clear()`
+  （即 `disconnect()`）时清——一次断开重连之间后端 CORS 配置完全可能被改过。
+- **去重表同样有界**，上限与条目共用 `maxEntries`：无界的 `Set` 会随「读不到 ETag 的不同
+  URL 数」单调增长，正是 `conditionalCacheSize` 存在的理由。`Set` 的迭代顺序即插入顺序，
+  逐出写法与 `set()` 同构。
+- **回调抛错吞掉，且吞得有据**。此刻 `value` 已经解析完毕、就等着返回给调用方，
+  让一个诊断回调的异常把一次成功的查询变成失败，比它要报告的问题严重得多。
+  吞掉的异常没地方转发——正在报告的就是「本包没有输出通道」这件事本身，
+  这与铁律「无 fallback 兜底」的边界正如技术笔记所划：吞的是诊断通道，不是数据路径。
+- **e2e 顺带证实了去重在真实链路上成立**：翻 5 页 + 分块 `findByIds` 全都读不到 ETag，
+  面板上只出现有限的几条而不是几十条同义警告，`refetch` 之后条数不增。
+
+## 实现文件
+
+| 文件                                                                                                                        | 说明                                                              |
+| --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| [packages/rxdb-adapter-http/src/http.interface.ts](../../../packages/rxdb-adapter-http/src/http.interface.ts)               | 新增 `HttpEtagUnreadableReport` / `HttpEtagUnreadableHook` 与选项 |
+| [packages/rxdb-adapter-http/src/transport.ts](../../../packages/rxdb-adapter-http/src/transport.ts)                         | 触发点 `#reportEtagUnreadable` + 文案 + `entityName` 透传         |
+| [packages/rxdb-adapter-http/src/conditional-cache.ts](../../../packages/rxdb-adapter-http/src/conditional-cache.ts)         | `markEtagUnreadable()`：有界去重表，随 `clear()` 清空             |
+| [packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts](../../../packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts)             | 把回调接进 `conditional`（AC#4 的结构保证）                       |
+| [packages/rxdb-adapter-http/src/pagination.ts](../../../packages/rxdb-adapter-http/src/pagination.ts)                       | `fetchMetadata` 传 `entityName`                                   |
+| [packages/rxdb-adapter-http/src/chunking.ts](../../../packages/rxdb-adapter-http/src/chunking.ts)                           | `findByIds` 传 `entityName`                                       |
+| [requirements/api-baseline/rxdb-adapter-http.json](../../api-baseline/rxdb-adapter-http.json)                               | AC#9：两个新导出进基线                                            |
+| [apps/dev-rxdb-http/src/app/etag-diagnostics.ts](../../../apps/dev-rxdb-http/src/app/etag-diagnostics.ts)                   | 新增：demo 侧诊断收集器（见「落地偏差」）                         |
+| [apps/dev-rxdb-http/src/app/demo-config.ts](../../../apps/dev-rxdb-http/src/app/demo-config.ts)                             | `resolveDiagnosticsEnabled`：`?diagnostics=1`                     |
+| [apps/dev-rxdb-http/src/app/setup_rxdb_http.ts](../../../apps/dev-rxdb-http/src/app/setup_rxdb_http.ts)                     | 按开关装 `onEtagUnreadable`                                       |
+| [apps/dev-rxdb-http/src/app/app.ts](../../../apps/dev-rxdb-http/src/app/app.ts)                                             | 诊断信号 + 清空联动                                               |
+| [apps/dev-rxdb-http/src/app/app.html](../../../apps/dev-rxdb-http/src/app/app.html)                                         | 诊断面板；未开启时明说这是默认行为                                |
+| [apps/dev-rxdb-http-e2e/src/conditional-requests.spec.ts](../../../apps/dev-rxdb-http-e2e/src/conditional-requests.spec.ts) | AC#8：AC#10 判词按 D3 改写 + 新增对照用例                         |
 
 ## References
 

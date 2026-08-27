@@ -74,6 +74,14 @@
         "kind": "both"
       },
       {
+        "name": "HttpEtagUnreadableHook",
+        "kind": "type"
+      },
+      {
+        "name": "HttpEtagUnreadableReport",
+        "kind": "type"
+      },
+      {
         "name": "HttpHandlerContractError",
         "kind": "both"
       },

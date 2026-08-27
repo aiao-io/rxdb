@@ -3,7 +3,7 @@ import { useFind } from '@aiao/rxdb-angular';
 import { JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { resolveApiBaseUrl } from './demo-config';
+import { resolveApiBaseUrl, resolveDiagnosticsEnabled } from './demo-config';
 import {
   clearRequestLog,
   readControlState,
@@ -16,6 +16,7 @@ import {
   type DemoControlState,
   type DemoRequestLogEntry
 } from './demo-control';
+import { clearEtagDiagnostics, etagDiagnostics, onEtagDiagnostic, type EtagDiagnosticEntry } from './etag-diagnostics';
 import { buildFilterRules, emptyFilterState, type RecipeFilterState } from './filter-rules';
 import { Recipe } from './recipe';
 import { clearTraffic, onTraffic, trafficEntries, type TrafficEntry } from './traffic-recorder';
@@ -109,6 +110,13 @@ export class App implements OnInit {
 
   readonly $traffic = signal<readonly TrafficEntry[]>(trafficEntries());
 
+  // ---- ETag 诊断面板（US-215 AC#8）------------------------------------------
+
+  /** 是否装了 `onEtagUnreadable`。见 `demo-config.ts`：默认关着，好让默认沉默也还能演示。 */
+  readonly diagnosticsEnabled = resolveDiagnosticsEnabled(typeof location === 'undefined' ? '' : location.search);
+
+  readonly $etagDiagnostics = signal<readonly EtagDiagnosticEntry[]>(etagDiagnostics());
+
   /**
    * 是否处于「连不上后端」的状态。
    *
@@ -125,6 +133,9 @@ export class App implements OnInit {
   ngOnInit(): void {
     const unsubscribe = onTraffic(entries => this.$traffic.set(entries));
     this.#destroyRef.onDestroy(unsubscribe);
+
+    const unsubscribeDiagnostics = onEtagDiagnostic(entries => this.$etagDiagnostics.set(entries));
+    this.#destroyRef.onDestroy(unsubscribeDiagnostics);
 
     void this.loadBackendVersion();
     void this.refreshControl();
@@ -271,10 +282,18 @@ export class App implements OnInit {
     this.applyFilter();
   }
 
-  /** 清空两侧的流量记录。 */
+  /**
+   * 清空两侧的流量记录与诊断面板。
+   *
+   * @remarks
+   * 诊断一并清掉，但**适配器里的去重表不受影响**：那张表只在 `disconnect()` 时清。
+   * 所以清空面板之后同一个查询不会再报第二次——面板空着不等于「这次没问题」，
+   * 要重新观察请刷新页面。
+   */
   async clearLogs(): Promise<void> {
     clearTraffic();
     this.$traffic.set(trafficEntries());
+    clearEtagDiagnostics();
     await this.#control(() => clearRequestLog(this.baseUrl).then(() => readControlState(this.baseUrl)));
   }
 

@@ -49,8 +49,15 @@ test.beforeEach(async ({ request }) => {
  * 就是「这个响应没有 ETag」，而它对没有 ETag 的响应本就不做条件请求。
  *
  * 修法在**后端**（补一个响应头），不在 `packages/rxdb-adapter-http/`。
+ *
+ * 本用例守的是**未配置诊断回调时的默认行为**（US-215 AC#3）：适配器一声不吭。
+ * US-215 加的 `onEtagUnreadable` 是**可选**的，装上之后才有信号——那一半由下一条
+ * 用例守。两条合起来才是完整的判据：默认沉默 ≠ 永远沉默，而配了就一定听得见。
  */
-test('AC#10 已知症状（非待修 bug）：未暴露 ETag 时条件请求全程不命中，且不报错、无日志', async ({ page, request }) => {
+test('AC#10 已知症状（非待修 bug）：未暴露 ETag 且未配诊断回调时，条件请求全程不命中，且不报错、无日志', async ({
+  page,
+  request
+}) => {
   await setExposeEtag(request, false);
 
   const consoleErrors: string[] = [];
@@ -87,6 +94,46 @@ test('AC#10 已知症状（非待修 bug）：未暴露 ETag 时条件请求全�
   await expect(page.getByTestId('offline-banner')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
   expect(consoleErrors).toEqual([]);
+
+  // 症状四：面板上明说这是默认行为，而不是「什么都没发生」。
+  await expect(page.getByTestId('etag-diagnostic-off')).toHaveCount(1);
+});
+
+/**
+ * US-215 AC#8：同一个症状，配上诊断回调之后就有信号。
+ *
+ * @remarks
+ * 与上一条用例**只差一个 `?diagnostics=1`**：后端设置、查询动作、症状全都一样，
+ * 唯一的变量是 demo 有没有把 `onEtagUnreadable` 传给适配器。这正是这个故事要证的东西——
+ * 静默不是「客户端看不出来」，而是「客户端知道，只是此前没有嘴」。
+ *
+ * 顺带钉死 `Response.type`：浏览器里跨源响应是 `'cors'`。适配器把它原样透出而不作判定，
+ * 因为 Node（undici）下手工构造的 `Response` 恒为 `'default'`——单元测试证的是后者，
+ * 真实浏览器里的取值只有 e2e 能证。
+ */
+test('AC#8（US-215）配上诊断回调后，同一个静默症状变成一条指名道姓的可观测信号', async ({ page, request }) => {
+  await setExposeEtag(request, false);
+
+  await openDemo(page, 'diagnostics=1');
+  await expectRowCount(page, SEED_ROW_COUNT);
+
+  const rows = page.getByTestId('etag-diagnostic-rows').locator('li[data-operation]');
+  await expect(rows).not.toHaveCount(0, { timeout: 30_000 });
+
+  const first = rows.first();
+  await expect(first).toContainText('Recipe');
+  // 文案两种成因都点到、且不选边：客户端分不清「远端没发」与「跨源没暴露」。
+  await expect(first).toContainText('Access-Control-Expose-Headers');
+  await expect(first).toContainText('两种可能');
+  // 浏览器里的跨源响应就是 'cors'。
+  await expect(first).toContainText('Response.type=cors');
+
+  // 去重：翻 5 页 + 分块 findByIds 都读不到 ETag，但同一指纹只报一次，
+  // 面板上不会堆出几十条同义警告。
+  const count = await rows.count();
+  await page.getByTestId('refetch').click();
+  await expectRowCount(page, SEED_ROW_COUNT);
+  expect(await rows.count(), '同一个查询重复触发时不该再报一次').toBe(count);
 });
 
 test('AC#11 暴露 ETag 后第二次查询回 304，客户端沿用上一份结果而非空集', async ({ page, request }) => {

@@ -119,6 +119,56 @@ describe('ConditionalRequestCache', () => {
     });
   });
 
+  /**
+   * US-215 AC#5：诊断去重表。
+   *
+   * @remarks
+   * 挂在缓存实例上而不是 transport 上，是为了与条件缓存**同生命周期**：
+   * `disconnect()` 清缓存的同时清掉去重记录，换了后端配置重连后才收得到新信号。
+   */
+  describe('诊断去重（US-215）', () => {
+    it('同一个 key 只认第一次', () => {
+      const cache = new ConditionalRequestCache(4);
+      expect(cache.markEtagUnreadable('a')).toBe(true);
+      expect(cache.markEtagUnreadable('a')).toBe(false);
+      expect(cache.markEtagUnreadable('a')).toBe(false);
+    });
+
+    it('不同 key 各自认一次', () => {
+      const cache = new ConditionalRequestCache(4);
+      expect(cache.markEtagUnreadable('a')).toBe(true);
+      expect(cache.markEtagUnreadable('b')).toBe(true);
+      expect(cache.markEtagUnreadable('a')).toBe(false);
+    });
+
+    it('delete() 不清除标记 —— 否则去重形同虚设', () => {
+      // 读不到 ETag 的那一支每次都会 `cache.delete(key)`，标记若跟着没了，
+      // 「一个 key 只报一次」就退化成「每次都报」
+      const cache = new ConditionalRequestCache(4);
+      cache.markEtagUnreadable('a');
+      cache.delete('a');
+      expect(cache.markEtagUnreadable('a')).toBe(false);
+    });
+
+    it('clear() 一并清掉标记，重连后同一个 key 重新报一次', () => {
+      const cache = new ConditionalRequestCache(4);
+      cache.markEtagUnreadable('a');
+      cache.clear();
+      expect(cache.markEtagUnreadable('a')).toBe(true);
+    });
+
+    it('去重表同样有界，按记录顺序逐出最旧的', () => {
+      // 无界的 Set 会随「读不到 ETag 的不同 URL 数」单调增长，正是 conditionalCacheSize
+      // 要防的那种增长。代价是被逐出的 key 会再报一次——有界的噪音好过无界的内存
+      const cache = new ConditionalRequestCache(2);
+      cache.markEtagUnreadable('a');
+      cache.markEtagUnreadable('b');
+      cache.markEtagUnreadable('c');
+      expect(cache.markEtagUnreadable('a')).toBe(true);
+      expect(cache.markEtagUnreadable('c')).toBe(false);
+    });
+  });
+
   describe('single-flight', () => {
     it('同一指纹的并发请求只执行一次 factory，两者拿到同一结果', async () => {
       // AC#28 的「空洞」正在这里被堵：第二个请求若独立发出，会带着同一个

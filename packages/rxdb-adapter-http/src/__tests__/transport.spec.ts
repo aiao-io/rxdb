@@ -6,6 +6,7 @@ import {
   HttpRequestBuildError,
   HttpResponseError
 } from '../errors.js';
+import type { HttpEtagUnreadableHook } from '../http.interface.js';
 import { HttpTransport } from '../transport.js';
 
 /**
@@ -637,6 +638,147 @@ describe('HttpTransport', () => {
       transport.clearConditionalCache();
       await transport.sendJson(READ_SPEC, 'fetchMetadata').catch(() => undefined);
       expect(ifNoneMatch(1)).toBeUndefined();
+    });
+
+    /**
+     * US-215：`conditionalRequests` 开着、响应 200、却读不到 `ETag`。
+     *
+     * 这一支本身是对的（没有 ETag 就没法做条件请求），问题在于它有**两种**成因——
+     * 远端确实没发，或远端发了但跨源响应没把它列进 `Access-Control-Expose-Headers`——
+     * 而客户端在 `headers.get('etag') === null` 上完全分不开。所以只报事实，不判成因。
+     */
+    describe('读不到 ETag 时的诊断回调（US-215）', () => {
+      /** 200 且不带 ETag */
+      const stubNoEtag = (): void => {
+        stubFetch((_url, init) =>
+          Promise.resolve(new Response(JSON.stringify({ body: String(init.body) }), { status: 200 }))
+        );
+      };
+
+      const withHook = (onEtagUnreadable: HttpEtagUnreadableHook): HttpTransport =>
+        createTransport({ conditional: { maxEntries: 8, onEtagUnreadable } }).transport;
+
+      it('AC#1 触发一次，载荷带上实体名、URL 与 Response.type', async () => {
+        stubNoEtag();
+        const hook = vi.fn();
+        await withHook(hook).sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+
+        expect(hook).toHaveBeenCalledTimes(1);
+        expect(hook.mock.calls[0][0]).toMatchObject({
+          operation: 'fetchMetadata',
+          entityName: 'Recipe',
+          url: `${BASE}/items`
+        });
+      });
+
+      it('AC#1 `Response.type` 原样透出，不替调用方判成因', async () => {
+        // D1 把「undici 下 cors / basic 是否可区分」标成未核实。这里给出实证的一半：
+        // 手工构造的 `Response` 在 Node 下恒为 `'default'`，所以这个字段是**线索**，
+        // 不是文档承诺的判据。真跨源下的取值由 dev-rxdb-http-e2e 在浏览器里确认
+        stubNoEtag();
+        const hook = vi.fn();
+        await withHook(hook).sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+
+        expect(hook.mock.calls[0][0].responseType).toBe('default');
+      });
+
+      it('AC#2 文案点出两种可能并指向 CORS 暴露头，不断言是哪一种', async () => {
+        stubNoEtag();
+        const hook = vi.fn();
+        await withHook(hook).sendJson(READ_SPEC, 'findByIds', 'Recipe');
+
+        const { message } = hook.mock.calls[0][0];
+        expect(message).toContain('Recipe');
+        expect(message).toContain('两种可能');
+        expect(message).toContain('跨源');
+        expect(message).toContain('Access-Control-Expose-Headers');
+      });
+
+      it('AC#3 未配回调时行为逐字不变：条目照删、值照返、不抛、控制台零输出', async () => {
+        stubNoEtag();
+        const spies = (['log', 'info', 'warn', 'error', 'debug'] as const).map(level =>
+          vi.spyOn(console, level).mockImplementation(() => undefined)
+        );
+        const transport = conditionalTransport();
+
+        const first = await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+        await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+
+        expect(first).toEqual({ body: '{"offset":0}' });
+        expect(ifNoneMatch(1)).toBeUndefined();
+        expect(spies.every(spy => spy.mock.calls.length === 0)).toBe(true);
+        spies.forEach(spy => spy.mockRestore());
+      });
+
+      it('AC#5 同一个 key 连续多次只报一次', async () => {
+        stubNoEtag();
+        const hook = vi.fn();
+        const transport = withHook(hook);
+
+        await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+        await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+        await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+        expect(hook).toHaveBeenCalledTimes(1);
+      });
+
+      it('AC#5 不同 key（翻页的下一页）各报一次', async () => {
+        stubNoEtag();
+        const hook = vi.fn();
+        const transport = withHook(hook);
+
+        await transport.sendJson({ url: 'items', method: 'POST', body: { offset: 0 } }, 'fetchMetadata', 'Recipe');
+        await transport.sendJson({ url: 'items', method: 'POST', body: { offset: 50 } }, 'fetchMetadata', 'Recipe');
+
+        expect(hook).toHaveBeenCalledTimes(2);
+      });
+
+      it('AC#6 远端正常发 ETag 时一次都不报，304 命中行为不变', async () => {
+        stubEtagThen304({ rows: [1, 2] });
+        const hook = vi.fn();
+        const transport = withHook(hook);
+
+        const first = await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+        expect(await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe')).toEqual(first);
+        expect(hook).not.toHaveBeenCalled();
+      });
+
+      it('AC#7 回调抛错不影响本次请求的结果', async () => {
+        // 诊断通道不得成为新的故障源：为一条报不出去的警告把一次成功的查询翻成失败，
+        // 比不报还糟
+        stubNoEtag();
+        const hook = vi.fn(() => {
+          throw new Error('sink is down');
+        });
+
+        await expect(withHook(hook).sendJson(READ_SPEC, 'fetchMetadata', 'Recipe')).resolves.toEqual({
+          body: '{"offset":0}'
+        });
+        expect(hook).toHaveBeenCalledTimes(1);
+      });
+
+      it('不参与条件缓存的操作不触发 —— 它们本来就不做条件请求', async () => {
+        stubNoEtag();
+        const hook = vi.fn();
+        await withHook(hook).sendJson(READ_SPEC, 'create', 'Recipe');
+
+        expect(hook).not.toHaveBeenCalled();
+      });
+
+      it('clearConditionalCache() 后同一个 key 重新报一次', async () => {
+        // 换后端配置重连（`disconnect()` → `connect()`）后收不到新信号，等于把
+        // 「这次配对了没有」这个问题永久封在上一段连接里
+        stubNoEtag();
+        const hook = vi.fn();
+        const transport = withHook(hook);
+
+        await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+        transport.clearConditionalCache();
+        await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+
+        expect(hook).toHaveBeenCalledTimes(2);
+      });
     });
 
     /**

@@ -404,6 +404,72 @@ describe('conditionalRequests 开关接线（AC#28）', () => {
   });
 });
 
+/**
+ * US-215：诊断回调从 `HttpAdapterOptions` 到 transport 的接线。
+ *
+ * @remarks
+ * 机制本身由 `transport.spec.ts` 冻结，这里只管两件在适配器层才看得见的事：
+ * 回调确实被递到了 transport（否则配了也永远不响），以及**开关关着时它不响**——
+ * 后者不是靠 transport 内部再判一次，而是靠 `#createTransport()` 里那个三元
+ * 根本不构造 `conditional`，回调随之无处可去。
+ */
+describe('ETag 诊断回调接线（US-215）', () => {
+  /** 恒 200 且不带 ETag：读不到 ETag 的两种成因在客户端侧就是这个样子 */
+  const stubNoEtag = (rows: unknown[]): ReturnType<typeof vi.fn> => {
+    const mock = vi.fn(() => Promise.resolve(new Response(JSON.stringify(rows), { status: 200 })));
+    vi.stubGlobal('fetch', mock);
+    return mock;
+  };
+
+  it('开着条件请求时，读不到 ETag 触发一次回调，载荷点名实体', async () => {
+    stubNoEtag([meta('a')]);
+    const onEtagUnreadable = vi.fn();
+    const adapter = createAdapter({ conditionalRequests: true, onEtagUnreadable });
+
+    await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+
+    expect(onEtagUnreadable).toHaveBeenCalledTimes(1);
+    expect(onEtagUnreadable.mock.calls[0][0]).toMatchObject({
+      operation: 'fetchMetadata',
+      entityName: 'HttpRecipe',
+      url: 'https://api.example.com/metadata'
+    });
+  });
+
+  it('AC#4 关着条件请求时配了回调也不触发 —— 关着的开关不该产生噪音', async () => {
+    stubNoEtag([meta('a')]);
+    const onEtagUnreadable = vi.fn();
+    const adapter = createAdapter({ conditionalRequests: false, onEtagUnreadable });
+
+    await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+    await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+
+    expect(onEtagUnreadable).not.toHaveBeenCalled();
+  });
+
+  it('默认（不写 conditionalRequests）同样不触发', async () => {
+    stubNoEtag([meta('a')]);
+    const onEtagUnreadable = vi.fn();
+
+    await firstValueFrom(createAdapter({ onEtagUnreadable }).fetchMetadata('HttpRecipe', ALL));
+
+    expect(onEtagUnreadable).not.toHaveBeenCalled();
+  });
+
+  it('reconnect 后同一查询重新报一次：换了后端配置才有得知的机会', async () => {
+    stubNoEtag([meta('a')]);
+    const onEtagUnreadable = vi.fn();
+    const adapter = createAdapter({ conditionalRequests: true, onEtagUnreadable });
+
+    await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+    await adapter.disconnect();
+    await adapter.connect();
+    await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+
+    expect(onEtagUnreadable).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('version（AC#24）', () => {
   it('未配 onVersion 时抛 unsupported，不回落到包版本号', async () => {
     // 回落等于拿适配器版本冒充后端版本，与 sqlite / pglite / supabase 三家口径全部不一致

@@ -119,7 +119,7 @@ export const fetchAllMetadataPages = async (
       );
     }
     const pageCtx: FetchMetadataContext = { ...ctx, offset, limit: config.pageSize, pageToken };
-    const body = await transport.sendJson(handler.request(pageCtx), 'fetchMetadata');
+    const body = await transport.sendJson(handler.request(pageCtx), 'fetchMetadata', ctx.entityName);
     const parsed = normalizePage(ctx.entityName, handler.parse(body, pageCtx));
     if (shape && parsed.shape !== shape) {
       throw new HttpPaginationError(

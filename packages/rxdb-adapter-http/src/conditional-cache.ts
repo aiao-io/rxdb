@@ -91,6 +91,8 @@ export const requestFingerprint = (method: string, url: string, body?: string): 
 export class ConditionalRequestCache {
   readonly #entries = new Map<string, ConditionalCacheEntry>();
   readonly #inFlight = new Map<string, Promise<unknown>>();
+  /** 已经报过「读不到 ETag」的指纹（US-215 AC#5 的去重表） */
+  readonly #etagUnreadable = new Set<string>();
 
   /** 当前条目数 */
   get size(): number {
@@ -147,9 +149,44 @@ export class ConditionalRequestCache {
     }
   }
 
-  /** 丢弃单个条目：远端停发 ETag 时用，留着会拿一个再也换不到 304 的令牌去问 */
+  /**
+   * 丢弃单个条目：远端停发 ETag 时用，留着会拿一个再也换不到 304 的令牌去问。
+   *
+   * @remarks
+   * **不碰 {@link markEtagUnreadable} 的记录。** 读不到 ETag 的那一支每次都调本方法，
+   * 记录若跟着没了，「一个 key 只报一次」当场退化成「每次查询都报一次」。
+   */
   delete(key: string): void {
     this.#entries.delete(key);
+  }
+
+  /**
+   * 记下这个指纹已经报过一次「读不到 ETag」，并回答**本次是不是第一次**（US-215 AC#5）。
+   *
+   * @remarks
+   * 去重表和缓存同生命周期：翻页时每页一个指纹，一次全表刷新会连报几十条同义警告，
+   * 而它们指向的是同一件事——这个后端没把 ETag 交到客户端手上。
+   *
+   * 同样**有界**，上限与条目共用 `maxEntries`。无界的 `Set` 会随「读不到 ETag 的不同
+   * URL 数」单调增长，正是 `conditionalCacheSize` 存在的理由。逐出的代价是那个 key
+   * 之后会再报一次——有界的噪音好过无界的内存。
+   *
+   * @param key - {@link requestFingerprint} 的产出
+   * @returns 第一次记录返回 `true`，之后一律 `false`
+   */
+  markEtagUnreadable(key: string): boolean {
+    if (this.#etagUnreadable.has(key)) {
+      return false;
+    }
+    this.#etagUnreadable.add(key);
+    // 逐出规则与 set() 同构：Set 的迭代顺序即插入顺序，队头就是最早记录的那个
+    for (const oldest of this.#etagUnreadable) {
+      if (this.#etagUnreadable.size <= this.maxEntries) {
+        break;
+      }
+      this.#etagUnreadable.delete(oldest);
+    }
+    return true;
   }
 
   /**
@@ -159,9 +196,13 @@ export class ConditionalRequestCache {
    * `disconnect()` 时调用（AC#28）。in-flight 记录**不清**：那些 Promise 已经有调用方在
    * 等，抹掉映射只会让紧随其后的同指纹请求再发一次，去重白做——它们会各自被
    * `disconnectSignal` 中止，那是 transport 的事。
+   *
+   * 诊断去重表**要清**（US-215）：一次断开重连之间，后端的 CORS 配置完全可能被改过，
+   * 而记录留着就意味着「这次配对了没有」被永久封在上一段连接里。
    */
   clear(): void {
     this.#entries.clear();
+    this.#etagUnreadable.clear();
   }
 
   /**

@@ -245,6 +245,50 @@ export interface HttpHandlers {
  */
 export type HttpAuthHook = () => Record<string, string> | Promise<Record<string, string>>;
 
+/**
+ * 「条件请求开着，却读不到 `ETag`」这一刻的**事实**（US-215）。
+ *
+ * @remarks
+ * 字段全是观测值，没有结论：客户端**分不清**读不到 `ETag` 的两种成因——远端根本没发，
+ * 或远端发了而跨源响应没把它列进 `Access-Control-Expose-Headers`——二者在
+ * `response.headers.get('etag') === null` 上完全重合。替调用方猜一个，在猜错的那一半
+ * 情况下会把人送去改一个本来就对的服务端。
+ */
+export interface HttpEtagUnreadableReport {
+  /** 触发的操作名；参与条件缓存的只有 `fetchMetadata` / `findByIds` 两个 */
+  operation: string;
+  /**
+   * 实体名。
+   *
+   * @remarks
+   * 可选只是因为 transport 的 `sendJson` 对所有操作共用一个签名，而 `version` 这类
+   * 操作没有实体。**实际触发本回调的两个操作都由实体驱动，所以这里恒有值。**
+   */
+  entityName?: string;
+  /** 发出该请求的绝对 URL */
+  url: string;
+  /**
+   * `Response.type` 原样透出，**不作判定**。
+   *
+   * @remarks
+   * 浏览器里跨源响应是 `'cors'`、同源是 `'basic'`，可作线索。Node（undici）下手工构造的
+   * `Response` 恒为 `'default'`，所以这是**线索而非判据**——判断留给拿得到部署拓扑的调用方。
+   */
+  responseType: ResponseType;
+  /** 现成的说明文案：两种成因都点到，且不选边 */
+  message: string;
+}
+
+/**
+ * 诊断回调：条件请求开着却读不到 `ETag` 时被调用。
+ *
+ * @remarks
+ * **同步调用、返回值忽略、抛错被丢弃**（见 `HttpAdapterOptions.onEtagUnreadable`）。
+ * 想做异步上报的实现要自己 `catch`：本回调是包内唯一的输出通道，
+ * 它自己失败时没有第二条通道可以报告这次失败。
+ */
+export type HttpEtagUnreadableHook = (report: HttpEtagUnreadableReport) => void;
+
 /** 六个数值配置，全部可覆盖、全部有默认。 */
 export interface HttpNumericConfig {
   /** 单页条数，透传为 handler 的 `ctx.limit`。默认 `1000`（对标 `SUPABASE_PAGE_SIZE`） */
@@ -291,4 +335,38 @@ export interface HttpAdapterOptions extends Partial<HttpNumericConfig> {
    * token 轮换都全量失效，等于没有缓存），所以同一实例上直接换 token 会读到上一个身份的响应。
    */
   conditionalRequests?: boolean;
+  /**
+   * 条件请求开着、响应是 200、却读不到 `ETag` 时被调用（US-215）。
+   *
+   * @remarks
+   * 存在的理由：`conditionalRequests` 开启**前**远端认不认 `If-None-Match` 确实无从探测，
+   * 但开启**后**「一次都没生效」是适配器手上就有的铁证——一个 200 响应，条件请求开着，
+   * 却读不到 `ETag`。没有这个回调时它知道，只是没有嘴：请求照发、账单照付、缓存零命中，
+   * 而客户端侧一行日志都没有。
+   *
+   * 三条边界，缺一条这个回调就会变成新的麻烦：
+   *
+   * - **它不改数据路径。** 不配它时的行为与 US-215 之前逐字相同（丢弃该条目、正常返回）；
+   *   配了它也一样，回调只是多一次调用。
+   * - **它不臆断成因**，只给事实（见 {@link HttpEtagUnreadableReport}）。
+   * - **它按缓存 key 去重**，一个 key 只报一次；`disconnect()` 清缓存时一并清掉记录，
+   *   所以换了后端配置重连后会重新报。
+   *
+   * **回调抛出的错误被丢弃**——不是「有别的通道兜着」，是真的没地方去：此刻正在报告的
+   * 就是「本包没有输出通道」这件事本身。诊断通道不该成为新的故障源，所以宁可丢。
+   * 需要知道自己的上报失败了，请在回调内部自行处理。
+   *
+   * `conditionalRequests` 关着时**永不触发**：关着的开关不该产生噪音。
+   *
+   * @example
+   * ```ts
+   * new RxDBAdapterHttp(rxdb, {
+   *   baseUrl,
+   *   handlers,
+   *   conditionalRequests: true,
+   *   onEtagUnreadable: report => myLogger.warn(report.message, report)
+   * });
+   * ```
+   */
+  onEtagUnreadable?: HttpEtagUnreadableHook;
 }

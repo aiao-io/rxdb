@@ -2,7 +2,8 @@ import { RxDB, SyncType } from '@aiao/rxdb';
 import { createRestHandlers, RxDBAdapterHttp } from '@aiao/rxdb-adapter-http';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { checkOPFSAvailable } from '@aiao/utils';
-import { DEMO_TOKEN, ID_CHUNK_SIZE, PAGE_SIZE, resolveApiBaseUrl } from './demo-config';
+import { DEMO_TOKEN, ID_CHUNK_SIZE, PAGE_SIZE, resolveApiBaseUrl, resolveDiagnosticsEnabled } from './demo-config';
+import { recordEtagDiagnostic } from './etag-diagnostics';
 import { Recipe } from './recipe';
 import { buildWaSqliteOptions, isSharedWorkerSupported } from './wa-sqlite-options';
 
@@ -38,6 +39,7 @@ export default (): RxDB => {
   if (rxdb) return rxdb;
 
   const baseUrl = resolveApiBaseUrl(location.search);
+  const diagnostics = resolveDiagnosticsEnabled(location.search);
 
   rxdb = new RxDB({
     dbName: DB_NAME,
@@ -70,6 +72,9 @@ export default (): RxDB => {
           pageSize: PAGE_SIZE,
           idChunkSize: ID_CHUNK_SIZE,
           conditionalRequests: true,
+          // 只在 `?diagnostics=1` 下装：适配器**默认**对「读不到 ETag」保持沉默，
+          // 而 e2e 里有一条用例守着那个默认。开关让两种行为在同一个构建产物上都能演示。
+          onEtagUnreadable: diagnostics ? recordEtagDiagnostic : undefined,
           // 固定假 token。后端只校验它存在，没有任何真实身份认证——
           // 这是本 demo 明确划在范围外的一件事。
           auth: () => ({ authorization: `Bearer ${DEMO_TOKEN}` })
