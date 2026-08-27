@@ -557,8 +557,8 @@ export class RxDB {
     }
 
     // 引导链全程是 await，断连可以插进任何一个缝里。纪元在同步段取快照，之后每个 await
-    // 边界比对一次；比对失败就地中止，不做任何清理——连接是 disconnect() 关的，它正等着
-    // 这条链停手（见 #settle_pending_connect）。这条链自己关会和那边撞成两次 disconnect()。
+    // 边界比对一次；比对失败就地中止，且**不做任何清理**——连接一律由 disconnect() 按
+    // #adapter_map 关闭（见 #invalidate_connect）。这条链自己再关一遍就是两次 disconnect()。
     const epoch = this.#connect_epochs.get(adapterName) ?? 0;
 
     // 先入缓存再启动：插件 install 可能同步回调 connect()，必须命中同一条 Promise。
@@ -824,7 +824,8 @@ export class RxDB {
    * @throws 快照与当前纪元不符时抛出
    *
    * @remarks
-   * 只抛错，不做清理：连接由 {@link RxDB.disconnect} 关闭，它正等着这条链停手。
+   * 只抛错，不做清理：连接由 {@link RxDB.disconnect} 按 `#adapter_map` 统一关闭，
+   * 这条链再关一遍就是两次 `disconnect()`。
    */
   #assert_connect_alive(adapterName: string, epoch: number): void {
     if ((this.#connect_epochs.get(adapterName) ?? 0) === epoch) return;
