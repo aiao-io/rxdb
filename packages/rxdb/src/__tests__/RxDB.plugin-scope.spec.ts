@@ -692,7 +692,9 @@ describe('停机窗口与跨纪元迟到任务', () => {
     // 只判 #shutting_down 的话这里会补装一遍——装进 #ensure_connection_scope() 顺手新建、
     // 而 init() 从没走过的纪元，那时 entityManager / 网关都已经拆掉了
     openRemote?.();
-    await connecting;
+    // 停机已经作废了这条链（连接纪元），它在下一个 await 边界就中止，连 #await_plugin_installs
+    // 都走不到——比「走到了但什么都没装」更早一层。停机之后返回一个连上的适配器本身就是错的。
+    await expect(connecting).rejects.toThrow(/aborted/);
     await tick();
 
     expect(scopes).toHaveLength(1);
@@ -738,7 +740,9 @@ describe('停机窗口与跨纪元迟到任务', () => {
 
     // 旧纪元的安装现在才失败：它的回收只该碰自己那一个作用域
     failFirstInstall?.(new Error('stale install boom'));
-    await expect(connecting).rejects.toThrow('stale install boom');
+    // connect() 报的是中止而不是这个安装错误：disconnectAll() 那一刻它就被作废了，
+    // 中止发生在 #await_plugin_installs 之前，所以这个错误只走调度器的回收路径
+    await expect(connecting).rejects.toThrow(/aborted/);
     await tick();
 
     await database.disconnectAll();

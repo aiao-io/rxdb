@@ -207,7 +207,7 @@ INVEST 检查清单:
 | `getEntries()` 只读**本实例**清单的快照树 | 多一个公开方法与一份 TSDoc                                                                      | ✅ **推荐** |
 | 进程级注册表（`WeakMap` / 全局 `Set`）    | 单例、SSR 多实例串扰、测试间状态泄漏——Out of Scope 已否                                         | ❌          |
 
-后两行是**两件事**，不要因为都能画出一棵树就合并看待。依据来自 cordis（下述路径均相对 `/Users/jimmy/Documents/aiao/cordis`）：它把 `{ label, children }`
+后两行是**两件事**，不要因为都能画出一棵树就合并看待。依据来自 cordis（下述路径均相对 `../../../../cordis`）：它把 `{ label, children }`
 挂在 `effect()` **返回的那个 disposer 函数自己**身上（`packages/core/src/fiber.ts:296` 的
 `EffectMeta` + `symbols.effect`），`getEffects()` 只遍历**本 fiber 自己**的清单把这些 meta 读出来。
 整棵树是「每个作用域各存各的一段」拼出来的，进程里没有任何一处登记过「现在存在哪些作用域」。

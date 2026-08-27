@@ -55,6 +55,6 @@
     "@aiao/utils": "workspace:*",
     "rxjs": "^7.8.2",
     "type-fest": "^5.8.0",
-    "uuid": "^14.0.1"
+    "uuid": "^14.0.2"
   }
 }
