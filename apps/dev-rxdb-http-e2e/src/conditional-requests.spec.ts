@@ -133,7 +133,7 @@ test('AC#8（US-215）配上诊断回调后，同一个静默症状变成一条�
   const count = await rows.count();
   await page.getByTestId('refetch').click();
   await expectRowCount(page, SEED_ROW_COUNT);
-  expect(await rows.count(), '同一个查询重复触发时不该再报一次').toBe(count);
+  await expect(rows, '同一个查询重复触发时不该再报一次').toHaveCount(count);
 });
 
 test('AC#11 暴露 ETag 后第二次查询回 304，客户端沿用上一份结果而非空集', async ({ page, request }) => {
