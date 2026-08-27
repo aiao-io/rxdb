@@ -71,11 +71,7 @@ export const requiredQueryCacheColumns = (metadata: EntityMetadata): ReadonlyMap
     // 字面量 `default` 只对多对一豁免：DDL 的 DEFAULT 子句嵌在 `kind === MANY_TO_ONE` 里，
     // 一对一列建出来只有 `NOT NULL`。跟着放行就是让「过了校验的行」在 INSERT 时被 SQLite 拒掉
     const relationDefault = (relation as { default?: unknown }).default;
-    if (
-      relation.kind === RelationKind.MANY_TO_ONE &&
-      relationDefault !== undefined &&
-      !isFunction(relationDefault)
-    ) {
+    if (relation.kind === RelationKind.MANY_TO_ONE && relationDefault !== undefined && !isFunction(relationDefault)) {
       continue;
     }
     required.set(relation.name, relation.columnName);

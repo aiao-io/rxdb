@@ -541,6 +541,10 @@ importers:
 
   apps/dev-rxdb-electron-e2e: {}
 
+  apps/dev-rxdb-http-e2e: {}
+
+  apps/dev-rxdb-http-server: {}
+
   apps/dev-rxdb-react:
     dependencies:
       '@aiao/code-editor-react':

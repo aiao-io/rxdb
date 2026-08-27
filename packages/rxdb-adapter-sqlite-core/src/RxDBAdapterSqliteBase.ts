@@ -5,12 +5,12 @@ import {
   getEntityMutations,
   getRxDBSystemVersionState,
   isCurrentRxDBSystemVersion,
+  RelationKind,
   RxDB,
   RXDB_CHANGE_CODEC_WATERMARK,
   RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
   RXDB_SYSTEM_SCHEMA_WATERMARK,
   RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
-  RelationKind,
   RxDBAdapterLocalBase,
   RxDBBranch,
   RxDBChange,
@@ -705,9 +705,9 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
           // metadata 查不到时一列都不滤：那条路径上调用方传的就是物理表名与物理列名，
           // 没有可对照的元数据，「过滤」只剩下猜（与表名回退同一口径）。
           const dataColumns =
-            metadata ? Object.keys(data[0] as object).filter(column => columnNames.has(column)) : (
-              Object.keys(data[0] as object)
-            );
+            metadata ?
+              Object.keys(data[0] as object).filter(column => columnNames.has(column))
+            : Object.keys(data[0] as object);
           const placeholderGroup = `(${new Array(dataColumns.length).fill('?').join(', ')})`;
           const columns = dataColumns.map(column => columnNames.get(column) ?? column);
           const columnList = columns.map(quote_sql_identifier).join(', ');
