@@ -148,7 +148,7 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 
 ## 设计依据：从 Cordis 迁移了什么
 
-对照 `/Users/jimmy/Documents/aiao/cordis` 的 `Fiber`、`EventsService`、`Service.check`、反射通知与
+对照 `../../../cordis` 的 `Fiber`、`EventsService`、`Service.check`、反射通知与
 `registry.ts` / `utils.ts`，迁移的不是 Cordis 的 `Context`、Proxy 或完整状态枚举，而是五条可验证的机制：
 
 | 机制                                                                   | 落点                                                                             |
