@@ -1,9 +1,27 @@
-import { RxDB } from '@aiao/rxdb';
+import { REMOTE_ENTITY_INVALIDATED_EVENT, RxDB } from '@aiao/rxdb';
+import type { RxDBAdapterHttp } from '@aiao/rxdb-adapter-http';
 import { useFind } from '@aiao/rxdb-angular';
 import { JsonPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, OnInit, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  ElementRef,
+  inject,
+  OnInit,
+  signal,
+  viewChildren
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { resolveApiBaseUrl, resolveDiagnosticsEnabled } from './demo-config';
+import {
+  changeFeedStats,
+  clearChangeFeedStats,
+  onChangeFeedStats,
+  type ChangeFeedStats
+} from './change-feed-diagnostics';
+import { resolveApiBaseUrl, resolveChangeFeedEnabled, resolveDiagnosticsEnabled } from './demo-config';
 import {
   clearDatabase,
   clearRequestLog,
@@ -31,6 +49,23 @@ const emptyDraft = (): { title: string; status: string; price: string; tag: stri
   tag: ''
 });
 
+/** 主面板上的三个视图。取值同时是 DOM 里 `tab-*` / `tabpanel-*` 的后缀。 */
+type MainTab = 'recipe' | 'traffic' | 'etag';
+
+/**
+ * 方向键在页签之间怎么走。
+ *
+ * @remarks
+ * 左右**环形**移动而不是撞到两端停住：三个页签排成一行，「最后一个再往右」除了
+ * 回到第一个没有别的合理去处，停住只会让人以为键盘压根没生效。
+ */
+const TAB_KEY_MOVES: Record<string, ((index: number, count: number) => number) | undefined> = {
+  ArrowLeft: (index, count) => (index - 1 + count) % count,
+  ArrowRight: (index, count) => (index + 1) % count,
+  End: (index, count) => count - 1,
+  Home: () => 0
+};
+
 @Component({
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -41,6 +76,25 @@ const emptyDraft = (): { title: string; status: string; price: string; tag: stri
 export class App implements OnInit {
   readonly #rxdb = inject(RxDB);
   readonly #destroyRef = inject(DestroyRef);
+
+  /**
+   * HTTP 适配器实例，`ngOnInit` 里解析出来，是通知开关唯一的落点。
+   *
+   * @remarks
+   * 走 `rxdb.getAdapter('http')` 而不是从 `setup_rxdb_http.ts` 导出一个模块级单例：
+   * 那个文件已经有一份 `rxdb` 单例了，再加一份 adapter 单例，两者的生命周期迟早分叉。
+   * `getAdapter` 自带实例缓存，问多少次都是同一个。
+   */
+  #httpAdapter: RxDBAdapterHttp | undefined;
+
+  /**
+   * 三个页签按钮。方向键换了页签之后，焦点得跟过去。
+   *
+   * @remarks
+   * 这里用 TS 的 `private` 而不是全文其余地方的 `#`：Angular 的信号查询拒绝落在
+   * ES 私有字段上（编译期报错，不是运行时才发现）。
+   */
+  private readonly tabButtons = viewChildren<ElementRef<HTMLButtonElement>>('tabButton');
 
   /** 后端地址。`?api=` 可覆盖，默认 `http://127.0.0.1:4301/v1`。 */
   readonly baseUrl = resolveApiBaseUrl(typeof location === 'undefined' ? '' : location.search);
@@ -59,6 +113,20 @@ export class App implements OnInit {
   readonly tagOptions = ['sale', 'new', 'classic'] as const;
   /** `=` 算子的候选值。与后端种子的 `STATUSES` 一致。 */
   readonly statusOptions = ['published', 'draft', 'archived'] as const;
+
+  // ---- 主面板页签 -----------------------------------------------------------
+
+  /** 页签顺序。只有方向键需要它——三个按钮本身是逐个写在模板里的。 */
+  readonly mainTabs = ['recipe', 'traffic', 'etag'] as const satisfies readonly MainTab[];
+
+  /**
+   * 当前选中的页签。
+   *
+   * @remarks
+   * 默认停在 `recipe`：那是唯一一个「不看也知道自己要看什么」的视图，
+   * 另外两个是出了状况才去翻的。
+   */
+  readonly $tab = signal<MainTab>('recipe');
 
   // ---- 分页 -----------------------------------------------------------------
 
@@ -164,6 +232,40 @@ export class App implements OnInit {
    */
   readonly $networkDown = computed(() => this.$traffic().at(-1)?.status === 0);
 
+  // ---- 变更通知面板（US-023 AC#24）------------------------------------------
+
+  /**
+   * 通知通道此刻开着没有。
+   *
+   * @remarks
+   * 初值取自 `?changefeed=`（见 `demo-config.ts`：**默认开**），但它只是初值——
+   * 面板上的 checkbox 之后可以随时翻，不刷页。真正的状态在适配器那边
+   * （`RxDBAdapterHttp.changeFeedEnabled`），这个 signal 只是它给模板用的镜像，
+   * 每次翻转都从适配器回读，不自己算。
+   */
+  readonly $changeFeedOn = signal(resolveChangeFeedEnabled(typeof location === 'undefined' ? '' : location.search));
+
+  readonly $changeFeedStats = signal<ChangeFeedStats>(changeFeedStats());
+
+  /**
+   * 通道触发过几次重跑。
+   *
+   * @remarks
+   * 数的是 core 派发的 `REMOTE_ENTITY_INVALIDATED`，不是「收到几条通知」减「抑制几条」——
+   * 那个差值只在实体名认得出来时才等于重跑次数，而认不出的实体名是静默丢弃的（D9）。
+   * 面板要能把「通知来了但名字对不上」这种配错显示出来：收到 5 条、抑制 0 条、重跑 0 次。
+   */
+  readonly $invalidations = signal(0);
+
+  /**
+   * 通道开着期间打出去了几次 `fetchMetadata`。
+   *
+   * @remarks
+   * 从流量面板派生，不另设计数器：这一栏要回答的是「重跑真的落到网线上了吗」，
+   * 而唯一有资格回答的就是网线本身。
+   */
+  readonly $metadataRequests = computed(() => this.$traffic().filter(entry => entry.path.includes('/metadata')).length);
+
   /** 列表当前是不是靠离线缓存撑住的。 */
   readonly $servingFromCache = computed(() => this.$networkDown() && this.recipes.value().length > 0);
 
@@ -196,11 +298,72 @@ export class App implements OnInit {
     const unsubscribeDiagnostics = onEtagDiagnostic(entries => this.$etagDiagnostics.set(entries));
     this.#destroyRef.onDestroy(unsubscribeDiagnostics);
 
+    const unsubscribeChangeFeed = onChangeFeedStats(stats => this.$changeFeedStats.set(stats));
+    this.#destroyRef.onDestroy(unsubscribeChangeFeed);
+
+    // 无条件挂：关掉通道时这个事件本来就一条都不会来，而「挂了监听但一条没来」
+    // 正是 AC#23 那条对照用例要看到的现象。
+    const countInvalidation = (): void => this.$invalidations.update(count => count + 1);
+    this.#rxdb.addEventListener(REMOTE_ENTITY_INVALIDATED_EVENT, countInvalidation);
+    this.#destroyRef.onDestroy(() =>
+      this.#rxdb.removeEventListener(REMOTE_ENTITY_INVALIDATED_EVENT, countInvalidation)
+    );
+
+    void this.#resolveHttpAdapter();
     void this.loadBackendVersion();
     void this.refreshControl();
   }
 
   // ---- 动作 -----------------------------------------------------------------
+
+  /** 切到某个页签。 */
+  selectTab(tab: MainTab): void {
+    this.$tab.set(tab);
+  }
+
+  /**
+   * 方向键在页签之间移动，并把焦点带过去。
+   *
+   * @param event - 页签按钮上的 `keydown`
+   * @param index - 这个页签在 {@link mainTabs} 里的下标
+   *
+   * @remarks
+   * 走的是 APG 的**自动激活**：移到哪个页签就显示哪个，不必再按一次回车。
+   * 三个视图本来就都在 DOM 里（切换只改 `hidden`），切过去不花钱，
+   * 让键盘用户多按一次才看得见内容纯属白收费。
+   */
+  moveTab(event: KeyboardEvent, index: number): void {
+    const move = TAB_KEY_MOVES[event.key];
+    if (move === undefined) return;
+    // 左右键在按钮上没有默认行为，Home / End 有：不拦住的话页面会顺手滚到头尾。
+    event.preventDefault();
+    const next = move(index, this.mainTabs.length);
+    this.$tab.set(this.mainTabs[next]);
+    this.tabButtons()[next]?.nativeElement.focus();
+  }
+
+  /**
+   * 开关变更通知通道，**不刷页**。
+   *
+   * @param on - checkbox 的新状态
+   *
+   * @remarks
+   * 翻完从适配器回读而不是直接把 `on` 写进 signal：这两个值本该一致，而「本该一致」
+   * 正是它们分叉的方式。回读的话，万一哪天 `startChangeFeed()` 拒绝了这次请求
+   * （比如适配器已经断开），面板上的勾会自己弹回去，而不是显示一个不存在的状态。
+   */
+  toggleChangeFeed(on: boolean): void {
+    const adapter = this.#httpAdapter;
+    if (!adapter) {
+      return;
+    }
+    if (on) {
+      adapter.startChangeFeed();
+    } else {
+      adapter.stopChangeFeed();
+    }
+    this.$changeFeedOn.set(adapter.changeFeedEnabled);
+  }
 
   /** 把草稿筛选条件下发。 */
   applyFilter(): void {
@@ -368,9 +531,16 @@ export class App implements OnInit {
     await this.#control(() => setForcedStatus(this.baseUrl, status));
   }
 
-  /** 把后端数据重置回种子。 */
+  /**
+   * 把后端数据重置回种子。
+   *
+   * @remarks
+   * 与 {@link clearBackend} 一样带上本机 `clientId`：这两个按钮改的是**共享后端里的行**，
+   * 后端因此会广播一条变更通知（别的客户端靠它跟上）。带上 `clientId` 是为了让本页
+   * 认出那条回声并丢掉——下面那两行已经在重查了，再被通知推着查一次纯属白跑。
+   */
   async resetBackend(): Promise<void> {
-    await this.#control(() => resetDatabase(this.baseUrl).then(() => readControlState(this.baseUrl)));
+    await this.#control(() => resetDatabase(this.baseUrl, this.#clientId()).then(() => readControlState(this.baseUrl)));
     this.$requestedPage.set(0);
     this.applyFilter();
   }
@@ -386,9 +556,11 @@ export class App implements OnInit {
    *
    * 重查用 `refetch()` 而不是 `applyFilter()`：后者会顺手把用户还没点「应用」的草稿一起下发，
    * 让人分不清列表空掉是因为清了数据还是因为多了一条筛选。
+   *
+   * `clientId` 的用途见 {@link resetBackend}。
    */
   async clearBackend(): Promise<void> {
-    await this.#control(() => clearDatabase(this.baseUrl).then(() => readControlState(this.baseUrl)));
+    await this.#control(() => clearDatabase(this.baseUrl, this.#clientId()).then(() => readControlState(this.baseUrl)));
     this.$requestedPage.set(0);
     this.refetch();
   }
@@ -405,6 +577,8 @@ export class App implements OnInit {
     clearTraffic();
     this.$traffic.set(trafficEntries());
     clearEtagDiagnostics();
+    clearChangeFeedStats();
+    this.$invalidations.set(0);
     await this.#control(() => clearRequestLog(this.baseUrl).then(() => readControlState(this.baseUrl)));
   }
 
@@ -414,6 +588,34 @@ export class App implements OnInit {
   }
 
   // ---- 私有 -----------------------------------------------------------------
+
+  /**
+   * 本机 `clientId`，用来标记「这次数据变更是我发起的」。
+   *
+   * @returns `RxDB.init()` 之前是 `undefined`——那时也没人点得到那两个按钮
+   *
+   * @remarks
+   * 不为「万一没有」编一个假值：缺了这个头，后端只是广播一条不含 `clientId` 的通知，
+   * 本页顶多多查一次。编一个假的反而会让别的页面把这次变更误判成自己发起的而丢弃它。
+   */
+  #clientId(): string | undefined {
+    const clientId = this.#rxdb.context.clientId;
+    return typeof clientId === 'string' ? clientId : undefined;
+  }
+
+  /**
+   * 取到 HTTP 适配器，并把面板上的勾对齐到它的真实状态。
+   *
+   * @remarks
+   * 初值本来就是从同一个查询串算出来的，这次回读看起来多余——但它守的是
+   * `setup_rxdb_http.ts` 里那句 `stopChangeFeed()` 与本组件各算一遍的风险：
+   * 两处哪天分叉了，面板会当场显示错的那个，而不是安静地骗人。
+   */
+  async #resolveHttpAdapter(): Promise<void> {
+    const adapter = await this.#rxdb.getAdapter('http');
+    this.#httpAdapter = adapter;
+    this.$changeFeedOn.set(adapter.changeFeedEnabled);
+  }
 
   /** 问本地 wa-sqlite 要一次总行数。零网络，离线照样准。 */
   async #refreshTotal(where: RecipeRuleGroup): Promise<void> {

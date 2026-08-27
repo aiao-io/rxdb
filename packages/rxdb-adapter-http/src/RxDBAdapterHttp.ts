@@ -93,6 +93,25 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
   /** 变更通知通道；未配 `changeFeed` 时**不存在**（US-023 AC#12：缺席即关闭） */
   readonly #changeFeed: HttpChangeFeed | undefined;
 
+  /**
+   * 通道该不该跑的**意图**位，与「通道存不存在」是两件事。
+   *
+   * @remarks
+   * 配了就默认为 `true`——`changeFeed` 这个配置项本身就是「我要收通知」的表达，
+   * 让它配完还得再调一次 `startChangeFeed()` 才生效，是给每个接入方加一道无意义的手续。
+   */
+  #changeFeedEnabled: boolean;
+
+  /**
+   * `connect()` 是否成功走完过一遍，且此后没有 `disconnect()`。
+   *
+   * @remarks
+   * 与 `#disconnected.signal.aborted` 是两个问题：那一位答的是「有没有被断开过」，
+   * 刚 `new` 出来的适配器上它是 `false`——于是「从未连接」和「连接正常」在它眼里一模一样。
+   * 开长连接必须分得清这两者，见 {@link RxDBAdapterHttp.startChangeFeed}。
+   */
+  #connected = false;
+
   readonly name = ADAPTER_NAME;
 
   /** 已校验的数值配置，构造期定型 */
@@ -121,6 +140,25 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
   declare delete?: (entityName: string, ids: string | string[]) => Observable<void>;
 
   /**
+   * 变更通知通道此刻**要不要**跑，由 {@link RxDBAdapterHttp.startChangeFeed} /
+   * {@link RxDBAdapterHttp.stopChangeFeed} 翻转。
+   *
+   * @returns 未配 `changeFeed` 时恒为 `false`
+   *
+   * @remarks
+   * 这是**意图**，不是连接状态：通道正在退避重连、或所在运行时压根没有 `EventSource` 时，
+   * 它照样是 `true`。想知道连接本身的死活，看 `changeFeed.onUnavailable` 的诊断上报——
+   * `EventSource` 不暴露状态码，一个从这里返回的布尔值答不了「为什么没连上」，
+   * 只会把两种问题混成一种。
+   *
+   * （夹在写 duck 与构造函数之间是 lint `member-ordering` 的要求：访问器排在字段之后、
+   * 构造函数之前。语义上它属于下面那组运行时开关。）
+   */
+  get changeFeedEnabled(): boolean {
+    return this.#changeFeedEnabled;
+  }
+
+  /**
    * @param rxdb - 宿主 RxDB 实例
    * @param options - baseUrl、handlers 与可选的数值/认证配置
    * @throws HttpConfigError baseUrl 为空、缺必选 handler，或任一数值配置不是 finite 正整数
@@ -137,6 +175,7 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
     this.#disconnected = new AbortController();
     this.#transport = this.#createTransport();
     this.#changeFeed = this.#createChangeFeed();
+    this.#changeFeedEnabled = this.#changeFeed !== undefined;
     this.#installWriteDucks();
   }
 
@@ -155,6 +194,10 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
    * **配了 `changeFeed` 才有长连接**，且它建在最后：校验没过的 `connect()` 不该留下一条
    * 活着的通知连接。通道自身连不上不影响本方法的返回——它按 US-023 AC#17 只诊断不抛错。
    *
+   * 通道走的是{@link RxDBAdapterHttp.changeFeedEnabled}这个**意图位**而不是「配了就开」：
+   * 调用方手动 {@link RxDBAdapterHttp.stopChangeFeed} 掉的通道，不该被下一次重连
+   * （切后端、纪元交替都会走到这里）悄悄复活。
+   *
    * @returns 适配器自身
    * @throws HttpUnsupportedWireTypeError 已注册实体声明了 bigint / binary 字段
    */
@@ -167,8 +210,11 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
     // 校验通过才重新武装：失败的 connect 不该把上一次的断开状态悄悄解除
     this.#disconnected = new AbortController();
     this.#transport = this.#createTransport();
+    this.#connected = true;
     // start() 自带「先收口上一条」，重复 connect() 因此不会留下第二条连接
-    this.#changeFeed?.start();
+    if (this.#changeFeedEnabled) {
+      this.#changeFeed?.start();
+    }
     return this;
   }
 
@@ -186,12 +232,68 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
    *
    * 变更通知通道一并停掉，**含待执行的重连**：只关连接不取消定时器的话，退避窗口里的那次
    * 重连会在断开之后把连接重新建起来。
+   *
+   * 但{@link RxDBAdapterHttp.changeFeedEnabled}**不动**：断开是生命周期事件，不是调用方
+   * 改了主意。把它一并清掉的话，一次重连就会把用户「我要收通知」的选择吃掉。
    */
   async disconnect(): Promise<void> {
+    this.#connected = false;
     this.#disconnected.abort();
     this.#transport.clearConditionalCache();
     this.#changeFeed?.stop();
     return Promise.resolve();
+  }
+
+  // ============================================
+  // 变更通知的运行时开关
+  // ============================================
+
+  /**
+   * 接通变更通知通道。
+   *
+   * @remarks
+   * 幂等：已经开着时只是重建连接（`start()` 自带「先收口上一条」），不会留下第二条。
+   * 连上之后照常触发一次全量失效（D7）——「从这一刻起我能收到变更了」对首次连接与
+   * 重新接通是同一句话。
+   *
+   * **连接状态先判**，与 {@link RxDBAdapterHttp.version} 同一条口径：在一个已经
+   * `disconnect()` 的适配器上开出一条活着的 SSE，是实打实的资源泄漏。
+   *
+   * 这里判的是 `#connected` 而不是 `#assertConnected` 那一位。**「从未 `connect()`」
+   * 与「已 `disconnect()`」在这个方法上是同一件事**：两种情况下都还没有一次成功的
+   * `connect()`，也就意味着 `#assertConfiguredEntitiesSupported()` 还没跑过——
+   * 用 `new` + `startChangeFeed()` 就能绕开线格式校验、在一个连不连得上都不知道的
+   * 适配器上开出真连接，还会对着一份尚未确认可用的实体表做 D7 全量失效。
+   *
+   * @throws HttpDisconnectedError 尚未 `connect()`，或已 `disconnect()`
+   * @throws HttpUnsupportedOperationError 未配置 `changeFeed`
+   */
+  startChangeFeed(): void {
+    if (!this.#connected) {
+      throw new HttpDisconnectedError('startChangeFeed');
+    }
+    const feed = this.#requireChangeFeed('startChangeFeed');
+    this.#changeFeedEnabled = true;
+    feed.start();
+  }
+
+  /**
+   * 断开变更通知通道，**含待执行的重连**。
+   *
+   * @remarks
+   * 断开期间远端的变更没有人会补发，重新
+   * {@link RxDBAdapterHttp.startChangeFeed} 时的那次全量失效才是补课的地方。
+   *
+   * 与 {@link RxDBAdapterHttp.startChangeFeed} 不同，本方法**不判断开状态**：已经
+   * `disconnect()` 的适配器上通道本来就停着，两条路通向同一个终点，为此抛错只会让
+   * 「关掉开关」这种收尾动作平白需要一个 try。幂等的停止不是兜底——它没有掩盖任何差异。
+   *
+   * @throws HttpUnsupportedOperationError 未配置 `changeFeed`
+   */
+  stopChangeFeed(): void {
+    const feed = this.#requireChangeFeed('stopChangeFeed');
+    this.#changeFeedEnabled = false;
+    feed.stop();
   }
 
   /**
@@ -465,6 +567,29 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
     if (this.#disconnected.signal.aborted) {
       throw new HttpDisconnectedError(operation);
     }
+  }
+
+  /**
+   * 取通道实例，未配 `changeFeed` 时抛错。
+   *
+   * @remarks
+   * 与 `version()` 未配 `onVersion` 同一条判例：**配置缺失要吵**。静默 no-op 会让
+   * 「开关点了没反应」变成一个没有任何线索的现象，而这两个方法的调用点通常正是
+   * 一个用户看得见的开关。
+   *
+   * 这里也**不**走 `create` / `update` / `delete` 那种「缺席即不支持」的 `declare` 模式：
+   * 那套是为 core 的 `if (!this.remoteAdapter.create)` 特性探测服务的，通道没有探测方，
+   * 把方法做成可选只会让每个调用点多写一个 `?.`，而那个 `?.` 恰好就是静默 no-op。
+   */
+  #requireChangeFeed(operation: string): HttpChangeFeed {
+    const feed = this.#changeFeed;
+    if (!feed) {
+      throw new HttpUnsupportedOperationError(
+        operation,
+        'no "changeFeed" is configured; there is no channel to switch on or off'
+      );
+    }
+    return feed;
   }
 
   /** 按 handler 的有无挂载三个可选写 duck（AC#4 的特性探测语义） */

@@ -110,14 +110,26 @@ const stateSnapshot = (state: DemoState): Record<string, unknown> => ({
  *
  * @param segments - `__control` 之后的路径片段。
  * @param actions - 由 server 注入的数据操作，见 {@link ControlActions}。
+ * @param announceDataChanged - 数据变更后广播一条通知，由 server 注入。
  * @returns 是否命中了某条控制路由。
+ *
+ * @remarks
+ * `reset` 与 `clear` 改的是**库里的行**，因此和协议写端点一样要广播（US-023）。
+ * 判据是「数据变没变」，不是「这条路径属不属于协议」——按后者判，清空数据之后别的
+ * 客户端会毫无察觉地留着一份已经不存在的列表，正是本仓库要消灭的那类现象。
+ * 其余控制路由只动 {@link DemoState} 或日志，广播它们只会让每个订阅者白跑一趟远端。
+ *
+ * 广播用回调注入而不是让本模块自己去碰订阅者：本文件是 demo 设施，
+ * 广播端点是协议的一部分，两者不混在一个文件里。顺序与协议端点一致——
+ * 先改数据、再广播、最后回执。
  */
 export const handleControlRequest = async (
   request: IncomingMessage,
   response: ServerResponse,
   segments: string[],
   state: DemoState,
-  actions: ControlActions
+  actions: ControlActions,
+  announceDataChanged: () => void
 ): Promise<boolean> => {
   const route = `${request.method ?? 'GET'} ${segments.join('/')}`;
 
@@ -135,11 +147,15 @@ export const handleControlRequest = async (
     return true;
   }
   if (route === 'POST reset') {
-    sendJson(response, 200, { rows: actions.reseed() });
+    const rows = actions.reseed();
+    announceDataChanged();
+    sendJson(response, 200, { rows });
     return true;
   }
   if (route === 'POST clear') {
-    sendJson(response, 200, { deleted: actions.clear() });
+    const deleted = actions.clear();
+    announceDataChanged();
+    sendJson(response, 200, { deleted });
     return true;
   }
 

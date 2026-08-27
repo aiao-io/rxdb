@@ -337,6 +337,45 @@ export interface HttpChangeFeedUnavailableReport {
 export type HttpChangeFeedUnavailableHook = (report: HttpChangeFeedUnavailableReport) => void;
 
 /**
+ * 收到一条**读得懂**的变更通知时的事实（US-023 AC#24）。
+ *
+ * @remarks
+ * 这个出口存在的唯一理由是**自回声抑制发生在包内**（D6）：被抑制的那条通知不会走到
+ * `RxDB.invalidateRemoteEntity`，包外从 core 的事件流上看它和「压根没收到」一模一样。
+ * 想从「后端广播条数 − core 失效条数」倒推抑制数，会把断线期间丢掉的通知一并算进去。
+ *
+ * **报告结构上带不了行数据**（D8）：字段是固定的这几个，载荷里多出来的键一律不透出。
+ * 通知的语义是「某个实体变了」，不是「变成了什么」——本地行只有 `#pull → upsertMany` 一条写入路径。
+ */
+export interface HttpChangeFeedNotificationReport {
+  /** 通知端点的绝对 URL */
+  url: string;
+  /** 通知里的实体名，原样透出（本客户端没注册的名字也会出现在这里，见 D9） */
+  entity: string;
+  /** 通知里的命名空间；载荷没带时为 `'public'` */
+  namespace: string;
+  /** 通知里的发起方 `clientId`；载荷没带时为 `undefined` */
+  clientId?: string;
+  /**
+   * 这条通知是否因为「发起方就是本机」而没有上报失效（D6）。
+   *
+   * @remarks
+   * `true` 时本包**没有**调用 `RxDB.invalidateRemoteEntity`——这不是错误，是本机刚写完、
+   * 本地已是最新，再查一次远端纯属白跑。
+   */
+  suppressed: boolean;
+}
+
+/**
+ * 诊断回调：收到一条读得懂的变更通知时被调用（无论是否被抑制）。
+ *
+ * @remarks
+ * **同步调用、返回值忽略、抛错被丢弃**，与 {@link HttpChangeFeedUnavailableHook} 同一条口径：
+ * 诊断口失败绝不能带塌失效上报。
+ */
+export type HttpChangeFeedNotificationHook = (report: HttpChangeFeedNotificationReport) => void;
+
+/**
  * 变更通知通道（SSE）的配置（US-023 D5）。
  *
  * @remarks
@@ -365,6 +404,14 @@ export interface HttpChangeFeedOptions {
    * 「连不上」的唯一出口就是这个回调。抛出的错误被丢弃，理由见 {@link HttpChangeFeedUnavailableHook}。
    */
   onUnavailable?: HttpChangeFeedUnavailableHook;
+  /**
+   * 收到一条读得懂的通知时的诊断回调（含被抑制的自回声）。
+   *
+   * @remarks
+   * 与 {@link HttpChangeFeedOptions.onUnavailable} 对称：一个报「通道没了」，一个报「通道来货了」。
+   * 不配它时通道行为完全不变。理由见 {@link HttpChangeFeedNotificationReport}。
+   */
+  onNotification?: HttpChangeFeedNotificationHook;
 }
 
 /** 六个数值配置，全部可覆盖、全部有默认。 */

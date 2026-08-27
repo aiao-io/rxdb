@@ -14,6 +14,7 @@
  * | `content-type`  | 安全列表只放行三种 MIME，`application/json` 不在其中        |
  * | `authorization` | 从来不是安全列表请求头                                      |
  * | `if-none-match` | 条件请求头，同样不在安全列表                                |
+ * | `x-client-id`   | demo 自定义头，自定义头一律不在安全列表（US-023 D6）        |
  *
  * 少任何一个，对应端点就在预检阶段被浏览器挡下，请求根本发不出去。
  */
@@ -22,7 +23,9 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 const ALLOWED_METHODS = 'GET, HEAD, POST, PATCH, OPTIONS';
 
-const ALLOWED_HEADERS = 'content-type, authorization, if-none-match';
+import { CLIENT_ID_HEADER } from './config.ts';
+
+const ALLOWED_HEADERS = `content-type, authorization, if-none-match, ${CLIENT_ID_HEADER}`;
 
 /**
  * 预检缓存时长，刻意设为 0。
@@ -33,7 +36,19 @@ const ALLOWED_HEADERS = 'content-type, authorization, if-none-match';
  */
 const MAX_AGE = '0';
 
-/** 允许的来源。回显 `Origin` 而不是写死 `*`：真实后端就是这么做的，也方便看清是谁在请求。 */
+/**
+ * 允许的来源。回显 `Origin` 而不是写死 `*`：真实后端就是这么做的，也方便看清是谁在请求。
+ *
+ * @remarks
+ * **回显等于「谁都允许」，它在这里安全的唯一理由是本服务从不发 `Access-Control-Allow-Credentials`。**
+ * 没有那一行，浏览器就不会带上 cookie，跨源脚本拿到的是一个未认证会话——它读到的东西
+ * 自己直接请求也读得到，回显因此没有放大任何权限。本 demo 的鉴权走 `Authorization` 头，
+ * 而那个头得由脚本自己填，不会像 cookie 那样被浏览器自动附上。
+ *
+ * 反过来，一旦哪天补上 `Allow-Credentials: true`，这个函数当场变成「任意站点都能以
+ * 受害者身份读本 API」——`*` 会被浏览器拒收，回显却照单全收。真要支持凭据，来源必须
+ * 改成白名单相等匹配，就像 `rule-group-to-sql.ts` 对列名那样。
+ */
 const resolveAllowOrigin = (request: IncomingMessage): string => {
   const origin = request.headers.origin;
   return typeof origin === 'string' && origin !== '' ? origin : '*';

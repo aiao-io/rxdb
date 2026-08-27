@@ -261,7 +261,8 @@ new RxDBAdapterHttp(db, {
     withCredentials: true, // 跨源时带 cookie（EventSource 带不了 auth header）
     reconnectBaseDelayMs: 1000,
     reconnectMaxDelayMs: 30000,
-    onUnavailable: report => console.warn('[change feed]', report.reason, report.message)
+    onUnavailable: report => console.warn('[change feed]', report.reason, report.message),
+    onNotification: report => console.debug('[change feed]', report.entity, report.suppressed)
   }
 });
 ```
@@ -273,6 +274,7 @@ new RxDBAdapterHttp(db, {
 | `reconnectBaseDelayMs` | `1000`  | 指数退避起步延迟                              |
 | `reconnectMaxDelayMs`  | `30000` | 退避上限，必须 `>=` 起步值                    |
 | `onUnavailable`        | （无）  | 通道不可用时的诊断回调，见下                  |
+| `onNotification`       | （无）  | 每收到一条**读得懂**的通知回调一次，见下      |
 
 **整个 `changeFeed` 不写就等于关闭**，不发任何连接、不产生任何行为差异。参数嵌在 `changeFeed`
 里而不是平铺，是为了让「配了 `onUnavailable` 却没开通道」这种永不触发的死配置在类型上就不合法。
@@ -289,6 +291,25 @@ new RxDBAdapterHttp(db, {
 两边都没有 `clientId` 时**不**算自回声——那是「服务端没报」，不是「就是我」。要让它生效，需要
 你把 `rxdb.context.clientId` 通过 `auth` 注入写请求，并由后端回显进广播。
 
+**「抑制了几条」只有 `onNotification` 数得出来。** 抑制发生在包内：被丢弃的通知不会往 core 上报
+失效，从外面的事件流上看，它和「压根没收到」一模一样。想用「后端广播了几条 − core 失效了几条」
+去倒推，会把断线期间根本没收到的那些一并算成抑制——把一次真实故障显示成一次正常抑制，正好
+盖住你要查的东西。这个回调在**丢弃之前**触发，`suppressed` 标出这一条会不会走到失效：
+
+```typescript
+interface HttpChangeFeedNotificationReport {
+  url: string; // 通道地址
+  entity: string; // 通知里的实体名
+  namespace: string; // 解析后的命名空间
+  clientId?: string; // 服务端回显的发起方，缺省表示服务端没报
+  suppressed: boolean; // true = 判定为自回声，本条不会触发失效
+}
+```
+
+字段集就这五个，**结构上带不了行数据**——这个出口不构成绕开「通知只带实体名」的后门。
+读不懂的事件不走这里（它们去 `onUnavailable` 的 `malformed-message`）；连接成功后的那轮全量
+失效也不走这里，那不是收到的通知。回调抛错会被吞掉：诊断口坏了不该连带把失效上报带塌。
+
 :::warning `EventSource` 带不了自定义 header
 `auth` hook 对这条连接**不生效**（对普通请求照常生效）。跨源鉴权只能走 cookie
 （`withCredentials: true`）或把票据拼进 `url`。
@@ -299,14 +320,37 @@ new RxDBAdapterHttp(db, {
 ——那条降级看的是**查询请求**失败，而一条断掉的通知连接完全可能只是后端没实现这个端点。唯一
 的出口是 `onUnavailable`：
 
-| `reason`              | 触发                                    | 之后                                         |
-| :-------------------- | :-------------------------------------- | :------------------------------------------- |
-| `unsupported-runtime` | 运行时没有全局 `EventSource`（如 Node） | **不重试**——重试再多次也变不出一个构造器     |
-| `connection-error`    | 连接失败 / 断开                         | 按指数退避重连，`retryInMs` 是下次尝试的延迟 |
-| `malformed-message`   | 事件体不是合法 JSON、或缺 `entity`      | 连接保持，仅丢弃这一条                       |
+| `reason`              | 触发                                    | 之后                                                                                                                                   |
+| :-------------------- | :-------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------- |
+| `unsupported-runtime` | 运行时没有全局 `EventSource`（如 Node） | **不重试**——重试再多次也变不出一个构造器                                                                                               |
+| `connection-error`    | 连接失败 / 断开                         | `retryInMs` 有值时按它退避重连；为 `undefined` 表示 `readyState === 0`——浏览器自己的重连正在路上，此时再建一条就是两条连接收同一份广播 |
+| `malformed-message`   | 事件体不是合法 JSON、或缺 `entity`      | 连接保持，仅丢弃这一条                                                                                                                 |
 
 回调只报**事实**不下结论：`EventSource` 不暴露状态码，「端点没实现」「鉴权失败」「真断网」在
 客户端侧完全重合，替你猜一个会在猜错的那一半把人送去改一个本来就对的服务端。
+
+### 运行时启停
+
+配了 `changeFeed` 就默认接通，无需再调一次启动。要在运行期开关（例如给用户一个「实时同步」勾选框）：
+
+```typescript
+const adapter = await rxdb.getAdapter('http');
+
+adapter.stopChangeFeed(); // 关闭连接，并取消待执行的退避重连
+adapter.startChangeFeed(); // 重新接通；连上即触发一轮全量失效
+adapter.changeFeedEnabled; // boolean
+```
+
+**`changeFeedEnabled` 是「要不要跑」的意图，不是「此刻通没通」。** 网线断了它仍是 `true`，
+重连由适配器自己退避重试。要看连接的实际死活，用 `onUnavailable`。
+
+**没配 `changeFeed` 时两个方法都抛 `HttpUnsupportedOperationError`**，而不是静默什么都不做——
+与 `version()` 未配 `onVersion` 同一条口径。没有通道可开关时调它，是配置漏了，不是一次空操作。
+
+**`disconnect()` 不改这一位。** 断开是生命周期事件，不是调用方改了主意，所以随后的 `connect()`
+会按你最后一次的选择恢复：手动 `stopChangeFeed()` 掉的通道，不会被一次重连悄悄复活。
+已 `disconnect()` 的适配器上调 `startChangeFeed()` 抛 `HttpDisconnectedError`（在一个断开的适配器上
+留一条活着的 SSE 是真 bug）；`stopChangeFeed()` 则不判连接状态，两条路径终点相同，幂等停止不是兜底。
 
 ## 错误与离线降级
 
@@ -325,12 +369,12 @@ new RxDBAdapterHttp(db, {
 
 ## 生命周期
 
-| 成员                | 行为                                                                                                                  |
-| :------------------ | :-------------------------------------------------------------------------------------------------------------------- |
-| `connect()`         | **不发探测请求**；扫描已注册实体，遇 bigint / binary 字段即 fail-fast；配了 `changeFeed` 才建长连接，且在校验通过之后 |
-| `disconnect()`      | 取消进行中的请求（走 error 通道）、关闭通知连接并停掉重连；**已发出的写请求不回滚**——HTTP 没有事务                    |
-| `version()`         | 返回**远端服务端**版本，需配 `onVersion`；未配则抛错，不回落到本包版本号                                              |
-| `isTableExisted(E)` | `2xx` → `true`，`404` → `false`，其余状态码与传输失败 → 抛错                                                          |
+| 成员                | 行为                                                                                                                                                  |
+| :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connect()`         | **不发探测请求**；扫描已注册实体，遇 bigint / binary 字段即 fail-fast；配了 `changeFeed` 且未被 `stopChangeFeed()` 关掉时才建长连接，且在校验通过之后 |
+| `disconnect()`      | 取消进行中的请求（走 error 通道）、关闭通知连接并停掉重连（**不**改 `changeFeedEnabled`）；**已发出的写请求不回滚**——HTTP 没有事务                    |
+| `version()`         | 返回**远端服务端**版本，需配 `onVersion`；未配则抛错，不回落到本包版本号                                                                              |
+| `isTableExisted(E)` | `2xx` → `true`，`404` → `false`，其余状态码与传输失败 → 抛错                                                                                          |
 
 ### 不支持的字段类型
 

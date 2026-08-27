@@ -129,6 +129,61 @@ input[type='checkbox'] {
   cursor: pointer;
 }
 
+/*
+ * 滑块开关。页面上只有顶栏那一格用它：那一格表达的是「通道通着没有」这个**状态**，
+ * 不是「勾选了这一项」这个选择，而方块勾读起来永远是后者。
+ *
+ * 滑块画在 input **自己**身上（`appearance: none` + `::before` 当滑钮），而不是拿一层
+ * 视觉替身盖住一个藏起来的 input：后者会让点击落在替身上，input 从此是个收不到点击的
+ * 遮挡目标——真实用户照样点得到（label 会转发），但任何按坐标点的工具（e2e）都会被挡住，
+ * 报出来的现象是「开关没反应」，查起来完全看不出跟样式有关。
+ *
+ * 选择器写全 `input[type='checkbox']` 是为了压过上面那条同名规则，以及下面
+ * `@media (pointer: coarse)` 里把方块勾撑成 1.15rem 见方的那一条——滑块不该被撑成正方形。
+ */
+.feed-switch {
+  font-size: 0.8rem;
+  white-space: nowrap;
+
+  input[type='checkbox'] {
+    position: relative;
+    appearance: none;
+    width: 2.1rem;
+    height: 1.15rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--input);
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 2px;
+      width: 0.85rem;
+      height: 0.85rem;
+      border-radius: 50%;
+      background: var(--muted);
+      transform: translateY(-50%);
+      transition:
+        transform 0.15s,
+        background 0.15s;
+    }
+
+    &:checked {
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+
+    &:checked::before {
+      background: var(--accent-fg);
+      transform: translate(0.9rem, -50%);
+    }
+  }
+}
+
 button {
   display: inline-flex;
   align-items: center;

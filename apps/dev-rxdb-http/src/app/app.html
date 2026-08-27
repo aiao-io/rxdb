@@ -1,5 +1,25 @@
 <header class="topbar">
-  <h1>RxDB HTTP 适配器 demo</h1>
+  <div class="topbar-head">
+    <h1>RxDB HTTP 适配器 demo</h1>
+    <!--
+      通道开关放这儿，是因为它是**全页唯一一个随时会想翻一下的开关**：
+      两个窗口对照着看的时候，一次实验要翻两三回。压在页面最底下的面板里时，
+      翻一次要滚到底、翻回来再滚上来，而顶栏本来就是常驻的。
+
+      样式上是滑块而不是方块勾：这一格表达的是「通道通着没有」这个状态，
+      不是「勾选了这一项」这个选择。语义仍是 checkbox，只是补一个 `role="switch"`。
+    -->
+    <label class="feed-switch inline">
+      <input
+        [checked]="$changeFeedOn()"
+        (change)="toggleChangeFeed($any($event.target).checked)"
+        data-testid="feed-toggle"
+        role="switch"
+        type="checkbox"
+      />
+      <span>变更通知</span>
+    </label>
+  </div>
   <dl class="facts">
     <div>
       <dt>后端地址</dt>
@@ -240,93 +260,288 @@
     }
   </section>
 
-  <section class="panel panel-list" [attr.aria-busy]="recipes.isLoading()" aria-labelledby="list-heading">
-    <h2 id="list-heading">
-      Recipe
-      <span class="count" data-testid="row-count">{{ $cachedTotal() }} 行</span>
-      @if (recipes.isLoading()) {
-        <span class="count" data-testid="loading">加载中…</span>
-      }
-    </h2>
+  <!--
+    列表、协议流量、ETag 诊断共用同一块版面区。
 
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th class="grow">title</th>
-            <th>status</th>
-            <th>price</th>
-            <th>tag</th>
-            <th>updatedAt</th>
-            <th>id</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody data-testid="recipe-rows">
-          @for (recipe of recipes.value(); track recipe.id) {
-            <tr [attr.data-row-id]="recipe.id" [class.editing]="$editingId() === recipe.id">
-              <td class="grow">{{ recipe.title }}</td>
-              <td>{{ recipe.status }}</td>
-              <td>{{ recipe.price }}</td>
-              <td>{{ recipe.tag ?? '—' }}</td>
-              <td class="mono">{{ recipe.updatedAt.toISOString() }}</td>
-              <td class="mono id" [title]="recipe.id">{{ recipe.id }}</td>
-              <td class="actions">
-                <button [attr.aria-label]="'改 ' + recipe.title" (click)="startEdit(recipe)" type="button">改</button>
-                <button class="danger" [attr.aria-label]="'删 ' + recipe.title" (click)="remove(recipe)" type="button">
-                  删
-                </button>
-              </td>
-            </tr>
-          } @empty {
-            <tr>
-              <td class="empty" colspan="7" data-testid="empty">没有匹配的行</td>
-            </tr>
-          }
-        </tbody>
-      </table>
+    从前那两块是列表**下面**的独立面板：页长可以切到 1000 行，列表自己封顶 62vh 之后
+    它们仍稳稳落在首屏之外，实测结果是没人翻到过——而这个 demo 存在的意义恰恰是那两块。
+
+    切走的视图用 `hidden` 留在 DOM 里，不用 `@if` 卸掉：流量与诊断是**累积**的记录，
+    卸掉再挂回来虽然读的还是同一份 signal，但期间的 `<details>` 展开态、表格滚动位置
+    会全丢；e2e 也是靠这两张表的行数判定协议行为的，卸掉就等于把判据藏起来。
+  -->
+  <section class="panel panel-main">
+    <div class="tabs" aria-label="数据与诊断视图" role="tablist">
+      <button
+        class="tab"
+        id="tab-recipe"
+        #tabButton
+        [attr.aria-selected]="$tab() === 'recipe'"
+        [class.active]="$tab() === 'recipe'"
+        [tabIndex]="$tab() === 'recipe' ? 0 : -1"
+        (click)="selectTab('recipe')"
+        (keydown)="moveTab($event, 0)"
+        aria-controls="tabpanel-recipe"
+        data-testid="tab-recipe"
+        role="tab"
+        type="button"
+      >
+        Recipe
+        <span class="count" data-testid="row-count">{{ $cachedTotal() }} 行</span>
+        @if (recipes.isLoading()) {
+          <span class="count" data-testid="loading">加载中…</span>
+        }
+      </button>
+      <button
+        class="tab"
+        id="tab-traffic"
+        #tabButton
+        [attr.aria-selected]="$tab() === 'traffic'"
+        [class.active]="$tab() === 'traffic'"
+        [tabIndex]="$tab() === 'traffic' ? 0 : -1"
+        (click)="selectTab('traffic')"
+        (keydown)="moveTab($event, 1)"
+        aria-controls="tabpanel-traffic"
+        data-testid="tab-traffic"
+        role="tab"
+        type="button"
+      >
+        协议流量
+        <span class="count">{{ $traffic().length }} 条</span>
+      </button>
+      <button
+        class="tab"
+        id="tab-etag"
+        #tabButton
+        [attr.aria-selected]="$tab() === 'etag'"
+        [class.active]="$tab() === 'etag'"
+        [tabIndex]="$tab() === 'etag' ? 0 : -1"
+        (click)="selectTab('etag')"
+        (keydown)="moveTab($event, 2)"
+        aria-controls="tabpanel-etag"
+        data-testid="tab-etag"
+        role="tab"
+        type="button"
+      >
+        ETag 诊断
+        <!-- 没装回调时不报「0 条」：那个数字读起来像「查过了，没问题」，而实情是没在查。 -->
+        <span class="count">{{ diagnosticsEnabled ? $etagDiagnostics().length + ' 条' : '未启用' }}</span>
+      </button>
     </div>
 
-    <div class="actions pager">
-      <label class="page-size inline">
-        <span>每页</span>
-        <!--
+    <div
+      class="tabpanel tabpanel-recipe"
+      id="tabpanel-recipe"
+      [attr.aria-busy]="recipes.isLoading()"
+      [hidden]="$tab() !== 'recipe'"
+      aria-labelledby="tab-recipe"
+      role="tabpanel"
+    >
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th class="grow">title</th>
+              <th>status</th>
+              <th>price</th>
+              <th>tag</th>
+              <th>updatedAt</th>
+              <th>id</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody data-testid="recipe-rows">
+            @for (recipe of recipes.value(); track recipe.id) {
+              <tr [attr.data-row-id]="recipe.id" [class.editing]="$editingId() === recipe.id">
+                <td class="grow">{{ recipe.title }}</td>
+                <td>{{ recipe.status }}</td>
+                <td>{{ recipe.price }}</td>
+                <td>{{ recipe.tag ?? '—' }}</td>
+                <td class="mono">{{ recipe.updatedAt.toISOString() }}</td>
+                <td class="mono id" [title]="recipe.id">{{ recipe.id }}</td>
+                <td class="actions">
+                  <button [attr.aria-label]="'改 ' + recipe.title" (click)="startEdit(recipe)" type="button">改</button>
+                  <button
+                    class="danger"
+                    [attr.aria-label]="'删 ' + recipe.title"
+                    (click)="remove(recipe)"
+                    type="button"
+                  >
+                    删
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td class="empty" colspan="7" data-testid="empty">没有匹配的行</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="actions pager">
+        <label class="page-size inline">
+          <span>每页</span>
+          <!--
           选中态标在 option 上，不是 select 上：`[value]` 的更新跑在 `@for` 建出 option 之前，
           第一帧那会儿 select 里一个 option 都还没有，赋值落空、浏览器退回第一项——
           页长明明是 50，下拉框却显示 25。
         -->
-        <select (change)="setPageSize(+$any($event.target).value)" aria-label="每页行数" data-testid="page-size">
-          @for (option of pageSizeOptions; track option.value) {
-            <option [selected]="option.value === $pageSize()" [value]="option.value">{{ option.label }}</option>
-          }
-        </select>
-      </label>
-      <div class="nav">
-        <button [disabled]="$page() === 0" (click)="prevPage()" data-testid="prev-page" type="button">上一页</button>
-        <button [disabled]="$page() >= $pageCount() - 1" (click)="nextPage()" data-testid="next-page" type="button">
-          下一页
-        </button>
-        <span class="count" data-testid="page-info">
-          第 {{ $page() + 1 }} / {{ $pageCount() }} 页 · 本页 {{ recipes.value().length }} 行
-        </span>
+          <select (change)="setPageSize(+$any($event.target).value)" aria-label="每页行数" data-testid="page-size">
+            @for (option of pageSizeOptions; track option.value) {
+              <option [selected]="option.value === $pageSize()" [value]="option.value">{{ option.label }}</option>
+            }
+          </select>
+        </label>
+        <div class="nav">
+          <button [disabled]="$page() === 0" (click)="prevPage()" data-testid="prev-page" type="button">上一页</button>
+          <button [disabled]="$page() >= $pageCount() - 1" (click)="nextPage()" data-testid="next-page" type="button">
+            下一页
+          </button>
+          <span class="count" data-testid="page-info">
+            第 {{ $page() + 1 }} / {{ $pageCount() }} 页 · 本页 {{ recipes.value().length }} 行
+          </span>
+        </div>
       </div>
+      <p class="hint">
+        <code>limit</code>
+        /
+        <code>offset</code>
+        只下推
+        <strong>本地</strong>
+        读。同步的粒度是整个
+        <code>where</code>
+        （指纹里没有翻页参数），所以翻一页会把这个
+        <code>where</code>
+        整个重新同步一遍——「协议流量」页签上是 6 次
+        <code>fetchMetadata</code>
+        、0 次
+        <code>by-ids</code>
+        ：行都还是新鲜的，只是换了一段窗口来看。
+      </p>
     </div>
-    <p class="hint">
-      <code>limit</code>
-      /
-      <code>offset</code>
-      只下推
-      <strong>本地</strong>
-      读。同步的粒度是整个
-      <code>where</code>
-      （指纹里没有翻页参数），所以翻一页会把这个
-      <code>where</code>
-      整个重新同步一遍——流量面板上是 6 次
-      <code>fetchMetadata</code>
-      、0 次
-      <code>by-ids</code>
-      ：行都还是新鲜的，只是换了一段窗口来看。
-    </p>
+
+    <div
+      class="tabpanel tabpanel-traffic"
+      id="tabpanel-traffic"
+      [hidden]="$tab() !== 'traffic'"
+      aria-labelledby="tab-traffic"
+      role="tabpanel"
+    >
+      <p class="hint">
+        浏览器视角，按发生顺序。
+        <code>__control/*</code>
+        的请求
+        <strong>不进</strong>
+        这张表——它们不是协议的一部分。
+      </p>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>方法</th>
+              <th class="grow">路径</th>
+              <th>状态码</th>
+              <th>耗时</th>
+              <th>304</th>
+            </tr>
+          </thead>
+          <tbody data-testid="traffic-rows">
+            @for (entry of $traffic(); track entry.seq) {
+              <tr [attr.data-status]="entry.status">
+                <td>{{ entry.seq }}</td>
+                <td>{{ entry.method }}</td>
+                <td class="mono grow">{{ entry.path }}</td>
+                <td>
+                  <span class="tag">{{ entry.status === 0 ? '传输失败' : entry.status }}</span>
+                </td>
+                <td>{{ entry.durationMs }} ms</td>
+                <td>{{ entry.notModified ? '是' : '否' }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td class="empty" colspan="6" data-testid="traffic-empty">还没有协议请求</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <details>
+        <summary>
+          后端视角的日志（含浏览器发的
+          <code>OPTIONS</code>
+          预检——那个在 fetch 上看不见）
+        </summary>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>方法</th>
+                <th class="grow">路径</th>
+                <th>状态码</th>
+                <th>耗时</th>
+                <th>304</th>
+              </tr>
+            </thead>
+            <tbody data-testid="server-log-rows">
+              @for (entry of $serverLog(); track $index) {
+                <tr [attr.data-status]="entry.status">
+                  <td>{{ entry.method }}</td>
+                  <td class="mono grow">{{ entry.path }}</td>
+                  <td>
+                    <span class="tag">{{ entry.status }}</span>
+                  </td>
+                  <td>{{ entry.durationMs }} ms</td>
+                  <td>{{ entry.notModified ? '是' : '否' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+
+    <div
+      class="tabpanel tabpanel-etag"
+      id="tabpanel-etag"
+      [hidden]="$tab() !== 'etag'"
+      aria-labelledby="tab-etag"
+      role="tabpanel"
+    >
+      @if (diagnosticsEnabled) {
+        <p class="hint">
+          适配器视角。已装上
+          <code>onEtagUnreadable</code>
+          。条件请求开着却读不到
+          <code>ETag</code>
+          时，下面会出现一条——这在「协议流量」里是看不出来的，那样的 200 与正常的 200 逐字相同。
+        </p>
+        <ul class="diagnostics" data-testid="etag-diagnostic-rows">
+          @for (entry of $etagDiagnostics(); track entry.seq) {
+            <li [attr.data-operation]="entry.operation">
+              <strong>{{ entry.entityName }} / {{ entry.operation }}</strong>
+              <span class="mono">（Response.type={{ entry.responseType }}）</span>
+              <p>{{ entry.message }}</p>
+            </li>
+          } @empty {
+            <li class="empty" data-testid="etag-diagnostic-empty">还没有诊断信号</li>
+          }
+        </ul>
+      } @else {
+        <p class="hint" data-testid="etag-diagnostic-off">
+          未装诊断回调，这是
+          <strong>默认行为</strong>
+          ：读不到
+          <code>ETag</code>
+          时适配器不打印任何东西，条件请求就此静默失效。带
+          <code>?diagnostics=1</code>
+          打开本页可以看到信号。
+        </p>
+      }
+    </div>
   </section>
 
   <section class="panel panel-control" aria-labelledby="control-heading">
@@ -336,7 +551,7 @@
       <code>__control/*</code>
       ，
       <strong>不是协议的一部分</strong>
-      ，也不会出现在下面的流量面板里。
+      ，也不会出现在「协议流量」页签里。
     </p>
     <div class="switches">
       <label class="inline">
@@ -379,109 +594,53 @@
     </div>
   </section>
 
-  <section class="panel panel-traffic" aria-labelledby="traffic-heading">
-    <h2 id="traffic-heading">
-      协议流量（浏览器视角）
-      <span class="count">{{ $traffic().length }} 条</span>
+  <section class="panel panel-changefeed" aria-labelledby="change-feed-heading">
+    <h2 id="change-feed-heading">
+      变更通知（US-023）
+      <!-- 开关在顶栏，这里只报状态：一个功能两个开关，早晚有一天显示的是另一个的状态。 -->
+      <span class="badge">{{ $changeFeedOn() ? '已接通' : '已断开' }}</span>
     </h2>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>方法</th>
-            <th class="grow">路径</th>
-            <th>状态码</th>
-            <th>耗时</th>
-            <th>304</th>
-          </tr>
-        </thead>
-        <tbody data-testid="traffic-rows">
-          @for (entry of $traffic(); track entry.seq) {
-            <tr [attr.data-status]="entry.status">
-              <td>{{ entry.seq }}</td>
-              <td>{{ entry.method }}</td>
-              <td class="mono grow">{{ entry.path }}</td>
-              <td>
-                <span class="tag">{{ entry.status === 0 ? '传输失败' : entry.status }}</span>
-              </td>
-              <td>{{ entry.durationMs }} ms</td>
-              <td>{{ entry.notModified ? '是' : '否' }}</td>
-            </tr>
-          } @empty {
-            <tr>
-              <td class="empty" colspan="6" data-testid="traffic-empty">还没有协议请求</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-
-    <details>
-      <summary>
-        后端视角的日志（含浏览器发的
-        <code>OPTIONS</code>
-        预检——那个在 fetch 上看不见）
-      </summary>
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>方法</th>
-              <th class="grow">路径</th>
-              <th>状态码</th>
-              <th>耗时</th>
-              <th>304</th>
-            </tr>
-          </thead>
-          <tbody data-testid="server-log-rows">
-            @for (entry of $serverLog(); track $index) {
-              <tr [attr.data-status]="entry.status">
-                <td>{{ entry.method }}</td>
-                <td class="mono grow">{{ entry.path }}</td>
-                <td>
-                  <span class="tag">{{ entry.status }}</span>
-                </td>
-                <td>{{ entry.durationMs }} ms</td>
-                <td>{{ entry.notModified ? '是' : '否' }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    </details>
-  </section>
-
-  <section class="panel panel-etag" aria-labelledby="etag-diagnostics-heading">
-    <h2 id="etag-diagnostics-heading">ETag 诊断（适配器视角）</h2>
-    @if (diagnosticsEnabled) {
+    @if ($changeFeedOn()) {
       <p class="hint">
-        已装上
-        <code>onEtagUnreadable</code>
-        。条件请求开着却读不到
-        <code>ETag</code>
-        时，下面会出现一条——这在上面的流量面板里是看不出来的，那样的 200 与正常的 200 逐字相同。
-      </p>
-      <ul class="diagnostics" data-testid="etag-diagnostic-rows">
-        @for (entry of $etagDiagnostics(); track entry.seq) {
-          <li [attr.data-operation]="entry.operation">
-            <strong>{{ entry.entityName }} / {{ entry.operation }}</strong>
-            <span class="mono">（Response.type={{ entry.responseType }}）</span>
-            <p>{{ entry.message }}</p>
-          </li>
-        } @empty {
-          <li class="empty" data-testid="etag-diagnostic-empty">还没有诊断信号</li>
-        }
-      </ul>
-    } @else {
-      <p class="hint" data-testid="etag-diagnostic-off">
-        未装诊断回调，这是
+        已接上
+        <code>changeFeed</code>
+        通道，这是
         <strong>默认行为</strong>
-        ：读不到
-        <code>ETag</code>
-        时适配器不打印任何东西，条件请求就此静默失效。带
-        <code>?diagnostics=1</code>
-        打开本页可以看到信号。
+        。别的页面改了数据，后端会推一条只含实体名的通知过来（
+        <strong>不含行数据</strong>
+        ），本页据此重跑查询。本页自己改出来的那条通知会被当成回声丢掉。
+      </p>
+      <dl class="feed-counters">
+        <div>
+          <dt>收到通知</dt>
+          <dd data-testid="feed-received">{{ $changeFeedStats().received }}</dd>
+        </div>
+        <div>
+          <dt>抑制回声</dt>
+          <dd data-testid="feed-suppressed">{{ $changeFeedStats().suppressed }}</dd>
+        </div>
+        <div>
+          <dt>触发重跑</dt>
+          <dd data-testid="feed-invalidations">{{ $invalidations() }}</dd>
+        </div>
+        <div>
+          <dt>fetchMetadata</dt>
+          <dd data-testid="feed-metadata-requests">{{ $metadataRequests() }}</dd>
+        </div>
+      </dl>
+      @if ($changeFeedStats().unavailable > 0) {
+        <p class="hint" data-testid="feed-unavailable">
+          通道不可用 {{ $changeFeedStats().unavailable }} 次，最后一次：{{ $changeFeedStats().lastUnavailableMessage }}
+        </p>
+      }
+    } @else {
+      <p class="hint" data-testid="feed-off">
+        通道已断开。别的页面改了数据，本页在下一次自己发起查询之前不会知道——这正是 US-023
+        当初要修的症状，把顶栏上的「变更通知」拨回来即可当场对照，
+        <strong>不用刷页</strong>
+        。开页就想要这个状态的话，用
+        <code>?changefeed=0</code>
+        。
       </p>
     }
   </section>

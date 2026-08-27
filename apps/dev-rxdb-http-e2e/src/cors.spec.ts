@@ -88,11 +88,20 @@ test('AC#9 七个端点在跨源下全部可用（version / metadata / by-ids / 
   const created = page.locator('[data-row-id]').filter({ hasText: '跨源新建' });
   await expect(created).toHaveCount(1);
   await created.getByRole('button', { name: '改' }).click();
+  /*
+   * 填之前先等旧值到位。`draft-title` 绑的是单向的 `[ngModel]`，点「改」之后 Angular
+   * 才把这一行的现值写进 input，而 `fill()` 是「全选 + 插入」两步——Angular 那次写入
+   * 若落在两步之间，插入就从**替换**变成**追加**，存进去的是 `跨源新建跨源改名`。
+   * 断言用 `toHaveText` 而不是 `hasText`：后者是子串匹配，上面那个拼接产物照样能通过。
+   */
+  await expect(page.getByTestId('draft-title'), '表单要先装上这一行的现值').toHaveValue('跨源新建');
   await page.getByTestId('draft-title').fill('跨源改名');
+  await expect(page.getByTestId('draft-title'), '填完就该是新标题，追加上去的算失败').toHaveValue('跨源改名');
   await page.getByTestId('save-edit').click();
-  await expect(page.locator('[data-row-id]').filter({ hasText: '跨源改名' })).toHaveCount(1);
+  const renamed = page.locator('[data-row-id]').filter({ has: page.locator('td', { hasText: /^跨源改名$/ }) });
+  await expect(renamed).toHaveCount(1);
 
-  await page.locator('[data-row-id]').filter({ hasText: '跨源改名' }).getByRole('button', { name: '删' }).click();
+  await renamed.getByRole('button', { name: '删' }).click();
   await expectRowCount(page, SEED_ROW_COUNT);
   await expect(page.getByTestId('write-error')).toHaveCount(0);
 

@@ -323,4 +323,37 @@ describe('错误与开关', () => {
     const head = await fetch(`${baseUrl}/recipes`, { method: 'HEAD' });
     expect(head.status).toBe(200);
   });
+
+  /*
+   * 路径段解码**只做一次**。`dispatch` 已经对每个 segment 解过码，路由分支里再解一次，
+   * 会把「id 里有个字面 `%`」变成一次 `URIError` —— 而 `URIError` 走的是兜底那一支，
+   * 于是「这个 id 不存在」（404）被报成「后端炸了」（500）。
+   *
+   * `%25` 是 `encodeURIComponent('%')`：第一次解码得到 `%`，第二次解码时它是一个
+   * 残缺的转义序列。协议「通用约定」要求客户端 `encodeURIComponent` id，
+   * 这条路径因此是可以从外部走到的。
+   */
+  it('id 里含字面 % 时按 404 处理，不塌成 500——路径段只解一次码', async () => {
+    const response = await fetch(`${baseUrl}/recipes/${encodeURIComponent('%')}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ status: 'published' })
+    });
+
+    expect(response.status).toBe(404);
+  });
+
+  it('id 里含 / 时经编码后能定位到行——解码次数与客户端的编码次数对齐', async () => {
+    // 写端点不接受客户端指定 id，所以拿一个真实 id 反向验证：多解一次码的实现上，
+    // 任何含 `%` 的合法 id 都会在这里塌掉
+    const created = await postJson<Record<string, unknown>>('recipes', { title: 'Ramen', status: 'draft' });
+    const response = await fetch(`${baseUrl}/recipes/${encodeURIComponent(String(created['id']))}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ status: 'published' })
+    });
+
+    expect(response.status).toBe(200);
+    expect(((await response.json()) as Record<string, unknown>)['status']).toBe('published');
+  });
 });

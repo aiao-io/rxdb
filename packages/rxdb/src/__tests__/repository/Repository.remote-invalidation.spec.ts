@@ -10,28 +10,28 @@
  */
 import { BehaviorSubject, delay, Observable, of, Subscription } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import type { IEntity } from '../../entity/entity.interface.js';
-import { SyncType } from '../../entity/metadata-options.interface.js';
+import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import type { QueryCacheEntityMetadata } from '../../entity/metadata-options.interface.js';
+import { SyncType } from '../../entity/metadata-options.interface.js';
 import { RelationKind } from '../../entity/relation-types.interface.js';
-import { createQueryCachePrimary } from '../../repository/query-cache-primary.js';
 import type { QueryCachePrimaryLocalAdapter } from '../../repository/query-cache-primary.js';
+import { createQueryCachePrimary } from '../../repository/query-cache-primary.js';
 import {
   DEFAULT_QUERY_CACHE_SYNC_STALE_TIME,
-  QueryCacheSyncMemo,
-  queryCacheFingerprint
+  queryCacheFingerprint,
+  QueryCacheSyncMemo
 } from '../../repository/query-cache-sync-memo.js';
-import { QueryCacheRepository } from '../../repository/QueryCacheRepository.js';
+import type { RuleGroup } from '../../repository/query.interface.js';
 import type {
   QueryCacheLocalAdapter,
   QueryCacheLocalReader,
   QueryCacheRemoteAdapter
 } from '../../repository/QueryCacheRepository.js';
-import type { RuleGroup } from '../../repository/query.interface.js';
+import { QueryCacheRepository } from '../../repository/QueryCacheRepository.js';
 import { Repository } from '../../repository/Repository.js';
-import { REMOTE_ENTITY_INVALIDATED_EVENT, RemoteEntityInvalidatedEvent } from '../../rxdb-events.js';
 import type { RxDBEvent } from '../../rxdb-events.js';
+import { REMOTE_ENTITY_INVALIDATED_EVENT, RemoteEntityInvalidatedEvent } from '../../rxdb-events.js';
 import { RxDB } from '../../RxDB.js';
 import { METADATA, STATUS } from '../../rxdb.private.js';
 

@@ -195,8 +195,7 @@ export const deleteRecipes = (db: DatabaseSync, ids: unknown): number => {
  *
  * @returns 删掉的行数。已经空了就是 0，重复调用不报错。
  */
-export const deleteAllRecipes = (db: DatabaseSync): number =>
-  Number(db.prepare(`DELETE FROM recipes`).run().changes);
+export const deleteAllRecipes = (db: DatabaseSync): number => Number(db.prepare(`DELETE FROM recipes`).run().changes);
 
 /** 表是否存在，供 `HEAD :entity` 用。 */
 export const recipesTableExists = (db: DatabaseSync): boolean => {

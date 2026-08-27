@@ -62,6 +62,14 @@
         "kind": "type"
       },
       {
+        "name": "HttpChangeFeedNotificationHook",
+        "kind": "type"
+      },
+      {
+        "name": "HttpChangeFeedNotificationReport",
+        "kind": "type"
+      },
+      {
         "name": "HttpChangeFeedOptions",
         "kind": "type"
       },

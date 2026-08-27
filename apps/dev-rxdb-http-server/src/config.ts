@@ -20,6 +20,22 @@ export const BASE_PATH = '/v1';
 /** 实体 `Recipe` 的资源路径片段，与 `http-protocol.md` 示例同名。 */
 export const RECIPES_RESOURCE = 'recipes';
 
+/** 变更通知（SSE）端点的资源路径片段，与 `http-protocol.md`「变更通知（可选）」同名。 */
+export const CHANGES_RESOURCE = 'changes';
+
+/**
+ * 广播给订阅者的**客户端实体名**。
+ *
+ * @remarks
+ * 刻意与 {@link RECIPES_RESOURCE} 不同（`Recipe` vs `recipes`）：通知里的 `entity` 会被客户端
+ * 直接拿去调 `invalidateRemoteEntity(entity)`，那里比对的是 `@Entity({ name })`，
+ * 不是 URL 片段。写成资源路径的话每一条通知都会静默落空（D9：认不出的实体名不报错）。
+ */
+export const CLIENT_ENTITY_NAME = 'Recipe';
+
+/** 写入端点用来标记「谁改的」的请求头，回显进通知载荷供客户端抑制自回声（US-023 D6）。 */
+export const CLIENT_ID_HEADER = 'x-client-id';
+
 /**
  * 列名白名单。
  *

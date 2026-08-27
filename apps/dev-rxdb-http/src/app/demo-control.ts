@@ -11,7 +11,7 @@
  * 面板要展示的是协议流量，混进开关请求会让「一次列表刷新发了几个请求」这件事失真。
  */
 
-import { controlUrl } from './demo-config';
+import { CLIENT_ID_HEADER, controlUrl } from './demo-config';
 
 /** 后端当前状态。与后端 `stateSnapshot()` 的返回一一对应。 */
 export interface DemoControlState {
@@ -30,10 +30,10 @@ export interface DemoRequestLogEntry {
   readonly notModified: boolean;
 }
 
-const request = async <T>(baseUrl: string, path: string, body?: unknown): Promise<T> => {
+const request = async <T>(baseUrl: string, path: string, body?: unknown, clientId?: string): Promise<T> => {
   const response = await fetch(controlUrl(baseUrl, path), {
     method: body === undefined ? 'GET' : 'POST',
-    headers: body === undefined ? undefined : { 'content-type': 'application/json' },
+    headers: body === undefined ? undefined : { 'content-type': 'application/json', ...clientIdHeader(clientId) },
     body: body === undefined ? undefined : JSON.stringify(body)
   });
   if (!response.ok) {
@@ -53,8 +53,28 @@ export const readRequestLog = (baseUrl: string): Promise<readonly DemoRequestLog
 /** 清空后端日志。 */
 export const clearRequestLog = (baseUrl: string): Promise<unknown> => request(baseUrl, 'log/clear', {});
 
-/** 把数据库重置回种子状态（250 行，逐字节可复现）。 */
-export const resetDatabase = (baseUrl: string): Promise<unknown> => request(baseUrl, 'reset', {});
+/**
+ * 谁发起的这次数据变更。
+ *
+ * @param clientId - 本机 `rxdb.context.clientId`，没有就不带这个头
+ *
+ * @remarks
+ * 只有改数据的那两个端点用得上：后端会把它回显进广播，发起方收到自己的回声即丢弃（D6）。
+ *
+ * 这里**不**像写入路径那样再判一次通道开关。写入路径判它，是因为 AC#21 要求关掉通道时
+ * 协议流量逐字回到没有通道的样子；而 `__control/*` 压根不在协议里、也被流量面板滤掉，
+ * 这个头唯一的作用是让**发起方自己**认得出回声。通道关着时它不影响任何人。
+ */
+const clientIdHeader = (clientId?: string): Record<string, string> =>
+  clientId === undefined ? {} : { [CLIENT_ID_HEADER]: clientId };
+
+/**
+ * 把数据库重置回种子状态（250 行，逐字节可复现）。
+ *
+ * @param clientId - 见 {@link clientIdHeader}
+ */
+export const resetDatabase = (baseUrl: string, clientId?: string): Promise<unknown> =>
+  request(baseUrl, 'reset', {}, clientId);
 
 /**
  * 清空所有数据，但**保留表结构**。
@@ -64,8 +84,11 @@ export const resetDatabase = (baseUrl: string): Promise<unknown> => request(base
  * 重置删库文件重建，清空只删行。表还在，`HEAD :entity` 就继续回 200，客户端看到的是
  * 「这张表存在，只是一行都不匹配」——QueryCache 的孤儿清理要的正是这一种，
  * 它会把本地行缓存里那 250 行全部删掉。这是这个按钮真正想演示的东西。
+ *
+ * @param clientId - 见 {@link clientIdHeader}
  */
-export const clearDatabase = (baseUrl: string): Promise<unknown> => request(baseUrl, 'clear', {});
+export const clearDatabase = (baseUrl: string, clientId?: string): Promise<unknown> =>
+  request(baseUrl, 'clear', {}, clientId);
 
 /** 离线开关：打开后后端直接掐断连接，浏览器侧表现为传输失败。 */
 export const setOffline = (baseUrl: string, offline: boolean): Promise<DemoControlState> =>

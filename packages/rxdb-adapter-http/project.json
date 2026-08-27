@@ -8,10 +8,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "packages/rxdb-adapter-http",
-        "commands": [
-          "tsc --build tsconfig.lib.json --emitDeclarationOnly",
-          "tsc -p tsconfig.spec.json --noEmit"
-        ],
+        "commands": ["tsc --build tsconfig.lib.json --emitDeclarationOnly", "tsc -p tsconfig.spec.json --noEmit"],
         "parallel": false
       }
     },

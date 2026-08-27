@@ -19,7 +19,17 @@ import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { createServer as createHttpServer } from 'node:http';
 import type { DatabaseSync } from 'node:sqlite';
 
-import { BACKEND_VERSION, BASE_PATH, RECIPES_RESOURCE, SEED_ROW_COUNT } from './config.ts';
+import { broadcastChange, openChangeFeed, readClientId } from './change-feed.ts';
+import type { ChangeSubscribers } from './change-subscribers.ts';
+import { createChangeSubscribers } from './change-subscribers.ts';
+import {
+  BACKEND_VERSION,
+  BASE_PATH,
+  CHANGES_RESOURCE,
+  CLIENT_ENTITY_NAME,
+  RECIPES_RESOURCE,
+  SEED_ROW_COUNT
+} from './config.ts';
 import type { ControlActions, DemoState } from './control.ts';
 import { createDemoState, handleControlRequest, recordRequest } from './control.ts';
 import { applyCorsHeaders, handlePreflight } from './cors.ts';
@@ -130,18 +140,34 @@ const handleMetadata = async (
   sendConditional(request, response, listMetadataByToken(db, body['where'], limit, body['pageToken']));
 };
 
-/** 协议七端点的分发。命中不了就是 404。 */
+/**
+ * 写入落库**之后**广播一条通知。
+ *
+ * @remarks
+ * 顺序有讲究：先写库、再广播、最后回执。写库抛错时这一行根本走不到——
+ * 失败的写入广播出去，会让所有订阅者白跑一次远端查询，还查不出任何变化。
+ */
+const announce = (request: IncomingMessage, subscribers: ChangeSubscribers): void => {
+  broadcastChange(subscribers, CLIENT_ENTITY_NAME, readClientId(request));
+};
+
+/** 协议端点的分发（七个数据端点 + 可选的变更通知）。命中不了就是 404。 */
 const routeProtocol = async (
   request: IncomingMessage,
   response: ServerResponse,
   db: DatabaseSync,
   state: DemoState,
   segments: string[],
-  pageModeParam: string | null
+  pageModeParam: string | null,
+  subscribers: ChangeSubscribers
 ): Promise<void> => {
   const method = request.method ?? 'GET';
   const route = `${method} ${segments.join('/')}`;
 
+  if (route === `GET ${CHANGES_RESOURCE}`) {
+    openChangeFeed(request, response, subscribers);
+    return;
+  }
   if (route === `GET meta/version`) {
     sendJson(response, 200, { version: BACKEND_VERSION });
     return;
@@ -159,16 +185,23 @@ const routeProtocol = async (
     return;
   }
   if (route === `POST ${RECIPES_RESOURCE}/delete`) {
-    sendJson(response, 200, { deleted: deleteRecipes(db, await readJsonBody(request)) });
+    const deleted = deleteRecipes(db, await readJsonBody(request));
+    announce(request, subscribers);
+    sendJson(response, 200, { deleted });
     return;
   }
   if (route === `POST ${RECIPES_RESOURCE}`) {
-    sendJson(response, 201, createRecipe(db, await readJsonBody(request)));
+    const created = createRecipe(db, await readJsonBody(request));
+    announce(request, subscribers);
+    sendJson(response, 201, created);
     return;
   }
   if (method === 'PATCH' && segments.length === 2 && segments[0] === RECIPES_RESOURCE) {
-    // id 可能被客户端 encodeURIComponent 过，按标准解码——协议「通用约定」的最后一条。
-    sendJson(response, 200, updateRecipe(db, decodeURIComponent(segments[1]), await readJsonBody(request)));
+    // segments 进 dispatch 时已经解过一次码，这里直接用。再解一次就不是「按标准解码」而是
+    // 解两次：客户端编一次的 `%` 会先还原成 `%`、再被当成残缺转义序列抛 URIError。
+    const updated = updateRecipe(db, segments[1], await readJsonBody(request));
+    announce(request, subscribers);
+    sendJson(response, 200, updated);
     return;
   }
 
@@ -197,11 +230,16 @@ export const createDemoServer = (options: DemoServerOptions): DemoServer => {
     clear: (): number => deleteAllRecipes(db)
   };
 
+  const subscribers = createChangeSubscribers();
+
   const server = createHttpServer((request, response) => {
-    void dispatch(request, response, () => db, state, options.controlEnabled, actions);
+    void dispatch(request, response, () => db, state, options.controlEnabled, actions, subscribers);
   });
 
   const close = async (): Promise<void> => {
+    // 必须先掐订阅者：`server.close()` 等的是「所有连接都结束」，而 SSE 连接
+    // 按定义永远不会自己结束，漏了这一行 close() 就是永久挂起。
+    subscribers.closeAll();
     await new Promise<void>(resolve => server.close(() => resolve()));
     db.close();
   };
@@ -216,7 +254,8 @@ const dispatch = async (
   getDb: () => DatabaseSync,
   state: DemoState,
   controlEnabled: boolean,
-  actions: ControlActions
+  actions: ControlActions,
+  subscribers: ChangeSubscribers
 ): Promise<void> => {
   const started = Date.now();
   const url = new URL(request.url ?? '/', 'http://127.0.0.1');
@@ -239,15 +278,20 @@ const dispatch = async (
     return;
   }
 
-  const segments = path
-    .slice(BASE_PATH.length + 1)
-    .split('/')
-    .filter(Boolean)
-    .map(decodeURIComponent);
   applyCorsHeaders(request, response, state.exposeEtag);
 
+  // 路径段在这里解一次码，之后全程按已解码处理——「解几次」必须在路由的入口一次说清，
+  // 分散到各个分支里各解各的，就会出现同一个 id 在不同端点上指向不同的行。
+  const segments = decodeSegments(path.slice(BASE_PATH.length + 1));
+  if (segments === undefined) {
+    // 畸形转义序列（`%zz`、末尾孤零零一个 `%`）会让 decodeURIComponent 抛 URIError。
+    // 它在 runProtocol 的 try 之外，漏出去就是一条既没响应也没关闭的请求——挂死比 500 更难查。
+    sendJson(response, 400, JSON_ERROR(400, `Path '${path}' contains a malformed percent-escape sequence`));
+    return;
+  }
+
   if (segments[0] === '__control') {
-    await runControl(request, response, segments, state, controlEnabled, actions);
+    await runControl(request, response, segments, state, controlEnabled, actions, subscribers);
     return;
   }
   if (state.offline) {
@@ -258,7 +302,24 @@ const dispatch = async (
   }
   if (handlePreflight(request, response, state.exposeEtag)) return;
 
-  await runProtocol(request, response, getDb(), state, segments, url.searchParams.get('pageMode'));
+  await runProtocol(request, response, getDb(), state, segments, url.searchParams.get('pageMode'), subscribers);
+};
+
+/**
+ * 把 `BASE_PATH` 之后的路径拆成已解码的段。
+ *
+ * @param rest - 去掉 `BASE_PATH/` 前缀后的路径
+ * @returns 已解码的非空段；任一段的转义序列畸形时为 `undefined`
+ */
+const decodeSegments = (rest: string): string[] | undefined => {
+  try {
+    return rest
+      .split('/')
+      .filter(Boolean)
+      .map(segment => decodeURIComponent(segment));
+  } catch {
+    return undefined;
+  }
 };
 
 const runControl = async (
@@ -267,7 +328,8 @@ const runControl = async (
   segments: string[],
   state: DemoState,
   controlEnabled: boolean,
-  actions: ControlActions
+  actions: ControlActions,
+  subscribers: ChangeSubscribers
 ): Promise<void> => {
   if (!controlEnabled) {
     sendJson(response, 404, JSON_ERROR(404, `Control endpoints are disabled when NODE_ENV=production`));
@@ -276,7 +338,9 @@ const runControl = async (
   if (handlePreflight(request, response, state.exposeEtag)) return;
 
   try {
-    const handled = await handleControlRequest(request, response, segments.slice(1), state, actions);
+    const handled = await handleControlRequest(request, response, segments.slice(1), state, actions, () =>
+      announce(request, subscribers)
+    );
     if (!handled)
       sendJson(response, 404, JSON_ERROR(404, `No control route for ${request.method} ${segments.join('/')}`));
   } catch (error) {
@@ -290,7 +354,8 @@ const runProtocol = async (
   db: DatabaseSync,
   state: DemoState,
   segments: string[],
-  pageModeParam: string | null
+  pageModeParam: string | null,
+  subscribers: ChangeSubscribers
 ): Promise<void> => {
   try {
     assertAuthorized(request);
@@ -299,7 +364,7 @@ const runProtocol = async (
       // 客户端就会降级到本地缓存，把「非 2xx 不降级」这条对照实验做成假绿。
       throw new HttpError(state.forcedStatus, `Injected failure (__control/fault)`);
     }
-    await routeProtocol(request, response, db, state, segments, pageModeParam);
+    await routeProtocol(request, response, db, state, segments, pageModeParam, subscribers);
   } catch (error) {
     const status = statusOf(error);
     if (request.method === 'HEAD') {

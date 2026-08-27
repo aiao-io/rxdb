@@ -45,6 +45,18 @@ export class FilterCompileError extends Error {
 
 type JsonRecord = Record<string, unknown>;
 
+/**
+ * 过滤树的最大嵌套层数。
+ *
+ * @remarks
+ * 编译是递归的，而 `where` 整个来自请求体——一份手写的深嵌套 JSON 就能把调用栈打满。
+ * `RangeError` 不是 {@link FilterCompileError}，走不到 400 那一支，于是落进兜底变成 500：
+ * 「请求写得太深」是调用方的错，用 5xx 说出来既误导排障，也把栈溢出的代价留给了服务端。
+ *
+ * 取 32：查询构造器 UI 堆到十几层已经无人能读懂，而 32 层离栈溢出还差着两个数量级。
+ */
+const MAX_DEPTH = 32;
+
 /** 标量比较：协议算子 → SQL 算子。 */
 const COMPARISON_OPERATORS = new Map<string, string>([
   ['=', '='],
@@ -192,9 +204,12 @@ const compileRule = (rule: JsonRecord, columns: readonly string[], params: SqlPa
   throw new FilterCompileError(`Unsupported operator '${operator}'`);
 };
 
-const compileNode = (node: unknown, columns: readonly string[], params: SqlParam[]): string => {
+const compileNode = (node: unknown, columns: readonly string[], params: SqlParam[], depth: number): string => {
+  if (depth > MAX_DEPTH) {
+    throw new FilterCompileError(`Filter nesting exceeds the maximum depth of ${MAX_DEPTH}`);
+  }
   if (!isRecord(node)) throw new FilterCompileError('Filter node must be a JSON object');
-  return isRuleGroup(node) ? compileGroup(node, columns, params) : compileRule(node, columns, params);
+  return isRuleGroup(node) ? compileGroup(node, columns, params, depth) : compileRule(node, columns, params);
 };
 
 /**
@@ -204,7 +219,7 @@ const compileNode = (node: unknown, columns: readonly string[], params: SqlParam
  * 每个非空组都自带括号：单条规则不补括号的话，`a OR b AND c` 会被 AND 的优先级
  * 悄悄改写成 `a OR (b AND c)`，与客户端按树结构求值的结论不同。
  */
-const compileGroup = (group: JsonRecord, columns: readonly string[], params: SqlParam[]): string => {
+const compileGroup = (group: JsonRecord, columns: readonly string[], params: SqlParam[], depth: number): string => {
   const combinator = group['combinator'];
   if (combinator !== 'and' && combinator !== 'or') {
     throw new FilterCompileError(`Filter combinator must be 'and' or 'or', received '${String(combinator)}'`);
@@ -213,7 +228,7 @@ const compileGroup = (group: JsonRecord, columns: readonly string[], params: Sql
   const rules = group['rules'] as unknown[];
   if (rules.length === 0) return '1 = 1';
 
-  const conditions = rules.map(rule => compileNode(rule, columns, params));
+  const conditions = rules.map(rule => compileNode(rule, columns, params, depth + 1));
   return `(${conditions.join(combinator === 'and' ? ' AND ' : ' OR ')})`;
 };
 
@@ -223,7 +238,8 @@ const compileGroup = (group: JsonRecord, columns: readonly string[], params: Sql
  * @param where - 协议里的 `where` 字段。缺省 / `null` 视为无过滤。
  * @param columns - 允许出现在 `field` 上的列名白名单，与建表语句保持一致。
  * @returns SQL 片段与按出现顺序排列的绑定参数。
- * @throws {FilterCompileError} 列不在白名单、算子不支持、`value` 形态不对时（HTTP 400）。
+ * @throws {FilterCompileError} 列不在白名单、算子不支持、`value` 形态不对、嵌套超过
+ *   {@link MAX_DEPTH} 层时（HTTP 400）。
  *
  * @example
  * ```ts
@@ -235,6 +251,6 @@ export const compileRuleGroup = (where: unknown, columns: readonly string[]): Co
   if (where === undefined || where === null) return { sql: '1 = 1', params: [] };
 
   const params: SqlParam[] = [];
-  const sql = compileNode(where, columns, params);
+  const sql = compileNode(where, columns, params, 1);
   return { sql, params };
 };

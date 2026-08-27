@@ -27,6 +27,19 @@ const DEFAULT_RECONNECT_BASE_DELAY_MS = 1000;
 const DEFAULT_RECONNECT_MAX_DELAY_MS = 30000;
 
 /**
+ * 连续失败多少次之后不再把重连让给浏览器。
+ *
+ * @remarks
+ * 让路的前提是「浏览器这一次能连上」。后端接受连接后立刻关闭时这个前提不成立，而浏览器
+ * 按它自己的固定节奏无限重试、完全不受本类的退避约束——那条节奏配上 D7 的「连上即全量
+ * 失效」就是一台稳定运转的失效风暴。次数用满即由本类收走节拍器。
+ *
+ * 取 3 而不是 1：单次 `CONNECTING` 是原生重连的正常形态（网络瞬断、服务端滚动重启），
+ * 一次就接管等于把浏览器那套成熟的重连逻辑弃之不用。
+ */
+const NATIVE_RECONNECT_LIMIT = 3;
+
+/**
  * 本模块真正用到的 `EventSource` 子集。
  *
  * @remarks
@@ -100,6 +113,15 @@ export class HttpChangeFeed {
   #stopped = true;
 
   /**
+   * 当前连接建立的时刻；未连上时为 `undefined`。
+   *
+   * @remarks
+   * 退避计数归零的判据是**连接活了多久**，不是 `open` 事件本身。「开了就断」的连接每轮都
+   * 触发一次 `open`，拿它归零会让指数退避一次都轮不到——而这正是那类后端唯一需要退避的场景。
+   */
+  #openedAt: number | undefined;
+
+  /**
    * @param host - 通道与适配器之间的接触面
    * @throws HttpConfigError 退避配置不是 finite 正整数，或上限小于起步值
    */
@@ -131,6 +153,7 @@ export class HttpChangeFeed {
    */
   start(): void {
     this.#stopped = false;
+    // 显式意图，与「连上过」是两回事：调用方主动开通道时从头数，哪怕上一轮正卡在退避顶格上
     this.#attempt = 0;
     this.#connect();
   }
@@ -174,10 +197,31 @@ export class HttpChangeFeed {
     }
   }
 
+  /**
+   * 记一次连接失败：更新退避计数、决定这一次由谁重连。
+   *
+   * @param readyState - 失败时连接的状态；`CONNECTING` 表示浏览器的原生重连正在路上
+   * @param detail - 写进诊断消息的现象描述
+   *
+   * @remarks
+   * **归零放在失败时判，而不是 `open` 时做。** `open` 那一刻无从知道这条连接能活多久，
+   * 到失败时才知道。判据是「有没有活过一个退避周期」：连接连我们本来就要等的那段时间都
+   * 撑不过，它就没有取得任何进展，退避计数不该被它清掉。
+   *
+   * **让给浏览器是有次数上限的。** 单次 `CONNECTING` 是原生重连的正常形态，让路能省下
+   * 一条重复连接；但反复失败说明浏览器那套也连不上，此时继续让路就等于把节奏永久交给一个
+   * 不受退避约束的循环。接管前必须先 `#close()`：浏览器的下一次重试还挂在那条连接上，
+   * 留着它就是两条连接收同一份广播。
+   */
   #fail(readyState: number | undefined, detail: string): void {
+    if (this.#wasStable()) {
+      this.#attempt = 0;
+    }
+    this.#openedAt = undefined;
     this.#attempt++;
-    // CONNECTING 表示浏览器自己的重连正在路上，此时再建一条是两条连接收同一份广播
-    const retryInMs = readyState === CONNECTING ? undefined : this.#nextDelay();
+
+    const deferToNative = readyState === CONNECTING && this.#attempt <= NATIVE_RECONNECT_LIMIT;
+    const retryInMs = deferToNative ? undefined : this.#nextDelay();
     this.#report({
       reason: 'connection-error',
       attempt: this.#attempt,
@@ -185,9 +229,16 @@ export class HttpChangeFeed {
       retryInMs,
       message: `change feed connection to ${this.#host.url} failed (${detail}); EventSource does not expose the status code, so the cause may be an unimplemented endpoint, an authentication failure, or a network error`
     });
-    if (retryInMs !== undefined) {
-      this.#schedule(retryInMs);
+    if (retryInMs === undefined) {
+      return;
     }
+    this.#close();
+    this.#schedule(retryInMs);
+  }
+
+  /** 上一条连接是否活过了一个退避周期——够久才算「连上过」 */
+  #wasStable(): boolean {
+    return this.#openedAt !== undefined && Date.now() - this.#openedAt >= this.#baseDelayMs;
   }
 
   #nextDelay(): number {
@@ -240,8 +291,27 @@ export class HttpChangeFeed {
     }
   }
 
+  #reportNotification(notification: ChangeNotification, suppressed: boolean): void {
+    const hook = this.#host.options.onNotification;
+    if (!hook) {
+      return;
+    }
+    try {
+      hook({
+        url: this.#host.url,
+        entity: notification.entity,
+        namespace: notification.namespace,
+        clientId: notification.clientId,
+        suppressed
+      });
+    } catch {
+      /* 与 #report 同一条口径：诊断口失败绝不能带塌失效上报 */
+    }
+  }
+
   readonly #handleOpen = (): void => {
-    this.#attempt = 0;
+    // 只记时刻，不动退避计数：这条连接能不能算「连上过」，要等它断的时候才知道（见 #fail）
+    this.#openedAt = Date.now();
     this.#invalidateAll();
   };
 
@@ -262,7 +332,9 @@ export class HttpChangeFeed {
     // 两边都没有 clientId 时**不算**自回声：`context.clientId` 由 `RxDB.init()` 生成，
     // 没跑过 init() 的实例上它是 undefined，拿 undefined === undefined 当命中，
     // 会让这类场景一条通知都收不到
-    if (notification.clientId !== undefined && notification.clientId === this.#host.clientId()) {
+    const suppressed = notification.clientId !== undefined && notification.clientId === this.#host.clientId();
+    this.#reportNotification(notification, suppressed);
+    if (suppressed) {
       return;
     }
     this.#host.invalidate(notification.entity, notification.namespace);
@@ -328,8 +400,10 @@ const parseJson = (text: string): unknown => {
  * @throws HttpConfigError 不是 finite 正整数
  *
  * @remarks
- * 判据与 {@link resolveHttpConfig} 里那份逐字一致：`1.5` 会让退避延迟落在半毫秒上，
- * `Infinity` 则等于「第一次失败之后永不重连」——那正是退避配置存在的反面。
+ * 判据与 `resolveHttpConfig` 里那份逐字一致：`1.5` 会让退避延迟落在半毫秒上，
+ * `Infinity` 则等于「第一次失败之后永不重连」——那正是退避配置存在的反面。两者都由
+ * `Number.isInteger` 一并挡下（它对 `NaN` / `±Infinity` 同样返回 `false`），不必再加一道
+ * `Number.isFinite`：那道判断永远为假，读代码的人却会以为它在挡什么。
  */
 const readDelay = (
   value: number | undefined,
@@ -337,7 +411,7 @@ const readDelay = (
   fallback: number = DEFAULT_RECONNECT_BASE_DELAY_MS
 ): number => {
   const resolved = value ?? fallback;
-  if (!Number.isInteger(resolved) || !Number.isFinite(resolved) || resolved < 1) {
+  if (!Number.isInteger(resolved) || resolved < 1) {
     throw new HttpConfigError(
       `HTTP adapter config "changeFeed.${field}" must be a finite integer >= 1, received ${String(resolved)}`,
       `changeFeed.${field}`,

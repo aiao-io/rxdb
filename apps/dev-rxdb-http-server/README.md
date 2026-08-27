@@ -72,16 +72,23 @@ pnpm nx run dev-rxdb-http-server:reset     # 删库文件 → 重建表 → 写�
 
 只在 `NODE_ENV !== 'production'` 时注册。双下划线前缀的意思是「照协议实现自己后端的人不用抄这一段」。
 
-| 方法   | 路径                  | body                          | 用途                          |
-| ------ | --------------------- | ----------------------------- | ----------------------------- |
-| `GET`  | `__control/state`     | —                             | 当前开关快照                  |
-| `GET`  | `__control/log`       | —                             | 请求日志（含 `OPTIONS` 预检） |
-| `POST` | `__control/log/clear` | `{}`                          | 清空日志                      |
-| `POST` | `__control/reset`     | `{}`                          | 删库重建 + 种子               |
-| `POST` | `__control/offline`   | `{ offline: boolean }`        | 掐断 socket，模拟断网         |
-| `POST` | `__control/fault`     | `{ status: number\|null }`    | 强制返回某个非 2xx            |
-| `POST` | `__control/cors`      | `{ exposeEtag: boolean }`     | 切 `Expose-Headers: ETag`     |
-| `POST` | `__control/page-mode` | `{ mode: 'offset'\|'token' }` | 切默认翻页形态                |
+| 方法   | 路径                  | body                          | 用途                          | 广播 |
+| ------ | --------------------- | ----------------------------- | ----------------------------- | ---- |
+| `GET`  | `__control/state`     | —                             | 当前开关快照                  |      |
+| `GET`  | `__control/log`       | —                             | 请求日志（含 `OPTIONS` 预检） |      |
+| `POST` | `__control/log/clear` | `{}`                          | 清空日志                      |      |
+| `POST` | `__control/reset`     | `{}`                          | 删库重建 + 种子               | ✅   |
+| `POST` | `__control/clear`     | `{}`                          | 只删行，表结构保留            | ✅   |
+| `POST` | `__control/offline`   | `{ offline: boolean }`        | 掐断 socket，模拟断网         |      |
+| `POST` | `__control/fault`     | `{ status: number\|null }`    | 强制返回某个非 2xx            |      |
+| `POST` | `__control/cors`      | `{ exposeEtag: boolean }`     | 切 `Expose-Headers: ETag`     |      |
+| `POST` | `__control/page-mode` | `{ mode: 'offset'\|'token' }` | 切默认翻页形态                |      |
+
+**「广播」那一列的判据是「库里的行变没变」，不是「这条路径属不属于协议」。** `reset` 与 `clear` 改了数据，
+因此和七个协议写端点一样发一条[变更通知](../../website/docs/adapters/http-protocol.md#变更通知可选)——
+按前一种判据漏掉它们，别的客户端在你清空数据之后会毫无察觉地留着一份已经不存在的列表。
+这两条同样认 `x-client-id`：带了就回显进通知，发起方据此丢掉自己的回声。
+其余几条只动内存里的开关或日志，广播它们只会让每个订阅者白跑一趟远端查询。
 
 `offline` 是**掐断传输**而不是回 5xx：只有前者才在客户端侧翻译成网络故障，进而触发 `offlineFallback`。回 5xx 是「远端的回答」，照常上抛——AC#13 的对照实验就是这个区别。
 

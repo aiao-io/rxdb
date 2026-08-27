@@ -65,5 +65,36 @@ export const resolveApiBaseUrl = (search: string): string => {
 export const resolveDiagnosticsEnabled = (search: string): boolean =>
   new URLSearchParams(search).get('diagnostics') === '1';
 
+/** 变更通知端点，相对 {@link resolveApiBaseUrl}。与后端 `CHANGES_RESOURCE` 同名。 */
+export const CHANGE_FEED_PATH = 'changes';
+
+/** 写入请求上标记「谁改的」的头。与后端 `CLIENT_ID_HEADER` 同名。 */
+export const CLIENT_ID_HEADER = 'x-client-id';
+
+/**
+ * 变更通知通道的**初始**状态（US-023 D11 / AC#21）。
+ *
+ * @param search - `location.search`
+ * @returns `?changefeed=0` 时为 `false`，其余一律 `true`
+ *
+ * @remarks
+ * **默认开着**——实时同步是这个 demo 想展示的东西，让它躲在一个查询串后面，
+ * 直接的后果就是「两个窗口，一个改了另一个没反应」被当成 bug 报上来。
+ *
+ * 与 `?diagnostics=1` 的默认关**不是**同一件事，两者的判据也刚好相反：那个开关保的是
+ * 「没配回调时适配器保持沉默」这一条默认行为本身要能演示，所以缺省必须是关；
+ * 而通道的缺省是产品行为，不是被守护的默认值。
+ *
+ * 判据写成 `!== '0'` 而不是 `=== '1'`：这个函数只决定**开页那一刻**的状态，
+ * 通道随后归页面上的开关管（`RxDBAdapterHttp.startChangeFeed()` / `stopChangeFeed()`）。
+ * 一个只用来关掉它的参数，语义上是「例外」而不是「取值」，`=== '1'` 会让
+ * `?changefeed=true` 这种手敲出来的写法静默关掉通道。
+ *
+ * 关着时的现象（另一个页面**不会**自动更新）是这个故事当初要修的症状，
+ * 已经冻成对照用例（AC#23）：同样的操作、同样的两个页面，只差这一个参数。
+ */
+export const resolveChangeFeedEnabled = (search: string): boolean =>
+  new URLSearchParams(search).get('changefeed') !== '0';
+
 /** `__control/*` 的地址前缀，由 {@link resolveApiBaseUrl} 的结果派生。 */
 export const controlUrl = (baseUrl: string, path: string): string => `${baseUrl}/__control/${path}`;

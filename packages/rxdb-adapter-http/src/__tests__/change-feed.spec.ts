@@ -11,8 +11,13 @@ import {
 } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpConfigError } from '../errors.js';
-import type { HttpAdapterOptions, HttpChangeFeedUnavailableReport, HttpHandlers } from '../http.interface.js';
+import { HttpConfigError, HttpDisconnectedError, HttpUnsupportedOperationError } from '../errors.js';
+import type {
+  HttpAdapterOptions,
+  HttpChangeFeedNotificationReport,
+  HttpChangeFeedUnavailableReport,
+  HttpHandlers
+} from '../http.interface.js';
 import { RxDBAdapterHttp } from '../RxDBAdapterHttp.js';
 
 /**
@@ -159,15 +164,22 @@ const createConnectedFeed = async (
   rxdb: RxDB;
   invalidate: ReturnType<typeof vi.fn>;
   reports: HttpChangeFeedUnavailableReport[];
+  notifications: HttpChangeFeedNotificationReport[];
 }> => {
   const reports: HttpChangeFeedUnavailableReport[] = [];
+  const notifications: HttpChangeFeedNotificationReport[] = [];
   const { adapter, rxdb } = createAdapter({
-    changeFeed: { url: 'changes', onUnavailable: report => reports.push(report), ...options }
+    changeFeed: {
+      url: 'changes',
+      onUnavailable: report => reports.push(report),
+      onNotification: report => notifications.push(report),
+      ...options
+    }
   });
   const invalidate = vi.fn();
   vi.spyOn(rxdb, 'invalidateRemoteEntity').mockImplementation(invalidate);
   await adapter.connect();
-  return { adapter, rxdb, invalidate, reports };
+  return { adapter, rxdb, invalidate, reports, notifications };
 };
 
 beforeEach(() => {
@@ -342,6 +354,83 @@ describe('推送 → 失效上报（AC#14 / AC#15）', () => {
   });
 });
 
+describe('通知诊断出口（AC#24 / D8）', () => {
+  it('收到通知 → 诊断口拿到实体名、namespace 与 suppressed=false', async () => {
+    const { notifications } = await createConnectedFeed();
+    lastSource().push({ entity: 'FeedRecipe', namespace: 'public', clientId: 'someone-else' });
+    expect(notifications).toEqual([
+      { url: FEED_URL, entity: 'FeedRecipe', namespace: 'public', clientId: 'someone-else', suppressed: false }
+    ]);
+  });
+
+  it('自回声被抑制时诊断口照样拿得到，标 suppressed=true', async () => {
+    // 抑制发生在包内，包外只能从这个出口看见「收到了但没上报」——
+    // 拿「后端广播条数 - core 失效条数」去倒推会把断线期间丢的通知也算成抑制
+    const { rxdb, invalidate, notifications } = await createConnectedFeed();
+    rxdb.context = { clientId: 'me' };
+    invalidate.mockClear();
+    notifications.length = 0;
+    lastSource().push({ entity: 'FeedRecipe', clientId: 'me' });
+    expect(invalidate).not.toHaveBeenCalled();
+    expect(notifications).toEqual([
+      { url: FEED_URL, entity: 'FeedRecipe', namespace: 'public', clientId: 'me', suppressed: true }
+    ]);
+  });
+
+  it('载荷里多出来的字段进不了诊断报告（D8：报告结构上带不了行数据）', async () => {
+    const { notifications } = await createConnectedFeed();
+    lastSource().push({ entity: 'FeedRecipe', title: '偷渡的行数据', row: { id: 'r-1' } });
+    expect(Object.keys(notifications[0]).sort()).toEqual(['clientId', 'entity', 'namespace', 'suppressed', 'url']);
+  });
+
+  it('连接成功的全量失效不是「收到的通知」，不进诊断口', async () => {
+    const { notifications } = await createConnectedFeed();
+    expect(notifications).toEqual([]);
+    lastSource().open();
+    expect(notifications).toEqual([]);
+  });
+
+  it('读不懂的载荷不进诊断口，只进 onUnavailable', async () => {
+    const { notifications, reports } = await createConnectedFeed();
+    lastSource().pushRaw('not json');
+    expect(notifications).toEqual([]);
+    expect(reports.map(report => report.reason)).toEqual(['malformed-message']);
+  });
+
+  it('断开后再收到消息不进诊断口', async () => {
+    const { adapter, notifications } = await createConnectedFeed();
+    const source = lastSource();
+    await adapter.disconnect();
+    source.push({ entity: 'FeedRecipe' });
+    expect(notifications).toEqual([]);
+  });
+
+  it('不配 onNotification 时收通知照常上报失效，不抛', async () => {
+    const { adapter, rxdb } = createAdapter({ changeFeed: { url: 'changes' } });
+    const invalidate = vi.spyOn(rxdb, 'invalidateRemoteEntity').mockImplementation(() => undefined);
+    await adapter.connect();
+    invalidate.mockClear();
+    expect(() => lastSource().push({ entity: 'FeedRecipe' })).not.toThrow();
+    expect(invalidate).toHaveBeenCalledWith('FeedRecipe', 'public');
+  });
+
+  it('onNotification 抛错不影响失效上报', async () => {
+    const { adapter, rxdb } = createAdapter({
+      changeFeed: {
+        url: 'changes',
+        onNotification: () => {
+          throw new Error('诊断面板炸了');
+        }
+      }
+    });
+    const invalidate = vi.spyOn(rxdb, 'invalidateRemoteEntity').mockImplementation(() => undefined);
+    await adapter.connect();
+    invalidate.mockClear();
+    expect(() => lastSource().push({ entity: 'FeedRecipe' })).not.toThrow();
+    expect(invalidate).toHaveBeenCalledWith('FeedRecipe', 'public');
+  });
+});
+
 describe('连接成功即全量失效（AC#16 / D7）', () => {
   it('首次连接成功即对每个走本适配器的实体各上报一次', async () => {
     const { invalidate } = await createConnectedFeed();
@@ -405,12 +494,14 @@ describe('连接失败（AC#17）', () => {
     expect(reports[0]?.message).toEqual(expect.any(String));
   });
 
-  it('连接成功后退避计数归零', async () => {
+  it('连接活过一个退避周期后，退避计数归零', async () => {
     vi.useFakeTimers();
     const { reports } = await createConnectedFeed({ reconnectBaseDelayMs: 1000 });
     lastSource().fail();
     await vi.advanceTimersByTimeAsync(1000);
     lastSource().open();
+    // 活过一个退避周期才算「连上过」——归零的判据是连接稳定，不是 open 事件本身
+    await vi.advanceTimersByTimeAsync(1000);
     lastSource().fail();
     expect(reports.at(-1)).toMatchObject({ attempt: 1, retryInMs: 1000 });
   });
@@ -501,5 +592,263 @@ describe('连接失败（AC#17）', () => {
     // 诊断对象是普通数据，不是 Error：能被 isNetworkError 认出来的东西，
     // 迟早会有人把它塞进查询路径的 catch 里
     expect(isNetworkError(reports[0])).toBe(false);
+  });
+});
+
+/**
+ * 连接反复「开了就断」。
+ *
+ * @remarks
+ * 后端接受连接后立刻关闭（端点半实现、反代掐流、鉴权在 open 之后才拒），会同时踩中
+ * 两条本来各自正确的规则：`onopen` 归零退避计数（「连上了就重新开始数」）、
+ * `readyState === CONNECTING` 时把重连让给浏览器（「别开出第二条连接」）。
+ *
+ * 合起来就是一个自锁的循环：open → 全量失效 → error(CONNECTING) → 浏览器按固定节奏重连
+ * → open → …。退避计数每轮被归零，指数退避一次都轮不到；而每一轮 open 都按 D7 把所有
+ * 已订阅实体重拉一遍。表现是一台稳定按秒级刷新的失效风暴，且没有任何机制让它收敛。
+ *
+ * 这一组钉住两条出路：**归零看的是连接活了多久，不是 open 事件本身**；
+ * **让给浏览器是有次数上限的**，反复失败后由本类收走节拍器。
+ */
+describe('连接反复「开了就断」', () => {
+  it('没活过一个退避周期的连接不让退避计数归零', async () => {
+    vi.useFakeTimers();
+    const { reports } = await createConnectedFeed({ reconnectBaseDelayMs: 1000 });
+    lastSource().fail();
+    await vi.advanceTimersByTimeAsync(1000);
+
+    lastSource().open();
+    lastSource().fail();
+
+    expect(reports.at(-1)).toMatchObject({ attempt: 2, retryInMs: 2000 });
+  });
+
+  it('「开了就断」时退避照常增长——原生节奏不再是唯一的节拍器', async () => {
+    vi.useFakeTimers();
+    const { reports } = await createConnectedFeed({ reconnectBaseDelayMs: 1000 });
+
+    // 后端接受连接后立刻关闭：每轮 open 都紧跟一次 CONNECTING 失败
+    for (let round = 0; round < 4; round++) {
+      lastSource().open();
+      lastSource().fail(0);
+    }
+
+    // open 归零 attempt 的话这里恒为 { attempt: 1, retryInMs: undefined }，
+    // 退避永不生效，全量失效按浏览器的固定节奏无限刷下去
+    expect(reports.at(-1)).toMatchObject({ attempt: 4, retryInMs: 8000 });
+  });
+
+  it('原生重连连续失败到上限后由本类接管', async () => {
+    vi.useFakeTimers();
+    const { reports } = await createConnectedFeed({ reconnectBaseDelayMs: 1000 });
+
+    for (let round = 0; round < 3; round++) {
+      lastSource().fail(0);
+      expect(reports.at(-1)).toMatchObject({ readyState: 0, retryInMs: undefined });
+    }
+    lastSource().fail(0);
+
+    expect(reports.at(-1)).toMatchObject({ attempt: 4, retryInMs: 8000 });
+  });
+
+  it('接管时收走原生连接，不与浏览器的重连并存', async () => {
+    vi.useFakeTimers();
+    await createConnectedFeed({ reconnectBaseDelayMs: 1000 });
+
+    for (let round = 0; round < 4; round++) {
+      lastSource().fail(0);
+    }
+    // 浏览器那条还在自己重连，留着就是两条连接收同一份广播
+    expect(liveSources()).toEqual([]);
+
+    await vi.advanceTimersByTimeAsync(8000);
+    expect(liveSources()).toHaveLength(1);
+  });
+
+  it('接管之后一条稳定的连接仍能让退避归零', async () => {
+    vi.useFakeTimers();
+    const { reports } = await createConnectedFeed({ reconnectBaseDelayMs: 1000 });
+    for (let round = 0; round < 4; round++) {
+      lastSource().fail(0);
+    }
+    await vi.advanceTimersByTimeAsync(8000);
+
+    lastSource().open();
+    await vi.advanceTimersByTimeAsync(1000);
+    lastSource().fail();
+
+    expect(reports.at(-1)).toMatchObject({ attempt: 1, retryInMs: 1000 });
+  });
+
+  it('startChangeFeed() 是显式意图，直接把退避计数清零', async () => {
+    vi.useFakeTimers();
+    const { adapter, reports } = await createConnectedFeed({ reconnectBaseDelayMs: 1000 });
+    for (let round = 0; round < 4; round++) {
+      lastSource().fail(0);
+    }
+
+    adapter.startChangeFeed();
+    lastSource().fail();
+
+    expect(reports.at(-1)).toMatchObject({ attempt: 1, retryInMs: 1000 });
+  });
+});
+
+/**
+ * 运行时开关。
+ *
+ * @remarks
+ * 在此之前，通道的开关只在**构造期**读一次 `options.changeFeed`，包外没有任何入口——
+ * 想在页面上放一个 checkbox，只能配 `location.reload()` 重建整个适配器。
+ *
+ * 这一组的主题是**「配置」与「意图」是两件事**：`options.changeFeed` 说的是这条通道
+ * 存不存在，`changeFeedEnabled` 说的是它此刻要不要跑。分不开的话，用户手动停掉的通道
+ * 会被下一次 `connect()`（重连、切换后端、纪元交替都会触发）悄悄复活。
+ */
+describe('运行时开关', () => {
+  it('配了 changeFeed 就默认开着——connect() 照旧建连接', async () => {
+    const { adapter } = await createConnectedFeed();
+    expect(adapter.changeFeedEnabled).toBe(true);
+    expect(liveSources()).toHaveLength(1);
+  });
+
+  it('构造完还没 connect() 时开关就已经是开的——它记的是意图，不是连接状态', () => {
+    const { adapter } = createAdapter({ changeFeed: { url: 'changes' } });
+    expect(adapter.changeFeedEnabled).toBe(true);
+    expect(FakeEventSource.instances).toEqual([]);
+  });
+
+  it('没配 changeFeed 时开关恒为关', () => {
+    const { adapter } = createAdapter();
+    expect(adapter.changeFeedEnabled).toBe(false);
+  });
+
+  it.each(['startChangeFeed', 'stopChangeFeed'] as const)(
+    '没配 changeFeed 时 %s() 抛 HttpUnsupportedOperationError，不静默 no-op',
+    async method => {
+      // 与 version() 未配 onVersion 同一条口径：配置缺失要吵。静默 no-op 会让
+      // 「开关点了没反应」变成一个没有任何线索的现象
+      const { adapter } = createAdapter();
+      await adapter.connect();
+      expect(() => adapter[method]()).toThrow(HttpUnsupportedOperationError);
+    }
+  );
+
+  it('还没 connect() 时 startChangeFeed() 抛 HttpDisconnectedError', () => {
+    // connect() 才跑实体线协议校验（bigint / binary 字段在这里被拒）。在它之前就能开出
+    // 一条活着的 SSE 的话，「校验没过的 connect() 不留下活连接」这条保证从侧门被绕开了
+    const { adapter } = createAdapter({ changeFeed: { url: 'changes' } });
+    expect(() => adapter.startChangeFeed()).toThrow(HttpDisconnectedError);
+    expect(FakeEventSource.instances).toEqual([]);
+  });
+
+  it('还没 connect() 时 stopChangeFeed() 不抛——它只翻意图位', () => {
+    const { adapter } = createAdapter({ changeFeed: { url: 'changes' } });
+    expect(() => adapter.stopChangeFeed()).not.toThrow();
+    expect(adapter.changeFeedEnabled).toBe(false);
+  });
+
+  it('stopChangeFeed() 关掉活着的连接并翻转开关', async () => {
+    const { adapter } = await createConnectedFeed();
+    adapter.stopChangeFeed();
+    expect(adapter.changeFeedEnabled).toBe(false);
+    expect(lastSource().closeCount).toBe(1);
+    expect(liveSources()).toEqual([]);
+  });
+
+  it('关掉之后再送进来的消息不上报失效', async () => {
+    const { adapter, invalidate } = await createConnectedFeed();
+    const source = lastSource();
+    adapter.stopChangeFeed();
+    invalidate.mockClear();
+    source.push({ entity: 'FeedRecipe' });
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
+  it('startChangeFeed() 重新建连，open 照旧触发全量失效（D7）', async () => {
+    const { adapter, invalidate } = await createConnectedFeed();
+    adapter.stopChangeFeed();
+    adapter.startChangeFeed();
+
+    expect(adapter.changeFeedEnabled).toBe(true);
+    expect(liveSources()).toHaveLength(1);
+
+    invalidate.mockClear();
+    lastSource().open();
+    expect(invalidate.mock.calls).toEqual([
+      ['FeedRecipe', 'public'],
+      ['FeedTag', 'public']
+    ]);
+  });
+
+  it('重复 startChangeFeed() 活着的连接始终只有一条', async () => {
+    const { adapter } = await createConnectedFeed();
+    adapter.startChangeFeed();
+    adapter.startChangeFeed();
+    expect(liveSources()).toHaveLength(1);
+  });
+
+  it('重复 stopChangeFeed() 不抛错也不新建连接', async () => {
+    const { adapter } = await createConnectedFeed();
+    adapter.stopChangeFeed();
+    expect(() => adapter.stopChangeFeed()).not.toThrow();
+    expect(FakeEventSource.instances).toHaveLength(1);
+  });
+
+  it('停掉时待执行的退避重连一并取消', async () => {
+    vi.useFakeTimers();
+    const { adapter } = await createConnectedFeed({ reconnectBaseDelayMs: 1000 });
+    lastSource().fail();
+    adapter.stopChangeFeed();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(FakeEventSource.instances).toHaveLength(1);
+  });
+
+  it('停掉之后 connect() 不复活它——这才是「开关」而不是「一次性动作」', async () => {
+    const { adapter } = await createConnectedFeed();
+    adapter.stopChangeFeed();
+    const before = FakeEventSource.instances.length;
+
+    await adapter.connect();
+
+    expect(adapter.changeFeedEnabled).toBe(false);
+    expect(FakeEventSource.instances).toHaveLength(before);
+    expect(liveSources()).toEqual([]);
+  });
+
+  it('disconnect() 不改开关，随后的 connect() 把通道接回来', async () => {
+    // 生命周期事件不是用户意图：断开重连之后，用户上次留下的「我要收通知」仍然成立
+    const { adapter } = await createConnectedFeed();
+    await adapter.disconnect();
+    expect(adapter.changeFeedEnabled).toBe(true);
+
+    await adapter.connect();
+    expect(liveSources()).toHaveLength(1);
+  });
+
+  it('已 disconnect() 时 startChangeFeed() 抛 HttpDisconnectedError', async () => {
+    // 在一个已经关停的适配器上开出一条活着的 SSE，是实打实的 bug，不能让它悄悄发生
+    const { adapter } = await createConnectedFeed();
+    await adapter.disconnect();
+    expect(() => adapter.startChangeFeed()).toThrow(HttpDisconnectedError);
+  });
+
+  it('已 disconnect() 时 stopChangeFeed() 不抛——两条路都通向同一个终点', async () => {
+    const { adapter } = await createConnectedFeed();
+    await adapter.disconnect();
+    expect(() => adapter.stopChangeFeed()).not.toThrow();
+    expect(adapter.changeFeedEnabled).toBe(false);
+  });
+
+  it('关掉通道不影响查询路径：fetchMetadata 照常成功', async () => {
+    const row = { id: '1', updatedAt: '2026-08-27T10:00:00.000Z' };
+    const { adapter } = await createConnectedFeed();
+    adapter.stopChangeFeed();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify([row])))
+    );
+
+    await expect(firstValueFrom(adapter.fetchMetadata('FeedRecipe', ALL))).resolves.toEqual([row]);
   });
 });

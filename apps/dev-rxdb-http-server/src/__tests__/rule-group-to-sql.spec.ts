@@ -213,6 +213,29 @@ describe('compileRuleGroup', () => {
         FilterCompileError
       );
     });
+
+    /*
+     * 编译是递归的，而 `where` 整个来自请求体。没有深度上限时，一份手写的深嵌套 JSON
+     * 就能把 Node 的调用栈打满 —— `RangeError` 不是 `FilterCompileError`，走不到 400
+     * 那一支，于是落进兜底变成 500。「请求写得太深」是调用方的错，要按 4xx 说出来。
+     */
+    it('嵌套深度超过上限时按 FilterCompileError 拒绝，而不是打爆调用栈', () => {
+      let where: unknown = { combinator: 'and', rules: [{ field: 'tag', operator: 'null' }] };
+      for (let depth = 0; depth < 5000; depth++) {
+        where = { combinator: 'and', rules: [where] };
+      }
+
+      expect(() => compile(where)).toThrow(FilterCompileError);
+    });
+
+    it('上限之内的深嵌套照常编译', () => {
+      let where: unknown = { combinator: 'and', rules: [{ field: 'tag', operator: 'null' }] };
+      for (let depth = 0; depth < 20; depth++) {
+        where = { combinator: 'and', rules: [where] };
+      }
+
+      expect(compile(where).sql).toContain('"tag" IS NULL');
+    });
   });
 
   describe('列白名单', () => {
