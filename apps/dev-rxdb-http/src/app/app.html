@@ -76,7 +76,7 @@
 
 <main>
   <section class="panel panel-filter" aria-labelledby="filter-heading">
-    <h2 id="filter-heading">筛选（五类算子）</h2>
+    <h2 id="filter-heading">筛选</h2>
 
     <!--
       回车即应用：填完最后一格还要去够「应用」按钮，是这类过滤面板最烦人的一步。
@@ -99,9 +99,10 @@
             [ngModel]="$draftFilter().titleContains"
             (ngModelChange)="patchFilter({ titleContains: $event })"
             data-testid="filter-title"
-            placeholder="大小写敏感"
+            placeholder="输入标题关键字"
             type="text"
           />
+          <small>匹配区分大小写。</small>
         </label>
 
         <label>
@@ -131,7 +132,7 @@
               [ngModel]="$draftFilter().priceMin"
               (ngModelChange)="patchFilter({ priceMin: $event })"
               data-testid="filter-price-min"
-              placeholder="下界"
+              placeholder="最低价"
               step="any"
               type="number"
             />
@@ -139,12 +140,12 @@
               [ngModel]="$draftFilter().priceMax"
               (ngModelChange)="patchFilter({ priceMax: $event })"
               data-testid="filter-price-max"
-              placeholder="上界"
+              placeholder="最高价"
               step="any"
               type="number"
             />
           </span>
-          <small>上下界必须成对填写，只填一个整条不下发。</small>
+          <small>最低价与最高价需同时填写，只填其一不会生效。</small>
         </label>
 
         <fieldset>
