@@ -3,43 +3,43 @@ import type { RxDBAdapterHttp } from '@aiao/rxdb-adapter-http';
 import { useFind } from '@aiao/rxdb-angular';
 import { JsonPipe } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  DestroyRef,
-  effect,
-  ElementRef,
-  inject,
-  OnInit,
-  signal,
-  viewChildren
+    ChangeDetectionStrategy,
+    Component,
+    computed,
+    DestroyRef,
+    effect,
+    ElementRef,
+    inject,
+    OnInit,
+    signal,
+    viewChildren
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
-  changeFeedStats,
-  clearChangeFeedStats,
-  onChangeFeedStats,
-  type ChangeFeedStats
+    changeFeedStats,
+    clearChangeFeedStats,
+    onChangeFeedStats,
+    type ChangeFeedStats
 } from './change-feed-diagnostics';
 import { resolveApiBaseUrl, resolveChangeFeedEnabled, resolveDiagnosticsEnabled } from './demo-config';
 import {
-  clearDatabase,
-  clearRequestLog,
-  readControlState,
-  readRequestLog,
-  resetDatabase,
-  setExposeEtag,
-  setForcedStatus,
-  setOffline,
-  setPageMode,
-  type DemoControlState,
-  type DemoRequestLogEntry
+    clearDatabase,
+    clearRequestLog,
+    readControlState,
+    readRequestLog,
+    resetDatabase,
+    setExposeEtag,
+    setForcedStatus,
+    setOffline,
+    setPageMode,
+    type DemoControlState,
+    type DemoRequestLogEntry
 } from './demo-control';
 import { clearEtagDiagnostics, etagDiagnostics, onEtagDiagnostic, type EtagDiagnosticEntry } from './etag-diagnostics';
 import { buildFilterRules, emptyFilterState, type RecipeFilterState, type RecipeRuleGroup } from './filter-rules';
 import { clampPage, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, pageCount } from './paging';
 import { Recipe } from './recipe';
-import { clearTraffic, onTraffic, trafficEntries, type TrafficEntry } from './traffic-recorder';
+import { clearTraffic, lastTransportStatus, onTraffic, trafficEntries, type TrafficEntry } from './traffic-recorder';
 
 /** 新建表单的初值。 */
 const emptyDraft = (): { title: string; status: string; price: string; tag: string } => ({
@@ -199,14 +199,28 @@ export class App implements OnInit {
   // ---- 写入表单 -------------------------------------------------------------
 
   readonly $draft = signal(emptyDraft());
-  readonly $editingId = signal<string | null>(null);
+
+  /**
+   * 正在编辑的那一行本身。
+   *
+   * @remarks
+   * 存**实例**而不是只存 id，是因为保存时不能再去当前页里按 id 找它：列表是分页 + 筛选的，
+   * 通知通道触发一次重跑、或者别人在别处翻了页，这一行就可能不在 `recipes.value()` 里了 ——
+   * 而编辑框还开着。按 id 找不到就报「可能已被后端删除」，说的是一件根本没发生的事。
+   * 用户点开的是哪一行，保存的就是哪一行，这个绑定不该经过一个会漂移的中间层。
+   *
+   * 行在这期间真被别处改过的话，`save()` 会撞上版本检查抛出真正的冲突错误 ——
+   * 那是应该看见的现象，比一句编出来的「已被删除」诚实得多。
+   */
+  readonly $editingTarget = signal<Recipe | null>(null);
+
+  /** 正在编辑的行 id。从 {@link $editingTarget} 派生，不另存一份免得两处对不上。 */
+  readonly $editingId = computed(() => this.$editingTarget()?.id ?? null);
+
   readonly $writeError = signal<string | null>(null);
 
   // ---- 后端信息与开关 -------------------------------------------------------
 
-  /** `version()` 的返回值。这是**后端自己报的字符串**，不是 npm 包版本号。 */
-  readonly $backendVersion = signal<string | null>(null);
-  readonly $backendVersionError = signal<string | null>(null);
   readonly $control = signal<DemoControlState | null>(null);
   readonly $controlError = signal<string | null>(null);
   readonly $serverLog = signal<readonly DemoRequestLogEntry[]>([]);
@@ -214,6 +228,15 @@ export class App implements OnInit {
   // ---- 协议流量面板 ---------------------------------------------------------
 
   readonly $traffic = signal<readonly TrafficEntry[]>(trafficEntries());
+
+  /**
+   * 最近一次协议请求的状态码，`null` 表示一次都还没发过。
+   *
+   * @remarks
+   * 单独一路而不是从 {@link $traffic} 的末条取：面板可以被「清空日志」清掉，
+   * 而连通性不会因此改变。判据留在记录器里（`lastTransportStatus`），这里只做镜像。
+   */
+  readonly $lastStatus = signal<number | null>(lastTransportStatus());
 
   // ---- ETag 诊断面板（US-215 AC#8）------------------------------------------
 
@@ -229,8 +252,11 @@ export class App implements OnInit {
    * 判据是**最后一次协议请求的状态码是 0**（传输失败），而不是读 `navigator.onLine`
    * 或读 `__control/state`：前者对「后端挂了但网卡还在」一无所知，后者是在问那台
    * 我们正怀疑连不上的机器。最后一条真实流量是唯一自洽的证据。
+   *
+   * 读 {@link $lastStatus} 而不是 `$traffic().at(-1)`：那条证据必须比面板的缓冲区活得久，
+   * 否则离线时点一下「清空日志」横幅就没了 —— 面板会声称已经恢复，而下一次请求照样打不通。
    */
-  readonly $networkDown = computed(() => this.$traffic().at(-1)?.status === 0);
+  readonly $networkDown = computed(() => this.$lastStatus() === 0);
 
   // ---- 变更通知面板（US-023 AC#24）------------------------------------------
 
@@ -258,11 +284,16 @@ export class App implements OnInit {
   readonly $invalidations = signal(0);
 
   /**
-   * 通道开着期间打出去了几次 `fetchMetadata`。
+   * 本页开着以来打到 `/metadata` 的**累计**次数。
    *
    * @remarks
    * 从流量面板派生，不另设计数器：这一栏要回答的是「重跑真的落到网线上了吗」，
    * 而唯一有资格回答的就是网线本身。
+   *
+   * 但它数的是**所有** `/metadata`——冷启动那一次、每次翻页、每次改筛选都在内，
+   * 不只是通知触发的那几次，也不因为通道关掉就停。要看某次通知的效果，请取
+   * 动作前后两次读数的差（e2e 的 `change-feed.spec.ts` 正是这么用的），
+   * 而不是把这个绝对值当成 `fetchMetadata` 的调用次数读。
    */
   readonly $metadataRequests = computed(() => this.$traffic().filter(entry => entry.path.includes('/metadata')).length);
 
@@ -292,7 +323,10 @@ export class App implements OnInit {
   }
 
   ngOnInit(): void {
-    const unsubscribe = onTraffic(entries => this.$traffic.set(entries));
+    const unsubscribe = onTraffic(entries => {
+      this.$traffic.set(entries);
+      this.$lastStatus.set(lastTransportStatus());
+    });
     this.#destroyRef.onDestroy(unsubscribe);
 
     const unsubscribeDiagnostics = onEtagDiagnostic(entries => this.$etagDiagnostics.set(entries));
@@ -310,7 +344,6 @@ export class App implements OnInit {
     );
 
     void this.#resolveHttpAdapter();
-    void this.loadBackendVersion();
     void this.refreshControl();
   }
 
@@ -412,18 +445,6 @@ export class App implements OnInit {
     this.$draft.update(draft => ({ ...draft, ...patch }));
   }
 
-  /** 读后端版本。 */
-  async loadBackendVersion(): Promise<void> {
-    this.$backendVersionError.set(null);
-    try {
-      const adapter = await this.#rxdb.connect('http');
-      this.$backendVersion.set(await adapter.version());
-    } catch (cause) {
-      this.$backendVersion.set(null);
-      this.$backendVersionError.set(cause instanceof Error ? cause.message : String(cause));
-    }
-  }
-
   /** 拉一次后端状态与后端侧请求日志。 */
   async refreshControl(): Promise<void> {
     this.$controlError.set(null);
@@ -466,7 +487,7 @@ export class App implements OnInit {
 
   /** 把某一行装进表单准备改。 */
   startEdit(recipe: Recipe): void {
-    this.$editingId.set(recipe.id);
+    this.$editingTarget.set(recipe);
     this.$draft.set({
       title: recipe.title,
       status: recipe.status,
@@ -477,20 +498,15 @@ export class App implements OnInit {
 
   /** 退出编辑态。 */
   cancelEdit(): void {
-    this.$editingId.set(null);
+    this.$editingTarget.set(null);
     this.$draft.set(emptyDraft());
   }
 
   /** 保存正在编辑的行。 */
   async update(): Promise<void> {
-    const id = this.$editingId();
-    if (id === null) return;
+    const target = this.$editingTarget();
+    if (target === null) return;
     const draft = this.$draft();
-    const target = this.recipes.value().find(recipe => recipe.id === id);
-    if (target === undefined) {
-      this.$writeError.set(`找不到 id=${id} 的行，可能已被后端删除`);
-      return;
-    }
     await this.#write(async () => {
       target.title = draft.title;
       target.status = draft.status;

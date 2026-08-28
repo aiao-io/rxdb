@@ -22,20 +22,32 @@
   </div>
   <dl class="facts">
     <div>
-      <dt>后端地址</dt>
-      <dd data-testid="base-url">{{ baseUrl }}</dd>
+      <dt>变更通知</dt>
+      <dd data-testid="feed-status">
+        <span class="badge">{{ $changeFeedOn() ? '已接通' : '已断开' }}</span>
+      </dd>
     </div>
     <div>
-      <dt>后端版本</dt>
-      <dd data-testid="backend-version">
-        @if ($backendVersion(); as version) {
-          {{ version }}
-        } @else if ($backendVersionError(); as error) {
-          <span class="bad">读取失败：{{ error }}</span>
-        } @else {
-          读取中…
-        }
-      </dd>
+      <dt>收到通知</dt>
+      <dd data-testid="feed-received">{{ $changeFeedStats().received }}</dd>
+    </div>
+    <div>
+      <dt>抑制回声</dt>
+      <dd data-testid="feed-suppressed">{{ $changeFeedStats().suppressed }}</dd>
+    </div>
+    <div>
+      <dt>触发重跑</dt>
+      <dd data-testid="feed-invalidations">{{ $invalidations() }}</dd>
+    </div>
+    <div>
+      <!--
+        「累计」不是可有可无的修饰：这一栏数的是本页开着以来打出去的**全部** /metadata，
+        冷启动、翻页、改筛选都算在里面，不只是通知触发的那几次。
+        标成 fetchMetadata 会让人把它读成「通道害我多查了这么多次」。
+        要看通知的效果请取两次之间的差值。
+      -->
+      <dt>/metadata 累计</dt>
+      <dd data-testid="feed-metadata-requests">{{ $metadataRequests() }}</dd>
     </div>
     <div>
       <dt>翻页形态</dt>
@@ -593,56 +605,5 @@
       <button (click)="resetBackend()" data-testid="reset-backend" type="button">重置为种子</button>
       <button class="danger" (click)="clearBackend()" data-testid="clear-backend" type="button">清空所有数据</button>
     </div>
-  </section>
-
-  <section class="panel panel-changefeed" aria-labelledby="change-feed-heading">
-    <h2 id="change-feed-heading">
-      变更通知（US-023）
-      <!-- 开关在顶栏，这里只报状态：一个功能两个开关，早晚有一天显示的是另一个的状态。 -->
-      <span class="badge">{{ $changeFeedOn() ? '已接通' : '已断开' }}</span>
-    </h2>
-    @if ($changeFeedOn()) {
-      <p class="hint">
-        已接上
-        <code>changeFeed</code>
-        通道，这是
-        <strong>默认行为</strong>
-        。别的页面改了数据，后端会推一条只含实体名的通知过来（
-        <strong>不含行数据</strong>
-        ），本页据此重跑查询。本页自己改出来的那条通知会被当成回声丢掉。
-      </p>
-      <dl class="feed-counters">
-        <div>
-          <dt>收到通知</dt>
-          <dd data-testid="feed-received">{{ $changeFeedStats().received }}</dd>
-        </div>
-        <div>
-          <dt>抑制回声</dt>
-          <dd data-testid="feed-suppressed">{{ $changeFeedStats().suppressed }}</dd>
-        </div>
-        <div>
-          <dt>触发重跑</dt>
-          <dd data-testid="feed-invalidations">{{ $invalidations() }}</dd>
-        </div>
-        <div>
-          <dt>fetchMetadata</dt>
-          <dd data-testid="feed-metadata-requests">{{ $metadataRequests() }}</dd>
-        </div>
-      </dl>
-      @if ($changeFeedStats().unavailable > 0) {
-        <p class="hint" data-testid="feed-unavailable">
-          通道不可用 {{ $changeFeedStats().unavailable }} 次，最后一次：{{ $changeFeedStats().lastUnavailableMessage }}
-        </p>
-      }
-    } @else {
-      <p class="hint" data-testid="feed-off">
-        通道已断开。别的页面改了数据，本页在下一次自己发起查询之前不会知道——这正是 US-023
-        当初要修的症状，把顶栏上的「变更通知」拨回来即可当场对照，
-        <strong>不用刷页</strong>
-        。开页就想要这个状态的话，用
-        <code>?changefeed=0</code>
-        。
-      </p>
-    }
   </section>
 </main>

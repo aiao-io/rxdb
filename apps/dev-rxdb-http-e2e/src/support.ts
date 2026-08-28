@@ -142,7 +142,7 @@ export const clearOriginStorage = async (page: Page): Promise<void> => {
 export const openDemo = async (page: Page, extraQuery: string = ''): Promise<void> => {
   await clearOriginStorage(page);
   await page.goto(appUrl(extraQuery), { waitUntil: 'domcontentloaded' });
-  await expect(page.getByTestId('base-url')).toHaveText(API_BASE_URL);
+  await expect(page.getByTestId('feed-status')).toHaveText(/已接通|已断开/);
 };
 
 /** 等列表稳定在指定行数。 */

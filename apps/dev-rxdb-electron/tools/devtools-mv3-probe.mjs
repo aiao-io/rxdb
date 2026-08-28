@@ -44,8 +44,12 @@ import { join } from 'node:path';
 
 const { app, BrowserWindow, session, webContents } = createRequire(import.meta.url)('electron');
 
-const EXTENSION_DIST = process.argv[2];
-const OUTPUT_PATH = process.argv[3];
+// 按位置取参数会被 Chromium 开关打乱：spec 侧在 Linux 上要在脚本路径**之前**插
+// `--no-sandbox`（原因见那一侧的注释），于是 `process.argv[2]` 从「扩展 dist」变成脚本自身。
+// 剥掉所有 `--` 开头的项后，argv[1] 恒为本脚本路径，其后才是两个真正的位置参数。
+const positional = process.argv.slice(1).filter(arg => !arg.startsWith('--'));
+const EXTENSION_DIST = positional[1];
+const OUTPUT_PATH = positional[2];
 
 if (!EXTENSION_DIST || !OUTPUT_PATH) {
   process.stderr.write('用法：<electron> devtools-mv3-probe.mjs <扩展 dist 目录> <结果 JSON 路径>\n');

@@ -106,6 +106,7 @@ const CAPACITY = 200;
 
 let sequence = 0;
 let entries: TrafficEntry[] = [];
+let lastStatus: number | null = null;
 const listeners = new Set<(entries: readonly TrafficEntry[]) => void>();
 
 const emit = (): void => {
@@ -121,7 +122,24 @@ export const onTraffic = (listener: (entries: readonly TrafficEntry[]) => void):
   return () => listeners.delete(listener);
 };
 
-/** 清空面板。序号**不重置**——清空之后新来的请求仍然接着往下数，便于对照后端日志。 */
+/**
+ * 最近一次协议请求的状态码；一次都还没发过是 `null`。
+ *
+ * @remarks
+ * 与 {@link trafficEntries} 分开存，就是为了让它**不被 {@link clearTraffic} 抹掉**。
+ * 「连不连得上后端」是这台机器的客观状态，判据只能是最后一次真实流量（传输失败记 `0`）；
+ * 而清空面板是一个纯显示动作，没有任何一条网线因此变通。两者共用一个缓冲区的话，
+ * 离线状态下点一下「清空」，横幅就跟着消失 —— 面板会声称已经恢复，而下一次请求照样打不通。
+ */
+export const lastTransportStatus = (): number | null => lastStatus;
+
+/**
+ * 清空面板。
+ *
+ * @remarks
+ * 序号**不重置**——清空之后新来的请求仍然接着往下数，便于对照后端日志。
+ * {@link lastTransportStatus} 同样不重置，理由见那里。
+ */
 export const clearTraffic = (): void => {
   entries = [];
   emit();
@@ -147,6 +165,7 @@ export const installTrafficRecorder = (
     original,
     entry => {
       sequence += 1;
+      lastStatus = entry.status;
       entries = [...entries, { ...entry, seq: sequence }].slice(-CAPACITY);
       emit();
     },

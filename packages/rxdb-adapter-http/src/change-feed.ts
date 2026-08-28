@@ -123,10 +123,11 @@ export class HttpChangeFeed {
 
   /**
    * @param host - 通道与适配器之间的接触面
-   * @throws HttpConfigError 退避配置不是 finite 正整数，或上限小于起步值
+   * @throws HttpConfigError 解析后的 URL 解析不出来，或退避配置不是 finite 正整数 / 上限小于起步值
    */
   constructor(host: ChangeFeedHost) {
     this.#host = host;
+    assertResolvedFeedUrl(host.url);
     this.#baseDelayMs = readDelay(host.options.reconnectBaseDelayMs, 'reconnectBaseDelayMs');
     this.#maxDelayMs = readDelay(
       host.options.reconnectMaxDelayMs,
@@ -437,5 +438,33 @@ const readDelay = (
 export const assertChangeFeedUrl = (url: string): void => {
   if (typeof url !== 'string' || url.trim().length === 0) {
     throw new HttpConfigError('HTTP adapter config "changeFeed.url" must be a non-empty string', 'changeFeed.url', url);
+  }
+};
+
+/**
+ * 校验拼接完成的通知端点确实是个能解析的 URL。
+ *
+ * @param url - {@link ChangeFeedHost.url}，即 `joinUrl(baseUrl, changeFeed.url)` 的结果
+ * @throws HttpConfigError URL 解析不出来
+ *
+ * @remarks
+ * 判在构造期而不是等 `#connect()`，理由与空串被 {@link assertChangeFeedUrl} 拦下**完全一样**，
+ * 只是漏网的路径不同：`joinUrl` 见到 `http(s)://` 开头就原样透出，于是
+ * `changeFeed.url: 'https://'` 绕过非空校验，一路走到 `new EventSource()` 才同步抛
+ * `SyntaxError`。而 `#connect()` 的 `catch` 把它交给 `#fail()` 当瞬时故障退避重试 ——
+ * URL 在通道的一生里是常量，重试一万次也还是同一个 `SyntaxError`，换来的是一条每 30 秒
+ * （退避顶格）报一次、永远好不了的连接。这与同一函数里 `unsupported-runtime`「不排重连」
+ * 的判断也自相矛盾：两者都是重试变不出来的东西。
+ *
+ * 留在 `#connect()` 里的那条 `catch` **不去掉**：它罩的是真正可能好转的构造失败
+ * （运行时把 `EventSource` 换成了会抛的实现、资源耗尽），那类才该退避。
+ */
+const assertResolvedFeedUrl = (url: string): void => {
+  if (!URL.canParse(url)) {
+    throw new HttpConfigError(
+      `HTTP adapter config "changeFeed.url" resolves to "${url}", which is not a parsable URL`,
+      'changeFeed.url',
+      url
+    );
   }
 };

@@ -4,14 +4,14 @@ import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { checkOPFSAvailable } from '@aiao/utils';
 import { recordChangeFeedNotification, recordChangeFeedUnavailable } from './change-feed-diagnostics';
 import {
-  CHANGE_FEED_PATH,
-  CLIENT_ID_HEADER,
-  DEMO_TOKEN,
-  ID_CHUNK_SIZE,
-  PAGE_SIZE,
-  resolveApiBaseUrl,
-  resolveChangeFeedEnabled,
-  resolveDiagnosticsEnabled
+    CHANGE_FEED_PATH,
+    CLIENT_ID_HEADER,
+    DEMO_TOKEN,
+    ID_CHUNK_SIZE,
+    PAGE_SIZE,
+    resolveApiBaseUrl,
+    resolveChangeFeedEnabled,
+    resolveDiagnosticsEnabled
 } from './demo-config';
 import { recordEtagDiagnostic } from './etag-diagnostics';
 import { Recipe } from './recipe';
@@ -40,10 +40,9 @@ let rxdb: RxDB | undefined;
  * 这条静默悬挂已由 US-021 修成配置期 fail-fast：现在漏配会在 `RxDB.init()` 抛
  * `missingQueryCacheAdapter` 元数据违规，而不是让页面停在「加载中…」。
  *
- * `handlers` 用 `createRestHandlers()`，并**显式**给了 `version` 与 `isTableExisted`：
- * 这两个操作默认**不产出** handler（`rest.ts` 说得很直白：给它们猜一个默认端点等于
- * 替接入方发明一个不存在的 URL）。而 AC#8 的「后端版本」这一栏正是 `version()` 的返回值，
- * 不配就只能拿到一个 unsupported 异常。
+ * `handlers` 用 `createRestHandlers()`，并**显式**给了 `isTableExisted`：
+ * 这个操作默认**不产出** handler（`rest.ts` 说得很直白：给它猜一个默认端点等于
+ * 替接入方发明一个不存在的 URL）。
  */
 export default (): RxDB => {
   if (rxdb) return rxdb;
@@ -72,7 +71,6 @@ export default (): RxDB => {
         handlers: createRestHandlers({
           resources: { Recipe: 'recipes' },
           templates: {
-            version: { path: 'meta/version' },
             // 探测走 `POST :entity/metadata`（`limit: 1`）而不是默认的 `HEAD :entity`：
             // 参考后端没实现 HEAD，会回 405，而 405 既不是 2xx 也不是 404，
             // 正好落进「抛错」那一支，把一次能答上来的探测变成故障。

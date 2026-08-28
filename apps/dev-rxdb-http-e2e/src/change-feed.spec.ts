@@ -121,7 +121,7 @@ test('两个页面都带 ?changefeed=0：同样的操作，B 一直是旧值（A
   // eslint-disable-next-line playwright/no-wait-for-timeout -- 断言的是「一段时间内无事发生」
   await pageB.waitForTimeout(SILENCE_WINDOW_MS);
   await expect(pageB.locator('[data-row-id] td').first()).toHaveText(before);
-  await expect(pageB.getByTestId('feed-off')).toBeVisible();
+  await expect(pageB.getByTestId('feed-status')).toHaveText('已断开');
 
   // 手动重查一次就能拿到新值——证明 B 的旧值来自「没人告诉它」，
   // 而不是它的查询链路本身坏了。
@@ -206,7 +206,7 @@ test('面板上的开关是真的运行时开关：同一个页面里关掉、�
 
   // ---- 关掉 ----------------------------------------------------------------
   await pageB.getByTestId('feed-toggle').uncheck();
-  await expect(pageB.getByTestId('feed-off')).toBeVisible();
+  await expect(pageB.getByTestId('feed-status')).toHaveText('已断开');
 
   await renameRow(pageA, before, middle);
 

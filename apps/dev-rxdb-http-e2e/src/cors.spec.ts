@@ -63,19 +63,12 @@ test('AC#9 Access-Control-Allow-Headers 覆盖 content-type / authorization / if
   expect(response.headers()['access-control-allow-origin']).toBe(APP_BASE_URL);
 });
 
-test('AC#9 七个端点在跨源下全部可用（version / metadata / by-ids / create / update / delete）', async ({
+test('AC#9 六个端点在跨源下全部可用（metadata / by-ids / create / update / delete）', async ({
   page,
   request
 }) => {
   await openDemo(page);
 
-  /*
-   * version：后端自己报的字符串，不是 npm 包版本号。
-   *
-   * 正则里的 `\s*` 不是保险起见——`toHaveText` 只在期望值是**字符串**时才折叠空白，
-   * 传正则时拿到的是原样的 `textContent`，而模板里 `{{ version }}` 外面裹着换行与缩进。
-   */
-  await expect(page.getByTestId('backend-version')).toHaveText(/^\s*\S+\s*$/);
   await expectRowCount(page, SEED_ROW_COUNT);
 
   await page.getByTestId('draft-title').fill('跨源新建');
@@ -106,7 +99,6 @@ test('AC#9 七个端点在跨源下全部可用（version / metadata / by-ids / 
   await expect(page.getByTestId('write-error')).toHaveCount(0);
 
   const log = await readServerLog(request);
-  expect(logEntriesFor(log, 'GET', '/meta/version').length, 'version').toBeGreaterThan(0);
   expect(logEntriesFor(log, 'POST', '/recipes/metadata').length, 'fetchMetadata + isTableExisted').toBeGreaterThan(0);
   expect(logEntriesFor(log, 'POST', '/recipes/by-ids').length, 'findByIds').toBeGreaterThan(0);
   expect(logEntriesFor(log, 'POST', '/recipes').length, 'create').toBeGreaterThan(0);

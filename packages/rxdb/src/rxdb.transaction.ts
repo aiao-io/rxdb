@@ -1,5 +1,6 @@
 import {
   isCrossTabEvent,
+  REMOTE_ENTITY_INVALIDATED_EVENT,
   RxDBEvent,
   RxDBEventMap,
   type TransactionBeginEvent,
@@ -100,11 +101,28 @@ export function handleTransactionCommit(
 }
 
 /**
+ * 判定事件是否为「外面发生的事」，即回滚不该连坐丢弃的那一类。
+ *
+ * @remarks
+ * 两个来源，同一个理由 —— 它们的因果不在本次事务里，回滚撤不掉已经发生的事实：
+ * - 他 tab 的变更（{@link isCrossTabEvent}）：别处**已经成功提交**的写入；
+ * - 远端实体失效（`REMOTE_ENTITY_INVALIDATED`）：宿主推送通道报来的后端变更。
+ *   它由 `RxDB.invalidateRemoteEntity` 走 `dispatchEvent` 发出，事务期间同样被排队；
+ *   随回滚丢掉的话 `QueryCache` 的同步记忆永远不会失效，表现是这台机器直到下次
+ *   全量刷新都还显示旧值，而现场看起来与那次失败的本地写入毫无关系。
+ *
+ * 不并进 {@link isCrossTabEvent}：那个谓词还有第二个消费方（网关的防回声），把远端失效
+ * 算成「来自其他 tab」会让它跟着被拦下二次广播 —— 而失效事件本来就不跨 tab 转发。
+ */
+const survivesRollback = (event: RxDBEvent): boolean =>
+  isCrossTabEvent(event) || event.type === REMOTE_ENTITY_INVALIDATED_EVENT;
+
+/**
  * 事务回滚：回滚中止**本事务**的整个嵌套栈（无 savepoint 语义），不管深度直接摘掉。
  *
- * 但只丢弃**本 tab 本次事务**产生的事件：队列里还可能躺着他 tab 的变更，
- * 那是别处已经成功提交的写入，与本地回滚没有因果关系。一并丢掉会让本 tab 的 UI
- * 与其他 tab 永久不一致，直到下次全量刷新。跨 tab 事件照常派发。
+ * 但只丢弃**本 tab 本次事务**产生的事件：队列里还可能躺着他 tab 的变更或远端失效通知，
+ * 那些都是别处已经发生的事实，与本地回滚没有因果关系。一并丢掉会让本 tab 的 UI
+ * 与其他 tab / 后端永久不一致，直到下次全量刷新。判据见 {@link survivesRollback}。
  */
 export function handleTransactionRollback(
   stack: TransactionContext[],
@@ -115,5 +133,5 @@ export function handleTransactionRollback(
   const context = findTransactionContext(stack, event.transactionId);
   if (context === undefined) return;
   closeTransactionContext(stack, context);
-  runIsolated(context.events.filter(isCrossTabEvent), queued => emitEvent(event_map, listenerThis, queued));
+  runIsolated(context.events.filter(survivesRollback), queued => emitEvent(event_map, listenerThis, queued));
 }

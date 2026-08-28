@@ -266,6 +266,13 @@ describe('连接生命周期（AC#13）', () => {
     expect(() => createAdapter({ changeFeed: { url: '  ' } })).toThrow(HttpConfigError);
   });
 
+  // `joinUrl` 见到 `http(s)://` 开头就原样透出，所以这个值一路走到 `new EventSource()`
+  // 才同步抛 SyntaxError。而 URL 在通道的一生里是常量：交给退避重连，换来的是一条每 30 秒
+  // 报一次、永远好不了的连接 —— 与空串被拦在这里是同一个理由。
+  it.each(['https://', 'http://:8080/changes'])('解析不出来的 changeFeed.url = %p 在构造期即抛 HttpConfigError', url => {
+    expect(() => createAdapter({ changeFeed: { url } })).toThrow(HttpConfigError);
+  });
+
   it.each([
     ['reconnectBaseDelayMs', 0],
     ['reconnectBaseDelayMs', 1.5],

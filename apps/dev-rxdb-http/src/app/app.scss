@@ -8,8 +8,8 @@
 /* ---- 顶栏 ---------------------------------------------------------------- */
 
 /*
- * 常驻顶部。后端地址、离线横幅、查询报错都在这儿——正是翻到页面底下看流量面板时
- * 最需要一眼确认的三件事，滚走了就得来回蹦。
+ * 常驻顶部。变更通知状态与计数、离线横幅、查询报错都在这儿——正是翻到页面底下看
+ * 流量面板时最需要一眼确认的几件事，滚走了就得来回蹦。
  */
 .topbar {
   position: sticky;
@@ -68,9 +68,9 @@
  * 三档断点，每一档都把面板重新排一遍，而不是让 `auto-fit` 自己填格子——
  * 后者在 1440px 上会排出「三列里只坐了两块面板」的参差版面。
  *
- * 宽屏那一档是「左手操作、右手观察」：筛选 / 写入 / 开关 / 通知计数叠在窄栏里，
- * 页签面板（列表 + 流量 + 诊断）独占右侧整条。空的末行是故意留的：那块面板跨四行，
- * 多出来的高度得有个 `1fr` 轨道接着，否则会被平摊进前四行，把左边几块面板互相推开。
+ * 宽屏那一档是「左手操作、右手观察」：筛选 / 写入 / 开关叠在窄栏里，
+ * 页签面板（列表 + 流量 + 诊断）独占右侧整条。空的末行是故意留的：那块面板跨三行，
+ * 多出来的高度得有个 `1fr` 轨道接着，否则会被平摊进前三行，把左边几块面板互相推开。
  */
 main {
   display: grid;
@@ -78,7 +78,7 @@ main {
   margin-top: 1rem;
   align-items: start;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: 'filter' 'write' 'main' 'control' 'changefeed';
+  grid-template-areas: 'filter' 'write' 'main' 'control';
 }
 
 @media (min-width: 760px) {
@@ -87,19 +87,18 @@ main {
     grid-template-areas:
       'filter write'
       'main main'
-      'control changefeed';
+      'control control';
   }
 }
 
 @media (min-width: 1180px) {
   main {
     grid-template-columns: minmax(20rem, 24rem) minmax(0, 1fr);
-    grid-template-rows: auto auto auto auto 1fr;
+    grid-template-rows: auto auto auto 1fr;
     grid-template-areas:
       'filter main'
       'write main'
       'control main'
-      'changefeed main'
       '. main';
   }
 }
@@ -136,10 +135,6 @@ main {
 
 .panel-control {
   grid-area: control;
-}
-
-.panel-changefeed {
-  grid-area: changefeed;
 }
 
 /* ---- 页签 ---------------------------------------------------------------- */
@@ -180,32 +175,6 @@ main {
 /* `[hidden]` 的 UA 样式是 `display: none`，但凡下面给 `.tabpanel` 设了 display 就会盖掉它。 */
 .tabpanel[hidden] {
   display: none;
-}
-
-/* 四个数一行排开：面板要回答的是「通道在不在干活」，不是列出每一条通知。 */
-.feed-counters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.25rem;
-  margin: 0;
-
-  div {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-  }
-
-  dt {
-    font-size: 0.75rem;
-    color: var(--muted);
-  }
-
-  dd {
-    margin: 0;
-    font-variant-numeric: tabular-nums;
-    font-size: 1.35rem;
-    font-weight: 600;
-  }
 }
 
 /* ---- 面板内部 ------------------------------------------------------------ */

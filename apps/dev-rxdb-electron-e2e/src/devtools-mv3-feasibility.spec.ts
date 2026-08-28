@@ -29,6 +29,30 @@ const PROBE = join(__dirname, '../../dev-rxdb-electron/tools/devtools-mv3-probe.
 /** 扩展构建产物目录，与 `apps/rxdb-devtools-extension/vite.config.ts` 的 `outDir` 一致。 */
 const EXTENSION_DIST = join(__dirname, '../../rxdb-devtools-extension/dist');
 
+/**
+ * Linux 上启动探针要补的 Chromium 开关。
+ *
+ * @remarks
+ * npm/pnpm 装出来的 Electron，其 `dist/chrome-sandbox` 是 0755 而不是 root 拥有的 4755
+ * （setuid 位只有 root 能置，postinstall 解包时置不了）。Chromium 见到「文件在但没配好」
+ * 不会降级，直接 FATAL 中止：
+ *   FATAL:sandbox/linux/suid/client/setuid_sandbox_host.cc:166] The SUID sandbox helper
+ *   binary was found, but is not configured correctly.
+ * 表现是探针以 `null` 退出、一条 finding 都没产出，看上去像扩展加载失败 —— 与 MV3 无关。
+ *
+ * 本目录另外三套用例撞不到，是因为它们走 `_electron.launch()`，而 Playwright 在 Linux 上
+ * 会**默认**把 `--no-sandbox` 插到最前面（playwright-core 的 Electron.launch，仅 linux 分支）。
+ * 这里照抄它的条件与位置，让四套用例在同一台机器上处于同一种沙箱状态 —— 不是为本套件开后门。
+ *
+ * 对结论没有影响：这道门禁验的是 MV3 service worker、DevTools 面板与 `chrome.scripting`，
+ * 与 OS 进程沙箱正交；主进程 `webPreferences.sandbox` 是另一回事，探针没有改它。
+ *
+ * @returns Linux 上返回 `['--no-sandbox']`，其余平台返回空数组
+ */
+function sandboxArgs(): string[] {
+  return process.platform === 'linux' ? ['--no-sandbox'] : [];
+}
+
 /** 单条 finding 的形状，与探针的 `record()` 一致。 */
 interface Finding {
   readonly step: string;
@@ -79,7 +103,7 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
     const exitCode = await new Promise<number>((resolve, reject) => {
       // launchEnv() 会剥掉 ELECTRON_RUN_AS_NODE：任何 Electron 宿主（VS Code 集成终端最常见）
       // 都会给子进程设这个变量，带着它启动会让二进制退化成纯 Node，连 app 对象都没有。
-      const child = spawn(executable, [PROBE, EXTENSION_DIST, outputPath], {
+      const child = spawn(executable, [...sandboxArgs(), PROBE, EXTENSION_DIST, outputPath], {
         env: launchEnv(),
         stdio: ['ignore', 'pipe', 'pipe']
       });
@@ -214,14 +238,20 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
         runtimeConnect: string;
         panelsCreate: string;
         inspectedWindowEval: string;
-      };
+      } | null;
     };
-    expect(detail.panelCapabilities.permissions).toBe('undefined');
-    expect(detail.panelCapabilities.permissionsContains).toBe('undefined');
-    expect(detail.panelCapabilities.permissionsRequest).toBe('undefined');
+    // 面板 frame 起不来时探针记的是 `null`（见 devtools-mv3-probe.mjs 的 `activation.frame ? … : null`）。
+    // 不先拦住的话下面每一条都是同一个 `Cannot read properties of null`，读起来像「能力探测挂了」，
+    // 而真正发生的是**根本没采到快照**——两回事，报错必须说的是后者。
+    const caps = detail.panelCapabilities;
+    if (caps === null) throw new Error('面板 frame 未激活，探针没采到能力快照（panelCapabilities 记的是 null）');
+
+    expect(caps.permissions).toBe('undefined');
+    expect(caps.permissionsContains).toBe('undefined');
+    expect(caps.permissionsRequest).toBe('undefined');
     // 同一份能力快照里，被测能力本身必须齐全，否则上面三条只是"扩展没加载"的假象。
-    expect(detail.panelCapabilities.runtimeConnect).toBe('function');
-    expect(detail.panelCapabilities.panelsCreate).toBe('function');
-    expect(detail.panelCapabilities.inspectedWindowEval).toBe('function');
+    expect(caps.runtimeConnect).toBe('function');
+    expect(caps.panelsCreate).toBe('function');
+    expect(caps.inspectedWindowEval).toBe('function');
   });
 });
