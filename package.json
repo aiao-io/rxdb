@@ -131,6 +131,7 @@
     "@nx/vitest": "23.1.2",
     "@nx/vue": "23.1.2",
     "@nx/web": "23.1.2",
+    "@oxc-project/runtime": "^0.144.0",
     "@playwright/test": "^1.62.1",
     "@schematics/angular": "22.1.6",
     "@swc-node/register": "1.12.1",
