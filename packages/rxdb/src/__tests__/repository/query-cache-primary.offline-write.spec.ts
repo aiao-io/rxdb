@@ -48,8 +48,7 @@ type CachedEntityCtor = typeof CachedEntity;
  * 用裸对象而不是 `new CachedEntity()`：装饰过的构造函数要一个已初始化的 RxDB
  * （`need init rxdb`），而这里只需要一份数据形状。
  */
-const row = (id: string, updatedAt: string, value = 0): CachedEntity =>
-  ({ id, updatedAt, value }) as CachedEntity;
+const row = (id: string, updatedAt: string, value = 0): CachedEntity => ({ id, updatedAt, value }) as CachedEntity;
 
 /** 断网时 `fetch()` 抛的那个 `TypeError`，走 `isNetworkError` 的第 5 条判据 */
 const offlineError = (): TypeError => new TypeError('Failed to fetch');

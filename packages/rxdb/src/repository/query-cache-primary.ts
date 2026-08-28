@@ -194,9 +194,9 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
   async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
     const created = await this.#tryRemote('create', () => this.#cache.create(entity));
     const settled =
-      created === OFFLINE
-        ? await this.#queueOffline(() => this.localRepository.create(entity))
-        : this.#decodeRemote(created);
+      created === OFFLINE ?
+        await this.#queueOffline(() => this.localRepository.create(entity))
+      : this.#decodeRemote(created);
     this.syncMemo.clear();
     return Object.assign(entity, settled);
   }
@@ -212,9 +212,9 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
     const updated = await this.#tryRemote('update', () => this.#cache.update(entityId(entity), patch));
     const settled =
-      updated === OFFLINE
-        ? await this.#queueOffline(() => this.localRepository.update(entity, patch))
-        : this.#decodeRemote(updated);
+      updated === OFFLINE ?
+        await this.#queueOffline(() => this.localRepository.update(entity, patch))
+      : this.#decodeRemote(updated);
     this.syncMemo.clear();
     return Object.assign(entity, settled);
   }

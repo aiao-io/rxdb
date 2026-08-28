@@ -4,8 +4,8 @@ import {
   isNetworkError,
   PropertyType,
   RxDB,
-  SYSTEM_ENTITIES,
   SyncType,
+  SYSTEM_ENTITIES,
   type EntityType,
   type RuleGroup,
   type SyncOptions

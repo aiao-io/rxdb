@@ -18,7 +18,6 @@ import type {
 } from './entity-field.utils.js';
 import { isOnStep, PERCENTAGE_DOMAIN } from './format-rules.js';
 import { isPlainRecord, walkJsonContainer, type JsonWalkPath } from './json-safe.js';
-import type { EntityMetadata } from './metadata.interface.js';
 import type {
   CurrencyFormat,
   DurationFormat,
@@ -29,6 +28,7 @@ import type {
   RatingFormat,
   UrlFormat
 } from './metadata-options.interface.js';
+import type { EntityMetadata } from './metadata.interface.js';
 
 /**
  * {@link EntityFieldType} 的字符串字面量视图。

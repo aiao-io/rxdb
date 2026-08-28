@@ -1,13 +1,13 @@
-import { Entity } from '../../entity/entity.decorator.js';
-import type { EntityFieldConfig } from '../../entity/entity-field.utils.js';
 import { EntityBase } from '../../entity/entity-base.js';
-import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
+import type { EntityFieldConfig } from '../../entity/entity-field.utils.js';
 import {
   formatEntityFieldValue,
   parseEntityFieldValue,
   parseEntityRecordValues,
   validateEntityFieldValue
 } from '../../entity/entity-value.utils.js';
+import { Entity } from '../../entity/entity.decorator.js';
+import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import { PropertyType } from '../../entity/metadata-options.interface.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
 
