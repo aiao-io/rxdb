@@ -141,3 +141,41 @@ test('新建一行之后自动跳到末页，新行就在眼前', async ({ page 
   await expect(page.locator('[data-row-id]')).toHaveCount(1);
   await expect(page.getByTestId('recipe-rows')).toContainText('分页演示新行');
 });
+
+/*
+ * 连着建两行。
+ *
+ * 只建一行看不见这条：第二行才会撞上「上一行的实例还在实体缓存里」这个前提。
+ * 断言不止看标题——`updatedAt` 那一栏是 `recipe.updatedAt.toISOString()`，
+ * 值要不是 `Date` 就当场抛，而在 Angular 里模板中段抛错会**提交抛之前的绑定、
+ * 跳过之后的**：标题格填上了，后面的 id 格与两个按钮的 aria-label 停在空。
+ * 所以真正的判据是抛点之后的那几个绑定，光断言标题会让半行 DOM 蒙混过关。
+ */
+test('连着新建两行：两行都完整渲染，不是一行对一行空白', async ({ page }) => {
+  await openDemo(page);
+  await expectRowCount(page, SEED_ROW_COUNT);
+
+  await page.getByTestId('draft-title').fill('连建第一行');
+  await page.getByTestId('create').click();
+  await expectRowCount(page, SEED_ROW_COUNT + 1);
+
+  await page.getByTestId('draft-title').fill('连建第二行');
+  await page.getByTestId('create').click();
+  await expectRowCount(page, SEED_ROW_COUNT + 2);
+
+  const rows = page.locator('[data-row-id]');
+  await expect(rows).toHaveCount(2);
+
+  for (const title of ['连建第一行', '连建第二行']) {
+    const row = page.locator('[data-row-id]', { hasText: title });
+    await expect(row, `${title} 应当在末页`).toHaveCount(1);
+    // 抛点之前
+    await expect(row.locator('td').first()).toHaveText(title);
+    // 抛点本身：`updatedAt` 必须是 Date，渲染出来是一个 ISO 串
+    await expect(row.locator('td.mono').first()).toHaveText(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/);
+    // 抛点之后：id 格与两个按钮的 aria-label
+    await expect(row.locator('td.mono.id')).not.toBeEmpty();
+    await expect(row.getByRole('button', { name: `改 ${title}` })).toHaveCount(1);
+    await expect(row.getByRole('button', { name: `删 ${title}` })).toHaveCount(1);
+  }
+});
