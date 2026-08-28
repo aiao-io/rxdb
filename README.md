@@ -32,12 +32,12 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 | 构建   | Nx 23 + pnpm 10                                        |
 | 框架   | Angular 22+ / React 19+ / Vue 3.5+                     |
 | 响应式 | RxJS 7.8+                                              |
-| 存储   | wa-sqlite / sqlite-wasm / PGlite / Supabase / sqliteai |
+| 存储   | wa-sqlite / sqlite-wasm / PGlite / Supabase / HTTP / sqliteai |
 | 测试   | Vitest (unit/integration) + Playwright (e2e/a11y)      |
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri        |
 
 > [!NOTE]
-> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [38/53 已交付](requirements/status-overview.md)
+> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [50/61 已交付](requirements/status-overview.md)
 
 支持与反馈：可复现的 bug 请提交 [Bug Issue](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml)，功能建议提交 [Feature Issue](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml)，使用问题请提交 [Question Issue](https://github.com/aiao-io/rxdb/issues/new?template=question.yml)。
 
@@ -78,6 +78,7 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 - 关系映射：1:1 / 1:N / N:1 / M:N 自动中间表，级联查询与变更
 - 变更追踪：patch / inversePatch，支撑撤销/重做与版本控制
 - 跨 Tab 同步：BroadcastChannel + leader election，多 Tab 数据一致
+- 远程查询缓存：`SyncType.QueryCache` 生产接线，SWR SQL / orphan 清理 / 指纹含模式，远端失效通知清记忆并重跑活查询
 - 高级类型：bigint（64 位有符号）与 binary（Uint8Array），全链路无损
 - 树形数据：`@TreeEntity` + TreeRepository（路径唯一性、拖拽排序），核心包内建
 
@@ -86,8 +87,10 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 - wa-sqlite / sqlite-wasm / sqlite（官方）：浏览器端 SQLite，共享 `sqlite-core` 抽象
 - sqliteai：向量存储 + AI 内建函数（embedding、相似度）
 - PGlite：WASM PostgreSQL，完整 PG 生态
-- desktop：Electron 应用私有目录里的真实 SQLite 文件，`node:sqlite` 落在特权侧，renderer 零文件系统权限
+- electron：Electron 主进程 `node:sqlite` 持有应用私有目录里的真实 SQLite 文件，renderer 零文件系统权限
+- tauri：Rust `rusqlite` 宿主持有应用作用域 SQLite 文件，普通 crate 发布、应用自己注册 command
 - Supabase：PostgREST + Realtime + RPC 推送，远程同步
+- http：远端权威 HTTP API + 本地 sqlite 行缓存（QueryCache），handlers 协议 mapping、ETag 条件请求、可选 SSE 变更通知（缺省关闭）
 - 加密包装器：AES-GCM-256 + WebCrypto，对上层透明的字段级加解密
 - 小程序：微信小程序逻辑层本地持久化与响应式查询（**实验性**，仅微信，强制单连接，不保证崩溃恢复）
 
@@ -103,13 +106,14 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 - 版本控制：Git-like 分支、合并、切换，变更压缩
 - 撤销/重做：inversePatch + transactionId 分组，跨 session 持久化
 - Supabase 同步：RPC 推送 + PostgREST + Realtime 订阅，本地优先远端同步
+- HTTP 同步：远端权威 HTTP + 本地行缓存，翻页/分块、ETag 条件请求、SSE 变更推送（可选，缺省关闭）
 - 字段级加密：透明加解密，加密字段不进 FTS 索引，历史快照自动脱敏
 
 **UI 与工具**
 
 - Code Editor：CodeMirror 6 跨框架编辑器，Angular / React / Vue 三端
 - DevTools：运行时调试面板 + Chrome 扩展，实体浏览、查询监控、变更回放
-- 多端演示：Web / Supabase / Electron / Tauri，覆盖全部运行时
+- 多端演示：Web / HTTP / Supabase / Electron / Tauri，覆盖全部运行时
 
 对应文档（线上站：[rxdb.netlify.app](https://rxdb.netlify.app)）：
 
@@ -134,11 +138,16 @@ aiao/
 │   ├── dev-rxdb-angular/            # Angular DEMO
 │   ├── dev-rxdb-angular-e2e/        # Angular E2E
 │   ├── dev-rxdb-electron/           # Electron DEMO
+│   ├── dev-rxdb-electron-e2e/       # Electron E2E
+│   ├── dev-rxdb-http/               # HTTP 远程同步 DEMO（Angular 前端）
+│   ├── dev-rxdb-http-e2e/           # HTTP E2E
+│   ├── dev-rxdb-http-server/        # HTTP 参考后端（node:sqlite）
 │   ├── dev-rxdb-react/              # React DEMO
 │   ├── dev-rxdb-react-e2e/          # React E2E
 │   ├── dev-rxdb-supabase/           # Supabase 同步 DEMO
 │   ├── dev-rxdb-supabase-e2e/       # Supabase E2E
 │   ├── dev-rxdb-tauri/              # Tauri DEMO
+│   ├── dev-rxdb-tauri-e2e/          # Tauri E2E
 │   ├── dev-rxdb-vue/                # Vue DEMO
 │   ├── dev-rxdb-vue-e2e/            # Vue E2E
 │   └── rxdb-devtools-extension/     # 浏览器 Devtools 扩展
@@ -159,6 +168,7 @@ aiao/
 │   ├── rxdb-adapter-miniprogram/    # 小程序适配器（仅微信，实验性）
 │   ├── rxdb-adapter-pglite/         # PGlite 适配器（PostgreSQL）
 │   ├── rxdb-adapter-supabase/       # Supabase 适配器
+│   ├── rxdb-adapter-http/           # HTTP 远程适配器（QueryCache + 条件请求 + SSE）
 │   ├── rxdb-angular/                # Angular 集成（signals）
 │   ├── rxdb-react/                  # React 集成（hooks）
 │   ├── rxdb-vue/                    # Vue 集成（composables）
@@ -185,6 +195,7 @@ aiao/
 ## 可直接运行的入口
 
 - Web demo：`pnpm nx serve dev-rxdb-angular`、`pnpm nx serve dev-rxdb-react`、`pnpm nx serve dev-rxdb-vue`
+- HTTP 远程同步 demo：`pnpm nx serve dev-rxdb-http-server`（node:sqlite 参考后端）+ `pnpm nx serve dev-rxdb-http`（Angular 前端）
 - 同步 demo：`pnpm nx serve dev-rxdb-supabase`
 - 桌面 demo：`pnpm nx serve dev-rxdb-electron`、`pnpm nx serve dev-rxdb-tauri`
 - 调试扩展：`pnpm nx serve rxdb-devtools-extension`
@@ -198,7 +209,7 @@ aiao/
 
 ## 当前进展
 
-交付状态见 [status-overview](requirements/status-overview.md)。核心引擎、七种本地存储适配器、三框架集成、插件体系和协作能力均已就绪。
+交付状态见 [status-overview](requirements/status-overview.md)。核心引擎、十种存储适配器、三框架集成、插件体系和协作能力均已就绪。
 
 ### 已验证场景
 
@@ -206,30 +217,32 @@ aiao/
 - **树结构文件管理** — 增删改、拖拽移动、路径唯一性校验、撤销/重做、搜索
 - **树结构菜单管理** — 增删改、同路径告警、拖拽排序、撤销/重做、搜索
 - **Supabase 同步** — 本地优先远端同步，PostgREST + Realtime + RPC 推送
+- **HTTP 远程同步** — Angular 前端 + node:sqlite 参考后端，QueryCache 行缓存，双客户端 SSE 实时收敛
 
 ### 进行中
 
-- 🚧 **桌面本地数据库**（[US-207](requirements/stories/adapter/US-207-desktop-local-database.md)）— Electron 主进程持有 `node:sqlite` 文件，适配器与主进程 host 已落地（含多窗口写锁退避重试），剩余加密字段覆盖与三平台打包矩阵
+- 🚧 **Tauri 本地文件存储**（[US-505](requirements/stories/plugin/US-505-tauri-local-file-storage.md)）— US-504 的 Tauri 半边，适配器与宿主已就绪，缺该故事自己的 specs
+- 🚧 **DevTools 原生本地存储调试**（[US-904](requirements/stories/future/US-904-devtools-native-storage-contract.md)）— 阶段 A（Electron 可行性）/ B（v2 协议）已交付，阶段 C 共享面板 library 与 Chrome v2 迁移、阶段 D Electron 原生存储集成未开始
+- 👀 **插件依赖声明与按需装卸**（[US-015](requirements/stories/core/US-015-plugin-inject-dependency.md)）— 阶段 A 已交付，停在 In Review，解锁条件 = 出现第一个 `plugin:*` 依赖声明
 
 ### 待办
 
-- ⬜ **字段语义元数据**（[US-012](requirements/stories/core/US-012-field-semantic-metadata.md)）— `PropertyType + format` 统一契约，版本化前端 DTO
-- ⬜ **Tauri 应用作用域 SQLite**（[US-210](requirements/stories/adapter/US-210-tauri-sqlite-local-database.md)）— 从 US-207 拆出，`tauri-plugin-sql` 的单物理连接事务语义待验证
-- ⬜ **提交图与 HEAD 持久化**（[US-305](requirements/stories/collaboration/US-305-commit-graph-head.md)）— 独立命名空间的 commit 存储
+- ⬜ **提交图与 HEAD 持久化**（[US-305](requirements/stories/collaboration/US-305-commit-graph-head.md)）— commit 图 / branch ref / baseline，独立命名空间的 commit 存储
+- ⬜ **Electron PGlite 数据目录与事务宿主**（[US-208](requirements/stories/adapter/US-208-electron-pglite-data-directory.md)）— PGlite callback transaction 不能跨 IPC 序列化，需要事务 host 协议
 - ⬜ **PGlite 原生全文搜索**（[US-703](requirements/stories/future/US-703-pglite-full-text-search.md)）— tsvector / GIN / trigger，补齐与 SQLite FTS5 的能力对称
+- ⬜ **多端小程序宿主**（[US-211](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)）— 先抽宿主契约与可行性矩阵，再按门禁放行支付宝 / 抖音 / 百度 / QQ
 
 ## 路线图
 
-路线图按 Epic 组织，已完成 [Epic 1（核心 MVP）](requirements/epics/epic-001-core-mvp.md) 与 [Epic 2（数据同步）](requirements/epics/epic-002-data-sync.md)，[Epic 5（类型系统演进）](requirements/epics/epic-005-type-system-evolution.md) 收尾中。所有阶段遵守相同的横向原则：跨框架 API 对称、Local-first 优先、模型驱动、适配器无关。
+路线图按 Epic 组织，已完成 [Epic 1（核心 MVP）](requirements/epics/epic-001-core-mvp.md)、[Epic 2（数据同步）](requirements/epics/epic-002-data-sync.md) 与 [Epic 8（生命周期作用域）](requirements/epics/epic-008-lifecycle-scope.md)，[Epic 4（未来功能）](requirements/epics/epic-004-future-features.md)、[Epic 5（类型系统演进）](requirements/epics/epic-005-type-system-evolution.md) 与 [Epic 7（公开 API 门禁）](requirements/epics/epic-007-public-api-gates.md) 进行中。所有阶段遵守相同的横向原则：跨框架 API 对称、Local-first 优先、模型驱动、适配器无关。
 
 ### 阶段 1 → 1.0 发布
 
 将已完成能力推到稳定可发版状态。阻塞项：
 
-- ⬜ **US-012** 字段语义元数据：统一前端 DTO 与校验契约
 - **API 冻结**：核心 / 适配器 / 框架集成锁定对外类型，进入 semver
 - **覆盖率门禁**：核心包 ≥ 90%，其余 ≥ 80%（已接入 CI，门槛只升不降）
-- **1.0 文档**：API 参考（26 包）、迁移指南、兼容矩阵已完成骨架，内容补齐中
+- **1.0 文档**：API 参考、迁移指南、兼容矩阵已完成骨架，内容补齐中（新增的 electron / tauri / http / miniprogram 包 API 文档待生成）
 
 ### 阶段 2 生产可靠性
 
