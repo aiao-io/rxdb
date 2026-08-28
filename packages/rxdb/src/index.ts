@@ -60,8 +60,8 @@ export * from './rxdb-utils.js';
 export * from './rxdb.interface.js';
 export * from './RxDB.js';
 export * from './RxDBError.js';
-export * from './sync-state.js';
 export type { SchemaManager } from './schema/SchemaManager.js';
+export * from './sync-state.js';
 export * from './system/branch.js';
 export {
   RXDB_CHANGE_CODEC_VERSION,

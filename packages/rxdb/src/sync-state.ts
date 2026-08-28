@@ -131,7 +131,9 @@ export class SyncStateHub {
       sources.online$.subscribe(online => this.#upstream$.next({ ...this.#upstream$.value, online }))
     );
     this.#subscriptions.add(
-      sources.pushableCount$.subscribe(pushableCount => this.#upstream$.next({ ...this.#upstream$.value, pushableCount }))
+      sources.pushableCount$.subscribe(pushableCount =>
+        this.#upstream$.next({ ...this.#upstream$.value, pushableCount })
+      )
     );
 
     const derived$ = combineLatest([this.#upstream$, this.#syncing$, this.#lastError$, this.#lastConflict$]).pipe(

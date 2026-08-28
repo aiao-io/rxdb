@@ -20,7 +20,7 @@ import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
-import { flushQueryCacheOutbox } from '../../repository/query-cache-outbox.js';
+import { countQueryCacheOutbox, flushQueryCacheOutbox } from '../../repository/query-cache-outbox.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
 import { RxDBChange } from '../../system/change.js';
 import { RxDBSync } from '../../system/sync.js';
@@ -171,7 +171,18 @@ const setup = (options: SetupOptions = {}) => {
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter }))
   } as unknown as VersionManager;
 
-  return { vm, changeRepo, changeQueries, syncRepo, syncRow, localAdapter, remoteAdapter, reachability };
+  return {
+    vm,
+    changeRepo,
+    changeQueries,
+    countChanges,
+    countQueries,
+    syncRepo,
+    syncRow,
+    localAdapter,
+    remoteAdapter,
+    reachability
+  };
 };
 
 const flush = (ctx: ReturnType<typeof setup>, entity = 'CachedRecipe') =>
@@ -525,5 +536,57 @@ describe('flushQueryCacheOutbox', () => {
       expect(ctx.remoteAdapter.create).toHaveBeenCalledTimes(1);
       expect(second).toBe(first);
     });
+  });
+});
+
+describe('countQueryCacheOutbox', () => {
+  /** 计数查询的顶层 and 规则（含末尾那个仓库 OR 组），不复用只认字段规则的 `rulesOf` */
+  const countRulesOf = (query: unknown): unknown[] => (query as { where: { rules: unknown[] } }).where.rules;
+
+  it('返回 QueryCache 仓库当前分支上的待推行数', async () => {
+    const ctx = setup({ changeCount: 3, sync: {} });
+
+    await expect(countQueryCacheOutbox(ctx.vm)).resolves.toBe(3);
+  });
+
+  // 这一条盯的是 `SyncStateHub` 相加的前提：口径取的是 `push` 的补集，
+  // 走版本管理器推送的仓库不能在这里再被数一遍
+  it('没有 offlineWrite 且不可 push 的仓库时返回 0，且一次都不查', async () => {
+    const ctx = setup({ changeCount: 9, entityType: VersionedRecipe });
+
+    await expect(countQueryCacheOutbox(ctx.vm)).resolves.toBe(0);
+    expect(ctx.countChanges).not.toHaveBeenCalled();
+  });
+
+  it('查询条件与 flush 取行口径一致：同分支、未回滚、未推送、水位线之后', async () => {
+    const ctx = setup({ sync: { lastPushedChangeId: 7 } });
+
+    await countQueryCacheOutbox(ctx.vm);
+
+    expect(countRulesOf(ctx.countQueries[0])).toEqual([
+      { field: 'branchId', operator: '=', value: BRANCH },
+      { field: 'revertChangeId', operator: '=', value: null },
+      { field: 'remoteId', operator: '=', value: null },
+      {
+        combinator: 'or',
+        rules: [
+          {
+            combinator: 'and',
+            rules: [
+              { field: 'namespace', operator: '=', value: NAMESPACE },
+              { field: 'entity', operator: '=', value: 'CachedRecipe' },
+              { field: 'id', operator: '>', value: 7 }
+            ]
+          }
+        ]
+      }
+    ]);
+  });
+
+  it('同步开关关掉的仓库不计入积压', async () => {
+    const ctx = setup({ changeCount: 4, sync: { enabled: false } });
+
+    await expect(countQueryCacheOutbox(ctx.vm)).resolves.toBe(0);
+    expect(ctx.countChanges).not.toHaveBeenCalled();
   });
 });

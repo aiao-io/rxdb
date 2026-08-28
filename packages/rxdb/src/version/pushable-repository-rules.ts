@@ -46,7 +46,12 @@ export function buildOfflineWriteRepositoryRules(
   syncConfig: SyncOptions,
   repoSyncs: RxDBSync[]
 ): RuleGroup<RxDBChange>['rules'] {
-  return buildRepositoryRules(entities, syncConfig, repoSyncs, capability => capability.offlineWrite && !capability.push);
+  return buildRepositoryRules(
+    entities,
+    syncConfig,
+    repoSyncs,
+    capability => capability.offlineWrite && !capability.push
+  );
 }
 
 /** 两个导出共用的规则构造：只有仓库筛选谓词不同 */
