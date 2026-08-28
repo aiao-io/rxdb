@@ -41,7 +41,7 @@ INVEST 检查清单:
   （何时发 `ETag`、如何认 `If-None-Match`、`304` 不带 body 且语义是「你手上那份仍有效」）。AC#16 要证
   「后端照协议实现」，而 US-212 阶段 B 只把条件请求写进了客户端文档 `http.md`，协议侧没有锚点——不补
   这一节，AC#16 的服务端行为就是测试作者自创，证不到协议头上。
-  **该节已于 2026-08-25 先行落地**：见
+  **该节已先行落地**：见
   [`http-protocol.md`「条件请求（可选）」](../../../website/docs/adapters/http-protocol.md#条件请求可选)
   与该文件验收清单的「若实现了条件请求：内容一旦变化就**不得**再回 `304`」一条。开工时**不要重复新增**，
   AC#16 直接引用即可
@@ -117,7 +117,7 @@ INVEST 检查清单:
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-**关闭证据（2026-08-27）**：17 条 AC 全绿。`tests/` 下三个文件共 **45 条**用例，本包合计
+**关闭证据**：17 条 AC 全绿。`tests/` 下三个文件共 **45 条**用例，本包合计
 **350 条**全绿（`tests/wire-integration.spec.ts` 45 + `src/__tests__/**` 305）；`lint` / `build` /
 `typecheck` 三个 target 全绿，其中 `typecheck` 的第二条命令 `tsc -p tsconfig.spec.json --noEmit`
 真的把 `tests/**` 纳入了严格校验（AC#17 的门禁项，不是形式）。覆盖率
@@ -127,52 +127,14 @@ INVEST 检查清单:
 **零条**——AC#17 末句那个"全绿被 expected-fail 撑起来"的口子不存在，因此"协议可互通"这个命题
 是**完整成立**的，不带待办尾巴。
 
-`src/__tests__/**` 一行未动（AC#17 与 Out of Scope 的硬要求）。顺带修正一处随时间漂掉的
-数字：本故事写作时记的是"6 个文件共 9 处 fetch 桩"，**现在是 6 个文件共 10 处**——US-215
-在 `RxDBAdapterHttp.spec.ts` 里新增了一处。文件数没变，分工结论没变。
-
-## 落地偏差
-
-| 处               | 故事原文                                                                 | 实际落地                                                                                        | 为什么                                                                                                                                                                                                                                                                                         |
-| ---------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC#6 的故障开关  | `mutateAfterPage?: number`，触发时"增删各一行"                           | `mutateAfterPage?: { page: number; delete: string; touch: string }`，触发时增、删、改**各一行** | 原型只带页号，被增删的是哪一行由后端自己挑（实现挑的是"表里第一行"）。而第一行在首页就已经发出去了——挑它的话快照冻没冻，结果都一样，那条断言恒绿。改成由用例**指名**后面几页的行，"删掉的行仍须由后续页给出"才真的被证到。多出来的第三种改动（改 `updatedAt`）见下一节，它抓的是另一类实现错误 |
-| AC#16 的断言强度 | "回 `304`（无 body）"                                                    | 参考后端多记一个 `ReceivedRequest.status`（**写出**的状态码，含 `304` 改写），用例逐条断言它    | 原有断言是"两次结果相等 + 第二次带了 `if-none-match`"。这组断言对**一个从不实现 304、每次都回 200 的后端**同样成立——测到的其实是"重复查询结果稳定"，不是条件请求。补上状态码断言后，AC#16 的三条分支（命中 304 / 内容变了回 200 / 后端不发 ETag 时两次都是 200）才各自落到实处                 |
-| 无               | "若参考后端暴露协议本身不自洽，标 `it.fails` 并另开故事"（约束 13 出口） | **一条都没用上**：`it.fails` / `describe.skip` 零条                                             | 七个端点按 `http-protocol.md` 逐字实现后，没有一条 AC 因协议自相矛盾而挂。这个出口留着是对的，但本次没有触发——**这本身就是结论**：协议在 node 侧是可实现的（浏览器侧的 CORS 缺口另由 US-214 补齐）                                                                                             |
-
-## 实现阶段的结论
-
-- **AC#16 原本会假绿，AC#6 原本半绿。** 两处都不是写错，是**断言够不到被测的那件事**：前者
-  证不到 `304` 真的发生过，后者证不到"被删的行仍由后续页给出"。共同的形状值得记下来——
-  当预期结果是"某个东西**没有**变"时，只断言最终值相等往往不够，还得同时证明"变的那一下
-  真的发生过"。三条 `server.read(...)` 前置断言（新行在、删的行没了、时间戳变了）就是干这个的。
-- **快照必须冻行内容，不能只冻 id 列表。** 这条是实现阶段才浮出来的：只冻 id、翻页时按 id
-  回表取行的实现，会把翻页途中被改新的 `updatedAt` 交给后续页；而 core 拿 `updatedAt` 比新鲜度，
-  一个变新的时间戳会让本地**跳过一次本该发生的拉取**——症状是"数据莫名其妙不更新"，且下一次
-  查询照常正确，极难复现。已用一次反向验证确认这条断言抓得住：把参考后端改成"按 id 回表取行"，
-  AC#6 当场变红（`expected '2026-08-26T00:00:02.000Z' to be '2026-01-02T00:00:00.000Z'`），改回即绿。
-- **参考后端不 import 被测包，是它能当"参考实现"的前提。** `tests/reference-server.ts` 只依赖
-  `node:*`：一旦它开始引用 `src/` 的类型或常量，两边一起错的时候测试照样绿，"协议可互通"
-  就退化成"我跟我自己一致"。这条写进了文件头，不只是当时的选择。
-- **`contains` 的大小写立场是后端自选，用例的期望值必须与它同源。** 协议对此未作规定，参考
-  后端选了 case-sensitive 并在实现处写明，AC#3 的期望集合按同一立场手算（`'tomato bread'`
-  因此不在 `contains 'Tomato'` 的结果里）。要把它变成协议约束是 `http-protocol.md` 的改动，
-  另开故事——本故事只保证两边不各自漂移。
-- **漏实现的操作符必须报错，不能静默判 true。** 参考后端对子集外的操作符回 501，AC#3 有一条
-  用例守着。静默判 true 的后端症状是"这个查询多回了几行"，而多回的行会被 QueryCache 原样
-  写进本地行缓存——比一个 501 难查得多。这是给第三方后端实现者的提醒，写在实现处的注释里。
-- **`stop()` 之后要让出到 socket 集合排空。** `server.close()` 的 `'close'` 事件早于各 socket
-  自己的 `'close'`，直接返回的话 AC#1 拿到的是中间态。实现里让出至多 100 轮 `setImmediate`，
-  真有连接关不掉时用例会看到非零的 `size`——那正是要报出来的结果，不是要遮掉的噪声。
-- **AC#8 的 QueryCache 必须挂在实体上，不能挂在库上。** 库级 QueryCache 会把 core 的系统树实体
-  `RxDBBranch` 一起罩进去，`init()` 当场拒绝。这条踩过一次，记在 fixture 的注释里。
+`src/__tests__/**` 一行未动（AC#17 与 Out of Scope 的硬要求）。
 
 ## 技术笔记
 
 ### 为什么现有测试不够：桩拦在错误的一层
 
-本包 `src/__tests__/` 下 9 个 spec 文件里有 6 个用 `vi.stubGlobal('fetch', …)` 打桩（共 **9** 处 fetch
-桩：`RxDBAdapterHttp` 4，`integration` / `chunking` / `pagination` / `rest` / `transport` 各 1；`integration`
-另有 `indexedDB` / `navigator` 两处**非 fetch** 桩），拦截点是**适配器输出**；`config` / `conditional-cache` / `metadata` 三个是零桩纯单元测试，
+本包 `src/__tests__/` 下多数 spec 用 `vi.stubGlobal('fetch', …)` 打桩（另有三档零桩纯单元测试
+不经过 transport），拦截点是**适配器输出**；`config` / `conditional-cache` / `metadata` 三个是零桩纯单元测试，
 不经过 transport。对 `src/__tests__/integration.spec.ts` 而言在 fetch 层打桩是**正确的**：US-212
 AC#2 原文要证「适配器发出去的东西长什么样」，**若**改在 handler 层拦截，等于拿被测对象的输入冒充
 它的输出。
@@ -265,8 +227,8 @@ AC#3 存在的理由：`http-protocol.md` 里翻译风险最高的一节就是 R
 | `tests/wire-integration.spec.ts`（本故事）  | 真实 `node:http` 后端    | **协议可互通**：后端照文档实现、前端照文档消费能走通 |
 
 两条互补，不是替代。删掉桩测试会丢「在 handler 层拦截」的 US-212 AC#2 语义；只留桩则漏掉真实网线
-语义。AC#17 的「零 `vi.stubGlobal('fetch')`」**只约束新增的 `tests/**`**——本包 `src/__tests__/` 下有
-9 处既有 fetch 桩（分布在 6 个文件），一处都不动。
+语义。AC#17 的「零 `vi.stubGlobal('fetch')`」**只约束新增的 `tests/**`**——本包 `src/__tests__/` 下
+既有 fetch 桩一处都不动。
 
 ### 本地适配器 fixture 自带一份
 
@@ -327,20 +289,20 @@ AC#3 存在的理由：`http-protocol.md` 里翻译风险最高的一节就是 R
 
 ## 实现文件
 
-| 文件                                                        | 改动                                                                                                                                                                                             |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `packages/rxdb-adapter-http/tests/reference-server.ts`      | 新增：零依赖 `node:http` 参考后端，七个端点 + `received` 记录 + `faults`                                                                                                                         |
-| `packages/rxdb-adapter-http/tests/local-adapter.fixture.ts` | 新增：内存本地适配器替身（自带，不从 `src/__tests__/` 抽）                                                                                                                                       |
-| `packages/rxdb-adapter-http/tests/wire-integration.spec.ts` | 新增：真实网线端到端用例（AC#1～17）                                                                                                                                                             |
-| `packages/rxdb-adapter-http/tsconfig.spec.json`             | `include` 加 `tests/**/*.ts`                                                                                                                                                                     |
-| `packages/rxdb-adapter-http/project.json`                   | `typecheck` 追加 `tsc -p tsconfig.spec.json --noEmit`；否则 `tests/**` 只被执行、不被 TS 校验                                                                                                    |
-| `packages/rxdb-adapter-http/eslint.config.mjs`              | `@nx/dependency-checks.ignoredFiles` 加 `{projectRoot}/tests/**`                                                                                                                                 |
-| `packages/rxdb-adapter-http/vite.config.mts`                | `coverage.exclude` 加 `'**/tests/**'`（`test.include` 已含 `tests/**`）                                                                                                                          |
-| `website/docs/adapters/http-protocol.md`                    | 「条件请求（可选）」一节：服务端 `ETag` / `If-None-Match` / `304` 语义 + 验收清单一条。**本故事允许的唯一 docs 改动**，AC#16 的协议锚点（见 In Scope）；**已于 2026-08-25 落地，开工时无需再改** |
-| `requirements/epics/epic-004-future-features.md`            | 故事清单条目 + 「另起故事不重开 US-212」理由（**已随本文件落地**）                                                                                                                               |
-| `requirements/status-overview.md`                           | 汇总表计数 Backlog 8 → 9、合计 55 → 56 + 未来功能段 ⬜ 条目（**已随本文件落地**）                                                                                                                |
-| `requirements/roadmap.md`                                   | 批次 3 排期行 + 约束 13「禁止改 `src/`」（**已随本文件落地**）                                                                                                                                   |
-| 状态流转                                                    | 关闭时把上述三处派生视图的 ⬜ / 未关闭计数改掉，story YAML `status` 是唯一真相源                                                                                                                 |
+| 文件                                                        | 改动                                                                                                                                                                               |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/rxdb-adapter-http/tests/reference-server.ts`      | 新增：零依赖 `node:http` 参考后端，七个端点 + `received` 记录 + `faults`                                                                                                           |
+| `packages/rxdb-adapter-http/tests/local-adapter.fixture.ts` | 新增：内存本地适配器替身（自带，不从 `src/__tests__/` 抽）                                                                                                                         |
+| `packages/rxdb-adapter-http/tests/wire-integration.spec.ts` | 新增：真实网线端到端用例（AC#1～17）                                                                                                                                               |
+| `packages/rxdb-adapter-http/tsconfig.spec.json`             | `include` 加 `tests/**/*.ts`                                                                                                                                                       |
+| `packages/rxdb-adapter-http/project.json`                   | `typecheck` 追加 `tsc -p tsconfig.spec.json --noEmit`；否则 `tests/**` 只被执行、不被 TS 校验                                                                                      |
+| `packages/rxdb-adapter-http/eslint.config.mjs`              | `@nx/dependency-checks.ignoredFiles` 加 `{projectRoot}/tests/**`                                                                                                                   |
+| `packages/rxdb-adapter-http/vite.config.mts`                | `coverage.exclude` 加 `'**/tests/**'`（`test.include` 已含 `tests/**`）                                                                                                            |
+| `website/docs/adapters/http-protocol.md`                    | 「条件请求（可选）」一节：服务端 `ETag` / `If-None-Match` / `304` 语义 + 验收清单一条。**本故事允许的唯一 docs 改动**，AC#16 的协议锚点（见 In Scope）；**已落地，开工时无需再改** |
+| `requirements/epics/epic-004-future-features.md`            | 故事清单条目 + 「另起故事不重开 US-212」理由（**已随本文件落地**）                                                                                                                 |
+| `requirements/status-overview.md`                           | 汇总表计数 Backlog 8 → 9、合计 55 → 56 + 未来功能段 ⬜ 条目（**已随本文件落地**）                                                                                                  |
+| `requirements/roadmap.md`                                   | 批次 3 排期行 + 约束 13「禁止改 `src/`」（**已随本文件落地**）                                                                                                                     |
+| 状态流转                                                    | 关闭时把上述三处派生视图的 ⬜ / 未关闭计数改掉，story YAML `status` 是唯一真相源                                                                                                   |
 
 ## References
 

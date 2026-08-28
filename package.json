@@ -166,7 +166,7 @@
     "autoprefixer": "^10.5.4",
     "chalk": "^6.0.0",
     "czg": "^1.14.0",
-    "electron": "^43.4.1",
+    "electron": "^44.0.0",
     "electron-builder": "^26.15.3",
     "electron-debug": "^4.1.0",
     "electron-reloader": "^1.2.3",

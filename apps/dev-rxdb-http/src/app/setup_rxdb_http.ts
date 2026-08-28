@@ -175,8 +175,9 @@ const clientIdHeader = (enabled: boolean, instance: RxDB): Record<string, string
  * 而连接器在场不改变适配器、网线与 console 的任何一件事——它只订阅事件。
  * 给它加开关，唯一能新增的现象是「忘了带参数，所以扩展里什么都没有」。
  *
- * 时序上早于 `RxDB.init()`：库是在 `app.config.ts` 的 `connect()` 里才初始化的。
- * 连接器的 `init` 只读 `config.entities` 与装饰器元数据、并挂事件监听，都不要求库已就绪；
+ * 时序上早于 `RxDB.init()`：库是在 `app.config.ts` 的 `connect()` 里才初始化的。这没问题——
+ * 连接器的实体注册表是**跟随 `config.entities` 惰性重算**的（见 `createEntityRegistry`），
+ * `SchemaManager.init()` 补进来的系统实体、插件 `install()` push 的实体都会自动出现。
  * 真正要读 `entityManager` 的命令得等面板接上，那已经在首屏之后很久。
  */
 const connectDevTools = (instance: RxDB): void => {

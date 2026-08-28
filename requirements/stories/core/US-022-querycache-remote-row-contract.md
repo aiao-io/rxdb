@@ -76,7 +76,7 @@ const dataColumns = Object.keys(data[0] as object);
 
 源码实证：`upsertMany` 的 `dataColumns` 取值、`EntityBase` 的 `createdAt` 声明、
 `http-protocol.md` §2 的示例三处互相印证。现场佐证见
-[US-214 落地偏差](../adapter/US-214-http-browser-demo.md#落地偏差)——该 demo 的后端因此必须
+[US-214 落地发现](../adapter/US-214-http-browser-demo.md#落地发现)——该 demo 的后端因此必须
 在种子数据里显式带 `createdAt`。
 
 ## 范围边界
@@ -159,7 +159,7 @@ AC#9 的门禁：`lint typecheck test build` 全绿，`Tests 1067 passed (47 fil
   但可执行的判据（本地表的非空列集）在 sqlite-core 手里。倾向后者，实现时定。
 - 别把这条校验塞进 `metadata-validate`：远端行的形状是运行期才知道的，不是元数据（对照 US-021 D1）。
 
-### 实现阶段的结论
+### 设计结论
 
 - **判定落在 `rxdb-adapter-sqlite-core`**（D1 遗留的取舍，此处定案）。契约本身是 QueryCache 的
   概念，但可执行的判据是「`create_table_sql.ts` 会把哪些列建成 NOT NULL 且不给 DEFAULT」——

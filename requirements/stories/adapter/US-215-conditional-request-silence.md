@@ -148,20 +148,6 @@ AC#9 的门禁：`lint test build` 全绿，`tsc -p tsconfig.lib.json --noEmit` 
 覆盖率 99.81% stmts / 97.81% branches / 100% funcs / 99.8% lines（未回退），
 `pnpm audit:api-surface` 与更新后的基线一致。
 
-## 落地偏差
-
-### 改了 demo 与 e2e——「不改包外运行时代码」在 AC#8 面前不成立
-
-技术笔记最后一条写着「本故事**不改** `packages/rxdb-adapter-http/src/` 之外的任何运行时代码」，
-而 AC#8 要的是一条「配了回调就拿得到信号」的对照用例——回调只能由 demo 配，
-`dev-rxdb-http` 的运行时代码非改不可。两者直接冲突，取 AC#8。
-
-落地形态是一个 **`?diagnostics=1` 开关**（`demo-config.ts` 的 `resolveDiagnosticsEnabled`），
-默认**关**。这不是为了少改代码，而是 D3 的直接要求：AC#10 那条用例守的是
-「未配置诊断回调时的默认行为」，包括 `expect(consoleErrors).toEqual([])`。
-把回调无条件装上，那条用例守的就不再是默认行为了。开关让同一个构建产物同时承载两条用例——
-只差一个查询参数，后端设置、查询动作、症状全都一样，唯一的变量就是有没有配回调。
-
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 ## 技术笔记
@@ -176,7 +162,7 @@ AC#9 的门禁：`lint test build` 全绿，`tsc -p tsconfig.lib.json --noEmit` 
 - 本故事**不改** `packages/rxdb-adapter-http/src/` 之外的任何运行时代码。US-214 立的
   「不改该包」的约束到此解除，因为那条约束的本意是「demo 不夹带库改动」，不是「该包不许再改」。
 
-### 实现阶段的结论
+### 设计结论
 
 - **D1 那个「未核实」有了答案，而且两边不一样**：Node（undici）下手工构造的 `Response`
   恒为 `'default'`，浏览器里的跨源响应是 `'cors'`——两个取值分别由单元用例与 e2e 钉住。

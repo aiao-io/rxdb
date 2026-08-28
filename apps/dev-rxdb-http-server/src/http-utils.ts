@@ -62,7 +62,7 @@ export const readJsonBody = async (request: IncomingMessage): Promise<unknown> =
  */
 export const computeEtag = (body: string): string => `"${createHash('sha256').update(body).digest('hex')}"`;
 
-/** 服务端生成的行 id。协议要求 `id` 由服务端定型，不能回显入参。 */
+/** 新行 id 的兜底来源：只在 `create` 的请求体**没带** `id` 时用（带了就采纳客户端那个）。 */
 export const newRowId = (): string => randomUUID();
 
 /** 服务端写入时刻，ISO 8601。协议要求时间字段是 ISO 串而不是 Unix 时间戳。 */

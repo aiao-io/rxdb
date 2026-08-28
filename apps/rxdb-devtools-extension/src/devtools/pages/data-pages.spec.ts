@@ -3,10 +3,18 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DatabaseStateService } from '../services/database-state.service';
 import { OpfsService } from '../services/opfs.service';
-import type { DbInfo, EntityData, OPFSFile } from '../types/devtools.types';
+import type { DbInfo, EntityData, EntityErrorKind, OPFSFile } from '../types/devtools.types';
 import { DatabasePage } from './database.page';
 import { OpfsPage } from './opfs.page';
 import { StoragePage } from './storage.page';
+
+/** 桩里的 errorCode → kind 映射；与真实服务同表，页面才测得到同一条分支。 */
+const ENTITY_ERROR_KINDS: Record<string, EntityErrorKind | undefined> = {
+  ENTITY_NOT_FOUND: 'entity-not-found',
+  ENTITY_AMBIGUOUS: 'entity-ambiguous',
+  RXDB_NOT_READY: 'rxdb-not-ready',
+  KEYRING_LOCKED: 'keyring-locked'
+};
 
 class DatabaseStateStub {
   readonly dbInfo = signal<DbInfo | null>(null);
@@ -17,10 +25,18 @@ class DatabaseStateStub {
   readonly isEntityLoading = vi.fn(
     (entity: string | null, namespace = 'public') => `${namespace}:${entity}` === 'work:loading'
   );
+  readonly entityErrorKindByKey = signal<ReadonlyMap<string, EntityErrorKind>>(new Map());
 
   setEntityData(data: EntityData): void {
     const namespace = data.namespace ?? 'public';
     this.entityDataByKey.update(current => new Map(current).set(`${namespace}:${data.entityName}`, data));
+    const kind = ENTITY_ERROR_KINDS[data._meta?.errorCode ?? ''];
+    if (kind)
+      this.entityErrorKindByKey.update(current => new Map(current).set(`${namespace}:${data.entityName}`, kind));
+  }
+
+  getEntityErrorKind(entityName: string, namespace = 'public'): EntityErrorKind | null {
+    return this.entityErrorKindByKey().get(`${namespace}:${entityName}`) ?? null;
   }
 
   getEntityData(entityName: string, namespace = 'public'): EntityData | null {
@@ -183,6 +199,33 @@ describe('StoragePage', () => {
 
     expect(page.rows()).toEqual([]);
     expect(page.error()).toBe('StorageFileMeta 返回了无效或重复的实体数据');
+  });
+
+  // 「对端没装 @aiao/rxdb-plugin-storage」是可解释的正常状态，不是查询失败：
+  // 页面用告知性 banner 说明，而不是把它渲染成红色错误。
+  it('reports a missing plugin instead of an error when the entity is not registered', () => {
+    state.setEntityData({
+      entityName: 'StorageFileMeta',
+      namespace: 'storage',
+      error: '实体 StorageFileMeta 不存在',
+      data: [],
+      _meta: { errorCode: 'ENTITY_NOT_FOUND' }
+    });
+
+    expect(page.pluginMissing()).toBe(true);
+    expect(page.error()).toBeNull();
+  });
+
+  it('keeps rendering a real query failure as an error', () => {
+    state.setEntityData({ entityName: 'StorageFileMeta', namespace: 'storage', error: 'disk exploded', data: [] });
+
+    expect(page.pluginMissing()).toBe(false);
+    expect(page.error()).toBe('disk exploded');
+  });
+
+  // 还没有任何应答时不能抢答「没装插件」—— 那和真相长得一模一样，会误导用户去装已经装了的包。
+  it('does not claim a missing plugin before the first reply arrives', () => {
+    expect(page.pluginMissing()).toBe(false);
   });
 });
 

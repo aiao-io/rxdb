@@ -2,39 +2,55 @@
 
 > 数据源：GitHub CodeQL（[aiao-io/rxdb → Security → Code scanning](https://github.com/aiao-io/rxdb/security/code-scanning)）。
 >
-> 分析配置：CodeQL `2.26.3`，语言 `javascript-typescript`，`build-mode: none`。
+> 分析配置：CodeQL `2.26.3`，语言 `javascript-typescript`，`build-mode: none`，默认分支 `main`。
 >
-> 首次基线：`refs/heads/main` @ `1b09d39f49912d0557cb2a8a182995ee45d74cdc`（2026-08-16，19 条）。
->
-> 最近分析：`7dd6609b36673876e9c741903c1b2e3227fa3d2d`。
->
-> 快照时间：2026-08-20，告警 3~23 共 21 条：**20 条 open** + 1 条 GitHub 侧已 fixed（alert 16）。
+> 最近分析：`5667f43`（2026-08-28），**0 条 open 告警**。
 
-## 用途
+## 生命周期（2026-08-28 定）
 
-把 GitHub code scanning 的每条告警拆成独立文件跟踪：**一条告警一个文件**，
-修复完成标记 `Resolved`（或承认风险 `Dismissed`），也可以直接删除文件。
+本目录是**工作集，不是档案库**：只有 GitHub 上还 `open`、或本地处置尚未落地的告警才保留文件，
+一条告警一个文件。GitHub 上显示 `fixed` / `dismissed` 之后，**在下一次同步时删除对应文件**，
+处置结论写进下方「归档」表。
 
-## 目录结构
+- 本地文件存在的唯一理由：这条告警还需要动作（修 / dismiss / 等 GitHub 状态翻转）。
+- GitHub 已关闭的告警不留本地镜像 —— 历史看归档表，细节看 GitHub 页面。
+- 第一批的教训：21 条处置完还留着 21 个文件，README 又维护一张和文件重复的全量清单。
+  删文件 + 归档表之后，目录大小 == 当前待办大小，README 一屏看完历史。
+- 状态取值见 [../CONVENTIONS.md](../CONVENTIONS.md#状态定义)，本地 frontmatter 是跟踪状态，GitHub 是真相源。
 
-| 文件                        | 说明                           |
-| --------------------------- | ------------------------------ |
-| `README.md`                 | 本说明 + 汇总 + 同步机制       |
-| `code-scanning.template.md` | 新建单条告警文件的模板         |
-| `CS-XXX-*.md`               | 每条告警一个文件（当前 21 条） |
+## 增量同步流程
 
-## 状态约定
+每次同步只处理与上次的差异，按 GitHub 告警 `number` 对齐，不重建全量：
 
-见 [../CONVENTIONS.md](../CONVENTIONS.md#状态定义)。本地 YAML `status` 是跟踪状态，GitHub 是真相源。
+1. **拉当前清单**（open + closed，靠 `state` 区分）：
 
-## 同步机制
+   ```bash
+   gh api "repos/aiao-io/rxdb/code-scanning/alerts?per_page=100&tool_name=CodeQL" \
+     --jq '.[] | "\(.number)\t\(.state)\t\(.rule.id)\t\(.created_at)"'
+   ```
 
-- **编号 `CS-XXX` 与 GitHub 告警 `number` 一一对应**（本仓 3~23）。重新拉取时靠编号对齐，不靠标题或描述。
-- GitHub 是真相源：告警在 GitHub 上 `fixed` / `dismissed` 后，回写对应文件的 `status`（`Resolved` / `Dismissed`），**或直接删除该文件**。
-- 修复 PR 链接记在文件「解决记录」里。
-- 本地文件只是离线镜像，不同步回 GitHub；dismiss/fix 操作在 GitHub 页面上做。
-- **编号会滚动**：alert 16 被判 `fixed` 后，同一规则 / 同一路径 / 同一行以 alert 23 重新报出。
-  遇到这种情况新建文件、老文件保留为历史记录并互相链接，不要复用编号。
+2. **按 `number` 与本地文件对齐**：
+   - GitHub `open` 且本地无文件 → 按[模板](./code-scanning.template.md)建文件，取位置和文案用单条 API：
+
+     ```bash
+     gh api "repos/aiao-io/rxdb/code-scanning/alerts/<number>" \
+       --jq '{path: .most_recent_instance.location.path, line: .most_recent_instance.location.start_line, message: .most_recent_instance.message.text}'
+     ```
+
+   - GitHub `open` 且本地有文件 → 无需动作；路径 / 行号变了就更新 frontmatter。
+   - GitHub `fixed` / `dismissed` 且本地有文件 → 在下方归档表补一行，然后**删除文件**。
+   - 本地有文件但 GitHub 清单里没有该编号 → 直接删除（编号滚动后 GitHub 只保留新编号）。
+3. **更新本文件头部**的「最近分析」commit 与时间：
+
+   ```bash
+   gh api "repos/aiao-io/rxdb/code-scanning/analyses?per_page=1" --jq '.[0].commit_sha'
+   ```
+
+**编号滚动**：同一规则 / 同一路径 / 同一行重新报出时 GitHub 会分配新 `number`
+（第一批里 alert 16 → alert 23 就是这样）。按第 2 步处理即可：旧编号已关闭就归档删除，
+新编号正常跟踪；**不为旧编号保留历史文件**。
+
+**同步时机**：修复 PR 合入 `main`、GitHub 重新分析完成之后；或收到 code scanning 通知时。不用定时跑。
 
 ## 判定规则（2026-08-20 定）
 
@@ -48,68 +64,37 @@
 「污染源需要仓库写权限才能构造」的，一律不算真实攻击面 —— 拿到写权限的人直接改脚本更省事，
 真正的防线是分支保护与 CI 权限，不是某一行的转义。
 
-按这条规则，本批 13 条修、7 条 Dismiss、1 条已由早前提交修好。
+## 归档
 
-## 汇总
+### 第一批（2026-08-16 ~ 08-19 报出，08-19 全部关闭，21 条）
 
-| 维度                     | 数值 |
-| :----------------------- | :--- |
-| 告警总数（open + fixed） | 21   |
-| 已修复 `Resolved`        | 14   |
-| 承认风险 `Dismissed`     | 7    |
-| 其中 GitHub 侧已 `fixed` | 1    |
-| error 级                 | 1    |
-| warning 级               | 20   |
-| security `high`          | 15   |
-| security `medium`        | 6    |
+| 编号   | 规则                                          | 位置                                                                      | 处置      | 备注                                                                             |
+| :----- | :-------------------------------------------- | :------------------------------------------------------------------------ | :-------- | :------------------------------------------------------------------------------- |
+| CS-023 | `js/incomplete-multi-character-sanitization`  | `apps/dev-rxdb-electron/src-electron/renderer-shell.spec.ts:22`           | Dismissed | 测试断言辅助，非 sanitizer；dismiss reason `used in tests`；由 alert 16 编号滚动 |
+| CS-022 | `js/file-access-to-http`                      | `scripts/ci/probe-nx-cloud.mjs:86`                                        | Dismissed | 「读 nx.json 再发请求」正是脚本设计意图                                          |
+| CS-021 | `js/log-injection`                            | `scripts/e2e-static-server.mjs:220`                                       | Fixed     |                                                                                  |
+| CS-020 | `js/missing-origin-check`                     | `benchmarks/src/hooks/useTheme.ts:36`                                     | Fixed     | 早前提交已修                                                                     |
+| CS-019 | `js/file-system-race`                         | `website/scripts/preview-with-redirects.mjs:105`                          | Dismissed | 误报：读取本来就在 `try/catch` 内                                                |
+| CS-018 | `js/file-system-race`                         | `website/scripts/flatten-api-docs.mjs:82`                                 | Dismissed | 构建期串行脚本，不存在并发写入方                                                 |
+| CS-017 | `js/file-system-race`                         | `scripts/coverage-serve.mjs:729`                                          | Fixed     | 顺带修掉真缺陷：`readFileSync` 不在 try 里，异常即进程猝死                       |
+| CS-016 | `js/incomplete-multi-character-sanitization`  | `apps/dev-rxdb-electron/src-electron/renderer-shell.spec.ts:22`           | Fixed     | 同一处随 alert 23 滚动重报，处置见 CS-023                                        |
+| CS-015 | `js/double-escaping`                          | `website/scripts/flatten-api-docs.mjs:196`                                | Fixed     | 真 bug：`&amp;quot;` 被错解成 `"`                                                |
+| CS-014 | `js/overly-large-range`                       | `packages/rxdb-adapter-pglite/src/__tests__/encrypted-test-fixture.ts:31` | Fixed     | 与 CS-013 同一行                                                                 |
+| CS-013 | `js/overly-large-range`                       | `packages/rxdb-adapter-pglite/src/__tests__/encrypted-test-fixture.ts:31` | Fixed     |                                                                                  |
+| CS-012 | `js/shell-command-injection-from-environment` | `website/scripts/build-website.mjs:113`                                   | Dismissed | 输入是 `packages/` 下的目录名，污染前提是仓库写权限                              |
+| CS-011 | `js/polynomial-redos`                         | `packages/utils/src/string/urlJoin.ts:106`                                | Fixed     |                                                                                  |
+| CS-010 | `js/polynomial-redos`                         | `packages/utils/src/string/urlJoin.ts:19`                                 | Fixed     |                                                                                  |
+| CS-009 | `js/polynomial-redos`                         | `packages/utils/src/string/stringTemplate.ts:11`                          | Fixed     |                                                                                  |
+| CS-008 | `js/polynomial-redos`                         | `packages/utils/src/object/isEqual.ts:105`                                | Dismissed | 误报：告警范围落在 `b.has(key)` 上，文件里没有正则执行                           |
+| CS-007 | `js/polynomial-redos`                         | `packages/utils/src/date/msTimeToMilliseconds.ts:37`                      | Fixed     |                                                                                  |
+| CS-006 | `js/polynomial-redos`                         | `packages/utils/src/date/isMSTime.ts:25`                                  | Fixed     |                                                                                  |
+| CS-005 | `js/polynomial-redos`                         | `packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts:106`      | Fixed     |                                                                                  |
+| CS-004 | `js/polynomial-redos`                         | `packages/rxdb-adapter-sqlite-core/src/execute-sql.utils.ts:11`           | Fixed     |                                                                                  |
+| CS-003 | `js/polynomial-redos`                         | `packages/rxdb/src/rxdb-utils.ts:169`                                     | Fixed     |                                                                                  |
 
-### 按规则聚合
+### 第一批处置要点（工程笔记，供后续批次参考）
 
-| 规则 ID                                       | 规则名                            | 数量 | severity | security | 处置                          |
-| :-------------------------------------------- | :-------------------------------- | :--- | :------- | :------- | :---------------------------- |
-| `js/polynomial-redos`                         | 不受控数据上的多项式正则（ReDoS） | 9    | warning  | high     | 8 修 / 1 误报                 |
-| `js/file-system-race`                         | 潜在文件系统竞态（TOCTOU）        | 3    | warning  | high     | 1 修 / 2 Dismiss              |
-| `js/overly-large-range`                       | 正则字符区间过于宽泛              | 2    | warning  | medium   | 2 修（同一行）                |
-| `js/incomplete-multi-character-sanitization`  | 多字符消毒不完整                  | 2    | warning  | high     | 2 Dismiss（编号滚动，同一处） |
-| `js/log-injection`                            | 日志注入                          | 1    | error    | medium   | 修                            |
-| `js/missing-origin-check`                     | `postMessage` 缺 origin 校验      | 1    | warning  | medium   | 早前提交已修                  |
-| `js/double-escaping`                          | 双重转义 / 反义                   | 1    | warning  | high     | 修（是真 bug）                |
-| `js/shell-command-injection-from-environment` | 由环境变量拼接 shell 命令         | 1    | warning  | medium   | Dismiss                       |
-| `js/file-access-to-http`                      | 文件数据流向外部网络请求          | 1    | warning  | medium   | Dismiss（脚本设计意图）       |
-
-## 全量清单
-
-| 文件                                                         | 规则                                          | sev   | sec  | 位置                                                                      | 处置                                      |
-| :----------------------------------------------------------- | :-------------------------------------------- | :---- | :--- | :------------------------------------------------------------------------ | :---------------------------------------- |
-| [CS-023](CS-023-incomplete-multi-character-sanitization.md)  | `js/incomplete-multi-character-sanitization`  | warn  | high | `apps/dev-rxdb-electron/src-electron/renderer-shell.spec.ts:22`           | Dismissed                                 |
-| [CS-022](CS-022-file-access-to-http.md)                      | `js/file-access-to-http`                      | warn  | med  | `scripts/ci/probe-nx-cloud.mjs:86`                                        | Dismissed                                 |
-| [CS-021](CS-021-log-injection.md)                            | `js/log-injection`                            | error | med  | `scripts/e2e-static-server.mjs:220`                                       | ✅ Resolved                               |
-| [CS-020](CS-020-missing-origin-check.md)                     | `js/missing-origin-check`                     | warn  | med  | `benchmarks/src/hooks/useTheme.ts:36`                                     | ✅ Resolved                               |
-| [CS-019](CS-019-file-system-race.md)                         | `js/file-system-race`                         | warn  | high | `website/scripts/preview-with-redirects.mjs:105`                          | Dismissed                                 |
-| [CS-018](CS-018-file-system-race.md)                         | `js/file-system-race`                         | warn  | high | `website/scripts/flatten-api-docs.mjs:82`                                 | Dismissed                                 |
-| [CS-017](CS-017-file-system-race.md)                         | `js/file-system-race`                         | warn  | high | `scripts/coverage-serve.mjs:729`                                          | ✅ Resolved                               |
-| [CS-016](CS-016-incomplete-multi-character-sanitization.md)  | `js/incomplete-multi-character-sanitization`  | warn  | high | `apps/dev-rxdb-electron/src-electron/renderer-shell.spec.ts:22`           | Dismissed（GitHub 侧已 fixed，见 CS-023） |
-| [CS-015](CS-015-double-escaping.md)                          | `js/double-escaping`                          | warn  | high | `website/scripts/flatten-api-docs.mjs:196`                                | ✅ Resolved                               |
-| [CS-014](CS-014-overly-large-range.md)                       | `js/overly-large-range`                       | warn  | med  | `packages/rxdb-adapter-pglite/src/__tests__/encrypted-test-fixture.ts:31` | ✅ Resolved                               |
-| [CS-013](CS-013-overly-large-range.md)                       | `js/overly-large-range`                       | warn  | med  | `packages/rxdb-adapter-pglite/src/__tests__/encrypted-test-fixture.ts:31` | ✅ Resolved                               |
-| [CS-012](CS-012-shell-command-injection-from-environment.md) | `js/shell-command-injection-from-environment` | warn  | med  | `website/scripts/build-website.mjs:113`                                   | Dismissed                                 |
-| [CS-011](CS-011-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/utils/src/string/urlJoin.ts:106`                                | ✅ Resolved                               |
-| [CS-010](CS-010-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/utils/src/string/urlJoin.ts:19`                                 | ✅ Resolved                               |
-| [CS-009](CS-009-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/utils/src/string/stringTemplate.ts:11`                          | ✅ Resolved                               |
-| [CS-008](CS-008-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/utils/src/object/isEqual.ts:105`                                | Dismissed（误报）                         |
-| [CS-007](CS-007-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/utils/src/date/msTimeToMilliseconds.ts:37`                      | ✅ Resolved                               |
-| [CS-006](CS-006-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/utils/src/date/isMSTime.ts:25`                                  | ✅ Resolved                               |
-| [CS-005](CS-005-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts:106`      | ✅ Resolved                               |
-| [CS-004](CS-004-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/rxdb-adapter-sqlite-core/src/execute-sql.utils.ts:11`           | ✅ Resolved                               |
-| [CS-003](CS-003-polynomial-redos.md)                         | `js/polynomial-redos`                         | warn  | high | `packages/rxdb/src/rxdb-utils.ts:169`                                     | ✅ Resolved                               |
-
-> 图例：`sev` = CodeQL `rule.severity`（error / warning）；`sec` = `rule.security_severity_level`（high / medium）。
-
-## 本批修复要点
-
-### ReDoS（8 处，全部实测过退化耗时）
-
-修之前先写红测试把量级钉下来，再改实现，改完必须线性：
+**ReDoS 8 处，全部先写红测试实测退化耗时，修完必须线性**：
 
 | 告警            | 恶意输入                                    | 修前    | 修后    |
 | :-------------- | :------------------------------------------ | :------ | :------ |
@@ -120,30 +105,16 @@
 | CS-010 / CS-011 | `'a' + '/'.repeat(30000) + 'b'`             | 1330ms  | < 200ms |
 | CS-009          | `'${'.repeat(20000)`                        | 1184ms  | < 200ms |
 
-共同的手法是**消除歧义而不是加长度上限**：改写正则让 `r*` / `r+` 的 `r` 不再有多种切分，
-或把只需要线性扫描的活（剥末尾的 `/` 与 `;`）从正则手里拿走。加 `str.length > 1000` 抛错也能过检查，
-但那是把库的行为改掉换取告警变绿，属于把问题推给调用方。
+- 手法是**消除歧义而不是加长度上限**：改写正则让 `r*` / `r+` 的 `r` 不再有多种切分，
+  或把只需要线性扫描的活（剥末尾的 `/` 与 `;`）从正则手里拿走。加 `str.length > 1000` 抛错也能过检查，
+  但那是改掉库的行为换告警变绿，等于把问题推给调用方。
+- **踩过的坑**：`/\/+$/` 的恶意输入必须让 `/` 串处在**中间**。串在末尾时首次尝试就命中 `$`，
+  根本不回溯，第一版用例因此 0ms 通过、看上去像「本来就没问题」。已写进 `urlJoin.ts` 的注释里。
 
-**踩过的坑**：`/\/+$/` 的恶意输入必须让 `/` 串**处在中间**。串在末尾时首次尝试就命中 `$`，
-根本不回溯，第一版用例因此 0ms 通过、看上去像是「本来就没问题」。已写进 [urlJoin.ts](../../packages/utils/src/string/urlJoin.ts) 的注释里。
+## 当前工作集
 
-### 顺带修掉的两个真缺陷
+| 文件   | 规则 | 位置 | 状态 |
+| :----- | :--- | :--- | :--- |
+| （无） |      |      |      |
 
-- **[CS-017](CS-017-file-system-race.md)**：`coverage-serve.mjs` 的 `readFileSync` 不在任何 try 里，
-  请求处理器一抛异常整个 dev server 就没了。TOCTOU 只是表象，进程猝死才是要命的。
-- **[CS-015](CS-015-double-escaping.md)**：链式实体解码里 `&amp;` 先变 `&`，后续步骤再解一次，
-  `&amp;quot;` 被错解成 `"`。这是实打实的输出错误，不是理论风险。
-
-### Dismiss 的 7 条
-
-| 告警                                                                                                                      | 理由                                                     |
-| :------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------- |
-| [CS-008](CS-008-polynomial-redos.md)                                                                                      | 误报：告警列范围落在 `b.has(key)` 上，文件里没有正则执行 |
-| [CS-012](CS-012-shell-command-injection-from-environment.md)                                                              | 输入是 `packages/` 下的目录名，污染前提是仓库写权限      |
-| [CS-016](CS-016-incomplete-multi-character-sanitization.md) / [CS-023](CS-023-incomplete-multi-character-sanitization.md) | `stripHtmlComments` 是测试断言辅助，不是 sanitizer       |
-| [CS-018](CS-018-file-system-race.md)                                                                                      | 构建期串行脚本，不存在并发写入方                         |
-| [CS-019](CS-019-file-system-race.md)                                                                                      | 误报：读取本来就在 `try/catch` 内                        |
-| [CS-022](CS-022-file-access-to-http.md)                                                                                   | 「读 nx.json 再发请求」正是脚本的设计意图                |
-
-**这 7 条需要在 GitHub 页面上手动 dismiss**（本地文件不回写 GitHub），
-各文件末尾的「修复方案」里写了推荐的 dismiss reason。
+最近分析 0 条 open，无需跟踪文件。新告警出现时按「增量同步流程」建文件。

@@ -12,7 +12,7 @@ import {
 import { getEntityMetadata, isAdapterShutdownError } from '../rxdb-utils.js';
 import type { SyncStateHub } from '../sync-state.js';
 import type { HistoryManager } from './HistoryManager.js';
-import { getSyncCapability, getSyncType } from './sync-type-utils.js';
+import { getSyncCapability, getSyncType, needsPush } from './sync-type-utils.js';
 import type { RepositoryIdentifier } from './VersionManager.interface.js';
 import type { VersionManager } from './VersionManager.js';
 
@@ -98,6 +98,42 @@ function queryCacheRepositories(vm: VersionManager): RepositoryIdentifier[] {
 }
 
 /**
+ * 库里有没有任何一个走 changelog 的仓库
+ *
+ * @remarks
+ * 判据与 {@link queryCacheRepositories} 互补，用的是同一个能力矩阵。
+ *
+ * 一条都没有，就意味着这个库的远端根本没有 changelog 端点（纯 QueryCache 的配置，
+ * HTTP demo 即是）。此时 {@link VersionManager.syncBranches} 与
+ * {@link VersionManager.push} 一进门就撞 `getRemoteRepositories()`，必抛。
+ */
+function hasChangelogRepositories(vm: VersionManager): boolean {
+  return vm.rxdb.config.entities.some(EntityClass => needsPush(getEntityMetadata(EntityClass), vm.rxdb.config.sync));
+}
+
+/**
+ * 跑 changelog 那半边的一轮：分支元数据 → 变更推送
+ *
+ * @returns 两步是否都成功；库里没有 changelog 仓库时一步都不跑，直接算成功
+ *
+ * @remarks
+ * 「没有就不跑」不是省一次往返那么简单：跑了必抛，而抛出来的错会让「本轮全程无失败」
+ * 永远不成立 —— {@link SyncStateHub.reportSuccess} 再也不会被调到，面板从此常亮一句
+ * 「远端不支持 getRepository」，而真正推成功了的 REST 重放反倒没人替它宣布。
+ * 用户看到的是一个永远在报错、却又确实同步着的库。
+ */
+async function resumeChangelog(vm: VersionManager): Promise<boolean> {
+  if (!hasChangelogRepositories(vm)) {
+    return true;
+  }
+
+  const { syncState } = vm.rxdb;
+  const branchesOk = await runQuietly(syncState, () => vm.syncBranches());
+  const pushOk = await runQuietly(syncState, () => vm.push());
+  return branchesOk && pushOk;
+}
+
+/**
  * 重放一个 QueryCache 仓库，把判负的实体报给面板
  *
  * @remarks
@@ -157,7 +193,7 @@ async function refreshOutboxCount(vm: VersionManager): Promise<void> {
  * 两条推送路径串行而非并行 —— 它们打的是同一个远端，恢复瞬间并发只会把刚恢复的
  * 连接再压垮一次。
  *
- * `endRound` 放 `finally`：三步都被 {@link runQuietly} 兜住了，但重算积压那步之外
+ * `endRound` 放 `finally`：每一步都被 {@link runQuietly} 兜住了，但重算积压那步之外
  * 若将来再加一步没兜住的，`syncing` 会永久卡在真上，面板从此显示「正在同步」。
  */
 async function resumeSync(vm: VersionManager): Promise<void> {
@@ -165,12 +201,11 @@ async function resumeSync(vm: VersionManager): Promise<void> {
   syncState.beginRound();
 
   try {
-    const branchesOk = await runQuietly(syncState, () => vm.syncBranches());
-    const pushOk = await runQuietly(syncState, () => vm.push());
+    const changelogOk = await resumeChangelog(vm);
     const flushOk = await flushRepositories(vm);
 
     // 清账放在重算积压之前：先宣布本轮没出错，再把「还剩多少」更新上去
-    if (branchesOk && pushOk && flushOk) {
+    if (changelogOk && flushOk) {
       syncState.reportSuccess();
     }
     await refreshOutboxCount(vm);

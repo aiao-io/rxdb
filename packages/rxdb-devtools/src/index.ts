@@ -32,6 +32,8 @@ export type {
 } from './connector.js';
 
 export {
+  /** `ENTITY_DATA` 上会出现的全部结构化错误码。 */
+  DEVTOOLS_ENTITY_ERROR_CODES,
   /** 线协议版本号，随握手一并告知 DevTools。 */
   DEVTOOLS_PROTOCOL_VERSION,
   /** 消息来源标识符，用于在同源 message 洪流中筛出本协议的消息。 */
@@ -64,6 +66,8 @@ export type {
   DevToolsCapability,
   /** 允许进入页面命令处理器的消息联合。 */
   DevToolsCommandMessage,
+  /** `ENTITY_DATA` 的结构化错误码。 */
+  DevToolsEntityErrorCode,
   /** 消息 envelope 基础结构。 */
   DevToolsMessage,
   /** 通信断开消息（页面与 DevTools 双向）。 */

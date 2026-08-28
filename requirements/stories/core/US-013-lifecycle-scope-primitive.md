@@ -288,7 +288,7 @@ AC#12 与 AC#12b 合起来就是这条契约的可执行形式：前者固定「
 - 某个调用方必须写成 `const res = await open(); scope.acquire(…)`——`await` 期间作用域可能已释放，
   同步 `acquire()` 会抛 `LifecycleScopeDisposedError`（AC#5）而 `res` 已打开且无人关闭
 - 曾被视为最可能的第一个调用方是 `US-016` 的**适配器作用域**：`await adapter.connect()` 之后再登记
-  `() => adapter.disconnect()`，正好落在上面这个形状里。该故事**从未创建，已于 2026-08-21 移出
+  `() => adapter.disconnect()`，正好落在上面这个形状里。该故事**从未创建，已移出
   epic-008 承诺范围**，这个调用方因此至今不存在——**为假想调用方冻结的竞态语义，等真实调用方出现时往往不合用**
 
 #### 已选定的形状（推迟不等于没想清楚，补回来时照此实现）

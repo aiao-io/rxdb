@@ -44,7 +44,8 @@ INVEST 检查清单:
 
 即：**阶段 A 关闭前 HTTP 包不得以任何形式标可发布；阶段 B 关闭前不得标 `stable`。** 代码可并行——门禁卡的是发布动作，不是开工。
 
-> **本节自 2026-08-22 起为留档。** 两阶段当天全关，上表两档门禁**同时全部解除**，US-212 现在零前置、关闭其阶段 A 即可直接发 `stable`，README / npm 不再需要写 `experimental`。保留本节只为解释当初为何这样排；**不要照字面读成 US-212 仍被本故事挡着**。
+> **本节为留档。** 两档门禁**已全部解除**——US-212 现在零前置、关闭其阶段 A 即可直接发 `stable`，
+> README / npm 不再需要写 `experimental`。保留本节只为解释当初为何这样排；**不要照字面读成 US-212 仍被本故事挡着**。
 >
 > **阶段边界不因实现顺手而移动。** [D8](#d8--本地读一律走-irepository不再依赖-findall--findbyids-两个-optional-duck) 会让 AC#14 / AC#15 在阶段 A 顺带满足。允许提前打勾，但**阶段 B 的门禁语义不变**：US-212 标 `stable` 仍要求 #11～20 全部关闭，不得因「A 已经把 14/15 关了」而认为 B 已过半。
 
@@ -169,9 +170,26 @@ QueryCache 的 `find` 是 `fetchMetadata → diff → findByIds → upsertMany`�
 
 禁止再出现「缺能力 → `of([])`」。
 
-### D5 — 离线写默认 NO
+### D5 — 离线写默认 NO ⛔ 已反转（见 D5-R）
+
+> **本决策已被推翻，保留原文存档。** 现行做法见下方 D5-R。
 
 cache 模式离线只读。`offlineFallback` 只对**网络类**错误降级到本地缓存；无缓存则 `NetworkOfflineError`。401、校验、业务错误原样抛。不为 QueryCache 做乐观离线写。
+
+### D5-R — 离线可写，联网后按 REST 动词重放（反转 D5）
+
+**反转理由**：D5 把「离线只读」当成了 QueryCache 的性质，其实它只是当时没做。而本项目的定位是 **local-first**——离线时写不进去，等于 local-first 只兑现了一半：能看，不能改。用户在地铁里改的那一行必须留得住。
+
+**新决策**：`SyncType.QueryCache` 的 `create` / `update` / `remove` 在远端不可达时落本地、排队，联网后自动重放。
+
+保留 D5 的**分流口径**不变，它本来就是对的，只是从读路径扩到了写路径：只有**网络类**错误才降级，401 / 校验 / 业务错误照旧原样上抛、本地不落盘。把一个成功送达的 409 当成离线排队，用户会以为改动还在路上，而远端永远不会接受它。
+
+配套的四条约束：
+
+- **`push` 能力位不动**。能力矩阵新增第三个字段 `offlineWrite`；`querycache` 是 `{ pull: true, push: false, offlineWrite: true }`。`push` 问的是「能不能走 `remoteAdapter.mergeChanges`」，而 `RxDBAdapterHttp.mergeChanges()` 直接抛——翻成 `true` 等于把它送进一条它的适配器不实现的管道。重放走的是 REST 五件套，不是 changelog。
+- **出站队列复用 `rxdb_change`**，不建新表：`LWWConflictResolver` 两侧都要 `IRxDBChange`，触发器已经免费产出这些行。
+- **拉取回填必须不产生 changelog 行**（`withTriggersDisabled`），否则 pull → log → push → pull 自我供给成环。
+- **远端必须采纳客户端给的 `id`**。行在离线那一刻就已经进了本地缓存、被界面引用、也记在出站队列里；远端重放时另造一个 id，本地那份就成了远端从不认识的孤儿行。协议第 3 节据此改写，`dev-rxdb-http-server` 同步跟进。
 
 ### D6 — 不 inherit US-203 AC#6 / US-006 AC#6
 
@@ -378,6 +396,6 @@ QueryCache 的拉取落地走 `local.upsertMany`，那是**绕开仓储的裸 SQ
 
 - [US-203 Supabase 适配器](../adapter/US-203-supabase-adapter.md) — AC#6 QueryCache ducks 已 ✅；生产接线是本故事
 - [US-006 响应式查询](./US-006-reactive-queries.md) — AC#6 类级 SWR 已 ✅；生产接线是本故事
-- [US-212 HTTP 远程适配器](../adapter/US-212-http-adapter.md) — ~~硬前置本故事~~ **前置已于 2026-08-22 随本故事两阶段全关而解除，US-212 现零前置**；本故事不实现 HTTP。D11 的错误类型是两边的对齐点
+- [US-212 HTTP 远程适配器](../adapter/US-212-http-adapter.md) — **前置已解除（US-212 现零前置）**；本故事不实现 HTTP。D11 的错误类型是两边的对齐点
 - [US-306 FR-046](../collaboration/US-306-working-tree-commits.md) — 兼容 cache 排除在 working tree 外，不实现 epic-006；`mixed_versioned_cache_transaction` 由本故事首次定义
 - [epic-004](../../epics/epic-004-future-features.md) — 归入理由：epic-002 已 Done，不得持有未完成故事

@@ -46,7 +46,13 @@ export const CLIENT_ID_HEADER = 'x-client-id';
  */
 export const RECIPE_COLUMNS = ['id', 'title', 'status', 'price', 'tag', 'createdAt', 'updatedAt'] as const;
 
-/** 客户端可写的列。`id` / `createdAt` / `updatedAt` 一律由服务端定型（协议第 3 / 4 节的硬要求）。 */
+/**
+ * 客户端可**改**的列。
+ *
+ * @remarks
+ * 时间戳一律由服务端定型（协议第 3 / 4 节）。`id` 不在这里是因为它**建好之后不可改**——
+ * `create` 仍然采纳请求体里的 `id`（离线新建的行靠它对上远端），只是 `update` 不认。
+ */
 export const RECIPE_WRITABLE_COLUMNS = ['title', 'status', 'price', 'tag'] as const;
 
 /** 种子行数。250 行 + 前端 `pageSize: 50` 才能让翻页真实发生（见故事「默认配置会让 demo 白跑」）。 */

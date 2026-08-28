@@ -272,7 +272,12 @@ async function runOutboxFlush(
     return { ...base, compacted: pending.length, watermark: maxChangeId };
   }
 
-  const remoteAdapter = (await vm.getRemoteRepositories()).adapter as unknown as QueryCacheRemoteAdapter;
+  // 取适配器走 `remoteAdapter$` 而不是 `vm.getRemoteRepositories()`：后者除了给适配器，
+  // 还会**急切**地建一对 changelog 仓储（`RxDBBranch` / `RxDBChange`），而这正是 QueryCache
+  // 的远端明确不实现的东西 —— `RxDBAdapterHttp.getRepository()` 无条件抛。绕这一道会让
+  // 整轮回推在发出第一个请求之前就死掉，本模块开头写明的「不复用 changelog 那条路」
+  // 也就名存实亡。
+  const remoteAdapter = (await firstValueFrom(rxdb.remoteAdapter$)) as unknown as QueryCacheRemoteAdapter;
   const run: RunState = {
     ...base,
     compacted: pending.length - entries.length,
@@ -661,7 +666,13 @@ function remoteWrite(
   }
   const patch = entry.action.patch ?? {};
   if (verb === 'create') {
-    return remoteAdapter.create ? remoteAdapter.create(entity, patch) : null;
+    // `id` 必须现补：触发器建 patch 时明确跳过它（`trigger_sql.ts` 的
+    // `if (jsName === 'id') continue`），行的身份记在变更行自己的 `entityId` 列上。
+    // 不补就是把一条**没有身份的新行**发给远端，远端只能自己造一个 id ——
+    // 本地那份从此对不上远端，成了远端从不认识的孤儿行，下一轮元数据拉取把它当孤儿清掉。
+    // 水位线照常推进，用户看着推上去了，其实丢了。
+    const body = { id: entry.entityId, ...patch };
+    return remoteAdapter.create ? remoteAdapter.create(entity, body) : null;
   }
   return remoteAdapter.update ? remoteAdapter.update(entity, entry.entityId, patch) : null;
 }

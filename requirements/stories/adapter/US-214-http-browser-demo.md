@@ -56,7 +56,10 @@ INVEST 检查清单:
   `rule-group-to-sql.ts` 一个文件」承接，不提前抽 `Store` 接口——病灶数尚未 ≥ 抽象数
   （[CONVENTIONS 价值待证](../../CONVENTIONS.md#价值待证--价值待证)）
 - **真实身份认证**。auth hook 返回一个固定的假 token，后端只校验它存在；接 IdP 是另一件事
-- **Full / Filter 同步、离线写队列、冲突解决**。v1 的 HTTP 适配器只支持 `QueryCache`
+- **Full / Filter 同步**。v1 的 HTTP 适配器只支持 `QueryCache`
+  - ~~离线写队列、冲突解决~~ —— 已随 [US-020 D5-R](../core/US-020-querycache-repository.md) 落地：
+    QueryCache 离线可写、联网后按 REST 动词重放，冲突走 `LWWConflictResolver`。demo 因此多了一块
+    同步状态面板与 `local-first-writes.spec.ts`，后端 `create` 也改为**采纳**客户端给的 `id`
 - **React / Vue 双端 demo**。「三框架对称」铁律约束的是 `packages/` 下的公开 API，不是 `apps/` 下的
   演示应用——`dev-rxdb-supabase` 同样只有 Angular 一版
 - **替代 US-213**。两条各建各的后端，互不复用，理由见下表
@@ -84,7 +87,7 @@ INVEST 检查清单:
 | 1   | 仓库无 `apps/dev-rxdb-http-server`      | `pnpm nx serve dev-rxdb-http-server`                                                   | 服务起在 4301；`package.json` 的 `dependencies` **为空**——只用 `node:http` / `node:sqlite` / `node:crypto` 三个内置模块；库文件落 `apps/dev-rxdb-http-server/.data/demo.sqlite` 且该目录进 `.gitignore`                                                                  | ✅   |
 | 2   | 后端已起                                | 把 `http-protocol.md`「端到端示例（curl）」的五条命令 baseUrl 换成本地后逐条执行       | 五条**逐字可跑**，响应体形状与文档示例一一对应；实体取 `Recipe → recipes`、字段取 `title` / `status` / `price` / `tag`，与文档示例**同名**——demo 后端因此是那份文档的活靶场，而不是又一套自造样例                                                                        | ✅   |
 | 3   | 后端持有 `recipes` 表                   | `POST recipes/metadata` 递含 `=` / `in` / `between` / `contains` / `null` 的 RuleGroup | `where` 编译成**参数化 SQL**：每个 `value` 走 `?` 绑定、一次字符串拼接都没有；`field` 过列名白名单，命中不了当场 `400` 且**不进 SQL**；返回集合与同条件手写 SQL 的结果逐 id 相等。`contains` 的大小写立场在实现处注释里写明（协议未规定，见 US-213 同名讨论）            | ✅   |
-| 4   | 表内 250 行、前端 `pageSize: 50`        | 前端触发一次全量查询                                                                   | 后端每页 `rows.length === limit` 直至真末页，**短页只出现在末页**；`ORDER BY updatedAt, id` 跨页稳定；拼接结果无重无漏（250 行 = 6 次请求，末次是空页，见[落地偏差](#落地偏差)第 1 条）                                                                                  | ✅   |
+| 4   | 表内 250 行、前端 `pageSize: 50`        | 前端触发一次全量查询                                                                   | 后端每页 `rows.length === limit` 直至真末页，**短页只出现在末页**；`ORDER BY updatedAt, id` 跨页稳定；拼接结果无重无漏（250 行 = 6 次请求，末次是空页）                                                                                                                  | ✅   |
 | 5   | 后端实现 `create` / `update` / `delete` | 页面上新建 / 编辑 / 删除各一次                                                         | 响应体是**读回数据库后**的完整行——`id` 由 `crypto.randomUUID()`、`updatedAt` 由服务端写 ISO 串，都不是回显入参；删除实收 `POST recipes/delete` + `{ids}`，**不是** `DELETE` 到集合                                                                                       | ✅   |
 | 6   | 后端有 `seed` / `reset` 两个 target     | 连续执行 `pnpm nx run dev-rxdb-http-server:reset seed` 两遍                            | 两遍产出的 250 行**逐字节相同**：标题 / 状态 / 价格 / 标签按固定规则生成，`id` 由行序号确定性派生，**零随机、零 `Date.now()`**；否则 e2e 断言只能写成"大概有几条"                                                                                                        | ✅   |
 | 7   | 仓库无 `apps/dev-rxdb-http`             | `pnpm nx serve dev-rxdb-http`                                                          | Angular 起在 4300；`SyncType.QueryCache` + `remote: {adapter:'http'}` + `local: {adapter:'wa-sqlite'}`；handlers 用 `createRestHandlers()` 并**显式配** `templates.version`；`pageSize: 50` / `idChunkSize: 20`（理由见[默认值会让 demo 白跑](#默认配置会让-demo-白跑)） | ✅   |
@@ -106,59 +109,21 @@ INVEST 检查清单:
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-## 落地偏差
+## 落地发现
 
-写 AC 时按推演写下、实际做出来发现不成立的几处。全部按实测结果落地；AC 的**要求**保持原样不追改，
-只更正 AC#4 括号里那处算术标注（见第 1 条）——那是个数字，不是一条验收。
+落地时按实测更正了 AC#4 括号里的算术标注（250 行 = 6 次请求：offset 翻页在满页后必然再请求一次
+才知到底，末次是空页）。另发现三条 client 侧缺陷，按 [roadmap 约束 14](../../roadmap.md#排期约束)
+「另开 US」分别落成：
 
-1. **AC#4 括号里原写「250 行 = 5 次请求」，实测是 6 次，已就地更正。** offset 形态的翻页在收到**满页**后必然再要
-   下一页，而 250 恰好被 50 整除，于是第 6 次请求拿到的是空页——它才是循环的终止条件。
-   AC 正文那三条（短页只出现在末页、`ORDER BY updatedAt, id` 跨页稳定、无重无漏）不受影响。
-   这条算术同样决定了 AC#11 的用例断言形状：内容变化只落在最后一页上，所以断言的是
-   「这一轮里**有**一次 `200`」而不是「最后一次是 `200`」，见
-   `apps/dev-rxdb-http-e2e/src/conditional-requests.spec.ts` 的注释。
+- [US-022](../core/US-022-querycache-remote-row-contract.md) —— 远端行缺 `createdAt` 会在客户端 upsert
+  时撞 `NOT NULL`，报的还是后端没听说过的列名；
+- [US-021](../core/US-021-querycache-adapter-fail-fast.md) —— QueryCache 实体的远端适配器缺席时 core
+  静默永挂（零错误零日志零超时）；
+- [US-215](../adapter/US-215-conditional-request-silence.md) —— 跨源读不到 ETag 时条件请求静默失效、零日志。
 
-2. **AC#5 的「完整行」是按实体算的，不是按业务列算的。** `EntityBase` 预声明的 `createdAt`
-   没写 `nullable`，本地行缓存那张表上它就是 `NOT NULL`；后端少回这一列，网线上一切正常，
-   错误发生在客户端把远端行 upsert 进 wa-sqlite 那一步——`NOT NULL constraint failed:
-public$recipes.createdAt`，报的还是后端从没听说过的列名。参考后端因此把 `createdAt`
-   作为服务端定型的真列一起持久化、一起回。**`http-protocol.md` 全篇没写这条约束**，
-   而 AC#12 限定了本故事唯一允许的 docs 改动是 CORS 一节，所以它眼下只落在
-   `apps/dev-rxdb-http-server/src/db.ts` 与 `server.spec.ts` 的注释里 → **另开 US 补协议文档**。
-
-3. **前端实体配了 `syncStaleTime: 0`。** 默认的 1000ms「刚同步过」记忆窗口本身完全合理，
-   但本 demo 的全部意义是把协议流量摆出来看，而「重新查询」若落在窗口内就直接读本地投影：
-   一次请求都不发、也不报错。观测台上没有比「按钮按了但什么都没发生，且这是对的」更坏的现象。
-
-4. **QueryCache 实体的远端适配器若不在库级 `sync` 里，core 会静默永挂。**
-   `RxDB.init()` 只从库级配置喂 `#remote_adapter_sub`，实体级 `sync.remote.adapter` 不参与；
-   缺了它 `combineLatest` 既不 emit 也不 error，UI 永远停在「加载中…」且零诊断。
-   非 QueryCache 路径早有 `RxDBMissingPrimaryAdapterError` 顶这个位置 → **另开 US**。
-   已落成 [US-021](../core/US-021-querycache-adapter-fail-fast.md) 并于 2026-08-27 关闭：
-   `validateSyncStrategy` 增判 `missingQueryCacheAdapter`，现在漏配在 `RxDB.init()` 就抛。
-   本 demo 的 [setup_rxdb_http.ts](../../../apps/dev-rxdb-http/src/app/setup_rxdb_http.ts)
-   注释已随之改口径——**它是这条修复的现场复验对象**（US-021 AC#7）。
-
-5. **AC#15 的 `?pageMode=token` 走不了 `createRestHandlers()`**（模板的 `UNSAFE_IN_SEGMENT`
-   拒绝 `?`）。改成双通道：后端同时认查询串与一个服务端默认形态开关
-   （`POST __control/page-mode`），e2e 走后者。
-
-6. **AC#2 与「无真实身份认证」的冲突**按「缺 `Authorization` 放行、带了但格式不对回 `401`」
-   化解——否则文档里那五条 curl 有四条没带 token，逐字跑必然 `401`。
-
-7. **跨源读不到 ETag** 已按 AC#10 冻结成用例（用例名写明是已知症状），不动 `stable` 包 → **另开 US**。
-
-8. **故事收口之后 demo 又长出了「清空所有数据」与「用户翻页」**（2026-08-27）。两者都不对应任何一条
-   AC——它们是操作台，不是协议的性质——**AC 与验收清单一字未动**，这里只记落地时的三处牵连：
-   - **清空走 `POST __control/clear`（`DELETE FROM recipes`），不是 `__control/reset`。** 前者保留表结构，
-     `HEAD :entity` 继续回 `200`，客户端看到的是「表在、但一行都不匹配」——AC#14 的孤儿清理正是这一条路。
-     删库重建看不到这一幕：表本身没了，走的是「实体在远端不存在」那条完全不同的路。
-   - **列表默认每页 50 行，`limit`/`offset` 真下推本地读**，同步的粒度仍是整个 `where`
-     （指纹里没有翻页参数）。因此 `orphan-cleanup.spec.ts` 与 `page-token.spec.ts` 这两条要断言
-     **全量 id** 的用例，现在得先 `showAllRows(page)` 把页长切到「全部」再读；断言本身没变。
-   - **翻页的断言必须落在行上，不能落在页码上。** 页码是信号直接算出来的，点完立刻就变；
-     行要等本地重查回来才换。只等 `page-info` 会读到上一页的行，而失败现场看起来像「翻页没生效」。
-     `support.ts` 的 `expectRowIds` / `showAllRows` 就是为这个而存在的。
+demo 后端两处落地定形：`?pageMode=token` 走不了 `createRestHandlers()`（模板拒绝 `?`），改成双通道
+（查询串 + `POST __control/page-mode`）；AC#2 与「无真实身份认证」按「缺 `Authorization` 放行、带了但
+格式不对回 `401`」化解。前端实体配 `syncStaleTime: 0`（见[默认配置会让 demo 白跑](#默认配置会让-demo-白跑)）。
 
 ## 技术笔记
 

@@ -14,6 +14,8 @@ url: https://github.com/aiao-io/rxdb/security/code-scanning/0
 
 # CS-XXX [规则名]
 
+> 本文件是工作集条目：GitHub 关闭该告警后，把处置结论归档到 [README](./README.md#归档) 并删除本文件。
+
 ## 规则
 
 - ID：`js/xxx`
@@ -36,3 +38,5 @@ url: https://github.com/aiao-io/rxdb/security/code-scanning/0
 
 - [ ] 修复并合并 → `status: Resolved`（GitHub 自动转 `fixed`）
 - [ ] 或承认风险 → `status: Dismissed`（GitHub 上 dismiss）
+
+完成后：README 归档表补一行 → 删除本文件。

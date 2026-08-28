@@ -145,15 +145,54 @@ describe('fetchMetadata —— token 形态（AC#15）', () => {
 });
 
 describe('写端点回执来自库，不是回显入参（AC#5）', () => {
-  it('create 忽略客户端给的 id / updatedAt，回读持久化后的行', async () => {
-    const forged = { id: 'client-supplied', title: 'Risotto', status: 'draft', updatedAt: '1999-01-01T00:00:00.000Z' };
-    const created = await postJson<Record<string, unknown>>('recipes', forged);
+  /**
+   * `id` 与时间戳的归属**不一样**，这条用例正是拿来分开它们的。
+   *
+   * `updatedAt` 是新鲜度依据，客户端的钟不可信，服务端必须重新定型。
+   * `id` 只是身份，谁造的无所谓——而离线新建时只有客户端造得出来：
+   * 那一刻网线是断的，行已经进了本地缓存、拿着本地 id 被 UI 引用、
+   * 出站队列里也记着这个 id。联网重放时后端另造一个 id，本地那份就永远
+   * 对不上远端，成了一条远端从不认识的孤儿行——恰是本文件另一处警告的
+   * 那个后果，只是从反方向到达。
+   */
+  it('create 采纳客户端给的 id，但时间戳仍由服务端定型', async () => {
+    const supplied = {
+      id: 'client-supplied',
+      title: 'Risotto',
+      status: 'draft',
+      updatedAt: '1999-01-01T00:00:00.000Z'
+    };
+    const created = await postJson<Record<string, unknown>>('recipes', supplied);
 
-    expect(created['id']).not.toBe('client-supplied');
+    expect(created['id']).toBe('client-supplied');
     expect(created['updatedAt']).not.toBe('1999-01-01T00:00:00.000Z');
 
-    const [persisted] = await postJson<Record<string, unknown>[]>('recipes/by-ids', { ids: [created['id']] });
+    // 回执仍来自库，不是回显入参——这条不变。
+    const [persisted] = await postJson<Record<string, unknown>[]>('recipes/by-ids', { ids: ['client-supplied'] });
     expect(persisted).toEqual(created);
+  });
+
+  it('create 不带 id 时由服务端造一个', async () => {
+    const created = await postJson<Record<string, unknown>>('recipes', { title: 'Risotto', status: 'draft' });
+
+    expect(created['id']).toEqual(expect.any(String));
+    expect(created['id']).not.toBe('');
+  });
+
+  /**
+   * 采纳客户端 id 就得给「撞车」一个说法：静默覆盖会把另一条行的内容抹掉，
+   * 而客户端并不知道自己覆盖了谁。409 让重放侧看得见冲突。
+   *
+   * 正常重放走不到这里：出站队列发 `create` 之前会先 `fetchMetadata` 探一次远端，
+   * 远端已有同 id 就改发 `update`（`query-cache-outbox.ts` 的 `LOCAL_WINS_VERB`）。
+   */
+  it('create 撞上已有 id 回 409，不覆盖已有行', async () => {
+    await postJson('recipes', { id: 'dup', title: 'First', status: 'draft' });
+    const response = await post('recipes', { id: 'dup', title: 'Second', status: 'published' });
+
+    expect(response.status).toBe(409);
+    const [persisted] = await postJson<Record<string, unknown>[]>('recipes/by-ids', { ids: ['dup'] });
+    expect(persisted['title']).toBe('First');
   });
 
   it('update 重新定型 updatedAt 并返回完整行', async () => {

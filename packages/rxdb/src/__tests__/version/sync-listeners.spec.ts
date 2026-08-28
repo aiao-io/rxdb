@@ -454,6 +454,21 @@ describe('setupVersionSyncListeners 联网回推', () => {
     expect(flushOutbox).not.toHaveBeenCalled();
   });
 
+  // 全 QueryCache 的库（HTTP demo 就是）压根没有 changelog 端点：`syncBranches` 与
+  // `push` 一进门就撞 `getRemoteRepositories()`，HTTP 适配器对此直接抛，每一轮必败。
+  // 跑它们不只是白跑 —— 「本轮全绿」从此永远不成立，面板会常亮一句
+  // 「不支持 getRepository」，而真正推成功了的 REST 重放反倒没人替它宣布。
+  it('没有 changelog 仓库时不跑 syncBranches 与 push', async () => {
+    const harness = createHarness({ connected: true, entities: [CachedRecipe, LocalDraft] });
+
+    await settleDetachedTasks();
+
+    expect(harness.syncBranches).not.toHaveBeenCalled();
+    expect(harness.push).not.toHaveBeenCalled();
+    expect(flushedEntities()).toEqual(['CachedRecipe']);
+    expect(harness.syncState.snapshot.lastError).toBeNull();
+  });
+
   it('没有远程适配器时既不 push 也不 flush', async () => {
     const harness = createHarness({ connected: true, hasRemoteAdapter: false });
 

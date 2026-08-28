@@ -128,7 +128,7 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
     if (outputDir) rmSync(outputDir, { force: true, recursive: true });
   });
 
-  test('运行在 Electron 43 上', () => {
+  test('运行在 Electron 43+ 上', () => {
     const versions = finding('versions').detail as { electron: string; chrome: string };
     expect(Number.parseInt(versions.electron, 10)).toBeGreaterThanOrEqual(43);
   });

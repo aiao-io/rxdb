@@ -144,7 +144,13 @@ const setup = (options: SetupOptions = {}) => {
     findByIds: vi.fn(() => of(options.remoteRows ?? [])),
     create: vi.fn((_entity: string, data: unknown) => of(data)),
     update: vi.fn((_entity: string, id: string, patch: Record<string, unknown>) => of({ id, ...patch })),
-    delete: vi.fn(() => of(undefined))
+    delete: vi.fn(() => of(undefined)),
+    // QueryCache 的远端契约就是上面这五个 REST 动词。**仓储**是它明确不实现的东西 ——
+    // `RxDBAdapterHttp.getRepository()` 无条件抛 `HttpUnsupportedOperationError`。
+    // 假件照抄这个拒绝，出站重放才不可能偷偷绕回版本管理器那条管道。
+    getRepository: vi.fn(() => {
+      throw new Error('HTTP adapter does not support "getRepository": v1 supports SyncType.QueryCache only');
+    })
   };
 
   const reachability = detachedReachability();
@@ -164,11 +170,21 @@ const setup = (options: SetupOptions = {}) => {
         instantiate: () => ({ enabled: true }) as RxDBSync,
         getRepository: vi.fn(() => ({ count: countChanges }))
       },
-      reachability
+      reachability,
+      // 取远端适配器的正路：直接给实例，不附带任何仓储。
+      remoteAdapter$: of(remoteAdapter)
     },
     getCurrentBranch: vi.fn(async () => ({ id: BRANCH })),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
-    getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter }))
+    // 照抄 `VersionManager.getRemoteRepositories` 的**急切**形状：它一进门就建
+    // changelog 的两个仓储，QueryCache 的远端一个都拿不出来，所以假件也必须在这里炸。
+    // 先前的假件把 adapter 直接递出来，把「重放绕道版本管理器」这条 bug 整个藏住了 ——
+    // 单测全绿，而 HTTP demo 里每一轮回推都死在第一行。
+    getRemoteRepositories: vi.fn(async () => ({
+      branchRepository: remoteAdapter.getRepository(),
+      changeRepository: remoteAdapter.getRepository(),
+      adapter: remoteAdapter
+    }))
   } as unknown as VersionManager;
 
   return {
@@ -235,10 +251,37 @@ describe('flushQueryCacheOutbox', () => {
     });
   });
 
-  describe('重放净操作', () => {
-    it('INSERT 用 change.patch 的整行调远端 create', async () => {
+  describe('取远端适配器', () => {
+    // QueryCache 的远端只有 REST 五件套。`getRemoteRepositories()` 除了给适配器，还会
+    // 顺手建一对 changelog 仓储 —— HTTP 适配器对此直接抛，于是整轮回推在发出第一个
+    // 请求之前就死了：面板上只留一句「不支持 getRepository」，用户离线时写的东西
+    // 永远推不上去，而它跟出站重放要做的事没有半点关系。
+    it('不经 changelog 仓储那条入口', async () => {
       const ctx = setup({
-        changes: [change({ type: 'INSERT', entityId: 'r1', patch: { id: 'r1', title: '红烧肉', servings: 4 } })]
+        changes: [change({ type: 'INSERT', entityId: 'r1', patch: { id: 'r1', title: '红烧肉' } })]
+      });
+
+      const result = await flush(ctx);
+
+      expect(ctx.vm.getRemoteRepositories).not.toHaveBeenCalled();
+      expect(ctx.remoteAdapter.getRepository).not.toHaveBeenCalled();
+      expect(result.replayed).toBe(1);
+    });
+  });
+
+  describe('重放净操作', () => {
+    /**
+     * 注意这条用例的 `patch` 里**没有** `id` —— 触发器产出的就是这个形状。
+     *
+     * `trigger_sql.ts` 建 INSERT 触发器时明写 `if (jsName === 'id') continue`：行的身份
+     * 记在变更行自己的 `entityId` 列上，不重复进 patch。所以直接把 patch 当请求体发出去，
+     * 远端收到的是一条**没有身份的新行**，只能自己造一个 id —— 本地那份从此对不上远端，
+     * 成了一条远端从不认识的孤儿行，下一轮元数据拉取就把它当孤儿清掉。用户离线时写的
+     * 东西看着推上去了（水位线照常推进），其实丢了。
+     */
+    it('INSERT 把 entityId 补进请求体再调远端 create', async () => {
+      const ctx = setup({
+        changes: [change({ type: 'INSERT', entityId: 'r1', patch: { title: '红烧肉', servings: 4 } })]
       });
 
       const result = await flush(ctx);
@@ -249,6 +292,17 @@ describe('flushQueryCacheOutbox', () => {
         servings: 4
       });
       expect(result.replayed).toBe(1);
+    });
+
+    // patch 里真带了 `id` 也只可能是同一个值（都来自那条变更行），补齐不改变结果。
+    it('patch 已带 id 时不改写它', async () => {
+      const ctx = setup({
+        changes: [change({ type: 'INSERT', entityId: 'r1', patch: { id: 'r1', title: '红烧肉' } })]
+      });
+
+      await flush(ctx);
+
+      expect(ctx.remoteAdapter.create).toHaveBeenCalledWith('CachedRecipe', { id: 'r1', title: '红烧肉' });
     });
 
     it('UPDATE 只把变更字段调远端 update', async () => {

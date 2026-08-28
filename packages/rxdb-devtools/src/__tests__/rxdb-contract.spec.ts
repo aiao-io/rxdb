@@ -172,5 +172,38 @@ describe('rxdb contract', () => {
 
       expect(entities.map(entity => getEntityMetadata(entity).name)).toContain('RxDBBranch');
     });
+
+    // `config.entities` 是**活数组**（`LIVE_BEHAVIOUR_CONFIG_KEYS` 把它排除在冻结之外）：
+    // `SchemaManager.init()` 往里补系统实体，插件 `install()` 往里 push 自己的实体。
+    // `dev-rxdb-http` / `dev-rxdb-supabase` 都是先 `connector.init()` 再 `rxdb.init()`，
+    // 于是快照式的注册表连 `RxDBChange` 都看不见 —— 面板报「实体不存在」的那条路。
+    it('MUST see entities that RxDB registers after the connector was initialised', () => {
+      const rxdb = new RxDB({
+        dbName: 'devtools-contract-late',
+        entities: [],
+        sync: { type: SyncType.None, local: { adapter: 'memory' } }
+      });
+
+      connector.init(rxdb, getEntityMetadata);
+      // 真实注册动作：与 `SchemaManager.init()` / `RxDBPluginStorage.install()` 同一条语句。
+      rxdb.config.entities.push(RxDBBranch);
+      ackHandshake();
+      postMessageSpy.mockClear();
+
+      sendToConnector({
+        source: RXDB_DEVTOOLS_MESSAGE,
+        direction: 'devtools-to-page',
+        type: 'INSPECT_DB',
+        payload: null,
+        timestamp: 0,
+        sequence: 2
+      });
+
+      const dbInfo = postMessageSpy.mock.calls
+        .map(([message]) => message as { type: string; payload: { entities: { name: string }[] } })
+        .filter(message => message.type === 'DB_INFO');
+
+      expect(dbInfo[0].payload.entities.map(entity => entity.name)).toContain('RxDBBranch');
+    });
   });
 });

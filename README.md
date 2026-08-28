@@ -26,15 +26,15 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 
 ## 技术栈
 
-| 层     | 技术                                                   |
-| ------ | ------------------------------------------------------ |
-| 语言   | TypeScript 6.0+ strict, ESM                            |
-| 构建   | Nx 23 + pnpm 10                                        |
-| 框架   | Angular 22+ / React 19+ / Vue 3.5+                     |
-| 响应式 | RxJS 7.8+                                              |
+| 层     | 技术                                                          |
+| ------ | ------------------------------------------------------------- |
+| 语言   | TypeScript 6.0+ strict, ESM                                   |
+| 构建   | Nx 23 + pnpm 10                                               |
+| 框架   | Angular 22+ / React 19+ / Vue 3.5+                            |
+| 响应式 | RxJS 7.8+                                                     |
 | 存储   | wa-sqlite / sqlite-wasm / PGlite / Supabase / HTTP / sqliteai |
-| 测试   | Vitest (unit/integration) + Playwright (e2e/a11y)      |
-| 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri        |
+| 测试   | Vitest (unit/integration) + Playwright (e2e/a11y)             |
+| 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri               |
 
 > [!NOTE]
 > ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [50/61 已交付](requirements/status-overview.md)

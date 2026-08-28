@@ -67,8 +67,8 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 
 | #   | 病灶                                                             | 结算                                                                                                                                                                                                                                                                                                           |
 | --- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `RxDB.#shutdown()` 手工复位                                      | 关闭（bugfix）——`init()` 失败回滚补齐 `versionManager.destroy()` + `#gateway?.destroy()` + `entityManager.destroy()`，与 `#shutdown()` 的资源三步对称，见下方专节                                                                                                                                              |
-| 2   | `RxDB.#event_initialized` 布尔守卫                               | **改判：不是病灶**，见下方专节                                                                                                                                                                                                                                                                                 |
+| 1   | `RxDB.#shutdown()` 手工复位                                      | 关闭（bugfix）——`init()` 失败回滚补齐 `versionManager.destroy()` + `#gateway?.destroy()` + `entityManager.destroy()`，与 `#shutdown()` 的资源三步对称                                                                                                                                                          |
+| 2   | `RxDB.#event_initialized` 布尔守卫                               | **改判：不是病灶**——布尔守卫防的是重连时重复注册导致监听器集合膨胀，实例被回收时监听器一并消失，不占本 Epic 名额                                                                                                                                                                                               |
 | 3   | `RxDB.#plugin_install_promises` 安装记账 Map                     | 关闭（US-015 阶段 A）——字段已删，安装态迁进 `PluginDependencyScheduler`                                                                                                                                                                                                                                        |
 | 4   | storage 的 `#ownsStorage` / `#registeredEntity` 双布尔           | 关闭（US-014）——`RxDBPluginStorage.install(scope)` 三段 `scope.acquire()`，标签 `storage:service` / `storage:property` / `storage:entity`（[plugin.ts](../../packages/rxdb-plugin-storage/src/plugin.ts)）                                                                                                     |
 | 5   | search 的 `SearchPluginPhase` 五态枚举                           | 关闭（US-015 阶段 A）——枚举已删，`installing` / `failed` 由调度器持有                                                                                                                                                                                                                                          |
@@ -80,42 +80,6 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 改造前贯穿全部九项的那处不对称——`RxDB.#destroy_plugin()` 用 `Promise.all` 并发拆卸、吞掉异常、且没有逆序
 ——也已随 US-014 关闭：现在是逆序串行 + 错误隔离不短路
 （[`RxDB.#destroy_plugin()`](../../packages/rxdb/src/RxDB.ts)）。
-
-### 第 1 条：漏写的是**资源三步**，不是缺失的抽象
-
-`RxDB.#connection_scope` 连接纪元作用域已经落地：`init()` 建（`#ensure_connection_scope()`），
-`#shutdown()` 与 `init()` 的失败回滚都经 `#release_connection_scope()` 释放
-（`RxDB.#release_connection_scope()`）。总闸已在，缺的是**不在作用域里**的那三个管理器：
-`init()` 的 `catch` 原先只复位 `#rxdb_initialized`、释放连接作用域、复位调度记录，
-`#shutdown()` 的 `versionManager.destroy()` / `#gateway?.destroy()` / `entityManager.destroy()`
-一步都没做。抛错点落在各自 `init()` 之后时，两处是**今天能踩到的泄漏**、一处是对称缺口：
-
-- **`versionManager`**：`VersionManager.init()` 每次都 `addEventListener()` 挂事务与本地新建事件，
-  并跑 `#init_sync()` 推进 `#subscriptions` / `#event_removers`，自身**没有幂等守卫**
-  （`#historyManagerDestroyed` 只挡二次 `destroy()`）。重试叠上第二份，症状是 redo 栈被打两次、
-  同步监听跑两遍。
-- **`#gateway`**：`RxDBTabsGateway` **构造期**就 `createBroadcastTopic()`（内部 `new BroadcastChannel`）
-  与 `new LeaderElection()`（挂 `beforeunload`），通道早于 `init()` 打开；`#destroyed` 是终态，
-  重试只能 `new` 第二个写进 `#gateway`，旧实例从此无人引用也无人 `destroy()`。
-  `multiInstance !== false`（默认）下每失败一次泄漏一条 BroadcastChannel 加一套选举。
-- **`entityManager`**：`registerEntityManager` 用 `WeakMap<EntityType, Set<EntityManager>>`，
-  同实例 `Set.add` 是空操作，不叠第二份也不误触发多实例抛错——只是 Repository 身份缓存可能残留。
-  对称缺口，随手补齐，不单独计数。
-
-修法是 `catch` 补齐与 `#shutdown()` 对称的资源三步 + 两条红测试，**不单开故事**。红测试的抛错点必须落在
-`versionManager.init()` **之后**（既有的 `schemaManager.init` 失败用例停在两处资源都还没动的时刻，
-看不见它们），见 `RxDB.plugin-scope.spec.ts` 的
-`describe('init() 在 versionManager.init() 之后失败：catch 与 #shutdown() 的资源释放对称')`。
-
-`#shutdown()` 剩余 14 步里只有这 3 步是资源释放，其余 9 步是状态复位——按上方收口判据，原语碰不到它们。
-把 3 步资源释放挪进连接作用域是可选的整洁化，不构成一条独立的用户价值。
-
-### 第 2 条：`#event_initialized` 不是泄漏
-
-`RxDB.#init_event()` 注册的三个事务监听器挂在**实例自己的** `#event_map` 上
-（`this.addEventListener(TRANSACTION_BEGIN, on_begin)`），
-不跨对象持有引用——实例被回收时监听器一并消失。布尔守卫防的是「重连时重复注册导致监听器集合膨胀」，
-这是一个正确的设计选择，不是「缺少卸载路径」。改判为非病灶，不占本 Epic 的名额。
 
 ## 承诺范围
 

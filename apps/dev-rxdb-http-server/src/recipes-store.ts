@@ -113,21 +113,40 @@ const readRow = (db: DatabaseSync, id: string): RecipeRow | undefined => {
 };
 
 /**
+ * 取新行的 id：客户端给了就用它的，没给才现造一个。
+ *
+ * @remarks
+ * 「采纳」而不是「回显」——给的 id 会真的落库，回执再从库里读出来。
+ * 两者的差别就是本地缓存里那条行远端认不认识。
+ */
+const readNewRowId = (body: Record<string, unknown>): string => {
+  const supplied = body['id'];
+  if (supplied === undefined || supplied === null) return newRowId();
+  return readString(supplied, 'id');
+};
+
+/**
  * `create`。
  *
  * @remarks
- * `id` 走 `crypto.randomUUID()`、`createdAt` / `updatedAt` 取服务端当前时刻，都**不看**入参。
- * 协议的警告：回显客户端给的 `id` 会让本地缓存留下一条远端从不存在的行。
+ * `id` **采纳**客户端给的那个，缺省才走 `crypto.randomUUID()`；`createdAt` / `updatedAt`
+ * 一律取服务端当前时刻，**不看**入参。两者归属不同：时间戳是新鲜度依据，客户端的钟
+ * 不可信；`id` 只是身份，而离线新建时只有客户端造得出来——那一刻行已经进了本地缓存、
+ * 被 UI 引用、也记在出站队列里。后端另造一个，本地那份就成了远端从不认识的孤儿行。
+ *
  * 写完立刻回读整行返回，回执与库里那份必然一致。
  *
  * 新建行的 `createdAt === updatedAt`：它还没被改过，这是诚实的取值，
  * 也让「`update` 只动 `updatedAt`」这件事在回执上一眼可见。
+ *
+ * @throws HttpError 409，若 `id` 已存在。静默覆盖会抹掉另一条行，而客户端不会知道
+ *   自己覆盖了谁；重放侧则要靠这个状态码看见冲突。
  */
 export const createRecipe = (db: DatabaseSync, input: unknown): RecipeRow => {
   const body = readObject(input, 'create');
   const now = nowIso();
   const row: RecipeRow = {
-    id: newRowId(),
+    id: readNewRowId(body),
     title: readString(body['title'] ?? '', 'title'),
     status: readString(body['status'] ?? 'draft', 'status'),
     price: readNumber(body['price'] ?? 0, 'price'),
@@ -135,6 +154,8 @@ export const createRecipe = (db: DatabaseSync, input: unknown): RecipeRow => {
     createdAt: now,
     updatedAt: now
   };
+
+  if (readRow(db, row.id) !== undefined) throw new HttpError(409, `Recipe '${row.id}' already exists`);
 
   db.prepare(
     `INSERT INTO recipes (id, title, status, price, tag, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)`

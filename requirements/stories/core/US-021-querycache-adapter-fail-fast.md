@@ -94,7 +94,7 @@ if (metadata.repository !== 'TreeRepository') return;
 
 源码实证，四个符号一条链：`RxDB.init()` 的 `#config.sync` → `#remote_adapter_sub` 的初值 `''`
 → `remoteAdapter$` 的 `filter(Boolean)` → `#createQueryCachePrimary` 的 `combineLatest`。
-现场佐证见 [US-214 落地偏差](../adapter/US-214-http-browser-demo.md#落地偏差)——该 demo 开发时踩中本条，
+现场佐证见 [US-214 落地发现](../adapter/US-214-http-browser-demo.md#落地发现)——该 demo 开发时踩中本条，
 表现与上述完全一致。
 
 ## 范围边界
@@ -157,62 +157,9 @@ if (metadata.repository !== 'TreeRepository') return;
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-AC#7 记 ⚠️ 而非 ✅：错误确实抛出且可读，无限加载态确实消失，但呈现形态与验收话术里的「页面报」有出入。
-见[落地偏差](#落地偏差)。
+AC#7 记 ⚠️ 而非 ✅：错误确实抛出且可读，无限加载态确实消失，但「页面报可读错误」这句只兑现了一半——错误落在**控制台**，页面是空白的（`connect()` 挂在 `provideAppInitializer` 上，initializer 抛错中止 Angular bootstrap，根组件没渲染）。这是 demo 怎么呈现初始化失败的问题，不属本故事校验范围。
 
-AC#8 的后半句已按实测改写。原文要求「新增的 `MetadataValidationRule` 成员进
-`requirements/api-baseline/rxdb.json`」——**这条前提是错的**，写故事时没去看 baseline 的实际粒度。
-它只记导出符号的名字与种类：
-
-```text
-{
-  "name": "MetadataValidationRule",
-  "kind": "type"
-}
-```
-
-联合成员一个都不在里面。所以加 `missingQueryCacheAdapter` 不产生 baseline diff，
-也没有「过 baseline」这一步可做。留下这段而不是删掉验收项，是因为「联合类型加成员算不算
-公开 API 变更」这个判断本身没错（见[技术笔记](#技术笔记)），错的只是「baseline 能接住它」。
-
-## 落地偏差
-
-### AC#7 的错误是**控制台**里的，页面是白的
-
-现场复验按验收标准做了：起后端 + `pnpm nx serve dev-rxdb-http`，删掉库级 `sync.remote`，
-真浏览器打开 `localhost:4300`。得到的是：
-
-```text
-ERROR RxDBError: 实体元数据校验失败（1 项）：
-  public.Recipe.sync [missingQueryCacheAdapter] sync: SyncType.QueryCache 生效，但库级 sync 未注册 remote 适配器。……
-    at EntityManager.init (main.js:7363)
-    at RxDB.init (main.js:15097)
-    at RxDB.connect (main.js:15252)
-    at ApplicationInitStatus.runInitializers (core:11370)
-```
-
-本故事要消除的东西确实消除了：无限加载态没了，成因字符串可 grep，栈顶就指着 `EntityManager.init`。
-但「页面报可读错误」这句验收话术落空了半句——**页面是空白的**。原因在 demo 侧而非本故事：
-`connect()` 挂在 `provideAppInitializer` 上，initializer 抛错会中止 Angular bootstrap，
-根组件根本没渲染，自然没有承载错误 UI 的地方。
-
-不在此故事里补这个 UI，理由是它属于另一类问题：**demo 怎么呈现初始化失败**。
-真要补，改的是 [app.config.ts](../../../apps/dev-rxdb-http/src/app/app.config.ts) 的错误呈现策略
-（catch 住 initializer 异常、渲染一个降级页），跟「校验规则判得对不对」没有交集。
-把它塞进来会让本故事同时改核心校验和 demo 的启动流程，评审时也说不清哪半边在验什么。
-
-复验完成后 `setup_rxdb_http.ts` 已还原成两侧齐全，页面重新正常渲染（317 行、后端版本
-`node-sqlite-demo/1.0.0`）——**破坏性改动没有留在仓库里**。
-
-### 一个类型上不可达、运行时可达的分支
-
-`RxDBOptions.sync` 是必填的，所以「库级 sync 整个缺席」在 TS 里写不出来。但
-`RxDB.init()` 写的是 `this.#config.sync || {}`——它自己认为这个输入存在。
-校验实现按运行时的实际形状处理（`databaseSync: SyncOptions | undefined`），
-对应的 init 级用例用一次显式 cast 绕过类型来覆盖这一支，cast 处有注释说明理由。
-
-这条不是缺陷，是记下来备查：如果哪天 `sync` 改成可选，这个分支会从「JS 调用方才够得着」
-变成常规路径，届时不需要改实现。
+AC#8 的后半句已按实测改写：`MetadataValidationRule` 是导出联合类型，但 api-baseline 只记 `{ name, kind }`、不记联合成员，故加 `missingQueryCacheAdapter` 无 baseline diff。联合类型加成员仍算公开 API 变更（见[技术笔记](#技术笔记)）。
 
 ## 技术笔记
 

@@ -86,7 +86,7 @@ renderer 不直接接触 `fs` / `ipcRenderer` 的运行时边界。本故事复�
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-> **AC#11 于 2026-08-17 补入**，与 [US-207 AC#9](./US-207-desktop-local-database.md#ac9-为什么值得单列一条)
+> **AC#11 补入**，与 [US-207 AC#9](./US-207-desktop-local-database.md#ac9-为什么值得单列一条)
 > 及 [US-210 AC#10](./US-210-tauri-sqlite-local-database.md) 是同一件事在三条路径上的对偶。
 > 补的理由见 US-207 那一节：校验代码在共享层，但三个 host 是独立实现的，不能只在一处验。
 > 本故事的 PGlite host 尚未开工，所以这条标 ⬜——它是**开工时要一并做的**，不是事后补丁：
@@ -127,7 +127,7 @@ bigint、binary 与 JSONB 跨 `structuredClone` / IPC 序列化的行为必须�
 ### 依赖
 
 - AC#7 由主进程 host 的单实例持有承担：PGlite data directory 不支持两个进程/实例并发打开，
-  跨 realm writer lease 与迁移 fencing 已于 2026-08-16 取消，本故事不再等待它。
+  跨 realm writer lease 与迁移 fencing 已取消，本故事不再等待它。
 - 桌面 host 契约（`SqliteClientLike` 的同类物、PGlite 客户端契约）由 US-207 先抽出，本故事复用后补齐可代理的事务与事件契约。
 
 ## 实现文件

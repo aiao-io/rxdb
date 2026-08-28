@@ -406,8 +406,12 @@ export const startReferenceServer = async (options: { paging?: 'offset' | 'token
    * 创建：**id 与 updatedAt 一律由服务端决定**，入参里的 id 被忽略。
    *
    * @remarks
-   * 这是本实现的立场，也是 AC#9 能证明"客户端用的是回执不是回显"的前提。
-   * 真实后端多半也是这样（自增主键 / 服务端 UUID），照抄入参 id 的后端同样合协议。
+   * 这是本实现的立场，也是 AC#9 能证明"客户端用的是回执不是回显"的前提——
+   * 服务端偏要换个 id，客户端还能对上，才说明它读的是回执。
+   *
+   * 换 id 的后端仍然合协议，但**只够用到在线写**：离线新建的行带着本地 id 进出站队列，
+   * 联网重放时远端另造一个 id，本地那份就成了孤儿。想支持离线写的后端必须采纳入参 id
+   * （`http-protocol.md` 第 3 节），参考后端 `dev-rxdb-http-server` 即是。
    */
   const createRow = (entityName: string, data: Record<string, unknown>): RouteResult => {
     idSequence += 1;
