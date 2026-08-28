@@ -218,10 +218,7 @@ export default class RemoteCachePage implements OnInit, OnDestroy {
   }
 
   private pushLog(entry: Omit<LogEntry, 'timestamp' | 'kindLabel'>): void {
-    const next = [
-      { ...entry, kindLabel: KIND_LABELS[entry.kind], timestamp: Date.now() },
-      ...this.logs()
-    ].slice(0, 20);
+    const next = [{ ...entry, kindLabel: KIND_LABELS[entry.kind], timestamp: Date.now() }, ...this.logs()].slice(0, 20);
     this.logs.set(next);
   }
 

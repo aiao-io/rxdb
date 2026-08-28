@@ -30,7 +30,7 @@ import { RxDBQueryCacheRowContractError } from '../query-cache-row-contract.js';
 import { SqliteRepository } from '../repository/SqliteRepository.js';
 import { RxDBAdapterSqliteBase, type SqliteBaseOptions, type SqliteClientLike } from '../RxDBAdapterSqliteBase.js';
 import { SQLiteChangeType } from '../sqlite-backend.interface.js';
-import type { SQLiteCompatibleType, SqliteChangeEvent, SqliteSuccessResult } from '../sqlite-core.interface.js';
+import type { SqliteChangeEvent, SQLiteCompatibleType, SqliteSuccessResult } from '../sqlite-core.interface.js';
 import { RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
 import { Todo } from './fixtures/Todo.js';
 
@@ -1391,7 +1391,8 @@ describe('RxDBAdapterSqliteBase', () => {
       return createClient({
         execute: vi.fn(async (sql: string) => {
           const head = sql.trimStart();
-          if (head.startsWith('SELECT')) return okResult(sql, [{ columns: TODO_COLUMNS, rows: written ? after : before }]);
+          if (head.startsWith('SELECT'))
+            return okResult(sql, [{ columns: TODO_COLUMNS, rows: written ? after : before }]);
           if (head.startsWith('INSERT') || head.startsWith('DELETE')) written = true;
           return okResult(sql, [], 1);
         })
@@ -1459,7 +1460,13 @@ describe('RxDBAdapterSqliteBase', () => {
           namespace: 'public',
           entity: 'Todo',
           id: 'todo-2',
-          patch: { id: 'todo-2', title: '新行', completed: false, createdAt: new Date(ISO_CREATED), updatedAt: new Date(ISO_UPDATED) },
+          patch: {
+            id: 'todo-2',
+            title: '新行',
+            completed: false,
+            createdAt: new Date(ISO_CREATED),
+            updatedAt: new Date(ISO_UPDATED)
+          },
           inversePatch: null,
           recordAt: expect.any(Date)
         }

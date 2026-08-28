@@ -761,9 +761,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       return from(
         this.transaction(async executor => {
           const preImages = await this.#readQueryCacheRowImages(executor, target, ids);
-          await withTriggersDisabled(this, executor, () =>
-            this.#deleteQueryCacheRows(executor, target.tableName, ids)
-          );
+          await withTriggersDisabled(this, executor, () => this.#deleteQueryCacheRows(executor, target.tableName, ids));
           return preImages;
         }, false).then(preImages => {
           // 行没了，缓存里那个实例还标着 local=true。不标 removed 的话，
