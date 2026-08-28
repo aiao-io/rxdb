@@ -47,6 +47,20 @@ export interface HttpTransportOptions {
    * 不需要在触发点上再判一次开关状态。
    */
   conditional?: { maxEntries: number; onEtagUnreadable?: HttpEtagUnreadableHook };
+  /**
+   * 每次**实际发出**的请求的结局：成功传 `null`，失败传已 `classify` 过的错误。
+   *
+   * @remarks
+   * 供 local-first 的可达性判定使用，接到 `ReachabilityMonitor.report` 上。
+   * 缺席即不上报（非浏览器宿主、独立使用 transport 的场景）。
+   *
+   * **传的是分类后的错误**：`fetch` 在 node/undici 下抛的裸 `TypeError('fetch failed')`
+   * 一条 `isNetworkError` 判据都不命中，原样上报等于永远判不出离线。
+   *
+   * 请求没发出去的失败（auth hook 抛错、header 非法、body 不可序列化）**不上报**——
+   * 那些是本地问题，与远端够不够得着无关，见 {@link HttpTransport.#prepare}。
+   */
+  reportResult?: (error: unknown | null) => void;
 }
 
 /**
@@ -474,9 +488,14 @@ export class HttpTransport {
    *
    * 同理，此时的 `disconnect()` 会让 body 流抛裸 `AbortError`：它绕过 {@link classify}，
    * `isNetworkError` 判 false，「断开一律 `HttpDisconnectedError`」的契约随之失守。
+   *
+   * **可达性上报也只在这里**（`reportResult`）：本方法是全包唯一碰 `fetch` 的地方，
+   * 报在这一层，读、写、`version`、`isTableExisted` 一次覆盖齐。报在各个 duck 上要抄
+   * 七八遍，漏一处就是一条恢复不了的路径 —— 一个只靠 `fetchMetadata` 活着的只读页面，
+   * 那条路不报，网恢复了面板也一直显示离线。
    */
   async #send<T>(request: PreparedRequest, operation: string, consume: (response: Response) => Promise<T>): Promise<T> {
-    const { disconnectSignal, requestTimeoutMs } = this.options;
+    const { disconnectSignal, requestTimeoutMs, reportResult } = this.options;
     const timeoutController = new AbortController();
     let timedOut = false;
     const timer = setTimeout(() => {
@@ -494,9 +513,13 @@ export class HttpTransport {
         body: request.body,
         signal
       });
-      return await consume(response);
+      const value = await consume(response);
+      reportResult?.(null);
+      return value;
     } catch (error) {
-      throw this.classify(error, { operation, url: request.url, timedOut });
+      const classified = this.classify(error, { operation, url: request.url, timedOut });
+      reportResult?.(classified);
+      throw classified;
     } finally {
       clearTimeout(timer);
     }

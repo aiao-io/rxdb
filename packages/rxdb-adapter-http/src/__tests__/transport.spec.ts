@@ -804,4 +804,103 @@ describe('HttpTransport', () => {
       });
     });
   });
+
+  /**
+   * local-first 的可达性上报：**每一次实际发出的请求都要报一次结局**。
+   *
+   * @remarks
+   * 报在 transport 而不是各个 duck 上，是因为「远端够不着」这件事与调用的是
+   * `fetchMetadata` 还是 `create` 无关，而 transport 是本包唯一真的碰网络的地方。
+   * 落在 duck 上要抄 N 遍，漏一处就是一条恢复不了的路径 —— 比如一个只读的页面
+   * 全靠 `fetchMetadata` 活着，那条路不报，网恢复了面板也一直显示离线。
+   *
+   * 判定本身**不在这里做**：回调原样把结局交给 `ReachabilityMonitor.report`，
+   * 由 `isNetworkError` 一处定夺。这一层只负责「报得全、报得准」。
+   */
+  describe('可达性上报', () => {
+    const withReport = (report: ReturnType<typeof vi.fn>): HttpTransport =>
+      createTransport({ reportResult: report }).transport;
+
+    it('请求成功报 null —— 那是「已恢复」的唯一证据', async () => {
+      const report = vi.fn();
+      await withReport(report).sendJson({ url: 'items', method: 'GET' }, 'test');
+      expect(report).toHaveBeenCalledExactlyOnceWith(null);
+    });
+
+    it('传输失败报出已分类的错误，可判为离线', async () => {
+      stubFetch(() => Promise.reject(new TypeError('fetch failed')));
+      const report = vi.fn();
+      await withReport(report)
+        .sendJson({ url: 'items', method: 'GET' }, 'test')
+        .catch(() => undefined);
+
+      expect(report).toHaveBeenCalledTimes(1);
+      // 报的必须是 classify 之后的那个错，不是 fetch 抛的裸 TypeError：
+      // node/undici 的 `fetch failed` 一条正则都不命中，直接上报会被判成「不是网络错误」
+      expect(isNetworkError(report.mock.calls[0][0])).toBe(true);
+    });
+
+    it('拿到状态码也照报，交由 report 自己判定不翻转', async () => {
+      stubFetch(() => Promise.resolve(jsonResponse({ message: 'nope' }, 401)));
+      const report = vi.fn();
+      await withReport(report)
+        .sendJson({ url: 'items', method: 'GET' }, 'test')
+        .catch(() => undefined);
+
+      // 上报与判定分开：漏报会让「什么算离线」这条口径在 transport 里长出第二份
+      expect(report).toHaveBeenCalledTimes(1);
+      expect(isNetworkError(report.mock.calls[0][0])).toBe(false);
+    });
+
+    it('飞行中被断开时报出的错判非离线', async () => {
+      // 断开是调用方叫停，不是远端够不着。判成离线会让一次正常的 disconnect()
+      // 把整个 local-first 面板打成离线态，而此后没有任何请求能把它翻回来
+      const report = vi.fn();
+      const { transport, controller } = createTransport({ reportResult: report });
+      // 已经 abort 的 signal 必须立刻 reject（同 `stubHanging` 的理由）：`#prepare` 是异步的，
+      // 同步调用的 abort 会赶在 fetch 之前落地，只挂监听的桩从此等一个不会再来的事件
+      const abortError = (): DOMException => new DOMException('aborted', 'AbortError');
+      stubFetch(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            if (init.signal?.aborted) {
+              reject(abortError());
+              return;
+            }
+            init.signal?.addEventListener('abort', () => reject(abortError()));
+          })
+      );
+      const pending = transport.sendJson({ url: 'items', method: 'GET' }, 'test').catch((e: unknown) => e);
+      controller.abort();
+
+      await expect(pending).resolves.toBeInstanceOf(HttpDisconnectedError);
+      expect(report).toHaveBeenCalledTimes(1);
+      expect(isNetworkError(report.mock.calls[0][0])).toBe(false);
+    });
+
+    it('请求没发出去就失败时不报 —— 那是本地问题', async () => {
+      const report = vi.fn();
+      const transport = withReport(report);
+      // 不可序列化的 body 在 `#prepare` 里就抛了，一个字节都没上网
+      await expect(
+        transport.sendJson({ url: 'items', method: 'POST', body: { n: 1n } }, 'test')
+      ).rejects.toBeInstanceOf(HttpRequestBuildError);
+
+      expect(report).not.toHaveBeenCalled();
+    });
+
+    it('sendVoid 与 execute 同样上报', async () => {
+      const report = vi.fn();
+      const transport = withReport(report);
+      await transport.sendVoid({ url: 'items/a', method: 'DELETE' }, 'delete');
+      await transport.execute({ url: 'items', method: 'GET' }, 'isTableExisted', async () => undefined);
+
+      expect(report.mock.calls).toEqual([[null], [null]]);
+    });
+
+    it('不配回调时一切照旧', async () => {
+      const { transport } = createTransport();
+      await expect(transport.sendJson({ url: 'items', method: 'GET' }, 'test')).resolves.toEqual({ ok: true });
+    });
+  });
 });

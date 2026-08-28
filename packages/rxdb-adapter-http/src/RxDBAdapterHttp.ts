@@ -493,6 +493,10 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
       disconnectSignal: this.#disconnected.signal,
       auth: this.options.auth,
       headers: this.options.headers,
+      // local-first 的可达性判定源：每次真发出去的请求都把结局交回去，
+      // 由 `isNetworkError` 一处定夺是不是离线。**现读 `this.rxdb`** 而不是构造期快照，
+      // 与下面 changeFeed 的三个回调同一条口径
+      reportResult: error => this.rxdb.reachability.report(error),
       // 缺席即禁用：AC#28 要求未启用时行为与阶段 A 逐字相同，
       // 传一个 `{ enabled: false }` 会让那句话依赖 transport 内部再判一次
       // 诊断回调挂在 `conditional` 里面而不是与它并列：条件请求关掉时整个对象就不存在，
