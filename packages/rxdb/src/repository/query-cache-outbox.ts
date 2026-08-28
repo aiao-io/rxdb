@@ -298,10 +298,17 @@ interface RunState extends QueryCacheOutboxResult {
   dropIds: string[];
 }
 
-const toResult = (run: RunState): QueryCacheOutboxResult => {
-  const { restoreIds: _restore, dropIds: _drop, ...result } = run;
-  return result;
-};
+/** 把累计状态收敛成对外结果，丢掉只在本轮内部用的修复清单 */
+const toResult = (run: RunState): QueryCacheOutboxResult => ({
+  repository: run.repository,
+  originalCount: run.originalCount,
+  compacted: run.compacted,
+  replayed: run.replayed,
+  discarded: run.discarded,
+  noop: run.noop,
+  watermark: run.watermark,
+  failures: run.failures
+});
 
 /**
  * 确认这个仓库确实走 QueryCache，并返回它的 syncType。
