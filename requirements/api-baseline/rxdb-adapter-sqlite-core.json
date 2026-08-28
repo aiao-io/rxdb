@@ -390,6 +390,10 @@
         "kind": "value"
       },
       {
+        "name": "readCurrentBranchId",
+        "kind": "value"
+      },
+      {
         "name": "RelationPair",
         "kind": "type"
       },
@@ -464,6 +468,10 @@
       {
         "name": "shouldUsePreparedStatementPath",
         "kind": "value"
+      },
+      {
+        "name": "SqlExecutor",
+        "kind": "type"
       },
       {
         "name": "SQLITE_MAX_BIND_VARIABLES",
@@ -643,6 +651,10 @@
       },
       {
         "name": "withSqliteApiConfig",
+        "kind": "value"
+      },
+      {
+        "name": "withTriggersDisabled",
         "kind": "value"
       },
       {
