@@ -203,7 +203,7 @@ export class AppMenu {
     },
     {
       type: 'link',
-      title: '远程缓存',
+      title: 'Remote Cache',
       path: '/remote-cache',
       icon: Cloud
     },

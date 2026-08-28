@@ -293,9 +293,6 @@ importers:
       '@nx/web':
         specifier: 23.1.2
         version: 23.1.2(f90ede42513b9c6aa9cdf86ea8f60e2f)
-      '@oxc-project/runtime':
-        specifier: ^0.144.0
-        version: 0.144.0
       '@playwright/test':
         specifier: ^1.62.1
         version: 1.62.1
@@ -5348,10 +5345,6 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [win32]
-
-  '@oxc-project/runtime@0.144.0':
-    resolution: {integrity: sha512-Ps9oSujoaerkIY8SV7onfD6ldNL6oHlVaZDVuFftDX+JAV3ZqHVx5HMBBa9n0qNkig5K/WcgNbeD94rJrSwjQQ==}
-    engines: {node: ^20.19.0 || >=22.12.0}
 
   '@oxc-project/types@0.121.0':
     resolution: {integrity: sha512-CGtOARQb9tyv7ECgdAlFxi0Fv7lmzvmlm2rpD/RdijOO9rfk/JvB1CjT8EnoD+tjna/IYgKKw3IV7objRb+aYw==}
@@ -22402,8 +22395,6 @@ snapshots:
 
   '@oxc-parser/binding-win32-x64-msvc@0.142.0':
     optional: true
-
-  '@oxc-project/runtime@0.144.0': {}
 
   '@oxc-project/types@0.121.0': {}
 
