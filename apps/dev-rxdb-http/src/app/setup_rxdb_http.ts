@@ -4,14 +4,14 @@ import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { checkOPFSAvailable } from '@aiao/utils';
 import { recordChangeFeedNotification, recordChangeFeedUnavailable } from './change-feed-diagnostics';
 import {
-    CHANGE_FEED_PATH,
-    CLIENT_ID_HEADER,
-    DEMO_TOKEN,
-    ID_CHUNK_SIZE,
-    PAGE_SIZE,
-    resolveApiBaseUrl,
-    resolveChangeFeedEnabled,
-    resolveDiagnosticsEnabled
+  CHANGE_FEED_PATH,
+  CLIENT_ID_HEADER,
+  DEMO_TOKEN,
+  ID_CHUNK_SIZE,
+  PAGE_SIZE,
+  resolveApiBaseUrl,
+  resolveChangeFeedEnabled,
+  resolveDiagnosticsEnabled
 } from './demo-config';
 import { recordEtagDiagnostic } from './etag-diagnostics';
 import { Recipe } from './recipe';

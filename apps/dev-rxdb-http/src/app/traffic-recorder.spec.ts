@@ -10,8 +10,10 @@ import {
 /** 一个只认 `/v1/` 的假宿主，`fetch` 由每条用例自己摆。 */
 const scopeWith = (fetchImpl: typeof fetch): FetchScope => ({ fetch: fetchImpl });
 
-const okFetch = ((): Promise<Response> => Promise.resolve(new Response(null, { status: 200 }))) as unknown as typeof fetch;
-const deadFetch = ((): Promise<Response> => Promise.reject(new TypeError('Failed to fetch'))) as unknown as typeof fetch;
+const okFetch = ((): Promise<Response> =>
+  Promise.resolve(new Response(null, { status: 200 }))) as unknown as typeof fetch;
+const deadFetch = ((): Promise<Response> =>
+  Promise.reject(new TypeError('Failed to fetch'))) as unknown as typeof fetch;
 
 describe('traffic-recorder', () => {
   beforeEach(() => {

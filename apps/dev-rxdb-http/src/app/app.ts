@@ -3,37 +3,37 @@ import type { RxDBAdapterHttp } from '@aiao/rxdb-adapter-http';
 import { useFind } from '@aiao/rxdb-angular';
 import { JsonPipe } from '@angular/common';
 import {
-    ChangeDetectionStrategy,
-    Component,
-    computed,
-    DestroyRef,
-    effect,
-    ElementRef,
-    inject,
-    OnInit,
-    signal,
-    viewChildren
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  ElementRef,
+  inject,
+  OnInit,
+  signal,
+  viewChildren
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
-    changeFeedStats,
-    clearChangeFeedStats,
-    onChangeFeedStats,
-    type ChangeFeedStats
+  changeFeedStats,
+  clearChangeFeedStats,
+  onChangeFeedStats,
+  type ChangeFeedStats
 } from './change-feed-diagnostics';
 import { resolveApiBaseUrl, resolveChangeFeedEnabled, resolveDiagnosticsEnabled } from './demo-config';
 import {
-    clearDatabase,
-    clearRequestLog,
-    readControlState,
-    readRequestLog,
-    resetDatabase,
-    setExposeEtag,
-    setForcedStatus,
-    setOffline,
-    setPageMode,
-    type DemoControlState,
-    type DemoRequestLogEntry
+  clearDatabase,
+  clearRequestLog,
+  readControlState,
+  readRequestLog,
+  resetDatabase,
+  setExposeEtag,
+  setForcedStatus,
+  setOffline,
+  setPageMode,
+  type DemoControlState,
+  type DemoRequestLogEntry
 } from './demo-control';
 import { clearEtagDiagnostics, etagDiagnostics, onEtagDiagnostic, type EtagDiagnosticEntry } from './etag-diagnostics';
 import { buildFilterRules, emptyFilterState, type RecipeFilterState, type RecipeRuleGroup } from './filter-rules';

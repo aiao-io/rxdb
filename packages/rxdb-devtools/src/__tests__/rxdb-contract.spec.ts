@@ -22,7 +22,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DevToolsEntityMetadata, DevToolsRxDB, GetEntityMetadataFn } from '../connector.js';
 import { DevToolsConnector, RXDB_EVENT_TYPES } from '../connector.js';
 import { RXDB_DEVTOOLS_MESSAGE } from '../types.js';
-import { createPostMessageSpy, installChannelStub, restoreChannelStub, sendToConnector } from './fixtures/devtools-channel.js';
+import {
+  createPostMessageSpy,
+  installChannelStub,
+  restoreChannelStub,
+  sendToConnector
+} from './fixtures/devtools-channel.js';
 
 function createRxDB(): RxDB {
   return new RxDB({

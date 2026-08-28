@@ -63,10 +63,7 @@ test('AC#9 Access-Control-Allow-Headers 覆盖 content-type / authorization / if
   expect(response.headers()['access-control-allow-origin']).toBe(APP_BASE_URL);
 });
 
-test('AC#9 六个端点在跨源下全部可用（metadata / by-ids / create / update / delete）', async ({
-  page,
-  request
-}) => {
+test('AC#9 六个端点在跨源下全部可用（metadata / by-ids / create / update / delete）', async ({ page, request }) => {
   await openDemo(page);
 
   await expectRowCount(page, SEED_ROW_COUNT);
