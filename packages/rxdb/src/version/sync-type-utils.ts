@@ -137,14 +137,30 @@ export function getSyncType(metadata: EntityMetadata, globalSync?: SyncOptions):
 }
 
 /**
- * 某个同步类型在两个方向上的能力
+ * 某个同步类型的同步能力
  */
 export interface RepositorySyncCapability {
   /** 能否从远端拉取 */
   readonly pull: boolean;
 
-  /** 能否向远端推送 */
+  /**
+   * 能否走 changelog 推送管道（`remoteAdapter.mergeChanges`）
+   *
+   * @remarks
+   * 这个字段问的是**管道**，不是「能不能把本地改动送到远端」。离线写回推请看
+   * {@link RepositorySyncCapability.offlineWrite}。
+   */
   readonly push: boolean;
+
+  /**
+   * 远端不可达时能否先落本地、恢复连接后重放
+   *
+   * @remarks
+   * 与 {@link RepositorySyncCapability.push} 正交：`querycache` 的远端契约是纯 REST
+   * （`create` / `update` / `delete` / `findByIds` / `fetchMetadata`），没有 changelog
+   * 端点，但它有本地行缓存可写、有出站队列可重放。
+   */
+  readonly offlineWrite: boolean;
 }
 
 /**
@@ -156,16 +172,24 @@ export interface RepositorySyncCapability {
  * 对 `querycache` 的判断互相矛盾：批量在拉它，报表却说它没得拉。现在全部从这张表派生。
  *
  * `querycache` 取 `pull: true` 是**向数据通路对齐**而非改行为 —— `pull-batch` 和
- * `pullRepository` 本来就在拉它，掉队的是报表侧的 `needsPull`。它不可推：本地只是
- * 按需缓存的远端副本，没有权威变更可回写。
+ * `pullRepository` 本来就在拉它，掉队的是报表侧的 `needsPull`。
+ *
+ * `querycache` 的 `push` 保持 `false`，`offlineWrite` 取 `true`：这两个字段回答的不是
+ * 同一个问题。`push` 问「能不能走 `remoteAdapter.mergeChanges`」——
+ * `RxDBAdapterHttp.mergeChanges()` 直接抛 `HttpChangelogUnsupportedError`，QueryCache 的
+ * 远端根本没有 changelog 端点，翻成 `true` 等于把它送进一条它的适配器不实现的管道。
+ * `offlineWrite` 问「远端不可达时能不能先落本地、之后按 REST 动词重放」——这条它做得到，
+ * 也正是 local-first 要的东西（推翻 US-020 D5「不为 QueryCache 做乐观离线写」）。
+ *
+ * `remote` 两条都是 `false`：它压根没有本地存储，离线时没有地方可写。
  */
 const SYNC_CAPABILITY_MATRIX: Readonly<Record<RepositorySyncType, RepositorySyncCapability>> = {
-  full: { pull: true, push: true },
-  filter: { pull: true, push: true },
-  querycache: { pull: true, push: false },
-  remote: { pull: true, push: false },
-  local: { pull: false, push: false },
-  none: { pull: false, push: false }
+  full: { pull: true, push: true, offlineWrite: true },
+  filter: { pull: true, push: true, offlineWrite: true },
+  querycache: { pull: true, push: false, offlineWrite: true },
+  remote: { pull: true, push: false, offlineWrite: false },
+  local: { pull: false, push: false, offlineWrite: false },
+  none: { pull: false, push: false, offlineWrite: false }
 };
 
 /**
@@ -179,7 +203,9 @@ const SYNC_CAPABILITY_MATRIX: Readonly<Record<RepositorySyncType, RepositorySync
 const SYNC_TYPE_INELIGIBILITY: Readonly<Record<RepositorySyncType, string>> = {
   full: `syncType is 'full'`,
   filter: `syncType is 'filter'`,
-  querycache: `syncType is 'querycache' (pull-only cache)`,
+  // 只在 push 侧被读到。措辞点名 changelog：querycache 的离线写会经 REST 重放回远端，
+  // 说成「pull-only」会让读到这句的人以为本地改动根本回不去。
+  querycache: `syncType is 'querycache' (no changelog endpoint; offline writes replay over REST)`,
   remote: `syncType is 'remote' (read-only)`,
   local: `syncType is 'local' (no remote)`,
   none: `syncType is 'none'`
@@ -203,9 +229,9 @@ export const SYNC_DISABLED_REASON = `sync is disabled (RxDBSync.enabled = false)
  *
  * @example
  * ```ts
- * getSyncCapability('remote');     // { pull: true,  push: false }
- * getSyncCapability('querycache'); // { pull: true,  push: false }
- * getSyncCapability('local');      // { pull: false, push: false }
+ * getSyncCapability('remote');     // { pull: true,  push: false, offlineWrite: false }
+ * getSyncCapability('querycache'); // { pull: true,  push: false, offlineWrite: true }
+ * getSyncCapability('local');      // { pull: false, push: false, offlineWrite: false }
  * ```
  */
 export function getSyncCapability(syncType: RepositorySyncType): RepositorySyncCapability {
@@ -307,6 +333,31 @@ export function needsPull(metadata: EntityMetadata, globalSync?: SyncOptions): b
  */
 export function needsPush(metadata: EntityMetadata, globalSync?: SyncOptions): boolean {
   return getSyncCapability(getSyncType(metadata, globalSync)).push;
+}
+
+/**
+ * 检查 repository 在远端不可达时是否接受本地写（并在恢复连接后重放）
+ *
+ * @param metadata - 实体元数据
+ * @param globalSync - 全局同步配置（可选）
+ * @returns 是否支持离线写
+ *
+ * @example
+ * ```ts
+ * needsOfflineWrite(metadataFull);       // true
+ * needsOfflineWrite(metadataQueryCache); // true  （经 REST 动词重放，不走 changelog）
+ * needsOfflineWrite(metadataRemote);     // false （没有本地存储，无处可写）
+ * needsOfflineWrite(metadataLocal);      // false （没有远端，无处可重放）
+ * needsOfflineWrite(metadataNone);       // false
+ * ```
+ *
+ * @remarks
+ * 与 {@link needsPush} 是两个正交问题，别用其中一个替代另一个：`querycache` 在这里是
+ * `true`、在 `needsPush` 是 `false`。回推驱动按这两个字段分派 ——
+ * `push` 的走 `versionManager.push()`，`offlineWrite && !push` 的走 QueryCache 出站重放。
+ */
+export function needsOfflineWrite(metadata: EntityMetadata, globalSync?: SyncOptions): boolean {
+  return getSyncCapability(getSyncType(metadata, globalSync)).offlineWrite;
 }
 
 /**

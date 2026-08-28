@@ -39,6 +39,7 @@ export { query_need_refresh_create as queryNeedRefreshCreate } from './query/nee
 export { query_need_refresh_remove as queryNeedRefreshRemove } from './query/need_refresh_remove.js';
 export { query_need_refresh_update as queryNeedRefreshUpdate } from './query/need_refresh_update.js';
 export { isRuleGroup } from './query/query-matching.utils.js';
+export * from './network/reachability.js';
 export * from './repository/diff-metadata.js';
 export { isNetworkError } from './repository/network-error.js';
 export * from './repository/query-options.interface.js';

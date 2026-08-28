@@ -4,64 +4,43 @@ import {
   EntityLocalUpdatedEvent,
   getEntityMetadata,
   getEntityType,
-  RxDBBranch,
   RxDBChange,
   RxDBEntityLocalCreatedEventData,
   RxDBEntityLocalRemovedEventData,
   RxDBEntityLocalUpdatedEventData
 } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
-import type { SQLiteCompatibleType, SqliteResult } from '../sqlite-core.interface.js';
-import {
-  get_sql_value,
-  get_table_name_by_metadata,
-  quote_sql_identifier,
-  RxDBAdapterSqliteError
-} from '../sqlite-core.utils.js';
+import { get_sql_value, get_table_name_by_metadata, quote_sql_identifier } from '../sqlite-core.utils.js';
 import { envelopePlaintextPatches } from '../system/encrypt-patch.js';
-import { remove_all_triggers_sql } from '../table/remove_trigger_sql.js';
 import { remove_entity_ids_from_cache, transaction_sqlite_result } from '../transaction_sqlite_result.js';
-import { executeSqliteSelectStatements, executeSqliteStatements } from './execute-sql-statements.js';
+import { executeSqliteSelectStatements, executeSqliteStatements, type SqlStatementSink } from './execute-sql-statements.js';
 import type { SwitchVersionSqlResult } from './switch-result.utils.js';
-import { generateSwitchBranchSql } from './switch_branch.js';
-
-type SqlExecutor = {
-  execute(sql: string, bindings?: SQLiteCompatibleType[]): Promise<SqliteResult>;
-};
+import { withTriggersDisabled } from './with_triggers_disabled.js';
 
 /**
- * 读当前分支 id（activated 优先，否则 main），供 disableTriggers 重建触发器使用。
+ * 按 删除 → 插入 → 更新 的顺序应用一组 SQL 操作，并回填各自的 SELECT 结果。
+ *
+ * @param tx - 当前事务的执行器
+ * @param switchAction - 已转换的 SQL 操作集合；`successResults` 就地写回
  *
  * @remarks
- * **不能**走 `versionManager.getCurrentBranch()`：
- * C2 下仓库读写经真实适配器会重新入队（并发度 1）。`pullRepository` 在外层
- * `adapter.transaction` 里调 `executor.mergeChanges(..., disableTriggers=true)` 时，
- * 队列槽位仍被外层事务占用；再入队读分支会排在自己身后永久挂起。
- * 这里经当前事务 executor 直发 SQL，与 `#readCurrentBranchId` 同口径。
+ * 抽成独立函数是为了让触发器三明治（{@link withTriggersDisabled}）能整段包住它 ——
+ * 内联在事务回调里会把嵌套顶到四层。
  */
-async function readCurrentBranchId(tx: SqlExecutor): Promise<string> {
-  const metadata = getEntityMetadata(RxDBBranch);
-  const table = quote_sql_identifier(get_table_name_by_metadata(metadata));
-  const idColumnName = metadata.propertyMap?.get('id')?.columnName ?? 'id';
-  const activatedColumnName = metadata.propertyMap?.get('activated')?.columnName ?? 'activated';
-  const idColumn = quote_sql_identifier(idColumnName);
-  const activatedColumn = quote_sql_identifier(activatedColumnName);
-
-  const readId = async (whereSql: string, params: SQLiteCompatibleType[]): Promise<string | undefined> => {
-    const result = await tx.execute(`SELECT ${idColumn} FROM ${table} WHERE ${whereSql} LIMIT 1;`, params);
-    const columns = result.results[0]?.columns ?? [];
-    const rows = result.results[0]?.rows ?? [];
-    const columnIndex = Math.max(0, columns.indexOf(idColumnName));
-    const value = rows[0]?.[columnIndex];
-    return typeof value === 'string' ? value : undefined;
-  };
-
-  const branchId = (await readId(`${activatedColumn} = ?`, [1])) ?? (await readId(`${idColumn} = ?`, ['main']));
-  // 读不到分支就无法重建触发器；此时必须让事务回滚，否则会提交一个永久没有触发器的库。
-  if (branchId === undefined) {
-    throw new RxDBAdapterSqliteError('currentBranch is undefined! Cannot rebuild triggers after disableTriggers.');
+async function applySwitchActions(tx: SqlStatementSink, switchAction: SwitchVersionSqlResult): Promise<void> {
+  for (const deleteAction of switchAction.deletes) {
+    await executeSqliteStatements(tx, deleteAction.statements);
   }
-  return branchId;
+
+  for (const insertAction of switchAction.inserts) {
+    await executeSqliteStatements(tx, insertAction.statements);
+    insertAction.successResults = await executeSqliteSelectStatements(tx, insertAction.selectStatements);
+  }
+
+  for (const updateAction of switchAction.updates) {
+    await executeSqliteStatements(tx, updateAction.statements);
+    updateAction.successResults = await executeSqliteSelectStatements(tx, updateAction.selectStatements);
+  }
 }
 
 /**
@@ -86,39 +65,18 @@ export async function execute_switch_actions(
   //    拆到第二次 runInTransaction / getCurrentBranch 会在 C2 嵌套事务下自死锁
   //    （见 readCurrentBranchId 注释）。
   await adapter.runInTransaction(async tx => {
-    // 如果需要禁用触发器（例如 pull），先删除所有触发器
-    if (disableTriggers) {
-      const remove_triggers = remove_all_triggers_sql(adapter);
-      if (remove_triggers) {
-        await tx.execute(remove_triggers);
+    const applyActions = () => applySwitchActions(tx, switchAction);
+    if (!disableTriggers) {
+      await applyActions();
+      return;
+    }
+    await withTriggersDisabled(adapter, tx, async () => {
+      await applyActions();
+      // 触发器被禁用时，pull 带进来的变更由调用方显式给出，手动补写 RxDBChange 记录
+      if (localChanges?.length) {
+        await tx.execute(await buildLocalChangesSql(adapter, localChanges));
       }
-    }
-
-    // 删除
-    for (const deleteAction of switchAction.deletes) {
-      await executeSqliteStatements(tx, deleteAction.statements);
-    }
-
-    // 插入
-    for (const insertAction of switchAction.inserts) {
-      await executeSqliteStatements(tx, insertAction.statements);
-      insertAction.successResults = await executeSqliteSelectStatements(tx, insertAction.selectStatements);
-    }
-
-    // 更新
-    for (const updateAction of switchAction.updates) {
-      await executeSqliteStatements(tx, updateAction.statements);
-      updateAction.successResults = await executeSqliteSelectStatements(tx, updateAction.selectStatements);
-    }
-
-    // 当触发器被禁用且有 localChanges 时，手动插入 RxDBChange 记录
-    if (disableTriggers && localChanges?.length) {
-      await tx.execute(await buildLocalChangesSql(adapter, localChanges));
-    }
-
-    if (disableTriggers) {
-      await tx.execute(generateSwitchBranchSql(adapter, await readCurrentBranchId(tx)));
-    }
+    });
   }, false);
 
   // 2. 提交成功后再发送事件通知 UI 更新

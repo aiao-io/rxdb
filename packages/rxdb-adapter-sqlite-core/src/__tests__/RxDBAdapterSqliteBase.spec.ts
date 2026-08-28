@@ -1288,6 +1288,89 @@ describe('RxDBAdapterSqliteBase', () => {
     });
   });
 
+  // QueryCache 的回填是「把远端副本抄进本地表」，不是本地变更。可 `upsertMany` /
+  // `deleteByIds` 是裸 SQL，表上的 AFTER INSERT/UPDATE/DELETE 触发器照样开火，
+  // 于是每次拉取都往 rxdb_change 里堆一批「本地改动」。在 querycache 不可回推的年代这批行
+  // 只是垃圾；一旦离线写要靠这张表当出站队列，它就变成 pull → log → push → pull 的回声环。
+  describe('QueryCache 回填不得产生 changelog 行', () => {
+    const createOrderedClient = () => {
+      const order: string[] = [];
+      const client = createClient({
+        execute: vi.fn(async (sql: string) => {
+          order.push(String(sql));
+          return okResult(String(sql));
+        })
+      });
+      return { client, order };
+    };
+
+    const sandwichIndexes = (order: string[], bodyPredicate: (sql: string) => boolean) => ({
+      begin: order.findIndex(sql => sql.includes('BEGIN')),
+      drop: order.findIndex(sql => sql.includes('DROP TRIGGER IF EXISTS')),
+      body: order.findIndex(bodyPredicate),
+      rebuild: order.findIndex(sql => sql.includes('CREATE TRIGGER')),
+      commit: order.findIndex(sql => sql.includes('COMMIT'))
+    });
+
+    it('upsertMany 在同一事务内删触发器 → 写入 → 重建触发器', async () => {
+      const { client, order } = createOrderedClient();
+      const adapter = new TestAdapter(createRxdbMock([Todo]), () => client);
+
+      await firstValueFrom(adapter.upsertMany('todos', [{ id: 'a', updatedAt: 'x' }]));
+
+      const at = sandwichIndexes(order, sql => sql.startsWith('INSERT INTO'));
+      expect(at.begin).toBeGreaterThanOrEqual(0);
+      expect(at.drop).toBeGreaterThan(at.begin);
+      expect(at.body).toBeGreaterThan(at.drop);
+      expect(at.rebuild).toBeGreaterThan(at.body);
+      // 三明治必须与写入同事务：拆出去提交的话，中间那个没有触发器的窗口会对并发写敞开。
+      expect(at.commit).toBeGreaterThan(at.rebuild);
+    });
+
+    it('deleteByIds 在同一事务内删触发器 → 删除 → 重建触发器', async () => {
+      const { client, order } = createOrderedClient();
+      const adapter = new TestAdapter(createRxdbMock([Todo]), () => client);
+
+      await firstValueFrom(adapter.deleteByIds('todos', ['id-1']));
+
+      const at = sandwichIndexes(order, sql => sql.startsWith('DELETE FROM'));
+      expect(at.begin).toBeGreaterThanOrEqual(0);
+      expect(at.drop).toBeGreaterThan(at.begin);
+      expect(at.body).toBeGreaterThan(at.drop);
+      expect(at.rebuild).toBeGreaterThan(at.body);
+      expect(at.commit).toBeGreaterThan(at.rebuild);
+    });
+
+    // 多 chunk 时三明治只做一次：每个 chunk 都删建一遍触发器，代价随远端页大小线性放大，
+    // 而中间那些重建窗口没有任何用处 —— 整批写入本来就在一个事务里。
+    it('多 chunk 写入只做一次删建', async () => {
+      const { client, order } = createOrderedClient();
+      const adapter = new TestAdapter(createRxdbMock([Todo]), () => client);
+      // 每行 2 列，绑定上限 999 → 分块阈值 499，1000 行必然跨块
+      const rows = Array.from({ length: 1000 }, (_, index) => ({ id: `id-${index}`, updatedAt: 'x' }));
+
+      await firstValueFrom(adapter.upsertMany('todos', rows));
+
+      const insertIndexes = order.flatMap((sql, index) => (sql.startsWith('INSERT INTO') ? [index] : []));
+      expect(insertIndexes.length).toBeGreaterThan(1);
+      // 重建 SQL 自身是幂等的（DROP + CREATE 成对），所以只数 CREATE 才能区分「重建了几次」
+      expect(order.filter(sql => sql.includes('CREATE TRIGGER'))).toHaveLength(1);
+      // 每一块都落在同一个停用窗口里
+      expect(insertIndexes.at(-1)).toBeLessThan(order.findIndex(sql => sql.includes('CREATE TRIGGER')));
+    });
+
+    // 空批次连事务都不该开，更不该为它删建一轮触发器。
+    it('空批次不动触发器', async () => {
+      const { client, order } = createOrderedClient();
+      const adapter = new TestAdapter(createRxdbMock([Todo]), () => client);
+
+      await firstValueFrom(adapter.upsertMany('todos', []));
+      await firstValueFrom(adapter.deleteByIds('todos', []));
+
+      expect(order.filter(sql => sql.includes('TRIGGER'))).toHaveLength(0);
+    });
+  });
+
   // 远端行的列集在落地前就要判：`upsertMany` 的 INSERT 列清单取自 `data[0]` 的键，
   // 实体元数据在这条路径上一次都没被读过，于是 `EntityBase.createdAt` 的
   // `default: () => new Date()`（仓储层的东西）根本不参与，而本地表把该列建成了 NOT NULL。

@@ -31,10 +31,36 @@ export const ID_CHUNK_SIZE = 20;
 export const DEMO_TOKEN = 'demo-token';
 
 /**
+ * `?api=` 允许的协议。
+ *
+ * @remarks
+ * 留着 `https:` 是因为回环上跑自签名 TLS 是个正当的调试场景；`file:` / `data:` /
+ * `javascript:` 一概挡掉——它们里没有一个能是「后端地址」。
+ */
+const ALLOWED_API_PROTOCOLS = ['http:', 'https:'] as const;
+
+/**
+ * `?api=` 允许的主机。
+ *
+ * @remarks
+ * IPv6 写成 `[::1]` 而不是 `::1`：`URL` 的 `hostname` 对 IPv6 字面量保留方括号，
+ * 拿 `::1` 去比永远不相等。
+ */
+const ALLOWED_API_HOSTNAMES = ['127.0.0.1', 'localhost', '[::1]'] as const;
+
+/** `?api=` 不合法时统一从这里抛。 */
+const rejectApiUrl = (raw: string): never => {
+  throw new Error(
+    `?api= 只接受指向回环地址的 http(s) URL（${ALLOWED_API_HOSTNAMES.join(' / ')}），收到 ${JSON.stringify(raw)}`
+  );
+};
+
+/**
  * 解析后端地址。
  *
  * @param search - `location.search`
  * @returns `?api=` 指定的地址，缺省为 {@link DEFAULT_API_BASE_URL}
+ * @throws 当 `?api=` 不是指向回环地址的 http(s) URL 时
  *
  * @remarks
  * 走查询串而不是 `import.meta.env`：生产构建会把 `import.meta.env` 定死成不含 `VITE_*`
@@ -43,11 +69,41 @@ export const DEMO_TOKEN = 'demo-token';
  *
  * 末尾斜杠会被去掉：适配器把 `baseUrl` 与相对路径直接拼接，
  * `.../v1/` + `recipes/metadata` 会得到 `//recipes/metadata`，路由匹配不上。
+ *
+ * **为什么要限制主机**：这个值是页面上每一个 `fetch` 的目标前缀，而它整个由 URL 决定
+ * （CodeQL `js/client-side-request-forgery`）。不限制的话，一条
+ * `?api=https://evil.example.com/v1` 的链接就能让打开它的人用自己的浏览器
+ * 把本地数据打去别人家的服务器。这个 demo 的真实用法从来只在回环上——README 的例子是
+ * `127.0.0.1:9999`，e2e 是 `127.0.0.1:8317`——收紧到回环不损失任何已文档化的能力。
+ *
+ * **为什么是抛而不是退回默认值**：默认值静默生效，等于把「地址打错了」变成
+ * 「后端连得上但数据不对」，那是最难自己想明白的一类现象。
+ *
+ * **为什么重新拼装而不是把 `raw` 原样返回**：协议与主机取的是上面两张常量表里**匹配到的
+ * 那一项**，不是输入里的那一段。这样返回值的源头部分逐字节来自常量，
+ * 「校验过了但流出去的仍是原始输入」这条经典缺口就不存在。查询串与 hash 一并丢掉：
+ * 它们不属于 baseUrl，留着只会被适配器拼进路径里。
  */
 export const resolveApiBaseUrl = (search: string): string => {
   const raw = new URLSearchParams(search).get('api');
-  const value = raw === null || raw === '' ? DEFAULT_API_BASE_URL : raw;
-  return value.replace(/\/+$/, '');
+  if (raw === null || raw === '') return DEFAULT_API_BASE_URL;
+
+  const url = parseUrl(raw);
+  const protocol = ALLOWED_API_PROTOCOLS.find(item => item === url?.protocol);
+  const hostname = ALLOWED_API_HOSTNAMES.find(item => item === url?.hostname);
+  if (url === undefined || protocol === undefined || hostname === undefined) return rejectApiUrl(raw);
+
+  const port = url.port === '' ? '' : `:${url.port}`;
+  return `${protocol}//${hostname}${port}${url.pathname}`.replace(/\/+$/, '');
+};
+
+/** `new URL()` 的非抛版本。解析不出来的输入与「解析出来但不合法」走同一条拒绝路径。 */
+const parseUrl = (raw: string): URL | undefined => {
+  try {
+    return new URL(raw);
+  } catch {
+    return undefined;
+  }
 };
 
 /**
