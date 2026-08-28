@@ -14,19 +14,19 @@ type EntityMetadata = ReturnType<typeof getEntityMetadata>;
 type EntityPatch<T extends EntityType> = Readonly<Partial<InstanceType<T>>>;
 type EntityFull<T extends EntityType> = Readonly<InstanceType<T>>;
 
-/** 一行的字段快照，键是实体属性名；形状与触发器写进变更行的那份一致（日期是字符串）。 */
+/** 一行的字段快照，键是实体属性名、值已按元数据解码（日期是 `Date`，加密列是明文）。 */
 export type QueryCacheRowImage = Record<string, unknown>;
 
-/** id → 写入/删除**之前**表里那一行的快照。缺席 = 该 id 当时不在表里。 */
-export type QueryCachePreImages = ReadonlyMap<string, QueryCacheRowImage>;
+/** id → 某一刻表里那一行的快照。缺席 = 该 id 当时不在表里。 */
+export type QueryCacheRowImages = ReadonlyMap<string, QueryCacheRowImage>;
 
 /**
  * 派发 QueryCache 回填产生的实体级事件（INSERT / UPDATE）。
  *
  * @param rxdb - 事件总线
  * @param metadata - 目标实体的元数据，提供事件的 `namespace` / `entity`
- * @param rows - 刚写下去的远端行
- * @param preImages - 写入前的行快照：用来区分新增与更新，并给更新配 `inversePatch`
+ * @param postImages - 写入**之后**的行快照，用作 `patch`
+ * @param preImages - 写入**之前**的行快照：用来区分新增与更新，并给更新配 `inversePatch`
  *
  * @remarks
  * QueryCache 的缓存写是裸 SQL，且为了不污染 `rxdb_change` 已经把触发器摘掉了
@@ -35,19 +35,22 @@ export type QueryCachePreImages = ReadonlyMap<string, QueryCacheRowImage>;
  * 摘掉触发器就得在这里把这段通知补回来，否则拉取回填是一次静默写 ——
  * 库里更新了，屏幕上停在旧值，直到用户刷新页面。
  *
- * 事件形状照抄 `handle_rxdb_change` 的 `emit_change_event`：`patch` 直接用行的原始值，
- * 不做实体化 —— 那边喂给 `QueryManager` 的也是触发器从物理列取到的裸值。
+ * `patch` 必须是**落地后回读**的行，不能拿远端原样的 JSON 顶：`QueryManager.#serialize`
+ * 把 patch 摊进 `createEntityRef`，命中缓存时走的是 `EntityStatus.replace` 的
+ * `Object.assign` —— **一次类型转换都不做**。塞进去一个 ISO 字符串，实体的 `updatedAt`
+ * 就从 `Date` 变成 `string`，下游任何 `.toISOString()` 当场抛错；抛在模板中段还会留下
+ * 半行更新过的 DOM（前半段绑定已提交，后半段没跑）。回读的行与其它任何一次查询同一口径，
+ * 也顺带把加密列解回明文。
  */
-export const dispatchQueryCacheUpsertEvents = <T>(
+export const dispatchQueryCacheUpsertEvents = (
   rxdb: RxDB,
   metadata: EntityMetadata,
-  rows: readonly T[],
-  preImages: QueryCachePreImages
+  postImages: QueryCacheRowImages,
+  preImages: QueryCacheRowImages
 ): void => {
   const created: RxDBEntityLocalCreatedEventData[] = [];
   const updated: RxDBEntityLocalUpdatedEventData[] = [];
-  for (const row of rows) {
-    const id = String((row as QueryCacheRowImage)['id']);
+  for (const [id, row] of postImages) {
     const before = preImages.get(id);
     const base = { namespace: metadata.namespace, entity: metadata.name, id, recordAt: new Date() };
     if (before) {
@@ -83,7 +86,7 @@ export const dispatchQueryCacheUpsertEvents = <T>(
 export const dispatchQueryCacheRemoveEvents = (
   rxdb: RxDB,
   metadata: EntityMetadata,
-  preImages: QueryCachePreImages
+  preImages: QueryCacheRowImages
 ): void => {
   const removed: RxDBEntityLocalRemovedEventData[] = [];
   for (const [id, before] of preImages) {

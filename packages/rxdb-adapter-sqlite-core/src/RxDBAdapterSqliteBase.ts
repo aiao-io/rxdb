@@ -41,8 +41,8 @@ import { SqliteCoreKeyringStorage } from './keyring/sqlite-core-keyring-storage.
 import {
   dispatchQueryCacheRemoveEvents,
   dispatchQueryCacheUpsertEvents,
-  type QueryCachePreImages,
-  type QueryCacheRowImage
+  type QueryCacheRowImage,
+  type QueryCacheRowImages
 } from './query-cache-events.js';
 import { assertQueryCacheRowContract } from './query-cache-row-contract.js';
 import { generate_sql } from './query/query_sql.js';
@@ -733,17 +733,19 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       const ids = data.map(item => String((item as Record<string, unknown>)['id']));
       return from(
         this.transaction(async executor => {
-          // 预读必须在写之前、且与写同事务：写完再读拿到的已经是新值，倒推不出 inversePatch；
-          // 分成两个事务则会在嵌套事务下自死锁（withTriggersDisabled 的同款约束）。
-          const preImages = await this.#readQueryCachePreImages(executor, target, ids);
+          // 两次回读都必须与写同事务：前一次晚了就拿到新值、倒推不出 inversePatch，
+          // 后一次早了就看不见刚写的行；拆成多个事务还会在嵌套事务下自死锁
+          // （withTriggersDisabled 的同款约束）。
+          const preImages = await this.#readQueryCacheRowImages(executor, target, ids);
           await withTriggersDisabled(this, executor, () => this.#writeQueryCacheRows(executor, target, data));
-          return preImages;
+          const postImages = await this.#readQueryCacheRowImages(executor, target, ids);
+          return { preImages, postImages };
         }, false)
-          .then(async preImages => {
+          .then(async ({ preImages, postImages }) => {
             // 先把实例刷成新值再发事件：事件的消费方（QueryManager）会顺着 id 去取实体，
             // 顺序反过来它取到的是尚未刷新的旧实例。
             await this.#refreshQueryCacheEntities(entityName, ids);
-            if (target.metadata) dispatchQueryCacheUpsertEvents(this.rxdb, target.metadata, data, preImages);
+            if (target.metadata) dispatchQueryCacheUpsertEvents(this.rxdb, target.metadata, postImages, preImages);
           })
           .then(() => undefined)
       );
@@ -758,7 +760,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       const target = this.#resolveQueryCacheTarget(entityName);
       return from(
         this.transaction(async executor => {
-          const preImages = await this.#readQueryCachePreImages(executor, target, ids);
+          const preImages = await this.#readQueryCacheRowImages(executor, target, ids);
           await withTriggersDisabled(this, executor, () =>
             this.#deleteQueryCacheRows(executor, target.tableName, ids)
           );
@@ -841,31 +843,33 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   }
 
   /**
-   * 读一批 id 在本次写入/删除**之前**的整行快照。
+   * 读一批 id 此刻在表里的整行快照。
    *
    * @param executor - 当前事务的执行器；必须与写操作同事务，否则读到的是别人提交后的状态
    * @param target - `#resolveQueryCacheTarget` 解析出的表名/列名视图
-   * @param ids - 要预读的主键
-   * @returns id → 旧行；表里没有的 id 不出现在结果里
+   * @param ids - 要读的主键
+   * @returns id → 行；表里没有的 id 不出现在结果里
    *
    * @remarks
-   * 这是触发器被摘掉后 `inversePatch` 的唯一来源。`upsertMany` 还靠「id 在不在结果里」
-   * 区分 INSERT 与 UPDATE —— UPSERT 语句本身不告诉调用方它走的是插入还是更新。
+   * 触发器被摘掉后，写前写后各调一次就是实体级事件的全部素材：写前那次是 `inversePatch`，
+   * 写后那次是 `patch`。`upsertMany` 还靠「id 在不在写前的结果里」区分 INSERT 与 UPDATE ——
+   * UPSERT 语句本身不告诉调用方它走的是插入还是更新。
    *
-   * 走 `getEntityObjectFromResult` 而不是直接拿裸行：加密列在库里是 TEXT 信封，
-   * 原样塞进事件等于把密文交给 QueryManager/UI（SQLC-011 同款）。
+   * 走 `getEntityObjectFromResult` 而不是直接拿裸行：一来加密列在库里是 TEXT 信封，
+   * 原样塞进事件等于把密文交给 QueryManager/UI（SQLC-011 同款）；二来事件的 patch 最终会被
+   * `Object.assign` 到实体上，不解码就等于把 SQLite 的存储形态（日期是字符串）钉进实体。
    *
    * metadata 查不到时直接返回空 Map：那条路径上调用方传的是物理表名，没有元数据就
    * 既解不了行也填不出事件的 namespace/entity，与 `#writeQueryCacheRows` 的回退同口径。
    */
-  async #readQueryCachePreImages(
+  async #readQueryCacheRowImages(
     executor: SqliteTransactionExecutor,
     target: QueryCacheTarget,
     ids: string[]
-  ): Promise<QueryCachePreImages> {
-    const preImages = new Map<string, QueryCacheRowImage>();
+  ): Promise<QueryCacheRowImages> {
+    const images = new Map<string, QueryCacheRowImage>();
     const { metadata, tableName, idColumn } = target;
-    if (!metadata) return preImages;
+    if (!metadata) return images;
 
     const idColumnSql = quote_sql_identifier(idColumn);
     for (const idsChunk of chunkBySqliteBindLimit(ids)) {
@@ -875,9 +879,9 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         metadata
       });
       const { columns, rows } = await executor.query(sql, idsChunk);
-      await this.#collectPreImages(preImages, metadata, columns, rows);
+      await this.#collectRowImages(images, metadata, columns, rows);
     }
-    return preImages;
+    return images;
   }
 
   /**
@@ -889,7 +893,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * @param rows - 结果集行；`RawQueryResult` 为跨适配器可移植把单元格声明成 `unknown`，
    *   而这里的行只可能来自本适配器发出的 SQLite 查询，因此在此收窄
    */
-  async #collectPreImages(
+  async #collectRowImages(
     target: Map<string, QueryCacheRowImage>,
     metadata: EntityMetadata,
     columns: string[],

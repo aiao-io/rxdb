@@ -1382,15 +1382,21 @@ describe('RxDBAdapterSqliteBase', () => {
   describe('QueryCache 回填仍要通知实时查询', () => {
     const TODO_ROW = [1, 'todo-1', '旧标题', 0, ISO_CREATED, ISO_UPDATED];
 
-    /** 让预读拿到 `rows`（`[]` 表示这些 id 在表里还不存在）。 */
-    const createPreImageClient = (rows: SQLiteCompatibleType[][]) =>
-      createClient({
-        execute: vi.fn(async (sql: string) =>
-          sql.trimStart().startsWith('SELECT') ?
-            okResult(sql, [{ columns: TODO_COLUMNS, rows }])
-          : okResult(sql, [], 1)
-        )
+    /**
+     * 让回读看见写：写之前的 SELECT 拿 `before`，写之后拿 `after`。
+     * 事件正是靠这一前一后的差别分出 INSERT / UPDATE，并取到 inversePatch。
+     */
+    const createRowImageClient = (before: SQLiteCompatibleType[][], after = before) => {
+      let written = false;
+      return createClient({
+        execute: vi.fn(async (sql: string) => {
+          const head = sql.trimStart();
+          if (head.startsWith('SELECT')) return okResult(sql, [{ columns: TODO_COLUMNS, rows: written ? after : before }]);
+          if (head.startsWith('INSERT') || head.startsWith('DELETE')) written = true;
+          return okResult(sql, [], 1);
+        })
       });
+    };
 
     const dispatched = (rxdb: RxDB, type: string) =>
       vi
@@ -1398,14 +1404,14 @@ describe('RxDBAdapterSqliteBase', () => {
         .mock.calls.map(([event]) => event)
         .filter(event => (event as { type: string }).type === type);
 
-    const setup = (dbName: string, rows: SQLiteCompatibleType[][]) => {
+    const setup = (dbName: string, before: SQLiteCompatibleType[][], after = before) => {
       const rxdb = createRealRxdb(dbName);
       vi.spyOn(rxdb, 'dispatchEvent');
-      return { rxdb, adapter: new TestAdapter(rxdb, () => createPreImageClient(rows)) };
+      return { rxdb, adapter: new TestAdapter(rxdb, () => createRowImageClient(before, after)) };
     };
 
     it('deleteByIds 派发 DELETE 事件，inversePatch 是删除前的整行', async () => {
-      const { rxdb, adapter } = setup('sqlite-core-base-qc-notify-delete', [TODO_ROW]);
+      const { rxdb, adapter } = setup('sqlite-core-base-qc-notify-delete', [TODO_ROW], []);
 
       await firstValueFrom(adapter.deleteByIds('Todo', ['todo-1']));
 
@@ -1436,32 +1442,68 @@ describe('RxDBAdapterSqliteBase', () => {
     });
 
     it('upsertMany 对表里没有的 id 派发 INSERT 事件', async () => {
-      const { rxdb, adapter } = setup('sqlite-core-base-qc-notify-insert', []);
-      const row = { id: 'todo-2', title: '新行', completed: 0, createdAt: ISO_CREATED, updatedAt: ISO_UPDATED };
+      const inserted = [2, 'todo-2', '新行', 0, ISO_CREATED, ISO_UPDATED];
+      const { rxdb, adapter } = setup('sqlite-core-base-qc-notify-insert', [], [inserted]);
 
-      await firstValueFrom(adapter.upsertMany('Todo', [row]));
+      await firstValueFrom(
+        adapter.upsertMany('Todo', [
+          { id: 'todo-2', title: '新行', completed: 0, createdAt: ISO_CREATED, updatedAt: ISO_UPDATED }
+        ])
+      );
 
       const events = dispatched(rxdb, ENTITY_LOCAL_CREATE_EVENT);
       expect(events).toHaveLength(1);
       expect((events[0] as EntityLocalCreatedEvent).entities).toEqual([
-        { type: 'INSERT', namespace: 'public', entity: 'Todo', id: 'todo-2', patch: row, inversePatch: null, recordAt: expect.any(Date) }
+        {
+          type: 'INSERT',
+          namespace: 'public',
+          entity: 'Todo',
+          id: 'todo-2',
+          patch: { id: 'todo-2', title: '新行', completed: false, createdAt: new Date(ISO_CREATED), updatedAt: new Date(ISO_UPDATED) },
+          inversePatch: null,
+          recordAt: expect.any(Date)
+        }
       ]);
       expect(dispatched(rxdb, ENTITY_LOCAL_UPDATE_EVENT)).toHaveLength(0);
     });
 
     it('upsertMany 对表里已有的 id 派发 UPDATE 事件，inversePatch 是旧值', async () => {
-      const { rxdb, adapter } = setup('sqlite-core-base-qc-notify-update', [TODO_ROW]);
-      const row = { id: 'todo-1', title: '新标题', completed: 0, createdAt: ISO_CREATED, updatedAt: ISO_UPDATED };
+      const updated = [1, 'todo-1', '新标题', 0, ISO_CREATED, ISO_UPDATED];
+      const { rxdb, adapter } = setup('sqlite-core-base-qc-notify-update', [TODO_ROW], [updated]);
 
-      await firstValueFrom(adapter.upsertMany('Todo', [row]));
+      await firstValueFrom(
+        adapter.upsertMany('Todo', [
+          { id: 'todo-1', title: '新标题', completed: 0, createdAt: ISO_CREATED, updatedAt: ISO_UPDATED }
+        ])
+      );
 
       const events = dispatched(rxdb, ENTITY_LOCAL_UPDATE_EVENT);
       expect(events).toHaveLength(1);
       const [data] = (events[0] as EntityLocalUpdatedEvent).entities;
-      expect(data).toMatchObject({ type: 'UPDATE', namespace: 'public', entity: 'Todo', id: 'todo-1', patch: row });
-      // 旧值来自预读，不是从新行倒推：`need_refresh_update` 用它重建旧实体做门控。
+      expect(data).toMatchObject({ type: 'UPDATE', namespace: 'public', entity: 'Todo', id: 'todo-1' });
+      expect(data.patch).toMatchObject({ title: '新标题' });
+      // 旧值来自写前那次回读，不是从新行倒推：`need_refresh_update` 用它重建旧实体做门控。
       expect(data.inversePatch).toMatchObject({ title: '旧标题' });
       expect(dispatched(rxdb, ENTITY_LOCAL_CREATE_EVENT)).toHaveLength(0);
+    });
+
+    // patch 会被 `QueryManager.#serialize` 摊进 `createEntityRef`，命中缓存时走
+    // `EntityStatus.replace` 的 `Object.assign` —— 一次类型转换都不做。塞进去远端原样的
+    // ISO 字符串，实体的 `updatedAt` 就从 Date 变成 string，下游 `.toISOString()` 当场抛错。
+    it('patch 用的是落地后回读的行，不是远端原样的 JSON', async () => {
+      const landed = [1, 'todo-1', '新标题', 1, ISO_CREATED, ISO_UPDATED];
+      const { rxdb, adapter } = setup('sqlite-core-base-qc-notify-decoded', [TODO_ROW], [landed]);
+
+      await firstValueFrom(
+        adapter.upsertMany('Todo', [
+          { id: 'todo-1', title: '新标题', completed: true, createdAt: ISO_CREATED, updatedAt: ISO_UPDATED }
+        ])
+      );
+
+      const [data] = (dispatched(rxdb, ENTITY_LOCAL_UPDATE_EVENT)[0] as EntityLocalUpdatedEvent).entities;
+      expect(data.patch['updatedAt']).toEqual(new Date(ISO_UPDATED));
+      expect(data.patch['completed']).toBe(true);
+      expect(data.inversePatch['completed']).toBe(false);
     });
 
     // 传进来的是物理表名（元数据查不到）时没有 namespace/entity 可填，事件无从命名。
