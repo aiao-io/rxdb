@@ -1510,7 +1510,7 @@ describe('RxDBAdapterSqliteBase', () => {
     // 这条路径本就只在调用方直接给物理表名时走到，与实时查询无关。
     it('元数据查不到时不派发', async () => {
       const rxdb = createRxdbMock([Todo]);
-      const adapter = new TestAdapter(rxdb, () => createPreImageClient([TODO_ROW]));
+      const adapter = new TestAdapter(rxdb, () => createRowImageClient([TODO_ROW]));
 
       await firstValueFrom(adapter.deleteByIds('todos', ['todo-1']));
       await firstValueFrom(adapter.upsertMany('todos', [{ id: 'todo-2', updatedAt: ISO_UPDATED }]));
