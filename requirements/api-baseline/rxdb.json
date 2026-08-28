@@ -654,6 +654,10 @@
         "kind": "value"
       },
       {
+        "name": "isSystemEntity",
+        "kind": "value"
+      },
+      {
         "name": "isUniqueConstraintViolation",
         "kind": "value"
       },
@@ -815,6 +819,10 @@
       },
       {
         "name": "parseEntityFieldValue",
+        "kind": "value"
+      },
+      {
+        "name": "parseEntityRecordValues",
         "kind": "value"
       },
       {
@@ -1575,6 +1583,10 @@
       },
       {
         "name": "syncTypeIneligibility",
+        "kind": "value"
+      },
+      {
+        "name": "SYSTEM_ENTITIES",
         "kind": "value"
       },
       {
