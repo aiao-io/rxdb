@@ -278,6 +278,7 @@ describe('flushQueryCacheOutbox', () => {
     // 否则这批行每轮都被重新查出来重新压缩，永远算作「待推」
     it('本地新建后删除整批抵消，只推进水位线', async () => {
       const ctx = setup({
+        sync: {},
         changes: [
           change({ type: 'INSERT', entityId: 'r1', patch: { id: 'r1', title: '草稿' } }),
           change({ type: 'DELETE', entityId: 'r1', inversePatch: null })
