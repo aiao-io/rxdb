@@ -11,7 +11,7 @@ import {
   type RuleGroup
 } from '@aiao/rxdb';
 import { chunk_values, select_all_pages, SUPABASE_PAGE_SIZE } from './pagination.js';
-import { classify_postgrest_error } from './postgrest-error.js';
+import { assert_postgrest_ok } from './postgrest-error.js';
 import { apply_rule_group } from './rule_group_builder.js';
 import type { RxDBAdapterSupabase } from './RxDBAdapterSupabase.js';
 import { resolve_supabase_schema } from './schema.utils.js';
@@ -119,13 +119,12 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
     const loadRoots = async (): Promise<Record<string, unknown>[]> => {
       if (entityId) {
         const { data, error, status } = await tableClient.select('*').eq('id', entityId).limit(1);
-        if (error) {
-          throw classify_postgrest_error({ error, status }, 'Failed to find descendants');
-        }
+        assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to find descendants');
         return (data ?? []) as Record<string, unknown>[];
       }
 
       return select_all_pages<Record<string, unknown>>(
+        this.rxdb.reachability,
         (rangeFrom, rangeTo) =>
           tableClient.select('*').is('parentId', null).order('id', { ascending: true }).range(rangeFrom, rangeTo),
         'Failed to find descendants'
@@ -144,6 +143,7 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
 
       for (const chunk of chunk_values(parentIds)) {
         const page = await select_all_pages<Record<string, unknown>>(
+          this.rxdb.reachability,
           (rangeFrom, rangeTo) =>
             this.applyWhere(tableClient.select('*').in('parentId', chunk), where)
               .order('id', { ascending: true })
@@ -265,9 +265,7 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
       // 与 findDescendants 及 sqlite-core 的 children_where 同一套语义。
       const hopQuery = tableClient().select('*').eq('id', currentId);
       const { data, error, status } = await (currentLevel === 0 ? hopQuery : this.applyWhere(hopQuery, where)).limit(1);
-      if (error) {
-        throw classify_postgrest_error({ error, status }, 'Failed to find ancestors');
-      }
+      assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to find ancestors');
       const node = data?.[0] as Record<string, unknown> | undefined;
       if (!node) break;
 
@@ -342,9 +340,7 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
 
       for (let offset = 0; pending.size > 0; offset += SUPABASE_PAGE_SIZE) {
         const { data, error, status } = await build_page(chunk, offset, offset + SUPABASE_PAGE_SIZE - 1);
-        if (error) {
-          throw classify_postgrest_error({ error, status }, errorMessage);
-        }
+        assert_postgrest_ok(this.rxdb.reachability, { error, status }, errorMessage);
 
         const page = data ?? [];
         this.collectParents(page, parents, pending);

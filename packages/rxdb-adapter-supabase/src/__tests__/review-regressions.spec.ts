@@ -60,7 +60,9 @@ function createRxdb(entities: EntityType[] = []): RxDB {
         metadata.find(item => item.name === name && (!namespace || item.namespace === namespace))
       )
     },
-    dispatchEvent: vi.fn()
+    dispatchEvent: vi.fn(),
+    // 适配器每次往返都往这儿报结局；本套件不判可达性，用桩避免真 monitor 的退避定时器漏进下个用例
+    reachability: { report: () => undefined }
   } as unknown as RxDB;
 }
 
@@ -159,6 +161,8 @@ function buildTreeRepository(adapter: RxDBAdapterSupabase, metadataOverrides: Re
   const repository = Object.create(SupabaseTreeRepository.prototype) as SupabaseTreeRepository<typeof FakeTreeEntity>;
   Object.assign(repository, {
     adapter,
+    // 真构造函数走的是 `super(adapter.rxdb, …)`；这里绕开了构造函数，得自己补上同一份引用
+    rxdb: adapter.rxdb,
     EntityType: FakeTreeEntity,
     metadata: {
       name: 'MenuLarge',
@@ -1198,6 +1202,8 @@ describe('supabase review regressions', () => {
 
     const repositoryInternals = {
       adapter,
+      // 真构造函数走的是 `super(adapter.rxdb, …)`；这里绕开了构造函数，得自己补上同一份引用
+      rxdb: adapter.rxdb,
       EntityType: FakeTreeEntity,
       metadata: {
         name: 'MenuLarge',

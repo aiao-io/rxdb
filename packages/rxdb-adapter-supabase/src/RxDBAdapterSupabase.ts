@@ -30,7 +30,7 @@ import { resolveEntityScope, type EntityScope } from './entity_scope.js';
 import { SupabaseConfigError, SupabaseDataError, SupabaseUnsupportedPropertyTypeError } from './errors.js';
 import { handleSupabaseChange } from './handle_supabase_change.js';
 import { chunk_values, select_all_pages, SUPABASE_IN_CHUNK_SIZE } from './pagination.js';
-import { classify_postgrest_error } from './postgrest-error.js';
+import { assert_postgrest_ok, is_transport_failure, settle_postgrest_failure } from './postgrest-error.js';
 import { apply_rule_group } from './rule_group_builder.js';
 import { build_delete_params, build_upsert_params, group_by_type } from './RxDBAdapterSupabase.utils.js';
 import { resolve_supabase_schema } from './schema.utils.js';
@@ -152,9 +152,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     if (this.#databaseVersion) return this.#databaseVersion;
 
     const { data, error, status } = await this.#client.rpc('rxdb_server_version');
-    if (error) {
-      throw classify_postgrest_error({ error, status }, 'Failed to get database version');
-    }
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to get database version');
     if (typeof data !== 'string' || data.trim().length === 0) {
       throw new SupabaseDataError('Failed to get database version: invalid response data');
     }
@@ -257,10 +255,16 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     const client = this.getSchemaClient(metadata.namespace);
     const result = await client.from(metadata.tableName).select('*', { count: 'exact', head: true });
 
+    // 这里不能用 `assert_postgrest_ok`：本方法把 404 / 406 当成「表不存在」的**正常答案**，
+    // 而那些响应是带 error 的。可达性只关心「够不够得着」——拿到任何状态码都算够得着，
+    // 判据仍是 `is_transport_failure` 那一份，不在这儿另写。
+    if (!is_transport_failure(result)) this.rxdb.reachability.report(null);
+
     if (result.status === 200 || result.status === 206) return true;
     if (result.status === 204 || result.status === 404 || result.status === 406) return false;
 
-    throw classify_postgrest_error(
+    throw settle_postgrest_failure(
+      this.rxdb.reachability,
       { error: result.error ?? { message: `status ${result.status}` }, status: result.status },
       'Failed to check table existence'
     );
@@ -312,9 +316,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
         p_branch_id: branchId ?? null,
         p_filter: filter
       });
-      if (error) {
-        throw classify_postgrest_error({ error, status }, 'Failed to pull changes');
-      }
+      assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull changes');
       if (!Array.isArray(data)) {
         throw new SupabaseDataError('Failed to pull changes: invalid response data');
       }
@@ -343,9 +345,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     }
 
     const { data, error, status } = await query;
-    if (error) {
-      throw classify_postgrest_error({ error, status }, 'Failed to pull changes');
-    }
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull changes');
 
     return (data ?? [])
       .map(row => ({
@@ -396,9 +396,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     }
 
     const { data, count, error, status } = await query.order('id', { ascending: false }).limit(1);
-    if (error) {
-      throw classify_postgrest_error({ error, status }, 'Failed to get change count');
-    }
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to get change count');
 
     return {
       count: count ?? 0,
@@ -503,9 +501,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
     const { data, error, status } = await query;
 
-    if (error) {
-      throw classify_postgrest_error({ error, status }, 'Failed to batch pull changes');
-    }
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to batch pull changes');
 
     return (data ?? []).map(row => ({
       ...row,
@@ -527,9 +523,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       p_branches: branches
     });
 
-    if (error) {
-      throw classify_postgrest_error({ error, status }, 'Failed to sync branches');
-    }
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to sync branches');
 
     return validatePushBranchesResponse(data);
   }
@@ -540,9 +534,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       .select('id', { count: 'exact', head: true })
       .eq('id', branchId);
 
-    if (error) {
-      throw classify_postgrest_error({ error, status }, 'Failed to check branch existence');
-    }
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to check branch existence');
 
     return (count ?? 0) > 0;
   }
@@ -551,6 +543,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     // 分支数超过 PostgREST 的 max-rows 时，单次 select 会被静默截断：
     // 缺失的分支在本地表现为「远端没有这个分支」，同步会据此做出错误的分支决策。
     const data = await select_all_pages(
+      this.rxdb.reachability,
       (from, to) =>
         this.#client
           .from('rxdb_branch')
@@ -594,10 +587,14 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
       // 元数据用于新鲜度比较，被截断掉的那些 id 会被 QueryCache 当成「远端已删除」，
       // 因此这里必须翻页取全，不能依赖服务端的 max-rows。
-      const rows = select_all_pages<{ id: unknown; updatedAt: unknown }>((rangeFrom, rangeTo) => {
-        const query = this.#client.schema(scope.schema).from(scope.tableName).select('id, updatedAt');
-        return apply_rule_group(query, queryFilter).order('id', { ascending: true }).range(rangeFrom, rangeTo);
-      }, 'Failed to fetch metadata');
+      const rows = select_all_pages<{ id: unknown; updatedAt: unknown }>(
+        this.rxdb.reachability,
+        (rangeFrom, rangeTo) => {
+          const query = this.#client.schema(scope.schema).from(scope.tableName).select('id, updatedAt');
+          return apply_rule_group(query, queryFilter).order('id', { ascending: true }).range(rangeFrom, rangeTo);
+        },
+        'Failed to fetch metadata'
+      );
 
       return from(rows).pipe(
         map(data =>
@@ -649,6 +646,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       const { data, error, status } = await operation();
 
       if (!error) {
+        this.rxdb.reachability.report(null);
         return validate(data);
       }
 
@@ -664,7 +662,10 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
     // 重试耗尽后才分类：传输失败重试到最后仍是传输失败，调用方（US-212 的重试策略、
     // QueryCache 的 offlineFallback）需要认得出它，不能被包成看起来像远端拒绝的 DATA_ERROR。
-    throw classify_postgrest_error(
+    // 上报同样只在这里：中途那几次可重试的失败是「还没有结论」，逐次上报会让可达性
+    // 在一次写入里反复翻转，面板跟着抖。
+    throw settle_postgrest_failure(
+      this.rxdb.reachability,
       { error: { message: lastMessage }, status: lastStatus },
       `Failed to ${operationName}`
     );
@@ -958,9 +959,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
         .select('*')
         .in('id', chunk);
 
-      if (error) {
-        throw classify_postgrest_error({ error, status }, 'Failed to find by ids');
-      }
+      assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to find by ids');
 
       rows.push(...((data ?? []) as T[]));
     }

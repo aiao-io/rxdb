@@ -818,18 +818,21 @@ describe('HttpTransport', () => {
    * 由 `isNetworkError` 一处定夺。这一层只负责「报得全、报得准」。
    */
   describe('可达性上报', () => {
-    const withReport = (report: ReturnType<typeof vi.fn>): HttpTransport =>
+    /** 显式给签名：无参 `vi.fn()` 推成含 `Constructable` 的联合，落不进 `reportResult` */
+    const createReport = () => vi.fn<(error: unknown) => void>();
+
+    const withReport = (report: ReturnType<typeof createReport>): HttpTransport =>
       createTransport({ reportResult: report }).transport;
 
     it('请求成功报 null —— 那是「已恢复」的唯一证据', async () => {
-      const report = vi.fn();
+      const report = createReport();
       await withReport(report).sendJson({ url: 'items', method: 'GET' }, 'test');
       expect(report).toHaveBeenCalledExactlyOnceWith(null);
     });
 
     it('传输失败报出已分类的错误，可判为离线', async () => {
       stubFetch(() => Promise.reject(new TypeError('fetch failed')));
-      const report = vi.fn();
+      const report = createReport();
       await withReport(report)
         .sendJson({ url: 'items', method: 'GET' }, 'test')
         .catch(() => undefined);
@@ -842,7 +845,7 @@ describe('HttpTransport', () => {
 
     it('拿到状态码也照报，交由 report 自己判定不翻转', async () => {
       stubFetch(() => Promise.resolve(jsonResponse({ message: 'nope' }, 401)));
-      const report = vi.fn();
+      const report = createReport();
       await withReport(report)
         .sendJson({ url: 'items', method: 'GET' }, 'test')
         .catch(() => undefined);
@@ -855,7 +858,7 @@ describe('HttpTransport', () => {
     it('飞行中被断开时报出的错判非离线', async () => {
       // 断开是调用方叫停，不是远端够不着。判成离线会让一次正常的 disconnect()
       // 把整个 local-first 面板打成离线态，而此后没有任何请求能把它翻回来
-      const report = vi.fn();
+      const report = createReport();
       const { transport, controller } = createTransport({ reportResult: report });
       // 已经 abort 的 signal 必须立刻 reject（同 `stubHanging` 的理由）：`#prepare` 是异步的，
       // 同步调用的 abort 会赶在 fetch 之前落地，只挂监听的桩从此等一个不会再来的事件
@@ -879,7 +882,7 @@ describe('HttpTransport', () => {
     });
 
     it('请求没发出去就失败时不报 —— 那是本地问题', async () => {
-      const report = vi.fn();
+      const report = createReport();
       const transport = withReport(report);
       // 不可序列化的 body 在 `#prepare` 里就抛了，一个字节都没上网
       await expect(
@@ -890,7 +893,7 @@ describe('HttpTransport', () => {
     });
 
     it('sendVoid 与 execute 同样上报', async () => {
-      const report = vi.fn();
+      const report = createReport();
       const transport = withReport(report);
       await transport.sendVoid({ url: 'items/a', method: 'DELETE' }, 'delete');
       await transport.execute({ url: 'items', method: 'GET' }, 'isTableExisted', async () => undefined);

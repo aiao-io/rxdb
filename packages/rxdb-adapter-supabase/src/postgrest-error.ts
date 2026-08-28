@@ -20,7 +20,7 @@
  * 调用方拿到陈旧缓存而不是失败原因。
  */
 
-import { NetworkOfflineError } from '@aiao/rxdb';
+import { NetworkOfflineError, type ReachabilityMonitor } from '@aiao/rxdb';
 import { SupabaseDataError } from './errors.js';
 
 /**
@@ -79,4 +79,66 @@ export function classify_postgrest_error(response: PostgrestFailure, errorMessag
   const message = `${errorMessage}: ${detail}`;
 
   return is_transport_failure(response) ? new NetworkOfflineError(new Error(message)) : new SupabaseDataError(message);
+}
+
+/**
+ * 把一次失败的 PostgREST 往返上报给可达性判定，并返回该抛的错误。
+ *
+ * @param reachability - 可达性监视器，通常是 `rxdb.reachability`
+ * @param response - PostgREST 响应中的 `error` 与 `status`
+ * @param errorMessage - 消息前缀，例如 `'Failed to check table existence'`
+ * @returns 该抛的错误；调用点写成 `throw settle_postgrest_failure(...)`
+ *
+ * @remarks
+ * **返回而不是抛**，是为了让 `throw` 留在调用点上：TypeScript 的控制流分析认 `throw`
+ * 语句、不认「这个函数一定会抛」，写成抛的话每个调用点后面都得再补一句永远到不了的
+ * `return`，把不可达代码当成类型系统的贡品。
+ *
+ * 报的是**已分类**的错误而不是原始响应：`isNetworkError` 的第 1 条判据是
+ * `instanceof NetworkOfflineError`，分类正是产出那个实例的地方。
+ *
+ * 带状态码的失败（401 / 403 / 500）**照报不误**。翻不翻由
+ * {@link ReachabilityMonitor.report} 一处定夺 —— 在适配器里先筛一遍，等于让
+ * 「什么算离线」在仓库里长出第二份定义，两份迟早会不一致。
+ */
+export function settle_postgrest_failure(
+  reachability: ReachabilityMonitor,
+  response: PostgrestFailure,
+  errorMessage: string
+): Error {
+  const failure = classify_postgrest_error(response, errorMessage);
+  reachability.report(failure);
+  return failure;
+}
+
+/**
+ * 结算一次 PostgREST 往返：上报结局，成功放行，失败抛出。
+ *
+ * @param reachability - 可达性监视器，通常是 `rxdb.reachability`
+ * @param response - PostgREST 响应中的 `error` 与 `status`
+ * @param errorMessage - 失败时的消息前缀，例如 `'Failed to find entities'`
+ * @throws `NetworkOfflineError` 连不上远端（分类见 {@link classify_postgrest_error}）
+ * @throws {SupabaseDataError} 远端拒绝（RLS / 约束 / 语法等）
+ *
+ * @remarks
+ * **成功也要报**，而且这半边才是能不能恢复的关键：只报失败的话，一次断网之后
+ * 没有任何东西会把状态翻回在线 —— 面板会一直显示离线，直到用户刷新页面。
+ *
+ * @example
+ * ```typescript
+ * const { data, error, status } = await query;
+ * assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to find entities');
+ * // 走到这里就是成功，data 可用
+ * ```
+ */
+export function assert_postgrest_ok(
+  reachability: ReachabilityMonitor,
+  response: PostgrestFailure,
+  errorMessage: string
+): void {
+  if (!response.error) {
+    reachability.report(null);
+    return;
+  }
+  throw settle_postgrest_failure(reachability, response, errorMessage);
 }
