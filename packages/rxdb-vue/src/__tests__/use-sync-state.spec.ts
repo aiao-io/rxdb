@@ -44,7 +44,12 @@ const createFixture = () => {
 /** 在 provider 子树的 setup 里调用 hook，把返回值取出来供断言 */
 const mountWithProvider = (rxdb: RxDB) => {
   let state!: SyncStateResource;
-  const wrapper = mount(createRxDBProviderHarness(rxdb, createSetupHarness(() => (state = useSyncState()))));
+  const wrapper = mount(
+    createRxDBProviderHarness(
+      rxdb,
+      createSetupHarness(() => (state = useSyncState()))
+    )
+  );
   return { state: () => state, wrapper };
 };
 
