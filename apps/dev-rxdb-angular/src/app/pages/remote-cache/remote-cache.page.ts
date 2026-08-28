@@ -32,29 +32,22 @@ interface CachedItem {
 interface LogEntry {
   timestamp: number;
   kind: 'hit' | 'download' | 'error';
-  kindLabel: string;
   message: string;
 }
 
-const KIND_LABELS: Record<LogEntry['kind'], string> = {
-  hit: '命中',
-  download: '下载',
-  error: '错误'
-};
-
 const PRESETS: RemoteResource[] = [
   {
-    label: 'Picsum #237（小狗）',
+    label: 'Picsum #237 (puppy)',
     url: 'https://picsum.photos/id/237/300/200',
     opfsPath: 'remote/picsum-237.jpg'
   },
   {
-    label: 'Picsum #433（悬崖）',
+    label: 'Picsum #433 (cliff)',
     url: 'https://picsum.photos/id/433/300/200',
     opfsPath: 'remote/picsum-433.jpg'
   },
   {
-    label: 'Picsum #1015（河流）',
+    label: 'Picsum #1015 (river)',
     url: 'https://picsum.photos/id/1015/300/200',
     opfsPath: 'remote/picsum-1015.jpg'
   }
@@ -123,8 +116,8 @@ export default class RemoteCachePage implements OnInit, OnDestroy {
         kind: wasCached ? 'hit' : 'download',
         message:
           wasCached ?
-            `命中 OPFS 缓存：${resource.opfsPath}（${elapsed}ms，未联网）`
-          : `下载完成：${resource.url} → ${resource.opfsPath}（${elapsed}ms）`
+            `OPFS hit: ${resource.opfsPath} (${elapsed}ms, no network)`
+          : `Downloaded: ${resource.url} → ${resource.opfsPath} (${elapsed}ms)`
       });
 
       await this.refresh();
@@ -139,17 +132,17 @@ export default class RemoteCachePage implements OnInit, OnDestroy {
     const url = this.customUrl().trim();
     const opfsPath = this.customPath().trim();
     if (!url || !opfsPath) {
-      this.pushLog({ kind: 'error', message: 'URL 和 OPFS 路径均不能为空' });
+      this.pushLog({ kind: 'error', message: 'URL and OPFS path are both required' });
       return;
     }
 
-    await this.fetchResource({ label: '自定义', url, opfsPath });
+    await this.fetchResource({ label: 'Custom', url, opfsPath });
   }
 
   async deleteCached(item: CachedItem): Promise<void> {
     try {
       await this.rxdb.storage.delete(item.meta.id);
-      this.pushLog({ kind: 'download', message: `已删除：${item.meta.opfsPath}` });
+      this.pushLog({ kind: 'download', message: `Deleted: ${item.meta.opfsPath}` });
       await this.refresh();
     } catch (error) {
       this.pushLog({ kind: 'error', message: error instanceof Error ? error.message : String(error) });
@@ -159,7 +152,7 @@ export default class RemoteCachePage implements OnInit, OnDestroy {
   async clearAll(): Promise<void> {
     try {
       await this.rxdb.storage.clear(REMOTE_DIR);
-      this.pushLog({ kind: 'download', message: `已清空缓存目录：${REMOTE_DIR}` });
+      this.pushLog({ kind: 'download', message: `Cleared cache directory ${REMOTE_DIR}` });
       await this.refresh();
     } catch (error) {
       this.pushLog({ kind: 'error', message: error instanceof Error ? error.message : String(error) });
@@ -217,20 +210,20 @@ export default class RemoteCachePage implements OnInit, OnDestroy {
     this.objectUrls.clear();
   }
 
-  private pushLog(entry: Omit<LogEntry, 'timestamp' | 'kindLabel'>): void {
-    const next = [{ ...entry, kindLabel: KIND_LABELS[entry.kind], timestamp: Date.now() }, ...this.logs()].slice(0, 20);
+  private pushLog(entry: Omit<LogEntry, 'timestamp'>): void {
+    const next = [{ ...entry, timestamp: Date.now() }, ...this.logs()].slice(0, 20);
     this.logs.set(next);
   }
 
   private describeError(error: unknown, resource: RemoteResource): string {
     if (error instanceof StorageOfflineError) {
-      return `当前离线：${resource.url}（本地无 ${resource.opfsPath} 的缓存）`;
+      return `Offline: ${resource.url} (cached miss for ${resource.opfsPath})`;
     }
     if (error instanceof StorageFetchError) {
-      return `请求失败（HTTP ${error.status}）：${resource.url}`;
+      return `HTTP ${error.status}: ${resource.url}`;
     }
     if (error instanceof StorageMimeTypeMissingError) {
-      return `缺少 MIME 类型：${resource.url}（请为响应设置 Content-Type，或传入 options.mimeType）`;
+      return `Missing MIME: ${resource.url} (set Content-Type or pass options.mimeType)`;
     }
     return error instanceof Error ? error.message : String(error);
   }
