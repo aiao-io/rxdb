@@ -70,6 +70,10 @@
         "kind": "type"
       },
       {
+        "name": "SyncStateResource",
+        "kind": "type"
+      },
+      {
         "name": "useAction",
         "kind": "value"
       },
@@ -159,6 +163,10 @@
       },
       {
         "name": "useRxDBRef",
+        "kind": "value"
+      },
+      {
+        "name": "useSyncState",
         "kind": "value"
       }
     ]
