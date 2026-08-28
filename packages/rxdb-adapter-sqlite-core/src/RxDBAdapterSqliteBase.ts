@@ -886,16 +886,22 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * @param target - 收集容器
    * @param metadata - 目标实体的元数据
    * @param columns - 结果集列名
-   * @param rows - 结果集行
+   * @param rows - 结果集行；`RawQueryResult` 为跨适配器可移植把单元格声明成 `unknown`，
+   *   而这里的行只可能来自本适配器发出的 SQLite 查询，因此在此收窄
    */
   async #collectPreImages(
     target: Map<string, QueryCacheRowImage>,
     metadata: EntityMetadata,
     columns: string[],
-    rows: SQLiteCompatibleType[][]
+    rows: readonly unknown[][]
   ): Promise<void> {
     for (const row of rows) {
-      const image = await getEntityObjectFromResult<QueryCacheRowImage>(metadata, columns, row, this.encryptionContext);
+      const image = await getEntityObjectFromResult<QueryCacheRowImage>(
+        metadata,
+        columns,
+        row as SQLiteCompatibleType[],
+        this.encryptionContext
+      );
       target.set(String(image['id']), image);
     }
   }
