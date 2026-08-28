@@ -34,6 +34,7 @@ import type { RxDBEvent } from '../../rxdb-events.js';
 import { REMOTE_ENTITY_INVALIDATED_EVENT, RemoteEntityInvalidatedEvent } from '../../rxdb-events.js';
 import { RxDB } from '../../RxDB.js';
 import { METADATA, STATUS } from '../../rxdb.private.js';
+import { detachedReachability } from '../fixtures/reachability.js';
 
 class RecipeEntity {
   static [ENTITY_STATIC_TYPES] = { idType: '' as string };
@@ -216,6 +217,7 @@ const setup = (
     addEventListener,
     removeEventListener,
     dispatchEvent,
+    reachability: detachedReachability(),
     schemaManager: {
       getEntityType: vi.fn((entity: string, namespace: string) => ENTITY_REGISTRY[`${namespace}:${entity}`]),
       getEntityMetadata: vi.fn(() => undefined)
@@ -538,7 +540,8 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
         localAdapter as unknown as QueryCachePrimaryLocalAdapter<RecipeEntityCtor>,
         remoteAdapter as unknown as QueryCacheRemoteAdapter,
         false,
-        syncMemo
+        syncMemo,
+        detachedReachability()
       );
 
       void primary.find({ where: allWhere() });

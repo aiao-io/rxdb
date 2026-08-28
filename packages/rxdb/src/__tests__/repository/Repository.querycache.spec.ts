@@ -16,6 +16,7 @@ import { deterministicStringify } from '../../rxdb-utils.js';
 import type { RxDB } from '../../RxDB.js';
 import { METADATA, STATUS } from '../../rxdb.private.js';
 import { RxDBQueryCacheCapabilityError } from '../../RxDBError.js';
+import { detachedReachability } from '../fixtures/reachability.js';
 
 class CachedEntity {
   static [ENTITY_STATIC_TYPES] = { idType: '' as string };
@@ -188,6 +189,7 @@ const setup = (
     remoteAdapter$,
     config: { sync: undefined },
     addEventListener: vi.fn(),
+    reachability: detachedReachability(),
     entityManager: { createEntityRef: vi.fn((_type: unknown, entity: CachedEntity) => entity) }
   } as unknown as RxDB;
 

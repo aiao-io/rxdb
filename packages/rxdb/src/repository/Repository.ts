@@ -500,7 +500,8 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
           localAdapter as unknown as QueryCachePrimaryLocalAdapter<T>,
           remoteAdapter as unknown as QueryCacheRemoteAdapter,
           localCacheFirst,
-          syncMemo
+          syncMemo,
+          this.rxdb.reachability
         );
         // 记下「此刻的那一个」：失效上报要同步作废它的在飞查询（US-023 D13）
         this.#queryCachePrimary = primary;

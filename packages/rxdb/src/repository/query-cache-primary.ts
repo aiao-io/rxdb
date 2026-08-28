@@ -15,10 +15,12 @@
  * 于是 `limit` / `offset` / `orderBy` 可以原样下推成 SQL —— 既拿到实体实例，
  * 又不必把整表读进内存做 JS 过滤。
  */
-import { firstValueFrom, Observable } from 'rxjs';
+import { firstValueFrom, map, Observable } from 'rxjs';
 import type { EntityStaticType, EntityType } from '../entity/entity.interface.js';
 import type { QueryCacheEntityMetadata } from '../entity/metadata-options.interface.js';
+import type { ReachabilityMonitor } from '../network/reachability.js';
 import { RxDBQueryCacheCapabilityError } from '../RxDBError.js';
+import { isNetworkError } from './network-error.js';
 import { queryCacheFingerprint, QueryCacheSyncMemo } from './query-cache-sync-memo.js';
 import type { RuleGroup } from './query.interface.js';
 import type {
@@ -60,6 +62,18 @@ interface QueryCacheFindHints<T extends EntityType> {
 
 const missingMembers = (target: object, members: readonly string[]): string[] =>
   members.filter(member => typeof (target as Record<string, unknown>)[member] !== 'function');
+
+/** 远端写动词，与 {@link QueryCacheRemoteAdapter} 上的可选方法名一一对应 */
+type RemoteWriteVerb = 'create' | 'update' | 'delete';
+
+/**
+ * `#tryRemote` 的第三种结局：远端不可达，调用方应当改走本地。
+ *
+ * @remarks
+ * 用哨兵而不是 `null` / `undefined`：远端写的结果类型由调用点决定，
+ * 而 `delete` 这种本来就没有返回值的动词会让「空值」同时意味着成功和离线。
+ */
+const OFFLINE = Symbol('query-cache-offline');
 
 /**
  * 校验两侧适配器具备 QueryCache 同步流程所需的全部能力。
@@ -105,7 +119,9 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
     /** `sync.local.localCacheFirst`：是否走 stale-while-revalidate */
     private readonly localCacheFirst: boolean,
     /** 「刚同步过」的记忆；由 `Repository` 持有，跨本类实例存活（US-020 D13） */
-    private readonly syncMemo: QueryCacheSyncMemo
+    private readonly syncMemo: QueryCacheSyncMemo,
+    /** 远端可达性；写路径据此决定先打远端还是先落本地，生命周期跟着 `RxDB` 实例 */
+    private readonly reachability: ReachabilityMonitor
   ) {
     // 本地行仓储既是同步流程的读出口（US-020 D8），也是同步跑完后门面读结果的地方。
     // `QueryCacheRepository` 按 `entityName` 工作、填不出 `IRepository` 的类型参数，
@@ -161,41 +177,46 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
   }
 
   /**
-   * 创建实体：先远端后本地缓存。
+   * 创建实体：远端可达时先远端后本地缓存，不可达时直接落本地并排进出站队列。
    *
    * @param entity - 待创建的实体实例
-   * @returns 合并了服务端返回字段的同一实体实例
-   * @throws 远端写失败时上抛，本地不落缓存
+   * @returns 合并了服务端（或本地）返回字段的同一实体实例
+   * @throws 远端返回的**非网络**错误（401 / 唯一键冲突 / 字段校验……）原样上抛，本地不落盘
    */
   async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
-    const created = await firstValueFrom(this.#cache.create(entity));
+    const created = await this.#tryRemote('create', () => this.#cache.create(entity));
+    const settled = created === OFFLINE ? await this.localRepository.create(entity) : created;
     this.syncMemo.clear();
-    return Object.assign(entity, created);
+    return Object.assign(entity, settled);
   }
 
   /**
-   * 更新实体：先远端后本地缓存。
+   * 更新实体：远端可达时先远端后本地缓存，不可达时直接落本地并排进出站队列。
    *
    * @param entity - 待更新的实体实例（提供 `id`）
    * @param patch - 字段级 patch
-   * @returns 合并了服务端返回字段的同一实体实例
-   * @throws 远端写失败时上抛，本地不更新
+   * @returns 合并了服务端（或本地）返回字段的同一实体实例
+   * @throws 远端返回的**非网络**错误原样上抛，本地不更新
    */
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
-    const updated = await firstValueFrom(this.#cache.update(entityId(entity), patch));
+    const updated = await this.#tryRemote('update', () => this.#cache.update(entityId(entity), patch));
+    const settled = updated === OFFLINE ? await this.localRepository.update(entity, patch) : updated;
     this.syncMemo.clear();
-    return Object.assign(entity, updated);
+    return Object.assign(entity, settled);
   }
 
   /**
-   * 删除实体：先远端后本地缓存。
+   * 删除实体：远端可达时先远端后本地缓存，不可达时直接删本地并排进出站队列。
    *
    * @param entity - 待删除的实体实例
    * @returns 入参实体
-   * @throws 远端删除失败时上抛，本地缓存不动
+   * @throws 远端返回的**非网络**错误原样上抛，本地缓存不动
    */
   async remove(entity: InstanceType<T>): Promise<InstanceType<T>> {
-    await firstValueFrom(this.#cache.delete(entityId(entity)));
+    const removed = await this.#tryRemote('delete', () => this.#cache.delete(entityId(entity)).pipe(map(() => entity)));
+    if (removed === OFFLINE) {
+      await this.localRepository.remove(entity);
+    }
     this.syncMemo.clear();
     return entity;
   }
@@ -210,6 +231,46 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
    */
   invalidateInflight(): void {
     this.#cache.invalidateInflight();
+  }
+
+  /**
+   * 尝试一次远端写，并把结果上报给可达性监视器。
+   *
+   * @param verb - 远端写动词，用于能力校验与错误消息
+   * @param write - 远端写流的工厂；只在确实要打远端时才求值
+   * @returns 远端成功时返回其结果；判定为不可达时返回 {@link OFFLINE}，调用方改走本地
+   * @throws 远端不支持该动词，或远端返回了非网络错误
+   *
+   * @remarks
+   * 三步的顺序是有意的：
+   *
+   * 1. **动词缺失先于连通性**。动词缺失与网速无关 —— 远端压根没有这个入口，
+   *    降级落本地只会排出一条永远重放不回去的出站行，把「配置漏了」拖成一次静默的数据丢失。
+   * 2. **已知离线时跳过远端**。断网时那次调用注定失败，只是让每一次写都先卡一个超时。
+   * 3. **失败按 {@link isNetworkError} 分流**，与读路径的 `#wrapWithOfflineFallback`
+   *    （US-020 AC#16）逐字一致：拿到状态码就说明连接是通的，401 / 422 是远端给出的回答，
+   *    把它们降级成本地写等于把一次被拒绝的写伪装成成功。拿不准的错误一律**不**算网络错误。
+   *
+   * 成功也要上报：那是「已恢复」的唯一证据，没有它，离线期间第一次成功的重试无法把状态翻回来。
+   */
+  async #tryRemote<R>(verb: RemoteWriteVerb, write: () => Observable<R>): Promise<R | typeof OFFLINE> {
+    if (typeof this.remoteAdapter[verb] !== 'function') {
+      throw new Error(`Remote adapter does not support ${verb} operation for ${this.entityName}`);
+    }
+    if (!this.reachability.online) {
+      return OFFLINE;
+    }
+    try {
+      const result = await firstValueFrom(write());
+      this.reachability.report(null);
+      return result;
+    } catch (error) {
+      this.reachability.report(error);
+      if (!isNetworkError(error)) {
+        throw error;
+      }
+      return OFFLINE;
+    }
   }
 
   /**
@@ -277,6 +338,7 @@ const entityId = <T extends EntityType>(entity: InstanceType<T>): string => (ent
  * @param remoteAdapter - 远端适配器
  * @param localCacheFirst - `sync.local.localCacheFirst`
  * @param syncMemo - 「刚同步过」的记忆，由调用方持有以跨适配器发射存活（D13）
+ * @param reachability - 远端可达性监视器，取自 `RxDB` 实例
  * @throws {@link RxDBQueryCacheCapabilityError} 适配器缺必需 duck
  */
 export function createQueryCachePrimary<T extends EntityType>(
@@ -285,7 +347,8 @@ export function createQueryCachePrimary<T extends EntityType>(
   localAdapter: QueryCachePrimaryLocalAdapter<T>,
   remoteAdapter: QueryCacheRemoteAdapter,
   localCacheFirst: boolean,
-  syncMemo: QueryCacheSyncMemo
+  syncMemo: QueryCacheSyncMemo,
+  reachability: ReachabilityMonitor
 ): QueryCachePrimaryRepository<T> {
   assertQueryCacheCapabilities(entityName, localAdapter, remoteAdapter);
   return new QueryCachePrimaryRepository<T>(
@@ -294,7 +357,8 @@ export function createQueryCachePrimary<T extends EntityType>(
     remoteAdapter,
     localAdapter,
     localCacheFirst,
-    syncMemo
+    syncMemo,
+    reachability
   );
 }
 

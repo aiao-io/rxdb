@@ -6,6 +6,7 @@
 
 export * from './gc.js';
 export * from './mock-remote-server.js';
+export * from './reachability.js';
 export * from './test-db-setup.js';
 export * from './test-entities.js';
 export * from './test-fixtures.js';

@@ -14,10 +14,11 @@
 import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
-import { ReachabilityMonitor } from '../../network/reachability.js';
+import type { ReachabilityMonitor } from '../../network/reachability.js';
 import { QueryCacheSyncMemo } from '../../repository/query-cache-sync-memo.js';
 import { createQueryCachePrimary } from '../../repository/query-cache-primary.js';
 import { NetworkOfflineError } from '../../RxDBError.js';
+import { detachedReachability } from '../fixtures/reachability.js';
 
 class CachedEntity {
   static [ENTITY_STATIC_TYPES] = { idType: '' as string };
@@ -36,14 +37,6 @@ const offlineError = (): TypeError => new TypeError('Failed to fetch');
 
 /** 远端给出的业务回答：拿到了状态码就说明连接是通的（第 2 条判据） */
 const unauthorized = (): Error => Object.assign(new Error('Unauthorized'), { status: 401 });
-
-/** 事件源钉死成空实现：用例只经 `report()` 驱动状态，不受宿主 `navigator` 影响 */
-const createMonitor = (): ReachabilityMonitor =>
-  new ReachabilityMonitor({
-    navigatorOnLine: () => true,
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined
-  });
 
 const createLocalRepo = () => ({
   find: vi.fn(async () => [] as CachedEntity[]),
@@ -74,7 +67,7 @@ const setup = () => {
   const localRepo = createLocalRepo();
   const localAdapter = createLocalAdapter(localRepo);
   const remoteAdapter = createRemoteAdapter();
-  const reachability = createMonitor();
+  const reachability = detachedReachability();
   const syncMemo = new QueryCacheSyncMemo(0);
   const primary = createQueryCachePrimary<CachedEntityCtor>(
     'CachedEntity',
