@@ -1,6 +1,6 @@
 import { REMOTE_ENTITY_INVALIDATED_EVENT, RxDB } from '@aiao/rxdb';
 import type { RxDBAdapterHttp } from '@aiao/rxdb-adapter-http';
-import { useFind } from '@aiao/rxdb-angular';
+import { useFind, useSyncState } from '@aiao/rxdb-angular';
 import { JsonPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -257,6 +257,24 @@ export class App implements OnInit {
    * 否则离线时点一下「清空日志」横幅就没了 —— 面板会声称已经恢复，而下一次请求照样打不通。
    */
   readonly $networkDown = computed(() => this.$lastStatus() === 0);
+
+  // ---- Local-first 同步状态 -------------------------------------------------
+
+  /**
+   * 库自己的同步状态：网通不通、还有多少没推上去、这会儿在不在推、上次错在哪、上次谁判负。
+   *
+   * @remarks
+   * 与 {@link $networkDown} **并列而不是替代**，两者回答的不是同一个问题：
+   *
+   * - `$networkDown` 是**最后一次协议请求**的现场证据（状态码 0），只要没再发过请求就一直是那句话；
+   * - `sync.online()` 是**库的判定**，还会被退避探测、`navigator.onLine`、以及回推自己的往返结果推翻。
+   *
+   * 断网后不点任何按钮时，前者停在最后一次失败上、后者也是离线，两栏一致；
+   * 而网一恢复，退避节拍会先于任何用户动作把 `sync.online()` 翻回在线——此时 `$networkDown`
+   * 仍显示上一次失败，直到下一次列表请求发出为止。这个短暂的不一致本身就是要展示的东西：
+   * local-first 应用的恢复不依赖用户再点一下。
+   */
+  readonly sync = useSyncState();
 
   // ---- 变更通知面板（US-023 AC#24）------------------------------------------
 

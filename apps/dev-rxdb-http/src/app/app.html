@@ -49,6 +49,25 @@
       <dt>/metadata 累计</dt>
       <dd data-testid="feed-metadata-requests">{{ $metadataRequests() }}</dd>
     </div>
+    <!--
+      下面三格来自库的 `useSyncState()`，与上面那些「本页自己数出来的」诊断量不同源。
+
+      「远端可达」不等于横幅上那句「连不上后端」：横幅读的是最后一次协议请求的状态码，
+      不再发请求就一直停在那儿；这一格是库的判定，退避探测一旦探通就自己翻回来。
+      网恢复的那一刻两栏会短暂不一致，那正是 local-first 的重点——恢复不等用户点。
+    -->
+    <div>
+      <dt>远端可达</dt>
+      <dd data-testid="sync-online">{{ sync.online() ? '在线' : '离线' }}</dd>
+    </div>
+    <div>
+      <dt>待推变更</dt>
+      <dd data-testid="sync-pending">{{ sync.pendingCount() }}</dd>
+    </div>
+    <div>
+      <dt>回推</dt>
+      <dd data-testid="sync-syncing">{{ sync.syncing() ? '进行中' : '空闲' }}</dd>
+    </div>
     <div>
       <dt>翻页形态</dt>
       <dd data-testid="page-mode">{{ $control()?.pageMode ?? '—' }}</dd>
@@ -82,6 +101,18 @@
     }
     @if ($controlError(); as error) {
       <p class="banner bad" data-testid="control-error">控制端点失败：{{ error }}</p>
+    }
+    @if (sync.lastError(); as error) {
+      <p class="banner bad" data-testid="sync-error">回推失败：{{ error.message }}</p>
+    }
+    <!--
+      冲突横幅**不会**因为后来推成功了就消失：它记的是「你离线时改的那一版被丢掉了」这件
+      已经发生的事。清掉它等于替用户决定这件事不值得知道。
+    -->
+    @if (sync.lastConflict(); as conflict) {
+      <p class="banner warn" data-testid="sync-conflict">
+        冲突：{{ conflict.entity }} {{ conflict.entityId }} 判 {{ conflict.winner === 'local' ? '本地' : '远端' }} 胜
+      </p>
     }
   </div>
 </header>

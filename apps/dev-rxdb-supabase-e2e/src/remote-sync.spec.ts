@@ -63,6 +63,8 @@ if (isRemoteE2E) {
       page.on('request', request => {
         if (request.method() === 'POST' && request.url().includes('/rest/v1/rpc/rxdb_mutations')) {
           mutationRequests.push(request.url());
+          // eslint-disable-next-line no-console
+          console.log('[diag] rxdb_mutations payload:', request.postData());
         }
       });
 

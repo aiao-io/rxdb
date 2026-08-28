@@ -361,7 +361,10 @@ table {
   border-radius: 6px;
   font-size: 0.85rem;
 
-  &.offline {
+  // 「离线」与「冲突」都是「事情不对但数据还在」，共用同一套告警色；
+  // 与 `.bad`（请求真的失败了）分开，好让两类横幅同时出现时一眼分得清轻重。
+  &.offline,
+  &.warn {
     background: var(--warn-bg);
     border: 1px solid var(--warn-border);
   }
