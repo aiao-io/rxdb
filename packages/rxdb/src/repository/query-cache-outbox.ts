@@ -29,6 +29,7 @@ import type { RxDBChangeRuleGroup } from '../system/types.js';
 import { compactChanges } from '../version/compact-changes.js';
 import type { ConflictResolver } from '../version/conflict.js';
 import { LWWConflictResolver } from '../version/LWWConflictResolver.js';
+import { buildOfflineWriteRepositoryRules } from '../version/pushable-repository-rules.js';
 import { getOrCreateSyncRecord } from '../version/sync-record-utils.js';
 import { getSyncType, isRepositorySyncEnabled, SYNC_DISABLED_REASON } from '../version/sync-type-utils.js';
 import type { SwitchVersionActions, SwitchVersionChange } from '../version/VersionManager.interface.js';
@@ -74,6 +75,14 @@ export interface QueryCacheOutboxResult {
   noop: number;
   /** 水位线推进到的 change id；本轮没有推进时为 `null` */
   watermark: number | null;
+  /**
+   * 冲突判定中远端胜出的实体 id —— 也就是离线期间的本地改动被丢掉的那批。
+   *
+   * @remarks
+   * 只收解决器明确判 `KEEP_REMOTE` 的。「远端这行已经不在了」不算冲突：那种情况没有
+   * 竞争写可比，本地意图是被收敛掉而不是被判负（见 `MISSING_REMOTE`）。
+   */
+  conflicts: string[];
   /** 本轮的失败；非空即意味着水位线没有推进 */
   failures: QueryCacheOutboxFailure[];
   /** 整轮被跳过时的原因（例如同步开关被关掉） */
@@ -218,6 +227,7 @@ const emptyResult = (namespace: string, entity: string): QueryCacheOutboxResult 
   discarded: 0,
   noop: 0,
   watermark: null,
+  conflicts: [],
   failures: []
 });
 
@@ -288,8 +298,14 @@ async function runOutboxFlush(
   return { ...toResult(run), watermark: maxChangeId };
 }
 
-/** 累计中的一轮状态：计数 + 待修复的本地缓存 id */
-interface RunState extends QueryCacheOutboxResult {
+/**
+ * 累计中的一轮状态：计数 + 待修复的本地缓存 id
+ *
+ * @remarks
+ * 刻意 `Omit` 掉 `conflicts`：那个字段是 `restoreIds` 的对外投影（见 {@link toResult}），
+ * 留着会变成同一份事实的第二个可写副本，两边迟早对不上。
+ */
+interface RunState extends Omit<QueryCacheOutboxResult, 'conflicts'> {
   /** LWW 判负、需要用远端行覆盖本地缓存的 id */
   restoreIds: string[];
   /** 远端已消失、需要从本地缓存清掉的 id */
@@ -305,8 +321,53 @@ const toResult = (run: RunState): QueryCacheOutboxResult => ({
   discarded: run.discarded,
   noop: run.noop,
   watermark: run.watermark,
+  // 判负的那批就是要用远端行覆盖回来的那批：解决器说 KEEP_REMOTE 才会进 restoreIds
+  conflicts: run.restoreIds,
   failures: run.failures
 });
+
+/**
+ * 数一遍所有 QueryCache 仓库在当前分支上还没推回远端的变更行。
+ *
+ * @param vm - 版本管理器
+ * @returns 待重放的变更行数；没有这类仓库时为 0
+ *
+ * @remarks
+ * 口径与 {@link flushQueryCacheOutbox} 的取行条件一致（同分支、未推送、未回滚、
+ * 水位线之后），只是一次把所有 `offlineWrite && !push` 的仓库并成一个 OR 组来数，
+ * 不必逐仓库往返。
+ *
+ * 与 `HistoryManager.pushableCount$` **不重叠**：那一侧按 `capability.push` 取仓库，
+ * 这一侧取它的补集，因此 {@link SyncStateHub} 把两个数直接相加是安全的。
+ */
+export async function countQueryCacheOutbox(vm: VersionManager): Promise<number> {
+  const branch = await vm.getCurrentBranch();
+  const { adapter } = await vm.getLocalRepositories();
+  const localAdapter = adapter as unknown as OutboxLocalAdapter;
+
+  const repoSyncs = await localAdapter.getRepository(RxDBSync).find({
+    where: { combinator: 'and', rules: [{ field: 'branchId', operator: '=', value: branch.id }] }
+  });
+
+  const repoRules = buildOfflineWriteRepositoryRules(vm.rxdb.config.entities, vm.rxdb.config.sync, repoSyncs);
+  if (repoRules.length === 0) {
+    return 0;
+  }
+
+  return firstValueFrom(
+    localAdapter.getRepository(RxDBChange).count({
+      where: {
+        combinator: 'and',
+        rules: [
+          { field: 'branchId', operator: '=', value: branch.id },
+          { field: 'revertChangeId', operator: '=', value: null },
+          { field: 'remoteId', operator: '=', value: null },
+          { combinator: 'or', rules: repoRules }
+        ]
+      }
+    })
+  );
+}
 
 /**
  * 确认这个仓库确实走 QueryCache，并返回它的 syncType。

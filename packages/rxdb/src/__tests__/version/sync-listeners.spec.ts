@@ -69,11 +69,17 @@ class VersionedTodo extends EntityBase {
   title!: string;
 }
 
-/** Local 仓库：没有远端，两条路都不该碰它 */
+/**
+ * Local 仓库：没有远端，两条路都不该碰它
+ *
+ * @remarks
+ * 「只有本地」不是独立的 `SyncType`，而是 `SyncType.None` 配上 `local`、不配 `remote` ——
+ * {@link getSyncType} 由这个组合判出 `'local'`。
+ */
 @Entity({
   name: 'LocalDraft',
   properties: [{ name: 'title', type: PropertyType.string }],
-  sync: { type: SyncType.Local, local: { adapter: 'sqlite' } }
+  sync: { type: SyncType.None, local: { adapter: 'sqlite' } }
 })
 class LocalDraft extends EntityBase {
   static [ENTITY_STATIC_TYPES]: { idType: string };
@@ -161,6 +167,17 @@ const createRemoteEntity = (
  */
 const settleDetachedTasks = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
 
+/**
+ * 本轮用例建过的 harness，`afterEach` 统一拆掉。
+ *
+ * @remarks
+ * 每个 harness 都带一个真的 {@link ReachabilityMonitor}。离线期间它按退避不停发
+ * `wakeup$`，而订阅链只要还活着就会继续回推 —— 用例结束并不会让这两样自己停下。
+ * 退避被压到 1ms 的那个用例因此能在后续每个用例里持续打同一个 `flushOutbox`
+ * 模块级 mock，把计数断言污染成随执行顺序漂移的假失败。
+ */
+const liveHarnesses: SyncListenerHarness[] = [];
+
 const createHarness = (options: HarnessOptions = {}): SyncListenerHarness => {
   const connected$ = new BehaviorSubject(options.connected ?? false);
   const listeners = new Map<RemoteEventType, Set<RemoteEventHandler>>();
@@ -202,7 +219,7 @@ const createHarness = (options: HarnessOptions = {}): SyncListenerHarness => {
   const historyManager = { incrementPullableCount } as unknown as HistoryManager;
   const result = setupVersionSyncListeners(versionManager, historyManager);
 
-  return {
+  const harness: SyncListenerHarness = {
     addEventListener,
     connected$,
     emit: event => {
@@ -220,9 +237,23 @@ const createHarness = (options: HarnessOptions = {}): SyncListenerHarness => {
     result,
     syncBranches
   };
+
+  liveHarnesses.push(harness);
+  return harness;
 };
 
 afterEach(() => {
+  // 先断掉订阅与退避计时器，再清 mock：反过来的话，拆除前漏出的调用会留在计数里
+  for (const harness of liveHarnesses.splice(0)) {
+    for (const subscription of harness.result.subscriptions) {
+      subscription.unsubscribe();
+    }
+    for (const remove of harness.result.removers) {
+      remove();
+    }
+    harness.reachability.destroy();
+  }
+
   vi.restoreAllMocks();
   flushOutbox.mockClear();
   flushOutbox.mockImplementation((_vm, namespace, entity) => Promise.resolve(makeOutboxResult(namespace, entity)));
@@ -385,7 +416,7 @@ describe('setupVersionSyncListeners 联网回推', () => {
   });
 
   it('只 flush QueryCache 仓库，changelog 仓库交给 push', async () => {
-    const harness = createHarness({ connected: true });
+    createHarness({ connected: true });
 
     await settleDetachedTasks();
 
