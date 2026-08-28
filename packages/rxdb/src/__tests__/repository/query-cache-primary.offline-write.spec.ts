@@ -13,7 +13,9 @@
 
 import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Entity } from '../../entity/entity.decorator.js';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
+import { PropertyType } from '../../entity/metadata-options.interface.js';
 import type { ReachabilityMonitor } from '../../network/reachability.js';
 import { createQueryCachePrimary } from '../../repository/query-cache-primary.js';
 import { QueryCacheSyncMemo } from '../../repository/query-cache-sync-memo.js';
@@ -21,6 +23,18 @@ import { NetworkOfflineError } from '../../RxDBError.js';
 import { SyncStateHub } from '../../sync-state.js';
 import { detachedReachability } from '../fixtures/reachability.js';
 
+/*
+ * 只声明 `value` 一个属性，`updatedAt` 故意不进元数据。
+ *
+ * 写路径会拿元数据把远端响应解码回实体侧的运行时值（`parseEntityRecordValues`），
+ * 元数据里没有的键**原样透传** —— 于是本文件里的 `updatedAt` 一直是 ISO 串，
+ * 与下面所有断言一致。这套用例要验的是「网络故障如何分流」，不是解码本身；
+ * 解码那条边界另有 `query-cache-primary.remote-decode.spec.ts` 专门守着。
+ */
+@Entity({
+  name: 'CachedEntity',
+  properties: [{ name: 'value', type: PropertyType.number }]
+})
 class CachedEntity {
   static [ENTITY_STATIC_TYPES] = { idType: '' as string };
   id!: string;
@@ -30,8 +44,12 @@ class CachedEntity {
 
 type CachedEntityCtor = typeof CachedEntity;
 
+/*
+ * 用裸对象而不是 `new CachedEntity()`：装饰过的构造函数要一个已初始化的 RxDB
+ * （`need init rxdb`），而这里只需要一份数据形状。
+ */
 const row = (id: string, updatedAt: string, value = 0): CachedEntity =>
-  Object.assign(new CachedEntity(), { id, updatedAt, value });
+  ({ id, updatedAt, value }) as CachedEntity;
 
 /** 断网时 `fetch()` 抛的那个 `TypeError`，走 `isNetworkError` 的第 5 条判据 */
 const offlineError = (): TypeError => new TypeError('Failed to fetch');

@@ -16,9 +16,12 @@
  * 又不必把整表读进内存做 JS 过滤。
  */
 import { firstValueFrom, map, Observable } from 'rxjs';
+import { parseEntityRecordValues } from '../entity/entity-value.utils.js';
 import type { EntityStaticType, EntityType } from '../entity/entity.interface.js';
 import type { QueryCacheEntityMetadata } from '../entity/metadata-options.interface.js';
+import type { EntityMetadata } from '../entity/metadata.interface.js';
 import type { ReachabilityMonitor } from '../network/reachability.js';
+import { getEntityMetadata } from '../rxdb-utils.js';
 import { RxDBQueryCacheCapabilityError } from '../RxDBError.js';
 import type { SyncStateHub } from '../sync-state.js';
 import { isNetworkError } from './network-error.js';
@@ -114,6 +117,8 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
 
   constructor(
     private readonly entityName: string,
+    /** 实体元数据；写路径靠它把远端 JSON 解码回实体侧的运行时值（{@link #decodeRemote}） */
+    private readonly metadata: EntityMetadata,
     private readonly localRepository: IRepository<T>,
     private readonly remoteAdapter: QueryCacheRemoteAdapter,
     localAdapter: QueryCacheLocalAdapter,
@@ -188,7 +193,10 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
    */
   async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
     const created = await this.#tryRemote('create', () => this.#cache.create(entity));
-    const settled = created === OFFLINE ? await this.#queueOffline(() => this.localRepository.create(entity)) : created;
+    const settled =
+      created === OFFLINE
+        ? await this.#queueOffline(() => this.localRepository.create(entity))
+        : this.#decodeRemote(created);
     this.syncMemo.clear();
     return Object.assign(entity, settled);
   }
@@ -204,9 +212,29 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
     const updated = await this.#tryRemote('update', () => this.#cache.update(entityId(entity), patch));
     const settled =
-      updated === OFFLINE ? await this.#queueOffline(() => this.localRepository.update(entity, patch)) : updated;
+      updated === OFFLINE
+        ? await this.#queueOffline(() => this.localRepository.update(entity, patch))
+        : this.#decodeRemote(updated);
     this.syncMemo.clear();
     return Object.assign(entity, settled);
+  }
+
+  /**
+   * 把远端响应解码成实体侧的运行时值。
+   *
+   * @param payload - 远端 REST 响应体，逐字是 JSON
+   * @returns 可以安全 `Object.assign` 到实体实例上的字段集
+   *
+   * @remarks
+   * **只解码远端那一支**。离线支的 `settled` 来自 `localRepository`，值本来就是实体侧形态；
+   * 再过一遍解码反而有害 —— {@link parseEntityFieldValue} 把 `undefined` 归一化成 `null`，
+   * 而本地写回来的是实体自身，它身上每一个没赋过值的可枚举属性都会因此被写成 `null`。
+   *
+   * 拉取回填那条路不需要这个：它经 `upsertMany` 落进本地库，再读出来时适配器已按元数据解码。
+   * 写路径是唯一一条远端响应不落库、直接盖到实例上的路。
+   */
+  #decodeRemote(payload: InstanceType<T>): Partial<InstanceType<T>> {
+    return parseEntityRecordValues(this.metadata, payload as Record<string, unknown>) as Partial<InstanceType<T>>;
   }
 
   /**
@@ -376,6 +404,7 @@ export function createQueryCachePrimary<T extends EntityType>(
   assertQueryCacheCapabilities(entityName, localAdapter, remoteAdapter);
   return new QueryCachePrimaryRepository<T>(
     entityName,
+    getEntityMetadata(EntityType),
     localAdapter.getRepository(EntityType),
     remoteAdapter,
     localAdapter,
