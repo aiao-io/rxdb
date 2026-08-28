@@ -38,6 +38,12 @@ import { releaseComlinkProxy } from './create_sqlite_client.js';
 import { generate_upsert_clause } from './entity/insert_sql.js';
 import { handle_rxdb_change } from './handle_rxdb_change.js';
 import { SqliteCoreKeyringStorage } from './keyring/sqlite-core-keyring-storage.js';
+import {
+  dispatchQueryCacheRemoveEvents,
+  dispatchQueryCacheUpsertEvents,
+  type QueryCachePreImages,
+  type QueryCacheRowImage
+} from './query-cache-events.js';
 import { assertQueryCacheRowContract } from './query-cache-row-contract.js';
 import { generate_sql } from './query/query_sql.js';
 import { SqliteRepository } from './repository/SqliteRepository.js';
@@ -59,6 +65,7 @@ import {
   get_primary_key_column,
   get_table_name_by_entity_type,
   get_table_name_by_metadata,
+  getEntityObjectFromResult,
   getTableColumnIndexName,
   isSqlResultEmpty,
   isTableExistedSql,
@@ -680,6 +687,12 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   // 表上的 AFTER INSERT/UPDATE/DELETE 触发器不区分写入来源，不摘掉的话每次拉取回填都会
   // 往 rxdb_change 里堆一批伪本地改动 —— 一旦离线写把那张表当出站队列用，
   // 这些行就会被当成待推变更再发回远端，形成 pull → log → push → pull 的回声环。
+  //
+  // 但变更行同时也是实时查询**唯一**的通知来源（触发器 → rxdb_change →
+  // handle_rxdb_change → EntityLocal*Event → QueryManager 增量合并）。只摘触发器不补通知，
+  // 缓存写就成了静默写：库里对了，屏幕不动 —— 删掉的行还挂在列表里直到刷新页面。
+  // 因此两个方法都在同事务内先预读旧行，写完再照触发器的形状把实体级事件补发出去
+  // （见 query-cache-events.ts）。
 
   getMetadataByIds(entityName: string, ids: string[]): Observable<Map<string, string>> {
     return defer(() => {
@@ -717,17 +730,21 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       // 而这一批本来一行都不该被尝试写入。判据只需要元数据与行的键集，是同步的。
       const target = this.#resolveQueryCacheTarget(entityName);
       assertQueryCacheRowContract(entityName, data as object[], target.metadata);
+      const ids = data.map(item => String((item as Record<string, unknown>)['id']));
       return from(
-        this.transaction(
-          executor => withTriggersDisabled(this, executor, () => this.#writeQueryCacheRows(executor, target, data)),
-          false
-        )
-          .then(() =>
-            this.#refreshQueryCacheEntities(
-              entityName,
-              data.map(item => String((item as Record<string, unknown>)['id']))
-            )
-          )
+        this.transaction(async executor => {
+          // 预读必须在写之前、且与写同事务：写完再读拿到的已经是新值，倒推不出 inversePatch；
+          // 分成两个事务则会在嵌套事务下自死锁（withTriggersDisabled 的同款约束）。
+          const preImages = await this.#readQueryCachePreImages(executor, target, ids);
+          await withTriggersDisabled(this, executor, () => this.#writeQueryCacheRows(executor, target, data));
+          return preImages;
+        }, false)
+          .then(async preImages => {
+            // 先把实例刷成新值再发事件：事件的消费方（QueryManager）会顺着 id 去取实体，
+            // 顺序反过来它取到的是尚未刷新的旧实例。
+            await this.#refreshQueryCacheEntities(entityName, ids);
+            if (target.metadata) dispatchQueryCacheUpsertEvents(this.rxdb, target.metadata, data, preImages);
+          })
           .then(() => undefined)
       );
     });
@@ -738,16 +755,20 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       if (ids.length === 0) {
         return of(undefined);
       }
-      const { tableName } = this.#resolveQueryCacheTarget(entityName);
+      const target = this.#resolveQueryCacheTarget(entityName);
       return from(
-        this.transaction(
-          executor => withTriggersDisabled(this, executor, () => this.#deleteQueryCacheRows(executor, tableName, ids)),
-          false
-        ).then(() => {
+        this.transaction(async executor => {
+          const preImages = await this.#readQueryCachePreImages(executor, target, ids);
+          await withTriggersDisabled(this, executor, () =>
+            this.#deleteQueryCacheRows(executor, target.tableName, ids)
+          );
+          return preImages;
+        }, false).then(preImages => {
           // 行没了，缓存里那个实例还标着 local=true。不标 removed 的话，
           // 它会以「仍然存在」的姿态活在任何还持有引用的视图里（SQLC-033 同款）。
           const EntityType = this.rxdb.schemaManager.getEntityType(entityName, 'public');
           if (EntityType) remove_entity_ids_from_cache(this, EntityType, ids);
+          if (target.metadata) dispatchQueryCacheRemoveEvents(this.rxdb, target.metadata, preImages);
         })
       );
     });
@@ -816,6 +837,66 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       const placeholders = idsChunk.map(() => '?').join(', ');
       const sql = `DELETE FROM ${quote_sql_identifier(tableName)} WHERE id IN (${placeholders})`;
       await executor.query(sql, idsChunk);
+    }
+  }
+
+  /**
+   * 读一批 id 在本次写入/删除**之前**的整行快照。
+   *
+   * @param executor - 当前事务的执行器；必须与写操作同事务，否则读到的是别人提交后的状态
+   * @param target - `#resolveQueryCacheTarget` 解析出的表名/列名视图
+   * @param ids - 要预读的主键
+   * @returns id → 旧行；表里没有的 id 不出现在结果里
+   *
+   * @remarks
+   * 这是触发器被摘掉后 `inversePatch` 的唯一来源。`upsertMany` 还靠「id 在不在结果里」
+   * 区分 INSERT 与 UPDATE —— UPSERT 语句本身不告诉调用方它走的是插入还是更新。
+   *
+   * 走 `getEntityObjectFromResult` 而不是直接拿裸行：加密列在库里是 TEXT 信封，
+   * 原样塞进事件等于把密文交给 QueryManager/UI（SQLC-011 同款）。
+   *
+   * metadata 查不到时直接返回空 Map：那条路径上调用方传的是物理表名，没有元数据就
+   * 既解不了行也填不出事件的 namespace/entity，与 `#writeQueryCacheRows` 的回退同口径。
+   */
+  async #readQueryCachePreImages(
+    executor: SqliteTransactionExecutor,
+    target: QueryCacheTarget,
+    ids: string[]
+  ): Promise<QueryCachePreImages> {
+    const preImages = new Map<string, QueryCacheRowImage>();
+    const { metadata, tableName, idColumn } = target;
+    if (!metadata) return preImages;
+
+    const idColumnSql = quote_sql_identifier(idColumn);
+    for (const idsChunk of chunkBySqliteBindLimit(ids)) {
+      const sql = generate_sql({
+        tableName,
+        where: `${idColumnSql} IN (${idsChunk.map(() => '?').join(', ')})`,
+        metadata
+      });
+      const { columns, rows } = await executor.query(sql, idsChunk);
+      await this.#collectPreImages(preImages, metadata, columns, rows);
+    }
+    return preImages;
+  }
+
+  /**
+   * 把一批结果行解成实体形状的快照，按 id 收进 `target`。
+   *
+   * @param target - 收集容器
+   * @param metadata - 目标实体的元数据
+   * @param columns - 结果集列名
+   * @param rows - 结果集行
+   */
+  async #collectPreImages(
+    target: Map<string, QueryCacheRowImage>,
+    metadata: EntityMetadata,
+    columns: string[],
+    rows: SQLiteCompatibleType[][]
+  ): Promise<void> {
+    for (const row of rows) {
+      const image = await getEntityObjectFromResult<QueryCacheRowImage>(metadata, columns, row, this.encryptionContext);
+      target.set(String(image['id']), image);
     }
   }
 

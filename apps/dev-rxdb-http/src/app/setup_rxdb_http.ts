@@ -182,6 +182,9 @@ const clientIdHeader = (enabled: boolean, instance: RxDB): Record<string, string
  */
 const connectDevTools = (instance: RxDB): void => {
   void import('@aiao/rxdb-devtools').then(({ getDevToolsConnector }) => {
-    getDevToolsConnector().init(instance, getEntityMetadata);
+    // TEMP-EXONERATION-PROBE: 临时不调用 init，验证 cors AC#9 与连接器无关；本次运行后立即还原。
+    void getDevToolsConnector;
+    void instance;
+    void getEntityMetadata;
   });
 };

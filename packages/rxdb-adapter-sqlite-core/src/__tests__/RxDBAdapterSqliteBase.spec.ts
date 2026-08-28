@@ -1,8 +1,12 @@
 import {
   Entity,
   ENTITY_LOCAL_CREATE_EVENT,
+  ENTITY_LOCAL_REMOVE_EVENT,
+  ENTITY_LOCAL_UPDATE_EVENT,
   EntityBase,
   EntityLocalCreatedEvent,
+  EntityLocalRemovedEvent,
+  EntityLocalUpdatedEvent,
   getEntityMetadata,
   getEntityStatus,
   PropertyType,
@@ -26,7 +30,7 @@ import { RxDBQueryCacheRowContractError } from '../query-cache-row-contract.js';
 import { SqliteRepository } from '../repository/SqliteRepository.js';
 import { RxDBAdapterSqliteBase, type SqliteBaseOptions, type SqliteClientLike } from '../RxDBAdapterSqliteBase.js';
 import { SQLiteChangeType } from '../sqlite-backend.interface.js';
-import type { SqliteChangeEvent, SqliteSuccessResult } from '../sqlite-core.interface.js';
+import type { SQLiteCompatibleType, SqliteChangeEvent, SqliteSuccessResult } from '../sqlite-core.interface.js';
 import { RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
 import { Todo } from './fixtures/Todo.js';
 
@@ -1368,6 +1372,111 @@ describe('RxDBAdapterSqliteBase', () => {
       await firstValueFrom(adapter.deleteByIds('todos', []));
 
       expect(order.filter(sql => sql.includes('TRIGGER'))).toHaveLength(0);
+    });
+  });
+
+  // 摘掉触发器的代价：变更行原本是实时查询**唯一**的通知来源（触发器 → `rxdb_change`
+  // → `handle_rxdb_change` → `EntityLocal*Event` → `QueryManager` 增量合并）。不补上
+  // 这段通知，QueryCache 的缓存写就成了一次静默写：库里对了，屏幕上不动 —— 删掉的行
+  // 还挂在列表里，直到用户刷新页面才消失。
+  describe('QueryCache 回填仍要通知实时查询', () => {
+    const TODO_ROW = [1, 'todo-1', '旧标题', 0, ISO_CREATED, ISO_UPDATED];
+
+    /** 让预读拿到 `rows`（`[]` 表示这些 id 在表里还不存在）。 */
+    const createPreImageClient = (rows: SQLiteCompatibleType[][]) =>
+      createClient({
+        execute: vi.fn(async (sql: string) =>
+          sql.trimStart().startsWith('SELECT') ?
+            okResult(sql, [{ columns: TODO_COLUMNS, rows }])
+          : okResult(sql, [], 1)
+        )
+      });
+
+    const dispatched = (rxdb: RxDB, type: string) =>
+      vi
+        .mocked(rxdb.dispatchEvent)
+        .mock.calls.map(([event]) => event)
+        .filter(event => (event as { type: string }).type === type);
+
+    const setup = (dbName: string, rows: SQLiteCompatibleType[][]) => {
+      const rxdb = createRealRxdb(dbName);
+      vi.spyOn(rxdb, 'dispatchEvent');
+      return { rxdb, adapter: new TestAdapter(rxdb, () => createPreImageClient(rows)) };
+    };
+
+    it('deleteByIds 派发 DELETE 事件，inversePatch 是删除前的整行', async () => {
+      const { rxdb, adapter } = setup('sqlite-core-base-qc-notify-delete', [TODO_ROW]);
+
+      await firstValueFrom(adapter.deleteByIds('Todo', ['todo-1']));
+
+      const events = dispatched(rxdb, ENTITY_LOCAL_REMOVE_EVENT);
+      expect(events).toHaveLength(1);
+      expect((events[0] as EntityLocalRemovedEvent).entities).toEqual([
+        {
+          type: 'DELETE',
+          namespace: 'public',
+          entity: 'Todo',
+          id: 'todo-1',
+          patch: null,
+          // 删除前的整行快照：`query_need_refresh_remove` 的门控直接拿它当旧实体用，
+          // 给个空对象等于让所有带 where 的查询判成「与我无关」，删了也不刷新。
+          inversePatch: expect.objectContaining({ id: 'todo-1', title: '旧标题' }),
+          recordAt: expect.any(Date)
+        }
+      ]);
+    });
+
+    // 表里没有的 id 删不掉任何行，触发器也不会开火，事件同样不该有。
+    it('deleteByIds 对表里不存在的 id 不派发', async () => {
+      const { rxdb, adapter } = setup('sqlite-core-base-qc-notify-delete-missing', []);
+
+      await firstValueFrom(adapter.deleteByIds('Todo', ['todo-1']));
+
+      expect(dispatched(rxdb, ENTITY_LOCAL_REMOVE_EVENT)).toHaveLength(0);
+    });
+
+    it('upsertMany 对表里没有的 id 派发 INSERT 事件', async () => {
+      const { rxdb, adapter } = setup('sqlite-core-base-qc-notify-insert', []);
+      const row = { id: 'todo-2', title: '新行', completed: 0, createdAt: ISO_CREATED, updatedAt: ISO_UPDATED };
+
+      await firstValueFrom(adapter.upsertMany('Todo', [row]));
+
+      const events = dispatched(rxdb, ENTITY_LOCAL_CREATE_EVENT);
+      expect(events).toHaveLength(1);
+      expect((events[0] as EntityLocalCreatedEvent).entities).toEqual([
+        { type: 'INSERT', namespace: 'public', entity: 'Todo', id: 'todo-2', patch: row, inversePatch: null, recordAt: expect.any(Date) }
+      ]);
+      expect(dispatched(rxdb, ENTITY_LOCAL_UPDATE_EVENT)).toHaveLength(0);
+    });
+
+    it('upsertMany 对表里已有的 id 派发 UPDATE 事件，inversePatch 是旧值', async () => {
+      const { rxdb, adapter } = setup('sqlite-core-base-qc-notify-update', [TODO_ROW]);
+      const row = { id: 'todo-1', title: '新标题', completed: 0, createdAt: ISO_CREATED, updatedAt: ISO_UPDATED };
+
+      await firstValueFrom(adapter.upsertMany('Todo', [row]));
+
+      const events = dispatched(rxdb, ENTITY_LOCAL_UPDATE_EVENT);
+      expect(events).toHaveLength(1);
+      const [data] = (events[0] as EntityLocalUpdatedEvent).entities;
+      expect(data).toMatchObject({ type: 'UPDATE', namespace: 'public', entity: 'Todo', id: 'todo-1', patch: row });
+      // 旧值来自预读，不是从新行倒推：`need_refresh_update` 用它重建旧实体做门控。
+      expect(data.inversePatch).toMatchObject({ title: '旧标题' });
+      expect(dispatched(rxdb, ENTITY_LOCAL_CREATE_EVENT)).toHaveLength(0);
+    });
+
+    // 传进来的是物理表名（元数据查不到）时没有 namespace/entity 可填，事件无从命名。
+    // 这条路径本就只在调用方直接给物理表名时走到，与实时查询无关。
+    it('元数据查不到时不派发', async () => {
+      const rxdb = createRxdbMock([Todo]);
+      const adapter = new TestAdapter(rxdb, () => createPreImageClient([TODO_ROW]));
+
+      await firstValueFrom(adapter.deleteByIds('todos', ['todo-1']));
+      await firstValueFrom(adapter.upsertMany('todos', [{ id: 'todo-2', updatedAt: ISO_UPDATED }]));
+
+      // 事务自身的 BEGIN/COMMIT 事件照发，被禁的只是实体级通知。
+      expect(dispatched(rxdb, ENTITY_LOCAL_REMOVE_EVENT)).toHaveLength(0);
+      expect(dispatched(rxdb, ENTITY_LOCAL_CREATE_EVENT)).toHaveLength(0);
+      expect(dispatched(rxdb, ENTITY_LOCAL_UPDATE_EVENT)).toHaveLength(0);
     });
   });
 
