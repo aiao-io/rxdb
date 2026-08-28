@@ -3,6 +3,7 @@ import { BehaviorSubject, defer, distinctUntilChanged, filter, map, Observable, 
 import { EntityManager } from './entity/entity-manager.js';
 import { EntityType } from './entity/entity.interface.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
+import { ReachabilityMonitor } from './network/reachability.js';
 import { PluginDependencyScheduler } from './plugin/dependency-scheduler.js';
 import {
   AdapterFactory,
@@ -295,6 +296,21 @@ export class RxDB {
    * 去重后发射：多适配器下每一次单独的连/断都会重算聚合值，但聚合值没变时不该通知订阅者。
    */
   public readonly connected$ = this.#connected_sub.pipe(distinctUntilChanged());
+
+  /**
+   * 远端可达性监视器，与 {@link RxDB.connected$} **并列**而不是合并。
+   *
+   * @remarks
+   * 两者语义不同：`connected$` 是**适配器生命周期**（某个 adapter 的 `connect()` 完成没有），
+   * 而 HTTP 适配器的 `connect()` 不发任何网络请求 —— 断网时它照样报 connected。
+   * 合并会让「适配器已连接但网断了」这个最常见的状态变得不可表达，而那正是
+   * local-first 写入唯一需要区分的状态。
+   *
+   * **生命周期跟随实例而不是连接纪元**：`#shutdown()` 把实例复位成「可重新 `init()`」，
+   * 但网络并不会因为某个适配器断开而重置。在这里 `destroy()` 会让复位后的实例拿到一个
+   * 永远停在旧状态、`report()` 也不再生效的监视器。
+   */
+  public readonly reachability = new ReachabilityMonitor();
 
   public readonly schemaManager!: SchemaManager;
 
