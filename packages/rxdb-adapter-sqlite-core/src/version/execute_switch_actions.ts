@@ -13,7 +13,11 @@ import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { get_sql_value, get_table_name_by_metadata, quote_sql_identifier } from '../sqlite-core.utils.js';
 import { envelopePlaintextPatches } from '../system/encrypt-patch.js';
 import { remove_entity_ids_from_cache, transaction_sqlite_result } from '../transaction_sqlite_result.js';
-import { executeSqliteSelectStatements, executeSqliteStatements, type SqlStatementSink } from './execute-sql-statements.js';
+import {
+  executeSqliteSelectStatements,
+  executeSqliteStatements,
+  type SqlStatementSink
+} from './execute-sql-statements.js';
 import type { SwitchVersionSqlResult } from './switch-result.utils.js';
 import { withTriggersDisabled } from './with_triggers_disabled.js';
 

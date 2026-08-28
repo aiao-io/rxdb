@@ -29,8 +29,8 @@ import type { RxDBChangeRuleGroup } from '../system/types.js';
 import { compactChanges } from '../version/compact-changes.js';
 import type { ConflictResolver } from '../version/conflict.js';
 import { LWWConflictResolver } from '../version/LWWConflictResolver.js';
-import { getSyncType, isRepositorySyncEnabled, SYNC_DISABLED_REASON } from '../version/sync-type-utils.js';
 import { getOrCreateSyncRecord } from '../version/sync-record-utils.js';
+import { getSyncType, isRepositorySyncEnabled, SYNC_DISABLED_REASON } from '../version/sync-type-utils.js';
 import type { SwitchVersionActions, SwitchVersionChange } from '../version/VersionManager.interface.js';
 import type { VersionManager } from '../version/VersionManager.js';
 import { getRxDBChangeKey } from '../version/VersionManager.utils.js';
@@ -235,10 +235,8 @@ async function runOutboxFlush(
   const localAdapter = adapter as unknown as OutboxLocalAdapter;
   const repoSyncRepo = localAdapter.getRepository(RxDBSync);
 
-  const repoSync = await getOrCreateSyncRecord(
-    repoSyncRepo,
-    { namespace, entity, branchId: branch.id, syncType },
-    () => rxdb.entityManager.instantiate(RxDBSync)
+  const repoSync = await getOrCreateSyncRecord(repoSyncRepo, { namespace, entity, branchId: branch.id, syncType }, () =>
+    rxdb.entityManager.instantiate(RxDBSync)
   );
 
   if (!isRepositorySyncEnabled(repoSync)) {

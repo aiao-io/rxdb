@@ -15,8 +15,8 @@ import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import type { ReachabilityMonitor } from '../../network/reachability.js';
-import { QueryCacheSyncMemo } from '../../repository/query-cache-sync-memo.js';
 import { createQueryCachePrimary } from '../../repository/query-cache-primary.js';
+import { QueryCacheSyncMemo } from '../../repository/query-cache-sync-memo.js';
 import { NetworkOfflineError } from '../../RxDBError.js';
 import { detachedReachability } from '../fixtures/reachability.js';
 
