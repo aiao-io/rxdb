@@ -168,9 +168,9 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
       panelPortReceived: { type: string }[];
       inspectedPage: { seen: string[] };
     };
-    // 断言「选中的是 RxDB」而不是「tab 条里原本有 RxDB」：tab 条放不下时扩展面板会被折进
-    // 「更多标签页」溢出菜单（Xvfb 1280 宽 + 英文标签的 CI 就是这样），能否选中才是被测能力，
-    // 一开始可不可见只反映窗口宽度。
+    // 断言「选中的是 RxDB」而不是「tab 条里原本有 RxDB」：激活前的快照有两个失效来源 ——
+    // 面板可能还没 panels.create 登记，也可能因 tab 条放不下被折进「更多标签页」溢出菜单
+    // （Xvfb 1280 宽 + 英文标签的 CI 两者都占）。能否选中才是被测能力，那一刻可不可见不是。
     expect(detail.tabSelection.selected, `途经面板：${detail.tabSelection.visited.join(' | ')}`).toMatch(/rxdb/i);
     // 选中后它必然回到可见 tab 条 —— 守住「面板真挂上了 tab 条」，而不是只在内存里注册过。
     expect(detail.tabs, `DevTools tab 条：${detail.tabs.join(' | ')}`).toContain('RxDB');

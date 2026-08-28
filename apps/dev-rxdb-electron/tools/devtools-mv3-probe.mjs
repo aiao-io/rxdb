@@ -21,13 +21,16 @@
  *
  * 1. **DevTools 必须 dock**：`mode: 'detach'` / `'undocked'` 的 DevTools 窗口不注册任何扩展
  *    面板（Lighthouse、Recorder 也一并消失），等多久都不出现。只有 `mode: 'bottom'` 会注册。
- * 2. **不能靠在 tab 条里找 RxDB**：tab 条放不下时，DevTools 会把尾部的 tab 折进「更多标签页」
- *    溢出菜单，而扩展面板永远排在最后 —— 于是 `.tabbed-pane-header-tab` 里根本没有 RxDB。
- *    这不是假设：CI（Xvfb 1280 宽 + 英文标签，标签比中文宽）就是这样红的，`tabs` 停在
- *    `Recorder`，`Elements` 侧边栏的最后一个 `Event Listeners` 也一并消失 —— 两条互不相干的
- *    tab 条同时丢掉尾项，正是溢出折叠的签名。而那个溢出菜单在 Electron 下是**原生菜单**
+ * 2. **不能靠在 tab 条 DOM 里找 RxDB 再点它**：这条快照有两个独立的失效来源，都实测过。
+ *    其一是**时序**：`devtools.html` 帧已加载 ≠ `panels.create` 已登记，本地 1500 宽的窗口
+ *    （宽到足以显示 11 个 tab）拍到的 `tabsBeforeActivation` 里照样没有 RxDB。
+ *    其二是**溢出折叠**：tab 条放不下时 DevTools 把尾部 tab 折进「更多标签页」菜单，而扩展
+ *    面板永远排在最后。CI（Xvfb 1280 宽 + 英文标签，比中文宽）就带着这个特征红：`tabs` 停在
+ *    `Recorder`，连 `Elements` 侧边栏的尾项 `Event Listeners` 也一起消失 —— 两条互不相干的
+ *    tab 条同时丢掉尾项，只可能是溢出。而那个溢出菜单在 Electron 下是**原生菜单**
  *    （DevTools 的 ContextMenu 走 `showContextMenuAtPoint`），DOM 里查不到、脚本点不到。
- *    所以选中面板改用 DevTools 自己的「下一个面板」快捷键循环，见 `selectRxdbTab()`。
+ *    所以选中面板改用 DevTools 自己的「下一个面板」快捷键循环：它遍历完整 tab 数组而非可见
+ *    子集（治溢出），且逐次轮询直到选中 RxDB（治时序）。见 `selectRxdbTab()`。
  * 3. **面板页惰性实例化**：`chrome.devtools.panels.create` 只登记 tab，`panel.html` 要等 tab
  *    被选中才加载 —— 所以「注册成功」和「面板真的跑起来」是两件事，本探针两件都验。
  * 4. **`window-all-closed` 默认退出应用**：AC#4c 销毁窗口后主进程会先于记录结果退出，
@@ -196,9 +199,10 @@ const NEXT_PANEL_MODIFIER = process.platform === 'darwin' ? 'meta' : 'control';
  * 循环切换面板，直到选中的 tab 是 RxDB —— 面板页只有被选中才实例化。
  *
  * @remarks
- * 走 `sendInputEvent` 而不是在 tab 条里合成指针事件，理由见文件头坑 2：tab 条溢出时
- * RxDB 压根不在 DOM 里。「下一个面板」遍历的是 `TabbedPane` 的完整 tab 数组而非可见子集，
- * 所以被折进溢出菜单的 tab 照样能选中（选中后它会被挪回可见区）。
+ * 走 `sendInputEvent` 而不是在 tab 条里合成指针事件，理由见文件头坑 2：RxDB 可能还没登记，
+ * 也可能已被折进溢出菜单，两种情况下 DOM 里都找不到它。「下一个面板」遍历的是 `TabbedPane`
+ * 的完整 tab 数组而非可见子集，所以折进溢出菜单的 tab 照样能选中（选中后会被挪回可见区）；
+ * 循环本身又是轮询，登记晚一点也等得到。
  *
  * `sendInputEvent` 发的是经浏览器进程分发的真实输入事件，与用户按键无法区分；
  * 收敛条件仍是「选中的 tab 标题是 RxDB」，一次都没选中就返回 `selected: null` 让门禁红。

@@ -65,9 +65,15 @@ const BRANCH = 'main';
 
 let nextChangeId = 1;
 
-/** 造一条触发器会写出来的 `rxdb_change` 行 */
+/**
+ * 造一条触发器会写出来的 `rxdb_change` 行。
+ *
+ * @remarks
+ * 用字面量而不是 `new RxDBChange()`：装饰器给实体构造函数装了「必须先有 EntityManager」
+ * 的门禁（`entity.decorator.ts` 的 `need init rxdb`），而本文件测的是纯函数，不起库。
+ */
 const change = (over: Partial<RxDBChange> & Pick<RxDBChange, 'type' | 'entityId'>): RxDBChange =>
-  Object.assign(new RxDBChange(), {
+  ({
     id: nextChangeId++,
     namespace: NAMESPACE,
     entity: 'CachedRecipe',
@@ -79,7 +85,7 @@ const change = (over: Partial<RxDBChange> & Pick<RxDBChange, 'type' | 'entityId'
     createdAt: new Date('2026-03-01T10:00:00Z'),
     updatedAt: new Date('2026-03-01T10:00:00Z'),
     ...over
-  });
+  }) as RxDBChange;
 
 interface SetupOptions {
   changes?: RxDBChange[];
@@ -106,7 +112,7 @@ const setup = (options: SetupOptions = {}) => {
 
   const syncRow =
     options.sync ?
-      Object.assign(new RxDBSync(), {
+      ({
         id: `${NAMESPACE}:CachedRecipe:${BRANCH}`,
         namespace: NAMESPACE,
         entity: 'CachedRecipe',
@@ -115,7 +121,7 @@ const setup = (options: SetupOptions = {}) => {
         lastPushedChangeId: null,
         enabled: true,
         ...options.sync
-      })
+      } as RxDBSync)
     : undefined;
 
   const syncRepo = {
@@ -144,7 +150,7 @@ const setup = (options: SetupOptions = {}) => {
   const vm = {
     rxdb: {
       config: { entities: [options.entityType ?? CachedRecipe], sync: undefined },
-      entityManager: { instantiate: () => new RxDBSync() },
+      entityManager: { instantiate: () => ({ enabled: true }) as RxDBSync },
       reachability
     },
     getCurrentBranch: vi.fn(async () => ({ id: BRANCH })),
