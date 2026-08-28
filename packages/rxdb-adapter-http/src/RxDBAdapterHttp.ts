@@ -12,6 +12,8 @@
 import {
   getEntityMetadata,
   getSyncConfig,
+  getSyncType,
+  isSystemEntity,
   PropertyType,
   RxDBAdapterRemoteBase,
   type EntityMetadata,
@@ -548,16 +550,47 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
   #subscribedEntities(): readonly ChangeFeedEntity[] {
     const entities: ChangeFeedEntity[] = [];
     const seen = new Set<string>();
-    for (const EntityType of this.rxdb.config.entities) {
-      const metadata = getEntityMetadata(EntityType);
+    for (const EntityClass of this.rxdb.config.entities) {
+      const metadata = getEntityMetadata(EntityClass);
       const key = entityKey(metadata.name, metadata.namespace);
-      if (seen.has(key) || getSyncConfig(metadata, this.rxdb.config.sync)?.remote?.adapter !== ADAPTER_NAME) {
+      if (seen.has(key) || !this.#isSubscribed(EntityClass, metadata)) {
         continue;
       }
       seen.add(key);
       entities.push({ name: metadata.name, namespace: metadata.namespace });
     }
     return entities;
+  }
+
+  /**
+   * 单个实体是否由本适配器充当远端权威。
+   *
+   * @param EntityClass - 实体类，用来判系统表
+   * @param metadata - 该实体的元数据
+   *
+   * @remarks
+   * 三个条件缺一不可，前两个各自堵住一种「跟着库级配置被顺带算进来」的实体：
+   *
+   * - **不是系统表**：`SchemaManager.init()` 往 `config.entities` 里补的四张表不带自己的
+   *   `sync`，于是一律跟随库级配置。库级写 `type: QueryCache` 时它们会被判成 querycache，
+   *   连后两个条件都拦不住——但它们是纯本地簿记，远端根本没有对应的资源。
+   * - **确实是 QueryCache**：v1 只服务这一种同步类型（其余入口一律抛
+   *   {@link HttpUnsupportedOperationError}）。库级 `type: None` + 两端俱全时，跟随全局的
+   *   实体会被判成 `full`，那种实体的行不经本适配器，失效它没有任何查询在等。
+   * - **remote 槽位指向本适配器**：同一个库里可以挂多个远端。
+   *
+   * 放任任何一类混进来的后果不是崩，是每次连接把 D7 的上报量放大若干倍，
+   * 而多出来的每一次都无人认领——面板上的「触发重跑」计数会跟着一起说谎。
+   */
+  #isSubscribed(EntityClass: EntityType, metadata: EntityMetadata): boolean {
+    if (isSystemEntity(EntityClass)) {
+      return false;
+    }
+    const globalSync = this.rxdb.config.sync;
+    return (
+      getSyncType(metadata, globalSync) === 'querycache' &&
+      getSyncConfig(metadata, globalSync)?.remote?.adapter === ADAPTER_NAME
+    );
   }
 
   /**

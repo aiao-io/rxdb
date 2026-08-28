@@ -1,5 +1,6 @@
 import { combineLatest, merge, type Observable, Subscription } from 'rxjs';
 import { distinctUntilChanged, exhaustMap, filter, map, withLatestFrom } from 'rxjs/operators';
+import type { EntityType } from '../entity/entity.interface.js';
 import { countQueryCacheOutbox, flushQueryCacheOutbox } from '../repository/query-cache-outbox.js';
 import {
   ENTITY_REMOTE_CREATE_EVENT,
@@ -11,6 +12,7 @@ import {
 } from '../rxdb-events.js';
 import { getEntityMetadata, isAdapterShutdownError } from '../rxdb-utils.js';
 import type { SyncStateHub } from '../sync-state.js';
+import { isSystemEntity } from '../system/system-entities.js';
 import type { HistoryManager } from './HistoryManager.js';
 import { getSyncCapability, getSyncType, needsPush } from './sync-type-utils.js';
 import type { RepositoryIdentifier } from './VersionManager.interface.js';
@@ -72,6 +74,23 @@ async function runQuietly(syncState: SyncStateHub, task: () => Promise<unknown>)
 }
 
 /**
+ * 接入方声明的实体，即摘掉系统表之后的 `config.entities`
+ *
+ * @remarks
+ * 回推的两条分派路径问的都是「**用户的**数据该往哪走」，而 `config.entities` 里还混着
+ * {@link SchemaManager.init} 补进来的四张系统表。它们不带自己的 `sync`，于是跟随库级配置 ——
+ * 库级两端俱全时 {@link getSyncType} 会把它们判成 `full`，四张本地簿记表就这么变成了
+ * 「需要 changelog 回推的仓库」。
+ *
+ * 这不是假想：QueryCache **强制**库级两端都配（`missingQueryCacheAdapter` 元数据违规），
+ * 所以纯 QueryCache 的库必然踩中，而那种库的远端恰恰没有 changelog 端点。
+ * 系统表自己的同步由 {@link VersionManager} 直接安排，从不经过这两条分派。
+ */
+function consumerEntities(vm: VersionManager): EntityType[] {
+  return vm.rxdb.config.entities.filter(EntityClass => !isSystemEntity(EntityClass));
+}
+
+/**
  * 枚举需要走 REST 重放的仓库
  *
  * @remarks
@@ -86,7 +105,7 @@ async function runQuietly(syncState: SyncStateHub, task: () => Promise<unknown>)
 function queryCacheRepositories(vm: VersionManager): RepositoryIdentifier[] {
   const repositories: RepositoryIdentifier[] = [];
 
-  for (const EntityClass of vm.rxdb.config.entities) {
+  for (const EntityClass of consumerEntities(vm)) {
     const metadata = getEntityMetadata(EntityClass);
     const capability = getSyncCapability(getSyncType(metadata, vm.rxdb.config.sync));
     if (capability.offlineWrite && !capability.push) {
@@ -101,14 +120,15 @@ function queryCacheRepositories(vm: VersionManager): RepositoryIdentifier[] {
  * 库里有没有任何一个走 changelog 的仓库
  *
  * @remarks
- * 判据与 {@link queryCacheRepositories} 互补，用的是同一个能力矩阵。
+ * 判据与 {@link queryCacheRepositories} 互补，用的是同一个能力矩阵，也同样只数
+ * {@link consumerEntities}。
  *
  * 一条都没有，就意味着这个库的远端根本没有 changelog 端点（纯 QueryCache 的配置，
  * HTTP demo 即是）。此时 {@link VersionManager.syncBranches} 与
  * {@link VersionManager.push} 一进门就撞 `getRemoteRepositories()`，必抛。
  */
 function hasChangelogRepositories(vm: VersionManager): boolean {
-  return vm.rxdb.config.entities.some(EntityClass => needsPush(getEntityMetadata(EntityClass), vm.rxdb.config.sync));
+  return consumerEntities(vm).some(EntityClass => needsPush(getEntityMetadata(EntityClass), vm.rxdb.config.sync));
 }
 
 /**

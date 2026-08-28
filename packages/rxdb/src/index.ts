@@ -81,6 +81,7 @@ export {
 export * from './system/change.js';
 export * from './system/migration.js';
 export * from './system/sync.js';
+export * from './system/system-entities.js';
 export * from './system/system.interface.js';
 export * from './system/types.js';
 export * from './transaction/transaction-executor.interface.js';

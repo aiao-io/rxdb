@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
-import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
+import { PropertyType, type SyncOptions, SyncType } from '../../entity/metadata-options.interface.js';
 import type { ReachabilityMonitor } from '../../network/reachability.js';
 import {
   countQueryCacheOutbox,
@@ -20,6 +20,10 @@ import {
   type RxDBEntityRemoteCreatedEventData
 } from '../../rxdb-events.js';
 import { SyncStateHub } from '../../sync-state.js';
+import { RxDBBranch } from '../../system/branch.js';
+import { RxDBChange } from '../../system/change.js';
+import { RxDBMigration } from '../../system/migration.js';
+import { RxDBSync } from '../../system/sync.js';
 import type { HistoryManager } from '../../version/HistoryManager.js';
 import { isIgnorableDetachedVersionEventError, setupVersionSyncListeners } from '../../version/sync-listeners.js';
 import type { VersionManager } from '../../version/VersionManager.js';
@@ -94,6 +98,22 @@ class LocalDraft extends EntityBase {
   title!: string;
 }
 
+/**
+ * 不写 `sync` 的业务实体：完全跟随库级配置
+ *
+ * @remarks
+ * 与系统表的**唯一**区别就是它不在系统表清单里。修复若误伤这一支，
+ * 「实体不写 sync、跟随全局」这条语义就没了。
+ */
+@Entity({
+  name: 'InheritedTodo',
+  properties: [{ name: 'title', type: PropertyType.string }]
+})
+class InheritedTodo extends EntityBase {
+  static [ENTITY_STATIC_TYPES]: { idType: string };
+  title!: string;
+}
+
 type RemoteEventType =
   typeof ENTITY_REMOTE_CREATE_EVENT | typeof ENTITY_REMOTE_UPDATE_EVENT | typeof ENTITY_REMOTE_REMOVE_EVENT;
 type RemoteEntityEvent = EntityRemoteCreatedEvent | EntityRemoteUpdatedEvent | EntityRemoteRemovedEvent;
@@ -111,6 +131,8 @@ type HarnessOptions = {
   hasRemoteAdapter?: boolean;
   push?: Push;
   reachability?: ReachabilityMonitor;
+  /** 库级 `sync`；不传时只配一个远端适配器名，实体各自带着自己的 `sync` */
+  sync?: SyncOptions;
   syncBranches?: SyncBranches;
 };
 
@@ -216,9 +238,7 @@ const createHarness = (options: HarnessOptions = {}): SyncListenerHarness => {
         { entities }
       : {
           entities,
-          sync: {
-            remote: { adapter: 'remote' }
-          }
+          sync: options.sync ?? { remote: { adapter: 'remote' } }
         },
     connected$: connected$.asObservable(),
     reachability,
@@ -467,6 +487,46 @@ describe('setupVersionSyncListeners 联网回推', () => {
     expect(harness.push).not.toHaveBeenCalled();
     expect(flushedEntities()).toEqual(['CachedRecipe']);
     expect(harness.syncState.snapshot.lastError).toBeNull();
+  });
+
+  // 上一条用例给的 `entities` 是手写清单，而真实的库里 `SchemaManager.init()` 还会补进
+  // 四张系统表。它们不带自己的 `sync`，于是继承库级配置 —— 而 QueryCache 恰恰**强制**
+  // 库级两端都配（`missingQueryCacheAdapter` 元数据违规），`getSyncType` 的
+  // 「继承 + 两端俱全 ⇒ full」那一支就把它们判成了 changelog 仓库。
+  // 结果是纯 QueryCache 的库照样去跑 syncBranches / push，每轮必败，面板常亮。
+  it('库级 sync 两端俱全时，注入的系统实体不算 changelog 仓库', async () => {
+    const unsupported = new Error('HTTP adapter does not support "getRepository"');
+    const harness = createHarness({
+      connected: true,
+      entities: [CachedRecipe, RxDBBranch, RxDBChange, RxDBMigration, RxDBSync],
+      sync: { type: SyncType.None, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } },
+      syncBranches: () => Promise.reject(unsupported),
+      push: () => Promise.reject(unsupported)
+    });
+
+    await settleDetachedTasks();
+
+    expect(harness.syncBranches).not.toHaveBeenCalled();
+    expect(harness.push).not.toHaveBeenCalled();
+    expect(flushedEntities()).toEqual(['CachedRecipe']);
+    // 病灶的可见症状：这一轮本该全绿（REST 重放成功了），却因为系统表带出来的必败
+    // 两步而永远清不掉 lastError
+    expect(harness.syncState.snapshot.lastError).toBeNull();
+  });
+
+  // 反面：真有业务实体靠继承库级 sync 拿到 full 时，changelog 那半边照跑不误。
+  // 修复只该摘掉系统表，不该把「实体不写 sync、跟随全局」这条语义一起废掉。
+  it('继承库级 sync 的业务实体仍然走 changelog 回推', async () => {
+    const harness = createHarness({
+      connected: true,
+      entities: [InheritedTodo, RxDBBranch, RxDBChange, RxDBMigration, RxDBSync],
+      sync: { type: SyncType.None, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } }
+    });
+
+    await settleDetachedTasks();
+
+    expect(harness.syncBranches).toHaveBeenCalledTimes(1);
+    expect(harness.push).toHaveBeenCalledTimes(1);
   });
 
   it('没有远程适配器时既不 push 也不 flush', async () => {

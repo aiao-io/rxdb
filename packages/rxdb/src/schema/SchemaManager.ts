@@ -15,9 +15,7 @@ import { getEntityMetadata } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
 import { RxDBError } from '../RxDBError.js';
 import { RxDBBranch } from '../system/branch.js';
-import { RxDBChange } from '../system/change.js';
-import { RxDBMigration } from '../system/migration.js';
-import { RxDBSync } from '../system/sync.js';
+import { SYSTEM_ENTITIES } from '../system/system-entities.js';
 
 /**
  * 获取实体缓存 key
@@ -60,7 +58,7 @@ export class SchemaManager {
   init() {
     const { entities } = this.rxdb.config;
     if (!entities.includes(RxDBBranch)) {
-      entities.push(RxDBBranch, RxDBChange, RxDBMigration, RxDBSync);
+      entities.push(...SYSTEM_ENTITIES);
     }
     // 计算缓存所有实体定义
     new Set(entities).forEach(entity => {

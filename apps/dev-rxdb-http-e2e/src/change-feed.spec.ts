@@ -14,12 +14,15 @@
  *   症状，冻成对照用例，是为了让「关掉之后什么都不会发生」有据可查。
  * - 默认开着、页内把开关点掉：同一个页面、同一次会话里两种行为都走一遍，
  *   证明那个开关是真的运行时开关，不是伪装成开关的 `location.reload()`。
+ *
+ * 另有一条只看**一个**页面的用例，守的是接通那一刻的开销上限（D7），
+ * 见「接通一次，重跑次数正好等于已注册的远端实体数」。
  */
 
 import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test';
 
 import { API_BASE_URL } from './env';
-import { openDemo, resetDemo } from './support';
+import { DEFAULT_PAGE_SIZE, expectRowCount, openDemo, readRowIds, resetDemo, SEED_ROW_COUNT } from './support';
 
 /** 筛选用的标题标记。种子标题里不会出现，因此筛出来只有本用例自己造的那一行。 */
 const MARKER = 'US023-FEED';
@@ -29,6 +32,22 @@ const CONVERGE_TIMEOUT_MS = 2000;
 
 /** 对照用例里「等够久」的静默窗口，取收敛窗口的一倍多一点。 */
 const SILENCE_WINDOW_MS = 2500;
+
+/**
+ * 这个 demo 注册了几个**远端**实体。
+ *
+ * @remarks
+ * 只有一个：`Recipe`（`setup_rxdb_http.ts` 的 `entities: [Recipe]`）。
+ *
+ * 这个数字**不等于** `rxdb.config.entities.length`：`SchemaManager.init()` 还会往里补四张
+ * 系统表（`RxDBBranch` / `RxDBChange` / `RxDBMigration` / `RxDBSync`）。它们不带自己的
+ * `sync`，因此跟随库级配置——而 QueryCache 强制库级两端都配，`remote.adapter` 于是
+ * 也是 `http`。适配器若只按「远端适配器名对得上」来挑订阅实体，这四张簿记表会一起被订上，
+ * 接通一次就变成五轮全量失效、五次 `/metadata`，其中四次问的是后端压根没有的表。
+ *
+ * 所以这条判据必须写成**等于**。写成 `toBeGreaterThan(0)` 的话，1 和 5 一样绿。
+ */
+const REMOTE_ENTITY_COUNT = 1;
 
 /** 造一行带标记的数据。走后端 API 而不是页面，起点与两个页面都无关。 */
 const seedMarkedRow = async (request: APIRequestContext, title: string): Promise<void> => {
@@ -81,6 +100,43 @@ test.beforeEach(async ({ request }) => {
   await resetDemo(request);
 });
 
+test('接通一次，重跑次数正好等于已注册的远端实体数——系统表不在内（D7）', async ({ page }) => {
+  await openDemo(page);
+  await expect(page.getByTestId('feed-status')).toHaveText('已接通');
+  await expectRowCount(page, SEED_ROW_COUNT);
+
+  /*
+   * 量的是**重新**接通那一次，不是首屏那一次。
+   *
+   * 面板的计数器挂在组件的 `ngOnInit` 里，而适配器是在 `app.config.ts` 的 `connect()`
+   * 里连上的——首屏那一轮 D7 派发排在监听器注册之前，面板上无论对错都是 0。
+   * 翻一次开关，就把同一轮 D7 挪到了监听器之后。
+   *
+   * 这个页面全程没有任何写入，因此这段窗口里除了「重新接通」再没有第二个失效来源，
+   * 差值就是接通本身的开销。
+   */
+  await page.getByTestId('feed-toggle').uncheck();
+  await expect(page.getByTestId('feed-status')).toHaveText('已断开');
+  const invalidationsBefore = await counter(page, 'feed-invalidations');
+
+  await page.getByTestId('feed-toggle').check();
+  await expect(page.getByTestId('feed-status')).toHaveText('已接通');
+
+  // 与 AC#23 同一条理由：要断言的是「不会再多」，而 `expect` 家族全都是「等到发生为止」。
+  // 少了这段静默窗口，读数可能只截到五轮里的第一轮，于是回归发生的那天这条也照样绿。
+  // eslint-disable-next-line playwright/no-wait-for-timeout -- 断言的是「一段时间内不再增加」
+  await page.waitForTimeout(SILENCE_WINDOW_MS);
+
+  const delta = (await counter(page, 'feed-invalidations')) - invalidationsBefore;
+  expect(delta, '接通一次 = 每个已注册远端实体各失效一次').toBe(REMOTE_ENTITY_COUNT);
+  expect(await counter(page, 'feed-received'), '全程没有任何写入，一条通知都不该收到').toBe(0);
+
+  // 这一句守的是另一半：纯 QueryCache 的库没有 changelog 端点，回推链一步都不该跑。
+  // 跑了就必抛「HTTP adapter does not support "getRepository"」，而那一抛会让
+  // `reportSuccess()` 永远轮不到，横幅从此常亮——一个既在报错、又确实同步着的库。
+  await expect(page.getByTestId('sync-error'), '回推链不该在这个配置下跑起来').toHaveCount(0);
+});
+
 test('两个页面都用默认设置：A 改一条，B 不做任何交互也在 2 秒内变过来（AC#22）', async ({ browser, request }) => {
   const before = `${MARKER} 原始`;
   const after = `${MARKER} 改过`;
@@ -100,6 +156,28 @@ test('两个页面都用默认设置：A 改一条，B 不做任何交互也在 
 
   await pageA.context().close();
   await pageB.context().close();
+});
+
+test('别人新建的行落在当前页之外：这一页一字未变，但总行数自己长上去', async ({ page, request }) => {
+  await openDemo(page);
+  await expectRowCount(page, SEED_ROW_COUNT);
+  const firstPage = await readRowIds(page);
+  expect(firstPage, '前提：停在第 1 页，满页').toHaveLength(DEFAULT_PAGE_SIZE);
+
+  // 列表按 `updatedAt, id` 升序（前后端同序），新建的行 `updatedAt` 最大，必然落到末页。
+  await seedMarkedRow(request, `${MARKER} 页外新增`);
+
+  // 不做任何交互：总数自己从 250 变成 251。
+  await expectRowCount(page, SEED_ROW_COUNT + 1);
+
+  /*
+   * 而这一页的 50 行**逐字未变**——正是这一点让行流的结果指纹去重（`QueryTask.#next`）
+   * 把发射整个吞掉。所以「只靠 `recipes.value()` 触发重数」的写法在这里一次都不会被叫醒，
+   * 总数会永远停在 250：库同步得好好的，屏幕上却少一行。
+   *
+   * 这条断言与上一条是一对，缺了它，「总数变了」可以是靠这一页恰好也变了蒙对的。
+   */
+  expect(await readRowIds(page), '新行在末页，本页不该有任何变化').toEqual(firstPage);
 });
 
 test('两个页面都带 ?changefeed=0：同样的操作，B 一直是旧值（AC#23）', async ({ browser, request }) => {

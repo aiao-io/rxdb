@@ -4,6 +4,7 @@ import {
   isNetworkError,
   PropertyType,
   RxDB,
+  SYSTEM_ENTITIES,
   SyncType,
   type EntityType,
   type RuleGroup,
@@ -56,6 +57,18 @@ class FeedTag extends EntityBase {
 @Entity({ name: 'FeedLocalNote', sync: LOCAL_ONLY, properties: [{ name: 'text', type: PropertyType.string }] })
 class FeedLocalNote extends EntityBase {
   declare text: string;
+}
+
+/** 不写 `sync`、跟随库级 `type: None` + 两端俱全 ⇒ `getSyncType` 判成 `full`，本适配器不服务它 */
+@Entity({ name: 'InheritedFull', properties: [{ name: 'title', type: PropertyType.string }] })
+class InheritedFull extends EntityBase {
+  declare title: string;
+}
+
+/** 库级为 `None` 时，QueryCache 挂在实体上——这是 dev-rxdb-http demo 的形状 */
+@Entity({ name: 'EntityLevelCache', sync: HTTP_REMOTE, properties: [{ name: 'title', type: PropertyType.string }] })
+class EntityLevelCache extends EntityBase {
+  declare title: string;
 }
 
 /**
@@ -158,7 +171,8 @@ const createAdapter = (
 
 /** 开着通知通道的适配器，并把失效上报口换成 spy */
 const createConnectedFeed = async (
-  options: Partial<HttpAdapterOptions['changeFeed']> = {}
+  options: Partial<HttpAdapterOptions['changeFeed']> = {},
+  rxdb: RxDB = createRxdb()
 ): Promise<{
   adapter: RxDBAdapterHttp;
   rxdb: RxDB;
@@ -168,14 +182,17 @@ const createConnectedFeed = async (
 }> => {
   const reports: HttpChangeFeedUnavailableReport[] = [];
   const notifications: HttpChangeFeedNotificationReport[] = [];
-  const { adapter, rxdb } = createAdapter({
-    changeFeed: {
-      url: 'changes',
-      onUnavailable: report => reports.push(report),
-      onNotification: report => notifications.push(report),
-      ...options
-    }
-  });
+  const { adapter } = createAdapter(
+    {
+      changeFeed: {
+        url: 'changes',
+        onUnavailable: report => reports.push(report),
+        onNotification: report => notifications.push(report),
+        ...options
+      }
+    },
+    rxdb
+  );
   const invalidate = vi.fn();
   vi.spyOn(rxdb, 'invalidateRemoteEntity').mockImplementation(invalidate);
   await adapter.connect();
@@ -478,6 +495,36 @@ describe('连接成功即全量失效（AC#16 / D7）', () => {
   it('连接建立之前不上报——open 才是「拿得到后续变更」的那一刻', async () => {
     const { invalidate } = await createConnectedFeed();
     expect(invalidate).not.toHaveBeenCalled();
+  });
+
+  // `SchemaManager.init()` 会往 `config.entities` 里补四张系统表，而它们不带自己的
+  // `sync`，于是跟随库级配置——库级正是 QueryCache + http remote，四张表就这么
+  // 一起被算成了「已订阅实体」。后果不是崩，是每次连接把 D7 放大到五倍，
+  // 而多出来的四次上报没有任何查询在等它们。
+  it('SchemaManager 注入的系统表不在内', async () => {
+    const rxdb = createRxdb([FeedRecipe, FeedTag, FeedLocalNote, ...SYSTEM_ENTITIES]);
+    const { invalidate } = await createConnectedFeed({}, rxdb);
+    invalidate.mockClear();
+    lastSource().open();
+    expect(invalidate.mock.calls).toEqual([
+      ['FeedRecipe', 'public'],
+      ['FeedTag', 'public']
+    ]);
+  });
+
+  // 另一种同样常见的库级写法：`type: None` + 两端俱全，QueryCache 挂在实体上
+  // （dev-rxdb-http demo 就是这个形状）。此时系统表继承出来的是 `full`，
+  // 而本适配器压根不实现 changelog 那条路——被它服务的只有 QueryCache 实体。
+  it('库级 type 为 None 时，跟随全局的实体判成 full，同样不在内', async () => {
+    const rxdb = new RxDB({
+      dbName: 'rxdb-adapter-http-change-feed-spec-none',
+      entities: [InheritedFull, EntityLevelCache, ...SYSTEM_ENTITIES],
+      sync: { type: SyncType.None, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } }
+    });
+    const { invalidate } = await createConnectedFeed({}, rxdb);
+    invalidate.mockClear();
+    lastSource().open();
+    expect(invalidate.mock.calls).toEqual([['EntityLevelCache', 'public']]);
   });
 });
 

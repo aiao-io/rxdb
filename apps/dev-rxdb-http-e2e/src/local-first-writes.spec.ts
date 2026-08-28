@@ -71,6 +71,9 @@ test('离线新建：本地当场可见、状态如实报离线待推，联网�
   await expectRowCount(page, SEED_ROW_COUNT);
   await expect(page.getByTestId('sync-online')).toHaveText('在线');
   await expect(page.getByTestId('sync-pending')).toHaveText('0');
+  // 一切正常时横幅不该在场。这条落在 250 行灌完之后而不是刚打开时：回推链是
+  // 「连上且可达」就跑的，比首屏同步早得多，此刻它早已跑过一轮（或按配置一步都没跑）。
+  await expect(page.getByTestId('sync-error'), '什么都还没做，不该有回推失败').toHaveCount(0);
 
   await setOffline(request, true);
 
@@ -93,6 +96,11 @@ test('离线新建：本地当场可见、状态如实报离线待推，联网�
   // 3) 不点任何按钮：退避节拍自己会重试，回推成功后待推归零、状态翻回在线。
   await expect(page.getByTestId('sync-pending')).toHaveText('0', { timeout: 90_000 });
   await expect(page.getByTestId('sync-online')).toHaveText('在线', { timeout: 30_000 });
+  // 离线那几轮重试是**会**把错报上横幅的（`runQuietly` → `reportError`），所以这里断言的
+  // 不是「从没错过」，而是「推成功之后销账了」——只有整轮全程无失败才轮得到
+  // `reportSuccess()` 把 `lastError` 清回 null。这一格常亮，说明有某一步在永久地失败，
+  // 哪怕待推计数已经归零。
+  await expect(page.getByTestId('sync-error'), '推成功了就该销账').toHaveCount(0, { timeout: 30_000 });
 
   // 判据落在后端自己的库上：同一个 id，同样的内容。
   const persisted = await fetchRowsByIds(request, [rowId]);

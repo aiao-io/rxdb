@@ -88,6 +88,26 @@ export class App implements OnInit {
   #httpAdapter: RxDBAdapterHttp | undefined;
 
   /**
+   * 列表查询完成过几轮 QueryCache 增量同步。
+   *
+   * @remarks
+   * 只是给 {@link $cachedTotal} 的 effect 当触发器，值本身没有意义。
+   * （位置贴着上面几个 `#` 字段，是 `member-ordering` 的要求，不是分组意图。）
+   *
+   * 为什么不能只靠 `recipes.value()`：行流带**结果指纹去重**
+   * （`QueryTask.#next`，指纹没变就不发射）。别人改的那一行落在当前页之外时——
+   * 250 行里新增第 251 行，而本页显示的是第 1～50 行——同步确实发生了、行也确实
+   * 写进了本地缓存，但这一页的 50 行逐字未变，行流一声不响，总数就永远停在旧值。
+   * 本地写之所以没暴露这个洞，是因为 `create()` 会顺手跳到末页，`$page` 一变
+   * 就换了个任务，必定发射。别人的写没有这一跳。
+   *
+   * `onSyncStats` 是核心里唯一「同步真的落地了」的回调，且**排在**孤儿清理与
+   * `findByIds` 回填之后（`QueryCacheRepository.#reconcile`），此刻去数本地就是准的。
+   * 它不进任务缓存键（函数没有可靠的值身份），所以塞进 options 不会影响任务复用。
+   */
+  readonly #syncRounds = signal(0);
+
+  /**
    * 三个页签按钮。方向键换了页签之后，焦点得跟过去。
    *
    * @remarks
@@ -155,9 +175,10 @@ export class App implements OnInit {
    *
    * - 远端 `count()` 是 `fetchMetadata(where).length`，每翻一页多发一个请求，
    *   且 `CountOptions` 上没有 `offlineFallback`——离线时它直接失败，页码跟着一起没。
-   * - 再开一个不分页的 `useFind` 更糟：`find()` 的并发去重键是
-   *   `{where, localCacheFirst, offlineFallback}`，**不含 `limit`/`offset`**，
-   *   两个查询会撞进同一条行流，分页那个会拿到不分页那个的 250 行。
+   * - 再开一个不分页的 `useFind` 是另一条真的会跑起来、但代价明显更高的路：
+   *   任务缓存键是整个 options 的确定性序列化（含 `limit`/`offset`），两个查询各起一个
+   *   任务不会串味；但 QueryCache 的同步粒度是整个 `where`，多一个任务就多一轮
+   *   `fetchMetadata`，还要把 250 行整个物化进内存，只为读一个 `length`。
    *
    * 本地计数与列表读的是同一张表、同一棵 `where`（`find_sql` 与 `count_sql` 只差分页与排序），
    * 所以它就是「不分页时列表会有多少行」——与从前 `recipes.value().length` 的语义逐字一致，
@@ -193,7 +214,8 @@ export class App implements OnInit {
     ],
     limit: this.$pageSize(),
     offset: this.$page() * this.$pageSize(),
-    offlineFallback: true
+    offlineFallback: true,
+    onSyncStats: () => this.#syncRounds.update(rounds => rounds + 1)
   }));
 
   // ---- 写入表单 -------------------------------------------------------------
@@ -320,20 +342,28 @@ export class App implements OnInit {
 
   constructor() {
     /*
-     * 总行数的刷新。依赖是**故意**只取这两个的：
+     * 总行数的刷新。依赖是**故意**只取这三个的：
      *
      * - `$appliedFilter`：换了 `where` 当然要重数；
-     * - `recipes.value()`：行流一动，就说明本地缓存刚被同步或写入改过。
+     * - `recipes.value()`：行流一动，就说明本地缓存刚被同步或写入改过；
+     * - `#syncRounds`：行流**没**动但同步确实跑过的那一类——别人改的行落在当前页
+     *   之外时，本页 50 行逐字未变，结果指纹去重会把发射整个吞掉（见 `#syncRounds`）。
+     *
+     * 两个触发器不是二选一：本地写在离线时不产生同步（没有 `onSyncStats`），
+     * 只有行流看得见；远端写在页外时只有同步轮次看得见。
      *
      * 翻页本身不在依赖里——`limit`/`offset` 不改总数，而 `$page` 又由总数派生，
      * 读进来就成了环。同理，`$cachedTotal` 绝不能出现在 `useFind` 的 options 工厂里；
      * 环最终断在 `$page` 这个 number computed 上：值不变就不通知下游。
+     * `#syncRounds` 不构成新的环：这个 effect 只读它，而写它的是同步回调，
+     * 而 `#refreshTotal` 走的是本地适配器的 `count()`，一次同步都不会发起。
      *
      * `await` 之后的读不会被追踪，所以 `where` 必须在这里同步取好再传进去。
      */
     effect(() => {
       const where = buildFilterRules(this.$appliedFilter());
       this.recipes.value();
+      this.#syncRounds();
       // 不接 catch：本地计数失败意味着行缓存本身出了问题，这时候安静地把页码显示成 0
       // 比报错更坏——那会让一个坏掉的库看起来像一张空表。
       void this.#refreshTotal(where);
