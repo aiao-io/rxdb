@@ -70,7 +70,18 @@ class CachedRecipe extends EntityBase {
   title!: string;
 }
 
-/** Full 仓库：由 `versionManager.push()` 负责，不该出现在 flush 名单里 */
+/** 第二个 QueryCache 仓库：证明一轮里各仓库互不背书 */
+@Entity({
+  name: 'CachedNote',
+  properties: [{ name: 'title', type: PropertyType.string }],
+  sync: { type: SyncType.QueryCache, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } }
+})
+class CachedNote extends EntityBase {
+  static [ENTITY_STATIC_TYPES]: { idType: string };
+  title!: string;
+}
+
+/** Full 仓库：由用户显式调 `versionManager.push()` 负责，自动轮次一概不碰 */
 @Entity({
   name: 'VersionedTodo',
   properties: [{ name: 'title', type: PropertyType.string }],
@@ -129,11 +140,9 @@ type HarnessOptions = {
   entities?: unknown[];
   getCurrentBranch?: GetCurrentBranch;
   hasRemoteAdapter?: boolean;
-  push?: Push;
   reachability?: ReachabilityMonitor;
   /** 库级 `sync`；不传时只配一个远端适配器名，实体各自带着自己的 `sync` */
   sync?: SyncOptions;
-  syncBranches?: SyncBranches;
 };
 
 type SyncListenerHarness = {
@@ -193,7 +202,7 @@ const createRemoteEntity = (
  * 把已经排上队的异步任务放完。
  *
  * @remarks
- * 回推链是「syncBranches → push → 逐个 flush」的串行 await，微任务数量随仓库个数变化，
+ * 回推链是「逐个仓库 flush → 重算积压」的串行 await，微任务数量随仓库个数变化，
  * 数着 `Promise.resolve()` 迟早会数漏。让出一个宏任务把整条链跑到底，计数断言才可信。
  */
 const settleDetachedTasks = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
@@ -220,10 +229,11 @@ const createHarness = (options: HarnessOptions = {}): SyncListenerHarness => {
   const removeEventListener = vi.fn<(type: RemoteEventType, handler: RemoteEventHandler) => void>((type, handler) => {
     listeners.get(type)?.delete(handler);
   });
-  const syncBranches = vi.fn<SyncBranches>(options.syncBranches ?? (() => Promise.resolve()));
+  // 两个 changelog 探针不接受覆写：自动轮次一步都不该碰它们，用例只断言「没被调过」
+  const syncBranches = vi.fn<SyncBranches>(() => Promise.resolve());
   const getCurrentBranch = vi.fn<GetCurrentBranch>(options.getCurrentBranch ?? (() => Promise.resolve({ id: 'main' })));
   const incrementPullableCount = vi.fn<IncrementPullableCount>();
-  const push = vi.fn<Push>(options.push ?? (() => Promise.resolve({ pushed: 0 })));
+  const push = vi.fn<Push>(() => Promise.resolve({ pushed: 0 }));
   const reachability = options.reachability ?? detachedReachability();
   const entities = options.entities ?? [CachedRecipe, VersionedTodo, LocalDraft];
   // 用真的 hub 而不是探针：这一层的契约是「面板最终显示什么」，
@@ -321,46 +331,43 @@ describe('setupVersionSyncListeners connected lifecycle', () => {
     const harness = createHarness({ connected: false });
 
     expect(harness.result.subscriptions).toHaveLength(1);
-    expect(harness.syncBranches).not.toHaveBeenCalled();
+    expect(flushOutbox).not.toHaveBeenCalled();
 
     harness.connected$.next(false);
-    expect(harness.syncBranches).not.toHaveBeenCalled();
+    expect(flushOutbox).not.toHaveBeenCalled();
 
     harness.connected$.next(true);
-    expect(harness.syncBranches).toHaveBeenCalledTimes(1);
+    expect(flushOutbox).toHaveBeenCalledTimes(1);
   });
 
   it('does not subscribe to connected$ without a remote adapter', () => {
     const harness = createHarness({ connected: true, hasRemoteAdapter: false });
 
     expect(harness.result.subscriptions).toHaveLength(0);
-    expect(harness.syncBranches).not.toHaveBeenCalled();
+    expect(flushOutbox).not.toHaveBeenCalled();
 
     harness.connected$.next(false);
     harness.connected$.next(true);
 
-    expect(harness.syncBranches).not.toHaveBeenCalled();
+    expect(flushOutbox).not.toHaveBeenCalled();
     expect(harness.addEventListener).toHaveBeenCalledTimes(3);
   });
 
   it('swallows sync rejection and retries on the next connected emission', async () => {
-    const syncError = new Error('sync failed');
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const harness = createHarness({
-      connected: true,
-      syncBranches: () => Promise.reject(syncError)
-    });
+    flushOutbox.mockRejectedValue(new Error('sync failed'));
+    const harness = createHarness({ connected: true });
 
     await settleDetachedTasks();
 
-    expect(harness.syncBranches).toHaveBeenCalledTimes(1);
+    expect(flushOutbox).toHaveBeenCalledTimes(1);
     expect(consoleError).not.toHaveBeenCalled();
 
     harness.connected$.next(false);
     harness.connected$.next(true);
     await settleDetachedTasks();
 
-    expect(harness.syncBranches).toHaveBeenCalledTimes(2);
+    expect(flushOutbox).toHaveBeenCalledTimes(2);
     expect(consoleError).not.toHaveBeenCalled();
   });
 });
@@ -372,21 +379,31 @@ describe('setupVersionSyncListeners 联网回推', () => {
     expect(reachability.online).toBe(false);
   };
 
-  it('恢复可达时依次跑 syncBranches、push 与 QueryCache flush', async () => {
+  it('恢复可达时重放 QueryCache 出站队列', async () => {
     const harness = createHarness({ connected: false });
     goOffline(harness.reachability);
     harness.connected$.next(true);
     await settleDetachedTasks();
-    harness.syncBranches.mockClear();
-    harness.push.mockClear();
     flushOutbox.mockClear();
 
     harness.reachability.report(null);
     await settleDetachedTasks();
 
-    expect(harness.syncBranches).toHaveBeenCalledTimes(1);
-    expect(harness.push).toHaveBeenCalledTimes(1);
     expect(flushedEntities()).toEqual(['CachedRecipe']);
+  });
+
+  // `push` 是用户的决定，和 git 的 push 一样。自动替他按下去，界面上的 Push 按钮与
+  // `pushableCount` 就成了摆设，「写在本地、还没推」这个状态从此不存在 ——
+  // `dev-rxdb-supabase` 的 e2e「未 push 的本地写不该出现在另一端」正是守这条。
+  it('changelog 那半边一步都不自动跑', async () => {
+    const harness = createHarness({ connected: false });
+    goOffline(harness.reachability);
+    harness.connected$.next(true);
+    harness.reachability.report(null);
+    await settleDetachedTasks();
+
+    expect(harness.syncBranches).not.toHaveBeenCalled();
+    expect(harness.push).not.toHaveBeenCalled();
   });
 
   // 适配器 connect() 完成不代表网通了（HTTP 适配器的 connect 根本不发请求）。
@@ -398,19 +415,16 @@ describe('setupVersionSyncListeners 联网回推', () => {
     harness.connected$.next(true);
     await settleDetachedTasks();
 
-    expect(harness.syncBranches).not.toHaveBeenCalled();
-    expect(harness.push).not.toHaveBeenCalled();
     expect(flushOutbox).not.toHaveBeenCalled();
   });
 
   // 反过来也一样：网是通的，但适配器还没连上，这时候回推没有可用的本地仓储
   it('网络可达但适配器未连接时不回推', async () => {
-    const harness = createHarness({ connected: false });
+    createHarness({ connected: false });
 
     await settleDetachedTasks();
 
-    expect(harness.syncBranches).not.toHaveBeenCalled();
-    expect(harness.push).not.toHaveBeenCalled();
+    expect(flushOutbox).not.toHaveBeenCalled();
   });
 
   // 退避节拍是「现在可以再试一次」。没有它，断网期间就只剩下用户手动操作能触发重试
@@ -420,42 +434,42 @@ describe('setupVersionSyncListeners 联网回推', () => {
       reachability: detachedReachability({ baseDelayMs: 1, maxDelayMs: 1 })
     });
     await settleDetachedTasks();
-    harness.syncBranches.mockClear();
+    flushOutbox.mockClear();
 
     goOffline(harness.reachability);
     await new Promise(resolve => setTimeout(resolve, 20));
 
-    expect(harness.syncBranches.mock.calls.length).toBeGreaterThan(0);
+    expect(flushOutbox.mock.calls.length).toBeGreaterThan(0);
   });
 
   // 恢复瞬间常常连着来好几个信号（online 事件、退避节拍、用户手动重试）。
   // 每个都起一轮回推会让同一批变更被并发重放。
   it('上一轮没跑完时的触发被单飞挡掉', async () => {
     let release: (() => void) | undefined;
-    const harness = createHarness({
-      connected: false,
-      syncBranches: () =>
-        new Promise<void>(resolve => {
-          release = resolve;
+    flushOutbox.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          release = () => resolve(makeOutboxResult('public', 'CachedRecipe'));
         })
-    });
+    );
+    const harness = createHarness({ connected: false });
 
     harness.connected$.next(true);
     await settleDetachedTasks();
-    expect(harness.syncBranches).toHaveBeenCalledTimes(1);
+    expect(flushOutbox).toHaveBeenCalledTimes(1);
 
-    // 第一轮卡在 syncBranches 上，这几次触发都该被丢掉
+    // 第一轮卡在 flush 上，这几次触发都该被丢掉
     harness.reachability.report(new TypeError('Failed to fetch'));
     harness.reachability.report(null);
     await settleDetachedTasks();
 
-    expect(harness.syncBranches).toHaveBeenCalledTimes(1);
+    expect(flushOutbox).toHaveBeenCalledTimes(1);
 
     release?.();
     await settleDetachedTasks();
   });
 
-  it('只 flush QueryCache 仓库，changelog 仓库交给 push', async () => {
+  it('只 flush QueryCache 仓库，changelog 仓库一概不碰', async () => {
     createHarness({ connected: true });
 
     await settleDetachedTasks();
@@ -465,99 +479,83 @@ describe('setupVersionSyncListeners 联网回推', () => {
     expect(flushedEntities()).not.toContain('LocalDraft');
   });
 
-  it('没有 QueryCache 仓库时一次 flush 都不发', async () => {
+  // 一个 QueryCache 仓库都没有（`dev-rxdb-supabase` 这种纯 Full 的库就是）时整轮不进：
+  // 既省掉必然为空的一次 COUNT，也不让面板为一轮什么都不做的回推闪一下 syncing
+  it('没有 QueryCache 仓库时整轮不进', async () => {
     const harness = createHarness({ connected: true, entities: [VersionedTodo, LocalDraft] });
 
     await settleDetachedTasks();
 
-    expect(harness.push).toHaveBeenCalledTimes(1);
     expect(flushOutbox).not.toHaveBeenCalled();
+    expect(countOutbox).not.toHaveBeenCalled();
+    expect(harness.syncState.snapshot).toMatchObject({ syncing: false, pendingCount: 0, lastError: null });
   });
 
   // 全 QueryCache 的库（HTTP demo 就是）压根没有 changelog 端点：`syncBranches` 与
-  // `push` 一进门就撞 `getRemoteRepositories()`，HTTP 适配器对此直接抛，每一轮必败。
-  // 跑它们不只是白跑 —— 「本轮全绿」从此永远不成立，面板会常亮一句
-  // 「不支持 getRepository」，而真正推成功了的 REST 重放反倒没人替它宣布。
-  it('没有 changelog 仓库时不跑 syncBranches 与 push', async () => {
+  // `push` 一进门就撞 `getRemoteRepositories()`，HTTP 适配器对此直接抛。自动轮次不碰
+  // 它们，这一轮才可能全绿 —— 否则面板会常亮一句「不支持 getRepository」，
+  // 而真正推成功了的 REST 重放反倒没人替它宣布。
+  it('纯 QueryCache 的库整轮全绿', async () => {
     const harness = createHarness({ connected: true, entities: [CachedRecipe, LocalDraft] });
 
     await settleDetachedTasks();
 
-    expect(harness.syncBranches).not.toHaveBeenCalled();
-    expect(harness.push).not.toHaveBeenCalled();
     expect(flushedEntities()).toEqual(['CachedRecipe']);
     expect(harness.syncState.snapshot.lastError).toBeNull();
   });
 
   // 上一条用例给的 `entities` 是手写清单，而真实的库里 `SchemaManager.init()` 还会补进
-  // 四张系统表。它们不带自己的 `sync`，于是继承库级配置 —— 而 QueryCache 恰恰**强制**
-  // 库级两端都配（`missingQueryCacheAdapter` 元数据违规），`getSyncType` 的
-  // 「继承 + 两端俱全 ⇒ full」那一支就把它们判成了 changelog 仓库。
-  // 结果是纯 QueryCache 的库照样去跑 syncBranches / push，每轮必败，面板常亮。
-  it('库级 sync 两端俱全时，注入的系统实体不算 changelog 仓库', async () => {
-    const unsupported = new Error('HTTP adapter does not support "getRepository"');
-    const harness = createHarness({
+  // 四张系统表。它们不带自己的 `sync`，于是跟随库级配置，`getSyncType` 会照着库级口径
+  // 把这四张本地簿记表也判成用户仓库。系统表的同步由 VersionManager 直接安排，
+  // 混进 REST 重放名单等于对着没有 REST 端点的簿记表反复重放。
+  it('注入的系统实体不进 flush 名单', async () => {
+    createHarness({
       connected: true,
       entities: [CachedRecipe, RxDBBranch, RxDBChange, RxDBMigration, RxDBSync],
-      sync: { type: SyncType.None, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } },
-      syncBranches: () => Promise.reject(unsupported),
-      push: () => Promise.reject(unsupported)
+      sync: { type: SyncType.QueryCache, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } }
     });
 
     await settleDetachedTasks();
 
-    expect(harness.syncBranches).not.toHaveBeenCalled();
-    expect(harness.push).not.toHaveBeenCalled();
     expect(flushedEntities()).toEqual(['CachedRecipe']);
-    // 病灶的可见症状：这一轮本该全绿（REST 重放成功了），却因为系统表带出来的必败
-    // 两步而永远清不掉 lastError
-    expect(harness.syncState.snapshot.lastError).toBeNull();
   });
 
-  // 反面：真有业务实体靠继承库级 sync 拿到 full 时，changelog 那半边照跑不误。
-  // 修复只该摘掉系统表，不该把「实体不写 sync、跟随全局」这条语义一起废掉。
-  it('继承库级 sync 的业务实体仍然走 changelog 回推', async () => {
-    const harness = createHarness({
+  // 反面：真有业务实体靠继承库级 sync 拿到 querycache 时，它照样要被重放。
+  // 摘系统表不该把「实体不写 sync、跟随全局」这条语义一起废掉。
+  it('继承库级 sync 的业务实体仍然走 REST 重放', async () => {
+    createHarness({
       connected: true,
       entities: [InheritedTodo, RxDBBranch, RxDBChange, RxDBMigration, RxDBSync],
-      sync: { type: SyncType.None, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } }
+      sync: { type: SyncType.QueryCache, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } }
     });
 
     await settleDetachedTasks();
 
-    expect(harness.syncBranches).toHaveBeenCalledTimes(1);
-    expect(harness.push).toHaveBeenCalledTimes(1);
+    expect(flushedEntities()).toEqual(['InheritedTodo']);
   });
 
-  it('没有远程适配器时既不 push 也不 flush', async () => {
-    const harness = createHarness({ connected: true, hasRemoteAdapter: false });
+  it('没有远程适配器时不 flush', async () => {
+    createHarness({ connected: true, hasRemoteAdapter: false });
 
     await settleDetachedTasks();
 
-    expect(harness.push).not.toHaveBeenCalled();
     expect(flushOutbox).not.toHaveBeenCalled();
   });
 
-  // 三步互不背书：分支元数据同步不上，不代表本地攒的写就该继续压着
-  it('syncBranches 失败不阻塞 push 与 flush', async () => {
+  // 各仓库互不背书：一个仓库的出站队列重放不上，不代表另一个仓库那条 REST 路也走不通
+  it('一个仓库 flush 失败不阻塞其它仓库', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const harness = createHarness({ connected: true, syncBranches: () => Promise.reject(new Error('branches down')) });
+    flushOutbox.mockImplementation((_vm, namespace, entity) =>
+      entity === 'CachedRecipe' ?
+        Promise.reject(new Error('recipe flush down'))
+      : Promise.resolve(makeOutboxResult(namespace, entity))
+    );
+    const harness = createHarness({ connected: true, entities: [CachedRecipe, CachedNote, VersionedTodo] });
 
     await settleDetachedTasks();
 
-    expect(harness.push).toHaveBeenCalledTimes(1);
-    expect(flushedEntities()).toEqual(['CachedRecipe']);
-    expect(consoleError).not.toHaveBeenCalled();
-  });
-
-  it('push 失败不阻塞 QueryCache flush', async () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const harness = createHarness({ connected: true, push: () => Promise.reject(new Error('push down')) });
-
-    await settleDetachedTasks();
-
-    expect(harness.syncBranches).toHaveBeenCalledTimes(1);
-    expect(flushedEntities()).toEqual(['CachedRecipe']);
+    expect(flushedEntities()).toEqual(['CachedRecipe', 'CachedNote']);
+    expect(harness.syncState.snapshot.lastError).toMatchObject({ message: 'recipe flush down' });
     expect(consoleError).not.toHaveBeenCalled();
   });
 
@@ -581,7 +579,6 @@ describe('setupVersionSyncListeners 联网回推', () => {
   it('取消订阅后不再回推', async () => {
     const harness = createHarness({ connected: true });
     await settleDetachedTasks();
-    harness.syncBranches.mockClear();
     flushOutbox.mockClear();
 
     for (const subscription of harness.result.subscriptions) {
@@ -591,7 +588,6 @@ describe('setupVersionSyncListeners 联网回推', () => {
     harness.reachability.report(null);
     await settleDetachedTasks();
 
-    expect(harness.syncBranches).not.toHaveBeenCalled();
     expect(flushOutbox).not.toHaveBeenCalled();
   });
 });
@@ -599,10 +595,13 @@ describe('setupVersionSyncListeners 联网回推', () => {
 describe('setupVersionSyncListeners 同步状态上报', () => {
   it('一轮回推期间 syncing 为真，跑完落回假', async () => {
     let release: (() => void) | undefined;
-    const harness = createHarness({
-      connected: true,
-      push: () => new Promise(resolve => (release = () => resolve({ pushed: 0 })))
-    });
+    flushOutbox.mockImplementation(
+      (_vm, namespace, entity) =>
+        new Promise(resolve => {
+          release = () => resolve(makeOutboxResult(namespace, entity));
+        })
+    );
+    const harness = createHarness({ connected: true });
 
     await settleDetachedTasks();
     expect(harness.syncState.snapshot.syncing).toBe(true);
@@ -613,8 +612,9 @@ describe('setupVersionSyncListeners 同步状态上报', () => {
   });
 
   it('某一步失败时记下 lastError', async () => {
-    const failure = new Error('push down');
-    const harness = createHarness({ connected: true, push: () => Promise.reject(failure) });
+    const failure = new Error('flush down');
+    flushOutbox.mockRejectedValue(failure);
+    const harness = createHarness({ connected: true });
 
     await settleDetachedTasks();
 
@@ -633,11 +633,12 @@ describe('setupVersionSyncListeners 同步状态上报', () => {
 
   // 失败的那一轮不能顺手清账：清了就等于宣称本轮成功
   it('本轮有失败时不清掉错误', async () => {
-    const harness = createHarness({ connected: true, syncBranches: () => Promise.reject(new Error('branches down')) });
+    flushOutbox.mockRejectedValue(new Error('flush down'));
+    const harness = createHarness({ connected: true });
 
     await settleDetachedTasks();
 
-    expect(harness.syncState.snapshot.lastError).toMatchObject({ message: 'branches down' });
+    expect(harness.syncState.snapshot.lastError).toMatchObject({ message: 'flush down' });
   });
 
   it('flush 判负的实体转成 lastConflict', async () => {
@@ -784,7 +785,7 @@ describe('setupVersionSyncListeners cleanup lifecycle', () => {
     harness.emit(new EntityRemoteCreatedEvent([createRemoteEntity('INSERT', 'after-cleanup', 'main')]));
     await settleDetachedTasks();
 
-    expect(harness.syncBranches).not.toHaveBeenCalled();
+    expect(flushOutbox).not.toHaveBeenCalled();
     expect(harness.getCurrentBranch).not.toHaveBeenCalled();
     expect(harness.incrementPullableCount).not.toHaveBeenCalled();
   });

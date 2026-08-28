@@ -4,7 +4,7 @@
  * core 侧的上报是适配器无关的，但只覆盖 QueryCache 的写与重放
  * （`query-cache-primary.ts#tryRemote`、`query-cache-outbox.ts`）。Supabase 真正的主场
  * 是版本管理同步（它有 changelog，HTTP 适配器没有），而那条路径上一次上报都没有：
- * `resumeSync()` 里的 `syncBranches()` 断网时抛 `NetworkOfflineError`，没人接，
+ * `VersionManager.syncBranches()` 断网时抛 `NetworkOfflineError`，没人接，
  * 于是 `reachability` 永远停在「在线」，面板显示一堆待推变更却说网是通的。
  * 只读页面同样中招 —— 一次 `fetchMetadata` 失败之后没有任何东西会把状态翻回来。
  *
@@ -182,7 +182,7 @@ describe('Supabase 可达性上报 — 版本管理路径（HTTP 适配器没有
     expect(reachability.online).toBe(false);
   });
 
-  it('branchExists 传输失败 → 判为离线（resumeSync 第一步 syncBranches 走的就是这类调用）', async () => {
+  it('branchExists 传输失败 → 判为离线（syncBranches 走的就是这类调用）', async () => {
     const { adapter, reachability } = createHarness(TRANSPORT_FAILURE);
 
     await expect(adapter.branchExists('main')).rejects.toThrow();
