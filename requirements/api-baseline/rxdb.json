@@ -754,6 +754,10 @@
         "kind": "type"
       },
       {
+        "name": "needsOfflineWrite",
+        "kind": "value"
+      },
+      {
         "name": "needsPull",
         "kind": "value"
       },
@@ -935,6 +939,18 @@
       },
       {
         "name": "RawQueryResult",
+        "kind": "type"
+      },
+      {
+        "name": "ReachabilityEventTarget",
+        "kind": "type"
+      },
+      {
+        "name": "ReachabilityMonitor",
+        "kind": "both"
+      },
+      {
+        "name": "ReachabilityOptions",
         "kind": "type"
       },
       {
