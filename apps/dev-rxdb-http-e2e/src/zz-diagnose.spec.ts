@@ -45,6 +45,13 @@ test('diagnose-delete', async ({ page, request }) => {
   await mark('after-delete-wait');
 
   console.log('--- row-count:', await page.getByTestId('row-count').textContent());
+  console.log('--- still in list (before reload):', await page.locator(`[data-row-id="${rowId}"]`).count());
+
+  await page.reload();
+  await page.waitForTimeout(4000);
+  console.log('--- row-count after reload:', await page.getByTestId('row-count').textContent());
+  console.log('--- still in list after reload:', await page.locator(`[data-row-id="${rowId}"]`).count());
+
   console.log('--- write-error count:', await page.getByTestId('write-error').count());
   if ((await page.getByTestId('write-error').count()) > 0) {
     console.log('--- write-error text:', await page.getByTestId('write-error').textContent());

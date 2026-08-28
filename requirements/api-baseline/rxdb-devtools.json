@@ -102,6 +102,10 @@
         "kind": "value"
       },
       {
+        "name": "DEVTOOLS_ENTITY_ERROR_CODES",
+        "kind": "value"
+      },
+      {
         "name": "DEVTOOLS_MAX_CHUNK_BYTES",
         "kind": "value"
       },
@@ -315,6 +319,10 @@
       },
       {
         "name": "DevToolsControlPlaneErrorCode",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsEntityErrorCode",
         "kind": "type"
       },
       {
