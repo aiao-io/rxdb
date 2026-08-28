@@ -27,80 +27,73 @@ class CachedEntity {
 
 type CachedEntityCtor = typeof CachedEntity;
 
-Object.assign(CachedEntity, {
-  [METADATA]: {
-    name: 'CachedEntity',
-    namespace: 'public',
-    repository: 'Repository',
-    sync: {
-      type: SyncType.QueryCache,
-      local: { adapter: 'local' },
-      remote: { adapter: 'remote' }
-    }
+/**
+ * 给测试实体盖上元数据。
+ *
+ * `propertyMap` 不能省：写路径要按它把远端响应解码回实体侧的运行时值
+ * （`parseEntityRecordValues`）。这里的实体一个属性都没声明，空 Map 即可 ——
+ * 键会全部原样透传，正是下面这些用例期望的形状。
+ */
+const stampMetadata = (target: object, metadata: Record<string, unknown>): void => {
+  Object.assign(target, {
+    [METADATA]: { namespace: 'public', repository: 'Repository', propertyMap: new Map(), ...metadata }
+  });
+};
+
+stampMetadata(CachedEntity, {
+  name: 'CachedEntity',
+  sync: {
+    type: SyncType.QueryCache,
+    local: { adapter: 'local' },
+    remote: { adapter: 'remote' }
   }
 });
 
 /** 同一实体形状，配置级开启 SWR：用于 AC#24 的「调用 &gt; 配置 &gt; false」三档 */
 class CachedSwrEntity extends CachedEntity {}
 
-Object.assign(CachedSwrEntity, {
-  [METADATA]: {
-    name: 'CachedSwrEntity',
-    namespace: 'public',
-    repository: 'Repository',
-    sync: {
-      type: SyncType.QueryCache,
-      local: { adapter: 'local', localCacheFirst: true },
-      remote: { adapter: 'remote' }
-    }
+stampMetadata(CachedSwrEntity, {
+  name: 'CachedSwrEntity',
+  sync: {
+    type: SyncType.QueryCache,
+    local: { adapter: 'local', localCacheFirst: true },
+    remote: { adapter: 'remote' }
   }
 });
 
 /** AC#23 D13：显式关掉同步记忆，证明 `syncStaleTime` 真的可配置到 0（每次读都重新校验） */
 class CachedNoMemoEntity extends CachedEntity {}
 
-Object.assign(CachedNoMemoEntity, {
-  [METADATA]: {
-    name: 'CachedNoMemoEntity',
-    namespace: 'public',
-    repository: 'Repository',
-    sync: {
-      type: SyncType.QueryCache,
-      local: { adapter: 'local', syncStaleTime: 0 },
-      remote: { adapter: 'remote' }
-    }
+stampMetadata(CachedNoMemoEntity, {
+  name: 'CachedNoMemoEntity',
+  sync: {
+    type: SyncType.QueryCache,
+    local: { adapter: 'local', syncStaleTime: 0 },
+    remote: { adapter: 'remote' }
   }
 });
 
 /** AC#23 D13：把记忆窗口压到 1ms，用来证明它会过期而不是常驻 */
 class CachedShortMemoEntity extends CachedEntity {}
 
-Object.assign(CachedShortMemoEntity, {
-  [METADATA]: {
-    name: 'CachedShortMemoEntity',
-    namespace: 'public',
-    repository: 'Repository',
-    sync: {
-      type: SyncType.QueryCache,
-      local: { adapter: 'local', syncStaleTime: 1 },
-      remote: { adapter: 'remote' }
-    }
+stampMetadata(CachedShortMemoEntity, {
+  name: 'CachedShortMemoEntity',
+  sync: {
+    type: SyncType.QueryCache,
+    local: { adapter: 'local', syncStaleTime: 1 },
+    remote: { adapter: 'remote' }
   }
 });
 
 /** 对照组：同一形状配 Full 同步，用来证明 QueryCache 分支没有渗进版本化路径 */
 class VersionedEntity extends CachedEntity {}
 
-Object.assign(VersionedEntity, {
-  [METADATA]: {
-    name: 'VersionedEntity',
-    namespace: 'public',
-    repository: 'Repository',
-    sync: {
-      type: SyncType.Full,
-      local: { adapter: 'local' },
-      remote: { adapter: 'remote' }
-    }
+stampMetadata(VersionedEntity, {
+  name: 'VersionedEntity',
+  sync: {
+    type: SyncType.Full,
+    local: { adapter: 'local' },
+    remote: { adapter: 'remote' }
   }
 });
 

@@ -220,24 +220,6 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
   }
 
   /**
-   * 把远端响应解码成实体侧的运行时值。
-   *
-   * @param payload - 远端 REST 响应体，逐字是 JSON
-   * @returns 可以安全 `Object.assign` 到实体实例上的字段集
-   *
-   * @remarks
-   * **只解码远端那一支**。离线支的 `settled` 来自 `localRepository`，值本来就是实体侧形态；
-   * 再过一遍解码反而有害 —— {@link parseEntityFieldValue} 把 `undefined` 归一化成 `null`，
-   * 而本地写回来的是实体自身，它身上每一个没赋过值的可枚举属性都会因此被写成 `null`。
-   *
-   * 拉取回填那条路不需要这个：它经 `upsertMany` 落进本地库，再读出来时适配器已按元数据解码。
-   * 写路径是唯一一条远端响应不落库、直接盖到实例上的路。
-   */
-  #decodeRemote(payload: InstanceType<T>): Partial<InstanceType<T>> {
-    return parseEntityRecordValues(this.metadata, payload as Record<string, unknown>) as Partial<InstanceType<T>>;
-  }
-
-  /**
    * 删除实体：远端可达时先远端后本地缓存，不可达时直接删本地并排进出站队列。
    *
    * @param entity - 待删除的实体实例
@@ -263,6 +245,24 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
    */
   invalidateInflight(): void {
     this.#cache.invalidateInflight();
+  }
+
+  /**
+   * 把远端响应解码成实体侧的运行时值。
+   *
+   * @param payload - 远端 REST 响应体，逐字是 JSON
+   * @returns 可以安全 `Object.assign` 到实体实例上的字段集
+   *
+   * @remarks
+   * **只解码远端那一支**。离线支的 `settled` 来自 `localRepository`，值本来就是实体侧形态；
+   * 再过一遍解码反而有害 —— `parseEntityFieldValue` 把 `undefined` 归一化成 `null`，
+   * 而本地写回来的是实体自身，它身上每一个没赋过值的可枚举属性都会因此被写成 `null`。
+   *
+   * 拉取回填那条路不需要这个：它经 `upsertMany` 落进本地库，再读出来时适配器已按元数据解码。
+   * 写路径是唯一一条远端响应不落库、直接盖到实例上的路。
+   */
+  #decodeRemote(payload: InstanceType<T>): Partial<InstanceType<T>> {
+    return parseEntityRecordValues(this.metadata, payload as Record<string, unknown>) as Partial<InstanceType<T>>;
   }
 
   /**
