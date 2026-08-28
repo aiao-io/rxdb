@@ -18,6 +18,7 @@ import type { ReachabilityMonitor } from '../../network/reachability.js';
 import { createQueryCachePrimary } from '../../repository/query-cache-primary.js';
 import { QueryCacheSyncMemo } from '../../repository/query-cache-sync-memo.js';
 import { NetworkOfflineError } from '../../RxDBError.js';
+import { SyncStateHub } from '../../sync-state.js';
 import { detachedReachability } from '../fixtures/reachability.js';
 
 class CachedEntity {
@@ -68,6 +69,7 @@ const setup = () => {
   const localAdapter = createLocalAdapter(localRepo);
   const remoteAdapter = createRemoteAdapter();
   const reachability = detachedReachability();
+  const syncState = new SyncStateHub({ online$: reachability.online$, pushableCount$: of(0) });
   const syncMemo = new QueryCacheSyncMemo(0);
   const primary = createQueryCachePrimary<CachedEntityCtor>(
     'CachedEntity',
@@ -76,9 +78,10 @@ const setup = () => {
     remoteAdapter as never,
     false,
     syncMemo,
-    reachability
+    reachability,
+    syncState
   );
-  return { primary, localRepo, localAdapter, remoteAdapter, reachability, syncMemo };
+  return { primary, localRepo, localAdapter, remoteAdapter, reachability, syncMemo, syncState };
 };
 
 /** 把监视器推到「已知离线」：`report` 认定网络故障后 `online` 立刻翻 false */
@@ -259,5 +262,50 @@ describe('QueryCache 离线可写（推翻 US-020 D5）', () => {
     await ctx.primary.remove(row('c', '2026-01-01T00:00:00Z', 1));
 
     expect(clear).toHaveBeenCalledTimes(3);
+  });
+
+  describe('入队的写要在同步面板上看得见', () => {
+    it('三条离线写各把待推数加一', async () => {
+      goOffline(ctx.reachability);
+
+      await ctx.primary.create(row('a', '2026-01-01T00:00:00Z', 1));
+      await ctx.primary.update(row('b', '2026-01-01T00:00:00Z', 1), { value: 2 });
+      await ctx.primary.remove(row('c', '2026-01-01T00:00:00Z', 1));
+
+      expect(ctx.syncState.snapshot.pendingCount).toBe(3);
+    });
+
+    it('降级落本地同样计数', async () => {
+      ctx.remoteAdapter.create.mockReturnValueOnce(throwError(() => offlineError()));
+
+      await ctx.primary.create(row('a', '2026-01-01T00:00:00Z', 1));
+
+      expect(ctx.syncState.snapshot.pendingCount).toBe(1);
+    });
+
+    it('远端写成功不计数', async () => {
+      await ctx.primary.create(row('a', '2026-01-01T00:00:00Z', 1));
+
+      expect(ctx.syncState.snapshot.pendingCount).toBe(0);
+    });
+
+    // 上抛的写什么都没排上队，计上就等于面板永远显示一条推不掉的积压
+    it('401 上抛不计数', async () => {
+      ctx.remoteAdapter.create.mockReturnValueOnce(throwError(() => unauthorized()));
+
+      await expect(ctx.primary.create(row('a', '2026-01-01T00:00:00Z', 1))).rejects.toBeDefined();
+
+      expect(ctx.syncState.snapshot.pendingCount).toBe(0);
+    });
+
+    // 本地写自己失败了也没排上队
+    it('本地写失败不计数', async () => {
+      goOffline(ctx.reachability);
+      ctx.localRepo.create.mockRejectedValueOnce(new Error('disk full'));
+
+      await expect(ctx.primary.create(row('a', '2026-01-01T00:00:00Z', 1))).rejects.toThrow('disk full');
+
+      expect(ctx.syncState.snapshot.pendingCount).toBe(0);
+    });
   });
 });

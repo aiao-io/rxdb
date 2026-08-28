@@ -19,6 +19,7 @@ import { firstValueFrom, map, Observable } from 'rxjs';
 import type { EntityStaticType, EntityType } from '../entity/entity.interface.js';
 import type { QueryCacheEntityMetadata } from '../entity/metadata-options.interface.js';
 import type { ReachabilityMonitor } from '../network/reachability.js';
+import type { SyncStateHub } from '../sync-state.js';
 import { RxDBQueryCacheCapabilityError } from '../RxDBError.js';
 import { isNetworkError } from './network-error.js';
 import { queryCacheFingerprint, QueryCacheSyncMemo } from './query-cache-sync-memo.js';
@@ -121,7 +122,9 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
     /** 「刚同步过」的记忆；由 `Repository` 持有，跨本类实例存活（US-020 D13） */
     private readonly syncMemo: QueryCacheSyncMemo,
     /** 远端可达性；写路径据此决定先打远端还是先落本地，生命周期跟着 `RxDB` 实例 */
-    private readonly reachability: ReachabilityMonitor
+    private readonly reachability: ReachabilityMonitor,
+    /** 同步状态面板；离线写入队时报一声，用户才看得见积压 */
+    private readonly syncState: SyncStateHub
   ) {
     // 本地行仓储既是同步流程的读出口（US-020 D8），也是同步跑完后门面读结果的地方。
     // `QueryCacheRepository` 按 `entityName` 工作、填不出 `IRepository` 的类型参数，
@@ -185,7 +188,7 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
    */
   async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
     const created = await this.#tryRemote('create', () => this.#cache.create(entity));
-    const settled = created === OFFLINE ? await this.localRepository.create(entity) : created;
+    const settled = created === OFFLINE ? await this.#queueOffline(() => this.localRepository.create(entity)) : created;
     this.syncMemo.clear();
     return Object.assign(entity, settled);
   }
@@ -200,7 +203,8 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
    */
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
     const updated = await this.#tryRemote('update', () => this.#cache.update(entityId(entity), patch));
-    const settled = updated === OFFLINE ? await this.localRepository.update(entity, patch) : updated;
+    const settled =
+      updated === OFFLINE ? await this.#queueOffline(() => this.localRepository.update(entity, patch)) : updated;
     this.syncMemo.clear();
     return Object.assign(entity, settled);
   }
@@ -215,7 +219,7 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
   async remove(entity: InstanceType<T>): Promise<InstanceType<T>> {
     const removed = await this.#tryRemote('delete', () => this.#cache.delete(entityId(entity)).pipe(map(() => entity)));
     if (removed === OFFLINE) {
-      await this.localRepository.remove(entity);
+      await this.#queueOffline(() => this.localRepository.remove(entity));
     }
     this.syncMemo.clear();
     return entity;
@@ -231,6 +235,23 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
    */
   invalidateInflight(): void {
     this.#cache.invalidateInflight();
+  }
+
+  /**
+   * 跑一次离线本地写，成功后把它记进出站积压。
+   *
+   * @param write - 本地写；只有它成功了才算真的排上队
+   * @returns 本地写的结果
+   *
+   * @remarks
+   * 上报在 `await` **之后**：本地写失败什么都没排上队，先报再写会让面板凭空多出一条
+   * 永远推不掉的积压。计数本身是 `+1` 而不是重数一遍全表，理由见
+   * {@link SyncStateHub.reportOfflineWrite}。
+   */
+  async #queueOffline<R>(write: () => Promise<R>): Promise<R> {
+    const result = await write();
+    this.syncState.reportOfflineWrite();
+    return result;
   }
 
   /**
@@ -339,6 +360,7 @@ const entityId = <T extends EntityType>(entity: InstanceType<T>): string => (ent
  * @param localCacheFirst - `sync.local.localCacheFirst`
  * @param syncMemo - 「刚同步过」的记忆，由调用方持有以跨适配器发射存活（D13）
  * @param reachability - 远端可达性监视器，取自 `RxDB` 实例
+ * @param syncState - 同步状态面板，取自 `RxDB` 实例
  * @throws {@link RxDBQueryCacheCapabilityError} 适配器缺必需 duck
  */
 export function createQueryCachePrimary<T extends EntityType>(
@@ -348,7 +370,8 @@ export function createQueryCachePrimary<T extends EntityType>(
   remoteAdapter: QueryCacheRemoteAdapter,
   localCacheFirst: boolean,
   syncMemo: QueryCacheSyncMemo,
-  reachability: ReachabilityMonitor
+  reachability: ReachabilityMonitor,
+  syncState: SyncStateHub
 ): QueryCachePrimaryRepository<T> {
   assertQueryCacheCapabilities(entityName, localAdapter, remoteAdapter);
   return new QueryCachePrimaryRepository<T>(
@@ -358,7 +381,8 @@ export function createQueryCachePrimary<T extends EntityType>(
     localAdapter,
     localCacheFirst,
     syncMemo,
-    reachability
+    reachability,
+    syncState
   );
 }
 

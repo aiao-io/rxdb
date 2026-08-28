@@ -49,6 +49,7 @@ import {
 } from './rxdb.transaction.js';
 import type { EventListener, IRepositoryConfig, RxDBConfig, TransactionContext } from './rxdb.types.js';
 import { SchemaManager } from './schema/SchemaManager.js';
+import { SyncStateHub } from './sync-state.js';
 import { RxDBBranch } from './system/branch.js';
 import { RxDBChange } from './system/change.js';
 import { createMigrationWatermarks, runMigrations } from './system/migration-runner.js';
@@ -319,6 +320,16 @@ export class RxDB {
   public readonly versionManager!: VersionManager;
 
   /**
+   * 同步状态汇聚面：网通不通、还有多少没推上去、这会儿在不在推、上一次错在哪、上一次谁判负。
+   *
+   * @remarks
+   * 三框架的 `useSyncState()` 直接绑这一份快照。生命周期与 {@link RxDB.reachability} 同理 ——
+   * 跟随实例而不是连接纪元，`#shutdown()` 不销毁它：面板要在断连期间继续显示「离线、待推 N 条」，
+   * 那正是它最该出声的时候。
+   */
+  public readonly syncState!: SyncStateHub;
+
+  /**
    * 当前已连接的本地适配器实例，**同步**读取。
    *
    * @returns 本地适配器实例
@@ -392,6 +403,13 @@ export class RxDB {
     this.schemaManager = new SchemaManager(this);
     this.entityManager = new EntityManager(this);
     this.versionManager = new VersionManager(this);
+    this.syncState = new SyncStateHub({
+      online$: this.reachability.online$,
+      // 每次连接纪元交替都重新解析这个 getter。`#shutdown()` 里的 versionManager.destroy()
+      // 连 historyManager 一起销毁，下一次 init() 建的是**另一个** BehaviorSubject ——
+      // 只在构造时读一次的话，重连之后面板会永远停在断连那一刻的数字。
+      pushableCount$: this.connected$.pipe(switchMap(() => this.versionManager.pushableCount$))
+    });
     this.context = { ...this.#config.context };
     this.#pluginHost = this.#createPluginHost();
     this.#freeze_config();

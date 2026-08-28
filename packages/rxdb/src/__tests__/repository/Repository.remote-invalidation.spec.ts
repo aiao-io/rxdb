@@ -34,6 +34,7 @@ import type { RxDBEvent } from '../../rxdb-events.js';
 import { REMOTE_ENTITY_INVALIDATED_EVENT, RemoteEntityInvalidatedEvent } from '../../rxdb-events.js';
 import { RxDB } from '../../RxDB.js';
 import { METADATA, STATUS } from '../../rxdb.private.js';
+import { SyncStateHub } from '../../sync-state.js';
 import { detachedReachability } from '../fixtures/reachability.js';
 
 class RecipeEntity {
@@ -541,7 +542,8 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
         remoteAdapter as unknown as QueryCacheRemoteAdapter,
         false,
         syncMemo,
-        detachedReachability()
+        detachedReachability(),
+        new SyncStateHub({ online$: of(true), pushableCount$: of(0) })
       );
 
       void primary.find({ where: allWhere() });

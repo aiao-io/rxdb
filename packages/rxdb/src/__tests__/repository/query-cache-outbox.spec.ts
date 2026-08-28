@@ -89,6 +89,8 @@ const change = (over: Partial<RxDBChange> & Pick<RxDBChange, 'type' | 'entityId'
 
 interface SetupOptions {
   changes?: RxDBChange[];
+  /** `entityManager` 那侧 `count()` 的返回，供 {@link countQueryCacheOutbox} 用 */
+  changeCount?: number;
   /** 远端 `fetchMetadata` 的返回；不给就是「远端没有这些行」 */
   remoteMetadata?: Array<{ id: string; updatedAt: string }>;
   /** 远端 `findByIds` 的返回，KEEP_REMOTE 修复本地缓存时读它 */
@@ -147,10 +149,21 @@ const setup = (options: SetupOptions = {}) => {
 
   const reachability = detachedReachability();
 
+  // 计数走 `entityManager` 那条入口（与 `updatePushableCount` 同源），不是上面的
+  // `localAdapter.getRepository` —— 两条入口的返回类型不同，探针也得分开。
+  const countQueries: unknown[] = [];
+  const countChanges = vi.fn((query: unknown) => {
+    countQueries.push(query);
+    return of(options.changeCount ?? 0);
+  });
+
   const vm = {
     rxdb: {
       config: { entities: [options.entityType ?? CachedRecipe], sync: undefined },
-      entityManager: { instantiate: () => ({ enabled: true }) as RxDBSync },
+      entityManager: {
+        instantiate: () => ({ enabled: true }) as RxDBSync,
+        getRepository: vi.fn(() => ({ count: countChanges }))
+      },
       reachability
     },
     getCurrentBranch: vi.fn(async () => ({ id: BRANCH })),

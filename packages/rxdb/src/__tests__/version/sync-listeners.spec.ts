@@ -5,7 +5,11 @@ import { Entity } from '../../entity/entity.decorator.js';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
 import type { ReachabilityMonitor } from '../../network/reachability.js';
-import { flushQueryCacheOutbox, type QueryCacheOutboxResult } from '../../repository/query-cache-outbox.js';
+import {
+  countQueryCacheOutbox,
+  flushQueryCacheOutbox,
+  type QueryCacheOutboxResult
+} from '../../repository/query-cache-outbox.js';
 import {
   ENTITY_REMOTE_CREATE_EVENT,
   ENTITY_REMOTE_REMOVE_EVENT,
@@ -15,6 +19,7 @@ import {
   EntityRemoteUpdatedEvent,
   type RxDBEntityRemoteCreatedEventData
 } from '../../rxdb-events.js';
+import { SyncStateHub } from '../../sync-state.js';
 import type { HistoryManager } from '../../version/HistoryManager.js';
 import { isIgnorableDetachedVersionEventError, setupVersionSyncListeners } from '../../version/sync-listeners.js';
 import type { VersionManager } from '../../version/VersionManager.js';
@@ -32,6 +37,7 @@ function makeOutboxResult(namespace: string, entity: string): QueryCacheOutboxRe
     discarded: 0,
     noop: 0,
     watermark: null,
+    conflicts: [],
     failures: []
   };
 }
@@ -39,10 +45,12 @@ function makeOutboxResult(namespace: string, entity: string): QueryCacheOutboxRe
 vi.mock('../../repository/query-cache-outbox.js', () => ({
   flushQueryCacheOutbox: vi.fn((_vm: unknown, namespace: string, entity: string) =>
     Promise.resolve(makeOutboxResult(namespace, entity))
-  )
+  ),
+  countQueryCacheOutbox: vi.fn(() => Promise.resolve(0))
 }));
 
 const flushOutbox = vi.mocked(flushQueryCacheOutbox);
+const countOutbox = vi.mocked(countQueryCacheOutbox);
 
 /** flush 探针收到的仓库名单，按调用顺序 */
 const flushedEntities = (): string[] => flushOutbox.mock.calls.map(([, , entity]) => entity);
@@ -118,6 +126,7 @@ type SyncListenerHarness = {
   removeEventListener: ReturnType<typeof vi.fn<(type: RemoteEventType, handler: RemoteEventHandler) => void>>;
   result: ReturnType<typeof setupVersionSyncListeners>;
   syncBranches: ReturnType<typeof vi.fn<SyncBranches>>;
+  syncState: SyncStateHub;
 };
 
 type RemoteEventCase = {
@@ -195,6 +204,12 @@ const createHarness = (options: HarnessOptions = {}): SyncListenerHarness => {
   const push = vi.fn<Push>(options.push ?? (() => Promise.resolve({ pushed: 0 })));
   const reachability = options.reachability ?? detachedReachability();
   const entities = options.entities ?? [CachedRecipe, VersionedTodo, LocalDraft];
+  // 用真的 hub 而不是探针：这一层的契约是「面板最终显示什么」，
+  // 断言方法调用只能证明有人喊了一声，证明不了喊出来的是不是对的状态。
+  const syncState = new SyncStateHub({
+    online$: reachability.online$,
+    pushableCount$: new BehaviorSubject(0)
+  });
   const rxdb = {
     config:
       options.hasRemoteAdapter === false ?
@@ -207,6 +222,7 @@ const createHarness = (options: HarnessOptions = {}): SyncListenerHarness => {
         },
     connected$: connected$.asObservable(),
     reachability,
+    syncState,
     addEventListener,
     removeEventListener
   };
@@ -235,7 +251,8 @@ const createHarness = (options: HarnessOptions = {}): SyncListenerHarness => {
     reachability,
     removeEventListener,
     result,
-    syncBranches
+    syncBranches,
+    syncState
   };
 
   liveHarnesses.push(harness);
@@ -252,11 +269,14 @@ afterEach(() => {
       remove();
     }
     harness.reachability.destroy();
+    harness.syncState.destroy();
   }
 
   vi.restoreAllMocks();
   flushOutbox.mockClear();
   flushOutbox.mockImplementation((_vm, namespace, entity) => Promise.resolve(makeOutboxResult(namespace, entity)));
+  countOutbox.mockClear();
+  countOutbox.mockImplementation(() => Promise.resolve(0));
 });
 
 describe('isIgnorableDetachedVersionEventError', () => {
@@ -498,6 +518,96 @@ describe('setupVersionSyncListeners 联网回推', () => {
 
     expect(harness.syncBranches).not.toHaveBeenCalled();
     expect(flushOutbox).not.toHaveBeenCalled();
+  });
+});
+
+describe('setupVersionSyncListeners 同步状态上报', () => {
+  it('一轮回推期间 syncing 为真，跑完落回假', async () => {
+    let release: (() => void) | undefined;
+    const harness = createHarness({
+      connected: true,
+      push: () => new Promise(resolve => (release = () => resolve({ pushed: 0 })))
+    });
+
+    await settleDetachedTasks();
+    expect(harness.syncState.snapshot.syncing).toBe(true);
+
+    release?.();
+    await settleDetachedTasks();
+    expect(harness.syncState.snapshot.syncing).toBe(false);
+  });
+
+  it('某一步失败时记下 lastError', async () => {
+    const failure = new Error('push down');
+    const harness = createHarness({ connected: true, push: () => Promise.reject(failure) });
+
+    await settleDetachedTasks();
+
+    expect(harness.syncState.snapshot.lastError).toBe(failure);
+  });
+
+  // 一轮全绿意味着积压真的推上去了，上一次的红字不该继续挂着
+  it('一轮全程无失败时清掉上一次的错误', async () => {
+    const harness = createHarness({ connected: true });
+    harness.syncState.reportError(new Error('上一轮的旧账'));
+
+    await settleDetachedTasks();
+
+    expect(harness.syncState.snapshot.lastError).toBeNull();
+  });
+
+  // 失败的那一轮不能顺手清账：清了就等于宣称本轮成功
+  it('本轮有失败时不清掉错误', async () => {
+    const harness = createHarness({ connected: true, syncBranches: () => Promise.reject(new Error('branches down')) });
+
+    await settleDetachedTasks();
+
+    expect(harness.syncState.snapshot.lastError).toMatchObject({ message: 'branches down' });
+  });
+
+  it('flush 判负的实体转成 lastConflict', async () => {
+    flushOutbox.mockImplementation((_vm, namespace, entity) =>
+      Promise.resolve({ ...makeOutboxResult(namespace, entity), conflicts: ['r-1', 'r-2'] })
+    );
+    const harness = createHarness({ connected: true });
+
+    await settleDetachedTasks();
+
+    expect(harness.syncState.snapshot.lastConflict).toMatchObject({
+      namespace: 'public',
+      entity: 'CachedRecipe',
+      entityId: 'r-2',
+      winner: 'remote'
+    });
+  });
+
+  it('一轮结束后按出站计数刷新 pendingCount', async () => {
+    countOutbox.mockResolvedValue(3);
+    const harness = createHarness({ connected: true });
+
+    await settleDetachedTasks();
+
+    expect(harness.syncState.snapshot.pendingCount).toBe(3);
+  });
+
+  // 计数是读操作，读不到只该让面板停在上一个数字，不该被当成同步失败
+  it('出站计数读失败不算作同步失败', async () => {
+    countOutbox.mockRejectedValue(new Error('count down'));
+    const harness = createHarness({ connected: true });
+
+    await settleDetachedTasks();
+
+    expect(harness.syncState.snapshot.lastError).toBeNull();
+    expect(harness.syncState.snapshot.syncing).toBe(false);
+  });
+
+  it('没有远程适配器时不动同步状态', async () => {
+    const harness = createHarness({ connected: true, hasRemoteAdapter: false });
+
+    await settleDetachedTasks();
+
+    expect(harness.syncState.snapshot).toMatchObject({ syncing: false, pendingCount: 0, lastError: null });
+    expect(countOutbox).not.toHaveBeenCalled();
   });
 });
 

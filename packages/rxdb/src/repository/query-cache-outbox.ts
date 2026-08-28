@@ -354,8 +354,11 @@ export async function countQueryCacheOutbox(vm: VersionManager): Promise<number>
     return 0;
   }
 
+  // 变更行走 `entityManager` 而不是本文件其他地方用的 `localAdapter.getRepository`：
+  // 这一条与 `updatePushableCount` 数的是同一批行、用的是同一套 repoRules 类型，
+  // 换一个入口就得给规则加一层断言 —— 那是把两个计数口径的同源关系藏进 cast 里。
   return firstValueFrom(
-    localAdapter.getRepository(RxDBChange).count({
+    vm.rxdb.entityManager.getRepository(RxDBChange).count({
       where: {
         combinator: 'and',
         rules: [

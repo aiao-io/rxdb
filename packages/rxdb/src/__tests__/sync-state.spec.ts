@@ -53,6 +53,28 @@ describe('SyncStateHub', () => {
     hub.destroy();
   });
 
+  // 离线写只知道「又多了一条」，不知道总数；重算一遍要多打一次库，而这个 +1 是确定的
+  it('reportOfflineWrite 把出站数加一', async () => {
+    const { hub } = createHub({ pushable: 2, outbox: 1 });
+
+    hub.reportOfflineWrite();
+
+    expect((await snapshot(hub)).pendingCount).toBe(4);
+    hub.destroy();
+  });
+
+  // 一轮回推跑完会重算，重算的绝对值必须压过此前累加出来的数
+  it('重算的绝对值覆盖累加值', async () => {
+    const { hub } = createHub();
+    hub.reportOfflineWrite();
+    hub.reportOfflineWrite();
+
+    hub.reportOutboxCount(0);
+
+    expect((await snapshot(hub)).pendingCount).toBe(0);
+    hub.destroy();
+  });
+
   it('online 透传上游可达性', async () => {
     const { hub, sources } = createHub({ online: true });
 

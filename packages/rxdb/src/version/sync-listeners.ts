@@ -1,6 +1,6 @@
 import { combineLatest, merge, type Observable, Subscription } from 'rxjs';
 import { distinctUntilChanged, exhaustMap, filter, map, withLatestFrom } from 'rxjs/operators';
-import { flushQueryCacheOutbox } from '../repository/query-cache-outbox.js';
+import { countQueryCacheOutbox, flushQueryCacheOutbox } from '../repository/query-cache-outbox.js';
 import {
   ENTITY_REMOTE_CREATE_EVENT,
   ENTITY_REMOTE_REMOVE_EVENT,
@@ -10,6 +10,7 @@ import {
   EntityRemoteUpdatedEvent
 } from '../rxdb-events.js';
 import { getEntityMetadata, isAdapterShutdownError } from '../rxdb-utils.js';
+import type { SyncStateHub } from '../sync-state.js';
 import type { HistoryManager } from './HistoryManager.js';
 import { getSyncCapability, getSyncType } from './sync-type-utils.js';
 import type { RepositoryIdentifier } from './VersionManager.interface.js';
@@ -44,7 +45,11 @@ export const isIgnorableDetachedVersionEventError = (error: unknown): boolean =>
 };
 
 /**
- * 跑一步回推动作，吞掉它的失败
+ * 跑一步回推动作，把失败报给面板后吞掉
+ *
+ * @param syncState - 失败的去处
+ * @param task - 这一步
+ * @returns 这一步是否成功
  *
  * @remarks
  * 回推的三步互不背书：分支元数据同步不上，不代表本地攒了一周的写就该继续压着；
@@ -53,13 +58,16 @@ export const isIgnorableDetachedVersionEventError = (error: unknown): boolean =>
  *
  * 吞错也是为了不掐断订阅 —— rxjs 里一个逃逸到流上的异常会终结整条链，此后再恢复
  * 多少次网络都不会再有回推。真正的重试节奏交给
- * {@link ReachabilityMonitor.wakeup$} 的退避。
+ * {@link ReachabilityMonitor.wakeup$} 的退避。吞掉不等于藏起来：错误进
+ * {@link SyncStateHub.reportError}，用户在面板上看得见。
  */
-async function runQuietly(task: () => Promise<unknown>): Promise<void> {
+async function runQuietly(syncState: SyncStateHub, task: () => Promise<unknown>): Promise<boolean> {
   try {
     await task();
-  } catch {
-    // 交给下一次可达性节拍重试
+    return true;
+  } catch (error) {
+    syncState.reportError(error);
+    return false;
   }
 }
 
@@ -90,19 +98,84 @@ function queryCacheRepositories(vm: VersionManager): RepositoryIdentifier[] {
 }
 
 /**
+ * 重放一个 QueryCache 仓库，把判负的实体报给面板
+ *
+ * @remarks
+ * 只有 `conflicts`（解析器判 `KEEP_REMOTE`）进面板：那是用户离线时写的东西被远端盖掉了，
+ * 是唯一需要他知道的一类。逐条上报而不是只报最后一条，`lastConflict` 自然停在最新的那条。
+ */
+async function flushRepository(vm: VersionManager, namespace: string, entity: string): Promise<void> {
+  const { syncState } = vm.rxdb;
+  const result = await flushQueryCacheOutbox(vm, namespace, entity);
+
+  for (const entityId of result.conflicts) {
+    syncState.reportConflict({ namespace, entity, entityId, winner: 'remote' });
+  }
+}
+
+/**
+ * 重放本轮所有 QueryCache 仓库
+ *
+ * @returns 是否每个仓库都成功
+ */
+async function flushRepositories(vm: VersionManager): Promise<boolean> {
+  const { syncState } = vm.rxdb;
+  let allSucceeded = true;
+
+  for (const { namespace, entity } of queryCacheRepositories(vm)) {
+    const succeeded = await runQuietly(syncState, () => flushRepository(vm, namespace, entity));
+    allSucceeded = succeeded && allSucceeded;
+  }
+
+  return allSucceeded;
+}
+
+/**
+ * 重新数一遍 QueryCache 的出站积压，刷新面板
+ *
+ * @remarks
+ * 失败**不**走 {@link runQuietly}：这是一次读，读不到只意味着面板停在上一个数字，
+ * 而 `lastError` 说的是「你的数据没推上去」。把一次 COUNT 失败写进去会让用户
+ * 以为刚推成功的一轮出了问题。
+ *
+ * 每轮都数而不是只在推过之后数：水位线推进不写 `rxdb_change`，实时查询看不见这个数
+ * （见 {@link SyncStateHub.reportOutboxCount}），一轮一次重算是它唯一的纠偏时机。
+ */
+async function refreshOutboxCount(vm: VersionManager): Promise<void> {
+  try {
+    vm.rxdb.syncState.reportOutboxCount(await countQueryCacheOutbox(vm));
+  } catch {
+    // 面板保留上一个数字
+  }
+}
+
+/**
  * 恢复联网后的一轮回推：分支元数据 → changelog 推送 → QueryCache REST 重放
  *
  * @remarks
  * 分支元数据先行：推送要落在正确的分支上，分支信息过期会把变更推到错的地方。
  * 两条推送路径串行而非并行 —— 它们打的是同一个远端，恢复瞬间并发只会把刚恢复的
  * 连接再压垮一次。
+ *
+ * `endRound` 放 `finally`：三步都被 {@link runQuietly} 兜住了，但重算积压那步之外
+ * 若将来再加一步没兜住的，`syncing` 会永久卡在真上，面板从此显示「正在同步」。
  */
 async function resumeSync(vm: VersionManager): Promise<void> {
-  await runQuietly(() => vm.syncBranches());
-  await runQuietly(() => vm.push());
+  const { syncState } = vm.rxdb;
+  syncState.beginRound();
 
-  for (const { namespace, entity } of queryCacheRepositories(vm)) {
-    await runQuietly(() => flushQueryCacheOutbox(vm, namespace, entity));
+  try {
+    const branchesOk = await runQuietly(syncState, () => vm.syncBranches());
+    const pushOk = await runQuietly(syncState, () => vm.push());
+    const flushOk = await flushRepositories(vm);
+
+    // 清账放在重算积压之前：先宣布本轮没出错，再把「还剩多少」更新上去
+    if (branchesOk && pushOk && flushOk) {
+      syncState.reportSuccess();
+    }
+    await refreshOutboxCount(vm);
+  } finally {
+    syncState.endRound();
   }
 }
 

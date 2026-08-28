@@ -121,6 +121,11 @@ export class SyncStateHub {
   /** 汇总快照流；订阅即得当前值 */
   readonly state$: Observable<SyncState> = this.#state$.asObservable();
 
+  /** 当前快照，供不便订阅的同步读取场景使用 */
+  get snapshot(): SyncState {
+    return this.#state$.value;
+  }
+
   constructor(sources: SyncStateSources) {
     this.#subscriptions.add(
       sources.online$.subscribe(online => this.#upstream$.next({ ...this.#upstream$.value, online }))
@@ -142,20 +147,30 @@ export class SyncStateHub {
     this.#subscriptions.add(derived$.subscribe(state => this.#state$.next(state)));
   }
 
-  /** 当前快照，供不便订阅的同步读取场景使用 */
-  get snapshot(): SyncState {
-    return this.#state$.value;
-  }
-
   /**
-   * 上报 QueryCache 路径当前的出站待推数
+   * 上报 QueryCache 路径当前的出站待推数（绝对值）
    *
    * @remarks
-   * 这个数只在两个时机会变：离线写入队（+1），以及一轮重放推进了水位线（−N）。
-   * 两处都会调用本方法，因此「按事件上报」在这里是完备的，而不是对实时流的将就。
+   * 这个数只在两个时机会变：离线写入队（{@link reportOfflineWrite}），以及一轮回推
+   * 推进了水位线。两处都会上报，因此「按事件上报」在这里是完备的，而不是对实时流的将就。
+   *
+   * 与 {@link reportOfflineWrite} 的分工：那个只知道「又多一条」，这个是回推收尾时
+   * 重数一遍的权威值，会把此前累加出来的数整个覆盖掉。
    */
   reportOutboxCount(count: number): void {
     this.#upstream$.next({ ...this.#upstream$.value, outboxCount: count });
+  }
+
+  /**
+   * 上报一次离线写入队
+   *
+   * @remarks
+   * 写路径只知道自己刚排了一条，不知道总数 —— 为了一个确定的 `+1` 再去数一遍全表，
+   * 是拿一次库读换一个已知的答案。权威值由回推收尾时的重算给出。
+   */
+  reportOfflineWrite(): void {
+    const upstream = this.#upstream$.value;
+    this.#upstream$.next({ ...upstream, outboxCount: upstream.outboxCount + 1 });
   }
 
   /** 一轮回推开始 */
