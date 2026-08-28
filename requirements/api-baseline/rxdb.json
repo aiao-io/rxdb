@@ -1510,6 +1510,14 @@
         "kind": "both"
       },
       {
+        "name": "SyncConflict",
+        "kind": "type"
+      },
+      {
+        "name": "SyncConflictReport",
+        "kind": "type"
+      },
+      {
         "name": "SyncDirection",
         "kind": "type"
       },
@@ -1539,6 +1547,18 @@
       },
       {
         "name": "SyncResult",
+        "kind": "type"
+      },
+      {
+        "name": "SyncState",
+        "kind": "type"
+      },
+      {
+        "name": "SyncStateHub",
+        "kind": "both"
+      },
+      {
+        "name": "SyncStateSources",
         "kind": "type"
       },
       {
