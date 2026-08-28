@@ -1,6 +1,4 @@
-import { combineLatest, merge, Observable, Subscription } from 'rxjs';
-import { distinctUntilChanged, exhaustMap, filter, map, withLatestFrom } from 'rxjs/operators';
-import { flushQueryCacheOutbox } from '../repository/query-cache-outbox.js';
+import { Subscription } from 'rxjs';
 import {
   ENTITY_REMOTE_CREATE_EVENT,
   ENTITY_REMOTE_REMOVE_EVENT,
@@ -9,10 +7,8 @@ import {
   EntityRemoteRemovedEvent,
   EntityRemoteUpdatedEvent
 } from '../rxdb-events.js';
-import { getEntityMetadata, isAdapterShutdownError } from '../rxdb-utils.js';
+import { isAdapterShutdownError } from '../rxdb-utils.js';
 import type { HistoryManager } from './HistoryManager.js';
-import { getSyncCapability, getSyncType } from './sync-type-utils.js';
-import type { RepositoryIdentifier } from './VersionManager.interface.js';
 import type { VersionManager } from './VersionManager.js';
 
 /**
