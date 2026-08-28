@@ -12,3 +12,4 @@ export * from './use-action';
 export * from './use-infinite-scroll';
 export * from './use-persisted-state';
 export * from './use-state';
+export * from './use-sync-state';
