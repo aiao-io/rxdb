@@ -179,14 +179,19 @@ describe('content 段的 v2 帧穿透（C2/AC#36）', () => {
     expect(send).toHaveBeenCalledWith(event.data);
   });
 
-  it('把扩展发来的 v2 下行帧投递给页面', () => {
+  it('把扩展发来的 v2 下行帧投给 window 总线——即使私有端口已经就位', () => {
+    // 端口是 **v1 命令面**的传输层：connector 的 `#port.onmessage` 只收 v1 消息，
+    // v2 帧收发都固定在 window 总线上（见 `connector.ts` 的 `#postMessage` 说明）。
+    // 中继若把 v2 下行帧塞进端口，对端一条都读不到，协商窗口静默到期，
+    // 于是「两端都支持 v2」的组合在真实 Chrome 里稳定退回 v1 facade——
+    // 这正是扩展 e2e 抓到的现象，v1 单测因为两侧各测各的而看不见。
     const post = vi.fn();
     const port = { postMessage: vi.fn() } as unknown as MessagePort;
     const request = v2Request();
 
     expect(forwardExtensionMessage(request, 'https://example.com', post, port)).toBe(true);
-    expect(port.postMessage).toHaveBeenCalledWith(request);
-    expect(post).not.toHaveBeenCalled();
+    expect(post).toHaveBeenCalledWith(request, 'https://example.com');
+    expect(port.postMessage).not.toHaveBeenCalled();
   });
 
   it('不把 v2 下行帧当成页面消息回传，避免自环', () => {

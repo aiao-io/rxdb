@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>RxDB DevTools relay fixture</title>
+  </head>
+  <body>
+    <h1>RxDB DevTools relay fixture</h1>
+    <p id="status">idle</p>
+    <script type="module">
+      // 被检查页面的**真实** connector：来自 `packages/rxdb-devtools/dist`，
+      // 由 tools/prepare.mjs 复制到 ./vendor。测试里不 new 源码类——本套件要验的正是
+      // 「发布产物 + 真实 window.postMessage + 真实 content script」这条链。
+      import { DevToolsConnector } from './vendor/index.js';
+
+      /**
+       * 最小 RxDB 替身。
+       *
+       * connector 在 init 阶段只订阅事件；实体/分支查询要等面板真的发命令才会碰
+       * `entityManager` / `versionManager`。本套件断言的是中继与档位，不是查询结果，
+       * 因此这里只实现事件面，其余成员保持存在但不被调用——被调用了就应该炸，
+       * 那说明档位闸门漏了一条命令，正是 AC#41 要抓的东西。
+       */
+      function createFixtureRxDB() {
+        const listeners = new Map();
+        return {
+          version: '0.0.0-e2e',
+          config: { dbName: 'e2e-fixture', entities: [], sync: {} },
+          addEventListener(type, listener) {
+            if (!listeners.has(type)) listeners.set(type, new Set());
+            listeners.get(type).add(listener);
+          },
+          removeEventListener(type, listener) {
+            listeners.get(type)?.delete(listener);
+          },
+          emit(type, event) {
+            listeners.get(type)?.forEach(listener => listener(event));
+          },
+          disconnectAll: () => Promise.resolve(),
+          getAdapter: () => Promise.reject(new Error('fixture has no adapter')),
+          get entityManager() {
+            throw new Error('fixture entityManager touched');
+          },
+          get versionManager() {
+            throw new Error('fixture versionManager touched');
+          }
+        };
+      }
+
+      const params = new URLSearchParams(location.search);
+      const rxdb = createFixtureRxDB();
+      const connector = new DevToolsConnector({
+        capabilities: params.get('capabilities') ?? 'readonly',
+        mutationPolicy: params.get('mutationPolicy') ?? 'omit'
+      });
+      connector.init(rxdb);
+
+      // 「握手之前」必须由页面自己制造，才是确定性的：init 之后同一个 tick 里发一条事件，
+      // 此时任何一轮消息往返都还没发生。放在测试侧 `page.evaluate` 里发就成了和握手赛跑，
+      // 赢了才算数的断言不是断言。
+      if (params.get('emitOnInit') === '1') rxdb.emit('ENTITY_LOCAL_CREATE', { type: 'ENTITY_LOCAL_CREATE' });
+
+      // 测试用的观察窗：只读，不参与协议。
+      window.__fixture = {
+        emit: (type, event) => rxdb.emit(type, event ?? { type }),
+        get connected() {
+          return connector.connected;
+        }
+      };
+      document.getElementById('status').textContent = 'connector-ready';
+    </script>
+  </body>
+</html>

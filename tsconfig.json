@@ -161,6 +161,9 @@
     },
     {
       "path": "./modules/rxdb-devtools-panel"
+    },
+    {
+      "path": "./apps/rxdb-devtools-extension-e2e"
     }
   ]
 }

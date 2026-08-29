@@ -1,4 +1,5 @@
 import {
+  isDevToolsMessage,
   isRelayFrameTowards,
   isRelayHandshake,
   RXDB_DEVTOOLS_MESSAGE,
@@ -92,9 +93,20 @@ export function extractHandshakePort(event: MessageEvent): MessagePort | null {
  * @returns 消息属于 `devtools-to-page` 方向且已投递时返回 `true`
  *
  * @remarks
- * 有端口就走端口：命令载荷（分支名、查询参数）不该出现在同页任何脚本都能监听的
+ * **v1 有端口就走端口**：命令载荷（分支名、查询参数）不该出现在同页任何脚本都能监听的
  * `window` 总线上。唯独 `PING` 例外 —— 它正是用来唤醒「握手时 bridge 还没注入」的
  * connector 的，那种情况下端口必然还不存在，只能广播。
+ *
+ * **v2 一律走 `window` 总线，端口在不在都一样**：私有端口是 v1 命令面的传输层，
+ * connector 的 `#port.onmessage` 只解 v1 消息，v2 帧的收发两个方向都固定在
+ * `window` 总线上（见 `packages/rxdb-devtools/src/connector.ts` 的 `#postMessage`）。
+ * 把 v2 帧塞进端口，对端一条都读不到：`PROTOCOL_HELLO` 石沉大海、协商窗口静默到期，
+ * 「两端都支持 v2」于是在真实 Chrome 里**稳定**退回 v1 facade。两代协议各自完整地
+ * 待在自己的信道上，中继不得替它们换信道。
+ *
+ * v2 的下行载荷因此确实经过 `window` 总线——这是阶段 B 冻结协议时就定下的形态
+ * （connector 的 v2 出站同样走总线，且 `targetOrigin` 锁死 `location.origin`），
+ * 不是这里放宽的。要改只能改协议本身，不能由中继单方面改路由。
  */
 export function forwardExtensionMessage(
   message: unknown,
@@ -103,7 +115,7 @@ export function forwardExtensionMessage(
   port: MessagePort | null = null
 ): boolean {
   if (!isRelayFrameTowards(message, 'to-page')) return false;
-  if (port) {
+  if (port && isDevToolsMessage(message)) {
     port.postMessage(message);
     return true;
   }
