@@ -15,24 +15,24 @@
  */
 
 export {
-  isDevToolsMessage,
-  RXDB_DEVTOOLS_MESSAGE,
-  type DevToolsMessage,
-  type ExtensionMessageType,
-  type ExtensionOnlyMessageType,
-  type InitMessage,
-  type InspectedWindowScriptResultPayload
-} from './types';
-export {
-  isOpfsRequest,
   MAX_OPFS_UPLOAD_BYTES,
   OPFS_MESSAGES,
+  isOpfsRequest,
   validateOpfsName,
   withOpfsRequestId,
   type DirectoryEntry,
   type OpfsRequest,
   type OpfsResponse
 } from './opfs';
+export {
+  RXDB_DEVTOOLS_MESSAGE,
+  isDevToolsMessage,
+  type DevToolsMessage,
+  type ExtensionMessageType,
+  type ExtensionOnlyMessageType,
+  type InitMessage,
+  type InspectedWindowScriptResultPayload
+} from './types';
 export { base64ToBytes, bytesToBase64 } from './utils/base64';
 export { logger } from './utils/logger';
 export { normalizePath } from './utils/path';

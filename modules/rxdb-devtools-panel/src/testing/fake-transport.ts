@@ -1,5 +1,9 @@
 import { signal } from '@angular/core';
-import { RXDB_DEVTOOLS_MESSAGE, type DevToolsMessage, type ExtensionMessageType } from '@modules/rxdb-devtools-panel/wire';
+import {
+  RXDB_DEVTOOLS_MESSAGE,
+  type DevToolsMessage,
+  type ExtensionMessageType
+} from '@modules/rxdb-devtools-panel/wire';
 import type { DevToolsTransport } from '../transport';
 
 /** 面板经 {@link FakeDevToolsTransport} 发出的一条消息。 */

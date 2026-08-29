@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RXDB_DEVTOOLS_MESSAGE, type DevToolsMessage } from '@modules/rxdb-devtools-panel/wire';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   INSPECTED_WINDOW_SCRIPT_RESULT,
   createScriptRequestId,

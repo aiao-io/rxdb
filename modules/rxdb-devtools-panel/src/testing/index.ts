@@ -7,12 +7,7 @@
  */
 
 import { Provider } from '@angular/core';
-import {
-  DEVTOOLS_FILE_CHANNEL,
-  DEVTOOLS_HOST_ACCESS,
-  DEVTOOLS_PANEL_VERSION,
-  DEVTOOLS_TRANSPORT
-} from '../transport';
+import { DEVTOOLS_FILE_CHANNEL, DEVTOOLS_HOST_ACCESS, DEVTOOLS_PANEL_VERSION, DEVTOOLS_TRANSPORT } from '../transport';
 import { FakeDevToolsFileChannel } from './fake-file-channel';
 import { FakeDevToolsHostAccess } from './fake-host-access';
 import { FakeDevToolsTransport } from './fake-transport';

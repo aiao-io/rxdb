@@ -1,12 +1,12 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RXDB_DEVTOOLS_MESSAGE, type DevToolsMessage } from '@modules/rxdb-devtools-panel/wire';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastService } from '../components/toast.component';
+import { DEVTOOLS_TRANSPORT } from '../transport';
 import type { Branch, DbInfo, EntityData, SerializedEvent } from '../types/devtools.types';
 import { DatabaseStateService } from './database-state.service';
 import { DevToolsStateService } from './devtools-state.service';
-import { DEVTOOLS_TRANSPORT } from '../transport';
 
 class PortStub {
   private listener: ((message: DevToolsMessage) => void) | null = null;

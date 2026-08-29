@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
 import { MAX_OPFS_UPLOAD_BYTES } from '@modules/rxdb-devtools-panel/wire';
+import { describe, expect, it, vi } from 'vitest';
 import { createOpfsMessageHandler } from './opfs';
 
 interface MockDirectory {

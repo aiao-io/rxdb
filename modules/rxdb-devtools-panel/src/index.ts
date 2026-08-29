@@ -16,11 +16,11 @@ export { routes } from './app.routes';
 export { ConnectionGuardComponent } from './components/connection-guard.component';
 export { ToastService } from './components/toast.component';
 export {
+  INSPECTED_WINDOW_SCRIPT_RESULT,
   clearDatabase,
   createScriptRequestId,
   downloadDatabase,
   executeInInspectedWindow,
-  INSPECTED_WINDOW_SCRIPT_RESULT,
   serializeFunctionWithResult,
   type ClearDatabaseResult,
   type DownloadDatabaseResult,
@@ -46,8 +46,8 @@ export type {
   EntityData,
   EntityErrorKind,
   EntityInfo,
-  OpfsErrorKind,
   OPFSFile,
+  OpfsErrorKind,
   SerializedEvent,
   Theme
 } from './types/devtools.types';

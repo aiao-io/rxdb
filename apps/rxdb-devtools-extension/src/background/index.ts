@@ -1,6 +1,6 @@
+import { logger } from '@modules/rxdb-devtools-panel/wire';
 import bridgeScript from '../content/bridge.ts?script';
 import opfsScript from '../content/opfs-content.ts?script';
-import { logger } from '@modules/rxdb-devtools-panel/wire';
 import { createBackgroundController } from './background-core';
 
 const controller = createBackgroundController({

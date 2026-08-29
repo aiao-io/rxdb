@@ -1,10 +1,10 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OpfsRequest, OpfsResponse } from '@modules/rxdb-devtools-panel/wire';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastService } from '../components/toast.component';
-import { DEVTOOLS_FILE_CHANNEL } from '../transport';
 import { FakeDevToolsFileChannel } from '../testing';
+import { DEVTOOLS_FILE_CHANNEL } from '../transport';
 import type { OPFSFile } from '../types/devtools.types';
 import { OpfsService } from './opfs.service';
 
@@ -224,11 +224,7 @@ describe('OpfsService', () => {
 
     await expect(service.upload(new File(['data'], 'data.bin'))).resolves.toBe(false);
 
-    expect(fileChannel.requests.map(request => request.message)).toEqual([
-      'uploadStart',
-      'uploadChunk',
-      'uploadAbort'
-    ]);
+    expect(fileChannel.requests.map(request => request.message)).toEqual(['uploadStart', 'uploadChunk', 'uploadAbort']);
     expect(toast.error).toHaveBeenCalledWith('上传失败: write failed');
   });
 

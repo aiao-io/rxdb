@@ -1,7 +1,7 @@
-import type { DirectoryEntry } from '@modules/rxdb-devtools-panel/wire';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router, withHashLocation } from '@angular/router';
+import type { DirectoryEntry } from '@modules/rxdb-devtools-panel/wire';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AppComponent } from './app.component';
 import { routes } from './app.routes';

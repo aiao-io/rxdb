@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
 import { RXDB_DEVTOOLS_MESSAGE } from '@modules/rxdb-devtools-panel/wire';
+import { describe, expect, it, vi } from 'vitest';
 import { createBackgroundController, type BackgroundPort } from './background-core';
 
 /**
@@ -102,10 +102,7 @@ describe('createBackgroundController', () => {
 
     // AC#36：ACK 的唯一所有者是面板。background 代发 ACK 会让页面在面板还没决定协议版本时
     // 就认为握手已完成 —— 这正是阶段 B 判定的「伪造 ACK」，v2 协商窗口据此失效。
-    expect(sendToTab).not.toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ type: 'HANDSHAKE_ACK' })
-    );
+    expect(sendToTab).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ type: 'HANDSHAKE_ACK' }));
     expect(panel.port.postMessage).toHaveBeenCalledWith(handshake);
   });
 
