@@ -147,6 +147,14 @@ export interface DesktopPgliteExecRequest {
   readonly kind: 'pg.exec';
   readonly sessionId: string;
   readonly sql: string;
+  /**
+   * host 签发的事务 ID；缺席表示不在事务里执行。
+   *
+   * @remarks
+   * 与 `pg.query` 同款字段，缺了它事务里就没有能跑多语句脚本的路径——而「没有路径」
+   * 在 renderer 侧只会变成「悄悄跑在事务外」，即 AC#2 明令禁止的伪事务。
+   */
+  readonly transactionId?: string;
 }
 
 /** 开启一条事务，取得串联后续语句用的事务 ID。 */
@@ -424,7 +432,14 @@ export function parseDesktopPgliteRequest(value: unknown): DesktopPgliteRequest 
       transactionId: readOptionalUuid(record, 'transactionId')
     };
   }
-  if (kind === 'pg.exec') return { kind, sessionId, sql: readSql(record) };
+  if (kind === 'pg.exec') {
+    return {
+      kind,
+      sessionId,
+      sql: readSql(record),
+      transactionId: readOptionalUuid(record, 'transactionId')
+    };
+  }
   if (kind === 'pg.begin') return { kind, sessionId, timeout: readBeginTimeout(record) };
   if (kind === 'pg.commit' || kind === 'pg.rollback') {
     return { kind, sessionId, transactionId: readUuid(record, 'transactionId') };

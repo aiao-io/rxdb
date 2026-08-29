@@ -171,8 +171,13 @@ export interface IPGliteClient {
    * 描述查询
    * @param query 要描述的查询
    * @returns 查询结果类型的描述
+   *
+   * @remarks
+   * 可选：`DescribeQueryResult` 里挂着解析器函数，跨不了结构化克隆，因此 US-208 的桌面
+   * 代理客户端提供不了它。适配器自身一处都没调用，声明成必需只会把「本地实现不了」
+   * 变成「必须编一个假的」。
    */
-  describeQuery(query: string, options?: QueryOptions): Promise<DescribeQueryResult>;
+  describeQuery?(query: string, options?: QueryOptions): Promise<DescribeQueryResult>;
 
   /**
    * 执行事务
@@ -187,8 +192,13 @@ export interface IPGliteClient {
    * 也不会阻塞事务和查询使用的锁
    * @param fn 要运行的函数
    * @returns 函数的结果
+   *
+   * @remarks
+   * 可选，理由与 {@link IPGliteClient.describeQuery} 同类但更硬：`fn` 是调用方的闭包，
+   * 跨进程传不过去；真要代理，只能让 renderer 在整个 `fn` 期间扣住主进程那条唯一连接，
+   * 而 renderer 崩溃时这把锁就永远松不开了。
    */
-  runExclusive<T>(fn: () => Promise<T>): Promise<T>;
+  runExclusive?<T>(fn: () => Promise<T>): Promise<T>;
 
   /** 当前 realm 中是否有其他客户端持有同一份持久化存储。 */
   hasStoragePeer?(): boolean;
@@ -201,8 +211,12 @@ export interface IPGliteClient {
    * @param query SQL
    * @param params 参数
    * @param callback 结果回调
+   *
+   * @remarks
+   * 可选：`LiveQuery` 句柄带着订阅与 `unsubscribe`，代理实现需要自建一整套跨进程订阅
+   * 生命周期。{@link RxDBAdapterPGlite.liveQuery} 已按能力判定并快速失败。
    */
-  liveQuery<T>(
+  liveQuery?<T>(
     query: string,
     params?: unknown[] | null,
     callback?: (results: Results<T>) => void

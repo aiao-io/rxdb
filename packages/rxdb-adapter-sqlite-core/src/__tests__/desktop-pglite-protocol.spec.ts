@@ -119,6 +119,21 @@ describe('desktop pglite protocol', () => {
       ).toEqual({ kind: 'pg.exec', sessionId: SESSION, sql: 'SELECT 1; SELECT 2' });
     });
 
+    it('pg.exec 能带事务 ID——否则事务里就没有跑多语句脚本的路径', () => {
+      expect(
+        parseDesktopPgliteRequest({
+          kind: 'pg.exec',
+          sessionId: SESSION,
+          sql: 'SELECT 1; SELECT 2',
+          transactionId: TRANSACTION
+        })
+      ).toEqual({ kind: 'pg.exec', sessionId: SESSION, sql: 'SELECT 1; SELECT 2', transactionId: TRANSACTION });
+
+      expect(() =>
+        parseDesktopPgliteRequest({ kind: 'pg.exec', sessionId: SESSION, sql: 'SELECT 1', transactionId: 'tx-1' })
+      ).toThrowError(/transactionId must be a UUID/);
+    });
+
     it('pg.begin 的超时被夹在上限内，缺省用默认值', () => {
       expect(parseDesktopPgliteRequest({ kind: 'pg.begin', sessionId: SESSION })).toEqual({
         kind: 'pg.begin',
