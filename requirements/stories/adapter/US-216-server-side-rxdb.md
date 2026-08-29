@@ -101,7 +101,10 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
 - **Full-sync / 离线写队列 / 冲突解决**：`RxDBAdapterHttp` v1 刻意不实现 changelog
   （`pullChanges` 抛 `HttpChangelogUnsupportedError`，[RxDBAdapterHttp.ts:469](../../../packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts#L469)），
   本故事不改变这条边界
-- 真实身份认证；CORS / 安全边界语义的任何变化（后端仍只监听 `127.0.0.1`）
+- 真实身份认证与行级作用域：demo 保持假认证；D9 只记录真实后端的模式（租户过滤 AND 组合、写授权、
+  每请求审计身份）。「每请求审计身份」若需要 core 的按操作/事务级 context 覆盖，另立 core story
+- 水平扩展：多进程各持一份后端 RxDB 实例 + 外部 pub/sub 转发广播，不在本故事范围
+- CORS / 安全边界语义的任何变化（后端仍只监听 `127.0.0.1`）
 - 新的纯 Node `node:sqlite` **适配器包**：`NodeSqliteEngine` 已在 `rxdb-adapter-electron` 落地
   （`RxDBAdapterElectron extends RxDBAdapterSqliteBase`，Electron 专有的只是 host/IPC 分发，
   SQL 引擎与 sqlite-core 的仓储/查询层都不依赖 Electron），抽包是薄层提取——另立故事，本故事不阻塞于它
@@ -195,6 +198,29 @@ seed 路径改用适配器层写入（如 `mergeChanges` / 行契约路径），
 
 代价照旧且已承认：实体粒度广播会放大重拉流量（一次写入让每个活查询多跑一趟远端），
 demo 的变更通知开关就是留给这类实验的。
+
+### D9 — 多用户共享实例的边界：实例级 vs 每请求
+
+前端实例是**一人一库**（每个浏览器 profile 一个实例，`context` 就是该用户）；后端实例是**全租户共享**——
+身份随请求来，不能进实例级 `context`（其契约是「用于写入 `createdBy` 等审计字段、以及行级过滤时的环境变量」，
+[rxdb.interface.ts:129](../../../packages/rxdb/src/rxdb.interface.ts#L129)）。据此画线：
+
+**实例级**（后端合法持有）：schema、存储、事件流、`clientId`。后端 `context` 填服务器身份（不是任何用户），
+引擎拿它盖审计字段。回声抑制用的 `x-client-id` 从**请求头**读，与实例 `clientId` 无关——这条与现行后端一致。
+
+**每请求级**（必须由 server 层按请求携带，引擎不背）：
+1. **查询作用域**。客户端送来的 `where` 是「该用户想看的窗口」，不是执行面：server 层把租户/行级过滤
+   与 `where` 做 AND 组合后再交给 `repo.find`。D8 的广播模型在多用户下恰恰因此是对的——通知不带行数据、
+   不过滤，权威过滤发生在每个客户端重拉时；行级推送反而会把行数据/存在性泄漏给未授权订阅者。
+2. **写授权**。create / update / delete 前校验请求身份对目标行的权限；有鉴权时 404 与 403 的区分要想清楚
+   （避免存在性泄漏）。demo 保持假认证（Out of Scope），本条是给真实后端照抄的模式说明，不是 demo AC。
+3. **审计字段**。`createdBy` / `updatedBy` 是只读系统字段（[entity-base.ts:121-127](../../../packages/rxdb/src/entity/entity-base.ts#L121-L127)），
+   共享实例下引擎会把它们全盖成服务器身份。demo 的 wire 不带这两个字段，接受；
+   真实后端要「每请求审计身份」——core 是否有按操作/事务级的 context 覆盖**未核实**（属推断），
+   若无则另立 core story。**实现阶段确认**。
+
+**共享实例的两个实际边界**：并发写由 pglite 单进程事务串行化，demo 规模足够；
+多进程水平扩展（每个进程一份 RxDB 实例 + 外部 pub/sub 转发广播）不在本故事范围。
 
 ## 交付阶段
 
