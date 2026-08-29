@@ -69,13 +69,6 @@ export class PGliteNotificationBatcher {
   #windowStartedAt?: number;
   #sendTimer?: ReturnType<typeof setTimeout>;
 
-  constructor(options: PGliteNotificationBatcherOptions) {
-    this.#options = options;
-    this.#batchTimeout = options.batchTimeout ?? DEFAULT_NOTIFY_BATCH_TIMEOUT_MS;
-    this.#maxBatchWait = options.maxBatchWait ?? DEFAULT_NOTIFY_MAX_BATCH_WAIT_MS;
-    this.#maxPendingEvents = options.maxPendingEvents ?? DEFAULT_NOTIFY_MAX_PENDING_EVENTS;
-  }
-
   /** trailing 防抖间隔（毫秒）。 */
   get batchTimeout(): number {
     return this.#batchTimeout;
@@ -89,6 +82,13 @@ export class PGliteNotificationBatcher {
   /** 当前是否有一个还没到期的防抖定时器。 */
   get hasScheduledFlush(): boolean {
     return this.#sendTimer !== undefined;
+  }
+
+  constructor(options: PGliteNotificationBatcherOptions) {
+    this.#options = options;
+    this.#batchTimeout = options.batchTimeout ?? DEFAULT_NOTIFY_BATCH_TIMEOUT_MS;
+    this.#maxBatchWait = options.maxBatchWait ?? DEFAULT_NOTIFY_MAX_BATCH_WAIT_MS;
+    this.#maxPendingEvents = options.maxPendingEvents ?? DEFAULT_NOTIFY_MAX_PENDING_EVENTS;
   }
 
   /**
@@ -136,8 +136,9 @@ export class PGliteNotificationBatcher {
     }, this.#batchTimeout);
   }
 
-  /** 立即派发窗口内的全部事件并清空窗口。 */
+  /** 立即派发窗口内的全部事件并清空窗口；已排的防抖定时器一并取消。 */
   flush(): void {
+    this.#cancelTimer();
     const grouped = new Map<string, PendingPGliteEvent[]>();
     for (const event of this.#pendingEvents) {
       const key = `${event.type}_${event.tableName}`;

@@ -10,6 +10,10 @@
         "kind": "type"
       },
       {
+        "name": "asPGliteChangeEventSource",
+        "kind": "value"
+      },
+      {
         "name": "buildCreateFtsTableSql",
         "kind": "value"
       },
@@ -139,6 +143,10 @@
       },
       {
         "name": "PGliteChangeEvent",
+        "kind": "type"
+      },
+      {
+        "name": "PGliteChangeEventSource",
         "kind": "type"
       },
       {
