@@ -27,6 +27,15 @@ export const REPORT_PATH_ENV = 'DEV_RXDB_TAURI_SELFCHECK_REPORT';
 /** 应用数据根目录覆盖的环境变量名，与 `selfcheck.rs` 的 `APP_DATA_DIR_ENV` 一致。 */
 export const APP_DATA_DIR_ENV = 'DEV_RXDB_TAURI_APP_DATA_DIR';
 
+/**
+ * webview 能力探针的服务根地址，与 `selfcheck.rs` 的 `PROBE_BASE_URL_ENV` 一致；**可选**。
+ *
+ * @remarks
+ * 它不参与上面两个变量的成对铁律：不设就只是不跑 webview 探针。但反过来不成立 ——
+ * 没开自检却设了它是配置错误（退出码 3），因为那意味着有人以为探针会跑而它不会。
+ */
+export const PROBE_BASE_URL_ENV = 'DEV_RXDB_TAURI_PROBE_BASE_URL';
+
 /** 本文件能读懂的报告结构版本，与 `selfcheck.rs` 的 `REPORT_SCHEMA_VERSION` 一致。 */
 export const REPORT_SCHEMA_VERSION = 2;
 
@@ -56,6 +65,17 @@ export const CONFIG_EXIT_CODE = 3;
 export const DATABASE_FILE = join('rxdb-data', 'desktop_demo@0_1.sqlite3');
 
 /**
+ * 文件内容在应用数据根目录下的子目录名（US-505）。
+ *
+ * @remarks
+ * 只到这一层为止，**不再往下拼**：`rootDir`（`files/`）与物理文件名的编码方式都是
+ * storage 插件的内部约定，写进用例就等于把实现细节钉进断言，改一次编码就红一次。
+ * 用例的做法是从这里往下**递归收集普通文件**，再拿 sha256 与报告里的
+ * {@link StorageProbe.digest} 对 —— 那才是「内容真的落在原生文件上」这条 AC 的判据。
+ */
+export const FILE_STORAGE_DIR = 'rxdb-files';
+
+/**
  * 单次自检的硬超时。
  *
  * @remarks
@@ -68,6 +88,53 @@ export const SELFCHECK_TIMEOUT_MS = 90_000;
 /** 自检结论，与 `selfcheck.rs` 的 `SelfCheckStatus` 一致。 */
 export type SelfCheckStatus = 'ok' | 'failed' | 'timedOut';
 
+/**
+ * 文件存储探针的结果，与 `selfcheck.rs` 的 `StorageProbe` 一致。
+ *
+ * @remarks
+ * 同样**不带物理路径**（AC#4：物理路径不出协议）。磁盘上那份文件由用例自己去
+ * {@link FILE_STORAGE_DIR} 底下递归找，再拿 sha256 与 {@link digest} 对。
+ */
+export interface StorageProbe {
+  /** 读回内容的 sha256，小写十六进制。 */
+  readonly digest: string;
+  /** 读回内容的字节数。 */
+  readonly byteLength: number;
+  /** 本次启动**之前**探针文件是否已存在。 */
+  readonly existedBefore: boolean;
+}
+
+/**
+ * webview 能力探针的结果，与 `selfcheck.rs` 的 `WebviewProbe` 一致（US-505 AC#6）。
+ *
+ * @remarks
+ * 这些事实**只有真实 webview 能给**：Rust 侧看不到 `window`，一致性套件里的 Node 进程更
+ * 看不到。三家引擎（WebView2 / WKWebView / WebKitGTK）在这几项上并不必然一致，所以它们
+ * 不是「顺手记一笔」，而是这条 AC 的全部证据。
+ */
+export interface WebviewProbe {
+  /** 从 UA 认出的引擎族：`chromium` / `webkit` / `gecko` / `unknown`。 */
+  readonly engine: string;
+  /** renderer 的 `location.origin`。 */
+  readonly origin: string;
+  /** `navigator.onLine`。 */
+  readonly online: boolean;
+  /** `window.showSaveFilePicker` 是否存在 —— `download()` 走哪条分支的唯一判据。 */
+  readonly saveFilePicker: boolean;
+  /** `<a download>` 是否被实现。 */
+  readonly anchorDownload: boolean;
+  /** `URL.createObjectURL` 是否交出一个 `blob:` URL。 */
+  readonly objectUrl: boolean;
+  /** 同源 `fetch()` 缓存进原生文件后读回内容的 sha256。 */
+  readonly sameOriginDigest: string;
+  /** 同上，字节数。 */
+  readonly sameOriginByteLength: number;
+  /** 跨源（服务端**带** ACAO）的判别结果：成功是 `'ok'`，否则是错误的 `name`。 */
+  readonly crossOriginAllowed: string;
+  /** 跨源（服务端**不带** ACAO）的同一判据。 */
+  readonly crossOriginDenied: string;
+}
+
 /** Rust 侧落盘的报告。 */
 export interface SelfCheckReport {
   /** 结构版本；读别的字段之前先比它。 */
@@ -78,6 +145,10 @@ export interface SelfCheckReport {
   readonly launchCount: number | null;
   /** 失败原因；只有失败方向非 null。 */
   readonly message: string | null;
+  /** 文件存储探针的结果；只有 `ok` 时非 null（US-505 AC#1 / AC#3）。 */
+  readonly storage: StorageProbe | null;
+  /** webview 能力探针的结果；没设 {@link PROBE_BASE_URL_ENV} 时为 null（US-505 AC#6）。 */
+  readonly webview: WebviewProbe | null;
   /** host **实际**建库所依据的根目录。 */
   readonly appDataDir: string;
   /** `tauri.conf.json` 的 `identifier`。 */
@@ -106,6 +177,15 @@ export interface SelfCheckOptions {
   readonly dataDir: string;
   /** 传给 {@link REPORT_PATH_ENV} 的绝对路径；**每次启动都要换一个**，理由见用例注释。 */
   readonly reportPath: string;
+  /**
+   * 传给 {@link PROBE_BASE_URL_ENV} 的服务根地址（末尾不带 `/`）；不给就不跑 webview 探针。
+   *
+   * @remarks
+   * 只有 `desktop-webview-capability.spec.ts` 会给。别的用例不给不是「懒得给」——
+   * 探针会往文件存储里再写三份缓存，而 `desktop-file-storage.spec.ts` 断言的是
+   * 「存储根下恰好一个普通文件」，给了就直接红。
+   */
+  readonly probeBaseUrl?: string;
 }
 
 /** release 产物的候选路径（`tauri build --no-bundle` 不进 bundle 目录，就落在 cargo 的 target 下）。 */
@@ -215,9 +295,12 @@ export async function launch(overrides: Readonly<Record<string, string>>): Promi
  * @throws 硬超时、或报告没落盘 / 结构版本对不上时抛出，并带上 stdout/stderr 当诊断
  */
 export async function runSelfCheck(options: SelfCheckOptions): Promise<SelfCheckRun> {
+  // 可选变量用展开而不是赋一个空串：Rust 侧判的是「变量存不存在」，空串会被当成设了一个
+  // 不合法的地址，于是进程以退出码 3 死在建窗之前 —— 而调用方的本意是「不跑探针」。
   const result = await launch({
     [REPORT_PATH_ENV]: options.reportPath,
-    [APP_DATA_DIR_ENV]: options.dataDir
+    [APP_DATA_DIR_ENV]: options.dataDir,
+    ...(options.probeBaseUrl === undefined ? {} : { [PROBE_BASE_URL_ENV]: options.probeBaseUrl })
   });
 
   const diagnostics = (): string =>

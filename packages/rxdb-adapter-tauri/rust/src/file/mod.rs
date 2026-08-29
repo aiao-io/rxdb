@@ -871,10 +871,11 @@ mod tests {
 
     /// US-505 AC#8：存储根不可写时给出**稳定错误码**，而不是一句只能读给人看的自由文本。
     ///
-    /// AC#8 的另一半（磁盘满）在单元测试里造不出来：要么占满真盘，要么挂一个 loopback
-    /// 文件系统，两者都不该由一条 `cargo test` 承担。`error_code_for` 把
-    /// `StorageFull | QuotaExceeded` 和 `PermissionDenied | ReadOnlyFilesystem` 映射到
-    /// 同一张表上，这里钉住其中一条，另一条只有映射表本身作保。
+    /// AC#8 的另一半（磁盘满）不在这里：它要一个真的会写满的卷，而挂载与格式化不该由一条
+    /// `cargo test` 承担。那一半由 `conformance/storage-disk-full.spec.ts` 在一个真实
+    /// ramdisk 上跑（macOS 走 `hdiutil` + `diskutil`，Linux 走 tmpfs，Windows 没有免权限
+    /// 路径因而跳过）。`error_code_for` 把 `StorageFull | QuotaExceeded` 和
+    /// `PermissionDenied | ReadOnlyFilesystem` 映射到同一张表上，两条各由一侧钉住。
     ///
     /// 只在 unix 上跑：Windows 的目录 ACL 不受 `chmod` 影响，照搬只会得到一条恒绿的用例。
     #[cfg(unix)]

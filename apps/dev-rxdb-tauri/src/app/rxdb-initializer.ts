@@ -3,6 +3,7 @@ import type { RxDBConnectionStateWriter } from './rxdb-connection-state';
 import type { LaunchRecordDatabase } from './services/desktop-launch.service';
 import type { SelfCheckOutcome } from './services/selfcheck-reporter';
 import type { StorageProbeResult, StorageProbeSurface } from './storage-probe';
+import type { WebviewFetchSurface, WebviewProbeResult } from './webview-probe';
 
 /**
  * {@link startLocalDatabase} 用得到的那一小块 RxDB 表面：连接、写启动记录，以及文件存储。
@@ -18,8 +19,8 @@ import type { StorageProbeResult, StorageProbeSurface } from './storage-probe';
  */
 export type LocalDatabase = Pick<RxDB, 'connect'> &
   LaunchRecordDatabase & {
-    /** 连接期间的文件存储服务，探针只用得到它的三个方法。 */
-    readonly storage: StorageProbeSurface;
+    /** 连接期间的文件存储服务，两条探针合起来只用得到它的四个方法。 */
+    readonly storage: StorageProbeSurface & WebviewFetchSurface;
   };
 
 /**
@@ -86,6 +87,17 @@ export interface LocalDatabaseStartup {
    * 单测里换成一个内存替身，不必为跑一条探针把整个存储插件连同后端立起来。
    */
   readonly probe: (storage: StorageProbeSurface) => Promise<StorageProbeResult>;
+  /**
+   * webview 能力探针（US-505 AC#6）。
+   *
+   * @remarks
+   * 返回 `null` 表示这次不跑 —— 探针地址由 Rust 侧给，只有自检模式下的 e2e 才会设它，
+   * 因此**正常启动走的就是这条路**，它不是失败方向。
+   *
+   * 探针地址的读取也在这只手里面（`app.config.ts` 组合的）：把它拆成第二只手的话，
+   * 「读地址失败」与「探针失败」会变成两条要分别处理的路径，而对调用方来说两者是同一件事。
+   */
+  readonly probeWebview: (storage: WebviewFetchSurface) => Promise<WebviewProbeResult | null>;
   /** 要连的本地适配器名。 */
   readonly adapterName: string;
   /** 自检结论的出口；非自检模式下是一次空操作。 */
@@ -160,5 +172,17 @@ export const startLocalDatabase = async (startup: LocalDatabaseStartup): Promise
     await startup.report({ status: 'failed', message: describeError(error) });
     return;
   }
-  await startup.report({ status: 'ok', launchCount, storage });
+  // US-505 AC#6：同样排在存储探针**之后**而不是与它并发 —— webview 探针自己要往存储里写
+  // 三份缓存，与 `existedBefore` 并发起来会互相干扰。
+  let webview: WebviewProbeResult | null;
+  try {
+    webview = await startup.probeWebview(database.storage);
+  } catch (error) {
+    // 不吞成 `ok` + `webview: null`：那与「本来就没开探针」长得一模一样，
+    // e2e 侧只会看到一条「报告里没有 webview 探针结果」，查不到是哪一步坏了。
+    startup.state.markFailed(error);
+    await startup.report({ status: 'failed', message: describeError(error) });
+    return;
+  }
+  await startup.report({ status: 'ok', launchCount, storage, webview });
 };

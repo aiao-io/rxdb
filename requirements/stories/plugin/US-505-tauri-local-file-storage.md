@@ -5,7 +5,7 @@ status: In Progress
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-15
-updated: 2026-08-18
+updated: 2026-08-29
 tags: [plugin, storage, desktop, tauri, filesystem]
 ---
 
@@ -81,14 +81,14 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 
 | #   | 前置条件                                                                         | 操作                                                    | 预期结果                                                                                                                                                                                    | 状态 |
 | --- | -------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | Tauri 应用启用桌面文件后端，capability 只含存储根子目录                          | `upload()` 一个文件，退出应用，重启后 `read()`          | 字节与上传一致；物理文件位于应用数据目录内的存储根；webview data store 无新增内容；未授予额外 shell 或全文件系统权限                                                                        | ⚠️   |
+| 1   | Tauri 应用启用桌面文件后端，capability 只含存储根子目录                          | `upload()` 一个文件，退出应用，重启后 `read()`          | 字节与上传一致；物理文件位于应用数据目录内的存储根；webview data store 无新增内容；未授予额外 shell 或全文件系统权限                                                                        | ✅   |
 | 2   | 桌面后端已接入                                                                   | 以桌面后端为注入实现复跑 storage 插件现有全部行为用例   | 与 OPFS 后端行为一致，无跳过项                                                                                                                                                              | ✅   |
-| 3   | 应用已写入若干文件与目录                                                         | 退出应用，把应用数据目录整体拷贝到新位置，启动          | `list()` 结构完整，逐文件 `read()` 字节一致 —— meta（US-210 的 SQLite）与文件本体在同一备份域                                                                                               | ⚠️   |
+| 3   | 应用已写入若干文件与目录                                                         | 退出应用，把应用数据目录整体拷贝到新位置，启动          | `list()` 结构完整，逐文件 `read()` 字节一致 —— meta（US-210 的 SQLite）与文件本体在同一备份域                                                                                               | ✅   |
 | 4   | renderer 构造恶意路径（`../`、绝对路径、盘符、NUL、Windows 保留名）              | 经传输层发起文件操作                                    | Rust 侧拒绝并返回稳定可判别错误；capability 作用域之外无任何写入                                                                                                                            | ✅   |
-| 5   | 上传/读取超过预览上限量级（≥ 50 MiB）的文件                                      | 全程观察内存与中断行为                                  | 分帧流式完成，内容不整体进 JS 堆；中途 abort 或杀进程后重启，无半写文件、无孤儿 meta                                                                                                        | ⚠️   |
-| 6   | 三家 webview（WebView2 / WKWebView / WebKitGTK）                                 | 触发 `download()` 保存与 `fetch()` 远程缓存             | 保存路径行为被集成测试锁定（WKWebView 无 `showSaveFilePicker`、`<a download>` 行为未定，正是门禁对象）；`fetch()` 在自定义协议 origin 下的 CORS 行为被锁定或有可判别错误                    | ⬜   |
-| 7   | 构建打包后的 Tauri 应用                                                          | 在 macOS、Windows、Linux CI 中运行文件持久化 smoke test | 三平台均通过；测试使用真实临时目录而非 mock 或浏览器存储                                                                                                                                    | ⬜   |
-| 8   | 磁盘满或存储根无写权限                                                           | `upload()` / `fetch()`                                  | 稳定可判别错误 + 原始原因；补偿语义成立（meta 与文件不脱钩），不回退 webview 存储/内存（对齐 US-504 AC#6）                                                                                  | ⚠️   |
+| 5   | 上传/读取超过预览上限量级（≥ 50 MiB）的文件                                      | 全程观察内存与中断行为                                  | 分帧流式完成，内容不整体进 JS 堆；中途 abort 或杀进程后重启，无半写文件、无孤儿 meta                                                                                                        | ✅   |
+| 6   | 三家 webview（WebView2 / WKWebView / WebKitGTK）                                 | 触发 `download()` 保存与 `fetch()` 远程缓存             | 保存路径行为被集成测试锁定（WKWebView 无 `showSaveFilePicker`、`<a download>` 行为未定，正是门禁对象）；`fetch()` 在自定义协议 origin 下的 CORS 行为被锁定或有可判别错误                    | ⚠️   |
+| 7   | 构建打包后的 Tauri 应用                                                          | 在 macOS、Windows、Linux CI 中运行文件持久化 smoke test | 三平台均通过；测试使用真实临时目录而非 mock 或浏览器存储                                                                                                                                    | ⚠️   |
+| 8   | 磁盘满或存储根无写权限                                                           | `upload()` / `fetch()`                                  | 稳定可判别错误 + 原始原因；补偿语义成立（meta 与文件不脱钩），不回退 webview 存储/内存（对齐 US-504 AC#6）                                                                                  | ✅   |
 | 9   | 同一应用开两个 webview 窗口                                                      | 并发 `upload()` 同一路径（其一 overwrite）              | 串行化执行，结果等价于某一种顺序执行；无文件删失、无孤儿 meta —— 锁归宿决策在 Tauri webview 矩阵上成立，Web Locks 缺失时不得静默单进程化（对齐 US-504 AC#7，见技术笔记）                    | ✅   |
 | 10  | web 应用照常使用插件（不配桌面后端）                                             | 构建 + 运行现有浏览器测试                               | 行为与包体不变；Tauri 传输客户端代码不进浏览器 bundle；新增子路径入口按 `KNOWN_UNCOVERED_SUBPATHS` 流程登记（对齐 US-504 AC#8）                                                             | ✅   |
 | 11  | 启用桌面文件后端，但 `sync.local` 配置的不是 US-210 的 Tauri 桌面 SQLite adapter | 初始化 storage 插件                                     | 以稳定可判别错误拒绝启用，不启动文件后端、不静默降级 —— 备份域撕裂组合被禁止（对齐 US-504 AC#9，无 fallback 铁律；判别载体跟随 US-504 技术笔记「错误判别载体」的决策，本故事 AC#4 / #8 同） | ✅   |
@@ -104,7 +104,11 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 
 ## 交付状态
 
-传输层与 Rust 文件宿主已实现并接入 demo，11 条 AC 中 **5 条 ✅、4 条 ⚠️、2 条 ⬜**。
+传输层与 Rust 文件宿主已实现并接入 demo，11 条 AC 中 **9 条 ✅、2 条 ⚠️**。
+
+⚠️ 的两条是 AC#6 / #7：specs 已写完并在 macOS 本机全绿，但它们的判据是**三平台真实
+webview**，本机只核得动 WKWebView 一列。关闭这两条只差一次
+`release-desktop.yml` 的 `workflow_dispatch`（见文末「剩余一步」）。
 
 **US-210 不是本故事的整体前置**，被它前置的只有 AC#1 / #7。这条前置（`apps/dev-rxdb-tauri-e2e`
 project + 三平台打包矩阵）已由 US-210 建好（其 AC#1 / #9 同日关闭），
@@ -132,28 +136,37 @@ project + 三平台打包矩阵）已由 US-210 建好（其 AC#1 / #9 同日关
 | #9       | `file/locks.rs` 的 11 条仲裁用例 + `file/mod.rs` 的 `blocks_a_second_writer_until_the_first_releases`（两个真实线程经派发器争同一把独占锁）与 `wakes_a_queued_waiter_when_its_session_closes`（两个独立会话 = 两个窗口，沿用 US-504 AC#7 的口径）。跨窗口成立的结构依据是 `DesktopHost` 由 `app.manage()` 托管在 Tauri `State` 上，全应用一个实例，SQL 与文件两套协议共用                                                                                                                                                                                                                                                                                                                                                 |
 | #10      | `scripts/audit/api-surface.mjs` 的 `KNOWN_UNCOVERED_SUBPATHS` 已登记 `rxdb-plugin-storage` 的 `./testing`（现为 29 包 API 表面核对通过）；`rxdb-plugin-storage` node 214/214 + browser 20/20 全绿（2026-08-18 复测；node 侧从 200 涨到 214 是 US-504／US-505 后续补的用例，browser 侧一条未动）。Tauri 传输客户端本来就在运行时包里（US-207 拆包后是 `@aiao/rxdb-adapter-tauri`，当时叫 `@aiao/rxdb-adapter-desktop`），浏览器 bundle 走 `setup_rxdb_wa-sqlite.ts` 的 OPFS 默认后端                                                                                                                                                                                                                                       |
 | #11      | `apps/dev-rxdb-tauri/src/app/setup_rxdb_storage.spec.ts` 的 `refuses to build on a non-desktop adapter`（连 `code === 'adapter_mismatch'` 一起断言）+ US-504 `desktop-filesystem.spec.ts` 的两例上游覆盖                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| #1 #3 ⚠️ | `packages/rxdb-adapter-tauri/conformance/storage-persistence.spec.ts` —— 宿主进程被杀后字节仍在磁盘上（并逐字节比对 `rxdb-files/` 下那个**原生文件**，堵死「内容藏在别处也能通过读回断言」）、整目录 `cp -r` 到新位置后结构与字节完整。**缺口**：杀的是 stdio 宿主进程而不是装好的 .app / .exe，窗口生命周期、单实例锁、安装包布局都没覆盖；「webview data store 无新增内容」无 webview 可断言；AC#3 的「与 SQLite 同一备份域」由 `paths.rs` 的 `rxdb-data` / `rxdb-files` 同挂 `app_data_dir()` 结构性成立，未在同一用例里连 SQLite 一起拷                                                                                                                                                                               |
-| #5 ⚠️    | 分帧（`reports_eof_only_on_the_last_frame`）、提交前目标不动（`keeps_the_target_untouched_until_the_write_commits`）、abort 不碰目标（`abandons_a_write_without_touching_the_target`）、会话关闭清理未提交写入与临时文件（`discards_pending_writes_when_the_session_closes`）均已固定。**缺口**：≥ 50 MiB 的实测与「内容不整体进 JS 堆」的内存观测都没做 —— 语义正确 ≠ 规模验证                                                                                                                                                                                                                                                                                                                                           |
-| #8 ⚠️    | `file/mod.rs` 的 `reports_an_unwritable_storage_root_as_permission_denied`（`chmod 0o555` 真封目录，unix-only：Windows 目录 ACL 不吃 `chmod`）。**缺口**：磁盘满只有 `error_code_for` 的映射表兜着，没有用例真把盘写满；补偿语义（meta 与文件不脱钩）由 US-504 `desktop-failure.spec.ts` 在服务层覆盖，未在 Rust 宿主上重跑                                                                                                                                                                                                                                                                                                                                                                                               |
+| #1 #3    | `apps/dev-rxdb-tauri-e2e/src/desktop-file-storage.spec.ts`（2 例，跑在**装好的产物**上，`desktop-smoke` target）。AC#1：同一 `appDataDir` 启两次 —— 首启 `existedBefore=false`、次启 `existedBefore=true` 且 digest / byteLength 不变、`launchCount` 1→2；再到 `<appDataDir>/rxdb-files/` 下递归收普通文件，恰好 1 个且其 sha256 等于报告里的 digest。三条缺一不可：只看 `launchCount` 证明的是 SQLite 活着，只看 `existedBefore` 证明的是「有个地方」记得住，只有第三条把内容钉死在**被指定的应用数据目录**下的原生文件上。AC#3：`cpSync` 把 `<appDataDir>` 整棵树拷走，先核副本里 `rxdb-data/` 的库文件 sha256 与原件一致、`rxdb-files/` 下的内容也在，再拿副本当 `appDataDir` 启动 —— `launchCount` 从副本里的 1 涨到 2（元数据跟来了）**且** `existedBefore=true`、digest 不变（内容也跟来了）。一次 `cp -r` 同时带走两族数据，这就是「同一备份域」的可操作含义；分别验证两者各自存在证不了它。**保留项**：「webview data store 无新增内容」没有直接断言（进程外检视不了 WKWebsiteDataStore），反证是 `existedBefore` 随 `appDataDir` 切换即回到 false —— webview 存储不按 appDataDir 分域。进程级那一层的证据仍在 `conformance/storage-persistence.spec.ts`，两层不重复 |
+| #5       | `packages/rxdb-adapter-tauri/conformance/storage-large-file.spec.ts`（2 例，62 s）。写：52 MiB 经 `openWrite()` 分 13 帧（4 MiB = `DESKTOP_HOST_MAX_FILE_CHUNK_BYTES`）灌进真实临时目录，块内容按偏移确定性生成，JS 侧全程不持整份 buffer；写完到磁盘上核字节数与 sha256。读：走 `openRead()` 的 `ReadableStream` 逐帧滚动摘要，`--expose-gc` 稳住基线后逐帧采 `heapUsed`，断言峰值增量只有**一帧量级**，且不到刻意整份累积的 `readBlob()` 峰值的一半 —— 「内容不整体进 JS 堆」由两条曲线的**对比**给出，而不是一个拍脑袋的绝对阈值。中断与半写语义仍由既有 `#[test]` 覆盖：分帧（`reports_eof_only_on_the_last_frame`）、提交前目标不动（`keeps_the_target_untouched_until_the_write_commits`）、abort 不碰目标（`abandons_a_write_without_touching_the_target`）、会话关闭清理未提交写入与临时文件（`discards_pending_writes_when_the_session_closes`）                                                                                                                    |
+| #8       | `packages/rxdb-adapter-tauri/conformance/storage-disk-full.spec.ts`（2 例）—— 真把盘写满，不是 mock：macOS 用 `hdiutil attach ram://` + `diskutil eraseVolume` 挂一个小容量**虚拟卷**，Linux 用 tmpfs，Windows 无免权限路径故平台跳过（沿用 `reports_an_unwritable_storage_root_as_permission_denied` 的 unix-only 先例）。往卷里灌超过容量的字节，四条一起断：抛 `StorageBackendError` 且 `code === 'disk_full'`、`detail` 只含相对路径（AC#4 不回归）、目标文件**不存在**（原子提交只在 `rename` 之后可见）、父目录下没有遗留 `.{write_id}.rxdb-tmp`（漏临时文件是真实缺陷，应该在这里红，而不是等磁盘某天被塞满）。无写权限那一半仍由 `file/mod.rs` 的 `reports_an_unwritable_storage_root_as_permission_denied`（`chmod 0o555` 真封目录）覆盖；补偿语义（meta 与文件不脱钩）由 US-504 `desktop-failure.spec.ts` 在服务层覆盖                                                                                                                                     |
+| #6 #7 ⚠️ | `apps/dev-rxdb-tauri-e2e/src/desktop-webview-capability.spec.ts`（4 例）+ 渲染端 `apps/dev-rxdb-tauri/src/app/webview-probe.ts`（8 条单测）。探针必须跑在**真实打包 webview** 里：`download()` 与 `fetch()` 都是 renderer 侧路径，压根不经 host，stdio 宿主进程测不到。它**绝不触发原生保存对话框** —— 对话框会挂到 60 s 看门狗，失败形态与真实渲染挂死无法区分，所以锁的是 `download()` 的**分支选择器**（`showSaveFilePicker` / `<a download>` / blob URL 至少一条可用，`storage.service.ts` 的分支前提不落空），不是对话框本身。`fetch()` 这半的正面证据是**同源** `storage.fetch(${origin}/index.html)` 缓存进原生文件后逐字节核回；两条跨源路由（带 / 不带 `Access-Control-Allow-Origin`）照发，用来记录事实：本机两者给出**同一个** `StorageOfflineError` 且本地服务**零命中** —— 拦截发生在 CSP（`tauri.conf.json` 的 `connect-src 'self' ipc: http://ipc.localhost`），请求根本没出渲染进程，与 CORS 无关。为一条断言去放宽产品 CSP 是拿真实安全边界换绿灯，没做；AC#6 允许「被锁定**或有可判别错误**」，这正是后者。AC#7 随同一份 spec 落进 `release-desktop.yml` `tauri-smoke` 的三 OS 矩阵（`desktop-smoke` 的 `include` 自动拾取，不新增 job —— 新增 job 得同步改 `gate` 的 `needs`，没必要）。**保留原因**：`EXPECTED_BY_PLATFORM` 只有 `darwin` 一行是本机核过的真值，Windows / Linux 两行待首次 dispatch 的真实输出回填；缺行时用例会带着可直接粘贴的字面量抛错，所以首跑红一次是锁定过程本身，不是失败 |
 
-门禁（2026-08-18 迁包后实测，括号内为本故事初次交付时记录的旧值）：`cargo test` **147 条**
-（crate 131 + demo 16，其中文件宿主 `file/` 占 41 条 = `locks.rs` 11 + `mod.rs` 19 +
-`protocol.rs` 11；旧值 113）、`cargo clippy` 零警告、`test-conformance` **10 文件 605 条**
-（旧值 9 文件 602 条）、`dev-rxdb-tauri` 单测 **14 文件 94 条**（旧值 12 文件 70 条）、
-`rxdb-plugin-storage` node **9 文件 214 条**（旧值 200 条）、`rxdb-adapter-tauri`
+门禁（2026-08-29 收尾后本机实测，括号内为 2026-08-18 迁包时记录的旧值）：`cargo test`
+**154 条**（crate 131 + demo 23，其中文件宿主 `file/` 占 41 条 = `locks.rs` 11 +
+`mod.rs` 19 + `protocol.rs` 11；旧值 147 = 131 + 16，demo 侧 +7 全在 `selfcheck.rs`，
+是报告 schema v2 与第三个环境变量的校验用例）、`cargo clippy` 零警告、
+`test-conformance` **12 文件 609 条**（旧值 10 文件 605 条；+2 文件即
+`storage-large-file` / `storage-disk-full`）、`dev-rxdb-tauri` 单测 **17 文件 118 条**
+（旧值 14 文件 94 条）、`dev-rxdb-tauri-e2e:desktop-smoke` **3 文件 8 条**、
+`rxdb-plugin-storage` node **9 文件 215 条**（旧值 214 条）、`rxdb-adapter-tauri`
 （原 `rxdb-adapter-desktop`，US-207 E3 拆包后更名）lint/test/build 全绿。
 
-> 数字变动与「迁包」无关：`#[test]` 总数在迁包前（`39dba16`）与迁包后都是 **147**，
-> 一条不多一条不少；增长来自 US-207／US-210 期间补的用例，迁包只搬位置。
+> 迁包那次的数字变动与「迁包」本身无关：`#[test]` 总数在迁包前（`39dba16`）与迁包后
+> 都是 **147**，一条不多一条不少；增长来自 US-207／US-210 期间补的用例，迁包只搬位置。
 
-### 剩余缺口（本故事关闭前必须补）
+### 剩余一步（本机做不了）
 
-1. **AC#6 / #7**：前置（`apps/dev-rxdb-tauri-e2e` + 三平台打包矩阵）已由
-   [US-210](../adapter/US-210-tauri-sqlite-local-database.md) 建好，缺的只剩本故事自己的
-   specs——AC#7 的文件持久化 smoke、AC#6 的三家真实 webview 门禁（本机无法覆盖）。
-2. **AC#1 / #3**：前置已解除，补「打包应用真实重启」与「拷贝应用数据目录后启动」两段 e2e，
-   届时可从 ⚠️ 升 ✅。
-3. **AC#5 / #8**：≥ 50 MiB 实测 + 内存观测；磁盘满用例（可用小容量 loopback / ramdisk）。
+只剩一次 `release-desktop.yml` 的 `workflow_dispatch`。specs 已全部就位并在 macOS 全绿，
+但 AC#6 的判据是**三家真实 webview**，WebView2 与 WebKitGTK 两列本机无从核对。流程：
+
+1. 手动触发一次 dispatch；`tauri-smoke` 的三 OS 矩阵会跑到
+   `desktop-webview-capability.spec.ts`。
+2. Windows / Linux 两行大概率红一次 —— 用例会把该平台的真实观测打印成**可直接粘贴**的
+   `EXPECTED_BY_PLATFORM` 字面量，按输出回填。
+3. 再跑一次全绿后，AC#6 / #7 从 ⚠️ 升 ✅，本故事即可关闭。
+
+首跑红一次是「把未知量钉住」这件事的正常形态，不是缺陷 —— 先猜一个期望值再让 CI 纠正它，
+比在文档里写「行为大概与 Chromium 一致」强。
 
 ### 从 US-504 继承的三条决策（不再是开放项）
 
@@ -186,8 +199,9 @@ S3／S4 两处口径按下表改完，S5 因 US-210 定形为**普通 crate**而
 | S4 ✅ | AC#11 的 `adapter_mismatch` 判据跟随 US-207 E3 的 `ADAPTER_NAME` 分裂（`desktop` → `sqlite-electron` / `sqlite-tauri`）重写拒绝条件            | 已达成：判据从单个名字改为集合 `DESKTOP_HOST_ADAPTER_NAMES`（`desktop-adapter-name.ts`），逐个点名换成 `isDesktopHostAdapterName`；`refuses to build on a non-desktop adapter` 的用例名对应的正是这个集合，仍名副其实                                                                                                                                                          |
 | S5 ✅ | 「传输二选一」小节引用的 `rxdb/mod.rs` capability 论证跟随 US-210 的插件形态决策                                                               | 已达成且**论证零改动**：US-210 定形为**普通 crate 而非 Tauri 插件**，命令仍由宿主应用 `generate_handler!` 注册，不带 `plugin:` 前缀 ⇒ 不进 capability 门禁。本故事「`capabilities/` 全程零改动」「一条 capability 都不用加」两句原样成立；引用位置从 `rxdb/mod.rs` 迁到 `packages/rxdb-adapter-tauri/rust/src/lib.rs` 的「权限面」小节                                         |
 
-搬迁不解「剩余缺口」里的任何一条：AC#1 / #3 / #6 / #7 缺的只是本故事自己的 specs
-（`apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵已由 US-210 建好）。
+搬迁本身不解任何一条 AC：AC#1 / #3 / #6 / #7 当时缺的是本故事自己的 specs
+（`apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵已由 US-210 建好）。这些 specs 已于
+2026-08-29 补齐，见「证据落点」与「剩余一步」。
 
 ## 技术笔记
 

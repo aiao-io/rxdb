@@ -108,6 +108,17 @@ jobs:
   # ---------------------------------------------------------------------------
   # US-210 AC#1 + AC#9：Tauri 打包产物跨进程持久化。
   #
+  # US-505 AC#6 + AC#7 也挂在这个 job 上，**不另起一个**：
+  # - AC#7（三平台打包后文件仍能持久化）要的正是这条三 OS 矩阵；
+  # - AC#6（三家 webview 的 download()/fetch() 行为）只有在真实 webview 里才成立，而
+  #   `desktop-webview-capability.spec.ts` 与另外两个 spec 落在同一个 `include` 下，
+  #   `desktop-smoke` 一次跑完。
+  # 新增 job 的代价是要同步改下面 `gate` 的 `needs` 与断言列表，换不来任何覆盖。
+  #
+  # ⚠️ `desktop-webview-capability.spec.ts` 里的 `EXPECTED_BY_PLATFORM` 只有 macOS 一列
+  # 是本机核对过的。Windows / Linux 那两列要按这个 job 的首次真实输出回填 —— 首跑会红，
+  # 失败消息里直接给出可粘贴的实测字面量。那次红是锁定过程的一部分。
+  #
   # 与 electron-smoke 分开而不是合成一个 job：两套工具链完全不重叠（Tauri 要 Rust +
   # WebKitGTK 开发库，Electron 要下发行包），合并后每个 runner 都得付两份安装税，
   # 而且两个 smoke 会串行 —— 墙钟从 max 变成 sum。

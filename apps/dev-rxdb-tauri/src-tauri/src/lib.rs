@@ -61,7 +61,8 @@ pub fn run() {
             get_versions,
             check_runtime,
             aiao_rxdb_tauri::commands::rxdb_desktop_request,
-            selfcheck::rxdb_selfcheck_report
+            selfcheck::rxdb_selfcheck_report,
+            selfcheck::rxdb_selfcheck_probe_base_url
         ])
         .setup(move |app| {
             // 全程唯一一处根目录分支，且**不是** `unwrap_or`：两边都是被显式选出来的，

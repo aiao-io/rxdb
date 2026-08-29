@@ -75,9 +75,20 @@ export const storageProbeContent = (): Uint8Array<ArrayBuffer> => {
   return content;
 };
 
-// 形参钉死 `Uint8Array<ArrayBuffer>` 而不是宽的 `Uint8Array`：后者的 buffer 可能是
-// `SharedArrayBuffer`，而 `crypto.subtle.digest` 的 `BufferSource` 不收它。
-const sha256Hex = async (bytes: Uint8Array<ArrayBuffer>): Promise<string> => {
+/**
+ * 算一份字节的 sha256，小写十六进制。
+ *
+ * @param bytes - 要摘要的内容
+ * @returns 64 位十六进制字符串
+ *
+ * @remarks
+ * 形参钉死 `Uint8Array<ArrayBuffer>` 而不是宽的 `Uint8Array`：后者的 buffer 可能是
+ * `SharedArrayBuffer`，而 `crypto.subtle.digest` 的 `BufferSource` 不收它。
+ *
+ * 导出是给 `webview-probe.ts` 复用的 —— 两条探针的摘要必须逐字节同一个算法，
+ * 各写一份的话，某天一边改了大小写或补零方式，e2e 侧的对比会以「内容不一致」的形态失败。
+ */
+export const sha256Hex = async (bytes: Uint8Array<ArrayBuffer>): Promise<string> => {
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 };

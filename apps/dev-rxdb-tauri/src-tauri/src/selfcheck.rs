@@ -39,6 +39,13 @@ pub const REPORT_PATH_ENV: &str = "DEV_RXDB_TAURI_SELFCHECK_REPORT";
 /// 应用数据根目录覆盖；必须是绝对路径且目录已存在。
 pub const APP_DATA_DIR_ENV: &str = "DEV_RXDB_TAURI_APP_DATA_DIR";
 
+/// webview 能力探针要打的本地 HTTP 服务根地址（US-505 AC#6）；**可选**。
+///
+/// 不设它就是不跑 webview 探针 —— 那条探针要发真实跨源请求，而正常启动时没有服务在那头。
+/// 它**不参与**上面两个变量的成对规则：它是自检模式内部的一个开关，而不是第三个必需项。
+/// 但反过来不成立，见 [`plan_from_env`]。
+pub const PROBE_BASE_URL_ENV: &str = "DEV_RXDB_TAURI_PROBE_BASE_URL";
+
 /// 报告的结构版本。
 ///
 /// 读报告的一方（`apps/dev-rxdb-tauri-e2e`）先比这个数再读别的字段：字段改了名而读的一方
@@ -113,6 +120,55 @@ pub struct StorageProbe {
     pub existed_before: bool,
 }
 
+/// renderer 跑完 webview 能力探针之后回报的事实（US-505 AC#6）。
+///
+/// # 为什么这些字段值得进协议
+///
+/// `download()` 与 `fetch()` 是**不经 host** 的两条 renderer 侧路径：它们的行为由那家
+/// webview 自己决定，Rust 侧一个字节也看不到。而 Tauri 的 webview 是三家的矩阵
+/// （WebView2 / WKWebView / WebKitGTK），"和 Chromium 一样"是假设不是事实 ——
+/// 所以把每家上的真实取值搬进报告，由 e2e 侧的平台期望表冻结。
+///
+/// 探针**绝不触发原生保存对话框**：那会让进程停在一个没人去点的模态框上，直到 60s
+/// 看门狗把它判成超时 —— 与「renderer 挂死」这种真实缺陷的失败形态一模一样。
+/// 因此 `download()` 这一半锁的是**分支判据**（`save_file_picker` 决定服务走哪条路）
+/// 与各分支的结构前提，而不是保存动作本身。
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WebviewProbe {
+    /// 从 UA 认出的引擎：`chromium` / `webkit` / `gecko` / `unknown`。
+    ///
+    /// WKWebView 与 WebKitGTK 的 UA 都自称 WebKit，靠它分不开 —— 分开靠的是读报告那一方
+    /// 自己的 `process.platform`，这里只负责说清"是哪一族"。
+    pub engine: String,
+    /// renderer 的 origin，例如 `tauri://localhost`（Windows 上是 `http://tauri.localhost`）。
+    pub origin: String,
+    /// `navigator.onLine`；为 false 时 `fetch()` 会在发请求之前就抛 `StorageOfflineError`。
+    pub online: bool,
+    /// `window.showSaveFilePicker` 是否存在 —— 它**单独**决定 `download()` 走哪条分支。
+    pub save_file_picker: bool,
+    /// `<a download>` 属性是否被实现（`save_file_picker` 为 false 时用的就是这条）。
+    pub anchor_download: bool,
+    /// `URL.createObjectURL` 是否交出一个 `blob:` URL。
+    pub object_url: bool,
+    /// 同源 `storage.fetch()` 缓存下来的内容 sha256。
+    ///
+    /// 没有"失败时为空"这一档：同源缓存是 AC#6 里 `fetch()` 那一半的**正向**判据，
+    /// 它失败就该整份自检判 `failed` 并带上原因，而不是报一个 `ok` 里藏着一个 null。
+    pub same_origin_digest: String,
+    /// 同源 `storage.fetch()` 缓存下来的字节数。
+    pub same_origin_byte_length: u64,
+    /// 跨源（服务端**带** `Access-Control-Allow-Origin`）`storage.fetch()` 的判别结果：
+    /// 成功是 `"ok"`，否则是错误的 `name`。
+    pub cross_origin_allowed: String,
+    /// 跨源（服务端**不带** ACAO）的同一判据。
+    ///
+    /// 与上一条取值相同，说明拦住它的是 CSP 的 `connect-src` 而不是 CORS —— 这正是
+    /// 本 demo 的真实配置（`tauri.conf.json` 的 `connect-src 'self' ipc: http://ipc.localhost`），
+    /// 也是"服务端加 ACAO 并不能解开它"这条事实的载体。
+    pub cross_origin_denied: String,
+}
+
 /// renderer 上报的结论，[`rxdb_selfcheck_report`] 的入参。
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -128,6 +184,9 @@ pub struct SelfCheckOutcome {
     /// 文件存储探针的结果；只有 [`SelfCheckStatus::Ok`] 时有值。
     #[serde(default)]
     pub storage: Option<StorageProbe>,
+    /// webview 能力探针的结果；只有设了 [`PROBE_BASE_URL_ENV`] 且跑成功时有值。
+    #[serde(default)]
+    pub webview: Option<WebviewProbe>,
 }
 
 /// 落盘的报告。
@@ -145,6 +204,7 @@ struct SelfCheckReport {
     launch_count: Option<i64>,
     message: Option<String>,
     storage: Option<StorageProbe>,
+    webview: Option<WebviewProbe>,
     app_data_dir: String,
     identifier: String,
 }
@@ -161,6 +221,8 @@ pub struct SelfCheckPlan {
     report_temp_path: PathBuf,
     /// 应用数据根目录。
     pub app_data_dir: PathBuf,
+    /// webview 探针要打的服务根地址；`None` 表示这次不跑那条探针。
+    pub probe_base_url: Option<String>,
 }
 
 impl SelfCheckPlan {
@@ -200,15 +262,22 @@ fn require_directory(key: &str, path: &Path) -> Result<(), String> {
 /// - 两个变量必须**成对**出现：只设其一是打错字最常见的形态，静默忽略等于把测试放回真实目录
 /// - 值为空串是错误，不是「没设」：一个没展开的 `${DIR}` 不该被当成「用默认值」
 /// - 两个路径都必须是绝对路径：相对路径的基准是进程的工作目录，而打包产物的工作目录由谁拉起它决定
+/// - [`PROBE_BASE_URL_ENV`] 是可选的**第三个**变量，只在自检模式下有意义：没开自检却设了它，
+///   只可能是打错了变量名或漏设了另外两个 —— 静默忽略等于让 e2e 去等一份永远不会出现的
+///   `webview` 字段，而报告本身写着 `ok`
 pub fn plan_from_env<R>(read: R) -> Result<Option<SelfCheckPlan>, String>
 where
     R: Fn(&str) -> Result<String, VarError>,
 {
     let report = read_optional(&read, REPORT_PATH_ENV)?;
     let app_data_dir = read_optional(&read, APP_DATA_DIR_ENV)?;
+    let probe_base_url = read_optional(&read, PROBE_BASE_URL_ENV)?;
     match (report, app_data_dir) {
-        (None, None) => Ok(None),
-        (Some(report), Some(app_data_dir)) => Ok(Some(build_plan(&report, &app_data_dir)?)),
+        (None, None) if probe_base_url.is_none() => Ok(None),
+        (None, None) => Err(format!(
+            "{PROBE_BASE_URL_ENV} is set but self-check is off; it needs {REPORT_PATH_ENV} and {APP_DATA_DIR_ENV}"
+        )),
+        (Some(report), Some(app_data_dir)) => Ok(Some(build_plan(&report, &app_data_dir, probe_base_url)?)),
         (Some(_), None) => Err(format!(
             "{REPORT_PATH_ENV} is set but {APP_DATA_DIR_ENV} is not; self-check needs both"
         )),
@@ -232,7 +301,7 @@ where
     }
 }
 
-fn build_plan(report: &str, app_data_dir: &str) -> Result<SelfCheckPlan, String> {
+fn build_plan(report: &str, app_data_dir: &str, probe_base_url: Option<String>) -> Result<SelfCheckPlan, String> {
     let report_path = absolute(REPORT_PATH_ENV, report)?;
     let Some(file_name) = report_path.file_name() else {
         return Err(format!("{REPORT_PATH_ENV} must end in a file name, got {report:?}"));
@@ -242,7 +311,22 @@ fn build_plan(report: &str, app_data_dir: &str) -> Result<SelfCheckPlan, String>
         report_path,
         report_temp_path,
         app_data_dir: absolute(APP_DATA_DIR_ENV, app_data_dir)?,
+        probe_base_url: probe_base_url.map(|raw| check_base_url(&raw)).transpose()?,
     })
+}
+
+/// renderer 会把它当成 `${base}/<route>` 的前缀直接拼接，所以这里就把两条前提定死。
+///
+/// 规范化（补协议、削尾斜杠）比拒绝更"贴心"，但那要求两侧各写一遍同样的规则 ——
+/// 而两侧写得不一样时，拼出来的是一个连不上的地址，失败形态与"服务没起来"无法区分。
+fn check_base_url(raw: &str) -> Result<String, String> {
+    if !raw.starts_with("http://") && !raw.starts_with("https://") {
+        return Err(format!("{PROBE_BASE_URL_ENV} must start with http:// or https://, got {raw:?}"));
+    }
+    if raw.ends_with('/') {
+        return Err(format!("{PROBE_BASE_URL_ENV} must not have a trailing slash, got {raw:?}"));
+    }
+    Ok(raw.to_string())
 }
 
 fn absolute(key: &str, raw: &str) -> Result<PathBuf, String> {
@@ -302,6 +386,7 @@ pub fn arm(app: &AppHandle, plan: SelfCheckPlan) {
                 status: SelfCheckStatus::TimedOut,
                 launch_count: None,
                 storage: None,
+                webview: None,
                 message: Some(format!(
                     "the renderer never reported within {}s",
                     WATCHDOG_TIMEOUT.as_secs()
@@ -334,6 +419,7 @@ fn finish(app: &AppHandle, outcome: SelfCheckOutcome) {
         launch_count: outcome.launch_count,
         message: outcome.message,
         storage: outcome.storage,
+        webview: outcome.webview,
         app_data_dir: host.app_data_dir().to_string_lossy().into_owned(),
         identifier: app.config().identifier.clone(),
     };
@@ -371,6 +457,20 @@ fn write_report(plan: &SelfCheckPlan, report: &SelfCheckReport) -> Result<(), St
 #[tauri::command]
 pub async fn rxdb_selfcheck_report(outcome: SelfCheckOutcome, app: AppHandle) {
     finish(&app, outcome);
+}
+
+/// renderer 问「这次要不要跑 webview 探针，打哪个地址」（US-505 AC#6）。
+///
+/// 返回 `None` 有两种成因 —— 没开自检，或者开了自检但没设 [`PROBE_BASE_URL_ENV`]。
+/// **刻意不区分**：renderer 拿它只做一个决定（跑还是不跑），区分开来就等于把一份
+/// renderer 用不上的状态搬过去，而它迟早会被当成第二个「现在是不是自检模式」的判据。
+///
+/// 与 [`rxdb_selfcheck_report`] 一样，renderer 无条件调用它：没开自检时查不到
+/// [`SelfCheckState`]，直接给 `None`。
+#[tauri::command]
+pub fn rxdb_selfcheck_probe_base_url(app: AppHandle) -> Option<String> {
+    let state = app.try_state::<SelfCheckState>()?;
+    state.plan.probe_base_url.clone()
 }
 
 #[cfg(test)]
@@ -485,6 +585,7 @@ mod tests {
             report_path: root.join("report.json"),
             report_temp_path: root.join("report.json.tmp"),
             app_data_dir: root.clone(),
+            probe_base_url: None,
         };
         plan.ensure_directories().unwrap();
 
@@ -521,6 +622,62 @@ mod tests {
         assert_ne!(SelfCheckStatus::TimedOut.exit_code(), CONFIG_EXIT_CODE);
     }
 
+    /// 第三个变量是**可选**的：不设它就是不跑 webview 探针，其余两条规则一个字不变。
+    #[test]
+    fn the_probe_base_url_rides_along_with_the_self_check_pair() {
+        let plan = plan_from_env(reader(&[
+            (REPORT_PATH_ENV, &absolute_path("report.json")),
+            (APP_DATA_DIR_ENV, &absolute_path("root")),
+            (PROBE_BASE_URL_ENV, "http://127.0.0.1:54321"),
+        ]))
+        .unwrap()
+        .unwrap();
+        assert_eq!(plan.probe_base_url.as_deref(), Some("http://127.0.0.1:54321"));
+
+        let without = plan_from_env(reader(&[
+            (REPORT_PATH_ENV, &absolute_path("report.json")),
+            (APP_DATA_DIR_ENV, &absolute_path("root")),
+        ]))
+        .unwrap()
+        .unwrap();
+        assert_eq!(without.probe_base_url, None);
+    }
+
+    /// 没开自检却设了它，只能是打错了变量名或漏设了另外两个。
+    /// 静默忽略的话，e2e 会等着一份永远不会出现的 `webview` 字段，
+    /// 而报告本身写着 `status: "ok"` —— 最难查的一种失败。
+    #[test]
+    fn a_probe_base_url_without_self_check_is_an_error() {
+        let error = plan_from_env(reader(&[(PROBE_BASE_URL_ENV, "http://127.0.0.1:54321")])).unwrap_err();
+        assert!(error.contains(PROBE_BASE_URL_ENV), "{error}");
+        assert!(error.contains(REPORT_PATH_ENV), "{error}");
+    }
+
+    /// renderer 会把它当成 `${base}/allowed` 的前缀直接拼接。
+    /// 不是 http(s) 的值拼出来是一个永远连不上的地址，而失败形态与「服务没起来」一模一样。
+    #[test]
+    fn a_probe_base_url_that_is_not_http_is_rejected() {
+        let error = plan_from_env(reader(&[
+            (REPORT_PATH_ENV, &absolute_path("report.json")),
+            (APP_DATA_DIR_ENV, &absolute_path("root")),
+            (PROBE_BASE_URL_ENV, "127.0.0.1:54321"),
+        ]))
+        .unwrap_err();
+        assert!(error.contains(PROBE_BASE_URL_ENV), "{error}");
+    }
+
+    /// 尾斜杠会拼出 `//allowed`，那是另一个路径。宁可在这里就拒绝，也不在两侧各写一遍规范化。
+    #[test]
+    fn a_probe_base_url_with_a_trailing_slash_is_rejected() {
+        let error = plan_from_env(reader(&[
+            (REPORT_PATH_ENV, &absolute_path("report.json")),
+            (APP_DATA_DIR_ENV, &absolute_path("root")),
+            (PROBE_BASE_URL_ENV, "http://127.0.0.1:54321/"),
+        ]))
+        .unwrap_err();
+        assert!(error.contains("trailing"), "{error}");
+    }
+
     /// renderer 发来的 JSON 必须能原样解出来；缺省字段走 `None` 而不是解析失败。
     #[test]
     fn the_renderer_payload_deserializes() {
@@ -536,6 +693,7 @@ mod tests {
                 launch_count: Some(2),
                 message: None,
                 storage: None,
+                webview: None,
             }
         );
 
@@ -571,7 +729,48 @@ mod tests {
         );
     }
 
-    /// 报告的线上形状：读它的是 `apps/dev-rxdb-tauri-e2e`，七个键一个都不能少。
+    /// webview 探针的键名同样是跨语言契约的一半，另一半在 `src/app/webview-probe.ts` 里。
+    ///
+    /// 这几个字段承载的是 AC#6 的**全部**证据 —— 三家 webview 上 `download()` 走哪条分支、
+    /// `fetch()` 在自定义协议 origin 下是什么结果。名字漂了只会表现为反序列化失败 →
+    /// 没有报告 → 一次 60s 看门狗超时。
+    #[test]
+    fn the_webview_probe_payload_deserializes() {
+        let reported: SelfCheckOutcome = serde_json::from_value(serde_json::json!({
+            "status": "ok",
+            "launchCount": 1,
+            "webview": {
+                "engine": "webkit",
+                "origin": "tauri://localhost",
+                "online": true,
+                "saveFilePicker": false,
+                "anchorDownload": true,
+                "objectUrl": true,
+                "sameOriginDigest": "abc123",
+                "sameOriginByteLength": 512,
+                "crossOriginAllowed": "StorageOfflineError",
+                "crossOriginDenied": "StorageOfflineError"
+            }
+        }))
+        .unwrap();
+        assert_eq!(
+            reported.webview,
+            Some(WebviewProbe {
+                engine: "webkit".to_string(),
+                origin: "tauri://localhost".to_string(),
+                online: true,
+                save_file_picker: false,
+                anchor_download: true,
+                object_url: true,
+                same_origin_digest: "abc123".to_string(),
+                same_origin_byte_length: 512,
+                cross_origin_allowed: "StorageOfflineError".to_string(),
+                cross_origin_denied: "StorageOfflineError".to_string(),
+            })
+        );
+    }
+
+    /// 报告的线上形状：读它的是 `apps/dev-rxdb-tauri-e2e`，八个键一个都不能少。
     /// 顺带证明「先写临时文件再改名」真的没留下半截文件。
     #[test]
     fn the_report_lands_atomically_with_the_shape_the_suite_reads() {
@@ -580,6 +779,7 @@ mod tests {
             report_path: root.join("launch-1.json"),
             report_temp_path: root.join("launch-1.json.tmp"),
             app_data_dir: root.join("data"),
+            probe_base_url: None,
         };
         write_report(
             &plan,
@@ -593,6 +793,7 @@ mod tests {
                     byte_length: 65536,
                     existed_before: true,
                 }),
+                webview: None,
                 app_data_dir: "/tmp/root".to_string(),
                 identifier: "io.aiao.dev-rxdb-tauri".to_string(),
             },
@@ -609,6 +810,7 @@ mod tests {
                 "launchCount": 2,
                 "message": null,
                 "storage": { "digest": "abc123", "byteLength": 65536, "existedBefore": true },
+                "webview": null,
                 "appDataDir": "/tmp/root",
                 "identifier": "io.aiao.dev-rxdb-tauri"
             })
