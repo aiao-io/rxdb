@@ -1,7 +1,23 @@
+import type { DevToolsEntityErrorCode } from '@aiao/rxdb-devtools';
 import { inject, Injectable, OnDestroy, signal } from '@angular/core';
 import { ToastService } from '../components/toast.component';
-import type { DbInfo, EntityData } from '../types/devtools.types';
+import type { DbInfo, EntityData, EntityErrorKind } from '../types/devtools.types';
 import { PortService } from './port.service';
+
+/** 协议错误码 → UI 判别位；未登记的码（连接器比面板新）一律落到 `'unknown'`。 */
+const ENTITY_ERROR_KINDS: Readonly<Record<DevToolsEntityErrorCode, EntityErrorKind>> = {
+  ENTITY_NOT_FOUND: 'entity-not-found',
+  ENTITY_AMBIGUOUS: 'entity-ambiguous',
+  RXDB_NOT_READY: 'rxdb-not-ready',
+  KEYRING_LOCKED: 'keyring-locked'
+};
+
+/** 一次实体查询的完整参数，用于握手后重发。 */
+interface PendingQuery {
+  entityName: string;
+  namespace: string;
+  limit: number;
+}
 
 /**
  * Database 状态管理服务
@@ -20,6 +36,20 @@ export class DatabaseStateService implements OnDestroy {
 
   /** 按 namespace + entityName 分槽保存实体查询结果。 */
   readonly entityDataByKey = signal<ReadonlyMap<string, EntityData>>(new Map());
+
+  /** 按同一分槽保存最近一次查询失败的结构化类别；成功时清空该槽。 */
+  readonly entityErrorKindByKey = signal<ReadonlyMap<string, EntityErrorKind>>(new Map());
+
+  /**
+   * 面板「想看什么」——每次 {@link queryEntity} 登记，握手后全量重发。
+   *
+   * @remarks
+   * **不随 {@link reset} 清空**：它记录的是意图，不是连接状态。页面在 `ngOnInit` 里发出的
+   * 那条查询正好落在握手前的窗口里，会被 `PortService`（没端口）、background（没 tabId）、
+   * 以及连接器（window 总线只放行 `PING`）三处静默丢弃；每次导航合成的 `DISCONNECT`
+   * 同样会把面板打回这个窗口。清空它等于让首屏永远空着。
+   */
+  private readonly lastQueries = new Map<string, PendingQuery>();
 
   /**
    * 在途查询的实体名集合。
@@ -52,6 +82,7 @@ export class DatabaseStateService implements OnDestroy {
   queryEntity(entityName: string, namespace = 'public', limit = 100): void {
     const key = this.entityKey(entityName, namespace);
     this.loadingEntities.update(set => new Set(set).add(key));
+    this.lastQueries.set(key, { entityName, namespace, limit });
     this.portService.sendMessage('QUERY_ENTITY', { entityName, namespace, limit });
   }
 
@@ -65,9 +96,21 @@ export class DatabaseStateService implements OnDestroy {
     return this.entityDataByKey().get(this.entityKey(entityName, namespace)) ?? null;
   }
 
+  /**
+   * 读取指定复合身份最近一次失败的结构化类别。
+   *
+   * @returns 无失败（含尚未应答、以及最近一次成功）时为 `null`
+   */
+  getEntityErrorKind(entityName: string, namespace = 'public'): EntityErrorKind | null {
+    return this.entityErrorKindByKey().get(this.entityKey(entityName, namespace)) ?? null;
+  }
+
   private setupMessageListener(): void {
     this.unsubscribe = this.portService.subscribe(message => {
       switch (message.type) {
+        case 'HANDSHAKE':
+          this.replayQueries();
+          break;
         case 'DB_INFO':
           this.handleDbInfo(message.payload as DbInfo | null);
           break;
@@ -87,8 +130,17 @@ export class DatabaseStateService implements OnDestroy {
   reset(): void {
     this.dbInfo.set(null);
     this.entityDataByKey.set(new Map());
+    this.entityErrorKindByKey.set(new Map());
     this.dbLoading.set(false);
     this.loadingEntities.set(new Set());
+  }
+
+  /** 握手落地后把面板想看的查询全部重发一遍。 */
+  private replayQueries(): void {
+    for (const query of this.lastQueries.values()) {
+      this.loadingEntities.update(set => new Set(set).add(this.entityKey(query.entityName, query.namespace)));
+      this.portService.sendMessage('QUERY_ENTITY', { ...query });
+    }
   }
 
   private handleDbInfo(dbInfo: DbInfo | null): void {
@@ -96,19 +148,34 @@ export class DatabaseStateService implements OnDestroy {
     this.dbLoading.set(false);
   }
 
+  /**
+   * 落地一次实体查询应答。
+   *
+   * @remarks
+   * **不弹 toast**：`ENTITY_DATA` 永远是对某个具体槽位的应答，Database 页与 Storage 页
+   * 都已就地渲染这条错误，全局 toast 只是重复通知；而「实体不存在」（对端没装对应插件）
+   * 根本不是错误，弹红框会把一个可解释的正常状态渲染成故障。无归属的协议级 `ERROR`
+   * 仍然走 toast，见 {@link handleError}。
+   */
   private handleEntityData(entityData: EntityData): void {
     const key = this.entityKey(entityData.entityName, entityData.namespace ?? 'public');
     this.entityDataByKey.update(current => new Map(current).set(key, entityData));
+    this.entityErrorKindByKey.update(current => {
+      const next = new Map(current);
+      if (entityData.error) next.set(key, this.toErrorKind(entityData._meta?.errorCode));
+      else next.delete(key);
+      return next;
+    });
     this.loadingEntities.update(set => {
       if (!set.has(key)) return set;
       const next = new Set(set);
       next.delete(key);
       return next;
     });
+  }
 
-    if (entityData.error) {
-      this.toastService.error(entityData.error);
-    }
+  private toErrorKind(errorCode: DevToolsEntityErrorCode | undefined): EntityErrorKind {
+    return (errorCode && ENTITY_ERROR_KINDS[errorCode]) || 'unknown';
   }
 
   private handleError(payload: { message: string }): void {

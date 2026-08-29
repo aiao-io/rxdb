@@ -1,16 +1,23 @@
 import {
   Entity,
   ENTITY_LOCAL_CREATE_EVENT,
+  ENTITY_LOCAL_REMOVE_EVENT,
+  ENTITY_LOCAL_UPDATE_EVENT,
   EntityBase,
   EntityLocalCreatedEvent,
+  EntityLocalRemovedEvent,
+  EntityLocalUpdatedEvent,
+  getEntityMetadata,
   getEntityStatus,
   PropertyType,
+  RelationKind,
   RxDB,
   RxDBBranch,
   RxDBChange,
   SyncType,
   TRANSACTION_BEGIN,
   TRANSACTION_ROLLBACK,
+  transitionMetadata,
   type EntityType,
   type EntityUpdateData,
   type RxDBMutationsMap,
@@ -19,10 +26,11 @@ import {
 import { EncryptedConfigurationError } from '@aiao/rxdb-adapter-encrypted';
 import { firstValueFrom } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { RxDBQueryCacheRowContractError } from '../query-cache-row-contract.js';
 import { SqliteRepository } from '../repository/SqliteRepository.js';
 import { RxDBAdapterSqliteBase, type SqliteBaseOptions, type SqliteClientLike } from '../RxDBAdapterSqliteBase.js';
 import { SQLiteChangeType } from '../sqlite-backend.interface.js';
-import type { SqliteChangeEvent, SqliteSuccessResult } from '../sqlite-core.interface.js';
+import type { SqliteChangeEvent, SQLiteCompatibleType, SqliteSuccessResult } from '../sqlite-core.interface.js';
 import { RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
 import { Todo } from './fixtures/Todo.js';
 
@@ -37,6 +45,16 @@ class InvalidEncryptedPrimary extends EntityBase {}
   properties: [{ name: 'secret', type: PropertyType.string, encrypted: true, nullable: true }]
 })
 class SecretNote extends EntityBase {}
+
+@Entity({
+  name: 'QcContractRecipe',
+  tableName: 'recipes',
+  properties: [
+    { name: 'title', type: PropertyType.string },
+    { name: 'tag', type: PropertyType.string, nullable: true }
+  ]
+})
+class QcContractRecipe extends EntityBase {}
 
 @Entity({ name: 'MissingRepoEntity', repository: 'MissingRepo', properties: [] })
 class MissingRepoEntity extends EntityBase {}
@@ -1271,6 +1289,375 @@ describe('RxDBAdapterSqliteBase', () => {
       const deleteCalls = vi.mocked(client.execute).mock.calls.filter(([sql]) => String(sql).startsWith('DELETE FROM'));
       expect(deleteCalls).toHaveLength(1);
       expect(deleteCalls[0][0]).toContain('DELETE FROM "unknown_table" WHERE id IN');
+    });
+  });
+
+  // QueryCache 的回填是「把远端副本抄进本地表」，不是本地变更。可 `upsertMany` /
+  // `deleteByIds` 是裸 SQL，表上的 AFTER INSERT/UPDATE/DELETE 触发器照样开火，
+  // 于是每次拉取都往 rxdb_change 里堆一批「本地改动」。在 querycache 不可回推的年代这批行
+  // 只是垃圾；一旦离线写要靠这张表当出站队列，它就变成 pull → log → push → pull 的回声环。
+  describe('QueryCache 回填不得产生 changelog 行', () => {
+    const createOrderedClient = () => {
+      const order: string[] = [];
+      const client = createClient({
+        execute: vi.fn(async (sql: string) => {
+          order.push(String(sql));
+          return okResult(String(sql));
+        })
+      });
+      return { client, order };
+    };
+
+    const sandwichIndexes = (order: string[], bodyPredicate: (sql: string) => boolean) => ({
+      begin: order.findIndex(sql => sql.includes('BEGIN')),
+      drop: order.findIndex(sql => sql.includes('DROP TRIGGER IF EXISTS')),
+      body: order.findIndex(bodyPredicate),
+      rebuild: order.findIndex(sql => sql.includes('CREATE TRIGGER')),
+      commit: order.findIndex(sql => sql.includes('COMMIT'))
+    });
+
+    it('upsertMany 在同一事务内删触发器 → 写入 → 重建触发器', async () => {
+      const { client, order } = createOrderedClient();
+      const adapter = new TestAdapter(createRxdbMock([Todo]), () => client);
+
+      await firstValueFrom(adapter.upsertMany('todos', [{ id: 'a', updatedAt: 'x' }]));
+
+      const at = sandwichIndexes(order, sql => sql.startsWith('INSERT INTO'));
+      expect(at.begin).toBeGreaterThanOrEqual(0);
+      expect(at.drop).toBeGreaterThan(at.begin);
+      expect(at.body).toBeGreaterThan(at.drop);
+      expect(at.rebuild).toBeGreaterThan(at.body);
+      // 三明治必须与写入同事务：拆出去提交的话，中间那个没有触发器的窗口会对并发写敞开。
+      expect(at.commit).toBeGreaterThan(at.rebuild);
+    });
+
+    it('deleteByIds 在同一事务内删触发器 → 删除 → 重建触发器', async () => {
+      const { client, order } = createOrderedClient();
+      const adapter = new TestAdapter(createRxdbMock([Todo]), () => client);
+
+      await firstValueFrom(adapter.deleteByIds('todos', ['id-1']));
+
+      const at = sandwichIndexes(order, sql => sql.startsWith('DELETE FROM'));
+      expect(at.begin).toBeGreaterThanOrEqual(0);
+      expect(at.drop).toBeGreaterThan(at.begin);
+      expect(at.body).toBeGreaterThan(at.drop);
+      expect(at.rebuild).toBeGreaterThan(at.body);
+      expect(at.commit).toBeGreaterThan(at.rebuild);
+    });
+
+    // 多 chunk 时三明治只做一次：每个 chunk 都删建一遍触发器，代价随远端页大小线性放大，
+    // 而中间那些重建窗口没有任何用处 —— 整批写入本来就在一个事务里。
+    it('多 chunk 写入只做一次删建', async () => {
+      const { client, order } = createOrderedClient();
+      const adapter = new TestAdapter(createRxdbMock([Todo]), () => client);
+      // 每行 2 列，绑定上限 999 → 分块阈值 499，1000 行必然跨块
+      const rows = Array.from({ length: 1000 }, (_, index) => ({ id: `id-${index}`, updatedAt: 'x' }));
+
+      await firstValueFrom(adapter.upsertMany('todos', rows));
+
+      const insertIndexes = order.flatMap((sql, index) => (sql.startsWith('INSERT INTO') ? [index] : []));
+      expect(insertIndexes.length).toBeGreaterThan(1);
+      // 重建 SQL 自身是幂等的（DROP + CREATE 成对），所以只数 CREATE 才能区分「重建了几次」
+      expect(order.filter(sql => sql.includes('CREATE TRIGGER'))).toHaveLength(1);
+      // 每一块都落在同一个停用窗口里
+      expect(insertIndexes.at(-1)).toBeLessThan(order.findIndex(sql => sql.includes('CREATE TRIGGER')));
+    });
+
+    // 空批次连事务都不该开，更不该为它删建一轮触发器。
+    it('空批次不动触发器', async () => {
+      const { client, order } = createOrderedClient();
+      const adapter = new TestAdapter(createRxdbMock([Todo]), () => client);
+
+      await firstValueFrom(adapter.upsertMany('todos', []));
+      await firstValueFrom(adapter.deleteByIds('todos', []));
+
+      expect(order.filter(sql => sql.includes('TRIGGER'))).toHaveLength(0);
+    });
+  });
+
+  // 摘掉触发器的代价：变更行原本是实时查询**唯一**的通知来源（触发器 → `rxdb_change`
+  // → `handle_rxdb_change` → `EntityLocal*Event` → `QueryManager` 增量合并）。不补上
+  // 这段通知，QueryCache 的缓存写就成了一次静默写：库里对了，屏幕上不动 —— 删掉的行
+  // 还挂在列表里，直到用户刷新页面才消失。
+  describe('QueryCache 回填仍要通知实时查询', () => {
+    const TODO_ROW = [1, 'todo-1', '旧标题', 0, ISO_CREATED, ISO_UPDATED];
+
+    /**
+     * 让回读看见写：写之前的 SELECT 拿 `before`，写之后拿 `after`。
+     * 事件正是靠这一前一后的差别分出 INSERT / UPDATE，并取到 inversePatch。
+     */
+    const createRowImageClient = (before: SQLiteCompatibleType[][], after = before) => {
+      let written = false;
+      return createClient({
+        execute: vi.fn(async (sql: string) => {
+          const head = sql.trimStart();
+          if (head.startsWith('SELECT'))
+            return okResult(sql, [{ columns: TODO_COLUMNS, rows: written ? after : before }]);
+          if (head.startsWith('INSERT') || head.startsWith('DELETE')) written = true;
+          return okResult(sql, [], 1);
+        })
+      });
+    };
+
+    const dispatched = (rxdb: RxDB, type: string) =>
+      vi
+        .mocked(rxdb.dispatchEvent)
+        .mock.calls.map(([event]) => event)
+        .filter(event => (event as { type: string }).type === type);
+
+    const setup = (dbName: string, before: SQLiteCompatibleType[][], after = before) => {
+      const rxdb = createRealRxdb(dbName);
+      vi.spyOn(rxdb, 'dispatchEvent');
+      return { rxdb, adapter: new TestAdapter(rxdb, () => createRowImageClient(before, after)) };
+    };
+
+    it('deleteByIds 派发 DELETE 事件，inversePatch 是删除前的整行', async () => {
+      const { rxdb, adapter } = setup('sqlite-core-base-qc-notify-delete', [TODO_ROW], []);
+
+      await firstValueFrom(adapter.deleteByIds('Todo', ['todo-1']));
+
+      const events = dispatched(rxdb, ENTITY_LOCAL_REMOVE_EVENT);
+      expect(events).toHaveLength(1);
+      expect((events[0] as EntityLocalRemovedEvent).entities).toEqual([
+        {
+          type: 'DELETE',
+          namespace: 'public',
+          entity: 'Todo',
+          id: 'todo-1',
+          patch: null,
+          // 删除前的整行快照：`query_need_refresh_remove` 的门控直接拿它当旧实体用，
+          // 给个空对象等于让所有带 where 的查询判成「与我无关」，删了也不刷新。
+          inversePatch: expect.objectContaining({ id: 'todo-1', title: '旧标题' }),
+          recordAt: expect.any(Date)
+        }
+      ]);
+    });
+
+    // 表里没有的 id 删不掉任何行，触发器也不会开火，事件同样不该有。
+    it('deleteByIds 对表里不存在的 id 不派发', async () => {
+      const { rxdb, adapter } = setup('sqlite-core-base-qc-notify-delete-missing', []);
+
+      await firstValueFrom(adapter.deleteByIds('Todo', ['todo-1']));
+
+      expect(dispatched(rxdb, ENTITY_LOCAL_REMOVE_EVENT)).toHaveLength(0);
+    });
+
+    it('upsertMany 对表里没有的 id 派发 INSERT 事件', async () => {
+      const inserted = [2, 'todo-2', '新行', 0, ISO_CREATED, ISO_UPDATED];
+      const { rxdb, adapter } = setup('sqlite-core-base-qc-notify-insert', [], [inserted]);
+
+      await firstValueFrom(
+        adapter.upsertMany('Todo', [
+          { id: 'todo-2', title: '新行', completed: 0, createdAt: ISO_CREATED, updatedAt: ISO_UPDATED }
+        ])
+      );
+
+      const events = dispatched(rxdb, ENTITY_LOCAL_CREATE_EVENT);
+      expect(events).toHaveLength(1);
+      expect((events[0] as EntityLocalCreatedEvent).entities).toEqual([
+        {
+          type: 'INSERT',
+          namespace: 'public',
+          entity: 'Todo',
+          id: 'todo-2',
+          patch: {
+            id: 'todo-2',
+            title: '新行',
+            completed: false,
+            createdAt: new Date(ISO_CREATED),
+            updatedAt: new Date(ISO_UPDATED)
+          },
+          inversePatch: null,
+          recordAt: expect.any(Date)
+        }
+      ]);
+      expect(dispatched(rxdb, ENTITY_LOCAL_UPDATE_EVENT)).toHaveLength(0);
+    });
+
+    it('upsertMany 对表里已有的 id 派发 UPDATE 事件，inversePatch 是旧值', async () => {
+      const updated = [1, 'todo-1', '新标题', 0, ISO_CREATED, ISO_UPDATED];
+      const { rxdb, adapter } = setup('sqlite-core-base-qc-notify-update', [TODO_ROW], [updated]);
+
+      await firstValueFrom(
+        adapter.upsertMany('Todo', [
+          { id: 'todo-1', title: '新标题', completed: 0, createdAt: ISO_CREATED, updatedAt: ISO_UPDATED }
+        ])
+      );
+
+      const events = dispatched(rxdb, ENTITY_LOCAL_UPDATE_EVENT);
+      expect(events).toHaveLength(1);
+      const [data] = (events[0] as EntityLocalUpdatedEvent).entities;
+      expect(data).toMatchObject({ type: 'UPDATE', namespace: 'public', entity: 'Todo', id: 'todo-1' });
+      expect(data.patch).toMatchObject({ title: '新标题' });
+      // 旧值来自写前那次回读，不是从新行倒推：`need_refresh_update` 用它重建旧实体做门控。
+      expect(data.inversePatch).toMatchObject({ title: '旧标题' });
+      expect(dispatched(rxdb, ENTITY_LOCAL_CREATE_EVENT)).toHaveLength(0);
+    });
+
+    // patch 会被 `QueryManager.#serialize` 摊进 `createEntityRef`，命中缓存时走
+    // `EntityStatus.replace` 的 `Object.assign` —— 一次类型转换都不做。塞进去远端原样的
+    // ISO 字符串，实体的 `updatedAt` 就从 Date 变成 string，下游 `.toISOString()` 当场抛错。
+    it('patch 用的是落地后回读的行，不是远端原样的 JSON', async () => {
+      const landed = [1, 'todo-1', '新标题', 1, ISO_CREATED, ISO_UPDATED];
+      const { rxdb, adapter } = setup('sqlite-core-base-qc-notify-decoded', [TODO_ROW], [landed]);
+
+      await firstValueFrom(
+        adapter.upsertMany('Todo', [
+          { id: 'todo-1', title: '新标题', completed: true, createdAt: ISO_CREATED, updatedAt: ISO_UPDATED }
+        ])
+      );
+
+      const [data] = (dispatched(rxdb, ENTITY_LOCAL_UPDATE_EVENT)[0] as EntityLocalUpdatedEvent).entities;
+      expect(data.patch['updatedAt']).toEqual(new Date(ISO_UPDATED));
+      expect(data.patch['completed']).toBe(true);
+      expect(data.inversePatch['completed']).toBe(false);
+    });
+
+    // 传进来的是物理表名（元数据查不到）时没有 namespace/entity 可填，事件无从命名。
+    // 这条路径本就只在调用方直接给物理表名时走到，与实时查询无关。
+    it('元数据查不到时不派发', async () => {
+      const rxdb = createRxdbMock([Todo]);
+      const adapter = new TestAdapter(rxdb, () => createRowImageClient([TODO_ROW]));
+
+      await firstValueFrom(adapter.deleteByIds('todos', ['todo-1']));
+      await firstValueFrom(adapter.upsertMany('todos', [{ id: 'todo-2', updatedAt: ISO_UPDATED }]));
+
+      // 事务自身的 BEGIN/COMMIT 事件照发，被禁的只是实体级通知。
+      expect(dispatched(rxdb, ENTITY_LOCAL_REMOVE_EVENT)).toHaveLength(0);
+      expect(dispatched(rxdb, ENTITY_LOCAL_CREATE_EVENT)).toHaveLength(0);
+      expect(dispatched(rxdb, ENTITY_LOCAL_UPDATE_EVENT)).toHaveLength(0);
+    });
+  });
+
+  // 远端行的列集在落地前就要判：`upsertMany` 的 INSERT 列清单取自 `data[0]` 的键，
+  // 实体元数据在这条路径上一次都没被读过，于是 `EntityBase.createdAt` 的
+  // `default: () => new Date()`（仓储层的东西）根本不参与，而本地表把该列建成了 NOT NULL。
+  // 远端不带这一列时，今天冒出来的是一条 `NOT NULL constraint failed: public$recipes.createdAt`：
+  // 本地表名 + 远端没有的列名 + 适配器内部的调用栈，三重误导（US-022）。
+  describe('QueryCache 远端行的列契约', () => {
+    const createContractRxdb = () => {
+      const rxdb = createRxdbMock();
+      vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue(getEntityMetadata(QcContractRecipe) as never);
+      return rxdb;
+    };
+    const completeRow = (id: string) => ({
+      id,
+      title: `t-${id}`,
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-02T00:00:00.000Z'
+    });
+
+    it('远端行缺非空列时抛列契约错误，且一条 SQL 都不发（AC#1 / AC#2）', async () => {
+      const client = createClient();
+      const adapter = new TestAdapter(createContractRxdb(), () => client);
+
+      await expect(
+        firstValueFrom(adapter.upsertMany('QcContractRecipe', [{ id: 'a', title: 'Pasta', updatedAt: 'x' }]))
+      ).rejects.toBeInstanceOf(RxDBQueryCacheRowContractError);
+
+      // 判在事务之前：既没有 INSERT，也没有 BEGIN —— 半批脏数据无从产生
+      expect(executedSqls(client).filter(sql => sql.startsWith('INSERT INTO'))).toHaveLength(0);
+      expect(executedSqls(client).filter(sql => sql.includes('BEGIN'))).toHaveLength(0);
+    });
+
+    it('异构行集被拦下，不按首行列集把后续行绑成 undefined（AC#4）', async () => {
+      const client = createClient();
+      const adapter = new TestAdapter(createContractRxdb(), () => client);
+
+      await expect(
+        firstValueFrom(adapter.upsertMany('QcContractRecipe', [{ ...completeRow('a'), tag: 'x' }, completeRow('b')]))
+      ).rejects.toBeInstanceOf(RxDBQueryCacheRowContractError);
+      expect(executedSqls(client).filter(sql => sql.startsWith('INSERT INTO'))).toHaveLength(0);
+    });
+
+    it('列集完整时照常落地（AC#5）', async () => {
+      const client = createClient();
+      const adapter = new TestAdapter(createContractRxdb(), () => client);
+
+      await firstValueFrom(adapter.upsertMany('QcContractRecipe', [completeRow('a'), completeRow('b')]));
+
+      const upsertCalls = vi.mocked(client.execute).mock.calls.filter(([sql]) => String(sql).startsWith('INSERT INTO'));
+      expect(upsertCalls).toHaveLength(1);
+      expect(upsertCalls[0][0]).toContain('INSERT INTO "public$recipes"');
+    });
+  });
+
+  // 契约显式放行「远端多带本地没有的列」（AC#3），可 INSERT 的列清单却取自 `data[0]` 的**全部**键，
+  // 于是那些多出来的列会原样进 SQL，换来一条 `no such column: remoteOnly` —— 正是契约文件要消灭的
+  // 那类误导性报错。落地的列必须由实体元数据说了算，而不是由远端载荷说了算。
+  describe('QueryCache 写入只落实体认识的列', () => {
+    const createContractRxdb = () => {
+      const rxdb = createRxdbMock();
+      vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue(getEntityMetadata(QcContractRecipe) as never);
+      return rxdb;
+    };
+    const completeRow = (id: string) => ({
+      id,
+      title: `t-${id}`,
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-02T00:00:00.000Z'
+    });
+    const upsertCall = (client: SqliteClientLike) =>
+      vi.mocked(client.execute).mock.calls.find(([sql]) => String(sql).startsWith('INSERT INTO'));
+
+    it('远端多带的未知列既不进列清单也不进绑定值（AC#3）', async () => {
+      const client = createClient();
+      const adapter = new TestAdapter(createContractRxdb(), () => client);
+
+      await firstValueFrom(
+        adapter.upsertMany('QcContractRecipe', [
+          { ...completeRow('a'), remoteOnly: 'x' },
+          { ...completeRow('b'), remoteOnly: 'y' }
+        ])
+      );
+
+      const call = upsertCall(client);
+      expect(call?.[0]).not.toContain('remoteOnly');
+      // 列少一个、绑定值也要少一个：只删列名会让整批的占位符与值错位
+      expect(call?.[1]).not.toContain('x');
+      expect(call?.[1]).toHaveLength(8);
+    });
+
+    it('关系外键列不被当成未知列滤掉', async () => {
+      // 表列 = propertyMap ∪ 有物理列的关系（见 create_table_sql）。只按 propertyMap 过滤，
+      // 会把合法的外键值静默丢掉 —— 比多写一列更难查
+      const client = createClient();
+      const rxdb = createRxdbMock();
+      vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue(
+        transitionMetadata({
+          name: 'QcRelChild',
+          namespace: 'public',
+          tableName: 'rel_children',
+          properties: [
+            { name: 'id', type: PropertyType.uuid, primary: true },
+            { name: 'updatedAt', type: PropertyType.date }
+          ],
+          relations: [
+            { name: 'owner', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'QcOwner', mappedProperty: 'children' }
+          ]
+        }) as never
+      );
+      const adapter = new TestAdapter(rxdb, () => client);
+
+      await firstValueFrom(
+        adapter.upsertMany('QcRelChild', [{ id: 'a', updatedAt: '2026-08-02T00:00:00.000Z', owner: 'owner-1' }])
+      );
+
+      expect(upsertCall(client)?.[0]).toContain('"ownerId"');
+      expect(upsertCall(client)?.[1]).toContain('owner-1');
+    });
+
+    it('metadata 查不到时一列都不滤，照旧按远端键集落地', async () => {
+      // 这条路径上调用方传的是物理表名、列名也已是物理列名，没有可对照的元数据，
+      // 「过滤」就只剩猜 —— 与表名回退同一口径：不擅自加工
+      const client = createClient();
+      const rxdb = createRxdbMock();
+      vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue(undefined);
+      const adapter = new TestAdapter(rxdb, () => client);
+
+      await firstValueFrom(adapter.upsertMany('raw_rows', [{ id: 'a', updatedAt: 'x', whatever: 1 }]));
+
+      expect(upsertCall(client)?.[0]).toContain('"whatever"');
     });
   });
 

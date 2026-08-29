@@ -5,11 +5,11 @@ status: In Progress
 priority: High
 epic: epic-003-ui-developer-tools
 created: 2026-08-15
-updated: 2026-08-16
+updated: 2026-08-27
 tags:
   [tooling, devtools, desktop, electron, protocol, provider, security, transfer, snapshot, conformance, chrome, browser]
-decision: pending
-evidence: null
+decision: supported
+evidence: ./US-904-phase-a-evidence.md
 ---
 
 <!--
@@ -34,12 +34,12 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 交付                                                    | 直接前置                                     | AC 区段   | 状态                  |
-| ---- | ------------------------------------------------------- | -------------------------------------------- | --------- | --------------------- |
-| A    | Electron 43 + 当前 MV3 扩展 stop/go 实证                | 无                                           | AC#1～6   | ⬜ 未开始             |
-| B    | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面 | 无                                           | AC#7～30  | ✅ 已交付（5 条保留） |
-| C    | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移   | 阶段 B（仅其阶段 2）                         | AC#31～44 | ⬜ 未开始             |
-| D    | Electron desktop SQLite / native files 接入与真实 E2E   | 阶段 A(supported) + 阶段 C + US-207 / US-504 | AC#45～53 | ⬜ 未开始             |
+| 阶段 | 交付                                                    | 直接前置                                     | AC 区段   | 状态                   |
+| ---- | ------------------------------------------------------- | -------------------------------------------- | --------- | ---------------------- |
+| A    | Electron 43 + 当前 MV3 扩展 stop/go 实证                | 无                                           | AC#1～6   | ✅ 已交付（supported） |
+| B    | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面 | 无                                           | AC#7～30  | ✅ 已交付（5 条保留）  |
+| C    | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移   | 阶段 B（仅其阶段 2）                         | AC#31～44 | ⬜ 未开始              |
+| D    | Electron desktop SQLite / native files 接入与真实 E2E   | 阶段 A(supported) + 阶段 C + US-207 / US-504 | AC#45～53 | ⬜ 未开始              |
 
 - 阶段 A 与阶段 B 相互独立，可并行开工；阶段 C 的阶段 1（行为中性抽取）也可与阶段 B 并行。
 - 阶段 B 已交付：本包内的 v2 协议、provider 数据面与 conformance suite 全部落地，5 条 AC 因只能由真实
@@ -47,6 +47,12 @@ INVEST 检查清单:
 - 阶段 A 的结论写在本文件 frontmatter 的 `decision` / `evidence`。`decision: unsupported` 时**只有阶段 D**
   转 `Blocked` 并记录替代故事，阶段 B / C 的共享链与 US-905 继续推进；本故事整体 `status` 相应转
   `Blocked` 并在此处注明。全部阶段关闭后才置 `Done`。
+- **阶段 A 已交付，`decision: supported`**（见 [可行性记录](./US-904-phase-a-evidence.md)）：AC#1～#4 的
+  全部关键项在 Electron 43.4.0 / Chromium 150 上真实通过，只用到一项可容忍差异（AC#3 的授权 UI）。
+  阶段 D 不转 `Blocked`，但新增两个由实证带出的约束：**(a)** Electron 43 缺少整个 `chrome.permissions`
+  命名空间，阶段 D 必须做显式能力探测与 Electron 专属授权路径，**不得写静默 fallback**；
+  **(b)** 扩展面板只在 dock 模式（`mode: 'bottom'`）的 DevTools 中注册，`detach` / `undocked` 下根本不出现，
+  阶段 D 的 E2E 必须固定 dock 模式。
 
 ## 作为/我想要/以便
 
@@ -588,12 +594,23 @@ shared panel → chrome.runtime.Port → MV3 background service worker → conte
 
 | #   | 前置条件                           | 操作                                              | 预期结果                                                                                                                                                                                                                                      | 状态 |
 | --- | ---------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | Electron 43 与工作区扩展已构建     | 通过 `session.defaultSession.loadExtension` 加载  | 返回有效 extension，MV3 service worker 启动；失败时记录稳定复现步骤、版本和原始错误                                                                                                                                                           | ⬜   |
-| 2   | 打开 fixture 页面的 DevTools       | 扩展执行 `chrome.devtools.panels.create`          | RxDB panel 真实出现并能完成一次 panel → service worker → inspected page → panel 往返                                                                                                                                                          | ⬜   |
-| 3   | fixture 初始未授予目标 origin 权限 | 由扩展请求权限并执行 `chrome.scripting`           | host permission 按需授予，脚本只注入目标页面；拒绝权限时返回可见错误，不扩大 manifest 常驻权限。若仅 `chrome.permissions.request` 不可用，可按「关键项与可容忍差异」改用 fixture 静态窄 host permission 并记录 variance，注入本身仍须真实通过 | ⬜   |
-| 4   | runtime Port 已建立                | 刷新 inspected page、关闭 DevTools 和应用         | Port 断开与 service worker/session 清理可观察，不残留能接收下一次启动消息的旧连接                                                                                                                                                             | ⬜   |
-| 5   | AC#1～#4 已逐项执行                | 写入 `evidence` 指向的可行性记录并更新 `decision` | 每项都有版本、命令、结果与日志，并逐条标注关键/可容忍差异；用到 AC#3 差异时必须同时记录 variance 与「Chrome 生产 manifest 未改动」核对；`decision` 只能从 `pending` 变为 `supported` 或 `unsupported`，不得写"理论可行"或用 mock 补证据       | ⬜   |
-| 6   | 可行性结论已冻结                   | 检查后续排期                                      | `supported` 解锁阶段 D；`unsupported` 时阶段 D 转 `Blocked`，并记录「按 US-905 阶段 1 窗口模型另立 Electron 承载故事」为替代路径；阶段 B / C 共享链与 US-905 不受影响                                                                         | ⬜   |
+| 1   | Electron 43 与工作区扩展已构建     | 通过 `session.defaultSession.loadExtension` 加载  | 返回有效 extension，MV3 service worker 启动；失败时记录稳定复现步骤、版本和原始错误                                                                                                                                                           | ✅   |
+| 2   | 打开 fixture 页面的 DevTools       | 扩展执行 `chrome.devtools.panels.create`          | RxDB panel 真实出现并能完成一次 panel → service worker → inspected page → panel 往返                                                                                                                                                          | ✅   |
+| 3   | fixture 初始未授予目标 origin 权限 | 由扩展请求权限并执行 `chrome.scripting`           | host permission 按需授予，脚本只注入目标页面；拒绝权限时返回可见错误，不扩大 manifest 常驻权限。若仅 `chrome.permissions.request` 不可用，可按「关键项与可容忍差异」改用 fixture 静态窄 host permission 并记录 variance，注入本身仍须真实通过 | ✅   |
+| 4   | runtime Port 已建立                | 刷新 inspected page、关闭 DevTools 和应用         | Port 断开与 service worker/session 清理可观察，不残留能接收下一次启动消息的旧连接                                                                                                                                                             | ✅   |
+| 5   | AC#1～#4 已逐项执行                | 写入 `evidence` 指向的可行性记录并更新 `decision` | 每项都有版本、命令、结果与日志，并逐条标注关键/可容忍差异；用到 AC#3 差异时必须同时记录 variance 与「Chrome 生产 manifest 未改动」核对；`decision` 只能从 `pending` 变为 `supported` 或 `unsupported`，不得写"理论可行"或用 mock 补证据       | ✅   |
+| 6   | 可行性结论已冻结                   | 检查后续排期                                      | `supported` 解锁阶段 D；`unsupported` 时阶段 D 转 `Blocked`，并记录「按 US-905 阶段 1 窗口模型另立 Electron 承载故事」为替代路径；阶段 B / C 共享链与 US-905 不受影响                                                                         | ✅   |
+
+阶段 A 关闭说明（完整证据见 [US-904 阶段 A 可行性记录](./US-904-phase-a-evidence.md)）：
+
+- 判定 `supported`。fixture：`apps/dev-rxdb-electron/tools/devtools-mv3-probe.mjs`（真实 Electron 主进程
+  与真实 DevTools，只记录事实）+ `apps/dev-rxdb-electron-e2e/src/devtools-mv3-feasibility.spec.ts`（逐条断言）。
+  两者不被生产主进程 import，可整体删除而不留运行时 fallback。
+- AC#1 实际调用的是 `session.defaultSession.extensions.loadExtension`；`session.loadExtension` 在
+  Electron 43 已弃用，能力等价。
+- AC#3 用到了本 AC 自身允许的那一项可容忍差异（fixture 静态窄 host permission `http://127.0.0.1/*`），
+  variance 与「Chrome 生产 manifest 未改动」核对都已记录，并由 spec 持续核对。注入本身与未授权 origin
+  的负向用例均真实通过，未使用 `<all_urls>`，未 mock 任何 `chrome.*` API。
 
 ### 阶段 B — v2 控制面（AC#7～20）
 
@@ -684,22 +701,22 @@ fake 能证明的部分已证明，剩下的部分不是「还没写测试」，
 
 ## 实现所有权
 
-| 路径                                   | 阶段       | 边界                                                                                                 |
-| -------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------- |
-| `packages/rxdb-devtools/src/`          | B          | v2 envelope、协商、session、授权、ID 预算、错误和生命周期                                            |
-| `packages/rxdb-devtools/src/provider/` | B          | descriptor、授权、transfer、snapshot、错误和规范化 helper                                            |
-| `packages/rxdb-devtools/src/testing/`  | B          | fake 四段 relay、fake providers、JSON driver 与完整 conformance suite                                |
-| `packages/rxdb-devtools-panel/`        | C          | `private: true` 的 Angular library、共享面板、状态服务与 transport token                             |
-| `nx.json`                              | C          | 将私有 panel project 排除出 `release.projects`                                                       |
-| `apps/rxdb-devtools-extension/`        | A / C      | A 只做可行性 fixture（使用现有构建产物）；C 拥有 Chrome adapter、四段 relay、v2 迁移与禁用不安全下载 |
-| `apps/dev-rxdb-electron/`              | A / D      | A 做最小加载 fixture 与 Electron 43 加载脚本；D 做开发态加载、preload/main 接线与生产隔离            |
-| `apps/dev-rxdb-electron-e2e/`          | A / D      | A 提供真实 DevTools panel、Port 和生命周期证据；D 提供持久化、重启与安全边界 E2E                     |
-| `apps/dev-rxdb-tauri/`                 | US-905     | DevTools bootstrap、Tauri transport adapter、受限窗口与 dev-only capability                          |
-| `packages/rxdb-adapter-electron/`      | D          | Electron SQLite 只读诊断 provider，不增加任意 SQL                                                    |
-| `packages/rxdb-adapter-tauri/`         | US-905     | Tauri SQLite 只读诊断 provider，不增加任意 SQL                                                       |
-| `packages/rxdb-plugin-storage/`        | D / US-905 | Electron / Tauri 原生文件调试 provider，复用业务路径与流式语义                                       |
-| `apps/dev-rxdb-tauri-e2e/`             | 共享       | US-210 / US-905 先开工者用 generator 创建一次；各故事只拥有自己的 specs                              |
-| `requirements/api-baseline/`           | 改动方     | 只有新增公开 API 时同步                                                                              |
+| 路径                                   | 阶段       | 边界                                                                                          |
+| -------------------------------------- | ---------- | --------------------------------------------------------------------------------------------- |
+| `packages/rxdb-devtools/src/`          | B          | v2 envelope、协商、session、授权、ID 预算、错误和生命周期                                     |
+| `packages/rxdb-devtools/src/provider/` | B          | descriptor、授权、transfer、snapshot、错误和规范化 helper                                     |
+| `packages/rxdb-devtools/src/testing/`  | B          | fake 四段 relay、fake providers、JSON driver 与完整 conformance suite                         |
+| `packages/rxdb-devtools-panel/`        | C          | `private: true` 的 Angular library、共享面板、状态服务与 transport token                      |
+| `nx.json`                              | C          | 将私有 panel project 排除出 `release.projects`                                                |
+| `apps/rxdb-devtools-extension/`        | A / C      | A ✅ 只用现有构建产物，源码零改动；C 拥有 Chrome adapter、四段 relay、v2 迁移与禁用不安全下载 |
+| `apps/dev-rxdb-electron/`              | A / D      | A ✅ `tools/devtools-mv3-probe.mjs`；D 做开发态加载、preload/main 接线与生产隔离              |
+| `apps/dev-rxdb-electron-e2e/`          | A / D      | A ✅ `src/devtools-mv3-feasibility.spec.ts`；D 提供持久化、重启与安全边界 E2E                 |
+| `apps/dev-rxdb-tauri/`                 | US-905     | DevTools bootstrap、Tauri transport adapter、受限窗口与 dev-only capability                   |
+| `packages/rxdb-adapter-electron/`      | D          | Electron SQLite 只读诊断 provider，不增加任意 SQL                                             |
+| `packages/rxdb-adapter-tauri/`         | US-905     | Tauri SQLite 只读诊断 provider，不增加任意 SQL                                                |
+| `packages/rxdb-plugin-storage/`        | D / US-905 | Electron / Tauri 原生文件调试 provider，复用业务路径与流式语义                                |
+| `apps/dev-rxdb-tauri-e2e/`             | 共享       | US-210 / US-905 先开工者用 generator 创建一次；各故事只拥有自己的 specs                       |
+| `requirements/api-baseline/`           | 改动方     | 只有新增公开 API 时同步                                                                       |
 
 ## 依赖与排期
 

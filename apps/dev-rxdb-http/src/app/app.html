@@ -1,0 +1,637 @@
+<header class="topbar">
+  <div class="topbar-head">
+    <h1>RxDB HTTP 适配器 demo</h1>
+    <!--
+      通道开关放这儿，是因为它是**全页唯一一个随时会想翻一下的开关**：
+      两个窗口对照着看的时候，一次实验要翻两三回。压在页面最底下的面板里时，
+      翻一次要滚到底、翻回来再滚上来，而顶栏本来就是常驻的。
+
+      样式上是滑块而不是方块勾：这一格表达的是「通道通着没有」这个状态，
+      不是「勾选了这一项」这个选择。语义仍是 checkbox，只是补一个 `role="switch"`。
+    -->
+    <label class="feed-switch inline">
+      <input
+        [checked]="$changeFeedOn()"
+        (change)="toggleChangeFeed($any($event.target).checked)"
+        data-testid="feed-toggle"
+        role="switch"
+        type="checkbox"
+      />
+      <span>变更通知</span>
+    </label>
+  </div>
+  <dl class="facts">
+    <div>
+      <dt>变更通知</dt>
+      <dd data-testid="feed-status">
+        <span class="badge">{{ $changeFeedOn() ? '已接通' : '已断开' }}</span>
+      </dd>
+    </div>
+    <div>
+      <dt>收到通知</dt>
+      <dd data-testid="feed-received">{{ $changeFeedStats().received }}</dd>
+    </div>
+    <div>
+      <dt>抑制回声</dt>
+      <dd data-testid="feed-suppressed">{{ $changeFeedStats().suppressed }}</dd>
+    </div>
+    <div>
+      <dt>触发重跑</dt>
+      <dd data-testid="feed-invalidations">{{ $invalidations() }}</dd>
+    </div>
+    <div>
+      <!--
+        「累计」不是可有可无的修饰：这一栏数的是本页开着以来打出去的**全部** /metadata，
+        冷启动、翻页、改筛选都算在里面，不只是通知触发的那几次。
+        标成 fetchMetadata 会让人把它读成「通道害我多查了这么多次」。
+        要看通知的效果请取两次之间的差值。
+      -->
+      <dt>/metadata 累计</dt>
+      <dd data-testid="feed-metadata-requests">{{ $metadataRequests() }}</dd>
+    </div>
+    <!--
+      下面三格来自库的 `useSyncState()`，与上面那些「本页自己数出来的」诊断量不同源。
+
+      「远端可达」不等于横幅上那句「连不上后端」：横幅读的是最后一次协议请求的状态码，
+      不再发请求就一直停在那儿；这一格是库的判定，退避探测一旦探通就自己翻回来。
+      网恢复的那一刻两栏会短暂不一致，那正是 local-first 的重点——恢复不等用户点。
+    -->
+    <div>
+      <dt>远端可达</dt>
+      <dd data-testid="sync-online">{{ sync.online() ? '在线' : '离线' }}</dd>
+    </div>
+    <div>
+      <dt>待推变更</dt>
+      <dd data-testid="sync-pending">{{ sync.pendingCount() }}</dd>
+    </div>
+    <div>
+      <dt>回推</dt>
+      <dd data-testid="sync-syncing">{{ sync.syncing() ? '进行中' : '空闲' }}</dd>
+    </div>
+    <div>
+      <dt>翻页形态</dt>
+      <dd data-testid="page-mode">{{ $control()?.pageMode ?? '—' }}</dd>
+    </div>
+    <div>
+      <dt>ETag 可见</dt>
+      <dd data-testid="expose-etag">
+        {{
+          $control() === null ? '—'
+          : $control()!.exposeEtag ? '是'
+          : '否'
+        }}
+      </dd>
+    </div>
+  </dl>
+
+  <!-- 横幅是页面上唯一会自己冒出来的东西，读屏器得听得见。 -->
+  <div aria-live="polite">
+    @if ($networkDown()) {
+      <p class="banner offline" data-testid="offline-banner">
+        连不上后端。
+        @if ($servingFromCache()) {
+          列表当前来自 wa-sqlite 本地行缓存。
+        } @else {
+          本地也没有缓存可用。
+        }
+      </p>
+    }
+    @if (recipes.error(); as error) {
+      <p class="banner bad" data-testid="query-error">查询失败：{{ error.message }}</p>
+    }
+    @if ($controlError(); as error) {
+      <p class="banner bad" data-testid="control-error">控制端点失败：{{ error }}</p>
+    }
+    @if (sync.lastError(); as error) {
+      <p class="banner bad" data-testid="sync-error">回推失败：{{ error.message }}</p>
+    }
+    <!--
+      冲突横幅**不会**因为后来推成功了就消失：它记的是「你离线时改的那一版被丢掉了」这件
+      已经发生的事。清掉它等于替用户决定这件事不值得知道。
+    -->
+    @if (sync.lastConflict(); as conflict) {
+      <p class="banner warn" data-testid="sync-conflict">
+        冲突：{{ conflict.entity }} {{ conflict.entityId }} 判 {{ conflict.winner === 'local' ? '本地' : '远端' }} 胜
+      </p>
+    }
+  </div>
+</header>
+
+<main>
+  <section class="panel panel-filter" aria-labelledby="filter-heading">
+    <h2 id="filter-heading">筛选</h2>
+
+    <!--
+      回车即应用：填完最后一格还要去够「应用」按钮，是这类过滤面板最烦人的一步。
+      靠原生表单的隐式提交拿到这个行为，而不是在容器上挂 keydown——后者要给一个
+      本来不可聚焦的 div 编造 tabindex 和 role。`ngNoForm` 挡掉 NgForm，
+      里面的 ngModel 才继续按独立控件工作（否则会要求 name）。
+
+      `novalidate` 不是可省的：原生约束校验不通过时浏览器**直接不派发 submit**，
+      而这些字段一个都没打算受原生约束管（`type=number` 只为数字键盘和微调钮而写）。
+      不关掉它就会出现「点了按钮什么也没发生、也没有任何报错」这种查不出来的行为。
+    -->
+    <form (submit)="$event.preventDefault(); applyFilter()" ngNoForm novalidate>
+      <div class="grid">
+        <label>
+          <span>
+            title
+            <code>contains</code>
+          </span>
+          <input
+            [ngModel]="$draftFilter().titleContains"
+            (ngModelChange)="patchFilter({ titleContains: $event })"
+            data-testid="filter-title"
+            placeholder="输入标题关键字"
+            type="text"
+          />
+          <small>匹配区分大小写。</small>
+        </label>
+
+        <label>
+          <span>
+            status
+            <code>=</code>
+          </span>
+          <select
+            [ngModel]="$draftFilter().status"
+            (ngModelChange)="patchFilter({ status: $event })"
+            data-testid="filter-status"
+          >
+            <option value="">（不过滤）</option>
+            @for (option of statusOptions; track option) {
+              <option [value]="option">{{ option }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          <span>
+            price
+            <code>between</code>
+          </span>
+          <span class="pair">
+            <input
+              [ngModel]="$draftFilter().priceMin"
+              (ngModelChange)="patchFilter({ priceMin: $event })"
+              data-testid="filter-price-min"
+              placeholder="最低价"
+              step="any"
+              type="number"
+            />
+            <input
+              [ngModel]="$draftFilter().priceMax"
+              (ngModelChange)="patchFilter({ priceMax: $event })"
+              data-testid="filter-price-max"
+              placeholder="最高价"
+              step="any"
+              type="number"
+            />
+          </span>
+          <small>最低价与最高价需同时填写，只填其一不会生效。</small>
+        </label>
+
+        <fieldset>
+          <legend>
+            tag
+            <code>in</code>
+          </legend>
+          @for (tag of tagOptions; track tag) {
+            <label class="inline">
+              <input
+                [attr.data-testid]="'filter-tag-' + tag"
+                [checked]="$draftFilter().tags.includes(tag)"
+                [disabled]="$draftFilter().tagIsNull"
+                (change)="toggleTag(tag, $any($event.target).checked)"
+                type="checkbox"
+              />
+              <span>{{ tag }}</span>
+            </label>
+          }
+          <label class="inline">
+            <input
+              [ngModel]="$draftFilter().tagIsNull"
+              (ngModelChange)="patchFilter({ tagIsNull: $event })"
+              data-testid="filter-tag-null"
+              type="checkbox"
+            />
+            <span>
+              tag =
+              <code>null</code>
+            </span>
+          </label>
+        </fieldset>
+      </div>
+
+      <div class="actions">
+        <button class="primary" data-testid="apply-filter" type="submit">应用</button>
+        <button (click)="resetFilter()" data-testid="reset-filter" type="button">清空</button>
+        <button (click)="refetch()" data-testid="refetch" type="button">重新查询</button>
+      </div>
+    </form>
+
+    <details>
+      <summary>下发的 RuleGroup（与网线上的一字不差）</summary>
+      <pre data-testid="rule-group">{{ $rules() | json }}</pre>
+    </details>
+  </section>
+
+  <section class="panel panel-write" aria-labelledby="write-heading">
+    <h2 id="write-heading">
+      写入
+      @if ($editingId(); as id) {
+        <span class="badge">编辑中 {{ id }}</span>
+      }
+    </h2>
+    <!-- 同上：回车 = 按下此刻看得见的那个主按钮；`novalidate` 的理由同上。 -->
+    <form (submit)="$event.preventDefault(); submitDraft()" ngNoForm novalidate>
+      <div class="grid">
+        <label>
+          <span>title</span>
+          <input
+            [ngModel]="$draft().title"
+            (ngModelChange)="patchDraft({ title: $event })"
+            data-testid="draft-title"
+            type="text"
+          />
+        </label>
+        <label>
+          <span>status</span>
+          <select
+            [ngModel]="$draft().status"
+            (ngModelChange)="patchDraft({ status: $event })"
+            data-testid="draft-status"
+          >
+            @for (option of statusOptions; track option) {
+              <option [value]="option">{{ option }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>price</span>
+          <input
+            [ngModel]="$draft().price"
+            (ngModelChange)="patchDraft({ price: $event })"
+            data-testid="draft-price"
+            step="any"
+            type="number"
+          />
+        </label>
+        <label>
+          <span>tag（留空 = null）</span>
+          <input
+            [ngModel]="$draft().tag"
+            (ngModelChange)="patchDraft({ tag: $event })"
+            data-testid="draft-tag"
+            type="text"
+          />
+        </label>
+      </div>
+      <div class="actions">
+        @if ($editingId() === null) {
+          <button class="primary" data-testid="create" type="submit">新建</button>
+        } @else {
+          <button class="primary" data-testid="save-edit" type="submit">保存 {{ $editingId() }}</button>
+          <button (click)="cancelEdit()" data-testid="cancel-edit" type="button">取消</button>
+        }
+      </div>
+    </form>
+    @if ($writeError(); as error) {
+      <p class="banner bad" data-testid="write-error">{{ error }}</p>
+    }
+  </section>
+
+  <!--
+    列表、协议流量、ETag 诊断共用同一块版面区。
+
+    从前那两块是列表**下面**的独立面板：页长可以切到 1000 行，列表自己封顶 62vh 之后
+    它们仍稳稳落在首屏之外，实测结果是没人翻到过——而这个 demo 存在的意义恰恰是那两块。
+
+    切走的视图用 `hidden` 留在 DOM 里，不用 `@if` 卸掉：流量与诊断是**累积**的记录，
+    卸掉再挂回来虽然读的还是同一份 signal，但期间的 `<details>` 展开态、表格滚动位置
+    会全丢；e2e 也是靠这两张表的行数判定协议行为的，卸掉就等于把判据藏起来。
+  -->
+  <section class="panel panel-main">
+    <div class="tabs" aria-label="数据与诊断视图" role="tablist">
+      <button
+        class="tab"
+        id="tab-recipe"
+        #tabButton
+        [attr.aria-selected]="$tab() === 'recipe'"
+        [class.active]="$tab() === 'recipe'"
+        [tabIndex]="$tab() === 'recipe' ? 0 : -1"
+        (click)="selectTab('recipe')"
+        (keydown)="moveTab($event, 0)"
+        aria-controls="tabpanel-recipe"
+        data-testid="tab-recipe"
+        role="tab"
+        type="button"
+      >
+        Recipe
+        <span class="count" data-testid="row-count">{{ $cachedTotal() }} 行</span>
+        @if (recipes.isLoading()) {
+          <span class="count" data-testid="loading">加载中…</span>
+        }
+      </button>
+      <button
+        class="tab"
+        id="tab-traffic"
+        #tabButton
+        [attr.aria-selected]="$tab() === 'traffic'"
+        [class.active]="$tab() === 'traffic'"
+        [tabIndex]="$tab() === 'traffic' ? 0 : -1"
+        (click)="selectTab('traffic')"
+        (keydown)="moveTab($event, 1)"
+        aria-controls="tabpanel-traffic"
+        data-testid="tab-traffic"
+        role="tab"
+        type="button"
+      >
+        协议流量
+        <span class="count">{{ $traffic().length }} 条</span>
+      </button>
+      <button
+        class="tab"
+        id="tab-etag"
+        #tabButton
+        [attr.aria-selected]="$tab() === 'etag'"
+        [class.active]="$tab() === 'etag'"
+        [tabIndex]="$tab() === 'etag' ? 0 : -1"
+        (click)="selectTab('etag')"
+        (keydown)="moveTab($event, 2)"
+        aria-controls="tabpanel-etag"
+        data-testid="tab-etag"
+        role="tab"
+        type="button"
+      >
+        ETag 诊断
+        <!-- 没装回调时不报「0 条」：那个数字读起来像「查过了，没问题」，而实情是没在查。 -->
+        <span class="count">{{ diagnosticsEnabled ? $etagDiagnostics().length + ' 条' : '未启用' }}</span>
+      </button>
+    </div>
+
+    <div
+      class="tabpanel tabpanel-recipe"
+      id="tabpanel-recipe"
+      [attr.aria-busy]="recipes.isLoading()"
+      [hidden]="$tab() !== 'recipe'"
+      aria-labelledby="tab-recipe"
+      role="tabpanel"
+    >
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th class="grow">title</th>
+              <th>status</th>
+              <th>price</th>
+              <th>tag</th>
+              <th>updatedAt</th>
+              <th>id</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody data-testid="recipe-rows">
+            @for (recipe of recipes.value(); track recipe.id) {
+              <tr [attr.data-row-id]="recipe.id" [class.editing]="$editingId() === recipe.id">
+                <td class="grow">{{ recipe.title }}</td>
+                <td>{{ recipe.status }}</td>
+                <td>{{ recipe.price }}</td>
+                <td>{{ recipe.tag ?? '—' }}</td>
+                <td class="mono">{{ recipe.updatedAt.toISOString() }}</td>
+                <td class="mono id" [title]="recipe.id">{{ recipe.id }}</td>
+                <td class="actions">
+                  <button [attr.aria-label]="'改 ' + recipe.title" (click)="startEdit(recipe)" type="button">改</button>
+                  <button
+                    class="danger"
+                    [attr.aria-label]="'删 ' + recipe.title"
+                    (click)="remove(recipe)"
+                    type="button"
+                  >
+                    删
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td class="empty" colspan="7" data-testid="empty">没有匹配的行</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="actions pager">
+        <label class="page-size inline">
+          <span>每页</span>
+          <!--
+          选中态标在 option 上，不是 select 上：`[value]` 的更新跑在 `@for` 建出 option 之前，
+          第一帧那会儿 select 里一个 option 都还没有，赋值落空、浏览器退回第一项——
+          页长明明是 50，下拉框却显示 25。
+        -->
+          <select (change)="setPageSize(+$any($event.target).value)" aria-label="每页行数" data-testid="page-size">
+            @for (option of pageSizeOptions; track option.value) {
+              <option [selected]="option.value === $pageSize()" [value]="option.value">{{ option.label }}</option>
+            }
+          </select>
+        </label>
+        <div class="nav">
+          <button [disabled]="$page() === 0" (click)="prevPage()" data-testid="prev-page" type="button">上一页</button>
+          <button [disabled]="$page() >= $pageCount() - 1" (click)="nextPage()" data-testid="next-page" type="button">
+            下一页
+          </button>
+          <span class="count" data-testid="page-info">
+            第 {{ $page() + 1 }} / {{ $pageCount() }} 页 · 本页 {{ recipes.value().length }} 行
+          </span>
+        </div>
+      </div>
+      <p class="hint">
+        <code>limit</code>
+        /
+        <code>offset</code>
+        只下推
+        <strong>本地</strong>
+        读。同步的粒度是整个
+        <code>where</code>
+        （指纹里没有翻页参数），所以翻一页会把这个
+        <code>where</code>
+        整个重新同步一遍——「协议流量」页签上是 6 次
+        <code>fetchMetadata</code>
+        、0 次
+        <code>by-ids</code>
+        ：行都还是新鲜的，只是换了一段窗口来看。
+      </p>
+    </div>
+
+    <div
+      class="tabpanel tabpanel-traffic"
+      id="tabpanel-traffic"
+      [hidden]="$tab() !== 'traffic'"
+      aria-labelledby="tab-traffic"
+      role="tabpanel"
+    >
+      <p class="hint">
+        浏览器视角，按发生顺序。
+        <code>__control/*</code>
+        的请求
+        <strong>不进</strong>
+        这张表——它们不是协议的一部分。
+      </p>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>方法</th>
+              <th class="grow">路径</th>
+              <th>状态码</th>
+              <th>耗时</th>
+              <th>304</th>
+            </tr>
+          </thead>
+          <tbody data-testid="traffic-rows">
+            @for (entry of $traffic(); track entry.seq) {
+              <tr [attr.data-status]="entry.status">
+                <td>{{ entry.seq }}</td>
+                <td>{{ entry.method }}</td>
+                <td class="mono grow">{{ entry.path }}</td>
+                <td>
+                  <span class="tag">{{ entry.status === 0 ? '传输失败' : entry.status }}</span>
+                </td>
+                <td>{{ entry.durationMs }} ms</td>
+                <td>{{ entry.notModified ? '是' : '否' }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td class="empty" colspan="6" data-testid="traffic-empty">还没有协议请求</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <details>
+        <summary>
+          后端视角的日志（含浏览器发的
+          <code>OPTIONS</code>
+          预检——那个在 fetch 上看不见）
+        </summary>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>方法</th>
+                <th class="grow">路径</th>
+                <th>状态码</th>
+                <th>耗时</th>
+                <th>304</th>
+              </tr>
+            </thead>
+            <tbody data-testid="server-log-rows">
+              @for (entry of $serverLog(); track $index) {
+                <tr [attr.data-status]="entry.status">
+                  <td>{{ entry.method }}</td>
+                  <td class="mono grow">{{ entry.path }}</td>
+                  <td>
+                    <span class="tag">{{ entry.status }}</span>
+                  </td>
+                  <td>{{ entry.durationMs }} ms</td>
+                  <td>{{ entry.notModified ? '是' : '否' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+
+    <div
+      class="tabpanel tabpanel-etag"
+      id="tabpanel-etag"
+      [hidden]="$tab() !== 'etag'"
+      aria-labelledby="tab-etag"
+      role="tabpanel"
+    >
+      @if (diagnosticsEnabled) {
+        <p class="hint">
+          适配器视角。已装上
+          <code>onEtagUnreadable</code>
+          。条件请求开着却读不到
+          <code>ETag</code>
+          时，下面会出现一条——这在「协议流量」里是看不出来的，那样的 200 与正常的 200 逐字相同。
+        </p>
+        <ul class="diagnostics" data-testid="etag-diagnostic-rows">
+          @for (entry of $etagDiagnostics(); track entry.seq) {
+            <li [attr.data-operation]="entry.operation">
+              <strong>{{ entry.entityName }} / {{ entry.operation }}</strong>
+              <span class="mono">（Response.type={{ entry.responseType }}）</span>
+              <p>{{ entry.message }}</p>
+            </li>
+          } @empty {
+            <li class="empty" data-testid="etag-diagnostic-empty">还没有诊断信号</li>
+          }
+        </ul>
+      } @else {
+        <p class="hint" data-testid="etag-diagnostic-off">
+          未装诊断回调，这是
+          <strong>默认行为</strong>
+          ：读不到
+          <code>ETag</code>
+          时适配器不打印任何东西，条件请求就此静默失效。带
+          <code>?diagnostics=1</code>
+          打开本页可以看到信号。
+        </p>
+      }
+    </div>
+  </section>
+
+  <section class="panel panel-control" aria-labelledby="control-heading">
+    <h2 id="control-heading">演示开关</h2>
+    <p class="hint">
+      这些开关打到后端的
+      <code>__control/*</code>
+      ，
+      <strong>不是协议的一部分</strong>
+      ，也不会出现在「协议流量」页签里。
+    </p>
+    <div class="switches">
+      <label class="inline">
+        <input
+          [checked]="$control()?.offline === true"
+          (change)="toggleOffline($any($event.target).checked)"
+          data-testid="switch-offline"
+          type="checkbox"
+        />
+        <span>离线（后端直接掐断连接）</span>
+      </label>
+      <label class="inline">
+        <input
+          [checked]="$control()?.exposeEtag === true"
+          (change)="toggleExposeEtag($any($event.target).checked)"
+          data-testid="switch-expose-etag"
+          type="checkbox"
+        />
+        <span><code>Access-Control-Expose-Headers: ETag</code></span>
+      </label>
+      <label class="inline">
+        <input
+          [checked]="$control()?.pageMode === 'token'"
+          (change)="togglePageMode($any($event.target).checked ? 'token' : 'offset')"
+          data-testid="switch-page-token"
+          type="checkbox"
+        />
+        <span>token 翻页（默认 offset）</span>
+      </label>
+    </div>
+    <div class="actions">
+      <button (click)="injectStatus(409)" data-testid="inject-409" type="button">注入 409</button>
+      <button (click)="injectStatus(null)" data-testid="clear-fault" type="button">
+        取消注入（当前 {{ $control()?.forcedStatus ?? '无' }}）
+      </button>
+      <button (click)="refreshControl()" data-testid="refresh-control" type="button">刷新状态</button>
+      <button (click)="clearLogs()" data-testid="clear-logs" type="button">清空日志</button>
+      <button (click)="resetBackend()" data-testid="reset-backend" type="button">重置为种子</button>
+      <button class="danger" (click)="clearBackend()" data-testid="clear-backend" type="button">清空所有数据</button>
+    </div>
+  </section>
+</main>

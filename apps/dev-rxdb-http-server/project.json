@@ -1,0 +1,28 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "dev-rxdb-http-server",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-http-server/src",
+  "tags": ["node-app"],
+  "targets": {
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node apps/dev-rxdb-http-server/src/main.ts serve"
+      }
+    },
+    "seed": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node apps/dev-rxdb-http-server/src/main.ts seed"
+      }
+    },
+    "reset": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node apps/dev-rxdb-http-server/src/main.ts reset seed"
+      }
+    }
+  }
+}

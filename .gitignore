@@ -135,3 +135,7 @@ tsconfig.tsbuildinfo
 .nx/polygraph
 
 .nx/migrate-runs
+
+# HTTP demo 后端的本地 SQLite 库（US-214 AC#1）。开发数据，不进版本库；
+# e2e 另用临时目录，见 apps/dev-rxdb-http-e2e。
+apps/dev-rxdb-http-server/.data/

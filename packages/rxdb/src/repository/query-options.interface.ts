@@ -85,6 +85,18 @@ export interface FindOptions<
   localCacheFirst?: boolean;
 
   /**
+   * 离线降级
+   *
+   * @remarks
+   * 仅对 `sync.type === SyncType.QueryCache` 的实体有效，其余同步策略忽略本字段。
+   * 打开后**只有网络故障**（连不上远端）会降级成本地缓存，判据见 `isNetworkError`；
+   * 远端给出的非 2xx 是「远端的回答」，照常上抛。本地也没有缓存时抛
+   * {@link NetworkOfflineError}，而不是静默返回空集。
+   * 该值参与查询任务的缓存键，同一 `where` 的两种模式互不复用。
+   */
+  offlineFallback?: boolean;
+
+  /**
    * QueryCache 增量同步完成后的统计回调
    *
    * @remarks

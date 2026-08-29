@@ -1,7 +1,13 @@
-import type { EntityType, RxDBEvent, RxDBEventMap } from '@aiao/rxdb';
+import type { RxDBEvent, RxDBEventMap } from '@aiao/rxdb';
 
 import { EventBuffer } from './buffer.js';
-import { collectEntityInfo, entityIndexMaps, resolveEntityKey, type EntityInfo } from './connector-entity-info.js';
+import {
+  createEntityRegistry,
+  EMPTY_ENTITY_INDEX,
+  resolveEntityKey,
+  type EntityIndex,
+  type EntityRegistry
+} from './connector-entity-info.js';
 import { RXDB_EVENT_TYPES, toEventRecord, type EventRecord } from './connector-events.js';
 import { maskEncryptedDocument, maskEncryptedEvent, type ConnectorMaskContext } from './connector-mask.js';
 import { CONNECTOR_MUTATION_POLICY, CONNECTOR_PROVIDERS } from './connector-providers.js';
@@ -27,6 +33,7 @@ import {
   type AnyDevToolsMessage,
   type DevToolsCapability,
   type DevToolsCommandMessage,
+  type DevToolsEntityErrorCode,
   type QueryEntityPayload,
   type SerializedEvent
 } from './types.js';
@@ -121,10 +128,13 @@ export class DevToolsConnector {
    */
   #port: MessagePort | null = null;
   #endpoint: DevToolsConnectorEndpoint | null = null;
-  #hasEntityMetadata = false;
-  #entityInfo: EntityInfo[] = [];
-  #entityTypeMap: Map<string, EntityType> = new Map();
-  #encryptedFieldsMap: Map<string, string[]> = new Map();
+  /**
+   * 实体注册表；`null` 表示 {@link init} 没拿到 `getEntityMetadata`（或已断开）。
+   *
+   * @remarks
+   * 不缓存实体清单本身 —— `config.entities` 是活数组，注册表按需重算。
+   */
+  #entityRegistry: EntityRegistry | null = null;
   #pendingSubscriptions: Set<Subscription> = new Set();
   #branchQueryInFlight = false;
   #disconnectInFlight: Promise<DisconnectResult> | null = null;
@@ -200,10 +210,11 @@ export class DevToolsConnector {
       throw new Error('DevToolsConnector supports a single RxDB instance');
     }
 
-    const entityInfo = getEntityMetadata ? collectEntityInfo(rxdb, getEntityMetadata) : [];
     this.#rxdbInstance = rxdb;
-    this.#hasEntityMetadata = getEntityMetadata !== undefined;
-    this.#setEntityInfo(entityInfo);
+    this.#entityRegistry = getEntityMetadata ? createEntityRegistry(rxdb, getEntityMetadata) : null;
+    // 立刻收集一次：`getEntityMetadata` 对未装饰的类抛错，这里让它在 init 上抛，
+    // 而不是推迟到第一条事件——那时候异常会淹没在事件转发链里。
+    this.#syncEntities();
     this.#setupMessageListener();
     this.#startNegotiation();
     this.#syncGlobalHelper();
@@ -270,22 +281,26 @@ export class DevToolsConnector {
     this.#branchQueryInFlight = false;
   }
 
-  #setEntityInfo(entityInfo: EntityInfo[]): void {
-    this.#entityInfo = entityInfo;
-    const maps = entityIndexMaps(entityInfo);
-    this.#entityTypeMap = maps.entityTypeMap;
-    this.#encryptedFieldsMap = maps.encryptedFieldsMap;
+  /**
+   * 取当前实体视图 —— 所有读实体的地方唯一的入口。
+   *
+   * @remarks
+   * `config.entities` 未变时是一次 O(n) 指针扫描并原样返回上次的对象。
+   * **事件路径也必须走这里**：`#maskContext` 拿到的 `encryptedFieldsMap`
+   * 决定哪些字段被换成 `[encrypted]`，若只在命令路径重算，则 init 之后才注册的
+   * 加密实体在遮罩表里永远缺席 → 字段集算成空 → 密文列原样发上页面消息总线。
+   */
+  #syncEntities(): EntityIndex {
+    if (!this.#rxdbInstance || !this.#entityRegistry) return EMPTY_ENTITY_INDEX;
+    return this.#entityRegistry.sync();
   }
 
   #maskContext(): ConnectorMaskContext {
-    return { entityInfo: this.#entityInfo, encryptedFieldsMap: this.#encryptedFieldsMap };
+    return this.#syncEntities();
   }
 
   #clearEntityInfo(): void {
-    this.#hasEntityMetadata = false;
-    this.#entityInfo = [];
-    this.#entityTypeMap.clear();
-    this.#encryptedFieldsMap.clear();
+    this.#entityRegistry = null;
   }
 
   /**
@@ -586,7 +601,7 @@ export class DevToolsConnector {
 
   #handleInspectDb(): void {
     const rxdb = this.#rxdbInstance;
-    if (!rxdb || !this.#hasEntityMetadata) {
+    if (!rxdb || !this.#entityRegistry) {
       this.#postMessage(createMessage('DB_INFO', 'page-to-devtools', null, this.#sequence.next()));
       return;
     }
@@ -595,7 +610,7 @@ export class DevToolsConnector {
       version: rxdb.version,
       dbName: rxdb.config.dbName,
       capabilities: this.#options.capabilities,
-      entities: this.#entityInfo.map(info => ({
+      entities: this.#syncEntities().entityInfo.map(info => ({
         name: info.name,
         namespace: info.namespace,
         encryptedFields: info.encryptedFields
@@ -608,7 +623,7 @@ export class DevToolsConnector {
     entityName: string,
     error: string | null,
     data: unknown[],
-    meta?: { encryptedFields?: string[]; errorCode?: string },
+    meta?: { encryptedFields?: string[]; errorCode?: DevToolsEntityErrorCode },
     namespace?: string
   ): void {
     this.#postMessage(
@@ -626,29 +641,42 @@ export class DevToolsConnector {
     // 只判「有没有 init 过」。`entityManager` 在真实 `RxDB` 上是构造期就赋值的必填成员，
     // 再加一层 `!rxdb.entityManager` 是给鸭子类型留的兜底 —— 而 init 的入参现在就是真类型。
     if (!rxdb) {
-      this.#replyEntityData(payload.entityName, 'RxDB 未初始化', [], undefined, payload.namespace);
-      return;
-    }
-
-    const resolved = resolveEntityKey(this.#entityInfo, payload.entityName, payload.namespace);
-    if (resolved.ambiguous) {
       this.#replyEntityData(
         payload.entityName,
-        `实体 ${payload.entityName} 在多个 namespace 下重名（ambiguous）；请在 QUERY_ENTITY 中指定 namespace`,
+        'RxDB 未初始化',
         [],
-        undefined,
+        { errorCode: 'RXDB_NOT_READY' },
         payload.namespace
       );
       return;
     }
 
-    const entityType = resolved.key ? this.#entityTypeMap.get(resolved.key) : undefined;
-    if (!entityType) {
-      this.#replyEntityData(payload.entityName, `实体 ${payload.entityName} 不存在`, [], undefined, payload.namespace);
+    const { entityInfo, entityTypeMap, encryptedFieldsMap } = this.#syncEntities();
+    const resolved = resolveEntityKey(entityInfo, payload.entityName, payload.namespace);
+    if (resolved.ambiguous) {
+      this.#replyEntityData(
+        payload.entityName,
+        `实体 ${payload.entityName} 在多个 namespace 下重名（ambiguous）；请在 QUERY_ENTITY 中指定 namespace`,
+        [],
+        { errorCode: 'ENTITY_AMBIGUOUS' },
+        payload.namespace
+      );
       return;
     }
 
-    const encryptedFields = (resolved.key && this.#encryptedFieldsMap.get(resolved.key)) || [];
+    const entityType = resolved.key ? entityTypeMap.get(resolved.key) : undefined;
+    if (!entityType) {
+      this.#replyEntityData(
+        payload.entityName,
+        `实体 ${payload.entityName} 不存在`,
+        [],
+        { errorCode: 'ENTITY_NOT_FOUND' },
+        payload.namespace
+      );
+      return;
+    }
+
+    const encryptedFields = [...(resolved.key ? (encryptedFieldsMap.get(resolved.key) ?? []) : [])];
     try {
       // 必须是 `find` 不是 `findAll`：`findAll` 的选项类型里根本没有 limit，
       // 传进去会被静默忽略 —— DevTools 请求 10 条，整张表被拉进内存并序列化。
@@ -697,8 +725,9 @@ export class DevToolsConnector {
 
   #queryBranches(): void {
     const rxdb = this.#rxdbInstance;
-    const branchKey = resolveEntityKey(this.#entityInfo, BRANCH_ENTITY_NAME).key;
-    const branchEntityType = branchKey ? this.#entityTypeMap.get(branchKey) : undefined;
+    const { entityInfo, entityTypeMap } = this.#syncEntities();
+    const branchKey = resolveEntityKey(entityInfo, BRANCH_ENTITY_NAME).key;
+    const branchEntityType = branchKey ? entityTypeMap.get(branchKey) : undefined;
     if (!rxdb || !branchEntityType) {
       this.#branchQueryInFlight = false;
       this.#postMessage(createMessage('BRANCHES', 'page-to-devtools', [], this.#sequence.next()));
@@ -848,7 +877,9 @@ export class DevToolsConnector {
     if (event.type === 'SWITCH_BRANCH_COMMIT') return true;
     if (event.type !== 'ENTITY_LOCAL_REMOVE' && event.type !== 'ENTITY_REMOTE_REMOVE') return false;
 
-    const branchKey = resolveEntityKey(this.#entityInfo, BRANCH_ENTITY_NAME).key;
+    // 循环外只解一次：每条事件都可能带上百个实体，重算判定不该按实体数放大。
+    const { entityInfo } = this.#syncEntities();
+    const branchKey = resolveEntityKey(entityInfo, BRANCH_ENTITY_NAME).key;
     if (!branchKey) return false;
 
     const entities = event['entities'];
@@ -856,7 +887,7 @@ export class DevToolsConnector {
     return entities.some(entity => {
       if (!isRecord(entity) || typeof entity['entity'] !== 'string') return false;
       const namespace = typeof entity['namespace'] === 'string' ? entity['namespace'] : undefined;
-      return resolveEntityKey(this.#entityInfo, entity['entity'], namespace).key === branchKey;
+      return resolveEntityKey(entityInfo, entity['entity'], namespace).key === branchKey;
     });
   }
 

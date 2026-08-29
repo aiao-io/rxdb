@@ -127,6 +127,13 @@ describe('types', () => {
         'ENTITY_DATA',
         { entityName: 'User', error: 'keyring is locked', data: [], _meta: { errorCode: 'KEYRING_LOCKED' } }
       ],
+      [
+        'ENTITY_DATA',
+        { entityName: 'User', error: '实体 User 不存在', data: [], _meta: { errorCode: 'ENTITY_NOT_FOUND' } }
+      ],
+      // 生产端严、消费端宽：面板可能连到比自己新的连接器，未知码必须能安全落地
+      // ——运行时只校验「非空字符串」，收窄只发生在类型层。
+      ['ENTITY_DATA', { entityName: 'User', error: 'boom', data: [], _meta: { errorCode: 'FUTURE_CODE' } }],
       ['ENTITY_DATA', { entityName: 'User', error: null, data: [] }],
       ['BRANCHES', []]
     ])('MUST accept valid outbound %s payload', (type, payload) => {

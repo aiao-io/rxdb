@@ -257,6 +257,28 @@ export interface QueryEntityMessage extends DevToolsMessage<QueryEntityPayload> 
   direction: 'devtools-to-page';
 }
 
+/**
+ * `ENTITY_DATA` 的结构化错误码。
+ *
+ * @remarks
+ * 面板据此分支处理，不匹配 `error` 文案（文案是给人看的，随时会改）。
+ * 尤其是 `ENTITY_NOT_FOUND`：它意味着**对端没有注册这个实体**（例如页面没装对应插件），
+ * 那是一个可解释的正常状态，不该按查询失败渲染。
+ *
+ * 生产端严、消费端宽：连接器只发这里列出的码，但
+ * {@link isDevToolsMessage} 对 `errorCode` 仍只校验「非空字符串」，
+ * 新旧连接器 / 面板因此双向兼容。
+ */
+export const DEVTOOLS_ENTITY_ERROR_CODES = [
+  'ENTITY_NOT_FOUND',
+  'ENTITY_AMBIGUOUS',
+  'RXDB_NOT_READY',
+  'KEYRING_LOCKED'
+] as const;
+
+/** {@link DEVTOOLS_ENTITY_ERROR_CODES} 的联合类型。 */
+export type DevToolsEntityErrorCode = (typeof DEVTOOLS_ENTITY_ERROR_CODES)[number];
+
 /** 实体查询结果载荷。 */
 export interface EntityDataPayload {
   /** 回显请求的实体名，便于面板把响应对回请求。 */
@@ -271,8 +293,13 @@ export interface EntityDataPayload {
   _meta?: {
     /** 本次结果中被遮罩的字段名。 */
     encryptedFields?: string[];
-    /** 结构化错误码，供面板做分支处理而不必匹配文案。 */
-    errorCode?: string;
+    /**
+     * 结构化错误码，供面板做分支处理而不必匹配文案。
+     *
+     * 类型收窄到 {@link DevToolsEntityErrorCode}，但运行时校验保持宽松 ——
+     * 面板可能连到比自己新的连接器，未知码必须能安全落地。
+     */
+    errorCode?: DevToolsEntityErrorCode;
   };
 }
 

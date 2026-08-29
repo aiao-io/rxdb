@@ -14,6 +14,10 @@
         "kind": "value"
       },
       {
+        "name": "assertQueryCacheRowContract",
+        "kind": "value"
+      },
+      {
         "name": "BATCH_TIMEOUT",
         "kind": "value"
       },
@@ -386,6 +390,10 @@
         "kind": "value"
       },
       {
+        "name": "readCurrentBranchId",
+        "kind": "value"
+      },
+      {
         "name": "RelationPair",
         "kind": "type"
       },
@@ -399,6 +407,10 @@
       },
       {
         "name": "remove_entity_ids_from_cache",
+        "kind": "value"
+      },
+      {
+        "name": "requiredQueryCacheColumns",
         "kind": "value"
       },
       {
@@ -442,6 +454,10 @@
         "kind": "value"
       },
       {
+        "name": "RxDBQueryCacheRowContractError",
+        "kind": "both"
+      },
+      {
         "name": "serializeForEnvelope",
         "kind": "value"
       },
@@ -452,6 +468,10 @@
       {
         "name": "shouldUsePreparedStatementPath",
         "kind": "value"
+      },
+      {
+        "name": "SqlExecutor",
+        "kind": "type"
       },
       {
         "name": "SQLITE_MAX_BIND_VARIABLES",
@@ -631,6 +651,10 @@
       },
       {
         "name": "withSqliteApiConfig",
+        "kind": "value"
+      },
+      {
+        "name": "withTriggersDisabled",
         "kind": "value"
       },
       {

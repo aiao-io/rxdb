@@ -62,6 +62,7 @@ import {
   ENTITY_LOCAL_REMOVE_EVENT,
   ENTITY_LOCAL_UPDATE_EVENT,
   EntityLocalCreatedEvent,
+  REMOTE_ENTITY_INVALIDATED_EVENT,
   RxDBEvent
 } from '../../rxdb-events.js';
 
@@ -102,6 +103,22 @@ describe('RxDBTabsGateway', () => {
     expect(registeredEvents).toContain(ENTITY_LOCAL_CREATE_EVENT);
     expect(registeredEvents).toContain(ENTITY_LOCAL_UPDATE_EVENT);
     expect(registeredEvents).toContain(ENTITY_LOCAL_REMOVE_EVENT);
+
+    gateway.destroy();
+  });
+
+  // US-023 AC#9 / D10：失效上报不跨标签页。
+  // 转发白名单是显式的，新事件默认就在外面 —— 这条锁的是「不许有人顺手加进去」。
+  it('不应该转发远端失效事件到其他标签页', () => {
+    const dispatchEvent = vi.fn();
+    const addEventListener = vi.fn();
+    const removeEventListener = vi.fn();
+
+    const gateway = new RxDBTabsGateway({ dbName: 'test-db', clientId: 'client-1' });
+    gateway.init(dispatchEvent, addEventListener, removeEventListener);
+
+    const registeredEvents = addEventListener.mock.calls.map(call => call[0]);
+    expect(registeredEvents).not.toContain(REMOTE_ENTITY_INVALIDATED_EVENT);
 
     gateway.destroy();
   });

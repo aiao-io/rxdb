@@ -8,6 +8,7 @@ import { AdapterFactory, IRxDBAdapter } from '../rxdb-adapter.js';
 import {
   ENTITY_LOCAL_CREATE_EVENT,
   EntityLocalCreatedEvent,
+  REMOTE_ENTITY_INVALIDATED_EVENT,
   TRANSACTION_BEGIN,
   TransactionBeginEvent,
   TransactionCommitEvent,
@@ -1004,6 +1005,28 @@ describe('RxDB', () => {
       expect(listener.mock.calls[0][0].entities[0].id).toBe('from-other-tab');
 
       rxdb.removeEventListener(ENTITY_LOCAL_CREATE_EVENT, listener);
+    });
+
+    /**
+     * 远端失效通知与他 tab 的提交是同一类东西：**外面发生的事**，与本地事务的成败无关。
+     * 事务期间宿主的推送通道照收不误（`invalidateRemoteEntity` 走 `dispatchEvent`，
+     * 会被排进队列），此时若本地事务回滚就把它一并丢掉，`QueryCache` 的同步记忆
+     * 永远不会失效 —— 表现是「后端改了、这台机器直到下次全量刷新都还显示旧值」，
+     * 而现场看起来与那次失败的本地写入毫无关系。
+     */
+    it('事务回滚不得丢弃队列中的远端实体失效事件', () => {
+      const listener = vi.fn();
+      rxdb.addEventListener(REMOTE_ENTITY_INVALIDATED_EVENT, listener);
+
+      rxdb.dispatchEvent(new TransactionBeginEvent());
+      rxdb.dispatchEvent(createEntityCreatedEvent('local-1'));
+      rxdb.invalidateRemoteEntity('recipe');
+      rxdb.dispatchEvent(new TransactionRollbackEvent());
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener.mock.calls[0][0].entity).toBe('recipe');
+
+      rxdb.removeEventListener(REMOTE_ENTITY_INVALIDATED_EVENT, listener);
     });
 
     it('应该立即触发事务事件', () => {

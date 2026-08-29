@@ -14,7 +14,9 @@ function createRxdb(): RxDB {
     context: { clientId: 'branch-contract-client' },
     config: { entities: [] },
     schemaManager: { getEntityMetadata: vi.fn() },
-    dispatchEvent: vi.fn()
+    dispatchEvent: vi.fn(),
+    // 适配器每次往返都往这儿报结局；本套件不判可达性，用桩避免真 monitor 的退避定时器漏进下个用例
+    reachability: { report: () => undefined }
   } as unknown as RxDB;
 }
 

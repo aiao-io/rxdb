@@ -24,7 +24,9 @@ function createRpcAdapter(responses: Array<MockWriteResponse<unknown>>) {
   const client = { rpc } as unknown as SupabaseClient;
   const rxdb = {
     context: { userId: 'u1', clientId: 'c1' },
-    schemaManager: { getEntityMetadata: () => undefined }
+    schemaManager: { getEntityMetadata: () => undefined },
+    // 适配器每次往返都往这儿报结局；本套件只判重试次数与错误分类，用桩避免真 monitor 的退避定时器漏进下个用例
+    reachability: { report: () => undefined }
   } as unknown as RxDB;
   return { adapter: new RxDBAdapterSupabase(rxdb, { client }), rpc };
 }
@@ -55,7 +57,10 @@ function createMockAdapter(responses: Array<MockWriteResponse<unknown>>) {
   const from = vi.fn(() => ({ upsert }));
   const schema = vi.fn(() => ({ from }));
   const client = { from, schema } as unknown as SupabaseClient;
-  const rxdb = { context: { userId: 'test-user' } } as RxDB;
+  const rxdb = {
+    context: { userId: 'test-user' },
+    reachability: { report: () => undefined }
+  } as unknown as RxDB;
 
   return {
     adapter: new RxDBAdapterSupabase(rxdb, { client }),
@@ -73,7 +78,11 @@ function createDeleteAdapter(response: MockWriteResponse<unknown>) {
   const from = vi.fn(() => ({ delete: remove }));
   const schema = vi.fn(() => ({ from }));
   const client = { from, schema } as unknown as SupabaseClient;
-  const rxdb = { context: {}, config: { entities: [] } } as unknown as RxDB;
+  const rxdb = {
+    context: {},
+    config: { entities: [] },
+    reachability: { report: () => undefined }
+  } as unknown as RxDB;
   return { adapter: new RxDBAdapterSupabase(rxdb, { client }), select };
 }
 

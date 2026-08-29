@@ -80,7 +80,12 @@ export function pullIneligibility(
  * @remarks
  * `'local'` 同样没有推送资格，与 `needsPush` 的公开契约一致：该类仓库连 remote
  * adapter 都没有，推送本就无从执行，放行只会让私有本地数据进入推送队列。
- * `'querycache'` 亦然：本地只是按需缓存的远端副本，没有权威变更可回写。
+ *
+ * `'querycache'` 没有推送资格，但**这不代表它的本地改动回不去**：它的远端契约是纯 REST，
+ * 没有 changelog 端点（`RxDBAdapterHttp.mergeChanges()` 直接抛
+ * `HttpChangelogUnsupportedError`），放行只会把它送进一条它的适配器不实现的管道。
+ * 它的离线写走另一条路 —— `getSyncCapability(syncType).offlineWrite` 为 `true`，
+ * 由 QueryCache 的出站重放按 REST 动词送回远端。
  *
  * @example
  * ```ts

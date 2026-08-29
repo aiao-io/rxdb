@@ -28,6 +28,7 @@ import type {
   RatingFormat,
   UrlFormat
 } from './metadata-options.interface.js';
+import type { EntityMetadata } from './metadata.interface.js';
 
 /**
  * {@link EntityFieldType} 的字符串字面量视图。
@@ -151,6 +152,41 @@ export function parseEntityFieldValue(type: EntityFieldTypeName, raw: unknown): 
     default:
       throw new TypeError(`parseEntityFieldValue: 未知字段类型 '${String(type)}'`);
   }
+}
+
+/**
+ * 按实体元数据把一整条原始记录解码成实体侧的运行时值。
+ *
+ * @param metadata - 实体元数据；决定每个键按哪种类型解码
+ * @param raw - 原始记录，典型来源是远端 REST 响应这类 JSON
+ * @returns 新对象；**只含 `raw` 里出现过的键**
+ * @throws 当某个已声明属性的类型不是 {@link EntityFieldTypeName} 的成员时，
+ * 由 {@link parseEntityFieldValue} 抛出
+ *
+ * @remarks
+ * 服务于「远端 JSON 直接盖到实体实例上」这一类边界。JSON 没有 `Date`，日期在线上是 ISO 串；
+ * 原样 `Object.assign` 过去，`entity.updatedAt` 就从 `Date` 变成了 `string`，而
+ * `PropertyType.date` 的运行时契约是 `Date`（见 {@link parseEntityFieldValue} 的 date 分支）。
+ * 下游按契约直接调 `.toISOString()` 就地抛错 —— 在模板渲染里这一抛会提交抛之前的绑定、
+ * 跳过之后的，留下半行更新过的 DOM。
+ *
+ * 两条刻意的边界：
+ *
+ * - **不补键**。只映射 `raw` 自身的可枚举键，缺席的字段一个都不添。`parseEntityFieldValue`
+ *   把 `undefined` 归一化成 `null`，补键等于拿 `null` 覆盖实体上本来好好的值。
+ * - **元数据以外的键原样透传**。`__etag` 这类随响应捎带的东西不属于任何已声明属性，
+ *   本函数无从解释它，替调用方猜一个类型比留着不动更糟。
+ */
+export function parseEntityRecordValues(
+  metadata: EntityMetadata,
+  raw: Readonly<Record<string, unknown>>
+): Record<string, unknown> {
+  const decoded: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const property = metadata.propertyMap.get(key);
+    decoded[key] = property ? parseEntityFieldValue(property.type, value) : value;
+  }
+  return decoded;
 }
 
 export function formatEntityFieldValue(type: EntityFieldType | string, value: unknown): string {

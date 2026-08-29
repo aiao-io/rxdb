@@ -4,7 +4,7 @@
  * 这些用例全部经**统一 `Repository`** 断言，而不是直接 `new QueryCacheRepository`：
  * 病灶 1 的核心正是「类是好的，生产路径打不到它」，只测类本身无法证伪。
  */
-import { BehaviorSubject, delay, firstValueFrom, Observable, of } from 'rxjs';
+import { BehaviorSubject, delay, firstValueFrom, Observable, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import { SyncType } from '../../entity/metadata-options.interface.js';
@@ -16,6 +16,7 @@ import { deterministicStringify } from '../../rxdb-utils.js';
 import type { RxDB } from '../../RxDB.js';
 import { METADATA, STATUS } from '../../rxdb.private.js';
 import { RxDBQueryCacheCapabilityError } from '../../RxDBError.js';
+import { detachedReachability } from '../fixtures/reachability.js';
 
 class CachedEntity {
   static [ENTITY_STATIC_TYPES] = { idType: '' as string };
@@ -26,80 +27,73 @@ class CachedEntity {
 
 type CachedEntityCtor = typeof CachedEntity;
 
-Object.assign(CachedEntity, {
-  [METADATA]: {
-    name: 'CachedEntity',
-    namespace: 'public',
-    repository: 'Repository',
-    sync: {
-      type: SyncType.QueryCache,
-      local: { adapter: 'local' },
-      remote: { adapter: 'remote' }
-    }
+/**
+ * 给测试实体盖上元数据。
+ *
+ * `propertyMap` 不能省：写路径要按它把远端响应解码回实体侧的运行时值
+ * （`parseEntityRecordValues`）。这里的实体一个属性都没声明，空 Map 即可 ——
+ * 键会全部原样透传，正是下面这些用例期望的形状。
+ */
+const stampMetadata = (target: object, metadata: Record<string, unknown>): void => {
+  Object.assign(target, {
+    [METADATA]: { namespace: 'public', repository: 'Repository', propertyMap: new Map(), ...metadata }
+  });
+};
+
+stampMetadata(CachedEntity, {
+  name: 'CachedEntity',
+  sync: {
+    type: SyncType.QueryCache,
+    local: { adapter: 'local' },
+    remote: { adapter: 'remote' }
   }
 });
 
 /** 同一实体形状，配置级开启 SWR：用于 AC#24 的「调用 &gt; 配置 &gt; false」三档 */
 class CachedSwrEntity extends CachedEntity {}
 
-Object.assign(CachedSwrEntity, {
-  [METADATA]: {
-    name: 'CachedSwrEntity',
-    namespace: 'public',
-    repository: 'Repository',
-    sync: {
-      type: SyncType.QueryCache,
-      local: { adapter: 'local', localCacheFirst: true },
-      remote: { adapter: 'remote' }
-    }
+stampMetadata(CachedSwrEntity, {
+  name: 'CachedSwrEntity',
+  sync: {
+    type: SyncType.QueryCache,
+    local: { adapter: 'local', localCacheFirst: true },
+    remote: { adapter: 'remote' }
   }
 });
 
 /** AC#23 D13：显式关掉同步记忆，证明 `syncStaleTime` 真的可配置到 0（每次读都重新校验） */
 class CachedNoMemoEntity extends CachedEntity {}
 
-Object.assign(CachedNoMemoEntity, {
-  [METADATA]: {
-    name: 'CachedNoMemoEntity',
-    namespace: 'public',
-    repository: 'Repository',
-    sync: {
-      type: SyncType.QueryCache,
-      local: { adapter: 'local', syncStaleTime: 0 },
-      remote: { adapter: 'remote' }
-    }
+stampMetadata(CachedNoMemoEntity, {
+  name: 'CachedNoMemoEntity',
+  sync: {
+    type: SyncType.QueryCache,
+    local: { adapter: 'local', syncStaleTime: 0 },
+    remote: { adapter: 'remote' }
   }
 });
 
 /** AC#23 D13：把记忆窗口压到 1ms，用来证明它会过期而不是常驻 */
 class CachedShortMemoEntity extends CachedEntity {}
 
-Object.assign(CachedShortMemoEntity, {
-  [METADATA]: {
-    name: 'CachedShortMemoEntity',
-    namespace: 'public',
-    repository: 'Repository',
-    sync: {
-      type: SyncType.QueryCache,
-      local: { adapter: 'local', syncStaleTime: 1 },
-      remote: { adapter: 'remote' }
-    }
+stampMetadata(CachedShortMemoEntity, {
+  name: 'CachedShortMemoEntity',
+  sync: {
+    type: SyncType.QueryCache,
+    local: { adapter: 'local', syncStaleTime: 1 },
+    remote: { adapter: 'remote' }
   }
 });
 
 /** 对照组：同一形状配 Full 同步，用来证明 QueryCache 分支没有渗进版本化路径 */
 class VersionedEntity extends CachedEntity {}
 
-Object.assign(VersionedEntity, {
-  [METADATA]: {
-    name: 'VersionedEntity',
-    namespace: 'public',
-    repository: 'Repository',
-    sync: {
-      type: SyncType.Full,
-      local: { adapter: 'local' },
-      remote: { adapter: 'remote' }
-    }
+stampMetadata(VersionedEntity, {
+  name: 'VersionedEntity',
+  sync: {
+    type: SyncType.Full,
+    local: { adapter: 'local' },
+    remote: { adapter: 'remote' }
   }
 });
 
@@ -188,6 +182,7 @@ const setup = (
     remoteAdapter$,
     config: { sync: undefined },
     addEventListener: vi.fn(),
+    reachability: detachedReachability(),
     entityManager: { createEntityRef: vi.fn((_type: unknown, entity: CachedEntity) => entity) }
   } as unknown as RxDB;
 
@@ -373,6 +368,38 @@ describe('US-020 阶段 A：QueryCache 接入统一 Repository', () => {
     await firstValueFrom(plain.repository.find({ where: where(), localCacheFirst: true }));
     expect(plain.localAdapter.upsertMany).toHaveBeenCalledTimes(1);
     await vi.waitFor(() => expect(plain.localAdapter.upsertMany).toHaveBeenCalledTimes(2));
+  });
+
+  // AC#16 经统一 Repository 复验（US-214 发现）：`QueryCacheRepository` 早就实现了
+  // offlineFallback，但 `QueryCachePrimaryRepository.find` 只透传 where / localCacheFirst /
+  // onSyncStats，这个字段在生产路径上被丢掉。症状与病灶 1 同型 ——「类是好的，
+  // 生产路径打不到它」，所以断言必须经门面发起。
+  it('AC#16 offlineFallback 经统一 Repository 透传，网络错误时交付本地缓存', async () => {
+    const offline = setup();
+    // 用 `throwError` 而不是同步 `throw`：真实适配器返回的是会 error 的 Observable，
+    // 同步抛会在 `forkJoin` 构造时就逃逸，测的就不是降级路径了。
+    offline.remoteAdapter.fetchMetadata.mockReturnValue(throwError(() => new TypeError('Failed to fetch')));
+
+    const rows = await firstValueFrom(offline.repository.find({ where: where(), offlineFallback: true }));
+
+    expect(rows).toHaveLength(1);
+  });
+
+  // 反向：不开开关时网络错误照常上抛，证明上一条不是「无脑吞异常」蒙对的
+  it('AC#16 未开 offlineFallback 时网络错误上抛', async () => {
+    const offline = setup();
+    // 用 `throwError` 而不是同步 `throw`：真实适配器返回的是会 error 的 Observable，
+    // 同步抛会在 `forkJoin` 构造时就逃逸，测的就不是降级路径了。
+    offline.remoteAdapter.fetchMetadata.mockReturnValue(throwError(() => new TypeError('Failed to fetch')));
+
+    await expect(firstValueFrom(offline.repository.find({ where: where() }))).rejects.toThrow('Failed to fetch');
+  });
+
+  // AC#13：两种模式各自成任务，互不复用缓存 —— 否则先跑的那次会把降级语义带给后跑的
+  it('AC#13 offlineFallback 进任务指纹', async () => {
+    await firstValueFrom(ctx.repository.find({ where: where(), offlineFallback: true }));
+
+    expect(deterministicStringify(ctx.queryManager.lastOptions)).toContain('"offlineFallback":true');
   });
 
   // AC#24 + AC#13：模式进任务指纹；onSyncStats 是函数，进不了指纹也不该进

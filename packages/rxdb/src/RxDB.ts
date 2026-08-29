@@ -3,6 +3,7 @@ import { BehaviorSubject, defer, distinctUntilChanged, filter, map, Observable, 
 import { EntityManager } from './entity/entity-manager.js';
 import { EntityType } from './entity/entity.interface.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
+import { ReachabilityMonitor } from './network/reachability.js';
 import { PluginDependencyScheduler } from './plugin/dependency-scheduler.js';
 import {
   AdapterFactory,
@@ -13,7 +14,14 @@ import {
   RxDBAdapterRemoteBase,
   RxDBAdapters
 } from './rxdb-adapter.js';
-import { RxDBEvent, RxDBEventMap, TRANSACTION_BEGIN, TRANSACTION_COMMIT, TRANSACTION_ROLLBACK } from './rxdb-events.js';
+import {
+  RemoteEntityInvalidatedEvent,
+  RxDBEvent,
+  RxDBEventMap,
+  TRANSACTION_BEGIN,
+  TRANSACTION_COMMIT,
+  TRANSACTION_ROLLBACK
+} from './rxdb-events.js';
 import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
 import { uuid } from './rxdb-utils.js';
 import { RxDBContext, RxDBOptions } from './rxdb.interface.js';
@@ -41,6 +49,7 @@ import {
 } from './rxdb.transaction.js';
 import type { EventListener, IRepositoryConfig, RxDBConfig, TransactionContext } from './rxdb.types.js';
 import { SchemaManager } from './schema/SchemaManager.js';
+import { SyncStateHub } from './sync-state.js';
 import { RxDBBranch } from './system/branch.js';
 import { RxDBChange } from './system/change.js';
 import { createMigrationWatermarks, runMigrations } from './system/migration-runner.js';
@@ -289,11 +298,36 @@ export class RxDB {
    */
   public readonly connected$ = this.#connected_sub.pipe(distinctUntilChanged());
 
+  /**
+   * 远端可达性监视器，与 {@link RxDB.connected$} **并列**而不是合并。
+   *
+   * @remarks
+   * 两者语义不同：`connected$` 是**适配器生命周期**（某个 adapter 的 `connect()` 完成没有），
+   * 而 HTTP 适配器的 `connect()` 不发任何网络请求 —— 断网时它照样报 connected。
+   * 合并会让「适配器已连接但网断了」这个最常见的状态变得不可表达，而那正是
+   * local-first 写入唯一需要区分的状态。
+   *
+   * **生命周期跟随实例而不是连接纪元**：`#shutdown()` 把实例复位成「可重新 `init()`」，
+   * 但网络并不会因为某个适配器断开而重置。在这里 `destroy()` 会让复位后的实例拿到一个
+   * 永远停在旧状态、`report()` 也不再生效的监视器。
+   */
+  public readonly reachability = new ReachabilityMonitor();
+
   public readonly schemaManager!: SchemaManager;
 
   public readonly entityManager!: EntityManager;
 
   public readonly versionManager!: VersionManager;
+
+  /**
+   * 同步状态汇聚面：网通不通、还有多少没推上去、这会儿在不在推、上一次错在哪、上一次谁判负。
+   *
+   * @remarks
+   * 三框架的 `useSyncState()` 直接绑这一份快照。生命周期与 {@link RxDB.reachability} 同理 ——
+   * 跟随实例而不是连接纪元，`#shutdown()` 不销毁它：面板要在断连期间继续显示「离线、待推 N 条」，
+   * 那正是它最该出声的时候。
+   */
+  public readonly syncState!: SyncStateHub;
 
   /**
    * 当前已连接的本地适配器实例，**同步**读取。
@@ -369,6 +403,13 @@ export class RxDB {
     this.schemaManager = new SchemaManager(this);
     this.entityManager = new EntityManager(this);
     this.versionManager = new VersionManager(this);
+    this.syncState = new SyncStateHub({
+      online$: this.reachability.online$,
+      // 每次连接纪元交替都重新解析这个 getter。`#shutdown()` 里的 versionManager.destroy()
+      // 连 historyManager 一起销毁，下一次 init() 建的是**另一个** BehaviorSubject ——
+      // 只在构造时读一次的话，重连之后面板会永远停在断连那一刻的数字。
+      pushableCount$: this.connected$.pipe(switchMap(() => this.versionManager.pushableCount$))
+    });
     this.context = { ...this.#config.context };
     this.#pluginHost = this.#createPluginHost();
     this.#freeze_config();
@@ -735,6 +776,33 @@ export class RxDB {
       this.#connect_promise_map.clear();
       this.#clear_adapter_connected();
     }
+  }
+
+  /**
+   * 上报「远端某个实体的数据已变」（US-023）。
+   *
+   * 供宿主在自己的推送通道（WebSocket / SSE / 轮询）收到变更通知时调用。
+   * 使用 `SyncType.QueryCache` 的仓储会据此丢掉该实体的同步记忆，并重跑所有
+   * 依赖它的活查询 —— 重跑会回远端重新取一次权威数据。
+   *
+   * @param entity - 实体名，即 `@Entity({ name })`；未注册的名字是无操作，不抛错
+   * @param namespace - 命名空间，默认 `'public'`（与 `@Entity` 的默认值一致）
+   *
+   * @remarks
+   * **签名里没有任何位置能承载行数据，这是有意的。** 推送通道给的行体不经
+   * `fetchMetadata` 比对，直接写进本地缓存会让「本地有一份没人验证过的值」
+   * 变成常态；本方法只负责让缓存失效，权威值一律由重跑时的拉取决定。
+   *
+   * 事件不跨标签页转发：每个标签页的宿主各自会收到推送，转发只会让同一次
+   * 变更在 N 个标签页里被放大成 N 次远端拉取。
+   *
+   * @example
+   * ```typescript
+   * socket.on('changed', ({ entity }) => rxdb.invalidateRemoteEntity(entity));
+   * ```
+   */
+  invalidateRemoteEntity(entity: string, namespace = 'public'): void {
+    this.dispatchEvent(new RemoteEntityInvalidatedEvent(namespace, entity));
   }
 
   addEventListener<T extends keyof RxDBEventMap>(type: T, listener: EventListener<RxDBEventMap[T]>): void {

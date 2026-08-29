@@ -404,6 +404,72 @@ describe('conditionalRequests 开关接线（AC#28）', () => {
   });
 });
 
+/**
+ * US-215：诊断回调从 `HttpAdapterOptions` 到 transport 的接线。
+ *
+ * @remarks
+ * 机制本身由 `transport.spec.ts` 冻结，这里只管两件在适配器层才看得见的事：
+ * 回调确实被递到了 transport（否则配了也永远不响），以及**开关关着时它不响**——
+ * 后者不是靠 transport 内部再判一次，而是靠 `#createTransport()` 里那个三元
+ * 根本不构造 `conditional`，回调随之无处可去。
+ */
+describe('ETag 诊断回调接线（US-215）', () => {
+  /** 恒 200 且不带 ETag：读不到 ETag 的两种成因在客户端侧就是这个样子 */
+  const stubNoEtag = (rows: unknown[]): ReturnType<typeof vi.fn> => {
+    const mock = vi.fn(() => Promise.resolve(new Response(JSON.stringify(rows), { status: 200 })));
+    vi.stubGlobal('fetch', mock);
+    return mock;
+  };
+
+  it('开着条件请求时，读不到 ETag 触发一次回调，载荷点名实体', async () => {
+    stubNoEtag([meta('a')]);
+    const onEtagUnreadable = vi.fn();
+    const adapter = createAdapter({ conditionalRequests: true, onEtagUnreadable });
+
+    await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+
+    expect(onEtagUnreadable).toHaveBeenCalledTimes(1);
+    expect(onEtagUnreadable.mock.calls[0][0]).toMatchObject({
+      operation: 'fetchMetadata',
+      entityName: 'HttpRecipe',
+      url: 'https://api.example.com/metadata'
+    });
+  });
+
+  it('AC#4 关着条件请求时配了回调也不触发 —— 关着的开关不该产生噪音', async () => {
+    stubNoEtag([meta('a')]);
+    const onEtagUnreadable = vi.fn();
+    const adapter = createAdapter({ conditionalRequests: false, onEtagUnreadable });
+
+    await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+    await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+
+    expect(onEtagUnreadable).not.toHaveBeenCalled();
+  });
+
+  it('默认（不写 conditionalRequests）同样不触发', async () => {
+    stubNoEtag([meta('a')]);
+    const onEtagUnreadable = vi.fn();
+
+    await firstValueFrom(createAdapter({ onEtagUnreadable }).fetchMetadata('HttpRecipe', ALL));
+
+    expect(onEtagUnreadable).not.toHaveBeenCalled();
+  });
+
+  it('reconnect 后同一查询重新报一次：换了后端配置才有得知的机会', async () => {
+    stubNoEtag([meta('a')]);
+    const onEtagUnreadable = vi.fn();
+    const adapter = createAdapter({ conditionalRequests: true, onEtagUnreadable });
+
+    await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+    await adapter.disconnect();
+    await adapter.connect();
+    await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+
+    expect(onEtagUnreadable).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('version（AC#24）', () => {
   it('未配 onVersion 时抛 unsupported，不回落到包版本号', async () => {
     // 回落等于拿适配器版本冒充后端版本，与 sqlite / pglite / supabase 三家口径全部不一致
@@ -671,9 +737,15 @@ describe('结构隔离（AC#19、AC#25）', () => {
     // roadmap 约束 11 用「结构隔离」换掉 epic-006 排期前置的整套论证随之作废。
     // 实例断言拦不住「写了但没挂在原型上」，所以再加一道源码扫描。
     // 剔除注释是刻意的：这条约束管的是**代码**，不是不许在文档里提起这些名字。
-    const dir = import.meta.dirname;
-    const offenders = readdirSync(dir)
-      .filter(file => file.endsWith('.ts') && !file.endsWith('.spec.ts'))
+    // 扫的是**源码目录**（`src/`），不是本文件所在的 `src/__tests__/`：后者里除了
+    // `*.spec.ts` 一个文件都没有，`import.meta.dirname` 会让这条扫描恒扫空列表恒为绿，
+    // 而它恰恰是用来兜住「新增文件带进违禁调用」的（US-023 AC#18 的新模块正是这种情况）
+    const dir = join(import.meta.dirname, '..');
+    const sources = readdirSync(dir).filter(file => file.endsWith('.ts') && !file.endsWith('.spec.ts'));
+    // 扫空列表与「全部通过」在断言上完全重合，所以先钉住扫描面本身
+    expect(sources.length).toBeGreaterThan(5);
+
+    const offenders = sources
       .map(file => ({ file, code: stripComments(readFileSync(join(dir, file), 'utf8')) }))
       .filter(({ code }) => FORBIDDEN.some(name => code.includes(name)))
       .map(({ file }) => file);

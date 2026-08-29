@@ -12,6 +12,8 @@
 import {
   getEntityMetadata,
   getSyncConfig,
+  getSyncType,
+  isSystemEntity,
   PropertyType,
   RxDBAdapterRemoteBase,
   type EntityMetadata,
@@ -25,6 +27,7 @@ import {
   type RxDB
 } from '@aiao/rxdb';
 import { defer, from, map, type Observable } from 'rxjs';
+import { assertChangeFeedUrl, HttpChangeFeed, type ChangeFeedEntity } from './change-feed.js';
 import { findByIdsInChunks } from './chunking.js';
 import { resolveHttpConfig } from './config.js';
 import {
@@ -89,6 +92,27 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
   #handlers: HttpHandlers;
   #disconnected: AbortController;
   #transport: HttpTransport;
+  /** 变更通知通道；未配 `changeFeed` 时**不存在**（US-023 AC#12：缺席即关闭） */
+  readonly #changeFeed: HttpChangeFeed | undefined;
+
+  /**
+   * 通道该不该跑的**意图**位，与「通道存不存在」是两件事。
+   *
+   * @remarks
+   * 配了就默认为 `true`——`changeFeed` 这个配置项本身就是「我要收通知」的表达，
+   * 让它配完还得再调一次 `startChangeFeed()` 才生效，是给每个接入方加一道无意义的手续。
+   */
+  #changeFeedEnabled: boolean;
+
+  /**
+   * `connect()` 是否成功走完过一遍，且此后没有 `disconnect()`。
+   *
+   * @remarks
+   * 与 `#disconnected.signal.aborted` 是两个问题：那一位答的是「有没有被断开过」，
+   * 刚 `new` 出来的适配器上它是 `false`——于是「从未连接」和「连接正常」在它眼里一模一样。
+   * 开长连接必须分得清这两者，见 {@link RxDBAdapterHttp.startChangeFeed}。
+   */
+  #connected = false;
 
   readonly name = ADAPTER_NAME;
 
@@ -118,6 +142,25 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
   declare delete?: (entityName: string, ids: string | string[]) => Observable<void>;
 
   /**
+   * 变更通知通道此刻**要不要**跑，由 {@link RxDBAdapterHttp.startChangeFeed} /
+   * {@link RxDBAdapterHttp.stopChangeFeed} 翻转。
+   *
+   * @returns 未配 `changeFeed` 时恒为 `false`
+   *
+   * @remarks
+   * 这是**意图**，不是连接状态：通道正在退避重连、或所在运行时压根没有 `EventSource` 时，
+   * 它照样是 `true`。想知道连接本身的死活，看 `changeFeed.onUnavailable` 的诊断上报——
+   * `EventSource` 不暴露状态码，一个从这里返回的布尔值答不了「为什么没连上」，
+   * 只会把两种问题混成一种。
+   *
+   * （夹在写 duck 与构造函数之间是 lint `member-ordering` 的要求：访问器排在字段之后、
+   * 构造函数之前。语义上它属于下面那组运行时开关。）
+   */
+  get changeFeedEnabled(): boolean {
+    return this.#changeFeedEnabled;
+  }
+
+  /**
    * @param rxdb - 宿主 RxDB 实例
    * @param options - baseUrl、handlers 与可选的数值/认证配置
    * @throws HttpConfigError baseUrl 为空、缺必选 handler，或任一数值配置不是 finite 正整数
@@ -133,6 +176,8 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
     this.#handlers = options.handlers;
     this.#disconnected = new AbortController();
     this.#transport = this.#createTransport();
+    this.#changeFeed = this.#createChangeFeed();
+    this.#changeFeedEnabled = this.#changeFeed !== undefined;
     this.#installWriteDucks();
   }
 
@@ -148,6 +193,13 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
    * 交给 `isNetworkError` 分类。想在启动时确认可达性的应用自己调
    * {@link RxDBAdapterHttp.isTableExisted}，那是显式选择而非框架行为。
    *
+   * **配了 `changeFeed` 才有长连接**，且它建在最后：校验没过的 `connect()` 不该留下一条
+   * 活着的通知连接。通道自身连不上不影响本方法的返回——它按 US-023 AC#17 只诊断不抛错。
+   *
+   * 通道走的是{@link RxDBAdapterHttp.changeFeedEnabled}这个**意图位**而不是「配了就开」：
+   * 调用方手动 {@link RxDBAdapterHttp.stopChangeFeed} 掉的通道，不该被下一次重连
+   * （切后端、纪元交替都会走到这里）悄悄复活。
+   *
    * @returns 适配器自身
    * @throws HttpUnsupportedWireTypeError 已注册实体声明了 bigint / binary 字段
    */
@@ -160,6 +212,11 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
     // 校验通过才重新武装：失败的 connect 不该把上一次的断开状态悄悄解除
     this.#disconnected = new AbortController();
     this.#transport = this.#createTransport();
+    this.#connected = true;
+    // start() 自带「先收口上一条」，重复 connect() 因此不会留下第二条连接
+    if (this.#changeFeedEnabled) {
+      this.#changeFeed?.start();
+    }
     return this;
   }
 
@@ -174,11 +231,71 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
    *
    * 顺带清空条件请求缓存（AC#28）：那些响应绑定的是断开前的认证身份与远端状态，
    * 跨越一次断开继续复用，等于让重连后的第一批查询读到上一段连接的世界。
+   *
+   * 变更通知通道一并停掉，**含待执行的重连**：只关连接不取消定时器的话，退避窗口里的那次
+   * 重连会在断开之后把连接重新建起来。
+   *
+   * 但{@link RxDBAdapterHttp.changeFeedEnabled}**不动**：断开是生命周期事件，不是调用方
+   * 改了主意。把它一并清掉的话，一次重连就会把用户「我要收通知」的选择吃掉。
    */
   async disconnect(): Promise<void> {
+    this.#connected = false;
     this.#disconnected.abort();
     this.#transport.clearConditionalCache();
+    this.#changeFeed?.stop();
     return Promise.resolve();
+  }
+
+  // ============================================
+  // 变更通知的运行时开关
+  // ============================================
+
+  /**
+   * 接通变更通知通道。
+   *
+   * @remarks
+   * 幂等：已经开着时只是重建连接（`start()` 自带「先收口上一条」），不会留下第二条。
+   * 连上之后照常触发一次全量失效（D7）——「从这一刻起我能收到变更了」对首次连接与
+   * 重新接通是同一句话。
+   *
+   * **连接状态先判**，与 {@link RxDBAdapterHttp.version} 同一条口径：在一个已经
+   * `disconnect()` 的适配器上开出一条活着的 SSE，是实打实的资源泄漏。
+   *
+   * 这里判的是 `#connected` 而不是 `#assertConnected` 那一位。**「从未 `connect()`」
+   * 与「已 `disconnect()`」在这个方法上是同一件事**：两种情况下都还没有一次成功的
+   * `connect()`，也就意味着 `#assertConfiguredEntitiesSupported()` 还没跑过——
+   * 用 `new` + `startChangeFeed()` 就能绕开线格式校验、在一个连不连得上都不知道的
+   * 适配器上开出真连接，还会对着一份尚未确认可用的实体表做 D7 全量失效。
+   *
+   * @throws HttpDisconnectedError 尚未 `connect()`，或已 `disconnect()`
+   * @throws HttpUnsupportedOperationError 未配置 `changeFeed`
+   */
+  startChangeFeed(): void {
+    if (!this.#connected) {
+      throw new HttpDisconnectedError('startChangeFeed');
+    }
+    const feed = this.#requireChangeFeed('startChangeFeed');
+    this.#changeFeedEnabled = true;
+    feed.start();
+  }
+
+  /**
+   * 断开变更通知通道，**含待执行的重连**。
+   *
+   * @remarks
+   * 断开期间远端的变更没有人会补发，重新
+   * {@link RxDBAdapterHttp.startChangeFeed} 时的那次全量失效才是补课的地方。
+   *
+   * 与 {@link RxDBAdapterHttp.startChangeFeed} 不同，本方法**不判断开状态**：已经
+   * `disconnect()` 的适配器上通道本来就停着，两条路通向同一个终点，为此抛错只会让
+   * 「关掉开关」这种收尾动作平白需要一个 try。幂等的停止不是兜底——它没有掩盖任何差异。
+   *
+   * @throws HttpUnsupportedOperationError 未配置 `changeFeed`
+   */
+  stopChangeFeed(): void {
+    const feed = this.#requireChangeFeed('stopChangeFeed');
+    this.#changeFeedEnabled = false;
+    feed.stop();
   }
 
   /**
@@ -378,11 +495,102 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
       disconnectSignal: this.#disconnected.signal,
       auth: this.options.auth,
       headers: this.options.headers,
+      // local-first 的可达性判定源：每次真发出去的请求都把结局交回去，
+      // 由 `isNetworkError` 一处定夺是不是离线。**现读 `this.rxdb`** 而不是构造期快照，
+      // 与下面 changeFeed 的三个回调同一条口径
+      reportResult: error => this.rxdb.reachability.report(error),
       // 缺席即禁用：AC#28 要求未启用时行为与阶段 A 逐字相同，
       // 传一个 `{ enabled: false }` 会让那句话依赖 transport 内部再判一次
+      // 诊断回调挂在 `conditional` 里面而不是与它并列：条件请求关掉时整个对象就不存在，
+      // 「关掉就不该触发」（US-215 AC#4）由结构保证，不靠触发点再判一次开关
       conditional:
-        this.options.conditionalRequests === true ? { maxEntries: this.config.conditionalCacheSize } : undefined
+        this.options.conditionalRequests === true ?
+          {
+            maxEntries: this.config.conditionalCacheSize,
+            onEtagUnreadable: this.options.onEtagUnreadable
+          }
+        : undefined
     });
+  }
+
+  /**
+   * 建通知通道，未配 `changeFeed` 时返回 `undefined`。
+   *
+   * @remarks
+   * 与 `conditional` 同一条口径：缺席即禁用。返回一个「停用状态的通道」会让 AC#12
+   * 的「零连接」依赖对象内部再判一次开关，而这里不存在这个对象。
+   *
+   * URL 借 transport 拼：`baseUrl` 的拼接规则只有一份，让通道自己再拼一遍，两处迟早分叉。
+   * 三个回调都是**现读**而不是构造期快照——`clientId` 在登录后会被换掉，实体清单也可能
+   * 在 `connect()` 之后才补齐。
+   */
+  #createChangeFeed(): HttpChangeFeed | undefined {
+    const changeFeed = this.options.changeFeed;
+    if (changeFeed === undefined) {
+      return undefined;
+    }
+    assertChangeFeedUrl(changeFeed.url);
+    return new HttpChangeFeed({
+      url: this.#transport.resolveUrl({ url: changeFeed.url, method: 'GET' }),
+      options: changeFeed,
+      clientId: () => this.rxdb.context.clientId,
+      entities: () => this.#subscribedEntities(),
+      invalidate: (entity, namespace) => this.rxdb.invalidateRemoteEntity(entity, namespace)
+    });
+  }
+
+  /**
+   * 走本适配器 remote 槽位的实体，即 D7 口中的「已订阅实体」。
+   *
+   * @remarks
+   * SSE 不按实体订阅——服务端广播它认识的全部实体。所以「已订阅」只能由本地配置定义：
+   * 连接建立时该失效的，正是那些以本适配器为远端权威的实体。别的实体的行由别的路径维护，
+   * 顺手失效它们是越界。
+   */
+  #subscribedEntities(): readonly ChangeFeedEntity[] {
+    const entities: ChangeFeedEntity[] = [];
+    const seen = new Set<string>();
+    for (const EntityClass of this.rxdb.config.entities) {
+      const metadata = getEntityMetadata(EntityClass);
+      const key = entityKey(metadata.name, metadata.namespace);
+      if (seen.has(key) || !this.#isSubscribed(EntityClass, metadata)) {
+        continue;
+      }
+      seen.add(key);
+      entities.push({ name: metadata.name, namespace: metadata.namespace });
+    }
+    return entities;
+  }
+
+  /**
+   * 单个实体是否由本适配器充当远端权威。
+   *
+   * @param EntityClass - 实体类，用来判系统表
+   * @param metadata - 该实体的元数据
+   *
+   * @remarks
+   * 三个条件缺一不可，前两个各自堵住一种「跟着库级配置被顺带算进来」的实体：
+   *
+   * - **不是系统表**：`SchemaManager.init()` 往 `config.entities` 里补的四张表不带自己的
+   *   `sync`，于是一律跟随库级配置。库级写 `type: QueryCache` 时它们会被判成 querycache，
+   *   连后两个条件都拦不住——但它们是纯本地簿记，远端根本没有对应的资源。
+   * - **确实是 QueryCache**：v1 只服务这一种同步类型（其余入口一律抛
+   *   {@link HttpUnsupportedOperationError}）。库级 `type: None` + 两端俱全时，跟随全局的
+   *   实体会被判成 `full`，那种实体的行不经本适配器，失效它没有任何查询在等。
+   * - **remote 槽位指向本适配器**：同一个库里可以挂多个远端。
+   *
+   * 放任任何一类混进来的后果不是崩，是每次连接把 D7 的上报量放大若干倍，
+   * 而多出来的每一次都无人认领——面板上的「触发重跑」计数会跟着一起说谎。
+   */
+  #isSubscribed(EntityClass: EntityType, metadata: EntityMetadata): boolean {
+    if (isSystemEntity(EntityClass)) {
+      return false;
+    }
+    const globalSync = this.rxdb.config.sync;
+    return (
+      getSyncType(metadata, globalSync) === 'querycache' &&
+      getSyncConfig(metadata, globalSync)?.remote?.adapter === ADAPTER_NAME
+    );
   }
 
   /**
@@ -396,6 +604,29 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
     if (this.#disconnected.signal.aborted) {
       throw new HttpDisconnectedError(operation);
     }
+  }
+
+  /**
+   * 取通道实例，未配 `changeFeed` 时抛错。
+   *
+   * @remarks
+   * 与 `version()` 未配 `onVersion` 同一条判例：**配置缺失要吵**。静默 no-op 会让
+   * 「开关点了没反应」变成一个没有任何线索的现象，而这两个方法的调用点通常正是
+   * 一个用户看得见的开关。
+   *
+   * 这里也**不**走 `create` / `update` / `delete` 那种「缺席即不支持」的 `declare` 模式：
+   * 那套是为 core 的 `if (!this.remoteAdapter.create)` 特性探测服务的，通道没有探测方，
+   * 把方法做成可选只会让每个调用点多写一个 `?.`，而那个 `?.` 恰好就是静默 no-op。
+   */
+  #requireChangeFeed(operation: string): HttpChangeFeed {
+    const feed = this.#changeFeed;
+    if (!feed) {
+      throw new HttpUnsupportedOperationError(
+        operation,
+        'no "changeFeed" is configured; there is no channel to switch on or off'
+      );
+    }
+    return feed;
   }
 
   /** 按 handler 的有无挂载三个可选写 duck（AC#4 的特性探测语义） */

@@ -64,7 +64,9 @@ function createRxdb(entities: EntityType[]): RxDB {
         metadata.find(item => item.name === name && (!namespace || item.namespace === namespace))
       )
     },
-    dispatchEvent: vi.fn()
+    dispatchEvent: vi.fn(),
+    // 适配器每次往返都往这儿报结局；本套件只判抛出的错误对象，用桩避免真 monitor 的退避定时器漏进下个用例
+    reachability: { report: () => undefined }
   } as unknown as RxDB;
 }
 

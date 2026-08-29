@@ -679,6 +679,30 @@ jobs:
           cat /tmp/xvfb.log || true
           exit 1
 
+      # US-904 阶段 A 的 MV3 门禁必须在 Electron 的**真沙箱**下跑。带 `--no-sandbox` 时，
+      # 扩展 `devtools_page` 的渲染进程初始化会失败（Electron 44：非沙箱渲染进程走 renderer_init，
+      # 同步取 preload 列表对扩展页返回 null，bundle 在 `object null is not iterable` 处中断），
+      # 页面脚本一行都不执行 → `chrome.devtools.panels.create` 从未调用 → 面板不进 tab 条，
+      # 门禁红得像「MV3 不支持」。详见 apps/dev-rxdb-electron-e2e/src/devtools-mv3-feasibility.spec.ts。
+      #
+      # 而 pnpm 解包置不了 setuid 位（只有 root 能置），chrome-sandbox 落地是 0755，Chromium
+      # 见到「文件在但没配好」不降级、直接 FATAL。ubuntu-24.04 的 AppArmor 又默认禁掉非特权
+      # user namespace，命名空间沙箱这条路也走不通 —— 只剩把 SUID 助手配对这一种办法。
+      # 同 job 的另外三套 Electron 用例不受影响：它们走 Playwright 的 _electron.launch()，
+      # 在 Linux 上被强制加 --no-sandbox，配好的助手对它们只是闲置。
+      - name: Configure Electron SUID sandbox
+        if: matrix.project == 'dev-rxdb-electron-e2e'
+        run: |
+          set -e
+          # Electron 42+ 不再于 postinstall 下载二进制，改为首次 require 时懒下载，
+          # 且下载进度会打进 stdout（"Downloading Electron binary..."）。先空跑一次
+          # 触发下载并丢弃输出，下一行拿到的才是干净的可执行文件路径，不会污染命令替换。
+          node -e 'require("electron")' >/dev/null
+          helper="$(dirname "$(node -p 'require("electron")')")/chrome-sandbox"
+          sudo chown root:root "$helper"
+          sudo chmod 4755 "$helper"
+          ls -l "$helper"
+
       - uses: ./.github/actions/supabase
         if: matrix.supabase
         with:

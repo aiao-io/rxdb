@@ -427,7 +427,13 @@ describe('DevToolsConnector', () => {
 
       const dataMsgs = postMessageSpy.mock.calls.filter(c => c[0]?.type === 'ENTITY_DATA');
       expect(dataMsgs).toHaveLength(1);
-      expect(dataMsgs[0][0].payload).toEqual({ entityName: 'User', error: '实体 User 不存在', data: [] });
+      expect(dataMsgs[0][0].payload).toEqual({
+        entityName: 'User',
+        error: '实体 User 不存在',
+        data: [],
+        // 判别位：面板据此区分「对方没装这个插件」与「查询真的失败了」，不匹配文案
+        _meta: { errorCode: 'ENTITY_NOT_FOUND' }
+      });
     });
 
     it('MUST report RxDB 未初始化 once the observed instance has been detached', async () => {
@@ -450,7 +456,12 @@ describe('DevToolsConnector', () => {
 
       const dataMsgs = postMessageSpy.mock.calls.filter(c => c[0]?.type === 'ENTITY_DATA');
       expect(dataMsgs).toHaveLength(1);
-      expect(dataMsgs[0][0].payload).toEqual({ entityName: 'User', error: 'RxDB 未初始化', data: [] });
+      expect(dataMsgs[0][0].payload).toEqual({
+        entityName: 'User',
+        error: 'RxDB 未初始化',
+        data: [],
+        _meta: { errorCode: 'RXDB_NOT_READY' }
+      });
     });
 
     it('MUST include _meta.encryptedFields in ENTITY_DATA when entity has encrypted properties', async () => {
@@ -556,6 +567,85 @@ describe('DevToolsConnector', () => {
       const branchMsgs = postMessageSpy.mock.calls.filter(c => c[0]?.type === 'BRANCHES');
       expect(branchMsgs).toHaveLength(1);
       expect(branchMsgs[0][0].payload).toEqual([]);
+    });
+  });
+
+  describe('实体注册表跟随 config.entities（不是 init 时的快照）', () => {
+    class Late {}
+    class RxDBBranch {}
+
+    const registryMetadata: GetEntityMetadata = entity => {
+      if (entity === Late) return { name: 'Late', namespace: 'plugin' };
+      if (entity === RxDBBranch) return { name: 'RxDBBranch', namespace: 'rxdb' };
+      return undefined;
+    };
+
+    /** 一个总是返回同一行数据的 entityManager，用来验证查询确实落到了仓库上。 */
+    function rowEntityManager(row: unknown): MockRxDBShape['entityManager'] {
+      return {
+        getRepository: () => ({
+          find: () => ({
+            subscribe: (next: (documents: unknown[]) => void) => {
+              next([row]);
+              return { unsubscribe: () => undefined };
+            }
+          })
+        })
+      } as unknown as MockRxDBShape['entityManager'];
+    }
+
+    it('INSPECT_DB 必须列出 init 之后才 push 进来的实体', () => {
+      const rxdb = createMockRxDB({ config: { entities: [] } });
+      connector.init(rxdb, registryMetadata);
+
+      rxdb.config.entities.push(Late);
+      postMessageSpy.mockClear();
+      dispatchMessage('INSPECT_DB');
+
+      const dbInfo = postMessageSpy.mock.calls.filter(c => c[0]?.type === 'DB_INFO');
+      expect(dbInfo[0][0].payload.entities).toEqual([{ name: 'Late', namespace: 'plugin', encryptedFields: [] }]);
+    });
+
+    it('QUERY_ENTITY 必须能查到 init 之后才 push 进来的实体', () => {
+      const rxdb = createMockRxDB({ config: { entities: [] }, entityManager: rowEntityManager({ id: 'late-1' }) });
+      connector.init(rxdb, registryMetadata);
+
+      rxdb.config.entities.push(Late);
+      postMessageSpy.mockClear();
+      dispatchMessage('QUERY_ENTITY', { entityName: 'Late', namespace: 'plugin' });
+
+      const dataMsgs = postMessageSpy.mock.calls.filter(c => c[0]?.type === 'ENTITY_DATA');
+      expect(dataMsgs[0][0].payload.error).toBeNull();
+      expect(dataMsgs[0][0].payload.data).toEqual([{ id: 'late-1' }]);
+    });
+
+    it('QUERY_ENTITY 对已被 splice 掉的实体必须回不存在', () => {
+      const rxdb = createMockRxDB({ config: { entities: [Late] }, entityManager: rowEntityManager({}) });
+      connector.init(rxdb, registryMetadata);
+
+      rxdb.config.entities.splice(0, 1);
+      postMessageSpy.mockClear();
+      dispatchMessage('QUERY_ENTITY', { entityName: 'Late', namespace: 'plugin' });
+
+      const dataMsgs = postMessageSpy.mock.calls.filter(c => c[0]?.type === 'ENTITY_DATA');
+      expect(dataMsgs[0][0].payload._meta).toEqual({ errorCode: 'ENTITY_NOT_FOUND' });
+    });
+
+    // 「先 devtools.init() 后 rxdb.init()」的应用（dev-rxdb-http / dev-rxdb-supabase）
+    // 连系统实体都是 init 之后才进 config.entities 的，分支面板因此整个是空的。
+    it('GET_BRANCHES 必须能看到 init 之后才注册的 RxDBBranch', () => {
+      const rxdb = createMockRxDB({
+        config: { entities: [] },
+        entityManager: rowEntityManager({ id: 'b1', activated: true })
+      });
+      connector.init(rxdb, registryMetadata);
+
+      rxdb.config.entities.push(RxDBBranch);
+      postMessageSpy.mockClear();
+      dispatchMessage('GET_BRANCHES');
+
+      const branchMsgs = postMessageSpy.mock.calls.filter(c => c[0]?.type === 'BRANCHES');
+      expect(branchMsgs[0][0].payload).toEqual([{ id: 'b1', activated: true }]);
     });
   });
 

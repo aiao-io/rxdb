@@ -334,6 +334,57 @@ describe('DevToolsConnector boundaries', () => {
     });
   });
 
+  describe('RDT-014 遮罩表必须跟随 config.entities，不能停在 init 那一刻', () => {
+    class AlphaUser {}
+    class SecretLate {}
+
+    const lateMetadata: GetEntityMetadata = entity => {
+      if (entity === AlphaUser) return { name: 'User', namespace: 'alpha' };
+      if (entity === SecretLate) {
+        return { name: 'SecretLate', namespace: 'late', encryptedPropertyMap: new Map([['ssn', true]]) };
+      }
+      return undefined;
+    };
+
+    /** 发一条只含 `SecretLate` 的事件，取回被连接器加工后的 patch。 */
+    function emitLateSecret(rxdb: MockRxDB): Record<string, unknown> | undefined {
+      rxdb.emit('ENTITY_LOCAL_UPDATE', {
+        type: 'ENTITY_LOCAL_UPDATE',
+        entities: [{ namespace: 'late', entity: 'SecretLate', patch: { ssn: 'top-secret' } }]
+      });
+      const events = postedMessages(postMessageSpy, 'EVENT');
+      const payload = events[0]?.payload as { data: { entities: { patch: Record<string, unknown> }[] } } | undefined;
+      return payload?.data.entities[0]?.patch;
+    }
+
+    // 这条是「只在命令路径重算、遮罩路径读快照」这一优化方案的否决票：
+    // 遮罩表里缺席 ⇒ 加密字段集算成空 ⇒ 密文列原样发上页面消息总线（对同源脚本完全开放）。
+    // 那是明文泄漏，不是显示问题，所以事件路径必须与命令路径共用同一次失效判定。
+    it('init 之后注册的加密实体，其事件字段必须被遮罩', () => {
+      const rxdb = createMockRxDB({ config: { entities: [AlphaUser] } });
+      connector.init(rxdb, lateMetadata);
+      dispatchCommand('HANDSHAKE_ACK', null);
+
+      // 插件 install() / SchemaManager.init() 在 devtools.init() 之后补登记
+      rxdb.config.entities.push(SecretLate);
+      postMessageSpy.mockClear();
+
+      expect(emitLateSecret(rxdb)?.ssn).toBe('[encrypted]');
+    });
+
+    it('被 splice 掉之后，该实体不再套用任何加密字段集', () => {
+      const rxdb = createMockRxDB({ config: { entities: [AlphaUser, SecretLate] } });
+      connector.init(rxdb, lateMetadata);
+      dispatchCommand('HANDSHAKE_ACK', null);
+
+      const entities = rxdb.config.entities;
+      entities.splice(entities.indexOf(SecretLate), 1);
+      postMessageSpy.mockClear();
+
+      expect(emitLateSecret(rxdb)?.ssn).toBe('top-secret');
+    });
+  });
+
   it('MUST mask encrypted fields in event entity patch, inversePatch, and data', () => {
     class SecretEntity {}
     const rxdb = createMockRxDB({ config: { entities: [SecretEntity] } });
@@ -879,7 +930,9 @@ describe('DevToolsConnector boundaries', () => {
     expect(postedMessages(postMessageSpy, 'ENTITY_DATA')[0]?.payload).toEqual({
       entityName: 'Missing',
       error: '实体 Missing 不存在',
-      data: []
+      data: [],
+      // 面板据此把「对端没注册这个实体」与「查询失败了」分开处理，不匹配文案。
+      _meta: { errorCode: 'ENTITY_NOT_FOUND' }
     });
   });
 

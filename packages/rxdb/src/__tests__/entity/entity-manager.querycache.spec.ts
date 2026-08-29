@@ -11,6 +11,7 @@ import { Entity } from '../../entity/entity.decorator.js';
 import { ENTITY_STATIC_TYPES, UUID } from '../../entity/entity.interface.js';
 import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
 import { RxDBMixedPrimaryAdapterError } from '../../entity/primary-adapter.js';
+import type { SyncOptions } from '../../entity/sync-options.interface.js';
 import { TreeAdjacencyListEntityBase } from '../../entity/tree-entity-base.js';
 import { TreeEntity } from '../../entity/tree-entity.decorator.js';
 import type { IRxDBAdapter } from '../../rxdb-adapter.js';
@@ -267,5 +268,88 @@ describe('US-020 阶段 A：批量入口的 QueryCache 去向', () => {
     const one = dirtyEntity(ctx.rxdb.entityManager.createEntityRef(CachedProduct, { title: 'a', id: uuid() }));
 
     await expect(ctx.rxdb.entityManager.saveMany([one])).rejects.toThrow('remote down');
+  });
+});
+
+/**
+ * US-021 —— QueryCache 生效但库级 sync 没注册适配器时，配置期就得拒绝。
+ *
+ * 断言全部走 `rxdb.init()` 而不是直接调 `validateEntityMetadata()`：这条故事修的正是
+ * 「实体写对了、库级配漏了」这条从配置到查询的链路，只测纯函数证不了它接在生产入口上。
+ */
+describe('US-021：QueryCache 缺库级适配器在 init() fail-fast', () => {
+  // `sync` 在 `RxDBOptions` 上是必填的，这里却允许省略：`RxDB.init()` 写的是
+  // `this.#config.sync || {}`，说明「整个 sync 缺席」是它认的一种输入——JS 调用方、
+  // 或从旧配置反序列化出来的对象都能走到。断言这一支就必须绕过类型，故显式 cast。
+  const initWith = (dbName: string, sync?: SyncOptions) => {
+    const rxdb = new RxDB({ dbName, entities: [CachedProduct], sync: sync as SyncOptions });
+    rxdb.adapter('sqlite', () => createLocalAdapter() as unknown as IRxDBAdapter);
+    rxdb.adapter('supabase', () => createRemoteAdapter() as unknown as IRxDBAdapter);
+    return () => rxdb.init();
+  };
+
+  it('AC#1 库级 sync 缺 remote 时 init() 抛错，不进入任何查询', () => {
+    expect(initWith('QueryCacheNoRemote', { type: SyncType.None, local: { adapter: 'sqlite' } })).toThrow(
+      /missingQueryCacheAdapter/
+    );
+  });
+
+  it('AC#1 消息点名实体与缺失的一侧', () => {
+    expect(initWith('QueryCacheNoRemoteMessage', { type: SyncType.None, local: { adapter: 'sqlite' } })).toThrow(
+      /CachedProduct[\s\S]*remote/
+    );
+  });
+
+  it('AC#2 缺 local 时同样拒绝', () => {
+    expect(initWith('QueryCacheNoLocal', { type: SyncType.None, remote: { adapter: 'supabase' } })).toThrow(
+      /missingQueryCacheAdapter/
+    );
+  });
+
+  // D3：不写这句，读者会回去反复确认他已经写对了的实体装饰器
+  it('AC#3 消息点破实体级 adapter 名不参与注册', () => {
+    expect(initWith('QueryCacheNoSync')).toThrow(/RxDB\.init\(\)[\s\S]*库级/);
+  });
+
+  it('AC#4 库级两侧齐全时 init() 正常通过', () => {
+    expect(
+      initWith('QueryCacheBothSides', {
+        type: SyncType.Full,
+        local: { adapter: 'sqlite' },
+        remote: { adapter: 'supabase' }
+      })
+    ).not.toThrow();
+  });
+
+  it('AC#5 非 QueryCache 实体在同一份缺失配置下不被误伤', () => {
+    const rxdb = new RxDB({
+      dbName: 'RemoteOnlyUnaffected',
+      entities: [RemoteOnlyNote],
+      sync: { type: SyncType.None, remote: { adapter: 'supabase' } }
+    });
+    rxdb.adapter('supabase', () => createRemoteAdapter() as unknown as IRxDBAdapter);
+    expect(() => rxdb.init()).not.toThrow();
+  });
+
+  // AC#6：撞见第一条就抛会让人修一轮跑一轮
+  it('AC#6 多个实体同时违规时一次性列出', () => {
+    const rxdb = new RxDB({
+      dbName: 'QueryCacheMultipleViolations',
+      entities: [CachedProduct, CachedMenu],
+      sync: { type: SyncType.None, local: { adapter: 'sqlite' } }
+    });
+    rxdb.adapter('sqlite', () => createLocalAdapter() as unknown as IRxDBAdapter);
+
+    let message = '';
+    try {
+      rxdb.init();
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain('CachedProduct');
+    expect(message).toContain('CachedMenu');
+    // CachedMenu 是树实体：两条规则各报一条，加上 CachedProduct 共 3 项
+    expect(message).toContain('（3 项）');
+    expect(message.indexOf('CachedMenu')).toBeLessThan(message.indexOf('CachedProduct'));
   });
 });

@@ -71,7 +71,7 @@ export default defineConfig(() => ({
       provider: 'v8' as const,
       reporter: ['text', 'json', 'json-summary', 'clover', 'lcovonly', 'html'],
       include: ['src/**/*'],
-      exclude: ['**/__tests__/**', '**/dist/**']
+      exclude: ['**/__tests__/**', '**/tests/**', '**/dist/**']
     }
   }
 }));

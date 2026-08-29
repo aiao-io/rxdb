@@ -6,10 +6,12 @@ import { describe, expect, it } from 'vitest';
 import { SyncType, type SyncOptions } from '../../entity/metadata-options.interface.js';
 import type { EntityMetadata } from '../../entity/metadata.interface.js';
 import {
+  getSyncCapability,
   getSyncType,
   getSyncableRepositories,
   groupBySyncType,
   isNoSync,
+  needsOfflineWrite,
   needsPull,
   needsPush
 } from '../../version/sync-type-utils.js';
@@ -298,6 +300,102 @@ describe('sync-type-utils', () => {
       } as unknown as EntityMetadata;
 
       expect(needsPush(metadata)).toBe(false);
+    });
+  });
+
+  // `offlineWrite` 与 `push` 是两件事：前者问「远端不可达时能不能先落本地、之后重放」，
+  // 后者问「能不能走 changelog / mergeChanges 管道」。querycache 只满足前者 ——
+  // 它的远端契约是纯 REST，适配器根本不实现 mergeChanges。
+  describe('getSyncCapability offlineWrite', () => {
+    it('should allow offline write for full / filter / querycache', () => {
+      expect(getSyncCapability('full').offlineWrite).toBe(true);
+      expect(getSyncCapability('filter').offlineWrite).toBe(true);
+      expect(getSyncCapability('querycache').offlineWrite).toBe(true);
+    });
+
+    it('should not allow offline write for remote / local / none', () => {
+      expect(getSyncCapability('remote').offlineWrite).toBe(false);
+      expect(getSyncCapability('local').offlineWrite).toBe(false);
+      expect(getSyncCapability('none').offlineWrite).toBe(false);
+    });
+
+    // 反转 querycache 的 offlineWrite 不能顺手把 push 也翻了：
+    // push=true 会把它送进一条 HTTP 适配器抛 HttpChangelogUnsupportedError 的管道。
+    it('should keep querycache out of the changelog push pipeline', () => {
+      expect(getSyncCapability('querycache').push).toBe(false);
+      expect(getSyncCapability('querycache').pull).toBe(true);
+    });
+  });
+
+  describe('needsOfflineWrite', () => {
+    it('should return true for querycache sync', () => {
+      const metadata = {
+        name: 'Recipe',
+        namespace: 'public',
+        properties: [],
+        sync: {
+          type: SyncType.QueryCache,
+          local: { adapter: 'wa-sqlite' },
+          remote: { adapter: 'http' }
+        }
+      } as unknown as EntityMetadata;
+
+      expect(needsOfflineWrite(metadata)).toBe(true);
+      expect(needsPush(metadata)).toBe(false);
+    });
+
+    it('should return true for full sync', () => {
+      const metadata = {
+        name: 'Todo',
+        namespace: 'public',
+        properties: [],
+        sync: {
+          type: SyncType.Full,
+          local: { adapter: 'sqlite' },
+          remote: { adapter: 'supabase' }
+        }
+      } as unknown as EntityMetadata;
+
+      expect(needsOfflineWrite(metadata)).toBe(true);
+    });
+
+    it('should return false for remote sync (no local store to write into)', () => {
+      const metadata = {
+        name: 'User',
+        namespace: 'public',
+        properties: [],
+        sync: {
+          type: SyncType.None,
+          remote: { adapter: 'supabase' }
+        }
+      } as unknown as EntityMetadata;
+
+      expect(needsOfflineWrite(metadata)).toBe(false);
+    });
+
+    it('should return false for local sync (nothing to replay to)', () => {
+      const metadata = {
+        name: 'Draft',
+        namespace: 'public',
+        properties: [],
+        sync: {
+          type: SyncType.None,
+          local: { adapter: 'sqlite' }
+        }
+      } as unknown as EntityMetadata;
+
+      expect(needsOfflineWrite(metadata)).toBe(false);
+    });
+
+    it('should return false for no sync', () => {
+      const metadata = {
+        name: 'Temp',
+        namespace: 'public',
+        properties: [],
+        sync: undefined
+      } as unknown as EntityMetadata;
+
+      expect(needsOfflineWrite(metadata)).toBe(false);
     });
   });
 

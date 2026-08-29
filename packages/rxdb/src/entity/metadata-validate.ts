@@ -29,7 +29,7 @@ import { EntityMetadata } from './metadata.interface.js';
  * 注册期元数据校验规则。
  *
  * @remarks
- * 全集 14 项，由 {@link validateEntityMetadata} 产出。
+ * 全集 15 项，由 {@link validateEntityMetadata} 产出。
  * `missingRelationPrimary` / `unsupportedRelationValueType` 属于 {@link RelationResolutionRule}，
  * 由字段描述 DTO 的生成阶段产出，不在本联合内。
  */
@@ -47,7 +47,8 @@ export type MetadataValidationRule =
   | 'enumOptionsMismatch'
   | 'invalidOptionsConfig'
   | 'cardinalityConflict'
-  | 'unsupportedTreeQueryCache';
+  | 'unsupportedTreeQueryCache'
+  | 'missingQueryCacheAdapter';
 
 /**
  * 关系目标解析规则。
@@ -408,18 +409,35 @@ const validateRelation = (collector: ViolationCollector, relation: EntityRelatio
 };
 
 /**
- * 校验生效的同步策略与仓储类型的组合。
+ * 判定 QueryCache 生效时库级 `sync` 上缺了哪一侧的适配器。
+ *
+ * @remarks
+ * `RxDB.init()` 只从 `rxdb.config.sync` 取适配器名喂给 `#local_adapter_sub` / `#remote_adapter_sub`，
+ * 实体装饰器上的 `sync.remote.adapter` 一个字都不读。缺哪一侧，对应的 `xxxAdapter$` 就停在初值 `''`
+ * 被 `filter(Boolean)` 吞掉，而 `Repository` 组主仓储流用的是 `combineLatest` —— 一条输入流不发射，
+ * 整条流就不发射：`find()` 既不产出结果也不报错，页面停在加载态。
+ */
+const missingQueryCacheAdapterSides = (databaseSync: SyncOptions | undefined): readonly string[] =>
+  [databaseSync?.local?.adapter ? null : 'local', databaseSync?.remote?.adapter ? null : 'remote'].filter(
+    (side): side is string => side !== null
+  );
+
+/**
+ * 校验生效的同步策略与仓储类型、库级适配器注册的组合。
  *
  * @param collector - 违规收集器
  * @param metadata - 实体元数据
  * @param databaseSync - 数据库级 `rxdb.config.sync`；实体自己没写 `sync` 时生效
  *
  * @remarks
- * `TreeRepository` 的 `findDescendants` / `findAncestors` 是本地表上的递归查询，前提是祖先链
- * 完整落在本地；QueryCache 只保证「查过的 `where` 命中的那些行」在本地，中间节点可以整段缺失，
- * 递归会在缺口处静默截断 —— 返回的是一棵少了枝干的树，不是一个错误。
+ * 两条判定都只看元数据与数据库级配置，不需要适配器实例，因此同归配置期（US-020 D12）。
  *
- * 这条判定只看元数据与数据库级配置，不需要适配器，因此归在配置期（US-020 D12）。
+ * `unsupportedTreeQueryCache`：`TreeRepository` 的 `findDescendants` / `findAncestors` 是本地表上的
+ * 递归查询，前提是祖先链完整落在本地；QueryCache 只保证「查过的 `where` 命中的那些行」在本地，
+ * 中间节点可以整段缺失，递归会在缺口处静默截断 —— 返回的是一棵少了枝干的树，不是一个错误。
+ *
+ * `missingQueryCacheAdapter`：见 {@link missingQueryCacheAdapterSides}。两条规则判的是两件事
+ * （适配器在不在、树能不能用缓存），同一实体上可以同时成立，各报一条。
  */
 const validateSyncStrategy = (
   collector: ViolationCollector,
@@ -428,6 +446,21 @@ const validateSyncStrategy = (
 ): void => {
   const sync = metadata.sync ?? databaseSync;
   if (sync?.type !== SyncType.QueryCache) return;
+
+  const missing = missingQueryCacheAdapterSides(databaseSync);
+  if (missing.length > 0) {
+    const sides = missing.join(' 与 ');
+    const streams = missing.map(side => `${side}Adapter$`).join(' / ');
+    collector.add(
+      'sync',
+      'missingQueryCacheAdapter',
+      `SyncType.QueryCache 生效，但库级 sync 未注册 ${sides} 适配器。` +
+        `RxDB.init() 只读 rxdb.config.sync 来注册适配器，实体级 sync 上的 adapter 名不参与注册；` +
+        `缺这一侧时 ${streams} 一次都不发射，该实体的查询会永远挂起——不产出、不报错、也不超时。` +
+        `请在库级 sync 上补齐 ${sides}。`
+    );
+  }
+
   if (metadata.repository !== 'TreeRepository') return;
   collector.add(
     'sync',

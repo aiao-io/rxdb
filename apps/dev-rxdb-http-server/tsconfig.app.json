@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc/apps/dev-rxdb-http-server/app",
+    "types": ["node"]
+  },
+  "exclude": ["src/**/__tests__/**/*", "src/**/*.spec.ts", "src/**/*.test.ts", "vite.config.mts"],
+  "extends": "./tsconfig.json",
+  "files": [],
+  "include": ["src/**/*.ts"],
+  "references": []
+}

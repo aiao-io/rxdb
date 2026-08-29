@@ -239,7 +239,7 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 
 - **FR-004**：系统 MUST 提供工作树 status，至少区分 clean、有未提交变更、恢复中和冲突状态。普通命令 CAS 失败只返回一次性 `CommitConflict`，不得形成 durable conflicted；v1 的 conflicted 只由仍存在且 revision 已分叉的 `WorkingTreeRestoreSession` 重建。
 - **FR-005**：系统 MUST 提供面向实体或完整事务的 diff，比较 `HEAD ↔ 工作树`。**只有这一条 diff 轴**——`HEAD ↔ index` 随暂存区一并裁撤。
-- **FR-006**：_（已裁撤，编号不得复用。）_ 原条目要求 stage / unstage / stage all / clear index，暂存区已于 2026-08-22 裁决不做，见 [epic-006 非目标](../../epics/epic-006-working-tree-commits.md#非目标)。
+- **FR-006**：_（已裁撤，编号不得复用。）_ 原条目要求 stage / unstage / stage all / clear index，暂存区已裁决不做，见 [epic-006 非目标](../../epics/epic-006-working-tree-commits.md#非目标)。
 - **FR-007**：_（已裁撤，编号不得复用。）_ 原条目要求保留 staged 快照并把后续编辑标为 unstaged，无暂存区即无快照。
 - **FR-011**：系统 MUST 在 commit 成功后清除**全部**已提交的工作树单元，使工作树回到 clean 并以新 commit 为基线；不存在提交后的残量与 rebase。
 - **FR-016**：系统 MUST 支持 `discardWorkingTree()`，范围是把当前分支工作树整体回到当前 HEAD；工作树已 clean 时是 no-op。

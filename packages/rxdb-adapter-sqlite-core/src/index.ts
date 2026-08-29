@@ -47,6 +47,13 @@ export {
 } from './create_sqlite_client.js';
 export type { CreateSqliteClientOptions } from './create_sqlite_client.js';
 
+// QueryCache 远端行的列契约
+export {
+  RxDBQueryCacheRowContractError,
+  assertQueryCacheRowContract,
+  requiredQueryCacheColumns
+} from './query-cache-row-contract.js';
+
 // 工具函数
 export {
   ROWID,
@@ -137,6 +144,7 @@ export { convertSwitchResultToSql } from './version/switch-result.utils.js';
 export type { SqliteStatement, SwitchVersionSqlItem, SwitchVersionSqlResult } from './version/switch-result.utils.js';
 export { generateSwitchBranchSql, switch_branch } from './version/switch_branch.js';
 export { switch_transaction_id } from './version/switch_transaction_id.js';
+export { readCurrentBranchId, withTriggersDisabled, type SqlExecutor } from './version/with_triggers_disabled.js';
 
 // 事务结果处理
 export {

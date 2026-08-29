@@ -35,6 +35,7 @@ export {
 export * from './entity/tree-entity-base.js';
 export * from './entity/tree-entity.decorator.js';
 export * from './entity/tree-entity.interface.js';
+export * from './network/reachability.js';
 export { query_need_refresh_create as queryNeedRefreshCreate } from './query/need_refresh_create.js';
 export { query_need_refresh_remove as queryNeedRefreshRemove } from './query/need_refresh_remove.js';
 export { query_need_refresh_update as queryNeedRefreshUpdate } from './query/need_refresh_update.js';
@@ -60,6 +61,7 @@ export * from './rxdb.interface.js';
 export * from './RxDB.js';
 export * from './RxDBError.js';
 export type { SchemaManager } from './schema/SchemaManager.js';
+export * from './sync-state.js';
 export * from './system/branch.js';
 export {
   RXDB_CHANGE_CODEC_VERSION,
@@ -79,6 +81,7 @@ export {
 export * from './system/change.js';
 export * from './system/migration.js';
 export * from './system/sync.js';
+export * from './system/system-entities.js';
 export * from './system/system.interface.js';
 export * from './system/types.js';
 export * from './transaction/transaction-executor.interface.js';

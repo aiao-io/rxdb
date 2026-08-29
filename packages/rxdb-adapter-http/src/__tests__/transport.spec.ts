@@ -6,6 +6,7 @@ import {
   HttpRequestBuildError,
   HttpResponseError
 } from '../errors.js';
+import type { HttpEtagUnreadableHook } from '../http.interface.js';
 import { HttpTransport } from '../transport.js';
 
 /**
@@ -640,6 +641,147 @@ describe('HttpTransport', () => {
     });
 
     /**
+     * US-215：`conditionalRequests` 开着、响应 200、却读不到 `ETag`。
+     *
+     * 这一支本身是对的（没有 ETag 就没法做条件请求），问题在于它有**两种**成因——
+     * 远端确实没发，或远端发了但跨源响应没把它列进 `Access-Control-Expose-Headers`——
+     * 而客户端在 `headers.get('etag') === null` 上完全分不开。所以只报事实，不判成因。
+     */
+    describe('读不到 ETag 时的诊断回调（US-215）', () => {
+      /** 200 且不带 ETag */
+      const stubNoEtag = (): void => {
+        stubFetch((_url, init) =>
+          Promise.resolve(new Response(JSON.stringify({ body: String(init.body) }), { status: 200 }))
+        );
+      };
+
+      const withHook = (onEtagUnreadable: HttpEtagUnreadableHook): HttpTransport =>
+        createTransport({ conditional: { maxEntries: 8, onEtagUnreadable } }).transport;
+
+      it('AC#1 触发一次，载荷带上实体名、URL 与 Response.type', async () => {
+        stubNoEtag();
+        const hook = vi.fn();
+        await withHook(hook).sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+
+        expect(hook).toHaveBeenCalledTimes(1);
+        expect(hook.mock.calls[0][0]).toMatchObject({
+          operation: 'fetchMetadata',
+          entityName: 'Recipe',
+          url: `${BASE}/items`
+        });
+      });
+
+      it('AC#1 `Response.type` 原样透出，不替调用方判成因', async () => {
+        // D1 把「undici 下 cors / basic 是否可区分」标成未核实。这里给出实证的一半：
+        // 手工构造的 `Response` 在 Node 下恒为 `'default'`，所以这个字段是**线索**，
+        // 不是文档承诺的判据。真跨源下的取值由 dev-rxdb-http-e2e 在浏览器里确认
+        stubNoEtag();
+        const hook = vi.fn();
+        await withHook(hook).sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+
+        expect(hook.mock.calls[0][0].responseType).toBe('default');
+      });
+
+      it('AC#2 文案点出两种可能并指向 CORS 暴露头，不断言是哪一种', async () => {
+        stubNoEtag();
+        const hook = vi.fn();
+        await withHook(hook).sendJson(READ_SPEC, 'findByIds', 'Recipe');
+
+        const { message } = hook.mock.calls[0][0];
+        expect(message).toContain('Recipe');
+        expect(message).toContain('两种可能');
+        expect(message).toContain('跨源');
+        expect(message).toContain('Access-Control-Expose-Headers');
+      });
+
+      it('AC#3 未配回调时行为逐字不变：条目照删、值照返、不抛、控制台零输出', async () => {
+        stubNoEtag();
+        const spies = (['log', 'info', 'warn', 'error', 'debug'] as const).map(level =>
+          vi.spyOn(console, level).mockImplementation(() => undefined)
+        );
+        const transport = conditionalTransport();
+
+        const first = await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+        await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+
+        expect(first).toEqual({ body: '{"offset":0}' });
+        expect(ifNoneMatch(1)).toBeUndefined();
+        expect(spies.every(spy => spy.mock.calls.length === 0)).toBe(true);
+        spies.forEach(spy => spy.mockRestore());
+      });
+
+      it('AC#5 同一个 key 连续多次只报一次', async () => {
+        stubNoEtag();
+        const hook = vi.fn();
+        const transport = withHook(hook);
+
+        await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+        await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+        await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+        expect(hook).toHaveBeenCalledTimes(1);
+      });
+
+      it('AC#5 不同 key（翻页的下一页）各报一次', async () => {
+        stubNoEtag();
+        const hook = vi.fn();
+        const transport = withHook(hook);
+
+        await transport.sendJson({ url: 'items', method: 'POST', body: { offset: 0 } }, 'fetchMetadata', 'Recipe');
+        await transport.sendJson({ url: 'items', method: 'POST', body: { offset: 50 } }, 'fetchMetadata', 'Recipe');
+
+        expect(hook).toHaveBeenCalledTimes(2);
+      });
+
+      it('AC#6 远端正常发 ETag 时一次都不报，304 命中行为不变', async () => {
+        stubEtagThen304({ rows: [1, 2] });
+        const hook = vi.fn();
+        const transport = withHook(hook);
+
+        const first = await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+        expect(await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe')).toEqual(first);
+        expect(hook).not.toHaveBeenCalled();
+      });
+
+      it('AC#7 回调抛错不影响本次请求的结果', async () => {
+        // 诊断通道不得成为新的故障源：为一条报不出去的警告把一次成功的查询翻成失败，
+        // 比不报还糟
+        stubNoEtag();
+        const hook = vi.fn(() => {
+          throw new Error('sink is down');
+        });
+
+        await expect(withHook(hook).sendJson(READ_SPEC, 'fetchMetadata', 'Recipe')).resolves.toEqual({
+          body: '{"offset":0}'
+        });
+        expect(hook).toHaveBeenCalledTimes(1);
+      });
+
+      it('不参与条件缓存的操作不触发 —— 它们本来就不做条件请求', async () => {
+        stubNoEtag();
+        const hook = vi.fn();
+        await withHook(hook).sendJson(READ_SPEC, 'create', 'Recipe');
+
+        expect(hook).not.toHaveBeenCalled();
+      });
+
+      it('clearConditionalCache() 后同一个 key 重新报一次', async () => {
+        // 换后端配置重连（`disconnect()` → `connect()`）后收不到新信号，等于把
+        // 「这次配对了没有」这个问题永久封在上一段连接里
+        stubNoEtag();
+        const hook = vi.fn();
+        const transport = withHook(hook);
+
+        await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+        transport.clearConditionalCache();
+        await transport.sendJson(READ_SPEC, 'fetchMetadata', 'Recipe');
+
+        expect(hook).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    /**
      * AC#28 明写要有的对照用例：**未启用时行为与阶段 A 逐字相同**。
      */
     describe('未启用时与阶段 A 逐字相同', () => {
@@ -660,6 +802,108 @@ describe('HttpTransport', () => {
         ]);
         expect(fetchMock).toHaveBeenCalledTimes(2);
       });
+    });
+  });
+
+  /**
+   * local-first 的可达性上报：**每一次实际发出的请求都要报一次结局**。
+   *
+   * @remarks
+   * 报在 transport 而不是各个 duck 上，是因为「远端够不着」这件事与调用的是
+   * `fetchMetadata` 还是 `create` 无关，而 transport 是本包唯一真的碰网络的地方。
+   * 落在 duck 上要抄 N 遍，漏一处就是一条恢复不了的路径 —— 比如一个只读的页面
+   * 全靠 `fetchMetadata` 活着，那条路不报，网恢复了面板也一直显示离线。
+   *
+   * 判定本身**不在这里做**：回调原样把结局交给 `ReachabilityMonitor.report`，
+   * 由 `isNetworkError` 一处定夺。这一层只负责「报得全、报得准」。
+   */
+  describe('可达性上报', () => {
+    /** 显式给签名：无参 `vi.fn()` 推成含 `Constructable` 的联合，落不进 `reportResult` */
+    const createReport = () => vi.fn<(error: unknown) => void>();
+
+    const withReport = (report: ReturnType<typeof createReport>): HttpTransport =>
+      createTransport({ reportResult: report }).transport;
+
+    it('请求成功报 null —— 那是「已恢复」的唯一证据', async () => {
+      const report = createReport();
+      await withReport(report).sendJson({ url: 'items', method: 'GET' }, 'test');
+      expect(report).toHaveBeenCalledExactlyOnceWith(null);
+    });
+
+    it('传输失败报出已分类的错误，可判为离线', async () => {
+      stubFetch(() => Promise.reject(new TypeError('fetch failed')));
+      const report = createReport();
+      await withReport(report)
+        .sendJson({ url: 'items', method: 'GET' }, 'test')
+        .catch(() => undefined);
+
+      expect(report).toHaveBeenCalledTimes(1);
+      // 报的必须是 classify 之后的那个错，不是 fetch 抛的裸 TypeError：
+      // node/undici 的 `fetch failed` 一条正则都不命中，直接上报会被判成「不是网络错误」
+      expect(isNetworkError(report.mock.calls[0][0])).toBe(true);
+    });
+
+    it('拿到状态码也照报，交由 report 自己判定不翻转', async () => {
+      stubFetch(() => Promise.resolve(jsonResponse({ message: 'nope' }, 401)));
+      const report = createReport();
+      await withReport(report)
+        .sendJson({ url: 'items', method: 'GET' }, 'test')
+        .catch(() => undefined);
+
+      // 上报与判定分开：漏报会让「什么算离线」这条口径在 transport 里长出第二份
+      expect(report).toHaveBeenCalledTimes(1);
+      expect(isNetworkError(report.mock.calls[0][0])).toBe(false);
+    });
+
+    it('飞行中被断开时报出的错判非离线', async () => {
+      // 断开是调用方叫停，不是远端够不着。判成离线会让一次正常的 disconnect()
+      // 把整个 local-first 面板打成离线态，而此后没有任何请求能把它翻回来
+      const report = createReport();
+      const { transport, controller } = createTransport({ reportResult: report });
+      // 已经 abort 的 signal 必须立刻 reject（同 `stubHanging` 的理由）：`#prepare` 是异步的，
+      // 同步调用的 abort 会赶在 fetch 之前落地，只挂监听的桩从此等一个不会再来的事件
+      const abortError = (): DOMException => new DOMException('aborted', 'AbortError');
+      stubFetch(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            if (init.signal?.aborted) {
+              reject(abortError());
+              return;
+            }
+            init.signal?.addEventListener('abort', () => reject(abortError()));
+          })
+      );
+      const pending = transport.sendJson({ url: 'items', method: 'GET' }, 'test').catch((e: unknown) => e);
+      controller.abort();
+
+      await expect(pending).resolves.toBeInstanceOf(HttpDisconnectedError);
+      expect(report).toHaveBeenCalledTimes(1);
+      expect(isNetworkError(report.mock.calls[0][0])).toBe(false);
+    });
+
+    it('请求没发出去就失败时不报 —— 那是本地问题', async () => {
+      const report = createReport();
+      const transport = withReport(report);
+      // 不可序列化的 body 在 `#prepare` 里就抛了，一个字节都没上网
+      await expect(
+        transport.sendJson({ url: 'items', method: 'POST', body: { n: 1n } }, 'test')
+      ).rejects.toBeInstanceOf(HttpRequestBuildError);
+
+      expect(report).not.toHaveBeenCalled();
+    });
+
+    it('sendVoid 与 execute 同样上报', async () => {
+      const report = createReport();
+      const transport = withReport(report);
+      await transport.sendVoid({ url: 'items/a', method: 'DELETE' }, 'delete');
+      await transport.execute({ url: 'items', method: 'GET' }, 'isTableExisted', async () => undefined);
+
+      expect(report.mock.calls).toEqual([[null], [null]]);
+    });
+
+    it('不配回调时一切照旧', async () => {
+      const { transport } = createTransport();
+      await expect(transport.sendJson({ url: 'items', method: 'GET' }, 'test')).resolves.toEqual({ ok: true });
     });
   });
 });

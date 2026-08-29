@@ -107,7 +107,7 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 传输层与 Rust 文件宿主已实现并接入 demo，11 条 AC 中 **5 条 ✅、4 条 ⚠️、2 条 ⬜**。
 
 **US-210 不是本故事的整体前置**，被它前置的只有 AC#1 / #7。这条前置（`apps/dev-rxdb-tauri-e2e`
-project + 三平台打包矩阵）已于 2026-08-17 由 US-210 建好（其 AC#1 / #9 同日关闭），
+project + 三平台打包矩阵）已由 US-210 建好（其 AC#1 / #9 同日关闭），
 缺的只剩本故事自己的文件持久化 specs；其余 9 条不依赖打包。AC#11 的通过分支也一直存在——
 `apps/dev-rxdb-tauri/src/app/setup_rxdb_desktop.ts` 已把 `sync.local.adapter` 配成
 `TAURI_ADAPTER_NAME`（US-207 E3 把原来的 `DESKTOP_ADAPTER_NAME` 拆成
@@ -148,7 +148,7 @@ project + 三平台打包矩阵）已于 2026-08-17 由 US-210 建好（其 AC#1
 
 ### 剩余缺口（本故事关闭前必须补）
 
-1. **AC#6 / #7**：前置（`apps/dev-rxdb-tauri-e2e` + 三平台打包矩阵）已于 2026-08-17 由
+1. **AC#6 / #7**：前置（`apps/dev-rxdb-tauri-e2e` + 三平台打包矩阵）已由
    [US-210](../adapter/US-210-tauri-sqlite-local-database.md) 建好，缺的只剩本故事自己的
    specs——AC#7 的文件持久化 smoke、AC#6 的三家真实 webview 门禁（本机无法覆盖）。
 2. **AC#1 / #3**：前置已解除，补「打包应用真实重启」与「拷贝应用数据目录后启动」两段 e2e，
@@ -171,7 +171,7 @@ project + 三平台打包矩阵）已于 2026-08-17 由 US-210 建好（其 AC#1
 
 本故事的 Rust 文件宿主与两条一致性 spec 原先都在 `apps/dev-rxdb-tauri/` 里，已跟着
 [US-210「Tauri 包化」](../adapter/US-210-tauri-sqlite-local-database.md#tauri-包化)
-（T1～T7 于 2026-08-18 全部关闭）搬进 `packages/rxdb-adapter-tauri`：Rust 侧落
+（T1～T7 全部关闭）搬进 `packages/rxdb-adapter-tauri`：Rust 侧落
 `rust/src/file/`，一致性 spec 落 `conformance/`；renderer 侧受
 [US-207「包边界重整」](../adapter/US-207-desktop-local-database.md#包边界重整)
 的改名影响，该半边已随 E1～E5 落地。搬迁**没改本故事任何一条 AC 的语义**——
@@ -184,10 +184,10 @@ S3／S4 两处口径按下表改完，S5 因 US-210 定形为**普通 crate**而
 | S2 ✅ | `conformance/storage-parity.spec.ts` / `storage-persistence.spec.ts` 迁入新包                                                                  | 已达成：两条 spec 落 `packages/rxdb-adapter-tauri/conformance/`，与 US-210 的 8 条 SQL spec 合计复现 **605 条 / 10 文件**（0 skipped）；`storage-parity` 仍从 `@aiao/rxdb-plugin-storage/testing` 取套件，不在新包里复制一份                                                                                                                                                   |
 | S3 ✅ | AC#10 证据句改口径为新包名（`@aiao/rxdb-adapter-tauri`）；`rxdb-plugin-storage` 的 `./desktop` 子路径按 US-207 E5 改指共享层而非运行时包       | 已达成：`src/desktop.ts` 只 import `@aiao/rxdb-adapter-sqlite-core/desktop-host`，运行时包降为 devDependency（仅测试用），浏览器 bundle 不含 Node builtin 与 Tauri 依赖                                                                                                                                                                                                        |
 | S4 ✅ | AC#11 的 `adapter_mismatch` 判据跟随 US-207 E3 的 `ADAPTER_NAME` 分裂（`desktop` → `sqlite-electron` / `sqlite-tauri`）重写拒绝条件            | 已达成：判据从单个名字改为集合 `DESKTOP_HOST_ADAPTER_NAMES`（`desktop-adapter-name.ts`），逐个点名换成 `isDesktopHostAdapterName`；`refuses to build on a non-desktop adapter` 的用例名对应的正是这个集合，仍名副其实                                                                                                                                                          |
-| S5 ✅ | 「传输二选一」小节引用的 `rxdb/mod.rs` capability 论证跟随 US-210 的插件形态决策                                                               | 已达成且**论证零改动**：US-210 于 2026-08-18 定形为**普通 crate 而非 Tauri 插件**，命令仍由宿主应用 `generate_handler!` 注册，不带 `plugin:` 前缀 ⇒ 不进 capability 门禁。本故事「`capabilities/` 全程零改动」「一条 capability 都不用加」两句原样成立；引用位置从 `rxdb/mod.rs` 迁到 `packages/rxdb-adapter-tauri/rust/src/lib.rs` 的「权限面」小节                           |
+| S5 ✅ | 「传输二选一」小节引用的 `rxdb/mod.rs` capability 论证跟随 US-210 的插件形态决策                                                               | 已达成且**论证零改动**：US-210 定形为**普通 crate 而非 Tauri 插件**，命令仍由宿主应用 `generate_handler!` 注册，不带 `plugin:` 前缀 ⇒ 不进 capability 门禁。本故事「`capabilities/` 全程零改动」「一条 capability 都不用加」两句原样成立；引用位置从 `rxdb/mod.rs` 迁到 `packages/rxdb-adapter-tauri/rust/src/lib.rs` 的「权限面」小节                                         |
 
 搬迁不解「剩余缺口」里的任何一条：AC#1 / #3 / #6 / #7 缺的只是本故事自己的 specs
-（`apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵已于 2026-08-17 由 US-210 建好）。
+（`apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵已由 US-210 建好）。
 
 ## 技术笔记
 
@@ -228,7 +228,7 @@ webview 窗口语义因此不影响 AC#9，无需验证。
 - [US-210](../adapter/US-210-tauri-sqlite-local-database.md) — meta 的 Tauri 桌面 SQLite adapter。
   该 adapter 已可被 `sync.local` 配置，AC#11 的通过
   分支存在（见「交付状态」）；共享的 `apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵已由
-  US-210 建好（2026-08-17，其 AC#1 / #9 同日关闭），本故事只需在其上扩展自己的 specs，
+  US-210 建好（其 AC#1 / #9 同日关闭），本故事只需在其上扩展自己的 specs，
   不构成业务前置
 - [US-504](./US-504-electron-local-file-storage.md) — 文件系统接缝、协议消息形状、物理名
   编码与锁归宿决策
@@ -236,7 +236,7 @@ webview 窗口语义因此不影响 AC#9，无需验证。
 ## 实现文件
 
 - `packages/rxdb-adapter-tauri/rust/src/file/` — Rust 文件宿主，本故事的主体（US-210 T2
-  于 2026-08-18 从 `apps/dev-rxdb-tauri/src-tauri/src/rxdb/file/` 迁入本包）：
+  从 `apps/dev-rxdb-tauri/src-tauri/src/rxdb/file/` 迁入本包）：
   `protocol.rs`（请求解析与路径校验，逐条对齐 `desktop-host-protocol.ts`）、
   `locks.rs`（FIFO 的 shared / exclusive 仲裁，队首拿不到就整队停住，独占请求不被共享流饿死）、
   `mod.rs`（派发；临时文件 `fsync` 后 `rename` 原子替换、资源挂在会话上、永不 reject）
@@ -254,7 +254,7 @@ webview 窗口语义因此不影响 AC#9，无需验证。
   一个 transport 同时喂 storage 插件与桌面 adapter；单文件保存一律走 `service.download()`，
   不新增第四份手写 `showSaveFilePicker`
 - `apps/dev-rxdb-tauri/src-tauri/capabilities/` — **零改动**（自定义命令不受 capability 门禁）
-- `apps/dev-rxdb-tauri-e2e/` — 共享 project，由 US-210 创建（2026-08-17）；本故事只拥有
+- `apps/dev-rxdb-tauri-e2e/` — 共享 project，由 US-210 创建；本故事只拥有
   AC#1 / #3 / #7 / #9 的重启、备份、打包与双窗口 specs。**已建好**，见「范围决策」
 - `requirements/api-baseline/` — 若新增公开 API 则同步基线
 

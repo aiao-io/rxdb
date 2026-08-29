@@ -58,6 +58,15 @@
       "path": "./packages/code-editor-angular"
     },
     {
+      "path": "./apps/dev-rxdb-http-server"
+    },
+    {
+      "path": "./apps/dev-rxdb-http"
+    },
+    {
+      "path": "./apps/dev-rxdb-http-e2e"
+    },
+    {
       "path": "./apps/dev-rxdb-supabase-e2e"
     },
     {

@@ -654,6 +654,10 @@
         "kind": "value"
       },
       {
+        "name": "isSystemEntity",
+        "kind": "value"
+      },
+      {
         "name": "isUniqueConstraintViolation",
         "kind": "value"
       },
@@ -754,6 +758,10 @@
         "kind": "type"
       },
       {
+        "name": "needsOfflineWrite",
+        "kind": "value"
+      },
+      {
         "name": "needsPull",
         "kind": "value"
       },
@@ -811,6 +819,10 @@
       },
       {
         "name": "parseEntityFieldValue",
+        "kind": "value"
+      },
+      {
+        "name": "parseEntityRecordValues",
         "kind": "value"
       },
       {
@@ -938,6 +950,18 @@
         "kind": "type"
       },
       {
+        "name": "ReachabilityEventTarget",
+        "kind": "type"
+      },
+      {
+        "name": "ReachabilityMonitor",
+        "kind": "both"
+      },
+      {
+        "name": "ReachabilityOptions",
+        "kind": "type"
+      },
+      {
         "name": "RefreshMatchRules",
         "kind": "type"
       },
@@ -994,12 +1018,20 @@
         "kind": "value"
       },
       {
+        "name": "REMOTE_ENTITY_INVALIDATED_EVENT",
+        "kind": "value"
+      },
+      {
         "name": "RemoteBranchInfo",
         "kind": "type"
       },
       {
         "name": "RemoteChange",
         "kind": "type"
+      },
+      {
+        "name": "RemoteEntityInvalidatedEvent",
+        "kind": "both"
       },
       {
         "name": "RemoteMergeResult",
@@ -1486,6 +1518,14 @@
         "kind": "both"
       },
       {
+        "name": "SyncConflict",
+        "kind": "type"
+      },
+      {
+        "name": "SyncConflictReport",
+        "kind": "type"
+      },
+      {
         "name": "SyncDirection",
         "kind": "type"
       },
@@ -1518,6 +1558,18 @@
         "kind": "type"
       },
       {
+        "name": "SyncState",
+        "kind": "type"
+      },
+      {
+        "name": "SyncStateHub",
+        "kind": "both"
+      },
+      {
+        "name": "SyncStateSources",
+        "kind": "type"
+      },
+      {
         "name": "SyncStats",
         "kind": "type"
       },
@@ -1531,6 +1583,10 @@
       },
       {
         "name": "syncTypeIneligibility",
+        "kind": "value"
+      },
+      {
+        "name": "SYSTEM_ENTITIES",
         "kind": "value"
       },
       {

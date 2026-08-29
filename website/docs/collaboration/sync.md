@@ -333,6 +333,50 @@ const rows = await repo.find({
 远端 `fetchMetadata` / `findByIds`。继承适配器基类时它们是 `abstract`，编译期即有保证；
 自定义适配器对象缺任一项时，构造仓储即抛 `RxDBQueryCacheCapabilityError` 并列出缺失的方法名。
 
+### 远端行的列契约
+
+**`findByIds` 返回的每一行，必须带齐本地表的全部非空列** —— 包括 `EntityBase` 声明的
+`createdAt` / `updatedAt`。这条约束对所有 QueryCache 远端成立（HTTP、Supabase、自研服务），
+因为它来自**落地路径**而不是某个协议。
+
+原因是 `upsertMany` 是绕开仓储的裸 SQL 写：
+
+```ts
+// 实体上写了默认值 —— 但它是**仓储层**的东西
+{ name: 'createdAt', type: PropertyType.date, default: () => new Date() }
+```
+
+函数形式的 `default` 一个字都不会进 `CREATE TABLE`，本地表上 `createdAt` 就是 `NOT NULL`。
+QueryCache 的拉取落地不经过仓储，于是远端不带这一列 → INSERT 不含该列 → 被数据库拒绝。
+
+哪些列可以省略：
+
+- 可空列（`nullable: true`）；
+- 写了**字面量** `default` 的列——它进了 DDL 的 `DEFAULT` 子句。**`binary` 除外**：
+  建表时明确跳过这一类的默认值，列上仍是光秃秃的 `NOT NULL`；
+- uuid / integer 主键（数据库端能自己生成）。
+
+关系的外键列（`ONE_TO_ONE` / `MANY_TO_ONE`）也是本地表上的物理列，同样要带，但豁免口径与
+普通列**不一样**：可空、或 `onDelete` / `onUpdate` 为 `SET NULL`（这两种 DDL 不给 `NOT NULL`）
+才可省；字面量 `default` **只对 `MANY_TO_ONE` 生效**——DDL 的 `DEFAULT` 子句嵌在
+`kind === MANY_TO_ONE` 分支里，一对一列建出来只有 `NOT NULL`，跟着放行等于让「过了校验的行」
+在 INSERT 时被数据库拒掉。
+
+其余一律必须自带。校验认两种写法：行里带**属性名 / 关系名**（`owner`）或**物理列名**
+（`ownerId`）都算带齐。
+
+同一批里的行还必须**列集一致**。批内异构（第 1 行带 `tag`、第 2 行不带）会被拒绝：
+落地按批生成一条 INSERT，缺键的行会被绑成 `NULL`，把可空列**静默清空**。
+
+不满足时，sqlite 系适配器在落地**之前**抛 `RxDBQueryCacheRowContractError`，点名实体、
+缺失列与成因，且这一批**一行都不会写入**。
+
+:::warning 缺列不会就地补默认值
+补一个 `new Date()` 出来的是**本机拉取的时刻**，不是记录创建的时刻：两台设备拉同一行会得到
+不同的 `createdAt`，而这个差异要到跨设备对比时才暴露。缺列是后端或协议实现的问题，
+在这里补齐等于把它伪装成成功。
+:::
+
 ## 关系查询与同步
 
 **核心规则**：外键只能从本地指向任意位置，不能从远程指向本地

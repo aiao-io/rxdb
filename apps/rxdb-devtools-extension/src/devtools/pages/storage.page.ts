@@ -131,6 +131,13 @@ function formatDate(timestamp?: number | string | Date): string {
                 <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
             </div>
+          } @else if (pluginMissing()) {
+            <div class="bg-warning/10 border-warning/20 text-warning-content m-3 rounded border p-3 text-xs">
+              <div class="font-semibold">当前页面未安装 &#64;aiao/rxdb-plugin-storage</div>
+              <div class="mt-1 opacity-80">
+                被检查页面的 RxDB 没有注册 storage:StorageFileMeta 实体，因此这里没有文件可列。
+              </div>
+            </div>
           } @else if (error()) {
             <div class="text-error p-3 text-sm">{{ error() }}</div>
           } @else if (rows().length === 0) {
@@ -253,7 +260,23 @@ export class StoragePage implements OnInit {
 
   readonly rows = computed(() => this.parsedRows().rows);
 
-  readonly error = computed(() => this.storageData()?.error ?? this.parsedRows().error);
+  /**
+   * 被检查页面没有安装 `@aiao/rxdb-plugin-storage`。
+   *
+   * @remarks
+   * 判定走连接器给的结构化错误码，不看 `dbInfo()` —— 后者在页面挂载的窗口里恰好是 `null`
+   * （`INSPECT_DB` 与握手同刻发出，`DB_INFO` 要一次往返才到），每次导航的 `DISCONNECT`
+   * 又会把它重置。用它判定会把「现在还不知道」渲染成「没装插件」。
+   */
+  readonly pluginMissing = computed(
+    () => this.databaseState.getEntityErrorKind(STORAGE_ENTITY, STORAGE_NAMESPACE) === 'entity-not-found'
+  );
+
+  /** 没装插件不是错误，是可解释的正常状态 —— 交给 {@link pluginMissing} 的告知性 banner。 */
+  readonly error = computed(() => {
+    if (this.pluginMissing()) return null;
+    return this.storageData()?.error ?? this.parsedRows().error;
+  });
 
   readonly selectedRow = computed(() => {
     const id = this.selectedId();

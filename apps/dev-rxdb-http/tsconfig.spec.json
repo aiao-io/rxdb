@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "outDir": "./out-tsc/vitest",
+    "types": ["vitest/globals", "vitest/importMeta", "vite/client", "node", "vitest"],
+    "module": "preserve",
+    "moduleResolution": "bundler"
+  },
+  "extends": "../../tsconfig.base.json",
+  "files": ["src/test-setup.ts"],
+  "include": ["vite.config.mts", "src/**/*.test.ts", "src/**/*.spec.ts", "src/**/*.d.ts", "src/**/*.ts"],
+  "references": [
+    {
+      "path": "../../packages/rxdb-adapter-http/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+    }
+  ]
+}

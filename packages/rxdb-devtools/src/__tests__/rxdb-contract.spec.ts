@@ -21,6 +21,13 @@ import { getEntityMetadata, RxDB, RxDBBranch, SyncType } from '@aiao/rxdb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DevToolsEntityMetadata, DevToolsRxDB, GetEntityMetadataFn } from '../connector.js';
 import { DevToolsConnector, RXDB_EVENT_TYPES } from '../connector.js';
+import { RXDB_DEVTOOLS_MESSAGE } from '../types.js';
+import {
+  createPostMessageSpy,
+  installChannelStub,
+  restoreChannelStub,
+  sendToConnector
+} from './fixtures/devtools-channel.js';
 
 function createRxDB(): RxDB {
   return new RxDB({
@@ -32,16 +39,32 @@ function createRxDB(): RxDB {
 
 describe('rxdb contract', () => {
   let connector: DevToolsConnector;
+  let postMessageSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+    installChannelStub();
+    postMessageSpy = createPostMessageSpy();
+    vi.spyOn(window, 'postMessage').mockImplementation(postMessageSpy as unknown as typeof window.postMessage);
     connector = new DevToolsConnector();
   });
 
   afterEach(() => {
     connector.disconnect();
+    restoreChannelStub();
     vi.restoreAllMocks();
   });
+
+  /** 完成握手，把连接器从「缓冲」切到「直发」—— 出站断言必须在这之后做。 */
+  function ackHandshake(): void {
+    sendToConnector({
+      source: RXDB_DEVTOOLS_MESSAGE,
+      direction: 'devtools-to-page',
+      type: 'HANDSHAKE_ACK',
+      payload: null,
+      timestamp: 0,
+      sequence: 1
+    });
+  }
 
   describe('type contract', () => {
     it('MUST accept a real RxDB instance and getEntityMetadata without any assertion', () => {
@@ -88,6 +111,30 @@ describe('rxdb contract', () => {
       expect([...subscribed].sort()).toEqual([...RXDB_EVENT_TYPES].sort());
     });
 
+    // US-023 AC#31：穷尽性断言对「新事件被填成 false」是绿的 —— 清单里有键就算表过态。
+    // 远端失效是 QueryCache 诊断的关键一环，必须显式钉成转发。
+    //
+    // 断言落在**出站消息**上，不落在 `RXDB_EVENT_SUBSCRIPTIONS.REMOTE_ENTITY_INVALIDATED === true`：
+    // 后者只是在读回配置表自己写的那一格，转发链上任何一环断掉（订阅没建、遮罩把它吃了、
+    // 序列化丢了 eventType）它都照绿。这里走的是真实链路 ——
+    // 真 `RxDB` 派发 → 连接器监听 → 遮罩 → 序列化 → 传输层。
+    it('MUST forward REMOTE_ENTITY_INVALIDATED all the way to the transport', () => {
+      const rxdb = createRxDB();
+      connector.init(rxdb, getEntityMetadata);
+      ackHandshake();
+      postMessageSpy.mockClear();
+
+      // 走公开 API 而不是手搓事件对象：宿主推送通道就是这么用的（见 RxDB.ts 的用例注释）。
+      rxdb.invalidateRemoteEntity('RxDBBranch');
+
+      const forwarded = postMessageSpy.mock.calls
+        .map(([message]) => message as { type: string; payload: { eventType: string; data: Record<string, unknown> } })
+        .filter(message => message.type === 'EVENT' && message.payload.eventType === 'REMOTE_ENTITY_INVALIDATED');
+
+      expect(forwarded, '远端失效没有到达传输层').toHaveLength(1);
+      expect(forwarded[0].payload.data['entity']).toBe('RxDBBranch');
+    });
+
     it('MUST NOT subscribe an event name that RxDB does not dispatch', () => {
       // SYNC_START 这类拼错的事件名不会报错，只会静默订阅一个永不触发的键
       // ——本仓的两条边界用例就曾这样对着零事件跑绿。反向核对：清单里的每个名字
@@ -124,6 +171,39 @@ describe('rxdb contract', () => {
       connector.init(rxdb, getEntityMetadata);
 
       expect(entities.map(entity => getEntityMetadata(entity).name)).toContain('RxDBBranch');
+    });
+
+    // `config.entities` 是**活数组**（`LIVE_BEHAVIOUR_CONFIG_KEYS` 把它排除在冻结之外）：
+    // `SchemaManager.init()` 往里补系统实体，插件 `install()` 往里 push 自己的实体。
+    // `dev-rxdb-http` / `dev-rxdb-supabase` 都是先 `connector.init()` 再 `rxdb.init()`，
+    // 于是快照式的注册表连 `RxDBChange` 都看不见 —— 面板报「实体不存在」的那条路。
+    it('MUST see entities that RxDB registers after the connector was initialised', () => {
+      const rxdb = new RxDB({
+        dbName: 'devtools-contract-late',
+        entities: [],
+        sync: { type: SyncType.None, local: { adapter: 'memory' } }
+      });
+
+      connector.init(rxdb, getEntityMetadata);
+      // 真实注册动作：与 `SchemaManager.init()` / `RxDBPluginStorage.install()` 同一条语句。
+      rxdb.config.entities.push(RxDBBranch);
+      ackHandshake();
+      postMessageSpy.mockClear();
+
+      sendToConnector({
+        source: RXDB_DEVTOOLS_MESSAGE,
+        direction: 'devtools-to-page',
+        type: 'INSPECT_DB',
+        payload: null,
+        timestamp: 0,
+        sequence: 2
+      });
+
+      const dbInfo = postMessageSpy.mock.calls
+        .map(([message]) => message as { type: string; payload: { entities: { name: string }[] } })
+        .filter(message => message.type === 'DB_INFO');
+
+      expect(dbInfo[0].payload.entities.map(entity => entity.name)).toContain('RxDBBranch');
     });
   });
 });

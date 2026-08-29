@@ -12,6 +12,6 @@
   "devDependencies": {
     "@aiao/rxdb-adapter-electron": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
-    "electron": "43.4.1"
+    "electron": "44.0.0"
   }
 }

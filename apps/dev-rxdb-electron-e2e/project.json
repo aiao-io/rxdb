@@ -1,14 +1,14 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "// targets": "to see all targets run: nx show project dev-rxdb-electron-e2e --web",
-  "implicitDependencies": ["dev-rxdb-electron"],
+  "implicitDependencies": ["dev-rxdb-electron", "rxdb-devtools-extension"],
   "name": "dev-rxdb-electron-e2e",
   "projectType": "application",
   "sourceRoot": "apps/dev-rxdb-electron-e2e/src",
   "targets": {
     "e2e": {
-      "// dependsOn": "ELEC-10：必须依赖真实产物（electron-builder --dir），而不是 build —— 只有打包后才能验 file: 协议下的 CSP、路由与 WASM。",
-      "dependsOn": ["dev-rxdb-electron:electron-package-dir"]
+      "// dependsOn": "ELEC-10：必须依赖真实产物（electron-builder --dir），而不是 build —— 只有打包后才能验 file: 协议下的 CSP、路由与 WASM。US-904 阶段 A：可行性门禁加载扩展的真实构建产物，缺产物必须红而不是 skip，所以把它也钉进依赖。",
+      "dependsOn": ["dev-rxdb-electron:electron-package-dir", "rxdb-devtools-extension:build"]
     }
   }
 }

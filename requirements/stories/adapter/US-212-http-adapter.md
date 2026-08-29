@@ -11,7 +11,7 @@ tags: [adapter, http, remote, querycache]
 
 <!--
 INVEST 检查清单:
-- [x] Independent: 零前置。US-020 两阶段已于 2026-08-22 全关，两档发布门禁同时解除
+- [x] Independent: 零前置。US-020 两阶段已全关，两档发布门禁同时解除
 - [x] Negotiable: handler 的字段名、错误类名与 REST URL 模板细节在 plan 可调整；协议不变量（**transport 归适配器**、RuleGroup JSON、不发 SQL、changelog 方法 throw、翻页终止判据、metadata 时间戳规范化、错误分类口径与判别位）不可协商
 - [x] Valuable: 已有 HTTP/REST API 的开发者今天没有 RemoteBase 可挂，只能 supabase
 - [x] Estimable: 对标 supabase 的 QueryCache ducks + 分页/分块，范围收敛到一个新包
@@ -32,8 +32,8 @@ INVEST 检查清单:
 
 留档两条曾经的锁，避免复查时以为漏了：
 
-- **US-020 的两档发布门禁**（[roadmap 约束 10](../../roadmap.md#排期约束)）：曾要求 US-020 阶段 A 关闭才可发 `experimental`、阶段 B 关闭才可标 `stable`。[US-020](../core/US-020-querycache-repository.md) 两阶段已于 2026-08-22 全关（`status: Done`），两档同时解除。它要防的病症——配了 `SyncType.QueryCache` 却 find 仍打本地、save 仍进 local changelog——已不复存在。
-- **epic-006 前置**：曾要求本包不得在 [US-306](../collaboration/US-306-working-tree-commits.md) 阶段 A 的 bypass 门禁冻结前发布。2026-08-22 解除，理由见下方[技术笔记「与 epic-006 的关系」](#与-epic-006-的关系)——注意该段的引用口径已于 2026-08-23 修正。
+- **US-020 的两档发布门禁**（[roadmap 约束 10](../../roadmap.md#排期约束)）：曾要求 US-020 阶段 A 关闭才可发 `experimental`、阶段 B 关闭才可标 `stable`。[US-020](../core/US-020-querycache-repository.md) 两阶段已全关（`status: Done`），两档同时解除。它要防的病症——配了 `SyncType.QueryCache` 却 find 仍打本地、save 仍进 local changelog——已不复存在。
+- **epic-006 前置**：曾要求本包不得在 [US-306](../collaboration/US-306-working-tree-commits.md) 阶段 A 的 bypass 门禁冻结前发布。2026-08-22 解除，理由见下方[技术笔记「与 epic-006 的关系」](#与-epic-006-的关系)——注意该段的引用口径已修正。
 
 Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另一种 `SyncType`，**不是本文件的阶段 C**。v1 对这些方法必须 throw unsupported。
 
@@ -80,7 +80,10 @@ Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另�
 - 改 core 的 `FETCH_FAILURE_MESSAGE` 正则或让它读 `error.cause`（放宽后 message 含 `load failed` 的业务错误会被误判成离线；本包自己分类即可）
 - v1 Full changelog 同步
 - Evolu XOR / CRDT
-- 乐观离线写（US-020 D5：cache 模式离线只读）
+- ~~乐观离线写（US-020 D5：cache 模式离线只读）~~ —— D5 已被 [US-020 D5-R](../core/US-020-querycache-repository.md) 反转：
+  QueryCache 离线可写、联网后按 REST 动词重放。**落点仍不在本包**：排队与重放在 core
+  （`query-cache-outbox.ts`），本包只多做一件事——把每次远端调用的结果报给
+  `rxdb.reachability`，好让 core 分得清「网断了」和「远端拒绝了」
 - OpenAPI codegen、魔法 schema 推断
 - 把 SQL 字符串发到远端
 - `plugin:*` inject；encryption 当传输层
@@ -221,7 +224,7 @@ type FetchMetadataHandler<T> = {
 | 数组       | `rows.length === limit`       | `rows.length < limit`         | `offset += limit` |
 | `{ rows }` | `nextPageToken !== undefined` | `nextPageToken === undefined` | 由 handler 自己定 |
 
-#### 键名于 2026-08-25 改名：`cursor` → `pageToken`
+#### 键名改名：`cursor` → `pageToken`
 
 本节交付时这两个键叫 `ctx.cursor` / `nextCursor`，与 core `findByCursor` 的「游标」撞名——后者指
 **实体实例**做的 keyset 锚点，在 Repository 里就被编译成 `where` 规则组，适配器根本看不到；
@@ -354,12 +357,12 @@ QueryCache 的写入口是 `create` / `update` / `delete` 三个 optional duck�
 
 ### 阶段 B — REST mapping 与可选加速
 
-> **owner 判定已于 2026-08-24 完成**，阶段 B 的范围随之收敛为 AC#27 + AC#28，两条**均已交付**（AC#28 于 2026-08-24 同日实现，见 `conditional-cache.ts` 与 `transport.ts` 的条件请求路径）。依据与调研见技术笔记[「AC#28～30 的 owner 判定」](#ac2830-的-owner-判定)。
+> **owner 判定已完成**，阶段 B 的范围随之收敛为 AC#27 + AC#28，两条**均已交付**（AC#28 同日实现，见 `conditional-cache.ts` 与 `transport.ts` 的条件请求路径）。依据与调研见技术笔记[「AC#28～30 的 owner 判定」](#ac2830-的-owner-判定)。
 >
 > - **AC#28 ETag / If-None-Match → owner = 本包。** 它不需要 core 的任何新 API。304 的语义就是「你手上那份仍然有效」，因此按请求指纹缓存已解析结果**在定义上不会脏**——服务端一旦认为内容变了就不会回 304。两个原本待定的问题于是各有答案：响应缓存由**本包 transport** 持有（有界内存映射，既不是 `QueryCacheLocalAdapter` 也不是本地存储，与 AC#19 不冲突）；并发按请求指纹 **single-flight** 去重。
 > - **AC#29 SSE / invalidation 与 AC#30 eviction → 拿不到 owner，已从本故事移出。** 两条各需要一个 core 侧今天不存在的抽象，而都拿不出用户今天踩得到的症状。按 [US-016 / US-017 先例](../../roadmap.md#明确不排期)登记进 roadmap 的「明确不排期」表并写明解锁条件，**不新建故事文件**——[CONVENTIONS 的「价值待证」判据](../../CONVENTIONS.md)是病灶数 ≥ 抽象数，为它们建文件恰恰是那条禁止的「凭 Epic 惯性排期」。
 >
-> AC#27 完全在本包内，不受上述限制。**已于 2026-08-23 交付**（`rest.ts` 的 `createRestHandlers()`）：
+> AC#27 完全在本包内，不受上述限制。**已交付**（`rest.ts` 的 `createRestHandlers()`）：
 > 它只是一个产出 {@link HttpHandlers} 的工厂，适配器本体一行未改，因此「缺省不得改变阶段 A 语义」是结构性成立的，
 > 不是靠回归测试盯着。校验全在**构造期**——占位符集合必须与操作精确匹配（`update` 缺 `:id`、任意模板缺 `:entity` 都当场抛），
 > 因为这两种退化在网线上都是 2xx，等发出去再看响应码是看不出来的。
@@ -552,13 +555,13 @@ YAML 没有 `depends-on` 字段。本故事当前**零前置**；排期见 [road
 | `packages/rxdb-adapter-http/README.md` + `LICENSE`           | B    | 补齐：本包曾是唯一缺 README 的包，npm 页面为空                                      |
 | website `docs/adapters/http.md` 的「REST 模板」小节          | B    | AC#27 的公开文档：默认模板表、构造期校验、`delete` 的取舍                           |
 | ETag 条件请求缓存 + single-flight（transport 内）            | B    | AC#28。owner = 本包（2026-08-24 判定）                                              |
-| ~~SSE / invalidation、eviction~~                             | —    | 原 AC#29 / #30，**已移出**，见 [roadmap「明确不排期」](../../roadmap.md#明确不排期) |
+| SSE / invalidation、eviction                                 | —    | 原 AC#29 / #30，**已移出**，见 [roadmap「明确不排期」](../../roadmap.md#明确不排期) |
 
 本故事关闭前不改 US-203。能力矩阵在包落地后把「待实现 / US-212」行改成已实现。
 
 ## References
 
-- [US-020 QueryCache 接入统一 Repository](../core/US-020-querycache-repository.md) — 曾是唯一硬前置，**已于 2026-08-22 全关，两档发布门禁同时解除**
+- [US-020 QueryCache 接入统一 Repository](../core/US-020-querycache-repository.md) — 曾是唯一硬前置，**已全关，两档发布门禁同时解除**
 - [US-203 Supabase 适配器](./US-203-supabase-adapter.md) — 翻页/分块与 QueryCache ducks 的对标；不 inherit AC
 - [US-201 SQLite 适配器](./US-201-sqlite-adapter.md) / sqlite-core — 独立 local 缓存后端
 - [US-015](../core/US-015-plugin-inject-dependency.md) — 插件侧的 `inject: ['adapter:remote']` 会解析到本适配器实例。**本适配器自己不声明 `inject`**（那是插件接口的成员，不是适配器的）

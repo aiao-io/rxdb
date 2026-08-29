@@ -9,7 +9,8 @@
  *    网关/浏览器的 URL 长度上限，表现为 `TypeError: Failed to fetch` 或 414。
  */
 
-import { classify_postgrest_error } from './postgrest-error.js';
+import type { ReachabilityMonitor } from '@aiao/rxdb';
+import { assert_postgrest_ok } from './postgrest-error.js';
 
 /**
  * 单页行数，与 docker compose 里 `PGRST_DB_MAX_ROWS` 的默认值一致。
@@ -54,6 +55,10 @@ export function chunk_values<T>(values: readonly T[], chunkSize: number = SUPABA
  * PostgREST 不保证无 `order` 时跨 `range` 的行序，缺了它翻页会重复取到某些行、
  * 同时永久丢掉另一些行 —— 且同样不报错。
  *
+ * 每页的结局都上报给可达性判定（{@link assert_postgrest_ok}）。逐页报而不是只报最后一页：
+ * 翻到第 7 页才断网也该立刻判离线，而那一页正是会抛出去的那页。
+ *
+ * @param reachability - 可达性监视器，通常是 `rxdb.reachability`
  * @param build_page - 给定闭区间 `[from, to]` 构造一次查询
  * @param errorMessage - 出错时的前缀，例如 `'Failed to pull branches'`
  * @param pageSize - 单页行数，默认 {@link SUPABASE_PAGE_SIZE}
@@ -62,6 +67,7 @@ export function chunk_values<T>(values: readonly T[], chunkSize: number = SUPABA
  * @throws `SupabaseDataError` 任一页被远端拒绝（RLS / 约束 / 语法等）
  */
 export async function select_all_pages<T>(
+  reachability: ReachabilityMonitor,
   build_page: (from: number, to: number) => PromiseLike<PagedResponse<T>>,
   errorMessage: string,
   pageSize: number = SUPABASE_PAGE_SIZE
@@ -70,9 +76,7 @@ export async function select_all_pages<T>(
 
   for (let offset = 0; ; offset += pageSize) {
     const { data, error, status } = await build_page(offset, offset + pageSize - 1);
-    if (error) {
-      throw classify_postgrest_error({ error, status }, errorMessage);
-    }
+    assert_postgrest_ok(reachability, { error, status }, errorMessage);
 
     const page = data ?? [];
     rows.push(...page);

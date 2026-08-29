@@ -5,6 +5,7 @@ import {
   getEntityMutations,
   getRxDBSystemVersionState,
   isCurrentRxDBSystemVersion,
+  RelationKind,
   RxDB,
   RXDB_CHANGE_CODEC_WATERMARK,
   RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
@@ -37,6 +38,13 @@ import { releaseComlinkProxy } from './create_sqlite_client.js';
 import { generate_upsert_clause } from './entity/insert_sql.js';
 import { handle_rxdb_change } from './handle_rxdb_change.js';
 import { SqliteCoreKeyringStorage } from './keyring/sqlite-core-keyring-storage.js';
+import {
+  dispatchQueryCacheRemoveEvents,
+  dispatchQueryCacheUpsertEvents,
+  type QueryCacheRowImage,
+  type QueryCacheRowImages
+} from './query-cache-events.js';
+import { assertQueryCacheRowContract } from './query-cache-row-contract.js';
 import { generate_sql } from './query/query_sql.js';
 import { SqliteRepository } from './repository/SqliteRepository.js';
 import { SqliteTreeRepository } from './repository/SqliteTreeRepository.js';
@@ -57,6 +65,7 @@ import {
   get_primary_key_column,
   get_table_name_by_entity_type,
   get_table_name_by_metadata,
+  getEntityObjectFromResult,
   getTableColumnIndexName,
   isSqlResultEmpty,
   isTableExistedSql,
@@ -72,6 +81,7 @@ import { execute_switch_actions } from './version/execute_switch_actions.js';
 import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { switch_branch } from './version/switch_branch.js';
 import { switch_transaction_id } from './version/switch_transaction_id.js';
+import { withTriggersDisabled } from './version/with_triggers_disabled.js';
 export type { AdapterEncryptionFacade, SqliteBaseOptions, SqliteClientLike } from './sqlite-core.types.js';
 
 /**
@@ -85,6 +95,21 @@ export type { AdapterEncryptionFacade, SqliteBaseOptions, SqliteClientLike } fro
 export type TransactionFun = (executor: SqliteTransactionExecutor) => Promise<unknown>;
 
 /**
+ * QueryCache 写入口解析出的表名 / 列名视图。
+ *
+ * @remarks
+ * `metadata` 为 `undefined` 表示调用方传的是物理表名（元数据里查不到该实体），
+ * 此时列名不做任何映射与过滤 —— 没有可对照的元数据，「过滤」只剩下猜。
+ */
+type QueryCacheTarget = {
+  tableName: string;
+  idColumn: string;
+  updatedAtColumn: string;
+  columnNames: ReadonlyMap<string, string>;
+  metadata: EntityMetadata | undefined;
+};
+
+/**
  * 适配器生命周期状态。
  *
  * @remarks
@@ -93,6 +118,43 @@ export type TransactionFun = (executor: SqliteTransactionExecutor) => Promise<un
  * `RxDB.connect()` 建表完成后调 {@link RxDBAdapterSqliteBase.completeBootstrap} 翻到 `ready`。
  */
 type AdapterLifecycleState = 'bootstrap' | 'ready' | 'closing' | 'closed';
+
+/**
+ * 一张表「认得的列」：字段名（逻辑名与物理列名两种口径）→ 物理列名。
+ *
+ * @remarks
+ * 与 `create_table_sql` 同源：物理列 = `propertyMap` 的全部属性 + `relationMap` 里
+ * `ONE_TO_ONE` / `MANY_TO_ONE` 两种有外键列的关系；`ONE_TO_MANY` 等没有本表列，不收。
+ * 远端发过来的键既可能是逻辑名（`owner`）也可能是物理列名（`ownerId`），两种都收进来映到
+ * 同一个物理列，`upsertMany` 才能既做白名单判定又做列名翻译。
+ *
+ * `id` / `updatedAt` 无条件收：调用方已按它们解析出 `idColumn` / `updatedAtColumn`
+ * 并写进 `ON CONFLICT` 子句，白名单再把它们滤掉就自相矛盾了。
+ */
+const query_cache_column_names = (
+  metadata: EntityMetadata,
+  idColumn: string,
+  updatedAtColumn: string
+): ReadonlyMap<string, string> => {
+  const columnNames = new Map<string, string>([
+    ['id', idColumn],
+    [idColumn, idColumn],
+    ['updatedAt', updatedAtColumn],
+    [updatedAtColumn, updatedAtColumn]
+  ]);
+  for (const [name, property] of metadata.propertyMap?.entries() ?? []) {
+    columnNames.set(name, property.columnName);
+    columnNames.set(property.columnName, property.columnName);
+  }
+  for (const relation of metadata.relationMap?.values() ?? []) {
+    if (relation.kind !== RelationKind.ONE_TO_ONE && relation.kind !== RelationKind.MANY_TO_ONE) {
+      continue;
+    }
+    columnNames.set(relation.name, relation.columnName);
+    columnNames.set(relation.columnName, relation.columnName);
+  }
+  return columnNames;
+};
 
 /**
  * 与后端无关的 SQLite adapter 基类。
@@ -620,6 +682,17 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   // 落在事务窗口内会被该事务的 ROLLBACK 一并回滚，或反向污染尚未提交的事务。
   // query() 通过 #queue 串行化，事务体内则由 executor 门面直接使用当前连接。
   // internalQuery 仅保留给真正的内部建表/探测路径（它们本就运行在 connect 内）。
+  //
+  // 两个写方法都裹在 withTriggersDisabled 里：它们抄的是**远端副本**，不是本地变更。
+  // 表上的 AFTER INSERT/UPDATE/DELETE 触发器不区分写入来源，不摘掉的话每次拉取回填都会
+  // 往 rxdb_change 里堆一批伪本地改动 —— 一旦离线写把那张表当出站队列用，
+  // 这些行就会被当成待推变更再发回远端，形成 pull → log → push → pull 的回声环。
+  //
+  // 但变更行同时也是实时查询**唯一**的通知来源（触发器 → rxdb_change →
+  // handle_rxdb_change → EntityLocal*Event → QueryManager 增量合并）。只摘触发器不补通知，
+  // 缓存写就成了静默写：库里对了，屏幕不动 —— 删掉的行还挂在列表里直到刷新页面。
+  // 因此两个方法都在同事务内先预读旧行，写完再照触发器的形状把实体级事件补发出去
+  // （见 query-cache-events.ts）。
 
   getMetadataByIds(entityName: string, ids: string[]): Observable<Map<string, string>> {
     return defer(() => {
@@ -653,28 +726,27 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       if (data.length === 0) {
         return of(undefined);
       }
+      // 判在事务之前，不是在事务里 —— 事务体里抛错要靠 ROLLBACK 才回到干净状态，
+      // 而这一批本来一行都不该被尝试写入。判据只需要元数据与行的键集，是同步的。
+      const target = this.#resolveQueryCacheTarget(entityName);
+      assertQueryCacheRowContract(entityName, data as object[], target.metadata);
+      const ids = data.map(item => String((item as Record<string, unknown>)['id']));
       return from(
         this.transaction(async executor => {
-          const dataColumns = Object.keys(data[0] as object);
-          const placeholderGroup = `(${new Array(dataColumns.length).fill('?').join(', ')})`;
-          const { tableName, idColumn, columnNames } = this.#resolveQueryCacheTarget(entityName);
-          const columns = dataColumns.map(column => columnNames.get(column) ?? column);
-          const columnList = columns.map(quote_sql_identifier).join(', ');
-          for (const dataChunk of chunkBySqliteBindLimit(data, columns.length)) {
-            const valuePlaceholders = new Array(dataChunk.length).fill(placeholderGroup).join(', ');
-            const sql = `INSERT INTO ${quote_sql_identifier(tableName)} (${columnList}) VALUES ${valuePlaceholders}${generate_upsert_clause(idColumn, columns)}`;
-            const values = dataChunk.flatMap(item =>
-              dataColumns.map(column => (item as Record<string, unknown>)[column])
-            );
-            await executor.query(sql, values);
-          }
+          // 两次回读都必须与写同事务：前一次晚了就拿到新值、倒推不出 inversePatch，
+          // 后一次早了就看不见刚写的行；拆成多个事务还会在嵌套事务下自死锁
+          // （withTriggersDisabled 的同款约束）。
+          const preImages = await this.#readQueryCacheRowImages(executor, target, ids);
+          await withTriggersDisabled(this, executor, () => this.#writeQueryCacheRows(executor, target, data));
+          const postImages = await this.#readQueryCacheRowImages(executor, target, ids);
+          return { preImages, postImages };
         }, false)
-          .then(() =>
-            this.#refreshQueryCacheEntities(
-              entityName,
-              data.map(item => String((item as Record<string, unknown>)['id']))
-            )
-          )
+          .then(async ({ preImages, postImages }) => {
+            // 先把实例刷成新值再发事件：事件的消费方（QueryManager）会顺着 id 去取实体，
+            // 顺序反过来它取到的是尚未刷新的旧实例。
+            await this.#refreshQueryCacheEntities(entityName, ids);
+            if (target.metadata) dispatchQueryCacheUpsertEvents(this.rxdb, target.metadata, postImages, preImages);
+          })
           .then(() => undefined)
       );
     });
@@ -685,19 +757,18 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       if (ids.length === 0) {
         return of(undefined);
       }
+      const target = this.#resolveQueryCacheTarget(entityName);
       return from(
         this.transaction(async executor => {
-          const { tableName } = this.#resolveQueryCacheTarget(entityName);
-          for (const idsChunk of chunkBySqliteBindLimit(ids)) {
-            const placeholders = idsChunk.map(() => '?').join(', ');
-            const sql = `DELETE FROM ${quote_sql_identifier(tableName)} WHERE id IN (${placeholders})`;
-            await executor.query(sql, idsChunk);
-          }
-        }, false).then(() => {
+          const preImages = await this.#readQueryCacheRowImages(executor, target, ids);
+          await withTriggersDisabled(this, executor, () => this.#deleteQueryCacheRows(executor, target.tableName, ids));
+          return preImages;
+        }, false).then(preImages => {
           // 行没了，缓存里那个实例还标着 local=true。不标 removed 的话，
           // 它会以「仍然存在」的姿态活在任何还持有引用的视图里（SQLC-033 同款）。
           const EntityType = this.rxdb.schemaManager.getEntityType(entityName, 'public');
           if (EntityType) remove_entity_ids_from_cache(this, EntityType, ids);
+          if (target.metadata) dispatchQueryCacheRemoveEvents(this.rxdb, target.metadata, preImages);
         })
       );
     });
@@ -719,6 +790,122 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    */
   protected ready(): Promise<void> {
     return this.rxdb.connect(this.name).then(() => undefined);
+  }
+
+  /**
+   * 把一批远端行 UPSERT 进缓存表（按 SQLite 绑定上限分块）。
+   *
+   * @param executor - 当前事务的执行器
+   * @param target - `#resolveQueryCacheTarget` 解析出的表名/列名视图
+   * @param data - 远端行；列清单取自 `data[0]` 的键
+   */
+  async #writeQueryCacheRows<T>(
+    executor: SqliteTransactionExecutor,
+    target: QueryCacheTarget,
+    data: T[]
+  ): Promise<void> {
+    const { tableName, idColumn, columnNames, metadata } = target;
+    // 契约显式放行「远端多带本地没有的列」（AC#3），所以列清单不能照抄载荷的键：
+    // 抄下来换到的是一条 `no such column: <远端字段名>` —— 契约文件存在的意义正是
+    // 消灭这类把远端 schema 漂移翻译成本地 SQL 错误的报法。
+    // metadata 查不到时一列都不滤：那条路径上调用方传的就是物理表名与物理列名，
+    // 没有可对照的元数据，「过滤」只剩下猜（与表名回退同一口径）。
+    const dataColumns =
+      metadata ?
+        Object.keys(data[0] as object).filter(column => columnNames.has(column))
+      : Object.keys(data[0] as object);
+    const placeholderGroup = `(${new Array(dataColumns.length).fill('?').join(', ')})`;
+    const columns = dataColumns.map(column => columnNames.get(column) ?? column);
+    const columnList = columns.map(quote_sql_identifier).join(', ');
+    for (const dataChunk of chunkBySqliteBindLimit(data, columns.length)) {
+      const valuePlaceholders = new Array(dataChunk.length).fill(placeholderGroup).join(', ');
+      const sql = `INSERT INTO ${quote_sql_identifier(tableName)} (${columnList}) VALUES ${valuePlaceholders}${generate_upsert_clause(idColumn, columns)}`;
+      const values = dataChunk.flatMap(item => dataColumns.map(column => (item as Record<string, unknown>)[column]));
+      await executor.query(sql, values);
+    }
+  }
+
+  /**
+   * 从缓存表删除一批 id（按 SQLite 绑定上限分块）。
+   *
+   * @param executor - 当前事务的执行器
+   * @param tableName - 已解析的物理表名
+   * @param ids - 要删除的主键
+   */
+  async #deleteQueryCacheRows(executor: SqliteTransactionExecutor, tableName: string, ids: string[]): Promise<void> {
+    for (const idsChunk of chunkBySqliteBindLimit(ids)) {
+      const placeholders = idsChunk.map(() => '?').join(', ');
+      const sql = `DELETE FROM ${quote_sql_identifier(tableName)} WHERE id IN (${placeholders})`;
+      await executor.query(sql, idsChunk);
+    }
+  }
+
+  /**
+   * 读一批 id 此刻在表里的整行快照。
+   *
+   * @param executor - 当前事务的执行器；必须与写操作同事务，否则读到的是别人提交后的状态
+   * @param target - `#resolveQueryCacheTarget` 解析出的表名/列名视图
+   * @param ids - 要读的主键
+   * @returns id → 行；表里没有的 id 不出现在结果里
+   *
+   * @remarks
+   * 触发器被摘掉后，写前写后各调一次就是实体级事件的全部素材：写前那次是 `inversePatch`，
+   * 写后那次是 `patch`。`upsertMany` 还靠「id 在不在写前的结果里」区分 INSERT 与 UPDATE ——
+   * UPSERT 语句本身不告诉调用方它走的是插入还是更新。
+   *
+   * 走 `getEntityObjectFromResult` 而不是直接拿裸行：一来加密列在库里是 TEXT 信封，
+   * 原样塞进事件等于把密文交给 QueryManager/UI（SQLC-011 同款）；二来事件的 patch 最终会被
+   * `Object.assign` 到实体上，不解码就等于把 SQLite 的存储形态（日期是字符串）钉进实体。
+   *
+   * metadata 查不到时直接返回空 Map：那条路径上调用方传的是物理表名，没有元数据就
+   * 既解不了行也填不出事件的 namespace/entity，与 `#writeQueryCacheRows` 的回退同口径。
+   */
+  async #readQueryCacheRowImages(
+    executor: SqliteTransactionExecutor,
+    target: QueryCacheTarget,
+    ids: string[]
+  ): Promise<QueryCacheRowImages> {
+    const images = new Map<string, QueryCacheRowImage>();
+    const { metadata, tableName, idColumn } = target;
+    if (!metadata) return images;
+
+    const idColumnSql = quote_sql_identifier(idColumn);
+    for (const idsChunk of chunkBySqliteBindLimit(ids)) {
+      const sql = generate_sql({
+        tableName,
+        where: `${idColumnSql} IN (${idsChunk.map(() => '?').join(', ')})`,
+        metadata
+      });
+      const { columns, rows } = await executor.query(sql, idsChunk);
+      await this.#collectRowImages(images, metadata, columns, rows);
+    }
+    return images;
+  }
+
+  /**
+   * 把一批结果行解成实体形状的快照，按 id 收进 `target`。
+   *
+   * @param target - 收集容器
+   * @param metadata - 目标实体的元数据
+   * @param columns - 结果集列名
+   * @param rows - 结果集行；`RawQueryResult` 为跨适配器可移植把单元格声明成 `unknown`，
+   *   而这里的行只可能来自本适配器发出的 SQLite 查询，因此在此收窄
+   */
+  async #collectRowImages(
+    target: Map<string, QueryCacheRowImage>,
+    metadata: EntityMetadata,
+    columns: string[],
+    rows: readonly unknown[][]
+  ): Promise<void> {
+    for (const row of rows) {
+      const image = await getEntityObjectFromResult<QueryCacheRowImage>(
+        metadata,
+        columns,
+        row as SQLiteCompatibleType[],
+        this.encryptionContext
+      );
+      target.set(String(image['id']), image);
+    }
   }
 
   /**
@@ -764,24 +951,30 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * 否则自定义 `columnName` 的实体会再次失败。与 PGlite 适配器的同名方法保持一致。
    *
    * metadata 查不到时按原名回退（调用方可能直接传物理表名），不擅自拼 namespace 前缀。
+   *
+   * `columnNames` 是「这张表认得的列」的全集，兼作 `upsertMany` 的白名单，因此它的
+   * 键集必须与 `create_table_sql` 建出来的列一一对应：属性列 + 有物理列的关系列
+   * （`ONE_TO_ONE` / `MANY_TO_ONE`），逻辑名与物理列名都收进来 —— 远端两种口径都可能发。
    */
-  #resolveQueryCacheTarget(entityName: string): {
-    tableName: string;
-    idColumn: string;
-    updatedAtColumn: string;
-    columnNames: ReadonlyMap<string, string>;
-  } {
+  #resolveQueryCacheTarget(entityName: string): QueryCacheTarget {
     const metadata = this.rxdb.schemaManager.getEntityMetadata(entityName, 'public');
     if (!metadata) {
-      return { tableName: entityName, idColumn: 'id', updatedAtColumn: 'updatedAt', columnNames: new Map() };
+      return {
+        tableName: entityName,
+        idColumn: 'id',
+        updatedAtColumn: 'updatedAt',
+        columnNames: new Map(),
+        metadata: undefined
+      };
     }
+    const idColumn = metadata.propertyMap?.get('id')?.columnName ?? 'id';
+    const updatedAtColumn = metadata.propertyMap?.get('updatedAt')?.columnName ?? 'updatedAt';
     return {
+      metadata,
+      idColumn,
+      updatedAtColumn,
       tableName: get_table_name_by_metadata(metadata),
-      idColumn: metadata.propertyMap?.get('id')?.columnName ?? 'id',
-      updatedAtColumn: metadata.propertyMap?.get('updatedAt')?.columnName ?? 'updatedAt',
-      columnNames: new Map(
-        Array.from(metadata.propertyMap?.entries() ?? [], ([name, property]) => [name, property.columnName])
-      )
+      columnNames: query_cache_column_names(metadata, idColumn, updatedAtColumn)
     };
   }
 

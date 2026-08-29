@@ -43,12 +43,12 @@ const ZERO_ALLOWED = new Set<keyof HttpNumericConfig>(['maxEmptyPages']);
  * 判据不是 `> 0`。`1.5` 能过 `> 0`，但会让翻页的 `offset += limit` 逐页漂移、
  * 分块的 `slice` 边界落在半条记录上；`Infinity` 也能过 `> 0`，而它恰好等于放弃
  * `maxPages` / `requestTimeoutMs` 这两条触顶保护——那正是这两个配置存在的理由。
- * 所以三条缺一不可：`Number.isInteger` 挡小数与 `NaN`，`Number.isFinite` 挡
- * `Infinity`，下界挡零与负数。
+ * 两条足矣：`Number.isInteger` 一并挡下小数、`NaN` 与 `±Infinity`（它对后两者同样返回
+ * `false`），下界挡零与负数。再补一道 `Number.isFinite` 恒为假，只会让人误以为它在挡什么。
  */
 const assertPositiveInteger = (field: keyof HttpNumericConfig, value: number): void => {
   const min = ZERO_ALLOWED.has(field) ? 0 : 1;
-  if (!Number.isInteger(value) || !Number.isFinite(value) || value < min) {
+  if (!Number.isInteger(value) || value < min) {
     throw new HttpConfigError(
       `HTTP adapter config "${field}" must be a finite integer >= ${min}, received ${String(value)}`,
       field,

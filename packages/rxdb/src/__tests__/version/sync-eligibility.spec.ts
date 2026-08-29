@@ -19,6 +19,7 @@ import {
   getSyncCapability,
   isNoSync,
   isRepositorySyncEnabled,
+  needsOfflineWrite,
   needsPull,
   needsPush,
   type RepositorySyncType
@@ -51,31 +52,42 @@ const metadataFor = (syncType: RepositorySyncType): EntityMetadata =>
 /**
  * 冻结的能力矩阵
  *
- * `querycache` 可拉不可推：它是按需拉取的远端缓存，本地没有权威副本可回写。
- * 取 `pull: true` 是**向数据通路对齐**——`pull-batch` 和 `pullRepository` 今天就在拉它，
- * 只有报表侧的 `needsPull` 说它不可拉。
+ * `pull` 侧：`querycache` 取 `true` 是**向数据通路对齐**——`pull-batch` 和 `pullRepository`
+ * 今天就在拉它，只有报表侧的 `needsPull` 说它不可拉。
+ *
+ * `push` 与 `offlineWrite` 是**两个正交问题**，`querycache` 正是把它们分开的那一行：
+ * - `push` 问「能不能走 `remoteAdapter.mergeChanges` 的 changelog 管道」——
+ *   `RxDBAdapterHttp.mergeChanges()` 直接抛 `HttpChangelogUnsupportedError`，故 `false`
+ * - `offlineWrite` 问「远端不可达时能不能先落本地、恢复后按 REST 动词重放」——故 `true`
+ *
+ * `remote` 两条都是 `false`：它压根没有本地存储，离线时没有地方可写。
  */
-const MATRIX: ReadonlyArray<{ syncType: RepositorySyncType; pull: boolean; push: boolean }> = [
-  { syncType: 'full', pull: true, push: true },
-  { syncType: 'filter', pull: true, push: true },
-  { syncType: 'querycache', pull: true, push: false },
-  { syncType: 'remote', pull: true, push: false },
-  { syncType: 'local', pull: false, push: false },
-  { syncType: 'none', pull: false, push: false }
+const MATRIX: ReadonlyArray<{
+  syncType: RepositorySyncType;
+  pull: boolean;
+  push: boolean;
+  offlineWrite: boolean;
+}> = [
+  { syncType: 'full', pull: true, push: true, offlineWrite: true },
+  { syncType: 'filter', pull: true, push: true, offlineWrite: true },
+  { syncType: 'querycache', pull: true, push: false, offlineWrite: true },
+  { syncType: 'remote', pull: true, push: false, offlineWrite: false },
+  { syncType: 'local', pull: false, push: false, offlineWrite: false },
+  { syncType: 'none', pull: false, push: false, offlineWrite: false }
 ];
 
 describe('同步资格矩阵（RXD-029）', () => {
   describe('getSyncCapability 冻结 syncType 的能力', () => {
-    for (const { syncType, pull, push } of MATRIX) {
-      it(`${syncType}: pull=${pull} push=${push}`, () => {
-        expect(getSyncCapability(syncType)).toEqual({ pull, push });
+    for (const { syncType, pull, push, offlineWrite } of MATRIX) {
+      it(`${syncType}: pull=${pull} push=${push} offlineWrite=${offlineWrite}`, () => {
+        expect(getSyncCapability(syncType)).toEqual({ pull, push, offlineWrite });
       });
     }
   });
 
   describe('所有谓词与矩阵同源', () => {
-    for (const { syncType, pull, push } of MATRIX) {
-      it(`${syncType} 的四个入口口径一致`, () => {
+    for (const { syncType, pull, push, offlineWrite } of MATRIX) {
+      it(`${syncType} 的五个入口口径一致`, () => {
         const metadata = metadataFor(syncType);
 
         // 级联/单仓路径
@@ -85,6 +97,7 @@ describe('同步资格矩阵（RXD-029）', () => {
         // 报表路径：此前 needsPull 把 querycache 判成不可拉，与上面两条相反
         expect(needsPull(metadata)).toBe(pull);
         expect(needsPush(metadata)).toBe(push);
+        expect(needsOfflineWrite(metadata)).toBe(offlineWrite);
 
         // 「完全不同步」= 两个方向都没有能力，且只有 none 满足
         expect(isNoSync(metadata)).toBe(!pull && !push && syncType === 'none');
@@ -95,7 +108,18 @@ describe('同步资格矩阵（RXD-029）', () => {
       expect(pullIneligibility('none')).toBe(`syncType is 'none'`);
       expect(pullIneligibility('local')).toBe(`syncType is 'local' (no remote)`);
       expect(pushIneligibility('remote')).toBe(`syncType is 'remote' (read-only)`);
-      expect(pushIneligibility('querycache')).toBe(`syncType is 'querycache' (pull-only cache)`);
+      // 措辞点名 changelog 而不是「pull-only cache」：querycache 的离线写会经 REST
+      // 重放回远端，说成 pull-only 会让读到这句的人以为本地改动根本回不去
+      expect(pushIneligibility('querycache')).toBe(
+        `syncType is 'querycache' (no changelog endpoint; offline writes replay over REST)`
+      );
+    });
+
+    it('offlineWrite 与 push 正交：querycache 只有前者', () => {
+      // 回推驱动按这两个字段分派，合成一个就没法表达 querycache 这一行
+      expect(getSyncCapability('querycache')).toMatchObject({ push: false, offlineWrite: true });
+      expect(getSyncCapability('full')).toMatchObject({ push: true, offlineWrite: true });
+      expect(getSyncCapability('remote')).toMatchObject({ push: false, offlineWrite: false });
     });
   });
 

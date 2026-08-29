@@ -68,7 +68,7 @@ INVEST 检查清单:
 ### 不在本故事
 
 `RxDB.#shutdown()`（:605-621）那 8 处手工复位的收敛。本故事只创建并释放**连接纪元作用域**
-这一层容器（D3）。把 8 处复位迁进去原归 `US-016`，该故事已于 2026-08-21
+这一层容器（D3）。把 8 处复位迁进去原归 `US-016`，该故事已
 [移出 epic-008 承诺范围](../../epics/epic-008-lifecycle-scope.md)：复位不是资源释放，作用域原语碰不到。
 
 ## 范围边界
@@ -88,7 +88,7 @@ INVEST 检查清单:
 
 - **`inject` 依赖声明与按需装卸**——归 [US-015](US-015-plugin-inject-dependency.md) 系列
 - **`RxDB.#shutdown()` 的 8 处手工复位** 与 `#event_initialized` 守卫的移除——原归 `US-016`，
-  已于 2026-08-21 移出 epic-008 承诺范围（复位不是资源释放；`#event_initialized` 守着的监听器挂在 `this` 上，
+  已移出 epic-008 承诺范围（复位不是资源释放；`#event_initialized` 守着的监听器挂在 `this` 上，
   随实例一起回收，不是泄漏），今天没有归属故事
 - **注册期资源的释放**。`use()` 时挂上的实例属性今天**在物理上就不可撤销**：
   [search:552-557](../../../packages/rxdb-plugin-search/src/plugin.ts#L552) 的 `searchPlugin` 与
@@ -98,7 +98,7 @@ INVEST 检查清单:
 - **拆卸错误在 `RxDB` 边界的出口**：`#destroy_plugin()`（:765-775）今天把插件拆卸异常 `console.error` 后吞掉，
   改成传播会改变 `disconnect()` / `disconnectAll()` 的可见行为，属独立的破坏性变更（D5）
 - **删除 `destroy()`**：本故事只让它变可选 + `@deprecated`；实际移除排在废弃周期结束后
-- **三框架绑定接入作用域**——原归 `US-017`，已于 2026-08-21 移出 epic-008 承诺范围
+- **三框架绑定接入作用域**——原归 `US-017`，已移出 epic-008 承诺范围
   （三端各自的原生作用域已在用），解锁条件见 Epic
 - **`#plugin_install_promises` 的记账收敛**：安装态与作用域是两件事，本故事不动安装期错误传播路径
 
@@ -507,7 +507,7 @@ D7 第 4 条要求「终态销毁的服务每纪元新建」，但 workspace 的
 - [epic-008 生命周期作用域](../../epics/epic-008-lifecycle-scope.md)
 - [US-013 LifecycleScope 生命周期作用域原语](US-013-lifecycle-scope-primitive.md) — 前置故事，提供 `LifecycleScope`
 - [US-015 插件依赖声明与按需装卸](US-015-plugin-inject-dependency.md) — 后继故事族，收敛安装态语义
-- `US-016` 连接纪元作用域与 shutdown 收敛 — **文件从未创建，已于 2026-08-21 移出 epic-008 承诺范围**：
+- `US-016` 连接纪元作用域与 shutdown 收敛 — **文件从未创建，已移出 epic-008 承诺范围**：
   连接纪元作用域本身已由本故事交付，剩下的 8 处是状态复位；`init()` 失败回滚漏 `versionManager.destroy()`
   这条降级为 bugfix。判据见 [epic-008 的「已移出承诺范围」](../../epics/epic-008-lifecycle-scope.md)
 - [versioning-policy.md](../../versioning-policy.md) 第 2、3、4 节 — 公开 API 定义、废弃周期与三层守护

@@ -1,0 +1,11 @@
+{
+  "name": "@aiao/dev-rxdb-http-server",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "//": "AC#1：dependencies 必须为空——后端只用 node:http / node:sqlite / node:crypto 三个内置模块。往这里加任何一项都会让「零第三方依赖的参考实现」这句话失效。",
+  "dependencies": {},
+  "nx": {
+    "name": "dev-rxdb-http-server"
+  }
+}
