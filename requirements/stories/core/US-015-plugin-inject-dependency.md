@@ -59,29 +59,29 @@ INV-1～INV-7 与 D1～D5 对两个阶段同时生效，是本故事的唯一真
 ### 证据一：search 插件的等待链
 
 - [:234](../../../packages/rxdb-plugin-search/src/plugin.ts#L234) 构造期 `assertSupportedAdapter()` 校验**配置**里的适配器名
-- [:356-358](../../../packages/rxdb-plugin-search/src/plugin.ts#L356-L358) 安装期等待
-  `adapterConnected$(localAdapterName)`，并从 `localAdapter$` 取得实例；按适配器信号已经落地，待阶段 A 把这段
-  等待和后续释放纳入宿主调度
+- 旧实现的安装期自等待——`adapterConnected$(localAdapterName)` + 从 `localAdapter$` 取实例——已随阶段 A
+  换成 `inject: ['adapter:local']`（[:185](../../../packages/rxdb-plugin-search/src/plugin.ts#L185)）与纪元调度器，
+  插件不再自己等依赖（替换关系见 [plugin.ts:452](../../../packages/rxdb-plugin-search/src/plugin.ts#L452) 的注释）
 - [:237-266](../../../packages/rxdb-plugin-search/src/plugin.ts#L237-L266) `install()` 同步挂完事件通道后
   **返回包住 `#runInstall()` 的 Promise**（:266），因此 `connect()` 确实会等到 FTS 建完。
-  ⚠️ :145 的行内注释写着「立刻返回；真实安装……异步执行」，**与代码不符**——真正避开死锁的不是「转入后台」，
-  而是下一条的 `bootstrapTransaction`。读这段时以代码为准，改写时见 D2 附
+  真正避开死锁的不是「转入后台」，而是下一条的 `bootstrapTransaction`。改写时见 D2 附
 - [:469-471](../../../packages/rxdb-plugin-search/src/plugin.ts#L469-L471) 注释保留了历史死锁形状：
   `adapter.rawQuery` / `repo.find` 会回到 `ready()`，而 `connect()` 正在等待插件安装；当前实现用
   `bootstrapTransaction` 绕开该环，阶段 A 不得把这条用户可见时序改成后台未等待
-- [:84](../../../packages/rxdb-plugin-search/src/plugin.ts#L84) 于是有了 `SearchPluginPhase` 五态枚举，
-  [:224](../../../packages/rxdb-plugin-search/src/plugin.ts#L224) `ready` 把这套内部状态翻译给使用者
+- 旧实现用 `SearchPluginPhase` 五态枚举表达安装态（已随阶段 A 删除，[plugin.ts:190](../../../packages/rxdb-plugin-search/src/plugin.ts#L190) 的注释留证），
+  [:224](../../../packages/rxdb-plugin-search/src/plugin.ts#L224) `ready` 仍把这套内部状态翻译给使用者
 
 整条链上没有一处是搜索业务——全部是「等一个依赖，同时不要把宿主等死」。这正是宿主该负责的调度。
 
 ### 证据二：`plugin.name` 从未被当作索引
 
 `#plugin_map` 是 `Map<Plugin, IRxDBPlugin>`（[:89](../../../packages/rxdb/src/RxDB.ts#L89)），键是**工厂函数**。
-`plugin.name` 全文只出现在三处 `console.error` 的模板串里——`#install_one_plugin`、
-`#track_plugin_install`、`#destroy_plugin` 各一处（[:725](../../../packages/rxdb/src/RxDB.ts#L725) /
-:719 / :771）——**从来没有被当作索引用过**。
+`plugin.name` 全文只出现在 `console.error` 的模板串里——`#install_one_plugin`、
+`#track_plugin_install`、`#destroy_plugin` 三条路径的报错处
+（实现已抽到 [rxdb.plugin-lifecycle.ts:75/101/182-188](../../../packages/rxdb/src/rxdb.plugin-lifecycle.ts#L75-L188)，
+RxDB.ts 里只剩薄委托）——**从来没有被当作索引用过**。
 后果是 search 的工厂只能自己探测宿主实例上的自有属性来判断「我是不是已经装过了」
-（[:538-541](../../../packages/rxdb-plugin-search/src/plugin.ts#L538-L541)，
+（[:725-728](../../../packages/rxdb-plugin-search/src/plugin.ts#L725-L728)，
 不匹配时抛 `already installed with an incompatible instance`）。要支持按名字声明依赖，
 必须先补上这个索引——见 D4，落地归阶段 B。
 
@@ -111,7 +111,7 @@ INV-1～INV-7 与 D1～D5 对两个阶段同时生效，是本故事的唯一真
 这是死锁安全底线：`connect()` 会经 `RxDB.#await_plugin_installs()` `await` 全部在册安装
 （[:665-675](../../../packages/rxdb/src/RxDB.ts#L665-L675)），
 一旦「安装」变成「等依赖」而依赖恰好由 `connect()` 自己提供，就会等成死锁——search 已经踩过一次
-（[:370-372](../../../packages/rxdb-plugin-search/src/plugin.ts#L370-L372)），代价是整个后台安装路径。
+（[:469-471](../../../packages/rxdb-plugin-search/src/plugin.ts#L469-L471)），代价是整个后台安装路径。
 新调度必须在**结构上**排除这种可能，而不是靠调用方小心。
 
 **INV-5 未满足不静默。** 插件因依赖未满足而未安装时，必须有一次 `console.warn` 说明缺了什么。
@@ -394,7 +394,7 @@ async install(scope: LifecycleScope) {
 | --- | -------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | 1   | 插件声明 `inject: ['adapter:local']`，尚未 `connect()`   | `init()`                                                   | 该插件**不安装**，不产生作用域，不报错；不声明 `inject` 的插件照常立即安装                                                                                                                                  | ✅   |
 | 2   | 同上                                                     | `connect('local')`                                         | 引导链（迁移、建表、索引 reconcile）全部跑完后该插件才安装（D2），拿到新的子作用域；安装完成早于 `connect()` resolve                                                                                        | ✅   |
-| 3   | 插件声明 `inject: ['adapter:remote']`，只连本地          | `connect('local')`                                         | `connect()` **正常 resolve，不挂起**——`#await_plugin_installs()` 只等已经开始的安装（INV-4，防的正是 [search:370-372](../../../packages/rxdb-plugin-search/src/plugin.ts#L370-L372) 记录的自等死锁）        | ✅   |
+| 3   | 插件声明 `inject: ['adapter:remote']`，只连本地          | `connect('local')`                                         | `connect()` **正常 resolve，不挂起**——`#await_plugin_installs()` 只等已经开始的安装（INV-4，防的正是 [search:469-471](../../../packages/rxdb-plugin-search/src/plugin.ts#L469-L471) 记录的自等死锁）        | ✅   |
 | 4   | 本地 + 远端均已连接，某插件 `inject: ['adapter:remote']` | `disconnect('remote')`（本地仍连着，不触发 `#shutdown()`） | 该插件的作用域被释放；其余插件不受影响；实例本身保留在 `#plugin_map` 中；释放完成早于 `adapter.disconnect()`（INV-7）                                                                                       | ✅   |
 | 5   | 承接 AC#4                                                | 重新 `connect('remote')`                                   | 该插件重新安装，拿到**全新**作用域；不出现双份注册与重复监听                                                                                                                                                | ✅   |
 | 6   | 适配器被替换为**同名新实例**，中途从未变为空             | 观察依赖方                                                 | 调度器按实例引用身份识别为一次纪元变化（INV-3），释放旧作用域并以新实例重装；只看名字或布尔位的实现会漏掉这一条                                                                                             | ✅   |
@@ -403,7 +403,7 @@ async install(scope: LifecycleScope) {
 | 9   | 某插件的延迟安装抛错（并发测试 3）                       | 依赖不变时观察；再断开并重连                               | 失败绑定当时的依赖 epoch，作用域被释放，同纪元内**不自动重试**（INV-6 / D5）；纪元变化后**恰好**重试一次                                                                                                    | ✅   |
 | 10  | 同一插件重复 `disconnect` / `connect`（并发测试 4）      | 观察事件注册与 disposer                                    | 不重复注册事件（幂等 remover 保持 `Set` 单条目语义）；scope disposer 逆序、幂等、异步释放                                                                                                                   | ✅   |
 | 11  | 插件 `inject: ['adapter:remote']`，远端永不连接          | `init()` + `connect('local')`                              | 该插件不安装；`connect()` 正常 resolve；`console.warn` **一次**说明「因依赖未满足而未安装」并列出缺失项；**不静默**（INV-5）                                                                                | ✅   |
-| 12  | search 已迁移到 `inject: ['adapter:local']`              | 全量回归                                                   | `search.ready`（[:121](../../../packages/rxdb-plugin-search/src/plugin.ts#L121)）对外语义不变；`await db.connect()` 返回即 FTS 可用（D2 附）；`SearchPluginPhase` 的 `installing` / `failed` 由宿主调度取代 | ⚠️   |
+| 12  | search 已迁移到 `inject: ['adapter:local']`              | 全量回归                                                   | `search.ready`（[:224](../../../packages/rxdb-plugin-search/src/plugin.ts#L224)）对外语义不变；`await db.connect()` 返回即 FTS 可用（D2 附）；`SearchPluginPhase` 的 `installing` / `failed` 由宿主调度取代 | ⚠️   |
 
 > **AC#12 的保留**：`search.ready` 的对外语义**有意改变**，不是「不变」。原口径是「未安装即 reject」，
 > 现在改成一个连接纪元一格的 deferred：`connect()` 之前与安装期间 **pending**，成功 resolve、
@@ -420,7 +420,7 @@ async install(scope: LifecycleScope) {
 | 14  | 两个不同工厂都声明 `name = 'search'`               | 均 `use()`，且有第三方插件 `inject: ['plugin:search']` | 按 D4 裁决：重名本身只 `console.warn`；**只有当该名字被 inject 时**才抛出「依赖歧义」错误，错误信息列出全部候选                                                                                                                              | ⬜   |
 | 15  | 插件声明 `inject: ['plugin:nonexistent']`          | `init()` + `connect()`                                 | 该插件不安装；`connect()` 正常 resolve；`console.warn` 一次列出缺失项（INV-5）                                                                                                                                                               | ⬜   |
 | 16  | A `inject: ['plugin:b']`、B `inject: ['plugin:a']` | `init()`                                               | 在**安装规划阶段**抛出环检测错误，信息给出完整环路径（`a → b → a`）；不进入半装状态，不等到运行时死锁才发现                                                                                                                                  | ⬜   |
-| 17  | 宿主已建立 `#plugin_by_name` 索引                  | 检查索引结构与 search 工厂                             | 索引为 `Map<string, IRxDBPlugin[]>`（存数组，重名不丢信息，D4 的歧义错误才能列出全部候选）；search [:538-541](../../../packages/rxdb-plugin-search/src/plugin.ts#L538-L541) 的自有属性探测改用宿主索引，`incompatible instance` 分支行为不变 | ⬜   |
+| 17  | 宿主已建立 `#plugin_by_name` 索引                  | 检查索引结构与 search 工厂                             | 索引为 `Map<string, IRxDBPlugin[]>`（存数组，重名不丢信息，D4 的歧义错误才能列出全部候选）；search [:725-728](../../../packages/rxdb-plugin-search/src/plugin.ts#L725-L728) 的自有属性探测改用宿主索引，`incompatible instance` 分支行为不变 | ⬜   |
 | 18  | `RxDBPluginDependency` 完整取值                    | 跑契约测试                                             | D1 表中六种写法的编译期结果逐条成立，尤其 `'search'` 裸名与 `'plugin:Search'` 大写开头**编译失败**                                                                                                                                           | ✅   |
 
 > **AC#18 已在阶段 A 交付**：`RxDBPluginDependency` 的封闭取值是阶段 A 的契约前提，`plugin:*` 分支
