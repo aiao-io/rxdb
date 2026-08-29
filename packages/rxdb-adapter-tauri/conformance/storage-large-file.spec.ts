@@ -17,9 +17,9 @@
  * @vitest-environment node
  */
 
+import { DESKTOP_HOST_MAX_FILE_CHUNK_BYTES } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import type { StorageFilesystem } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
-import { DESKTOP_HOST_MAX_FILE_CHUNK_BYTES } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { createHash } from 'node:crypto';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -142,24 +142,28 @@ describe('Rust 文件宿主的大文件通路', () => {
    * 写入方也是逐帧生成、写完即弃：如果写入侧必须先攒出整份 buffer，这条 AC 在写方向上
    * 就已经不成立了，后面读方向测得再省也没用。
    */
-  it('写入 52 MiB 后磁盘上的原生文件字节数与摘要都对得上', async () => {
-    const writer = await filesystem.openWrite(FILE_PATH);
-    for (let index = 0; index < FRAME_COUNT; index += 1) await writer.write(makeFrame(index));
-    await writer.close();
+  it(
+    '写入 52 MiB 后磁盘上的原生文件字节数与摘要都对得上',
+    async () => {
+      const writer = await filesystem.openWrite(FILE_PATH);
+      for (let index = 0; index < FRAME_COUNT; index += 1) await writer.write(makeFrame(index));
+      await writer.close();
 
-    // 直接量物理文件：只信 host 自己的读回，等于让被测方给自己作证。
-    const physical = join(workspace, STORAGE_DIRECTORY, ROOT_DIR, 'bulk', 'large.bin');
-    expect((await stat(physical)).size).toBe(CONTENT_BYTES);
+      // 直接量物理文件：只信 host 自己的读回，等于让被测方给自己作证。
+      const physical = join(workspace, STORAGE_DIRECTORY, ROOT_DIR, 'bulk', 'large.bin');
+      expect((await stat(physical)).size).toBe(CONTENT_BYTES);
 
-    const hash = createHash('sha256');
-    const reader = (await filesystem.openRead(FILE_PATH)).getReader();
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      hash.update(value);
-    }
-    expect(hash.digest('hex')).toBe(expectedDigest());
-  }, LARGE_FILE_TIMEOUT_MS);
+      const hash = createHash('sha256');
+      const reader = (await filesystem.openRead(FILE_PATH)).getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        hash.update(value);
+      }
+      expect(hash.digest('hex')).toBe(expectedDigest());
+    },
+    LARGE_FILE_TIMEOUT_MS
+  );
 
   /**
    * US-505 AC#5 后半：流式读的内存峰值只有一帧的量级，与内容体积无关。
@@ -170,32 +174,36 @@ describe('Rust 文件宿主的大文件通路', () => {
    * （实测 54.5 MB，即整份内容）：只卡绝对值的话，一个「其实没流式、但恰好被别的原因
    * 压住了内存」的实现也能蒙混过去；两条一起才把它排掉。
    */
-  it('流式读的内存峰值只有一帧量级，且不到累积读峰值的一半', async () => {
-    const streamingBaseline = sampleBytesHeld();
-    let streamingPeak = 0;
-    const reader = (await filesystem.openRead(FILE_PATH)).getReader();
-    for (;;) {
-      const { done } = await reader.read();
-      if (done) break;
-      streamingPeak = Math.max(streamingPeak, sampleBytesHeld() - streamingBaseline);
-    }
+  it(
+    '流式读的内存峰值只有一帧量级，且不到累积读峰值的一半',
+    async () => {
+      const streamingBaseline = sampleBytesHeld();
+      let streamingPeak = 0;
+      const reader = (await filesystem.openRead(FILE_PATH)).getReader();
+      for (;;) {
+        const { done } = await reader.read();
+        if (done) break;
+        streamingPeak = Math.max(streamingPeak, sampleBytesHeld() - streamingBaseline);
+      }
 
-    const accumulatingBaseline = sampleBytesHeld();
-    let accumulatingPeak = 0;
-    const held: Uint8Array[] = [];
-    const accumulator = (await filesystem.openRead(FILE_PATH)).getReader();
-    for (;;) {
-      const { done, value } = await accumulator.read();
-      if (done) break;
-      held.push(value);
-      accumulatingPeak = Math.max(accumulatingPeak, sampleBytesHeld() - accumulatingBaseline);
-    }
+      const accumulatingBaseline = sampleBytesHeld();
+      let accumulatingPeak = 0;
+      const held: Uint8Array[] = [];
+      const accumulator = (await filesystem.openRead(FILE_PATH)).getReader();
+      for (;;) {
+        const { done, value } = await accumulator.read();
+        if (done) break;
+        held.push(value);
+        accumulatingPeak = Math.max(accumulatingPeak, sampleBytesHeld() - accumulatingBaseline);
+      }
 
-    // 先把对照组的前提坐实：它确实把整份内容攒住了，否则下面的比值只是两个小数在比大小。
-    expect(held.reduce((total, chunk) => total + chunk.byteLength, 0)).toBe(CONTENT_BYTES);
-    expect(accumulatingPeak).toBeGreaterThan(CONTENT_BYTES);
+      // 先把对照组的前提坐实：它确实把整份内容攒住了，否则下面的比值只是两个小数在比大小。
+      expect(held.reduce((total, chunk) => total + chunk.byteLength, 0)).toBe(CONTENT_BYTES);
+      expect(accumulatingPeak).toBeGreaterThan(CONTENT_BYTES);
 
-    expect(streamingPeak).toBeLessThan(STREAMING_PEAK_CEILING);
-    expect(streamingPeak).toBeLessThan(accumulatingPeak / 2);
-  }, LARGE_FILE_TIMEOUT_MS);
+      expect(streamingPeak).toBeLessThan(STREAMING_PEAK_CEILING);
+      expect(streamingPeak).toBeLessThan(accumulatingPeak / 2);
+    },
+    LARGE_FILE_TIMEOUT_MS
+  );
 });

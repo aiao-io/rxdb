@@ -130,9 +130,7 @@ describe('startLocalDatabase', () => {
     const context = startup({ record: () => Promise.resolve(7) });
     await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
     expect(context.order).toEqual(['open', 'connect', 'record', 'probe', 'webview', 'report']);
-    expect(context.reports).toEqual([
-      { status: 'ok', launchCount: 7, storage: probeResult, webview: webviewResult }
-    ]);
+    expect(context.reports).toEqual([{ status: 'ok', launchCount: 7, storage: probeResult, webview: webviewResult }]);
     expect(context.markFailed).not.toHaveBeenCalled();
   });
 
@@ -168,9 +166,7 @@ describe('startLocalDatabase', () => {
     await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
     expect(context.order).toEqual(['open', 'connect', 'record', 'probe', 'report']);
     expect(context.markFailed).toHaveBeenCalledWith(failure);
-    expect(context.reports).toEqual([
-      { status: 'failed', message: 'the storage probe read back a different digest' }
-    ]);
+    expect(context.reports).toEqual([{ status: 'failed', message: 'the storage probe read back a different digest' }]);
   });
 
   /**

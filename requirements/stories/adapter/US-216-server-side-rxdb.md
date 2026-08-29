@@ -224,6 +224,7 @@ demo 的变更通知开关就是留给这类实验的。
 引擎拿它盖审计字段。回声抑制用的 `x-client-id` 从**请求头**读，与实例 `clientId` 无关——这条与现行后端一致。
 
 **每请求级**（必须由 server 层按请求携带，引擎不背）：
+
 1. **查询作用域**。客户端送来的 `where` 是「该用户想看的窗口」，不是执行面：server 层把租户/行级过滤
    与 `where` 做 AND 组合后再交给 `repo.find`。D8 的广播模型在多用户下恰恰因此是对的——通知不带行数据、
    不过滤，权威过滤发生在每个客户端重拉时；行级推送反而会把行数据/存在性泄漏给未授权订阅者。
@@ -251,38 +252,38 @@ demo 的变更通知开关就是留给这类实验的。
 
 ## 交付阶段
 
-| 阶段 | 内容                                                                                             | 关闭条件                                                              |
-| :--- | :----------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------- |
-| A    | 共享模块 + 后端 RxDB 装配（pglite memory）+ 确定性种子 + **七个协议端点全部**迁移（读+写一体）+ 前端切共享实体 | AC A1–A10 全绿；server.spec.ts 断言内容不变 + e2e 17 条零差异          |
-| B    | SSE 改事件驱动 + `__control/*` 适配 + 文件落盘 + 退役手写 SQL + README 修订                      | AC B1–B6 全绿；`rule-group-to-sql.ts` / `recipes-store.ts` 已删除      |
+| 阶段 | 内容                                                                                                           | 关闭条件                                                          |
+| :--- | :------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------- |
+| A    | 共享模块 + 后端 RxDB 装配（pglite memory）+ 确定性种子 + **七个协议端点全部**迁移（读+写一体）+ 前端切共享实体 | AC A1–A10 全绿；server.spec.ts 断言内容不变 + e2e 17 条零差异     |
+| B    | SSE 改事件驱动 + `__control/*` 适配 + 文件落盘 + 退役手写 SQL + README 修订                                    | AC B1–B6 全绿；`rule-group-to-sql.ts` / `recipes-store.ts` 已删除 |
 
 ## 验收标准
 
 ### 阶段 A
 
-| #   | 前置条件                         | 操作                                     | 预期结果                                                                                       | 状态 |
-| --- | -------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------- | ---- |
-| A1  | Node 26，后端进程                 | 初始化 `RxDB`（`multiInstance: false`）+ pglite 适配器并 `connect` | `getRepository(ServerRecipe)` 可用，Recipe 表建成（schema 来自共享模块）                        | ⬜   |
-| A2  | A1 就绪                          | `POST recipes/metadata`（offset 形态）   | 由 `repo.find({ where, orderBy, limit, offset })` 实现；`server.spec.ts` 断言内容不变且全绿：短页只在真末页、跨页排序稳定、五算子求值逐字一致 | ⬜   |
-| A3  | A1 就绪                          | `POST recipes/metadata`（token 形态）    | 水位线 / 快照上界 / keyset 逐页推进与现行一致（D5）；`server.spec.ts` 的 token 用例全绿；`__control/page-mode` 切换语义不变 | ⬜   |
-| A4  | A1 就绪                          | `POST recipes/by-ids`                    | `repo.find` + `in` 实现；缺失的 id 不回行、不补空对象、不回 5xx                                  | ⬜   |
-| A5  | A1 就绪                          | `HEAD recipes`                           | 表存在性判断，语义与现行一致（存在 200 / 不存在 404）                                            | ⬜   |
-| A6  | A1 就绪                          | `POST recipes`                           | `entityManager.create` 实现；回执 = 持久化行（来自库，不是入参回声）；id 采纳/缺省生成、已存在回 409（映射机制见 D4） | ⬜   |
-| A7  | A1 就绪                          | `PATCH recipes/:id`                      | `findOneOrFail` + `repo.update` 实现；不存在回 404（映射机制见 D4）；`updatedAt` 服务端定型且非入参（D4 冻结的 wire 行为） | ⬜   |
-| A8  | A1 就绪                          | `POST recipes/delete`                    | 批量删除；响应条数；空列表幂等返回 0                                                            | ⬜   |
-| A9  | 共享模块建成                     | 两端各至少一条真实查询路径调用**同一个**共享查询函数（如分页元数据查询）；两个装饰类元数据一致 | 行为与类型层面同一份代码；一致性测试冻结 name / tableName / 字段名 / 类型 / nullable              | ⬜   |
-| A10 | A9 就绪，前端切到共享实体        | 跑 `server.spec.ts` + dev-rxdb-http-e2e  | 17 条 e2e 全绿；协议流量面板、条件请求、离线降级行为与切换前零差异                               | ⬜   |
+| #   | 前置条件                  | 操作                                                                                           | 预期结果                                                                                                                                      | 状态 |
+| --- | ------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| A1  | Node 26，后端进程         | 初始化 `RxDB`（`multiInstance: false`）+ pglite 适配器并 `connect`                             | `getRepository(ServerRecipe)` 可用，Recipe 表建成（schema 来自共享模块）                                                                      | ⬜   |
+| A2  | A1 就绪                   | `POST recipes/metadata`（offset 形态）                                                         | 由 `repo.find({ where, orderBy, limit, offset })` 实现；`server.spec.ts` 断言内容不变且全绿：短页只在真末页、跨页排序稳定、五算子求值逐字一致 | ⬜   |
+| A3  | A1 就绪                   | `POST recipes/metadata`（token 形态）                                                          | 水位线 / 快照上界 / keyset 逐页推进与现行一致（D5）；`server.spec.ts` 的 token 用例全绿；`__control/page-mode` 切换语义不变                   | ⬜   |
+| A4  | A1 就绪                   | `POST recipes/by-ids`                                                                          | `repo.find` + `in` 实现；缺失的 id 不回行、不补空对象、不回 5xx                                                                               | ⬜   |
+| A5  | A1 就绪                   | `HEAD recipes`                                                                                 | 表存在性判断，语义与现行一致（存在 200 / 不存在 404）                                                                                         | ⬜   |
+| A6  | A1 就绪                   | `POST recipes`                                                                                 | `entityManager.create` 实现；回执 = 持久化行（来自库，不是入参回声）；id 采纳/缺省生成、已存在回 409（映射机制见 D4）                         | ⬜   |
+| A7  | A1 就绪                   | `PATCH recipes/:id`                                                                            | `findOneOrFail` + `repo.update` 实现；不存在回 404（映射机制见 D4）；`updatedAt` 服务端定型且非入参（D4 冻结的 wire 行为）                    | ⬜   |
+| A8  | A1 就绪                   | `POST recipes/delete`                                                                          | 批量删除；响应条数；空列表幂等返回 0                                                                                                          | ⬜   |
+| A9  | 共享模块建成              | 两端各至少一条真实查询路径调用**同一个**共享查询函数（如分页元数据查询）；两个装饰类元数据一致 | 行为与类型层面同一份代码；一致性测试冻结 name / tableName / 字段名 / 类型 / nullable                                                          | ⬜   |
+| A10 | A9 就绪，前端切到共享实体 | 跑 `server.spec.ts` + dev-rxdb-http-e2e                                                        | 17 条 e2e 全绿；协议流量面板、条件请求、离线降级行为与切换前零差异                                                                            | ⬜   |
 
 ### 阶段 B
 
-| #   | 前置条件                         | 操作                                        | 预期结果                                                                                                 | 状态 |
-| --- | -------------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ---- |
-| B1  | 阶段 A 完成                      | 开两个客户端，一端写入                      | SSE 广播由 `rxdb.addEventListener(ENTITY_LOCAL_*)` 驱动；载荷 `{ entity, clientId }`；`x-client-id` 回显抑制不变；广播发生在写入事务提交之后（core 事务事件缓冲保证，D8）；`__control/reset`、`clear` 同样广播（判据仍是「库里的行变没变」） | ⬜   |
-| B2  | 阶段 B 就绪                      | `__control/reset` 跑两遍 + 其余 `__control/*` 开关 | 全部适配新存储层；两次 reset 读出的 250 行逐字节相同（D7）；种子不逐行广播、reset 只在结尾广播一次（D7）；前三行 id 与协议文档示例一致（文档 curl 不 404）；offline / fault / cors / page-mode 行为与现行一致 | ⬜   |
-| B3  | 阶段 B 就绪                      | 文件落盘（pglite `dataDir`）+ 重启进程     | 重启后数据仍在；`__control/reset` 删库重建语义与现行一致（`.data` 目录行为）                             | ⬜   |
-| B4  | 阶段 B 就绪                      | 跑 dev-rxdb-http-e2e 变更通知相关用例       | 双页收敛、抑制回声、断开重连（US-023 D7 的全量失效）行为与切换前零差异                                  | ⬜   |
-| B5  | 阶段 B 实现完成                  | 跑门禁                                        | 全绿；[rule-group-to-sql.ts](../../../apps/dev-rxdb-http-server/src/rule-group-to-sql.ts) 与 [recipes-store.ts](../../../apps/dev-rxdb-http-server/src/recipes-store.ts) 已删除；注入载荷测试按 D6 退役；覆盖率不回退 | ⬜   |
-| B6  | 阶段 B 实现完成                  | 修订 [参考后端 README](../../../apps/dev-rxdb-http-server/README.md) | 「零依赖」一节改为如实声明新增依赖；确定性种子表述按 D7 改判（「读出的 250 行逐字节相同」）；协议示例 curl 仍逐字可跑 | ⬜   |
+| #   | 前置条件        | 操作                                                                 | 预期结果                                                                                                                                                                                                                                     | 状态 |
+| --- | --------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| B1  | 阶段 A 完成     | 开两个客户端，一端写入                                               | SSE 广播由 `rxdb.addEventListener(ENTITY_LOCAL_*)` 驱动；载荷 `{ entity, clientId }`；`x-client-id` 回显抑制不变；广播发生在写入事务提交之后（core 事务事件缓冲保证，D8）；`__control/reset`、`clear` 同样广播（判据仍是「库里的行变没变」） | ⬜   |
+| B2  | 阶段 B 就绪     | `__control/reset` 跑两遍 + 其余 `__control/*` 开关                   | 全部适配新存储层；两次 reset 读出的 250 行逐字节相同（D7）；种子不逐行广播、reset 只在结尾广播一次（D7）；前三行 id 与协议文档示例一致（文档 curl 不 404）；offline / fault / cors / page-mode 行为与现行一致                                | ⬜   |
+| B3  | 阶段 B 就绪     | 文件落盘（pglite `dataDir`）+ 重启进程                               | 重启后数据仍在；`__control/reset` 删库重建语义与现行一致（`.data` 目录行为）                                                                                                                                                                 | ⬜   |
+| B4  | 阶段 B 就绪     | 跑 dev-rxdb-http-e2e 变更通知相关用例                                | 双页收敛、抑制回声、断开重连（US-023 D7 的全量失效）行为与切换前零差异                                                                                                                                                                       | ⬜   |
+| B5  | 阶段 B 实现完成 | 跑门禁                                                               | 全绿；[rule-group-to-sql.ts](../../../apps/dev-rxdb-http-server/src/rule-group-to-sql.ts) 与 [recipes-store.ts](../../../apps/dev-rxdb-http-server/src/recipes-store.ts) 已删除；注入载荷测试按 D6 退役；覆盖率不回退                        | ⬜   |
+| B6  | 阶段 B 实现完成 | 修订 [参考后端 README](../../../apps/dev-rxdb-http-server/README.md) | 「零依赖」一节改为如实声明新增依赖；确定性种子表述按 D7 改判（「读出的 250 行逐字节相同」）；协议示例 curl 仍逐字可跑                                                                                                                        | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -316,18 +317,18 @@ demo 的变更通知开关就是留给这类实验的。
 
 ## 实现文件
 
-| 文件                                                                                          | 阶段 | 说明                                                              |
-| --------------------------------------------------------------------------------------------- | ---- | ----------------------------------------------------------------- |
-| `modules/recipes-domain/`（新建）                                                              | A    | schema 常量 + 两个装饰类 + 共享查询函数 / rxjs 组合（A9 两端实际调用） |
-| [apps/dev-rxdb-http-server/src/](../../../apps/dev-rxdb-http-server/src/) 新增 RxDB 装配模块   | A    | 后端 `RxDB` + pglite 初始化，替代 `db.ts` 的直接 `DatabaseSync` 路径 |
-| [apps/dev-rxdb-http-server/src/recipes-store.ts](../../../apps/dev-rxdb-http-server/src/recipes-store.ts) | B    | 删除；读+写路径已在 A 全迁到 Repository / EntityManager             |
-| [apps/dev-rxdb-http-server/src/rule-group-to-sql.ts](../../../apps/dev-rxdb-http-server/src/rule-group-to-sql.ts) | B    | 删除；翻译职责回引擎（D6）                                          |
-| [apps/dev-rxdb-http-server/src/change-feed.ts](../../../apps/dev-rxdb-http-server/src/change-feed.ts) / change-subscribers.ts | B    | 广播改由 `rxdb.addEventListener` 驱动，SSE 传输层不动                |
-| [apps/dev-rxdb-http-server/src/control.ts](../../../apps/dev-rxdb-http-server/src/control.ts) / seed.ts | B    | 适配新存储层；seed 按 D7（确定性 + 不逐行广播）                      |
-| [apps/dev-rxdb-http-server/README.md](../../../apps/dev-rxdb-http-server/README.md)          | B    | 「零依赖」节与确定性种子表述修订（B6）                                |
-| [apps/dev-rxdb-http/src/app/recipe.ts](../../../apps/dev-rxdb-http/src/app/recipe.ts)        | A    | 改为从共享模块导入；demo 特有注释与 `syncStaleTime: 0` 保留           |
-| 两个 server spec 文件（`rule-group-to-sql.spec.ts` / `server.spec.ts`）                        | A/B  | 前者退役；后者改为「引擎化后端」的端点级契约，断言内容不变            |
-| [packages/rxdb-adapter-http/tests/reference-server.ts](../../../packages/rxdb-adapter-http/tests/reference-server.ts) | —    | 不动——协议第二份独立实现，保留独立性（Out of Scope）                 |
+| 文件                                                                                                                          | 阶段 | 说明                                                                   |
+| ----------------------------------------------------------------------------------------------------------------------------- | ---- | ---------------------------------------------------------------------- |
+| `modules/recipes-domain/`（新建）                                                                                             | A    | schema 常量 + 两个装饰类 + 共享查询函数 / rxjs 组合（A9 两端实际调用） |
+| [apps/dev-rxdb-http-server/src/](../../../apps/dev-rxdb-http-server/src/) 新增 RxDB 装配模块                                  | A    | 后端 `RxDB` + pglite 初始化，替代 `db.ts` 的直接 `DatabaseSync` 路径   |
+| [apps/dev-rxdb-http-server/src/recipes-store.ts](../../../apps/dev-rxdb-http-server/src/recipes-store.ts)                     | B    | 删除；读+写路径已在 A 全迁到 Repository / EntityManager                |
+| [apps/dev-rxdb-http-server/src/rule-group-to-sql.ts](../../../apps/dev-rxdb-http-server/src/rule-group-to-sql.ts)             | B    | 删除；翻译职责回引擎（D6）                                             |
+| [apps/dev-rxdb-http-server/src/change-feed.ts](../../../apps/dev-rxdb-http-server/src/change-feed.ts) / change-subscribers.ts | B    | 广播改由 `rxdb.addEventListener` 驱动，SSE 传输层不动                  |
+| [apps/dev-rxdb-http-server/src/control.ts](../../../apps/dev-rxdb-http-server/src/control.ts) / seed.ts                       | B    | 适配新存储层；seed 按 D7（确定性 + 不逐行广播）                        |
+| [apps/dev-rxdb-http-server/README.md](../../../apps/dev-rxdb-http-server/README.md)                                           | B    | 「零依赖」节与确定性种子表述修订（B6）                                 |
+| [apps/dev-rxdb-http/src/app/recipe.ts](../../../apps/dev-rxdb-http/src/app/recipe.ts)                                         | A    | 改为从共享模块导入；demo 特有注释与 `syncStaleTime: 0` 保留            |
+| 两个 server spec 文件（`rule-group-to-sql.spec.ts` / `server.spec.ts`）                                                       | A/B  | 前者退役；后者改为「引擎化后端」的端点级契约，断言内容不变             |
+| [packages/rxdb-adapter-http/tests/reference-server.ts](../../../packages/rxdb-adapter-http/tests/reference-server.ts)         | —    | 不动——协议第二份独立实现，保留独立性（Out of Scope）                   |
 
 ## References
 

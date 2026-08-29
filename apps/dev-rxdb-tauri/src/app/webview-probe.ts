@@ -223,6 +223,10 @@ export const probeWebview = async (options: WebviewProbeOptions): Promise<Webvie
       WEBVIEW_PROBE_ALLOWED_PATH,
       `${baseUrl}${WEBVIEW_PROBE_ALLOWED_ROUTE}`
     ),
-    crossOriginDenied: await classifyFetch(storage, WEBVIEW_PROBE_DENIED_PATH, `${baseUrl}${WEBVIEW_PROBE_DENIED_ROUTE}`)
+    crossOriginDenied: await classifyFetch(
+      storage,
+      WEBVIEW_PROBE_DENIED_PATH,
+      `${baseUrl}${WEBVIEW_PROBE_DENIED_ROUTE}`
+    )
   };
 };

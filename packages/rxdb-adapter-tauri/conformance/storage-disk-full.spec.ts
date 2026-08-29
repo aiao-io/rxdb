@@ -25,9 +25,9 @@
  * @vitest-environment node
  */
 
+import { DESKTOP_HOST_MAX_FILE_CHUNK_BYTES } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { StorageBackendError, type StorageFilesystem } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
-import { DESKTOP_HOST_MAX_FILE_CHUNK_BYTES } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';

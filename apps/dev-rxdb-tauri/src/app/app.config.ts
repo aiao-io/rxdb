@@ -21,12 +21,7 @@ import { DesktopLaunchService } from './services/desktop-launch.service';
 import { readProbeBaseUrl, reportSelfCheck } from './services/selfcheck-reporter';
 import { localDatabase, resolveLocalBackend } from './setup_rxdb';
 import { probeStorage } from './storage-probe';
-import {
-  probeWebview,
-  readWebviewGlobals,
-  type WebviewFetchSurface,
-  type WebviewProbeResult
-} from './webview-probe';
+import { probeWebview, readWebviewGlobals, type WebviewFetchSurface, type WebviewProbeResult } from './webview-probe';
 
 /** 按浏览器/系统语言挑 locale id。 */
 const resolveLocaleId = (): string => (Intl.DateTimeFormat().resolvedOptions().locale.includes('zh') ? 'zh' : 'en-US');

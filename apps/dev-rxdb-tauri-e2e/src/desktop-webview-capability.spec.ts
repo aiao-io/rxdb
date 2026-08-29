@@ -1,5 +1,5 @@
-import { createServer, type Server } from 'node:http';
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
+import { createServer, type Server } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { platform } from 'node:process';

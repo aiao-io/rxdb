@@ -118,8 +118,7 @@ export const probeStorage = async (storage: StorageProbeSurface): Promise<Storag
   const existing = (await storage.list()).find(meta => meta.opfsPath === STORAGE_PROBE_FILE_NAME);
   const content = storageProbeContent();
   const meta =
-    existing ??
-    (await storage.upload(new File([content], STORAGE_PROBE_FILE_NAME, { type: STORAGE_PROBE_MIME })));
+    existing ?? (await storage.upload(new File([content], STORAGE_PROBE_FILE_NAME, { type: STORAGE_PROBE_MIME })));
 
   const readBack = new Uint8Array(await (await storage.read(meta.id)).arrayBuffer());
   if (readBack.byteLength !== STORAGE_PROBE_BYTES) {
