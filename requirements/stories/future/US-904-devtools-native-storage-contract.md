@@ -689,7 +689,7 @@ fake 能证明的部分已证明，剩下的部分不是「还没写测试」，
 | 40  | Chrome OPFS provider                                               | 运行阶段 B 全部 data-plane conformance             | descriptor、base64、限额、transfer、snapshot 和穷举错误全部通过，不保留旧 OPFS 私有状态机                  | ⬜      |
 | 41  | capability 为 none，握手前后产生事件并伪造查询                     | 经过真实四段 relay 观察页面消息和 provider 调用    | 仅生命周期消息；EVENT/DB_INFO/BRANCHES/Storage/files、订阅、buffer、provider 调用全部为 0                  | ⚠️ 部分 |
 | 42  | readonly/full 普通 Chrome 页面使用现有 Web adapters                | 查询、事件、branch、OPFS、Storage 与 Settings 清理 | 除数据库下载和超过协商上限的传输明确拒绝外，用户可见行为不变                                               | ⬜      |
-| 43  | Settings 展示数据库下载                                            | 点击按钮并强制发送 export 命令                     | 按钮禁用；返回 `export_unsupported`；`navigator.storage.getDirectory()`、SQLite/WAL 和文件读取次数均为 0   | ⬜      |
+| 43  | Settings 展示数据库下载                                            | 点击按钮并强制发送 export 命令                     | 按钮禁用；返回 `export_unsupported`；`navigator.storage.getDirectory()`、SQLite/WAL 和文件读取次数均为 0   | ⚠️ 部分 |
 | 44  | Chrome 与 fake native thin driver                                  | 运行同一 panel/provider conformance                | 状态、错误、授权和资源清理一致；事件集合只来自 `RXDB_EVENT_TYPES`，fixture、状态机和错误断言没有平台副本   | ⚠️ 部分 |
 
 #### 本轮落地：中继两段换成真实实现
@@ -715,8 +715,24 @@ C2 的第一、二个增量已合入，两者都不触碰组件搬迁（C1 的�
 | 41  | `none` 档零泄漏（provider 调用、订阅、buffer 全 0，握手前后各一次伪造查询）已经过**真实四段中继逻辑**断言。但「页面消息」观察的是合成的 window 事件，不是真实 `window.postMessage`                                                                                             | 扩展 e2e                       |
 | 44  | Chrome driver 与内存 driver 跑同一套件、同一 fixture、同一错误断言，结构上无处写平台副本。缺的是对照的另一端——native thin driver 要等阶段 D / US-905                                                                                                                           | 阶段 D / US-905                |
 
-AC#37～40、#42、#43 未开始：面板的 `database-state` / `devtools-state` / `opfs` 三个服务仍跑在 v1
+AC#37～40、#42 未开始：面板的 `database-state` / `devtools-state` / `opfs` 三个服务仍跑在 v1
 消息上，尚未改接 v2 `REQUEST` / `RESPONSE` / `EVENT`，私有 OPFS 状态机也还在。
+
+#### 本轮落地：panel 侧 v2 数据面客户端与导出停用
+
+1. **panel 侧 v2 数据面客户端。** 阶段 B 只交付了 connector 侧的 `endpoint.ts`，
+   panel 侧除协商状态机外没有任何请求 / 事件 / 上传的对端实现，面板服务无从改接。
+   `packages/rxdb-devtools/src/v2/panel-endpoint.ts` 补上这一半：协商接线、请求额度、
+   事件订阅与上传驱动共用一个组合根。三处与 connector 侧**有意不对称**的地方写在模块头里，
+   其中一条是协议缺口的诚实映射——冻结的 wire 上 `TRANSFER_COMPLETE` 成功时**不产生任何帧**，
+   于是上传只能报 `'sent'` 而不是 `'ok'`（不在阶段 C 私自补消息类型）。
+2. **数据库导出停用（AC#43 的面板侧）。** 删除 `scripts/download-database.ts` 整条打包路径，
+   Settings 的导出按钮改为常量禁用，强制命令固定回 `export_unsupported`。
+   `navigator.storage.getDirectory()` / SQLite / WAL 的读取次数因此**结构上**为 0——
+   代码不存在，而不是「记得别调用」。
+
+AC#43 的保留半边是 connector 侧：v2 `settings.export` 需要真实 settings provider 才能在
+对端也拒一次（面板与 connector 各拒一次是有意的纵深，见 AC#50）。
 
 ### 阶段 D — Electron 原生存储集成（AC#45～53）
 

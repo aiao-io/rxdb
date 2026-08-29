@@ -4,10 +4,8 @@ import { ConnectionGuardComponent } from '../components/connection-guard.compone
 import {
   clearDatabase,
   createScriptRequestId,
-  downloadDatabase,
   serializeFunctionWithResult,
-  type ClearDatabaseResult,
-  type DownloadDatabaseResult
+  type ClearDatabaseResult
 } from '../scripts';
 import { DatabaseStateService } from '../services/database-state.service';
 import { ThemeService } from '../services/theme.service';
@@ -55,25 +53,20 @@ import type { Theme } from '../types/devtools.types';
           </div>
         </div>
 
-        <!-- 数据库下载 -->
+        <!-- 数据库导出（已停用） -->
         <div class="card bg-base-200">
           <div class="card-body">
-            <h3 class="card-title text-sm">下载数据库</h3>
-            <p class="text-xs opacity-70">将 OPFS 中的数据库文件打包下载为 tar 文件，用于备份或调试。</p>
+            <h3 class="card-title text-sm">导出数据库</h3>
+            <p class="text-xs opacity-70">
+              导出已停用：面板不再把整个 OPFS 目录打包下载。该操作会绕过应用自己的加密与访问控制，
+              把原始 SQLite / WAL 字节交到调试通道上。请改用应用侧的备份能力。
+            </p>
             <div class="card-actions mt-4">
-              <button
-                class="btn btn-primary btn-sm"
-                [disabled]="downloadLoading() || !dbInfo()"
-                (click)="handleDownloadDatabase()"
-              >
-                @if (downloadLoading()) {
-                  <span class="loading loading-spinner loading-xs"></span>
-                  打包中...
-                } @else {
-                  下载数据库
-                }
-              </button>
+              <button class="btn btn-primary btn-sm" [disabled]="databaseExportDisabled">导出数据库</button>
             </div>
+            @if (exportRefusal()) {
+              <span class="mt-1 text-xs opacity-70">{{ exportRefusal() }}</span>
+            }
           </div>
         </div>
 
@@ -137,9 +130,26 @@ export class SettingsPage {
   readonly resolvedTheme = this.themeService.resolvedTheme;
   readonly dbInfo = this.databaseState.dbInfo;
 
-  readonly downloadLoading = signal(false);
   readonly clearLoading = signal(false);
   readonly error = signal<string | null>(null);
+
+  /**
+   * 数据库导出按钮是否禁用。
+   *
+   * @remarks
+   * 常量 `true` 而不是信号：AC#43 要求的是「没有可点的入口」，不是「某些条件下不可点」。
+   * 写成条件式会让「禁用」变成一个将来可能被某个分支解开的状态。
+   */
+  readonly databaseExportDisabled = true;
+
+  /**
+   * 强制发出的导出命令得到的固定拒绝码。
+   *
+   * @remarks
+   * 与 v2 `settings.export` 的答案一致（见 `DEVTOOLS_OPERATION_REQUIRED_CAPABILITY`）。
+   * 面板与 connector 各自拒一次是有意的：禁用按钮只挡住 UI，绕过 UI 的调用要在两侧都碰壁。
+   */
+  readonly exportRefusal = signal<string | null>(null);
 
   readonly themeOptions: { value: Theme; label: string }[] = [
     { value: 'light', label: 'Light' },
@@ -151,28 +161,16 @@ export class SettingsPage {
     this.themeService.setTheme(theme);
   }
 
-  handleDownloadDatabase(): void {
-    const databaseName = this.dbInfo()?.dbName;
-    if (!databaseName) {
-      this.error.set('未获取到数据库信息，请先刷新数据库连接');
-      return;
-    }
-
-    this.downloadLoading.set(true);
-    this.error.set(null);
-
-    void this.executeInInspectedWindow<DownloadDatabaseResult>(downloadDatabase, 'download', [databaseName])
-      .then(res => {
-        if (res?.error) {
-          this.error.set(res.error);
-        }
-      })
-      .catch(err => {
-        this.error.set(err instanceof Error ? err.message : '下载失败');
-      })
-      .finally(() => {
-        this.downloadLoading.set(false);
-      });
+  /**
+   * 强制发出数据库导出命令。
+   *
+   * @remarks
+   * AC#43：无论数据库状态如何，答案固定为 `export_unsupported`，并且**不向被检查页面
+   * 派发任何脚本**——`navigator.storage.getDirectory()`、SQLite 与 WAL 的读取次数因此结构上为 0，
+   * 而不是靠「记得别调用」维持。答案不随 {@link dbInfo} 变化：一条会变的拒绝会被读成「稍后再试」。
+   */
+  requestDatabaseExport(): void {
+    this.exportRefusal.set('export_unsupported');
   }
 
   handleClearDatabase(): void {

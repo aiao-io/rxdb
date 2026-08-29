@@ -19,11 +19,9 @@ export {
   INSPECTED_WINDOW_SCRIPT_RESULT,
   clearDatabase,
   createScriptRequestId,
-  downloadDatabase,
   executeInInspectedWindow,
   serializeFunctionWithResult,
   type ClearDatabaseResult,
-  type DownloadDatabaseResult,
   type ScriptResultPayload
 } from './scripts';
 export { DatabaseStateService } from './services/database-state.service';

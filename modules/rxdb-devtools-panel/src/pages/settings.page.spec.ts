@@ -74,36 +74,32 @@ describe('SettingsPage', () => {
     expect(page.version).toBe('9.9.9-test');
   });
 
-  it('downloads the database and reports result errors', async () => {
-    hostAccess.respondWith({ success: false, error: 'download failed' });
-
-    page.handleDownloadDatabase();
-    expect(page.downloadLoading()).toBe(true);
-    await vi.waitFor(() => expect(page.downloadLoading()).toBe(false));
-
-    expect(page.error()).toBe('download failed');
-    expect(scriptMocks.createRequestId).toHaveBeenCalledWith('download');
-    expect(scriptMocks.serialize).toHaveBeenCalledWith(expect.any(Function), 'download-request', ['demo']);
-    expect(hostAccess.evaluations).toEqual([{ code: 'serialized-code', requestId: 'download-request' }]);
+  // AC#43：数据库导出按钮永久禁用，UI 上没有可点的入口。
+  it('AC#43 MUST keep the database export action disabled', () => {
+    expect(page.databaseExportDisabled).toBe(true);
   });
 
-  it('reports rejected download executions', async () => {
-    hostAccess.respondWith(() => {
-      throw new Error('bridge failed');
-    });
-    page.handleDownloadDatabase();
-    await vi.waitFor(() => expect(page.downloadLoading()).toBe(false));
-    expect(page.error()).toBe('bridge failed');
+  // AC#43：即使有人绕过禁用状态强制发出命令，答案也是固定的 `export_unsupported`。
+  // 断言拿的是**计数**而不是沉默——`evaluations` 为空是可数的证据，
+  // 「页面看起来没反应」不是（见 US-904「拒绝是可数的，沉默不是」）。
+  it('AC#43 MUST answer export_unsupported for a forced command with zero host reads', () => {
+    page.requestDatabaseExport();
+
+    expect(page.exportRefusal()).toBe('export_unsupported');
+    expect(hostAccess.evaluations).toEqual([]);
+    expect(scriptMocks.createRequestId).not.toHaveBeenCalled();
+    expect(scriptMocks.serialize).not.toHaveBeenCalled();
   });
 
-  it('没有数据库信息时不启动下载并给出诊断', () => {
+  // 拒绝与「数据库还没连上」无关：两种状态下答案必须一致，
+  // 否则 dbInfo 一旦为空就会退化成一条可以被误读为「稍后再试」的诊断。
+  it('AC#43 MUST refuse identically when no database info is available', () => {
     database.dbInfo.set(null);
 
-    page.handleDownloadDatabase();
+    page.requestDatabaseExport();
 
+    expect(page.exportRefusal()).toBe('export_unsupported');
     expect(hostAccess.evaluations).toEqual([]);
-    expect(page.downloadLoading()).toBe(false);
-    expect(page.error()).toBe('未获取到数据库信息，请先刷新数据库连接');
   });
 
   it('does not clear data when confirmation is rejected', () => {
