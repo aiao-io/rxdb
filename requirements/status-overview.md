@@ -122,7 +122,7 @@
 
 ### [本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
 
-全部 ⬜ Backlog。**不得因分支名或 spec 已齐而把任一条标成 In Progress**（`specs/001-working-tree-commits/` 已有 spec / plan / data-model / research / quickstart / contracts，但**没有 `tasks.md`，运行时未开工**）。交付顺序 **新 bridge 发布（FR-030）→ US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）**。
+全部 ⬜ Backlog。**不得因分支名或 spec 已齐而把任一条标成 In Progress**（`specs/001-working-tree-commits/` 已有 spec / plan / data-model / research / quickstart / contracts，但**没有 `tasks.md`，运行时未开工**）。交付顺序 **新 bridge 发布（FR-030）→ US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）**。排期上整链（含桥接发布）位于 [roadmap 批次 4](roadmap.md#批次-4epic-006-链整体压后)、排在所有其他批次之后。
 
 - ⬜ [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 仍被 FR-030 挡住（`migration-release.json` 的 `bridge.tag`/`bridge.version` 为 `null`）
 - ⬜ [US-306 工作树与提交操作](stories/collaboration/US-306-working-tree-commits.md)

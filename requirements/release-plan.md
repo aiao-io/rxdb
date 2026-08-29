@@ -10,6 +10,8 @@
 - 因此下一次 schema migration 之前，**必须先从届时的发布主线重新发布一个 `kind=bridge` 的非迁移版本**。
   实际 tag/version 由 release manifest 冻结，不在需求里预猜。
 - 已发布的 `@aiao/rxdb@0.0.25` 在报假版本号，见下方[版本漂移开项](#开项0025-遗留的两条版本漂移)。
+- 按 [roadmap](roadmap.md) 排期，桥接发布已随 epic-006 链**整体压后到批次 4**；本计划在启动线 A 时执行，
+  动手前重跑下方「硬前提 2」的当前状态实测。
 
 ## 开项：0.0.25 遗留的两条版本漂移
 
@@ -131,7 +133,7 @@ $ git merge-base --is-ancestor v0.0.25^{commit} HEAD      # 失败：v0.0.25 不
 也就是说**「门禁全绿」不能作为桥接发布已完成的证据**——今天什么都不做跑它就是绿的。
 桥接发布的两条真判据（版本号 ≠ `0.0.25`、新 tag 是 `main` 祖先）都只能人工确认并留证，
 把第 0 步的 `migration-release-gate` 挂进 PR CI 也守不到它们。
-这也是 [roadmap 批次 1 线 A](roadmap.md#批次-1零前置四条线可同时开工) 的关闭判据要写五条、
+这也是 [roadmap 批次 4 线 A](roadmap.md#批次-4epic-006-链整体压后) 的关闭判据要写五条、
 并特别标出「④ 单独没有区分力」的原因。
 
 注意 `bridgeTagSupportsProtocol` 只用 `git cat-file -e` 校验文件存在、不校验内容，
