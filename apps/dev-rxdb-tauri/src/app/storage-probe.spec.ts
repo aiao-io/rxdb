@@ -10,9 +10,13 @@ import {
 
 /** 一份活在内存里的 `rxdb.storage` 替身，只实现探针用得到的那三个方法。 */
 const surface = (seed?: {
-  readonly bytes: Uint8Array;
-}): { storage: StorageProbeSurface; uploads: number; files: Map<string, Uint8Array> } => {
-  const files = new Map<string, Uint8Array>();
+  readonly bytes: Uint8Array<ArrayBuffer>;
+}): {
+  storage: StorageProbeSurface;
+  uploads: number;
+  files: Map<string, Uint8Array<ArrayBuffer>>;
+} => {
+  const files = new Map<string, Uint8Array<ArrayBuffer>>();
   const metas: StorageProbeMeta[] = [];
   const box = { uploads: 0 };
   if (seed) {
