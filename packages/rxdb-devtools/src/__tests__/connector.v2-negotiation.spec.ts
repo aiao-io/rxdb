@@ -6,6 +6,8 @@ import { DEVTOOLS_PROTOCOL_VERSION_V2 } from '../v2/constants.js';
 import type { DevToolsV2Envelope, DevToolsV2MessageType } from '../v2/wire.js';
 import { createDevToolsV2Message, isDevToolsV2Message } from '../v2/wire.js';
 import { createMockRxDB } from './fixtures/mock-rxdb.js';
+import type { FakeOpfsRoot } from './browser/fake-opfs.js';
+import { createFakeOpfsRoot } from './browser/fake-opfs.js';
 
 const TIMESTAMP = 1_700_000_000_000;
 
@@ -148,6 +150,48 @@ describe('DevToolsConnector v2 negotiation', () => {
     expect(framesOf('HANDSHAKE')).toHaveLength(0);
   });
 
+  it('MUST treat an open v2 session as connected for the v1 event stream', async () => {
+    // v1 的 `connected` 原先只认 legacy `HANDSHAKE_ACK`。可两端都会说 v2 时协商直接落到 v2，
+    // 面板**永远不会**发那条 legacy ACK——事件于是无限期滞留在 buffer 里，Database / Events
+    // 两页在真实 Chrome 上全空。这不是「v1 该退场了」，阶段 C2 只迁了 files：
+    // 数据库能力仍靠 v1 消息承载（AC#42 要求用户可见行为不变）。
+    let remotePort: MessagePort | null = null;
+    vi.spyOn(window, 'postMessage').mockImplementation(((
+      message: unknown,
+      _targetOrigin?: string,
+      transfer?: readonly Transferable[]
+    ) => {
+      posted.push(message);
+      // 握手随附的 port2 是 v1 命令面的传输层：握过手之后 EVENT 走它而不是 window 总线
+      // （见 connector 的 `#postMessage`），所以冲出去的事件只能在这一端观察到。
+      // 按能力认而不是 `instanceof MessagePort`：测试环境里的端口来自另一个 realm，
+      // 全局构造器与实例的原型链对不上，`instanceof` 会稳定判否。
+      const handed = transfer?.[0] as MessagePort | undefined;
+      if (typeof handed?.start === 'function') remotePort = handed;
+    }) as unknown as typeof window.postMessage);
+
+    connector = new DevToolsConnector({ capabilities: 'readonly' });
+    const addEventSpy = vi.spyOn(window, 'addEventListener');
+    const rxdb = createMockRxDB();
+    connector.init(rxdb);
+    const registered = addEventSpy.mock.calls.find(call => call[0] === 'message');
+    if (registered === undefined) throw new Error('connector never registered a message listener');
+    handler = registered[1] as (event: MessageEvent) => void;
+
+    const received: unknown[] = [];
+    if (remotePort === null) throw new Error('connector never handed over a session port');
+    (remotePort as MessagePort).onmessage = (event: MessageEvent) => void received.push(event.data);
+
+    rxdb.emit('ENTITY_LOCAL_CREATE', { type: 'ENTITY_LOCAL_CREATE', entityId: 'e1' });
+    expect(received).toHaveLength(0);
+
+    connect();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(connector.connected).toBe(true);
+    expect(received.filter(value => isRecordOfType(value, 'EVENT'))).toHaveLength(1);
+  });
+
   it('MUST mint a fresh session on re-init after disconnect', () => {
     init();
     const hello = (sequence: number): unknown =>
@@ -218,6 +262,63 @@ describe('DevToolsConnector v2 negotiation', () => {
     // 等一条永远不会来的 EVENT；`requestId: null` 是它诚实的关联键——订阅不是任何一条
     // REQUEST 的结果。descriptor 填上真实 provider 后这一帧自然消失。
     expect(errorsFor(null)).toEqual([{ code: 'provider_unsupported', retryable: false }]);
+  });
+
+  describe('mutation policy', () => {
+    let opfs: FakeOpfsRoot;
+
+    /** 装一个可用的 OPFS，`files` 领域才会被宣告出来。 */
+    function initWithOpfs(options: { mutationPolicy?: 'allow' | 'omit' } = {}): void {
+      opfs = createFakeOpfsRoot();
+      vi.stubGlobal('navigator', {
+        ...globalThis.navigator,
+        storage: { getDirectory: () => Promise.resolve(opfs.handle) }
+      });
+      connector = new DevToolsConnector({ capabilities: 'full', ...options });
+      const addEventSpy = vi.spyOn(window, 'addEventListener');
+      connector.init(createMockRxDB());
+      const registered = addEventSpy.mock.calls.find(call => call[0] === 'message');
+      if (registered === undefined) throw new Error('connector never registered a message listener');
+      handler = registered[1] as (event: MessageEvent) => void;
+    }
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('MUST refuse a full-tier write while the owner has not opted in', async () => {
+      // 默认拒绝：`capabilities: 'full'` 说的是「面板可以下达高权命令」，不等于
+      // 「页面愿意被写盘」。两者合一会让接上 provider 这一步顺带打开写路径。
+      //
+      // 错误码是 `provider_unsupported` 而不是一个「被策略拒绝」的专用码：阶段 B 冻结的
+      // 授权层有意让「owner 没开写」与「压根没这个领域」对外同形，否则对端可以靠错误码
+      // 的差异反推页面开了哪些写能力（见 `v2/authorization.ts` 顶部说明）。
+      initWithOpfs();
+      connect();
+      deliver(request('r1', 'create-directory', { path: 'made' }));
+      await Promise.resolve();
+
+      expect(errorsFor('r1')).toEqual([{ code: 'provider_unsupported', retryable: false }]);
+      expect(opfs.exists('made')).toBe(false);
+    });
+
+    it('MUST let a full-tier write through once the owner opts in', async () => {
+      initWithOpfs({ mutationPolicy: 'allow' });
+      connect();
+      deliver(request('r1', 'create-directory', { path: 'made' }));
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(errorsFor('r1')).toEqual([]);
+      expect(opfs.exists('made')).toBe(true);
+    });
+
+    function request(requestId: string, operation: string, params: unknown): unknown {
+      return createDevToolsV2Message(
+        'REQUEST',
+        { requestId, domain: 'files', operation, params },
+        { sessionId: sessionId(), sequence: 3, timestamp: TIMESTAMP, direction: 'panel-to-connector' }
+      );
+    }
   });
 
   it('MUST NOT answer a v2 hello at all once negotiation is disposed', () => {

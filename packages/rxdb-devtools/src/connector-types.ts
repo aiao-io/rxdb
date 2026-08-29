@@ -1,4 +1,5 @@
 import type { EntityType, RxDB } from '@aiao/rxdb';
+import type { DevToolsMutationPolicy } from './v2/authorization.js';
 import type { DevToolsCapability } from './types.js';
 
 /**
@@ -83,6 +84,21 @@ export interface DevToolsOptions {
    * 档位决定了伪造命令最多能做到什么。语义见 {@link DevToolsCapability}。
    */
   capabilities?: DevToolsCapability;
+
+  /**
+   * 页面是否为本次运行打开 v2 数据面的写路径。
+   *
+   * @defaultValue 'omit'
+   * @remarks
+   * 与 {@link DevToolsOptions.capabilities} 是两个决策者的开关，不能合成一个：
+   * 档位说的是「面板被允许下达多重的命令」，本项说的是「页面愿不愿意被写盘」。
+   * 合一之后，为了让面板能列目录而调到 `'full'`，会顺带把删除、上传、建目录一起打开。
+   *
+   * 默认 `'omit'`：接上 provider 只意味着**可读**，写入必须 owner 显式表态。
+   * 被拒时对端收到的是 `provider_unsupported`——与「没有这个领域」同形，
+   * 不泄漏页面开了哪些写能力（见 {@link DevToolsMutationPolicy}）。
+   */
+  mutationPolicy?: DevToolsMutationPolicy;
 
   /**
    * 是否允许在 opaque origin（`location.origin === 'null'`）下用 `'*'` 广播消息。

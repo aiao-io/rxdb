@@ -55,6 +55,7 @@ const DEFAULT_OPTIONS: Required<DevToolsOptions> = {
   maxBufferSize: 100,
   enabled: true,
   capabilities: 'full',
+  mutationPolicy: CONNECTOR_MUTATION_POLICY,
   allowOpaqueOrigin: false
 };
 
@@ -335,8 +336,31 @@ export class DevToolsConnector {
         return;
       }
       this.#endpoint?.receive(event.data);
+      this.#syncLegacyConnectionToSession();
     };
     window.addEventListener('message', this.#messageHandler);
+  }
+
+  /**
+   * v2 会话一旦打开，v1 事件流也算已连接。
+   *
+   * @remarks
+   * `#connected` 原先只由 legacy `HANDSHAKE_ACK` 置位。但两端都会说 v2 时协商直接落到 v2，
+   * 面板**永远不会**发那条 legacy ACK（ACK 所有权归面板，v2 分支只发 v2 ACK），于是事件
+   * 无限期滞留在 buffer 里——症状是 Database / Events 两页全空，且看起来像页面没有事件。
+   *
+   * 这不是「v1 该退场了」：阶段 C2 只把 `files` 迁到了 v2，数据库能力仍由 v1 消息承载
+   * （`database` 领域有意不宣告 descriptor，见 {@link createConnectorProviders}）。
+   * 两代协议在同一条链路上并存期间，**连接判定必须认两种证据**。
+   *
+   * 只升不降：这里不因 `sessionOpen` 转 `false` 而断开 v1。v2 session 结束有它自己的
+   * 终态处理，而 v1 的断开由 `DISCONNECT` 命令负责；让一处状态去关另一处的门会让
+   * 「谁把我断开的」不可追溯。
+   */
+  #syncLegacyConnectionToSession(): void {
+    if (this.#connected) return;
+    if (this.#endpoint?.sessionOpen !== true) return;
+    this.#onHandshakeAck();
   }
 
   /**
@@ -591,7 +615,7 @@ export class DevToolsConnector {
         message === legacyHandshake ? this.#postMessage(message, [remotePort]) : this.#postMessage(message),
       clock: createSystemClock(),
       capability: this.#options.capabilities,
-      mutationPolicy: CONNECTOR_MUTATION_POLICY,
+      mutationPolicy: this.#options.mutationPolicy,
       providers: createConnectorProviders({
         getRootDirectory: resolveBrowserOpfsRoot(),
         saveToDisk: saveFileThroughPage
