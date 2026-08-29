@@ -1,4 +1,3 @@
-import { PGliteClient } from '@aiao/rxdb-adapter-pglite';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createPgTsvectorBackend } from '../../backend/pg/pg-backend.js';
@@ -7,6 +6,9 @@ import type { FtsInstallPlan } from '../../core/fts5-installer.js';
 import type { MigrationRecordStore, RuntimeSqlExecutor } from '../../core/fts5-runtime.js';
 import type { RawFtsRow } from '../../core/result-mapper.js';
 import { SearchSchemaMismatchError } from '../../types.js';
+
+/** 动态取：静态引入会被 `enforce-module-boundaries` 判为破坏惰性加载（见 pg-fts-contract.ts）。 */
+const { PGliteClient } = await import('@aiao/rxdb-adapter-pglite');
 
 /**
  * pg-tsvector 后端的**真库**验收（US-703 AC#1～#4、#6、#7）。
@@ -17,7 +19,7 @@ import { SearchSchemaMismatchError } from '../../types.js';
  * 只有真的把 SQL 交给 PostgreSQL 才会暴露。
  */
 describe('pg-tsvector backend against a real PGlite database', () => {
-  let client: PGliteClient;
+  let client: InstanceType<typeof PGliteClient>;
   let executor: RuntimeSqlExecutor;
   let migrations: string[];
   let store: MigrationRecordStore;

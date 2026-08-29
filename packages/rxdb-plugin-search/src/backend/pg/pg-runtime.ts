@@ -136,6 +136,9 @@ const hasHealthyPgRuntimeObjects = (plan: FtsInstallPlan, objects: PgRuntimeObje
 
 const applyStructure = async (plan: FtsInstallPlan, executor: RuntimeSqlExecutor): Promise<void> => {
   const table = physicalTableOf(plan);
+  // DDL 构造器在这里才加载：静态引入会把整个 pglite 适配器拖进只用 sqlite 的下游的
+  // 加载图里（见 pg-fts-contract.ts）。这一行只有 adapter 确实是 pglite 时才执行得到。
+  const { buildCreateFtsTableSql, buildFtsTriggersSql } = await loadPgFtsDdl();
   // 两条 DDL 都是 IF NOT EXISTS，重复执行无副作用
   await execEach(executor, buildCreateFtsTableSql(table, plan.fields));
   // 函数是 CREATE OR REPLACE、trigger 先 DROP IF EXISTS 再建，同样幂等

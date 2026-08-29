@@ -1,7 +1,9 @@
-import { buildCreateFtsTableSql, buildFtsTriggersSql } from '@aiao/rxdb-adapter-pglite/fts';
 import { describe, expect, it } from 'vitest';
 
 import { splitPgStatements } from '../../backend/pg/pg-statements.js';
+
+/** 动态取：静态引入会被 `enforce-module-boundaries` 判为破坏惰性加载（见 pg-fts-contract.ts）。 */
+const { buildCreateFtsTableSql, buildFtsTriggersSql } = await import('@aiao/rxdb-adapter-pglite/fts');
 
 const FIELDS = [
   { name: 'title', isArray: false },
