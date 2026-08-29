@@ -25,7 +25,7 @@
 | Story                                                                                         | 还剩什么                                                                                                                                                                                                                                                                                                                           |
 | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                | 11 条 AC 中 9 条 ✅。AC#1/#3/#5/#8 已于 2026-08-29 补齐证据（打包应用真实重启 + 整目录拷贝启动、52 MiB 实测 + 内存曲线对比、真实 ramdisk 磁盘满）。只剩 AC#6/#7 ⚠️：specs 已就位且 macOS 全绿，但判据是三平台真实 webview，需一次 `release-desktop.yml` 的 `workflow_dispatch` 回填 `EXPECTED_BY_PLATFORM` 的 Windows / Linux 两行 |
-| [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) | 阶段 A ✅（`decision: supported`）、阶段 B ✅；阶段 C / D 未开始。阶段 D 前置已全部解除，只等阶段 C                                                                                                                                                                                                                                |
+| [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) | 阶段 A ✅（`decision: supported`）、阶段 B ✅；阶段 C 进行中——C1 行为中性抽取已交付（面板落 `modules/rxdb-devtools-panel/`，AC#31/32/33/35 ✅，AC#34 待人工浏览器回归），C2（Chrome 四段 relay v2 迁移，AC#36～44）未开始。阶段 D 前置已全部解除，只等阶段 C                                                                       |
 
 ## 待评审（1 条）
 
@@ -81,7 +81,9 @@
 - 🚧 [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)
   - ✅ 阶段 A Electron 43 MV3 可行性门禁（`decision: supported`）
   - ✅ 阶段 B v2 协议（控制面 + provider 数据面）
-  - ⬜ 阶段 C 共享面板 library 与 Chrome v2 迁移（C1 面板抽取可与阶段 B 并行；C2 四段 relay 与 v2 切换）
+  - 🚧 阶段 C 共享面板 library 与 Chrome v2 迁移
+    - ✅ C1 行为中性抽取 → `modules/rxdb-devtools-panel/`（AC#31/32/33/35；AC#34 待人工浏览器回归）
+    - ⬜ C2 四段 relay 与 v2 切换（AC#36～44）
   - ⬜ 阶段 D Electron 原生存储集成（依赖 阶段 A + 阶段 C + US-207 + US-504）
 - ⬜ [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1 依赖 US-904 阶段 C；阶段 2 依赖 US-210 + US-505
 

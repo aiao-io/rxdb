@@ -34,12 +34,12 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 交付                                                    | 直接前置                                     | AC 区段   | 状态                   |
-| ---- | ------------------------------------------------------- | -------------------------------------------- | --------- | ---------------------- |
-| A    | Electron 43 + 当前 MV3 扩展 stop/go 实证                | 无                                           | AC#1～6   | ✅ 已交付（supported） |
-| B    | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面 | 无                                           | AC#7～30  | ✅ 已交付（5 条保留）  |
-| C    | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移   | 阶段 B（仅其阶段 2）                         | AC#31～44 | ⬜ 未开始              |
-| D    | Electron desktop SQLite / native files 接入与真实 E2E   | 阶段 A(supported) + 阶段 C + US-207 / US-504 | AC#45～53 | ⬜ 未开始              |
+| 阶段 | 交付                                                    | 直接前置                                     | AC 区段   | 状态                                              |
+| ---- | ------------------------------------------------------- | -------------------------------------------- | --------- | ------------------------------------------------- |
+| A    | Electron 43 + 当前 MV3 扩展 stop/go 实证                | 无                                           | AC#1～6   | ✅ 已交付（supported）                            |
+| B    | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面 | 无                                           | AC#7～30  | ✅ 已交付（5 条保留）                             |
+| C    | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移   | 阶段 B（仅其阶段 2）                         | AC#31～44 | 🚧 C1 已交付（AC#34 待人工浏览器回归）；C2 未开始 |
+| D    | Electron desktop SQLite / native files 接入与真实 E2E   | 阶段 A(supported) + 阶段 C + US-207 / US-504 | AC#45～53 | ⬜ 未开始                                         |
 
 - 阶段 A 与阶段 B 相互独立，可并行开工；阶段 C 的阶段 1（行为中性抽取）也可与阶段 B 并行。
 - 阶段 B 已交付：本包内的 v2 协议、provider 数据面与 conformance suite 全部落地，5 条 AC 因只能由真实
@@ -166,9 +166,13 @@ US-210 → US-505
   兼容形态在阶段 C 的 plan 阶段二选一并写明理由：**完整 facade**（旧 connector 继续可用，但要长期维护
   两套语义映射，且必须写明维护到哪个版本）或**版本闸门**（只回一条「connector 版本过低，请升级到 ≥ X」
   并停止会话，维护成本低但直接打断旧应用的调试）。
-- **私有面板 library。** `packages/rxdb-devtools-panel/` 必须是正式 workspace dependency，但 package
-  manifest 设 `private: true`，Nx tag 不得使用 `npm:public`，并从 fixed release group 的 `packages/*`
-  匹配中显式排除。它不增加公开 npm 包数量，也不进入 API baseline。
+- **私有面板 library。** `modules/rxdb-devtools-panel/` 住在 `modules/` 而非 `packages/`，沿用本仓
+  `modules/angular`、`modules/angular-todo` 的既有范式：**不进 pnpm workspace，只经 tsconfig paths
+  以源码嵌入被消费**（见 `pnpm-workspace.yaml` 的注释）。依赖关系由 Nx 项目图承担——`nx graph` 会记录
+  `rxdb-devtools-extension → rxdb-devtools-panel` 的 static 边，与 `dev-rxdb-angular → angular` 同理，
+  因此「源码别名让依赖不可见」这一风险不成立。它落在 `packages/*` 之外，天然不增加公开 npm 包数量、
+  不进 API baseline、不进 fixed release group，无需任何否定匹配或 `private` 豁免；package manifest 仍设
+  `private: true` 作为本地 `npm publish` 的兜底闸。
 - **开发态隔离。** 扩展加载 / 调试窗口只在显式开发配置下启用；默认生产包不包含、不自动启用，
   release 产物不含调试 bootstrap、专用 command 或只服务调试窗口的 capability。
 
@@ -226,7 +230,7 @@ US-210 → US-505
 
 ### Out of Scope（阶段 A）
 
-- 抽取 `packages/rxdb-devtools-panel/`、修改正式 wire 或新增 provider
+- 抽取 `modules/rxdb-devtools-panel/`、修改正式 wire 或新增 provider
 - 接入 US-207 SQLite、US-504 原生文件或任何业务数据
 - 用 Chrome 成功、mock API 或渲染进程单测替代 Electron 43 证据
 - unsupported 时直接实现独立 DevTools window；该分支必须先修改本文件的共享契约再另行排期。替代承载
@@ -470,7 +474,7 @@ transport 不得临时发明平台私有码。
 
 **C1 — 共享面板 library**
 
-- 用 generator 创建 `packages/rxdb-devtools-panel/` 私有 Angular library
+- 用 generator 创建 `modules/rxdb-devtools-panel/` 私有 Angular library
 - 迁入面板组件、状态服务与视图模型；迁移前后用户可见行为、路由和文案保持一致
 - 定义平台无关 transport token（消息收发 + 连接生命周期），Chrome runtime/PortService 只作为该 token
   的一个 adapter 在 `apps/rxdb-devtools-extension/` 侧注入
@@ -500,10 +504,15 @@ transport 不得临时发明平台私有码。
 
 ### 私有 library 边界
 
-- `packages/rxdb-devtools-panel/package.json` 必须 `private: true`，不得声明 `npm:public` tag 或 publish target
-- `nx.json.release.projects` 必须显式排除该 project；fixed release version/publish dry-run 不得修改或发布它
-- Chrome/Electron/Tauri 通过 package manager workspace dependency 消费，不使用 tsconfig path 绕过依赖
+- library 落在 `modules/` 而非 `packages/`，因此不被 `nx.json.release.projects` 的 `packages/*`、
+  `scripts/audit/api-surface.mjs` 与包数量统计扫到——隔离是**结构性**的，不靠否定匹配或 `private` 豁免。
+  `release.projects` 必须保持朴素的 `["packages/*"]`，不得为它增设否定项；publish dry-run 不得出现该 project
+- `modules/rxdb-devtools-panel/package.json` 仍设 `private: true`（本地 `npm publish` 的兜底闸），
+  不得声明 `npm:public` tag 或 publish target
+- Chrome/Electron/Tauri 经 tsconfig paths 以**源码嵌入**消费，同 `modules/` 其余成员；依赖关系由 Nx 项目图
+  记录（`nx graph` 须存在 app → panel 的 static 边），不得复制源码
 - API baseline 与公开包统计继续只包含现有公开 npm 包；本阶段不改变 `capability-matrix.md` 的公开包统计
+  （31 个 `packages/*`、0 个 `private: true`、30 个受 baseline 保护，逐字不变）
 - library 构建不得把 Chrome types/runtime 变成传递依赖；surface adapter 在各 app 侧提供 transport
 
 ### transport token 契约
@@ -661,13 +670,13 @@ fake 能证明的部分已证明，剩下的部分不是「还没写测试」，
 
 ### 阶段 C1 — 行为中性抽取（AC#31～35）
 
-| #   | 前置条件                           | 操作                                                              | 预期结果                                                                                                 | 状态 |
-| --- | ---------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ---- |
-| 31  | generator 创建私有 panel library   | 检查 project、manifest、graph 与 release dry-run                  | 正式 workspace dependency 生效；private project 不在 public tag、API baseline、版本改写或 publish 列表中 | ⬜   |
-| 32  | Chrome surface 构建                | 扫描共享 library import graph                                     | UI/状态服务只依赖 transport token；不引用 chrome runtime、PortService 或任何桌面 global                  | ⬜   |
-| 33  | 抽取完成                           | 只用内存 fake transport 在单测中启动面板并渲染各页                | 面板可在无任何 `chrome.*` 的环境下装配；token 是唯一接缝                                                 | ⬜   |
-| 34  | 抽取前的浏览器回归基线已记录       | 抽取后重跑 Database、Events、branch、Storage、OPFS、Settings 清理 | 用户可见行为、wire 消息与错误展示与基线一致；**C1 不引入任何协议或行为差异**                             | ⬜   |
-| 35  | 公开包统计与 API baseline 已有基线 | 运行 API surface 审计与包数量统计                                 | 公开包数量与 baseline 条目不变；`packages/rxdb-devtools-panel/` 不产生任何公开子路径入口                 | ⬜   |
+| #   | 前置条件                           | 操作                                                              | 预期结果                                                                                                                           | 状态 |
+| --- | ---------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 31  | generator 创建私有 panel library   | 检查 project、manifest、graph 与 release dry-run                  | `nx graph` 存在 app → panel 的 static 边；project 落在 `packages/*` 之外，不在 public tag、API baseline、版本改写或 publish 列表中 | ✅   |
+| 32  | Chrome surface 构建                | 扫描共享 library import graph                                     | UI/状态服务只依赖 transport token；不引用 chrome runtime、PortService 或任何桌面 global                                            | ✅   |
+| 33  | 抽取完成                           | 只用内存 fake transport 在单测中启动面板并渲染各页                | 面板可在无任何 `chrome.*` 的环境下装配；token 是唯一接缝                                                                           | ✅   |
+| 34  | 抽取前的浏览器回归基线已记录       | 抽取后重跑 Database、Events、branch、Storage、OPFS、Settings 清理 | 用户可见行为、wire 消息与错误展示与基线一致；**C1 不引入任何协议或行为差异**                                                       | ⬜   |
+| 35  | 公开包统计与 API baseline 已有基线 | 运行 API surface 审计与包数量统计                                 | 公开包数量与 baseline 条目不变；`modules/rxdb-devtools-panel/` 不产生任何公开子路径入口                                            | ✅   |
 
 ### 阶段 C2 — Chrome v2 迁移（AC#36～44）
 
@@ -701,22 +710,21 @@ fake 能证明的部分已证明，剩下的部分不是「还没写测试」，
 
 ## 实现所有权
 
-| 路径                                   | 阶段       | 边界                                                                                          |
-| -------------------------------------- | ---------- | --------------------------------------------------------------------------------------------- |
-| `packages/rxdb-devtools/src/`          | B          | v2 envelope、协商、session、授权、ID 预算、错误和生命周期                                     |
-| `packages/rxdb-devtools/src/provider/` | B          | descriptor、授权、transfer、snapshot、错误和规范化 helper                                     |
-| `packages/rxdb-devtools/src/testing/`  | B          | fake 四段 relay、fake providers、JSON driver 与完整 conformance suite                         |
-| `packages/rxdb-devtools-panel/`        | C          | `private: true` 的 Angular library、共享面板、状态服务与 transport token                      |
-| `nx.json`                              | C          | 将私有 panel project 排除出 `release.projects`                                                |
-| `apps/rxdb-devtools-extension/`        | A / C      | A ✅ 只用现有构建产物，源码零改动；C 拥有 Chrome adapter、四段 relay、v2 迁移与禁用不安全下载 |
-| `apps/dev-rxdb-electron/`              | A / D      | A ✅ `tools/devtools-mv3-probe.mjs`；D 做开发态加载、preload/main 接线与生产隔离              |
-| `apps/dev-rxdb-electron-e2e/`          | A / D      | A ✅ `src/devtools-mv3-feasibility.spec.ts`；D 提供持久化、重启与安全边界 E2E                 |
-| `apps/dev-rxdb-tauri/`                 | US-905     | DevTools bootstrap、Tauri transport adapter、受限窗口与 dev-only capability                   |
-| `packages/rxdb-adapter-electron/`      | D          | Electron SQLite 只读诊断 provider，不增加任意 SQL                                             |
-| `packages/rxdb-adapter-tauri/`         | US-905     | Tauri SQLite 只读诊断 provider，不增加任意 SQL                                                |
-| `packages/rxdb-plugin-storage/`        | D / US-905 | Electron / Tauri 原生文件调试 provider，复用业务路径与流式语义                                |
-| `apps/dev-rxdb-tauri-e2e/`             | 共享       | US-210 / US-905 先开工者用 generator 创建一次；各故事只拥有自己的 specs                       |
-| `requirements/api-baseline/`           | 改动方     | 只有新增公开 API 时同步                                                                       |
+| 路径                                   | 阶段       | 边界                                                                                                               |
+| -------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------ |
+| `packages/rxdb-devtools/src/`          | B          | v2 envelope、协商、session、授权、ID 预算、错误和生命周期                                                          |
+| `packages/rxdb-devtools/src/provider/` | B          | descriptor、授权、transfer、snapshot、错误和规范化 helper                                                          |
+| `packages/rxdb-devtools/src/testing/`  | B          | fake 四段 relay、fake providers、JSON driver 与完整 conformance suite                                              |
+| `modules/rxdb-devtools-panel/`         | C          | 源码嵌入式 Angular library、共享面板、状态服务与 transport token（不在 `packages/*`，故不触碰 release/audit 配置） |
+| `apps/rxdb-devtools-extension/`        | A / C      | A ✅ 只用现有构建产物，源码零改动；C 拥有 Chrome adapter、四段 relay、v2 迁移与禁用不安全下载                      |
+| `apps/dev-rxdb-electron/`              | A / D      | A ✅ `tools/devtools-mv3-probe.mjs`；D 做开发态加载、preload/main 接线与生产隔离                                   |
+| `apps/dev-rxdb-electron-e2e/`          | A / D      | A ✅ `src/devtools-mv3-feasibility.spec.ts`；D 提供持久化、重启与安全边界 E2E                                      |
+| `apps/dev-rxdb-tauri/`                 | US-905     | DevTools bootstrap、Tauri transport adapter、受限窗口与 dev-only capability                                        |
+| `packages/rxdb-adapter-electron/`      | D          | Electron SQLite 只读诊断 provider，不增加任意 SQL                                                                  |
+| `packages/rxdb-adapter-tauri/`         | US-905     | Tauri SQLite 只读诊断 provider，不增加任意 SQL                                                                     |
+| `packages/rxdb-plugin-storage/`        | D / US-905 | Electron / Tauri 原生文件调试 provider，复用业务路径与流式语义                                                     |
+| `apps/dev-rxdb-tauri-e2e/`             | 共享       | US-210 / US-905 先开工者用 generator 创建一次；各故事只拥有自己的 specs                                            |
+| `requirements/api-baseline/`           | 改动方     | 只有新增公开 API 时同步                                                                                            |
 
 ## 依赖与排期
 
