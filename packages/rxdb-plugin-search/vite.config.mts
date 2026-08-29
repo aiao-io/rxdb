@@ -72,6 +72,8 @@ export default defineConfig(() => ({
       checks: { pluginTimings: false },
       external: [
         '@aiao/rxdb',
+        '@aiao/rxdb-adapter-pglite',
+        '@aiao/rxdb-adapter-pglite/fts',
         '@aiao/rxdb-adapter-sqlite-core',
         '@aiao/rxdb-adapter-sqlite-wasm',
         'rxjs',
@@ -102,6 +104,8 @@ export default defineConfig(() => ({
     include: ['fastest-levenshtein', 'ms', 'uuid'],
     exclude: [
       '@aiao/rxdb',
+      '@aiao/rxdb-adapter-pglite',
+      '@aiao/rxdb-adapter-pglite/fts',
       '@aiao/rxdb-adapter-sqlite-core',
       '@aiao/rxdb-adapter-sqlite-wasm',
       'comlink',

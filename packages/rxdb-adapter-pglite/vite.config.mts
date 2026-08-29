@@ -117,10 +117,13 @@ export default defineConfig(() => {
         transformMixedEsModules: true
       },
       lib: {
-        // 也可以是字典或多个入口数组。
-        entry: 'src/index.ts',
+        // 多入口：`./fts` 是独立子路径导出，必须单独成产物。
+        // 它只依赖 `sql_dialect` 与 `pglite.utils`，不引 `@electric-sql/pglite`，
+        // 这样 `@aiao/rxdb-plugin-search` 引它构造 PG 侧 DDL 时，
+        // 不会把整个 PGlite WASM 运行时拖进搜索插件的依赖图。
+        entry: { index: 'src/index.ts', 'fts/index': 'src/fts/index.ts' },
         name: '@aiao/rxdb-adapter-pglite',
-        fileName: 'index',
+        fileName: (_format: string, entryName: string) => `${entryName}.js`,
         // 改成你需要支持的格式。
         // 别忘了同步更新 package.json。
         formats: ['es' as const]

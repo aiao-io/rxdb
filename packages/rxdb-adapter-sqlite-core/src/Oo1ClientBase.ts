@@ -1,5 +1,6 @@
 import { AsyncQueueExecutor, EventDispatcher, get } from '@aiao/utils';
 import { executeOo1Helper } from './execute_oo1_helper.js';
+import { FTS_BIGRAM_SQL_FUNCTION, indexTextForFts } from './fts5/cjk-bigram.js';
 import type { Oo1Database, Oo1Static } from './oo1-types.js';
 import type { SqliteClientLike } from './RxDBAdapterSqliteBase.js';
 import { SQLiteChangeType } from './sqlite-backend.interface.js';
@@ -429,6 +430,16 @@ export abstract class Oo1ClientBase<TLoadOptions extends Oo1ClientLoadOptions = 
         console.warn(`[${this.clientName}] regexp_replace(${String(args[0])}) failed:`, err);
         return String(args[1]);
       }
+    });
+
+    // `rxdb_fts_bigram(text)`：FTS5 写入侧的 CJK bigram 变换，由
+    // `@aiao/rxdb-plugin-search` 生成的 trigger 与 backfill SQL 调用。
+    // 与查询侧 `compileCjkToken` 共用同一份实现——两侧切分方式只要不一致，索引就整体失配。
+    // NULL 原样返回（FTS5 视作空内容），非 CJK 文本零改动。
+    this.db.createFunction(FTS_BIGRAM_SQL_FUNCTION, (_ctxPtr: unknown, ...args: unknown[]) => {
+      const value = args[0];
+      if (value === null || value === undefined) return null;
+      return indexTextForFts(String(value));
     });
   }
 }

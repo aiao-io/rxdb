@@ -16,6 +16,7 @@
 import { quote_sql_identifier, SQLITE_MAX_BIND_VARIABLES, type FtsField } from '@aiao/rxdb-adapter-sqlite-core';
 import { SearchExecutionError, SearchQueryLimitError } from '../types.js';
 import type { ResultWithPenalty } from './aggregator.js';
+import { mergeAndSortResults } from './merge-results.js';
 import type { CompiledQuery } from './query-compiler.js';
 import { mapRowsToResults, SNIPPET_MATCH_END, SNIPPET_MATCH_START, type RawFtsRow } from './result-mapper.js';
 
@@ -184,27 +185,6 @@ export const buildFieldContainsSql = (opts: {
 /** contains fallback 前的行数预算探针。 */
 export const buildSourceRowCountSql = (table: string): string =>
   `SELECT count(*) AS count FROM ${quote_sql_identifier(table)}`;
-
-const mergeAndSortResults = (perField: readonly ResultWithPenalty[][]): ResultWithPenalty[] => {
-  // 单分支命中时跳过去重 + Map 构造，直接复用已排序数组。
-  if (perField.length === 1) return [...perField[0]];
-
-  const byId = new Map<string, ResultWithPenalty>();
-  for (const batch of perField) {
-    for (const result of batch) {
-      const existing = byId.get(result.id);
-      if (!existing || result.rank < existing.rank) byId.set(result.id, result);
-    }
-  }
-  if (byId.size === 0) return [];
-
-  const merged = [...byId.values()];
-  merged.sort((a, b) => {
-    if (a.rank !== b.rank) return a.rank - b.rank;
-    return (a._prefixPenalty ?? 0) - (b._prefixPenalty ?? 0);
-  });
-  return merged;
-};
 
 /**
  * 构造一个 `SearchEngine`，绑定 SQL 执行器。

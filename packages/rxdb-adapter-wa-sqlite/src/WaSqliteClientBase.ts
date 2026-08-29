@@ -2,7 +2,9 @@ import type { SqliteChangeEvent, SQLiteCompatibleType, SqliteResult } from '@aia
 import {
   type ChangeRecordEvent,
   DEFAULT_BATCH_TIMEOUT,
+  FTS_BIGRAM_SQL_FUNCTION,
   get_cached_regexp,
+  indexTextForFts,
   MAX_BATCH_WAIT_MS,
   RxDBAdapterSqliteError,
   SQLiteChangeType,
@@ -338,5 +340,12 @@ function registerCustomFunctions(sqlite: SQLiteAPI, db: number): void {
     const replacement = sqlite.value_text(values[2]);
     const flags = values.length > 3 ? sqlite.value_text(values[3]) : '';
     sqlite.result(context, text.replace(get_cached_regexp(pattern, flags), replacement));
+  });
+  // `rxdb_fts_bigram(text)`：FTS5 写入侧的 CJK bigram 变换，由
+  // `@aiao/rxdb-plugin-search` 生成的 trigger 与 backfill SQL 调用。
+  // 实现取自 `@aiao/rxdb-adapter-sqlite-core`，与查询侧 `compileCjkToken` 同源——
+  // 两侧切分方式只要不一致，索引就整体失配。NULL 原样返回，非 CJK 文本零改动。
+  sqlite.create_function(db, FTS_BIGRAM_SQL_FUNCTION, 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, 0, (context, values) => {
+    sqlite.result(context, indexTextForFts(sqlite.value_text(values[0])));
   });
 }

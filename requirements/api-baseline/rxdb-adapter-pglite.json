@@ -242,6 +242,40 @@
         "kind": "value"
       }
     ],
+    "./fts": [
+      {
+        "name": "buildCreateFtsTableSql",
+        "kind": "value"
+      },
+      {
+        "name": "buildFtsTriggersSql",
+        "kind": "value"
+      },
+      {
+        "name": "DEFAULT_FTS_ARRAY_KIND",
+        "kind": "value"
+      },
+      {
+        "name": "DEFAULT_FTS_REGCONFIG",
+        "kind": "value"
+      },
+      {
+        "name": "FTS_COLUMN",
+        "kind": "value"
+      },
+      {
+        "name": "FtsArrayKind",
+        "kind": "type"
+      },
+      {
+        "name": "FtsField",
+        "kind": "type"
+      },
+      {
+        "name": "FtsOptions",
+        "kind": "type"
+      }
+    ],
     "./testing": [
       {
         "name": "cleanup_db",

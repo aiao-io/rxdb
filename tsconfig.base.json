@@ -36,6 +36,7 @@
       "@aiao/rxdb-adapter-encrypted/testing": ["./packages/rxdb-adapter-encrypted/src/testing.ts"],
       "@aiao/rxdb-adapter-pglite": ["./packages/rxdb-adapter-pglite/src/index.ts"],
       "@aiao/rxdb-adapter-pglite/testing": ["./packages/rxdb-adapter-pglite/src/testing.ts"],
+      "@aiao/rxdb-adapter-pglite/fts": ["./packages/rxdb-adapter-pglite/src/fts/index.ts"],
       "@aiao/rxdb-adapter-wa-sqlite": ["./packages/rxdb-adapter-wa-sqlite/src/index.ts"],
       "@aiao/rxdb-adapter-wa-sqlite/client": ["./packages/rxdb-adapter-wa-sqlite/src/WaSqliteClientBase.ts"],
       "@aiao/rxdb-adapter-miniprogram": ["./packages/rxdb-adapter-miniprogram/src/index.ts"],

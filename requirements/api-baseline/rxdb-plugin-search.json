@@ -34,6 +34,18 @@
         "kind": "value"
       },
       {
+        "name": "createFts5Backend",
+        "kind": "value"
+      },
+      {
+        "name": "createPgTsvectorBackend",
+        "kind": "value"
+      },
+      {
+        "name": "createSearchBackend",
+        "kind": "value"
+      },
+      {
         "name": "createSearchEngine",
         "kind": "value"
       },
@@ -58,6 +70,10 @@
         "kind": "type"
       },
       {
+        "name": "FULL_SEARCH_CAPABILITIES",
+        "kind": "value"
+      },
+      {
         "name": "installFtsForEntity",
         "kind": "value"
       },
@@ -68,6 +84,10 @@
       {
         "name": "InvalidSearchableField",
         "kind": "type"
+      },
+      {
+        "name": "lookupSearchBackendDescriptor",
+        "kind": "value"
       },
       {
         "name": "MAX_CONTAINS_FALLBACK_ROWS",
@@ -98,6 +118,10 @@
         "kind": "type"
       },
       {
+        "name": "resolveSearchBackend",
+        "kind": "value"
+      },
+      {
         "name": "resolveSearchScope",
         "kind": "value"
       },
@@ -114,8 +138,36 @@
         "kind": "both"
       },
       {
+        "name": "SEARCH_BACKEND_DESCRIPTORS",
+        "kind": "value"
+      },
+      {
         "name": "SEARCHABLE_PROPERTY_TYPES",
         "kind": "value"
+      },
+      {
+        "name": "SearchBackend",
+        "kind": "type"
+      },
+      {
+        "name": "SearchBackendCapabilities",
+        "kind": "type"
+      },
+      {
+        "name": "SearchBackendCapabilityError",
+        "kind": "both"
+      },
+      {
+        "name": "SearchBackendDescriptor",
+        "kind": "type"
+      },
+      {
+        "name": "SearchBackendId",
+        "kind": "type"
+      },
+      {
+        "name": "SearchBackendStatus",
+        "kind": "type"
       },
       {
         "name": "SearchEncryptedFieldError",
