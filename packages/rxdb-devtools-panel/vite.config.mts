@@ -5,6 +5,11 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/packages/rxdb-devtools-panel',
+  // 面板源码用 `@aiao/rxdb-devtools-panel/wire` 引自己的次入口（宿主也用同一个说明符），
+  // vitest 得靠 tsconfig paths 才能把它解析回 workspace 源码。
+  resolve: {
+    tsconfigPaths: true
+  },
   plugins: [angular({ jit: true, tsconfig: `${import.meta.dirname}/tsconfig.spec.json` })],
   test: {
     name: 'rxdb-devtools-panel',

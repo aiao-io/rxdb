@@ -1,30 +1,29 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { MAX_OPFS_UPLOAD_BYTES, withOpfsRequestId, type OpfsRequest, type OpfsResponse } from '../../content/opfs';
-import { bytesToBase64, normalizePath } from '@aiao/rxdb-devtools-panel/wire';
+import {
+  bytesToBase64,
+  MAX_OPFS_UPLOAD_BYTES,
+  normalizePath,
+  type DirectoryEntry,
+  type OpfsRequest,
+  type OpfsResponse
+} from '@aiao/rxdb-devtools-panel/wire';
 import { ToastService } from '../components/toast.component';
+import { DEVTOOLS_FILE_CHANNEL } from '../transport';
 import type { OpfsErrorKind, OPFSFile } from '../types/devtools.types';
-
-interface DirectoryEntry {
-  name: string;
-  kind: 'file' | 'directory';
-  size?: number;
-  type?: string;
-  lastModified?: number;
-  relativePath: string;
-  entries?: Record<string, DirectoryEntry>;
-}
 
 const UPLOAD_CHUNK_BYTES = 256 * 1024;
 
 /**
  * OPFS 文件系统服务
- * 直接使用 chrome.tabs.sendMessage 与 opfs-content.ts 通信
+ *
+ * @remarks
+ * 只认 {@link DEVTOOLS_FILE_CHANNEL} 这条平台中立信道；请求 id、上传会话 id 与宿主寻址
+ * （Chrome 侧的 tabId）全部由 adapter 负责，本服务不认识任何宿主概念。
  */
 @Injectable({ providedIn: 'root' })
 export class OpfsService {
   private readonly toastService = inject(ToastService);
-  private requestSequence = 0;
-  private uploadSequence = 0;
+  private readonly fileChannel = inject(DEVTOOLS_FILE_CHANNEL);
 
   /** 当前路径 */
   readonly currentPath = signal('/');
@@ -154,7 +153,7 @@ export class OpfsService {
    * 上传文件
    */
   async upload(file: File): Promise<boolean> {
-    const uploadId = `${chrome.devtools.inspectedWindow.tabId}:upload:${++this.uploadSequence}`;
+    const uploadId = this.fileChannel.createUploadId();
     let started = false;
     try {
       if (file.size > MAX_OPFS_UPLOAD_BYTES) {
@@ -225,15 +224,9 @@ export class OpfsService {
     }
   }
 
-  /**
-   * 发送消息到 content script (opfs-content.ts)
-   */
+  /** 发送一条 OPFS 请求；requestId 的铸造与配对校验由信道实现负责。 */
   private sendToContentScript(message: Omit<OpfsRequest, 'requestId'>): Promise<OpfsResponse> {
-    return withOpfsRequestId(
-      message,
-      request => chrome.tabs.sendMessage(chrome.devtools.inspectedWindow.tabId, request) as Promise<OpfsResponse>,
-      () => `${chrome.devtools.inspectedWindow.tabId}:${++this.requestSequence}`
-    );
+    return this.fileChannel.request(message);
   }
 
   /**

@@ -1,8 +1,10 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { OpfsRequest, OpfsResponse } from '../../content/opfs';
+import type { OpfsRequest, OpfsResponse } from '@aiao/rxdb-devtools-panel/wire';
 import { ToastService } from '../components/toast.component';
+import { DEVTOOLS_FILE_CHANNEL } from '../transport';
+import { FakeDevToolsFileChannel } from '../testing';
 import type { OPFSFile } from '../types/devtools.types';
 import { OpfsService } from './opfs.service';
 
@@ -12,10 +14,11 @@ class ToastStub {
   readonly error = vi.fn();
 }
 
-type ResponseFactory = (request: OpfsRequest) => OpfsResponse | Promise<OpfsResponse>;
+type ResponseFactory = (request: Omit<OpfsRequest, 'requestId'>) => OpfsResponse | Promise<OpfsResponse>;
 
-function responseFor(request: OpfsRequest, response: Omit<OpfsResponse, 'requestId'>): OpfsResponse {
-  return { requestId: request.requestId, ...response };
+// requestId 由信道铸造并在返回前填回，responder 无从、也无需关心它。
+function responseFor(response: Omit<OpfsResponse, 'requestId'>): OpfsResponse {
+  return { requestId: '', ...response };
 }
 
 const rootStructure = {
@@ -47,35 +50,33 @@ const rootStructure = {
 
 describe('OpfsService', () => {
   let toast: ToastStub;
-  let sendMessage: ReturnType<typeof vi.fn>;
+  let fileChannel: FakeDevToolsFileChannel;
   let responders: ResponseFactory[];
   let service: OpfsService;
 
   beforeEach(() => {
     toast = new ToastStub();
     responders = [];
-    sendMessage = vi.fn(async (_tabId: number, request: OpfsRequest) => {
+    fileChannel = new FakeDevToolsFileChannel(request => {
       const responder = responders.shift();
       if (!responder) throw new Error(`Unexpected request: ${request.message}`);
       return responder(request);
     });
-    vi.stubGlobal('chrome', {
-      tabs: { sendMessage },
-      devtools: { inspectedWindow: { tabId: 17 } }
-    } as unknown as typeof chrome);
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), OpfsService, { provide: ToastService, useValue: toast }]
+      providers: [
+        provideZonelessChangeDetection(),
+        OpfsService,
+        { provide: ToastService, useValue: toast },
+        { provide: DEVTOOLS_FILE_CHANNEL, useValue: fileChannel }
+      ]
     });
     service = TestBed.inject(OpfsService);
   });
 
-  afterEach(() => {
-    TestBed.resetTestingModule();
-    vi.unstubAllGlobals();
-  });
+  afterEach(() => TestBed.resetTestingModule());
 
   it('loads and sorts root entries with directories first', async () => {
-    responders.push(request => responseFor(request, { structure: rootStructure }));
+    responders.push(() => responseFor({ structure: rootStructure }));
 
     await service.refresh();
 
@@ -88,11 +89,11 @@ describe('OpfsService', () => {
     expect(service.loading()).toBe(false);
     expect(service.error()).toBeNull();
     expect(service.errorKind()).toBeNull();
-    expect(sendMessage.mock.calls[0]?.[1]).toEqual({ message: 'getDirectoryStructure', requestId: '17:1' });
+    expect(fileChannel.requests[0]).toEqual({ message: 'getDirectoryStructure', requestId: 'fake:1' });
   });
 
   it('navigates into nested paths without changing expansion state elsewhere', async () => {
-    responders.push(request => responseFor(request, { structure: rootStructure }));
+    responders.push(() => responseFor({ structure: rootStructure }));
 
     service.navigateTo('/beta');
     await vi.waitFor(() => expect(service.loading()).toBe(false));
@@ -104,7 +105,7 @@ describe('OpfsService', () => {
   });
 
   it('reports missing structures and connection failures and always clears loading', async () => {
-    responders.push(request => responseFor(request, {}));
+    responders.push(() => responseFor({}));
     await service.refresh();
     expect(service.error()).toBe('OPFS 错误: 无法获取 OPFS 数据');
     expect(service.errorKind()).toBe('unknown');
@@ -130,17 +131,17 @@ describe('OpfsService', () => {
 
   it('downloads normalized file paths and reports protocol errors', async () => {
     const file: OPFSFile = { name: 'a.txt', path: '/folder/a.txt', type: 'file' };
-    responders.push(request => responseFor(request, { result: 'ok' }));
+    responders.push(() => responseFor({ result: 'ok' }));
     await service.download(file);
 
-    expect(sendMessage.mock.calls[0]?.[1]).toEqual({
+    expect(fileChannel.requests[0]).toEqual({
       message: 'downloadFile',
       data: { relativePath: './folder/a.txt', fileName: 'a.txt' },
-      requestId: '17:1'
+      requestId: 'fake:1'
     });
     expect(toast.success).toHaveBeenCalledWith('文件下载成功');
 
-    responders.push(request => responseFor(request, { error: 'denied' }));
+    responders.push(() => responseFor({ error: 'denied' }));
     await service.download(file);
     expect(toast.error).toHaveBeenLastCalledWith('下载失败: denied');
   });
@@ -150,27 +151,27 @@ describe('OpfsService', () => {
     [{ name: 'folder', path: '/folder', type: 'directory' } satisfies OPFSFile, 'deleteDirectory']
   ])('deletes entries and refreshes after success', async (file, expectedMessage) => {
     responders.push(
-      request => responseFor(request, { result: 'ok' }),
-      request => responseFor(request, { structure: rootStructure })
+      () => responseFor({ result: 'ok' }),
+      () => responseFor({ structure: rootStructure })
     );
 
     await service.delete(file);
 
-    expect(sendMessage.mock.calls[0]?.[1]).toEqual({
+    expect(fileChannel.requests[0]).toEqual({
       message: expectedMessage,
       data: { path: `.${file.path}` },
-      requestId: '17:1'
+      requestId: 'fake:1'
     });
-    expect(sendMessage).toHaveBeenCalledTimes(2);
+    expect(fileChannel.requests).toHaveLength(2);
     expect(toast.success).toHaveBeenCalledWith('删除成功');
   });
 
   it('does not refresh after a failed delete', async () => {
-    responders.push(request => responseFor(request, { error: 'locked' }));
+    responders.push(() => responseFor({ error: 'locked' }));
 
     await service.delete({ name: 'a.txt', path: '/a.txt', type: 'file' });
 
-    expect(sendMessage).toHaveBeenCalledOnce();
+    expect(fileChannel.requests).toHaveLength(1);
     expect(toast.error).toHaveBeenCalledWith('删除失败: locked');
   });
 
@@ -183,23 +184,23 @@ describe('OpfsService', () => {
 
     expect(result).toBe(false);
     expect(arrayBuffer).not.toHaveBeenCalled();
-    expect(sendMessage).not.toHaveBeenCalled();
+    expect(fileChannel.requests).toEqual([]);
     expect(toast.error).toHaveBeenCalledWith('上传失败: 文件超过 50MB 上限: data.bin');
   });
 
   it('uploads in bounded chunks and refreshes after the stream commits', async () => {
     responders.push(
-      request => responseFor(request, { result: 'ok' }),
-      request => responseFor(request, { result: 'ok' }),
-      request => responseFor(request, { result: 'ok' }),
-      request => responseFor(request, { result: 'ok' }),
-      request => responseFor(request, { structure: rootStructure })
+      () => responseFor({ result: 'ok' }),
+      () => responseFor({ result: 'ok' }),
+      () => responseFor({ result: 'ok' }),
+      () => responseFor({ result: 'ok' }),
+      () => responseFor({ structure: rootStructure })
     );
     const file = new File([new Uint8Array(300_000)], 'data.bin');
 
     await expect(service.upload(file)).resolves.toBe(true);
 
-    const requests = sendMessage.mock.calls.map(call => call[1] as OpfsRequest);
+    const requests = fileChannel.requests;
     expect(requests.map(request => request.message)).toEqual([
       'uploadStart',
       'uploadChunk',
@@ -216,14 +217,14 @@ describe('OpfsService', () => {
 
   it('aborts the content-side upload session after a chunk failure', async () => {
     responders.push(
-      request => responseFor(request, { result: 'ok' }),
-      request => responseFor(request, { error: 'write failed' }),
-      request => responseFor(request, { result: 'ok' })
+      () => responseFor({ result: 'ok' }),
+      () => responseFor({ error: 'write failed' }),
+      () => responseFor({ result: 'ok' })
     );
 
     await expect(service.upload(new File(['data'], 'data.bin'))).resolves.toBe(false);
 
-    expect(sendMessage.mock.calls.map(call => (call[1] as OpfsRequest).message)).toEqual([
+    expect(fileChannel.requests.map(request => request.message)).toEqual([
       'uploadStart',
       'uploadChunk',
       'uploadAbort'
@@ -232,40 +233,32 @@ describe('OpfsService', () => {
   });
 
   it('returns false when upload fails', async () => {
-    responders.push(request => responseFor(request, { error: 'quota exceeded' }));
+    responders.push(() => responseFor({ error: 'quota exceeded' }));
 
     const result = await service.upload(new File(['x'], 'data.bin'));
 
     expect(result).toBe(false);
     expect(toast.error).toHaveBeenCalledWith('上传失败: quota exceeded');
-    expect(sendMessage).toHaveBeenCalledOnce();
+    expect(fileChannel.requests).toHaveLength(1);
   });
 
   it('creates a directory and refreshes only after success', async () => {
     responders.push(
-      request => responseFor(request, { result: 'ok' }),
-      request => responseFor(request, { structure: rootStructure })
+      () => responseFor({ result: 'ok' }),
+      () => responseFor({ structure: rootStructure })
     );
 
     await expect(service.createDirectory('docs')).resolves.toBe(true);
-    expect(sendMessage.mock.calls[0]?.[1]).toEqual({
+    expect(fileChannel.requests[0]).toEqual({
       message: 'createDirectory',
       data: { path: '/', dirName: 'docs' },
-      requestId: '17:1'
+      requestId: 'fake:1'
     });
     expect(toast.success).toHaveBeenCalledWith('创建成功: docs');
 
-    responders.push(request => responseFor(request, { error: 'exists' }));
+    responders.push(() => responseFor({ error: 'exists' }));
     await expect(service.createDirectory('docs')).resolves.toBe(false);
     expect(toast.error).toHaveBeenLastCalledWith('创建失败: exists');
-    expect(sendMessage).toHaveBeenCalledTimes(3);
-  });
-
-  it('rejects mismatched response request ids', async () => {
-    responders.push(() => ({ requestId: 'stale', result: 'ok' }));
-
-    await service.download({ name: 'a.txt', path: '/a.txt', type: 'file' });
-
-    expect(toast.error).toHaveBeenCalledWith('下载失败: OPFS 响应 requestId 不匹配');
+    expect(fileChannel.requests).toHaveLength(3);
   });
 });

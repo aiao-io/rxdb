@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { DevToolsStateService } from '../services/devtools-state.service';
-import { InspectedPageAccessService } from '../services/inspected-page-access.service';
+import { DEVTOOLS_HOST_ACCESS } from '../transport';
 
 /**
  * 连接守卫组件
@@ -38,7 +38,7 @@ import { InspectedPageAccessService } from '../services/inspected-page-access.se
 })
 export class ConnectionGuardComponent {
   private readonly devToolsState = inject(DevToolsStateService);
-  private readonly access = inject(InspectedPageAccessService);
+  private readonly access = inject(DEVTOOLS_HOST_ACCESS);
 
   readonly connected = this.devToolsState.connected;
   readonly accessState = this.access.state;

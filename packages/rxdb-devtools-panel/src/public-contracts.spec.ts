@@ -3,12 +3,15 @@ import { resolve } from 'node:path';
 import ts from 'typescript';
 
 const files = [
-  'content/bridge-core.ts',
-  'content/opfs.ts',
-  'background/background-core.ts',
-  'devtools/services/inspected-page-access.service.ts',
-  'devtools/services/opfs-channel.service.ts',
-  'devtools/services/port.service.ts'
+  '../wire/types.ts',
+  '../wire/opfs.ts',
+  'scripts/utils.ts',
+  'pages/opfs-page.utils.ts',
+  'components/opfs/opfs-context-menu.component.ts',
+  'transport/devtools-transport.ts',
+  'transport/devtools-host-access.ts',
+  'transport/devtools-file-channel.ts',
+  'transport/devtools-panel-version.ts'
 ];
 
 function exportedDeclarationsWithoutTsdoc(file: string): string[] {
@@ -24,7 +27,7 @@ function exportedDeclarationsWithoutTsdoc(file: string): string[] {
   });
 }
 
-describe('cross-context public contracts', () => {
+describe('panel public contracts', () => {
   it('requires TSDoc on every exported trust-boundary declaration', () => {
     expect(files.flatMap(exportedDeclarationsWithoutTsdoc)).toEqual([]);
   });

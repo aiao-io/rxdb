@@ -13,6 +13,7 @@ import { OpfsFileGridComponent } from '../components/opfs/opfs-file-grid.compone
 import { OpfsFileTableComponent } from '../components/opfs/opfs-file-table.component';
 import { OpfsToolbarComponent } from '../components/opfs/opfs-toolbar.component';
 import { OpfsService } from '../services/opfs.service';
+import { DEVTOOLS_HOST_ACCESS } from '../transport';
 import type { OPFSFile } from '../types/devtools.types';
 import { createPathSegments, summarizeFiles } from './opfs-page.utils';
 
@@ -138,6 +139,7 @@ import { createPathSegments, summarizeFiles } from './opfs-page.utils';
 })
 export class OpfsPage implements OnInit {
   private readonly opfsService = inject(OpfsService);
+  private readonly hostAccess = inject(DEVTOOLS_HOST_ACCESS);
 
   readonly currentPath = this.opfsService.currentPath;
   readonly files = this.opfsService.files;
@@ -199,7 +201,7 @@ export class OpfsPage implements OnInit {
   }
 
   reloadInspectedPage(): void {
-    chrome.devtools.inspectedWindow.reload({});
+    this.hostAccess.reloadInspectedPage();
   }
 
   onDragEnter(event: DragEvent): void {

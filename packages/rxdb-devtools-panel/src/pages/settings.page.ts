@@ -1,21 +1,17 @@
 import { NgClass } from '@angular/common';
-
-// P2-13：与 `manifest.config.ts` 取同一个来源，避免关于页与 manifest 的版本分叉
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import pkg from '../../../package.json';
 import { ConnectionGuardComponent } from '../components/connection-guard.component';
 import {
   clearDatabase,
   createScriptRequestId,
   downloadDatabase,
-  executeInInspectedWindow,
   serializeFunctionWithResult,
   type ClearDatabaseResult,
   type DownloadDatabaseResult
 } from '../scripts';
 import { DatabaseStateService } from '../services/database-state.service';
-import { PortService } from '../services/port.service';
 import { ThemeService } from '../services/theme.service';
+import { DEVTOOLS_HOST_ACCESS, DEVTOOLS_PANEL_VERSION } from '../transport';
 import type { Theme } from '../types/devtools.types';
 
 /**
@@ -129,12 +125,12 @@ export class SettingsPage {
    * P2-13：早先模板里硬编码 `v0.0.1`，与 `package.json` 无任何联动 ——
    * 而 `manifest.config.ts:10` 已经是 `version: pkg.version`，
    * 于是「manifest 显示的版本」与「关于页显示的版本」会在下次发版时分叉。
-   * 这里改为读构建期注入的同一个来源。
+   * 这里改为读宿主注入的同一个来源（见 {@link DEVTOOLS_PANEL_VERSION}）。
    */
-  readonly version = pkg.version;
+  readonly version = inject(DEVTOOLS_PANEL_VERSION);
 
   private readonly themeService = inject(ThemeService);
-  private readonly portService = inject(PortService);
+  private readonly hostAccess = inject(DEVTOOLS_HOST_ACCESS);
   private readonly databaseState = inject(DatabaseStateService);
 
   readonly theme = this.themeService.theme;
@@ -211,7 +207,7 @@ export class SettingsPage {
         const criticalSuccess =
           !!res?.rxdb?.success && !!res?.opfs?.success && !!res?.indexedDB?.success && !!res?.localStorage?.success;
         if (criticalSuccess) {
-          chrome.devtools.inspectedWindow.reload({});
+          this.hostAccess.reloadInspectedPage();
         }
       })
       .catch(err => {
@@ -229,6 +225,6 @@ export class SettingsPage {
   ): Promise<T> {
     const requestId = createScriptRequestId(prefix);
     const code = serializeFunctionWithResult(fn, requestId, args);
-    return executeInInspectedWindow<T>(this.portService, chrome.devtools.inspectedWindow, code, requestId);
+    return this.hostAccess.evaluate<T>(code, requestId);
   }
 }

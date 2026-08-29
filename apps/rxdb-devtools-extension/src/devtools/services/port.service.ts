@@ -1,4 +1,5 @@
 import { Injectable, OnDestroy, signal } from '@angular/core';
+import type { DevToolsTransport } from '@aiao/rxdb-devtools-panel';
 import {
   isDevToolsMessage,
   logger,
@@ -8,15 +9,18 @@ import {
 } from '@aiao/rxdb-devtools-panel/wire';
 
 /**
- * Chrome Extension Port 通信服务
- * 管理与 Background Service Worker 的连接
+ * {@link DevToolsTransport} 的 Chrome 实现：面板 ↔ background service worker 的 Port 通道。
+ *
+ * @remarks
+ * tabId、`chrome.runtime.Port`、重连退避、`INIT` 绑定、导航时合成 `DISCONNECT` —— 这些宿主细节
+ * 全部止于本类。面板只经 token 认识那三个方法，因此 Electron / Tauri 换一份 adapter 即可复用同一套 UI。
  */
 /** 重连退避：起始 1s，指数增长，封顶 30s */
 const BASE_RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 30000;
 
 @Injectable({ providedIn: 'root' })
-export class PortService implements OnDestroy {
+export class PortService implements DevToolsTransport, OnDestroy {
   private port: chrome.runtime.Port | null = null;
   private sequence = 0;
   private reconnectAttempts = 0;

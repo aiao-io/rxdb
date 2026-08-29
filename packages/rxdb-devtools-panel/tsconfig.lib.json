@@ -9,7 +9,8 @@
     "types": ["vite/client"],
     "rootDir": "."
   },
-  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "wire/**/*.spec.ts"],
+  "//exclude": "`src/testing/**` 是 token 的纯内存实现，只服务本库的装配测试。排除掉是「fake 永远进不了 lib 产物」的机械保证 —— 否则宿主就多了一条绕过真实 adapter 的暗道。",
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/testing/**", "wire/**/*.spec.ts"],
   "extends": "./tsconfig.json",
   "include": ["src/**/*.ts", "wire/**/*.ts"],
   "references": [

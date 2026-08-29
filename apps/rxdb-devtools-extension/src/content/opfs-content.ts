@@ -1,4 +1,5 @@
-import { createOpfsMessageHandler, isOpfsRequest } from './opfs';
+import { isOpfsRequest } from '@aiao/rxdb-devtools-panel/wire';
+import { createOpfsMessageHandler } from './opfs';
 
 const handleMessage = createOpfsMessageHandler({
   getRootDirectory: () => navigator.storage.getDirectory()

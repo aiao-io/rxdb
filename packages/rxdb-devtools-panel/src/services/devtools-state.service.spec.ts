@@ -6,7 +6,7 @@ import { ToastService } from '../components/toast.component';
 import type { SerializedEvent } from '../types/devtools.types';
 import { DatabaseStateService } from './database-state.service';
 import { DevToolsStateService } from './devtools-state.service';
-import { PortService } from './port.service';
+import { DEVTOOLS_TRANSPORT } from '../transport';
 
 class PortStub {
   private listener: ((message: DevToolsMessage) => void) | null = null;
@@ -53,7 +53,7 @@ describe('DevToolsStateService message coverage', () => {
       providers: [
         provideZonelessChangeDetection(),
         DevToolsStateService,
-        { provide: PortService, useValue: port },
+        { provide: DEVTOOLS_TRANSPORT, useValue: port },
         { provide: ToastService, useValue: toast },
         { provide: DatabaseStateService, useValue: database }
       ]

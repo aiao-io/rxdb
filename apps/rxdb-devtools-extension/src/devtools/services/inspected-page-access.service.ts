@@ -1,7 +1,14 @@
 import { inject, Injectable, OnDestroy, signal } from '@angular/core';
+import { executeInInspectedWindow, type DevToolsHostAccess } from '@aiao/rxdb-devtools-panel';
 import { PortService } from './port.service';
 
-/** 当前 inspected page 的按需 host 权限状态。 */
+/**
+ * 当前 inspected page 的按需 host 权限状态。
+ *
+ * @remarks
+ * 与面板的 `DevToolsHostAccessState` 是同一组取值；此处保留别名只为扩展内部的可读性，
+ * 真正的契约以 library 侧的 token 类型为准。
+ */
 export type InspectedPageAccessState = 'checking' | 'required' | 'requesting' | 'granted' | 'unsupported';
 
 /**
@@ -20,9 +27,14 @@ export function permissionPatternForUrl(value: string): string | null {
   }
 }
 
-/** 管理 inspected page 的当前站点权限，并在导航后重新校验。 */
+/**
+ * {@link DevToolsHostAccess} 的 Chrome 实现：按需站点权限 + inspected page 重载与注入求值。
+ *
+ * @remarks
+ * `chrome.permissions` / `chrome.devtools.*` 全部止于本类，面板只认 token。
+ */
 @Injectable({ providedIn: 'root' })
-export class InspectedPageAccessService implements OnDestroy {
+export class InspectedPageAccessService implements DevToolsHostAccess, OnDestroy {
   private readonly portService = inject(PortService);
   private readonly navigationListener = (url: string): void => {
     this.portService.notifyNavigation();
@@ -57,6 +69,20 @@ export class InspectedPageAccessService implements OnDestroy {
     }
     this.portService.activateTab();
     return true;
+  }
+
+  /** 重载 inspected page。 */
+  reloadInspectedPage(): void {
+    chrome.devtools.inspectedWindow.reload({});
+  }
+
+  /**
+   * 在 inspected page 启动脚本并等待匹配 `requestId` 的异步结果。
+   *
+   * @throws 页面拒绝启动、脚本执行失败或等待超时时抛出错误
+   */
+  evaluate<T>(code: string, requestId: string): Promise<T> {
+    return executeInInspectedWindow<T>(this.portService, chrome.devtools.inspectedWindow, code, requestId);
   }
 
   private async refresh(url?: string): Promise<void> {

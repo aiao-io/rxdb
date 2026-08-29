@@ -1,8 +1,8 @@
 import type { DevToolsEntityErrorCode } from '@aiao/rxdb-devtools';
 import { inject, Injectable, OnDestroy, signal } from '@angular/core';
 import { ToastService } from '../components/toast.component';
+import { DEVTOOLS_TRANSPORT } from '../transport';
 import type { DbInfo, EntityData, EntityErrorKind } from '../types/devtools.types';
-import { PortService } from './port.service';
 
 /** 协议错误码 → UI 判别位；未登记的码（连接器比面板新）一律落到 `'unknown'`。 */
 const ENTITY_ERROR_KINDS: Readonly<Record<DevToolsEntityErrorCode, EntityErrorKind>> = {
@@ -24,7 +24,7 @@ interface PendingQuery {
  */
 @Injectable({ providedIn: 'root' })
 export class DatabaseStateService implements OnDestroy {
-  private readonly portService = inject(PortService);
+  private readonly transport = inject(DEVTOOLS_TRANSPORT);
   private readonly toastService = inject(ToastService);
   private unsubscribe: (() => void) | null = null;
 
@@ -45,7 +45,7 @@ export class DatabaseStateService implements OnDestroy {
    *
    * @remarks
    * **不随 {@link reset} 清空**：它记录的是意图，不是连接状态。页面在 `ngOnInit` 里发出的
-   * 那条查询正好落在握手前的窗口里，会被 `PortService`（没端口）、background（没 tabId）、
+   * 那条查询正好落在握手前的窗口里，会被 transport（没端口）、background（没 tabId）、
    * 以及连接器（window 总线只放行 `PING`）三处静默丢弃；每次导航合成的 `DISCONNECT`
    * 同样会把面板打回这个窗口。清空它等于让首屏永远空着。
    */
@@ -73,7 +73,7 @@ export class DatabaseStateService implements OnDestroy {
    */
   inspectDb(): void {
     this.dbLoading.set(true);
-    this.portService.sendMessage('INSPECT_DB');
+    this.transport.sendMessage('INSPECT_DB');
   }
 
   /**
@@ -83,7 +83,7 @@ export class DatabaseStateService implements OnDestroy {
     const key = this.entityKey(entityName, namespace);
     this.loadingEntities.update(set => new Set(set).add(key));
     this.lastQueries.set(key, { entityName, namespace, limit });
-    this.portService.sendMessage('QUERY_ENTITY', { entityName, namespace, limit });
+    this.transport.sendMessage('QUERY_ENTITY', { entityName, namespace, limit });
   }
 
   /** 指定实体是否正在查询中（在 computed 中调用以建立响应式依赖） */
@@ -106,7 +106,7 @@ export class DatabaseStateService implements OnDestroy {
   }
 
   private setupMessageListener(): void {
-    this.unsubscribe = this.portService.subscribe(message => {
+    this.unsubscribe = this.transport.subscribe(message => {
       switch (message.type) {
         case 'HANDSHAKE':
           this.replayQueries();
@@ -139,7 +139,7 @@ export class DatabaseStateService implements OnDestroy {
   private replayQueries(): void {
     for (const query of this.lastQueries.values()) {
       this.loadingEntities.update(set => new Set(set).add(this.entityKey(query.entityName, query.namespace)));
-      this.portService.sendMessage('QUERY_ENTITY', { ...query });
+      this.transport.sendMessage('QUERY_ENTITY', { ...query });
     }
   }
 

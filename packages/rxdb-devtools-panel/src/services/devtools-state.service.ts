@@ -1,9 +1,9 @@
 import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
 import { logger } from '@aiao/rxdb-devtools-panel/wire';
 import { ToastService } from '../components/toast.component';
+import { DEVTOOLS_TRANSPORT } from '../transport';
 import type { Branch, SerializedEvent } from '../types/devtools.types';
 import { DatabaseStateService } from './database-state.service';
-import { PortService } from './port.service';
 
 const MAX_EVENTS = 1000;
 
@@ -50,7 +50,7 @@ class EventRingBuffer {
  */
 @Injectable({ providedIn: 'root' })
 export class DevToolsStateService implements OnDestroy {
-  private readonly portService = inject(PortService);
+  private readonly transport = inject(DEVTOOLS_TRANSPORT);
   private readonly toastService = inject(ToastService);
   private readonly dbState = inject(DatabaseStateService);
   private unsubscribe: (() => void) | null = null;
@@ -112,32 +112,32 @@ export class DevToolsStateService implements OnDestroy {
    */
   switchBranch(branchId: string): void {
     this.switching.set(true);
-    this.portService.sendMessage('SWITCH_BRANCH', branchId);
+    this.transport.sendMessage('SWITCH_BRANCH', branchId);
   }
 
   /**
    * 创建分支
    */
   createBranch(name: string): void {
-    this.portService.sendMessage('CREATE_BRANCH', name);
+    this.transport.sendMessage('CREATE_BRANCH', name);
   }
 
   /**
    * 删除分支
    */
   deleteBranch(branchId: string): void {
-    this.portService.sendMessage('DELETE_BRANCH', branchId);
+    this.transport.sendMessage('DELETE_BRANCH', branchId);
   }
 
   /**
    * 请求分支列表
    */
   requestBranches(): void {
-    this.portService.sendMessage('GET_BRANCHES');
+    this.transport.sendMessage('GET_BRANCHES');
   }
 
   private setupMessageListener(): void {
-    this.unsubscribe = this.portService.subscribe(message => {
+    this.unsubscribe = this.transport.subscribe(message => {
       switch (message.type) {
         case 'HANDSHAKE':
           this.handleHandshake();

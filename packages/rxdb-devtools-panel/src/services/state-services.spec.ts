@@ -6,7 +6,7 @@ import { ToastService } from '../components/toast.component';
 import type { Branch, DbInfo, EntityData, SerializedEvent } from '../types/devtools.types';
 import { DatabaseStateService } from './database-state.service';
 import { DevToolsStateService } from './devtools-state.service';
-import { PortService } from './port.service';
+import { DEVTOOLS_TRANSPORT } from '../transport';
 
 class PortStub {
   private listener: ((message: DevToolsMessage) => void) | null = null;
@@ -48,7 +48,7 @@ describe('DatabaseStateService', () => {
       providers: [
         provideZonelessChangeDetection(),
         DatabaseStateService,
-        { provide: PortService, useValue: port },
+        { provide: DEVTOOLS_TRANSPORT, useValue: port },
         { provide: ToastService, useValue: toast }
       ]
     });
@@ -156,7 +156,7 @@ describe('DatabaseStateService', () => {
     expect(service.getEntityErrorKind('todos')).toBeNull();
   });
 
-  // 握手前发出的查询会被三处静默丢弃（PortService 无端口 / background 无 tabId /
+  // 握手前发出的查询会被三处静默丢弃（transport 无端口 / background 无 tabId /
   // bridge 退回 window 总线后连接器丢弃非 PING）。页面在 ngOnInit 里发的那一条正好落在这个窗口。
   it('replays the queries it wanted once the handshake lands', () => {
     service.queryEntity('StorageFileMeta', 'storage', 50);
@@ -200,7 +200,7 @@ describe('DevToolsStateService', () => {
       providers: [
         provideZonelessChangeDetection(),
         DevToolsStateService,
-        { provide: PortService, useValue: port },
+        { provide: DEVTOOLS_TRANSPORT, useValue: port },
         { provide: ToastService, useValue: toast },
         { provide: DatabaseStateService, useValue: database }
       ]
