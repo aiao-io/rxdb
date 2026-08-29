@@ -222,6 +222,13 @@ demo 的变更通知开关就是留给这类实验的。
 **共享实例的两个实际边界**：并发写由 pglite 单进程事务串行化，demo 规模足够；
 多进程水平扩展（每个进程一份 RxDB 实例 + 外部 pub/sub 转发广播）不在本故事范围。
 
+**浏览器专属机制一律不生效**：跨 tab 协调（`RxDBTabsGateway`，BroadcastChannel + Web Locks）用
+`multiInstance: false` 显式关闭——该开关的既有先例就是「单 realm 且没有这些 Web API」的微信小程序逻辑层
+（[rxdb.interface.ts:109](../../../packages/rxdb/src/rxdb.interface.ts#L109)），Node 后端是同一情形；
+可达性检测有 `typeof` 守卫（`resolveGlobalNavigatorOnLine` 取不到 `navigator.onLine` 就返回 `undefined`，
+[reachability.ts:72-76](../../../packages/rxdb/src/network/reachability.ts#L72-L76)），Node 下自动失效不抛错；
+离线降级、QueryCache 出站队列、SSE 通道、DevTools 连接器则因后端 `SyncType.None + local` 根本不构造。
+
 ## 交付阶段
 
 | 阶段 | 内容                                                                         | 关闭条件                                                   |
@@ -235,7 +242,7 @@ demo 的变更通知开关就是留给这类实验的。
 
 | #   | 前置条件                         | 操作                                     | 预期结果                                                                                       | 状态 |
 | --- | -------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------- | ---- |
-| A1  | Node 26，后端进程                 | 初始化 `RxDB` + pglite 适配器并 `connect` | `getRepository(Recipe)` 可用，Recipe 表建成（schema 来自共享模块）                              | ⬜   |
+| A1  | Node 26，后端进程                 | 初始化 `RxDB`（`multiInstance: false`）+ pglite 适配器并 `connect` | `getRepository(Recipe)` 可用，Recipe 表建成（schema 来自共享模块）                              | ⬜   |
 | A2  | A1 就绪                          | `POST recipes/metadata`（offset 形态）   | 由 `repo.find({ where, orderBy, limit, offset })` 实现；US-213 套件保持绿：短页只在真末页、跨页排序稳定、五算子求值逐字一致 | ⬜   |
 | A3  | A1 就绪                          | `POST recipes/by-ids`                    | `repo.find` + `in` 实现；缺失的 id 不回行、不补空对象、不回 5xx                                  | ⬜   |
 | A4  | A1 就绪                          | `HEAD recipes`                           | 表存在性判断，语义与现行一致（存在 200 / 不存在 404）                                            | ⬜   |
