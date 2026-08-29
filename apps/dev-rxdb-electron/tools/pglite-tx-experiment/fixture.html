@@ -1,0 +1,205 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>US-208 线 G · PGlite 事务 host 两案对照</title>
+<body>
+  <h1>pglite-tx-experiment</h1>
+  <script>
+    /**
+     * 渲染进程侧的**对照驱动**。
+     *
+     * 两案共用本文件：差别只在 `runA` 与 `runB` 各自怎么把同一个事务体送去执行 ——
+     * A 把体留在这里、按语句拆成多次 invoke；B 只发一次「跑名为 X 的那件事」。
+     * 事务体本身（`window.__SCENARIOS`）由探针注入，源码是 `scenarios.mjs` 的原文。
+     *
+     * 本文件里所有返回给探针的对象都必须是 JSON 安全的：`executeJavaScript` 的返回值
+     * 走的是另一条序列化路径，BigInt 会让整次调用失败，而报错与被测内容毫无关系。
+     * 因此 bigint / Uint8Array / Date 的比对**就地做完**，只把布尔结论与可读渲染交出去。
+     */
+    const api = window.__txExperiment;
+
+    /** 主进程转发过来的 PG 变更通知。回滚掉的写入不该在这里出现。 */
+    window.__events = [];
+    api.onEvent(message => window.__events.push(message));
+
+    /** 每案各自的 invoke 计数器；`runA` / `runB` 开跑前清零。 */
+    let invokes = 0;
+
+    const callA = payload => {
+      invokes++;
+      return api.invokeA(payload);
+    };
+    const callB = payload => {
+      invokes++;
+      return api.invokeB(payload);
+    };
+
+    /**
+     * 方案 A 的驱动：begin → 事务体（每条语句一次 invoke）→ commit；失败则 rollback。
+     *
+     * 事务边界由**渲染进程**决定 —— 这正是方案 A 的定义，也是它悬挂事务风险的来源。
+     */
+    async function runA(name, args) {
+      invokes = 0;
+      const started = performance.now();
+      const begun = await callA({ op: 'begin' });
+      if (!begun.ok) return { ok: false, error: begun.error.message, phase: 'begin', invokes, ms: performance.now() - started };
+      const txId = begun.value.txId;
+      try {
+        const value = await window.__SCENARIOS[name](async (sql, params) => {
+          const res = await callA({ op: 'exec', txId, sql, params });
+          if (!res.ok) throw new Error(res.error.message);
+          return res.value;
+        }, args);
+        const committed = await callA({ op: 'commit', txId });
+        if (!committed.ok) throw new Error(committed.error.message);
+        return { ok: true, value, txId, invokes, ms: performance.now() - started };
+      } catch (error) {
+        const rolled = await callA({ op: 'rollback', txId });
+        return {
+          ok: false,
+          error: String(error && error.message ? error.message : error),
+          rolledBack: rolled.ok,
+          txId,
+          invokes,
+          ms: performance.now() - started
+        };
+      }
+    }
+
+    /** 方案 B 的驱动：一次 invoke 包住整条事务，边界由主进程决定。 */
+    async function runB(name, args) {
+      invokes = 0;
+      const started = performance.now();
+      const res = await callB({ op: 'scenario', name, args });
+      return res.ok ?
+          { ok: true, value: res.value, invokes, ms: performance.now() - started }
+        : {
+            ok: false,
+            error: res.error.message,
+            rolledBack: res.error.rolledBack,
+            invokes,
+            ms: performance.now() - started
+          };
+    }
+
+    const RUNNERS = { a: runA, b: runB };
+
+    /**
+     * 跑一个事务体并返回 JSON 安全的报告。
+     *
+     * `value` 里可能含 bigint / Uint8Array / Date（typeFidelity 就是），所以一律不外传，
+     * 由 `__fidelity` 就地比对。这里只把标量字段挑出来。
+     */
+    window.__run = async (variant, name, args) => {
+      const report = await RUNNERS[variant](name, args);
+      const value = report.value ?? null;
+      return {
+        ok: report.ok,
+        error: report.error ?? null,
+        phase: report.phase ?? null,
+        rolledBack: report.rolledBack ?? null,
+        invokes: report.invokes,
+        ms: Math.round(report.ms),
+        summary:
+          value && typeof value === 'object' && !('row' in value) ?
+            JSON.parse(JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? String(v) : v)))
+          : null
+      };
+    };
+
+    /** 结构相等，用于 jsonb —— PostgreSQL 的 jsonb 会重排键序，逐字符比较必然误报。 */
+    function deepEqual(left, right) {
+      if (left === right) return true;
+      if (typeof left !== typeof right || left === null || right === null) return false;
+      if (typeof left !== 'object') return false;
+      if (Array.isArray(left) !== Array.isArray(right)) return false;
+      const leftKeys = Object.keys(left);
+      const rightKeys = Object.keys(right);
+      if (leftKeys.length !== rightKeys.length) return false;
+      return leftKeys.every(key => Object.hasOwn(right, key) && deepEqual(left[key], right[key]));
+    }
+
+    /**
+     * 类型保真：值在**这里**构造、跑一圈回到**这里**比对，两个方向都过一遍 structured clone。
+     *
+     * `big` 特意取 `2^53 + 1`：任何一段路上退化成 `number` 或走过 JSON，它都会变成
+     * `9007199254740992`，一眼可辨。
+     */
+    window.__fidelity = async (variant, id) => {
+      const args = {
+        id,
+        big: 9007199254740993n,
+        bin: new Uint8Array([0, 1, 127, 128, 254, 255]),
+        doc: { unicode: '中文 🎯', nested: { list: [1, 'two', true, null] } },
+        at: new Date('2026-08-30T12:34:56.789Z')
+      };
+      const report = await RUNNERS[variant]('typeFidelity', args);
+      if (!report.ok) return { ok: false, error: report.error, invokes: report.invokes, ms: Math.round(report.ms) };
+
+      const row = report.value.row;
+      const bin = row.bin;
+      return {
+        ok: true,
+        invokes: report.invokes,
+        ms: Math.round(report.ms),
+        bigint: {
+          type: typeof row.big,
+          equal: typeof row.big === 'bigint' && row.big === args.big,
+          sent: String(args.big),
+          received: String(row.big)
+        },
+        binary: {
+          type: Object.prototype.toString.call(bin),
+          equal:
+            bin instanceof Uint8Array &&
+            bin.length === args.bin.length &&
+            args.bin.every((byte, index) => bin[index] === byte),
+          sent: Array.from(args.bin),
+          received: bin instanceof Uint8Array ? Array.from(bin) : null
+        },
+        jsonb: { type: typeof row.doc, equal: deepEqual(row.doc, args.doc), received: row.doc },
+        timestamptz: {
+          type: Object.prototype.toString.call(row.at),
+          equal: row.at instanceof Date && row.at.getTime() === args.at.getTime(),
+          sent: args.at.toISOString(),
+          received: row.at instanceof Date ? row.at.toISOString() : String(row.at)
+        }
+      };
+    };
+
+    /**
+     * 方案 A 的悬挂事务制造器：开事务、写一行，然后**不提交**。
+     *
+     * 探针轮询 `__hangState` 变成 `open` 后再杀渲染进程，确保崩溃点确实落在事务中间。
+     */
+    window.__hangState = 'idle';
+    window.__hangA = async id => {
+      const begun = await api.invokeA({ op: 'begin' });
+      if (!begun.ok) {
+        window.__hangState = 'begin-failed:' + begun.error.message;
+        return;
+      }
+      const res = await api.invokeA({
+        op: 'exec',
+        txId: begun.value.txId,
+        sql: `INSERT INTO tx_probe (id, label, amount) VALUES ($1, 'hanging', 7)`,
+        params: [id]
+      });
+      window.__hangState = res.ok ? 'open' : 'exec-failed:' + res.error.message;
+    };
+
+    /** 方案 B 的对照：慢事务只发一次 invoke，发出去就没有取消点了。 */
+    window.__slowState = 'idle';
+    window.__slowB = (id, sleepSeconds) => {
+      window.__slowState = 'sent';
+      api.invokeB({ op: 'scenario', name: 'slowInsert', args: { id, sleepSeconds } }).then(
+        res => {
+          window.__slowState = res.ok ? 'done' : 'failed';
+        },
+        () => {
+          window.__slowState = 'rejected';
+        }
+      );
+    };
+  </script>
+</body>
