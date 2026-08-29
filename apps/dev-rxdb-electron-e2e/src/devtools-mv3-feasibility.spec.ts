@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { launchEnv } from './packaged-app';
 
 /**
@@ -30,27 +30,48 @@ const PROBE = join(__dirname, '../../dev-rxdb-electron/tools/devtools-mv3-probe.
 const EXTENSION_DIST = join(__dirname, '../../rxdb-devtools-extension/dist');
 
 /**
- * Linux 上启动探针要补的 Chromium 开关。
+ * Linux 上的沙箱前置检查：确认 `chrome-sandbox` 已配成 setuid root，否则带修复命令直接红。
  *
  * @remarks
- * npm/pnpm 装出来的 Electron，其 `dist/chrome-sandbox` 是 0755 而不是 root 拥有的 4755
- * （setuid 位只有 root 能置，postinstall 解包时置不了）。Chromium 见到「文件在但没配好」
- * 不会降级，直接 FATAL 中止：
+ * **这道门禁不能带 `--no-sandbox` 跑，那个开关会让被测能力本身失效。** Electron 44 上，
+ * 非沙箱渲染进程走 `renderer_init`，它同步向主进程要 preload 列表；扩展的 `devtools_page`
+ * 拿回的是 `null`，于是整个 bundle 在
+ *   Electron renderer.bundle.js script failed to run
+ *   TypeError: object null is not iterable (cannot read property Symbol(Symbol.iterator))
+ * 处中断 —— 页面自己的脚本一行都没执行，`chrome.devtools.panels.create` 从未被调用，
+ * RxDB 面板压根不会进 tab 条。表征极具误导性：`chrome.devtools` / `panels.create` 在那个帧里
+ * 探起来一切正常，只有 `devtoolsPageState.readyState` 停在 `loading`、`document.scripts` 为空
+ * 露了馅。macOS 上加 `--no-sandbox` 能一比一复现同一组红（AC#2/#3 注入/#4 全灭），
+ * 去掉就全绿 —— 与平台无关，就是这个开关。
+ *
+ * 而 npm/pnpm 解包置不了 setuid 位（只有 root 能置），`dist/chrome-sandbox` 落地是 0755。
+ * Chromium 见到「文件在但没配好」不会降级，直接 FATAL 中止：
  *   FATAL:sandbox/linux/suid/client/setuid_sandbox_host.cc:166] The SUID sandbox helper
  *   binary was found, but is not configured correctly.
- * 表现是探针以 `null` 退出、一条 finding 都没产出，看上去像扩展加载失败 —— 与 MV3 无关。
+ * 那条只在 stderr，探针会以 `null` 退出、一条 finding 都不产出，看上去像扩展加载失败。
+ * 所以在这里先自查：缺就带着修复命令红，**不退回 `--no-sandbox`** —— 那正是能力失效的原因，
+ * 兜过去只会让门禁报绿而什么都没验（AGENTS.md：无 fallback 兜底）。
  *
- * 本目录另外三套用例撞不到，是因为它们走 `_electron.launch()`，而 Playwright 在 Linux 上
- * 会**默认**把 `--no-sandbox` 插到最前面（playwright-core 的 Electron.launch，仅 linux 分支）。
- * 这里照抄它的条件与位置，让四套用例在同一台机器上处于同一种沙箱状态 —— 不是为本套件开后门。
+ * 本目录另外三套用例不受影响：它们走 `_electron.launch()`，Playwright 在 Linux 上会默认插
+ * `--no-sandbox`，而它们测的是打包产物的窗口行为，不涉及扩展渲染进程。
  *
- * 对结论没有影响：这道门禁验的是 MV3 service worker、DevTools 面板与 `chrome.scripting`，
- * 与 OS 进程沙箱正交；主进程 `webPreferences.sandbox` 是另一回事，探针没有改它。
- *
- * @returns Linux 上返回 `['--no-sandbox']`，其余平台返回空数组
+ * @param executable - `require('electron')` 返回的可执行文件绝对路径
  */
-function sandboxArgs(): string[] {
-  return process.platform === 'linux' ? ['--no-sandbox'] : [];
+function assertSandboxUsable(executable: string): void {
+  if (process.platform !== 'linux') return;
+
+  const helper = join(dirname(executable), 'chrome-sandbox');
+  const stats = existsSync(helper) ? statSync(helper) : null;
+  // setuid 位 + root 属主，两者缺一不可：只 chmod 不 chown 一样过不了 Chromium 的检查。
+  const usable = stats !== null && stats.uid === 0 && (stats.mode & 0o4000) !== 0;
+
+  expect(
+    usable,
+    `Electron 的 SUID 沙箱助手未配置好：${helper}\n` +
+      `请先执行：sudo chown root:root ${helper} && sudo chmod 4755 ${helper}\n` +
+      '（本门禁必须在真沙箱下跑：--no-sandbox 会让扩展 devtools_page 渲染进程初始化失败，' +
+      '面板永远不会注册。详见本函数的 @remarks。）'
+  ).toBe(true);
 }
 
 /** 单条 finding 的形状，与探针的 `record()` 一致。 */
@@ -99,11 +120,12 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
 
     // electron 包的默认导出就是可执行文件的绝对路径（以纯 Node 加载时）。
     const executable = require('electron') as unknown as string;
+    assertSandboxUsable(executable);
 
     const exitCode = await new Promise<number>((resolve, reject) => {
       // launchEnv() 会剥掉 ELECTRON_RUN_AS_NODE：任何 Electron 宿主（VS Code 集成终端最常见）
       // 都会给子进程设这个变量，带着它启动会让二进制退化成纯 Node，连 app 对象都没有。
-      const child = spawn(executable, [...sandboxArgs(), PROBE, EXTENSION_DIST, outputPath], {
+      const child = spawn(executable, [PROBE, EXTENSION_DIST, outputPath], {
         env: launchEnv(),
         stdio: ['ignore', 'pipe', 'pipe']
       });
@@ -162,16 +184,36 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
   test('AC#2 RxDB panel 真实出现并完成一次完整往返', () => {
     const detail = expectOk('AC2').detail as {
       tabs: string[];
+      tabIds: string[];
       tabsBeforeActivation: string[];
+      panelRegisteredBeforeSelection: boolean;
       tabSelection: { selected: string | null; presses: number; visited: string[] };
       panelHtmlFrameLoaded: boolean;
       panelPortReceived: { type: string }[];
       inspectedPage: { seen: string[] };
+      devtoolsPageState: Record<string, unknown>;
+      devToolsConsole: { level: string; message: string }[];
     };
-    // 断言「选中的是 RxDB」而不是「tab 条里原本有 RxDB」：激活前的快照有两个失效来源 ——
-    // 面板可能还没 panels.create 登记，也可能因 tab 条放不下被折进「更多标签页」溢出菜单
-    // （Xvfb 1280 宽 + 英文标签的 CI 两者都占）。能否选中才是被测能力，那一刻可不可见不是。
-    expect(detail.tabSelection.selected, `途经面板：${detail.tabSelection.visited.join(' | ')}`).toMatch(/rxdb/i);
+    // 断言「选中的是 RxDB」而不是「tab 条里原本有 RxDB」：面板可能还没 `panels.create` 登记，
+    // 也可能因 tab 条放不下被收进溢出下拉、从 DOM 里消失（那个下拉在 Electron 下是原生菜单，
+    // 脚本点不到）。这两种都不影响「下一个面板」快捷键循环 —— 它遍历完整 tab 数组。
+    // 选中项只能从 `.main-tabbed-pane` 那条 tab 条上读（探针的 `MAIN_TABS`）：DevTools 里有三条
+    // class 同构的 tab 条，抽屉那条在 DOM 里排在主条**之前**，按 DOM 序取会恒读成抽屉的当前项。
+    //
+    // 失败信息带上「登记过没有」、devtools_page 的状态与 DevTools 前端 console，把两种相反的成因分开：
+    // 没登记 = 扩展的 devtools_page 没跑到 `panels.create`（`readyState: loading` + `scripts: []`
+    // + console 里的 `renderer.bundle.js script failed to run` 就是 `--no-sandbox` 那个坑）；
+    // 登记了却没选中 = 循环或选中机制的问题。主进程 stderr 对前者一个字都不会说，所以必须带上 console。
+    expect(
+      detail.tabSelection.selected,
+      [
+        `途经面板：${detail.tabSelection.visited.join(' | ')}`,
+        `激活前已登记：${detail.panelRegisteredBeforeSelection}`,
+        `主 tab 条：${detail.tabIds.join(' | ')}`,
+        `devtools.html 状态：${JSON.stringify(detail.devtoolsPageState)}`,
+        `DevTools console：${detail.devToolsConsole.map(entry => `[${entry.level}] ${entry.message}`).join(' / ') || '（空）'}`
+      ].join('\n')
+    ).toMatch(/rxdb/i);
     // 选中后它必然回到可见 tab 条 —— 守住「面板真挂上了 tab 条」，而不是只在内存里注册过。
     expect(detail.tabs, `DevTools tab 条：${detail.tabs.join(' | ')}`).toContain('RxDB');
     expect(detail.panelHtmlFrameLoaded).toBe(true);

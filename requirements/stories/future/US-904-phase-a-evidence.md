@@ -1,42 +1,47 @@
-# US-904 阶段 A 可行性记录 — Electron 43 MV3 扩展 stop/go
+# US-904 阶段 A 可行性记录 — Electron 43 / 44 MV3 扩展 stop/go
 
 > 本文件是 [US-904](./US-904-devtools-native-storage-contract.md) frontmatter `evidence` 指向的可行性记录。
 > 结论：**`decision: supported`** —— 阶段 D（Electron desktop SQLite / native files 接入）解锁。
 
 ## 结论
 
-| 项目           | 值                                                       |
-| -------------- | -------------------------------------------------------- |
-| 判定           | `supported`                                              |
-| 判定日期       | 2026-08-27                                               |
-| 关键项         | AC#1 / AC#2 / AC#3(注入) / AC#4 —— 全部通过              |
-| 可容忍差异     | 1 项（AC#3 的 `chrome.permissions.request`，见下）       |
-| 不可容忍的降级 | 0 项（未使用 `<all_urls>`、未 mock 任何 `chrome.*` API） |
-| 复现次数       | 3 次独立完整运行，ok 向量完全一致                        |
+| 项目           | 值                                                                       |
+| -------------- | ------------------------------------------------------------------------ |
+| 判定           | `supported`                                                              |
+| 判定日期       | 2026-08-27（Electron 43.4.0）；2026-08-29 在 44.0.0 上复核               |
+| 关键项         | AC#1 / AC#2 / AC#3(注入) / AC#4 —— 全部通过                              |
+| 可容忍差异     | 1 项（AC#3 的 `chrome.permissions.request`，见下）                       |
+| 不可容忍的降级 | 0 项（未使用 `<all_urls>`、未 mock 任何 `chrome.*` API）                 |
+| 复现次数       | 43.4.0 上 3 次；44.0.0 上 macOS / Linux 各 1 次，ok 向量一致             |
+| 前置条件       | **Electron 必须在真沙箱下运行**（`--no-sandbox` 会让面板失效，见发现 4） |
 
 ## 运行环境与命令
 
-| 项       | 值                                         |
-| -------- | ------------------------------------------ |
-| Electron | 43.4.0                                     |
-| Chromium | 150.0.7871.224                             |
-| Node     | 24.18.1（Electron 内置，非工作区 Node 26） |
-| 平台     | darwin arm64 (Darwin 25.5.0)               |
-| 扩展     | `RxDB DevTools`，`manifest_version: 3`     |
+| 项       | 首次判定                                   | 44 复核                                         |
+| -------- | ------------------------------------------ | ----------------------------------------------- |
+| Electron | 43.4.0                                     | 44.0.0                                          |
+| Chromium | 150.0.7871.224                             | 152.0.7977.54                                   |
+| Node     | 24.18.1（Electron 内置，非工作区 Node 26） | 24.18.1                                         |
+| 平台     | darwin arm64 (Darwin 25.5.0)               | darwin arm64 + linux arm64（noble 容器 + Xvfb） |
+| 扩展     | `RxDB DevTools`，`manifest_version: 3`     | 同左                                            |
 
 ```bash
 # 门禁（推荐）：自动构建扩展产物后跑断言
 pnpm nx e2e dev-rxdb-electron-e2e --grep "US-904 阶段 A"
 
-# 只跑探针、拿原始 findings
+# 只跑探针、拿原始 findings（路径不写死版本，避免升级后失效）
 pnpm nx build rxdb-devtools-extension
-ELECTRON_RUN_AS_NODE= ./node_modules/.pnpm/electron@43.4.0/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron \
+ELECTRON_RUN_AS_NODE= "$(node -p 'require("electron")')" \
   apps/dev-rxdb-electron/tools/devtools-mv3-probe.mjs \
   "$PWD/apps/rxdb-devtools-extension/dist" /tmp/us904.json
 ```
 
 > `ELECTRON_RUN_AS_NODE` 必须清掉。任何 Electron 宿主（VS Code 集成终端最常见）都会给子进程设它，
 > 带着它启动会让二进制退化成纯 Node —— 报出来的错和真正的原因毫无关系。
+>
+> **Linux 上还要先配好 SUID 沙箱助手**（pnpm 解包置不了 setuid 位）：
+> `sudo chown root:root "$(dirname "$(node -p 'require("electron")')")/chrome-sandbox" && sudo chmod 4755 …`。
+> 不能改用 `--no-sandbox` 绕过 —— 那会直接让被测能力失效，见发现 4。
 
 fixture：
 
@@ -69,15 +74,18 @@ fixture：
 
 ### AC#2 — `chrome.devtools.panels.create` + 一次完整往返 ✅ 关键项
 
-RxDB panel 真实出现在 DevTools tab 条中（本次运行 DevTools UI 为中文 locale，扩展面板标题不受 locale 影响）：
+RxDB panel 真实出现在 DevTools **主** tab 条中。tab 元素的 id 才是稳定标识（内建面板 `tab-elements`，
+扩展面板 `tab-chrome-extension://<扩展 id><面板标题>`）—— 标题随 DevTools locale 变，id 不变：
 
-```
-元素 | 控制台 | 源代码/来源 | 网络 | 性能 | 内存 | 应用 | 安全 | Lighthouse | 记录器 | RxDB | 样式 | 计算样式 | 布局 | 事件监听器
+```text
+tab-elements | tab-console | tab-sources | tab-network | tab-timeline | tab-heap-profiler
+| tab-resources | tab-security | tab-lighthouse | tab-chrome-recorder
+| tab-chrome-extension://<扩展 id>RxDB
 ```
 
-选中后 `aria-selected: "true"`，真实面板文档加载：
+按「下一个面板」快捷键循环 10 次后选中项为 `RxDB`，真实面板文档加载：
 
-```
+```text
 devtools://devtools/bundled/devtools_app.html?remoteBase=…
 chrome-extension://ijimdocfmeklgilcgckfhhphpaemdleh/devtools.html
 chrome-extension://ijimdocfmeklgilcgckfhhphpaemdleh/panel.html#/events
@@ -96,8 +104,10 @@ DevTools 窗口**不注册任何扩展面板** —— Lighthouse、Recorder 也�
 `mode: 'bottom'` 会注册。曾据此差点误判 `unsupported`；dock 模式矩阵推翻了该结论。
 
 **发现 2：面板页惰性实例化。** `chrome.devtools.panels.create` 只登记 tab，`panel.html` 要等 tab 被
-选中才加载。且选中必须走完整指针事件序列（`pointerdown / mousedown / pointerup / mouseup / click`），
-合成 `element.click()` 不被 DevTools 的 tab 选中逻辑接受。
+选中才加载。合成 `element.click()` 不被 DevTools 的 tab 选中逻辑接受，完整指针事件序列
+（`pointerdown / mousedown / pointerup / mouseup / click`）可以，但探针最终改用 DevTools 自己的
+「下一个面板」快捷键循环 —— 它遍历完整 tab 数组，tab 条放不下时被收进溢出下拉的 tab 照样能选中，
+而那个下拉在 Electron 下是原生菜单，DOM 里查不到、脚本点不到。
 
 ### AC#3 — 权限与 `chrome.scripting` 注入 ✅ 关键项（注入），⚠️ 可容忍差异（授权 UI）
 
@@ -174,9 +184,49 @@ manifest 改用静态窄 host permission，绕过运行时授权 UI。
 - spec 里的「已记录 chrome.permissions 在 Electron 43 缺失」一条固化现状。Electron 补上该 API 后它会
   变红，那正是回来删掉阶段 D 能力探测分支的时机。
 
+## 发现 4：`--no-sandbox` 会让扩展面板彻底消失 —— 阶段 D 的硬前置
+
+2026-08-29 在 Electron 44.0.0 上复核时，CI（ubuntu + Xvfb）红了 AC#2 / AC#3(注入) / AC#4a / AC#4b，
+而同一份产物在本机全绿。**唯一的变量是 `--no-sandbox`**：CI 为了绕开 pnpm 装不出 setuid 位的
+`chrome-sandbox` 而加了这个开关。
+
+| 平台                      | 沙箱                  | 结果                                   |
+| ------------------------- | --------------------- | -------------------------------------- |
+| darwin arm64              | 真沙箱                | 10/10 findings ok                      |
+| darwin arm64              | `--no-sandbox`        | AC#2 / AC#3(注入) / AC#4a / AC#4b 全红 |
+| linux arm64（noble 容器） | `--no-sandbox`        | 同上，与 CI 逐字一致                   |
+| linux arm64（noble 容器） | 真沙箱（setuid 4755） | 10/10 findings ok                      |
+
+机制：非沙箱渲染进程走 Electron 的 `renderer_init`，它同步向主进程要 preload 列表；扩展的
+`devtools_page` 拿回的是 `null`，于是整个 bundle 在
+
+```text
+Electron renderer.bundle.js script failed to run
+TypeError: object null is not iterable (cannot read property Symbol(Symbol.iterator))
+```
+
+处中断 —— 页面自己的脚本一行都没执行，`chrome.devtools.panels.create` 从未被调用，面板不进 tab 条。
+
+**失败模式是静默的**，这才是它值得单独记一条的原因：那两行只出现在 DevTools 前端的 console 里，
+主进程 stderr 一个字都没有；从帧树看 `chrome-extension://<id>/devtools.html` 还在，
+在那个帧里探 `chrome.devtools` / `panels.create` 也一切正常。只有
+`document.readyState` 停在 `loading`、`document.scripts` 为空能看出脚本压根没跑。
+探针因此固定采集 `devtoolsPageState` 与 DevTools 前端 console（见 `AC2` 的 detail）。
+
+对阶段 D 的约束：
+
+- **桌面端不能带 `--no-sandbox` 发布**，否则 DevTools 扩展面板在用户机器上直接不存在，且没有任何
+  可见错误 —— 与「无 fallback 兜底」冲突的正是这种静默失效；
+- 阶段 D 的 E2E 同理不能用 `--no-sandbox` 绕沙箱配置问题。门禁侧已由
+  `devtools-mv3-feasibility.spec.ts` 的 `assertSandboxUsable()` 兜住：Linux 上 `chrome-sandbox`
+  不是 root:root 4755 就带修复命令直接红，不退回 `--no-sandbox`；
+- CI 侧对应 `.github/workflows/ci-template.yml` 的 `Configure Electron SUID sandbox` 步骤。
+  ubuntu-24.04 的 AppArmor 默认禁掉非特权 user namespace，命名空间沙箱走不通，只能配 SUID 助手。
+
 ## 对排期的影响（AC#6）
 
 - **阶段 D 解锁**（仍需等阶段 C 与 US-207 / US-504 关闭）。
 - 阶段 B / C 的共享链与 US-905 不受影响。
 - 阶段 D 新增工作项：`chrome.permissions` 缺失下的显式能力探测与授权路径（见发现 3）。
 - 阶段 D 的 E2E 必须把 DevTools 固定为 dock 模式（见发现 1），否则面板根本不会注册。
+- 阶段 D 的桌面端启动参数必须保留沙箱（见发现 4），否则面板在用户机器上静默消失。

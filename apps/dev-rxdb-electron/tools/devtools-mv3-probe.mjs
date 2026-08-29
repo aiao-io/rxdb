@@ -17,24 +17,33 @@
  * fixture 而不留下运行时 fallback」。本文件不被 `src-electron/` 的任何模块 import，删掉它
  * 与配套 spec，生产主进程一行都不用改。
  *
- * ## 四个踩过的坑（改动前先读）
+ * ## 六个踩过的坑（改动前先读）
  *
  * 1. **DevTools 必须 dock**：`mode: 'detach'` / `'undocked'` 的 DevTools 窗口不注册任何扩展
  *    面板（Lighthouse、Recorder 也一并消失），等多久都不出现。只有 `mode: 'bottom'` 会注册。
- * 2. **不能靠在 tab 条 DOM 里找 RxDB 再点它**：这条快照有两个独立的失效来源，都实测过。
- *    其一是**时序**：`devtools.html` 帧已加载 ≠ `panels.create` 已登记，本地 1500 宽的窗口
- *    （宽到足以显示 11 个 tab）拍到的 `tabsBeforeActivation` 里照样没有 RxDB。
- *    其二是**溢出折叠**：tab 条放不下时 DevTools 把尾部 tab 折进「更多标签页」菜单，而扩展
- *    面板永远排在最后。CI（Xvfb 1280 宽 + 英文标签，比中文宽）就带着这个特征红：`tabs` 停在
- *    `Recorder`，连 `Elements` 侧边栏的尾项 `Event Listeners` 也一起消失 —— 两条互不相干的
- *    tab 条同时丢掉尾项，只可能是溢出。而那个溢出菜单在 Electron 下是**原生菜单**
- *    （DevTools 的 ContextMenu 走 `showContextMenuAtPoint`），DOM 里查不到、脚本点不到。
- *    所以选中面板改用 DevTools 自己的「下一个面板」快捷键循环：它遍历完整 tab 数组而非可见
- *    子集（治溢出），且逐次轮询直到选中 RxDB（治时序）。见 `selectRxdbTab()`。
- * 3. **面板页惰性实例化**：`chrome.devtools.panels.create` 只登记 tab，`panel.html` 要等 tab
+ * 2. **DevTools 里有三条同构的 tab 条**：主面板条、抽屉条、Elements 侧边栏条，class 完全一样。
+ *    读「当前选中的 tab」必须锚定 `.main-tabbed-pane`，不能按 DOM 序取第一个 —— 抽屉打开时它
+ *    排在主条**之前**（Electron 44 首启会自动打开「新变化 / What's New」抽屉），选中项就恒读成
+ *    抽屉里那个，按多少次「下一个面板」都不变。见 `MAIN_TABS`。
+ * 3. **不能靠在 tab 条 DOM 里找 RxDB 再点它**：`devtools.html` 帧已加载 ≠ `panels.create` 已登记，
+ *    本地 1500 宽的窗口（宽到足以显示 11 个 tab）拍到的 `tabsBeforeActivation` 里照样没有 RxDB。
+ *    所以选中面板走 DevTools 自己的「下一个面板」快捷键循环，并逐次轮询直到选中 RxDB
+ *    （见 `selectRxdbTab()`）；`activatePanel()` 还会先等注册最多 20 秒，把「没登记」与
+ *    「登记了但没选中」分成两个可区分的事实。
+ *    **溢出折叠不是失效来源，别再往这个方向查**：`main.next-tab` 走的是 `TabbedPane.selectNextTab()`，
+ *    它遍历完整的 `this.tabs` 数组，被折进「更多标签页」的 tab 照样轮得到。CI 上循环两圈
+ *    （Elements→…→Recorder→Elements）都没经过 RxDB，只能说明它根本不在数组里。
+ * 4. **面板页惰性实例化**：`chrome.devtools.panels.create` 只登记 tab，`panel.html` 要等 tab
  *    被选中才加载 —— 所以「注册成功」和「面板真的跑起来」是两件事，本探针两件都验。
- * 4. **`window-all-closed` 默认退出应用**：AC#4c 销毁窗口后主进程会先于记录结果退出，
+ * 5. **`window-all-closed` 默认退出应用**：AC#4c 销毁窗口后主进程会先于记录结果退出，
  *    必须注册空 listener 顶住。
+ * 6. **别加 `--no-sandbox`**：非沙箱渲染进程走 `renderer_init`，它同步向主进程要 preload 列表，
+ *    扩展的 `devtools_page` 拿回 `null`，bundle 在 `object null is not iterable` 处中断 ——
+ *    页面脚本一行都不执行，`panels.create` 从未被调用，面板不进 tab 条。而这两行只出现在
+ *    DevTools 前端的 console（`devToolsConsole`），主进程 stderr 干干净净，帧树里
+ *    `devtools.html` 还在，`chrome.devtools` 探起来也正常 —— 只有 `devtoolsPageState` 的
+ *    `readyState: 'loading'` + `scripts: []` 露馅。Linux 上要跑就先把 `dist/chrome-sandbox`
+ *    配成 root:root 4755（见 spec 的 `assertSandboxUsable()`）。
  *
  * ## 唯一的可容忍差异
  *
@@ -53,9 +62,10 @@ import { join } from 'node:path';
 
 const { app, BrowserWindow, session, webContents } = createRequire(import.meta.url)('electron');
 
-// 按位置取参数会被 Chromium 开关打乱：spec 侧在 Linux 上要在脚本路径**之前**插
-// `--no-sandbox`（原因见那一侧的注释），于是 `process.argv[2]` 从「扩展 dist」变成脚本自身。
+// 按位置取参数会被 Chromium 开关打乱：只要在脚本路径**之前**插一个 `--xxx`，
+// `process.argv[2]` 就从「扩展 dist」变成脚本自身，两个参数一起错位、报出来的错和原因无关。
 // 剥掉所有 `--` 开头的项后，argv[1] 恒为本脚本路径，其后才是两个真正的位置参数。
+// （门禁本身不传任何开关 —— 尤其**不要**传 `--no-sandbox`，见上面第 6 条坑。）
 const positional = process.argv.slice(1).filter(arg => !arg.startsWith('--'));
 const EXTENSION_DIST = positional[1];
 const OUTPUT_PATH = positional[2];
@@ -158,39 +168,71 @@ const finish = code => {
   app.exit(code);
 };
 
-/** 深挖 shadow DOM 收集 DevTools 的 tab 条。扩展面板藏在多层 shadow root 里。 */
-const TABS = `(() => {
-  const tabs = []; const hits = []; const seen = new Set();
-  const walk = root => {
-    if (seen.has(root)) return; seen.add(root);
-    for (const el of root.querySelectorAll('*')) {
-      if (el.classList && el.classList.contains('tabbed-pane-header-tab')) tabs.push((el.textContent || '').trim());
-      const text = (el.textContent || '').trim();
-      if (/rxdb/i.test(text) && text.length < 60) hits.push(text);
-      if (el.shadowRoot) walk(el.shadowRoot);
-    }
-  };
-  walk(document);
-  return JSON.stringify({ tabs, hits });
-})()`;
-
-/** 读当前选中的面板 tab 标题。DOM 序里主 tab 条先于 Elements 侧边栏，所以取第一个即可。 */
-const SELECTED_TAB = `(() => {
+/**
+ * 读**主** tab 条（`.main-tabbed-pane`）的完整快照，深挖 shadow DOM。
+ *
+ * @remarks
+ * DevTools 里同时存在三条 `.tabbed-pane-header-tabs`：主面板条、抽屉条（`.drawer-tabbed-pane`）、
+ * Elements 侧边栏条。早先「按 DOM 序取第一个 `.selected`」的前提是主条最靠前 —— 但抽屉一旦打开，
+ * 抽屉条在 DOM 里排在主条**之前**，选中项就恒读成抽屉里那个（本机 Electron 44 首启自动打开
+ * 「新变化 / What's New」抽屉，于是 24 次按键读到的全是「新变化」）。这类误读的表征极具迷惑性：
+ * AC2 报「一次都没选中 RxDB」，而同一次运行里 `panel.html` 帧已加载、四段中继也已跑通。
+ *
+ * 每个 tab 元素带稳定 id：内建面板形如 `tab-elements`，扩展面板形如
+ * `tab-chrome-extension://<扩展 id><面板标题>`。判定扩展面板一律用 id 而不是标题 ——
+ * 标题随 DevTools locale 变（CI 英文、本机中文），id 不变。
+ */
+const MAIN_TABS = `(() => {
   const seen = new Set();
-  let selected = null;
+  let bar = null;
   const walk = root => {
-    if (seen.has(root) || selected) return; seen.add(root);
+    if (seen.has(root) || bar) return; seen.add(root);
     for (const el of root.querySelectorAll('*')) {
-      if (el.classList && el.classList.contains('tabbed-pane-header-tab') && el.classList.contains('selected')) {
-        selected = (el.textContent || '').trim();
+      const host = el.getRootNode().host;
+      if (el.classList.contains('tabbed-pane-header-tabs') && host?.classList.contains('main-tabbed-pane')) {
+        bar = el;
         return;
       }
       if (el.shadowRoot) walk(el.shadowRoot);
     }
   };
   walk(document);
-  return JSON.stringify({ selected });
+  const tabs = bar ? [...bar.querySelectorAll('.tabbed-pane-header-tab')] : [];
+  return JSON.stringify({
+    barFound: !!bar,
+    tabs: tabs.map(tab => ({ title: (tab.textContent || '').trim(), id: tab.id, selected: tab.classList.contains('selected') }))
+  });
 })()`;
+
+/** 扩展面板的 tab？看 id 前缀而非标题，避开 locale。 */
+const isRxdbTab = tab => tab.id.startsWith('tab-chrome-extension://') && /rxdb/i.test(tab.id);
+
+const readMainTabs = async devTools => JSON.parse(await devTools.executeJavaScript(MAIN_TABS));
+
+/**
+ * devtools_page 帧的运行状态。
+ *
+ * @remarks
+ * 面板没登记时，这条把三种成因分开：脚本没跑完（`readyState` 停在 loading）、
+ * `chrome.devtools` 没注入（API 表面问题）、帧还在树里但渲染进程已经没了（executeJavaScript 抛）。
+ * 没有它，CI 上的红只剩「一次都没选中 RxDB」这一句，谁也说不出下一步该查什么。
+ */
+const DEVTOOLS_PAGE_STATE = `JSON.stringify({
+  readyState: document.readyState,
+  scripts: [...document.scripts].map(script => script.src.split('/').pop()),
+  chromeDevtools: typeof chrome?.devtools,
+  panelsCreate: typeof chrome?.devtools?.panels?.create,
+  inspectedTabId: chrome?.devtools?.inspectedWindow?.tabId ?? null
+})`;
+
+const readDevtoolsPage = async frame => {
+  if (!frame) return { error: 'devtools.html 帧不在帧树里' };
+  try {
+    return JSON.parse(await frame.executeJavaScript(DEVTOOLS_PAGE_STATE));
+  } catch (error) {
+    return { error: String(error) };
+  }
+};
 
 /** DevTools「下一个面板」快捷键的修饰键：macOS 是 Cmd+]，其余平台 Ctrl+]。 */
 const NEXT_PANEL_MODIFIER = process.platform === 'darwin' ? 'meta' : 'control';
@@ -215,14 +257,17 @@ const selectRxdbTab = async devTools => {
   const visited = [];
   // 上限取面板数的两倍有余：跑满即说明转了一整圈也没有 RxDB。
   for (let presses = 0; presses <= 24; presses++) {
-    const { selected } = JSON.parse(await devTools.executeJavaScript(SELECTED_TAB));
-    if (selected && /rxdb/i.test(selected)) return { selected, presses, visited };
-    if (selected) visited.push(selected);
+    const { tabs } = await readMainTabs(devTools);
+    const selected = tabs.find(tab => tab.selected) ?? null;
+    if (selected && isRxdbTab(selected))
+      return { selected: selected.title, presses, visited, tabIds: tabs.map(tab => tab.id) };
+    if (selected) visited.push(selected.title);
     devTools.sendInputEvent({ type: 'keyDown', keyCode: ']', modifiers: [NEXT_PANEL_MODIFIER] });
     devTools.sendInputEvent({ type: 'keyUp', keyCode: ']', modifiers: [NEXT_PANEL_MODIFIER] });
     await sleep(600);
   }
-  return { selected: null, presses: 24, visited };
+  const { tabs } = await readMainTabs(devTools);
+  return { selected: null, presses: 24, visited, tabIds: tabs.map(tab => tab.id) };
 };
 
 /**
@@ -264,23 +309,39 @@ const readPage = contents => contents.executeJavaScript('JSON.stringify(window._
 const readRelay = frame => frame.executeJavaScript('JSON.stringify(window.__relay)').then(JSON.parse);
 const runningWorkers = ses => Object.values(ses.serviceWorkers.getAllRunning()).map(worker => worker.scriptUrl);
 
+/** DevTools 前端（含扩展 devtools_page 子帧）的 error / warning：面板缺席时唯一能看到脚本报错的地方。 */
+const devToolsConsole = [];
+
 /** 打开 DevTools 并等扩展的 `devtools.html` 真正加载。 */
 const openDevTools = async win => {
   const opened = new Promise(resolve => win.webContents.once('devtools-opened', resolve));
   win.webContents.openDevTools({ mode: 'bottom' }); // detach / undocked 下不注册扩展面板
   await opened;
   const devTools = win.webContents.devToolsWebContents;
+  devTools.on('console-message', event => {
+    if (event.level !== 'error' && event.level !== 'warning') return;
+    if (devToolsConsole.length >= 40) return; // 前端自己也会刷噪声，够定位就行
+    devToolsConsole.push({ level: event.level, source: event.sourceId, message: String(event.message).slice(0, 200) });
+  });
   await waitFor(() => findFrame(devTools, '/devtools.html'), 20000);
   return devTools;
 };
 
-/** 选中 RxDB tab 并等真实 `panel.html`（Angular 面板）挂载完成。 */
+/**
+ * 选中 RxDB tab 并等真实 `panel.html`（Angular 面板）挂载完成。
+ *
+ * @remarks
+ * 先等登记再按键：`devtools.html` 帧进入帧树 ≠ 它的脚本已经执行完 `panels.create`，
+ * 而按键循环只有 ~15 秒，登记稍慢就整轮扑空。等不到不算失败 —— tab 条放不下时尾部 tab 会被
+ * 收进下拉菜单、从 DOM 里消失，那种情况只有按键循环能覆盖，所以超时后照常往下走。
+ */
 const activatePanel = async devTools => {
+  const registered = !!(await waitFor(async () => (await readMainTabs(devTools)).tabs.some(isRxdbTab), 20000));
   const selection = await selectRxdbTab(devTools);
   const frame = await waitFor(() => findFrame(devTools, '/panel.html'), 30000);
   // 面板是 Angular 应用，帧出现 ≠ bootstrap 完成；给它一段固定时间跑起来。
   if (frame) await sleep(2500);
-  return { selection, frame: findFrame(devTools, '/panel.html') };
+  return { registered, selection, frame: findFrame(devTools, '/panel.html') };
 };
 
 /**
@@ -369,12 +430,16 @@ app.whenReady().then(async () => {
     }
 
     // ---------- AC#2：真实面板宿主 + 真实往返 ----------
-    // 两个时刻都拍一次 tab 条：溢出时 RxDB 不在「before」里（CI 的常态），选中后才被挪回可见区。
-    // 判定用「选中的 tab 是不是 RxDB」，不用「tab 条里有没有 RxDB」—— 后者量的是窗口宽度，不是能力。
-    const tabsBeforeActivation = JSON.parse(await devTools.executeJavaScript(TABS)).tabs;
+    // 两个时刻都拍一次 tab 条：RxDB 可能还没登记，也可能已被折进溢出下拉、暂时不在 DOM 里，
+    // 两种情况「before」里都没有它，选中后才回到可见区。判定用「选中的 tab 是不是 RxDB」，
+    // 不用「tab 条里有没有 RxDB」—— 后者量的是窗口宽度与登记时机，不是被测能力。
+    const tabsBeforeActivation = (await readMainTabs(devTools)).tabs.map(tab => tab.title);
     const activation = await activatePanel(devTools);
-    const tabList = JSON.parse(await devTools.executeJavaScript(TABS));
-    const rxdbTabSelected = !!activation.selection.selected && /rxdb/i.test(activation.selection.selected);
+    const tabList = await readMainTabs(devTools);
+    const rxdbTabSelected = !!activation.selection.selected;
+    // 面板缺席时才有价值，但只能在这里采（后面 DevTools 会被关掉重开）：
+    // 分开「扩展页没跑起来」与「跑起来了但 panels.create 没生效」两种成因。
+    const devtoolsPageState = await readDevtoolsPage(findFrame(devTools, '/devtools.html'));
 
     // 关键发现：Electron 43 没有 chrome.permissions 命名空间。
     const panelCapabilities = activation.frame ? JSON.parse(await activation.frame.executeJavaScript(CAPS)) : null;
@@ -400,11 +465,15 @@ app.whenReady().then(async () => {
       first.relay.msgs.some(message => message.type === 'HANDSHAKE');
     record('AC2', rxdbTabSelected && !!activation.frame && roundTrip, {
       devtoolsMode: 'bottom',
-      tabs: tabList.tabs,
+      tabs: tabList.tabs.map(tab => tab.title),
+      tabIds: tabList.tabs.map(tab => tab.id),
       tabsBeforeActivation,
       rxdbTabSelected,
+      panelRegisteredBeforeSelection: activation.registered,
       tabSelection: activation.selection,
       panelHtmlFrameLoaded: !!activation.frame,
+      devtoolsPageState,
+      devToolsConsole: [...devToolsConsole], // 拍快照：findings 到 finish() 才序列化，直接放引用会把后续步骤的日志也算进来
       framesInDevTools: frameUrls(devTools),
       initSentFrom: 'panel.html（真实面板文档）',
       panelPortReceived: first?.relay.msgs ?? null,
