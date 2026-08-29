@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
-import { validateManifest } from './check-migration-release-gate.mjs';
+import { resolveReleaseTag, validateManifest } from './check-migration-release-gate.mjs';
 
 const bridgeManifest = () => ({
   $schemaVersion: 1,
@@ -300,6 +300,31 @@ test('bridge 与 oldBundlePolicy 必须是对象', () => {
 
   assert.ok(errors.includes('bridge must be an object'));
   assert.ok(errors.includes('oldBundlePolicy must be an object'));
+});
+
+// --- resolveReleaseTag -------------------------------------------------------
+// 门禁挂进 PR CI 的前提。此前 tag 直接取 `GITHUB_REF_NAME`，在 PR 事件下那是
+// `42/merge`，会让每个 PR 都红在一条与发布无关的假失败上。
+
+test('显式 --release-tag 优先于环境变量', () => {
+  assert.equal(
+    resolveReleaseTag(['--check', '--release-tag=v0.0.26'], { GITHUB_REF_TYPE: 'tag', GITHUB_REF_NAME: 'v0.0.25' }),
+    'v0.0.26'
+  );
+});
+
+test('打 tag 的 workflow 回落到 GITHUB_REF_NAME', () => {
+  assert.equal(resolveReleaseTag(['--check'], { GITHUB_REF_TYPE: 'tag', GITHUB_REF_NAME: 'v0.0.25' }), 'v0.0.25');
+});
+
+test('PR 与分支 push 不把 ref 名当发布 tag', () => {
+  for (const env of [
+    { GITHUB_REF_TYPE: 'branch', GITHUB_REF_NAME: '42/merge' },
+    { GITHUB_REF_TYPE: 'branch', GITHUB_REF_NAME: 'main' },
+    {}
+  ]) {
+    assert.equal(resolveReleaseTag(['--check'], env), undefined, `expected ${JSON.stringify(env)} to skip tag check`);
+  }
 });
 
 // 回归：仓库里签入的清单一度长期处于 kind=migration + bridge.tag=null 的

@@ -1,4 +1,4 @@
-import { logger, type DevToolsMessage } from '@modules/rxdb-devtools-panel/wire';
+import { logger, type DevToolsRelayFrame } from '@modules/rxdb-devtools-panel/wire';
 import {
   createBridgePing,
   extractHandshakePort,
@@ -16,7 +16,7 @@ import {
  */
 let pagePort: MessagePort | null = null;
 
-function sendToExtension(message: DevToolsMessage): void {
+function sendToExtension(message: DevToolsRelayFrame): void {
   chrome.runtime.sendMessage(message).catch((err: unknown) => {
     logger.debug('Failed to send message to extension', { type: message.type, err });
   });

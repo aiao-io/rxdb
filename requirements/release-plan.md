@@ -70,11 +70,20 @@
 
 ### 执行顺序
 
-0. **补齐门禁的 git 钩子面**（不依赖发布，可立即做）：PR CI 的 `setup` job 已经通过 `pnpm test-scripts`
-   校验签入清单的结构与「清单 ↔ `packages/rxdb/package.json` 版本一致」，版本漂移现在拦得住。
-   仍缺的是 `bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` ——单测里它们被
-   `passingHooks` 桩掉了。把 `migration-release-gate`（不带 `--release-tag`）挂进 PR CI 才能用真实 git 校验。
-   这三条只对 `kind=migration` 生效，桥接发布用不上，但下一个迁移周期会用上。
+0. ~~**补齐门禁的 git 钩子面**~~ **已完成**（不依赖发布，已随本轮落地）：`migration-release-gate`
+   已挂进 PR CI 的 `setup` job（`ci-template.yml` 的 “Migration release manifest gate”），**不带**
+   `--release-tag`，用真实 git 执行 `bridgeTagExists` / `bridgeTagIsAncestor` /
+   `bridgeTagSupportsProtocol`——单测里这三条被 `passingHooks` 桩掉，此前只在打 tag 时跑过。
+   两处配套改动是这一步能成立的前提：
+   - `setup` 的 checkout 加了 `fetch-tags: true`。`fetch-depth: 0` 只保证历史完整；actions/checkout
+     在 refspec 不含 `refs/tags/*` 时一律加 `--no-tags`，runner 上根本没有 tag，三条钩子会变成恒假门禁。
+   - 脚本改为按 `GITHUB_REF_TYPE` 解析发布 tag（`resolveReleaseTag`）。此前直接取 `GITHUB_REF_NAME`，
+     PR 事件下那是 `42/merge`，挂进 PR CI 会让每个 PR 都红在
+     `release.version 0.0.25 does not match tag 42/merge` 这条与发布无关的假失败上。
+
+   这三条只对 `kind=migration` 生效，桥接发布走不到它们（见下方「门禁三钩子的状态」），
+   下一个迁移周期（US-305）才会真正吃到。
+
 1. **先合入 `main`，再打 tag**——顺序不能反。落地时两条约束：提交必须是规范的
    `feat(...)` / `fix(...)`（否则 bump 量为零，发不出版本），且**不得改动** `RXDB_SYSTEM_SCHEMA_VERSION` /
    `RXDB_CHANGE_CODEC_VERSION`（否则 `kind=bridge` 过不了门禁）。
@@ -116,7 +125,7 @@
 `bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` 已用真实 tag 做过正反两组对照：
 真 tag 一条报错都没有，伪造 tag（`v9.9.9`）三条全部报出，fail-closed 成立。
 **门禁本身不需要修**：它在真实 tag 上的行为与桩一致，且对伪造 tag 正确拒绝。
-唯一的缺口是这三条还只在 tag 时跑，未挂进 PR CI（见执行顺序第 0 步）。
+「只在 tag 时跑」这条缺口**已补**：门禁现在每个 PR 都跑（见执行顺序第 0 步）。
 
 ⚠️ **这三条只对 `kind=migration` 生效，桥接发布走不到它们**
 （[check-migration-release-gate.mjs](../scripts/check-migration-release-gate.mjs) 的 `validateManifest`

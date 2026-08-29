@@ -141,7 +141,8 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 ### `check-migration-release-gate.mjs`
 
 - **触发**：
-  - `pnpm check-migration-release-gate`（手工发布前自行执行——**没有任何 CI 会自动跑它**）；
+  - CI 的 `setup` job（`ci-template.yml` 的 “Migration release manifest gate”，PR 与 main 都跑），**不带** `--release-tag`；
+  - `pnpm check-migration-release-gate`（手工发布前自行执行，发布时带 `--release-tag=v<版本>`）；
   - `pnpm test-scripts` → 连同其它脚本 spec 一起跑 `check-migration-release-gate.spec.mjs`，用 Node 自带 test runner 覆盖 `validateManifest` 的所有分支。
 - **做什么**：纯函数 `validateManifest(manifest, options)` 校验 `requirements/migration-release.json`：
   - `$schemaVersion`、`release.kind`（normal / bridge / migration）、`release.version`（semver）、`protocolVersion`、schema/codec upgrade 布尔位；

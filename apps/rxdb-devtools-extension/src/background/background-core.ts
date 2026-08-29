@@ -1,7 +1,9 @@
 import {
   isDevToolsMessage,
+  isRelayFrameTowards,
   RXDB_DEVTOOLS_MESSAGE,
   type DevToolsMessage,
+  type DevToolsRelayFrame,
   type InitMessage
 } from '@modules/rxdb-devtools-panel/wire';
 
@@ -19,7 +21,7 @@ export interface BackgroundPort {
 
 interface BackgroundDependencies {
   injectIntoTab: (tabId: number) => Promise<void>;
-  sendToTab: (tabId: number, message: DevToolsMessage) => Promise<unknown>;
+  sendToTab: (tabId: number, message: DevToolsRelayFrame) => Promise<unknown>;
   onError?: (message: string, error: unknown) => void;
 }
 
@@ -88,13 +90,18 @@ export function createBackgroundController(dependencies: BackgroundDependencies)
       let connectedTabId: number | null = null;
       port.onMessage.addListener(message => {
         // P1-4：**先严校验，再分派** —— INIT 不再有绕过协议的入口。
-        if (!isDevToolsMessage(message)) return;
-        if (isInitMessage(message)) {
+        // INIT 是扩展内部消息（面板 → background，永不下页面），所以它先于中继判定处理：
+        // 它是唯一一条 background 自己消费而不转发的帧。
+        if (isDevToolsMessage(message) && isInitMessage(message)) {
           connectedTabId = message.tabId;
           ports.set(message.tabId, port);
           activateTab(message.tabId);
           return;
         }
+        // C2/AC#36：其余帧按**宽外层**判定转发，两代协议同一条链路。
+        // 方向必须是 `to-page`：面板 port 上出现一条上行帧只可能是伪造或串线，
+        // 转发它等于让页面能给自己回消息。
+        if (!isRelayFrameTowards(message, 'to-page')) return;
         // P1-4：路由**只认 INIT 绑定的 tab**。
         // 原实现是 `message.tabId ?? connectedTabId`，等于让每条消息自称属于哪个 tab；
         // 下面那道 `ports.get(tabId) !== port` 守卫只挡住「转发到别人的 tab」，
@@ -122,13 +129,14 @@ export function createBackgroundController(dependencies: BackgroundDependencies)
      * 把 content script 收到的页面消息转给对应 tab 的面板。
      *
      * @remarks
-     * AC#36：`HANDSHAKE` 在这里**没有特例分支**。它本就是 `page-to-devtools`
-     * （见 `@aiao/rxdb-devtools` 的 `HandshakeMessage`），走下面同一条转发即可；
-     * 原先那条特例会在转发的同时代发 `HANDSHAKE_ACK`，等于替面板做了协议版本决定。
+     * AC#36：`HANDSHAKE` 在这里**没有特例分支**，两代协议都没有。它本就是上行帧，
+     * 走下面同一条转发即可；原先那条特例会在转发的同时代发 `HANDSHAKE_ACK`，
+     * 等于替面板做了协议版本决定 —— 而中继伪造的 ACK 在格式上完全合法，
+     * 只有「ACK 归面板独有」这条所有权规则能挡住它。
      */
     receiveContent(message: unknown, tabId: number | undefined): void {
-      if (!isDevToolsMessage(message) || tabId === undefined) return;
-      if (message.direction === 'page-to-devtools') ports.get(tabId)?.postMessage(message);
+      if (tabId === undefined || !isRelayFrameTowards(message, 'to-panel')) return;
+      ports.get(tabId)?.postMessage(message);
     }
   };
 }

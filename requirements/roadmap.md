@@ -64,10 +64,12 @@
 
 ### 零散收尾项（不成故事，随手可带）
 
-1. **`migration-release-gate` 挂进 PR CI**（[release-plan.md 执行顺序第 0 步](release-plan.md)）：
-   `bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` 目前只在打 tag 时跑，
-   单测里被 `passingHooks` 桩掉。三条只对 `kind=migration` 生效，桥接发布用不上，
-   但下一个迁移周期（US-305）会用上，且这一条**不依赖发布**，可立即做。
+1. ~~**`migration-release-gate` 挂进 PR CI**~~ ✅ **已完成**（2026-08-29，[release-plan.md 执行顺序第 0 步](release-plan.md)）：
+   门禁已挂进 `ci-template.yml` 的 `setup` job，不带 `--release-tag`。配套两处：`setup` 的 checkout 加
+   `fetch-tags: true`（否则 runner 上没有 tag，三条钩子恒假），脚本按 `GITHUB_REF_TYPE` 解析发布 tag
+   （否则 PR 上 `GITHUB_REF_NAME=42/merge` 会造成假失败）。`bridgeTagExists` /
+   `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` 三条只对 `kind=migration` 生效，
+   下一个迁移周期（US-305）才吃得到。
 2. **触发一次 `release-desktop.yml` 的 `workflow_dispatch`**（线 C 的 AC#6 / #7 用）：
    **specs 已就位**（2026-08-29），`tauri-smoke` 的三 OS 矩阵会跑到
    `desktop-webview-capability.spec.ts`。这两条 AC 的判据是三家真实 webview，**本机跑不出来**：

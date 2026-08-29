@@ -25,6 +25,13 @@ export {
   type OpfsResponse
 } from './opfs';
 export {
+  isRelayFrameTowards,
+  isRelayHandshake,
+  relayDirectionOf,
+  type DevToolsRelayDirection,
+  type DevToolsRelayFrame
+} from './relay';
+export {
   RXDB_DEVTOOLS_MESSAGE,
   isDevToolsMessage,
   type DevToolsMessage,
