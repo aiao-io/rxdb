@@ -14,15 +14,18 @@ import {
   DEFAULT_DATABASE_SUFFIX,
   DESKTOP_HOST_PROTOCOL_VERSION,
   DESKTOP_HOST_TRANSPORT_KEY,
+  DESKTOP_PGLITE_PROTOCOL_VERSION,
   DesktopSqliteClient,
   RxDBAdapterDesktopError,
   assertDesktopSqliteStorage,
   assertValidDesktopDatabaseName,
   isDesktopHostFileRequestKind,
   isDesktopPgliteDirectoryStorage,
+  isDesktopPgliteRequestKind,
   isDesktopSqliteFileStorage,
   isRxDBAdapterDesktopErrorCode,
   parseDesktopHostRequest,
+  parseDesktopPgliteRequest,
   resolveDesktopHostTransport,
   type DesktopHostTransport,
   type DesktopOptions,
@@ -34,11 +37,13 @@ const DESKTOP_ONLY_VALUE_EXPORTS = [
   'DEFAULT_DATABASE_SUFFIX',
   'DESKTOP_HOST_PROTOCOL_VERSION',
   'DESKTOP_HOST_TRANSPORT_KEY',
+  'DESKTOP_PGLITE_PROTOCOL_VERSION',
   'DesktopSqliteClient',
   'RxDBAdapterDesktopError',
   'assertDesktopSqliteStorage',
   'assertValidDesktopDatabaseName',
   'parseDesktopHostRequest',
+  'parseDesktopPgliteRequest',
   'resolveDesktopHostTransport'
 ];
 
@@ -73,10 +78,13 @@ describe('desktop-host subpath', () => {
   it('exposes the four halves of the desktop host contract', () => {
     // 选项与后缀
     expect(DEFAULT_DATABASE_SUFFIX).toBe('.sqlite3');
-    // 线协议
+    // 线协议：SQLite / 文件 / PGlite 三族，版本号各自独立编号
     expect(DESKTOP_HOST_PROTOCOL_VERSION).toBe(1);
+    expect(DESKTOP_PGLITE_PROTOCOL_VERSION).toBe(1);
     expect(isDesktopHostFileRequestKind('file.open')).toBe(true);
+    expect(isDesktopPgliteRequestKind('pg.begin')).toBe(true);
     expect(parseDesktopHostRequest({ kind: 'handshake' })).toEqual({ kind: 'handshake' });
+    expect(parseDesktopPgliteRequest({ kind: 'pg.handshake' })).toEqual({ kind: 'pg.handshake' });
     // renderer client
     expect(DESKTOP_HOST_TRANSPORT_KEY).toBe('__aiaoRxdbDesktopHost__');
     expect(DesktopSqliteClient).toBeTypeOf('function');

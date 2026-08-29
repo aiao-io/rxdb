@@ -90,6 +90,35 @@ export {
 } from './desktop/desktop-host-protocol.js';
 
 export {
+  DESKTOP_PGLITE_DEFAULT_BEGIN_TIMEOUT_MS,
+  DESKTOP_PGLITE_MAX_BEGIN_TIMEOUT_MS,
+  DESKTOP_PGLITE_MAX_PARAM_DEPTH,
+  DESKTOP_PGLITE_PROTOCOL_VERSION,
+  assertDesktopPgliteResponse,
+  isDesktopPgliteRequestKind,
+  parseDesktopPgliteHandshakeResult,
+  parseDesktopPgliteNotifyMessage,
+  parseDesktopPgliteOpenResult,
+  parseDesktopPgliteRequest,
+  type DesktopPgliteBeginRequest,
+  type DesktopPgliteCloseRequest,
+  type DesktopPgliteExecRequest,
+  type DesktopPgliteField,
+  type DesktopPgliteHandshakeRequest,
+  type DesktopPgliteHandshakeResult,
+  type DesktopPgliteNotifyMessage,
+  type DesktopPgliteOpenRequest,
+  type DesktopPgliteOpenResult,
+  type DesktopPgliteParam,
+  type DesktopPgliteQueryRequest,
+  type DesktopPgliteQueryResult,
+  type DesktopPgliteRequest,
+  type DesktopPgliteResponse,
+  type DesktopPgliteTransactionEndRequest,
+  type DesktopPgliteVersionRequest
+} from './desktop/desktop-pglite-protocol.js';
+
+export {
   DESKTOP_HOST_TRANSPORT_KEY,
   DesktopSqliteClient,
   resolveDesktopHostTransport,

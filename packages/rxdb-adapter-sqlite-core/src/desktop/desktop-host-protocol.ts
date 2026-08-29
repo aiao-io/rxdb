@@ -17,7 +17,22 @@ import {
   RxDBAdapterDesktopError,
   type RxDBAdapterDesktopErrorCode
 } from './desktop-error.js';
+import {
+  asRecord,
+  DESKTOP_HOST_MAX_BINDINGS,
+  DESKTOP_HOST_MAX_BLOB_BYTES,
+  readSessionId,
+  readSql,
+  readUuid,
+  violation
+} from './desktop-protocol-primitives.js';
 import { assertDesktopSqliteStorage, type DesktopSqliteFileStorage, type DesktopStorage } from './desktop-storage.js';
+
+export {
+  DESKTOP_HOST_MAX_BINDINGS,
+  DESKTOP_HOST_MAX_BLOB_BYTES,
+  DESKTOP_HOST_MAX_SQL_LENGTH
+} from './desktop-protocol-primitives.js';
 
 /**
  * 线协议版本。
@@ -35,15 +50,6 @@ import { assertDesktopSqliteStorage, type DesktopSqliteFileStorage, type Desktop
  * 它拿真进程报上来的数字与本常量比对；改这个值时那条用例会红。
  */
 export const DESKTOP_HOST_PROTOCOL_VERSION = 1;
-
-/** 单条 SQL 文本的长度上限。 */
-export const DESKTOP_HOST_MAX_SQL_LENGTH = 1_000_000;
-
-/** 单条请求允许的绑定参数个数上限。 */
-export const DESKTOP_HOST_MAX_BINDINGS = 100_000;
-
-/** 单个 blob 绑定参数的字节上限。 */
-export const DESKTOP_HOST_MAX_BLOB_BYTES = 64 * 1024 * 1024;
 
 /**
  * 单帧文件读写的字节上限。
@@ -375,41 +381,11 @@ const FILE_REQUEST_KINDS: readonly DesktopHostFileRequest['kind'][] = [
 /** 允许以存储根（空路径）为目标的操作；其余必须指向一个具体条目。 */
 const ROOT_ADDRESSABLE_KINDS: ReadonlySet<string> = new Set(['file.stat', 'file.list', 'file.mkdir']);
 
-const SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CHANGE_TYPES: readonly SQLiteChangeType[] = [
   SQLiteChangeType.SQLITE_DELETE,
   SQLiteChangeType.SQLITE_INSERT,
   SQLiteChangeType.SQLITE_UPDATE
 ];
-
-const violation = (message: string): RxDBAdapterDesktopError =>
-  new RxDBAdapterDesktopError('protocol_violation', message);
-
-const asRecord = (value: unknown): Record<string, unknown> => {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw violation('request must be a plain object');
-  }
-  return value as Record<string, unknown>;
-};
-
-const readUuid = (record: Record<string, unknown>, key: string): string => {
-  const value = record[key];
-  if (typeof value !== 'string' || !SESSION_ID_PATTERN.test(value)) {
-    throw violation(`${key} must be a UUID string issued by the host`);
-  }
-  return value;
-};
-
-const readSessionId = (record: Record<string, unknown>): string => readUuid(record, 'sessionId');
-
-const readSql = (record: Record<string, unknown>): string => {
-  const sql = record['sql'];
-  if (typeof sql !== 'string') throw violation('sql must be a string');
-  if (sql.length > DESKTOP_HOST_MAX_SQL_LENGTH) {
-    throw violation(`sql exceeds ${DESKTOP_HOST_MAX_SQL_LENGTH} characters`);
-  }
-  return sql;
-};
 
 /**
  * 数组形态的 blob 是否逐元素都是字节。
