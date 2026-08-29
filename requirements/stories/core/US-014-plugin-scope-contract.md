@@ -391,7 +391,7 @@ D7 的第二条判据「改写了宿主的都必须移进 `install(scope)`」写
 | ----------------------------------------------------------------------------------------------------------- | -------------------------------- | -------------- | --------------------------------- |
 | [workspace:278-283](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L278-L283)（构造器） | `rxdb.workspace` = **插件实例**  | `false`        | **否**——实例被 `#plugin_map` 缓存 |
 | [search:737-742](../../../packages/rxdb-plugin-search/src/plugin.ts#L737-L742)（工厂函数）                  | `rxdb.searchPlugin` / `search()` | `false`        | **否**——同上                      |
-| [storage:58-63](../../../packages/rxdb-plugin-storage/src/plugin.ts#L58-L63)（已搬进 `install(scope)`）    | `rxdb.storage` = **服务实例**    | `true`         | **是**——每纪元新建、释放时销毁     |
+| [storage:58-63](../../../packages/rxdb-plugin-storage/src/plugin.ts#L58-L63)（已搬进 `install(scope)`）     | `rxdb.storage` = **服务实例**    | `true`         | **是**——每纪元新建、释放时销毁    |
 
 前两行按 D7 原文都该搬进 `install(scope)`，但它们是 `configurable: false`，作用域释放时
 `Reflect.deleteProperty` 直接失败；而且搬进去之后第二个纪元重装会撞上

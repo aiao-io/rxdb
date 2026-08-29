@@ -4,14 +4,14 @@
 
 ## 项目统计
 
-| 维度         | 数值                                                                                                                                                                                                                               |
-| :----------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 总包目录     | **31 个** `packages/*`（有 `package.json` 的公开包），全部公开发布（无 `private: true`）。其中 **30 个**受 API baseline 保护——[api-baseline/](api-baseline/) 的 json 文件数即此数，缺的一个是 `rxdb-test`（非产品 API，见下方脚注）。两个数不同义，引用时别互换  |
-| 支持框架     | Angular 22 / React 19 / Vue 3.5                                                                                                                                                                                                    |
-| 支持平台     | Web / Electron / Tauri / PWA / 小程序                                                                                                                                                                                              |
-| 存储适配器   | 10 个具名适配器：wa-sqlite / sqlite-wasm / sqlite (@sqlite.org) / sqliteai / wa-sqlite-miniprogram / sqlite-electron / sqlite-tauri / PGlite / Supabase / HTTP；另有 sqlite-core 共享基类与 encrypted 加密工具包（两者均非适配器） |
-| 演示应用     | 7 个 (Angular / Electron / HTTP / React / Supabase / Tauri / Vue) + DevTools 扩展；HTTP demo 附参考后端 `dev-rxdb-http-server`                                                                                                     |
-| E2E 测试套件 | 7 个 (Angular / Electron / HTTP / React / Supabase / Tauri / Vue)                                                                                                                                                                  |
+| 维度         | 数值                                                                                                                                                                                                                                                            |
+| :----------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 总包目录     | **31 个** `packages/*`（有 `package.json` 的公开包），全部公开发布（无 `private: true`）。其中 **30 个**受 API baseline 保护——[api-baseline/](api-baseline/) 的 json 文件数即此数，缺的一个是 `rxdb-test`（非产品 API，见下方脚注）。两个数不同义，引用时别互换 |
+| 支持框架     | Angular 22 / React 19 / Vue 3.5                                                                                                                                                                                                                                 |
+| 支持平台     | Web / Electron / Tauri / PWA / 小程序                                                                                                                                                                                                                           |
+| 存储适配器   | 10 个具名适配器：wa-sqlite / sqlite-wasm / sqlite (@sqlite.org) / sqliteai / wa-sqlite-miniprogram / sqlite-electron / sqlite-tauri / PGlite / Supabase / HTTP；另有 sqlite-core 共享基类与 encrypted 加密工具包（两者均非适配器）                              |
+| 演示应用     | 7 个 (Angular / Electron / HTTP / React / Supabase / Tauri / Vue) + DevTools 扩展；HTTP demo 附参考后端 `dev-rxdb-http-server`                                                                                                                                  |
+| E2E 测试套件 | 7 个 (Angular / Electron / HTTP / React / Supabase / Tauri / Vue)                                                                                                                                                                                               |
 
 > 基础设施包（`@aiao/utils` 通用工具、`@aiao/rxdb-test` 跨框架测试 fixture）不单独立 story；前者属于公用底座，后者由 [US-702](stories/future/US-702-full-text-search.md) 等业务 story 引用其 fixture（`cross-framework-fixtures/`）。
 
