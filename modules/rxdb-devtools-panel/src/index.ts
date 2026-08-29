@@ -29,11 +29,15 @@ export { DevToolsStateService } from './services/devtools-state.service';
 export { OpfsService } from './services/opfs.service';
 export { ThemeService } from './services/theme.service';
 export {
+  createDevToolsV2FileChannel,
   DEVTOOLS_FILE_CHANNEL,
   DEVTOOLS_HOST_ACCESS,
   DEVTOOLS_PANEL_VERSION,
   DEVTOOLS_TRANSPORT,
   type DevToolsFileChannel,
+  type DevToolsFileEntry,
+  type DevToolsFileResult,
+  type DevToolsFileUploadAck,
   type DevToolsHostAccess,
   type DevToolsHostAccessState,
   type DevToolsTransport

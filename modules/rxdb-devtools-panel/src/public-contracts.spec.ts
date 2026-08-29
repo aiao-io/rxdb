@@ -4,13 +4,13 @@ import ts from 'typescript';
 
 const files = [
   '../wire/types.ts',
-  '../wire/opfs.ts',
   'scripts/utils.ts',
   'pages/opfs-page.utils.ts',
   'components/opfs/opfs-context-menu.component.ts',
   'transport/devtools-transport.ts',
   'transport/devtools-host-access.ts',
   'transport/devtools-file-channel.ts',
+  'transport/v2-file-channel.ts',
   'transport/devtools-panel-version.ts'
 ];
 

@@ -4,10 +4,9 @@ import ts from 'typescript';
 
 const files = [
   'content/bridge-core.ts',
-  'content/opfs.ts',
   'background/background-core.ts',
   'devtools/services/inspected-page-access.service.ts',
-  'devtools/services/opfs-channel.service.ts',
+  'devtools/services/devtools-endpoint.service.ts',
   'devtools/services/port.service.ts'
 ];
 

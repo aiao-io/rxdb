@@ -15,16 +15,6 @@
  */
 
 export {
-  MAX_OPFS_UPLOAD_BYTES,
-  OPFS_MESSAGES,
-  isOpfsRequest,
-  validateOpfsName,
-  withOpfsRequestId,
-  type DirectoryEntry,
-  type OpfsRequest,
-  type OpfsResponse
-} from './opfs';
-export {
   isRelayFrameTowards,
   isRelayHandshake,
   relayDirectionOf,

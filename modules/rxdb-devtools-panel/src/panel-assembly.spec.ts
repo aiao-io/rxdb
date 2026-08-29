@@ -1,25 +1,18 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router, withHashLocation } from '@angular/router';
-import type { DirectoryEntry } from '@modules/rxdb-devtools-panel/wire';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AppComponent } from './app.component';
 import { routes } from './app.routes';
 import { createFakePanelHost, type FakePanelHost } from './testing';
+import type { DevToolsFileEntry } from './transport';
 
 /**
  * 目录快照：只为让 OPFS 页走到「有数据」分支，内容本身不是本 spec 的判据。
  */
-const FAKE_DIRECTORY: Record<string, DirectoryEntry> = {
-  '.': {
-    name: '.',
-    kind: 'directory',
-    relativePath: '',
-    entries: {
-      'demo.txt': { name: 'demo.txt', kind: 'file', relativePath: 'demo.txt', size: 12, type: 'text/plain' }
-    }
-  }
-};
+const FAKE_DIRECTORY: readonly DevToolsFileEntry[] = [
+  { name: 'demo.txt', kind: 'file', path: 'demo.txt', size: 12, lastModified: 0 }
+];
 
 /** 每条路由与它渲染出的页面宿主元素。 */
 const ROUTES = [
@@ -46,7 +39,7 @@ describe('panel assembly on a fake host', () => {
 
   beforeEach(async () => {
     host = createFakePanelHost();
-    host.fileChannel.respondWith(() => ({ requestId: '', structure: FAKE_DIRECTORY }));
+    host.fileChannel.seed('/', FAKE_DIRECTORY);
     TestBed.configureTestingModule({
       providers: [provideZonelessChangeDetection(), provideRouter(routes, withHashLocation()), ...host.providers]
     });
@@ -114,7 +107,7 @@ describe('panel assembly on a fake host', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(host.fileChannel.requests.map(request => request.message)).toEqual(['getDirectoryStructure']);
+    expect(host.fileChannel.calls).toEqual([{ op: 'list', path: '/' }]);
     expect((fixture.nativeElement as HTMLElement).querySelector('app-opfs-page')?.textContent).toContain('demo.txt');
   });
 });

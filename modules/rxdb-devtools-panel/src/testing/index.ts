@@ -12,7 +12,7 @@ import { FakeDevToolsFileChannel } from './fake-file-channel';
 import { FakeDevToolsHostAccess } from './fake-host-access';
 import { FakeDevToolsTransport } from './fake-transport';
 
-export { FakeDevToolsFileChannel, type FakeOpfsResponder } from './fake-file-channel';
+export { FakeDevToolsFileChannel, type FakeFileCall } from './fake-file-channel';
 export { FakeDevToolsHostAccess } from './fake-host-access';
 export { FakeDevToolsTransport, type RecordedMessage } from './fake-transport';
 

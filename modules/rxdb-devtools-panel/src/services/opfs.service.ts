@@ -1,24 +1,68 @@
 import { inject, Injectable, signal } from '@angular/core';
-import {
-  bytesToBase64,
-  MAX_OPFS_UPLOAD_BYTES,
-  normalizePath,
-  type DirectoryEntry,
-  type OpfsRequest,
-  type OpfsResponse
-} from '@modules/rxdb-devtools-panel/wire';
+import type { DevToolsErrorPayload } from '@aiao/rxdb-devtools';
 import { ToastService } from '../components/toast.component';
-import { DEVTOOLS_FILE_CHANNEL } from '../transport';
+import { DEVTOOLS_FILE_CHANNEL, type DevToolsFileEntry } from '../transport';
 import type { OpfsErrorKind, OPFSFile } from '../types/devtools.types';
 
-const UPLOAD_CHUNK_BYTES = 256 * 1024;
+/**
+ * 会让面板提示「刷新被检查的页面」的错误码。
+ *
+ * @remarks
+ * 这四个码的共同点不是「都是错误」，而是**页面侧此刻不在或不可用**，重试没用、刷新有用：
+ * session 关了、协议谈不拢、请求超时、provider 存在但当前不可用。
+ * 其余错误（路径非法、目标不存在、命名冲突、超限、无此能力）都是这一次操作本身的问题，
+ * 刷新页面不会让它变好，提示刷新只会把用户支到错误的方向。
+ */
+const REFRESH_HINT_CODES: ReadonlySet<string> = new Set([
+  'session_closed',
+  'protocol_unsupported',
+  'request_timeout',
+  'provider_unavailable'
+]);
+
+/** 错误码 → 面板文案；缺席的码只展示码本身，不编一句话。 */
+const ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  invalid_path: '路径非法',
+  resource_not_found: '目标不存在',
+  resource_conflict: '同名条目已存在',
+  permission_denied: '没有访问该路径的权限',
+  storage_quota_exceeded: '存储配额不足',
+  transfer_size_exceeded: '超过协商的单次传输上限',
+  provider_unsupported: '被检查的页面不提供文件能力',
+  request_limit_exceeded: '同时进行的请求过多，请稍后重试'
+};
+
+function describe(error: DevToolsErrorPayload): string {
+  return ERROR_MESSAGES[error.code] ?? error.code;
+}
+
+function kindOf(error: DevToolsErrorPayload): OpfsErrorKind {
+  return REFRESH_HINT_CODES.has(error.code) ? 'content-script-unavailable' : 'unknown';
+}
+
+/** 目录在前、文件在后，同类按名称排序。 */
+function compareEntries(a: OPFSFile, b: OPFSFile): number {
+  if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+  return a.name.localeCompare(b.name);
+}
+
+function toFile(entry: DevToolsFileEntry, parent: string): OPFSFile {
+  return {
+    name: entry.name,
+    path: parent === '/' ? `/${entry.name}` : `${parent}/${entry.name}`,
+    type: entry.kind,
+    ...(entry.size === undefined ? {} : { size: entry.size }),
+    ...(entry.lastModified === undefined ? {} : { lastModified: entry.lastModified })
+  };
+}
 
 /**
  * OPFS 文件系统服务
  *
  * @remarks
- * 只认 {@link DEVTOOLS_FILE_CHANNEL} 这条平台中立信道；请求 id、上传会话 id 与宿主寻址
- * （Chrome 侧的 tabId）全部由 adapter 负责，本服务不认识任何宿主概念。
+ * 只认 {@link DEVTOOLS_FILE_CHANNEL} 这条平台中立信道，且信道的失败一律是**带码的值**，
+ * 不是 `Error`：US-904 阶段 C2 之前这里靠匹配 Chrome 的英文错误文案来判断「要不要提示刷新」，
+ * 三段字符串串在一起，任何一环改字都会静默改掉 UI 行为。现在分支只看错误码。
  */
 @Injectable({ providedIn: 'root' })
 export class OpfsService {
@@ -41,11 +85,7 @@ export class OpfsService {
    * 当前错误的**结构化判别位**。
    *
    * @remarks
-   * P1-5：UI 早先靠 `error()?.includes('刷新')` 选分支，
-   * 而那串中文又是从 Chrome 的英文错误文案（`Could not establish connection` /
-   * `message channel closed`）匹配出来的 —— 三段字符串串在一起，
-   * 任何一环改字（含 i18n、Chrome 升级改文案）都会**静默**改掉 UI 行为且没有任何测试会红。
-   * 文案继续留给 `error`，分支判定一律用这个。
+   * UI 只认这个枚举选分支，文案留给 {@link OpfsService.error}。
    */
   readonly errorKind = signal<OpfsErrorKind | null>(null);
 
@@ -57,7 +97,7 @@ export class OpfsService {
    */
   navigateTo(path: string): void {
     this.currentPath.set(path);
-    this.refresh();
+    void this.refresh();
   }
 
   /**
@@ -68,31 +108,21 @@ export class OpfsService {
     this.error.set(null);
     this.errorKind.set(null);
 
-    try {
-      const response = await this.sendToContentScript({ message: 'getDirectoryStructure' });
-
-      if (!response?.['structure']) {
-        throw new Error('无法获取 OPFS 数据');
-      }
-
-      // 解析结构
-      const files = this.parseDirectory(response['structure'] as Record<string, DirectoryEntry>, this.currentPath());
-      this.files.set(files);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      // 文案匹配只在**这一处**发生，且结果立刻被翻译成结构化 kind
-      const kind: OpfsErrorKind =
-        message.includes('Could not establish connection') || message.includes('message channel closed') ?
-          'content-script-unavailable'
-        : 'unknown';
-      this.errorKind.set(kind);
-      this.error.set(
-        kind === 'content-script-unavailable' ? '请刷新被检查的页面以加载 OPFS 管理功能' : `OPFS 错误: ${message}`
+    const path = this.currentPath();
+    const result = await this.fileChannel.list(path);
+    if (result.outcome === 'failed') {
+      this.files.set([]);
+      this.fail(result.error, kind =>
+        kind === 'content-script-unavailable' ?
+          '请刷新被检查的页面以加载 OPFS 管理功能'
+        : `OPFS 错误: ${describe(result.error)}`
       );
-      this.toastService.error(this.error() ?? 'OPFS 错误');
-    } finally {
       this.loading.set(false);
+      return;
     }
+
+    this.files.set(result.value.map(entry => toFile(entry, path)).sort(compareEntries));
+    this.loading.set(false);
   }
 
   /**
@@ -106,174 +136,72 @@ export class OpfsService {
    * 下载文件
    */
   async download(file: OPFSFile): Promise<void> {
-    try {
-      const response = await this.sendToContentScript({
-        message: 'downloadFile',
-        data: {
-          relativePath: normalizePath(file.path),
-          fileName: file.name
-        }
-      });
-
-      if (response?.['error']) {
-        throw new Error(response['error'] as string);
-      }
-
-      this.toastService.success('文件下载成功');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.toastService.error(`下载失败: ${message}`);
+    const result = await this.fileChannel.download(file.path);
+    if (result.outcome === 'failed') {
+      this.toastService.error(`下载失败: ${describe(result.error)}`);
+      return;
     }
+    this.toastService.success('文件下载成功');
   }
 
   /**
    * 删除文件或目录
    */
   async delete(file: OPFSFile): Promise<void> {
-    try {
-      const message = file.type === 'directory' ? 'deleteDirectory' : 'deleteFile';
-      const response = await this.sendToContentScript({
-        message,
-        data: { path: normalizePath(file.path) }
-      });
-
-      if (response?.['error']) {
-        throw new Error(response['error'] as string);
-      }
-
-      this.toastService.success('删除成功');
-      await this.refresh();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.toastService.error(`删除失败: ${msg}`);
+    const result = await this.fileChannel.remove(file.path);
+    if (result.outcome === 'failed') {
+      this.toastService.error(`删除失败: ${describe(result.error)}`);
+      return;
     }
+    this.toastService.success('删除成功');
+    await this.refresh();
   }
 
   /**
    * 上传文件
+   *
+   * @remarks
+   * 信道只能保证「字节已发出」——冻结的 v2 wire 没有提交回执（见 `DevToolsFileUploadAck`）。
+   * 所以这里不把 `'sent'` 直接说成「上传成功」，而是刷新一次目录，**看文件在不在**：
+   * 成功是可观测的，猜出来的成功不是。
    */
   async upload(file: File): Promise<boolean> {
-    const uploadId = this.fileChannel.createUploadId();
-    let started = false;
-    try {
-      if (file.size > MAX_OPFS_UPLOAD_BYTES) {
-        throw new Error(`文件超过 50MB 上限: ${file.name}`);
-      }
-
-      const start = await this.sendToContentScript({
-        message: 'uploadStart',
-        data: {
-          uploadId,
-          path: this.currentPath(),
-          fileName: file.name,
-          totalBytes: file.size
-        }
-      });
-      if (start.error) throw new Error(start.error);
-      started = true;
-
-      for (let offset = 0; offset < file.size; offset += UPLOAD_CHUNK_BYTES) {
-        const bytes = new Uint8Array(await file.slice(offset, offset + UPLOAD_CHUNK_BYTES).arrayBuffer());
-        const chunk = await this.sendToContentScript({
-          message: 'uploadChunk',
-          data: { uploadId, fileData: bytesToBase64(bytes) }
-        });
-        if (chunk.error) throw new Error(chunk.error);
-      }
-
-      const complete = await this.sendToContentScript({ message: 'uploadComplete', data: { uploadId } });
-      if (complete.error) throw new Error(complete.error);
-
-      this.toastService.success(`上传成功: ${file.name}`);
-      await this.refresh();
-      return true;
-    } catch (err) {
-      if (started) {
-        await this.sendToContentScript({ message: 'uploadAbort', data: { uploadId } }).catch(() => undefined);
-      }
-      const message = err instanceof Error ? err.message : String(err);
-      this.toastService.error(`上传失败: ${message}`);
+    const target = this.currentPath();
+    const result = await this.fileChannel.upload(target, file);
+    if (result.outcome === 'failed') {
+      this.toastService.error(`上传失败: ${describe(result.error)}`);
       return false;
     }
+
+    await this.refresh();
+    if (!this.files().some(entry => entry.type === 'file' && entry.name === file.name)) {
+      this.toastService.error(`上传未确认: ${file.name}`);
+      return false;
+    }
+    this.toastService.success(`上传成功: ${file.name}`);
+    return true;
   }
 
   /**
    * 创建目录
    */
   async createDirectory(name: string): Promise<boolean> {
-    try {
-      const response = await this.sendToContentScript({
-        message: 'createDirectory',
-        data: {
-          path: this.currentPath(),
-          dirName: name
-        }
-      });
-
-      if (response?.['result'] === 'ok') {
-        this.toastService.success(`创建成功: ${name}`);
-        await this.refresh();
-        return true;
-      } else {
-        throw new Error((response?.['error'] as string) || '创建失败');
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.toastService.error(`创建失败: ${message}`);
+    const parent = this.currentPath();
+    const result = await this.fileChannel.createDirectory(parent === '/' ? `/${name}` : `${parent}/${name}`);
+    if (result.outcome === 'failed') {
+      this.toastService.error(`创建失败: ${describe(result.error)}`);
       return false;
     }
+    this.toastService.success(`创建成功: ${name}`);
+    await this.refresh();
+    return true;
   }
 
-  /** 发送一条 OPFS 请求；requestId 的铸造与配对校验由信道实现负责。 */
-  private sendToContentScript(message: Omit<OpfsRequest, 'requestId'>): Promise<OpfsResponse> {
-    return this.fileChannel.request(message);
-  }
-
-  /**
-   * 解析目录结构，获取指定路径下的文件列表
-   */
-  private parseDirectory(structure: Record<string, DirectoryEntry>, targetPath: string): OPFSFile[] {
-    const targetEntries = this.findEntriesAtPath(structure['.']?.entries ?? {}, targetPath);
-    if (!targetEntries) return [];
-
-    const files: OPFSFile[] = [];
-    for (const [name, entry] of Object.entries(targetEntries)) {
-      if (entry && typeof entry === 'object') {
-        files.push({
-          name,
-          path: targetPath === '/' ? `/${name}` : `${targetPath}/${name}`,
-          type: entry.kind,
-          size: entry.size,
-          lastModified: entry.lastModified
-        });
-      }
-    }
-
-    // 目录在前，文件在后，同类按名称排序
-    files.sort((a, b) =>
-      a.type !== b.type ?
-        a.type === 'directory' ?
-          -1
-        : 1
-      : a.name.localeCompare(b.name)
-    );
-    return files;
-  }
-
-  /**
-   * 按路径段逐级深入，返回目标目录的子条目
-   */
-  private findEntriesAtPath(
-    entries: Record<string, DirectoryEntry>,
-    targetPath: string
-  ): Record<string, DirectoryEntry> | null {
-    const segments = targetPath.split('/').filter(Boolean);
-    let current = entries;
-    for (const segment of segments) {
-      const entry = current[segment];
-      if (entry?.kind !== 'directory' || !entry.entries) return null;
-      current = entry.entries;
-    }
-    return current;
+  /** 记下结构化 kind 与对应文案，并弹一次 toast。 */
+  private fail(error: DevToolsErrorPayload, message: (kind: OpfsErrorKind) => string): void {
+    const kind = kindOf(error);
+    this.errorKind.set(kind);
+    this.error.set(message(kind));
+    this.toastService.error(this.error() ?? 'OPFS 错误');
   }
 }
