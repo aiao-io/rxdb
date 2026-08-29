@@ -102,7 +102,13 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
   （`pullChanges` 抛 `HttpChangelogUnsupportedError`，[RxDBAdapterHttp.ts:469](../../../packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts#L469)），
   本故事不改变这条边界
 - 真实身份认证；CORS / 安全边界语义的任何变化（后端仍只监听 `127.0.0.1`）
-- 新的 `node:sqlite` 存储适配器（pglite 先跑通；`SqliteBackend` 契约留给后续故事）
+- 新的纯 Node `node:sqlite` **适配器包**：`NodeSqliteEngine` 已在 `rxdb-adapter-electron` 落地
+  （`RxDBAdapterElectron extends RxDBAdapterSqliteBase`，Electron 专有的只是 host/IPC 分发，
+  SQL 引擎与 sqlite-core 的仓储/查询层都不依赖 Electron），抽包是薄层提取——另立故事，本故事不阻塞于它
+- **Drizzle ORM 适配器**（真实多数据库连接）：暂不立项。不可替代的增量只有 MySQL；真实 PG 服务有更近的路
+  （pglite 的 SQL 生成层已是 PG 方言，接 `pg` 驱动即可，语义与 pglite 逐字一致）；核心风险是跨引擎语义
+  与 wire 协议的对齐——drizzle 抽象语法、不抽象语义（collation、`LIKE` 大小写、`instr` vs `strpos`），
+  而协议要求服务端求值与客户端 refilter 逐字一致。按「病灶数 ≥ 抽象数」铁律，出现真实多库病灶时另立故事评估
 - 协议文档改动（wire 不变；文档中的示例 curl 必须继续逐字可跑）
 
 ## 设计决策
@@ -118,9 +124,19 @@ core 覆盖故事落地后，本故事追加一个小收尾：删除第二个类
 
 ### D2 — 后端存储用 pglite，`memory` 起步
 
-PGlite 的 Node 可用性有本仓测试套件实证（见「复验方式」）。阶段 A 用 `store: 'memory'` 先把
-「RxDB 初始化 + 协议端点 + 现有测试全绿」打通；文件落盘（PGlite 的 Node `dataDir` 路径）随后验证，
-因为它引入跨进程状态（重启、`reset` 删库），而 demo 后端的生命周期测试要跟着一起想清楚。
+PGlite 的 Node 可用性有本仓测试套件实证：`PGliteClient` 只在 `dataDir` 以 `opfs-ahp://` 开头时才创建
+Worker（[PGliteClient.ts:74](../../../packages/rxdb-adapter-pglite/src/PGliteClient.ts#L74)），Node 下主线程直跑。
+不选与前端行缓存同款的 wa-sqlite：它的 Node 路径无本仓用例背书（Worker 可选、memory VFS 在形状上支持，
+但没有任何 Node 测试）。
+
+一条**必须接受的取舍**：pglite 的 RuleGroup 编译是独立实现
+（`packages/rxdb-adapter-pglite/src/query/query_sql.ts`），与前端行缓存（sqlite-core 家族）不是同一份代码，
+语义对齐靠测试背书而不是结构保证——US-213 套件与 dev-rxdb-http-e2e 17 条正是这道背书，本故事把它们当
+验收主体（D3）的原因也在这里。
+
+阶段 A 用 `store: 'memory'` 先把「RxDB 初始化 + 协议端点 + 现有测试全绿」打通；文件落盘
+（PGlite 的 Node `dataDir` 路径）随后验证，因为它引入跨进程状态（重启、`reset` 删库），
+而 demo 后端的生命周期测试要跟着一起想清楚。零依赖 `node:sqlite` 路线见 Out of Scope。
 
 ### D3 — wire 不变是硬约束，不是回归兜底
 
@@ -161,11 +177,30 @@ token 编解码逻辑保留为薄层，不重写。
 前三行 id 仍钉在协议文档示例用的三个值上）。若引擎盖章机制（D4）导致时间戳不可注入，
 seed 路径改用适配器层写入（如 `mergeChanges` / 行契约路径），**不**为此给引擎加时间戳注入的公共 API。
 
+### D8 — 订阅与变更的协调模型：实例内同机制，跨端保持实体粒度广播
+
+两端各自实例**内**的响应式是同一套核心机制：pglite 的行级变更事件（change-pipeline 的触发器/notify）
+驱动 core 按订阅查询的 `where` 决策「哪些订阅要重跑」——后端自己的订阅（若有）与前端本地缓存的订阅
+走同一个 `QueryManager`，不存在需要额外协调的「后端增量计算」：后端读路径每次都是即席查询，
+**不**增量维护任何客户端的查询结果。
+
+跨端协调保持 US-023 D8 的模型不变：后端广播实体粒度 `{ entity, clientId }`，不带行数据、
+不维护客户端订阅；前端收到后 `invalidateRemoteEntity` → 重跑该实体的订阅查询 → 按各自 `where` 重拉。
+「按查询条件过滤通知」「行级变更载荷」都被 US-023 D8 否掉了（那一行该不该给这个人看只有查询路径答得出来），
+本故事不复活它们——复活的前提是状态化后端 + 鉴权耦合进通知路径，属于协议演进故事，不在本故事范围。
+
+广播接在 `ENTITY_LOCAL_*` 事件上有一个结构收益：core 的 `dispatchEvent` 把事务内的实体事件缓冲到
+`TRANSACTION_COMMIT` 才派发（`open.events.push(event)`，[RxDB.ts:816-825](../../../packages/rxdb/src/RxDB.ts#L816-L825)），
+「写入落库之后广播」这条协议语义由核心机制保证，不靠端点调用点再判一次。
+
+代价照旧且已承认：实体粒度广播会放大重拉流量（一次写入让每个活查询多跑一趟远端），
+demo 的变更通知开关就是留给这类实验的。
+
 ## 交付阶段
 
 | 阶段 | 内容                                                                         | 关闭条件                                                   |
 | :--- | :--------------------------------------------------------------------------- | :--------------------------------------------------------- |
-| A    | 共享模块 + 后端 RxDB 初始化 + 读端点（metadata / by-ids / HEAD）换成引擎查询 | AC A1–A7 全绿；US-213 套件 + e2e 17 条零差异               |
+| A    | 共享模块 + 后端 RxDB 初始化（pglite）+ 读端点（metadata / by-ids / HEAD）换成引擎查询 | AC A1–A7 全绿；US-213 套件 + e2e 17 条零差异               |
 | B    | 写端点（create / patch / delete）+ SSE 事件驱动 + `__control/*` 适配 + 退役手写 SQL | AC B1–B7 全绿；`rule-group-to-sql.ts` / `recipes-store.ts` 已删除 |
 
 ## 验收标准
@@ -189,7 +224,7 @@ seed 路径改用适配器层写入（如 `mergeChanges` / 行契约路径），
 | B1  | 阶段 A 完成                      | `POST recipes`                              | `entityManager.create` 实现；回执 = 持久化行（来自库，不是入参回声）；id 采纳/缺省生成；已存在回 409       | ⬜   |
 | B2  | 阶段 A 完成                      | `PATCH recipes/:id`                         | `findOneOrFail` + `repo.update` 实现；不存在回 404；`updatedAt` 服务端定型（D4 冻结的 wire 行为）          | ⬜   |
 | B3  | 阶段 A 完成                      | `POST recipes/delete`                       | 批量删除；响应条数；空列表幂等返回 0                                                                      | ⬜   |
-| B4  | 阶段 B 写路径就绪                | 开两个客户端，一端写入                      | SSE 广播由 `rxdb.addEventListener(ENTITY_LOCAL_*)` 驱动；载荷 `{ entity, clientId }`；`x-client-id` 回显抑制不变；`__control/reset`、`clear` 同样广播（判据仍是「库里的行变没变」） | ⬜   |
+| B4  | 阶段 B 写路径就绪                | 开两个客户端，一端写入                      | SSE 广播由 `rxdb.addEventListener(ENTITY_LOCAL_*)` 驱动；载荷 `{ entity, clientId }`；`x-client-id` 回显抑制不变；广播发生在写入事务提交之后（core 事务事件缓冲保证，D8）；`__control/reset`、`clear` 同样广播（判据仍是「库里的行变没变」） | ⬜   |
 | B5  | 阶段 B 就绪                      | `__control/reset` 跑两遍 + 其余 `__control/*` 开关 | 全部适配新存储层；两次 reset 读出的 250 行逐字节相同（D7）；前三行 id 与协议文档示例一致（文档 curl 不 404）；offline / fault / cors / page-mode 行为与现行一致 | ⬜   |
 | B6  | 阶段 B 就绪                      | 跑 dev-rxdb-http-e2e 变更通知相关用例       | 双页收敛、抑制回声、断开重连（D7 全量失效）行为与切换前零差异                                             | ⬜   |
 | B7  | 阶段 B 实现完成                  | 跑门禁                                        | 全绿；[rule-group-to-sql.ts](../../../apps/dev-rxdb-http-server/src/rule-group-to-sql.ts) 与 [recipes-store.ts](../../../apps/dev-rxdb-http-server/src/recipes-store.ts) 已删除；注入载荷测试按 D6 退役；覆盖率不回退 | ⬜   |
@@ -198,11 +233,15 @@ seed 路径改用适配器层写入（如 `mergeChanges` / 行契约路径），
 
 ## 技术笔记
 
-- **pglite 的 Node 主线程路径**：`PGliteClient` 只在 `dataDir` 为 `opfs-ahp://` 前缀时创建 Worker；Node 下
-  `memory`（阶段 A）与文件 `dataDir`（随后）都走主线程。`@electric-sql/pglite` 的 Node 支持是官方能力，
-  本仓 `rxdb-adapter-pglite` 测试套件在 Node 环境全绿是就近实证。
+- **存储选型（D2）的 Node 可行性依据**：pglite——`PGliteClient` 只在 `dataDir` 为 `opfs-ahp://` 前缀时
+  创建 Worker，Node 下 `memory` 与文件 `dataDir` 都走主线程，本仓测试套件在 Node 环境全绿是就近实证；
+  node:sqlite——`NodeSqliteEngine` 已实证（Electron 主进程），纯 Node 化见 Out of Scope。
 - **后端实例里有系统实体**（分支簿记等），对协议不可见：`HEAD recipes` 只答业务实体；`metadata` / `by-ids`
   只查 Recipe。库级 sync 用 `SyncType.None + local: pglite`（无 remote），后端实体不触发任何远端路径。
+- **订阅协调（D8）的实现落点**：SSE 广播订阅 `ENTITY_LOCAL_CREATE / UPDATE / REMOVE` 三个事件即可——
+  事件载荷带实体名与 namespace（[rxdb-events.ts:161-171](../../../packages/rxdb/src/rxdb-events.ts#L161-L171)），
+  正是 `broadcastChange({ entity, clientId })` 需要的字段。覆盖范围与现行后端同判据：
+  只有经本 RxDB 实例落库的行变更才产生事件，外部进程直写数据库文件不会被广播。
 - **D4 的时间戳机制确认点**：`EntityBase` 声明 `readonly createdAt/updatedAt: Date`，wire 上是 ISO 字符串。
   实现阶段先写一个「时间戳归属」用例（服务端写 → 回执 `updatedAt` 是服务端时钟且非入参），再按结果选盖章机制。
 - **`reset` 的语义迁移**：从「删库文件 → 重建表 → 写种子」变为「销毁 RxDB 实例 → 重建 → 经引擎写种子」。
@@ -234,4 +273,6 @@ seed 路径改用适配器层写入（如 `mergeChanges` / 行契约路径），
 - [US-214 HTTP 适配器浏览器端到端 demo](../../../requirements/stories/adapter/US-214-http-browser-demo.md) — 后端与 e2e 的现状来源
 - [US-023 QueryCache 远端变更的失效上报口与实时同步](../../../requirements/stories/core/US-023-querycache-remote-invalidation.md) — SSE 通道的客户端一侧
 - [http-protocol.md](../../../website/docs/adapters/http-protocol.md) — wire 契约，逐字不可变
+- [US-207 Electron 连接本地 SQLite 文件](../../../requirements/stories/adapter/US-207-desktop-local-database.md) — `NodeSqliteEngine` 的出处（node:sqlite + sqlite-core），Out of Scope 里纯 Node 抽包的前置
+- [NodeSqliteEngine](../../../packages/rxdb-adapter-electron/src/node-sqlite-engine.ts) — 文件路径落盘、同步接口、触发器驱动变更事件
 - 核心实例级 sync 覆盖能力——另立 core story（编号待定），本故事 D1 的收尾依赖它，A / B 不阻塞于它
