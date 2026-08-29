@@ -1,5 +1,4 @@
-import type { DevToolsMessage } from '../shared/types';
-import { logger } from '../shared/utils/logger';
+import { logger, type DevToolsMessage } from '@aiao/rxdb-devtools-panel/wire';
 import {
   createBridgePing,
   extractHandshakePort,

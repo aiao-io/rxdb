@@ -1,6 +1,6 @@
 import { isDevToolsMessage as isStrictDevToolsMessage } from '@aiao/rxdb-devtools';
 import { describe, expect, it, vi } from 'vitest';
-import { RXDB_DEVTOOLS_MESSAGE } from '../shared/types';
+import { RXDB_DEVTOOLS_MESSAGE } from '@aiao/rxdb-devtools-panel/wire';
 import {
   createBridgePing,
   extractHandshakePort,

@@ -1,0 +1,18 @@
+{
+  "//types": "spec 侧同样不含 \"chrome\"：AC#33 要求面板在没有任何 chrome 全局的环境里能装配起来，类型层先把这条钉死。",
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc/rxdb-devtools-panel/spec",
+    "target": "es2022",
+    "module": "esnext",
+    "types": ["node", "vitest/globals", "vite/client"],
+    "rootDir": "."
+  },
+  "extends": "./tsconfig.json",
+  "files": ["src/test-setup.ts"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "wire/**/*.ts"],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    }
+  ]
+}

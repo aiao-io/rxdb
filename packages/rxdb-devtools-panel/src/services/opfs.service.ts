@@ -1,6 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { MAX_OPFS_UPLOAD_BYTES, withOpfsRequestId, type OpfsRequest, type OpfsResponse } from '../../content/opfs';
-import { bytesToBase64, normalizePath } from '../../shared/utils';
+import { bytesToBase64, normalizePath } from '@aiao/rxdb-devtools-panel/wire';
 import { ToastService } from '../components/toast.component';
 import type { OpfsErrorKind, OPFSFile } from '../types/devtools.types';
 

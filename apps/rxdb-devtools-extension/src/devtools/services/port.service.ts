@@ -1,6 +1,11 @@
 import { Injectable, OnDestroy, signal } from '@angular/core';
-import { DevToolsMessage, ExtensionMessageType, isDevToolsMessage, RXDB_DEVTOOLS_MESSAGE } from '../../shared/types';
-import { logger } from '../../shared/utils/logger';
+import {
+  isDevToolsMessage,
+  logger,
+  RXDB_DEVTOOLS_MESSAGE,
+  type DevToolsMessage,
+  type ExtensionMessageType
+} from '@aiao/rxdb-devtools-panel/wire';
 
 /**
  * Chrome Extension Port 通信服务

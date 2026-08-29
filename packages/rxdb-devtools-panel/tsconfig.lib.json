@@ -1,0 +1,20 @@
+{
+  "//types": "types 里刻意**没有** \"chrome\"：这是「library 不得让 chrome 类型成为传递依赖」的机械保证。一旦有人在库里写 chrome.*，这里就编译不过，而不是等到 Electron / Tauri 宿主运行时才炸。`vite/client` 只为 `wire/utils/logger.ts` 的 `import.meta.env.DEV`（同 packages/rxdb-vue 的既有做法）。",
+  "compilerOptions": {
+    "emitDeclarationOnly": false,
+    "outDir": "../../dist/out-tsc/rxdb-devtools-panel/lib",
+    "declaration": true,
+    "declarationMap": true,
+    "inlineSources": true,
+    "types": ["vite/client"],
+    "rootDir": "."
+  },
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "wire/**/*.spec.ts"],
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts", "wire/**/*.ts"],
+  "references": [
+    {
+      "path": "../rxdb-devtools/tsconfig.lib.json"
+    }
+  ]
+}

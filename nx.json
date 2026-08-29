@@ -60,8 +60,9 @@
     { "options": { "testTargetName": "test" }, "plugin": "@nx/vitest" },
     { "options": { "targetName": "e2e" }, "plugin": "@nx/playwright/plugin" }
   ],
+  "//release.projects": "rxdb-devtools-panel 是 US-904 阶段 C 的私有面板 library（package.json 里 private: true）：只被扩展 / desktop 应用以 workspace 依赖消费，不发 npm。它必须显式排除在 release 之外——否则 Nx 仍会给它改写版本号、打进 release notes，让一个内部包看起来像公开交付物。",
   "release": {
-    "projects": ["packages/*"],
+    "projects": ["packages/*", "!rxdb-devtools-panel"],
     "releaseTag": { "pattern": "v{version}" },
     "version": {
       "conventionalCommits": true,

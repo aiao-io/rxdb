@@ -1,5 +1,5 @@
 import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '@aiao/rxdb-devtools-panel/wire';
 import { ToastService } from '../components/toast.component';
 import type { Branch, SerializedEvent } from '../types/devtools.types';
 import { DatabaseStateService } from './database-state.service';

@@ -1,4 +1,4 @@
-import { isDevToolsMessage, RXDB_DEVTOOLS_MESSAGE, type DevToolsMessage } from '../shared/types';
+import { isDevToolsMessage, RXDB_DEVTOOLS_MESSAGE, type DevToolsMessage } from '@aiao/rxdb-devtools-panel/wire';
 
 /**
  * 构造 bridge 就绪后主动注入页面的 PING。

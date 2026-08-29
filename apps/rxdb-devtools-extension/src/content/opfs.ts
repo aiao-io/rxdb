@@ -1,4 +1,4 @@
-import { base64ToBytes } from '../shared/utils';
+import { base64ToBytes } from '@aiao/rxdb-devtools-panel/wire';
 
 /** OPFS 目录树中的单个条目。 */
 export interface DirectoryEntry {

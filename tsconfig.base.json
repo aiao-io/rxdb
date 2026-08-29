@@ -70,7 +70,9 @@
       "@modules/angular-todo/todo-page": ["./modules/angular-todo/todo-page/index.ts"],
       "@modules/angular-todo/todo-cursor-page": ["./modules/angular-todo/todo-cursor-page/index.ts"],
       "@modules/wujie": ["./modules/wujie/src/index.ts"],
-      "@modules/wujie/testing": ["./modules/wujie/src/testing/index.ts"]
+      "@modules/wujie/testing": ["./modules/wujie/src/testing/index.ts"],
+      "@aiao/rxdb-devtools-panel": ["./packages/rxdb-devtools-panel/src/index.ts"],
+      "@aiao/rxdb-devtools-panel/wire": ["./packages/rxdb-devtools-panel/wire/index.ts"]
     },
     "resolveJsonModule": true,
     "skipDefaultLibCheck": true,
