@@ -3,7 +3,8 @@ import { DescribeQueryResult, PGlite, QueryOptions, Results, Transaction } from 
 import type { LiveQuery } from '@electric-sql/pglite/live';
 import { live, LiveNamespace } from '@electric-sql/pglite/live';
 import { PGliteWorker } from '@electric-sql/pglite/worker';
-import { PGliteChangeEvent, PGliteChangeType, PGliteClientOptions, PGliteNotifyPayload } from './pglite.interface.js';
+import { PGliteNotificationBatcher } from './notify/notification-batcher.js';
+import { PGliteChangeEvent, PGliteChangeType, PGliteClientOptions } from './pglite.interface.js';
 import { RxdbAdapterPGliteError } from './pglite.utils.js';
 
 interface PGliteRuntime {
@@ -19,8 +20,6 @@ interface PGliteRuntime {
   runExclusive<T>(fn: () => Promise<T>): Promise<T>;
   live: LiveNamespace;
 }
-
-type PendingPGliteEvent = { type: PGliteChangeType; tableName: string; id: string | number };
 
 type ResolvedPGliteClientOptions = Omit<PGliteClientOptions, 'store'> & {
   dataDir?: string;
@@ -231,23 +230,18 @@ export interface IPGliteClient {
 export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements IPGliteClient {
   #pglite?: PGliteRuntime;
   #dbName!: string;
-  #batchTimeout = 16; // 批量发送间隔 (ms)
   /**
-   * 一个批量窗口从开启到**必须**冲刷的上限 (ms)。
+   * NOTIFY 的去重与批量窗口。
    *
-   * 纯 trailing debounce 下，写入间隔只要小于 {@link #batchTimeout}，定时器就被无限重置，
-   * 事件一条也派发不出去（PGL-008）。该上限**同步**在每条 NOTIFY 到达时检查 ——
-   * 不能靠再加一个 setTimeout：紧凑的 `await` 循环会把宏任务队列饿死，
-   * 定时器根本不到期（sqlite 侧 SWM-005 实测过同一现象）。
+   * @remarks
+   * 抽成独立对象是为了让 US-208 的桌面客户端复用同一套语义——那条路径上 NOTIFY 由主进程
+   * host 转发过来，批量仍然发生在渲染进程。见 {@link PGliteNotificationBatcher}。
    */
-  #maxBatchWait = 100;
-  /** 单个窗口内累积事件的上限，超过即立即冲刷，形成背压 */
-  #maxPendingEvents = 5000;
-  #pendingEvents: PendingPGliteEvent[] = [];
-  /** `type\0table\0id` 去重集合，与 {@link #pendingEvents} 同生命周期 */
-  #pendingEventKeys = new Set<string>();
-  #windowStartedAt?: number;
-  #sendTimer?: ReturnType<typeof setTimeout>;
+  readonly #batcher = new PGliteNotificationBatcher({
+    resolveDbName: () => this.#dbName,
+    emit: event => this.dispatchEvent(event.type, event),
+    onParseError: error => console.error('Failed to parse NOTIFY payload:', error)
+  });
   #notificationUnsubscribes: Array<() => Promise<void>> = [];
   #isDisconnecting = false;
   #storageKey?: string;
@@ -260,7 +254,7 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
 
   /** 尚未分发的 NOTIFY 行事件数量。 */
   get pendingNotificationCount(): number {
-    return this.#pendingEvents.length;
+    return this.#batcher.pendingCount;
   }
 
   /**
@@ -341,17 +335,11 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
    * @returns 调用时是否存在待处理事件
    */
   async flushPendingNotifications(): Promise<boolean> {
-    await new Promise<void>(resolve => setTimeout(resolve, this.#batchTimeout));
-    const hasPendingNotifications = this.#pendingEvents.length > 0 || this.#sendTimer !== undefined;
+    await new Promise<void>(resolve => setTimeout(resolve, this.#batcher.batchTimeout));
+    const hasPendingNotifications = this.#batcher.pendingCount > 0 || this.#batcher.hasScheduledFlush;
 
-    if (this.#sendTimer) {
-      clearTimeout(this.#sendTimer);
-      this.#sendTimer = undefined;
-    }
-
-    if (this.#pendingEvents.length > 0 && !this.#isDisconnecting) {
-      this.#flushEvents();
-    }
+    if (this.#isDisconnecting) this.#batcher.clear();
+    else this.#batcher.flush();
 
     await nextMicroTask();
     return hasPendingNotifications;
