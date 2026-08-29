@@ -20,6 +20,7 @@ import { startLocalDatabase } from './rxdb-initializer';
 import { DesktopLaunchService } from './services/desktop-launch.service';
 import { reportSelfCheck } from './services/selfcheck-reporter';
 import { localDatabase, resolveLocalBackend } from './setup_rxdb';
+import { probeStorage } from './storage-probe';
 
 /** 按浏览器/系统语言挑 locale id。 */
 const resolveLocaleId = (): string => (Intl.DateTimeFormat().resolvedOptions().locale.includes('zh') ? 'zh' : 'en-US');
@@ -96,6 +97,7 @@ export const appConfig: ApplicationConfig = {
         openDatabase: localDatabase,
         state: inject(RxDBConnectionState),
         launches: inject(DesktopLaunchService),
+        probe: probeStorage,
         adapterName: resolveLocalBackend(globalThis).adapter,
         report: outcome => reportSelfCheck(outcome, globalThis)
       })

@@ -5,6 +5,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import type { StorageProbeResult } from '../storage-probe';
 import { isTauriRuntime } from './tauri-environment';
 
 /**
@@ -25,6 +26,14 @@ export interface SelfCheckOutcome {
   readonly launchCount?: number;
   /** 失败原因；只有失败方向有值。 */
   readonly message?: string;
+  /**
+   * 文件存储探针的结果；只有 `ok` 时有值（US-505 AC#1 / AC#3）。
+   *
+   * @remarks
+   * 三个字段名与 `selfcheck.rs` 的 `StorageProbe`（serde `rename_all = "camelCase"`）
+   * 逐字对应，那边有一条单测把它们钉死。
+   */
+  readonly storage?: StorageProbeResult;
 }
 
 /** Rust 侧命令名，由 `#[tauri::command] rxdb_selfcheck_report` 的函数名决定。 */

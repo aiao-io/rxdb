@@ -43,7 +43,9 @@ pub const APP_DATA_DIR_ENV: &str = "DEV_RXDB_TAURI_APP_DATA_DIR";
 ///
 /// 读报告的一方（`apps/dev-rxdb-tauri-e2e`）先比这个数再读别的字段：字段改了名而读的一方
 /// 没跟上时，报出来的是「版本对不上」，而不是一个到处都是 `undefined` 的对象。
-pub const REPORT_SCHEMA_VERSION: u32 = 1;
+///
+/// v2 起多了 [`StorageProbe`]（US-505 AC#1 / AC#3）。
+pub const REPORT_SCHEMA_VERSION: u32 = 2;
 
 /// 环境变量配错时的退出码。
 ///
@@ -88,6 +90,29 @@ impl SelfCheckStatus {
     }
 }
 
+/// renderer 跑完文件存储探针之后回报的事实（US-505 AC#1 / AC#3）。
+///
+/// # 为什么光有 `launch_count` 不够
+///
+/// 那个数字整个活在 SQLite 里。一个把**文件内容**写进 webview 存储、写进内存、
+/// 甚至每次启动重新生成的实现，重启断言照样从 1 数到 2 —— 而 US-505 要证的恰恰是
+/// 「内容落在应用数据目录的原生文件里，与 SQLite 元数据同属一个备份域」。
+/// 有了摘要与 `existed_before`，重启（AC#1）与整目录拷贝（AC#3）两条路径上才拿得到
+/// 「同一份内容还在、字节没变」的证据。
+///
+/// 物理路径**不进**报告（AC#4：物理路径不出协议），沿用库文件名的做法 ——
+/// 读报告的一方自己去 `rxdb-files/` 下找，找错了是它自己的问题。
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StorageProbe {
+    /// 探针文件内容的 sha256，小写十六进制。
+    pub digest: String,
+    /// 内容字节数。
+    pub byte_length: u64,
+    /// 本次启动**之前**该文件是否已存在。
+    pub existed_before: bool,
+}
+
 /// renderer 上报的结论，[`rxdb_selfcheck_report`] 的入参。
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -100,6 +125,9 @@ pub struct SelfCheckOutcome {
     /// 失败原因；只有失败方向有值。
     #[serde(default)]
     pub message: Option<String>,
+    /// 文件存储探针的结果；只有 [`SelfCheckStatus::Ok`] 时有值。
+    #[serde(default)]
+    pub storage: Option<StorageProbe>,
 }
 
 /// 落盘的报告。
@@ -116,6 +144,7 @@ struct SelfCheckReport {
     status: SelfCheckStatus,
     launch_count: Option<i64>,
     message: Option<String>,
+    storage: Option<StorageProbe>,
     app_data_dir: String,
     identifier: String,
 }
@@ -272,6 +301,7 @@ pub fn arm(app: &AppHandle, plan: SelfCheckPlan) {
             SelfCheckOutcome {
                 status: SelfCheckStatus::TimedOut,
                 launch_count: None,
+                storage: None,
                 message: Some(format!(
                     "the renderer never reported within {}s",
                     WATCHDOG_TIMEOUT.as_secs()
@@ -303,6 +333,7 @@ fn finish(app: &AppHandle, outcome: SelfCheckOutcome) {
         status: outcome.status,
         launch_count: outcome.launch_count,
         message: outcome.message,
+        storage: outcome.storage,
         app_data_dir: host.app_data_dir().to_string_lossy().into_owned(),
         identifier: app.config().identifier.clone(),
     };
@@ -504,6 +535,7 @@ mod tests {
                 status: SelfCheckStatus::Ok,
                 launch_count: Some(2),
                 message: None,
+                storage: None,
             }
         );
 
@@ -516,7 +548,30 @@ mod tests {
         assert_eq!(failed.message.as_deref(), Some("boom"));
     }
 
-    /// 报告的线上形状：读它的是 `apps/dev-rxdb-tauri-e2e`，六个键一个都不能少。
+    /// 存储探针的键名是跨语言契约的一半，另一半在 `src/app/storage-probe.ts` 里。
+    ///
+    /// serde 的 `rename_all` 与 TypeScript 的字面量之间没有编译器把关：`byteLength`
+    /// 漂成 `byte_length` 只会表现为「上报了但 Rust 侧反序列化失败」→ 没有报告 →
+    /// 只剩一次 60s 看门狗超时，而 US-505 AC#1/AC#3 的全部证据都挂在这三个字段上。
+    #[test]
+    fn the_storage_probe_payload_deserializes() {
+        let reported: SelfCheckOutcome = serde_json::from_value(serde_json::json!({
+            "status": "ok",
+            "launchCount": 1,
+            "storage": { "digest": "abc123", "byteLength": 65536, "existedBefore": false }
+        }))
+        .unwrap();
+        assert_eq!(
+            reported.storage,
+            Some(StorageProbe {
+                digest: "abc123".to_string(),
+                byte_length: 65536,
+                existed_before: false,
+            })
+        );
+    }
+
+    /// 报告的线上形状：读它的是 `apps/dev-rxdb-tauri-e2e`，七个键一个都不能少。
     /// 顺带证明「先写临时文件再改名」真的没留下半截文件。
     #[test]
     fn the_report_lands_atomically_with_the_shape_the_suite_reads() {
@@ -533,6 +588,11 @@ mod tests {
                 status: SelfCheckStatus::Ok,
                 launch_count: Some(2),
                 message: None,
+                storage: Some(StorageProbe {
+                    digest: "abc123".to_string(),
+                    byte_length: 65536,
+                    existed_before: true,
+                }),
                 app_data_dir: "/tmp/root".to_string(),
                 identifier: "io.aiao.dev-rxdb-tauri".to_string(),
             },
@@ -548,11 +608,20 @@ mod tests {
                 "status": "ok",
                 "launchCount": 2,
                 "message": null,
+                "storage": { "digest": "abc123", "byteLength": 65536, "existedBefore": true },
                 "appDataDir": "/tmp/root",
                 "identifier": "io.aiao.dev-rxdb-tauri"
             })
         );
         assert!(!plan.report_temp_path.exists(), "临时文件没有被改名，而是留在了原地");
         std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// 结构版本必须**随字段一起**往前走：读报告的一方按它决定认不认识这份 JSON。
+    /// 忘了加这个数字的话，一份少了 `storage` 键的旧报告会被当成合法的 v2 读进去，
+    /// 于是 AC#1/AC#3 的断言读到 `undefined` 而不是「版本对不上」。
+    #[test]
+    fn the_schema_version_covers_the_storage_probe() {
+        assert_eq!(REPORT_SCHEMA_VERSION, 2);
     }
 }

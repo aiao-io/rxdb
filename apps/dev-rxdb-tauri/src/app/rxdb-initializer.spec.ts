@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { connectRxDB, startLocalDatabase, type LocalDatabaseStartup } from './rxdb-initializer';
 import type { SelfCheckOutcome } from './services/selfcheck-reporter';
+import type { StorageProbeResult } from './storage-probe';
 
 describe('connectRxDB', () => {
   /** US-210：适配器名由调用方给出，两个后端（wa-sqlite / desktop）走同一条连接路径。 */
@@ -34,12 +35,16 @@ describe('connectRxDB', () => {
 });
 
 describe('startLocalDatabase', () => {
+  /** 探针的固定结果；上报路径只需要它被原样带出去。 */
+  const probeResult = { digest: 'a'.repeat(64), byteLength: 65536, existedBefore: true };
+
   /** 造一套协作方，并把连接失败真的反映到 `$error` 上（真实的 state 就是这么联动的）。 */
   const startup = (
     overrides: {
       open?: () => Promise<unknown>;
       connect?: () => Promise<unknown>;
       record?: () => Promise<number>;
+      probe?: () => Promise<StorageProbeResult>;
     } = {}
   ): {
     startup: LocalDatabaseStartup;
@@ -65,7 +70,8 @@ describe('startLocalDatabase', () => {
             connect: async () => {
               order.push('connect');
               await (overrides.connect ?? (() => Promise.resolve({})))();
-            }
+            },
+            storage: {}
           } as never;
         },
         state: { markFailed, $error: () => error },
@@ -74,6 +80,10 @@ describe('startLocalDatabase', () => {
             order.push('record');
             return (overrides.record ?? (() => Promise.resolve(1)))();
           }
+        },
+        probe: async () => {
+          order.push('probe');
+          return (overrides.probe ?? (() => Promise.resolve(probeResult)))();
         },
         adapterName: 'desktop',
         report: async outcome => {
@@ -85,17 +95,35 @@ describe('startLocalDatabase', () => {
   };
 
   /**
-   * US-210 AC#9：四步必须**按序**发生。
+   * US-210 AC#9 + US-505 AC#1：五步必须**按序**发生。
    *
    * Angular 的多个 initializer 是并发跑的，所以把它们串起来是本函数存在的全部理由；
    * 顺序一旦松掉，故障形态是「写入偶发地先于连接完成」——只在慢机器上出现。
+   *
+   * 探针排在 `record` 之后而不是与它并发：两者都要写库，并发起来第一次启动的
+   * `launchCount` 与探针的 `existedBefore` 会互相干扰，而那正是 AC#1 的两条判据。
    */
-  it('先建库、再连接、再记一次启动、最后带着次数上报', async () => {
+  it('先建库、再连接、再记一次启动、再过一遍存储，最后带着次数与探针上报', async () => {
     const context = startup({ record: () => Promise.resolve(7) });
     await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
-    expect(context.order).toEqual(['open', 'connect', 'record', 'report']);
-    expect(context.reports).toEqual([{ status: 'ok', launchCount: 7 }]);
+    expect(context.order).toEqual(['open', 'connect', 'record', 'probe', 'report']);
+    expect(context.reports).toEqual([{ status: 'ok', launchCount: 7, storage: probeResult }]);
     expect(context.markFailed).not.toHaveBeenCalled();
+  });
+
+  /**
+   * US-505：存储探针失败与写库失败是同一类事（用户看到的都是「用不了」），
+   * 都要落成应用内状态 + 一份写着原因的报告，而不是让 initializer 抛出去变成白屏。
+   */
+  it('存储探针失败时既落到应用内状态，也上报根因', async () => {
+    const failure = new Error('the storage probe read back a different digest');
+    const context = startup({ probe: () => Promise.reject(failure) });
+    await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
+    expect(context.order).toEqual(['open', 'connect', 'record', 'probe', 'report']);
+    expect(context.markFailed).toHaveBeenCalledWith(failure);
+    expect(context.reports).toEqual([
+      { status: 'failed', message: 'the storage probe read back a different digest' }
+    ]);
   });
 
   /**

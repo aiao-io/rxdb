@@ -28,7 +28,7 @@ export const REPORT_PATH_ENV = 'DEV_RXDB_TAURI_SELFCHECK_REPORT';
 export const APP_DATA_DIR_ENV = 'DEV_RXDB_TAURI_APP_DATA_DIR';
 
 /** 本文件能读懂的报告结构版本，与 `selfcheck.rs` 的 `REPORT_SCHEMA_VERSION` 一致。 */
-export const REPORT_SCHEMA_VERSION = 1;
+export const REPORT_SCHEMA_VERSION = 2;
 
 /**
  * 自检环境变量配错时的退出码，与 `selfcheck.rs` 的 `CONFIG_EXIT_CODE` 一致。
