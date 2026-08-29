@@ -16,7 +16,7 @@
         "parallel": false
       },
       "metadata": {
-        "description": "US-210 AC#1/AC#9：打包产物跨进程持久化 smoke（进程级驱动，不上 WebDriver）"
+        "description": "US-210 AC#1/AC#9 + US-505 AC#1/#3/#6/#7：打包产物跨进程持久化 smoke（进程级驱动，不上 WebDriver）、文件内容与 SQLite 元数据同备份域、三家真实 webview 的 download()/fetch() 能力门禁"
       }
     }
   }
