@@ -1,5 +1,5 @@
 import { InjectionToken, type Signal } from '@angular/core';
-import type { DevToolsMessage, ExtensionMessageType } from '@aiao/rxdb-devtools-panel/wire';
+import type { DevToolsMessage, ExtensionMessageType } from '@modules/rxdb-devtools-panel/wire';
 
 /**
  * 面板与被检查页之间的**平台中立**控制信道。

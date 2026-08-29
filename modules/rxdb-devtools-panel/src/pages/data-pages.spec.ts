@@ -3,6 +3,8 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DatabaseStateService } from '../services/database-state.service';
 import { OpfsService } from '../services/opfs.service';
+import { FakeDevToolsHostAccess } from '../testing';
+import { DEVTOOLS_HOST_ACCESS } from '../transport';
 import type { DbInfo, EntityData, EntityErrorKind, OPFSFile } from '../types/devtools.types';
 import { DatabasePage } from './database.page';
 import { OpfsPage } from './opfs.page';
@@ -232,23 +234,25 @@ describe('StoragePage', () => {
 describe('OpfsPage', () => {
   let opfs: OpfsStub;
   let page: OpfsPage;
-  let reload: ReturnType<typeof vi.fn>;
+  let hostAccess: FakeDevToolsHostAccess;
 
   const directory: OPFSFile = { name: 'docs', path: '/docs', type: 'directory' };
   const file: OPFSFile = { name: 'readme.md', path: '/readme.md', type: 'file', size: 2048, lastModified: 1 };
 
   beforeEach(() => {
     opfs = new OpfsStub();
-    reload = vi.fn();
-    vi.stubGlobal('chrome', { devtools: { inspectedWindow: { reload } } } as unknown as typeof chrome);
-    TestBed.configureTestingModule({ providers: [OpfsPage, { provide: OpfsService, useValue: opfs }] });
+    hostAccess = new FakeDevToolsHostAccess();
+    TestBed.configureTestingModule({
+      providers: [
+        OpfsPage,
+        { provide: OpfsService, useValue: opfs },
+        { provide: DEVTOOLS_HOST_ACCESS, useValue: hostAccess }
+      ]
+    });
     page = TestBed.inject(OpfsPage);
   });
 
-  afterEach(() => {
-    TestBed.resetTestingModule();
-    vi.unstubAllGlobals();
-  });
+  afterEach(() => TestBed.resetTestingModule());
 
   it('refreshes, navigates, counts files and derives breadcrumbs', async () => {
     page.ngOnInit();
@@ -289,7 +293,7 @@ describe('OpfsPage', () => {
 
   it('reloads the inspected page', () => {
     page.reloadInspectedPage();
-    expect(reload).toHaveBeenCalledWith({});
+    expect(hostAccess.reloadCount).toBe(1);
   });
 
   it('handles drag state and uploads dropped files', async () => {

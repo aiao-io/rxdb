@@ -69,10 +69,10 @@
       "@modules/angular-todo": ["./modules/angular-todo/src/index.ts"],
       "@modules/angular-todo/todo-page": ["./modules/angular-todo/todo-page/index.ts"],
       "@modules/angular-todo/todo-cursor-page": ["./modules/angular-todo/todo-cursor-page/index.ts"],
+      "@modules/rxdb-devtools-panel": ["./modules/rxdb-devtools-panel/src/index.ts"],
+      "@modules/rxdb-devtools-panel/wire": ["./modules/rxdb-devtools-panel/wire/index.ts"],
       "@modules/wujie": ["./modules/wujie/src/index.ts"],
-      "@modules/wujie/testing": ["./modules/wujie/src/testing/index.ts"],
-      "@aiao/rxdb-devtools-panel": ["./packages/rxdb-devtools-panel/src/index.ts"],
-      "@aiao/rxdb-devtools-panel/wire": ["./packages/rxdb-devtools-panel/wire/index.ts"]
+      "@modules/wujie/testing": ["./modules/wujie/src/testing/index.ts"]
     },
     "resolveJsonModule": true,
     "skipDefaultLibCheck": true,

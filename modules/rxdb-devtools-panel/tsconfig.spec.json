@@ -1,0 +1,20 @@
+{
+  "//emitDeclarationOnly": "tsconfig.base.json 默认开着 emitDeclarationOnly，spec 必须关掉：@analogjs/vite-plugin-angular 只收 JS 产物（它会跳过一切 .d.ts），只发声明就等于所有组件都「不在 TypeScript program 里」，退回无 input 元数据的 JIT（表现为 NG0303 / NG0950）。同仓 packages/rxdb-angular、packages/code-editor-angular 的 spec 配置也都显式关掉它。",
+  "//references": "只引用**别的**项目（同 packages/rxdb-angular、packages/code-editor-angular）。引用同目录的 tsconfig.lib.json 会让 TS 把本项目自己的 src/** 重定向到 lib 的 .d.ts 产物（TS6305），源文件随之掉出 spec program，@analogjs/vite-plugin-angular 就只能退回 JIT。",
+  "//types": "spec 侧同样不含 \"chrome\"：AC#33 要求面板在没有任何 chrome 全局的环境里能装配起来，类型层先把这条钉死。",
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc/rxdb-devtools-panel/spec",
+    "target": "es2022",
+    "module": "esnext",
+    "emitDeclarationOnly": false,
+    "types": ["node", "vitest/globals", "vite/client"],
+    "rootDir": "."
+  },
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "wire/**/*.ts"],
+  "references": [
+    {
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+    }
+  ]
+}

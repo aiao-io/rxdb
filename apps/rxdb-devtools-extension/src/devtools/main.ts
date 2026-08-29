@@ -7,7 +7,7 @@ import {
   DEVTOOLS_PANEL_VERSION,
   DEVTOOLS_TRANSPORT,
   routes
-} from '@aiao/rxdb-devtools-panel';
+} from '@modules/rxdb-devtools-panel';
 // P2-13：与 `manifest.config.ts` 取同一个来源，避免关于页与 manifest 的版本分叉
 import pkg from '../../package.json';
 import { InspectedPageAccessService } from './services/inspected-page-access.service';

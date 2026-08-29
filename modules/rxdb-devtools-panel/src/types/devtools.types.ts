@@ -37,7 +37,7 @@ export interface DbInfo {
  *
  * @remarks
  * 面板过去自己抄了一份，抄漏了 `_meta`（结构化错误码就在里面），于是「对端没注册这个实体」
- * 只能靠匹配错误文案识别。协议形状一律由核心包说了算，与 `@aiao/rxdb-devtools-panel/wire` 同一条规矩。
+ * 只能靠匹配错误文案识别。协议形状一律由核心包说了算，与 `@modules/rxdb-devtools-panel/wire` 同一条规矩。
  */
 export type EntityData = EntityDataPayload;
 

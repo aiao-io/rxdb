@@ -3,7 +3,7 @@ import {
   RXDB_DEVTOOLS_MESSAGE,
   type DevToolsMessage,
   type InitMessage
-} from '@aiao/rxdb-devtools-panel/wire';
+} from '@modules/rxdb-devtools-panel/wire';
 
 interface Listener<T> {
   addListener(listener: T): void;
@@ -43,7 +43,7 @@ function controlMessage(type: 'HANDSHAKE_ACK' | 'PING' | 'DISCONNECT'): DevTools
  * 也就是说它是一条**绕过整个协议的侧信道**：任何能往这个 port 投递对象的上下文，
  * 只要凑出两个字段就能让 background 把某个 tab 的 port 指向自己。
  *
- * 现在 INIT 已经是协议的一部分（见 `@aiao/rxdb-devtools-panel/wire` 的 `ExtensionOnlyMessageType`），
+ * 现在 INIT 已经是协议的一部分（见 `@modules/rxdb-devtools-panel/wire` 的 `ExtensionOnlyMessageType`），
  * 所以先过 `isDevToolsMessage` 严校验，再判断类型即可。
  */
 function isInitMessage(message: DevToolsMessage): message is InitMessage {

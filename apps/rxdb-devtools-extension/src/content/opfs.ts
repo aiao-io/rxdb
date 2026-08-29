@@ -6,7 +6,7 @@ import {
   type DirectoryEntry,
   type OpfsRequest,
   type OpfsResponse
-} from '@aiao/rxdb-devtools-panel/wire';
+} from '@modules/rxdb-devtools-panel/wire';
 
 interface OpfsDependencies {
   getRootDirectory: () => Promise<FileSystemDirectoryHandle>;

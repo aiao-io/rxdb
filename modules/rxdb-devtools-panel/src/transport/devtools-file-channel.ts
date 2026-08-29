@@ -1,5 +1,5 @@
 import { InjectionToken } from '@angular/core';
-import type { OpfsRequest, OpfsResponse } from '@aiao/rxdb-devtools-panel/wire';
+import type { OpfsRequest, OpfsResponse } from '@modules/rxdb-devtools-panel/wire';
 
 /**
  * 面板与文件后端之间的**平台中立**文件信道。

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import type { DevToolsFileChannel } from '@aiao/rxdb-devtools-panel';
-import { withOpfsRequestId, type OpfsRequest, type OpfsResponse } from '@aiao/rxdb-devtools-panel/wire';
+import type { DevToolsFileChannel } from '@modules/rxdb-devtools-panel';
+import { withOpfsRequestId, type OpfsRequest, type OpfsResponse } from '@modules/rxdb-devtools-panel/wire';
 
 /**
  * {@link DevToolsFileChannel} 的 Chrome 实现：面板 → OPFS content script 的 `chrome.tabs.sendMessage` 通道。

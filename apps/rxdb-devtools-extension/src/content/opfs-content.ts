@@ -1,4 +1,4 @@
-import { isOpfsRequest } from '@aiao/rxdb-devtools-panel/wire';
+import { isOpfsRequest } from '@modules/rxdb-devtools-panel/wire';
 import { createOpfsMessageHandler } from './opfs';
 
 const handleMessage = createOpfsMessageHandler({

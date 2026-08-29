@@ -1,5 +1,5 @@
 import { inject, Injectable, OnDestroy, signal } from '@angular/core';
-import { executeInInspectedWindow, type DevToolsHostAccess } from '@aiao/rxdb-devtools-panel';
+import { executeInInspectedWindow, type DevToolsHostAccess } from '@modules/rxdb-devtools-panel';
 import { PortService } from './port.service';
 
 /**

@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { INSPECTED_WINDOW_SCRIPT_RESULT } from '@aiao/rxdb-devtools-panel';
-import { RXDB_DEVTOOLS_MESSAGE, type DevToolsMessage } from '@aiao/rxdb-devtools-panel/wire';
+import { INSPECTED_WINDOW_SCRIPT_RESULT } from '@modules/rxdb-devtools-panel';
+import { RXDB_DEVTOOLS_MESSAGE, type DevToolsMessage } from '@modules/rxdb-devtools-panel/wire';
 import { InspectedPageAccessService, permissionPatternForUrl } from './inspected-page-access.service';
 import { PortService } from './port.service';
 

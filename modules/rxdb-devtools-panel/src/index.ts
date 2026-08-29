@@ -8,7 +8,7 @@
  * {@link DEVTOOLS_FILE_CHANNEL}、{@link DEVTOOLS_PANEL_VERSION} 四份 provider，
  * 面板本身对宿主一无所知。
  *
- * @module @aiao/rxdb-devtools-panel
+ * @module @modules/rxdb-devtools-panel
  */
 
 export { AppComponent } from './app.component';

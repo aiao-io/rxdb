@@ -6,7 +6,7 @@ import {
   type DirectoryEntry,
   type OpfsRequest,
   type OpfsResponse
-} from '@aiao/rxdb-devtools-panel/wire';
+} from '@modules/rxdb-devtools-panel/wire';
 import { ToastService } from '../components/toast.component';
 import { DEVTOOLS_FILE_CHANNEL } from '../transport';
 import type { OpfsErrorKind, OPFSFile } from '../types/devtools.types';

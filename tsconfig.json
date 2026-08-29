@@ -160,7 +160,7 @@
       "path": "./packages/rxdb-adapter-http"
     },
     {
-      "path": "./packages/rxdb-devtools-panel"
+      "path": "./modules/rxdb-devtools-panel"
     }
   ]
 }

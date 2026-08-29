@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { RXDB_DEVTOOLS_MESSAGE } from '@aiao/rxdb-devtools-panel/wire';
+import { RXDB_DEVTOOLS_MESSAGE } from '@modules/rxdb-devtools-panel/wire';
 import { createBackgroundController, type BackgroundPort } from './background-core';
 
 /**

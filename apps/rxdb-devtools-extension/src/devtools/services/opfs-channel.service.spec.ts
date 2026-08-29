@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { OpfsRequest, OpfsResponse } from '@aiao/rxdb-devtools-panel/wire';
+import type { OpfsRequest, OpfsResponse } from '@modules/rxdb-devtools-panel/wire';
 import { OpfsChannelService } from './opfs-channel.service';
 
 describe('OpfsChannelService', () => {

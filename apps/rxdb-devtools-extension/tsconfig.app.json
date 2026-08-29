@@ -39,7 +39,7 @@
       "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-devtools-panel/tsconfig.lib.json"
+      "path": "../../modules/rxdb-devtools-panel/tsconfig.lib.json"
     }
   ]
 }

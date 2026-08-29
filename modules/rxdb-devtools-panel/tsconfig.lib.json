@@ -5,7 +5,6 @@
     "outDir": "../../dist/out-tsc/rxdb-devtools-panel/lib",
     "declaration": true,
     "declarationMap": true,
-    "inlineSources": true,
     "types": ["vite/client"],
     "rootDir": "."
   },
@@ -15,7 +14,7 @@
   "include": ["src/**/*.ts", "wire/**/*.ts"],
   "references": [
     {
-      "path": "../rxdb-devtools/tsconfig.lib.json"
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
     }
   ]
 }

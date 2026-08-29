@@ -1,4 +1,4 @@
-import type { OpfsRequest, OpfsResponse } from '@aiao/rxdb-devtools-panel/wire';
+import type { OpfsRequest, OpfsResponse } from '@modules/rxdb-devtools-panel/wire';
 import type { DevToolsFileChannel } from '../transport';
 
 /** 由用例提供的 OPFS 应答生成器；抛错等价于宿主信道不可用。 */

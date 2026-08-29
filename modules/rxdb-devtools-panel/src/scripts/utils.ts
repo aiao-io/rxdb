@@ -1,4 +1,4 @@
-import { RXDB_DEVTOOLS_MESSAGE, type DevToolsMessage } from '@aiao/rxdb-devtools-panel/wire';
+import { RXDB_DEVTOOLS_MESSAGE, type DevToolsMessage } from '@modules/rxdb-devtools-panel/wire';
 
 /** inspected window 脚本异步执行结果的协议消息类型。 */
 export const INSPECTED_WINDOW_SCRIPT_RESULT = 'INSPECTED_WINDOW_SCRIPT_RESULT' as const;

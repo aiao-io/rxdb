@@ -1,12 +1,12 @@
 import { Injectable, OnDestroy, signal } from '@angular/core';
-import type { DevToolsTransport } from '@aiao/rxdb-devtools-panel';
+import type { DevToolsTransport } from '@modules/rxdb-devtools-panel';
 import {
   isDevToolsMessage,
   logger,
   RXDB_DEVTOOLS_MESSAGE,
   type DevToolsMessage,
   type ExtensionMessageType
-} from '@aiao/rxdb-devtools-panel/wire';
+} from '@modules/rxdb-devtools-panel/wire';
 
 /**
  * {@link DevToolsTransport} 的 Chrome 实现：面板 ↔ background service worker 的 Port 通道。
