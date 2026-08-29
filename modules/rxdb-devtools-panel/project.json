@@ -7,6 +7,9 @@
   "sourceRoot": "modules/rxdb-devtools-panel/src",
   "tags": ["angular-lib"],
   "targets": {
+    "typecheck": {
+      "outputs": ["{workspaceRoot}/dist/out-tsc/rxdb-devtools-panel"]
+    },
     "build": {
       "executor": "@nx/angular:ng-packagr-lite",
       "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
