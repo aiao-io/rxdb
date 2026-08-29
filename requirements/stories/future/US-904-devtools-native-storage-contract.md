@@ -680,17 +680,43 @@ fake 能证明的部分已证明，剩下的部分不是「还没写测试」，
 
 ### 阶段 C2 — Chrome v2 迁移（AC#36～44）
 
-| #   | 前置条件                                                           | 操作                                               | 预期结果                                                                                                   | 状态 |
-| --- | ------------------------------------------------------------------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ---- |
-| 36  | new panel + v2 connector，真实 background/content/Port             | 同时交换 eager legacy 与 v2 HANDSHAKE              | background 不代 ACK；确定选择 v2，只建立一个 session，从未短暂进入 v1                                      | ⬜   |
-| 37  | panel 先于 inspected page connector 就绪，且注入需先获得 host 授权 | 授权后刷新页面，观察握手                           | panel 在观察到 legacy HANDSHAKE 时补发 HELLO，窗口自暂存起算；双方均支持 v2 时仍选 v2，不因授权耗时而降级  | ⬜   |
-| 38  | new panel/old connector 与 old panel/new connector                 | 分别通过真实扩展 relay 调试既有页面                | 前者窗口到期后 bridge，后者无等待 facade；既有页面可用且都不获得 v2/provider 新能力                        | ⬜   |
-| 39  | 双方版本无交集、service worker 重启、页面刷新和 Port 重连          | 观察 UI 与 session                                 | 可见 `protocol_unsupported` 或确定重连；旧订阅、请求、transfer、snapshot、计时器清理，迟到消息不进入新状态 | ⬜   |
-| 40  | Chrome OPFS provider                                               | 运行阶段 B 全部 data-plane conformance             | descriptor、base64、限额、transfer、snapshot 和穷举错误全部通过，不保留旧 OPFS 私有状态机                  | ⬜   |
-| 41  | capability 为 none，握手前后产生事件并伪造查询                     | 经过真实四段 relay 观察页面消息和 provider 调用    | 仅生命周期消息；EVENT/DB_INFO/BRANCHES/Storage/files、订阅、buffer、provider 调用全部为 0                  | ⬜   |
-| 42  | readonly/full 普通 Chrome 页面使用现有 Web adapters                | 查询、事件、branch、OPFS、Storage 与 Settings 清理 | 除数据库下载和超过协商上限的传输明确拒绝外，用户可见行为不变                                               | ⬜   |
-| 43  | Settings 展示数据库下载                                            | 点击按钮并强制发送 export 命令                     | 按钮禁用；返回 `export_unsupported`；`navigator.storage.getDirectory()`、SQLite/WAL 和文件读取次数均为 0   | ⬜   |
-| 44  | Chrome 与 fake native thin driver                                  | 运行同一 panel/provider conformance                | 状态、错误、授权和资源清理一致；事件集合只来自 `RXDB_EVENT_TYPES`，fixture、状态机和错误断言没有平台副本   | ⬜   |
+| #   | 前置条件                                                           | 操作                                               | 预期结果                                                                                                   | 状态    |
+| --- | ------------------------------------------------------------------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------- |
+| 36  | new panel + v2 connector，真实 background/content/Port             | 同时交换 eager legacy 与 v2 HANDSHAKE              | background 不代 ACK；确定选择 v2，只建立一个 session，从未短暂进入 v1                                      | ⚠️ 部分 |
+| 37  | panel 先于 inspected page connector 就绪，且注入需先获得 host 授权 | 授权后刷新页面，观察握手                           | panel 在观察到 legacy HANDSHAKE 时补发 HELLO，窗口自暂存起算；双方均支持 v2 时仍选 v2，不因授权耗时而降级  | ⬜      |
+| 38  | new panel/old connector 与 old panel/new connector                 | 分别通过真实扩展 relay 调试既有页面                | 前者窗口到期后 bridge，后者无等待 facade；既有页面可用且都不获得 v2/provider 新能力                        | ⬜      |
+| 39  | 双方版本无交集、service worker 重启、页面刷新和 Port 重连          | 观察 UI 与 session                                 | 可见 `protocol_unsupported` 或确定重连；旧订阅、请求、transfer、snapshot、计时器清理，迟到消息不进入新状态 | ⬜      |
+| 40  | Chrome OPFS provider                                               | 运行阶段 B 全部 data-plane conformance             | descriptor、base64、限额、transfer、snapshot 和穷举错误全部通过，不保留旧 OPFS 私有状态机                  | ⬜      |
+| 41  | capability 为 none，握手前后产生事件并伪造查询                     | 经过真实四段 relay 观察页面消息和 provider 调用    | 仅生命周期消息；EVENT/DB_INFO/BRANCHES/Storage/files、订阅、buffer、provider 调用全部为 0                  | ⚠️ 部分 |
+| 42  | readonly/full 普通 Chrome 页面使用现有 Web adapters                | 查询、事件、branch、OPFS、Storage 与 Settings 清理 | 除数据库下载和超过协商上限的传输明确拒绝外，用户可见行为不变                                               | ⬜      |
+| 43  | Settings 展示数据库下载                                            | 点击按钮并强制发送 export 命令                     | 按钮禁用；返回 `export_unsupported`；`navigator.storage.getDirectory()`、SQLite/WAL 和文件读取次数均为 0   | ⬜      |
+| 44  | Chrome 与 fake native thin driver                                  | 运行同一 panel/provider conformance                | 状态、错误、授权和资源清理一致；事件集合只来自 `RXDB_EVENT_TYPES`，fixture、状态机和错误断言没有平台副本   | ⚠️ 部分 |
+
+#### 本轮落地：中继两段换成真实实现
+
+C2 的第一、二个增量已合入，两者都不触碰组件搬迁（C1 的边界）：
+
+1. **两代协议共用一条 Chrome 链路。** `background-core` 与 `bridge-core` 原先以 v1 专用的
+   `isDevToolsMessage` 及其两值方向枚举作闸，v2 帧在 Chrome 上**一条都过不去**——阶段 B 冻结的协议
+   在这个宿主上是死的。现由 `modules/rxdb-devtools-panel/wire/relay.ts` 的
+   `relayDirectionOf` / `isRelayFrameTowards` / `DevToolsRelayFrame` 统一判定：**宽外层**（认两代信封）
+   ＋ **方向必判**。宽而不是按 payload 严校验，是因为 service worker 与页面 connector 的升级时机
+   本就不同（扩展更新 vs 页面刷新），payload 严校验会让先升级的一侧静默吞掉另一侧的合法帧。
+2. **conformance 在真实中继逻辑上复跑。** `FakeRelay.attachNode()` 开出中间两段的接缝，
+   `apps/rxdb-devtools-extension/src/testing/chrome-relay-nodes.ts` 把真实的
+   `createBackgroundController` 与 `bridge-core` 装进去，`chrome-conformance.spec.ts` 与内存对照组
+   **只差一个 `createNodes`**：80 条控制面 / 数据面断言、fixture、错误码表一行都没有复制。
+
+#### 保留项：模拟 Port 关不掉的部分
+
+| AC  | 本轮验收到的程度                                                                                                                                                                                                                                                               | 谁最终关闭                     |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------ |
+| 36  | 真实 `createBackgroundController` + `bridge-core` 下：background 从不产出 `HANDSHAKE_ACK`、eager legacy 与 v2 HANDSHAKE 并存时仍确定选 v2、session 唯一、逆向帧被丢弃，均已断言。但 Port 是模拟的——`chrome.runtime.connect` / `chrome.tabs.sendMessage` 的跨进程投递没有被执行 | 扩展 e2e（尚不存在，需先立项） |
+| 41  | `none` 档零泄漏（provider 调用、订阅、buffer 全 0，握手前后各一次伪造查询）已经过**真实四段中继逻辑**断言。但「页面消息」观察的是合成的 window 事件，不是真实 `window.postMessage`                                                                                             | 扩展 e2e                       |
+| 44  | Chrome driver 与内存 driver 跑同一套件、同一 fixture、同一错误断言，结构上无处写平台副本。缺的是对照的另一端——native thin driver 要等阶段 D / US-905                                                                                                                           | 阶段 D / US-905                |
+
+AC#37～40、#42、#43 未开始：面板的 `database-state` / `devtools-state` / `opfs` 三个服务仍跑在 v1
+消息上，尚未改接 v2 `REQUEST` / `RESPONSE` / `EVENT`，私有 OPFS 状态机也还在。
 
 ### 阶段 D — Electron 原生存储集成（AC#45～53）
 
