@@ -508,3 +508,35 @@ export type {
   /** snapshot 存储。 */
   DevToolsSnapshotStore
 } from './provider/snapshot.js';
+export {
+  /** 建浏览器 OPFS 的 `files` provider。 */
+  createDevToolsOpfsFilesProvider
+} from './browser/opfs-files-provider.js';
+export type {
+  /** OPFS 目录项。 */
+  DevToolsOpfsEntry,
+  /** OPFS `files` provider。 */
+  DevToolsOpfsFilesProvider,
+  /** OPFS provider 的构造端口。 */
+  DevToolsOpfsFilesProviderPorts
+} from './browser/opfs-files-provider.js';
+export {
+  /** 浏览器 settings provider 的 descriptor。 */
+  DEVTOOLS_BROWSER_SETTINGS_DESCRIPTOR,
+  /** 建浏览器 `settings` provider（`export` 恒回 `export_unsupported`）。 */
+  createDevToolsBrowserSettingsProvider
+} from './browser/settings-provider.js';
+export {
+  /** 页内 connector 的默认写入开关。 */
+  CONNECTOR_MUTATION_POLICY,
+  /** 按本页实际能力装配 provider 接缝。 */
+  createConnectorProviders,
+  /** 探测本页 OPFS 根目录入口。 */
+  resolveBrowserOpfsRoot,
+  /** 用页面自己的下载路径保存文件。 */
+  saveFileThroughPage
+} from './connector-providers.js';
+export type {
+  /** provider 接缝的装配输入。 */
+  ConnectorProviderPorts
+} from './connector-providers.js';

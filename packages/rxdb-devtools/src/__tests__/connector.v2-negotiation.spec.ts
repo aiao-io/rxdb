@@ -108,10 +108,20 @@ describe('DevToolsConnector v2 negotiation', () => {
     expect(offers).toHaveLength(1);
     expect(offers[0]?.payload).toMatchObject({
       protocolVersion: DEVTOOLS_PROTOCOL_VERSION_V2,
-      capabilities: { capability: 'readonly', descriptors: [] }
+      capabilities: { capability: 'readonly' }
     });
-    // 页内还没有接上任何 v2 provider：声明服务不了的 operation 会让面板据此点亮按钮。
-    expect(offers[0]?.payload.capabilities.descriptors).toEqual([]);
+    // 只宣告本页**真的**实现了的领域。`database` 的 v2 操作还没实现，所以不出现在这里——
+    // 声明服务不了的 operation 会让面板据此点亮按钮。测试环境没有 OPFS，`files` 同理缺席。
+    expect(offers[0]?.payload.capabilities.descriptors).toEqual([
+      {
+        domain: 'settings',
+        version: 1,
+        kind: 'opfs',
+        operations: ['export'],
+        runtime: 'browser',
+        limits: { maxTransferBytes: 0 }
+      }
+    ]);
   });
 
   it('MUST leave v1 command handling untouched', () => {

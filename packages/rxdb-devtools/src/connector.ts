@@ -10,7 +10,12 @@ import {
 } from './connector-entity-info.js';
 import { RXDB_EVENT_TYPES, toEventRecord, type EventRecord } from './connector-events.js';
 import { maskEncryptedDocument, maskEncryptedEvent, type ConnectorMaskContext } from './connector-mask.js';
-import { CONNECTOR_MUTATION_POLICY, CONNECTOR_PROVIDERS } from './connector-providers.js';
+import {
+  CONNECTOR_MUTATION_POLICY,
+  createConnectorProviders,
+  resolveBrowserOpfsRoot,
+  saveFileThroughPage
+} from './connector-providers.js';
 import {
   forceReleaseLocalAdapter,
   getErrorMessage,
@@ -568,9 +573,9 @@ export class DevToolsConnector {
    * `PROTOCOL_HELLO` 到达才发。顺序不能反——只支持 v1 的面板收到未知 `type` 会直接丢弃，
    * 而它需要那条握手才知道页面上有 connector。
    *
-   * 本轮仍宣告空 descriptor 集（见 {@link CONNECTOR_PROVIDERS}）：页内还没有接上任何
-   * v2 provider，声明服务不了的 operation 等于让面板据此点亮按钮。真实 descriptor 随
-   * US-904 阶段 C / D 与 US-905 的 provider 一起接上。
+   * descriptor 集由 {@link createConnectorProviders} 按本页**实际**具备的能力装配：
+   * 有 OPFS 才宣告 `files`，`database` 的 v2 操作尚未实现因此不宣告。声明服务不了的
+   * operation 等于让面板据此点亮按钮。
    *
    * 端点只决定 legacy 握手**何时**出门，不知道 v1 传输层还要求这条握手**随附**本次会话的
    * 私有端口。所以端口在这里就建好，并按对象身份认出那唯一一条要携带它的出站消息——
@@ -587,7 +592,10 @@ export class DevToolsConnector {
       clock: createSystemClock(),
       capability: this.#options.capabilities,
       mutationPolicy: CONNECTOR_MUTATION_POLICY,
-      providers: CONNECTOR_PROVIDERS,
+      providers: createConnectorProviders({
+        getRootDirectory: resolveBrowserOpfsRoot(),
+        saveToDisk: saveFileThroughPage
+      }),
       legacyHandshake
     });
     this.#endpoint = endpoint;

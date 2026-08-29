@@ -22,6 +22,14 @@
         "kind": "type"
       },
       {
+        "name": "CONNECTOR_MUTATION_POLICY",
+        "kind": "value"
+      },
+      {
+        "name": "ConnectorProviderPorts",
+        "kind": "type"
+      },
+      {
         "name": "CreateBranchMessage",
         "kind": "type"
       },
@@ -30,11 +38,23 @@
         "kind": "value"
       },
       {
+        "name": "createConnectorProviders",
+        "kind": "value"
+      },
+      {
+        "name": "createDevToolsBrowserSettingsProvider",
+        "kind": "value"
+      },
+      {
         "name": "createDevToolsConnectorEndpoint",
         "kind": "value"
       },
       {
         "name": "createDevToolsError",
+        "kind": "value"
+      },
+      {
+        "name": "createDevToolsOpfsFilesProvider",
         "kind": "value"
       },
       {
@@ -91,6 +111,10 @@
       },
       {
         "name": "DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_BROWSER_SETTINGS_DESCRIPTOR",
         "kind": "value"
       },
       {
@@ -371,6 +395,18 @@
       },
       {
         "name": "DevToolsMutationPolicy",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsOpfsEntry",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsOpfsFilesProvider",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsOpfsFilesProviderPorts",
         "kind": "type"
       },
       {
@@ -742,6 +778,10 @@
         "kind": "value"
       },
       {
+        "name": "resolveBrowserOpfsRoot",
+        "kind": "value"
+      },
+      {
         "name": "resolveNegotiatedTransferLimit",
         "kind": "value"
       },
@@ -755,6 +795,10 @@
       },
       {
         "name": "satisfiesCapability",
+        "kind": "value"
+      },
+      {
+        "name": "saveFileThroughPage",
         "kind": "value"
       },
       {

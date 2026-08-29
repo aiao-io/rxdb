@@ -689,7 +689,7 @@ fake 能证明的部分已证明，剩下的部分不是「还没写测试」，
 | 40  | Chrome OPFS provider                                               | 运行阶段 B 全部 data-plane conformance             | descriptor、base64、限额、transfer、snapshot 和穷举错误全部通过，不保留旧 OPFS 私有状态机                  | ⬜      |
 | 41  | capability 为 none，握手前后产生事件并伪造查询                     | 经过真实四段 relay 观察页面消息和 provider 调用    | 仅生命周期消息；EVENT/DB_INFO/BRANCHES/Storage/files、订阅、buffer、provider 调用全部为 0                  | ⚠️ 部分 |
 | 42  | readonly/full 普通 Chrome 页面使用现有 Web adapters                | 查询、事件、branch、OPFS、Storage 与 Settings 清理 | 除数据库下载和超过协商上限的传输明确拒绝外，用户可见行为不变                                               | ⬜      |
-| 43  | Settings 展示数据库下载                                            | 点击按钮并强制发送 export 命令                     | 按钮禁用；返回 `export_unsupported`；`navigator.storage.getDirectory()`、SQLite/WAL 和文件读取次数均为 0   | ⚠️ 部分 |
+| 43  | Settings 展示数据库下载                                            | 点击按钮并强制发送 export 命令                     | 按钮禁用；返回 `export_unsupported`；`navigator.storage.getDirectory()`、SQLite/WAL 和文件读取次数均为 0   | ✅ |
 | 44  | Chrome 与 fake native thin driver                                  | 运行同一 panel/provider conformance                | 状态、错误、授权和资源清理一致；事件集合只来自 `RXDB_EVENT_TYPES`，fixture、状态机和错误断言没有平台副本   | ⚠️ 部分 |
 
 #### 本轮落地：中继两段换成真实实现
@@ -732,7 +732,30 @@ AC#37～40、#42 未开始：面板的 `database-state` / `devtools-state` / `op
    代码不存在，而不是「记得别调用」。
 
 AC#43 的保留半边是 connector 侧：v2 `settings.export` 需要真实 settings provider 才能在
-对端也拒一次（面板与 connector 各拒一次是有意的纵深，见 AC#50）。
+对端也拒一次（面板与 connector 各拒一次是有意的纵深，见 AC#50）——已由下一节补齐。
+
+#### 本轮落地：页内 provider 接缝装配
+
+1. **`CONNECTOR_PROVIDER_DESCRIPTORS` 原本是空集，`CONNECTOR_PROVIDERS.provider()` 原本直接抛错。**
+   阶段 B 交付的是端点与授权层，页内**没有任何 provider 实现**，所以阶段 C2 不只是「面板改接
+   v2」，还得先把浏览器侧的 provider 本体造出来，否则协商成功后每个请求都撞在抛错上。
+2. **`files` — OPFS provider**（`src/browser/opfs-files-provider.ts`）。`list` 返回子树；
+   写操作（`upload` / `create-directory` / `delete`）走临时文件 + `commit()` 落地，半写文件不对
+   其他读者可见。`create-directory` 先用 `create: false` 探一次，因为 OPFS 的 `create: true` 幂等
+   成功，不探就永远报不出 `resource_conflict`。
+3. **`files.download` 的字节不过 wire。** 阶段 B 的 `TRANSFER_*` 虽然方向标注为 `'both'`，
+   但 connector→panel 这一向**两端都没实现**。浏览器 `opfs` kind 因此仍由页面自己的下载路径
+   保存文件（AC#42 的可见行为不变）；真正的 connector→panel 字节通道是阶段 D `native-files`
+   的前置项，不在阶段 C 私自补。
+4. **`settings` — 恒定拒绝的 `export`**（`src/browser/settings-provider.ts`），补齐 AC#43 的
+   connector 侧：绕过面板 UI 直接发命令的调用在对端同样拿到 `export_unsupported`，且该拒绝在
+   任何 host 动作**之前**返回。`clear` 不宣告——面板仍走 v1 脚本注入，宣告一个服务不了的操作
+   等于让面板据此点亮按钮。
+5. **`database` 不宣告**（而不是宣告 `kind: 'unavailable'`）。领域缺席 = 「本处未实现」→
+   `provider_unsupported`；`unavailable` = 「本运行时有但此刻用不了」→ `provider_unavailable`。
+   两者在面板上的提示语与重试入口不同，不能混。
+6. **写路径默认关闭。** `CONNECTOR_MUTATION_POLICY = 'omit'`：`files` 的三个写操作都是 `full` 档，
+   「接上 provider」不应顺带打开写入，owner 要写必须显式表态。
 
 ### 阶段 D — Electron 原生存储集成（AC#45～53）
 
