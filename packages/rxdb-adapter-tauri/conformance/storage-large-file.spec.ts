@@ -55,6 +55,20 @@ const FILE_PATH = 'bulk/large.bin';
 const STREAMING_PEAK_CEILING = FRAME_BYTES * 4;
 
 /**
+ * 对照组峰值的下限：整份内容再让出一帧。
+ *
+ * @remarks
+ * 峰值是「采样绝对值 − 基线」的差，而基线是在流式循环之后采的 —— 那 13 帧的
+ * `arrayBuffers` 不保证在那一次 `gc()` 里全部归还，基线偏高多少，这个差就短多少
+ * （CI 上实测短了 31 KiB，把 `> CONTENT_BYTES` 判红）。
+ *
+ * 「对照组确实攒住了整份内容」由 `held` 的字节总和逐字节坐实，这条只负责确认采样器
+ * 量得到这份内容，所以让出一帧的噪声余量：一个没攒住的实现峰值只有一帧量级，离这条线
+ * 还差十一帧，放宽这一帧不会把它放过去。
+ */
+const ACCUMULATING_PEAK_FLOOR = CONTENT_BYTES - FRAME_BYTES;
+
+/**
  * 本文件两条用例的单条超时。
  *
  * @remarks
@@ -199,7 +213,7 @@ describe('Rust 文件宿主的大文件通路', () => {
 
       // 先把对照组的前提坐实：它确实把整份内容攒住了，否则下面的比值只是两个小数在比大小。
       expect(held.reduce((total, chunk) => total + chunk.byteLength, 0)).toBe(CONTENT_BYTES);
-      expect(accumulatingPeak).toBeGreaterThan(CONTENT_BYTES);
+      expect(accumulatingPeak).toBeGreaterThan(ACCUMULATING_PEAK_FLOOR);
 
       expect(streamingPeak).toBeLessThan(STREAMING_PEAK_CEILING);
       expect(streamingPeak).toBeLessThan(accumulatingPeak / 2);
