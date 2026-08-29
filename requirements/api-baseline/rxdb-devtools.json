@@ -38,6 +38,10 @@
         "kind": "value"
       },
       {
+        "name": "createDevToolsPanelEndpoint",
+        "kind": "value"
+      },
+      {
         "name": "createDevToolsSnapshotStore",
         "kind": "value"
       },
@@ -374,6 +378,14 @@
         "kind": "type"
       },
       {
+        "name": "DevToolsPanelEndpoint",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelEndpointPorts",
+        "kind": "type"
+      },
+      {
         "name": "DevToolsPanelNegotiation",
         "kind": "type"
       },
@@ -387,6 +399,22 @@
       },
       {
         "name": "DevToolsPanelNegotiationState",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelRequestResult",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelUploadRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelUploadResult",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelUploadSource",
         "kind": "type"
       },
       {
@@ -872,8 +900,16 @@
         "kind": "value"
       },
       {
+        "name": "FakeRelayNode",
+        "kind": "type"
+      },
+      {
         "name": "isCanonicalJsonFrame",
         "kind": "value"
+      },
+      {
+        "name": "JsonConformanceDriverOptions",
+        "kind": "type"
       },
       {
         "name": "JsonDriverEndpointFactory",
@@ -881,6 +917,14 @@
       },
       {
         "name": "JsonDriverEndpoints",
+        "kind": "type"
+      },
+      {
+        "name": "JsonDriverNodeFactory",
+        "kind": "type"
+      },
+      {
+        "name": "JsonDriverNodes",
         "kind": "type"
       },
       {

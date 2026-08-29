@@ -396,6 +396,25 @@ export type {
 } from './v2/negotiation-panel.js';
 
 export {
+  /** panel 侧 v2 数据面客户端：协商 + 请求额度 + 事件订阅 + 上传驱动的组合根。 */
+  createDevToolsPanelEndpoint
+} from './v2/panel-endpoint.js';
+export type {
+  /** panel 数据面客户端。 */
+  DevToolsPanelEndpoint,
+  /** panel 数据面客户端的构造端口。 */
+  DevToolsPanelEndpointPorts,
+  /** 一次 provider 调用的结果；永不 reject。 */
+  DevToolsPanelRequestResult,
+  /** 一次上传调用的入参。 */
+  DevToolsPanelUploadRequest,
+  /** 一次上传的结果；`'sent'` 只表示字节已发出，不表示已提交。 */
+  DevToolsPanelUploadResult,
+  /** 上传的按需字节来源。 */
+  DevToolsPanelUploadSource
+} from './v2/panel-endpoint.js';
+
+export {
   /** connector 侧 v2 端点：协商 + session 预算 + 授权 + 传输状态机的组合根。 */
   createDevToolsConnectorEndpoint
 } from './v2/endpoint.js';
