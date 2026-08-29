@@ -58,25 +58,25 @@ INV-1～INV-7 与 D1～D5 对两个阶段同时生效，是本故事的唯一真
 
 ### 证据一：search 插件的等待链
 
-- [:136](../../../packages/rxdb-plugin-search/src/plugin.ts#L136) 构造期 `assertSupportedAdapter()` 校验**配置**里的适配器名
+- [:234](../../../packages/rxdb-plugin-search/src/plugin.ts#L234) 构造期 `assertSupportedAdapter()` 校验**配置**里的适配器名
 - [:356-358](../../../packages/rxdb-plugin-search/src/plugin.ts#L356-L358) 安装期等待
   `adapterConnected$(localAdapterName)`，并从 `localAdapter$` 取得实例；按适配器信号已经落地，待阶段 A 把这段
   等待和后续释放纳入宿主调度
-- [:139-161](../../../packages/rxdb-plugin-search/src/plugin.ts#L139-L161) `install()` 同步挂完事件通道后
-  **返回包住 `#runInstall()` 的 Promise**（:161），因此 `connect()` 确实会等到 FTS 建完。
+- [:237-266](../../../packages/rxdb-plugin-search/src/plugin.ts#L237-L266) `install()` 同步挂完事件通道后
+  **返回包住 `#runInstall()` 的 Promise**（:266），因此 `connect()` 确实会等到 FTS 建完。
   ⚠️ :145 的行内注释写着「立刻返回；真实安装……异步执行」，**与代码不符**——真正避开死锁的不是「转入后台」，
   而是下一条的 `bootstrapTransaction`。读这段时以代码为准，改写时见 D2 附
-- [:368-370](../../../packages/rxdb-plugin-search/src/plugin.ts#L368-L370) 注释保留了历史死锁形状：
+- [:469-471](../../../packages/rxdb-plugin-search/src/plugin.ts#L469-L471) 注释保留了历史死锁形状：
   `adapter.rawQuery` / `repo.find` 会回到 `ready()`，而 `connect()` 正在等待插件安装；当前实现用
   `bootstrapTransaction` 绕开该环，阶段 A 不得把这条用户可见时序改成后台未等待
 - [:84](../../../packages/rxdb-plugin-search/src/plugin.ts#L84) 于是有了 `SearchPluginPhase` 五态枚举，
-  [:121](../../../packages/rxdb-plugin-search/src/plugin.ts#L121) `ready` 把这套内部状态翻译给使用者
+  [:224](../../../packages/rxdb-plugin-search/src/plugin.ts#L224) `ready` 把这套内部状态翻译给使用者
 
 整条链上没有一处是搜索业务——全部是「等一个依赖，同时不要把宿主等死」。这正是宿主该负责的调度。
 
 ### 证据二：`plugin.name` 从未被当作索引
 
-`#plugin_map` 是 `Map<Plugin, IRxDBPlugin>`（[:116](../../../packages/rxdb/src/RxDB.ts#L116)），键是**工厂函数**。
+`#plugin_map` 是 `Map<Plugin, IRxDBPlugin>`（[:89](../../../packages/rxdb/src/RxDB.ts#L89)），键是**工厂函数**。
 `plugin.name` 全文只出现在三处 `console.error` 的模板串里——`#install_one_plugin`、
 `#track_plugin_install`、`#destroy_plugin` 各一处（[:725](../../../packages/rxdb/src/RxDB.ts#L725) /
 :719 / :771）——**从来没有被当作索引用过**。
@@ -88,10 +88,10 @@ INV-1～INV-7 与 D1～D5 对两个阶段同时生效，是本故事的唯一真
 ### 证据三：部分断连已有信号，但没有依赖释放
 
 `#shutdown()` 只在**最后一个**已连接适配器断开时触发——见 `RxDB.disconnect(adapterName)`
-（[:478-486](../../../packages/rxdb/src/RxDB.ts#L478-L486)）。本地 + 远端都连着、只断远端时，
+（[:738-740](../../../packages/rxdb/src/RxDB.ts#L738-L740)）。本地 + 远端都连着、只断远端时，
 `adapterConnected$('remote')` 会变为 `false`，但依赖远端的插件仍不会被拆卸，也没有新 epoch 调度。
 
-`connected$`（[:219](../../../packages/rxdb/src/RxDB.ts#L219)）仍是聚合 `boolean`，只回答「**有没有**适配器连着」；
+`connected$`（[:299](../../../packages/rxdb/src/RxDB.ts#L299)）仍是聚合 `boolean`，只回答「**有没有**适配器连着」；
 阶段 A 不再补信号，而是消费已经存在的按名信号，维护依赖插件的作用域和 adapter epoch。
 
 ## 核心不变式（INV）
@@ -109,7 +109,7 @@ INV-1～INV-7 与 D1～D5 对两个阶段同时生效，是本故事的唯一真
 
 **INV-4 宿主只 `await` 已经启动的安装。** 依赖未满足的插件**不得**进入 `#plugin_install_promises`。
 这是死锁安全底线：`connect()` 会经 `RxDB.#await_plugin_installs()` `await` 全部在册安装
-（[:733-748](../../../packages/rxdb/src/RxDB.ts#L733-L748)），
+（[:665-675](../../../packages/rxdb/src/RxDB.ts#L665-L675)），
 一旦「安装」变成「等依赖」而依赖恰好由 `connect()` 自己提供，就会等成死锁——search 已经踩过一次
 （[:370-372](../../../packages/rxdb-plugin-search/src/plugin.ts#L370-L372)），代价是整个后台安装路径。
 新调度必须在**结构上**排除这种可能，而不是靠调用方小心。
@@ -120,7 +120,7 @@ INV-1～INV-7 与 D1～D5 对两个阶段同时生效，是本故事的唯一真
 **INV-6 失败不自动重试。** 安装失败只在**依赖纪元变化**时重来，不引入定时器与退避语义（D5）。
 
 **INV-7 释放先于依赖失效。** 依赖即将消失时，必须先释放依赖方的作用域，再让依赖本身失效。
-`disconnect()` 今天已经是这个顺序（[`#shutdown()` 在 :486，`adapter.disconnect()` 在 :489](../../../packages/rxdb/src/RxDB.ts#L484-L489)），
+`disconnect()` 今天已经是这个顺序（[`#shutdown()` 在 :740，`adapter.disconnect()` 在 :750](../../../packages/rxdb/src/RxDB.ts#L740-L750)），
 新调度必须保持它——反过来会让 disposer 跑在一个已经断开的适配器上。
 
 ## 插件激活状态机
@@ -244,24 +244,24 @@ export type RxDBPluginDependency = 'adapter:local' | 'adapter:remote' | `plugin:
 这条是本 Epic 最容易写错的一处，必须固定。
 
 **`localAdapter$` 发出实例 ≠ 适配器可用。** 该 Observable 的
-`switchMap` 只调用 `getAdapter()`（[:193-195](../../../packages/rxdb/src/RxDB.ts#L193-L195)），
+`switchMap` 只调用 `getAdapter()`（[:266-267](../../../packages/rxdb/src/RxDB.ts#L266-L267)），
 而 `getAdapter()` 只跑工厂、把实例塞进 `#adapter_map`，**不调用 `connect()`、不建表、不跑迁移**。
 代码库自己在 `#connected_adapters` 的 `@remarks` 里写明了这件事
-（[:163-168](../../../packages/rxdb/src/RxDB.ts#L163-L168)）：
+（[:203-204](../../../packages/rxdb/src/RxDB.ts#L203-L204)）：
 「`localAdapter$` / `remoteAdapter$` 的订阅会经 `getAdapter` 把从未 `connect()` 的适配器也塞进去」。
 
 真正的就绪点在 `connect()` 里，是这条链**全部**跑完之后：
 
 ```text
-adapter.connect()                    :432
-  → migrateSystemSchema?()           :440 / :450   ┐
-  → startWriterLease?()              :441 / :451   │ 仅 local 分支（:433 isLocalAdapter）
-  → #runMigrations() / createTables  :442 / :449   │
-  → #ensureEntityTables()            :443          │
-  → reconcileEntityIndexes?()        :453          ┘
-  → #set_adapter_connected(name)     :457   ← 就绪
-  → #adapter_connected_sub.next()    :595
-  → #await_plugin_installs()         :459
+adapter.connect()                    :628
+  → migrateSystemSchema?()           :638 / :651   ┐
+  → completeBootstrap?()             :639 / :652   │ 仅 local 分支（:631 isLocalAdapter）
+  → runMigrations() / createTables   :640 / :647   │
+  → #ensureEntityTables()            :641          │
+  → reconcileEntityIndexes?()        :654          ┘
+  → #set_adapter_connected(name)     :662   ← 就绪
+  → #adapter_connected_sub.next()    :864
+  → #await_plugin_installs()         :666
 ```
 
 | 方案                                | 主要风险                                                                  | 结论            |
@@ -270,7 +270,7 @@ adapter.connect()                    :432
 | 以 `connected$` 为真为就绪          | 它是全局布尔，「远端连着、本地没连」时对 `adapter:local` 给出**假的**就绪 | ❌              |
 | 以 `#connected_adapters` 含该名为准 | 已由 `adapterConnected$(adapterName)` 分发；阶段 A 需要消费并绑定 epoch   | ✅ **现有实现** |
 
-[`#set_adapter_connected()` 在 :590-597、`#await_plugin_installs()` 在 :459](../../../packages/rxdb/src/RxDB.ts#L590-L597)——**就绪信号先于插件安装等待点发生**，
+[`#set_adapter_connected()` 在 :662、`#await_plugin_installs()` 在 :666](../../../packages/rxdb/src/RxDB.ts#L659-L666)——**就绪信号先于插件安装等待点发生**，
 所以这个判据不会引入新的死锁窗口（INV-4 依然成立）。
 
 Search 当前已经去掉聚合 `connected$`，等待按名的 `adapterConnected$(localAdapterName)` 后再从
@@ -282,12 +282,12 @@ Search 当前已经去掉聚合 `connected$`，等待按名的 `adapterConnected
 #### D2 附 — `install()` 内允许调用什么（阶段 A 的硬约束）
 
 改写 search 的等待链时**不得**顺手把 FTS DDL 挪出 `install()` 返回的 Promise。今天
-[`install()`](../../../packages/rxdb-plugin-search/src/plugin.ts#L143-L150) 返回的 Promise 包含
+[`install()`](../../../packages/rxdb-plugin-search/src/plugin.ts#L237-L266) 返回的 Promise 包含
 `#runInstall()`，而 `connect()` 会 `await` 它——**`await db.connect()` 返回即 FTS 可用是用户可见保证**，
 把它挪到连接 Promise 之外是行为回退，不是重构。
 
 约束因此是：`install()` 内只允许走
-[`bootstrapTransaction` / `rawQuery`](../../../packages/rxdb-plugin-search/src/plugin.ts#L368-L375)
+[`bootstrapTransaction` / `rawQuery`](../../../packages/rxdb-plugin-search/src/plugin.ts#L469-L487)
 这条不回头等 `connect()` 的路径，**不改对外时序**。原因写在源码注释里：`repo.find()` /
 `adapter.rawQuery()` 都会先 `ready()`，而 `ready()` 又等 `connect()`——等于等自己。
 「另开一个不进 `#await_plugin_installs()` 的慢路径钩子」这一方案已被否决：它要绕开的那个环今天不存在
@@ -307,7 +307,7 @@ Search 当前已经去掉聚合 `connected$`，等待按名的 `adapterConnected
 
 ### D4 — 插件重名怎么裁决
 
-`use()` 今天按**工厂函数身份**去重（[:339](../../../packages/rxdb/src/RxDB.ts#L339)），
+`use()` 今天按**工厂函数身份**去重（[:531](../../../packages/rxdb/src/RxDB.ts#L531)），
 两个不同工厂声明同一个 `name` 会双双装上且互不知情。按名字 inject 就必须先解决这个歧义。
 
 | 方案                                      | 主要风险                                                                        | 结论        |
@@ -350,7 +350,7 @@ Search 当前已经去掉聚合 `connected$`，等待按名的 `adapterConnected
   作用域原语按定义碰不到，今天没有归属故事
 - **拆卸错误在 `RxDB` 边界的出口**——与 [US-014 D5](./US-014-plugin-scope-contract.md) 保持一致，仍为 `console.error`
 - **workspace 的 `#installPromise` / `#installFailed`**：它等的是 IndexedDB 恢复
-  （[:331-346](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L331-L346)），
+  （[:325-337](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L325-L337)），
   **不是 rxdb 侧的依赖**，`inject` 帮不上忙。两个阶段都不动它
 - **三框架绑定接入**——原归 `US-017`，已移出 epic-008 承诺范围（三端各自的原生作用域
   `DestroyRef` / `useEffect` cleanup / `onScopeDispose` 已在用），解锁条件见 Epic

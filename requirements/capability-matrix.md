@@ -6,12 +6,12 @@
 
 | 维度         | 数值                                                                                                                                                                                                                               |
 | :----------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 总包目录     | **30 个** `packages/*`，全部公开发布（无 `private: true`）。其中 **29 个**受 API baseline 保护——[api-baseline/](api-baseline/) 的 json 文件数即此数，缺的一个是 `rxdb-test`（非产品 API，见下方脚注）。两个数不同义，引用时别互换  |
+| 总包目录     | **31 个** `packages/*`（有 `package.json` 的公开包），全部公开发布（无 `private: true`）。其中 **30 个**受 API baseline 保护——[api-baseline/](api-baseline/) 的 json 文件数即此数，缺的一个是 `rxdb-test`（非产品 API，见下方脚注）。两个数不同义，引用时别互换  |
 | 支持框架     | Angular 22 / React 19 / Vue 3.5                                                                                                                                                                                                    |
 | 支持平台     | Web / Electron / Tauri / PWA / 小程序                                                                                                                                                                                              |
 | 存储适配器   | 10 个具名适配器：wa-sqlite / sqlite-wasm / sqlite (@sqlite.org) / sqliteai / wa-sqlite-miniprogram / sqlite-electron / sqlite-tauri / PGlite / Supabase / HTTP；另有 sqlite-core 共享基类与 encrypted 加密工具包（两者均非适配器） |
-| 演示应用     | 6 个 (Angular / Electron / React / Supabase / Tauri / Vue) + DevTools 扩展                                                                                                                                                         |
-| E2E 测试套件 | 5 个 (Angular / Electron / React / Supabase / Vue)                                                                                                                                                                                 |
+| 演示应用     | 7 个 (Angular / Electron / HTTP / React / Supabase / Tauri / Vue) + DevTools 扩展；HTTP demo 附参考后端 `dev-rxdb-http-server`                                                                                                     |
+| E2E 测试套件 | 7 个 (Angular / Electron / HTTP / React / Supabase / Tauri / Vue)                                                                                                                                                                  |
 
 > 基础设施包（`@aiao/utils` 通用工具、`@aiao/rxdb-test` 跨框架测试 fixture）不单独立 story；前者属于公用底座，后者由 [US-702](stories/future/US-702-full-text-search.md) 等业务 story 引用其 fixture（`cross-framework-fixtures/`）。
 
@@ -55,7 +55,7 @@
 | HTTP                    | `@aiao/rxdb-adapter-http`        | `http`                  | Remote | 远端权威 HTTP + **独立注册**的 sqlite 行缓存；v1 **只支持 `SyncType.QueryCache`**，`pullChanges`/`mergeChanges`/`getChangeCount` 一律 throw unsupported（不返回空数组/`0`）；`getRepository`/`saveMany`/`removeMany`/`mutations`/`rawQuery` 亦无实现；bigint / binary 字段在 `connect()` fail-fast | [US-212](stories/adapter/US-212-http-adapter.md)（已发 `stable`，两阶段全关）；SSE 变更通知由 [US-023](stories/core/US-023-querycache-remote-invalidation.md) 承接（`changeFeed` 缺省关闭）；行缓存 eviction 见 [roadmap「明确不排期」](roadmap.md#明确不排期) |
 
 > `encrypted` 包的 [index.ts](../packages/rxdb-adapter-encrypted/src/index.ts) 只导出 `Keyring` / `createKeyring` / 信封编解码 / 校验与错误类型，**没有任何 `IRxDBAdapter` 实现**；
-> [RxDBAdapterSqliteBase.ts:43](../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts#L43) 与 [RxDBAdapterPGlite.ts:47](../packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts#L47) 直接 import 它，加密是**内建**能力而非外层包装。
+> [RxDBAdapterSqliteBase.ts:33](../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts#L33) 与 [RxDBAdapterPGlite.ts:26](../packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts#L26) 直接 import 它，加密是**内建**能力而非外层包装。
 > 因此按适配器 `name` 判定能力时不存在「先解包」这一步（见 [epic-006 启用与存储边界](epics/epic-006-working-tree-commits.md)）。
 
 ## 已知的需求覆盖缺口
@@ -63,3 +63,4 @@
 - **非微信小程序平台仍无实现**（支付宝 / 抖音 / 百度 / QQ）。Taro 示例保留了多端 `build:*`，适配器构造函数却只认 `wx` + `WXWebAssembly`。缺口由 [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 认领（Backlog，三阶段：先抽宿主契约再按可行性门禁放行）；阶段没关之前文档仍写「仅微信」。
 - **小程序运行时的搜索能力仍无故事覆盖**。`@aiao/rxdb-plugin-search` 只白名单 `sqlite-wasm`，小程序侧能否加载 FTS5 扩展不在 US-209 范围内，见上方跨框架矩阵脚注。
 - **PGlite 全文搜索缺实现**（SQLite FTS5 已由 [US-702](stories/future/US-702-full-text-search.md) 交付，PGlite 侧待 [US-703](stories/future/US-703-pglite-full-text-search.md) 补齐，避免适配器能力不对称）。
+- **PGlite 的 QueryCache 行契约存在同族缺口**：`upsert_many_sql.ts` 未检查缺非空列（sqlite-core 侧已由 [US-022](stories/core/US-022-querycache-remote-row-contract.md) 的 `assertQueryCacheRowContract` 守护），尚无故事认领。

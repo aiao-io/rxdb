@@ -53,7 +53,7 @@ INVEST 检查清单:
 不是 `@aiao/rxdb-plugin-workspace` 的 IndexedDB 草稿。`entity.save()` 等价于 Ctrl+S 而不是 commit——
 它让变更进入工作树并立即对全部查询可见。完整的三层对照见 Epic 的
 [三层分层对照](../../epics/epic-006-working-tree-commits.md#三层分层对照读本-epic-前必须先对齐)；
-哪些实体在版本控制之下见 [版本化域](../../epics/epic-006-working-tree-commits.md#版本化域tracked--untracked)。
+哪些实体在版本控制之下见 [版本化域](../../epics/epic-006-working-tree-commits.md#版本化域tracked-untracked)。
 
 业务实体表只是当前激活分支的物化投影。每次普通 CRUD 必须在同一事务内写入或合并该分支的
 `WorkingTreeEntry` 并递增 `workingTreeRevision`；离开分支后，目标状态只能由 HEAD 与这些条目重建。

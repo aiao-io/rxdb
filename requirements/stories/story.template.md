@@ -69,4 +69,4 @@ INVEST 检查清单:
 ---
 
 > 写作规范（证据锚点 / 结论复验 / 大故事分阶段 / 价值待证）、命名与状态约定见
-> [CONVENTIONS.md](./CONVENTIONS.md)。新建 story 时先读一遍，然后删除本提示。
+> [CONVENTIONS.md](../CONVENTIONS.md)。新建 story 时先读一遍，然后删除本提示。

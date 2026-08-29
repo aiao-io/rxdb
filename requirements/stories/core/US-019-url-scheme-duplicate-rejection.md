@@ -31,7 +31,7 @@ INVEST 检查清单:
 AC#12 覆盖的是 scheme 的语法 fixture，AC#27 覆盖的是 `validateFieldValue()` 比对时的大小写无关**匹配**。
 两条都已实现且通过，去重则从未落地：`invalidSchemes` 只跑语法正则，
 而字段描述 DTO 的产出侧 `formatKey` 把 `format` 原样透传、不改一个字节
-（[entity-field.utils.ts:397-400](../../../packages/rxdb/src/entity/entity-field.utils.ts#L397-L400)）：
+（[entity-field.utils.ts:398-400](../../../packages/rxdb/src/entity/entity-field.utils.ts#L398-L400)）：
 
 ```ts
 const formatKey = (prop: EntityPropertyMetadata): { format?: FieldFormat } => {
@@ -71,7 +71,7 @@ US-012 正文对同一行为给了两种互斥说法，本故事定死为**拒�
 ### D2：判重口径是 ASCII 小写，与值校验同源
 
 `validateFieldValue()` 比对协议时两侧都走 `toLowerCase()`
-（[entity-value.utils.ts:471-474](../../../packages/rxdb/src/entity/entity-value.utils.ts#L471-L474)）：
+（[entity-value.utils.ts:523-524](../../../packages/rxdb/src/entity/entity-value.utils.ts#L523-L524)）：
 
 ```ts
 const scheme = url.protocol.slice(0, -1).toLowerCase();
