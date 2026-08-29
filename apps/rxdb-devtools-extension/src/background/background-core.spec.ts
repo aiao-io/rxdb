@@ -88,7 +88,7 @@ describe('createBackgroundController', () => {
     expect(sendToTab).not.toHaveBeenCalled();
   });
 
-  it('acknowledges a page handshake and forwards it to the connected panel', () => {
+  it('forwards a page handshake without ever minting an ACK of its own', () => {
     const sendToTab = vi.fn(async () => undefined);
     const controller = createBackgroundController({
       injectIntoTab: vi.fn(async () => undefined),
@@ -99,7 +99,13 @@ describe('createBackgroundController', () => {
     panel.emitMessage(initMessage(7));
     const handshake = devtoolsMessage('HANDSHAKE');
     controller.receiveContent(handshake, 7);
-    expect(sendToTab).toHaveBeenCalledWith(7, expect.objectContaining({ type: 'HANDSHAKE_ACK' }));
+
+    // AC#36：ACK 的唯一所有者是面板。background 代发 ACK 会让页面在面板还没决定协议版本时
+    // 就认为握手已完成 —— 这正是阶段 B 判定的「伪造 ACK」，v2 协商窗口据此失效。
+    expect(sendToTab).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ type: 'HANDSHAKE_ACK' })
+    );
     expect(panel.port.postMessage).toHaveBeenCalledWith(handshake);
   });
 

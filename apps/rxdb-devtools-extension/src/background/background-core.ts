@@ -23,11 +23,18 @@ interface BackgroundDependencies {
   onError?: (message: string, error: unknown) => void;
 }
 
-function controlMessage(type: 'HANDSHAKE_ACK' | 'PING' | 'DISCONNECT'): DevToolsMessage {
+/**
+ * background **唯一**能自己造出来的消息：注入完成后的存活探针。
+ *
+ * @remarks
+ * AC#36：这里刻意不收类型参数。background 是纯中继，握手语义（尤其是 `HANDSHAKE_ACK`）
+ * 归面板独有；把可造类型钉死成 `PING`，代发 ACK 就不再是「少写一行」能退回去的事。
+ */
+function pingMessage(): DevToolsMessage {
   return {
     source: RXDB_DEVTOOLS_MESSAGE,
-    direction: type === 'DISCONNECT' ? 'page-to-devtools' : 'devtools-to-page',
-    type,
+    direction: 'devtools-to-page',
+    type: 'PING',
     payload: null,
     timestamp: Date.now(),
     sequence: 0
@@ -58,8 +65,8 @@ function isInitMessage(message: DevToolsMessage): message is InitMessage {
 export function createBackgroundController(dependencies: BackgroundDependencies) {
   const ports = new Map<number, BackgroundPort>();
   const activations = new Map<number, Promise<void>>();
-  const sendControl = (tabId: number, type: 'HANDSHAKE_ACK' | 'PING') => {
-    void dependencies.sendToTab(tabId, controlMessage(type)).catch(error => dependencies.onError?.(type, error));
+  const sendPing = (tabId: number) => {
+    void dependencies.sendToTab(tabId, pingMessage()).catch(error => dependencies.onError?.('PING', error));
   };
   const activateTab = (tabId: number) => {
     if (activations.has(tabId)) return;
@@ -67,7 +74,7 @@ export function createBackgroundController(dependencies: BackgroundDependencies)
     activations.set(tabId, activation);
     void activation
       .then(() => {
-        if (activations.get(tabId) === activation && ports.has(tabId)) sendControl(tabId, 'PING');
+        if (activations.get(tabId) === activation && ports.has(tabId)) sendPing(tabId);
       })
       .catch(error => dependencies.onError?.('INJECT', error))
       .finally(() => {
@@ -111,15 +118,17 @@ export function createBackgroundController(dependencies: BackgroundDependencies)
       });
     },
 
+    /**
+     * 把 content script 收到的页面消息转给对应 tab 的面板。
+     *
+     * @remarks
+     * AC#36：`HANDSHAKE` 在这里**没有特例分支**。它本就是 `page-to-devtools`
+     * （见 `@aiao/rxdb-devtools` 的 `HandshakeMessage`），走下面同一条转发即可；
+     * 原先那条特例会在转发的同时代发 `HANDSHAKE_ACK`，等于替面板做了协议版本决定。
+     */
     receiveContent(message: unknown, tabId: number | undefined): void {
       if (!isDevToolsMessage(message) || tabId === undefined) return;
-      const port = ports.get(tabId);
-      if (message.type === 'HANDSHAKE') {
-        sendControl(tabId, 'HANDSHAKE_ACK');
-        port?.postMessage(message);
-        return;
-      }
-      if (message.direction === 'page-to-devtools') port?.postMessage(message);
+      if (message.direction === 'page-to-devtools') ports.get(tabId)?.postMessage(message);
     }
   };
 }
