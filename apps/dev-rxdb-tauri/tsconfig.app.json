@@ -35,6 +35,9 @@
       "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-adapter-tauri/tsconfig.lib.json"
     },
     {

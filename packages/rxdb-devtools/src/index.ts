@@ -20,6 +20,14 @@ export {
   /** 重置全局连接器（先断开旧实例）；仅用于测试与热重载。 */
   resetDevToolsConnector
 } from './connector.js';
+export {
+  /** 建浏览器传输（window 总线 + MessageChannel 私有端口）。 */
+  createWindowConnectorTransport
+} from './connector-transport.js';
+export type {
+  /** connector 传输层抽象；Tauri / 其它无共享 window 的宿主注入自己的实现。 */
+  DevToolsConnectorTransport
+} from './connector-transport.js';
 export type {
   /** 连接器读取的实体元数据形状；`@aiao/rxdb` 的 `EntityMetadata` 可直接赋值。 */
   DevToolsEntityMetadata,

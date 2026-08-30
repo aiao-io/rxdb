@@ -1,0 +1,55 @@
+import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import type { DevToolsConnectorTransport } from '@aiao/rxdb-devtools';
+
+/**
+ * {@link DevToolsConnectorTransport} 的 Tauri 实现：主 WebView connector 侧。
+ *
+ * @remarks
+ * 与面板侧的 `TauriTransportService` 走同一条 Rust 中继（`devtools_message` 命令 +
+ * `devtools:message` 事件），只是这里在**被检查页**（`main` 窗口）这一端：connector 发帧 →
+ * Rust 按窗口 label 转发给 `rxdb-devtools` 窗口；面板发帧 → Rust 转发回这里。
+ *
+ * 无私有端口：Tauri 没有 `MessageChannel`，握手不随附端口。隔离由 Rust 按窗口 label 路由
+ * 提供——`createSessionPort` 恒返 `undefined`，`closeSessionPort` 是空操作。代价是 v1 的
+ * 握手后命令（`QUERY_ENTITY` 等）没有私有信道可走；阶段 1 走 v2 数据面不受影响，v1 facade
+ * 的这条限制随「是否要为 Tauri 补 v1 命令面」另行决策。
+ */
+export function createTauriConnectorTransport(): DevToolsConnectorTransport {
+  let unlisten: UnlistenFn | null = null;
+  let disposed = false;
+
+  return {
+    send(message) {
+      void invoke('devtools_message', { payload: JSON.stringify(message) }).catch(error =>
+        console.error('[RxDB DevTools] Failed to relay message', error)
+      );
+    },
+
+    subscribe(callback) {
+      disposed = false;
+      // listen 是异步注册：退订可能在注册完成前就来了（init 后立刻 disconnect），
+      // 用一个 flag 兜住「注册落定后发现已退订」的竞态。
+      void listen<string>('devtools:message', event => callback(JSON.parse(event.payload))).then(fn => {
+        if (disposed) {
+          fn();
+          return;
+        }
+        unlisten = fn;
+      });
+      return () => {
+        disposed = true;
+        unlisten?.();
+        unlisten = null;
+      };
+    },
+
+    createSessionPort() {
+      return undefined;
+    },
+
+    closeSessionPort() {
+      // 无端口可关。
+    }
+  };
+}

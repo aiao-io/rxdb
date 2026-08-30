@@ -114,6 +114,10 @@
         "kind": "value"
       },
       {
+        "name": "createWindowConnectorTransport",
+        "kind": "value"
+      },
+      {
         "name": "DbInfoEntity",
         "kind": "type"
       },
@@ -375,6 +379,10 @@
       },
       {
         "name": "DevToolsConnectorNegotiationState",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsConnectorTransport",
         "kind": "type"
       },
       {

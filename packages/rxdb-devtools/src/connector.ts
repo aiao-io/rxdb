@@ -27,6 +27,7 @@ import {
   type ForceReleaseResult
 } from './connector-runtime.js';
 import { subscribeOnce, type Subscription } from './connector-subscribe-once.js';
+import { createWindowConnectorTransport, type DevToolsConnectorTransport } from './connector-transport.js';
 import type { DevToolsOptions, DevToolsRxDB, GetEntityMetadataFn } from './connector-types.js';
 import { isRecord } from './internal/guards.js';
 import { SequenceGenerator } from './sequence.js';
@@ -59,7 +60,7 @@ export type {
 } from './connector-types.js';
 export { RXDB_EVENT_TYPES };
 
-const DEFAULT_OPTIONS: Required<DevToolsOptions> = {
+const DEFAULT_OPTIONS: Required<Omit<DevToolsOptions, 'transport'>> = {
   maxBufferSize: 100,
   enabled: true,
   capabilities: 'full',
@@ -127,21 +128,15 @@ const BRANCH_ENTITY_NAME = 'RxDBBranch' as const;
  * 当前协议只支持一个 RxDB 实例；同实例重复初始化是幂等操作。
  */
 export class DevToolsConnector {
-  #options: Required<DevToolsOptions>;
+  #options: Required<Omit<DevToolsOptions, 'transport'>> & Pick<DevToolsOptions, 'transport'>;
   #connected = false;
   #buffer: EventBuffer;
   #sequence: SequenceGenerator;
   #rxdbInstance: DevToolsRxDB | null = null;
   #eventListeners: Map<keyof RxDBEventMap, (event: RxDBEvent) => void> = new Map();
-  #messageHandler: ((event: MessageEvent) => void) | null = null;
-  /**
-   * 握手时建立的私有信道的己方端口，握手之后的收发全部走它。
-   *
-   * @remarks
-   * `null` 表示还没握过手（或已 {@link disconnect}）。此时出站消息退回
-   * `window.postMessage` —— 握手本身就必须这么发，没有别的路可走。
-   */
-  #port: MessagePort | null = null;
+  #transport: DevToolsConnectorTransport;
+  /** 传输层的入站退订；`null` 表示还没 {@link init}（或已 {@link disconnect}）。 */
+  #unsubscribe: (() => void) | null = null;
   #endpoint: DevToolsConnectorEndpoint | null = null;
   /**
    * 实体注册表；`null` 表示 {@link init} 没拿到 `getEntityMetadata`（或已断开）。
@@ -204,6 +199,7 @@ export class DevToolsConnector {
    */
   constructor(options: DevToolsOptions = {}) {
     this.#options = { ...DEFAULT_OPTIONS, ...options };
+    this.#transport = this.#options.transport ?? createWindowConnectorTransport();
     this.#buffer = new EventBuffer(this.#options.maxBufferSize);
     this.#sequence = new SequenceGenerator();
   }
@@ -263,11 +259,9 @@ export class DevToolsConnector {
     if (typeof window === 'undefined') return;
 
     this.#postMessage(createMessage('DISCONNECT', 'page-to-devtools', null, this.#sequence.next()));
-    this.#closePort();
-    if (this.#messageHandler) {
-      window.removeEventListener('message', this.#messageHandler);
-      this.#messageHandler = null;
-    }
+    this.#transport.closeSessionPort();
+    this.#unsubscribe?.();
+    this.#unsubscribe = null;
     if (this.#rxdbInstance) this.#unsubscribeFromEvents(this.#rxdbInstance);
     this.#endpoint?.dispose();
     this.#endpoint = null;
@@ -342,27 +336,33 @@ export class DevToolsConnector {
    * 丢弃并给一次诊断 —— 静默丢弃会让升级期变成"点了按钮没反应"。
    */
   #setupMessageListener(): void {
-    if (this.#messageHandler) return;
-    this.#messageHandler = (event: MessageEvent) => {
-      if (event.source !== window) return;
-      if (event.origin && event.origin !== location.origin) return;
-      // v1 优先且语义不变：`isDevToolsMessage` 是对已知 v1 `type` 的闭集判断，
-      // `PROTOCOL_HELLO` 会被它判否——不分流的话 v2 协商永远起不来。
-      if (isDevToolsMessage(event.data)) {
-        if (!isDevToolsCommandMessage(event.data)) return;
-        // v1 命令仍受总线白名单约束：握手之后它们只能走私有端口。
-        // v2 协商帧不在这条闭集里，走下面的端点分支，与本白名单互不影响。
-        if (event.data.type !== WINDOW_BUS_ALLOWED_COMMAND) {
-          this.#warnWindowBusCommand(event.data.type);
-          return;
-        }
-        this.#handleMessage(event.data);
+    if (this.#unsubscribe) return;
+    this.#unsubscribe = this.#transport.subscribe(message => this.#handleInboundMessage(message));
+  }
+
+  /**
+   * 传输层交回的原始入站帧。
+   *
+   * @remarks
+   * source/origin 过滤已经由传输层做过（浏览器实现的 {@link DevToolsConnectorTransport.subscribe}），
+   * 这里只做协议分流：v1 命令走白名单，v2 帧交给端点。
+   */
+  #handleInboundMessage(message: unknown): void {
+    // v1 优先且语义不变：`isDevToolsMessage` 是对已知 v1 `type` 的闭集判断，
+    // `PROTOCOL_HELLO` 会被它判否——不分流的话 v2 协商永远起不来。
+    if (isDevToolsMessage(message)) {
+      if (!isDevToolsCommandMessage(message)) return;
+      // v1 命令仍受总线白名单约束：握手之后它们只能走私有端口。
+      // v2 协商帧不在这条闭集里，走下面的端点分支，与本白名单互不影响。
+      if (message.type !== WINDOW_BUS_ALLOWED_COMMAND) {
+        this.#warnWindowBusCommand(message.type);
         return;
       }
-      this.#endpoint?.receive(event.data);
-      this.#syncLegacyConnectionToSession();
-    };
-    window.addEventListener('message', this.#messageHandler);
+      this.#handleMessage(message);
+      return;
+    }
+    this.#endpoint?.receive(message);
+    this.#syncLegacyConnectionToSession();
   }
 
   /**
@@ -394,25 +394,21 @@ export class DevToolsConnector {
    * 每次握手都新建一对端口，旧端口立刻关掉：`PING` 会触发重新握手，
    * 复用旧端口的话上一次会话的对端仍然连着，权限撤销与断开都作用不到它。
    */
-  #createSessionPort(): MessagePort {
-    this.#closePort();
-    const channel = new MessageChannel();
-    this.#port = channel.port1;
-    this.#port.onmessage = (event: MessageEvent) => {
-      // 端口是点对点的，没有 source/origin 可查 —— 能往里发消息的只有握手时
-      // 拿到 port2 的那一方。结构校验照做：对端一样可能发畸形消息。
-      if (!isDevToolsMessage(event.data) || !isDevToolsCommandMessage(event.data)) return;
-      this.#handleMessage(event.data);
-    };
-    this.#port.start();
-    return channel.port2;
+  #createSessionPort(): Transferable | undefined {
+    this.#transport.closeSessionPort();
+    return this.#transport.createSessionPort(message => this.#handlePortMessage(message));
   }
 
-  #closePort(): void {
-    if (!this.#port) return;
-    this.#port.onmessage = null;
-    this.#port.close();
-    this.#port = null;
+  /**
+   * 会话私有端口交回的原始帧。
+   *
+   * @remarks
+   * 端口是点对点的，没有 source/origin 可查 —— 能往里发消息的只有握手时拿到 port2 的那一方。
+   * 结构校验照做：对端一样可能发畸形消息。只收 v1 命令（端口是 v1 命令面的传输层）。
+   */
+  #handlePortMessage(message: unknown): void {
+    if (!isDevToolsMessage(message) || !isDevToolsCommandMessage(message)) return;
+    this.#handleMessage(message);
   }
 
   #warnWindowBusCommand(type: DevToolsCommandMessage['type']): void {
@@ -605,7 +601,7 @@ export class DevToolsConnector {
 
   #sendHandshake(): void {
     const remotePort = this.#createSessionPort();
-    this.#postMessage(this.#buildLegacyHandshake(), [remotePort]);
+    this.#postMessage(this.#buildLegacyHandshake(), remotePort === undefined ? undefined : [remotePort]);
   }
 
   /**
@@ -642,7 +638,9 @@ export class DevToolsConnector {
     });
     const endpoint = createDevToolsConnectorEndpoint({
       send: (message: DevToolsConnectorNegotiationMessage) =>
-        message === legacyHandshake ? this.#postMessage(message, [remotePort]) : this.#postMessage(message),
+        message === legacyHandshake
+          ? this.#postMessage(message, remotePort === undefined ? undefined : [remotePort])
+          : this.#postMessage(message),
       clock: createSystemClock(),
       capability: this.#options.capabilities,
       mutationPolicy: this.#options.mutationPolicy,
@@ -1000,17 +998,7 @@ export class DevToolsConnector {
    * 点对点信道不看 origin，这也正是握手之后要切过去的原因之一。
    */
   #postMessage(message: DevToolsConnectorNegotiationMessage, transfer?: Transferable[]): void {
-    if (typeof window === 'undefined') return;
-    try {
-      if (this.#port && !transfer && isDevToolsMessage(message)) {
-        this.#port.postMessage(message);
-        return;
-      }
-      const targetOrigin = location.origin === OPAQUE_ORIGIN ? '*' : location.origin;
-      window.postMessage(message, targetOrigin, transfer);
-    } catch (error) {
-      console.warn(`[${RXDB_DEVTOOLS_MESSAGE}] Failed to post message:`, error);
-    }
+    this.#transport.send(message, transfer);
   }
 }
 

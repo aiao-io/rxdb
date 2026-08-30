@@ -1,4 +1,5 @@
 import type { EntityType, RxDB } from '@aiao/rxdb';
+import type { DevToolsConnectorTransport } from './connector-transport.js';
 import type { DevToolsNativeFilesProviderPorts } from './native/native-files-provider.js';
 import type { DevToolsProviderRuntime } from './provider/descriptor.js';
 import type { DevToolsProvider } from './provider/types.js';
@@ -144,4 +145,14 @@ export interface DevToolsOptions {
    * 与显示用 `runtime`。省略任何一项都不做「猜一个」的兜底，而是退回浏览器形态。
    */
   providers?: DevToolsProviderOptions;
+
+  /**
+   * 连接器的传输层；缺省为浏览器实现（window 总线 + MessageChannel 私有端口）。
+   *
+   * @remarks
+   * Tauri / 其它无共享 `window` 的宿主必须显式给一个宿主传输（如 `invoke`/`listen`），
+   * 否则 connector 仍按浏览器发 `window.postMessage`，面板侧永远收不到。缺省保持浏览器行为，
+   * 不破坏既有三框架 demo。
+   */
+  transport?: DevToolsConnectorTransport;
 }
