@@ -757,6 +757,8 @@ importers:
         specifier: ^1.2.4
         version: 1.2.4(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0)(sass-embedded@1.102.0)(sass@1.103.1)(terser@5.51.1)(yaml@2.9.0))
 
+  apps/rxdb-devtools-extension-e2e: {}
+
   benchmarks:
     dependencies:
       '@aiao/rxdb':
@@ -997,10 +999,19 @@ importers:
       '@aiao/rxdb-adapter-sqlite-core':
         specifier: workspace:*
         version: link:../rxdb-adapter-sqlite-core
+      '@aiao/utils':
+        specifier: workspace:*
+        version: link:../utils
     devDependencies:
+      '@aiao/rxdb-adapter-pglite':
+        specifier: workspace:*
+        version: link:../rxdb-adapter-pglite
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../rxdb-test
+      '@electric-sql/pglite':
+        specifier: ^0.5.8
+        version: 0.5.8
 
   packages/rxdb-adapter-encrypted:
     dependencies:
@@ -1327,6 +1338,10 @@ importers:
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb-adapter-pglite':
+        specifier: workspace:*
+        version: link:../rxdb-adapter-pglite
 
   packages/rxdb-plugin-search-angular:
     dependencies:

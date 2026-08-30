@@ -216,7 +216,7 @@ describe('DesktopPGliteClient', () => {
     const client = await openClient();
     await client.transaction(async tx => {
       expect(() => tx.sql`SELECT 1`).toThrowError(/sql/);
-      await expect(tx.listen('x', () => undefined)).rejects.toThrowError(/listen/);
+      expect(() => tx.listen('x', () => undefined)).toThrowError(/listen/);
     });
     await client.disconnect();
   });
