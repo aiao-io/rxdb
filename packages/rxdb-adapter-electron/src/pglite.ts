@@ -6,8 +6,9 @@
  * `@aiao/rxdb-adapter-pglite` 这个可选 peer。合并的话，任何一个只用 SQLite 的应用
  * 都会在 import 适配器时撞上「找不到 `@aiao/rxdb-adapter-pglite`」——而它压根没打算用 PGlite。
  *
- * 本入口**不引用 `@electric-sql/pglite` 的运行时**：WASM 实例活在主进程，renderer
- * 这边只有一层协议代理，因此 bundle 里不会多出几十兆的 PostgreSQL。特权侧请用
+ * 本入口**不引用 PostgreSQL 运行时**：WASM 实例活在主进程，renderer 这边只有一层协议
+ * 代理，从 `@electric-sql/pglite` 拿的只有类型和 `/template` 那个约 2 KB 的模板编译子路径，
+ * 因此 bundle 里不会多出几十兆的 PostgreSQL。特权侧请用
  * `@aiao/rxdb-adapter-electron/pglite-host`。
  *
  * @module @aiao/rxdb-adapter-electron/pglite

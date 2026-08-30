@@ -32,6 +32,10 @@ import {
 } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { EventDispatcher } from '@aiao/utils';
 import type { QueryOptions, Results, Transaction } from '@electric-sql/pglite';
+// 模板编译走 PGlite 自己的实现，而不是本地再拼一遍 `$1、$2`：`identifier` / `raw` / 嵌套
+// `sql` 这些辅助器的语义只有原实现说了算，照抄一份的分叉表征是「同一个模板在桌面下
+// 少转义了一个标识符」。`/template` 是个独立子路径（约 2 KB），不带任何 WASM 进 renderer。
+import { query as compileTemplate } from '@electric-sql/pglite/template';
 
 /** {@link DesktopPGliteClient} 的构造参数。 */
 export interface DesktopPGliteClientOptions {
@@ -216,6 +220,20 @@ export class DesktopPGliteClient extends EventDispatcher<PGliteClientEvents> imp
   }
 
   /**
+   * 以标签模板执行一条语句，参数自动参数化。
+   *
+   * @param sqlStrings - 模板字面量片段
+   * @param params - 插值；`identifier` / `raw` / 嵌套 `sql` 辅助器按原语义处理
+   * @returns 与浏览器路径同形状的结果
+   * @throws {@link RxDBAdapterDesktopError} 会话已关闭，或 host 报告执行失败时
+   */
+  async sql<T>(sqlStrings: TemplateStringsArray, ...params: unknown[]): Promise<Results<T>> {
+    this.#assertOpen();
+    const compiled = compileTemplate(sqlStrings, ...params);
+    return this.#exclusive(async () => this.#queryOn(undefined, compiled.query, compiled.params));
+  }
+
+  /**
    * 执行一段多语句脚本（简单查询协议）。
    *
    * @param query - 一条或多条以 `;` 分隔的语句
@@ -377,11 +395,14 @@ export class DesktopPGliteClient extends EventDispatcher<PGliteClientEvents> imp
         assertLive();
         await end('pg.rollback');
       },
-      // 下面两个代理不了，只能当场炸。静默降级到自动提交才是 AC#2 明令禁止的伪事务：
-      // 调用方以为语句在事务里，实际已经落库且回滚不掉。
-      sql: <R>(): Promise<Results<R>> => {
-        throw unsupportedTransactionOperation('sql');
+      sql: async <R>(sqlStrings: TemplateStringsArray, ...values: unknown[]): Promise<Results<R>> => {
+        assertLive();
+        const compiled = compileTemplate(sqlStrings, ...values);
+        return this.#queryOn(transactionId, compiled.query, compiled.params);
       },
+      // `listen` 代理不了：它要在**这条连接**上挂一个回调，而回调过不了进程边界。
+      // 静默降级成「订阅了但永远收不到」是最难查的一种故障，所以当场炸。
+      // 事务内的通知请改用 renderer 侧的 NOTIFY 批量器（本客户端已经在监听）。
       listen: (): Promise<(tx?: Transaction) => Promise<void>> => {
         throw unsupportedTransactionOperation('listen');
       },

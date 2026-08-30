@@ -74,10 +74,14 @@
     "@aiao/utils": "workspace:*"
   },
   "peerDependencies": {
-    "@aiao/rxdb-adapter-pglite": "workspace:*"
+    "@aiao/rxdb-adapter-pglite": "workspace:*",
+    "@electric-sql/pglite": "^0.5.8"
   },
   "peerDependenciesMeta": {
     "@aiao/rxdb-adapter-pglite": {
+      "optional": true
+    },
+    "@electric-sql/pglite": {
       "optional": true
     }
   },

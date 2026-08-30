@@ -16,6 +16,7 @@
 import { PGliteChangeType, type PGliteChangeEvent } from '@aiao/rxdb-adapter-pglite';
 import type { DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { PGlite } from '@electric-sql/pglite';
+import { identifier } from '@electric-sql/pglite/template';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DesktopPGliteClient } from '../pglite/desktop-pglite-client.js';
 import { createElectronPgliteHost, type ElectronPgliteHost } from '../pglite-host/electron-pglite-host.js';
@@ -211,11 +212,24 @@ describe('DesktopPGliteClient', () => {
     await client.disconnect();
   });
 
-  // 代理不了的操作必须当场炸。静默降级到自动提交才是 AC#2 明令禁止的伪事务。
+  // 标签模板走 PGlite 自己的编译器，因此 `identifier` 的转义与参数化与浏览器路径逐字一致。
+  it('compiles tagged templates with PGlite own compiler, inside a transaction too', async () => {
+    const client = await openClient();
+    await client.exec('CREATE TABLE tpl (id int)');
+    const id = 7;
+    await client.sql`INSERT INTO ${identifier`tpl`} VALUES (${id})`;
+    await client.transaction(async tx => {
+      const rows = (await tx.sql<{ id: number }>`SELECT id FROM tpl WHERE id = ${id}`).rows;
+      expect(rows).toEqual([{ id: 7 }]);
+    });
+    await client.disconnect();
+  });
+
+  // `listen` 要在**这条连接**上挂一个回调，而回调过不了进程边界。静默降级成
+  // 「订阅了但永远收不到」是最难查的一种故障，所以必须当场炸。
   it('fails loudly on transaction operations it cannot proxy', async () => {
     const client = await openClient();
     await client.transaction(async tx => {
-      expect(() => tx.sql`SELECT 1`).toThrowError(/sql/);
       expect(() => tx.listen('x', () => undefined)).toThrowError(/listen/);
     });
     await client.disconnect();

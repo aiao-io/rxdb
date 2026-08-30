@@ -62,7 +62,9 @@ class ProxyPGliteClient extends EventDispatcher<PGliteClientEvents> implements I
     return this.#inner.exec(...args);
   }
 
-  describeQuery(...args: Parameters<IPGliteClient['describeQuery']>) {
+  // `describeQuery` 在 `IPGliteClient` 上是可选的（跨 IPC 代理不了），取参数类型前得先摘掉
+  // `undefined`——这里断言的是「在场时签名不变」，不是「它一定在场」。
+  describeQuery(...args: Parameters<NonNullable<IPGliteClient['describeQuery']>>) {
     return this.#inner.describeQuery(...args);
   }
 

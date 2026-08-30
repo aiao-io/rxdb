@@ -64,9 +64,10 @@ export default defineConfig(() => ({
         '@aiao/rxdb-adapter-sqlite-core',
         '@aiao/rxdb-adapter-sqlite-core/desktop-host',
         '@aiao/utils',
-        // PGlite 只被类型引用（host 侧的 runtime 是结构类型），但 `./pglite` 入口会经由
-        // `@aiao/rxdb-adapter-pglite` 间接连上它；外置掉，免得 wasm 被打进本包产物。
+        // host 侧只按结构类型引用 PGlite；renderer 侧另外用了 `/template` 那个约 2 KB 的
+        // 模板编译子路径。两者一起外置，免得 wasm 被打进本包产物。
         '@electric-sql/pglite',
+        '@electric-sql/pglite/template',
         'rxjs',
         /^node:/
       ]
