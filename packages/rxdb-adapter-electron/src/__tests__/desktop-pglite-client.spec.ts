@@ -142,9 +142,9 @@ describe('DesktopPGliteClient', () => {
       await tx.query('INSERT INTO tx_demo VALUES (1)');
       await tx.query('INSERT INTO tx_demo VALUES (2)');
       // 事务内自读得看得见自己写的行，否则这两条根本不在同一条事务上。
-      expect((await tx.query<{ n: bigint }>('SELECT count(*)::int8 AS n FROM tx_demo')).rows[0].n).toBe(2n);
+      expect((await tx.query<{ n: number }>('SELECT count(*)::int AS n FROM tx_demo')).rows[0].n).toBe(2);
     });
-    expect((await client.query<{ n: bigint }>('SELECT count(*)::int8 AS n FROM tx_demo')).rows[0].n).toBe(2n);
+    expect((await client.query<{ n: number }>('SELECT count(*)::int AS n FROM tx_demo')).rows[0].n).toBe(2);
     await client.disconnect();
   });
 
@@ -157,7 +157,7 @@ describe('DesktopPGliteClient', () => {
         throw new Error('business rule rejected the write');
       })
     ).rejects.toThrowError('business rule rejected the write');
-    expect((await client.query<{ n: bigint }>('SELECT count(*)::int8 AS n FROM tx_rollback')).rows[0].n).toBe(0n);
+    expect((await client.query<{ n: number }>('SELECT count(*)::int AS n FROM tx_rollback')).rows[0].n).toBe(0);
     // 事务必须已经在 host 上结清，而不是挂着占住那条唯一连接。
     expect(host.openTransactionCount).toBe(0);
     await client.disconnect();
@@ -171,7 +171,7 @@ describe('DesktopPGliteClient', () => {
       await tx.rollback();
       expect(tx.closed).toBe(true);
     });
-    expect((await client.query<{ n: bigint }>('SELECT count(*)::int8 AS n FROM tx_explicit')).rows[0].n).toBe(0n);
+    expect((await client.query<{ n: number }>('SELECT count(*)::int AS n FROM tx_explicit')).rows[0].n).toBe(0);
     await client.disconnect();
   });
 
@@ -190,7 +190,7 @@ describe('DesktopPGliteClient', () => {
         await tx.query('INSERT INTO tx_race VALUES (3)');
       })
     ]);
-    expect((await client.query<{ n: bigint }>('SELECT count(*)::int8 AS n FROM tx_race')).rows[0].n).toBe(3n);
+    expect((await client.query<{ n: number }>('SELECT count(*)::int AS n FROM tx_race')).rows[0].n).toBe(3);
     await client.disconnect();
   });
 
@@ -282,7 +282,7 @@ describe('DesktopPGliteClient', () => {
     expect(host.openSessionCount).toBe(2);
     expect(host.openInstanceCount).toBe(1);
     await first.exec('CREATE TABLE shared (id int)');
-    expect((await second.query<{ n: bigint }>('SELECT count(*)::int8 AS n FROM shared')).rows[0].n).toBe(0n);
+    expect((await second.query<{ n: number }>('SELECT count(*)::int AS n FROM shared')).rows[0].n).toBe(0);
     await first.disconnect();
     await second.disconnect();
   });
