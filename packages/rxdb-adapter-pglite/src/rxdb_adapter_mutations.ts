@@ -17,7 +17,7 @@ import { PGliteRepository } from './repository/PGliteRepository.js';
 import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
 
 const updateCachedEntity = <T extends EntityType>(repo: PGliteRepository<T>, data: Record<string, unknown>): void => {
-  const rawId = data.id;
+  const rawId = data['id'];
   const validNumber = typeof rawId === 'number' && Number.isFinite(rawId);
   if (typeof rawId !== 'string' && typeof rawId !== 'bigint' && !validNumber) {
     throw new RxdbAdapterPGliteError('Database row returned an invalid entity id', 'invalid_entity_id');

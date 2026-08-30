@@ -42,6 +42,18 @@
         "kind": "value"
       },
       {
+        "name": "DEFAULT_NOTIFY_BATCH_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DEFAULT_NOTIFY_MAX_BATCH_WAIT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DEFAULT_NOTIFY_MAX_PENDING_EVENTS",
+        "kind": "value"
+      },
+      {
         "name": "deserializeFromEnvelope",
         "kind": "value"
       },
@@ -163,6 +175,14 @@
       },
       {
         "name": "PGliteClientOptions",
+        "kind": "type"
+      },
+      {
+        "name": "PGliteNotificationBatcher",
+        "kind": "both"
+      },
+      {
+        "name": "PGliteNotificationBatcherOptions",
         "kind": "type"
       },
       {

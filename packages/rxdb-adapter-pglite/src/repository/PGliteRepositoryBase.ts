@@ -47,7 +47,7 @@ export class PGliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
       result.rows.map(async row => {
         const rawData = await getEntityObjectFromResult(this.metadata, row, this.adapter.encryptionContext);
         const data = this.metadata === getEntityMetadata(RxDBChange) ? this.decodeChangeResult(rawData) : rawData;
-        const id = data.id as EntityStaticType<T, 'idType'>;
+        const id = data['id'] as EntityStaticType<T, 'idType'>;
         const entityData = data as unknown as InstanceType<T>;
         let entity: InstanceType<T>;
         if (super.hasEntityRef(id)) {

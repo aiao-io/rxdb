@@ -90,7 +90,7 @@ export const transaction_pglite_result = async <T extends EntityType>(
 
   for (const row of result.rows) {
     const obj = await getEntityObjectFromResult(metadata, row, adapter.encryptionContext);
-    const id = obj.id as EntityStaticType<T, 'idType'>;
+    const id = obj['id'] as EntityStaticType<T, 'idType'>;
     const entityData = obj as unknown as InstanceType<T>;
 
     // 检查实体是否已在缓存中

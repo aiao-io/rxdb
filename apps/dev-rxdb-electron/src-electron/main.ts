@@ -8,6 +8,7 @@ import {
   createDatabasePathResolver,
   createDesktopHostBridge,
   createStorageRootResolver,
+  resolvePgliteDataRoot,
   type DesktopHostBridge
 } from './desktop-host-bridge.bundle.js';
 import { DEMO_RUN_CHANNEL, DESKTOP_HOST_REQUEST_CHANNEL, parseDemoRequest, type DemoResult } from './ipc-contract';
@@ -28,10 +29,10 @@ const serve = args.some(val => val === '--serve');
 const hideWindow = shouldHideWindow(process.env);
 
 /**
- * 桌面 host（SQLite + 文件两族），首次被 renderer 请求时才建。
+ * 桌面 host（SQLite + 文件 + PGlite 三族），首次被 renderer 请求时才建。
  *
- * 惰性是有意的：`setupIPC()` 在 app ready 之前就跑，而库目录与文件根都挂在
- * `app.getPath('userData')` 下 —— 等到真有请求进来时，ready 早已完成。
+ * 惰性是有意的：`setupIPC()` 在 app ready 之前就跑，而库目录、文件根与 PGlite 数据根
+ * 都挂在 `app.getPath('userData')` 下 —— 等到真有请求进来时，ready 早已完成。
  */
 let desktopHost: DesktopHostBridge | null = null;
 
@@ -40,6 +41,10 @@ const requireDesktopHost = (): DesktopHostBridge =>
     resolveDatabasePath: createDatabasePathResolver(app.getPath('userData')),
     // US-504：文件内容与库文件同域，于是「拷一个 userData 目录」= 完整带走应用数据。
     resolveStorageRoot: createStorageRootResolver(app.getPath('userData')),
+    // US-208：PGlite 的 WASM 在调用线程上同步跑完整条查询，放主进程里会把窗口一起堵住，
+    // 因此单实例活在一条自己的 worker 线程上。入口同样是 esbuild 产物（ELEC-23）。
+    pgliteDataRoot: resolvePgliteDataRoot(app.getPath('userData')),
+    pgliteWorkerPath: path.join(__dirname, 'desktop-pglite-worker.bundle.js'),
     onDeliveryError: error => console.error('[dev-rxdb-electron] 数据库变更事件送达失败：', error)
   }));
 
@@ -156,11 +161,20 @@ function createWindow(): BrowserWindow {
   // 用户重开窗口会撞上另一份连接的 WAL 锁，症状看着却像「数据库坏了」。
   // US-504 起同一步还要回收文件会话：未提交的写入要连临时文件一起中止，
   // 它持有的路径锁要放掉，否则下一个窗口会永远等在一把没人放的锁上。
+  // US-208 起还要回收 PGlite 的挂起事务：它独占那个唯一实例的连接，收不回来的表征是
+  // 「重开窗口后整个应用不响应」，而不是某次报错。
   // 这里捕获 webContents 而不是读 `win`：'destroyed' 触发时 `win` 已被下面的 'closed' 置空。
   const contents = win.webContents;
-  contents.on('destroyed', () => {
-    desktopHost?.releaseTarget(contents);
-  });
+  const releaseContents = (): void => {
+    // void：两个事件源都不接受异步收尾，而回收失败只可能是 host 已经没了 ——
+    // 那它名下的一切本来就随之消失了，没有可补救的动作。
+    void desktopHost?.releaseTarget(contents);
+  };
+  contents.on('destroyed', releaseContents);
+  // 'destroyed' 只在**正常**销毁时触发。渲染进程崩溃 / 被 OOM killer 干掉时它不来，
+  // 于是那个窗口名下的会话与挂起事务永远留在 host 里 —— 而崩溃恰恰是最可能
+  // 停在事务中间的一种死法（AC#3）。两个事件都挂上，回收本身按 sessionId 幂等。
+  contents.on('render-process-gone', releaseContents);
 
   win.on('closed', () => {
     win = null;

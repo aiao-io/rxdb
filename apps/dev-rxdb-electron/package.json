@@ -12,6 +12,7 @@
   "devDependencies": {
     "@aiao/rxdb-adapter-electron": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
+    "@electric-sql/pglite": "^0.5.8",
     "electron": "44.0.0"
   }
 }

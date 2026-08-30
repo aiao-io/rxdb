@@ -30,6 +30,9 @@ export {
   DESKTOP_PGLITE_MAX_BEGIN_TIMEOUT_MS,
   DESKTOP_PGLITE_PROTOCOL_VERSION,
   RxDBAdapterDesktopError,
+  // 宿主自己拼数据目录路径时要用：协议校验管的是「请求合法」，落盘前那次校验管的是
+  // 「拼进 join() 的东西不会越出数据根」。不转出来，宿主就只能自己再写一份同样的规则。
+  assertValidDesktopDatabaseName,
   isDesktopPgliteRequestKind,
   parseDesktopPgliteRequest,
   type DesktopPgliteNotifyMessage,

@@ -40,9 +40,9 @@ const generateEntityInsertsSql = async <T extends EntityType>(
 
   for (const entity of entities) {
     const entityData: Record<string, unknown> = normalizeCreateEntity(metadata, entity);
-    if (createdBy) entityData.createdBy = context?.userId;
-    if (updatedBy) entityData.updatedBy = context?.userId;
-    const primaryKey = (entityData.id as RxDBEntityId | null | undefined) ?? '';
+    if (createdBy) entityData['createdBy'] = context?.userId;
+    if (updatedBy) entityData['updatedBy'] = context?.userId;
+    const primaryKey = (entityData['id'] as RxDBEntityId | null | undefined) ?? '';
     const transformed = await transformEntityValueToSql(
       metadata,
       entityData as Partial<IEntity>,

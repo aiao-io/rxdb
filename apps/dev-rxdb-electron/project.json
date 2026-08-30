@@ -127,6 +127,10 @@
             "forwardAllArgs": false
           },
           {
+            "command": "node tools/stage-external-dependencies.mjs",
+            "forwardAllArgs": false
+          },
+          {
             "command": "electron-builder build --publish=never --config electron-builder.json",
             "forwardAllArgs": false
           }
@@ -152,6 +156,10 @@
           },
           {
             "command": "node tools/copy-app-manifest.mjs",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "node tools/stage-external-dependencies.mjs",
             "forwardAllArgs": false
           },
           {

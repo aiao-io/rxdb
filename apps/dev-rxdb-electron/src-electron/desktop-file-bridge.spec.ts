@@ -20,7 +20,10 @@ import { createDesktopHostBridge, type DesktopHostBridge } from './desktop-host-
 import { createDatabasePathResolver } from './desktop-sqlite-bridge';
 
 /** 窗口替身：只要 `isDestroyed`/`send` 两个方法，与真实 `WebContents` 结构相容。 */
-const createTarget = (): { isDestroyed(): boolean; send(): void } => ({
+/** `id` 是 PGlite 族用来按窗口回收挂起事务的身份（US-208）；真实 `WebContents` 天然有。 */
+let nextTargetId = 0;
+const createTarget = (): { id: number; isDestroyed(): boolean; send(): void } => ({
+  id: ++nextTargetId,
   isDestroyed: () => false,
   send: () => undefined
 });
@@ -211,7 +214,12 @@ describe('createDesktopHostBridge', () => {
   beforeEach(() => {
     bridge = createDesktopHostBridge({
       resolveDatabasePath: createDatabasePathResolver(workspace),
-      resolveStorageRoot: createStorageRootResolver(workspace)
+      resolveStorageRoot: createStorageRootResolver(workspace),
+      pgliteDataRoot: join(workspace, 'pglite'),
+      // 指向一个不存在的入口是**故意**的：本块只验分派，而 PGlite 那族的行为已经在
+      // desktop-pglite-bridge.spec.ts 里用真 PGlite 验过了。起不来的 worker 恰好给出
+      // 一个别的 host 绝不会答的错误码，分派有没有走对因此是可判别的。
+      pgliteWorkerPath: join(workspace, 'no-such-pglite-worker.js')
     });
   });
 
@@ -238,6 +246,14 @@ describe('createDesktopHostBridge', () => {
     expect(response).toMatchObject({ kind: 'error', code: 'session_closed' });
   });
 
+  // US-208：`pg.*` 若漏判，同样会掉进 SQLite host 被当成一条 SQL 跑掉。
+  // 这里的 worker 入口不存在，因此 PGlite 那支必然答 `host_unavailable` ——
+  // 而 SQLite host 对一个它不认识的 kind 只会答 `session_closed` / `statement_failed`。
+  it('pg.* 请求交给 PGlite host', async () => {
+    const response = await bridge.handle(createTarget(), { kind: 'pg.handshake' });
+    expect(response).toMatchObject({ kind: 'error', code: 'host_unavailable' });
+  });
+
   it('窗口销毁时两族会话一起回收', async () => {
     const target = createTarget();
     const file = await bridge.handle(target, { kind: 'file.open' });
@@ -249,7 +265,7 @@ describe('createDesktopHostBridge', () => {
     expect(sqlite.kind).toBe('open');
     expect(bridge.openSessionCount).toBe(2);
 
-    expect(bridge.releaseTarget(target)).toBe(2);
+    await expect(bridge.releaseTarget(target)).resolves.toBe(2);
     await vi.waitFor(() => expect(bridge.openSessionCount).toBe(0));
   });
 });
