@@ -62,6 +62,10 @@
         "kind": "value"
       },
       {
+        "name": "createDevToolsNativeFilesProvider",
+        "kind": "value"
+      },
+      {
         "name": "createDevToolsOpfsFilesProvider",
         "kind": "value"
       },
@@ -398,6 +402,10 @@
         "kind": "type"
       },
       {
+        "name": "DevToolsFilesProviderWithSource",
+        "kind": "type"
+      },
+      {
         "name": "DevToolsHandshakeCapabilities",
         "kind": "type"
       },
@@ -411,6 +419,18 @@
       },
       {
         "name": "DevToolsMutationPolicy",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsNativeEntry",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsNativeFilesProviderPorts",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsNativeFilesystem",
         "kind": "type"
       },
       {

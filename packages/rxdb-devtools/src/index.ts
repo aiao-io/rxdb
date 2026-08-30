@@ -538,6 +538,20 @@ export type {
   DevToolsOpfsFilesProviderPorts
 } from './browser/opfs-files-provider.js';
 export {
+  /** 建原生文件后端的 `files` provider。 */
+  createDevToolsNativeFilesProvider
+} from './native/native-files-provider.js';
+export type {
+  /** 同时具备出站字节源与入站落盘口的 `files` provider。 */
+  DevToolsFilesProviderWithSource,
+  /** 原生目录项。 */
+  DevToolsNativeEntry,
+  /** 原生 provider 的构造端口。 */
+  DevToolsNativeFilesProviderPorts,
+  /** provider 需要宿主提供的最小文件能力。 */
+  DevToolsNativeFilesystem
+} from './native/native-files-provider.js';
+export {
   /** 浏览器 settings provider 的 descriptor。 */
   DEVTOOLS_BROWSER_SETTINGS_DESCRIPTOR,
   /** 建浏览器 `settings` provider（`export` 恒回 `export_unsupported`）。 */
