@@ -107,7 +107,11 @@ export function createDevToolsDesktopFilesystem(options: DevToolsDesktopFilesyst
 
   /** 把「逻辑根 + 段序列」转成相对存储根的物理路径；空段序列映射到根自身。 */
   const toPhysicalPath = (segments: readonly string[]): string =>
-    [options.rootDir, ...segments].flatMap(segment => segment.split('/')).filter(Boolean).map(encodePhysicalName).join('/');
+    [options.rootDir, ...segments]
+      .flatMap(segment => segment.split('/'))
+      .filter(Boolean)
+      .map(encodePhysicalName)
+      .join('/');
 
   async function stat(segments: readonly string[]): Promise<DevToolsNativeEntry | undefined> {
     const { result } = await send({ kind: 'file.stat', sessionId: await session(), path: toPhysicalPath(segments) });

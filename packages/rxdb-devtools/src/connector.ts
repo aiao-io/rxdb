@@ -638,9 +638,9 @@ export class DevToolsConnector {
     });
     const endpoint = createDevToolsConnectorEndpoint({
       send: (message: DevToolsConnectorNegotiationMessage) =>
-        message === legacyHandshake
-          ? this.#postMessage(message, remotePort === undefined ? undefined : [remotePort])
-          : this.#postMessage(message),
+        message === legacyHandshake ?
+          this.#postMessage(message, remotePort === undefined ? undefined : [remotePort])
+        : this.#postMessage(message),
       clock: createSystemClock(),
       capability: this.#options.capabilities,
       mutationPolicy: this.#options.mutationPolicy,

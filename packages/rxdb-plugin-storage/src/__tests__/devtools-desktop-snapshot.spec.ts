@@ -7,10 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createDevToolsDesktopFilesystem, type DevToolsDesktopFilesystem } from '../devtools-desktop-filesystem.js';
-import {
-  createDevToolsStorageSnapshotPorts,
-  type DevToolsStorageSnapshotHost
-} from '../devtools-desktop-snapshot.js';
+import { createDevToolsStorageSnapshotPorts, type DevToolsStorageSnapshotHost } from '../devtools-desktop-snapshot.js';
 import type { StorageFileMeta } from '../file-meta.entity.js';
 
 let workspace: string;
@@ -36,7 +33,11 @@ const meta = (opfsPath: string, id: string, size: number, contentVersion: number
 
 const bytes = (content: string): Uint8Array => new TextEncoder().encode(content);
 
-async function write(filesystem: DevToolsNativeFilesystem, segments: readonly string[], content: string): Promise<void> {
+async function write(
+  filesystem: DevToolsNativeFilesystem,
+  segments: readonly string[],
+  content: string
+): Promise<void> {
   const sink = await filesystem.openWrite(segments);
   await sink.write(bytes(content));
   await sink.commit();

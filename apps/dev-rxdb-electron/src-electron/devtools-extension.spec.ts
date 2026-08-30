@@ -76,8 +76,9 @@ describe('devtools-extension 开发态加载闸门（US-904 阶段 D AC#45）', 
   describe('loadDevToolsExtension', () => {
     it('加载前已有扩展时拒绝再加载', async () => {
       const loader = loaderWith([{ id: 'other', name: 'other' }]);
-      await expect(loadDevToolsExtension(loader, { extensionPath: '/x', capability: 'readonly', mutationPolicy: 'omit' }))
-        .rejects.toThrow();
+      await expect(
+        loadDevToolsExtension(loader, { extensionPath: '/x', capability: 'readonly', mutationPolicy: 'omit' })
+      ).rejects.toThrow();
     });
 
     it('加载成功且恰好一个时返回扩展身份', async () => {
@@ -94,11 +95,15 @@ describe('devtools-extension 开发态加载闸门（US-904 阶段 D AC#45）', 
       // 一个 loadExtension 却登记出两个扩展 —— 重复加载在这里必须显式爆出来，而不是静默多一份 relay。
       const loader = loaderWith([]);
       loader.loadExtension = async path => {
-        loader.getAllExtensions = () => [{ id: 'a', name: 'a' }, { id: 'b', name: 'b' }];
+        loader.getAllExtensions = () => [
+          { id: 'a', name: 'a' },
+          { id: 'b', name: 'b' }
+        ];
         return { id: 'a', name: path };
       };
-      await expect(loadDevToolsExtension(loader, { extensionPath: '/x', capability: 'readonly', mutationPolicy: 'omit' }))
-        .rejects.toThrow();
+      await expect(
+        loadDevToolsExtension(loader, { extensionPath: '/x', capability: 'readonly', mutationPolicy: 'omit' })
+      ).rejects.toThrow();
     });
   });
 });

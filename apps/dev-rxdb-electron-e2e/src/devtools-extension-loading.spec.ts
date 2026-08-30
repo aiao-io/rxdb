@@ -46,9 +46,10 @@ test.describe('devtools 扩展开发态加载（US-904 阶段 D AC#45）', () =>
   test.describe.configure({ timeout: 180000 });
 
   test.beforeAll(() => {
-    expect(existsSync(EXTENSION_DIST), `缺扩展构建产物：${EXTENSION_DIST}。先 pnpm nx build rxdb-devtools-extension`).toBe(
-      true
-    );
+    expect(
+      existsSync(EXTENSION_DIST),
+      `缺扩展构建产物：${EXTENSION_DIST}。先 pnpm nx build rxdb-devtools-extension`
+    ).toBe(true);
     expect(existsSync(resolveExecutable()), '缺打包产物。先 pnpm nx run dev-rxdb-electron:electron-package-dir').toBe(
       true
     );

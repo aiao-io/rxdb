@@ -1,4 +1,4 @@
-import { provideEnvironmentInitializer, inject } from '@angular/core';
+import { inject, provideEnvironmentInitializer } from '@angular/core';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { provideRouter, withHashLocation } from '@angular/router';
 import {

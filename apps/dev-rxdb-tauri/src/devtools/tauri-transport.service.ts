@@ -1,6 +1,4 @@
 import { Injectable, OnDestroy, signal } from '@angular/core';
-import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { DevToolsTransport } from '@modules/rxdb-devtools-panel';
 import {
   isDevToolsMessage,
@@ -9,6 +7,8 @@ import {
   type DevToolsMessage,
   type ExtensionMessageType
 } from '@modules/rxdb-devtools-panel/wire';
+import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 /**
  * {@link DevToolsTransport} 的 Tauri 实现：面板 WebView ↔ 主 WebView 的定向中继。

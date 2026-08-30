@@ -1,6 +1,6 @@
+import type { DevToolsConnectorTransport } from '@aiao/rxdb-devtools';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { DevToolsConnectorTransport } from '@aiao/rxdb-devtools';
 
 /**
  * {@link DevToolsConnectorTransport} 的 Tauri 实现：主 WebView connector 侧。

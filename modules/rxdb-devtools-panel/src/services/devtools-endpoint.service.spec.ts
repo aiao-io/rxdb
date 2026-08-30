@@ -1,8 +1,8 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
-import { DEVTOOLS_TRANSPORT } from '../transport/devtools-transport';
 import { FakeDevToolsTransport } from '../testing/fake-transport';
+import { DEVTOOLS_TRANSPORT } from '../transport/devtools-transport';
 import { DevToolsEndpointService } from './devtools-endpoint.service';
 
 /** 取一帧的 `type`；非对象帧回 `undefined`。 */

@@ -12,9 +12,9 @@ import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/deskto
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { createTauriConnectorTransport } from '../devtools/tauri-connector-transport';
 import { DESKTOP_DEMO_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
-import { createTauriConnectorTransport } from '../devtools/tauri-connector-transport';
 
 /**
  * 文件内容在存储根下的子目录名（US-505）。

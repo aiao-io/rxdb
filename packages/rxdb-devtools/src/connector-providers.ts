@@ -164,9 +164,7 @@ export function createConnectorProviders(ports: ConnectorProviderPorts = {}): Co
       }));
 
   const database: DevToolsRxdbDatabaseProvider | undefined =
-    ports.database === undefined ?
-      undefined
-    : createDevToolsRxdbDatabaseProvider({ ...ports.database, runtime });
+    ports.database === undefined ? undefined : createDevToolsRxdbDatabaseProvider({ ...ports.database, runtime });
 
   const settings: DevToolsProvider = ports.settings ?? createDevToolsBrowserSettingsProvider();
 
