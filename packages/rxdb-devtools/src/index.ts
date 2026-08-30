@@ -404,6 +404,10 @@ export type {
   DevToolsPanelEndpoint,
   /** panel 数据面客户端的构造端口。 */
   DevToolsPanelEndpointPorts,
+  /** 一次下载调用的入参。 */
+  DevToolsPanelDownloadRequest,
+  /** 一次下载的结果；`'delivered-at-source'` 表示字节由源侧自行交付，没有走 wire。 */
+  DevToolsPanelDownloadResult,
   /** 一次 provider 调用的结果；永不 reject。 */
   DevToolsPanelRequestResult,
   /** 一次上传调用的入参。 */
@@ -471,9 +475,22 @@ export {
   resolveNegotiatedTransferLimit
 } from './provider/limits.js';
 
+export {
+  /** 判断单个路径段是否合法（非空、无分隔符、不是相对路径记号）。 */
+  isValidPathSegment,
+  /** 把已校验的段拼回逻辑路径。 */
+  joinLogicalPath,
+  /** 把 wire 上的路径切成已校验的段；任何一段非法即整条非法。 */
+  parseLogicalPath,
+  /** 把路径拆成「父目录段 + 末段」；指向根时为 `undefined`。 */
+  splitLogicalPath
+} from './provider/logical-path.js';
+
 export type {
   /** 分块落盘接收器；只有合法 COMPLETE 会 commit。 */
   DevToolsChunkSink,
+  /** 按需读取的分块字节来源；出站传输用它，避免整文件驻留。 */
+  DevToolsChunkSource,
   /** 一个领域的 provider 实现。 */
   DevToolsProvider,
   /** provider 操作的结果联合。 */

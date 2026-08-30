@@ -10,10 +10,11 @@
  *    所以这里保持子树语义。分页是阶段 D 的 AC#48 针对**原生**文件后端的问题——
  *    那里的目录规模不受同源配额约束，这里受。
  *
- * 2. **`download` 的字节不过 wire。** 阶段 B 冻结的协议里 `TRANSFER_*` 方向是 `'both'`，
- *    但 connector→panel 这一向**没有任何一端实现**。在补上它之前，`opfs` kind 的下载
- *    走页面自己的保存路径：字节本来就在这个源里，把它 base64 一遍再送回同一个源
- *    只是更慢更占内存。返回值仍是协议内的元数据。该缺口登记为阶段 D 的前置。
+ * 2. **`download` 的字节不过 wire。** connector→panel 这一向已经在阶段 D 补齐（见
+ *    `v2/endpoint.ts` 的出站泵与 `v2/panel-endpoint.ts` 的 `download`），但 `opfs` kind
+ *    **仍然主动不用它**：字节本来就在这个源里，把它 base64 一遍再送回同一个源只是更慢
+ *    更占内存。所以这里的 `createChunkSource` 恒为 `undefined`，面板拿到的是
+ *    `delivered-at-source`——这**不是**「不支持下载」，descriptor 里 `download` 照常宣告。
  *
  * 3. **上传的目标文件在 `commit()` 之前不存在。** 先写同名临时文件、commit 时再改名，
  *    而不是直接 `createWritable()` 写目标句柄——后者会让半写文件对同源的其它读者可见，
@@ -23,6 +24,7 @@
  */
 
 import type { DevToolsProviderDescriptor } from '../provider/descriptor.js';
+import { isValidPathSegment, joinLogicalPath, parseLogicalPath, splitLogicalPath } from '../provider/logical-path.js';
 import type { DevToolsChunkSink, DevToolsProvider, DevToolsProviderResult } from '../provider/types.js';
 import { createProviderError, mapPlatformError } from '../v2/error-mapping.js';
 import type { DevToolsProviderErrorCode } from '../v2/errors.js';
@@ -74,9 +76,6 @@ export interface DevToolsOpfsFilesProvider extends DevToolsProvider {
 /** 临时文件名前缀；commit 时改名到目标名。 */
 const TEMPORARY_PREFIX = '.rxdb-devtools-upload-';
 
-/** 目录项名的合法性：非空、无分隔符、不是相对路径记号。 */
-const INVALID_NAME_PATTERN = /[/\\]/u;
-
 interface PendingUpload {
   readonly directory: FileSystemDirectoryHandle;
   readonly name: string;
@@ -94,23 +93,6 @@ function ok(result: unknown): DevToolsProviderResult {
 /** DOMException → 共享错误码；非 DOM 值不在这里嗅探，交给共享映射兜到 `operation_failed`。 */
 function mapped(error: unknown): DevToolsProviderResult {
   return { outcome: 'failed', error: mapPlatformError('dom', error) };
-}
-
-function isValidName(name: unknown): name is string {
-  return typeof name === 'string' && name.length > 0 && name !== '.' && name !== '..' && !INVALID_NAME_PATTERN.test(name);
-}
-
-/**
- * 把 wire 上的路径切成已校验的段。
- *
- * @remarks
- * 空路径合法，表示根目录。任何一段非法即整条非法——不做「跳过坏段继续走」的容错，
- * 那会让 `a/../b` 悄悄解析成 `a/b`。
- */
-function segmentsOf(path: unknown): readonly string[] | undefined {
-  if (typeof path !== 'string') return undefined;
-  const segments = path.split('/').filter(segment => segment.length > 0);
-  return segments.every(isValidName) ? segments : undefined;
 }
 
 async function resolveDirectory(
@@ -162,58 +144,56 @@ export function createDevToolsOpfsFilesProvider(ports: DevToolsOpfsFilesProvider
   };
 
   async function list(params: Record<string, unknown>): Promise<DevToolsProviderResult> {
-    const segments = segmentsOf(params['path']);
+    const segments = parseLogicalPath(params['path']);
     if (segments === undefined) return failure('invalid_path');
+    const path = joinLogicalPath(segments);
     const handle = await resolveDirectory(await ports.getRootDirectory(), segments, false);
-    return ok({ path: segments.join('/'), entries: await readSubtree(handle, segments.join('/')) });
+    return ok({ path, entries: await readSubtree(handle, path) });
   }
 
   async function download(params: Record<string, unknown>): Promise<DevToolsProviderResult> {
-    const segments = segmentsOf(params['path'])?.slice();
-    const name = segments?.pop();
-    if (segments === undefined || name === undefined) return failure('invalid_path');
+    const target = splitLogicalPath(params['path']);
+    if (target === undefined) return failure('invalid_path');
 
-    const directory = await resolveDirectory(await ports.getRootDirectory(), segments, false);
-    const file = await (await directory.getFileHandle(name, { create: false })).getFile();
-    await ports.saveToDisk?.(file, name);
-    return ok({ path: params['path'], name, size: file.size });
+    const directory = await resolveDirectory(await ports.getRootDirectory(), target.parent, false);
+    const file = await (await directory.getFileHandle(target.name, { create: false })).getFile();
+    await ports.saveToDisk?.(file, target.name);
+    return ok({ path: params['path'], name: target.name, size: file.size });
   }
 
   async function upload(params: Record<string, unknown>): Promise<DevToolsProviderResult> {
     const transferId = params['transferId'];
-    const segments = segmentsOf(params['path']);
+    const segments = parseLogicalPath(params['path']);
     const name = params['name'];
     if (typeof transferId !== 'string' || transferId.length === 0) return failure('invalid_path');
-    if (segments === undefined || !isValidName(name)) return failure('invalid_path');
+    if (segments === undefined || !isValidPathSegment(name)) return failure('invalid_path');
     if (!isSafeIntegerInRange(params['size'], 0, ports.maxTransferBytes)) return failure('transfer_size_exceeded');
     if (uploads.has(transferId)) return failure('resource_conflict');
 
     const directory = await resolveDirectory(await ports.getRootDirectory(), segments, true);
     temporarySequence += 1;
     uploads.set(transferId, { directory, name, temporaryName: `${TEMPORARY_PREFIX}${temporarySequence}` });
-    return ok({ path: [...segments, name].join('/'), transferId });
+    return ok({ path: joinLogicalPath([...segments, name]), transferId });
   }
 
   async function createDirectory(params: Record<string, unknown>): Promise<DevToolsProviderResult> {
-    const segments = segmentsOf(params['path'])?.slice();
-    const name = segments?.pop();
-    if (segments === undefined || name === undefined) return failure('invalid_path');
+    const target = splitLogicalPath(params['path']);
+    if (target === undefined) return failure('invalid_path');
 
-    const parent = await resolveDirectory(await ports.getRootDirectory(), segments, true);
+    const parent = await resolveDirectory(await ports.getRootDirectory(), target.parent, true);
     // 先探再建：OPFS 的 `create: true` 对已存在的目录是幂等成功，而协议要求冲突可见。
-    const existing = await parent.getDirectoryHandle(name, { create: false }).catch(() => undefined);
+    const existing = await parent.getDirectoryHandle(target.name, { create: false }).catch(() => undefined);
     if (existing !== undefined) return failure('resource_conflict');
-    await parent.getDirectoryHandle(name, { create: true });
-    return ok({ path: [...segments, name].join('/') });
+    await parent.getDirectoryHandle(target.name, { create: true });
+    return ok({ path: joinLogicalPath([...target.parent, target.name]) });
   }
 
   async function remove(params: Record<string, unknown>): Promise<DevToolsProviderResult> {
-    const segments = segmentsOf(params['path'])?.slice();
-    const name = segments?.pop();
-    if (segments === undefined || name === undefined) return failure('invalid_path');
+    const target = splitLogicalPath(params['path']);
+    if (target === undefined) return failure('invalid_path');
 
-    const parent = await resolveDirectory(await ports.getRootDirectory(), segments, false);
-    await parent.removeEntry(name, { recursive: true });
+    const parent = await resolveDirectory(await ports.getRootDirectory(), target.parent, false);
+    await parent.removeEntry(target.name, { recursive: true });
     return ok({ path: params['path'] });
   }
 

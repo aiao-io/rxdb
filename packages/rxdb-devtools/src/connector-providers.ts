@@ -169,6 +169,9 @@ export function createConnectorProviders(ports: ConnectorProviderPorts = {}): Co
       if (files === undefined) throw new Error(`no in-page devtools chunk sink for transfer "${name}"`);
       return files.createChunkSink(name);
     },
+    // 浏览器 OPFS 的字节不过 wire：它由页面自己保存（见 `opfs-files-provider.ts` 模块头第 2 条），
+    // 所以这里恒为「已在源侧交付」。这**不是**「不支持下载」——descriptor 里 `download` 是宣告了的。
+    createChunkSource: () => undefined,
     dispose: () => database?.dispose()
   };
 }

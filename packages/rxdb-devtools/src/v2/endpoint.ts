@@ -15,13 +15,20 @@
 
 import type { DevToolsProviderDescriptor, DevToolsProviderDomain } from '../provider/descriptor.js';
 import { resolveNegotiatedTransferLimit } from '../provider/limits.js';
-import type { DevToolsChunkSink, DevToolsProvider, DevToolsProviderResult } from '../provider/types.js';
+import type {
+  DevToolsChunkSink,
+  DevToolsChunkSource,
+  DevToolsProvider,
+  DevToolsProviderResult
+} from '../provider/types.js';
 import { SequenceGenerator } from '../sequence.js';
 import type { AnyDevToolsMessage, DevToolsCapability } from '../types.js';
 import type { DevToolsMutationPolicy } from './authorization.js';
 import { authorizeMessage, authorizeOperation } from './authorization.js';
-import type { DevToolsClock } from './clock.js';
-import type { DevToolsErrorPayload } from './errors.js';
+import { encodeCanonicalBase64 } from './base64.js';
+import type { DevToolsCancelTimer, DevToolsClock } from './clock.js';
+import { DEVTOOLS_MAX_CHUNK_BYTES, DEVTOOLS_TRANSFER_TOTAL_TIMEOUT_MS } from './constants.js';
+import type { DevToolsErrorCode, DevToolsErrorPayload } from './errors.js';
 import { createDevToolsError } from './errors.js';
 import type { DevToolsConnectorNegotiation, DevToolsConnectorNegotiationMessage } from './negotiation-connector.js';
 import { createConnectorNegotiation } from './negotiation-connector.js';
@@ -62,6 +69,22 @@ export interface DevToolsProviderRegistry {
   provider(domain: DevToolsProviderDomain): DevToolsProvider;
   /** 为一次传输开一个分块落盘接收器；只有合法 COMPLETE 会 commit。 */
   createChunkSink(name: string): DevToolsChunkSink;
+  /**
+   * 为一次已成功的 `files.download` 开一个字节来源。
+   *
+   * @remarks
+   * 返回 `undefined` 的含义是**字节已在源侧交付**（浏览器 OPFS 由页面自己保存，见
+   * `browser/opfs-files-provider.ts` 模块头第 2 条），而不是「这个 provider 不支持下载」——
+   * 后者在 descriptor 的 `operations` 里就已经说清楚了，授权层会先一步拦下，轮不到这里表达。
+   * 两者共用一个空值会让「没接线」和「有意不流式」在端点看来完全一样。
+   *
+   * 用 `requestId` 而不是另铸一个 ID 作键：provider 认回「我刚答应下载的那个文件」唯一可靠的
+   * 依据就是那次调用本身，而 transferId 此刻还不存在（它由端点在本方法返回之后才铸造）。
+   *
+   * @param requestId - 触发这次下载的 REQUEST ID。
+   * @returns 要送上 wire 的字节来源，或 `undefined`。
+   */
+  createChunkSource(requestId: string): DevToolsChunkSource | undefined;
 }
 
 /** 端点的构造端口。 */
@@ -90,8 +113,10 @@ export interface DevToolsConnectorEndpoint {
   readonly sessionOpen: boolean;
   /** 在途 request 数。 */
   readonly inflightRequests: number;
-  /** 在途 transfer 数。 */
+  /** 在途入站 transfer 数。 */
   readonly inflightTransfers: number;
+  /** 在途出站（下载）transfer 数。 */
+  readonly inflightDownloads: number;
   /** 发出 eager v1 握手，开始协商。 */
   start(): void;
   /** 处理一帧入站数据；非本协议的值一律忽略。 */
@@ -120,8 +145,16 @@ interface TransferBinding {
   readonly sink: DevToolsChunkSink;
 }
 
+/** 一条出站（connector → panel）传输的账本。 */
+interface OutboundTransfer {
+  readonly transferId: string;
+  readonly requestId: string;
+  readonly source: DevToolsChunkSource;
+  readonly cancelTotal: DevToolsCancelTimer;
+}
+
 /**
- * 传输在本协议里只服务 `files.upload`。
+ * 入站传输在本协议里只服务 `files.upload`。
  *
  * @remarks
  * `TRANSFER_START` 不带 domain/operation，但它并非无主：授权必须按它实际要做的事判定，
@@ -129,6 +162,16 @@ interface TransferBinding {
  */
 const TRANSFER_DOMAIN = 'files' as const;
 const TRANSFER_OPERATION = 'upload' as const;
+
+/**
+ * 出站传输唯一的来源操作。
+ *
+ * @remarks
+ * 出站方向不需要独立的授权判定：它只可能由一次**已经通过三层授权**的 `files.download`
+ * 产生，端点从不主动推字节。这也是它与入站方向的根本差别——入站的 START 是对端发起的，
+ * 必须自己带上授权判定；出站的 START 是本端对一次已授权调用的续写。
+ */
+const DOWNLOAD_OPERATION = 'download' as const;
 
 /**
  * 事件订阅在授权矩阵里的坐标。
@@ -151,9 +194,12 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
   readonly #ports: DevToolsConnectorEndpointPorts;
   readonly #negotiation: DevToolsConnectorNegotiation;
   readonly #sequence = new SequenceGenerator();
+  readonly #ids = new SequenceGenerator();
   readonly #transferBindings = new Map<string, TransferBinding>();
+  readonly #outbound = new Map<string, OutboundTransfer>();
   #session: DevToolsSession | null = null;
   #transfers: DevToolsTransferTable | null = null;
+  #negotiatedTransferLimit = 0;
   /**
    * 本 session 的事件订阅是否通过了三层授权。
    *
@@ -178,6 +224,10 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
 
   get inflightTransfers(): number {
     return this.#session?.inflightTransfers ?? 0;
+  }
+
+  get inflightDownloads(): number {
+    return this.#outbound.size;
   }
 
   constructor(ports: DevToolsConnectorEndpointPorts) {
@@ -285,7 +335,11 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
         void this.#settleTransferFrame(message.payload, 'complete');
         return;
       case 'TRANSFER_CANCEL':
-        void this.#settleTransferFrame(message.payload, 'cancel');
+        // 出站方向先认领：同一个 CANCEL 帧交给入站表只会得到 `transfer_closed`，
+        // 于是「面板正常取消了一次下载」在 wire 上被写成一条错误。
+        if (!this.#cancelOutbound(message.payload.transferId)) {
+          void this.#settleTransferFrame(message.payload, 'cancel');
+        }
         return;
       default:
         // 协商帧由 negotiation 处理；connector-to-panel 的类型不该回流，忽略即可。
@@ -345,8 +399,180 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
     // 结算门同时挡住两件事：已超时的请求，以及 session 轮换后迟到的结果。
     if (this.#session?.settleRequest(payload.requestId) !== true) return;
 
-    if (result.outcome === 'failed') this.#sendError(payload.requestId, result.error);
-    else this.#sendResponse(payload.requestId, result.result);
+    if (result.outcome === 'failed') {
+      this.#sendError(payload.requestId, result.error);
+      return;
+    }
+
+    const outbound = this.#beginDownload(payload);
+    // `failed` 时错误帧已经发过，再补一条 RESPONSE 就成了同一个 requestId 上的两次结算。
+    if (outbound === 'failed') return;
+    this.#sendResponse(payload.requestId, result.result);
+    if (outbound !== 'no-stream') void this.#pump(outbound);
+  }
+
+  /**
+   * 一次成功的 `files.download` 之后，决定要不要把字节推上 wire。
+   *
+   * @remarks
+   * **`TRANSFER_START` 必须早于这次调用的 `RESPONSE`**，这条顺序是协议的一部分而不是实现细节：
+   * 同一条通道保序，于是面板在收到 RESPONSE 的那一刻就能确定「有没有流要来」——START 已经到了
+   * 就是有，没到就是没有。反过来先发 RESPONSE 的话，面板分不清「字节在源侧交付了」和
+   * 「START 还在路上」，只能靠等一个猜出来的时长，而那个时长在慢链路上一定是错的。
+   *
+   * @param payload - 已成功的 REQUEST 载荷。
+   * @returns 已开好的出站传输；无需流式时为 `'no-stream'`；已发过错误帧时为 `'failed'`。
+   */
+  #beginDownload(payload: DevToolsRequestPayload): OutboundTransfer | 'no-stream' | 'failed' {
+    if (payload.domain !== TRANSFER_DOMAIN || payload.operation !== DOWNLOAD_OPERATION) return 'no-stream';
+
+    const source = this.#openChunkSource(payload.requestId);
+    if (source === undefined) return 'no-stream';
+    if (source === 'failed') return 'failed';
+    // 超限在这里就要挡下：面板的传输表照样会拒 START，但那时字节来源已经开着，
+    // 而端点收不到自己发出去的那条拒绝，句柄就留在原地了。
+    if (source.totalBytes > this.#negotiatedTransferLimit) {
+      return this.#abandon(source, payload.requestId, 'transfer_size_exceeded');
+    }
+
+    const transferId = `dl-${this.#ids.next()}`;
+    const registration = this.#session?.registerTransfer(transferId);
+    if (registration === undefined) return this.#abandon(source, payload.requestId, 'session_closed');
+    if (registration.outcome === 'rejected') {
+      this.#session?.releaseTransfer(transferId);
+      return this.#abandon(source, payload.requestId, registration.error.code);
+    }
+
+    const transfer: OutboundTransfer = {
+      transferId,
+      requestId: payload.requestId,
+      source,
+      cancelTotal: this.#ports.clock.setTimeout(
+        () => this.#expireOutbound(transferId),
+        DEVTOOLS_TRANSFER_TOTAL_TIMEOUT_MS
+      )
+    };
+    this.#outbound.set(transferId, transfer);
+    const start = { transferId, requestId: payload.requestId, totalBytes: source.totalBytes };
+    this.#ports.send(createDevToolsV2Message('TRANSFER_START', start, this.#envelope()));
+    return transfer;
+  }
+
+  /**
+   * 取一次下载的字节来源。
+   *
+   * @remarks
+   * 契约说这里返回 `undefined` 表示「已在源侧交付」，但契约挡不住 bug：抛出来的话
+   * 这次下载会既没有流也没有失败通知。归到 `operation_failed` 而不是静默，
+   * 是因为面板此刻正按上面那条顺序判断「有没有流」，静默会让它判成「没有」。
+   */
+  #openChunkSource(requestId: string): DevToolsChunkSource | undefined | 'failed' {
+    try {
+      return this.#ports.providers.createChunkSource(requestId);
+    } catch {
+      this.#sendError(requestId, createDevToolsError('operation_failed'));
+      return 'failed';
+    }
+  }
+
+  /** 开了来源却没能开成传输：报错并把句柄还回去，不留下一个没人读的读者。 */
+  #abandon(source: DevToolsChunkSource, requestId: string, code: DevToolsErrorCode): 'failed' {
+    this.#sendError(requestId, createDevToolsError(code));
+    void this.#closeSource(source);
+    return 'failed';
+  }
+
+  /**
+   * START → CHUNK* → COMPLETE。
+   *
+   * @remarks
+   * 每一次 `await` 之后都要重新确认这条传输还在表里：取消、总时长到点与断连都只能在
+   * `await` 的间隙生效，不重新确认就会往一条已经结算的传输上继续发帧。
+   */
+  async #pump(transfer: OutboundTransfer): Promise<void> {
+    const { transferId, source } = transfer;
+    let offset = 0;
+    let chunkIndex = 0;
+
+    while (offset < source.totalBytes) {
+      const length = Math.min(DEVTOOLS_MAX_CHUNK_BYTES, source.totalBytes - offset);
+      const bytes = await this.#readChunk(source, offset, length);
+      if (this.#outbound.get(transferId) !== transfer) return;
+      // 短读被当成正常结果的话，对端拿到的是一个静默截断的文件。
+      if (bytes === undefined || bytes.byteLength !== length) {
+        await this.#failOutbound(transfer, 'operation_failed');
+        return;
+      }
+
+      const payload = { transferId, chunkIndex, offset, dataBase64: encodeCanonicalBase64(bytes) };
+      this.#ports.send(createDevToolsV2Message('TRANSFER_CHUNK', payload, this.#envelope()));
+      offset += length;
+      chunkIndex += 1;
+    }
+
+    this.#ports.send(createDevToolsV2Message('TRANSFER_COMPLETE', { transferId }, this.#envelope()));
+    await this.#closeOutbound(transfer);
+  }
+
+  /** 读一块字节；抛出等同于读不出来，两者在这一层没有可分支的差别。 */
+  async #readChunk(source: DevToolsChunkSource, offset: number, length: number): Promise<Uint8Array | undefined> {
+    try {
+      return await source.read(offset, length);
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * 本端读不下去了。
+   *
+   * @remarks
+   * `ERROR` 与 `TRANSFER_CANCEL` 两条都要发：后者让面板丢掉已收到的部分（只发 ERROR 的话，
+   * 面板的传输表要等到 idle 闸才回收，那段时间里半个文件一直挂着），前者给出归因。
+   *
+   * **顺序是 ERROR 在前**：这次下载的 `RESPONSE` 早已发出，面板那边这个 requestId 不再是
+   * 一条在途请求，归因只能挂到那条传输上。CANCEL 先到就会让传输当场以「被取消」结算，
+   * 随后到的 ERROR 无处可挂，一次磁盘读失败会被面板显示成一次用户取消。
+   */
+  async #failOutbound(transfer: OutboundTransfer, code: DevToolsErrorCode): Promise<void> {
+    this.#sendError(transfer.requestId, createDevToolsError(code));
+    this.#ports.send(
+      createDevToolsV2Message('TRANSFER_CANCEL', { transferId: transfer.transferId }, this.#envelope())
+    );
+    await this.#closeOutbound(transfer);
+  }
+
+  /** 面板取消了一次下载：静默收尾，不回错误——它要的就是这个结果。 */
+  #cancelOutbound(transferId: string): boolean {
+    const transfer = this.#outbound.get(transferId);
+    if (transfer === undefined) return false;
+
+    void this.#closeOutbound(transfer);
+    return true;
+  }
+
+  /** 总时长到点；计时器回调没有可以 await 的调用方，清理后台跑完即可。 */
+  #expireOutbound(transferId: string): void {
+    const transfer = this.#outbound.get(transferId);
+    if (transfer === undefined) return;
+
+    void this.#failOutbound(transfer, 'transfer_timeout');
+  }
+
+  async #closeOutbound(transfer: OutboundTransfer): Promise<void> {
+    transfer.cancelTotal();
+    this.#outbound.delete(transfer.transferId);
+    this.#session?.settleTransfer(transfer.transferId);
+    await this.#closeSource(transfer.source);
+  }
+
+  /** 释放读句柄；失败没有第二条补救路径，再抛一次只会逃到全局。 */
+  async #closeSource(source: DevToolsChunkSource): Promise<void> {
+    try {
+      await source.close();
+    } catch {
+      // 无处可退：读句柄的兜底是进程退出，不是这里再报一次。
+    }
   }
 
   #onTransferStart(payload: DevToolsTransferStartPayload): void {
@@ -481,6 +707,7 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
         .filter(descriptor => descriptor.domain === TRANSFER_DOMAIN)
         .map(descriptor => descriptor.limits.maxTransferBytes)
     );
+    this.#negotiatedTransferLimit = negotiatedLimit ?? 0;
     this.#session = createDevToolsSession({
       sessionId: this.#negotiation.sessionId,
       clock: this.#ports.clock,
@@ -488,7 +715,7 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
     });
     this.#transfers = createDevToolsTransferTable({
       clock: this.#ports.clock,
-      negotiatedLimit: negotiatedLimit ?? 0,
+      negotiatedLimit: this.#negotiatedTransferLimit,
       onChunk: (transferId, data) => this.#onChunk(transferId, data),
       onSettled: (transferId, outcome) => this.#onTransferSettled(transferId, outcome)
     });
@@ -543,8 +770,15 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
     // 拆链路没有可以 await 的调用方；清理后台跑完即可，失败已在 #discard 内收口。
     for (const binding of this.#transferBindings.values()) void this.#discard(binding);
     this.#transferBindings.clear();
+    // 出站方向同样要收：正在 `await read` 的 pump 会在下一次回到表里时发现自己已被摘掉。
+    for (const transfer of [...this.#outbound.values()]) {
+      transfer.cancelTotal();
+      this.#outbound.delete(transfer.transferId);
+      void this.#closeSource(transfer.source);
+    }
     this.#session?.close();
     this.#transfers = null;
+    this.#negotiatedTransferLimit = 0;
   }
 
   #sendError(requestId: string | null, error: DevToolsErrorPayload): void {
