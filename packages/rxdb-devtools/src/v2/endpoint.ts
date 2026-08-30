@@ -96,6 +96,20 @@ export interface DevToolsConnectorEndpoint {
   start(): void;
   /** 处理一帧入站数据；非本协议的值一律忽略。 */
   receive(frame: unknown): void;
+  /**
+   * 把 provider 推上来的一条事件发给面板。
+   *
+   * @remarks
+   * 事件是**推**的，不是 `invoke` 的返回值：`database.events` 只负责建立订阅，此后每条
+   * 事件都经这里成帧。让 provider 攒起来等面板轮询，会同时丢掉时序与背压两件事。
+   *
+   * 不满足发送条件时静默丢弃，且不报错——事件没有 `requestId`，对端没有任何在等的东西，
+   * 回一条错误只会在 `none` 档上凭空造出一条下行帧。
+   *
+   * @param eventType - 事件类型；语义由 provider 定义，端点不解释。
+   * @param data - 事件载荷；端点不加工，遮罩是 provider 的职责。
+   */
+  emitEvent(eventType: string, data: unknown): void;
   /** 释放全部计时器、传输与订阅。 */
   dispose(): void;
 }
@@ -140,6 +154,15 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
   readonly #transferBindings = new Map<string, TransferBinding>();
   #session: DevToolsSession | null = null;
   #transfers: DevToolsTransferTable | null = null;
+  /**
+   * 本 session 的事件订阅是否通过了三层授权。
+   *
+   * @remarks
+   * 判据取**授权结论**而不是 `#openEventStream` 的成败：授权是这条下行通道该不该存在的
+   * 唯一依据，而订阅成功与否只说明 host 此刻能不能给出事件。两者混用会引入一个竞态——
+   * provider 在 `invoke` 内同步派发的第一条事件会早于 promise 落定，于是被无声丢掉。
+   */
+  #eventsAuthorized = false;
 
   get sessionId(): string {
     return this.#negotiation.sessionId;
@@ -182,6 +205,13 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
       return;
     }
     if (isDevToolsV2Envelope(frame)) this.#rejectMalformed(frame);
+  }
+
+  emitEvent(eventType: string, data: unknown): void {
+    if (this.#session?.state !== 'open') return;
+    if (!this.#eventsAuthorized) return;
+
+    this.#ports.send(createDevToolsV2Message('EVENT', { eventType, data }, this.#envelope()));
   }
 
   dispose(): void {
@@ -490,6 +520,7 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
       this.#sendError(null, authorization.error);
       return;
     }
+    this.#eventsAuthorized = true;
     void this.#openEventStream();
   }
 
@@ -507,6 +538,7 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
   }
 
   #closeSession(): void {
+    this.#eventsAuthorized = false;
     this.#transfers?.dispose();
     // 拆链路没有可以 await 的调用方；清理后台跑完即可，失败已在 #discard 内收口。
     for (const binding of this.#transferBindings.values()) void this.#discard(binding);

@@ -5,7 +5,7 @@ import { createMessage, RXDB_DEVTOOLS_MESSAGE } from '../types.js';
 import { DEVTOOLS_PROTOCOL_VERSION_V2 } from '../v2/constants.js';
 import type { DevToolsV2Envelope, DevToolsV2MessageType } from '../v2/wire.js';
 import { createDevToolsV2Message, isDevToolsV2Message } from '../v2/wire.js';
-import { createMockRxDB } from './fixtures/mock-rxdb.js';
+import { createMockRxDB, listenerCount, type MockRxDB } from './fixtures/mock-rxdb.js';
 import type { FakeOpfsRoot } from './browser/fake-opfs.js';
 import { createFakeOpfsRoot } from './browser/fake-opfs.js';
 
@@ -54,6 +54,21 @@ describe('DevToolsConnector v2 negotiation', () => {
         { sessionId: sessionId(), sequence: 2, timestamp: TIMESTAMP, direction: 'panel-to-connector' }
       )
     );
+  }
+
+  /**
+   * 等到 `predicate` 成立，或耗尽宏任务预算。
+   *
+   * @remarks
+   * 只让出一次宏任务不足以断言 `MessagePort` 的投递：端口消息由宿主自己排队，让出一次
+   * 只保证「当前任务结束了」，不保证那条消息已经被派发。整包并发跑时这点差别会变成偶发失败，
+   * 单文件跑却一直是绿的——所以这里等的是**事实**，不是一个猜出来的时长。
+   */
+  async function until(predicate: () => boolean, attempts = 50): Promise<void> {
+    for (let index = 0; index < attempts; index += 1) {
+      if (predicate()) return;
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
   }
 
   /** 已发出的、关联到某个 requestId 的错误载荷。 */
@@ -186,7 +201,7 @@ describe('DevToolsConnector v2 negotiation', () => {
     expect(received).toHaveLength(0);
 
     connect();
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await until(() => received.length > 0);
 
     expect(connector.connected).toBe(true);
     expect(received.filter(value => isRecordOfType(value, 'EVENT'))).toHaveLength(1);
@@ -258,10 +273,84 @@ describe('DevToolsConnector v2 negotiation', () => {
     init();
     connect();
 
-    // 页内还没接上任何 v2 provider，事件流因此建立不起来。把这个结论咽下去，面板会一直
-    // 等一条永远不会来的 EVENT；`requestId: null` 是它诚实的关联键——订阅不是任何一条
-    // REQUEST 的结果。descriptor 填上真实 provider 后这一帧自然消失。
+    // 没给 `getEntityMetadata` 就不宣告 `database`（遮罩表会算成空集，密文列会原样出门），
+    // 事件流因此建立不起来。把这个结论咽下去，面板会一直等一条永远不会来的 EVENT；
+    // `requestId: null` 是它诚实的关联键——订阅不是任何一条 REQUEST 的结果。
     expect(errorsFor(null)).toEqual([{ code: 'provider_unsupported', retryable: false }]);
+  });
+
+  describe('database 领域（阶段 D AC#46）', () => {
+    /** 带元数据的 init：`database` 三个入口齐全才宣告，见 `createConnectorProviders`。 */
+    function initWithDatabase(): MockRxDB {
+      connector = new DevToolsConnector({ capabilities: 'readonly' });
+      const addEventSpy = vi.spyOn(window, 'addEventListener');
+      const rxdb = createMockRxDB();
+      // 夹具没有实体，读取函数因此恒为 undefined——`database` 的宣告取决于「有没有这个
+      // 函数」，而不是它此刻返回什么。
+      connector.init(rxdb, () => undefined);
+      const registered = addEventSpy.mock.calls.find(call => call[0] === 'message');
+      if (registered === undefined) throw new Error('connector never registered a message listener');
+      handler = registered[1] as (event: MessageEvent) => void;
+      return rxdb;
+    }
+
+    it('MUST declare the database domain and answer its requests', async () => {
+      initWithDatabase();
+      deliver(
+        createDevToolsV2Message(
+          'PROTOCOL_HELLO',
+          { supportedVersions: [DEVTOOLS_PROTOCOL_VERSION_V2, 1] },
+          { sessionId: null, sequence: 1, timestamp: TIMESTAMP, direction: 'panel-to-connector' }
+        )
+      );
+      const descriptors = framesOf('HANDSHAKE')[0]?.payload.capabilities.descriptors;
+      // 测试环境没有 OPFS，`files` 照旧缺席；顺序仍按领域枚举，不按装配顺序。
+      expect(descriptors?.map(descriptor => descriptor.domain)).toEqual(['database', 'settings']);
+
+      deliver(
+        createDevToolsV2Message(
+          'HANDSHAKE_ACK',
+          { protocolVersion: DEVTOOLS_PROTOCOL_VERSION_V2, sessionId: sessionId() },
+          { sessionId: sessionId(), sequence: 2, timestamp: TIMESTAMP, direction: 'panel-to-connector' }
+        )
+      );
+      deliver(
+        createDevToolsV2Message(
+          'REQUEST',
+          { requestId: 'r1', domain: 'database', operation: 'inspect', params: {} },
+          { sessionId: sessionId(), sequence: 3, timestamp: TIMESTAMP, direction: 'panel-to-connector' }
+        )
+      );
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(framesOf('RESPONSE')[0]?.payload).toMatchObject({ requestId: 'r1' });
+      // 订阅这一路也通了，不再有那条 `provider_unsupported`。
+      expect(errorsFor(null)).toEqual([]);
+    });
+
+    it('MUST push RxDB events out as v2 EVENT frames', async () => {
+      const rxdb = initWithDatabase();
+      connect();
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      rxdb.emit('ENTITY_LOCAL_CREATE', { type: 'ENTITY_LOCAL_CREATE', entityId: 'e1' });
+
+      // 事件是**推**的：`database.events` 只建订阅，此后每条事件自己成帧。
+      expect(framesOf('EVENT')[0]?.payload).toMatchObject({ eventType: 'ENTITY_LOCAL_CREATE' });
+    });
+
+    it('MUST stop pushing events after disconnect', async () => {
+      const rxdb = initWithDatabase();
+      connect();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      connector.disconnect();
+
+      rxdb.emit('ENTITY_LOCAL_CREATE', { type: 'ENTITY_LOCAL_CREATE', entityId: 'e1' });
+
+      // 拆了端点却留着 RxDB 监听，实例就再也回收不掉。
+      expect(framesOf('EVENT')).toHaveLength(0);
+      expect(listenerCount(rxdb)).toBe(0);
+    });
   });
 
   describe('mutation policy', () => {

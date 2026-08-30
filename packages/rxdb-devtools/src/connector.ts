@@ -14,7 +14,9 @@ import {
   CONNECTOR_MUTATION_POLICY,
   createConnectorProviders,
   resolveBrowserOpfsRoot,
-  saveFileThroughPage
+  saveFileThroughPage,
+  type ConnectorProviderPorts,
+  type ConnectorProviderRegistry
 } from './connector-providers.js';
 import {
   forceReleaseLocalAdapter,
@@ -141,6 +143,16 @@ export class DevToolsConnector {
    * 不缓存实体清单本身 —— `config.entities` 是活数组，注册表按需重算。
    */
   #entityRegistry: EntityRegistry | null = null;
+  /**
+   * {@link init} 拿到的元数据读取函数。
+   *
+   * @remarks
+   * 单独留一份而不是从 {@link #entityRegistry} 里回取：v2 的 `database` provider 要自己建
+   * 索引（实例可能被换掉），拿到的必须是同一个函数，而注册表只对外给算好的索引。
+   */
+  #getEntityMetadata: GetEntityMetadataFn | null = null;
+  /** 本次会话的 v2 provider 装配；`disconnect()` 时连同订阅一起回收。 */
+  #providers: ConnectorProviderRegistry | null = null;
   #pendingSubscriptions: Set<Subscription> = new Set();
   #branchQueryInFlight = false;
   #disconnectInFlight: Promise<DisconnectResult> | null = null;
@@ -217,6 +229,7 @@ export class DevToolsConnector {
     }
 
     this.#rxdbInstance = rxdb;
+    this.#getEntityMetadata = getEntityMetadata ?? null;
     this.#entityRegistry = getEntityMetadata ? createEntityRegistry(rxdb, getEntityMetadata) : null;
     // 立刻收集一次：`getEntityMetadata` 对未装饰的类抛错，这里让它在 init 上抛，
     // 而不是推迟到第一条事件——那时候异常会淹没在事件转发链里。
@@ -251,8 +264,12 @@ export class DevToolsConnector {
     if (this.#rxdbInstance) this.#unsubscribeFromEvents(this.#rxdbInstance);
     this.#endpoint?.dispose();
     this.#endpoint = null;
+    // 端点拆了不等于订阅拆了：v2 的 database provider 自己在实例上挂着监听。
+    this.#providers?.dispose();
+    this.#providers = null;
 
     this.#rxdbInstance = null;
+    this.#getEntityMetadata = null;
     this.#clearEntityInfo();
     this.#clearPendingSubscriptions();
     this.#syncGlobalHelper();
@@ -610,20 +627,45 @@ export class DevToolsConnector {
   #startNegotiation(): void {
     const legacyHandshake = this.#buildLegacyHandshake();
     const remotePort = this.#createSessionPort();
+    const providers = createConnectorProviders({
+      getRootDirectory: resolveBrowserOpfsRoot(),
+      saveToDisk: saveFileThroughPage,
+      ...this.#databasePorts()
+    });
     const endpoint = createDevToolsConnectorEndpoint({
       send: (message: DevToolsConnectorNegotiationMessage) =>
         message === legacyHandshake ? this.#postMessage(message, [remotePort]) : this.#postMessage(message),
       clock: createSystemClock(),
       capability: this.#options.capabilities,
       mutationPolicy: this.#options.mutationPolicy,
-      providers: createConnectorProviders({
-        getRootDirectory: resolveBrowserOpfsRoot(),
-        saveToDisk: saveFileThroughPage
-      }),
+      providers,
       legacyHandshake
     });
+    this.#providers = providers;
     this.#endpoint = endpoint;
     endpoint.start();
+  }
+
+  /**
+   * `database` 领域的接入口——没有元数据就整个不接。
+   *
+   * @remarks
+   * `emitEvent` 走 `this.#endpoint` 而不是捕获某个端点实例：装配发生在端点构造**之前**
+   * （registry 是端点的构造入参），而重新握手会换掉端点。按调用时刻取，事件才总是发往
+   * 当前那条链路，而不是上一次会话那条已经关掉的。
+   *
+   * @returns 可展开进 {@link createConnectorProviders} 入参的片段；不接时是空对象。
+   */
+  #databasePorts(): Pick<ConnectorProviderPorts, 'database'> {
+    const getEntityMetadata = this.#getEntityMetadata;
+    if (getEntityMetadata === null) return {};
+    return {
+      database: {
+        getRxDB: () => this.#rxdbInstance ?? undefined,
+        getEntityMetadata,
+        emitEvent: (eventType, data) => this.#endpoint?.emitEvent(eventType, data)
+      }
+    };
   }
 
   #onHandshakeAck(): void {
