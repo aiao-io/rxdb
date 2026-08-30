@@ -1,7 +1,7 @@
 ---
 id: US-208
 title: Electron PGlite 数据目录与事务宿主
-status: Backlog
+status: In Review
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-13
