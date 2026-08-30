@@ -17,6 +17,7 @@
 import { EntityStaticType, EntityType, getEntityMetadata, getEntityStatus } from '@aiao/rxdb';
 import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
 import { getEntityObjectFromResult } from './pglite.utils.js';
+import { decodeRxDBChangeRow, isRxDBChangeMetadata } from './system/change-row.js';
 
 /**
  * PGlite 查询执行结果
@@ -87,9 +88,13 @@ export const transaction_pglite_result = async <T extends EntityType>(
   const metadata = getEntityMetadata(EntityType);
   const entities: InstanceType<T>[] = [];
   const em = adapter.rxdb.entityManager;
+  // 变更行的 entityId / patch / inversePatch 存的是编码形态，必须与仓储查询走同一份解码。
+  // 漏掉这一步时 `forcedUpdate` 会把缓存里已解码的实体覆盖回原始列值（见 change-row.ts）。
+  const isChangeRow = isRxDBChangeMetadata(metadata);
 
   for (const row of result.rows) {
-    const obj = await getEntityObjectFromResult(metadata, row, adapter.encryptionContext);
+    const raw = await getEntityObjectFromResult(metadata, row, adapter.encryptionContext);
+    const obj = isChangeRow ? decodeRxDBChangeRow(adapter, raw) : raw;
     const id = obj['id'] as EntityStaticType<T, 'idType'>;
     const entityData = obj as unknown as InstanceType<T>;
 

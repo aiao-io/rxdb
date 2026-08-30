@@ -72,19 +72,48 @@ renderer 不直接接触 `fs` / `ipcRenderer` 的运行时边界。本故事复�
 
 | #   | 前置条件                                           | 操作                                                                                 | 预期结果                                                                                                                                     | 状态 |
 | --- | -------------------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | Electron 应用配置 PGlite data directory            | 写入包含关系、JSONB 与 bigint/binary 的实体，调用 `disconnect()`，重启后重连同一目录 | 数据和类型逐值一致，系统 schema 与 change codec 水位线保持有效                                                                               | ⬜   |
-| 2   | PGlite host 已连接                                 | 在一次 RxDB callback transaction 中跨 IPC 执行多次读写，并分别测试 commit 与中途抛错 | 全部语句绑定同一事务 ID 与同一物理连接；commit 全部可见，rollback 后全部不可见。协议无法保证该语义时连接必须失败并报告能力缺失，不得伪造事务 | ⬜   |
-| 3   | 事务进行中 renderer 崩溃或窗口关闭                 | 主进程检测到 IPC 通道断开                                                            | 该事务 ID 被回滚并释放，不留下悬挂事务或被长期持有的连接；后续重连可正常开启新事务                                                           | ⬜   |
-| 4   | 任一受支持的 PGlite 桌面连接已建立                 | 执行查询、变更、事务、分支切换、加密字段解锁与响应式订阅                             | 用户可见行为与浏览器内 PGlite adapter 一致，标准测试套件无跳过项                                                                             | ⬜   |
-| 5   | data directory 不存在                              | 首次连接                                                                             | 仅在已授权的应用作用域中创建目录；返回已解析的逻辑位置用于诊断，不向 renderer 暴露额外文件系统能力                                           | ⬜   |
-| 6   | 目录无权限、目录内容不是有效 PGlite data directory | 发起连接                                                                             | 返回稳定、可判别的错误码与原始原因；不创建同名空库，不回退到 memory/OPFS/IndexedDB                                                           | ⬜   |
-| 7   | 同一 data directory 已被主进程 host 打开           | 第二个窗口或进程尝试打开同一目录                                                     | 复用主进程中已有的那一个 PGlite 实例，或以可判别错误码拒绝；不并发打开两份实例，也不静默切换到另一份目录                                     | ⬜   |
-| 8   | 目录中存在应用未知的普通业务表                     | Aiao 首次连接并初始化系统 schema                                                     | 保留未知表和数据；只创建或迁移 Aiao 自有系统对象，失败时事务回滚                                                                             | ⬜   |
-| 9   | 存在未提交事务或在途查询                           | 调用 `disconnect()` 或关闭窗口                                                       | 停止接受新任务，等待或回滚在途工作，刷新持久化数据并关闭句柄；随后可重命名该目录                                                             | ⬜   |
+| 1   | Electron 应用配置 PGlite data directory            | 写入包含关系、JSONB 与 bigint/binary 的实体，调用 `disconnect()`，重启后重连同一目录 | 数据和类型逐值一致，系统 schema 与 change codec 水位线保持有效                                                                               | ✅   |
+| 2   | PGlite host 已连接                                 | 在一次 RxDB callback transaction 中跨 IPC 执行多次读写，并分别测试 commit 与中途抛错 | 全部语句绑定同一事务 ID 与同一物理连接；commit 全部可见，rollback 后全部不可见。协议无法保证该语义时连接必须失败并报告能力缺失，不得伪造事务 | ✅   |
+| 3   | 事务进行中 renderer 崩溃或窗口关闭                 | 主进程检测到 IPC 通道断开                                                            | 该事务 ID 被回滚并释放，不留下悬挂事务或被长期持有的连接；后续重连可正常开启新事务                                                           | ✅   |
+| 4   | 任一受支持的 PGlite 桌面连接已建立                 | 执行查询、变更、事务、分支切换、加密字段解锁与响应式订阅                             | 用户可见行为与浏览器内 PGlite adapter 一致，标准测试套件无跳过项                                                                             | ✅   |
+| 5   | data directory 不存在                              | 首次连接                                                                             | 仅在已授权的应用作用域中创建目录；返回已解析的逻辑位置用于诊断，不向 renderer 暴露额外文件系统能力                                           | ✅   |
+| 6   | 目录无权限、目录内容不是有效 PGlite data directory | 发起连接                                                                             | 返回稳定、可判别的错误码与原始原因；不创建同名空库，不回退到 memory/OPFS/IndexedDB                                                           | ✅   |
+| 7   | 同一 data directory 已被主进程 host 打开           | 第二个窗口或进程尝试打开同一目录                                                     | 复用主进程中已有的那一个 PGlite 实例，或以可判别错误码拒绝；不并发打开两份实例，也不静默切换到另一份目录                                     | ✅   |
+| 8   | 目录中存在应用未知的普通业务表                     | Aiao 首次连接并初始化系统 schema                                                     | 保留未知表和数据；只创建或迁移 Aiao 自有系统对象，失败时事务回滚                                                                             | ✅   |
+| 9   | 存在未提交事务或在途查询                           | 调用 `disconnect()` 或关闭窗口                                                       | 停止接受新任务，等待或回滚在途工作，刷新持久化数据并关闭句柄；随后可重命名该目录                                                             | ✅   |
 | 10  | 构建打包后的 Electron 应用                         | 在 macOS、Windows、Linux CI 中运行桌面持久化 smoke test                              | 三平台均通过；测试使用真实临时目录而非 mock 或浏览器存储                                                                                     | ⬜   |
-| 11  | PGlite host 与 renderer 编译自不同协议版本         | 发起连接                                                                             | 连接失败并报可判别的错误码；不建目录、不按旧协议降级解释载荷                                                                                 | ⬜   |
+| 11  | PGlite host 与 renderer 编译自不同协议版本         | 发起连接                                                                             | 连接失败并报可判别的错误码；不建目录、不按旧协议降级解释载荷                                                                                 | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
+
+### 验收证据
+
+| AC        | 证据                                                                                                                                                                                                                                                                                            |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 / 8 / 9 | [`packages/rxdb-adapter-electron/src/__tests__/pglite-data-directory.spec.ts`](../../../packages/rxdb-adapter-electron/src/__tests__/pglite-data-directory.spec.ts) — 真实临时目录，「重启」由 `closeAll()` + 新建 host 建模                                                                    |
+| 2         | [`pglite-transaction-contract.spec.ts`](../../../packages/rxdb-adapter-electron/src/__tests__/pglite-transaction-contract.spec.ts) 的隔离契约（11 条）+ [`electron-pglite-host.spec.ts`](../../../packages/rxdb-adapter-electron/src/__tests__/electron-pglite-host.spec.ts) 的 commit/rollback |
+| 3         | `electron-pglite-host.spec.ts` 的 `releaseOwner` 用例（按 `webContents.id` 清场，悬挂事务回滚）                                                                                                                                                                                                 |
+| 4         | [`pglite-encrypted.spec.ts`](../../../packages/rxdb-adapter-electron/src/__tests__/pglite-encrypted.spec.ts) 52 条 + `pglite-transaction-contract.spec.ts` 11 条：与浏览器档位**同一批套件、同一份断言**，只换工厂，零跳过项                                                                    |
+| 5 / 7     | `electron-pglite-host.spec.ts`：`pg.open` 只回逻辑位置、同一目录单实例复用                                                                                                                                                                                                                      |
+| 6         | [`pglite-open-failure.spec.ts`](../../../packages/rxdb-adapter-electron/src/__tests__/pglite-open-failure.spec.ts)：`open_failed` 可判别、失败实例被逐出（修好可重试）、renderer 侧不回退内存库、越界目录名构造期即拒                                                                           |
+| 11        | `electron-pglite-host.spec.ts` 的协议版本握手用例（握手失败不建目录）                                                                                                                                                                                                                           |
+
+AC#4 的落地过程中查出并修掉了一个**产品缺陷**：`transaction_pglite_result` 少了 `rxdb_change`
+行的解码，`UPDATE ... RETURNING *` 的写回会把缓存里已解码的变更实体覆盖回原始列值。浏览器档位
+因为多一次 NOTIFY 驱动的回读恰好把它盖住，桌面档位没有那次回读，同一批共享套件立刻转红。
+修复把解码抽成 `packages/rxdb-adapter-pglite/src/system/change-row.ts`，两条 hydrate 路径共用，
+回归断言在 `transaction_pglite_result.change-row.spec.ts`。
+
+### AC#10 为什么仍是 ⬜
+
+它的判据是「**打包后**的 Electron 应用在 macOS / Windows / Linux **CI** 中通过」，
+三个条件本机一个都满足不了：本机只有 macOS，且跑的是源码档位而不是 electron-builder 产物。
+打包侧的接线（`files: ["!node_modules"]` 之外的 PGlite 暂存步骤、`asarUnpack`、
+从 asar 内读 PGlite 的 wasm/data）已经实现，但**未经验证**——PGlite 的 wasm 与 initdb 数据
+必须解包到 asar 外才能被 Node fs backend 打开，这类问题只会在真实产物里暴露。
+
+关闭本条需要在 `release-desktop.yml` 上跑一次真实的三 OS `workflow_dispatch`。
+按本轮的作业边界（不触发 CI、不做对外动作），该 dispatch **未触发**，本条保持 ⬜。
 
 > **AC#11 补入**，与 [US-207 AC#9](./US-207-desktop-local-database.md#ac9-为什么值得单列一条)
 > 及 [US-210 AC#10](./US-210-tauri-sqlite-local-database.md) 是同一件事在三条路径上的对偶。
