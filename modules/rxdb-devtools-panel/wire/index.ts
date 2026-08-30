@@ -31,5 +31,5 @@ export {
   type InspectedWindowScriptResultPayload
 } from './types';
 export { base64ToBytes, bytesToBase64 } from './utils/base64';
-export { logger } from './utils/logger';
+export { configureLogger, logger } from './utils/logger';
 export { normalizePath } from './utils/path';

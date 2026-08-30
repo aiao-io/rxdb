@@ -11,8 +11,11 @@ import {
   DevToolsEndpointService,
   routes
 } from '@modules/rxdb-devtools-panel';
+import { configureLogger } from '@modules/rxdb-devtools-panel/wire';
 import { TauriHostAccessService } from './tauri-host-access.service';
 import { TauriTransportService } from './tauri-transport.service';
+
+configureLogger(import.meta.env.DEV);
 
 /**
  * Tauri 是面板的**宿主**：这四条 provider 是它与平台中立面板之间的全部接触面。

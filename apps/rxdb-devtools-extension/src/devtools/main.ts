@@ -11,10 +11,13 @@ import {
   DevToolsEndpointService,
   routes
 } from '@modules/rxdb-devtools-panel';
+import { configureLogger } from '@modules/rxdb-devtools-panel/wire';
 // P2-13：与 `manifest.config.ts` 取同一个来源，避免关于页与 manifest 的版本分叉
 import pkg from '../../package.json';
 import { InspectedPageAccessService } from './services/inspected-page-access.service';
 import { PortService } from './services/port.service';
+
+configureLogger(import.meta.env.DEV);
 
 /**
  * Chrome 扩展是面板的**宿主**：这四条 provider 是它与平台中立面板之间的全部接触面。

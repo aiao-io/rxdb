@@ -1,6 +1,8 @@
-import { logger } from '@modules/rxdb-devtools-panel/wire';
+import { configureLogger, logger } from '@modules/rxdb-devtools-panel/wire';
 import bridgeScript from '../content/bridge.ts?script';
 import { createBackgroundController } from './background-core';
+
+configureLogger(import.meta.env.DEV);
 
 const controller = createBackgroundController({
   injectIntoTab: tabId =>

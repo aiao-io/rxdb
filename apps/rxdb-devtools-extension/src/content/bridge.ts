@@ -1,4 +1,4 @@
-import { logger, type DevToolsRelayFrame } from '@modules/rxdb-devtools-panel/wire';
+import { configureLogger, logger, type DevToolsRelayFrame } from '@modules/rxdb-devtools-panel/wire';
 import {
   createBridgePing,
   extractHandshakePort,
@@ -6,6 +6,8 @@ import {
   forwardPageMessage,
   forwardPortMessage
 } from './bridge-core';
+
+configureLogger(import.meta.env.DEV);
 
 /**
  * 当前会话的私有信道端口，由页面在 HANDSHAKE 上 transfer 过来。
