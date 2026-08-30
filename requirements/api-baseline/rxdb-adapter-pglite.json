@@ -314,7 +314,27 @@
         "kind": "value"
       },
       {
+        "name": "dumpPGliteUserTables",
+        "kind": "value"
+      },
+      {
         "name": "generateDbName",
+        "kind": "value"
+      },
+      {
+        "name": "PgSuiteQueryResult",
+        "kind": "type"
+      },
+      {
+        "name": "PgSuiteQueryShaped",
+        "kind": "type"
+      },
+      {
+        "name": "toPgSuiteSql",
+        "kind": "value"
+      },
+      {
+        "name": "wrapEncryptedQueryShape",
         "kind": "value"
       }
     ]
