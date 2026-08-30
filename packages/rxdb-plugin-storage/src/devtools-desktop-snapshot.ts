@@ -107,7 +107,10 @@ export function createDevToolsStorageSnapshotPorts(ports: DevToolsStorageSnapsho
   return {
     lock,
     epoch: async () => String(storage.changeEpoch),
-    readMetadata: async () => (await storage.listAllMetas()).map(toMetaEntry),
+    readMetadata: async signal => {
+      signal.throwIfAborted();
+      return (await storage.listAllMetas()).map(toMetaEntry);
+    },
     readCommittedFiles: async signal => {
       const out: DevToolsSnapshotEntry[] = [];
       await collectFiles(filesystem, [], signal, out);

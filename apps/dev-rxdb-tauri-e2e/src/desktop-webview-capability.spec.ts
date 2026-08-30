@@ -165,6 +165,18 @@ const EXPECTED_BY_PLATFORM: Readonly<Partial<Record<NodeJS.Platform, WebviewExpe
     // 都是 0：请求根本没出 renderer —— 这正是「拦住它的是 CSP 不是 CORS」的判据。
     allowedHits: 0,
     deniedHits: 0
+  },
+  // WebKitGTK 的取值与 macOS 的 WKWebView 一致：CSP 同样把两条跨源请求挡在 CORS 之前，
+  // 服务端一次都没被打到。
+  linux: {
+    engine: 'webkit',
+    saveFilePicker: false,
+    anchorDownload: true,
+    objectUrl: true,
+    crossOriginAllowed: 'StorageOfflineError',
+    crossOriginDenied: 'StorageOfflineError',
+    allowedHits: 0,
+    deniedHits: 0
   }
 });
 

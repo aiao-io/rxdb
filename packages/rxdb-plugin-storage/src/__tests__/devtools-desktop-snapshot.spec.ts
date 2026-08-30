@@ -89,9 +89,17 @@ describe('createDevToolsStorageSnapshotPorts — metadata 与 epoch', () => {
       filesystem
     });
 
-    await expect(ports.readMetadata()).resolves.toEqual([
+    await expect(ports.readMetadata(new AbortController().signal)).resolves.toEqual([
       { logicalPath: 'db/main.sqlite', id: 'm-1', size: 11, contentVersion: '3' }
     ]);
+  });
+
+  it('signal 已中止时不读取 metadata', async () => {
+    const ports = createDevToolsStorageSnapshotPorts({ storage: mockStorage(), filesystem });
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(ports.readMetadata(controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
   });
 
   it('epoch 返回 storage 捕获纪元的字符串', async () => {

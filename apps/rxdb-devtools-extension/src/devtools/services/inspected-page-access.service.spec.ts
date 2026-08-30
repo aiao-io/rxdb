@@ -141,6 +141,62 @@ describe('InspectedPageAccessService', () => {
     expect(port.activateTab).not.toHaveBeenCalled();
   });
 
+  describe('on hosts without the runtime permissions API (Electron variance)', () => {
+    beforeEach(() => {
+      // Electron 43+ 没有 chrome.permissions 命名空间：manifest 的静态 host permission
+      // 在安装时即生效，不存在运行时授权模型。此处只把 permissions 字段摘掉，其余照旧。
+      vi.stubGlobal('chrome', {
+        devtools: {
+          inspectedWindow: {
+            reload,
+            eval: vi.fn((expression: string, callback: (result: unknown) => void) => {
+              callback(expression === 'location.href' ? 'https://example.com/app' : scriptStartup);
+            })
+          },
+          network: {
+            onNavigated: {
+              addListener: vi.fn((listener: (url: string) => void) => {
+                navigationListener = listener;
+              }),
+              removeListener
+            }
+          }
+        }
+      } as unknown as typeof chrome);
+    });
+
+    it('treats static host permissions as granted and activates without asking', async () => {
+      const service = TestBed.inject(InspectedPageAccessService);
+      await vi.waitFor(() => expect(port.activateTab).toHaveBeenCalledOnce());
+
+      expect(service.state()).toBe('granted');
+      expect(service.error()).toBeNull();
+    });
+
+    it('requestAccess() resolves granted without touching a missing API', async () => {
+      const service = TestBed.inject(InspectedPageAccessService);
+      await vi.waitFor(() => expect(port.activateTab).toHaveBeenCalledOnce());
+      port.activateTab.mockClear();
+
+      await expect(service.requestAccess()).resolves.toBe(true);
+
+      expect(service.state()).toBe('granted');
+      expect(port.activateTab).toHaveBeenCalledOnce();
+    });
+
+    it('re-activates after navigation without ever consulting a missing API', async () => {
+      const service = TestBed.inject(InspectedPageAccessService);
+      await vi.waitFor(() => expect(port.activateTab).toHaveBeenCalledOnce());
+      port.activateTab.mockClear();
+
+      navigationListener?.('https://next.example/path');
+      await vi.waitFor(() => expect(port.activateTab).toHaveBeenCalledOnce());
+
+      expect(service.state()).toBe('granted');
+      expect(port.notifyNavigation).toHaveBeenCalledOnce();
+    });
+  });
+
   // 面板只会调 token 上的 reloadInspectedPage()，`{}` 这个 Chrome 形参归本适配器所有。
   it('reloads the inspected page through the devtools API', () => {
     TestBed.inject(InspectedPageAccessService).reloadInspectedPage();

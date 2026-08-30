@@ -61,6 +61,11 @@ export class InspectedPageAccessService implements DevToolsHostAccess, OnDestroy
     if (!pattern) return false;
     this.state.set('requesting');
     this.error.set(null);
+    if (!this.hasRuntimePermissionsApi()) {
+      this.state.set('granted');
+      this.portService.activateTab();
+      return true;
+    }
     const granted = await chrome.permissions.request({ origins: [pattern] });
     this.state.set(granted ? 'granted' : 'required');
     if (!granted) {
@@ -97,10 +102,29 @@ export class InspectedPageAccessService implements DevToolsHostAccess, OnDestroy
       this.state.set('unsupported');
       return;
     }
+    if (!this.hasRuntimePermissionsApi()) {
+      if (revision !== this.revision) return;
+      this.state.set('granted');
+      this.portService.activateTab();
+      return;
+    }
     const granted = await chrome.permissions.contains({ origins: [pattern] });
     if (revision !== this.revision) return;
     this.state.set(granted ? 'granted' : 'required');
     if (granted) this.portService.activateTab();
+  }
+
+  /**
+   * 宿主是否有运行时权限 API。
+   *
+   * @remarks
+   * Electron 43+ 没有 `chrome.permissions` 命名空间（US-904 阶段 A 记录的 variance）：
+   * manifest 声明的静态 host permission 在安装时即生效，不存在运行时授权模型。
+   * 没有这个判定，`refresh()` 会在 `chrome.permissions.contains` 处抛 TypeError，
+   * `activateTab()` 永不执行、面板的 INIT 永不发出，完整握手在 Electron 上不可达成。
+   */
+  private hasRuntimePermissionsApi(): boolean {
+    return typeof chrome?.permissions?.contains === 'function';
   }
 
   private getInspectedUrl(): Promise<string | null> {
