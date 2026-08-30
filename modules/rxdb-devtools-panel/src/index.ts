@@ -25,6 +25,7 @@ export {
   type ScriptResultPayload
 } from './scripts';
 export { DatabaseStateService } from './services/database-state.service';
+export { DevToolsEndpointService } from './services/devtools-endpoint.service';
 export { DevToolsStateService } from './services/devtools-state.service';
 export { OpfsService } from './services/opfs.service';
 export { ThemeService } from './services/theme.service';

@@ -6,7 +6,7 @@
 mod selfcheck;
 
 use aiao_rxdb_tauri::commands::DesktopHost;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 #[derive(serde::Serialize)]
 struct RuntimeHealth {
@@ -41,6 +41,44 @@ fn check_runtime() -> RuntimeHealth {
     RuntimeHealth { status: "ready" }
 }
 
+/// US-905 阶段 1：dev 模式创建 `rxdb-devtools` 调试窗口。
+///
+/// `#[cfg(dev)]` 是 tauri-build 在 `tauri dev` / 非 release 的 `cargo build` 下设置的：
+/// release 构建里这段代码根本不进产物，`rxdb-devtools` label 的窗口、入口与 command 随之消失，
+/// 满足「release 无入口、bootstrap、专用 command」。
+#[cfg(dev)]
+fn open_devtools_window(app: &tauri::AppHandle) -> tauri::Result<()> {
+    tauri::WebviewWindowBuilder::new(
+        app,
+        "rxdb-devtools",
+        tauri::WebviewUrl::App("devtools/devtools.html".into()),
+    )
+    .title("RxDB DevTools")
+    .build()?;
+    Ok(())
+}
+
+/// US-905 阶段 1：面板 ↔ connector 之间的定向消息中继。
+///
+/// 只做**路由**、不做授权：按发起窗口的 label 决定转发到哪一边（`rxdb-devtools` ↔ `main`），
+/// payload 原样透传、不做解释。授权（session / capability / mutation policy）是 connector 与
+/// provider 的职责，transport 不代劳——「session 不是授权 secret」。
+///
+/// 定向 `emit` 而不是广播：业务数据（实体、事件、文件路径）只发往目标窗口，
+/// 不落到任何不该看到它的 WebView 上。
+///
+/// 命令本身不 `#[cfg(dev)]`（`generate_handler!` 无法条件展开），release 下它仍然被注册，
+/// 但 `open_devtools_window` 是 `#[cfg(dev)]` 的——release 没有 `rxdb-devtools` 窗口，
+/// 本命令因此恒回「目标窗口不存在」，等效于禁用。窗口的 dev/release 隔离才是真正生效的那道。
+#[tauri::command]
+fn devtools_message(window: tauri::Window, app: tauri::AppHandle, payload: String) -> Result<(), String> {
+    let target_label = if window.label() == "rxdb-devtools" { "main" } else { "rxdb-devtools" };
+    let target = app
+        .get_webview_window(target_label)
+        .ok_or_else(|| format!("{target_label} window not found"))?;
+    target.emit("devtools:message", &payload).map_err(|error| error.to_string())
+}
+
 /// US-210：退出前必须显式关掉全部会话。
 ///
 /// 用 `build(...).run(closure)` 而不是 `run(context)`，就是为了拿到 [`tauri::RunEvent::Exit`]
@@ -62,7 +100,8 @@ pub fn run() {
             check_runtime,
             aiao_rxdb_tauri::commands::rxdb_desktop_request,
             selfcheck::rxdb_selfcheck_report,
-            selfcheck::rxdb_selfcheck_probe_base_url
+            selfcheck::rxdb_selfcheck_probe_base_url,
+            devtools_message
         ])
         .setup(move |app| {
             // 全程唯一一处根目录分支，且**不是** `unwrap_or`：两边都是被显式选出来的，
@@ -73,6 +112,9 @@ pub fn run() {
                 None => app.path().app_data_dir()?,
             };
             app.manage(DesktopHost::new(app.handle(), app_data_dir));
+            // US-905：dev 模式开调试窗口；release 无此入口（#[cfg(dev)] 两侧一起消失）。
+            #[cfg(dev)]
+            open_devtools_window(app.handle())?;
             // host 先托管再挂看门狗：看门狗到期时要读 host 的根目录写进报告。
             if let Some(plan) = plan {
                 selfcheck::arm(app.handle(), plan);

@@ -8,11 +8,11 @@ import {
   DEVTOOLS_HOST_ACCESS,
   DEVTOOLS_PANEL_VERSION,
   DEVTOOLS_TRANSPORT,
+  DevToolsEndpointService,
   routes
 } from '@modules/rxdb-devtools-panel';
 // P2-13：与 `manifest.config.ts` 取同一个来源，避免关于页与 manifest 的版本分叉
 import pkg from '../../package.json';
-import { DevToolsEndpointService } from './services/devtools-endpoint.service';
 import { InspectedPageAccessService } from './services/inspected-page-access.service';
 import { PortService } from './services/port.service';
 

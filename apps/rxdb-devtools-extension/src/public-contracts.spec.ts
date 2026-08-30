@@ -6,7 +6,8 @@ const files = [
   'content/bridge-core.ts',
   'background/background-core.ts',
   'devtools/services/inspected-page-access.service.ts',
-  'devtools/services/devtools-endpoint.service.ts',
+  // DevToolsEndpointService 已上移到共享 panel（`modules/rxdb-devtools-panel`），
+  // 它的 TSDoc 门禁归 panel 的 public-contracts.spec.ts 管，不在这里重复查。
   'devtools/services/port.service.ts'
 ];
 

@@ -21,12 +21,17 @@ export interface RecordedMessage {
  */
 export class FakeDevToolsTransport implements DevToolsTransport {
   private readonly listeners = new Set<(message: DevToolsMessage) => void>();
+  private readonly frameListeners = new Set<(frame: unknown) => void>();
   private sequence = 0;
 
   readonly connected = signal(false);
+  readonly connectionEpoch = signal(0);
 
   /** 面板发出的全部消息，按时序记录。 */
   readonly sent: RecordedMessage[] = [];
+
+  /** 面板经 {@link FakeDevToolsTransport.postFrame} 发出的全部原始帧。 */
+  readonly frames: unknown[] = [];
 
   /** 当前订阅者数量；用于断言换 session / 销毁后没有残留订阅。 */
   get subscriberCount(): number {
@@ -36,6 +41,15 @@ export class FakeDevToolsTransport implements DevToolsTransport {
   subscribe(callback: (message: DevToolsMessage) => void): () => void {
     this.listeners.add(callback);
     return () => this.listeners.delete(callback);
+  }
+
+  subscribeFrames(callback: (frame: unknown) => void): () => void {
+    this.frameListeners.add(callback);
+    return () => this.frameListeners.delete(callback);
+  }
+
+  postFrame(frame: unknown): void {
+    this.frames.push(frame);
   }
 
   sendMessage(type: ExtensionMessageType, payload?: unknown): void {
@@ -53,5 +67,10 @@ export class FakeDevToolsTransport implements DevToolsTransport {
       sequence: this.sequence++
     };
     this.listeners.forEach(listener => listener(message));
+  }
+
+  /** 模拟页面侧发来一帧原始帧（v1 或 v2）。 */
+  emitFrame(frame: unknown): void {
+    this.frameListeners.forEach(listener => listener(frame));
   }
 }

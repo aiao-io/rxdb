@@ -1,5 +1,6 @@
 {
   "appId": "com.aiao.dev-rxdb-electron",
+  "electronDist": "../../node_modules/electron/dist",
   "asar": true,
   "asarUnpack": ["node_modules/@electric-sql/pglite/**/*"],
   "buildDependenciesFromSource": false,

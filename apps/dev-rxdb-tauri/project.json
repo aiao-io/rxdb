@@ -4,12 +4,16 @@
   "prefix": "app",
   "projectType": "application",
   "sourceRoot": "apps/dev-rxdb-tauri/src",
-  "tags": ["angular-app"],
+  "tags": [
+    "angular-app"
+  ],
   "targets": {
     "build": {
       "defaultConfiguration": "production",
       "executor": "@angular/build:application",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "options": {
         "assets": [
           {
@@ -28,13 +32,21 @@
         "polyfills": [],
         "stylePreprocessorOptions": {
           "sass": {
-            "silenceDeprecations": ["color-functions", "global-builtin", "import"]
+            "silenceDeprecations": [
+              "color-functions",
+              "global-builtin",
+              "import"
+            ]
           }
         },
-        "styles": ["apps/dev-rxdb-tauri/src/styles.scss"],
+        "styles": [
+          "apps/dev-rxdb-tauri/src/styles.scss"
+        ],
         "tsConfig": "apps/dev-rxdb-tauri/tsconfig.app.json",
         "webWorkerTsConfig": "apps/dev-rxdb-tauri/tsconfig.worker.json",
-        "allowedCommonJsDependencies": ["ms"]
+        "allowedCommonJsDependencies": [
+          "ms"
+        ]
       },
       "configurations": {
         "development": {
@@ -57,12 +69,17 @@
           ],
           "outputHashing": "all"
         }
-      }
+      },
+      "dependsOn": [
+        "build-devtools"
+      ]
     },
     "dev": {
       "executor": "nx:run-commands",
       "options": {
-        "commands": ["tauri dev"],
+        "commands": [
+          "tauri dev"
+        ],
         "parallel": false
       }
     },
@@ -98,7 +115,9 @@
       "// 六个 dependsOn": "Rust 侧现在有两个 crate：本 demo（lib.rs / selfcheck.rs / main.rs）与它 path 依赖的宿主包 packages/rxdb-adapter-tauri/rust。cargo 只会把 path 依赖当普通依赖编译，clippy 一条 lint 都不会落在它上面 —— 所以打包前的门禁必须两边各点一次名，否则宿主那几千行在这条路径上不受任何检查。",
       "executor": "nx:run-commands",
       "options": {
-        "commands": ["tauri build --ci"],
+        "commands": [
+          "tauri build --ci"
+        ],
         "parallel": false
       },
       "dependsOn": [
@@ -127,7 +146,9 @@
     "tauri-update": {
       "executor": "nx:run-commands",
       "options": {
-        "commands": ["cargo update"],
+        "commands": [
+          "cargo update"
+        ],
         "cwd": "apps/dev-rxdb-tauri/src-tauri",
         "parallel": false
       }
@@ -198,9 +219,18 @@
     },
     "audit-lazy-backend": {
       "executor": "nx:run-commands",
-      "dependsOn": ["build"],
+      "dependsOn": [
+        "build"
+      ],
       "options": {
         "command": "node scripts/audit/desktop-lazy-backend.mjs dev-rxdb-tauri"
+      }
+    },
+    "build-devtools": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-tauri",
+        "command": "vite build --config vite.config.devtools.mts"
       }
     }
   }
