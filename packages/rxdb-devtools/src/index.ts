@@ -537,6 +537,20 @@ export {
   saveFileThroughPage
 } from './connector-providers.js';
 export type {
+  /** `database` 领域的接入口；三项缺一不可。 */
+  ConnectorDatabasePorts,
   /** provider 接缝的装配输入。 */
-  ConnectorProviderPorts
+  ConnectorProviderPorts,
+  /** 页内装配出来的 registry；比裸 registry 多一个订阅回收入口。 */
+  ConnectorProviderRegistry
 } from './connector-providers.js';
+export {
+  /** 建 RxDB 的 `database` provider（查询、事件、分支）。 */
+  createDevToolsRxdbDatabaseProvider
+} from './rxdb/database-provider.js';
+export type {
+  /** RxDB `database` provider。 */
+  DevToolsRxdbDatabaseProvider,
+  /** RxDB `database` provider 的构造端口。 */
+  DevToolsRxdbDatabaseProviderPorts
+} from './rxdb/database-provider.js';

@@ -26,7 +26,15 @@
         "kind": "value"
       },
       {
+        "name": "ConnectorDatabasePorts",
+        "kind": "type"
+      },
+      {
         "name": "ConnectorProviderPorts",
+        "kind": "type"
+      },
+      {
+        "name": "ConnectorProviderRegistry",
         "kind": "type"
       },
       {
@@ -59,6 +67,10 @@
       },
       {
         "name": "createDevToolsPanelEndpoint",
+        "kind": "value"
+      },
+      {
+        "name": "createDevToolsRxdbDatabaseProvider",
         "kind": "value"
       },
       {
@@ -507,6 +519,14 @@
       },
       {
         "name": "DevToolsRxDB",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsRxdbDatabaseProvider",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsRxdbDatabaseProviderPorts",
         "kind": "type"
       },
       {
