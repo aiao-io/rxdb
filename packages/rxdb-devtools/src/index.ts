@@ -558,6 +558,26 @@ export {
   createDevToolsBrowserSettingsProvider
 } from './browser/settings-provider.js';
 export {
+  /** Electron settings provider 的 descriptor。 */
+  DEVTOOLS_ELECTRON_SETTINGS_DESCRIPTOR,
+  /** 建 Electron `settings` provider（`export` 恒回 `export_unsupported`）。 */
+  createDevToolsElectronSettingsProvider
+} from './native/settings-provider.js';
+export {
+  /** 建原生宿主的诊断快照物化来源。 */
+  createDevToolsNativeSnapshotSource
+} from './native/native-snapshot-source.js';
+export type {
+  /** 原生快照来源的构造端口。 */
+  DevToolsNativeSnapshotPorts,
+  /** 快照的一条原始条目。 */
+  DevToolsSnapshotEntry,
+  /** storage 全局独占锁。 */
+  DevToolsSnapshotLock,
+  /** 一次锁内任务的结果。 */
+  DevToolsSnapshotLockResult
+} from './native/native-snapshot-source.js';
+export {
   /** 页内 connector 的默认写入开关。 */
   CONNECTOR_MUTATION_POLICY,
   /** 按本页实际能力装配 provider 接缝。 */

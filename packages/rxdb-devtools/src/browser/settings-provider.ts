@@ -17,8 +17,8 @@
  */
 
 import type { DevToolsProviderDescriptor } from '../provider/descriptor.js';
+import { createDevToolsReadOnlySettingsProvider } from '../provider/read-only-settings.js';
 import type { DevToolsProvider } from '../provider/types.js';
-import { createProviderError } from '../v2/error-mapping.js';
 
 /** 浏览器 settings provider 的 descriptor。 */
 export const DEVTOOLS_BROWSER_SETTINGS_DESCRIPTOR: DevToolsProviderDescriptor = {
@@ -36,12 +36,5 @@ export const DEVTOOLS_BROWSER_SETTINGS_DESCRIPTOR: DevToolsProviderDescriptor = 
  * @returns 对 `export` 恒回 `export_unsupported`、对其余操作回 `provider_unsupported` 的 provider。
  */
 export function createDevToolsBrowserSettingsProvider(): DevToolsProvider {
-  return {
-    descriptor: DEVTOOLS_BROWSER_SETTINGS_DESCRIPTOR,
-    invoke: operation =>
-      Promise.resolve({
-        outcome: 'failed',
-        error: createProviderError(operation === 'export' ? 'export_unsupported' : 'provider_unsupported')
-      })
-  };
+  return createDevToolsReadOnlySettingsProvider(DEVTOOLS_BROWSER_SETTINGS_DESCRIPTOR);
 }

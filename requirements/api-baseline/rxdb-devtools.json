@@ -58,11 +58,19 @@
         "kind": "value"
       },
       {
+        "name": "createDevToolsElectronSettingsProvider",
+        "kind": "value"
+      },
+      {
         "name": "createDevToolsError",
         "kind": "value"
       },
       {
         "name": "createDevToolsNativeFilesProvider",
+        "kind": "value"
+      },
+      {
+        "name": "createDevToolsNativeSnapshotSource",
         "kind": "value"
       },
       {
@@ -143,6 +151,10 @@
       },
       {
         "name": "DEVTOOLS_DEFAULT_PAGE_SIZE",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_ELECTRON_SETTINGS_DESCRIPTOR",
         "kind": "value"
       },
       {
@@ -434,6 +446,10 @@
         "kind": "type"
       },
       {
+        "name": "DevToolsNativeSnapshotPorts",
+        "kind": "type"
+      },
+      {
         "name": "DevToolsOpfsEntry",
         "kind": "type"
       },
@@ -567,6 +583,18 @@
       },
       {
         "name": "DevToolsSnapshotCursor",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSnapshotEntry",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSnapshotLock",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSnapshotLockResult",
         "kind": "type"
       },
       {
