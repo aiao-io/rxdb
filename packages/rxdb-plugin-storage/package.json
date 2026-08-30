@@ -38,6 +38,12 @@
       "import": "./dist/desktop.js",
       "default": "./dist/desktop.js"
     },
+    "./devtools-desktop": {
+      "@aiao/source": "./src/devtools-desktop-filesystem.ts",
+      "types": "./dist/devtools-desktop-filesystem.d.ts",
+      "import": "./dist/devtools-desktop-filesystem.js",
+      "default": "./dist/devtools-desktop-filesystem.js"
+    },
     "./testing": {
       "@aiao/source": "./src/testing.ts",
       "types": "./dist/testing.d.ts",
@@ -63,10 +69,14 @@
   },
   "peerDependencies": {
     "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
+    "@aiao/rxdb-devtools": "workspace:*",
     "vitest": ">=4.0.0"
   },
   "peerDependenciesMeta": {
     "@aiao/rxdb-adapter-sqlite-core": {
+      "optional": true
+    },
+    "@aiao/rxdb-devtools": {
       "optional": true
     },
     "vitest": {
@@ -77,6 +87,7 @@
     "@aiao/rxdb-adapter-electron": "workspace:*",
     "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
+    "@aiao/rxdb-devtools": "workspace:*",
     "vitest": "4.1.11"
   }
 }

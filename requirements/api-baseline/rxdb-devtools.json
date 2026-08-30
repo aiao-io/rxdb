@@ -546,6 +546,10 @@
         "kind": "type"
       },
       {
+        "name": "DevToolsProviderOptions",
+        "kind": "type"
+      },
+      {
         "name": "DevToolsProviderRegistry",
         "kind": "type"
       },

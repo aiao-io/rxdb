@@ -35,6 +35,9 @@
       "path": "../rxdb/tsconfig.lib.json"
     },
     {
+      "path": "../rxdb-devtools/tsconfig.lib.json"
+    },
+    {
       "path": "../rxdb-adapter-sqlite-core/tsconfig.lib.json"
     }
   ]

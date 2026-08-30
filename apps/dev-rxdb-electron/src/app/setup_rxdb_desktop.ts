@@ -1,8 +1,14 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { ELECTRON_ADAPTER_NAME, RxDBAdapterElectron } from '@aiao/rxdb-adapter-electron';
+import {
+  createDevToolsElectronSettingsProvider,
+  DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT,
+  getDevToolsConnector
+} from '@aiao/rxdb-devtools';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
+import { createDevToolsDesktopFilesystem } from '@aiao/rxdb-plugin-storage/devtools-desktop';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { DESKTOP_DEMO_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
@@ -76,5 +82,21 @@ export default () => {
     .adapter(ELECTRON_ADAPTER_NAME, async db => new RxDBAdapterElectron(db));
 
   rxdb.init();
+
+  // US-904 阶段 D：把页内 connector 接到原生后端。`files` 走桌面 host（native-files），
+  // `settings` 是 Electron `sqlite` 语义，`database` 的 descriptor 显示为 `electron`。
+  // 文件系统与 storage 插件共用同一个 `rootDir`，看到的才是同一批文件。
+  const devtools = getDevToolsConnector({
+    providers: {
+      nativeFiles: {
+        filesystem: createDevToolsDesktopFilesystem({ rootDir: DESKTOP_STORAGE_ROOT_DIR }),
+        maxTransferBytes: DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT
+      },
+      settings: createDevToolsElectronSettingsProvider(),
+      runtime: 'electron'
+    }
+  });
+  devtools.init(rxdb, getEntityMetadata);
+
   return rxdb;
 };

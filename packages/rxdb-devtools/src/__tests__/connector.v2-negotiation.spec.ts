@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DevToolsConnector } from '../connector.js';
+import { createDevToolsElectronSettingsProvider } from '../native/settings-provider.js';
 import { createMessage, RXDB_DEVTOOLS_MESSAGE } from '../types.js';
 import { DEVTOOLS_PROTOCOL_VERSION_V2 } from '../v2/constants.js';
 import type { DevToolsV2Envelope, DevToolsV2MessageType } from '../v2/wire.js';
@@ -8,6 +9,7 @@ import { createDevToolsV2Message, isDevToolsV2Message } from '../v2/wire.js';
 import type { FakeOpfsRoot } from './browser/fake-opfs.js';
 import { createFakeOpfsRoot } from './browser/fake-opfs.js';
 import { createMockRxDB, listenerCount, type MockRxDB } from './fixtures/mock-rxdb.js';
+import { createFakeNativeFilesystem } from './native/fake-native-filesystem.js';
 
 const TIMESTAMP = 1_700_000_000_000;
 
@@ -422,6 +424,43 @@ describe('DevToolsConnector v2 negotiation', () => {
     );
 
     expect(framesOf('HANDSHAKE')).toHaveLength(0);
+  });
+
+  it('MUST wire native providers (files/settings/runtime) into the v2 descriptor set', () => {
+    connector = new DevToolsConnector({
+      capabilities: 'readonly',
+      providers: {
+        nativeFiles: { filesystem: createFakeNativeFilesystem(), maxTransferBytes: 64 },
+        settings: createDevToolsElectronSettingsProvider(),
+        runtime: 'electron'
+      }
+    });
+    const addEventSpy = vi.spyOn(window, 'addEventListener');
+    // 传了读取函数（即便恒回 undefined），`database` 就会宣告——这里一并断言它的 runtime 换掉了。
+    connector.init(createMockRxDB(), () => undefined);
+    const registered = addEventSpy.mock.calls.find(call => call[0] === 'message');
+    if (registered === undefined) throw new Error('connector never registered a message listener');
+    handler = registered[1] as (event: MessageEvent) => void;
+
+    deliver(
+      createDevToolsV2Message(
+        'PROTOCOL_HELLO',
+        { supportedVersions: [DEVTOOLS_PROTOCOL_VERSION_V2, 1] },
+        { sessionId: null, sequence: 1, timestamp: TIMESTAMP, direction: 'panel-to-connector' }
+      )
+    );
+
+    const descriptors = framesOf('HANDSHAKE')[0]?.payload.capabilities.descriptors;
+    expect(descriptors?.map(descriptor => descriptor.domain)).toEqual(['database', 'files', 'settings']);
+    expect(descriptors?.find(descriptor => descriptor.domain === 'files')).toMatchObject({
+      kind: 'native-files',
+      runtime: 'electron'
+    });
+    expect(descriptors?.find(descriptor => descriptor.domain === 'settings')).toMatchObject({
+      kind: 'sqlite',
+      runtime: 'electron'
+    });
+    expect(descriptors?.find(descriptor => descriptor.domain === 'database')).toMatchObject({ runtime: 'electron' });
   });
 });
 

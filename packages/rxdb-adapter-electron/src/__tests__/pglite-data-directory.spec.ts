@@ -208,10 +208,11 @@ describe('桌面 PGlite 数据目录', () => {
       authorName: 'Ada'
     }).save();
 
-    const probe = new PersistenceProbe();
-    probe.id = SIGNED_64_MAX;
-    probe.minimum = SIGNED_64_MIN;
-    probe.payload = new Uint8Array([0, 0xff, 7]);
+    const probe = new PersistenceProbe({
+      id: SIGNED_64_MAX,
+      minimum: SIGNED_64_MIN,
+      payload: new Uint8Array([0, 0xff, 7])
+    });
     await probe.save();
 
     await rxdb.disconnectAll();

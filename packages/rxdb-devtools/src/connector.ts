@@ -50,7 +50,13 @@ import type { DevToolsConnectorEndpoint } from './v2/endpoint.js';
 import { createDevToolsConnectorEndpoint } from './v2/endpoint.js';
 import type { DevToolsConnectorNegotiationMessage } from './v2/negotiation-connector.js';
 
-export type { DevToolsEntityMetadata, DevToolsOptions, DevToolsRxDB, GetEntityMetadataFn } from './connector-types.js';
+export type {
+  DevToolsEntityMetadata,
+  DevToolsOptions,
+  DevToolsProviderOptions,
+  DevToolsRxDB,
+  GetEntityMetadataFn
+} from './connector-types.js';
 export { RXDB_EVENT_TYPES };
 
 const DEFAULT_OPTIONS: Required<DevToolsOptions> = {
@@ -58,7 +64,8 @@ const DEFAULT_OPTIONS: Required<DevToolsOptions> = {
   enabled: true,
   capabilities: 'full',
   mutationPolicy: CONNECTOR_MUTATION_POLICY,
-  allowOpaqueOrigin: false
+  allowOpaqueOrigin: false,
+  providers: {}
 };
 
 /**
@@ -630,7 +637,8 @@ export class DevToolsConnector {
     const providers = createConnectorProviders({
       getRootDirectory: resolveBrowserOpfsRoot(),
       saveToDisk: saveFileThroughPage,
-      ...this.#databasePorts()
+      ...this.#databasePorts(),
+      ...this.#options.providers
     });
     const endpoint = createDevToolsConnectorEndpoint({
       send: (message: DevToolsConnectorNegotiationMessage) =>

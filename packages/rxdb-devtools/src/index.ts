@@ -25,6 +25,8 @@ export type {
   DevToolsEntityMetadata,
   /** 连接器配置项。 */
   DevToolsOptions,
+  /** 原生宿主的 provider 装配端口；随 {@link DevToolsOptions.providers} 注入。 */
+  DevToolsProviderOptions,
   /** 连接器所需的 RxDB 能力子集；真实 `RxDB` 实例可直接传入 `init`。 */
   DevToolsRxDB,
   /** 实体元数据读取函数，通常直接传 `@aiao/rxdb` 的 `getEntityMetadata`。 */

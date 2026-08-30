@@ -1,4 +1,7 @@
 import type { EntityType, RxDB } from '@aiao/rxdb';
+import type { DevToolsNativeFilesProviderPorts } from './native/native-files-provider.js';
+import type { DevToolsProviderRuntime } from './provider/descriptor.js';
+import type { DevToolsProvider } from './provider/types.js';
 import type { DevToolsCapability } from './types.js';
 import type { DevToolsMutationPolicy } from './v2/authorization.js';
 
@@ -52,6 +55,23 @@ export interface DevToolsEntityMetadata {
  * （返回 `undefined`）都满足本签名，由调用方决定要哪种语义。
  */
 export type GetEntityMetadataFn = (entity: EntityType) => DevToolsEntityMetadata | undefined;
+
+/**
+ * 页内 provider 装配中需要宿主显式注入的那一部分。
+ *
+ * @remarks
+ * 浏览器能自动探测的那一半（OPFS、页面下载路径、RxDB 实例）不在这里——那由连接器自己
+ * 按环境装配。这里只放浏览器探测不到的：原生文件后端、`settings` 的语义 kind 与显示用
+ * runtime。三者各自独立，缺省时连接器按浏览器形态装配。
+ */
+export interface DevToolsProviderOptions {
+  /** 原生文件后端端口；给定时 `files` 走 `native-files` 而不是 OPFS。 */
+  nativeFiles?: DevToolsNativeFilesProviderPorts;
+  /** `settings` 领域 provider；缺省为浏览器 settings（`kind: opfs`）。 */
+  settings?: DevToolsProvider;
+  /** descriptor 显示用 runtime；缺省 `browser`，只影响 `database` 领域。 */
+  runtime?: DevToolsProviderRuntime;
+}
 
 /** RxDB DevTools 配置选项。 */
 export interface DevToolsOptions {
@@ -114,4 +134,14 @@ export interface DevToolsOptions {
    * 把本项设为 `true` 显式接受该风险。
    */
   allowOpaqueOrigin?: boolean;
+
+  /**
+   * 原生宿主（Electron / Tauri）的 provider 装配端口。
+   *
+   * @remarks
+   * 缺省时连接器按浏览器自动探测（OPFS `files` + browser `settings` + `runtime: browser`）。
+   * 桌面宿主必须显式给出：原生文件后端（`nativeFiles`）、`settings` 的语义 kind（`sqlite`），
+   * 与显示用 `runtime`。省略任何一项都不做「猜一个」的兜底，而是退回浏览器形态。
+   */
+  providers?: DevToolsProviderOptions;
 }

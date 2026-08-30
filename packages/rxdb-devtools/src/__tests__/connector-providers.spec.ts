@@ -13,7 +13,9 @@ import type { EntityType } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { createConnectorProviders } from '../connector-providers.js';
 import type { DevToolsEntityMetadata, GetEntityMetadataFn } from '../connector-types.js';
+import { createDevToolsElectronSettingsProvider } from '../native/settings-provider.js';
 import { createMockRxDB, listenerCount, type MockRxDB } from './fixtures/mock-rxdb.js';
+import { createFakeNativeFilesystem } from './native/fake-native-filesystem.js';
 
 class Article {}
 
@@ -86,5 +88,56 @@ describe('页内 provider 装配', () => {
     const providers = createConnectorProviders({});
 
     expect(() => providers.provider('database')).toThrowError(/database/);
+  });
+});
+
+describe('页内 provider 装配 — 原生后端（阶段 D）', () => {
+  it('给了 nativeFiles 时 files 走 native-files，不再是 OPFS', () => {
+    const providers = createConnectorProviders({
+      nativeFiles: { filesystem: createFakeNativeFilesystem(), maxTransferBytes: 64 }
+    });
+
+    expect(providers.descriptors.find(descriptor => descriptor.domain === 'files')).toMatchObject({
+      kind: 'native-files',
+      runtime: 'electron'
+    });
+  });
+
+  it('native files 的下载字节走 wire：createChunkSource 委托给 native provider', async () => {
+    const filesystem = createFakeNativeFilesystem();
+    filesystem.seedFile(['db', 'main.sqlite'], 4);
+    const providers = createConnectorProviders({
+      nativeFiles: { filesystem, maxTransferBytes: 64 }
+    });
+
+    await providers.provider('files').invoke('download', { path: 'db/main.sqlite', requestId: 'r-1' });
+    const source = providers.createChunkSource('r-1');
+
+    expect(source?.totalBytes).toBe(4);
+  });
+
+  it('settings 领域用注入的 provider，不落回浏览器 opfs', () => {
+    const providers = createConnectorProviders({ settings: createDevToolsElectronSettingsProvider() });
+
+    expect(providers.provider('settings').descriptor).toMatchObject({ kind: 'sqlite', runtime: 'electron' });
+  });
+
+  it('runtime 只进 database descriptor 的显示字段', () => {
+    const providers = createConnectorProviders({
+      database: { getRxDB: () => mockRxDB(), getEntityMetadata, emitEvent: () => undefined },
+      runtime: 'electron'
+    });
+
+    expect(providers.descriptors.find(descriptor => descriptor.domain === 'database')).toMatchObject({
+      runtime: 'electron'
+    });
+  });
+
+  it('给了 nativeFiles 也不给 OPFS 时仍不宣告 database 之外的领域', () => {
+    const providers = createConnectorProviders({
+      nativeFiles: { filesystem: createFakeNativeFilesystem(), maxTransferBytes: 64 }
+    });
+
+    expect(providers.descriptors.map(descriptor => descriptor.domain)).toEqual(['files', 'settings']);
   });
 });

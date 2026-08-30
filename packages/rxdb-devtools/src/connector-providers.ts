@@ -9,10 +9,10 @@
  *
  * 当前接上的：
  *
- * - `files` — OPFS（US-904 阶段 C2）。
- * - `settings` — 只有恒定拒绝的 `export`（AC#43 的 connector 侧）。
+ * - `files` — OPFS（US-904 阶段 C2），或 `native-files`（阶段 D，给 `nativeFiles` 端口时）。
+ * - `settings` — 恒定拒绝的 `export`；缺省浏览器 `opfs`，可用 `settings` 端口换成 Electron `sqlite`。
  * - `database` — RxDB（US-904 阶段 D AC#46）；要求**同时**拿到实例入口与实体元数据，见
- *   {@link ConnectorProviderPorts.getEntityMetadata}。
+ *   {@link ConnectorProviderPorts.database}。
  *
  * @module @aiao/rxdb-devtools/connector-providers
  */
@@ -21,7 +21,16 @@ import type { DevToolsOpfsFilesProvider } from './browser/opfs-files-provider.js
 import { createDevToolsOpfsFilesProvider } from './browser/opfs-files-provider.js';
 import { createDevToolsBrowserSettingsProvider } from './browser/settings-provider.js';
 import type { DevToolsRxDB, GetEntityMetadataFn } from './connector-types.js';
-import type { DevToolsProviderDescriptor, DevToolsProviderDomain } from './provider/descriptor.js';
+import {
+  createDevToolsNativeFilesProvider,
+  type DevToolsFilesProviderWithSource,
+  type DevToolsNativeFilesProviderPorts
+} from './native/native-files-provider.js';
+import type {
+  DevToolsProviderDescriptor,
+  DevToolsProviderDomain,
+  DevToolsProviderRuntime
+} from './provider/descriptor.js';
 import type { DevToolsProvider } from './provider/types.js';
 import type { DevToolsRxdbDatabaseProvider } from './rxdb/database-provider.js';
 import { createDevToolsRxdbDatabaseProvider } from './rxdb/database-provider.js';
@@ -86,6 +95,12 @@ export interface ConnectorProviderPorts {
   saveToDisk?: (file: File, name: string) => Promise<void>;
   /** RxDB 接入口；省略即不宣告 `database` 领域。 */
   database?: ConnectorDatabasePorts;
+  /** 原生文件后端端口；给定时 `files` 走 `native-files` 而不是 OPFS。 */
+  nativeFiles?: DevToolsNativeFilesProviderPorts;
+  /** `settings` 领域 provider；缺省为浏览器 settings（`kind: opfs`）。 */
+  settings?: DevToolsProvider;
+  /** descriptor 显示用 runtime；缺省 `browser`，只影响 `database` 领域。 */
+  runtime?: DevToolsProviderRuntime;
 }
 
 /**
@@ -133,23 +148,29 @@ export interface ConnectorProviderRegistry extends DevToolsProviderRegistry {
  * @returns 可直接交给 v2 端点的 registry，外加一个订阅回收入口。
  */
 export function createConnectorProviders(ports: ConnectorProviderPorts = {}): ConnectorProviderRegistry {
-  const files: DevToolsOpfsFilesProvider | undefined =
-    ports.getRootDirectory === undefined ?
+  const runtime = ports.runtime ?? 'browser';
+
+  const nativeFilesProvider: DevToolsFilesProviderWithSource | undefined =
+    ports.nativeFiles === undefined ? undefined : createDevToolsNativeFilesProvider(ports.nativeFiles);
+
+  const files: DevToolsOpfsFilesProvider | DevToolsFilesProviderWithSource | undefined =
+    nativeFilesProvider ??
+    (ports.getRootDirectory === undefined ?
       undefined
     : createDevToolsOpfsFilesProvider({
         getRootDirectory: ports.getRootDirectory,
         maxTransferBytes: DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES,
         saveToDisk: ports.saveToDisk
-      });
+      }));
 
   const database: DevToolsRxdbDatabaseProvider | undefined =
     ports.database === undefined ?
       undefined
-    : createDevToolsRxdbDatabaseProvider({ ...ports.database, runtime: 'browser' });
+    : createDevToolsRxdbDatabaseProvider({ ...ports.database, runtime });
 
-  const providers = new Map<DevToolsProviderDomain, DevToolsProvider>([
-    ['settings', createDevToolsBrowserSettingsProvider()]
-  ]);
+  const settings: DevToolsProvider = ports.settings ?? createDevToolsBrowserSettingsProvider();
+
+  const providers = new Map<DevToolsProviderDomain, DevToolsProvider>([['settings', settings]]);
   if (files !== undefined) providers.set('files', files);
   if (database !== undefined) providers.set('database', database);
 
@@ -169,9 +190,9 @@ export function createConnectorProviders(ports: ConnectorProviderPorts = {}): Co
       if (files === undefined) throw new Error(`no in-page devtools chunk sink for transfer "${name}"`);
       return files.createChunkSink(name);
     },
-    // 浏览器 OPFS 的字节不过 wire：它由页面自己保存（见 `opfs-files-provider.ts` 模块头第 2 条），
-    // 所以这里恒为「已在源侧交付」。这**不是**「不支持下载」——descriptor 里 `download` 是宣告了的。
-    createChunkSource: () => undefined,
+    // 浏览器 OPFS 的字节不过 wire：它由页面自己保存（见 `opfs-files-provider.ts` 模块头第 2 条）。
+    // 原生后端（Electron / Tauri）的下载字节走上 wire，由 nativeFilesProvider 的字节源承担。
+    createChunkSource: requestId => nativeFilesProvider?.createChunkSource(requestId),
     dispose: () => database?.dispose()
   };
 }
