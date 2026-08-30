@@ -58,7 +58,9 @@ describe('OpfsService', () => {
   });
 
   it('lists only the requested layer when navigating into a subdirectory', async () => {
-    fileChannel.seed('/beta', [{ name: 'nested.txt', kind: 'file', path: 'beta/nested.txt', size: 4, lastModified: 2 }]);
+    fileChannel.seed('/beta', [
+      { name: 'nested.txt', kind: 'file', path: 'beta/nested.txt', size: 4, lastModified: 2 }
+    ]);
 
     service.navigateTo('/beta');
     await vi.waitFor(() => expect(service.loading()).toBe(false));
@@ -116,7 +118,10 @@ describe('OpfsService', () => {
   it('deletes files and directories through one verb and refreshes after success', async () => {
     await service.delete({ name: 'folder', path: '/folder', type: 'directory' });
 
-    expect(fileChannel.calls).toEqual([{ op: 'remove', path: '/folder' }, { op: 'list', path: '/' }]);
+    expect(fileChannel.calls).toEqual([
+      { op: 'remove', path: '/folder' },
+      { op: 'list', path: '/' }
+    ]);
     expect(toast.success).toHaveBeenCalledWith('删除成功');
   });
 
@@ -166,7 +171,10 @@ describe('OpfsService', () => {
 
   it('creates a directory and refreshes only after success', async () => {
     await expect(service.createDirectory('docs')).resolves.toBe(true);
-    expect(fileChannel.calls).toEqual([{ op: 'createDirectory', path: '/docs' }, { op: 'list', path: '/' }]);
+    expect(fileChannel.calls).toEqual([
+      { op: 'createDirectory', path: '/docs' },
+      { op: 'list', path: '/' }
+    ]);
     expect(toast.success).toHaveBeenCalledWith('创建成功: docs');
 
     fileChannel.failNext('resource_conflict');

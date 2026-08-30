@@ -264,7 +264,9 @@ export const buildPgBackfillSql = (opts: {
   readonly batchSize: number;
 }): string => {
   if (!Number.isInteger(opts.batchSize) || opts.batchSize <= 0) {
-    throw new SearchExecutionError(`invalid PostgreSQL backfill batch size ${String(opts.batchSize)}: expected a positive integer`);
+    throw new SearchExecutionError(
+      `invalid PostgreSQL backfill batch size ${String(opts.batchSize)}: expected a positive integer`
+    );
   }
   const table = quote(opts.table);
   const id = quote(opts.primaryKey);

@@ -18,9 +18,9 @@ import type { DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/deskto
 import { PGlite } from '@electric-sql/pglite';
 import { identifier } from '@electric-sql/pglite/template';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DesktopPGliteClient } from '../pglite/desktop-pglite-client.js';
-import { createElectronPgliteHost, type ElectronPgliteHost } from '../pglite-host/electron-pglite-host.js';
 import type { ElectronPgliteRuntime } from '../pglite-host/electron-pglite-host.js';
+import { createElectronPgliteHost, type ElectronPgliteHost } from '../pglite-host/electron-pglite-host.js';
+import { DesktopPGliteClient } from '../pglite/desktop-pglite-client.js';
 
 const OWNER = 7;
 

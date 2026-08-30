@@ -220,11 +220,9 @@ const runStatement = async <T>(run: () => Promise<T>): Promise<T> => {
     return await run();
   } catch (error) {
     if (error instanceof RxDBAdapterDesktopError) throw error;
-    throw new RxDBAdapterDesktopError(
-      'statement_failed',
-      error instanceof Error ? error.message : String(error),
-      { cause: error }
-    );
+    throw new RxDBAdapterDesktopError('statement_failed', error instanceof Error ? error.message : String(error), {
+      cause: error
+    });
   }
 };
 
@@ -439,9 +437,9 @@ export function createElectronPgliteHost(options: ElectronPgliteHostOptions): El
   ): Promise<DesktopPgliteResponse> => {
     const session = requireSession(request.sessionId, ownerId);
     const target =
-      request.transactionId === undefined
-        ? await requireRuntime(session)
-        : requireTransaction(request.transactionId, request.sessionId).tx;
+      request.transactionId === undefined ?
+        await requireRuntime(session)
+      : requireTransaction(request.transactionId, request.sessionId).tx;
     const results = await runStatement(() => target.exec(request.sql));
     return { kind: 'pg.exec', result: results.map(toWireResult) };
   };

@@ -108,9 +108,7 @@ describe('buildPgBackfillSql', () => {
 
 describe('buildPgPendingBackfillProbeSql', () => {
   it('探测是否仍有未回填的行', () => {
-    expect(buildPgPendingBackfillProbeSql('docs')).toBe(
-      'SELECT count(*) AS count FROM "docs" WHERE "_fts" IS NULL'
-    );
+    expect(buildPgPendingBackfillProbeSql('docs')).toBe('SELECT count(*) AS count FROM "docs" WHERE "_fts" IS NULL');
   });
 });
 

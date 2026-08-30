@@ -536,9 +536,7 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
    */
   async #failOutbound(transfer: OutboundTransfer, code: DevToolsErrorCode): Promise<void> {
     this.#sendError(transfer.requestId, createDevToolsError(code));
-    this.#ports.send(
-      createDevToolsV2Message('TRANSFER_CANCEL', { transferId: transfer.transferId }, this.#envelope())
-    );
+    this.#ports.send(createDevToolsV2Message('TRANSFER_CANCEL', { transferId: transfer.transferId }, this.#envelope()));
     await this.#closeOutbound(transfer);
   }
 

@@ -15,8 +15,8 @@
  */
 
 export {
-  ADAPTER_NAME as ELECTRON_PGLITE_ADAPTER_NAME,
   DEFAULT_DATA_DIRECTORY_SUFFIX as DESKTOP_DEFAULT_DATA_DIRECTORY_SUFFIX,
+  ADAPTER_NAME as ELECTRON_PGLITE_ADAPTER_NAME,
   type ElectronPGliteOptions
 } from './pglite/pglite-adapter.interface.js';
 

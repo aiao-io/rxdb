@@ -17,12 +17,12 @@
  * @module @aiao/rxdb-devtools/connector-providers
  */
 
-import type { DevToolsProviderDescriptor, DevToolsProviderDomain } from './provider/descriptor.js';
-import type { DevToolsProvider } from './provider/types.js';
-import { createDevToolsBrowserSettingsProvider } from './browser/settings-provider.js';
 import type { DevToolsOpfsFilesProvider } from './browser/opfs-files-provider.js';
 import { createDevToolsOpfsFilesProvider } from './browser/opfs-files-provider.js';
+import { createDevToolsBrowserSettingsProvider } from './browser/settings-provider.js';
 import type { DevToolsRxDB, GetEntityMetadataFn } from './connector-types.js';
+import type { DevToolsProviderDescriptor, DevToolsProviderDomain } from './provider/descriptor.js';
+import type { DevToolsProvider } from './provider/types.js';
 import type { DevToolsRxdbDatabaseProvider } from './rxdb/database-provider.js';
 import { createDevToolsRxdbDatabaseProvider } from './rxdb/database-provider.js';
 import type { DevToolsMutationPolicy } from './v2/authorization.js';
@@ -134,18 +134,18 @@ export interface ConnectorProviderRegistry extends DevToolsProviderRegistry {
  */
 export function createConnectorProviders(ports: ConnectorProviderPorts = {}): ConnectorProviderRegistry {
   const files: DevToolsOpfsFilesProvider | undefined =
-    ports.getRootDirectory === undefined
-      ? undefined
-      : createDevToolsOpfsFilesProvider({
-          getRootDirectory: ports.getRootDirectory,
-          maxTransferBytes: DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES,
-          saveToDisk: ports.saveToDisk
-        });
+    ports.getRootDirectory === undefined ?
+      undefined
+    : createDevToolsOpfsFilesProvider({
+        getRootDirectory: ports.getRootDirectory,
+        maxTransferBytes: DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES,
+        saveToDisk: ports.saveToDisk
+      });
 
   const database: DevToolsRxdbDatabaseProvider | undefined =
-    ports.database === undefined
-      ? undefined
-      : createDevToolsRxdbDatabaseProvider({ ...ports.database, runtime: 'browser' });
+    ports.database === undefined ?
+      undefined
+    : createDevToolsRxdbDatabaseProvider({ ...ports.database, runtime: 'browser' });
 
   const providers = new Map<DevToolsProviderDomain, DevToolsProvider>([
     ['settings', createDevToolsBrowserSettingsProvider()]

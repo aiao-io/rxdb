@@ -1,10 +1,10 @@
-import { effect, inject, Injectable, OnDestroy, signal } from '@angular/core';
 import {
   createDevToolsPanelEndpoint,
   createSystemClock,
   type DevToolsPanelEndpoint,
   type DevToolsPanelNegotiationState
 } from '@aiao/rxdb-devtools';
+import { effect, inject, Injectable, OnDestroy, signal } from '@angular/core';
 import { logger } from '@modules/rxdb-devtools-panel/wire';
 import { PortService } from './port.service';
 

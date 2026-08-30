@@ -42,7 +42,15 @@ describe('relayDirectionOf', () => {
   });
 
   it('拒绝非本协议的值', () => {
-    for (const value of [null, undefined, 42, 'PING', {}, { type: 'PING' }, [createMessage('PING', 'devtools-to-page', null, 1)]]) {
+    for (const value of [
+      null,
+      undefined,
+      42,
+      'PING',
+      {},
+      { type: 'PING' },
+      [createMessage('PING', 'devtools-to-page', null, 1)]
+    ]) {
       expect(relayDirectionOf(value)).toBeNull();
     }
   });

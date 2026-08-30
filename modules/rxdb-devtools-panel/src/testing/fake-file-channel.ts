@@ -59,7 +59,11 @@ export class FakeDevToolsFileChannel implements DevToolsFileChannel {
     if (failure !== null) return Promise.resolve(failure);
     const parent = normalize(parentOf(path));
     const entries = this.tree.get(parent);
-    if (entries !== undefined) this.tree.set(parent, entries.filter(entry => entry.name !== nameOf(path)));
+    if (entries !== undefined)
+      this.tree.set(
+        parent,
+        entries.filter(entry => entry.name !== nameOf(path))
+      );
     return Promise.resolve({ outcome: 'ok', value: undefined });
   }
 

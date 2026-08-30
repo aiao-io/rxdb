@@ -246,17 +246,24 @@ export function createDesktopPgliteBridge(options: DesktopPgliteBridgeOptions): 
     return created;
   };
 
-  const dispatch = (active: DesktopPgliteWorkerChannel, build: (id: number) => DesktopPgliteWorkerCommand): Promise<unknown> =>
+  const dispatch = (
+    active: DesktopPgliteWorkerChannel,
+    build: (id: number) => DesktopPgliteWorkerCommand
+  ): Promise<unknown> =>
     new Promise<unknown>((resolve, reject) => {
       const id = ++nextCommandId;
       pending.set(id, { resolve, reject });
       active.postMessage(build(id));
     });
 
-  const send = (build: (id: number) => DesktopPgliteWorkerCommand): Promise<unknown> => dispatch(requireChannel(), build);
+  const send = (build: (id: number) => DesktopPgliteWorkerCommand): Promise<unknown> =>
+    dispatch(requireChannel(), build);
 
   /** `pg.open` 成功后的归属登记；窗口已在这一拍里销毁则当场关掉会话。 */
-  const registerSession = async (target: DesktopPgliteEventTarget, sessionId: string): Promise<DesktopPgliteResponse | undefined> => {
+  const registerSession = async (
+    target: DesktopPgliteEventTarget,
+    sessionId: string
+  ): Promise<DesktopPgliteResponse | undefined> => {
     // 归属登记发生在应答之后，而回收扫的是登记表。两者撞在一起时回收先跑、看到的是一张
     // 还没有这条记录的表，随后的登记就把会话挂到了不会再有回收时机的窗口名下（见 denyDestroyedTarget）。
     if (!target.isDestroyed()) {

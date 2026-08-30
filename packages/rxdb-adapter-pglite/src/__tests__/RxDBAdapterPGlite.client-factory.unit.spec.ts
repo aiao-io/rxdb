@@ -1,6 +1,6 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
-import { EventDispatcher } from '@aiao/utils';
 import { Todo } from '@aiao/rxdb-test/entities';
+import { EventDispatcher } from '@aiao/utils';
 import type { Results } from '@electric-sql/pglite';
 import type { LiveQuery } from '@electric-sql/pglite/live';
 import { afterEach, describe, expect, it } from 'vitest';

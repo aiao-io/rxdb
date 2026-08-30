@@ -87,7 +87,11 @@ function errorFrame(requestId: string | null, sessionId = SESSION_ID): DevToolsV
 }
 
 function eventFrame(eventType: string, data: unknown, sessionId = SESSION_ID): DevToolsV2Message {
-  return createDevToolsV2Message('EVENT', { eventType, data }, { sessionId, sequence: 4, timestamp: 1_700_000_000_003 });
+  return createDevToolsV2Message(
+    'EVENT',
+    { eventType, data },
+    { sessionId, sequence: 4, timestamp: 1_700_000_000_003 }
+  );
 }
 
 function disconnectFrame(): DevToolsV2Message {
@@ -308,7 +312,10 @@ describe('panel endpoint · 上传', () => {
   it('MUST drive REQUEST / START / CHUNK* / COMPLETE and hand the transfer id to params', async () => {
     const { sent, panel } = setup();
 
-    const result = await panel.upload({ params: transferId => ({ path: '/a.txt', transferId }), source: bytesSource(3) });
+    const result = await panel.upload({
+      params: transferId => ({ path: '/a.txt', transferId }),
+      source: bytesSource(3)
+    });
 
     expect(typesOf(sent)).toEqual(['REQUEST', 'TRANSFER_START', 'TRANSFER_CHUNK', 'TRANSFER_COMPLETE']);
     const [request, start, chunk] = v2Frames(sent);

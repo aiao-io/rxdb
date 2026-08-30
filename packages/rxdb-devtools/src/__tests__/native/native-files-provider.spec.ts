@@ -84,7 +84,10 @@ describe('native files provider — list', () => {
 
     expect(result).toEqual({
       outcome: 'ok',
-      result: { path: '', entries: [{ name: 'top.sqlite', kind: 'file', size: 1, lastModified: 1, path: 'top.sqlite' }] }
+      result: {
+        path: '',
+        entries: [{ name: 'top.sqlite', kind: 'file', size: 1, lastModified: 1, path: 'top.sqlite' }]
+      }
     });
   });
 

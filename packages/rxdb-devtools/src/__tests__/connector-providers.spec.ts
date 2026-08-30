@@ -11,8 +11,8 @@
 
 import type { EntityType } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
-import type { DevToolsEntityMetadata, GetEntityMetadataFn } from '../connector-types.js';
 import { createConnectorProviders } from '../connector-providers.js';
+import type { DevToolsEntityMetadata, GetEntityMetadataFn } from '../connector-types.js';
 import { createMockRxDB, listenerCount, type MockRxDB } from './fixtures/mock-rxdb.js';
 
 class Article {}

@@ -1,5 +1,5 @@
-import { InjectionToken } from '@angular/core';
 import type { DevToolsErrorPayload } from '@aiao/rxdb-devtools';
+import { InjectionToken } from '@angular/core';
 
 /**
  * 目录里的一个条目。
@@ -30,8 +30,7 @@ export interface DevToolsFileEntry {
  * 而不是一个需要靠文案二次判别的 `Error`。UI 分支只认这个码。
  */
 export type DevToolsFileResult<T> =
-  | { readonly outcome: 'ok'; readonly value: T }
-  | { readonly outcome: 'failed'; readonly error: DevToolsErrorPayload };
+  { readonly outcome: 'ok'; readonly value: T } | { readonly outcome: 'failed'; readonly error: DevToolsErrorPayload };
 
 /**
  * 上传的终态。

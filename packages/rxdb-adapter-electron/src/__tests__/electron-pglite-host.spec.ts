@@ -71,11 +71,7 @@ const ok = async <TKind extends Exclude<DesktopPgliteResponse['kind'], 'error'>>
 };
 
 /** 发一条请求并断言它是错误应答，返回错误码。 */
-const failure = async (
-  host: ElectronPgliteHost,
-  request: DesktopPgliteRequest,
-  owner = OWNER
-): Promise<string> => {
+const failure = async (host: ElectronPgliteHost, request: DesktopPgliteRequest, owner = OWNER): Promise<string> => {
   const response = await host.handle(request, owner);
   expect(response.kind).toBe('error');
   return (response as Extract<DesktopPgliteResponse, { kind: 'error' }>).code;

@@ -58,8 +58,8 @@ import type { Theme } from '../types/devtools.types';
           <div class="card-body">
             <h3 class="card-title text-sm">导出数据库</h3>
             <p class="text-xs opacity-70">
-              导出已停用：面板不再把整个 OPFS 目录打包下载。该操作会绕过应用自己的加密与访问控制，
-              把原始 SQLite / WAL 字节交到调试通道上。请改用应用侧的备份能力。
+              导出已停用：面板不再把整个 OPFS 目录打包下载。该操作会绕过应用自己的加密与访问控制， 把原始 SQLite / WAL
+              字节交到调试通道上。请改用应用侧的备份能力。
             </p>
             <div class="card-actions mt-4">
               <button class="btn btn-primary btn-sm" [disabled]="databaseExportDisabled">导出数据库</button>

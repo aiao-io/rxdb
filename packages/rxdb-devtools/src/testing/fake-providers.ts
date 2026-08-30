@@ -157,12 +157,12 @@ function createState(files?: Readonly<Record<string, number>>): FakeState {
     branches: new Set(['main']),
     currentBranch: 'main',
     files: new Map(
-      files === undefined
-        ? ([
-            ['/db.sqlite', 4_096],
-            ['/notes/a.md', 12]
-          ] as const)
-        : Object.entries(files)
+      files === undefined ?
+        ([
+          ['/db.sqlite', 4_096],
+          ['/notes/a.md', 12]
+        ] as const)
+      : Object.entries(files)
     ),
     directories: new Set(['/notes']),
     pendingDownloads: new Map(),

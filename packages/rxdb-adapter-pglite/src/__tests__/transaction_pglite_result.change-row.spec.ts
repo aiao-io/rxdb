@@ -12,7 +12,7 @@
  * 额外回读，同一批共享套件立刻转红。所以断言写在这里——**缺陷在本包**，
  * 不能只靠桌面那侧的端到端套件间接守着。
  */
-import { RxDB, SyncType, encodeRxDBChangeEntityId, getEntityMetadata, RxDBChange } from '@aiao/rxdb';
+import { encodeRxDBChangeEntityId, getEntityMetadata, RxDB, RxDBChange, SyncType } from '@aiao/rxdb';
 import { ENTITIES } from '@aiao/rxdb-test/shop';
 import { afterEach, describe, expect, it } from 'vitest';
 

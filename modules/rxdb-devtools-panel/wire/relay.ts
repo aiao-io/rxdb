@@ -81,10 +81,7 @@ export function relayDirectionOf(value: unknown): DevToolsRelayDirection | null 
  * @param direction - 该转发点允许通过的方向。
  * @returns 是本协议帧且方向匹配时为 `true`，并把 `value` 收窄为 {@link DevToolsRelayFrame}。
  */
-export function isRelayFrameTowards(
-  value: unknown,
-  direction: DevToolsRelayDirection
-): value is DevToolsRelayFrame {
+export function isRelayFrameTowards(value: unknown, direction: DevToolsRelayDirection): value is DevToolsRelayFrame {
   return relayDirectionOf(value) === direction;
 }
 

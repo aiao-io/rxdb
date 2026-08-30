@@ -432,4 +432,3 @@ describe('devtools download failure paths', () => {
     expect(sink.discards()).toBe(1);
   });
 });
-

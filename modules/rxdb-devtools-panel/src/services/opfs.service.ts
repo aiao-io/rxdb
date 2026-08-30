@@ -1,5 +1,5 @@
-import { inject, Injectable, signal } from '@angular/core';
 import type { DevToolsErrorPayload } from '@aiao/rxdb-devtools';
+import { inject, Injectable, signal } from '@angular/core';
 import { ToastService } from '../components/toast.component';
 import { DEVTOOLS_FILE_CHANNEL, type DevToolsFileEntry } from '../transport';
 import type { OpfsErrorKind, OPFSFile } from '../types/devtools.types';
@@ -113,9 +113,9 @@ export class OpfsService {
     if (result.outcome === 'failed') {
       this.files.set([]);
       this.fail(result.error, kind =>
-        kind === 'content-script-unavailable' ?
-          '请刷新被检查的页面以加载 OPFS 管理功能'
-        : `OPFS 错误: ${describe(result.error)}`
+        kind === 'content-script-unavailable' ? '请刷新被检查的页面以加载 OPFS 管理功能' : (
+          `OPFS 错误: ${describe(result.error)}`
+        )
       );
       this.loading.set(false);
       return;

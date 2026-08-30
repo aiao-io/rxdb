@@ -1,8 +1,4 @@
-import {
-  createDevToolsError,
-  type DevToolsPanelEndpoint,
-  type DevToolsPanelRequestResult
-} from '@aiao/rxdb-devtools';
+import { createDevToolsError, type DevToolsPanelEndpoint, type DevToolsPanelRequestResult } from '@aiao/rxdb-devtools';
 import type {
   DevToolsFileChannel,
   DevToolsFileEntry,

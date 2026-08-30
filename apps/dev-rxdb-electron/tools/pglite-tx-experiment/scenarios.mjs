@@ -120,10 +120,13 @@ export const SCENARIOS = {
    * 只验返回方向的话，方案 A 每条语句都要传参这件事就没被验到。
    */
   async typeFidelity(exec, args) {
-    await exec(
-      `INSERT INTO tx_probe (id, label, amount, big, bin, doc, at) VALUES ($1, 'types', 0, $2, $3, $4, $5)`,
-      [args.id, args.big, args.bin, args.doc, args.at]
-    );
+    await exec(`INSERT INTO tx_probe (id, label, amount, big, bin, doc, at) VALUES ($1, 'types', 0, $2, $3, $4, $5)`, [
+      args.id,
+      args.big,
+      args.bin,
+      args.doc,
+      args.at
+    ]);
     const read = await exec(`SELECT big, bin, doc, at FROM tx_probe WHERE id = $1`, [args.id]);
     return { row: read.rows[0] ?? null };
   },

@@ -1,6 +1,6 @@
 import type { EntityType, RxDB } from '@aiao/rxdb';
-import type { DevToolsMutationPolicy } from './v2/authorization.js';
 import type { DevToolsCapability } from './types.js';
+import type { DevToolsMutationPolicy } from './v2/authorization.js';
 
 /**
  * DevTools 实际使用的 RxDB 能力子集。

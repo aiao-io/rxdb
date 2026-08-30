@@ -9,8 +9,8 @@
 
 import type { EntityType } from '@aiao/rxdb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DevToolsEntityMetadata, GetEntityMetadataFn } from '../../connector-types.js';
 import { RXDB_EVENT_TYPES } from '../../connector-events.js';
+import type { DevToolsEntityMetadata, GetEntityMetadataFn } from '../../connector-types.js';
 import type { DevToolsProviderResult } from '../../provider/types.js';
 import { createDevToolsRxdbDatabaseProvider } from '../../rxdb/database-provider.js';
 import { createMockRxDB, listenerCount, MOCK_DB_NAME, MOCK_VERSION, type MockRxDB } from '../fixtures/mock-rxdb.js';
@@ -126,9 +126,13 @@ describe('RxDB database provider（AC#46）', () => {
 
   it('RxDB 未就绪时回 provider_unavailable，而不是空结果', async () => {
     expect(expectFailed(await createWith(undefined).invoke('inspect', {}))).toBe('provider_unavailable');
-    expect(expectFailed(await createWith(undefined).invoke('query', { entityName: 'Article' }))).toBe('provider_unavailable');
+    expect(expectFailed(await createWith(undefined).invoke('query', { entityName: 'Article' }))).toBe(
+      'provider_unavailable'
+    );
     expect(expectFailed(await createWith(undefined).invoke('get-branches', {}))).toBe('provider_unavailable');
-    expect(expectFailed(await createWith(undefined).invoke('switch-branch', { id: 'main' }))).toBe('provider_unavailable');
+    expect(expectFailed(await createWith(undefined).invoke('switch-branch', { id: 'main' }))).toBe(
+      'provider_unavailable'
+    );
   });
 
   it('query 按 limit 取数并遮罩加密字段', async () => {

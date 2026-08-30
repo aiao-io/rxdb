@@ -41,11 +41,11 @@
  */
 
 import { mkdtempSync, writeFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { fileURLToPath } from 'node:url';
-import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { SCHEMA_SQL } from './scenarios.mjs';
 import { createVariantAHost } from './variant-a-host.mjs';
@@ -262,10 +262,7 @@ const runCrashCase = async (variant, host, win) => {
     // 回收后库必须立刻可用：挂起的 callback 独占 PGlite 连接锁，没回收干净的话
     // 这条 SELECT 会永远排队 —— 表征是「数据库没响应」，与崩溃现场没有任何关联线索。
     const probeStarted = Date.now();
-    const usable = await Promise.race([
-      pg.query('SELECT 1 AS ok').then(() => true),
-      sleep(5_000).then(() => false)
-    ]);
+    const usable = await Promise.race([pg.query('SELECT 1 AS ok').then(() => true), sleep(5_000).then(() => false)]);
     const rows = await countRows([hangingId]);
     return {
       ok: reclaimed && usable && rows.length === 0,

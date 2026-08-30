@@ -9,9 +9,9 @@
  * @packageDocumentation
  */
 
-import type { CompiledQuery } from '../core/query-compiler.js';
 import type { FtsInstallPlan } from '../core/fts5-installer.js';
 import type { InstallFtsResult, MigrationRecordStore, RuntimeSqlExecutor } from '../core/fts5-runtime.js';
+import type { CompiledQuery } from '../core/query-compiler.js';
 import type { FtsExecutor, SearchEngine } from '../core/search-engine.js';
 
 /**

@@ -17,7 +17,12 @@ import { DEFAULT_FTS_REGCONFIG } from './pg-fts-contract.js';
 import type { ResultWithPenalty } from '../../core/aggregator.js';
 import { mergeAndSortResults } from '../../core/merge-results.js';
 import { mapRowsToResults } from '../../core/result-mapper.js';
-import { MAX_CONTAINS_FALLBACK_ROWS, type FtsExecutor, type SearchEngine, type SearchEngineQuery } from '../../core/search-engine.js';
+import {
+  MAX_CONTAINS_FALLBACK_ROWS,
+  type FtsExecutor,
+  type SearchEngine,
+  type SearchEngineQuery
+} from '../../core/search-engine.js';
 import { SearchExecutionError, SearchQueryLimitError } from '../../types.js';
 import {
   buildPgFieldContainsSql,

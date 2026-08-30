@@ -53,7 +53,10 @@ function wrapDirectory(name: string, node: FakeDirectory): FileSystemDirectoryHa
       for (const key of [...node.children.keys()].sort()) {
         const child = node.children.get(key);
         if (child === undefined) continue;
-        yield [key, (child.kind === 'directory' ? wrapDirectory(key, child) : wrapFile(key, child)) as FileSystemHandle];
+        yield [
+          key,
+          (child.kind === 'directory' ? wrapDirectory(key, child) : wrapFile(key, child)) as FileSystemHandle
+        ];
       }
     },
     getDirectoryHandle: (childName: string, options?: { create?: boolean }) => {

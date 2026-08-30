@@ -39,7 +39,12 @@ interface HostOptions {
   readonly lock?: LockOutcome;
 }
 
-function entry(logicalPath: string, id: string | null, size: number | null, version: string | null): DevToolsSnapshotEntry {
+function entry(
+  logicalPath: string,
+  id: string | null,
+  size: number | null,
+  version: string | null
+): DevToolsSnapshotEntry {
   return { logicalPath, id, size, contentVersion: version };
 }
 
@@ -215,7 +220,11 @@ function manyEntries(count: number, prefix: string): readonly DevToolsSnapshotEn
 function storeOver(options: HostOptions): { clock: DevToolsFakeClock; host: FakeHost; store: DevToolsSnapshotStore } {
   const clock = createFakeClock();
   const host = fakeHost(options);
-  return { clock, host, store: createDevToolsSnapshotStore({ clock, source: createDevToolsNativeSnapshotSource(host.ports) }) };
+  return {
+    clock,
+    host,
+    store: createDevToolsSnapshotStore({ clock, source: createDevToolsNativeSnapshotSource(host.ports) })
+  };
 }
 
 describe('native snapshot source — 经仓库读取完整诊断 snapshot（AC#48）', () => {

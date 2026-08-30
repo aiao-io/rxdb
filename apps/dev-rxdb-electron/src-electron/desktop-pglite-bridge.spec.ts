@@ -21,7 +21,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MessageChannel } from 'node:worker_threads';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DESKTOP_DATABASE_DIRECTORY } from './desktop-sqlite-bridge';
 import { DESKTOP_STORAGE_DIRECTORY } from './desktop-file-bridge';
 import {
   createDesktopPgliteBridge,
@@ -32,6 +31,7 @@ import {
   type DesktopPgliteWorkerChannel
 } from './desktop-pglite-bridge';
 import { createPgliteWorkerEndpoint } from './desktop-pglite-worker';
+import { DESKTOP_DATABASE_DIRECTORY } from './desktop-sqlite-bridge';
 import { DESKTOP_HOST_CHANGE_CHANNEL } from './ipc-contract';
 
 /** PGlite 第一次在一个空目录上启动要跑 initdb，本机实测个位数秒；CI 上更慢。 */
@@ -201,7 +201,13 @@ describe('createDesktopPgliteBridge', () => {
       const blob = new Uint8Array([0, 1, 254, 255]);
       const doc = { nested: { list: [1, 2, 3] }, flag: true };
       const at = new Date('2026-08-30T01:02:03.000Z');
-      await query(first, target, sessionId, 'INSERT INTO fidelity VALUES ($1, $2, $3, $4, $5)', [1, big, blob, doc, at]);
+      await query(first, target, sessionId, 'INSERT INTO fidelity VALUES ($1, $2, $3, $4, $5)', [
+        1,
+        big,
+        blob,
+        doc,
+        at
+      ]);
 
       await first.handle(target, { kind: 'pg.close', sessionId });
       await first.closeAll();
@@ -238,7 +244,13 @@ describe('createDesktopPgliteBridge', () => {
       if (begun.kind !== 'pg.begin') throw new Error(`begin failed: ${JSON.stringify(begun)}`);
       const { transactionId } = begun.result;
 
-      await bridge.handle(target, { kind: 'pg.query', sessionId, transactionId, sql: 'INSERT INTO tx_demo VALUES (1)', params: [] });
+      await bridge.handle(target, {
+        kind: 'pg.query',
+        sessionId,
+        transactionId,
+        sql: 'INSERT INTO tx_demo VALUES (1)',
+        params: []
+      });
       // 事务内看得见自己的未提交写入。
       const inside = await bridge.handle(target, {
         kind: 'pg.query',

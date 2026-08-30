@@ -41,9 +41,7 @@ export interface DevToolsSnapshotEntry {
 
 /** 一次锁内任务的结果。 */
 export type DevToolsSnapshotLockResult<TValue> =
-  | { readonly outcome: 'held'; readonly value: TValue }
-  | { readonly outcome: 'lost' }
-  | { readonly outcome: 'aborted' };
+  { readonly outcome: 'held'; readonly value: TValue } | { readonly outcome: 'lost' } | { readonly outcome: 'aborted' };
 
 /** storage 全局独占锁。 */
 export interface DevToolsSnapshotLock {

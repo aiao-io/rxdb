@@ -56,7 +56,12 @@ describe('createDevToolsV2FileChannel', () => {
           path: '',
           entries: [
             { name: 'a.txt', kind: 'file', path: 'a.txt', size: 3, lastModified: 7 },
-            { name: 'sub', kind: 'directory', path: 'sub', entries: [{ name: 'deep.txt', kind: 'file', path: 'sub/deep.txt', size: 1, lastModified: 8 }] }
+            {
+              name: 'sub',
+              kind: 'directory',
+              path: 'sub',
+              entries: [{ name: 'deep.txt', kind: 'file', path: 'sub/deep.txt', size: 1, lastModified: 8 }]
+            }
           ]
         }
       })
@@ -78,7 +83,12 @@ describe('createDevToolsV2FileChannel', () => {
     const { endpoint } = stubEndpoint({
       request: () => ({
         outcome: 'ok',
-        result: { entries: [{ name: 'a.txt', kind: 'file', path: 'a.txt', size: 3, lastModified: 7 }, { name: 'b', kind: 'socket', path: 'b' }] }
+        result: {
+          entries: [
+            { name: 'a.txt', kind: 'file', path: 'a.txt', size: 3, lastModified: 7 },
+            { name: 'b', kind: 'socket', path: 'b' }
+          ]
+        }
       })
     });
 

@@ -38,8 +38,7 @@ import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
  * 用元数据对象**同一性**而不是比对 `name`：同名实体可以出现在不同 namespace 下，
  * 按名字判会把用户自己叫 `RxDBChange` 的表也拖进解码路径。
  */
-export const isRxDBChangeMetadata = (metadata: EntityMetadata): boolean =>
-  metadata === getEntityMetadata(RxDBChange);
+export const isRxDBChangeMetadata = (metadata: EntityMetadata): boolean => metadata === getEntityMetadata(RxDBChange);
 
 /**
  * 解码一行 `rxdb_change` 查询结果。

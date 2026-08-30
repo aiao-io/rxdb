@@ -240,10 +240,7 @@ export interface IPGliteClient {
  * @public
  */
 export interface PGliteChangeEventSource {
-  addEventListener<T extends keyof PGliteClientEvents>(
-    type: T,
-    listener: (event: PGliteClientEvents[T]) => void
-  ): void;
+  addEventListener<T extends keyof PGliteClientEvents>(type: T, listener: (event: PGliteClientEvents[T]) => void): void;
   removeEventListener<T extends keyof PGliteClientEvents>(
     type: T,
     listener: (event: PGliteClientEvents[T]) => void

@@ -400,14 +400,14 @@ export {
   createDevToolsPanelEndpoint
 } from './v2/panel-endpoint.js';
 export type {
-  /** panel 数据面客户端。 */
-  DevToolsPanelEndpoint,
-  /** panel 数据面客户端的构造端口。 */
-  DevToolsPanelEndpointPorts,
   /** 一次下载调用的入参。 */
   DevToolsPanelDownloadRequest,
   /** 一次下载的结果；`'delivered-at-source'` 表示字节由源侧自行交付，没有走 wire。 */
   DevToolsPanelDownloadResult,
+  /** panel 数据面客户端。 */
+  DevToolsPanelEndpoint,
+  /** panel 数据面客户端的构造端口。 */
+  DevToolsPanelEndpointPorts,
   /** 一次 provider 调用的结果；永不 reject。 */
   DevToolsPanelRequestResult,
   /** 一次上传调用的入参。 */
@@ -506,6 +506,76 @@ export type {
 } from './provider/types.js';
 
 export {
+  /** 建浏览器 OPFS 的 `files` provider。 */
+  createDevToolsOpfsFilesProvider
+} from './browser/opfs-files-provider.js';
+export type {
+  /** OPFS 目录项。 */
+  DevToolsOpfsEntry,
+  /** OPFS `files` provider。 */
+  DevToolsOpfsFilesProvider,
+  /** OPFS provider 的构造端口。 */
+  DevToolsOpfsFilesProviderPorts
+} from './browser/opfs-files-provider.js';
+export {
+  /** 浏览器 settings provider 的 descriptor。 */
+  DEVTOOLS_BROWSER_SETTINGS_DESCRIPTOR,
+  /** 建浏览器 `settings` provider（`export` 恒回 `export_unsupported`）。 */
+  createDevToolsBrowserSettingsProvider
+} from './browser/settings-provider.js';
+export {
+  /** 页内 connector 的默认写入开关。 */
+  CONNECTOR_MUTATION_POLICY,
+  /** 按本页实际能力装配 provider 接缝。 */
+  createConnectorProviders,
+  /** 探测本页 OPFS 根目录入口。 */
+  resolveBrowserOpfsRoot,
+  /** 用页面自己的下载路径保存文件。 */
+  saveFileThroughPage
+} from './connector-providers.js';
+export type {
+  /** `database` 领域的接入口；三项缺一不可。 */
+  ConnectorDatabasePorts,
+  /** provider 接缝的装配输入。 */
+  ConnectorProviderPorts,
+  /** 页内装配出来的 registry；比裸 registry 多一个订阅回收入口。 */
+  ConnectorProviderRegistry
+} from './connector-providers.js';
+export {
+  /** 建原生文件后端的 `files` provider。 */
+  createDevToolsNativeFilesProvider
+} from './native/native-files-provider.js';
+export type {
+  /** 同时具备出站字节源与入站落盘口的 `files` provider。 */
+  DevToolsFilesProviderWithSource,
+  /** 原生目录项。 */
+  DevToolsNativeEntry,
+  /** 原生 provider 的构造端口。 */
+  DevToolsNativeFilesProviderPorts,
+  /** provider 需要宿主提供的最小文件能力。 */
+  DevToolsNativeFilesystem
+} from './native/native-files-provider.js';
+export {
+  /** 建原生宿主的诊断快照物化来源。 */
+  createDevToolsNativeSnapshotSource
+} from './native/native-snapshot-source.js';
+export type {
+  /** 原生快照来源的构造端口。 */
+  DevToolsNativeSnapshotPorts,
+  /** 快照的一条原始条目。 */
+  DevToolsSnapshotEntry,
+  /** storage 全局独占锁。 */
+  DevToolsSnapshotLock,
+  /** 一次锁内任务的结果。 */
+  DevToolsSnapshotLockResult
+} from './native/native-snapshot-source.js';
+export {
+  /** Electron settings provider 的 descriptor。 */
+  DEVTOOLS_ELECTRON_SETTINGS_DESCRIPTOR,
+  /** 建 Electron `settings` provider（`export` 恒回 `export_unsupported`）。 */
+  createDevToolsElectronSettingsProvider
+} from './native/settings-provider.js';
+export {
   /** 建 snapshot 存储：物化、分页、cursor 过期、epoch 重试。 */
   createDevToolsSnapshotStore,
   /** 单条记录的规范字节数。 */
@@ -525,76 +595,6 @@ export type {
   /** snapshot 存储。 */
   DevToolsSnapshotStore
 } from './provider/snapshot.js';
-export {
-  /** 建浏览器 OPFS 的 `files` provider。 */
-  createDevToolsOpfsFilesProvider
-} from './browser/opfs-files-provider.js';
-export type {
-  /** OPFS 目录项。 */
-  DevToolsOpfsEntry,
-  /** OPFS `files` provider。 */
-  DevToolsOpfsFilesProvider,
-  /** OPFS provider 的构造端口。 */
-  DevToolsOpfsFilesProviderPorts
-} from './browser/opfs-files-provider.js';
-export {
-  /** 建原生文件后端的 `files` provider。 */
-  createDevToolsNativeFilesProvider
-} from './native/native-files-provider.js';
-export type {
-  /** 同时具备出站字节源与入站落盘口的 `files` provider。 */
-  DevToolsFilesProviderWithSource,
-  /** 原生目录项。 */
-  DevToolsNativeEntry,
-  /** 原生 provider 的构造端口。 */
-  DevToolsNativeFilesProviderPorts,
-  /** provider 需要宿主提供的最小文件能力。 */
-  DevToolsNativeFilesystem
-} from './native/native-files-provider.js';
-export {
-  /** 浏览器 settings provider 的 descriptor。 */
-  DEVTOOLS_BROWSER_SETTINGS_DESCRIPTOR,
-  /** 建浏览器 `settings` provider（`export` 恒回 `export_unsupported`）。 */
-  createDevToolsBrowserSettingsProvider
-} from './browser/settings-provider.js';
-export {
-  /** Electron settings provider 的 descriptor。 */
-  DEVTOOLS_ELECTRON_SETTINGS_DESCRIPTOR,
-  /** 建 Electron `settings` provider（`export` 恒回 `export_unsupported`）。 */
-  createDevToolsElectronSettingsProvider
-} from './native/settings-provider.js';
-export {
-  /** 建原生宿主的诊断快照物化来源。 */
-  createDevToolsNativeSnapshotSource
-} from './native/native-snapshot-source.js';
-export type {
-  /** 原生快照来源的构造端口。 */
-  DevToolsNativeSnapshotPorts,
-  /** 快照的一条原始条目。 */
-  DevToolsSnapshotEntry,
-  /** storage 全局独占锁。 */
-  DevToolsSnapshotLock,
-  /** 一次锁内任务的结果。 */
-  DevToolsSnapshotLockResult
-} from './native/native-snapshot-source.js';
-export {
-  /** 页内 connector 的默认写入开关。 */
-  CONNECTOR_MUTATION_POLICY,
-  /** 按本页实际能力装配 provider 接缝。 */
-  createConnectorProviders,
-  /** 探测本页 OPFS 根目录入口。 */
-  resolveBrowserOpfsRoot,
-  /** 用页面自己的下载路径保存文件。 */
-  saveFileThroughPage
-} from './connector-providers.js';
-export type {
-  /** `database` 领域的接入口；三项缺一不可。 */
-  ConnectorDatabasePorts,
-  /** provider 接缝的装配输入。 */
-  ConnectorProviderPorts,
-  /** 页内装配出来的 registry；比裸 registry 多一个订阅回收入口。 */
-  ConnectorProviderRegistry
-} from './connector-providers.js';
 export {
   /** 建 RxDB 的 `database` provider（查询、事件、分支）。 */
   createDevToolsRxdbDatabaseProvider

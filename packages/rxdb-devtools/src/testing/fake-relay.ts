@@ -122,10 +122,7 @@ export class FakeRelay {
    * @param segment - 只能是 `background` 或 `content`；两端是端点，不是中继节点。
    * @param createNode - 拿到下一跳发送函数、返回收帧回调的工厂。
    */
-  attachNode(
-    segment: 'background' | 'content',
-    createNode: (forward: FakeRelayNode) => FakeRelayNode
-  ): void {
+  attachNode(segment: 'background' | 'content', createNode: (forward: FakeRelayNode) => FakeRelayNode): void {
     const index = DEVTOOLS_RELAY_SEGMENTS.indexOf(segment);
     const forward: FakeRelayNode = (frame, direction) => {
       this.#record(segment).sent.push(frame);

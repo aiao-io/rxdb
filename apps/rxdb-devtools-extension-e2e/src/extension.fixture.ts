@@ -1,6 +1,6 @@
+import { workspaceRoot } from '@nx/devkit';
 import { test as base, chromium, type BrowserContext, type Page, type Worker } from '@playwright/test';
 import { join } from 'node:path';
-import { workspaceRoot } from '@nx/devkit';
 
 /** 由 `tools/prepare.mjs` 打好 variance 的扩展副本。 */
 const EXTENSION_PATH = join(workspaceRoot, 'dist/apps/rxdb-devtools-extension-e2e/extension');

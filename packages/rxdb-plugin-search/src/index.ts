@@ -12,7 +12,12 @@
  * @packageDocumentation
  */
 
-export { createSearchBackend, lookupSearchBackendDescriptor, resolveSearchBackend, SEARCH_BACKEND_DESCRIPTORS } from './backend/backend-registry.js';
+export {
+  SEARCH_BACKEND_DESCRIPTORS,
+  createSearchBackend,
+  lookupSearchBackendDescriptor,
+  resolveSearchBackend
+} from './backend/backend-registry.js';
 export type { SearchBackendDescriptor, SearchBackendStatus } from './backend/backend-registry.js';
 export { createFts5Backend } from './backend/fts5-backend.js';
 export { createPgTsvectorBackend } from './backend/pg/pg-backend.js';

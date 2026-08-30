@@ -368,9 +368,7 @@ describe('ELEC-23 桌面 host 依赖必须打进主进程产物', () => {
       target: 'node22',
       external: ['electron', '@electric-sql/pglite']
     });
-    expect(bundleOptions.entryPoints['desktop-host-bridge.bundle']).toMatch(
-      /src-electron\/desktop-host-bridge\.ts$/
-    );
+    expect(bundleOptions.entryPoints['desktop-host-bridge.bundle']).toMatch(/src-electron\/desktop-host-bridge\.ts$/);
     expect(bundleOptions.outdir).toMatch(/dist\/apps\/dev-rxdb-electron\/src-electron$/);
   });
 

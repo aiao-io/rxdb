@@ -11,11 +11,8 @@
  */
 
 import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
+import type { DesktopPgliteRequest, DesktopPgliteResponse } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { Article, Comment, TypeDemo } from '@aiao/rxdb-test/entities';
-import type {
-  DesktopPgliteRequest,
-  DesktopPgliteResponse
-} from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { PGlite } from '@electric-sql/pglite';
 import { existsSync, mkdtempSync, renameSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';

@@ -36,19 +36,19 @@ import {
 } from './constants.js';
 import type { DevToolsErrorCode, DevToolsErrorPayload } from './errors.js';
 import { createDevToolsError } from './errors.js';
-import type { DevToolsTransferOutcome, DevToolsTransferResult, DevToolsTransferTable } from './transfer.js';
-import { createDevToolsTransferTable } from './transfer.js';
 import type {
   DevToolsPanelNegotiation,
   DevToolsPanelNegotiationMessage,
   DevToolsPanelNegotiationState
 } from './negotiation-panel.js';
 import { createPanelNegotiation } from './negotiation-panel.js';
+import type { DevToolsTransferOutcome, DevToolsTransferResult, DevToolsTransferTable } from './transfer.js';
+import { createDevToolsTransferTable } from './transfer.js';
 import type {
   DevToolsEventPayload,
   DevToolsHandshakeCapabilities,
-  DevToolsV2Direction,
   DevToolsTransferStartPayload,
+  DevToolsV2Direction,
   DevToolsV2Message,
   DevToolsV2MessageOptions
 } from './wire.js';
@@ -67,8 +67,7 @@ export type DevToolsPanelRequestResult =
  * 针对这次上传的 `ERROR`。它**不是**「provider 已提交」。理由见模块头第 2 条。
  */
 export type DevToolsPanelUploadResult =
-  | { readonly outcome: 'sent' }
-  | { readonly outcome: 'failed'; readonly error: DevToolsErrorPayload };
+  { readonly outcome: 'sent' } | { readonly outcome: 'failed'; readonly error: DevToolsErrorPayload };
 
 /** 上传的字节来源。 */
 export interface DevToolsPanelUploadSource {
@@ -369,11 +368,7 @@ class PanelEndpoint implements DevToolsPanelEndpoint {
     this.#route(frame);
   }
 
-  request(
-    domain: DevToolsProviderDomain,
-    operation: string,
-    params: unknown
-  ): Promise<DevToolsPanelRequestResult> {
+  request(domain: DevToolsProviderDomain, operation: string, params: unknown): Promise<DevToolsPanelRequestResult> {
     const admission = this.#admitRequest();
     if (admission !== null) return Promise.resolve(failed(admission));
     return this.#issue(this.#mintId('req'), domain, operation, params);
@@ -671,7 +666,11 @@ class PanelEndpoint implements DevToolsPanelEndpoint {
       this.#rejectedFrames += 1;
       pending.cause = result.error;
       this.#send(
-        createDevToolsV2Message('TRANSFER_CANCEL', { transferId: payload.transferId }, this.#envelope('panel-to-connector'))
+        createDevToolsV2Message(
+          'TRANSFER_CANCEL',
+          { transferId: payload.transferId },
+          this.#envelope('panel-to-connector')
+        )
       );
       void this.#discard(pending);
       pending.settle(result.error);

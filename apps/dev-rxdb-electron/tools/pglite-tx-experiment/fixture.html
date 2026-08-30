@@ -42,7 +42,8 @@
       invokes = 0;
       const started = performance.now();
       const begun = await callA({ op: 'begin' });
-      if (!begun.ok) return { ok: false, error: begun.error.message, phase: 'begin', invokes, ms: performance.now() - started };
+      if (!begun.ok)
+        return { ok: false, error: begun.error.message, phase: 'begin', invokes, ms: performance.now() - started };
       const txId = begun.value.txId;
       try {
         const value = await window.__SCENARIOS[name](async (sql, params) => {
