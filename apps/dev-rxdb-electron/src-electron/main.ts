@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, net, protocol } from 'electron';
+import { app, BrowserWindow, ipcMain, net, protocol, session } from 'electron';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 // ELEC-23：加载 esbuild 打出来的那份，不是 tsc 的逐文件产物 —— 后者留着一句
@@ -47,6 +47,31 @@ const requireDesktopHost = (): DesktopHostBridge =>
     pgliteWorkerPath: path.join(__dirname, 'desktop-pglite-worker.bundle.js'),
     onDeliveryError: error => console.error('[dev-rxdb-electron] 数据库变更事件送达失败：', error)
   }));
+
+/**
+ * 开发态 DevTools 扩展的总开关环境变量名；与 `devtools-extension.ts` 的 `DEVTOOLS_ENABLE_ENV`
+ * 逐字一致。main.ts 必须在动态 import 之前先做这道闸，所以这里内联一份（ELEC-15 同款理由）。
+ */
+const DEVTOOLS_ENABLE_ENV = 'DEV_RXDB_DEVTOOLS';
+
+/**
+ * 开发态加载工作区那一个 unpacked DevTools 扩展（US-904 阶段 D AC#45）。
+ *
+ * @remarks
+ * 动态 import 是有意的：`devtools-extension.bundle.js` 被 electron-builder 的
+ * `!src-electron/devtools-*` 从生产包里排除——静态 import 会让生产包在启动时
+ * `Cannot find module`。闸门写在这里而不是依赖 bundle 里的 `isDevToolsEnabled`，
+ * 正是为了让「不加载」这件事在 import 之前就成立。
+ */
+async function loadDevToolsExtensionInDevMode(): Promise<void> {
+  if (process.env[DEVTOOLS_ENABLE_ENV] !== '1') return;
+
+  const { resolveDevToolsDevConfig, loadDevToolsExtension } = await import('./devtools-extension.bundle.js');
+  const config = resolveDevToolsDevConfig(process.env, path.isAbsolute);
+  if (config === undefined) return;
+
+  await loadDevToolsExtension(session.defaultSession.extensions, config);
+}
 
 /** 生产产物根目录：electron-builder 把 `browser/` 放进 Resources。 */
 const rendererRoot = (): string => path.join(process.resourcesPath, 'browser');
@@ -190,13 +215,15 @@ setupIPC();
 // 且没有任何注释说明这 400 是怎么来的。
 void app
   .whenReady()
-  .then(() => {
+  .then(async () => {
     // 隐藏模式下连 Dock 图标一起收掉：macOS 上应用一启动就会切走焦点与菜单栏，
     // 哪怕窗口不可见 —— 对着 e2e 跑一整轮的人来说，这和弹窗一样打断输入。
     // 非 macOS 上 `app.dock` 是 undefined，可选链把它变成空操作。
     if (hideWindow) app.dock?.hide();
     // handler 必须先于 loadURL 注册，否则入口文档本身就 404
     if (!serve) serveRendererOverAppScheme();
+    // 扩展必须在窗口加载之前就绪：content script 只在加载后注入的页面上生效（AC#45）。
+    await loadDevToolsExtensionInDevMode();
     createWindow();
   })
   .catch(reportLoadFailure);

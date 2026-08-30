@@ -106,6 +106,16 @@ export class RxdbFileStorage {
   #lifecycle: 'active' | 'destroying' | 'destroyed' = 'active';
   #activeWrites = 0;
   #temporaryFileSequence = 0;
+  /**
+   * 捕获纪元：每次写操作结束时单调递增。
+   *
+   * @remarks
+   * DevTools 诊断快照用它判断「metadata 与文件两半是否属于同一时点」——在锁内读到
+   * 前后不一致就作废重试（US-904 AC#48）。挂在 {@link beginWrite} 的收尾而不是
+   * `#changes$` 上：`#changes$` 只在 metadata 增删改时 fire，而 `createDirectory` 这类
+   * 纯文件系统变更也要让快照失效。
+   */
+  #changeEpoch = 0;
   readonly #writeIdleWaiters = new Set<() => void>();
   #destroyPromise: Promise<void> | null = null;
   /**
@@ -172,6 +182,16 @@ export class RxdbFileStorage {
   /** 当前由服务持有、尚未回收的对象 URL 数量。 */
   get activeObjectUrlCount(): number {
     return this.objectUrls.size;
+  }
+
+  /**
+   * 当前捕获纪元：每次写操作结束时单调递增。
+   *
+   * @remarks
+   * 只读，供 DevTools 诊断快照做「前后一致」判定；消费方不该依赖它的绝对值，只做等值比较。
+   */
+  get changeEpoch(): number {
+    return this.#changeEpoch;
   }
 
   /**
@@ -594,6 +614,27 @@ export class RxdbFileStorage {
   }
 
   /**
+   * 供诊断快照读取全部 metadata（US-904 AC#48）。
+   *
+   * @remarks
+   * 排序与 {@link RxdbFileStorage.list} 一致（按 `opfsPath`）。快照来源据此物化「meta」侧。
+   */
+  listAllMetas(): Promise<StorageFileMeta[]> {
+    return this.getAllMetas();
+  }
+
+  /**
+   * 在 storage 全局独占锁内执行 `fn`，与全部路径级写操作互斥（US-904 AC#48）。
+   *
+   * @remarks
+   * 供 DevTools 诊断快照物化使用：快照要同时读 metadata 与文件，必须与写操作互斥，
+   * 否则两半属于不同时点，panel 会据此报出「有元数据无文件」这类假缺失。
+   */
+  runExclusive<T>(fn: () => Promise<T>): Promise<T> {
+    return this.withExclusiveLock(fn);
+  }
+
+  /**
    * 永久销毁当前服务实例。
    *
    * 首次调用立即拒绝新任务，等待已开始的写任务结束，再回收资源；重复调用返回同一 Promise。
@@ -623,6 +664,9 @@ export class RxdbFileStorage {
     return () => {
       if (finished) return;
       finished = true;
+      // 无论成功失败都递增：失败也可能留下半状态（文件写了 metadata 没写），
+      // 让快照因此作废重试是保守且正确的——宁可多失效一次，也不交出跨时点的两半。
+      this.#changeEpoch += 1;
       this.#activeWrites -= 1;
       if (this.#activeWrites !== 0) return;
       for (const resolve of this.#writeIdleWaiters) resolve();

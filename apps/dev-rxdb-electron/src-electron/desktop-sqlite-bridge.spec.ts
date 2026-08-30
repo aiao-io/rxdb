@@ -382,6 +382,24 @@ describe('ELEC-23 桌面 host 依赖必须打进主进程产物', () => {
     expect(read('src-electron/main.ts')).toContain("'desktop-pglite-worker.bundle.js'");
   });
 
+  // US-904 阶段 D：devtools 扩展加载闸门同样 import 了 `@aiao/rxdb-devtools`，必须打进出产
+  // （ELEC-23）。生产包要把它连同 tsc 逐文件产物一起排除（AC#45「production 无扩展源码」），
+  // 而 main 只能动态 import——静态 import 会让被排除的文件变成启动即 `Cannot find module`。
+  it('devtools 扩展加载打进产物、生产包排除、main 动态加载', async () => {
+    const { bundleOptions } = await import('../tools/bundle-desktop-host.mjs');
+    expect(bundleOptions.entryPoints['devtools-extension.bundle']).toMatch(/src-electron\/devtools-extension\.ts$/);
+
+    const productionFiles = JSON.parse(read('electron-builder.json')).files as string[];
+    expect(productionFiles).toContain('!src-electron/devtools-*');
+    // 解包产物（e2e 用）保留 devtools，否则 AC#45 的「dev 加载唯一工作区扩展」跑不起来。
+    const dirFiles = JSON.parse(read('electron-builder.dir.json')).files as string[];
+    expect(dirFiles).not.toContain('!src-electron/devtools-*');
+
+    const mainSource = read('src-electron/main.ts');
+    expect(mainSource).toContain("await import('./devtools-extension.bundle.js')");
+    expect(mainSource).not.toMatch(/from '\.\/devtools-extension(\.bundle)?'/);
+  });
+
   // PGlite 是 external（它按 import.meta.url 找 wasm，打成 CJS 就全落空），
   // 而 `files` 的第一条把整个 node_modules 排掉了。少了这条 re-include，
   // 打包产物里根本没有 PGlite —— 构建全绿，只有真实产物启动时才报找不到模块。

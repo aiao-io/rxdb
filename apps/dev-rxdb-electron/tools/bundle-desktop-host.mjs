@@ -56,7 +56,10 @@ export const bundleOptions = {
   // （tsc 照样会往 `desktop-host-bridge.js` 写它那份未打包产物，同名就是两个进程抢一个文件）。
   entryPoints: {
     'desktop-host-bridge.bundle': resolve(appRoot, 'src-electron/desktop-host-bridge.ts'),
-    'desktop-pglite-worker.bundle': resolve(appRoot, 'src-electron/desktop-pglite-worker.ts')
+    'desktop-pglite-worker.bundle': resolve(appRoot, 'src-electron/desktop-pglite-worker.ts'),
+    // US-904 阶段 D：`devtools-extension.ts` import 了 `@aiao/rxdb-devtools`，同样必须打进
+    // 产物（ELEC-23），否则生产包里 `require("@aiao/rxdb-devtools")` 落空。
+    'devtools-extension.bundle': resolve(appRoot, 'src-electron/devtools-extension.ts')
   },
   outdir: resolve(workspaceRoot, 'dist/apps/dev-rxdb-electron/src-electron'),
   bundle: true,

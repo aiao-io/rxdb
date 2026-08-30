@@ -44,6 +44,12 @@
       "import": "./dist/devtools-desktop-filesystem.js",
       "default": "./dist/devtools-desktop-filesystem.js"
     },
+    "./devtools-desktop-snapshot": {
+      "@aiao/source": "./src/devtools-desktop-snapshot.ts",
+      "types": "./dist/devtools-desktop-snapshot.d.ts",
+      "import": "./dist/devtools-desktop-snapshot.js",
+      "default": "./dist/devtools-desktop-snapshot.js"
+    },
     "./testing": {
       "@aiao/source": "./src/testing.ts",
       "types": "./dist/testing.d.ts",

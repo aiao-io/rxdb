@@ -58,6 +58,7 @@
       "@aiao/rxdb-plugin-storage": ["./packages/rxdb-plugin-storage/src/index.ts"],
       "@aiao/rxdb-plugin-storage/desktop": ["./packages/rxdb-plugin-storage/src/desktop.ts"],
       "@aiao/rxdb-plugin-storage/devtools-desktop": ["./packages/rxdb-plugin-storage/src/devtools-desktop-filesystem.ts"],
+      "@aiao/rxdb-plugin-storage/devtools-desktop-snapshot": ["./packages/rxdb-plugin-storage/src/devtools-desktop-snapshot.ts"],
       "@aiao/rxdb-plugin-storage/testing": ["./packages/rxdb-plugin-storage/src/testing.ts"],
       "@aiao/rxdb-plugin-workspace": ["./packages/rxdb-plugin-workspace/src/index.ts"],
       "@aiao/rxdb-react": ["./packages/rxdb-react/src/index.ts"],

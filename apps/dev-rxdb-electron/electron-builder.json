@@ -20,6 +20,7 @@
     "package.json",
     "src-electron/**/*.js",
     "src-electron/**/*.js.map",
+    "!src-electron/devtools-*",
     "node_modules/@electric-sql/pglite/**/*"
   ],
   "linux": {

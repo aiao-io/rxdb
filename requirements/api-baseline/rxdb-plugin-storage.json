@@ -206,6 +206,20 @@
         "kind": "type"
       }
     ],
+    "./devtools-desktop-snapshot": [
+      {
+        "name": "createDevToolsStorageSnapshotPorts",
+        "kind": "value"
+      },
+      {
+        "name": "DevToolsStorageSnapshotHost",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsStorageSnapshotPorts",
+        "kind": "type"
+      }
+    ],
     "./testing": [
       {
         "name": "isTemporaryStorageName",

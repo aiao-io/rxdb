@@ -58,6 +58,20 @@ describe('RxdbFileStorage', () => {
     });
   });
 
+  it('changeEpoch 随写操作递增，读操作不递增', async () => {
+    const { service } = createService();
+    expect(service.changeEpoch).toBe(0);
+
+    await service.upload(new File(['hello'], 'a.txt', { type: 'text/plain' }));
+    expect(service.changeEpoch).toBe(1);
+
+    await service.list();
+    expect(service.changeEpoch).toBe(1);
+
+    await service.createDirectory('docs');
+    expect(service.changeEpoch).toBe(2);
+  });
+
   it('should upload, read and delete files with metadata', async () => {
     const { service } = createService({}, new ObjectUrlRegistry((blob: Blob) => `blob:${blob.size}`, vi.fn()));
 
