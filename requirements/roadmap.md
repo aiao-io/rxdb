@@ -22,35 +22,25 @@
 依据是硬前置与已冻结的决策，不是估时。同一批内的行**彼此无依赖**，可各开各的 PR；批次之间才是顺序。
 每条的关闭判据以对应 story 的 AC 为准，本表只写「什么算这条做完了」。
 
-### 批次 1：零前置，三条线可同时开工 —— 已全部交付 ✅
+### 批次 1：零前置，三条线 —— 已全部交付 ✅（2026-08-29 / 08-30）
 
-> 本批不再占据排期（2026-08-29 / 08-30 交付），证据留档在各自 story：
->
-> - **线 C｜US-505 收尾**（2026-08-29）：6 条未关闭 AC 的 spec 全部补齐并在 macOS 全绿（打包应用真实重启 +
->   整目录拷贝启动、52 MiB 流式读内存曲线、真实 ramdisk 磁盘满）。**本线代码部分到此为止**——
->   AC#6/#7 由零散收尾项第 2 条的三平台矩阵关闭，不是代码工作。
-> - **线 E｜US-904 零前置半**（2026-08-29 / 08-30）：阶段 A 判 `decision: supported`；C1 面板抽取
->   （`modules/rxdb-devtools-panel/`）；C2 四段 relay v2 切换（面板 v2 数据面、浏览器 provider、导出停用、
->   `rxdb-devtools-extension-e2e` 真实四段中继，e2e 当场抓到「v2 帧被私有端口吞掉、真实 Chrome 稳定退回 v1」
->   并已修）。AC#38/#39 需跨版本实证、#42 随 AC#34 的人工浏览器回归，转入批次 2 的 US-904 行。
-> - **线 G｜US-208 两案对照实验**（2026-08-30）：两案在真实 Electron 44 主进程 + 真实 `ipcRenderer.invoke` 上
->   过同一套事务与事件测试（`apps/dev-rxdb-electron/tools/pglite-tx-experiment/`），语义四项完全打平，
->   选型冻结为「IPC 事务 ID 协议」（约束 3 已履行）；顺带量到 PGlite WASM 同步跑在主进程 JS 线程
->   （2 秒查询停摆 2007ms，影响 AC#7），已随实现落地。
+> 线 C（US-505 收尾 spec）、线 E（US-904 阶段 A 判 `supported` + C1/C2）、线 G（US-208 两案对照实验，冻结为
+> 「IPC 事务 ID 协议」）均已交付，证据在各自 story，本批不再排期。线 C 的 AC#6/#7 转零散收尾项第 2 条；
+> 线 E 的 AC#38/#39/#42 转批次 2 的 US-904 行。
 
 ### 批次 2：批次 1 解锁后（两条线均已开工）
 
 | 顺序                                                                     | 解锁自     | 说明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ------------------------------------------------------------------------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| US-904 阶段 D                                                            | 线 E       | C2 已于 2026-08-30 交付，阶段 D 同日开工：AC#46（页内 database provider 与 v2 事件推送）、D2（connector→panel 出站传输）、D3（Electron native files provider）、D4（native snapshot source 与 settings provider）、dev-only 扩展加载（`devtools-extension.ts`）与主进程接线、`devtools-extension-loading` e2e 立项；AC#45～#53 尚待真实 E2E 关闭。仍须带阶段 A 实证出的两条约束：Electron 43 缺 `chrome.permissions` 命名空间（显式能力探测，禁静默 fallback）；扩展面板只在 dock 模式 DevTools 中注册。C 阶段残留 AC#34/#38/#39/#42 仍待人工浏览器回归 / 跨版本实证 |
-| [US-905](stories/future/US-905-tauri-native-devtools.md) 阶段 1 → 阶段 2 | 线 E、线 C | 阶段 1 门禁（US-904 阶段 C）已解除，已于 2026-08-30 开工：`devtools.html` 调试窗口、`tauri-transport.service` / `tauri-host-access.service`、Rust 侧 `lib.rs` 接线与 `vite.config.devtools.mts`。阶段 2 的 US-210 前置**已 Done**；US-505 代码部分已随线 C 收尾，故事要等零散收尾项第 2 条的三平台矩阵跑绿才置 `Done`。两阶段必须是独立的 PR 序列                                                                                                                                                                                                                    |
+| US-904 阶段 D                                                            | 线 E       | C2 已于 2026-08-30 交付，阶段 D 同日开工。**已落地**：AC#46（database provider 与 v2 事件推送）、D2（connector→panel 出站传输）、D3（native files provider）、D4（snapshot source 与 settings provider）、dev-only 扩展加载（`devtools-extension.ts` + e2e）。**待补**：AC#48 snapshot 完全未接 wire、AC#50 preload 校验层缺失、AC#53 无 Electron conformance driver、AC#52 真实全链路 E2E 只有骨架 probe——AC#45～#53 全 ⬜。仍须带阶段 A 两条约束：Electron 43 缺 `chrome.permissions` 命名空间（显式能力探测，禁静默 fallback）；扩展面板只在 dock 模式 DevTools 中注册。C 阶段残留 AC#34/#38/#39/#42 待人工浏览器回归 / 跨版本实证 |
+| [US-905](stories/future/US-905-tauri-native-devtools.md) 阶段 1 → 阶段 2 | 线 E、线 C | 阶段 1 门禁（US-904 阶段 C）已解除，已于 2026-08-30 开工（窗口 + `tauri-transport.service` / `tauri-host-access.service` + Rust `lib.rs` 接线），但 AC#1～#8 几乎全缺，且有两个硬阻塞：`rxdb-devtools` 窗口无 capability（`invoke`/`listen` 被 Tauri ACL 拒绝、握手起不来）、`devtools_message` command 未 `#[cfg(dev)]`（release 仍注册专用 command）。frontmatter 仍 Backlog，待改 In Progress。阶段 2 的 US-210 前置**已 Done**；US-505 代码部分已随线 C 收尾，故事要等零散收尾项第 2 条的三平台矩阵跑绿才置 `Done`。两阶段必须是独立的 PR 序列                                                                                                                                                                                     |
 
 ### 批次 3：能力与验证补齐（无硬前置，按价值排在后面）
 
 | 故事                                                                                                          | 为什么不排进批次 1 / 当前状态                                                                                                                                                                                                                                                                                                                                                                               |
 | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [US-208](stories/adapter/US-208-electron-pglite-data-directory.md) **实现本体** ✅（2026-08-30，`In Review`） | 已按线 G 冻结的「IPC 事务 ID 协议」实现：**AC#1～#9、#11 关闭**（`pglite-data-directory.spec.ts` 真实临时目录重启逐值保真、`pglite-transaction-contract.spec.ts` 共享事务套件 11 条零跳过、`pglite-open-failure.spec.ts` open 失败可判别、`electron-pglite-host.spec.ts` 握手 / 会话清场 / 权限）。**AC#10（三平台打包 smoke）仍 ⬜**：接线已写完但本机无法验证，需一次真实三 OS `release-desktop.yml` 矩阵 |
-| [US-703](stories/future/US-703-pglite-full-text-search.md) ✅（2026-08-29，`In Progress`）                    | 纯能力对称性补齐。**已提前交付**：AC#1～#7、#9 关闭，无 SQLite 专属 fallback（约束 6 已履行）；AC#8 留「按 adapter 参数化的共享行为套件」一项保留，故事因此维持 In Progress                                                                                                                                                                                                                                 |
+| [US-703](stories/future/US-703-pglite-full-text-search.md) ✅（2026-08-29，`In Progress`）                    | 纯能力对称性补齐。**已提前交付**：AC#1～#7、#9 关闭，无 SQLite 专属 fallback（约束 6 已履行）；AC#8 只剩「wa-sqlite / sqlite-wasm / sqlite / sqliteai 四个 adapter 分别装载跑同一套搜索行为套件 + 三框架 parity 回归」一项，故事因此维持 In Progress                                                                                                                                                                          |
 | [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 阶段 A → B → C                                | 阶段 A 只抽 host + 写可行性矩阵，**不扩大公开支持声明**；B/C 只吃矩阵里 `decision: supported` 的平台（约束 7）。未关闭的阶段不得改支持声明                                                                                                                                                                                                                                                                  |
 | [US-216](stories/adapter/US-216-server-side-rxdb.md)                                                          | 零前置（US-212 / US-213 / US-214 / US-215 / US-023 全 Done），只动 `apps/` 两个 demo + 新建共享模块，不改 `packages/` 生产代码。留在 Backlog，按价值排期                                                                                                                                                                                                                                                    |
 
@@ -68,10 +58,7 @@
 
 ### 零散收尾项（不成故事，随手可带）
 
-1. ~~**`migration-release-gate` 挂进 PR CI**~~ ✅ **已完成**（2026-08-29，[release-plan.md 执行顺序第 0 步](release-plan.md)）：
-   门禁已挂进 `ci-template.yml` 的 `setup` job（不带 `--release-tag`），配套 `fetch-tags: true` 与按
-   `GITHUB_REF_TYPE` 解析发布 tag。`bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol`
-   三条只对 `kind=migration` 生效，下一个迁移周期（US-305）才吃得到。
+1. ~~**`migration-release-gate` 挂进 PR CI**~~ ✅ **已完成**（2026-08-29，[release-plan.md 执行顺序第 0 步](release-plan.md)）：门禁已挂进 `ci-template.yml` 的 `setup` job（不带 `--release-tag`，配套 `fetch-tags: true` 与按 `GITHUB_REF_TYPE` 解析 tag）。`bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` 三条只对 `kind=migration` 生效，下一个迁移周期（US-305）才吃得到。
 2. **回填 `EXPECTED_BY_PLATFORM` 三平台真值并跑绿一次三 OS 矩阵**（线 C 的 AC#6 / #7 用）：
    **specs 已就位**（2026-08-29），`tauri-smoke` 的三 OS 矩阵会跑到
    `desktop-webview-capability.spec.ts`。这两条 AC 的判据是三家真实 webview，**本机跑不出来**。
