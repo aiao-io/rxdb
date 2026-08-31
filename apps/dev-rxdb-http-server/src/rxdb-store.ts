@@ -11,13 +11,13 @@
  * `SyncType.None + local: pglite`：后端是全租户共享的权威库，不触发任何远端路径。
  */
 
+import type { Repository, RuleGroup } from '@aiao/rxdb';
+import { RxDB, SyncType } from '@aiao/rxdb';
+import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
+import { ServerRecipe } from '@modules/recipes-domain';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { firstValueFrom } from 'rxjs';
-import { RxDB, SyncType } from '@aiao/rxdb';
-import type { Repository, RuleGroup } from '@aiao/rxdb';
-import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
-import { ServerRecipe } from '@modules/recipes-domain';
 
 import type { RecipeRow } from './seed.ts';
 

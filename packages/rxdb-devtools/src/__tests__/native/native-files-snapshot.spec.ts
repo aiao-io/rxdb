@@ -8,10 +8,7 @@ import type {
 } from '../../provider/types.js';
 import type { DevToolsFakeClock } from '../../testing/fake-clock.js';
 import { createFakeClock } from '../../testing/fake-clock.js';
-import {
-  DEVTOOLS_MAX_SNAPSHOT_RECORDS,
-  DEVTOOLS_SNAPSHOT_CURSOR_IDLE_MS
-} from '../../v2/constants.js';
+import { DEVTOOLS_MAX_SNAPSHOT_RECORDS, DEVTOOLS_SNAPSHOT_CURSOR_IDLE_MS } from '../../v2/constants.js';
 import { createFakeNativeFilesystem } from './fake-native-filesystem.js';
 
 /**
@@ -53,7 +50,9 @@ interface SnapshotPage {
 }
 
 /** 取出快照页；断言 `invoke('list', …)` 的 `ok` 分支确实是页而不是别的形状。 */
-function pageOf(result: Awaited<ReturnType<ReturnType<typeof createDevToolsNativeFilesProvider>['invoke']>>): SnapshotPage {
+function pageOf(
+  result: Awaited<ReturnType<ReturnType<typeof createDevToolsNativeFilesProvider>['invoke']>>
+): SnapshotPage {
   if (result.outcome !== 'ok') throw new Error(`expected an ok snapshot page, got ${result.outcome}`);
   return result.result as SnapshotPage;
 }

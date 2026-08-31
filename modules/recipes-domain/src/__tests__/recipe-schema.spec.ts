@@ -1,8 +1,8 @@
 import { getEntityMetadata, PropertyType } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 
-import { RECIPE_SCHEMA } from '../recipe-schema.js';
 import { Recipe, ServerRecipe } from '../recipe-entity.js';
+import { RECIPE_SCHEMA } from '../recipe-schema.js';
 
 /**
  * 元数据一致性测试（A1 / A9）。

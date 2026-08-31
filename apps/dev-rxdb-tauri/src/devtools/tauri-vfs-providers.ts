@@ -1,8 +1,5 @@
 import type { DevToolsProviderDescriptor, DevToolsUnavailableReason } from '@aiao/rxdb-devtools';
-import {
-  DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES,
-  DEVTOOLS_PROVIDER_OPERATIONS
-} from '@aiao/rxdb-devtools';
+import { DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES, DEVTOOLS_PROVIDER_OPERATIONS } from '@aiao/rxdb-devtools';
 import type { WaSqliteBackend } from '../app/wa-sqlite-backend';
 
 /**

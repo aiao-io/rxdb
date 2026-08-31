@@ -14,8 +14,8 @@
  */
 
 import { RxDB } from '@aiao/rxdb';
-import { quote_sql_identifier } from '@aiao/rxdb-adapter-sqlite-core';
 import type { RxDBAdapterSqliteBase } from '@aiao/rxdb-adapter-sqlite-core';
+import { quote_sql_identifier } from '@aiao/rxdb-adapter-sqlite-core';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { Subscription } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -233,9 +233,7 @@ const createHarness = async (adapterFactory: AdapterFactory): Promise<SearchBeha
  * @param adapterFactory - 各 adapter 在 `@aiao/rxdb-adapter-sqlite-core/testing` 契约下提供的实现
  * @returns 以 adapter 名标识的 harness 工厂
  */
-export const createSearchBehaviorHarnessFactory = (
-  adapterFactory: AdapterFactory
-): SearchBehaviorHarnessFactory => ({
+export const createSearchBehaviorHarnessFactory = (adapterFactory: AdapterFactory): SearchBehaviorHarnessFactory => ({
   name: adapterFactory.name,
   createHarness: () => createHarness(adapterFactory)
 });

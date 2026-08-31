@@ -10,13 +10,7 @@
  * `node:sqlite` 的直接路径。
  */
 
-import {
-  resolveControlEnabled,
-  resolveDataDir,
-  resolveExposeEtag,
-  resolvePort,
-  SEED_ROW_COUNT
-} from './config.ts';
+import { resolveControlEnabled, resolveDataDir, resolveExposeEtag, resolvePort, SEED_ROW_COUNT } from './config.ts';
 import { createRxdbRecipeStore, deleteRxdbDataDir, seedRxdbStore } from './rxdb-store.ts';
 import { seedRows } from './seed.ts';
 import { createDemoServer } from './server.ts';

@@ -73,19 +73,20 @@ const wantsPgliteBackend = (runtime: unknown): boolean => {
  * 不会改变 `selectLocalBackend` 的查重与优先级语义。
  */
 export const localBackends = (runtime: unknown): readonly LocalBackendCandidate<Promise<RxDB>>[] => {
-  const desktop: LocalBackendCandidate<Promise<RxDB>> = wantsPgliteBackend(runtime) ?
-    {
-      adapter: ELECTRON_PGLITE_ADAPTER_NAME,
-      dbName: DESKTOP_PGLITE_DB_NAME,
-      isAvailable: () => isDesktopHostRuntime(runtime),
-      create: async () => (await import('./setup_rxdb_desktop_pglite')).default()
-    }
-  : {
-      adapter: ELECTRON_ADAPTER_NAME,
-      dbName: DESKTOP_DEMO_DB_NAME,
-      isAvailable: () => isDesktopHostRuntime(runtime),
-      create: async () => (await import('./setup_rxdb_desktop')).default()
-    };
+  const desktop: LocalBackendCandidate<Promise<RxDB>> =
+    wantsPgliteBackend(runtime) ?
+      {
+        adapter: ELECTRON_PGLITE_ADAPTER_NAME,
+        dbName: DESKTOP_PGLITE_DB_NAME,
+        isAvailable: () => isDesktopHostRuntime(runtime),
+        create: async () => (await import('./setup_rxdb_desktop_pglite')).default()
+      }
+    : {
+        adapter: ELECTRON_ADAPTER_NAME,
+        dbName: DESKTOP_DEMO_DB_NAME,
+        isAvailable: () => isDesktopHostRuntime(runtime),
+        create: async () => (await import('./setup_rxdb_desktop')).default()
+      };
 
   return [
     desktop,

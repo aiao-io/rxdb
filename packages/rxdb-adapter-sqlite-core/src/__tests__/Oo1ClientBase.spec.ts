@@ -50,11 +50,7 @@ class FakeOo1Db implements Oo1Database {
     return 0;
   }
 
-  createFunction(
-    name: string,
-    func: (...args: unknown[]) => unknown,
-    options?: { arity?: number }
-  ): this {
+  createFunction(name: string, func: (...args: unknown[]) => unknown, options?: { arity?: number }): this {
     this.functions.set(name, func);
     this.functionArities.set(name, options?.arity);
     return this;

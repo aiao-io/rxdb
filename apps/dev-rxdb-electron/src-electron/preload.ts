@@ -99,7 +99,11 @@ const desktopHostBridge: DesktopHostBridge = {
     // 塞进来的任意文本，回显等于把它原样读回给渲染进程。
     const kind = requestKindOf(payload);
     if (kind === undefined || !DESKTOP_HOST_REQUEST_KINDS.has(kind)) {
-      return Promise.resolve({ kind: 'error', code: 'protocol_violation', message: 'unknown desktop host request kind' });
+      return Promise.resolve({
+        kind: 'error',
+        code: 'protocol_violation',
+        message: 'unknown desktop host request kind'
+      });
     }
     return ipcRenderer.invoke(DESKTOP_HOST_REQUEST_CHANNEL, payload);
   },

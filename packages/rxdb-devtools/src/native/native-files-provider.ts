@@ -25,11 +25,7 @@
 
 import type { DevToolsProviderDescriptor } from '../provider/descriptor.js';
 import { isValidPathSegment, joinLogicalPath, parseLogicalPath, splitLogicalPath } from '../provider/logical-path.js';
-import type {
-  DevToolsSnapshotPorts,
-  DevToolsSnapshotResult,
-  DevToolsSnapshotStore
-} from '../provider/snapshot.js';
+import type { DevToolsSnapshotPorts, DevToolsSnapshotResult, DevToolsSnapshotStore } from '../provider/snapshot.js';
 import { createDevToolsSnapshotStore } from '../provider/snapshot.js';
 import type {
   DevToolsChunkSink,
@@ -186,7 +182,9 @@ function toSnapshotResult(result: DevToolsSnapshotResult): DevToolsProviderResul
  * @param ports - 宿主文件能力、真实传输上限与（可选的）诊断快照端口。
  * @returns 可直接装进 `DevToolsProviderRegistry` 的 provider。
  */
-export function createDevToolsNativeFilesProvider(ports: DevToolsNativeFilesProviderPorts): DevToolsNativeFilesProvider {
+export function createDevToolsNativeFilesProvider(
+  ports: DevToolsNativeFilesProviderPorts
+): DevToolsNativeFilesProvider {
   const uploads = new Map<string, readonly string[]>();
   const downloads = new Map<string, PendingDownload>();
   // 快照仓库是 session 级资源：provider 按 session 装配（见 connector 的 `#startNegotiation`），

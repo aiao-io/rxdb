@@ -22,18 +22,12 @@
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { createServer as createHttpServer } from 'node:http';
 
-import { createChangeBroadcaster } from './change-broadcaster.ts';
 import type { ChangeBroadcaster } from './change-broadcaster.ts';
+import { createChangeBroadcaster } from './change-broadcaster.ts';
 import { openChangeFeed, readClientId } from './change-feed.ts';
 import type { ChangeSubscribers } from './change-subscribers.ts';
 import { createChangeSubscribers } from './change-subscribers.ts';
-import {
-  BACKEND_VERSION,
-  BASE_PATH,
-  CHANGES_RESOURCE,
-  RECIPES_RESOURCE,
-  SEED_ROW_COUNT
-} from './config.ts';
+import { BACKEND_VERSION, BASE_PATH, CHANGES_RESOURCE, RECIPES_RESOURCE, SEED_ROW_COUNT } from './config.ts';
 import type { ControlActions, DemoState } from './control.ts';
 import { createDemoState, handleControlRequest, recordRequest } from './control.ts';
 import { applyCorsHeaders, handlePreflight } from './cors.ts';
@@ -46,6 +40,7 @@ import {
   listMetadataByToken,
   updateRecipe
 } from './recipes-repository.ts';
+import type { RxdbRecipeStore } from './rxdb-store.ts';
 import {
   clearRxdbStore,
   createRxdbRecipeStore,
@@ -53,7 +48,6 @@ import {
   isEmptyRxdbStore,
   seedRxdbStore
 } from './rxdb-store.ts';
-import type { RxdbRecipeStore } from './rxdb-store.ts';
 import { seedRows } from './seed.ts';
 
 /** 建服务器需要的一切。全部显式传入——没有隐式读 `process.env` 的角落，e2e 才好摆布。 */
@@ -337,7 +331,16 @@ const dispatch = async (
   }
   if (handlePreflight(request, response, state.exposeEtag)) return;
 
-  await runProtocol(request, response, getStore, state, segments, url.searchParams.get('pageMode'), subscribers, broadcaster);
+  await runProtocol(
+    request,
+    response,
+    getStore,
+    state,
+    segments,
+    url.searchParams.get('pageMode'),
+    subscribers,
+    broadcaster
+  );
 };
 
 /**

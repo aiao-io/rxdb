@@ -43,9 +43,7 @@ describe('search backend registry (US-703 AC#8)', () => {
     }
     // 决策 2：小程序宿主本机无法实测 FTS5，登记为 unverified 而不是静默放行。
     // wa-sqlite 的 npm 预编译 wasm 未编入 FTS5 模块，同样登记为 unverified。
-    expect(unverified.map(d => d.adapter)).toEqual(
-      expect.arrayContaining(['wa-sqlite-miniprogram', 'wa-sqlite'])
-    );
+    expect(unverified.map(d => d.adapter)).toEqual(expect.arrayContaining(['wa-sqlite-miniprogram', 'wa-sqlite']));
   });
 
   it('resolveSearchBackend 对 unverified 适配器抛出带原因的错误（不是「名字不在 Set 里」）', () => {

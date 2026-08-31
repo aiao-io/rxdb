@@ -15,6 +15,7 @@ import {
   viewChildren
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { buildRecipePageQuery } from '@modules/recipes-domain';
 import {
   changeFeedStats,
   clearChangeFeedStats,
@@ -39,7 +40,6 @@ import { clearEtagDiagnostics, etagDiagnostics, onEtagDiagnostic, type EtagDiagn
 import { buildFilterRules, emptyFilterState, type RecipeFilterState, type RecipeRuleGroup } from './filter-rules';
 import { clampPage, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, pageCount } from './paging';
 import { Recipe } from './recipe';
-import { buildRecipePageQuery } from '@modules/recipes-domain';
 import { clearTraffic, lastTransportStatus, onTraffic, trafficEntries, type TrafficEntry } from './traffic-recorder';
 
 /** 新建表单的初值。 */

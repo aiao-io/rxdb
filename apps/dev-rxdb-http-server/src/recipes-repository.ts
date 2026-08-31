@@ -11,10 +11,10 @@
  * 只在传给 `repo.find` 的边界把它收窄成 {@link RuleGroup}<ServerRecipe>。
  */
 
-import { firstValueFrom } from 'rxjs';
-import { RxDBError } from '@aiao/rxdb';
 import type { Repository, RuleGroup } from '@aiao/rxdb';
+import { RxDBError } from '@aiao/rxdb';
 import { RxdbAdapterPGliteError } from '@aiao/rxdb-adapter-pglite';
+import type { RecipeMetadataRow, RecipeWireRow } from '@modules/recipes-domain';
 import {
   RECIPE_ORDER_BY,
   ServerRecipe,
@@ -22,7 +22,7 @@ import {
   toRecipeMetadataRow,
   toRecipeWireRow
 } from '@modules/recipes-domain';
-import type { RecipeMetadataRow, RecipeWireRow } from '@modules/recipes-domain';
+import { firstValueFrom } from 'rxjs';
 
 import { HttpError } from './http-utils.ts';
 import type { RowCursor } from './page-token.ts';
@@ -162,7 +162,10 @@ export const listMetadataByToken = async (
     // 空集合：没有水位线可言，回一页空数组且不带 token（末页）。
     if (watermark === undefined) return { rows: [] };
 
-    const bounds = cursor === undefined ? [keysetUpperBound(watermark)] : [keysetLowerBound(cursor.after), keysetUpperBound(watermark)];
+    const bounds =
+      cursor === undefined ?
+        [keysetUpperBound(watermark)]
+      : [keysetLowerBound(cursor.after), keysetUpperBound(watermark)];
     const combined = combineWhere(filter, bounds);
 
     const rows = await firstValueFrom(
@@ -292,12 +295,14 @@ const readIdList = (value: unknown): string[] => {
 };
 
 const readString = (value: unknown, field: string): string => {
-  if (typeof value !== 'string' || value === '') throw new HttpError(400, `Field '${field}' must be a non-empty string`);
+  if (typeof value !== 'string' || value === '')
+    throw new HttpError(400, `Field '${field}' must be a non-empty string`);
   return value;
 };
 
 const readNumber = (value: unknown, field: string): number => {
-  if (typeof value !== 'number' || !Number.isFinite(value)) throw new HttpError(400, `Field '${field}' must be a finite number`);
+  if (typeof value !== 'number' || !Number.isFinite(value))
+    throw new HttpError(400, `Field '${field}' must be a finite number`);
   return value;
 };
 

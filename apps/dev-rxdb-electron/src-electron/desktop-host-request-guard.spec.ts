@@ -8,20 +8,20 @@
  * 之前就收口，且 preload 的内联副本不因 ELEC-15 的「必须内联」而与 guard 漂移。
  */
 
+import { isDesktopHostFileRequestKind } from '@aiao/rxdb-adapter-electron/host';
+import { isDesktopPgliteRequestKind } from '@aiao/rxdb-adapter-electron/pglite-host';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { isDesktopHostFileRequestKind } from '@aiao/rxdb-adapter-electron/host';
-import { isDesktopPgliteRequestKind } from '@aiao/rxdb-adapter-electron/pglite-host';
 import { createStorageRootResolver } from './desktop-file-bridge';
 import { createDesktopHostBridge, type DesktopHostBridge } from './desktop-host-bridge';
-import { createDatabasePathResolver } from './desktop-sqlite-bridge';
 import {
   DESKTOP_HOST_REQUEST_KINDS,
   isKnownDesktopHostRequestKind,
   readDesktopHostRequestKind
 } from './desktop-host-request-guard';
+import { createDatabasePathResolver } from './desktop-sqlite-bridge';
 
 /** 文件族与 PGlite 族的 kind 数量；SQLite 族是 5。三者之和钉住闭集大小。 */
 const FILE_KIND_COUNT = 15;
@@ -113,7 +113,10 @@ describe('createDesktopHostBridge 的 kind 闸', () => {
   it('合法 kind 仍按族正常分派，闸不影响既有路径', async () => {
     const target = { id: 3, isDestroyed: (): boolean => false, send: (): void => undefined };
     expect(await bridge.handle(target, { kind: 'file.open' })).toMatchObject({ kind: 'file.open' });
-    expect(await bridge.handle(target, { kind: 'pg.handshake' })).toMatchObject({ kind: 'error', code: 'host_unavailable' });
+    expect(await bridge.handle(target, { kind: 'pg.handshake' })).toMatchObject({
+      kind: 'error',
+      code: 'host_unavailable'
+    });
   });
 });
 

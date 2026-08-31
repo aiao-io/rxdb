@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
+import type { DevToolsProviderResult } from '../../provider/types.js';
 import type { DevToolsFakeClock } from '../../testing/fake-clock.js';
 import { createFakeClock } from '../../testing/fake-clock.js';
 import type { DevToolsFakeProviderSet } from '../../testing/fake-providers.js';
 import { createFakeProviders } from '../../testing/fake-providers.js';
-import type { DevToolsProviderResult } from '../../provider/types.js';
 import type { AnyDevToolsMessage, DevToolsCapability } from '../../types.js';
 import { RXDB_DEVTOOLS_MESSAGE, createMessage } from '../../types.js';
 import type { DevToolsMutationPolicy } from '../../v2/authorization.js';

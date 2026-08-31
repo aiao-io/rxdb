@@ -65,7 +65,8 @@ const createHarness = async (
       nextBootstrap(
         (async tx => {
           const nextQuery = tx.query.bind(tx);
-          tx.query = (sql, params) => wrap(sql, params as RawQueryParams, nextQuery as RxDBAdapterSqliteBase['rawQuery']);
+          tx.query = (sql, params) =>
+            wrap(sql, params as RawQueryParams, nextQuery as RxDBAdapterSqliteBase['rawQuery']);
           return fun(tx);
         }) as typeof fun,
         transactionLog
@@ -109,11 +110,7 @@ const queryFtsRowCount = async (adapter: RxDBAdapterSqliteBase, ftsTable: string
   return Number(result.rows[0]?.[countColumn] ?? 0);
 };
 
-const queryMatchCount = async (
-  adapter: RxDBAdapterSqliteBase,
-  ftsTable: string,
-  query: string
-): Promise<number> => {
+const queryMatchCount = async (adapter: RxDBAdapterSqliteBase, ftsTable: string, query: string): Promise<number> => {
   const table = quoteIdentifier(ftsTable);
   const result = await adapter.rawQuery(`SELECT count(*) AS count FROM ${table} WHERE ${table} MATCH ?`, [query]);
   const countColumn = result.columns.indexOf('count');
@@ -134,9 +131,7 @@ const createArticle = async (rxdb: RxDB): Promise<void> => {
 };
 
 /** 从 adapter factory 派生 FTS5 安装 harness 工厂。 */
-export const createFts5InstallerHarnessFactory = (
-  adapterFactory: AdapterFactory
-): Fts5InstallerHarnessFactory => ({
+export const createFts5InstallerHarnessFactory = (adapterFactory: AdapterFactory): Fts5InstallerHarnessFactory => ({
   name: adapterFactory.name,
   createHarness: options => createHarness(adapterFactory, options)
 });

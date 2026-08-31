@@ -14,9 +14,8 @@
 
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 
-const factoryModules = import.meta.glob<{ sqliteaiFactory: AdapterFactory }>(
-  './__tests__/sqliteai-factory.ts',
-  { eager: true }
-);
+const factoryModules = import.meta.glob<{ sqliteaiFactory: AdapterFactory }>('./__tests__/sqliteai-factory.ts', {
+  eager: true
+});
 
 export const sqliteaiFactory: AdapterFactory = factoryModules['./__tests__/sqliteai-factory.ts'].sqliteaiFactory;

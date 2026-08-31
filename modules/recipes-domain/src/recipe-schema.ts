@@ -1,5 +1,5 @@
-import { PropertyType, uuid } from '@aiao/rxdb';
 import type { EntityMetadataOptions } from '@aiao/rxdb';
+import { PropertyType, uuid } from '@aiao/rxdb';
 
 /**
  * Recipe 实体 schema 的单一来源。

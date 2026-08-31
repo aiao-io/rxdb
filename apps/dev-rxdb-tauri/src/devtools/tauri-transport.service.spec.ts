@@ -36,7 +36,10 @@ describe('TauriTransportService', () => {
   });
 
   /** 构造服务并等异步 `connect()` 落定，同时把 `listen` 收到的回调交出来。 */
-  const connectAndGrabListener = async (): Promise<{ service: TauriTransportService; onFrame: (payload: string) => void }> => {
+  const connectAndGrabListener = async (): Promise<{
+    service: TauriTransportService;
+    onFrame: (payload: string) => void;
+  }> => {
     const service = new TauriTransportService();
     await vi.waitFor(() => expect(listenMock).toHaveBeenCalledWith('devtools:message', expect.any(Function)));
     const callback = listenMock.mock.calls[0][1] as (event: { payload: string }) => void;
