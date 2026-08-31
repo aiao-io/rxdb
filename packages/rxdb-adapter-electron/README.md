@@ -175,17 +175,27 @@ rxdb.adapter(
 
 特权侧则换成 `createElectronPgliteHost`（来自 `/pglite-host`），并按上面「PGlite host 不要放在主线程」放进 worker。两个适配器可以在同一个 `RxDB` 实例上同时注册——名字不同，协议也不同。
 
-#### 两族共用一条 IPC 通道时的分派
+#### 共用一条 IPC 通道时的分派
 
-不必为 PGlite 新开通道：一条 `request` / `subscribe` 就够，主进程按请求的 `kind` 分派。**顺序不能反**——
+不必为 PGlite 新开通道：一条 `request` / `subscribe` 就够，主进程按请求的 `kind` 分派给三族 host（SQLite / 文件 / PGlite）。**顺序不能反**——
 
 ```typescript
+// 1. 先做闭集守卫：未知 kind 在任何 host 被触碰之前就收口
+if (!isKnownDesktopHostRequestKind(request)) {
+  return Promise.resolve({ kind: 'error', code: 'protocol_violation', message: '...' });
+}
+// 2. 再分派；SQLite 只能垫底
+const kind = readDesktopHostRequestKind(request);
 if (isDesktopHostFileRequestKind(kind)) return file.handle(target, request);
 if (isDesktopPgliteRequestKind(kind)) return pglite.handle(target, request);
-return sqlite.handle(target, request); // 只能垫底
+return sqlite.handle(target, request);
 ```
 
-SQLite 那支是**兜底分支**（「不是 open/close/version 的」一律当 `execute`），所以漏判一族的后果不是报错，而是一条 PGlite 请求被当成 SQL 跑一遍。判据请用协议包导出的 `isDesktopPgliteRequestKind` / `isDesktopHostFileRequestKind`，不要在接线处自己列 `kind` 名单——那份名单必然随协议版本漂移，届时「通过分派的请求」与「host 认可的请求」就不再是同一个集合。完整实现见文末示例里的 `desktop-host-bridge.ts`。
+SQLite 那支是**兜底分支**（「不是 handshake/open/version/close 的」一律当 `execute`），所以漏判一族的后果不是报错，而是一条 PGlite 请求被顺着 SQL 路径跑一遍。两层因此都要有：分派判据用协议包导出的 `isDesktopPgliteRequestKind`（`/pglite-host`）与 `isDesktopHostFileRequestKind`（`/host`），不要在接线处自己列 `kind` 名单——那份名单必然随协议版本漂移；闭集守卫则是应用侧自己的几行（协议未导出 SQLite 族谓词），负责把三族之外的 `kind` 挡在兜底分支之前。
+
+> 把 PGlite 接进来不会让只用 SQLite 的会话变重：示例里的 PGlite 通道工厂是**惰性调用**的，没有 `pg.*` 请求就不会启动那条 worker 线程、也不会加载 PostgreSQL WASM。
+
+完整实现见文末示例里的 `desktop-host-bridge.ts` 与 `desktop-host-request-guard.ts`。
 
 ## 逻辑库名不是路径
 
