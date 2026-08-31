@@ -411,6 +411,33 @@ describe('ELEC-23 桌面 host 依赖必须打进主进程产物', () => {
     expect(reinclude).toBeGreaterThan(0);
   });
 
+  // 白名单放行的前提是 electron-builder 真的把这个包收进了它的 node_modules 图，
+  // 而它只走**生产**依赖图（pnpm collector 跑 `pnpm list --prod`，兜底的 traversal
+  // collector 只读 dependencies + optionalDependencies）。挂在 devDependencies 下，
+  // stage 脚本拷进去的目录会被整个跳过 —— 这正是线上 Windows 那条
+  // `Cannot find module '@electric-sql/pglite'` 的成因（收集目录退化到只剩产物目录，
+  // 见 tools/stage-external-dependencies.mjs 的 module 注释）。
+  it('应用清单把 external 依赖声明成 dependencies', async () => {
+    const { externalPackages } = await import('../tools/stage-external-dependencies.mjs');
+    const manifest = JSON.parse(read('package.json'));
+    // electron 自己是 external 但由 electronDist 提供，不参与 node_modules 收集。
+    const staged = externalPackages.filter((name: string) => name !== 'electron');
+    expect(staged.length).toBeGreaterThan(0);
+
+    for (const name of staged) {
+      expect(manifest.dependencies?.[name], `${name} 不在 dependencies 里`).toBeTruthy();
+      expect(manifest.devDependencies ?? {}, `${name} 同时挂在 devDependencies 上`).not.toHaveProperty(name);
+    }
+  });
+
+  // 搬运清单与 esbuild 的 external 是同一件事的两面：external 了却没搬，产物里没有它；
+  // 搬了却没 external，esbuild 会把它打进 bundle，PGlite 的 wasm 相对定位随即落空。
+  it('搬运清单与 esbuild 的 external 对齐', async () => {
+    const { externalPackages } = await import('../tools/stage-external-dependencies.mjs');
+    const { bundleOptions } = await import('../tools/bundle-desktop-host.mjs');
+    expect(bundleOptions.external).toEqual(expect.arrayContaining(externalPackages));
+  });
+
   // main.ts 只 import 打包产物，而 esbuild 只留**本入口**的导出面 ——
   // 两个路径解析器不从合流入口转发出去，main.ts 就只能去取 tsc 的逐文件产物，
   // 又绕回 ELEC-23 要解决的那个失败。

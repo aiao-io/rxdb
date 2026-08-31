@@ -528,6 +528,10 @@ importers:
   apps/dev-rxdb-angular-e2e: {}
 
   apps/dev-rxdb-electron:
+    dependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.5.8
+        version: 0.5.8
     devDependencies:
       '@aiao/rxdb-adapter-electron':
         specifier: workspace:*
@@ -538,9 +542,6 @@ importers:
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../../packages/rxdb-test
-      '@electric-sql/pglite':
-        specifier: ^0.5.8
-        version: 0.5.8
       electron:
         specifier: 44.0.0
         version: 44.0.0
