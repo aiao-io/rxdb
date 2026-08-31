@@ -34,6 +34,7 @@ import {
   type DesktopChangeEventTarget,
   type DesktopSqliteBridge
 } from './desktop-sqlite-bridge.js';
+import { isKnownDesktopHostRequestKind } from './desktop-host-request-guard.js';
 
 // 两族的路径解析器一并转发出去：`main.ts` 只能 import 打包产物（ELEC-23），
 // 而 esbuild 只把**本入口**的导出面留在产物里。不转发的话 `main.ts` 就得从 tsc 的
@@ -136,6 +137,12 @@ export function createDesktopHostBridge(options: DesktopHostBridgeOptions): Desk
 
   return {
     handle: (target, request) => {
+      // AC#50：分派前的显式拒绝。三族里 SQLite 是唯一兜底分支，未知 kind 会落进它的
+      // execute 路径再被 parse 拒掉——结果一样，但「任何 host 被触碰之前就收口」让这道闸
+      // 与 preload 内联副本、connector 授权构成三层，未知 kind 因此不可能被错当成一条 SQL。
+      if (!isKnownDesktopHostRequestKind(request)) {
+        return Promise.resolve({ kind: 'error', code: 'protocol_violation', message: 'unknown desktop host request kind' });
+      }
       const kind = kindOf(request);
       if (isDesktopHostFileRequestKind(kind)) return file.handle(target, request);
       if (isDesktopPgliteRequestKind(kind)) return pglite.handle(target, request);

@@ -25,6 +25,16 @@
 export const DESKTOP_DEMO_DB_NAME = 'desktop_demo';
 
 /**
+ * PGlite 桌面后端的逻辑库名（也是数据目录名，落盘为 `rxdb-pglite/desktop_demo_pg/`）。
+ *
+ * @remarks
+ * 只在 `?pglite=1`（由 `DEV_RXDB_PGLITE=1` 环境变量在 main 侧追加到入口 URL）时被选中，
+ * 见 {@link ../setup_rxdb.ts}。它与 {@link DESKTOP_DEMO_DB_NAME} 刻意**不同名**：SQLite 与
+ * PGlite 是两份永不互通的物理存储，同名会让「换个后端再打开」看起来像是数据丢了。
+ */
+export const DESKTOP_PGLITE_DB_NAME = 'desktop_demo_pg';
+
+/**
  * 浏览器预览后端（wa-sqlite）的逻辑库名。
  *
  * @remarks

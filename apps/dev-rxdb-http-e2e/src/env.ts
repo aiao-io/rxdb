@@ -25,13 +25,13 @@ export const APP_BASE_URL = `http://localhost:${APP_PORT}`;
 export const API_BASE_URL = `http://127.0.0.1:${API_PORT}/v1`;
 
 /**
- * 后端在 e2e 里连的库文件。
+ * 后端在 e2e 里连的数据目录（pglite `dataDir`，文件落盘）。
  *
  * @remarks
  * 落在系统临时目录，**绝不碰** `apps/dev-rxdb-http-server/.data/`：
  * 那是开发者手工调试用的库，被 e2e 反复 reset 掉是件很难自己想明白的怪事。
  */
-export const E2E_DATABASE = join(tmpdir(), 'rxdb-http-e2e', 'demo.sqlite');
+export const E2E_DATABASE = join(tmpdir(), 'rxdb-http-e2e', 'pglite');
 
 /** 打开 demo 页面时要带的查询串，把前端指向 e2e 的后端。 */
 export const appUrl = (extraQuery: string = ''): string =>

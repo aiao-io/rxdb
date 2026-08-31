@@ -2,6 +2,7 @@ import { RxDB, SyncType } from '@aiao/rxdb';
 import { ELECTRON_PGLITE_ADAPTER_NAME, RxDBAdapterElectronPGlite } from '@aiao/rxdb-adapter-electron/pglite';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
+import { DESKTOP_PGLITE_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
 
 /**
@@ -12,10 +13,11 @@ import { DesktopLaunch } from './desktop-launch.entity';
  * 决定，内层就是这个值。显式写出而不吃默认值 —— e2e 要按这个路径去磁盘上核对数据目录，
  * 默认值一旦变动，那边只会看到「目录不见了」。
  *
- * 与 SQLite 那份 demo 刻意**不同名**：它们是两份永不互通的物理存储，同名会让
- * 「换个后端再打开」看起来像是数据丢了。
+ * 与逻辑库名（{@link DESKTOP_PGLITE_DB_NAME}）**恒等**：PGlite 的数据目录名与逻辑库名是
+ * 同一件事，拆成两个常量只会留下「这边改了那边没改」的漂移口。别名在这里只为保留
+ * 「数据目录」这个语义名，供 {@link setup_rxdb_desktop} 与 e2e 按物理位置读。
  */
-export const DESKTOP_PGLITE_DATA_DIRECTORY = 'desktop_demo_pg';
+export const DESKTOP_PGLITE_DATA_DIRECTORY = DESKTOP_PGLITE_DB_NAME;
 
 /**
  * 构建一个走主进程 PGlite 的 RxDB 单例（US-208）。

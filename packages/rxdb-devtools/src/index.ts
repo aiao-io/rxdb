@@ -560,6 +560,8 @@ export type {
   DevToolsFilesProviderWithSource,
   /** 原生目录项。 */
   DevToolsNativeEntry,
+  /** 原生 `files` provider；在字节源/落盘口之上多一个快照回收入口。 */
+  DevToolsNativeFilesProvider,
   /** 原生 provider 的构造端口。 */
   DevToolsNativeFilesProviderPorts,
   /** provider 需要宿主提供的最小文件能力。 */

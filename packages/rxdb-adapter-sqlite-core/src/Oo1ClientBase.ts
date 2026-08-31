@@ -408,38 +408,54 @@ export abstract class Oo1ClientBase<TLoadOptions extends Oo1ClientLoadOptions = 
    * 调用方若需严格失败，应在应用层校验 pattern，而非依赖 SQL 抛错。
    */
   #register_custom_functions(): void {
-    this.db.createFunction('regexp', (_ctxPtr: unknown, ...values: unknown[]) => {
-      try {
-        const re = get_cached_regexp(String(values[0]));
-        return re.test(String(values[1])) ? 1 : 0;
-      } catch (err) {
-        console.warn(`[${this.clientName}] regexp(${String(values[0])}) failed:`, err);
-        return 0;
-      }
-    });
+    // 三条都用显式 arity：OO1 缺省按 `xFunc.length - 1` 推导，rest 参数回调的
+    // `length` 恒为 1，会被误判成零参函数，带参调用直接因参数个数不符被 SQLite 拒绝。
+    // 显式 arity 与 C API 路径（`SqliteClient`）保持一致：regexp 二元、regexp_replace 变参、
+    // rxdb_fts_bigram 一元。
+    this.db.createFunction(
+      'regexp',
+      (_ctxPtr: unknown, ...values: unknown[]) => {
+        try {
+          const re = get_cached_regexp(String(values[0]));
+          return re.test(String(values[1])) ? 1 : 0;
+        } catch (err) {
+          console.warn(`[${this.clientName}] regexp(${String(values[0])}) failed:`, err);
+          return 0;
+        }
+      },
+      { arity: 2 }
+    );
 
-    this.db.createFunction('regexp_replace', (_ctxPtr: unknown, ...args: unknown[]) => {
-      if (args.length < 3) return '';
-      try {
-        const pattern = String(args[0]);
-        const text = String(args[1]);
-        const replacement = String(args[2]);
-        const flags = args.length > 3 ? String(args[3]) : '';
-        return text.replace(get_cached_regexp(pattern, flags), replacement);
-      } catch (err) {
-        console.warn(`[${this.clientName}] regexp_replace(${String(args[0])}) failed:`, err);
-        return String(args[1]);
-      }
-    });
+    this.db.createFunction(
+      'regexp_replace',
+      (_ctxPtr: unknown, ...args: unknown[]) => {
+        if (args.length < 3) return '';
+        try {
+          const pattern = String(args[0]);
+          const text = String(args[1]);
+          const replacement = String(args[2]);
+          const flags = args.length > 3 ? String(args[3]) : '';
+          return text.replace(get_cached_regexp(pattern, flags), replacement);
+        } catch (err) {
+          console.warn(`[${this.clientName}] regexp_replace(${String(args[0])}) failed:`, err);
+          return String(args[1]);
+        }
+      },
+      { arity: -1 }
+    );
 
     // `rxdb_fts_bigram(text)`：FTS5 写入侧的 CJK bigram 变换，由
     // `@aiao/rxdb-plugin-search` 生成的 trigger 与 backfill SQL 调用。
     // 与查询侧 `compileCjkToken` 共用同一份实现——两侧切分方式只要不一致，索引就整体失配。
     // NULL 原样返回（FTS5 视作空内容），非 CJK 文本零改动。
-    this.db.createFunction(FTS_BIGRAM_SQL_FUNCTION, (_ctxPtr: unknown, ...args: unknown[]) => {
-      const value = args[0];
-      if (value === null || value === undefined) return null;
-      return indexTextForFts(String(value));
-    });
+    this.db.createFunction(
+      FTS_BIGRAM_SQL_FUNCTION,
+      (_ctxPtr: unknown, ...args: unknown[]) => {
+        const value = args[0];
+        if (value === null || value === undefined) return null;
+        return indexTextForFts(String(value));
+      },
+      { arity: 1 }
+    );
   }
 }

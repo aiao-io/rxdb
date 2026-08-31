@@ -179,7 +179,11 @@ function createWindow(): BrowserWindow {
     // ELEC-22：生产模式走自定义协议而不是 loadFile。`file:` 下 Angular 的
     // ESM 入口会被当跨域拒绝、fetch 不可用、origin 不透明 —— 详见 main.utils.ts 里
     // APP_SCHEME 的注释，那里记着三条实测。
-    void win.loadURL(APP_ENTRY_URL).catch(reportLoadFailure);
+    // US-208 AC#10：`DEV_RXDB_PGLITE=1` 让本次运行选 PGlite 桌面后端（e2e 专用），
+    // 以 `?pglite=1` 传给 renderer —— renderer 在 sandbox 下读不到 `process.env`，
+    // 只能经入口 URL 拿这个选择。
+    const entryUrl = process.env['DEV_RXDB_PGLITE'] === '1' ? `${APP_ENTRY_URL}?pglite=1` : APP_ENTRY_URL;
+    void win.loadURL(entryUrl).catch(reportLoadFailure);
   }
 
   // AC#7：窗口没了，它开的库句柄必须跟着放。留着的话文件一直被占，

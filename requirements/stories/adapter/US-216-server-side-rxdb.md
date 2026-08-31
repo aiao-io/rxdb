@@ -1,11 +1,11 @@
 ---
 id: US-216
 title: 参考后端以 RxDB 引擎实现：后端可初始化 RxDB、前后端共享 schema 与查询逻辑
-status: Backlog
+status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-29
-updated: 2026-08-29
+updated: 2026-08-31
 tags: [adapter, http, server, node, pglite, shared-domain]
 ---
 

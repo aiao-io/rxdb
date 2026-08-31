@@ -2,7 +2,11 @@
  * 参考后端的路由层。
  *
  * @remarks
- * 七个协议端点 + 一组 `__control` 开关，全部跑在 `node:http` 上，零第三方依赖。
+ * 七个协议端点 + 一组 `__control` 开关，全部跑在 `node:http` 上。
+ *
+ * 阶段 B：协议端点（读+写）全部走 RxDB 的 `Repository` / `EntityManager`（pglite 文件落盘），
+ * 替代 `db.ts` 的 `node:sqlite` 直接路径；`node:sqlite` 文件与「双库桥」整体退役。
+ * SSE 变更通知由 `rxdb.addEventListener(ENTITY_LOCAL_*)` 驱动（见 `change-broadcaster.ts`）。
  *
  * 中间件的**顺序**是有讲究的，每一条都对应故事里的一条验收：
  *
@@ -17,39 +21,44 @@
 
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { createServer as createHttpServer } from 'node:http';
-import type { DatabaseSync } from 'node:sqlite';
 
-import { broadcastChange, openChangeFeed, readClientId } from './change-feed.ts';
+import { createChangeBroadcaster } from './change-broadcaster.ts';
+import type { ChangeBroadcaster } from './change-broadcaster.ts';
+import { openChangeFeed, readClientId } from './change-feed.ts';
 import type { ChangeSubscribers } from './change-subscribers.ts';
 import { createChangeSubscribers } from './change-subscribers.ts';
 import {
   BACKEND_VERSION,
   BASE_PATH,
   CHANGES_RESOURCE,
-  CLIENT_ENTITY_NAME,
   RECIPES_RESOURCE,
   SEED_ROW_COUNT
 } from './config.ts';
 import type { ControlActions, DemoState } from './control.ts';
 import { createDemoState, handleControlRequest, recordRequest } from './control.ts';
 import { applyCorsHeaders, handlePreflight } from './cors.ts';
-import { openDatabase } from './db.ts';
 import { computeEtag, HttpError, matchesIfNoneMatch, readJsonBody, sendEmpty, sendJson } from './http-utils.ts';
 import {
   createRecipe,
-  deleteAllRecipes,
   deleteRecipes,
   findByIds,
   listMetadataByOffset,
   listMetadataByToken,
-  recipesTableExists,
   updateRecipe
-} from './recipes-store.ts';
-import { resetDatabase, seedDatabase } from './seed.ts';
+} from './recipes-repository.ts';
+import {
+  clearRxdbStore,
+  createRxdbRecipeStore,
+  deleteRxdbDataDir,
+  isEmptyRxdbStore,
+  seedRxdbStore
+} from './rxdb-store.ts';
+import type { RxdbRecipeStore } from './rxdb-store.ts';
+import { seedRows } from './seed.ts';
 
 /** 建服务器需要的一切。全部显式传入——没有隐式读 `process.env` 的角落，e2e 才好摆布。 */
 export interface DemoServerOptions {
-  databasePath: string;
+  dataDir: string;
   exposeEtag: boolean;
   controlEnabled: boolean;
 }
@@ -58,7 +67,7 @@ export interface DemoServerOptions {
 export interface DemoServer {
   server: Server;
   state: DemoState;
-  /** 关连接 + 关库。测试里必须调用，否则 SQLite 句柄会拖住进程。 */
+  /** 关连接 + 关库。测试里必须调用，否则 pglite 句柄会拖住进程。 */
   close: () => Promise<void>;
 }
 
@@ -123,7 +132,7 @@ const sendConditional = (request: IncomingMessage, response: ServerResponse, pay
 const handleMetadata = async (
   request: IncomingMessage,
   response: ServerResponse,
-  getDb: () => DatabaseSync,
+  getStore: () => RxdbRecipeStore,
   state: DemoState,
   pageModeParam: string | null
 ): Promise<void> => {
@@ -132,44 +141,46 @@ const handleMetadata = async (
   // 请求体里带了 pageToken 就必然是形态 B——客户端已经锁定了模式，这里没有选择权。
   const tokenMode = body['pageToken'] !== undefined || pageModeParam === 'token' || state.pageMode === 'token';
   // 取句柄必须在 await 之后：读 body 让出的这段时间里，`__control/reset` 可能已经
-  // 把库整个换掉，await 之前取到的那个句柄指向的 inode 已经不在了
-  const db = getDb();
+  // 把 store 整个换掉，await 之前取到的那个句柄指向的实例已经不在了
+  const store = getStore();
 
   if (!tokenMode) {
     const offset = readPositiveInt(body['offset'], 'offset', 0);
-    sendConditional(request, response, listMetadataByOffset(db, body['where'], limit, offset));
+    sendConditional(request, response, await listMetadataByOffset(store, body['where'], limit, offset));
     return;
   }
-  sendConditional(request, response, listMetadataByToken(db, body['where'], limit, body['pageToken']));
+  sendConditional(request, response, await listMetadataByToken(store, body['where'], limit, body['pageToken']));
 };
 
 /**
- * 写入落库**之后**广播一条通知。
+ * 一次写入**成功后**登记发起方 clientId，供事件桥回显。
  *
  * @remarks
- * 顺序有讲究：先写库、再广播、最后回执。写库抛错时这一行根本走不到——
- * 失败的写入广播出去，会让所有订阅者白跑一次远端查询，还查不出任何变化。
+ * 广播本身由 `rxdb.addEventListener` 在事务提交后驱动（`change-broadcaster.ts`）；
+ * 这里只把「这次写是哪个 client 发的」记进事件桥的 FIFO，失败路径不会走到这里，
+ * 因此不会泄漏 clientId 给下一条写。
  */
-const announce = (request: IncomingMessage, subscribers: ChangeSubscribers): void => {
-  broadcastChange(subscribers, CLIENT_ENTITY_NAME, readClientId(request));
+const recordWrite = (request: IncomingMessage, broadcaster: ChangeBroadcaster): void => {
+  broadcaster.recordWrite(readClientId(request));
 };
 
 /**
  * 协议端点的分发（七个数据端点 + 可选的变更通知）。命中不了就是 404。
  *
  * @remarks
- * 拿到的是 `getDb` 闭包而不是句柄本身，且**每个分支各自在 await 之后现取**：
- * `f(getDb(), await readBody())` 是假的现取 —— 实参从左到右求值，`getDb()` 仍然跑在
+ * 拿到的是 `getStore` 闭包而不是句柄本身，且**每个分支各自在 await 之后现取**：
+ * `f(getStore(), await readBody())` 是假的现取 —— 实参从左到右求值，`getStore()` 仍然跑在
  * await 之前。所以读 body 的那几支都先 `const body = await …` 再取句柄。
  */
 const routeProtocol = async (
   request: IncomingMessage,
   response: ServerResponse,
-  getDb: () => DatabaseSync,
+  getStore: () => RxdbRecipeStore,
   state: DemoState,
   segments: string[],
   pageModeParam: string | null,
-  subscribers: ChangeSubscribers
+  subscribers: ChangeSubscribers,
+  broadcaster: ChangeBroadcaster
 ): Promise<void> => {
   const method = request.method ?? 'GET';
   const route = `${method} ${segments.join('/')}`;
@@ -183,29 +194,31 @@ const routeProtocol = async (
     return;
   }
   if (route === `HEAD ${RECIPES_RESOURCE}`) {
-    sendEmpty(response, recipesTableExists(getDb()) ? 200 : 404);
+    // pglite 在 `connect()` 的建表链路里建成 Recipe 表，恒存在——HEAD 恒 200
+    // （与现行 node:sqlite「openDatabase 即建表」同一语义）。
+    sendEmpty(response, 200);
     return;
   }
   if (route === `POST ${RECIPES_RESOURCE}/metadata`) {
-    await handleMetadata(request, response, getDb, state, pageModeParam);
+    await handleMetadata(request, response, getStore, state, pageModeParam);
     return;
   }
   if (route === `POST ${RECIPES_RESOURCE}/by-ids`) {
     const body = await readJsonBody(request);
-    sendConditional(request, response, findByIds(getDb(), body));
+    sendConditional(request, response, await findByIds(getStore(), body));
     return;
   }
   if (route === `POST ${RECIPES_RESOURCE}/delete`) {
     const body = await readJsonBody(request);
-    const deleted = deleteRecipes(getDb(), body);
-    announce(request, subscribers);
+    const deleted = await deleteRecipes(getStore(), body);
+    recordWrite(request, broadcaster);
     sendJson(response, 200, { deleted });
     return;
   }
   if (route === `POST ${RECIPES_RESOURCE}`) {
     const body = await readJsonBody(request);
-    const created = createRecipe(getDb(), body);
-    announce(request, subscribers);
+    const created = await createRecipe(getStore(), body);
+    recordWrite(request, broadcaster);
     sendJson(response, 201, created);
     return;
   }
@@ -213,8 +226,8 @@ const routeProtocol = async (
     // segments 进 dispatch 时已经解过一次码，这里直接用。再解一次就不是「按标准解码」而是
     // 解两次：客户端编一次的 `%` 会先还原成 `%`、再被当成残缺转义序列抛 URIError。
     const body = await readJsonBody(request);
-    const updated = updateRecipe(getDb(), segments[1], body);
-    announce(request, subscribers);
+    const updated = await updateRecipe(getStore(), segments[1], body);
+    recordWrite(request, broadcaster);
     sendJson(response, 200, updated);
     return;
   }
@@ -226,28 +239,35 @@ const routeProtocol = async (
  * 建服务器。
  *
  * @remarks
- * 库连接放在闭包里的 `let`，因为 `__control/reset` 会**删掉文件重建**（AC#6），
- * 旧句柄指向的 inode 已经不在了，必须整个换掉。
+ * 阶段 B 起是**单库**：只有一份 RxDB pglite 数据目录，既是七个协议端点的数据面，
+ * 也是 `__control/reset` / `clear` 操作的对象。`reset` 从「删 node:sqlite 文件重建」
+ * 变为「销毁 RxDB 实例 → 删 `dataDir` → 重建 → 经引擎写种子」，事件桥在换实例后重新挂。
+ *
+ * store 句柄放在闭包的 `let`：`reseed` 会把它整个换掉，之后拿到的得是换过之后的那个。
  */
-export const createDemoServer = (options: DemoServerOptions): DemoServer => {
-  let db = openDatabase(options.databasePath);
+export const createDemoServer = async (options: DemoServerOptions): Promise<DemoServer> => {
+  const subscribers = createChangeSubscribers();
+  const broadcaster = createChangeBroadcaster(subscribers);
+
+  let store = await createRxdbRecipeStore(options.dataDir);
+  broadcaster.attach(store.rxdb);
+  // 空库自动补一次种子：重启进程后 dataDir 仍在、数据不空，就不会重写。
+  if (await isEmptyRxdbStore(store)) await seedRxdbStore(store, seedRows(SEED_ROW_COUNT));
   const state = createDemoState(options.exposeEtag);
 
-  // 两个都必须闭包读那个 `let db`：`reseed` 会把句柄整个换掉，`clear` 之后拿到的
-  // 得是换过之后的那一个。
   const actions: ControlActions = {
-    reseed: (): number => {
-      db.close();
-      db = resetDatabase(options.databasePath);
-      return seedDatabase(db, SEED_ROW_COUNT);
+    reseed: async (): Promise<number> => {
+      await store.destroy();
+      deleteRxdbDataDir(options.dataDir);
+      store = await createRxdbRecipeStore(options.dataDir);
+      broadcaster.attach(store.rxdb);
+      return seedRxdbStore(store, seedRows(SEED_ROW_COUNT));
     },
-    clear: (): number => deleteAllRecipes(db)
+    clear: async (): Promise<number> => clearRxdbStore(store)
   };
 
-  const subscribers = createChangeSubscribers();
-
   const server = createHttpServer((request, response) => {
-    void dispatch(request, response, () => db, state, options.controlEnabled, actions, subscribers);
+    void dispatch(request, response, () => store, state, options.controlEnabled, actions, subscribers, broadcaster);
   });
 
   const close = async (): Promise<void> => {
@@ -255,7 +275,7 @@ export const createDemoServer = (options: DemoServerOptions): DemoServer => {
     // 按定义永远不会自己结束，漏了这一行 close() 就是永久挂起。
     subscribers.closeAll();
     await new Promise<void>(resolve => server.close(() => resolve()));
-    db.close();
+    await store.destroy();
   };
 
   return { server, state, close };
@@ -265,11 +285,12 @@ export const createDemoServer = (options: DemoServerOptions): DemoServer => {
 const dispatch = async (
   request: IncomingMessage,
   response: ServerResponse,
-  getDb: () => DatabaseSync,
+  getStore: () => RxdbRecipeStore,
   state: DemoState,
   controlEnabled: boolean,
   actions: ControlActions,
-  subscribers: ChangeSubscribers
+  subscribers: ChangeSubscribers,
+  broadcaster: ChangeBroadcaster
 ): Promise<void> => {
   const started = Date.now();
   const url = new URL(request.url ?? '/', 'http://127.0.0.1');
@@ -305,7 +326,7 @@ const dispatch = async (
   }
 
   if (segments[0] === '__control') {
-    await runControl(request, response, segments, state, controlEnabled, actions, subscribers);
+    await runControl(request, response, segments, state, controlEnabled, actions, broadcaster);
     return;
   }
   if (state.offline) {
@@ -316,7 +337,7 @@ const dispatch = async (
   }
   if (handlePreflight(request, response, state.exposeEtag)) return;
 
-  await runProtocol(request, response, getDb, state, segments, url.searchParams.get('pageMode'), subscribers);
+  await runProtocol(request, response, getStore, state, segments, url.searchParams.get('pageMode'), subscribers, broadcaster);
 };
 
 /**
@@ -343,7 +364,7 @@ const runControl = async (
   state: DemoState,
   controlEnabled: boolean,
   actions: ControlActions,
-  subscribers: ChangeSubscribers
+  broadcaster: ChangeBroadcaster
 ): Promise<void> => {
   if (!controlEnabled) {
     sendJson(response, 404, JSON_ERROR(404, `Control endpoints are disabled when NODE_ENV=production`));
@@ -353,7 +374,7 @@ const runControl = async (
 
   try {
     const handled = await handleControlRequest(request, response, segments.slice(1), state, actions, () =>
-      announce(request, subscribers)
+      recordWrite(request, broadcaster)
     );
     if (!handled)
       sendJson(response, 404, JSON_ERROR(404, `No control route for ${request.method} ${segments.join('/')}`));
@@ -365,11 +386,12 @@ const runControl = async (
 const runProtocol = async (
   request: IncomingMessage,
   response: ServerResponse,
-  getDb: () => DatabaseSync,
+  getStore: () => RxdbRecipeStore,
   state: DemoState,
   segments: string[],
   pageModeParam: string | null,
-  subscribers: ChangeSubscribers
+  subscribers: ChangeSubscribers,
+  broadcaster: ChangeBroadcaster
 ): Promise<void> => {
   try {
     assertAuthorized(request);
@@ -378,7 +400,7 @@ const runProtocol = async (
       // 客户端就会降级到本地缓存，把「非 2xx 不降级」这条对照实验做成假绿。
       throw new HttpError(state.forcedStatus, `Injected failure (__control/fault)`);
     }
-    await routeProtocol(request, response, getDb, state, segments, pageModeParam, subscribers);
+    await routeProtocol(request, response, getStore, state, segments, pageModeParam, subscribers, broadcaster);
   } catch (error) {
     const status = statusOf(error);
     if (request.method === 'HEAD') {

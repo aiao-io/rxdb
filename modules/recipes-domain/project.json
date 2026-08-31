@@ -1,0 +1,17 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "recipes-domain",
+  "tags": ["js-lib"],
+  "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "modules/recipes-domain",
+        "command": "eslint . --max-warnings=0"
+      }
+    }
+  }
+}

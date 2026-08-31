@@ -2,13 +2,17 @@ import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { ELECTRON_ADAPTER_NAME, RxDBAdapterElectron } from '@aiao/rxdb-adapter-electron';
 import {
   createDevToolsElectronSettingsProvider,
+  createDevToolsNativeSnapshotSource,
+  createSystemClock,
   DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT,
-  getDevToolsConnector
+  getDevToolsConnector,
+  type DevToolsSnapshotSource
 } from '@aiao/rxdb-devtools';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
 import { createDevToolsDesktopFilesystem } from '@aiao/rxdb-plugin-storage/devtools-desktop';
+import { createDevToolsStorageSnapshotPorts } from '@aiao/rxdb-plugin-storage/devtools-desktop-snapshot';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { DESKTOP_DEMO_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
@@ -86,11 +90,25 @@ export default () => {
   // US-904 阶段 D：把页内 connector 接到原生后端。`files` 走桌面 host（native-files），
   // `settings` 是 Electron `sqlite` 语义，`database` 的 descriptor 显示为 `electron`。
   // 文件系统与 storage 插件共用同一个 `rootDir`，看到的才是同一批文件。
+  const devtoolsFilesystem = createDevToolsDesktopFilesystem({ rootDir: DESKTOP_STORAGE_ROOT_DIR });
+
+  // AC#48：诊断快照物化来源。`rxdb.storage`（`RxdbFileStorage`）要等 `connect()` 才挂上，
+  // 而 connector 在 `init()` 时就已经装配——所以来源**延迟到 capture 那一刻**才读 storage，
+  // 并复用它自己的 `runExclusive`（storage 全局独占锁）+ `listAllMetas` + `changeEpoch`，
+  // 保证 metadata 与已提交文件两半落在同一个时点。
+  const snapshotSource: DevToolsSnapshotSource = {
+    capture: signal =>
+      createDevToolsNativeSnapshotSource(
+        createDevToolsStorageSnapshotPorts({ storage: rxdb.storage, filesystem: devtoolsFilesystem })
+      ).capture(signal)
+  };
+
   const devtools = getDevToolsConnector({
     providers: {
       nativeFiles: {
-        filesystem: createDevToolsDesktopFilesystem({ rootDir: DESKTOP_STORAGE_ROOT_DIR }),
-        maxTransferBytes: DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT
+        filesystem: devtoolsFilesystem,
+        maxTransferBytes: DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT,
+        snapshot: { clock: createSystemClock(), source: snapshotSource }
       },
       settings: createDevToolsElectronSettingsProvider(),
       runtime: 'electron'

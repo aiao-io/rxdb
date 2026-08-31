@@ -5,7 +5,7 @@
  *
  * @remarks
  * 具体的全文引擎由当前 adapter 决定，见 {@link SEARCH_BACKEND_DESCRIPTORS}：
- * SQLite 家族（`sqlite-wasm` / `wa-sqlite` / `sqlite` / `sqliteai`）走 FTS5 外部内容虚拟表，
+ * SQLite 家族（`sqlite-wasm` / `sqlite` / `sqliteai`）走 FTS5 外部内容虚拟表，
  * `pglite` 走 PostgreSQL 物化 `tsvector` 列 + GIN 索引。
  * 未登记或登记为待实测的 adapter 会在数据库创建阶段 fail-fast，错误里带可判别的原因。
  *

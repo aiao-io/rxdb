@@ -39,6 +39,7 @@ import { clearEtagDiagnostics, etagDiagnostics, onEtagDiagnostic, type EtagDiagn
 import { buildFilterRules, emptyFilterState, type RecipeFilterState, type RecipeRuleGroup } from './filter-rules';
 import { clampPage, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, pageCount } from './paging';
 import { Recipe } from './recipe';
+import { buildRecipePageQuery } from '@modules/recipes-domain';
 import { clearTraffic, lastTransportStatus, onTraffic, trafficEntries, type TrafficEntry } from './traffic-recorder';
 
 /** 新建表单的初值。 */
@@ -207,13 +208,7 @@ export class App implements OnInit {
    * 流量面板上因此看得见 6 次 `fetchMetadata`、0 次 `by-ids`——行都还是新鲜的。
    */
   readonly recipes = useFind(Recipe, () => ({
-    where: buildFilterRules(this.$appliedFilter()),
-    orderBy: [
-      { field: 'updatedAt', sort: 'asc' as const },
-      { field: 'id', sort: 'asc' as const }
-    ],
-    limit: this.$pageSize(),
-    offset: this.$page() * this.$pageSize(),
+    ...buildRecipePageQuery(buildFilterRules(this.$appliedFilter()), this.$pageSize(), this.$page() * this.$pageSize()),
     offlineFallback: true,
     onSyncStats: () => this.#syncRounds.update(rounds => rounds + 1)
   }));

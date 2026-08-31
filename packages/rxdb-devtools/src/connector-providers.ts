@@ -23,7 +23,7 @@ import { createDevToolsBrowserSettingsProvider } from './browser/settings-provid
 import type { DevToolsRxDB, GetEntityMetadataFn } from './connector-types.js';
 import {
   createDevToolsNativeFilesProvider,
-  type DevToolsFilesProviderWithSource,
+  type DevToolsNativeFilesProvider,
   type DevToolsNativeFilesProviderPorts
 } from './native/native-files-provider.js';
 import type {
@@ -150,10 +150,10 @@ export interface ConnectorProviderRegistry extends DevToolsProviderRegistry {
 export function createConnectorProviders(ports: ConnectorProviderPorts = {}): ConnectorProviderRegistry {
   const runtime = ports.runtime ?? 'browser';
 
-  const nativeFilesProvider: DevToolsFilesProviderWithSource | undefined =
+  const nativeFilesProvider: DevToolsNativeFilesProvider | undefined =
     ports.nativeFiles === undefined ? undefined : createDevToolsNativeFilesProvider(ports.nativeFiles);
 
-  const files: DevToolsOpfsFilesProvider | DevToolsFilesProviderWithSource | undefined =
+  const files: DevToolsOpfsFilesProvider | DevToolsNativeFilesProvider | undefined =
     nativeFilesProvider ??
     (ports.getRootDirectory === undefined ?
       undefined
@@ -191,6 +191,10 @@ export function createConnectorProviders(ports: ConnectorProviderPorts = {}): Co
     // 浏览器 OPFS 的字节不过 wire：它由页面自己保存（见 `opfs-files-provider.ts` 模块头第 2 条）。
     // 原生后端（Electron / Tauri）的下载字节走上 wire，由 nativeFilesProvider 的字节源承担。
     createChunkSource: requestId => nativeFilesProvider?.createChunkSource(requestId),
-    dispose: () => database?.dispose()
+    dispose: () => {
+      database?.dispose();
+      // 原生 provider 的快照仓库持有 deadline / idle 两路计时器，session 拆除时一并回收。
+      nativeFilesProvider?.dispose();
+    }
   };
 }

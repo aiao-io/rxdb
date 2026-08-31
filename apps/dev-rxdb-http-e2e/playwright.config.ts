@@ -9,8 +9,8 @@ const isCI = Boolean(process.env['CI']);
  * 后端启动命令。
  *
  * @remarks
- * `reset seed serve` 三步一体：`reset` 删掉库文件重建空表，`seed` 写 250 行确定性种子，
- * `serve` 才起服务。每次 e2e 都从同一份逐字节相同的数据开始——用例才敢断言
+ * `reset seed serve` 三步一体：`reset` 删掉 pglite 数据目录重建空库，`seed` 写 250 行确定性种子，
+ * `serve` 才起服务。每次 e2e 都从同一份逐字节相同的 250 行开始——用例才敢断言
  * 「第 3 页第 1 行是 X」，而不是退化成「大概有几条」。
  */
 const apiCommand = [

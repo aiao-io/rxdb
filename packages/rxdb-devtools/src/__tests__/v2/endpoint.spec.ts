@@ -4,6 +4,7 @@ import type { DevToolsFakeClock } from '../../testing/fake-clock.js';
 import { createFakeClock } from '../../testing/fake-clock.js';
 import type { DevToolsFakeProviderSet } from '../../testing/fake-providers.js';
 import { createFakeProviders } from '../../testing/fake-providers.js';
+import type { DevToolsProviderResult } from '../../provider/types.js';
 import type { AnyDevToolsMessage, DevToolsCapability } from '../../types.js';
 import { RXDB_DEVTOOLS_MESSAGE, createMessage } from '../../types.js';
 import type { DevToolsMutationPolicy } from '../../v2/authorization.js';
@@ -493,6 +494,68 @@ describe('connector endpoint transfers', () => {
     // 于是「一次超限的上传」升级成了「整条连接作废」。
     expect(harness.framesOf('ERROR')).toHaveLength(1);
     expect(harness.endpoint.inflightTransfers).toBe(1);
+  });
+});
+
+describe('connector endpoint session teardown (AC#51)', () => {
+  const PAYLOAD = new Uint8Array([9, 8, 7]);
+
+  function startTransfer(harness: Harness): void {
+    harness.panel('TRANSFER_START', { transferId: 't1', requestId: 'r1', totalBytes: PAYLOAD.byteLength });
+  }
+
+  it('MUST discard an in-flight transfer and release its timers when the session closes', async () => {
+    const harness = connected();
+    startTransfer(harness);
+    harness.panel('TRANSFER_CHUNK', {
+      transferId: 't1',
+      chunkIndex: 0,
+      offset: 0,
+      dataBase64: encodeCanonicalBase64(PAYLOAD)
+    });
+    await flush();
+    expect(harness.endpoint.inflightTransfers).toBe(1);
+
+    harness.panel('DISCONNECT', null);
+    await flush();
+
+    // 半写的传输必须整体丢弃：不留临时产物、不提交、不复活，计时器随 session 一并释放。
+    expect(harness.endpoint.inflightTransfers).toBe(0);
+    expect(harness.providers.committedFiles()).toEqual([]);
+    expect(await harness.providers.probe.temporaryArtifacts()).toEqual([]);
+    expect(harness.clock.pendingTimers()).toBe(0);
+  });
+
+  it('MUST drop the late result of an in-flight request once the session is gone', async () => {
+    const providers = createFakeProviders();
+    let resolveInspect: (result: DevToolsProviderResult) => void = () => undefined;
+    const harness = connected({
+      providers: {
+        ...providers,
+        provider: domain => ({
+          descriptor: providers.provider(domain).descriptor,
+          invoke: (operation, params) =>
+            operation === 'inspect' ?
+              new Promise<DevToolsProviderResult>(resolve => {
+                resolveInspect = resolve;
+              })
+            : providers.provider(domain).invoke(operation, params)
+        })
+      }
+    });
+    request(harness, 'r1', 'database', 'inspect');
+    await flush();
+    expect(harness.endpoint.inflightRequests).toBe(1);
+
+    harness.panel('DISCONNECT', null);
+    // 结果在 session 关闭之后才回来：结算门（`session.settleRequest` 对已关闭会话恒为 false）
+    // 必须把它挡在状态之外——迟到数据不进新状态，也不产生第二条 RESPONSE。
+    resolveInspect({ outcome: 'ok', result: { collections: ['todos'] } });
+    await flush();
+
+    expect(harness.endpoint.inflightRequests).toBe(0);
+    expect(harness.framesOf('RESPONSE')).toHaveLength(0);
+    expect(harness.clock.pendingTimers()).toBe(0);
   });
 });
 

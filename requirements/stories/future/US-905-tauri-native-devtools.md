@@ -1,11 +1,11 @@
 ---
 id: US-905
 title: Tauri DevTools 调试窗口、transport 与原生存储集成
-status: Backlog
+status: In Progress
 priority: Medium
 epic: epic-003-ui-developer-tools
 created: 2026-08-15
-updated: 2026-08-16
+updated: 2026-08-31
 tags: [tooling, devtools, desktop, tauri, transport, sqlite, filesystem, security]
 ---
 

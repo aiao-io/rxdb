@@ -6,7 +6,7 @@ import { SearchUnsupportedAdapterError } from '../types.js';
 
 describe('Adapter guard (T026 / US-703 AC#8)', () => {
   it('accepts the whole SQLite FTS5 family plus pglite', () => {
-    for (const good of ['sqlite-wasm', 'wa-sqlite', 'sqlite', 'sqliteai', 'pglite'] as const) {
+    for (const good of ['sqlite-wasm', 'sqlite', 'sqliteai', 'pglite'] as const) {
       expect(() => assertSupportedAdapter(good)).not.toThrow();
     }
   });
@@ -18,7 +18,7 @@ describe('Adapter guard (T026 / US-703 AC#8)', () => {
   });
 
   it('white-list is derived from the registry and holds exactly the admitted adapters', () => {
-    expect([...SUPPORTED_SEARCH_ADAPTERS].sort()).toEqual(['pglite', 'sqlite', 'sqlite-wasm', 'sqliteai', 'wa-sqlite']);
+    expect([...SUPPORTED_SEARCH_ADAPTERS].sort()).toEqual(['pglite', 'sqlite', 'sqlite-wasm', 'sqliteai']);
   });
 
   it('plugin factory fail-fast at construction when adapter is unsupported', () => {

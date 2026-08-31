@@ -50,10 +50,11 @@ export interface SearchBackendDescriptor {
 /**
  * 全部登记项。
  *
- * SQLite 家族之所以能整体放行，是因为 CJK 索引依赖的自定义函数 `rxdb_fts_bigram`
- * 注册在两个共享基类里（`Oo1ClientBase` 覆盖 `sqlite` + `sqliteai`，
- * `WaSqliteClientBase` 覆盖 `wa-sqlite`，`SqliteClient` 覆盖 `sqlite-wasm`），
- * 而不是各适配器各写一份。
+ * SQLite 家族里 `sqlite-wasm` / `sqlite` / `sqliteai` 能放行，是因为 CJK 索引依赖的
+ * 自定义函数 `rxdb_fts_bigram` 注册在共享基类里（`Oo1ClientBase` 覆盖 `sqlite` + `sqliteai`，
+ * `SqliteClient` 覆盖 `sqlite-wasm`），而不是各适配器各写一份。`wa-sqlite` 的注册函数
+ * 虽也落在 `WaSqliteClientBase`，但其 npm 预编译 wasm 未编入 FTS5 模块，登记为
+ * `unverified`（见下）。
  *
  * 桌面宿主（`sqlite-electron` / `sqlite-tauri`）走的是跨进程协议，SQL 在宿主侧执行，
  * 宿主并未注册该函数——它们不在表里，被拒时给出的原因也正是这一条。
@@ -62,7 +63,18 @@ export interface SearchBackendDescriptor {
  */
 export const SEARCH_BACKEND_DESCRIPTORS: readonly SearchBackendDescriptor[] = Object.freeze([
   { adapter: 'sqlite-wasm', backend: 'fts5', status: 'supported' },
-  { adapter: 'wa-sqlite', backend: 'fts5', status: 'supported' },
+  {
+    adapter: 'wa-sqlite',
+    backend: 'fts5',
+    status: 'unverified',
+    // 决策（US-703 AC#8）：npm `wa-sqlite` 的预编译 wasm（dist/wa-sqlite-async.wasm）
+    // 未编入 FTS5 模块（无 fts5/rtree/json1 符号），`CREATE VIRTUAL TABLE ... USING fts5`
+    // 会抛 no such module。补 FTS5 必须用 `-DSQLITE_ENABLE_FTS5` 重编译 wasm，
+    // 属构建管线变更，不在本轮范围，因此不放行。
+    reason:
+      'the wa-sqlite wasm build does not enable SQLITE_ENABLE_FTS5; ' +
+      'full-text search requires recompiling the wasm with -DSQLITE_ENABLE_FTS5'
+  },
   { adapter: 'sqlite', backend: 'fts5', status: 'supported' },
   { adapter: 'sqliteai', backend: 'fts5', status: 'supported' },
   { adapter: 'pglite', backend: 'pg-tsvector', status: 'supported' },

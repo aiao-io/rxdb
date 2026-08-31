@@ -164,6 +164,9 @@
     },
     {
       "path": "./apps/rxdb-devtools-extension-e2e"
+    },
+    {
+      "path": "./modules/recipes-domain"
     }
   ]
 }

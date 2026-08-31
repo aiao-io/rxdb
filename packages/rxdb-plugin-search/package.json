@@ -59,7 +59,11 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
-    "@aiao/rxdb-adapter-pglite": "workspace:*"
+    "@aiao/rxdb-adapter-pglite": "workspace:*",
+    "@aiao/rxdb-adapter-sqlite": "workspace:*",
+    "@aiao/rxdb-adapter-sqlite-wasm": "workspace:*",
+    "@aiao/rxdb-adapter-sqliteai": "workspace:*",
+    "@aiao/rxdb-adapter-wa-sqlite": "workspace:*"
   },
   "peerDependencies": {
     "@aiao/rxdb-adapter-pglite": "workspace:*",

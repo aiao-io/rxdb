@@ -549,7 +549,17 @@ importers:
 
   apps/dev-rxdb-http-e2e: {}
 
-  apps/dev-rxdb-http-server: {}
+  apps/dev-rxdb-http-server:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../../packages/rxdb
+      '@aiao/rxdb-adapter-pglite':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-adapter-pglite
+      '@modules/recipes-domain':
+        specifier: workspace:*
+        version: link:../../modules/recipes-domain
 
   apps/dev-rxdb-react:
     dependencies:
@@ -843,6 +853,15 @@ importers:
       vite-plugin-static-copy:
         specifier: ^4.1.1
         version: 4.1.1(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0)(sass-embedded@1.102.0)(sass@1.103.1)(terser@5.51.1)(yaml@2.9.0))
+
+  modules/recipes-domain:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../../packages/rxdb
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
 
   modules/wujie: {}
 
@@ -1335,9 +1354,6 @@ importers:
       '@aiao/rxdb-adapter-sqlite-core':
         specifier: workspace:*
         version: link:../rxdb-adapter-sqlite-core
-      '@aiao/rxdb-adapter-sqlite-wasm':
-        specifier: workspace:*
-        version: link:../rxdb-adapter-sqlite-wasm
       '@aiao/utils':
         specifier: workspace:*
         version: link:../utils
@@ -1348,6 +1364,18 @@ importers:
       '@aiao/rxdb-adapter-pglite':
         specifier: workspace:*
         version: link:../rxdb-adapter-pglite
+      '@aiao/rxdb-adapter-sqlite':
+        specifier: workspace:*
+        version: link:../rxdb-adapter-sqlite
+      '@aiao/rxdb-adapter-sqlite-wasm':
+        specifier: workspace:*
+        version: link:../rxdb-adapter-sqlite-wasm
+      '@aiao/rxdb-adapter-sqliteai':
+        specifier: workspace:*
+        version: link:../rxdb-adapter-sqliteai
+      '@aiao/rxdb-adapter-wa-sqlite':
+        specifier: workspace:*
+        version: link:../rxdb-adapter-wa-sqlite
 
   packages/rxdb-plugin-search-angular:
     dependencies:

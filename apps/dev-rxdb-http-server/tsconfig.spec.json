@@ -6,5 +6,15 @@
   "extends": "./tsconfig.json",
   "files": [],
   "include": ["vite.config.mts", "src/**/*.ts"],
-  "references": []
+  "references": [
+    {
+      "path": "../../modules/recipes-domain/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-pglite/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
+    }
+  ]
 }
