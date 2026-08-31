@@ -14,6 +14,7 @@
 | `README.md`                  | 本说明与状态约定                                                                 | —    |
 | `review.template.md`         | 新建 review 记录的模板                                                           | —    |
 | `next-1123-branch-review.md` | next-1123 分支深度评审报告（24 条确认 + 3 条推翻；一次性结论，不按 RV 编号跟踪） | —    |
+| `next-0831-branch-review.md` | next-0831 分支深度评审报告（24 条确认 + 3 条推翻；一次性结论，不按 RV 编号跟踪） | —    |
 
 ## 状态约定
 
