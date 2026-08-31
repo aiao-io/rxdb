@@ -13,8 +13,15 @@
   },
   "extends": "../../tsconfig.base.json",
   "files": ["src/test-setup.ts"],
+  "//references": "references 不随 extends 继承：src/devtools/*.ts 经 @modules/rxdb-devtools-panel / @aiao/rxdb-devtools 的 paths 映射直接命中库源码，缺这两条引用时 spec program 会把库文件拽进自己的 file list —— composite 下报整片 TS6059（rootDir）/ TS6307（不在 file list）。",
   "include": ["vite.config.mts", "src/**/*.test.ts", "src/**/*.spec.ts", "src/**/*.d.ts", "src/**/*.ts"],
   "references": [
+    {
+      "path": "../../modules/rxdb-devtools-panel/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+    },
     {
       "path": "../../packages/rxdb/tsconfig.lib.json"
     },
