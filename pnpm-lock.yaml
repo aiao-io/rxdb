@@ -859,9 +859,6 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../../packages/rxdb
-      rxjs:
-        specifier: ^7.8.2
-        version: 7.8.2
 
   modules/wujie: {}
 
