@@ -446,6 +446,10 @@
         "kind": "type"
       },
       {
+        "name": "DevToolsNativeFilesProvider",
+        "kind": "type"
+      },
+      {
         "name": "DevToolsNativeFilesProviderPorts",
         "kind": "type"
       },

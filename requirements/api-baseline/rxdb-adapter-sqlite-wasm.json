@@ -65,6 +65,12 @@
         "name": "SupportVFS",
         "kind": "type"
       }
+    ],
+    "./testing": [
+      {
+        "name": "sqliteWasmFactory",
+        "kind": "value"
+      }
     ]
   }
 }
