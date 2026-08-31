@@ -51,8 +51,15 @@ describe('buildPgFieldSearchSql', () => {
     expect(jsonbSql).toContain('jsonb_array_elements_text(src."tags")');
   });
 
-  it('sqlTable 覆盖物理表名', () => {
-    expect(buildPgFieldSearchSql({ ...BASE, sqlTable: 'ns_docs', field: 'body' })).toContain('FROM "ns_docs" src');
+  /**
+   * schema 与表名分两段转义，而不是拼成一个字符串再引号包住。
+   * `"search-fixtures.docs"` 是一张名字里带点的表，不是 schema 限定——
+   * 这个区别正是整套 pg 后端此前打不中真实表的原因。
+   */
+  it('schema 限定表名，且不与表名拼成单个标识符', () => {
+    const sql = buildPgFieldSearchSql({ ...BASE, schema: 'search-fixtures', field: 'body' });
+    expect(sql).toContain('FROM "search-fixtures"."docs" src');
+    expect(sql).not.toContain('"search-fixtures.docs"');
   });
 });
 
@@ -84,7 +91,13 @@ describe('buildPgFieldContainsSql', () => {
 
 describe('buildPgSourceRowCountSql', () => {
   it('产出带引号的计数语句', () => {
-    expect(buildPgSourceRowCountSql('docs')).toBe('SELECT count(*) AS count FROM "docs"');
+    expect(buildPgSourceRowCountSql({ table: 'docs' })).toBe('SELECT count(*) AS count FROM "docs"');
+  });
+
+  it('给了 schema 就限定', () => {
+    expect(buildPgSourceRowCountSql({ schema: 'shop', table: 'docs' })).toBe(
+      'SELECT count(*) AS count FROM "shop"."docs"'
+    );
   });
 });
 
@@ -108,7 +121,9 @@ describe('buildPgBackfillSql', () => {
 
 describe('buildPgPendingBackfillProbeSql', () => {
   it('探测是否仍有未回填的行', () => {
-    expect(buildPgPendingBackfillProbeSql('docs')).toBe('SELECT count(*) AS count FROM "docs" WHERE "_fts" IS NULL');
+    expect(buildPgPendingBackfillProbeSql({ schema: 'shop', table: 'docs' })).toBe(
+      'SELECT count(*) AS count FROM "shop"."docs" WHERE "_fts" IS NULL'
+    );
   });
 });
 

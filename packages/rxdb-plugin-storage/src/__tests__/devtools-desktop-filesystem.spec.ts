@@ -128,6 +128,39 @@ describe('createDevToolsDesktopFilesystem — 会话与错误', () => {
     await expect(filesystem.openRead(['nope'])).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
+  /**
+   * 会话开不起来时 `dispose()` 不能把那条拒绝再放大成未处理拒绝。
+   *
+   * @remarks
+   * 失败的会话 promise 被 `??=` 缓存着，调用方那一路已经接住了它；而 `dispose()` 用
+   * `.then(onFulfilled)` 又**派生**出一条新 promise，没人接的话就是一次 unhandled
+   * rejection——在 Electron 主窗口里足以打死整个 renderer，而现场只显示「host 连不上」。
+   */
+  it('会话开不起来时 dispose 不留下未处理的拒绝', async () => {
+    const broken = createDevToolsDesktopFilesystem({
+      rootDir: 'files',
+      transport: {
+        request: () => Promise.reject(new Error('host is gone')),
+        subscribe: () => () => undefined
+      }
+    });
+    await expect(broken.list([])).rejects.toThrow('host is gone');
+
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      unhandled.push(reason);
+    };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      broken.dispose();
+      await new Promise(resolve => setTimeout(resolve, 10));
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+
+    expect(unhandled).toEqual([]);
+  });
+
   it('dispose 关闭 host 会话', async () => {
     await write(['a.txt'], 'a');
     expect(host.openSessionCount).toBeGreaterThan(0);

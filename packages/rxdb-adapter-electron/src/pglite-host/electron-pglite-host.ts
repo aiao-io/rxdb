@@ -307,15 +307,35 @@ export function createElectronPgliteHost(options: ElectronPgliteHostOptions): El
     return entry;
   };
 
-  const settle = async (transactionId: string, failure: Error | null): Promise<void> => {
+  /**
+   * 结掉一条挂起的事务，返回**提交失败**的原因（成功或回滚时为 `undefined`）。
+   *
+   * @remarks
+   * 返回值只在 `failure === null` 那一路才可能有值，这个区分是本函数的全部要点：
+   * 回滚是靠 `settle.reject(failure)` 让挂起的 callback 抛出来实现的，所以回滚路径上
+   * `finished` **必然** reject——把它一并当成失败，每次正常回滚都会变成错误帧。
+   * 而提交路径上 `finished` 一旦 reject 就是 COMMIT 自己失败（延迟约束、磁盘写满等），
+   * 吞掉它意味着告诉调用方「写成功了」而数据库里什么都没有。
+   */
+  const settle = async (transactionId: string, failure: Error | null): Promise<Error | undefined> => {
     const entry = transactions.get(transactionId);
-    if (!entry) return;
+    if (!entry) return undefined;
     transactions.delete(transactionId);
     if (failure) entry.settle.reject(failure);
     else entry.settle.resolve();
     // 必须等 `transaction(...)` 自己落地：不等的话 COMMIT 还在飞，紧接着的读可能看不到
     // 刚写进去的数据，而那会被误读成「事务语义不成立」。
-    await entry.finished.catch(() => undefined);
+    const commitError = await entry.finished.then(
+      () => undefined,
+      (error: unknown) => error
+    );
+    if (failure || commitError === undefined) return undefined;
+    if (commitError instanceof RxDBAdapterDesktopError) return commitError;
+    return new RxDBAdapterDesktopError(
+      'statement_failed',
+      commitError instanceof Error ? commitError.message : String(commitError),
+      { cause: commitError }
+    );
   };
 
   const open = async (
@@ -452,7 +472,10 @@ export function createElectronPgliteHost(options: ElectronPgliteHostOptions): El
     requireTransaction(request.transactionId, request.sessionId);
     const failure =
       request.kind === 'pg.rollback' ? new RxDBAdapterDesktopError('write_aborted', 'rollback requested') : null;
-    await settle(request.transactionId, failure);
+    const commitError = await settle(request.transactionId, failure);
+    // COMMIT 失败时事务已经被 PostgreSQL 回滚干净，这里只需把原因如实回给调用方——
+    // 无条件回成功等于让上层把「一条都没写进去」当成「写完了」。
+    if (commitError) throw commitError;
     return { kind: request.kind };
   };
 

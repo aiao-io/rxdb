@@ -1,0 +1,10 @@
+{
+  "name": "@fixture/source-only",
+  "type": "module",
+  "exports": {
+    ".": {
+      "@aiao/source": "./src/index.ts"
+    },
+    "./package.json": "./package.json"
+  }
+}

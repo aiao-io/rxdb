@@ -67,12 +67,40 @@ const quote = (identifier: string): string => `"${identifier.replace(/"/g, '""')
 /** 物化 tsvector 列名（`"_fts"`），由 `@aiao/rxdb-adapter-pglite` 的建表器定义。 */
 const FTS_COLUMN_SQL = quote(FTS_COLUMN);
 
+/**
+ * 一张 PostgreSQL 表的定位。
+ *
+ * @remarks
+ * schema 与表名必须**分开**存：`@aiao/rxdb-adapter-pglite` 把实体建成
+ * `"<namespace>"."<table>"`，而 `"public.article"` 是一个名字里带点的表、
+ * 不是 public schema 下的 article。把两段拼成一个字符串再转义，正是此前
+ * 整个 pg 后端指向不存在的 `"public$article"` 的原因。
+ *
+ * @public
+ */
+export interface PgTableRef {
+  /** schema 名；省略则由 `search_path` 解析 */
+  readonly schema?: string;
+  /** 表名（不含 schema） */
+  readonly table: string;
+}
+
+/**
+ * 把 {@link PgTableRef} 转义成可直接插入 SQL 的表引用。
+ *
+ * @param ref - 表定位
+ * @returns `"schema"."table"`，或省略 schema 时的 `"table"`
+ * @public
+ */
+export const quotePgTable = (ref: PgTableRef): string =>
+  ref.schema === undefined ? quote(ref.table) : `${quote(ref.schema)}.${quote(ref.table)}`;
+
 /** 单字段的取值来源。 */
 export interface PgFieldSource {
   /** 业务表名 */
   readonly table: string;
-  /** 物理表名（含 namespace 前缀），缺省等于 {@link PgFieldSource.table} */
-  readonly sqlTable?: string;
+  /** 表所在 schema（= 实体 `namespace`）；省略则由 `search_path` 解析 */
+  readonly schema?: string;
   /** 主键列名 */
   readonly primaryKey: string;
   /** 字段列名 */
@@ -152,7 +180,7 @@ export const buildPgHeadlineOptions = (snippetLength: number): string => {
  */
 export const buildPgFieldSearchSql = (opts: PgFieldSource): string => {
   const regconfig = assertPgRegconfig(opts.regconfig);
-  const physicalTable = opts.sqlTable ?? opts.table;
+  const physicalTable = quotePgTable(opts);
   const fieldExpr = buildPgFieldTextExpression(opts.field, opts.fieldIsArray, opts.arrayKind);
   const fieldVector = `to_tsvector('${regconfig}', ${fieldExpr})`;
   return [
@@ -163,7 +191,7 @@ export const buildPgFieldSearchSql = (opts: PgFieldSource): string => {
     `  0 AS prefix_penalty,`,
     `  $1::text AS matched_field,`,
     `  ts_headline('${regconfig}', ${fieldExpr}, q, $3::text) AS snippet`,
-    `FROM ${quote(physicalTable)} src, to_tsquery('${regconfig}', $2) q`,
+    `FROM ${physicalTable} src, to_tsquery('${regconfig}', $2) q`,
     `WHERE src.${FTS_COLUMN_SQL} @@ q AND ${fieldVector} @@ q`,
     `ORDER BY rank`,
     `LIMIT $4::int OFFSET $5::int`
@@ -190,7 +218,7 @@ export const buildPgFieldSearchSql = (opts: PgFieldSource): string => {
  */
 export const buildPgFieldContainsSql = (opts: PgFieldSource & { readonly tokenCount: number }): string => {
   const { tokenCount } = opts;
-  const physicalTable = opts.sqlTable ?? opts.table;
+  const physicalTable = quotePgTable(opts);
   const fieldExpr = buildPgFieldTextExpression(opts.field, opts.fieldIsArray, opts.arrayKind);
   const normalized = `lower(${fieldExpr})`;
   const rankTerms: string[] = new Array(tokenCount);
@@ -216,7 +244,7 @@ export const buildPgFieldContainsSql = (opts: PgFieldSource & { readonly tokenCo
     `  2 AS prefix_penalty,`,
     `  $1::text AS matched_field,`,
     `  ${snippetExpr} AS snippet`,
-    `FROM ${quote(physicalTable)} src`,
+    `FROM ${physicalTable} src`,
     `WHERE ${whereTerms.join(' AND ')}`,
     `ORDER BY rank, src.${quote(opts.primaryKey)}`,
     `LIMIT ${limitParam} OFFSET ${offsetParam}`
@@ -224,7 +252,8 @@ export const buildPgFieldContainsSql = (opts: PgFieldSource & { readonly tokenCo
 };
 
 /** contains fallback 前的行数预算探针。 */
-export const buildPgSourceRowCountSql = (table: string): string => `SELECT count(*) AS count FROM ${quote(table)}`;
+export const buildPgSourceRowCountSql = (ref: PgTableRef): string =>
+  `SELECT count(*) AS count FROM ${quotePgTable(ref)}`;
 
 /**
  * 未回填行数探针。
@@ -233,12 +262,12 @@ export const buildPgSourceRowCountSql = (table: string): string => `SELECT count
  * 而 trigger 装上之后任何新写入都会立刻算出非 NULL 值。所以「还有多少行是 NULL」
  * 直接等于「还有多少行没回填」，无需额外记账，也不会因为进程被杀而与真实状态脱节。
  *
- * @param table - 物理表名
+ * @param ref - 表定位
  * @returns 计数 SQL
  * @public
  */
-export const buildPgPendingBackfillProbeSql = (table: string): string =>
-  `SELECT count(*) AS count FROM ${quote(table)} WHERE ${FTS_COLUMN_SQL} IS NULL`;
+export const buildPgPendingBackfillProbeSql = (ref: PgTableRef): string =>
+  `SELECT count(*) AS count FROM ${quotePgTable(ref)} WHERE ${FTS_COLUMN_SQL} IS NULL`;
 
 /**
  * 单批回填 SQL。
@@ -253,22 +282,23 @@ export const buildPgPendingBackfillProbeSql = (table: string): string =>
  * 分批 + `WHERE "_fts" IS NULL` 让它天然幂等且可续跑：每批只吃掉尚未回填的行，
  * 中断后重入从剩下的行继续，不重做已完成的部分（US-703 AC#7）。
  *
- * @param opts - 表名、主键列与批大小
+ * @param opts - 表定位、主键列与批大小
  * @returns 单批回填 SQL
  * @throws {SearchExecutionError} `batchSize` 不是正整数时（它被直接内联进 LIMIT）
  * @public
  */
-export const buildPgBackfillSql = (opts: {
-  readonly table: string;
-  readonly primaryKey: string;
-  readonly batchSize: number;
-}): string => {
+export const buildPgBackfillSql = (
+  opts: PgTableRef & {
+    readonly primaryKey: string;
+    readonly batchSize: number;
+  }
+): string => {
   if (!Number.isInteger(opts.batchSize) || opts.batchSize <= 0) {
     throw new SearchExecutionError(
       `invalid PostgreSQL backfill batch size ${String(opts.batchSize)}: expected a positive integer`
     );
   }
-  const table = quote(opts.table);
+  const table = quotePgTable(opts);
   const id = quote(opts.primaryKey);
   return [
     `UPDATE ${table} SET ${id} = ${id}`,
@@ -284,9 +314,9 @@ export const buildPgBackfillSql = (opts: {
  * 仅用于「运行时对象缺失或被外部改动过、需要重建」的修复路径：签名一致但结构不可信时，
  * 保留旧向量会让新 trigger 与旧数据混在一起，查询结果取决于行的写入时间。
  *
- * @param table - 物理表名
+ * @param ref - 表定位
  * @returns 清空 SQL
  * @public
  */
-export const buildPgResetFtsSql = (table: string): string =>
-  `UPDATE ${quote(table)} SET ${FTS_COLUMN_SQL} = NULL WHERE ${FTS_COLUMN_SQL} IS NOT NULL`;
+export const buildPgResetFtsSql = (ref: PgTableRef): string =>
+  `UPDATE ${quotePgTable(ref)} SET ${FTS_COLUMN_SQL} = NULL WHERE ${FTS_COLUMN_SQL} IS NOT NULL`;

@@ -459,6 +459,14 @@ jobs:
           PROJECTS: ${{ needs.setup.outputs.build_projects }}
         run: pnpm exec nx run-many -t build -p "$PROJECTS" --output-style=stream --parallel=3
 
+      # `exports` 声明了 `./dist/xxx.js`、构建却不产出它 = 装到用户项目里的死链。
+      # 必须紧跟 build：判据是**真实产物**，不是照着 vite config 推算——产物来源不止
+      # `build.lib.entry`（`rolldownOptions.input` 会整体覆盖它，`rxdb-test` 的
+      # `dist/entities/` 更是 vite 跑完之后由客户端生成器写进去的）。
+      # 没构建的包跳过（`nx affected` 下本来就该跳），但一个都没扫到时脚本自己会硬失败。
+      - name: Subpath build entries gate
+        run: pnpm audit:build-entries
+
       # 只有 main 回写，且 build 真的绿了才写 —— 半截缓存会让下一轮拿到
       # 「有 hash 记录但产物不全」的条目，表现成难查的偶发失败。
       - name: Save Nx cache

@@ -101,6 +101,24 @@ const unsupportedTransactionOperation = (operation: string): RxDBAdapterDesktopE
   );
 
 /**
+ * 把通知回调里的异常挪出传输层的调用栈。
+ *
+ * @remarks
+ * 与 `DesktopSqliteClient` 的同名手法一字不差，因为病因一字不差：NOTIFY 通道是全 renderer
+ * 共享的，`ipcRenderer.on` 又是**同步扇出**，异常一路抛回 Electron 自己的 IPC 派发循环，
+ * 排在后面的监听者（通常是另一个库的客户端）就收不到这条消息——表现为「某个库的响应式
+ * 查询不刷新」，与那条畸形消息毫无关联线索。
+ *
+ * 不吞：丢进微任务原样重抛，落成一条 uncaught error。传输层不该替调用方决定
+ * 「这个错误不重要」，它只是不该由传输层来接。
+ */
+const reportOutOfBand = (error: unknown): void => {
+  queueMicrotask(() => {
+    throw error;
+  });
+};
+
+/**
  * 通过桌面 host 访问主进程 PGlite 实例的客户端。
  *
  * @remarks
@@ -492,7 +510,11 @@ export class DesktopPGliteClient extends EventDispatcher<PGliteClientEvents> imp
     if (typeof message !== 'object' || message === null) return;
     if ((message as { kind?: unknown }).kind !== 'pg.notify') return;
     if ((message as { sessionId?: unknown }).sessionId !== this.#sessionId) return;
-    const notification = parseDesktopPgliteNotifyMessage(message);
-    this.#batcher.accept(notification.channel, notification.payload);
+    try {
+      const notification = parseDesktopPgliteNotifyMessage(message);
+      this.#batcher.accept(notification.channel, notification.payload);
+    } catch (error) {
+      reportOutOfBand(error);
+    }
   }
 }

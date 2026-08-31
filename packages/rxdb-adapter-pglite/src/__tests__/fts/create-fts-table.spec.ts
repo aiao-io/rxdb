@@ -26,6 +26,19 @@ describe('buildCreateFtsTableSql', () => {
     expect(sql).not.toContain('regconfig');
   });
 
+  /**
+   * 适配器把实体建成 `"<namespace>"."<table>"`（见 `getTableNameByMetadata`），
+   * 所以 schema 非 public 时 DDL 必须限定 schema。不限定的话它落到 search_path 的
+   * 首个 schema 上：轻则 42P01「表不存在」，重则给 public 里另一张同名表加了列。
+   *
+   * 索引名保持裸名：索引跟着表进同一个 schema，跨 schema 不可能重名。
+   */
+  it('schema 给定时限定表名，索引名仍是裸名', () => {
+    const sql = buildCreateFtsTableSql('article', [{ name: 'title', isArray: false }], { schema: 'shop' });
+    expect(sql).toContain('ALTER TABLE "shop"."article" ADD COLUMN IF NOT EXISTS "_fts" tsvector');
+    expect(sql).toContain('CREATE INDEX IF NOT EXISTS "article__fts_idx" ON "shop"."article" USING GIN ("_fts")');
+  });
+
   it('separates ALTER and CREATE INDEX with statement separator', () => {
     const sql = buildCreateFtsTableSql('docs', [{ name: 'title', isArray: false }]);
     const stmts = sql

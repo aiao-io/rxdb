@@ -72,7 +72,10 @@ const mapRowsToFtsRows = (raw: { columns: readonly string[]; rows: readonly unkn
 interface SearchableEntry {
   readonly entity: string;
   readonly table: string;
+  /** SQLite 物理表名（`<namespace>$<table>`） */
   readonly sqlTable: string;
+  /** PostgreSQL schema 名（= `namespace`）；两套后端各取所需，见 `PgTableRef` */
+  readonly schema: string | undefined;
   readonly primaryKey: string;
   /** FTS 列名，按 entity metadata 顺序 */
   readonly fields: readonly string[];
@@ -428,6 +431,7 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
           results: await engine.search({
             table: entry.table,
             sqlTable: entry.sqlTable,
+            schema: entry.schema,
             entity: entry.entity,
             primaryKey: entry.primaryKey,
             fields: entry.fields,
@@ -554,6 +558,7 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
         entity: metadata.name,
         table: plan.tableName,
         sqlTable: plan.sqlTableName ?? plan.tableName,
+        schema: plan.namespace,
         primaryKey: plan.primaryKey,
         fields: plan.fields.map(f => f.name),
         fieldSpecs: plan.fields

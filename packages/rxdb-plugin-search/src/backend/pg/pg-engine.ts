@@ -63,7 +63,9 @@ export const createPgSearchEngine = (executor: FtsExecutor): SearchEngine => ({
     };
     const sqlBaseOpts = {
       table: q.table,
-      sqlTable: q.sqlTable,
+      // 不用 `q.sqlTable`：那是 SQLite 的 `<namespace>$<table>`。PG 的 namespace 是
+      // 真正的 schema，必须分开限定（见 `PgTableRef`）。
+      schema: q.schema,
       primaryKey: q.primaryKey,
       regconfig: DEFAULT_FTS_REGCONFIG
     };
@@ -95,8 +97,7 @@ export const createPgSearchEngine = (executor: FtsExecutor): SearchEngine => ({
     // 与 FTS5 后端同一条语义边界：任一字段有索引命中就不跑无索引的全表 contains
     if (mergedFts.length > 0) return mergedFts;
 
-    const sourceTable = q.sqlTable ?? q.table;
-    const countRows = await executor(buildPgSourceRowCountSql(sourceTable), []);
+    const countRows = await executor(buildPgSourceRowCountSql({ schema: q.schema, table: q.table }), []);
     const rowCount = Number((countRows[0] as { readonly count?: unknown } | undefined)?.count);
     if (!Number.isFinite(rowCount) || rowCount > MAX_CONTAINS_FALLBACK_ROWS) return [];
 

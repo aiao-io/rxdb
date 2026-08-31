@@ -115,6 +115,35 @@ describe('OPFS files provider — upload binding', () => {
     expect(root.exists('y.bin')).toBe(false);
   });
 
+  /**
+   * commit 半途死掉之后的 discard 必须真的清理，不能因为「已经 settled」就跳过。
+   *
+   * @remarks
+   * `commit()` 在做临时文件 → 目标文件的搬运**之前**就把状态标成已结算，所以搬运这一步
+   * 抛出时，端点的收口调用 discard，而 discard 看到「已结算且没有活着的 writable」就直接
+   * 返回——临时文件永久留在 OPFS 里。每失败一次泄一个，全都是用户看不懂的隐藏文件，
+   * 而且占着浏览器存储配额。
+   */
+  it('MUST clean up the temporary file when commit fails part-way', async () => {
+    const { provider } = setup(r => {
+      // 目标名被一个目录占着：搬运时的 `getFileHandle(name)` 必然抛 TypeMismatchError，
+      // 而临时文件此时已经写好并关闭了。
+      r.mkdir('blocked.bin');
+    });
+    await provider.invoke('upload', { transferId: 'trf-commit-fail', path: '', name: 'blocked.bin', size: 1 });
+
+    const sink = provider.createChunkSink('trf-commit-fail');
+    await sink.write(new Uint8Array([7]));
+    await expect(sink.commit()).rejects.toThrow();
+    await sink.discard();
+
+    const listed = await provider.invoke('list', { path: '' });
+    const names = (listed as { result: { entries: readonly { name: string }[] } }).result.entries.map(
+      entry => entry.name
+    );
+    expect(names.filter(name => name.startsWith('.rxdb-devtools-upload-'))).toEqual([]);
+  });
+
   // transferId 是 sink 与 upload 请求之间唯一的绑定；对不上必须炸，不能开一个无主 sink。
   it('MUST throw for a chunk sink whose transferId was never registered', () => {
     const { provider } = setup();

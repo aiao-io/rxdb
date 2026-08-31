@@ -14,10 +14,10 @@
  */
 
 import { PGliteChangeType, type PGliteChangeEvent } from '@aiao/rxdb-adapter-pglite';
-import type { DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
+import { RxDBAdapterDesktopError, type DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { PGlite } from '@electric-sql/pglite';
 import { identifier } from '@electric-sql/pglite/template';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ElectronPgliteRuntime } from '../pglite-host/electron-pglite-host.js';
 import { createElectronPgliteHost, type ElectronPgliteHost } from '../pglite-host/electron-pglite-host.js';
 import { DesktopPGliteClient } from '../pglite/desktop-pglite-client.js';
@@ -71,7 +71,30 @@ beforeEach(() => {
 afterEach(async () => {
   await host.closeAll();
   for (const runtime of runtimes) await runtime.close().catch(() => undefined);
+  // captureMicrotaskThrows 换掉了全局 queueMicrotask；本包没开 restoreMocks，得自己还回去。
+  vi.restoreAllMocks();
 });
+
+/**
+ * 截下「丢进微任务里重抛」的那些异常。
+ *
+ * @remarks
+ * 与 `electron-sqlite-client.spec.ts` 同一手法：uncaught error 在用例里观测不到，
+ * 就把 `queueMicrotask` 换成同步执行并收集抛出物。断言的仍是「错误没被吞掉」。
+ *
+ * @returns 取回目前已截下的异常
+ */
+const captureMicrotaskThrows = (): (() => unknown[]) => {
+  const raised: unknown[] = [];
+  vi.spyOn(globalThis, 'queueMicrotask').mockImplementation(task => {
+    try {
+      task();
+    } catch (error) {
+      raised.push(error);
+    }
+  });
+  return () => raised;
+};
 
 describe('DesktopPGliteClient', () => {
   // AC#11：版本核对必须排在任何有副作用的请求之前。PGlite 的 `pg.open` 会 mkdir 出
@@ -268,6 +291,50 @@ describe('DesktopPGliteClient', () => {
     await new Promise(resolve => setTimeout(resolve, 60));
 
     expect(events).toEqual([]);
+    await client.disconnect();
+  });
+
+  /**
+   * 畸形的 NOTIFY 不能炸在传输层的派发栈上。
+   *
+   * @remarks
+   * 与 SQLite 客户端完全同一条理由：`ipcRenderer.on` 是**同步扇出**，异常一路抛回
+   * Electron 的 IPC 派发循环，同一条通道上排在后面的监听者（往往是另一个库的客户端）
+   * 就整个收不到这条消息，表现为「某个库的响应式查询不刷新」。两侧必须对称。
+   */
+  it('refuses a malformed NOTIFY without throwing into the transport', async () => {
+    const client = await openClient();
+    const events: PGliteChangeEvent[] = [];
+    client.addEventListener(PGliteChangeType.INSERT, event => events.push(event));
+    const raised = captureMicrotaskThrows();
+    const downstream: unknown[] = [];
+    // 排在客户端后面的监听者：它收不收得到，就是「通道有没有被带塌」的观测点。
+    listeners.add(message => downstream.push(message));
+
+    const deliver = (message: unknown): void => {
+      for (const listener of listeners) listener(message);
+    };
+    // kind 与 sessionId 都对得上，过得了前置筛选，只能栽在解析上（缺 payload）。
+    const malformed = { kind: 'pg.notify', sessionId: client.sessionId, channel: 'rxdb_change_notify' };
+    deliver(malformed);
+    await new Promise(resolve => setTimeout(resolve, 60));
+
+    expect(events).toEqual([]);
+    expect(raised()).toHaveLength(1);
+    expect(raised()[0]).toBeInstanceOf(RxDBAdapterDesktopError);
+    expect((raised()[0] as RxDBAdapterDesktopError).code).toBe('protocol_violation');
+    expect(downstream).toEqual([malformed]);
+
+    // 通道没被这条坏消息带塌：紧接着的合法 NOTIFY 照常送达。
+    deliver({
+      kind: 'pg.notify',
+      sessionId: client.sessionId,
+      channel: 'rxdb_change_notify',
+      payload: JSON.stringify({ operation: PGliteChangeType.INSERT, ids: ['a'] })
+    });
+    await new Promise(resolve => setTimeout(resolve, 60));
+    expect(events).toHaveLength(1);
+
     await client.disconnect();
   });
 

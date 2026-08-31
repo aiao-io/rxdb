@@ -27,7 +27,9 @@ export class TauriHostAccessService implements DevToolsHostAccess {
     throw new Error('reloadInspectedPage is not wired for the Tauri host yet');
   }
 
-  evaluate<T>(_code: string, _requestId: string): Promise<T> {
+  // 必须是 async：签名承诺返回 Promise，同步抛出会绕过调用方的 `.catch` / `.finally`，
+  // 于是「没接线」这条错误炸在调用栈上，而挂在 finally 里的收尾（解锁 UI、清请求表）一条都不跑。
+  async evaluate<T>(_code: string, _requestId: string): Promise<T> {
     // TODO(US-905 阶段 2)：经主进程在 `main` 窗口注入脚本。
     void _code;
     void _requestId;

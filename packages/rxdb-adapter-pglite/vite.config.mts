@@ -121,7 +121,8 @@ export default defineConfig(() => {
         // 它只依赖 `sql_dialect` 与 `pglite.utils`，不引 `@electric-sql/pglite`，
         // 这样 `@aiao/rxdb-plugin-search` 引它构造 PG 侧 DDL 时，
         // 不会把整个 PGlite WASM 运行时拖进搜索插件的依赖图。
-        entry: { index: 'src/index.ts', 'fts/index': 'src/fts/index.ts' },
+        // `testing` 同理：package.json 的 `./testing` 指向 dist/testing.js，漏了就是死链。
+        entry: { index: 'src/index.ts', 'fts/index': 'src/fts/index.ts', testing: 'src/testing.ts' },
         name: '@aiao/rxdb-adapter-pglite',
         fileName: (_format: string, entryName: string) => `${entryName}.js`,
         // 改成你需要支持的格式。

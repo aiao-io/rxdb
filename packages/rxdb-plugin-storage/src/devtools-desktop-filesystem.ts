@@ -206,7 +206,13 @@ export function createDevToolsDesktopFilesystem(options: DevToolsDesktopFilesyst
     const pending = sessionPromise;
     sessionPromise = null;
     if (pending === null) return;
-    void pending.then(sessionId => send({ kind: 'file.close', sessionId }).catch(() => undefined));
+    // 第二个参数不能省：会话本来就没开起来时 `pending` 是条已拒绝的 promise，
+    // 只给 onFulfilled 会**派生**出一条没人接的拒绝，在 renderer 里落成未处理拒绝。
+    // 那一路的原始错误调用方早已收到，这里只是收摊，无事可做。
+    void pending.then(
+      sessionId => send({ kind: 'file.close', sessionId }).catch(() => undefined),
+      () => undefined
+    );
   }
 
   return { list, stat, createDirectory, remove, openRead, openWrite, dispose };

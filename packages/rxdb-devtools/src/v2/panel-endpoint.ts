@@ -32,7 +32,8 @@ import {
   DEVTOOLS_MAX_CHUNK_BYTES,
   DEVTOOLS_MAX_INFLIGHT_REQUESTS,
   DEVTOOLS_MAX_INFLIGHT_TRANSFERS,
-  DEVTOOLS_REQUEST_TIMEOUT_MS
+  DEVTOOLS_REQUEST_TIMEOUT_MS,
+  DEVTOOLS_TRANSFER_TOTAL_TIMEOUT_MS
 } from './constants.js';
 import type { DevToolsErrorCode, DevToolsErrorPayload } from './errors.js';
 import { createDevToolsError } from './errors.js';
@@ -386,6 +387,14 @@ class PanelEndpoint implements DevToolsPanelEndpoint {
     });
     this.#transfers.set(transferId, { requestId, abort });
 
+    // 总时长闸。REQUEST 超时只管到 RESPONSE 为止，而上传的字节全在那之后才动：
+    // 对端 RESPONSE 之后死掉、或字节源停住不动时，`#drive` 既不等对端任何一帧也没有
+    // 自己的闸，这条上传就永远挂着，UI 上是一根不会结束的进度条。
+    const cancelTotal = this.#ports.clock.setTimeout(
+      () => abort(createDevToolsError('transfer_timeout')),
+      DEVTOOLS_TRANSFER_TOTAL_TIMEOUT_MS
+    );
+
     // 请求先上线，传输帧紧随其后：同一条通道保序，因此 provider 在收到 START 时
     // 一定已经见过 params 里的 transferId，不必先等一轮 RESPONSE。
     void this.#issue(requestId, 'files', 'upload', request.params(transferId)).then(result => {
@@ -395,6 +404,7 @@ class PanelEndpoint implements DevToolsPanelEndpoint {
     try {
       return await this.#drive(transferId, request.source, aborted);
     } finally {
+      cancelTotal();
       this.#transfers.delete(transferId);
     }
   }
@@ -567,11 +577,34 @@ class PanelEndpoint implements DevToolsPanelEndpoint {
       return;
     }
     const pending = this.#downloads.get(requestId);
-    if (pending === undefined) {
+    if (pending !== undefined) {
+      pending.cause = error;
+      return;
+    }
+    const transfer = this.#transferOf(requestId);
+    if (transfer === undefined) {
       this.#rejectedFrames += 1;
       return;
     }
-    pending.cause = error;
+    // 上传的**每一次**真实失败都落在这里：connector 在 provider 登记完就回 RESPONSE，
+    // 字节还一个没写，所以写盘失败、commit 失败、超时全都发生在请求结算之后。
+    // 不接住就等于把它们记成无主帧，然后把这次上传报成 `'sent'`。
+    transfer.abort(error);
+  }
+
+  /**
+   * 按 requestId 找在途上传。
+   *
+   * @remarks
+   * 线性扫描而不是再维护一张反向索引：并发上传上限是
+   * {@link DEVTOOLS_MAX_INFLIGHT_TRANSFERS}（个位数），而一张需要两处同步删除的索引
+   * 迟早会漏掉一处。
+   */
+  #transferOf(requestId: string): PendingTransfer | undefined {
+    for (const transfer of this.#transfers.values()) {
+      if (transfer.requestId === requestId) return transfer;
+    }
+    return undefined;
   }
 
   /** 额度与 session 预检；通过返回 `null`。 */

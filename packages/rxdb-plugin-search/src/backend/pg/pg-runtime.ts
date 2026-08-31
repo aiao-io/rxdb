@@ -27,7 +27,8 @@ import {
   buildPgBackfillSql,
   buildPgPendingBackfillProbeSql,
   buildPgResetFtsSql,
-  PG_BACKFILL_BATCH_SIZE
+  PG_BACKFILL_BATCH_SIZE,
+  type PgTableRef
 } from './pg-search-sql.js';
 import { splitPgStatements } from './pg-statements.js';
 
@@ -46,14 +47,41 @@ import { splitPgStatements } from './pg-statements.js';
 export const pgFtsMigrationName = (tableName: string, action: 'install' | 'backfill', version = 1): string =>
   `pgfts__${tableName}__v${version}__${action}`;
 
-/** 物理表名：列 / 索引 / trigger / migration 记录均以此为锚。 */
-const physicalTableOf = (plan: FtsInstallPlan): string => plan.sqlTableName ?? plan.tableName;
+/**
+ * 表定位：所有 DDL、探针与查询 SQL 都以此为锚。
+ *
+ * @remarks
+ * 这里**不能**用 `plan.sqlTableName`。那是 SQLite 适配器的物理表名
+ * （`<namespace>$<table>`）；pg 适配器把 namespace 建成真正的 schema，
+ * 表是 `"<namespace>"."<table>"`。两者恰好都由同一个 namespace 派生，
+ * 于是「照搬 sqlTableName」看着很自然，实际让整个 pg 后端指向一张
+ * 从来不存在的 `"public$article"`。
+ */
+const tableRefOf = (plan: FtsInstallPlan): PgTableRef => ({ schema: plan.namespace, table: plan.tableName });
+
+/**
+ * 派生对象（索引 / trigger / trigger 函数）的名字基。
+ *
+ * 与 {@link tableRefOf} 不同，这里就是**裸表名**：适配器的 DDL 构造器拿到裸名后
+ * 自行拼出 `<table>__fts_idx` 等名字，schema 由它单独限定。探测这些对象时
+ * 必须按同一规则拼，否则「装上了却探不到」会让每次启动都白重装一遍。
+ */
+const objectBaseOf = (plan: FtsInstallPlan): string => plan.tableName;
+
+/**
+ * 迁移记录名的锚。
+ *
+ * 刻意仍用 `sqlTableName`：迁移记录只是本地账本，换锚点会让所有存量安装记录
+ * 一夜之间读不到，进而触发一次无谓的全表重装。它要的只是「同一张表稳定同名」，
+ * 而 `<namespace>$<table>` 恰好满足，且跨 schema 天然不撞。
+ */
+const migrationTableOf = (plan: FtsInstallPlan): string => plan.sqlTableName ?? plan.tableName;
 
 const installMigrationName = (plan: FtsInstallPlan): string =>
-  `${pgFtsMigrationName(physicalTableOf(plan), 'install')}__${plan.signature}`;
+  `${pgFtsMigrationName(migrationTableOf(plan), 'install')}__${plan.signature}`;
 
 const backfillMigrationName = (plan: FtsInstallPlan): string =>
-  `${pgFtsMigrationName(physicalTableOf(plan), 'backfill')}__${plan.signature}`;
+  `${pgFtsMigrationName(migrationTableOf(plan), 'backfill')}__${plan.signature}`;
 
 /** 从迁移名中解出签名后缀；格式不符时返回 `''`（视作空签名）。 */
 const extractStoredSignature = (migrationName: string, tableName: string): string => {
@@ -93,20 +121,51 @@ interface PgRuntimeObjects {
   readonly functionSource: string;
 }
 
+/**
+ * 探测四个运行时对象是否就位。
+ *
+ * @remarks
+ * 每条子查询都按 schema 收窄。目录视图是**全库**的：不加 schema 条件时，
+ * `public.article` 上装好的索引会让 `shop.article` 的探测直接返回「已就位」，
+ * 于是 shop 那张表永远等不到自己的索引与 trigger，而安装流程每次都报健康。
+ * 多租户按 namespace 分 schema 时这几乎必然发生。
+ *
+ * 四类对象的定位方式各不相同，因为 PG 的目录本身就长得不一样：
+ * 列与索引各自带 schema 列；trigger 只能经 `pg_class` 回到它所依附的表，
+ * 再由表回到 schema；函数不依附任何表，直接落在 `pg_proc.pronamespace` 上。
+ * `schema` 省略时（调用方自建、就在 `search_path` 上的表）退回不限定的旧语义。
+ */
 const inspectPgRuntimeObjects = async (
   plan: FtsInstallPlan,
   executor: RuntimeSqlExecutor
 ): Promise<PgRuntimeObjects> => {
-  const table = physicalTableOf(plan);
+  const { schema, table } = tableRefOf(plan);
+  const base = objectBaseOf(plan);
+  // $6 = schema；NULL 时每个 `$6 IS NULL OR ...` 分支恒真，退化成不限定的探测
+  const inSchema = (column: string): string => `($6::text IS NULL OR ${column} = $6::text)`;
   const result = await executor.rawQuery(
     [
       `SELECT`,
-      `  (SELECT count(*) FROM information_schema.columns WHERE table_name = $1 AND column_name = $2) AS has_column,`,
-      `  (SELECT count(*) FROM pg_indexes WHERE tablename = $1 AND indexname = $3) AS has_index,`,
-      `  (SELECT count(*) FROM pg_trigger WHERE tgname = $4 AND NOT tgisinternal) AS has_trigger,`,
-      `  (SELECT COALESCE(prosrc, '') FROM pg_proc WHERE proname = $5 LIMIT 1) AS function_source`
+      `  (SELECT count(*) FROM information_schema.columns`,
+      `    WHERE table_name = $1 AND column_name = $2 AND ${inSchema('table_schema')}) AS has_column,`,
+      `  (SELECT count(*) FROM pg_indexes`,
+      `    WHERE tablename = $1 AND indexname = $3 AND ${inSchema('schemaname')}) AS has_index,`,
+      `  (SELECT count(*) FROM pg_trigger t`,
+      `    JOIN pg_class c ON c.oid = t.tgrelid`,
+      `    JOIN pg_namespace n ON n.oid = c.relnamespace`,
+      `    WHERE t.tgname = $4 AND NOT t.tgisinternal AND c.relname = $1 AND ${inSchema('n.nspname')}) AS has_trigger,`,
+      `  (SELECT COALESCE(p.prosrc, '') FROM pg_proc p`,
+      `    JOIN pg_namespace n ON n.oid = p.pronamespace`,
+      `    WHERE p.proname = $5 AND ${inSchema('n.nspname')} LIMIT 1) AS function_source`
     ].join('\n'),
-    [table, FTS_COLUMN, `${table}_${FTS_COLUMN}_idx`, `${table}_${FTS_COLUMN}_trg`, `${table}_${FTS_COLUMN}_update`]
+    [
+      table,
+      FTS_COLUMN,
+      `${base}_${FTS_COLUMN}_idx`,
+      `${base}_${FTS_COLUMN}_trg`,
+      `${base}_${FTS_COLUMN}_update`,
+      schema ?? null
+    ]
   );
   const at = (column: string): unknown => {
     const index = result.columns.indexOf(column);
@@ -135,14 +194,17 @@ const hasHealthyPgRuntimeObjects = (plan: FtsInstallPlan, objects: PgRuntimeObje
 };
 
 const applyStructure = async (plan: FtsInstallPlan, executor: RuntimeSqlExecutor): Promise<void> => {
-  const table = physicalTableOf(plan);
+  // 传裸表名 + schema：构造器据此拼出 `"<schema>"."<table>"`，并把 trigger 函数
+  // 一并限定到同一 schema（函数不依附表，不限定就会被两个 schema 的同名表抢）。
+  const ddlOptions = { schema: plan.namespace };
+  const table = objectBaseOf(plan);
   // DDL 构造器在这里才加载：静态引入会把整个 pglite 适配器拖进只用 sqlite 的下游的
   // 加载图里（见 pg-fts-contract.ts）。这一行只有 adapter 确实是 pglite 时才执行得到。
   const { buildCreateFtsTableSql, buildFtsTriggersSql } = await loadPgFtsDdl();
   // 两条 DDL 都是 IF NOT EXISTS，重复执行无副作用
-  await execEach(executor, buildCreateFtsTableSql(table, plan.fields));
+  await execEach(executor, buildCreateFtsTableSql(table, plan.fields, ddlOptions));
   // 函数是 CREATE OR REPLACE、trigger 先 DROP IF EXISTS 再建，同样幂等
-  await execEach(executor, buildFtsTriggersSql(table, plan.fields));
+  await execEach(executor, buildFtsTriggersSql(table, plan.fields, ddlOptions));
 };
 
 /**
@@ -157,10 +219,10 @@ const applyStructure = async (plan: FtsInstallPlan, executor: RuntimeSqlExecutor
  * （例如 trigger 被外部改坏），此时必须抛错而不是空转或静默返回。
  */
 const backfillUntilComplete = async (plan: FtsInstallPlan, executor: RuntimeSqlExecutor): Promise<void> => {
-  const table = physicalTableOf(plan);
-  const probeSql = buildPgPendingBackfillProbeSql(table);
+  const ref = tableRefOf(plan);
+  const probeSql = buildPgPendingBackfillProbeSql(ref);
   const backfillSql = buildPgBackfillSql({
-    table,
+    ...ref,
     primaryKey: plan.primaryKey,
     batchSize: PG_BACKFILL_BATCH_SIZE
   });
@@ -170,7 +232,7 @@ const backfillUntilComplete = async (plan: FtsInstallPlan, executor: RuntimeSqlE
   while (pending > 0) {
     if (remainingRounds <= 0) {
       throw new SearchExecutionError(
-        `PostgreSQL FTS backfill did not converge on table "${table}": ${pending} row(s) still have a NULL "${FTS_COLUMN}" column`
+        `PostgreSQL FTS backfill did not converge on table "${ref.table}": ${pending} row(s) still have a NULL "${FTS_COLUMN}" column`
       );
     }
     remainingRounds -= 1;
@@ -201,13 +263,13 @@ export async function installPgFtsForEntity(
   executor: RuntimeSqlExecutor,
   migrationStore: MigrationRecordStore
 ): Promise<InstallFtsResult> {
-  const table = physicalTableOf(plan);
-  const existing = await migrationStore.listInstallMigrationsForTable(table);
+  const migrationTable = migrationTableOf(plan);
+  const existing = await migrationStore.listInstallMigrationsForTable(migrationTable);
   const expectedName = installMigrationName(plan);
 
   if (existing.length > 0) {
     // 同表并存多个不同签名 = 迁移历史被污染，真实结构不可信，一律 fail-fast
-    const storedSigs = [...new Set(existing.map(m => extractStoredSignature(m.name, table)))];
+    const storedSigs = [...new Set(existing.map(m => extractStoredSignature(m.name, migrationTable)))];
     if (storedSigs.length !== 1 || existing[0].name !== expectedName) {
       throw new SearchSchemaMismatchError(plan.tableName, plan.signature, storedSigs.join(', '));
     }
@@ -233,7 +295,7 @@ export async function installPgFtsForEntity(
 const resumeInstall = async (plan: FtsInstallPlan, executor: RuntimeSqlExecutor): Promise<InstallFtsResult> => {
   const objects = await inspectPgRuntimeObjects(plan, executor);
   if (hasHealthyPgRuntimeObjects(plan, objects)) {
-    const pending = await readCount(executor, buildPgPendingBackfillProbeSql(physicalTableOf(plan)));
+    const pending = await readCount(executor, buildPgPendingBackfillProbeSql(tableRefOf(plan)));
     if (pending === 0) {
       return { tableName: plan.tableName, status: 'already_installed', fields: plan.fields };
     }
@@ -250,7 +312,7 @@ const resumeInstall = async (plan: FtsInstallPlan, executor: RuntimeSqlExecutor)
   // 这正是要的效果，而且插件侧一个字的 to_tsvector 表达式都不用复制（复制必然漂移）。
   // 剩下本来就是 NULL 的行不在它的 WHERE 里，由紧随其后的分批回填收尾。
   await applyStructure(plan, executor);
-  await executor.rawQuery(buildPgResetFtsSql(physicalTableOf(plan)));
+  await executor.rawQuery(buildPgResetFtsSql(tableRefOf(plan)));
   await backfillUntilComplete(plan, executor);
   return { tableName: plan.tableName, status: 'repaired', fields: plan.fields };
 };

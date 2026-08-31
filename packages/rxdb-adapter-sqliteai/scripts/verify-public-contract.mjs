@@ -19,7 +19,26 @@ for (const declarationName of declarationNames) {
 
 const indexDeclaration = await readFile(new URL('index.d.ts', distUrl), 'utf8');
 const interfaceDeclaration = await readFile(new URL('sqliteai.interface.d.ts', distUrl), 'utf8');
-const bundle = await readFile(new URL('index.js', distUrl), 'utf8');
+
+/**
+ * 从 `index.js` 出发沿相对 import 递归收集整份产物文本。
+ *
+ * 只读 `index.js` 是不行的：多入口（`index` + `testing`）构建会把共享实现拆成
+ * chunk，`index.js` 只剩再导出。断言「实现被打进包里」的对象是**入口可达的整个
+ * 产物图**，不是入口文件这一个文件——盯着单个文件，加一个入口就会把它变成假红。
+ */
+const readReachableBundle = async (entry, seen = new Set()) => {
+  if (seen.has(entry)) return '';
+  seen.add(entry);
+  const source = await readFile(new URL(entry, distUrl), 'utf8');
+  const specifiers = [...source.matchAll(/from\s*["'](\.[^"']+)["']/g)].map(match => match[1]);
+  const parts = await Promise.all(
+    specifiers.map(specifier => readReachableBundle(specifier.replace(/^\.\//, ''), seen))
+  );
+  return [source, ...parts].join('\n');
+};
+
+const bundle = await readReachableBundle('index.js');
 
 assert.match(indexDeclaration, /from '@aiao\/rxdb-adapter-sqlite-core'/);
 assert.match(interfaceDeclaration, /from '@aiao\/rxdb'/);

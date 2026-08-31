@@ -42,6 +42,14 @@ export interface SearchEngineQuery {
   readonly table: string;
   /** SQLite 物理表名（含 namespace 前缀） */
   readonly sqlTable?: string;
+  /**
+   * PostgreSQL schema 名（= 实体的 `namespace`）；SQLite 后端忽略。
+   *
+   * 与 {@link SearchEngineQuery.sqlTable} 是同一个 namespace 的两种落法，
+   * 不能互相替代：pg 适配器建的是 `"<namespace>"."<table>"`，
+   * sqlite 适配器建的是 `<namespace>$<table>`。
+   */
+  readonly schema?: string;
   /** 业务实体名（面向展示） */
   readonly entity: string;
   /** 业务表主键列名（= FTS5 rowid） */

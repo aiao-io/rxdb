@@ -71,4 +71,16 @@ export interface FtsOptions {
    * 默认 {@link DEFAULT_FTS_REGCONFIG}。
    */
   readonly regconfig?: string;
+  /**
+   * 目标表所在的 schema（= 实体的 `namespace`）。
+   *
+   * @remarks
+   * 适配器把实体建成 `"<namespace>"."<table>"`（见 `getTableNameByMetadata`），
+   * 因此 namespace 不是 `public` 时**必须**传：省略则表引用不带限定，由 `search_path`
+   * 解析——轻则 42P01「表不存在」，重则把 DDL 打到 public 里另一张同名表上。
+   *
+   * 省略是合法的，语义就是「按 `search_path` 解析」，适用于调用方自建、且确实在
+   * 默认搜索路径上的表。
+   */
+  readonly schema?: string;
 }

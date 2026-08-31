@@ -9,7 +9,8 @@ import {
   DEVTOOLS_MAX_INFLIGHT_REQUESTS,
   DEVTOOLS_MAX_INFLIGHT_TRANSFERS,
   DEVTOOLS_PROTOCOL_VERSION_V2,
-  DEVTOOLS_REQUEST_TIMEOUT_MS
+  DEVTOOLS_REQUEST_TIMEOUT_MS,
+  DEVTOOLS_TRANSFER_TOTAL_TIMEOUT_MS
 } from '../../v2/constants.js';
 import type { DevToolsPanelNegotiationMessage } from '../../v2/negotiation-panel.js';
 import type { DevToolsPanelEndpoint, DevToolsPanelUploadSource } from '../../v2/panel-endpoint.js';
@@ -404,5 +405,63 @@ describe('panel endpoint · 上传', () => {
       error: { code: 'resource_not_found', retryable: false }
     });
     expect(panel.inflightTransfers).toBe(0);
+  });
+
+  /**
+   * RESPONSE 之后的 ERROR 同样要落到这次上传身上。
+   *
+   * @remarks
+   * connector 在 provider **登记完** upload 就回 RESPONSE，字节一个都还没写。因此真正的
+   * 写入失败（磁盘满、权限、commit 失败）全部发生在 RESPONSE **之后**——那时 requestId
+   * 早已从在途请求表里删掉了。只查 `#requests` 与下载专用的 `#downloads` 的话，这条
+   * ERROR 变成一帧无主帧被记进 `rejectedFrames`，上传照发不误并回 `'sent'`：
+   * 一次彻底失败的上传被报成成功，这是本用例唯一要挡住的东西。
+   */
+  it('MUST fail an upload when the error arrives after the upload RESPONSE', async () => {
+    const { sent, panel } = setup([ROOMY_DESCRIPTOR]);
+
+    const pending = panel.upload({
+      params: () => ({}),
+      source: stallingSource(DEVTOOLS_MAX_CHUNK_BYTES * 2)
+    });
+    await Promise.resolve();
+    const requestId = requestIdOf(sent);
+    panel.receive(response(requestId, { transferId: 'trf-1' }));
+    panel.receive(errorFrame(requestId));
+
+    await expect(pending).resolves.toEqual({
+      outcome: 'failed',
+      error: { code: 'resource_not_found', retryable: false }
+    });
+    expect(panel.inflightTransfers).toBe(0);
+    expect(panel.rejectedFrames).toBe(0);
+  });
+
+  /**
+   * 对端彻底沉默时，上传不能永远挂着。
+   *
+   * @remarks
+   * REQUEST 超时只覆盖「RESPONSE 没来」。RESPONSE 来了、随后 connector 死掉（或字节源
+   * 卡住）时，`#drive` 既不等对端任何一帧，也没有自己的闸——`source.read` 停住就永久
+   * 挂起，UI 上是一个永不结束的进度条。所以上传要有自己的总时长闸。
+   */
+  it('MUST fail an upload that outlives the total transfer timeout', async () => {
+    const { sent, clock, panel } = setup([ROOMY_DESCRIPTOR]);
+
+    const pending = panel.upload({
+      params: () => ({}),
+      source: stallingSource(DEVTOOLS_MAX_CHUNK_BYTES * 2)
+    });
+    await Promise.resolve();
+    panel.receive(response(requestIdOf(sent), { transferId: 'trf-1' }));
+    clock.advance(DEVTOOLS_TRANSFER_TOTAL_TIMEOUT_MS);
+
+    await expect(pending).resolves.toEqual({
+      outcome: 'failed',
+      error: { code: 'transfer_timeout', retryable: false }
+    });
+    expect(panel.inflightTransfers).toBe(0);
+    // 闸自己也要拆干净，否则每条上传都在时钟上留一个到期回调。
+    expect(clock.pendingTimers()).toBe(0);
   });
 });

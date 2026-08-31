@@ -77,7 +77,15 @@ export interface DevToolsOpfsFilesProvider extends DevToolsProvider {
 const TEMPORARY_PREFIX = '.rxdb-devtools-upload-';
 
 interface PendingUpload {
-  readonly directory: FileSystemDirectoryHandle;
+  /**
+   * 目标目录，以**未决 promise** 的形式登记。
+   *
+   * @remarks
+   * 不是句柄本身：登记必须发生在 `upload` 的第一个 `await` 之前（理由见 {@link upload}），
+   * 而那时目录还没解析出来。sink 的每个入口都会 await 它，代价只是把等待推迟到真正
+   * 要用句柄的那一刻。
+   */
+  readonly directory: Promise<FileSystemDirectoryHandle>;
   readonly name: string;
   readonly temporaryName: string;
 }
@@ -170,9 +178,22 @@ export function createDevToolsOpfsFilesProvider(ports: DevToolsOpfsFilesProvider
     if (!isSafeIntegerInRange(params['size'], 0, ports.maxTransferBytes)) return failure('transfer_size_exceeded');
     if (uploads.has(transferId)) return failure('resource_conflict');
 
-    const directory = await resolveDirectory(await ports.getRootDirectory(), segments, true);
+    // 登记必须发生在**第一个 await 之前**。协议规定面板把 `TRANSFER_START` 紧跟在本请求
+    // 后面发出、不等 RESPONSE，而 connector 同步派发它；先解析目录再 `set` 的话，
+    // `createChunkSink` 每一次都查不到这个 ID——这不是竞态，是必然。
+    const directory = (async () => resolveDirectory(await ports.getRootDirectory(), segments, true))();
     temporarySequence += 1;
     uploads.set(transferId, { directory, name, temporaryName: `${TEMPORARY_PREFIX}${temporarySequence}` });
+
+    // 仍然等目录解析完再回应答：路径本身有问题（父目录建不出来等）必须以错误码回给对端，
+    // 而不是拖到第一块字节落盘时才以一次传输失败的形式冒出来。抛出交给 `invoke` 的
+    // catch 去映射；登记先撤掉，免得这个 ID 挂着一个永远开不了的目录。
+    try {
+      await directory;
+    } catch (error) {
+      uploads.delete(transferId);
+      throw error;
+    }
     return ok({ path: joinLogicalPath([...segments, name]), transferId });
   }
 
@@ -236,18 +257,29 @@ export function createDevToolsOpfsFilesProvider(ports: DevToolsOpfsFilesProvider
  */
 function createTemporaryFileSink(pending: PendingUpload): DevToolsChunkSink {
   let writable: FileSystemWritableFileStream | undefined;
-  let settled = false;
+  /**
+   * 临时产物是否**确实**清理过。
+   *
+   * @remarks
+   * 判据只能是「清理跑完了」，不能是「已经结算了」：`commit` 在搬运临时文件之前就算结算，
+   * 搬运抛出时端点会调 `discard` 收口，而以结算为判据的 discard 会掉头就走，把临时文件
+   * 永久留在 OPFS 里——每失败一次泄一个，还占着存储配额。
+   */
+  let cleaned = false;
 
   const open = async (): Promise<FileSystemWritableFileStream> => {
     if (writable === undefined) {
-      const handle = await pending.directory.getFileHandle(pending.temporaryName, { create: true });
+      const directory = await pending.directory;
+      const handle = await directory.getFileHandle(pending.temporaryName, { create: true });
       writable = await handle.createWritable();
     }
     return writable;
   };
 
   const cleanup = async (): Promise<void> => {
-    await pending.directory.removeEntry(pending.temporaryName, { recursive: false }).catch(() => undefined);
+    const directory = await pending.directory;
+    await directory.removeEntry(pending.temporaryName, { recursive: false }).catch(() => undefined);
+    cleaned = true;
   };
 
   return {
@@ -259,13 +291,13 @@ function createTemporaryFileSink(pending: PendingUpload): DevToolsChunkSink {
     },
 
     async commit() {
-      settled = true;
       const stream = await open();
       await stream.close();
       writable = undefined;
       // OPFS 没有 rename：读回临时文件的句柄再整体写入目标，然后删掉临时文件。
-      const temporary = await pending.directory.getFileHandle(pending.temporaryName, { create: false });
-      const target = await pending.directory.getFileHandle(pending.name, { create: true });
+      const directory = await pending.directory;
+      const temporary = await directory.getFileHandle(pending.temporaryName, { create: false });
+      const target = await directory.getFileHandle(pending.name, { create: true });
       const output = await target.createWritable();
       await output.write(await temporary.getFile());
       await output.close();
@@ -273,8 +305,7 @@ function createTemporaryFileSink(pending: PendingUpload): DevToolsChunkSink {
     },
 
     async discard() {
-      if (settled && writable === undefined) return;
-      settled = true;
+      if (cleaned) return;
       await writable?.abort().catch(() => undefined);
       writable = undefined;
       await cleanup();

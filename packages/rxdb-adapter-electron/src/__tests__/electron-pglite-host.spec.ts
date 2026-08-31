@@ -198,6 +198,62 @@ describe('createElectronPgliteHost', () => {
     expect(rows.result.rows).toEqual([{ id: 1 }, { id: 2 }]);
   });
 
+  it('COMMIT 自身失败时回错误帧，不谎报成功', async () => {
+    const { host } = createHarness();
+    const sessionId = await openSession(host, 'commit-fail-pgdata');
+    // 延迟外键：INSERT 当场通过，约束要到 COMMIT 才校验——这是「语句全绿但事务没落库」
+    // 这条路径唯一能真实构造出来的形状，也正是它让谎报成功变得致命。
+    await ok(host, 'pg.exec', {
+      kind: 'pg.exec',
+      sessionId,
+      sql: `CREATE TABLE parent (id int PRIMARY KEY);
+            CREATE TABLE child (
+              id int PRIMARY KEY,
+              parent_id int REFERENCES parent (id) DEFERRABLE INITIALLY DEFERRED
+            );`
+    });
+
+    const begun = await ok(host, 'pg.begin', { kind: 'pg.begin', sessionId, timeout: 2_000 });
+    const { transactionId } = begun.result;
+    await ok(host, 'pg.query', {
+      kind: 'pg.query',
+      sessionId,
+      transactionId,
+      sql: 'INSERT INTO child (id, parent_id) VALUES ($1, $2)',
+      params: [1, 404]
+    });
+
+    expect(await failure(host, { kind: 'pg.commit', sessionId, transactionId })).toBe('statement_failed');
+    // 失败的事务必须从表里摘掉，否则连接锁再也放不出来。
+    expect(host.openTransactionCount).toBe(0);
+
+    const rows = await ok(host, 'pg.query', { kind: 'pg.query', sessionId, sql: 'SELECT id FROM child', params: [] });
+    expect(rows.result.rows).toEqual([]);
+  });
+
+  it('回滚让 transaction(...) reject 是设计如此，不能因此把正常回滚变成错误帧', async () => {
+    const { host } = createHarness();
+    const sessionId = await openSession(host, 'rollback-ok-pgdata');
+    await ok(host, 'pg.exec', { kind: 'pg.exec', sessionId, sql: 'CREATE TABLE t (id int primary key)' });
+
+    const begun = await ok(host, 'pg.begin', { kind: 'pg.begin', sessionId, timeout: 2_000 });
+    await ok(host, 'pg.query', {
+      kind: 'pg.query',
+      sessionId,
+      sql: 'INSERT INTO t VALUES ($1)',
+      params: [1],
+      transactionId: begun.result.transactionId
+    });
+
+    const response = await host.handle(
+      { kind: 'pg.rollback', sessionId, transactionId: begun.result.transactionId },
+      OWNER
+    );
+
+    expect(response.kind).toBe('pg.rollback');
+    expect(host.openTransactionCount).toBe(0);
+  });
+
   it('事务里的 pg.exec 也走同一条事务，回滚照样带走它', async () => {
     const { host } = createHarness();
     const sessionId = await openSession(host, 'tx-exec-pgdata');

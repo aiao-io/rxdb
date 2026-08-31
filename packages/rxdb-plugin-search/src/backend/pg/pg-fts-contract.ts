@@ -56,10 +56,23 @@ export const FTS_COLUMN = '_fts';
  */
 export const DEFAULT_FTS_REGCONFIG = 'simple';
 
-/** 适配器 `fts` 子路径里本后端真正复用的两个 DDL 构造器。 */
+/**
+ * 适配器 `fts` 子路径里本后端真正复用的两个 DDL 构造器。
+ *
+ * `table` 是**裸表名**，schema 走 `options.schema`——适配器据此拼出
+ * `"<schema>"."<table>"`，并把跨 schema 会撞名的对象（trigger 函数）一并限定。
+ */
 interface PgFtsDdlBuilders {
-  readonly buildCreateFtsTableSql: (table: string, fields: readonly FtsField[]) => string;
-  readonly buildFtsTriggersSql: (table: string, fields: readonly FtsField[]) => string;
+  readonly buildCreateFtsTableSql: (
+    table: string,
+    fields: readonly FtsField[],
+    options?: { readonly schema?: string }
+  ) => string;
+  readonly buildFtsTriggersSql: (
+    table: string,
+    fields: readonly FtsField[],
+    options?: { readonly schema?: string }
+  ) => string;
 }
 
 /**

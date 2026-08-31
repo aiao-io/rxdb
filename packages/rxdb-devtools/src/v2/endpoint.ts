@@ -611,10 +611,34 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
       this.#sendError(payload.requestId, result.error);
       return;
     }
-    this.#transferBindings.set(payload.transferId, {
-      requestId: payload.requestId,
-      sink: this.#ports.providers.createChunkSink(payload.transferId)
-    });
+    const sink = this.#createSink(payload);
+    if (sink === undefined) return;
+    this.#transferBindings.set(payload.transferId, { requestId: payload.requestId, sink });
+  }
+
+  /**
+   * 取本次传输的 sink，建不起来时就地转成一条 ERROR 帧。
+   *
+   * @remarks
+   * `receive()` 是宿主 transport 的**同步**回调，`createChunkSink` 的抛出会一路逃出去
+   * 打断同一条通道上排在后面的消息；而对端只看到「上传一直没有回音直到超时」，
+   * 与真正的原因（多半是这个 transferId 没有对应的 upload 请求）毫无关联线索。
+   * 所以异常在这里落地成协议内的失败，而不是穿过端点。
+   *
+   * 拒绝时用 `cancel` 而不是 `releaseTransfer`：这条传输已经被传输表接受了，
+   * 得把它按正常终态结算掉，否则表里留一条永远不会推进的记录，占着并发名额。
+   *
+   * @param payload - START 载荷。
+   * @returns sink；建不起来时 `undefined`。
+   */
+  #createSink(payload: DevToolsTransferStartPayload): DevToolsChunkSink | undefined {
+    try {
+      return this.#ports.providers.createChunkSink(payload.transferId);
+    } catch {
+      void this.#transfers?.cancel({ transferId: payload.transferId });
+      this.#sendError(payload.requestId, createDevToolsError('operation_failed'));
+      return undefined;
+    }
   }
 
   /**
