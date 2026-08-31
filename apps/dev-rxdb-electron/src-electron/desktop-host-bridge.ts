@@ -34,7 +34,7 @@ import {
   type DesktopChangeEventTarget,
   type DesktopSqliteBridge
 } from './desktop-sqlite-bridge.js';
-import { isKnownDesktopHostRequestKind } from './desktop-host-request-guard.js';
+import { isKnownDesktopHostRequestKind, readDesktopHostRequestKind } from './desktop-host-request-guard.js';
 
 // 两族的路径解析器一并转发出去：`main.ts` 只能 import 打包产物（ELEC-23），
 // 而 esbuild 只把**本入口**的导出面留在产物里。不转发的话 `main.ts` 就得从 tsc 的
@@ -113,10 +113,6 @@ export interface DesktopHostBridge {
   closeAll(): Promise<void>;
 }
 
-/** 安全地取出 `kind`，负载不是对象时返回 `undefined`（由 host 去报 `protocol_violation`）。 */
-const kindOf = (request: unknown): unknown =>
-  typeof request === 'object' && request !== null ? (request as Record<string, unknown>)['kind'] : undefined;
-
 /**
  * 创建合流后的主进程 host。
  *
@@ -143,7 +139,7 @@ export function createDesktopHostBridge(options: DesktopHostBridgeOptions): Desk
       if (!isKnownDesktopHostRequestKind(request)) {
         return Promise.resolve({ kind: 'error', code: 'protocol_violation', message: 'unknown desktop host request kind' });
       }
-      const kind = kindOf(request);
+      const kind = readDesktopHostRequestKind(request);
       if (isDesktopHostFileRequestKind(kind)) return file.handle(target, request);
       if (isDesktopPgliteRequestKind(kind)) return pglite.handle(target, request);
       return sqlite.handle(target, request);
