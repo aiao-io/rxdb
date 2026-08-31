@@ -5,7 +5,7 @@ status: In Progress
 priority: High
 epic: epic-003-ui-developer-tools
 created: 2026-08-15
-updated: 2026-08-27
+updated: 2026-09-01
 tags:
   [tooling, devtools, desktop, electron, protocol, provider, security, transfer, snapshot, conformance, chrome, browser]
 decision: supported
@@ -863,7 +863,8 @@ AC#45/46/47/49/51 的 provider/装配/单测侧已落地（加载隔离、databa
 - [US-210](../adapter/US-210-tauri-sqlite-local-database.md)：提供应用作用域 SQLite 与 Tauri host（US-905 用）
 - [US-505](../plugin/US-505-tauri-local-file-storage.md)：提供 Tauri 原生文件后端；其本身依赖 US-210
 - [US-601](../tooling/US-601-subpath-api-surface-baseline.md)：若调试 provider 新增公开子路径入口，
-  必须纳入 API baseline；在 US-601 交付前按其人工审查流程登记
+  必须纳入 API baseline。US-601 已 `Done`（2026-08-24），**人工审查流程那一段已作废**——
+  子路径入口现在由 `api-surface.mjs` + `subpath-inventory.mjs` 自动守护，新增入口不同步清单直接 CI 红
 
 ## References
 

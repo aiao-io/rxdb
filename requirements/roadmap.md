@@ -11,7 +11,7 @@
 |   P3   | 多端小程序宿主（先抽契约） | [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) | Taro 有 `build:alipay/tt/qq/swan`，适配器只认 `wx`；先抽 host + 可行性矩阵，**不**扩大公开支持声明                             | `MiniProgramHost`、微信路径零回归、`miniprogram-platform-feasibility.md`；B/C 只吃矩阵 `supported` |
 |   P2   | 提交图与 HEAD 持久化       | [US-305](stories/collaboration/US-305-commit-graph-head.md)     | 旧暂存导出已在 `0.0.24` 删除，能力缺口现在完全敞开；卡的是桥接发布而非代码。**整链排期压后**（完成计划批次 4），先交付其余价值 | 独立命名空间的新契约、commit 存储布局、baseline commit 与一次性迁移                                |
 
-> US-208 / US-703 已交付（见下方完成计划），不再作为建议列出。US-306 / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
+> US-703 已 `Done`（2026-08-31，`198439d`）、US-208 实现本体已交付并转 `In Review`（只欠 AC#10 的三平台打包 smoke，已排在下方完成计划批次 3），两条都不再作为「建议」列出。US-306 / US-307 / US-308 不在本表单列——它们是 US-305 的后续交付，排期跟随
 > [epic-006](epics/epic-006-working-tree-commits.md) 内部的固定依赖关系。
 > epic-006 整链（含桥接发布线 A）排在完成计划批次 4，位于所有其他批次之后。
 
@@ -30,19 +30,19 @@
 
 ### 批次 2：批次 1 解锁后（两条线均已开工）
 
-| 顺序                                                                     | 解锁自     | 说明                                                                                                                                                                                                                                                                                                                                                                                          |
-| ------------------------------------------------------------------------ | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| US-904 阶段 D                                                            | 线 E       | C2 已交付，阶段 D 已开工并基本落地：AC#48（snapshot wire 复用 `files.list`）、AC#50（preload 校验层）、AC#53（Electron conformance driver）已关闭；AC#45/46/47/49/51 的 provider/单测侧已关。**只剩 AC#52（真实全链路 E2E）**：需联网 electron-builder + 真沙箱 + dock 模式 + CDP 驱动真实 DevTools，本机不可验证，等 CI/真实环境。C 阶段残留 AC#34/#38/#39/#42 待人工浏览器回归 / 跨版本实证 |
-| [US-905](stories/future/US-905-tauri-native-devtools.md) 阶段 1 → 阶段 2 | 线 E、线 C | 阶段 1 门禁已解除，AC#1～#8 已全部落地并通过本地验证（两个硬阻塞：`rxdb-devtools` 窗口 capability、`devtools_message` 的 `#[cfg(dev)]` 隔离均已破；Rust 25 + TS 213 + conformance 80 断言全绿）。真实 Tauri 打包 E2E（双 WebView 握手、AC#4 重开拒旧身份）需 Tauri CLI 环境。frontmatter 已改 In Progress。阶段 2（真实 US-210 SQLite / US-505 native files）等 US-505 关闭后按独立 PR 交付   |
+| 顺序                                                                     | 解锁自     | 说明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| US-904 阶段 D                                                            | 线 E       | C2 已交付，阶段 D 已开工并基本落地：AC#48（snapshot wire 复用 `files.list`）、AC#50（preload 校验层）、AC#53（Electron conformance driver）已关闭；AC#45/46/47/49/51 的 provider/单测侧已关。**只剩 AC#52（真实全链路 E2E）**：需联网 electron-builder + 真沙箱 + dock 模式 + CDP 驱动真实 DevTools，本机不可验证，等 CI/真实环境。C 阶段残留 AC#34/#38/#39/#42 待人工浏览器回归 / 跨版本实证                                                                                                                                                                                                                             |
+| [US-905](stories/future/US-905-tauri-native-devtools.md) 阶段 1 → 阶段 2 | 线 E、线 C | 阶段 1 门禁已解除，AC#1～#8 已全部落地并通过本地验证（两个硬阻塞：`rxdb-devtools` 窗口 capability、`devtools_message` 的 `#[cfg(dev)]` 隔离均已破；Rust 25 + TS 213 + conformance 80 断言全绿）。**按 AC 判据逐条核过后：AC#7/#8 ✅，其余 6 条 ⚠️**——判据里都含「真实 Tauri 窗口 / 真实构建产物」那一半，需 Tauri CLI 环境（双 WebView 握手、AC#4 重开拒旧身份）。AC#6 另有一处实质缺口：`mapWaSqliteBackendToProviders()` 映射已写且穷举了三分支，但**运行时真实选中的 VFS 还没接进去**（目前只有 spec 在调），是阶段 1 收尾要补的接线。阶段 2（真实 US-210 SQLite / US-505 native files）等 US-505 关闭后按独立 PR 交付 |
 
 ### 批次 3：能力与验证补齐（无硬前置，按价值排在后面）
 
 > US-703、US-216 已 Done（2026-08-31），移出本表。
 
-| 故事                                                                                                          | 为什么不排进批次 1 / 当前状态                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-208](stories/adapter/US-208-electron-pglite-data-directory.md) **实现本体** ✅（2026-08-30，`In Review`） | 已按线 G 冻结的「IPC 事务 ID 协议」实现：**AC#1～#9、#11 关闭**（`pglite-data-directory.spec.ts` 真实临时目录重启逐值保真、`pglite-transaction-contract.spec.ts` 共享事务套件 11 条零跳过、`pglite-open-failure.spec.ts` open 失败可判别、`electron-pglite-host.spec.ts` 握手 / 会话清场 / 权限）。**AC#10（三平台打包 smoke）**：`desktop-persistence-pglite.spec.ts` 已写 + PGlite 桌面选择链已接，但三平台验证需一次真实三 OS `release-desktop.yml` 矩阵，本机无法跑 |
-| [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 阶段 A → B → C                                | 阶段 A 只抽 host + 写可行性矩阵，**不扩大公开支持声明**；B/C 只吃矩阵里 `decision: supported` 的平台（约束 7）。未关闭的阶段不得改支持声明                                                                                                                                                                                                                                                                                                                              |
+| 故事                                                                                                          | 为什么不排进批次 1 / 当前状态                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-208](stories/adapter/US-208-electron-pglite-data-directory.md) **实现本体** ✅（2026-08-30，`In Review`） | 已按线 G 冻结的「IPC 事务 ID 协议」实现：**AC#1～#9、#11 关闭**（`pglite-data-directory.spec.ts` 真实临时目录重启逐值保真、`pglite-transaction-contract.spec.ts` 共享事务套件 11 条零跳过、`pglite-open-failure.spec.ts` open 失败可判别、`electron-pglite-host.spec.ts` 握手 / 会话清场 / 权限）。**AC#10（三平台打包 smoke）**：`desktop-persistence-pglite.spec.ts` 已写 + PGlite 桌面选择链已接。PR #48 的三 OS dispatch **已真实跑过**：macOS / Linux 绿，Windows 红在 `Cannot find module '@electric-sql/pglite'`（electron-builder 26 只收 production 依赖图），已在 `76e2bf4` 修掉。**仍 ⬜**——修完还没有一次全绿的跑，判据是「通过」不是「修过」，见零散收尾项第 2、4 条 |
+| [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 阶段 A → B → C                                | 阶段 A 只抽 host + 写可行性矩阵，**不扩大公开支持声明**；B/C 只吃矩阵里 `decision: supported` 的平台（约束 7）。未关闭的阶段不得改支持声明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ### 批次 4：epic-006 链（整体压后）
 
@@ -59,19 +59,35 @@
 ### 零散收尾项（不成故事，随手可带）
 
 1. ~~**`migration-release-gate` 挂进 PR CI**~~ ✅ **已完成**（2026-08-29，[release-plan.md 执行顺序第 0 步](release-plan.md)）：门禁已挂进 `ci-template.yml` 的 `setup` job（不带 `--release-tag`，配套 `fetch-tags: true` 与按 `GITHUB_REF_TYPE` 解析 tag）。`bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` 三条只对 `kind=migration` 生效，下一个迁移周期（US-305）才吃得到。
-2. **回填 `EXPECTED_BY_PLATFORM` 三平台真值并跑绿一次三 OS 矩阵**（线 C 的 AC#6 / #7 用）：
+2. **跑绿一次三 OS 矩阵**（线 C 的 AC#6 / #7 + US-208 AC#10 用）：
    **specs 已就位**（2026-08-29），`tauri-smoke` 的三 OS 矩阵会跑到
    `desktop-webview-capability.spec.ts`。这两条 AC 的判据是三家真实 webview，**本机跑不出来**。
-   进度：`darwin` 行是本机核过的真值；`linux` 行已按真实 Ubuntu 观测回填（2026-08-31，CSP 先于 CORS
-   拦截、服务端零命中）且 Ubuntu 已绿；`win32` 行仍缺——PR [aiao-io/rxdb#48](https://github.com/aiao-io/rxdb/pull/48)
-   的 Release Desktop 首跑 Windows 按设计红在「能力事实与本平台被冻结的取值一致」（用例会把真实观测
-   打印成**可直接粘贴**的字面量），同跑还暴露 `desktop-file-storage.spec.ts` 的重启用例在 Windows 超时
-   （renderer 60 秒未上报）。按输出回填 `win32`、跑绿后，US-505 即可从 In Progress 关闭。
-   这一步不依赖发布、可随时做。
+   **回填已完成**（2026-08-31，`1acd2fb`）：`EXPECTED_BY_PLATFORM` 三行齐了——`darwin` 是本机核过的
+   真值，`linux` / `win32` 按 PR [aiao-io/rxdb#48](https://github.com/aiao-io/rxdb/pull/48) 的
+   Release Desktop 三 OS 首跑真实输出回填（首跑按设计红在「能力事实与本平台被冻结的取值一致」，
+   用例把真实观测打印成**可直接粘贴**的字面量，这是锁定过程本身而非缺陷）。
+   同跑暴露的另外两个缺陷也已修：
+   - Windows 首次拉起打包产物的那条用例稳定超时 62-64s（renderer 60 秒看门狗），
+     victim 与是哪条 spec 无关、只与「最早」有关 ⇒ `apps/dev-rxdb-tauri-e2e/src/warm-up.ts`
+     globalSetup 把这一次性冷启动成本付在断言之外（`1acd2fb`）。
+   - Windows Electron 侧 `Cannot find module '@electric-sql/pglite'` ⇒ electron-builder 26 只走
+     **production** 依赖图，external 依赖必须声明进 `dependencies`（`76e2bf4`，见零散收尾项第 4 条）。
+
+   **剩下的就是一次跑绿的 `workflow_dispatch`**：绿了之后 US-505 的 AC#6/#7 从 ⚠️ 升 ✅、可从
+   In Progress 关闭，US-208 的 AC#10 同时关闭、可从 In Review 关闭。这一步不依赖发布、可随时做。
+
 3. **线 A 启动前先跑 `nx release version --dry-run` 看真实版本号**（线 A 已压后到批次 4，启动时执行）：
    `v0.0.25` 已脱离主线，`git describe` 解析到的基准 tag 回退成 `v0.0.24`，而 `v0.0.24..HEAD` 区间里有
    17 条 `feat` + 3 条 `fix`（快照数字，启动前重新实测）。两个后果要在动手前确认：桥接版本会算成 minor bump（0.1.0）而不是 0.0.26；
    且该区间包含已随 0.0.25 发布过的提交，changelog 会把 0.0.25 已发的内容再写一遍，需要决定是否手工裁剪。
+4. ~~**Electron 打包的 external 依赖声明**~~ ✅ **已完成**（2026-09-01，`76e2bf4`）：
+   electron-builder 26 只走 **production** 依赖图收集 node_modules（`pnpm list --prod`；回退遍历也
+   只读 `dependencies` + `optionalDependencies`），所以凡是被 esbuild 标成 `external` 的运行时包
+   **必须**在 `apps/dev-rxdb-electron/package.json` 的 `dependencies` 里，放 `devDependencies`
+   在本机 dev 与 Linux/macOS 打包下都碰巧能跑、只在 Windows 产物里炸成
+   `Cannot find module '@electric-sql/pglite'`。防回归靠两条单测把
+   `stage-external-dependencies.mjs` 的搬运清单同时钉在 `package.json` 的 `dependencies` 与
+   esbuild 的 `external` 上（`desktop-sqlite-bridge.spec.ts`），清单三者任一处漂移即红。
 
 ### 明确不排期
 

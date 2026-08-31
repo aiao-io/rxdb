@@ -5,7 +5,7 @@ status: In Review
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-13
-updated: 2026-08-30
+updated: 2026-09-01
 tags: [adapter, desktop, electron, pglite, ipc, transaction]
 inherited_acs:
   - from: US-207
@@ -109,11 +109,25 @@ AC#4 的落地过程中查出并修掉了一个**产品缺陷**：`transaction_p
 它的判据是「**打包后**的 Electron 应用在 macOS / Windows / Linux **CI** 中通过」，
 三个条件本机一个都满足不了：本机只有 macOS，且跑的是源码档位而不是 electron-builder 产物。
 打包侧的接线（`files: ["!node_modules"]` 之外的 PGlite 暂存步骤、`asarUnpack`、
-从 asar 内读 PGlite 的 wasm/data）已经实现，但**未经验证**——PGlite 的 wasm 与 initdb 数据
-必须解包到 asar 外才能被 Node fs backend 打开，这类问题只会在真实产物里暴露。
+从 asar 内读 PGlite 的 wasm/data）已经实现——PGlite 的 wasm 与 initdb 数据必须解包到 asar 外
+才能被 Node fs backend 打开，这类问题只会在真实产物里暴露。
 
-关闭本条需要在 `release-desktop.yml` 上跑一次真实的三 OS `workflow_dispatch`。
-按本轮的作业边界（不触发 CI、不做对外动作），该 dispatch **未触发**，本条保持 ⬜。
+**dispatch 已经跑过了，而且它确实抓到了缺陷。** 2026-08-31 的 PR
+[aiao-io/rxdb#48](https://github.com/aiao-io/rxdb/pull/48) 真实触发了 `release-desktop.yml`
+的三 OS 矩阵：macOS / Linux 通过，**Windows 红在 `Cannot find module '@electric-sql/pglite'`**。
+
+根因不在 asar 解包那一层，而在更前面的**依赖收集**：electron-builder 26 只走
+**production** 依赖图（`pnpm list --prod`；它的回退遍历也只读 `dependencies` +
+`optionalDependencies`），而 `@electric-sql/pglite` 当时声明在 `devDependencies` 里。
+这个错误在本机 dev、Linux / macOS 打包下都碰巧不发作——只有 Windows 那条路径会退化到
+`findWorkspaceRoot` 的回退遍历，于是包根本没被搬进产物。已在 `76e2bf4` 修掉：
+external 依赖改声明进 `dependencies`，并补两条单测把
+`tools/stage-external-dependencies.mjs` 的搬运清单同时钉在 `package.json` 的 `dependencies`
+与 esbuild 的 `external` 上（`src-electron/desktop-sqlite-bridge.spec.ts`），三者任一处漂移即红。
+
+**本条仍保持 ⬜**：修完之后还没有一次三 OS 全绿的跑。AC#10 要的是「通过」，不是「修过」。
+下一次 `workflow_dispatch` 跑绿即可关闭本条并关闭本故事；同一次跑也会关掉
+[US-505 的 AC#6/#7](../plugin/US-505-tauri-local-file-storage.md)。
 
 > **AC#11 补入**，与 [US-207 AC#9](./US-207-desktop-local-database.md#ac9-为什么值得单列一条)
 > 及 [US-210 AC#10](./US-210-tauri-sqlite-local-database.md) 是同一件事在三条路径上的对偶。
