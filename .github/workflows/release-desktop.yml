@@ -136,9 +136,9 @@ jobs:
   #   `desktop-smoke` 一次跑完。
   # 新增 job 的代价是要同步改下面 `gate` 的 `needs` 与断言列表，换不来任何覆盖。
   #
-  # ⚠️ `desktop-webview-capability.spec.ts` 里的 `EXPECTED_BY_PLATFORM` 只有 macOS 一列
-  # 是本机核对过的。Windows / Linux 那两列要按这个 job 的首次真实输出回填 —— 首跑会红，
-  # 失败消息里直接给出可粘贴的实测字面量。那次红是锁定过程的一部分。
+  # ⚠️ `desktop-webview-capability.spec.ts` 里的 `EXPECTED_BY_PLATFORM` 三列已回填
+  # （darwin 本机核对；linux / win32 按这个 job 的真实输出回填）。缺列时用例会红，
+  # 失败消息里直接给出可粘贴的实测字面量 —— 那次红是锁定过程的一部分，不是失败。
   #
   # 与 electron-smoke 分开而不是合成一个 job：两套工具链完全不重叠（Tauri 要 Rust +
   # WebKitGTK 开发库，Electron 要下发行包），合并后每个 runner 都得付两份安装税，

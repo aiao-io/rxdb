@@ -144,9 +144,9 @@ interface WebviewExpectation {
  * 三平台的能力事实表。
  *
  * @remarks
- * 只有 `darwin` 一列能在本机核对，另外两列要按 `release-desktop.yml` 的
- * `workflow_dispatch` 首次真实输出回填 —— 缺一列时下面的查表会**红**并直接打印一段
- * 可粘贴的字面量，而不是悄悄放行。那次红是锁定过程的一部分，不是失败。
+ * 三列现在都已回填：`darwin` 是本机核对的真值，`linux` / `win32` 按 `release-desktop.yml`
+ * `tauri-smoke` 三 OS 矩阵的首次真实输出回填。缺一列时下面的查表会**红**并直接打印一段
+ * 可粘贴的字面量，而不是悄悄放行 —— 那次红是锁定过程的一部分，不是失败。
  *
  * 冻结它的意义在于：某天 Tauri 换了 webview 版本、或某家引擎补上了
  * `showSaveFilePicker`，`storage.service.ts` 的分支会**静默地**换一条路走。有这张表，
@@ -171,6 +171,19 @@ const EXPECTED_BY_PLATFORM: Readonly<Partial<Record<NodeJS.Platform, WebviewExpe
   linux: {
     engine: 'webkit',
     saveFilePicker: false,
+    anchorDownload: true,
+    objectUrl: true,
+    crossOriginAllowed: 'StorageOfflineError',
+    crossOriginDenied: 'StorageOfflineError',
+    allowedHits: 0,
+    deniedHits: 0
+  },
+  // WebView2 是 Chromium 内核：`showSaveFilePicker` 存在，`download()` 走保存选择器那条分支。
+  // CSP 的 `connect-src 'self'` 在 Windows 上同样把两条跨源请求挡在 CORS 之前 —— 与服务端
+  // 加不加 ACAO 无关，取值与 darwin / linux 同一形态（`StorageOfflineError` + 零命中）。
+  win32: {
+    engine: 'chromium',
+    saveFilePicker: true,
     anchorDownload: true,
     objectUrl: true,
     crossOriginAllowed: 'StorageOfflineError',
