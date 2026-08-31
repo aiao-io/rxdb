@@ -74,8 +74,7 @@ function source(totalBytes: number) {
   const bytes = Uint8Array.from({ length: totalBytes }, (_unused, index) => index % 251);
   return {
     totalBytes,
-    read: (offset: number, length: number): Promise<Uint8Array> =>
-      Promise.resolve(bytes.slice(offset, offset + length))
+    read: (offset: number, length: number): Promise<Uint8Array> => Promise.resolve(bytes.slice(offset, offset + length))
   };
 }
 

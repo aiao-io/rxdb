@@ -8,18 +8,18 @@
 
 把全部改动按 10 个子系统拆开，每个子系统派一个深度评审 agent，产出的每条发现再派一个对抗式复核 agent 读源码逐条确认/证伪：
 
-| 子系统                     | 内容                                                                                      |
-| -------------------------- | ----------------------------------------------------------------------------------------- |
-| `pglite-adapter-stack`     | `rxdb-adapter-electron` / `-pglite` / `-sqlite-core` 的桌面 PGlite host、线协议、事务、通知批处理 |
-| `rxdb-devtools-pkg`        | `rxdb-devtools` v2 panel-endpoint / endpoint / native+opfs 文件 provider / connector 重构  |
-| `plugin-search`            | `rxdb-plugin-search` 的 pg (PGlite) FTS 后端 + backend-registry + 核心 adapter-guard        |
-| `plugin-storage`           | `rxdb-plugin-storage` 的 devtools-desktop-filesystem / snapshot / storage.service           |
-| `electron-app`             | `dev-rxdb-electron` 的 pglite bridge/worker/request-guard、preload、tx 实验工具             |
-| `tauri-app-and-adapter`    | `dev-rxdb-tauri` + `rxdb-adapter-tauri` 的 Rust lib.rs/selfcheck.rs、webview/storage probe   |
-| `http-server-and-recipes-domain` | `dev-rxdb-http-server` 重构（删除 rule-group-to-sql）+ 新 `recipes-domain` 模块        |
-| `devtools-extension`       | `rxdb-devtools-extension` 的 background/bridge/port、删除 OPFS 打包路径                     |
-| `devtools-panel`           | `rxdb-devtools-panel` 新 Angular 面板、transport、wire relay、opfs.service                   |
-| `build-config-scripts-ci`  | release gate 脚本、tsconfig、pnpm-workspace、CI、新 e2e app、各 adapter 的 `./testing` 导出 |
+| 子系统                           | 内容                                                                                              |
+| -------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `pglite-adapter-stack`           | `rxdb-adapter-electron` / `-pglite` / `-sqlite-core` 的桌面 PGlite host、线协议、事务、通知批处理 |
+| `rxdb-devtools-pkg`              | `rxdb-devtools` v2 panel-endpoint / endpoint / native+opfs 文件 provider / connector 重构         |
+| `plugin-search`                  | `rxdb-plugin-search` 的 pg (PGlite) FTS 后端 + backend-registry + 核心 adapter-guard              |
+| `plugin-storage`                 | `rxdb-plugin-storage` 的 devtools-desktop-filesystem / snapshot / storage.service                 |
+| `electron-app`                   | `dev-rxdb-electron` 的 pglite bridge/worker/request-guard、preload、tx 实验工具                   |
+| `tauri-app-and-adapter`          | `dev-rxdb-tauri` + `rxdb-adapter-tauri` 的 Rust lib.rs/selfcheck.rs、webview/storage probe        |
+| `http-server-and-recipes-domain` | `dev-rxdb-http-server` 重构（删除 rule-group-to-sql）+ 新 `recipes-domain` 模块                   |
+| `devtools-extension`             | `rxdb-devtools-extension` 的 background/bridge/port、删除 OPFS 打包路径                           |
+| `devtools-panel`                 | `rxdb-devtools-panel` 新 Angular 面板、transport、wire relay、opfs.service                        |
+| `build-config-scripts-ci`        | release gate 脚本、tsconfig、pnpm-workspace、CI、新 e2e app、各 adapter 的 `./testing` 导出       |
 
 复核规则：复核 agent 必须读实际源码，`isReal` 只在缺陷可复现时成立；严重度以复核结果为准。
 
