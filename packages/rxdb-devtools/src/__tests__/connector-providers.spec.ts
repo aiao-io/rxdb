@@ -122,14 +122,29 @@ describe('页内 provider 装配 — 原生后端（阶段 D）', () => {
     expect(providers.provider('settings').descriptor).toMatchObject({ kind: 'sqlite', runtime: 'electron' });
   });
 
-  it('runtime 只进 database descriptor 的显示字段', () => {
+  it('runtime 进本层构造的每个 descriptor，不只是 database', () => {
     const providers = createConnectorProviders({
       database: { getRxDB: () => mockRxDB(), getEntityMetadata, emitEvent: () => undefined },
-      runtime: 'electron'
+      // OPFS 不是浏览器专有：Tauri / Electron 的 webview 里同样能落在 OPFS 上。
+      getRootDirectory: () => Promise.resolve({} as FileSystemDirectoryHandle),
+      runtime: 'tauri'
     });
 
-    expect(providers.descriptors.find(descriptor => descriptor.domain === 'database')).toMatchObject({
-      runtime: 'electron'
+    // 同一套 descriptor 里 database 报 tauri、files 报 browser，面板就说不清「这是哪个宿主」。
+    // （settings 不在此列：它整份由宿主注入，runtime 跟着注入的 descriptor 走。）
+    const byDomain = new Map(providers.descriptors.map(descriptor => [descriptor.domain, descriptor.runtime]));
+    expect(byDomain.get('database')).toBe('tauri');
+    expect(byDomain.get('files')).toBe('tauri');
+  });
+
+  it('不给 runtime 时 OPFS files 仍报 browser', () => {
+    const providers = createConnectorProviders({
+      getRootDirectory: () => Promise.resolve({} as FileSystemDirectoryHandle)
+    });
+
+    expect(providers.descriptors.find(descriptor => descriptor.domain === 'files')).toMatchObject({
+      kind: 'opfs',
+      runtime: 'browser'
     });
   });
 

@@ -1,6 +1,6 @@
 import { isDevToolsProviderDescriptor } from '@aiao/rxdb-devtools';
 import { describe, expect, it } from 'vitest';
-import { mapWaSqliteBackendToProviders } from './tauri-vfs-providers';
+import { createWaSqliteDevToolsPorts, mapWaSqliteBackendToProviders } from './tauri-vfs-providers';
 
 /**
  * US-905 AC#6：wa-sqlite 按运行时真实选中的 VFS 决定三领域 provider kind，
@@ -72,5 +72,41 @@ describe('mapWaSqliteBackendToProviders', () => {
     // 两个后端的 settings 都是 export-only：限额一致，只是 kind 不同。
     expect(opfs.settings.operations).toEqual(idb.settings.operations);
     expect(opfs.settings.operations).toEqual(['export']);
+  });
+});
+
+/**
+ * US-905 AC#6 的接线侧：上面那份映射必须**决定运行时真的宣告了什么**，
+ * 而不是只有 spec 在调。判据仍然只有一条——宣告了什么。
+ */
+describe('createWaSqliteDevToolsPorts', () => {
+  /** OPFS 根目录入口的替身；descriptor 装配阶段不会调用它。 */
+  const opfsRoot = (): Promise<FileSystemDirectoryHandle> => Promise.resolve({} as FileSystemDirectoryHandle);
+
+  it('OPFS 后端：接上 files 领域，settings 用映射出来的 opfs descriptor', () => {
+    const ports = createWaSqliteDevToolsPorts('OPFSCoopSyncVFS', opfsRoot);
+
+    expect(ports?.runtime).toBe('tauri');
+    expect(ports?.getRootDirectory).toBe(opfsRoot);
+    expect(ports?.settings?.descriptor).toEqual(mapWaSqliteBackendToProviders('OPFSCoopSyncVFS').settings);
+  });
+
+  it('IDB 后端：不宣告 files 领域，settings 换成 idb descriptor', () => {
+    const ports = createWaSqliteDevToolsPorts('IDBBatchAtomicVFS', opfsRoot);
+
+    // files 是 unavailable：宿主入口必须一并撤掉，否则装配层会照样点亮文件页。
+    expect(ports?.getRootDirectory).toBeUndefined();
+    expect(ports?.settings?.descriptor.kind).toBe('idb');
+  });
+
+  it('页面没有 OPFS 时即使后端选了 OPFS 也不宣告 files', () => {
+    // 这一支不该发生（后端判定本来就来自 OPFS 探测），但真发生了必须缺声明而不是给个假入口。
+    const ports = createWaSqliteDevToolsPorts('OPFSCoopSyncVFS', undefined);
+
+    expect(ports?.getRootDirectory).toBeUndefined();
+  });
+
+  it('unavailable：不装配任何 ports，连接器根本不该建起来', () => {
+    expect(createWaSqliteDevToolsPorts('unavailable', opfsRoot)).toBeUndefined();
   });
 });

@@ -82,6 +82,10 @@
         "kind": "value"
       },
       {
+        "name": "createDevToolsReadOnlySettingsProvider",
+        "kind": "value"
+      },
+      {
         "name": "createDevToolsRxdbDatabaseProvider",
         "kind": "value"
       },

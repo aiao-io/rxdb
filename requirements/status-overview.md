@@ -26,7 +26,7 @@
 | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                | 11 条 AC 中 9 条 ✅，AC#6/#7 ⚠️。`EXPECTED_BY_PLATFORM` **三行已全部回填**（`darwin` 本机核对、`linux` / `win32` 按 PR #48 的三 OS 矩阵真实输出回填），首跑暴露的 Windows 冷启动超时也已由 `warm-up.ts` globalSetup 吸收。只差**一次跑绿的三 OS `release-desktop.yml`**                                                                                                                    |
 | [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) | 阶段 A ✅、阶段 B ✅；阶段 C 主体已交付（C1 面板抽取 AC#31/32/33/35 ✅、C2 四段 relay v2 迁移 AC#36/37/41/43 ✅，AC#40/#44 ⚠️ 部分，AC#34/#38/#39/#42 ⬜ 待人工浏览器回归与跨版本实证）；阶段 D 已开工并基本落地——AC#48/#50/#53 ✅，AC#45/46/47/49/51 ⚠️（provider/单测侧已关）。**只剩 AC#52（真实全链路 E2E）** ⬜，需联网 electron-builder + 真沙箱 + dock 模式 + CDP 驱动真实 DevTools |
-| [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md)              | 阶段 1（AC#1～#8）已基本落地：2 条 ✅（#7 conformance 80 断言、#8 e2e project 归属）、6 条 ⚠️。⚠️ 的判据都含「真实 Tauri 窗口 / 真实构建产物」那一半，本机无 Tauri CLI 构建环境。AC#6 另有一处实质缺口：`mapWaSqliteBackendToProviders()` 映射已写但**运行时还没接进去**。阶段 2（AC#9～#17）未开工，等 US-505 关闭                                                                        |
+| [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md)              | 阶段 1（AC#1～#8）已基本落地：2 条 ✅（#7 conformance 80 断言、#8 e2e project 归属）、6 条 ⚠️。⚠️ 的判据都含「真实 Tauri 窗口 / 真实构建产物」那一半，本机无 Tauri CLI 构建环境。阶段 1 的代码侧收尾已做完（2026-09-01）：VFS 映射已接进运行时、面板版本取自 `tauri.conf.json`、`desktop-smoke` metadata 补记 release 隔离 spec。阶段 2（AC#9～#17）未开工，等 US-505 关闭                 |
 
 ## 待评审（2 条）
 
@@ -87,7 +87,7 @@
     - ✅ C1 行为中性抽取 → `modules/rxdb-devtools-panel/`（AC#31/32/33/35；AC#34 待人工浏览器回归）
     - 🚧 C2 四段 relay 与 v2 切换（AC#36/37/41/43 ✅；AC#40/#44 ⚠️ 部分；AC#38/#39/#42 ⬜ 需跨版本产物与真实 service worker）
   - 🚧 阶段 D Electron 原生存储集成（AC#48/#50/#53 ✅；AC#45/46/47/49/51 ⚠️ provider/单测侧已关；AC#52 ⬜ 真实全链路 E2E）
-- 🚧 [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1（AC#1～#8）已落地：AC#7/#8 ✅，其余 6 条 ⚠️ 差「真实 Tauri 窗口/产物」那一半；阶段 2（AC#9～#17）未开工，依赖 US-210 + US-505
+- 🚧 [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1（AC#1～#8）已落地且代码侧收尾已做完：AC#7/#8 ✅，其余 6 条 ⚠️ 只差「真实 Tauri 窗口/产物」那一半；阶段 2（AC#9～#17）未开工，依赖 US-210 + US-505
 
 > US-401 / US-701 查询构建器系列不在本仓库范围内。
 

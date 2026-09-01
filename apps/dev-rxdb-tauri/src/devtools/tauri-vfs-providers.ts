@@ -1,5 +1,9 @@
-import type { DevToolsProviderDescriptor, DevToolsUnavailableReason } from '@aiao/rxdb-devtools';
-import { DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES, DEVTOOLS_PROVIDER_OPERATIONS } from '@aiao/rxdb-devtools';
+import type { ConnectorProviderPorts, DevToolsProviderDescriptor, DevToolsUnavailableReason } from '@aiao/rxdb-devtools';
+import {
+  createDevToolsReadOnlySettingsProvider,
+  DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES,
+  DEVTOOLS_PROVIDER_OPERATIONS
+} from '@aiao/rxdb-devtools';
 import type { WaSqliteBackend } from '../app/wa-sqlite-backend';
 
 /**
@@ -119,4 +123,41 @@ export function mapWaSqliteBackendToProviders(backend: WaSqliteBackend): TauriVf
         settings: unavailableDescriptor('settings')
       };
   }
+}
+
+/**
+ * 把上面那份映射装配成页内 connector 的 provider 端口。
+ *
+ * @remarks
+ * 这是映射唯一的**运行时**调用点——没有它，`mapWaSqliteBackendToProviders()` 就只是一份
+ * 被 spec 验证过、却决定不了任何声明的表。
+ *
+ * 装配层的模型是「没接上的领域不宣告 descriptor」，表达不了 `kind: 'unavailable'`。
+ * 两者在这里不冲突，因为映射里的 `unavailable` 各自有归宿：
+ *
+ * - `files: unavailable`（IDB 后端）→ 撤掉 `getRootDirectory`，该领域整个不宣告。
+ *   留着入口会让文件页照常点亮，再逐个操作失败——这正是 descriptor 模型要避免的。
+ * - 后端整体 `unavailable` → 返回 `undefined`，压根不建 connector。这条路上
+ *   `setup_rxdb_wa-sqlite.ts` 本来就会先抛错，本地库开不起来时没有可调试的对象。
+ *
+ * `settings` 整份注入：装配层的缺省是浏览器 `kind: opfs / runtime: browser`，
+ * 而这里要的是映射按真实 VFS 得出的 `opfs | idb` 配 `runtime: tauri`。
+ *
+ * @param backend - `selectWaSqliteBackend` 的返回值
+ * @param opfsRoot - 本页的 OPFS 根目录入口（`resolveBrowserOpfsRoot()`）；页面没有 OPFS 时为 `undefined`
+ * @returns 可直接交给 `getDevToolsConnector({ providers })` 的端口；后端不可用时 `undefined`
+ */
+export function createWaSqliteDevToolsPorts(
+  backend: WaSqliteBackend,
+  opfsRoot: (() => Promise<FileSystemDirectoryHandle>) | undefined
+): ConnectorProviderPorts | undefined {
+  if (backend === 'unavailable') return undefined;
+
+  const descriptors = mapWaSqliteBackendToProviders(backend);
+  return {
+    runtime: 'tauri',
+    settings: createDevToolsReadOnlySettingsProvider(descriptors.settings),
+    // 后端说 files 可用、页面却拿不到根目录时同样不宣告：假入口比缺声明更难查。
+    getRootDirectory: descriptors.files.kind === 'opfs' ? opfsRoot : undefined
+  };
 }

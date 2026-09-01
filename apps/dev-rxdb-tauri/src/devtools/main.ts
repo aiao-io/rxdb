@@ -12,6 +12,12 @@ import {
   routes
 } from '@modules/rxdb-devtools-panel';
 import { configureLogger } from '@modules/rxdb-devtools-panel/wire';
+// 面板版本取自 Tauri 应用**自己的**版本源。不走 `@tauri-apps/api` 的 `getVersion()`：
+// 那要多一条 `core:app:default` 能力，而发布隔离规范把本窗口的能力集钉死在
+// `['core:event:default']`；何况版本是构建期常量，没有理由换成一次运行期 IPC。
+// 与 `apps/rxdb-devtools-extension` 从 `package.json` 取版本同构——本 app 没有 package.json，
+// 它的版本单一来源就是这份 tauri.conf.json。
+import tauriConfig from '../../src-tauri/tauri.conf.json';
 import { TauriHostAccessService } from './tauri-host-access.service';
 import { TauriTransportService } from './tauri-transport.service';
 
@@ -35,7 +41,6 @@ bootstrapApplication(AppComponent, {
         return createDevToolsV2FileChannel(() => endpoints.resolve());
       }
     },
-    // TODO(US-905)：面板版本应从 Tauri 应用的版本来源取，而不是硬编码。
-    { provide: DEVTOOLS_PANEL_VERSION, useValue: '0.0.25' }
+    { provide: DEVTOOLS_PANEL_VERSION, useValue: tauriConfig.version }
   ]
 }).catch(err => console.error('[RxDB DevTools] Bootstrap error:', err));

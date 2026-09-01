@@ -23,7 +23,7 @@
  * @module @aiao/rxdb-devtools/browser/opfs-files-provider
  */
 
-import type { DevToolsProviderDescriptor } from '../provider/descriptor.js';
+import type { DevToolsProviderDescriptor, DevToolsProviderRuntime } from '../provider/descriptor.js';
 import { isValidPathSegment, joinLogicalPath, parseLogicalPath, splitLogicalPath } from '../provider/logical-path.js';
 import type { DevToolsChunkSink, DevToolsProvider, DevToolsProviderResult } from '../provider/types.js';
 import { createProviderError, mapPlatformError } from '../v2/error-mapping.js';
@@ -52,6 +52,15 @@ export interface DevToolsOpfsFilesProviderPorts {
   getRootDirectory(): Promise<FileSystemDirectoryHandle>;
   /** descriptor 声明的单次传输上限。 */
   readonly maxTransferBytes: number;
+  /**
+   * descriptor 显示用 runtime；缺省 `browser`。
+   *
+   * @remarks
+   * OPFS 不是浏览器专有——Tauri / Electron 的 webview 里同样能落在 OPFS 上。写死 `browser`
+   * 会让这些宿主的一套 descriptor 自相矛盾（`database` 报 `tauri`、`files` 报 `browser`），
+   * 面板据此说不清自己连的是谁。该字段只进显示，不参与任何行为判定。
+   */
+  readonly runtime?: DevToolsProviderRuntime;
   /**
    * 把一个文件交给页面自己的保存路径。
    *
@@ -147,7 +156,7 @@ export function createDevToolsOpfsFilesProvider(ports: DevToolsOpfsFilesProvider
     version: 1,
     kind: 'opfs',
     operations: ['list', 'download', 'upload', 'create-directory', 'delete'],
-    runtime: 'browser',
+    runtime: ports.runtime ?? 'browser',
     limits: { maxTransferBytes: ports.maxTransferBytes }
   };
 

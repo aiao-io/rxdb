@@ -99,7 +99,14 @@ export interface ConnectorProviderPorts {
   nativeFiles?: DevToolsNativeFilesProviderPorts;
   /** `settings` 领域 provider；缺省为浏览器 settings（`kind: opfs`）。 */
   settings?: DevToolsProvider;
-  /** descriptor 显示用 runtime；缺省 `browser`，只影响 `database` 领域。 */
+  /**
+   * descriptor 显示用 runtime；缺省 `browser`。
+   *
+   * @remarks
+   * 进本层构造的每个 descriptor（`database` 与 OPFS `files`）。`settings` 不在此列：
+   * 它整份由宿主注入，runtime 跟着注入的 descriptor 走；`native-files` 也不在此列，
+   * 它的 kind 已经绑死了宿主。
+   */
   runtime?: DevToolsProviderRuntime;
 }
 
@@ -160,7 +167,8 @@ export function createConnectorProviders(ports: ConnectorProviderPorts = {}): Co
     : createDevToolsOpfsFilesProvider({
         getRootDirectory: ports.getRootDirectory,
         maxTransferBytes: DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES,
-        saveToDisk: ports.saveToDisk
+        saveToDisk: ports.saveToDisk,
+        runtime
       }));
 
   const database: DevToolsRxdbDatabaseProvider | undefined =

@@ -15,8 +15,9 @@
         "command": "vitest run --config vitest.smoke.mts",
         "parallel": false
       },
+      "// devtools-release-isolation": "US-905 的那份是纯静态检查（读 capability JSON 与 lib.rs），本身不需要 release 产物；它挂在本 target 下只是因为同属这个套件的 include。所以它跟着 tauri-package-release 一起等，是搭车而不是依赖。",
       "metadata": {
-        "description": "US-210 AC#1/AC#9 + US-505 AC#1/#3/#6/#7：打包产物跨进程持久化 smoke（进程级驱动，不上 WebDriver）、文件内容与 SQLite 元数据同备份域、三家真实 webview 的 download()/fetch() 能力门禁"
+        "description": "US-210 AC#1/AC#9 + US-505 AC#1/#3/#6/#7 + US-905 AC#1/AC#8：打包产物跨进程持久化 smoke（进程级驱动，不上 WebDriver）、文件内容与 SQLite 元数据同备份域、三家真实 webview 的 download()/fetch() 能力门禁、devtools 窗口/命令/capability 的 release 隔离（结构证据）"
       }
     }
   }

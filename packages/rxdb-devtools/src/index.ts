@@ -528,6 +528,10 @@ export type {
   DevToolsOpfsFilesProviderPorts
 } from './browser/opfs-files-provider.js';
 export {
+  /** 用给定 descriptor 建一个只读 `settings` provider（`export` 恒回 `export_unsupported`）。 */
+  createDevToolsReadOnlySettingsProvider
+} from './provider/read-only-settings.js';
+export {
   /** 浏览器 settings provider 的 descriptor。 */
   DEVTOOLS_BROWSER_SETTINGS_DESCRIPTOR,
   /** 建浏览器 `settings` provider（`export` 恒回 `export_unsupported`）。 */
