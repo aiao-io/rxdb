@@ -148,9 +148,16 @@ US-210 SQLite host / US-505 native file host
 两个启动硬阻塞都已破——`rxdb-devtools` 窗口的独立 capability、`devtools_message` 的
 `#[cfg(dev)]` 隔离。8 条 AC 中 **2 条 ✅、6 条 ⚠️**，阶段 2（AC#9～#17）未开工。
 
-⚠️ 的 6 条**不是没写**，而是判据里都含「真实 Tauri 窗口 / 真实构建产物」那一半：
-本机没有可用的 Tauri CLI 构建环境，双 WebView 握手、窗口关闭重开、应用退出这些只能在
-真实打包应用上验。已落地的那一半是 transport、路由、映射与结构隔离，全部有断言守着。
+⚠️ 的 6 条**不是没写**，而是判据里都含「真实 Tauri 窗口 / 真实构建产物」那一半。
+**缺口不在构建环境**：本机 cargo 1.97.1 + tauri-cli 2.11.4 齐全，
+`nx run dev-rxdb-tauri-e2e:desktop-smoke` 会先 `tauri build --ci --no-bundle` 出真 release
+二进制再驱动它，热 target 下全程约 59s（2026-09-01 实测 4 files / 13 tests 全绿，
+含 `devtools-release-isolation` 的 5 条 release 隔离断言 —— 这一跑同时确认了阶段 1 收尾
+新增的 `@aiao/rxdb-devtools` 依赖没有把调试入口漏进 release 产物）。
+**缺口在 harness**：`desktop-smoke` 按 [US-210](../adapter/US-210-tauri-sqlite-local-database.md)
+AC#9 刻意只做进程级驱动、不上 WebDriver，验得了「进程整个退出再拉起、数据还在」，
+验不了双 WebView 握手（AC#2）、同 label 重开拒旧身份（AC#4）、退出时的 session 释放（AC#5）。
+已落地的那一半是 transport、路由、映射与结构隔离，全部有断言守着。
 
 门禁（本机实测）：`dev-rxdb-tauri` 单测 **21 文件 217 条**（含 `tauri-conformance.spec.ts`
 的 **80 条** conformance 断言）、`src-tauri` 的 `#[test]` **25 条**（`lib.rs` 5 + `selfcheck.rs` 20）。
