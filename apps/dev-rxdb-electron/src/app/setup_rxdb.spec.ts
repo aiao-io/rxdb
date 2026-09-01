@@ -2,11 +2,17 @@ import {
   DESKTOP_HOST_TRANSPORT_KEY,
   ELECTRON_ADAPTER_NAME as PACKAGE_ELECTRON_ADAPTER_NAME
 } from '@aiao/rxdb-adapter-electron';
+import { ELECTRON_PGLITE_ADAPTER_NAME as PACKAGE_ELECTRON_PGLITE_ADAPTER_NAME } from '@aiao/rxdb-adapter-electron/pglite';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { DESKTOP_DEMO_DB_NAME, WEB_PREVIEW_DB_NAME } from './db-names';
+import { DESKTOP_DEMO_DB_NAME, DESKTOP_PGLITE_DB_NAME, WEB_PREVIEW_DB_NAME } from './db-names';
 import { RxDBLocalBackendTableError, selectLocalBackend } from './local-backend';
-import { ELECTRON_ADAPTER_NAME, localBackends, WA_SQLITE_ADAPTER_NAME } from './setup_rxdb';
+import {
+  ELECTRON_ADAPTER_NAME,
+  ELECTRON_PGLITE_ADAPTER_NAME,
+  localBackends,
+  WA_SQLITE_ADAPTER_NAME
+} from './setup_rxdb';
 
 /** 读同目录下的源文件；下面几条静态门禁都靠它。 */
 const read = (file: string): string => readFileSync(resolve(import.meta.dirname, file), 'utf8');
@@ -36,6 +42,19 @@ describe('localBackends', () => {
     const backend = selectLocalBackend(localBackends({}));
     expect(backend.adapter).toBe(WA_SQLITE_ADAPTER_NAME);
     expect(backend.dbName).toBe(WEB_PREVIEW_DB_NAME);
+  });
+
+  it('picks the PGlite desktop backend when the entry URL requests it', () => {
+    const backend = selectLocalBackend(
+      localBackends({ [DESKTOP_HOST_TRANSPORT_KEY]: {}, location: { search: '?pglite=1' } })
+    );
+    expect(backend.adapter).toBe(ELECTRON_PGLITE_ADAPTER_NAME);
+    expect(backend.dbName).toBe(DESKTOP_PGLITE_DB_NAME);
+  });
+
+  it('ignores the pglite flag without the desktop bridge', () => {
+    const backend = selectLocalBackend(localBackends({ location: { search: '?pglite=1' } }));
+    expect(backend.adapter).toBe(WA_SQLITE_ADAPTER_NAME);
   });
 
   /**
@@ -99,13 +118,14 @@ describe('本地后端按需加载', () => {
    */
   it('适配器名与包里的常量一致，且不靠 import 保证', () => {
     expect(ELECTRON_ADAPTER_NAME).toBe(PACKAGE_ELECTRON_ADAPTER_NAME);
+    expect(ELECTRON_PGLITE_ADAPTER_NAME).toBe(PACKAGE_ELECTRON_PGLITE_ADAPTER_NAME);
     // 剥注释：上面那段 TSDoc 里逐字写着这个包名 —— 解释理由的话不该把断言打红。
     expect(stripTsComments(read('setup_rxdb.ts'))).not.toContain('@aiao/rxdb-adapter-electron');
   });
 
   it('库名走 db-names.ts，不从工厂模块里 import', () => {
     expect(read('setup_rxdb.ts')).toContain("from './db-names'");
-    for (const file of ['setup_rxdb_desktop.ts', 'setup_rxdb_wa-sqlite.ts']) {
+    for (const file of ['setup_rxdb_desktop.ts', 'setup_rxdb_desktop_pglite.ts', 'setup_rxdb_wa-sqlite.ts']) {
       expect(read(file), file).toContain("from './db-names'");
     }
   });

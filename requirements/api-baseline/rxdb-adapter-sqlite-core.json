@@ -672,6 +672,10 @@
         "kind": "value"
       },
       {
+        "name": "assertDesktopPgliteResponse",
+        "kind": "value"
+      },
+      {
         "name": "assertDesktopSqliteStorage",
         "kind": "value"
       },
@@ -725,6 +729,22 @@
       },
       {
         "name": "DESKTOP_HOST_TRANSPORT_KEY",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_PGLITE_DEFAULT_BEGIN_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_PGLITE_MAX_BEGIN_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_PGLITE_MAX_PARAM_DEPTH",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_PGLITE_PROTOCOL_VERSION",
         "kind": "value"
       },
       {
@@ -844,7 +864,71 @@
         "kind": "type"
       },
       {
+        "name": "DesktopPgliteBeginRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteCloseRequest",
+        "kind": "type"
+      },
+      {
         "name": "DesktopPgliteDirectoryStorage",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteExecRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteField",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteHandshakeRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteHandshakeResult",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteNotifyMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteOpenRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteOpenResult",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteParam",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteQueryRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteQueryResult",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteResponse",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteTransactionEndRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteVersionRequest",
         "kind": "type"
       },
       {
@@ -876,6 +960,10 @@
         "kind": "value"
       },
       {
+        "name": "isDesktopPgliteRequestKind",
+        "kind": "value"
+      },
+      {
         "name": "isDesktopSqliteFileStorage",
         "kind": "value"
       },
@@ -901,6 +989,22 @@
       },
       {
         "name": "parseDesktopHostRequest",
+        "kind": "value"
+      },
+      {
+        "name": "parseDesktopPgliteHandshakeResult",
+        "kind": "value"
+      },
+      {
+        "name": "parseDesktopPgliteNotifyMessage",
+        "kind": "value"
+      },
+      {
+        "name": "parseDesktopPgliteOpenResult",
+        "kind": "value"
+      },
+      {
+        "name": "parseDesktopPgliteRequest",
         "kind": "value"
       },
       {

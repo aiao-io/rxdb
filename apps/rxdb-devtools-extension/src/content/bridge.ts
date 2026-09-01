@@ -1,5 +1,4 @@
-import type { DevToolsMessage } from '../shared/types';
-import { logger } from '../shared/utils/logger';
+import { configureLogger, logger, type DevToolsRelayFrame } from '@modules/rxdb-devtools-panel/wire';
 import {
   createBridgePing,
   extractHandshakePort,
@@ -7,6 +6,8 @@ import {
   forwardPageMessage,
   forwardPortMessage
 } from './bridge-core';
+
+configureLogger(import.meta.env.DEV);
 
 /**
  * 当前会话的私有信道端口，由页面在 HANDSHAKE 上 transfer 过来。
@@ -17,7 +18,7 @@ import {
  */
 let pagePort: MessagePort | null = null;
 
-function sendToExtension(message: DevToolsMessage): void {
+function sendToExtension(message: DevToolsRelayFrame): void {
   chrome.runtime.sendMessage(message).catch((err: unknown) => {
     logger.debug('Failed to send message to extension', { type: message.type, err });
   });

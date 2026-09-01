@@ -187,19 +187,54 @@ export class SearchQueryLimitError extends SearchExecutionError {
 }
 
 /**
- * 当前数据库使用了非 sqlite-wasm 的 adapter；在 `createRxDatabase` 阶段 fail-fast，
+ * 当前数据库的 adapter 无法映射到任何一种搜索后端；在 `createRxDatabase` 阶段 fail-fast，
  * 插件不挂载 `.search`，不返回降级 Handle。
+ *
+ * 这是**两层守卫的第一层**（静态：adapter 名 → 后端家族）。第二层是
+ * {@link SearchBackendCapabilityError}，对着活连接实测。
  *
  * @public
  */
 export class SearchUnsupportedAdapterError extends SearchError {
   constructor(
     /** 实际探测到的 adapter 名 */
-    public readonly adapter: string
+    public readonly adapter: string,
+    /**
+     * 可判别的拒绝原因。
+     *
+     * 不写「名字不在白名单里」这种同义反复：调用方需要据此区分
+     * 「这个 adapter 的存储引擎根本没有全文能力」与
+     * 「有能力但尚未实测放行」两种情况（US-703 AC#8）。
+     */
+    public readonly reason: string = 'no search backend is registered for this adapter'
+  ) {
+    super(`[rxdb-plugin-search] Unsupported adapter "${adapter}": ${reason}`, 'SearchUnsupportedAdapterError');
+  }
+}
+
+/**
+ * adapter 名解析出的后端正确，但**活连接**缺少该后端必需的存储能力。
+ *
+ * 这是两层守卫的第二层。名字只能告诉我们「这是个 SQLite 家族的 adapter」，
+ * 告诉不了我们「这个 SQLite 构建有没有编进 FTS5」「有没有注册 `rxdb_fts_bigram`」。
+ * 缺失时在装载期抛出，而不是等到第一次查询在一条 SQL 上报出与真因相距甚远的错误。
+ *
+ * @public
+ */
+export class SearchBackendCapabilityError extends SearchError {
+  constructor(
+    /** 实际探测到的 adapter 名 */
+    public readonly adapter: string,
+    /** 解析到的后端标识（`fts5` / `pg-tsvector`） */
+    public readonly backend: string,
+    /** 缺失了什么能力 */
+    public readonly reason: string,
+    /** 探针失败时的原始异常 */
+    public override readonly cause?: unknown
   ) {
     super(
-      `[rxdb-plugin-search] Unsupported adapter "${adapter}". Only @aiao/rxdb-adapter-sqlite-wasm is supported in this version.`,
-      'SearchUnsupportedAdapterError'
+      `[rxdb-plugin-search] Adapter "${adapter}" resolves to the "${backend}" search backend, but the live connection is missing a required capability: ${reason}`,
+      'SearchBackendCapabilityError'
     );
   }
 }

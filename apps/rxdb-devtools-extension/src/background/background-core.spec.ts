@@ -1,6 +1,10 @@
+import { createDevToolsV2Message } from '@aiao/rxdb-devtools';
+import { RXDB_DEVTOOLS_MESSAGE } from '@modules/rxdb-devtools-panel/wire';
 import { describe, expect, it, vi } from 'vitest';
-import { RXDB_DEVTOOLS_MESSAGE } from '../shared/types';
 import { createBackgroundController, type BackgroundPort } from './background-core';
+
+/** 协商完成后每一帧都必须归属的规范 UUID v4。 */
+const SESSION_ID = '4b1d0f3a-2c6e-4a58-9f31-8d7c5e2b0a94';
 
 /**
  * 构造一条**能通过严校验**的消息。
@@ -31,6 +35,24 @@ function initMessage(tabId: number) {
     sequence: 0,
     tabId
   };
+}
+
+/** 构造一条下行的 v2 `REQUEST`（面板 → connector）。 */
+function v2Request(requestId = 'r1') {
+  return createDevToolsV2Message(
+    'REQUEST',
+    { requestId, domain: 'database', operation: 'query', params: {} },
+    { sessionId: SESSION_ID, sequence: 1, timestamp: 1 }
+  );
+}
+
+/** 构造一条上行的 v2 `RESPONSE`（connector → 面板）。 */
+function v2Response(requestId = 'r1') {
+  return createDevToolsV2Message(
+    'RESPONSE',
+    { requestId, result: null },
+    { sessionId: SESSION_ID, sequence: 2, timestamp: 2 }
+  );
 }
 
 function createPort(name = 'rxdb-devtools-panel') {
@@ -88,7 +110,7 @@ describe('createBackgroundController', () => {
     expect(sendToTab).not.toHaveBeenCalled();
   });
 
-  it('acknowledges a page handshake and forwards it to the connected panel', () => {
+  it('forwards a page handshake without ever minting an ACK of its own', () => {
     const sendToTab = vi.fn(async () => undefined);
     const controller = createBackgroundController({
       injectIntoTab: vi.fn(async () => undefined),
@@ -99,7 +121,10 @@ describe('createBackgroundController', () => {
     panel.emitMessage(initMessage(7));
     const handshake = devtoolsMessage('HANDSHAKE');
     controller.receiveContent(handshake, 7);
-    expect(sendToTab).toHaveBeenCalledWith(7, expect.objectContaining({ type: 'HANDSHAKE_ACK' }));
+
+    // AC#36：ACK 的唯一所有者是面板。background 代发 ACK 会让页面在面板还没决定协议版本时
+    // 就认为握手已完成 —— 这正是阶段 B 判定的「伪造 ACK」，v2 协商窗口据此失效。
+    expect(sendToTab).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ type: 'HANDSHAKE_ACK' }));
     expect(panel.port.postMessage).toHaveBeenCalledWith(handshake);
   });
 
@@ -214,6 +239,103 @@ describe('createBackgroundController', () => {
     await Promise.resolve();
 
     expect(onError).toHaveBeenCalledWith('INJECT', expect.any(Error));
+    expect(sendToTab).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * US-904 阶段 C2 / AC#36：四段 relay 必须**两代协议都能承载**。
+ *
+ * 修复前 background 的两个转发点都直接读 v1 的方向标签，而 `isDevToolsMessage`
+ * 对每一个 v2 类型都返回 false —— 也就是说阶段 B 冻结的协商、授权与传输状态机
+ * 在 Chrome 上一帧都过不去，且是静默丢弃，两端都看不出发生了什么。
+ */
+describe('createBackgroundController —— v2 帧穿透（C2/AC#36）', () => {
+  const connected = async () => {
+    const sendToTab = vi.fn(async () => undefined);
+    const instance = createBackgroundController({ injectIntoTab: vi.fn(async () => undefined), sendToTab });
+    const panel = createPort();
+    instance.connect(panel.port);
+    panel.emitMessage(initMessage(7));
+    await Promise.resolve();
+    await Promise.resolve();
+    sendToTab.mockClear();
+    panel.postMessage.mockClear();
+    return { instance, panel, sendToTab };
+  };
+
+  it('把面板发出的 v2 下行帧转给页面', async () => {
+    const { panel, sendToTab } = await connected();
+    const request = v2Request();
+
+    panel.emitMessage(request);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(sendToTab).toHaveBeenCalledWith(7, request);
+  });
+
+  it('把页面发出的 v2 上行帧转给面板', async () => {
+    const { instance, panel } = await connected();
+    const response = v2Response();
+
+    instance.receiveContent(response, 7);
+
+    expect(panel.port.postMessage).toHaveBeenCalledWith(response);
+  });
+
+  it('转发 v2 握手，且绝不自造 HANDSHAKE_ACK', async () => {
+    const { instance, panel, sendToTab } = await connected();
+    const handshake = createDevToolsV2Message(
+      'HANDSHAKE',
+      { protocolVersion: 2, sessionId: SESSION_ID, capabilities: { capability: 'readonly', descriptors: [] } },
+      { sessionId: SESSION_ID, sequence: 1, timestamp: 1 }
+    );
+
+    instance.receiveContent(handshake, 7);
+
+    // ACK 的唯一所有者是面板。中继一旦替页面认下协议版本，v2 协商窗口就形同虚设 ——
+    // 而一条中继伪造的 ACK 在格式上完全合法，只能靠「所有权」这条规则挡住。
+    expect(panel.port.postMessage).toHaveBeenCalledWith(handshake);
+    expect(sendToTab).not.toHaveBeenCalled();
+  });
+
+  it('丢弃方向与链路相反的帧', async () => {
+    const { instance, panel, sendToTab } = await connected();
+
+    // 上行帧出现在面板 port 上：面板永远不产生上行帧，这只可能是伪造或串线。
+    panel.emitMessage(v2Response());
+    // 下行帧出现在 content 通道上：同理。
+    instance.receiveContent(v2Request(), 7);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(sendToTab).not.toHaveBeenCalled();
+    expect(panel.port.postMessage).not.toHaveBeenCalled();
+  });
+
+  it('丢弃信封不成立的伪 v2 帧', async () => {
+    const { instance, panel, sendToTab } = await connected();
+    const base = v2Request() as unknown as Record<string, unknown>;
+
+    panel.emitMessage({ ...base, extra: 1 });
+    panel.emitMessage({ ...base, protocol: 1 });
+    instance.receiveContent({ ...v2Response(), source: 'other' }, 7);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(sendToTab).not.toHaveBeenCalled();
+    expect(panel.port.postMessage).not.toHaveBeenCalled();
+  });
+
+  it('v2 帧同样只走 INIT 绑定的 tab', async () => {
+    const { panel, sendToTab } = await connected();
+
+    panel.emitMessage({ ...v2Request(), tabId: 99 });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // 夹带 `tabId` 会让信封的 exact-key 校验失败 —— v2 帧根本没有自称 tab 的字段可用。
     expect(sendToTab).not.toHaveBeenCalled();
   });
 });

@@ -25,10 +25,16 @@
   },
   "references": [
     {
+      "path": "../utils/tsconfig.lib.json"
+    },
+    {
       "path": "../rxdb-adapter-sqlite-core/tsconfig.lib.json"
     },
     {
       "path": "../rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-adapter-pglite/tsconfig.lib.json"
     }
   ]
 }

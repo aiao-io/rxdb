@@ -13,6 +13,10 @@
  */
 
 export * from './fts/index.js';
+// 批量窗口是**跨运行时共享**的语义：US-208 的桌面客户端把主进程转发来的裸 NOTIFY
+// 喂进同一个批量器，浏览器与 Electron 因此对「同一行在一个窗口内只派发一次」有完全
+// 相同的行为。不导出的话桌面侧只能照抄一份，而分叉的表征是「桌面下变更事件比浏览器多」。
+export * from './notify/notification-batcher.js';
 export * from './pglite.interface.js';
 export * from './pglite.utils.js';
 export { RxdbAdapterPGliteError } from './pglite.utils.js';

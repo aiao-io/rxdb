@@ -8,30 +8,32 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 50   |
-| 🚧 In Progress | 2    |
-| 👀 In Review   | 1    |
-| 📝 Backlog     | 8    |
+| ✅ Done        | 52   |
+| 🚧 In Progress | 3    |
+| 👀 In Review   | 2    |
+| 📝 Backlog     | 5    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 61   |
+| **合计**       | 62   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
-> 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数（62 个文件 − 1 个 [US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md)，那是证据留档不是故事）。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
+> 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数（63 个文件 − 1 个 [US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md)，那是证据留档不是故事）。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（2 条）
+## 进行中（3 条）
 
-| Story                                                                                         | 还剩什么                                                                                                                                                                                         |
-| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                | AC#1/#3/#5/#8 仍 ⚠️（打包应用真实重启、≥50 MiB 与「内容不整体进 JS 堆」的内存观测、磁盘满）；AC#6/#7 缺的是本故事自己的 specs（三平台 webview smoke），写完仍需一次 `workflow_dispatch` 才跑得到 |
-| [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) | 阶段 A ✅（`decision: supported`）、阶段 B ✅；阶段 C / D 未开始。阶段 D 前置已全部解除，只等阶段 C                                                                                              |
+| Story                                                                                         | 还剩什么                                                                                                                                                                                                                                                                                                                                                                                   |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)                | 11 条 AC 中 9 条 ✅，AC#6/#7 ⚠️。`EXPECTED_BY_PLATFORM` **三行已全部回填**（`darwin` 本机核对、`linux` / `win32` 按 PR #48 的三 OS 矩阵真实输出回填），首跑暴露的 Windows 冷启动超时也已由 `warm-up.ts` globalSetup 吸收。只差**一次跑绿的三 OS `release-desktop.yml`**                                                                                                                    |
+| [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) | 阶段 A ✅、阶段 B ✅；阶段 C 主体已交付（C1 面板抽取 AC#31/32/33/35 ✅、C2 四段 relay v2 迁移 AC#36/37/41/43 ✅，AC#40/#44 ⚠️ 部分，AC#34/#38/#39/#42 ⬜ 待人工浏览器回归与跨版本实证）；阶段 D 已开工并基本落地——AC#48/#50/#53 ✅，AC#45/46/47/49/51 ⚠️（provider/单测侧已关）。**只剩 AC#52（真实全链路 E2E）** ⬜，需联网 electron-builder + 真沙箱 + dock 模式 + CDP 驱动真实 DevTools |
+| [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md)              | 阶段 1（AC#1～#8）已基本落地：2 条 ✅（#7 conformance 80 断言、#8 e2e project 归属）、6 条 ⚠️。⚠️ 的判据都含「真实 Tauri 窗口 / 真实构建产物」那一半，本机无 Tauri CLI 构建环境。AC#6 另有一处实质缺口：`mapWaSqliteBackendToProviders()` 映射已写但**运行时还没接进去**。阶段 2（AC#9～#17）未开工，等 US-505 关闭                                                                        |
 
-## 待评审（1 条）
+## 待评审（2 条）
 
-| Story                                                                            | 收尾条件                                                                                                                                                                                  |
-| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) | 阶段 A 已交付；阶段 B 已移出承诺范围，**解锁条件 = 出现第一个 `plugin:*` 依赖声明**。其余未关闭故事没有一条会产生 `plugin:*` 消费方，故 `In Review` 是稳态而非过渡态，未解锁前不置 `Done` |
+| Story                                                                                                 | 收尾条件                                                                                                                                                                                                                                                               |
+| ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md)                      | 阶段 A 已交付；阶段 B 已移出承诺范围，**解锁条件 = 出现第一个 `plugin:*` 依赖声明**。其余未关闭故事没有一条会产生 `plugin:*` 消费方，故 `In Review` 是稳态而非过渡态，未解锁前不置 `Done`                                                                              |
+| [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md) | 实现本体已交付，11 条 AC 中 10 条 ✅，只剩 AC#10（三平台打包 smoke）⬜。PR #48 的三 OS dispatch 已真实跑过并暴露 Windows 打包缺陷（`Cannot find module '@electric-sql/pglite'`），已在 `76e2bf4` 修掉（把 external 依赖声明进 `dependencies`）。等一次跑绿的三 OS 矩阵 |
 
 ## 已取消
 
@@ -81,9 +83,11 @@
 - 🚧 [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)
   - ✅ 阶段 A Electron 43 MV3 可行性门禁（`decision: supported`）
   - ✅ 阶段 B v2 协议（控制面 + provider 数据面）
-  - ⬜ 阶段 C 共享面板 library 与 Chrome v2 迁移（C1 面板抽取可与阶段 B 并行；C2 四段 relay 与 v2 切换）
-  - ⬜ 阶段 D Electron 原生存储集成（依赖 阶段 A + 阶段 C + US-207 + US-504）
-- ⬜ [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1 依赖 US-904 阶段 C；阶段 2 依赖 US-210 + US-505
+  - 🚧 阶段 C 共享面板 library 与 Chrome v2 迁移
+    - ✅ C1 行为中性抽取 → `modules/rxdb-devtools-panel/`（AC#31/32/33/35；AC#34 待人工浏览器回归）
+    - 🚧 C2 四段 relay 与 v2 切换（AC#36/37/41/43 ✅；AC#40/#44 ⚠️ 部分；AC#38/#39/#42 ⬜ 需跨版本产物与真实 service worker）
+  - 🚧 阶段 D Electron 原生存储集成（AC#48/#50/#53 ✅；AC#45/46/47/49/51 ⚠️ provider/单测侧已关；AC#52 ⬜ 真实全链路 E2E）
+- 🚧 [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1（AC#1～#8）已落地：AC#7/#8 ✅，其余 6 条 ⚠️ 差「真实 Tauri 窗口/产物」那一半；阶段 2（AC#9～#17）未开工，依赖 US-210 + US-505
 
 > US-401 / US-701 查询构建器系列不在本仓库范围内。
 
@@ -96,8 +100,8 @@
 - ✅ [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)
 - ✅ [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md)
 - 🚧 [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边
-- ⬜ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md) — PGlite callback transaction 不能跨 IPC 序列化
-- ⬜ [US-703 PGlite 全文搜索](stories/future/US-703-pglite-full-text-search.md)
+- 👀 [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md) — 已按冻结的「IPC 事务 ID 协议」实现，10/11 条 AC ✅；只剩 AC#10 三平台打包 smoke
+- ✅ [US-703 PGlite 全文搜索](stories/future/US-703-pglite-full-text-search.md)
 - ✅ [US-020 将 QueryCache 接入统一 Repository](stories/core/US-020-querycache-repository.md)
 - ✅ [US-212 HTTP 远程适配器](stories/adapter/US-212-http-adapter.md)
 - ✅ [US-213 HTTP 适配器 wire 级集成测试](stories/adapter/US-213-http-wire-integration-test.md)
@@ -106,6 +110,7 @@
 - ✅ [US-022 QueryCache 远端行的列契约与缺列诊断](stories/core/US-022-querycache-remote-row-contract.md)
 - ✅ [US-023 QueryCache 远端变更的失效上报口与实时同步](stories/core/US-023-querycache-remote-invalidation.md)
 - ✅ [US-215 条件请求被静默停用时给出可观测信号](stories/adapter/US-215-conditional-request-silence.md)
+- ✅ [US-216 参考后端以 RxDB 引擎实现](stories/adapter/US-216-server-side-rxdb.md) — 后端初始化 RxDB（pglite），协议端点改由 Repository/EntityManager 实现，前后端共享 schema 模块；单类收敛依赖另立的 core sync 覆盖故事
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
 
@@ -122,7 +127,7 @@
 
 ### [本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
 
-全部 ⬜ Backlog。**不得因分支名或 spec 已齐而把任一条标成 In Progress**（`specs/001-working-tree-commits/` 已有 spec / plan / data-model / research / quickstart / contracts，但**没有 `tasks.md`，运行时未开工**）。交付顺序 **新 bridge 发布（FR-030）→ US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）**。
+全部 ⬜ Backlog。**不得因分支名或 spec 已齐而把任一条标成 In Progress**（`specs/001-working-tree-commits/` 已有 spec / plan / data-model / research / quickstart / contracts，但**没有 `tasks.md`，运行时未开工**）。交付顺序 **新 bridge 发布（FR-030）→ US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）**。排期上整链（含桥接发布）位于 [roadmap 批次 4](roadmap.md#批次-4epic-006-链整体压后)、排在所有其他批次之后。
 
 - ⬜ [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 仍被 FR-030 挡住（`migration-release.json` 的 `bridge.tag`/`bridge.version` 为 `null`）
 - ⬜ [US-306 工作树与提交操作](stories/collaboration/US-306-working-tree-commits.md)
@@ -152,8 +157,10 @@
 
 以下故事的 YAML `status` 都不是 `Blocked`，但开工前有硬前置：
 
-| 被挡住的                                                                                         | 硬前置                                                                                                                                                                                                                                                                                                |
-| ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。不随代码进度自动解除，需单独排期 |
-| [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 B                                 | 出现第一个 `plugin:*` 依赖声明。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`。不随代码进度自动解除，`In Review` 是稳态                                                                                                                                                                      |
-| [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D                       | ✅ **已解除**：阶段 A 判 `decision: supported`。阶段 D 现在只等阶段 C（US-207 / US-504 均已 Done），并须带上两条约束：Electron 43 缺整个 `chrome.permissions` 命名空间（需显式能力探测，禁静默 fallback）、扩展面板只在 dock 模式 DevTools 中注册                                                     |
+| 被挡住的                                                                                                                                        | 硬前置                                                                                                                                                                                                                                                                                                                                           |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306）                                                | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。不随代码进度自动解除，需单独排期                                            |
+| [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 B                                                                                | 出现第一个 `plugin:*` 依赖声明。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`。不随代码进度自动解除，`In Review` 是稳态                                                                                                                                                                                                                 |
+| [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D                                                                      | ✅ **已解除且已开工**：阶段 A 判 `decision: supported`，阶段 C 主体已交付。阶段 D 剩下的 AC#52 卡的不再是前置故事，而是**环境**：联网 electron-builder + 真沙箱 + dock 模式 + CDP 驱动真实 DevTools。两条约束仍生效：Electron 43 缺整个 `chrome.permissions` 命名空间（需显式能力探测，禁静默 fallback）、扩展面板只在 dock 模式 DevTools 中注册 |
+| [US-905](stories/future/US-905-tauri-native-devtools.md) 阶段 2                                                                                 | 阶段 1 + [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)（已 Done）+ [US-505](stories/plugin/US-505-tauri-local-file-storage.md)（未关闭）。阶段 1 自身的 6 条 ⚠️ 还卡在**本机没有 Tauri CLI 构建环境**——双 WebView 握手、关窗重开、应用退出只能在真实打包应用上验                                                               |
+| [US-505](stories/plugin/US-505-tauri-local-file-storage.md) AC#6/#7 与 [US-208](stories/adapter/US-208-electron-pglite-data-directory.md) AC#10 | 同一件事：一次**跑绿的** `release-desktop.yml` 三 OS 矩阵。PR #48 的首跑已真实执行并按设计红过，暴露的三个缺陷（`win32` 期望值待回填、Windows 冷启动超时、Windows PGlite 打包缺依赖）已分别在 `1acd2fb` / `76e2bf4` 修掉。**不随代码进度自动解除**，需一次 `workflow_dispatch`                                                                   |

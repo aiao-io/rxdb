@@ -1,5 +1,5 @@
+import { RXDB_DEVTOOLS_MESSAGE, type DevToolsMessage } from '@modules/rxdb-devtools-panel/wire';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RXDB_DEVTOOLS_MESSAGE, type DevToolsMessage } from '../../shared/types';
 import { PortService } from './port.service';
 
 interface PortHarness {

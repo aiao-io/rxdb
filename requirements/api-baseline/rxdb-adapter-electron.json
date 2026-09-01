@@ -335,6 +335,158 @@
         "name": "RxDBAdapterDesktopErrorCode",
         "kind": "type"
       }
+    ],
+    "./pglite": [
+      {
+        "name": "DESKTOP_DEFAULT_DATA_DIRECTORY_SUFFIX",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_HOST_TRANSPORT_KEY",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_PGLITE_DEFAULT_BEGIN_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_PGLITE_MAX_BEGIN_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_PGLITE_PROTOCOL_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "DesktopHostTransport",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPGliteClient",
+        "kind": "both"
+      },
+      {
+        "name": "DesktopPGliteClientOptions",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteNotifyMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteQueryResult",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteResponse",
+        "kind": "type"
+      },
+      {
+        "name": "ELECTRON_PGLITE_ADAPTER_NAME",
+        "kind": "value"
+      },
+      {
+        "name": "ElectronPGliteOptions",
+        "kind": "type"
+      },
+      {
+        "name": "resolveDesktopHostTransport",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBAdapterDesktopError",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBAdapterDesktopErrorCode",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBAdapterElectronPGlite",
+        "kind": "both"
+      }
+    ],
+    "./pglite-host": [
+      {
+        "name": "assertValidDesktopDatabaseName",
+        "kind": "value"
+      },
+      {
+        "name": "createElectronPgliteHost",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_PGLITE_DEFAULT_BEGIN_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_PGLITE_MAX_BEGIN_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_PGLITE_PROTOCOL_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_PGLITE_WATCH_CHANNELS",
+        "kind": "value"
+      },
+      {
+        "name": "DesktopPgliteNotifyMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteQueryResult",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteResponse",
+        "kind": "type"
+      },
+      {
+        "name": "ElectronPgliteHost",
+        "kind": "type"
+      },
+      {
+        "name": "ElectronPgliteHostOptions",
+        "kind": "type"
+      },
+      {
+        "name": "ElectronPgliteRuntime",
+        "kind": "type"
+      },
+      {
+        "name": "ElectronPgliteRuntimeResult",
+        "kind": "type"
+      },
+      {
+        "name": "ElectronPgliteTransaction",
+        "kind": "type"
+      },
+      {
+        "name": "isDesktopPgliteRequestKind",
+        "kind": "value"
+      },
+      {
+        "name": "parseDesktopPgliteRequest",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBAdapterDesktopError",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBAdapterDesktopErrorCode",
+        "kind": "type"
+      }
     ]
   }
 }

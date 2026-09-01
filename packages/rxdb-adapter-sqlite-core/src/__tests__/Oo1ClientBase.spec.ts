@@ -17,6 +17,7 @@ class FakeOo1Db implements Oo1Database {
   readonly filename?: string;
   readonly execSqls: string[] = [];
   readonly functions = new Map<string, (...args: unknown[]) => unknown>();
+  readonly functionArities = new Map<string, number | undefined>();
   closed = false;
   execError?: Error;
 
@@ -49,8 +50,9 @@ class FakeOo1Db implements Oo1Database {
     return 0;
   }
 
-  createFunction(name: string, func: (...args: unknown[]) => unknown): this {
+  createFunction(name: string, func: (...args: unknown[]) => unknown, options?: { arity?: number }): this {
     this.functions.set(name, func);
+    this.functionArities.set(name, options?.arity);
     return this;
   }
 }
@@ -640,6 +642,17 @@ describe('Oo1ClientBase', () => {
 
       expect(regexpReplace(0, '(', 'banana', 'o')).toBe('banana');
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('regexp_replace(('), expect.anything());
+    });
+
+    // OO1 缺省按 `xFunc.length - 1` 推导 arity，rest 参数回调 length 恒为 1，
+    // 被误判成零参函数，`SELECT rxdb_fts_bigram('probe')` 因参数个数不符被拒。必须显式传 arity。
+    it('应该按显式 arity 注册三个自定义函数', async () => {
+      const { runtime, client } = createClient();
+      await client.init('mydb');
+
+      expect(runtime.dbs[0].functionArities.get('regexp')).toBe(2);
+      expect(runtime.dbs[0].functionArities.get('regexp_replace')).toBe(-1);
+      expect(runtime.dbs[0].functionArities.get('rxdb_fts_bigram')).toBe(1);
     });
   });
 });

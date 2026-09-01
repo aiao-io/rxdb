@@ -122,10 +122,16 @@ jobs:
       need_benchmark: ${{ steps.plan.outputs.need_benchmark }}
       nx_no_cloud: ${{ steps.cloud.outputs.nx_no_cloud }}
     steps:
+      # fetch-tags 必须显式打开：`fetch-depth: 0` 只保证**历史**完整，不保证 tag 存在。
+      # actions/checkout 在 refspec 不含 `refs/tags/*` 时一律加 `--no-tags`（PR 事件的
+      # refspec 是 `refs/pull/N/merge`，永远不含），于是 `git rev-parse refs/tags/vX` 在
+      # runner 上必然失败。下面「Migration release manifest gate」的三条 git 钩子
+      # （tag 存在 / 是祖先 / 含迁移面）全靠 tag，缺了就是一道恒假的门禁。
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           filter: tree:0
           fetch-depth: 0
+          fetch-tags: true
 
       # 纯 fetch + nx.json，不依赖 pnpm。runner 镜像自带 Node，checkout 后立刻跑。
       # setup 自己继续继承 workflow 的 NX_NO_CLOUD=true（它只跑 nx show projects）。
@@ -210,6 +216,20 @@ jobs:
       # 这些脚本正是 CI 自身的地基，坏了会以「CI 一片绿但什么都没测」的形式表现出来。
       - name: Script unit tests
         run: pnpm test-scripts
+
+      # 发布清单门禁（release-plan.md 执行顺序第 0 步）。上一步的 `pnpm test-scripts`
+      # 只覆盖 `validateManifest` 的**纯结构**分支，三条 git 钩子在单测里被 `passingHooks`
+      # 桩掉；真实的「bridge.tag 存在 / 是发布提交的祖先 / 含系统迁移面」此前只在打 tag
+      # 时才跑过一次，等于下一个迁移周期（US-305）要在发布当天第一次面对它们。
+      #
+      # 刻意**不传** `--release-tag`：PR 上没有发布 tag 可比。脚本按 `GITHUB_REF_TYPE`
+      # 判定，branch/PR 事件下跳过 tag 比对，只校验清单本身与 `packages/rxdb/package.json`
+      # 的一致性；tag 事件下才回落到 `GITHUB_REF_NAME`。
+      #
+      # `kind=bridge` / `normal` 时三条钩子不参与判定（见脚本的 migration 分支），
+      # 所以这一步今天是绿的 —— 它守的是「清单变成 migration 的那次 PR」。
+      - name: Migration release manifest gate
+        run: pnpm check-migration-release-gate
 
       - name: Plan jobs
         id: plan
@@ -438,6 +458,14 @@ jobs:
         env:
           PROJECTS: ${{ needs.setup.outputs.build_projects }}
         run: pnpm exec nx run-many -t build -p "$PROJECTS" --output-style=stream --parallel=3
+
+      # `exports` 声明了 `./dist/xxx.js`、构建却不产出它 = 装到用户项目里的死链。
+      # 必须紧跟 build：判据是**真实产物**，不是照着 vite config 推算——产物来源不止
+      # `build.lib.entry`（`rolldownOptions.input` 会整体覆盖它，`rxdb-test` 的
+      # `dist/entities/` 更是 vite 跑完之后由客户端生成器写进去的）。
+      # 没构建的包跳过（`nx affected` 下本来就该跳），但一个都没扫到时脚本自己会硬失败。
+      - name: Subpath build entries gate
+        run: pnpm audit:build-entries
 
       # 只有 main 回写，且 build 真的绿了才写 —— 半截缓存会让下一轮拿到
       # 「有 hash 记录但产物不全」的条目，表现成难查的偶发失败。

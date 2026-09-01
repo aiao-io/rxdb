@@ -61,6 +61,12 @@
         "name": "SqliteRepository",
         "kind": "both"
       }
+    ],
+    "./testing": [
+      {
+        "name": "sqliteaiFactory",
+        "kind": "value"
+      }
     ]
   }
 }

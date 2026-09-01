@@ -207,6 +207,25 @@ const gitTagSupportsProtocol = tag => {
   });
 };
 
+/**
+ * 解析本次校验要比对的发布 tag。
+ *
+ * 显式 `--release-tag=` 优先；没有传时**只在打 tag 的 workflow 里**回落到 `GITHUB_REF_NAME`。
+ * 这道 `GITHUB_REF_TYPE` 判断是把本门禁挂进 PR CI 的前提：PR 事件下 `GITHUB_REF_NAME`
+ * 是 `42/merge` 这类 refs/pull 名字，当成发布 tag 会让每个 PR 都红在
+ * `release.version 0.0.25 does not match tag 42/merge` —— 一条与发布无关的假失败。
+ * 分支 push（`GITHUB_REF_TYPE=branch`）同理。
+ *
+ * @param {string[]} args 命令行参数（不含 node 与脚本路径）
+ * @param {Record<string, string | undefined>} env 进程环境变量
+ * @returns {string | undefined} 要比对的 tag；无从判定时为 undefined（跳过 tag 比对）
+ */
+export const resolveReleaseTag = (args, env) => {
+  const explicit = args.find(arg => arg.startsWith('--release-tag='))?.slice('--release-tag='.length);
+  if (explicit) return explicit;
+  return env.GITHUB_REF_TYPE === 'tag' ? env.GITHUB_REF_NAME : undefined;
+};
+
 const loadManifest = async manifestPath => JSON.parse(await readFile(manifestPath, 'utf8'));
 
 // 清单声明的版本必须与真正被发布的 `@aiao/rxdb` 版本一致。
@@ -219,8 +238,7 @@ const run = async () => {
     throw new Error('Usage: node scripts/check-migration-release-gate.mjs --check [manifest-path]');
   }
   const manifestArgument = args.find(arg => !arg.startsWith('--'));
-  const releaseTagArgument = args.find(arg => arg.startsWith('--release-tag='));
-  const releaseTag = releaseTagArgument?.slice('--release-tag='.length) || process.env.GITHUB_REF_NAME;
+  const releaseTag = resolveReleaseTag(args, process.env);
   const manifestPath = path.resolve(manifestArgument ?? DEFAULT_MANIFEST_PATH);
   const manifest = await loadManifest(manifestPath);
   const errors = validateManifest(manifest, {

@@ -42,8 +42,8 @@ const visit_query_fields = (value: unknown, visit: (field: string) => void): voi
     return;
   }
   if (!isRecord(value)) return;
-  if (typeof value.field === 'string') visit(value.field);
-  if (Array.isArray(value.rules)) visit_query_fields(value.rules, visit);
+  if (typeof value['field'] === 'string') visit(value['field']);
+  if (Array.isArray(value['rules'])) visit_query_fields(value['rules'], visit);
 };
 
 const assert_safe_json_path = (parts: string[]): void => {

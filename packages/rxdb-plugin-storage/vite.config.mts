@@ -49,7 +49,11 @@ export default defineConfig(() => ({
       entry: {
         index: 'src/index.ts',
         desktop: 'src/desktop.ts',
-        testing: 'src/testing.ts'
+        testing: 'src/testing.ts',
+        // package.json 的 `./devtools-desktop` / `./devtools-desktop-snapshot` 指向这两个产物，
+        // 入口漏了它们就是死链
+        'devtools-desktop-filesystem': 'src/devtools-desktop-filesystem.ts',
+        'devtools-desktop-snapshot': 'src/devtools-desktop-snapshot.ts'
       },
       name: '@aiao/rxdb-plugin-storage',
       fileName: (_, entryName) => `${entryName}.js`,

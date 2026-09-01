@@ -139,6 +139,12 @@
         "name": "WaSqliteClientRuntime",
         "kind": "type"
       }
+    ],
+    "./testing": [
+      {
+        "name": "waSqliteFactory",
+        "kind": "value"
+      }
     ]
   }
 }

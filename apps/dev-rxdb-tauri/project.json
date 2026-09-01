@@ -57,7 +57,9 @@
           ],
           "outputHashing": "all"
         }
-      }
+      },
+      "//dependsOn": "^build 不是装饰：tsconfig.base.json 把 @aiao/rxdb-test/entities、/shop 映射到 packages/rxdb-test/dist（其余包都映射 src），dist 不进 git。tauri build 的 beforeBuildCommand 会起一个**独立** nx 进程跑本 target，没有 ^build 那层就没人先建 rxdb-test —— 干净 runner 上打包必炸（electron 的 build 有同样的 ^build，见其项目注释）。",
+      "dependsOn": ["build-devtools", "^build"]
     },
     "dev": {
       "executor": "nx:run-commands",
@@ -201,6 +203,13 @@
       "dependsOn": ["build"],
       "options": {
         "command": "node scripts/audit/desktop-lazy-backend.mjs dev-rxdb-tauri"
+      }
+    },
+    "build-devtools": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-tauri",
+        "command": "vite build --config vite.config.devtools.mts"
       }
     }
   }

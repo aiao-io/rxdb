@@ -7,6 +7,10 @@ mod selfcheck;
 
 use aiao_rxdb_tauri::commands::DesktopHost;
 use tauri::Manager;
+// `Emitter` 只在 `#[cfg(dev)]` 的 `devtools_message` 里用（`target.emit`）；
+// 不 cfg 掉的话，release（custom-protocol）构建会报 unused import。
+#[cfg(dev)]
+use tauri::Emitter;
 
 #[derive(serde::Serialize)]
 struct RuntimeHealth {
@@ -41,6 +45,90 @@ fn check_runtime() -> RuntimeHealth {
     RuntimeHealth { status: "ready" }
 }
 
+/// US-905 阶段 1：定向中继的窗口 label 与路由判定（AC#3）。
+///
+/// 纯函数，不碰 Tauri 状态——「谁 → 谁」的规则可以被直接测到，而不必起一个真实窗口。
+#[cfg(dev)]
+mod devtools_routing {
+    /// 调试窗口的 label。
+    pub const DEVTOOLS_LABEL: &str = "rxdb-devtools";
+    /// 主窗口（被检查页）的 label。
+    pub const MAIN_LABEL: &str = "main";
+
+    /// 由发起窗口 label 决定目标 label。
+    ///
+    /// # 为什么拒绝未知 label 而不是默认转发到 main
+    ///
+    /// 默认转发到 `main` 意味着「任何能 `invoke` 的窗口都能向被检查页注入消息」——将来新增的、
+    /// 忘了排除在 capability 之外的窗口会静默获得这条通道。白名单两枚已知 label 而不是
+    /// 黑名单其余，是「无 fallback 兜底」在身份这一侧的同一写法（AC#3：错误身份在 Rust 侧拒绝）。
+    pub fn target_label_of(sender: &str) -> Result<&'static str, String> {
+        match sender {
+            DEVTOOLS_LABEL => Ok(MAIN_LABEL),
+            MAIN_LABEL => Ok(DEVTOOLS_LABEL),
+            other => Err(format!("unexpected sender window label: {other}")),
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        /// 两个已知 label 之间双向路由。
+        #[test]
+        fn routes_between_the_two_known_labels() {
+            assert_eq!(target_label_of(DEVTOOLS_LABEL).unwrap(), MAIN_LABEL);
+            assert_eq!(target_label_of(MAIN_LABEL).unwrap(), DEVTOOLS_LABEL);
+        }
+
+        /// AC#3：非两个已知 label 之一的发起窗口一律拒绝，不得默认转发到 main。
+        #[test]
+        fn rejects_an_unknown_sender_label() {
+            assert!(target_label_of("settings").is_err());
+            assert!(target_label_of("").is_err());
+        }
+    }
+}
+
+/// US-905 阶段 1：dev 模式创建 `rxdb-devtools` 调试窗口。
+///
+/// `#[cfg(dev)]` 是 tauri-build 在 `tauri dev` / 非 release 的 `cargo build` 下设置的：
+/// release 构建里这段代码根本不进产物，`rxdb-devtools` label 的窗口、入口与 command 随之消失，
+/// 满足「release 无入口、bootstrap、专用 command」。
+#[cfg(dev)]
+fn open_devtools_window(app: &tauri::AppHandle) -> tauri::Result<()> {
+    tauri::WebviewWindowBuilder::new(
+        app,
+        devtools_routing::DEVTOOLS_LABEL,
+        tauri::WebviewUrl::App("devtools/devtools.html".into()),
+    )
+    .title("RxDB DevTools")
+    .build()?;
+    Ok(())
+}
+
+/// US-905 阶段 1：面板 ↔ connector 之间的定向消息中继。
+///
+/// 只做**路由**、不做授权：按发起窗口的 label 决定转发到哪一边（`rxdb-devtools` ↔ `main`），
+/// payload 原样透传、不做解释。授权（session / capability / mutation policy）是 connector 与
+/// provider 的职责，transport 不代劳——「session 不是授权 secret」。
+///
+/// 定向 `emit` 而不是广播：业务数据（实体、事件、文件路径）只发往目标窗口，
+/// 不落到任何不该看到它的 WebView 上。
+///
+/// `#[cfg(dev)]`（US-905 AC#1 硬阻塞 B）：命令与 `generate_handler!` 里的对应臂一起在 release
+/// 构建中消失——release 产物不含只服务 `rxdb-devtools` 的专用 command。这是**编译期隔离**，
+/// 不是「release 无窗口所以恒 not found」的运行时兜底。
+#[cfg(dev)]
+#[tauri::command]
+fn devtools_message(window: tauri::Window, app: tauri::AppHandle, payload: String) -> Result<(), String> {
+    let target_label = devtools_routing::target_label_of(window.label())?;
+    let target = app
+        .get_webview_window(target_label)
+        .ok_or_else(|| format!("{target_label} window not found"))?;
+    target.emit("devtools:message", &payload).map_err(|error| error.to_string())
+}
+
 /// US-210：退出前必须显式关掉全部会话。
 ///
 /// 用 `build(...).run(closure)` 而不是 `run(context)`，就是为了拿到 [`tauri::RunEvent::Exit`]
@@ -61,7 +149,12 @@ pub fn run() {
             get_versions,
             check_runtime,
             aiao_rxdb_tauri::commands::rxdb_desktop_request,
-            selfcheck::rxdb_selfcheck_report
+            selfcheck::rxdb_selfcheck_report,
+            selfcheck::rxdb_selfcheck_probe_base_url,
+            // US-905 AC#1：`devtools_message` 命令与它在 `generate_handler!` 里的臂一起
+            // 只在 dev 构建中注册（`#[cfg(dev)]` 直接作用于生成出的 match 臂）。
+            #[cfg(dev)]
+            devtools_message
         ])
         .setup(move |app| {
             // 全程唯一一处根目录分支，且**不是** `unwrap_or`：两边都是被显式选出来的，
@@ -72,6 +165,9 @@ pub fn run() {
                 None => app.path().app_data_dir()?,
             };
             app.manage(DesktopHost::new(app.handle(), app_data_dir));
+            // US-905：dev 模式开调试窗口；release 无此入口（#[cfg(dev)] 两侧一起消失）。
+            #[cfg(dev)]
+            open_devtools_window(app.handle())?;
             // host 先托管再挂看门狗：看门狗到期时要读 host 的根目录写进报告。
             if let Some(plan) = plan {
                 selfcheck::arm(app.handle(), plan);

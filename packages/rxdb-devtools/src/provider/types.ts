@@ -120,6 +120,45 @@ export interface DevToolsChunkSink {
 }
 
 /**
+ * 分块传输的字节来源；{@link DevToolsChunkSink} 的反向。
+ *
+ * @remarks
+ * 形状是 `read(offset, length)` 而不是 `Promise<Uint8Array>` 或异步迭代器，理由与 sink 那条
+ * 对称且同样是结构性的：交出整个数组等于要求实现先把整个文件读进内存，而「不在 renderer 或
+ * main 整体缓存文件」这条约束一旦只靠纪律维持，就会在某次重构里安静地消失。按需读则让
+ * 发送端在任意时刻只持有一块。
+ *
+ * `length` 由状态机给，恒 ≤ 256 KiB，且 `offset` 恒等于此前已读出的字节数——实现不需要
+ * 自己记进度，也不该假设调用方会重读某一段。
+ */
+export interface DevToolsChunkSource {
+  /** 总字节数；用于 `TRANSFER_START` 的 `totalBytes` 与限额预检。 */
+  readonly totalBytes: number;
+
+  /**
+   * 读取 `[offset, offset + length)`。
+   *
+   * @param offset - 起始偏移，等于此前已读出的字节数。
+   * @param length - 需要的字节数，恒 ≤ 256 KiB 且 > 0。
+   * @returns 恰好 `length` 个字节。长度不符视为实现错误，本次传输以 `operation_failed`
+   *   终结——短读被当成正常结果的话，对端收到的是一个静默截断的文件。
+   */
+  read(offset: number, length: number): Promise<Uint8Array>;
+
+  /**
+   * 释放这次读取占用的句柄。
+   *
+   * @remarks
+   * 必须幂等：正常读完、取消、超时与 dispose 都会触发它。sink 那侧用 `commit` / `discard`
+   * 区分终态，是因为它有「临时产物要不要转正」这个决定；读侧没有任何东西需要转正，
+   * 因此只有一个出口，也就不存在漏掉某一条终态路径的可能。
+   *
+   * @returns 释放完成后 resolve；reject 会被调用方吞掉（没有第二条补救路径）。
+   */
+  close(): Promise<void>;
+}
+
+/**
  * 一次 provider 调用的结果。
  *
  * @remarks

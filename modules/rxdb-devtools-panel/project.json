@@ -1,0 +1,29 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "//targets": "刻意没有 release.version 块，也没有 nx-release-publish 目标：这是私有 library。build 用 ng-packagr-lite（同 modules/angular），只为让 `nx run-many -t build --projects='packages/*'` 与类型引用链保持可用，产物不发布。",
+  "name": "rxdb-devtools-panel",
+  "prefix": "app",
+  "projectType": "library",
+  "sourceRoot": "modules/rxdb-devtools-panel/src",
+  "tags": ["angular-lib"],
+  "targets": {
+    "typecheck": {
+      "outputs": ["{workspaceRoot}/dist/out-tsc/rxdb-devtools-panel"]
+    },
+    "build": {
+      "executor": "@nx/angular:ng-packagr-lite",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "project": "modules/rxdb-devtools-panel/ng-package.json",
+        "tsConfig": "modules/rxdb-devtools-panel/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": {
+          "tsConfig": "modules/rxdb-devtools-panel/tsconfig.lib.prod.json"
+        },
+        "development": {}
+      }
+    }
+  }
+}

@@ -26,7 +26,12 @@ import type {
   DevToolsProviderRuntime
 } from '../provider/descriptor.js';
 import { DEVTOOLS_PROVIDER_DOMAINS, DEVTOOLS_PROVIDER_OPERATIONS } from '../provider/descriptor.js';
-import type { DevToolsChunkSink, DevToolsProvider, DevToolsProviderResult } from '../provider/types.js';
+import type {
+  DevToolsChunkSink,
+  DevToolsChunkSource,
+  DevToolsProvider,
+  DevToolsProviderResult
+} from '../provider/types.js';
 import { DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES } from '../v2/constants.js';
 import type { DevToolsErrorOrigin } from '../v2/error-mapping.js';
 import { createProviderError, mapPlatformError } from '../v2/error-mapping.js';
@@ -55,6 +60,14 @@ export interface DevToolsFakeProviderOptions {
   readonly maxTransferBytes?: number;
   /** `${domain}.${operation}` → 该操作要经共享映射抛出的平台失败。 */
   readonly failures?: Readonly<Record<string, DevToolsFakePlatformFailure>>;
+  /**
+   * 初始文件表：`逻辑路径 → 字节数`；省略即用默认的两个小文件。
+   *
+   * @remarks
+   * 存在的理由是**分块**：默认文件都不足一块，跨块用例只能靠自己播种一个大文件。
+   * 播的是长度而不是内容，内容由 {@link readFakeFileBytes} 按偏移合成。
+   */
+  readonly files?: Readonly<Record<string, number>>;
 }
 
 /** 一组 fake provider 及其观测面。 */
@@ -82,6 +95,20 @@ export interface DevToolsFakeProviderSet {
    * @returns 该次写入的 sink。
    */
   createChunkSink(name: string): DevToolsChunkSink;
+  /**
+   * 取一次下载的字节来源。
+   *
+   * @remarks
+   * 只有 `files.download` 的 params 里带了同一个 `requestId` 时才登记得到来源；不带即
+   * 「字节在源侧交付」，返回 `undefined`。这条分叉是**显式登记**而不是嗅探参数形状——
+   * 按字段有无推断行为正是 descriptor 模型禁止的那类实现。
+   *
+   * @param requestId - 那次 download 请求的 ID。
+   * @returns 字节来源；未登记时为 `undefined`。
+   */
+  createChunkSource(requestId: string): DevToolsChunkSource | undefined;
+  /** 尚未 `close()` 的字节来源数；收尾漏了句柄时它不归零。 */
+  openChunkSources(): number;
   /**
    * 已提交的文件。
    *
@@ -111,11 +138,14 @@ interface FakeState {
   currentBranch: string;
   readonly files: Map<string, number>;
   readonly directories: Set<string>;
+  /** `requestId` → 该次下载要读的字节数。 */
+  readonly pendingDownloads: Map<string, number>;
+  openChunkSources: number;
 }
 
 type FakeHandler = (params: unknown) => DevToolsProviderResult;
 
-function createState(): FakeState {
+function createState(files?: Readonly<Record<string, number>>): FakeState {
   return {
     hostReads: 0,
     eventSubscriptions: 0,
@@ -126,12 +156,36 @@ function createState(): FakeState {
     committed: new Map(),
     branches: new Set(['main']),
     currentBranch: 'main',
-    files: new Map([
-      ['/db.sqlite', 4_096],
-      ['/notes/a.md', 12]
-    ]),
-    directories: new Set(['/notes'])
+    files: new Map(
+      files === undefined ?
+        ([
+          ['/db.sqlite', 4_096],
+          ['/notes/a.md', 12]
+        ] as const)
+      : Object.entries(files)
+    ),
+    directories: new Set(['/notes']),
+    pendingDownloads: new Map(),
+    openChunkSources: 0
   };
+}
+
+/**
+ * 合成一段可校验的假文件字节。
+ *
+ * @remarks
+ * 内容由**绝对偏移**决定，因此测试可以只对比自己关心的那一段，而不必先把整个文件拼出来
+ * 再比——后者会把「不得整文件驻留」这条约束在测试代码里破坏掉。模 251（小于 256 的最大质数）
+ * 让相邻块的内容不会碰巧相同，块序错乱时断言必然红。
+ *
+ * @param offset - 起始绝对偏移。
+ * @param length - 字节数。
+ * @returns 该区间的字节。
+ */
+export function readFakeFileBytes(offset: number, length: number): Uint8Array {
+  const bytes = new Uint8Array(length);
+  for (let index = 0; index < length; index += 1) bytes[index] = (offset + index) % 251;
+  return bytes;
 }
 
 function ok(result: unknown): DevToolsProviderResult {
@@ -207,6 +261,9 @@ function createFilesHandlers(state: FakeState): Readonly<Record<string, FakeHand
       if (path === undefined) return fail('invalid_path');
       const size = state.files.get(path);
       if (size === undefined) return fail('resource_not_found');
+      // 带 requestId 即「请把字节推上 wire」；不带即沿用阶段 C2 的源侧交付。
+      const requestId = readString(params, 'requestId');
+      if (requestId !== undefined) state.pendingDownloads.set(requestId, size);
       return read(() => ({ path, size }));
     },
     // 字节不经返回值：它们只能走 chunk sink，这样「整文件不得驻留内存」是结构性的。
@@ -335,6 +392,31 @@ function createSink(state: FakeState, name: string): DevToolsChunkSink {
   };
 }
 
+function createSource(state: FakeState, requestId: string): DevToolsChunkSource | undefined {
+  const totalBytes = state.pendingDownloads.get(requestId);
+  if (totalBytes === undefined) return undefined;
+
+  // 登记只兑现一次：同一个 requestId 再来第二次意味着实现重开了一条流。
+  state.pendingDownloads.delete(requestId);
+  state.openChunkSources += 1;
+  let closed = false;
+
+  return {
+    totalBytes,
+    async read(offset: number, length: number): Promise<Uint8Array> {
+      if (closed) throw new Error(`fake chunk source for "${requestId}" already closed`);
+      // 只造这一块：造整个文件再切片，等于在 fake 里做掉真实现被禁止做的事。
+      state.peakRetainedBytes = Math.max(state.peakRetainedBytes, length);
+      return readFakeFileBytes(offset, length);
+    },
+    async close(): Promise<void> {
+      if (closed) return;
+      closed = true;
+      state.openChunkSources -= 1;
+    }
+  };
+}
+
 function createProbe(state: FakeState): DevToolsProviderProbe {
   return {
     get operationCalls(): ReadonlyMap<string, number> {
@@ -373,7 +455,7 @@ function createProbe(state: FakeState): DevToolsProviderProbe {
  * @returns provider 集合与其观测面。
  */
 export function createFakeProviders(options: DevToolsFakeProviderOptions = {}): DevToolsFakeProviderSet {
-  const state = createState();
+  const state = createState(options.files);
   const runtime = options.runtime ?? 'browser';
   const maxTransferBytes = options.maxTransferBytes ?? DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES;
 
@@ -395,6 +477,12 @@ export function createFakeProviders(options: DevToolsFakeProviderOptions = {}): 
     },
     createChunkSink(name: string): DevToolsChunkSink {
       return createSink(state, name);
+    },
+    createChunkSource(requestId: string): DevToolsChunkSource | undefined {
+      return createSource(state, requestId);
+    },
+    openChunkSources(): number {
+      return state.openChunkSources;
     },
     committedFiles(): readonly (readonly [string, number])[] {
       return [...state.committed];

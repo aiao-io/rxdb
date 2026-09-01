@@ -17,8 +17,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { CLIENT_ENTITY_NAME, RECIPES_RESOURCE } from '../config.ts';
-import { openDatabase } from '../db.ts';
-import { seedDatabase, seedIdAt } from '../seed.ts';
+import { seedIdAt } from '../seed.ts';
 import type { DemoServer } from '../server.ts';
 import { createDemoServer } from '../server.ts';
 
@@ -42,17 +41,14 @@ let openFeeds: OpenFeed[];
 /** 已经在用例里主动关过服务器？afterEach 不再关第二次（`close()` 不是幂等的）。 */
 let closed: boolean;
 
-const databasePath = (): string => join(workdir, 'demo.sqlite');
+const dataDir = (): string => join(workdir, 'pglite');
 
 beforeEach(async () => {
   workdir = mkdtempSync(join(tmpdir(), 'us023-feed-'));
-  const db = openDatabase(databasePath());
-  seedDatabase(db);
-  db.close();
   openFeeds = [];
   closed = false;
 
-  demo = createDemoServer({ databasePath: databasePath(), exposeEtag: true, controlEnabled: true });
+  demo = await createDemoServer({ dataDir: dataDir(), exposeEtag: true, controlEnabled: true });
   await new Promise<void>(resolve => demo.server.listen(0, '127.0.0.1', () => resolve()));
   baseUrl = `http://127.0.0.1:${(demo.server.address() as AddressInfo).port}/v1`;
 });
@@ -261,6 +257,15 @@ describe('控制端点改了数据也广播', () => {
     const response = await post('__control/reset', {});
     expect(response.ok).toBe(true);
     expect(await feed.next()).toEqual({ entity: CLIENT_ENTITY_NAME });
+  });
+
+  it('reset 的种子不逐行广播——250 行只派发一条通知（D7）', async () => {
+    const feed = await openFeedConnection();
+    await post('__control/reset', {});
+    expect(await feed.next()).toEqual({ entity: CLIENT_ENTITY_NAME });
+    // 种子经引擎批处理 + NOTIFY 聚合后只派发一条 Recipe 实体事件；若逐行广播，
+    // 这里会再读到第二条通知，expectSilence 直接红。
+    await feed.expectSilence(150);
   });
 
   it('两个订阅者都收到同一次清空的通知', async () => {

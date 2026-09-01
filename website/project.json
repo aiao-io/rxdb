@@ -29,7 +29,9 @@
       }
     },
     "build": {
+      "//parallelism": "build-website.mjs 的每一步都 execSync 出一个自己的 nx 去构建同一批项目。允许并行时，外层 `nx affected` 会和内层同时往同一个 dist 写；ng-packagr 写前先删 dest，外层给 angular:build:production 落缓存时就可能一个产物都 glob 不到，把「产物为空」写进 Nx 任务库。之后每次缓存命中都「成功」且什么都不还原，dist/modules/angular 再也不出现，读它的 angular-todo:build 稳定 TS2307。dependsOn 留空是刻意的——依赖顺序由脚本自己排，这里只需保证没有别的任务与它同时跑。dev-rxdb-electron:build 的 //dependsOn 注释记的是同一个坑的另一种解法。",
       "dependsOn": [],
+      "parallelism": false,
       "executor": "nx:run-commands",
       "options": {
         "command": "node website/scripts/build-website.mjs"

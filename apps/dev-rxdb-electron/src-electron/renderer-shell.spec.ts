@@ -216,7 +216,9 @@ describe('ELEC-10 file: 协议下的生产外壳', () => {
     const source = read('src-electron/main.ts');
     expect(source).toContain('registerSchemesAsPrivileged');
     expect(source).toContain('protocol.handle(APP_SCHEME');
-    expect(source).toMatch(/loadURL\(APP_ENTRY_URL\)/);
+    // 生产入口仍是 APP_ENTRY_URL（US-208 起可带 ?pglite=1 查询参数），而不是回退到 loadFile。
+    expect(source).toContain('APP_ENTRY_URL');
+    expect(source).toMatch(/loadURL\(entryUrl\)/);
     expect(source).not.toMatch(/\bloadFile\(/);
   });
 

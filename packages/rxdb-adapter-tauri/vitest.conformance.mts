@@ -25,8 +25,14 @@ export default defineConfig({
     // 每个 spec 文件起一个独立的宿主进程与临时工作区，因此文件之间可以并行；
     // 单个文件内部必须串行，套件本身就是这么写的。
     reporters: ['default'],
+    // `storage-large-file.spec.ts`（US-505 AC#5）要证明「内容不整体进 JS 堆」，
+    // 而不强制回收测到的是 GC 的调度节奏：同一份实现两次运行能差一个数量级。
+    // 开关加在这里而不是某条命令行上，是为了让直接跑该文件的人也拿得到它。
+    execArgv: ['--expose-gc'],
     // 走真实进程 + 真实磁盘，比 in-process 的 `node:sqlite` 慢一档：
     // 默认 5s 会在最重的迁移套件上假阳性。
+    // 52 MiB 那两条另有更宽的单条超时，不在这里放宽全局——放宽了，真挂住的用例
+    // 也要等三分钟才报。
     testTimeout: 60_000,
     hookTimeout: 60_000
   }

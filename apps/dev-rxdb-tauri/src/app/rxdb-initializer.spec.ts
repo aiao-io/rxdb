@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { connectRxDB, startLocalDatabase, type LocalDatabaseStartup } from './rxdb-initializer';
 import type { SelfCheckOutcome } from './services/selfcheck-reporter';
+import type { StorageProbeResult } from './storage-probe';
+import type { WebviewProbeResult } from './webview-probe';
 
 describe('connectRxDB', () => {
   /** US-210：适配器名由调用方给出，两个后端（wa-sqlite / desktop）走同一条连接路径。 */
@@ -34,12 +36,31 @@ describe('connectRxDB', () => {
 });
 
 describe('startLocalDatabase', () => {
+  /** 探针的固定结果；上报路径只需要它被原样带出去。 */
+  const probeResult = { digest: 'a'.repeat(64), byteLength: 65536, existedBefore: true };
+
+  /** webview 探针的固定结果；同样只验它被原样带出去。 */
+  const webviewResult: WebviewProbeResult = {
+    engine: 'webkit',
+    origin: 'tauri://localhost',
+    online: true,
+    saveFilePicker: false,
+    anchorDownload: true,
+    objectUrl: true,
+    sameOriginDigest: 'b'.repeat(64),
+    sameOriginByteLength: 512,
+    crossOriginAllowed: 'StorageOfflineError',
+    crossOriginDenied: 'StorageOfflineError'
+  };
+
   /** 造一套协作方，并把连接失败真的反映到 `$error` 上（真实的 state 就是这么联动的）。 */
   const startup = (
     overrides: {
       open?: () => Promise<unknown>;
       connect?: () => Promise<unknown>;
       record?: () => Promise<number>;
+      probe?: () => Promise<StorageProbeResult>;
+      webview?: () => Promise<WebviewProbeResult | null>;
     } = {}
   ): {
     startup: LocalDatabaseStartup;
@@ -65,7 +86,8 @@ describe('startLocalDatabase', () => {
             connect: async () => {
               order.push('connect');
               await (overrides.connect ?? (() => Promise.resolve({})))();
-            }
+            },
+            storage: {}
           } as never;
         },
         state: { markFailed, $error: () => error },
@@ -74,6 +96,14 @@ describe('startLocalDatabase', () => {
             order.push('record');
             return (overrides.record ?? (() => Promise.resolve(1)))();
           }
+        },
+        probe: async () => {
+          order.push('probe');
+          return (overrides.probe ?? (() => Promise.resolve(probeResult)))();
+        },
+        probeWebview: async () => {
+          order.push('webview');
+          return (overrides.webview ?? (() => Promise.resolve(webviewResult)))();
         },
         adapterName: 'desktop',
         report: async outcome => {
@@ -85,17 +115,58 @@ describe('startLocalDatabase', () => {
   };
 
   /**
-   * US-210 AC#9：四步必须**按序**发生。
+   * US-210 AC#9 + US-505 AC#1 / AC#6：六步必须**按序**发生。
    *
    * Angular 的多个 initializer 是并发跑的，所以把它们串起来是本函数存在的全部理由；
    * 顺序一旦松掉，故障形态是「写入偶发地先于连接完成」——只在慢机器上出现。
+   *
+   * 存储探针排在 `record` 之后而不是与它并发：两者都要写库，并发起来第一次启动的
+   * `launchCount` 与探针的 `existedBefore` 会互相干扰，而那正是 AC#1 的两条判据。
+   *
+   * webview 探针又排在存储探针之后：它自己也要往存储里写三份缓存，与
+   * `existedBefore` 并发同样会互相干扰。
    */
-  it('先建库、再连接、再记一次启动、最后带着次数上报', async () => {
+  it('先建库、再连接、再记一次启动、再过一遍存储与 webview，最后带着全部结果上报', async () => {
     const context = startup({ record: () => Promise.resolve(7) });
     await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
-    expect(context.order).toEqual(['open', 'connect', 'record', 'report']);
-    expect(context.reports).toEqual([{ status: 'ok', launchCount: 7 }]);
+    expect(context.order).toEqual(['open', 'connect', 'record', 'probe', 'webview', 'report']);
+    expect(context.reports).toEqual([{ status: 'ok', launchCount: 7, storage: probeResult, webview: webviewResult }]);
     expect(context.markFailed).not.toHaveBeenCalled();
+  });
+
+  /** 正常启动（没开 webview 探针）时照样是一份 `ok`，`webview` 为 null。 */
+  it('没开 webview 探针时仍然正常上报', async () => {
+    const context = startup({ webview: () => Promise.resolve(null) });
+    await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
+    expect(context.reports).toEqual([{ status: 'ok', launchCount: 1, storage: probeResult, webview: null }]);
+  });
+
+  /**
+   * webview 探针失败与存储探针失败同一口径：落成应用内状态 + 一份带原因的报告。
+   *
+   * 尤其不能吞成 `ok` + `webview: null` —— 那与「本来就没开探针」长得一模一样，
+   * e2e 侧只会看到一条「报告里没有 webview 探针结果」，查不到是哪一步坏了。
+   */
+  it('webview 探针失败时既落到应用内状态，也上报根因', async () => {
+    const failure = new Error('asset protocol is unreachable');
+    const context = startup({ webview: () => Promise.reject(failure) });
+    await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
+    expect(context.order).toEqual(['open', 'connect', 'record', 'probe', 'webview', 'report']);
+    expect(context.markFailed).toHaveBeenCalledWith(failure);
+    expect(context.reports).toEqual([{ status: 'failed', message: 'asset protocol is unreachable' }]);
+  });
+
+  /**
+   * US-505：存储探针失败与写库失败是同一类事（用户看到的都是「用不了」），
+   * 都要落成应用内状态 + 一份写着原因的报告，而不是让 initializer 抛出去变成白屏。
+   */
+  it('存储探针失败时既落到应用内状态，也上报根因', async () => {
+    const failure = new Error('the storage probe read back a different digest');
+    const context = startup({ probe: () => Promise.reject(failure) });
+    await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
+    expect(context.order).toEqual(['open', 'connect', 'record', 'probe', 'report']);
+    expect(context.markFailed).toHaveBeenCalledWith(failure);
+    expect(context.reports).toEqual([{ status: 'failed', message: 'the storage probe read back a different digest' }]);
   });
 
   /**

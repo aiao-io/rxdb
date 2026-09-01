@@ -41,4 +41,4 @@ tags: [plugin, graph]
 
 ## 参考
 
-- [文档: 图数据插件 API](../../../website/docs/api/rxdb-plugin-graph/README.md)
+- [文档: 图数据插件 API](../../../website/docs/plugins/rxdb-plugin-graph/README.md)

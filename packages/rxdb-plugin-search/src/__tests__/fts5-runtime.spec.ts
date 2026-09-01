@@ -146,8 +146,42 @@ describe('installFtsForEntity (T030)', () => {
     expect(exec.rawQuery.mock.calls[0][0]).toContain('sqlite_master');
     expect(exec.rawQuery.mock.calls[1][0]).toContain('DROP TRIGGER');
     expect(exec.rawQuery.mock.calls[2][0]).toContain('CREATE VIRTUAL TABLE');
-    expect(exec.rawQuery.mock.calls[3][0]).toContain('CREATE TRIGGER');
+    // 修复不是「补一个缺的对象」，而是与 PG 侧一样的**全量重算**：
+    // 第 4 次 rawQuery 仍是 reset → backfill → triggers 的同一个合并批次。
+    const repairBatch = exec.rawQuery.mock.calls[3][0] as string;
+    expect(repairBatch).toContain(`VALUES('delete-all')`);
+    expect(repairBatch.indexOf('SELECT src.rowid')).toBeGreaterThan(repairBatch.indexOf(`VALUES('delete-all')`));
+    expect(repairBatch.indexOf('CREATE TRIGGER')).toBeGreaterThan(repairBatch.indexOf('SELECT src.rowid'));
+    // 记录已经在了，重复写只会污染签名判定
     expect(store.record).not.toHaveBeenCalled();
+  });
+
+  it('回填中断：一条 migration 都不落，下次整批重装（AC#7）', async () => {
+    // 与 pg-tsvector 后端的 AC#7 用例对称。两套后端用的是同一个可恢复性模型，
+    // 只是哨兵不同：PG 侧靠数据本身（`_fts IS NULL`），FTS5 侧靠「记录只在全部完成后才写」。
+    // 因此这里要钉死的是：中断点落在批次里时，绝不能留下半条记录——留下了，
+    // 下一次启动就会走 `already_installed`/`repaired` 分支，把只填了一半的索引当成就绪的。
+    const plan = makePlan();
+    const store = makeStore();
+    const failing = {
+      rawQuery: vi.fn(async (sql: string) => {
+        if (sql.includes('CREATE VIRTUAL TABLE')) return { rowsAffected: 0, rows: [], columns: [] };
+        throw new Error('worker terminated mid-backfill');
+      })
+    } as RuntimeSqlExecutor & { rawQuery: ReturnType<typeof vi.fn> };
+
+    await expect(installFtsForEntity(plan, failing, store)).rejects.toThrow('worker terminated mid-backfill');
+    expect(store.record).not.toHaveBeenCalled();
+
+    // 第二次启动：迁移表里空空如也，于是走的是全新安装而不是修复，
+    // reset 会把上一轮填进去的残留整体清掉，再从零回填。
+    const retry = makeExecutor();
+    const result = await installFtsForEntity(plan, retry, store);
+    expect(result.status).toBe('installed');
+    expect(store.recorded).toEqual([
+      'fts5__public$article__v1__install__sig-v1',
+      'fts5__public$article__v1__backfill__sig-v1'
+    ]);
   });
 
   it('签名漂移：抛 SearchSchemaMismatchError 并带上存储/期望签名', async () => {

@@ -97,6 +97,12 @@
         "name": "SqliteRepositoryConstructor",
         "kind": "type"
       }
+    ],
+    "./testing": [
+      {
+        "name": "sqliteOfficialFactory",
+        "kind": "value"
+      }
     ]
   }
 }

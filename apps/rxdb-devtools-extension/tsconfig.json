@@ -1,4 +1,5 @@
 {
+  "//compilerOptions.paths": "刻意**不**声明 paths：TS 的 paths 是整块替换而非合并，本文件一旦自带 paths，tsconfig.base.json 里全部 `@aiao/*` / `@modules/*` 映射（含 `@modules/rxdb-devtools-panel` 与其 `/wire` 次入口）就对本项目不可见。原先这里只有一条零使用的 `@/*` 别名，代价却是整张 workspace 映射表。",
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
     "strictInjectionParameters": true,
@@ -16,9 +17,6 @@
     "noPropertyAccessFromIndexSignature": true,
     "moduleResolution": "bundler",
     "module": "preserve",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
     "ignoreDeprecations": "6.0"
   },
   "extends": "../../tsconfig.base.json",

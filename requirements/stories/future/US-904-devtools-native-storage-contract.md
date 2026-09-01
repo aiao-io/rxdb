@@ -5,7 +5,7 @@ status: In Progress
 priority: High
 epic: epic-003-ui-developer-tools
 created: 2026-08-15
-updated: 2026-08-27
+updated: 2026-09-01
 tags:
   [tooling, devtools, desktop, electron, protocol, provider, security, transfer, snapshot, conformance, chrome, browser]
 decision: supported
@@ -34,12 +34,12 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 交付                                                    | 直接前置                                     | AC 区段   | 状态                   |
-| ---- | ------------------------------------------------------- | -------------------------------------------- | --------- | ---------------------- |
-| A    | Electron 43 + 当前 MV3 扩展 stop/go 实证                | 无                                           | AC#1～6   | ✅ 已交付（supported） |
-| B    | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面 | 无                                           | AC#7～30  | ✅ 已交付（5 条保留）  |
-| C    | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移   | 阶段 B（仅其阶段 2）                         | AC#31～44 | ⬜ 未开始              |
-| D    | Electron desktop SQLite / native files 接入与真实 E2E   | 阶段 A(supported) + 阶段 C + US-207 / US-504 | AC#45～53 | ⬜ 未开始              |
+| 阶段 | 交付                                                    | 直接前置                                     | AC 区段   | 状态                                                                                        |
+| ---- | ------------------------------------------------------- | -------------------------------------------- | --------- | ------------------------------------------------------------------------------------------- |
+| A    | Electron 43 + 当前 MV3 扩展 stop/go 实证                | 无                                           | AC#1～6   | ✅ 已交付（supported）                                                                      |
+| B    | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面 | 无                                           | AC#7～30  | ✅ 已交付（5 条保留）                                                                       |
+| C    | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移   | 阶段 B（仅其阶段 2）                         | AC#31～44 | 🚧 C1 已交付（AC#34 待人工浏览器回归）；C2 已交付（AC#38/#39 待跨版本实证，#42 待人工回归） |
+| D    | Electron desktop SQLite / native files 接入与真实 E2E   | 阶段 A(supported) + 阶段 C + US-207 / US-504 | AC#45～53 | ⬜ 未开始                                                                                   |
 
 - 阶段 A 与阶段 B 相互独立，可并行开工；阶段 C 的阶段 1（行为中性抽取）也可与阶段 B 并行。
 - 阶段 B 已交付：本包内的 v2 协议、provider 数据面与 conformance suite 全部落地，5 条 AC 因只能由真实
@@ -166,9 +166,13 @@ US-210 → US-505
   兼容形态在阶段 C 的 plan 阶段二选一并写明理由：**完整 facade**（旧 connector 继续可用，但要长期维护
   两套语义映射，且必须写明维护到哪个版本）或**版本闸门**（只回一条「connector 版本过低，请升级到 ≥ X」
   并停止会话，维护成本低但直接打断旧应用的调试）。
-- **私有面板 library。** `packages/rxdb-devtools-panel/` 必须是正式 workspace dependency，但 package
-  manifest 设 `private: true`，Nx tag 不得使用 `npm:public`，并从 fixed release group 的 `packages/*`
-  匹配中显式排除。它不增加公开 npm 包数量，也不进入 API baseline。
+- **私有面板 library。** `modules/rxdb-devtools-panel/` 住在 `modules/` 而非 `packages/`，沿用本仓
+  `modules/angular`、`modules/angular-todo` 的既有范式：**不进 pnpm workspace，只经 tsconfig paths
+  以源码嵌入被消费**（见 `pnpm-workspace.yaml` 的注释）。依赖关系由 Nx 项目图承担——`nx graph` 会记录
+  `rxdb-devtools-extension → rxdb-devtools-panel` 的 static 边，与 `dev-rxdb-angular → angular` 同理，
+  因此「源码别名让依赖不可见」这一风险不成立。它落在 `packages/*` 之外，天然不增加公开 npm 包数量、
+  不进 API baseline、不进 fixed release group，无需任何否定匹配或 `private` 豁免；package manifest 仍设
+  `private: true` 作为本地 `npm publish` 的兜底闸。
 - **开发态隔离。** 扩展加载 / 调试窗口只在显式开发配置下启用；默认生产包不包含、不自动启用，
   release 产物不含调试 bootstrap、专用 command 或只服务调试窗口的 capability。
 
@@ -226,7 +230,7 @@ US-210 → US-505
 
 ### Out of Scope（阶段 A）
 
-- 抽取 `packages/rxdb-devtools-panel/`、修改正式 wire 或新增 provider
+- 抽取 `modules/rxdb-devtools-panel/`、修改正式 wire 或新增 provider
 - 接入 US-207 SQLite、US-504 原生文件或任何业务数据
 - 用 Chrome 成功、mock API 或渲染进程单测替代 Electron 43 证据
 - unsupported 时直接实现独立 DevTools window；该分支必须先修改本文件的共享契约再另行排期。替代承载
@@ -470,7 +474,7 @@ transport 不得临时发明平台私有码。
 
 **C1 — 共享面板 library**
 
-- 用 generator 创建 `packages/rxdb-devtools-panel/` 私有 Angular library
+- 用 generator 创建 `modules/rxdb-devtools-panel/` 私有 Angular library
 - 迁入面板组件、状态服务与视图模型；迁移前后用户可见行为、路由和文案保持一致
 - 定义平台无关 transport token（消息收发 + 连接生命周期），Chrome runtime/PortService 只作为该 token
   的一个 adapter 在 `apps/rxdb-devtools-extension/` 侧注入
@@ -500,10 +504,15 @@ transport 不得临时发明平台私有码。
 
 ### 私有 library 边界
 
-- `packages/rxdb-devtools-panel/package.json` 必须 `private: true`，不得声明 `npm:public` tag 或 publish target
-- `nx.json.release.projects` 必须显式排除该 project；fixed release version/publish dry-run 不得修改或发布它
-- Chrome/Electron/Tauri 通过 package manager workspace dependency 消费，不使用 tsconfig path 绕过依赖
+- library 落在 `modules/` 而非 `packages/`，因此不被 `nx.json.release.projects` 的 `packages/*`、
+  `scripts/audit/api-surface.mjs` 与包数量统计扫到——隔离是**结构性**的，不靠否定匹配或 `private` 豁免。
+  `release.projects` 必须保持朴素的 `["packages/*"]`，不得为它增设否定项；publish dry-run 不得出现该 project
+- `modules/rxdb-devtools-panel/package.json` 仍设 `private: true`（本地 `npm publish` 的兜底闸），
+  不得声明 `npm:public` tag 或 publish target
+- Chrome/Electron/Tauri 经 tsconfig paths 以**源码嵌入**消费，同 `modules/` 其余成员；依赖关系由 Nx 项目图
+  记录（`nx graph` 须存在 app → panel 的 static 边），不得复制源码
 - API baseline 与公开包统计继续只包含现有公开 npm 包；本阶段不改变 `capability-matrix.md` 的公开包统计
+  （31 个 `packages/*`、0 个 `private: true`、30 个受 baseline 保护，逐字不变）
 - library 构建不得把 Chrome types/runtime 变成传递依赖；surface adapter 在各 app 侧提供 transport
 
 ### transport token 契约
@@ -661,62 +670,189 @@ fake 能证明的部分已证明，剩下的部分不是「还没写测试」，
 
 ### 阶段 C1 — 行为中性抽取（AC#31～35）
 
-| #   | 前置条件                           | 操作                                                              | 预期结果                                                                                                 | 状态 |
-| --- | ---------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ---- |
-| 31  | generator 创建私有 panel library   | 检查 project、manifest、graph 与 release dry-run                  | 正式 workspace dependency 生效；private project 不在 public tag、API baseline、版本改写或 publish 列表中 | ⬜   |
-| 32  | Chrome surface 构建                | 扫描共享 library import graph                                     | UI/状态服务只依赖 transport token；不引用 chrome runtime、PortService 或任何桌面 global                  | ⬜   |
-| 33  | 抽取完成                           | 只用内存 fake transport 在单测中启动面板并渲染各页                | 面板可在无任何 `chrome.*` 的环境下装配；token 是唯一接缝                                                 | ⬜   |
-| 34  | 抽取前的浏览器回归基线已记录       | 抽取后重跑 Database、Events、branch、Storage、OPFS、Settings 清理 | 用户可见行为、wire 消息与错误展示与基线一致；**C1 不引入任何协议或行为差异**                             | ⬜   |
-| 35  | 公开包统计与 API baseline 已有基线 | 运行 API surface 审计与包数量统计                                 | 公开包数量与 baseline 条目不变；`packages/rxdb-devtools-panel/` 不产生任何公开子路径入口                 | ⬜   |
+| #   | 前置条件                           | 操作                                                              | 预期结果                                                                                                                           | 状态 |
+| --- | ---------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 31  | generator 创建私有 panel library   | 检查 project、manifest、graph 与 release dry-run                  | `nx graph` 存在 app → panel 的 static 边；project 落在 `packages/*` 之外，不在 public tag、API baseline、版本改写或 publish 列表中 | ✅   |
+| 32  | Chrome surface 构建                | 扫描共享 library import graph                                     | UI/状态服务只依赖 transport token；不引用 chrome runtime、PortService 或任何桌面 global                                            | ✅   |
+| 33  | 抽取完成                           | 只用内存 fake transport 在单测中启动面板并渲染各页                | 面板可在无任何 `chrome.*` 的环境下装配；token 是唯一接缝                                                                           | ✅   |
+| 34  | 抽取前的浏览器回归基线已记录       | 抽取后重跑 Database、Events、branch、Storage、OPFS、Settings 清理 | 用户可见行为、wire 消息与错误展示与基线一致；**C1 不引入任何协议或行为差异**                                                       | ⬜   |
+| 35  | 公开包统计与 API baseline 已有基线 | 运行 API surface 审计与包数量统计                                 | 公开包数量与 baseline 条目不变；`modules/rxdb-devtools-panel/` 不产生任何公开子路径入口                                            | ✅   |
 
 ### 阶段 C2 — Chrome v2 迁移（AC#36～44）
 
-| #   | 前置条件                                                           | 操作                                               | 预期结果                                                                                                   | 状态 |
-| --- | ------------------------------------------------------------------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ---- |
-| 36  | new panel + v2 connector，真实 background/content/Port             | 同时交换 eager legacy 与 v2 HANDSHAKE              | background 不代 ACK；确定选择 v2，只建立一个 session，从未短暂进入 v1                                      | ⬜   |
-| 37  | panel 先于 inspected page connector 就绪，且注入需先获得 host 授权 | 授权后刷新页面，观察握手                           | panel 在观察到 legacy HANDSHAKE 时补发 HELLO，窗口自暂存起算；双方均支持 v2 时仍选 v2，不因授权耗时而降级  | ⬜   |
-| 38  | new panel/old connector 与 old panel/new connector                 | 分别通过真实扩展 relay 调试既有页面                | 前者窗口到期后 bridge，后者无等待 facade；既有页面可用且都不获得 v2/provider 新能力                        | ⬜   |
-| 39  | 双方版本无交集、service worker 重启、页面刷新和 Port 重连          | 观察 UI 与 session                                 | 可见 `protocol_unsupported` 或确定重连；旧订阅、请求、transfer、snapshot、计时器清理，迟到消息不进入新状态 | ⬜   |
-| 40  | Chrome OPFS provider                                               | 运行阶段 B 全部 data-plane conformance             | descriptor、base64、限额、transfer、snapshot 和穷举错误全部通过，不保留旧 OPFS 私有状态机                  | ⬜   |
-| 41  | capability 为 none，握手前后产生事件并伪造查询                     | 经过真实四段 relay 观察页面消息和 provider 调用    | 仅生命周期消息；EVENT/DB_INFO/BRANCHES/Storage/files、订阅、buffer、provider 调用全部为 0                  | ⬜   |
-| 42  | readonly/full 普通 Chrome 页面使用现有 Web adapters                | 查询、事件、branch、OPFS、Storage 与 Settings 清理 | 除数据库下载和超过协商上限的传输明确拒绝外，用户可见行为不变                                               | ⬜   |
-| 43  | Settings 展示数据库下载                                            | 点击按钮并强制发送 export 命令                     | 按钮禁用；返回 `export_unsupported`；`navigator.storage.getDirectory()`、SQLite/WAL 和文件读取次数均为 0   | ⬜   |
-| 44  | Chrome 与 fake native thin driver                                  | 运行同一 panel/provider conformance                | 状态、错误、授权和资源清理一致；事件集合只来自 `RXDB_EVENT_TYPES`，fixture、状态机和错误断言没有平台副本   | ⬜   |
+| #   | 前置条件                                                           | 操作                                               | 预期结果                                                                                                   | 状态    |
+| --- | ------------------------------------------------------------------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------- |
+| 36  | new panel + v2 connector，真实 background/content/Port             | 同时交换 eager legacy 与 v2 HANDSHAKE              | background 不代 ACK；确定选择 v2，只建立一个 session，从未短暂进入 v1                                      | ✅      |
+| 37  | panel 先于 inspected page connector 就绪，且注入需先获得 host 授权 | 授权后刷新页面，观察握手                           | panel 在观察到 legacy HANDSHAKE 时补发 HELLO，窗口自暂存起算；双方均支持 v2 时仍选 v2，不因授权耗时而降级  | ✅      |
+| 38  | new panel/old connector 与 old panel/new connector                 | 分别通过真实扩展 relay 调试既有页面                | 前者窗口到期后 bridge，后者无等待 facade；既有页面可用且都不获得 v2/provider 新能力                        | ⬜      |
+| 39  | 双方版本无交集、service worker 重启、页面刷新和 Port 重连          | 观察 UI 与 session                                 | 可见 `protocol_unsupported` 或确定重连；旧订阅、请求、transfer、snapshot、计时器清理，迟到消息不进入新状态 | ⬜      |
+| 40  | Chrome OPFS provider                                               | 运行阶段 B 全部 data-plane conformance             | descriptor、base64、限额、transfer、snapshot 和穷举错误全部通过，不保留旧 OPFS 私有状态机                  | ⚠️ 部分 |
+| 41  | capability 为 none，握手前后产生事件并伪造查询                     | 经过真实四段 relay 观察页面消息和 provider 调用    | 仅生命周期消息；EVENT/DB_INFO/BRANCHES/Storage/files、订阅、buffer、provider 调用全部为 0                  | ✅      |
+| 42  | readonly/full 普通 Chrome 页面使用现有 Web adapters                | 查询、事件、branch、OPFS、Storage 与 Settings 清理 | 除数据库下载和超过协商上限的传输明确拒绝外，用户可见行为不变                                               | ⬜      |
+| 43  | Settings 展示数据库下载                                            | 点击按钮并强制发送 export 命令                     | 按钮禁用；返回 `export_unsupported`；`navigator.storage.getDirectory()`、SQLite/WAL 和文件读取次数均为 0   | ✅      |
+| 44  | Chrome 与 fake native thin driver                                  | 运行同一 panel/provider conformance                | 状态、错误、授权和资源清理一致；事件集合只来自 `RXDB_EVENT_TYPES`，fixture、状态机和错误断言没有平台副本   | ⚠️ 部分 |
+
+#### 本轮落地：中继两段换成真实实现
+
+C2 的第一、二个增量已合入，两者都不触碰组件搬迁（C1 的边界）：
+
+1. **两代协议共用一条 Chrome 链路。** `background-core` 与 `bridge-core` 原先以 v1 专用的
+   `isDevToolsMessage` 及其两值方向枚举作闸，v2 帧在 Chrome 上**一条都过不去**——阶段 B 冻结的协议
+   在这个宿主上是死的。现由 `modules/rxdb-devtools-panel/wire/relay.ts` 的
+   `relayDirectionOf` / `isRelayFrameTowards` / `DevToolsRelayFrame` 统一判定：**宽外层**（认两代信封）
+   ＋ **方向必判**。宽而不是按 payload 严校验，是因为 service worker 与页面 connector 的升级时机
+   本就不同（扩展更新 vs 页面刷新），payload 严校验会让先升级的一侧静默吞掉另一侧的合法帧。
+2. **conformance 在真实中继逻辑上复跑。** `FakeRelay.attachNode()` 开出中间两段的接缝，
+   `apps/rxdb-devtools-extension/src/testing/chrome-relay-nodes.ts` 把真实的
+   `createBackgroundController` 与 `bridge-core` 装进去，`chrome-conformance.spec.ts` 与内存对照组
+   **只差一个 `createNodes`**：80 条控制面 / 数据面断言、fixture、错误码表一行都没有复制。
+
+#### 保留项：模拟 Port 关不掉的部分
+
+| AC  | 本轮验收到的程度                                                                                                                                                                                                                                   | 谁最终关闭      |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| 36  | ~~Port 是模拟的~~ **已由 `apps/rxdb-devtools-extension-e2e` 关闭**：真实 `chrome.runtime.connect` / `chrome.scripting` 注入 / `window.postMessage` 四段全通，页面侧录到唯一一条 v2 `HANDSHAKE_ACK`（`protocol: 2`），端口车道上没有任何 legacy ACK | ✅ 已关闭       |
+| 41  | ~~「页面消息」是合成的 window 事件~~ **已由扩展 e2e 关闭**：`?capabilities=none&emitOnInit=1` 的页面在 init 同一 tick 发事件（确定性的「握手之前」），握手后再发一次，四条车道上 EVENT / DB_INFO / BRANCHES 均为 0                                 | ✅ 已关闭       |
+| 44  | Chrome driver 与内存 driver 跑同一套件、同一 fixture、同一错误断言，结构上无处写平台副本。缺的是对照的另一端——native thin driver 要等阶段 D / US-905                                                                                               | 阶段 D / US-905 |
+
+AC#38 / #39 保持 ⬜：两者要的是**跨版本**与**真实断连**的实证——前者需要同时装一份旧
+connector 与一份旧面板产物，后者需要 service worker 重启与 Port 重连。两件事都不是再写一条
+断言能得到的，本轮不假装关闭。AC#42 与 AC#34 同属人工浏览器回归，一并留给那一次回归。
+AC#40 保留在 ⚠️：私有 OPFS 状态机已随 `apps/rxdb-devtools-extension/src/content/opfs*.ts` 整体删除
+（`content/` 下现在只剩 bridge），OPFS provider 的 descriptor、限额、transfer 绑定、穷举错误
+都有单测；缺的一半是让阶段 B 的 data-plane conformance **直接跑在 OPFS provider 上**——
+suite 现在跑的是 JSON fake driver，而 vitest 里没有真实 OPFS host。
+
+#### 本轮落地：panel 侧 v2 数据面客户端与导出停用
+
+1. **panel 侧 v2 数据面客户端。** 阶段 B 只交付了 connector 侧的 `endpoint.ts`，
+   panel 侧除协商状态机外没有任何请求 / 事件 / 上传的对端实现，面板服务无从改接。
+   `packages/rxdb-devtools/src/v2/panel-endpoint.ts` 补上这一半：协商接线、请求额度、
+   事件订阅与上传驱动共用一个组合根。三处与 connector 侧**有意不对称**的地方写在模块头里，
+   其中一条是协议缺口的诚实映射——冻结的 wire 上 `TRANSFER_COMPLETE` 成功时**不产生任何帧**，
+   于是上传只能报 `'sent'` 而不是 `'ok'`（不在阶段 C 私自补消息类型）。
+2. **数据库导出停用（AC#43 的面板侧）。** 删除 `scripts/download-database.ts` 整条打包路径，
+   Settings 的导出按钮改为常量禁用，强制命令固定回 `export_unsupported`。
+   `navigator.storage.getDirectory()` / SQLite / WAL 的读取次数因此**结构上**为 0——
+   代码不存在，而不是「记得别调用」。
+
+AC#43 的保留半边是 connector 侧：v2 `settings.export` 需要真实 settings provider 才能在
+对端也拒一次（面板与 connector 各拒一次是有意的纵深，见 AC#50）——已由下一节补齐。
+
+#### 本轮落地：页内 provider 接缝装配
+
+1. **`CONNECTOR_PROVIDER_DESCRIPTORS` 原本是空集，`CONNECTOR_PROVIDERS.provider()` 原本直接抛错。**
+   阶段 B 交付的是端点与授权层，页内**没有任何 provider 实现**，所以阶段 C2 不只是「面板改接
+   v2」，还得先把浏览器侧的 provider 本体造出来，否则协商成功后每个请求都撞在抛错上。
+2. **`files` — OPFS provider**（`src/browser/opfs-files-provider.ts`）。`list` 返回子树；
+   写操作（`upload` / `create-directory` / `delete`）走临时文件 + `commit()` 落地，半写文件不对
+   其他读者可见。`create-directory` 先用 `create: false` 探一次，因为 OPFS 的 `create: true` 幂等
+   成功，不探就永远报不出 `resource_conflict`。
+3. **`files.download` 的字节不过 wire。** 阶段 B 的 `TRANSFER_*` 虽然方向标注为 `'both'`，
+   但 connector→panel 这一向**两端都没实现**。浏览器 `opfs` kind 因此仍由页面自己的下载路径
+   保存文件（AC#42 的可见行为不变）；真正的 connector→panel 字节通道是阶段 D `native-files`
+   的前置项，不在阶段 C 私自补。
+4. **`settings` — 恒定拒绝的 `export`**（`src/browser/settings-provider.ts`），补齐 AC#43 的
+   connector 侧：绕过面板 UI 直接发命令的调用在对端同样拿到 `export_unsupported`，且该拒绝在
+   任何 host 动作**之前**返回。`clear` 不宣告——面板仍走 v1 脚本注入，宣告一个服务不了的操作
+   等于让面板据此点亮按钮。
+5. **`database` 不宣告**（而不是宣告 `kind: 'unavailable'`）。领域缺席 = 「本处未实现」→
+   `provider_unsupported`；`unavailable` = 「本运行时有但此刻用不了」→ `provider_unavailable`。
+   两者在面板上的提示语与重试入口不同，不能混。
+6. **写路径默认关闭。** `CONNECTOR_MUTATION_POLICY = 'omit'`：`files` 的三个写操作都是 `full` 档，
+   「接上 provider」不应顺带打开写入，owner 要写必须显式表态。此后 `mutationPolicy` 升为
+   `DevToolsOptions` 的公开可选项：档位说的是「面板被允许下达多重的命令」，写策略说的是
+   「页面愿不愿意被写盘」，两个决策者不能合成一个开关。被拒时对端收到的是
+   `provider_unsupported`——与「没有这个领域」同形，不让对端靠错误码反推页面开了哪些写能力。
+
+#### 本轮落地：扩展 e2e，以及它当场抓到的信道分流缺陷
+
+1. **`apps/rxdb-devtools-extension-e2e` 立项。** Playwright 以持久化上下文加载 unpacked 扩展，
+   跑通 panel → background → content script → 页面的**真实**四段中继，承接 AC#36 / #41。
+   页面侧用的是 `packages/rxdb-devtools/dist` 的**发布产物**，不是测试里 new 的源码类。
+2. **它立刻抓到一个两侧单测都看不见的缺陷：v2 帧被私有端口吞掉。** `bridge-core` 的
+   `forwardExtensionMessage` 在握手之后把**所有**下行帧塞进私有 `MessagePort`，而端口是
+   **v1 命令面**的传输层——connector 的 `#port.onmessage` 只解 v1 消息，v2 帧收发两个方向都
+   固定在 window 总线上。于是 `PROTOCOL_HELLO` 石沉大海、协商窗口静默到期，
+   「两端都支持 v2」在真实 Chrome 里**稳定**退回 v1 facade。两侧单测各自绿着，是因为
+   它们各自定义了对端。现按信封版本分流：v1 走端口，v2 走 window 总线。
+3. **真实路径约束：先授权，再刷新被检查页面。** bridge 由 `chrome.scripting` 在面板确认 host
+   权限后注入，而注入的脚本**不跨导航存活**；面板只在 `chrome.devtools.network.onNavigated`
+   时重新注入。因此「面板打开之前就加载好的页面」两端会永久互等——这正是 AC#37 措辞里
+   「授权后刷新页面」的由来，e2e 按这条真实路径走。
+4. **variance（与阶段 A 对 AC#3 的容忍同源，必须计入）：** Playwright 打不开 DevTools 自己的
+   面板宿主，`chrome.devtools` 只在那个宿主里存在，故面板被当作普通扩展页打开并桩掉
+   `tabId` / `eval('location.href')` / `onNavigated` 三项；测试用扩展**副本**的 manifest 静态写入
+   `host_permissions: ['http://localhost/*']`（Chrome 的 host pattern 不带端口），
+   生产 manifest 的 `optional_host_permissions` 原样保留，仍由 `manifest.config.spec.ts` 守住。
+   补的是**宿主**，不是被测物：Port、background、注入与页面消息四段都是真的。
+
+#### C2 冻结的三条决策
+
+1. **v1 兼容形态取「完整 facade」，维护到 `@aiao/rxdb-devtools` 1.x 结束**（共享不变量与
+   AC#28 要求在 plan 阶段二选一并写明理由）。取 facade 而不是版本闸门，是因为 connector 随
+   **页面**发布、面板随**扩展**发布，两者的升级时机由不同的人决定；版本闸门会让一个没能力
+   立刻升级页面的用户直接失去 DevTools，而这正是他最需要它的时候。代价是两套语义映射要
+   长期并存——因此写死维护窗口：2.0 起移除 facade，届时只回「connector 版本过低」。
+2. **`database` 领域在 v2 里有意不宣告，`database-state` / `devtools-state` 两个面板服务继续跑 v1。**
+   这与 plan 原文「三个服务一起改接 v2」不同，改动的理由写在这里：v2 的 `database` 领域没有
+   provider（阶段 C2 只把 `files` 迁过去），宣告一个服务不了的领域等于让面板据此点亮入口。
+   两代协议并存期间，连接判定必须认两种证据——`connector.ts` 的 `#syncLegacyConnectionToSession`
+   正是为此存在：v2 session 一开，v1 的事件 buffer 也算已连接，否则 Database / Events 两页
+   在真实 Chrome 上会永远是空的（v2 赢下协商后，面板**永远不会**发那条 legacy ACK）。
+3. **`TRANSFER_COMPLETE` 无成功应答、`files.download` 无 connector→panel 字节通道，两处协议缺口
+   照实映射，不在阶段 C 私自补消息类型**（上传只报 `'sent'`；浏览器 `opfs` kind 仍由页面自己
+   保存文件）。真正的字节通道是阶段 D `native-files` 的前置项。
+
+#### 已知噪声（不改，记录在案）
+
+v2 session 一建立，端点就去开 `database.events` 订阅，而 `database` 领域有意未宣告，
+于是每条 v2 session 都会向面板发一条 `ERROR{requestId: null, provider_unsupported}`。
+端点这么做是对的——订阅失败必须发出去，否则对端会等一条永远不来的 EVENT；面板在 `v2` 状态下
+忽略它，数据面不受影响（事件仍走 v1）。要消掉它只有两条路：宣告 `database` descriptor（阶段 D 及
+之后的范围），或让端点对「本就没有该领域」的订阅失败保持沉默（改的是阶段 B 冻结的语义）。
+两条都不属于 C2，故留噪声、留记录。
 
 ### 阶段 D — Electron 原生存储集成（AC#45～53）
 
 | #   | 前置条件                                                         | 操作                                                   | 预期结果                                                                                                                                         | 状态 |
 | --- | ---------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 45  | 分别构建显式开发配置与 production                                | 检查产物并启动                                         | dev 加载唯一工作区扩展并握手；production 无扩展源码、加载路径、bootstrap 和新增权限                                                              | ⬜   |
-| 46  | 应用使用 US-207 desktop SQLite                                   | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与应用一致；不创建或查询 OPFS/IndexedDB fallback                                                         | ⬜   |
-| 47  | 应用使用 US-504 原生文件后端并显式允许 mutation                  | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件专用根，字节一致；UI 仅用 `runtime: electron` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                              | ⬜   |
-| 48  | 1001 条以上 metadata/files、两类缺失和一条在途上传               | 读取完整诊断 snapshot                                  | 从请求进入起算的共享 deadline（阶段 B）覆盖等锁/物化/重试；不漏尾页或误报临时状态；失效/超限/过期分别返回 shared busy/too-large/expired          | ⬜   |
-| 49  | 打开 Settings                                                    | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明清理返回 `provider_unsupported`，不读取 OPFS/SQLite/WAL 或其他目录                            | ⬜   |
-| 50  | 同源脚本/content script 持有合法 session，或构造越界路径         | 在 none/readonly/full、mutation 开/关组合下伪造操作    | connector、preload、host 各自校验；未授权 provider 调用为 0，未 opt-in mutation 不执行；根外无读写，错误不含路径、SQL 绑定值、加密字段或文件内容 | ⬜   |
-| 51  | session A 有订阅、迟到响应和未完成传输                           | 关闭/刷新后建立 session B 并投递 A 消息                | A 的 host session 与资源释放；B 拒绝旧身份，不显示旧实体、错误、事件或进度                                                                       | ⬜   |
+| 45  | 分别构建显式开发配置与 production                                | 检查产物并启动                                         | dev 加载唯一工作区扩展并握手；production 无扩展源码、加载路径、bootstrap 和新增权限                                                              | ⚠️   |
+| 46  | 应用使用 US-207 desktop SQLite                                   | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与应用一致；不创建或查询 OPFS/IndexedDB fallback                                                         | ⚠️   |
+| 47  | 应用使用 US-504 原生文件后端并显式允许 mutation                  | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件专用根，字节一致；UI 仅用 `runtime: electron` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                              | ⚠️   |
+| 48  | 1001 条以上 metadata/files、两类缺失和一条在途上传               | 读取完整诊断 snapshot                                  | 从请求进入起算的共享 deadline（阶段 B）覆盖等锁/物化/重试；不漏尾页或误报临时状态；失效/超限/过期分别返回 shared busy/too-large/expired          | ✅   |
+| 49  | 打开 Settings                                                    | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明清理返回 `provider_unsupported`，不读取 OPFS/SQLite/WAL 或其他目录                            | ⚠️   |
+| 50  | 同源脚本/content script 持有合法 session，或构造越界路径         | 在 none/readonly/full、mutation 开/关组合下伪造操作    | connector、preload、host 各自校验；未授权 provider 调用为 0，未 opt-in mutation 不执行；根外无读写，错误不含路径、SQL 绑定值、加密字段或文件内容 | ✅   |
+| 51  | session A 有订阅、迟到响应和未完成传输                           | 关闭/刷新后建立 session B 并投递 A 消息                | A 的 host session 与资源释放；B 拒绝旧身份，不显示旧实体、错误、事件或进度                                                                       | ⚠️   |
 | 52  | 真实临时 userData、SQLite 与原生文件后端                         | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 extension/renderer/preload/main/host，不用 mock 替代                                                    | ⬜   |
-| 53  | Electron 薄 driver 接入阶段 B conformance 与阶段 C panel library | 运行全部共享断言                                       | 控制面、descriptor、base64、safe integer、授权、传输、快照、错误和 session 重建通过；不复制 UI、wire、fixture 或错误码                           | ⬜   |
+| 53  | Electron 薄 driver 接入阶段 B conformance 与阶段 C panel library | 运行全部共享断言                                       | 控制面、descriptor、base64、safe integer、授权、传输、快照、错误和 session 重建通过；不复制 UI、wire、fixture 或错误码                           | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
+**阶段 D 交付记录（2026-08-31）**：AC#48（snapshot wire 复用 `files.list` 的 snapshot 参数，协议无独立 snapshot 类型）、
+AC#50（`desktop-host-request-guard` 三族 29 kind 闭集 + preload 内联闸 + host 桥分派前显式拒绝）、
+AC#53（`electron-relay-nodes` 薄 driver 跑共享 conformance 80 条）三条已完全关闭。
+AC#45/46/47/49/51 的 provider/装配/单测侧已落地（加载隔离、database provider、native-files、settings、session teardown），
+但「真实 DevTools 关闭/刷新/退出、真实 electron-builder + CDP、真实 userData 重启重连」的 E2E 侧全部挂 AC#52——
+该条需要真实 Electron 环境（联网 electron-builder 下载 + 真沙箱 + dock 模式），本机无法验证，故保持 ⬜。
+
 ## 实现所有权
 
-| 路径                                   | 阶段       | 边界                                                                                          |
-| -------------------------------------- | ---------- | --------------------------------------------------------------------------------------------- |
-| `packages/rxdb-devtools/src/`          | B          | v2 envelope、协商、session、授权、ID 预算、错误和生命周期                                     |
-| `packages/rxdb-devtools/src/provider/` | B          | descriptor、授权、transfer、snapshot、错误和规范化 helper                                     |
-| `packages/rxdb-devtools/src/testing/`  | B          | fake 四段 relay、fake providers、JSON driver 与完整 conformance suite                         |
-| `packages/rxdb-devtools-panel/`        | C          | `private: true` 的 Angular library、共享面板、状态服务与 transport token                      |
-| `nx.json`                              | C          | 将私有 panel project 排除出 `release.projects`                                                |
-| `apps/rxdb-devtools-extension/`        | A / C      | A ✅ 只用现有构建产物，源码零改动；C 拥有 Chrome adapter、四段 relay、v2 迁移与禁用不安全下载 |
-| `apps/dev-rxdb-electron/`              | A / D      | A ✅ `tools/devtools-mv3-probe.mjs`；D 做开发态加载、preload/main 接线与生产隔离              |
-| `apps/dev-rxdb-electron-e2e/`          | A / D      | A ✅ `src/devtools-mv3-feasibility.spec.ts`；D 提供持久化、重启与安全边界 E2E                 |
-| `apps/dev-rxdb-tauri/`                 | US-905     | DevTools bootstrap、Tauri transport adapter、受限窗口与 dev-only capability                   |
-| `packages/rxdb-adapter-electron/`      | D          | Electron SQLite 只读诊断 provider，不增加任意 SQL                                             |
-| `packages/rxdb-adapter-tauri/`         | US-905     | Tauri SQLite 只读诊断 provider，不增加任意 SQL                                                |
-| `packages/rxdb-plugin-storage/`        | D / US-905 | Electron / Tauri 原生文件调试 provider，复用业务路径与流式语义                                |
-| `apps/dev-rxdb-tauri-e2e/`             | 共享       | US-210 / US-905 先开工者用 generator 创建一次；各故事只拥有自己的 specs                       |
-| `requirements/api-baseline/`           | 改动方     | 只有新增公开 API 时同步                                                                       |
+| 路径                                   | 阶段       | 边界                                                                                                               |
+| -------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------ |
+| `packages/rxdb-devtools/src/`          | B          | v2 envelope、协商、session、授权、ID 预算、错误和生命周期                                                          |
+| `packages/rxdb-devtools/src/provider/` | B          | descriptor、授权、transfer、snapshot、错误和规范化 helper                                                          |
+| `packages/rxdb-devtools/src/testing/`  | B          | fake 四段 relay、fake providers、JSON driver 与完整 conformance suite                                              |
+| `modules/rxdb-devtools-panel/`         | C          | 源码嵌入式 Angular library、共享面板、状态服务与 transport token（不在 `packages/*`，故不触碰 release/audit 配置） |
+| `apps/rxdb-devtools-extension/`        | A / C      | A ✅ 只用现有构建产物，源码零改动；C 拥有 Chrome adapter、四段 relay、v2 迁移与禁用不安全下载                      |
+| `apps/dev-rxdb-electron/`              | A / D      | A ✅ `tools/devtools-mv3-probe.mjs`；D 做开发态加载、preload/main 接线与生产隔离                                   |
+| `apps/dev-rxdb-electron-e2e/`          | A / D      | A ✅ `src/devtools-mv3-feasibility.spec.ts`；D 提供持久化、重启与安全边界 E2E                                      |
+| `apps/dev-rxdb-tauri/`                 | US-905     | DevTools bootstrap、Tauri transport adapter、受限窗口与 dev-only capability                                        |
+| `packages/rxdb-adapter-electron/`      | D          | Electron SQLite 只读诊断 provider，不增加任意 SQL                                                                  |
+| `packages/rxdb-adapter-tauri/`         | US-905     | Tauri SQLite 只读诊断 provider，不增加任意 SQL                                                                     |
+| `packages/rxdb-plugin-storage/`        | D / US-905 | Electron / Tauri 原生文件调试 provider，复用业务路径与流式语义                                                     |
+| `apps/dev-rxdb-tauri-e2e/`             | 共享       | US-210 / US-905 先开工者用 generator 创建一次；各故事只拥有自己的 specs                                            |
+| `requirements/api-baseline/`           | 改动方     | 只有新增公开 API 时同步                                                                                            |
 
 ## 依赖与排期
 
@@ -727,7 +863,8 @@ fake 能证明的部分已证明，剩下的部分不是「还没写测试」，
 - [US-210](../adapter/US-210-tauri-sqlite-local-database.md)：提供应用作用域 SQLite 与 Tauri host（US-905 用）
 - [US-505](../plugin/US-505-tauri-local-file-storage.md)：提供 Tauri 原生文件后端；其本身依赖 US-210
 - [US-601](../tooling/US-601-subpath-api-surface-baseline.md)：若调试 provider 新增公开子路径入口，
-  必须纳入 API baseline；在 US-601 交付前按其人工审查流程登记
+  必须纳入 API baseline。US-601 已 `Done`（2026-08-24），**人工审查流程那一段已作废**——
+  子路径入口现在由 `api-surface.mjs` + `subpath-inventory.mjs` 自动守护，新增入口不同步清单直接 CI 红
 
 ## References
 
