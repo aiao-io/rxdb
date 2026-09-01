@@ -1,4 +1,8 @@
-import type { ConnectorProviderPorts, DevToolsProviderDescriptor, DevToolsUnavailableReason } from '@aiao/rxdb-devtools';
+import type {
+  ConnectorProviderPorts,
+  DevToolsProviderDescriptor,
+  DevToolsUnavailableReason
+} from '@aiao/rxdb-devtools';
 import {
   createDevToolsReadOnlySettingsProvider,
   DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES,
