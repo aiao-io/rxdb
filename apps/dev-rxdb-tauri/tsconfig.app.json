@@ -1,7 +1,8 @@
 {
+  "//types": "vite/client 为 src/devtools/main.ts 的 configureLogger(import.meta.env.DEV) 提供 ImportMeta.env 类型。该入口由 vite 构建（build-devtools），但同样被本 app 的 TS program 一并 typecheck。注释键必须在顶层：Angular 编译器不接受 compilerOptions 里的未知键（TS5025）。",
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
-    "types": ["node"]
+    "types": ["node", "vite/client"]
   },
   "exclude": [
     "jest.config.ts",
@@ -23,6 +24,9 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
+      "path": "../../modules/rxdb-devtools-panel/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
     },
     {
@@ -30,6 +34,9 @@
     },
     {
       "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-adapter-tauri/tsconfig.lib.json"

@@ -55,10 +55,10 @@ export interface DemoState {
  * 这一层拿到的永远是当前那一个。
  */
 export interface ControlActions {
-  /** 删库重建 + 写种子，返回写入行数。 */
-  reseed: () => number;
+  /** 删库重建 + 写种子，返回写入行数。阶段 A 起可能异步（同时重建 pglite store）。 */
+  reseed: () => number | Promise<number>;
   /** 清空数据但保留表结构，返回删除行数。 */
-  clear: () => number;
+  clear: () => number | Promise<number>;
 }
 
 /** 日志容量。够放下一次全量翻页（6 次）加上前后若干次操作，又不会无限涨。 */
@@ -147,13 +147,13 @@ export const handleControlRequest = async (
     return true;
   }
   if (route === 'POST reset') {
-    const rows = actions.reseed();
+    const rows = await actions.reseed();
     announceDataChanged();
     sendJson(response, 200, { rows });
     return true;
   }
   if (route === 'POST clear') {
-    const deleted = actions.clear();
+    const deleted = await actions.clear();
     announceDataChanged();
     sendJson(response, 200, { deleted });
     return true;

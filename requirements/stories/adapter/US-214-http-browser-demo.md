@@ -54,7 +54,7 @@ INVEST 检查清单:
 - **把 demo 后端做成可发布产物或"官方 SDK"**。它是 `apps/` 下的参考实现，不进 `dist`、不发 npm
 - **为"以后换 PostgreSQL"预留抽象层**。用户意图里的「先用 sqlite」由「方言相关代码只集中在
   `rule-group-to-sql.ts` 一个文件」承接，不提前抽 `Store` 接口——病灶数尚未 ≥ 抽象数
-  （[CONVENTIONS 价值待证](../../CONVENTIONS.md#价值待证--价值待证)）
+  （[CONVENTIONS 价值待证](../../CONVENTIONS.md#价值待证)）
 - **真实身份认证**。auth hook 返回一个固定的假 token，后端只校验它存在；接 IdP 是另一件事
 - **Full / Filter 同步**。v1 的 HTTP 适配器只支持 `QueryCache`
   - ~~离线写队列、冲突解决~~ —— 已随 [US-020 D5-R](../core/US-020-querycache-repository.md) 落地：

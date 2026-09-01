@@ -113,7 +113,7 @@ inherited_acs:
 ✅ 符号名 + 原文引用，行号仅作导航：
 
 `RxDB.#install_plugin()` 被放在 `try` 块**之外**
-（[RxDB.ts:283-285](../packages/rxdb/src/RxDB.ts#L283-L285)）：
+（[RxDB.ts:432-434](../packages/rxdb/src/RxDB.ts#L432-L434)）：
 
 ```ts
 this.#install_plugin();
@@ -162,7 +162,7 @@ try {
 留在同一个文件里则天然不会出现这个断层：状态只有一条，阶段完成度写在「交付阶段」表的状态列。
 一段工作只有在具备**自己的用户价值、自己的前置和自己的关闭条件**时才新开编号。
 
-### 价值待证（🚧 / 价值待证）
+### 价值待证
 
 被其它文档引用、但 `stories/` 下无对应文件的条目标 **🚧**，且**不计入任何统计**
 （它与汇总表的 🚫 Blocked 不同，后者统计 YAML 里显式 `status: Blocked` 的既有故事）。

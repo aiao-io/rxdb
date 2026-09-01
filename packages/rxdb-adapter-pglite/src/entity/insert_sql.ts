@@ -38,11 +38,11 @@ export default async (
   const entityData: Record<string, unknown> = normalizeCreateEntity(metadata, entity);
 
   if (context?.userId) {
-    if (metadata.propertyMap.has('createdBy')) entityData.createdBy = context.userId;
-    if (metadata.propertyMap.has('updatedBy')) entityData.updatedBy = context.userId;
+    if (metadata.propertyMap.has('createdBy')) entityData['createdBy'] = context.userId;
+    if (metadata.propertyMap.has('updatedBy')) entityData['updatedBy'] = context.userId;
   }
 
-  const primaryKey = (entityData.id as RxDBEntityId | null | undefined) ?? '';
+  const primaryKey = (entityData['id'] as RxDBEntityId | null | undefined) ?? '';
   const transformed = await transformEntityValueToSql(
     metadata,
     entityData as Partial<IEntity>,

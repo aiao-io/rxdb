@@ -19,9 +19,13 @@
   // US-210 起 `@aiao/rxdb-adapter-electron` 在 tsconfig.base.json 里有了指向源码的 paths，
   // 于是 tsc 会把它当成本 project 的文件解析（TS6059/TS6307）。声明成 project reference，
   // 它才被认成「别的 project 的产物」——tsconfig.app.json 早就这么引了，这里补齐。
+  // devtools-extension.ts 引入 `@aiao/rxdb-devtools` 同理（US-904 阶段 D）。
   "references": [
     {
       "path": "../../packages/rxdb-adapter-electron/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
     }
   ]
 }

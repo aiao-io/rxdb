@@ -1,4 +1,11 @@
-import { isDevToolsMessage, RXDB_DEVTOOLS_MESSAGE, type DevToolsMessage, type InitMessage } from '../shared/types';
+import {
+  isDevToolsMessage,
+  isRelayFrameTowards,
+  RXDB_DEVTOOLS_MESSAGE,
+  type DevToolsMessage,
+  type DevToolsRelayFrame,
+  type InitMessage
+} from '@modules/rxdb-devtools-panel/wire';
 
 interface Listener<T> {
   addListener(listener: T): void;
@@ -14,15 +21,22 @@ export interface BackgroundPort {
 
 interface BackgroundDependencies {
   injectIntoTab: (tabId: number) => Promise<void>;
-  sendToTab: (tabId: number, message: DevToolsMessage) => Promise<unknown>;
+  sendToTab: (tabId: number, message: DevToolsRelayFrame) => Promise<unknown>;
   onError?: (message: string, error: unknown) => void;
 }
 
-function controlMessage(type: 'HANDSHAKE_ACK' | 'PING' | 'DISCONNECT'): DevToolsMessage {
+/**
+ * background **唯一**能自己造出来的消息：注入完成后的存活探针。
+ *
+ * @remarks
+ * AC#36：这里刻意不收类型参数。background 是纯中继，握手语义（尤其是 `HANDSHAKE_ACK`）
+ * 归面板独有；把可造类型钉死成 `PING`，代发 ACK 就不再是「少写一行」能退回去的事。
+ */
+function pingMessage(): DevToolsMessage {
   return {
     source: RXDB_DEVTOOLS_MESSAGE,
-    direction: type === 'DISCONNECT' ? 'page-to-devtools' : 'devtools-to-page',
-    type,
+    direction: 'devtools-to-page',
+    type: 'PING',
     payload: null,
     timestamp: Date.now(),
     sequence: 0
@@ -38,7 +52,7 @@ function controlMessage(type: 'HANDSHAKE_ACK' | 'PING' | 'DISCONNECT'): DevTools
  * 也就是说它是一条**绕过整个协议的侧信道**：任何能往这个 port 投递对象的上下文，
  * 只要凑出两个字段就能让 background 把某个 tab 的 port 指向自己。
  *
- * 现在 INIT 已经是协议的一部分（见 `shared/types.ts` 的 `ExtensionOnlyMessageType`），
+ * 现在 INIT 已经是协议的一部分（见 `@modules/rxdb-devtools-panel/wire` 的 `ExtensionOnlyMessageType`），
  * 所以先过 `isDevToolsMessage` 严校验，再判断类型即可。
  */
 function isInitMessage(message: DevToolsMessage): message is InitMessage {
@@ -53,8 +67,8 @@ function isInitMessage(message: DevToolsMessage): message is InitMessage {
 export function createBackgroundController(dependencies: BackgroundDependencies) {
   const ports = new Map<number, BackgroundPort>();
   const activations = new Map<number, Promise<void>>();
-  const sendControl = (tabId: number, type: 'HANDSHAKE_ACK' | 'PING') => {
-    void dependencies.sendToTab(tabId, controlMessage(type)).catch(error => dependencies.onError?.(type, error));
+  const sendPing = (tabId: number) => {
+    void dependencies.sendToTab(tabId, pingMessage()).catch(error => dependencies.onError?.('PING', error));
   };
   const activateTab = (tabId: number) => {
     if (activations.has(tabId)) return;
@@ -62,7 +76,7 @@ export function createBackgroundController(dependencies: BackgroundDependencies)
     activations.set(tabId, activation);
     void activation
       .then(() => {
-        if (activations.get(tabId) === activation && ports.has(tabId)) sendControl(tabId, 'PING');
+        if (activations.get(tabId) === activation && ports.has(tabId)) sendPing(tabId);
       })
       .catch(error => dependencies.onError?.('INJECT', error))
       .finally(() => {
@@ -76,13 +90,18 @@ export function createBackgroundController(dependencies: BackgroundDependencies)
       let connectedTabId: number | null = null;
       port.onMessage.addListener(message => {
         // P1-4：**先严校验，再分派** —— INIT 不再有绕过协议的入口。
-        if (!isDevToolsMessage(message)) return;
-        if (isInitMessage(message)) {
+        // INIT 是扩展内部消息（面板 → background，永不下页面），所以它先于中继判定处理：
+        // 它是唯一一条 background 自己消费而不转发的帧。
+        if (isDevToolsMessage(message) && isInitMessage(message)) {
           connectedTabId = message.tabId;
           ports.set(message.tabId, port);
           activateTab(message.tabId);
           return;
         }
+        // C2/AC#36：其余帧按**宽外层**判定转发，两代协议同一条链路。
+        // 方向必须是 `to-page`：面板 port 上出现一条上行帧只可能是伪造或串线，
+        // 转发它等于让页面能给自己回消息。
+        if (!isRelayFrameTowards(message, 'to-page')) return;
         // P1-4：路由**只认 INIT 绑定的 tab**。
         // 原实现是 `message.tabId ?? connectedTabId`，等于让每条消息自称属于哪个 tab；
         // 下面那道 `ports.get(tabId) !== port` 守卫只挡住「转发到别人的 tab」，
@@ -106,15 +125,18 @@ export function createBackgroundController(dependencies: BackgroundDependencies)
       });
     },
 
+    /**
+     * 把 content script 收到的页面消息转给对应 tab 的面板。
+     *
+     * @remarks
+     * AC#36：`HANDSHAKE` 在这里**没有特例分支**，两代协议都没有。它本就是上行帧，
+     * 走下面同一条转发即可；原先那条特例会在转发的同时代发 `HANDSHAKE_ACK`，
+     * 等于替面板做了协议版本决定 —— 而中继伪造的 ACK 在格式上完全合法，
+     * 只有「ACK 归面板独有」这条所有权规则能挡住它。
+     */
     receiveContent(message: unknown, tabId: number | undefined): void {
-      if (!isDevToolsMessage(message) || tabId === undefined) return;
-      const port = ports.get(tabId);
-      if (message.type === 'HANDSHAKE') {
-        sendControl(tabId, 'HANDSHAKE_ACK');
-        port?.postMessage(message);
-        return;
-      }
-      if (message.direction === 'page-to-devtools') port?.postMessage(message);
+      if (tabId === undefined || !isRelayFrameTowards(message, 'to-panel')) return;
+      ports.get(tabId)?.postMessage(message);
     }
   };
 }

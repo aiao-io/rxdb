@@ -48,6 +48,7 @@ owner: jimmy
 - [US-022 QueryCache 远端行的列契约与缺列诊断](../stories/core/US-022-querycache-remote-row-contract.md) — 出自 US-214：`upsertMany` 的裸 SQL 写不过仓储，实体 `default` 不生效；补契约文档 + 落地前列集校验，**不做本地兜底**
 - [US-215 条件请求被静默停用时给出可观测信号](../stories/adapter/US-215-conditional-request-silence.md) — 出自 US-214：跨源读不到 `ETag` 时 transport 静默降级；加可选诊断 hook，**不引入 console**、不改数据路径
 - [US-023 QueryCache 远端变更的失效上报口与实时同步](../stories/core/US-023-querycache-remote-invalidation.md) — 出自 US-214：别的客户端改了数据，本客户端永不更新；三阶段（core 失效上报口 → HTTP 可选 SSE 通道 → demo 双页面收敛），**承接 US-212 AC#29**，失效粒度=整实体、通知不带行数据
+- [US-216 参考后端以 RxDB 引擎实现](../stories/adapter/US-216-server-side-rxdb.md) — 参考后端初始化 RxDB（pglite），七个协议端点改由 Repository / EntityManager 实现、SSE 由 RxDB 事件驱动，前后端共享 schema 模块；wire 逐字不变（US-213 套件 + e2e 17 条是验收主体）；单类收敛依赖另立的 core sync 覆盖故事
 
 > 拆分理由：PGlite 的 callback transaction 无法跨 IPC 序列化，需要一套 SQLite 路径不需要的事务 host 协议，
 > 故 US-208 从 US-207 拆出。US-020 / US-212 / US-023 / US-213 / US-214 / US-021 / US-022 / US-215 归本 Epic

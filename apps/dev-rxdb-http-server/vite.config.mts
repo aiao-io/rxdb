@@ -4,6 +4,12 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/apps/dev-rxdb-http-server-test',
+  // 单测必须打在**源码**上，而不是 workspace 链接指过去的 `dist/`：`@aiao/rxdb` /
+  // `@aiao/rxdb-adapter-pglite` / `@modules/recipes-domain` 都经 tsconfig paths 直吃 src
+  // （与 packages/rxdb-adapter-electron 的兄弟包同一口径）。
+  resolve: {
+    tsconfigPaths: true
+  },
   test: {
     name: 'dev-rxdb-http-server',
     watch: false,

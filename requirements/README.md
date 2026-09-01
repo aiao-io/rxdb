@@ -20,21 +20,13 @@
 
 个别 story 因 INVEST「Small」不成立而体量偏大。这类 story **仍是一个文件、一条状态**，
 在正文里用 `## 交付阶段` 表把交付切成 A / B / C…，AC 表按阶段分段编号，实现文件表加「阶段」列。
-现有九条：[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-020](stories/core/US-020-querycache-repository.md)、[US-207](stories/adapter/US-207-desktop-local-database.md)、[US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)、[US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)、[US-212](stories/adapter/US-212-http-adapter.md)、[US-306](stories/collaboration/US-306-working-tree-commits.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)。
+现有十二条：[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-020](stories/core/US-020-querycache-repository.md)、[US-023](stories/core/US-023-querycache-remote-invalidation.md)、[US-207](stories/adapter/US-207-desktop-local-database.md)、[US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)、[US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)、[US-212](stories/adapter/US-212-http-adapter.md)、[US-214](stories/adapter/US-214-http-browser-demo.md)、[US-216](stories/adapter/US-216-server-side-rxdb.md)、[US-306](stories/collaboration/US-306-working-tree-commits.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)。
 
-规则：
+> 判据是**正文里有阶段表**，不是 `status`——列表里多数已 `Done`。核对方式：`grep -rl "交付阶段" requirements/stories/`
+> （US-012 的阶段表写在引用块里，用 `## 交付阶段` 精确匹配会漏掉它）。
 
-- **不创建 `US-XXXa` / `US-XXXb` 这类中间版本文件。** 一个编号一个文件，
-  外部引用因此永远指向同一个路径
-- 分阶段的理由写进 INVEST 清单的 `Small` 一项，说明为什么体量不成立、按什么顺序分批
-- 阶段有独立可验收的 AC 区段与前置；全部阶段关闭后才置 `Done`
-- 阶段可以有不同的完成度（例如 US-904 阶段 B 已交付、其余未开始），在「交付阶段」表的状态列体现
-- 若某阶段被机器可读的 feasibility 门禁（如 US-904 的 `decision: unsupported`）否决，
-  **只有受它门禁的阶段**转 `Blocked` 并记录替代故事，不受该前提影响的阶段继续交付；
-  story 整体 `status` 相应转 `Blocked` 并在「交付阶段」表下注明
-
-**编号只在能独立交付时才新开。** 一段工作如果有自己的用户价值、自己的前置和自己的关闭条件
-（例如 US-905 相对 US-904），它就该占一个新编号；否则它是前一条 story 的一个阶段。
+分阶段规则（不建子文件、阶段各自可验收、门禁否决只转受门禁的阶段、编号只在能独立交付时才新开）
+见 [CONVENTIONS.md](CONVENTIONS.md)「大故事分阶段」一节。
 
 ## 目录结构
 
@@ -47,6 +39,7 @@
 | [capability-matrix.md](capability-matrix.md) | 仓库**现在能做什么**、哪些组合还不支持                         |
 | [release-plan.md](release-plan.md)           | **下一次发布**要做什么、桥接版本卡在哪                         |
 | [versioning-policy.md](versioning-policy.md) | 什么算公开 API、什么改动算破坏性                               |
+| [zh-glossary.md](zh-glossary.md)             | 中文注释 / TSDoc 词汇规约（哪些词保留、哪些要改）              |
 | [code-scanning/](code-scanning/README.md)    | GitHub CodeQL 告警工作集（open 才留文件，关闭即归档删除）      |
 | `migration-release.json`                     | 当前发布的迁移清单（门禁读它）                                 |
 | `epics/`                                     | 史诗目标与阶段划分                                             |
@@ -55,18 +48,7 @@
 | `reviews/`                                   | 给 AI 的 review 规则与结论记录（修复后标解决）                 |
 | `CONVENTIONS.md`                             | 命名 / 状态 / 写作规范（单一真相源）                           |
 
-`stories/` 子目录：
-
-| 目录             | 内容                                                                | 编号段     |
-| ---------------- | ------------------------------------------------------------------- | ---------- |
-| `core/`          | 核心引擎                                                            | US-001~099 |
-| `framework/`     | Angular / React / Vue 集成                                          | US-101~199 |
-| `adapter/`       | SQLite / PGlite / Supabase / sqliteai / 小程序 / 桌面 / HTTP 适配器 | US-201~299 |
-| `collaboration/` | 版本控制、撤销/重做、迁移协作                                       | US-301~399 |
-| `ui/`            | 代码编辑器等跨框架 UI 组件                                          | US-401~499 |
-| `plugin/`        | RxDB plugin 包（workspace / storage / graph）                       | US-501~599 |
-| `tooling/`       | 门禁、基线与发布工具链（不是产品能力）                              | US-601~699 |
-| `future/`        | 中长期规划                                                          | US-700~999 |
+`stories/` 子目录与编号段见 [CONVENTIONS.md](CONVENTIONS.md#文档类型与编号段)（唯一真相源，不在此重复）。
 
 ## 状态定义
 

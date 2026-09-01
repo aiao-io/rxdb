@@ -80,7 +80,28 @@ jobs:
       - uses: ./.github/actions/xvfb
         if: runner.os == 'Linux'
 
-      # 刻意**不**装 Playwright 浏览器：这套 e2e 全程走 `_electron.launch()`，用的是
+      # US-904 阶段 A 的 MV3 门禁与 `pglite-tx-experiment` 的探针不走 Playwright 的
+      # `_electron.launch()`（那会被强制加 --no-sandbox），而是直接 spawn
+      # `require('electron')` 的二进制 —— Linux 上必须走 Chromium 真沙箱：
+      # `chrome-sandbox` 要配成 setuid root，否则探针进程直接 FATAL、一条 finding
+      # 都不产出。而 pnpm 解包置不了 setuid 位（只有 root 能置），落地是 0755。
+      # 详见 apps/dev-rxdb-electron-e2e/src/devtools-mv3-feasibility.spec.ts 里
+      # assertSandboxUsable 的 @remarks。与 ci-template.yml 的 e2e job 里同源步骤一致；
+      # macOS / Windows 没有 SUID 沙箱概念，spec 里的自查在非 Linux 上直接放行。
+      - name: Configure Electron SUID sandbox
+        if: runner.os == 'Linux'
+        run: |
+          set -e
+          # Electron 42+ 不在 postinstall 下载二进制，改为首次 require 时懒下载，
+          # 下载进度会打进 stdout（"Downloading Electron binary..."）。先空跑一次
+          # 触发下载并丢弃输出，下一行拿到的才是干净的可执行文件路径，不会污染命令替换。
+          node -e 'require("electron")' >/dev/null
+          helper="$(dirname "$(node -p 'require("electron")')")/chrome-sandbox"
+          sudo chown root:root "$helper"
+          sudo chmod 4755 "$helper"
+          ls -l "$helper"
+
+      # 刻意**不**装 Playwright 浏览器：另外三套用例全程走 `_electron.launch()`，用的是
       # 产物自带的 Chromium；`playwright.config.ts` 里既没有 `projects` 也没有用到
       # `page` / `browser` fixture，装 chromium 是三个平台上白交的下载时间。
       # （顺带：`.github/actions/playwright-chromium` 的缓存路径写死了 Linux 的
@@ -107,6 +128,17 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # US-210 AC#1 + AC#9：Tauri 打包产物跨进程持久化。
+  #
+  # US-505 AC#6 + AC#7 也挂在这个 job 上，**不另起一个**：
+  # - AC#7（三平台打包后文件仍能持久化）要的正是这条三 OS 矩阵；
+  # - AC#6（三家 webview 的 download()/fetch() 行为）只有在真实 webview 里才成立，而
+  #   `desktop-webview-capability.spec.ts` 与另外两个 spec 落在同一个 `include` 下，
+  #   `desktop-smoke` 一次跑完。
+  # 新增 job 的代价是要同步改下面 `gate` 的 `needs` 与断言列表，换不来任何覆盖。
+  #
+  # ⚠️ `desktop-webview-capability.spec.ts` 里的 `EXPECTED_BY_PLATFORM` 三列已回填
+  # （darwin 本机核对；linux / win32 按这个 job 的真实输出回填）。缺列时用例会红，
+  # 失败消息里直接给出可粘贴的实测字面量 —— 那次红是锁定过程的一部分，不是失败。
   #
   # 与 electron-smoke 分开而不是合成一个 job：两套工具链完全不重叠（Tauri 要 Rust +
   # WebKitGTK 开发库，Electron 要下发行包），合并后每个 runner 都得付两份安装税，

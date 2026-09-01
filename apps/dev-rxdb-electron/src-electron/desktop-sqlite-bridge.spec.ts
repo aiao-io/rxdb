@@ -366,13 +366,76 @@ describe('ELEC-23 桌面 host 依赖必须打进主进程产物', () => {
       platform: 'node',
       format: 'cjs',
       target: 'node22',
-      external: ['electron']
+      external: ['electron', '@electric-sql/pglite']
     });
-    expect(bundleOptions.entryPoints).toHaveLength(1);
-    expect(bundleOptions.entryPoints[0]).toMatch(/src-electron\/desktop-host-bridge\.ts$/);
-    expect(bundleOptions.outfile).toMatch(
-      /dist\/apps\/dev-rxdb-electron\/src-electron\/desktop-host-bridge\.bundle\.js$/
+    expect(bundleOptions.entryPoints['desktop-host-bridge.bundle']).toMatch(/src-electron\/desktop-host-bridge\.ts$/);
+    expect(bundleOptions.outdir).toMatch(/dist\/apps\/dev-rxdb-electron\/src-electron$/);
+  });
+
+  // US-208：worker 必须自成一块产物 —— `new Worker(路径)` 要的是一个文件，
+  // 而并进主进程那份就等于把 PostgreSQL WASM 拉回主进程，正好抵消掉要 worker 的理由。
+  it('PGlite worker 单独成块，且 main 指向它的打包产物', async () => {
+    const { bundleOptions } = await import('../tools/bundle-desktop-host.mjs');
+    expect(bundleOptions.entryPoints['desktop-pglite-worker.bundle']).toMatch(
+      /src-electron\/desktop-pglite-worker\.ts$/
     );
+    expect(read('src-electron/main.ts')).toContain("'desktop-pglite-worker.bundle.js'");
+  });
+
+  // US-904 阶段 D：devtools 扩展加载闸门同样 import 了 `@aiao/rxdb-devtools`，必须打进出产
+  // （ELEC-23）。生产包要把它连同 tsc 逐文件产物一起排除（AC#45「production 无扩展源码」），
+  // 而 main 只能动态 import——静态 import 会让被排除的文件变成启动即 `Cannot find module`。
+  it('devtools 扩展加载打进产物、生产包排除、main 动态加载', async () => {
+    const { bundleOptions } = await import('../tools/bundle-desktop-host.mjs');
+    expect(bundleOptions.entryPoints['devtools-extension.bundle']).toMatch(/src-electron\/devtools-extension\.ts$/);
+
+    const productionFiles = JSON.parse(read('electron-builder.json')).files as string[];
+    expect(productionFiles).toContain('!src-electron/devtools-*');
+    // 解包产物（e2e 用）保留 devtools，否则 AC#45 的「dev 加载唯一工作区扩展」跑不起来。
+    const dirFiles = JSON.parse(read('electron-builder.dir.json')).files as string[];
+    expect(dirFiles).not.toContain('!src-electron/devtools-*');
+
+    const mainSource = read('src-electron/main.ts');
+    expect(mainSource).toContain("await import('./devtools-extension.bundle.js')");
+    expect(mainSource).not.toMatch(/from '\.\/devtools-extension(\.bundle)?'/);
+  });
+
+  // PGlite 是 external（它按 import.meta.url 找 wasm，打成 CJS 就全落空），
+  // 而 `files` 的第一条把整个 node_modules 排掉了。少了这条 re-include，
+  // 打包产物里根本没有 PGlite —— 构建全绿，只有真实产物启动时才报找不到模块。
+  it.each(['electron-builder.json', 'electron-builder.dir.json'])('%s 把 PGlite 放回打包白名单', manifest => {
+    const files = JSON.parse(read(manifest)).files as string[];
+    expect(files[0]).toBe('!node_modules');
+    const reinclude = files.findIndex(pattern => pattern.includes('@electric-sql/pglite'));
+    // 必须排在排除项**之后**：electron-builder 的 files 后者覆盖前者。
+    expect(reinclude).toBeGreaterThan(0);
+  });
+
+  // 白名单放行的前提是 electron-builder 真的把这个包收进了它的 node_modules 图，
+  // 而它只走**生产**依赖图（pnpm collector 跑 `pnpm list --prod`，兜底的 traversal
+  // collector 只读 dependencies + optionalDependencies）。挂在 devDependencies 下，
+  // stage 脚本拷进去的目录会被整个跳过 —— 这正是线上 Windows 那条
+  // `Cannot find module '@electric-sql/pglite'` 的成因（收集目录退化到只剩产物目录，
+  // 见 tools/stage-external-dependencies.mjs 的 module 注释）。
+  it('应用清单把 external 依赖声明成 dependencies', async () => {
+    const { externalPackages } = await import('../tools/stage-external-dependencies.mjs');
+    const manifest = JSON.parse(read('package.json'));
+    // electron 自己是 external 但由 electronDist 提供，不参与 node_modules 收集。
+    const staged = externalPackages.filter((name: string) => name !== 'electron');
+    expect(staged.length).toBeGreaterThan(0);
+
+    for (const name of staged) {
+      expect(manifest.dependencies?.[name], `${name} 不在 dependencies 里`).toBeTruthy();
+      expect(manifest.devDependencies ?? {}, `${name} 同时挂在 devDependencies 上`).not.toHaveProperty(name);
+    }
+  });
+
+  // 搬运清单与 esbuild 的 external 是同一件事的两面：external 了却没搬，产物里没有它；
+  // 搬了却没 external，esbuild 会把它打进 bundle，PGlite 的 wasm 相对定位随即落空。
+  it('搬运清单与 esbuild 的 external 对齐', async () => {
+    const { externalPackages } = await import('../tools/stage-external-dependencies.mjs');
+    const { bundleOptions } = await import('../tools/bundle-desktop-host.mjs');
+    expect(bundleOptions.external).toEqual(expect.arrayContaining(externalPackages));
   });
 
   // main.ts 只 import 打包产物，而 esbuild 只留**本入口**的导出面 ——

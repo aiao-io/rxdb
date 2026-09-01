@@ -18,11 +18,26 @@ import { appRoutes } from './app.routes';
 import { RxDBConnectionState } from './rxdb-connection-state';
 import { startLocalDatabase } from './rxdb-initializer';
 import { DesktopLaunchService } from './services/desktop-launch.service';
-import { reportSelfCheck } from './services/selfcheck-reporter';
+import { readProbeBaseUrl, reportSelfCheck } from './services/selfcheck-reporter';
 import { localDatabase, resolveLocalBackend } from './setup_rxdb';
+import { probeStorage } from './storage-probe';
+import { probeWebview, readWebviewGlobals, type WebviewFetchSurface, type WebviewProbeResult } from './webview-probe';
 
 /** 按浏览器/系统语言挑 locale id。 */
 const resolveLocaleId = (): string => (Intl.DateTimeFormat().resolvedOptions().locale.includes('zh') ? 'zh' : 'en-US');
+
+/**
+ * 组合 webview 能力探针：先问 Rust 侧要地址，再按地址决定跑不跑（US-505 AC#6）。
+ *
+ * @param storage - 已连接的文件存储
+ * @returns 探针结果；正常启动（Rust 侧给的是 `None`）时为 `null`
+ *
+ * @remarks
+ * DOM 事实在这里一次读齐再交给 `probeWebview`，那边因此不必碰 DOM，单测里也就不必去
+ * 断言 happy-dom 自己的答案。
+ */
+const probeWebviewCapabilities = async (storage: WebviewFetchSurface): Promise<WebviewProbeResult | null> =>
+  probeWebview({ globals: readWebviewGlobals(), storage, baseUrl: await readProbeBaseUrl(globalThis) });
 
 /** 非默认 locale 需要先加载数据；返回的 Promise 由 initializer 等待。 */
 const registerLocaleIfNeeded = async (localeId: string): Promise<void> => {
@@ -96,6 +111,8 @@ export const appConfig: ApplicationConfig = {
         openDatabase: localDatabase,
         state: inject(RxDBConnectionState),
         launches: inject(DesktopLaunchService),
+        probe: probeStorage,
+        probeWebview: probeWebviewCapabilities,
         adapterName: resolveLocalBackend(globalThis).adapter,
         report: outcome => reportSelfCheck(outcome, globalThis)
       })

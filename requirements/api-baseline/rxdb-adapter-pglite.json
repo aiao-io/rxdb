@@ -10,6 +10,10 @@
         "kind": "type"
       },
       {
+        "name": "asPGliteChangeEventSource",
+        "kind": "value"
+      },
+      {
         "name": "buildCreateFtsTableSql",
         "kind": "value"
       },
@@ -35,6 +39,18 @@
       },
       {
         "name": "DEFAULT_FTS_REGCONFIG",
+        "kind": "value"
+      },
+      {
+        "name": "DEFAULT_NOTIFY_BATCH_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DEFAULT_NOTIFY_MAX_BATCH_WAIT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DEFAULT_NOTIFY_MAX_PENDING_EVENTS",
         "kind": "value"
       },
       {
@@ -142,6 +158,10 @@
         "kind": "type"
       },
       {
+        "name": "PGliteChangeEventSource",
+        "kind": "type"
+      },
+      {
         "name": "PGliteChangeType",
         "kind": "both"
       },
@@ -155,6 +175,14 @@
       },
       {
         "name": "PGliteClientOptions",
+        "kind": "type"
+      },
+      {
+        "name": "PGliteNotificationBatcher",
+        "kind": "both"
+      },
+      {
+        "name": "PGliteNotificationBatcherOptions",
         "kind": "type"
       },
       {
@@ -242,6 +270,40 @@
         "kind": "value"
       }
     ],
+    "./fts": [
+      {
+        "name": "buildCreateFtsTableSql",
+        "kind": "value"
+      },
+      {
+        "name": "buildFtsTriggersSql",
+        "kind": "value"
+      },
+      {
+        "name": "DEFAULT_FTS_ARRAY_KIND",
+        "kind": "value"
+      },
+      {
+        "name": "DEFAULT_FTS_REGCONFIG",
+        "kind": "value"
+      },
+      {
+        "name": "FTS_COLUMN",
+        "kind": "value"
+      },
+      {
+        "name": "FtsArrayKind",
+        "kind": "type"
+      },
+      {
+        "name": "FtsField",
+        "kind": "type"
+      },
+      {
+        "name": "FtsOptions",
+        "kind": "type"
+      }
+    ],
     "./testing": [
       {
         "name": "cleanup_db",
@@ -252,7 +314,27 @@
         "kind": "value"
       },
       {
+        "name": "dumpPGliteUserTables",
+        "kind": "value"
+      },
+      {
         "name": "generateDbName",
+        "kind": "value"
+      },
+      {
+        "name": "PgSuiteQueryResult",
+        "kind": "type"
+      },
+      {
+        "name": "PgSuiteQueryShaped",
+        "kind": "type"
+      },
+      {
+        "name": "toPgSuiteSql",
+        "kind": "value"
+      },
+      {
+        "name": "wrapEncryptedQueryShape",
         "kind": "value"
       }
     ]

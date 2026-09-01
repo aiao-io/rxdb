@@ -1,11 +1,11 @@
 ---
 id: US-905
 title: Tauri DevTools 调试窗口、transport 与原生存储集成
-status: Backlog
+status: In Progress
 priority: Medium
 epic: epic-003-ui-developer-tools
 created: 2026-08-15
-updated: 2026-08-16
+updated: 2026-09-01
 tags: [tooling, devtools, desktop, tauri, transport, sqlite, filesystem, security]
 ---
 
@@ -117,14 +117,14 @@ US-210 SQLite host / US-505 native file host
 
 | #   | 前置条件                                                                  | 操作                                                             | 预期结果                                                                                                                                     | 状态 |
 | --- | ------------------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 分别构建显式 dev 与 release 配置                                          | 检查产物并启动                                                   | dev 只创建一个 `rxdb-devtools` 窗口并握手；release 无入口、bootstrap、专用 command 和只服务该 label 的 capability                            | ⬜   |
-| 2   | 真实主窗口与调试窗口已打开                                                | 用共享 fake providers 执行查询、事件、授权、transfer 和 snapshot | US-904 阶段 B conformance 全部通过；Tauri 只适配 transport，不复制 panel、provider 类型、fixture、错误码或状态机                             | ⬜   |
-| 3   | 非调试窗口、错误 sender/label，或合法 sender 伪造越权操作                 | 通过 transport 发送                                              | 错误身份在 WebView/transport/Rust 均拒绝；合法 sender 仍受 capability/descriptor/mutation policy 限制，session/label 不能充当授权            | ⬜   |
-| 4   | session A 有订阅、请求和未完成传输                                        | 关闭窗口，以同 label 重开 B 并投递 A 消息                        | A 的资源释放，B 获得新 UUID v4 session 并拒绝全部旧身份、事件、响应与 chunk                                                                  | ⬜   |
-| 5   | 主窗口刷新、transport 断开或应用退出                                      | 观察 connector/provider 生命周期                                 | 订阅、计时器、snapshot、请求、传输和临时文件均取消；provider owner 释放，不留下可复用 host session                                           | ⬜   |
-| 6   | wa-sqlite 分别实际选择 OPFS、IDB、unavailable                             | 打开调试窗口查看 provider                                        | 分别声明 `files: opfs`、`settings: idb` 或结构化 unavailable；均带 `runtime: tauri`，但行为只由 kind/operations 决定                         | ⬜   |
-| 7   | 版本、权限、非法数值/base64、传输乱序/取消、snapshot busy/expired fixture | 通过 Tauri transport 执行                                        | safe-integer guard、decoded-byte 限额、穷举错误和资源释放与 US-904 阶段 B 一致，不增加平台错误码、编码或 fallback                            | ⬜   |
-| 8   | `apps/dev-rxdb-tauri-e2e` 已由 US-210 或本故事创建                        | 检查项目与 specs                                                 | workspace 中只有一个 generator 创建的 E2E project；本故事只拥有 DevTools window/transport/release-isolation specs，不接管 US-210 数据库 spec | ⬜   |
+| 1   | 分别构建显式 dev 与 release 配置                                          | 检查产物并启动                                                   | dev 只创建一个 `rxdb-devtools` 窗口并握手；release 无入口、bootstrap、专用 command 和只服务该 label 的 capability                            | ⚠️   |
+| 2   | 真实主窗口与调试窗口已打开                                                | 用共享 fake providers 执行查询、事件、授权、transfer 和 snapshot | US-904 阶段 B conformance 全部通过；Tauri 只适配 transport，不复制 panel、provider 类型、fixture、错误码或状态机                             | ⚠️   |
+| 3   | 非调试窗口、错误 sender/label，或合法 sender 伪造越权操作                 | 通过 transport 发送                                              | 错误身份在 WebView/transport/Rust 均拒绝；合法 sender 仍受 capability/descriptor/mutation policy 限制，session/label 不能充当授权            | ⚠️   |
+| 4   | session A 有订阅、请求和未完成传输                                        | 关闭窗口，以同 label 重开 B 并投递 A 消息                        | A 的资源释放，B 获得新 UUID v4 session 并拒绝全部旧身份、事件、响应与 chunk                                                                  | ⚠️   |
+| 5   | 主窗口刷新、transport 断开或应用退出                                      | 观察 connector/provider 生命周期                                 | 订阅、计时器、snapshot、请求、传输和临时文件均取消；provider owner 释放，不留下可复用 host session                                           | ⚠️   |
+| 6   | wa-sqlite 分别实际选择 OPFS、IDB、unavailable                             | 打开调试窗口查看 provider                                        | 分别声明 `files: opfs`、`settings: idb` 或结构化 unavailable；均带 `runtime: tauri`，但行为只由 kind/operations 决定                         | ⚠️   |
+| 7   | 版本、权限、非法数值/base64、传输乱序/取消、snapshot busy/expired fixture | 通过 Tauri transport 执行                                        | safe-integer guard、decoded-byte 限额、穷举错误和资源释放与 US-904 阶段 B 一致，不增加平台错误码、编码或 fallback                            | ✅   |
+| 8   | `apps/dev-rxdb-tauri-e2e` 已由 US-210 或本故事创建                        | 检查项目与 specs                                                 | workspace 中只有一个 generator 创建的 E2E project；本故事只拥有 DevTools window/transport/release-isolation specs，不接管 US-210 数据库 spec | ✅   |
 
 ### 阶段 2：真实原生 provider（AC#9～#17）
 
@@ -142,6 +142,38 @@ US-210 SQLite host / US-505 native file host
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
+## 交付状态
+
+**阶段 1 已开工并基本落地**（2026-08-30 ～ 08-31，三次提交 `d0a6315` / `563639d` / `198439d`）：
+两个启动硬阻塞都已破——`rxdb-devtools` 窗口的独立 capability、`devtools_message` 的
+`#[cfg(dev)]` 隔离。8 条 AC 中 **2 条 ✅、6 条 ⚠️**，阶段 2（AC#9～#17）未开工。
+
+⚠️ 的 6 条**不是没写**，而是判据里都含「真实 Tauri 窗口 / 真实构建产物」那一半：
+本机没有可用的 Tauri CLI 构建环境，双 WebView 握手、窗口关闭重开、应用退出这些只能在
+真实打包应用上验。已落地的那一半是 transport、路由、映射与结构隔离，全部有断言守着。
+
+门禁（本机实测）：`dev-rxdb-tauri` 单测 **21 文件 213 条**（含 `tauri-conformance.spec.ts`
+的 **80 条** conformance 断言）、`src-tauri` 的 `#[test]` **25 条**（`lib.rs` 5 + `selfcheck.rs` 20）。
+
+### 证据落点
+
+| AC    | 已落地的证据                                                                                                                                                                                                                                                                                                                                                                                                                                | ⚠️ 差的那一半                                                                                                                                                           |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #1    | `apps/dev-rxdb-tauri-e2e/src/devtools-release-isolation.spec.ts`（5 例）：`default.json` 的 `windows` 恰为 `['main']`、`devtools.json` 恰为 `['rxdb-devtools']` 且 `permissions` 只有 `['core:event:default']`（不继承 `core:default` ⇒ 拿不到 window 控制 / SQL / filesystem）、`devtools_message` 与 `open_devtools_window` 两侧的 `#[cfg(dev)]` 都在（含 `generate_handler!` 那一臂）                                                    | release 隔离是**源码结构证据**（理由见 spec 头注：拿 `strings` 翻二进制会被 renderer 侧的命令名字符串误命中）；「dev 构建真的只起一个窗口并握手」需真实构建             |
+| #2 #7 | `apps/dev-rxdb-tauri/src/devtools/tauri-conformance.spec.ts` —— 与 `packages/rxdb-devtools/src/__tests__/testing/conformance.spec.ts` 的差别**只有一个 `createNodes`**（`tauri-relay-nodes.ts` 把 Tauri transport 装进四段 relay 的中间两段）。判据、fixture、状态机断言、错误码表一行没复制，这正是 US-904 AC#44 要的结构。80 条断言覆盖 safe-integer guard、decoded-byte 限额、穷举错误、transfer/snapshot 状态机、session 轮换与资源释放 | AC#7 的判据全在 transport 语义上，已足 ✅；AC#2 的判据含「真实主窗口与调试窗口已打开」，JSON 定向中继替不了                                                             |
+| #3    | Rust 侧 `lib.rs` 的 `devtools_routing::target_label_of()` 白名单两枚已知 label + 2 条 `#[test]`（`routes_between_the_two_known_labels` / `rejects_an_unknown_sender_label`，空串与 `settings` 都拒）。**未知 label 拒绝而不是默认转发到 main**——默认转发会让任何忘了排除的窗口静默拿到这条通道                                                                                                                                              | 三层里只证到 Rust 这一层 + conformance 的授权断言；真窗口伪造未验                                                                                                       |
+| #4    | conformance 的 session 轮换断言；Tauri 没有 `MessageChannel`，隔离由 Rust 按窗口 label 路由提供（`tauri-connector-transport.spec.ts` 的 `createSessionPort` 恒返 `undefined`、`closeSessionPort` 空操作即此决策的固化）                                                                                                                                                                                                                     | 真实关窗 → 同 label 重开 → 拒旧身份，需真窗口                                                                                                                           |
+| #5    | `tauri-transport.service.spec.ts` 的 `ngOnDestroy 摘除监听并置 disconnected`、`断开后 postFrame 静默丢弃`（不抛错）                                                                                                                                                                                                                                                                                                                         | 主窗口刷新与应用退出两条路径未在真实环境跑                                                                                                                              |
+| #6    | `tauri-vfs-providers.spec.ts`（4 例）：OPFS / IDB / unavailable 三分支的 kind 映射，外加「相同 kind 在不同后端下产出相同的操作与限额，runtime 不参与分叉」                                                                                                                                                                                                                                                                                  | **`mapWaSqliteBackendToProviders()` 目前只有 spec 在调**——运行时真实选中的 VFS 还没接进去。AC#6 的判据是「wa-sqlite 分别**实际**选择」，映射对了但没接上，故 ⚠️ 不是 ✅ |
+| #8    | `apps/dev-rxdb-tauri-e2e` 是 US-210 用 generator 建的唯一 E2E project，本故事只往里加 `devtools-release-isolation.spec.ts`，`desktop-persistence` / `desktop-file-storage` / `desktop-webview-capability` 三份仍归 US-210 / US-505                                                                                                                                                                                                          | —                                                                                                                                                                       |
+
+### 已知待办（不改 AC 语义）
+
+- `apps/dev-rxdb-tauri/src/devtools/main.ts` 的 `DEVTOOLS_PANEL_VERSION` 仍硬编码 `'0.0.25'`，
+  源码里已留 `TODO(US-905)`：应从 Tauri 应用的版本来源取。
+- `apps/dev-rxdb-tauri-e2e/project.json` 的 `desktop-smoke` metadata 只写了 US-210 / US-505，
+  未记本故事的 release 隔离 spec。
+
 ## 技术约束
 
 - **两阶段必须是独立的 PR / commit 序列**：阶段 1 的证据只用共享 fake provider，不得夹带真实 host 接线。
@@ -158,8 +190,8 @@ US-210 SQLite host / US-505 native file host
 - 主 WebView 是唯一 RxDB connector 与 provider owner；调试窗口不持有数据库连接与文件根句柄
   或业务 service 实例。provider 只通过 US-210 / US-505 的窄 host 接缝工作，不暴露通用 SQL/filesystem command。
 - session 只做关联，不做授权；capability、descriptor 和 mutation policy 在 connector 与 Rust/host 两侧重复校验。
-- 共享面板固定通过正式 workspace dependency 消费 US-904 阶段 C 的 private `packages/rxdb-devtools-panel/`，
-  不复制源码或用 tsconfig path 绕过依赖。
+- 共享面板固定消费 US-904 阶段 C 的 `modules/rxdb-devtools-panel/`：同 `modules/` 其余成员，经 tsconfig paths
+  以源码嵌入接入（该 library 不进 pnpm workspace），依赖关系由 Nx 项目图记录，**不复制源码**。
 - v2 的 ID、在途/总预算、transfer 时限、session 轮换、base64、safe integer、分页上限、snapshot deadline
   与穷举错误全部继承 US-904 阶段 B；Tauri 不放宽限制，也不在本文件复述这些数值。
 - Chrome / Electron / Tauri 各用薄 transport driver 运行同一 conformance suite；原生启动与打包 smoke 可按

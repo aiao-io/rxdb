@@ -1,0 +1,21 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project rxdb-devtools-extension-e2e --web",
+  "implicitDependencies": ["rxdb-devtools-extension"],
+  "name": "rxdb-devtools-extension-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/rxdb-devtools-extension-e2e/src",
+  "targets": {
+    "prepare": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["rxdb-devtools-extension:build", "rxdb-devtools:build"],
+      "outputs": ["{workspaceRoot}/dist/apps/rxdb-devtools-extension-e2e"],
+      "options": {
+        "command": "node apps/rxdb-devtools-extension-e2e/tools/prepare.mjs"
+      }
+    },
+    "e2e": {
+      "dependsOn": ["prepare"]
+    }
+  }
+}

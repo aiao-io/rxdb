@@ -1,0 +1,10 @@
+{
+  "name": "@fixture/unbuilt",
+  "type": "module",
+  "exports": {
+    ".": {
+      "@aiao/source": "./src/index.ts",
+      "import": "./dist/index.js"
+    }
+  }
+}

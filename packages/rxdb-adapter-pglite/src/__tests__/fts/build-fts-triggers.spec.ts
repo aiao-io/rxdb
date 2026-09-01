@@ -58,6 +58,22 @@ describe('buildFtsTriggersSql', () => {
     expect(sql).not.toContain("to_tsvector('simple'");
   });
 
+  /**
+   * 函数名**必须**跟着 schema 走，表名同理。
+   *
+   * trigger 名是表的附属对象、索引名跟着表进同一个 schema，两者跨 schema 都不会撞；
+   * 而函数不带限定时被创建到 search_path 的首个 schema（通常是 public）——于是
+   * `shop.article` 与 `public.article` 会抢同一个 `"article__fts_update"`，
+   * 后装的那个把先装的函数体覆盖掉，先装那张表的 trigger 从此按别人的字段算 tsvector。
+   */
+  it('schema 给定时限定表名与函数名', () => {
+    const sql = buildFtsTriggersSql('article', [{ name: 'title', isArray: false }], { schema: 'shop' });
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION "shop"."article__fts_update"()');
+    expect(sql).toContain('DROP TRIGGER IF EXISTS "article__fts_trg" ON "shop"."article"');
+    expect(sql).toContain('BEFORE INSERT OR UPDATE ON "shop"."article"');
+    expect(sql).toContain('FOR EACH ROW EXECUTE FUNCTION "shop"."article__fts_update"()');
+  });
+
   it('drops existing trigger before recreating (idempotent)', () => {
     const sql = buildFtsTriggersSql('docs', [{ name: 'title', isArray: false }]);
     expect(sql).toMatch(/DROP TRIGGER IF EXISTS "docs__fts_trg"/);

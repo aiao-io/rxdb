@@ -28,7 +28,10 @@ function getPreparedColumns(
   }
 
   try {
-    if (bindings) {
+    // 空数组与 undefined 一样都表示「无绑定参数」：OO1 的 `Stmt.bind()` 对
+    // `parameterCount === 0` 的语句无条件抛「This statement has no bindable parameters」，
+    // 即使绑定的是空数组。搜索引擎对无参数 count 查询会传 `[]`，必须在这里跳过 bind。
+    if (bindings && bindings.length > 0) {
       try {
         statement.bind(bindings as unknown[]);
       } catch (error) {

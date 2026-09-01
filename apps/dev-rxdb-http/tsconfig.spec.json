@@ -26,6 +26,9 @@
     },
     {
       "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+    },
+    {
+      "path": "../../modules/recipes-domain/tsconfig.lib.json"
     }
   ]
 }

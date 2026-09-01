@@ -21,6 +21,18 @@ export interface FtsInstallPlan {
   readonly tableName: string;
   /** SQLite 物理表名（含 namespace 前缀，如 `public$article`） */
   readonly sqlTableName?: string;
+  /**
+   * 实体的 `namespace`。
+   *
+   * @remarks
+   * 两套后端把 namespace 落到了**不同的东西**上，所以这里必须与
+   * {@link FtsInstallPlan.sqlTableName} 并存，不能二选一：
+   * SQLite 没有 schema，适配器把 namespace 拼进表名（`public$article`）；
+   * PostgreSQL 适配器则建真正的 schema，表是 `"public"."article"`。
+   * pg 后端此前照搬 `sqlTableName`，于是所有 DDL 与查询都指向一张不存在的
+   * `"public$article"`，真库上一律 42P01。
+   */
+  readonly namespace?: string;
   /** 原表主键列名（external-content 模式 `content_rowid`） */
   readonly primaryKey: string;
   /** 已抽取的可搜索字段列表 */
@@ -60,6 +72,7 @@ export const extractFtsPlanFromMetadata = (metadata: EntityMetadata): FtsInstall
   return {
     tableName: metadata.tableName,
     sqlTableName: get_table_name_by_metadata(metadata),
+    namespace: metadata.namespace,
     primaryKey: primaryKey ?? 'id',
     fields,
     signature: computeFtsSchemaSignature(fields)

@@ -1,5 +1,5 @@
 import type { RxDB } from '@aiao/rxdb';
-import { DESKTOP_DEMO_DB_NAME, WEB_PREVIEW_DB_NAME } from './db-names';
+import { DESKTOP_DEMO_DB_NAME, DESKTOP_PGLITE_DB_NAME, WEB_PREVIEW_DB_NAME } from './db-names';
 import { selectLocalBackend, type LocalBackendCandidate } from './local-backend';
 import { isDesktopHostRuntime } from './services/desktop-environment';
 
@@ -22,6 +22,31 @@ export const WA_SQLITE_ADAPTER_NAME = 'wa-sqlite';
 export const ELECTRON_ADAPTER_NAME = 'sqlite-electron';
 
 /**
+ * PGlite 适配器在 `RxDBAdapters` 注册表中的名字（US-208）。
+ *
+ * @remarks
+ * 与 {@link ELECTRON_ADAPTER_NAME} 同一条「抄字面量」纪律：不 `import` 适配器包，
+ * 由 `setup_rxdb.spec.ts` 钉住它与包内 `ELECTRON_PGLITE_ADAPTER_NAME` 一致。
+ */
+export const ELECTRON_PGLITE_ADAPTER_NAME = 'pglite-electron';
+
+/**
+ * 本次运行是否显式请求 PGlite 桌面后端。
+ *
+ * @remarks
+ * 判据是入口 URL 的 `?pglite=1`（由 main 侧读 `DEV_RXDB_PGLITE=1` 后追加）。用 URL 而不是
+ * 直接读 `process.env`，是因为 `localBackends` 跑在渲染进程，`process.env` 不存在；而 `runtime`
+ * 就是 `globalThis`，`location.search` 在 bootstrap 时已经可读。测试里传 mock `runtime` 不带
+ * `location`，于是恒回 `false`、恒选 SQLite —— 这一层判定因此不破坏既有候选表用例。
+ *
+ * @param runtime - 与 `localBackends` 同一个入参。
+ */
+const wantsPgliteBackend = (runtime: unknown): boolean => {
+  const search = (runtime as { location?: { search?: string } } | null | undefined)?.location?.search;
+  return typeof search === 'string' && search.includes('pglite=1');
+};
+
+/**
  * 本 demo 的本地后端候选表（US-207 E8）。**顺序即优先级。**
  *
  * @param runtime - 探针要检测的对象，实际调用时传 `globalThis`
@@ -41,24 +66,41 @@ export const ELECTRON_ADAPTER_NAME = 'sqlite-electron';
  * `runtime` 作参数而不是直接读 `globalThis`，一是为了单测能同时跑到两条分支，
  * 二是因为桌面桥接由 preload 注入 —— 模块求值期读它等于赌两段脚本的先后顺序，
  * 所以调用点都在惰性工厂里。
+ *
+ * PGlite 与 SQLite 共用「桌面宿主可用」这一条探针（都走 preload 注入的同一条桥接），
+ * 差别只在**工厂**与**身份**。所以 PGlite 不新增第三条候选，而是把桌面候选按
+ * {@link wantsPgliteBackend} 换成 PGlite 身份 —— 候选表保持「一个桌面 + 一个 web」，
+ * 不会改变 `selectLocalBackend` 的查重与优先级语义。
  */
-export const localBackends = (runtime: unknown): readonly LocalBackendCandidate<Promise<RxDB>>[] => [
-  {
-    adapter: ELECTRON_ADAPTER_NAME,
-    dbName: DESKTOP_DEMO_DB_NAME,
-    isAvailable: () => isDesktopHostRuntime(runtime),
-    create: async () => (await import('./setup_rxdb_desktop')).default()
-  },
-  {
-    // 浏览器预览（`nx serve dev-rxdb-electron`）里 preload 没跑过，桌面桥接不存在，
-    // 所以不能只留桌面一条路。这一条永远可用，因此它同时是「表里至少有一个可用候选」
-    // 的保证 —— 换句话说本 demo 不会走到 `RxDBLocalBackendUnavailableError`。
-    adapter: WA_SQLITE_ADAPTER_NAME,
-    dbName: WEB_PREVIEW_DB_NAME,
-    isAvailable: () => true,
-    create: async () => (await import('./setup_rxdb_wa-sqlite')).default()
-  }
-];
+export const localBackends = (runtime: unknown): readonly LocalBackendCandidate<Promise<RxDB>>[] => {
+  const desktop: LocalBackendCandidate<Promise<RxDB>> =
+    wantsPgliteBackend(runtime) ?
+      {
+        adapter: ELECTRON_PGLITE_ADAPTER_NAME,
+        dbName: DESKTOP_PGLITE_DB_NAME,
+        isAvailable: () => isDesktopHostRuntime(runtime),
+        create: async () => (await import('./setup_rxdb_desktop_pglite')).default()
+      }
+    : {
+        adapter: ELECTRON_ADAPTER_NAME,
+        dbName: DESKTOP_DEMO_DB_NAME,
+        isAvailable: () => isDesktopHostRuntime(runtime),
+        create: async () => (await import('./setup_rxdb_desktop')).default()
+      };
+
+  return [
+    desktop,
+    {
+      // 浏览器预览（`nx serve dev-rxdb-electron`）里 preload 没跑过，桌面桥接不存在，
+      // 所以不能只留桌面一条路。这一条永远可用，因此它同时是「表里至少有一个可用候选」
+      // 的保证 —— 换句话说本 demo 不会走到 `RxDBLocalBackendUnavailableError`。
+      adapter: WA_SQLITE_ADAPTER_NAME,
+      dbName: WEB_PREVIEW_DB_NAME,
+      isAvailable: () => true,
+      create: async () => (await import('./setup_rxdb_wa-sqlite')).default()
+    }
+  ];
+};
 
 let selected: LocalBackendCandidate<Promise<RxDB>> | undefined;
 

@@ -192,6 +192,34 @@
         "kind": "type"
       }
     ],
+    "./devtools-desktop": [
+      {
+        "name": "createDevToolsDesktopFilesystem",
+        "kind": "value"
+      },
+      {
+        "name": "DevToolsDesktopFilesystem",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsDesktopFilesystemOptions",
+        "kind": "type"
+      }
+    ],
+    "./devtools-desktop-snapshot": [
+      {
+        "name": "createDevToolsStorageSnapshotPorts",
+        "kind": "value"
+      },
+      {
+        "name": "DevToolsStorageSnapshotHost",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsStorageSnapshotPorts",
+        "kind": "type"
+      }
+    ],
     "./testing": [
       {
         "name": "isTemporaryStorageName",

@@ -34,7 +34,7 @@ export default defineConfig(({ command }) => ({
         const normalizedId = id.replace(/\\/g, '/');
         if (normalizedId.includes('/src/content/')) return false;
         if (normalizedId.includes('/src/background/')) return false;
-        if (normalizedId.includes('/src/shared/')) return false;
+        if (normalizedId.includes('/rxdb-devtools-panel/wire/')) return false;
         if (normalizedId.includes('devtools-init')) return false;
         return true;
       }

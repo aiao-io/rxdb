@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { DevToolsProviderResult } from '../../provider/types.js';
 import type { DevToolsFakeClock } from '../../testing/fake-clock.js';
 import { createFakeClock } from '../../testing/fake-clock.js';
 import type { DevToolsFakeProviderSet } from '../../testing/fake-providers.js';
@@ -328,6 +329,71 @@ describe('connector endpoint events', () => {
   });
 });
 
+describe('connector endpoint event emission', () => {
+  it('MUST forward an emitted event as one EVENT frame on the open session', () => {
+    const harness = connected();
+    harness.endpoint.emitEvent('document:created', { entityName: 'Todo' });
+
+    const frame = harness.framesOf('EVENT')[0];
+    expect(frame?.payload).toEqual({ eventType: 'document:created', data: { entityName: 'Todo' } });
+    // 事件是下行帧，且必须挂在**本** session 上：串到别的 session 就是跨会话泄漏。
+    expect(frame?.direction).toBe('connector-to-panel');
+    expect(frame?.sessionId).toBe(harness.endpoint.sessionId);
+  });
+
+  it('MUST give every emitted event its own sequence', () => {
+    const harness = connected();
+    harness.endpoint.emitEvent('a', null);
+    harness.endpoint.emitEvent('b', null);
+
+    const sequences = harness.framesOf('EVENT').map(frame => frame.sequence);
+    expect(new Set(sequences).size).toBe(2);
+  });
+
+  it('MUST NOT emit before a session exists', () => {
+    const harness = createHarness();
+    harness.endpoint.start();
+    harness.endpoint.emitEvent('document:created', null);
+
+    // provider 可能在协商完成前就有事件要推；没有 session 就没有收件人，
+    // 发出去等于向一个未协商的对端确认自己存在。
+    expect(harness.framesOf('EVENT')).toHaveLength(0);
+  });
+
+  it('MUST NOT emit at the none tier', () => {
+    const harness = connected({ capability: 'none' });
+    harness.endpoint.emitEvent('document:created', null);
+
+    // `none` 不建订阅，因此正常路径下压根不会有事件推进来；一旦有，也不许出门。
+    expect(harness.framesOf('EVENT')).toHaveLength(0);
+  });
+
+  it('MUST NOT emit when the database domain is not declared', () => {
+    const harness = connected({ providers: createFakeProviders({ kinds: { database: 'unavailable' } }) });
+    harness.endpoint.emitEvent('document:created', null);
+
+    // 出站事件与入站订阅判的是同一个 `database.events`：只看档位就发，
+    // 等于 descriptor 这一层在下行方向上不存在。
+    expect(harness.framesOf('EVENT')).toHaveLength(0);
+  });
+
+  it('MUST stop emitting once the panel disconnects', () => {
+    const harness = connected();
+    harness.panel('DISCONNECT', null);
+    harness.endpoint.emitEvent('document:created', null);
+
+    expect(harness.framesOf('EVENT')).toHaveLength(0);
+  });
+
+  it('MUST stop emitting after dispose', () => {
+    const harness = connected();
+    harness.endpoint.dispose();
+    harness.endpoint.emitEvent('document:created', null);
+
+    expect(harness.framesOf('EVENT')).toHaveLength(0);
+  });
+});
+
 describe('connector endpoint transfers', () => {
   const PAYLOAD = new Uint8Array([1, 2, 3, 4]);
 
@@ -428,6 +494,68 @@ describe('connector endpoint transfers', () => {
     // 于是「一次超限的上传」升级成了「整条连接作废」。
     expect(harness.framesOf('ERROR')).toHaveLength(1);
     expect(harness.endpoint.inflightTransfers).toBe(1);
+  });
+});
+
+describe('connector endpoint session teardown (AC#51)', () => {
+  const PAYLOAD = new Uint8Array([9, 8, 7]);
+
+  function startTransfer(harness: Harness): void {
+    harness.panel('TRANSFER_START', { transferId: 't1', requestId: 'r1', totalBytes: PAYLOAD.byteLength });
+  }
+
+  it('MUST discard an in-flight transfer and release its timers when the session closes', async () => {
+    const harness = connected();
+    startTransfer(harness);
+    harness.panel('TRANSFER_CHUNK', {
+      transferId: 't1',
+      chunkIndex: 0,
+      offset: 0,
+      dataBase64: encodeCanonicalBase64(PAYLOAD)
+    });
+    await flush();
+    expect(harness.endpoint.inflightTransfers).toBe(1);
+
+    harness.panel('DISCONNECT', null);
+    await flush();
+
+    // 半写的传输必须整体丢弃：不留临时产物、不提交、不复活，计时器随 session 一并释放。
+    expect(harness.endpoint.inflightTransfers).toBe(0);
+    expect(harness.providers.committedFiles()).toEqual([]);
+    expect(await harness.providers.probe.temporaryArtifacts()).toEqual([]);
+    expect(harness.clock.pendingTimers()).toBe(0);
+  });
+
+  it('MUST drop the late result of an in-flight request once the session is gone', async () => {
+    const providers = createFakeProviders();
+    let resolveInspect: (result: DevToolsProviderResult) => void = () => undefined;
+    const harness = connected({
+      providers: {
+        ...providers,
+        provider: domain => ({
+          descriptor: providers.provider(domain).descriptor,
+          invoke: (operation, params) =>
+            operation === 'inspect' ?
+              new Promise<DevToolsProviderResult>(resolve => {
+                resolveInspect = resolve;
+              })
+            : providers.provider(domain).invoke(operation, params)
+        })
+      }
+    });
+    request(harness, 'r1', 'database', 'inspect');
+    await flush();
+    expect(harness.endpoint.inflightRequests).toBe(1);
+
+    harness.panel('DISCONNECT', null);
+    // 结果在 session 关闭之后才回来：结算门（`session.settleRequest` 对已关闭会话恒为 false）
+    // 必须把它挡在状态之外——迟到数据不进新状态，也不产生第二条 RESPONSE。
+    resolveInspect({ outcome: 'ok', result: { collections: ['todos'] } });
+    await flush();
+
+    expect(harness.endpoint.inflightRequests).toBe(0);
+    expect(harness.framesOf('RESPONSE')).toHaveLength(0);
+    expect(harness.clock.pendingTimers()).toBe(0);
   });
 });
 

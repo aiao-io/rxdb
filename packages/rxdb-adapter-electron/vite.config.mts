@@ -44,7 +44,9 @@ export default defineConfig(() => ({
     lib: {
       entry: {
         index: 'src/index.ts',
-        host: 'src/host.ts'
+        host: 'src/host.ts',
+        pglite: 'src/pglite.ts',
+        'pglite-host': 'src/pglite-host.ts'
       },
       name: '@aiao/rxdb-adapter-electron',
       fileName: (_, entryName) => `${entryName}.js`,
@@ -58,9 +60,14 @@ export default defineConfig(() => ({
       // `undefined is not a function` 才炸。用前缀匹配兜住全部内建，别再逐个点名漏掉新引入的。
       external: [
         '@aiao/rxdb',
+        '@aiao/rxdb-adapter-pglite',
         '@aiao/rxdb-adapter-sqlite-core',
         '@aiao/rxdb-adapter-sqlite-core/desktop-host',
         '@aiao/utils',
+        // host 侧只按结构类型引用 PGlite；renderer 侧另外用了 `/template` 那个约 2 KB 的
+        // 模板编译子路径。两者一起外置，免得 wasm 被打进本包产物。
+        '@electric-sql/pglite',
+        '@electric-sql/pglite/template',
         'rxjs',
         /^node:/
       ]

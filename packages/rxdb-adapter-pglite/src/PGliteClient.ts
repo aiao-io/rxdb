@@ -3,7 +3,8 @@ import { DescribeQueryResult, PGlite, QueryOptions, Results, Transaction } from 
 import type { LiveQuery } from '@electric-sql/pglite/live';
 import { live, LiveNamespace } from '@electric-sql/pglite/live';
 import { PGliteWorker } from '@electric-sql/pglite/worker';
-import { PGliteChangeEvent, PGliteChangeType, PGliteClientOptions, PGliteNotifyPayload } from './pglite.interface.js';
+import { PGliteNotificationBatcher } from './notify/notification-batcher.js';
+import { PGliteChangeEvent, PGliteChangeType, PGliteClientOptions } from './pglite.interface.js';
 import { RxdbAdapterPGliteError } from './pglite.utils.js';
 
 interface PGliteRuntime {
@@ -19,8 +20,6 @@ interface PGliteRuntime {
   runExclusive<T>(fn: () => Promise<T>): Promise<T>;
   live: LiveNamespace;
 }
-
-type PendingPGliteEvent = { type: PGliteChangeType; tableName: string; id: string | number };
 
 type ResolvedPGliteClientOptions = Omit<PGliteClientOptions, 'store'> & {
   dataDir?: string;
@@ -172,8 +171,13 @@ export interface IPGliteClient {
    * 描述查询
    * @param query 要描述的查询
    * @returns 查询结果类型的描述
+   *
+   * @remarks
+   * 可选：`DescribeQueryResult` 里挂着解析器函数，跨不了结构化克隆，因此 US-208 的桌面
+   * 代理客户端提供不了它。适配器自身一处都没调用，声明成必需只会把「本地实现不了」
+   * 变成「必须编一个假的」。
    */
-  describeQuery(query: string, options?: QueryOptions): Promise<DescribeQueryResult>;
+  describeQuery?(query: string, options?: QueryOptions): Promise<DescribeQueryResult>;
 
   /**
    * 执行事务
@@ -188,8 +192,13 @@ export interface IPGliteClient {
    * 也不会阻塞事务和查询使用的锁
    * @param fn 要运行的函数
    * @returns 函数的结果
+   *
+   * @remarks
+   * 可选，理由与 {@link IPGliteClient.describeQuery} 同类但更硬：`fn` 是调用方的闭包，
+   * 跨进程传不过去；真要代理，只能让 renderer 在整个 `fn` 期间扣住主进程那条唯一连接，
+   * 而 renderer 崩溃时这把锁就永远松不开了。
    */
-  runExclusive<T>(fn: () => Promise<T>): Promise<T>;
+  runExclusive?<T>(fn: () => Promise<T>): Promise<T>;
 
   /** 当前 realm 中是否有其他客户端持有同一份持久化存储。 */
   hasStoragePeer?(): boolean;
@@ -202,8 +211,12 @@ export interface IPGliteClient {
    * @param query SQL
    * @param params 参数
    * @param callback 结果回调
+   *
+   * @remarks
+   * 可选：`LiveQuery` 句柄带着订阅与 `unsubscribe`，代理实现需要自建一整套跨进程订阅
+   * 生命周期。{@link RxDBAdapterPGlite.liveQuery} 已按能力判定并快速失败。
    */
-  liveQuery<T>(
+  liveQuery?<T>(
     query: string,
     params?: unknown[] | null,
     callback?: (results: Results<T>) => void
@@ -216,10 +229,43 @@ export interface IPGliteClient {
 }
 
 /**
+ * 变更事件源：能挂/摘 {@link PGliteChangeType} 监听的客户端。
+ *
+ * @remarks
+ * 与 {@link IPGliteClient} 分开声明，是因为**能不能推变更**和**能不能执行 SQL** 是两件事：
+ * 只读或纯查询用途的客户端可以只满足后者。适配器按这个契约结构化判定，而不是按具体类，
+ * 否则代理实现（US-208 的桌面客户端）会被 `instanceof` 判为不支持——症状是变更事件全丢，
+ * 而且 `disconnect()` 也不会去解绑它。
+ *
+ * @public
+ */
+export interface PGliteChangeEventSource {
+  addEventListener<T extends keyof PGliteClientEvents>(type: T, listener: (event: PGliteClientEvents[T]) => void): void;
+  removeEventListener<T extends keyof PGliteClientEvents>(
+    type: T,
+    listener: (event: PGliteClientEvents[T]) => void
+  ): void;
+}
+
+/**
+ * 把客户端窄化为变更事件源；不具备该能力时返回 `undefined`。
+ *
+ * @param client - 任意 PGlite 客户端
+ * @returns 变更事件源，或 `undefined`
+ * @public
+ */
+export function asPGliteChangeEventSource(client: IPGliteClient): PGliteChangeEventSource | undefined {
+  const candidate = client as Partial<PGliteChangeEventSource>;
+  if (typeof candidate.addEventListener !== 'function') return undefined;
+  if (typeof candidate.removeEventListener !== 'function') return undefined;
+  return candidate as PGliteChangeEventSource;
+}
+
+/**
  * PGlite 客户端：封装 `@electric-sql/pglite` 实例，提供：
  * - 统一的 query/exec/transaction API（对齐 {@link IPGliteClient}）
  * - 系统表（rxdb_change/rxdb_branch/rxdb_migration）NOTIFY 监听 + 批量分发
- *   （16ms trailing 防抖，另有 max-wait 与容量上限兜底，见 `#maxBatchWait`）
+ *   （16ms trailing 防抖，另有 max-wait 与容量上限兜底，见 {@link PGliteNotificationBatcher}）
  * - 安全的 disconnect（先 `syncToFs` 再 `close`，避免 IDBFS 关闭后回调抛错）
  * - LiveQuery 支持（依赖 init 阶段注入的 `live` extension）
  *
@@ -231,23 +277,18 @@ export interface IPGliteClient {
 export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements IPGliteClient {
   #pglite?: PGliteRuntime;
   #dbName!: string;
-  #batchTimeout = 16; // 批量发送间隔 (ms)
   /**
-   * 一个批量窗口从开启到**必须**冲刷的上限 (ms)。
+   * NOTIFY 的去重与批量窗口。
    *
-   * 纯 trailing debounce 下，写入间隔只要小于 {@link #batchTimeout}，定时器就被无限重置，
-   * 事件一条也派发不出去（PGL-008）。该上限**同步**在每条 NOTIFY 到达时检查 ——
-   * 不能靠再加一个 setTimeout：紧凑的 `await` 循环会把宏任务队列饿死，
-   * 定时器根本不到期（sqlite 侧 SWM-005 实测过同一现象）。
+   * @remarks
+   * 抽成独立对象是为了让 US-208 的桌面客户端复用同一套语义——那条路径上 NOTIFY 由主进程
+   * host 转发过来，批量仍然发生在渲染进程。见 {@link PGliteNotificationBatcher}。
    */
-  #maxBatchWait = 100;
-  /** 单个窗口内累积事件的上限，超过即立即冲刷，形成背压 */
-  #maxPendingEvents = 5000;
-  #pendingEvents: PendingPGliteEvent[] = [];
-  /** `type\0table\0id` 去重集合，与 {@link #pendingEvents} 同生命周期 */
-  #pendingEventKeys = new Set<string>();
-  #windowStartedAt?: number;
-  #sendTimer?: ReturnType<typeof setTimeout>;
+  readonly #batcher = new PGliteNotificationBatcher({
+    resolveDbName: () => this.#dbName,
+    emit: event => this.dispatchEvent(event.type, event),
+    onParseError: error => console.error('Failed to parse NOTIFY payload:', error)
+  });
   #notificationUnsubscribes: Array<() => Promise<void>> = [];
   #isDisconnecting = false;
   #storageKey?: string;
@@ -260,7 +301,7 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
 
   /** 尚未分发的 NOTIFY 行事件数量。 */
   get pendingNotificationCount(): number {
-    return this.#pendingEvents.length;
+    return this.#batcher.pendingCount;
   }
 
   /**
@@ -341,17 +382,11 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
    * @returns 调用时是否存在待处理事件
    */
   async flushPendingNotifications(): Promise<boolean> {
-    await new Promise<void>(resolve => setTimeout(resolve, this.#batchTimeout));
-    const hasPendingNotifications = this.#pendingEvents.length > 0 || this.#sendTimer !== undefined;
+    await new Promise<void>(resolve => setTimeout(resolve, this.#batcher.batchTimeout));
+    const hasPendingNotifications = this.#batcher.pendingCount > 0 || this.#batcher.hasScheduledFlush;
 
-    if (this.#sendTimer) {
-      clearTimeout(this.#sendTimer);
-      this.#sendTimer = undefined;
-    }
-
-    if (this.#pendingEvents.length > 0 && !this.#isDisconnecting) {
-      this.#flushEvents();
-    }
+    if (this.#isDisconnecting) this.#batcher.clear();
+    else this.#batcher.flush();
 
     await nextMicroTask();
     return hasPendingNotifications;
@@ -402,7 +437,7 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
         const channel = `${table}_notify`;
         const unsubscribe = await runtime.listen(channel, payload => {
           if (this.#isDisconnecting) return;
-          this.#handleNotification(channel, payload);
+          this.#batcher.accept(channel, payload);
         });
         this.#notificationUnsubscribes.push(unsubscribe);
       }
@@ -484,11 +519,7 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
   }
 
   #clearPendingNotifications(): void {
-    if (this.#sendTimer) clearTimeout(this.#sendTimer);
-    this.#sendTimer = undefined;
-    this.#pendingEvents.length = 0;
-    this.#pendingEventKeys.clear();
-    this.#windowStartedAt = undefined;
+    this.#batcher.clear();
   }
 
   #removeStorageClient(): void {
@@ -502,90 +533,5 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
   #getRuntime(): PGliteRuntime {
     if (this.#pglite) return this.#pglite;
     throw new RxdbAdapterPGliteError(`PGlite client is not ready (state: ${this.#state})`, 'CLIENT_NOT_READY');
-  }
-
-  /**
-   * 处理 NOTIFY 通知
-   * @param channel - 通知频道名称
-   * @param payload - JSON 格式的 payload
-   */
-  #handleNotification(channel: string, payload: string) {
-    if (this.#isDisconnecting) {
-      return;
-    }
-
-    if (!payload || payload.trim().length === 0) {
-      return;
-    }
-
-    try {
-      const data = JSON.parse(payload) as PGliteNotifyPayload;
-      const tableName = channel.replace('_notify', '');
-
-      // 收集待发送事件（按 type+table+id 去重：同一行在一个窗口内重复通知不必重复携带）
-      for (const id of data.ids) {
-        const key = `${data.operation}\u0000${tableName}\u0000${id}`;
-        if (this.#pendingEventKeys.has(key)) continue;
-        this.#pendingEventKeys.add(key);
-        this.#pendingEvents.push({ type: data.operation, tableName, id });
-      }
-
-      this.#windowStartedAt ??= Date.now();
-
-      // max-wait / 容量兜底：两者都在这里**同步**判定，不依赖定时器到期
-      const windowExpired = Date.now() - this.#windowStartedAt >= this.#maxBatchWait;
-      const overCapacity = this.#pendingEvents.length >= this.#maxPendingEvents;
-      if (windowExpired || overCapacity) {
-        if (this.#sendTimer) {
-          clearTimeout(this.#sendTimer);
-          this.#sendTimer = undefined;
-        }
-        this.#flushEvents();
-        return;
-      }
-
-      // 未达上限时仍走 16ms trailing 防抖，保持原有的合并收益
-      if (this.#sendTimer) clearTimeout(this.#sendTimer);
-      this.#sendTimer = setTimeout(() => {
-        this.#sendTimer = undefined;
-        this.#flushEvents();
-      }, this.#batchTimeout);
-    } catch (error) {
-      console.error('Failed to parse NOTIFY payload:', error);
-    }
-  }
-
-  /**
-   * 批量发送聚合后的事件
-   */
-  #flushEvents() {
-    const grouped = new Map<string, PendingPGliteEvent[]>();
-    for (const event of this.#pendingEvents) {
-      const key = `${event.type}_${event.tableName}`;
-      const events = grouped.get(key) ?? [];
-      events.push(event);
-      grouped.set(key, events);
-    }
-
-    for (const events of grouped.values()) {
-      if (events.length === 0) continue;
-
-      const first = events[0];
-      const rowIds = events.map(e => e.id);
-
-      const changeEvent: PGliteChangeEvent = {
-        type: first.type,
-        dbName: this.#dbName,
-        tableName: first.tableName,
-        rowIds,
-        recordAt: new Date()
-      };
-
-      this.dispatchEvent(first.type, changeEvent);
-    }
-
-    this.#pendingEvents.length = 0;
-    this.#pendingEventKeys.clear();
-    this.#windowStartedAt = undefined;
   }
 }

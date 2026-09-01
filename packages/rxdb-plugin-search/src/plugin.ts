@@ -17,16 +17,16 @@ import type { LifecycleScope } from '@aiao/utils';
 import { isObservable, type Observable } from 'rxjs';
 
 import type { FtsField } from '@aiao/rxdb-adapter-sqlite-core';
-import { assertSupportedAdapter } from './core/adapter-guard.js';
+import { resolveSearchBackend } from './backend/backend-registry.js';
+import type { SearchBackend } from './backend/search-backend.js';
 import { aggregateResults, type CollectionPartial } from './core/aggregator.js';
-import { extractFtsPlanFromMetadata, ftsMigrationName, type FtsInstallPlan } from './core/fts5-installer.js';
-import { installFtsForEntity, type MigrationRecordStore, type RuntimeSqlExecutor } from './core/fts5-runtime.js';
+import { extractFtsPlanFromMetadata, type FtsInstallPlan } from './core/fts5-installer.js';
+import type { MigrationRecordStore, RuntimeSqlExecutor } from './core/fts5-runtime.js';
 import { assertSearchNumericOptions } from './core/options-guard.js';
-import { compile } from './core/query-compiler.js';
 import type { RawFtsRow } from './core/result-mapper.js';
 import { assertSearchableSchemaValid } from './core/schema-validator.js';
 import { resolveSearchScope } from './core/scope-resolver.js';
-import { createSearchEngine, type SearchEngine } from './core/search-engine.js';
+import type { SearchEngine } from './core/search-engine.js';
 import { createSearchHandle, type PerformSearch, type SearchPage } from './core/search-handle.js';
 import {
   SearchError,
@@ -72,7 +72,10 @@ const mapRowsToFtsRows = (raw: { columns: readonly string[]; rows: readonly unkn
 interface SearchableEntry {
   readonly entity: string;
   readonly table: string;
+  /** SQLite 物理表名（`<namespace>$<table>`） */
   readonly sqlTable: string;
+  /** PostgreSQL schema 名（= `namespace`）；两套后端各取所需，见 `PgTableRef` */
+  readonly schema: string | undefined;
   readonly primaryKey: string;
   /** FTS 列名，按 entity metadata 顺序 */
   readonly fields: readonly string[];
@@ -171,6 +174,14 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
   /** 活动 handle 列表，entity 事件派发时遍历。 */
   readonly #handleRegistrations = new Set<HandleRegistration>();
   #engine?: SearchEngine;
+  /**
+   * 当前 adapter 解析出的搜索后端。
+   *
+   * 在构造期就定下来，而不是等到 `install()`：`isSearchableQuery` 与结果池缓存键都要
+   * 调 `backend.compile`，二者在 `install()` 完成之前就可能被调用。
+   * 后端只依赖 adapter 名，重连不会换后端，因此一次解析可以跨纪元复用。
+   */
+  readonly #backend: SearchBackend;
 
   /**
    * 本地适配器就绪之后才安装。
@@ -230,8 +241,9 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     assertSearchNumericOptions('rxDBPluginSearch options', options);
     super(rxdb);
     this.options = options ?? {};
-    // Fail-fast：在 createRxDatabase 阶段即校验 adapter；不支持则直接 throw，不挂载 `.search`
-    assertSupportedAdapter(rxdb?.config?.sync?.local?.adapter);
+    // Fail-fast：在 createRxDatabase 阶段即把 adapter 解析成后端；
+    // 解析不出来直接 throw，不挂载 `.search`，不返回降级 handle
+    this.#backend = resolveSearchBackend(rxdb?.config?.sync?.local?.adapter);
   }
 
   install(scope: LifecycleScope): Promise<void> {
@@ -359,7 +371,7 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     const scopeSet = new Set(scope);
     const inner = createSearchHandle({
       performSearch,
-      isSearchableQuery: candidate => compile(candidate) !== null,
+      isSearchableQuery: candidate => this.#backend.compile(candidate) !== null,
       debounceMs,
       initialQuery,
       querySource: isObservable(query) ? query : undefined,
@@ -383,7 +395,7 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     let pool: { match: string; results: readonly SearchResult[]; hasMore: boolean } | null = null;
     return async (query: string, page: number, signal?: AbortSignal): Promise<SearchPage> => {
       signal?.throwIfAborted();
-      const compiled = compile(query);
+      const compiled = this.#backend.compile(query);
       if (!compiled || scopedEntries.length === 0) {
         return { results: [], hasMore: false };
       }
@@ -419,6 +431,7 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
           results: await engine.search({
             table: entry.table,
             sqlTable: entry.sqlTable,
+            schema: entry.schema,
             entity: entry.entity,
             primaryKey: entry.primaryKey,
             fields: entry.fields,
@@ -476,6 +489,12 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     // 每个实体**各自**一个事务，不合并成一个大事务：合并后任意一个实体撞上
     // RxDBMigrationClaimConflictError（另一个 tab 正在装同一张表），会把已经装好的
     // 其它实体一起回滚。逐个提交时冲突只影响它自己。
+    const adapterName = this.rxdb.config?.sync?.local?.adapter ?? 'unknown';
+    // 判定的第二层只跑一次，且**搭在第一个实体的事务里**，不另开一个：构造期按 adapter
+    // 名字解析出的后端只回答了「属于哪个引擎家族」，回答不了「这个 SQLite 构建到底编没编进
+    // FTS5」「这个 PGlite 构建裁没裁掉文本搜索配置」。探测必须早于第一条 DDL——否则缺能力
+    // 时报出来的是一句无从追溯的 SQL 错，而不是带原因的 SearchBackendCapabilityError。
+    let capabilitiesAsserted = false;
     for (const plan of this.#searchPlans) {
       // 每一轮之前都验纪元。**不能**只在循环之后验一次：那种写法的理由是「DDL 全打在捕获的
       // 那个适配器上，纪元换了它自己会失败」，而这个理由只在旧纪元握着的是一条**死**连接时
@@ -488,7 +507,11 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
         const executor: RuntimeSqlExecutor = {
           rawQuery: (sql, params?) => tx.query(sql, params ? [...params] : undefined)
         };
-        await installFtsForEntity(plan, executor, this.#createMigrationStore(tx.getRepository(RxDBMigration)));
+        if (!capabilitiesAsserted) {
+          await this.#backend.assertCapabilities(executor, adapterName);
+          capabilitiesAsserted = true;
+        }
+        await this.#backend.install(plan, executor, this.#createMigrationStore(tx.getRepository(RxDBMigration)));
       }, false);
     }
 
@@ -496,7 +519,7 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     // 而 `#refreshRegisteredHandles()` 唤醒的却是新纪元的 handle。
     if (scope.state !== 'active') return;
 
-    this.#engine = createSearchEngine(async (sql, params) => mapRowsToFtsRows(await callRaw(sql, params)));
+    this.#engine = this.#backend.createEngine(async (sql, params) => mapRowsToFtsRows(await callRaw(sql, params)));
 
     // entity 事件通道已在 install() 同步阶段绑定；FTS 落库后唤醒已注册 handle 重新查询
     this.#refreshRegisteredHandles();
@@ -535,6 +558,7 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
         entity: metadata.name,
         table: plan.tableName,
         sqlTable: plan.sqlTableName ?? plan.tableName,
+        schema: plan.namespace,
         primaryKey: plan.primaryKey,
         fields: plan.fields.map(f => f.name),
         fieldSpecs: plan.fields
@@ -668,16 +692,20 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
   }
 
   #createMigrationStore(repo: Pick<IRepository<typeof RxDBMigration>, 'find' | 'create'>): MigrationRecordStore {
+    // 先取出来：下面两个方法是 `async` 简写，`this` 指向对象字面量本身，读不到私有字段。
+    const backend = this.#backend;
     return {
       async listInstallMigrationsForTable(tableName: string) {
-        const prefix = `${ftsMigrationName(tableName, 'install')}__`;
+        // 迁移名前缀由后端定：FTS5 是 `fts5__<t>__v1__install__`，PG 是 `pgfts__…`。
+        // 两者互不相认，于是同一张表换过后端时旧记录不会被当成本后端的历史签名。
+        const prefix = backend.installMigrationPrefix(tableName);
         // 前缀过滤下推到查询：迁移表只增不减，安装期每张表全表扫一遍不可接受。
         const records = await repo.find({
           where: { combinator: 'and', rules: [{ field: 'name', operator: 'startsWith', value: prefix }] }
         });
         // 仍需 JS 侧精确复核：`startsWith` 被编译成不带 ESCAPE 的 `LIKE 'prefix%'`，
         // 而前缀里的 `_` 在 LIKE 语义下是「任意单字符」通配符，SQL 侧只是宽松预筛。
-        // 放行别表记录的后果不是多返回几条——`installFtsForEntity` 会把它当成本表的
+        // 放行别表记录的后果不是多返回几条——后端的 `install()` 会把它当成本表的
         // 历史签名并抛 SearchSchemaMismatchError，安装直接被误杀。
         return records.filter(r => r.name.startsWith(prefix)).map(r => ({ name: r.name }));
       },
