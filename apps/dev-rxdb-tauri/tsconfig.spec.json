@@ -1,4 +1,5 @@
 {
+  "//include": "src/**/*.ts 会把 src/devtools/main.ts 拽进 spec program，它 import 了 src-tauri/tauri.conf.json（DEVTOOLS_PANEL_VERSION）。composite 工程必须把被 import 的文件也列进来，否则 TS6307 —— 与 tsconfig.app.json 的同名条目同源。",
   "//references": "references 不随 extends 继承：src/devtools/*.ts 经 @modules/rxdb-devtools-panel / @aiao/rxdb-devtools 的 paths 映射直接命中库源码，缺这两条引用时 spec program 会把库文件拽进自己的 file list —— composite 下报整片 TS6059（rootDir）/ TS6307（不在 file list）。",
   "compilerOptions": {
     "outDir": "./out-tsc/vitest",
@@ -14,7 +15,14 @@
   },
   "extends": "../../tsconfig.base.json",
   "files": ["src/test-setup.ts"],
-  "include": ["vite.config.mts", "src/**/*.test.ts", "src/**/*.spec.ts", "src/**/*.d.ts", "src/**/*.ts"],
+  "include": [
+    "vite.config.mts",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "src/**/*.d.ts",
+    "src/**/*.ts",
+    "src-tauri/tauri.conf.json"
+  ],
   "references": [
     {
       "path": "../../modules/rxdb-devtools-panel/tsconfig.lib.json"

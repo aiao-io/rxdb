@@ -1,7 +1,7 @@
 ---
 id: US-208
 title: Electron PGlite 数据目录与事务宿主
-status: In Review
+status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-13
@@ -81,7 +81,7 @@ renderer 不直接接触 `fs` / `ipcRenderer` 的运行时边界。本故事复�
 | 7   | 同一 data directory 已被主进程 host 打开           | 第二个窗口或进程尝试打开同一目录                                                     | 复用主进程中已有的那一个 PGlite 实例，或以可判别错误码拒绝；不并发打开两份实例，也不静默切换到另一份目录                                     | ✅   |
 | 8   | 目录中存在应用未知的普通业务表                     | Aiao 首次连接并初始化系统 schema                                                     | 保留未知表和数据；只创建或迁移 Aiao 自有系统对象，失败时事务回滚                                                                             | ✅   |
 | 9   | 存在未提交事务或在途查询                           | 调用 `disconnect()` 或关闭窗口                                                       | 停止接受新任务，等待或回滚在途工作，刷新持久化数据并关闭句柄；随后可重命名该目录                                                             | ✅   |
-| 10  | 构建打包后的 Electron 应用                         | 在 macOS、Windows、Linux CI 中运行桌面持久化 smoke test                              | 三平台均通过；测试使用真实临时目录而非 mock 或浏览器存储                                                                                     | ⬜   |
+| 10  | 构建打包后的 Electron 应用                         | 在 macOS、Windows、Linux CI 中运行桌面持久化 smoke test                              | 三平台均通过；测试使用真实临时目录而非 mock 或浏览器存储                                                                                     | ✅   |
 | 11  | PGlite host 与 renderer 编译自不同协议版本         | 发起连接                                                                             | 连接失败并报可判别的错误码；不建目录、不按旧协议降级解释载荷                                                                                 | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
@@ -104,7 +104,7 @@ AC#4 的落地过程中查出并修掉了一个**产品缺陷**：`transaction_p
 修复把解码抽成 `packages/rxdb-adapter-pglite/src/system/change-row.ts`，两条 hydrate 路径共用，
 回归断言在 `transaction_pglite_result.change-row.spec.ts`。
 
-### AC#10 为什么仍是 ⬜
+### AC#10 的关闭过程（2026-09-01 已关）
 
 它的判据是「**打包后**的 Electron 应用在 macOS / Windows / Linux **CI** 中通过」，
 三个条件本机一个都满足不了：本机只有 macOS，且跑的是源码档位而不是 electron-builder 产物。
@@ -125,8 +125,12 @@ external 依赖改声明进 `dependencies`，并补两条单测把
 `tools/stage-external-dependencies.mjs` 的搬运清单同时钉在 `package.json` 的 `dependencies`
 与 esbuild 的 `external` 上（`src-electron/desktop-sqlite-bridge.spec.ts`），三者任一处漂移即红。
 
-**本条仍保持 ⬜**：修完之后还没有一次三 OS 全绿的跑。AC#10 要的是「通过」，不是「修过」。
-下一次 `workflow_dispatch` 跑绿即可关闭本条并关闭本故事；同一次跑也会关掉
+**那次修完之后本条曾保持 ⬜**：AC#10 要的是「通过」，不是「修过」。**2026-09-01 补上了这一跑**——
+`Release Desktop` [run 33476341615](https://github.com/aiao-io/rxdb/actions/runs/33476341615)
+（`workflow_dispatch` on `main` @ `9d1735a`）**8/8 job 全 `success`、零 `skipped`**，
+`electron-smoke` 三 OS 矩阵全绿，其中 `windows-latest` 由红转绿，直接证实了上述依赖收集修复。
+本条关闭，十一条 AC 全关。修复留下的长期不变量已转
+[roadmap 排期约束 15](../../roadmap.md#排期约束)。同一次跑也关掉了
 [US-505 的 AC#6/#7](../plugin/US-505-tauri-local-file-storage.md)。
 
 > **AC#11 补入**，与 [US-207 AC#9](./US-207-desktop-local-database.md#ac9-为什么值得单列一条)

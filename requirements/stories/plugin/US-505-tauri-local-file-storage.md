@@ -1,7 +1,7 @@
 ---
 id: US-505
 title: Tauri 本地文件存储
-status: In Progress
+status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-15
@@ -87,8 +87,8 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 | 3   | 应用已写入若干文件与目录                                                         | 退出应用，把应用数据目录整体拷贝到新位置，启动          | `list()` 结构完整，逐文件 `read()` 字节一致 —— meta（US-210 的 SQLite）与文件本体在同一备份域                                                                                               | ✅   |
 | 4   | renderer 构造恶意路径（`../`、绝对路径、盘符、NUL、Windows 保留名）              | 经传输层发起文件操作                                    | Rust 侧拒绝并返回稳定可判别错误；capability 作用域之外无任何写入                                                                                                                            | ✅   |
 | 5   | 上传/读取超过预览上限量级（≥ 50 MiB）的文件                                      | 全程观察内存与中断行为                                  | 分帧流式完成，内容不整体进 JS 堆；中途 abort 或杀进程后重启，无半写文件、无孤儿 meta                                                                                                        | ✅   |
-| 6   | 三家 webview（WebView2 / WKWebView / WebKitGTK）                                 | 触发 `download()` 保存与 `fetch()` 远程缓存             | 保存路径行为被集成测试锁定（WKWebView 无 `showSaveFilePicker`、`<a download>` 行为未定，正是门禁对象）；`fetch()` 在自定义协议 origin 下的 CORS 行为被锁定或有可判别错误                    | ⚠️   |
-| 7   | 构建打包后的 Tauri 应用                                                          | 在 macOS、Windows、Linux CI 中运行文件持久化 smoke test | 三平台均通过；测试使用真实临时目录而非 mock 或浏览器存储                                                                                                                                    | ⚠️   |
+| 6   | 三家 webview（WebView2 / WKWebView / WebKitGTK）                                 | 触发 `download()` 保存与 `fetch()` 远程缓存             | 保存路径行为被集成测试锁定（WKWebView 无 `showSaveFilePicker`、`<a download>` 行为未定，正是门禁对象）；`fetch()` 在自定义协议 origin 下的 CORS 行为被锁定或有可判别错误                    | ✅   |
+| 7   | 构建打包后的 Tauri 应用                                                          | 在 macOS、Windows、Linux CI 中运行文件持久化 smoke test | 三平台均通过；测试使用真实临时目录而非 mock 或浏览器存储                                                                                                                                    | ✅   |
 | 8   | 磁盘满或存储根无写权限                                                           | `upload()` / `fetch()`                                  | 稳定可判别错误 + 原始原因；补偿语义成立（meta 与文件不脱钩），不回退 webview 存储/内存（对齐 US-504 AC#6）                                                                                  | ✅   |
 | 9   | 同一应用开两个 webview 窗口                                                      | 并发 `upload()` 同一路径（其一 overwrite）              | 串行化执行，结果等价于某一种顺序执行；无文件删失、无孤儿 meta —— 锁归宿决策在 Tauri webview 矩阵上成立，Web Locks 缺失时不得静默单进程化（对齐 US-504 AC#7，见技术笔记）                    | ✅   |
 | 10  | web 应用照常使用插件（不配桌面后端）                                             | 构建 + 运行现有浏览器测试                               | 行为与包体不变；Tauri 传输客户端代码不进浏览器 bundle；新增子路径入口按 `KNOWN_UNCOVERED_SUBPATHS` 流程登记（对齐 US-504 AC#8）                                                             | ✅   |
@@ -105,12 +105,13 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 
 ## 交付状态
 
-传输层与 Rust 文件宿主已实现并接入 demo，11 条 AC 中 **9 条 ✅、2 条 ⚠️**。
+传输层与 Rust 文件宿主已实现并接入 demo，**11 条 AC 全部 ✅**。
 
-⚠️ 的两条是 AC#6 / #7：specs 已写完并在 macOS 本机全绿，但它们的判据是**三平台真实
-webview**，本机只核得动 WKWebView 一列。三平台真值**已于 2026-08-31 全部回填**
-（PR #48 的三 OS 首跑输出），关闭这两条只差一次**跑绿的** `release-desktop.yml`
-`workflow_dispatch`（见文末「剩余一步」）。
+最后两条 AC#6 / #7 已于 **2026-09-01 关闭**：`Release Desktop`
+[run 33476341615](https://github.com/aiao-io/rxdb/actions/runs/33476341615)（`workflow_dispatch`
+on `main` @ `9d1735a`）**8/8 job 全 `success`、零 `skipped`**，`tauri-smoke` 三 OS 矩阵全绿，
+`desktop-webview-capability.spec.ts` 在 WebView2 / WKWebView / WebKitGTK 三家真实 webview 上
+与 2026-08-31 回填的 `EXPECTED_BY_PLATFORM` 逐列一致。这是判据要的「通过」而非「修过」。
 
 **US-210 不是本故事的整体前置**，被它前置的只有 AC#1 / #7。这条前置（`apps/dev-rxdb-tauri-e2e`
 project + 三平台打包矩阵）已由 US-210 建好（其 AC#1 / #9 同日关闭），
@@ -164,7 +165,7 @@ project + 三平台打包矩阵）已由 US-210 建好（其 AC#1 / #9 同日关
 > 另外 `desktop-smoke` 现在带一个 globalSetup（`warm-up.ts`），它**不产生断言**，
 > 所以用例条数不受影响，见「剩余一步」。
 
-### 剩余一步（本机做不了）
+### 最后一步（已完成，2026-09-01）
 
 **回填已做完，只差一次跑绿。** 2026-08-31 的 PR [aiao-io/rxdb#48](https://github.com/aiao-io/rxdb/pull/48)
 真实触发了 `release-desktop.yml`，`tauri-smoke` 的三 OS 矩阵跑到了
@@ -186,8 +187,9 @@ project + 三平台打包矩阵）已由 US-210 建好（其 AC#1 / #9 同日关
 `desktop-file-storage.spec.ts`）。已由 `apps/dev-rxdb-tauri-e2e/src/warm-up.ts` globalSetup
 把这一次性冷启动成本付在断言之外解决（预热本身**不断言**，见该文件的 `@remarks`）。
 
-所以现在只剩：**再触发一次 `workflow_dispatch`，三 OS 全绿**，AC#6 / #7 即从 ⚠️ 升 ✅，
-本故事可关闭。同一次跑也会同时关掉 [US-208](../adapter/US-208-electron-pglite-data-directory.md) 的 AC#10。
+**这一步已完成**（2026-09-01）：[run 33476341615](https://github.com/aiao-io/rxdb/actions/runs/33476341615)
+三 OS 全绿、零 job 跳过，AC#6 / #7 从 ⚠️ 升 ✅，本故事全部 AC 关闭。同一次跑也关掉了
+[US-208](../adapter/US-208-electron-pglite-data-directory.md) 的 AC#10。
 
 ### 从 US-504 继承的三条决策（不再是开放项）
 

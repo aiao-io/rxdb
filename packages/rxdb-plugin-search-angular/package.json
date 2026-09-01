@@ -24,7 +24,7 @@
   "peerDependencies": {
     "@aiao/rxdb": "*",
     "@aiao/rxdb-plugin-search": "*",
-    "@angular/core": "22.1.4",
+    "@angular/core": "^22.1.4",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {

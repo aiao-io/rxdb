@@ -24,7 +24,8 @@
 
 > **批次 1 已全部交付**（2026-08-29 / 08-30），批次本身已从本节移除。三条线的代号下文仍在引用，留个对照：
 > 线 C = US-505 收尾 spec，线 E = US-904 阶段 A（判 `supported`）+ C1/C2，线 G = US-208 两案对照实验
-> （冻结为「IPC 事务 ID 协议」）。未随批次关闭的遗留物各有去处：线 C 的 AC#6/#7 → 零散收尾项第 1 条；
+> （冻结为「IPC 事务 ID 协议」）。未随批次关闭的遗留物各有去处：线 C 的 AC#6/#7 已随
+> 2026-09-01 的三 OS 矩阵跑绿关闭（存证见[零散收尾项](#零散收尾项不成故事随手可带)）；
 > 线 E 的 AC#38/#39/#42 → 下表 US-904 行。
 
 ### 批次 2：已开工的两条线
@@ -36,10 +37,10 @@
 
 ### 批次 3：能力与验证补齐（无硬前置，按价值排在后面）
 
-| 故事                                                                                                          | 为什么不排进批次 1 / 当前状态                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [US-208](stories/adapter/US-208-electron-pglite-data-directory.md) **实现本体** ✅（2026-08-30，`In Review`） | 已按线 G 冻结的「IPC 事务 ID 协议」实现：**AC#1～#9、#11 关闭**（`pglite-data-directory.spec.ts` 真实临时目录重启逐值保真、`pglite-transaction-contract.spec.ts` 共享事务套件 11 条零跳过、`pglite-open-failure.spec.ts` open 失败可判别、`electron-pglite-host.spec.ts` 握手 / 会话清场 / 权限）。**AC#10（三平台打包 smoke）**：`desktop-persistence-pglite.spec.ts` 已写 + PGlite 桌面选择链已接。PR #48 的三 OS dispatch **已真实跑过**：macOS / Linux 绿，Windows 红在 `Cannot find module '@electric-sql/pglite'`（electron-builder 26 只收 production 依赖图），已在 `76e2bf4` 修掉（长期不变量已转[排期约束 15](#排期约束)）。**仍 ⬜**——修完还没有一次全绿的跑，判据是「通过」不是「修过」，见零散收尾项第 1 条 |
-| [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 阶段 A → B → C                                | 阶段 A 只抽 host + 写可行性矩阵，**不扩大公开支持声明**；B/C 只吃矩阵里 `decision: supported` 的平台（约束 7）。未关闭的阶段不得改支持声明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 故事                                                                                              | 为什么不排进批次 1 / 当前状态                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-208](stories/adapter/US-208-electron-pglite-data-directory.md) **AC 已全关** ✅（2026-09-01） | 已按线 G 冻结的「IPC 事务 ID 协议」实现：**AC#1～#9、#11 关闭**（`pglite-data-directory.spec.ts` 真实临时目录重启逐值保真、`pglite-transaction-contract.spec.ts` 共享事务套件 11 条零跳过、`pglite-open-failure.spec.ts` open 失败可判别、`electron-pglite-host.spec.ts` 握手 / 会话清场 / 权限）。**AC#10（三平台打包 smoke）已关闭**：2026-09-01 的 [run 33476341615](https://github.com/aiao-io/rxdb/actions/runs/33476341615) 三 OS 全绿，`electron-smoke (windows-latest)` 由红转绿（上一轮死在 `Cannot find module '@electric-sql/pglite'`，`76e2bf4` 修掉，长期不变量已转[排期约束 15](#排期约束)）。**十一条 AC 全部关闭，可从 `In Review` 收口** |
+| [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 阶段 A → B → C                    | 阶段 A 只抽 host + 写可行性矩阵，**不扩大公开支持声明**；B/C 只吃矩阵里 `decision: supported` 的平台（约束 7）。未关闭的阶段不得改支持声明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 ### 批次 4：epic-006 链（整体压后）
 
@@ -55,37 +56,21 @@
 
 ### 零散收尾项（不成故事，随手可带）
 
-> 已完成的两条（`migration-release-gate` 挂进 PR CI、Electron 打包的 external 依赖声明）已移出本节。
-> 前者的落点见 [release-plan.md 执行顺序第 0 步](release-plan.md)，后者留下的长期不变量见[排期约束 15](#排期约束)。
+> 已完成的三条（`migration-release-gate` 挂进 PR CI、Electron 打包的 external 依赖声明、
+> **三 OS 矩阵跑绿**）已移出本节。第一条的落点见 [release-plan.md 执行顺序第 0 步](release-plan.md)，
+> 第二条留下的长期不变量见[排期约束 15](#排期约束)，第三条的实证见下方存证。
+>
+> **三 OS 矩阵已跑绿**（2026-09-01）：`Release Desktop`
+> [run 33476341615](https://github.com/aiao-io/rxdb/actions/runs/33476341615)，`workflow_dispatch`
+> on `main` @ `9d1735a`，**8/8 job 全 `success`、零 `skipped`**（`electron-smoke` × 3 OS +
+> `tauri-smoke` × 3 OS + `adapter-consumer` + `gate`），墙钟 11m12s。这一跑同时关掉三处判据：
+> US-505 AC#6/#7（三家真实 webview 的能力事实与 `EXPECTED_BY_PLATFORM` 一致）、US-208 AC#10
+> （三平台打包 smoke）、US-207 的三条发布性质（`adapter-consumer` 两个包各跑一遍）。
+> 它也是[排期约束 15](#排期约束)的首次真实验证：`electron-smoke (windows-latest)` 由红转绿，
+> 上一轮（PR [#48](https://github.com/aiao-io/rxdb/pull/48)）正是死在这一格的
+> `Cannot find module '@electric-sql/pglite'`。
 
-1. **跑绿一次三 OS 矩阵**（线 C 的 AC#6 / #7 + US-208 AC#10 用）：
-   **specs 已就位**（2026-08-29），`tauri-smoke` 的三 OS 矩阵会跑到
-   `desktop-webview-capability.spec.ts`。这两条 AC 的判据是三家真实 webview，**缺的只是
-   linux / win32 那两家**——darwin 那一份本机就能跑完：`nx run dev-rxdb-tauri-e2e:desktop-smoke`
-   会先 `tauri build --ci --no-bundle` 出真 release 二进制再驱动它，热 target 下全程约 59s
-   （2026-09-01 在 `c250205` 上实测 4 files / 13 tests 全绿，含 `desktop-webview-capability`
-   的 darwin 列与 `devtools-release-isolation` 的 5 条 release 隔离断言）。所以本项**不是**
-   「本机跑不出来」，是「本机只能跑出三分之一」。
-   **回填已完成**（2026-08-31，`1acd2fb`）：`EXPECTED_BY_PLATFORM` 三行齐了——`darwin` 是本机核过的
-   真值，`linux` / `win32` 按 PR [aiao-io/rxdb#48](https://github.com/aiao-io/rxdb/pull/48) 的
-   Release Desktop 三 OS 首跑真实输出回填（首跑按设计红在「能力事实与本平台被冻结的取值一致」，
-   用例把真实观测打印成**可直接粘贴**的字面量，这是锁定过程本身而非缺陷）。
-   同跑暴露的另外两个缺陷也已修：
-   - Windows 首次拉起打包产物的那条用例稳定超时 62-64s（renderer 60 秒看门狗），
-     victim 与是哪条 spec 无关、只与「最早」有关 ⇒ `apps/dev-rxdb-tauri-e2e/src/warm-up.ts`
-     globalSetup 把这一次性冷启动成本付在断言之外（`1acd2fb`）。
-   - Windows Electron 侧 `Cannot find module '@electric-sql/pglite'` ⇒ electron-builder 26 只走
-     **production** 依赖图，external 依赖必须声明进 `dependencies`（`76e2bf4`，已转[排期约束 15](#排期约束)）。
-
-   ⚠️ 本条引的 `1acd2fb` / `76e2bf4`（以及本文其他处引的 `198439d`）都是 `next-0831` 上的分支 SHA，
-   **从 `main` 解析不到**；两处修复的内容已经过 `856054f`(#48) 落到 `main`（`EXPECTED_BY_PLATFORM`
-   三行与 `apps/dev-rxdb-electron/package.json` 的 `dependencies` 已逐字核对一致）。
-   在 `main` 上追溯请用 `856054f`。
-
-   **剩下的就是一次跑绿的 `workflow_dispatch`**：绿了之后 US-505 的 AC#6/#7 从 ⚠️ 升 ✅、可从
-   In Progress 关闭，US-208 的 AC#10 同时关闭、可从 In Review 关闭。这一步不依赖发布、可随时做。
-
-2. **线 A 启动前先跑 `nx release version --dry-run` 看真实版本号**（线 A 已压后到批次 4，启动时执行）：
+1. **线 A 启动前先跑 `nx release version --dry-run` 看真实版本号**（线 A 已压后到批次 4，启动时执行）：
    `v0.0.25` 已脱离主线，`git describe` 解析到的基准 tag 回退成 `v0.0.24`，而 `v0.0.24..HEAD` 区间里有
    17 条 `feat` + 3 条 `fix`（快照数字，启动前重新实测）。两个后果要在动手前确认：桥接版本会算成 minor bump（0.1.0）而不是 0.0.26；
    且该区间包含已随 0.0.25 发布过的提交，changelog 会把 0.0.25 已发的内容再写一遍，需要决定是否手工裁剪。
