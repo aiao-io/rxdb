@@ -81,6 +81,28 @@ interface Finding {
   readonly detail: Record<string, unknown>;
 }
 
+/** 面板 frame 起不来时探针记的是 `null`（见 devtools-mv3-probe.mjs 的 `activation.frame ? … : null`）。 */
+interface PanelCapabilities {
+  permissions: string;
+  permissionsContains: string;
+  permissionsRequest: string;
+  runtimeConnect: string;
+  panelsCreate: string;
+  inspectedWindowEval: string;
+}
+
+/**
+ * 取出能力快照并 fail-fast。
+ *
+ * @remarks
+ * 不先拦住 `null` 的话，下面每一条都是同一个 `Cannot read properties of null`，
+ * 读起来像「能力探测挂了」，而真正发生的是**根本没采到快照**——两回事，报错必须说的是后者。
+ */
+function requireCapabilities(value: PanelCapabilities | null): PanelCapabilities {
+  if (value === null) throw new Error('面板 frame 未激活，探针没采到能力快照（panelCapabilities 记的是 null）');
+  return value;
+}
+
 let findings: Map<string, Finding>;
 let outputDir: string;
 
@@ -189,7 +211,7 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
       panelRegisteredBeforeSelection: boolean;
       tabSelection: { selected: string | null; presses: number; visited: string[] };
       panelHtmlFrameLoaded: boolean;
-      panelPortReceived: { type: string }[];
+      panelUi: { bodyText: string; connected: boolean };
       inspectedPage: { seen: string[] };
       devtoolsPageState: Record<string, unknown>;
       devToolsConsole: { level: string; message: string }[];
@@ -218,9 +240,11 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
     expect(detail.tabs, `DevTools tab 条：${detail.tabs.join(' | ')}`).toContain('RxDB');
     expect(detail.panelHtmlFrameLoaded).toBe(true);
     // 四段中继逐段留痕：background 注入的 bridge 发 PING → 页面回 HANDSHAKE →
-    // service worker 回 HANDSHAKE_ACK（走私有 MessagePort）→ 面板 port 收到 HANDSHAKE。
+    // 面板协商机回 HANDSHAKE_ACK（走私有 MessagePort，页面记 `port:HANDSHAKE_ACK`）。
+    // 面板侧的 HANDSHAKE 收据由连接守卫 UI 传递性证明：协商机只在暂存握手后才发 ACK，
+    // 而守卫在收到 HANDSHAKE 时离开「Waiting for RxDB connection」。
     expect(detail.inspectedPage.seen).toEqual(expect.arrayContaining(['PING', 'HANDSHAKE', 'port:HANDSHAKE_ACK']));
-    expect(detail.panelPortReceived.map(message => message.type)).toContain('HANDSHAKE');
+    expect(detail.panelUi.connected, `面板 UI 文本：${detail.panelUi.bodyText}`).toBe(true);
   });
 
   test('AC#3 chrome.scripting 注入落在已授权 origin', () => {
@@ -242,22 +266,25 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
   test('AC#4 刷新 inspected page 后旧连接不残留，重新 INIT 可恢复', () => {
     const detail = expectOk('AC4a.reloadInspectedPage').detail as {
       immediatelyAfterReload: { seen: string[]; ports: number };
-      afterReInit: { seen: string[] };
+      afterReInit: { seen: string[]; ports: number };
     };
-    expect(detail.immediatelyAfterReload.seen).toEqual([]);
-    expect(detail.immediatelyAfterReload.ports).toBe(0);
+    // 「旧连接不残留」是传递性证据：刷新时 content script 与旧页面一起销毁，旧 bridge 的私有
+    // 端口无处可去；ACK 与面板命令（GET_BRANCHES）落在刷新后新建的端口上，即证明 bridge 采纳
+    // 的是新握手通道。`immediatelyAfterReload` 快照只作早期状态参考——生产链路恢复多快取决于
+    // 注入时序，把「2 秒内必须为空」当判据等于把注入速度当被测能力。
     expect(detail.afterReInit.seen).toContain('port:HANDSHAKE_ACK');
+    expect(detail.afterReInit.seen).toContain('port:GET_BRANCHES');
   });
 
   test('AC#4 关闭 DevTools 后重开，新 Port 完成往返且无旧连接顶替', () => {
     const detail = expectOk('AC4b.devtoolsCloseReopen').detail as {
       afterClose: { devToolsOpened: boolean; contents: { type: string }[] };
-      freshPanelPortReceived: { type: string }[];
+      panelUi: { bodyText: string; connected: boolean };
       pageAfterReopen: { seen: string[] };
     };
     expect(detail.afterClose.devToolsOpened).toBe(false);
     expect(detail.afterClose.contents.map(item => item.type)).not.toContain('remote');
-    expect(detail.freshPanelPortReceived.map(message => message.type)).toContain('HANDSHAKE');
+    expect(detail.panelUi.connected, `面板 UI 文本：${detail.panelUi.bodyText}`).toBe(true);
     expect(detail.pageAfterReopen.seen).toContain('port:HANDSHAKE_ACK');
   });
 
@@ -274,26 +301,15 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
     expect(detail.serviceWorkersAfterIdle).toEqual([]);
   });
 
-  // 不是 AC，但是阶段 D 必须知道的事实：Electron 43 整个 chrome.permissions 命名空间缺失，
-  // 面板的 InspectedPageAccessService 会抛 TypeError。阶段 D 要做显式能力探测，
-  // 不能写静默 fallback（AGENTS.md：无 fallback 兜底）。这条固化现状，Electron 补上后它会变红，
-  // 那正是提醒去掉阶段 D 的能力探测分支的时机。
+  // 不是 AC，但是阶段 D 必须知道的事实：Electron 43 整个 chrome.permissions 命名空间缺失。
+  // 面板的 InspectedPageAccessService 对此有生产处理（按静态 host permission 判 granted 并真实
+  // INIT，见该服务 @remarks）——不是静默 fallback，是平台语义的显式映射。这条固化能力快照：
+  // Electron 补上该 API 后它会变红，那正是提醒去掉生产 variance 分支的时机。
   test('已记录 chrome.permissions 在 Electron 43 缺失', () => {
     const detail = finding('finding.chromePermissionsMissing').detail as {
-      panelCapabilities: {
-        permissions: string;
-        permissionsContains: string;
-        permissionsRequest: string;
-        runtimeConnect: string;
-        panelsCreate: string;
-        inspectedWindowEval: string;
-      } | null;
+      panelCapabilities: PanelCapabilities | null;
     };
-    // 面板 frame 起不来时探针记的是 `null`（见 devtools-mv3-probe.mjs 的 `activation.frame ? … : null`）。
-    // 不先拦住的话下面每一条都是同一个 `Cannot read properties of null`，读起来像「能力探测挂了」，
-    // 而真正发生的是**根本没采到快照**——两回事，报错必须说的是后者。
-    const caps = detail.panelCapabilities;
-    if (caps === null) throw new Error('面板 frame 未激活，探针没采到能力快照（panelCapabilities 记的是 null）');
+    const caps = requireCapabilities(detail.panelCapabilities);
 
     expect(caps.permissions).toBe('undefined');
     expect(caps.permissionsContains).toBe('undefined');

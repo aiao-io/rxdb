@@ -35,20 +35,38 @@ const workspaceRoot = resolve(appRoot, '../..');
  * 输出名带 `.bundle` 是**故意**的：tsc 照样会往 `desktop-host-bridge.js` 写它那份
  * 未打包的产物，同名就成了两个进程抢一个文件。
  *
- * 入口取**合流后的** `desktop-host-bridge.ts`（US-504）：SQLite 与文件两族 host 都要
+ * 第一个入口取**合流后的** `desktop-host-bridge.ts`（US-504）：SQLite 与文件两族 host 都要
  * 跟进产物，各打一份会把协议模块复制两遍，也会让 `main.ts` 维护两条 import 路径。
+ *
+ * 第二个入口是 PGlite worker（US-208）。它**必须**单独成块而不是并进第一个：worker 是
+ * `new Worker(路径)` 加载的，需要一个自己的文件；而反过来把它并进主进程那份，
+ * 就等于把 PostgreSQL WASM 拉回主进程——那正是要 worker 的原因。
+ *
+ * `@electric-sql/pglite` 保持 external：它按 `import.meta.url` 去找 `initdb.wasm` /
+ * `pglite.data` / contrib 的 `.tar.gz`，打成 CJS 后那些相对定位全部落空（表征是运行时
+ * 报找不到 wasm，而不是构建失败）。external 的代价是它得靠 electron-builder 的
+ * `files` 白名单单独放行——见 electron-builder.json 里那条 re-include，
+ * 以及 US-208 AC#10 里关于打包验证的说明。
  *
  * 导出给 `desktop-sqlite-bridge.spec.ts` 断言——测试因此校验的是真正被用上的对象，
  * 而不是一段可能已经和实现脱节的命令行字符串。
  */
 export const bundleOptions = {
-  entryPoints: [resolve(appRoot, 'src-electron/desktop-host-bridge.ts')],
-  outfile: resolve(workspaceRoot, 'dist/apps/dev-rxdb-electron/src-electron/desktop-host-bridge.bundle.js'),
+  // 对象形式而不是数组：键就是产物基名，`.bundle` 后缀因此仍由这里决定
+  // （tsc 照样会往 `desktop-host-bridge.js` 写它那份未打包产物，同名就是两个进程抢一个文件）。
+  entryPoints: {
+    'desktop-host-bridge.bundle': resolve(appRoot, 'src-electron/desktop-host-bridge.ts'),
+    'desktop-pglite-worker.bundle': resolve(appRoot, 'src-electron/desktop-pglite-worker.ts'),
+    // US-904 阶段 D：`devtools-extension.ts` import 了 `@aiao/rxdb-devtools`，同样必须打进
+    // 产物（ELEC-23），否则生产包里 `require("@aiao/rxdb-devtools")` 落空。
+    'devtools-extension.bundle': resolve(appRoot, 'src-electron/devtools-extension.ts')
+  },
+  outdir: resolve(workspaceRoot, 'dist/apps/dev-rxdb-electron/src-electron'),
   bundle: true,
   platform: 'node',
   format: 'cjs',
   target: 'node22',
-  external: ['electron'],
+  external: ['electron', '@electric-sql/pglite'],
   sourcemap: true,
   logLevel: 'info'
 };

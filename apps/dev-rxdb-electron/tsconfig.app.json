@@ -25,13 +25,16 @@
   "include": ["src/**/*.ts", "src-electron/ipc-contract.ts"],
   "references": [
     {
-      "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
-    },
-    {
       "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-plugin-storage/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
     },
     {
       "path": "../../packages/utils/tsconfig.lib.json"
@@ -46,10 +49,10 @@
       "path": "../../packages/rxdb-angular/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb/tsconfig.lib.json"
+      "path": "../../packages/rxdb-test/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-test/tsconfig.lib.json"
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-adapter-electron/tsconfig.lib.json"

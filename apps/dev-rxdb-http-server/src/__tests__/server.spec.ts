@@ -9,15 +9,14 @@
  * 每个用例起一份独立的临时库：`port: 0` 让内核挑端口，测试之间不会抢 4301。
  */
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { SEED_ROW_COUNT } from '../config.ts';
-import { openDatabase } from '../db.ts';
-import { seedDatabase, seedIdAt } from '../seed.ts';
+import { seedIdAt } from '../seed.ts';
 import type { DemoServer } from '../server.ts';
 import { createDemoServer } from '../server.ts';
 
@@ -35,15 +34,11 @@ let workdir: string;
 let demo: DemoServer;
 let baseUrl: string;
 
-const databasePath = (): string => join(workdir, 'demo.sqlite');
+const dataDir = (): string => join(workdir, 'pglite');
 
 beforeEach(async () => {
   workdir = mkdtempSync(join(tmpdir(), 'us214-server-'));
-  const db = openDatabase(databasePath());
-  seedDatabase(db);
-  db.close();
-
-  demo = createDemoServer({ databasePath: databasePath(), exposeEtag: true, controlEnabled: true });
+  demo = await createDemoServer({ dataDir: dataDir(), exposeEtag: true, controlEnabled: true });
   await new Promise<void>(resolve => demo.server.listen(0, '127.0.0.1', () => resolve()));
   baseUrl = `http://127.0.0.1:${(demo.server.address() as AddressInfo).port}/v1`;
 });
@@ -280,18 +275,40 @@ describe('条件请求', () => {
   });
 });
 
-describe('种子确定性（AC#6）', () => {
-  it('reset + seed 跑两遍产出逐字节相同的库文件', async () => {
-    const first = await readAfterReset();
-    const second = await readAfterReset();
-    expect(Buffer.compare(first, second)).toBe(0);
+describe('种子确定性（D7）', () => {
+  it('reset 跑两遍读出的 250 行逐字节相同', async () => {
+    const first = await readAllRowsAfterReset();
+    const second = await readAllRowsAfterReset();
+    expect(first).toEqual(second);
   });
 
-  const readAfterReset = async (): Promise<Buffer> => {
+  const readAllRowsAfterReset = async (): Promise<Record<string, unknown>[]> => {
     const response = await post('__control/reset', {});
     expect(await response.json()).toEqual({ rows: SEED_ROW_COUNT });
-    return readFileSync(databasePath());
+    // 全量回读完整行（不是只读 metadata）：D7 的「逐字节相同」覆盖 id / createdAt / updatedAt
+    // 与四个业务列。id 由 seedIdAt 派生，前三行钉在协议文档示例值。
+    const ids = Array.from({ length: SEED_ROW_COUNT }, (_unused, index) => seedIdAt(index));
+    return await postJson<Record<string, unknown>[]>('recipes/by-ids', { ids });
   };
+});
+
+describe('文件落盘（B3）', () => {
+  it('destroy 后重建同一 dataDir，写入的行仍在且种子不重灌', async () => {
+    const created = await postJson<Record<string, unknown>>('recipes', { title: 'Persist me', status: 'draft' });
+
+    // 关服释放 pglite 句柄，再对同一 dataDir 重建——等价于「重启进程」。
+    await demo.close();
+    demo = await createDemoServer({ dataDir: dataDir(), exposeEtag: true, controlEnabled: true });
+    await new Promise<void>(resolve => demo.server.listen(0, '127.0.0.1', () => resolve()));
+    baseUrl = `http://127.0.0.1:${(demo.server.address() as AddressInfo).port}/v1`;
+
+    // 写的那行还在，且种子没有被再次灌入（总行数 = 种子 + 1，不是 2 份种子）。
+    const rows = await postJson<MetadataRow[]>('recipes/metadata', { offset: 0, limit: 1000 });
+    expect(rows).toHaveLength(SEED_ROW_COUNT + 1);
+
+    const [persisted] = await postJson<Record<string, unknown>[]>('recipes/by-ids', { ids: [String(created['id'])] });
+    expect(persisted['title']).toBe('Persist me');
+  });
 });
 
 describe('错误与开关', () => {

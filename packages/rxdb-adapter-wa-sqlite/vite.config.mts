@@ -58,7 +58,9 @@ export default defineConfig(() => ({
     lib: {
       entry: {
         index: 'src/index.ts',
-        client: 'src/WaSqliteClientBase.ts'
+        client: 'src/WaSqliteClientBase.ts',
+        // package.json 的 `./testing` 子路径指向 dist/testing.js，入口漏了它就是死链
+        testing: 'src/testing.ts'
       },
       name: '@aiao/rxdb-adapter-wa-sqlite',
       formats: ['es' as const]

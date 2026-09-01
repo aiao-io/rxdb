@@ -25,6 +25,20 @@ export interface Oo1PreparedStatement {
 }
 
 /**
+ * `oo1.DB.createFunction` 的第三个可选参数，用于显式指定 SQL 函数 arity。
+ *
+ * @remarks
+ * 缺省时 OO1 按 `xFunc.length - 1` 推导 arity（把回调首个 `ctxPtr` 参数扣除）。
+ * 用 rest 参数写回调（`(_ctxPtr, ...args)`）时 `xFunc.length` 恒为 1，推导出的
+ * arity 恒为 0，导致任何带参调用（如 `SELECT rxdb_fts_bigram('probe')`）因参数
+ * 个数不符被 SQLite 拒绝。必须显式传 `arity` 覆盖推导。
+ */
+export interface Oo1CreateFunctionOptions {
+  /** SQLite 函数 arity：`-1` 表示变参，`0` 表示零参。缺省由 `func.length - 1` 推导。 */
+  arity?: number;
+}
+
+/**
  * `sqlite3.oo1.DB` / `OpfsDb` 的最小契约：执行 SQL、注册函数与关闭连接。
  */
 export interface Oo1Database {
@@ -39,7 +53,7 @@ export interface Oo1Database {
   }): this;
   close(): void;
   changes(total?: boolean, sixtyFour?: boolean): number;
-  createFunction(name: string, func: (...args: unknown[]) => unknown): this;
+  createFunction(name: string, func: (...args: unknown[]) => unknown, options?: Oo1CreateFunctionOptions): this;
 }
 
 /**

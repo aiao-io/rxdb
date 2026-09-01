@@ -1,4 +1,5 @@
 {
+  "//references": "必须重复声明：TS 的 references **不随 extends 继承**，光靠 tsconfig.app.json 里那两条，spec program 解析不到 `@aiao/rxdb-devtools` / `@modules/rxdb-devtools-panel`（表现为整片 TS2307）。",
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
     "types": ["chrome", "node", "vitest/globals"],
@@ -7,5 +8,13 @@
   },
   "exclude": [],
   "extends": "./tsconfig.app.json",
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "manifest.config.ts", "vite.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "manifest.config.ts", "vite.config.ts"],
+  "references": [
+    {
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+    },
+    {
+      "path": "../../modules/rxdb-devtools-panel/tsconfig.lib.json"
+    }
+  ]
 }

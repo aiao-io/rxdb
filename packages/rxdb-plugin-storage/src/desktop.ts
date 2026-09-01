@@ -66,7 +66,12 @@ const BACKEND_ERROR_CODES: Readonly<
   database_busy: 'backend_internal_error',
   invalid_file_path: 'path_escape',
   disk_full: 'disk_full',
-  write_aborted: 'write_aborted'
+  write_aborted: 'write_aborted',
+  // 两条 PGlite 事务错误码（US-208）：文件族根本发不出会撞上它们的请求，
+  // 真收到就说明 host 把应答串到了另一族上——那是 host 内部的错，不是调用方能修的。
+  // 表本身是穷尽的（`Record<Exclude<...>>`），漏一条编译期就报，所以这里不能留空。
+  transaction_not_found: 'backend_internal_error',
+  transaction_unavailable: 'backend_internal_error'
 };
 
 /** 单帧上限；读写都按它切分，内容因此不会整块进 JS 堆。 */

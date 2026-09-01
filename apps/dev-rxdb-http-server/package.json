@@ -3,8 +3,12 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "//": "AC#1：dependencies 必须为空——后端只用 node:http / node:sqlite / node:crypto 三个内置模块。往这里加任何一项都会让「零第三方依赖的参考实现」这句话失效。",
-  "dependencies": {},
+  "//": "阶段 A（US-216）起，协议端点由 RxDB 引擎（pglite memory）实现，因此新增 workspace 依赖。「零第三方依赖」属性随依赖引入消失（README「零依赖」一节在阶段 B 修订）。",
+  "dependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-adapter-pglite": "workspace:*",
+    "@modules/recipes-domain": "workspace:*"
+  },
   "nx": {
     "name": "dev-rxdb-http-server"
   }

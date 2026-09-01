@@ -158,6 +158,15 @@
     },
     {
       "path": "./packages/rxdb-adapter-http"
+    },
+    {
+      "path": "./modules/rxdb-devtools-panel"
+    },
+    {
+      "path": "./apps/rxdb-devtools-extension-e2e"
+    },
+    {
+      "path": "./modules/recipes-domain"
     }
   ]
 }

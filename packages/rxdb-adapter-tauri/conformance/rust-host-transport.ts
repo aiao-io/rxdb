@@ -120,6 +120,11 @@ export function startRustHostProcess(root: string, env?: Readonly<Record<string,
   child.stderr.on('data', (chunk: string) => {
     stderr += chunk;
   });
+  // stdin 上的写失败（典型情形：`stop()` 关掉管子之后还有请求在路上，比如
+  // `StorageFilesystem.dispose()` 排在微任务里的那条 `file.close`）默认会以
+  // `ERR_STREAM_WRITE_AFTER_END` 的形式变成 uncaught exception —— Vitest worker 整个崩掉，
+  // 报出来的是一句与被测代码无关的话。与上面 stdout 的处理同理：让在途请求带着真实原因失败。
+  child.stdin.on('error', error => failAll(error));
   child.on('exit', code => failAll(new Error(`the conformance host exited with code ${String(code)}: ${stderr}`)));
   child.on('error', error => failAll(error));
 
@@ -131,6 +136,11 @@ export function startRustHostProcess(root: string, env?: Readonly<Record<string,
       new Promise((resolveRequest, rejectRequest) => {
         if (exit) {
           rejectRequest(exit);
+          return;
+        }
+        // 管子已关但进程还没报 exit 的那个窗口：直接拒绝，别再往里写。
+        if (!child.stdin.writable) {
+          rejectRequest(new Error('the conformance host stdin is already closed'));
           return;
         }
         const id = nextId++;

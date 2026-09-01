@@ -72,8 +72,8 @@ export const DEMO_TOKEN = 'demo-token';
 
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** 开发用库文件。进 `.gitignore`；e2e **不碰**它，另用临时目录（AC#16）。 */
-export const DEFAULT_DATABASE_PATH = join(PROJECT_ROOT, '.data', 'demo.sqlite');
+/** 开发用数据目录（pglite dataDir，NodeFS 落盘）。进 `.gitignore`；e2e **不碰**它，另用临时目录（AC#16）。 */
+export const DEFAULT_DATA_DIR = join(PROJECT_ROOT, '.data', 'pglite');
 
 const readPositiveInt = (raw: string | undefined, fallback: number): number => {
   if (raw === undefined) return fallback;
@@ -88,10 +88,10 @@ const readPositiveInt = (raw: string | undefined, fallback: number): number => {
 export const resolvePort = (env: NodeJS.ProcessEnv = process.env): number =>
   readPositiveInt(env['RXDB_HTTP_DEMO_PORT'], DEFAULT_PORT);
 
-/** 库文件路径：`RXDB_HTTP_DEMO_DB` > {@link DEFAULT_DATABASE_PATH}。 */
-export const resolveDatabasePath = (env: NodeJS.ProcessEnv = process.env): string => {
+/** 数据目录（pglite dataDir）：`RXDB_HTTP_DEMO_DB` > {@link DEFAULT_DATA_DIR}。 */
+export const resolveDataDir = (env: NodeJS.ProcessEnv = process.env): string => {
   const raw = env['RXDB_HTTP_DEMO_DB'];
-  return raw === undefined || raw === '' ? DEFAULT_DATABASE_PATH : resolve(raw);
+  return raw === undefined || raw === '' ? DEFAULT_DATA_DIR : resolve(raw);
 };
 
 /**

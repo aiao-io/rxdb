@@ -1,16 +1,18 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import {
   createTauriHostTransport,
   RxDBAdapterTauri,
   TAURI_ADAPTER_NAME,
   type DesktopHostTransport
 } from '@aiao/rxdb-adapter-tauri';
+import { getDevToolsConnector } from '@aiao/rxdb-devtools';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginStorage, type RxDBStoragePluginOptions } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { createTauriConnectorTransport } from '../devtools/tauri-connector-transport';
 import { DESKTOP_DEMO_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
 
@@ -103,5 +105,11 @@ export default () => {
     .adapter(TAURI_ADAPTER_NAME, async db => new RxDBAdapterTauri(db, { transport }));
 
   rxdb.init();
+
+  // US-905 阶段 1：把页内 connector 接到 Tauri transport。阶段 1 只用真实 `database`
+  // provider（走 v2 数据面）；native files/settings 是阶段 2 接 US-210/US-505 才给。
+  const devtools = getDevToolsConnector({ transport: createTauriConnectorTransport() });
+  devtools.init(rxdb, getEntityMetadata);
+
   return rxdb;
 };

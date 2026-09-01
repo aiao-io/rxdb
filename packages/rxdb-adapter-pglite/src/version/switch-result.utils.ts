@@ -229,7 +229,7 @@ export const convertSwitchResultToSql = async (
 
     result.inserts.push({
       metadata,
-      ids: new Set(entityDataArray.map(data => data.id).filter(isEntityId)),
+      ids: new Set(entityDataArray.map(data => data['id']).filter(isEntityId)),
       sql: combinedSql,
       params: [], // 已经内联到 SQL 中
       changes: insertChangesMap.get(key)!
@@ -280,7 +280,7 @@ export const convertSwitchResultToSql = async (
       // 真正写下去的是「此刻」——undo/redo 是新的写入，详见 getSwitchUpdatedAt。
       const updatedAt =
         metadata.propertyMap.has('updatedAt') ?
-          getSwitchUpdatedAt([data.updatedAt, changesMap.get(id)?.inversePatch?.['updatedAt']])
+          getSwitchUpdatedAt([data['updatedAt'], changesMap.get(id)?.inversePatch?.['updatedAt']])
         : undefined;
       const { sql: updateSql, params: updateParams } = await update_sql<VersionEntityType>(
         metadata,
@@ -297,7 +297,7 @@ export const convertSwitchResultToSql = async (
 
     result.updates.push({
       metadata,
-      ids: new Set(entityDataArray.map(data => data.id).filter(isEntityId)),
+      ids: new Set(entityDataArray.map(data => data['id']).filter(isEntityId)),
       sql: combinedSql,
       params: [], // 已经内联到 SQL 中
       changes: updateChangesMap.get(key)!

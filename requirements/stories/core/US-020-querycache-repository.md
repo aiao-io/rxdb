@@ -31,7 +31,7 @@ INVEST 检查清单:
 阶段 A 曾挂的两条余项已在阶段 B 关闭：
 
 - **AC#21 的 identity 语义**：由 [querycache-identity.spec.ts](../../../packages/rxdb-adapter-sqlite-wasm/src/__tests__/querycache-identity.spec.ts) 关闭 —— 本地换成真 sqlite-wasm、只把远端换成内存替身，于是「同一 id 重复查询拿到同一实例」成为可证伪的断言。这条用例当场揪出两个**静默**缺陷：`updatedAt` 经实体解码成 `Date` 后新鲜度比较恒判 fresh（`diffMetadata` 按 ISO 字典序比，`string > Date` 走 number 提示得 `NaN`），以及 `upsertMany` 裸 SQL 写不维护 identity cache、拉下来的新值进不了调用方手里的实例。两者都表现为「查询照常返回，内容停在第一次同步那一刻」。
-- **AC#23 的翻页同步次数**：由 [D13](#d13--刚同步过的记忆窗口syncstaletime) 的同步记忆窗口关闭，失效策略已定（到期 / 本实体写 / 适配器换身份）。
+- **AC#23 的翻页同步次数**：由 [D13](#d13-刚同步过的记忆窗口syncstaletime) 的同步记忆窗口关闭，失效策略已定（到期 / 本实体写 / 适配器换身份）。
 
 阶段顺序有向：先让生产调用打到已有类，再修该类从未被真实 EntityManager 验证过的降级。反过来不成立——先打磨一个没有实例化路径的类，网站上的空操作谎言还在。
 
@@ -47,7 +47,7 @@ INVEST 检查清单:
 > **本节为留档。** 两档门禁**已全部解除**——US-212 现在零前置、关闭其阶段 A 即可直接发 `stable`，
 > README / npm 不再需要写 `experimental`。保留本节只为解释当初为何这样排；**不要照字面读成 US-212 仍被本故事挡着**。
 >
-> **阶段边界不因实现顺手而移动。** [D8](#d8--本地读一律走-irepository不再依赖-findall--findbyids-两个-optional-duck) 会让 AC#14 / AC#15 在阶段 A 顺带满足。允许提前打勾，但**阶段 B 的门禁语义不变**：US-212 标 `stable` 仍要求 #11～20 全部关闭，不得因「A 已经把 14/15 关了」而认为 B 已过半。
+> **阶段边界不因实现顺手而移动。** [D8](#d8-本地读一律走-irepository不再依赖-findall-findbyids-两个-optional-duck) 会让 AC#14 / AC#15 在阶段 A 顺带满足。允许提前打勾，但**阶段 B 的门禁语义不变**：US-212 标 `stable` 仍要求 #11～20 全部关闭，不得因「A 已经把 14/15 关了」而认为 B 已过半。
 
 QueryCache 接线独立有价值：supabase 已经声明了 QueryCache ducks（[US-203 AC#6](../adapter/US-203-supabase-adapter.md) ✅），缺的是引擎把它当生产路径。
 
@@ -133,7 +133,7 @@ export function selectPrimaryAdapterKind(sync: SyncOptions | undefined): Primary
 | **方法名与形参** | `remove(entity)`、`update(entity, patch)`、`find(FindOptions)`（支持 `limit`/`offset`/`order`）                           | `delete(ids)`、`update(id, data)`、`find({ where, localCacheFirst, offlineFallback })`（**没有** limit/offset/order） |
 | **入口数量**     | 8 个静态入口：`get` / `find` / `findOne` / `findOneOrFail` / `findAll` / `findByCursor` / `count` + 基类项                | 只有 `find` / `findById`                                                                                              |
 
-静态方法是在 `EntityManager.init()` 里按 `config.class.staticMethods` 绑到实体类上的。**「把 `config.class` 换成 `QueryCacheRepository`」会同时改掉这三行**：静态入口凭空少 6 个、`await Entity.create()` 从 Promise 变成 Observable、`find()` 回来的东西没有 `save()`。AC#3 要求 Full/Filter 逐值一致，那是拿这套面做基准的——断层不解决，AC#3 无从断言。裁决见 [D9](#d9--接线用委托保住-irepository-门面不换-configclass)。
+静态方法是在 `EntityManager.init()` 里按 `config.class.staticMethods` 绑到实体类上的。**「把 `config.class` 换成 `QueryCacheRepository`」会同时改掉这三行**：静态入口凭空少 6 个、`await Entity.create()` 从 Promise 变成 Observable、`find()` 回来的东西没有 `save()`。AC#3 要求 Full/Filter 逐值一致，那是拿这套面做基准的——断层不解决，AC#3 无从断言。裁决见 [D9](#d9-接线用委托保住-irepository-门面不换-configclass)。
 
 ### 病灶 6：适配器是流，不是实例
 
@@ -141,7 +141,7 @@ export function selectPrimaryAdapterKind(sync: SyncOptions | undefined): Primary
 
 > 带引用计数的缓存：订阅归零即释放，否则这层缓存会把 `rxdb.localAdapter$` 的引用计数永久钉在 1 以上，使上游的适配器缓存永远不会释放 —— 断连重连后仓储仍打向已断开的旧适配器。
 
-在构造期 `firstValueFrom(adapter$)` 拿一次实例塞进 `QueryCacheRepository`，就是把这个已修好的 bug 重新引入 QueryCache 路径。裁决见 [D10](#d10--适配器实例不得在构造期固化)。
+在构造期 `firstValueFrom(adapter$)` 拿一次实例塞进 `QueryCacheRepository`，就是把这个已修好的 bug 重新引入 QueryCache 路径。裁决见 [D10](#d10-适配器实例不得在构造期固化)。
 
 ## 设计决策
 

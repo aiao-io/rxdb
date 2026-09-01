@@ -1,5 +1,10 @@
 import type { EntityType, RxDB } from '@aiao/rxdb';
+import type { DevToolsConnectorTransport } from './connector-transport.js';
+import type { DevToolsNativeFilesProviderPorts } from './native/native-files-provider.js';
+import type { DevToolsProviderRuntime } from './provider/descriptor.js';
+import type { DevToolsProvider } from './provider/types.js';
 import type { DevToolsCapability } from './types.js';
+import type { DevToolsMutationPolicy } from './v2/authorization.js';
 
 /**
  * DevTools 实际使用的 RxDB 能力子集。
@@ -52,6 +57,23 @@ export interface DevToolsEntityMetadata {
  */
 export type GetEntityMetadataFn = (entity: EntityType) => DevToolsEntityMetadata | undefined;
 
+/**
+ * 页内 provider 装配中需要宿主显式注入的那一部分。
+ *
+ * @remarks
+ * 浏览器能自动探测的那一半（OPFS、页面下载路径、RxDB 实例）不在这里——那由连接器自己
+ * 按环境装配。这里只放浏览器探测不到的：原生文件后端、`settings` 的语义 kind 与显示用
+ * runtime。三者各自独立，缺省时连接器按浏览器形态装配。
+ */
+export interface DevToolsProviderOptions {
+  /** 原生文件后端端口；给定时 `files` 走 `native-files` 而不是 OPFS。 */
+  nativeFiles?: DevToolsNativeFilesProviderPorts;
+  /** `settings` 领域 provider；缺省为浏览器 settings（`kind: opfs`）。 */
+  settings?: DevToolsProvider;
+  /** descriptor 显示用 runtime；缺省 `browser`，只影响 `database` 领域。 */
+  runtime?: DevToolsProviderRuntime;
+}
+
 /** RxDB DevTools 配置选项。 */
 export interface DevToolsOptions {
   /**
@@ -85,6 +107,21 @@ export interface DevToolsOptions {
   capabilities?: DevToolsCapability;
 
   /**
+   * 页面是否为本次运行打开 v2 数据面的写路径。
+   *
+   * @defaultValue 'omit'
+   * @remarks
+   * 与 {@link DevToolsOptions.capabilities} 是两个决策者的开关，不能合成一个：
+   * 档位说的是「面板被允许下达多重的命令」，本项说的是「页面愿不愿意被写盘」。
+   * 合一之后，为了让面板能列目录而调到 `'full'`，会顺带把删除、上传、建目录一起打开。
+   *
+   * 默认 `'omit'`：接上 provider 只意味着**可读**，写入必须 owner 显式表态。
+   * 被拒时对端收到的是 `provider_unsupported`——与「没有这个领域」同形，
+   * 不泄漏页面开了哪些写能力（见 {@link DevToolsMutationPolicy}）。
+   */
+  mutationPolicy?: DevToolsMutationPolicy;
+
+  /**
    * 是否允许在 opaque origin（`location.origin === 'null'`）下用 `'*'` 广播消息。
    *
    * @defaultValue false
@@ -98,4 +135,24 @@ export interface DevToolsOptions {
    * 把本项设为 `true` 显式接受该风险。
    */
   allowOpaqueOrigin?: boolean;
+
+  /**
+   * 原生宿主（Electron / Tauri）的 provider 装配端口。
+   *
+   * @remarks
+   * 缺省时连接器按浏览器自动探测（OPFS `files` + browser `settings` + `runtime: browser`）。
+   * 桌面宿主必须显式给出：原生文件后端（`nativeFiles`）、`settings` 的语义 kind（`sqlite`），
+   * 与显示用 `runtime`。省略任何一项都不做「猜一个」的兜底，而是退回浏览器形态。
+   */
+  providers?: DevToolsProviderOptions;
+
+  /**
+   * 连接器的传输层；缺省为浏览器实现（window 总线 + MessageChannel 私有端口）。
+   *
+   * @remarks
+   * Tauri / 其它无共享 `window` 的宿主必须显式给一个宿主传输（如 `invoke`/`listen`），
+   * 否则 connector 仍按浏览器发 `window.postMessage`，面板侧永远收不到。缺省保持浏览器行为，
+   * 不破坏既有三框架 demo。
+   */
+  transport?: DevToolsConnectorTransport;
 }

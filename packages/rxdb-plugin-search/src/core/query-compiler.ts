@@ -46,12 +46,18 @@ export interface CompiledQuery {
 }
 
 /**
- * 将自由文本编译为 FTS5 MATCH 表达式。
+ * 归一化并校验预算，产出 token 列表。
  *
- * @param query 原始输入字符串
- * @returns 编译结果；若归一化后为空则返回 `null`
+ * 抽出来是为了让 PostgreSQL backend 的 `compilePgQuery` 复用**同一套**切分规则与预算上限：
+ * 两套后端只在「token → 后端表达式」这一步分岔，前面的输入面必须完全一致，
+ * 否则同一个查询词在两种存储上会因为切分差异得到不同的结果集（US-703 AC#2）。
+ *
+ * @param query - 原始输入字符串
+ * @returns 归一化后的 token 列表；全为非索引字符时返回 `null`
+ * @throws {SearchQueryLimitError} 查询长度 / token 数 / 单 token 长度任一超限
+ * @internal
  */
-export const compile = (query: string): CompiledQuery | null => {
+export const tokenizeQuery = (query: string): readonly string[] | null => {
   if (!query) return null;
   // 按非索引字符**切分**而非删除：unicode61 在索引侧同样把它们当分隔符，
   // 删除会把 `local-first` 粘成 `localfirst`，与索引里的 `local` / `first` 两个 token 全都对不上。
@@ -68,6 +74,18 @@ export const compile = (query: string): CompiledQuery | null => {
   if (oversizedToken) {
     throw new SearchQueryLimitError('tokenLength', MAX_TOKEN_LENGTH, oversizedToken.length);
   }
+  return tokens;
+};
+
+/**
+ * 将自由文本编译为 FTS5 MATCH 表达式。
+ *
+ * @param query 原始输入字符串
+ * @returns 编译结果；若归一化后为空则返回 `null`
+ */
+export const compile = (query: string): CompiledQuery | null => {
+  const tokens = tokenizeQuery(query);
+  if (!tokens) return null;
   // CJK token 走 bigram 编译（索引侧同样以 bigram 写入）；其余维持「精确 OR 前缀」
   const match = tokens.map(t => compileCjkToken(t) ?? `("${t}" OR "${t}"*)`).join(' AND ');
   return { match, tokens };

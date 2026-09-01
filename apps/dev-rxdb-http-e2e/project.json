@@ -7,7 +7,8 @@
   "sourceRoot": "apps/dev-rxdb-http-e2e/src",
   "targets": {
     "e2e": {
-      "dependsOn": ["dev-rxdb-http:build"]
+      "// dependsOn": "两个 webServer 要两条依赖链。前端 `dev-rxdb-http:build` 只沿自己的 import 图（http + wa-sqlite）走 `^build`，够不到后端独有的 `@aiao/rxdb-adapter-pglite`；而后端那条 webServer 是 playwright 直接 `node .../main.ts`，绕过 nx，只能吃 node_modules 里已存在的 dist —— 缺了就是 ERR_MODULE_NOT_FOUND。`dev-rxdb-http-server:build-deps` 是 @nx/js/typescript 推断出的 `nx:noop + dependsOn ^build`，专门把后端自己那棵依赖树的产物先建出来。",
+      "dependsOn": ["dev-rxdb-http:build", "dev-rxdb-http-server:build-deps"]
     }
   }
 }

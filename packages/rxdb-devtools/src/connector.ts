@@ -10,7 +10,14 @@ import {
 } from './connector-entity-info.js';
 import { RXDB_EVENT_TYPES, toEventRecord, type EventRecord } from './connector-events.js';
 import { maskEncryptedDocument, maskEncryptedEvent, type ConnectorMaskContext } from './connector-mask.js';
-import { CONNECTOR_MUTATION_POLICY, CONNECTOR_PROVIDERS } from './connector-providers.js';
+import {
+  CONNECTOR_MUTATION_POLICY,
+  createConnectorProviders,
+  resolveBrowserOpfsRoot,
+  saveFileThroughPage,
+  type ConnectorProviderPorts,
+  type ConnectorProviderRegistry
+} from './connector-providers.js';
 import {
   forceReleaseLocalAdapter,
   getErrorMessage,
@@ -20,6 +27,7 @@ import {
   type ForceReleaseResult
 } from './connector-runtime.js';
 import { subscribeOnce, type Subscription } from './connector-subscribe-once.js';
+import { createWindowConnectorTransport, type DevToolsConnectorTransport } from './connector-transport.js';
 import type { DevToolsOptions, DevToolsRxDB, GetEntityMetadataFn } from './connector-types.js';
 import { isRecord } from './internal/guards.js';
 import { SequenceGenerator } from './sequence.js';
@@ -43,14 +51,22 @@ import type { DevToolsConnectorEndpoint } from './v2/endpoint.js';
 import { createDevToolsConnectorEndpoint } from './v2/endpoint.js';
 import type { DevToolsConnectorNegotiationMessage } from './v2/negotiation-connector.js';
 
-export type { DevToolsEntityMetadata, DevToolsOptions, DevToolsRxDB, GetEntityMetadataFn } from './connector-types.js';
+export type {
+  DevToolsEntityMetadata,
+  DevToolsOptions,
+  DevToolsProviderOptions,
+  DevToolsRxDB,
+  GetEntityMetadataFn
+} from './connector-types.js';
 export { RXDB_EVENT_TYPES };
 
-const DEFAULT_OPTIONS: Required<DevToolsOptions> = {
+const DEFAULT_OPTIONS: Required<Omit<DevToolsOptions, 'transport'>> = {
   maxBufferSize: 100,
   enabled: true,
   capabilities: 'full',
-  allowOpaqueOrigin: false
+  mutationPolicy: CONNECTOR_MUTATION_POLICY,
+  allowOpaqueOrigin: false,
+  providers: {}
 };
 
 /**
@@ -112,21 +128,15 @@ const BRANCH_ENTITY_NAME = 'RxDBBranch' as const;
  * 当前协议只支持一个 RxDB 实例；同实例重复初始化是幂等操作。
  */
 export class DevToolsConnector {
-  #options: Required<DevToolsOptions>;
+  #options: Required<Omit<DevToolsOptions, 'transport'>> & Pick<DevToolsOptions, 'transport'>;
   #connected = false;
   #buffer: EventBuffer;
   #sequence: SequenceGenerator;
   #rxdbInstance: DevToolsRxDB | null = null;
   #eventListeners: Map<keyof RxDBEventMap, (event: RxDBEvent) => void> = new Map();
-  #messageHandler: ((event: MessageEvent) => void) | null = null;
-  /**
-   * 握手时建立的私有信道的己方端口，握手之后的收发全部走它。
-   *
-   * @remarks
-   * `null` 表示还没握过手（或已 {@link disconnect}）。此时出站消息退回
-   * `window.postMessage` —— 握手本身就必须这么发，没有别的路可走。
-   */
-  #port: MessagePort | null = null;
+  #transport: DevToolsConnectorTransport;
+  /** 传输层的入站退订；`null` 表示还没 {@link init}（或已 {@link disconnect}）。 */
+  #unsubscribe: (() => void) | null = null;
   #endpoint: DevToolsConnectorEndpoint | null = null;
   /**
    * 实体注册表；`null` 表示 {@link init} 没拿到 `getEntityMetadata`（或已断开）。
@@ -135,6 +145,16 @@ export class DevToolsConnector {
    * 不缓存实体清单本身 —— `config.entities` 是活数组，注册表按需重算。
    */
   #entityRegistry: EntityRegistry | null = null;
+  /**
+   * {@link init} 拿到的元数据读取函数。
+   *
+   * @remarks
+   * 单独留一份而不是从 {@link #entityRegistry} 里回取：v2 的 `database` provider 要自己建
+   * 索引（实例可能被换掉），拿到的必须是同一个函数，而注册表只对外给算好的索引。
+   */
+  #getEntityMetadata: GetEntityMetadataFn | null = null;
+  /** 本次会话的 v2 provider 装配；`disconnect()` 时连同订阅一起回收。 */
+  #providers: ConnectorProviderRegistry | null = null;
   #pendingSubscriptions: Set<Subscription> = new Set();
   #branchQueryInFlight = false;
   #disconnectInFlight: Promise<DisconnectResult> | null = null;
@@ -179,6 +199,7 @@ export class DevToolsConnector {
    */
   constructor(options: DevToolsOptions = {}) {
     this.#options = { ...DEFAULT_OPTIONS, ...options };
+    this.#transport = this.#options.transport ?? createWindowConnectorTransport();
     this.#buffer = new EventBuffer(this.#options.maxBufferSize);
     this.#sequence = new SequenceGenerator();
   }
@@ -211,6 +232,7 @@ export class DevToolsConnector {
     }
 
     this.#rxdbInstance = rxdb;
+    this.#getEntityMetadata = getEntityMetadata ?? null;
     this.#entityRegistry = getEntityMetadata ? createEntityRegistry(rxdb, getEntityMetadata) : null;
     // 立刻收集一次：`getEntityMetadata` 对未装饰的类抛错，这里让它在 init 上抛，
     // 而不是推迟到第一条事件——那时候异常会淹没在事件转发链里。
@@ -237,16 +259,18 @@ export class DevToolsConnector {
     if (typeof window === 'undefined') return;
 
     this.#postMessage(createMessage('DISCONNECT', 'page-to-devtools', null, this.#sequence.next()));
-    this.#closePort();
-    if (this.#messageHandler) {
-      window.removeEventListener('message', this.#messageHandler);
-      this.#messageHandler = null;
-    }
+    this.#transport.closeSessionPort();
+    this.#unsubscribe?.();
+    this.#unsubscribe = null;
     if (this.#rxdbInstance) this.#unsubscribeFromEvents(this.#rxdbInstance);
     this.#endpoint?.dispose();
     this.#endpoint = null;
+    // 端点拆了不等于订阅拆了：v2 的 database provider 自己在实例上挂着监听。
+    this.#providers?.dispose();
+    this.#providers = null;
 
     this.#rxdbInstance = null;
+    this.#getEntityMetadata = null;
     this.#clearEntityInfo();
     this.#clearPendingSubscriptions();
     this.#syncGlobalHelper();
@@ -312,26 +336,55 @@ export class DevToolsConnector {
    * 丢弃并给一次诊断 —— 静默丢弃会让升级期变成"点了按钮没反应"。
    */
   #setupMessageListener(): void {
-    if (this.#messageHandler) return;
-    this.#messageHandler = (event: MessageEvent) => {
-      if (event.source !== window) return;
-      if (event.origin && event.origin !== location.origin) return;
-      // v1 优先且语义不变：`isDevToolsMessage` 是对已知 v1 `type` 的闭集判断，
-      // `PROTOCOL_HELLO` 会被它判否——不分流的话 v2 协商永远起不来。
-      if (isDevToolsMessage(event.data)) {
-        if (!isDevToolsCommandMessage(event.data)) return;
-        // v1 命令仍受总线白名单约束：握手之后它们只能走私有端口。
-        // v2 协商帧不在这条闭集里，走下面的端点分支，与本白名单互不影响。
-        if (event.data.type !== WINDOW_BUS_ALLOWED_COMMAND) {
-          this.#warnWindowBusCommand(event.data.type);
-          return;
-        }
-        this.#handleMessage(event.data);
+    if (this.#unsubscribe) return;
+    this.#unsubscribe = this.#transport.subscribe(message => this.#handleInboundMessage(message));
+  }
+
+  /**
+   * 传输层交回的原始入站帧。
+   *
+   * @remarks
+   * source/origin 过滤已经由传输层做过（浏览器实现的 {@link DevToolsConnectorTransport.subscribe}），
+   * 这里只做协议分流：v1 命令走白名单，v2 帧交给端点。
+   */
+  #handleInboundMessage(message: unknown): void {
+    // v1 优先且语义不变：`isDevToolsMessage` 是对已知 v1 `type` 的闭集判断，
+    // `PROTOCOL_HELLO` 会被它判否——不分流的话 v2 协商永远起不来。
+    if (isDevToolsMessage(message)) {
+      if (!isDevToolsCommandMessage(message)) return;
+      // v1 命令仍受总线白名单约束：握手之后它们只能走私有端口。
+      // v2 协商帧不在这条闭集里，走下面的端点分支，与本白名单互不影响。
+      if (message.type !== WINDOW_BUS_ALLOWED_COMMAND) {
+        this.#warnWindowBusCommand(message.type);
         return;
       }
-      this.#endpoint?.receive(event.data);
-    };
-    window.addEventListener('message', this.#messageHandler);
+      this.#handleMessage(message);
+      return;
+    }
+    this.#endpoint?.receive(message);
+    this.#syncLegacyConnectionToSession();
+  }
+
+  /**
+   * v2 会话一旦打开，v1 事件流也算已连接。
+   *
+   * @remarks
+   * `#connected` 原先只由 legacy `HANDSHAKE_ACK` 置位。但两端都会说 v2 时协商直接落到 v2，
+   * 面板**永远不会**发那条 legacy ACK（ACK 所有权归面板，v2 分支只发 v2 ACK），于是事件
+   * 无限期滞留在 buffer 里——症状是 Database / Events 两页全空，且看起来像页面没有事件。
+   *
+   * 这不是「v1 该退场了」：阶段 C2 只把 `files` 迁到了 v2，数据库能力仍由 v1 消息承载
+   * （`database` 领域有意不宣告 descriptor，见 {@link createConnectorProviders}）。
+   * 两代协议在同一条链路上并存期间，**连接判定必须认两种证据**。
+   *
+   * 只升不降：这里不因 `sessionOpen` 转 `false` 而断开 v1。v2 session 结束有它自己的
+   * 终态处理，而 v1 的断开由 `DISCONNECT` 命令负责；让一处状态去关另一处的门会让
+   * 「谁把我断开的」不可追溯。
+   */
+  #syncLegacyConnectionToSession(): void {
+    if (this.#connected) return;
+    if (this.#endpoint?.sessionOpen !== true) return;
+    this.#onHandshakeAck();
   }
 
   /**
@@ -341,25 +394,21 @@ export class DevToolsConnector {
    * 每次握手都新建一对端口，旧端口立刻关掉：`PING` 会触发重新握手，
    * 复用旧端口的话上一次会话的对端仍然连着，权限撤销与断开都作用不到它。
    */
-  #createSessionPort(): MessagePort {
-    this.#closePort();
-    const channel = new MessageChannel();
-    this.#port = channel.port1;
-    this.#port.onmessage = (event: MessageEvent) => {
-      // 端口是点对点的，没有 source/origin 可查 —— 能往里发消息的只有握手时
-      // 拿到 port2 的那一方。结构校验照做：对端一样可能发畸形消息。
-      if (!isDevToolsMessage(event.data) || !isDevToolsCommandMessage(event.data)) return;
-      this.#handleMessage(event.data);
-    };
-    this.#port.start();
-    return channel.port2;
+  #createSessionPort(): Transferable | undefined {
+    this.#transport.closeSessionPort();
+    return this.#transport.createSessionPort(message => this.#handlePortMessage(message));
   }
 
-  #closePort(): void {
-    if (!this.#port) return;
-    this.#port.onmessage = null;
-    this.#port.close();
-    this.#port = null;
+  /**
+   * 会话私有端口交回的原始帧。
+   *
+   * @remarks
+   * 端口是点对点的，没有 source/origin 可查 —— 能往里发消息的只有握手时拿到 port2 的那一方。
+   * 结构校验照做：对端一样可能发畸形消息。只收 v1 命令（端口是 v1 命令面的传输层）。
+   */
+  #handlePortMessage(message: unknown): void {
+    if (!isDevToolsMessage(message) || !isDevToolsCommandMessage(message)) return;
+    this.#handleMessage(message);
   }
 
   #warnWindowBusCommand(type: DevToolsCommandMessage['type']): void {
@@ -552,7 +601,7 @@ export class DevToolsConnector {
 
   #sendHandshake(): void {
     const remotePort = this.#createSessionPort();
-    this.#postMessage(this.#buildLegacyHandshake(), [remotePort]);
+    this.#postMessage(this.#buildLegacyHandshake(), remotePort === undefined ? undefined : [remotePort]);
   }
 
   /**
@@ -568,9 +617,9 @@ export class DevToolsConnector {
    * `PROTOCOL_HELLO` 到达才发。顺序不能反——只支持 v1 的面板收到未知 `type` 会直接丢弃，
    * 而它需要那条握手才知道页面上有 connector。
    *
-   * 本轮仍宣告空 descriptor 集（见 {@link CONNECTOR_PROVIDERS}）：页内还没有接上任何
-   * v2 provider，声明服务不了的 operation 等于让面板据此点亮按钮。真实 descriptor 随
-   * US-904 阶段 C / D 与 US-905 的 provider 一起接上。
+   * descriptor 集由 {@link createConnectorProviders} 按本页**实际**具备的能力装配：
+   * 有 OPFS 才宣告 `files`，`database` 的 v2 操作尚未实现因此不宣告。声明服务不了的
+   * operation 等于让面板据此点亮按钮。
    *
    * 端点只决定 legacy 握手**何时**出门，不知道 v1 传输层还要求这条握手**随附**本次会话的
    * 私有端口。所以端口在这里就建好，并按对象身份认出那唯一一条要携带它的出站消息——
@@ -581,17 +630,48 @@ export class DevToolsConnector {
   #startNegotiation(): void {
     const legacyHandshake = this.#buildLegacyHandshake();
     const remotePort = this.#createSessionPort();
+    const providers = createConnectorProviders({
+      getRootDirectory: resolveBrowserOpfsRoot(),
+      saveToDisk: saveFileThroughPage,
+      ...this.#databasePorts(),
+      ...this.#options.providers
+    });
     const endpoint = createDevToolsConnectorEndpoint({
       send: (message: DevToolsConnectorNegotiationMessage) =>
-        message === legacyHandshake ? this.#postMessage(message, [remotePort]) : this.#postMessage(message),
+        message === legacyHandshake ?
+          this.#postMessage(message, remotePort === undefined ? undefined : [remotePort])
+        : this.#postMessage(message),
       clock: createSystemClock(),
       capability: this.#options.capabilities,
-      mutationPolicy: CONNECTOR_MUTATION_POLICY,
-      providers: CONNECTOR_PROVIDERS,
+      mutationPolicy: this.#options.mutationPolicy,
+      providers,
       legacyHandshake
     });
+    this.#providers = providers;
     this.#endpoint = endpoint;
     endpoint.start();
+  }
+
+  /**
+   * `database` 领域的接入口——没有元数据就整个不接。
+   *
+   * @remarks
+   * `emitEvent` 走 `this.#endpoint` 而不是捕获某个端点实例：装配发生在端点构造**之前**
+   * （registry 是端点的构造入参），而重新握手会换掉端点。按调用时刻取，事件才总是发往
+   * 当前那条链路，而不是上一次会话那条已经关掉的。
+   *
+   * @returns 可展开进 {@link createConnectorProviders} 入参的片段；不接时是空对象。
+   */
+  #databasePorts(): Pick<ConnectorProviderPorts, 'database'> {
+    const getEntityMetadata = this.#getEntityMetadata;
+    if (getEntityMetadata === null) return {};
+    return {
+      database: {
+        getRxDB: () => this.#rxdbInstance ?? undefined,
+        getEntityMetadata,
+        emitEvent: (eventType, data) => this.#endpoint?.emitEvent(eventType, data)
+      }
+    };
   }
 
   #onHandshakeAck(): void {
@@ -918,17 +998,7 @@ export class DevToolsConnector {
    * 点对点信道不看 origin，这也正是握手之后要切过去的原因之一。
    */
   #postMessage(message: DevToolsConnectorNegotiationMessage, transfer?: Transferable[]): void {
-    if (typeof window === 'undefined') return;
-    try {
-      if (this.#port && !transfer && isDevToolsMessage(message)) {
-        this.#port.postMessage(message);
-        return;
-      }
-      const targetOrigin = location.origin === OPAQUE_ORIGIN ? '*' : location.origin;
-      window.postMessage(message, targetOrigin, transfer);
-    } catch (error) {
-      console.warn(`[${RXDB_DEVTOOLS_MESSAGE}] Failed to post message:`, error);
-    }
+    this.#transport.send(message, transfer);
   }
 }
 

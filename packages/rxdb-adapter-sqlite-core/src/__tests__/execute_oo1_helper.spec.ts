@@ -127,6 +127,19 @@ describe('executeOo1Helper', () => {
       expect(statement.bindCalls).toEqual([[1]]);
     });
 
+    // 空数组与 undefined 等价：无参数查询（如 count）传 `[]` 时不得调用 bind，
+    // 否则 OO1 对无绑定参数语句抛「This statement has no bindable parameters」。
+    it('传入空数组 bindings 时应该跳过 bind', () => {
+      const statement = new FakeStatement({ columns: ['count'], rows: [[0]] });
+      const db = new FakeHelperDb();
+      db.prepare = () => statement;
+
+      const result = executeOo1Helper('test', db, 'SELECT count(*) AS count FROM t', []);
+
+      expect(statement.bindCalls).toHaveLength(0);
+      expect(result.results).toEqual([{ columns: ['count'], rows: [[0]] }]);
+    });
+
     it('结果集无列时 results 应该为空数组', () => {
       const statement = new FakeStatement({ columns: [], rows: [] });
       const db = new FakeHelperDb();

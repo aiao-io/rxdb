@@ -22,6 +22,22 @@
         "kind": "type"
       },
       {
+        "name": "CONNECTOR_MUTATION_POLICY",
+        "kind": "value"
+      },
+      {
+        "name": "ConnectorDatabasePorts",
+        "kind": "type"
+      },
+      {
+        "name": "ConnectorProviderPorts",
+        "kind": "type"
+      },
+      {
+        "name": "ConnectorProviderRegistry",
+        "kind": "type"
+      },
+      {
         "name": "CreateBranchMessage",
         "kind": "type"
       },
@@ -30,11 +46,43 @@
         "kind": "value"
       },
       {
+        "name": "createConnectorProviders",
+        "kind": "value"
+      },
+      {
+        "name": "createDevToolsBrowserSettingsProvider",
+        "kind": "value"
+      },
+      {
         "name": "createDevToolsConnectorEndpoint",
         "kind": "value"
       },
       {
+        "name": "createDevToolsElectronSettingsProvider",
+        "kind": "value"
+      },
+      {
         "name": "createDevToolsError",
+        "kind": "value"
+      },
+      {
+        "name": "createDevToolsNativeFilesProvider",
+        "kind": "value"
+      },
+      {
+        "name": "createDevToolsNativeSnapshotSource",
+        "kind": "value"
+      },
+      {
+        "name": "createDevToolsOpfsFilesProvider",
+        "kind": "value"
+      },
+      {
+        "name": "createDevToolsPanelEndpoint",
+        "kind": "value"
+      },
+      {
+        "name": "createDevToolsRxdbDatabaseProvider",
         "kind": "value"
       },
       {
@@ -66,6 +114,10 @@
         "kind": "value"
       },
       {
+        "name": "createWindowConnectorTransport",
+        "kind": "value"
+      },
+      {
         "name": "DbInfoEntity",
         "kind": "type"
       },
@@ -90,6 +142,10 @@
         "kind": "value"
       },
       {
+        "name": "DEVTOOLS_BROWSER_SETTINGS_DESCRIPTOR",
+        "kind": "value"
+      },
+      {
         "name": "DEVTOOLS_CAPABILITIES",
         "kind": "value"
       },
@@ -99,6 +155,10 @@
       },
       {
         "name": "DEVTOOLS_DEFAULT_PAGE_SIZE",
+        "kind": "value"
+      },
+      {
+        "name": "DEVTOOLS_ELECTRON_SETTINGS_DESCRIPTOR",
         "kind": "value"
       },
       {
@@ -282,6 +342,10 @@
         "kind": "type"
       },
       {
+        "name": "DevToolsChunkSource",
+        "kind": "type"
+      },
+      {
         "name": "DevToolsClock",
         "kind": "type"
       },
@@ -315,6 +379,10 @@
       },
       {
         "name": "DevToolsConnectorNegotiationState",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsConnectorTransport",
         "kind": "type"
       },
       {
@@ -354,6 +422,10 @@
         "kind": "type"
       },
       {
+        "name": "DevToolsFilesProviderWithSource",
+        "kind": "type"
+      },
+      {
         "name": "DevToolsHandshakeCapabilities",
         "kind": "type"
       },
@@ -370,7 +442,55 @@
         "kind": "type"
       },
       {
+        "name": "DevToolsNativeEntry",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsNativeFilesProvider",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsNativeFilesProviderPorts",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsNativeFilesystem",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsNativeSnapshotPorts",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsOpfsEntry",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsOpfsFilesProvider",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsOpfsFilesProviderPorts",
+        "kind": "type"
+      },
+      {
         "name": "DevToolsOptions",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelDownloadRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelDownloadResult",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelEndpoint",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelEndpointPorts",
         "kind": "type"
       },
       {
@@ -387,6 +507,22 @@
       },
       {
         "name": "DevToolsPanelNegotiationState",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelRequestResult",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelUploadRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelUploadResult",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsPanelUploadSource",
         "kind": "type"
       },
       {
@@ -422,6 +558,10 @@
         "kind": "type"
       },
       {
+        "name": "DevToolsProviderOptions",
+        "kind": "type"
+      },
+      {
         "name": "DevToolsProviderRegistry",
         "kind": "type"
       },
@@ -446,11 +586,31 @@
         "kind": "type"
       },
       {
+        "name": "DevToolsRxdbDatabaseProvider",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsRxdbDatabaseProviderPorts",
+        "kind": "type"
+      },
+      {
         "name": "DevToolsSnapshotCaptureResult",
         "kind": "type"
       },
       {
         "name": "DevToolsSnapshotCursor",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSnapshotEntry",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSnapshotLock",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsSnapshotLockResult",
         "kind": "type"
       },
       {
@@ -678,7 +838,15 @@
         "kind": "value"
       },
       {
+        "name": "isValidPathSegment",
+        "kind": "value"
+      },
+      {
         "name": "isWithinTransferLimit",
+        "kind": "value"
+      },
+      {
+        "name": "joinLogicalPath",
         "kind": "value"
       },
       {
@@ -698,6 +866,10 @@
         "kind": "type"
       },
       {
+        "name": "parseLogicalPath",
+        "kind": "value"
+      },
+      {
         "name": "PingMessage",
         "kind": "type"
       },
@@ -714,6 +886,10 @@
         "kind": "value"
       },
       {
+        "name": "resolveBrowserOpfsRoot",
+        "kind": "value"
+      },
+      {
         "name": "resolveNegotiatedTransferLimit",
         "kind": "value"
       },
@@ -727,6 +903,10 @@
       },
       {
         "name": "satisfiesCapability",
+        "kind": "value"
+      },
+      {
+        "name": "saveFileThroughPage",
         "kind": "value"
       },
       {
@@ -747,6 +927,10 @@
       },
       {
         "name": "snapshotRecordBytes",
+        "kind": "value"
+      },
+      {
+        "name": "splitLogicalPath",
         "kind": "value"
       },
       {
@@ -872,8 +1056,16 @@
         "kind": "value"
       },
       {
+        "name": "FakeRelayNode",
+        "kind": "type"
+      },
+      {
         "name": "isCanonicalJsonFrame",
         "kind": "value"
+      },
+      {
+        "name": "JsonConformanceDriverOptions",
+        "kind": "type"
       },
       {
         "name": "JsonDriverEndpointFactory",
@@ -881,6 +1073,14 @@
       },
       {
         "name": "JsonDriverEndpoints",
+        "kind": "type"
+      },
+      {
+        "name": "JsonDriverNodeFactory",
+        "kind": "type"
+      },
+      {
+        "name": "JsonDriverNodes",
         "kind": "type"
       },
       {

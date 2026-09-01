@@ -64,6 +64,19 @@ test('Angular demo build writes to a dedicated output path, not the e2e dist', (
   assert.doesNotMatch(source, /dev-rxdb-angular\/browser/);
 });
 
+test('website:build is not parallelizable, because every step shells out to its own nx', () => {
+  // 每个 step 都用 execSync 再起一个 nx 进程去构建同一批项目。外层 `nx affected` 若同时
+  // 在跑这些项目，两个 nx 会同时往同一个 dist 目录里写；ng-packagr 写之前先删 dest，
+  // 于是外层给 `angular:build:production` 落缓存时可能一个产物都 glob 不到，把「产物为空」
+  // 记进 Nx 的任务库。之后每次命中缓存都「成功」且什么都不还原，dist/modules/angular
+  // 永远不出现，读它的 angular-todo:build 稳定报 TS2307——一次竞态污染，之后是必然失败。
+  // dev-rxdb-electron:build 的 `//dependsOn` 注释记的是同一个坑。
+  const projectJson = JSON.parse(readFileSync(join(repoRoot, 'website/project.json'), 'utf8'));
+
+  assert.equal(projectJson.targets.build.parallelism, false);
+  assert.ok(steps.every(step => /(?:^|\s)(?:pnpm )?(?:nx|exec) /.test(step.command)));
+});
+
 test('every --configuration referenced by a step exists in the target project.json', () => {
   // Nx 的 resolveConfiguration 对不存在的 configuration **静默**回退到 defaultConfiguration，
   // 构建照样报成功、产物却少了这份 configuration 的所有选项。逗号串联（`production,website`）

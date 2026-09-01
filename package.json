@@ -21,6 +21,7 @@
     "test-all:log": "node ./scripts/test-all-log.mjs",
     "test-packages": "nx run-many -t lint typecheck test test-browser build e2e --projects='packages/*' --output-style=static --skipRemoteCache --parallel=4 --nxBail",
     "audit:conditions": "node scripts/audit/package-runtime-conditions.mjs",
+    "audit:build-entries": "node scripts/audit/subpath-build-entries.mjs",
     "audit:api-surface": "node scripts/audit/api-surface.mjs --check",
     "audit:api-surface:update": "node scripts/audit/api-surface.mjs --update",
     "audit:coverage": "node scripts/audit/coverage-check.mjs --check",

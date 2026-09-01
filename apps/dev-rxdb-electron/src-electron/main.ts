@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, net, protocol } from 'electron';
+import { app, BrowserWindow, ipcMain, net, protocol, session } from 'electron';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 // ELEC-23：加载 esbuild 打出来的那份，不是 tsc 的逐文件产物 —— 后者留着一句
@@ -8,6 +8,7 @@ import {
   createDatabasePathResolver,
   createDesktopHostBridge,
   createStorageRootResolver,
+  resolvePgliteDataRoot,
   type DesktopHostBridge
 } from './desktop-host-bridge.bundle.js';
 import { DEMO_RUN_CHANNEL, DESKTOP_HOST_REQUEST_CHANNEL, parseDemoRequest, type DemoResult } from './ipc-contract';
@@ -28,10 +29,10 @@ const serve = args.some(val => val === '--serve');
 const hideWindow = shouldHideWindow(process.env);
 
 /**
- * 桌面 host（SQLite + 文件两族），首次被 renderer 请求时才建。
+ * 桌面 host（SQLite + 文件 + PGlite 三族），首次被 renderer 请求时才建。
  *
- * 惰性是有意的：`setupIPC()` 在 app ready 之前就跑，而库目录与文件根都挂在
- * `app.getPath('userData')` 下 —— 等到真有请求进来时，ready 早已完成。
+ * 惰性是有意的：`setupIPC()` 在 app ready 之前就跑，而库目录、文件根与 PGlite 数据根
+ * 都挂在 `app.getPath('userData')` 下 —— 等到真有请求进来时，ready 早已完成。
  */
 let desktopHost: DesktopHostBridge | null = null;
 
@@ -40,8 +41,37 @@ const requireDesktopHost = (): DesktopHostBridge =>
     resolveDatabasePath: createDatabasePathResolver(app.getPath('userData')),
     // US-504：文件内容与库文件同域，于是「拷一个 userData 目录」= 完整带走应用数据。
     resolveStorageRoot: createStorageRootResolver(app.getPath('userData')),
+    // US-208：PGlite 的 WASM 在调用线程上同步跑完整条查询，放主进程里会把窗口一起堵住，
+    // 因此单实例活在一条自己的 worker 线程上。入口同样是 esbuild 产物（ELEC-23）。
+    pgliteDataRoot: resolvePgliteDataRoot(app.getPath('userData')),
+    pgliteWorkerPath: path.join(__dirname, 'desktop-pglite-worker.bundle.js'),
     onDeliveryError: error => console.error('[dev-rxdb-electron] 数据库变更事件送达失败：', error)
   }));
+
+/**
+ * 开发态 DevTools 扩展的总开关环境变量名；与 `devtools-extension.ts` 的 `DEVTOOLS_ENABLE_ENV`
+ * 逐字一致。main.ts 必须在动态 import 之前先做这道闸，所以这里内联一份（ELEC-15 同款理由）。
+ */
+const DEVTOOLS_ENABLE_ENV = 'DEV_RXDB_DEVTOOLS';
+
+/**
+ * 开发态加载工作区那一个 unpacked DevTools 扩展（US-904 阶段 D AC#45）。
+ *
+ * @remarks
+ * 动态 import 是有意的：`devtools-extension.bundle.js` 被 electron-builder 的
+ * `!src-electron/devtools-*` 从生产包里排除——静态 import 会让生产包在启动时
+ * `Cannot find module`。闸门写在这里而不是依赖 bundle 里的 `isDevToolsEnabled`，
+ * 正是为了让「不加载」这件事在 import 之前就成立。
+ */
+async function loadDevToolsExtensionInDevMode(): Promise<void> {
+  if (process.env[DEVTOOLS_ENABLE_ENV] !== '1') return;
+
+  const { resolveDevToolsDevConfig, loadDevToolsExtension } = await import('./devtools-extension.bundle.js');
+  const config = resolveDevToolsDevConfig(process.env, path.isAbsolute);
+  if (config === undefined) return;
+
+  await loadDevToolsExtension(session.defaultSession.extensions, config);
+}
 
 /** 生产产物根目录：electron-builder 把 `browser/` 放进 Resources。 */
 const rendererRoot = (): string => path.join(process.resourcesPath, 'browser');
@@ -149,18 +179,31 @@ function createWindow(): BrowserWindow {
     // ELEC-22：生产模式走自定义协议而不是 loadFile。`file:` 下 Angular 的
     // ESM 入口会被当跨域拒绝、fetch 不可用、origin 不透明 —— 详见 main.utils.ts 里
     // APP_SCHEME 的注释，那里记着三条实测。
-    void win.loadURL(APP_ENTRY_URL).catch(reportLoadFailure);
+    // US-208 AC#10：`DEV_RXDB_PGLITE=1` 让本次运行选 PGlite 桌面后端（e2e 专用），
+    // 以 `?pglite=1` 传给 renderer —— renderer 在 sandbox 下读不到 `process.env`，
+    // 只能经入口 URL 拿这个选择。
+    const entryUrl = process.env['DEV_RXDB_PGLITE'] === '1' ? `${APP_ENTRY_URL}?pglite=1` : APP_ENTRY_URL;
+    void win.loadURL(entryUrl).catch(reportLoadFailure);
   }
 
   // AC#7：窗口没了，它开的库句柄必须跟着放。留着的话文件一直被占，
   // 用户重开窗口会撞上另一份连接的 WAL 锁，症状看着却像「数据库坏了」。
   // US-504 起同一步还要回收文件会话：未提交的写入要连临时文件一起中止，
   // 它持有的路径锁要放掉，否则下一个窗口会永远等在一把没人放的锁上。
+  // US-208 起还要回收 PGlite 的挂起事务：它独占那个唯一实例的连接，收不回来的表征是
+  // 「重开窗口后整个应用不响应」，而不是某次报错。
   // 这里捕获 webContents 而不是读 `win`：'destroyed' 触发时 `win` 已被下面的 'closed' 置空。
   const contents = win.webContents;
-  contents.on('destroyed', () => {
-    desktopHost?.releaseTarget(contents);
-  });
+  const releaseContents = (): void => {
+    // void：两个事件源都不接受异步收尾，而回收失败只可能是 host 已经没了 ——
+    // 那它名下的一切本来就随之消失了，没有可补救的动作。
+    void desktopHost?.releaseTarget(contents);
+  };
+  contents.on('destroyed', releaseContents);
+  // 'destroyed' 只在**正常**销毁时触发。渲染进程崩溃 / 被 OOM killer 干掉时它不来，
+  // 于是那个窗口名下的会话与挂起事务永远留在 host 里 —— 而崩溃恰恰是最可能
+  // 停在事务中间的一种死法（AC#3）。两个事件都挂上，回收本身按 sessionId 幂等。
+  contents.on('render-process-gone', releaseContents);
 
   win.on('closed', () => {
     win = null;
@@ -176,13 +219,15 @@ setupIPC();
 // 且没有任何注释说明这 400 是怎么来的。
 void app
   .whenReady()
-  .then(() => {
+  .then(async () => {
     // 隐藏模式下连 Dock 图标一起收掉：macOS 上应用一启动就会切走焦点与菜单栏，
     // 哪怕窗口不可见 —— 对着 e2e 跑一整轮的人来说，这和弹窗一样打断输入。
     // 非 macOS 上 `app.dock` 是 undefined，可选链把它变成空操作。
     if (hideWindow) app.dock?.hide();
     // handler 必须先于 loadURL 注册，否则入口文档本身就 404
     if (!serve) serveRendererOverAppScheme();
+    // 扩展必须在窗口加载之前就绪：content script 只在加载后注入的页面上生效（AC#45）。
+    await loadDevToolsExtensionInDevMode();
     createWindow();
   })
   .catch(reportLoadFailure);

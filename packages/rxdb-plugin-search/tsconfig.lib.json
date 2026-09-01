@@ -31,7 +31,19 @@
       "path": "../rxdb/tsconfig.lib.json"
     },
     {
+      "path": "../rxdb-adapter-wa-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-adapter-sqliteai/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-adapter-sqlite/tsconfig.lib.json"
+    },
+    {
       "path": "../rxdb-adapter-sqlite-wasm/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-adapter-pglite/tsconfig.lib.json"
     }
   ]
 }

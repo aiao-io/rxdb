@@ -72,6 +72,8 @@ export default defineConfig(() => ({
       checks: { pluginTimings: false },
       external: [
         '@aiao/rxdb',
+        '@aiao/rxdb-adapter-pglite',
+        '@aiao/rxdb-adapter-pglite/fts',
         '@aiao/rxdb-adapter-sqlite-core',
         '@aiao/rxdb-adapter-sqlite-wasm',
         'rxjs',
@@ -102,8 +104,13 @@ export default defineConfig(() => ({
     include: ['fastest-levenshtein', 'ms', 'uuid'],
     exclude: [
       '@aiao/rxdb',
+      '@aiao/rxdb-adapter-pglite',
+      '@aiao/rxdb-adapter-pglite/fts',
+      '@aiao/rxdb-adapter-sqlite',
       '@aiao/rxdb-adapter-sqlite-core',
       '@aiao/rxdb-adapter-sqlite-wasm',
+      '@aiao/rxdb-adapter-sqliteai',
+      '@aiao/rxdb-adapter-wa-sqlite',
       'comlink',
       'rxjs',
       '@subframe7536/sqlite-wasm',
@@ -111,7 +118,21 @@ export default defineConfig(() => ({
       '@subframe7536/sqlite-wasm/idb',
       '@subframe7536/sqlite-wasm/idb-memory',
       '@subframe7536/sqlite-wasm/opfs',
-      '@subframe7536/sqlite-wasm/fs-handle'
+      '@subframe7536/sqlite-wasm/fs-handle',
+      '@sqlite.org/sqlite-wasm',
+      '@sqliteai/sqlite-wasm',
+      'wa-sqlite',
+      'wa-sqlite/dist/wa-sqlite-async.mjs',
+      'wa-sqlite/dist/wa-sqlite.mjs',
+      'wa-sqlite/src/examples/AccessHandlePoolVFS.js',
+      'wa-sqlite/src/examples/IDBBatchAtomicVFS.js',
+      'wa-sqlite/src/examples/IDBMirrorVFS.js',
+      'wa-sqlite/src/examples/MemoryAsyncVFS.js',
+      'wa-sqlite/src/examples/MemoryVFS.js',
+      'wa-sqlite/src/examples/OPFSAdaptiveVFS.js',
+      'wa-sqlite/src/examples/OPFSAnyContextVFS.js',
+      'wa-sqlite/src/examples/OPFSCoopSyncVFS.js',
+      'wa-sqlite/src/examples/OPFSWriteAheadVFS.js'
     ]
   },
   test: {

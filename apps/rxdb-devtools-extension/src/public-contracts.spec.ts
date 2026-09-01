@@ -3,14 +3,12 @@ import { resolve } from 'node:path';
 import ts from 'typescript';
 
 const files = [
-  'shared/types.ts',
   'content/bridge-core.ts',
-  'content/opfs.ts',
   'background/background-core.ts',
-  'devtools/scripts/utils.ts',
-  'devtools/pages/opfs-page.utils.ts',
-  'devtools/components/opfs/opfs-context-menu.component.ts',
-  'devtools/services/inspected-page-access.service.ts'
+  'devtools/services/inspected-page-access.service.ts',
+  // DevToolsEndpointService 已上移到共享 panel（`modules/rxdb-devtools-panel`），
+  // 它的 TSDoc 门禁归 panel 的 public-contracts.spec.ts 管，不在这里重复查。
+  'devtools/services/port.service.ts'
 ];
 
 function exportedDeclarationsWithoutTsdoc(file: string): string[] {

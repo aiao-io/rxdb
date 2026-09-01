@@ -37,6 +37,12 @@
       "types": "./dist/testing.d.ts",
       "import": "./dist/testing.js",
       "default": "./dist/testing.js"
+    },
+    "./fts": {
+      "@aiao/source": "./src/fts/index.ts",
+      "types": "./dist/fts/index.d.ts",
+      "import": "./dist/fts/index.js",
+      "default": "./dist/fts/index.js"
     }
   },
   "files": [

@@ -1,13 +1,14 @@
+import { configureLogger, logger } from '@modules/rxdb-devtools-panel/wire';
 import bridgeScript from '../content/bridge.ts?script';
-import opfsScript from '../content/opfs-content.ts?script';
-import { logger } from '../shared/utils/logger';
 import { createBackgroundController } from './background-core';
+
+configureLogger(import.meta.env.DEV);
 
 const controller = createBackgroundController({
   injectIntoTab: tabId =>
     chrome.scripting
       .executeScript({
-        files: [bridgeScript, opfsScript],
+        files: [bridgeScript],
         target: { tabId }
       })
       .then(() => undefined),

@@ -34,9 +34,13 @@ export default defineConfig(() => ({
       transformMixedEsModules: true
     },
     lib: {
-      entry: 'src/index.ts',
+      entry: {
+        index: 'src/index.ts',
+        // package.json 的 `./testing` 子路径指向 dist/testing.js，入口漏了它就是死链
+        testing: 'src/testing.ts'
+      },
       name: '@aiao/rxdb-adapter-sqlite',
-      fileName: 'index',
+      fileName: (_format: string, entryName: string) => `${entryName}.js`,
       formats: ['es' as const]
     },
     rolldownOptions: {

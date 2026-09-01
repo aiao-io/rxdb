@@ -84,20 +84,20 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const readRuleGroup = (value: unknown): RuntimeRuleGroup => {
-  if (!isRecord(value) || typeof value.combinator !== 'string' || !Array.isArray(value.rules)) {
+  if (!isRecord(value) || typeof value['combinator'] !== 'string' || !Array.isArray(value['rules'])) {
     throw new RxdbAdapterPGliteError('Invalid query rule group');
   }
-  return { combinator: value.combinator, rules: value.rules };
+  return { combinator: value['combinator'], rules: value['rules'] };
 };
 
 const readRule = (value: unknown): RuntimeRule => {
-  if (!isRecord(value) || typeof value.field !== 'string' || typeof value.operator !== 'string') {
+  if (!isRecord(value) || typeof value['field'] !== 'string' || typeof value['operator'] !== 'string') {
     throw new RxdbAdapterPGliteError('Invalid query rule');
   }
-  return { field: value.field, operator: value.operator, value: value.value };
+  return { field: value['field'], operator: value['operator'], value: value['value'] };
 };
 
-const isRuleGroup = (value: unknown): boolean => isRecord(value) && Array.isArray(value.rules);
+const isRuleGroup = (value: unknown): boolean => isRecord(value) && Array.isArray(value['rules']);
 
 const assertSafeIdentifier = (value: string, label: string): void => {
   if (!SAFE_IDENTIFIER.test(value)) {

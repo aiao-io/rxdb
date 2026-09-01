@@ -1,5 +1,6 @@
 import { RxdbAdapterPGliteError } from '../pglite.utils.js';
 import { pgDialect } from '../sql_dialect.js';
+import { qualifyFtsTable } from './qualify.js';
 import { DEFAULT_FTS_ARRAY_KIND, DEFAULT_FTS_REGCONFIG, FTS_COLUMN, type FtsField, type FtsOptions } from './types.js';
 
 /**
@@ -72,9 +73,9 @@ const valueExpr = (field: FtsField): string => {
  * 字段集合必须与 {@link buildCreateFtsTableSql} 的 `fields` 一致，否则查询时
  * 漏字段或多字段都会让 ranking 失真。
  *
- * @param table - 业务表名
+ * @param table - 业务表名（**不含** schema；schema 走 {@link FtsOptions.schema}）
  * @param fields - 参与 FTS 的字段（顺序影响 `concat_ws` 中字段拼接顺序，对 ranking 有轻微影响）
- * @param options - 可选 `regconfig`，默认 {@link DEFAULT_FTS_REGCONFIG}
+ * @param options - 可选 `regconfig`（默认 {@link DEFAULT_FTS_REGCONFIG}）与 {@link FtsOptions.schema}
  * @returns 多条 SQL 拼接（以 `;` 分隔）
  * @throws 当 `fields` 为空时抛出
  * @public
@@ -84,9 +85,12 @@ export const buildFtsTriggersSql = (table: string, fields: readonly FtsField[], 
     throw new Error(`buildFtsTriggersSql: no searchable fields for table "${table}"`);
   }
   const regconfig = assertRegconfig(options?.regconfig ?? DEFAULT_FTS_REGCONFIG);
-  const escapedTable = pgDialect.escapeIdentifier(table);
+  const escapedTable = qualifyFtsTable(table, options?.schema);
   const escapedFtsCol = pgDialect.escapeIdentifier(FTS_COLUMN);
-  const functionName = pgDialect.escapeIdentifier(`${table}_${FTS_COLUMN}_update`);
+  // 函数名必须跟着 schema 走：函数不像 trigger 那样附属于表，不限定就被创建到
+  // `search_path` 的首个 schema，于是两个 schema 里的同名表会抢同一个函数，
+  // 后装的覆盖先装的函数体——先装那张表的 trigger 从此按别人的字段算 tsvector。
+  const functionName = qualifyFtsTable(`${table}_${FTS_COLUMN}_update`, options?.schema);
   const triggerName = pgDialect.escapeIdentifier(`${table}_${FTS_COLUMN}_trg`);
 
   const concatArgs = fields.map(valueExpr).join(', ');

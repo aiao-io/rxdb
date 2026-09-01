@@ -21,6 +21,117 @@ import { generateSwitchBranchSql } from './version/switch_branch.js';
 export const generateDbName = (): string => `db_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
 /**
+ * 共享套件所约定的查询返回形状：按语句分组的列名 + 行数组。
+ *
+ * @remarks
+ * 刻意**不**从 `@aiao/rxdb-test` 引进 `EncryptedTestAdapter`：那是 devDependency，
+ * 而本文件是发布入口，引进去会让下游装包时少一个类型来源。这里按结构复述一遍，
+ * 契约由 {@link wrapEncryptedQueryShape} 的使用方在自己那侧断言。
+ *
+ * @public
+ */
+export interface PgSuiteQueryResult {
+  readonly results: ReadonlyArray<{
+    readonly columns: readonly string[];
+    readonly rows: ReadonlyArray<readonly unknown[]>;
+  }>;
+}
+
+/** 不需要加引号的 SQL 关键字——它们大小写不敏感，加引号反而会变成标识符。 */
+const SQL_KEYWORDS =
+  /^(SELECT|FROM|WHERE|AND|OR|ORDER|BY|GROUP|HAVING|LIMIT|OFFSET|INSERT|INTO|VALUES|UPDATE|SET|DELETE|NULL|TRUE|FALSE|IS|NOT|IN|AS|ON|JOIN|LEFT|RIGHT|INNER|OUTER|UNION|ALL|DISTINCT|COUNT|SUM|AVG|MIN|MAX|LIKE|ILIKE|BETWEEN|EXISTS|CASE|WHEN|THEN|ELSE|END|ASC|DESC)$/i;
+
+/**
+ * 把共享套件里的 SQLite 方言 SQL 改写成 PostgreSQL 能吃的形式。
+ *
+ * @param sql - SQLite 风格的语句
+ * @returns PostgreSQL 风格的语句
+ *
+ * @remarks
+ * 两处差异：位置占位符 `?` → `$1, $2, ...`；未加引号的 CamelCase 列引用要补引号，
+ * 否则 PG 会把它折叠成小写，找不到我们建的带引号列。
+ *
+ * @public
+ */
+export const toPgSuiteSql = (sql: string): string => {
+  let index = 0;
+  const withParams = sql.replace(/\?/g, () => `$${++index}`);
+  // 后顾断言写 `[\w"$]` 而不是 `[A-Za-z"$\w]`：`\w` 已经包含 `A-Za-z`，
+  // 重复的范围只会让 CodeQL 把它当成写错的字符类（CS-013 / CS-014），匹配集合完全相同。
+  return withParams.replace(/(?<![\w"$])([A-Za-z_][A-Za-z0-9_]*)(?!["\w])/g, match =>
+    /[A-Z]/.test(match) && !SQL_KEYWORDS.test(match) ? `"${match}"` : match
+  );
+};
+
+/** {@link wrapEncryptedQueryShape} 的返回类型：只有 `query` 换了形状，其余原样。 */
+export type PgSuiteQueryShaped<A> = Omit<A, 'query'> & {
+  query(sql: string, bindings?: unknown[]): Promise<PgSuiteQueryResult>;
+};
+
+/**
+ * 给适配器套一层 Proxy，只把 `query` 改写成共享套件约定的形状。
+ *
+ * @param adapter - 被包装的适配器，其余成员原样转发
+ * @returns 与入参同构、仅 `query` 换了签名的代理
+ *
+ * @remarks
+ * 写成 `<A>(a: A) =\> A` 会掩盖 `query` 被换掉这件事；写成 `() =\> EncryptedTestAdapter`
+ * 又会把 A 上的其余能力全部抹平、变成一次无检查的强制断言（RXT-024）。
+ *
+ * @public
+ */
+export const wrapEncryptedQueryShape = <A extends object>(adapter: A): PgSuiteQueryShaped<A> =>
+  new Proxy(adapter, {
+    get(target, prop) {
+      if (prop === 'query') {
+        return async (sql: string, bindings?: unknown[]): Promise<PgSuiteQueryResult> => {
+          const original = (
+            target as unknown as { query: (sql: string, bindings?: unknown[]) => Promise<unknown> }
+          ).query.bind(target);
+          const raw = (await original(toPgSuiteSql(sql), bindings)) as {
+            rows?: ReadonlyArray<Record<string, unknown>>;
+            fields?: ReadonlyArray<{ name: string }>;
+          };
+          const columns = (raw?.fields ?? []).map(field => field.name);
+          const rows = (raw?.rows ?? []).map(row => (columns.length ? columns.map(column => row[column]) : []));
+          return { results: [{ columns, rows }] };
+        };
+      }
+      const value = Reflect.get(target, prop, target);
+      return typeof value === 'function' ? value.bind(target) : value;
+    }
+  }) as PgSuiteQueryShaped<A>;
+
+/**
+ * 把库里所有非系统表逐行转储成字节，供加密套件扫描明文哨兵。
+ *
+ * @param adapter - 已被 {@link wrapEncryptedQueryShape} 包装过的适配器
+ * @returns 全部用户表内容的字节表示
+ *
+ * @remarks
+ * PGlite 没有单一库文件可读（内存档位干脆没有文件，Node 档位是一整棵目录树），
+ * 所以检材只能由查询产出。覆盖面包括实体行、`rxdb_change` 日志、缓存快照与 keyring。
+ *
+ * @public
+ */
+export const dumpPGliteUserTables = async (adapter: unknown): Promise<Uint8Array> => {
+  const shaped = adapter as PgSuiteQueryShaped<object>;
+  const tableResult = await shaped.query(
+    `SELECT schemaname, tablename FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema')`
+  );
+  const tables = (tableResult.results[0]?.rows ?? []).map(row => ({ schema: String(row[0]), name: String(row[1]) }));
+  const chunks: string[] = [];
+  for (const table of tables) {
+    const dump = await shaped.query(`SELECT * FROM "${table.schema}"."${table.name}"`);
+    for (const set of dump.results) {
+      chunks.push(set.columns.join('|'));
+      for (const row of set.rows) chunks.push(row.map(cell => (cell == null ? '' : String(cell))).join('|'));
+    }
+  }
+  return new TextEncoder().encode(chunks.join('\n'));
+};
+
+/**
  * 清理 PGlite 适配器持有的数据库：移除所有 trigger、TRUNCATE 业务与测试系统表、
  * 复位 `rxdb_branch` 至 `main`，并重新装配版本分支 trigger。
  *

@@ -25,6 +25,13 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.spec.ts'],
     reporters: ['default'],
+    // 预热启动：把「本机第一次拉起产物」的一次性成本付在断言之外，理由见 src/warm-up.ts。
+    // 它必须跑在全部 worker 之前 —— 只有 globalSetup 有这个位置。
+    globalSetup: './src/warm-up.ts',
+    // 文件串行。三个 spec 并行时会同时 spawn 同一个打包产物的多个实例，而它们在 Windows
+    // 上共享 WebView2 的 profile / 浏览器进程，并行首启是一场只有 CI 上才炸的竞争 ——
+    // 本套件的主题是单实例的持久化事实，并行换来的几秒墙钟不值这个不确定性。
+    fileParallelism: false,
     // 一次启动要跑完 Angular bootstrap + 建库 + 写入 + 退出；用例本身还要串两次。
     // Rust 侧看门狗是 60s，这里必须给得比「两次启动 + 看门狗」更宽，否则超时的是 vitest，
     // 拿到的就只有一句「测试超时」而不是那份写着原因的报告。

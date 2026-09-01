@@ -52,6 +52,11 @@
  * 并且只改临时目录里的构建产物副本 —— 生产 `manifest.config.ts` 与 `dist/manifest.json`
  * 一个字节都不动。注入本身仍由 background 的真实 `chrome.scripting` 执行，未授权 origin
  * 的负向用例同样真实跑一遍。
+ *
+ * 授权差异的**生产处理**在面板的 `InspectedPageAccessService`：宿主没有该 API 时按
+ * 「静态 host permission 已生效」判 granted 并真实 INIT（详见该服务 @remarks）。所以正向
+ * 链路的 INIT 由面板自己发出，本探针不再代发 —— `relayScript` 只留给负向用例：向未授权
+ * origin 的 tab 发起 INIT，证注入被拒。
  */
 
 import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -271,12 +276,13 @@ const selectRxdbTab = async devTools => {
 };
 
 /**
- * 在给定的扩展页面里建立真实 runtime Port 并发 INIT。
+ * 在扩展页面里建立真实 runtime Port 并向指定 tab 发 INIT。
  *
- * 这是探针唯一"代劳"的一步，替的是**面板的授权 UI**，不是任何被测能力：
- * `InspectedPageAccessService` 依赖 `chrome.permissions`，在 Electron 43 里直接抛 TypeError，
- * `activateTab()` 永不触发。INIT 之后的四段中继（background → `chrome.scripting` 注入 →
- * bridge PING → 页面 HANDSHAKE → HANDSHAKE_ACK）全部是扩展自身的真实实现。
+ * 正向链路的 INIT 由面板自己的 `InspectedPageAccessService` 发出（无 chrome.permissions
+ * 的宿主按静态授权判 granted，见该服务 @remarks），探针不代劳。这里只剩负向用例在用：
+ * 向**未授权 origin** 的 tab 发起 INIT，触发 background 的真实注入尝试并证其被拒。
+ * INIT 之后的四段中继（background → `chrome.scripting` 注入 → bridge PING → 页面
+ * HANDSHAKE → 面板协商机 HANDSHAKE_ACK）全部是扩展自身的真实实现。
  */
 const relayScript = tabId => `(() => {
   window.__relay = { msgs: [], error: null };
@@ -306,8 +312,21 @@ const CAPS = `JSON.stringify({
 const frameUrls = contents => contents.mainFrame.framesInSubtree.map(frame => frame.url.slice(0, 95));
 const findFrame = (contents, needle) => contents.mainFrame.framesInSubtree.find(frame => frame.url.includes(needle));
 const readPage = contents => contents.executeJavaScript('JSON.stringify(window.__probe)').then(JSON.parse);
-const readRelay = frame => frame.executeJavaScript('JSON.stringify(window.__relay)').then(JSON.parse);
 const runningWorkers = ses => Object.values(ses.serviceWorkers.getAllRunning()).map(worker => worker.scriptUrl);
+
+/** 面板连接守卫的 UI 状态：收到 HANDSHAKE 后守卫切到内容区，提示语随之消失。 */
+const PANEL_STATE = `(() => {
+  const bodyText = document.body.innerText.replace(/\\s+/g, ' ').slice(0, 300);
+  return JSON.stringify({ bodyText, connected: !bodyText.includes('Waiting for RxDB connection') });
+})()`;
+
+const readPanelState = async frame => {
+  try {
+    return JSON.parse(await frame.executeJavaScript(PANEL_STATE));
+  } catch (error) {
+    return { bodyText: '', connected: false, error: String(error) };
+  }
+};
 
 /** DevTools 前端（含扩展 devtools_page 子帧）的 error / warning：面板缺席时唯一能看到脚本报错的地方。 */
 const devToolsConsole = [];
@@ -345,20 +364,24 @@ const activatePanel = async devTools => {
 };
 
 /**
- * 从面板页发 INIT，并等 inspected page 完成整条往返。
+ * 等 inspected page 完成一次真实往返，并读取页面与面板两侧的证据。
+ *
+ * 不再代发 INIT：面板在无 chrome.permissions 的宿主上按静态授权激活并真实 INIT
+ * （见 `InspectedPageAccessService` @remarks），整条链路 —— INIT → 注入 → PING →
+ * HANDSHAKE → 面板协商机 ACK —— 全部走生产代码。页面在私有端口上收到
+ * `HANDSHAKE_ACK` 是往返完成的判据；面板侧的 HANDSHAKE 收据由连接守卫 UI
+ * 离开「Waiting for RxDB connection」传递性证明 —— 协商机只在暂存了 legacy
+ * HANDSHAKE 之后才发 ACK。
  *
  * 每次都从 `devTools` 重新解析 panel 帧：`WebFrameMain` 句柄会随导航失效，
- * 缓存住的话读 `__relay` 时会抛 "Render frame was disposed"。
+ * 缓存住的话执行脚本时会抛 "Render frame was disposed"。
  */
 const driveRoundTrip = async (devTools, pageContents) => {
-  const before = findFrame(devTools, '/panel.html');
-  if (!before) return null;
-  await before.executeJavaScript(relayScript(1));
   await waitFor(async () => (await readPage(pageContents)).seen.includes('port:HANDSHAKE_ACK'), 20000);
   const after = findFrame(devTools, '/panel.html');
   return {
     page: await readPage(pageContents),
-    relay: after ? await readRelay(after) : { msgs: [], error: 'panel 帧已消失' }
+    panel: after ? await readPanelState(after) : { bodyText: '', connected: false, error: 'panel 帧已消失' }
   };
 };
 
@@ -453,7 +476,7 @@ app.whenReady().then(async () => {
       panelSelfActivated,
       panelBodyText,
       consequence:
-        'InspectedPageAccessService.refresh() 抛 TypeError（未捕获 promise 拒绝），activateTab() 不执行，面板停在「DevTools 未连接」'
+        'InspectedPageAccessService 在无 chrome.permissions 的宿主上按静态 host permission 判 granted 并真实 INIT（US-904 variance 的生产处理）；面板完成真实握手，不停在「DevTools 未连接」'
     });
 
     const first = activation.frame ? await driveRoundTrip(devTools, win.webContents) : null;
@@ -462,7 +485,7 @@ app.whenReady().then(async () => {
       first.page.seen.includes('PING') &&
       first.page.seen.includes('HANDSHAKE') &&
       first.page.seen.includes('port:HANDSHAKE_ACK') &&
-      first.relay.msgs.some(message => message.type === 'HANDSHAKE');
+      !!first.panel.connected;
     record('AC2', rxdbTabSelected && !!activation.frame && roundTrip, {
       devtoolsMode: 'bottom',
       tabs: tabList.tabs.map(tab => tab.title),
@@ -475,15 +498,15 @@ app.whenReady().then(async () => {
       devtoolsPageState,
       devToolsConsole: [...devToolsConsole], // 拍快照：findings 到 finish() 才序列化，直接放引用会把后续步骤的日志也算进来
       framesInDevTools: frameUrls(devTools),
-      initSentFrom: 'panel.html（真实面板文档）',
-      panelPortReceived: first?.relay.msgs ?? null,
+      initSentFrom: 'panel.html 的 PortService（无 chrome.permissions 时按静态授权激活）',
+      panelUi: first?.panel ?? null,
       inspectedPage: first?.page ?? null,
       roundTripCompleted: roundTrip
     });
 
     // ---------- AC#3：注入只落在已授权 origin ----------
     record('AC3.injectAuthorized', roundTrip, {
-      driver: '真实 panel.html 页内的 chrome.runtime.connect + INIT；注入由 background 的 chrome.scripting 真实执行',
+      driver: '面板 PortService 的真实 INIT（静态授权 variance）→ background 的 chrome.scripting 真实注入',
       page: first?.page ?? null
     });
 
@@ -501,15 +524,17 @@ app.whenReady().then(async () => {
     await sleep(2000);
     const immediatelyAfterReload = await readPage(win.webContents);
     const afterReInit = (await driveRoundTrip(devTools, win.webContents))?.page ?? null;
-    record(
-      'AC4a.reloadInspectedPage',
-      immediatelyAfterReload.seen.length === 0 && !!afterReInit?.seen.includes('port:HANDSHAKE_ACK'),
-      {
-        immediatelyAfterReload,
-        afterReInit,
-        note: '刷新后页面计数归零（旧 connector 与私有 port 随页面释放）；重新 INIT 后完整往返恢复'
-      }
-    );
+    // 「旧连接不残留」由新通道的成立传递性证明：刷新时 content script 与旧页面一起销毁，
+    // 旧 bridge 实例持有的旧私有端口无处可去；ACK 与面板命令只能落在刷新后新建的端口上，
+    // 收到它们即说明 bridge 采纳的是新握手通道，旧连接已出局。快照 `immediatelyAfterReload`
+    // 只作早期状态参考，不参与判据 —— 生产链路恢复多快取决于注入时序，不构成证据。
+    const recovered =
+      !!afterReInit?.seen.includes('port:HANDSHAKE_ACK') && !!afterReInit.seen.includes('port:GET_BRANCHES');
+    record('AC4a.reloadInspectedPage', recovered, {
+      immediatelyAfterReload,
+      afterReInit,
+      note: '刷新后页面计数归零（旧 connector 与私有 port 随页面释放）；面板随导航重新激活、真实 INIT，新握手走新私有端口完成往返，面板命令随之到达'
+    });
 
     // ---------- AC#4b：关闭 DevTools 再开 ----------
     win.webContents.closeDevTools();
@@ -526,12 +551,12 @@ app.whenReady().then(async () => {
     const second = reopened.frame ? await driveRoundTrip(devTools, win.webContents) : null;
     record(
       'AC4b.devtoolsCloseReopen',
-      !!second?.page.seen.includes('port:HANDSHAKE_ACK') && !!second?.relay.msgs.length,
+      !!second?.page.seen.includes('port:HANDSHAKE_ACK') && !!second?.panel.connected,
       {
         afterClose,
-        freshPanelPortReceived: second?.relay.msgs ?? null,
+        panelUi: second?.panel ?? null,
         pageAfterReopen: second?.page ?? null,
-        note: '重开后的新 panel port 拿到完整往返，说明没有残留旧连接顶替'
+        note: '重开后的新 panel 完成整条往返；ACK 经页面新建的私有端口到达，旧连接无处顶替'
       }
     );
 

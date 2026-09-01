@@ -90,7 +90,7 @@ INVEST 检查清单:
 | 6   | 某个 disposer 的实现内部调用 `scope.acquire()`     | `await scope.dispose()`                                              | 该调用抛 `LifecycleScopeDisposedError`；按 AC#7 的隔离规则其余 disposer 照常跑完。该错误**不被特殊对待**：disposer 未自行捕获时，它与其余 disposer 抛的错走同一条出口（AC#7 聚合 / AC#8 原样重抛）                                                        | ✅   |
 | 6b  | 某个 disposer **同步地**调用本作用域的 `dispose()` | `await scope.dispose()`                                              | 该调用是空操作并立即返回一个已 resolve 的 Promise（**不是**本轮 in-flight 的那个）；清单只跑一遍，作用域正常进入 `disposed`。与登记条目数、有无子作用域无关。判定只圈 disposer 的**同步调用帧**，外部的并发 `dispose()` 仍按 AC#4 拿到同一个 Promise 实例 | ✅   |
 | 7   | 三个 disposer 中第 2、3 个抛错                     | `await scope.dispose()`                                              | 三个**全部**被调用（不短路）；`dispose()` 以 `AggregateError` reject，`errors` 按**执行顺序**排列；作用域仍进入 `disposed`                                                                                                                                | ✅   |
-| 8   | 三个 disposer 中恰好 1 个抛错                      | `await scope.dispose()`                                              | `dispose()` 直接以**该原始错误**reject（不包 `AggregateError`），与 [`RxDB.#runIsolated`](../../../packages/rxdb/src/RxDB.ts#L644-L658) 的首错口径一致                                                                                                    | ✅   |
+| 8   | 三个 disposer 中恰好 1 个抛错                      | `await scope.dispose()`                                              | `dispose()` 直接以**该原始错误**reject（不包 `AggregateError`），与 [`runIsolated`](../../../packages/rxdb/src/rxdb.transaction.ts#L39) 的首错口径一致                                                                                                    | ✅   |
 | 9   | 父作用域上依次登记 A、子作用域 S、B                | 在 S 上登记 s1、s2，然后 `await parent.dispose()`                    | 顺序为 B → (s2 → s1) → A：子作用域在**它被创建的那个位置**整体释放，不是全部提前或全部推后；S 的 `state` 为 `disposed`                                                                                                                                    | ✅   |
 | 9b  | 同 AC#9 但**尚未释放**                             | `parent.getEntries()`                                                | 返回按登记顺序的三个条目 `[A, S, B]`，S 的条目 `children` 为 `[s1, s2]`；未传 `label` 的条目为 `'anonymous'`；调用**不改变**任何状态，再次调用结果相同                                                                                                    | ✅   |
 | 10  | 子作用域 S 已独立 `dispose()`                      | 随后 `await parent.dispose()`                                        | S 的 disposer 不被二次调用；S 已从父清单摘除；父的其余条目正常释放                                                                                                                                                                                        | ✅   |
@@ -181,7 +181,7 @@ INVEST 检查清单:
 | 单错原样抛，多错聚合（AC#7 / AC#8） | 调用方需要 `instanceof AggregateError` 分支                  | ✅ **推荐** |
 
 无论哪种方案，**不短路**是硬要求：一个 disposer 抛错绝不能让排在它后面的 disposer 被跳过——
-这正是 [`RxDB.#runIsolated`](../../../packages/rxdb/src/RxDB.ts#L644-L658) 已经确立的口径，
+这正是 [`runIsolated`](../../../packages/rxdb/src/rxdb.transaction.ts#L39) 已经确立的口径，
 本原语只是把它从「事务事件批量派发」推广到「作用域释放」。
 
 配套的**摘除时机**由 AC#13 冻结：无论手动调用还是作用域释放，条目都在**执行底层清理之前**
@@ -403,6 +403,6 @@ class LifecycleScopeDisposedError extends Error {}
 
 - [epic-008 生命周期作用域](../../epics/epic-008-lifecycle-scope.md) — 九处手工配对的清单与代价
 - [US-014 插件作用域契约](US-014-plugin-scope-contract.md) — 本原语的第一个调用方
-- [`RxDB.#runIsolated`](../../../packages/rxdb/src/RxDB.ts#L644-L658) — 「不短路 + 首错重抛」的既有口径
+- [`runIsolated`](../../../packages/rxdb/src/rxdb.transaction.ts#L39) — 「不短路 + 首错重抛」的既有口径
 - [versioning-policy.md](../../versioning-policy.md) 第 4 节 — API 表面基线工作流
 - cordis `packages/core/src/fiber.ts` — 参考实现（不作为依赖引入）

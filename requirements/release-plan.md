@@ -10,6 +10,8 @@
 - 因此下一次 schema migration 之前，**必须先从届时的发布主线重新发布一个 `kind=bridge` 的非迁移版本**。
   实际 tag/version 由 release manifest 冻结，不在需求里预猜。
 - 已发布的 `@aiao/rxdb@0.0.25` 在报假版本号，见下方[版本漂移开项](#开项0025-遗留的两条版本漂移)。
+- 按 [roadmap](roadmap.md) 排期，桥接发布已随 epic-006 链**整体压后到批次 4**；本计划在启动线 A 时执行，
+  动手前重跑下方「硬前提 2」的当前状态实测。
 
 ## 开项：0.0.25 遗留的两条版本漂移
 
@@ -19,7 +21,7 @@
 - `packages/code-editor-angular` 的 peer `"@aiao/code-editor": ">=0.0.24"` 下界低于工作区版本。
 
 两条各自都已有断言在守，**断言没坏，是没人跑绿就发了版**。源码已改、两个 project 恢复全绿；
-但 npm 上的 0.0.25 产物改不了，`rxdb.version` 报错版本这件事要写进 0.0.26 的 release note。
+但 npm 上的 0.0.25 产物改不了，`rxdb.version` 报错版本这件事要写进下一次发布的 release note。
 
 ## 下一次发布：重新打一个桥接版本
 
@@ -57,22 +59,36 @@
      这也意味着算出来的版本号反映的是**提交信息的形态，不是改动的份量**——0.0.25 就是一个全新可发布包
      以 patch 发出去的例子，changelog 上看不出来。
    - 若要指定版本号，需显式传参覆盖推算结果。无论取哪个，**清单、tag、`packages/rxdb/package.json` 三处必须同为那个实际值**。
-   - **当前状态实测**：最近 7 条提交解析不到，但 `v0.0.25` 已脱离主线，
+   - **当前状态实测（2026-09-01 重测，HEAD `2cfd4f9`）**：`v0.0.25` 已脱离主线，
      `git describe --tags --abbrev=0` 解析到的基准 tag 因此**回退成 `v0.0.24`**，
-     而 `v0.0.24..HEAD` 区间里有 **11 条 `feat` + 2 条 `fix`**。两个后果必须在动手前确认：
-     ① 桥接版本会算成 **minor bump（`0.1.0`）而不是 `0.0.26`**；
-     ② 该区间**包含已随 0.0.25 发布过的提交**（`feat(rxdb): 完善桌面端访问本地 sqlite`、
+     而 `v0.0.24..HEAD` 区间已从 8-29 那次实测的 30 条涨到 **104 条提交**，其中
+     **28 条 `feat` + 4 条 `fix`**，另有 **58 条非规范提交**（`123` / `234` 这类，nx 一律记 `none`）。
+     三个后果必须在动手前确认：
+     ① 桥接版本会算成 **minor bump（`0.1.0`）而不是 `0.0.26`**——区间越长这一条越确定，不会自己变回 patch；
+     ② 该区间**包含已随 0.0.25 发布过的提交**（`feat(rxdb): 完善桌面端访问本地 sqlite 的能力`、
      `feat(rxdb): 优化字段语义与前端通信契约` 等），**changelog 会把 0.0.25 已发的内容再写一遍**，
-     需要决定是否手工裁剪。先跑 `pnpm nx release version --dry-run` 看真实输出再决定，
-     见 [roadmap 零散收尾项第 5 条](roadmap.md#零散收尾项不成故事随手可带)。
+     且随区间变长，需要裁剪的量只增不减；
+     ③ 58 条非规范提交里**藏着真实改动**（US-505 / US-904 / US-905 的多轮落地都在其中），
+     它们对版本号贡献为零，changelog 也不会记——**changelog 会显著少于实际改动**，发布前须人工补写 release note。
+     先跑 `pnpm nx release version --dry-run` 看真实输出再决定，
+     见 [roadmap 零散收尾项第 3 条](roadmap.md#零散收尾项不成故事随手可带)。
 
 ### 执行顺序
 
-0. **补齐门禁的 git 钩子面**（不依赖发布，可立即做）：PR CI 的 `setup` job 已经通过 `pnpm test-scripts`
-   校验签入清单的结构与「清单 ↔ `packages/rxdb/package.json` 版本一致」，版本漂移现在拦得住。
-   仍缺的是 `bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` ——单测里它们被
-   `passingHooks` 桩掉了。把 `migration-release-gate`（不带 `--release-tag`）挂进 PR CI 才能用真实 git 校验。
-   这三条只对 `kind=migration` 生效，桥接发布用不上，但下一个迁移周期会用上。
+0. ~~**补齐门禁的 git 钩子面**~~ **已完成**（不依赖发布，已随本轮落地）：`migration-release-gate`
+   已挂进 PR CI 的 `setup` job（`ci-template.yml` 的 “Migration release manifest gate”），**不带**
+   `--release-tag`，用真实 git 执行 `bridgeTagExists` / `bridgeTagIsAncestor` /
+   `bridgeTagSupportsProtocol`——单测里这三条被 `passingHooks` 桩掉，此前只在打 tag 时跑过。
+   两处配套改动是这一步能成立的前提：
+   - `setup` 的 checkout 加了 `fetch-tags: true`。`fetch-depth: 0` 只保证历史完整；actions/checkout
+     在 refspec 不含 `refs/tags/*` 时一律加 `--no-tags`，runner 上根本没有 tag，三条钩子会变成恒假门禁。
+   - 脚本改为按 `GITHUB_REF_TYPE` 解析发布 tag（`resolveReleaseTag`）。此前直接取 `GITHUB_REF_NAME`，
+     PR 事件下那是 `42/merge`，挂进 PR CI 会让每个 PR 都红在
+     `release.version 0.0.25 does not match tag 42/merge` 这条与发布无关的假失败上。
+
+   这三条只对 `kind=migration` 生效，桥接发布走不到它们（见下方「门禁三钩子的状态」），
+   下一个迁移周期（US-305）才会真正吃到。
+
 1. **先合入 `main`，再打 tag**——顺序不能反。落地时两条约束：提交必须是规范的
    `feat(...)` / `fix(...)`（否则 bump 量为零，发不出版本），且**不得改动** `RXDB_SYSTEM_SCHEMA_VERSION` /
    `RXDB_CHANGE_CODEC_VERSION`（否则 `kind=bridge` 过不了门禁）。
@@ -114,7 +130,7 @@
 `bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` 已用真实 tag 做过正反两组对照：
 真 tag 一条报错都没有，伪造 tag（`v9.9.9`）三条全部报出，fail-closed 成立。
 **门禁本身不需要修**：它在真实 tag 上的行为与桩一致，且对伪造 tag 正确拒绝。
-唯一的缺口是这三条还只在 tag 时跑，未挂进 PR CI（见执行顺序第 0 步）。
+「只在 tag 时跑」这条缺口**已补**：门禁现在每个 PR 都跑（见执行顺序第 0 步）。
 
 ⚠️ **这三条只对 `kind=migration` 生效，桥接发布走不到它们**
 （[check-migration-release-gate.mjs](../scripts/check-migration-release-gate.mjs) 的 `validateManifest`
@@ -131,7 +147,7 @@ $ git merge-base --is-ancestor v0.0.25^{commit} HEAD      # 失败：v0.0.25 不
 也就是说**「门禁全绿」不能作为桥接发布已完成的证据**——今天什么都不做跑它就是绿的。
 桥接发布的两条真判据（版本号 ≠ `0.0.25`、新 tag 是 `main` 祖先）都只能人工确认并留证，
 把第 0 步的 `migration-release-gate` 挂进 PR CI 也守不到它们。
-这也是 [roadmap 批次 1 线 A](roadmap.md#批次-1零前置七条线可同时开工) 的关闭判据要写五条、
+这也是 [roadmap 批次 4 线 A](roadmap.md#批次-4epic-006-链整体压后) 的关闭判据要写五条、
 并特别标出「④ 单独没有区分力」的原因。
 
 注意 `bridgeTagSupportsProtocol` 只用 `git cat-file -e` 校验文件存在、不校验内容，

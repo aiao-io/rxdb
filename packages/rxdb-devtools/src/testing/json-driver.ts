@@ -24,6 +24,7 @@ import type {
 } from './driver.js';
 import type { DevToolsFakeClock } from './fake-clock.js';
 import { createFakeClock } from './fake-clock.js';
+import type { FakeRelayNode } from './fake-relay.js';
 import { FakeRelay } from './fake-relay.js';
 
 /**
@@ -54,6 +55,47 @@ export interface JsonDriverEndpoints {
   readonly provider?: DevToolsProviderProbe;
   /** 会话结束时释放端点持有的计时器与传输。 */
   readonly dispose?: () => void;
+}
+
+/**
+ * 一次会话的中间两段装配。
+ *
+ * @remarks
+ * 缺省时两段是纯转发（内存对照组）。装上真实实现时，**只换这两段**：时钟、探针、scenario 旋钮、
+ * 排空策略与两端端点全部沿用同一份装配 —— AC#44 要的「没有平台副本」是靠这个结构成立的，
+ * 不是靠约定。
+ */
+export interface JsonDriverNodes {
+  /** background 段：真实的 service worker 中继逻辑。 */
+  readonly background?: (forward: FakeRelayNode) => FakeRelayNode;
+  /** content 段：真实的 content script 中继逻辑。 */
+  readonly content?: (forward: FakeRelayNode) => FakeRelayNode;
+  /**
+   * 中间段自身的建链完成信号；`open` 会等它 settle 之后才让两端上线。
+   *
+   * @remarks
+   * 真实中继在跑协议之前先要把自己的传输建起来（Chrome 要 connect port + 注入 content script，
+   * Electron/Tauri 要开 IPC 通道）。这段编排跑在**宿主的真实微任务**上，而跳延迟跑在**假时钟**上，
+   * 两条时间轴不交错：只要建链的续体落在一次 `advanceTime` 之后，它触发的那一跳就会等来
+   * 一个不再前进的时钟——表现为「某条帧凭空消失」，且只在 `hopDelayMs > 0` 的用例上出现。
+   *
+   * 所以建链必须在 `open` 里收敛，而不是和协议帧抢时间轴。这不是给测试开的后门：
+   * `open` 返回 Promise 的意义本来就是「拿到会话时 transport 已经就绪」。
+   */
+  readonly ready?: Promise<void>;
+  /** 会话结束时释放中间段持有的资源。 */
+  readonly dispose?: () => void;
+}
+
+/** 按 scenario 现装配中间两段。 */
+export type JsonDriverNodeFactory = (context: JsonDriverContext) => JsonDriverNodes;
+
+/** driver 的可选装配。 */
+export interface JsonConformanceDriverOptions {
+  /** 出现在测试名里的 driver 名；缺省 `'json'`。 */
+  readonly name?: string;
+  /** 中间两段的装配；缺省为纯转发。 */
+  readonly createNodes?: JsonDriverNodeFactory;
 }
 
 /** 未装配 provider 时抛出的说明；返回全 0 会让「调用次数为 0」的断言恒真。 */
@@ -88,6 +130,7 @@ class JsonDriverSession implements DevToolsConformanceSession {
   readonly #clock: DevToolsFakeClock;
   readonly #relay: FakeRelay;
   readonly #endpoints: JsonDriverEndpoints;
+  readonly #nodes: JsonDriverNodes;
 
   get provider(): DevToolsProviderProbe {
     const probe = this.#endpoints.provider;
@@ -95,10 +138,11 @@ class JsonDriverSession implements DevToolsConformanceSession {
     return probe;
   }
 
-  constructor(clock: DevToolsFakeClock, relay: FakeRelay, endpoints: JsonDriverEndpoints) {
+  constructor(clock: DevToolsFakeClock, relay: FakeRelay, endpoints: JsonDriverEndpoints, nodes: JsonDriverNodes) {
     this.#clock = clock;
     this.#relay = relay;
     this.#endpoints = endpoints;
+    this.#nodes = nodes;
   }
 
   segment(segment: DevToolsRelaySegment): DevToolsSegmentProbe {
@@ -117,6 +161,7 @@ class JsonDriverSession implements DevToolsConformanceSession {
   async dispose(): Promise<void> {
     await this.#drain();
     this.#endpoints.dispose?.();
+    this.#nodes.dispose?.();
   }
 
   /**
@@ -142,14 +187,16 @@ class JsonDriverSession implements DevToolsConformanceSession {
  *
  * @param createEndpoints - 按 scenario 现装配两端与探针；缺省时四段只转发不产出，
  *   适合只验 transport 的套件。
+ * @param options - 可选装配：driver 名与中间两段的真实实现。
  * @returns 可直接交给 `run*Suite` 的 driver。
  */
 export function createJsonConformanceDriver(
-  createEndpoints: JsonDriverEndpointFactory = () => ({})
+  createEndpoints: JsonDriverEndpointFactory = () => ({}),
+  options: JsonConformanceDriverOptions = {}
 ): DevToolsConformanceDriver {
   return {
-    name: 'json',
-    open: (scenario: DevToolsConformanceScenario): Promise<DevToolsConformanceSession> => {
+    name: options.name ?? 'json',
+    open: async (scenario: DevToolsConformanceScenario): Promise<DevToolsConformanceSession> => {
       const clock = createFakeClock();
       const relay = new FakeRelay({
         clock,
@@ -159,11 +206,19 @@ export function createJsonConformanceDriver(
         legacyAckFrame: legacyHandshakeAckFrame()
       });
 
+      // 中间两段先于两端装配：panel 端点在 `attach` 里就会立刻发出第一条 HELLO，
+      // 那一跳必须落到已经就位的中继节点上。顺序反了不会报错，只会让第一条 HELLO
+      // 走纯转发路径 —— 一个只在首帧上出现的、极难追的差异。
+      const nodes = options.createNodes?.({ scenario, clock }) ?? {};
+      if (nodes.background) relay.attachNode('background', nodes.background);
+      if (nodes.content) relay.attachNode('content', nodes.content);
+      await nodes.ready;
+
       const endpoints = createEndpoints({ scenario, clock });
       relay.attach('panel', endpoints.panel ?? noopEndpoint);
       relay.attach('connector', endpoints.connector ?? noopEndpoint);
 
-      return Promise.resolve(new JsonDriverSession(clock, relay, endpoints));
+      return new JsonDriverSession(clock, relay, endpoints, nodes);
     }
   };
 }

@@ -1,12 +1,14 @@
 {
   "appId": "com.aiao.dev-rxdb-electron",
   "asar": true,
+  "asarUnpack": ["node_modules/@electric-sql/pglite/**/*"],
   "buildDependenciesFromSource": false,
   "directories": {
     "app": "../../dist/apps/dev-rxdb-electron",
     "output": "../../dist/apps/dev-rxdb-electron/release/",
     "buildResources": "public"
   },
+  "electronDist": "../../node_modules/electron/dist",
   "extraResources": [
     {
       "from": "../../dist/apps/dev-rxdb-electron/browser",
@@ -14,7 +16,14 @@
       "filter": ["**/*"]
     }
   ],
-  "files": ["!node_modules", "package.json", "src-electron/**/*.js", "src-electron/**/*.js.map"],
+  "files": [
+    "!node_modules",
+    "package.json",
+    "src-electron/**/*.js",
+    "src-electron/**/*.js.map",
+    "!src-electron/devtools-*",
+    "node_modules/@electric-sql/pglite/**/*"
+  ],
   "linux": {
     "icon": "../../dist/apps/dev-rxdb-electron/browser/icons/favicon.ico",
     "target": ["AppImage"]

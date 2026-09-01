@@ -11,6 +11,14 @@
  */
 
 export {
+  /** 建浏览器传输（window 总线 + MessageChannel 私有端口）。 */
+  createWindowConnectorTransport
+} from './connector-transport.js';
+export type {
+  /** connector 传输层抽象；Tauri / 其它无共享 window 的宿主注入自己的实现。 */
+  DevToolsConnectorTransport
+} from './connector-transport.js';
+export {
   /** 页面侧连接器：订阅 RxDB 事件、应答 DevTools 命令。 */
   DevToolsConnector,
   /** 连接器订阅的 RxDB 事件类型清单（已剔除会重复上报的事件）。 */
@@ -25,6 +33,8 @@ export type {
   DevToolsEntityMetadata,
   /** 连接器配置项。 */
   DevToolsOptions,
+  /** 原生宿主的 provider 装配端口；随 {@link DevToolsOptions.providers} 注入。 */
+  DevToolsProviderOptions,
   /** 连接器所需的 RxDB 能力子集；真实 `RxDB` 实例可直接传入 `init`。 */
   DevToolsRxDB,
   /** 实体元数据读取函数，通常直接传 `@aiao/rxdb` 的 `getEntityMetadata`。 */
@@ -396,6 +406,29 @@ export type {
 } from './v2/negotiation-panel.js';
 
 export {
+  /** panel 侧 v2 数据面客户端：协商 + 请求额度 + 事件订阅 + 上传驱动的组合根。 */
+  createDevToolsPanelEndpoint
+} from './v2/panel-endpoint.js';
+export type {
+  /** 一次下载调用的入参。 */
+  DevToolsPanelDownloadRequest,
+  /** 一次下载的结果；`'delivered-at-source'` 表示字节由源侧自行交付，没有走 wire。 */
+  DevToolsPanelDownloadResult,
+  /** panel 数据面客户端。 */
+  DevToolsPanelEndpoint,
+  /** panel 数据面客户端的构造端口。 */
+  DevToolsPanelEndpointPorts,
+  /** 一次 provider 调用的结果；永不 reject。 */
+  DevToolsPanelRequestResult,
+  /** 一次上传调用的入参。 */
+  DevToolsPanelUploadRequest,
+  /** 一次上传的结果；`'sent'` 只表示字节已发出，不表示已提交。 */
+  DevToolsPanelUploadResult,
+  /** 上传的按需字节来源。 */
+  DevToolsPanelUploadSource
+} from './v2/panel-endpoint.js';
+
+export {
   /** connector 侧 v2 端点：协商 + session 预算 + 授权 + 传输状态机的组合根。 */
   createDevToolsConnectorEndpoint
 } from './v2/endpoint.js';
@@ -452,9 +485,22 @@ export {
   resolveNegotiatedTransferLimit
 } from './provider/limits.js';
 
+export {
+  /** 判断单个路径段是否合法（非空、无分隔符、不是相对路径记号）。 */
+  isValidPathSegment,
+  /** 把已校验的段拼回逻辑路径。 */
+  joinLogicalPath,
+  /** 把 wire 上的路径切成已校验的段；任何一段非法即整条非法。 */
+  parseLogicalPath,
+  /** 把路径拆成「父目录段 + 末段」；指向根时为 `undefined`。 */
+  splitLogicalPath
+} from './provider/logical-path.js';
+
 export type {
   /** 分块落盘接收器；只有合法 COMPLETE 会 commit。 */
   DevToolsChunkSink,
+  /** 按需读取的分块字节来源；出站传输用它，避免整文件驻留。 */
+  DevToolsChunkSource,
   /** 一个领域的 provider 实现。 */
   DevToolsProvider,
   /** provider 操作的结果联合。 */
@@ -469,6 +515,78 @@ export type {
   DevToolsSnapshotSource
 } from './provider/types.js';
 
+export {
+  /** 建浏览器 OPFS 的 `files` provider。 */
+  createDevToolsOpfsFilesProvider
+} from './browser/opfs-files-provider.js';
+export type {
+  /** OPFS 目录项。 */
+  DevToolsOpfsEntry,
+  /** OPFS `files` provider。 */
+  DevToolsOpfsFilesProvider,
+  /** OPFS provider 的构造端口。 */
+  DevToolsOpfsFilesProviderPorts
+} from './browser/opfs-files-provider.js';
+export {
+  /** 浏览器 settings provider 的 descriptor。 */
+  DEVTOOLS_BROWSER_SETTINGS_DESCRIPTOR,
+  /** 建浏览器 `settings` provider（`export` 恒回 `export_unsupported`）。 */
+  createDevToolsBrowserSettingsProvider
+} from './browser/settings-provider.js';
+export {
+  /** 页内 connector 的默认写入开关。 */
+  CONNECTOR_MUTATION_POLICY,
+  /** 按本页实际能力装配 provider 接缝。 */
+  createConnectorProviders,
+  /** 探测本页 OPFS 根目录入口。 */
+  resolveBrowserOpfsRoot,
+  /** 用页面自己的下载路径保存文件。 */
+  saveFileThroughPage
+} from './connector-providers.js';
+export type {
+  /** `database` 领域的接入口；三项缺一不可。 */
+  ConnectorDatabasePorts,
+  /** provider 接缝的装配输入。 */
+  ConnectorProviderPorts,
+  /** 页内装配出来的 registry；比裸 registry 多一个订阅回收入口。 */
+  ConnectorProviderRegistry
+} from './connector-providers.js';
+export {
+  /** 建原生文件后端的 `files` provider。 */
+  createDevToolsNativeFilesProvider
+} from './native/native-files-provider.js';
+export type {
+  /** 同时具备出站字节源与入站落盘口的 `files` provider。 */
+  DevToolsFilesProviderWithSource,
+  /** 原生目录项。 */
+  DevToolsNativeEntry,
+  /** 原生 `files` provider；在字节源/落盘口之上多一个快照回收入口。 */
+  DevToolsNativeFilesProvider,
+  /** 原生 provider 的构造端口。 */
+  DevToolsNativeFilesProviderPorts,
+  /** provider 需要宿主提供的最小文件能力。 */
+  DevToolsNativeFilesystem
+} from './native/native-files-provider.js';
+export {
+  /** 建原生宿主的诊断快照物化来源。 */
+  createDevToolsNativeSnapshotSource
+} from './native/native-snapshot-source.js';
+export type {
+  /** 原生快照来源的构造端口。 */
+  DevToolsNativeSnapshotPorts,
+  /** 快照的一条原始条目。 */
+  DevToolsSnapshotEntry,
+  /** storage 全局独占锁。 */
+  DevToolsSnapshotLock,
+  /** 一次锁内任务的结果。 */
+  DevToolsSnapshotLockResult
+} from './native/native-snapshot-source.js';
+export {
+  /** Electron settings provider 的 descriptor。 */
+  DEVTOOLS_ELECTRON_SETTINGS_DESCRIPTOR,
+  /** 建 Electron `settings` provider（`export` 恒回 `export_unsupported`）。 */
+  createDevToolsElectronSettingsProvider
+} from './native/settings-provider.js';
 export {
   /** 建 snapshot 存储：物化、分页、cursor 过期、epoch 重试。 */
   createDevToolsSnapshotStore,
@@ -489,3 +607,13 @@ export type {
   /** snapshot 存储。 */
   DevToolsSnapshotStore
 } from './provider/snapshot.js';
+export {
+  /** 建 RxDB 的 `database` provider（查询、事件、分支）。 */
+  createDevToolsRxdbDatabaseProvider
+} from './rxdb/database-provider.js';
+export type {
+  /** RxDB `database` provider。 */
+  DevToolsRxdbDatabaseProvider,
+  /** RxDB `database` provider 的构造端口。 */
+  DevToolsRxdbDatabaseProviderPorts
+} from './rxdb/database-provider.js';

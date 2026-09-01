@@ -27,7 +27,16 @@ export { createFakeClock } from './testing/fake-clock.js';
 export type { DevToolsFakeClock } from './testing/fake-clock.js';
 
 export { createJsonConformanceDriver } from './testing/json-driver.js';
-export type { JsonDriverEndpointFactory, JsonDriverEndpoints } from './testing/json-driver.js';
+export type {
+  JsonConformanceDriverOptions,
+  JsonDriverEndpointFactory,
+  JsonDriverEndpoints,
+  JsonDriverNodeFactory,
+  JsonDriverNodes
+} from './testing/json-driver.js';
+
+// 中间两段的接缝：下游 driver 换掉 relay 实现，装配与判据一份都不复制（AC#44）。
+export type { FakeRelayNode } from './testing/fake-relay.js';
 
 export { createFakeEndpointFactory } from './testing/fake-endpoints.js';
 

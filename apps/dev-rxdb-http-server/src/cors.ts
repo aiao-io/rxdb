@@ -47,7 +47,7 @@ const MAX_AGE = '0';
  *
  * 反过来，一旦哪天补上 `Allow-Credentials: true`，这个函数当场变成「任意站点都能以
  * 受害者身份读本 API」——`*` 会被浏览器拒收，回显却照单全收。真要支持凭据，来源必须
- * 改成白名单相等匹配，就像 `rule-group-to-sql.ts` 对列名那样。
+ * 改成白名单相等匹配，就像引擎查询校验对字段白名单那样。
  */
 const resolveAllowOrigin = (request: IncomingMessage): string => {
   const origin = request.headers.origin;

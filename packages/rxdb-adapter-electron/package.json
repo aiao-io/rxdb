@@ -37,6 +37,18 @@
       "types": "./dist/host.d.ts",
       "import": "./dist/host.js",
       "default": "./dist/host.js"
+    },
+    "./pglite": {
+      "@aiao/source": "./src/pglite.ts",
+      "types": "./dist/pglite.d.ts",
+      "import": "./dist/pglite.js",
+      "default": "./dist/pglite.js"
+    },
+    "./pglite-host": {
+      "@aiao/source": "./src/pglite-host.ts",
+      "types": "./dist/pglite-host.d.ts",
+      "import": "./dist/pglite-host.js",
+      "default": "./dist/pglite-host.js"
     }
   },
   "files": [
@@ -58,9 +70,24 @@
   },
   "dependencies": {
     "@aiao/rxdb": "workspace:*",
-    "@aiao/rxdb-adapter-sqlite-core": "workspace:*"
+    "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
+    "@aiao/utils": "workspace:*"
+  },
+  "peerDependencies": {
+    "@aiao/rxdb-adapter-pglite": "workspace:*",
+    "@electric-sql/pglite": "^0.5.8"
+  },
+  "peerDependenciesMeta": {
+    "@aiao/rxdb-adapter-pglite": {
+      "optional": true
+    },
+    "@electric-sql/pglite": {
+      "optional": true
+    }
   },
   "devDependencies": {
-    "@aiao/rxdb-test": "workspace:*"
+    "@aiao/rxdb-adapter-pglite": "workspace:*",
+    "@aiao/rxdb-test": "workspace:*",
+    "@electric-sql/pglite": "^0.5.8"
   }
 }

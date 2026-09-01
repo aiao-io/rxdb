@@ -62,6 +62,13 @@ vi.mock('../handle_rxdb_change.js', () => ({
 }));
 
 vi.mock('../PGliteClient.js', () => ({
+  // 结构化判定与真实实现保持一致：mock 客户端只要有这对方法就算变更事件源。
+  asPGliteChangeEventSource: (client: unknown) => {
+    const candidate = client as { addEventListener?: unknown; removeEventListener?: unknown } | null;
+    if (typeof candidate?.addEventListener !== 'function') return undefined;
+    if (typeof candidate.removeEventListener !== 'function') return undefined;
+    return candidate;
+  },
   PGliteClient: state.MockPGliteClient
 }));
 
@@ -113,7 +120,11 @@ describe('RxDBAdapterPGlite mock residual paths', () => {
   it('liveQuery / createBranch flush reject non-PGliteClient after prototype break', async () => {
     Object.setPrototypeOf(client, Object.prototype);
 
-    await expect(adapter.liveQuery('SELECT 1')).rejects.toThrow(/only available on the default PGliteClient/);
+    // liveQuery 按能力判定而不是按类：只有真的没有这个方法才拒绝。断原型只会摘掉原型上的
+    // addEventListener/removeEventListener（变更事件源判定走那条），liveQuery 是自有属性，
+    // 要单独删掉才能构造出「不具备该能力的客户端」。
+    Reflect.deleteProperty(client, 'liveQuery');
+    await expect(adapter.liveQuery('SELECT 1')).rejects.toThrow(/liveQuery is not supported/);
 
     await expect(adapter.createBranch('feature-x')).resolves.toMatchObject({ id: 'feature-mock' });
     expect(state.createBranch).toHaveBeenCalled();

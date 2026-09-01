@@ -43,6 +43,19 @@ export interface FakeRelayOptions {
 /** 端点（panel / connector）的收帧回调。 */
 export type FakeRelayEndpoint = (frame: DevToolsWireFrame) => void;
 
+/**
+ * 中间段（background / content）的转发行为。
+ *
+ * @remarks
+ * 默认的中间段是纯转发。装上真实实现（Chrome 的 `createBackgroundController` 与 bridge），
+ * 同一份 suite 就能在真实中继逻辑上复跑，而**装配、探针、时序与 scenario 旋钮一份都不用复制**——
+ * 这正是 US-904 AC#44「fixture、状态机和错误断言没有平台副本」要的结构。
+ *
+ * 节点可以选择不调用 `forward`：真实中继丢弃非本协议帧、丢弃方向相反的帧，
+ * 而「丢弃」在这个接口里就是「没有下一跳」，不需要额外的返回值约定。
+ */
+export type FakeRelayNode = (frame: DevToolsWireFrame, direction: DevToolsV2Direction) => void;
+
 /** `settle()` 的微任务轮次上限；超过即判定为协议自激循环。 */
 const SETTLE_ROUND_LIMIT = 1_000;
 
@@ -63,6 +76,7 @@ export class FakeRelay {
   readonly #options: FakeRelayOptions;
   readonly #records = createRecords();
   readonly #endpoints = new Map<DevToolsRelaySegment, FakeRelayEndpoint>();
+  readonly #nodes = new Map<DevToolsRelaySegment, FakeRelayNode>();
   readonly #queuedUntilReady: (() => void)[] = [];
   #microtasksInFlight = 0;
   #ready: boolean;
@@ -95,6 +109,26 @@ export class FakeRelay {
       this.#forward(frame, direction, DEVTOOLS_RELAY_SEGMENTS.indexOf(segment));
     };
     this.#endpoints.set(segment, createEndpoint(send));
+  }
+
+  /**
+   * 用真实的中继实现替换某个中间段的纯转发。
+   *
+   * @remarks
+   * 与 {@link attach} 同样传工厂：节点需要 `forward`、`forward` 又只有中继知道怎么记账。
+   * `forward` 会把帧记进本段的 `sent` 再送下一跳 —— 也就是说**节点不转发就不会留下 `sent` 记录**，
+   * 「这一段吞掉了帧」因此是可观测的，而不是要靠下游的沉默去推断。
+   *
+   * @param segment - 只能是 `background` 或 `content`；两端是端点，不是中继节点。
+   * @param createNode - 拿到下一跳发送函数、返回收帧回调的工厂。
+   */
+  attachNode(segment: 'background' | 'content', createNode: (forward: FakeRelayNode) => FakeRelayNode): void {
+    const index = DEVTOOLS_RELAY_SEGMENTS.indexOf(segment);
+    const forward: FakeRelayNode = (frame, direction) => {
+      this.#record(segment).sent.push(frame);
+      this.#forward(frame, direction, index);
+    };
+    this.#nodes.set(segment, createNode(forward));
   }
 
   /**
@@ -176,7 +210,16 @@ export class FakeRelay {
       return;
     }
 
+    // 伪造发生在节点**之前**：它复刻的是「一个陈旧的 service worker」，
+    // 而不是被测中继的一条分支。真实 background 永不代 ACK，这条旋钮因此只能从外面注入。
     this.#forgeLegacyAck(segment, direction, frame);
+
+    const node = this.#nodes.get(segment);
+    if (node !== undefined) {
+      node(frame, direction);
+      return;
+    }
+
     record.sent.push(frame);
     this.#forward(frame, direction, index);
   }

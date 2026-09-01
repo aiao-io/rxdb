@@ -44,7 +44,7 @@ import {
   PgliteTableColumn
 } from './pglite.interface.js';
 import { type EncryptionContext, quoteIdentifier, RxdbAdapterPGliteError } from './pglite.utils.js';
-import { IPGliteClient, PGliteClient } from './PGliteClient.js';
+import { asPGliteChangeEventSource, IPGliteClient, PGliteClient } from './PGliteClient.js';
 import { resolveQueryCacheTarget, resolveUpdatedAtColumn } from './query-cache/query_cache_target.js';
 import { buildQueryCacheUpsertStatements } from './query-cache/upsert_many_sql.js';
 import { PGliteRepository } from './repository/PGliteRepository.js';
@@ -347,11 +347,12 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       this.#notifyInfrastructureReady = true;
     }
 
-    if (client instanceof PGliteClient) {
+    const source = asPGliteChangeEventSource(client);
+    if (source) {
       this.#detachClientListeners(client);
-      client.addEventListener(PGliteChangeType.INSERT, this.#changeListener);
-      client.addEventListener(PGliteChangeType.UPDATE, this.#changeListener);
-      client.addEventListener(PGliteChangeType.DELETE, this.#changeListener);
+      source.addEventListener(PGliteChangeType.INSERT, this.#changeListener);
+      source.addEventListener(PGliteChangeType.UPDATE, this.#changeListener);
+      source.addEventListener(PGliteChangeType.DELETE, this.#changeListener);
     }
 
     return this as IRxDBAdapter;
@@ -635,10 +636,26 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     callback?: (results: Results<T>) => void
   ) {
     const client = await this.#getClient();
-    if (!(client instanceof PGliteClient)) {
-      throw new RxdbAdapterPGliteError('liveQuery is only available on the default PGliteClient implementation.');
+    // 按能力而不是按类判定：桌面等代理客户端可以自行提供 liveQuery，没有的则在这里快速失败。
+    if (typeof client.liveQuery !== 'function') {
+      throw new RxdbAdapterPGliteError('liveQuery is not supported by the current PGlite client implementation.');
     }
     return client.liveQuery<T>(sql, params ?? null, callback);
+  }
+
+  /**
+   * 创建底层客户端。子类覆写它即可换掉整条数据通路。
+   *
+   * @remarks
+   * 这是 US-208 桌面适配器唯一需要的接缝：Electron 下的客户端把 query/exec/transaction
+   * 转发给主进程的单实例 PGlite，其余生命周期与变更管线完全复用本类。返回的对象只需满足
+   * {@link IPGliteClient}；若它同时是变更事件源（见 {@link asPGliteChangeEventSource}），
+   * `connect()` 会自动挂上 NOTIFY 监听，`disconnect()` 会解绑。
+   *
+   * @returns 尚未 `init()` 的客户端实例
+   */
+  protected createClient(): IPGliteClient {
+    return new PGliteClient();
   }
 
   /**
@@ -776,17 +793,18 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    * 解绑 PGlite NOTIFY 事件监听器
    */
   #detachClientListeners(client: IPGliteClient): void {
-    if (!(client instanceof PGliteClient)) return;
+    const source = asPGliteChangeEventSource(client);
+    if (!source) return;
 
     for (const changeType of [PGliteChangeType.INSERT, PGliteChangeType.UPDATE, PGliteChangeType.DELETE]) {
-      client.removeEventListener(changeType, this.#changeListener);
+      source.removeEventListener(changeType, this.#changeListener);
     }
   }
 
   /** 单例客户端。 */
   #getClient(): Promise<IPGliteClient> {
     if (!this.#client_promise) {
-      const client = new PGliteClient();
+      const client = this.createClient();
       // 初始化客户端并缓存
       this.#client_promise = client
         .init(this.rxdb.config.dbName, this.options)

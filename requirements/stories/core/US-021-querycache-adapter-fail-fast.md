@@ -87,7 +87,7 @@ if (metadata.repository !== 'TreeRepository') return;
 即只拦 `TreeRepository` + QueryCache（US-020 AC#8）。**适配器在不在**这个问题没人问。
 
 而它的入参里已经有答案所需的一切——`validateSyncStrategy(collector, metadata, databaseSync)`
-的第三个参数就是库级 `sync`。这条判定纯由元数据可得，按 [US-020 D12](./US-020-querycache-repository.md#d12--fail-fast-的时机按能不能在配置期知道划分)
+的第三个参数就是库级 `sync`。这条判定纯由元数据可得，按 [US-020 D12](./US-020-querycache-repository.md#d12-fail-fast-的时机按能不能在配置期知道划分)
 第一行，归属**配置期**。
 
 ### 复验方式

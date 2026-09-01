@@ -26,6 +26,8 @@
  * - `invalid_file_path`：路径逃出存储根，或指向的类型与操作不符
  * - `disk_full`：磁盘空间或配额耗尽（ENOSPC / EDQUOT）
  * - `write_aborted`：写入令牌已失效（会话关闭、已提交或已丢弃），目标保持写入前的内容
+ * - `transaction_not_found`：事务 ID 不存在、已结束，或不属于本会话；语句一条都没有执行
+ * - `transaction_unavailable`：等待开启事务超时——另一个事务正占着连接；库无损，重试即可
  */
 export type RxDBAdapterDesktopErrorCode =
   | 'unsupported_runtime_engine'
@@ -42,7 +44,9 @@ export type RxDBAdapterDesktopErrorCode =
   | 'file_not_found'
   | 'invalid_file_path'
   | 'disk_full'
-  | 'write_aborted';
+  | 'write_aborted'
+  | 'transaction_not_found'
+  | 'transaction_unavailable';
 
 const ERROR_CODES: readonly RxDBAdapterDesktopErrorCode[] = [
   'unsupported_runtime_engine',
@@ -59,7 +63,9 @@ const ERROR_CODES: readonly RxDBAdapterDesktopErrorCode[] = [
   'file_not_found',
   'invalid_file_path',
   'disk_full',
-  'write_aborted'
+  'write_aborted',
+  'transaction_not_found',
+  'transaction_unavailable'
 ];
 
 /**

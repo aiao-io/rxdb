@@ -2,16 +2,26 @@ import type { RxDB } from '@aiao/rxdb';
 import type { RxDBConnectionStateWriter } from './rxdb-connection-state';
 import type { LaunchRecordDatabase } from './services/desktop-launch.service';
 import type { SelfCheckOutcome } from './services/selfcheck-reporter';
+import type { StorageProbeResult, StorageProbeSurface } from './storage-probe';
+import type { WebviewFetchSurface, WebviewProbeResult } from './webview-probe';
 
 /**
- * {@link startLocalDatabase} 用得到的那一小块 RxDB 表面：连接，以及写启动记录。
+ * {@link startLocalDatabase} 用得到的那一小块 RxDB 表面：连接、写启动记录，以及文件存储。
  *
  * @remarks
  * TAURI-07：`record()` 收的就是这里 `openDatabase()` 交出来的**同一个**实例。
  * 让记录者自己去 `inject(RxDB)` 的话，它会在 `provideRxDB` 的异步 source 就绪之前
  * 就被构造 —— 抛在 initializer 的第一行之前，整条启动链一句都不会跑。
+ *
+ * US-505：`storage` 写成窄接口而不是 `Pick<RxDB, 'storage'>`。后者要靠 storage 插件的
+ * 模块增强被编进同一个 program 才成立 —— 那是一条随文件增删而变的隐式依赖，
+ * 断了的表现是这里突然报「RxDB 上没有 storage」，而与本模块毫无关系。
  */
-export type LocalDatabase = Pick<RxDB, 'connect'> & LaunchRecordDatabase;
+export type LocalDatabase = Pick<RxDB, 'connect'> &
+  LaunchRecordDatabase & {
+    /** 连接期间的文件存储服务，两条探针合起来只用得到它的四个方法。 */
+    readonly storage: StorageProbeSurface & WebviewFetchSurface;
+  };
 
 /**
  * 建立本地适配器连接。**失败不向上抛。**
@@ -69,6 +79,25 @@ export interface LocalDatabaseStartup {
    * 库由**这里**传给它（TAURI-07），传的正是 `openDatabase()` 交出来的那一个。
    */
   readonly launches: { record(database: LocalDatabase): Promise<number> };
+  /**
+   * 文件存储探针（US-505 AC#1 / AC#3）。
+   *
+   * @remarks
+   * 与 `launches` 一样收窄成一只手：真实实现是 `storage-probe.ts` 的 `probeStorage`，
+   * 单测里换成一个内存替身，不必为跑一条探针把整个存储插件连同后端立起来。
+   */
+  readonly probe: (storage: StorageProbeSurface) => Promise<StorageProbeResult>;
+  /**
+   * webview 能力探针（US-505 AC#6）。
+   *
+   * @remarks
+   * 返回 `null` 表示这次不跑 —— 探针地址由 Rust 侧给，只有自检模式下的 e2e 才会设它，
+   * 因此**正常启动走的就是这条路**，它不是失败方向。
+   *
+   * 探针地址的读取也在这只手里面（`app.config.ts` 组合的）：把它拆成第二只手的话，
+   * 「读地址失败」与「探针失败」会变成两条要分别处理的路径，而对调用方来说两者是同一件事。
+   */
+  readonly probeWebview: (storage: WebviewFetchSurface) => Promise<WebviewProbeResult | null>;
   /** 要连的本地适配器名。 */
   readonly adapterName: string;
   /** 自检结论的出口；非自检模式下是一次空操作。 */
@@ -131,5 +160,29 @@ export const startLocalDatabase = async (startup: LocalDatabaseStartup): Promise
     await startup.report({ status: 'failed', message: describeError(error) });
     return;
   }
-  await startup.report({ status: 'ok', launchCount });
+  // US-505：探针排在 `record()` 之后而不是与它并发 —— 两者都要写库，并发起来
+  // 第一次启动的 `launchCount` 与探针的 `existedBefore` 会互相干扰，
+  // 而那正是 AC#1 用来排掉「内存实现」的两条判据。
+  let storage: StorageProbeResult;
+  try {
+    storage = await startup.probe(database.storage);
+  } catch (error) {
+    // 文件存储用不了和库用不了是同一类事，落到同一个失败态；抛出去就是白屏（TAURI-01）。
+    startup.state.markFailed(error);
+    await startup.report({ status: 'failed', message: describeError(error) });
+    return;
+  }
+  // US-505 AC#6：同样排在存储探针**之后**而不是与它并发 —— webview 探针自己要往存储里写
+  // 三份缓存，与 `existedBefore` 并发起来会互相干扰。
+  let webview: WebviewProbeResult | null;
+  try {
+    webview = await startup.probeWebview(database.storage);
+  } catch (error) {
+    // 不吞成 `ok` + `webview: null`：那与「本来就没开探针」长得一模一样，
+    // e2e 侧只会看到一条「报告里没有 webview 探针结果」，查不到是哪一步坏了。
+    startup.state.markFailed(error);
+    await startup.report({ status: 'failed', message: describeError(error) });
+    return;
+  }
+  await startup.report({ status: 'ok', launchCount, storage, webview });
 };
