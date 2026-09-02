@@ -51,23 +51,25 @@ const FILE_PATH = 'bulk/large.bin';
  * @remarks
  * 定成帧的倍数而不是内容的比例，是因为「与内容体积无关」正是这条 AC 要证的性质 ——
  * 按比例定的阈值会随素材变大而自动放宽，把回归一起放过去。
+ *
+ * 真实工作集是「当前帧 + 流预取的下一帧」：`openRead` 的 `pull` 把第 N 帧交出去之后就去取
+ * 第 N+1 帧，采样撞进这个窗口时量到的是两帧。本机 7 次实测 6 次是 1.005 帧、1 次 2.042 帧，
+ * 所以四帧是留了一倍余量的上限，不是一条踩线通过的红线。
  */
 const STREAMING_PEAK_CEILING = FRAME_BYTES * 4;
 
 /**
- * 对照组峰值的下限：整份内容再让出四帧。
+ * 对照组峰值的下限：整份内容再让出 1 MiB。
  *
  * @remarks
- * 峰值是「采样绝对值 − 基线」的差，而基线是在流式循环之后采的：那一刻 `reader` 还在作用域里，
- * 它持有的那一帧于是被算进基线、又从差里减掉 —— 基线偏高多少，这个差就短多少。这不是 KiB
- * 量级的噪声，短的是**整整一帧**：CI 上实测基线高出 4 196 512 B（一帧 + 2 208 B），让出一帧
- * 的旧余量正好差这 2 208 B 判红。让出四帧才算把「上一轮的尾帧尚未归还」这件事真正兜住。
- *
  * 「对照组确实攒住了整份内容」由 `held` 的字节总和逐字节坐实，这条只负责确认采样器量得到
- * 这份内容，放宽到九帧不会放过谁：一个没攒住的实现峰值只有一帧量级，连
- * {@link STREAMING_PEAK_CEILING} 的四帧都够不着，离这条线还差八帧。
+ * 这份内容。让出的 1 MiB 是留给基线偏高的噪声余量，**不**是留给「基线里混进整整一帧」的——
+ * 那件事由 {@link readAndMeasurePeakBytes} 在结构上排掉，不靠放宽阈值兜：本机 7 次实测，
+ * 峰值不但没短，还比整份内容高出 12~16 KB（采样点上还压着一份没回收的传输层缓冲）。
+ *
+ * 一个没攒住的实现峰值只有一帧量级，离这条线还差十二帧，这 1 MiB 放不过去。
  */
-const ACCUMULATING_PEAK_FLOOR = CONTENT_BYTES - FRAME_BYTES * 4;
+const ACCUMULATING_PEAK_FLOOR = CONTENT_BYTES - FRAME_BYTES / 4;
 
 /**
  * 本文件两条用例的单条超时。
@@ -129,6 +131,37 @@ const sampleBytesHeld = (): number => {
   return jsBytesHeld();
 };
 
+/**
+ * 完整读一遍 {@link FILE_PATH}，量出这一趟的内存峰值。
+ *
+ * @remarks
+ * 两次读共用同一段循环，差别只在 `onChunk` 的去处：比较的两个峰值因此来自同一条读通路，
+ * 差异只可能出自调用方持不持有内容 —— 这正是 AC#5 要归因的那一项。
+ *
+ * 必须是一个独立函数、而不是测试体里的两段循环：`reader` 可达 `openRead` 造出的那条流，
+ * 而流的底层源在 `pull` 里用闭包变量 `pending` 存着「下一帧」，读到 eof 时它仍指着最后一帧
+ * （见 `rxdb-plugin-storage` 的 `desktop.ts`）。把 `reader` 留在测试体的作用域里，下一趟采基线
+ * 就会把这一帧算进基线、再从峰值差里减掉，对照组的峰值于是凭空短掉整整一帧（CI 上实测基线
+ * 高出 4 196 512 B，即一帧 + 2 208 B）。函数返回后整条链不可达，`gc()` 收得干净，
+ * 基线量到的才是「什么都没持有」。
+ *
+ * @param onChunk - 每帧的去处：对照组推进数组，流式组丢弃。调用发生在采样之前，
+ *   所以当前帧本身计入峰值。
+ * @returns 本趟读的内存峰值，已减去本趟自己的基线
+ */
+const readAndMeasurePeakBytes = async (onChunk: (chunk: Uint8Array) => void): Promise<number> => {
+  const baseline = sampleBytesHeld();
+  let peak = 0;
+  const reader = (await filesystem.openRead(FILE_PATH)).getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    onChunk(value);
+    peak = Math.max(peak, sampleBytesHeld() - baseline);
+  }
+  return peak;
+};
+
 let workspace: string;
 let filesystem: StorageFilesystem;
 let stopHost: () => void;
@@ -184,33 +217,21 @@ describe('Rust 文件宿主的大文件通路', () => {
    * US-505 AC#5 后半：流式读的内存峰值只有一帧的量级，与内容体积无关。
    *
    * @remarks
-   * 阈值 {@link STREAMING_PEAK_CEILING} 是四帧，本机实测是 4.21 MB —— 正好一帧，
-   * 余量四倍，不是一条踩线通过的脆弱红线。另一半断言比的是同一条读通路上的累积读
-   * （实测 54.5 MB，即整份内容）：只卡绝对值的话，一个「其实没流式、但恰好被别的原因
-   * 压住了内存」的实现也能蒙混过去；两条一起才把它排掉。
+   * 阈值 {@link STREAMING_PEAK_CEILING} 是四帧，本机实测 4.21 MB —— 正好一帧，
+   * 余量至少一倍（撞上预取窗口的那次是 8.56 MB，仍在一半以内）。另一半断言比的是同一条
+   * 读通路上的累积读（实测 54.54 MB，整份内容还多出十几 KB）：只卡绝对值的话，一个
+   * 「其实没流式、但恰好被别的原因压住了内存」的实现也能蒙混过去；两条一起才把它排掉。
+   *
+   * 两趟读共用 {@link readAndMeasurePeakBytes}，差别只在每帧的去处，比出来的差异才归得到
+   * 「调用方持不持有内容」这一项上。
    */
   it(
     '流式读的内存峰值只有一帧量级，且不到累积读峰值的一半',
     async () => {
-      const streamingBaseline = sampleBytesHeld();
-      let streamingPeak = 0;
-      const reader = (await filesystem.openRead(FILE_PATH)).getReader();
-      for (;;) {
-        const { done } = await reader.read();
-        if (done) break;
-        streamingPeak = Math.max(streamingPeak, sampleBytesHeld() - streamingBaseline);
-      }
+      const streamingPeak = await readAndMeasurePeakBytes(() => undefined);
 
-      const accumulatingBaseline = sampleBytesHeld();
-      let accumulatingPeak = 0;
       const held: Uint8Array[] = [];
-      const accumulator = (await filesystem.openRead(FILE_PATH)).getReader();
-      for (;;) {
-        const { done, value } = await accumulator.read();
-        if (done) break;
-        held.push(value);
-        accumulatingPeak = Math.max(accumulatingPeak, sampleBytesHeld() - accumulatingBaseline);
-      }
+      const accumulatingPeak = await readAndMeasurePeakBytes(chunk => held.push(chunk));
 
       // 先把对照组的前提坐实：它确实把整份内容攒住了，否则下面的比值只是两个小数在比大小。
       expect(held.reduce((total, chunk) => total + chunk.byteLength, 0)).toBe(CONTENT_BYTES);
