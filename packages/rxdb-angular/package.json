@@ -25,8 +25,8 @@
     "@aiao/rxdb": "*",
     "@aiao/rxdb-plugin-graph": "*",
     "@aiao/utils": "*",
-    "@angular/core": "^22.1.4",
-    "@angular/platform-browser": "^22.1.4",
+    "@angular/core": "^22.0.0",
+    "@angular/platform-browser": "^22.0.0",
     "ngxtension": "^7.0.1",
     "rxjs": "^7.8.2"
   },

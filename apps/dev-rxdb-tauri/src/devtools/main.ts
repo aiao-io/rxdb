@@ -44,6 +44,6 @@ bootstrapApplication(AppComponent, {
         return createDevToolsV2FileChannel(() => endpoints.resolve());
       }
     },
-    { provide: DEVTOOLS_PANEL_VERSION, useValue: tauriConfig.version }
+    { provide: DEVTOOLS_PANEL_VERSION, useValue: version }
   ]
 }).catch(err => console.error('[RxDB DevTools] Bootstrap error:', err));
