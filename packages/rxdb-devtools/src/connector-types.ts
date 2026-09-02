@@ -61,17 +61,39 @@ export type GetEntityMetadataFn = (entity: EntityType) => DevToolsEntityMetadata
  * 页内 provider 装配中需要宿主显式注入的那一部分。
  *
  * @remarks
- * 浏览器能自动探测的那一半（OPFS、页面下载路径、RxDB 实例）不在这里——那由连接器自己
- * 按环境装配。这里只放浏览器探测不到的：原生文件后端、`settings` 的语义 kind 与显示用
- * runtime。三者各自独立，缺省时连接器按浏览器形态装配。
+ * 浏览器能自动探测的那一半（OPFS、页面下载路径、RxDB 实例）原则上不在这里——那由连接器
+ * 自己按环境装配。这里放的是浏览器探测不到的：原生文件后端、`settings` 的语义 kind 与
+ * 显示用 runtime。各字段互相独立，缺省时连接器按浏览器形态装配。
+ *
+ * 唯一的例外是 {@link DevToolsProviderOptions.getRootDirectory}：它存在不是为了补充探测
+ * 结果，而是为了让宿主**否决**探测结果，见该字段自己的说明。
  */
 export interface DevToolsProviderOptions {
   /** 原生文件后端端口；给定时 `files` 走 `native-files` 而不是 OPFS。 */
   nativeFiles?: DevToolsNativeFilesProviderPorts;
   /** `settings` 领域 provider；缺省为浏览器 settings（`kind: opfs`）。 */
   settings?: DevToolsProvider;
-  /** descriptor 显示用 runtime；缺省 `browser`，只影响 `database` 领域。 */
+  /**
+   * descriptor 显示用 runtime；缺省 `browser`。
+   *
+   * @remarks
+   * 影响 `database` 与 OPFS `files` 两个领域。`settings` 的 runtime 跟着注入的
+   * descriptor 走，`native-files` 的则写死在 provider 里——两者都不受这里影响。
+   */
   runtime?: DevToolsProviderRuntime;
+  /**
+   * 显式覆盖 OPFS 根目录入口；传 `undefined` 即**撤掉** `files` 领域。
+   *
+   * @remarks
+   * 上面说浏览器能自动探测的那一半不在这里，唯独这一条是例外，因为宿主需要的是
+   * **反向**表态：连接器默认用 `resolveBrowserOpfsRoot()` 探到什么就宣告什么，而宿主
+   * 可能已经知道该领域用不了（例：wa-sqlite 落在 IDB 后端时拿不到 OPFS 文件入口）。
+   * 这时必须撤掉入口让该领域整个不宣告——留着它，文件页会照常点亮再逐个操作失败，
+   * 正是 descriptor 模型要避免的。
+   *
+   * 省略本字段 = 沿用连接器的自动探测；显式给 `undefined` = 不宣告 `files`。
+   */
+  getRootDirectory?: () => Promise<FileSystemDirectoryHandle>;
 }
 
 /** RxDB DevTools 配置选项。 */

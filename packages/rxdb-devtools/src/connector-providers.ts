@@ -103,9 +103,17 @@ export interface ConnectorProviderPorts {
    * descriptor 显示用 runtime；缺省 `browser`。
    *
    * @remarks
-   * 进本层构造的每个 descriptor（`database` 与 OPFS `files`）。`settings` 不在此列：
-   * 它整份由宿主注入，runtime 跟着注入的 descriptor 走；`native-files` 也不在此列，
-   * 它的 kind 已经绑死了宿主。
+   * 进本层构造的每个 descriptor（`database` 与 OPFS `files`）。另两个领域不在此列，
+   * 但原因不同：
+   *
+   * - `settings` 整份由宿主注入，runtime 跟着注入的 descriptor 走；
+   * - `native-files` 的 runtime 在 provider 里**写死为 `'electron'`**
+   *   （见 `native/native-files-provider.ts`），且 `DevToolsNativeFilesProviderPorts`
+   *   没有覆盖入口。注意不是「kind 绑死了宿主」——`kind: 'native-files'` 本身是宿主
+   *   无关的，Electron 与 Tauri 用的是同一个 kind。
+   *
+   * 后一条意味着接了原生文件后端的宿主，`files` 会与 `database` 报出不同的 runtime。
+   * US-905 AC#10 要求 Tauri 上两者都显示 `tauri`，届时需要给该 provider 补一个 runtime 端口。
    */
   runtime?: DevToolsProviderRuntime;
 }

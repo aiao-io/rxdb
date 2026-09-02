@@ -106,15 +106,21 @@ export default () => {
   //
   // 判定失败不在这里兜底：同一个 Promise 也是适配器工厂 await 的那个，建库会带着同一个
   // 错误失败并浮到调用方。这里只补一条日志，免得多出一个无人认领的 rejection。
-  void resolveBackend().then(
-    backend => {
-      const ports = createWaSqliteDevToolsPorts(backend, resolveBrowserOpfsRoot());
+  //
+  // 必须是链式 `.catch` 而不是 `.then(onFulfilled, onRejected)`：双参形式的 onRejected
+  // **接不住 onFulfilled 自己抛的错**，而接线臂是会抛的（connector 的单实例约束、
+  // `init()` 里同步跑的 `getEntityMetadata`）——那恰好就会产生这条日志本想避免的
+  // 无人认领 rejection。
+  void resolveBackend()
+    .then(backend => {
+      // 本模块只在**非** Tauri 运行时被选中（见文件头），宿主就是浏览器；runtime 是纯显示
+      // 字段，写死 `'tauri'` 会让预览页谎报来源，而真 Tauri 窗口走的是 setup_rxdb_desktop.ts。
+      const ports = createWaSqliteDevToolsPorts(backend, resolveBrowserOpfsRoot(), 'browser');
       // 后端不可用时本地库根本开不起来，没有可调试的对象，不建 connector。
       if (ports === undefined) return;
       getDevToolsConnector({ providers: ports }).init(rxdb, getEntityMetadata);
-    },
-    (error: unknown) => console.error('wa-sqlite backend probe failed; devtools not attached', error)
-  );
+    })
+    .catch((error: unknown) => console.error('wa-sqlite devtools attach failed', error));
 
   return rxdb;
 };

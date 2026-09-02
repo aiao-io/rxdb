@@ -17,7 +17,10 @@ import { configureLogger } from '@modules/rxdb-devtools-panel/wire';
 // `['core:event:default']`；何况版本是构建期常量，没有理由换成一次运行期 IPC。
 // 与 `apps/rxdb-devtools-extension` 从 `package.json` 取版本同构——本 app 没有 package.json，
 // 它的版本单一来源就是这份 tauri.conf.json。
-import tauriConfig from '../../src-tauri/tauri.conf.json';
+// 具名导入而不是默认导入：默认导入会把**整份**配置内联进面板 bundle（构建命令、devUrl、
+// frontendDist、identifier、完整 CSP 串），只为读一个版本号。具名导入能被摇成裸字符串，
+// 也顺带保证日后往这份文件加 updater pubkey / 私有端点时不会无声进到 webview 里。
+import { version } from '../../src-tauri/tauri.conf.json';
 import { TauriHostAccessService } from './tauri-host-access.service';
 import { TauriTransportService } from './tauri-transport.service';
 
