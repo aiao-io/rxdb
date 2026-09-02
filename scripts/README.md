@@ -38,7 +38,7 @@ CI 的 `setup` job 每轮都会执行。表格里各 spec 那一行写的 `node 
 | [test-all-log.spec.mjs](#test-all-log-specmjs)                              | 改 test-all-log 后                           | Node test runner，覆盖 `formatNxLog` / `parseNxLog` / `renderReport`            | `node --test scripts/test-all-log.spec.mjs`                                   |
 | [ci/plan-test-lanes.mjs](#ciplan-test-lanesmjs)                             | CI `setup` job                               | 按实测耗时把 test 项目 LPT 装箱成并行 lane，输出 `strategy.matrix` JSON         | `node scripts/ci/plan-test-lanes.mjs --projects=a,b,c`                        |
 | [ci/plan-test-lanes.spec.mjs](#ciplan-test-lanesspecmjs)                    | 改分桶算法后                                 | Node test runner，覆盖不丢不重 / 可复现 / Supabase 独立 lane / 新包告警         | `node --test scripts/ci/plan-test-lanes.spec.mjs`                             |
-| [ci/probe-nx-cloud.mjs](#ciprobe-nx-cloudmjs)                               | CI `setup` job                               | 探测 Nx Cloud `/nx-cloud/ping`，fail-closed 输出 `NX_NO_CLOUD`                  | `node scripts/ci/probe-nx-cloud.mjs`                                          |
+| [ci/probe-nx-cloud.mjs](#ciprobe-nx-cloudmjs)                               | 手动（CI 已下线，云关停中）                  | 探测 Nx Cloud `/nx-cloud/ping`，fail-closed 输出 `NX_NO_CLOUD`                  | `node scripts/ci/probe-nx-cloud.mjs`                                          |
 | [ci/probe-nx-cloud.spec.mjs](#ciprobe-nx-cloudspecmjs)                      | 改 Cloud 探测分类后                          | Node test runner，覆盖 2xx / FREE plan / 401 / 超时 / 缺 id                     | `node --test scripts/ci/probe-nx-cloud.spec.mjs`                              |
 | [runner.mjs](#runnermjs)                                                    | 内部依赖                                     | `spawn` 封装：彩色错误打印、参数透传                                            | `import { run } from './runner.mjs'`                                          |
 | [workspace.mjs](#workspacemjs)                                              | 内部依赖                                     | 共享常量：NPM scope、需预构建的库名、需校验的分支                               | `import { NPM_SCOPE, NEED_BUILDS } from './workspace.mjs'`                    |
@@ -308,16 +308,23 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ### `ci/probe-nx-cloud.mjs`
 
-- **触发**：`.github/workflows/ci-template.yml` 的 `setup` job，checkout 之后立刻跑；本地调试用
+- **触发**：**当前 CI 不调用**（2026-09-03 起 Nx Cloud 全线关停，见下）。本地调试用
   `node scripts/ci/probe-nx-cloud.mjs [--nx-cloud-id=<id>] [--api-url=<url>]`。
 - **做什么**：`GET {apiUrl}/nx-cloud/ping`，带 `Nx-Cloud-Id` 头，超时 8s。stdout 只写 `true`/`false`
   （即 `NX_NO_CLOUD`），理由走 stderr。默认从 cwd 的 `nx.json` 读 `nxCloudId`。
 - **分类（fail-closed）**：2xx → 开云（stdout `false`）；正文含 `exceeding the FREE plan` /
   `organization has been disabled`、401 无凭据 / 无效 id、超时 / 5xx / 网络 / 缺 id / 意外响应 → 关云（stdout `true`）。
-- **workflow 怎么吃**：setup 写 `outputs.nx_no_cloud`；lint / build / test / test-browser /
-  acceptance / e2e / rust / extras / benchmark 用 job 级 `env.NX_NO_CLOUD` 覆盖。
-  workflow 默认仍是 `true`，忘加覆盖的新 job 继续关云。
-- **何时手动跑**：怀疑 Cloud 组织刚升级/刚超额，想看本轮会不会翻开关。
+- **为什么下线**：探测只发 `Nx-Cloud-Id`、不带 access token，而实跑时
+  `process.env.NX_CLOUD_ACCESS_TOKEN` 优先级高于 `nxCloudId`。组织级 secret
+  `NX_CLOUD_ACCESS_TOKEN` 指向已不存在的 workspace 时，ping 照样 200 → 探测判「可用」→
+  下游 job 开云 → 握手 401「Workspace is unable to be authorized」，全线红
+  （run 33596248787）。**探测用的凭据和实跑用的凭据不是同一个**，这是这套 fail-closed 的洞。
+- **workflow 怎么吃**：setup 的 `Probe Nx Cloud` 步骤把 `outputs.nx_no_cloud` 钉死成 `true`；
+  lint / build / test / test-browser / acceptance / e2e / rust / extras / benchmark 九个 job
+  用 job 级 `env.NX_NO_CLOUD` 读它。workflow 默认也是 `true`，忘加覆盖的新 job 继续关云。
+- **复开前置**：① 换掉坏 token（新 CI token 设成仓库级 secret 以覆盖组织级）；
+  ② 让本脚本连 token 一起验，而不是只 ping id；③ setup 换回调用本脚本。
+- **何时手动跑**：准备复开云，想先看 ping 侧是否可用。
 
 ### `ci/probe-nx-cloud.spec.mjs`
 
