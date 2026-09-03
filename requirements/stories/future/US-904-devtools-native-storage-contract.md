@@ -817,7 +817,7 @@ v2 session 一建立，端点就去开 `database.events` 订阅，而 `database`
 
 | #   | 前置条件                                                         | 操作                                                   | 预期结果                                                                                                                                         | 状态 |
 | --- | ---------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 45  | 分别构建显式开发配置与 production                                | 检查产物并启动                                         | dev 加载唯一工作区扩展并握手；production 无扩展源码、加载路径、bootstrap 和新增权限                                                              | ⚠️   |
+| 45  | 分别构建显式开发配置与 production                                | 检查产物并启动                                         | dev 加载唯一工作区扩展并握手；production 无扩展源码、加载路径、bootstrap 和新增权限                                                              | ✅   |
 | 46  | 应用使用 US-207 desktop SQLite                                   | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与应用一致；不创建或查询 OPFS/IndexedDB fallback                                                         | ⚠️   |
 | 47  | 应用使用 US-504 原生文件后端并显式允许 mutation                  | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件专用根，字节一致；UI 仅用 `runtime: electron` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                              | ⚠️   |
 | 48  | 1001 条以上 metadata/files、两类缺失和一条在途上传               | 读取完整诊断 snapshot                                  | 从请求进入起算的共享 deadline（阶段 B）覆盖等锁/物化/重试；不漏尾页或误报临时状态；失效/超限/过期分别返回 shared busy/too-large/expired          | ✅   |
@@ -874,6 +874,31 @@ variance 依然成立），但 **Electron 侧可以**——不走 page 级 CDP�
 `loadURL('app://-/index.html')`）已被上面第 1 条证伪，永远接不通面板；留着只会把 AC#46/47/49/51 的后续工作
 引向死路。剩余 AC 的 E2E 应当从 `devtools-restart-persistence.spec.ts` 这套已跑通的驱动（`attachPanel` /
 `readPanel`）出发。（`requirements/reviews/next-0831-branch-review.md` 里对该文件的引用是当时的快照，不回改。）
+
+**AC#45 关闭 + 一处此前不成立的接线（2026-09-04）**：`apps/dev-rxdb-electron-e2e/src/devtools-capability-wiring.spec.ts`（4 例）。
+
+关闭 AC#45 的过程中发现：**`DEV_RXDB_DEVTOOLS_CAPABILITY` 与 `DEV_RXDB_DEVTOOLS_MUTATION` 对授权毫无影响。**
+`resolveDevToolsDevConfig()` 在主进程里把两者解析、校验，然后**丢掉**——没有任何一条路把它们送到渲染进程，
+页内 connector 恒为 `@aiao/rxdb-devtools` 的库默认档 `capabilities: 'full'` + `mutationPolicy: 'omit'`。
+后果有两层：档位开关是装饰性的；**「显式允许写入」在桌面端根本表达不出来**，
+所以 AC#47 的「显式允许 mutation → 上传/新建/删除」在此前的代码上无从验起——这正是它的 E2E 侧一直空着的原因。
+
+补上的链路：main 解析 env → `devToolsLaunchArguments()` 编码成 `webPreferences.additionalArguments`
+→ preload 同步读 `process.argv` 并 `exposeInMainWorld` → 渲染进程 `setup_rxdb_desktop.ts` 展开进
+`getDevToolsConnector()`。**用启动参数而不是 IPC 是时序决定的**：connector 是应用 bootstrap 时建的
+一次性全局单例，异步 IPC 到不了那么早，只会退化成「先按默认档建好、再想办法改」——那等于给授权留一段空窗。
+未开启开发态 DevTools 时 `devToolsLaunchArguments(undefined)` 返回空数组，preload 一个键都不挂，
+页内因此拿到 `undefined` 并沿用库默认档，而不是一份「长得像配置的默认值」。
+
+判别力落在**面板上看得见的差别**而不是「读到了那个变量」：`capabilities: 'none'` 下 connector 的
+`#subscribeToEvents` 首行就返回，面板永远读不到实体。该用例用与 `full` 档**同样的 40s 预算**再判「没有」
+（短预算下的「没读到」只能说明还没到），实测 41.6s 全额跑完仍为空；接线一旦断掉它会退回默认的 `full`
+而由红转绿，因此同时是回归闸。三处字面量（挂载键 × 2、参数前缀 × 2）分散在 preload（`sandbox: true`
+不能值导入）、`ipc-contract.ts` 与渲染进程三个文件里，由 `devtools-extension.spec.ts` 的两条用例钉住——
+任何一处漂移的表征都是「配置静默不生效」，没有任何报错。
+
+AC#49 的**面板侧**同批关闭（导出按钮常量禁用 + 停用理由），保留半边是 wire 侧的
+「强制发 export 命令 → `export_unsupported`」与「未声明 clear → `provider_unsupported`」。
 
 **顺带的产品结论（需 owner 单独决策，不在本条范围）**：开发者拿**打包产物**（`app://` 入口）时用不了 DevTools
 扩展面板。阶段 D 的范围本就声明「production 无扩展源码与加载路径」，所以这不构成生产缺陷；但若希望开发者能在

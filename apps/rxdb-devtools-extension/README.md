@@ -109,6 +109,10 @@ electron: Failed to load URL: http://localhost:4120/ with error: ERR_CONNECTION_
 
 一个开关都不设时（正式启动路径）**一个扩展都不加载**，产物里也没有扩展源码与加载路径——运行时闸门与 `electron-builder.json` 的构建期排除各挡一半，由 `devtools-extension-loading.spec.ts` 守住。
 
+后两个开关经 `webPreferences.additionalArguments` → preload → 页内 `getDevToolsConnector()` 生效。用启动参数而不是 IPC 是时序决定的：connector 是应用 bootstrap 时建的一次性全局单例，异步 IPC 到不了那么早。没开开发态 DevTools 时一条参数都不带，页内沿用 `@aiao/rxdb-devtools` 的库默认档（`full` + 只读），而不是一份长得像配置的默认值。
+
+> `capabilities: 'none'` 下 connector 连事件订阅都不建立，面板会一直是空的——那是预期行为，不是没连上。
+
 ### 为什么打包产物（`app://` 入口）用不了
 
 两条都是 US-904 阶段 D 在真实产物上实测的结论，**不是配置问题，没有修法**：

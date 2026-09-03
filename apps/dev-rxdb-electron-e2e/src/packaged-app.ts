@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -93,6 +93,56 @@ export function resolveExecutable(): string {
       '（该命令需要下载 Electron 发行包；离线或网络受限时会以 ETIMEDOUT 失败。）'
     ].join('\n')
   );
+}
+
+/** renderer 构建产物目录，与 `apps/dev-rxdb-electron` 的 build outputPath 一致。 */
+export const RENDERER_DIST = join(__dirname, '../../../dist/apps/dev-rxdb-electron/browser');
+
+/** 静态服务的 MIME 表；`.wasm` 少一条就会让 SQLite 侧的实例化失败在一句无关的报错上。 */
+const CONTENT_TYPES: Readonly<Record<string, string>> = {
+  '.css': 'text/css',
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.json': 'application/json',
+  '.mjs': 'text/javascript',
+  '.wasm': 'application/wasm'
+};
+
+/**
+ * 把 renderer 构建产物用真实 http 服务出去。
+ *
+ * @param createServer - `node:http` 的 `createServer`，由调用方注入以免本模块把 http 拖进
+ *   每一个 import 它的 spec。
+ * @returns 端口与关闭函数
+ * @throws 缺 renderer 产物时抛出
+ *
+ * @remarks
+ * 存在的唯一理由是把 inspected page 的 scheme 从 `app:` 换成 `http:`：自定义 scheme 拿不到
+ * 扩展 host permission（US-904 阶段 D 实测），桌面端要跑通四段 relay 只有这一条路。
+ * 找不到的路径回落到 `index.html` —— 应用走的是 hash 路由，这只服务于深链接刷新。
+ */
+export async function serveRendererDist(
+  createServer: typeof import('node:http').createServer
+): Promise<{ port: number; close: () => Promise<void> }> {
+  if (!existsSync(RENDERER_DIST)) {
+    throw new Error(`缺 renderer 产物：${RENDERER_DIST}。先 pnpm nx run dev-rxdb-electron:electron-package-dir`);
+  }
+  const server = createServer((request, response) => {
+    const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
+    const candidate = join(RENDERER_DIST, pathname);
+    const file =
+      pathname !== '/' && existsSync(candidate) && statSync(candidate).isFile() ?
+        candidate
+      : join(RENDERER_DIST, 'index.html');
+    response.writeHead(200, {
+      'content-type': CONTENT_TYPES[file.slice(file.lastIndexOf('.'))] ?? 'application/octet-stream'
+    });
+    response.end(readFileSync(file));
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (address === null || typeof address === 'string') throw new Error('拿不到静态服务端口');
+  return { port: address.port, close: () => new Promise<void>(resolve => void server.close(() => resolve())) };
 }
 
 /**

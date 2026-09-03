@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { attachPanel, PANEL_BUDGET_MS, readPanel } from './devtools-panel-driver';
-import { launchEnv, resolveDesktopDevExtension, resolveExecutable } from './packaged-app';
+import { launchEnv, resolveDesktopDevExtension, resolveExecutable, serveRendererDist } from './packaged-app';
 
 /**
  * US-904 阶段 D AC#52：真实 userData 重启后，DevTools 面板读回同一实体与同一文件。
@@ -54,9 +54,6 @@ import { launchEnv, resolveDesktopDevExtension, resolveExecutable } from './pack
  *   pnpm nx run dev-rxdb-electron:electron-package-dir
  */
 
-/** renderer 构建产物目录，与 `apps/dev-rxdb-electron` 的 build outputPath 一致。 */
-const RENDERER_DIST = join(__dirname, '../../../dist/apps/dev-rxdb-electron/browser');
-
 /**
  * 文件内容在 userData 下的相对位置。
  *
@@ -78,48 +75,6 @@ const FILE_MIB = 1;
 
 /** 被检查窗口：`--serve` 起的 http renderer，桌面端唯一能被扩展注入的形态。 */
 const INSPECTED = 'http://localhost' as const;
-
-/** 静态服务的 MIME 表；`.wasm` 少一条就会让 SQLite 侧的实例化失败在一句无关的报错上。 */
-const CONTENT_TYPES: Readonly<Record<string, string>> = {
-  '.css': 'text/css',
-  '.html': 'text/html',
-  '.js': 'text/javascript',
-  '.json': 'application/json',
-  '.mjs': 'text/javascript',
-  '.wasm': 'application/wasm'
-};
-
-/**
- * 把 renderer 构建产物用真实 http 服务出去。
- *
- * @returns 端口与关闭函数
- * @throws 缺 renderer 产物时抛出
- *
- * @remarks
- * 存在的唯一理由是把 inspected page 的 scheme 从 `app:` 换成 `http:`（见文件头）。
- * 找不到的路径回落到 `index.html` —— 应用走的是 hash 路由，这只服务于深链接刷新。
- */
-async function serveRenderer(): Promise<{ port: number; close: () => Promise<void> }> {
-  if (!existsSync(RENDERER_DIST)) {
-    throw new Error(`缺 renderer 产物：${RENDERER_DIST}。先 pnpm nx run dev-rxdb-electron:electron-package-dir`);
-  }
-  const server = createServer((request, response) => {
-    const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
-    const candidate = join(RENDERER_DIST, pathname);
-    const file =
-      pathname !== '/' && existsSync(candidate) && statSync(candidate).isFile() ?
-        candidate
-      : join(RENDERER_DIST, 'index.html');
-    response.writeHead(200, {
-      'content-type': CONTENT_TYPES[file.slice(file.lastIndexOf('.'))] ?? 'application/octet-stream'
-    });
-    response.end(readFileSync(file));
-  });
-  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
-  const address = server.address();
-  if (address === null || typeof address === 'string') throw new Error('拿不到静态服务端口');
-  return { port: address.port, close: () => new Promise<void>(resolve => void server.close(() => resolve())) };
-}
 
 /** 拉起打包产物：真实 userData、http renderer、开发态扩展副本。 */
 function launchApp(userDataDir: string, extensionDist: string, port: number): Promise<ElectronApplication> {
@@ -310,7 +265,7 @@ test.describe('DevTools 面板在真实重启后读回同一实体与同一文�
     // 取决于重试次数，`DesktopLaunch` 的行数断言随之失去意义。
     const userDataDir = mkdtempSync(join(tmpdir(), 'ac52-userdata-'));
     const extensionDist = resolveDesktopDevExtension();
-    const renderer = await serveRenderer();
+    const renderer = await serveRendererDist(createServer);
 
     try {
       const evidence = await seedAndRead(userDataDir, extensionDist, renderer.port);

@@ -14,8 +14,34 @@ import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/deskto
 import { createDevToolsDesktopFilesystem } from '@aiao/rxdb-plugin-storage/devtools-desktop';
 import { createDevToolsStorageSnapshotPorts } from '@aiao/rxdb-plugin-storage/devtools-desktop-snapshot';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
+import type { DevToolsCapability, DevToolsMutationPolicy } from '@aiao/rxdb-devtools';
 import { DESKTOP_DEMO_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
+
+/**
+ * 挂载键，与 `src-electron/ipc-contract.ts` 的 `DEVTOOLS_RUNTIME_CONFIG_KEY` 逐字一致。
+ *
+ * @remarks
+ * 渲染进程与主进程分属两个 tsconfig，这里只能写字面量；由
+ * `src-electron/devtools-extension.spec.ts` 的一条用例把三处钉在一起。
+ */
+const DEVTOOLS_RUNTIME_CONFIG_KEY = '__aiaoRxdbDevToolsConfig__';
+
+/**
+ * 读取本次运行的 DevTools 授权配置。
+ *
+ * @returns 主进程带进来的档位与写入开关；没有（production、或没开开发态 DevTools）时为空对象。
+ *
+ * @remarks
+ * 返回空对象而不是一份默认值，是为了让调用点能用展开语法把「没有配置」表达成
+ * **完全不传这两个键**，交给库自己的默认值——而不是在这里复制一份可能与库不同步的默认档。
+ */
+function devToolsRuntimeConfig(): { capabilities?: DevToolsCapability; mutationPolicy?: DevToolsMutationPolicy } {
+  const config = (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY] as
+    | { capability: DevToolsCapability; mutationPolicy: DevToolsMutationPolicy }
+    | undefined;
+  return config === undefined ? {} : { capabilities: config.capability, mutationPolicy: config.mutationPolicy };
+}
 
 /**
  * 文件内容在存储根下的子目录名（US-504）。
@@ -104,6 +130,11 @@ export default () => {
   };
 
   const devtools = getDevToolsConnector({
+    // 本次运行的授权配置由主进程经启动参数带进来（见 `ipc-contract.ts` 的
+    // `DevToolsRuntimeConfig`）。**不给默认值兜底**：没有这份配置就整段展开为空，
+    // 由 `@aiao/rxdb-devtools` 的库默认档接管。编一份「看起来是配置的默认值」出来，
+    // 意味着漏配的那次运行拿到的是某个人当初觉得合理的权限，而不是本次运行想要的权限。
+    ...devToolsRuntimeConfig(),
     providers: {
       nativeFiles: {
         filesystem: devtoolsFilesystem,
