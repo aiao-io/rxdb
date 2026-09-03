@@ -67,7 +67,7 @@
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
-    "@ungap/structured-clone": "1.3.3",
+    "@ungap/structured-clone": "1.4.0",
     "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994"
   }
 }

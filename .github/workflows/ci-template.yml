@@ -24,8 +24,7 @@ name: CI Template (Reusable)
 #   等全量 build 反而是净亏（run 31945480551：build 318s，最慢 test lane 504s，
 #   最慢 e2e 457s；串起来比现在 test/e2e 并行的关键路径更长）。
 #   跨 job 复用只靠 actions/cache 的 restore-keys 回退，暖到 main 上一轮 run 的本地
-#   Nx 缓存。Nx Cloud 远端缓存由 setup 探测 `/nx-cloud/ping` 动态开关：
-#   组织超额/不可达时 NX_NO_CLOUD=true，可用时下游 nx job 翻成 false。
+#   Nx 缓存。Nx Cloud 远端缓存**当前全线关闭**（见下面 setup 的 Probe Nx Cloud 步骤），
 #   容量规划别默认「一定有远端缓存」。
 #
 # 分支保护只需要挂一个 required status check：`gate`。
@@ -73,15 +72,17 @@ env:
   CI: true
   NX_DAEMON: false
   NX_TUI: false
-  # ---- Nx Cloud（动态探测，默认关）------------------------------------------
+  # ---- Nx Cloud（当前全线关闭）----------------------------------------------
   # NX_NO_CLOUD 是唯一的硬开关（nx/src/utils/nx-cloud-utils.js: isNxCloudDisabled），
   # 光把 token 留空没用：nx.json 里只要有 nxCloudId 就仍然会走 cloud runner。
   #
-  # 工作流级默认 true：setup 自己、coverage/gate、以及忘了加 override 的新 job
-  # 一律关云。setup 探测 GET /nx-cloud/ping（scripts/ci/probe-nx-cloud.mjs），
-  # 下游跑 nx 的 job 用 needs.setup.outputs.nx_no_cloud 覆盖本行。
-  # 2xx 才开；FREE plan 超限 / 401 / 超时 / 5xx / 网络异常一律 fail-closed。
-  # 强制关：别给下游 job 加 override，或把本行留 true。
+  # 工作流级 true：setup 自己、coverage/gate、以及忘了加 override 的新 job 一律关云。
+  # 下游跑 nx 的 job 用 needs.setup.outputs.nx_no_cloud 覆盖本行，而该 output 现在
+  # 被 setup 钉死成 true（原因和复开条件见 setup 的 Probe Nx Cloud 步骤）。
+  #
+  # NX_CLOUD_ACCESS_TOKEN 仍然注入：它本身是坏的（组织级 secret 指向已不存在的
+  # workspace），但 NX_NO_CLOUD=true 时根本走不到握手。**复开云之前必须先换掉它**，
+  # 否则 env 里的坏 token 会盖住 nx.json 的 nxCloudId，重新炸回 401。
   #
   # 关着时跨 job 产物复用只有 actions/cache 一条路。
   NX_NO_CLOUD: true
@@ -133,16 +134,29 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      # 纯 fetch + nx.json，不依赖 pnpm。runner 镜像自带 Node，checkout 后立刻跑。
-      # setup 自己继续继承 workflow 的 NX_NO_CLOUD=true（它只跑 nx show projects）。
+      # Nx Cloud 关停开关（下游 9 个 job 的 NX_NO_CLOUD override 全部读这个 output）。
+      #
+      # 2026-09-03 起钉死 true。原因不是 nx.json 的 nxCloudId 坏了——它有效，
+      # `GET /nx-cloud/ping` 带 `Nx-Cloud-Id: 6a7b30a94caecff9b5bf52d6` 返回 200，
+      # 本地不带 token 也能正常联云。坏的是**组织级 secret NX_CLOUD_ACCESS_TOKEN**，
+      # 它指向一个已不存在的 workspace，而 nx-cloud 客户端的取值顺序是
+      # `process.env.NX_CLOUD_ACCESS_TOKEN || ... || nxCloudId`，env 里的坏 token
+      # 把有效的 nxCloudId 遮住 → 握手 401 → 「Workspace is unable to be authorized」
+      # → runner 直接 exit，lint/test/e2e/rust/extras 全红（run 33596248787）。
+      #
+      # 为什么不留着 probe 动态探：probe-nx-cloud.mjs 只发 Nx-Cloud-Id、不带 token，
+      # 对这条故障永远返回 available，探测用的凭据和实跑用的凭据不是同一个。
+      # 脚本先留着，复开时要连同这个洞一起补（探测时带 token 一起验）。
+      #
+      # 复开步骤：① 在 nx.app workspace 6a7b30a9... 生成新 CI token，设成**仓库级**
+      # secret（覆盖组织级）；② 让 probe 也校验 token；③ 把下面换回 probe 调用。
       - name: Probe Nx Cloud
         id: cloud
         run: |
           set -euo pipefail
-          NX_NO_CLOUD_VALUE=$(node scripts/ci/probe-nx-cloud.mjs)
-          echo "nx_no_cloud=$NX_NO_CLOUD_VALUE" >> "$GITHUB_OUTPUT"
+          echo "nx_no_cloud=true" >> "$GITHUB_OUTPUT"
           echo "### Nx Cloud" >> "$GITHUB_STEP_SUMMARY"
-          echo "NX_NO_CLOUD=$NX_NO_CLOUD_VALUE" >> "$GITHUB_STEP_SUMMARY"
+          echo "NX_NO_CLOUD=true (pinned — stale org secret NX_CLOUD_ACCESS_TOKEN)" >> "$GITHUB_STEP_SUMMARY"
 
       # 取 PR 真正的 base 分支，而不是写死 main：PR 也可能提给 release/* 之类的
       # 长期分支，那时 `origin/main...HEAD` 会把 base 分支上的全部改动算进本 PR，

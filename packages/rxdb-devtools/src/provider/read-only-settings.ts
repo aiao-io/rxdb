@@ -10,7 +10,9 @@
  * 「零 OPFS / SQLite / WAL 读取」这条判据在那一端就退化成「恰好没读」。共享一份之后，
  * 这条性质由**结构**保证——工厂里根本没有可以读取任何东西的入口。
  *
- * 本模块不对外导出：它是两个 provider 的实现细节，不是宿主要接的端口。
+ * 工厂本身对外导出，descriptor 由调用方给：宿主可能在这两端之外（如 Tauri 的 wa-sqlite
+ * 预览按真实选中的 VFS 得出 `kind: opfs | idb`），需要的是同一份行为配自己的 descriptor。
+ * 反过来把 `export_unsupported` 的语义在宿主侧再写一遍，就等于多一个会漂移的副本。
  *
  * @module @aiao/rxdb-devtools/provider/read-only-settings
  */

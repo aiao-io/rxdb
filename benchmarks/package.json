@@ -24,17 +24,17 @@
     "@modules/wujie": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
     "comlink": "^4.4.2",
-    "lucide-react": "^1.34.0",
+    "lucide-react": "^1.39.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "simple-statistics": "^7.10.2",
+    "simple-statistics": "^7.11.0",
     "tailwindcss": "^4.3.3",
     "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
-    "daisyui": "^5.7.22",
+    "daisyui": "^5.7.27",
     "typescript": "~6.0.3",
     "vite": "^8.2.2",
     "vite-plugin-static-copy": "^4.1.1"

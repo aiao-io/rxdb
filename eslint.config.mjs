@@ -25,7 +25,10 @@ export default [
       '**/test-output',
       '**/playwright-report',
       '**/build',
-      '**/.react-router'
+      '**/.react-router',
+      // 测试期临时目录（`compileGeneratedRuntime` 用 mkdtemp 建在包根下），
+      // 与 lint 并发时会被删掉，eslint 扫到一半报 ENOENT 直接崩。
+      '**/.tmp-generated-runtime-*'
     ]
   },
   {

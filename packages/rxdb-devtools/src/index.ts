@@ -588,6 +588,10 @@ export {
   createDevToolsElectronSettingsProvider
 } from './native/settings-provider.js';
 export {
+  /** 用给定 descriptor 建一个只读 `settings` provider（`export` 恒回 `export_unsupported`）。 */
+  createDevToolsReadOnlySettingsProvider
+} from './provider/read-only-settings.js';
+export {
   /** 建 snapshot 存储：物化、分页、cursor 过期、epoch 重试。 */
   createDevToolsSnapshotStore,
   /** 单条记录的规范字节数。 */

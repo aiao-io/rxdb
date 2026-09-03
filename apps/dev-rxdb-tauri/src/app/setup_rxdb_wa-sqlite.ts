@@ -1,12 +1,14 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite, WaSqliteOptions } from '@aiao/rxdb-adapter-wa-sqlite';
+import { getDevToolsConnector, resolveBrowserOpfsRoot } from '@aiao/rxdb-devtools';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { checkOPFSAvailable } from '@aiao/utils';
+import { createWaSqliteDevToolsPorts } from '../devtools/tauri-vfs-providers';
 import { WEB_PREVIEW_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
-import { selectWaSqliteBackend } from './wa-sqlite-backend';
+import { selectWaSqliteBackend, type WaSqliteBackend } from './wa-sqlite-backend';
 
 /**
  * 构建本 app 的 RxDB 单例（纯本地 wa-sqlite，无远端同步）。
@@ -30,6 +32,13 @@ import { selectWaSqliteBackend } from './wa-sqlite-backend';
  */
 export default () => {
   const wasmBase = new URL('wa-sqlite/', document.baseURI).href;
+
+  // 后端判定**只做一次**：适配器工厂开的库和 devtools 宣告的能力必须来自同一个结论。
+  // 探针虽是纯函数，但两处各探一次得到的一致性只是碰巧——OPFS 可用性会随存储配额变化。
+  let backendOnce: Promise<WaSqliteBackend> | undefined;
+  const resolveBackend = (): Promise<WaSqliteBackend> =>
+    (backendOnce ??= (async () =>
+      selectWaSqliteBackend(await checkOPFSAvailable(), typeof SharedWorker === 'function'))());
 
   const rxdb = new RxDB({
     dbName: WEB_PREVIEW_DB_NAME,
@@ -57,7 +66,7 @@ export default () => {
     .use(rxDBPluginStorage)
     .adapter('wa-sqlite', async db => {
       let options: WaSqliteOptions;
-      const backend = selectWaSqliteBackend(await checkOPFSAvailable(), typeof SharedWorker === 'function');
+      const backend = await resolveBackend();
       if (backend === 'OPFSCoopSyncVFS') {
         options = {
           vfs: backend,
@@ -90,5 +99,28 @@ export default () => {
     });
 
   rxdb.init();
+
+  // US-905 AC#6：按**运行时真实选中**的 VFS 宣告三领域能力。装配必须等后端判定落定，
+  // 所以这里不像桌面那条路能紧接 `init()` 同步接上；`rxdb` 本身在 `init()` 后已可交给
+  // connector，晚一个微任务接上只影响面板何时看见这个会话，不影响它看见什么。
+  //
+  // 判定失败不在这里兜底：同一个 Promise 也是适配器工厂 await 的那个，建库会带着同一个
+  // 错误失败并浮到调用方。这里只补一条日志，免得多出一个无人认领的 rejection。
+  //
+  // 必须是链式 `.catch` 而不是 `.then(onFulfilled, onRejected)`：双参形式的 onRejected
+  // **接不住 onFulfilled 自己抛的错**，而接线臂是会抛的（connector 的单实例约束、
+  // `init()` 里同步跑的 `getEntityMetadata`）——那恰好就会产生这条日志本想避免的
+  // 无人认领 rejection。
+  void resolveBackend()
+    .then(backend => {
+      // 本模块只在**非** Tauri 运行时被选中（见文件头），宿主就是浏览器；runtime 是纯显示
+      // 字段，写死 `'tauri'` 会让预览页谎报来源，而真 Tauri 窗口走的是 setup_rxdb_desktop.ts。
+      const ports = createWaSqliteDevToolsPorts(backend, resolveBrowserOpfsRoot(), 'browser');
+      // 后端不可用时本地库根本开不起来，没有可调试的对象，不建 connector。
+      if (ports === undefined) return;
+      getDevToolsConnector({ providers: ports }).init(rxdb, getEntityMetadata);
+    })
+    .catch((error: unknown) => console.error('wa-sqlite devtools attach failed', error));
+
   return rxdb;
 };

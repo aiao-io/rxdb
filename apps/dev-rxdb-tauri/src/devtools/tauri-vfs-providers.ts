@@ -1,5 +1,14 @@
-import type { DevToolsProviderDescriptor, DevToolsUnavailableReason } from '@aiao/rxdb-devtools';
-import { DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES, DEVTOOLS_PROVIDER_OPERATIONS } from '@aiao/rxdb-devtools';
+import type {
+  ConnectorProviderPorts,
+  DevToolsProviderDescriptor,
+  DevToolsProviderRuntime,
+  DevToolsUnavailableReason
+} from '@aiao/rxdb-devtools';
+import {
+  createDevToolsReadOnlySettingsProvider,
+  DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES,
+  DEVTOOLS_PROVIDER_OPERATIONS
+} from '@aiao/rxdb-devtools';
 import type { WaSqliteBackend } from '../app/wa-sqlite-backend';
 
 /**
@@ -7,10 +16,16 @@ import type { WaSqliteBackend } from '../app/wa-sqlite-backend';
  *
  * @remarks
  * 这是「语义 kind，不是平台分支」的落点。三个 runtime 上同一份 kind 跑同一份 conformance，
- * 所以本模块**只**按 {@link WaSqliteBackend} 决定 kind，`runtime: 'tauri'` 只进 descriptor 的
- * 显示字段、不参与任何行为判定。绝不能反过来——按 adapter 名、URL 或平台去猜 OPFS：
- * 浏览器预览那份（`setup_rxdb_wa-sqlite.ts`）和打包后的 Tauri 窗口都跑 wa-sqlite，
- * 但只有前者落在 OPFS 上，猜出来的结论会在某一端静默少声明一个能力。
+ * 所以本模块**只**按 {@link WaSqliteBackend} 决定 kind。绝不能反过来——按 adapter 名、URL
+ * 或平台去猜 OPFS：浏览器预览那份（`setup_rxdb_wa-sqlite.ts`）和打包后的 Tauri 窗口都跑
+ * wa-sqlite，但只有前者落在 OPFS 上，猜出来的结论会在某一端静默少声明一个能力。
+ *
+ * `runtime` 是纯显示字段，由**调用方传入**而不是在这里写死。本模块所在的 app 叫
+ * dev-rxdb-tauri，但它唯一的运行时调用点 `setup_rxdb_wa-sqlite.ts` 恰恰**只在非 Tauri
+ * 运行时被选中**（`setup_rxdb.ts` 的候选表把 desktop 排在前面并以 `isTauriRuntime()` 把关）。
+ * 早先这里恒填 `'tauri'`，于是 `nx serve` 的浏览器预览宣告 `tauri`、而真正的 Tauri 窗口
+ * （走 `setup_rxdb_desktop.ts`，不传 providers）宣告 `browser`——两端恰好反了。
+ * 写死任何一个值都会在另一端变成假声明，所以它必须跟着宿主走。
  *
  * 三种后端的语义（与 US-904 能力矩阵一致）：
  *
@@ -42,13 +57,16 @@ const UNAVAILABLE_REASON: DevToolsUnavailableReason = 'runtime_unsupported';
  * `unavailable` operations 必须为空且带共享 reason code——这是 descriptor guard 的硬约束，
  * 空操作在这里是「本运行时有但此刻用不了」的结构化表达，不是「忘了填」。
  */
-function unavailableDescriptor(domain: DevToolsProviderDescriptor['domain']): DevToolsProviderDescriptor {
+function unavailableDescriptor(
+  domain: DevToolsProviderDescriptor['domain'],
+  runtime: DevToolsProviderRuntime
+): DevToolsProviderDescriptor {
   return {
     domain,
     version: 1,
     kind: 'unavailable',
     operations: [],
-    runtime: 'tauri',
+    runtime,
     limits: { maxTransferBytes: 0 },
     reason: UNAVAILABLE_REASON
   };
@@ -58,9 +76,13 @@ function unavailableDescriptor(domain: DevToolsProviderDescriptor['domain']): De
  * 由 wa-sqlite 真实选中的后端，产出三领域的 provider descriptor。
  *
  * @param backend - `selectWaSqliteBackend` 的返回值，不是任何平台的推断结果
+ * @param runtime - descriptor 的显示用 runtime，由宿主给出；不参与任何 kind 判定
  * @returns 三领域的 descriptor；`database` 仅在 `unavailable` 时不可用
  */
-export function mapWaSqliteBackendToProviders(backend: WaSqliteBackend): TauriVfsProviderDescriptors {
+export function mapWaSqliteBackendToProviders(
+  backend: WaSqliteBackend,
+  runtime: DevToolsProviderRuntime
+): TauriVfsProviderDescriptors {
   switch (backend) {
     case 'OPFSCoopSyncVFS':
       return {
@@ -69,7 +91,7 @@ export function mapWaSqliteBackendToProviders(backend: WaSqliteBackend): TauriVf
           version: 1,
           kind: 'rxdb',
           operations: DEVTOOLS_PROVIDER_OPERATIONS.database,
-          runtime: 'tauri',
+          runtime,
           limits: { maxTransferBytes: 0 }
         },
         files: {
@@ -77,7 +99,7 @@ export function mapWaSqliteBackendToProviders(backend: WaSqliteBackend): TauriVf
           version: 1,
           kind: 'opfs',
           operations: ['list', 'download', 'upload', 'create-directory', 'delete'],
-          runtime: 'tauri',
+          runtime,
           limits: { maxTransferBytes: OPFS_MAX_TRANSFER_BYTES }
         },
         settings: {
@@ -85,7 +107,7 @@ export function mapWaSqliteBackendToProviders(backend: WaSqliteBackend): TauriVf
           version: 1,
           kind: 'opfs',
           operations: ['export'],
-          runtime: 'tauri',
+          runtime,
           limits: { maxTransferBytes: 0 }
         }
       };
@@ -97,26 +119,65 @@ export function mapWaSqliteBackendToProviders(backend: WaSqliteBackend): TauriVf
           version: 1,
           kind: 'rxdb',
           operations: DEVTOOLS_PROVIDER_OPERATIONS.database,
-          runtime: 'tauri',
+          runtime,
           limits: { maxTransferBytes: 0 }
         },
         // IDB 后端暴露不出 OPFS 文件入口，文件页因此结构化 unavailable。
-        files: unavailableDescriptor('files'),
+        files: unavailableDescriptor('files', runtime),
         settings: {
           domain: 'settings',
           version: 1,
           kind: 'idb',
           operations: ['export'],
-          runtime: 'tauri',
+          runtime,
           limits: { maxTransferBytes: 0 }
         }
       };
 
     case 'unavailable':
       return {
-        database: unavailableDescriptor('database'),
-        files: unavailableDescriptor('files'),
-        settings: unavailableDescriptor('settings')
+        database: unavailableDescriptor('database', runtime),
+        files: unavailableDescriptor('files', runtime),
+        settings: unavailableDescriptor('settings', runtime)
       };
   }
+}
+
+/**
+ * 把上面那份映射装配成页内 connector 的 provider 端口。
+ *
+ * @remarks
+ * 这是映射唯一的**运行时**调用点——没有它，`mapWaSqliteBackendToProviders()` 就只是一份
+ * 被 spec 验证过、却决定不了任何声明的表。
+ *
+ * 装配层的模型是「没接上的领域不宣告 descriptor」，表达不了 `kind: 'unavailable'`。
+ * 两者在这里不冲突，因为映射里的 `unavailable` 各自有归宿：
+ *
+ * - `files: unavailable`（IDB 后端）→ 撤掉 `getRootDirectory`，该领域整个不宣告。
+ *   留着入口会让文件页照常点亮，再逐个操作失败——这正是 descriptor 模型要避免的。
+ * - 后端整体 `unavailable` → 返回 `undefined`，压根不建 connector。这条路上
+ *   `setup_rxdb_wa-sqlite.ts` 本来就会先抛错，本地库开不起来时没有可调试的对象。
+ *
+ * `settings` 整份注入：装配层的缺省是浏览器 `kind: opfs`，而这里要的是映射按真实 VFS
+ * 得出的 `opfs | idb`——`runtime` 则跟着宿主传进来的值走，见模块头。
+ *
+ * @param backend - `selectWaSqliteBackend` 的返回值
+ * @param opfsRoot - 本页的 OPFS 根目录入口（`resolveBrowserOpfsRoot()`）；页面没有 OPFS 时为 `undefined`
+ * @param runtime - 宿主的显示用 runtime；调用方自己知道跑在哪，这里不猜
+ * @returns 可直接交给 `getDevToolsConnector({ providers })` 的端口；后端不可用时 `undefined`
+ */
+export function createWaSqliteDevToolsPorts(
+  backend: WaSqliteBackend,
+  opfsRoot: (() => Promise<FileSystemDirectoryHandle>) | undefined,
+  runtime: DevToolsProviderRuntime
+): ConnectorProviderPorts | undefined {
+  if (backend === 'unavailable') return undefined;
+
+  const descriptors = mapWaSqliteBackendToProviders(backend, runtime);
+  return {
+    runtime,
+    settings: createDevToolsReadOnlySettingsProvider(descriptors.settings),
+    // 后端说 files 可用、页面却拿不到根目录时同样不宣告：假入口比缺声明更难查。
+    getRootDirectory: descriptors.files.kind === 'opfs' ? opfsRoot : undefined
+  };
 }
