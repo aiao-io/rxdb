@@ -84,7 +84,8 @@
   - 🚧 阶段 C 共享面板 library 与 Chrome v2 迁移
     - ✅ C1 行为中性抽取 → `modules/rxdb-devtools-panel/`（AC#31/32/33/35；AC#34 待人工浏览器回归）
     - 🚧 C2 四段 relay 与 v2 切换（AC#36/37/41/43 ✅；AC#40/#44 ⚠️ 部分；AC#38/#39/#42 ⬜ 需跨版本产物与真实 service worker）
-  - 🚧 阶段 D Electron 原生存储集成（AC#45/#48/#50/#52/#53 ✅；AC#46/47/49/51 ⚠️ E2E 侧待补）
+  - 🚧 阶段 D Electron 原生存储集成（AC#45/#48/#50/#52/#53 ✅；AC#46/47/49/51 ⚠️ E2E 侧部分补齐）
+    - AC#47 的**写路径已实证**（新建目录 / 64 KiB 与零字节上传 / 删除，落盘 SHA-256 逐字节比对，外加 `readonly` 负对照）；保留半边是面板侧下载、边界大小、`runtime` 显示与「失败/取消/超时无半写」
     - **AC#45 已于 2026-09-04 关闭**，同批修掉一处此前不成立的接线：`DEV_RXDB_DEVTOOLS_CAPABILITY` / `_MUTATION` 原先在主进程解析完就丢掉，页内 connector 恒为库默认 `full` + 只读——档位开关是装饰性的，**「显式允许写入」在桌面端表达不出来**，这正是 AC#47 的 E2E 侧一直空着的原因。现经 `additionalArguments` → preload → `getDevToolsConnector()` 打通
 - 🚧 [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1（AC#1～#8）已落地且代码侧收尾已做完：AC#7/#8 ✅，其余 6 条 ⚠️ 只差「真实 Tauri 窗口/产物」那一半；阶段 2（AC#9～#17）未开工，前置 US-210 + US-505 均已 Done
 - 🚧 [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](stories/future/US-906-electron-devtools-developer-path.md) — 2026-09-03 交付，**5 条 ✅ / 1 条 ⚠️**：`build-desktop-dev` 变体产出带静态 `host_permissions` 的 `dist-desktop-dev/`（与发布产物 diff 恰好只多这一个键）、e2e 收敛到同一份产物（原临时副本已删）、面板 `unsupported` 分支改为给原因、README 补桌面端调试一节。AC#2 的机器半边已由 AC#52 那条 e2e 覆盖，**人工半边待跑一次 `nx dev` 流程**

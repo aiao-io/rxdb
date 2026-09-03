@@ -900,6 +900,31 @@ variance 依然成立），但 **Electron 侧可以**——不走 page 级 CDP�
 AC#49 的**面板侧**同批关闭（导出按钮常量禁用 + 停用理由），保留半边是 wire 侧的
 「强制发 export 命令 → `export_unsupported`」与「未声明 clear → `provider_unsupported`」。
 
+**AC#47 的写路径（2026-09-04）**：`apps/dev-rxdb-electron-e2e/src/devtools-native-files-mutation.spec.ts`（2 例）。
+接线补齐后才谈得上验它——在此之前 `mutationPolicy` 恒为 `omit`，面板的写一律被 connector 拒掉。
+
+判据取**盘上的字节**而不是面板的提示：面板说「成功」只证明它收到了一条成功响应，只有独立地对
+`userData/rxdb-files/files/` 里的真实文件算一遍 SHA-256，才排除得掉「中途换了字节」「只写了元数据」
+「写进了别的目录」三种情况（与 AC#52 同一手法）。已覆盖：浏览、新建目录、正常大小上传（64 KiB，
+逐字节摘要一致）、**零字节**上传、删除，且全部落在插件专用根内。
+
+`readonly` 负对照是整组的判别力来源：省略写入开关后跑同一套操作，用与 `allow` 档**同样的落盘预算**
+再判「没有」，目录与文件一个都不出现。没有这一条，「写入开关恒为 allow」的实现同样能让前几条全绿。
+
+**保留半边**（故 AC#47 仍为 ⚠️）：面板侧下载、边界大小、`runtime: electron` 的 UI 显示，
+以及「失败/取消/超时无半写文件或孤儿 metadata」——后者的 provider 侧已有单测，缺的是真实路径上的复现。
+
+踩到并记下的坑：文件表每一行的删除按钮是 `title="删除"`，确认对话框里的是**文本**为「删除」的按钮，
+两者匹配同一个 label；不限定 `.modal-action` 范围时 `querySelectorAll` 按 DOM 顺序先撞上行内那个，
+「确认删除」于是变成「再点一次删除」，表征是文件始终不消失。
+
+**一处已知 flaky（阶段 A 遗留，非本轮引入）**：`devtools-mv3-feasibility.spec.ts` 的
+「AC#4 销毁窗口后 webContents 清空，service worker 空闲自停」在**整套 e2e 连跑且机器有负载**时
+会红在 `serviceWorkersRightAfterDestroy.length > 0` 上。该断言要的是「销毁窗口的瞬间 worker 还在」
+（MV3 的 worker 不随页面走，空闲约 30s 才自停）；机器慢下来时探针取样点会漂到 30s 之后，
+worker 已经自停，于是这一半落空。实证：单跑 10/10 绿（58.5s），连跑那次整套耗时 13.2m
+（平时 1.9m，约 7 倍），只有这一条红。**修法应当是让探针取样不依赖墙钟**，不在本轮范围。
+
 **顺带的产品结论（需 owner 单独决策，不在本条范围）**：开发者拿**打包产物**（`app://` 入口）时用不了 DevTools
 扩展面板。阶段 D 的范围本就声明「production 无扩展源码与加载路径」，所以这不构成生产缺陷；但若希望开发者能在
 打包态调试，唯一可行形态是给 dev 构建保留 `--serve` 入口。是否为此立故事请 owner 判定。

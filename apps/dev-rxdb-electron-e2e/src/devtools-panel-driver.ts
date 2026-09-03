@@ -98,6 +98,36 @@ export async function attachPanel(
   expect(selected, 'DevTools 里始终没有出现扩展面板 tab').toBe(true);
 }
 
+/**
+ * 在面板帧里执行一段脚本并取回结果。
+ *
+ * @param app - 已启动的打包产物。
+ * @param inspected - 被检查窗口的 URL 前缀。
+ * @param script - 一段 IIFE 源码；返回值必须能结构化克隆。
+ * @returns 脚本的返回值。
+ * @throws 找不到面板帧时抛出 —— 静默返回 `undefined` 会让「面板没打开」伪装成「脚本返回了空」。
+ *
+ * @remarks
+ * 与 {@link readPanel} 的分工：那个负责**轮询到终态**，这个负责**做一次动作**。
+ * 驱动面板里的按钮与对话框走这里；Angular 的 `(input)` 绑定读的是事件里的
+ * `target.value`，所以设完 `value` 必须补一次冒泡的 `input` 事件，只赋值不派发是无效的。
+ */
+export async function panelEvaluate<T>(app: ElectronApplication, inspected: InspectedWindow, script: string): Promise<T> {
+  return app.evaluate(
+    async ({ BrowserWindow }, input) => {
+      const win = BrowserWindow.getAllWindows().find(candidate =>
+        candidate.webContents.getURL().startsWith(input.inspected)
+      );
+      const frame = win?.webContents.devToolsWebContents?.mainFrame.framesInSubtree.find(candidate =>
+        candidate.url.includes('/panel.html')
+      );
+      if (!frame) throw new Error('找不到面板帧；DevTools 没开或扩展面板没登记');
+      return frame.executeJavaScript(input.script) as Promise<unknown>;
+    },
+    { inspected, script }
+  ) as Promise<T>;
+}
+
 /** 一次面板读取的输入。 */
 export interface PanelRead {
   /** 被检查窗口的 URL 前缀。 */
