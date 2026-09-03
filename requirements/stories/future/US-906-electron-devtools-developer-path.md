@@ -29,10 +29,10 @@ INVEST 检查清单:
 
 ## 现状：两条路都不通
 
-| 开发者的做法                                                          | inspected page              | 结果                                                                                        |
-| --------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------- |
-| 跑打包产物（`electron-package-dir` 的 `--dir` 产物）                  | `app://-/index.html`        | 面板恒停在「当前页面不支持扩展注入」                                                        |
-| 跑 `nx serve dev-rxdb-electron` + `nx dev dev-rxdb-electron --serve`  | `http://localhost:4120`     | 协议对了，但 `nx build rxdb-devtools-extension` 的产物注不进去                              |
+| 开发者的做法                                                         | inspected page          | 结果                                                           |
+| -------------------------------------------------------------------- | ----------------------- | -------------------------------------------------------------- |
+| 跑打包产物（`electron-package-dir` 的 `--dir` 产物）                 | `app://-/index.html`    | 面板恒停在「当前页面不支持扩展注入」                           |
+| 跑 `nx serve dev-rxdb-electron` + `nx dev dev-rxdb-electron --serve` | `http://localhost:4120` | 协议对了，但 `nx build rxdb-devtools-extension` 的产物注不进去 |
 
 两条路的原因各不相同，都已在 US-904 阶段 D 实测确认：
 
@@ -60,14 +60,14 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 前置条件                                                        | 操作                                                              | 预期结果                                                                                                                                                          | 状态 |
-| --- | --------------------------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 工作区已安装依赖                                                | 跑 dev-only 扩展构建变体                                          | 产物 manifest 含 `host_permissions: ['http://localhost/*']`；且默认 `nx build rxdb-devtools-extension` 的 manifest 仍**无** `host_permissions`、**无** `web_accessible_resources` | ⬜   |
-| 2   | AC#1 的变体已构建；`nx serve dev-rxdb-electron` 已起在 4120     | 按文档启动 `nx dev dev-rxdb-electron`，打开 DevTools 的 RxDB 面板  | 面板进入 `granted`、四段 relay 握手完成，Database 页读到真实实体行；证据全程经过真实 extension/renderer/preload/main/host，无 mock 替代                              | ⬜   |
-| 3   | AC#1 的变体已存在                                               | 跑 `nx e2e dev-rxdb-electron-e2e`                                 | `devtools-restart-persistence.spec.ts` 不再在测试内改写 manifest（`devtoolsExtensionCopy()` 收敛为指向 dev 变体或删除），全套 e2e 仍全绿                             | ⬜   |
-| 4   | 跑打包产物（`app://` 入口），DevTools 打开 RxDB 面板            | 观察面板                                                          | 面板说明**原因**（当前页面协议不在扩展可注入的 scheme 集内），而非只给结论；状态仍为 `unsupported`，`permissionPatternForUrl('app://…')` 仍返回 `null`               | ⬜   |
-| 5   | 仓库文档                                                        | 读 `apps/rxdb-devtools-extension/README.md`                       | 写明桌面端调试的唯一成立形态、四个 env 开关的含义，以及打包态为什么不行（上面两条实测约束）                                                                        | ⬜   |
-| 6   | production 模式（不设 `DEV_RXDB_DEVTOOLS*` 任何 env）           | 启动打包产物                                                      | 一个扩展都不加载，产物内无扩展源码与加载路径（`devtools-extension-loading.spec.ts` 现有断言不得回退）                                                              | ⬜   |
+| #   | 前置条件                                                    | 操作                                                              | 预期结果                                                                                                                                                                          | 状态 |
+| --- | ----------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | 工作区已安装依赖                                            | 跑 dev-only 扩展构建变体                                          | 产物 manifest 含 `host_permissions: ['http://localhost/*']`；且默认 `nx build rxdb-devtools-extension` 的 manifest 仍**无** `host_permissions`、**无** `web_accessible_resources` | ⬜   |
+| 2   | AC#1 的变体已构建；`nx serve dev-rxdb-electron` 已起在 4120 | 按文档启动 `nx dev dev-rxdb-electron`，打开 DevTools 的 RxDB 面板 | 面板进入 `granted`、四段 relay 握手完成，Database 页读到真实实体行；证据全程经过真实 extension/renderer/preload/main/host，无 mock 替代                                           | ⬜   |
+| 3   | AC#1 的变体已存在                                           | 跑 `nx e2e dev-rxdb-electron-e2e`                                 | `devtools-restart-persistence.spec.ts` 不再在测试内改写 manifest（`devtoolsExtensionCopy()` 收敛为指向 dev 变体或删除），全套 e2e 仍全绿                                          | ⬜   |
+| 4   | 跑打包产物（`app://` 入口），DevTools 打开 RxDB 面板        | 观察面板                                                          | 面板说明**原因**（当前页面协议不在扩展可注入的 scheme 集内），而非只给结论；状态仍为 `unsupported`，`permissionPatternForUrl('app://…')` 仍返回 `null`                            | ⬜   |
+| 5   | 仓库文档                                                    | 读 `apps/rxdb-devtools-extension/README.md`                       | 写明桌面端调试的唯一成立形态、四个 env 开关的含义，以及打包态为什么不行（上面两条实测约束）                                                                                       | ⬜   |
+| 6   | production 模式（不设 `DEV_RXDB_DEVTOOLS*` 任何 env）       | 启动打包产物                                                      | 一个扩展都不加载，产物内无扩展源码与加载路径（`devtools-extension-loading.spec.ts` 现有断言不得回退）                                                                             | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -104,5 +104,3 @@ INVEST 检查清单:
 
 > 写作规范（证据锚点 / 结论复验 / 大故事分阶段 / 价值待证）、命名与状态约定见
 > [CONVENTIONS.md](../../CONVENTIONS.md)。
-</content>
-</invoke>

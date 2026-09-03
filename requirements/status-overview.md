@@ -86,6 +86,7 @@
     - 🚧 C2 四段 relay 与 v2 切换（AC#36/37/41/43 ✅；AC#40/#44 ⚠️ 部分；AC#38/#39/#42 ⬜ 需跨版本产物与真实 service worker）
   - 🚧 阶段 D Electron 原生存储集成（AC#48/#50/#52/#53 ✅；AC#45/46/47/49/51 ⚠️ provider/单测侧已关、E2E 侧待补）
 - 🚧 [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1（AC#1～#8）已落地且代码侧收尾已做完：AC#7/#8 ✅，其余 6 条 ⚠️ 只差「真实 Tauri 窗口/产物」那一半；阶段 2（AC#9～#17）未开工，前置 US-210 + US-505 均已 Done
+- ⬜ [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](stories/future/US-906-electron-devtools-developer-path.md) — 面板今天在 Electron 上开发者用不了：打包态 `app://` 拿不到扩展 host permission，`--serve` 态又缺一份带静态 `host_permissions` 的 dev 扩展产物（只存在于 E2E 临时副本里）
 
 > US-401 / US-701 查询构建器系列不在本仓库范围内。
 

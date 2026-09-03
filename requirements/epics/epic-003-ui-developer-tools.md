@@ -31,3 +31,4 @@ owner: jimmy
   - 阶段 C DevTools 共享面板与 Chrome v2 迁移 — C1 可与阶段 B 并行
   - 阶段 D Electron 原生存储 DevTools 集成 — 仅阶段 A supported 时开工
 - [US-905 Tauri DevTools 调试窗口与原生存储集成](../stories/future/US-905-tauri-native-devtools.md) (Medium) — 不等待 US-904 阶段 D
+- [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](../stories/future/US-906-electron-devtools-developer-path.md) (Medium) — 承接 US-904 阶段 D 的实测结论，给桌面开发者一份可用的 dev 扩展产物与流程
