@@ -11,6 +11,39 @@ export const RELEASE_DIR = join(__dirname, '../../../dist/apps/dev-rxdb-electron
 /** `productName`，与 electron-builder.json / package.json 一致。 */
 const PRODUCT_NAME = 'DevRxDBElectron';
 
+/** 发布形态的扩展构建产物，与 `apps/rxdb-devtools-extension/vite.config.ts` 的默认 `outDir` 一致。 */
+export const EXTENSION_DIST = join(__dirname, '../../rxdb-devtools-extension/dist');
+
+/**
+ * 桌面端调试专用的扩展构建产物（US-906 AC#1），与 vite.config 的 `DESKTOP_DEV_OUT_DIR` 一致。
+ *
+ * @remarks
+ * 与发布产物**只差一条静态 `host_permissions: ['http://localhost/*']`**。桌面端非它不可：
+ * Electron 没有 `chrome.permissions` 命名空间，`optional_host_permissions` 的授权集恒为空，
+ * 运行时请求那条路根本不存在（US-904 阶段 D 实测）。
+ *
+ * 本套件曾在测试内 `cpSync` 一份 dist 副本再改写 manifest；US-906 AC#3 把那条路收敛掉了——
+ * 开发者手上要有和 e2e **同一份**产物，否则「e2e 跑得通、我跑不通」永远解释不清。
+ */
+export const DESKTOP_DEV_EXTENSION_DIST = join(__dirname, '../../rxdb-devtools-extension/dist-desktop-dev');
+
+/**
+ * 解析桌面端调试用的扩展产物目录。
+ *
+ * @returns 该目录的绝对路径
+ * @throws 产物不存在时抛出，并带上构建命令 —— 缺它的表征是面板恒停在「不支持扩展注入」，
+ *   那句提示指向协议，跟「忘了构建」毫无关系，不点名就会往错误的方向排查。
+ */
+export function resolveDesktopDevExtension(): string {
+  if (existsSync(DESKTOP_DEV_EXTENSION_DIST)) return DESKTOP_DEV_EXTENSION_DIST;
+  throw new Error(
+    [
+      `找不到桌面端调试用的扩展产物：${DESKTOP_DEV_EXTENSION_DIST}`,
+      '请先执行：pnpm nx run rxdb-devtools-extension:build-desktop-dev'
+    ].join('\n')
+  );
+}
+
 /**
  * 按平台列出可执行文件的候选路径。
  *

@@ -27,6 +27,15 @@
         "cwd": "apps/rxdb-devtools-extension"
       }
     },
+    "build-desktop-dev": {
+      "// US-906 AC#1": "桌面端调试专用变体：唯一与默认产物的差别是一条静态 host_permissions（见 manifest.config.ts）。Electron 没有 chrome.permissions 命名空间，optional 权限永远授不出去，所以桌面端只能靠静态那条。产物另落一个目录，绝不覆盖 dist/。",
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist-desktop-dev"],
+      "options": {
+        "command": "vite build --mode desktop-dev",
+        "cwd": "apps/rxdb-devtools-extension"
+      }
+    },
     "typecheck": {
       "executor": "nx:run-commands",
       "dependsOn": ["^typecheck"],

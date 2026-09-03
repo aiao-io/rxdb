@@ -62,14 +62,74 @@ INVEST 检查清单:
 
 | #   | 前置条件                                                    | 操作                                                              | 预期结果                                                                                                                                                                          | 状态 |
 | --- | ----------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 工作区已安装依赖                                            | 跑 dev-only 扩展构建变体                                          | 产物 manifest 含 `host_permissions: ['http://localhost/*']`；且默认 `nx build rxdb-devtools-extension` 的 manifest 仍**无** `host_permissions`、**无** `web_accessible_resources` | ⬜   |
-| 2   | AC#1 的变体已构建；`nx serve dev-rxdb-electron` 已起在 4120 | 按文档启动 `nx dev dev-rxdb-electron`，打开 DevTools 的 RxDB 面板 | 面板进入 `granted`、四段 relay 握手完成，Database 页读到真实实体行；证据全程经过真实 extension/renderer/preload/main/host，无 mock 替代                                           | ⬜   |
-| 3   | AC#1 的变体已存在                                           | 跑 `nx e2e dev-rxdb-electron-e2e`                                 | `devtools-restart-persistence.spec.ts` 不再在测试内改写 manifest（`devtoolsExtensionCopy()` 收敛为指向 dev 变体或删除），全套 e2e 仍全绿                                          | ⬜   |
-| 4   | 跑打包产物（`app://` 入口），DevTools 打开 RxDB 面板        | 观察面板                                                          | 面板说明**原因**（当前页面协议不在扩展可注入的 scheme 集内），而非只给结论；状态仍为 `unsupported`，`permissionPatternForUrl('app://…')` 仍返回 `null`                            | ⬜   |
-| 5   | 仓库文档                                                    | 读 `apps/rxdb-devtools-extension/README.md`                       | 写明桌面端调试的唯一成立形态、四个 env 开关的含义，以及打包态为什么不行（上面两条实测约束）                                                                                       | ⬜   |
-| 6   | production 模式（不设 `DEV_RXDB_DEVTOOLS*` 任何 env）       | 启动打包产物                                                      | 一个扩展都不加载，产物内无扩展源码与加载路径（`devtools-extension-loading.spec.ts` 现有断言不得回退）                                                                             | ⬜   |
+| 1   | 工作区已安装依赖                                            | 跑 dev-only 扩展构建变体                                          | 产物 manifest 含 `host_permissions: ['http://localhost/*']`；且默认 `nx build rxdb-devtools-extension` 的 manifest 仍**无** `host_permissions`、**无** `web_accessible_resources` | ✅   |
+| 2   | AC#1 的变体已构建；`nx serve dev-rxdb-electron` 已起在 4120 | 按文档启动 `nx dev dev-rxdb-electron`，打开 DevTools 的 RxDB 面板 | 面板进入 `granted`、四段 relay 握手完成，Database 页读到真实实体行；证据全程经过真实 extension/renderer/preload/main/host，无 mock 替代                                           | ⚠️   |
+| 3   | AC#1 的变体已存在                                           | 跑 `nx e2e dev-rxdb-electron-e2e`                                 | `devtools-restart-persistence.spec.ts` 不再在测试内改写 manifest（`devtoolsExtensionCopy()` 收敛为指向 dev 变体或删除），全套 e2e 仍全绿                                          | ✅   |
+| 4   | 跑打包产物（`app://` 入口），DevTools 打开 RxDB 面板        | 观察面板                                                          | 面板说明**原因**（当前页面协议不在扩展可注入的 scheme 集内），而非只给结论；状态仍为 `unsupported`，`permissionPatternForUrl('app://…')` 仍返回 `null`                            | ✅   |
+| 5   | 仓库文档                                                    | 读 `apps/rxdb-devtools-extension/README.md`                       | 写明桌面端调试的唯一成立形态、四个 env 开关的含义，以及打包态为什么不行（上面两条实测约束）                                                                                       | ✅   |
+| 6   | production 模式（不设 `DEV_RXDB_DEVTOOLS*` 任何 env）       | 启动打包产物                                                      | 一个扩展都不加载，产物内无扩展源码与加载路径（`devtools-extension-loading.spec.ts` 现有断言不得回退）                                                                             | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
+
+## 交付状态
+
+**2026-09-03 交付，6 条 AC 中 5 条 ✅、1 条 ⚠️**（AC#2 只差人工那一半，见下）。
+
+### 证据落点
+
+| AC  | 已落地的证据                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `manifest.config.ts` 抽出 `createManifest(variant)`，默认导出改为按 vite mode 分支的 `ManifestV3Fn`；`build-desktop-dev` 出 `dist-desktop-dev/`（不打 zip——那份产物带着只对本机 localhost 成立的权限，落进 `release/` 会长得像可分发物）。**产物实测对照**：两份 `manifest.json` 的 `diff` 恰好只多 `host_permissions: ["http://localhost/*"]` 三行，发布产物的 `web_accessible_resources` 仍是 crxjs 默认的 `http://*/*` + `https://*/*` |
+| 3   | `devtoolsExtensionCopy()` 整个删除，`resolveDesktopDevExtension()` 指向同一份 `dist-desktop-dev/`；`attachPanel`/`readPanel` 抽到 `devtools-panel-driver.ts` 供多 spec 复用。`devtools-*` 四份 spec **14 例全绿**（1.1 min）                                                                                                                                                                                                              |
+| 4   | `devtools-unsupported-scheme.spec.ts`：打包产物**不带** `--serve`（renderer 走 `app://-/index.html`），故意加载**带** host permission 的 dev 变体——带上权限再失败，才把原因唯一地钉在 scheme 上。三半断言：状态仍 `unsupported`、正文列出 http/https/file/ftp、正文不含 `Electron`/`Tauri`                                                                                                                                                |
+| 5   | `apps/rxdb-devtools-extension/README.md` 重写：架构一节改到现状（`content/` 只剩 bridge、v2 宽外层严内层协商），新增「桌面端（Electron）调试」一节                                                                                                                                                                                                                                                                                        |
+| 6   | `devtools-extension-loading.spec.ts` 两条断言未改动、仍绿                                                                                                                                                                                                                                                                                                                                                                                 |
+
+### 判别力实测（负对照）
+
+把 `resolveDesktopDevExtension()` 临时指向**发布产物**再跑 AC#52 那条 e2e，结果由绿转红，
+面板正文是：
+
+```text
+DevTools 未连接 … Waiting for RxDB connection... Make sure the page has RxDB DevTools plugin enabled.
+```
+
+两件事同时得证：① 面板 tab **登记成功**（`attachPanel` 通过），说明失败不在加载环节；
+② 唯一让四段 relay 接通的差别就是那条静态 `host_permissions`。对照跑完即删，
+**不留 env 逃生口**——一个能让套件悄悄降级的开关比没有对照更糟。
+
+### AC#2 的两半
+
+- **机器半边 ✅**：AC#52 那条 e2e 走的是同一份 dev 变体扩展 + 同一条 http renderer 路径，
+  真实 extension/renderer/preload/main/host 全程无替身，Database 页读到真实 `DesktopLaunch` 行。
+- **人工半边 ⚠️**：judge 里的「按文档启动 `nx dev` 并**打开 DevTools 看一眼**」需要人跑一次。
+
+### 两条实测得出的开发流程约束（都不在原故事里）
+
+1. **`nx dev dev-rxdb-electron` 单跑跑不起来——AC#2 前置里那句「`nx serve` 已起在 4120」是必需的，
+   不是可选的。** 原因在依赖链：`dev` 依赖**非 continuous** 的 `prepare-electron-package`，
+   而 4120 的 `serve` 是挂在后者下面的 continuous 依赖。`wait-on tcp:4120` 一满足
+   `prepare-electron-package` 就算完成，Nx 随即收掉它下面的 continuous 任务，**dev server 在
+   Electron 加载页面之前就没了**。实测三次复现，表征固定：
+
+   ```text
+   ➜  Local:   http://127.0.0.1:4120/              ← serve 起来了
+   Command was killed with SIGTERM: tsc … --watch   ← 紧接着被拆
+   electron: Failed to load URL: http://localhost:4120/ … ERR_CONNECTION_REFUSED
+   ```
+
+   排除了两个更常见的怀疑对象：`localhost` 在 macOS 上先解析到 `::1` 而 dev server 只监听
+   `127.0.0.1`（实测 `curl http://localhost:4120/` 返回 200，不是这个原因）；以及端口占用
+   （拆除时 4120 上已无监听）。**成立的形态是两个终端**：终端 1 跑 `nx serve` 持有 4120，
+   终端 2 直接跑 `electron dist/apps/dev-rxdb-electron --serve`（即 `dev` target 的命令本体）。
+   已按此写进 README，并附上失败表征，免得下一个人从 `ERR_CONNECTION_REFUSED` 往网络方向查。
+
+2. **VS Code 集成终端里这条命令会以纯 Node 启动，报一句与真因无关的错。** 实测：
+   `TypeError: Cannot read properties of undefined (reading 'registerSchemesAsPrivileged')`
+   —— 因为**任何 Electron 宿主都会给子进程设 `ELECTRON_RUN_AS_NODE=1`**（VS Code 的扩展宿主是最
+   常见的一个），于是 `electron` 二进制跳过 Chromium 直接跑 Node，`protocol` 为 `undefined`。
+   e2e 侧早有防护（`packaged-app.ts` 的 `launchEnv()` 剥掉该变量并写了长注释），但**开发者手跑
+   `nx dev` 这条路上没有**。已写进 README 排查一节，给出 `env -u ELECTRON_RUN_AS_NODE` 的解法。
 
 ## 技术笔记
 

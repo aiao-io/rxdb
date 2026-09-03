@@ -1,10 +1,11 @@
 import { ElectronApplication, Page, _electron as electron, expect, test } from '@playwright/test';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { launchEnv, resolveExecutable } from './packaged-app';
+import { attachPanel, PANEL_BUDGET_MS, readPanel } from './devtools-panel-driver';
+import { launchEnv, resolveDesktopDevExtension, resolveExecutable } from './packaged-app';
 
 /**
  * US-904 阶段 D AC#52：真实 userData 重启后，DevTools 面板读回同一实体与同一文件。
@@ -36,21 +37,22 @@ import { launchEnv, resolveExecutable } from './packaged-app';
  * | `http://localhost:<port>/` | `['http://localhost/*']` | ✅ 2.6s 接通 |
  *
  * 所以本套件把 renderer 换成应用自己的 `--serve` 路径（main / preload / host 一律不动，只换
- * inspected page 的 origin），并用扩展 dist 的**临时副本**提供那条静态 host permission。
- * 这与阶段 A 对 `apps/rxdb-devtools-extension-e2e` 记录的 variance 同源、同形态：补的是**宿主**，
- * 不是被测物。生产 manifest 保持 `optional_host_permissions`，由
+ * inspected page 的 origin），并用**桌面端调试变体**（US-906 AC#1，`build-desktop-dev`）提供那条
+ * 静态 host permission。这与阶段 A 对 `apps/rxdb-devtools-extension-e2e` 记录的 variance 同源、
+ * 同形态：补的是**宿主**，不是被测物。发布 manifest 保持 `optional_host_permissions`，由
  * `apps/rxdb-devtools-extension/src/manifest.config.spec.ts` 守住。
  *
  * 第二条约束同样来自实测：**Electron 没有 `chrome.permissions` 命名空间**，`optional_host_permissions`
  * 的授权集恒为空，所以 Electron 上必须是**静态** host permission，运行时请求那条路走不通。
  *
+ * US-906 AC#3 之前，这条静态权限来自本文件里一份跑完即删的 dist 临时副本。收敛掉是因为那份副本
+ * **只有 e2e 有**：开发者照着 README 走同一条路会卡在「不支持扩展注入」，而套件是绿的，
+ * 于是没有任何信号指向真正的缺口。现在两边加载的是同一个 `dist-desktop-dev/`。
+ *
  * ⚠️ 依赖 `electron-package-dir` 的产物（electron-builder 需联网下载 Electron 发行包）。跑之前：
- *   pnpm nx build rxdb-devtools-extension
+ *   pnpm nx run rxdb-devtools-extension:build-desktop-dev
  *   pnpm nx run dev-rxdb-electron:electron-package-dir
  */
-
-/** 扩展构建产物目录，与 `apps/rxdb-devtools-extension/vite.config.ts` 的 `outDir` 一致。 */
-const EXTENSION_DIST = join(__dirname, '../../rxdb-devtools-extension/dist');
 
 /** renderer 构建产物目录，与 `apps/dev-rxdb-electron` 的 build outputPath 一致。 */
 const RENDERER_DIST = join(__dirname, '../../../dist/apps/dev-rxdb-electron/browser');
@@ -74,26 +76,8 @@ const BYTES_PER_MIB = 1024 * 1024;
 const FILE_NAME = 'ac52-restart.bin';
 const FILE_MIB = 1;
 
-/** 面板从「打开 DevTools」到「四段中继接通」的预算。实测冷启动约 2.6s，留足重试余量。 */
-const PANEL_BUDGET_MS = 40000;
-
-/**
- * 一份只改了 `host_permissions` 的扩展 dist 临时副本。
- *
- * @returns 副本目录绝对路径，调用方负责删除
- *
- * @remarks
- * 不含端口：Chrome 的 host pattern 本就不匹配端口，静态服务用哪个随机端口都覆盖得到。
- */
-function devtoolsExtensionCopy(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'ac52-ext-'));
-  cpSync(EXTENSION_DIST, dir, { recursive: true });
-  const manifestPath = join(dir, 'manifest.json');
-  const manifest: Record<string, unknown> = JSON.parse(readFileSync(manifestPath, 'utf8'));
-  manifest['host_permissions'] = ['http://localhost/*'];
-  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-  return dir;
-}
+/** 被检查窗口：`--serve` 起的 http renderer，桌面端唯一能被扩展注入的形态。 */
+const INSPECTED = 'http://localhost' as const;
 
 /** 静态服务的 MIME 表；`.wasm` 少一条就会让 SQLite 侧的实例化失败在一句无关的报错上。 */
 const CONTENT_TYPES: Readonly<Record<string, string>> = {
@@ -150,127 +134,6 @@ function launchApp(userDataDir: string, extensionDist: string, port: number): Pr
       DEV_RXDB_DEVTOOLS_MUTATION: 'allow'
     }
   });
-}
-
-/**
- * 打开 DevTools 并选中扩展面板 tab。
- *
- * @throws 预算内没等到扩展 tab 时抛出
- *
- * @remarks
- * **必须先把窗口放宽到 1600。** DevTools 的 `TabbedPane` 放不下的 tab 会被**移出 DOM**、
- * 只挂在「»」下拉里；应用窗口默认 900px，bottom 模式下主 tab 条只显示前 9 个内置 tab，
- * 扩展面板一律读不到 —— 那会被误读成「面板没登记」，而它其实一直都登记着。
- *
- * 整段逻辑放进 `app.evaluate()`：用的全是主进程 Electron API，不经 page 级 CDP，
- * 因此与 DevTools 自己的调试通道不冲突（Playwright 的 page API 打不开 DevTools 宿主）。
- */
-async function attachPanel(app: ElectronApplication, budgetMs: number): Promise<void> {
-  const selected = await app.evaluate(
-    async ({ BrowserWindow }, input) => {
-      const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
-      const win = BrowserWindow.getAllWindows().find(candidate =>
-        candidate.webContents.getURL().startsWith('http://localhost')
-      );
-      if (!win) throw new Error('找不到 http renderer 窗口');
-
-      win.setSize(1600, 1000);
-      const opened = new Promise<void>(resolve => win.webContents.once('devtools-opened', () => resolve()));
-      win.webContents.openDevTools({ mode: 'bottom' });
-      await opened;
-
-      const devTools = win.webContents.devToolsWebContents;
-      if (!devTools) throw new Error('devToolsWebContents 为 null');
-
-      // 内置 tab 的 id 一律是 `tab-*`，含 `chrome-extension://` 就等价于「这是扩展面板」。
-      // tab 藏在 DevTools 前端的多层 shadow root 里，只能自己走一遍。
-      const clickExtensionTab = `(() => {
-      const seen = new Set();
-      let hit = null;
-      const walk = root => {
-        if (seen.has(root) || hit) return;
-        seen.add(root);
-        for (const el of root.querySelectorAll('*')) {
-          if (el.classList.contains('tabbed-pane-header-tab') && el.id.includes('chrome-extension://')) { hit = el; return; }
-          if (el.shadowRoot) walk(el.shadowRoot);
-        }
-      };
-      walk(document);
-      if (!hit) return false;
-      for (const type of ['mousedown', 'mouseup', 'click']) hit.dispatchEvent(new MouseEvent(type, { bubbles: true }));
-      return true;
-    })()`;
-
-      const deadline = Date.now() + input.budgetMs;
-      while (Date.now() < deadline) {
-        const done: boolean = await devTools.executeJavaScript(clickExtensionTab).catch(() => false);
-        if (done) return true;
-        await sleep(500);
-      }
-      return false;
-    },
-    { budgetMs }
-  );
-
-  expect(selected, 'DevTools 里始终没有出现扩展面板 tab').toBe(true);
-}
-
-interface PanelRead {
-  /** 面板路由（hash 路由，见 `devtools/main.ts` 的 `withHashLocation()`）。 */
-  readonly hash: string;
-  /** 需要先点开的实体按钮文本；不给就不点。 */
-  readonly clickText?: string;
-  /** 轮询到文本匹配它才算读到终态。 */
-  readonly awaitPattern: string;
-  readonly budgetMs: number;
-}
-
-/**
- * 切到面板某一页、可选地点开一个实体，并等页面走到终态。
- *
- * @returns 面板正文（空白已折叠）；超时则返回**最后一次**读到的文本，让断言报出真实现场
- *
- * @remarks
- * 每次轮询都重新取 `WebFrameMain`：面板帧会随导航重建，缓存住的引用会在半路失效。
- * 已经选中的实体按钮不重复点 —— `selectEntity()` 每次点击都会重新发查询。
- */
-async function readPanel(app: ElectronApplication, input: PanelRead): Promise<string> {
-  return app.evaluate(async ({ BrowserWindow }, opts) => {
-    const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
-    const panelFrame = (): Electron.WebFrameMain | null => {
-      const win = BrowserWindow.getAllWindows().find(candidate =>
-        candidate.webContents.getURL().startsWith('http://localhost')
-      );
-      const devTools = win?.webContents.devToolsWebContents;
-      return devTools?.mainFrame.framesInSubtree.find(frame => frame.url.includes('/panel.html')) ?? null;
-    };
-
-    const script = `(() => {
-      const hash = ${JSON.stringify(opts.hash)};
-      if (location.hash !== hash) location.hash = hash;
-      const label = ${JSON.stringify(opts.clickText ?? '')};
-      if (label) {
-        const button = [...document.querySelectorAll('button')].find(el => el.textContent.trim() === label);
-        if (button && !button.classList.contains('active')) button.click();
-      }
-      return document.body.innerText.replace(/\\s+/g, ' ').slice(0, 4000);
-    })()`;
-
-    const wanted = new RegExp(opts.awaitPattern);
-    const deadline = Date.now() + opts.budgetMs;
-    let latest = '(面板帧始终没有出现)';
-    while (Date.now() < deadline) {
-      const frame = panelFrame();
-      // `WebFrameMain.executeJavaScript` 回 `Promise<unknown>`；非字符串一律当作「这一轮没读到」，
-      // 循环结束后把最后一次真读到的文本抛给调用侧，比在这里编一个占位字符串更早暴露问题。
-      const raw =
-        frame ? await frame.executeJavaScript(script).catch((error: Error) => `帧内执行抛错：${error.message}`) : null;
-      if (typeof raw === 'string' && raw.trim().length > 0) latest = raw;
-      if (wanted.test(latest)) return latest;
-      await sleep(400);
-    }
-    return latest;
-  }, input);
 }
 
 /** 打开应用的 storage 页并等它就绪。 */
@@ -361,10 +224,11 @@ async function seedAndRead(userDataDir: string, extensionDist: string, port: num
     await uploadGenerated(page, FILE_NAME, FILE_MIB);
     const digest = await verifyEntry(page, FILE_NAME);
 
-    await attachPanel(app, PANEL_BUDGET_MS);
+    await attachPanel(app, INSPECTED);
 
     // 实体：这一路证明面板读的是真库 —— `DesktopLaunch` 第一次启动只有一行。
     const launches = await readPanel(app, {
+      inspected: INSPECTED,
       hash: '#/database',
       clickText: 'DesktopLaunch',
       awaitPattern: 'startedAt',
@@ -374,7 +238,12 @@ async function seedAndRead(userDataDir: string, extensionDist: string, port: num
     expect(seen, `面板 Database 页没读到 DesktopLaunch 数据：《${launches}》`).toHaveLength(1);
 
     // 文件：面板 Storage 页读的是 `StorageFileMeta` 实体，与上面同一条 v1 查询通道。
-    const storage = await readPanel(app, { hash: '#/storage', awaitPattern: FILE_NAME, budgetMs: PANEL_BUDGET_MS });
+    const storage = await readPanel(app, {
+      inspected: INSPECTED,
+      hash: '#/storage',
+      awaitPattern: FILE_NAME,
+      budgetMs: PANEL_BUDGET_MS
+    });
     expect(storage, `面板 Storage 页没读到 ${FILE_NAME}：《${storage}》`).toContain(FILE_NAME);
 
     return { startedAt: seen[0], digest };
@@ -395,10 +264,11 @@ async function reconnectAndCompare(
   try {
     const page = await app.firstWindow();
     await expectDesktopBackend(page);
-    await attachPanel(app, PANEL_BUDGET_MS);
+    await attachPanel(app, INSPECTED);
 
     // 同一实体：第二次启动追加了一行，但第一次那行必须**原样**还在。
     const launches = await readPanel(app, {
+      inspected: INSPECTED,
       hash: '#/database',
       clickText: 'DesktopLaunch',
       awaitPattern: expected.startedAt,
@@ -409,7 +279,12 @@ async function reconnectAndCompare(
     expect(seen, '第一次启动的实体在重启后变了').toContain(expected.startedAt);
 
     // 同一文件：元数据行还在面板上，字节再读一遍仍与第一次一致。
-    const storage = await readPanel(app, { hash: '#/storage', awaitPattern: FILE_NAME, budgetMs: PANEL_BUDGET_MS });
+    const storage = await readPanel(app, {
+      inspected: INSPECTED,
+      hash: '#/storage',
+      awaitPattern: FILE_NAME,
+      budgetMs: PANEL_BUDGET_MS
+    });
     expect(storage, `重启后面板 Storage 页丢了 ${FILE_NAME}：《${storage}》`).toContain(FILE_NAME);
 
     await openStoragePage(page);
@@ -423,10 +298,8 @@ test.describe('DevTools 面板在真实重启后读回同一实体与同一文�
   test.describe.configure({ timeout: 420000 });
 
   test.beforeAll(() => {
-    expect(
-      existsSync(EXTENSION_DIST),
-      `缺扩展构建产物：${EXTENSION_DIST}。先 pnpm nx build rxdb-devtools-extension`
-    ).toBe(true);
+    // 缺产物时 resolveDesktopDevExtension() 自带补救命令；这里只要它不抛。
+    resolveDesktopDevExtension();
     expect(existsSync(resolveExecutable()), '缺打包产物。先 pnpm nx run dev-rxdb-electron:electron-package-dir').toBe(
       true
     );
@@ -436,7 +309,7 @@ test.describe('DevTools 面板在真实重启后读回同一实体与同一文�
     // 目录在用例内部创建而不是 beforeAll：重试会重启 worker，放在外面则「这是第几次启动」
     // 取决于重试次数，`DesktopLaunch` 的行数断言随之失去意义。
     const userDataDir = mkdtempSync(join(tmpdir(), 'ac52-userdata-'));
-    const extensionDist = devtoolsExtensionCopy();
+    const extensionDist = resolveDesktopDevExtension();
     const renderer = await serveRenderer();
 
     try {
@@ -454,9 +327,9 @@ test.describe('DevTools 面板在真实重启后读回同一实体与同一文�
 
       await reconnectAndCompare(userDataDir, extensionDist, renderer.port, evidence);
     } finally {
+      // 扩展产物是构建输出、不是本用例造的临时目录 —— 只删自己造的那个。
       await renderer.close();
       rmSync(userDataDir, { force: true, recursive: true });
-      rmSync(extensionDist, { force: true, recursive: true });
     }
   });
 });
