@@ -11,12 +11,12 @@
 | ✅ Done        | 54   |
 | 🚧 In Progress | 2    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 5    |
+| 📝 Backlog     | 6    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 62   |
+| **合计**       | 63   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
-> 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数（63 个文件 − 1 个 [US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md)，那是证据留档不是故事）。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
+> 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数（64 个文件 − 1 个 [US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md)，那是证据留档不是故事）。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
