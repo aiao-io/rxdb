@@ -1,5 +1,6 @@
 import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { ELECTRON_ADAPTER_NAME, RxDBAdapterElectron } from '@aiao/rxdb-adapter-electron';
+import type { DevToolsCapability, DevToolsMutationPolicy } from '@aiao/rxdb-devtools';
 import {
   createDevToolsElectronSettingsProvider,
   createDevToolsNativeSnapshotSource,
@@ -14,7 +15,6 @@ import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/deskto
 import { createDevToolsDesktopFilesystem } from '@aiao/rxdb-plugin-storage/devtools-desktop';
 import { createDevToolsStorageSnapshotPorts } from '@aiao/rxdb-plugin-storage/devtools-desktop-snapshot';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
-import type { DevToolsCapability, DevToolsMutationPolicy } from '@aiao/rxdb-devtools';
 import { DESKTOP_DEMO_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
 
@@ -38,8 +38,7 @@ const DEVTOOLS_RUNTIME_CONFIG_KEY = '__aiaoRxdbDevToolsConfig__';
  */
 function devToolsRuntimeConfig(): { capabilities?: DevToolsCapability; mutationPolicy?: DevToolsMutationPolicy } {
   const config = (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY] as
-    | { capability: DevToolsCapability; mutationPolicy: DevToolsMutationPolicy }
-    | undefined;
+    { capability: DevToolsCapability; mutationPolicy: DevToolsMutationPolicy } | undefined;
   return config === undefined ? {} : { capabilities: config.capability, mutationPolicy: config.mutationPolicy };
 }
 

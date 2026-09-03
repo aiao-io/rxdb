@@ -112,7 +112,11 @@ export async function attachPanel(
  * 驱动面板里的按钮与对话框走这里；Angular 的 `(input)` 绑定读的是事件里的
  * `target.value`，所以设完 `value` 必须补一次冒泡的 `input` 事件，只赋值不派发是无效的。
  */
-export async function panelEvaluate<T>(app: ElectronApplication, inspected: InspectedWindow, script: string): Promise<T> {
+export async function panelEvaluate<T>(
+  app: ElectronApplication,
+  inspected: InspectedWindow,
+  script: string
+): Promise<T> {
   return app.evaluate(
     async ({ BrowserWindow }, input) => {
       const win = BrowserWindow.getAllWindows().find(candidate =>

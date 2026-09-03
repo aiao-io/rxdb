@@ -1,4 +1,4 @@
-import { ElectronApplication, _electron as electron, expect, test } from '@playwright/test';
+import { _electron as electron, ElectronApplication, expect, test } from '@playwright/test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -56,11 +56,14 @@ function launchApp(
 
 /** 读渲染进程里那份由 preload 挂上的运行配置。 */
 function runtimeConfig(app: ElectronApplication, port: number): Promise<unknown> {
-  return app.evaluate(async ({ BrowserWindow }, origin) => {
-    const win = BrowserWindow.getAllWindows().find(candidate => candidate.webContents.getURL().startsWith(origin));
-    if (!win) throw new Error('找不到 http renderer 窗口');
-    return win.webContents.executeJavaScript('globalThis.__aiaoRxdbDevToolsConfig__ ?? null');
-  }, `http://localhost:${String(port)}`);
+  return app.evaluate(
+    async ({ BrowserWindow }, origin) => {
+      const win = BrowserWindow.getAllWindows().find(candidate => candidate.webContents.getURL().startsWith(origin));
+      if (!win) throw new Error('找不到 http renderer 窗口');
+      return win.webContents.executeJavaScript('globalThis.__aiaoRxdbDevToolsConfig__ ?? null');
+    },
+    `http://localhost:${String(port)}`
+  );
 }
 
 test.describe('DevTools 授权配置从 env 一路到达页内 connector（US-904 阶段 D AC#45/#49）', () => {

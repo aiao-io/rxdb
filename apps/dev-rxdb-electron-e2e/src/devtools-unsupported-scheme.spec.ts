@@ -2,7 +2,7 @@ import { ElectronApplication, _electron as electron, expect, test } from '@playw
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { attachPanel, readPanel, PANEL_BUDGET_MS } from './devtools-panel-driver';
+import { PANEL_BUDGET_MS, attachPanel, readPanel } from './devtools-panel-driver';
 import { launchEnv, resolveDesktopDevExtension, resolveExecutable } from './packaged-app';
 
 /**

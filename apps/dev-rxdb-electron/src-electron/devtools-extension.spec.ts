@@ -5,9 +5,9 @@ import { describe, expect, it } from 'vitest';
 import {
   DEVTOOLS_CAPABILITY_ARG,
   DEVTOOLS_CAPABILITY_ENV,
-  DEVTOOLS_MUTATION_ARG,
   DEVTOOLS_ENABLE_ENV,
   DEVTOOLS_EXTENSION_PATH_ENV,
+  DEVTOOLS_MUTATION_ARG,
   DEVTOOLS_MUTATION_ENV,
   devToolsLaunchArguments,
   isDevToolsEnabled,
@@ -115,10 +115,9 @@ describe('devtools-extension 开发态加载闸门（US-904 阶段 D AC#45）', 
 
 describe('devToolsLaunchArguments（US-904 阶段 D：把授权配置带进渲染进程）', () => {
   it('把档位与写入开关编码成两条启动参数', () => {
-    expect(devToolsLaunchArguments({ extensionPath: '/abs/ext', capability: 'full', mutationPolicy: 'allow' })).toEqual([
-      '--rxdb-devtools-capability=full',
-      '--rxdb-devtools-mutation=allow'
-    ]);
+    expect(devToolsLaunchArguments({ extensionPath: '/abs/ext', capability: 'full', mutationPolicy: 'allow' })).toEqual(
+      ['--rxdb-devtools-capability=full', '--rxdb-devtools-mutation=allow']
+    );
   });
 
   it('省略写入开关时如实带出 omit，而不是省掉这条参数', () => {
