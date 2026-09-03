@@ -824,7 +824,7 @@ v2 session 一建立，端点就去开 `database.events` 订阅，而 `database`
 | 49  | 打开 Settings                                                    | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明清理返回 `provider_unsupported`，不读取 OPFS/SQLite/WAL 或其他目录                            | ⚠️   |
 | 50  | 同源脚本/content script 持有合法 session，或构造越界路径         | 在 none/readonly/full、mutation 开/关组合下伪造操作    | connector、preload、host 各自校验；未授权 provider 调用为 0，未 opt-in mutation 不执行；根外无读写，错误不含路径、SQL 绑定值、加密字段或文件内容 | ✅   |
 | 51  | session A 有订阅、迟到响应和未完成传输                           | 关闭/刷新后建立 session B 并投递 A 消息                | A 的 host session 与资源释放；B 拒绝旧身份，不显示旧实体、错误、事件或进度                                                                       | ⚠️   |
-| 52  | 真实临时 userData、SQLite 与原生文件后端                         | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 extension/renderer/preload/main/host，不用 mock 替代                                                    | ⬜   |
+| 52  | 真实临时 userData、SQLite 与原生文件后端                         | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 extension/renderer/preload/main/host，不用 mock 替代                                                    | ✅   |
 | 53  | Electron 薄 driver 接入阶段 B conformance 与阶段 C panel library | 运行全部共享断言                                       | 控制面、descriptor、base64、safe integer、授权、传输、快照、错误和 session 重建通过；不复制 UI、wire、fixture 或错误码                           | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
@@ -833,8 +833,51 @@ v2 session 一建立，端点就去开 `database.events` 订阅，而 `database`
 AC#50（`desktop-host-request-guard` 三族 29 kind 闭集 + preload 内联闸 + host 桥分派前显式拒绝）、
 AC#53（`electron-relay-nodes` 薄 driver 跑共享 conformance 80 条）三条已完全关闭。
 AC#45/46/47/49/51 的 provider/装配/单测侧已落地（加载隔离、database provider、native-files、settings、session teardown），
-但「真实 DevTools 关闭/刷新/退出、真实 electron-builder + CDP、真实 userData 重启重连」的 E2E 侧全部挂 AC#52——
-该条需要真实 Electron 环境（联网 electron-builder 下载 + 真沙箱 + dock 模式），本机无法验证，故保持 ⬜。
+但「真实 DevTools 关闭/刷新/退出、真实 userData 重启重连」的 E2E 侧当时全部挂 AC#52——
+其中重启重连那一段已由下面的 AC#52 关闭，AC#45/46/47/49/51 的 E2E 侧仍未补齐。
+
+**AC#52 交付记录（2026-09-03，真机跑通）**：`apps/dev-rxdb-electron-e2e/src/devtools-restart-persistence.spec.ts`。
+两次启动共用同一个临时 userData，链路上没有任何替身：`electron-builder --dir` 产物里的真实 main / preload / host、
+真实 renderer、真实 MV3 扩展构建产物、真实 DevTools 前端与它注册的扩展面板。证据两路各覆盖一段：
+
+- **实体**：`DesktopLaunch` 每次启动追加一行。第二次启动后面板同时读到两行（`DesktopLaunch 2 条`），
+  且第一次那行的 `startedAt` 逐字符不变。这条数据从 SQLite 出发经 host → main → preload → renderer connector →
+  content bridge → background → 面板，中间任一段换成桩都读不到它。
+- **文件**：1 MiB 确定性文件走原生文件后端落盘。面板 Storage 页读回它的 `StorageFileMeta`；应用侧再把字节流式读回
+  算 SHA-256，与**直接在磁盘上**对同一文件算出的摘要比对，重启前后一致。
+
+「本机无法验证」那句判断已被这次实测推翻。同一次实测钉死两条 Electron 侧事实：
+
+1. **自定义 scheme 不在 Chromium 扩展 match pattern 的合法 scheme 集里。** 桌面生产入口 `app://`
+   （`main.utils.ts` 的 `APP_SCHEME`）永远拿不到 host permission：`['app://-/*']`、`['<all_urls>']`、两者并列
+   三种写法实测全部让 `chrome.scripting.executeScript` 抛「Cannot access contents of the page」。
+   连 `<all_urls>` 都不行——它只覆盖 http/https/file/ftp。
+2. **Electron 没有 `chrome.permissions` 命名空间**，`optional_host_permissions` 的授权集恒为空；
+   Electron 上必须有一条**静态** `host_permissions` 才注得进去，运行时请求那条路不存在。
+
+因此该 E2E 用应用自己的 `--serve` 路径把 inspected page 换成 `http://localhost:<port>`（main / preload / host
+一律不动，**只换 renderer 的 origin**），并用扩展 dist 的**临时副本**写入 `host_permissions: ['http://localhost/*']`。
+这与上面阶段 C2 第 4 条对 `apps/rxdb-devtools-extension-e2e` 记录的 variance 同源同形态：补的是**宿主**，不是被测物。
+生产 manifest 保持 optional-only，由 `manifest.config.spec.ts` 的两条否定契约守住（不加 `host_permissions`、
+不为 `app://` 显式声明 `web_accessible_resources`——加了也不工作，只多一份安装警告与权限面）。
+
+失败在此前完全无声：SW 里 `configureLogger(import.meta.env.DEV)` 关掉了生产日志，Chromium 的安装警告在 release
+构建里也不落 stderr。唯一能看见真因的通道是**在 `panel.html` 帧里直接 `chrome.scripting.executeScript`**
+（经 `devToolsWebContents.mainFrame.framesInSubtree` 找到该帧再 `executeJavaScript`）。这也顺带纠正了
+「Playwright 打不开 DevTools 宿主」的推论边界：**浏览器**侧确实打不开（`apps/rxdb-devtools-extension-e2e` 的
+variance 依然成立），但 **Electron 侧可以**——不走 page 级 CDP，走主进程的 `app.evaluate()` + `openDevTools({mode:'bottom'})`。
+另有两个必踩的坑：DevTools `TabbedPane` 会把放不下的 tab **移出 DOM**，读 tab 条前必须 `win.setSize(1600, 1000)`，
+否则扩展面板恒读不到、被误判成「面板没登记」；`chrome.scripting` 在**隔离世界**执行，用主世界的
+`window.__AIAO_RXDB_DEVTOOLS_BRIDGE__` 判断「桥有没有注进去」永远是 false，那个观测口径是错的。
+
+同时删除 `apps/dev-rxdb-electron/tools/devtools-stage-d-probe.mjs`：那份骨架的驱动形态（独立 Electron 脚本
+`loadURL('app://-/index.html')`）已被上面第 1 条证伪，永远接不通面板；留着只会把 AC#46/47/49/51 的后续工作
+引向死路。剩余 AC 的 E2E 应当从 `devtools-restart-persistence.spec.ts` 这套已跑通的驱动（`attachPanel` /
+`readPanel`）出发。（`requirements/reviews/next-0831-branch-review.md` 里对该文件的引用是当时的快照，不回改。）
+
+**顺带的产品结论（需 owner 单独决策，不在本条范围）**：开发者拿**打包产物**（`app://` 入口）时用不了 DevTools
+扩展面板。阶段 D 的范围本就声明「production 无扩展源码与加载路径」，所以这不构成生产缺陷；但若希望开发者能在
+打包态调试，唯一可行形态是给 dev 构建保留 `--serve` 入口。是否为此立故事请 owner 判定。
 
 ## 实现所有权
 

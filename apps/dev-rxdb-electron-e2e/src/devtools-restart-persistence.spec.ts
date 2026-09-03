@@ -122,8 +122,13 @@ async function serveRenderer(): Promise<{ port: number; close: () => Promise<voi
   const server = createServer((request, response) => {
     const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
     const candidate = join(RENDERER_DIST, pathname);
-    const file = pathname !== '/' && existsSync(candidate) && statSync(candidate).isFile() ? candidate : join(RENDERER_DIST, 'index.html');
-    response.writeHead(200, { 'content-type': CONTENT_TYPES[file.slice(file.lastIndexOf('.'))] ?? 'application/octet-stream' });
+    const file =
+      pathname !== '/' && existsSync(candidate) && statSync(candidate).isFile() ?
+        candidate
+      : join(RENDERER_DIST, 'index.html');
+    response.writeHead(200, {
+      'content-type': CONTENT_TYPES[file.slice(file.lastIndexOf('.'))] ?? 'application/octet-stream'
+    });
     response.end(readFileSync(file));
   });
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -161,24 +166,25 @@ function launchApp(userDataDir: string, extensionDist: string, port: number): Pr
  * 因此与 DevTools 自己的调试通道不冲突（Playwright 的 page API 打不开 DevTools 宿主）。
  */
 async function attachPanel(app: ElectronApplication, budgetMs: number): Promise<void> {
-  const selected = await app.evaluate(async ({ BrowserWindow }, input) => {
-    const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
-    const win = BrowserWindow.getAllWindows().find(candidate =>
-      candidate.webContents.getURL().startsWith('http://localhost')
-    );
-    if (!win) throw new Error('找不到 http renderer 窗口');
+  const selected = await app.evaluate(
+    async ({ BrowserWindow }, input) => {
+      const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+      const win = BrowserWindow.getAllWindows().find(candidate =>
+        candidate.webContents.getURL().startsWith('http://localhost')
+      );
+      if (!win) throw new Error('找不到 http renderer 窗口');
 
-    win.setSize(1600, 1000);
-    const opened = new Promise<void>(resolve => win.webContents.once('devtools-opened', () => resolve()));
-    win.webContents.openDevTools({ mode: 'bottom' });
-    await opened;
+      win.setSize(1600, 1000);
+      const opened = new Promise<void>(resolve => win.webContents.once('devtools-opened', () => resolve()));
+      win.webContents.openDevTools({ mode: 'bottom' });
+      await opened;
 
-    const devTools = win.webContents.devToolsWebContents;
-    if (!devTools) throw new Error('devToolsWebContents 为 null');
+      const devTools = win.webContents.devToolsWebContents;
+      if (!devTools) throw new Error('devToolsWebContents 为 null');
 
-    // 内置 tab 的 id 一律是 `tab-*`，含 `chrome-extension://` 就等价于「这是扩展面板」。
-    // tab 藏在 DevTools 前端的多层 shadow root 里，只能自己走一遍。
-    const clickExtensionTab = `(() => {
+      // 内置 tab 的 id 一律是 `tab-*`，含 `chrome-extension://` 就等价于「这是扩展面板」。
+      // tab 藏在 DevTools 前端的多层 shadow root 里，只能自己走一遍。
+      const clickExtensionTab = `(() => {
       const seen = new Set();
       let hit = null;
       const walk = root => {
@@ -195,14 +201,16 @@ async function attachPanel(app: ElectronApplication, budgetMs: number): Promise<
       return true;
     })()`;
 
-    const deadline = Date.now() + input.budgetMs;
-    while (Date.now() < deadline) {
-      const done: boolean = await devTools.executeJavaScript(clickExtensionTab).catch(() => false);
-      if (done) return true;
-      await sleep(500);
-    }
-    return false;
-  }, { budgetMs });
+      const deadline = Date.now() + input.budgetMs;
+      while (Date.now() < deadline) {
+        const done: boolean = await devTools.executeJavaScript(clickExtensionTab).catch(() => false);
+        if (done) return true;
+        await sleep(500);
+      }
+      return false;
+    },
+    { budgetMs }
+  );
 
   expect(selected, 'DevTools 里始终没有出现扩展面板 tab').toBe(true);
 }
@@ -253,9 +261,11 @@ async function readPanel(app: ElectronApplication, input: PanelRead): Promise<st
     let latest = '(面板帧始终没有出现)';
     while (Date.now() < deadline) {
       const frame = panelFrame();
-      const text: string | null =
+      // `WebFrameMain.executeJavaScript` 回 `Promise<unknown>`；非字符串一律当作「这一轮没读到」，
+      // 循环结束后把最后一次真读到的文本抛给调用侧，比在这里编一个占位字符串更早暴露问题。
+      const raw =
         frame ? await frame.executeJavaScript(script).catch((error: Error) => `帧内执行抛错：${error.message}`) : null;
-      if (text !== null && text.trim().length > 0) latest = text;
+      if (typeof raw === 'string' && raw.trim().length > 0) latest = raw;
       if (wanted.test(latest)) return latest;
       await sleep(400);
     }
@@ -320,11 +330,93 @@ async function verifyEntry(page: Page, name: string): Promise<{ size: number; sh
  * 从面板 Database 页读到的 `DesktopLaunch` 行里抽出全部 `startedAt`。
  *
  * @remarks
- * 面板把每行渲染成 JSON 风格的键值对，所以直接从正文里捞 ISO 时间戳即可。
- * 抽不到就是没读到数据 —— 调用方据此断言，比在这里兜底更早暴露问题。
+ * 面板把每行渲染成 `字段名 类型 值` 的三元组（正文里形如 `startedAt string 2026-…Z`），
+ * 所以必须**带字段名**匹配：`createdAt` / `updatedAt` 与 `startedAt` 同为 ISO 时间戳，
+ * 只捞时间戳会把一行数成三条。抽不到就是没读到数据 —— 调用方据此断言，比在这里兜底更早暴露问题。
  */
 function startedAtValues(panelText: string): string[] {
-  return [...panelText.matchAll(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g)].map(match => match[0]);
+  const rows = panelText.matchAll(/\bstartedAt\s+string\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)/g);
+  return [...rows].map(match => match[1]);
+}
+
+/** 要跨重启比对的两件证据。 */
+interface RestartEvidence {
+  /** 第一次启动写下的 `DesktopLaunch.startedAt`。 */
+  readonly startedAt: string;
+  /** 应用把文件字节读回来算出的 `{ 字节数, SHA-256 }`。 */
+  readonly digest: { size: number; sha256: string };
+}
+
+/**
+ * 第一次启动：种下实体与文件，经真实面板各读一遍。
+ *
+ * @returns 供第二次启动比对的证据
+ */
+async function seedAndRead(userDataDir: string, extensionDist: string, port: number): Promise<RestartEvidence> {
+  const app = await launchApp(userDataDir, extensionDist, port);
+  try {
+    const page = await app.firstWindow();
+    await expectDesktopBackend(page);
+    await openStoragePage(page);
+    await uploadGenerated(page, FILE_NAME, FILE_MIB);
+    const digest = await verifyEntry(page, FILE_NAME);
+
+    await attachPanel(app, PANEL_BUDGET_MS);
+
+    // 实体：这一路证明面板读的是真库 —— `DesktopLaunch` 第一次启动只有一行。
+    const launches = await readPanel(app, {
+      hash: '#/database',
+      clickText: 'DesktopLaunch',
+      awaitPattern: 'startedAt',
+      budgetMs: PANEL_BUDGET_MS
+    });
+    const seen = startedAtValues(launches);
+    expect(seen, `面板 Database 页没读到 DesktopLaunch 数据：《${launches}》`).toHaveLength(1);
+
+    // 文件：面板 Storage 页读的是 `StorageFileMeta` 实体，与上面同一条 v1 查询通道。
+    const storage = await readPanel(app, { hash: '#/storage', awaitPattern: FILE_NAME, budgetMs: PANEL_BUDGET_MS });
+    expect(storage, `面板 Storage 页没读到 ${FILE_NAME}：《${storage}》`).toContain(FILE_NAME);
+
+    return { startedAt: seen[0], digest };
+  } finally {
+    // 走正常关闭路径：让 'will-quit' 有机会 closeAll() 并 checkpoint WAL。
+    await app.close();
+  }
+}
+
+/** 第二次启动：同一 userData 重新连接，逐项比对第一次的证据。 */
+async function reconnectAndCompare(
+  userDataDir: string,
+  extensionDist: string,
+  port: number,
+  expected: RestartEvidence
+): Promise<void> {
+  const app = await launchApp(userDataDir, extensionDist, port);
+  try {
+    const page = await app.firstWindow();
+    await expectDesktopBackend(page);
+    await attachPanel(app, PANEL_BUDGET_MS);
+
+    // 同一实体：第二次启动追加了一行，但第一次那行必须**原样**还在。
+    const launches = await readPanel(app, {
+      hash: '#/database',
+      clickText: 'DesktopLaunch',
+      awaitPattern: expected.startedAt,
+      budgetMs: PANEL_BUDGET_MS
+    });
+    const seen = startedAtValues(launches);
+    expect(seen, `重启后面板没读到两次启动记录：《${launches}》`).toHaveLength(2);
+    expect(seen, '第一次启动的实体在重启后变了').toContain(expected.startedAt);
+
+    // 同一文件：元数据行还在面板上，字节再读一遍仍与第一次一致。
+    const storage = await readPanel(app, { hash: '#/storage', awaitPattern: FILE_NAME, budgetMs: PANEL_BUDGET_MS });
+    expect(storage, `重启后面板 Storage 页丢了 ${FILE_NAME}：《${storage}》`).toContain(FILE_NAME);
+
+    await openStoragePage(page);
+    expect(await verifyEntry(page, FILE_NAME)).toEqual(expected.digest);
+  } finally {
+    await app.close();
+  }
 }
 
 test.describe('DevTools 面板在真实重启后读回同一实体与同一文件（US-904 阶段 D AC#52）', () => {
@@ -347,42 +439,8 @@ test.describe('DevTools 面板在真实重启后读回同一实体与同一文�
     const extensionDist = devtoolsExtensionCopy();
     const renderer = await serveRenderer();
 
-    let firstStartedAt = '';
-    let firstDigest = { size: 0, sha256: '' };
-
     try {
-      const first = await launchApp(userDataDir, extensionDist, renderer.port);
-      try {
-        const page = await first.firstWindow();
-        await expectDesktopBackend(page);
-        await openStoragePage(page);
-        await uploadGenerated(page, FILE_NAME, FILE_MIB);
-        firstDigest = await verifyEntry(page, FILE_NAME);
-
-        await attachPanel(first, PANEL_BUDGET_MS);
-
-        // 实体：这一路证明面板读的是真库 —— `DesktopLaunch` 第一次启动只有一行。
-        const launches = await readPanel(first, {
-          hash: '#/database',
-          clickText: 'DesktopLaunch',
-          awaitPattern: 'startedAt',
-          budgetMs: PANEL_BUDGET_MS
-        });
-        const before = startedAtValues(launches);
-        expect(before, `面板 Database 页没读到 DesktopLaunch 数据：《${launches}》`).toHaveLength(1);
-        firstStartedAt = before[0];
-
-        // 文件：面板 Storage 页读的是 `StorageFileMeta` 实体，与上面同一条 v1 查询通道。
-        const storage = await readPanel(first, {
-          hash: '#/storage',
-          awaitPattern: FILE_NAME,
-          budgetMs: PANEL_BUDGET_MS
-        });
-        expect(storage, `面板 Storage 页没读到 ${FILE_NAME}：《${storage}》`).toContain(FILE_NAME);
-      } finally {
-        // 走正常关闭路径：让 'will-quit' 有机会 closeAll() 并 checkpoint WAL。
-        await first.close();
-      }
+      const evidence = await seedAndRead(userDataDir, extensionDist, renderer.port);
 
       // 中途取一次盘上真相：字节到底在不在原生文件后端的根里，大小对不对。
       const filePath = join(userDataDir, STORAGE_DIR, FILE_NAME);
@@ -392,38 +450,9 @@ test.describe('DevTools 面板在真实重启后读回同一实体与同一文�
       // 独立第三方摘要：直接对盘上文件算一遍，和应用「读回来」算的那份比。
       // 两者一致，才说明流式读路径没有在中途替换或截断字节。
       const onDisk = createHash('sha256').update(readFileSync(filePath)).digest('hex');
-      expect(firstDigest).toEqual({ size: FILE_MIB * BYTES_PER_MIB, sha256: onDisk });
+      expect(evidence.digest).toEqual({ size: FILE_MIB * BYTES_PER_MIB, sha256: onDisk });
 
-      const second = await launchApp(userDataDir, extensionDist, renderer.port);
-      try {
-        const page = await second.firstWindow();
-        await expectDesktopBackend(page);
-        await attachPanel(second, PANEL_BUDGET_MS);
-
-        // 同一实体：第二次启动追加了一行，但第一次那行必须**原样**还在。
-        const launches = await readPanel(second, {
-          hash: '#/database',
-          clickText: 'DesktopLaunch',
-          awaitPattern: firstStartedAt,
-          budgetMs: PANEL_BUDGET_MS
-        });
-        const after = startedAtValues(launches);
-        expect(after, `重启后面板没读到两次启动记录：《${launches}》`).toHaveLength(2);
-        expect(after, '第一次启动的实体在重启后变了').toContain(firstStartedAt);
-
-        // 同一文件：元数据行还在面板上，字节再读一遍仍与盘上摘要一致。
-        const storage = await readPanel(second, {
-          hash: '#/storage',
-          awaitPattern: FILE_NAME,
-          budgetMs: PANEL_BUDGET_MS
-        });
-        expect(storage, `重启后面板 Storage 页丢了 ${FILE_NAME}：《${storage}》`).toContain(FILE_NAME);
-
-        await openStoragePage(page);
-        expect(await verifyEntry(page, FILE_NAME)).toEqual(firstDigest);
-      } finally {
-        await second.close();
-      }
+      await reconnectAndCompare(userDataDir, extensionDist, renderer.port, evidence);
     } finally {
       await renderer.close();
       rmSync(userDataDir, { force: true, recursive: true });
