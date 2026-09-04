@@ -129,6 +129,9 @@ async function serveFrontend(): Promise<{ close: () => Promise<void> }> {
   };
 }
 
+/** UUID v4，与 `v2/ids.ts` 生成的形状一致。 */
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 /** 把失败报告里的原因带进断言消息。 */
 const because = (run: SelfCheckRun): string => run.report.message ?? '(报告里没有原因)';
 
@@ -183,7 +186,25 @@ describe('dev 产物里的两个真实 WebView（US-905 阶段 1 AC#1 / AC#2）'
       `没等到 HANDSHAKE_ACK；主窗口收到的帧类型：${devtools?.panelFrameTypes.join(', ') || '(一帧都没有)'}`
     ).toBe(true);
     expect(devtools?.panelFrameTypes).toContain('HANDSHAKE_ACK');
-    expect(devtools?.sessionId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    expect(devtools?.sessionIds[0]).toMatch(UUID_V4);
+  });
+
+  /**
+   * AC#4：**同 label** 关掉再建一次，B 必须是另一个 UUID v4 session。
+   *
+   * 关窗与重开由主进程的 `rxdb_devtools_recycle_window` 做——这套 e2e 是进程级驱动，
+   * 外面没有手能去点那个窗口的关闭按钮；那条命令 `#[cfg(dev)]` + 探针门禁两道闸，
+   * release 里根本不存在。
+   *
+   * 判据取**两个 id 都在且不相等**，而不是「最后那个是 UUID」：后者在「一直复用同一个 session」
+   * 的实现下同样成立，而那正是 Electron 侧 US-904 AC#51 上真实发生过的缺陷
+   * （光关 session 不换端点，下一个面板拿到的是同一个身份）。
+   */
+  it('同 label 重开调试窗口后，拿到的是另一个 session', () => {
+    const ids = run.report.devtools?.sessionIds ?? [];
+    expect(ids, `只握上手 ${String(ids.length)} 轮，重开那一轮没发生`).toHaveLength(2);
+    expect(ids[1]).toMatch(UUID_V4);
+    expect(ids[1], '同 label 重开之后复用了上一轮的 session').not.toBe(ids[0]);
   });
 
   /**

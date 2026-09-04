@@ -20,7 +20,12 @@ import { watchDevToolsHandshake, type DevToolsProbeResult } from './devtools-pro
 import { RxDBConnectionState } from './rxdb-connection-state';
 import { startLocalDatabase } from './rxdb-initializer';
 import { DesktopLaunchService } from './services/desktop-launch.service';
-import { readDevToolsProbeEnabled, readProbeBaseUrl, reportSelfCheck } from './services/selfcheck-reporter';
+import {
+  readDevToolsProbeEnabled,
+  readProbeBaseUrl,
+  recycleDevToolsWindow,
+  reportSelfCheck
+} from './services/selfcheck-reporter';
 import { isTauriRuntime } from './services/tauri-environment';
 import { localDatabase, resolveLocalBackend } from './setup_rxdb';
 import { probeStorage } from './storage-probe';
@@ -79,6 +84,15 @@ const devToolsWatcher =
 const probeDevToolsWindow = async (): Promise<DevToolsProbeResult | null> => {
   if (devToolsWatcher === null) return null;
   if (!(await readDevToolsProbeEnabled(globalThis))) return null;
+
+  // 第一轮：调试窗口起来之后的首次协商。
+  const first = await devToolsWatcher.waitForHandshake();
+  // AC#4：同 label 关掉再建一次，等第二轮。第一轮都没握上就不必回收了——
+  // 那时回收只会把「本来就没握上」变成一次与它无关的命令失败。
+  if (first > 0) {
+    await recycleDevToolsWindow(globalThis);
+    await devToolsWatcher.waitForHandshake();
+  }
   return devToolsWatcher.settle();
 };
 

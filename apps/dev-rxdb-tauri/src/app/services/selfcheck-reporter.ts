@@ -126,3 +126,21 @@ export const readDevToolsProbeEnabled = async (runtime: unknown): Promise<boolea
   if (!isTauriRuntime(runtime)) return false;
   return await invoke<boolean>(DEVTOOLS_PROBE_COMMAND);
 };
+
+/** Rust 侧命令名，由 `#[tauri::command] rxdb_devtools_recycle_window` 的函数名决定。 */
+const RECYCLE_DEVTOOLS_WINDOW_COMMAND = 'rxdb_devtools_recycle_window';
+
+/**
+ * 请主进程以**同一个 label** 把调试窗口关掉再建一次（US-905 阶段 1 AC#4）。
+ *
+ * @param runtime - 运行时对象，实际调用传 `globalThis`
+ * @throws 命令不存在（release 构建）或探针没开时抛出
+ *
+ * @remarks
+ * 关窗与重开只有主进程做得到，而这套 e2e 是进程级驱动、没有 WebDriver 可用。
+ * 该命令在 release 里根本不注册（`#[cfg(dev)]`），且 dev 里还要探针已开才放行。
+ */
+export const recycleDevToolsWindow = async (runtime: unknown): Promise<void> => {
+  if (!isTauriRuntime(runtime)) return;
+  await invoke(RECYCLE_DEVTOOLS_WINDOW_COMMAND);
+};

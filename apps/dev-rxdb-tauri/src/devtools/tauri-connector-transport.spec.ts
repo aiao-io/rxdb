@@ -37,19 +37,28 @@ describe('createTauriConnectorTransport', () => {
   /**
    * subscribe 是异步注册：退订可能在注册完成前就来（init 后立刻 disconnect）。
    * 退订后 `listen` 才 settle 时，那一端必须立刻摘除。
+   *
+   * subscribe 现在注册**两条**监听：`devtools:message`（帧）与 `devtools:peer-gone`
+   * （调试窗口销毁的讣告，US-905 AC#4/#5）。两条都必须被这同一个退订函数摘掉——
+   * 漏掉后者的表征是窗口重开后收到两份讣告，而 connector 会据此关掉一个刚建好的 session。
    */
-  it('subscribe 返回退订函数，注册完成前退订也能摘除监听', async () => {
-    const unlisten = vi.fn();
-    // 让 listen 挂起，先拿到 subscribe 的退订函数再让它 settle。
-    let resolveListen: (fn: typeof unlisten) => void = () => undefined;
-    listenMock.mockReturnValue(new Promise(resolve => (resolveListen = resolve)));
+  it('subscribe 返回退订函数，注册完成前退订也能摘除两条监听', async () => {
+    const unlistenFrames = vi.fn();
+    const unlistenPeerGone = vi.fn();
+    // 让两条 listen 都挂起，先拿到 subscribe 的退订函数再让它们 settle。
+    const resolvers = new Map<string, (fn: () => void) => void>();
+    listenMock.mockImplementation((event: string) => new Promise<() => void>(resolve => resolvers.set(event, resolve)));
 
     const transport = createTauriConnectorTransport();
     const unsubscribe = transport.subscribe(() => undefined);
     unsubscribe();
 
-    resolveListen(unlisten);
-    await vi.waitFor(() => expect(unlisten).toHaveBeenCalledTimes(1));
+    resolvers.get('devtools:message')?.(unlistenFrames);
+    resolvers.get('devtools:peer-gone')?.(unlistenPeerGone);
+    await vi.waitFor(() => {
+      expect(unlistenFrames).toHaveBeenCalledTimes(1);
+      expect(unlistenPeerGone).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('subscribe 注册成功后，入站 payload 被解析回对象再交给回调', async () => {

@@ -65,8 +65,8 @@ pub const DEVTOOLS_PROBE_ENV: &str = "DEV_RXDB_TAURI_DEVTOOLS_PROBE";
 /// 没跟上时，报出来的是「版本对不上」，而不是一个到处都是 `undefined` 的对象。
 ///
 /// v2 起多了 [`StorageProbe`]（US-505 AC#1 / AC#3）；v3 起多了 [`DevToolsProbe`] 与
-/// `windowLabels`（US-905 阶段 1）。
-pub const REPORT_SCHEMA_VERSION: u32 = 3;
+/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）。
+pub const REPORT_SCHEMA_VERSION: u32 = 4;
 
 /// 环境变量配错时的退出码。
 ///
@@ -201,9 +201,15 @@ pub struct WebviewProbe {
 pub struct DevToolsProbe {
     /// 调试窗口发过来的 v2 帧类型，按首次出现排序、已去重。
     pub panel_frame_types: Vec<String>,
-    /// 从 `HANDSHAKE_ACK` 里读到的 session id；没握上手时为 `None`。
-    #[serde(default)]
-    pub session_id: Option<String>,
+    /// 每一轮握手读到的 session id，按发生顺序。
+    ///
+    /// # 为什么是列表而不是单值
+    ///
+    /// AC#4 的判据是「以同 label 重开的调试窗口拿到**新** UUID v4 session，并拒绝全部旧身份」。
+    /// 只报最后一个的话，「换了」与「一直是同一个」在报告里长得完全一样——而后者正是这条 AC
+    /// 要抓的缺陷（Electron 侧 US-904 AC#51 上就真的发生过：光关 session 而不换端点，
+    /// 下一个面板会拿到**同一个** session id）。
+    pub session_ids: Vec<String>,
     /// 是否在预算内看到了 `HANDSHAKE_ACK`。
     pub handshake_completed: bool,
 }
@@ -557,6 +563,14 @@ pub fn rxdb_selfcheck_probe_base_url(app: AppHandle) -> Option<String> {
 /// 同一形态：renderer 无条件问一次，判定的真相源只有 Rust 侧这一个。
 #[tauri::command]
 pub fn rxdb_selfcheck_devtools_probe(app: AppHandle) -> bool {
+    devtools_probe_armed(&app)
+}
+
+/// 这次运行是否开着 DevTools 探针。
+///
+/// 抽出来是给 `lib.rs` 的窗口回收命令当门禁用：那条命令只在自检探针开着时才允许动窗口，
+/// 于是它是**自检设施**而不是一个「谁都能调」的后门。
+pub fn devtools_probe_armed(app: &AppHandle) -> bool {
     app.try_state::<SelfCheckState>()
         .is_some_and(|state| state.plan.devtools_probe)
 }
@@ -909,7 +923,7 @@ mod tests {
                         "PROTOCOL_HELLO".to_string(),
                         "HANDSHAKE_ACK".to_string(),
                     ],
-                    session_id: Some("a5f7c4ce-6f6f-4a6e-8f0e-2a0c9a2f5d31".to_string()),
+                    session_ids: vec!["a5f7c4ce-6f6f-4a6e-8f0e-2a0c9a2f5d31".to_string()],
                     handshake_completed: true,
                 }),
                 window_labels: vec!["main".to_string(), "rxdb-devtools".to_string()],
@@ -932,7 +946,7 @@ mod tests {
                 "webview": null,
                 "devtools": {
                     "panelFrameTypes": ["PROTOCOL_HELLO", "HANDSHAKE_ACK"],
-                    "sessionId": "a5f7c4ce-6f6f-4a6e-8f0e-2a0c9a2f5d31",
+                    "sessionIds": ["a5f7c4ce-6f6f-4a6e-8f0e-2a0c9a2f5d31"],
                     "handshakeCompleted": true
                 },
                 "windowLabels": ["main", "rxdb-devtools"],
@@ -954,6 +968,6 @@ mod tests {
     /// v3 加的是 `devtools` 与 `windowLabels`（US-905 阶段 1）。
     #[test]
     fn the_schema_version_covers_the_storage_probe() {
-        assert_eq!(REPORT_SCHEMA_VERSION, 3);
+        assert_eq!(REPORT_SCHEMA_VERSION, 4);
     }
 }

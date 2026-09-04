@@ -120,7 +120,7 @@ US-210 SQLite host / US-505 native file host
 | 1   | 分别构建显式 dev 与 release 配置                                          | 检查产物并启动                                                   | dev 只创建一个 `rxdb-devtools` 窗口并握手；release 无入口、bootstrap、专用 command 和只服务该 label 的 capability                            | ✅   |
 | 2   | 真实主窗口与调试窗口已打开                                                | 用共享 fake providers 执行查询、事件、授权、transfer 和 snapshot | US-904 阶段 B conformance 全部通过；Tauri 只适配 transport，不复制 panel、provider 类型、fixture、错误码或状态机                             | ⚠️   |
 | 3   | 非调试窗口、错误 sender/label，或合法 sender 伪造越权操作                 | 通过 transport 发送                                              | 错误身份在 WebView/transport/Rust 均拒绝；合法 sender 仍受 capability/descriptor/mutation policy 限制，session/label 不能充当授权            | ⚠️   |
-| 4   | session A 有订阅、请求和未完成传输                                        | 关闭窗口，以同 label 重开 B 并投递 A 消息                        | A 的资源释放，B 获得新 UUID v4 session 并拒绝全部旧身份、事件、响应与 chunk                                                                  | ⚠️   |
+| 4   | session A 有订阅、请求和未完成传输                                        | 关闭窗口，以同 label 重开 B 并投递 A 消息                        | A 的资源释放，B 获得新 UUID v4 session 并拒绝全部旧身份、事件、响应与 chunk                                                                  | ✅   |
 | 5   | 主窗口刷新、transport 断开或应用退出                                      | 观察 connector/provider 生命周期                                 | 订阅、计时器、snapshot、请求、传输和临时文件均取消；provider owner 释放，不留下可复用 host session                                           | ⚠️   |
 | 6   | wa-sqlite 分别实际选择 OPFS、IDB、unavailable                             | 打开调试窗口查看 provider                                        | 分别声明 `files: opfs`、`settings: idb` 或结构化 unavailable；均带 `runtime: tauri`，但行为只由 kind/operations 决定                         | ⚠️   |
 | 7   | 版本、权限、非法数值/base64、传输乱序/取消、snapshot busy/expired fixture | 通过 Tauri transport 执行                                        | safe-integer guard、decoded-byte 限额、穷举错误和资源释放与 US-904 阶段 B 一致，不增加平台错误码、编码或 fallback                            | ✅   |
@@ -259,6 +259,40 @@ wa-sqlite 三档 VFS 现场核对。前三条现在有 harness 了（扩自检�
 
 **门禁现状**：`dev-rxdb-tauri` 单测 22 文件 222 条、Rust `#[test]` 25 条、
 `devtools-smoke` 1 绿 + 2 预期失败、`desktop-smoke` 13 条全绿（release 隔离未回退）。
+
+### 发现 4：Tauri 侧同样缺「对端没了」的信号（已修，AC#4 随之关闭）
+
+补上 AC#4 的用例之后它是红的：同 label 重开调试窗口，主窗口只握上手**一轮**。成因与 Electron 侧
+US-904 AC#51 完全同形——connector 的 v2 session 一直 `open`，重开的面板协商不上。
+（那边的三处根因里，`#route` 未跳过协商帧与「协商机 sessionId 构造时铸死」都在共享包里，
+已随 AC#51 一并修掉；Tauri 这边缺的是第三处：**没有任何东西告诉页面「调试窗口没了」**。）
+
+修法与 Chrome 那侧对称，但落点不同：
+
+- **Rust**（`lib.rs` 的 `on_window_event`）：调试窗口 `Destroyed` 时向 `main` 发一条
+  **不带任何 payload** 的 `devtools:peer-gone`。中继按设计不解释协议，它手上没有 session 身份，
+  所以只报「对端没了」这个事实。
+- **页内 transport**（`tauri-connector-transport.ts`）：它从**自己发出去的** v2 `HANDSHAKE` 上
+  记下本次 session，收到讣告时把它翻译成一帧 `DISCONNECT` 交给 connector。
+  这是唯一同时知道「对端没了」与「这次 session 是谁」的地方——调试窗口此刻已不存在、
+  不可能自己发讣告。与「`HANDSHAKE_ACK` 归面板独有」不冲突：ACK 是协议决定，
+  `DISCONNECT` 是传输事实，方向本就是 `both`。
+
+**AC#4 的驱动**：新增 `#[cfg(dev)]` 的 `rxdb_devtools_recycle_window`——关窗与重开只有主进程
+做得到，而这套 e2e 是进程级驱动，外面没有手能去点那个窗口的关闭按钮。两道闸让它不是后门：
+release 里根本不注册，dev 里还要自检探针已开才放行。它是 `async` + `spawn_blocking` 轮询等
+label 释放的：`destroy()` **先返回、后拆窗**，紧接着建同名窗口会撞
+「a webview with label `rxdb-devtools` already exists」（实测），而在主线程上 sleep 会把自己
+等的那件事一起堵死。
+
+**判据取两个 id 都在且不相等**，不是「最后那个是 UUID」——后者在「一直复用同一个 session」的
+实现下同样成立，而那正是 Electron 侧真实发生过的缺陷。报告字段因此是 `sessionIds`（列表）
+而不是单值，schema 随之 v3 → v4。
+
+**仍未覆盖**：AC#2（那 80 条 conformance 仍跑在进程内 relay 上，不是两个真实窗口之间）、
+AC#3（真窗口伪造身份，需要第三个窗口）、AC#5（主窗口刷新与应用退出两条路径）、
+AC#6（wa-sqlite 三档 VFS，需阶段 2 的真实 provider 或一个 dev-only 后端强制开关）。
+四条现在都有 harness 了，是纯写用例。
 
 ## 技术约束
 

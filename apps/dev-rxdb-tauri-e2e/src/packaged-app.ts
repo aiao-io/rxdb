@@ -47,7 +47,7 @@ export const PROBE_BASE_URL_ENV = 'DEV_RXDB_TAURI_PROBE_BASE_URL';
 export const DEVTOOLS_PROBE_ENV = 'DEV_RXDB_TAURI_DEVTOOLS_PROBE';
 
 /** 本文件能读懂的报告结构版本，与 `selfcheck.rs` 的 `REPORT_SCHEMA_VERSION` 一致。 */
-export const REPORT_SCHEMA_VERSION = 3;
+export const REPORT_SCHEMA_VERSION = 4;
 
 /**
  * 自检环境变量配错时的退出码，与 `selfcheck.rs` 的 `CONFIG_EXIT_CODE` 一致。
@@ -156,8 +156,14 @@ export interface WebviewProbe {
 export interface DevToolsProbe {
   /** 调试窗口发过来的 v2 帧类型，按首次出现排序、已去重。 */
   readonly panelFrameTypes: string[];
-  /** 从 `HANDSHAKE_ACK` 里读到的 session id；没握上手时为 `null`。 */
-  readonly sessionId: string | null;
+  /**
+   * 每一轮握手读到的 session id，按发生顺序；没握上手时为空数组。
+   *
+   * @remarks
+   * AC#4 的判据要看**轮换**：只报最后一个的话，「同 label 重开换了新身份」与「一直复用同一个」
+   * 在报告里长得完全一样，而后者正是要抓的缺陷。
+   */
+  readonly sessionIds: string[];
   /** 是否在预算内看到了 `HANDSHAKE_ACK`。 */
   readonly handshakeCompleted: boolean;
 }

@@ -15,8 +15,8 @@
 export interface DevToolsProbeResult {
   /** 调试窗口发过来的 v2 帧类型，按首次出现排序、已去重。 */
   readonly panelFrameTypes: string[];
-  /** 从 `HANDSHAKE_ACK` 里读到的 session id；没握上手时为 `null`。 */
-  readonly sessionId: string | null;
+  /** 每一轮握手读到的 session id，按发生顺序；没握上手时为空数组。 */
+  readonly sessionIds: string[];
   /** 是否在预算内看到了 `HANDSHAKE_ACK`。 */
   readonly handshakeCompleted: boolean;
 }
@@ -55,11 +55,17 @@ interface PanelFrame {
 /** 已经在收帧的观察者。 */
 export interface DevToolsHandshakeWatcher {
   /**
-   * 等到握手完成或预算耗尽，退订并交出快照。
+   * 等到**再多一轮**握手完成，或预算耗尽。
    *
    * @param budgetMs - 预算，默认 {@link HANDSHAKE_BUDGET_MS}。
+   * @returns 已经握上手的轮数（等于 `sessionIds.length`）。
+   *
+   * @remarks
+   * 可以多次调用：AC#4 要先等第一轮，回收窗口，再等第二轮。
    */
-  settle: (budgetMs?: number) => Promise<DevToolsProbeResult>;
+  waitForHandshake: (budgetMs?: number) => Promise<number>;
+  /** 退订并交出快照。 */
+  settle: () => DevToolsProbeResult;
 }
 
 /**
@@ -90,11 +96,9 @@ export interface DevToolsHandshakeWatcher {
  */
 export const watchDevToolsHandshake = (surface: DevToolsEventSurface): DevToolsHandshakeWatcher => {
   const seen: string[] = [];
-  let sessionId: string | null = null;
-  let settleHandshake: (() => void) | undefined;
-  const handshake = new Promise<void>(resolve => {
-    settleHandshake = resolve;
-  });
+  const sessionIds: string[] = [];
+  // 每等一轮就换一个 resolver：AC#4 要连等两轮，共用一个 promise 的话第二轮会立刻返回。
+  let arrived: (() => void) | undefined;
 
   const subscription = surface.listen(DEVTOOLS_EVENT, event => {
     // 中继原样透传的是一个 JSON 字符串（`TauriTransportService.postFrame` 里 stringify 的那份）。
@@ -105,21 +109,34 @@ export const watchDevToolsHandshake = (surface: DevToolsEventSurface): DevToolsH
     if (type === null) return;
     if (!seen.includes(type)) seen.push(type);
     const candidate = frame.payload?.sessionId;
-    if (type === 'HANDSHAKE_ACK' && typeof candidate === 'string') {
-      sessionId = candidate;
-      settleHandshake?.();
+    // 同一个 session 的 ACK 只记一次：重连时面板可能重发，而 AC#4 数的是**不同身份**的轮数。
+    if (type === 'HANDSHAKE_ACK' && typeof candidate === 'string' && !sessionIds.includes(candidate)) {
+      sessionIds.push(candidate);
+      arrived?.();
     }
   });
 
   return {
-    settle: async (budgetMs: number = HANDSHAKE_BUDGET_MS): Promise<DevToolsProbeResult> => {
-      const unlisten = await subscription;
-      try {
-        await Promise.race([handshake, delay(budgetMs)]);
-      } finally {
-        unlisten();
-      }
-      return { panelFrameTypes: [...seen], sessionId, handshakeCompleted: sessionId !== null };
+    waitForHandshake: async (budgetMs: number = HANDSHAKE_BUDGET_MS): Promise<number> => {
+      // `wanted` **必须在任何 await 之前**算出来：它的语义是「比调用那一刻多一轮」。
+      // 放在 `await subscription` 之后算的话，等待期间到达的那一轮会把基数一起抬高，
+      // 于是这次等待永远等的是「再下一轮」——表征是第二轮稳定超时，而第一轮好好的。
+      const wanted = sessionIds.length + 1;
+      await subscription;
+      const next = new Promise<void>(resolve => {
+        arrived = () => {
+          if (sessionIds.length >= wanted) resolve();
+        };
+        // 订阅落定与装上 resolver 之间也可能到帧，所以立刻自查一次。
+        arrived();
+      });
+      await Promise.race([next, delay(budgetMs)]);
+      arrived = undefined;
+      return sessionIds.length;
+    },
+    settle: (): DevToolsProbeResult => {
+      void subscription.then(unlisten => unlisten());
+      return { panelFrameTypes: [...seen], sessionIds: [...sessionIds], handshakeCompleted: sessionIds.length > 0 };
     }
   };
 };

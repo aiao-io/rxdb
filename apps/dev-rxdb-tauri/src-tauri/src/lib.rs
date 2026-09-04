@@ -146,6 +146,72 @@ fn devtools_message(
         .map_err(|error| error.to_string())
 }
 
+/// US-905 阶段 1 AC#4：以**同一个 label** 把调试窗口关掉再建一次。
+///
+/// # 为什么需要一条命令，而不是让测试自己关窗
+///
+/// 判据是「关闭窗口后以同 label 重开，B 获得新 UUID v4 session 并拒绝全部旧身份」。
+/// 关窗与重开都只有主进程做得到，而这套 e2e 是**进程级**驱动（Tauri 里没有可用的 WebDriver，
+/// `tauri-driver` 在 macOS 上不存在）——外面没有任何手能伸进来点那个窗口的关闭按钮。
+///
+/// # 为什么它不是一个后门
+///
+/// 两道闸叠着：`#[cfg(dev)]` 让它在 release 产物里**根本不存在**（与 `devtools_message`、
+/// `open_devtools_window` 同一条隔离，AC#1 的静态断言一并守住）；而即使在 dev 产物里，
+/// 没开自检探针时它也直接报错返回。所以它是自检设施，不是「谁都能调」的能力。
+///
+/// 销毁走 `destroy()` 而不是 `close()`：后者可被 `CloseRequested` 拦下，而这里要的是
+/// 「窗口确实没了」这个事实——`on_window_event` 的 `Destroyed` 分支也挂着会话回收，
+/// 顺带把 AC#5 的那一半走一遍。
+///
+/// # 为什么要等 label 被释放，而且必须 `async` + `spawn_blocking`
+///
+/// `destroy()` **先返回、后拆窗**：紧接着建同名窗口会撞上
+/// 「a webview with label `rxdb-devtools` already exists」（实测）。所以要等注册表里那一项真的消失。
+///
+/// 而这个等待不能在主线程上做：同步 `#[tauri::command]` 跑在主线程，窗口销毁事件也要主线程
+/// 处理——在那里 sleep 会把自己等的那件事一起堵死。改成 `async` 并把轮询丢进
+/// `spawn_blocking`，主线程才腾得出手去完成拆窗。
+#[cfg(dev)]
+#[tauri::command]
+async fn rxdb_devtools_recycle_window(app: tauri::AppHandle) -> Result<(), String> {
+    if !selfcheck::devtools_probe_armed(&app) {
+        return Err("devtools probe is not armed".to_string());
+    }
+    let label = devtools_routing::DEVTOOLS_LABEL;
+    let existing = app
+        .get_webview_window(label)
+        .ok_or_else(|| format!("{label} window not found"))?;
+    existing.destroy().map_err(|error| error.to_string())?;
+
+    let waiter = app.clone();
+    let released = tauri::async_runtime::spawn_blocking(move || {
+        for _ in 0..DESTROY_POLL_ATTEMPTS {
+            if waiter.get_webview_window(label).is_none() {
+                return true;
+            }
+            std::thread::sleep(DESTROY_POLL_INTERVAL);
+        }
+        false
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+    if !released {
+        return Err(format!("{label} was still registered after destroy()"));
+    }
+
+    open_devtools_window(&app).map_err(|error| error.to_string())
+}
+
+/// 等 label 释放的轮询次数与间隔（合计 2s）。
+///
+/// 上限存在的意义是「等不到就报错」而不是无限等：拆窗真的卡住时，一条明确的错误比
+/// 一次 60s 看门狗超时好查得多。
+#[cfg(dev)]
+const DESTROY_POLL_ATTEMPTS: u32 = 200;
+#[cfg(dev)]
+const DESTROY_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(10);
+
 /// US-210：退出前必须显式关掉全部会话。
 ///
 /// 用 `build(...).run(closure)` 而不是 `run(context)`，就是为了拿到 [`tauri::RunEvent::Exit`]
@@ -176,7 +242,10 @@ pub fn run() {
             // US-905 AC#1：`devtools_message` 命令与它在 `generate_handler!` 里的臂一起
             // 只在 dev 构建中注册（`#[cfg(dev)]` 直接作用于生成出的 match 臂）。
             #[cfg(dev)]
-            devtools_message
+            devtools_message,
+            // AC#4：同 label 重开调试窗口；同样只在 dev 构建里注册。
+            #[cfg(dev)]
+            rxdb_devtools_recycle_window
         ])
         .setup(move |app| {
             // 全程唯一一处根目录分支，且**不是** `unwrap_or`：两边都是被显式选出来的，
@@ -204,6 +273,18 @@ pub fn run() {
         .on_window_event(|window, event| {
             if matches!(event, tauri::WindowEvent::Destroyed) {
                 window.state::<DesktopHost>().close_window(window.label());
+                // US-905 AC#4/#5：调试窗口没了，得让主窗口的 connector 知道，
+                // 否则它手上的 v2 session 会一直开着，下一个面板永远协商不上（Electron 侧
+                // US-904 AC#51 上是同一个形状的缺陷）。这里只发一条**不带任何 payload** 的
+                // 讣告：中继按设计不解释协议，session 身份由页内 transport 自己记着。
+                #[cfg(dev)]
+                if window.label() == devtools_routing::DEVTOOLS_LABEL {
+                    let _ = window.app_handle().emit_to(
+                        devtools_routing::MAIN_LABEL,
+                        "devtools:peer-gone",
+                        (),
+                    );
+                }
             }
         })
         .build(tauri::generate_context!())
