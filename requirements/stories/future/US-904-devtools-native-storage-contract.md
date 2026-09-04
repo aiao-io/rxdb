@@ -950,8 +950,10 @@ worker 撑着，空闲计时从窗口销毁那一刻才起算**，所以漂的�
 等 COMMIT 才排空，顺序写错的表征是「面板少几类事件、但没有任何报错」。
 
 **两个测量口径上的坑（都实测过，写在用例里）**：① 事件列表是 `cdk-virtual-scroll-viewport`，
-在 Electron dock DevTools 里实测 `clientHeight` 为 **0**，CDK 只渲染三五条最小缓冲——
-面板自报 63 条事件时 DOM 里只有 3 个徽章，拿 DOM 当判据会把「没收到」和「没渲染」混成一个结论。
+当时实测 `clientHeight` 为 **0**、只渲染三五条最小缓冲——面板自报 63 条事件时 DOM 里只有 3 个徽章，
+拿 DOM 当判据会把「没收到」和「没渲染」混成一个结论。**成因后来查清并已修**：不是 dock 高度也不是
+CDK，而是**面板整套 Tailwind 样式根本没生成**（见下方「面板无样式」一节），高度链因此从 `main`
+起就断了。修好之后同一处视口 `clientHeight` 为 194px、内容 800px，滚动正常。
 因此类型全集的判据取**wire**（connector 发往面板的 v2 `EVENT` 帧，旁路逐条录得到），
 面板是否真的收下则取它自己的事件计数（`eventIndexes().length`，不受虚拟滚动影响）。
 ② 判别力实测：让探针漏发一类（`CONFLICT_PENDING`）而返回值不变，本条由绿转红并精确点名那一类。
@@ -1046,6 +1048,39 @@ worker 撑着，空闲计时从窗口销毁那一刻才起算**，所以漂的�
 **顺带的产品结论（需 owner 单独决策，不在本条范围）**：开发者拿**打包产物**（`app://` 入口）时用不了 DevTools
 扩展面板。阶段 D 的范围本就声明「production 无扩展源码与加载路径」，所以这不构成生产缺陷；但若希望开发者能在
 打包态调试，唯一可行形态是给 dev 构建保留 `--serve` 入口。是否为此立故事请 owner 判定。
+
+### 面板无样式：一条与协议无关、但让整个面板版面全错的缺陷（2026-09-04 修复）
+
+排查 DevTools 面板「样式有问题」时量出来的，与本故事的协议链路无关，但正是它把
+AC#46 那条「事件列表只渲染三五条」的成因引到了错误方向。
+
+**证据**：构建出的面板 CSS 里 `h-screen` / `flex-1` / `overflow-hidden` / `badge-ghost`
+**一个都不存在**（`grep -c` 全为 0）。也就是说共享面板的 utility class 一条都没生成。
+
+**成因**：Tailwind v4 取消了 `content` 配置，改为从**样式入口所在的项目**自动探测来源。
+`apps/rxdb-devtools-extension/src/style.css` 探测不到 `modules/rxdb-devtools-panel/`——
+那是另一个项目。Tauri 那侧更彻底：`devtools.html` 不引任何样式表、`main.ts` 也不 import CSS，
+vite 配置里连 tailwind 插件都没有（那份配置的注释里写着「只是没有 crx / tailwind」——
+省略是知道的，后果显然不知道）。
+
+**后果**（Electron dock DevTools，抽屉 272px 实测）：shell 289px 而不是 272（`h-screen` 无效）、
+`main` 拿到的是内容高而不是剩余空间、Files 页 0px、Events 页虚拟滚动视口 `clientHeight` 为 0、
+Database 页 452px 直接溢出抽屉而不是内部滚动。
+
+**为什么一直没被发现**：失败形态极具误导性——面板**渲染得出来**、文字读得到、
+既有 e2e 断言（全都基于 `innerText`）也照常绿，只有版面是错的。
+
+**修法**：扩展侧在 `style.css` 加一条 `@source` 指向面板源码；Tauri 侧补一份
+`src/devtools/devtools.css`（同样两条 `@source`）、给 `vite.config.devtools.mts` 装上
+`@tailwindcss/vite`、并在 `devtools/main.ts` import 它。另外两处组件宿主也补了 `:host` 块级高度：
+`ConnectionGuardComponent` 此前**完全没有 styles**（宿主 `display:inline`、0×0，而**每个页面**
+都把内容套在它里面），`OpfsPage` 是五个页面里唯一漏了 `:host` 的。
+
+**修后实测**：shell/appRoot/body 均 272，`main`/`guard`/`page` 均 231，
+Events 视口 `clientHeight` 194（内容 800）。
+
+**踩到的坑**：Angular 的 JIT 内联样式会被包进模板字面量，**CSS 注释里不能出现反引号**——
+否则整个 spec 文件 parse 失败，报错指向 `virtual:angular:jit:style:inline`，与真因毫无关系。
 
 ## 实现所有权
 

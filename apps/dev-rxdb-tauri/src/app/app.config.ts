@@ -81,19 +81,65 @@ const devToolsWatcher =
  * 开关在 Rust 侧，理由见 `selfcheck.rs` 的 `DEVTOOLS_PROBE_ENV`：release 产物里没有调试窗口，
  * 默认开启只会让每次 smoke 白等一个预算。
  */
+/**
+ * 跨主窗口刷新携带前半程证据的键（US-905 阶段 1 AC#5）。
+ *
+ * @remarks
+ * 报告只在**最后一次**加载时写出（`selfcheck.rs` 的 `reported` 只结算一次），而 AC#5 的
+ * 判据横跨一次刷新。`sessionStorage` 随源存活、随刷新保留、随进程退出消失，正好是这段证据
+ * 该有的寿命——用 `localStorage` 会把上一次运行的残留带进下一次。
+ */
+const PROBE_CARRY_KEY = 'rxdb-devtools-probe-carry';
+
+/**
+ * 等 DevTools 握手结果：先问 Rust 侧开没开，再决定要不要等（US-905 阶段 1 AC#2/#4/#5）。
+ *
+ * @returns 探针结果；没开这条探针（正常启动与 release 产物）时为 `null`
+ *
+ * @remarks
+ * 一次运行覆盖三条判据，顺序是承重的：
+ *
+ * 1. **首次协商**（AC#2）——调试窗口起来之后的第一轮握手；
+ * 2. **同 label 重开**（AC#4）——回收调试窗口，等第二轮；新一轮必须是**另一个** session；
+ * 3. **主窗口刷新**（AC#5）——把前两轮的证据存进 `sessionStorage` 后 `location.reload()`，
+ *    刷新之后再等一轮。connector 随页面重建，而调试窗口**一直活着**：第三轮握上手，
+ *    才说明面板那侧也认得出「对端换了」。
+ *
+ * 刷新那一次**不上报**（返回一个永不 settle 的 promise）：报告只结算一次，上报了这一次
+ * 就轮不到刷新后的那次。真的没刷成的话，60s 看门狗会给出一份 `timedOut`——
+ * 比一个少了第三轮、看起来像「面板没重连」的 `ok` 诚实得多。
+ */
 const probeDevToolsWindow = async (): Promise<DevToolsProbeResult | null> => {
   if (devToolsWatcher === null) return null;
   if (!(await readDevToolsProbeEnabled(globalThis))) return null;
 
-  // 第一轮：调试窗口起来之后的首次协商。
-  const first = await devToolsWatcher.waitForHandshake();
-  // AC#4：同 label 关掉再建一次，等第二轮。第一轮都没握上就不必回收了——
-  // 那时回收只会把「本来就没握上」变成一次与它无关的命令失败。
-  if (first > 0) {
-    await recycleDevToolsWindow(globalThis);
-    await devToolsWatcher.waitForHandshake();
+  const carried = sessionStorage.getItem(PROBE_CARRY_KEY);
+  if (carried === null) {
+    // 第一轮：调试窗口起来之后的首次协商。
+    const first = await devToolsWatcher.waitForHandshake();
+    // AC#4：同 label 关掉再建一次，等第二轮。第一轮都没握上就不必回收了——
+    // 那时回收只会把「本来就没握上」变成一次与它无关的命令失败。
+    if (first > 0) {
+      await recycleDevToolsWindow(globalThis);
+      await devToolsWatcher.waitForHandshake();
+    }
+    sessionStorage.setItem(PROBE_CARRY_KEY, JSON.stringify(devToolsWatcher.settle()));
+    location.reload();
+    // 刷新在即：这条链不能继续走到上报那一步。
+    return new Promise<never>(() => undefined);
   }
-  return devToolsWatcher.settle();
+
+  // 刷新之后：connector 是新的，调试窗口是旧的那一个。
+  const before = JSON.parse(carried) as DevToolsProbeResult;
+  await devToolsWatcher.waitForHandshake();
+  const after = devToolsWatcher.settle();
+  return {
+    panelFrameTypes: [...new Set([...before.panelFrameTypes, ...after.panelFrameTypes])],
+    sessionIds: [...before.sessionIds, ...after.sessionIds],
+    // 「至少握上过一次」。多轮之后这个布尔已经表达不了全部事实，轮次由 sessionIds 的长度说；
+    // 写成 before && after 会让「刷新后没重连」把**第一轮确实握上了**这条事实一起抹掉。
+    handshakeCompleted: before.handshakeCompleted || after.handshakeCompleted
+  };
 };
 
 /** 非默认 locale 需要先加载数据；返回的 Promise 由 initializer 等待。 */

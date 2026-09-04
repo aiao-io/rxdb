@@ -38,7 +38,32 @@ import { DEVTOOLS_HOST_ACCESS } from '../transport';
         </div>
       </div>
     }
-  `
+  `,
+  styles: [
+    `
+      /*
+       * 宿主必须是有高度的块。缺了这两行，组件宿主是默认的 display:inline、高度 0，于是：
+       *
+       * - 本组件四个分支模板里的 h-full 全部解析成 0，「等待连接」「不支持注入」这些状态
+       *   等于没有版面可用；
+       * - 更要命的是 ng-content 那一支 —— 每一个页面都把自己的内容套在守卫里，
+       *   所以整个面板的高度链在这里断掉。实测（Electron dock DevTools，抽屉 272px）：
+       *   守卫 0x0、Files 页 0px、Events 页的虚拟滚动视口 clientHeight 为 0
+       *   （内容 800px，只渲染三五条最小缓冲）、Database 页 452px 直接溢出抽屉而不是内部滚动。
+       *
+       * min-height:0 是给 flex 场景的：作为 flex 子项时默认 min-height:auto 会让它被内容
+       * 撑开，而不是让内部滚动区接管溢出。
+       *
+       * 注意：这段注释里不能出现反引号 —— Angular 的 JIT 内联样式会被包进模板字面量，
+       * 反引号会把它截断成语法错误（单测里表现为整个 spec 文件 parse 失败）。
+       */
+      :host {
+        display: block;
+        height: 100%;
+        min-height: 0;
+      }
+    `
+  ]
 })
 export class ConnectionGuardComponent {
   private readonly devToolsState = inject(DevToolsStateService);

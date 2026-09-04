@@ -141,7 +141,16 @@ import { createPathSegments, summarizeFiles } from './opfs-page.utils';
         (openRequested)="contextMenuOpen()"
       />
     </app-connection-guard>
-  `
+  `,
+  styles: [
+    `
+      /* 与 events / database / settings / storage 四页一致；本页此前漏了，宿主是 inline、高度 0。 */
+      :host {
+        display: block;
+        height: 100%;
+      }
+    `
+  ]
 })
 export class OpfsPage implements OnInit {
   private readonly opfsService = inject(OpfsService);

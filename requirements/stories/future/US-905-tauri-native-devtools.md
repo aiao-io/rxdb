@@ -289,10 +289,29 @@ label 释放的：`destroy()` **先返回、后拆窗**，紧接着建同名窗�
 实现下同样成立，而那正是 Electron 侧真实发生过的缺陷。报告字段因此是 `sessionIds`（列表）
 而不是单值，schema 随之 v3 → v4。
 
+### 发现 5：调试窗口从来没有样式（已修）
+
+`vite.config.devtools.mts` 的注释里写着「只是没有 crx / tailwind」——省略是知道的，后果显然不是：
+`devtools.html` 不引任何样式表、`main.ts` 也不 import CSS、配置里没有 tailwind 插件，
+于是那个窗口里的共享面板**一条 CSS 规则都没有**。已补 `src/devtools/devtools.css`
+（`@import 'tailwindcss'` + 两条 `@source`：本目录的宿主接线与 `modules/rxdb-devtools-panel/src`）、
+装上 `@tailwindcss/vite`、并在 `main.ts` import 它。Chrome 扩展那侧是同一类缺陷的较轻版本
+（有样式表但 Tailwind v4 的自动来源探测够不到面板项目），详见 US-904 的「面板无样式」一节。
+
+### 发现 6：主窗口刷新后面板不重新协商（未修，AC#5 因此仍 ⚠️）
+
+补 AC#5 的用例时实测：主窗口刷新之后只握上手**两轮**，第三轮不发生。这是 US-904 AC#51 那条缺陷的
+**镜像**——那次是 connector 侧不知道面板没了（已修），这次是**面板侧不知道 connector 换了**。
+面板的端点在 `v2` 是终态，只有 `connectionEpoch` 变化才换新端点，而 Tauri 下它只在**窗口重建**时
+才变；主窗口刷新不碰调试窗口，于是面板一直对着一个已经不存在的 session 说话。
+
+修法与已修的那一半对称：面板收到**新的** legacy `HANDSHAKE`（连接器重启的证据）时应当换一个
+新端点重新协商。但那要动阶段 B 冻结的面板协商生命周期，按约束 13 先用 `it.fails` 钉住现状。
+
 **仍未覆盖**：AC#2（那 80 条 conformance 仍跑在进程内 relay 上，不是两个真实窗口之间）、
-AC#3（真窗口伪造身份，需要第三个窗口）、AC#5（主窗口刷新与应用退出两条路径）、
+AC#3（真窗口伪造身份，需要第三个窗口）、AC#5（上面那条镜像缺陷 + 应用退出路径）、
 AC#6（wa-sqlite 三档 VFS，需阶段 2 的真实 provider 或一个 dev-only 后端强制开关）。
-四条现在都有 harness 了，是纯写用例。
+四条都有 harness 了，AC#5 卡在一处需 owner 定夺的协商生命周期改动上，其余三条是纯写用例。
 
 ## 技术约束
 

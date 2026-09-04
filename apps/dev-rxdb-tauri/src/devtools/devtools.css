@@ -1,0 +1,21 @@
+/*
+ * Tauri 调试窗口的样式入口。
+ *
+ * 此前**根本没有这份文件**：`devtools.html` 不引任何样式表，`main.ts` 也不 import CSS，
+ * 于是那个窗口里的共享面板是完全无样式的——不是「差几个类」，是一条 CSS 规则都没有。
+ * 失败形态极具误导性：面板照常渲染、文字读得到、进程级断言全绿，只有版面是错的。
+ *
+ * 两条 `@source` 都不能省。Tailwind v4 取消了 `content` 配置、改为从**本文件所在的项目**
+ * 自动探测来源，而面板在 `modules/rxdb-devtools-panel/` 下的另一个项目里，落在探测范围之外；
+ * 本目录下的宿主接线（transport / host access）同理要显式登记。
+ */
+@import 'tailwindcss';
+
+@source '.';
+@source '../../../../modules/rxdb-devtools-panel/src';
+
+@plugin 'daisyui' {
+  themes:
+    light --default,
+    dark --prefersdark;
+}

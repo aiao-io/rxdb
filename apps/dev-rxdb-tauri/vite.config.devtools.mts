@@ -1,4 +1,5 @@
 import angular from '@analogjs/vite-plugin-angular';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
 import { defineConfig } from 'vite';
 
@@ -8,7 +9,7 @@ import { defineConfig } from 'vite';
  * @remarks
  * 主 app 走 `@angular/build:application`（单入口），而 `rxdb-devtools` 窗口要加载第二份
  * Angular 入口（共享 panel）。这份配置用 `@analogjs/vite-plugin-angular` 单独把 `devtools.html`
- * 打成一份产物，与 `apps/rxdb-devtools-extension` 的 vite build 同构——只是没有 crx / tailwind，
+ * 打成一份产物，与 `apps/rxdb-devtools-extension` 的 vite build 同构——只是没有 crx，
  * 也没有 Chrome 的 `chrome.devtools.panels.create`（Tauri 没有这个 API，`devtools.html` 直接
  * 引导面板）。
  */
@@ -19,6 +20,8 @@ export default defineConfig({
     mainFields: ['module']
   },
   plugins: [
+    // 面板的样式全靠 Tailwind + daisyUI；缺了它整个窗口是无样式的（见 src/devtools/devtools.css）。
+    tailwindcss(),
     angular({
       jit: false,
       tsconfig: path.resolve(import.meta.dirname, 'tsconfig.app.json')
