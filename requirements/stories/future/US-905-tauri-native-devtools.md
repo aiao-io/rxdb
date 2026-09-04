@@ -123,7 +123,7 @@ US-210 SQLite host / US-505 native file host
 | 4   | session A 有订阅、请求和未完成传输                                        | 关闭窗口，以同 label 重开 B 并投递 A 消息                        | A 的资源释放，B 获得新 UUID v4 session 并拒绝全部旧身份、事件、响应与 chunk                                                                  | ✅   |
 | 5   | 主窗口刷新、transport 断开或应用退出                                      | 观察 connector/provider 生命周期                                 | 订阅、计时器、snapshot、请求、传输和临时文件均取消；provider owner 释放，不留下可复用 host session                                           | ✅   |
 | 6   | wa-sqlite 分别实际选择 OPFS、IDB、unavailable                             | 打开调试窗口查看 provider                                        | 分别声明 `files: opfs`、`settings: idb` 或结构化 unavailable；均带 `runtime: tauri`，但行为只由 kind/operations 决定                         | ⚠️   |
-| 7   | 版本、权限、非法数值/base64、传输乱序/取消、snapshot busy/expired fixture | 通过 Tauri transport 执行                                        | safe-integer guard、decoded-byte 限额、穷举错误和资源释放与 US-904 阶段 B 一致，不增加平台错误码、编码或 fallback                            | ✅   |
+| 7   | 版本、权限、非法数值/base64、传输乱序/取消、snapshot busy/expired fixture | 通过 Tauri transport 执行                                        | safe-integer guard、decoded-byte 限额、穷举错误和资源释放与 US-904 阶段 B 一致，不增加平台错误码、编码或 fallback                            | ⚠️   |
 | 8   | `apps/dev-rxdb-tauri-e2e` 已由 US-210 或本故事创建                        | 检查项目与 specs                                                 | workspace 中只有一个 generator 创建的 E2E project；本故事只拥有 DevTools window/transport/release-isolation specs，不接管 US-210 数据库 spec | ✅   |
 
 ### 阶段 2：真实原生 provider（AC#9～#17）
@@ -347,6 +347,41 @@ legacy `HANDSHAKE` 时，换一个新端点重新协商——那条握手是对�
   **往产品 demo 里塞多少测试脚手架，是需要 owner 定的边界，不是实现细节。**
 - **AC#6**：需阶段 2 的真实 native provider，或给 demo 加一个 dev-only 的后端/VFS 强制开关
   （同样是往产品里加开关，与 AC#2 是同一类边界问题）。
+
+### 发现 7：AC#7 的 ✅ 高估了它的证据（2026-09-04 复核）
+
+为 AC#2 找落点时复核了那 80 条 conformance 的实际链路，结论是它**没有经过 Tauri 的任何东西**：
+
+- `tauri-conformance.spec.ts` 用的是 `createFakeEndpointFactory()` + `createJsonConformanceDriver`，
+  两端都是 fake 端点、中继是进程内 JSON 中继；
+- 号称「把 Tauri transport 装进中间两段」的 `tauri-relay-nodes.ts`，实现是
+  `forward(frame, direction)` ——**一个透明转发节点**，既不 `invoke('devtools_message')`、
+  也不 `listen`，整条链路里没有一次真实 IPC、没有一个真实 WebView。
+
+它建模的是 Tauri 中继的**形状**（不解析 payload、不按方向分流、逐字节保真），这个模型是准确的，
+`tauri-conformance.spec.ts` 的头注也**自己写清楚了**「**没有**覆盖『真实 Rust 命令 / 双 WebView』
+那一半」。高估发生在故事这一侧：AC#7 的判据栏写的是「**通过 Tauri transport 执行**」，
+而实际执行路径里没有 Tauri transport。
+
+**处置**：AC#7 由 ✅ 改回 ⚠️，并写清它已经覆盖到的那一半（transport **语义**：safe-integer guard、
+decoded-byte 限额、穷举错误、transfer/snapshot 状态机、session 轮换、资源释放）与差的那一半
+（这些判据在**真实** `invoke` / `listen` 跨窗口投递上复跑一遍）。不是推翻那 80 条断言的价值——
+它们是「Tauri 只适配 transport、不复制状态机」这条结构性质的证据，只是不能同时充当
+「在真实 transport 上跑过」的证据。
+
+### AC#2 的剩余范围（因发现 7 而收窄）
+
+`tauri-conformance.spec.ts` 头注列为「没覆盖」的两项——跨窗口 `invoke` / `listen` 投递、
+窗口关闭/重开——**已由本轮的 `devtools-window-transport.spec.ts` 覆盖**（真实双窗口 v2 握手、
+同 label 重开、冒名窗口被拒、主窗口刷新后重新协商）。
+
+所以 AC#2 真正还差的是：**用共享 fake providers 把五类操作（查询、事件、授权、transfer、
+snapshot）在两个真实窗口之间跑一遍**。这需要在调试窗口的面板入口里加一个 dev-only 的
+conformance runner（由它发起请求），并让主窗口在该模式下用共享 fake providers 装配 connector。
+
+**明确不做的**：把那 80 条断言整套搬到真实窗口上复跑。那要求逐用例重装配两端端点、
+并在**两个窗口里各放一只可远程推进的假时钟**（`advanceTime` 的契约要求 driver 掌管全部协议计时器），
+与进程内驱动完全重复，成本远大于它能新增的信息量。这条边界写在这里，避免下一个人再权衡一次。
 
 ## 技术约束
 
