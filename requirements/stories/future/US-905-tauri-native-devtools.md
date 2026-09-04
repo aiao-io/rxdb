@@ -323,10 +323,22 @@ label 释放的：`destroy()` **先返回、后拆窗**，紧接着建同名窗�
 而那与「敲了但被拒」在一个布尔上长得一模一样。报告字段 `devtools.relayRejected`，schema v4 → v5。
 纯函数那一半（`target_label_of`）另有两条 Rust 单测，两半各管各的。
 
-**仍未覆盖**：AC#2（那 80 条 conformance 仍跑在进程内 relay 上，不是两个真实窗口之间）、
-AC#5（上面那条镜像缺陷 + 应用退出路径）、
-AC#6（wa-sqlite 三档 VFS，需阶段 2 的真实 provider 或一个 dev-only 后端强制开关）。
-四条都有 harness 了，AC#5 卡在一处需 owner 定夺的协商生命周期改动上，其余三条是纯写用例。
+### 仍未覆盖的三条，以及一处需要 owner 划边界的地方
+
+- **AC#2（80 条 conformance 跑在真实双窗口上）——不是「纯写用例」，需要先划一条边界。**
+  `DevToolsConformanceDriver.open(scenario)` 的契约是**每条用例现装配一次会话**：capability、
+  mutationPolicy、两端协议版本、descriptors 与一只可控假时钟都逐例变化（`json-driver.ts` 的
+  `JsonDriverContext` 注释写得很直白：「装配必须按 scenario 现算，不能在 driver 构造时固定，
+  否则整套矩阵共用第一条用例的授权配置」）。而真实主窗口里的 connector 是 bootstrap 期建的
+  **一次性单例**、档位固定，复用不了。
+  所以这条要在 demo 应用里再建一套 conformance bootstrap（两窗口各一份、可按 scenario 重建端点、
+  时钟可控），并从 vitest 逐例驱动——**与现有 harness 同量级的一块新东西**，且直接撞上本故事
+  「阶段 1 的证据只用共享 fake provider，不得夹带真实 host 接线」这条约束：
+  **往产品 demo 里塞多少测试脚手架，是需要 owner 定的边界，不是实现细节。**
+- **AC#5**：卡在一处镜像缺陷（主窗口刷新后面板不重新协商），修法要动阶段 B 冻结的面板协商
+  生命周期，已标 `it.fails`。
+- **AC#6**：需阶段 2 的真实 native provider，或给 demo 加一个 dev-only 的后端/VFS 强制开关
+  （同样是往产品里加开关，与 AC#2 是同一类边界问题）。
 
 ## 技术约束
 
