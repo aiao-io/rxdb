@@ -172,6 +172,79 @@ function storageEntries(root: string): string[] {
   return readdirSync(root, { recursive: true }).map(String);
 }
 
+/**
+ * 经面板下载一个文件，并在**面板帧里**算出它收到的字节的摘要。
+ *
+ * @returns `{ size, sha256 }`；预算内没拿到字节时为 `null`。
+ *
+ * @remarks
+ * 面板把字节交给用户走的是一次性 object URL + `<a download>`（`v2-file-channel.ts`），
+ * 而 DevTools 里的下载落到哪、叫什么名字都不受用例控制。所以这里在**它交给浏览器之前**
+ * 把 Blob 截下来算摘要——量的就是「经 wire 回到面板的那份字节」，比事后去翻下载目录
+ * 少一整段与被测物无关的不确定性。
+ *
+ * 补回原始实现而不是让它一直被替换：patch 只活到本次断言结束，套件不留下一个被改过的全局。
+ */
+async function downloadThroughPanel(
+  app: ElectronApplication,
+  name: string
+): Promise<{ size: number; sha256: string } | null> {
+  const armed = await panelEvaluate<boolean>(
+    app,
+    INSPECTED,
+    `(() => {
+      const original = URL.createObjectURL.bind(URL);
+      window.__AC47_DOWNLOAD__ = null;
+      URL.createObjectURL = blob => {
+        void blob.arrayBuffer()
+          .then(buffer => crypto.subtle.digest('SHA-256', buffer).then(digest => ({ buffer, digest })))
+          .then(({ buffer, digest }) => {
+            window.__AC47_DOWNLOAD__ = {
+              size: buffer.byteLength,
+              sha256: [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('')
+            };
+          });
+        URL.createObjectURL = original;
+        return original(blob);
+      };
+      return true;
+    })()`
+  );
+  if (!armed) throw new Error('没能在面板帧里替换 URL.createObjectURL —— 面板没加载？');
+
+  const clicked = await panelEvaluate<boolean>(
+    app,
+    INSPECTED,
+    `(() => {
+      const row = [...document.querySelectorAll('tr')].find(el => el.textContent.includes(${JSON.stringify(name)}));
+      const button = row?.querySelector('button[title="下载"]');
+      if (!button) return false;
+      button.click();
+      return true;
+    })()`
+  );
+  if (!clicked) {
+    const rows = await panelEvaluate<string>(
+      app,
+      INSPECTED,
+      `(() => [...document.querySelectorAll('tr')].map(el => el.textContent.replace(/\\s+/g, ' ').trim()).join(' | '))()`
+    );
+    throw new Error(`Files 页里点不到 ${name} 那一行的下载按钮；当前行：${rows || '(一行都没有)'}`);
+  }
+
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    const seen = await panelEvaluate<{ size: number; sha256: string } | null>(
+      app,
+      INSPECTED,
+      `(() => window.__AC47_DOWNLOAD__ ?? null)()`
+    );
+    if (seen !== null) return seen;
+    await new Promise(resolve => setTimeout(resolve, 300));
+  }
+  return null;
+}
+
 /** 轮询盘上某个路径出现（或消失）。面板的写是异步的，落盘晚于按钮返回。 */
 async function waitForPath(path: string, shouldExist: boolean, budgetMs = 30000): Promise<boolean> {
   const deadline = Date.now() + budgetMs;
@@ -217,7 +290,19 @@ test.describe('面板对原生文件后端的写操作逐字节落盘（US-904 �
       expect(await waitForPath(emptyPath, true), `零字节文件没落盘：${emptyPath}`).toBe(true);
       expect(statSync(emptyPath).size, '零字节文件的大小不是 0').toBe(0);
 
-      // ④ 删除 —— 经面板删掉，盘上真的没了。
+      // ④ 下载 —— 字节真的经 wire 回到了面板。
+      // 先刷一次列表：上面三步之后面板上的目录项还是操作前那一份，行找不到会被误报成「下载没拿到字节」。
+      await openFilesPage(app);
+      // 判据取**面板拿到的 Blob 的摘要**，与盘上文件独立算出的摘要比对：面板显示「下载成功」
+      // 只证明它收到了一条成功应答，此前那条路正是「应答成功但一个字节都没到」。
+      const downloaded = await downloadThroughPanel(app, FILE_NAME);
+      expect(downloaded, `面板下载没拿到字节（Files 页里找不到 ${FILE_NAME} 的下载按钮？）`).not.toBeNull();
+      expect(downloaded?.size, '面板收到的字节数与盘上不一致').toBe(FILE_BYTES);
+      expect(downloaded?.sha256, '面板收到的内容与盘上不一致').toBe(
+        createHash('sha256').update(readFileSync(filePath)).digest('hex')
+      );
+
+      // ⑤ 删除 —— 经面板删掉，盘上真的没了。
       await openFilesPage(app);
       const deleted = await panelEvaluate<boolean>(
         app,

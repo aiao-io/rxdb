@@ -39,7 +39,7 @@ INVEST 检查清单:
 | A    | Electron 43 + 当前 MV3 扩展 stop/go 实证                | 无                                           | AC#1～6   | ✅ 已交付（supported）                                                                      |
 | B    | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面 | 无                                           | AC#7～30  | ✅ 已交付（5 条保留）                                                                       |
 | C    | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移   | 阶段 B（仅其阶段 2）                         | AC#31～44 | 🚧 C1 已交付（AC#34 待人工浏览器回归）；C2 已交付（AC#38/#39 待跨版本实证，#42 待人工回归） |
-| D    | Electron desktop SQLite / native files 接入与真实 E2E   | 阶段 A(supported) + 阶段 C + US-207 / US-504 | AC#45～53 | 🚧 已开工（AC#45/#48/#50/#52/#53 ✅；AC#46/47/49/51 待补 E2E 侧）                           |
+| D    | Electron desktop SQLite / native files 接入与真实 E2E   | 阶段 A(supported) + 阶段 C + US-207 / US-504 | AC#45～53 | ✅ 已交付（AC#45～#53 全部关闭，2026-09-04）                                                |
 
 - 阶段 A 与阶段 B 相互独立，可并行开工；阶段 C 的阶段 1（行为中性抽取）也可与阶段 B 并行。
 - 阶段 B 已交付：本包内的 v2 协议、provider 数据面与 conformance suite 全部落地，5 条 AC 因只能由真实
@@ -819,7 +819,7 @@ v2 session 一建立，端点就去开 `database.events` 订阅，而 `database`
 | --- | ---------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
 | 45  | 分别构建显式开发配置与 production                                | 检查产物并启动                                         | dev 加载唯一工作区扩展并握手；production 无扩展源码、加载路径、bootstrap 和新增权限                                                              | ✅   |
 | 46  | 应用使用 US-207 desktop SQLite                                   | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与应用一致；不创建或查询 OPFS/IndexedDB fallback                                                         | ✅   |
-| 47  | 应用使用 US-504 原生文件后端并显式允许 mutation                  | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件专用根，字节一致；UI 仅用 `runtime: electron` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                              | ⚠️   |
+| 47  | 应用使用 US-504 原生文件后端并显式允许 mutation                  | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件专用根，字节一致；UI 仅用 `runtime: electron` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                              | ✅   |
 | 48  | 1001 条以上 metadata/files、两类缺失和一条在途上传               | 读取完整诊断 snapshot                                  | 从请求进入起算的共享 deadline（阶段 B）覆盖等锁/物化/重试；不漏尾页或误报临时状态；失效/超限/过期分别返回 shared busy/too-large/expired          | ✅   |
 | 49  | 打开 Settings                                                    | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明清理返回 `provider_unsupported`，不读取 OPFS/SQLite/WAL 或其他目录                            | ✅   |
 | 50  | 同源脚本/content script 持有合法 session，或构造越界路径         | 在 none/readonly/full、mutation 开/关组合下伪造操作    | connector、preload、host 各自校验；未授权 provider 调用为 0，未 opt-in mutation 不执行；根外无读写，错误不含路径、SQL 绑定值、加密字段或文件内容 | ✅   |
@@ -972,13 +972,28 @@ worker 撑着，空闲计时从窗口销毁那一刻才起算**，所以漂的�
 调 `.find` 而抛 TypeError，表征是 **Files 页只剩外壳**（工具栏、面包屑、文件表全没了），
 而 DevTools 控制台**一条错误都不打**——只能靠二分定位。
 
-**仍保留（故 AC#47 为 ⚠️）：面板侧下载。** 这不是测试难写，是**产品侧没接线**：
-`modules/rxdb-devtools-panel/src/transport/v2-file-channel.ts` 的 `download()` 走的是普通
-`call('download')` 请求路径，**全仓库没有任何地方调用 `DevToolsPanelEndpoint.download()`**
-（那个带 sink 的字节通道 API 已实现但无消费者）。所以面板拿到的只是一条成功响应，
-字节从未到达面板，「下载的内容逐字节一致」今天无从验起。接线怎么做涉及一个 UX 决定——
-DevTools 扩展面板里 `showSaveFilePicker` 在 WebKit 上不存在（见 `desktop-webview-capability.spec.ts`
-冻结的能力表），字节到了面板之后怎么交给用户需要 owner 定。**未在本轮实现。**
+**面板侧下载已接线，AC#47 随之关闭（2026-09-04）**。此前 `v2-file-channel.ts` 的 `download()`
+走的是普通 `call('download')` 请求路径，**全仓库没有任何地方调用 `DevToolsPanelEndpoint.download()`**
+（那个带 sink 的字节通道 API 已实现但无消费者），于是面板只拿到一条成功应答、一个字节都没收到——
+用户点了「下载」而什么都没发生，且没有任何报错。
+
+**接线时踩到的坑**：`requestId` 必须穿进 `params`。provider 的 `download` 用它登记这次传输
+（`native-files-provider.ts` 的 `downloads.set(requestId, …)`），端点之后取字节源时只带得了这一个 ID。
+漏掉它 provider 回 `invalid_path`，与「路径真的不对」无法区分——与 upload 传 `transferId` 同一条理由。
+
+**保存方式选了 anchor + Blob 单路径，并把代价写下来。** 真正的流式落盘只有
+`showSaveFilePicker` + `FileSystemWritableFileStream` 一条路，而它在这里拿不到：WebKit
+（macOS / Linux 的 Tauri webview）根本没有该 API（已被 `desktop-webview-capability.spec.ts`
+的能力表冻结），且面板在 DevTools 里是**跨源 iframe**，File System Access 要的权限策略给不到。
+所以没有加那个几乎永远走不到的 picker 分支去假装流式——峰值内存 ≈ 文件大小这件事如实写在
+`createDownloadSink` 的注释里，真要压下来该动的是 provider 的 `maxTransferBytes` 声明。
+
+`delivered-at-source`（浏览器 OPFS 由页面自己保存、字节不过 wire）与 `received` 分开处理，
+否则面板会去保存一个空 sink——端点把这两个终态分开正是为了防这件事，单测各钉一条。
+
+**E2E 判据取面板真正收到的字节**：在面板帧里把 `URL.createObjectURL` 截下来，对 Blob 算 SHA-256，
+与**独立地**对盘上文件算出的摘要比对。面板显示「下载成功」只证明它收到了一条成功应答——
+而那恰恰是修复前的状态。
 
 **AC#49 关闭（2026-09-04）**：`apps/dev-rxdb-electron-e2e/src/devtools-settings-refusals.spec.ts`（1 例）。
 
