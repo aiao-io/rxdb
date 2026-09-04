@@ -65,8 +65,8 @@ pub const DEVTOOLS_PROBE_ENV: &str = "DEV_RXDB_TAURI_DEVTOOLS_PROBE";
 /// 没跟上时，报出来的是「版本对不上」，而不是一个到处都是 `undefined` 的对象。
 ///
 /// v2 起多了 [`StorageProbe`]（US-505 AC#1 / AC#3）；v3 起多了 [`DevToolsProbe`] 与
-/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）。
-pub const REPORT_SCHEMA_VERSION: u32 = 4;
+/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）；v5 加 `devtools.relayRejected`（AC#3）。
+pub const REPORT_SCHEMA_VERSION: u32 = 5;
 
 /// 环境变量配错时的退出码。
 ///
@@ -212,6 +212,11 @@ pub struct DevToolsProbe {
     pub session_ids: Vec<String>,
     /// 是否在预算内看到了 `HANDSHAKE_ACK`。
     pub handshake_completed: bool,
+    /// 冒名窗口活着期间被中继按 label 拒掉的帧数（AC#3）。
+    ///
+    /// 计数而不是布尔：`0` 说明那扇窗根本没敲到门，这条用例什么都没验到——
+    /// 与「敲了但被拒」是两个结论。
+    pub relay_rejected: u64,
 }
 
 /// renderer 上报的结论，[`rxdb_selfcheck_report`] 的入参。
@@ -925,6 +930,7 @@ mod tests {
                     ],
                     session_ids: vec!["a5f7c4ce-6f6f-4a6e-8f0e-2a0c9a2f5d31".to_string()],
                     handshake_completed: true,
+                    relay_rejected: 1,
                 }),
                 window_labels: vec!["main".to_string(), "rxdb-devtools".to_string()],
                 app_data_dir: "/tmp/root".to_string(),
@@ -947,7 +953,8 @@ mod tests {
                 "devtools": {
                     "panelFrameTypes": ["PROTOCOL_HELLO", "HANDSHAKE_ACK"],
                     "sessionIds": ["a5f7c4ce-6f6f-4a6e-8f0e-2a0c9a2f5d31"],
-                    "handshakeCompleted": true
+                    "handshakeCompleted": true,
+                    "relayRejected": 1
                 },
                 "windowLabels": ["main", "rxdb-devtools"],
                 "appDataDir": "/tmp/root",
@@ -968,6 +975,6 @@ mod tests {
     /// v3 加的是 `devtools` 与 `windowLabels`（US-905 阶段 1）。
     #[test]
     fn the_schema_version_covers_the_storage_probe() {
-        assert_eq!(REPORT_SCHEMA_VERSION, 4);
+        assert_eq!(REPORT_SCHEMA_VERSION, 5);
     }
 }

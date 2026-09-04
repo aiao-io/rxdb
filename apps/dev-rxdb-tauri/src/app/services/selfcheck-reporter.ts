@@ -144,3 +144,18 @@ export const recycleDevToolsWindow = async (runtime: unknown): Promise<void> => 
   if (!isTauriRuntime(runtime)) return;
   await invoke(RECYCLE_DEVTOOLS_WINDOW_COMMAND);
 };
+
+/** Rust 侧命令名，由 `#[tauri::command] rxdb_devtools_probe_impostor` 的函数名决定。 */
+const PROBE_IMPOSTOR_COMMAND = 'rxdb_devtools_probe_impostor';
+
+/**
+ * 开一扇 label 不在白名单里的真窗口去敲中继，回报它被拒了几次（US-905 阶段 1 AC#3）。
+ *
+ * @param runtime - 运行时对象，实际调用传 `globalThis`
+ * @returns 那扇窗活着期间被拒的帧数；非 Tauri 运行时为 0
+ * @throws 命令不存在（release 构建）或探针没开时抛出
+ */
+export const probeImpostorWindow = async (runtime: unknown): Promise<number> => {
+  if (!isTauriRuntime(runtime)) return 0;
+  return await invoke<number>(PROBE_IMPOSTOR_COMMAND);
+};

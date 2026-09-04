@@ -47,7 +47,7 @@ export const PROBE_BASE_URL_ENV = 'DEV_RXDB_TAURI_PROBE_BASE_URL';
 export const DEVTOOLS_PROBE_ENV = 'DEV_RXDB_TAURI_DEVTOOLS_PROBE';
 
 /** 本文件能读懂的报告结构版本，与 `selfcheck.rs` 的 `REPORT_SCHEMA_VERSION` 一致。 */
-export const REPORT_SCHEMA_VERSION = 4;
+export const REPORT_SCHEMA_VERSION = 5;
 
 /**
  * 自检环境变量配错时的退出码，与 `selfcheck.rs` 的 `CONFIG_EXIT_CODE` 一致。
@@ -166,6 +166,14 @@ export interface DevToolsProbe {
   readonly sessionIds: string[];
   /** 是否在预算内看到了 `HANDSHAKE_ACK`。 */
   readonly handshakeCompleted: boolean;
+  /**
+   * 冒名窗口活着期间被中继按 label 拒掉的帧数（US-905 阶段 1 AC#3）。
+   *
+   * @remarks
+   * 计数而不是布尔：`0` 说明那扇窗根本没敲到门、这条用例什么都没验到，
+   * 与「敲了但被拒」是两个结论。
+   */
+  readonly relayRejected: number;
 }
 
 /** Rust 侧落盘的报告。 */

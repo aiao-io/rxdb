@@ -136,7 +136,15 @@ fn devtools_message(
     app: tauri::AppHandle,
     payload: String,
 ) -> Result<(), String> {
-    let target_label = devtools_routing::target_label_of(window.label())?;
+    let target_label = match devtools_routing::target_label_of(window.label()) {
+        Ok(label) => label,
+        Err(error) => {
+            // 计进拒绝数再报错：AC#3 的判据是「真的有一扇错身份的窗口被拦下过」，
+            // 而不是「白名单函数返回了 Err」——后者纯函数单测已经覆盖。
+            RELAY_REJECTED.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            return Err(error);
+        }
+    };
     // 目标窗口不存在时报错而不是静默丢弃：调试窗口已经关掉、主窗口还在往它发，
     // 是一个调用方应当知道的事实。
     if app.get_webview_window(target_label).is_none() {
@@ -203,6 +211,77 @@ async fn rxdb_devtools_recycle_window(app: tauri::AppHandle) -> Result<(), Strin
     open_devtools_window(&app).map_err(|error| error.to_string())
 }
 
+/// 被中继按 label 拒掉的帧数（US-905 阶段 1 AC#3）。
+///
+/// 计数而不是布尔：一次拒绝与「压根没人来敲门」必须分得开——后者说明这条用例根本没验到东西。
+#[cfg(dev)]
+static RELAY_REJECTED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// 冒名窗口的 label；刻意**不是**两个已知 label 之一。
+#[cfg(dev)]
+const IMPOSTOR_LABEL: &str = "rxdb-devtools-impostor";
+
+/// US-905 阶段 1 AC#3：开一个 label 不在白名单里的真实窗口，让它去敲中继。
+///
+/// # 为什么必须是真窗口
+///
+/// Rust 侧的白名单已有两条纯函数单测（`devtools_routing::tests`），但那验的是判定本身。
+/// AC#3 要的是「**错误身份的窗口**在真实链路上被拒」——而 `devtools_message` 的 sender label
+/// 由 `window.label()` 在服务端取得，JS 侧伪造不了，所以只能真的开一个别的 label 的窗口。
+///
+/// 这正是白名单存在的理由所写的那个场景：**将来新增的、忘了排除在 capability 之外的窗口**。
+/// 冒名窗口拿不到任何 capability（它的 label 不在 `default.json` / `devtools.json` 的 `windows` 里），
+/// 但**应用自有命令不经过 capability 门禁**，所以它照样调得到 `devtools_message`——
+/// 挡住它的只有 Rust 的 label 白名单。
+///
+/// 用 `initialization_script` 而不是加一个页面：那段脚本在页面脚本之前跑，
+/// `__TAURI_INTERNALS__` 此时已注入，因此不必为这条用例引入第二个 HTML 入口。
+///
+/// @returns 这扇窗活着期间中继拒掉的帧数。
+#[cfg(dev)]
+#[tauri::command]
+async fn rxdb_devtools_probe_impostor(app: tauri::AppHandle) -> Result<u64, String> {
+    use std::sync::atomic::Ordering;
+    if !selfcheck::devtools_probe_armed(&app) {
+        return Err("devtools probe is not armed".to_string());
+    }
+    let before = RELAY_REJECTED.load(Ordering::SeqCst);
+    tauri::WebviewWindowBuilder::new(
+        &app,
+        IMPOSTOR_LABEL,
+        tauri::WebviewUrl::App("devtools/devtools.html".into()),
+    )
+    .initialization_script(
+        "window.__TAURI_INTERNALS__.invoke('devtools_message', { payload: '{}' }).catch(() => undefined);",
+    )
+    .visible(false)
+    .build()
+    .map_err(|error| error.to_string())?;
+
+    // 给那一次 invoke 留出往返时间，然后把窗口收掉——AC#1 断言窗口集合恰为两个，
+    // 冒名窗口不能留到结算时刻。
+    let waiter = app.clone();
+    let rejected = tauri::async_runtime::spawn_blocking(move || {
+        for _ in 0..IMPOSTOR_POLL_ATTEMPTS {
+            std::thread::sleep(DESTROY_POLL_INTERVAL);
+            if RELAY_REJECTED.load(Ordering::SeqCst) > before {
+                break;
+            }
+        }
+        if let Some(window) = waiter.get_webview_window(IMPOSTOR_LABEL) {
+            let _ = window.destroy();
+        }
+        RELAY_REJECTED.load(Ordering::SeqCst) - before
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+    Ok(rejected)
+}
+
+/// 冒名窗口那一次 invoke 的等待上限（合计 3s）。
+#[cfg(dev)]
+const IMPOSTOR_POLL_ATTEMPTS: u32 = 300;
+
 /// 等 label 释放的轮询次数与间隔（合计 2s）。
 ///
 /// 上限存在的意义是「等不到就报错」而不是无限等：拆窗真的卡住时，一条明确的错误比
@@ -245,7 +324,10 @@ pub fn run() {
             devtools_message,
             // AC#4：同 label 重开调试窗口；同样只在 dev 构建里注册。
             #[cfg(dev)]
-            rxdb_devtools_recycle_window
+            rxdb_devtools_recycle_window,
+            // AC#3：开一扇 label 不在白名单里的真窗口去敲中继；同样只在 dev 构建里注册。
+            #[cfg(dev)]
+            rxdb_devtools_probe_impostor
         ])
         .setup(move |app| {
             // 全程唯一一处根目录分支，且**不是** `unwrap_or`：两边都是被显式选出来的，

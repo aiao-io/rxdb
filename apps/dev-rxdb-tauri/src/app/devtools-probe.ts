@@ -19,6 +19,8 @@ export interface DevToolsProbeResult {
   readonly sessionIds: string[];
   /** 是否在预算内看到了 `HANDSHAKE_ACK`。 */
   readonly handshakeCompleted: boolean;
+  /** 冒名窗口活着期间被中继按 label 拒掉的帧数（AC#3）。 */
+  readonly relayRejected: number;
 }
 
 /**
@@ -136,7 +138,13 @@ export const watchDevToolsHandshake = (surface: DevToolsEventSurface): DevToolsH
     },
     settle: (): DevToolsProbeResult => {
       void subscription.then(unlisten => unlisten());
-      return { panelFrameTypes: [...seen], sessionIds: [...sessionIds], handshakeCompleted: sessionIds.length > 0 };
+      // `relayRejected` 由调用方在拿到冒名窗口探测结果后补上：那件事发生在观察者之外。
+      return {
+        panelFrameTypes: [...seen],
+        sessionIds: [...sessionIds],
+        handshakeCompleted: sessionIds.length > 0,
+        relayRejected: 0
+      };
     }
   };
 };

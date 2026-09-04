@@ -119,7 +119,7 @@ US-210 SQLite host / US-505 native file host
 | --- | ------------------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | 1   | 分别构建显式 dev 与 release 配置                                          | 检查产物并启动                                                   | dev 只创建一个 `rxdb-devtools` 窗口并握手；release 无入口、bootstrap、专用 command 和只服务该 label 的 capability                            | ✅   |
 | 2   | 真实主窗口与调试窗口已打开                                                | 用共享 fake providers 执行查询、事件、授权、transfer 和 snapshot | US-904 阶段 B conformance 全部通过；Tauri 只适配 transport，不复制 panel、provider 类型、fixture、错误码或状态机                             | ⚠️   |
-| 3   | 非调试窗口、错误 sender/label，或合法 sender 伪造越权操作                 | 通过 transport 发送                                              | 错误身份在 WebView/transport/Rust 均拒绝；合法 sender 仍受 capability/descriptor/mutation policy 限制，session/label 不能充当授权            | ⚠️   |
+| 3   | 非调试窗口、错误 sender/label，或合法 sender 伪造越权操作                 | 通过 transport 发送                                              | 错误身份在 WebView/transport/Rust 均拒绝；合法 sender 仍受 capability/descriptor/mutation policy 限制，session/label 不能充当授权            | ✅   |
 | 4   | session A 有订阅、请求和未完成传输                                        | 关闭窗口，以同 label 重开 B 并投递 A 消息                        | A 的资源释放，B 获得新 UUID v4 session 并拒绝全部旧身份、事件、响应与 chunk                                                                  | ✅   |
 | 5   | 主窗口刷新、transport 断开或应用退出                                      | 观察 connector/provider 生命周期                                 | 订阅、计时器、snapshot、请求、传输和临时文件均取消；provider owner 释放，不留下可复用 host session                                           | ⚠️   |
 | 6   | wa-sqlite 分别实际选择 OPFS、IDB、unavailable                             | 打开调试窗口查看 provider                                        | 分别声明 `files: opfs`、`settings: idb` 或结构化 unavailable；均带 `runtime: tauri`，但行为只由 kind/operations 决定                         | ⚠️   |
@@ -308,8 +308,23 @@ label 释放的：`destroy()` **先返回、后拆窗**，紧接着建同名窗�
 修法与已修的那一半对称：面板收到**新的** legacy `HANDSHAKE`（连接器重启的证据）时应当换一个
 新端点重新协商。但那要动阶段 B 冻结的面板协商生命周期，按约束 13 先用 `it.fails` 钉住现状。
 
+### AC#3 关闭：真窗口伪造身份（2026-09-04）
+
+新增 `#[cfg(dev)]` 的 `rxdb_devtools_probe_impostor`：开一扇 label **不在白名单里**的真实窗口
+（`rxdb-devtools-impostor`），用 `initialization_script` 让它在页面脚本之前直接
+`__TAURI_INTERNALS__.invoke('devtools_message', …)`，敲完即由 Rust 自己把窗口收掉——
+不污染 AC#1 的「窗口集合恰为两个」。
+
+这正是白名单存在的理由所写的那个场景：**将来新增的、忘了排除在 capability 之外的窗口**。
+冒名窗口拿不到任何 capability（label 不在两份 capability 的 `windows` 里），但**应用自有命令
+不经过 capability 门禁**，所以它照样调得到 `devtools_message`；挡住它的只有 label 白名单。
+
+判据取**拒绝计数 > 0** 而不是布尔：`0` 说明那扇窗根本没敲到门、这条用例什么都没验到，
+而那与「敲了但被拒」在一个布尔上长得一模一样。报告字段 `devtools.relayRejected`，schema v4 → v5。
+纯函数那一半（`target_label_of`）另有两条 Rust 单测，两半各管各的。
+
 **仍未覆盖**：AC#2（那 80 条 conformance 仍跑在进程内 relay 上，不是两个真实窗口之间）、
-AC#3（真窗口伪造身份，需要第三个窗口）、AC#5（上面那条镜像缺陷 + 应用退出路径）、
+AC#5（上面那条镜像缺陷 + 应用退出路径）、
 AC#6（wa-sqlite 三档 VFS，需阶段 2 的真实 provider 或一个 dev-only 后端强制开关）。
 四条都有 harness 了，AC#5 卡在一处需 owner 定夺的协商生命周期改动上，其余三条是纯写用例。
 

@@ -21,6 +21,7 @@ import { RxDBConnectionState } from './rxdb-connection-state';
 import { startLocalDatabase } from './rxdb-initializer';
 import { DesktopLaunchService } from './services/desktop-launch.service';
 import {
+  probeImpostorWindow,
   readDevToolsProbeEnabled,
   readProbeBaseUrl,
   recycleDevToolsWindow,
@@ -123,7 +124,9 @@ const probeDevToolsWindow = async (): Promise<DevToolsProbeResult | null> => {
       await recycleDevToolsWindow(globalThis);
       await devToolsWatcher.waitForHandshake();
     }
-    sessionStorage.setItem(PROBE_CARRY_KEY, JSON.stringify(devToolsWatcher.settle()));
+    // AC#3：刷新之前把冒名窗口那一趟跑掉——它自己会把窗口收掉，不污染 AC#1 的窗口集合。
+    const relayRejected = first > 0 ? await probeImpostorWindow(globalThis) : 0;
+    sessionStorage.setItem(PROBE_CARRY_KEY, JSON.stringify({ ...devToolsWatcher.settle(), relayRejected }));
     location.reload();
     // 刷新在即：这条链不能继续走到上报那一步。
     return new Promise<never>(() => undefined);
@@ -136,6 +139,7 @@ const probeDevToolsWindow = async (): Promise<DevToolsProbeResult | null> => {
   return {
     panelFrameTypes: [...new Set([...before.panelFrameTypes, ...after.panelFrameTypes])],
     sessionIds: [...before.sessionIds, ...after.sessionIds],
+    relayRejected: before.relayRejected,
     // 「至少握上过一次」。多轮之后这个布尔已经表达不了全部事实，轮次由 sessionIds 的长度说；
     // 写成 before && after 会让「刷新后没重连」把**第一轮确实握上了**这条事实一起抹掉。
     handshakeCompleted: before.handshakeCompleted || after.handshakeCompleted

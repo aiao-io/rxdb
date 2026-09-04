@@ -237,6 +237,23 @@ describe('dev 产物里的两个真实 WebView（US-905 阶段 1 AC#1 / AC#2）'
   });
 
   /**
+   * AC#3：一扇 label 不在白名单里的**真实窗口**去敲中继，被 Rust 侧拒掉。
+   *
+   * 这正是白名单存在的理由所写的那个场景——「将来新增的、忘了排除在 capability 之外的窗口」。
+   * 冒名窗口拿不到任何 capability（label 不在两份 capability 的 `windows` 里），但**应用自有
+   * 命令不经过 capability 门禁**，所以它照样调得到 `devtools_message`；挡住它的只有 label 白名单。
+   *
+   * 判据取**拒绝计数 > 0** 而不是布尔：`0` 说明那扇窗根本没敲到门，这条用例什么都没验到——
+   * 而那与「敲了但被拒」在一个布尔上长得一模一样。
+   *
+   * 纯函数那一半（`devtools_routing::target_label_of`）另有两条 Rust 单测；这里补的是
+   * 「真窗口在真实链路上被拒」那一半。
+   */
+  it('label 不在白名单里的真实窗口敲中继，会被拒掉', () => {
+    expect(run.report.devtools?.relayRejected, '冒名窗口一次都没敲到中继——这条用例没有验到任何东西').toBeGreaterThan(0);
+  });
+
+  /**
    * 协商是**面板先开口**的：`PROTOCOL_HELLO` 由面板发出（阶段 B 的方向表把它钉成
    * `panel-to-connector`）。主窗口两条都收到，说明走的是完整协商而不是某条捷径。
    */

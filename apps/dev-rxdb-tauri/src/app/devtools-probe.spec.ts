@@ -38,7 +38,9 @@ describe('watchDevToolsHandshake', () => {
     expect(watcher.settle()).toEqual({
       panelFrameTypes: ['PROTOCOL_HELLO', 'HANDSHAKE_ACK'],
       sessionIds: ['session-a'],
-      handshakeCompleted: true
+      handshakeCompleted: true,
+      // 观察者不管冒名窗口那一趟，恒报 0；真实值由调用方在拿到探测结果后补上。
+      relayRejected: 0
     });
     await Promise.resolve();
     expect(unlisten).toHaveBeenCalledOnce();
@@ -81,7 +83,8 @@ describe('watchDevToolsHandshake', () => {
     expect(watcher.settle()).toEqual({
       panelFrameTypes: ['PROTOCOL_HELLO'],
       sessionIds: [],
-      handshakeCompleted: false
+      handshakeCompleted: false,
+      relayRejected: 0
     });
     await Promise.resolve();
     expect(unlisten).toHaveBeenCalledOnce();
@@ -102,7 +105,8 @@ describe('watchDevToolsHandshake', () => {
     expect(watcher.settle()).toEqual({
       panelFrameTypes: ['HANDSHAKE_ACK'],
       sessionIds: [],
-      handshakeCompleted: false
+      handshakeCompleted: false,
+      relayRejected: 0
     });
   });
 });
