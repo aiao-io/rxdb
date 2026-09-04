@@ -642,31 +642,31 @@ shared panel → chrome.runtime.Port → MV3 background service worker → conte
 
 ### 阶段 B — provider 数据面（AC#21～30）
 
-| #   | 前置条件                                                              | 操作                                         | 预期结果                                                                                                                               | 状态           |
-| --- | --------------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| 21  | fake providers 覆盖三个领域和全部 kind                                | 只改变 runtime 并运行 descriptor conformance | 相同 kind 的操作、状态和错误不变；unknown/duplicate/missing descriptor 被 exact guard 拒绝                                             | ✅             |
-| 22  | none/readonly/full 与 mutation allow/omit 全组合                      | 调用全部 provider operations                 | capability、descriptor、policy 三层矩阵成立；被拒调用为 0，wire 自称权限不能扩大可信配置                                               | ✅             |
-| 23  | 数值字段含边界值、NaN、Infinity、小数、负数和溢出                     | 运行所有 request/descriptor guards           | 仅范围内 safe integer 通过；非法值在资源分配前统一 `invalid_message`                                                                   | ✅             |
-| 24  | base64 含正常、边界 chunk、非法字符、非规范 padding/URL-safe          | 传过 fake JSON driver 并重新编码             | decoded bytes 一致；非法输入 `payload_encoding_invalid`，不写入、不刷新 timeout                                                        | ✅             |
-| 25  | 零字节、正常多 chunk、乱序、重复、缺块、越限、取消、idle 超时和迟到帧 | 执行完整 transfer 状态机                     | 仅合法 COMPLETE 提交；被拒帧不刷新 idle，超时返回 `transfer_timeout`；错误码稳定，其他终态无半写文件、孤儿 metadata 或完整文件内存副本 | ⚠️ →阶段 D/905 |
-| 26  | provider 上限缺失、为 0、超过 1 GiB 或双方上限不同                    | 启动上传/下载                                | descriptor guard 或 min-limit 生效；超过协商总量 `transfer_size_exceeded`                                                              | ✅             |
-| 27  | fixture 含 1001 条记录、两类缺失和内部临时状态                        | 以默认页大小读取 snapshot                    | 独占锁内物化、tuple 稳定排序和字节计量，不漏尾页；只在 complete 后报告，临时状态不误报                                                 | ⚠️ →阶段 D/905 |
-| 28  | 等锁、epoch 连续失效、条目/字节超限、60 秒过期                        | 创建并翻页                                   | 请求进入起 15 秒内结束；分别返回 busy/too_large/expired，取消能中止等待，不保留旧结论或截断页                                          | ✅             |
-| 29  | OPFS/Node/Rust 代表性 not-found/conflict/permission/quota 错误        | 运行共享错误映射 contract                    | 三端映射为同一穷举错误码，响应不泄漏路径、stack、平台 code 或内容                                                                      | ⚠️ 部分        |
-| 30  | database export 在任意 kind/runtime 下被强制调用                      | 监控 provider/filesystem                     | 固定 `export_unsupported`，provider、OPFS、SQLite、WAL 和应用目录读取次数均为 0                                                        | ⚠️ →AC#43      |
+| #   | 前置条件                                                              | 操作                                         | 预期结果                                                                                                                               | 状态                                                                 |
+| --- | --------------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| 21  | fake providers 覆盖三个领域和全部 kind                                | 只改变 runtime 并运行 descriptor conformance | 相同 kind 的操作、状态和错误不变；unknown/duplicate/missing descriptor 被 exact guard 拒绝                                             | ✅                                                                   |
+| 22  | none/readonly/full 与 mutation allow/omit 全组合                      | 调用全部 provider operations                 | capability、descriptor、policy 三层矩阵成立；被拒调用为 0，wire 自称权限不能扩大可信配置                                               | ✅                                                                   |
+| 23  | 数值字段含边界值、NaN、Infinity、小数、负数和溢出                     | 运行所有 request/descriptor guards           | 仅范围内 safe integer 通过；非法值在资源分配前统一 `invalid_message`                                                                   | ✅                                                                   |
+| 24  | base64 含正常、边界 chunk、非法字符、非规范 padding/URL-safe          | 传过 fake JSON driver 并重新编码             | decoded bytes 一致；非法输入 `payload_encoding_invalid`，不写入、不刷新 timeout                                                        | ✅                                                                   |
+| 25  | 零字节、正常多 chunk、乱序、重复、缺块、越限、取消、idle 超时和迟到帧 | 执行完整 transfer 状态机                     | 仅合法 COMPLETE 提交；被拒帧不刷新 idle，超时返回 `transfer_timeout`；错误码稳定，其他终态无半写文件、孤儿 metadata 或完整文件内存副本 | ⚠️ →905（Electron 半边已由阶段 D AC#47 关闭）                        |
+| 26  | provider 上限缺失、为 0、超过 1 GiB 或双方上限不同                    | 启动上传/下载                                | descriptor guard 或 min-limit 生效；超过协商总量 `transfer_size_exceeded`                                                              | ✅                                                                   |
+| 27  | fixture 含 1001 条记录、两类缺失和内部临时状态                        | 以默认页大小读取 snapshot                    | 独占锁内物化、tuple 稳定排序和字节计量，不漏尾页；只在 complete 后报告，临时状态不误报                                                 | ⚠️ →905（Electron 半边已由阶段 D AC#48 关闭）                        |
+| 28  | 等锁、epoch 连续失效、条目/字节超限、60 秒过期                        | 创建并翻页                                   | 请求进入起 15 秒内结束；分别返回 busy/too_large/expired，取消能中止等待，不保留旧结论或截断页                                          | ✅                                                                   |
+| 29  | OPFS/Node/Rust 代表性 not-found/conflict/permission/quota 错误        | 运行共享错误映射 contract                    | 三端映射为同一穷举错误码，响应不泄漏路径、stack、平台 code 或内容                                                                      | ⚠️ 部分                                                              |
+| 30  | database export 在任意 kind/runtime 下被强制调用                      | 监控 provider/filesystem                     | 固定 `export_unsupported`，provider、OPFS、SQLite、WAL 和应用目录读取次数均为 0                                                        | ⚠️ →AC#43（**该条已 ✅**，Chrome 侧真实路径已计数为 0；剩 Tauri 侧） |
 
 #### 保留项：fake 关不掉的 5 条
 
 阶段 B 的 19 条 ✅ 全部有对应断言且在 `pnpm nx test rxdb-devtools` 中绿。下列 5 条**不写 ✅**——
 fake 能证明的部分已证明，剩下的部分不是「还没写测试」，而是本包结构上不可测：
 
-| AC  | 本轮 fake 验收到的程度                                                                                                                                                     | 谁最终关闭                                          |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| 19  | 计时器与资源释放、迟到响应不进新状态、旧 session 帧被拒，均已断言；但「断连」由 fake relay 自己定义。service worker 重启、Port 重连与页面刷新的真实语义不在本包            | 阶段 C AC#39                                        |
-| 25  | 状态机全部终态、错误码稳定性、`peakRetainedBytes ≤ 256 KiB` 已断言；「不得整文件驻留内存」只有这一个代理指标，Rust / 主进程那一半在本包结构上不可观测                      | 阶段 D / US-905                                     |
-| 27  | tuple 稳定排序、字节计量、不漏尾页、只在 complete 后报告已由 `provider/snapshot` 单测断言；fake 锁只能证明**调用顺序**，证明不了真实独占锁排斥并发写者                     | 阶段 D / US-905                                     |
-| 29  | 三来源代表性 fixture 全部映射到同一联合且响应脱敏；穷尽性只做到「`DEVTOOLS_PROVIDER_ERROR_CODES` 每个成员都至少被一条 fixture 产出」的 meta-test，真实平台异常空间无法枚举 | 部分；阶段 D / US-905 补 fixture **加行**而非加分支 |
-| 30  | `export_unsupported` 固定返回、provider 与 host 读取计数为 0 已断言；但本包没有真实 OPFS/SQLite/WAL 代码路径，这是在数一个从未存在过的调用                                 | 阶段 C AC#43                                        |
+| AC  | 本轮 fake 验收到的程度                                                                                                                                                     | 谁最终关闭                                                                                                          |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 19  | 计时器与资源释放、迟到响应不进新状态、旧 session 帧被拒，均已断言；但「断连」由 fake relay 自己定义。service worker 重启、Port 重连与页面刷新的真实语义不在本包            | 阶段 C AC#39                                                                                                        |
+| 25  | 状态机全部终态、错误码稳定性、`peakRetainedBytes ≤ 256 KiB` 已断言；「不得整文件驻留内存」只有这一个代理指标，Rust / 主进程那一半在本包结构上不可观测                      | **Electron 半边已关**（阶段 D AC#47，2026-09-04：真实 host 的上传/下载/边界大小全链路）；Tauri 半边等 US-905 阶段 2 |
+| 27  | tuple 稳定排序、字节计量、不漏尾页、只在 complete 后报告已由 `provider/snapshot` 单测断言；fake 锁只能证明**调用顺序**，证明不了真实独占锁排斥并发写者                     | **Electron 半边已关**（阶段 D AC#48）；Tauri 半边等 US-905 阶段 2                                                   |
+| 29  | 三来源代表性 fixture 全部映射到同一联合且响应脱敏；穷尽性只做到「`DEVTOOLS_PROVIDER_ERROR_CODES` 每个成员都至少被一条 fixture 产出」的 meta-test，真实平台异常空间无法枚举 | 部分；Electron 侧已随阶段 D 加行，Tauri 侧等 US-905 阶段 2（**加行**而非加分支）                                    |
+| 30  | `export_unsupported` 固定返回、provider 与 host 读取计数为 0 已断言；但本包没有真实 OPFS/SQLite/WAL 代码路径，这是在数一个从未存在过的调用                                 | 阶段 C AC#43                                                                                                        |
 
 ### 阶段 C1 — 行为中性抽取（AC#31～35）
 
@@ -713,7 +713,7 @@ C2 的第一、二个增量已合入，两者都不触碰组件搬迁（C1 的�
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
 | 36  | ~~Port 是模拟的~~ **已由 `apps/rxdb-devtools-extension-e2e` 关闭**：真实 `chrome.runtime.connect` / `chrome.scripting` 注入 / `window.postMessage` 四段全通，页面侧录到唯一一条 v2 `HANDSHAKE_ACK`（`protocol: 2`），端口车道上没有任何 legacy ACK | ✅ 已关闭       |
 | 41  | ~~「页面消息」是合成的 window 事件~~ **已由扩展 e2e 关闭**：`?capabilities=none&emitOnInit=1` 的页面在 init 同一 tick 发事件（确定性的「握手之前」），握手后再发一次，四条车道上 EVENT / DB_INFO / BRANCHES 均为 0                                 | ✅ 已关闭       |
-| 44  | Chrome driver 与内存 driver 跑同一套件、同一 fixture、同一错误断言，结构上无处写平台副本。缺的是对照的另一端——native thin driver 要等阶段 D / US-905                                                                                               | 阶段 D / US-905 |
+| 44  | Chrome driver 与内存 driver 跑同一套件、同一 fixture、同一错误断言，结构上无处写平台副本。对照的另一端已到一半：Electron 薄 driver 已随阶段 D AC#53 跑完 80 条，Tauri 薄 driver 要等 US-905 阶段 2                                                 | 阶段 D / US-905 |
 
 AC#38 / #39 保持 ⬜：两者要的是**跨版本**与**真实断连**的实证——前者需要同时装一份旧
 connector 与一份旧面板产物，后者需要 service worker 重启与 Port 重连。两件事都不是再写一条
