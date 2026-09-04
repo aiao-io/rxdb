@@ -121,7 +121,7 @@ US-210 SQLite host / US-505 native file host
 | 2   | 真实主窗口与调试窗口已打开                                                | 用共享 fake providers 执行查询、事件、授权、transfer 和 snapshot | US-904 阶段 B conformance 全部通过；Tauri 只适配 transport，不复制 panel、provider 类型、fixture、错误码或状态机                             | ⚠️   |
 | 3   | 非调试窗口、错误 sender/label，或合法 sender 伪造越权操作                 | 通过 transport 发送                                              | 错误身份在 WebView/transport/Rust 均拒绝；合法 sender 仍受 capability/descriptor/mutation policy 限制，session/label 不能充当授权            | ✅   |
 | 4   | session A 有订阅、请求和未完成传输                                        | 关闭窗口，以同 label 重开 B 并投递 A 消息                        | A 的资源释放，B 获得新 UUID v4 session 并拒绝全部旧身份、事件、响应与 chunk                                                                  | ✅   |
-| 5   | 主窗口刷新、transport 断开或应用退出                                      | 观察 connector/provider 生命周期                                 | 订阅、计时器、snapshot、请求、传输和临时文件均取消；provider owner 释放，不留下可复用 host session                                           | ⚠️   |
+| 5   | 主窗口刷新、transport 断开或应用退出                                      | 观察 connector/provider 生命周期                                 | 订阅、计时器、snapshot、请求、传输和临时文件均取消；provider owner 释放，不留下可复用 host session                                           | ✅   |
 | 6   | wa-sqlite 分别实际选择 OPFS、IDB、unavailable                             | 打开调试窗口查看 provider                                        | 分别声明 `files: opfs`、`settings: idb` 或结构化 unavailable；均带 `runtime: tauri`，但行为只由 kind/operations 决定                         | ⚠️   |
 | 7   | 版本、权限、非法数值/base64、传输乱序/取消、snapshot busy/expired fixture | 通过 Tauri transport 执行                                        | safe-integer guard、decoded-byte 限额、穷举错误和资源释放与 US-904 阶段 B 一致，不增加平台错误码、编码或 fallback                            | ✅   |
 | 8   | `apps/dev-rxdb-tauri-e2e` 已由 US-210 或本故事创建                        | 检查项目与 specs                                                 | workspace 中只有一个 generator 创建的 E2E project；本故事只拥有 DevTools window/transport/release-isolation specs，不接管 US-210 数据库 spec | ✅   |
@@ -298,15 +298,25 @@ label 释放的：`destroy()` **先返回、后拆窗**，紧接着建同名窗�
 装上 `@tailwindcss/vite`、并在 `main.ts` import 它。Chrome 扩展那侧是同一类缺陷的较轻版本
 （有样式表但 Tailwind v4 的自动来源探测够不到面板项目），详见 US-904 的「面板无样式」一节。
 
-### 发现 6：主窗口刷新后面板不重新协商（未修，AC#5 因此仍 ⚠️）
+### 发现 6：主窗口刷新后面板不重新协商（**已修**，AC#5 随之关闭）
 
 补 AC#5 的用例时实测：主窗口刷新之后只握上手**两轮**，第三轮不发生。这是 US-904 AC#51 那条缺陷的
 **镜像**——那次是 connector 侧不知道面板没了（已修），这次是**面板侧不知道 connector 换了**。
 面板的端点在 `v2` 是终态，只有 `connectionEpoch` 变化才换新端点，而 Tauri 下它只在**窗口重建**时
 才变；主窗口刷新不碰调试窗口，于是面板一直对着一个已经不存在的 session 说话。
 
-修法与已修的那一半对称：面板收到**新的** legacy `HANDSHAKE`（连接器重启的证据）时应当换一个
-新端点重新协商。但那要动阶段 B 冻结的面板协商生命周期，按约束 13 先用 `it.fails` 钉住现状。
+**修法与已修的那一半对称，且落点在面板 library 而不是阶段 B 冻结的协商机**：
+`DevToolsEndpointService` 在**协商落定之后**（`v2` / `v1-facade` 两个终态）再收到一条
+legacy `HANDSHAKE` 时，换一个新端点重新协商——那条握手是对端重启的唯一证据（connector 每次
+`#startNegotiation()` 都会 eager 发一条）。`idle` / `awaiting` 期间收到的握手仍是本轮协商的
+正常输入，不重建（那会把刚开的 1,000 ms 决策窗口一起丢掉）。
+
+必须换端点而不是复位状态，理由与 connector 侧同源：session 身份在协商机**构造时**就铸好，
+原地复位会让新一轮复用旧身份；面板这边还多一层——`v1-facade` 是终态，旧端点此后对每次请求
+只会回 `session_closed`。
+
+判据两处：面板 library 一条单测（落定后再收 legacy 握手 → 换端点 + 重新发 `PROTOCOL_HELLO`），
+真实双窗口一条 e2e（主窗口刷新后拿到**第三轮**握手，三轮 session 两两不同）。
 
 ### AC#3 关闭：真窗口伪造身份（2026-09-04）
 
@@ -335,8 +345,6 @@ label 释放的：`destroy()` **先返回、后拆窗**，紧接着建同名窗�
   时钟可控），并从 vitest 逐例驱动——**与现有 harness 同量级的一块新东西**，且直接撞上本故事
   「阶段 1 的证据只用共享 fake provider，不得夹带真实 host 接线」这条约束：
   **往产品 demo 里塞多少测试脚手架，是需要 owner 定的边界，不是实现细节。**
-- **AC#5**：卡在一处镜像缺陷（主窗口刷新后面板不重新协商），修法要动阶段 B 冻结的面板协商
-  生命周期，已标 `it.fails`。
 - **AC#6**：需阶段 2 的真实 native provider，或给 demo 加一个 dev-only 的后端/VFS 强制开关
   （同样是往产品里加开关，与 AC#2 是同一类边界问题）。
 

@@ -201,8 +201,9 @@ describe('dev 产物里的两个真实 WebView（US-905 阶段 1 AC#1 / AC#2）'
    * （光关 session 不换端点，下一个面板拿到的是同一个身份）。
    */
   it('同 label 重开调试窗口后，拿到的是另一个 session', () => {
+    // 只看**前两轮**：第三轮是主窗口刷新（AC#5 那条用例的判据），不属于本条。
     const ids = run.report.devtools?.sessionIds ?? [];
-    expect(ids, `只握上手 ${String(ids.length)} 轮，重开那一轮没发生`).toHaveLength(2);
+    expect(ids.length, `只握上手 ${String(ids.length)} 轮，重开那一轮没发生`).toBeGreaterThanOrEqual(2);
     expect(ids[1]).toMatch(UUID_V4);
     expect(ids[1], '同 label 重开之后复用了上一轮的 session').not.toBe(ids[0]);
   });
@@ -216,20 +217,20 @@ describe('dev 产物里的两个真实 WebView（US-905 阶段 1 AC#1 / AC#2）'
    *
    * 顺带把 AC#5 的另一半（`transport 断开`）也覆盖了：上一条用例的窗口回收走的正是那条路。
    *
-   * # 今天走不通，标成预期失败（2026-09-04 实测）
+   * # 这一条曾经只握上手两轮（2026-09-04 修复）
    *
-   * 实测只握上手**两轮**：主窗口刷新之后，调试窗口里的面板**不重新协商**。
-   * 这是 US-904 AC#51 那条缺陷的**镜像**——那次是 connector 侧不知道面板没了（已修：
-   * 中继补发 `DISCONNECT` + connector 换端点），这次是**面板侧不知道 connector 换了**。
-   * 面板的端点在 `v2` 是终态，只有 `connectionEpoch` 变化才会换新端点，而 Tauri 下它只在
-   * **窗口重建**时才变；主窗口刷新不碰调试窗口，于是面板一直对着一个已经不存在的 session 说话。
+   * 主窗口刷新之后，调试窗口里的面板**不重新协商**——US-904 AC#51 那条缺陷的**镜像**：
+   * 那次是 connector 侧不知道面板没了（已修：中继补发 `DISCONNECT` + connector 换端点），
+   * 这次是**面板侧不知道 connector 换了**。面板端点在 `v2` / `v1-facade` 都是终态，
+   * 只有 `connectionEpoch` 变化才换新端点，而 Tauri 下它只在**窗口重建**时才变；
+   * 主窗口刷新不碰调试窗口，于是面板一直对着一个已经不存在的 session 说话，
+   * 而连接守卫因为收到 v1 握手照样显示「已连接」。
    *
-   * 修法与已修的那一半对称：面板收到**新的** legacy `HANDSHAKE`（连接器重启的证据）时应当
-   * 换一个新端点重新协商。但那要动阶段 B 冻结的面板协商生命周期，按约束 13 的既有做法先用
-   * `it.fails` 把现状钉住、缺陷记进故事，由 owner 决定是否立项。
-   * 修好那天它会以「预期失败却通过了」变红。
+   * 修法与已修的那一半对称，落点在面板 library（`DevToolsEndpointService`）而不是阶段 B
+   * 冻结的协商机：**协商落定之后再收到一条 legacy 握手**，就是对端重启的唯一证据，
+   * 此时换一个新端点重新协商。`idle` / `awaiting` 期间的握手仍是本轮协商的正常输入。
    */
-  it.fails('主窗口刷新之后重新协商，三轮 session 两两不同', () => {
+  it('主窗口刷新之后重新协商，三轮 session 两两不同', () => {
     const ids = run.report.devtools?.sessionIds ?? [];
     expect(ids, `只握上手 ${String(ids.length)} 轮，刷新后那一轮没发生`).toHaveLength(3);
     expect(new Set(ids).size, `三轮里有重复的 session：${ids.join(', ')}`).toBe(3);
