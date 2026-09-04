@@ -58,8 +58,8 @@
           "outputHashing": "all"
         }
       },
-      "//dependsOn": "^build 不是装饰：tsconfig.base.json 把 @aiao/rxdb-test/entities、/shop 映射到 packages/rxdb-test/dist（其余包都映射 src），dist 不进 git。tauri build 的 beforeBuildCommand 会起一个**独立** nx 进程跑本 target，没有 ^build 那层就没人先建 rxdb-test —— 干净 runner 上打包必炸（electron 的 build 有同样的 ^build，见其项目注释）。",
-      "dependsOn": ["build-devtools", "^build"]
+      "//dependsOn": "^build 不是装饰：tsconfig.base.json 把 @aiao/rxdb-test/entities、/shop 映射到 packages/rxdb-test/dist（其余包都映射 src），dist 不进 git。tauri build 的 beforeBuildCommand 会起一个**独立** nx 进程跑本 target，没有 ^build 那层就没人先建 rxdb-test —— 干净 runner 上打包必炸（electron 的 build 有同样的 ^build，见其项目注释）。 **build-devtools 已从这里移走**：它的产物是本 target outputs 的子目录，跑在前面会被 build 的缓存恢复整个抹掉，见 build-devtools 的注释。",
+      "dependsOn": ["^build"]
     },
     "dev": {
       "executor": "nx:run-commands",
@@ -124,6 +124,21 @@
       },
       "metadata": {
         "description": "US-210 AC#9：跨进程 smoke 用的 release 产物（src-tauri/target/release/dev-rxdb-tauri[.exe]）"
+      }
+    },
+    "tauri-package-dev": {
+      "// 为什么是裸 cargo build 而不是 tauri build": "`#[cfg(dev)]` 由 tauri crate 的 build.rs 按 `has_feature(\"custom-protocol\")` 取反得出（见 tauri-2.11.2/build.rs:255-259）。`tauri build` 会打开那个 feature，于是调试窗口、`devtools_message` 命令连同 `open_devtools_window` 一起从产物里消失——那正是 release 隔离要的效果，但也意味着 release 产物**验不到** US-905 阶段 1 的任何一条 dev 侧判据。裸 cargo build 不带该 feature，`cfg(dev)` 成立，产物里才有调试窗口。",
+      "// 为什么落 target/debug": "与 `tauri-package-release` 的 target/release 分属两个目录，互不覆盖；smoke 与 devtools-smoke 因此可以各跑各的，不必串行。",
+      "// devUrl": "dev 产物按 tauri.conf.json 的 `devUrl`（http://localhost:1420）取前端，所以跑它之前必须有人在 1420 上服务 `dist/apps/dev-rxdb-tauri/browser`。那件事由 devtools-smoke 的 spec 自己做，不挂 continuous target——端口是写死的，交给 Nx 调度反而更难判断是谁占着它。",
+      "executor": "nx:run-commands",
+      "dependsOn": ["build-devtools"],
+      "options": {
+        "cwd": "apps/dev-rxdb-tauri/src-tauri",
+        "command": "cargo build --locked",
+        "parallel": false
+      },
+      "metadata": {
+        "description": "US-905 阶段 1：带调试窗口的 dev 产物（src-tauri/target/debug/dev-rxdb-tauri[.exe]），供 devtools-smoke 驱动"
       }
     },
     "tauri-update": {
@@ -206,10 +221,18 @@
       }
     },
     "build-devtools": {
+      "// 为什么依赖 build 而不是反过来": "本 target 产出 dist/apps/dev-rxdb-tauri/browser/devtools/，那是 build 的 outputs（dist/apps/dev-rxdb-tauri）的**子目录**。原先 build dependsOn build-devtools，于是面板先落盘、Angular build 后落盘；只要 build 命中 nx 缓存，恢复产物时整个父目录被换掉，devtools/ 连带消失，而 build-devtools 也命中缓存被跳过、没人再写回去。表征是调试窗口加载 devtools/devtools.html 得到 404、面板根本不 bootstrap，而构建全程报绿。反过来依赖之后，面板产物总是**最后**落盘。",
+      "// outputs 与 cache": "必须显式声明 outputs，缓存命中时 nx 才知道要把 devtools/ 恢复回来；不声明的话它是一个「跑过就算数、产物无人管」的 target，正是上面那条竞态的另一半。",
       "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "cache": true,
+      "outputs": ["{workspaceRoot}/dist/apps/dev-rxdb-tauri/browser/devtools"],
       "options": {
         "cwd": "apps/dev-rxdb-tauri",
         "command": "vite build --config vite.config.devtools.mts"
+      },
+      "metadata": {
+        "description": "US-905：共享 DevTools 面板的 vite 产物，落在 Angular 产物的 devtools/ 子目录下"
       }
     }
   }

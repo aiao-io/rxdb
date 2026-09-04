@@ -1,6 +1,7 @@
 import type { DevToolsConnectorTransport } from '@aiao/rxdb-devtools';
 import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import type { UnlistenFn } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 /**
  * {@link DevToolsConnectorTransport} 的 Tauri 实现：主 WebView connector 侧。
@@ -30,13 +31,20 @@ export function createTauriConnectorTransport(): DevToolsConnectorTransport {
       disposed = false;
       // listen 是异步注册：退订可能在注册完成前就来了（init 后立刻 disconnect），
       // 用一个 flag 兜住「注册落定后发现已退订」的竞态。
-      void listen<string>('devtools:message', event => callback(JSON.parse(event.payload))).then(fn => {
-        if (disposed) {
-          fn();
-          return;
-        }
-        unlisten = fn;
-      });
+      // **必须**是 `getCurrentWebviewWindow().listen` 而不是全局 `listen`。
+      // 全局 `listen` 注册的监听 target 是 `EventTarget::Any`，而 Tauri 的投递过滤是
+      // `match_any_or_filter`（tauri 2.11.2 `event/listener.rs:286`）——`Any` 监听**无视**过滤器，
+      // 每一帧都收得到，包括本窗口自己刚发出去的那些。Rust 侧的 `emit_to` 只解决了一半，
+      // 另一半在这里：监听必须绑定到本窗口 label 上，定向投递才真的成立。
+      void getCurrentWebviewWindow()
+        .listen<string>('devtools:message', event => callback(JSON.parse(event.payload)))
+        .then(fn => {
+          if (disposed) {
+            fn();
+            return;
+          }
+          unlisten = fn;
+        });
       return () => {
         disposed = true;
         unlisten?.();

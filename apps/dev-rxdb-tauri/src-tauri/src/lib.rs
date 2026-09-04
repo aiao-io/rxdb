@@ -7,7 +7,7 @@ mod selfcheck;
 
 use aiao_rxdb_tauri::commands::DesktopHost;
 use tauri::Manager;
-// `Emitter` 只在 `#[cfg(dev)]` 的 `devtools_message` 里用（`target.emit`）；
+// `Emitter` 只在 `#[cfg(dev)]` 的 `devtools_message` 里用（`app.emit_to`）；
 // 不 cfg 掉的话，release（custom-protocol）构建会报 unused import。
 #[cfg(dev)]
 use tauri::Emitter;
@@ -113,20 +113,37 @@ fn open_devtools_window(app: &tauri::AppHandle) -> tauri::Result<()> {
 /// payload 原样透传、不做解释。授权（session / capability / mutation policy）是 connector 与
 /// provider 的职责，transport 不代劳——「session 不是授权 secret」。
 ///
-/// 定向 `emit` 而不是广播：业务数据（实体、事件、文件路径）只发往目标窗口，
+/// 定向投递而不是广播：业务数据（实体、事件、文件路径）只发往目标窗口，
 /// 不落到任何不该看到它的 WebView 上。
+///
+/// **必须是 [`tauri::Emitter::emit_to`]，不能是 `emit`。** 这两个名字读起来像「往这个窗口发」
+/// 和「往所有窗口发」，实际上 `window.emit(...)` **也是广播**——它转身就调
+/// `self.manager().emit(...)`（tauri 2.11.2 `lib.rs:946-950`），接收者是谁完全不影响投递范围。
+/// 本文件此前写的正是 `target.emit(...)`，于是每一帧都同时落到两个 WebView 上；
+/// 两侧靠 v2 信封里的 `direction` 各自丢弃不属于自己的帧，功能上看不出任何异常，
+/// 而「只发往目标窗口」这条性质其实一直不成立。
+///
+/// 实测发现的经过：US-905 阶段 1 的握手探针挂在**主窗口**上收调试窗口发来的帧，却收到了
+/// 一条只可能由主窗口自己发出的 v1 `HANDSHAKE`——广播把它送回了发送方。
 ///
 /// `#[cfg(dev)]`（US-905 AC#1 硬阻塞 B）：命令与 `generate_handler!` 里的对应臂一起在 release
 /// 构建中消失——release 产物不含只服务 `rxdb-devtools` 的专用 command。这是**编译期隔离**，
 /// 不是「release 无窗口所以恒 not found」的运行时兜底。
 #[cfg(dev)]
 #[tauri::command]
-fn devtools_message(window: tauri::Window, app: tauri::AppHandle, payload: String) -> Result<(), String> {
+fn devtools_message(
+    window: tauri::Window,
+    app: tauri::AppHandle,
+    payload: String,
+) -> Result<(), String> {
     let target_label = devtools_routing::target_label_of(window.label())?;
-    let target = app
-        .get_webview_window(target_label)
-        .ok_or_else(|| format!("{target_label} window not found"))?;
-    target.emit("devtools:message", &payload).map_err(|error| error.to_string())
+    // 目标窗口不存在时报错而不是静默丢弃：调试窗口已经关掉、主窗口还在往它发，
+    // 是一个调用方应当知道的事实。
+    if app.get_webview_window(target_label).is_none() {
+        return Err(format!("{target_label} window not found"));
+    }
+    app.emit_to(target_label, "devtools:message", &payload)
+        .map_err(|error| error.to_string())
 }
 
 /// US-210：退出前必须显式关掉全部会话。
@@ -151,6 +168,11 @@ pub fn run() {
             aiao_rxdb_tauri::commands::rxdb_desktop_request,
             selfcheck::rxdb_selfcheck_report,
             selfcheck::rxdb_selfcheck_probe_base_url,
+            // US-905 阶段 1 AC#2：**不**加 `#[cfg(dev)]`。renderer 无条件问一次
+            // 「这次要不要跑 DevTools 探针」，release 里它恒回 false；
+            // 加了 cfg 的话 release 下这一问会变成 command-not-found，
+            // renderer 就得 catch 一个异常来推断构建形态——那是拿异常当控制流。
+            selfcheck::rxdb_selfcheck_devtools_probe,
             // US-905 AC#1：`devtools_message` 命令与它在 `generate_handler!` 里的臂一起
             // 只在 dev 构建中注册（`#[cfg(dev)]` 直接作用于生成出的 match 臂）。
             #[cfg(dev)]
@@ -181,9 +203,7 @@ pub fn run() {
         // 会在条件变量上无限期地等下去——没有超时能解开它，用户看到的就是界面卡死。
         .on_window_event(|window, event| {
             if matches!(event, tauri::WindowEvent::Destroyed) {
-                window
-                    .state::<DesktopHost>()
-                    .close_window(window.label());
+                window.state::<DesktopHost>().close_window(window.label());
             }
         })
         .build(tauri::generate_context!())

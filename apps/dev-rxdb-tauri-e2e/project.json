@@ -5,6 +5,21 @@
   "projectType": "application",
   "sourceRoot": "apps/dev-rxdb-tauri-e2e/src",
   "targets": {
+    "devtools-smoke": {
+      "// 为什么不叫 e2e": "同 desktop-smoke：ci-template.yml 用 `nx show projects --withTarget=e2e` 自动组矩阵，叫 e2e 就自动进 PR 门禁的 ubuntu 跑道。",
+      "// 为什么依赖 dev 产物": "US-905 阶段 1 的判据全在 `#[cfg(dev)]` 那一侧——调试窗口、devtools_message 命令都只存在于不带 custom-protocol feature 的构建里。release 产物验不到它们（那正是 AC#1 的隔离判据），所以本 target 依赖 tauri-package-dev 而不是 tauri-package-release。",
+      "// 为什么与 desktop-smoke 分开": "两者用的是两份能力不同的产物（target/debug vs target/release），合成一个 target 会让「这条断言看的是哪一份产物」不可读。",
+      "dependsOn": ["dev-rxdb-tauri:tauri-package-dev"],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-tauri-e2e",
+        "command": "vitest run --config vitest.devtools.mts",
+        "parallel": false
+      },
+      "metadata": {
+        "description": "US-905 阶段 1 AC#1/AC#2：dev 产物里两个真实 WebView 的窗口集合与 v2 握手（进程级驱动 + 自检报告，不上 WebDriver）"
+      }
+    },
     "desktop-smoke": {
       "// 为什么不叫 e2e": "ci-template.yml 用 `nx show projects --withTarget=e2e` 自动组矩阵，叫 e2e 就自动进 PR 门禁的 ubuntu 跑道，而 US-210 AC#9 明写它只进发布链路。test / test-browser / build / cargo-test 同理，都要避开。",
       "// dependsOn": "必须依赖真实 release 产物。跨进程 1→2 这条断言的全部意义就是「进程整个退出、重新拉起，数据还在」，dev 产物与单测都验不到。",

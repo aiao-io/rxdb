@@ -99,6 +99,34 @@ export async function attachPanel(
 }
 
 /**
+ * 关掉 DevTools，并等到它真的关上。
+ *
+ * @param app - 已启动的打包产物。
+ * @param inspected - 被检查窗口的 URL 前缀。
+ * @throws 预算内没关上时断言失败。
+ *
+ * @remarks
+ * 与 {@link attachPanel} 配对，用来制造「session A 结束 → 重开得到 session B」这一幕（AC#51）。
+ * 等 `isDevToolsOpened()` 翻成 false 而不是关完就走：关闭是异步的，紧接着重开会撞上
+ * 还没拆完的旧宿主，表征是重开后拿到的仍是旧面板帧。
+ */
+export async function closePanel(app: ElectronApplication, inspected: InspectedWindow): Promise<void> {
+  const closed = await app.evaluate(async ({ BrowserWindow }, input) => {
+    const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+    const win = BrowserWindow.getAllWindows().find(candidate => candidate.webContents.getURL().startsWith(input));
+    if (!win) throw new Error(`找不到 ${input} 窗口`);
+    win.webContents.closeDevTools();
+    for (let attempt = 0; attempt < 40; attempt++) {
+      if (!win.webContents.isDevToolsOpened()) return true;
+      await sleep(250);
+    }
+    return false;
+  }, inspected);
+
+  expect(closed, 'DevTools 始终没有关上').toBe(true);
+}
+
+/**
  * 在面板帧里执行一段脚本并取回结果。
  *
  * @param app - 已启动的打包产物。

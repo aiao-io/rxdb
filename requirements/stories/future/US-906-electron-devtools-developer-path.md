@@ -1,11 +1,11 @@
 ---
 id: US-906
 title: Electron 桌面端 DevTools 面板的开发者可用路径
-status: Backlog
+status: In Progress
 priority: Medium
 epic: epic-003-ui-developer-tools
 created: 2026-09-03
-updated: 2026-09-03
+updated: 2026-09-04
 tags: [tooling, devtools, desktop, electron, dx]
 ---
 

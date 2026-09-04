@@ -14,11 +14,14 @@ import { provideClientHydration } from '@angular/platform-browser';
 import { provideRouter, withComponentInputBinding, withInMemoryScrolling, withViewTransitions } from '@angular/router';
 import { provideLoadingBarInterceptor } from '@ngx-loading-bar/http-client';
 import { provideLoadingBarRouter } from '@ngx-loading-bar/router';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { appRoutes } from './app.routes';
+import { watchDevToolsHandshake, type DevToolsProbeResult } from './devtools-probe';
 import { RxDBConnectionState } from './rxdb-connection-state';
 import { startLocalDatabase } from './rxdb-initializer';
 import { DesktopLaunchService } from './services/desktop-launch.service';
-import { readProbeBaseUrl, reportSelfCheck } from './services/selfcheck-reporter';
+import { readDevToolsProbeEnabled, readProbeBaseUrl, reportSelfCheck } from './services/selfcheck-reporter';
+import { isTauriRuntime } from './services/tauri-environment';
 import { localDatabase, resolveLocalBackend } from './setup_rxdb';
 import { probeStorage } from './storage-probe';
 import { probeWebview, readWebviewGlobals, type WebviewFetchSurface, type WebviewProbeResult } from './webview-probe';
@@ -38,6 +41,46 @@ const resolveLocaleId = (): string => (Intl.DateTimeFormat().resolvedOptions().l
  */
 const probeWebviewCapabilities = async (storage: WebviewFetchSurface): Promise<WebviewProbeResult | null> =>
   probeWebview({ globals: readWebviewGlobals(), storage, baseUrl: await readProbeBaseUrl(globalThis) });
+
+/**
+ * DevTools 帧观察者：**模块求值时就开始收帧**（US-905 阶段 1 AC#2）。
+ *
+ * @remarks
+ * 订阅时机是承重的。调试窗口由 Rust 在 `setup()` 里与主窗口一起建，它的面板什么时候完成
+ * 协商与主窗口建库多快无关——**实测**把订阅放在启动链末尾时，握手早已结束，而 Tauri 的事件
+ * 不重放，报告里于是是一个空的 `panelFrameTypes`，与「调试窗口根本没建起来」同形。
+ * 所以订阅在这里（最早处），等待放在启动链末尾的 `probeDevToolsWindow`。
+ *
+ * 事件订阅面在这里注入，`devtools-probe.ts` 因此不直接依赖 `@tauri-apps/api/event`，
+ * 单测不必起一个真实 Tauri 运行时——与下面 webview 探针「DOM 事实一次读齐」同一手法。
+ *
+ * 非 Tauri 运行时（`nx serve` 的浏览器预览）不订阅：那里没有 `listen` 可调，也没有调试窗口。
+ */
+const devToolsWatcher =
+  isTauriRuntime(globalThis) ?
+    watchDevToolsHandshake({
+      // 与两条 transport 同一个理由：全局 `listen` 的 target 是 `Any`，会无视定向过滤收到
+      // **所有**帧（含主窗口自己发出的）。探针要观察的是「投递到 main 的帧」，
+      // 所以必须绑到本窗口——否则它会把主窗口自己的出站帧也算成「调试窗口发来的」。
+      listen: (event, handler) =>
+        getCurrentWebviewWindow().listen<string>(event, message => handler({ payload: message.payload }))
+    })
+  : null;
+
+/**
+ * 等 DevTools 握手结果：先问 Rust 侧开没开，再决定要不要等（US-905 阶段 1 AC#2）。
+ *
+ * @returns 探针结果；没开这条探针（正常启动与 release 产物）时为 `null`
+ *
+ * @remarks
+ * 开关在 Rust 侧，理由见 `selfcheck.rs` 的 `DEVTOOLS_PROBE_ENV`：release 产物里没有调试窗口，
+ * 默认开启只会让每次 smoke 白等一个预算。
+ */
+const probeDevToolsWindow = async (): Promise<DevToolsProbeResult | null> => {
+  if (devToolsWatcher === null) return null;
+  if (!(await readDevToolsProbeEnabled(globalThis))) return null;
+  return devToolsWatcher.settle();
+};
 
 /** 非默认 locale 需要先加载数据；返回的 Promise 由 initializer 等待。 */
 const registerLocaleIfNeeded = async (localeId: string): Promise<void> => {
@@ -113,6 +156,7 @@ export const appConfig: ApplicationConfig = {
         launches: inject(DesktopLaunchService),
         probe: probeStorage,
         probeWebview: probeWebviewCapabilities,
+        probeDevTools: probeDevToolsWindow,
         adapterName: resolveLocalBackend(globalThis).adapter,
         report: outcome => reportSelfCheck(outcome, globalThis)
       })

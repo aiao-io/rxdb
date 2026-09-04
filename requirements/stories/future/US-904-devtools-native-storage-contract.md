@@ -39,7 +39,7 @@ INVEST 检查清单:
 | A    | Electron 43 + 当前 MV3 扩展 stop/go 实证                | 无                                           | AC#1～6   | ✅ 已交付（supported）                                                                      |
 | B    | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面 | 无                                           | AC#7～30  | ✅ 已交付（5 条保留）                                                                       |
 | C    | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移   | 阶段 B（仅其阶段 2）                         | AC#31～44 | 🚧 C1 已交付（AC#34 待人工浏览器回归）；C2 已交付（AC#38/#39 待跨版本实证，#42 待人工回归） |
-| D    | Electron desktop SQLite / native files 接入与真实 E2E   | 阶段 A(supported) + 阶段 C + US-207 / US-504 | AC#45～53 | ⬜ 未开始                                                                                   |
+| D    | Electron desktop SQLite / native files 接入与真实 E2E   | 阶段 A(supported) + 阶段 C + US-207 / US-504 | AC#45～53 | 🚧 已开工（AC#45/#48/#50/#52/#53 ✅；AC#46/47/49/51 待补 E2E 侧）                           |
 
 - 阶段 A 与阶段 B 相互独立，可并行开工；阶段 C 的阶段 1（行为中性抽取）也可与阶段 B 并行。
 - 阶段 B 已交付：本包内的 v2 协议、provider 数据面与 conformance suite 全部落地，5 条 AC 因只能由真实
@@ -818,12 +818,12 @@ v2 session 一建立，端点就去开 `database.events` 订阅，而 `database`
 | #   | 前置条件                                                         | 操作                                                   | 预期结果                                                                                                                                         | 状态 |
 | --- | ---------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
 | 45  | 分别构建显式开发配置与 production                                | 检查产物并启动                                         | dev 加载唯一工作区扩展并握手；production 无扩展源码、加载路径、bootstrap 和新增权限                                                              | ✅   |
-| 46  | 应用使用 US-207 desktop SQLite                                   | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与应用一致；不创建或查询 OPFS/IndexedDB fallback                                                         | ⚠️   |
+| 46  | 应用使用 US-207 desktop SQLite                                   | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与应用一致；不创建或查询 OPFS/IndexedDB fallback                                                         | ✅   |
 | 47  | 应用使用 US-504 原生文件后端并显式允许 mutation                  | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件专用根，字节一致；UI 仅用 `runtime: electron` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                              | ⚠️   |
 | 48  | 1001 条以上 metadata/files、两类缺失和一条在途上传               | 读取完整诊断 snapshot                                  | 从请求进入起算的共享 deadline（阶段 B）覆盖等锁/物化/重试；不漏尾页或误报临时状态；失效/超限/过期分别返回 shared busy/too-large/expired          | ✅   |
-| 49  | 打开 Settings                                                    | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明清理返回 `provider_unsupported`，不读取 OPFS/SQLite/WAL 或其他目录                            | ⚠️   |
+| 49  | 打开 Settings                                                    | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明清理返回 `provider_unsupported`，不读取 OPFS/SQLite/WAL 或其他目录                            | ✅   |
 | 50  | 同源脚本/content script 持有合法 session，或构造越界路径         | 在 none/readonly/full、mutation 开/关组合下伪造操作    | connector、preload、host 各自校验；未授权 provider 调用为 0，未 opt-in mutation 不执行；根外无读写，错误不含路径、SQL 绑定值、加密字段或文件内容 | ✅   |
-| 51  | session A 有订阅、迟到响应和未完成传输                           | 关闭/刷新后建立 session B 并投递 A 消息                | A 的 host session 与资源释放；B 拒绝旧身份，不显示旧实体、错误、事件或进度                                                                       | ⚠️   |
+| 51  | session A 有订阅、迟到响应和未完成传输                           | 关闭/刷新后建立 session B 并投递 A 消息                | A 的 host session 与资源释放；B 拒绝旧身份，不显示旧实体、错误、事件或进度                                                                       | ✅   |
 | 52  | 真实临时 userData、SQLite 与原生文件后端                         | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 extension/renderer/preload/main/host，不用 mock 替代                                                    | ✅   |
 | 53  | Electron 薄 driver 接入阶段 B conformance 与阶段 C panel library | 运行全部共享断言                                       | 控制面、descriptor、base64、safe integer、授权、传输、快照、错误和 session 重建通过；不复制 UI、wire、fixture 或错误码                           | ✅   |
 
@@ -918,12 +918,115 @@ AC#49 的**面板侧**同批关闭（导出按钮常量禁用 + 停用理由）�
 两者匹配同一个 label；不限定 `.modal-action` 范围时 `querySelectorAll` 按 DOM 顺序先撞上行内那个，
 「确认删除」于是变成「再点一次删除」，表征是文件始终不消失。
 
-**一处已知 flaky（阶段 A 遗留，非本轮引入）**：`devtools-mv3-feasibility.spec.ts` 的
+**一处已知 flaky（阶段 A 遗留，非本轮引入）——已于 2026-09-04 修掉**：`devtools-mv3-feasibility.spec.ts` 的
 「AC#4 销毁窗口后 webContents 清空，service worker 空闲自停」在**整套 e2e 连跑且机器有负载**时
 会红在 `serviceWorkersRightAfterDestroy.length > 0` 上。该断言要的是「销毁窗口的瞬间 worker 还在」
 （MV3 的 worker 不随页面走，空闲约 30s 才自停）；机器慢下来时探针取样点会漂到 30s 之后，
 worker 已经自停，于是这一半落空。实证：单跑 10/10 绿（58.5s），连跑那次整套耗时 13.2m
-（平时 1.9m，约 7 倍），只有这一条红。**修法应当是让探针取样不依赖墙钟**，不在本轮范围。
+（平时 1.9m，约 7 倍），只有这一条红。
+
+**修法与成因（2026-09-04）**：病灶是探针 `devtools-mv3-probe.mjs` 在 destroy 之后的那句
+`await sleep(2000)`。此前把成因写成「取样点漂到 30s 之后」只对了一半——**面板的 Port 会一直把
+worker 撑着，空闲计时从窗口销毁那一刻才起算**，所以漂的不是前面那些步骤，就是这 2 秒本身：
+机器有负载时它的真实墙钟远超 2s，一旦越过约 30s 的空闲窗口，worker 已自停。修法是**零等待取样**
+（销毁后立刻读），判据于是只依赖「销毁」与「取样」的先后，不含任何时间量。
+
+判别力实测（跑完即删，不留开关）：把那句 sleep 换成 35s，本条稳定红在 `Received: 0`；
+去掉等待后单跑 10/10 绿（58.0s）。**先证伪过一个更自然的猜法**：把 35s 放在 destroy **之前**
+本条照样绿——正是这一次否定，才把成因从「前面步骤太慢」纠正到「Port 撑着 worker，计时从销毁起算」。
+
+**AC#46 关闭（2026-09-04）**：`apps/dev-rxdb-electron-e2e/src/devtools-database-events-branch.spec.ts`（1 例）。
+
+三路证据各自独立：**数据**沿用 AC#52 的手法（后端确认为 `sqlite-electron`，面板读到真实
+`DesktopLaunch` 行）；**事件全集**由新增的 `apps/dev-rxdb-electron/src/app/devtools-event-probe.ts`
+在应用自己的 `RxDB.dispatchEvent()`（公开成员，不是测试后门）上逐类派发 25 类；
+**branch** 在面板里建分支、切分支，再回到应用侧的独立读数（首页 `rxdb-current-branch`，
+直接来自 `versionManager.getCurrentBranch()`）核对——只看面板自己的选中项证明不了应用切过去了。
+外加否定判据：全程结束后 `File System` / `IndexedDB` 下一个文件都没有。
+
+**为什么必须显式派发**：本 demo 没有远端，`SYNC_*` / `CONFLICT_*` / `REPOSITORY_SYNC_*` /
+`ENTITY_REMOTE_*` / `MERGE_BRANCH_*` 靠真实操作永远不会发生，真实操作至多产生十来类。
+探针里事务三类**排在最后且成对闭合**：`dispatchEvent()` 在事务打开期间会把非事务事件压进队列
+等 COMMIT 才排空，顺序写错的表征是「面板少几类事件、但没有任何报错」。
+
+**两个测量口径上的坑（都实测过，写在用例里）**：① 事件列表是 `cdk-virtual-scroll-viewport`，
+在 Electron dock DevTools 里实测 `clientHeight` 为 **0**，CDK 只渲染三五条最小缓冲——
+面板自报 63 条事件时 DOM 里只有 3 个徽章，拿 DOM 当判据会把「没收到」和「没渲染」混成一个结论。
+因此类型全集的判据取**wire**（connector 发往面板的 v2 `EVENT` 帧，旁路逐条录得到），
+面板是否真的收下则取它自己的事件计数（`eventIndexes().length`，不受虚拟滚动影响）。
+② 判别力实测：让探针漏发一类（`CONFLICT_PENDING`）而返回值不变，本条由绿转红并精确点名那一类。
+
+**AC#47 的三个保留项已关，只剩「面板侧下载」（2026-09-04）**：
+`devtools-native-files-mutation.spec.ts` 增至 3 例。已补齐：
+
+- **`runtime: electron` 显示**——面板此前**任何地方都不显示 runtime**。新增
+  `modules/rxdb-devtools-panel/src/pages/opfs.page.ts` 的 `filesRuntime`（取自协商出的 `files`
+  descriptor），Files 页头上一个只读徽章；配套单测钉住「换 runtime 之后除该显示值外逐项不变」，
+  与 Tauri 侧 `tauri-vfs-providers.spec.ts` 同口径。**这一处顺带解掉 US-905 AC#6/#10 的 UI 半边。**
+- **边界大小**——经 wire 声明一个 `size = maxTransferBytes + 1` 的上传，拿回 `transfer_size_exceeded`。
+  判据取**声明值就被拒**：真传 1 GiB 只会把用例变成带宽测试，而边界检查本就该在第一个 chunk 之前拦下。
+- **失败无半写**——被拒之后存储根下的条目清单逐项不变，且没有 `.rxdb-tmp` 孤儿。
+
+踩到并记下的坑：`DevToolsEndpointService.state` 存的是**协商状态**，descriptors 挂在端点实例上
+（`endpoint.descriptors`）。写成 `state()?.descriptors.find(...)` 会在每次变更检测里对着 undefined
+调 `.find` 而抛 TypeError，表征是 **Files 页只剩外壳**（工具栏、面包屑、文件表全没了），
+而 DevTools 控制台**一条错误都不打**——只能靠二分定位。
+
+**仍保留（故 AC#47 为 ⚠️）：面板侧下载。** 这不是测试难写，是**产品侧没接线**：
+`modules/rxdb-devtools-panel/src/transport/v2-file-channel.ts` 的 `download()` 走的是普通
+`call('download')` 请求路径，**全仓库没有任何地方调用 `DevToolsPanelEndpoint.download()`**
+（那个带 sink 的字节通道 API 已实现但无消费者）。所以面板拿到的只是一条成功响应，
+字节从未到达面板，「下载的内容逐字节一致」今天无从验起。接线怎么做涉及一个 UX 决定——
+DevTools 扩展面板里 `showSaveFilePicker` 在 WebKit 上不存在（见 `desktop-webview-capability.spec.ts`
+冻结的能力表），字节到了面板之后怎么交给用户需要 owner 定。**未在本轮实现。**
+
+**AC#49 关闭（2026-09-04）**：`apps/dev-rxdb-electron-e2e/src/devtools-settings-refusals.spec.ts`（1 例）。
+
+面板侧那一半（按钮常量禁用 + 停用理由）此前已关；补上的是 wire 侧的**强制调用**。面板上根本没有
+发出导出命令的出口（`[disabled]` 绑的是常量 `true`），所以「点不到」证不了「发过去也会被拒」——
+后者才是判据。注入口是新增的 `devtools-wire-tap.ts`：**用 connector 自己的 window 总线**
+（`createWindowConnectorTransport` 的出站 `window.postMessage` + 入站 `event.source === window` 守卫），
+不是另开的后门，产品代码一行没动。
+
+两条拒绝各自钉一个不同的原因，不可互换：`settings.export` 是**已声明**操作，走到 provider 才拒，
+答案 `export_unsupported`；`settings.clear` **未声明**，在 descriptor 层就拒，答案 `provider_unsupported`。
+档位取 `full` + `mutation: allow` 把授权这个变量排除掉——低档位下两条都会先撞授权，那样的绿证明不了本条。
+「不读取 OPFS/SQLite/WAL」取盘上对照：两次强制调用前后，库文件/`-wal`/`-shm` 的 mtime 与 WebView
+自有存储（`File System` / `IndexedDB`）的文件清单逐项不变。
+
+判别力实测：把 wire tap 的 `source` 常量改成一个错值，本条由绿转红并报「没有拿到任何应答」，
+同时打印出录到的真实帧序列 `PING, HANDSHAKE, 2:PROTOCOL_HELLO, 2:HANDSHAKE, 2:HANDSHAKE_ACK`——
+这串本身也是「旁路确实挂在真实四段 relay 上」的证据。
+
+**AC#51 关闭（2026-09-04）**：`devtools-session-rotation.spec.ts`（2 例，对应 AC 操作栏的「关闭/刷新」两条路径）。
+
+「刷新后重开」那条一开始就绿；「**只关闭、不刷新页面**」那条最初是红的，而且卡在**三处互相独立**的
+缺陷上——三处都修掉之后才绿。三者任缺其一，表征完全相同且极具误导性：面板静默退回 v1 车道，
+连接守卫照样显示「已连接」，但 v2 数据面已经不属于它了。
+
+1. **中继不把「面板没了」告诉页面**（`apps/rxdb-devtools-extension/src/background/background-core.ts`）。
+   `port.onDisconnect` 原本只做 `ports.delete(tabId)`，于是 connector 的 session A 一直 `open`，
+   25 条事件订阅与计时器全都继续活着。现改为：background 顺路记下每个 tab 协商出的 session
+   （`HANDSHAKE` 本就经过它），port 一死就用那个身份补发一条 v2 `DISCONNECT`。
+   **这是 background 能自造的第二条、也是最后一条消息**；它与「`HANDSHAKE_ACK` 归面板独有」
+   那条禁令不冲突：ACK 是协议决定（哪一版赢），而 `DISCONNECT` 是传输事实（port 没了），
+   且这件事**只有 background 观察得到**——页面看不见扩展 port，面板此刻已经不存在。
+   `direction: 'both'` 也说明协议本就允许两侧发它。
+2. **端点对协商帧重复回错**（`packages/rxdb-devtools/src/v2/endpoint.ts`）。`#route` 没有跳过
+   `NEGOTIATION_OWNED_TYPES`，而紧邻它的 `#rejectMalformed` 第一行就跳了——同一条规则只落实了一半。
+   新面板的 `PROTOCOL_HELLO` 的 `sessionId` 必为 `null`，于是撞在 `session.accepts` 上被回
+   `session_invalid`，而它本该由协商机自己处置。
+3. **协商机停在 `v2`，且 `sessionId` 在构造时就铸死**（`packages/rxdb-devtools/src/connector.ts`）。
+   只关 session 不够：原地复位状态会让下一个面板拿到**同一个** session，而 AC#51 要的正是它不一样。
+   现改为 session 由开转关时**整个换一个端点**，与面板侧 `DevToolsEndpointService` 按
+   `connectionEpoch` 换端点的做法对称——两端都把「传输断了」当作一条连接的终点。
+
+**以前没被抓到的原因已查明**：唯一覆盖「关 DevTools 再重开」的既有用例是
+`devtools-mv3-feasibility.spec.ts` 的 AC#4b，它在两步之间 `win.webContents.reload()`（注释写的是
+「清空页面计数」）——刷新会连 connector 一起重建，恰好把三条缺陷全盖住。
+
+回归面：`rxdb-devtools` 961 条、`rxdb-devtools-extension` 162 条（新增两条 background 讣告断言，
+含「没协商过 v2 的 tab 断开时不发讣告」这条负对照）、Electron e2e 54 条、扩展四段中继 e2e 2 条，全绿。
 
 **顺带的产品结论（需 owner 单独决策，不在本条范围）**：开发者拿**打包产物**（`app://` 入口）时用不了 DevTools
 扩展面板。阶段 D 的范围本就声明「production 无扩展源码与加载路径」，所以这不构成生产缺陷；但若希望开发者能在

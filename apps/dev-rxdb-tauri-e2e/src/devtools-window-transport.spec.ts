@@ -1,0 +1,196 @@
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { createServer, type Server } from 'node:http';
+import { tmpdir } from 'node:os';
+import { extname, join, resolve } from 'node:path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { runSelfCheck, type SelfCheckRun } from './packaged-app';
+
+/**
+ * US-905 阶段 1 AC#1 / AC#2：两个**真实** Tauri WebView 起来了并完成了握手。
+ *
+ * @remarks
+ * # 为什么不上 WebDriver
+ *
+ * `tauri-driver` 在 macOS 上不存在（`packaged-app.ts` 头注已记）。但 AC 要的并不是
+ * 「能点面板上的按钮」，而是「真实主窗口与调试窗口已打开」并完成往返——这两件事有
+ * 一条不经 WebDriver 的观察路径：**自检报告**。
+ *
+ * 证据分两路，各自只由看得见它的一方给：
+ *
+ * - **窗口**（AC#1）：Rust 侧在结算时刻枚举 `webview_windows()`，写进 `windowLabels`。
+ *   窗口建没建起来只有主进程说了算；让 renderer 上报的话，`#[cfg(dev)]` 那道编译期隔离
+ *   就退化成了一句自述。
+ * - **握手**（AC#2）：主 WebView 订阅与 connector **同一条** `devtools:message` 事件，
+ *   记录调试窗口发过来的 v2 帧类型。中继按窗口 label 定向投递，所以能在 `main` 上收到
+ *   `HANDSHAKE_ACK`，就同时证明了调试窗口真的建起来了、它加载的是共享面板、
+ *   面板协商到了 v2、而且帧走完了真实 Rust 中继。
+ *
+ * # 为什么必须是 dev 产物，而且要自己起一个 1420
+ *
+ * `open_devtools_window` 与 `devtools_message` 都在 `#[cfg(dev)]` 下，而 `cfg(dev)` 由
+ * tauri crate 的 build.rs 按 `has_feature("custom-protocol")` 取反得出。`tauri build`
+ * 会打开那个 feature——于是 release 产物里这两样东西**根本不存在**（AC#1 的隔离判据正是
+ * 这个）。所以本套件跑的是 `cargo build` 出来的 debug 产物，而它按 `tauri.conf.json` 的
+ * `devUrl` 取前端，因此本文件自己在 **1420** 上服务 `dist/apps/dev-rxdb-tauri/browser`。
+ *
+ * 端口是配置写死的，不能换。被占用时**显式失败**而不是另挑一个：另挑一个的话应用会连到
+ * 那个占着 1420 的东西上，失败形态变成「白屏 + 看门狗超时」，与前端挂死无法区分。
+ *
+ * # 握手曾经握不上，卡在一条构建配置缺陷上（2026-09-04 修复）
+ *
+ * 这三条断言第一次写出来时只有第一条绿。真因不在协议也不在 transport，而在构建图：
+ * `build-devtools`（vite 打面板，产出 `dist/apps/dev-rxdb-tauri/browser/devtools/`）原先**跑在
+ * `build` 之前**，而它的产物是 `build` 的 outputs（`dist/apps/dev-rxdb-tauri`）的**子目录**，
+ * 自己又没有声明 `outputs`。于是 `build` 一命中 nx 缓存，恢复产物时整个父目录被换掉、
+ * `devtools/` 连带消失，而 `build-devtools` 也命中缓存被跳过、没人再写回去。
+ * 调试窗口于是 404，面板根本不 bootstrap，一帧都不发——而构建全程报绿。
+ *
+ * 修法是把依赖**反过来**（`build-devtools` dependsOn `build`）并给它声明 `outputs` + `cache`，
+ * 面板产物因此总是最后落盘。实测判据：清空 `dist/` 后跑一次拿到 20/20 全缓存命中，
+ * `devtools/` 与 `index.html` 同时在位——那正是以前必然翻车的那一格。
+ *
+ * ⚠️ 依赖 dev 产物。跑之前：
+ *   pnpm nx run dev-rxdb-tauri:tauri-package-dev
+ *   （devtools-smoke target 的 dependsOn 本应替你跑掉这一步。）
+ */
+
+/** `tauri.conf.json` 的 `devUrl` 写死的端口。 */
+const DEV_URL_PORT = 1420;
+
+/** 前端产物目录，与 `dev-rxdb-tauri` 的 build outputPath 一致。 */
+const FRONTEND_DIST = resolve(import.meta.dirname, '..', '..', '..', 'dist', 'apps', 'dev-rxdb-tauri', 'browser');
+
+/** 最小 MIME 表；够本 demo 的产物用。 */
+const MIME: Readonly<Record<string, string>> = Object.freeze({
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.wasm': 'application/wasm',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2'
+});
+
+/**
+ * 在 1420 上服务前端产物。
+ *
+ * @returns 关闭手柄
+ * @throws 端口被占用时抛出，并说清该去关掉什么
+ *
+ * @remarks
+ * 目录穿越用 `startsWith(FRONTEND_DIST)` 挡住：这是个跑在开发机上的临时服务，
+ * 但让它能读产物目录之外的文件没有任何好处。
+ *
+ * 找不到的路径回退到 `index.html`（面板与应用都是 hash 路由的 SPA），
+ * 但**只对不带扩展名的路径**回退：给一个 404 的 `.js` 返回 HTML，
+ * 表征会是一句与真因毫无关系的语法错误。
+ */
+async function serveFrontend(): Promise<{ close: () => Promise<void> }> {
+  const server: Server = createServer((request, response) => {
+    const path = (request.url ?? '/').split('?')[0];
+    const wanted = resolve(FRONTEND_DIST, `.${path === '/' ? '/index.html' : path}`);
+    const target = wanted.startsWith(FRONTEND_DIST) ? wanted : FRONTEND_DIST;
+    void readFile(target)
+      .catch(async error => {
+        if (extname(target) !== '') throw error;
+        return readFile(join(FRONTEND_DIST, 'index.html'));
+      })
+      .then(body => {
+        response.writeHead(200, { 'content-type': MIME[extname(target)] ?? 'application/octet-stream' }).end(body);
+      })
+      .catch(() => response.writeHead(404).end());
+  });
+
+  await new Promise<void>((settle, fail) => {
+    server.on('error', error => {
+      fail(
+        new Error(
+          [
+            `无法在 ${String(DEV_URL_PORT)} 上启动前端服务：${String(error)}`,
+            '这个端口是 tauri.conf.json 的 devUrl 写死的，换不了。',
+            '多半是有一个 `nx serve dev-rxdb-tauri` 还开着——先关掉它再跑。'
+          ].join('\n')
+        )
+      );
+    });
+    server.listen(DEV_URL_PORT, '127.0.0.1', () => settle());
+  });
+
+  return {
+    close: () =>
+      new Promise<void>((settle, fail) => {
+        server.close(error => (error ? fail(error) : settle()));
+      })
+  };
+}
+
+/** 把失败报告里的原因带进断言消息。 */
+const because = (run: SelfCheckRun): string => run.report.message ?? '(报告里没有原因)';
+
+describe('dev 产物里的两个真实 WebView（US-905 阶段 1 AC#1 / AC#2）', () => {
+  let frontend: { close: () => Promise<void> };
+  let workspace: string;
+  let run: SelfCheckRun;
+
+  // 一次启动供全部断言共用：它们看的本来就是同一次启动的同一份事实。
+  beforeAll(async () => {
+    frontend = await serveFrontend();
+    workspace = mkdtempSync(join(realpathSync(tmpdir()), 'rxdb-tauri-devtools-'));
+    const dataDir = join(workspace, 'app-data');
+    mkdirSync(dataDir);
+
+    run = await runSelfCheck({
+      dataDir,
+      reportPath: join(workspace, 'selfcheck-devtools.json'),
+      devtoolsProbe: true,
+      profile: 'debug'
+    });
+    expect(run.report.status, because(run)).toBe('ok');
+  }, 180_000);
+
+  afterAll(async () => {
+    await frontend.close();
+    rmSync(workspace, { force: true, recursive: true });
+  });
+
+  /**
+   * AC#1（dev 侧）：**恰好**两个窗口，且其中一个是 `rxdb-devtools`。
+   *
+   * 用等值而不是 `toContain`：AC 的措辞是「只创建一个 `rxdb-devtools` 窗口」，
+   * 多出第三个窗口同样违反它，而 `toContain` 放得过去。
+   */
+  it('dev 产物恰好创建 main 与 rxdb-devtools 两个窗口', () => {
+    expect(run.report.windowLabels).toEqual(['main', 'rxdb-devtools']);
+  });
+
+  /**
+   * AC#2：调试窗口的帧经真实 Rust 中继到达了主窗口，且完成了 v2 协商。
+   *
+   * `HANDSHAKE_ACK` 的所有权归面板（阶段 B 冻结的规则：中继不得代发），所以主窗口收到它
+   * 只可能是调试窗口里的共享面板发的——这一条同时排除了「窗口建起来了但面板没加载」
+   * 和「面板加载了但退到了 v1」两种半成立的状态。
+   */
+  it('调试窗口完成 v2 握手，session id 是一个 UUID v4', () => {
+    const devtools = run.report.devtools;
+    expect(devtools, `报告里没有 devtools 探针结果：${because(run)}`).not.toBeNull();
+    expect(
+      devtools?.handshakeCompleted,
+      `没等到 HANDSHAKE_ACK；主窗口收到的帧类型：${devtools?.panelFrameTypes.join(', ') || '(一帧都没有)'}`
+    ).toBe(true);
+    expect(devtools?.panelFrameTypes).toContain('HANDSHAKE_ACK');
+    expect(devtools?.sessionId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  });
+
+  /**
+   * 协商是**面板先开口**的：`PROTOCOL_HELLO` 由面板发出（阶段 B 的方向表把它钉成
+   * `panel-to-connector`）。主窗口两条都收到，说明走的是完整协商而不是某条捷径。
+   */
+  it('主窗口收到的是完整协商序列，而不是只有一条 ACK', () => {
+    expect(run.report.devtools?.panelFrameTypes).toEqual(expect.arrayContaining(['PROTOCOL_HELLO', 'HANDSHAKE_ACK']));
+  });
+});

@@ -36,8 +36,18 @@ export const APP_DATA_DIR_ENV = 'DEV_RXDB_TAURI_APP_DATA_DIR';
  */
 export const PROBE_BASE_URL_ENV = 'DEV_RXDB_TAURI_PROBE_BASE_URL';
 
+/**
+ * DevTools 握手探针的开关，与 `selfcheck.rs` 的 `DEVTOOLS_PROBE_ENV` 一致；**可选**。
+ *
+ * @remarks
+ * 与 {@link PROBE_BASE_URL_ENV} 同规则：不设就是不跑那条探针，但没开自检却设了它是配置错误
+ * （退出码 3）。只有 `devtools-window-transport.spec.ts` 会设它——release 产物里没有调试窗口，
+ * 开了只会让每次 smoke 白等一个预算。
+ */
+export const DEVTOOLS_PROBE_ENV = 'DEV_RXDB_TAURI_DEVTOOLS_PROBE';
+
 /** 本文件能读懂的报告结构版本，与 `selfcheck.rs` 的 `REPORT_SCHEMA_VERSION` 一致。 */
-export const REPORT_SCHEMA_VERSION = 2;
+export const REPORT_SCHEMA_VERSION = 3;
 
 /**
  * 自检环境变量配错时的退出码，与 `selfcheck.rs` 的 `CONFIG_EXIT_CODE` 一致。
@@ -135,6 +145,23 @@ export interface WebviewProbe {
   readonly crossOriginDenied: string;
 }
 
+/**
+ * DevTools 双 WebView 探针的结果，与 `selfcheck.rs` 的 `DevToolsProbe` 一致（US-905 阶段 1）。
+ *
+ * @remarks
+ * 这些事实**只有主 WebView 能给**：Rust 侧的中继按设计不解释 payload，看得见「有两个窗口」
+ * 却看不见「它们握上手了」。收到 `HANDSHAKE_ACK` 一次性证明调试窗口真的建起来了、
+ * 加载的是共享面板、协商到了 v2、且帧走完了真实 Rust 中继。
+ */
+export interface DevToolsProbe {
+  /** 调试窗口发过来的 v2 帧类型，按首次出现排序、已去重。 */
+  readonly panelFrameTypes: string[];
+  /** 从 `HANDSHAKE_ACK` 里读到的 session id；没握上手时为 `null`。 */
+  readonly sessionId: string | null;
+  /** 是否在预算内看到了 `HANDSHAKE_ACK`。 */
+  readonly handshakeCompleted: boolean;
+}
+
 /** Rust 侧落盘的报告。 */
 export interface SelfCheckReport {
   /** 结构版本；读别的字段之前先比它。 */
@@ -149,6 +176,16 @@ export interface SelfCheckReport {
   readonly storage: StorageProbe | null;
   /** webview 能力探针的结果；没设 {@link PROBE_BASE_URL_ENV} 时为 null（US-505 AC#6）。 */
   readonly webview: WebviewProbe | null;
+  /** DevTools 握手探针的结果；没设 {@link DEVTOOLS_PROBE_ENV} 时为 null（US-905 阶段 1）。 */
+  readonly devtools: DevToolsProbe | null;
+  /**
+   * 结算时刻实际存在的窗口 label，已排序。
+   *
+   * @remarks
+   * 由 Rust 侧枚举而不是 renderer 上报：AC#1 要的是「dev 只创建一个 `rxdb-devtools` 窗口」
+   * 「release 没有这个入口」，窗口建没建起来只有主进程说了算。
+   */
+  readonly windowLabels: string[];
   /** host **实际**建库所依据的根目录。 */
   readonly appDataDir: string;
   /** `tauri.conf.json` 的 `identifier`。 */
@@ -186,11 +223,34 @@ export interface SelfCheckOptions {
    * 「存储根下恰好一个普通文件」，给了就直接红。
    */
   readonly probeBaseUrl?: string;
+  /**
+   * 开启 DevTools 握手探针（US-905 阶段 1 AC#2）。
+   *
+   * @remarks
+   * 只有 `devtools-window-transport.spec.ts` 会给：它要的是 dev 产物里那个调试窗口。
+   * release 产物上开它只会白等一个预算——那边压根没有调试窗口。
+   */
+  readonly devtoolsProbe?: boolean;
+  /** 用哪个剖面的产物；默认 `release`。 */
+  readonly profile?: CargoProfile;
 }
 
-/** release 产物的候选路径（`tauri build --no-bundle` 不进 bundle 目录，就落在 cargo 的 target 下）。 */
-function candidates(): string[] {
-  const targetDir = resolve(import.meta.dirname, '..', '..', 'dev-rxdb-tauri', 'src-tauri', 'target', 'release');
+/**
+ * cargo 的构建剖面。
+ *
+ * @remarks
+ * 两份产物**能力不同**，不是同一个东西的快慢两版：
+ * - `release` 由 `tauri build --ci --no-bundle` 出，带 `custom-protocol` feature，
+ *   于是 `cfg(dev)` 不成立——调试窗口、`devtools_message` 命令与 `open_devtools_window`
+ *   全部不在产物里。这正是 US-905 AC#1 的 release 隔离判据。
+ * - `debug` 由裸 `cargo build` 出，不带该 feature，`cfg(dev)` 成立，调试窗口在。
+ *   它按 `tauri.conf.json` 的 `devUrl` 取前端，所以跑之前必须有人在 1420 上服务前端产物。
+ */
+export type CargoProfile = 'release' | 'debug';
+
+/** 某个剖面下产物的候选路径（`--no-bundle` 不进 bundle 目录，就落在 cargo 的 target 下）。 */
+function candidates(profile: CargoProfile): string[] {
+  const targetDir = resolve(import.meta.dirname, '..', '..', 'dev-rxdb-tauri', 'src-tauri', 'target', profile);
   // 二进制名取自 Cargo.toml 的 `[package] name`（无显式 `[[bin]]`），与 productName 恰好同名。
   return [join(targetDir, `dev-rxdb-tauri${platform === 'win32' ? '.exe' : ''}`)];
 }
@@ -202,19 +262,21 @@ function candidates(): string[] {
  * @throws 产物不存在时抛出，并把找过的候选路径与补救命令一并列出 ——
  *   这是本套件最常见的失败原因（忘了先打包，或打包被中断）。
  */
-export function resolveExecutable(): string {
-  const tried = candidates();
+export function resolveExecutable(profile: CargoProfile = 'release'): string {
+  const tried = candidates(profile);
   const found = tried.find(path => existsSync(path));
   if (found) return found;
 
+  const target = profile === 'release' ? 'tauri-package-release' : 'tauri-package-dev';
+  const suite = profile === 'release' ? 'desktop-smoke' : 'devtools-smoke';
   throw new Error(
     [
-      '找不到 Tauri release 产物。',
+      `找不到 Tauri ${profile} 产物。`,
       '找过的候选路径：',
       ...tried.map(path => `  - ${path}`),
       '',
-      '请先执行：pnpm nx run dev-rxdb-tauri:tauri-package-release',
-      '（desktop-smoke target 的 dependsOn 本应替你跑掉这一步。）'
+      `请先执行：pnpm nx run dev-rxdb-tauri:${target}`,
+      `（${suite} target 的 dependsOn 本应替你跑掉这一步。）`
     ].join('\n')
   );
 }
@@ -245,8 +307,11 @@ function readReport(reportPath: string, diagnostics: () => string): SelfCheckRep
  * 配置有问题时则在建窗之前 `exit(3)`。所以这里等的是 `close` 而不是 `exit`：
  * 前者保证 stdout/stderr 已经收完，而失败时这两股输出往往是唯一的线索。
  */
-export async function launch(overrides: Readonly<Record<string, string>>): Promise<LaunchResult> {
-  const executable = resolveExecutable();
+export async function launch(
+  overrides: Readonly<Record<string, string>>,
+  profile: CargoProfile = 'release'
+): Promise<LaunchResult> {
+  const executable = resolveExecutable(profile);
   const child = spawn(executable, [], {
     stdio: 'pipe',
     cwd: dirname(executable),
@@ -297,11 +362,16 @@ export async function launch(overrides: Readonly<Record<string, string>>): Promi
 export async function runSelfCheck(options: SelfCheckOptions): Promise<SelfCheckRun> {
   // 可选变量用展开而不是赋一个空串：Rust 侧判的是「变量存不存在」，空串会被当成设了一个
   // 不合法的地址，于是进程以退出码 3 死在建窗之前 —— 而调用方的本意是「不跑探针」。
-  const result = await launch({
-    [REPORT_PATH_ENV]: options.reportPath,
-    [APP_DATA_DIR_ENV]: options.dataDir,
-    ...(options.probeBaseUrl === undefined ? {} : { [PROBE_BASE_URL_ENV]: options.probeBaseUrl })
-  });
+  const result = await launch(
+    {
+      [REPORT_PATH_ENV]: options.reportPath,
+      [APP_DATA_DIR_ENV]: options.dataDir,
+      ...(options.probeBaseUrl === undefined ? {} : { [PROBE_BASE_URL_ENV]: options.probeBaseUrl }),
+      // 同上：Rust 侧判的是「变量存不存在」，给空串会被当成设了一个不合法的值。
+      ...(options.devtoolsProbe === true ? { [DEVTOOLS_PROBE_ENV]: '1' } : {})
+    },
+    options.profile ?? 'release'
+  );
 
   const diagnostics = (): string =>
     [`stdout：${result.stdout || '(空)'}`, `stderr：${result.stderr || '(空)'}`].join('\n');

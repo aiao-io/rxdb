@@ -1,10 +1,11 @@
 import { _electron as electron, ElectronApplication, expect, test } from '@playwright/test';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { attachPanel, PANEL_BUDGET_MS, panelEvaluate, readPanel } from './devtools-panel-driver';
+import { awaitAnswer, installWireTap, postToConnector, requestFrame, waitForSessionId } from './devtools-wire-tap';
 import { launchEnv, resolveDesktopDevExtension, resolveExecutable, serveRendererDist } from './packaged-app';
 
 /**
@@ -49,6 +50,16 @@ const EMPTY_NAME = 'ac47-empty.bin';
 
 /** 正常大小那一份的字节数；小而不平凡，够跨越一次 base64 分块即可。 */
 const FILE_BYTES = 64 * 1024;
+
+/**
+ * 本 demo 给原生文件 provider 配的 `maxTransferBytes`。
+ *
+ * @remarks
+ * 与 `apps/dev-rxdb-electron/src/app/setup_rxdb_desktop.ts` 里传的
+ * `DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT`（1 GiB）一致。写死而不 import 的理由同本目录其余常量；
+ * 漂了也不会静默——`+1` 那条请求会变成一次合法声明，于是拿不到 `transfer_size_exceeded` 而红。
+ */
+const MAX_TRANSFER_BYTES = 1_073_741_824;
 
 function launchApp(userDataDir: string, port: number, mutation?: string): Promise<ElectronApplication> {
   return electron.launch({
@@ -155,6 +166,12 @@ async function uploadThroughPanel(app: ElectronApplication, name: string, bytes:
   );
 }
 
+/** 存储根下的全部条目（递归）；目录不存在按空计。 */
+function storageEntries(root: string): string[] {
+  if (!existsSync(root)) return [];
+  return readdirSync(root, { recursive: true }).map(String);
+}
+
 /** 轮询盘上某个路径出现（或消失）。面板的写是异步的，落盘晚于按钮返回。 */
 async function waitForPath(path: string, shouldExist: boolean, budgetMs = 30000): Promise<boolean> {
   const deadline = Date.now() + budgetMs;
@@ -217,6 +234,61 @@ test.describe('面板对原生文件后端的写操作逐字节落盘（US-904 �
       // 限定在对话框动作区里找：行内那个删除按钮 title 也是「删除」，不限范围会再点一次它。
       expect(await clickPanelButton(app, '删除', '.modal-action'), '删除确认对话框没出现').toBe(true);
       expect(await waitForPath(filePath, false), `面板删除后文件仍在盘上：${filePath}`).toBe(true);
+    } finally {
+      await app.close();
+      await renderer.close();
+      rmSync(userDataDir, { force: true, recursive: true });
+    }
+  });
+
+  test('面板显示 files provider 的 runtime，越限上传被拒且盘上无半写', async () => {
+    // AC#47 的两个保留项：`runtime: electron` 的显示，以及「越限 / 失败时无半写文件或孤儿 metadata」。
+    const userDataDir = mkdtempSync(join(tmpdir(), 'ac47-limits-'));
+    const renderer = await serveRendererDist(createServer);
+    const app = await launchApp(userDataDir, renderer.port, 'allow');
+    const root = join(userDataDir, STORAGE_DIR);
+
+    try {
+      const page = await app.firstWindow();
+      await page.waitForLoadState('domcontentloaded');
+      await installWireTap(page);
+      await attachPanel(app, INSPECTED);
+      const sessionId = await waitForSessionId(page, PANEL_BUDGET_MS);
+
+      // ① runtime 显示。取自握手里的 descriptor，不是面板按 URL 猜的。
+      const files = await openFilesPage(app);
+      expect(files, `Files 页没有显示来源 runtime：《${files}》`).toContain('electron');
+      expect(files, 'Files 页把别的 runtime 也印出来了').not.toContain('tauri');
+
+      const beforeEntries = storageEntries(root);
+
+      // ② 越限：声明一个超过 provider `maxTransferBytes` 的 size。
+      // 判据是**声明值就被拒**——真去传 1 GiB 只会把用例变成一次带宽测试，而边界检查
+      // （`native-files-provider.ts` 的 `isSafeIntegerInRange(params.size, 0, maxTransferBytes)`）
+      // 在收到第一个 chunk 之前就该拦下它。
+      await postToConnector(
+        page,
+        requestFrame(sessionId, 'ac47-oversize', 'files', 'upload', {
+          transferId: 'ac47-oversize-transfer',
+          path: '/',
+          name: 'ac47-oversize.bin',
+          size: MAX_TRANSFER_BYTES + 1
+        })
+      );
+      expect(await awaitAnswer(page, 'ac47-oversize', 30000)).toEqual({
+        type: 'ERROR',
+        code: 'transfer_size_exceeded'
+      });
+
+      // ③ 无半写：被拒之后存储根下既没有新文件，也没有未提交的 `.rxdb-tmp` 孤儿。
+      // 给足与正常上传同样的落盘预算再判「没有」。
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      const afterEntries = storageEntries(root);
+      expect(afterEntries, '越限被拒之后存储根下多出了东西').toEqual(beforeEntries);
+      expect(
+        afterEntries.filter(entry => entry.endsWith('.rxdb-tmp')),
+        '越限被拒之后留下了未提交的临时文件'
+      ).toEqual([]);
     } finally {
       await app.close();
       await renderer.close();

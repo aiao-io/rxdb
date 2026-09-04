@@ -117,7 +117,7 @@ US-210 SQLite host / US-505 native file host
 
 | #   | 前置条件                                                                  | 操作                                                             | 预期结果                                                                                                                                     | 状态 |
 | --- | ------------------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 分别构建显式 dev 与 release 配置                                          | 检查产物并启动                                                   | dev 只创建一个 `rxdb-devtools` 窗口并握手；release 无入口、bootstrap、专用 command 和只服务该 label 的 capability                            | ⚠️   |
+| 1   | 分别构建显式 dev 与 release 配置                                          | 检查产物并启动                                                   | dev 只创建一个 `rxdb-devtools` 窗口并握手；release 无入口、bootstrap、专用 command 和只服务该 label 的 capability                            | ✅   |
 | 2   | 真实主窗口与调试窗口已打开                                                | 用共享 fake providers 执行查询、事件、授权、transfer 和 snapshot | US-904 阶段 B conformance 全部通过；Tauri 只适配 transport，不复制 panel、provider 类型、fixture、错误码或状态机                             | ⚠️   |
 | 3   | 非调试窗口、错误 sender/label，或合法 sender 伪造越权操作                 | 通过 transport 发送                                              | 错误身份在 WebView/transport/Rust 均拒绝；合法 sender 仍受 capability/descriptor/mutation policy 限制，session/label 不能充当授权            | ⚠️   |
 | 4   | session A 有订阅、请求和未完成传输                                        | 关闭窗口，以同 label 重开 B 并投递 A 消息                        | A 的资源释放，B 获得新 UUID v4 session 并拒绝全部旧身份、事件、响应与 chunk                                                                  | ⚠️   |
@@ -180,6 +180,85 @@ AC#9 刻意只做进程级驱动、不上 WebDriver，验得了「进程整个�
 | #5    | `tauri-transport.service.spec.ts` 的 `ngOnDestroy 摘除监听并置 disconnected`、`断开后 postFrame 静默丢弃`（不抛错）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | 主窗口刷新与应用退出两条路径未在真实环境跑                                                                                                                                                                                                                                                                                                                                                                 |
 | #6    | `tauri-vfs-providers.spec.ts`（10 例）：OPFS / IDB / unavailable 三分支的 kind 映射 + 「相同 kind 在不同后端下产出相同的操作与限额，runtime 不参与分叉」，外加 `createWaSqliteDevToolsPorts` 的 5 例装配断言。`runtime` 由调用方传入并**逐领域透传**（`assertRuntimePassesThrough` + 「runtime 不影响 kind / operations / limits」两例守住）：早先映射里恒填 `'tauri'`，而它唯一的运行时调用点只在非 Tauri 下被选中，于是浏览器预览宣告 `tauri`、真窗口宣告 `browser`，两端恰好反了。映射已接进运行时：`setup_rxdb_wa-sqlite.ts` 把**同一次**后端判定（memo 化，适配器与 devtools 共用一个结论）交给 `createWaSqliteDevToolsPorts(backend, opfsRoot, 'browser')` → `getDevToolsConnector({ providers })`；IDB 后端撤掉 `getRootDirectory` 以致 `files` 领域整个不宣告，后端 `unavailable` 则不建 connector | 判据里的「打开调试窗口查看 provider」仍需真实 Tauri 窗口。另外打包后的 Tauri 窗口里桌面候选恒胜出（见 `setup_rxdb.ts` 候选表顺序），这条 wa-sqlite 路径只在 `nx serve` 的浏览器预览里跑——AC#6 的现场核对因此要等阶段 2 的真实 native provider。AC#10「两领域都显示 `tauri`」另有阻塞：`native-files` provider 的 runtime 写死 `'electron'` 且没有覆盖端口（见 `connector-providers.ts` 的 `runtime` 说明） |
 | #8    | `apps/dev-rxdb-tauri-e2e` 是 US-210 用 generator 建的唯一 E2E project，本故事只往里加 `devtools-release-isolation.spec.ts`，`desktop-persistence` / `desktop-file-storage` / `desktop-webview-capability` 三份仍归 US-210 / US-505。`desktop-smoke` 的 metadata 已记本故事的 AC#1/AC#8，并注明那份 spec 是纯静态检查、挂在这个 target 下只是搭 `include` 的车，不是真依赖 release 产物                                                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                                                                                                                                                                                                                                                                                                                                          |
+
+## 阶段 1 harness 落地与三处实测发现（2026-09-04）
+
+**缺的一直是 harness，不是构建环境**——这一轮把它建起来了，形态是**扩自检报告**而不是 WebDriver
+（`tauri-driver` 在 macOS 上不存在）：
+
+- **新 target `dev-rxdb-tauri:tauri-package-dev`**：裸 `cargo build`。`cfg(dev)` 由 tauri crate 的
+  build.rs 按 `has_feature("custom-protocol")` **取反**得出（`tauri-2.11.2/build.rs:255-259`），
+  而 `tauri build` 会打开那个 feature——所以 release 产物里调试窗口与 `devtools_message`
+  **根本不存在**（这正是 AC#1 的隔离判据），dev 侧判据只能由不带该 feature 的产物来验。
+  产物落 `target/debug/`，与 smoke 的 `target/release/` 互不覆盖。
+- **报告 schema v2 → v3**：新增 Rust 侧枚举的 `windowLabels` 与主 WebView 上报的 `devtools` 探针。
+- **新 target `dev-rxdb-tauri-e2e:devtools-smoke`** + `vitest.devtools.mts`：dev 产物按 `devUrl`
+  取前端，所以 spec 自己在**写死的 1420** 上服务前端产物；端口被占时显式失败，不另挑一个
+  （另挑一个会让应用连到别的东西上，失败形态退化成「白屏 + 看门狗超时」）。
+
+**AC#1 的 dev 半边已关**：dev 产物实测 `windowLabels` 恰为 `["main", "rxdb-devtools"]`。
+这是 US-905 第一次拿到「真实 Tauri 窗口」的证据。窗口集合由 **Rust 侧**枚举而不是 renderer 上报——
+让 renderer 说的话，`#[cfg(dev)]` 那道编译期隔离就退化成一句自述。
+
+### 发现 1：中继一直在**广播**，「定向投递」从未成立（已修）
+
+`lib.rs` 原本是 `target.emit("devtools:message", …)`。`Emitter::emit` 读起来像「发给这个窗口」，
+实际转身就调 `self.manager().emit(...)`（`tauri-2.11.2/lib.rs:946-950`）——**接收者是谁完全不影响
+投递范围**。于是每一帧都同时落到两个 WebView 上，两侧靠 v2 信封的 `direction` 各自丢弃，
+功能上看不出异常，而 In Scope 写的「业务数据只发往目标窗口，不落到任何不该看到它的 WebView 上」
+一直不成立。
+
+发现经过：握手探针挂在**主窗口**上收调试窗口的帧，却收到一条只可能由主窗口自己发出的
+v1 `HANDSHAKE`。已改为 `app.emit_to(target_label, …)`。
+
+### 发现 2：定向投递需要**两侧**都改，只改 Rust 无效（已修）
+
+改完 Rust 后主窗口**仍然**收到自己的帧。成因在 JS 侧：`@tauri-apps/api/event` 的全局 `listen()`
+注册的监听 target 是 `EventTarget::Any`，而 Tauri 的投递过滤是 `match_any_or_filter`
+（`tauri-2.11.2/event/listener.rs:286`）——**`Any` 监听无视过滤器**，照收所有帧。
+三处监听（connector transport、panel transport、探针）已全部改为
+`getCurrentWebviewWindow().listen(...)`，绑定到本窗口 label 上，定向投递才真的成立。
+
+### 发现 3：`devtools/` 产物会被 nx 缓存恢复抹掉（**已修**）
+
+两侧都改对之后，主窗口收到**零帧**——调试窗口的面板根本没 bootstrap。真因是构建配置：
+`build-devtools`（vite 打面板，产出 `dist/apps/dev-rxdb-tauri/browser/devtools/`）**没有声明
+`outputs`**，而 `build` 的 `outputs` 是它的父目录 `dist/apps/dev-rxdb-tauri`。`build` 一旦命中
+nx 缓存，恢复产物时整个父目录被换掉，**连带删掉 `devtools/`**；而 `build-devtools` 同时也命中
+缓存被跳过，没人再写回去。调试窗口于是 404，面板不 bootstrap，一帧不发。
+
+**修法**：把依赖**反过来**——`build-devtools` dependsOn `build`（原先是 `build` dependsOn
+`build-devtools`），并给它声明 `outputs` + `cache: true`，面板产物因此总是**最后**落盘；
+缓存命中时 nx 也知道要把 `devtools/` 恢复回来。`tauri.conf.json` 的 `beforeBuildCommand`
+随之改成 `nx run dev-rxdb-tauri:build-devtools`（它会带上 `build`，配置仍走 `build` 的
+`defaultConfiguration: production`），release 打包因此也拿到完整前端产物。
+
+判别力实测：清空 `dist/` 后重跑，拿到 **20/20 全缓存命中**，而 `devtools/` 与 `index.html`
+同时在位——那正是以前必然翻车的那一格。
+
+**AC#1 关闭**：`devtools-window-transport.spec.ts` 三条全绿（原先两条 `it.fails` 已翻成真断言）。
+dev 产物的窗口集合恰为 `["main", "rxdb-devtools"]`；主窗口收到调试窗口经真实 Rust 中继送达的
+`PROTOCOL_HELLO` + `HANDSHAKE_ACK`，session id 是 UUID v4。这是 US-905 第一次拿到
+**两个真实 WebView 完成 v2 握手**的证据。
+
+**AC#2 仍 ⚠️，别把握手当成它**。它的判据是「用共享 fake providers 执行查询、事件、授权、
+transfer 和 snapshot，阶段 B conformance **全部**通过」。今天那 80 条 conformance 跑在
+`tauri-conformance.spec.ts` 的**进程内**四段 relay 上（`tauri-relay-nodes` 装的 transport），
+不是跑在这两个真实窗口之间。握手打通只证明了链路能通，没证明整套状态机在真实窗口上也成立——
+把它记成 ✅ 就是拿一条弱证据顶掉一条强判据。剩下的工作是把 conformance 的驱动接到自检报告这条
+通道上（harness 已经在了），不再需要新的基础设施。
+
+**仍未覆盖（AC#3～#6 保持 ⚠️）**：伪造身份的真窗口用例、同 label 重开拒旧身份、退出释放、
+wa-sqlite 三档 VFS 现场核对。前三条现在有 harness 了（扩自检报告即可），第四条仍需阶段 2 的
+真实 native provider 或一个 dev-only 后端强制开关。
+
+**另一处已知、未修**：`tauri dev` 走的是 `beforeDevCommand` 的 Angular dev server，而
+`devtools/` 是 vite 另写到 `dist/` 的静态产物——dev server 不服务它，所以 `tauri dev` 下调试窗口
+同样 404。本轮的 harness 走的是「静态服务 `dist/`」那条路，不受影响；要让 `tauri dev` 也能用，
+得让 dev server 一并服务那个子目录，属另一件事。
+
+**门禁现状**：`dev-rxdb-tauri` 单测 22 文件 222 条、Rust `#[test]` 25 条、
+`devtools-smoke` 1 绿 + 2 预期失败、`desktop-smoke` 13 条全绿（release 隔离未回退）。
 
 ## 技术约束
 

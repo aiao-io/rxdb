@@ -5,6 +5,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import type { DevToolsProbeResult } from '../devtools-probe';
 import type { StorageProbeResult } from '../storage-probe';
 import type { WebviewProbeResult } from '../webview-probe';
 import { isTauriRuntime } from './tauri-environment';
@@ -44,6 +45,13 @@ export interface SelfCheckOutcome {
    * Rust 侧 `Option<WebviewProbe>` 收 `null` 与收缺字段是同一个 `None`。
    */
   readonly webview?: WebviewProbeResult | null;
+  /**
+   * DevTools 双 WebView 握手探针的结果（US-905 阶段 1 AC#2）；只有 `ok` 时有值。
+   *
+   * @remarks
+   * 允许 `null` 的理由同 {@link SelfCheckOutcome.webview}：没开这条探针时它本来就不该跑。
+   */
+  readonly devtools?: DevToolsProbeResult | null;
 }
 
 /** Rust 侧命令名，由 `#[tauri::command] rxdb_selfcheck_report` 的函数名决定。 */
@@ -51,6 +59,9 @@ const SELFCHECK_COMMAND = 'rxdb_selfcheck_report';
 
 /** Rust 侧命令名，由 `#[tauri::command] rxdb_selfcheck_probe_base_url` 的函数名决定。 */
 const PROBE_BASE_URL_COMMAND = 'rxdb_selfcheck_probe_base_url';
+
+/** Rust 侧命令名，由 `#[tauri::command] rxdb_selfcheck_devtools_probe` 的函数名决定。 */
+const DEVTOOLS_PROBE_COMMAND = 'rxdb_selfcheck_devtools_probe';
 
 /**
  * 上报自检结论。**永不 reject。**
@@ -96,4 +107,22 @@ export const reportSelfCheck = async (outcome: SelfCheckOutcome, runtime: unknow
 export const readProbeBaseUrl = async (runtime: unknown): Promise<string | null> => {
   if (!isTauriRuntime(runtime)) return null;
   return await invoke<string | null>(PROBE_BASE_URL_COMMAND);
+};
+
+/**
+ * 问 Rust 侧「这次要不要跑 DevTools 握手探针」（US-905 阶段 1 AC#2）。
+ *
+ * @param runtime - 运行时对象，实际调用传 `globalThis`
+ * @returns 要跑就是 `true`；非自检模式、没设那个环境变量、或不在 Tauri 运行时都是 `false`
+ * @throws 命令调用失败时抛出
+ *
+ * @remarks
+ * 与 {@link readProbeBaseUrl} 同一形态与同一取舍：不吞异常。这一步失败会让探针整个不跑，
+ * 报告里只剩一个 `devtools: null` —— 那与「本来就没开探针」长得一模一样。
+ *
+ * 非 Tauri 运行时返回 `false` 不是兜底：浏览器预览里既没有 Rust 侧可问，也没有调试窗口。
+ */
+export const readDevToolsProbeEnabled = async (runtime: unknown): Promise<boolean> => {
+  if (!isTauriRuntime(runtime)) return false;
+  return await invoke<boolean>(DEVTOOLS_PROBE_COMMAND);
 };

@@ -12,6 +12,7 @@ import { OpfsDialogsComponent } from '../components/opfs/opfs-dialogs.component'
 import { OpfsFileGridComponent } from '../components/opfs/opfs-file-grid.component';
 import { OpfsFileTableComponent } from '../components/opfs/opfs-file-table.component';
 import { OpfsToolbarComponent } from '../components/opfs/opfs-toolbar.component';
+import { DevToolsEndpointService } from '../services/devtools-endpoint.service';
 import { OpfsService } from '../services/opfs.service';
 import { DEVTOOLS_HOST_ACCESS } from '../transport';
 import type { OPFSFile } from '../types/devtools.types';
@@ -57,7 +58,12 @@ import { createPathSegments, summarizeFiles } from './opfs-page.utils';
           (viewModeChange)="setViewMode($event)"
         />
 
-        <app-opfs-breadcrumb [segments]="pathSegments()" (navigate)="navigateTo($event)" />
+        <div class="flex items-center gap-2">
+          <app-opfs-breadcrumb class="flex-1" [segments]="pathSegments()" (navigate)="navigateTo($event)" />
+          @if (filesRuntime(); as runtime) {
+            <span class="badge badge-ghost badge-xs mr-2 font-mono" title="文件来源所在的运行时">{{ runtime }}</span>
+          }
+        </div>
 
         @if (error() && errorKind() !== 'content-script-unavailable') {
           <div class="alert alert-error m-2">
@@ -140,6 +146,32 @@ import { createPathSegments, summarizeFiles } from './opfs-page.utils';
 export class OpfsPage implements OnInit {
   private readonly opfsService = inject(OpfsService);
   private readonly hostAccess = inject(DEVTOOLS_HOST_ACCESS);
+  private readonly endpoint = inject(DevToolsEndpointService);
+
+  /**
+   * `files` provider 自报的运行时（`browser` / `electron` / `tauri`），未协商出来时为 `null`。
+   *
+   * @remarks
+   * **只用于显示**。这是 `DEVTOOLS_PROVIDER_RUNTIMES` 的合同（「provider 运行时；只用于显示，
+   * 不得参与行为判定」）在 UI 侧的落点：页面把它原样印出来，任何分支——能做哪些操作、限额多大、
+   * 走哪条路径——都只看 `kind` / `operations` / `limits`，不看它。
+   *
+   * 取自协商状态里的 descriptor，不是另猜一个：宿主是谁只有 connector 知道，
+   * 面板按 adapter 名或 URL 反推的话，浏览器预览与真实桌面窗口会恰好报反
+   * （US-905 AC#6 踩过这个坑）。
+   */
+  readonly filesRuntime = computed(() => {
+    // 读一下状态信号**只为建立依赖**：descriptors 挂在端点实例上（`endpoint.descriptors`），
+    // 不是信号；而它填上的时刻正是协商状态推进的时刻，所以拿状态当变更信号是准的。
+    //
+    // 别写成 `this.endpoint.state()?.descriptors`——`DevToolsEndpointService.state` 存的是
+    // **协商状态**（`endpoint.state`），不是一个带 descriptors 的对象。那样写会在每次变更检测
+    // 里对着 undefined 调 `.find` 而抛 TypeError，表征是整个 Files 页只剩外壳、
+    // 而 DevTools 控制台一条错误都不打。踩过一次，记在这里。
+    this.endpoint.state();
+    const descriptors = this.endpoint.resolve()?.descriptors ?? [];
+    return descriptors.find(descriptor => descriptor.domain === 'files')?.runtime ?? null;
+  });
 
   readonly currentPath = this.opfsService.currentPath;
   readonly files = this.opfsService.files;

@@ -1,14 +1,18 @@
 import type { DevToolsConnectorNegotiationMessage } from '@aiao/rxdb-devtools';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTauriConnectorTransport } from './tauri-connector-transport';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
-vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn() }));
+// 监听走的是**本窗口**的 `listen` 而不是全局 `listen`：全局那个注册的 target 是
+// `EventTarget::Any`，会无视 Rust 侧的定向投递过滤收到所有帧（含本窗口自己发出的）。
+// 桩跟着真实调用面走，否则单测会把一条已经修掉的缺陷继续当成正确行为钉住。
+const listenMock = vi.fn();
+vi.mock('@tauri-apps/api/webviewWindow', () => ({
+  getCurrentWebviewWindow: vi.fn(() => ({ listen: listenMock }))
+}));
 
 const invokeMock = vi.mocked(invoke);
-const listenMock = vi.mocked(listen);
 
 describe('createTauriConnectorTransport', () => {
   beforeEach(() => {

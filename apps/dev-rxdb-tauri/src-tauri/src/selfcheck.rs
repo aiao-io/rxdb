@@ -46,13 +46,27 @@ pub const APP_DATA_DIR_ENV: &str = "DEV_RXDB_TAURI_APP_DATA_DIR";
 /// 但反过来不成立，见 [`plan_from_env`]。
 pub const PROBE_BASE_URL_ENV: &str = "DEV_RXDB_TAURI_PROBE_BASE_URL";
 
+/// 是否跑 DevTools 双 WebView 握手探针（US-905 阶段 1 AC#2）；**可选**，存在即开启。
+///
+/// # 为什么必须是显式开关而不是「有调试窗口就跑」
+///
+/// 探针要**等**调试窗口把握手发过来，等不到就得耗满预算。release 产物里根本没有调试窗口
+/// （`#[cfg(dev)]`），若默认开启，每一次 `desktop-smoke` 都会白等一个预算；
+/// 而 renderer 侧又没有合法途径去问「这个构建有没有调试窗口」——问的话要么多给一条
+/// 窗口枚举权限（AC#1 把调试窗口的 capability 钉死在 `['core:event:default']`），
+/// 要么去 catch 一个 command-not-found，那是拿异常当控制流。
+///
+/// 与 [`PROBE_BASE_URL_ENV`] 同规则：没开自检却设了它，是配置错误而不是「顺带开一下」。
+pub const DEVTOOLS_PROBE_ENV: &str = "DEV_RXDB_TAURI_DEVTOOLS_PROBE";
+
 /// 报告的结构版本。
 ///
 /// 读报告的一方（`apps/dev-rxdb-tauri-e2e`）先比这个数再读别的字段：字段改了名而读的一方
 /// 没跟上时，报出来的是「版本对不上」，而不是一个到处都是 `undefined` 的对象。
 ///
-/// v2 起多了 [`StorageProbe`]（US-505 AC#1 / AC#3）。
-pub const REPORT_SCHEMA_VERSION: u32 = 2;
+/// v2 起多了 [`StorageProbe`]（US-505 AC#1 / AC#3）；v3 起多了 [`DevToolsProbe`] 与
+/// `windowLabels`（US-905 阶段 1）。
+pub const REPORT_SCHEMA_VERSION: u32 = 3;
 
 /// 环境变量配错时的退出码。
 ///
@@ -169,6 +183,31 @@ pub struct WebviewProbe {
     pub cross_origin_denied: String,
 }
 
+/// DevTools 双 WebView 探针的结果（US-905 阶段 1 AC#2）。
+///
+/// # 为什么这条探针只能由主 WebView 来做
+///
+/// AC#2 的判据是「真实主窗口与调试窗口已打开」并完成往返。Rust 侧看得见两个窗口存在
+/// （见 [`SelfCheckReport::window_labels`]），但看不见握手——`devtools_message` 是**原样透传**的
+/// 中继，按设计不解释 payload，把它改成会解析协议的东西，等于让传输层参与协议决策，
+/// 而那正是 US-905 技术约束明确禁止的。
+///
+/// 所以握手证据取自主 WebView：它订阅与 connector **同一条** `devtools:message` 事件，
+/// 记录调试窗口发过来的 v2 帧类型。收到 `HANDSHAKE_ACK` 就同时证明了四件事——调试窗口真的
+/// 建起来了、它加载的是共享面板、面板协商到了 v2、而且它的帧经真实 Rust 中继到达了主窗口。
+/// 这比「窗口存在」强得多，也不需要 WebDriver（`tauri-driver` 在 macOS 上根本不存在）。
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DevToolsProbe {
+    /// 调试窗口发过来的 v2 帧类型，按首次出现排序、已去重。
+    pub panel_frame_types: Vec<String>,
+    /// 从 `HANDSHAKE_ACK` 里读到的 session id；没握上手时为 `None`。
+    #[serde(default)]
+    pub session_id: Option<String>,
+    /// 是否在预算内看到了 `HANDSHAKE_ACK`。
+    pub handshake_completed: bool,
+}
+
 /// renderer 上报的结论，[`rxdb_selfcheck_report`] 的入参。
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -187,6 +226,9 @@ pub struct SelfCheckOutcome {
     /// webview 能力探针的结果；只有设了 [`PROBE_BASE_URL_ENV`] 且跑成功时有值。
     #[serde(default)]
     pub webview: Option<WebviewProbe>,
+    /// DevTools 双 WebView 探针的结果；release 构建里没有调试窗口，因此恒为 `None`。
+    #[serde(default)]
+    pub devtools: Option<DevToolsProbe>,
 }
 
 /// 落盘的报告。
@@ -205,6 +247,13 @@ struct SelfCheckReport {
     message: Option<String>,
     storage: Option<StorageProbe>,
     webview: Option<WebviewProbe>,
+    devtools: Option<DevToolsProbe>,
+    /// 结算时刻**实际存在**的窗口 label，已排序（US-905 AC#1）。
+    ///
+    /// 由 Rust 侧直接枚举，不听 renderer 的：AC#1 要的是「dev 只创建一个 `rxdb-devtools`
+    /// 窗口」「release 没有这个入口」，而窗口是不是真的建起来了，只有主进程说了算。
+    /// 让 renderer 上报的话，`#[cfg(dev)]` 那道编译期隔离就退化成了一句自述。
+    window_labels: Vec<String>,
     app_data_dir: String,
     identifier: String,
 }
@@ -223,6 +272,8 @@ pub struct SelfCheckPlan {
     pub app_data_dir: PathBuf,
     /// webview 探针要打的服务根地址；`None` 表示这次不跑那条探针。
     pub probe_base_url: Option<String>,
+    /// 这次要不要跑 DevTools 握手探针，见 [`DEVTOOLS_PROBE_ENV`]。
+    pub devtools_probe: bool,
 }
 
 impl SelfCheckPlan {
@@ -272,12 +323,18 @@ where
     let report = read_optional(&read, REPORT_PATH_ENV)?;
     let app_data_dir = read_optional(&read, APP_DATA_DIR_ENV)?;
     let probe_base_url = read_optional(&read, PROBE_BASE_URL_ENV)?;
+    let devtools_probe = read_optional(&read, DEVTOOLS_PROBE_ENV)?.is_some();
     match (report, app_data_dir) {
-        (None, None) if probe_base_url.is_none() => Ok(None),
+        (None, None) if probe_base_url.is_none() && !devtools_probe => Ok(None),
+        (None, None) if devtools_probe => Err(format!(
+            "{DEVTOOLS_PROBE_ENV} is set but self-check is off; it needs {REPORT_PATH_ENV} and {APP_DATA_DIR_ENV}"
+        )),
         (None, None) => Err(format!(
             "{PROBE_BASE_URL_ENV} is set but self-check is off; it needs {REPORT_PATH_ENV} and {APP_DATA_DIR_ENV}"
         )),
-        (Some(report), Some(app_data_dir)) => Ok(Some(build_plan(&report, &app_data_dir, probe_base_url)?)),
+        (Some(report), Some(app_data_dir)) => {
+            Ok(Some(build_plan(&report, &app_data_dir, probe_base_url, devtools_probe)?))
+        }
         (Some(_), None) => Err(format!(
             "{REPORT_PATH_ENV} is set but {APP_DATA_DIR_ENV} is not; self-check needs both"
         )),
@@ -301,17 +358,26 @@ where
     }
 }
 
-fn build_plan(report: &str, app_data_dir: &str, probe_base_url: Option<String>) -> Result<SelfCheckPlan, String> {
+fn build_plan(
+    report: &str,
+    app_data_dir: &str,
+    probe_base_url: Option<String>,
+    devtools_probe: bool,
+) -> Result<SelfCheckPlan, String> {
     let report_path = absolute(REPORT_PATH_ENV, report)?;
     let Some(file_name) = report_path.file_name() else {
-        return Err(format!("{REPORT_PATH_ENV} must end in a file name, got {report:?}"));
+        return Err(format!(
+            "{REPORT_PATH_ENV} must end in a file name, got {report:?}"
+        ));
     };
-    let report_temp_path = report_path.with_file_name(format!("{}.tmp", file_name.to_string_lossy()));
+    let report_temp_path =
+        report_path.with_file_name(format!("{}.tmp", file_name.to_string_lossy()));
     Ok(SelfCheckPlan {
         report_path,
         report_temp_path,
         app_data_dir: absolute(APP_DATA_DIR_ENV, app_data_dir)?,
         probe_base_url: probe_base_url.map(|raw| check_base_url(&raw)).transpose()?,
+        devtools_probe,
     })
 }
 
@@ -321,10 +387,14 @@ fn build_plan(report: &str, app_data_dir: &str, probe_base_url: Option<String>) 
 /// 而两侧写得不一样时，拼出来的是一个连不上的地址，失败形态与"服务没起来"无法区分。
 fn check_base_url(raw: &str) -> Result<String, String> {
     if !raw.starts_with("http://") && !raw.starts_with("https://") {
-        return Err(format!("{PROBE_BASE_URL_ENV} must start with http:// or https://, got {raw:?}"));
+        return Err(format!(
+            "{PROBE_BASE_URL_ENV} must start with http:// or https://, got {raw:?}"
+        ));
     }
     if raw.ends_with('/') {
-        return Err(format!("{PROBE_BASE_URL_ENV} must not have a trailing slash, got {raw:?}"));
+        return Err(format!(
+            "{PROBE_BASE_URL_ENV} must not have a trailing slash, got {raw:?}"
+        ));
     }
     Ok(raw.to_string())
 }
@@ -387,6 +457,7 @@ pub fn arm(app: &AppHandle, plan: SelfCheckPlan) {
                 launch_count: None,
                 storage: None,
                 webview: None,
+                devtools: None,
                 message: Some(format!(
                     "the renderer never reported within {}s",
                     WATCHDOG_TIMEOUT.as_secs()
@@ -413,6 +484,10 @@ fn finish(app: &AppHandle, outcome: SelfCheckOutcome) {
     }
     let host = app.state::<DesktopHost>();
     let exit_code = outcome.status.exit_code();
+    // 排序后再写：`webview_windows()` 是个 HashMap，迭代顺序每次都可能不同，
+    // 而下游要拿它做**等值**断言（恰为 `["main", "rxdb-devtools"]`）。
+    let mut window_labels: Vec<String> = app.webview_windows().into_keys().collect();
+    window_labels.sort();
     let report = SelfCheckReport {
         schema_version: REPORT_SCHEMA_VERSION,
         status: outcome.status,
@@ -420,6 +495,8 @@ fn finish(app: &AppHandle, outcome: SelfCheckOutcome) {
         message: outcome.message,
         storage: outcome.storage,
         webview: outcome.webview,
+        devtools: outcome.devtools,
+        window_labels,
         app_data_dir: host.app_data_dir().to_string_lossy().into_owned(),
         identifier: app.config().identifier.clone(),
     };
@@ -431,7 +508,8 @@ fn finish(app: &AppHandle, outcome: SelfCheckOutcome) {
 }
 
 fn write_report(plan: &SelfCheckPlan, report: &SelfCheckReport) -> Result<(), String> {
-    let body = serde_json::to_vec_pretty(report).map_err(|error| format!("cannot serialize the report: {error}"))?;
+    let body = serde_json::to_vec_pretty(report)
+        .map_err(|error| format!("cannot serialize the report: {error}"))?;
     std::fs::write(&plan.report_temp_path, &body)
         .map_err(|error| format!("cannot write {}: {error}", plan.report_temp_path.display()))?;
     std::fs::rename(&plan.report_temp_path, &plan.report_path).map_err(|error| {
@@ -473,6 +551,16 @@ pub fn rxdb_selfcheck_probe_base_url(app: AppHandle) -> Option<String> {
     state.plan.probe_base_url.clone()
 }
 
+/// renderer 问「这次要不要跑 DevTools 握手探针」（US-905 阶段 1 AC#2）。
+///
+/// 没开自检时查不到 [`SelfCheckState`]，直接给 `false`——与 [`rxdb_selfcheck_probe_base_url`]
+/// 同一形态：renderer 无条件问一次，判定的真相源只有 Rust 侧这一个。
+#[tauri::command]
+pub fn rxdb_selfcheck_devtools_probe(app: AppHandle) -> bool {
+    app.try_state::<SelfCheckState>()
+        .is_some_and(|state| state.plan.devtools_probe)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -489,11 +577,15 @@ mod tests {
 
     /// 平台无关的绝对路径来源；`temp_dir()` 在三个平台上都是绝对的。
     fn absolute_path(name: &str) -> String {
-        std::env::temp_dir().join(name).to_string_lossy().into_owned()
+        std::env::temp_dir()
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
     }
 
     fn temp_directory(name: &str) -> PathBuf {
-        let path = std::env::temp_dir().join(format!("rxdb-selfcheck-{}-{}", name, uuid::Uuid::new_v4()));
+        let path =
+            std::env::temp_dir().join(format!("rxdb-selfcheck-{}-{}", name, uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&path).unwrap();
         path
     }
@@ -506,14 +598,16 @@ mod tests {
     /// 成对出现是硬规则：只设其一是变量名打错字最常见的形态。
     #[test]
     fn only_the_report_path_is_an_error() {
-        let error = plan_from_env(reader(&[(REPORT_PATH_ENV, &absolute_path("r.json"))])).unwrap_err();
+        let error =
+            plan_from_env(reader(&[(REPORT_PATH_ENV, &absolute_path("r.json"))])).unwrap_err();
         assert!(error.contains(REPORT_PATH_ENV), "{error}");
         assert!(error.contains(APP_DATA_DIR_ENV), "{error}");
     }
 
     #[test]
     fn only_the_app_data_dir_is_an_error() {
-        let error = plan_from_env(reader(&[(APP_DATA_DIR_ENV, &absolute_path("root"))])).unwrap_err();
+        let error =
+            plan_from_env(reader(&[(APP_DATA_DIR_ENV, &absolute_path("root"))])).unwrap_err();
         assert!(error.contains(REPORT_PATH_ENV), "{error}");
     }
 
@@ -586,6 +680,7 @@ mod tests {
             report_temp_path: root.join("report.json.tmp"),
             app_data_dir: root.clone(),
             probe_base_url: None,
+            devtools_probe: false,
         };
         plan.ensure_directories().unwrap();
 
@@ -593,13 +688,19 @@ mod tests {
             app_data_dir: root.join("not-created"),
             ..plan.clone()
         };
-        assert!(missing.ensure_directories().unwrap_err().contains(APP_DATA_DIR_ENV));
+        assert!(missing
+            .ensure_directories()
+            .unwrap_err()
+            .contains(APP_DATA_DIR_ENV));
 
         let unwritable = SelfCheckPlan {
             report_path: root.join("no-such-dir").join("report.json"),
             ..plan
         };
-        assert!(unwritable.ensure_directories().unwrap_err().contains(REPORT_PATH_ENV));
+        assert!(unwritable
+            .ensure_directories()
+            .unwrap_err()
+            .contains(REPORT_PATH_ENV));
         std::fs::remove_dir_all(&root).unwrap();
     }
 
@@ -610,7 +711,10 @@ mod tests {
         let encode = |status: SelfCheckStatus| serde_json::to_value(status).unwrap();
         assert_eq!(encode(SelfCheckStatus::Ok), serde_json::json!("ok"));
         assert_eq!(encode(SelfCheckStatus::Failed), serde_json::json!("failed"));
-        assert_eq!(encode(SelfCheckStatus::TimedOut), serde_json::json!("timedOut"));
+        assert_eq!(
+            encode(SelfCheckStatus::TimedOut),
+            serde_json::json!("timedOut")
+        );
     }
 
     /// 退出码互不相同，且都不撞 [`CONFIG_EXIT_CODE`]：读退出码的一方要能分辨四种局面。
@@ -632,7 +736,10 @@ mod tests {
         ]))
         .unwrap()
         .unwrap();
-        assert_eq!(plan.probe_base_url.as_deref(), Some("http://127.0.0.1:54321"));
+        assert_eq!(
+            plan.probe_base_url.as_deref(),
+            Some("http://127.0.0.1:54321")
+        );
 
         let without = plan_from_env(reader(&[
             (REPORT_PATH_ENV, &absolute_path("report.json")),
@@ -648,7 +755,8 @@ mod tests {
     /// 而报告本身写着 `status: "ok"` —— 最难查的一种失败。
     #[test]
     fn a_probe_base_url_without_self_check_is_an_error() {
-        let error = plan_from_env(reader(&[(PROBE_BASE_URL_ENV, "http://127.0.0.1:54321")])).unwrap_err();
+        let error =
+            plan_from_env(reader(&[(PROBE_BASE_URL_ENV, "http://127.0.0.1:54321")])).unwrap_err();
         assert!(error.contains(PROBE_BASE_URL_ENV), "{error}");
         assert!(error.contains(REPORT_PATH_ENV), "{error}");
     }
@@ -694,6 +802,7 @@ mod tests {
                 message: None,
                 storage: None,
                 webview: None,
+                devtools: None,
             }
         );
 
@@ -780,6 +889,7 @@ mod tests {
             report_temp_path: root.join("launch-1.json.tmp"),
             app_data_dir: root.join("data"),
             probe_base_url: None,
+            devtools_probe: false,
         };
         write_report(
             &plan,
@@ -794,6 +904,15 @@ mod tests {
                     existed_before: true,
                 }),
                 webview: None,
+                devtools: Some(DevToolsProbe {
+                    panel_frame_types: vec![
+                        "PROTOCOL_HELLO".to_string(),
+                        "HANDSHAKE_ACK".to_string(),
+                    ],
+                    session_id: Some("a5f7c4ce-6f6f-4a6e-8f0e-2a0c9a2f5d31".to_string()),
+                    handshake_completed: true,
+                }),
+                window_labels: vec!["main".to_string(), "rxdb-devtools".to_string()],
                 app_data_dir: "/tmp/root".to_string(),
                 identifier: "io.aiao.dev-rxdb-tauri".to_string(),
             },
@@ -811,19 +930,30 @@ mod tests {
                 "message": null,
                 "storage": { "digest": "abc123", "byteLength": 65536, "existedBefore": true },
                 "webview": null,
+                "devtools": {
+                    "panelFrameTypes": ["PROTOCOL_HELLO", "HANDSHAKE_ACK"],
+                    "sessionId": "a5f7c4ce-6f6f-4a6e-8f0e-2a0c9a2f5d31",
+                    "handshakeCompleted": true
+                },
+                "windowLabels": ["main", "rxdb-devtools"],
                 "appDataDir": "/tmp/root",
                 "identifier": "io.aiao.dev-rxdb-tauri"
             })
         );
-        assert!(!plan.report_temp_path.exists(), "临时文件没有被改名，而是留在了原地");
+        assert!(
+            !plan.report_temp_path.exists(),
+            "临时文件没有被改名，而是留在了原地"
+        );
         std::fs::remove_dir_all(&root).unwrap();
     }
 
     /// 结构版本必须**随字段一起**往前走：读报告的一方按它决定认不认识这份 JSON。
-    /// 忘了加这个数字的话，一份少了 `storage` 键的旧报告会被当成合法的 v2 读进去，
-    /// 于是 AC#1/AC#3 的断言读到 `undefined` 而不是「版本对不上」。
+    /// 忘了加这个数字的话，一份少了 `storage` 键的旧报告会被当成合法的新版读进去，
+    /// 于是断言读到 `undefined` 而不是「版本对不上」。
+    ///
+    /// v3 加的是 `devtools` 与 `windowLabels`（US-905 阶段 1）。
     #[test]
     fn the_schema_version_covers_the_storage_probe() {
-        assert_eq!(REPORT_SCHEMA_VERSION, 2);
+        assert_eq!(REPORT_SCHEMA_VERSION, 3);
     }
 }
