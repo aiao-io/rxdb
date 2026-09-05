@@ -182,6 +182,8 @@ new RxDBAdapterHttp(db, {
 | `conditionalCacheSize` | `256`   | 条件请求响应缓存条目上限，仅在下方开关打开时生效 |
 
 六个数值都必须是 finite 正整数（`maxEmptyPages` 可为 `0`），否则**构造期**抛 `HttpConfigError` 并带上字段名与实际值。
+
+`changeFeed`（SSE 变更通知）缺省不存在、配了即开；它是**实验性**能力，不在 1.0 兼容承诺内，协议目前只有参考后端一个实现。
 `auth` 在每次请求发出前调用，与 `headers` 冲突时以 `auth` 为准；`auth` 抛错则请求不发出。
 
 ### 条件请求（`conditionalRequests`，缺省关闭）

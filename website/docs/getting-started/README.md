@@ -283,4 +283,5 @@ export class TodoListComponent {
 5. [框架集成](../frameworks/README.md) — Angular / React / Vue 的绑定细节
 6. [数据库适配器](../adapters/README.md) — SQLite、PGlite、Supabase 的选型
 7. [数据协作](../collaboration/README.md) — 分支、撤销重做、同步（可选）
-8. [客户端代码生成](../client-generator.md) — 从模型自动产出类型安全的辅助代码
+
+名字撞车的说明见[与 rxdb.info 的区别](./compare.md)：本项目与 npm 上的 `rxdb` 无关。8. [客户端代码生成](../client-generator.md) — 从模型自动产出类型安全的辅助代码

@@ -227,6 +227,9 @@ const toOfflineError = (error: unknown): NetworkOfflineError =>
  * 远端对 `where` 的答复是权威的：本次 `where` 的本地投影里、远端没有返回的行一律是孤儿，
  * 同步时删除（US-020 AC#11）。删除范围严格限定在该投影内 —— 不匹配 `where` 的本地行
  * 不在本次问题域里，不能因为「远端没提」就被清掉。
+ *
+ * @experimental 直接 `new` 本类不在 1.0 兼容承诺内；稳定面是 `SyncType.QueryCache` 经
+ * {@link Repository} 的间接路径。层级口径见 `requirements/versioning-policy.md`「实验性层级」。
  */
 export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
   /** 并发查询去重缓存 - 使用查询指纹作为 key */
