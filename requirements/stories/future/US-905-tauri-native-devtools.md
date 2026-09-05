@@ -130,12 +130,12 @@ US-210 SQLite host / US-505 native file host
 
 | #   | 前置条件                                                   | 操作                                                   | 预期结果                                                                                                                        | 状态 |
 | --- | ---------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 9   | 应用通过 US-210 使用应用作用域 SQLite                      | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与主窗口一致；调试窗口不打开数据库、不创建 OPFS/IDB fallback                            | ⬜   |
+| 9   | 应用通过 US-210 使用应用作用域 SQLite                      | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与主窗口一致；调试窗口不打开数据库、不创建 OPFS/IDB fallback                            | ⚠️   |
 | 10  | 应用通过 US-505 使用 native files 并显式允许 mutation      | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件根，字节一致；UI 仅用 `runtime: tauri` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                    | ⬜   |
 | 11  | 1001 条以上 metadata/files、两类缺失和在途上传             | 读取完整诊断 snapshot                                  | 从请求进入起算的共享 deadline（US-904 阶段 B）覆盖等锁/物化/重试；不漏尾页或误报临时状态；busy/too-large/expired 与共享错误一致 | ⬜   |
-| 12  | 打开 Settings                                              | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明能力返回 `provider_unsupported`，不读取 SQLite/WAL、OPFS/IDB 或其他应用目录  | ⬜   |
-| 13  | 错误窗口/旧 session，或合法窗口在授权组合下伪造操作        | 通过真实 transport 发送                                | 各层拒绝错误身份；未授权 provider 调用为 0，未 opt-in mutation 不执行；响应不含路径、SQL 绑定值、加密字段或文件内容             | ⬜   |
-| 14  | session 有订阅、迟到响应、snapshot 和未完成传输            | 关闭/刷新窗口或退出应用                                | 订阅、请求、snapshot、传输、临时文件和 host session 全释放；重开拒绝旧身份与迟到数据                                            | ⬜   |
+| 12  | 打开 Settings                                              | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明能力返回 `provider_unsupported`，不读取 SQLite/WAL、OPFS/IDB 或其他应用目录  | ⚠️   |
+| 13  | 错误窗口/旧 session，或合法窗口在授权组合下伪造操作        | 通过真实 transport 发送                                | 各层拒绝错误身份；未授权 provider 调用为 0，未 opt-in mutation 不执行；响应不含路径、SQL 绑定值、加密字段或文件内容             | ⚠️   |
+| 14  | session 有订阅、迟到响应、snapshot 和未完成传输            | 关闭/刷新窗口或退出应用                                | 订阅、请求、snapshot、传输、临时文件和 host session 全释放；重开拒绝旧身份与迟到数据                                            | ⚠️   |
 | 15  | 真实临时应用目录、US-210 SQLite 与 US-505 files            | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 panel/双 WebView/transport/Rust/host，不用 fake 替代                                   | ⬜   |
 | 16  | Tauri provider 接入 US-904 阶段 B conformance 与共享 panel | 运行共享 provider 与 panel 回归                        | 控制面、safe integer、base64、descriptor、分页、授权、错误和 session 重建通过；不等待 Electron，也不复制组件、状态机或 wire     | ⬜   |
 | 17  | macOS、Windows、Linux desktop dev/release 构建             | 打开/关闭调试窗口并检查产物                            | 三平台完成加载、握手、session 释放；release 无调试 capability/command/bootstrap，高成本打包 smoke 只在 release 分支或 tag 运行  | ⬜   |
@@ -461,6 +461,94 @@ conformance runner（由它发起请求），并让主窗口在该模式下用�
   真实产物两条也复跑过：`devtools-smoke` **6/6 绿**（真实双窗口，阶段 1 的四条 AC 证据未回退）、
   `desktop-smoke` **14 条绿**（原 13，多的一条是本轮的 release 隔离断言；这一跑同时确认
   release 侧 `#[cfg(dev)]` 关掉后整份仍能编译）。
+
+### PR-C3 第一半：应用侧装配与 host 会话释放（2026-09-05）
+
+`setup_rxdb_desktop.ts` 现在把**真实** native provider 接上了：新导出的
+`createDesktopDevToolsProviders({ transport, getStorage })` 产出 `nativeFiles`（US-505 桌面 host，
+`kind: 'native-files'`）+ `settings`（`sqlite` 语义）+ `runtime: 'tauri'`，交给 `getDevToolsConnector`。
+与 Electron 侧同构，共享包一行没复制；两处差别都是 Tauri 的结构性事实，写在函数注释里：
+transport 必须显式传（没有 preload 全局键），以及下面这条。
+
+**发现 9 已修**：装配处挂 `pagehide → filesystem.dispose()`。主窗口刷新不触发 Rust 的
+`WindowEvent::Destroyed`，host 不会自己回收，没有这条接线每刷一次泄一条 host 文件会话——
+连同它持有的锁，而 `file.lockAcquire` 是没有超时的无限等待。用 `pagehide` 而非 `beforeunload`
+（后者在 WKWebView 上不可靠），`dispose()` 幂等。
+
+装配单独导出是为了可测：`default` 里要先建一个真 RxDB 才够得着，而要验的三件事与 RxDB 无关。
+新增 `setup_rxdb_devtools.spec.ts` 5 条——文件请求走注入的 transport、逻辑根与 storage 插件同值、
+装配期不读 `rxdb.storage`（延迟到 capture）、三领域 runtime 同为 `tauri`、刷新时发出 `file.close`。
+后两条经反向改动实测有区分力（把 settings runtime 改回 `electron`、摘掉 pagehide 监听即红）。
+
+**C3 剩余的一半仍未做**：dev-only 驱动脚本的 `postFrame` / `lastAnswer` 两个动作、报告 schema
+v5 → v6、以及在真实双窗口上跑 wire 用例的 `devtools-native-provider.spec.ts`。因此
+**AC#9/#11/#12/#13/#14/#16 一条都还没关**——上面这些是页内一半的证据，判据里的
+「经真实 panel / 双 WebView / transport / Rust / host」那一半要等驱动接好。
+
+### PR-C3 第二半：调试窗口里的 dev-only wire 驱动（2026-09-05）
+
+D1 落地：`src-tauri/devtools_driver.js` 经 `include_str!` + `#[cfg(dev)]` + `initialization_script`
+装进调试窗口，且**只在自检探针开着时**注入。release 二进制里连这些字节都不存在——比 Electron
+侧「产物在、只是没人加载」强一档，已由 `devtools-release-isolation.spec.ts` 新增的一条守住。
+
+**为什么驱动必须住在调试窗口里**：Rust 中继按发起窗口 label 路由，主窗口发出的帧一律送到
+调试窗口。所以一条要让 connector 回答的 `REQUEST` 只能从调试窗口发出，应答也只回到那里。
+
+**为什么是「自己跑完一遍」而不是被远程逐步驱动**：本轮要验的五件事是固定的，固定脚本因此
+只需要一个入站帧监听 + 一次出站汇报，不必再开一条控制通道。动作集要扩大（AC#10 的 DOM 操作、
+AC#15 的重启比对）时再谈，那是 C4。
+
+它**不放宽任何东西**：用的全是调试窗口本来就有的 `core:event:default`（listen / emit_to）与
+应用自有命令 `devtools_message`（面板 transport 自己也在调）。不新增 capability、不新增 Rust
+命令，发出去的 `REQUEST` 照样过 connector 的三层授权——这正是 AC#13 想看到的形态。
+
+报告 schema **v5 → v6**，新增 `devtools.native`。字段全是**结果码**不是数据：AC#13 明写响应不得
+含路径、SQL 绑定值、加密字段或文件内容，而错误码稳定、可断言、本就要跨端一致。
+
+#### 阶段 2 的 AC 覆盖到哪一步（本轮**一条都不关**）
+
+四条从 ⬜ 调成 ⚠️，因为它们各自被覆盖了一半——但每一条的判据都还含着驱动没做的那部分，
+所以没有一条够得着 ✅：
+
+| AC  | 已经拿到的证据                                                                                                                                                                                                                                 | 差的那一半                                                                 |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| #9  | `files.list` 在真实双窗口 + 真实 host 上答 `ok`（`filesEntryCount` 为真实条目数）                                                                                                                                                              | 数据面本身：实体查询、25 类 `RXDB_EVENT_TYPES` 逐类派发、branch 切换       |
+| #12 | 两条拒绝码在真实链路上分别成立：`settings.export` → `export_unsupported`（已声明，走到 provider 才拒）、`settings.clear` → `provider_unsupported`（未声明，descriptor 层就拒）。「不读 SQLite/WAL」由 provider 连 ports 入参都不收这一结构保证 | UI 半边：下载按钮画成禁用态                                                |
+| #13 | 伪造 session 的同一条请求被按 session 拒（`session_invalid`），对照组是同操作同参数的那条 `files.list`；另有 Rust 侧窗口 label 闸的两条单测                                                                                                    | 能力矩阵（none/readonly/full × mutation 开关）与响应脱敏的穷举             |
+| #14 | `pagehide → dispose()` 有装配层单测（刷新时发出 `file.close`）                                                                                                                                                                                 | 真实关闭/刷新/退出之后 host 会话计数归零，需要报告里补一个由 Rust 读的计数 |
+
+AC#10 / #11 / #15 / #16 / #17 仍是 ⬜：它们要的 DOM 操作、1001 条快照、重启比对与三平台矩阵都在 C4。
+
+### 发现 10：`HANDSHAKE_ACK` 的方向是 panel → connector（驱动等错了帧）
+
+驱动第一版等 `HANDSHAKE_ACK` 拿 session，结果稳定地等满预算、报 `sessionSeen: false`，
+而同一份报告里主窗口的 `handshakeCompleted` 明明是 `true`——两个事实看起来矛盾。
+
+真因是方向：**connector 铸 session，面板只回显**，所以 ACK 是 panel → connector，
+根本不会投递到调试窗口。改成从**信封**的 `sessionId` 取（协商完成后每一帧都带），
+既准确也不依赖某一种帧先到。
+
+定位它靠的是给驱动加的三个阶段打点（`booted` / `listening` / `session-seen`，复用 `failure`
+字段、后到覆盖先到，跑通时它就是 `null`）：`native` 字段在报告里出现、而 `sessionSeen` 为
+`false`，一次就把「脚本没注入」和「listen 没通」两种成因排除掉了。
+
+### 发现 11：session 级拒绝落不进请求等待表，于是伪造 session 只看得到超时
+
+`requestId === null` 的 `ERROR` 按协议**不归属任何请求**（session 级），因此它不会命中驱动的
+等待表。第一版的结果是 `forgedSession: "timeout"`——而超时与「对端没答」不可区分，
+这种弱证据撑不起 AC#13 的「未授权 provider 调用为 0」。
+
+驱动因此单独记最近一条 session 级错误码，超时时优先报它。实测由 `timeout` 变为
+**`session_invalid`**：拒绝从此是**观察到的**，不是从沉默里推的。e2e 的断言随之收紧成等值，
+并把同一条 `files.list`（同操作、同参数，只差 session）留在旁边当对照组。
+
+### 两处过程性缺陷（都已修，记下来是因为它们都曾伪装成别的东西）
+
+- **新断言放在了拥有 `run` 的 `describe` 外面**，报 `ReferenceError: run is not defined`——
+  4 条用例全红，但它们**一次都没读到报告**。红得像「驱动没通」，实际与驱动无关。
+- **注入给探针的 `listen` 适配器把 payload 钉死成 `string`**，而驱动汇报通道送的是对象。
+  这条是 Angular 构建报出来的；`nx typecheck` 因为命中缓存报了绿——与
+  [[nx-build-hides-ts-errors]] 同一类坑的镜像版本。
 
 ## 技术约束
 

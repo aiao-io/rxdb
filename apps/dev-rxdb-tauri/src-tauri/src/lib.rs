@@ -105,16 +105,33 @@ mod devtools_routing {
 /// release 构建里这段代码根本不进产物，`rxdb-devtools` label 的窗口、入口与 command 随之消失，
 /// 满足「release 无入口、bootstrap、专用 command」。
 #[cfg(dev)]
-fn open_devtools_window(app: &tauri::AppHandle) -> tauri::Result<()> {
-    tauri::WebviewWindowBuilder::new(
+fn open_devtools_window(app: &tauri::AppHandle, drive: bool) -> tauri::Result<()> {
+    let mut builder = tauri::WebviewWindowBuilder::new(
         app,
         devtools_routing::DEVTOOLS_LABEL,
         tauri::WebviewUrl::App("devtools/devtools.html".into()),
     )
-    .title("RxDB DevTools")
-    .build()?;
+    .title("RxDB DevTools");
+    // US-905 阶段 2：只有自检探针开着时才装 wire 驱动。
+    //
+    // 门禁取**传进来的** plan 而不是 `selfcheck::devtools_probe_armed`：本函数在 `setup` 里
+    // 跑在 `selfcheck::arm` 之前（窗口要先建起来，看门狗才有东西可等），那时 `SelfCheckState`
+    // 还没托管，问它一定得到 false——而那种「永远走不到」的分支不会有任何报错，
+    // 只会让驱动静默地从不注入。
+    if drive {
+        builder = builder.initialization_script(DEVTOOLS_DRIVER_SCRIPT);
+    }
+    builder.build()?;
     Ok(())
 }
+
+/// 调试窗口里的 wire 驱动（US-905 阶段 2）。
+///
+/// `include_str!` + `#[cfg(dev)]`：release 二进制里**连这些字节都不存在**。这比 Electron 侧
+/// 「产物在、只是没人加载」强一档，也正是 D1 选它而不是把驱动塞进面板 bundle 的理由——
+/// 面板产物整份嵌在 `frontendDist` 里，塞进去就会随 release 一起发。
+#[cfg(dev)]
+const DEVTOOLS_DRIVER_SCRIPT: &str = include_str!("../devtools_driver.js");
 
 /// US-905 阶段 1：面板 ↔ connector 之间的定向消息中继。
 ///
@@ -217,7 +234,9 @@ async fn rxdb_devtools_recycle_window(app: tauri::AppHandle) -> Result<(), Strin
         return Err(format!("{label} was still registered after destroy()"));
     }
 
-    open_devtools_window(&app).map_err(|error| error.to_string())
+    // 重开时同样带上驱动：这条命令只在探针开着时才放行（上面那道闸），所以到这里
+    // `drive` 恒为真——写成常量而不是再问一次，免得两处判定有机会分叉。
+    open_devtools_window(&app, true).map_err(|error| error.to_string())
 }
 
 /// 被中继按 label 拒掉的帧数（US-905 阶段 1 AC#3）。
@@ -363,7 +382,7 @@ pub fn run() {
             app.manage(DesktopHost::new(app.handle(), app_data_dir, &[MAIN_WINDOW_LABEL]));
             // US-905：dev 模式开调试窗口；release 无此入口（#[cfg(dev)] 两侧一起消失）。
             #[cfg(dev)]
-            open_devtools_window(app.handle())?;
+            open_devtools_window(app.handle(), plan.as_ref().is_some_and(|plan| plan.devtools_probe))?;
             // host 先托管再挂看门狗：看门狗到期时要读 host 的根目录写进报告。
             if let Some(plan) = plan {
                 selfcheck::arm(app.handle(), plan);

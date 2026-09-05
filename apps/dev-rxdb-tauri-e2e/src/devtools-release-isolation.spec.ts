@@ -63,6 +63,17 @@ describe('US-905 devtools 的 release 隔离（结构证据）', () => {
     expect(/#\[cfg\(dev\)\]\s+fn open_devtools_window/.test(libRs())).toBe(true);
   });
 
+  it('wire 驱动脚本只进 dev 二进制：include_str! 与注入点都在 #[cfg(dev)] 下（阶段 2）', () => {
+    const lib = libRs();
+
+    // `include_str!` 把脚本**内容**编进二进制。这一条一旦丢了 cfg，那段测试脚手架就会
+    // 随 release 一起发出去——这正是 D1 不把驱动放进面板 bundle 的理由（面板产物整份
+    // 嵌在 frontendDist 里），在 Rust 这侧不能自己再破一次。
+    expect(/#\[cfg\(dev\)\]\s+const DEVTOOLS_DRIVER_SCRIPT: &str = include_str!/.test(lib)).toBe(true);
+    // 注入点在 `open_devtools_window` 里，而那个函数整体已是 #[cfg(dev)]（上一条用例）。
+    expect(lib).toContain('builder.initialization_script(DEVTOOLS_DRIVER_SCRIPT)');
+  });
+
   it('DevTools 授权档模块与插件注册两侧都是 #[cfg(dev)]，release 既不读 env 也不注入全局键', () => {
     const lib = libRs();
     // 模块声明与注册两处都要带：只带一处的话，release 要么编不过（引用不存在的模块），

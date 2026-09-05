@@ -21,6 +21,33 @@ export interface DevToolsProbeResult {
   readonly handshakeCompleted: boolean;
   /** 冒名窗口活着期间被中继按 label 拒掉的帧数（AC#3）。 */
   readonly relayRejected: number;
+  /** 调试窗口里的 wire 驱动跑出来的结论（阶段 2）；没装驱动或没跑完时缺席。 */
+  readonly native?: DevToolsNativeProbeResult;
+}
+
+/**
+ * 真实双窗口链路上的 wire 结论（US-905 阶段 2），与 `selfcheck.rs` 的
+ * `DevToolsNativeProbe` 逐字对应。
+ *
+ * @remarks
+ * 全是**结果码**不是数据：判据要的是「这条操作在真实链路上答了什么」，而回显路径或字节
+ * 会把诊断报告变成一条泄漏通道（AC#13 明写响应不得含这些）。
+ */
+export interface DevToolsNativeProbeResult {
+  /** 驱动是否等到了握手；`false` 时其余字段无意义。 */
+  readonly sessionSeen: boolean;
+  /** `files.list` 的结果码。 */
+  readonly filesList?: string;
+  /** `files.list` 读到的条目数；`-1` 表示这次没读到结果。 */
+  readonly filesEntryCount?: number;
+  /** 强制 `settings.export` 的结果码。 */
+  readonly settingsExport?: string;
+  /** 未声明的 `settings.clear` 的结果码。 */
+  readonly settingsClear?: string;
+  /** 伪造 session 的同一条请求的结果码。 */
+  readonly forgedSession?: string;
+  /** 驱动自身失败时的原因。 */
+  readonly failure?: string | null;
 }
 
 /**
@@ -34,6 +61,15 @@ export interface DevToolsProbeResult {
 const DEVTOOLS_EVENT = 'devtools:message';
 
 /**
+ * 调试窗口里的 wire 驱动汇报结论用的事件名，与 `devtools_driver.js` 的 `RESULT_EVENT` 一致。
+ *
+ * @remarks
+ * 与帧通道分开：驱动的结论不是协议帧，混进 `devtools:message` 会让 `panelFrameTypes`
+ * 多出一个不存在的「帧类型」，而那份列表是 AC#2 的证据。
+ */
+const DRIVE_RESULT_EVENT = 'devtools:drive-result';
+
+/**
  * 等握手的预算。
  *
  * @remarks
@@ -45,7 +81,7 @@ const HANDSHAKE_BUDGET_MS = 20_000;
 
 /** `listen()` 的最小接口；参数化是为了让单测不必起一个真实 Tauri 运行时。 */
 export interface DevToolsEventSurface {
-  listen: (event: string, handler: (payload: { payload: string }) => void) => Promise<() => void>;
+  listen: <T>(event: string, handler: (message: { payload: T }) => void) => Promise<() => void>;
 }
 
 /** 一帧 v2 信封里探针关心的两个字段。 */
@@ -66,6 +102,17 @@ export interface DevToolsHandshakeWatcher {
    * 可以多次调用：AC#4 要先等第一轮，回收窗口，再等第二轮。
    */
   waitForHandshake: (budgetMs?: number) => Promise<number>;
+  /**
+   * 等调试窗口里的驱动汇报一次结论（阶段 2）。
+   *
+   * @param budgetMs - 预算，默认 {@link HANDSHAKE_BUDGET_MS}。
+   * @returns 收到的结论；预算内没等到为 `undefined`。
+   *
+   * @remarks
+   * 驱动自己也有预算，且**等不到握手也会汇报**（`sessionSeen: false`）。所以这里等到
+   * `undefined` 只有一个意思：驱动根本没装上——那与「装上了但没跑通」是两个结论。
+   */
+  waitForNative: (budgetMs?: number) => Promise<DevToolsNativeProbeResult | undefined>;
   /** 退订并交出快照。 */
   settle: () => DevToolsProbeResult;
 }
@@ -102,7 +149,14 @@ export const watchDevToolsHandshake = (surface: DevToolsEventSurface): DevToolsH
   // 每等一轮就换一个 resolver：AC#4 要连等两轮，共用一个 promise 的话第二轮会立刻返回。
   let arrived: (() => void) | undefined;
 
-  const subscription = surface.listen(DEVTOOLS_EVENT, event => {
+  let native: DevToolsNativeProbeResult | undefined;
+  let nativeArrived: (() => void) | undefined;
+  const driveSubscription = surface.listen<DevToolsNativeProbeResult>(DRIVE_RESULT_EVENT, message => {
+    native = message.payload;
+    nativeArrived?.();
+  });
+
+  const subscription = surface.listen<string>(DEVTOOLS_EVENT, event => {
     // 中继原样透传的是一个 JSON 字符串（`TauriTransportService.postFrame` 里 stringify 的那份）。
     // 解不动就当作「这一帧不是 v2 信封」跳过——探针不替协议层做判定。
     const frame = parseFrame(event.payload);
@@ -136,14 +190,26 @@ export const watchDevToolsHandshake = (surface: DevToolsEventSurface): DevToolsH
       arrived = undefined;
       return sessionIds.length;
     },
+    waitForNative: async (budgetMs: number = HANDSHAKE_BUDGET_MS): Promise<DevToolsNativeProbeResult | undefined> => {
+      await driveSubscription;
+      if (native !== undefined) return native;
+      const arrival = new Promise<void>(resolve => {
+        nativeArrived = resolve;
+      });
+      await Promise.race([arrival, delay(budgetMs)]);
+      nativeArrived = undefined;
+      return native;
+    },
     settle: (): DevToolsProbeResult => {
       void subscription.then(unlisten => unlisten());
+      void driveSubscription.then(unlisten => unlisten());
       // `relayRejected` 由调用方在拿到冒名窗口探测结果后补上：那件事发生在观察者之外。
       return {
         panelFrameTypes: [...seen],
         sessionIds: [...sessionIds],
         handshakeCompleted: sessionIds.length > 0,
-        relayRejected: 0
+        relayRejected: 0,
+        native
       };
     }
   };

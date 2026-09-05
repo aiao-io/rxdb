@@ -68,8 +68,10 @@ const devToolsWatcher =
       // 与两条 transport 同一个理由：全局 `listen` 的 target 是 `Any`，会无视定向过滤收到
       // **所有**帧（含主窗口自己发出的）。探针要观察的是「投递到 main 的帧」，
       // 所以必须绑到本窗口——否则它会把主窗口自己的出站帧也算成「调试窗口发来的」。
-      listen: (event, handler) =>
-        getCurrentWebviewWindow().listen<string>(event, message => handler({ payload: message.payload }))
+      // 泛型透传：帧通道的 payload 是 JSON 字符串，驱动汇报通道的是一个对象。
+      // 在这里钉死成 `string` 的话，第二条通道的结论会被当成字符串塞进去。
+      listen: <T,>(event: string, handler: (message: { payload: T }) => void) =>
+        getCurrentWebviewWindow().listen<T>(event, message => handler({ payload: message.payload }))
     })
   : null;
 
@@ -126,7 +128,13 @@ const probeDevToolsWindow = async (): Promise<DevToolsProbeResult | null> => {
     }
     // AC#3：刷新之前把冒名窗口那一趟跑掉——它自己会把窗口收掉，不污染 AC#1 的窗口集合。
     const relayRejected = first > 0 ? await probeImpostorWindow(globalThis) : 0;
-    sessionStorage.setItem(PROBE_CARRY_KEY, JSON.stringify({ ...devToolsWatcher.settle(), relayRejected }));
+    // 阶段 2：驱动在调试窗口里跑，汇报时刻由它自己定，所以在刷新之前收一次。
+    // 刷新会换掉 connector，而驱动那一轮问的是**刷新之前**那个 connector——两件事分开记。
+    const native = first > 0 ? await devToolsWatcher.waitForNative() : undefined;
+    sessionStorage.setItem(
+      PROBE_CARRY_KEY,
+      JSON.stringify({ ...devToolsWatcher.settle(), relayRejected, native })
+    );
     location.reload();
     // 刷新在即：这条链不能继续走到上报那一步。
     return new Promise<never>(() => undefined);
@@ -140,6 +148,8 @@ const probeDevToolsWindow = async (): Promise<DevToolsProbeResult | null> => {
     panelFrameTypes: [...new Set([...before.panelFrameTypes, ...after.panelFrameTypes])],
     sessionIds: [...before.sessionIds, ...after.sessionIds],
     relayRejected: before.relayRejected,
+    // 刷新后调试窗口没重建，驱动不会再跑一轮；带过来的那一份就是唯一的一份。
+    native: after.native ?? before.native,
     // 「至少握上过一次」。多轮之后这个布尔已经表达不了全部事实，轮次由 sessionIds 的长度说；
     // 写成 before && after 会让「刷新后没重连」把**第一轮确实握上了**这条事实一起抹掉。
     handshakeCompleted: before.handshakeCompleted || after.handshakeCompleted

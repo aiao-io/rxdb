@@ -47,7 +47,7 @@ export const PROBE_BASE_URL_ENV = 'DEV_RXDB_TAURI_PROBE_BASE_URL';
 export const DEVTOOLS_PROBE_ENV = 'DEV_RXDB_TAURI_DEVTOOLS_PROBE';
 
 /** 本文件能读懂的报告结构版本，与 `selfcheck.rs` 的 `REPORT_SCHEMA_VERSION` 一致。 */
-export const REPORT_SCHEMA_VERSION = 5;
+export const REPORT_SCHEMA_VERSION = 6;
 
 /**
  * 自检环境变量配错时的退出码，与 `selfcheck.rs` 的 `CONFIG_EXIT_CODE` 一致。
@@ -174,6 +174,38 @@ export interface DevToolsProbe {
    * 与「敲了但被拒」是两个结论。
    */
   readonly relayRejected: number;
+  /**
+   * 调试窗口里的 wire 驱动跑出来的结论（US-905 阶段 2）；没装驱动时缺席。
+   *
+   * @remarks
+   * 驱动只存在于 dev 二进制里，且要自检探针开着才注入，所以这个字段在 release 产物上
+   * 永远不会出现——`desktop-smoke` 读到它就说明隔离破了。
+   */
+  readonly native?: DevToolsNativeProbe;
+}
+
+/**
+ * 真实双窗口链路上的 wire 结论（US-905 阶段 2，AC#9 / #12 / #13）。
+ *
+ * @remarks
+ * 字段全是**错误码**不是数据：判据要的是「这条操作在真实链路上答了什么」，
+ * 而回显路径或字节会把诊断报告变成一条泄漏通道（AC#13 明写响应不得含这些）。
+ */
+export interface DevToolsNativeProbe {
+  /** 驱动是否等到了握手；`false` 时其余字段无意义。 */
+  readonly sessionSeen: boolean;
+  /** `files.list` 的结果码；接上真实 native host 后应为 `ok`。 */
+  readonly filesList?: string;
+  /** `files.list` 读到的条目数；`-1` 表示这次没读到结果。 */
+  readonly filesEntryCount?: number;
+  /** 强制 `settings.export` 的结果码；恒为 `export_unsupported`。 */
+  readonly settingsExport?: string;
+  /** 未声明的 `settings.clear` 的结果码；恒为 `provider_unsupported`。 */
+  readonly settingsClear?: string;
+  /** 伪造 session 的同一条请求的结果码；必须被拒。 */
+  readonly forgedSession?: string;
+  /** 驱动自身失败时的原因；正常跑完为 `null`。 */
+  readonly failure?: string | null;
 }
 
 /** Rust 侧落盘的报告。 */

@@ -261,4 +261,75 @@ describe('dev 产物里的两个真实 WebView（US-905 阶段 1 AC#1 / AC#2）'
   it('主窗口收到的是完整协商序列，而不是只有一条 ACK', () => {
     expect(run.report.devtools?.panelFrameTypes).toEqual(expect.arrayContaining(['PROTOCOL_HELLO', 'HANDSHAKE_ACK']));
   });
+
+  /**
+   * 真实双窗口上的 wire 结论（US-905 阶段 2，AC#9 / #12 / #13 的链路一半）。
+   *
+   * @remarks
+   * # 这些断言与 `tauri-conformance.spec.ts` 的 80 条**不重叠**
+   *
+   * 那 80 条跑在进程内的 JSON 中继上，验的是「Tauri 只适配 transport、不复制状态机」这条
+   * 结构性质（发现 7 已把它的边界写清楚）。这里验的是另一件事：**同样的判定在真实
+   * `invoke` / `emit_to` 跨窗口投递、经真实 Rust 中继、由真实 native host 应答时也成立**。
+   * 帧由调试窗口里的 dev-only 驱动现拼——它不 import 共享包（初始化脚本里没有模块系统），
+   * 所以连信封形状都是被真实 connector 校验过的。
+   *
+   * # 为什么读的是错误码而不是数据
+   *
+   * AC#13 明写响应不得含路径、SQL 绑定值、加密字段或文件内容。报告里因此只带结果码，
+   * 顺带让这些断言天然不依赖机器上的具体文件。
+   */
+  describe('真实双窗口上的 wire 结论（US-905 阶段 2）', () => {
+    const native = () => run.report.devtools?.native;
+
+    it('驱动确实装上了，并且等到了握手', () => {
+      // `undefined` 与 `sessionSeen: false` 是两个结论：前者说明脚本根本没注入
+      // （`#[cfg(dev)]` 或探针门禁出了问题），后者说明注入了但链路没通。
+      expect(native(), '调试窗口里没有驱动——注入那一步没发生').toBeDefined();
+      expect(native()?.failure ?? null).toBeNull();
+      expect(native()?.sessionSeen).toBe(true);
+    });
+
+    /**
+     * AC#9 的链路一半：`files` 领域接的是 US-505 的真实 native host。
+     *
+     * @remarks
+     * 判据取「答了 `ok`」而不是条目内容：这台机器上那个目录里有什么不是协议的性质。
+     * 接不上 host 时这里会是 `provider_unavailable` / `host_unavailable` 之类的码，
+     * 与 `ok` 分得很开。
+     */
+    it('files.list 经真实 host 应答成功', () => {
+      expect(native()?.filesList).toBe('ok');
+      // `-1` 是驱动给「这次没读到结果」留的哨兵；读到了就该是一个真实的非负数。
+      expect(native()?.filesEntryCount ?? -1).toBeGreaterThanOrEqual(0);
+    });
+
+    /**
+     * AC#12：两条拒绝码，且**分别**来自两个不同的层。
+     *
+     * @remarks
+     * `export` 是已声明的操作，走到 provider 才被拒；`clear` 没有声明，descriptor 层就该拦下。
+     * 两条答同一个码的话，说明其中一层没在做事——而那一层正是「不读 SQLite/WAL」的保证所在。
+     */
+    it('settings 的两条拒绝在真实链路上成立', () => {
+      expect(native()?.settingsExport).toBe('export_unsupported');
+      expect(native()?.settingsClear).toBe('provider_unsupported');
+    });
+
+    /**
+     * AC#13：伪造 session 的同一条请求必须被拒。
+     *
+     * @remarks
+     * 对照组就在上面那条 `files.list`——**同一个操作、同一份参数**，唯一的差别是 session。
+     * 所以这里拒掉的只可能是身份，不是操作本身不被支持。
+     */
+    it('换成伪造的 session，同一条请求被按 session 拒掉', () => {
+      // 判据取**观察到的拒绝码**而不是「没答」：拒绝以 session 级 ERROR（`requestId: null`）
+      // 回来，驱动因此要单独记它——否则这条用例只能看到一次超时，而超时与「对端挂了」
+      // 不可区分，那样的证据撑不起 AC#13 的「未授权 provider 调用为 0」。
+      expect(native()?.forgedSession).toBe('session_invalid');
+      // 对照组就在上面那条 `files.list`：**同一个操作、同一份参数**，唯一的差别是 session。
+      expect(native()?.filesList).toBe('ok');
+    });
+  });
 });

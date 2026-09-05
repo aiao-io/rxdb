@@ -65,8 +65,8 @@ pub const DEVTOOLS_PROBE_ENV: &str = "DEV_RXDB_TAURI_DEVTOOLS_PROBE";
 /// 没跟上时，报出来的是「版本对不上」，而不是一个到处都是 `undefined` 的对象。
 ///
 /// v2 起多了 [`StorageProbe`]（US-505 AC#1 / AC#3）；v3 起多了 [`DevToolsProbe`] 与
-/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）；v5 加 `devtools.relayRejected`（AC#3）。
-pub const REPORT_SCHEMA_VERSION: u32 = 5;
+/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）；v5 加 `devtools.relayRejected`（AC#3）；v6 加 `devtools.native`（阶段 2 的 wire 结论）。
+pub const REPORT_SCHEMA_VERSION: u32 = 6;
 
 /// 环境变量配错时的退出码。
 ///
@@ -217,6 +217,40 @@ pub struct DevToolsProbe {
     /// 计数而不是布尔：`0` 说明那扇窗根本没敲到门，这条用例什么都没验到——
     /// 与「敲了但被拒」是两个结论。
     pub relay_rejected: u64,
+    /// 调试窗口里的 wire 驱动跑出来的结论（US-905 阶段 2）；没装驱动时为 `None`。
+    pub native: Option<DevToolsNativeProbe>,
+}
+
+/// 真实双窗口链路上的 wire 结论（US-905 阶段 2，AC#9 / #12 / #13）。
+///
+/// # 为什么这些字段都是**错误码**而不是数据
+///
+/// 判据要的是「这条操作在真实链路上答了什么」，而不是内容本身。回显路径、字节或 SQL 绑定值
+/// 会把一份诊断报告变成一条泄漏通道（AC#13 明写响应不得含这些），而错误码是稳定、可断言、
+/// 且本来就要跨端一致的东西。
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DevToolsNativeProbe {
+    /// 驱动是否等到了握手；`false` 时其余字段无意义。
+    pub session_seen: bool,
+    /// `files.list` 的结果码；接上真实 native host 后应为 `ok`。
+    #[serde(default)]
+    pub files_list: Option<String>,
+    /// `files.list` 读到的条目数；`-1` 表示这次没读到结果。
+    #[serde(default)]
+    pub files_entry_count: Option<i64>,
+    /// 强制 `settings.export` 的结果码；恒为 `export_unsupported`（AC#12）。
+    #[serde(default)]
+    pub settings_export: Option<String>,
+    /// 未声明的 `settings.clear` 的结果码；恒为 `provider_unsupported`（AC#12）。
+    #[serde(default)]
+    pub settings_clear: Option<String>,
+    /// 伪造 session 的同一条请求的结果码；必须被拒（AC#13）。
+    #[serde(default)]
+    pub forged_session: Option<String>,
+    /// 驱动自身失败时的原因；正常跑完为 `None`。
+    #[serde(default)]
+    pub failure: Option<String>,
 }
 
 /// renderer 上报的结论，[`rxdb_selfcheck_report`] 的入参。
@@ -931,6 +965,15 @@ mod tests {
                     session_ids: vec!["a5f7c4ce-6f6f-4a6e-8f0e-2a0c9a2f5d31".to_string()],
                     handshake_completed: true,
                     relay_rejected: 1,
+                    native: Some(DevToolsNativeProbe {
+                        session_seen: true,
+                        files_list: Some("ok".to_string()),
+                        files_entry_count: Some(0),
+                        settings_export: Some("export_unsupported".to_string()),
+                        settings_clear: Some("provider_unsupported".to_string()),
+                        forged_session: Some("session_invalid".to_string()),
+                        failure: None,
+                    }),
                 }),
                 window_labels: vec!["main".to_string(), "rxdb-devtools".to_string()],
                 app_data_dir: "/tmp/root".to_string(),
@@ -954,7 +997,16 @@ mod tests {
                     "panelFrameTypes": ["PROTOCOL_HELLO", "HANDSHAKE_ACK"],
                     "sessionIds": ["a5f7c4ce-6f6f-4a6e-8f0e-2a0c9a2f5d31"],
                     "handshakeCompleted": true,
-                    "relayRejected": 1
+                    "relayRejected": 1,
+                    "native": {
+                        "sessionSeen": true,
+                        "filesList": "ok",
+                        "filesEntryCount": 0,
+                        "settingsExport": "export_unsupported",
+                        "settingsClear": "provider_unsupported",
+                        "forgedSession": "session_invalid",
+                        "failure": null
+                    }
                 },
                 "windowLabels": ["main", "rxdb-devtools"],
                 "appDataDir": "/tmp/root",
@@ -972,9 +1024,9 @@ mod tests {
     /// 忘了加这个数字的话，一份少了 `storage` 键的旧报告会被当成合法的新版读进去，
     /// 于是断言读到 `undefined` 而不是「版本对不上」。
     ///
-    /// v3 加的是 `devtools` 与 `windowLabels`（US-905 阶段 1）。
+    /// v3 加的是 `devtools` 与 `windowLabels`（US-905 阶段 1）；v6 加的是 `devtools.native`（阶段 2）。
     #[test]
     fn the_schema_version_covers_the_storage_probe() {
-        assert_eq!(REPORT_SCHEMA_VERSION, 5);
+        assert_eq!(REPORT_SCHEMA_VERSION, 6);
     }
 }

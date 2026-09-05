@@ -1,22 +1,34 @@
 import { describe, expect, it, vi } from 'vitest';
 import { watchDevToolsHandshake, type DevToolsEventSurface } from './devtools-probe';
 
-/** 造一个可以手动投帧的事件面，并记录退订调用。 */
+/**
+ * 造一个可以手动投帧的事件面，并记录退订调用。
+ *
+ * @remarks
+ * 按**事件名**分发，而不是记住最后一个 handler：观察者订的是两条独立通道
+ * （帧 `devtools:message` 与驱动汇报 `devtools:drive-result`），共用一个槽位的话，
+ * 后订的那条会把先订的挤掉，而症状是「投了帧却没人收」——一个与被测代码无关的假故障。
+ */
 const surfaceOf = (): {
   surface: DevToolsEventSurface;
   emit: (frame: unknown) => void;
+  emitNative: (result: unknown) => void;
   unlisten: ReturnType<typeof vi.fn>;
 } => {
-  let handler: ((payload: { payload: string }) => void) | null = null;
+  const handlers = new Map<string, (message: { payload: never }) => void>();
   const unlisten = vi.fn();
+  const deliver = (event: string, payload: unknown) =>
+    handlers.get(event)?.({ payload: payload as never });
   return {
     surface: {
-      listen: (_event, next) => {
-        handler = next;
+      listen: (event, next) => {
+        handlers.set(event, next as (message: { payload: never }) => void);
         return Promise.resolve(unlisten);
       }
     },
-    emit: frame => handler?.({ payload: typeof frame === 'string' ? frame : JSON.stringify(frame) }),
+    emit: frame =>
+      deliver('devtools:message', typeof frame === 'string' ? frame : JSON.stringify(frame)),
+    emitNative: result => deliver('devtools:drive-result', result),
     unlisten
   };
 };
@@ -43,7 +55,8 @@ describe('watchDevToolsHandshake', () => {
       relayRejected: 0
     });
     await Promise.resolve();
-    expect(unlisten).toHaveBeenCalledOnce();
+    // 两条通道各退一次：帧与驱动汇报是分开订的（见 surfaceOf 的说明）。
+    expect(unlisten).toHaveBeenCalledTimes(2);
   });
 
   /**
@@ -87,7 +100,8 @@ describe('watchDevToolsHandshake', () => {
       relayRejected: 0
     });
     await Promise.resolve();
-    expect(unlisten).toHaveBeenCalledOnce();
+    // 两条通道各退一次：帧与驱动汇报是分开订的（见 surfaceOf 的说明）。
+    expect(unlisten).toHaveBeenCalledTimes(2);
   });
 
   it('解不动的帧与缺 sessionId 的 ACK 都不算握手', async () => {
@@ -108,5 +122,33 @@ describe('watchDevToolsHandshake', () => {
       handshakeCompleted: false,
       relayRejected: 0
     });
+  });
+});
+
+describe('watchDevToolsHandshake — 驱动汇报通道（US-905 阶段 2）', () => {
+  it('把驱动汇报的结论交给 waitForNative，并带进快照', async () => {
+    const { surface, emitNative } = surfaceOf();
+    const watcher = watchDevToolsHandshake(surface);
+    const pending = watcher.waitForNative(50);
+
+    // 通道是独立的：驱动的结论不是协议帧，混进帧通道会让 `panelFrameTypes` 多出一个
+    // 不存在的「帧类型」，而那份列表是 AC#2 的证据。
+    await Promise.resolve();
+    emitNative({ sessionSeen: true, filesList: 'ok', settingsExport: 'export_unsupported' });
+
+    await expect(pending).resolves.toMatchObject({ sessionSeen: true, filesList: 'ok' });
+    expect(watcher.settle().native).toMatchObject({ settingsExport: 'export_unsupported' });
+    // 驱动的汇报不该被当成一帧协议消息记进去。
+    expect(watcher.settle().panelFrameTypes).toEqual([]);
+  });
+
+  it('预算内没等到汇报就返回 undefined，而不是编一份空结论', async () => {
+    const { surface } = surfaceOf();
+    const watcher = watchDevToolsHandshake(surface);
+
+    // `undefined` 与 `{ sessionSeen: false }` 是两个结论：前者说明驱动根本没装上，
+    // 后者说明装上了但没等到握手。编一份空的会把前者伪装成后者。
+    await expect(watcher.waitForNative(10)).resolves.toBeUndefined();
+    expect(watcher.settle().native).toBeUndefined();
   });
 });

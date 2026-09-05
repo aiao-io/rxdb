@@ -6,13 +6,23 @@ import {
   type DesktopHostTransport
 } from '@aiao/rxdb-adapter-tauri';
 import {
+  createDevToolsDesktopSettingsProvider,
+  createDevToolsNativeSnapshotSource,
+  createSystemClock,
+  DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT,
   getDevToolsConnector,
   type DevToolsCapability,
-  type DevToolsMutationPolicy
+  type DevToolsMutationPolicy,
+  type DevToolsSnapshotSource
 } from '@aiao/rxdb-devtools';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginStorage, type RxDBStoragePluginOptions } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
+import { createDevToolsDesktopFilesystem } from '@aiao/rxdb-plugin-storage/devtools-desktop';
+import {
+  createDevToolsStorageSnapshotPorts,
+  type DevToolsStorageSnapshotPorts
+} from '@aiao/rxdb-plugin-storage/devtools-desktop-snapshot';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -79,6 +89,80 @@ export const createDesktopStorageOptions = (transport: DesktopHostTransport): Rx
   filesystem: createDesktopStorageFilesystem({ transport })
 });
 
+/** {@link createDesktopDevToolsProviders} 的入参。 */
+export interface DesktopDevToolsProvidersOptions {
+  /**
+   * 与 Rust 宿主通信的传输层，**必须显式传入**。
+   *
+   * @remarks
+   * 而且必须是适配器与 storage 插件用的**同一个实例**：三者共用一条通道，host 侧的会话表
+   * 才知道它们同属一个窗口，窗口销毁时才回收得干净。
+   */
+  readonly transport: DesktopHostTransport;
+  /**
+   * 取文件存储服务；**延迟调用**。
+   *
+   * @remarks
+   * 传函数而不是实例：`rxdb.storage` 要等 `connect()` 才挂上，而 connector 在 `init()` 时
+   * 就已经装配好了。这里先读一次存起来的话，快照拿到的是一个还没连上的 storage。
+   */
+  readonly getStorage: () => DevToolsStorageSnapshotPorts['storage'];
+}
+
+/**
+ * 装配 Tauri 桌面端的 DevTools provider 端口（US-905 阶段 2）。
+ *
+ * @param options - 共享 transport 与延迟取 storage 的入口
+ * @returns 可直接交给 `getDevToolsConnector({ providers })` 的端口集
+ *
+ * @remarks
+ * 与 Electron 侧（`apps/dev-rxdb-electron/src/app/setup_rxdb_desktop.ts`）同构：`files` 走
+ * US-505 的桌面 host（`kind: 'native-files'`），`settings` 是 `sqlite` 语义，三个领域的
+ * descriptor 都显示 `runtime: 'tauri'`（AC#10）。共享包一行没复制——两端用的是同一个
+ * `createDevToolsDesktopFilesystem` / `createDevToolsNativeSnapshotSource`。
+ *
+ * 与 Electron 的两处差别，都是 Tauri 的结构性事实：
+ *
+ * 1. **transport 必须显式传**。Electron 的桌面 host 桥接挂在 preload 的全局键上，省略即可；
+ *    Tauri 没有 preload 那一层，省略只会在用户第一次点上传时得到 `host_unavailable`。
+ * 2. **要自己接 `pagehide → dispose()`**（AC#14）。主窗口**刷新**不触发 Rust 的
+ *    `WindowEvent::Destroyed`，host 因此不回收，每刷一次泄一条 host 文件会话——连同它的
+ *    挂起写入与锁，而一把没放掉的独占锁会让后来者的 `lockAcquire` 永远等下去。用
+ *    `pagehide` 而不是 `beforeunload`：后者在 WKWebView 上不可靠。`dispose()` 幂等。
+ *
+ * 单独导出是为了可测：装配点在 `default` 里要先建一个真 RxDB 才够得着，而这里要验的
+ * 三件事（走的是注入的 transport、runtime 三处一致、刷新时释放会话）与 RxDB 无关。
+ */
+export const createDesktopDevToolsProviders = (options: DesktopDevToolsProvidersOptions) => {
+  const filesystem = createDevToolsDesktopFilesystem({
+    // 与 storage 插件同一个常量：两边看到的必须是同一批文件，而不是同名的两个目录。
+    rootDir: DESKTOP_STORAGE_ROOT_DIR,
+    transport: options.transport
+  });
+
+  // AC#11：诊断快照的物化来源。复用 storage 自己的独占锁，metadata 与已提交文件两半
+  // 因此落在同一个时点。
+  const snapshot: DevToolsSnapshotSource = {
+    capture: signal =>
+      createDevToolsNativeSnapshotSource(
+        createDevToolsStorageSnapshotPorts({ storage: options.getStorage(), filesystem })
+      ).capture(signal)
+  };
+
+  globalThis.addEventListener('pagehide', () => filesystem.dispose(), { once: true });
+
+  return {
+    nativeFiles: {
+      filesystem,
+      // 与 Electron 同值：两端走的是同一份桌面 host 协议，没有理由各定一个上限。
+      maxTransferBytes: DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT,
+      snapshot: { clock: createSystemClock(), source: snapshot }
+    },
+    settings: createDevToolsDesktopSettingsProvider('tauri'),
+    runtime: 'tauri' as const
+  };
+};
+
 /**
  * 构建本 app 的 RxDB 单例（Tauri 宿主持有的应用作用域 SQLite 文件，无远端同步）。
  *
@@ -142,14 +226,14 @@ export default () => {
 
   rxdb.init();
 
-  // US-905 阶段 1：把页内 connector 接到 Tauri transport。阶段 1 只用真实 `database`
-  // provider（走 v2 数据面）；native files/settings 是阶段 2 接 US-210/US-505 才给。
-  //
+  // US-905 阶段 2：把页内 connector 接到 Tauri transport 与**真实**原生后端。
   // 授权档（capability / mutationPolicy）由 Rust 侧的注入脚本在页面脚本之前放好，
   // 展开进来即可 —— 缺省时是空对象，交回库默认档。
   const devtools = getDevToolsConnector({
     ...devToolsRuntimeConfig(),
-    transport: createTauriConnectorTransport()
+    transport: createTauriConnectorTransport(),
+    // storage 延迟取：`rxdb.storage` 要等 `connect()` 才挂上，而这里还在 `init()` 之后一步。
+    providers: createDesktopDevToolsProviders({ transport, getStorage: () => rxdb.storage })
   });
   devtools.init(rxdb, getEntityMetadata);
 
