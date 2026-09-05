@@ -233,6 +233,43 @@ export interface DevToolsNativeProbe {
   readonly createDirectory?: string;
   /** 删除的结果码；只读档下同样是 `provider_unsupported`。 */
   readonly deleteEntry?: string;
+  /**
+   * 多块上传的结果码（AC#10 的字节面）。
+   *
+   * @remarks
+   * `ok` 只说明**帧已发出**：阶段 B 的 wire 里成功的上传是静默的，`TRANSFER_COMPLETE`
+   * 之后 connector 什么都不回。「确实提交了、且提交的正是那些字节」由
+   * {@link DevToolsNativeProbe.bytesMatch} 与 e2e 自己读盘各证一遍。
+   */
+  readonly uploadBytes?: string;
+  /** 那次上传实际发出的 `TRANSFER_CHUNK` 帧数；`-1` 表示没走到那一步。 */
+  readonly uploadChunks?: number;
+  /** 把刚上传的文件读回来的结果码；上传没成立时复述上传的码。 */
+  readonly downloadBytes?: string;
+  /** 读回来的字节与送出去的是否逐字节相同。 */
+  readonly bytesMatch?: boolean;
+  /** 零字节上传的结果码（AC#10 的边界用例）。 */
+  readonly emptyUpload?: string;
+  /** `path: '..'` 的上传的结果码；恒为 `invalid_path`。 */
+  readonly escapedUpload?: string;
+  /** 送了一块真实字节之后取消的那次上传的结果码。 */
+  readonly cancelledUpload?: string;
+  /**
+   * 取消之后再去下载那个路径的结果码；必须是 `resource_not_found`。
+   *
+   * @remarks
+   * 「没有半写文件」的判据经 wire 取而不是 e2e 读盘：读盘只能证明这台机器上那个位置是空的，
+   * 而 AC#10 问的是**面板看得到什么**。
+   */
+  readonly cancelledFile?: string;
+  /**
+   * 全部动作跑完时，存储根里还剩几个 host 的未提交临时文件（`.rxdb-tmp`）。
+   *
+   * @remarks
+   * 必须由驱动在**进程还活着的时候**数：自检一上报 Rust 就 `app.exit`，而驱动在一个进程里
+   * 跑两代，第二代随时可能被那次退出打断——它留下的临时文件与「取消没清干净」在盘上同形。
+   */
+  readonly tempResidue?: number;
   /** 驱动自身失败时的原因；正常跑完为 `null`。 */
   readonly failure?: string | null;
 }

@@ -67,8 +67,7 @@ export function devToolsRuntimeConfig(): {
   mutationPolicy?: DevToolsMutationPolicy;
 } {
   const config = (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY] as
-    | { capability: DevToolsCapability; mutationPolicy: DevToolsMutationPolicy }
-    | undefined;
+    { capability: DevToolsCapability; mutationPolicy: DevToolsMutationPolicy } | undefined;
   return config === undefined ? {} : { capabilities: config.capability, mutationPolicy: config.mutationPolicy };
 }
 

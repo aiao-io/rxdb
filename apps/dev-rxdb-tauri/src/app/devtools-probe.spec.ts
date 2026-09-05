@@ -22,8 +22,7 @@ const surfaceOf = (): {
 } => {
   const handlers = new Map<string, (message: { payload: never }) => void>();
   const unlisten = vi.fn();
-  const deliver = (event: string, payload: unknown) =>
-    handlers.get(event)?.({ payload: payload as never });
+  const deliver = (event: string, payload: unknown) => handlers.get(event)?.({ payload: payload as never });
   return {
     surface: {
       listen: (event, next) => {
@@ -31,8 +30,7 @@ const surfaceOf = (): {
         return Promise.resolve(unlisten);
       }
     },
-    emit: frame =>
-      deliver('devtools:message', typeof frame === 'string' ? frame : JSON.stringify(frame)),
+    emit: frame => deliver('devtools:message', typeof frame === 'string' ? frame : JSON.stringify(frame)),
     emitNative: result => deliver('devtools:drive-result', result),
     unlisten
   };
@@ -292,10 +290,7 @@ describe('mergeDevToolsProbeRounds', () => {
   });
 
   it('刷新前一条结论都没有时就报没有，不拿掉队的那一份充数', () => {
-    const merged = mergeDevToolsProbeRounds(
-      snapshot(),
-      snapshot({ native: { sessionSeen: true, keptDirSeen: true } })
-    );
+    const merged = mergeDevToolsProbeRounds(snapshot(), snapshot({ native: { sessionSeen: true, keptDirSeen: true } }));
 
     // 「这一代没跑出结论」与「另一代跑出来了」是两件事；混起来的那份快照没人能反推回去。
     expect(merged.native).toBeUndefined();

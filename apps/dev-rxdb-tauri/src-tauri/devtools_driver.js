@@ -21,7 +21,9 @@
  *
  * AC#15 的跨重启比对也不需要控制通道：两次启动跑的是**同一份**脚本，差别全在盘上——
  * 驱动只要在动手之前先看一眼世界（`keptDirSeen` / `launchRowCount`），比对由 e2e 去做。
- * 动作集要扩大时再谈控制通道（AC#10 的 DOM 操作）。
+ * AC#10 的字节面同样是固定动作（上传 → 读回 → 逐字节比），也不需要。
+ * 真要控制通道的是 AC#10 剩下的那一半：面板 UI 得显示 `runtime: tauri`，而那要驱动**面板的
+ * DOM**，不是驱动 wire。
  *
  * # 为什么直接用 `__TAURI_INTERNALS__`
  *
@@ -57,14 +59,41 @@
    * 只是答「还没有」。见 {@link listRootWhenReady}。
    */
   const ROOT_READY_TIMEOUT_MS = 8000;
+  /** 等一次已发出的提交落到盘上的上限；同样是宽限而不是请求超时。 */
+  const COMMIT_READY_TIMEOUT_MS = 4000;
+  /** 等 host 的临时产物出现 / 清干净的上限。 */
+  const TEMP_SETTLE_TIMEOUT_MS = 4000;
   /** 两次重试之间的间隔。 */
-  const ROOT_POLL_MS = 100;
-  /** 「存储根还不在盘上」的错误码，与 Rust 侧 `ErrorCode::ResourceNotFound` 的线上形态一致。 */
-  const ROOT_MISSING_CODE = 'resource_not_found';
+  const RETRY_POLL_MS = 100;
+  /** 「还不在盘上」的错误码，与 Rust 侧 `ErrorCode::ResourceNotFound` 的线上形态一致。 */
+  const MISSING_CODE = 'resource_not_found';
   /** 写入用例留在盘上的目录名；e2e 独立去磁盘上核对它在不在。 */
   const KEPT_DIR = 'drv-kept';
   /** 建了就删的目录名，用来走一遍 delete。 */
   const TEMP_DIR = 'drv-temp';
+  /** 字节往返的目标名；三个各管一件事，e2e 分别到盘上核对。 */
+  const BYTES_FILE = 'drv-bytes.bin';
+  /** 零字节上传的目标名（AC#10 的边界用例）。 */
+  const EMPTY_FILE = 'drv-empty.bin';
+  /** 送了一块真实字节之后取消的那次上传的目标名；它**不该**出现在盘上。 */
+  const CANCELLED_FILE = 'drv-cancelled.bin';
+  /**
+   * host 未提交写入留在盘上的临时文件后缀。
+   *
+   * 与 Rust 侧 `write_begin` 的 `.{write_id}.rxdb-tmp` 一致，且 `list_path` 不过滤点开头的
+   * 名字、`decodePhysicalName` 对它是恒等映射——所以经 `files.list` 就能把它数出来。
+   */
+  const TEMP_SUFFIX = '.rxdb-tmp';
+  /** 往返载荷的字节数。 */
+  const PAYLOAD_BYTES = 700;
+  /**
+   * 驱动自己的分块大小。
+   *
+   * AC#10 要的是「全程流式」，而一帧装完全部载荷同样能让字节对上——那正是流式没接通的形态。
+   * 700 / 256 因此恒为 3 帧，e2e 直接钉这个数。协议只要求 1 ≤ 块长 ≤ 256 KiB，选小的那头
+   * 是为了不把几百 KB 的 base64 推过 Tauri IPC。
+   */
+  const CHUNK_BYTES = 256;
   /**
    * 跨重启比对用的实体名（AC#15），与 `src/app/desktop-launch.entity.ts` 的 `@Entity({ name })` 一致。
    *
@@ -91,6 +120,22 @@
    */
   let lastSessionError = null;
   let sequence = 1000;
+  /** 传输 id 的计数器；与 `sequence` 分开，读日志时一眼能分出「第几条传输」。 */
+  let transfers = 0;
+  /**
+   * 等待者结算之后才到的 ERROR，按 requestId 记。
+   *
+   * @remarks
+   * 上传的失败**挂在上传那条 REQUEST 的 requestId 上**（端点里 `#onTransferChunk` /
+   * `#settleTransferFrame` 都用它归因），可那个 requestId 早在 RESPONSE 到达时就被结算掉了。
+   * 不单独记的话，一次被拒的传输在驱动这侧完全静默——与一次成功的上传同形，
+   * 而成功的上传在 wire 上本来就是静默的。
+   */
+  const strayErrors = new Map();
+  /** @type {Map<string, {chunks: Uint8Array[], settle: (code: string) => void}>} 下载的 requestId → 字节收集器。 */
+  const pendingDownloads = new Map();
+  /** @type {Map<string, string>} 入站 transferId → 它属于哪条下载。 */
+  const inboundTransfers = new Map();
 
   function invoke(command, payload) {
     return internals.invoke(command, payload);
@@ -262,8 +307,7 @@
       filesEntryCount: files.outcome === 'ok' ? entriesOf(files).length : -1,
       keptDirSeen: keptDirSeen,
       databaseQuery: codeOf(launches),
-      launchRowCount:
-        launches.outcome === 'ok' && launches.result ? (launches.result.documents || []).length : -1,
+      launchRowCount: launches.outcome === 'ok' && launches.result ? (launches.result.documents || []).length : -1,
       settingsExport: codeOf(settingsExport),
       settingsClear: codeOf(settingsClear),
       forgedSession: forgedCode,
@@ -286,27 +330,29 @@
     event: MESSAGE_EVENT,
     target: { kind: 'Webview', label: DEVTOOLS_LABEL },
     handler: internals.transformCallback(onFrame)
-  })['catch'](function (error) {
-    beacon('listen-failed:' + String(error));
-    throw error;
-  }).then(function () {
-    beacon('listening');
-    const started = Date.now();
-    // `const` 而不是 `let`：回调里要引用它自己来 `clearInterval`，而 TDZ 只在**求值时刻**
-    // 生效——回调最早也要等到第一个 tick 才跑，那时绑定早已完成。
-    const tick = setInterval(function () {
-      if (sessionId === null) {
-        if (Date.now() - started < BUDGET_MS) return;
+  })
+    ['catch'](function (error) {
+      beacon('listen-failed:' + String(error));
+      throw error;
+    })
+    .then(function () {
+      beacon('listening');
+      const started = Date.now();
+      // `const` 而不是 `let`：回调里要引用它自己来 `clearInterval`，而 TDZ 只在**求值时刻**
+      // 生效——回调最早也要等到第一个 tick 才跑，那时绑定早已完成。
+      const tick = setInterval(function () {
+        if (sessionId === null) {
+          if (Date.now() - started < BUDGET_MS) return;
+          clearInterval(tick);
+          // 汇报「没等到握手」而不是静默：空着回去与「驱动根本没装上」在 e2e 上不可区分。
+          void emitToMain({ sessionSeen: false });
+          return;
+        }
         clearInterval(tick);
-        // 汇报「没等到握手」而不是静默：空着回去与「驱动根本没装上」在 e2e 上不可区分。
-        void emitToMain({ sessionSeen: false });
-        return;
-      }
-      clearInterval(tick);
-      beacon('session-seen');
-      run().then(emitToMain, function (error) {
-        void emitToMain({ sessionSeen: true, failure: String(error) });
-      });
-    }, 50);
-  });
+        beacon('session-seen');
+        run().then(emitToMain, function (error) {
+          void emitToMain({ sessionSeen: true, failure: String(error) });
+        });
+      }, 50);
+    });
 })();

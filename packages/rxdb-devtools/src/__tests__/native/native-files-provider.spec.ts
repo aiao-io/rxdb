@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DevToolsProviderRuntime } from '../../provider/descriptor.js';
 import { createDevToolsNativeFilesProvider } from '../../native/native-files-provider.js';
+import type { DevToolsProviderRuntime } from '../../provider/descriptor.js';
 import { DEVTOOLS_MAX_INFLIGHT_REQUESTS } from '../../v2/constants.js';
 import { createFakeNativeFilesystem, expectedBytes, type FakeNativeFilesystem } from './fake-native-filesystem.js';
 
@@ -385,7 +385,11 @@ describe('native files provider — create-directory and delete', () => {
 describe('native files provider — error mapping', () => {
   it('MUST map a host errno onto a shared provider code and carry no message', async () => {
     const filesystem = createFakeNativeFilesystem();
-    const provider = createDevToolsNativeFilesProvider({ filesystem, maxTransferBytes: MAX_TRANSFER_BYTES, runtime: 'electron' });
+    const provider = createDevToolsNativeFilesProvider({
+      filesystem,
+      maxTransferBytes: MAX_TRANSFER_BYTES,
+      runtime: 'electron'
+    });
     filesystem.seedDirectory(['db']);
     // 宿主抛 EACCES；provider 不得把 errno、路径或消息透传上 wire。
     filesystem.list = () => Promise.reject(Object.assign(new Error('denied /Users/someone/db'), { code: 'EACCES' }));
@@ -397,7 +401,11 @@ describe('native files provider — error mapping', () => {
 
   it('MUST fall back to operation_failed for an unregistered host error', async () => {
     const filesystem = createFakeNativeFilesystem();
-    const provider = createDevToolsNativeFilesProvider({ filesystem, maxTransferBytes: MAX_TRANSFER_BYTES, runtime: 'electron' });
+    const provider = createDevToolsNativeFilesProvider({
+      filesystem,
+      maxTransferBytes: MAX_TRANSFER_BYTES,
+      runtime: 'electron'
+    });
     filesystem.seedDirectory(['db']);
     filesystem.list = () => Promise.reject(new Error('something went wrong at /Users/someone'));
 
