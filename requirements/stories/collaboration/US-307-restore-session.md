@@ -5,7 +5,7 @@ status: Backlog
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-08-22
+updated: 2026-09-06
 tags: [collaboration, restore, history, persistence, angular, react, vue]
 ---
 
@@ -106,7 +106,7 @@ INVEST 检查清单:
 - **FR-013**：系统 MUST 支持将可达历史 commit 恢复到当前工作树；恢复默认不移动 HEAD、不删除历史，并将恢复会话持久化。
 - **FR-014**：系统 MUST 在恢复前检测 dirty 工作树；未显式处理未提交变更时，恢复操作必须拒绝并保持原状。判定口径只有 clean / dirty 两态。
 - **FR-015**：系统 MUST 把恢复结果写成普通的 `WorkingTreeEntry`，与用户手写的变更同形、同表、同 revision 轴，不存在「已恢复但未暂存」这一额外状态。用户随后用 `commit(message)` 把当前工作树整体落成新 commit；`commit()` MUST NOT 接受任何只提交恢复结果子集的参数。生成的新 commit 不得改写被恢复的历史节点，并须与 restore session 的 `committed` 转换原子提交。
-- **FR-026b**（已改口径，见 [epic-006](../../epics/epic-006-working-tree-commits.md)）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit 下，以 5 次 warmup、50 次采样恢复含 100 个完整变更单元的 `HEAD~1` 并记录 runner profile。普通 CI 以归一化 ratio 不超过 reference median 的 110% 为硬门禁；promise resolve 的 p95 不高于 1 s 只在 `runnerProfileHash` 匹配 reference 的固定性能 runner 上作为发布硬门禁。
+- **FR-026b**（口径见 [epic-006 性能预算的口径](../../epics/epic-006-working-tree-commits.md#性能预算的口径)）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit 下，以 5 次 warmup、50 次采样恢复含 100 个完整变更单元的 `HEAD~1` 并记录 runner profile。普通 CI 以归一化 ratio 不超过 reference median 的 110% 为硬门禁；promise resolve 的 p95 不高于 1 s 只在 `runnerProfileHash` 匹配 reference 的固定性能 runner 上作为发布硬门禁。
 - **FR-033**：v1 只允许恢复当前分支 HEAD 沿父链可达的 commit。系统 MUST 在任何持久写入前选定确定性的物化路径，并校验该路径每个 ChangeSet 涉及实体的 schema fingerprint manifest 与 change codec version 均与当前客户端完全相等；v1 不提供跨 schema/codec patch 转换。拒绝时所有持久状态 MUST 零变化。
 - **FR-034**：restore / discard MUST 在同一数据库事务内校验 active branch token 与 expected head、working tree revision。初次 restore 要求工作树 clean，成功只递增 working-tree revision。初次 restore CAS 失败时全部回滚且不创建 session；已有 session 的 commit/discard CAS 失败时保留工作树和 session，并由 expected/actual revision 派生 conflicted，不得自动选择任一 writer 的状态。恢复会话上的 commit 与普通 commit 一样是**调用方捕获型** `workingTreeRevision` CAS（见 [US-306 FR-031](./US-306-working-tree-commits.md)）：其他 realm 在 restore 之后、commit 之前写入工作树时返回 `CommitConflict`，MUST NOT 为了让恢复结果顺利落盘而放宽该校验。
 - **FR-042**：restore 产生的完整 diff 为空时 MUST 返回 no-op，不创建 `WorkingTreeRestoreSession` 或 `WorkingTreeEntry`，也不递增任何 revision。

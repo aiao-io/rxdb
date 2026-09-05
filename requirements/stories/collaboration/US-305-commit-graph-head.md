@@ -5,8 +5,12 @@ status: Backlog
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-09
-updated: 2026-09-05
+updated: 2026-09-06
 tags: [collaboration, commit, head, persistence, migration]
+inherited_acs:
+  - from: US-306
+    ac: US1-AC3
+    note: baseline 不含 Workspace NEW 草稿的半边，由本故事 AC US2-6 收口
 ---
 
 <!--
@@ -246,10 +250,13 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 
 ## 实现文件（计划阶段待确认）
 
-- `packages/rxdb/src/version/` — commit 图、HEAD 与分支引用
-- `packages/rxdb/src/system/` — commit 元数据表与迁移
-- `packages/rxdb/src/__tests__/version/` — 核心回归套件
-- `requirements/api-baseline/rxdb.json`
+| 路径                                   | 阶段 | 用途                                                 |
+| -------------------------------------- | ---- | ---------------------------------------------------- |
+| `packages/rxdb/src/version/`           | A    | commit 图、HEAD 与分支引用                           |
+| `packages/rxdb/src/system/`            | A    | commit 元数据表                                      |
+| `packages/rxdb/src/system/`            | B    | 首次启用迁移、baseline、`WorkingTreeActivationState` |
+| `packages/rxdb/src/__tests__/version/` | A/B  | 核心回归套件                                         |
+| `requirements/api-baseline/rxdb.json`  | A/B  | 新增公开类型登记                                     |
 
 ## 依赖与参考
 
