@@ -38,8 +38,13 @@ export interface DevToolsStorageSnapshotHost {
   readonly changeEpoch: number;
   /** 读取全部 metadata 行。 */
   listAllMetas(): Promise<readonly StorageFileMeta[]>;
-  /** 在 storage 全局独占锁内执行 `fn`，与全部写操作互斥。 */
-  runExclusive<T>(fn: () => Promise<T>): Promise<T>;
+  /**
+   * 在 storage 全局独占锁内执行 `fn`，与全部写操作互斥。
+   *
+   * @param fn - 临界区
+   * @param signal - 等锁期间中止则放弃获取并拒绝；`fn` 不得执行
+   */
+  runExclusive<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T>;
 }
 
 /** {@link createDevToolsStorageSnapshotPorts} 的入参。 */
@@ -91,10 +96,11 @@ export function createDevToolsStorageSnapshotPorts(ports: DevToolsStorageSnapsho
     async run(signal, task) {
       if (signal.aborted) return { outcome: 'aborted' };
       try {
+        // signal 一并交给锁：等锁阶段就要能被打断，而不是拿到锁之后才发现已经取消。
         const value = await storage.runExclusive(() => {
           signal.throwIfAborted();
           return task();
-        });
+        }, signal);
         return { outcome: 'held', value };
       } catch (error) {
         // 锁等待或任务中途被 abort，一律报 aborted；其余错误照抛（来源据此作废重试）。

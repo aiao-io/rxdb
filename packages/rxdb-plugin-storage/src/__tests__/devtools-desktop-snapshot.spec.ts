@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createDevToolsDesktopFilesystem, type DevToolsDesktopFilesystem } from '../devtools-desktop-filesystem.js';
 import { createDevToolsStorageSnapshotPorts, type DevToolsStorageSnapshotHost } from '../devtools-desktop-snapshot.js';
 import type { StorageFileMeta } from '../file-meta.entity.js';
+import { PathLockManager } from '../path-lock.js';
 
 let workspace: string;
 let host: ElectronFileHost;
@@ -160,5 +161,66 @@ describe('createDevToolsStorageSnapshotPorts — 独占锁', () => {
     });
 
     await expect(ports.lock.run(controller.signal, async () => 'never')).resolves.toEqual({ outcome: 'aborted' });
+  });
+
+  // 契约：等锁必须响应 signal。真实 `PathLockManager` 做持锁者，快照 waiter 排在后面被 abort。
+  it('等锁期间 signal 中止：立刻返回 aborted，任务永不执行', async () => {
+    const locks = new PathLockManager();
+    const controller = new AbortController();
+    let ran = false;
+    let releaseHolder!: () => void;
+    const holder = locks.withPaths(
+      ['busy.txt'],
+      () =>
+        new Promise<void>(resolve => {
+          releaseHolder = resolve;
+        })
+    );
+    const ports = createDevToolsStorageSnapshotPorts({
+      storage: mockStorage({ runExclusive: (fn, signal) => locks.withExclusive(fn, signal) }),
+      filesystem
+    });
+
+    const waiting = ports.lock.run(controller.signal, async () => {
+      ran = true;
+      return 'never';
+    });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    controller.abort();
+
+    await expect(waiting).resolves.toEqual({ outcome: 'aborted' });
+    releaseHolder();
+    await holder;
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(ran).toBe(false);
+  });
+
+  it('未中止的等待者在持锁者释放后照常执行', async () => {
+    const locks = new PathLockManager();
+    const log: string[] = [];
+    let releaseHolder!: () => void;
+    const holder = locks.withPaths(['busy.txt'], async () => {
+      log.push('holder:start');
+      await new Promise<void>(resolve => {
+        releaseHolder = resolve;
+      });
+      log.push('holder:end');
+    });
+    const ports = createDevToolsStorageSnapshotPorts({
+      storage: mockStorage({ runExclusive: (fn, signal) => locks.withExclusive(fn, signal) }),
+      filesystem
+    });
+
+    const waiting = ports.lock.run(new AbortController().signal, async () => {
+      log.push('snapshot');
+      return 1;
+    });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(log).toEqual(['holder:start']);
+
+    releaseHolder();
+    await expect(waiting).resolves.toEqual({ outcome: 'held', value: 1 });
+    await holder;
+    expect(log).toEqual(['holder:start', 'holder:end', 'snapshot']);
   });
 });

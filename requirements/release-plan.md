@@ -68,14 +68,14 @@
      ① 桥接版本会算成 **minor bump（`0.1.0`）而不是 `0.0.26`**——只要区间里有一条 `feat` 就成立，不会自己变回 patch；
      ② 该区间**包含已随 0.0.25 发布过的提交**（`feat(rxdb): 完善桌面端访问本地 sqlite 的能力`、
      `feat(rxdb): 优化字段语义与前端通信契约` 等），**changelog 会把 0.0.25 已发的内容再写一遍**，需人工裁剪；
-     ③ `cleanup(...)` 不在 nx 的类型映射里，这 4 条对版本号贡献为零、changelog 也不记——要么把 `cleanup`
-     加进 `nx.json` 的 `conventionalCommits.types`，要么后续 PR 标题改用 `refactor`。
+     ③ `cleanup(...)` 已加进 `nx.json` 的 `release.conventionalCommits.types`：`semverBump: none`、changelog 单列一节，
+     这 4 条对版本号仍贡献为零但不再从 changelog 消失；`__INVALID__`（非规范标题）同样只进 changelog 不 bump。
      先跑 `pnpm nx release version --dry-run` 看真实输出再决定，
      见 [roadmap 零散收尾项第 1 条](roadmap.md#零散收尾项不成故事随手可带)。
 
 ### 执行顺序
 
-0. ~~**补齐门禁的 git 钩子面**~~ **已完成**（不依赖发布，已随本轮落地）：`migration-release-gate`
+0. **门禁的 git 钩子面已挂进 PR CI**（不依赖发布）：`migration-release-gate`
    已挂进 PR CI 的 `setup` job（`ci-template.yml` 的 “Migration release manifest gate”），**不带**
    `--release-tag`，用真实 git 执行 `bridgeTagExists` / `bridgeTagIsAncestor` /
    `bridgeTagSupportsProtocol`——单测里这三条被 `passingHooks` 桩掉，此前只在打 tag 时跑过。

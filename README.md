@@ -39,7 +39,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri               |
 
 > [!NOTE]
-> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [54/64 已交付](requirements/status-overview.md)
+> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [55/65 已交付](requirements/status-overview.md)
 
 支持与反馈：可复现的 bug 请提交 [Bug Issue](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml)，功能建议提交 [Feature Issue](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml)，使用问题请提交 [Question Issue](https://github.com/aiao-io/rxdb/issues/new?template=question.yml)。
 
@@ -67,55 +67,62 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 - [powersync-js](https://github.com/powersync-ja/powersync-js)
 - [zero](https://zero.rocicorp.dev/)
 
+## 5 分钟跑通
+
+```bash
+pnpm add @aiao/rxdb @aiao/rxdb-adapter-pglite @electric-sql/pglite   # 浏览器内 PostgreSQL；SQLite 见文档
+pnpm add @aiao/rxdb-react                                            # 或 @aiao/rxdb-angular / @aiao/rxdb-vue
+```
+
+```ts
+import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
+import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
+import { PGlite } from '@electric-sql/pglite';
+
+@Entity({
+  name: 'Todo',
+  properties: [
+    { name: 'title', type: PropertyType.string, required: true },
+    { name: 'completed', type: PropertyType.boolean, default: false }
+  ]
+})
+export class Todo extends EntityBase {}
+
+const rxdb = new RxDB({
+  dbName: 'demo',
+  entities: [Todo],
+  sync: { local: { adapter: 'pglite' }, type: SyncType.None }
+});
+rxdb.adapter(
+  'pglite',
+  async db => new RxDBAdapterPGlite(db, await PGlite.create({ dataDir: `idb://rxdb-${db.dbName}` }))
+);
+await rxdb.connect('pglite');
+
+const todo = new Todo();
+todo.title = '读完 README';
+await todo.save(); // 同一份声明已生成表、类型与 Repository
+```
+
+```tsx
+import { useFind } from '@aiao/rxdb-react'; // Angular / Vue 同名 API
+
+const { value: todos, isLoading } = useFind(Todo, {
+  where: { combinator: 'and', rules: [{ field: 'completed', operator: '=', value: false }] }
+});
+```
+
+写入后 `todos` 自动更新，跨 Tab 同样生效。完整接线（Worker / WASM 路径 / 框架 provider）见[快速开始](https://rxdb.netlify.app/docs/getting-started/)。
+
 ## 现在有什么？
 
-当前仓库已经包含以下核心模块：
+一句话版本，细节与「哪些组合不支持」见 [能力矩阵](requirements/capability-matrix.md)：
 
-**核心引擎**
-
-- 装饰器驱动模型定义：`@Entity` / `@TreeEntity` 一处声明 `properties` / `relations` / `indexes`，自动生成 DDL 与 TypeScript 类型
-- 客户端代码生成：ts-morph 驱动的 Repository + 查询构建器，类型安全、零样板代码
-- 响应式查询：RxJS Observable → Angular Signals / React Hooks / Vue Composables
-- CRUD + 事务：原子批量操作、upsert、乐观锁、嵌套 save
-- 关系映射：1:1 / 1:N / N:1 / M:N 自动中间表，级联查询与变更
-- 变更追踪：patch / inversePatch，支撑撤销/重做与版本控制
-- 跨 Tab 同步：BroadcastChannel + leader election，多 Tab 数据一致
-- 远程查询缓存：`SyncType.QueryCache` 生产接线，SWR SQL / orphan 清理 / 指纹含模式，远端失效通知清记忆并重跑活查询
-- 高级类型：bigint（64 位有符号）与 binary（Uint8Array），全链路无损
-- 树形数据：`@TreeEntity` + TreeRepository（路径唯一性、拖拽排序），核心包内建
-
-**存储适配器**
-
-- wa-sqlite / sqlite-wasm / sqlite（官方）：浏览器端 SQLite，共享 `sqlite-core` 抽象
-- sqliteai：向量存储 + AI 内建函数（embedding、相似度）
-- PGlite：WASM PostgreSQL，完整 PG 生态
-- electron：Electron 主进程 `node:sqlite` 持有应用私有目录里的真实 SQLite 文件，renderer 零文件系统权限
-- tauri：Rust `rusqlite` 宿主持有应用作用域 SQLite 文件，普通 crate 发布、应用自己注册 command
-- Supabase：PostgREST + Realtime + RPC 推送，远程同步
-- http：远端权威 HTTP API + 本地 sqlite 行缓存（QueryCache），handlers 协议 mapping、ETag 条件请求、可选 SSE 变更通知（缺省关闭）
-- 加密包装器：AES-GCM-256 + WebCrypto，对上层透明的字段级加解密
-- 小程序：微信小程序逻辑层本地持久化与响应式查询（**实验性**，仅微信，强制单连接，不保证崩溃恢复）
-
-**插件生态**
-
-- 图数据：`@GraphEntity` + GraphRepository（节点/边管理、拓扑遍历）
-- 全文搜索：FTS5 + reactive refresh + adapter guard，Angular / React / Vue 三端绑定
-- 文件存储：OPFS 文件管理，元数据由 RxDB 托管，上传/下载/预览/watch
-- 工作区：staging / commit / restore 工作流
-
-**协作与安全**
-
-- 版本控制：Git-like 分支、合并、切换，变更压缩
-- 撤销/重做：inversePatch + transactionId 分组，跨 session 持久化
-- Supabase 同步：RPC 推送 + PostgREST + Realtime 订阅，本地优先远端同步
-- HTTP 同步：远端权威 HTTP + 本地行缓存，翻页/分块、ETag 条件请求、SSE 变更推送（可选，缺省关闭）
-- 字段级加密：透明加解密，加密字段不进 FTS 索引，历史快照自动脱敏
-
-**UI 与工具**
-
-- Code Editor：CodeMirror 6 跨框架编辑器，Angular / React / Vue 三端
-- DevTools：运行时调试面板 + Chrome 扩展，实体浏览、查询监控、变更回放
-- 多端演示：Web / HTTP / Supabase / Electron / Tauri，覆盖全部运行时
+- **核心引擎**：装饰器实体 → DDL + 类型 + Repository；关系映射（含 M:N 中间表）、事务、变更追踪、跨 Tab 同步、树形实体、bigint / binary、远端 QueryCache 行缓存。
+- **存储适配器**：浏览器 SQLite 三种（wa-sqlite / sqlite-wasm / 官方 sqlite）、sqliteai（向量）、PGlite、Electron `node:sqlite`、Tauri `rusqlite`、Supabase、HTTP；字段级加密内建；微信小程序**实验性**。
+- **插件**：图数据、全文搜索（FTS5 / pg tsvector，三端绑定）、文件存储（OPFS 与桌面目录）、工作区（NEW 草稿的本地缓存，刷新不丢未保存的新实体）。
+- **协作**：Git 式分支 / 合并 / 切换、撤销重做、Supabase 与 HTTP 同步、加密字段不进索引与历史。
+- **UI 与工具**：CodeMirror 6 编辑器三端组件、DevTools 面板 + Chrome 扩展 + Electron / Tauri 原生存储调试。
 
 对应文档（线上站：[rxdb.netlify.app](https://rxdb.netlify.app)）：
 
@@ -223,7 +230,6 @@ aiao/
 
 ### 进行中
 
-- 🚧 **DevTools 原生本地存储调试**（[US-904](requirements/stories/future/US-904-devtools-native-storage-contract.md)）— 阶段 A～D 均已落地，剩 AC#52 之外的少数 E2E 侧断言与人工浏览器回归
 - 🚧 **Tauri DevTools 调试窗口**（[US-905](requirements/stories/future/US-905-tauri-native-devtools.md)）— 阶段 1 代码侧收尾完成，差驱动两个真实 WebView 的 harness；阶段 2 前置已齐
 - 🚧 **Electron 桌面端 DevTools 面板的开发者可用路径**（[US-906](requirements/stories/future/US-906-electron-devtools-developer-path.md)）— 6 条 AC 关 5，剩人工验收
 - 👀 **插件依赖声明与按需装卸**（[US-015](requirements/stories/core/US-015-plugin-inject-dependency.md)）— 阶段 A 已交付，停在 In Review，解锁条件 = 出现第一个 `plugin:*` 依赖声明
@@ -246,67 +252,10 @@ aiao/
 - **覆盖率门禁**：核心包 ≥ 90%，其余 ≥ 80%（已接入 CI，门槛只升不降）
 - **1.0 文档**：API 参考、迁移指南、兼容矩阵已完成骨架，内容补齐中（新增的 electron / tauri / http / miniprogram 包 API 文档待生成）
 
-### 阶段 2 生产可靠性
+### 1.0 之后
 
-让 Local-first 数据进入真实业务后可维护、可恢复、可诊断。
-
-- 数据库备份、恢复、导入导出和完整性检查
-- schema migration 预检查、dry-run、失败恢复和升级诊断
-- 同步队列持久化、断点续传、重试和积压监控
-- 连接、事务、迁移、慢查询、存储容量和错误码观测
-- 1.0 之后的兼容矩阵、升级助手和长期支持策略
-
-### 阶段 3 多端协作与同步
-
-把本地版本能力扩展为可审计、可控的多人和多设备协作。
-
-- 远程 commit push/pull 与版本图同步
-- 用户身份、设备身份、工作区成员和权限模型
-- 选择性同步、按租户同步和按实体范围同步
-- 冲突中心、字段级差异、人工解决和冲突回放
-- 离线编辑批量合并、同步审计和设备恢复
-
-### 阶段 4 模型驱动应用
-
-让同一份字段语义同时驱动数据层、校验层和前端交互。
-
-- 自动生成表单、表格、详情页、筛选器和关系编辑器
-- 字段级权限、只读规则、条件显示和统一校验
-- 计算字段、公式、汇总和物化视图
-- `decimal`、`dateOnly`、`timeOnly`、附件和用户引用等业务类型
-- 从模型生成前端 DTO、服务端校验和 API 契约
-
-### 阶段 5 文件与跨平台数据
-
-补齐文件型数据和原生应用的完整生命周期。
-
-- 大文件分片上传、断点续传、缩略图和预览
-- 文件元数据、实体关系、版本历史和垃圾回收
-- 本地文件与远端对象存储同步
-- 文件级加密、访问控制和安全下载
-- 桌面与移动端原生数据库、备份目录和迁移工具
-
-### 阶段 6 搜索与本地 AI
-
-在全文搜索之上建立适配器无关的混合检索能力。
-
-- FTS 与向量检索统一编排
-- 本地 embedding 生成、索引更新和状态观测
-- 语义搜索、相似记录和结果解释
-- 多语言 tokenizer、拼写纠错和可配置相关性
-- 本地模型优先，云端模型可插拔；加密字段默认不进入索引和模型输入
-
-### 阶段 7 安全与生态
-
-把基础库建设成可长期扩展的开发者平台。
-
-- 系统 Keychain、Keystore、WebAuthn/passkey 和密钥轮换
-- 审计日志、脱敏日志、合规导出和租户隔离
-- 稳定的插件 SDK、第三方 adapter contract 和 schema registry
-- 性能基准中心、生产诊断工具和可观测性扩展
-- 生态示例、迁移工具和面向维护者的长期支持版本
-
-后续阶段不是一次性承诺的功能清单。每个阶段开工前都应基于真实用户反馈新建 Epic，明确跨框架 parity、适配器矩阵、故障恢复、性能预算和发布门禁。查询构建器、CRDT、Tauri PGlite sidecar 等高复杂度方向，只有在对应场景被验证后再单独立项。
+生产可靠性、多端协作、模型驱动应用、文件与跨平台、搜索与本地 AI、安全与生态六个方向见
+[requirements/vision.md](requirements/vision.md)。那是方向不是承诺：每个方向开工前都要基于真实用户反馈新建 Epic。
 
 ---
 

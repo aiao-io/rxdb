@@ -125,8 +125,7 @@ project + 三平台打包矩阵）已由 US-210 建好（其 AC#1 / #9 同日关
 ### 范围决策：e2e 工程不由本故事建（前置已由 US-210 落地）
 
 `apps/dev-rxdb-tauri-e2e` **不在本故事范围内**——本故事当年卡在「tauri-driver 不支持 macOS，
-建一个只能在 CI 上盲跑的 e2e 工程，代价与风险都由本故事独担而收益归两者」。这条前置已于
-2026-08-17 由 US-210 建好，且方案是**进程级驱动、三平台统一不上 WebDriver**（比 tauri-driver
+建一个只能在 CI 上盲跑的 e2e 工程，代价与风险都由本故事独担而收益归两者」。这条前置已由 US-210 建好，且方案是**进程级驱动、三平台统一不上 WebDriver**（比 tauri-driver
 更强，详见 [US-210 AC#9](../adapter/US-210-tauri-sqlite-local-database.md) 的改判说明）。
 本故事只需在其上扩展自己拥有的文件持久化用例，不再背负建 e2e 工程的代价。
 
@@ -223,8 +222,7 @@ S3／S4 两处口径按下表改完，S5 因 US-210 定形为**普通 crate**而
 | S5 ✅ | 「传输二选一」小节引用的 `rxdb/mod.rs` capability 论证跟随 US-210 的插件形态决策                                                               | 已达成且**论证零改动**：US-210 定形为**普通 crate 而非 Tauri 插件**，命令仍由宿主应用 `generate_handler!` 注册，不带 `plugin:` 前缀 ⇒ 不进 capability 门禁。本故事「`capabilities/` 全程零改动」「一条 capability 都不用加」两句原样成立；引用位置从 `rxdb/mod.rs` 迁到 `packages/rxdb-adapter-tauri/rust/src/lib.rs` 的「权限面」小节                                         |
 
 搬迁本身不解任何一条 AC：AC#1 / #3 / #6 / #7 当时缺的是本故事自己的 specs
-（`apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵已由 US-210 建好）。这些 specs 已于
-2026-08-29 补齐，见「证据落点」与「剩余一步」。
+（`apps/dev-rxdb-tauri-e2e` 与三平台打包矩阵已由 US-210 建好）。这些 specs 已补齐，见「证据落点」与「剩余一步」。
 
 ## 技术笔记
 

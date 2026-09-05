@@ -18,6 +18,22 @@ const RESOLVED: Promise<void> = Promise.resolve();
 const ignore = (): void => undefined;
 
 /**
+ * 等 `waiting` settle，或在 `signal` 中止时以 `signal.reason` 拒绝——先到者胜。
+ *
+ * @remarks
+ * 中止后 `waiting` 仍会自行 settle，但结果被丢弃：调用方靠这一点保证被 abort 的等待者
+ * 不会「稍后」进入临界区。
+ */
+const settleOrAbort = <T>(waiting: Promise<T>, signal: AbortSignal | undefined): Promise<T> => {
+  if (!signal) return waiting;
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = (): void => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    void waiting.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort));
+  });
+};
+
+/**
  * 按 OPFS 路径串行化写操作，并额外提供一个覆盖全部路径的独占模式。
  *
  * 两种粒度：
@@ -88,10 +104,16 @@ export class PathLockManager {
    *
    * 用于目录改名、清库这类无法用有限路径集合表达的操作。
    *
+   * @remarks
+   * `signal` 只管**等锁**阶段：等待期间中止即以 `signal.reason` 拒绝、`fn` 永不执行、
+   * 闸门立刻重开，不留悬空 waiter；`fn` 一旦开始就不再被打断，是否响应中止由 `fn` 自己决定。
+   *
    * @param fn - 临界区
-   * @returns `fn` 的返回值（含其异常）
+   * @param signal - 可选；等锁期间中止则放弃获取
+   * @returns `fn` 的返回值（含其异常）；等锁被中止时以 `signal.reason` 拒绝
    */
-  withExclusive<T>(fn: () => Promise<T>): Promise<T> {
+  withExclusive<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    if (signal?.aborted) return Promise.reject(signal.reason);
     const previousGate = this.#gate;
     let release!: () => void;
     const held = new Promise<void>(resolve => {
@@ -104,7 +126,8 @@ export class PathLockManager {
     );
 
     const inFlight = [...this.#pending];
-    const run = Promise.allSettled([previousGate, ...inFlight]).then(() => this.withWebExclusiveLock(fn));
+    const drained = settleOrAbort(Promise.allSettled([previousGate, ...inFlight]), signal);
+    const run = drained.then(() => this.withWebExclusiveLock(fn, signal));
 
     void run.then(ignore, ignore).then(release);
 
@@ -127,9 +150,10 @@ export class PathLockManager {
     );
   }
 
-  private withWebExclusiveLock<T>(fn: () => Promise<T>): Promise<T> {
+  private withWebExclusiveLock<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     if (!this.#webLocks || !this.#scope) return fn();
-    return this.#webLocks.request(createGateLockName(this.#scope), { mode: 'exclusive' }, fn);
+    // Web Locks 原生支持 `signal`：跨上下文排队期间中止同样以 AbortError 拒绝，不会再授予。
+    return this.#webLocks.request(createGateLockName(this.#scope), { mode: 'exclusive', signal }, fn);
   }
 }
 

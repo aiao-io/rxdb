@@ -76,6 +76,17 @@ export { SQLiteChangeType as SQliteChangeType } from './sqlite-backend.interface
 涉及系统 schema 或 change codec 的版本还要通过迁移发布清单和门禁：
 `pnpm nx run @aiao/source:migration-release-gate`。没有已发布桥接 tag 或旧 bundle 隔离策略时，发布直接失败。
 
+## 实验性层级
+
+下列能力不在 1.0 的兼容承诺内，破坏性变更只需在 changelog 与迁移指南注明：
+
+- `@aiao/rxdb-adapter-miniprogram` 整包（仅微信逻辑层，不保证崩溃恢复）
+- `@aiao/rxdb-adapter-http` 的 `changeFeed` SSE 变更通知（缺省关闭）
+- `@aiao/rxdb-plugin-search` 在 `wa-sqlite` 与小程序上的全文搜索（`unverified`，当前直接抛 `SearchUnsupportedAdapterError`）
+- `@aiao/rxdb` 的 `QueryCacheRepository` 直接实例化（`@experimental`）
+
+其余公开入口进入 1.0 冻结范围。维护者视角的完整清单见仓库 `requirements/versioning-policy.md`。
+
 ## 参考
 
 - [迁移指南](./migration/README.md)

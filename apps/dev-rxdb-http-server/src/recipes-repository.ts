@@ -44,9 +44,34 @@ type TypedWhere = RuleGroup<ServerRecipe>;
 /** 无过滤的空 where（引擎的 `find` 要求 `where` 非空）。 */
 const EMPTY_WHERE: RuleGroup = { combinator: 'and', rules: [] };
 
-/** 把客户端 `where` 归一成默认 RuleGroup；缺省 / `null` 视为无过滤。 */
-const normalizeWhere = (where: unknown): RuleGroup =>
-  (where === undefined || where === null ? EMPTY_WHERE : where) as RuleGroup;
+/**
+ * `where` 的嵌套深度上限（最外层组算第 1 层，只数组、不数叶子规则）。
+ *
+ * @remarks
+ * 与被替换掉的手写 SQL 编译器同值：查询构造器 UI 堆到十几层已经无人能读懂，而 32 层离
+ * 栈溢出还差着两个数量级。引擎的 `buildRuleGroupPG` 无深度限制地递归，几千层嵌套
+ * （约 150KB，远小于 1 MiB 体上限）就能把调用栈打满——`RangeError` 走不到 400 那一支，
+ * 落进兜底变成 500。「请求写得太深」是调用方的错，要按 4xx 说出来。
+ */
+const MAX_WHERE_DEPTH = 32;
+
+/** 递归校验组的嵌套深度；超限抛 400。叶子规则的形状交给引擎校验（它答的也是 400）。 */
+const assertWhereDepth = (node: unknown, depth: number): void => {
+  if (typeof node !== 'object' || node === null) return;
+  const rules = (node as { rules?: unknown }).rules;
+  if (!Array.isArray(rules)) return;
+  if (depth > MAX_WHERE_DEPTH) {
+    throw new HttpError(400, `Filter nesting exceeds the maximum depth of ${MAX_WHERE_DEPTH}`);
+  }
+  for (const rule of rules) assertWhereDepth(rule, depth + 1);
+};
+
+/** 把客户端 `where` 归一成默认 RuleGroup；缺省 / `null` 视为无过滤。超过 {@link MAX_WHERE_DEPTH} → 400。 */
+const normalizeWhere = (where: unknown): RuleGroup => {
+  if (where === undefined || where === null) return EMPTY_WHERE;
+  assertWhereDepth(where, 1);
+  return where as RuleGroup;
+};
 
 /**
  * 把引擎抛出的错误映射成 wire 语义：

@@ -21,7 +21,7 @@ CI 的 `setup` job 每轮都会执行。表格里各 spec 那一行写的 `node 
 | [check-workspace.mjs](#check-workspacemjs)                                  | `pnpm install` 后                            | 复制 `.env.example` → `.env`，预构建依赖库                                        | `postinstall` → `check-workspace`                                             |
 | [clean.mjs](#cleanmjs)                                                      | 想彻底清盘                                   | 递归删除 `dist` / `tmp` / `coverage` / 构建产物                                   | `pnpm clean`                                                                  |
 | [commitizen.mjs](#commitizenmjs)                                            | 交互式写 commit                              | 定义 cz-gui 的 scope/type 选项                                                    | `pnpm commit`（czg）                                                          |
-| [commit-lint.mjs](#commit-lintmjs)                                          | `pre-commit` / `pre-push` / main 分支        | 校验最新 commit 是否符合 `<type>(<scope>): subject`                               | `pre-commit` / `pre-push` / `pnpm check-commit`                               |
+| [commit-lint.mjs](#commit-lintmjs)                                          | `commit-msg` / `pre-push`，全部分支          | 校验最新 commit 是否符合 `<type>(<scope>): subject`                               | `pre-commit` / `pre-push` / `pnpm check-commit`                               |
 | [check-doc-code.mjs](#check-doc-codemjs)                                    | 改 `website/docs/**` 后                      | 抽取文档代码块里的 `@aiao/*` import，验证指向真实包                               | `node scripts/check-doc-code.mjs [--strict]`                                  |
 | [check-externals.mjs](#check-externalsmjs)                                  | 新增/删除包依赖后                            | 检查 `vite.config.mts` 的 `external` 是否覆盖 `dependencies + peerDependencies`   | `node scripts/check-externals.mjs`                                            |
 | [check-migration-release-gate.mjs](#check-migration-release-gatemjs)        | 发 bridge / migration release 前             | 校验 `requirements/migration-release.json` 字段语义                               | `pnpm check-migration-release-gate` / `check-migration-release-gate.spec.mjs` |
@@ -422,7 +422,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 - **做什么**：导出 3 个共享常量：
   - `NPM_SCOPE = 'aiao'`；
   - `NEED_BUILDS = ['rxdb-test']`（`check-workspace` 在 install 后预构建哪些库）；
-  - `NEED_CHECK_COMMIT_BRANCH_NAMES = ['main']`（`commit-lint` 在哪些分支强制校验）。
+  - `NEED_CHECK_COMMIT_BRANCH_NAMES = ['*']`（`commit-lint` 在哪些分支强制校验；`'*'` = 全部）。
 - **调用方**：`check-workspace.mjs`、`commit-lint.mjs` 等需要跨文件共享配置的脚本。
 
 ---

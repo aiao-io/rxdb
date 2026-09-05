@@ -54,6 +54,17 @@ export function resolvePgliteDataRoot(userDataPath: string): string {
 }
 
 /**
+ * `closeAll` 等 worker ACK 的上限（毫秒）。
+ *
+ * @remarks
+ * worker 阻塞在同步 WASM 查询里（如 `SELECT pg_sleep(30)`）时根本收不到 closeAll 指令，ACK 永远
+ * 不来。不设上限的话 `terminate()` 不可达，进程就等在一条永不结束的 worker 上——正是这条关停
+ * 路径要防的事。取 5 秒：一次正常的 PGlite 关库实测亚秒，留一个数量级的余量；再长用户就会
+ * 感觉到「退出卡住」。超时不是失败——ACK 不来就强杀，这本来就是 `terminate()` 的用途。
+ */
+export const DESKTOP_PGLITE_CLOSE_ALL_TIMEOUT_MS = 5_000;
+
+/**
  * 主线程侧的 worker 通道。
  *
  * @remarks
@@ -324,11 +335,17 @@ export function createDesktopPgliteBridge(options: DesktopPgliteBridgeOptions): 
       targets.clear();
       if (active === undefined) return;
       channel = undefined;
+      let deadline: ReturnType<typeof setTimeout> | undefined;
       try {
-        await dispatch(active, id => ({ id, op: 'closeAll' }));
+        // 与超时 race：ACK 到了就正常收尾，不到也不能让 finally 里的 terminate 变得不可达。
+        const timeout = new Promise<void>(resolve => {
+          deadline = setTimeout(resolve, DESKTOP_PGLITE_CLOSE_ALL_TIMEOUT_MS);
+        });
+        await Promise.race([dispatch(active, id => ({ id, op: 'closeAll' })), timeout]);
       } finally {
         // finally 而不是 catch：关停在退出路径上，前一步抛错不能让线程漏掉——
         // 漏掉的话进程会等在一条永不结束的 worker 上。
+        clearTimeout(deadline);
         pending.clear();
         await active.terminate();
       }
