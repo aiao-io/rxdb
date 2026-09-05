@@ -17,8 +17,11 @@
  * # 为什么是「自己跑完一遍」而不是被远程逐步驱动
  *
  * 被远程驱动要在这里再开一条控制通道（listen 一个 drive 事件、逐条回结果），
- * 而本轮要验的五件事是固定的。固定脚本因此只需要两样东西：一个入站帧监听、一次出站汇报。
- * 动作集要扩大时再谈控制通道（AC#10 的 DOM 操作、AC#15 的重启比对属于 C4）。
+ * 而要验的这几件事是固定的。固定脚本因此只需要两样东西：一个入站帧监听、一次出站汇报。
+ *
+ * AC#15 的跨重启比对也不需要控制通道：两次启动跑的是**同一份**脚本，差别全在盘上——
+ * 驱动只要在动手之前先看一眼世界（`keptDirSeen` / `launchRowCount`），比对由 e2e 去做。
+ * 动作集要扩大时再谈控制通道（AC#10 的 DOM 操作）。
  *
  * # 为什么直接用 `__TAURI_INTERNALS__`
  *
@@ -47,6 +50,17 @@
   const BUDGET_MS = 15000;
   /** 单条请求的等待上限。 */
   const ANSWER_TIMEOUT_MS = 4000;
+  /**
+   * 等存储根出现的上限。
+   *
+   * 这是**启动竞态的宽限**，不是请求超时（那个是 `ANSWER_TIMEOUT_MS`）：host 每次都答得很快，
+   * 只是答「还没有」。见 {@link listRootWhenReady}。
+   */
+  const ROOT_READY_TIMEOUT_MS = 8000;
+  /** 两次重试之间的间隔。 */
+  const ROOT_POLL_MS = 100;
+  /** 「存储根还不在盘上」的错误码，与 Rust 侧 `ErrorCode::ResourceNotFound` 的线上形态一致。 */
+  const ROOT_MISSING_CODE = 'resource_not_found';
   /** 写入用例留在盘上的目录名；e2e 独立去磁盘上核对它在不在。 */
   const KEPT_DIR = 'drv-kept';
   /** 建了就删的目录名，用来走一遍 delete。 */
@@ -166,6 +180,40 @@
     return answer.outcome === 'ok' && answer.result && answer.result.entries ? answer.result.entries : [];
   }
 
+  /** 到点即 resolve 的计时器。 */
+  function delay(ms) {
+    return new Promise(function (resolve) {
+      setTimeout(resolve, ms);
+    });
+  }
+
+  /**
+   * 列一次存储根，必要时等它先被建出来。
+   *
+   * @returns 一次 `files.list` 的应答。
+   *
+   * @remarks
+   * **实测踩过**：存储根不是启动就在盘上的——它由应用自己那一步 storage probe 上传探针文件
+   * 时建出来（`src/app/storage-probe.ts`），而这扇调试窗口是 Rust 在 `setup()` 里与主窗口
+   * **一起**建的。驱动因此会早于应用完成初始化就问出第一条 list，答到 `resource_not_found`。
+   *
+   * 之前这个race被掩盖着：探针留的是第二遍驱动的结论，而第二遍跑在十秒之后，那时根早就有了。
+   * 改成留第一遍之后它就浮出来了，两条只读档断言随即变红。
+   *
+   * 只对这**一个**码重试：它是启动顺序造成的「还没到」，与 `permission_denied` /
+   * `provider_unsupported` 这类**判定结果**完全不同——后者重试多少次都该是同一个答案，
+   * 对它们重试等于把一次真实的拒绝拖成超时。等满预算就照实把 `resource_not_found` 报回去。
+   */
+  async function listRootWhenReady() {
+    const deadline = Date.now() + ROOT_READY_TIMEOUT_MS;
+    let answer = await request('files', 'list', { path: '' });
+    while (codeOf(answer) === ROOT_MISSING_CODE && Date.now() < deadline) {
+      await delay(ROOT_POLL_MS);
+      answer = await request('files', 'list', { path: '' });
+    }
+    return answer;
+  }
+
   async function run() {
     // AC#9 / AC#10：三个领域的 descriptor 由 connector 在 HANDSHAKE_ACK 之后随
     // `DESCRIPTORS` 帧给面板；这里不重复读它——runtime 的判据在页内单测与面板 UI 上，
@@ -173,7 +221,7 @@
     //
     // 这条必须是**第一件事**：`keptDirSeen` 的全部意义在于「本进程还没碰过存储时，
     // 盘上就已经有它了」，任何一次写入排在它前面都会把 AC#15 的判别力抹掉。
-    const files = await request('files', 'list', { path: '' });
+    const files = await listRootWhenReady();
     const keptDirSeen = entriesOf(files).some(function (entry) {
       return entry && entry.name === KEPT_DIR;
     });

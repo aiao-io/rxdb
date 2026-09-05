@@ -129,11 +129,13 @@ jobs:
   # ---------------------------------------------------------------------------
   # US-210 AC#1 + AC#9：Tauri 打包产物跨进程持久化。
   #
-  # US-505 AC#6 + AC#7 也挂在这个 job 上，**不另起一个**：
+  # US-505 AC#6 + AC#7、US-905 AC#17 也挂在这个 job 上，**都不另起一个**：
   # - AC#7（三平台打包后文件仍能持久化）要的正是这条三 OS 矩阵；
   # - AC#6（三家 webview 的 download()/fetch() 行为）只有在真实 webview 里才成立，而
   #   `desktop-webview-capability.spec.ts` 与另外两个 spec 落在同一个 `include` 下，
-  #   `desktop-smoke` 一次跑完。
+  #   `desktop-smoke` 一次跑完；
+  # - US-905 AC#17（三平台开/关调试窗口、握手、session 释放）要的是同一套 Rust 工具链与
+  #   WebKitGTK/Xvfb，只是换一份 dev 产物 —— 见下面那一步的注释。
   # 新增 job 的代价是要同步改下面 `gate` 的 `needs` 与断言列表，换不来任何覆盖。
   #
   # ⚠️ `desktop-webview-capability.spec.ts` 里的 `EXPECTED_BY_PLATFORM` 三列已回填
@@ -147,13 +149,24 @@ jobs:
   tauri-smoke:
     name: tauri-smoke (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    # Rust 冷编译（tauri + rusqlite bundled 的依赖树，release profile）在 Windows 上
-    # 实测量级是 20-30 分钟。60 是下界不是余量。
-    timeout-minutes: 60
+    # Rust 冷编译（tauri + rusqlite bundled 的依赖树）在 Windows 上实测量级是 20-30 分钟，
+    # 而这个 job 要编**两份**：desktop-smoke 的 release 与 devtools-smoke 的 dev debug。
+    # 两个 profile 不共享产物（正是 `tauri-package-dev` 落 target/debug 的理由），
+    # 所以是两份全量，不是一份加增量。90 同样是下界不是余量。
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      # WebKitGTK 在 ubuntu 上默认走 DMA-BUF 渲染器；Xvfb 下没有 GPU、也没有 DRM 节点，
+      # 典型表现是**窗口起来了但页面永远白屏** —— 症状与「应用真有 bug」不可区分。
+      # 这个变量把它退回软件渲染路径。
+      #
+      # 设在 job 级而不是某一步：`tauri build` / `cargo build` 与两个 smoke 里拉起的产物
+      # 是不同的进程，都需要它；devtools-smoke 更是一个进程里开**两个** WebView。
+      # 非 Linux 上这个变量无人读取，多设一个环境变量不构成代价。
+      WEBKIT_DISABLE_DMABUF_RENDERER: 1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -184,10 +197,8 @@ jobs:
         with:
           toolchain: stable
 
-      # WebKitGTK 在 ubuntu 上默认走 DMA-BUF 渲染器；Xvfb 下没有 GPU、也没有 DRM 节点，
-      # 典型表现是**窗口起来了但页面永远白屏** —— 症状与「应用真有 bug」不可区分。
-      # 这个变量把它退回软件渲染路径。设在 job 级而不是某一步：`tauri build` 与
-      # smoke 里拉起的产物是两个不同的进程，都需要它。
+      # 两个 smoke 都要拉起真实窗口，Linux 上必须有 X server。
+      # 渲染器的那一半（DMA-BUF → 软件渲染）设在 job 级 env 上，见上。
       - uses: ./.github/actions/xvfb
         if: runner.os == 'Linux'
 
@@ -205,9 +216,24 @@ jobs:
       # ⚠️ `--no-bundle` 意味着这条路**不验证安装包本身**（Info.plist / MSI / NSIS）；
       # 验的是 release 二进制的启动、写入、退出、再启动，正是 AC#9 的文本所要求的。
       - name: Run Tauri packaging smoke
-        env:
-          WEBKIT_DISABLE_DMABUF_RENDERER: 1
         run: pnpm exec nx run dev-rxdb-tauri-e2e:desktop-smoke --output-style=stream
+
+      # US-905 AC#17：三平台上开/关调试窗口、握手、session 释放。
+      #
+      # 用的是**另一份产物**：`devtools-smoke` 依赖 `tauri-package-dev`（裸 `cargo build`，
+      # 不带 `custom-protocol` feature，`cfg(dev)` 成立），调试窗口与 `devtools_message`
+      # 只存在于那一份里 —— 上一步的 release 产物按定义验不到它们（那正是 AC#1 的隔离判据）。
+      # 前端产物由 Nx 经 `build-devtools → build` 顺带建出，套件自己在 1420 上服务它。
+      #
+      # 加**步**而不是加 job：新 job 必须同步改 `gate` 的 `needs` 与断言列表（本文件开头的
+      # ⚠️），漏改就是一条形同虚设的门禁；而这一步要的 Rust 工具链、WebKitGTK 开发库、
+      # Xvfb 与上面完全同一套，另起一个 job 等于把那份安装税在三个 runner 上再交一遍。
+      #
+      # `!cancelled()`：默认语义下上一步一红就整个跳过，三平台矩阵里会缺掉「调试窗口在
+      # 这个平台上行不行」的结论，且缺得毫无痕迹。发布前要看到的是完整矩阵，不是第一个红。
+      - name: Run Tauri devtools smoke
+        if: ${{ !cancelled() }}
+        run: pnpm exec nx run dev-rxdb-tauri-e2e:devtools-smoke --output-style=stream
 
   # ---------------------------------------------------------------------------
   # US-207 的「三条发布性质」：只有对着 `pnpm pack` 的产物才验得到。

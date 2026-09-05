@@ -4,7 +4,7 @@ import { createServer, type Server } from 'node:http';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { runSelfCheck, type SelfCheckRun } from './packaged-app';
+import { runSelfCheck, type DevToolsNativeProbe, type SelfCheckRun } from './packaged-app';
 
 /**
  * US-905 阶段 1 AC#1 / AC#2：两个**真实** Tauri WebView 起来了并完成了握手。
@@ -429,4 +429,124 @@ describe('开了写入授权的那一跑（US-905 阶段 2）', () => {
     expect(native?.settingsClear).toBe('provider_unsupported');
     expect(native?.forgedSession).toBe('session_invalid');
   });
+});
+
+/** 授权档的三个环境变量；两次启动逐字相同，差别只在「第几次跑」。 */
+const AUTHORIZED_ENV: Readonly<Record<string, string>> = Object.freeze({
+  DEV_RXDB_DEVTOOLS: '1',
+  DEV_RXDB_DEVTOOLS_CAPABILITY: 'full',
+  DEV_RXDB_DEVTOOLS_MUTATION: 'allow'
+});
+
+/** 把整份 wire 结论带进断言消息：单看一个 `undefined` 分不出「没跑」还是「跑了没通」。 */
+const wire = (run: SelfCheckRun): string => `native=${JSON.stringify(run.report.devtools?.native)}\n${because(run)}`;
+
+/** 读出 wire 结论并当场钉死它存在——后面每条断言都建立在它上面。 */
+const nativeOf = (run: SelfCheckRun): DevToolsNativeProbe => {
+  const native = run.report.devtools?.native;
+  expect(native, `这一跑的调试窗口里没有 wire 结论：${wire(run)}`).toBeDefined();
+  return native as DevToolsNativeProbe;
+};
+
+/**
+ * 跨重启比对（US-905 阶段 2，AC#15）。
+ *
+ * @remarks
+ * # 判据为什么必须经 wire 取，而不是 e2e 自己去看磁盘
+ *
+ * 「重启之后面板还能读到上一次的数据」这句话里，**读的那一方是面板**。e2e 直接 `existsSync`
+ * 一下只能证明数据还在盘上——那是 US-505 早就证过的事，与 DevTools 链路无关。这里要的是
+ * 调试窗口里的驱动经 `invoke` → Rust 中继 → connector → 真实 native host 拿回来的观察。
+ *
+ * 两条独立证据各覆盖一个领域：
+ *
+ * - **`files` 领域**：`keptDirSeen` —— 驱动**动手之前**的第一条 `files.list` 里有没有它上一次
+ *   留下的目录。第一跑必须是 `false`，第二跑必须是 `true`。
+ * - **`database` 领域**：`launchRowCount` —— 经 wire 数出来的启动记录行数。它跨进程只增不减，
+ *   而一个内存实现或每次重建的空库在第二跑里只会数到本进程刚写的那一两行。
+ *
+ * # 为什么读的是「第一遍」驱动的结论
+ *
+ * 一个进程里驱动会跑**两遍**（探针为了 AC#4 把调试窗口关掉再以同 label 重开，重开的那扇窗
+ * 带着同一份注入脚本）。第二遍看到的世界已经被第一遍改过：`keptDirSeen` 在它眼里恒为 `true`，
+ * 「上一次留下的」与「本进程刚建的」完全同形。观察者因此只留**第一条**结论
+ * （`devtools-probe.ts` 的 `waitForNative`），它的前置条件才是已知的。
+ *
+ * # 行数的上下界是怎么来的
+ *
+ * 探针开着时一个进程会 bootstrap **两次**（AC#5 那次 `location.reload()`），每次追加一行。
+ * 而两遍驱动都跑在刷新**之前**，所以第一跑经 wire 数到的行数不会超过 1；第二跑起步时盘上
+ * 已经有第一跑的两行，因此至少是 2。断言取这两个界而不是等值：具体数字取决于驱动的查询与
+ * 应用的写入谁先落地，而那是个真实的竞态，钉死等值只会换来一条间歇红。
+ *
+ * ⚠️ 与本文件其余两个 describe 一样依赖 dev 产物，见文件头注。
+ */
+describe('跨重启的 wire 比对（US-905 阶段 2，AC#15）', () => {
+  /**
+   * 两次启动放在**同一条**用例里，理由与 `desktop-persistence.spec.ts` 同源：
+   * 拆成 `beforeAll` + 多条 `it` 的话，一次重试会重启 worker、把「这是第几次启动」
+   * 变成重试次数的函数，而「第一次没有、第二次有」正是这条 AC 的全部内容。
+   */
+  it('第二次启动时，面板经真实 wire 看得见第一次留下的目录与数据', async () => {
+    const frontend = await serveFrontend();
+    const workspace = mkdtempSync(join(realpathSync(tmpdir()), 'rxdb-tauri-devtools-restart-'));
+    const dataDir = join(workspace, 'app-data');
+    mkdirSync(dataDir);
+    const storageRoot = join(dataDir, 'rxdb-files', 'files');
+
+    try {
+      // 报告路径每次换一个：复用同一条路径的话，第二次若崩在写报告之前，读回来的是第一次
+      // 那份——于是「第二次看不见上一次的数据」这个结论完全是假的。
+      const first = await runSelfCheck({
+        dataDir,
+        reportPath: join(workspace, 'selfcheck-restart-1.json'),
+        devtoolsProbe: true,
+        profile: 'debug',
+        env: AUTHORIZED_ENV
+      });
+      expect(first.report.status, because(first)).toBe('ok');
+      const before = nativeOf(first);
+
+      // 先钉住这次观察**是一次成功的观察**：驱动读不到存储根时也会给出 `keptDirSeen: false`
+      // （空列表里当然找不到那个名字），于是「没看见」与「根本没看成」同形。少了这一条，
+      // 一个从来读不通的链路也能把下面那条负对照骗绿。
+      expect(before.filesList, wire(first)).toBe('ok');
+      // 第一跑：驱动动手之前盘上是空的。这一条同时是第二跑那条断言的负对照——
+      // 没有它，`keptDirSeen` 恒为 `true` 的实现（比如把这个字段写死）也能全绿。
+      expect(before.keptDirSeen, `第一跑就看见了 ${KEPT_DIR}：${wire(first)}`).toBe(false);
+      // 数据面：`database.query` 在真实链路上答得出来（AC#9），且数到的行数还在本进程范围内。
+      expect(before.databaseQuery, wire(first)).toBe('ok');
+      expect(before.launchRowCount ?? -1, wire(first)).toBeLessThanOrEqual(1);
+
+      // 独立于 wire 的一条磁盘事实：第一跑确实把那个目录留下了。缺了它，第二跑的
+      // `keptDirSeen: true` 就只是「面板说它看见了」，没有第二个来源佐证。
+      expect(existsSync(join(storageRoot, KEPT_DIR)), '第一跑没有把目录留在盘上').toBe(true);
+
+      const second = await runSelfCheck({
+        dataDir,
+        reportPath: join(workspace, 'selfcheck-restart-2.json'),
+        devtoolsProbe: true,
+        profile: 'debug',
+        env: AUTHORIZED_ENV
+      });
+      expect(second.report.status, because(second)).toBe('ok');
+      const after = nativeOf(second);
+
+      // AC#15 的 `files` 一半：换了个进程，面板在自己动手之前就看见了上一次的产物。
+      expect(after.keptDirSeen, `第二跑没看见 ${KEPT_DIR}：${wire(second)}`).toBe(true);
+
+      // AC#15 的 `database` 一半：第二跑经 wire 数到的行数，覆盖得住第一跑结算时应用侧
+      // 自己数出来的总数。两个数字来自**两条独立路径**——一条是页内 repository，
+      // 一条是面板经 IPC → 中继 → provider——所以相符只可能是因为它们看的是同一个真实的库。
+      expect(after.databaseQuery, wire(second)).toBe('ok');
+      expect(after.launchRowCount ?? -1, wire(second)).toBeGreaterThanOrEqual(first.report.launchCount ?? 0);
+
+      // 应用侧的同一句话，作为上面那条比对的参照系：它单独看只是 US-505 的持久化，
+      // 与面板无关；两条一起才说明面板读的不是某个替身。
+      expect(second.report.launchCount ?? 0).toBeGreaterThan(first.report.launchCount ?? 0);
+    } finally {
+      await frontend.close();
+      rmSync(workspace, { force: true, recursive: true });
+    }
+  }, 420_000);
 });
