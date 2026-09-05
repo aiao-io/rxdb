@@ -169,9 +169,7 @@ export function createConnectorProviders(ports: ConnectorProviderPorts = {}): Co
   const runtime = ports.runtime ?? 'browser';
 
   const nativeFilesProvider: DevToolsNativeFilesProvider | undefined =
-    ports.nativeFiles === undefined ?
-      undefined
-    : createDevToolsNativeFilesProvider({ ...ports.nativeFiles, runtime });
+    ports.nativeFiles === undefined ? undefined : createDevToolsNativeFilesProvider({ ...ports.nativeFiles, runtime });
 
   const files: DevToolsOpfsFilesProvider | DevToolsNativeFilesProvider | undefined =
     nativeFilesProvider ??

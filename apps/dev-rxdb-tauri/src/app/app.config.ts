@@ -70,7 +70,7 @@ const devToolsWatcher =
       // 所以必须绑到本窗口——否则它会把主窗口自己的出站帧也算成「调试窗口发来的」。
       // 泛型透传：帧通道的 payload 是 JSON 字符串，驱动汇报通道的是一个对象。
       // 在这里钉死成 `string` 的话，第二条通道的结论会被当成字符串塞进去。
-      listen: <T,>(event: string, handler: (message: { payload: T }) => void) =>
+      listen: <T>(event: string, handler: (message: { payload: T }) => void) =>
         getCurrentWebviewWindow().listen<T>(event, message => handler({ payload: message.payload }))
     })
   : null;

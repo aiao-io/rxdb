@@ -14,10 +14,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { DEVTOOLS_RUNTIME_CONFIG_KEY, devToolsRuntimeConfig } from './setup_rxdb_desktop';
 
-const RUST_SOURCE = readFileSync(
-  resolve(import.meta.dirname, '../../src-tauri/src/devtools_config.rs'),
-  'utf8'
-);
+const RUST_SOURCE = readFileSync(resolve(import.meta.dirname, '../../src-tauri/src/devtools_config.rs'), 'utf8');
 
 describe('DevTools 授权档的页内读取', () => {
   it('挂载键与 Rust 注入脚本用的是同一个字符串', () => {

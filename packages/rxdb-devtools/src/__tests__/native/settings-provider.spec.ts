@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createDevToolsBrowserSettingsProvider } from '../../browser/settings-provider.js';
 import {
-  createDevToolsDesktopSettingsProvider,
-  createDevToolsDesktopSettingsDescriptor
+  createDevToolsDesktopSettingsDescriptor,
+  createDevToolsDesktopSettingsProvider
 } from '../../native/settings-provider.js';
 
 /**

@@ -65,8 +65,8 @@ pub const DEVTOOLS_PROBE_ENV: &str = "DEV_RXDB_TAURI_DEVTOOLS_PROBE";
 /// 没跟上时，报出来的是「版本对不上」，而不是一个到处都是 `undefined` 的对象。
 ///
 /// v2 起多了 [`StorageProbe`]（US-505 AC#1 / AC#3）；v3 起多了 [`DevToolsProbe`] 与
-/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）；v5 加 `devtools.relayRejected`（AC#3）；v6 加 `devtools.native`（阶段 2 的 wire 结论）；v7 加它的写入两条（`createDirectory` / `deleteEntry`）；v8 加跨重启比对的三条（`keptDirSeen` / `databaseQuery` / `launchRowCount`，AC#9 / AC#15）。
-pub const REPORT_SCHEMA_VERSION: u32 = 8;
+/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）；v5 加 `devtools.relayRejected`（AC#3）；v6 加 `devtools.native`（阶段 2 的 wire 结论）；v7 加它的写入两条（`createDirectory` / `deleteEntry`）；v8 加跨重启比对的三条（`keptDirSeen` / `databaseQuery` / `launchRowCount`，AC#9 / AC#15）；v9 加字节往返的九条（`uploadBytes` / `uploadChunks` / `downloadBytes` / `bytesMatch` / `emptyUpload` / `escapedUpload` / `cancelledUpload` / `cancelledFile` / `tempResidue`，AC#10）。
+pub const REPORT_SCHEMA_VERSION: u32 = 9;
 
 /// 环境变量配错时的退出码。
 ///
@@ -275,6 +275,45 @@ pub struct DevToolsNativeProbe {
     /// 删除的结果码；只读档下同样是 `provider_unsupported`。
     #[serde(default)]
     pub delete_entry: Option<String>,
+    /// 多块上传的结果码（AC#10 的字节面）。
+    ///
+    /// `ok` 只说明**帧已发出**：成功的上传在 wire 上是静默的，`TRANSFER_COMPLETE` 之后
+    /// connector 什么都不回。「确实提交了、且提交的正是那些字节」由 [`Self::bytes_match`]
+    /// 与 e2e 自己读盘各证一遍。
+    #[serde(default)]
+    pub upload_bytes: Option<String>,
+    /// 那次上传实际发出的 `TRANSFER_CHUNK` 帧数；`-1` 表示没走到那一步。
+    ///
+    /// 一帧装完全部载荷同样能让字节对上，而那正是「全程流式」没有真正接通的形态。
+    #[serde(default)]
+    pub upload_chunks: Option<i64>,
+    /// 把刚上传的文件读回来的结果码；上传没成立时复述上传的码。
+    #[serde(default)]
+    pub download_bytes: Option<String>,
+    /// 读回来的字节与送出去的是否逐字节相同。
+    #[serde(default)]
+    pub bytes_match: Option<bool>,
+    /// 零字节上传的结果码（AC#10 的边界用例）。
+    #[serde(default)]
+    pub empty_upload: Option<String>,
+    /// `path: '..'` 的上传的结果码；恒为 `invalid_path`。
+    #[serde(default)]
+    pub escaped_upload: Option<String>,
+    /// 送了一块真实字节之后取消的那次上传的结果码。
+    #[serde(default)]
+    pub cancelled_upload: Option<String>,
+    /// 取消之后再去下载那个路径的结果码；必须是 `resource_not_found`。
+    #[serde(default)]
+    pub cancelled_file: Option<String>,
+    /// 全部动作跑完时，存储根里还剩几个 host 的未提交临时文件（`.rxdb-tmp`）。
+    ///
+    /// # 为什么这条不能由 e2e 读盘去数
+    ///
+    /// 自检一上报本进程就 [`AppHandle::exit`]，而驱动在一个进程里跑两代，第二代随时可能被
+    /// 那次退出打断——它留在盘上的临时文件与「取消没清干净」完全同形。所以只有驱动在进程
+    /// 还活着时自己数的这一个数有判别力。
+    #[serde(default)]
+    pub temp_residue: Option<i64>,
     /// 驱动自身失败时的原因；正常跑完为 `None`。
     #[serde(default)]
     pub failure: Option<String>,
@@ -1004,6 +1043,15 @@ mod tests {
                         forged_session: Some("session_invalid".to_string()),
                         create_directory: Some("ok".to_string()),
                         delete_entry: Some("ok".to_string()),
+                        upload_bytes: Some("ok".to_string()),
+                        upload_chunks: Some(3),
+                        download_bytes: Some("ok".to_string()),
+                        bytes_match: Some(true),
+                        empty_upload: Some("ok".to_string()),
+                        escaped_upload: Some("invalid_path".to_string()),
+                        cancelled_upload: Some("ok".to_string()),
+                        cancelled_file: Some("resource_not_found".to_string()),
+                        temp_residue: Some(0),
                         failure: None,
                     }),
                 }),
@@ -1042,6 +1090,15 @@ mod tests {
                         "forgedSession": "session_invalid",
                         "createDirectory": "ok",
                         "deleteEntry": "ok",
+                        "uploadBytes": "ok",
+                        "uploadChunks": 3,
+                        "downloadBytes": "ok",
+                        "bytesMatch": true,
+                        "emptyUpload": "ok",
+                        "escapedUpload": "invalid_path",
+                        "cancelledUpload": "ok",
+                        "cancelledFile": "resource_not_found",
+                        "tempResidue": 0,
                         "failure": null
                     }
                 },
@@ -1062,9 +1119,9 @@ mod tests {
     /// 于是断言读到 `undefined` 而不是「版本对不上」。
     ///
     /// v3 加的是 `devtools` 与 `windowLabels`（US-905 阶段 1）；v6 加的是 `devtools.native`（阶段 2）；
-    /// v8 加的是它的跨重启三条（AC#9 / AC#15）。
+    /// v8 加的是它的跨重启三条（AC#9 / AC#15）；v9 加的是字节往返九条（AC#10）。
     #[test]
     fn the_schema_version_covers_the_storage_probe() {
-        assert_eq!(REPORT_SCHEMA_VERSION, 8);
+        assert_eq!(REPORT_SCHEMA_VERSION, 9);
     }
 }

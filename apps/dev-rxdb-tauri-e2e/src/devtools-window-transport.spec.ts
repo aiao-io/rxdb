@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -60,6 +60,30 @@ const KEPT_DIR = 'drv-kept';
 
 /** 驱动建了就删的目录名，与驱动的 `TEMP_DIR` 一致。 */
 const TEMP_DIR = 'drv-temp';
+
+/** 字节往返用的文件名，与驱动的 `BYTES_FILE` 一致。 */
+const BYTES_FILE = 'drv-bytes.bin';
+
+/** 零字节上传的目标名，与驱动的 `EMPTY_FILE` 一致。 */
+const EMPTY_FILE = 'drv-empty.bin';
+
+/** 取消用例的目标名，与驱动的 `CANCELLED_FILE` 一致；它永远不该出现在盘上。 */
+const CANCELLED_FILE = 'drv-cancelled.bin';
+
+/**
+ * 往返载荷，与驱动的 `payloadBytes()` 逐字节相同。
+ *
+ * @remarks
+ * 两侧各算一遍而不是一侧算好传过去：传过去的话，「盘上的字节等于驱动送出的字节」这句话
+ * 就退化成「盘上的字节等于盘上的字节」——判据必须有一个独立于被测链路的来源。
+ * 取一个**非常量**的模式（`i * 31 + 7`）而不是填充同一个值：全 `0x00` 的载荷里，
+ * 少写一块、多写一块、块序颠倒三种缺陷全都看不出来。
+ */
+const payloadBytes = (): Buffer => {
+  const bytes = Buffer.alloc(700);
+  for (let index = 0; index < bytes.length; index += 1) bytes[index] = (index * 31 + 7) & 0xff;
+  return bytes;
+};
 
 /** `tauri.conf.json` 的 `devUrl` 写死的端口。 */
 const DEV_URL_PORT = 1420;
@@ -348,6 +372,22 @@ describe('dev 产物里的两个真实 WebView（US-905 阶段 1 AC#1 / AC#2）'
       expect(existsSync(join(storageRoot, TEMP_DIR))).toBe(false);
     });
 
+    /**
+     * AC#10：上传同样要被同一道闸挡住，且一个字节都不落。
+     *
+     * @remarks
+     * 与建目录分开写：写入授权是**按操作**判的，`create-directory` 被拒并不蕴含 `upload`
+     * 也被拒——后者走的是 `TRANSFER_START` 那条独立的授权入口（共享包端点里它自己调一次
+     * `authorizeOperation`，用的是 `files` + `upload`）。两条各断一次，漏掉哪一条都会让
+     * 「只读档下调试窗口写不了盘」这句话缺一块。
+     */
+    it('没 opt-in 写入时，上传被拒且一个字节都没落盘', () => {
+      expect(native()?.uploadBytes).toBe('provider_unsupported');
+      expect(native()?.emptyUpload).toBe('provider_unsupported');
+      expect(existsSync(join(storageRoot, BYTES_FILE)), '只读档下不该有任何文件落盘').toBe(false);
+      expect(existsSync(join(storageRoot, EMPTY_FILE))).toBe(false);
+    });
+
     it('换成伪造的 session，同一条请求被按 session 拒掉', () => {
       // 判据取**观察到的拒绝码**而不是「没答」：拒绝以 session 级 ERROR（`requestId: null`）
       // 回来，驱动因此要单独记它——否则这条用例只能看到一次超时，而超时与「对端挂了」
@@ -418,6 +458,70 @@ describe('开了写入授权的那一跑（US-905 阶段 2）', () => {
     // 码说「成立」，磁盘说「确实发生了」——两者缺一，这条链上任何一段都可以假装成功。
     expect(existsSync(join(storageRoot, KEPT_DIR)), '建目录报了 ok，盘上却没有').toBe(true);
     expect(existsSync(join(storageRoot, TEMP_DIR)), '删除报了 ok，盘上却还在').toBe(false);
+  });
+
+  /**
+   * AC#10 的字节面：上传的字节经真实链路原样回到面板。
+   *
+   * @remarks
+   * # 为什么判据是「传上去再读回来」而不是只看一个 `ok`
+   *
+   * 阶段 B 冻结的 wire 里，**成功的上传在线上是静默的**——`TRANSFER_COMPLETE` 之后
+   * connector 什么都不回（见 `panel-endpoint.ts` 头注第 2 条）。所以驱动能自证的只有
+   * 「已发出」。要把它推到「已提交、且提交的正是那些字节」，唯一的办法是再从同一条链路
+   * 读回来逐字节比一遍。
+   *
+   * # 为什么还要 `uploadChunks`
+   *
+   * AC#10 写的是「全程流式」。一次 `TRANSFER_CHUNK` 装完全部载荷同样能让字节对上，
+   * 而那正是流式没有真正接通的形态。载荷 700 字节、驱动按 256 分块，因此必须是 3 帧。
+   */
+  it('上传的字节经真实链路原样回到面板（AC#10）', () => {
+    const native = nativeOf(run);
+
+    expect(native.uploadBytes, wire(run)).toBe('ok');
+    expect(native.uploadChunks, '载荷没被切成多帧——流式那一半没验到').toBe(3);
+    expect(native.downloadBytes, wire(run)).toBe('ok');
+    expect(native.bytesMatch, '读回来的字节与送出去的不一致').toBe(true);
+  });
+
+  it('落盘的正是那些字节，零字节文件也真的建了出来', () => {
+    // 第三个来源。上面那条是「面板送出去的 == 面板读回来的」，两端都在被测链路里；
+    // 这里由 e2e 自己算出同一份载荷去比盘上的文件，链路整体的一致性偏差才无处可藏。
+    expect(readFileSync(join(storageRoot, BYTES_FILE))).toEqual(payloadBytes());
+    expect(statSync(join(storageRoot, EMPTY_FILE)).size, '零字节上传该建出一个 0 字节的文件').toBe(0);
+  });
+
+  /**
+   * AC#10 的取消半边：取消的上传不留半写文件，也不留临时产物。
+   *
+   * @remarks
+   * 驱动先送了一块**真实字节**再取消——「什么都没写就取消」证不了半写文件被清掉，
+   * 它只证明了没开始过。
+   *
+   * 两条证据分工不同：
+   *
+   * - `cancelledFile` 是驱动**经 wire** 去下载那个路径拿到的码，取消之后立刻问的；
+   * - 盘上的两条由 e2e 自己看：目标文件不在，且父目录里没有 host 的 `.rxdb-tmp` 残留。
+   *
+   * 临时产物那条必须由驱动在**进程还活着的时候**数一遍（`tempResidue`）：自检一上报
+   * Rust 就 `app.exit`，而驱动在一个进程里会跑两代，第二代随时可能被这次退出打断，
+   * 它留下的 `.rxdb-tmp` 与「取消没清干净」在盘上长得一模一样。
+   */
+  it('取消的上传不留半写文件，也不留孤儿临时产物', () => {
+    const native = nativeOf(run);
+
+    expect(native.cancelledUpload, wire(run)).toBe('ok');
+    expect(native.cancelledFile, '取消之后那个路径居然下载得到').toBe('resource_not_found');
+    expect(native.tempResidue, '取消之后 host 还留着未提交的临时文件').toBe(0);
+    expect(existsSync(join(storageRoot, CANCELLED_FILE)), '取消的上传落了一个半写文件').toBe(false);
+  });
+
+  it('越界路径的上传在 provider 就被拒，插件根之外什么都没落', () => {
+    // `path: '..'` 走的是共享包的 `parseLogicalPath`，它整条拒掉相对记号而不是就地解析。
+    // 与写入授权无关：这一跑开着 `full` + `allow`，拒绝只可能来自路径校验本身。
+    expect(nativeOf(run).escapedUpload, wire(run)).toBe('invalid_path');
+    expect(existsSync(join(storageRoot, '..', BYTES_FILE)), '字节落到了插件根之外').toBe(false);
   });
 
   it('只读那一跑的其余结论在这一跑同样成立', () => {
