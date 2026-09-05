@@ -74,6 +74,20 @@
 清单和 `pnpm nx run @aiao/source:migration-release-gate`。迁移版本需要已发布且可追溯的
 桥接 tag，以及已启用的旧 bundle 隔离策略；缺失时发布任务 fail-closed。
 
-## 6. 覆盖率与质量门禁（关联）
+## 6. 实验性层级（1.0 冻结范围之外）
+
+31 个包同步发版，但**不是每个入口都进 1.0 的兼容承诺**。下列能力标为实验性：破坏性变更不受第 3 节废弃周期约束，
+只需在 changelog 与迁移指南注明。1.0 发布前必须把这份清单与 TSDoc `@experimental` 标注、各包 README 对齐。
+
+| 能力                                                       | 为什么是实验性                                                                                       |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `@aiao/rxdb-adapter-miniprogram` 整包                      | 仅微信逻辑层、强制单连接、不保证崩溃恢复（US-209 的长期口径）                                        |
+| `@aiao/rxdb-adapter-http` 的 `changeFeed`（SSE 变更通知）  | 缺省关闭；协议只有参考后端一个实现                                                                   |
+| `@aiao/rxdb-plugin-search` 在 `wa-sqlite` / 小程序上的 FTS | backend-registry 登记为 `unverified`，抛 `SearchUnsupportedAdapterError`，转正要重编 wasm 或真机实测 |
+| `@aiao/rxdb` 的 `QueryCacheRepository` 直接实例化          | `@experimental`，只有 `SyncType.QueryCache` 经 `getRepository` 的间接路径是稳定面                    |
+
+不在表内的公开入口默认进入 1.0 冻结范围。新增实验性入口必须同时改本表、对外呈现（[website/docs/versioning.md](../website/docs/versioning.md)）与 TSDoc。
+
+## 7. 覆盖率与质量门禁（关联）
 
 见 [.agents/skills/coverage-gate](../.agents/skills/coverage-gate/SKILL.md) 与 `scripts/audit/coverage-check.mjs`：硬门槛是固定阈值（核心包四指标 ≥90%、其余 ≥80%），`coverage-baseline.json` 记录每包上次实测值，仅用于「比上次低了」的非阻塞提示。

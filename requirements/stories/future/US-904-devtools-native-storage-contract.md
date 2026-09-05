@@ -1,11 +1,11 @@
 ---
 id: US-904
 title: DevTools 原生本地存储调试
-status: In Progress
+status: Done
 priority: High
 epic: epic-003-ui-developer-tools
 created: 2026-08-15
-updated: 2026-09-01
+updated: 2026-09-05
 tags:
   [tooling, devtools, desktop, electron, protocol, provider, security, transfer, snapshot, conformance, chrome, browser]
 decision: supported
@@ -34,12 +34,12 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 交付                                                    | 直接前置                                     | AC 区段   | 状态                                                                                        |
-| ---- | ------------------------------------------------------- | -------------------------------------------- | --------- | ------------------------------------------------------------------------------------------- |
-| A    | Electron 43 + 当前 MV3 扩展 stop/go 实证                | 无                                           | AC#1～6   | ✅ 已交付（supported）                                                                      |
-| B    | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面 | 无                                           | AC#7～30  | ✅ 已交付（5 条保留）                                                                       |
-| C    | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移   | 阶段 B（仅其阶段 2）                         | AC#31～44 | 🚧 C1 已交付（AC#34 待人工浏览器回归）；C2 已交付（AC#38/#39 待跨版本实证，#42 待人工回归） |
-| D    | Electron desktop SQLite / native files 接入与真实 E2E   | 阶段 A(supported) + 阶段 C + US-207 / US-504 | AC#45～53 | ⬜ 未开始                                                                                   |
+| 阶段 | 交付                                                    | 直接前置                                     | AC 区段   | 状态                                                                                                       |
+| ---- | ------------------------------------------------------- | -------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------- |
+| A    | Electron 43 + 当前 MV3 扩展 stop/go 实证                | 无                                           | AC#1～6   | ✅ 已交付（supported）                                                                                     |
+| B    | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面 | 无                                           | AC#7～30  | ✅ 已交付（5 条保留）                                                                                      |
+| C    | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移   | 阶段 B（仅其阶段 2）                         | AC#31～44 | ✅ 已交付（AC#34/#38/#39/#42 的人工浏览器回归转 [US-907](./US-907-devtools-manual-browser-regression.md)） |
+| D    | Electron desktop SQLite / native files 接入与真实 E2E   | 阶段 A(supported) + 阶段 C + US-207 / US-504 | AC#45～53 | ✅ 已交付（AC#45～#53 全部关闭，2026-09-04）                                                               |
 
 - 阶段 A 与阶段 B 相互独立，可并行开工；阶段 C 的阶段 1（行为中性抽取）也可与阶段 B 并行。
 - 阶段 B 已交付：本包内的 v2 协议、provider 数据面与 conformance suite 全部落地，5 条 AC 因只能由真实
@@ -642,55 +642,55 @@ shared panel → chrome.runtime.Port → MV3 background service worker → conte
 
 ### 阶段 B — provider 数据面（AC#21～30）
 
-| #   | 前置条件                                                              | 操作                                         | 预期结果                                                                                                                               | 状态           |
-| --- | --------------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| 21  | fake providers 覆盖三个领域和全部 kind                                | 只改变 runtime 并运行 descriptor conformance | 相同 kind 的操作、状态和错误不变；unknown/duplicate/missing descriptor 被 exact guard 拒绝                                             | ✅             |
-| 22  | none/readonly/full 与 mutation allow/omit 全组合                      | 调用全部 provider operations                 | capability、descriptor、policy 三层矩阵成立；被拒调用为 0，wire 自称权限不能扩大可信配置                                               | ✅             |
-| 23  | 数值字段含边界值、NaN、Infinity、小数、负数和溢出                     | 运行所有 request/descriptor guards           | 仅范围内 safe integer 通过；非法值在资源分配前统一 `invalid_message`                                                                   | ✅             |
-| 24  | base64 含正常、边界 chunk、非法字符、非规范 padding/URL-safe          | 传过 fake JSON driver 并重新编码             | decoded bytes 一致；非法输入 `payload_encoding_invalid`，不写入、不刷新 timeout                                                        | ✅             |
-| 25  | 零字节、正常多 chunk、乱序、重复、缺块、越限、取消、idle 超时和迟到帧 | 执行完整 transfer 状态机                     | 仅合法 COMPLETE 提交；被拒帧不刷新 idle，超时返回 `transfer_timeout`；错误码稳定，其他终态无半写文件、孤儿 metadata 或完整文件内存副本 | ⚠️ →阶段 D/905 |
-| 26  | provider 上限缺失、为 0、超过 1 GiB 或双方上限不同                    | 启动上传/下载                                | descriptor guard 或 min-limit 生效；超过协商总量 `transfer_size_exceeded`                                                              | ✅             |
-| 27  | fixture 含 1001 条记录、两类缺失和内部临时状态                        | 以默认页大小读取 snapshot                    | 独占锁内物化、tuple 稳定排序和字节计量，不漏尾页；只在 complete 后报告，临时状态不误报                                                 | ⚠️ →阶段 D/905 |
-| 28  | 等锁、epoch 连续失效、条目/字节超限、60 秒过期                        | 创建并翻页                                   | 请求进入起 15 秒内结束；分别返回 busy/too_large/expired，取消能中止等待，不保留旧结论或截断页                                          | ✅             |
-| 29  | OPFS/Node/Rust 代表性 not-found/conflict/permission/quota 错误        | 运行共享错误映射 contract                    | 三端映射为同一穷举错误码，响应不泄漏路径、stack、平台 code 或内容                                                                      | ⚠️ 部分        |
-| 30  | database export 在任意 kind/runtime 下被强制调用                      | 监控 provider/filesystem                     | 固定 `export_unsupported`，provider、OPFS、SQLite、WAL 和应用目录读取次数均为 0                                                        | ⚠️ →AC#43      |
+| #   | 前置条件                                                              | 操作                                         | 预期结果                                                                                                                               | 状态                                                                 |
+| --- | --------------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| 21  | fake providers 覆盖三个领域和全部 kind                                | 只改变 runtime 并运行 descriptor conformance | 相同 kind 的操作、状态和错误不变；unknown/duplicate/missing descriptor 被 exact guard 拒绝                                             | ✅                                                                   |
+| 22  | none/readonly/full 与 mutation allow/omit 全组合                      | 调用全部 provider operations                 | capability、descriptor、policy 三层矩阵成立；被拒调用为 0，wire 自称权限不能扩大可信配置                                               | ✅                                                                   |
+| 23  | 数值字段含边界值、NaN、Infinity、小数、负数和溢出                     | 运行所有 request/descriptor guards           | 仅范围内 safe integer 通过；非法值在资源分配前统一 `invalid_message`                                                                   | ✅                                                                   |
+| 24  | base64 含正常、边界 chunk、非法字符、非规范 padding/URL-safe          | 传过 fake JSON driver 并重新编码             | decoded bytes 一致；非法输入 `payload_encoding_invalid`，不写入、不刷新 timeout                                                        | ✅                                                                   |
+| 25  | 零字节、正常多 chunk、乱序、重复、缺块、越限、取消、idle 超时和迟到帧 | 执行完整 transfer 状态机                     | 仅合法 COMPLETE 提交；被拒帧不刷新 idle，超时返回 `transfer_timeout`；错误码稳定，其他终态无半写文件、孤儿 metadata 或完整文件内存副本 | ⚠️ →905（Electron 半边已由阶段 D AC#47 关闭）                        |
+| 26  | provider 上限缺失、为 0、超过 1 GiB 或双方上限不同                    | 启动上传/下载                                | descriptor guard 或 min-limit 生效；超过协商总量 `transfer_size_exceeded`                                                              | ✅                                                                   |
+| 27  | fixture 含 1001 条记录、两类缺失和内部临时状态                        | 以默认页大小读取 snapshot                    | 独占锁内物化、tuple 稳定排序和字节计量，不漏尾页；只在 complete 后报告，临时状态不误报                                                 | ⚠️ →905（Electron 半边已由阶段 D AC#48 关闭）                        |
+| 28  | 等锁、epoch 连续失效、条目/字节超限、60 秒过期                        | 创建并翻页                                   | 请求进入起 15 秒内结束；分别返回 busy/too_large/expired，取消能中止等待，不保留旧结论或截断页                                          | ✅                                                                   |
+| 29  | OPFS/Node/Rust 代表性 not-found/conflict/permission/quota 错误        | 运行共享错误映射 contract                    | 三端映射为同一穷举错误码，响应不泄漏路径、stack、平台 code 或内容                                                                      | ⚠️ 部分                                                              |
+| 30  | database export 在任意 kind/runtime 下被强制调用                      | 监控 provider/filesystem                     | 固定 `export_unsupported`，provider、OPFS、SQLite、WAL 和应用目录读取次数均为 0                                                        | ⚠️ →AC#43（**该条已 ✅**，Chrome 侧真实路径已计数为 0；剩 Tauri 侧） |
 
 #### 保留项：fake 关不掉的 5 条
 
 阶段 B 的 19 条 ✅ 全部有对应断言且在 `pnpm nx test rxdb-devtools` 中绿。下列 5 条**不写 ✅**——
 fake 能证明的部分已证明，剩下的部分不是「还没写测试」，而是本包结构上不可测：
 
-| AC  | 本轮 fake 验收到的程度                                                                                                                                                     | 谁最终关闭                                          |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| 19  | 计时器与资源释放、迟到响应不进新状态、旧 session 帧被拒，均已断言；但「断连」由 fake relay 自己定义。service worker 重启、Port 重连与页面刷新的真实语义不在本包            | 阶段 C AC#39                                        |
-| 25  | 状态机全部终态、错误码稳定性、`peakRetainedBytes ≤ 256 KiB` 已断言；「不得整文件驻留内存」只有这一个代理指标，Rust / 主进程那一半在本包结构上不可观测                      | 阶段 D / US-905                                     |
-| 27  | tuple 稳定排序、字节计量、不漏尾页、只在 complete 后报告已由 `provider/snapshot` 单测断言；fake 锁只能证明**调用顺序**，证明不了真实独占锁排斥并发写者                     | 阶段 D / US-905                                     |
-| 29  | 三来源代表性 fixture 全部映射到同一联合且响应脱敏；穷尽性只做到「`DEVTOOLS_PROVIDER_ERROR_CODES` 每个成员都至少被一条 fixture 产出」的 meta-test，真实平台异常空间无法枚举 | 部分；阶段 D / US-905 补 fixture **加行**而非加分支 |
-| 30  | `export_unsupported` 固定返回、provider 与 host 读取计数为 0 已断言；但本包没有真实 OPFS/SQLite/WAL 代码路径，这是在数一个从未存在过的调用                                 | 阶段 C AC#43                                        |
+| AC  | 本轮 fake 验收到的程度                                                                                                                                                     | 谁最终关闭                                                                                                          |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 19  | 计时器与资源释放、迟到响应不进新状态、旧 session 帧被拒，均已断言；但「断连」由 fake relay 自己定义。service worker 重启、Port 重连与页面刷新的真实语义不在本包            | 阶段 C AC#39                                                                                                        |
+| 25  | 状态机全部终态、错误码稳定性、`peakRetainedBytes ≤ 256 KiB` 已断言；「不得整文件驻留内存」只有这一个代理指标，Rust / 主进程那一半在本包结构上不可观测                      | **Electron 半边已关**（阶段 D AC#47，2026-09-04：真实 host 的上传/下载/边界大小全链路）；Tauri 半边等 US-905 阶段 2 |
+| 27  | tuple 稳定排序、字节计量、不漏尾页、只在 complete 后报告已由 `provider/snapshot` 单测断言；fake 锁只能证明**调用顺序**，证明不了真实独占锁排斥并发写者                     | **Electron 半边已关**（阶段 D AC#48）；Tauri 半边等 US-905 阶段 2                                                   |
+| 29  | 三来源代表性 fixture 全部映射到同一联合且响应脱敏；穷尽性只做到「`DEVTOOLS_PROVIDER_ERROR_CODES` 每个成员都至少被一条 fixture 产出」的 meta-test，真实平台异常空间无法枚举 | 部分；Electron 侧已随阶段 D 加行，Tauri 侧等 US-905 阶段 2（**加行**而非加分支）                                    |
+| 30  | `export_unsupported` 固定返回、provider 与 host 读取计数为 0 已断言；但本包没有真实 OPFS/SQLite/WAL 代码路径，这是在数一个从未存在过的调用                                 | 阶段 C AC#43                                                                                                        |
 
 ### 阶段 C1 — 行为中性抽取（AC#31～35）
 
-| #   | 前置条件                           | 操作                                                              | 预期结果                                                                                                                           | 状态 |
-| --- | ---------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 31  | generator 创建私有 panel library   | 检查 project、manifest、graph 与 release dry-run                  | `nx graph` 存在 app → panel 的 static 边；project 落在 `packages/*` 之外，不在 public tag、API baseline、版本改写或 publish 列表中 | ✅   |
-| 32  | Chrome surface 构建                | 扫描共享 library import graph                                     | UI/状态服务只依赖 transport token；不引用 chrome runtime、PortService 或任何桌面 global                                            | ✅   |
-| 33  | 抽取完成                           | 只用内存 fake transport 在单测中启动面板并渲染各页                | 面板可在无任何 `chrome.*` 的环境下装配；token 是唯一接缝                                                                           | ✅   |
-| 34  | 抽取前的浏览器回归基线已记录       | 抽取后重跑 Database、Events、branch、Storage、OPFS、Settings 清理 | 用户可见行为、wire 消息与错误展示与基线一致；**C1 不引入任何协议或行为差异**                                                       | ⬜   |
-| 35  | 公开包统计与 API baseline 已有基线 | 运行 API surface 审计与包数量统计                                 | 公开包数量与 baseline 条目不变；`modules/rxdb-devtools-panel/` 不产生任何公开子路径入口                                            | ✅   |
+| #   | 前置条件                           | 操作                                                              | 预期结果                                                                                                                           | 状态     |
+| --- | ---------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| 31  | generator 创建私有 panel library   | 检查 project、manifest、graph 与 release dry-run                  | `nx graph` 存在 app → panel 的 static 边；project 落在 `packages/*` 之外，不在 public tag、API baseline、版本改写或 publish 列表中 | ✅       |
+| 32  | Chrome surface 构建                | 扫描共享 library import graph                                     | UI/状态服务只依赖 transport token；不引用 chrome runtime、PortService 或任何桌面 global                                            | ✅       |
+| 33  | 抽取完成                           | 只用内存 fake transport 在单测中启动面板并渲染各页                | 面板可在无任何 `chrome.*` 的环境下装配；token 是唯一接缝                                                                           | ✅       |
+| 34  | 抽取前的浏览器回归基线已记录       | 抽取后重跑 Database、Events、branch、Storage、OPFS、Settings 清理 | 用户可见行为、wire 消息与错误展示与基线一致；**C1 不引入任何协议或行为差异**                                                       | ↗ US-907 |
+| 35  | 公开包统计与 API baseline 已有基线 | 运行 API surface 审计与包数量统计                                 | 公开包数量与 baseline 条目不变；`modules/rxdb-devtools-panel/` 不产生任何公开子路径入口                                            | ✅       |
 
 ### 阶段 C2 — Chrome v2 迁移（AC#36～44）
 
-| #   | 前置条件                                                           | 操作                                               | 预期结果                                                                                                   | 状态    |
-| --- | ------------------------------------------------------------------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------- |
-| 36  | new panel + v2 connector，真实 background/content/Port             | 同时交换 eager legacy 与 v2 HANDSHAKE              | background 不代 ACK；确定选择 v2，只建立一个 session，从未短暂进入 v1                                      | ✅      |
-| 37  | panel 先于 inspected page connector 就绪，且注入需先获得 host 授权 | 授权后刷新页面，观察握手                           | panel 在观察到 legacy HANDSHAKE 时补发 HELLO，窗口自暂存起算；双方均支持 v2 时仍选 v2，不因授权耗时而降级  | ✅      |
-| 38  | new panel/old connector 与 old panel/new connector                 | 分别通过真实扩展 relay 调试既有页面                | 前者窗口到期后 bridge，后者无等待 facade；既有页面可用且都不获得 v2/provider 新能力                        | ⬜      |
-| 39  | 双方版本无交集、service worker 重启、页面刷新和 Port 重连          | 观察 UI 与 session                                 | 可见 `protocol_unsupported` 或确定重连；旧订阅、请求、transfer、snapshot、计时器清理，迟到消息不进入新状态 | ⬜      |
-| 40  | Chrome OPFS provider                                               | 运行阶段 B 全部 data-plane conformance             | descriptor、base64、限额、transfer、snapshot 和穷举错误全部通过，不保留旧 OPFS 私有状态机                  | ⚠️ 部分 |
-| 41  | capability 为 none，握手前后产生事件并伪造查询                     | 经过真实四段 relay 观察页面消息和 provider 调用    | 仅生命周期消息；EVENT/DB_INFO/BRANCHES/Storage/files、订阅、buffer、provider 调用全部为 0                  | ✅      |
-| 42  | readonly/full 普通 Chrome 页面使用现有 Web adapters                | 查询、事件、branch、OPFS、Storage 与 Settings 清理 | 除数据库下载和超过协商上限的传输明确拒绝外，用户可见行为不变                                               | ⬜      |
-| 43  | Settings 展示数据库下载                                            | 点击按钮并强制发送 export 命令                     | 按钮禁用；返回 `export_unsupported`；`navigator.storage.getDirectory()`、SQLite/WAL 和文件读取次数均为 0   | ✅      |
-| 44  | Chrome 与 fake native thin driver                                  | 运行同一 panel/provider conformance                | 状态、错误、授权和资源清理一致；事件集合只来自 `RXDB_EVENT_TYPES`，fixture、状态机和错误断言没有平台副本   | ⚠️ 部分 |
+| #   | 前置条件                                                           | 操作                                               | 预期结果                                                                                                   | 状态     |
+| --- | ------------------------------------------------------------------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------- |
+| 36  | new panel + v2 connector，真实 background/content/Port             | 同时交换 eager legacy 与 v2 HANDSHAKE              | background 不代 ACK；确定选择 v2，只建立一个 session，从未短暂进入 v1                                      | ✅       |
+| 37  | panel 先于 inspected page connector 就绪，且注入需先获得 host 授权 | 授权后刷新页面，观察握手                           | panel 在观察到 legacy HANDSHAKE 时补发 HELLO，窗口自暂存起算；双方均支持 v2 时仍选 v2，不因授权耗时而降级  | ✅       |
+| 38  | new panel/old connector 与 old panel/new connector                 | 分别通过真实扩展 relay 调试既有页面                | 前者窗口到期后 bridge，后者无等待 facade；既有页面可用且都不获得 v2/provider 新能力                        | ↗ US-907 |
+| 39  | 双方版本无交集、service worker 重启、页面刷新和 Port 重连          | 观察 UI 与 session                                 | 可见 `protocol_unsupported` 或确定重连；旧订阅、请求、transfer、snapshot、计时器清理，迟到消息不进入新状态 | ↗ US-907 |
+| 40  | Chrome OPFS provider                                               | 运行阶段 B 全部 data-plane conformance             | descriptor、base64、限额、transfer、snapshot 和穷举错误全部通过，不保留旧 OPFS 私有状态机                  | ⚠️ 部分  |
+| 41  | capability 为 none，握手前后产生事件并伪造查询                     | 经过真实四段 relay 观察页面消息和 provider 调用    | 仅生命周期消息；EVENT/DB_INFO/BRANCHES/Storage/files、订阅、buffer、provider 调用全部为 0                  | ✅       |
+| 42  | readonly/full 普通 Chrome 页面使用现有 Web adapters                | 查询、事件、branch、OPFS、Storage 与 Settings 清理 | 除数据库下载和超过协商上限的传输明确拒绝外，用户可见行为不变                                               | ↗ US-907 |
+| 43  | Settings 展示数据库下载                                            | 点击按钮并强制发送 export 命令                     | 按钮禁用；返回 `export_unsupported`；`navigator.storage.getDirectory()`、SQLite/WAL 和文件读取次数均为 0   | ✅       |
+| 44  | Chrome 与 fake native thin driver                                  | 运行同一 panel/provider conformance                | 状态、错误、授权和资源清理一致；事件集合只来自 `RXDB_EVENT_TYPES`，fixture、状态机和错误断言没有平台副本   | ⚠️ 部分  |
 
 #### 本轮落地：中继两段换成真实实现
 
@@ -709,11 +709,11 @@ C2 的第一、二个增量已合入，两者都不触碰组件搬迁（C1 的�
 
 #### 保留项：模拟 Port 关不掉的部分
 
-| AC  | 本轮验收到的程度                                                                                                                                                                                                                                   | 谁最终关闭      |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| 36  | ~~Port 是模拟的~~ **已由 `apps/rxdb-devtools-extension-e2e` 关闭**：真实 `chrome.runtime.connect` / `chrome.scripting` 注入 / `window.postMessage` 四段全通，页面侧录到唯一一条 v2 `HANDSHAKE_ACK`（`protocol: 2`），端口车道上没有任何 legacy ACK | ✅ 已关闭       |
-| 41  | ~~「页面消息」是合成的 window 事件~~ **已由扩展 e2e 关闭**：`?capabilities=none&emitOnInit=1` 的页面在 init 同一 tick 发事件（确定性的「握手之前」），握手后再发一次，四条车道上 EVENT / DB_INFO / BRANCHES 均为 0                                 | ✅ 已关闭       |
-| 44  | Chrome driver 与内存 driver 跑同一套件、同一 fixture、同一错误断言，结构上无处写平台副本。缺的是对照的另一端——native thin driver 要等阶段 D / US-905                                                                                               | 阶段 D / US-905 |
+| AC  | 本轮验收到的程度                                                                                                                                                                                                                                               | 谁最终关闭      |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| 36  | **Port 为真实 `chrome.runtime.connect`**（`apps/rxdb-devtools-extension-e2e`）：真实 `chrome.runtime.connect` / `chrome.scripting` 注入 / `window.postMessage` 四段全通，页面侧录到唯一一条 v2 `HANDSHAKE_ACK`（`protocol: 2`），端口车道上没有任何 legacy ACK | ✅ 已关闭       |
+| 41  | **页面消息来自真实页面**（扩展 e2e）：`?capabilities=none&emitOnInit=1` 的页面在 init 同一 tick 发事件（确定性的「握手之前」），握手后再发一次，四条车道上 EVENT / DB_INFO / BRANCHES 均为 0                                                                   | ✅ 已关闭       |
+| 44  | Chrome driver 与内存 driver 跑同一套件、同一 fixture、同一错误断言，结构上无处写平台副本。对照的另一端已到一半：Electron 薄 driver 已随阶段 D AC#53 跑完 80 条，Tauri 薄 driver 要等 US-905 阶段 2                                                             | 阶段 D / US-905 |
 
 AC#38 / #39 保持 ⬜：两者要的是**跨版本**与**真实断连**的实证——前者需要同时装一份旧
 connector 与一份旧面板产物，后者需要 service worker 重启与 Port 重连。两件事都不是再写一条
@@ -817,14 +817,14 @@ v2 session 一建立，端点就去开 `database.events` 订阅，而 `database`
 
 | #   | 前置条件                                                         | 操作                                                   | 预期结果                                                                                                                                         | 状态 |
 | --- | ---------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 45  | 分别构建显式开发配置与 production                                | 检查产物并启动                                         | dev 加载唯一工作区扩展并握手；production 无扩展源码、加载路径、bootstrap 和新增权限                                                              | ⚠️   |
-| 46  | 应用使用 US-207 desktop SQLite                                   | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与应用一致；不创建或查询 OPFS/IndexedDB fallback                                                         | ⚠️   |
-| 47  | 应用使用 US-504 原生文件后端并显式允许 mutation                  | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件专用根，字节一致；UI 仅用 `runtime: electron` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                              | ⚠️   |
+| 45  | 分别构建显式开发配置与 production                                | 检查产物并启动                                         | dev 加载唯一工作区扩展并握手；production 无扩展源码、加载路径、bootstrap 和新增权限                                                              | ✅   |
+| 46  | 应用使用 US-207 desktop SQLite                                   | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与应用一致；不创建或查询 OPFS/IndexedDB fallback                                                         | ✅   |
+| 47  | 应用使用 US-504 原生文件后端并显式允许 mutation                  | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件专用根，字节一致；UI 仅用 `runtime: electron` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                              | ✅   |
 | 48  | 1001 条以上 metadata/files、两类缺失和一条在途上传               | 读取完整诊断 snapshot                                  | 从请求进入起算的共享 deadline（阶段 B）覆盖等锁/物化/重试；不漏尾页或误报临时状态；失效/超限/过期分别返回 shared busy/too-large/expired          | ✅   |
-| 49  | 打开 Settings                                                    | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明清理返回 `provider_unsupported`，不读取 OPFS/SQLite/WAL 或其他目录                            | ⚠️   |
+| 49  | 打开 Settings                                                    | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明清理返回 `provider_unsupported`，不读取 OPFS/SQLite/WAL 或其他目录                            | ✅   |
 | 50  | 同源脚本/content script 持有合法 session，或构造越界路径         | 在 none/readonly/full、mutation 开/关组合下伪造操作    | connector、preload、host 各自校验；未授权 provider 调用为 0，未 opt-in mutation 不执行；根外无读写，错误不含路径、SQL 绑定值、加密字段或文件内容 | ✅   |
-| 51  | session A 有订阅、迟到响应和未完成传输                           | 关闭/刷新后建立 session B 并投递 A 消息                | A 的 host session 与资源释放；B 拒绝旧身份，不显示旧实体、错误、事件或进度                                                                       | ⚠️   |
-| 52  | 真实临时 userData、SQLite 与原生文件后端                         | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 extension/renderer/preload/main/host，不用 mock 替代                                                    | ⬜   |
+| 51  | session A 有订阅、迟到响应和未完成传输                           | 关闭/刷新后建立 session B 并投递 A 消息                | A 的 host session 与资源释放；B 拒绝旧身份，不显示旧实体、错误、事件或进度                                                                       | ✅   |
+| 52  | 真实临时 userData、SQLite 与原生文件后端                         | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 extension/renderer/preload/main/host，不用 mock 替代                                                    | ✅   |
 | 53  | Electron 薄 driver 接入阶段 B conformance 与阶段 C panel library | 运行全部共享断言                                       | 控制面、descriptor、base64、safe integer、授权、传输、快照、错误和 session 重建通过；不复制 UI、wire、fixture 或错误码                           | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
@@ -833,8 +833,254 @@ v2 session 一建立，端点就去开 `database.events` 订阅，而 `database`
 AC#50（`desktop-host-request-guard` 三族 29 kind 闭集 + preload 内联闸 + host 桥分派前显式拒绝）、
 AC#53（`electron-relay-nodes` 薄 driver 跑共享 conformance 80 条）三条已完全关闭。
 AC#45/46/47/49/51 的 provider/装配/单测侧已落地（加载隔离、database provider、native-files、settings、session teardown），
-但「真实 DevTools 关闭/刷新/退出、真实 electron-builder + CDP、真实 userData 重启重连」的 E2E 侧全部挂 AC#52——
-该条需要真实 Electron 环境（联网 electron-builder 下载 + 真沙箱 + dock 模式），本机无法验证，故保持 ⬜。
+但「真实 DevTools 关闭/刷新/退出、真实 userData 重启重连」的 E2E 侧当时全部挂 AC#52——
+其中重启重连那一段已由下面的 AC#52 关闭，AC#45/46/47/49/51 的 E2E 侧仍未补齐。
+
+**AC#52 交付记录（2026-09-03，真机跑通）**：`apps/dev-rxdb-electron-e2e/src/devtools-restart-persistence.spec.ts`。
+两次启动共用同一个临时 userData，链路上没有任何替身：`electron-builder --dir` 产物里的真实 main / preload / host、
+真实 renderer、真实 MV3 扩展构建产物、真实 DevTools 前端与它注册的扩展面板。证据两路各覆盖一段：
+
+- **实体**：`DesktopLaunch` 每次启动追加一行。第二次启动后面板同时读到两行（`DesktopLaunch 2 条`），
+  且第一次那行的 `startedAt` 逐字符不变。这条数据从 SQLite 出发经 host → main → preload → renderer connector →
+  content bridge → background → 面板，中间任一段换成桩都读不到它。
+- **文件**：1 MiB 确定性文件走原生文件后端落盘。面板 Storage 页读回它的 `StorageFileMeta`；应用侧再把字节流式读回
+  算 SHA-256，与**直接在磁盘上**对同一文件算出的摘要比对，重启前后一致。
+
+「本机无法验证」那句判断已被这次实测推翻。同一次实测钉死两条 Electron 侧事实：
+
+1. **自定义 scheme 不在 Chromium 扩展 match pattern 的合法 scheme 集里。** 桌面生产入口 `app://`
+   （`main.utils.ts` 的 `APP_SCHEME`）永远拿不到 host permission：`['app://-/*']`、`['<all_urls>']`、两者并列
+   三种写法实测全部让 `chrome.scripting.executeScript` 抛「Cannot access contents of the page」。
+   连 `<all_urls>` 都不行——它只覆盖 http/https/file/ftp。
+2. **Electron 没有 `chrome.permissions` 命名空间**，`optional_host_permissions` 的授权集恒为空；
+   Electron 上必须有一条**静态** `host_permissions` 才注得进去，运行时请求那条路不存在。
+
+因此该 E2E 用应用自己的 `--serve` 路径把 inspected page 换成 `http://localhost:<port>`（main / preload / host
+一律不动，**只换 renderer 的 origin**），并用扩展 dist 的**临时副本**写入 `host_permissions: ['http://localhost/*']`。
+这与上面阶段 C2 第 4 条对 `apps/rxdb-devtools-extension-e2e` 记录的 variance 同源同形态：补的是**宿主**，不是被测物。
+生产 manifest 保持 optional-only，由 `manifest.config.spec.ts` 的两条否定契约守住（不加 `host_permissions`、
+不为 `app://` 显式声明 `web_accessible_resources`——加了也不工作，只多一份安装警告与权限面）。
+
+失败在此前完全无声：SW 里 `configureLogger(import.meta.env.DEV)` 关掉了生产日志，Chromium 的安装警告在 release
+构建里也不落 stderr。唯一能看见真因的通道是**在 `panel.html` 帧里直接 `chrome.scripting.executeScript`**
+（经 `devToolsWebContents.mainFrame.framesInSubtree` 找到该帧再 `executeJavaScript`）。这也顺带纠正了
+「Playwright 打不开 DevTools 宿主」的推论边界：**浏览器**侧确实打不开（`apps/rxdb-devtools-extension-e2e` 的
+variance 依然成立），但 **Electron 侧可以**——不走 page 级 CDP，走主进程的 `app.evaluate()` + `openDevTools({mode:'bottom'})`。
+另有两个必踩的坑：DevTools `TabbedPane` 会把放不下的 tab **移出 DOM**，读 tab 条前必须 `win.setSize(1600, 1000)`，
+否则扩展面板恒读不到、被误判成「面板没登记」；`chrome.scripting` 在**隔离世界**执行，用主世界的
+`window.__AIAO_RXDB_DEVTOOLS_BRIDGE__` 判断「桥有没有注进去」永远是 false，那个观测口径是错的。
+
+同时删除 `apps/dev-rxdb-electron/tools/devtools-stage-d-probe.mjs`：那份骨架的驱动形态（独立 Electron 脚本
+`loadURL('app://-/index.html')`）已被上面第 1 条证伪，永远接不通面板；留着只会把 AC#46/47/49/51 的后续工作
+引向死路。剩余 AC 的 E2E 应当从 `devtools-restart-persistence.spec.ts` 这套已跑通的驱动（`attachPanel` /
+`readPanel`）出发。（`requirements/reviews/next-0831-branch-review.md` 里对该文件的引用是当时的快照，不回改。）
+
+**AC#45 关闭 + 一处此前不成立的接线（2026-09-04）**：`apps/dev-rxdb-electron-e2e/src/devtools-capability-wiring.spec.ts`（4 例）。
+
+关闭 AC#45 的过程中发现：**`DEV_RXDB_DEVTOOLS_CAPABILITY` 与 `DEV_RXDB_DEVTOOLS_MUTATION` 对授权毫无影响。**
+`resolveDevToolsDevConfig()` 在主进程里把两者解析、校验，然后**丢掉**——没有任何一条路把它们送到渲染进程，
+页内 connector 恒为 `@aiao/rxdb-devtools` 的库默认档 `capabilities: 'full'` + `mutationPolicy: 'omit'`。
+后果有两层：档位开关是装饰性的；**「显式允许写入」在桌面端根本表达不出来**，
+所以 AC#47 的「显式允许 mutation → 上传/新建/删除」在此前的代码上无从验起——这正是它的 E2E 侧一直空着的原因。
+
+补上的链路：main 解析 env → `devToolsLaunchArguments()` 编码成 `webPreferences.additionalArguments`
+→ preload 同步读 `process.argv` 并 `exposeInMainWorld` → 渲染进程 `setup_rxdb_desktop.ts` 展开进
+`getDevToolsConnector()`。**用启动参数而不是 IPC 是时序决定的**：connector 是应用 bootstrap 时建的
+一次性全局单例，异步 IPC 到不了那么早，只会退化成「先按默认档建好、再想办法改」——那等于给授权留一段空窗。
+未开启开发态 DevTools 时 `devToolsLaunchArguments(undefined)` 返回空数组，preload 一个键都不挂，
+页内因此拿到 `undefined` 并沿用库默认档，而不是一份「长得像配置的默认值」。
+
+判别力落在**面板上看得见的差别**而不是「读到了那个变量」：`capabilities: 'none'` 下 connector 的
+`#subscribeToEvents` 首行就返回，面板永远读不到实体。该用例用与 `full` 档**同样的 40s 预算**再判「没有」
+（短预算下的「没读到」只能说明还没到），实测 41.6s 全额跑完仍为空；接线一旦断掉它会退回默认的 `full`
+而由红转绿，因此同时是回归闸。三处字面量（挂载键 × 2、参数前缀 × 2）分散在 preload（`sandbox: true`
+不能值导入）、`ipc-contract.ts` 与渲染进程三个文件里，由 `devtools-extension.spec.ts` 的两条用例钉住——
+任何一处漂移的表征都是「配置静默不生效」，没有任何报错。
+
+AC#49 的**面板侧**同批关闭（导出按钮常量禁用 + 停用理由），保留半边是 wire 侧的
+「强制发 export 命令 → `export_unsupported`」与「未声明 clear → `provider_unsupported`」。
+
+**AC#47 的写路径（2026-09-04）**：`apps/dev-rxdb-electron-e2e/src/devtools-native-files-mutation.spec.ts`（2 例）。
+接线补齐后才谈得上验它——在此之前 `mutationPolicy` 恒为 `omit`，面板的写一律被 connector 拒掉。
+
+判据取**盘上的字节**而不是面板的提示：面板说「成功」只证明它收到了一条成功响应，只有独立地对
+`userData/rxdb-files/files/` 里的真实文件算一遍 SHA-256，才排除得掉「中途换了字节」「只写了元数据」
+「写进了别的目录」三种情况（与 AC#52 同一手法）。已覆盖：浏览、新建目录、正常大小上传（64 KiB，
+逐字节摘要一致）、**零字节**上传、删除，且全部落在插件专用根内。
+
+`readonly` 负对照是整组的判别力来源：省略写入开关后跑同一套操作，用与 `allow` 档**同样的落盘预算**
+再判「没有」，目录与文件一个都不出现。没有这一条，「写入开关恒为 allow」的实现同样能让前几条全绿。
+
+**保留半边**（故 AC#47 仍为 ⚠️）：面板侧下载、边界大小、`runtime: electron` 的 UI 显示，
+以及「失败/取消/超时无半写文件或孤儿 metadata」——后者的 provider 侧已有单测，缺的是真实路径上的复现。
+
+踩到并记下的坑：文件表每一行的删除按钮是 `title="删除"`，确认对话框里的是**文本**为「删除」的按钮，
+两者匹配同一个 label；不限定 `.modal-action` 范围时 `querySelectorAll` 按 DOM 顺序先撞上行内那个，
+「确认删除」于是变成「再点一次删除」，表征是文件始终不消失。
+
+**一处已知 flaky（阶段 A 遗留，非本轮引入）——已修掉**：`devtools-mv3-feasibility.spec.ts` 的
+「AC#4 销毁窗口后 webContents 清空，service worker 空闲自停」在**整套 e2e 连跑且机器有负载**时
+会红在 `serviceWorkersRightAfterDestroy.length > 0` 上。该断言要的是「销毁窗口的瞬间 worker 还在」
+（MV3 的 worker 不随页面走，空闲约 30s 才自停）；机器慢下来时探针取样点会漂到 30s 之后，
+worker 已经自停，于是这一半落空。实证：单跑 10/10 绿（58.5s），连跑那次整套耗时 13.2m
+（平时 1.9m，约 7 倍），只有这一条红。
+
+**修法与成因（2026-09-04）**：病灶是探针 `devtools-mv3-probe.mjs` 在 destroy 之后的那句
+`await sleep(2000)`。此前把成因写成「取样点漂到 30s 之后」只对了一半——**面板的 Port 会一直把
+worker 撑着，空闲计时从窗口销毁那一刻才起算**，所以漂的不是前面那些步骤，就是这 2 秒本身：
+机器有负载时它的真实墙钟远超 2s，一旦越过约 30s 的空闲窗口，worker 已自停。修法是**零等待取样**
+（销毁后立刻读），判据于是只依赖「销毁」与「取样」的先后，不含任何时间量。
+
+判别力实测（跑完即删，不留开关）：把那句 sleep 换成 35s，本条稳定红在 `Received: 0`；
+去掉等待后单跑 10/10 绿（58.0s）。**先证伪过一个更自然的猜法**：把 35s 放在 destroy **之前**
+本条照样绿——正是这一次否定，才把成因从「前面步骤太慢」纠正到「Port 撑着 worker，计时从销毁起算」。
+
+**AC#46 关闭（2026-09-04）**：`apps/dev-rxdb-electron-e2e/src/devtools-database-events-branch.spec.ts`（1 例）。
+
+三路证据各自独立：**数据**沿用 AC#52 的手法（后端确认为 `sqlite-electron`，面板读到真实
+`DesktopLaunch` 行）；**事件全集**由新增的 `apps/dev-rxdb-electron/src/app/devtools-event-probe.ts`
+在应用自己的 `RxDB.dispatchEvent()`（公开成员，不是测试后门）上逐类派发 25 类；
+**branch** 在面板里建分支、切分支，再回到应用侧的独立读数（首页 `rxdb-current-branch`，
+直接来自 `versionManager.getCurrentBranch()`）核对——只看面板自己的选中项证明不了应用切过去了。
+外加否定判据：全程结束后 `File System` / `IndexedDB` 下一个文件都没有。
+
+**为什么必须显式派发**：本 demo 没有远端，`SYNC_*` / `CONFLICT_*` / `REPOSITORY_SYNC_*` /
+`ENTITY_REMOTE_*` / `MERGE_BRANCH_*` 靠真实操作永远不会发生，真实操作至多产生十来类。
+探针里事务三类**排在最后且成对闭合**：`dispatchEvent()` 在事务打开期间会把非事务事件压进队列
+等 COMMIT 才排空，顺序写错的表征是「面板少几类事件、但没有任何报错」。
+
+**两个测量口径上的坑（都实测过，写在用例里）**：① 事件列表是 `cdk-virtual-scroll-viewport`，
+当时实测 `clientHeight` 为 **0**、只渲染三五条最小缓冲——面板自报 63 条事件时 DOM 里只有 3 个徽章，
+拿 DOM 当判据会把「没收到」和「没渲染」混成一个结论。**成因后来查清并已修**：不是 dock 高度也不是
+CDK，而是**面板整套 Tailwind 样式根本没生成**（见下方「面板无样式」一节），高度链因此从 `main`
+起就断了。修好之后同一处视口 `clientHeight` 为 194px、内容 800px，滚动正常。
+因此类型全集的判据取**wire**（connector 发往面板的 v2 `EVENT` 帧，旁路逐条录得到），
+面板是否真的收下则取它自己的事件计数（`eventIndexes().length`，不受虚拟滚动影响）。
+② 判别力实测：让探针漏发一类（`CONFLICT_PENDING`）而返回值不变，本条由绿转红并精确点名那一类。
+
+**AC#47 的三个保留项已关，只剩「面板侧下载」（2026-09-04）**：
+`devtools-native-files-mutation.spec.ts` 增至 3 例。已补齐：
+
+- **`runtime: electron` 显示**——面板此前**任何地方都不显示 runtime**。新增
+  `modules/rxdb-devtools-panel/src/pages/opfs.page.ts` 的 `filesRuntime`（取自协商出的 `files`
+  descriptor），Files 页头上一个只读徽章；配套单测钉住「换 runtime 之后除该显示值外逐项不变」，
+  与 Tauri 侧 `tauri-vfs-providers.spec.ts` 同口径。**这一处顺带解掉 US-905 AC#6/#10 的 UI 半边。**
+- **边界大小**——经 wire 声明一个 `size = maxTransferBytes + 1` 的上传，拿回 `transfer_size_exceeded`。
+  判据取**声明值就被拒**：真传 1 GiB 只会把用例变成带宽测试，而边界检查本就该在第一个 chunk 之前拦下。
+- **失败无半写**——被拒之后存储根下的条目清单逐项不变，且没有 `.rxdb-tmp` 孤儿。
+
+踩到并记下的坑：`DevToolsEndpointService.state` 存的是**协商状态**，descriptors 挂在端点实例上
+（`endpoint.descriptors`）。写成 `state()?.descriptors.find(...)` 会在每次变更检测里对着 undefined
+调 `.find` 而抛 TypeError，表征是 **Files 页只剩外壳**（工具栏、面包屑、文件表全没了），
+而 DevTools 控制台**一条错误都不打**——只能靠二分定位。
+
+**面板侧下载已接线，AC#47 随之关闭（2026-09-04）**。此前 `v2-file-channel.ts` 的 `download()`
+走的是普通 `call('download')` 请求路径，**全仓库没有任何地方调用 `DevToolsPanelEndpoint.download()`**
+（那个带 sink 的字节通道 API 已实现但无消费者），于是面板只拿到一条成功应答、一个字节都没收到——
+用户点了「下载」而什么都没发生，且没有任何报错。
+
+**接线时踩到的坑**：`requestId` 必须穿进 `params`。provider 的 `download` 用它登记这次传输
+（`native-files-provider.ts` 的 `downloads.set(requestId, …)`），端点之后取字节源时只带得了这一个 ID。
+漏掉它 provider 回 `invalid_path`，与「路径真的不对」无法区分——与 upload 传 `transferId` 同一条理由。
+
+**保存方式选了 anchor + Blob 单路径，并把代价写下来。** 真正的流式落盘只有
+`showSaveFilePicker` + `FileSystemWritableFileStream` 一条路，而它在这里拿不到：WebKit
+（macOS / Linux 的 Tauri webview）根本没有该 API（已被 `desktop-webview-capability.spec.ts`
+的能力表冻结），且面板在 DevTools 里是**跨源 iframe**，File System Access 要的权限策略给不到。
+所以没有加那个几乎永远走不到的 picker 分支去假装流式——峰值内存 ≈ 文件大小这件事如实写在
+`createDownloadSink` 的注释里，真要压下来该动的是 provider 的 `maxTransferBytes` 声明。
+
+`delivered-at-source`（浏览器 OPFS 由页面自己保存、字节不过 wire）与 `received` 分开处理，
+否则面板会去保存一个空 sink——端点把这两个终态分开正是为了防这件事，单测各钉一条。
+
+**E2E 判据取面板真正收到的字节**：在面板帧里把 `URL.createObjectURL` 截下来，对 Blob 算 SHA-256，
+与**独立地**对盘上文件算出的摘要比对。面板显示「下载成功」只证明它收到了一条成功应答——
+而那恰恰是修复前的状态。
+
+**AC#49 关闭（2026-09-04）**：`apps/dev-rxdb-electron-e2e/src/devtools-settings-refusals.spec.ts`（1 例）。
+
+面板侧那一半（按钮常量禁用 + 停用理由）此前已关；补上的是 wire 侧的**强制调用**。面板上根本没有
+发出导出命令的出口（`[disabled]` 绑的是常量 `true`），所以「点不到」证不了「发过去也会被拒」——
+后者才是判据。注入口是新增的 `devtools-wire-tap.ts`：**用 connector 自己的 window 总线**
+（`createWindowConnectorTransport` 的出站 `window.postMessage` + 入站 `event.source === window` 守卫），
+不是另开的后门，产品代码一行没动。
+
+两条拒绝各自钉一个不同的原因，不可互换：`settings.export` 是**已声明**操作，走到 provider 才拒，
+答案 `export_unsupported`；`settings.clear` **未声明**，在 descriptor 层就拒，答案 `provider_unsupported`。
+档位取 `full` + `mutation: allow` 把授权这个变量排除掉——低档位下两条都会先撞授权，那样的绿证明不了本条。
+「不读取 OPFS/SQLite/WAL」取盘上对照：两次强制调用前后，库文件/`-wal`/`-shm` 的 mtime 与 WebView
+自有存储（`File System` / `IndexedDB`）的文件清单逐项不变。
+
+判别力实测：把 wire tap 的 `source` 常量改成一个错值，本条由绿转红并报「没有拿到任何应答」，
+同时打印出录到的真实帧序列 `PING, HANDSHAKE, 2:PROTOCOL_HELLO, 2:HANDSHAKE, 2:HANDSHAKE_ACK`——
+这串本身也是「旁路确实挂在真实四段 relay 上」的证据。
+
+**AC#51 关闭（2026-09-04）**：`devtools-session-rotation.spec.ts`（2 例，对应 AC 操作栏的「关闭/刷新」两条路径）。
+
+「刷新后重开」那条一开始就绿；「**只关闭、不刷新页面**」那条最初是红的，而且卡在**三处互相独立**的
+缺陷上——三处都修掉之后才绿。三者任缺其一，表征完全相同且极具误导性：面板静默退回 v1 车道，
+连接守卫照样显示「已连接」，但 v2 数据面已经不属于它了。
+
+1. **中继不把「面板没了」告诉页面**（`apps/rxdb-devtools-extension/src/background/background-core.ts`）。
+   `port.onDisconnect` 原本只做 `ports.delete(tabId)`，于是 connector 的 session A 一直 `open`，
+   25 条事件订阅与计时器全都继续活着。现改为：background 顺路记下每个 tab 协商出的 session
+   （`HANDSHAKE` 本就经过它），port 一死就用那个身份补发一条 v2 `DISCONNECT`。
+   **这是 background 能自造的第二条、也是最后一条消息**；它与「`HANDSHAKE_ACK` 归面板独有」
+   那条禁令不冲突：ACK 是协议决定（哪一版赢），而 `DISCONNECT` 是传输事实（port 没了），
+   且这件事**只有 background 观察得到**——页面看不见扩展 port，面板此刻已经不存在。
+   `direction: 'both'` 也说明协议本就允许两侧发它。
+2. **端点对协商帧重复回错**（`packages/rxdb-devtools/src/v2/endpoint.ts`）。`#route` 没有跳过
+   `NEGOTIATION_OWNED_TYPES`，而紧邻它的 `#rejectMalformed` 第一行就跳了——同一条规则只落实了一半。
+   新面板的 `PROTOCOL_HELLO` 的 `sessionId` 必为 `null`，于是撞在 `session.accepts` 上被回
+   `session_invalid`，而它本该由协商机自己处置。
+3. **协商机停在 `v2`，且 `sessionId` 在构造时就铸死**（`packages/rxdb-devtools/src/connector.ts`）。
+   只关 session 不够：原地复位状态会让下一个面板拿到**同一个** session，而 AC#51 要的正是它不一样。
+   现改为 session 由开转关时**整个换一个端点**，与面板侧 `DevToolsEndpointService` 按
+   `connectionEpoch` 换端点的做法对称——两端都把「传输断了」当作一条连接的终点。
+
+**以前没被抓到的原因已查明**：唯一覆盖「关 DevTools 再重开」的既有用例是
+`devtools-mv3-feasibility.spec.ts` 的 AC#4b，它在两步之间 `win.webContents.reload()`（注释写的是
+「清空页面计数」）——刷新会连 connector 一起重建，恰好把三条缺陷全盖住。
+
+回归面：`rxdb-devtools` 961 条、`rxdb-devtools-extension` 162 条（新增两条 background 讣告断言，
+含「没协商过 v2 的 tab 断开时不发讣告」这条负对照）、Electron e2e 54 条、扩展四段中继 e2e 2 条，全绿。
+
+**顺带的产品结论（需 owner 单独决策，不在本条范围）**：开发者拿**打包产物**（`app://` 入口）时用不了 DevTools
+扩展面板。阶段 D 的范围本就声明「production 无扩展源码与加载路径」，所以这不构成生产缺陷；但若希望开发者能在
+打包态调试，唯一可行形态是给 dev 构建保留 `--serve` 入口。是否为此立故事请 owner 判定。
+
+### 面板无样式：一条与协议无关、但让整个面板版面全错的缺陷（2026-09-04 修复）
+
+排查 DevTools 面板「样式有问题」时量出来的，与本故事的协议链路无关，但正是它把
+AC#46 那条「事件列表只渲染三五条」的成因引到了错误方向。
+
+**证据**：构建出的面板 CSS 里 `h-screen` / `flex-1` / `overflow-hidden` / `badge-ghost`
+**一个都不存在**（`grep -c` 全为 0）。也就是说共享面板的 utility class 一条都没生成。
+
+**成因**：Tailwind v4 取消了 `content` 配置，改为从**样式入口所在的项目**自动探测来源。
+`apps/rxdb-devtools-extension/src/style.css` 探测不到 `modules/rxdb-devtools-panel/`——
+那是另一个项目。Tauri 那侧更彻底：`devtools.html` 不引任何样式表、`main.ts` 也不 import CSS，
+vite 配置里连 tailwind 插件都没有（那份配置的注释里写着「只是没有 crx / tailwind」——
+省略是知道的，后果显然不知道）。
+
+**后果**（Electron dock DevTools，抽屉 272px 实测）：shell 289px 而不是 272（`h-screen` 无效）、
+`main` 拿到的是内容高而不是剩余空间、Files 页 0px、Events 页虚拟滚动视口 `clientHeight` 为 0、
+Database 页 452px 直接溢出抽屉而不是内部滚动。
+
+**为什么一直没被发现**：失败形态极具误导性——面板**渲染得出来**、文字读得到、
+既有 e2e 断言（全都基于 `innerText`）也照常绿，只有版面是错的。
+
+**修法**：扩展侧在 `style.css` 加一条 `@source` 指向面板源码；Tauri 侧补一份
+`src/devtools/devtools.css`（同样两条 `@source`）、给 `vite.config.devtools.mts` 装上
+`@tailwindcss/vite`、并在 `devtools/main.ts` import 它。另外两处组件宿主也补了 `:host` 块级高度：
+`ConnectionGuardComponent` 此前**完全没有 styles**（宿主 `display:inline`、0×0，而**每个页面**
+都把内容套在它里面），`OpfsPage` 是五个页面里唯一漏了 `:host` 的。
+
+**修后实测**：shell/appRoot/body 均 272，`main`/`guard`/`page` 均 231，
+Events 视口 `clientHeight` 194（内容 800）。
+
+**踩到的坑**：Angular 的 JIT 内联样式会被包进模板字面量，**CSS 注释里不能出现反引号**——
+否则整个 spec 文件 parse 失败，报错指向 `virtual:angular:jit:style:inline`，与真因毫无关系。
 
 ## 实现所有权
 

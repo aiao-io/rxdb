@@ -80,7 +80,7 @@ Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另�
 - 改 core 的 `FETCH_FAILURE_MESSAGE` 正则或让它读 `error.cause`（放宽后 message 含 `load failed` 的业务错误会被误判成离线；本包自己分类即可）
 - v1 Full changelog 同步
 - Evolu XOR / CRDT
-- ~~乐观离线写（US-020 D5：cache 模式离线只读）~~ —— D5 已被 [US-020 D5-R](../core/US-020-querycache-repository.md) 反转：
+- 乐观离线写 —— 语义由 [US-020 D5-R](../core/US-020-querycache-repository.md) 定义：
   QueryCache 离线可写、联网后按 REST 动词重放。**落点仍不在本包**：排队与重放在 core
   （`query-cache-outbox.ts`），本包只多做一件事——把每次远端调用的结果报给
   `rxdb.reachability`，好让 core 分得清「网断了」和「远端拒绝了」

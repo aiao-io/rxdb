@@ -36,8 +36,18 @@ export const APP_DATA_DIR_ENV = 'DEV_RXDB_TAURI_APP_DATA_DIR';
  */
 export const PROBE_BASE_URL_ENV = 'DEV_RXDB_TAURI_PROBE_BASE_URL';
 
+/**
+ * DevTools 握手探针的开关，与 `selfcheck.rs` 的 `DEVTOOLS_PROBE_ENV` 一致；**可选**。
+ *
+ * @remarks
+ * 与 {@link PROBE_BASE_URL_ENV} 同规则：不设就是不跑那条探针，但没开自检却设了它是配置错误
+ * （退出码 3）。只有 `devtools-window-transport.spec.ts` 会设它——release 产物里没有调试窗口，
+ * 开了只会让每次 smoke 白等一个预算。
+ */
+export const DEVTOOLS_PROBE_ENV = 'DEV_RXDB_TAURI_DEVTOOLS_PROBE';
+
 /** 本文件能读懂的报告结构版本，与 `selfcheck.rs` 的 `REPORT_SCHEMA_VERSION` 一致。 */
-export const REPORT_SCHEMA_VERSION = 2;
+export const REPORT_SCHEMA_VERSION = 8;
 
 /**
  * 自检环境变量配错时的退出码，与 `selfcheck.rs` 的 `CONFIG_EXIT_CODE` 一致。
@@ -135,6 +145,135 @@ export interface WebviewProbe {
   readonly crossOriginDenied: string;
 }
 
+/**
+ * DevTools 双 WebView 探针的结果，与 `selfcheck.rs` 的 `DevToolsProbe` 一致（US-905 阶段 1）。
+ *
+ * @remarks
+ * 这些事实**只有主 WebView 能给**：Rust 侧的中继按设计不解释 payload，看得见「有两个窗口」
+ * 却看不见「它们握上手了」。收到 `HANDSHAKE_ACK` 一次性证明调试窗口真的建起来了、
+ * 加载的是共享面板、协商到了 v2、且帧走完了真实 Rust 中继。
+ */
+export interface DevToolsProbe {
+  /** 调试窗口发过来的 v2 帧类型，按首次出现排序、已去重。 */
+  readonly panelFrameTypes: string[];
+  /**
+   * 每一轮握手读到的 session id，按发生顺序；没握上手时为空数组。
+   *
+   * @remarks
+   * AC#4 的判据要看**轮换**：只报最后一个的话，「同 label 重开换了新身份」与「一直复用同一个」
+   * 在报告里长得完全一样，而后者正是要抓的缺陷。
+   */
+  readonly sessionIds: string[];
+  /** 是否在预算内看到了 `HANDSHAKE_ACK`。 */
+  readonly handshakeCompleted: boolean;
+  /**
+   * 冒名窗口活着期间被中继按 label 拒掉的帧数（US-905 阶段 1 AC#3）。
+   *
+   * @remarks
+   * 计数而不是布尔：`0` 说明那扇窗根本没敲到门、这条用例什么都没验到，
+   * 与「敲了但被拒」是两个结论。
+   */
+  readonly relayRejected: number;
+  /**
+   * 调试窗口里的 wire 驱动跑出来的结论（US-905 阶段 2）；没装驱动时缺席。
+   *
+   * @remarks
+   * 驱动只存在于 dev 二进制里，且要自检探针开着才注入，所以这个字段在 release 产物上
+   * 永远不会出现——`desktop-smoke` 读到它就说明隔离破了。
+   */
+  readonly native?: DevToolsNativeProbe;
+}
+
+/**
+ * 真实双窗口链路上的 wire 结论（US-905 阶段 2，AC#9 / #12 / #13）。
+ *
+ * @remarks
+ * 字段全是**错误码**不是数据：判据要的是「这条操作在真实链路上答了什么」，
+ * 而回显路径或字节会把诊断报告变成一条泄漏通道（AC#13 明写响应不得含这些）。
+ */
+export interface DevToolsNativeProbe {
+  /** 驱动是否等到了握手；`false` 时其余字段无意义。 */
+  readonly sessionSeen: boolean;
+  /** `files.list` 的结果码；接上真实 native host 后应为 `ok`。 */
+  readonly filesList?: string;
+  /** `files.list` 读到的条目数；`-1` 表示这次没读到结果。 */
+  readonly filesEntryCount?: number;
+  /**
+   * 驱动动手之前，它上一次留在盘上的那个目录是否**已经**在列表里（AC#15）。
+   *
+   * @remarks
+   * 取值时机是驱动的**第一件事**：本进程还没碰过存储，所以 `true` 只可能来自上一次启动。
+   * 内存实现与每次重建的空库都伪装不出来。
+   */
+  readonly keptDirSeen?: boolean;
+  /** 经真实 wire 读实体的结果码（AC#9 的数据面一半）。 */
+  readonly databaseQuery?: string;
+  /**
+   * 经 wire 读到的启动记录行数；`-1` 表示这次没读到结果。
+   *
+   * @remarks
+   * 与报告自己的 `launchCount` 是**两条独立路径**测同一件事：后者由应用侧 repository 数出来，
+   * 前者穿过面板 → IPC → native host → provider。两者相等才说明面板读的是同一个真实库。
+   */
+  readonly launchRowCount?: number;
+  /** 强制 `settings.export` 的结果码；恒为 `export_unsupported`。 */
+  readonly settingsExport?: string;
+  /** 未声明的 `settings.clear` 的结果码；恒为 `provider_unsupported`。 */
+  readonly settingsClear?: string;
+  /** 伪造 session 的同一条请求的结果码；必须被拒。 */
+  readonly forgedSession?: string;
+  /**
+   * 新建目录的结果码（US-905 阶段 2，AC#10 / #13 的写入半边）。
+   *
+   * @remarks
+   * 没 opt-in 写入时它是 `provider_unsupported`——与「这个操作压根没声明」**同一个码**
+   * （见共享包 `authorizeOperation`：拒绝不区分二者，免得对端把 provider 目录枚举出来）。
+   * 所以判别力不在码上，而在**磁盘**：只读那一跑必须一个目录都不落。
+   */
+  readonly createDirectory?: string;
+  /** 删除的结果码；只读档下同样是 `provider_unsupported`。 */
+  readonly deleteEntry?: string;
+  /**
+   * 多块上传的结果码（AC#10 的字节面）。
+   *
+   * @remarks
+   * `ok` 只说明**帧已发出**：阶段 B 的 wire 里成功的上传是静默的，`TRANSFER_COMPLETE`
+   * 之后 connector 什么都不回。「确实提交了、且提交的正是那些字节」由
+   * {@link DevToolsNativeProbe.bytesMatch} 与 e2e 自己读盘各证一遍。
+   */
+  readonly uploadBytes?: string;
+  /** 那次上传实际发出的 `TRANSFER_CHUNK` 帧数；`-1` 表示没走到那一步。 */
+  readonly uploadChunks?: number;
+  /** 把刚上传的文件读回来的结果码；上传没成立时复述上传的码。 */
+  readonly downloadBytes?: string;
+  /** 读回来的字节与送出去的是否逐字节相同。 */
+  readonly bytesMatch?: boolean;
+  /** 零字节上传的结果码（AC#10 的边界用例）。 */
+  readonly emptyUpload?: string;
+  /** `path: '..'` 的上传的结果码；恒为 `invalid_path`。 */
+  readonly escapedUpload?: string;
+  /** 送了一块真实字节之后取消的那次上传的结果码。 */
+  readonly cancelledUpload?: string;
+  /**
+   * 取消之后再去下载那个路径的结果码；必须是 `resource_not_found`。
+   *
+   * @remarks
+   * 「没有半写文件」的判据经 wire 取而不是 e2e 读盘：读盘只能证明这台机器上那个位置是空的，
+   * 而 AC#10 问的是**面板看得到什么**。
+   */
+  readonly cancelledFile?: string;
+  /**
+   * 全部动作跑完时，存储根里还剩几个 host 的未提交临时文件（`.rxdb-tmp`）。
+   *
+   * @remarks
+   * 必须由驱动在**进程还活着的时候**数：自检一上报 Rust 就 `app.exit`，而驱动在一个进程里
+   * 跑两代，第二代随时可能被那次退出打断——它留下的临时文件与「取消没清干净」在盘上同形。
+   */
+  readonly tempResidue?: number;
+  /** 驱动自身失败时的原因；正常跑完为 `null`。 */
+  readonly failure?: string | null;
+}
+
 /** Rust 侧落盘的报告。 */
 export interface SelfCheckReport {
   /** 结构版本；读别的字段之前先比它。 */
@@ -149,6 +288,16 @@ export interface SelfCheckReport {
   readonly storage: StorageProbe | null;
   /** webview 能力探针的结果；没设 {@link PROBE_BASE_URL_ENV} 时为 null（US-505 AC#6）。 */
   readonly webview: WebviewProbe | null;
+  /** DevTools 握手探针的结果；没设 {@link DEVTOOLS_PROBE_ENV} 时为 null（US-905 阶段 1）。 */
+  readonly devtools: DevToolsProbe | null;
+  /**
+   * 结算时刻实际存在的窗口 label，已排序。
+   *
+   * @remarks
+   * 由 Rust 侧枚举而不是 renderer 上报：AC#1 要的是「dev 只创建一个 `rxdb-devtools` 窗口」
+   * 「release 没有这个入口」，窗口建没建起来只有主进程说了算。
+   */
+  readonly windowLabels: string[];
   /** host **实际**建库所依据的根目录。 */
   readonly appDataDir: string;
   /** `tauri.conf.json` 的 `identifier`。 */
@@ -186,11 +335,42 @@ export interface SelfCheckOptions {
    * 「存储根下恰好一个普通文件」，给了就直接红。
    */
   readonly probeBaseUrl?: string;
+  /**
+   * 开启 DevTools 握手探针（US-905 阶段 1 AC#2）。
+   *
+   * @remarks
+   * 只有 `devtools-window-transport.spec.ts` 会给：它要的是 dev 产物里那个调试窗口。
+   * release 产物上开它只会白等一个预算——那边压根没有调试窗口。
+   */
+  readonly devtoolsProbe?: boolean;
+  /** 用哪个剖面的产物；默认 `release`。 */
+  readonly profile?: CargoProfile;
+  /**
+   * 额外环境变量；用来开 DevTools 的授权档（`DEV_RXDB_DEVTOOLS*`，US-905 阶段 2）。
+   *
+   * @remarks
+   * 不给默认值：授权档必须是**这一次运行**被显式打开的。缺省那一跑因此是天然的只读负对照，
+   * 而负对照正是整组写入用例的判别力来源。
+   */
+  readonly env?: Readonly<Record<string, string>>;
 }
 
-/** release 产物的候选路径（`tauri build --no-bundle` 不进 bundle 目录，就落在 cargo 的 target 下）。 */
-function candidates(): string[] {
-  const targetDir = resolve(import.meta.dirname, '..', '..', 'dev-rxdb-tauri', 'src-tauri', 'target', 'release');
+/**
+ * cargo 的构建剖面。
+ *
+ * @remarks
+ * 两份产物**能力不同**，不是同一个东西的快慢两版：
+ * - `release` 由 `tauri build --ci --no-bundle` 出，带 `custom-protocol` feature，
+ *   于是 `cfg(dev)` 不成立——调试窗口、`devtools_message` 命令与 `open_devtools_window`
+ *   全部不在产物里。这正是 US-905 AC#1 的 release 隔离判据。
+ * - `debug` 由裸 `cargo build` 出，不带该 feature，`cfg(dev)` 成立，调试窗口在。
+ *   它按 `tauri.conf.json` 的 `devUrl` 取前端，所以跑之前必须有人在 1420 上服务前端产物。
+ */
+export type CargoProfile = 'release' | 'debug';
+
+/** 某个剖面下产物的候选路径（`--no-bundle` 不进 bundle 目录，就落在 cargo 的 target 下）。 */
+function candidates(profile: CargoProfile): string[] {
+  const targetDir = resolve(import.meta.dirname, '..', '..', 'dev-rxdb-tauri', 'src-tauri', 'target', profile);
   // 二进制名取自 Cargo.toml 的 `[package] name`（无显式 `[[bin]]`），与 productName 恰好同名。
   return [join(targetDir, `dev-rxdb-tauri${platform === 'win32' ? '.exe' : ''}`)];
 }
@@ -202,19 +382,21 @@ function candidates(): string[] {
  * @throws 产物不存在时抛出，并把找过的候选路径与补救命令一并列出 ——
  *   这是本套件最常见的失败原因（忘了先打包，或打包被中断）。
  */
-export function resolveExecutable(): string {
-  const tried = candidates();
+export function resolveExecutable(profile: CargoProfile = 'release'): string {
+  const tried = candidates(profile);
   const found = tried.find(path => existsSync(path));
   if (found) return found;
 
+  const target = profile === 'release' ? 'tauri-package-release' : 'tauri-package-dev';
+  const suite = profile === 'release' ? 'desktop-smoke' : 'devtools-smoke';
   throw new Error(
     [
-      '找不到 Tauri release 产物。',
+      `找不到 Tauri ${profile} 产物。`,
       '找过的候选路径：',
       ...tried.map(path => `  - ${path}`),
       '',
-      '请先执行：pnpm nx run dev-rxdb-tauri:tauri-package-release',
-      '（desktop-smoke target 的 dependsOn 本应替你跑掉这一步。）'
+      `请先执行：pnpm nx run dev-rxdb-tauri:${target}`,
+      `（${suite} target 的 dependsOn 本应替你跑掉这一步。）`
     ].join('\n')
   );
 }
@@ -245,8 +427,11 @@ function readReport(reportPath: string, diagnostics: () => string): SelfCheckRep
  * 配置有问题时则在建窗之前 `exit(3)`。所以这里等的是 `close` 而不是 `exit`：
  * 前者保证 stdout/stderr 已经收完，而失败时这两股输出往往是唯一的线索。
  */
-export async function launch(overrides: Readonly<Record<string, string>>): Promise<LaunchResult> {
-  const executable = resolveExecutable();
+export async function launch(
+  overrides: Readonly<Record<string, string>>,
+  profile: CargoProfile = 'release'
+): Promise<LaunchResult> {
+  const executable = resolveExecutable(profile);
   const child = spawn(executable, [], {
     stdio: 'pipe',
     cwd: dirname(executable),
@@ -297,11 +482,17 @@ export async function launch(overrides: Readonly<Record<string, string>>): Promi
 export async function runSelfCheck(options: SelfCheckOptions): Promise<SelfCheckRun> {
   // 可选变量用展开而不是赋一个空串：Rust 侧判的是「变量存不存在」，空串会被当成设了一个
   // 不合法的地址，于是进程以退出码 3 死在建窗之前 —— 而调用方的本意是「不跑探针」。
-  const result = await launch({
-    [REPORT_PATH_ENV]: options.reportPath,
-    [APP_DATA_DIR_ENV]: options.dataDir,
-    ...(options.probeBaseUrl === undefined ? {} : { [PROBE_BASE_URL_ENV]: options.probeBaseUrl })
-  });
+  const result = await launch(
+    {
+      [REPORT_PATH_ENV]: options.reportPath,
+      [APP_DATA_DIR_ENV]: options.dataDir,
+      ...(options.probeBaseUrl === undefined ? {} : { [PROBE_BASE_URL_ENV]: options.probeBaseUrl }),
+      // 同上：Rust 侧判的是「变量存不存在」，给空串会被当成设了一个不合法的值。
+      ...(options.devtoolsProbe === true ? { [DEVTOOLS_PROBE_ENV]: '1' } : {}),
+      ...(options.env ?? {})
+    },
+    options.profile ?? 'release'
+  );
 
   const diagnostics = (): string =>
     [`stdout：${result.stdout || '(空)'}`, `stderr：${result.stderr || '(空)'}`].join('\n');

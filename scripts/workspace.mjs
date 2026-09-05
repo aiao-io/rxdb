@@ -16,7 +16,10 @@ export const NPM_SCOPE = 'aiao';
 export const NEED_BUILDS = ['rxdb-test'];
 
 /**
- * 需要执行 commit 校验的分支名列表。
- * commit-lint.mjs 只在这些分支上校验 commit message 文案，其余分支直接放行。
+ * 需要执行 commit 校验的分支名列表；`'*'` 表示全部分支。
+ *
+ * 曾经只校验 `main`：理由是 PR 一律 squash，特性分支上的中间提交不进主线。代价是特性分支上
+ * 58% 的提交信息是 `123` 这类占位，`git bisect` / `git blame` 在分支上完全不可用。现在改为全部分支：
+ * 真的只是存档用 `wip: ...` 前缀（`ALLOWED_PREFIXES` 放行），不要写 `123`。
  */
-export const NEED_CHECK_COMMIT_BRANCH_NAMES = ['main'];
+export const NEED_CHECK_COMMIT_BRANCH_NAMES = ['*'];

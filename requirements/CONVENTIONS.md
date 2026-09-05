@@ -16,16 +16,16 @@
 
 `stories/` 子目录与编号段：
 
-| 目录             | 内容                                                        | 编号段     |
-| ---------------- | ----------------------------------------------------------- | ---------- |
-| `core/`          | 核心引擎                                                    | US-001~099 |
-| `framework/`     | Angular / React / Vue 集成                                  | US-101~199 |
-| `adapter/`       | SQLite / PGlite / Supabase / sqliteai / 小程序 / 桌面适配器 | US-201~299 |
-| `collaboration/` | 版本控制、撤销/重做、迁移协作                               | US-301~399 |
-| `ui/`            | 代码编辑器等跨框架 UI 组件                                  | US-401~499 |
-| `plugin/`        | RxDB plugin 包（workspace / storage / graph）               | US-501~599 |
-| `tooling/`       | 门禁、基线与发布工具链（不是产品能力）                      | US-601~699 |
-| `future/`        | 中长期规划                                                  | US-700~999 |
+| 目录             | 内容                                                          | 编号段     |
+| ---------------- | ------------------------------------------------------------- | ---------- |
+| `core/`          | 核心引擎                                                      | US-001~099 |
+| `framework/`     | Angular / React / Vue 集成                                    | US-101~199 |
+| `adapter/`       | SQLite / PGlite / Supabase / sqliteai / 小程序 / 桌面适配器   | US-201~299 |
+| `collaboration/` | 版本控制、撤销/重做、迁移协作                                 | US-301~399 |
+| `ui/`            | 代码编辑器等跨框架 UI 组件                                    | US-401~499 |
+| `plugin/`        | RxDB plugin 包（workspace / storage / graph）                 | US-501~599 |
+| `tooling/`       | 门禁、基线与发布工具链（不是产品能力）                        | US-601~699 |
+| `future/`        | 搜索 / 加密 / DevTools 等扩展能力（按编号段分拣，不按交付期） | US-700~999 |
 
 ## 命名规范
 
@@ -79,8 +79,7 @@ code-scanning 状态含义（GitHub 是真相源，本地文件是镜像）：
 
 ## 跨故事 AC 转移
 
-当一个 story 的某条 AC 被推迟到另一个 story 实现，**不要**只在源 story 的 HTML 注释里写
-`<!-- deferredACs: AC#X→US-NNN -->`。在 **接收方** story 的 frontmatter 加 `inherited_acs` 字段：
+当一个 story 的某条 AC 被推迟到另一个 story 实现，在 **接收方** story 的 frontmatter 加 `inherited_acs` 字段：
 
 ```yaml
 inherited_acs:
@@ -89,7 +88,7 @@ inherited_acs:
     note: 简述为什么这条 AC 从源故事迁来
 ```
 
-源 story 文件本体注释保留作为反向索引可读性辅助，但接收方 YAML 是机器可读的真相。
+接收方 YAML 是唯一的机器可读真相；源 story 不另写注释或反向索引。
 
 ## 写作规范
 

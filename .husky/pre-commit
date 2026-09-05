@@ -1,1 +1,1 @@
-echo "pre-commit"
+pnpm exec nx format:check --uncommitted

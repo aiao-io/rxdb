@@ -1,7 +1,7 @@
 import type { DevToolsErrorPayload } from '@aiao/rxdb-devtools';
 import { inject, Injectable, signal } from '@angular/core';
 import { ToastService } from '../components/toast.component';
-import { DEVTOOLS_FILE_CHANNEL, type DevToolsFileEntry } from '../transport';
+import { DEVTOOLS_FILE_CHANNEL, type DevToolsFileEntry, type DevToolsFileResult } from '../transport';
 import type { OpfsErrorKind, OPFSFile } from '../types/devtools.types';
 
 /**
@@ -93,6 +93,16 @@ export class OpfsService {
   readonly viewMode = signal<'list' | 'grid'>('list');
 
   /**
+   * 最近一次发起的列目录请求的代际。
+   *
+   * @remarks
+   * 传输层并发 32、允许乱序：快速点 `/a`→`/b`，`list('/a')` 可能晚于 `list('/b')` 回来。
+   * 每次 {@link OpfsService.load} 领一个新代际，应答回来时代际已变就整段丢弃——否则
+   * `files()` 持有 `/a` 的内容而 `currentPath()` 已是 `/b`，删除/下载会打在已离开的目录上。
+   */
+  private generation = 0;
+
+  /**
    * 导航到目录
    */
   navigateTo(path: string): void {
@@ -104,12 +114,23 @@ export class OpfsService {
    * 刷新文件列表
    */
   async refresh(): Promise<void> {
+    await this.load(this.currentPath());
+  }
+
+  /**
+   * 列出 `path` 并把结果写进视图；应答回来时已有更新的请求在途则只返回、不写视图。
+   *
+   * @returns 信道原样的应答，供调用方在视图之外做判断（如上传确认）
+   */
+  private async load(path: string): Promise<DevToolsFileResult<readonly DevToolsFileEntry[]>> {
+    const ticket = ++this.generation;
     this.loading.set(true);
     this.error.set(null);
     this.errorKind.set(null);
 
-    const path = this.currentPath();
     const result = await this.fileChannel.list(path);
+    if (ticket !== this.generation) return result;
+
     if (result.outcome === 'failed') {
       this.files.set([]);
       this.fail(result.error, kind =>
@@ -117,12 +138,11 @@ export class OpfsService {
           `OPFS 错误: ${describe(result.error)}`
         )
       );
-      this.loading.set(false);
-      return;
+    } else {
+      this.files.set(result.value.map(entry => toFile(entry, path)).sort(compareEntries));
     }
-
-    this.files.set(result.value.map(entry => toFile(entry, path)).sort(compareEntries));
     this.loading.set(false);
+    return result;
   }
 
   /**
@@ -167,14 +187,19 @@ export class OpfsService {
    */
   async upload(file: File): Promise<boolean> {
     const target = this.currentPath();
-    const result = await this.fileChannel.upload(target, file);
-    if (result.outcome === 'failed') {
-      this.toastService.error(`上传失败: ${describe(result.error)}`);
+    const sent = await this.fileChannel.upload(target, file);
+    if (sent.outcome === 'failed') {
+      this.toastService.error(`上传失败: ${describe(sent.error)}`);
       return false;
     }
 
-    await this.refresh();
-    if (!this.files().some(entry => entry.type === 'file' && entry.name === file.name)) {
+    // 确认看的是**上传目标**目录，不是此刻的 currentPath()：传输期间用户可能已经走开，
+    // 拿别的目录的清单找这个文件名，要么误报「未确认」，要么撞上同名文件误报成功。
+    // 视图仍停在目标目录时顺手刷新它；已经走开就只观察、不碰视图。
+    const listed = this.currentPath() === target ? await this.load(target) : await this.fileChannel.list(target);
+    const confirmed =
+      listed.outcome === 'ok' && listed.value.some(entry => entry.kind === 'file' && entry.name === file.name);
+    if (!confirmed) {
       this.toastService.error(`上传未确认: ${file.name}`);
       return false;
     }

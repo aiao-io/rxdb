@@ -1,4 +1,5 @@
 import type { RxDB } from '@aiao/rxdb';
+import type { DevToolsProbeResult } from './devtools-probe';
 import type { RxDBConnectionStateWriter } from './rxdb-connection-state';
 import type { LaunchRecordDatabase } from './services/desktop-launch.service';
 import type { SelfCheckOutcome } from './services/selfcheck-reporter';
@@ -98,6 +99,15 @@ export interface LocalDatabaseStartup {
    * 「读地址失败」与「探针失败」会变成两条要分别处理的路径，而对调用方来说两者是同一件事。
    */
   readonly probeWebview: (storage: WebviewFetchSurface) => Promise<WebviewProbeResult | null>;
+  /**
+   * DevTools 双 WebView 握手探针（US-905 阶段 1 AC#2）。
+   *
+   * @remarks
+   * 返回 `null` 表示这次不跑——与 {@link probeWebview} 同一形态：开关在 Rust 侧
+   * （`DEV_RXDB_TAURI_DEVTOOLS_PROBE`），**正常启动与 release 产物走的就是这条路**。
+   * release 里根本没有调试窗口，跑它只会白等一个预算。
+   */
+  readonly probeDevTools: () => Promise<DevToolsProbeResult | null>;
   /** 要连的本地适配器名。 */
   readonly adapterName: string;
   /** 自检结论的出口；非自检模式下是一次空操作。 */
@@ -184,5 +194,16 @@ export const startLocalDatabase = async (startup: LocalDatabaseStartup): Promise
     await startup.report({ status: 'failed', message: describeError(error) });
     return;
   }
-  await startup.report({ status: 'ok', launchCount, storage, webview });
+  // 排在最后：它要等调试窗口把握手发过来，而调试窗口是在 `setup` 里与主窗口一起建的，
+  // 握手时机与建库快慢无关。放前面只会把这段等待叠进建库路径。
+  let devtools: DevToolsProbeResult | null;
+  try {
+    devtools = await startup.probeDevTools();
+  } catch (error) {
+    // 与 webview 探针同一个理由：不吞成 `ok` + `devtools: null`，那与「没开探针」同形。
+    startup.state.markFailed(error);
+    await startup.report({ status: 'failed', message: describeError(error) });
+    return;
+  }
+  await startup.report({ status: 'ok', launchCount, storage, webview, devtools });
 };

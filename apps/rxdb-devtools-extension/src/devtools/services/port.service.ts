@@ -34,13 +34,17 @@ export class PortService implements DevToolsTransport, OnDestroy {
   readonly connected = signal(false);
 
   /**
-   * 每次成功建链自增一次。
+   * 每次成功建链自增一次；inspected tab 导航时也自增一次。
    *
    * @remarks
    * 只看 {@link PortService.connected} 无法区分「一直连着」和「断开后又连上了」——
    * 两者的终值都是 `true`，而 v2 协商机对这两件事的处理完全不同：后者必须换一个新
    * 端点重新协商（v1 facade 是终态）。把「第几次建链」显式化，宿主才有一个可观察的
    * 重连边界，不必去猜信号的中间态。
+   *
+   * 导航同样是一条连接的终点：Port 本身没断，但对端的 connector 已随页面一起消失。
+   * v2 端点只订阅本信号与 {@link PortService.subscribeFrames}，看不到 v1 车道上合成的
+   * `DISCONNECT`；不在这里推进 epoch，它会停在 `'v2'` 终态拒绝新 connector 的握手。
    */
   readonly connectionEpoch = signal(0);
 
@@ -105,10 +109,18 @@ export class PortService implements DevToolsTransport, OnDestroy {
     this.postInit();
   }
 
-  /** inspected tab 导航时立即清掉页面状态，并等待新 origin 的权限复核。 */
+  /**
+   * inspected tab 导航时立即清掉页面状态，并等待新 origin 的权限复核。
+   *
+   * @remarks
+   * 两条车道各通知一次：v1 车道合成 `DISCONNECT` 让三个状态服务清空；v2 车道推进
+   * {@link PortService.connectionEpoch}，让 `DevToolsEndpointService` 换新端点重新协商。
+   * 只发前者，文件 / OPFS 域（走 v2 `endpoint.request('files', …)`）会静默停在旧 session 上。
+   */
   notifyNavigation(): void {
     this.activationRequested = false;
     this.notifyDisconnect();
+    this.connectionEpoch.update(epoch => epoch + 1);
   }
 
   /**

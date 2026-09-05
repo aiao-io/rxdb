@@ -1,3 +1,4 @@
 .env
 release
+dist-desktop-dev
 manifest.config.js

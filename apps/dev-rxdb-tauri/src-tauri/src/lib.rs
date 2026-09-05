@@ -3,11 +3,13 @@
 // 桌面宿主本身已经不在这里了——它是 `aiao_rxdb_tauri`（`packages/rxdb-adapter-tauri/rust`），
 // 由 `[dependencies]` 的 path 依赖引入。本文件从此只剩「宿主应用要写的接线」，
 // 也就是文档里给用户抄的那一份。
+#[cfg(dev)]
+mod devtools_config;
 mod selfcheck;
 
 use aiao_rxdb_tauri::commands::DesktopHost;
 use tauri::Manager;
-// `Emitter` 只在 `#[cfg(dev)]` 的 `devtools_message` 里用（`target.emit`）；
+// `Emitter` 只在 `#[cfg(dev)]` 的 `devtools_message` 里用（`app.emit_to`）；
 // 不 cfg 掉的话，release（custom-protocol）构建会报 unused import。
 #[cfg(dev)]
 use tauri::Emitter;
@@ -45,6 +47,13 @@ fn check_runtime() -> RuntimeHealth {
     RuntimeHealth { status: "ready" }
 }
 
+/// 主窗口（被检查页）的 label。
+///
+/// 同一个字面量在三处是同一个事实：`tauri.conf.json` 的窗口定义、`DesktopHost` 的窗口
+/// 白名单（谁有资格开库）、以及 dev 下中继的路由表。各写各的就有机会漂移，而漂移的形态是
+/// 「数据库请求被拒」或「中继不通」这类看起来毫不相干的故障。
+pub const MAIN_WINDOW_LABEL: &str = "main";
+
 /// US-905 阶段 1：定向中继的窗口 label 与路由判定（AC#3）。
 ///
 /// 纯函数，不碰 Tauri 状态——「谁 → 谁」的规则可以被直接测到，而不必起一个真实窗口。
@@ -52,8 +61,8 @@ fn check_runtime() -> RuntimeHealth {
 mod devtools_routing {
     /// 调试窗口的 label。
     pub const DEVTOOLS_LABEL: &str = "rxdb-devtools";
-    /// 主窗口（被检查页）的 label。
-    pub const MAIN_LABEL: &str = "main";
+    /// 主窗口（被检查页）的 label；与 `DesktopHost` 白名单同源。
+    pub const MAIN_LABEL: &str = super::MAIN_WINDOW_LABEL;
 
     /// 由发起窗口 label 决定目标 label。
     ///
@@ -96,16 +105,33 @@ mod devtools_routing {
 /// release 构建里这段代码根本不进产物，`rxdb-devtools` label 的窗口、入口与 command 随之消失，
 /// 满足「release 无入口、bootstrap、专用 command」。
 #[cfg(dev)]
-fn open_devtools_window(app: &tauri::AppHandle) -> tauri::Result<()> {
-    tauri::WebviewWindowBuilder::new(
+fn open_devtools_window(app: &tauri::AppHandle, drive: bool) -> tauri::Result<()> {
+    let mut builder = tauri::WebviewWindowBuilder::new(
         app,
         devtools_routing::DEVTOOLS_LABEL,
         tauri::WebviewUrl::App("devtools/devtools.html".into()),
     )
-    .title("RxDB DevTools")
-    .build()?;
+    .title("RxDB DevTools");
+    // US-905 阶段 2：只有自检探针开着时才装 wire 驱动。
+    //
+    // 门禁取**传进来的** plan 而不是 `selfcheck::devtools_probe_armed`：本函数在 `setup` 里
+    // 跑在 `selfcheck::arm` 之前（窗口要先建起来，看门狗才有东西可等），那时 `SelfCheckState`
+    // 还没托管，问它一定得到 false——而那种「永远走不到」的分支不会有任何报错，
+    // 只会让驱动静默地从不注入。
+    if drive {
+        builder = builder.initialization_script(DEVTOOLS_DRIVER_SCRIPT);
+    }
+    builder.build()?;
     Ok(())
 }
+
+/// 调试窗口里的 wire 驱动（US-905 阶段 2）。
+///
+/// `include_str!` + `#[cfg(dev)]`：release 二进制里**连这些字节都不存在**。这比 Electron 侧
+/// 「产物在、只是没人加载」强一档，也正是 D1 选它而不是把驱动塞进面板 bundle 的理由——
+/// 面板产物整份嵌在 `frontendDist` 里，塞进去就会随 release 一起发。
+#[cfg(dev)]
+const DEVTOOLS_DRIVER_SCRIPT: &str = include_str!("../devtools_driver.js");
 
 /// US-905 阶段 1：面板 ↔ connector 之间的定向消息中继。
 ///
@@ -113,21 +139,185 @@ fn open_devtools_window(app: &tauri::AppHandle) -> tauri::Result<()> {
 /// payload 原样透传、不做解释。授权（session / capability / mutation policy）是 connector 与
 /// provider 的职责，transport 不代劳——「session 不是授权 secret」。
 ///
-/// 定向 `emit` 而不是广播：业务数据（实体、事件、文件路径）只发往目标窗口，
+/// 定向投递而不是广播：业务数据（实体、事件、文件路径）只发往目标窗口，
 /// 不落到任何不该看到它的 WebView 上。
+///
+/// **必须是 [`tauri::Emitter::emit_to`]，不能是 `emit`。** 这两个名字读起来像「往这个窗口发」
+/// 和「往所有窗口发」，实际上 `window.emit(...)` **也是广播**——它转身就调
+/// `self.manager().emit(...)`（tauri 2.11.2 `lib.rs:946-950`），接收者是谁完全不影响投递范围。
+/// 本文件此前写的正是 `target.emit(...)`，于是每一帧都同时落到两个 WebView 上；
+/// 两侧靠 v2 信封里的 `direction` 各自丢弃不属于自己的帧，功能上看不出任何异常，
+/// 而「只发往目标窗口」这条性质其实一直不成立。
+///
+/// 实测发现的经过：US-905 阶段 1 的握手探针挂在**主窗口**上收调试窗口发来的帧，却收到了
+/// 一条只可能由主窗口自己发出的 v1 `HANDSHAKE`——广播把它送回了发送方。
 ///
 /// `#[cfg(dev)]`（US-905 AC#1 硬阻塞 B）：命令与 `generate_handler!` 里的对应臂一起在 release
 /// 构建中消失——release 产物不含只服务 `rxdb-devtools` 的专用 command。这是**编译期隔离**，
 /// 不是「release 无窗口所以恒 not found」的运行时兜底。
 #[cfg(dev)]
 #[tauri::command]
-fn devtools_message(window: tauri::Window, app: tauri::AppHandle, payload: String) -> Result<(), String> {
-    let target_label = devtools_routing::target_label_of(window.label())?;
-    let target = app
-        .get_webview_window(target_label)
-        .ok_or_else(|| format!("{target_label} window not found"))?;
-    target.emit("devtools:message", &payload).map_err(|error| error.to_string())
+fn devtools_message(
+    window: tauri::Window,
+    app: tauri::AppHandle,
+    payload: String,
+) -> Result<(), String> {
+    let target_label = match devtools_routing::target_label_of(window.label()) {
+        Ok(label) => label,
+        Err(error) => {
+            // 计进拒绝数再报错：AC#3 的判据是「真的有一扇错身份的窗口被拦下过」，
+            // 而不是「白名单函数返回了 Err」——后者纯函数单测已经覆盖。
+            RELAY_REJECTED.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            return Err(error);
+        }
+    };
+    // 目标窗口不存在时报错而不是静默丢弃：调试窗口已经关掉、主窗口还在往它发，
+    // 是一个调用方应当知道的事实。
+    if app.get_webview_window(target_label).is_none() {
+        return Err(format!("{target_label} window not found"));
+    }
+    app.emit_to(target_label, "devtools:message", &payload)
+        .map_err(|error| error.to_string())
 }
+
+/// US-905 阶段 1 AC#4：以**同一个 label** 把调试窗口关掉再建一次。
+///
+/// # 为什么需要一条命令，而不是让测试自己关窗
+///
+/// 判据是「关闭窗口后以同 label 重开，B 获得新 UUID v4 session 并拒绝全部旧身份」。
+/// 关窗与重开都只有主进程做得到，而这套 e2e 是**进程级**驱动（Tauri 里没有可用的 WebDriver，
+/// `tauri-driver` 在 macOS 上不存在）——外面没有任何手能伸进来点那个窗口的关闭按钮。
+///
+/// # 为什么它不是一个后门
+///
+/// 两道闸叠着：`#[cfg(dev)]` 让它在 release 产物里**根本不存在**（与 `devtools_message`、
+/// `open_devtools_window` 同一条隔离，AC#1 的静态断言一并守住）；而即使在 dev 产物里，
+/// 没开自检探针时它也直接报错返回。所以它是自检设施，不是「谁都能调」的能力。
+///
+/// 销毁走 `destroy()` 而不是 `close()`：后者可被 `CloseRequested` 拦下，而这里要的是
+/// 「窗口确实没了」这个事实——`on_window_event` 的 `Destroyed` 分支也挂着会话回收，
+/// 顺带把 AC#5 的那一半走一遍。
+///
+/// # 为什么要等 label 被释放，而且必须 `async` + `spawn_blocking`
+///
+/// `destroy()` **先返回、后拆窗**：紧接着建同名窗口会撞上
+/// 「a webview with label `rxdb-devtools` already exists」（实测）。所以要等注册表里那一项真的消失。
+///
+/// 而这个等待不能在主线程上做：同步 `#[tauri::command]` 跑在主线程，窗口销毁事件也要主线程
+/// 处理——在那里 sleep 会把自己等的那件事一起堵死。改成 `async` 并把轮询丢进
+/// `spawn_blocking`，主线程才腾得出手去完成拆窗。
+#[cfg(dev)]
+#[tauri::command]
+async fn rxdb_devtools_recycle_window(app: tauri::AppHandle) -> Result<(), String> {
+    if !selfcheck::devtools_probe_armed(&app) {
+        return Err("devtools probe is not armed".to_string());
+    }
+    let label = devtools_routing::DEVTOOLS_LABEL;
+    let existing = app
+        .get_webview_window(label)
+        .ok_or_else(|| format!("{label} window not found"))?;
+    existing.destroy().map_err(|error| error.to_string())?;
+
+    let waiter = app.clone();
+    let released = tauri::async_runtime::spawn_blocking(move || {
+        for _ in 0..DESTROY_POLL_ATTEMPTS {
+            if waiter.get_webview_window(label).is_none() {
+                return true;
+            }
+            std::thread::sleep(DESTROY_POLL_INTERVAL);
+        }
+        false
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+    if !released {
+        return Err(format!("{label} was still registered after destroy()"));
+    }
+
+    // 重开时同样带上驱动：这条命令只在探针开着时才放行（上面那道闸），所以到这里
+    // `drive` 恒为真——写成常量而不是再问一次，免得两处判定有机会分叉。
+    open_devtools_window(&app, true).map_err(|error| error.to_string())
+}
+
+/// 被中继按 label 拒掉的帧数（US-905 阶段 1 AC#3）。
+///
+/// 计数而不是布尔：一次拒绝与「压根没人来敲门」必须分得开——后者说明这条用例根本没验到东西。
+#[cfg(dev)]
+static RELAY_REJECTED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// 冒名窗口的 label；刻意**不是**两个已知 label 之一。
+#[cfg(dev)]
+const IMPOSTOR_LABEL: &str = "rxdb-devtools-impostor";
+
+/// US-905 阶段 1 AC#3：开一个 label 不在白名单里的真实窗口，让它去敲中继。
+///
+/// # 为什么必须是真窗口
+///
+/// Rust 侧的白名单已有两条纯函数单测（`devtools_routing::tests`），但那验的是判定本身。
+/// AC#3 要的是「**错误身份的窗口**在真实链路上被拒」——而 `devtools_message` 的 sender label
+/// 由 `window.label()` 在服务端取得，JS 侧伪造不了，所以只能真的开一个别的 label 的窗口。
+///
+/// 这正是白名单存在的理由所写的那个场景：**将来新增的、忘了排除在 capability 之外的窗口**。
+/// 冒名窗口拿不到任何 capability（它的 label 不在 `default.json` / `devtools.json` 的 `windows` 里），
+/// 但**应用自有命令不经过 capability 门禁**，所以它照样调得到 `devtools_message`——
+/// 挡住它的只有 Rust 的 label 白名单。
+///
+/// 用 `initialization_script` 而不是加一个页面：那段脚本在页面脚本之前跑，
+/// `__TAURI_INTERNALS__` 此时已注入，因此不必为这条用例引入第二个 HTML 入口。
+///
+/// @returns 这扇窗活着期间中继拒掉的帧数。
+#[cfg(dev)]
+#[tauri::command]
+async fn rxdb_devtools_probe_impostor(app: tauri::AppHandle) -> Result<u64, String> {
+    use std::sync::atomic::Ordering;
+    if !selfcheck::devtools_probe_armed(&app) {
+        return Err("devtools probe is not armed".to_string());
+    }
+    let before = RELAY_REJECTED.load(Ordering::SeqCst);
+    tauri::WebviewWindowBuilder::new(
+        &app,
+        IMPOSTOR_LABEL,
+        tauri::WebviewUrl::App("devtools/devtools.html".into()),
+    )
+    .initialization_script(
+        "window.__TAURI_INTERNALS__.invoke('devtools_message', { payload: '{}' }).catch(() => undefined);",
+    )
+    .visible(false)
+    .build()
+    .map_err(|error| error.to_string())?;
+
+    // 给那一次 invoke 留出往返时间，然后把窗口收掉——AC#1 断言窗口集合恰为两个，
+    // 冒名窗口不能留到结算时刻。
+    let waiter = app.clone();
+    let rejected = tauri::async_runtime::spawn_blocking(move || {
+        for _ in 0..IMPOSTOR_POLL_ATTEMPTS {
+            std::thread::sleep(DESTROY_POLL_INTERVAL);
+            if RELAY_REJECTED.load(Ordering::SeqCst) > before {
+                break;
+            }
+        }
+        if let Some(window) = waiter.get_webview_window(IMPOSTOR_LABEL) {
+            let _ = window.destroy();
+        }
+        RELAY_REJECTED.load(Ordering::SeqCst) - before
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+    Ok(rejected)
+}
+
+/// 冒名窗口那一次 invoke 的等待上限（合计 3s）。
+#[cfg(dev)]
+const IMPOSTOR_POLL_ATTEMPTS: u32 = 300;
+
+/// 等 label 释放的轮询次数与间隔（合计 2s）。
+///
+/// 上限存在的意义是「等不到就报错」而不是无限等：拆窗真的卡住时，一条明确的错误比
+/// 一次 60s 看门狗超时好查得多。
+#[cfg(dev)]
+const DESTROY_POLL_ATTEMPTS: u32 = 200;
+#[cfg(dev)]
+const DESTROY_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(10);
 
 /// US-210：退出前必须显式关掉全部会话。
 ///
@@ -143,7 +333,18 @@ pub fn run() {
     // 默认值」把测试数据写进用户真实的应用数据目录。放这里而不是放进 `setup`，是因为
     // 配置里声明的窗口与 `setup` 钩子谁先跑不是可以下注的事，而「配错了绝不建窗」没有例外。
     let plan = selfcheck::plan_or_exit();
-    tauri::Builder::default()
+    // 同一条理由的第二处：DevTools 授权档必须在**页面脚本之前**就位，配错了同样不能建窗。
+    #[cfg(dev)]
+    let devtools_config = devtools_config::plan_or_exit();
+    let builder = tauri::Builder::default();
+    // 没开 DevTools 时插件根本不注册，页面上因此没有那个全局键——页内据此交回库默认档，
+    // 而不是读到一份「看起来是配置」的默认值。release 里连这一整段都不存在。
+    #[cfg(dev)]
+    let builder = match devtools_config {
+        Some(config) => builder.plugin(devtools_config::plugin(config, MAIN_WINDOW_LABEL)),
+        None => builder,
+    };
+    builder
         .invoke_handler(tauri::generate_handler![
             get_platform,
             get_versions,
@@ -151,10 +352,21 @@ pub fn run() {
             aiao_rxdb_tauri::commands::rxdb_desktop_request,
             selfcheck::rxdb_selfcheck_report,
             selfcheck::rxdb_selfcheck_probe_base_url,
+            // US-905 阶段 1 AC#2：**不**加 `#[cfg(dev)]`。renderer 无条件问一次
+            // 「这次要不要跑 DevTools 探针」，release 里它恒回 false；
+            // 加了 cfg 的话 release 下这一问会变成 command-not-found，
+            // renderer 就得 catch 一个异常来推断构建形态——那是拿异常当控制流。
+            selfcheck::rxdb_selfcheck_devtools_probe,
             // US-905 AC#1：`devtools_message` 命令与它在 `generate_handler!` 里的臂一起
             // 只在 dev 构建中注册（`#[cfg(dev)]` 直接作用于生成出的 match 臂）。
             #[cfg(dev)]
-            devtools_message
+            devtools_message,
+            // AC#4：同 label 重开调试窗口；同样只在 dev 构建里注册。
+            #[cfg(dev)]
+            rxdb_devtools_recycle_window,
+            // AC#3：开一扇 label 不在白名单里的真窗口去敲中继；同样只在 dev 构建里注册。
+            #[cfg(dev)]
+            rxdb_devtools_probe_impostor
         ])
         .setup(move |app| {
             // 全程唯一一处根目录分支，且**不是** `unwrap_or`：两边都是被显式选出来的，
@@ -164,10 +376,13 @@ pub fn run() {
                 Some(plan) => plan.app_data_dir.clone(),
                 None => app.path().app_data_dir()?,
             };
-            app.manage(DesktopHost::new(app.handle(), app_data_dir));
+            // 只有主窗口是 RxDB 的 connector 与 provider owner。白名单必填的理由见
+            // `DesktopHost::new`：应用自有命令不过 capability 门禁，调试窗口（以及将来
+            // 任何一扇忘了排除的窗口）否则可以自行开出文件与 SQLite 会话。
+            app.manage(DesktopHost::new(app.handle(), app_data_dir, &[MAIN_WINDOW_LABEL]));
             // US-905：dev 模式开调试窗口；release 无此入口（#[cfg(dev)] 两侧一起消失）。
             #[cfg(dev)]
-            open_devtools_window(app.handle())?;
+            open_devtools_window(app.handle(), plan.as_ref().is_some_and(|plan| plan.devtools_probe))?;
             // host 先托管再挂看门狗：看门狗到期时要读 host 的根目录写进报告。
             if let Some(plan) = plan {
                 selfcheck::arm(app.handle(), plan);
@@ -181,9 +396,19 @@ pub fn run() {
         // 会在条件变量上无限期地等下去——没有超时能解开它，用户看到的就是界面卡死。
         .on_window_event(|window, event| {
             if matches!(event, tauri::WindowEvent::Destroyed) {
-                window
-                    .state::<DesktopHost>()
-                    .close_window(window.label());
+                window.state::<DesktopHost>().close_window(window.label());
+                // US-905 AC#4/#5：调试窗口没了，得让主窗口的 connector 知道，
+                // 否则它手上的 v2 session 会一直开着，下一个面板永远协商不上（Electron 侧
+                // US-904 AC#51 上是同一个形状的缺陷）。这里只发一条**不带任何 payload** 的
+                // 讣告：中继按设计不解释协议，session 身份由页内 transport 自己记着。
+                #[cfg(dev)]
+                if window.label() == devtools_routing::DEVTOOLS_LABEL {
+                    let _ = window.app_handle().emit_to(
+                        devtools_routing::MAIN_LABEL,
+                        "devtools:peer-gone",
+                        (),
+                    );
+                }
             }
         })
         .build(tauri::generate_context!())

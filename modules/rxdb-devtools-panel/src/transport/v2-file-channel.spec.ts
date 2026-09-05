@@ -1,4 +1,6 @@
 import type {
+  DevToolsPanelDownloadRequest,
+  DevToolsPanelDownloadResult,
   DevToolsPanelEndpoint,
   DevToolsPanelRequestResult,
   DevToolsPanelUploadRequest,
@@ -17,6 +19,7 @@ interface RecordedRequest {
 function stubEndpoint(handlers: {
   request?: (operation: string, params: unknown) => DevToolsPanelRequestResult;
   upload?: (request: DevToolsPanelUploadRequest) => Promise<DevToolsPanelUploadResult>;
+  download?: (request: DevToolsPanelDownloadRequest) => Promise<DevToolsPanelDownloadResult>;
 }): { endpoint: DevToolsPanelEndpoint; requests: RecordedRequest[] } {
   const requests: RecordedRequest[] = [];
   const endpoint = {
@@ -25,7 +28,10 @@ function stubEndpoint(handlers: {
       return Promise.resolve(handlers.request?.(operation, params) ?? { outcome: 'ok', result: {} });
     },
     upload: (request: DevToolsPanelUploadRequest) =>
-      handlers.upload?.(request) ?? Promise.resolve<DevToolsPanelUploadResult>({ outcome: 'sent' })
+      handlers.upload?.(request) ?? Promise.resolve<DevToolsPanelUploadResult>({ outcome: 'sent' }),
+    // download 走的是带 sink 的专用入口，不是 `request`——它驱动 `TRANSFER_*` 状态机把字节收回来。
+    download: (request: DevToolsPanelDownloadRequest) =>
+      handlers.download?.(request) ?? Promise.resolve<DevToolsPanelDownloadResult>({ outcome: 'received', result: {} })
   } as unknown as DevToolsPanelEndpoint;
   return { endpoint, requests };
 }
@@ -35,15 +41,71 @@ describe('createDevToolsV2FileChannel', () => {
     const { endpoint, requests } = stubEndpoint({});
     const channel = createDevToolsV2FileChannel(() => endpoint);
 
-    await channel.download('/a.txt');
     await channel.remove('/a.txt');
     await channel.createDirectory('/docs');
 
+    // `download` 不在这条断言里：它走端点的 download（带 sink），不经 `request`。
     expect(requests).toEqual([
-      { domain: 'files', operation: 'download', params: { path: '/a.txt' } },
       { domain: 'files', operation: 'delete', params: { path: '/a.txt' } },
       { domain: 'files', operation: 'create-directory', params: { path: '/docs' } }
     ]);
+  });
+
+  /**
+   * US-904 阶段 D AC#47：下载必须走**带 sink 的**端点入口，字节才会真的回到面板。
+   *
+   * 此前这里是 `endpoint.request('files', 'download', …)`——面板只拿到一条成功应答、
+   * 一个字节都没收到，用户点了「下载」而什么都没发生，且没有任何报错。
+   */
+  it('drives the byte channel and saves what the sink received', async () => {
+    const saved: { name: string; bytes: number[] }[] = [];
+    const anchor = { href: '', download: '', click: vi.fn() };
+    vi.spyOn(document, 'createElement').mockReturnValue(anchor as unknown as HTMLAnchorElement);
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(blob => {
+      void blob;
+      return 'blob:stub';
+    });
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+    const { endpoint } = stubEndpoint({
+      download: async request => {
+        // 端点的职责在这里被模拟：逐块喂给 sink，再 commit。
+        await request.sink.write(Uint8Array.from([1, 2, 3]));
+        await request.sink.write(Uint8Array.from([4, 5]));
+        await request.sink.commit();
+        return { outcome: 'received', result: {} };
+      }
+    });
+    const channel = createDevToolsV2FileChannel(() => endpoint);
+
+    const result = await channel.download('/docs/report.bin');
+
+    expect(result.outcome).toBe('ok');
+    // 文件名取逻辑路径的末段，而不是整条路径——整条路径当文件名会带出目录分隔符。
+    expect(anchor.download).toBe('report.bin');
+    expect(anchor.click).toHaveBeenCalledOnce();
+    void saved;
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * `delivered-at-source` 是成功但**字节没过 wire**（浏览器 OPFS 由页面自己保存）。
+   * 把它并进 `received` 会让面板去保存一个空 sink——端点把两者分开正是为了防这件事。
+   */
+  it('does not save anything when the source already delivered the file', async () => {
+    const anchor = { href: '', download: '', click: vi.fn() };
+    vi.spyOn(document, 'createElement').mockReturnValue(anchor as unknown as HTMLAnchorElement);
+
+    const { endpoint } = stubEndpoint({
+      download: async () => Promise.resolve({ outcome: 'delivered-at-source', result: {} })
+    });
+    const channel = createDevToolsV2FileChannel(() => endpoint);
+
+    const result = await channel.download('/a.txt');
+
+    expect(result.outcome).toBe('ok');
+    expect(anchor.click).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
   });
 
   it('takes only the top layer of the subtree the provider returns', async () => {

@@ -629,9 +629,15 @@ export class RxdbFileStorage {
    * @remarks
    * 供 DevTools 诊断快照物化使用：快照要同时读 metadata 与文件，必须与写操作互斥，
    * 否则两半属于不同时点，panel 会据此报出「有元数据无文件」这类假缺失。
+   *
+   * `signal` 覆盖**等锁**阶段：慢写入排空之前中止，即以 `signal.reason` 拒绝且 `fn` 永不执行，
+   * 不会留下一个日后仍会拿到锁的 waiter（快照来源的 `dispose()` / `cancel()` 依赖这一点）。
+   *
+   * @param fn - 临界区
+   * @param signal - 可选；等锁期间中止则放弃获取
    */
-  runExclusive<T>(fn: () => Promise<T>): Promise<T> {
-    return this.withExclusiveLock(fn);
+  runExclusive<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    return this.withExclusiveLock(fn, signal);
   }
 
   /**
@@ -923,8 +929,8 @@ export class RxdbFileStorage {
    * 因此用独占模式而不是逐路径加锁 —— 这是 STOR-002 所说「目录操作锁定前缀」的
    * 保守实现：范围更大，但不会漏。
    */
-  private withExclusiveLock<T>(fn: () => Promise<T>): Promise<T> {
-    return this.locks.withExclusive(fn);
+  private withExclusiveLock<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    return this.locks.withExclusive(fn, signal);
   }
 
   private hasFile(opfsPath: string): Promise<boolean> {

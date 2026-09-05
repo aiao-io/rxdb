@@ -361,8 +361,38 @@ export class DevToolsConnector {
       this.#handleMessage(message);
       return;
     }
+    const wasOpen = this.#endpoint?.sessionOpen === true;
     this.#endpoint?.receive(message);
     this.#syncLegacyConnectionToSession();
+    // session 由开转关 ⇒ **这条 transport connection 结束了**，下一个面板必须拿到全新身份。
+    if (wasOpen && this.#endpoint?.sessionOpen === false) this.#restartNegotiation();
+  }
+
+  /**
+   * 换一个全新的端点，等下一个面板来协商。
+   *
+   * @remarks
+   * # 为什么必须换端点，而不是把状态机复位
+   *
+   * `sessionId` 在协商机**构造时**就铸好，是「本次 transport connection 的身份」。原地复位状态
+   * 只会让下一个面板拿到与上一个**一样**的 session——而 AC#51 要的恰恰是它不一样。
+   *
+   * # 为什么这里是对的位置
+   *
+   * 面板侧早就是这么做的：`DevToolsEndpointService` 每次 `connectionEpoch` 变化都换一个新端点
+   * （「v1 facade 是终态，旧端点在 session 关闭后只会对每次请求回 `session_closed`」）。
+   * 这一改让 connector 侧与它对称——两端都把「传输断了」当作一条连接的终点。
+   *
+   * # 没有它的后果（实测）
+   *
+   * 关掉 DevTools 再重开、中间不刷新页面：`DISCONNECT` 关掉了 session，但协商机仍停在 `v2`，
+   * 于是新面板的 `PROTOCOL_HELLO` 被 `#onHello` 当成「session 已建立时的迟到帧」拒掉，
+   * 握手永远不会再发生。表征是面板静默退回 v1 车道、连接守卫照样显示「已连接」。
+   */
+  #restartNegotiation(): void {
+    this.#endpoint?.dispose();
+    this.#endpoint = null;
+    this.#startNegotiation();
   }
 
   /**

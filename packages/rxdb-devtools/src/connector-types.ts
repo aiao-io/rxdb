@@ -69,16 +69,21 @@ export type GetEntityMetadataFn = (entity: EntityType) => DevToolsEntityMetadata
  * 结果，而是为了让宿主**否决**探测结果，见该字段自己的说明。
  */
 export interface DevToolsProviderOptions {
-  /** 原生文件后端端口；给定时 `files` 走 `native-files` 而不是 OPFS。 */
-  nativeFiles?: DevToolsNativeFilesProviderPorts;
+  /**
+   * 原生文件后端端口；给定时 `files` 走 `native-files` 而不是 OPFS。
+   *
+   * @remarks
+   * 不含 `runtime`：它由下面那个字段统一供给，见 {@link DevToolsProviderOptions.runtime}。
+   */
+  nativeFiles?: Omit<DevToolsNativeFilesProviderPorts, 'runtime'>;
   /** `settings` 领域 provider；缺省为浏览器 settings（`kind: opfs`）。 */
   settings?: DevToolsProvider;
   /**
    * descriptor 显示用 runtime；缺省 `browser`。
    *
    * @remarks
-   * 影响 `database` 与 OPFS `files` 两个领域。`settings` 的 runtime 跟着注入的
-   * descriptor 走，`native-files` 的则写死在 provider 里——两者都不受这里影响。
+   * 影响 `database` 与 `files`（OPFS 与原生后端都算）。唯一不受影响的是 `settings`——
+   * 它的 runtime 跟着注入的 descriptor 走。
    */
   runtime?: DevToolsProviderRuntime;
   /**

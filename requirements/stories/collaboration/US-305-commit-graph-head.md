@@ -5,7 +5,7 @@ status: Backlog
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-09
-updated: 2026-08-15
+updated: 2026-09-05
 tags: [collaboration, commit, head, persistence, migration]
 ---
 
@@ -55,6 +55,18 @@ v1 的变更单元粒度为「实体操作或完整事务」。同一事务不�
 Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该分支。`log({ branchId })` 必须从该分支
 `CommitBranchRef` 沿父链遍历可达节点，不能用 `originBranchId = branchId` 过滤，否则新分支会丢失继承历史。
 同一父链按拓扑顺序返回，创建时间只用于展示和稳定游标的次级排序；时间取数据库时钟，不信任 realm 本地时钟。
+
+## 交付阶段与边界
+
+| 阶段 | 交付                                                                                                                          | 直接前置                                              | 验收区段                | 状态 |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ----------------------- | ---- |
+| A    | commit 图与 HEAD 底座：存储布局、`CommitBranchRef` / `headRevision` CAS、幂等 `operationId`、log/show 查询                    | 桥接发布（FR-030 的 bridge tag 已在 `main` 祖先链上） | User Story 1 场景 1～8  | ⬜   |
+| B    | 已有数据库首次启用：baseline / `branch_baseline`、迁移幂等与失败重试、损坏隔离、`WorkingTreeActivationState`、bridge 血统门禁 | 阶段 A                                                | User Story 2 场景 1～14 | ⬜   |
+
+- 阶段 A 对应 FR-001 / 002 / 003 / 008 / 009 / 010 / 012 / 018 / 019 / 027 / 029 / 036 / 038；阶段 B 对应
+  FR-021 / 022 / 030 / 037 / 048 / 049 / 051 / 052。两段都是无 UI 的核心底座，只要求公开类型、TSDoc 与类型契约测试。
+- 阶段 A 可以在**空数据库**上独立验收（写 commit → 刷新 → 读回 log/show），不依赖迁移；阶段 B 才碰既有数据。
+- 阶段 B 的 conformance 断言并入 `workingTreeCommitConformanceSuite`（归 US-306 阶段 B 收口），本故事只落 commit 图部分的用例。
 
 ## 范围边界
 

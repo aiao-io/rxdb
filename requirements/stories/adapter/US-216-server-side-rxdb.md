@@ -31,10 +31,8 @@ INVEST 检查清单:
 
 ### 病灶一：协议语义有两份实现，靠 README 一句话互相拉齐
 
-后端把 RuleGroup 手写翻译成 SQL：`compileRuleGroup` 在
-[rule-group-to-sql.ts](../../../apps/dev-rxdb-http-server/src/rule-group-to-sql.ts)，七个端点的 SQL 在
-[recipes-store.ts](../../../apps/dev-rxdb-http-server/src/recipes-store.ts)（如 `ORDER BY updatedAt, id`，
-[recipes-store.ts:22](../../../apps/dev-rxdb-http-server/src/recipes-store.ts#L22)）。
+后端曾把 RuleGroup 手写翻译成 SQL：`compileRuleGroup` 在 `rule-group-to-sql.ts`，七个端点的 SQL 在
+`recipes-store.ts`（如 `ORDER BY updatedAt, id`）。两个文件已随阶段 B 删除，本节描述的是本故事开工前的病灶。
 而同一份 RuleGroup 语义在引擎里另有实现（`rxdb-adapter-sqlite-core` 的 `buildRuleGroup`）。两份实现的拉齐方式写在
 [参考后端 README:65](../../../apps/dev-rxdb-http-server/README.md#L65)：
 
@@ -49,7 +47,7 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
 （`@Entity({ name: 'Recipe', tableName: 'recipes', properties: [...] })`），在后端是
 [config.ts](../../../apps/dev-rxdb-http-server/src/config.ts) 的 `RECIPE_COLUMNS` 白名单。
 字段名被协议文档的示例 curl 钉死，改一处漏一处，文档里的示例就成了跑不通的伪代码。
-（[recipe.ts:33](../../../apps/dev-rxdb-http/src/app/recipe.ts#L33) 的实体级 `sync: { type: SyncType.QueryCache, ... }`
+（[recipe-entity.ts:19](../../../modules/recipes-domain/src/recipe-entity.ts#L19) 的实体级 `sync: { type: SyncType.QueryCache, ... }`
 与白名单并列，见 D1 的拆法。）
 
 ### 病灶三：「后端不能初始化 RxDB」这个前提并不存在
@@ -72,9 +70,8 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
 ### 复验方式
 
 - 病灶一/二：读 [recipe.ts](../../../apps/dev-rxdb-http/src/app/recipe.ts)、
-  [config.ts](../../../apps/dev-rxdb-http-server/src/config.ts)、
-  [rule-group-to-sql.ts](../../../apps/dev-rxdb-http-server/src/rule-group-to-sql.ts)、
-  [recipes-store.ts](../../../apps/dev-rxdb-http-server/src/recipes-store.ts) 源码实证；
+  [config.ts](../../../apps/dev-rxdb-http-server/src/config.ts)、`rule-group-to-sql.ts`、`recipes-store.ts`
+  （后两者已随阶段 B 删除）源码实证；
   README 第 65 行的对齐声明是现状的自述。
 - 病灶三前半（引擎环境无关）：读核心包 `package.json` 依赖清单与 `Repository.ts` 方法签名；
   pglite 的 Node 可用性由 `rxdb-adapter-pglite` 自身测试套件在 Node 环境全绿实证。
@@ -156,7 +153,7 @@ reference-server，本故事不触碰，只作不改包的回归。前端只换�
 
 ### D4 — 服务端定型与冲突映射只冻结 wire 行为，机制实现阶段确认
 
-协议要求 `createdAt` / `updatedAt` 由服务端定型、不看入参（[recipes-store.ts:170-176](../../../apps/dev-rxdb-http-server/src/recipes-store.ts#L170-L176)）。
+协议要求 `createdAt` / `updatedAt` 由服务端定型、不看入参（原 `recipes-store.ts` 的写路径，现由 [rxdb-store.ts](../../../apps/dev-rxdb-http-server/src/rxdb-store.ts) 的引擎写路径盖章）。
 引擎侧时间戳的盖章机制（引擎在服务端写路径自动盖章，还是 server 层落库前覆写）**未核实**，
 属**推断**范围：`EntityBase` 把 `createdAt` / `updatedAt` 声明为 `readonly Date`
 （[entity-base.ts:109-115](../../../packages/rxdb/src/entity/entity-base.ts#L109-L115)），
@@ -282,7 +279,7 @@ demo 的变更通知开关就是留给这类实验的。
 | B2  | 阶段 B 就绪     | `__control/reset` 跑两遍 + 其余 `__control/*` 开关                   | 全部适配新存储层；两次 reset 读出的 250 行逐字节相同（D7）；种子不逐行广播、reset 只在结尾广播一次（D7）；前三行 id 与协议文档示例一致（文档 curl 不 404）；offline / fault / cors / page-mode 行为与现行一致                                | ⬜   |
 | B3  | 阶段 B 就绪     | 文件落盘（pglite `dataDir`）+ 重启进程                               | 重启后数据仍在；`__control/reset` 删库重建语义与现行一致（`.data` 目录行为）                                                                                                                                                                 | ⬜   |
 | B4  | 阶段 B 就绪     | 跑 dev-rxdb-http-e2e 变更通知相关用例                                | 双页收敛、抑制回声、断开重连（US-023 D7 的全量失效）行为与切换前零差异                                                                                                                                                                       | ⬜   |
-| B5  | 阶段 B 实现完成 | 跑门禁                                                               | 全绿；[rule-group-to-sql.ts](../../../apps/dev-rxdb-http-server/src/rule-group-to-sql.ts) 与 [recipes-store.ts](../../../apps/dev-rxdb-http-server/src/recipes-store.ts) 已删除；注入载荷测试按 D6 退役；覆盖率不回退                        | ⬜   |
+| B5  | 阶段 B 实现完成 | 跑门禁                                                               | 全绿；`rule-group-to-sql.ts` 与 `recipes-store.ts` 已删除；注入载荷测试按 D6 退役；覆盖率不回退                                                                                                                                              | ⬜   |
 | B6  | 阶段 B 实现完成 | 修订 [参考后端 README](../../../apps/dev-rxdb-http-server/README.md) | 「零依赖」一节改为如实声明新增依赖；确定性种子表述按 D7 改判（「读出的 250 行逐字节相同」）；协议示例 curl 仍逐字可跑                                                                                                                        | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
@@ -321,8 +318,8 @@ demo 的变更通知开关就是留给这类实验的。
 | ----------------------------------------------------------------------------------------------------------------------------- | ---- | ---------------------------------------------------------------------- |
 | `modules/recipes-domain/`（新建）                                                                                             | A    | schema 常量 + 两个装饰类 + 共享查询函数 / rxjs 组合（A9 两端实际调用） |
 | [apps/dev-rxdb-http-server/src/](../../../apps/dev-rxdb-http-server/src/) 新增 RxDB 装配模块                                  | A    | 后端 `RxDB` + pglite 初始化，替代 `db.ts` 的直接 `DatabaseSync` 路径   |
-| [apps/dev-rxdb-http-server/src/recipes-store.ts](../../../apps/dev-rxdb-http-server/src/recipes-store.ts)                     | B    | 删除；读+写路径已在 A 全迁到 Repository / EntityManager                |
-| [apps/dev-rxdb-http-server/src/rule-group-to-sql.ts](../../../apps/dev-rxdb-http-server/src/rule-group-to-sql.ts)             | B    | 删除；翻译职责回引擎（D6）                                             |
+| `apps/dev-rxdb-http-server/src/recipes-store.ts`                                                                              | B    | 删除；读+写路径已在 A 全迁到 Repository / EntityManager                |
+| `apps/dev-rxdb-http-server/src/rule-group-to-sql.ts`                                                                          | B    | 删除；翻译职责回引擎（D6）                                             |
 | [apps/dev-rxdb-http-server/src/change-feed.ts](../../../apps/dev-rxdb-http-server/src/change-feed.ts) / change-subscribers.ts | B    | 广播改由 `rxdb.addEventListener` 驱动，SSE 传输层不动                  |
 | [apps/dev-rxdb-http-server/src/control.ts](../../../apps/dev-rxdb-http-server/src/control.ts) / seed.ts                       | B    | 适配新存储层；seed 按 D7（确定性 + 不逐行广播）                        |
 | [apps/dev-rxdb-http-server/README.md](../../../apps/dev-rxdb-http-server/README.md)                                           | B    | 「零依赖」节与确定性种子表述修订（B6）                                 |
