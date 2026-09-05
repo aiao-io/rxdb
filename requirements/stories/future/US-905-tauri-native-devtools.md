@@ -391,6 +391,74 @@ conformance runner（由它发起请求），并让主窗口在该模式下用�
 并在**两个窗口里各放一只可远程推进的假时钟**（`advanceTime` 的契约要求 driver 掌管全部协议计时器），
 与进程内驱动完全重复，成本远大于它能新增的信息量。这条边界写在这里，避免下一个人再权衡一次。
 
+## 阶段 2 第一批：共享包 runtime 参数化 + 身份闸与授权注入（2026-09-05）
+
+阶段 2 拆成四批交付（C1～C4），**本轮只做前两批**，两批都**不关任何 AC**——它们是 C3/C4 的
+承重墙。AC 状态表因此一格未动。
+
+### owner 已定的三条边界
+
+| #   | 决定                                                                                                                                                            | 理由                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | 面板侧操作（浏览 / 上传 / 下载 / 删除）由**一段 dev-only 的定动作驱动脚本**发起：`include_str!` 进 Rust、`#[cfg(dev)]`、经 `initialization_script` 装进调试窗口 | 三个备选里只有它让脚手架**不进 release**。放进面板 bundle 那个方案要命的地方在于 `frontendDist` 整份嵌进 release 二进制——测试脚手架会随产品一起发；通用 `eval` 命令则直接撞 CSP（`script-src 'self' 'wasm-unsafe-eval'`，无 `unsafe-eval`），且失败形态与「面板没起来」不可区分。本轮不实现，C4 落地                                                                                                                               |
+| D2  | `TauriHostAccessService.evaluate` / `reloadInspectedPage` **决定不接**                                                                                          | 那条通道给的是「调试窗口可在被检查页跑任意脚本」，比它经 provider 能拿到的任何东西都大：provider 受 capability / descriptor / mutation policy 三层约束，注入的脚本跑在**主窗口的授权上下文**里，三层一条也管不着。阶段 2 的两个真实 provider 都不需要它；面板上唯一会碰它的 Settings 清理按钮，按 AC#12 本就该以 `provider_unsupported` 收口。两处 `TODO(US-905 阶段 2)` 已改写成决定并由 `tauri-host-access.service.spec.ts` 钉住 |
+| D3  | settings provider **改名 + 参数化**（`createDevToolsElectronSettingsProvider()` → `createDevToolsDesktopSettingsProvider(runtime)`），删旧名                    | 两个桌面宿主的 settings 语义完全相同，各写一份就给了 `kind` / `operations` / `limits` 三处分叉的机会，而 AC#12 要的正是「两端读到同一个答案」。破坏性变化已走 API baseline 流程                                                                                                                                                                                                                                                    |
+
+### 发现 8：调试窗口今天就能绕开三层授权直接开库（**已修**，AC#13 的承重点）
+
+`rxdb_desktop_request`（`packages/rxdb-adapter-tauri/rust/src/commands.rs`）此前注入 `window`
+**只用于会话记账**，没有任何 label 校验。而两件事叠在一起使它可利用：
+
+- **Tauri 的 capability 只管插件命令**，应用自有命令对每个 webview 开放——这条事实本故事
+  AC#3 的冒名窗口用例正是靠它成立（`lib.rs` 里已写明）；
+- `DesktopRouter::handle_owned` 的 `reject_foreign_session` 挡的是「用**别人的** sessionId」，
+  挡不住「**自己开一个新会话**」。
+
+于是 `rxdb-devtools` 窗口里的任意脚本可以 `invoke('rxdb_desktop_request', {kind:'file.open'})`
+拿到自己名下的文件会话，直接读写插件根与应用作用域 SQLite——绕开 connector 的三层授权。
+阶段 1 没暴露只因面板不碰它；阶段 2 一接真实 provider，AC#13 的「未授权 provider 调用为 0」
+就会变成**假绿**，「调试窗口不持有数据库连接与文件根句柄」这条约束也不成立。
+
+**修法**：`DesktopHost::new` 增第三个**必填**参数（允许发起请求的窗口 label 集合），闸落在
+`HostState::handle_from_window`——它是 host 的**唯一**入口，命令层没有第二条路径可以绕过它
+（若把闸写在命令体里，将来任何一处 `router.handle_owned(...)` 都能绕开，且没有编译期信号）。
+拒绝是普通应答 `{kind:'error', code:'permission_denied'}` 而不是 `Err`（`Err` 会被 Tauri 压平成
+字符串，丢掉可判别 code），且不回显 label。**不新增错误码**。demo 侧传 `["main"]`。
+
+判据取**会话计数不变**而不是「返回了 permission_denied」：后者在「先开了再报错」的实现下同样
+成立，而那时句柄已经开出去了。两条 Rust 单测覆盖放行与拒绝（含空 label、SQL 与文件两侧）。
+
+### 发现 9：`DevToolsDesktopFilesystem.dispose()` 全仓库零调用点（**未修**，随 C3）
+
+`createDevToolsDesktopFilesystem` 返回的 `dispose()` 用来关 host 的 `file.*` 会话，
+**Electron 侧（`apps/dev-rxdb-electron/src/app/setup_rxdb_desktop.ts`）也没接**。Tauri 上后果更硬：
+主窗口**刷新**不触发 `WindowEvent::Destroyed`，Rust 侧不回收，每刷一次泄一条 host 文件会话
+（连同它的挂起写入与锁）。AC#14 判据里的「host session 全释放」因此今天不成立。
+
+修法是装配处挂 `pagehide → dispose()`，但那个实例要到 C3 才存在，故随 C3 修。
+
+### 本轮落地清单
+
+- **PR-C1（共享包）**：`native-files-provider` 的 `runtime` 从写死 `'electron'` 改为**必填端口**，
+  由 `createConnectorProviders` 的单一 `runtime` 入参喂给全部 descriptor——「files 报 electron、
+  database 报 tauri」因此在结构上不可能发生（AC#10 的共享包侧判据）。`nativeFiles` 端口类型
+  收窄为 `Omit<…, 'runtime'>`，避免第二个入口。settings provider 按 D3 改名参数化。
+  `rxdb-plugin-storage` 的 `transport` 字段 TSDoc 改口径：Tauri 上显式传入是**唯一**生产路径
+  （没有 preload 全局键），此前写的「只用于测试」会诱导下一个人把它去掉。
+  **不给 runtime 默认值**：默认 `'electron'` 就是让某一端在忘记声明时静默自称成另一端。
+- **PR-C2（Rust 身份闸 + 授权注入）**：发现 8 的 label 闸；新 `#[cfg(dev)] mod devtools_config`——
+  三个与 Electron 逐字同名的 env（`DEV_RXDB_DEVTOOLS` / `_CAPABILITY` / `_MUTATION`，
+  mutation 只认 `allow`、省略即只读）经 Tauri 插件的 `js_init_script` 注入主窗口。
+  选它而不是 `invoke`，理由与 Electron 用启动参数同源：connector 是 bootstrap 期一次性单例，
+  异步 IPC 到不了那么早，会留一段「按默认档已经可用」的授权空窗；插件初始化脚本在**页面脚本
+  之前**同步执行（实测确认它排在 Tauri 注入 `metadata` 之后，故脚本可按窗口 label 自守）。
+  未开启时**插件根本不注册**，页面上没有那个全局键，页内 `devToolsRuntimeConfig()` 返回空对象
+  交回库默认档。配错就地退出，退出码 4（避开 selfcheck 的 0/1/2/3）。
+- **门禁**：`rxdb-devtools` 单测全绿（新增 3 条 runtime / settings 断言，两条经反向改动实测有
+  区分力）；`dev-rxdb-tauri` 单测 **24 文件 231 条**（原 22 / 222）；Rust `#[test]` 新增 2 条
+  （adapter label 闸）+ 7 条（`plan_from_env` 规则穷举与注入脚本形状）；两个 crate clippy 干净；
+  API baseline 已更新，diff 恰为 settings 两个名字的 removed + added。
+
 ## 技术约束
 
 - **两阶段必须是独立的 PR / commit 序列**：阶段 1 的证据只用共享 fake provider，不得夹带真实 host 接线。

@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
+import type { DevToolsProviderRuntime } from '../../provider/descriptor.js';
 import { createDevToolsNativeFilesProvider } from '../../native/native-files-provider.js';
 import { DEVTOOLS_MAX_INFLIGHT_REQUESTS } from '../../v2/constants.js';
 import { createFakeNativeFilesystem, expectedBytes, type FakeNativeFilesystem } from './fake-native-filesystem.js';
 
 const MAX_TRANSFER_BYTES = 64;
 
-function setup(seed?: (filesystem: FakeNativeFilesystem) => void) {
+function setup(seed?: (filesystem: FakeNativeFilesystem) => void, runtime: DevToolsProviderRuntime = 'electron') {
   const filesystem = createFakeNativeFilesystem();
   seed?.(filesystem);
-  const provider = createDevToolsNativeFilesProvider({ filesystem, maxTransferBytes: MAX_TRANSFER_BYTES });
+  const provider = createDevToolsNativeFilesProvider({ filesystem, maxTransferBytes: MAX_TRANSFER_BYTES, runtime });
   return { filesystem, provider };
 }
 
@@ -45,10 +46,21 @@ describe('native files provider — descriptor', () => {
 
   it('MUST report the host transfer limit verbatim instead of a shared constant', () => {
     const filesystem = createFakeNativeFilesystem();
-    const provider = createDevToolsNativeFilesProvider({ filesystem, maxTransferBytes: 7 });
+    const provider = createDevToolsNativeFilesProvider({ filesystem, maxTransferBytes: 7, runtime: 'electron' });
 
     // 谎报上限意味着面板按一个上限校验、host 按另一个上限拒收，而拒收发生在字节已经上路之后。
     expect(provider.descriptor.limits.maxTransferBytes).toBe(7);
+  });
+
+  it('MUST pass the caller runtime through without letting it fork behaviour (US-905 AC#10)', () => {
+    const { provider: electron } = setup(undefined, 'electron');
+    const { provider: tauri } = setup(undefined, 'tauri');
+
+    // `kind: 'native-files'` 是宿主**无关**的：Electron 与 Tauri 用同一个 kind、同一套操作与限额。
+    // runtime 只是显示来源，写死在 provider 里会让接了原生后端的宿主永远自称 electron。
+    expect(tauri.descriptor.runtime).toBe('tauri');
+    expect(electron.descriptor.runtime).toBe('electron');
+    expect({ ...tauri.descriptor, runtime: 'electron' }).toEqual(electron.descriptor);
   });
 });
 
@@ -373,7 +385,7 @@ describe('native files provider — create-directory and delete', () => {
 describe('native files provider — error mapping', () => {
   it('MUST map a host errno onto a shared provider code and carry no message', async () => {
     const filesystem = createFakeNativeFilesystem();
-    const provider = createDevToolsNativeFilesProvider({ filesystem, maxTransferBytes: MAX_TRANSFER_BYTES });
+    const provider = createDevToolsNativeFilesProvider({ filesystem, maxTransferBytes: MAX_TRANSFER_BYTES, runtime: 'electron' });
     filesystem.seedDirectory(['db']);
     // 宿主抛 EACCES；provider 不得把 errno、路径或消息透传上 wire。
     filesystem.list = () => Promise.reject(Object.assign(new Error('denied /Users/someone/db'), { code: 'EACCES' }));
@@ -385,7 +397,7 @@ describe('native files provider — error mapping', () => {
 
   it('MUST fall back to operation_failed for an unregistered host error', async () => {
     const filesystem = createFakeNativeFilesystem();
-    const provider = createDevToolsNativeFilesProvider({ filesystem, maxTransferBytes: MAX_TRANSFER_BYTES });
+    const provider = createDevToolsNativeFilesProvider({ filesystem, maxTransferBytes: MAX_TRANSFER_BYTES, runtime: 'electron' });
     filesystem.seedDirectory(['db']);
     filesystem.list = () => Promise.reject(new Error('something went wrong at /Users/someone'));
 

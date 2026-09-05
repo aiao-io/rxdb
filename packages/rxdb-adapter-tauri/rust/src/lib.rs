@@ -15,7 +15,9 @@
 //!     .invoke_handler(tauri::generate_handler![aiao_rxdb_tauri::commands::rxdb_desktop_request])
 //!     .setup(|app| {
 //!         let dir = app.path().app_data_dir()?;
-//!         app.manage(aiao_rxdb_tauri::commands::DesktopHost::new(app.handle(), dir));
+//!         // 第三个参数是允许敲这个 host 的窗口 label：应用自有命令不过 capability
+//!         // 门禁，所以「谁有资格开库」只能在这里点名，且没有「不配置即全放行」。
+//!         app.manage(aiao_rxdb_tauri::commands::DesktopHost::new(app.handle(), dir, &["main"]));
 //!         Ok(())
 //!     })
 //! ```

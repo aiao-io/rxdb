@@ -63,6 +63,30 @@ describe('US-905 devtools 的 release 隔离（结构证据）', () => {
     expect(/#\[cfg\(dev\)\]\s+fn open_devtools_window/.test(libRs())).toBe(true);
   });
 
+  it('DevTools 授权档模块与插件注册两侧都是 #[cfg(dev)]，release 既不读 env 也不注入全局键', () => {
+    const lib = libRs();
+    // 模块声明与注册两处都要带：只带一处的话，release 要么编不过（引用不存在的模块），
+    // 要么把一段读 `DEV_RXDB_DEVTOOLS*` 的代码连同那个全局键一起发给用户。
+    expect(/#\[cfg\(dev\)\]\s+mod devtools_config;/.test(lib)).toBe(true);
+    expect(/#\[cfg\(dev\)\]\s+let devtools_config = devtools_config::plan_or_exit\(\);/.test(lib)).toBe(true);
+    expect(/#\[cfg\(dev\)\]\s+let builder = match devtools_config/.test(lib)).toBe(true);
+
+    // 判据的另一半：不能**另有**一条没带 cfg 的路径提到这个模块。上面三条只说明
+    // 「这三处带了 cfg」，挡不住第四处；而第四处正是 release 把整段代码带进产物的形态。
+    //
+    // 判定按「每一处提及的前 3 行内必须出现 #[cfg(dev)]」——插件注册那两行
+    // （`Some(config) => …` / `None => builder`）在 match 块里，紧跟着块首那个 cfg。
+    const lines = lib.split('\n');
+    const unguarded = lines.filter((line, index) => {
+      if (!line.includes('devtools_config') || line.trim().startsWith('//')) return false;
+      return !lines.slice(Math.max(0, index - 3), index).some(prior => prior.includes('#[cfg(dev)]'));
+    });
+    expect(unguarded).toEqual([]);
+
+    // 全局键只存在于 `devtools_config.rs`（本身整个 #[cfg(dev)]），不该泄进接线文件。
+    expect(lib).not.toContain('__aiaoRxdbDevToolsConfig__');
+  });
+
   it('devtools 入口只在 dev 窗口加载，不进主 app 的单入口构建', () => {
     // `devtools.html` 由独立的 `vite.config.devtools.mts` 单独打包成 `devtools/` 子目录；
     // 主 app 走 `@angular/build:application` 的 `src/main.ts` 单入口，不把 `src/devtools/main.ts`

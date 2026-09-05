@@ -2,7 +2,7 @@ import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { ELECTRON_ADAPTER_NAME, RxDBAdapterElectron } from '@aiao/rxdb-adapter-electron';
 import type { DevToolsCapability, DevToolsMutationPolicy } from '@aiao/rxdb-devtools';
 import {
-  createDevToolsElectronSettingsProvider,
+  createDevToolsDesktopSettingsProvider,
   createDevToolsNativeSnapshotSource,
   createSystemClock,
   DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT,
@@ -140,7 +140,7 @@ export default () => {
         maxTransferBytes: DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT,
         snapshot: { clock: createSystemClock(), source: snapshotSource }
       },
-      settings: createDevToolsElectronSettingsProvider(),
+      settings: createDevToolsDesktopSettingsProvider('electron'),
       runtime: 'electron'
     }
   });

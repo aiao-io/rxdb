@@ -5,7 +5,11 @@ import {
   TAURI_ADAPTER_NAME,
   type DesktopHostTransport
 } from '@aiao/rxdb-adapter-tauri';
-import { getDevToolsConnector } from '@aiao/rxdb-devtools';
+import {
+  getDevToolsConnector,
+  type DevToolsCapability,
+  type DevToolsMutationPolicy
+} from '@aiao/rxdb-devtools';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginStorage, type RxDBStoragePluginOptions } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
@@ -25,6 +29,38 @@ import { DesktopLaunch } from './desktop-launch.entity';
  * 名字 —— 两个 demo 的磁盘布局一致，才谈得上「换掉的只是宿主」。
  */
 export const DESKTOP_STORAGE_ROOT_DIR = 'files';
+
+/**
+ * 挂载键，与 Rust 侧 `devtools_config.rs` 的 `CONFIG_GLOBAL_KEY` 逐字一致。
+ *
+ * @remarks
+ * 页面与 Rust 分属两条工具链，这里只能写字面量；由 `devtools-runtime-config.spec.ts`
+ * 的一条用例读 Rust 源码把两处钉在一起。Electron 侧同名同值，页内读法因此两端一致。
+ */
+export const DEVTOOLS_RUNTIME_CONFIG_KEY = '__aiaoRxdbDevToolsConfig__';
+
+/**
+ * 读取本次运行的 DevTools 授权配置。
+ *
+ * @returns Rust 侧注入脚本带进来的档位与写入开关；没有（release、或没开开发态 DevTools）时为空对象。
+ *
+ * @remarks
+ * 返回空对象而不是一份默认值，是为了让调用点能用展开语法把「没有配置」表达成
+ * **完全不传这两个键**，交给库自己的默认值——而不是在这里复制一份可能与库不同步的默认档。
+ *
+ * 值必须在**页面脚本之前**就位：`getDevToolsConnector()` 是一次性全局单例，首次调用即定档。
+ * 所以它由 Tauri 插件的 `js_init_script` 注入，而不是一次 `invoke`——异步 IPC 会留下一段
+ * 「按默认档已经可用」的授权空窗。
+ */
+export function devToolsRuntimeConfig(): {
+  capabilities?: DevToolsCapability;
+  mutationPolicy?: DevToolsMutationPolicy;
+} {
+  const config = (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY] as
+    | { capability: DevToolsCapability; mutationPolicy: DevToolsMutationPolicy }
+    | undefined;
+  return config === undefined ? {} : { capabilities: config.capability, mutationPolicy: config.mutationPolicy };
+}
 
 /**
  * 桌面文件后端的 storage 插件选项。
@@ -108,7 +144,13 @@ export default () => {
 
   // US-905 阶段 1：把页内 connector 接到 Tauri transport。阶段 1 只用真实 `database`
   // provider（走 v2 数据面）；native files/settings 是阶段 2 接 US-210/US-505 才给。
-  const devtools = getDevToolsConnector({ transport: createTauriConnectorTransport() });
+  //
+  // 授权档（capability / mutationPolicy）由 Rust 侧的注入脚本在页面脚本之前放好，
+  // 展开进来即可 —— 缺省时是空对象，交回库默认档。
+  const devtools = getDevToolsConnector({
+    ...devToolsRuntimeConfig(),
+    transport: createTauriConnectorTransport()
+  });
   devtools.init(rxdb, getEntityMetadata);
 
   return rxdb;

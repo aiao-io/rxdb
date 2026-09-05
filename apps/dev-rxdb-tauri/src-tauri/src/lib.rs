@@ -3,6 +3,8 @@
 // 桌面宿主本身已经不在这里了——它是 `aiao_rxdb_tauri`（`packages/rxdb-adapter-tauri/rust`），
 // 由 `[dependencies]` 的 path 依赖引入。本文件从此只剩「宿主应用要写的接线」，
 // 也就是文档里给用户抄的那一份。
+#[cfg(dev)]
+mod devtools_config;
 mod selfcheck;
 
 use aiao_rxdb_tauri::commands::DesktopHost;
@@ -45,6 +47,13 @@ fn check_runtime() -> RuntimeHealth {
     RuntimeHealth { status: "ready" }
 }
 
+/// 主窗口（被检查页）的 label。
+///
+/// 同一个字面量在三处是同一个事实：`tauri.conf.json` 的窗口定义、`DesktopHost` 的窗口
+/// 白名单（谁有资格开库）、以及 dev 下中继的路由表。各写各的就有机会漂移，而漂移的形态是
+/// 「数据库请求被拒」或「中继不通」这类看起来毫不相干的故障。
+pub const MAIN_WINDOW_LABEL: &str = "main";
+
 /// US-905 阶段 1：定向中继的窗口 label 与路由判定（AC#3）。
 ///
 /// 纯函数，不碰 Tauri 状态——「谁 → 谁」的规则可以被直接测到，而不必起一个真实窗口。
@@ -52,8 +61,8 @@ fn check_runtime() -> RuntimeHealth {
 mod devtools_routing {
     /// 调试窗口的 label。
     pub const DEVTOOLS_LABEL: &str = "rxdb-devtools";
-    /// 主窗口（被检查页）的 label。
-    pub const MAIN_LABEL: &str = "main";
+    /// 主窗口（被检查页）的 label；与 `DesktopHost` 白名单同源。
+    pub const MAIN_LABEL: &str = super::MAIN_WINDOW_LABEL;
 
     /// 由发起窗口 label 决定目标 label。
     ///
@@ -305,7 +314,18 @@ pub fn run() {
     // 默认值」把测试数据写进用户真实的应用数据目录。放这里而不是放进 `setup`，是因为
     // 配置里声明的窗口与 `setup` 钩子谁先跑不是可以下注的事，而「配错了绝不建窗」没有例外。
     let plan = selfcheck::plan_or_exit();
-    tauri::Builder::default()
+    // 同一条理由的第二处：DevTools 授权档必须在**页面脚本之前**就位，配错了同样不能建窗。
+    #[cfg(dev)]
+    let devtools_config = devtools_config::plan_or_exit();
+    let builder = tauri::Builder::default();
+    // 没开 DevTools 时插件根本不注册，页面上因此没有那个全局键——页内据此交回库默认档，
+    // 而不是读到一份「看起来是配置」的默认值。release 里连这一整段都不存在。
+    #[cfg(dev)]
+    let builder = match devtools_config {
+        Some(config) => builder.plugin(devtools_config::plugin(config, MAIN_WINDOW_LABEL)),
+        None => builder,
+    };
+    builder
         .invoke_handler(tauri::generate_handler![
             get_platform,
             get_versions,
@@ -337,7 +357,10 @@ pub fn run() {
                 Some(plan) => plan.app_data_dir.clone(),
                 None => app.path().app_data_dir()?,
             };
-            app.manage(DesktopHost::new(app.handle(), app_data_dir));
+            // 只有主窗口是 RxDB 的 connector 与 provider owner。白名单必填的理由见
+            // `DesktopHost::new`：应用自有命令不过 capability 门禁，调试窗口（以及将来
+            // 任何一扇忘了排除的窗口）否则可以自行开出文件与 SQLite 会话。
+            app.manage(DesktopHost::new(app.handle(), app_data_dir, &[MAIN_WINDOW_LABEL]));
             // US-905：dev 模式开调试窗口；release 无此入口（#[cfg(dev)] 两侧一起消失）。
             #[cfg(dev)]
             open_devtools_window(app.handle())?;
