@@ -458,6 +458,9 @@ conformance runner（由它发起请求），并让主窗口在该模式下用�
   区分力）；`dev-rxdb-tauri` 单测 **24 文件 231 条**（原 22 / 222）；Rust `#[test]` 新增 2 条
   （adapter label 闸）+ 7 条（`plan_from_env` 规则穷举与注入脚本形状）；两个 crate clippy 干净；
   API baseline 已更新，diff 恰为 settings 两个名字的 removed + added。
+  真实产物两条也复跑过：`devtools-smoke` **6/6 绿**（真实双窗口，阶段 1 的四条 AC 证据未回退）、
+  `desktop-smoke` **14 条绿**（原 13，多的一条是本轮的 release 隔离断言；这一跑同时确认
+  release 侧 `#[cfg(dev)]` 关掉后整份仍能编译）。
 
 ## 技术约束
 
