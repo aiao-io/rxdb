@@ -130,11 +130,11 @@ const probeDevToolsWindow = async (): Promise<DevToolsProbeResult | null> => {
     const relayRejected = first > 0 ? await probeImpostorWindow(globalThis) : 0;
     // 阶段 2：驱动在调试窗口里跑，汇报时刻由它自己定，所以在刷新之前收一次。
     // 刷新会换掉 connector，而驱动那一轮问的是**刷新之前**那个 connector——两件事分开记。
-    const native = first > 0 ? await devToolsWatcher.waitForNative() : undefined;
-    sessionStorage.setItem(
-      PROBE_CARRY_KEY,
-      JSON.stringify({ ...devToolsWatcher.settle(), relayRejected, native })
-    );
+    // 只等，不取它的返回值：`settle()` 交出的是**最新**那一条（含阶段打点），
+    // 而等待只在收到结论时才结束。用返回值覆盖 settle() 的话，等待期间到达的一条打点
+    // 会被当成结论带走。
+    if (first > 0) await devToolsWatcher.waitForNative();
+    sessionStorage.setItem(PROBE_CARRY_KEY, JSON.stringify({ ...devToolsWatcher.settle(), relayRejected }));
     location.reload();
     // 刷新在即：这条链不能继续走到上报那一步。
     return new Promise<never>(() => undefined);

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -54,6 +54,12 @@ import { runSelfCheck, type SelfCheckRun } from './packaged-app';
  *   pnpm nx run dev-rxdb-tauri:tauri-package-dev
  *   （devtools-smoke target 的 dependsOn 本应替你跑掉这一步。）
  */
+
+/** 驱动留在盘上的目录名，与 `src-tauri/devtools_driver.js` 的 `KEPT_DIR` 一致。 */
+const KEPT_DIR = 'drv-kept';
+
+/** 驱动建了就删的目录名，与驱动的 `TEMP_DIR` 一致。 */
+const TEMP_DIR = 'drv-temp';
 
 /** `tauri.conf.json` 的 `devUrl` 写死的端口。 */
 const DEV_URL_PORT = 1420;
@@ -139,6 +145,8 @@ describe('dev 产物里的两个真实 WebView（US-905 阶段 1 AC#1 / AC#2）'
   let frontend: { close: () => Promise<void> };
   let workspace: string;
   let run: SelfCheckRun;
+  /** 文件存储的物理根：外层 `rxdb-files` 由 Rust 定，内层 `files` 由 storage 插件的 rootDir 定。 */
+  let storageRoot: string;
 
   // 一次启动供全部断言共用：它们看的本来就是同一次启动的同一份事实。
   beforeAll(async () => {
@@ -146,6 +154,7 @@ describe('dev 产物里的两个真实 WebView（US-905 阶段 1 AC#1 / AC#2）'
     workspace = mkdtempSync(join(realpathSync(tmpdir()), 'rxdb-tauri-devtools-'));
     const dataDir = join(workspace, 'app-data');
     mkdirSync(dataDir);
+    storageRoot = join(dataDir, 'rxdb-files', 'files');
 
     run = await runSelfCheck({
       dataDir,
@@ -323,6 +332,22 @@ describe('dev 产物里的两个真实 WebView（US-905 阶段 1 AC#1 / AC#2）'
      * 对照组就在上面那条 `files.list`——**同一个操作、同一份参数**，唯一的差别是 session。
      * 所以这里拒掉的只可能是身份，不是操作本身不被支持。
      */
+    /**
+     * AC#13 的授权矩阵一半：写入必须是**这一次运行**被显式打开的。
+     *
+     * @remarks
+     * 缺省档（不设任何 `DEV_RXDB_DEVTOOLS*`）是 `capability: full` + `mutationPolicy: omit`，
+     * 所以这一跑里写入被拒。拒绝码与「这个操作压根没声明」相同（共享包的 `authorizeOperation`
+     * 刻意不区分，免得对端据此枚举 provider 目录）——**判别力因此不在码上，在磁盘上**：
+     * 下面那条断言盘上一个目录都没落。这也顺带证明了缺省档确实是只读的。
+     */
+    it('没 opt-in 写入时，建目录被拒且盘上什么都没落', () => {
+      expect(native()?.createDirectory).toBe('provider_unsupported');
+      expect(native()?.deleteEntry).toBe('provider_unsupported');
+      expect(existsSync(join(storageRoot, KEPT_DIR)), '只读档下不该有任何目录落盘').toBe(false);
+      expect(existsSync(join(storageRoot, TEMP_DIR))).toBe(false);
+    });
+
     it('换成伪造的 session，同一条请求被按 session 拒掉', () => {
       // 判据取**观察到的拒绝码**而不是「没答」：拒绝以 session 级 ERROR（`requestId: null`）
       // 回来，驱动因此要单独记它——否则这条用例只能看到一次超时，而超时与「对端挂了」
@@ -331,5 +356,77 @@ describe('dev 产物里的两个真实 WebView（US-905 阶段 1 AC#1 / AC#2）'
       // 对照组就在上面那条 `files.list`：**同一个操作、同一份参数**，唯一的差别是 session。
       expect(native()?.filesList).toBe('ok');
     });
+  });
+});
+
+/**
+ * 开了授权档的那一跑（US-905 阶段 2，AC#13 的授权矩阵另一半）。
+ *
+ * @remarks
+ * 这一跑是 C2 那条注入链路的**唯一真实证据**：`DEV_RXDB_DEVTOOLS*` 三个环境变量 → Rust 的
+ * `devtools_config` 插件 → `js_init_script` 在页面脚本之前写下全局键 → 页内 connector 定档。
+ * 单测只能证明每一段自己的规则，证不了这条链在真实窗口里接得上；而它接不上的表现，
+ * 恰好与「写入本来就该被拒」一模一样——所以必须有这一跑，上面那条只读用例才有判别力。
+ *
+ * 单独起一个进程而不是复用上面那一跑：授权档在 bootstrap 期一次性定档，同一个进程里换不了。
+ */
+describe('开了写入授权的那一跑（US-905 阶段 2）', () => {
+  let frontend: { close: () => Promise<void> };
+  let workspace: string;
+  let run: SelfCheckRun;
+  let storageRoot: string;
+
+  beforeAll(async () => {
+    frontend = await serveFrontend();
+    workspace = mkdtempSync(join(realpathSync(tmpdir()), 'rxdb-tauri-devtools-rw-'));
+    const dataDir = join(workspace, 'app-data');
+    mkdirSync(dataDir);
+    storageRoot = join(dataDir, 'rxdb-files', 'files');
+
+    run = await runSelfCheck({
+      dataDir,
+      reportPath: join(workspace, 'selfcheck-devtools-rw.json'),
+      devtoolsProbe: true,
+      profile: 'debug',
+      // 三个变量与 Electron 侧逐字同名；`_MUTATION` 只认 `allow`，省略即只读。
+      env: {
+        DEV_RXDB_DEVTOOLS: '1',
+        DEV_RXDB_DEVTOOLS_CAPABILITY: 'full',
+        DEV_RXDB_DEVTOOLS_MUTATION: 'allow'
+      }
+    });
+    expect(run.report.status, because(run)).toBe('ok');
+  }, 180_000);
+
+  afterAll(async () => {
+    await frontend.close();
+    rmSync(workspace, { force: true, recursive: true });
+  });
+
+  it('授权档确实经 Rust 注入到了页内 connector：同样的写入这次成立', () => {
+    const native = run.report.devtools?.native;
+    // 诊断带上整份 devtools 探针结果：`native` 整个缺席与「写入被拒」是两种成因，
+    // 只看一个 undefined 分不出来（本轮实测踩过）。
+    const detail = `devtools=${JSON.stringify(run.report.devtools)}\n${because(run)}`;
+
+    // 与只读那一跑逐字对照：同一个操作、同一份参数、同一份产物，唯一的差别是三个环境变量。
+    expect(native?.createDirectory, detail).toBe('ok');
+    expect(native?.deleteEntry, detail).toBe('ok');
+  });
+
+  it('写入真的落到了盘上，删除也真的把它拿掉了', () => {
+    // 码说「成立」，磁盘说「确实发生了」——两者缺一，这条链上任何一段都可以假装成功。
+    expect(existsSync(join(storageRoot, KEPT_DIR)), '建目录报了 ok，盘上却没有').toBe(true);
+    expect(existsSync(join(storageRoot, TEMP_DIR)), '删除报了 ok，盘上却还在').toBe(false);
+  });
+
+  it('只读那一跑的其余结论在这一跑同样成立', () => {
+    const native = run.report.devtools?.native;
+
+    // 授权档只该影响写入。settings 的两条拒绝与伪造 session 的拒绝都与档位无关，
+    // 这里复核一遍：否则「开了 full 就什么都能干」这种回归不会被任何用例接住。
+    expect(native?.settingsExport).toBe('export_unsupported');
+    expect(native?.settingsClear).toBe('provider_unsupported');
+    expect(native?.forgedSession).toBe('session_invalid');
   });
 });

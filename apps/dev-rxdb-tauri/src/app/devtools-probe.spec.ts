@@ -142,6 +142,36 @@ describe('watchDevToolsHandshake — 驱动汇报通道（US-905 阶段 2）', (
     expect(watcher.settle().panelFrameTypes).toEqual([]);
   });
 
+  it('阶段打点不结束等待，但仍然进快照', async () => {
+    const { surface, emitNative } = surfaceOf();
+    const watcher = watchDevToolsHandshake(surface);
+    const pending = watcher.waitForNative(80);
+
+    await Promise.resolve();
+    // 打点先到：它不能把等待提前结束掉——那样拿回去的「结论」里每个字段都是 undefined，
+    // 与「驱动压根没跑」长得一模一样。这条竞态实测发生过（同一份代码一次红一次绿）。
+    emitNative({ sessionSeen: false, failure: 'stage:listening' });
+    await Promise.resolve();
+    emitNative({ sessionSeen: true, createDirectory: 'ok' });
+
+    await expect(pending).resolves.toMatchObject({ sessionSeen: true, createDirectory: 'ok' });
+    // 但打点本身要留得住：驱动真卡住时，最后那个 stage 是唯一的线索。
+    expect(watcher.settle().native).toMatchObject({ sessionSeen: true });
+  });
+
+  it('只收到阶段打点时，快照里留的是那条打点', async () => {
+    const { surface, emitNative } = surfaceOf();
+    const watcher = watchDevToolsHandshake(surface);
+    const pending = watcher.waitForNative(30);
+
+    await Promise.resolve();
+    emitNative({ sessionSeen: false, failure: 'stage:booted' });
+
+    // 等待照常耗满预算并返回最新那条（它就是打点）——「卡在 booted」因此是可读的结论，
+    // 而不是一个什么都没有的 undefined。
+    await expect(pending).resolves.toMatchObject({ failure: 'stage:booted' });
+  });
+
   it('预算内没等到汇报就返回 undefined，而不是编一份空结论', async () => {
     const { surface } = surfaceOf();
     const watcher = watchDevToolsHandshake(surface);

@@ -46,6 +46,10 @@ export interface DevToolsNativeProbeResult {
   readonly settingsClear?: string;
   /** 伪造 session 的同一条请求的结果码。 */
   readonly forgedSession?: string;
+  /** 新建目录的结果码；只读档下与「操作没声明」同码，判别力在磁盘上。 */
+  readonly createDirectory?: string;
+  /** 删除的结果码。 */
+  readonly deleteEntry?: string;
   /** 驱动自身失败时的原因。 */
   readonly failure?: string | null;
 }
@@ -152,8 +156,12 @@ export const watchDevToolsHandshake = (surface: DevToolsEventSurface): DevToolsH
   let native: DevToolsNativeProbeResult | undefined;
   let nativeArrived: (() => void) | undefined;
   const driveSubscription = surface.listen<DevToolsNativeProbeResult>(DRIVE_RESULT_EVENT, message => {
+    // **最新的一条**始终记下来（包括阶段打点）：驱动卡住时，最后那个 stage 就是唯一的线索。
     native = message.payload;
-    nativeArrived?.();
+    // 但只有**结论**才结束等待。打点也是一条汇报，先到先得的话，等待会拿着
+    // `stage:booted` 提前返回，而那份「结论」里每个字段都是 undefined——
+    // 与「驱动压根没跑」长得一模一样。这条竞态实测发生过：同一份代码一次红一次绿。
+    if (!isStageBeacon(message.payload)) nativeArrived?.();
   });
 
   const subscription = surface.listen<string>(DEVTOOLS_EVENT, event => {
@@ -224,6 +232,19 @@ function parseFrame(raw: string): PanelFrame | null {
     return null;
   }
 }
+
+/**
+ * 这条汇报是不是阶段打点而非结论。
+ *
+ * @param result - 驱动送来的一条汇报。
+ * @returns 是打点时为 `true`。
+ *
+ * @remarks
+ * 打点复用 `failure` 字段（前缀 `stage:`）而不是另加一个键：报告 schema 因此不必为
+ * 调试设施多开一格，而跑通时这个字段本来就是 `null`。
+ */
+const isStageBeacon = (result: DevToolsNativeProbeResult): boolean =>
+  typeof result.failure === 'string' && result.failure.startsWith('stage:');
 
 /** 到点即 resolve 的计时器。 */
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));

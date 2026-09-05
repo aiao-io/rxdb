@@ -47,7 +47,7 @@ export const PROBE_BASE_URL_ENV = 'DEV_RXDB_TAURI_PROBE_BASE_URL';
 export const DEVTOOLS_PROBE_ENV = 'DEV_RXDB_TAURI_DEVTOOLS_PROBE';
 
 /** 本文件能读懂的报告结构版本，与 `selfcheck.rs` 的 `REPORT_SCHEMA_VERSION` 一致。 */
-export const REPORT_SCHEMA_VERSION = 6;
+export const REPORT_SCHEMA_VERSION = 7;
 
 /**
  * 自检环境变量配错时的退出码，与 `selfcheck.rs` 的 `CONFIG_EXIT_CODE` 一致。
@@ -204,6 +204,17 @@ export interface DevToolsNativeProbe {
   readonly settingsClear?: string;
   /** 伪造 session 的同一条请求的结果码；必须被拒。 */
   readonly forgedSession?: string;
+  /**
+   * 新建目录的结果码（US-905 阶段 2，AC#10 / #13 的写入半边）。
+   *
+   * @remarks
+   * 没 opt-in 写入时它是 `provider_unsupported`——与「这个操作压根没声明」**同一个码**
+   * （见共享包 `authorizeOperation`：拒绝不区分二者，免得对端把 provider 目录枚举出来）。
+   * 所以判别力不在码上，而在**磁盘**：只读那一跑必须一个目录都不落。
+   */
+  readonly createDirectory?: string;
+  /** 删除的结果码；只读档下同样是 `provider_unsupported`。 */
+  readonly deleteEntry?: string;
   /** 驱动自身失败时的原因；正常跑完为 `null`。 */
   readonly failure?: string | null;
 }
@@ -279,6 +290,14 @@ export interface SelfCheckOptions {
   readonly devtoolsProbe?: boolean;
   /** 用哪个剖面的产物；默认 `release`。 */
   readonly profile?: CargoProfile;
+  /**
+   * 额外环境变量；用来开 DevTools 的授权档（`DEV_RXDB_DEVTOOLS*`，US-905 阶段 2）。
+   *
+   * @remarks
+   * 不给默认值：授权档必须是**这一次运行**被显式打开的。缺省那一跑因此是天然的只读负对照，
+   * 而负对照正是整组写入用例的判别力来源。
+   */
+  readonly env?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -414,7 +433,8 @@ export async function runSelfCheck(options: SelfCheckOptions): Promise<SelfCheck
       [APP_DATA_DIR_ENV]: options.dataDir,
       ...(options.probeBaseUrl === undefined ? {} : { [PROBE_BASE_URL_ENV]: options.probeBaseUrl }),
       // 同上：Rust 侧判的是「变量存不存在」，给空串会被当成设了一个不合法的值。
-      ...(options.devtoolsProbe === true ? { [DEVTOOLS_PROBE_ENV]: '1' } : {})
+      ...(options.devtoolsProbe === true ? { [DEVTOOLS_PROBE_ENV]: '1' } : {}),
+      ...(options.env ?? {})
     },
     options.profile ?? 'release'
   );

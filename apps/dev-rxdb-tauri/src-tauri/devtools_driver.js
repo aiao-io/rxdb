@@ -47,6 +47,10 @@
   const BUDGET_MS = 15000;
   /** 单条请求的等待上限。 */
   const ANSWER_TIMEOUT_MS = 4000;
+  /** 写入用例留在盘上的目录名；e2e 独立去磁盘上核对它在不在。 */
+  const KEPT_DIR = 'drv-kept';
+  /** 建了就删的目录名，用来走一遍 delete。 */
+  const TEMP_DIR = 'drv-temp';
 
   const internals = window.__TAURI_INTERNALS__;
   if (!internals || !internals.invoke) return;
@@ -160,6 +164,21 @@
     // 未声明的能力：descriptor 层就该拒，走不到 provider（AC#12）。
     const settingsClear = await request('settings', 'clear', {});
     // 伪造 session：connector 必须按 session 拒，而不是照答（AC#13）。
+    // 写入两条（AC#10 / #13 的写入半边）：一条**留在盘上**给 e2e 独立核对，一条随手删掉、
+    // 顺带把 delete 也走一遍。只读档下两条都会被拒，而拒绝码与「操作没声明」相同——
+    // 判别力因此落在磁盘上，不在码上。
+    //
+    // 先删一次再建：**一个进程里这段脚本会跑不止一遍**——探针为了 AC#4 会把调试窗口
+    // 关掉再以同 label 重开，而重开的那扇窗又带着这份驱动。第二遍撞上自己第一遍留下的
+    // 目录，`create-directory` 会答 `resource_conflict`（实测）。
+    //
+    // 修法取「让准备步骤幂等」而不是「把 conflict 也算通过」：后者会让一次**真实的**
+    // 冲突缺陷从这条用例底下溜过去。删除的结果刻意不看——只读档下它本来就会被拒。
+    await request('files', 'delete', { path: KEPT_DIR });
+    const createdKept = await request('files', 'create-directory', { path: KEPT_DIR });
+    const createdTemp = await request('files', 'create-directory', { path: TEMP_DIR });
+    const deleted = createdTemp.outcome === 'ok' ? await request('files', 'delete', { path: TEMP_DIR }) : createdTemp;
+
     const realSession = sessionId;
     sessionId = '00000000-0000-4000-8000-000000000000';
     lastSessionError = null;
@@ -175,7 +194,9 @@
       filesEntryCount: files.outcome === 'ok' && files.result ? (files.result.entries || []).length : -1,
       settingsExport: codeOf(settingsExport),
       settingsClear: codeOf(settingsClear),
-      forgedSession: forgedCode
+      forgedSession: forgedCode,
+      createDirectory: codeOf(createdKept),
+      deleteEntry: codeOf(deleted)
     };
   }
 

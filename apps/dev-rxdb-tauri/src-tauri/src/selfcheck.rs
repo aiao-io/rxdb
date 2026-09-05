@@ -65,8 +65,8 @@ pub const DEVTOOLS_PROBE_ENV: &str = "DEV_RXDB_TAURI_DEVTOOLS_PROBE";
 /// 没跟上时，报出来的是「版本对不上」，而不是一个到处都是 `undefined` 的对象。
 ///
 /// v2 起多了 [`StorageProbe`]（US-505 AC#1 / AC#3）；v3 起多了 [`DevToolsProbe`] 与
-/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）；v5 加 `devtools.relayRejected`（AC#3）；v6 加 `devtools.native`（阶段 2 的 wire 结论）。
-pub const REPORT_SCHEMA_VERSION: u32 = 6;
+/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）；v5 加 `devtools.relayRejected`（AC#3）；v6 加 `devtools.native`（阶段 2 的 wire 结论）；v7 加它的写入两条（`createDirectory` / `deleteEntry`）。
+pub const REPORT_SCHEMA_VERSION: u32 = 7;
 
 /// 环境变量配错时的退出码。
 ///
@@ -248,6 +248,18 @@ pub struct DevToolsNativeProbe {
     /// 伪造 session 的同一条请求的结果码；必须被拒（AC#13）。
     #[serde(default)]
     pub forged_session: Option<String>,
+    /// 新建目录的结果码（AC#10 / #13 的写入半边）。
+    ///
+    /// # 判别力不在这个码上
+    ///
+    /// 没 opt-in 写入时它是 `provider_unsupported`，与「这个操作压根没声明」**同一个码**
+    /// （共享包的 `authorizeOperation` 刻意不区分，免得对端据此枚举 provider 目录）。
+    /// 所以只读那一跑的判据是**磁盘上一个目录都没落**，由 e2e 自己去看。
+    #[serde(default)]
+    pub create_directory: Option<String>,
+    /// 删除的结果码；只读档下同样是 `provider_unsupported`。
+    #[serde(default)]
+    pub delete_entry: Option<String>,
     /// 驱动自身失败时的原因；正常跑完为 `None`。
     #[serde(default)]
     pub failure: Option<String>,
@@ -972,6 +984,8 @@ mod tests {
                         settings_export: Some("export_unsupported".to_string()),
                         settings_clear: Some("provider_unsupported".to_string()),
                         forged_session: Some("session_invalid".to_string()),
+                        create_directory: Some("ok".to_string()),
+                        delete_entry: Some("ok".to_string()),
                         failure: None,
                     }),
                 }),
@@ -1005,6 +1019,8 @@ mod tests {
                         "settingsExport": "export_unsupported",
                         "settingsClear": "provider_unsupported",
                         "forgedSession": "session_invalid",
+                        "createDirectory": "ok",
+                        "deleteEntry": "ok",
                         "failure": null
                     }
                 },
@@ -1027,6 +1043,6 @@ mod tests {
     /// v3 加的是 `devtools` 与 `windowLabels`（US-905 阶段 1）；v6 加的是 `devtools.native`（阶段 2）。
     #[test]
     fn the_schema_version_covers_the_storage_probe() {
-        assert_eq!(REPORT_SCHEMA_VERSION, 6);
+        assert_eq!(REPORT_SCHEMA_VERSION, 7);
     }
 }
