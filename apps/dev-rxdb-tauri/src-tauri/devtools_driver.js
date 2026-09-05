@@ -51,6 +51,12 @@
   const KEPT_DIR = 'drv-kept';
   /** 建了就删的目录名，用来走一遍 delete。 */
   const TEMP_DIR = 'drv-temp';
+  /**
+   * 跨重启比对用的实体名（AC#15），与 `src/app/desktop-launch.entity.ts` 的 `@Entity({ name })` 一致。
+   *
+   * 每次启动追加一行，所以行数**跨进程**递增——内存实现与空库都无从伪装。
+   */
+  const LAUNCH_ENTITY = 'DesktopLaunch';
 
   const internals = window.__TAURI_INTERNALS__;
   if (!internals || !internals.invoke) return;
@@ -155,11 +161,25 @@
     return answer.outcome === 'ok' ? 'ok' : (answer.code ?? answer.outcome);
   }
 
+  /** 一次 `files.list` 的条目数组；没读到结果时是空数组。 */
+  function entriesOf(answer) {
+    return answer.outcome === 'ok' && answer.result && answer.result.entries ? answer.result.entries : [];
+  }
+
   async function run() {
     // AC#9 / AC#10：三个领域的 descriptor 由 connector 在 HANDSHAKE_ACK 之后随
     // `DESCRIPTORS` 帧给面板；这里不重复读它——runtime 的判据在页内单测与面板 UI 上，
     // 驱动只验「真实链路上这些操作答什么」。
+    //
+    // 这条必须是**第一件事**：`keptDirSeen` 的全部意义在于「本进程还没碰过存储时，
+    // 盘上就已经有它了」，任何一次写入排在它前面都会把 AC#15 的判别力抹掉。
     const files = await request('files', 'list', { path: '' });
+    const keptDirSeen = entriesOf(files).some(function (entry) {
+      return entry && entry.name === KEPT_DIR;
+    });
+    // AC#9 的数据面一半：面板经真实 wire 读同一个库里的实体。只回**行数**不回文档——
+    // AC#13 明写响应不得含 SQL 绑定值与加密字段，而行数已经足够跨重启比对。
+    const launches = await request('database', 'query', { entityName: LAUNCH_ENTITY });
     const settingsExport = await request('settings', 'export', { path: 'db/main.sqlite' });
     // 未声明的能力：descriptor 层就该拒，走不到 provider（AC#12）。
     const settingsClear = await request('settings', 'clear', {});
@@ -191,7 +211,11 @@
     return {
       sessionSeen: realSession !== null,
       filesList: codeOf(files),
-      filesEntryCount: files.outcome === 'ok' && files.result ? (files.result.entries || []).length : -1,
+      filesEntryCount: files.outcome === 'ok' ? entriesOf(files).length : -1,
+      keptDirSeen: keptDirSeen,
+      databaseQuery: codeOf(launches),
+      launchRowCount:
+        launches.outcome === 'ok' && launches.result ? (launches.result.documents || []).length : -1,
       settingsExport: codeOf(settingsExport),
       settingsClear: codeOf(settingsClear),
       forgedSession: forgedCode,

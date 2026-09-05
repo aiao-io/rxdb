@@ -514,7 +514,7 @@ AC#15 的重启比对）时再谈，那是 C4。
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | #9  | `files.list` 在真实双窗口 + 真实 host 上答 `ok`（`filesEntryCount` 为真实条目数）                                                                                                                                                              | 数据面本身：实体查询、25 类 `RXDB_EVENT_TYPES` 逐类派发、branch 切换       |
 | #12 | 两条拒绝码在真实链路上分别成立：`settings.export` → `export_unsupported`（已声明，走到 provider 才拒）、`settings.clear` → `provider_unsupported`（未声明，descriptor 层就拒）。「不读 SQLite/WAL」由 provider 连 ports 入参都不收这一结构保证 | UI 半边：下载按钮画成禁用态                                                |
-| #13 | 伪造 session 的同一条请求被按 session 拒（`session_invalid`），对照组是同操作同参数的那条 `files.list`；另有 Rust 侧窗口 label 闸的两条单测                                                                                                    | 能力矩阵（none/readonly/full × mutation 开关）与响应脱敏的穷举             |
+| #13 | 伪造 session 的同一条请求被按 session 拒（`session_invalid`），对照组是同操作同参数的那条 `files.list`；Rust 侧窗口 label 闸两条单测；**mutation 开关的两跑对照**（只读那跑写入被拒且盘上零目录，授权那跑写入落盘并被删掉）                    | capability 三档（none / readonly / full）的矩阵与响应脱敏的穷举            |
 | #14 | `pagehide → dispose()` 有装配层单测（刷新时发出 `file.close`）                                                                                                                                                                                 | 真实关闭/刷新/退出之后 host 会话计数归零，需要报告里补一个由 Rust 读的计数 |
 
 AC#10 / #11 / #15 / #16 / #17 仍是 ⬜：它们要的 DOM 操作、1001 条快照、重启比对与三平台矩阵都在 C4。

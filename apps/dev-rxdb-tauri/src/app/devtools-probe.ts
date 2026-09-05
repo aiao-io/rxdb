@@ -40,6 +40,25 @@ export interface DevToolsNativeProbeResult {
   readonly filesList?: string;
   /** `files.list` 读到的条目数；`-1` 表示这次没读到结果。 */
   readonly filesEntryCount?: number;
+  /**
+   * 驱动动手之前，它留在盘上的那个目录是否**已经**在 `files.list` 的结果里（AC#15）。
+   *
+   * @remarks
+   * 跨重启的判据就是它：同一个应用数据目录跑两次，第一次是 `false`、第二次是 `true`，
+   * 而这条观察经的是真实 `invoke` → Rust 中继 → native host，不是 e2e 自己去看磁盘。
+   * 只有**第一遍**驱动的这个值有意义，见 {@link DevToolsHandshakeWatcher.waitForNative}。
+   */
+  readonly keptDirSeen?: boolean;
+  /** `database.query` 的结果码（AC#9 的数据面一半）。 */
+  readonly databaseQuery?: string;
+  /**
+   * 经 wire 读到的启动记录行数；`-1` 表示这次没读到结果。
+   *
+   * @remarks
+   * 与报告里的 `launchCount` 对照：那一个是应用自己经 repository 数出来的，这一个是面板经
+   * 真实 transport 数出来的。两者相等才说明面板看到的确实是同一份数据，而不是某个替身。
+   */
+  readonly launchRowCount?: number;
   /** 强制 `settings.export` 的结果码。 */
   readonly settingsExport?: string;
   /** 未声明的 `settings.clear` 的结果码。 */
@@ -110,11 +129,22 @@ export interface DevToolsHandshakeWatcher {
    * 等调试窗口里的驱动汇报一次结论（阶段 2）。
    *
    * @param budgetMs - 预算，默认 {@link HANDSHAKE_BUDGET_MS}。
-   * @returns 收到的结论；预算内没等到为 `undefined`。
+   * @returns **第一条**结论；一条都没有时退回最近一条阶段打点；连打点都没有为 `undefined`。
    *
    * @remarks
    * 驱动自己也有预算，且**等不到握手也会汇报**（`sessionSeen: false`）。所以这里等到
    * `undefined` 只有一个意思：驱动根本没装上——那与「装上了但没跑通」是两个结论。
+   *
+   * ## 为什么取第一条而不是最新一条
+   *
+   * 一个进程里驱动会跑**不止一遍**：探针为了 AC#4 把调试窗口关掉再以同 label 重开，
+   * 而重开的那扇窗又带着同一份注入脚本。第二遍看到的世界已经被第一遍改过——
+   * 「重启之后那个目录还在」与「本进程第一遍刚把它建出来」在第二遍眼里完全同形，
+   * 于是 AC#15 的跨重启比对就没有判别力了。只有第一遍的前置条件是已知的
+   * （这个进程还没碰过存储）。
+   *
+   * 退回打点**不是**在编一份默认值：那是仅有的一条真实观察，且带着 `stage:` 前缀，
+   * 与结论分得很开。
    */
   waitForNative: (budgetMs?: number) => Promise<DevToolsNativeProbeResult | undefined>;
   /** 退订并交出快照。 */
@@ -153,15 +183,23 @@ export const watchDevToolsHandshake = (surface: DevToolsEventSurface): DevToolsH
   // 每等一轮就换一个 resolver：AC#4 要连等两轮，共用一个 promise 的话第二轮会立刻返回。
   let arrived: (() => void) | undefined;
 
+  // 只留**第一条结论**。理由见 `waitForNative` 的说明：后面几遍观察到的世界已经被前面几遍
+  // 改过，它们的观察不是独立证据。
   let native: DevToolsNativeProbeResult | undefined;
+  // 最近一条阶段打点，只在一条结论都没有时才顶上去（那时它是仅有的观察）。
+  let beacon: DevToolsNativeProbeResult | undefined;
   let nativeArrived: (() => void) | undefined;
   const driveSubscription = surface.listen<DevToolsNativeProbeResult>(DRIVE_RESULT_EVENT, message => {
-    // **最新的一条**始终记下来（包括阶段打点）：驱动卡住时，最后那个 stage 就是唯一的线索。
+    if (isStageBeacon(message.payload)) {
+      // 打点不结束等待：它也是一条汇报，先到先得的话等待会拿着 `stage:booted` 提前返回，
+      // 而那份「结论」里每个字段都是 undefined——与「驱动压根没跑」长得一模一样。
+      // 这条竞态实测发生过：同一份代码一次红一次绿。
+      beacon = message.payload;
+      return;
+    }
+    if (native !== undefined) return;
     native = message.payload;
-    // 但只有**结论**才结束等待。打点也是一条汇报，先到先得的话，等待会拿着
-    // `stage:booted` 提前返回，而那份「结论」里每个字段都是 undefined——
-    // 与「驱动压根没跑」长得一模一样。这条竞态实测发生过：同一份代码一次红一次绿。
-    if (!isStageBeacon(message.payload)) nativeArrived?.();
+    nativeArrived?.();
   });
 
   const subscription = surface.listen<string>(DEVTOOLS_EVENT, event => {
@@ -200,13 +238,14 @@ export const watchDevToolsHandshake = (surface: DevToolsEventSurface): DevToolsH
     },
     waitForNative: async (budgetMs: number = HANDSHAKE_BUDGET_MS): Promise<DevToolsNativeProbeResult | undefined> => {
       await driveSubscription;
-      if (native !== undefined) return native;
-      const arrival = new Promise<void>(resolve => {
-        nativeArrived = resolve;
-      });
-      await Promise.race([arrival, delay(budgetMs)]);
-      nativeArrived = undefined;
-      return native;
+      if (native === undefined) {
+        const arrival = new Promise<void>(resolve => {
+          nativeArrived = resolve;
+        });
+        await Promise.race([arrival, delay(budgetMs)]);
+        nativeArrived = undefined;
+      }
+      return native ?? beacon;
     },
     settle: (): DevToolsProbeResult => {
       void subscription.then(unlisten => unlisten());
@@ -217,7 +256,7 @@ export const watchDevToolsHandshake = (surface: DevToolsEventSurface): DevToolsH
         sessionIds: [...sessionIds],
         handshakeCompleted: sessionIds.length > 0,
         relayRejected: 0,
-        native
+        native: native ?? beacon
       };
     }
   };

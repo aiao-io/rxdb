@@ -65,8 +65,8 @@ pub const DEVTOOLS_PROBE_ENV: &str = "DEV_RXDB_TAURI_DEVTOOLS_PROBE";
 /// 没跟上时，报出来的是「版本对不上」，而不是一个到处都是 `undefined` 的对象。
 ///
 /// v2 起多了 [`StorageProbe`]（US-505 AC#1 / AC#3）；v3 起多了 [`DevToolsProbe`] 与
-/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）；v5 加 `devtools.relayRejected`（AC#3）；v6 加 `devtools.native`（阶段 2 的 wire 结论）；v7 加它的写入两条（`createDirectory` / `deleteEntry`）。
-pub const REPORT_SCHEMA_VERSION: u32 = 7;
+/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）；v5 加 `devtools.relayRejected`（AC#3）；v6 加 `devtools.native`（阶段 2 的 wire 结论）；v7 加它的写入两条（`createDirectory` / `deleteEntry`）；v8 加跨重启比对的三条（`keptDirSeen` / `databaseQuery` / `launchRowCount`，AC#9 / AC#15）。
+pub const REPORT_SCHEMA_VERSION: u32 = 8;
 
 /// 环境变量配错时的退出码。
 ///
@@ -239,6 +239,21 @@ pub struct DevToolsNativeProbe {
     /// `files.list` 读到的条目数；`-1` 表示这次没读到结果。
     #[serde(default)]
     pub files_entry_count: Option<i64>,
+    /// 驱动动手之前，它留在盘上的那个目录是否**已经**在列表里（AC#15）。
+    ///
+    /// 同一个应用数据目录跑两次，第一次是 `false`、第二次是 `true`——而这条观察经的是
+    /// 真实 `invoke` → Rust 中继 → native host，不是 e2e 自己去看磁盘。
+    #[serde(default)]
+    pub kept_dir_seen: Option<bool>,
+    /// `database.query` 的结果码（AC#9 的数据面一半）。
+    #[serde(default)]
+    pub database_query: Option<String>,
+    /// 经 wire 读到的启动记录行数；`-1` 表示这次没读到结果。
+    ///
+    /// 与 [`SelfCheckReport::launch_count`] 对照：那一个是应用自己经 repository 数出来的，
+    /// 这一个是面板经真实 transport 数出来的。两者相等才说明面板看到的确实是同一份数据。
+    #[serde(default)]
+    pub launch_row_count: Option<i64>,
     /// 强制 `settings.export` 的结果码；恒为 `export_unsupported`（AC#12）。
     #[serde(default)]
     pub settings_export: Option<String>,
@@ -981,6 +996,9 @@ mod tests {
                         session_seen: true,
                         files_list: Some("ok".to_string()),
                         files_entry_count: Some(0),
+                        kept_dir_seen: Some(false),
+                        database_query: Some("ok".to_string()),
+                        launch_row_count: Some(2),
                         settings_export: Some("export_unsupported".to_string()),
                         settings_clear: Some("provider_unsupported".to_string()),
                         forged_session: Some("session_invalid".to_string()),
@@ -1016,6 +1034,9 @@ mod tests {
                         "sessionSeen": true,
                         "filesList": "ok",
                         "filesEntryCount": 0,
+                        "keptDirSeen": false,
+                        "databaseQuery": "ok",
+                        "launchRowCount": 2,
                         "settingsExport": "export_unsupported",
                         "settingsClear": "provider_unsupported",
                         "forgedSession": "session_invalid",
@@ -1040,9 +1061,10 @@ mod tests {
     /// 忘了加这个数字的话，一份少了 `storage` 键的旧报告会被当成合法的新版读进去，
     /// 于是断言读到 `undefined` 而不是「版本对不上」。
     ///
-    /// v3 加的是 `devtools` 与 `windowLabels`（US-905 阶段 1）；v6 加的是 `devtools.native`（阶段 2）。
+    /// v3 加的是 `devtools` 与 `windowLabels`（US-905 阶段 1）；v6 加的是 `devtools.native`（阶段 2）；
+    /// v8 加的是它的跨重启三条（AC#9 / AC#15）。
     #[test]
     fn the_schema_version_covers_the_storage_probe() {
-        assert_eq!(REPORT_SCHEMA_VERSION, 7);
+        assert_eq!(REPORT_SCHEMA_VERSION, 8);
     }
 }

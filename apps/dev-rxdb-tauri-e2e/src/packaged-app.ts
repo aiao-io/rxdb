@@ -47,7 +47,7 @@ export const PROBE_BASE_URL_ENV = 'DEV_RXDB_TAURI_PROBE_BASE_URL';
 export const DEVTOOLS_PROBE_ENV = 'DEV_RXDB_TAURI_DEVTOOLS_PROBE';
 
 /** 本文件能读懂的报告结构版本，与 `selfcheck.rs` 的 `REPORT_SCHEMA_VERSION` 一致。 */
-export const REPORT_SCHEMA_VERSION = 7;
+export const REPORT_SCHEMA_VERSION = 8;
 
 /**
  * 自检环境变量配错时的退出码，与 `selfcheck.rs` 的 `CONFIG_EXIT_CODE` 一致。
@@ -198,6 +198,24 @@ export interface DevToolsNativeProbe {
   readonly filesList?: string;
   /** `files.list` 读到的条目数；`-1` 表示这次没读到结果。 */
   readonly filesEntryCount?: number;
+  /**
+   * 驱动动手之前，它上一次留在盘上的那个目录是否**已经**在列表里（AC#15）。
+   *
+   * @remarks
+   * 取值时机是驱动的**第一件事**：本进程还没碰过存储，所以 `true` 只可能来自上一次启动。
+   * 内存实现与每次重建的空库都伪装不出来。
+   */
+  readonly keptDirSeen?: boolean;
+  /** 经真实 wire 读实体的结果码（AC#9 的数据面一半）。 */
+  readonly databaseQuery?: string;
+  /**
+   * 经 wire 读到的启动记录行数；`-1` 表示这次没读到结果。
+   *
+   * @remarks
+   * 与报告自己的 `launchCount` 是**两条独立路径**测同一件事：后者由应用侧 repository 数出来，
+   * 前者穿过面板 → IPC → native host → provider。两者相等才说明面板读的是同一个真实库。
+   */
+  readonly launchRowCount?: number;
   /** 强制 `settings.export` 的结果码；恒为 `export_unsupported`。 */
   readonly settingsExport?: string;
   /** 未声明的 `settings.clear` 的结果码；恒为 `provider_unsupported`。 */

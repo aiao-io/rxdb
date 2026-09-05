@@ -142,7 +142,7 @@ describe('watchDevToolsHandshake — 驱动汇报通道（US-905 阶段 2）', (
     expect(watcher.settle().panelFrameTypes).toEqual([]);
   });
 
-  it('阶段打点不结束等待，但仍然进快照', async () => {
+  it('先到的阶段打点不结束等待', async () => {
     const { surface, emitNative } = surfaceOf();
     const watcher = watchDevToolsHandshake(surface);
     const pending = watcher.waitForNative(80);
@@ -155,8 +155,7 @@ describe('watchDevToolsHandshake — 驱动汇报通道（US-905 阶段 2）', (
     emitNative({ sessionSeen: true, createDirectory: 'ok' });
 
     await expect(pending).resolves.toMatchObject({ sessionSeen: true, createDirectory: 'ok' });
-    // 但打点本身要留得住：驱动真卡住时，最后那个 stage 是唯一的线索。
-    expect(watcher.settle().native).toMatchObject({ sessionSeen: true });
+    expect(watcher.settle().native).toMatchObject({ sessionSeen: true, createDirectory: 'ok' });
   });
 
   it('只收到阶段打点时，快照里留的是那条打点', async () => {
@@ -167,9 +166,58 @@ describe('watchDevToolsHandshake — 驱动汇报通道（US-905 阶段 2）', (
     await Promise.resolve();
     emitNative({ sessionSeen: false, failure: 'stage:booted' });
 
-    // 等待照常耗满预算并返回最新那条（它就是打点）——「卡在 booted」因此是可读的结论，
+    // 一条结论都没有时，打点就是仅有的观察——「卡在 booted」因此是可读的结论，
     // 而不是一个什么都没有的 undefined。
     await expect(pending).resolves.toMatchObject({ failure: 'stage:booted' });
+    expect(watcher.settle().native).toMatchObject({ failure: 'stage:booted' });
+  });
+
+  /**
+   * US-905 阶段 2 AC#15：一个进程里驱动会跑**不止一遍**，快照必须留第一遍那份。
+   *
+   * @remarks
+   * 探针为了 AC#4 会把调试窗口关掉再以同 label 重开，而重开的那扇窗又带着同一份注入脚本。
+   * 第二遍看到的世界**已经被第一遍改过**——它的观察因此不是独立证据：
+   * 「重启之后那个目录还在」与「本进程第一遍刚把它建出来」在第二遍眼里完全同形。
+   *
+   * 只有第一遍的前置条件是已知的（这个进程还没碰过存储），所以跨重启比对只能读它。
+   */
+  it('驱动在一个进程里跑了两遍时，快照留的是第一遍的结论', async () => {
+    const { surface, emitNative } = surfaceOf();
+    const watcher = watchDevToolsHandshake(surface);
+    const pending = watcher.waitForNative(80);
+
+    await Promise.resolve();
+    emitNative({ sessionSeen: true, keptDirSeen: false, filesEntryCount: 3 });
+    await expect(pending).resolves.toMatchObject({ keptDirSeen: false });
+
+    // 第二扇窗口的驱动跑完，报的是被第一遍改过之后的世界。
+    emitNative({ sessionSeen: true, keptDirSeen: true, filesEntryCount: 4 });
+
+    expect(watcher.settle().native).toMatchObject({ keptDirSeen: false, filesEntryCount: 3 });
+  });
+
+  /**
+   * 结论之后到的打点不得顶掉结论。
+   *
+   * @remarks
+   * `settle()` 紧跟在 `waitForNative()` 之后，而两者之间隔着一次 `await`——第二扇窗口的
+   * 驱动刚好在这条缝里发出 `stage:booted` 的话，交出去的「结论」每个字段都是 undefined。
+   * 这与上一条是同一个竞态的两半：等待不被打点提前结束，快照也不被打点事后覆盖。
+   */
+  it('结论之后到的阶段打点不会顶掉结论', async () => {
+    const { surface, emitNative } = surfaceOf();
+    const watcher = watchDevToolsHandshake(surface);
+    const pending = watcher.waitForNative(80);
+
+    await Promise.resolve();
+    emitNative({ sessionSeen: true, filesList: 'ok' });
+    await expect(pending).resolves.toMatchObject({ filesList: 'ok' });
+
+    emitNative({ sessionSeen: false, failure: 'stage:booted' });
+
+    expect(watcher.settle().native).toMatchObject({ filesList: 'ok' });
+    expect(watcher.settle().native?.failure ?? null).toBeNull();
   });
 
   it('预算内没等到汇报就返回 undefined，而不是编一份空结论', async () => {
