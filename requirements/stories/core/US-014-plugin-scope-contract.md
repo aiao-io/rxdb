@@ -94,7 +94,7 @@ graph 的 `install(scope)` 把注册挂进作用域（[plugin.ts:22-38](../../..
   [workspace:278-283](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L278) 的 `workspace`
   都是 `configurable: false`。要覆盖它们需要先有 `RxDB.destroy()` / `unuse()`——本故事不提供，
   也**不宣称**注册期属性已纳入自动释放（D3）
-- **拆卸错误在 `RxDB` 边界的出口**：`#destroy_plugin()`（实现见 [rxdb.plugin-lifecycle.ts:175-197](../../../packages/rxdb/src/rxdb.plugin-lifecycle.ts#L175-L197)）今天把插件拆卸异常 `console.error` 后吞掉，
+- **拆卸错误在 `RxDB` 边界的出口**：`#destroy_plugin()`（实现见 [rxdb.plugin-lifecycle.ts:175-191](../../../packages/rxdb/src/rxdb.plugin-lifecycle.ts#L175-L191)）今天把插件拆卸异常 `console.error` 后吞掉，
   改成传播会改变 `disconnect()` / `disconnectAll()` 的可见行为，属独立的破坏性变更（D5）
 - **删除 `destroy()`**：本故事只让它变可选 + `@deprecated`；实际移除排在废弃周期结束后
 - **三框架绑定接入作用域**——原归 `US-017`，已移出 epic-008 承诺范围
@@ -175,7 +175,7 @@ export interface IRxDBPlugin {
 
 1. `destroy` 由必选变可选，对**实现者**无破坏（AC#6 成立），但对**调用者**有——
    `RxDB.#destroy_plugin()` 今天写的是 `await plugin.destroy?.()`、**带可选链保护**
-   （[rxdb.plugin-lifecycle.ts:193](../../../packages/rxdb/src/rxdb.plugin-lifecycle.ts#L193)）。**没有它**，
+   （[rxdb.plugin-lifecycle.ts:186](../../../packages/rxdb/src/rxdb.plugin-lifecycle.ts#L186)）。**没有它**，
    第一个只写 `install(scope)` 的插件会在拆卸路径上抛 `TypeError`（AC#21）。
 2. 这正是 D4 那个门禁盲区的一次真实实例：`destroy` 从必选变可选，
    基线里的 `{"name": "IRxDBPlugin", "kind": "type"}` 一个字都不变。
@@ -321,7 +321,7 @@ RxDB 注册期            use() 起；今天没有释放点（无 RxDB.destroy()
 
 #### D5 — 拆卸错误在 `RxDB` 边界的出口（本故事不改）
 
-今天的不对称：`#destroy_plugin()`（实现见 [rxdb.plugin-lifecycle.ts:175-197](../../../packages/rxdb/src/rxdb.plugin-lifecycle.ts#L175-L197)）对每个插件
+今天的不对称：`#destroy_plugin()`（实现见 [rxdb.plugin-lifecycle.ts:175-191](../../../packages/rxdb/src/rxdb.plugin-lifecycle.ts#L175-L191)）对每个插件
 try/catch 后 `console.error` 吞掉；而 `#track_plugin_install()`（[RxDB.ts:1026](../../../packages/rxdb/src/RxDB.ts#L1026)）会把安装错误经
 `#await_plugin_installs()`（[RxDB.ts:1062](../../../packages/rxdb/src/RxDB.ts#L1062)）抛给 `connect()`。
 

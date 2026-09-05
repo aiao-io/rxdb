@@ -1,6 +1,6 @@
 ---
 id: epic-003-ui-developer-tools
-status: Backlog
+status: In Progress
 startDate: 2025-07-01
 targetDate: 2026-12-01
 owner: jimmy

@@ -15,10 +15,10 @@ owner: jimmy
 ## 目标
 
 - [x] SQLite FTS5 全文搜索引擎集成
-- [ ] PGlite 原生全文搜索集成
+- [x] PGlite 原生全文搜索集成
 - [x] Electron/Tauri 桌面应用连接原生本地 SQLite 文件
-- [ ] Electron 主进程托管 PGlite data directory 与跨 IPC 事务
-- [ ] `rxdb-plugin-storage` 文件内容落入桌面应用数据目录（Electron 先行，Tauri 随 US-210）
+- [x] Electron 主进程托管 PGlite data directory 与跨 IPC 事务
+- [x] `rxdb-plugin-storage` 文件内容落入桌面应用数据目录（Electron 先行，Tauri 随 US-210）
 - [x] 微信小程序逻辑层的实验性 wa-sqlite 路径纳入门禁与公开能力矩阵
 - [ ] 多端小程序宿主：先抽平台无关 host，再按可行性门禁放行支付宝 / 抖音 / 百度 / QQ
 - [x] QueryCache 生产路径：`getRepository` / EntityManager 在 `SyncType.QueryCache` 时走 `QueryCacheRepository`（远端权威 + sqlite 行缓存）
@@ -48,6 +48,7 @@ owner: jimmy
 - [US-022 QueryCache 远端行的列契约与缺列诊断](../stories/core/US-022-querycache-remote-row-contract.md) — 出自 US-214：`upsertMany` 的裸 SQL 写不过仓储，实体 `default` 不生效；补契约文档 + 落地前列集校验，**不做本地兜底**
 - [US-215 条件请求被静默停用时给出可观测信号](../stories/adapter/US-215-conditional-request-silence.md) — 出自 US-214：跨源读不到 `ETag` 时 transport 静默降级；加可选诊断 hook，**不引入 console**、不改数据路径
 - [US-023 QueryCache 远端变更的失效上报口与实时同步](../stories/core/US-023-querycache-remote-invalidation.md) — 出自 US-214：别的客户端改了数据，本客户端永不更新；三阶段（core 失效上报口 → HTTP 可选 SSE 通道 → demo 双页面收敛），**承接 US-212 AC#29**，失效粒度=整实体、通知不带行数据
+- [US-024 PGlite 侧 QueryCache 远端行的列契约](../stories/core/US-024-pglite-querycache-row-contract.md) — US-022 的 PGlite 半边：`upsert_many_sql.ts` 落地前执行同一份列契约，缺列整批拒绝；判定函数首选抽到 `@aiao/rxdb`，不让 pglite 依赖 sqlite-core
 - [US-216 参考后端以 RxDB 引擎实现](../stories/adapter/US-216-server-side-rxdb.md) — 参考后端初始化 RxDB（pglite），七个协议端点改由 Repository / EntityManager 实现、SSE 由 RxDB 事件驱动，前后端共享 schema 模块；wire 逐字不变（US-213 套件 + e2e 17 条是验收主体）；单类收敛依赖另立的 core sync 覆盖故事
 
 > 拆分理由：PGlite 的 callback transaction 无法跨 IPC 序列化，需要一套 SQLite 路径不需要的事务 host 协议，

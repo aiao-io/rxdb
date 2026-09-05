@@ -12,6 +12,8 @@
 
 RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/*` 公开包当前同步发布为 `0.0.25`，仍处于 0.x 演进阶段。
 
+> 本项目发布在 `@aiao/*` 作用域下，与 npm 上的 [`rxdb`](https://rxdb.info)（NoSQL 文档数据库）**无关**：这里是装饰器实体 + SQL 引擎（SQLite / PGlite）+ 三框架绑定，不是它的 fork 或插件。
+
 - 使用装饰器定义的实体模型，自动生成类型安全的 Repository 和查询 API
 - 一份模型声明同时驱动数据库 schema、TypeScript 类型和响应式数据流
 - 浏览器里直接跑 SQLite，用接近原生 App 的体验构建离线优先应用
@@ -37,7 +39,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri               |
 
 > [!NOTE]
-> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [50/61 已交付](requirements/status-overview.md)
+> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [54/64 已交付](requirements/status-overview.md)
 
 支持与反馈：可复现的 bug 请提交 [Bug Issue](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml)，功能建议提交 [Feature Issue](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml)，使用问题请提交 [Question Issue](https://github.com/aiao-io/rxdb/issues/new?template=question.yml)。
 
@@ -221,16 +223,16 @@ aiao/
 
 ### 进行中
 
-- 🚧 **Tauri 本地文件存储**（[US-505](requirements/stories/plugin/US-505-tauri-local-file-storage.md)）— US-504 的 Tauri 半边，适配器与宿主已就绪，缺该故事自己的 specs
-- 🚧 **DevTools 原生本地存储调试**（[US-904](requirements/stories/future/US-904-devtools-native-storage-contract.md)）— 阶段 A（Electron 可行性）/ B（v2 协议）已交付，阶段 C 共享面板 library 与 Chrome v2 迁移、阶段 D Electron 原生存储集成未开始
+- 🚧 **DevTools 原生本地存储调试**（[US-904](requirements/stories/future/US-904-devtools-native-storage-contract.md)）— 阶段 A～D 均已落地，剩 AC#52 之外的少数 E2E 侧断言与人工浏览器回归
+- 🚧 **Tauri DevTools 调试窗口**（[US-905](requirements/stories/future/US-905-tauri-native-devtools.md)）— 阶段 1 代码侧收尾完成，差驱动两个真实 WebView 的 harness；阶段 2 前置已齐
+- 🚧 **Electron 桌面端 DevTools 面板的开发者可用路径**（[US-906](requirements/stories/future/US-906-electron-devtools-developer-path.md)）— 6 条 AC 关 5，剩人工验收
 - 👀 **插件依赖声明与按需装卸**（[US-015](requirements/stories/core/US-015-plugin-inject-dependency.md)）— 阶段 A 已交付，停在 In Review，解锁条件 = 出现第一个 `plugin:*` 依赖声明
 
 ### 待办
 
-- ⬜ **提交图与 HEAD 持久化**（[US-305](requirements/stories/collaboration/US-305-commit-graph-head.md)）— commit 图 / branch ref / baseline，独立命名空间的 commit 存储
-- ⬜ **Electron PGlite 数据目录与事务宿主**（[US-208](requirements/stories/adapter/US-208-electron-pglite-data-directory.md)）— PGlite callback transaction 不能跨 IPC 序列化，需要事务 host 协议
-- ⬜ **PGlite 原生全文搜索**（[US-703](requirements/stories/future/US-703-pglite-full-text-search.md)）— tsvector / GIN / trigger，补齐与 SQLite FTS5 的能力对称
+- ⬜ **提交图与 HEAD 持久化**（[US-305](requirements/stories/collaboration/US-305-commit-graph-head.md)）— epic-006 链首，卡在一次桥接发布而非代码，见 [release-plan](requirements/release-plan.md)
 - ⬜ **多端小程序宿主**（[US-211](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)）— 先抽宿主契约与可行性矩阵，再按门禁放行支付宝 / 抖音 / 百度 / QQ
+- ⬜ **PGlite 侧 QueryCache 行契约**（[US-024](requirements/stories/core/US-024-pglite-querycache-row-contract.md)）— sqlite-core 已有的缺列诊断补到 PGlite 落地路径
 
 ## 路线图
 
