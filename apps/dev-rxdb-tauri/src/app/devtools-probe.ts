@@ -262,6 +262,43 @@ export const watchDevToolsHandshake = (surface: DevToolsEventSurface): DevToolsH
   };
 };
 
+/**
+ * 把主窗口刷新前后的两份快照合成一份（AC#5）。
+ *
+ * @param before - 刷新前存进 `sessionStorage` 的那一份。
+ * @param after - 刷新后新观察者的快照。
+ * @returns 合并结果。
+ *
+ * @remarks
+ * 四个字段各有各的合并规则，都不是「取新的」：
+ *
+ * - **帧类型**并集去重、按首次出现排序——两侧看到的是同一扇窗口的不同时段；
+ * - **session id** 顺次接上：AC#4 数的是轮数，两侧不可能重号（新一轮必是新身份）；
+ * - **拒帧数**只认刷新前那一份：冒名窗口整趟发生在刷新之前，刷新后的观察者数不到它；
+ * - **握手完成**取或：写成与的话，「刷新后没重连」会把第一轮确实握上了这条事实一起抹掉；
+ * - **wire 结论**只认刷新前那一份，见下。
+ *
+ * ## 为什么结论不取刷新后的那一条
+ *
+ * 探针为 AC#4 把调试窗口关掉再重开，重开的那扇窗带着同一份注入脚本，于是一个进程里驱动会
+ * 跑**两代**。第二代跑完与主窗口刷新谁先谁后没有保证——晚一步的话，它的汇报就落在刷新后的
+ * 观察者上。而第二代看到的世界已经被第一代改过：`keptDirSeen` 在全新的数据目录上也是
+ * `true`，AC#15 的跨重启比对因此失去判别力。
+ *
+ * 刷新前一条都没有时就报没有，不拿掉队的那份充数：「这一代没跑出结论」与「另一代跑出来了」
+ * 是两件事，混进同一格之后没人能反推回去。
+ */
+export const mergeDevToolsProbeRounds = (
+  before: DevToolsProbeResult,
+  after: DevToolsProbeResult
+): DevToolsProbeResult => ({
+  panelFrameTypes: [...new Set([...before.panelFrameTypes, ...after.panelFrameTypes])],
+  sessionIds: [...before.sessionIds, ...after.sessionIds],
+  relayRejected: before.relayRejected,
+  native: before.native,
+  handshakeCompleted: before.handshakeCompleted || after.handshakeCompleted
+});
+
 /** 解析中继投来的 JSON 字符串；不是对象就返回 `null`。 */
 function parseFrame(raw: string): PanelFrame | null {
   try {

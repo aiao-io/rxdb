@@ -16,7 +16,7 @@ import { provideLoadingBarInterceptor } from '@ngx-loading-bar/http-client';
 import { provideLoadingBarRouter } from '@ngx-loading-bar/router';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { appRoutes } from './app.routes';
-import { watchDevToolsHandshake, type DevToolsProbeResult } from './devtools-probe';
+import { mergeDevToolsProbeRounds, watchDevToolsHandshake, type DevToolsProbeResult } from './devtools-probe';
 import { RxDBConnectionState } from './rxdb-connection-state';
 import { startLocalDatabase } from './rxdb-initializer';
 import { DesktopLaunchService } from './services/desktop-launch.service';
@@ -100,12 +100,15 @@ const PROBE_CARRY_KEY = 'rxdb-devtools-probe-carry';
  * @returns 探针结果；没开这条探针（正常启动与 release 产物）时为 `null`
  *
  * @remarks
- * 一次运行覆盖三条判据，顺序是承重的：
+ * 一次运行覆盖四条判据，顺序是承重的：
  *
  * 1. **首次协商**（AC#2）——调试窗口起来之后的第一轮握手；
- * 2. **同 label 重开**（AC#4）——回收调试窗口，等第二轮；新一轮必须是**另一个** session；
- * 3. **主窗口刷新**（AC#5）——把前两轮的证据存进 `sessionStorage` 后 `location.reload()`，
- *    刷新之后再等一轮。connector 随页面重建，而调试窗口**一直活着**：第三轮握上手，
+ * 2. **面板驱动跑完**（阶段 2 AC#9/#15）——驱动在调试窗口里经真实 wire 问一轮。它必须排在
+ *    回收**之前**：驱动的观察只有第一遍有判别力（那时本进程还没碰过存储），回收会把第一遍
+ *    杀在半路，报告里就只剩被第一遍改过的世界；
+ * 3. **同 label 重开**（AC#4）——回收调试窗口，等第二轮；新一轮必须是**另一个** session；
+ * 4. **主窗口刷新**（AC#5）——把前几轮的证据存进 `sessionStorage` 后 `location.reload()`，
+ *    刷新之后再等一轮。connector 随页面重建，而调试窗口**一直活着**：这一轮握上手，
  *    才说明面板那侧也认得出「对端换了」。
  *
  * 刷新那一次**不上报**（返回一个永不 settle 的 promise）：报告只结算一次，上报了这一次
@@ -120,20 +123,25 @@ const probeDevToolsWindow = async (): Promise<DevToolsProbeResult | null> => {
   if (carried === null) {
     // 第一轮：调试窗口起来之后的首次协商。
     const first = await devToolsWatcher.waitForHandshake();
-    // AC#4：同 label 关掉再建一次，等第二轮。第一轮都没握上就不必回收了——
-    // 那时回收只会把「本来就没握上」变成一次与它无关的命令失败。
+    // 第一轮都没握上就整段跳过——那时回收只会把「本来就没握上」变成一次与它无关的命令失败。
     if (first > 0) {
+      // 阶段 2 AC#15：**先等驱动跑完，再回收那扇窗**，顺序是承重的。
+      //
+      // 回收排在前面时（本轮实测），第一遍驱动会被销毁在半路——它跑到伪造 session 那条
+      // 请求上还要等满 4s 超时，而回收紧跟着第一轮握手就到了。于是报告里留下的是**第二遍**
+      // 的观察，而第二遍看到的世界已经被第一遍改过：全新的数据目录上 `keptDirSeen` 也是
+      // `true`，跨重启比对因此完全没有判别力。
+      //
+      // 证据是第一跑的 `filesEntryCount: 2` + `keptDirSeen: true`：那正是「第一遍已经把
+      // 目录建出来了」之后的世界，而不是一个刚建好的空存储根。
+      await devToolsWatcher.waitForNative();
+      // AC#4：同 label 关掉再建一次，等第二轮。重开的那扇窗会再跑一遍驱动，
+      // 但观察者只留第一条结论（见 `waitForNative`），所以第二遍的观察不进报告。
       await recycleDevToolsWindow(globalThis);
       await devToolsWatcher.waitForHandshake();
     }
     // AC#3：刷新之前把冒名窗口那一趟跑掉——它自己会把窗口收掉，不污染 AC#1 的窗口集合。
     const relayRejected = first > 0 ? await probeImpostorWindow(globalThis) : 0;
-    // 阶段 2：驱动在调试窗口里跑，汇报时刻由它自己定，所以在刷新之前收一次。
-    // 刷新会换掉 connector，而驱动那一轮问的是**刷新之前**那个 connector——两件事分开记。
-    // 只等，不取它的返回值：`settle()` 交出的是**最新**那一条（含阶段打点），
-    // 而等待只在收到结论时才结束。用返回值覆盖 settle() 的话，等待期间到达的一条打点
-    // 会被当成结论带走。
-    if (first > 0) await devToolsWatcher.waitForNative();
     sessionStorage.setItem(PROBE_CARRY_KEY, JSON.stringify({ ...devToolsWatcher.settle(), relayRejected }));
     location.reload();
     // 刷新在即：这条链不能继续走到上报那一步。
@@ -143,17 +151,7 @@ const probeDevToolsWindow = async (): Promise<DevToolsProbeResult | null> => {
   // 刷新之后：connector 是新的，调试窗口是旧的那一个。
   const before = JSON.parse(carried) as DevToolsProbeResult;
   await devToolsWatcher.waitForHandshake();
-  const after = devToolsWatcher.settle();
-  return {
-    panelFrameTypes: [...new Set([...before.panelFrameTypes, ...after.panelFrameTypes])],
-    sessionIds: [...before.sessionIds, ...after.sessionIds],
-    relayRejected: before.relayRejected,
-    // 刷新后调试窗口没重建，驱动不会再跑一轮；带过来的那一份就是唯一的一份。
-    native: after.native ?? before.native,
-    // 「至少握上过一次」。多轮之后这个布尔已经表达不了全部事实，轮次由 sessionIds 的长度说；
-    // 写成 before && after 会让「刷新后没重连」把**第一轮确实握上了**这条事实一起抹掉。
-    handshakeCompleted: before.handshakeCompleted || after.handshakeCompleted
-  };
+  return mergeDevToolsProbeRounds(before, devToolsWatcher.settle());
 };
 
 /** 非默认 locale 需要先加载数据；返回的 Promise 由 initializer 等待。 */

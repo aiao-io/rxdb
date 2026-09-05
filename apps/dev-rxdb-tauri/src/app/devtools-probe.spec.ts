@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { watchDevToolsHandshake, type DevToolsEventSurface } from './devtools-probe';
+import {
+  mergeDevToolsProbeRounds,
+  watchDevToolsHandshake,
+  type DevToolsEventSurface,
+  type DevToolsProbeResult
+} from './devtools-probe';
 
 /**
  * 造一个可以手动投帧的事件面，并记录退订调用。
@@ -228,5 +233,71 @@ describe('watchDevToolsHandshake — 驱动汇报通道（US-905 阶段 2）', (
     // 后者说明装上了但没等到握手。编一份空的会把前者伪装成后者。
     await expect(watcher.waitForNative(10)).resolves.toBeUndefined();
     expect(watcher.settle().native).toBeUndefined();
+  });
+});
+
+/** 一份最小快照；每条用例只覆盖它关心的字段。 */
+const snapshot = (patch: Partial<DevToolsProbeResult> = {}): DevToolsProbeResult => ({
+  panelFrameTypes: [],
+  sessionIds: [],
+  handshakeCompleted: false,
+  relayRejected: 0,
+  ...patch
+});
+
+describe('mergeDevToolsProbeRounds', () => {
+  it('把两侧的帧类型并起来去重，session id 按发生顺序接上', () => {
+    const merged = mergeDevToolsProbeRounds(
+      snapshot({
+        panelFrameTypes: ['PROTOCOL_HELLO', 'HANDSHAKE_ACK'],
+        sessionIds: ['a', 'b'],
+        handshakeCompleted: true
+      }),
+      snapshot({ panelFrameTypes: ['HANDSHAKE_ACK', 'PANEL_READY'], sessionIds: ['c'], handshakeCompleted: true })
+    );
+
+    expect(merged.panelFrameTypes).toEqual(['PROTOCOL_HELLO', 'HANDSHAKE_ACK', 'PANEL_READY']);
+    expect(merged.sessionIds).toEqual(['a', 'b', 'c']);
+  });
+
+  it('刷新后没重连不会抹掉「刷新前确实握上过」这条事实', () => {
+    const merged = mergeDevToolsProbeRounds(snapshot({ sessionIds: ['a'], handshakeCompleted: true }), snapshot());
+
+    // 写成 before && after 的话，这里会是 false——而第一轮握手是 AC#2 的证据。
+    expect(merged.handshakeCompleted).toBe(true);
+  });
+
+  it('冒名窗口的拒帧数只认刷新前那一份', () => {
+    const merged = mergeDevToolsProbeRounds(snapshot({ relayRejected: 2 }), snapshot({ relayRejected: 9 }));
+
+    // 冒名窗口那一趟整个发生在刷新之前，刷新后的观察者不可能数到它。
+    expect(merged.relayRejected).toBe(2);
+  });
+
+  /**
+   * 刷新之后到达的结论是**后一代**驱动的掉队汇报，不得顶掉带过来的那一份。
+   *
+   * @remarks
+   * 探针为 AC#4 回收调试窗口之后，重开的那扇窗会再跑一遍驱动；主窗口刷新与它跑完谁先谁后
+   * 没有保证。晚到的那一份落在刷新后的观察者上，而它看到的世界已经被第一代改过——
+   * `keptDirSeen` 因此恒为 `true`，AC#15 的跨重启比对失去判别力。
+   */
+  it('刷新后到达的结论不会顶掉刷新前带过来的那一份', () => {
+    const merged = mergeDevToolsProbeRounds(
+      snapshot({ native: { sessionSeen: true, keptDirSeen: false, filesEntryCount: 1 } }),
+      snapshot({ native: { sessionSeen: true, keptDirSeen: true, filesEntryCount: 2 } })
+    );
+
+    expect(merged.native).toEqual({ sessionSeen: true, keptDirSeen: false, filesEntryCount: 1 });
+  });
+
+  it('刷新前一条结论都没有时就报没有，不拿掉队的那一份充数', () => {
+    const merged = mergeDevToolsProbeRounds(
+      snapshot(),
+      snapshot({ native: { sessionSeen: true, keptDirSeen: true } })
+    );
+
+    // 「这一代没跑出结论」与「另一代跑出来了」是两件事；混起来的那份快照没人能反推回去。
+    expect(merged.native).toBeUndefined();
   });
 });

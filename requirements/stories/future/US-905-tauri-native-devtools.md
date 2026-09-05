@@ -136,16 +136,18 @@ US-210 SQLite host / US-505 native file host
 | 12  | 打开 Settings                                              | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明能力返回 `provider_unsupported`，不读取 SQLite/WAL、OPFS/IDB 或其他应用目录  | ⚠️   |
 | 13  | 错误窗口/旧 session，或合法窗口在授权组合下伪造操作        | 通过真实 transport 发送                                | 各层拒绝错误身份；未授权 provider 调用为 0，未 opt-in mutation 不执行；响应不含路径、SQL 绑定值、加密字段或文件内容             | ⚠️   |
 | 14  | session 有订阅、迟到响应、snapshot 和未完成传输            | 关闭/刷新窗口或退出应用                                | 订阅、请求、snapshot、传输、临时文件和 host session 全释放；重开拒绝旧身份与迟到数据                                            | ⚠️   |
-| 15  | 真实临时应用目录、US-210 SQLite 与 US-505 files            | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 panel/双 WebView/transport/Rust/host，不用 fake 替代                                   | ⬜   |
+| 15  | 真实临时应用目录、US-210 SQLite 与 US-505 files            | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 panel/双 WebView/transport/Rust/host，不用 fake 替代                                   | ⚠️   |
 | 16  | Tauri provider 接入 US-904 阶段 B conformance 与共享 panel | 运行共享 provider 与 panel 回归                        | 控制面、safe integer、base64、descriptor、分页、授权、错误和 session 重建通过；不等待 Electron，也不复制组件、状态机或 wire     | ⬜   |
-| 17  | macOS、Windows、Linux desktop dev/release 构建             | 打开/关闭调试窗口并检查产物                            | 三平台完成加载、握手、session 释放；release 无调试 capability/command/bootstrap，高成本打包 smoke 只在 release 分支或 tag 运行  | ⬜   |
+| 17  | macOS、Windows、Linux desktop dev/release 构建             | 打开/关闭调试窗口并检查产物                            | 三平台完成加载、握手、session 释放；release 无调试 capability/command/bootstrap，高成本打包 smoke 只在 release 分支或 tag 运行  | ⚠️   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 ## 交付状态
 
-**当前口径（2026-09-05）**：阶段 1 的 8 条 AC 为 **5 条 ✅（#1 #3 #4 #5 #8）、3 条 ⚠️（#2 #6 #7）**，
-阶段 2（AC#9～#17）未开工。三条 ⚠️ 都不再缺 harness，缺的是一次 owner 边界决定或阶段 2 的真实
+**当前口径（2026-09-05）**：阶段 1 的 8 条 AC 为 **5 条 ✅（#1 #3 #4 #5 #8）、3 条 ⚠️（#2 #6 #7）**。
+阶段 2 已于 2026-09-05 开工（C1～C3 与 C4 前三片已落地）：**AC#9 / #12 / #13 / #14 / #15 / #17 转
+⚠️，一条都还没关**；#10 / #11 / #16 仍是 ⬜。阶段 1 那三条 ⚠️ 都不再缺 harness，缺的是一次 owner
+边界决定或阶段 2 的真实
 provider——见[仍未覆盖的三条](#仍未覆盖的三条以及一处需要-owner-划边界的地方)与[发现 7](#发现-7ac7-的--高估了它的证据2026-09-04-复核)。
 本节以下两段是 **2026-08-31 的历史快照**，被「[阶段 1 harness 落地与三处实测发现（2026-09-04）](#阶段-1-harness-落地与三处实测发现2026-09-04)」整节取代，保留只为记录当时的判断依据。
 
@@ -584,7 +586,8 @@ C2 那条注入链路（`DEV_RXDB_DEVTOOLS*` 三个 env → Rust `devtools_confi
 - 打点**不结束等待**（按 `failure` 的 `stage:` 前缀识别），只有结论才结束；
 - 但打点仍然**进快照**——驱动真卡住时，最后那个 stage 是唯一的线索。
 
-`app.config.ts` 那侧随之改成「只等待、不取返回值」，最终带走的是 `settle()` 交出的最新那条。
+`app.config.ts` 那侧随之改成「只等待、不取返回值」，最终带走的是 `settle()` 交出的那一条
+（当时是**最新**一条；这一半已被[发现 14](#发现-14取最新一条结论在跨重启比对下没有判别力) 改成**第一条**）。
 两条新单测把这两半都钉住（打点先到时等待不提前结束；只有打点时快照里留的就是打点）。
 
 ### 两处过程性缺陷（都已修，记下来是因为它们都曾伪装成别的东西）
@@ -594,6 +597,110 @@ C2 那条注入链路（`DEV_RXDB_DEVTOOLS*` 三个 env → Rust `devtools_confi
 - **注入给探针的 `listen` 适配器把 payload 钉死成 `string`**，而驱动汇报通道送的是对象。
   这条是 Angular 构建报出来的；`nx typecheck` 因为命中缓存报了绿——与
   [[nx-build-hides-ts-errors]] 同一类坑的镜像版本。
+
+### PR-C4 第二片：跨重启的 wire 比对（2026-09-05）
+
+AC#15 要的是「重启前后同一实体和文件一致，且证据经过真实 panel/双 WebView/transport/Rust/host」。
+本片让**同一份产物、同一个应用数据目录跑两个进程**，两跑的环境变量逐字相同，差别只在「第几次跑」：
+
+- **files 一半**：驱动动手之前先 `files.list` 一次，看它上次留下的那个目录在不在
+  （`keptDirSeen`）。第一跑必须是 `false`、第二跑必须是 `true`。
+- **database 一半**：经真实 wire `database.query('DesktopLaunch')` 数行数（`launchRowCount`）。
+  这一条与报告自己的 `launchCount` 是**两条独立路径**——后者由页内 repository 数出来，前者穿过
+  面板 → IPC → Rust 中继 → provider。只回**行数**不回文档：AC#13 明写响应不得含 SQL 绑定值与
+  加密字段，而行数已经足够比对。
+
+报告 schema **v6 → v8**，新增 `devtools.native` 的这三格。
+
+**行数只能断言区间，不能断言相等**：`devtoolsProbe` 开着时一个进程会 bootstrap **两遍**
+（`probeDevToolsWindow` 自己 `location.reload()` 一次），所以 `launchCount` 每进程 +2，而驱动
+的那次查询发生在**刷新之前**。写成相等会得到一条恒红的断言，而把它调松成「非零」又什么都
+不证明——取「第一跑 ≤ 1、第二跑 ≥ 上一跑的 `launchCount`」，两端都由启动次数的算术推出来。
+
+### 发现 14：「取最新一条结论」在跨重启比对下没有判别力
+
+[发现 12](#发现-12一个进程里驱动会跑不止一遍) 说的是同一个进程里驱动会跑两遍；当时的修法
+（准备步骤幂等）解决了 `resource_conflict`，但留下了一个更深的问题：**报告留的是第二遍的结论**。
+
+第二遍看到的世界已经被第一遍改过——「重启之后那个目录还在」与「本进程第一遍刚把它建出来」
+在第二遍眼里**完全同形**。于是跨重启比对失去全部判别力：全新的数据目录上 `keptDirSeen` 也是
+`true`。只有第一遍的前置条件是已知的（这个进程还没碰过存储）。
+
+改成留**第一条**结论（打点仍不算结论，[发现 13](#发现-13阶段打点会把自己伪装成结论harness-侧的竞态已修) 那条规则不变）。
+`app.config.ts` 那句「最终带走的是 `settle()` 交出的最新那条」随之作废。
+
+### 发现 15：第一遍驱动被 AC#4 的回收杀在半路
+
+改成「留第一条」之后第一跑仍然红着，而报告给出了自证的证据：全新数据目录上
+`filesEntryCount: 2` + `keptDirSeen: true`——那是**第一遍已经把目录建出来之后**的世界。
+
+真因是顺序：探针拿到第一轮握手就立刻 `recycleDevToolsWindow()`，而第一遍驱动此时还差着
+那条伪造 session 的请求（它一条就要等满 4s `ANSWER_TIMEOUT_MS`）。窗口被销毁，第一遍
+**一条结论都没发出来**，于是「第一条」实际选中的是第二遍。
+
+修法是把 `waitForNative()` 挪到回收**之前**：先让第一遍跑完再回收。两件事本来就没有依赖，
+先后顺序此前是随手定的。顺带把「刷新前后两份快照怎么合」提成 `mergeDevToolsProbeRounds`
+纯函数并补 5 条单测——其中一条钉住「刷新后到达的结论不顶掉带过来的那一份」：回收之后
+第二遍照跑，它跑完与主窗口刷新谁先谁后没有保证，晚一步就落在刷新后的观察者上。
+
+### 发现 16：驱动的第一条 `files.list` 早于应用建出存储根
+
+前一条修完，两条**只读档**的老断言反而红了：`files.list` 答 `resource_not_found` 而不是 `ok`。
+
+存储根不是启动就在盘上的——它由应用自己那一步 storage probe 上传探针文件时建出来，而调试
+窗口是 Rust 在 `setup()` 里与主窗口**一起**建的。驱动因此会早于应用完成初始化就问出第一条
+list。这条 race 一直都在，只是被「取第二遍结论」掩盖着：第二遍跑在十秒之后，那时根早就有了。
+
+修法是让驱动**只对 `resource_not_found` 这一个码**重试到根出现为止（上限 8s）。不对
+`permission_denied` / `provider_unsupported` 重试：那些是**判定结果**，重试多少次都该是同一个
+答案，对它们重试等于把一次真实的拒绝拖成超时。等满预算就照实报 `resource_not_found`。
+
+e2e 侧同时补了一条：第一跑先断言 `filesList === 'ok'`，再断言 `keptDirSeen === false`。
+少了前一条，「没看见那个目录」与「根本没读成」同形——一个从来读不通的链路也能把负对照骗绿。
+
+**本片关掉的**：AC#15 由 ⬜ 提到 ⚠️。保留在于「一致」只验到了目录的**存在**与实体的**行数**，
+没有逐字段比对文档内容，也没有校验文件字节（那是 AC#10 的判据）。
+
+### PR-C4 第三片：三平台矩阵接进发布链路（2026-09-05）
+
+AC#17 要的三平台结论，本地一台 macOS 给不出来；能在本地做完的是**接线**，以及让接线本身
+被一条 PR 门禁看着。
+
+`release-desktop.yml` 的 `tauri-smoke` 加**一步**跑 `devtools-smoke`，不加 job——文件开头那条
+⚠️ 写着「新增 job 必须同步加进 `gate` 的 `needs` 和断言列表」，漏改就是一条形同虚设的门禁；
+而这一步要的 Rust 工具链、WebKitGTK 开发库与 Xvfb 与上一步完全同一套，另起一个 job 等于把
+那份安装税在三个 runner 上再交一遍。三处配套改动：
+
+- `timeout-minutes` 60 → 90。这个 job 现在冷编译**两份** Rust 产物（release 与 dev debug），
+  两个 profile 不共享产物（正是 `tauri-package-dev` 落 `target/debug` 的理由），是两份全量
+  而不是一份加增量；Windows 上单份实测就是 20-30 分钟。
+- `WEBKIT_DISABLE_DMABUF_RENDERER` 从步级挪到 job 级。原来那条注释写的就是「设在 job 级」，
+  代码却设在步上——加一步之后这处不一致会变成 Linux 上的白屏，而白屏与「应用真有 bug」
+  不可区分。
+- 新步带 `if: ${{ !cancelled() }}`。默认语义下上一步一红就整个跳过，三平台矩阵里会缺掉
+  「调试窗口在这个平台上到底行不行」的结论，且缺得毫无痕迹。
+
+### 发现 17：门禁的判据不能只活在被门禁保护的那条链路里
+
+第一版想把这条结构检查写成 `apps/dev-rxdb-tauri-e2e/src/*.spec.ts`——那个目录下的文件会被
+`vitest.smoke.mts` 的 `src/**` 收进 `desktop-smoke`，而 `desktop-smoke` **只在发布链路上跑**。
+于是「这一步还在不在」的判据，自己被排除在了每天几十次的 PR 门禁之外：删掉那一步的 PR 全绿，
+下一次发现是在发一个 tag 的时候。
+
+改落 `scripts/audit/release-desktop-gate.spec.mjs`，走 PR 门禁的 `pnpm test-scripts`。它读真实的
+`release-desktop.yml`，钉住上面四条（三平台矩阵、`!cancelled()`、timeout 下界、job 级 env），
+外加一条既有性质：高成本 smoke 只在 release / 手动 / 改本文件的 PR 上触发（无裸 `push:`，
+`pull_request:` 必须带 `paths:`）。切分 YAML 的两个纯函数另有 4 条合成输入的用例。
+
+`extractJob` 找不到 job 时**抛错**而不是返回空数组：下游断言全是「正文里有没有某一行」的形态，
+空数组会让它们一条不剩地变成真空真——门禁被整个删掉时反而全绿，正是本节要防的那件事。
+
+**本片关掉的**：AC#17 由 ⬜ 提到 ⚠️。判据的后两截已成立——release 无调试
+capability/command/bootstrap 由 `devtools-release-isolation.spec.ts` 的 7 条结构证据钉住，
+「高成本 smoke 只在 release 分支或 tag 运行」由本片新增的用例钉住。保留的是**第一截**：
+「三平台完成加载、握手、session 释放」目前只有 macOS 一列的实测，ubuntu / windows 两列要等
+这份 workflow 在 PR 上跑一次才拿得到（它自带 `pull_request.paths` 触发，第一次真实运行就发生
+在改动它的那个 PR 上）。在那次运行给出结果之前，AC#17 不能提 ✅。
 
 ## 技术约束
 
