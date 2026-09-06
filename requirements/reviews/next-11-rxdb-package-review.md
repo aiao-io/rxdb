@@ -35,15 +35,15 @@
 
 按下方「建议的修复顺序」推进。每条修复都先写红测试，再改实现，并用变异（把实现改回旧行为）确认测试真的能打红。
 
-| 步骤 | 内容                                       | 状态                                                   |
-| ---- | ------------------------------------------ | ------------------------------------------------------ |
-| 1    | 🔴 #1 / #7 / #8 活查询与本地编辑的静默丢失 | ✅ 已修                                                |
-| 2    | 🔴 #3 / #4 / #5 同步分叉三件套             | ✅ 已修                                                |
-| 3    | 🔴 #2 / #6 各一行修复                      | ✅ 已修                                                |
-| 4    | 测试基建                                   | ⬜ 未开始                                              |
-| 5    | 协议一致性                                 | ✅ 已修（六条全部落地，见下方清单）                    |
-| 6    | 兜底清理与 API 面收敛                      | 🟡 进行中（必填字段上的 `??` / `?.` 已随各条修复清理） |
-| 7    | 拆长函数                                   | ⬜ 未开始                                              |
+| 步骤 | 内容                                       | 状态                                                                    |
+| ---- | ------------------------------------------ | ----------------------------------------------------------------------- |
+| 1    | 🔴 #1 / #7 / #8 活查询与本地编辑的静默丢失 | ✅ 已修                                                                 |
+| 2    | 🔴 #3 / #4 / #5 同步分叉三件套             | ✅ 已修                                                                 |
+| 3    | 🔴 #2 / #6 各一行修复                      | ✅ 已修                                                                 |
+| 4    | 测试基建                                   | ⬜ 未开始                                                               |
+| 5    | 协议一致性                                 | ✅ 已修（本节 17 条：14 条已修 / 1 条撤销 / 1 条待规格决策 / 1 条待查） |
+| 6    | 兜底清理与 API 面收敛                      | 🟡 进行中（必填字段上的 `??` / `?.` 已随各条修复清理）                  |
+| 7    | 拆长函数                                   | ⬜ 未开始                                                               |
 
 ### 已落地的关键改动
 
@@ -55,6 +55,7 @@
 - **count 去重集**：`handleCountUpdate` 与树形的两个 count 出口统一传 `autoCache=false`。`QueryTask#next` 在 `autoCache=true` 时无条件清空 `resultEntityIds`，而 count 结果是 number、不会重新填充它 —— 一次计数更新就把跨批次去重集合抹干净，同一实体被重复计数。`merge_create` / `merge_remove` 早已传 false，update 侧三处漏传。
 - **冲突解决器 / `RemoteSyncOptions`**：删掉 `RemoteSyncOptions`（零实现幻影类型，`SyncOptions` 里根本没有它的落点）；把 `conflictResolver` 接进 `PullOptions`，`pullBatch` 不再写死 `new LWWConflictResolver()`。此前同一个自定义策略走 `pullRepository` 生效、走 `pull()` 默认的批量路径静默失效，两条路径对同一份冲突给出不同结果。`ConflictResolution` 的 TSDoc 同步改诚实：运行时能自动应用的只有 `KEEP_LOCAL` / `KEEP_REMOTE`，`MERGE` / `DEFER` 整轮抛错回滚，`conflictsDeferred` 因此恒 0，并给出「应用侧合并后重 pull」的正确用法。
 - **push 失败契约**：`pushRepository` 失败**一律抛**，`throwPushFailure` 是唯一出口。`pushed === 0` 抛裸错误，`pushed > 0` 抛 `RxDBPartialSyncError<PushRepositoryResult>`（这些条目已在远端且不回滚）。此前级联路径抛、单仓路径 resolve 出 `success: false`，`bulkSync` 只看抛不抛，于是单仓失败被记成成功、`BulkSyncResult.failed` 恒为 0。同时：失败改发 `RepositorySyncErrorEvent`（此前发 `Complete`，只订阅 Complete 的监听方把失败当成功）；`sync-repository.ts` 新增 `rewrapPushFailure`，push 已发出的进度不再被 `emptyPushResult` 抹平；`push.ts` 与 `pull.ts` 同口径解包嵌套 partial error。
+- **QueryCache 与出站队列隔离**：新增 `pendingQueryCacheWriteIds`（读 `rxdb_change`，取行条件与 `flushQueryCacheOutbox` 同源），`QueryCacheRepository` 构造时必传。`#reconcile` 先问一次队列占用，再按「队列占着的行一步都不许动」摘掉 `orphanIds` / `missingIds` / `staleIds` 三支 —— 离线新建不再被当孤儿删、离线删除不再被拉回复活、离线修改不再绕过 `conflictResolver` 被远端盖掉；被占的行照旧留在返回结果里（它们就是本地真相）。`SyncStats` 新增 `heldCount` 报本轮跳过数，其余计数改报**真的执行了**的动作数，`pulledCount` 于是能对上账。`findById` 同口径处置。读队列失败**不兜底**：整轮同步失败，一个字节都不写。
 - **分支口径**：新增 `version/pull-ancestor-changes.ts`，`pullRepository` / `pullBatch` / `checkRepositoryUpdates` 统一「逐祖先分支拉 + 按 id 全局排序后截断到 limit」。此前 `pullRepository` 与 `checkRepositoryUpdates` 只看当前分支，父分支上的变更永远拉不到、且 `hasUpdates` 谎报 false。
 
 ### ⚠️ 破坏性 API 变化（需在 PR 说明）
@@ -140,23 +141,23 @@
 
 ### 协议与语义不一致
 
-- `push-repository.ts:831-842` vs `:267-272`：单仓失败 resolve `{success:false}`，级联失败 throw；`bulk-sync.ts:155-162` 把前者记成成功，`BulkSyncResult.failed=0`。
-- `push-repository.ts:315-327` + `cascade-contract.ts:164-178`：级联 DELETE 相位只看 `dependsOn`，子删除失败不阻断父删除；被阻断节点用 `emptyPushProgress()` 定案，把已推的 `pushed` 报成 0。
-- `pull-repository.ts:523-529` vs `pull-batch.ts:154`：一个只拉当前分支，一个拉祖先分支，同一仓库两条路径数据集不同；`check-repository-updates.ts:124-128` 计数口径又是「仅当前分支」。
-- `push.ts:54-66`：失败按仓库计 1 不按变更计，丢掉 `RxDBPartialSyncError.result` 里的部分进度，打破 `originalCount = pushed + failed + compacted`。
-- `diff-metadata.ts:90`、`QueryCacheRepository.ts:406`：按字典序比 ISO 字符串，本地是 `.000Z`（`QueryCacheRepository.ts:191`），Supabase 给 `+00:00`，HTTP 后端常给无毫秒 `Z`，`'…00Z' > '…00.000Z'` 为 true → 每次全判 stale 永久重拉。spec 只测统一 `Z`。
-- `QueryCacheRepository.ts:701-716` `#evictOrphans` 与出站队列无隔离：恢复联网时 `find` 与 `flushQueryCacheOutbox` 竞争，离线新建行被当孤儿删除、离线删除行被拉回复活（机制已验证，时序命中率未验证）。
-- `query-cache-primary.ts:335-365`：SWR 有缓存时 `#runSync` 首发即 resolve，`remember()` 在远端校验前写入，校验失败被 `QueryCacheRepository.ts:549` 吞成 `EMPTY` 后记忆仍在。
-- `merge-update-basic.ts:176`（同 `merge-update-tree.ts:465,626`）`task.next(newCount)` 默认 `autoCache=true` 清掉 count 去重集，而 `merge_create.ts:155` 特意传 false 并写了长注释；同 INSERT 双派发时 count 多 1。
-- `VersionManager.interface.ts:187-206 RemoteSyncOptions`（`autoSync` / `conflictResolver`）公开导出但零实现，`pull-batch.ts:281` 写死 `new LWWConflictResolver()`；`ConflictResolution.MERGE / DEFER` 在 `pull-conflict-utils.ts:257-264` 一律抛错回滚，`conflictsDeferred` 恒 0。
-- `history-scope-api.ts:175`：只调 `history(entity).undo()` 不订阅时 `history_cache` 条目永不释放，按 entity id 分键会无界增长。
+- ✅ `push-repository.ts:831-842` vs `:267-272`：单仓失败 resolve `{success:false}`，级联失败 throw；`bulk-sync.ts:155-162` 把前者记成成功，`BulkSyncResult.failed=0`。
+- ✅ `push-repository.ts:315-327` + `cascade-contract.ts:164-178`：级联 DELETE 相位只看 `dependsOn`，子删除失败不阻断父删除；被阻断节点用 `emptyPushProgress()` 定案，把已推的 `pushed` 报成 0。
+- ✅ `pull-repository.ts:523-529` vs `pull-batch.ts:154`：一个只拉当前分支，一个拉祖先分支，同一仓库两条路径数据集不同；`check-repository-updates.ts:124-128` 计数口径又是「仅当前分支」。
+- ✅ `push.ts:54-66`：失败按仓库计 1 不按变更计，丢掉 `RxDBPartialSyncError.result` 里的部分进度，打破 `originalCount = pushed + failed + compacted`。
+- ✅ `diff-metadata.ts:90`、`QueryCacheRepository.ts:406`：按字典序比 ISO 字符串，本地是 `.000Z`（`QueryCacheRepository.ts:191`），Supabase 给 `+00:00`，HTTP 后端常给无毫秒 `Z`，`'…00Z' > '…00.000Z'` 为 true → 每次全判 stale 永久重拉。spec 只测统一 `Z`。
+- ✅ `QueryCacheRepository.ts:701-716` `#evictOrphans` 与出站队列无隔离：恢复联网时 `find` 与 `flushQueryCacheOutbox` 竞争，离线新建行被当孤儿删除、离线删除行被拉回复活（机制已验证，时序命中率未验证）。
+- ✅ `query-cache-primary.ts:335-365`：SWR 有缓存时 `#runSync` 首发即 resolve，`remember()` 在远端校验前写入，校验失败被 `QueryCacheRepository.ts:549` 吞成 `EMPTY` 后记忆仍在。
+- ✅ `merge-update-basic.ts:176`（同 `merge-update-tree.ts:465,626`）`task.next(newCount)` 默认 `autoCache=true` 清掉 count 去重集，而 `merge_create.ts:155` 特意传 false 并写了长注释；同 INSERT 双派发时 count 多 1。
+- ✅ `VersionManager.interface.ts:187-206 RemoteSyncOptions`（`autoSync` / `conflictResolver`）公开导出但零实现，`pull-batch.ts:281` 写死 `new LWWConflictResolver()`；`ConflictResolution.MERGE / DEFER` 在 `pull-conflict-utils.ts:257-264` 一律抛错回滚，`conflictsDeferred` 恒 0。
+- ✅ `history-scope-api.ts:175`：只调 `history(entity).undo()` 不订阅时 `history_cache` 条目永不释放，按 entity id 分键会无界增长。
 - （未实测，中置信）`undo-redo-apply.ts:114-186` vs `HistoryManager.ts:465-472`：push 事务外等远端往返窗口内一次 `undo()` 回滚变更 X 而随后 commit 把 X 标成已推，本地 ≠ 远端且推不回去。
-- `QueryTask.ts:313-327`：runner 抛错终结整条 `refresh$`，一次瞬时网络失败永久杀掉活查询，无重试无 `catchError`，TSDoc 未说明。
-- `rxdb.transaction.ts:68-69`：实体事件用裸 `forEach`，第一个监听器抛错后同事件其余监听器（网关转发、查询刷新）全部收不到；事务事件路径用 `runIsolated`，保证不一致。
-- `dependency-scheduler.ts:244-252`：顺序 `await connect('local'); await connect('remote')` 时 local 落地即对 `inject:['adapter:remote']` 的插件喊「not installed」，误报。
-- `rxdb.plugin-lifecycle.ts:71-77` + `RxDB.ts:523-524`：已连接后 `use()` 的安装失败只剩 `console.error`，文档说「由后续 connect() 传播」但 `connect(name)` 命中缓存直接返回旧 promise。
-- `rxdb.plugin-lifecycle.ts:176-189`：`scope` 为 `undefined` 的 legacy 插件仍被调 `destroy()`，无 `install()` 配对。
-- `query-cache-outbox.ts:494-498`：全部待推 id 塞进一个 `in` 无分批；batch 中途失败后第二轮已成功的 UPDATE 被判 `KEEP_REMOTE` 报成假冲突。
+- ✅ `QueryTask.ts:313-327`：runner 抛错终结整条 `refresh$`，一次瞬时网络失败永久杀掉活查询，无重试无 `catchError`，TSDoc 未说明。
+- ⬜ **撤销：不是缺陷** `rxdb.transaction.ts:68-69` 实体事件用裸 `forEach`：这是**有意的** fail-fast 契约，`RxDB.spec.ts`「普通事件监听器抛错时应该保持 fail-fast」正面守着它，继续调用后续监听器等于替出错方兜底。`runIsolated` 只给「批量」语义（事务事件列表、提交/回滚排空队列）用，两者口径不同是设计而非漂移。已把这条判据写进 `emitEvent` 的 TSDoc。
+- 🔒 **待规格决策，不改代码** `dependency-scheduler.ts:244-252`：顺序 `await connect('local'); await connect('remote')` 的误报已实测复现。但「每次 connect 落地就结算一次未满足依赖」正是 US AC#11 点名的契约，改判据等于反转那条已 ✅ 的验收。要么放宽 AC#11（改成「全部已注册适配器都连上才结算」），要么保留误报并在文档里写明顺序 connect 的噪声 —— 这是规格问题，不是实现问题。
+- ✅ `rxdb.plugin-lifecycle.ts:71-77` + `RxDB.ts:523-524`：已连接后 `use()` 的安装失败只剩 `console.error`，文档说「由后续 connect() 传播」但 `connect(name)` 命中缓存直接返回旧 promise。
+- ✅ `rxdb.plugin-lifecycle.ts:176-189`：`scope` 为 `undefined` 的 legacy 插件仍被调 `destroy()`，无 `install()` 配对。
+- ✅ `query-cache-outbox.ts:494-498`：全部待推 id 塞进一个 `in` 无分批；batch 中途失败后第二轮已成功的 UPDATE 被判 `KEEP_REMOTE` 报成假冲突。
 
 ### 公共 API 面（46 条 `export *` 撑出 427 个导出）
 

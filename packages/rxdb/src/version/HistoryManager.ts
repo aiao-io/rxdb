@@ -20,7 +20,7 @@ import { isAdapterShutdownError } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
 import { RxDBBranch } from '../system/branch.js';
 import { RxDBChange } from '../system/change.js';
-import { filterUndoableHistories, getRepositoryKey } from './history-filters.js';
+import { filterUndoableHistories } from './history-filters.js';
 import { convertChangesToHistories } from './history-item-builder.js';
 import { createHistoryScopeApi, type HistoryScopeApiHost } from './history-scope-api.js';
 import {
@@ -237,12 +237,9 @@ export class HistoryManager {
             }
           });
 
-          const lastPushedMap = new Map<string, number>();
-          for (const rs of repoSyncs) {
-            if (rs.lastPushedChangeId !== null) {
-              lastPushedMap.set(getRepositoryKey(rs), rs.lastPushedChangeId);
-            }
-          }
+          // 与 `fetchLatestHistories` 同源：反应式的可撤销列表必须和真正执行撤销时
+          // 的判定逐字一致，否则 UI 上还亮着的那一项点下去要么无效、要么撤掉一条在飞的变更
+          const lastPushedMap = buildLastPushedMap(repoSyncs, this.rxdb.versionManager.pushInFlight.snapshot());
 
           return filterUndoableHistories(
             histories,

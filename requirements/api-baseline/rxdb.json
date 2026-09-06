@@ -914,6 +914,10 @@
         "kind": "type"
       },
       {
+        "name": "QueryCachePendingWriteIds",
+        "kind": "type"
+      },
+      {
         "name": "QueryCacheRemoteAdapter",
         "kind": "type"
       },

@@ -35,6 +35,7 @@ import { REMOTE_ENTITY_INVALIDATED_EVENT, RemoteEntityInvalidatedEvent } from '.
 import { RxDB } from '../../RxDB.js';
 import { METADATA, STATUS } from '../../rxdb.private.js';
 import { SyncStateHub } from '../../sync-state.js';
+import { emptyOutboxVersionManager, noPendingWrites } from '../fixtures/pending-writes.js';
 import { detachedReachability } from '../fixtures/reachability.js';
 
 class RecipeEntity {
@@ -219,6 +220,7 @@ const setup = (
     removeEventListener,
     dispatchEvent,
     reachability: detachedReachability(),
+    versionManager: emptyOutboxVersionManager(),
     schemaManager: {
       getEntityType: vi.fn((entity: string, namespace: string) => ENTITY_REGISTRY[`${namespace}:${entity}`]),
       getEntityMetadata: vi.fn(() => undefined)
@@ -543,7 +545,8 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
         false,
         syncMemo,
         detachedReachability(),
-        new SyncStateHub({ online$: of(true), pushableCount$: of(0) })
+        new SyncStateHub({ online$: of(true), pushableCount$: of(0) }),
+        noPendingWrites
       );
 
       void primary.find({ where: allWhere() });
@@ -582,7 +585,8 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
         true,
         syncMemo,
         detachedReachability(),
-        new SyncStateHub({ online$: of(true), pushableCount$: of(0) })
+        new SyncStateHub({ online$: of(true), pushableCount$: of(0) }),
+        noPendingWrites
       );
 
       await primary.find({ where: allWhere() });
@@ -617,7 +621,8 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
         true,
         syncMemo,
         detachedReachability(),
-        new SyncStateHub({ online$: of(true), pushableCount$: of(0) })
+        new SyncStateHub({ online$: of(true), pushableCount$: of(0) }),
+        noPendingWrites
       );
 
       await primary.find({ where: allWhere() });
@@ -680,7 +685,8 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
         localAdapter as unknown as QueryCacheLocalAdapter,
         {
           find: (options: { where: RuleGroup<RecipeEntity> }) => localRepo.find(options)
-        } as unknown as QueryCacheLocalReader<IEntity>
+        } as unknown as QueryCacheLocalReader<IEntity>,
+        noPendingWrites
       ) as unknown as InflightCache;
 
       const first: RecipeEntity[][] = [];
@@ -713,7 +719,8 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
         localAdapter as unknown as QueryCacheLocalAdapter,
         {
           find: (options: { where: RuleGroup<RecipeEntity> }) => localRepo.find(options)
-        } as unknown as QueryCacheLocalReader<IEntity>
+        } as unknown as QueryCacheLocalReader<IEntity>,
+        noPendingWrites
       ) as unknown as InflightCache;
 
       const stale = cache.find({ where: allWhere() }).subscribe();
@@ -763,7 +770,8 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
         localAdapter as unknown as QueryCacheLocalAdapter,
         {
           find: (options: { where: RuleGroup<RecipeEntity> }) => localRepo.find(options)
-        } as unknown as QueryCacheLocalReader<IEntity>
+        } as unknown as QueryCacheLocalReader<IEntity>,
+        noPendingWrites
       ) as unknown as InflightCache;
 
       // 第一次同步：本地空 → 缺 'a' → 拉取停在飞行中

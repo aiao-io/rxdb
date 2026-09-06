@@ -21,6 +21,7 @@ import {
   SyncStats
 } from '../../repository/QueryCacheRepository.js';
 import { NetworkOfflineError } from '../../RxDBError.js';
+import { noPendingWrites } from '../fixtures/pending-writes.js';
 
 class Product {
   id!: string;
@@ -89,7 +90,8 @@ describe('QueryCacheRepository 缓存质量（US-020 阶段 B）', () => {
       'Product',
       remoteAdapter,
       localAdapter,
-      localReader as unknown as QueryCacheLocalReader<Product>
+      localReader as unknown as QueryCacheLocalReader<Product>,
+      noPendingWrites
     );
   };
 

@@ -33,6 +33,7 @@ import { merge_branch } from './merge-branch.js';
 import { pullRepository, type PullRepositoryOptions, type PullRepositoryResult } from './pull-repository.js';
 import { pull } from './pull.js';
 import { isCompletePull } from './pullable-count.js';
+import { PushInFlightRegistry } from './push-inflight.js';
 import { pushRepository, type PushRepositoryOptions, type PushRepositoryResult } from './push-repository.js';
 import { push } from './push.js';
 import { remove_branch } from './remove-branch.js';
@@ -103,6 +104,20 @@ export class VersionManager {
   get pullableCount$() {
     return this.historyManager.pullableCount$;
   }
+
+  /**
+   * 「哪些变更此刻正在飞往远端」的登记处。
+   *
+   * @remarks
+   * push 与 undo 唯一的会合点。push 在远端往返之前认领区间，undo 把认领区间当成已推 ——
+   * 没有它，往返窗口内的一次撤销会造成本地与远端永久分叉，见 {@link PushInFlightRegistry}。
+   *
+   * 挂在 `VersionManager` 上是因为两边都只经它相遇：`pushRepository(vm, …)` 直接拿到它，
+   * `HistoryManager` 经 `rxdb.versionManager` 拿到它。生命周期跟随实例，不跨实例共享。
+   *
+   * @internal
+   */
+  readonly pushInFlight = new PushInFlightRegistry();
 
   constructor(public readonly rxdb: RxDB) {
     this.historyManager = new HistoryManager(this.rxdb);

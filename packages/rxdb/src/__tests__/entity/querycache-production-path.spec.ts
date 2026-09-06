@@ -83,6 +83,34 @@ const PUBLISHED: RuleGroup<CachedArticle> = {
 };
 
 /**
+ * 系统实体（分支 / 同步状态 / 变更队列）的行仓储替身。
+ *
+ * @remarks
+ * 与业务行仓储**分开**，因为业务那个的 `create/update/remove` 是 AC#20 的负向哨兵：
+ * `getCurrentBranch()` 冷路径会建一条 `main` 分支，共用一个替身就会把那次引导写
+ * 记在哨兵账上，把「这次写没落进版本化路径」错判成落了。
+ *
+ * 建出来的行留在内存里，所以 `main` 只建一次 —— 下一轮 `getCurrentBranch()` 走热路径。
+ */
+const createSystemRepository = () => {
+  const rows: object[] = [];
+
+  return {
+    find: vi.fn(({ where, limit }: { where?: RuleGroup<never>; limit?: number }) => {
+      const matched = where === undefined ? [...rows] : rows.filter(row => isEntityMatchWhere(row as never, where));
+      return Promise.resolve(limit === undefined ? matched : matched.slice(0, limit));
+    }),
+    count: vi.fn(() => Promise.resolve(rows.length)),
+    create: vi.fn((entity: object) => {
+      rows.push(entity);
+      return Promise.resolve(entity);
+    }),
+    update: vi.fn((entity: object) => Promise.resolve(entity)),
+    remove: vi.fn((entity: object) => Promise.resolve(entity))
+  };
+};
+
+/**
  * 站在真实 sqlite 位置的本地适配器替身。
  *
  * @remarks
@@ -107,10 +135,26 @@ const createLocalAdapter = (initial: Row[] = []) => {
     remove: vi.fn((entity: Row) => Promise.resolve(entity))
   };
 
+  // 系统实体各自一个存储，互不串场
+  const systemRepositories = new Map<unknown, ReturnType<typeof createSystemRepository>>();
+  const systemRepository = (type: unknown): ReturnType<typeof createSystemRepository> => {
+    const existing = systemRepositories.get(type);
+    if (existing !== undefined) return existing;
+    const created = createSystemRepository();
+    systemRepositories.set(type, created);
+    return created;
+  };
+  const getRepository = (type: unknown): object =>
+    type === CachedArticle || type === VersionedArticle ? repository : systemRepository(type);
+
   const adapter = {
     name: 'sqlite',
     mutations: vi.fn(async () => []),
-    getRepository: () => repository,
+    getRepository,
+    // 真适配器在这里排队并开事务；替身直接同步执行，因为本文件没有并发窗口要验
+    transaction: vi.fn((fun: (executor: { getRepository: (type: unknown) => object }) => unknown) =>
+      Promise.resolve(fun({ getRepository }))
+    ),
     getMetadataByIds: vi.fn((_entityName: string, ids: string[]) =>
       of(new Map(ids.filter(id => store.has(id)).map(id => [id, store.get(id)!.updatedAt])))
     ),

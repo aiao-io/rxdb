@@ -30,7 +30,7 @@ import { compactChanges } from '../version/compact-changes.js';
 import type { ConflictResolver } from '../version/conflict.js';
 import { LWWConflictResolver } from '../version/LWWConflictResolver.js';
 import { buildOfflineWriteRepositoryRules } from '../version/pushable-repository-rules.js';
-import { getOrCreateSyncRecord } from '../version/sync-record-utils.js';
+import { findCurrentSyncRecord, getOrCreateSyncRecord } from '../version/sync-record-utils.js';
 import { getSyncType, isRepositorySyncEnabled, SYNC_DISABLED_REASON } from '../version/sync-type-utils.js';
 import type { SwitchVersionActions, SwitchVersionChange } from '../version/VersionManager.interface.js';
 import type { VersionManager } from '../version/VersionManager.js';
@@ -399,6 +399,46 @@ export async function countQueryCacheOutbox(vm: VersionManager): Promise<number>
       }
     })
   );
+}
+
+/**
+ * 取出某个 QueryCache 仓库当前**被出站队列占着**的实体 id。
+ *
+ * @param vm - 版本管理器
+ * @param namespace - 命名空间
+ * @param entity - 实体名
+ * @returns 队列里还没推回远端的那些实体 id；队列为空时是空集
+ *
+ * @remarks
+ * 取行条件与 {@link flushQueryCacheOutbox} 逐字同源（同分支、`remoteId = null`、
+ * `revertChangeId = null`、水位线之后），因为「谁归队列管」和「谁会被重放」必须是
+ * 同一个集合 —— 两边各写一份过滤条件，漂移的那一刻就是数据被误删的那一刻。
+ *
+ * **不**看 `RxDBSync.enabled`：仓库关掉同步时队列永远不会 flush，那些行于是永远留在本地。
+ * 它们仍然是只有本地有的用户数据，按「远端没返回 = 孤儿」删掉就再也找不回来了。
+ *
+ * 没有 `RxDBSync` 记录时按「没有水位线」读全量，不新建记录：这是一次纯读，
+ * 给一个还没同步过的仓库建记录会凭空多出一条水位线为 0 的同步状态。
+ */
+export async function pendingQueryCacheWriteIds(
+  vm: VersionManager,
+  namespace: string,
+  entity: string
+): Promise<ReadonlySet<string>> {
+  const branch = await vm.getCurrentBranch();
+  const { adapter } = await vm.getLocalRepositories();
+  const localAdapter = adapter as unknown as OutboxLocalAdapter;
+
+  const repoSync = await findCurrentSyncRecord(vm, namespace, entity);
+  const pending = await queryOutboxChanges(
+    localAdapter.getRepository(RxDBChange),
+    namespace,
+    entity,
+    branch.id,
+    repoSync?.lastPushedChangeId ?? null
+  );
+
+  return new Set(pending.map(change => String(change.entityId)));
 }
 
 /**

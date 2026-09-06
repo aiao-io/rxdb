@@ -8,6 +8,7 @@ import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
 import { RxDBError } from '../RxDBError.js';
 import { getFingerprintByEntities, getFingerprintByEntity, getFingerprintPrimitive } from './fingerprint.utils.js';
+import { pendingQueryCacheWriteIds } from './query-cache-outbox.js';
 
 import {
   createQueryCachePrimary,
@@ -144,6 +145,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
       // 记忆归 `Repository` 持有：主仓储随适配器流每次发射重建，放在它身上等于没有记忆
       this.#syncMemo = new QueryCacheSyncMemo(this.sync.local.syncStaleTime);
       this.primary$ = this.#createQueryCachePrimary(
+        metadata.namespace,
         metadata.name,
         this.sync.local.localCacheFirst === true,
         this.#syncMemo
@@ -498,6 +500,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * 换了（断连重连，AC#22）即清空，没换则继续沿用。
    */
   #createQueryCachePrimary(
+    namespace: string,
     entityName: string,
     localCacheFirst: boolean,
     syncMemo: QueryCacheSyncMemo
@@ -513,7 +516,9 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
           localCacheFirst,
           syncMemo,
           this.rxdb.reachability,
-          this.rxdb.syncState
+          this.rxdb.syncState,
+          // 每轮同步现问一次，不缓存：缓存一份快照就等于给「问完之后排进来的写」开了个删除口子
+          () => pendingQueryCacheWriteIds(this.rxdb.versionManager, namespace, entityName)
         );
         // 记下「此刻的那一个」：失效上报要同步作废它的在飞查询（US-023 D13）
         this.#queryCachePrimary = primary;

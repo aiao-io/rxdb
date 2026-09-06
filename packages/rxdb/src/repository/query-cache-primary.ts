@@ -30,6 +30,7 @@ import type { RuleGroup } from './query.interface.js';
 import type {
   QueryCacheLocalAdapter,
   QueryCacheLocalReader,
+  QueryCachePendingWriteIds,
   QueryCacheRemoteAdapter,
   SyncStats
 } from './QueryCacheRepository.js';
@@ -129,7 +130,9 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
     /** 远端可达性；写路径据此决定先打远端还是先落本地，生命周期跟着 `RxDB` 实例 */
     private readonly reachability: ReachabilityMonitor,
     /** 同步状态面板；离线写入队时报一声，用户才看得见积压 */
-    private readonly syncState: SyncStateHub
+    private readonly syncState: SyncStateHub,
+    /** 出站队列此刻占着哪些 id；同步流程据此把还没推出去的行整个跳过 */
+    pendingWriteIds: QueryCachePendingWriteIds
   ) {
     // 本地行仓储既是同步流程的读出口（US-020 D8），也是同步跑完后门面读结果的地方。
     // `QueryCacheRepository` 按 `entityName` 工作、填不出 `IRepository` 的类型参数，
@@ -138,7 +141,8 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
       entityName,
       remoteAdapter,
       localAdapter,
-      localRepository as QueryCacheLocalReader<InstanceType<T>>
+      localRepository as QueryCacheLocalReader<InstanceType<T>>,
+      pendingWriteIds
     );
   }
 
@@ -408,6 +412,7 @@ const entityId = <T extends EntityType>(entity: InstanceType<T>): string => (ent
  * @param syncMemo - 「刚同步过」的记忆，由调用方持有以跨适配器发射存活（D13）
  * @param reachability - 远端可达性监视器，取自 `RxDB` 实例
  * @param syncState - 同步状态面板，取自 `RxDB` 实例
+ * @param pendingWriteIds - 查询本仓库出站队列占用的出口，生产实现是 `pendingQueryCacheWriteIds`
  * @throws {@link RxDBQueryCacheCapabilityError} 适配器缺必需 duck
  */
 export function createQueryCachePrimary<T extends EntityType>(
@@ -418,7 +423,8 @@ export function createQueryCachePrimary<T extends EntityType>(
   localCacheFirst: boolean,
   syncMemo: QueryCacheSyncMemo,
   reachability: ReachabilityMonitor,
-  syncState: SyncStateHub
+  syncState: SyncStateHub,
+  pendingWriteIds: QueryCachePendingWriteIds
 ): QueryCachePrimaryRepository<T> {
   assertQueryCacheCapabilities(entityName, localAdapter, remoteAdapter);
   return new QueryCachePrimaryRepository<T>(
@@ -430,7 +436,8 @@ export function createQueryCachePrimary<T extends EntityType>(
     localCacheFirst,
     syncMemo,
     reachability,
-    syncState
+    syncState,
+    pendingWriteIds
   );
 }
 
