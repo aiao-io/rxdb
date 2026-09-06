@@ -104,6 +104,14 @@ interface OutboxEntry {
    * 合成对象、没有时间戳。取最后一条与拉取路径的 `resolveConflictsAndBuildActions` 一致。
    */
   lastChange: RxDBChange;
+  /**
+   * 该实体**最早**一条原始变更行的 id。
+   *
+   * @remarks
+   * 部分推进水位线时的下界依据：本条净操作没结算掉，它名下最早的那一行就一步都不能被
+   * 水位线越过（越过 = 永远查不出来 = 静默丢写）。
+   */
+  minChangeId: number;
 }
 
 /** 一条净操作的处置方式 */
@@ -282,7 +290,8 @@ async function runOutboxFlush(
     ...base,
     compacted: pending.length - entries.length,
     restoreIds: [],
-    dropIds: []
+    dropIds: [],
+    settled: new Set<OutboxEntry>()
   };
 
   const metadata = await probeRemoteMetadata(remoteAdapter, entity, entries, vm, run);
@@ -292,7 +301,14 @@ async function runOutboxFlush(
   await repairLocalCache(localAdapter, remoteAdapter, entity, run);
 
   if (run.failures.length > 0) {
-    return toResult(run);
+    // 整批没推完，但已经结算掉的那一段可以让水位线跟上去。不跟的话，下一轮会把这些
+    // 已经推上去的行重新判定一次 —— 那时远端的 `updatedAt` 是我们自己写的，LWW 判本地输，
+    // 一次成功的推送就被报成冲突。
+    // 不写 `lastPushedAt`：本轮没推完，那是纯展示字段，不该记成一次完整的推送。
+    const partial = settledWatermark(entries, run.settled, maxChangeId);
+    if (partial <= (repoSync.lastPushedChangeId ?? 0)) return toResult(run);
+    await repoSyncRepo.update(repoSync, { lastPushedChangeId: partial, updatedAt: new Date() });
+    return { ...toResult(run), watermark: partial };
   }
 
   await repoSyncRepo.update(repoSync, {
@@ -315,6 +331,14 @@ interface RunState extends Omit<QueryCacheOutboxResult, 'conflicts'> {
   restoreIds: string[];
   /** 远端已消失、需要从本地缓存清掉的 id */
   dropIds: string[];
+  /**
+   * 本轮已经结算掉的净操作（重放成功 / 判负丢弃 / 无事可做）。
+   *
+   * @remarks
+   * 失败轮次里靠它算出水位线还能往前挪多少。挪不动的那些必须原样留着 —— 见
+   * {@link settledWatermark}。
+   */
+  settled: Set<OutboxEntry>;
 }
 
 /** 把累计状态收敛成对外结果，丢掉只在本轮内部用的修复清单 */
@@ -468,7 +492,8 @@ function buildOutboxEntries(pending: RxDBChange[]): OutboxEntry[] {
         throw new RxDBError(`Missing source changes for compacted QueryCache action: ${key}`);
       }
       const lastChange = group[group.length - 1];
-      entries.push({ key, entityId: String(lastChange.entityId), kind, action, lastChange });
+      const minChangeId = group.reduce((min, change) => (change.id < min ? change.id : min), group[0].id);
+      entries.push({ key, entityId: String(lastChange.entityId), kind, action, lastChange, minChangeId });
     }
   };
 
@@ -480,9 +505,36 @@ function buildOutboxEntries(pending: RxDBChange[]): OutboxEntry[] {
 }
 
 /**
+ * 元数据探测每次请求最多带多少个 id。
+ *
+ * @remarks
+ * 与 HTTP / supabase 适配器的 `idChunkSize` 同一个数。core 不认识任何具体适配器，
+ * 拿不到它们的配置，只能自己持一份同口径的常量。
+ *
+ * 为什么必须切：离线攒下的待推行没有上限，一次几千个 id 塞进 `id in (...)` 会把请求
+ * 撑到网关 413 / URL 长度上限之外。适配器侧只有 `findByIds` 分了块
+ * （`findByIdsInChunks`），`fetchMetadata` 分的是**响应**的页，请求里那串 id 原样透传。
+ */
+const METADATA_PROBE_CHUNK_SIZE = 100;
+
+/** 按固定尺寸切分 id 列表 */
+function chunkIds(ids: readonly string[], size: number): string[][] {
+  const chunks: string[][] = [];
+  for (let index = 0; index < ids.length; index += size) {
+    chunks.push(ids.slice(index, index + size));
+  }
+  return chunks;
+}
+
+/**
  * 拉一次涉及实体的远端元数据，作为冲突判定的远端侧。
  *
  * @returns `id → updatedAt` 映射；探测失败时返回 `null`，调用方据此跳过整轮重放
+ *
+ * @remarks
+ * 分块**串行**，首块出错即停 —— 与 `findByIdsInChunks` 同款理由：远端已经出问题时继续
+ * 打后面几块只是加压，而结果反正是整轮跳过。半张表也绝不能拿去判冲突：缺席的 id 会被
+ * {@link decide} 当成「远端没有这一行」，UPDATE 于是降级成 INSERT，DELETE 直接丢弃。
  */
 async function probeRemoteMetadata(
   remoteAdapter: QueryCacheRemoteAdapter,
@@ -492,17 +544,24 @@ async function probeRemoteMetadata(
   run: RunState
 ): Promise<Map<string, string> | null> {
   const ids = entries.map(entry => entry.entityId);
-  try {
-    const metadata = await firstValueFrom(
-      remoteAdapter.fetchMetadata(entity, { combinator: 'and', rules: [{ field: 'id', operator: 'in', value: ids }] })
-    );
-    vm.rxdb.reachability.report(null);
-    return new Map(metadata.map(row => [row.id, row.updatedAt]));
-  } catch (error) {
-    vm.rxdb.reachability.report(error);
-    run.failures.push({ entityId: null, error: error instanceof Error ? error : new Error(String(error)) });
-    return null;
+  const found = new Map<string, string>();
+  for (const batch of chunkIds(ids, METADATA_PROBE_CHUNK_SIZE)) {
+    try {
+      const metadata = await firstValueFrom(
+        remoteAdapter.fetchMetadata(entity, {
+          combinator: 'and',
+          rules: [{ field: 'id', operator: 'in', value: batch }]
+        })
+      );
+      for (const row of metadata) found.set(row.id, row.updatedAt);
+    } catch (error) {
+      vm.rxdb.reachability.report(error);
+      run.failures.push({ entityId: null, error: error instanceof Error ? error : new Error(String(error)) });
+      return null;
+    }
   }
+  vm.rxdb.reachability.report(null);
+  return found;
 }
 
 interface ReplayContext {
@@ -522,9 +581,40 @@ async function replayPhases(
   for (const kinds of REPLAY_PHASES) {
     for (const entry of entries.filter(candidate => kinds.has(candidate.kind))) {
       if (context.run.failures.length > 0) return;
+      const before = context.run.failures.length;
       await settleEntry(entry, metadata.get(entry.entityId), context);
+      // 本条自己没添失败才算结算掉。结算过的净操作绝不能在下一轮再被判定一次：
+      // 那时远端的 `updatedAt` 已经是**我们自己**这一次写进去的时刻，LWW 一比就判本地输，
+      // 于是一次成功的推送被报成冲突，本地缓存还要被「修复」回远端行。
+      if (context.run.failures.length === before) context.run.settled.add(entry);
     }
   }
+}
+
+/**
+ * 失败轮次里水位线还能推到哪。
+ *
+ * @param entries - 本轮的全部净操作
+ * @param maxChangeId - 本批变更行的最大 id
+ * @returns 可安全写回的 `lastPushedChangeId`
+ *
+ * @remarks
+ * 取「最早那条**没结算**的变更行 id 减一」：这个位置之前的行全都已经有了归宿，再查出来
+ * 只会被重判一次；这个位置之后的行一条都不能被越过。全部结算完时直接给 `maxChangeId`。
+ *
+ * 残留的一段：同一批里 A、B 两个实体的变更行交错（A₁ B₁ A₂），B 没结算而 A 结算了，
+ * 下界被 B₁ 钉住，A₂ 下一轮照样要重判一次。彻底消掉它需要**逐行**的已推标记，而
+ * `RxDBChange.remoteId` 的语义是「这条变更是从远端同步过来的」，不是「这条已经推上去了」，
+ * 借用它会污染拉取侧的判据。真正的出路是加一个属于出站的持久标记 —— 那是一次 schema
+ * 变更，不在本次修复的范围里。
+ */
+function settledWatermark(entries: readonly OutboxEntry[], settled: ReadonlySet<OutboxEntry>, maxChangeId: number) {
+  let lowestPending: number | undefined;
+  for (const entry of entries) {
+    if (settled.has(entry)) continue;
+    if (lowestPending === undefined || entry.minChangeId < lowestPending) lowestPending = entry.minChangeId;
+  }
+  return lowestPending === undefined ? maxChangeId : lowestPending - 1;
 }
 
 /** 判定单条净操作的去向并执行 */
