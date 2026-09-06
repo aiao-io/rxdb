@@ -9,7 +9,12 @@ import {
   type PullRepositoryOptions,
   type PullRepositoryResult
 } from './pull-repository.js';
-import { pushRepository, type PushRepositoryOptions, type PushRepositoryResult } from './push-repository.js';
+import {
+  partialPushProgressOf,
+  pushRepository,
+  type PushRepositoryOptions,
+  type PushRepositoryResult
+} from './push-repository.js';
 import { getSyncCapability, getSyncType } from './sync-type-utils.js';
 
 /**
@@ -108,6 +113,49 @@ function rewrapPullFailure(error: unknown, namespace: string, entity: string): u
 }
 
 /**
+ * 把仓库级 push 的失败重新包装成**仓库同步**粒度的中断错误。
+ *
+ * 两段进度都不能因为 push 抛错而消失：
+ *
+ * - pull 阶段已落库的部分（`pullResult.persistedProgress`）；
+ * - push 阶段已发到远端、**不会回滚**的部分（`RxDBPartialSyncError.result.pushed > 0`）。
+ *   此前这里恒填 `emptyPushResult`，已经发出去的条目在聚合层看起来一条没推，
+ *   调用方据此重试就是重复推送。
+ *
+ * 两段都没有时原样抛：包一层空进度只会让调用方多剥一层。
+ *
+ * @param error - `pushRepository` 抛出的任意异常
+ * @param pullResult - 同一轮里 pull 阶段的结果，进度要一起交出去
+ * @param namespace - 实体命名空间
+ * @param entity - 实体名称
+ * @returns 待抛出的异常
+ */
+function rewrapPushFailure(
+  error: unknown,
+  pullResult: PullRepositoryResult,
+  namespace: string,
+  entity: string
+): unknown {
+  const normalized = error instanceof Error ? error : new Error(String(error));
+  const pushProgress = partialPushProgressOf(normalized);
+  const pushResult = pushProgress === undefined ? emptyPushResult(namespace, entity) : pushProgress;
+  const persistedProgress = pullResult.persistedProgress || pushResult.pushed > 0;
+  if (!persistedProgress) return normalized;
+
+  const partial: SyncRepositoryResult = {
+    pullResult,
+    pushResult,
+    persistedProgress,
+    historyInvalidated: pullResult.historyInvalidated
+  };
+  // 已经是 partial error 时取根因，避免调用方拿到「错误里套错误」
+  return new RxDBPartialSyncError<SyncRepositoryResult>(
+    partial,
+    normalized instanceof RxDBPartialSyncError ? normalized.cause : normalized
+  );
+}
+
+/**
  * 同步一个仓库（先拉取再推送）
  *
  * @param vm - VersionManager 实例
@@ -144,13 +192,17 @@ export async function syncRepository(
     const result = await _syncRepositoryImpl(vm, namespace, entity, options);
 
     // 触发完成事件
+    // 两个子结果在 SyncRepositoryResult 上都是必填：跳过的方向由 emptyPullResult /
+    // emptyPushResult 交出各计数为 0 的占位。此前的 `?.x ?? 0` 是跑不到的分支，
+    // 真出现 undefined 时它会把「结果缺失」伪装成「同步了 0 条」。
+    const { pullResult, pushResult } = result;
     const stats = {
-      pulled: result.pullResult?.pulled ?? 0,
-      pushed: result.pushResult?.pushed ?? 0,
-      compacted: (result.pullResult?.compacted ?? 0) + (result.pushResult?.compacted ?? 0),
-      failed: result.pushResult?.failed ?? 0,
-      conflictsResolved: result.pullResult?.conflictsResolved ?? 0,
-      conflictsDeferred: result.pullResult?.conflictsDeferred ?? 0
+      pulled: pullResult.pulled,
+      pushed: pushResult.pushed,
+      compacted: pullResult.compacted + pushResult.compacted,
+      failed: pushResult.failed,
+      conflictsResolved: pullResult.conflictsResolved,
+      conflictsDeferred: pullResult.conflictsDeferred
     };
     rxdb.dispatchEvent(new RepositorySyncCompleteEvent('sync', namespace, entity, stats));
 
@@ -228,18 +280,8 @@ async function _syncRepositoryImpl(
     try {
       pushResult = await pushRepository(vm, namespace, entity, options?.push);
     } catch (error) {
-      // pull 阶段已落库的进度不能因为 push 失败就消失：连同 pull 结果一起交出去
-      if (!pullResult.persistedProgress) throw error;
-      const partial: SyncRepositoryResult = {
-        pullResult,
-        pushResult: emptyPushResult(namespace, entity),
-        persistedProgress: true,
-        historyInvalidated: pullResult.historyInvalidated
-      };
-      throw new RxDBPartialSyncError<SyncRepositoryResult>(
-        partial,
-        error instanceof Error ? error : new Error(String(error))
-      );
+      // pull 已落库的进度、push 已发到远端的进度，都不能因为这次抛错就消失
+      throw rewrapPushFailure(error, pullResult, namespace, entity);
     }
   } else {
     // 仅远端或仅拉取：跳过推送，创建占位结果

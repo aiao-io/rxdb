@@ -115,6 +115,15 @@ export interface PushResult {
    * 关系：originalCount = pushed + failed + compacted
    */
   originalCount: number;
+
+  /**
+   * 本次推送中所有失败的仓库（按仓库顺序），没有失败时为空数组
+   *
+   * 与 {@link PullResult.failures} 同口径：多仓库聚合时不能只留第一个错误，
+   * 也不能把「一个仓库失败」折算成 `failed += 1` —— `failed` 的单位是**变更条数**，
+   * 混进仓库计数会直接破坏 `originalCount = pushed + failed + compacted`。
+   */
+  failures: SyncFailure[];
 }
 
 /**
@@ -155,6 +164,19 @@ export interface PullOptions {
    * @example [{ namespace: 'public', entity: 'Todo' }]
    */
   repositoryFilter?: (string | RepositoryIdentifier)[];
+
+  /**
+   * 冲突解决器
+   *
+   * 拉取时检测到本地未同步变更与远端变更针对同一实体即调用。
+   * 不传则用 {@link LWWConflictResolver}。
+   *
+   * @remarks
+   * 批量路径与逐仓库路径都会透传，两条路径对同一份冲突给出同样的结果。
+   * 运行时可自动应用的解决结果只有 `KEEP_LOCAL` 与 `KEEP_REMOTE`，
+   * 详见 {@link ConflictResolution}。
+   */
+  conflictResolver?: ConflictResolver;
 }
 
 // 这里原本还有一份 `CheckRepositoryUpdatesResult`，字段与
@@ -179,30 +201,6 @@ export interface PushOptions {
    * @example [{ namespace: 'public', entity: 'Todo' }]
    */
   repositoryFilter?: (string | RepositoryIdentifier)[];
-}
-
-/**
- * 远程同步配置选项
- */
-export interface RemoteSyncOptions {
-  /**
-   * 自动同步开关
-   *
-   * - `true`（默认）: 收到远程变更时立即应用到本地实体表
-   * - `false`: 缓存变更，等待用户调用 pull() 时批量应用
-   *
-   * @default true
-   */
-  autoSync?: boolean;
-
-  /**
-   * 冲突解决器
-   *
-   * 当 pull 时检测到本地未同步变更与远程变更冲突时调用
-   *
-   * @default new LWWConflictResolver()
-   */
-  conflictResolver?: ConflictResolver;
 }
 
 /**

@@ -34,7 +34,11 @@ vi.mock('../../version/pull-repository.js', async importOriginal => ({
   pullRepository: mocks.pullRepository
 }));
 
-vi.mock('../../version/push-repository.js', () => ({
+// 与上面 pull 同形：只替换 `pushRepository`，其余原样保留。
+// 整模块替换会把 `partialPushProgressOf` 一并抹掉，而 sync-repository 靠它拆出
+// 推送侧的部分进度 —— 抹掉即导入失败。
+vi.mock('../../version/push-repository.js', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../version/push-repository.js')>()),
   pushRepository: mocks.pushRepository
 }));
 
@@ -151,23 +155,25 @@ describe('syncRepository runtime boundaries', () => {
     expect(dispatchEvent.mock.calls[1]?.[0]).toBeInstanceOf(RepositorySyncErrorEvent);
   });
 
-  it('runs both directions for full sync and reports zero for sparse adapter results', async () => {
+  // 两个子结果在 SyncRepositoryResult 上都是必填，跳过的方向由 emptyPullResult /
+  // emptyPushResult 交出零值占位 —— 所以这里断言的是「原样透传 + compacted 取两侧之和」，
+  // 而不是从前那种「适配器少给字段就当 0」的兜底。少给字段是类型错误，不该由运行时消化。
+  it('runs both directions for full sync and forwards both adapter results verbatim', async () => {
     const { dispatchEvent, vm } = createVersionManager();
-    const sparsePullResult = { repository } as unknown as PullRepositoryResult;
-    const sparsePushResult = { repository } as unknown as PushRepositoryResult;
-    mocks.pullRepository.mockResolvedValue(sparsePullResult);
-    mocks.pushRepository.mockResolvedValue(sparsePushResult);
+    const pullResult = createPullResult();
+    const pushResult = createPushResult();
+    mocks.pullRepository.mockResolvedValue(pullResult);
+    mocks.pushRepository.mockResolvedValue(pushResult);
 
     const result = await syncRepository(vm, 'public', 'SyncEntity');
 
     expect(result).toEqual({
-      pullResult: sparsePullResult,
-      pushResult: sparsePushResult,
-      // persistedProgress 由 `pullResult.persistedProgress || pushResult.pushed > 0` 算出，稀疏输入下为 false；
-      // historyInvalidated 是纯透传，稀疏输入下就是 undefined —— 这里不补默认值，
-      // 免得把「适配器没给」伪装成「适配器给了 false」。
-      persistedProgress: false,
-      historyInvalidated: undefined
+      pullResult,
+      pushResult,
+      // persistedProgress = `pullResult.persistedProgress || pushResult.pushed > 0`
+      persistedProgress: true,
+      // historyInvalidated 是 pull 侧的纯透传
+      historyInvalidated: true
     });
     expect(mocks.pullRepository).toHaveBeenCalledOnce();
     expect(mocks.pushRepository).toHaveBeenCalledOnce();
@@ -177,11 +183,12 @@ describe('syncRepository runtime boundaries', () => {
       throw new RxDBError('Expected repository sync complete event');
     }
     expect(completeEvent.result).toEqual({
-      pulled: 0,
-      pushed: 0,
-      compacted: 0,
+      pulled: 2,
+      pushed: 3,
+      // 只有 compacted 是合并量：拉取压缩 1 + 推送压缩 2
+      compacted: 3,
       failed: 0,
-      conflictsResolved: 0,
+      conflictsResolved: 1,
       conflictsDeferred: 0
     });
   });

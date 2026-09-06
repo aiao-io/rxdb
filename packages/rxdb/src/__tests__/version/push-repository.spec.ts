@@ -6,13 +6,15 @@ import { PropertyType, RelationKind, SyncType, type SyncOptions } from '../../en
 import type { IRepository } from '../../repository/repository.interface.js';
 import type { RemoteMergeResult } from '../../rxdb-adapter.js';
 import type { RxDBEvent } from '../../rxdb-events.js';
-import { RepositorySyncBeginEvent, RepositorySyncCompleteEvent, RepositorySyncErrorEvent } from '../../rxdb-events.js';
+import { RepositorySyncBeginEvent, RepositorySyncErrorEvent } from '../../rxdb-events.js';
+import { RxDBPartialSyncError } from '../../RxDBError.js';
 import { RxDBBranch } from '../../system/branch.js';
 import { RxDBChange } from '../../system/change.js';
 import { RxDBSync } from '../../system/sync.js';
 import type { IRxDBChange } from '../../system/system.interface.js';
 import type { TransactionExecutor, TransactionExecutorFun } from '../../transaction/transaction-executor.interface.js';
-import { pushRepository } from '../../version/push-repository.js';
+import { RxDBDependencyFailedError } from '../../version/cascade-contract.js';
+import { pushRepository, type PushRepositoryResult } from '../../version/push-repository.js';
 import type { SwitchVersionActions } from '../../version/VersionManager.interface.js';
 import type { VersionManager } from '../../version/VersionManager.js';
 import { getRxDBChangeKey } from '../../version/VersionManager.utils.js';
@@ -74,6 +76,26 @@ const fullSync = (): SyncOptions => ({
 })
 class PushRemoteOnlyChild extends EntityBase {
   title!: string;
+}
+
+// 级联链的第三级：User(父) ← Post(子) ← PushComment(孙)。
+// 需要三级才能观察到「被阻断的节点」既不是目标仓、也不是失败仓 ——
+// 两级图里目标仓一失败就直接 reject，`relatedResults` 无从读起。
+@Entity({
+  name: 'PushComment',
+  sync: { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } },
+  properties: [{ name: 'body', type: PropertyType.string }],
+  relations: [
+    {
+      name: 'post',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'Post',
+      mappedProperty: 'comments'
+    }
+  ]
+})
+class PushComment extends EntityBase {
+  body!: string;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
@@ -448,10 +470,8 @@ describe('pushRepository', () => {
       })
     });
 
-    const result = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
-
-    expect(result).toMatchObject({ success: false, pushed: 0, failed: 1 });
-    expect(result.error).toEqual(
+    // 一条都没发到远端，抛裸错误（见 push-repository.ts 的 throwPushFailure）
+    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toEqual(
       expect.objectContaining({ message: 'Remote change mapping references unknown local change: 999' })
     );
     expect(change.remoteId).toBeNull();
@@ -470,7 +490,7 @@ describe('pushRepository', () => {
     expect(harness.currentSync.lastPushedChangeId).toBe(7);
   });
 
-  it('远端提交失败时返回错误统计，且不推进同步水位线', async () => {
+  it('远端提交失败时抛出，且不推进同步水位线', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const change = createChange({ id: 9 });
     const harness = createHarness({
@@ -481,24 +501,20 @@ describe('pushRepository', () => {
       }
     });
 
-    const result = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toEqual(
+      new Error('remote offline')
+    );
 
-    expect(result).toMatchObject({
-      success: false,
-      pushed: 0,
-      failed: 1,
-      compacted: 0,
-      originalCount: 1,
-      error: new Error('remote offline')
-    });
     expect(harness.currentSync.lastPushedChangeId).toBe(4);
     expect(harness.syncUpdate).not.toHaveBeenCalled();
+    // 失败发 Error 事件而不是 Complete。此前推送失败也发 Complete（载荷里 failed: 1），
+    // 只订阅 Complete 的监听方会把一次彻底失败的推送当成功收下。
     expect(harness.dispatchEvent.mock.calls.map(([event]) => event.constructor)).toEqual([
       RepositorySyncBeginEvent,
-      RepositorySyncCompleteEvent
+      RepositorySyncErrorEvent
     ]);
     expect(harness.dispatchEvent.mock.calls[1][0]).toEqual(
-      expect.objectContaining({ result: { pushed: 0, compacted: 0, failed: 1 } })
+      expect.objectContaining({ error: new Error('remote offline') })
     );
   });
 
@@ -529,9 +545,8 @@ describe('pushRepository', () => {
       }
     });
 
-    const first = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
-
-    expect(first).toMatchObject({ success: false, error: localError, pushed: 0, failed: 1 });
+    // 本地事务失败 = 远端已收但本地没记，`pushed` 记 0，抛裸错误
+    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toBe(localError);
     expect(change.remoteId).toBeNull();
     expect(harness.currentSync.lastPushedChangeId).toBeNull();
 
@@ -651,12 +666,16 @@ describe('pushRepository', () => {
       }
     });
 
-    const result = await pushRepository(harness.vm, 'public', 'User', {
+    const thrown = await pushRepository(harness.vm, 'public', 'User', {
       batchSize: 2,
       includeRelated: false
-    });
+    }).catch((error: unknown) => error);
 
-    expect(result).toMatchObject({
+    // 首批 2 条已经落到远端且不会回滚，进度随 RxDBPartialSyncError 一起交出去
+    expect(thrown).toBeInstanceOf(RxDBPartialSyncError);
+    const partial = thrown as RxDBPartialSyncError<PushRepositoryResult>;
+    expect(partial.cause).toBe(batchError);
+    expect(partial.result).toMatchObject({
       success: false,
       error: batchError,
       pushed: 2,
@@ -740,27 +759,31 @@ describe('pushRepository 级联调度契约（RXD-030）', () => {
  *
  * `Post` 的 `author` 是 MANY_TO_ONE → `User`，因此 User 是父、Post 是子。
  */
+/** 把每次 mergeChanges 的动作摊平成 `实体:动作` 序列，跨调用保持先后。 */
+const mergeTrace = (mergeChanges: ReturnType<typeof createHarness>['mergeChanges']): string[] =>
+  mergeChanges.mock.calls.flatMap(([actions]) => {
+    const kindOf = (kind: string, keys: Iterable<string>): string[] =>
+      [...keys].map(key => `${key.split(':')[1]}:${kind}`);
+    return [
+      ...kindOf('DELETE', actions.deletes.keys()),
+      ...kindOf('UPDATE', actions.updates.keys()),
+      ...kindOf('INSERT', actions.inserts.keys())
+    ];
+  });
+
+/**
+ * `User`（父）+ `Post`（子）两仓级联夹具。
+ *
+ * 两个仓都要有 sync 记录，否则关联仓那次 `getOrCreateSyncRecord` 无处落脚。
+ */
+const createCascadeHarness = (changes: RxDBChange[], overrides?: Partial<Parameters<typeof createHarness>[0]>) => {
+  const harness = createHarness({ changes, entities: [User, Post], ...overrides });
+  const postSync = createSyncRecord('Post', 'main', null);
+  harness.syncRecords.set(postSync.id, postSync);
+  return harness;
+};
+
 describe('pushRepository 级联提交顺序按 action 类型分流（RXD-060）', () => {
-  /** 把每次 mergeChanges 的动作摊平成 `实体:动作` 序列，跨调用保持先后。 */
-  const mergeTrace = (mergeChanges: ReturnType<typeof createHarness>['mergeChanges']): string[] =>
-    mergeChanges.mock.calls.flatMap(([actions]) => {
-      const kindOf = (kind: string, keys: Iterable<string>): string[] =>
-        [...keys].map(key => `${key.split(':')[1]}:${kind}`);
-      return [
-        ...kindOf('DELETE', actions.deletes.keys()),
-        ...kindOf('UPDATE', actions.updates.keys()),
-        ...kindOf('INSERT', actions.inserts.keys())
-      ];
-    });
-
-  /** 两个仓都要有 sync 记录，否则关联仓那次 `getOrCreateSyncRecord` 无处落脚。 */
-  const createCascadeHarness = (changes: RxDBChange[]) => {
-    const harness = createHarness({ changes, entities: [User, Post] });
-    const postSync = createSyncRecord('Post', 'main', null);
-    harness.syncRecords.set(postSync.id, postSync);
-    return harness;
-  };
-
   it('INSERT 必须父先子后（父行先落库，子行的外键才有得指）', async () => {
     const harness = createCascadeHarness([
       createChange({ id: 1, entity: 'User', type: 'INSERT' }),
@@ -840,6 +863,110 @@ describe('pushRepository 级联提交顺序按 action 类型分流（RXD-060）'
   });
 });
 
+/**
+ * 级联的**依赖闸门**必须跟着相位翻转，不能两个相位都问 `dependsOn`。
+ *
+ * 顺序对了不代表闸门对。DELETE 相位是子→父，「谁排在我前面」就是 `requiredBy`；
+ * INSERT/UPDATE 相位是父→子，才轮到 `dependsOn`。原实现两个相位都问 `dependsOn`，
+ * 于是子仓删除失败时父仓照删不误 —— 远端要么当场违反外键约束，要么留下一批
+ * 指向已删父行的孤儿，而结果里父仓还报 `success: true`。
+ *
+ * `Post.author` 是 MANY_TO_ONE → `User`：User 是父（`requiredBy: [Post]`），
+ * Post 是子（`dependsOn: [User]`）。
+ */
+describe('pushRepository 级联依赖闸门按相位翻转', () => {
+  /** DELETE 相位里子仓推失败，父仓的删除必须一条都不发。 */
+  it('DELETE 相位子仓失败时挡下父仓的删除', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const deleteError = new Error('post delete failed');
+    const harness = createCascadeHarness(
+      [
+        createChange({ id: 1, entity: 'User', type: 'DELETE' }),
+        createChange({ id: 2, entity: 'Post', type: 'DELETE' })
+      ],
+      {
+        mergeChanges: async actions => {
+          if ([...actions.deletes.keys()].some(key => key.startsWith('public:Post:'))) throw deleteError;
+        }
+      }
+    );
+
+    const thrown = await pushRepository(harness.vm, 'public', 'User').then(
+      () => {
+        throw new Error('expected pushRepository to reject');
+      },
+      (error: unknown) => error as RxDBDependencyFailedError
+    );
+
+    expect(thrown).toBeInstanceOf(RxDBDependencyFailedError);
+    expect(thrown.dependency).toEqual({ namespace: 'public', entity: 'Post' });
+    expect(thrown.cause).toBe(deleteError);
+    // 关键断言：User 的 DELETE 一条都没发出去
+    expect(mergeTrace(harness.mergeChanges)).toEqual(['Post:DELETE']);
+  });
+
+  /** 闸门只在该挡的时候挡：子仓删除成功时，父仓照常删。 */
+  it('DELETE 相位子仓成功时父仓照常删（守卫：闸门不能一刀切）', async () => {
+    const harness = createCascadeHarness([
+      createChange({ id: 1, entity: 'User', type: 'DELETE' }),
+      createChange({ id: 2, entity: 'Post', type: 'DELETE' })
+    ]);
+
+    const result = await pushRepository(harness.vm, 'public', 'User');
+
+    expect(mergeTrace(harness.mergeChanges)).toEqual(['Post:DELETE', 'User:DELETE']);
+    expect(result.success).toBe(true);
+  });
+
+  /**
+   * 被阻断的节点如果在**前一个相位**已经推了东西，这段进度必须如实交出去。
+   *
+   * 三级链 User ← Post ← PushComment：DELETE 相位（孙→父）三个仓全部推成功，
+   * INSERT 相位（父→孙）走到 Post 时失败，PushComment 随即被 `dependsOn` 挡下。
+   * 此时 PushComment 的 DELETE 早已发到远端。
+   *
+   * 此前这里无条件铺零进度，于是「远端确实收到了一条，结果里记作 0」，
+   * 而水位线又因为本轮失败不会推进，调用方从计数上完全看不出发生过部分推送。
+   */
+  it('跨相位被阻断的节点保留已推送进度，不被抹成 0', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const insertError = new Error('post insert failed');
+    const harness = createHarness({
+      entities: [User, Post, PushComment],
+      changes: [
+        createChange({ id: 1, entity: 'User', type: 'INSERT' }),
+        createChange({ id: 2, entity: 'Post', type: 'INSERT' }),
+        createChange({ id: 3, entity: 'PushComment', type: 'INSERT' }),
+        createChange({ id: 4, entity: 'PushComment', type: 'DELETE' })
+      ],
+      mergeChanges: async actions => {
+        if ([...actions.inserts.keys()].some(key => key.startsWith('public:Post:'))) throw insertError;
+      }
+    });
+    for (const entity of ['Post', 'PushComment']) {
+      const record = createSyncRecord(entity, 'main', null);
+      harness.syncRecords.set(record.id, record);
+    }
+
+    // 目标仓 User 自己推成功，所以整体 resolve；被阻断的孙仓在 relatedResults 里
+    const result = await pushRepository(harness.vm, 'public', 'User');
+
+    expect(result.success).toBe(true);
+
+    const blocked = result.relatedResults?.find(item => item.repository.entity === 'PushComment');
+    expect(blocked).toMatchObject({
+      success: false,
+      skipped: 'dependency public:Post failed',
+      // DELETE 相位那一条已经发到远端，剩下的 INSERT 因阻断没发出去
+      pushed: 1,
+      failed: 1,
+      originalCount: 2,
+      compacted: 0
+    });
+    expect(blocked?.error).toBeInstanceOf(RxDBDependencyFailedError);
+  });
+});
+
 // RXD-029：同 pull 一侧，`enabled` 此前对推送同样毫无约束力
 describe('pushRepository 尊重 RxDBSync.enabled（RXD-029）', () => {
   it('enabled = false 时拒绝推送，且不碰远端', async () => {
@@ -858,5 +985,67 @@ describe('pushRepository 尊重 RxDBSync.enabled（RXD-029）', () => {
 
     expect(result.pushed).toBe(1);
     expect(harness.mergeChanges).toHaveBeenCalled();
+  });
+});
+
+/**
+ * `pushRepository` 的失败契约只有一条：抛。
+ *
+ * 此前级联路径抛错、单仓路径 resolve 出 `success: false`，两种形状并存。
+ * `bulkSync.syncSingleRepository` 只看「有没有抛」来判定成败，于是单仓路径的失败
+ * 被记成 `success: true`，`BulkSyncResult.failed` 恒为 0 —— 推送失败在聚合层完全消失。
+ */
+describe('pushRepository 失败一律抛出', () => {
+  it('远端整批失败时抛出原始错误，而不是 resolve 出 success:false', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const remoteError = new Error('remote offline');
+    const harness = createHarness({
+      changes: [createChange({ id: 9 })],
+      currentWatermark: 4,
+      mergeChanges: async () => {
+        throw remoteError;
+      }
+    });
+
+    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toBe(remoteError);
+    // 一条都没发到远端，包一层 RxDBPartialSyncError 只会让调用方多剥一层
+    expect(harness.currentSync.lastPushedChangeId).toBe(4);
+  });
+
+  it('部分批次已发到远端时，抛出的错误带上已推送进度', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const remoteError = new Error('remote offline');
+    let batches = 0;
+    const harness = createHarness({
+      changes: [createChange({ id: 1, entityId: 'e1' as UUID }), createChange({ id: 2, entityId: 'e2' as UUID })],
+      mergeChanges: async () => {
+        batches++;
+        if (batches === 2) throw remoteError;
+        return { changeIdMapping: [{ localId: 1, remoteId: 101 }] };
+      }
+    });
+
+    const thrown = await pushRepository(harness.vm, 'public', 'User', {
+      includeRelated: false,
+      batchSize: 1
+    }).catch((error: unknown) => error);
+
+    // 第一批已经落到远端且不会回滚，这正是 RxDBPartialSyncError 的语义
+    expect(thrown).toBeInstanceOf(RxDBPartialSyncError);
+    const partial = thrown as RxDBPartialSyncError<PushRepositoryResult>;
+    expect(partial.cause).toBe(remoteError);
+    expect(partial.result).toMatchObject({ pushed: 1, failed: 1, originalCount: 2, success: false });
+    // 水位线不动：没推上去的那条下轮还要重发
+    expect(harness.currentSync.lastPushedChangeId).toBeNull();
+  });
+
+  it('推送成功时照常 resolve（守卫：不能改成一律抛）', async () => {
+    const harness = createHarness({ changes: [createChange({ id: 7 })] });
+
+    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).resolves.toMatchObject({
+      success: true,
+      pushed: 1,
+      failed: 0
+    });
   });
 });

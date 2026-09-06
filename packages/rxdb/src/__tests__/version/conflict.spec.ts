@@ -154,11 +154,13 @@ describe('LWWConflictResolver', () => {
   });
 
   describe('edge cases', () => {
-    it('should handle null createdAt gracefully', async () => {
+    // createdAt 在 IRxDBChange 上必填。从前它缺失会被折成 epoch 0：两侧同时塌成 0 就成平局，
+    // 胜负转由 clientId 字典序决定 —— 时间戳丢了这件事被吞掉，赢家却已经换人。
+    // LWW 的全部依据就是这个时间戳，拿不到就没有「合理的默认」，只能拒绝裁决。
+    it('createdAt 缺失时拒绝裁决而不是折成 epoch 0', async () => {
       const localChange = createChange(new Date('2025-01-01T10:00:00Z'));
       const remoteChange = createChange(new Date('2025-01-01T10:01:00Z'));
 
-      // 将 createdAt 设为 null（边界场景）。
       (localChange as { createdAt: Date | null }).createdAt = null;
 
       const conflict: Conflict = {
@@ -167,10 +169,7 @@ describe('LWWConflictResolver', () => {
         remote: remoteChange
       };
 
-      // 不应抛错，并应平稳处理。
-      const result = await resolver.resolve(conflict);
-      // null 时间按 0（epoch）处理，因此应以远程值为准。
-      expect(result.type).toBe('KEEP_REMOTE');
+      await expect(resolver.resolve(conflict)).rejects.toThrow();
     });
 
     it('should be async to support future async implementations', async () => {

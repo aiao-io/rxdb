@@ -145,6 +145,12 @@ const idsOf = (entities: readonly TreeNode[]): Array<string | undefined> => enti
 const activeWhere: RuleGroup<TreeNode> = { combinator: 'and', rules: [] };
 const matchesActive = (entity: TreeNode | null | undefined): boolean => entity?.active === true;
 
+/**
+ * 树形 count 的 `next(..., false)` 与 `merge_create` / `merge_remove` 的 count 分支同因：
+ * `QueryTask#next` 在 `autoCache=true` 时无条件清空 `resultEntityIds`，而 count 结果是个
+ * number，清空后不会被重新填充 —— 跨批次去重集合就此丢失，同一实体会被重复计数。
+ * 行为侧的证明见 `merge-update-basic.spec.ts` 的「count 更新不清空跨批次去重集合」。
+ */
 describe('merge-update-tree direct coverage', () => {
   describe('handleFindDescendantsUpdate', () => {
     it('keeps untouched and id-less results without notifying', () => {
@@ -741,7 +747,7 @@ describe('merge-update-tree direct coverage', () => {
         matches
       );
 
-      expect(next).toHaveBeenCalledWith(5);
+      expect(next).toHaveBeenCalledWith(5, false);
       expect(matches).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({ active: false, category: 'stable' }),
@@ -824,7 +830,7 @@ describe('merge-update-tree direct coverage', () => {
         matchesActive
       );
 
-      expect(next).toHaveBeenCalledWith(1);
+      expect(next).toHaveBeenCalledWith(1, false);
     });
   });
 
@@ -898,7 +904,7 @@ describe('merge-update-tree direct coverage', () => {
         matchesActive
       );
 
-      expect(next).toHaveBeenCalledWith(3);
+      expect(next).toHaveBeenCalledWith(3, false);
       expect(refresh).not.toHaveBeenCalled();
     });
 
@@ -921,7 +927,7 @@ describe('merge-update-tree direct coverage', () => {
         matchesActive
       );
 
-      expect(next).toHaveBeenCalledWith(0);
+      expect(next).toHaveBeenCalledWith(0, false);
     });
 
     it('reuses relation decisions for duplicate updates and emits no unchanged count', () => {

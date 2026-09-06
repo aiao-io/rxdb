@@ -320,19 +320,32 @@ describe('HistoryManager coverage', () => {
       const zeroId = harness.historyManager.history(zeroIdInstance);
       const metadata = getEntityMetadata(RxDBChange);
 
-      expect(database).toBe(explicitDatabase);
       expect(database.type).toBe('database');
       expect(repository.type).toBe('repository');
       expect(entity.type).toBe('entity');
       expect(zeroId.type).toBe('entity');
-      expect(harness.historyManager.history(RxDBChange)).toBe(repository);
+      expect(explicitDatabase.type).toBe('database');
+
+      // 「不同入参形式指向同一作用域」要在**订阅之下**比较：缓存条目的生死跟着引用计数走，
+      // 没有订阅者的 api 不进缓存（否则 history(record).undo() 会按记录 id 永久堆积，
+      // 见 history-scope-api.spec.ts）。所以先订阅让作用域成为该 cacheKey 的规范实例。
+      const databaseSub = harness.historyManager.history().histories$.subscribe();
+      const repositorySub = harness.historyManager.history(RxDBChange).histories$.subscribe();
+
+      const canonicalDatabase = harness.historyManager.history();
+      expect(harness.historyManager.history({ type: 'database' })).toBe(canonicalDatabase);
+
+      const canonicalRepository = harness.historyManager.history(RxDBChange);
       expect(
         harness.historyManager.history({
           entity: metadata.name,
           namespace: metadata.namespace,
           type: 'repository'
         })
-      ).toBe(repository);
+      ).toBe(canonicalRepository);
+
+      databaseSub.unsubscribe();
+      repositorySub.unsubscribe();
     });
 
     it('keeps a cached scope until its final subscription is released', () => {

@@ -244,7 +244,9 @@ export class EntityManager {
     const cache = this.#get_entity_cache_map(EntityType);
     let entity = cache.get(data.id);
     if (entity) {
-      getEntityStatus(entity).replace(data);
+      // 命中缓存不能无条件 replace：脏实体的本地编辑会被写进基线后清空，save() 随即静默 no-op。
+      // 策略判定统一收在 EntityStatus.applyExternal 里（见其 remarks）。
+      getEntityStatus(entity).applyExternal(data);
       return entity;
     } else {
       entity = Object.create(EntityType.prototype);
@@ -265,7 +267,7 @@ export class EntityManager {
    * @returns 实体实例，如果不存在则返回 undefined
    */
   getEntityRef<T extends EntityType>(EntityType: T, id: EntityStaticType<T, 'idType'>): InstanceType<T> | undefined {
-    return this.#get_entity_cache_map(EntityType)?.get(id);
+    return this.#get_entity_cache_map(EntityType).get(id);
   }
 
   /**
@@ -278,7 +280,7 @@ export class EntityManager {
    * @returns 如果实体在缓存中存在则返回 true
    */
   hasEntityRef<T extends EntityType>(EntityType: T, id: EntityStaticType<T, 'idType'>): boolean {
-    return this.#get_entity_cache_map(EntityType)?.has(id) === true;
+    return this.#get_entity_cache_map(EntityType).has(id);
   }
 
   /**
@@ -289,7 +291,7 @@ export class EntityManager {
    * @param entity - 要缓存的实体实例
    */
   addEntityCache<T extends EntityType>(entity: InstanceType<T>) {
-    this.#get_entity_cache_map(entity.constructor)?.set(entity.id, entity);
+    this.#get_entity_cache_map(entity.constructor).set(entity.id, entity);
   }
 
   /**
@@ -300,7 +302,7 @@ export class EntityManager {
    * @param entity - 要移除的实体实例
    */
   removeEntityCache<T extends EntityType>(entity: InstanceType<T>) {
-    this.#get_entity_cache_map(entity.constructor)?.delete(entity.id);
+    this.#get_entity_cache_map(entity.constructor).delete(entity.id);
   }
 
   /**

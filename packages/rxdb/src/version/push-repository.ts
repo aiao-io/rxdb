@@ -9,7 +9,7 @@ import { IRepository } from '../repository/repository.interface.js';
 import type { RemoteMergeResult, RxDBAdapterRemoteBase } from '../rxdb-adapter.js';
 import { RepositorySyncBeginEvent, RepositorySyncCompleteEvent, RepositorySyncErrorEvent } from '../rxdb-events.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
-import { RxDBError } from '../RxDBError.js';
+import { RxDBError, RxDBPartialSyncError } from '../RxDBError.js';
 import { RxDBChange } from '../system/change.js';
 import { RxDBSync } from '../system/sync.js';
 import { RxDBChangeRuleGroup } from '../system/types.js';
@@ -19,7 +19,7 @@ import { compactChanges } from './compact-changes.js';
 import { buildDependencyGraph, type DependencyGraph, type RepositoryIdentifier } from './dependency-graph.js';
 import { getOrCreateSyncRecord, resolvePushIneligibility } from './sync-record-utils.js';
 import { getSyncType } from './sync-type-utils.js';
-import { topologicalSortForAction, type SortActionKind } from './topological-sort.js';
+import { dependencyEdgeForAction, topologicalSortForAction, type SortActionKind } from './topological-sort.js';
 import type {
   PushRepositoryResult,
   SwitchVersionActions,
@@ -73,6 +73,57 @@ function assertBatchSize(batchSize: number): void {
   if (!Number.isSafeInteger(batchSize) || batchSize <= 0) {
     throw new RangeError('batchSize must be a positive safe integer');
   }
+}
+
+/**
+ * 从异常里取出推送侧的部分进度。
+ *
+ * 与 `partialRepositoryProgressOf`（pull 侧）对称：按 `PushRepositoryResult` 独有的
+ * `pushed` + `originalCount` 两个数值字段判形，`PullRepositoryResult` /
+ * `SyncRepositoryResult` 都没有它们，不会误判。
+ *
+ * @param error - 任意异常
+ * @returns 携带的推送结果；异常不是 `RxDBPartialSyncError` 或负载形状不符时返回 `undefined`
+ */
+export function partialPushProgressOf(error: Error): PushRepositoryResult | undefined {
+  if (!(error instanceof RxDBPartialSyncError)) return undefined;
+  const result: unknown = error.result;
+  if (!result || typeof result !== 'object') return undefined;
+  const candidate = result as Partial<PushRepositoryResult>;
+  return typeof candidate.pushed === 'number' && typeof candidate.originalCount === 'number' ?
+      (candidate as PushRepositoryResult)
+    : undefined;
+}
+
+/**
+ * 推送失败的唯一出口：一律抛，不 resolve 出 `success: false`。
+ *
+ * @remarks
+ * 此前级联路径抛错、单仓路径 resolve 出 `success: false`，两种形状并存。
+ * `bulkSync` 只看「有没有抛」来判定成败，于是单仓路径的失败被记成成功，
+ * `BulkSyncResult.failed` 恒为 0 —— 推送失败在聚合层完全消失。
+ *
+ * 抛什么则按有没有真的发出去东西分：
+ *
+ * - `pushed === 0`：一条都没到远端，包一层只会让调用方多剥一层，直接抛原始错误
+ *   （与 `pull.ts` / `pull-batch.ts` 的既有约定一致）；
+ * - `pushed > 0`：这些条目已经落在远端且**不会**因为本次抛错而回滚，
+ *   正是 {@link RxDBPartialSyncError} 的语义，进度挂在 `result` 上交出去。
+ *
+ * @param result - 失败的推送结果，`success` 必须为 `false`
+ * @throws 恒抛
+ * @internal
+ */
+function throwPushFailure(result: PushRepositoryResult): never {
+  const { error } = result;
+  // `success: false` 必然带 error（提交失败、远端失败、依赖阻断三条路径都会写）。
+  // 真出现缺失只可能是内部状态坏了，不能静默当成功。
+  if (!error) {
+    throw new RxDBError(`Internal error: repository ${repositoryKey(result.repository)} failed without an error`);
+  }
+
+  if (result.pushed === 0) throw error;
+  throw new RxDBPartialSyncError<PushRepositoryResult>(result, error);
 }
 
 /**
@@ -264,12 +315,10 @@ async function pushWithCascade(
   // `relatedResults` 里每一项的 `failures` 只覆盖它自己那一次子调用
   targetResult.failures = failures;
 
-  // 如果目标失败，则抛出其错误。关联仓失败但目标仓推送成功时不抛：
+  // 如果目标失败，则抛出。关联仓失败但目标仓推送成功时不抛：
   // 已经发到远端的变更不会因为抛错而回滚，调用方重试只会重复推送；
   // 失败清单通过 `failures` 交出去。
-  if (!targetResult.success && targetResult.error) {
-    throw targetResult.error;
-  }
+  if (!targetResult.success) throwPushFailure(targetResult);
 
   return targetResult;
 }
@@ -312,11 +361,13 @@ async function runCascadePhase(
   // 上一个相位已经定案（跳过 / 无变更 / 推失败），不再往下推
   if (node.result) return;
 
-  const blocked = findBlockingDependency(graph, repoKey, failedRepos);
+  // 阻断边随相位翻转：DELETE 相位子先父后（被 requiredBy 阻断），
+  // INSERT 相位父先子后（被 dependsOn 阻断）。理由见 findBlockingDependency 的 @remarks。
+  const blocked = findBlockingDependency(graph, repoKey, failedRepos, dependencyEdgeForAction(phase.action));
   if (blocked) {
     const error = new RxDBDependencyFailedError(repo, blocked.dependency, blocked.cause);
     node.result = {
-      ...emptyPushProgress(),
+      ...blockedPushProgress(node.plan),
       repository: repo,
       success: false,
       skipped: `dependency ${repositoryKey(blocked.dependency)} failed`,
@@ -397,6 +448,36 @@ async function cascadeNodeIneligibility(vm: VersionManager, repo: RepositoryIden
  */
 function emptyPushProgress(): Omit<PushRepositoryResult, 'repository'> {
   return { pushed: 0, failed: 0, compacted: 0, originalCount: 0, failures: [] };
+}
+
+/**
+ * 依赖失败时，把这个节点**已经发给远端**的进度如实交出去。
+ *
+ * 阻断是逐相位判定的：DELETE 相位可能已经把删除动作推上去了，
+ * 到 INSERT 相位才撞上依赖失败。此前这里无条件铺 {@link emptyPushProgress}，
+ * 于是「远端确实收到了几条，结果里记作 0」—— 而水位线又因为本轮失败不会推进，
+ * 调用方从计数上完全看不出发生过部分推送，回头对账「远端为什么多出几条」时无从查起。
+ *
+ * `failed` 与 {@link commitRepositoryPush} 同一个算式（`effectiveCount - pushed`），
+ * 保证「阻断」和「提交失败」两条路径交出的计数可以直接相加。
+ *
+ * 第一个相位就被阻断时没有 `plan`，各计数本就该是 0。
+ *
+ * @param plan - 该节点已完成的推送计划；尚未进入规划阶段时为 `undefined`
+ * @returns 除 `repository` 外的进度字段
+ *
+ * @internal
+ */
+function blockedPushProgress(plan: RepositoryPushPlan | undefined): Omit<PushRepositoryResult, 'repository'> {
+  if (!plan) return emptyPushProgress();
+
+  return {
+    pushed: plan.pushed,
+    failed: plan.effectiveCount - plan.pushed,
+    compacted: plan.compacted,
+    originalCount: plan.originalCount,
+    failures: []
+  };
 }
 
 type CompactedActionKind = 'deletes' | 'updates' | 'inserts';
@@ -838,7 +919,10 @@ async function pushSingleRepository(
   if ('emptyResult' in planned) return planned.emptyResult;
 
   await pushPlanEntries(planned, ALL_ACTION_KINDS, options.batchSize);
-  return commitRepositoryPush(planned);
+  const result = await commitRepositoryPush(planned);
+  // 与级联路径同一个失败出口，见 throwPushFailure 的 @remarks
+  if (!result.success) throwPushFailure(result);
+  return result;
 }
 
 /**

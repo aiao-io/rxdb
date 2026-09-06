@@ -23,6 +23,7 @@
  */
 
 import type { QueryCacheEntityMetadata } from '../entity/metadata-options.interface.js';
+import { isRemoteNewer } from './updated-at.utils.js';
 
 /**
  * Diff 结果，包含分类后的实体 ID
@@ -41,13 +42,14 @@ export interface DiffResult {
 /**
  * 比较远程元数据与本地元数据，确定同步动作
  *
- * 使用 ISO 8601 时间戳比较来判断新鲜度。
- * 所有 updatedAt 值必须是 ISO 8601 字符串（例如 "2024-01-12T08:30:00.000Z"）。
+ * 两侧 `updatedAt` 都**解析成时间点**后比较，不按字符串字典序。
  * 时间复杂度：O(n)，n = max(remote.length, local.size)
  *
- * @param remoteMetadata - 来自远程 adapter 的元数据（id + updatedAt，ISO 8601）
- * @param localMetadata - 来自本地 adapter 的 Map<id, updatedAt>（ISO 8601）
+ * @param remoteMetadata - 来自远程 adapter 的元数据（id + updatedAt，任何 `Date.parse` 认得的时间串）
+ * @param localMetadata - 来自本地 adapter 的 Map<id, updatedAt>
  * @returns 包含分类 ID 的 DiffResult
+ *
+ * @throws TypeError 任一侧的 `updatedAt` 无法解析成时间点时抛出。
  *
  * @example
  * ```typescript
@@ -59,9 +61,7 @@ export interface DiffResult {
  * ```
  *
  * @remarks
- * - ISO 8601 字符串可按字典序比较（"2024-01-02" > "2024-01-01"）
- * - 非 ISO 时间戳请在调用本函数前转换为 Date 对象
- * - 时区信息保留在 ISO 8601 格式中
+ * 从前这里按字典序比 ISO 字符串，见 {@link isRemoteNewer} 中记录的失效场景。
  */
 export function diffMetadata(
   remoteMetadata: QueryCacheEntityMetadata[],
@@ -84,10 +84,8 @@ export function diffMetadata(
     } else {
       matchedLocalIds.add(remote.id);
 
-      // 按 ISO 8601 字符串比较时间戳（可按字典序比较）
-      // 两个值都必须是合法的 ISO 8601 格式，比较才正确
-      // 示例："2024-01-12T10:00:00.000Z" > "2024-01-12T09:00:00.000Z"
-      if (remote.updatedAt > localUpdatedAt) {
+      // 比时间点，不比字符串：两侧的格式来自不同后端，不能假定一致（见函数 TSDoc）
+      if (isRemoteNewer(remote.updatedAt, localUpdatedAt, `diffMetadata: 实体 '${remote.id}' 的`)) {
         // 远程较新 → stale
         staleIds.push(remote.id);
       } else {

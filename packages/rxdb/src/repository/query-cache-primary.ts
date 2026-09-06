@@ -338,8 +338,7 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
       return;
     }
     const generation = this.syncMemo.generation;
-    await this.#runSync(options);
-    this.syncMemo.remember(fingerprint, generation);
+    await this.#runSync(options, () => this.syncMemo.remember(fingerprint, generation));
   }
 
   /**
@@ -352,15 +351,35 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
    *
    * 后台阶段的失败不上抛（Promise 已 settle）——缓存已经交付给调用方，
    * `QueryCacheRepository` 本身也在缓存发射后把远端错误吞成 `EMPTY`。
-   * 缓存未发射时的失败照常 reject。失败不进记忆：下次读必须重新校验。
+   * 缓存未发射时的失败照常 reject。
+   *
+   * `onValidated` 只在**整条流跑完且远端校验没报错**时调用，不能挂在 `next` 上：
+   * SWR 下第一次发射是本地缓存，此刻远端校验还没跑完。跟着它记「刚同步过」，
+   * 后台的远端失败就再也阻止不了这次记忆 —— 整个 `syncStaleTime` 窗口内每次读都短路，
+   * 永不重试远端，而缓存已经发射过，失败连异常都不会露头。被吞掉的远端失败
+   * 靠 `onRemoteError` 上报（见 {@link QueryCacheFindOptions.onRemoteError}）。
+   *
+   * @param options - 透传给 `QueryCacheRepository.find` 的同步选项
+   * @param onValidated - 远端校验确实成功时调用；失败或流被打断都不调用
    */
-  #runSync(options: QueryCacheSyncOptions): Promise<void> {
+  #runSync(options: QueryCacheSyncOptions, onValidated: () => void): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      this.#cache.find(options).subscribe({
-        next: () => resolve(),
-        error: (error: unknown) => reject(error as Error),
-        complete: () => resolve()
-      });
+      let remoteFailed = false;
+      this.#cache
+        .find({
+          ...options,
+          onRemoteError: () => {
+            remoteFailed = true;
+          }
+        })
+        .subscribe({
+          next: () => resolve(),
+          error: (error: unknown) => reject(error as Error),
+          complete: () => {
+            if (!remoteFailed) onValidated();
+            resolve();
+          }
+        });
     });
   }
 

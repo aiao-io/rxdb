@@ -163,10 +163,21 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     }
   }
 
+  /**
+   * 销毁本仓储：摘掉事件监听、清空同步记忆、关掉查询管理器。
+   *
+   * @remarks
+   * `#syncMemo.clear()` 不是顺手做的清理，而是**释放资源**：记忆表的每一条都挂着一个
+   * `setTimeout`，窗口由 `syncStaleTime` 决定（可配成分钟级）。不清的话，断连时销毁的
+   * 仓储连同它的记忆闭包会被这些计时器钉在事件循环上直到窗口自己走完 —— Node / Electron
+   * 里这还会拖住进程退出。`clear()` 同时递增代次，销毁瞬间还在飞的同步回来时不会把
+   * 记忆写回一个已经死掉的仓储。
+   */
   destroy() {
     this.#destroyed = true;
     if (this.#syncMemo !== undefined) {
       this.rxdb.removeEventListener(REMOTE_ENTITY_INVALIDATED_EVENT, this.#onRemoteEntityInvalidated);
+      this.#syncMemo.clear();
     }
     this.queryManager.destroy();
   }

@@ -500,6 +500,39 @@ describe('pullBatch production coverage', () => {
     expect(harness.syncRepository.create).not.toHaveBeenCalled();
   });
 
+  /**
+   * 批量拉取此前写死 `new LWWConflictResolver()`，调用方给的解决器完全够不着 ——
+   * 同一个自定义策略走 `pullRepository` 生效、走 `pull()` 默认的批量路径静默失效。
+   * 上一个用例是 LWW 的基线（同样的冲突判 KEEP_REMOTE，`applied: 1`），
+   * 这里换成 KEEP_LOCAL，结果必须跟着变。
+   */
+  it('批量拉取使用调用方传入的冲突解决器，而不是写死的 LWW', async () => {
+    const childSync = createSyncRecord('PullBatchChild', 'main', 20, 100);
+    const childPending = createLocalChange(102, 'PullBatchChild', 'child-1', new Date('2026-01-01T00:00:10.000Z'));
+    const conflicting = createRemoteChange({
+      id: 22,
+      entity: 'PullBatchChild',
+      entityId: 'child-1',
+      patch: { status: 'done' },
+      inversePatch: { status: 'todo' },
+      clientId: 'other-client'
+    });
+    const harness = createHarness({
+      entities: [PullBatchChild],
+      syncRecords: [childSync],
+      localChanges: [childPending],
+      batchChanges: [conflicting]
+    });
+    const resolve = vi.fn(async () => ({ type: 'KEEP_LOCAL' }) as const);
+
+    const result = await pullBatch(harness.vm, { limit: 4, conflictResolver: { resolve } });
+
+    expect(resolve).toHaveBeenCalledTimes(1);
+    // KEEP_LOCAL：冲突算解决了，但远端那条不落库
+    expect(result).toMatchObject({ pulled: 1, applied: 0, conflictsResolved: 1 });
+    expect(harness.mergeChanges).not.toHaveBeenCalled();
+  });
+
   it('keeps same-named entities isolated by namespace', async () => {
     const publicSync = createSyncRecord('PullBatchParent', 'main', 0);
     const tenantSync = createSyncRecord('PullBatchParent', 'main', 0, null, 'tenant');

@@ -62,7 +62,11 @@ export function resolveHistoryScope<T extends EntityType>(options?: T | Instance
 /**
  * 创建（或从缓存取出）特定作用域的历史 API。
  *
+ * @remarks
  * 引用计数由 wrapObservable 对称管理（addRef / cleanup 成对出现），不再挂 finalize。
+ * 缓存条目的生死跟着引用计数走：第一个订阅者出现时入表，最后一个退订时摘掉。
+ * 因此「只调方法不订阅」的用法不产生任何常驻状态 —— 它拿到的是个短命对象，
+ * 用完即由 GC 回收。
  */
 export function createHistoryScopeApi<T extends EntityType>(
   host: HistoryScopeApiHost,
@@ -87,6 +91,11 @@ export function createHistoryScopeApi<T extends EntityType>(
   const addRef = () => {
     const count = (host.history_ref_counts.get(cacheKey) || 0) + 1;
     host.history_ref_counts.set(cacheKey, count);
+    // 入表推迟到第一个订阅者出现，与 `cleanup` 的摘除严格对称。
+    // 此前在函数末尾无条件入表：只调方法不订阅（`history(record).undo()`）的调用方
+    // 引用计数永远是 0，`cleanup` 永远不跑，条目就永久留下 —— 而 cacheKey 是按
+    // 记录 id 分的，每 undo 一条不同记录就多漏一条，没有上界。
+    host.history_cache.set(cacheKey, api);
   };
 
   const wrapObservable = <U>(source: Observable<U>): Observable<U> =>
@@ -172,6 +181,5 @@ export function createHistoryScopeApi<T extends EntityType>(
       })
   };
 
-  host.history_cache.set(cacheKey, api);
   return api;
 }

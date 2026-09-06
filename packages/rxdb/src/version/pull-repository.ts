@@ -23,9 +23,11 @@ import type {
   SyncFailure
 } from './VersionManager.interface.js';
 import type { VersionManager } from './VersionManager.js';
+import { getAncestorBranchIds } from './branch-utils.js';
 import { findBlockingDependency, repositoryKey, RxDBDependencyFailedError } from './cascade-contract.js';
 import { compactChanges } from './compact-changes.js';
 import { buildDependencyGraph, type DependencyGraph } from './dependency-graph.js';
+import { pullAncestorBranchChanges } from './pull-ancestor-changes.js';
 import {
   countActions,
   createConflictActionEntries,
@@ -348,7 +350,10 @@ async function pullCascadeNode(
 ): Promise<PullRepositoryResult> {
   const repoKey = repositoryKey(repo);
 
-  const blocked = findBlockingDependency(graph, repoKey, failedRepos);
+  // pull 只有一趟、且是父先子后，阻断关系恒定沿 `dependsOn`：父拉不下来，
+  // 子的外键就没有可指向的行。push 侧分两个相位，边随相位翻转（见
+  // findBlockingDependency 的 @remarks）。
+  const blocked = findBlockingDependency(graph, repoKey, failedRepos, 'dependsOn');
   if (blocked) {
     return {
       ...emptyRepositoryProgress(),
@@ -472,8 +477,10 @@ async function pullSingleRepository(
   const { adapter: remoteAdapter } = await vm.getRemoteRepositories();
   const { adapter: localAdapter } = await vm.getLocalRepositories();
 
-  // 获取当前分支
+  // 获取当前分支。水位线记录仍按当前分支存（`${ns}:${entity}:${branch.id}`），
+  // 但拉取范围要覆盖整条祖先链 —— 两者是不同的东西，不能混为一谈。
   const branch = await vm.getCurrentBranch();
+  const branchIds = await getAncestorBranchIds(vm, branch.id);
 
   // 获取或创建 RxDBSync 记录
   const repoSyncRepo = localAdapter.getRepository(RxDBSync);
@@ -519,13 +526,13 @@ async function pullSingleRepository(
   try {
     do {
       // 按仓库和分支过滤拉取变更（支持 filter 条件）
-      // 单仓拉取此前只传裸实体名，同名实体跨 namespace 存在时会解析歧义
-      const remoteChanges = await remoteAdapter.pullChanges(
-        sinceId,
-        options.limit,
-        [`${namespace}:${entity}`],
-        options.filter,
-        branch.id
+      // 分支范围取整条祖先链，与 pullBatch / pushRepository 同口径：只传当前分支
+      // 会让父分支上的变更永远拉不到（分支是 patch 模型，父分支的记录物理上仍归属父分支）。
+      // 详见 pullAncestorBranchChanges 的 @remarks。
+      const remoteChanges = await pullAncestorBranchChanges(
+        remoteAdapter,
+        { namespace, entity, sinceId, limit: options.limit, filter: options.filter },
+        branchIds
       );
 
       totalPulled += remoteChanges.length;

@@ -415,14 +415,40 @@ export class RxDB {
     this.#freeze_config();
   }
 
+  /**
+   * 初始化实例：装配插件、拉起 Schema / Entity / Version 管理器、开网关与事件系统。
+   *
+   * 幂等：已初始化时直接返回。`connect()` 会在同步段自行调用它，通常无需手动调用。
+   *
+   * @throws 实例正处于 `#shutdown()` 的拆卸窗口内时抛出。
+   *
+   * @remarks
+   * 任一管理器初始化抛错都会把初始化标志、插件登记与连接作用域一并回滚，
+   * 调用方修好问题后重新 `init()` 能真正重跑剩余步骤，而不是被半套状态挡住。
+   */
   init() {
+    // 拆卸窗口内不能重新初始化：此刻 #rxdb_initialized 仍为 true，早退会让调用方拿到一个
+    // 「已初始化」的承诺，而 #shutdown() 随后会把插件、网关、versionManager 逐个销毁，
+    // 留下一个空壳。抛错让调用方等拆卸结束后重来。
+    if (this.#shutting_down) {
+      throw new Error('[RxDB] init() rejected: instance is shutting down');
+    }
     if (this.#rxdb_initialized) return;
     this.#rxdb_initialized = true;
     if (!this.#context.clientId) {
       this.#context.clientId = uuid();
     }
     // 初始化本地和远程适配器名称
-    const { local, remote } = this.#config.sync || {};
+    //
+    // `sync` 在 RxDBOptions 上是必填，且 `rxdb.private.ts` 的 isLocalAdapter 直接
+    // 解引用 `options.sync.local`。从前这里写 `|| {}`，同一个字段两套契约：JS 调用方
+    // 或反序列化出来的旧配置漏了 sync 时，这里静默当成空对象放行，随后要么在
+    // isLocalAdapter 里炸一个看不懂的 TypeError，要么造出一个没有任何适配器的空实例。
+    // 在入口点破，错误信息指向真正该改的地方。
+    if (!this.#config.sync) {
+      throw new Error('[RxDB] init() 失败：配置缺少库级 sync，无法确定 local / remote 适配器');
+    }
+    const { local, remote } = this.#config.sync;
     if (local) this.#local_adapter_sub.next(local.adapter);
     if (remote) this.#remote_adapter_sub.next(remote.adapter);
     // 安装插件并初始化各个管理器
@@ -944,6 +970,11 @@ export class RxDB {
    * 不复位则重连后每个实体事件都会被塞进 `#need_dispatch_events` 永不派发）。
    */
   async #shutdown(): Promise<void> {
+    // 与 disconnectAll 同口径，且必须在这里再做一次：#shutdown() 也可能从 disconnect()
+    // 单点进来（断的是最后一个已连接适配器），那条路径只作废了自己那一个适配器，
+    // 其余仍在引导中的 connect() 会在拆卸完成后醒来，把刚清空的已连接集合重新填上。
+    // 作废是同步的、不等它们落地（理由见 #invalidate_connect）。
+    for (const adapterName of this.#connect_promise_map.keys()) this.#invalidate_connect(adapterName);
     // 先于任何 await 置位：拆卸期间进来的 use() 只登记不安装（见 #shutting_down）。
     this.#shutting_down = true;
     await this.#destroy_plugin();

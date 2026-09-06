@@ -5,6 +5,7 @@ import type { EntityMetadata } from '../../entity/metadata.interface.js';
 import type { OperatorName, Rule, RuleGroup } from '../../repository/query.interface.js';
 import type { RxDB } from '../../RxDB.js';
 import { METADATA } from '../../rxdb.private.js';
+import { RxDBBranch } from '../../system/branch.js';
 import { getRxDBEntityIdentityKey } from '../../system/change-codec.js';
 import { RxDBChange } from '../../system/change.js';
 import { RxDBSync } from '../../system/sync.js';
@@ -127,17 +128,24 @@ function createStatusHarness(options: StatusHarnessOptions) {
   });
   const syncRepository = { find: syncFind };
   const changeRepository = { find: changeFind };
+  // 远端计数覆盖整条祖先链，`getAncestorBranchIds` 会沿 parentId 上溯；本文件的分支都挂在 main 下
+  const branchFind = vi.fn(async (): Promise<RxDBBranch[]> => [{ id: branchId, parentId: 'main' } as RxDBBranch]);
+  const branchRepository = { find: branchFind };
   const getRepository = vi.fn((EntityClass: unknown) => {
     if (EntityClass === RxDBSync) return syncRepository;
     if (EntityClass === RxDBChange) return changeRepository;
+    if (EntityClass === RxDBBranch) return branchRepository;
     throw new Error('Unexpected repository request');
   });
   const localAdapter = { getRepository };
-  const getChangeCount = vi.fn<GetChangeCount>(async (_sinceId, repositoryFilter) => {
+  const getChangeCount = vi.fn<GetChangeCount>(async (_sinceId, repositoryFilter, queriedBranchId) => {
     const entity = repositoryFilter?.[0];
     if (!entity) {
       throw new Error('Missing remote repository filter');
     }
+    // `remoteCounts` 描述的是**当前分支**上的远端变更；祖先分支上没有，返回零。
+    // 计数跨祖先链相加，用同一个值应答所有分支会让每条祖先都凭空翻一倍。
+    if (queriedBranchId !== branchId) return { count: 0, latestChangeId: 0 };
     const result = options.remoteCounts?.get(entity);
     if (!result) {
       throw new Error(`Missing remote count for ${entity}`);
@@ -374,8 +382,17 @@ describe('repository sync status coverage', () => {
     });
     // 原先的第二次扫描来自 local-only 实体；它已被认定为不可推，不再白扫一遍变更表
     expect(harness.changeFind).toHaveBeenCalledTimes(1);
-    expect(harness.getChangeCount).toHaveBeenNthCalledWith(1, 9, ['public:FilteredOrder'], branchId);
-    expect(harness.getChangeCount).toHaveBeenNthCalledWith(2, 0, ['public:RemoteFeed'], branchId);
+    // 每个仓库按自己的水位线问，且覆盖整条祖先链（当前分支 + main）——
+    // 只问当前分支会漏掉父分支上的变更，`pullableCount` 归零而 pull 其实还有东西要拉
+    expect(harness.getChangeCount).toHaveBeenCalledTimes(4);
+    expect(harness.getChangeCount.mock.calls).toEqual(
+      expect.arrayContaining([
+        [9, ['public:FilteredOrder'], branchId],
+        [9, ['public:FilteredOrder'], 'main'],
+        [0, ['public:RemoteFeed'], branchId],
+        [0, ['public:RemoteFeed'], 'main']
+      ])
+    );
 
     await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'FilteredOrder')).resolves.toEqual({
       repository: { namespace: 'public', entity: 'FilteredOrder' },

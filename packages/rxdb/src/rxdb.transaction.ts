@@ -58,6 +58,12 @@ export function runIsolated<T>(items: Iterable<T>, fn: (item: T) => void): void 
  * @remarks
  * 排空某个事务的队列时必须走这里而不是 `dispatchEvent`：并发事务下另一个上下文
  * 可能还开着，走 `dispatchEvent` 会把刚放行的事件重新塞进它的队列。
+ *
+ * 同一事件内的监听器**不做隔离**：第一个抛错就中断，后面的不再调用。这是普通事件的
+ * 既定契约（见 `RxDB.spec.ts`「普通事件监听器抛错时应该保持 fail-fast」），与项目
+ * 「暴露问题而不是兜底」的原则一致 —— 继续调用后续监听器等于替出错方兜底。
+ * 需要跨项隔离的只有「批量」语义：事务事件的监听器列表、以及提交/回滚排空队列时的
+ * 事件之间，那两处由调用点自己包 {@link runIsolated}。
  */
 export function emitEvent(
   event_map: Map<keyof RxDBEventMap, Set<EventListener<RxDBEvent>>>,

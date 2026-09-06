@@ -15,6 +15,51 @@ import type { DependencyGraph, RepositoryIdentifier } from './dependency-graph.j
 export type SortDirection = 'pull' | 'push';
 
 /**
+ * 依赖图上的一条边。
+ *
+ * - `dependsOn`：本仓库**依赖**的仓库（父，外键指过去的那一端）
+ * - `requiredBy`：**依赖本仓库**的仓库（子，外键指过来的那一端）
+ */
+export type DependencyEdge = 'dependsOn' | 'requiredBy';
+
+/**
+ * 排序方向沿依赖图上的哪条边展开。
+ *
+ * 这条对应关系是整个级联调度的枢纽，所以只在这里写一次：拓扑序沿哪条边建立，
+ * 「谁排在我前面」就是哪条边，级联的依赖闸门也必须看同一条边。
+ * 从前它以 `direction === 'pull' ? dep.dependsOn : dep.requiredBy` 的形式散在
+ * {@link topologicalSort} 里，闸门那一侧则各写各的，于是 DELETE 相位的闸门看错了边。
+ */
+export function dependencyEdgeOf(direction: SortDirection): DependencyEdge {
+  return direction === 'pull' ? 'dependsOn' : 'requiredBy';
+}
+
+/**
+ * 本相位该按哪个方向排序。
+ *
+ * DELETE 子先父后、INSERT/UPDATE 父先子后，理由见 {@link topologicalSortForAction}。
+ */
+function sortDirectionForAction(action: SortActionKind): SortDirection {
+  return action === 'DELETE' ? 'push' : 'pull';
+}
+
+/**
+ * 本相位的依赖闸门该看哪条边 —— 也就是「本相位里谁排在我前面」。
+ *
+ * DELETE 相位子先父后，父被子阻断，看 `requiredBy`；
+ * INSERT/UPDATE 相位父先子后，子被父阻断，看 `dependsOn`。
+ *
+ * 与 {@link topologicalSortForAction} 共用 {@link sortDirectionForAction}，
+ * 保证「执行顺序」和「阻断关系」不可能各说各话。
+ *
+ * @param action - 本相位提交的变更类型
+ * @returns 该相位下判定阻断所依据的依赖边
+ */
+export function dependencyEdgeForAction(action: SortActionKind): DependencyEdge {
+  return dependencyEdgeOf(sortDirectionForAction(action));
+}
+
+/**
  * 拓扑排序
  *
  * @param graph - 依赖图
@@ -55,8 +100,8 @@ export function topologicalSort(graph: DependencyGraph, direction: SortDirection
       throw new RxDBError(`Repository ${key} not found in dependency graph`);
     }
 
-    // 根据方向选择遍历的邻居
-    const neighbors = direction === 'pull' ? dep.dependsOn : dep.requiredBy;
+    // 根据方向选择遍历的邻居（边的选择集中在 dependencyEdgeOf，闸门那一侧读同一份）
+    const neighbors = dep[dependencyEdgeOf(direction)];
 
     for (const neighbor of neighbors) {
       const neighborKey = `${neighbor.namespace}:${neighbor.entity}`;
@@ -137,7 +182,7 @@ export type SortActionKind = 'INSERT' | 'UPDATE' | 'DELETE';
  * ```
  */
 export function topologicalSortForAction(graph: DependencyGraph, action: SortActionKind): RepositoryIdentifier[] {
-  return topologicalSort(graph, action === 'DELETE' ? 'push' : 'pull');
+  return topologicalSort(graph, sortDirectionForAction(action));
 }
 
 /**

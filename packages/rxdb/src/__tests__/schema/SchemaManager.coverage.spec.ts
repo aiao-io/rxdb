@@ -14,7 +14,6 @@ import type { IRxDBAdapter } from '../../rxdb-adapter.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
 import type { MigrationType } from '../../rxdb.interface.js';
 import { RxDB } from '../../RxDB.js';
-import { RxDBError } from '../../RxDBError.js';
 import { RxDBBranch } from '../../system/branch.js';
 import { RxDBChange } from '../../system/change.js';
 import { RxDBMigration } from '../../system/migration.js';
@@ -433,7 +432,10 @@ describe('SchemaManager coverage', () => {
 
     const database = createDatabase([BrokenArticle, UnmappedTag]);
 
-    expect(() => database.init()).toThrow(new RxDBError('mapped relation not found'));
+    // 报错要点名双方，否则用户只知道"某处"少了反向关系
+    expect(() => database.init()).toThrow(/BrokenArticle\.tags/);
+    expect(() => database.init()).toThrow(/UnmappedTag/);
+    expect(() => database.init()).toThrow(/articles/);
   });
 
   it('rejects two different entities registered with the same name in the same namespace (RXD-008)', () => {

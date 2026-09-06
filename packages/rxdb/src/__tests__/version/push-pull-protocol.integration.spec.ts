@@ -5,11 +5,12 @@ import type { RuleGroup } from '../../repository/query.interface.js';
 import type { IRepository } from '../../repository/repository.interface.js';
 import type { RemoteMergeResult } from '../../rxdb-adapter.js';
 import type { RxDBEvent } from '../../rxdb-events.js';
+import { RxDBPartialSyncError } from '../../RxDBError.js';
 import { RxDBChange } from '../../system/change.js';
 import { RxDBSync } from '../../system/sync.js';
 import type { IRxDBChange, RemoteChange } from '../../system/system.interface.js';
 import { pullRepository } from '../../version/pull-repository.js';
-import { pushRepository } from '../../version/push-repository.js';
+import { pushRepository, type PushRepositoryResult } from '../../version/push-repository.js';
 import type { SwitchVersionActions } from '../../version/VersionManager.interface.js';
 import type { VersionManager } from '../../version/VersionManager.js';
 import { User } from '../fixtures/test-entities.js';
@@ -318,12 +319,16 @@ describe('push/pull protocol integration', () => {
     const error = new Error('second batch failed');
     harness.setMergeFailure({ call: 2, error });
 
-    const firstResult = await pushRepository(harness.vm, 'public', 'User', {
+    const thrown = await pushRepository(harness.vm, 'public', 'User', {
       batchSize: 2,
       includeRelated: false
-    });
+    }).catch((caught: unknown) => caught);
 
-    expect(firstResult).toMatchObject({
+    // 首批已经落到远端且不会回滚，进度随 RxDBPartialSyncError 交出去
+    expect(thrown).toBeInstanceOf(RxDBPartialSyncError);
+    const partial = thrown as RxDBPartialSyncError<PushRepositoryResult>;
+    expect(partial.cause).toBe(error);
+    expect(partial.result).toMatchObject({
       success: false,
       error,
       pushed: 2,
@@ -369,11 +374,11 @@ describe('push/pull protocol integration', () => {
     const commitError = new Error('local commit failed');
     harness.saveMany.mockRejectedValueOnce(commitError);
 
-    const firstResult = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+    // 本地事务失败 = `pushed` 记 0，抛裸错误而不是 resolve 出 success:false
+    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toBe(commitError);
 
     // 远端确实写进去了——故障点在这之后
     expect(harness.remoteChanges.map(change => change.localId)).toEqual([1, 2]);
-    expect(firstResult).toMatchObject({ success: false, error: commitError, pushed: 0, failed: 2 });
     // 本地必须干净回滚，不能留半截 remoteId 或已推进的水位线
     expect(changes.map(change => change.remoteId)).toEqual([null, null]);
     expect(harness.syncRecord.lastPushedChangeId).toBeNull();

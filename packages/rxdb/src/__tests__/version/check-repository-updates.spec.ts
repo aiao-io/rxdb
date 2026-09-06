@@ -5,6 +5,7 @@ import type { EntityMetadata } from '../../entity/metadata.interface.js';
 import type { IRepository } from '../../repository/repository.interface.js';
 import type { RxDB } from '../../RxDB.js';
 import { METADATA } from '../../rxdb.private.js';
+import { RxDBBranch } from '../../system/branch.js';
 import { RxDBSync } from '../../system/sync.js';
 import { checkRepositoryUpdates } from '../../version/check-repository-updates.js';
 
@@ -90,25 +91,53 @@ function createSyncRecord(entity: string, lastPullRemoteChangeId: number | null)
   return record;
 }
 
+interface RemoteCount {
+  count: number;
+  latestChangeId: number;
+}
+
 interface CheckHarnessOptions {
   entities: EntityType[];
   branchId?: string;
   syncRecords?: RxDBSync[];
-  remoteResult?: { count: number; latestChangeId: number };
+  remoteResult?: RemoteCount;
   remoteConfigured?: boolean;
   globalSync?: SyncOptions;
+
+  /** 分支 id → 父分支 id，`getAncestorBranchIds` 沿它向上走 */
+  branchParents?: Readonly<Record<string, string | null>>;
+
+  /** 分支 id → 该分支上的计数结果；给定时按 `branchId` 逐分支应答，未列出的分支直接报错 */
+  remoteResultByBranch?: Readonly<Record<string, RemoteCount>>;
 }
 
 function createCheckHarness(options: CheckHarnessOptions) {
   const syncFind = vi.fn<SyncFind>(async () => options.syncRecords ?? []);
   const syncRepository = { find: syncFind } as unknown as IRepository<typeof RxDBSync>;
+  // `getAncestorBranchIds` 沿 parentId 逐级向上查，非 main 分支才会走到这里
+  const branchParents = options.branchParents ?? {};
+  const branchFind = vi.fn(async (query: QueryOptions): Promise<RxDBBranch[]> => {
+    const id = query.where?.rules.find(rule => rule.field === 'id')?.value;
+    if (typeof id !== 'string') return [];
+    return [{ id, parentId: branchParents[id] ?? null } as RxDBBranch];
+  });
+  const branchRepository = { find: branchFind } as unknown as IRepository<typeof RxDBBranch>;
   const localAdapter = {
     getRepository: vi.fn((EntityClass: unknown) => {
       if (EntityClass === RxDBSync) return syncRepository;
+      if (EntityClass === RxDBBranch) return branchRepository;
       throw new Error('Unexpected repository request');
     })
   };
-  const getChangeCount = vi.fn<GetChangeCount>(async () => options.remoteResult ?? { count: 0, latestChangeId: 0 });
+  const getChangeCount = vi.fn<GetChangeCount>(async (_sinceId, _repositoryFilter, branchId) => {
+    const byBranch = options.remoteResultByBranch;
+    if (!byBranch) return options.remoteResult ?? { count: 0, latestChangeId: 0 };
+
+    const found = byBranch[branchId ?? ''];
+    // 不给缺失分支兜底成 0：那会把「问错了分支」伪装成「这个分支没有变更」
+    if (!found) throw new Error(`Unexpected branch in getChangeCount: ${String(branchId)}`);
+    return found;
+  });
   const remoteAdapter = options.remoteConfigured === false ? undefined : { getChangeCount };
   const getCurrentBranch = vi.fn(async () => ({ id: options.branchId ?? 'main' }));
   const getLocalRepositories = vi.fn(async () => ({ adapter: localAdapter }));
@@ -238,5 +267,50 @@ describe('checkRepositoryUpdates', () => {
       hasUpdates: true
     });
     expect(harness.getChangeCount).toHaveBeenCalledWith(0, ['public:CheckInherited'], 'main');
+  });
+
+  /**
+   * 计数范围必须和 `pullRepository` 的拉取范围一致 —— 都覆盖整条祖先链。
+   *
+   * `getChangeCount` 的 `branchId` 是精确匹配，只问当前分支时，父分支上的新变更一条都不计入：
+   * `hasUpdates` 报 false、界面显示「已全部同步」，而 pull 其实还有东西要拉。
+   */
+  describe('counts across the ancestor branch chain', () => {
+    const featureHarness = (remoteResultByBranch: Record<string, { count: number; latestChangeId: number }>) =>
+      createCheckHarness({
+        entities: [PullEntity],
+        branchId: 'feature',
+        branchParents: { feature: 'main', main: null },
+        syncRecords: [],
+        remoteResultByBranch
+      });
+
+    it('reports updates that exist only on the parent branch', async () => {
+      const harness = featureHarness({
+        feature: { count: 0, latestChangeId: 0 },
+        main: { count: 3, latestChangeId: 41 }
+      });
+
+      await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckPull')).resolves.toMatchObject({
+        remoteLatestChangeId: 41,
+        pendingCount: 3,
+        hasUpdates: true
+      });
+      expect(harness.getChangeCount.mock.calls.map(call => call[2])).toEqual(['feature', 'main']);
+    });
+
+    it('sums counts but takes the maximum change id', async () => {
+      const harness = featureHarness({
+        feature: { count: 2, latestChangeId: 30 },
+        main: { count: 3, latestChangeId: 41 }
+      });
+
+      await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckPull')).resolves.toMatchObject({
+        // 条数是两条分支之和；latestChangeId 是同一个远端序列上的位置，取 max 而非相加
+        remoteLatestChangeId: 41,
+        pendingCount: 5,
+        hasUpdates: true
+      });
+    });
   });
 });

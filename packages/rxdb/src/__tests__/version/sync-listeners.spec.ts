@@ -576,6 +576,31 @@ describe('setupVersionSyncListeners 联网回推', () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
+  // `resumeSync` 里被 `runQuietly` 兜住的只有逐仓库 flush 那一步。枚举仓库（读实体元数据、
+  // 判同步类型）与面板的 `beginRound` 都在兜底之外，它们抛错会顺着 `exhaustMap` 冒到订阅上，
+  // 把整条触发流当场终结 —— 此后 online 事件、退避节拍、重新连接一律无效，自动回推永久停摆。
+  // 而「离线恢复」本来就是最容易出错的场景，一次意外把它永久关掉代价太大。
+  it('未兜住的那步抛错时触发流仍存活，下一次恢复照常回推', async () => {
+    const boom = new Error('回推入口炸了');
+    vi.spyOn(SyncStateHub.prototype, 'beginRound').mockImplementationOnce(() => {
+      throw boom;
+    });
+    const harness = createHarness({ connected: true });
+
+    await settleDetachedTasks();
+    expect(flushOutbox).not.toHaveBeenCalled();
+    // 吞掉不等于藏起来：这一轮的失败必须出现在面板上
+    expect(harness.syncState.snapshot.lastError).toBe(boom);
+
+    harness.reachability.report(new TypeError('Failed to fetch'));
+    harness.reachability.report(null);
+    await settleDetachedTasks();
+
+    // 关键断言：触发流被终结时这里一条都推不出去
+    expect(flushedEntities()).toEqual(['CachedRecipe']);
+    expect(harness.result.subscriptions.every(subscription => subscription.closed)).toBe(false);
+  });
+
   it('取消订阅后不再回推', async () => {
     const harness = createHarness({ connected: true });
     await settleDetachedTasks();

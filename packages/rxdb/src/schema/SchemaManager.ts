@@ -26,7 +26,7 @@ import { SYSTEM_ENTITIES } from '../system/system-entities.js';
 const get_entity_cache_key = (name: string, namespace?: string) => namespace + ':' + name;
 
 /** 反向关系的互补 kind：一对多的反面是多对一，一对一 / 多对多的反面是自身 */
-const REVERSE_RELATION_KIND: Partial<Record<RelationKind, RelationKind>> = {
+const REVERSE_RELATION_KIND: Record<RelationKind, RelationKind> = {
   [RelationKind.ONE_TO_MANY]: RelationKind.MANY_TO_ONE,
   [RelationKind.MANY_TO_ONE]: RelationKind.ONE_TO_MANY,
   [RelationKind.ONE_TO_ONE]: RelationKind.ONE_TO_ONE,
@@ -92,15 +92,25 @@ export class SchemaManager {
     });
 
     // 生成多对多关系
+    //
+    // 遍历 relationMap（跨继承链合并）而不是 relations（仅本类声明）：关系声明在父类上时，
+    // 子类的 relations 是空的 —— 中间表不会生成，子类 relationMap 里那份克隆的
+    // junctionEntityType 也永远是 undefined，运行时 relation-cache 拿它去
+    // getEntityMetadata(undefined) 抛裸错。反向查找（findMappedRelation）早就是这个口径了。
     this.#metadata_map.forEach(metadata =>
-      metadata.relations.forEach(relation => {
+      metadata.relationMap.forEach(relation => {
         // 生成多对多关系中间表
         if (relation.kind === RelationKind.MANY_TO_MANY) {
           const relationManyToMany = relation as EntityRelationManyToManyMetadata;
 
           const mapped = this.findMappedRelation(metadata, relationManyToMany);
           if (!mapped) {
-            throw new RxDBError('mapped relation not found');
+            throw new RxDBError(
+              `多对多关系 '${metadata.name}.${relationManyToMany.name}' 找不到反向关系：` +
+                `期望实体 '${relationManyToMany.mappedNamespace}.${relationManyToMany.mappedEntity}' 上存在属性 ` +
+                `'${relationManyToMany.mappedProperty}' 且其 mappedEntity 指回 '${metadata.name}'。` +
+                `关系声明在父类上时，每个具体子类都需要一条指回自己的反向关系。`
+            );
           }
 
           // 生成中间表
@@ -140,7 +150,14 @@ export class SchemaManager {
             this.#entity_map.set(key, MappedClass);
             entities.push(MappedClass);
           }
-          relation.junctionEntityType = this.#entity_map.get(key)!;
+          const junctionEntityType = this.#entity_map.get(key);
+          if (!junctionEntityType) {
+            throw new RxDBError(`多对多中间表 '${key}' 注册后仍未取到实体类`);
+          }
+          // 两端都要赋值：反向端的 relation 是它自己 relationMap 里的克隆，
+          // 只赋正向端时，从反向属性发起的查询依旧拿不到中间表
+          relationManyToMany.junctionEntityType = junctionEntityType;
+          (mapped.relation as EntityRelationManyToManyMetadata).junctionEntityType = junctionEntityType;
         }
       })
     );
@@ -195,7 +212,6 @@ export class SchemaManager {
     // 补齐后不需要再做「匹配不唯一就 fail-fast」：`mapped.name === relation.mappedProperty`
     // 已经把候选约束到唯一一个属性名上，而属性名在单个实体内本就唯一。
     const expectedKind = REVERSE_RELATION_KIND[relation.kind];
-    if (!expectedKind) return void 0;
     const filterFn = (mapped: EntityRelationMetadata): boolean =>
       mapped.kind === expectedKind &&
       mapped.name === relation.mappedProperty &&
@@ -209,7 +225,7 @@ export class SchemaManager {
       }
       // 用 relationMap（跨继承链合并）而不是 relations（仅本类声明），
       // 否则反向关系声明在父类上时永远找不到
-      for (const mapped of metadata.relationMap?.values() ?? metadata.relations ?? []) {
+      for (const mapped of metadata.relationMap.values()) {
         if (filterFn(mapped)) return { metadata, relation: mapped };
       }
     }

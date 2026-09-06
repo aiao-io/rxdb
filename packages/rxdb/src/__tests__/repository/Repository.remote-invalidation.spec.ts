@@ -8,7 +8,7 @@
  * 覆盖 AC#1–#8、#10、#26–#30；AC#9 在 `gateway/RxDBTabsGateway.spec.ts`，
  * AC#31 在 `@aiao/rxdb-devtools` 的 `connector-events.spec.ts`。
  */
-import { BehaviorSubject, delay, Observable, of, Subscription } from 'rxjs';
+import { BehaviorSubject, delay, Observable, of, Subscription, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IEntity } from '../../entity/entity.interface.js';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
@@ -560,6 +560,106 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
       await new Promise(resolve => setTimeout(resolve, 20));
 
       expect(remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(2);
+    });
+
+    // SWR 下第一次发射是**本地缓存**，不是远端校验结果。记忆若跟着这次发射写，
+    // 后台的远端校验失败就再也阻止不了它 —— 整个记忆窗口内每次读都短路，
+    // 永不重试远端。`#runSync` 的文档说「失败不进记忆」，这条路径上它是假的。
+    it('SWR 后台远端校验失败时不进记忆，下次读重新校验', async () => {
+      const stores = createStores();
+      stores.local.set('a', row('a', '2024-01-01T00:00:00Z', 1));
+      const localRepo = createLocalRepo(stores);
+      const localAdapter = createLocalAdapter(stores, localRepo);
+      const remoteAdapter = createRemoteAdapter(stores);
+      remoteAdapter.fetchMetadata.mockReturnValue(throwError(() => new Error('远端挂了')));
+
+      const syncMemo = new QueryCacheSyncMemo(1000);
+      const primary = createQueryCachePrimary<RecipeEntityCtor>(
+        'RecipeEntity',
+        RecipeEntity,
+        localAdapter as unknown as QueryCachePrimaryLocalAdapter<RecipeEntityCtor>,
+        remoteAdapter as unknown as QueryCacheRemoteAdapter,
+        true,
+        syncMemo,
+        detachedReachability(),
+        new SyncStateHub({ online$: of(true), pushableCount$: of(0) })
+      );
+
+      await primary.find({ where: allWhere() });
+      await new Promise(resolve => setTimeout(resolve, 20));
+
+      expect(remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(1);
+      // 指纹必须带上 localCacheFirst —— 它是指纹的组成部分，漏了算的是另一把键
+      expect(syncMemo.has(queryCacheFingerprint({ where: allWhere(), localCacheFirst: true }))).toBe(false);
+
+      await primary.find({ where: allWhere() });
+      await new Promise(resolve => setTimeout(resolve, 20));
+
+      expect(remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(2);
+    });
+
+    // 对照组：远端校验成功照常进记忆，窗口内第二次读不再打远端。
+    // 没有这一条，上面那条用「永远不进记忆」也能过。
+    it('SWR 远端校验成功时进记忆，窗口内第二次读不打远端', async () => {
+      const stores = createStores();
+      stores.local.set('a', row('a', '2024-01-01T00:00:00Z', 1));
+      stores.remote.set('a', row('a', '2024-01-01T00:00:00Z', 1));
+      const localRepo = createLocalRepo(stores);
+      const localAdapter = createLocalAdapter(stores, localRepo);
+      const remoteAdapter = createRemoteAdapter(stores);
+
+      const syncMemo = new QueryCacheSyncMemo(1000);
+      const primary = createQueryCachePrimary<RecipeEntityCtor>(
+        'RecipeEntity',
+        RecipeEntity,
+        localAdapter as unknown as QueryCachePrimaryLocalAdapter<RecipeEntityCtor>,
+        remoteAdapter as unknown as QueryCacheRemoteAdapter,
+        true,
+        syncMemo,
+        detachedReachability(),
+        new SyncStateHub({ online$: of(true), pushableCount$: of(0) })
+      );
+
+      await primary.find({ where: allWhere() });
+      await new Promise(resolve => setTimeout(resolve, 20));
+
+      expect(syncMemo.has(queryCacheFingerprint({ where: allWhere(), localCacheFirst: true }))).toBe(true);
+
+      await primary.find({ where: allWhere() });
+      await new Promise(resolve => setTimeout(resolve, 20));
+
+      expect(remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('销毁时释放记忆表', () => {
+    // 同步记忆的每一条都挂着一个 `setTimeout`（窗口 `syncStaleTime` 可配成分钟级）。
+    // `destroy()` 只摘监听器、只关 QueryManager 的话，这些计时器会活过仓储本身 ——
+    // 断连时销毁的仓储连同它的记忆闭包被钉在事件循环上，直到窗口自己走完。
+    // 记忆表侧「clear 撤计时器」由 `query-cache-sync-memo.spec.ts` 直接断言，
+    // 这里只钉住 `Repository` 确实把它委托了出去。
+    it('destroy() 清空同步记忆并作废在飞的同步', async () => {
+      const rememberSpy = vi.spyOn(QueryCacheSyncMemo.prototype, 'remember');
+      const ctx = setup();
+      // 不进 `track`：本用例自己控制销毁时机
+      const repository = ctx.repositoryOf(RecipeEntity);
+      subscriptions.push(repository.find({ where: allWhere() }).subscribe());
+      await settle();
+
+      // 经真实调用拿到仓储自己那个记忆实例，而不是另造一个来对着断言
+      const memo = rememberSpy.mock.contexts[0] as QueryCacheSyncMemo | undefined;
+      const fingerprint = rememberSpy.mock.calls[0]?.[0];
+      expect(memo).toBeInstanceOf(QueryCacheSyncMemo);
+      expect(typeof fingerprint).toBe('string');
+      expect(memo?.has(fingerprint as string)).toBe(true);
+      const generation = memo?.generation;
+
+      repository.destroy();
+
+      expect(memo?.has(fingerprint as string)).toBe(false);
+      // 代次递增：销毁瞬间还在飞的那次同步回来时不许把记忆写回去
+      expect(memo?.generation).not.toBe(generation);
+      rememberSpy.mockRestore();
     });
   });
 

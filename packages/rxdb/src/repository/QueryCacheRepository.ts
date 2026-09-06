@@ -34,6 +34,7 @@ import { diffMetadata } from './diff-metadata.js';
 import { isNetworkError } from './network-error.js';
 import { queryCacheFingerprint } from './query-cache-sync-memo.js';
 import type { RuleGroup } from './query.interface.js';
+import { isRemoteNewer } from './updated-at.utils.js';
 
 /**
  * QueryCache 实体约束接口
@@ -124,6 +125,16 @@ export interface QueryCacheFindOptions<T extends EntityBaseType> {
   /** 同步完成回调，用于获取性能统计信息 */
   onSyncStats?: (stats: SyncStats) => void;
   /**
+   * SWR 模式下**被吞掉的**远端校验失败的上报口。
+   *
+   * @remarks
+   * 缓存已经发射后，远端错误会被吞成 `EMPTY`（消费者已经拿到数据，再终结它的订阅没有意义）。
+   * 但「远端这次没校验成功」是内部记账必须知道的事实：不知道它，
+   * 「刚同步过」的记忆就会把一次失败的校验记成成功，整个窗口内不再重试。
+   * 本回调只上报，不改变流的行为。
+   */
+  onRemoteError?: (error: Error) => void;
+  /**
    * 本地缓存优先模式 (Stale-While-Revalidate)
    *
    * 当设置为 true 时：
@@ -182,9 +193,9 @@ const rowId = (entity: unknown): string => (entity as QueryCacheEntity).id;
  * @remarks
  * 必须归一，因为本地出口换成 `IRepository` 之后（US-020 D8）读回来的是**实体实例**，
  * 而 `updatedAt` 在实体上是 `Date`（`PropertyType.date` 存 TEXT、读成 `Date`）。
- * {@link diffMetadata} 按 ISO 字典序比较，`'2026-08-09T…' > new Date(…)` 会先把两边
- * 按 number 提示取原始值 —— 字符串那侧转成 `NaN`，比较**恒为 false**，于是所有行都判 fresh、
- * 远端的更新永远拉不下来。这是静默的：查询照常返回，只是内容停在第一次同步的那一刻。
+ * {@link diffMetadata} 收的是时间**字符串**。直接把 `Date` 传进去，比较会先按 number 提示
+ * 取原始值 —— 字符串那侧转成 `NaN`，结果恒为 false，于是所有行都判新鲜、远端更新永远拉不下来。
+ * 这是静默的：查询照常返回，只是内容停在第一次同步的那一刻。故此处统一归一成 ISO 字符串。
  */
 const rowUpdatedAt = (entity: unknown): string => {
   const updatedAt = (entity as { updatedAt: unknown }).updatedAt;
@@ -398,7 +409,8 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
         const localUpdatedAt = localMetadata.get(id);
 
         // 本地有且是新鲜的
-        if (localUpdatedAt && localUpdatedAt >= remoteUpdatedAt) {
+        // 比时间点不比字符串：两侧格式来自不同后端，字典序会把同一时刻判成过期（见 isRemoteNewer）
+        if (localUpdatedAt && !isRemoteNewer(remoteUpdatedAt, localUpdatedAt, `QueryCache: 实体 '${id}' 的`)) {
           return this.#readLocalByIds([id]).pipe(map(data => data[0] ?? null));
         }
 
@@ -544,7 +556,13 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
         const newFingerprint = this.#computeDataFingerprint(data);
         return newFingerprint !== cachedFingerprint;
       }),
-      catchError((error: unknown) => (cacheEmitted ? EMPTY : throwError(() => error)))
+      catchError((error: unknown) => {
+        if (!cacheEmitted) return throwError(() => error);
+        // 吞掉是对消费者流的决定；但必须上报，否则调用方无从区分
+        // 「远端校验成功」和「远端失败被吞了」（见 onRemoteError）
+        options.onRemoteError?.(error instanceof Error ? error : new Error(String(error)));
+        return EMPTY;
+      })
     );
 
     // 使用 concat：先发射缓存，再发射远程结果

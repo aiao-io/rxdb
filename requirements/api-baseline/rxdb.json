@@ -1038,10 +1038,6 @@
         "kind": "type"
       },
       {
-        "name": "RemoteSyncOptions",
-        "kind": "type"
-      },
-      {
         "name": "Repository",
         "kind": "both"
       },
