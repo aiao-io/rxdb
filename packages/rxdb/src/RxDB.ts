@@ -547,7 +547,9 @@ export class RxDB {
    * 见 {@link RxDB.#shutting_down}。
    *
    * 同步 `install()` 失败只 `console.error`，`use()` / `init()` 本身不抛。
-   * 异步或同步失败都会记入安装 Promise，由后续 `connect()` 传播。
+   * 异步或同步失败都会记入安装 Promise，由后续 `connect()` 传播 —— 包括**同一个适配器的
+   * 重复 `connect()`**：命中缓存那一路也会补跑一趟安装等待，否则连上之后 `use()` 的插件
+   * 失败就永远出不来（`use()` 同步返回 `this`，自己没有报错的出口）。
    *
    * @param plugin - 插件构造函数
    * @param options - 插件选项
@@ -620,7 +622,20 @@ export class RxDB {
     // 防重入：如果已经在连接中，直接返回缓存的 Promise
     const pending = this.#connect_promise_map.get(adapterName);
     if (pending) {
-      return pending;
+      // 还在引导中的那条链**原样**返回：`install()` 里同步回调 `connect()` 必须命中同一条
+      // Promise，派生一条出去会绕开 `connectPromise.catch()` 那份兜底。
+      if (!this.#connected_adapters.has(adapterName)) return pending;
+      // 已经引导完的适配器再 `connect()`：缓存里那条 Promise 早就 resolve 了，插件安装那一段
+      // 一步都不会重跑。连上之后 `use()` 进来的插件正是落在这个缝里 —— 它的安装失败此前只剩
+      // 一行 console.error，而 `use()` 是同步的、返回 `this`，自己没有报错的出口。这里补上
+      // 那一趟，`use()` 文档承诺的「由后续 connect() 传播」才是真的。
+      //
+      // 不回滚 `#connected_adapters`：与引导期失败不同，本适配器的引导已经**整个走完**，
+      // 拆掉一条健康的连接来惩罚一个后来者插件是错的。
+      return pending.then(async adapter => {
+        await this.#await_plugin_installs();
+        return adapter;
+      });
     }
 
     // 引导链全程是 await，断连可以插进任何一个缝里。纪元在同步段取快照，之后每个 await

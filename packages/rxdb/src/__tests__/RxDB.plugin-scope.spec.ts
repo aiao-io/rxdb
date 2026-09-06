@@ -184,6 +184,24 @@ describe('连接纪元作用域与插件激活作用域', () => {
     expect(log).toEqual(['install', 'destroy']);
   });
 
+  // `destroy()` 是 `install()` 的配对拆卸。依赖始终没就绪的 legacy 插件从未被 install()，
+  // 停机时再调它的 destroy() 就是一次无配对的拆卸 —— 而绝大多数 legacy 插件的 destroy()
+  // 直接读 install() 里建起来的字段，拿到 undefined 后抛 TypeError，再被拆卸循环吞成
+  // 一行 console.error。用户看到的是「插件没装上」加一条看不懂的报错。
+  it('依赖始终未满足的 legacy 插件不该被调 destroy()', async () => {
+    const database = createDatabase();
+    const install = vi.fn();
+    const destroy = vi.fn();
+    database.use((): IRxDBPlugin => ({ name: 'neverInstalled', inject: ['adapter:remote'], install, destroy }));
+
+    // 只连 local：`adapter:remote` 这一路始终没就绪
+    await database.connect('sqlite');
+    await database.disconnectAll();
+
+    expect(install).not.toHaveBeenCalled();
+    expect(destroy).not.toHaveBeenCalled();
+  });
+
   it('AC#21 只声明 lifecycle、不实现 destroy 的插件不会在拆卸路径抛 TypeError', async () => {
     const database = createDatabase();
     database.use((): IRxDBPlugin => ({ name: 'pureScoped', lifecycle: 'scoped', install: () => undefined }));

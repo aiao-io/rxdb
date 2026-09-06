@@ -171,6 +171,13 @@ export function freezeConfig(host: PluginLifecycleHost): void {
  * 逆插入序串行拆卸所有插件：先释放插件作用域，未迁移的再补一次 `destroy()`。
  *
  * 不短路：任一插件抛错只记日志，后面的插件照拆。
+ *
+ * @remarks
+ * `destroy()` 只发给**本纪元发起过安装**的 legacy 插件。依赖始终没就绪的插件从未
+ * `install()` 过，对它调 `destroy()` 是一次无配对的拆卸 —— legacy 插件的 `destroy()`
+ * 普遍直接读 `install()` 里建起来的字段，拿到 `undefined` 就抛 `TypeError`，再被本循环
+ * 吞成一行日志。判据取「发起过」而非「装成了」：安装抛在半路的插件也可能留下一半状态
+ * （见 {@link PluginDependencyScheduler.everInstalled}）。
  */
 export async function destroyPlugin(host: PluginLifecycleHost): Promise<void> {
   for (const plugin of Array.from(host.pluginMap.values()).reverse()) {
@@ -181,7 +188,7 @@ export async function destroyPlugin(host: PluginLifecycleHost): Promise<void> {
     } catch (err) {
       console.error(`[RxDB] Plugin '${plugin.name}' scope dispose failed:`, err);
     }
-    if (plugin.lifecycle === 'scoped') continue;
+    if (plugin.lifecycle === 'scoped' || !host.scheduler.everInstalled(plugin)) continue;
     try {
       await plugin.destroy?.();
     } catch (err) {
