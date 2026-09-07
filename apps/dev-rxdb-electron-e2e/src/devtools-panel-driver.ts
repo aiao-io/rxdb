@@ -34,6 +34,29 @@ export type InspectedWindow = 'http://localhost' | 'app://';
 export const PANEL_BUDGET_MS = 40000;
 
 /**
+ * **单次**帧内取值的上限。
+ *
+ * @remarks
+ * 轮询循环的 `budgetMs` 只在**两轮之间**被检查，管不住卡在循环体里的那一次调用。
+ * 而 `WebFrameMain.executeJavaScript()` 在目标帧于调用途中被拆掉时**不 settle**——
+ * 既不 resolve 也不 reject，`.catch()` 因此也接不住。于是整个 `app.evaluate()`
+ * 连同 Electron 主进程一起停在那里，表征是：
+ *
+ * - 用例跑满**超过自己配置的** timeout（实测 420000ms 的用例跑了 15.6 分钟）；
+ * - 随后 `app.close()` 也拿不到主进程，worker teardown 一并超时；
+ * - 泄漏的 Electron 进程堆积，把后面用例的 `electron.launch()` 拖垮——
+ *   `devtools-mv3-feasibility` 的 `beforeAll` 只做 `existsSync` 却超时 120s，就是这个尾巴。
+ *
+ * 这一幕只在 DevTools 反复开关或被检查页 `reload()` 前后出现（帧正在重建），
+ * 所以它是间歇的：同一个文件单跑全绿，跟同目录其余用例一起跑就轮流红。
+ *
+ * 取 5s：帧内脚本只做 `querySelector` 与读 `innerText`，正常在毫秒级；
+ * 5s 还没回来就当这一轮没读到，把控制权交回循环，由 `budgetMs` 统一裁决。
+ * **不是兜底**——超时不伪造结果，只是让「读不到」按既有路径如实变成红。
+ */
+const FRAME_CALL_BUDGET_MS = 5000;
+
+/**
  * 打开 DevTools 并选中扩展面板 tab。
  *
  * @param app - 已启动的打包产物。
@@ -84,15 +107,23 @@ export async function attachPanel(
       return true;
     })()`;
 
+      // 单次调用也要有上限：帧在调用途中被拆掉时 `executeJavaScript` 不 settle，
+      // `.catch()` 接不住，循环的 deadline 也就永远轮不到被检查（见 FRAME_CALL_BUDGET_MS）。
+      const withCallBudget = (promise: Promise<unknown>): Promise<unknown> =>
+        Promise.race([
+          promise.catch(() => false),
+          new Promise(resolve => setTimeout(() => resolve(false), input.callBudgetMs))
+        ]);
+
       const deadline = Date.now() + input.budgetMs;
       while (Date.now() < deadline) {
-        const done: boolean = await devTools.executeJavaScript(clickExtensionTab).catch(() => false);
-        if (done) return true;
+        const done = await withCallBudget(devTools.executeJavaScript(clickExtensionTab));
+        if (done === true) return true;
         await sleep(500);
       }
       return false;
     },
-    { budgetMs, inspected }
+    { budgetMs, callBudgetMs: FRAME_CALL_BUDGET_MS, inspected }
   );
 
   expect(selected, 'DevTools 里始终没有出现扩展面板 tab').toBe(true);
@@ -154,9 +185,20 @@ export async function panelEvaluate<T>(
         candidate.url.includes('/panel.html')
       );
       if (!frame) throw new Error('找不到面板帧；DevTools 没开或扩展面板没登记');
-      return frame.executeJavaScript(input.script) as Promise<unknown>;
+      // 同 readPanel：帧在调用途中被拆掉时这个 promise 不 settle，会把主进程连同
+      // app.close() 一起挂住（见 FRAME_CALL_BUDGET_MS）。这里没有「下一轮」可退，
+      // 所以超时抛错——一次带现场的红，好过一个跑满 timeout 的假死。
+      return (await Promise.race([
+        frame.executeJavaScript(input.script) as Promise<unknown>,
+        new Promise((_resolve, reject) =>
+          setTimeout(
+            () => reject(new Error(`面板帧内脚本 ${String(input.callBudgetMs)}ms 未返回；帧多半已在执行途中被拆掉`)),
+            input.callBudgetMs
+          )
+        )
+      ])) as unknown;
     },
-    { inspected, script }
+    { callBudgetMs: FRAME_CALL_BUDGET_MS, inspected, script }
   ) as Promise<T>;
 }
 
@@ -185,17 +227,18 @@ export interface PanelRead {
  * 已经选中的实体按钮不重复点 —— `selectEntity()` 每次点击都会重新发查询。
  */
 export function readPanel(app: ElectronApplication, input: PanelRead): Promise<string> {
-  return app.evaluate(async ({ BrowserWindow }, opts) => {
-    const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
-    const panelFrame = (): Electron.WebFrameMain | null => {
-      const win = BrowserWindow.getAllWindows().find(candidate =>
-        candidate.webContents.getURL().startsWith(opts.inspected)
-      );
-      const devTools = win?.webContents.devToolsWebContents;
-      return devTools?.mainFrame.framesInSubtree.find(frame => frame.url.includes('/panel.html')) ?? null;
-    };
+  return app.evaluate(
+    async ({ BrowserWindow }, opts) => {
+      const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+      const panelFrame = (): Electron.WebFrameMain | null => {
+        const win = BrowserWindow.getAllWindows().find(candidate =>
+          candidate.webContents.getURL().startsWith(opts.inspected)
+        );
+        const devTools = win?.webContents.devToolsWebContents;
+        return devTools?.mainFrame.framesInSubtree.find(frame => frame.url.includes('/panel.html')) ?? null;
+      };
 
-    const script = `(() => {
+      const script = `(() => {
       const hash = ${JSON.stringify(opts.hash)};
       if (location.hash !== hash) location.hash = hash;
       const label = ${JSON.stringify(opts.clickText ?? '')};
@@ -206,19 +249,29 @@ export function readPanel(app: ElectronApplication, input: PanelRead): Promise<s
       return document.body.innerText.replace(/\\s+/g, ' ').slice(0, 4000);
     })()`;
 
-    const wanted = new RegExp(opts.awaitPattern);
-    const deadline = Date.now() + opts.budgetMs;
-    let latest = '(面板帧始终没有出现)';
-    while (Date.now() < deadline) {
-      const frame = panelFrame();
-      // `WebFrameMain.executeJavaScript` 回 `Promise<unknown>`；非字符串一律当作「这一轮没读到」，
-      // 循环结束后把最后一次真读到的文本抛给调用侧，比在这里编一个占位字符串更早暴露问题。
-      const raw =
-        frame ? await frame.executeJavaScript(script).catch((error: Error) => `帧内执行抛错：${error.message}`) : null;
-      if (typeof raw === 'string' && raw.trim().length > 0) latest = raw;
-      if (wanted.test(latest)) return latest;
-      await sleep(400);
-    }
-    return latest;
-  }, input);
+      // 单次调用也要有上限：帧在调用途中被拆掉时 `executeJavaScript` 不 settle，
+      // `.catch()` 接不住，循环的 deadline 也就永远轮不到被检查（见 FRAME_CALL_BUDGET_MS）。
+      // 超时按 `null` 处理，与「这一轮没读到」同一条路径，不伪造任何正文。
+      const readOnce = (frame: Electron.WebFrameMain): Promise<unknown> =>
+        Promise.race([
+          frame.executeJavaScript(script).catch((error: Error) => `帧内执行抛错：${error.message}`),
+          new Promise(resolve => setTimeout(() => resolve(null), opts.callBudgetMs))
+        ]);
+
+      const wanted = new RegExp(opts.awaitPattern);
+      const deadline = Date.now() + opts.budgetMs;
+      let latest = '(面板帧始终没有出现)';
+      while (Date.now() < deadline) {
+        const frame = panelFrame();
+        // `WebFrameMain.executeJavaScript` 回 `Promise<unknown>`；非字符串一律当作「这一轮没读到」，
+        // 循环结束后把最后一次真读到的文本抛给调用侧，比在这里编一个占位字符串更早暴露问题。
+        const raw = frame ? await readOnce(frame) : null;
+        if (typeof raw === 'string' && raw.trim().length > 0) latest = raw;
+        if (wanted.test(latest)) return latest;
+        await sleep(400);
+      }
+      return latest;
+    },
+    { ...input, callBudgetMs: FRAME_CALL_BUDGET_MS }
+  );
 }

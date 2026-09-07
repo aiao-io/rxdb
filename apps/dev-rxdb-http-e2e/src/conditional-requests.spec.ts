@@ -123,8 +123,10 @@ test('AC#8（US-215）配上诊断回调后，同一个静默症状变成一条�
   const first = rows.first();
   await expect(first).toContainText('Recipe');
   // 文案两种成因都点到、且不选边：客户端分不清「远端没发」与「跨源没暴露」。
+  // 断言用英文原文：运行期诊断文案统一英文（见 transport.ts 的 describeEtagUnreadable），
+  // 这条由 transport.spec.ts「AC#2」的「不含中日韩字符」断言冻结，这里跟着它走。
   await expect(first).toContainText('Access-Control-Expose-Headers');
-  await expect(first).toContainText('两种可能');
+  await expect(first).toContainText('Two possibilities');
   // 浏览器里的跨源响应就是 'cors'。
   await expect(first).toContainText('Response.type=cors');
 
