@@ -108,11 +108,26 @@ describe('EntityManager', () => {
     completed!: boolean;
   }
 
+  // 主键由调用方指定、没有默认值的实体（与 RxDBBranch 同形）。
+  // Todo 继承 EntityBase，id 在构造期就有 uuid 默认值，盖不住「构造后才有身份」这条路径。
+  @Entity({
+    name: 'Tag',
+    properties: [
+      { name: 'id', type: PropertyType.string, primary: true },
+      { name: 'label', type: PropertyType.string }
+    ]
+  })
+  class Tag {
+    static [ENTITY_STATIC_TYPES]: { idType: string };
+    id!: string;
+    label!: string;
+  }
+
   let rxdb: RxDB;
   beforeAll(async () => {
     rxdb = new RxDB({
       dbName: 'Todo',
-      entities: [Todo],
+      entities: [Todo, Tag],
       sync: {
         local: {
           adapter: 'sqlite'
@@ -140,6 +155,40 @@ describe('EntityManager', () => {
     expect(rxdb.entityManager.getEntityRef(Todo, id)).toBe(created);
 
     rxdb.entityManager.removeEntityCache(created);
+  });
+
+  // 主键无默认值时，构造那一刻实体还没有身份。从前 PROXY 工厂照样按 `entity.id` 登记，
+  // 于是它落进 `undefined` 这个所有无主键实体共用的槽，之后 `branch.id = 'main'` 也不会补登记 ——
+  // 缓存里永远查不到它。`create_branch` / `resolve_current_branch` 正是这个写法：
+  // 调用方拿到的引用从此是孤儿，后续 hydrate 只会另造一个实例去更新，
+  // 于是 `switchBranch()` 之后调用方手上那个 branch 的 `activated` 永远停在 false（RXD-070）。
+  it('构造后才赋主键的实体，赋值时补登记身份缓存', () => {
+    const tag = rxdb.entityManager.instantiate(Tag);
+
+    // 没有身份就不该占槽：`undefined` 槽被占住时，任何 id 缺失的稀疏水合都会命中一个随机实体
+    expect(rxdb.entityManager.getEntityRef(Tag, undefined as unknown as string)).toBeUndefined();
+
+    tag.id = 'tag_01';
+
+    expect(rxdb.entityManager.getEntityRef(Tag, 'tag_01')).toBe(tag);
+    // 水合走的就是这条路：命中同一个引用，而不是另造一个实例
+    expect(rxdb.entityManager.createEntityRef(Tag, { id: 'tag_01', label: 'hydrated' })).toBe(tag);
+    expect(tag.label).toBe('hydrated');
+
+    rxdb.entityManager.removeEntityCache(tag);
+  });
+
+  it('主键改名后身份缓存跟着搬家，旧槽不留下指向新 id 的引用', () => {
+    const tag = rxdb.entityManager.instantiate(Tag, { id: 'tag_before' });
+    expect(rxdb.entityManager.getEntityRef(Tag, 'tag_before')).toBe(tag);
+
+    tag.id = 'tag_after';
+
+    expect(rxdb.entityManager.getEntityRef(Tag, 'tag_after')).toBe(tag);
+    // 不清旧槽的话，`tag_before` 会查出一个 id 已经是 `tag_after` 的实体
+    expect(rxdb.entityManager.getEntityRef(Tag, 'tag_before')).toBeUndefined();
+
+    rxdb.entityManager.removeEntityCache(tag);
   });
 
   it('实体创建事件仍然延后到微任务，不在构造函数里同步派发', async () => {

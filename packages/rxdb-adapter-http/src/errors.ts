@@ -224,12 +224,18 @@ export class HttpInvalidResponseError extends HttpAdapterError {
   }
 }
 
-/** 请求还没发出去就构造失败的两种成因 */
+/** 请求还没发出去就构造失败的四种成因 */
 export type HttpRequestBuildFailure =
   /** `JSON.stringify` 拒绝序列化请求体（bigint、循环引用等） */
   | 'body'
+  /** 要拼进路径的主键不是非空字符串 */
+  | 'id'
   /** auth hook 或静态配置给出了非法的 header 名 / 值 */
-  | 'headers';
+  | 'headers'
+  /** 方法与请求体不相容：`GET` / `HEAD` 按 fetch 规范不得携带 body */
+  | 'method'
+  /** `baseUrl` 与路径拼不出一个可解析的 URL */
+  | 'url';
 
 /**
  * 请求在**发出之前**就构造失败（US-212 AC#12 / #34）。
@@ -240,9 +246,18 @@ export type HttpRequestBuildFailure =
  * 若让它落进 `classify()`，就会被包成 `NetworkOfflineError`，
  * 进而被 `offlineFallback` 静默换成陈旧缓存——脏数据与配置 bug 从此永远浮不出来。
  *
- * 两种成因共用一个类、由 {@link HttpRequestBuildError.reason} 区分，理由同
+ * 五种成因共用一个类、由 {@link HttpRequestBuildError.reason} 区分，理由同
  * {@link HttpPaginationError}：调用侧的处置一致（修本地，别重试），
- * 拆成两个类只会让 catch 侧多写一个 `instanceof`。
+ * 拆成五个类只会让 catch 侧多写四个 `instanceof`。
+ *
+ * `method` 与 `url` 两条针对的是**同一个陷阱的另外两个入口**：`fetch` 对
+ * 「`GET` 带 body」与「URL 解析不了」抛的都是裸 `TypeError`，与传输失败同型，
+ * 落进 `classify()` 后同样会变成一次静默的缓存降级。它们不是理论边界——
+ * 把 `onFetchMetadata` 的方法覆盖成 `GET`（它恒带 body）就能走到第一条。
+ *
+ * `id` 那一条是**数据**问题而不是配置问题，这正是它不归 {@link HttpConfigError} 的理由：
+ * 主键为空时 `PUT /Recipe/` 会被不少路由框架读成集合端点，一次更新静默变成一次批量写；
+ * 而没有任何配置项改了能修好它，报成配置错误只会把排查方向指向一个不存在的选项。
  *
  * **不带 `status`**，但也**不是**网络错误：`isNetworkError` 的 5 条判据一条都不命中，
  * 于是既不会被降级回退，也不会被误报成远端故障。

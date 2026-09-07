@@ -1,7 +1,12 @@
 import { Entity, EntityBase, PropertyType, RxDB, SyncType, type RuleGroup, type SyncOptions } from '@aiao/rxdb';
 import { firstValueFrom, lastValueFrom, toArray } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { HttpConfigError, HttpHandlerContractError, HttpUnsupportedOperationError } from '../errors.js';
+import {
+  HttpConfigError,
+  HttpHandlerContractError,
+  HttpRequestBuildError,
+  HttpUnsupportedOperationError
+} from '../errors.js';
 import type { HttpAdapterOptions } from '../http.interface.js';
 import { createRestHandlers, type RestHandlersOptions } from '../rest.js';
 import { RxDBAdapterHttp } from '../RxDBAdapterHttp.js';
@@ -28,7 +33,8 @@ class RestRecipe extends EntityBase {
   declare title: string;
 }
 
-const createAdapter = (
+/** 只构造、不连接。验「duck 存不存在」这类构造期形态的用例用它 */
+const buildAdapter = (
   restOptions: RestHandlersOptions = {},
   adapterOptions: Partial<HttpAdapterOptions> = {}
 ): RxDBAdapterHttp =>
@@ -37,6 +43,22 @@ const createAdapter = (
     handlers: createRestHandlers(restOptions),
     ...adapterOptions
   });
+
+/**
+ * 构造并连接。
+ *
+ * @remarks
+ * 读写 duck 一律要求 `connect()` 成功走完过一遍：那是 bigint / binary 线格式扫描的
+ * 唯一触发点，也是 `startChangeFeed` 早就在用的口径。碰 duck 的用例都得走这里。
+ */
+const createAdapter = async (
+  restOptions: RestHandlersOptions = {},
+  adapterOptions: Partial<HttpAdapterOptions> = {}
+): Promise<RxDBAdapterHttp> => {
+  const adapter = buildAdapter(restOptions, adapterOptions);
+  await adapter.connect();
+  return adapter;
+};
 
 /** 依次返回排好队的响应，并留下调用记录用于断言 URL / method / body */
 const queueResponses = (items: Response[]): ReturnType<typeof vi.fn> => {
@@ -74,7 +96,9 @@ describe('默认模板的 URL、方法与请求体（AC#27）', () => {
   it('fetchMetadata 打 :entity/metadata，body 带 JSON RuleGroup 与翻页参数', async () => {
     const fetchMock = queueResponses([json([meta('a')])]);
 
-    await firstValueFrom(createAdapter().fetchMetadata('Recipe', ALL));
+    const adapter = await createAdapter();
+
+    await firstValueFrom(adapter.fetchMetadata('Recipe', ALL));
 
     expect(callOf(fetchMock)).toEqual({
       url: 'https://api.example.com/v1/Recipe/metadata',
@@ -87,7 +111,9 @@ describe('默认模板的 URL、方法与请求体（AC#27）', () => {
   it('findByIds 打 :entity/by-ids，body 是本块 id', async () => {
     const fetchMock = queueResponses([json([{ id: 'a' }])]);
 
-    await firstValueFrom(createAdapter().findByIds('Recipe', ['a', 'b']));
+    const adapter = await createAdapter();
+
+    await firstValueFrom(adapter.findByIds('Recipe', ['a', 'b']));
 
     expect(callOf(fetchMock)).toEqual({
       url: 'https://api.example.com/v1/Recipe/by-ids',
@@ -97,7 +123,7 @@ describe('默认模板的 URL、方法与请求体（AC#27）', () => {
   });
 
   it('create 打集合资源，update 打单项资源，delete 走 POST :entity/delete', async () => {
-    const adapter = createAdapter();
+    const adapter = await createAdapter();
     const fetchMock = queueResponses([json({ id: 'a' }), json({ id: 'a' }), empty(204)]);
 
     await firstValueFrom(adapter.create!('Recipe', { title: 'x' }));
@@ -125,13 +151,15 @@ describe('默认模板的 URL、方法与请求体（AC#27）', () => {
   it('单个 id 的 delete 归一成数组后再进 body', async () => {
     const fetchMock = queueResponses([empty(204)]);
 
-    await firstValueFrom(createAdapter().delete!('Recipe', 'a'));
+    const adapter = await createAdapter();
+
+    await firstValueFrom(adapter.delete!('Recipe', 'a'));
 
     expect(callOf(fetchMock).body).toEqual({ ids: ['a'] });
   });
 
   it('resources 映射替换路径片段，未映射的实体用实体名', async () => {
-    const adapter = createAdapter({ resources: { Recipe: 'kitchen/recipes' } });
+    const adapter = await createAdapter({ resources: { Recipe: 'kitchen/recipes' } });
     const fetchMock = queueResponses([json([]), json([])]);
 
     await firstValueFrom(adapter.fetchMetadata('Recipe', ALL));
@@ -145,14 +173,16 @@ describe('默认模板的 URL、方法与请求体（AC#27）', () => {
   it('id 来自数据，转义后再进 URL', async () => {
     const fetchMock = queueResponses([json({ id: 'a/b' })]);
 
-    await firstValueFrom(createAdapter().update!('Recipe', 'a/b', { title: 'y' }));
+    const adapter = await createAdapter();
+
+    await firstValueFrom(adapter.update!('Recipe', 'a/b', { title: 'y' }));
 
     // 不转义就会打到 /Recipe/a 下的另一个子资源上
     expect(callOf(fetchMock).url).toBe('https://api.example.com/v1/Recipe/a%2Fb');
   });
 
   it('模板可逐操作覆盖路径与方法', async () => {
-    const adapter = createAdapter({ templates: { update: { path: ':entity/items/:id', method: 'PUT' } } });
+    const adapter = await createAdapter({ templates: { update: { path: ':entity/items/:id', method: 'PUT' } } });
     const fetchMock = queueResponses([json({ id: 'a' })]);
 
     await firstValueFrom(adapter.update!('Recipe', 'a', { title: 'y' }));
@@ -167,7 +197,7 @@ describe('默认模板的 URL、方法与请求体（AC#27）', () => {
 
 describe('等价于阶段 A 的 QueryCache ducks（AC#27）', () => {
   it('翻页跑满并恰好发射一次（AC#5 / #23）', async () => {
-    const adapter = createAdapter({}, { pageSize: 2 });
+    const adapter = await createAdapter({}, { pageSize: 2 });
     const fetchMock = queueResponses([json([meta('a'), meta('b')]), json([meta('c')])]);
 
     const emissions = await lastValueFrom(adapter.fetchMetadata('Recipe', ALL).pipe(toArray()));
@@ -179,7 +209,7 @@ describe('等价于阶段 A 的 QueryCache ducks（AC#27）', () => {
   });
 
   it('token 形态照常工作：模板把 pageToken 透传进 body（AC#6）', async () => {
-    const adapter = createAdapter();
+    const adapter = await createAdapter();
     const fetchMock = queueResponses([json({ rows: [meta('a')], nextPageToken: 'c1' }), json({ rows: [meta('b')] })]);
 
     const rows = await firstValueFrom(adapter.fetchMetadata('Recipe', ALL));
@@ -189,7 +219,7 @@ describe('等价于阶段 A 的 QueryCache ducks（AC#27）', () => {
   });
 
   it('分块合并后恰好发射一次（AC#8 / #33）', async () => {
-    const adapter = createAdapter({}, { idChunkSize: 2 });
+    const adapter = await createAdapter({}, { idChunkSize: 2 });
     const fetchMock = queueResponses([json([{ id: 'a' }, { id: 'b' }]), json([{ id: 'c' }])]);
 
     const emissions = await lastValueFrom(adapter.findByIds<{ id: string }>('Recipe', ['a', 'b', 'c']).pipe(toArray()));
@@ -202,7 +232,9 @@ describe('等价于阶段 A 的 QueryCache ducks（AC#27）', () => {
   it('updatedAt 仍由适配器规范化，模板不碰它（AC#14）', async () => {
     queueResponses([json([{ id: 'a', updatedAt: '2026-08-23T18:00:00+08:00' }])]);
 
-    const rows = await firstValueFrom(createAdapter().fetchMetadata('Recipe', ALL));
+    const adapter = await createAdapter();
+
+    const rows = await firstValueFrom(adapter.fetchMetadata('Recipe', ALL));
 
     expect(rows).toEqual([{ id: 'a', updatedAt: '2026-08-23T10:00:00.000Z' }]);
   });
@@ -210,7 +242,7 @@ describe('等价于阶段 A 的 QueryCache ducks（AC#27）', () => {
 
 describe('可关闭与默认不产出的 handler（AC#27）', () => {
   it('templates.create = null 时写 duck 缺席，走 AC#4 的 fail-fast', () => {
-    const adapter = createAdapter({ templates: { create: null } });
+    const adapter = buildAdapter({ templates: { create: null } });
 
     expect(adapter.create).toBeUndefined();
     expect(adapter.update).toBeDefined();
@@ -218,7 +250,7 @@ describe('可关闭与默认不产出的 handler（AC#27）', () => {
   });
 
   it('三个写 handler 全关时只剩读路径（只读后端）', () => {
-    const adapter = createAdapter({ templates: { create: null, update: null, delete: null } });
+    const adapter = buildAdapter({ templates: { create: null, update: null, delete: null } });
 
     expect(adapter.create).toBeUndefined();
     expect(adapter.update).toBeUndefined();
@@ -234,11 +266,11 @@ describe('可关闭与默认不产出的 handler（AC#27）', () => {
 
     expect(handlers.onVersion).toBeUndefined();
     expect(handlers.onIsTableExisted).toBeUndefined();
-    await expect(createAdapter().version()).rejects.toBeInstanceOf(HttpUnsupportedOperationError);
+    await expect((await createAdapter()).version()).rejects.toBeInstanceOf(HttpUnsupportedOperationError);
   });
 
   it('配上 version 模板后返回远端版本，两种响应形态都收', async () => {
-    const adapter = createAdapter({ templates: { version: { path: 'meta/version' } } });
+    const adapter = await createAdapter({ templates: { version: { path: 'meta/version' } } });
     const fetchMock = queueResponses([json({ version: '3.45.0' }), json('3.45.0')]);
 
     await expect(adapter.version()).resolves.toBe('3.45.0');
@@ -251,14 +283,14 @@ describe('可关闭与默认不产出的 handler（AC#27）', () => {
   });
 
   it('version 响应形态不合契约时抛 HttpHandlerContractError，不猜一个版本号', async () => {
-    const adapter = createAdapter({ templates: { version: { path: 'meta/version' } } });
+    const adapter = await createAdapter({ templates: { version: { path: 'meta/version' } } });
     queueResponses([json({ build: 7 })]);
 
     await expect(adapter.version()).rejects.toBeInstanceOf(HttpHandlerContractError);
   });
 
   it('配上 isTableExisted 模板后按状态码分流', async () => {
-    const adapter = createAdapter({
+    const adapter = await createAdapter({
       resources: { RestRecipe: 'recipes' },
       templates: { isTableExisted: { path: ':entity' } }
     });
@@ -313,6 +345,29 @@ describe('模板 fail-fast：构造期就抛，不发错 URL（AC#27）', () => 
     rejects({ templates: { create: { path: ':entity', method: 'FETCH' as never } } }, /templates\.create\.method/);
   });
 
+  it.each(['fetchMetadata', 'findByIds', 'create', 'update', 'delete'] as const)(
+    '%s 覆盖成 GET → 抛：这五个操作恒带 body，而 GET 带 body 发不出去',
+    operation => {
+      const path = operation === 'update' ? ':entity/:id' : ':entity';
+      rejects({ templates: { [operation]: { path, method: 'GET' } } }, /cannot carry a body/);
+    }
+  );
+
+  it('HEAD 同样被拒，且理由指向方法而不是路径', () => {
+    rejects({ templates: { create: { path: ':entity', method: 'HEAD' } } }, /templates\.create\.method/);
+  });
+
+  it('不带 body 的两个操作照常可用 GET / HEAD', () => {
+    expect(() =>
+      createRestHandlers({
+        templates: {
+          version: { path: 'meta/version', method: 'GET' },
+          isTableExisted: { path: ':entity', method: 'HEAD' }
+        }
+      })
+    ).not.toThrow();
+  });
+
   it('关掉必选 handler → 抛（少了它整条读路径都不成立）', () => {
     rejects({ templates: { fetchMetadata: null } }, /cannot be disabled/);
     rejects({ templates: { findByIds: null } }, /cannot be disabled/);
@@ -358,14 +413,32 @@ describe('请求期的取值校验（同样不发错 URL）（AC#27）', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('空 id 不渲染成集合 URL', () => {
+  it('空 id 不渲染成集合 URL，且报的是请求构造失败而不是配置错误', () => {
     const handlers = createRestHandlers();
 
-    expect(() => handlers.onUpdate!.request({ entityName: 'Recipe', id: '', data: {} })).toThrow(HttpConfigError);
+    // `PUT /Recipe/` 会被不少路由框架当成集合端点，一次更新静默变成一次批量写。
+    // 但这**不是**配置问题：id 来自那一行数据，没有任何配置项改了能修好它。
+    // 报 `HttpConfigError` 就是把接入方指向一个不存在的选项（它的 `field` 是 `'id'`），
+    // 而真正要查的是主键怎么空了
+    const failure = (): unknown => handlers.onUpdate!.request({ entityName: 'Recipe', id: '', data: {} });
+    expect(failure).toThrow(HttpRequestBuildError);
+    expect(failure).not.toThrow(HttpConfigError);
+    expect(failure).toThrow(/update/);
+  });
+
+  it.each([[42], [null], [undefined], [{ id: 'a' }]])('非字符串 id %s 同样在发出前拦下', id => {
+    const handlers = createRestHandlers();
+
+    // `encodeURIComponent(42)` 给出 `'42'`，`{}` 给出 `'%5Bobject%20Object%5D'`——
+    // 都拼得出一个语法合法的 URL，于是不校验的代价是一个指向错误资源的请求
+    // 走 `unknown` 中转：这些值本来就违反签名，正是本条要验的
+    expect(() => handlers.onUpdate!.request({ entityName: 'Recipe', id: id as unknown as string, data: {} })).toThrow(
+      HttpRequestBuildError
+    );
   });
 
   it('写回执不是对象时抛 HttpHandlerContractError，不把 null 当成行写进缓存', async () => {
-    const adapter = createAdapter();
+    const adapter = await createAdapter();
     queueResponses([json(null), json('ok')]);
 
     await expect(firstValueFrom(adapter.create!('Recipe', { title: 'x' }))).rejects.toBeInstanceOf(
@@ -380,7 +453,7 @@ describe('请求期的取值校验（同样不发错 URL）（AC#27）', () => {
     // `POST /recipes` 回 `[created]` 是常见的后端形状（PostgREST 默认就是），而数组
     // `typeof === 'object'`，只判 object 会让它一路通过：调用方拿到的「行」是个数组，
     // 它的 `id` 是 `undefined`，于是缓存里多出一条 id 为空的记录，且全程没有报错
-    const adapter = createAdapter();
+    const adapter = await createAdapter();
     queueResponses([json([{ id: 'a', title: 'x' }]), json([{ id: 'a', title: 'x' }])]);
 
     await expect(firstValueFrom(adapter.create!('Recipe', { title: 'x' }))).rejects.toBeInstanceOf(

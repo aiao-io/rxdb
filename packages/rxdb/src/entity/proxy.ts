@@ -8,7 +8,8 @@
  * - **binary 写入优化**：`Uint8Array` 同引用赋值跳过 diff（buffer 复用很常见），
  *   异引用赋值保留深拷贝语义；
  * - **外键同步**：被直接赋值的 foreign key 字段会同步回灌到关系 Observable，
- *   让已订阅但没有走 `set()/remove()` 的下游仍能读到新引用。
+ *   让已订阅但没有走 `set()/remove()` 的下游仍能读到新引用；
+ * - **身份缓存补登记**：主键被写入时把实例（重新）挂到身份缓存的对应槽位上。
  *
  * 代理只负责**变更检测**与**关系回灌**；真正的"持久化 / 派发事件 / change
  * 合并"在 {@link EntityStatus} 内完成。
@@ -16,8 +17,20 @@
 
 import { isEqual, isSymbol } from '@aiao/utils';
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
-import { EntityType } from './entity.interface.js';
+import { ENTITY_MANAGER } from '../rxdb.private.js';
+import { EntityType, RxDBEntityId } from './entity.interface.js';
 import { PropertyType, RelationKind } from './metadata-options.interface.js';
+
+/**
+ * 身份缓存里需要用到的那部分 EntityManager
+ *
+ * @remarks
+ * 用结构类型而不是 `import type { EntityManager }`：`entity-manager.ts` 本来就 import 本模块，
+ * 反向引用会让两者互相依赖。
+ */
+interface IdentityCacheOwner {
+  reindexEntityCache(entity: object, previousId: RxDBEntityId | undefined): void;
+}
 
 /**
  * 创建实体代理对象
@@ -74,7 +87,14 @@ export const createEntityProxy = <T extends EntityType>(entity: InstanceType<T>)
           }
         }
       }
-      return Reflect.set(target, prop, value, receiver);
+      const applied = Reflect.set(target, prop, value, receiver);
+      // 主键写入后补登记身份缓存。放在 Reflect.set 之后：reindex 读的是实体上的新 id。
+      // 走到这里说明值确实变了（上面对相等值已经提前返回），所以不会有空转。
+      if (applied && prop === 'id') {
+        const manager = (target as { [ENTITY_MANAGER]?: IdentityCacheOwner })[ENTITY_MANAGER];
+        manager?.reindexEntityCache(state.proxyTarget, currentValue as RxDBEntityId | undefined);
+      }
+      return applied;
     }
   };
 

@@ -15,7 +15,7 @@
  * `:entity` 缺席会让所有实体共用一个 URL。等到发出去再看响应码，那两条都可能是 200。
  */
 
-import { HttpConfigError, HttpHandlerContractError } from './errors.js';
+import { HttpConfigError, HttpHandlerContractError, HttpRequestBuildError } from './errors.js';
 import type {
   CreateContext,
   FetchMetadataResult,
@@ -95,6 +95,17 @@ interface RestOperationSpec {
   placeholders: readonly RestPlaceholder[];
   /** 能否用 `null` 关掉 */
   closable: boolean;
+  /**
+   * 本操作产出的 handler 是否**恒带**请求体。
+   *
+   * @remarks
+   * 带 body 的操作不能被覆盖成 `GET` / `HEAD`：`fetch` 对这一组抛裸 `TypeError`，
+   * 与传输失败同型，最终会以「离线」的面目出现并降级到陈旧缓存。transport 侧已经拦了
+   * （`HttpRequestBuildError`，reason `method`），这里再拦一次是为了把它提到**构造期**——
+   * 本模块存在的理由就是「模板错了要 fail-fast，别等发出去看响应」，而这一条恰好是
+   * 那种发不出去、却只会以查询结果变旧的形式显形的错。
+   */
+  carriesBody: boolean;
 }
 
 const ENTITY_ONLY: readonly RestPlaceholder[] = ['entity'];
@@ -110,20 +121,29 @@ const ENTITY_ONLY: readonly RestPlaceholder[] = ['entity'];
  * 所以这里选一条丑但不会被中间层改写语义的路。需要真 `DELETE` 的接入方显式覆盖即可。
  */
 const REST_OPERATIONS: Readonly<Record<RestOperation, RestOperationSpec>> = {
-  fetchMetadata: { method: 'POST', path: ':entity/metadata', placeholders: ENTITY_ONLY, closable: false },
-  findByIds: { method: 'POST', path: ':entity/by-ids', placeholders: ENTITY_ONLY, closable: false },
-  create: { method: 'POST', path: ':entity', placeholders: ENTITY_ONLY, closable: true },
-  update: { method: 'PATCH', path: ':entity/:id', placeholders: ['entity', 'id'], closable: true },
-  delete: { method: 'POST', path: ':entity/delete', placeholders: ENTITY_ONLY, closable: true },
-  version: { method: 'GET', placeholders: [], closable: true },
+  fetchMetadata: {
+    method: 'POST',
+    path: ':entity/metadata',
+    placeholders: ENTITY_ONLY,
+    closable: false,
+    carriesBody: true
+  },
+  findByIds: { method: 'POST', path: ':entity/by-ids', placeholders: ENTITY_ONLY, closable: false, carriesBody: true },
+  create: { method: 'POST', path: ':entity', placeholders: ENTITY_ONLY, closable: true, carriesBody: true },
+  update: { method: 'PATCH', path: ':entity/:id', placeholders: ['entity', 'id'], closable: true, carriesBody: true },
+  delete: { method: 'POST', path: ':entity/delete', placeholders: ENTITY_ONLY, closable: true, carriesBody: true },
+  version: { method: 'GET', placeholders: [], closable: true, carriesBody: false },
   // 不给默认路径：缺省时适配器复用 `onFetchMetadata` 的 `limit: 1` 探测，那是一个
   // **确定存在**的端点。默认发 `HEAD :entity` 则是替接入方假设集合资源支持 HEAD——
   // 不支持的后端会回 405，而 405 既不是 2xx 也不是 404，正好落进「抛错」那一支，
   // 把一次能答上来的探测变成故障
-  isTableExisted: { method: 'HEAD', placeholders: ENTITY_ONLY, closable: true }
+  isTableExisted: { method: 'HEAD', placeholders: ENTITY_ONLY, closable: true, carriesBody: false }
 };
 
 const HTTP_METHODS = new Set<string>(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE']);
+
+/** 按 fetch 规范不得携带请求体的方法，与 `transport.ts` 的 `BODYLESS_METHODS` 同源 */
+const BODYLESS_METHODS = new Set<string>(['GET', 'HEAD']);
 
 /**
  * 占位符词法：`:` 后跟字母开头的标识符。
@@ -144,10 +164,8 @@ const VERSION_SCOPE = '(server version)';
  * 「普通对象」判定，**数组不算**。
  *
  * @remarks
- * 少了 `Array.isArray` 这一条，`[]` 与 `[row]` 都会被 {@link assertRow} 当成持久化行收下，
- * 随后原样进 QueryCache 的本地 upsert——本地于是留下一条形状与远端毫无关系的行，
- * 而回执「是个对象」这句话技术上还成立。返回集合而不是单行是真实后端的常见形态
- * （`POST /recipes` 回 `[created]`），所以这不是理论边界。
+ * `onVersion` 的 `{ version }` 形态判定要用它。数组不算对象这一条留在这里
+ * 与 `handler-contract.ts` 同源：`['1.0.0']` 不是一个版本回执。
  */
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -178,6 +196,13 @@ const assertTemplate = (operation: RestOperation, template: RestOperationTemplat
   if (template.method !== undefined && !HTTP_METHODS.has(template.method)) {
     throw new HttpConfigError(
       `REST template "${field}.method" must be one of ${[...HTTP_METHODS].join(' / ')}, received ${JSON.stringify(template.method)}`,
+      `${field}.method`,
+      template.method
+    );
+  }
+  if (spec.carriesBody && template.method !== undefined && BODYLESS_METHODS.has(template.method)) {
+    throw new HttpConfigError(
+      `REST template "${field}.method" cannot be "${template.method}": the "${operation}" handler always sends a request body, and ${template.method} requests cannot carry a body`,
       `${field}.method`,
       template.method
     );
@@ -269,13 +294,24 @@ const resolveEntitySegment = (resources: Record<string, string> | undefined, ent
   return entityName;
 };
 
-/** 渲染 `:id`：来自数据，必须转义 */
-const resolveIdSegment = (entityName: string, id: unknown): string => {
+/**
+ * 渲染 `:id`：来自数据，必须转义。
+ *
+ * @remarks
+ * 抛 {@link HttpRequestBuildError} 而不是 {@link HttpConfigError}：主键的形态是**数据**
+ * 问题，没有任何配置项改了能修好它——邻近的 {@link resolveEntitySegment} 相反，
+ * 它指的是「补一条 `resources` 映射」，那才是配置。
+ *
+ * 校验不能省：`encodeURIComponent` 对 `42` 给出 `'42'`、对 `{}` 给出
+ * `'%5Bobject%20Object%5D'`，都拼得出语法合法的 URL，于是不校验的代价是一个静默指向
+ * 错误资源的请求；空串更糟，`PUT /Recipe/` 在不少路由框架上就是集合端点。
+ */
+const resolveIdSegment = (operation: RestOperation, entityName: string, id: unknown): string => {
   if (typeof id !== 'string' || id.length === 0) {
-    throw new HttpConfigError(
-      `REST templates require a non-empty string id for "${entityName}", received ${JSON.stringify(id)}`,
+    throw new HttpRequestBuildError(
       'id',
-      id
+      operation,
+      `REST templates require a non-empty string id for "${entityName}", received ${JSON.stringify(id) ?? typeof id}`
     );
   }
   return encodeURIComponent(id);
@@ -307,18 +343,6 @@ const render = (
   }),
   method: template.method
 });
-
-/** 写回执必须是对象：回显入参或收下 `null` 会在本地留一条远端从不存在的行 */
-const assertRow = (handler: string, entityName: string, body: unknown): unknown => {
-  if (!isRecord(body)) {
-    throw new HttpHandlerContractError(
-      handler,
-      entityName,
-      `expected the persisted row object, received ${JSON.stringify(body)}`
-    );
-  }
-  return body;
-};
 
 /**
  * 用 REST 资源 URL 模板产出一整套 {@link HttpHandlers}（US-212 AC#27）。
@@ -402,7 +426,9 @@ export const createRestHandlers = (options: RestHandlersOptions = {}): HttpHandl
   if (create) {
     handlers.onCreate = {
       request: (ctx: CreateContext) => ({ ...entityRequest('create', create, ctx.entityName), body: ctx.data }),
-      parse: (body, ctx) => assertRow('create', ctx.entityName, body)
+      // 形态校验在适配器的 create duck 出口统一做（手写 handler 也得过那一关），
+      // 这里再查一遍只会让同一个判据有两个负责人
+      parse: body => body
     };
   }
   if (update) {
@@ -410,11 +436,11 @@ export const createRestHandlers = (options: RestHandlersOptions = {}): HttpHandl
       request: (ctx: UpdateContext) => ({
         ...render('update', update, {
           entity: resolveEntitySegment(resources, ctx.entityName),
-          id: resolveIdSegment(ctx.entityName, ctx.id)
+          id: resolveIdSegment('update', ctx.entityName, ctx.id)
         }),
         body: ctx.data
       }),
-      parse: (body, ctx) => assertRow('update', ctx.entityName, body)
+      parse: body => body
     };
   }
   if (remove) {

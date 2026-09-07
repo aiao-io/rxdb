@@ -1,10 +1,12 @@
 import {
   Entity,
   EntityBase,
+  isSystemEntity,
   PropertyType,
   RxDB,
   RxDBMixedVersionedCacheTransactionError,
   SyncType,
+  type EntityType,
   type EntityUpdateData,
   type IRxDBAdapter,
   type IRxDBPlugin,
@@ -204,6 +206,31 @@ const handlers: HttpHandlers = {
  * 去够它）。这不削弱本文件要证的东西：where 下推是 core 自己的账，已由
  * `packages/rxdb` 的 QueryCache 套件覆盖；这里要证的是**行缓存落在了这一侧**。
  */
+/**
+ * 系统实体各自的内存仓储，与业务行仓储**分开**。
+ *
+ * @remarks
+ * QueryCache 读路径起手会问「这些 id 里哪些还被出站队列占着」（`pendingQueryCacheWriteIds`），
+ * 那一问读的是 `RxDBChange`；分支解析读的是 `RxDBBranch`。所有类型共用一份存储时，
+ * 缓存行会被当成变更行读出来，本该为空的待推集合装满业务数据，那些 id 随即被排除在
+ * 孤儿清理之外 —— 断言看到的是一份沉默的错答案，而不是一次失败。
+ *
+ * `find` 不求值 `where`，理由同业务行仓储。
+ */
+const createSystemRepository = () => {
+  const rows: object[] = [];
+  return {
+    find: vi.fn(() => Promise.resolve([...rows])),
+    count: vi.fn(() => Promise.resolve(rows.length)),
+    create: vi.fn((entity: object) => {
+      rows.push(entity);
+      return Promise.resolve(entity);
+    }),
+    update: vi.fn((entity: object) => Promise.resolve(entity)),
+    remove: vi.fn((entity: object) => Promise.resolve(entity))
+  };
+};
+
 const createLocalAdapter = (initial: Row[] = []) => {
   const store = new Map(initial.map(item => [item.id, item]));
   let toEntity: (data: Row) => Row = data => data;
@@ -216,6 +243,20 @@ const createLocalAdapter = (initial: Row[] = []) => {
     remove: vi.fn((entity: Row) => Promise.resolve(entity))
   };
 
+  const systemRepositories = new Map<unknown, ReturnType<typeof createSystemRepository>>();
+  const getRepository = (type: unknown): object => {
+    if (!isSystemEntity(type as EntityType)) {
+      return repository;
+    }
+    const existing = systemRepositories.get(type);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const created = createSystemRepository();
+    systemRepositories.set(type, created);
+    return created;
+  };
+
   const adapter = {
     name: 'sqlite',
     connect: vi.fn(() => Promise.resolve(adapter)),
@@ -223,7 +264,12 @@ const createLocalAdapter = (initial: Row[] = []) => {
     isTableExisted: vi.fn(() => Promise.resolve(false)),
     createTables: vi.fn(() => Promise.resolve()),
     mutations: vi.fn(() => Promise.resolve([])),
-    getRepository: () => repository,
+    getRepository,
+    // 真适配器在这里排队并开事务；替身同步执行，本文件没有并发窗口要验。
+    // 缺了它，`getCurrentBranch()` 的冷路径（本地一张分支表都没有）当场 TypeError
+    transaction: vi.fn((fun: (executor: { getRepository: (type: unknown) => object }) => unknown) =>
+      Promise.resolve(fun({ getRepository }))
+    ),
     getMetadataByIds: vi.fn((_entityName: string, ids: string[]) =>
       of(new Map(ids.filter(id => store.has(id)).map(id => [id, store.get(id)!.updatedAt])))
     ),
@@ -259,7 +305,7 @@ const createFullRemoteAdapter = () => ({
 const databases = new Set<RxDB>();
 let databaseSequence = 0;
 
-const createDatabase = (localRows: Row[] = []) => {
+const createDatabase = async (localRows: Row[] = []) => {
   databaseSequence += 1;
   const local = createLocalAdapter(localRows);
   const supabase = createFullRemoteAdapter();
@@ -273,6 +319,11 @@ const createDatabase = (localRows: Row[] = []) => {
   rxdb.adapter('supabase', () => supabase as unknown as IRxDBAdapter);
   rxdb.adapter('http', () => http);
   rxdb.init();
+  // 与 demo 应用同一条口径（`Promise.all([rxdb.connect('wa-sqlite'), rxdb.connect('http')])`）：
+  // remote 槽位的适配器由应用显式连接。core 的 `getAdapter()` 不会代劳——它明说会把
+  // 从未 `connect()` 的实例也塞进 `#adapter_map`。少了这一步，读写 duck 一律抛
+  // `HttpDisconnectedError`，而那正是 `#assertConnected` 要拦的「扫描没跑过」
+  await http.connect();
   // 适配器口径的 `updatedAt` 是 ISO 串，实体口径是 `Date`，两端在这里对接
   local.attach(
     data =>
@@ -302,7 +353,7 @@ afterEach(async () => {
 describe('AC#2 QueryCache 读路径：JSON RuleGroup 出网，行缓存落独立 sqlite', () => {
   it('适配器发出的请求体是 JSON 化的 RuleGroup，一个 SQL 片段都没有', async () => {
     const server = createFakeServer([row(R1), row(R2)]);
-    const ctx = createDatabase();
+    const ctx = await createDatabase();
 
     await firstValueFrom(ctx.rxdb.entityManager.getRepository(HttpIntegrationRecipe).find({ where: PUBLISHED }));
 
@@ -315,7 +366,7 @@ describe('AC#2 QueryCache 读路径：JSON RuleGroup 出网，行缓存落独立
 
   it('远端拉回的行经 core 落进独立 sqlite，本包这一侧没有 upsertMany 可调', async () => {
     const server = createFakeServer([row(R1), row(R2)]);
-    const ctx = createDatabase();
+    const ctx = await createDatabase();
 
     await firstValueFrom(ctx.rxdb.entityManager.getRepository(HttpIntegrationRecipe).find({ where: PUBLISHED }));
 
@@ -329,7 +380,7 @@ describe('AC#2 QueryCache 读路径：JSON RuleGroup 出网，行缓存落独立
 
   it('本地已新鲜的行不回源：metadata 出网，findByIds 不出网', async () => {
     createFakeServer([row(R1)]);
-    const ctx = createDatabase([row(R1)]);
+    const ctx = await createDatabase([row(R1)]);
 
     const server = createFakeServer([row(R1)]);
     await firstValueFrom(ctx.rxdb.entityManager.getRepository(HttpIntegrationRecipe).find({ where: PUBLISHED }));
@@ -342,7 +393,7 @@ describe('AC#2 QueryCache 读路径：JSON RuleGroup 出网，行缓存落独立
 describe('AC#3 写路径：remote-then-local，本包不持有任何本地存储', () => {
   it('create 先出网、再由 core 把**远端回执**写进独立 sqlite', async () => {
     const server = createFakeServer();
-    const ctx = createDatabase();
+    const ctx = await createDatabase();
     const recipe = ctx.rxdb.entityManager.createEntityRef(HttpIntegrationRecipe, {
       id: R9,
       title: 'r9',
@@ -359,7 +410,7 @@ describe('AC#3 写路径：remote-then-local，本包不持有任何本地存储
 
   it('update 走 PATCH，回执同样先出网后落本地', async () => {
     const server = createFakeServer([row(R1)]);
-    const ctx = createDatabase([row(R1)]);
+    const ctx = await createDatabase([row(R1)]);
     const recipe = ctx.rxdb.entityManager.createEntityRef(
       HttpIntegrationRecipe,
       { id: R1, title: `recipe-${R1}`, status: 'published' },
@@ -376,7 +427,7 @@ describe('AC#3 写路径：remote-then-local，本包不持有任何本地存储
 
   it('remove 先删远端再删本地缓存行，顺序不可颠倒', async () => {
     const server = createFakeServer([row(R1)]);
-    const ctx = createDatabase([row(R1)]);
+    const ctx = await createDatabase([row(R1)]);
     const recipe = ctx.rxdb.entityManager.createEntityRef(
       HttpIntegrationRecipe,
       { id: R1, title: `recipe-${R1}`, status: 'published' },
@@ -397,7 +448,7 @@ describe('AC#3 写路径：remote-then-local，本包不持有任何本地存储
     vi.stubGlobal('indexedDB', { open, deleteDatabase: vi.fn() });
     vi.stubGlobal('navigator', { storage: { getDirectory } });
     createFakeServer([row(R1)]);
-    const ctx = createDatabase([row(R1)]);
+    const ctx = await createDatabase([row(R1)]);
     const repository = ctx.rxdb.entityManager.getRepository(HttpIntegrationRecipe);
     const recipe = ctx.rxdb.entityManager.createEntityRef(
       HttpIntegrationRecipe,
@@ -427,7 +478,7 @@ describe('AC#17 / AC#20 inject 契约：插件绑到独立注册的 sqlite', () 
 
   it('adapter:local 解析到独立注册的 sqlite 实例，不是 HTTP 适配器', async () => {
     createFakeServer();
-    const ctx = createDatabase();
+    const ctx = await createDatabase();
     const seen: IRxDBAdapter[] = [];
     ctx.rxdb.use(probe('localProbe', ['adapter:local'], () => void seen.push(ctx.rxdb.localAdapterSync)));
 
@@ -440,7 +491,7 @@ describe('AC#17 / AC#20 inject 契约：插件绑到独立注册的 sqlite', () 
 
   it('两个槽位各归各位：只连 sqlite 时 adapter:remote 的插件不装，连上 http 才装', async () => {
     createFakeServer();
-    const ctx = createDatabase();
+    const ctx = await createDatabase();
     const installs: string[] = [];
     ctx.rxdb.use(probe('localProbe', ['adapter:local'], () => void installs.push('local')));
     ctx.rxdb.use(probe('remoteProbe', ['adapter:remote'], () => void installs.push('remote')));
@@ -454,7 +505,7 @@ describe('AC#17 / AC#20 inject 契约：插件绑到独立注册的 sqlite', () 
 
   it('插件不另开一份库：连 sqlite 时 HTTP 适配器一次都没被连上，也没出网', async () => {
     const server = createFakeServer();
-    const ctx = createDatabase();
+    const ctx = await createDatabase();
     const connectSpy = vi.spyOn(ctx.http, 'connect');
     ctx.rxdb.use(probe('localProbe', ['adapter:local'], () => void ctx.rxdb.localAdapterSync));
 
@@ -467,14 +518,14 @@ describe('AC#17 / AC#20 inject 契约：插件绑到独立注册的 sqlite', () 
 });
 
 describe('AC#18 混批闸门：本包不提供任何绕过入口', () => {
-  const buildMixedBatch = (ctx: ReturnType<typeof createDatabase>) => [
+  const buildMixedBatch = (ctx: Awaited<ReturnType<typeof createDatabase>>) => [
     dirty(ctx.rxdb.entityManager.createEntityRef(HttpIntegrationRecipe, { id: R1, title: 'r1', status: 'published' })),
     dirty(ctx.rxdb.entityManager.createEntityRef(HttpIntegrationNote, { id: N1, title: 'n1' }))
   ];
 
   it('HTTP-QueryCache 实体与 Full 实体同批时拒绝，错误码是 mixed_versioned_cache_transaction', async () => {
     createFakeServer();
-    const ctx = createDatabase();
+    const ctx = await createDatabase();
 
     const error = await ctx.rxdb.entityManager.saveMany(buildMixedBatch(ctx)).catch((e: unknown) => e);
 
@@ -486,7 +537,7 @@ describe('AC#18 混批闸门：本包不提供任何绕过入口', () => {
 
   it('闸门拦下时一个字节都没出网，也没写本地缓存', async () => {
     const server = createFakeServer();
-    const ctx = createDatabase();
+    const ctx = await createDatabase();
 
     await ctx.rxdb.entityManager.saveMany(buildMixedBatch(ctx)).catch(() => undefined);
 
@@ -495,18 +546,20 @@ describe('AC#18 混批闸门：本包不提供任何绕过入口', () => {
     expect(ctx.local.adapter.mutations).not.toHaveBeenCalled();
   });
 
-  it('本包不替 core 写第二条批量路径：adapter.mutations 抛 unsupported', () => {
+  it('本包不替 core 写第二条批量路径：adapter.mutations 抛 unsupported', async () => {
     createFakeServer();
-    const ctx = createDatabase();
+    const ctx = await createDatabase();
 
-    expect(() => ctx.http.mutations()).toThrow(HttpUnsupportedOperationError);
+    // rejection 而不是同步 throw：签名声明的是 `Promise`，
+    // 单元测试里 `RxDBAdapterHttp.spec.ts` 那一条把这个形状钉住了
+    await expect(ctx.http.mutations()).rejects.toBeInstanceOf(HttpUnsupportedOperationError);
   });
 });
 
 describe('AC#22 对照组：同库里的 Full 实体路径原样不动', () => {
   it('Full 实体的批量写照旧走本地适配器的 mutations，HTTP 一个请求都没发', async () => {
     const server = createFakeServer();
-    const ctx = createDatabase();
+    const ctx = await createDatabase();
     const note = dirty(ctx.rxdb.entityManager.createEntityRef(HttpIntegrationNote, { id: N1, title: 'n1' }));
 
     await ctx.rxdb.entityManager.saveMany([note]);
@@ -517,7 +570,7 @@ describe('AC#22 对照组：同库里的 Full 实体路径原样不动', () => {
 
   it('QueryCache 实体的批量写不走 mutations，两条路径在同一个库里各走各的', async () => {
     const server = createFakeServer();
-    const ctx = createDatabase();
+    const ctx = await createDatabase();
     const recipe = dirty(
       ctx.rxdb.entityManager.createEntityRef(HttpIntegrationRecipe, { id: R1, title: 'r1', status: 'published' })
     );
@@ -531,7 +584,7 @@ describe('AC#22 对照组：同库里的 Full 实体路径原样不动', () => {
 
   it('查询本包实体不影响 Full 实体的读：两者的适配器互不越界', async () => {
     createFakeServer([row(R1)]);
-    const ctx = createDatabase();
+    const ctx = await createDatabase();
 
     await firstValueFrom(ctx.rxdb.entityManager.getRepository(HttpIntegrationRecipe).find({ where: ALL }));
 

@@ -1,7 +1,4 @@
 // @ts-check
-/* eslint-disable @typescript-eslint/no-unused-vars, prefer-const --
- * dev-only 驱动脚本：常量和计数器按阶段分批落地（AC#10 字节面、传输记账等尚未接进 run() 的
- * 半成品），lint 不应把它们当死代码报；`let` 预留给后续阶段做累加。 */
 /**
  * US-905 阶段 2：调试窗口里的 dev-only wire 驱动。
  *
@@ -580,10 +577,13 @@
    */
   async function download(path) {
     const requestId = 'drv-files-download-' + sequence;
-    const pending = { chunks: [], settle: function () {} };
+    // executor 是同步跑的，所以 `settle` 在 `new Promise` 返回时已经赋好——收集器因此
+    // 不需要一个占位的空实现，省掉「万一没赋上」这条根本不存在的分支。
+    let settle;
     const streamed = new Promise(function (resolve) {
-      pending.settle = resolve;
+      settle = resolve;
     });
+    const pending = { chunks: [], settle: settle };
     // START 早于 RESPONSE，所以登记必须先于请求（见 {@link onTransferFrame}）。
     pendingDownloads.set(requestId, pending);
     const answer = await requestWith(requestId, 'files', 'download', { path: path, requestId: requestId });

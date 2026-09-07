@@ -45,10 +45,16 @@ pnpm add @aiao/rxdb-adapter-wa-sqlite
 - `createRestHandlers` — REST 资源 URL 模板工厂，产出的是普通 `HttpHandlers`
 - `HttpAdapterOptions` / `HttpHandlers` / `HttpRequestSpec` / `HttpNumericConfig` / `HttpAuthHook` 等配置与 handler 类型
 - `RestHandlersOptions` / `RestOperation` / `RestOperationTemplate` / `RestPlaceholder` — 模板工厂类型
-- `DEFAULT_HTTP_CONFIG` — 五个数值配置的默认值
+- 变更推送类型：`HttpChangeFeedOptions`、`HttpChangeFeedUnavailableReport` / `HttpChangeFeedUnavailableHook`、
+  `HttpChangeFeedNotificationReport` / `HttpChangeFeedNotificationHook`
+- 诊断类型：`HttpEtagUnreadableReport` / `HttpEtagUnreadableHook`、`HttpResponseType`
+- `DEFAULT_HTTP_CONFIG` — 六个数值配置的默认值
 - 错误类型：`HttpAdapterError`（基类）、`HttpConfigError`、`HttpResponseError`、`HttpInvalidResponseError`、
-  `HttpPaginationError`、`HttpInvalidMetadataError`、`HttpHandlerContractError`、`HttpDisconnectedError`、
-  `HttpChangelogUnsupportedError`、`HttpUnsupportedWireTypeError`、`HttpUnsupportedOperationError`
+  `HttpRequestBuildError`、`HttpPaginationError`、`HttpInvalidMetadataError`、`HttpHandlerContractError`、
+  `HttpDisconnectedError`、`HttpChangelogUnsupportedError`、`HttpUnsupportedWireTypeError`、
+  `HttpUnsupportedOperationError`
+- 错误成因的判别串：`HttpRequestBuildFailure`（`HttpRequestBuildError.reason`）、
+  `HttpPaginationFailure`（`HttpPaginationError.reason`）
 
 > ⚠️ 不存在 `createRxDatabase()` / `createHttpAdapter()` 这类函数，注册方式见下方 `rxdb.adapter()`。
 
@@ -196,14 +202,17 @@ new RxDBAdapterHttp(db, {
 new RxDBAdapterHttp(db, { baseUrl, handlers, conditionalRequests: true });
 ```
 
-三条要点：
+四条要点：
 
 - **必须显式开启。** 它只在远端真的发 `ETag` 并认 `If-None-Match` 时才有收益，而这一点适配器无从探测。
   关闭时行为与不带此特性的版本**逐字相同**：不发条件头、不去重、304 照旧当错误。
 - **缓存的是响应不是行。** 行缓存归 core 经本地适配器落盘，本包不碰。响应缓存按适配器实例存活、
   按 `conditionalCacheSize` 有界（LRU）、`disconnect()` 时清空。翻页 / 分块按**单页 / 单块**各自键控。
-- **换用户必须走 `disconnect()` / `connect()`。** auth header 不进请求指纹（否则每次 token 轮换都全量失效，
-  等于没有缓存），所以在同一实例上直接换 token 会读到上一个身份的响应。
+- **三组 header 只有 handler 那组进请求指纹。** `HttpRequestSpec.headers`（handler 逐请求给的）**进**——
+  在同一条 URL 上按租户 / 语言分投影是安全的，两个投影各占各的条目。适配器级的 `headers`（本实例恒定）
+  与 auth hook 产出的**不进**：前者进去只是给每条键加同一段前缀，后者进去会让每次 token 轮换都全量失效。
+- **换用户必须走 `disconnect()` / `connect()`。** 这是 auth header 不进指纹的代价：在同一实例上
+  直接换 token 会读到上一个身份的响应。
 
 ## 错误与离线降级
 
@@ -213,12 +222,18 @@ new RxDBAdapterHttp(db, { baseUrl, handlers, conditionalRequests: true });
 | :------------------------- | :------------------------------------- | :--------------- | :---------------- |
 | 非 2xx 响应（401/409/…）   | `HttpResponseError`（带数字 `status`） | `false`          | 不降级，原样上抛  |
 | 2xx 但响应体不是 JSON      | `HttpInvalidResponseError`             | `false`          | 不降级            |
+| 请求发出前就构造失败       | `HttpRequestBuildError`（带 `reason`） | `false`          | **不降级**        |
 | 连不上远端（fetch reject） | core 的 `NetworkOfflineError`          | `true`           | 有缓存则降级      |
 | 单请求超时                 | core 的 `NetworkOfflineError`          | `true`           | 有缓存则降级      |
 | `disconnect()` 主动取消    | `HttpDisconnectedError`                | `false`          | **不降级**        |
 
 传输失败刻意**不**包进本包的错误类：`isNetworkError` 的第一条判据是 `instanceof NetworkOfflineError`，
 包起来会让降级静默失效。
+
+反过来，`HttpRequestBuildError` 存在的理由正是**不**被包成传输失败：body 带 bigint、header 非法、
+`GET` 带 body、URL 拼不出来、主键不是非空字符串——这五种本地问题里，`JSON.stringify` 与 `fetch` 抛的
+都是裸 `TypeError`，与真的连不上远端**完全同型**。不摘出来的话，一次脏数据会被 `offlineFallback`
+静默换成一份陈旧缓存，从此再没有报错。`reason` 取 `'body'` / `'headers'` / `'method'` / `'url'` / `'id'`。
 
 ## 限制
 

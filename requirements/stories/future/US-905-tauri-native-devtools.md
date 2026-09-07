@@ -131,7 +131,7 @@ US-210 SQLite host / US-505 native file host
 | #   | 前置条件                                                   | 操作                                                   | 预期结果                                                                                                                        | 状态 |
 | --- | ---------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | 9   | 应用通过 US-210 使用应用作用域 SQLite                      | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与主窗口一致；调试窗口不打开数据库、不创建 OPFS/IDB fallback                            | ⚠️   |
-| 10  | 应用通过 US-505 使用 native files 并显式允许 mutation      | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件根，字节一致；UI 仅用 `runtime: tauri` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                    | ⬜   |
+| 10  | 应用通过 US-505 使用 native files 并显式允许 mutation      | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件根，字节一致；UI 仅用 `runtime: tauri` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                    | ⚠️   |
 | 11  | 1001 条以上 metadata/files、两类缺失和在途上传             | 读取完整诊断 snapshot                                  | 从请求进入起算的共享 deadline（US-904 阶段 B）覆盖等锁/物化/重试；不漏尾页或误报临时状态；busy/too-large/expired 与共享错误一致 | ⬜   |
 | 12  | 打开 Settings                                              | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明能力返回 `provider_unsupported`，不读取 SQLite/WAL、OPFS/IDB 或其他应用目录  | ⚠️   |
 | 13  | 错误窗口/旧 session，或合法窗口在授权组合下伪造操作        | 通过真实 transport 发送                                | 各层拒绝错误身份；未授权 provider 调用为 0，未 opt-in mutation 不执行；响应不含路径、SQL 绑定值、加密字段或文件内容             | ⚠️   |
@@ -144,9 +144,9 @@ US-210 SQLite host / US-505 native file host
 
 ## 交付状态
 
-**当前口径（2026-09-05）**：阶段 1 的 8 条 AC 为 **5 条 ✅（#1 #3 #4 #5 #8）、3 条 ⚠️（#2 #6 #7）**。
-阶段 2 已开工（C1～C3 与 C4 前三片已落地）：**AC#9 / #12 / #13 / #14 / #15 / #17 转
-⚠️，一条都还没关**；#10 / #11 / #16 仍是 ⬜。阶段 1 那三条 ⚠️ 都不再缺 harness，缺的是一次 owner
+**当前口径（2026-09-07）**：阶段 1 的 8 条 AC 为 **5 条 ✅（#1 #3 #4 #5 #8）、3 条 ⚠️（#2 #6 #7）**。
+阶段 2 已开工（C1～C3 与 C4 前四片已落地）：**AC#9 / #10 / #12 / #13 / #14 / #15 / #17 转
+⚠️，一条都还没关**；#11 / #16 仍是 ⬜。阶段 1 那三条 ⚠️ 都不再缺 harness，缺的是一次 owner
 边界决定或阶段 2 的真实
 provider——见[仍未覆盖的三条](#仍未覆盖的三条以及一处需要-owner-划边界的地方)与[发现 7](#发现-7ac7-的--高估了它的证据2026-09-04-复核)。
 本节以下两段是 **2026-08-31 的历史快照**，被「[阶段 1 harness 落地与三处实测发现（2026-09-04）](#阶段-1-harness-落地与三处实测发现2026-09-04)」整节取代，保留只为记录当时的判断依据。
@@ -701,6 +701,76 @@ capability/command/bootstrap 由 `devtools-release-isolation.spec.ts` 的 7 条�
 「三平台完成加载、握手、session 释放」目前只有 macOS 一列的实测，ubuntu / windows 两列要等
 这份 workflow 在 PR 上跑一次才拿得到（它自带 `pull_request.paths` 触发，第一次真实运行就发生
 在改动它的那个 PR 上）。在那次运行给出结果之前，AC#17 不能提 ✅。
+
+### PR-C4 第四片：字节面（2026-09-07）
+
+AC#10 要的是「只操作插件根，字节一致；全程流式；失败/取消/超时无半写文件或孤儿 metadata」。
+本片把这几截都接到真实链路上——驱动在调试窗口里发真的 `TRANSFER_*` 帧，字节穿过
+面板 → IPC → Rust 中继 → connector → native provider → host，再原路读回来。
+
+**成功的上传在 wire 上是完全静默的**：`TRANSFER_COMPLETE` 没有应答帧。所以「上传成功了」
+这句话在发送侧无从自证——一次被中途拒掉的传输与一次成功的传输在驱动这侧同形。判据因此只能是
+**读回来**：`upload → download → 逐字节比`（`bytesMatch`），e2e 侧再用 `readFileSync` 读盘上的
+文件、与本地重算的同一份载荷比第二遍。三个来源互相独立（驱动的比对、盘上的字节、
+`statSync` 的长度），任一条单独成立都不足以结账。
+
+**流式不是自动的**：协议只要求 `1 ≤ 块长 ≤ 256 KiB`，一帧装完整个载荷同样能让字节对上——
+而那正是流式**没有**接通的形态。载荷取 700 字节、块长取 256，`uploadChunks` 因此恒为 3，
+e2e 直接钉这个数。取小的那一头也是为了不把几百 KB 的 base64 推过 Tauri IPC。
+
+**三条边界各自独立**：零字节文件走 `statSync().size === 0`（`deferredSink` 对空文件仍要
+`commit()`，否则一次合法的空上传什么都不会创建）；越界路径 `'..'` 在 provider 就被判
+`invalid_path`，且 `storageRoot/../drv-bytes.bin` 不存在；只读那一跑是天然负对照——
+`uploadBytes === 'provider_unsupported'`，两个目标文件在盘上都没有。
+
+**取消判的是观察到的生命周期，不是「帧发出去了」**：驱动先送一块真实字节，poll `files.list`
+直到 host 的 `.rxdb-tmp` **真的出现**，再发 `TRANSFER_CANCEL`，然后 poll 到它**真的没了**。
+`.rxdb-tmp` 数得出来是两条性质凑起来的：Rust 的 `list_path` 不过滤点开头的名字（`file/mod.rs`
+里那条过滤在 `mod tests` 内），`decodePhysicalName` 对这个名字是恒等映射。
+
+报告 schema **v8 → v9**，`devtools.native` 新增九格：`uploadBytes` / `uploadChunks` /
+`downloadBytes` / `bytesMatch` / `emptyUpload` / `escapedUpload` / `cancelledUpload` /
+`cancelledFile` / `tempResidue`。
+
+字节产物落在**存储根**而不是 `KEPT_DIR`：AC#4 的回收会让驱动在一个进程里跑第二遍
+（[发现 12](#发现-12一个进程里驱动会跑不止一遍)），而第二遍的准备步骤会删掉并重建 `KEPT_DIR`。
+host 的提交是「临时文件 + rename」，两遍写的又是同一份确定性载荷，所以第二遍被
+`app.exit` 杀在半路时，目标文件里留下的仍然是完整的第一遍或完整的第二遍。
+
+**本片关掉的**：AC#10 由 ⬜ 提到 ⚠️。字节面、流式、边界与取消都已成立，保留的是判据里
+「UI 仅用 `runtime: tauri` 显示来源」那一截——它要驱动**面板的 DOM** 而不是 wire，
+以及「边界大小」目前只覆盖了 0 与 700，没有覆盖 `DEVTOOLS_MAX_CHUNK_BYTES` 那一头。
+
+### 发现 18：`TRANSFER_CANCEL` 不等在途写入，取消可能漏下临时产物（**未修**）
+
+`transfer.ts` 的 `complete()` 第一件事就是 `await this.#entries.get(...)?.writes`——它要等
+在途的 `write` 全部落定再收尾。`cancel()` 没有这一步：它直接删表项、调 `onSettled`。
+
+单看这一处还不算 bug，问题在于清理路径上的另一半：`native-files-provider.ts` 的
+`deferredSink.discard()` 是 `await opened?.discard()`，而 `opened` 要等 `open()` 兑现才被赋值。
+于是「CHUNK 紧跟着 CANCEL」这条时序里，`discard()` 会在句柄尚未打开时命中那条空操作分支，
+而随后兑现的 `open()` 又把 host 的 `.rxdb-tmp` 建了出来——**没有人再去清它**。
+
+这条是读代码读出来的，不是本片复现出来的：驱动刻意绕开了它（先等临时产物出现再发 CANCEL，
+那时 `opened` 必已赋值），所以 `tempResidue` 是 0，AC#10 的取消用例真绿。绕开是因为要验的是
+「取消之后盘上干不干净」，不是「这条 race 有多容易撞上」——把两件事写进同一条断言，
+红了也分不出是哪一件。修法应当在 `cancel()` 里补上与 `complete()` 同款的 `await entry.writes`
+（`writes` 链本来就在，`accept` 每次都往上接），归属 US-904 的传输状态机，不在本故事里。
+
+### 发现 19：上传的中途拒绝挂在一个已经结算掉的 requestId 上
+
+端点的 `#onTransferChunk` / `#settleTransferFrame` 把传输期的 ERROR 归因到**上传那条 REQUEST 的
+requestId** 上。可那个 requestId 早在 `files.upload` 的 RESPONSE 到达时就从等待表里删掉了——
+帧回来时没有等待者，被整条丢掉。
+
+表征是：一次被中途拒掉的上传，在驱动这侧与一次成功的上传**完全同形**（两者在 wire 上都不再有
+下文）。这不是端点的缺陷——协议就是这么归因的；是**驱动**不能只有一张「请求 → 等待者」表。
+修法是另记一张 `strayErrors`（requestId → code），结算之后到达的 ERROR 落进它，汇报时
+`strayErrors.get(requestId) ?? code` 取并。汇报发生在若干个来回之后，时序上够宽。
+
+顺带一条同源的：**下载的 `TRANSFER_START` 早于它自己的 `RESPONSE`**（`endpoint.ts` 的
+`#beginDownload` 在 TSDoc 里写明了为什么）。收集器因此必须在**发出请求之前**就登记好，
+等 RESPONSE 回来再登记的话 START 来时无处可挂，整段字节被丢掉。
 
 ## 技术约束
 

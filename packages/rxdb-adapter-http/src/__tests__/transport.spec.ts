@@ -385,6 +385,35 @@ describe('HttpTransport', () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
+    it.each(['GET', 'HEAD'] as const)('%s 带 body → HttpRequestBuildError，请求不发出', async method => {
+      const { transport } = createTransport();
+      // fetch 对这一组直接抛裸 TypeError（"Request with GET/HEAD method cannot have body"），
+      // 与传输失败**完全同型**。放它落进 classify() 就是一次 NetworkOfflineError，
+      // 随即被 offlineFallback 静默换成陈旧缓存，可达性面板还会跟着翻成离线
+      const error = await transport.sendJson({ url: 'items', method, body: { q: 1 } }, 'fetchMetadata').catch(e => e);
+      expect(error).toBeInstanceOf(HttpRequestBuildError);
+      expect((error as HttpRequestBuildError).reason).toBe('method');
+      expect(isNetworkError(error)).toBe(false);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it.each(['GET', 'HEAD'] as const)('%s 不带 body 照常发出', async method => {
+      const { transport } = createTransport();
+      await transport.sendJson({ url: 'items', method }, 'fetchMetadata');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('baseUrl 拼不出可解析的绝对 URL → HttpRequestBuildError，不判离线', async () => {
+      const { transport } = createTransport({ baseUrl: 'api' });
+      // node 下 fetch('api/items') 抛的同样是裸 TypeError（"Failed to parse URL"），
+      // 与上面 GET+body 一条路：一个配置笔误会被报成「远端够不着」并降级到缓存
+      const error = await transport.sendJson({ url: 'items', method: 'POST', body: {} }, 'fetchMetadata').catch(e => e);
+      expect(error).toBeInstanceOf(HttpRequestBuildError);
+      expect((error as HttpRequestBuildError).reason).toBe('url');
+      expect(isNetworkError(error)).toBe(false);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it('开不开条件请求，同一份脏 body 抛同一种错误', async () => {
       const spec = { url: 'items', method: 'POST' as const, body: UNSERIALIZABLE };
       const { transport: plain } = createTransport();
@@ -616,6 +645,75 @@ describe('HttpTransport', () => {
       expect(ifNoneMatch(2)).toBe('"{"offset":100}"');
     });
 
+    it('只有 handler header 不同的两次请求各自校验，不共享条目', async () => {
+      // handler 按租户 / 语言在同一条 URL 上分投影时，method + url + body 三者全同。
+      // 共享条目的后果是拿 acme 的 ETag 去问 globex——服务端不按该 header 变更 ETag
+      // 就回 304，globex 收到的是 acme 的行，且没有任何一步报错
+      // 桩按 `if-none-match` 在不在分流，而不是按调用次数：两个请求各自校验时第二次
+      // 本来就不带校验字段，按次数回 304 的桩会让「修好了」表现成「未请求却收到 304」
+      stubFetch((_url, init) => {
+        const sent = (init.headers as Record<string, string>)['if-none-match'];
+        return Promise.resolve(
+          sent ?
+            new Response(null, { status: 304 })
+          : new Response(JSON.stringify({ rows: [1, 2] }), { status: 200, headers: { etag: '"v1"' } })
+        );
+      });
+      const transport = conditionalTransport();
+      const scoped = (tenant: string) => ({ ...READ_SPEC, headers: { 'x-tenant': tenant } });
+      await transport.sendJson(scoped('acme'), 'fetchMetadata');
+      await transport.sendJson(scoped('globex'), 'fetchMetadata');
+      expect(ifNoneMatch(1)).toBeUndefined();
+      // 同租户的第三次照常命中：修的是「跨租户共用」，不是把缓存整个关掉
+      await transport.sendJson(scoped('acme'), 'fetchMetadata');
+      expect(ifNoneMatch(2)).toBe('"v1"');
+    });
+
+    it('只有 handler header 不同的并发请求不被 single-flight 合流', async () => {
+      // 合流这一支比 304 那支更硬：它不需要服务端配合就答错——第二个调用方
+      // 连请求都没发出去，直接领到第一个的响应体
+      stubFetch((_url, init) =>
+        Promise.resolve(
+          new Response(JSON.stringify({ tenant: (init.headers as Record<string, string>)['x-tenant'] }), {
+            status: 200,
+            headers: { etag: '"v1"' }
+          })
+        )
+      );
+      const transport = conditionalTransport();
+      const scoped = (tenant: string) => ({ ...READ_SPEC, headers: { 'x-tenant': tenant } });
+      const [a, b] = await Promise.all([
+        transport.sendJson(scoped('acme'), 'fetchMetadata'),
+        transport.sendJson(scoped('globex'), 'fetchMetadata')
+      ]);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(a).toEqual({ tenant: 'acme' });
+      expect(b).toEqual({ tenant: 'globex' });
+    });
+
+    it('handler header 的大小写不劈开缓存', async () => {
+      // header 名按 RFC 大小写不敏感，两种写法发出去的是同一个请求。判成两个键不会
+      // 答错，但会让 handler 的一次无害改写静默变成一次全量缓存失效
+      stubEtagThen304({ rows: [1] });
+      const transport = conditionalTransport();
+      await transport.sendJson({ ...READ_SPEC, headers: { 'X-Tenant': 'acme' } }, 'fetchMetadata');
+      await transport.sendJson({ ...READ_SPEC, headers: { 'x-tenant': 'acme' } }, 'fetchMetadata');
+      expect(ifNoneMatch(1)).toBe('"v1"');
+    });
+
+    it('适配器级静态 header 不参与定键', async () => {
+      // 它对本实例的每个请求都一样，进指纹只是给每条键加同一段前缀。
+      // 断言的是「加了它之后，同一个请求仍然只发一次网络」——即缓存照常命中
+      stubEtagThen304({ rows: [1] });
+      const transport = createTransport({
+        conditional: { maxEntries: 8 },
+        headers: { 'x-app': 'demo' }
+      }).transport;
+      await transport.sendJson(READ_SPEC, 'fetchMetadata');
+      await transport.sendJson(READ_SPEC, 'fetchMetadata');
+      expect(ifNoneMatch(1)).toBe('"v1"');
+    });
+
     it('写入口与 version 不参与条件缓存', async () => {
       // 恒 200 带 ETag：若这三个操作参与了缓存，第二次就会带上 if-none-match。
       // 用 stubEtagThen304 反而测不出来——不参与的操作拿到 304 会（正确地）抛错
@@ -689,9 +787,12 @@ describe('HttpTransport', () => {
 
         const { message } = hook.mock.calls[0][0];
         expect(message).toContain('Recipe');
-        expect(message).toContain('两种可能');
-        expect(message).toContain('跨源');
+        expect(message).toContain('Two possibilities');
+        expect(message).toContain('cross-origin');
         expect(message).toContain('Access-Control-Expose-Headers');
+        // 运行期文案统一英文：本包其余错误消息全是英文，混一句中文会让日志聚合与
+        // issue 检索按语言分成两半。文档注释不受此限，它们本来就是中文
+        expect(message).not.toMatch(/[\u4e00-\u9fff]/);
       });
 
       it('AC#3 未配回调时行为逐字不变：条目照删、值照返、不抛、控制台零输出', async () => {

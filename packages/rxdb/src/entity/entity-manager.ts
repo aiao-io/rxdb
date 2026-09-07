@@ -15,7 +15,7 @@ import { RxDBError } from '../RxDBError.js';
 import { EntityIdentityCache } from './entity-identity-cache.js';
 import { EntityStatusOptions } from './entity-status.interface.js';
 import { EntityStatus } from './entity-status.js';
-import { EntityStaticType, EntityType, EntityUpdateData } from './entity.interface.js';
+import { EntityStaticType, EntityType, EntityUpdateData, RxDBEntityId } from './entity.interface.js';
 import {
   getEntityMutations,
   getNeedRemoveEntities,
@@ -295,9 +295,41 @@ export class EntityManager {
    *
    * @template T 实体类型
    * @param entity - 要缓存的实体实例
+   *
+   * @remarks
+   * 主键还没有值的实体**不入缓存**：身份缓存是按 id 索引的，此刻它没有身份可索引。
+   * 从前照写不误，结果所有 id 缺失的实体共用 `undefined` 这一个槽，
+   * `getEntityRef(T, undefined)` 会返回其中随机一个 —— 稀疏水合据此更新，改的是另一条记录。
+   * 主键随后被赋值时由 {@link reindexEntityCache} 补登记（Proxy set 拦截触发），不会漏。
    */
   addEntityCache<T extends EntityType>(entity: InstanceType<T>) {
+    if (entity.id === undefined || entity.id === null) return;
     this.#get_entity_cache_map(entity.constructor).set(entity.id, entity);
+  }
+
+  /**
+   * 主键写入后重建身份缓存索引
+   *
+   * @template T 实体类型
+   * @param entity - 主键已经是新值的实体实例（须为代理实例，与缓存里存的是同一个引用）
+   * @param previousId - 写入前的主键值；构造后首次赋值时为 `undefined`
+   *
+   * @remarks
+   * 由 `createEntityProxy` 的 `set` 拦截调用，覆盖两种情形：
+   * - **构造后才有身份**（主键无默认值，如 `RxDBBranch.id`）：此时旧槽不存在，只需登记新槽。
+   *   不补这一步，调用方手上的实例永远进不了身份缓存，后续 hydrate 会另造一个实例去更新，
+   *   两个对象各持一份状态（RXD-070）。
+   * - **主键改名**：旧槽必须清掉，否则按旧 id 查出来的实体 `id` 已经是新值，
+   *   身份缓存「`cache.get(id).id === id`」的不变式当场破掉。
+   *
+   * 旧槽只在确实存着**这一个**实例时才删：同 id 的其他引用不该被本次改名波及。
+   */
+  reindexEntityCache<T extends EntityType>(entity: InstanceType<T>, previousId: RxDBEntityId | undefined) {
+    const cache = this.#get_entity_cache_map(entity.constructor);
+    if (previousId !== undefined && previousId !== null && cache.get(previousId) === entity) {
+      cache.delete(previousId);
+    }
+    this.addEntityCache(entity);
   }
 
   /**

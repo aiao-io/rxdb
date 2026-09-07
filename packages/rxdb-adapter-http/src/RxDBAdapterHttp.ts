@@ -26,7 +26,7 @@ import {
   type RuleGroup,
   type RxDB
 } from '@aiao/rxdb';
-import { defer, from, map, type Observable } from 'rxjs';
+import { defer, from, map, of, type Observable } from 'rxjs';
 import { assertChangeFeedUrl, HttpChangeFeed, type ChangeFeedEntity } from './change-feed.js';
 import { findByIdsInChunks } from './chunking.js';
 import { resolveHttpConfig } from './config.js';
@@ -38,6 +38,7 @@ import {
   HttpUnsupportedOperationError,
   HttpUnsupportedWireTypeError
 } from './errors.js';
+import { assertHandlerRow, assertHandlerVersion } from './handler-contract.js';
 import type {
   CreateContext,
   HttpAdapterOptions,
@@ -324,7 +325,8 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
       );
     }
     const body = await this.#transport.sendJson(handler.request(), 'version');
-    return handler.parse(body);
+    // `parse` 的返回类型 `string` 是接入方声明的，运行期什么都不担保
+    return assertHandlerVersion(handler.parse(body));
   }
 
   /**
@@ -420,6 +422,10 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
   // ============================================
   // v1 无实现的必选成员（AC#32）
   // ============================================
+  //
+  // 声明了 `Promise` 的一律加 `async`：同步 throw 与那个签名不符，调用侧的
+  // `adapter.saveMany(x).catch(h)` 里 `.catch` 根本没机会挂上，错误从调用处直接炸出去。
+  // `getRepository` 不加——它返回的就是 `RT`，同步抛才是对的。
 
   /**
    * @throws HttpUnsupportedOperationError 总是
@@ -435,12 +441,12 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
   }
 
   /** @throws HttpUnsupportedOperationError 总是（Full/Filter 写路径，v1 无 Full-sync） */
-  saveMany<E extends EntityType>(): Promise<InstanceType<E>[]> {
+  async saveMany<E extends EntityType>(): Promise<InstanceType<E>[]> {
     throw new HttpUnsupportedOperationError('saveMany');
   }
 
   /** @throws HttpUnsupportedOperationError 总是（同 {@link RxDBAdapterHttp.saveMany}） */
-  removeMany<E extends EntityType>(): Promise<InstanceType<E>[]> {
+  async removeMany<E extends EntityType>(): Promise<InstanceType<E>[]> {
     throw new HttpUnsupportedOperationError('removeMany');
   }
 
@@ -451,7 +457,7 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
    * 不影响 QueryCache 的批量写：`EntityManager.mutations` 判定为 QueryCache 批后走
    * `#mutations_query_cache` 的 remote-then-local，根本不经过这里。
    */
-  mutations<E extends EntityType>(): Promise<InstanceType<E>[]> {
+  async mutations<E extends EntityType>(): Promise<InstanceType<E>[]> {
     throw new HttpUnsupportedOperationError('mutations');
   }
 
@@ -466,17 +472,17 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
    * 返回空数组**算失败**：Full-sync 会把它读成「远端无变更」并覆盖本地认知。
    * v1 没有 changelog，unsupported throw 是唯一诚实行为。
    */
-  pullChanges(): Promise<RemoteChange[]> {
+  async pullChanges(): Promise<RemoteChange[]> {
     throw new HttpChangelogUnsupportedError('pullChanges');
   }
 
   /** @throws HttpChangelogUnsupportedError 总是（返回 `0` 同样会被读成「远端无变更」） */
-  getChangeCount(): Promise<{ count: number; latestChangeId: number }> {
+  async getChangeCount(): Promise<{ count: number; latestChangeId: number }> {
     throw new HttpChangelogUnsupportedError('getChangeCount');
   }
 
   /** @throws HttpChangelogUnsupportedError 总是 */
-  mergeChanges(): Promise<RemoteMergeResult | number | void> {
+  async mergeChanges(): Promise<RemoteMergeResult | number | void> {
     throw new HttpChangelogUnsupportedError('mergeChanges');
   }
 
@@ -594,14 +600,21 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
   }
 
   /**
-   * 断开后任何 duck 调用都抛错。
+   * 没有一次成功的 `connect()` 撑着时，任何 duck 调用都抛错。
    *
    * @remarks
-   * transport 自己也查这一位，但有两条路径够不到它：`findByIds` 传空列表时一个请求都不发，
+   * 判的是 `#connected` 而不是 `#disconnected.signal.aborted`：后者只答「有没有被断开过」，
+   * 刚 `new` 出来的适配器上它是 `false`，于是「从未连接」与「连接正常」在它眼里一模一样。
+   * 而 `connect()` 是 {@link RxDBAdapterHttp.#assertConfiguredEntitiesSupported} 唯一的
+   * 触发点——放行「从未 connect」等于给 bigint / binary 的线格式门禁开一个后门，
+   * `new` 完直接 `create()` 就能绕过去。{@link RxDBAdapterHttp.startChangeFeed} 早就是
+   * 这个口径，这里与它拉齐。
+   *
+   * transport 自己也查断开位，但有两条路径够不到它：`findByIds` 传空列表时一个请求都不发，
    * `version` 未配 handler 时同理。那两条上「已断开」会悄悄退化成「远端没有这些行」。
    */
   #assertConnected(operation: string): void {
-    if (this.#disconnected.signal.aborted) {
+    if (!this.#connected) {
       throw new HttpDisconnectedError(operation);
     }
   }
@@ -640,7 +653,7 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
         return defer(() => {
           this.#assertConnected('create');
           return from(this.#transport.sendJson(onCreate.request(ctx), 'create'));
-        }).pipe(map(body => onCreate.parse(body, ctx) as R));
+        }).pipe(map(body => assertHandlerRow('create', entityName, onCreate.parse(body, ctx)) as R));
       };
     }
     if (onUpdate) {
@@ -649,18 +662,25 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
         return defer(() => {
           this.#assertConnected('update');
           return from(this.#transport.sendJson(onUpdate.request(ctx), 'update'));
-        }).pipe(map(body => onUpdate.parse(body, ctx) as R));
+        }).pipe(map(body => assertHandlerRow('update', entityName, onUpdate.parse(body, ctx)) as R));
       };
     }
     if (onDelete) {
       this.delete = (entityName: string, ids: string | string[]): Observable<void> =>
         defer(() => {
+          // 断开检查排在空列表近路**之前**：反过来会让「已断开」在这一条路径上
+          // 退化成「删掉了零行，成功」。`findByIds` 的空列表分支同样是这个顺序
           this.#assertConnected('delete');
           // core 的 duck 签名是 `string | string[]`，归一由本包做：让每个 handler
           // 各自判一次类型，迟早有一个把单个 id 当成字符数组
-          return from(
-            this.#transport.sendVoid(onDelete.request({ entityName, ids: Array.isArray(ids) ? ids : [ids] }), 'delete')
-          );
+          const list = Array.isArray(ids) ? ids : [ids];
+          if (list.length === 0) {
+            // `{"ids":[]}` 在把「空过滤」读成「无过滤」的后端上是一次整表清空，而
+            // 那种后端的存在性本包无从判断。与 `findByIdsInChunks` 对齐：空列表
+            // 本地即答，一个请求都不发
+            return of(undefined);
+          }
+          return from(this.#transport.sendVoid(onDelete.request({ entityName, ids: list }), 'delete'));
         });
     }
   }
