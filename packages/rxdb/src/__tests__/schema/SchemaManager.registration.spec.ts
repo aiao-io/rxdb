@@ -34,7 +34,7 @@ const createRepository = <T extends EntityType>(): IRepository<T> => ({
 
 class TestLocalAdapter implements IRxDBAdapter {
   readonly #connectErrors: Error[];
-  readonly name = 'schema-manager-coverage';
+  readonly name = 'schema-manager-registration';
   readonly checkedTables: EntityType[] = [];
   readonly createTablesCalls: CreateTablesCall[] = [];
   connectCalls = 0;
@@ -101,15 +101,15 @@ let databaseIndex = 0;
 const createDatabase = (entities: EntityType[], migrations?: MigrationType[]): RxDB => {
   databaseIndex += 1;
   const database = new RxDB({
-    dbName: `schema-manager-coverage-${databaseIndex}`,
+    dbName: `schema-manager-registration-${databaseIndex}`,
     entities,
     migrations,
     sync: {
-      local: { adapter: 'schema-manager-coverage' },
+      local: { adapter: 'schema-manager-registration' },
       type: SyncType.None
     }
   });
-  database.adapter('schema-manager-coverage', () => new TestLocalAdapter());
+  database.adapter('schema-manager-registration', () => new TestLocalAdapter());
   databases.add(database);
   return database;
 };
@@ -133,7 +133,7 @@ afterEach(async () => {
   databases.clear();
 });
 
-describe('SchemaManager coverage', () => {
+describe('SchemaManager 建表与实体注册冲突检测', () => {
   it('creates the system schema and main branch for an empty database', async () => {
     const adapter = new TestLocalAdapter();
     const database = createDatabase([]);

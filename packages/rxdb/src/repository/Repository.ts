@@ -156,7 +156,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
           (this.remote$ as Observable<RT>)
         : (this.local$ as Observable<RT>);
     }
-    this.queryManager = new QueryManager<T>(rxdb, EntityType, this);
+    this.queryManager = new QueryManager<T>(rxdb, EntityType);
     // 只有 QueryCache 仓储挂这个监听器（US-023 D15）：版本化路径靠 changelog 拉取，
     // 没有「远端权威、本地只是投影」这层假设，重跑对它既无意义也无入口。
     // 把「不做事」做成结构性的 —— 不注册就不可能被触发，胜过在处理器里再判一次同步类型。

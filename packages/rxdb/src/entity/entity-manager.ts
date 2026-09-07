@@ -173,10 +173,16 @@ export class EntityManager {
     setSafeObjectKey(this, PROXY, (entity: InstanceType<EntityType>) => {
       // 初始化实体，设置为已修改但未保存到本地或远程
       const proxyEntity = this.#init_entity(entity, { local: false, remote: false, modified: true });
-      // 添加到实体缓存
+
+      // 入缓存必须**同步**：`createEntityRef` 是同步读缓存的，从前这一步也压在下面那个
+      // 微任务里，于是同一 tick 内 `new Todo({ id })` 之后紧接着的 `createEntityRef(Todo, { id })`
+      // 读不到任何东西，转而造出第二个实例并占掉缓存槽 —— 调用方手上那个成了孤儿，
+      // 同一 id 从此有两个对象各持一份状态，对其中一个的编辑另一个永远看不见。
+      this.addEntityCache(proxyEntity);
+
+      // 事件派发**仍然**延后：监听器若在构造过程中被叫醒，拿到的是一个还没走完
+      // 初始化的实例。这才是当初用微任务的理由，与入缓存无关。
       nextMicroTask(() => {
-        this.addEntityCache(proxyEntity);
-        // 分发实体创建事件
         const meta = getEntityMetadata(entity);
         const entity_new_event = new EntityLocalNewEvent([
           {

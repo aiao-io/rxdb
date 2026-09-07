@@ -22,7 +22,6 @@ import type { RxDB } from '../RxDB.js';
 import { Fingerprint } from './fingerprint.utils.js';
 import { QueryOptions } from './QueryManager.interface.js';
 import { QueryTask } from './QueryTask.js';
-import type { Repository } from './Repository.js';
 
 /**
  * 判断一份增量负载相对缓存实体是否改动了**可见值**。
@@ -106,12 +105,10 @@ export class QueryManager<T extends EntityType> {
    *
    * @param rxdb RxDB 实例，用于访问数据库和事件系统
    * @param EntityType 实体类型，用于标识当前管理的实体
-   * @param repository 仓库实例，用于执行实际的查询操作
    */
   constructor(
     protected readonly rxdb: RxDB,
-    protected readonly EntityType: T,
-    protected readonly repository: Repository<T>
+    protected readonly EntityType: T
   ) {
     // 初始化数据库变更监听
     this.#init_db_changes();

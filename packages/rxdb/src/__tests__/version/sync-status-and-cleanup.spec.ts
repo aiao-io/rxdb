@@ -271,7 +271,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('repository sync status coverage', () => {
+describe('仓库同步状态查询', () => {
   it('cascades through configured repositories and composes every status filter', async () => {
     const branchId = 'feature';
     const filterEntity = createEntityType(
@@ -511,7 +511,7 @@ describe('repository sync status coverage', () => {
   });
 });
 
-describe('expired record cleanup coverage', () => {
+describe('过期记录清理', () => {
   it('inverts every operator and nested group through the real cleanup query', async () => {
     const metadataFilter = vi.fn<() => RuleGroup>(() => createFilter('!='));
     const harness = createCleanupHarness({ sync: createFilterSync(metadataFilter) });

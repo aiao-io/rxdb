@@ -14,6 +14,7 @@ import { RxDBSync } from '../../system/sync.js';
 import type { IRxDBChange } from '../../system/system.interface.js';
 import type { TransactionExecutor, TransactionExecutorFun } from '../../transaction/transaction-executor.interface.js';
 import { RxDBDependencyFailedError } from '../../version/cascade-contract.js';
+import { PushInFlightRegistry } from '../../version/push-inflight.js';
 import { pushRepository, type PushRepositoryResult } from '../../version/push-repository.js';
 import type { SwitchVersionActions } from '../../version/VersionManager.interface.js';
 import type { VersionManager } from '../../version/VersionManager.js';
@@ -228,6 +229,10 @@ function createHarness(options: HarnessOptions = {}) {
   const dispatchEvent = vi.fn<DispatchEvent>();
   const currentBranch = createBranch(currentBranchId, branchParents[currentBranchId] ?? null);
 
+  // 真的登记处，不是替身：`pushRepository` 会在这上面认领/释放在飞区间，
+  // 用替身就等于把要验的东西验掉了
+  const pushInFlight = new PushInFlightRegistry();
+
   const vm = {
     rxdb: {
       config: {
@@ -239,11 +244,13 @@ function createHarness(options: HarnessOptions = {}) {
     },
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
-    getCurrentBranch: vi.fn(async () => currentBranch)
+    getCurrentBranch: vi.fn(async () => currentBranch),
+    pushInFlight
   } as unknown as VersionManager;
 
   return {
     vm,
+    pushInFlight,
     branchFind,
     changeFind,
     currentSync,
@@ -1047,5 +1054,87 @@ describe('pushRepository 失败一律抛出', () => {
       pushed: 1,
       failed: 0
     });
+  });
+});
+
+/**
+ * 在飞区间认领：`pushRepository` 在往远端发之前就把本轮的最大变更 id 登记下来，
+ * 结束（无论成败）时撤销登记。
+ *
+ * 缺了它，一次落在远端往返窗口里的 undo 会撤掉一条远端已经收下的变更，而撤销本身
+ * 只是给原行盖 `revertChangeId`、不产生新行，出站队列又把盖过章的行排除掉 ——
+ * 于是那次回滚永远发不出去，本地与远端永久分叉。详见 {@link PushInFlightRegistry}。
+ */
+describe('pushRepository 的在飞认领', () => {
+  it('远端往返期间认领可见，往返结束后释放', async () => {
+    let releaseRemote: (() => void) | undefined;
+    const remoteArrived = new Promise<void>(resolve => {
+      releaseRemote = resolve;
+    });
+    let arrived: (() => void) | undefined;
+    const enteredRemote = new Promise<void>(resolve => {
+      arrived = resolve;
+    });
+
+    const harness = createHarness({
+      changes: [createChange({ id: 11 }), createChange({ id: 12 })],
+      mergeChanges: async () => {
+        arrived?.();
+        await remoteArrived;
+        return undefined;
+      }
+    });
+
+    const pushed = pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+    await enteredRemote;
+
+    // 挂在远端调用里：这一刻正是 undo 会读到的状态
+    expect([...harness.pushInFlight.snapshot()]).toEqual([['public:User', 12]]);
+
+    releaseRemote?.();
+    await pushed;
+
+    expect([...harness.pushInFlight.snapshot()]).toEqual([]);
+  });
+
+  it('远端抛错时同样释放认领', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const harness = createHarness({
+      changes: [createChange({ id: 9 })],
+      mergeChanges: async () => {
+        throw new Error('remote offline');
+      }
+    });
+
+    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toThrow(
+      'remote offline'
+    );
+
+    // 认领泄漏比不认领更糟：这个仓储的 undo 会被永久冻住
+    expect([...harness.pushInFlight.snapshot()]).toEqual([]);
+  });
+
+  it('没有待推送变更时不认领', async () => {
+    const harness = createHarness({ currentWatermark: 41 });
+
+    await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    expect([...harness.pushInFlight.snapshot()]).toEqual([]);
+    expect(harness.mergeChanges).not.toHaveBeenCalled();
+  });
+
+  it('整批被本地压缩抵消时不认领：没有任何东西真的在飞', async () => {
+    const entityId = '00000000-0000-0000-0000-000000000001' as UUID;
+    const harness = createHarness({
+      changes: [
+        createChange({ id: 1, entityId, patch: { name: 'temporary' } }),
+        createChange({ id: 2, entityId, type: 'DELETE', patch: null, inversePatch: null })
+      ]
+    });
+
+    await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    expect(harness.mergeChanges).not.toHaveBeenCalled();
+    expect([...harness.pushInFlight.snapshot()]).toEqual([]);
   });
 });

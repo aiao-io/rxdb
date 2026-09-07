@@ -35,15 +35,15 @@
 
 按下方「建议的修复顺序」推进。每条修复都先写红测试，再改实现，并用变异（把实现改回旧行为）确认测试真的能打红。
 
-| 步骤 | 内容                                       | 状态                                                                    |
-| ---- | ------------------------------------------ | ----------------------------------------------------------------------- |
-| 1    | 🔴 #1 / #7 / #8 活查询与本地编辑的静默丢失 | ✅ 已修                                                                 |
-| 2    | 🔴 #3 / #4 / #5 同步分叉三件套             | ✅ 已修                                                                 |
-| 3    | 🔴 #2 / #6 各一行修复                      | ✅ 已修                                                                 |
-| 4    | 测试基建                                   | ⬜ 未开始                                                               |
-| 5    | 协议一致性                                 | ✅ 已修（本节 17 条：14 条已修 / 1 条撤销 / 1 条待规格决策 / 1 条待查） |
-| 6    | 兜底清理与 API 面收敛                      | 🟡 进行中（必填字段上的 `??` / `?.` 已随各条修复清理）                  |
-| 7    | 拆长函数                                   | ⬜ 未开始                                                               |
+| 步骤 | 内容                                       | 状态                                                                                     |
+| ---- | ------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| 1    | 🔴 #1 / #7 / #8 活查询与本地编辑的静默丢失 | ✅ 已修                                                                                  |
+| 2    | 🔴 #3 / #4 / #5 同步分叉三件套             | ✅ 已修                                                                                  |
+| 3    | 🔴 #2 / #6 各一行修复                      | ✅ 已修                                                                                  |
+| 4    | 测试基建                                   | 🟡 进行中（mock adapter / query-task-harness / cleanup / coverage 命名已清，sleep 未动） |
+| 5    | 协议一致性                                 | ✅ 已修（本节 17 条：15 条已修 / 1 条撤销 / 1 条待规格决策）                             |
+| 6    | 兜底清理与 API 面收敛                      | 🟡 进行中（「无兜底」与「资源与生命周期」两节已清空，API 面收敛未开始）                  |
+| 7    | 拆长函数                                   | ⬜ 未开始                                                                                |
 
 ### 已落地的关键改动
 
@@ -56,6 +56,9 @@
 - **冲突解决器 / `RemoteSyncOptions`**：删掉 `RemoteSyncOptions`（零实现幻影类型，`SyncOptions` 里根本没有它的落点）；把 `conflictResolver` 接进 `PullOptions`，`pullBatch` 不再写死 `new LWWConflictResolver()`。此前同一个自定义策略走 `pullRepository` 生效、走 `pull()` 默认的批量路径静默失效，两条路径对同一份冲突给出不同结果。`ConflictResolution` 的 TSDoc 同步改诚实：运行时能自动应用的只有 `KEEP_LOCAL` / `KEEP_REMOTE`，`MERGE` / `DEFER` 整轮抛错回滚，`conflictsDeferred` 因此恒 0，并给出「应用侧合并后重 pull」的正确用法。
 - **push 失败契约**：`pushRepository` 失败**一律抛**，`throwPushFailure` 是唯一出口。`pushed === 0` 抛裸错误，`pushed > 0` 抛 `RxDBPartialSyncError<PushRepositoryResult>`（这些条目已在远端且不回滚）。此前级联路径抛、单仓路径 resolve 出 `success: false`，`bulkSync` 只看抛不抛，于是单仓失败被记成成功、`BulkSyncResult.failed` 恒为 0。同时：失败改发 `RepositorySyncErrorEvent`（此前发 `Complete`，只订阅 Complete 的监听方把失败当成功）；`sync-repository.ts` 新增 `rewrapPushFailure`，push 已发出的进度不再被 `emptyPushResult` 抹平；`push.ts` 与 `pull.ts` 同口径解包嵌套 partial error。
 - **QueryCache 与出站队列隔离**：新增 `pendingQueryCacheWriteIds`（读 `rxdb_change`，取行条件与 `flushQueryCacheOutbox` 同源），`QueryCacheRepository` 构造时必传。`#reconcile` 先问一次队列占用，再按「队列占着的行一步都不许动」摘掉 `orphanIds` / `missingIds` / `staleIds` 三支 —— 离线新建不再被当孤儿删、离线删除不再被拉回复活、离线修改不再绕过 `conflictResolver` 被远端盖掉；被占的行照旧留在返回结果里（它们就是本地真相）。`SyncStats` 新增 `heldCount` 报本轮跳过数，其余计数改报**真的执行了**的动作数，`pulledCount` 于是能对上账。`findById` 同口径处置。读队列失败**不兜底**：整轮同步失败，一个字节都不写。
+- **push 在飞区间对 undo 可见**：`filterUndoableHistories` 判「能不能撤」只看 `RxDBSync.lastPushedChangeId`，而这个水位线要等远端往返回来才由 `commitRepositoryPush` 写下。这中间的窗口里，一次 undo 会回滚一条远端已经收下的变更；更糟的是撤销**不产生新的变更行**、只给原行盖 `revertChangeId`，而出站队列恰好按 `revertChangeId = null` 取行 —— 于是这次回滚永远发不出去，本地与远端永久分叉。新增 `PushInFlightRegistry`：`pushRepository` 开头开一个会话，`planRepositoryPush` 在**返回计划之前**（即往远端发之前）认领 `namespace:entity → 本轮最大变更 id`，`finally` 释放，任何提前返回或抛错路径都不会泄漏认领。读侧抽出 `buildLastPushedMap`，把在飞认领与 `RxDBSync` 水位线按 max 合并，反应式的 `undoHistories$` 与命令式的 `fetchLatestHistories` 共用同一份判据，不会各算各的。**只覆盖本进程**：多 tab / 多进程共享同一份本地库时，别的进程的 push 在这里看不见，TSDoc 里写明了，没有假装解决。
+- **实体身份不再一 tick 内分裂**：PROXY 工厂把 `addEntityCache` 和实体创建事件一起压在微任务里，而 `createEntityRef` 是同步读缓存的 —— 于是同一 tick 内 `new Todo({ id })` 之后紧接着的 `createEntityRef` 读不到东西，造出第二个实例并占掉缓存槽，调用方手上那个成了孤儿，同一 id 两个对象各持一份状态。入缓存拉回同步；事件派发仍留在微任务，那才是当初用微任务的理由（监听器不能在构造途中被叫醒）。
+- **流的降级不再等于失联**：`HistoryManager` 里变更计数查询的 `catchError(() => EMPTY)` 让外层 subscribe 的 `error` 回调永远等不到，计数悄悄停在旧值。现在仍返回 `EMPTY`（降级不终结是对的），但先报进 `errors$` 与控制台。同时 `Repository.destroy()` 补上 `#syncMemo.clear()`，记忆定时器加 `unref?.()` —— 一个纯缓存记账的分钟级定时器不该把 Node / Electron 宿主钉在事件循环上。
 - **分支口径**：新增 `version/pull-ancestor-changes.ts`，`pullRepository` / `pullBatch` / `checkRepositoryUpdates` 统一「逐祖先分支拉 + 按 id 全局排序后截断到 limit」。此前 `pullRepository` 与 `checkRepositoryUpdates` 只看当前分支，父分支上的变更永远拉不到、且 `hasUpdates` 谎报 false。
 
 ### ⚠️ 破坏性 API 变化（需在 PR 说明）
@@ -132,12 +135,12 @@
 
 ### 「无兜底」铁律违反（必填字段上的死默认，覆盖率报告证明分支跑不到）
 
-- `entity.utils.ts:194-200` `foreignKeyNames ?? []` / `foreignKeyColumnNames ?? foreignKeyNames` 掩盖了 `normalizeUpdateEntity` 依赖两个数组按位对齐的隐患（`metadata-transition.ts:306-310` 的 `.filter` 一旦过滤即错位写错列）。
-- `SchemaManager.ts:212` `relationMap?.values() ?? relations ?? []`（正是把 🔴 #2 遮住的那种兜底）；`:198` 未知 kind 返回 `undefined`。
-- `find-switch-branch-step.ts` 15 处 `fromChangeId ?? 0`，`:194,237,252` `nextChangeId ?? 0` 是死代码；`push.ts:59-62` 四处 `pushed ?? 0`；`sync-repository.ts:148-153` 六处 `?? 0`。
-- `LWWConflictResolver.ts:36-37` `createdAt?.getTime() ?? 0`：缺时间戳时两侧都变 epoch 0 → 平局 → 由 clientId 决胜，赢家静默改变。
-- `RxDB.ts:425` `sync || {}`，同一字段在 `rxdb.private.ts:77` 直接解引用。
-- `entity-manager.ts:268-303` `#get_entity_cache_map(...)?.`（方法必返回）；`relation-cache.ts:38-40`、`relation-helper.ts:275` 对 `ENTITY_MANAGER` 兜底会把「未注册 / 多库歧义」变成静默用错类。
+- ✅ `entity.utils.ts:194-200` `foreignKeyNames ?? []` / `foreignKeyColumnNames ?? foreignKeyNames` 掩盖了 `normalizeUpdateEntity` 依赖两个数组按位对齐的隐患（`metadata-transition.ts:306-310` 的 `.filter` 一旦过滤即错位写错列）。
+- ✅ `SchemaManager.ts:212` `relationMap?.values() ?? relations ?? []`（正是把 🔴 #2 遮住的那种兜底）；`:198` 未知 kind 返回 `undefined`。
+- ✅ `find-switch-branch-step.ts` 15 处 `fromChangeId ?? 0`，`:194,237,252` `nextChangeId ?? 0` 是死代码；`push.ts:59-62` 四处 `pushed ?? 0`；`sync-repository.ts:148-153` 六处 `?? 0`。已修：十余处 `?? 0` 收敛成具名的 `forkPointOf()`（`fromChangeId === null` 的语义是**分叉于根**，变更 id 从 1 起，用 0 表达根既不撞真实变更又能直接参与区间运算），其余各处随对应缺陷一并删除。
+- ✅ `LWWConflictResolver.ts:36-37` `createdAt?.getTime() ?? 0`：缺时间戳时两侧都变 epoch 0 → 平局 → 由 clientId 决胜，赢家静默改变。
+- ✅ `RxDB.ts:425` `sync || {}`，同一字段在 `rxdb.private.ts:77` 直接解引用。
+- ✅ `entity-manager.ts:268-303` `#get_entity_cache_map(...)?.`（方法必返回）；`relation-cache.ts:38-40`、`relation-helper.ts:275` 对 `ENTITY_MANAGER` 兜底会把「未注册 / 多库歧义」变成静默用错类。已修：`#get_entity_cache_map(...)` 的 `?.` 全删（该方法必返回值）；`relation-cache` 改成缺 manager / 未注册各抛一条具名错；`relation-helper` 的 `?? installer` 经核实**不是兜底**（实例自带 manager 与装访问器的 manager 是两个都正确的来源），已在 TSDoc 里写明判据，保留。
 
 ### 协议与语义不一致
 
@@ -151,7 +154,7 @@
 - ✅ `merge-update-basic.ts:176`（同 `merge-update-tree.ts:465,626`）`task.next(newCount)` 默认 `autoCache=true` 清掉 count 去重集，而 `merge_create.ts:155` 特意传 false 并写了长注释；同 INSERT 双派发时 count 多 1。
 - ✅ `VersionManager.interface.ts:187-206 RemoteSyncOptions`（`autoSync` / `conflictResolver`）公开导出但零实现，`pull-batch.ts:281` 写死 `new LWWConflictResolver()`；`ConflictResolution.MERGE / DEFER` 在 `pull-conflict-utils.ts:257-264` 一律抛错回滚，`conflictsDeferred` 恒 0。
 - ✅ `history-scope-api.ts:175`：只调 `history(entity).undo()` 不订阅时 `history_cache` 条目永不释放，按 entity id 分键会无界增长。
-- （未实测，中置信）`undo-redo-apply.ts:114-186` vs `HistoryManager.ts:465-472`：push 事务外等远端往返窗口内一次 `undo()` 回滚变更 X 而随后 commit 把 X 标成已推，本地 ≠ 远端且推不回去。
+- ✅ `undo-redo-apply.ts:114-186` vs `HistoryManager.ts:465-472`：push 事务外等远端往返窗口内一次 `undo()` 回滚变更 X 而随后 commit 把 X 标成已推，本地 ≠ 远端且推不回去。已修：新增 `PushInFlightRegistry` 在飞登记处，push 在往远端发**之前**认领本轮最大变更 id，undo 把认领区间视同已推。
 - ✅ `QueryTask.ts:313-327`：runner 抛错终结整条 `refresh$`，一次瞬时网络失败永久杀掉活查询，无重试无 `catchError`，TSDoc 未说明。
 - ⬜ **撤销：不是缺陷** `rxdb.transaction.ts:68-69` 实体事件用裸 `forEach`：这是**有意的** fail-fast 契约，`RxDB.spec.ts`「普通事件监听器抛错时应该保持 fail-fast」正面守着它，继续调用后续监听器等于替出错方兜底。`runIsolated` 只给「批量」语义（事务事件列表、提交/回滚排空队列）用，两者口径不同是设计而非漂移。已把这条判据写进 `emitEvent` 的 TSDoc。
 - 🔒 **待规格决策，不改代码** `dependency-scheduler.ts:244-252`：顺序 `await connect('local'); await connect('remote')` 的误报已实测复现。但「每次 connect 落地就结算一次未满足依赖」正是 US AC#11 点名的契约，改判据等于反转那条已 ✅ 的验收。要么放宽 AC#11（改成「全部已注册适配器都连上才结算」），要么保留误报并在文档里写明顺序 connect 的噪声 —— 这是规格问题，不是实现问题。
@@ -186,16 +189,16 @@
 
 ### 资源与生命周期
 
-- `Repository.ts:166-172` `destroy()` 不调 `#syncMemo.clear()`，`query-cache-sync-memo.ts:131-134` 定时器未 `unref`。
+- ✅ `Repository.ts:166-172` `destroy()` 不调 `#syncMemo.clear()`，`query-cache-sync-memo.ts:131-134` 定时器未 `unref`。已修：`destroy()` 现在摘监听器并 `clear()`（同时递增代次，销毁瞬间还在飞的同步回来不会写回死仓储）；记忆定时器改为 `unref?.()` —— 浏览器返回数字句柄没有这个方法，Node / Electron 里则不再把一个纯缓存记账的分钟级定时器钉在事件循环上。
 - `reachability.ts:151-153` + `RxDB.ts:314,406-412`：每个 `new RxDB()` 在 `globalThis` 挂 `online/offline` 监听并订阅 `SyncStateHub`，无终态 `destroy()`，多实例 / HMR / 测试按实例数线性累积。
-- `sync-listeners.ts:263-265` `.subscribe()` 无 error 处理，一次逃逸拒绝永久杀死自动回推；`HistoryManager.ts:292` `catchError(() => EMPTY)` 吞掉 count 流错误且不进 `errors$`。
-- `entity-manager.ts:173-196`（未验证，低置信）PROXY 工厂把 `addEntityCache` 放进微任务，同一 tick 内 `new User({id})` 后 `createEntityRef` 会造第二个实例。
+- ✅ `sync-listeners.ts:263-265` `.subscribe()` 无 error 处理，一次逃逸拒绝永久杀死自动回推；`HistoryManager.ts:292` `catchError(() => EMPTY)` 吞掉 count 流错误且不进 `errors$`。已修：前者在 `exhaustMap` 内 `catch` 并上报 `syncState`，一轮失败只终结这一轮；后者仍返回 `EMPTY`（降级不终结是对的，一次瞬时查询失败不该让计数流永久停摆），但先报进 `errors$` 与控制台。报错器同时改名 `#reportStreamError`，措辞交给调用方 —— 「订阅上的 error」意味着流已终结，「catchError 里的降级」不是，一句写死的「已中断」会把后者说成前者。
+- ✅ `entity-manager.ts:173-196` PROXY 工厂把 `addEntityCache` 放进微任务，同一 tick 内 `new User({id})` 后 `createEntityRef` 会造第二个实例。**已实测复现**并修复：入缓存拉回同步（`createEntityRef` 就是同步读缓存的），事件派发仍留在微任务 —— 那才是当初用微任务的理由（监听器不能在构造途中被叫醒），与入缓存无关。两条哨兵测试分别钉住这两半。
 
 ### 测试套件
 
 - 🔴 `__tests__/fixtures/test-db-setup.ts:47-119` `createMockAdapter()` 实现了 `IRxDBAdapter` 根本没有的 `create/update/remove/findOne/findMany/count`，缺 `name/version/saveMany/removeMany/mutations` 与 `RxDBAdapterLocalBase` 全部抽象方法，`:119` 用 `as unknown as IRxDBAdapter` 关掉 tsc；11 个 spec 直接依赖，`createTestDB` 再传导 7 个。这是「对真实适配器不存在的行为全绿」的根源。
-- 🔴 9 个 `.coverage.spec.ts` 按行数写：`VersionManager.coverage.spec.ts:66-165` 用 19 个 `vi.mock` 把 `HistoryManager` 与 17 个协作模块全换掉后再「覆盖」`VersionManager.ts`。
-- 🔴 7 份 merge_* spec 各自复制 90 行 `createMockQueryTask`，手写 `result$` 管道自管 `observerCount/run/clean`，生产上 `result$` 由 `QueryManager.ts:150` 装配。9.7k 行测试验证的是测试作者写的流，`QueryManager` 的 share / replay / 清理语义怎么改都绿，副本已开始分叉。
+- ✅ 9 个 `.coverage.spec.ts` 按行数写：`VersionManager.coverage.spec.ts:66-165` 用 19 个 `vi.mock` 把 `HistoryManager` 与 17 个协作模块全换掉后再「覆盖」`VersionManager.ts`。**已修**：九份全部按行为主题改名（如 `RxDB.connect-lifecycle` / `VersionManager.orchestration` / `HistoryManager.scopes-and-undo`），describe 标题同步；`dependency-graph` 与 `topological-sort` 两个纯函数模块的替身删除，改断言真实依赖图与拉取顺序。其余 15 个替身经逐一核对全是真 I/O 边界（每个都有 await + 仓库/适配器访问），保留。
+- ✅ 7 份 merge_* spec 各自复制 90 行 `createMockQueryTask`，手写 `result$` 管道自管 `observerCount/run/clean`。**已修**：抽出 `fixtures/query-task-harness.ts`（151 行），全部经 `QueryManager.createTask()` 拿任务，`result$` / `serialize` / `onClean` / 依赖计数全部来自生产代码；另清掉散在尾部的 5 处手写 `new QueryTask`。顺带发现并修：`QueryManager` 第三个构造参数 `repository` 是死代码（连带删掉三处 `as unknown as Repository` 假 stub）；merge_create 两个事件负载缺 `type` 字段，旧的手写 serialize 把它盖住了；merge_remove 的 `cachedById` 文档声称支持但从未接通，RXD-018 乱序删除分支实为零覆盖。
 - 50 处固定 `setTimeout(100)` 做否定断言（累计 ≥ 5 s 墙钟，高负载下迟到的第二次发射静默通过）；`sync-undo.spec.ts:112-118` 200×5ms 轮询。
 - 自证测试：`contracts/filter-sync.spec.ts:110-135, 193-237`（自己声明接口断言自己，从未 import `cleanup-expired.ts`）、`version/filter-sync.spec.ts:63-80`、`conflict.spec.ts:187-249`。
 - 空断言：`HistoryManager.spec.ts:928-933` `expect(true).toBe(true)`；`bulk-sync.spec.ts:135-150` 「默认并发数应该是 3」只 `toBeDefined()`；`entity-status.spec.ts:232-247,496-510` 标题说 clear 但只 `toBeDefined()`。

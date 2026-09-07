@@ -45,13 +45,13 @@ function createDatabase(options: { slowRemote?: boolean } = {}): {
   });
   const localAdapters: LocalAdapterMock[] = [];
   const remoteAdapters: IRxDBAdapter[] = [];
-  database.adapter('sqlite', () => {
-    const adapter = createMockAdapter() as LocalAdapterMock;
+  database.adapter('sqlite', db => {
+    const adapter = createMockAdapter(db);
     localAdapters.push(adapter);
     return adapter;
   });
-  database.adapter('remote', () => {
-    const adapter = createMockAdapter();
+  database.adapter('remote', db => {
+    const adapter = createMockAdapter(db);
     if (options.slowRemote) {
       adapter.connect = vi.fn(async () => {
         await tick();

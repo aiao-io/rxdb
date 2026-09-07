@@ -2,7 +2,8 @@
  * @fileoverview QueryCache 出站队列占用的测试替身
  */
 
-import type { QueryCachePendingWriteIds, VersionManager } from '../../index.js';
+import type { QueryCachePendingWriteIds } from '../../index.js';
+import type { VersionManager } from '../../version/VersionManager.js';
 
 /**
  * 出站队列是空的：同步流程按「远端权威」照常处置每一行。

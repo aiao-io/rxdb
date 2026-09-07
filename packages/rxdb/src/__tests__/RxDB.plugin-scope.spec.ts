@@ -28,8 +28,8 @@ function createDatabase(): RxDB {
     entities: [],
     sync: { local: { adapter: 'sqlite' }, remote: { adapter: 'remote' }, type: SyncType.Full }
   });
-  database.adapter('sqlite', () => createMockAdapter());
-  database.adapter('remote', () => createMockAdapter());
+  database.adapter('sqlite', db => createMockAdapter(db));
+  database.adapter('remote', db => createMockAdapter(db));
   databases.add(database);
   return database;
 }
@@ -681,8 +681,8 @@ describe('停机窗口与跨纪元迟到任务', () => {
     const scopes: LifecycleScope[] = [];
     let openRemote: (() => void) | undefined;
     // remote 端卡在 adapter.connect() 上：还没走到 #await_plugin_installs 就被停机越过去了
-    database.adapter('remote', () => {
-      const adapter = createMockAdapter();
+    database.adapter('remote', db => {
+      const adapter = createMockAdapter(db);
       adapter.connect = vi.fn(
         () =>
           new Promise<IRxDBAdapter>(resolve => {

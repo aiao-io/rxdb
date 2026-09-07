@@ -199,7 +199,7 @@ const expectFrozenActions = (observable: object, actions: readonly string[]): vo
   }
 };
 
-describe('relation-helper coverage', () => {
+describe('关系访问器：安装校验、流与记忆化', () => {
   it('rejects installation when the mapped entity cannot be resolved', () => {
     const repository = createRepository<Target>();
     const { em, getEntityType, getRepository } = createEntityManager(undefined, repository);

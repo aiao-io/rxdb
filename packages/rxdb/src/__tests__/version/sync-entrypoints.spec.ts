@@ -89,7 +89,7 @@ beforeEach(() => {
   vi.mocked(pushBranch).mockResolvedValue({ synced: 0, skipped: [], forkPointPending: false });
 });
 
-describe('sync entrypoints coverage', () => {
+describe('pull / push 入口的聚合与事件派发', () => {
   it('rejects pull and push before dispatch when no remote adapter is configured', async () => {
     const { dispatchEvent, vm } = createHarness();
 

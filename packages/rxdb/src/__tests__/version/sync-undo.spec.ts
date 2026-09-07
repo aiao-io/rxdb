@@ -11,7 +11,7 @@
  *    否则一次迟到的事务回包就能把已作废的历史放出来。
  *
  * 过滤谓词（remoteId / lastPushedChangeId / reverted）由 `filterUndoableHistories`
- * 负责，已在 `HistoryManager.coverage.spec.ts` 覆盖，这里不重复。
+ * 负责，已在 `HistoryManager.scopes-and-undo.spec.ts` 覆盖，这里不重复。
  */
 import { BehaviorSubject, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -24,6 +24,7 @@ import { RxDBSync } from '../../system/sync.js';
 import { convertChangesToHistories } from '../../version/history-item-builder.js';
 import { HistoryManager } from '../../version/HistoryManager.js';
 import type { HistoryItem } from '../../version/VersionManager.interface.js';
+import { emptyPushInFlight } from '../fixtures/push-inflight.js';
 import { User } from '../fixtures/test-entities.js';
 
 const firstConnectedAt = new Date('2026-07-10T08:00:00.000Z');
@@ -96,7 +97,8 @@ const createHarness = (): Harness => {
         adapter: { getRxDBChangeSequence: vi.fn().mockResolvedValue(100), switchBranch: vi.fn() },
         branchRepository,
         changeRepository
-      })
+      }),
+      pushInFlight: emptyPushInFlight()
     }
   } as unknown as RxDB;
 

@@ -56,7 +56,7 @@ const createUpdate = (
   inversePatch: Readonly<Partial<TreeNode>> = {}
 ): UpdateEvent => ({
   type: 'UPDATE',
-  namespace: 'coverage',
+  namespace: 'tree-handlers',
   entity: 'TreeNode',
   id,
   entityType: TreeNode,
@@ -85,9 +85,9 @@ const createClassification = (input: ClassificationInput = {}): UpdateClassifica
 });
 
 const rxdb = new RxDB({
-  dbName: 'merge-update-tree-coverage',
+  dbName: 'merge-update-tree-handlers',
   entities: [],
-  sync: { type: SyncType.None, local: { adapter: 'coverage' } }
+  sync: { type: SyncType.None, local: { adapter: 'tree-handlers' } }
 });
 
 const isTreeNodeArray = (value: unknown): value is TreeNode[] => {
@@ -151,7 +151,7 @@ const matchesActive = (entity: TreeNode | null | undefined): boolean => entity?.
  * number，清空后不会被重新填充 —— 跨批次去重集合就此丢失，同一实体会被重复计数。
  * 行为侧的证明见 `merge-update-basic.spec.ts` 的「count 更新不清空跨批次去重集合」。
  */
-describe('merge-update-tree direct coverage', () => {
+describe('树形更新合并处理器', () => {
   describe('handleFindDescendantsUpdate', () => {
     it('keeps untouched and id-less results without notifying', () => {
       const idless = createNode(undefined, 'root');

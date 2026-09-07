@@ -352,7 +352,7 @@ function createHarness(options: HarnessOptions) {
   };
 }
 
-describe('pullBatch production coverage', () => {
+describe('pullBatch 生产路径', () => {
   it('rejects before touching adapters when the remote adapter is not configured', async () => {
     const harness = createHarness({ entities: [PullBatchParent], sync: LOCAL_SYNC });
 

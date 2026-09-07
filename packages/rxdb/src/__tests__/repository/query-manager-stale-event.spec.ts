@@ -12,7 +12,7 @@
  * 缺陷就在 `replace` 的 `Object.assign` 上，mock 掉实体层等于什么都没测。
  */
 import { of } from 'rxjs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
@@ -20,7 +20,6 @@ import { ENTITY_STATIC_TYPES, type EntityType, type UUID } from '../../entity/en
 import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
 import { applyExternalEntityUpdate } from '../../query/merge-update.utils.js';
 import { QueryManager } from '../../repository/QueryManager.js';
-import type { Repository } from '../../repository/Repository.js';
 import type { IRxDBAdapter } from '../../rxdb-adapter.js';
 import type { RxDBEntityLocalEventData } from '../../rxdb-events.js';
 import { getEntityStatus } from '../../rxdb-utils.js';
@@ -79,11 +78,7 @@ describe('QueryManager 事件回写的单调性（P0-004）', () => {
     rxdb.adapter('sqlite', () => mockAdapter as unknown as IRxDBAdapter);
     rxdb.init();
 
-    const queryManager = new QueryManager(
-      rxdb,
-      Node as unknown as EntityType,
-      { find: vi.fn(() => of([])), count: vi.fn(() => of(0)) } as unknown as Repository<EntityType>
-    );
+    const queryManager = new QueryManager(rxdb, Node as unknown as EntityType);
     const task = queryManager.createTask({
       options: { type: 'find', options: { where: { combinator: 'and', rules: [] } } } as never,
       runner: () => of([]),

@@ -15,6 +15,7 @@ import { filterUndoableHistories, HistoryManager } from '../../version/HistoryMa
 import { RxDBCrossScopeTransactionError } from '../../version/scope-selection.js';
 import type { HistoryItem, HistoryScope, SwitchVersionActions } from '../../version/VersionManager.interface.js';
 import { getRxDBChangeKey } from '../../version/VersionManager.utils.js';
+import { emptyPushInFlight } from '../fixtures/push-inflight.js';
 import { Post, Tag, User } from '../fixtures/test-entities.js';
 
 type QueryRule = {
@@ -172,7 +173,7 @@ const createHarness = (
     firstConnectedAt: options.firstConnectedAt,
     localAdapter$: of(localAdapter),
     removeEventListener,
-    versionManager: { getCurrentBranch, getLocalRepositories }
+    versionManager: { getCurrentBranch, getLocalRepositories, pushInFlight: emptyPushInFlight() }
   } as unknown as RxDB;
   const historyManager = new HistoryManager(rxdb);
   managers.add(historyManager);
@@ -214,7 +215,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('HistoryManager coverage', () => {
+describe('历史流、作用域与撤销重做执行', () => {
   describe('history streams', () => {
     it('emits histories, counts and repository-aware undo histories', async () => {
       const changes = [
@@ -1051,6 +1052,44 @@ describe('HistoryManager coverage', () => {
       await Promise.resolve();
 
       await expect(firstValueFrom(harness.historyManager.pushableCount$)).resolves.toBe(11);
+    });
+
+    it('把变更计数查询的失败推到 errors$，而不是无声吞掉', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const failure = new Error('count query exploded');
+      countMock.mockReturnValue(throwError(() => failure));
+      const harness = createHarness();
+
+      const seen: Error[] = [];
+      harness.historyManager.errors$.subscribe(error => seen.push(error));
+
+      harness.connected$.next(true);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // 从前是 `catchError(() => EMPTY)`：外层 subscribe 的 error 回调永远等不到，
+      // 于是本地变更计数悄悄停在旧值，UI 上「有 N 条待推送」再也不动，没有任何人知道
+      expect(seen).toEqual([failure]);
+      expect(consoleError).toHaveBeenCalled();
+    });
+
+    it('计数查询失败后整条流仍然活着：下一次分支发射照常重算', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      countMock.mockReturnValueOnce(throwError(() => new Error('transient count failure')));
+      countMock.mockReturnValue(of(7));
+      const harness = createHarness();
+
+      harness.connected$.next(true);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // 报错必须**降级**而不是终结：一次瞬时查询失败不该让计数流永久停摆。
+      // 这也是内层 catchError 不能删、只能改成「报了再 EMPTY」的原因。
+      harness.activeBranch$.next({ ...activeBranch, id: 'main' } as RxDBBranch);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(countMock.mock.calls.length).toBeGreaterThan(1);
     });
 
     it('suppresses listener query failures without starting a refresh', async () => {

@@ -14,6 +14,7 @@ import {
   type PushRepositoryResult
 } from '../../version/push-repository.js';
 import type { VersionManager } from '../../version/VersionManager.js';
+import { emptyPushInFlight } from '../fixtures/push-inflight.js';
 import { User } from '../fixtures/test-entities.js';
 
 type DispatchEvent = (event: RxDBEvent) => void;
@@ -55,6 +56,7 @@ function createValidationHarness(options: ValidationHarnessOptions = {}) {
       dispatchEvent
     },
     getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
+    pushInFlight: emptyPushInFlight(),
     getLocalRepositories: vi.fn(async () => ({
       adapter: {
         getRepository: (EntityClass: EntityType): unknown => {
@@ -111,7 +113,8 @@ function createEmptyPushHarness() {
     },
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
-    getCurrentBranch: vi.fn(async () => ({ id: 'main' }))
+    getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
+    pushInFlight: emptyPushInFlight()
   } as unknown as VersionManager;
 
   return { dispatchEvent, remoteAdapter, vm };

@@ -13,6 +13,7 @@ import { pullRepository } from '../../version/pull-repository.js';
 import { pushRepository, type PushRepositoryResult } from '../../version/push-repository.js';
 import type { SwitchVersionActions } from '../../version/VersionManager.interface.js';
 import type { VersionManager } from '../../version/VersionManager.js';
+import { emptyPushInFlight } from '../fixtures/push-inflight.js';
 import { User } from '../fixtures/test-entities.js';
 import { createTransactionStub } from '../fixtures/transaction-executor-stub.js';
 
@@ -208,7 +209,8 @@ function createProtocolHarness() {
     },
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
-    getCurrentBranch: vi.fn(async () => ({ id: 'main' }))
+    getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
+    pushInFlight: emptyPushInFlight()
   } as unknown as VersionManager;
 
   const localCreate = (name: string): RxDBChange => {

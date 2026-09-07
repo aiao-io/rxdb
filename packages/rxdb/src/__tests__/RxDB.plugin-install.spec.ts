@@ -24,8 +24,8 @@ function createDatabase(): RxDB {
     entities: [],
     sync: { local: { adapter: 'sqlite' }, remote: { adapter: 'remote' }, type: SyncType.Full }
   });
-  database.adapter('sqlite', () => createMockAdapter());
-  database.adapter('remote', () => createMockAdapter());
+  database.adapter('sqlite', db => createMockAdapter(db));
+  database.adapter('remote', db => createMockAdapter(db));
   databases.add(database);
   return database;
 }

@@ -164,3 +164,44 @@ describe('QueryCacheSyncMemo', () => {
     expect(memo.has(FP)).toBe(false);
   });
 });
+
+/**
+ * 记忆窗口的定时器不该把宿主进程钉在事件循环上。
+ *
+ * @remarks
+ * 这是纯缓存记账：窗口可以配到分钟级，Node / Electron 里一个还没到期的 `setTimeout`
+ * 足以让一个本该结束的脚本继续挂着。浏览器的 `setTimeout` 返回数字、没有 `unref`，
+ * 所以只能「有就调」—— 这不是给缺失值兜底，是两个运行时各自正确的 API。
+ */
+describe('QueryCacheSyncMemo 的定时器不阻止进程退出', () => {
+  it('运行时提供 unref 时对记忆定时器调用它', () => {
+    const unref = vi.fn();
+    const original = globalThis.setTimeout;
+    const fake = vi.fn(() => ({ unref })) as unknown as typeof globalThis.setTimeout;
+    globalThis.setTimeout = fake;
+
+    try {
+      const memo = new QueryCacheSyncMemo(60_000);
+      memo.remember('fingerprint', memo.generation);
+
+      expect(fake).toHaveBeenCalledTimes(1);
+      expect(unref).toHaveBeenCalledTimes(1);
+    } finally {
+      globalThis.setTimeout = original;
+    }
+  });
+
+  it('运行时不提供 unref 时照常工作（浏览器返回数字句柄）', () => {
+    const original = globalThis.setTimeout;
+    const fake = vi.fn(() => 123) as unknown as typeof globalThis.setTimeout;
+    globalThis.setTimeout = fake;
+
+    try {
+      const memo = new QueryCacheSyncMemo(60_000);
+      expect(() => memo.remember('fingerprint', memo.generation)).not.toThrow();
+      expect(memo.has('fingerprint')).toBe(true);
+    } finally {
+      globalThis.setTimeout = original;
+    }
+  });
+});
