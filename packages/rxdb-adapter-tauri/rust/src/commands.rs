@@ -22,6 +22,16 @@ use super::session::HostOptions;
 /// （`generate_handler!` 取的是标识符），改名时两处一起改。
 pub const CHANGE_EVENT: &str = "rxdb-desktop-change";
 
+/// 命令自身 panic 时 reject 消息的前缀。
+///
+/// 必须与 `@aiao/rxdb-adapter-tauri` 的 `TAURI_DESKTOP_HOST_PANIC_PREFIX` 逐字相同：
+/// renderer 侧靠它把「宿主炸了」（`host_internal_error`）与「话没递到宿主」
+/// （`host_unavailable`，命令未注册 / capability 不许 / 参数序列化失败）分开。
+///
+/// 分类只能认这一条**本包自己写下的**文案。其余 reject 由 Tauri 的 IPC 层产生，
+/// 措辞属于它的实现细节，跟着它的版本走。
+pub const HOST_PANIC_PREFIX: &str = "rxdb desktop host panicked: ";
+
 /// 托管在 Tauri state 里的 host。
 ///
 /// 整个应用一个实例：会话表要跨窗口、跨命令调用存活，而 `State` 是唯一能横跨
@@ -58,6 +68,11 @@ impl DesktopHost {
     /// `emit` 广播给应用的每一个窗口，而每条变更事件里都带着 session id。那等于把所有
     /// 会话的 id 公开给所有窗口。会话 id 不是凭证（[`DesktopRouter::handle_owned`] 现在会验主），
     /// 但把它发给不相干的窗口本身就没有意义，只是徒增暴露面。收件人只能是开出这个会话的窗口。
+    ///
+    /// **但 `emit_to` 只是定向投递的一半。** tauri 的 `match_any_or_filter` 在监听者的 target
+    /// 是 `EventTarget::Any` 时无条件匹配，而 `@tauri-apps/api` 的 `listen()` 默认恰恰是 `Any`：
+    /// 收件侧不带 target 注册，这里写 `emit_to` 也照样人人收得到。另一半因此钉在 renderer 的
+    /// `TauriHostTransportOptions.target` 上，而且是必填字段——两处凑齐才真的定向。
     ///
     /// # 为什么是 `Arc::new_cyclic`
     ///
@@ -200,7 +215,7 @@ pub async fn rxdb_desktop_request(
     let owner = window.label().to_string();
     tauri::async_runtime::spawn_blocking(move || state.handle_from_window(&payload, &owner))
         .await
-        .map_err(|error| format!("rxdb desktop host panicked: {error}"))
+        .map_err(|error| format!("{HOST_PANIC_PREFIX}{error}"))
 }
 
 #[cfg(test)]
@@ -227,6 +242,14 @@ mod tests {
     #[test]
     fn change_event_name_matches_the_renderer_contract() {
         assert_eq!(CHANGE_EVENT, "rxdb-desktop-change");
+    }
+
+    /// 前缀是跨语言契约的另一半，同样只在运行时表现——renderer 会把带前缀的 reject 判成
+    /// `host_internal_error`、其余判成 `host_unavailable`，前缀漂了只会让宿主 panic 被误报成
+    /// 「宿主没接上」，而两者的处置完全不同（一个要修缺陷，一个要查安装）。
+    #[test]
+    fn host_panic_prefix_matches_the_renderer_contract() {
+        assert_eq!(HOST_PANIC_PREFIX, "rxdb desktop host panicked: ");
     }
 
     /// 自检报告里的 `appDataDir` 就取自这里，所以它必须报的是**构造时收到的那个目录**。

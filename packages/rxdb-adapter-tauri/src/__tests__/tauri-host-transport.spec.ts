@@ -4,10 +4,12 @@
  * @module __tests__/tauri-host-transport
  */
 
+import { RxDBAdapterDesktopError } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { describe, expect, it, vi } from 'vitest';
 import {
   createTauriHostTransport,
   TAURI_DESKTOP_CHANGE_EVENT,
+  TAURI_DESKTOP_HOST_PANIC_PREFIX,
   TAURI_DESKTOP_REQUEST_COMMAND,
   type TauriHostTransportOptions
 } from '../tauri-host-transport.js';
@@ -18,13 +20,16 @@ const createListen = (): {
   emit: (payload: unknown) => void;
   unlistenCount: () => number;
   listenCount: () => number;
+  targets: () => readonly unknown[];
 } => {
   const handlers = new Set<(event: { payload: unknown }) => void>();
+  const targets: unknown[] = [];
   let listenCount = 0;
   let unlistenCount = 0;
   return {
-    listen: (_event, handler) => {
+    listen: (_event, handler, options) => {
       listenCount++;
+      targets.push(options?.target);
       handlers.add(handler);
       return Promise.resolve(() => {
         unlistenCount++;
@@ -35,7 +40,8 @@ const createListen = (): {
       for (const handler of handlers) handler({ payload });
     },
     unlistenCount: () => unlistenCount,
-    listenCount: () => listenCount
+    listenCount: () => listenCount,
+    targets: () => targets
   };
 };
 
@@ -50,7 +56,7 @@ describe('createTauriHostTransport', () => {
         results: [{ columns: ['id'], rows: [[{ $bigint: '9007199254740993' }]] }]
       }
     });
-    const transport = createTauriHostTransport({ invoke, listen: createListen().listen });
+    const transport = createTauriHostTransport({ invoke, listen: createListen().listen, target: 'main' });
 
     const response = (await transport.request({
       kind: 'execute',
@@ -76,7 +82,7 @@ describe('createTauriHostTransport', () => {
    */
   it('passes a host error response through as a value', async () => {
     const invoke = vi.fn().mockResolvedValue({ kind: 'error', code: 'database_busy', message: 'locked' });
-    const transport = createTauriHostTransport({ invoke, listen: createListen().listen });
+    const transport = createTauriHostTransport({ invoke, listen: createListen().listen, target: 'main' });
 
     await expect(
       transport.request({ kind: 'version', sessionId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301' })
@@ -89,7 +95,7 @@ describe('createTauriHostTransport', () => {
 
   it('fans one tauri event channel out to every subscriber and decodes the payload', async () => {
     const { listen, emit, listenCount } = createListen();
-    const transport = createTauriHostTransport({ invoke: vi.fn(), listen });
+    const transport = createTauriHostTransport({ invoke: vi.fn(), listen, target: 'main' });
     const first = vi.fn();
     const second = vi.fn();
 
@@ -110,7 +116,7 @@ describe('createTauriHostTransport', () => {
 
   it('releases the tauri channel once the last subscriber leaves and re-registers for the next one', async () => {
     const { listen, listenCount, unlistenCount } = createListen();
-    const transport = createTauriHostTransport({ invoke: vi.fn(), listen });
+    const transport = createTauriHostTransport({ invoke: vi.fn(), listen, target: 'main' });
 
     const stopFirst = transport.subscribe(vi.fn());
     const stopSecond = transport.subscribe(vi.fn());
@@ -131,7 +137,7 @@ describe('createTauriHostTransport', () => {
    */
   it('closes a channel that finished registering after the last subscriber left', async () => {
     const { listen, unlistenCount } = createListen();
-    const transport = createTauriHostTransport({ invoke: vi.fn(), listen });
+    const transport = createTauriHostTransport({ invoke: vi.fn(), listen, target: 'main' });
 
     transport.subscribe(vi.fn())();
 
@@ -150,7 +156,7 @@ describe('createTauriHostTransport', () => {
           resolveListen = resolve;
         })
     );
-    const transport = createTauriHostTransport({ invoke: vi.fn(), listen });
+    const transport = createTauriHostTransport({ invoke: vi.fn(), listen, target: 'main' });
 
     transport.subscribe(vi.fn());
     const ready = transport.subscriptionReady?.();
@@ -173,7 +179,7 @@ describe('createTauriHostTransport', () => {
     const failure = new Error('event system unavailable');
     const onListenError = vi.fn();
     const listen = vi.fn<TauriHostTransportOptions['listen']>().mockRejectedValue(failure);
-    const transport = createTauriHostTransport({ invoke: vi.fn(), listen, onListenError });
+    const transport = createTauriHostTransport({ invoke: vi.fn(), listen, target: 'main', onListenError });
 
     transport.subscribe(vi.fn());
 
@@ -185,11 +191,11 @@ describe('createTauriHostTransport', () => {
     const onListenError = vi.fn();
     const failure = new Error('event system unavailable');
     const listen = vi.fn<TauriHostTransportOptions['listen']>().mockRejectedValue(failure);
-    const transport = createTauriHostTransport({ invoke: vi.fn(), listen, onListenError });
+    const transport = createTauriHostTransport({ invoke: vi.fn(), listen, target: 'main', onListenError });
 
     transport.subscribe(vi.fn());
     await vi.waitFor(() => expect(onListenError).toHaveBeenCalledWith(failure));
-    expect(listen).toHaveBeenCalledWith(TAURI_DESKTOP_CHANGE_EVENT, expect.any(Function));
+    expect(listen).toHaveBeenCalledWith(TAURI_DESKTOP_CHANGE_EVENT, expect.any(Function), { target: 'main' });
 
     // 失败不能把传输层卡死：下一个订阅者要能重新尝试注册。
     transport.subscribe(vi.fn());
@@ -203,7 +209,7 @@ describe('createTauriHostTransport', () => {
   it('reports a payload it cannot decode instead of throwing into the tauri callback', async () => {
     const { listen, emit, listenCount } = createListen();
     const onListenError = vi.fn();
-    const transport = createTauriHostTransport({ invoke: vi.fn(), listen, onListenError });
+    const transport = createTauriHostTransport({ invoke: vi.fn(), listen, target: 'main', onListenError });
     const subscriber = vi.fn();
 
     transport.subscribe(subscriber);
@@ -225,7 +231,7 @@ describe('createTauriHostTransport', () => {
   it('keeps fanning out after a subscriber throws, and reports the failure', async () => {
     const { listen, emit, listenCount } = createListen();
     const onListenError = vi.fn();
-    const transport = createTauriHostTransport({ invoke: vi.fn(), listen, onListenError });
+    const transport = createTauriHostTransport({ invoke: vi.fn(), listen, target: 'main', onListenError });
     const failure = new Error('handler blew up');
     const healthy = vi.fn();
 
@@ -238,5 +244,62 @@ describe('createTauriHostTransport', () => {
     expect(() => emit({ kind: 'change', sessionId: 's', event: { rowIds: [] } })).not.toThrow();
     expect(onListenError).toHaveBeenCalledWith(failure);
     expect(healthy).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * 🔴 评审 #3：Rust 侧的 `emit_to(owner)` 只做了定向投递的**一半**。
+   *
+   * tauri 的 `match_any_or_filter` 在监听者 target 为 `Any` 时**无条件匹配**任何 `emit_to`，
+   * 而 `@tauri-apps/api` 的 `listen()` 默认就是 `{ kind: 'Any' }`。不带 target 注册，
+   * 任何能调用 `listen` 的 webview 都会收到所有窗口的 sessionId / 库名 / 表名 / rowIds。
+   * 定向投递必须两侧都带 target 才成立，所以这里把它钉死。
+   */
+  it('registers the change listener against the configured window target', async () => {
+    const { listen, targets, listenCount } = createListen();
+    const transport = createTauriHostTransport({ invoke: vi.fn(), listen, target: 'main' });
+
+    transport.subscribe(vi.fn());
+    await vi.waitFor(() => expect(listenCount()).toBe(1));
+
+    expect(targets()).toEqual(['main']);
+  });
+
+  /**
+   * 🟡 评审 #13：`invoke` 的 reject 此前原样透传，于是宿主忘了 `generate_handler!` 时
+   * `rxdb.connect()` 以一个**没有错误码**的裸字符串失败，README 写的
+   * `error.code === 'host_unavailable'` 分支永远走不到。
+   */
+  it('turns an invoke rejection into host_unavailable and keeps the original cause', async () => {
+    const failure = new Error('Command rxdb_desktop_request not found');
+    const invoke = vi.fn().mockRejectedValue(failure);
+    const transport = createTauriHostTransport({ invoke, listen: createListen().listen, target: 'main' });
+
+    const error = await transport.request({ kind: 'version', sessionId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301' }).then(
+      () => undefined,
+      (reason: unknown) => reason
+    );
+
+    expect(error).toBeInstanceOf(RxDBAdapterDesktopError);
+    expect((error as RxDBAdapterDesktopError).code).toBe('host_unavailable');
+    expect((error as RxDBAdapterDesktopError).cause).toBe(failure);
+  });
+
+  /**
+   * 宿主真的 panic 了是**缺陷**，不是「接不上」——两者的处置完全不同，
+   * 不能都报 `host_unavailable`。判据是本包自己写下的那句前缀，而不是 tauri 的内部文案。
+   */
+  it('reports a host panic as host_internal_error', async () => {
+    const failure = `${TAURI_DESKTOP_HOST_PANIC_PREFIX}task 12 panicked`;
+    const invoke = vi.fn().mockRejectedValue(failure);
+    const transport = createTauriHostTransport({ invoke, listen: createListen().listen, target: 'main' });
+
+    const error = await transport.request({ kind: 'version', sessionId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301' }).then(
+      () => undefined,
+      (reason: unknown) => reason
+    );
+
+    expect(error).toBeInstanceOf(RxDBAdapterDesktopError);
+    expect((error as RxDBAdapterDesktopError).code).toBe('host_internal_error');
+    expect((error as RxDBAdapterDesktopError).cause).toBe(failure);
   });
 });

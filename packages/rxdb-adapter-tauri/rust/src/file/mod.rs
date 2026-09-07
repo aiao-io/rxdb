@@ -62,6 +62,12 @@ struct FileState {
     locks: LockTable,
 }
 
+/// 未提交写入留在盘上的临时产物后缀，对齐 TS 侧的 `DESKTOP_HOST_TEMPORARY_SUFFIX`。
+///
+/// 它属于线协议的可观测面：未提交的写入**会被列目录看见**，所以「盘上多出来的这个名字
+/// 是什么」必须有一个两端共同的答案。
+const TEMPORARY_SUFFIX: &str = ".rxdb-tmp";
+
 /// 文件宿主：一个存储根 + 一张会话表 + 一张锁表。
 ///
 /// 存储根在构造时定死为应用数据目录的子目录，renderer 无从改动，也拿不到它的物理值。
@@ -230,6 +236,76 @@ fn to_epoch_millis(time: SystemTime) -> f64 {
     }
 }
 
+/// 判断一个**物理**文件名是不是宿主未提交写入留下的临时产物。
+///
+/// 与 TS 侧 `isDesktopHostTemporaryName` 的正则逐字段等价：前导点 + 小写 UUID v4 +
+/// [`TEMPORARY_SUFFIX`]。手写而不引 `regex`：要钉的就是判据本身，多绕一个依赖去表达它，
+/// 反而让两侧更难逐字对照；`recognizes_exactly_the_temporary_names_the_protocol_defines`
+/// 照抄了 TS 用例的取值表。
+///
+/// 判据**不是**「以该后缀结尾」。用户完全可以有一个自己叫 `report.rxdb-tmp` 的文件，
+/// 而这个判据的下游是 [`sweep_temporary_files`] 里的 `remove_file`——宽一格就是删别人的数据。
+fn is_temporary_name(name: &str) -> bool {
+    let Some(rest) = name.strip_prefix('.') else {
+        return false;
+    };
+    let Some(uuid) = rest.strip_suffix(TEMPORARY_SUFFIX) else {
+        return false;
+    };
+    let groups: Vec<&str> = uuid.split('-').collect();
+    groups.iter().map(|group| group.len()).eq([8, 4, 4, 4, 12])
+        && groups
+            .iter()
+            .all(|group| group.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()))
+}
+
+/// 递归清扫存储根下上一轮遗留的临时产物。
+///
+/// # 为什么回收点在启动
+///
+/// 会话回收（`discard_write`）只覆盖体面退出。进程被 SIGKILL、掉电、或 WebView 把宿主
+/// 一起拖崩时没有任何收尾代码跑得到，临时文件就永久留在用户的备份域里——一次崩溃一份，
+/// 只增不减，而且 `file.list` 会把它当成一个普通文件报出来。构造宿主的这一刻还没有
+/// 任何会话，根下符合临时形状的文件因此必然是上一轮的遗留。
+///
+/// 前提是本应用独占这个根。这在 Tauri 下成立（根在 `app_data_dir` 之下）。万一有第二个
+/// 实例正在写，被删掉的临时文件会让它的 commit 以 `file_not_found` 失败——一个**报出来的**
+/// 错误，而不是静默的坏数据。
+///
+/// # 失败怎么办
+///
+/// 清扫是一次垃圾回收，不是功能路径，因此失败不向上传播：让一个读不动的残留文件把
+/// `FileHost` 的构造带崩，等于应用再也打不开自己的数据。根不存在是**首次启动的正常形态**
+/// （目录只由 renderer 的 `file.mkdir` 建），静默略过；其余失败写一行 stderr，
+/// 与 `commands.rs` 里丢弃无主事件同一手法。
+///
+/// 用显式栈而不是递归：目录深度来自用户的数据，递归会把它变成栈深度。
+fn sweep_temporary_files(root: &Path) {
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        let entries = match fs::read_dir(&directory) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
+            Err(error) => {
+                eprintln!("[rxdb-desktop] cannot sweep {}: {error}", directory.display());
+                continue;
+            }
+        };
+        for entry in entries.filter_map(Result::ok) {
+            // `file_type()` 不跟随符号链接：指向根外的链接因此既不会被递归进去，
+            // 也不会被当成文件删掉——它的 `is_file()` 是 false。
+            let Ok(kind) = entry.file_type() else { continue };
+            if kind.is_dir() {
+                pending.push(entry.path());
+            } else if kind.is_file() && is_temporary_name(&entry.file_name().to_string_lossy()) {
+                if let Err(error) = fs::remove_file(entry.path()) {
+                    eprintln!("[rxdb-desktop] cannot remove the stale temporary {}: {error}", entry.path().display());
+                }
+            }
+        }
+    }
+}
+
 /// 放弃一次写入。
 ///
 /// 关句柄与删临时文件的失败都吞掉：本函数只跑在放弃路径与会话回收路径上，再报一次
@@ -279,7 +355,10 @@ fn finish_write(pending: &PendingWrite) -> HostResult<()> {
 impl FileHost {
     /// 用一个物理存储根构造宿主。目录本身不在这里创建：renderer 的 `ensureRoot`
     /// 会发一条根路径的 `file.mkdir`，让「什么时候建目录」保持在一条通路上。
+    ///
+    /// 构造时清扫上一轮崩溃遗留的临时产物，理由见 [`sweep_temporary_files`]。
     pub fn new(root: PathBuf) -> Self {
+        sweep_temporary_files(&root);
         Self {
             root,
             state: Mutex::new(FileState::default()),
@@ -520,7 +599,7 @@ impl FileHost {
         let target = self.target_of(session_id, relative_path)?;
         let write_id = uuid::Uuid::new_v4().to_string();
         let parent = parent_of(&target, relative_path)?;
-        let temporary = parent.join(format!(".{write_id}.rxdb-tmp"));
+        let temporary = parent.join(format!(".{write_id}{TEMPORARY_SUFFIX}"));
         fs::create_dir_all(parent).map_err(|error| filesystem_error(&error, relative_path))?;
         // `create_new` 等价于 TS 侧的 `'wx'`：临时名带 UUID，撞名只可能是那个名字已被
         // 别处占用，静默覆盖会丢掉它的内容。
@@ -687,7 +766,11 @@ mod tests {
 
     impl Harness {
         fn new() -> Self {
-            let root = std::env::temp_dir().join(format!("rxdb-files-{}", uuid::Uuid::new_v4()));
+            Self::at(std::env::temp_dir().join(format!("rxdb-files-{}", uuid::Uuid::new_v4())))
+        }
+
+        /// 用一个指定的根构造，供启动清扫的用例预先在盘上布置上一轮的残留。
+        fn at(root: PathBuf) -> Self {
             let host = FileHost::new(root.clone());
             let session = host.handle(&json!({ "kind": "file.open" }))["result"]["sessionId"]
                 .as_str()
@@ -801,28 +884,81 @@ mod tests {
         assert!(harness.temporary_files().is_empty(), "the temp file is gone");
     }
 
-    /// 临时产物的形状：前导点 + 小写 UUID v4 + `.rxdb-tmp`。
+    /// 上一轮进程被 SIGKILL / 掉电时没有任何收尾代码跑得到，未提交写入的临时产物就留在盘上。
+    /// 它在用户的备份域里只增不减，而且 `file.list` 会把它当成一个普通文件报出来。
     ///
-    /// 与 TS 侧 `isDesktopHostTemporaryName` 的正则逐字段等价。手写而不引 `regex`：
-    /// 要钉的就是判据本身，多绕一个依赖去表达它，反而让两侧更难逐字对照。
-    fn matches_snapshot_filter(name: &str) -> bool {
-        let Some(rest) = name.strip_prefix('.') else {
-            return false;
-        };
-        let Some(uuid) = rest.strip_suffix(".rxdb-tmp") else {
-            return false;
-        };
-        let groups: Vec<&str> = uuid.split('-').collect();
-        groups.iter().map(|group| group.len()).eq([8, 4, 4, 4, 12])
-            && groups
-                .iter()
-                .all(|group| group.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()))
+    /// 回收点放在构造宿主的那一刻：此刻还没有任何会话，根下符合临时形状的文件必然是遗留。
+    #[test]
+    fn sweeps_temporaries_left_behind_by_a_previous_run() {
+        let root = std::env::temp_dir().join(format!("rxdb-files-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(root.join("notes/drafts")).expect("the temp root is ours to create");
+        let stale = [
+            root.join(".2f1c8a3e-4b5d-4e6f-8a9b-0c1d2e3f4a5b.rxdb-tmp"),
+            root.join("notes/.7e6d5c4b-3a2f-4e1d-9c8b-7a6f5e4d3c2b.rxdb-tmp"),
+            root.join("notes/drafts/.11112222-3333-4444-5555-666677778888.rxdb-tmp"),
+        ];
+        // 用户自己的文件，名字里也带这个后缀：清扫的判据必须窄到不碰它。
+        let keep = [root.join("notes/report.rxdb-tmp"), root.join("notes/drafts/a.txt")];
+        for path in stale.iter().chain(keep.iter()) {
+            fs::write(path, b"content").expect("the temp root is ours to write");
+        }
+
+        let harness = Harness::at(root);
+
+        for path in &stale {
+            assert!(!path.exists(), "{} survived the sweep", path.display());
+        }
+        for path in &keep {
+            assert!(path.is_file(), "{} was not the sweep's to remove", path.display());
+        }
+        assert!(harness.temporary_files().is_empty());
+    }
+
+    /// 根还不存在时构造宿主：清扫是一次垃圾回收，缺目录不是错误。
+    ///
+    /// `FileHost::new` 刻意不建目录（建目录只走 renderer 的 `file.mkdir` 一条路），
+    /// 因此「根不存在」是首次启动的**正常**形态，清扫在这里报错会让应用直接打不开。
+    #[test]
+    fn tolerates_a_storage_root_that_does_not_exist_yet() {
+        let harness = Harness::new();
+        assert_eq!(harness.write("a.txt", b"hello")["kind"], "file.writeCommit");
+    }
+
+    /// 清扫的判据与 TS 侧 `isDesktopHostTemporaryName` 的正则逐例对齐。
+    ///
+    /// 这张表就是两侧唯一的机械联系，取值直接照抄 `desktop-host-file-protocol.spec.ts`。
+    /// 判据每放宽一点，一个真实的用户文件就会被**删掉**——比诊断快照那边把它滤掉更不可逆，
+    /// 所以这里认的是完整形状（前导点 + 小写 UUID v4 + 后缀），而不是「以后缀结尾」。
+    #[test]
+    fn recognizes_exactly_the_temporary_names_the_protocol_defines() {
+        let write_id = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+        for name in [
+            format!(".{write_id}.rxdb-tmp"),
+            ".9f8e7d6c-5b4a-4392-8180-7f6e5d4c3b2a.rxdb-tmp".to_string(),
+        ] {
+            assert!(is_temporary_name(&name), "should be temporary: {name}");
+        }
+        for name in [
+            "report.rxdb-tmp".to_string(),
+            ".draft.rxdb-tmp".to_string(),
+            format!("{write_id}.rxdb-tmp"),
+            format!(".{write_id}.rxdb-tmp.bak"),
+            format!(".{}.rxdb-tmp", write_id.to_uppercase()),
+            ".rxdb-tmp".to_string(),
+            String::new(),
+        ] {
+            assert!(!is_temporary_name(&name), "should not be temporary: {name}");
+        }
     }
 
     /// 诊断快照靠这个形状把在途上传滤出去（US-905 AC#11）。两个宿主各自生成临时名，
     /// TS 侧的快照用例只钉得住 Electron 那一半；这边的名字一旦漂移（大写 UUID、换后缀、
     /// 少了前导点），快照就会把一条正在写、下一秒自己消失的临时产物报成「有文件无元数据」，
     /// 而这类只在特定时刻复现的误报最难被承认是误报。
+    ///
+    /// 判据取生产的 [`is_temporary_name`]，它自己由
+    /// `recognizes_exactly_the_temporary_names_the_protocol_defines` 钉在 TS 的取值表上；
+    /// 这里验的是 `write_begin` 产出的名字落不落在那个形状里，两条断言不重叠。
     #[test]
     fn names_in_flight_temporaries_in_the_shape_the_snapshot_filter_expects() {
         let harness = Harness::new();
@@ -838,7 +974,7 @@ mod tests {
             .collect();
 
         assert_eq!(names.len(), 1, "only the in-flight temporary is on disk: {names:?}");
-        assert!(matches_snapshot_filter(&names[0]), "unexpected temporary name: {}", names[0]);
+        assert!(is_temporary_name(&names[0]), "unexpected temporary name: {}", names[0]);
     }
 
     #[test]

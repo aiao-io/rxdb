@@ -144,8 +144,14 @@ const encodeEntries = (value: Record<string, unknown>): Record<string, unknown> 
  * `undefined` 的处理与 `JSON.stringify` 对齐：对象属性直接省略，数组空位归一成 `null`
  * ——后者正是协议对绑定参数的既定语义（见 `desktop-host-protocol.ts` 的 `normalizeBinding`）。
  *
+ * 非有限数（`Infinity` / `-Infinity` / `NaN`）则**不**跟着 `JSON.stringify` 走。它把这三个值
+ * 变成 `null`，于是一条绑了 `Infinity` 的 `INSERT` 会在 SQLite 里落成 NULL——写进去的不是
+ * 调用方给的值，而且从头到尾没有报错。Rust 侧的 `encode_real` 早就在应答方向拒了它们
+ * （`rust/src/value.rs`），这里是同一条性质在请求方向的另一半。
+ *
  * @param value - 协议请求、应答或变更事件
  * @returns 只含 JSON 原生类型与标签对象的等价负载
+ * @throws {@link RxDBAdapterDesktopError} 负载里含非有限数时抛 `protocol_violation`
  */
 export function encodeDesktopJsonPayload(value: unknown): unknown {
   if (typeof value === 'bigint') return { [BIGINT_TAG]: value.toString() };
@@ -153,6 +159,10 @@ export function encodeDesktopJsonPayload(value: unknown): unknown {
   if (value instanceof Date) return { [DATE_TAG]: value.getTime() };
   if (Array.isArray(value)) {
     return value.map(item => (item === undefined ? null : encodeDesktopJsonPayload(item)));
+  }
+  // 放在原样透传之前：数字是 JSON 原生类型，漏了这一道就直接从下一行走掉了。
+  if (typeof value === 'number' && !Number.isFinite(value)) {
+    throw violation(`REAL value ${value} cannot be carried over JSON`);
   }
   if (typeof value !== 'object' || value === null) return value;
   const encoded = encodeEntries(value as Record<string, unknown>);

@@ -13,7 +13,7 @@
  * @module tauri-host-transport
  */
 
-import type { DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
+import { RxDBAdapterDesktopError, type DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { decodeDesktopJsonPayload, encodeDesktopJsonPayload } from './desktop-json-codec.js';
 
 /**
@@ -27,6 +27,19 @@ export const TAURI_DESKTOP_REQUEST_COMMAND = 'rxdb_desktop_request';
 
 /** host 推送变更事件所用的 Tauri 事件名。 */
 export const TAURI_DESKTOP_CHANGE_EVENT = 'rxdb-desktop-change';
+
+/**
+ * 宿主命令自身 panic 时，Rust 侧 `rxdb_desktop_request` reject 的消息前缀。
+ *
+ * @remarks
+ * 这是**本包自己写下的**文案（`rust/src/commands.rs` 的 `HOST_PANIC_PREFIX`），
+ * 因此可以拿来分类；`invoke` 的其余 reject 来自 Tauri 的 IPC 层（命令未注册、
+ * capability 不许、参数序列化失败），它们的文案是 Tauri 的实现细节，匹配不得。
+ *
+ * 两个常量之间唯一的机械联系是 Rust 侧的 `host_panic_prefix_matches_the_renderer_contract`，
+ * 改一侧忘了改另一侧时那条用例会红。
+ */
+export const TAURI_DESKTOP_HOST_PANIC_PREFIX = 'rxdb desktop host panicked: ';
 
 /** {@link createTauriHostTransport} 的依赖注入点。 */
 export interface TauriHostTransportOptions {
@@ -43,9 +56,29 @@ export interface TauriHostTransportOptions {
    *
    * @param event - 事件名
    * @param handler - 事件回调
+   * @param options - 订阅选项；本传输层只用 `target`，见 {@link TauriHostTransportOptions.target}
    * @returns 解除订阅的函数
    */
-  readonly listen: (event: string, handler: (event: { payload: unknown }) => void) => Promise<() => void>;
+  readonly listen: (
+    event: string,
+    handler: (event: { payload: unknown }) => void,
+    options?: { readonly target?: string }
+  ) => Promise<() => void>;
+  /**
+   * 本 WebView 所在窗口的 label，通常是 `getCurrentWebviewWindow().label`。
+   *
+   * @remarks
+   * **这是定向投递的另一半，不是可选的调优项。** Rust 侧用 `emit_to(owner)` 只把变更事件
+   * 发给开出该会话的窗口，但 tauri 的 `match_any_or_filter` 在监听者 target 为 `Any` 时
+   * **无条件匹配**任何 `emit_to`——而 `@tauri-apps/api` 的 `listen()` 默认正是 `{ kind: 'Any' }`。
+   * 不带 target 注册，任何能调用 `listen` 的 webview（只需 `core:event:allow-listen`）
+   * 都会收到所有窗口的 sessionId、库名、表名与 rowIds。
+   *
+   * 故意**必填**而不是省略时退回全局订阅：那种默认是「未配置即全放行」，
+   * 而这正是本仓库不接受的兜底形态。注入 `getCurrentWebviewWindow().listen` 的调用方
+   * 已经自带 `{ kind: 'Webview', label }`，那份 `listen` 会忽略本字段，填上也无害。
+   */
+  readonly target: string;
   /**
    * 变更事件通道出问题时的回调，覆盖注册失败与送达失败两种。
    *
@@ -145,7 +178,7 @@ export function createTauriHostTransport(options: TauriHostTransportOptions): De
    */
   const startListening = (): Promise<void> => {
     starting ??= options
-      .listen(TAURI_DESKTOP_CHANGE_EVENT, event => deliver(event.payload))
+      .listen(TAURI_DESKTOP_CHANGE_EVENT, event => deliver(event.payload), { target: options.target })
       .then(stop => {
         unlisten = stop;
         // 注册期间订阅者可能已经全退了；这时立刻收摊，别留一条没人听的通道。
@@ -165,9 +198,11 @@ export function createTauriHostTransport(options: TauriHostTransportOptions): De
 
   return {
     async request(payload) {
-      const response = await options.invoke(TAURI_DESKTOP_REQUEST_COMMAND, {
-        payload: encodeDesktopJsonPayload(payload)
-      });
+      const response = await options
+        .invoke(TAURI_DESKTOP_REQUEST_COMMAND, { payload: encodeDesktopJsonPayload(payload) })
+        .catch((reason: unknown) => {
+          throw asDesktopError(reason);
+        });
       return decodeDesktopJsonPayload(response);
     },
 
@@ -182,4 +217,29 @@ export function createTauriHostTransport(options: TauriHostTransportOptions): De
 
     subscriptionReady: () => ready
   };
+}
+
+/**
+ * 把 `invoke` 的 reject 翻译成契约内的桌面错误。
+ *
+ * @remarks
+ * 宿主**答得出来**的失败走的是正常返回值（`{ kind: 'error', code, message }`），
+ * 由 `assertDesktopHostResponse` 还原成错误码。走到这里的只有「话没递到」或
+ * 「递到了但宿主自己炸了」两种，此前它们原样透传成裸字符串，于是这两种最需要
+ * 分支处理的故障反而是唯一拿不到 `code` 的——Electron 侧的
+ * `resolveDesktopHostTransport()` 是真会抛 `host_unavailable` 的，两端因此不对称。
+ *
+ * 分类只认本包自己的 {@link TAURI_DESKTOP_HOST_PANIC_PREFIX}：命令未注册、capability
+ * 不许、参数序列化失败这些都由 Tauri 的 IPC 层产生，文案属于它的实现细节，
+ * 从 WebView 的角度也确实都是「拿不到宿主」。
+ *
+ * @param reason - `invoke` 的 reject 原因
+ * @returns 带稳定错误码、并以 `cause` 原样保留 `reason` 的错误
+ */
+function asDesktopError(reason: unknown): RxDBAdapterDesktopError {
+  const detail = reason instanceof Error ? reason.message : String(reason);
+  const code = detail.startsWith(TAURI_DESKTOP_HOST_PANIC_PREFIX) ? 'host_internal_error' : 'host_unavailable';
+  return new RxDBAdapterDesktopError(code, `tauri command ${TAURI_DESKTOP_REQUEST_COMMAND} failed: ${detail}`, {
+    cause: reason
+  });
 }

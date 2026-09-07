@@ -210,6 +210,20 @@ impl Drop for Host {
     }
 }
 
+/// 取锁，锁毒化了也照常取。
+///
+/// 毒化只说明**上一个**持锁者在临界区里 panic 了，并不说明数据不可用：会话表是一张
+/// `HashMap`，引擎是一条 SQLite 连接，两者都不会因为别处的 panic 变成半截状态。
+/// 而 `expect()` 会把一次 panic 放大成整条会话的死刑——`execute` panic 之后，同一会话的
+/// `close()` 连锁都拿不到，文件句柄于是泄漏到进程退出；`close_all()` 还会在**主进程主线程**上
+/// 二次 panic，把整个应用的退出路径一起赔进去。宁可带着毒化的锁继续把句柄收回来。
+///
+/// 这不是「兜底放行」：panic 本身仍然是缺陷（见 [`super::engine::read_value`] 那条注释里的
+/// 非法 UTF-8），这里只保证它的影响不扩散到别的请求和退出路径上。
+fn lock_through_poison<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
 fn unknown(session_id: &str) -> HostError {
     HostError::new(
         ErrorCode::SessionClosed,

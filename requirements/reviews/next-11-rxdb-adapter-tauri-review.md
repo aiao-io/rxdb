@@ -4,7 +4,7 @@
 - **范围**：`packages/rxdb-adapter-tauri` 全部三半：npm 包 `src/`（6 个源文件 601 行 + 2 个 spec 409 行）、Rust 宿主 `rust/`（crate `aiao-rxdb-tauri`，14 个文件 6,307 行含内联单测）、跨进程一致性套件 `conformance/`（14 个文件 1,662 行）。对照物：`@aiao/rxdb-adapter-sqlite-core/desktop-host` 共享层、`@aiao/rxdb-adapter-electron` 与 `apps/dev-rxdb-electron` 的对侧实现、`apps/dev-rxdb-tauri` 的接线
 - **日期**：2026-09-07
 - **结论**：🟡 凑合偏下。门禁全绿、注释与结构质量高、happy path 与 Electron 逐行等价；但 **两条 🔴 由真实宿主进程实测复现**（authorizer 对绑定参数形式的 `ATTACH` 失效、非 UTF-8 文本 panic 后毒化会话锁），第三条 🔴 是文档写明的安全性质（变更事件定向投递）在 Tauri 事件系统的实际语义下并不成立。一致性套件绕过了恰好是 Tauri 特有的那一层（窗口归属 / `emit_to` / 异步 `listen`），因此上述回归都不会让套件变红
-- **修复状态**：未开始
+- **修复状态**：进行中（2026-09-08）。已修：🔴 #1、🔴 #2、🔴 #3、🟡 #4、🟡 #5、🟡 #7、🟡 #8、🟡 #11、🟡 #13、🟡 #14。待修：🟡 #6、🟡 #9、🟡 #10、🟡 #12、🟢 全部
 
 ## 评审方法
 

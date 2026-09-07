@@ -23,6 +23,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use rusqlite::config::DbConfig;
 use rusqlite::ffi;
 use rusqlite::functions::FunctionFlags;
 use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
@@ -285,6 +286,9 @@ pub struct Engine {
     sink: ChangeSink,
     flusher: Option<JoinHandle<()>>,
     watched_tables: HashSet<String>,
+    /// 由回滚钩子置位，表示 [`Engine::watched_tables`] 可能已经与 temp schema 脱节。
+    /// 见 [`Engine::install_rollback_hook`]。
+    triggers_may_be_stale: Arc<AtomicBool>,
     closed: Arc<AtomicBool>,
 }
 
@@ -314,6 +318,7 @@ impl Engine {
             sink: options.sink,
             flusher: None,
             watched_tables: HashSet::new(),
+            triggers_may_be_stale: Arc::new(AtomicBool::new(false)),
             closed: Arc::new(AtomicBool::new(false)),
         };
         engine.initialize()?;
@@ -423,6 +428,8 @@ impl Engine {
     /// 装好变更通知函数并跑一遍初始化 pragma。
     fn initialize(&mut self) -> HostResult<()> {
         self.install_authorizer();
+        self.install_rollback_hook();
+        self.disable_double_quoted_strings()?;
         self.register_notify_function()?;
         let init_sql = format!(
             "PRAGMA temp_store = memory;\n\
@@ -440,6 +447,47 @@ impl Engine {
             .busy_timeout(Duration::from_millis(u64::from(BUSY_TIMEOUT_MS)))
             .map_err(|error| self.open_error("set busy_timeout on", &error))?;
         self.ensure_notify_triggers()
+    }
+
+    /// 关掉「双引号串解析不成标识符就退当字符串字面量」这条兼容回退。
+    ///
+    /// 双引号在 SQL 标准里是**标识符**。SQLite 为了兼容早年写坏的应用留了这条退路，
+    /// 于是一个手滑的列名 `SELECT "no_such_colum" FROM t` 不报错，而是安静地返回一列
+    /// 内容恰好等于那串拼写的文本——查询错了，却一路绿到 UI 上，等到有人发现数据不对时
+    /// 现场早就没了。DDL 与 DML 是两个独立开关，覆盖各自作名字解析的地方（前者如 `CHECK`
+    /// 约束与部分索引的 `WHERE`，后者是普通语句里的表达式），所以两个都要关。
+    ///
+    /// 这是**按连接**的设置而不是编译期开关，因此每次 `open` 都得关一遍；放在
+    /// [`Engine::initialize`] 的最前面，好让初始化自己跑的那几条 SQL 也在同一口径下。
+    /// 关掉的只有「退当字面量」这一步：双引号作标识符照常可用，`create_notify_triggers`
+    /// 里的 `quote_identifier` 因此不受影响。
+    fn disable_double_quoted_strings(&self) -> HostResult<()> {
+        for config in [DbConfig::SQLITE_DBCONFIG_DQS_DDL, DbConfig::SQLITE_DBCONFIG_DQS_DML] {
+            self.db()
+                .set_db_config(config, false)
+                .map_err(|error| self.open_error("disable double-quoted string literals on", &error))?;
+        }
+        Ok(())
+    }
+
+    /// 事务一回滚就把「哪些表已经装过通知触发器」的记账作废。
+    ///
+    /// TEMP 触发器住在 temp schema 里，而 SQLite 的事务是跨 schema 的：`BEGIN` 之后建表、
+    /// 由语句后钩子补装上的触发器，会和那张表一起被 `ROLLBACK` 抹掉。
+    /// [`Engine::watched_tables`] 是这件事的内存缓存，它**不**跟着回滚——于是集合说
+    /// 「装过了」、盘上却什么都没有，[`Engine::ensure_notify_triggers`] 从此永远跳过这张表：
+    /// 该表之后的每一次写入都不再产生变更事件，而没有任何一处报错。
+    ///
+    /// 用 SQLite 的回滚钩子而不是在自己发 `ROLLBACK` 的地方清：回滚也可能由 renderer 透传的
+    /// SQL、或语句自身的 `ON CONFLICT ROLLBACK` 触发，只认自己那条路径等于漏掉其余两条。
+    /// 钩子在执行回滚的那次 `step` 里被同步调用，与本引擎的语句执行同线程。
+    ///
+    /// 整个集合一起清空，不去区分哪张表的触发器真的没了：钩子拿不到这个信息，而重装是
+    /// 幂等的（`CREATE TEMP TRIGGER IF NOT EXISTS`），代价只是回滚之后多一次
+    /// `sqlite_master` 查询。
+    fn install_rollback_hook(&self) {
+        let stale = Arc::clone(&self.triggers_may_be_stale);
+        self.db().rollback_hook(Some(move || stale.store(true, Ordering::SeqCst)));
     }
 
     /// 拒绝会让 SQLite 自己再打开一个数据库文件的 opcode。
@@ -622,11 +670,16 @@ impl Engine {
     /// 会话打开时这些表往往还不存在——它们由适配器初始化过程现建，所以触发器只能**惰性**安装。
     /// 建表方可能是本连接，也可能是另一个窗口的连接，因此每条语句前后各检查一次：
     /// 只在语句后检查会漏掉本连接开启前、由别的连接建好的表上的第一次写入。
-    /// 三张表全部装好后本方法直接返回，稳态下不再查 `sqlite_master`。
+    /// 三张表全部装好后本方法直接返回，稳态下不再查 `sqlite_master`——这份记账由
+    /// [`Engine::install_rollback_hook`] 在事务回滚时作废，否则它会记住一批已经不存在的触发器。
     ///
     /// 用 TEMP 触发器而非普通触发器：TEMP 对象只活在本连接的 temp schema 里，永远不会写进
     /// 用户的库文件，因此不会污染他自己的 schema（AC#7），也不会被别的程序看见。
     fn ensure_notify_triggers(&mut self) -> HostResult<()> {
+        // 读与复位一步做完：清空之后到重装之间再有回滚，标志必须留给下一轮，不能被覆盖掉。
+        if self.triggers_may_be_stale.swap(false, Ordering::SeqCst) {
+            self.watched_tables.clear();
+        }
         if self.watched_tables.len() == WATCH_TABLES.len() {
             return Ok(());
         }
@@ -792,6 +845,35 @@ mod tests {
         let result = run(&mut harness.engine, "PRAGMA journal_mode");
         let results = result.results.unwrap();
         assert_eq!(results.rows, vec![vec![SqlValue::Text("wal".into())]]);
+    }
+
+    /// 双引号在 SQL 标准里是**标识符**。SQLite 出于兼容留了一条回退：双引号串解析不成
+    /// 已知列名时，就退而当作字符串字面量。于是一个写错的列名 `SELECT "no_such_colum"`
+    /// 不报错，而是安静地返回一列内容为该拼写的字符串——查询错了，却一路全绿到 UI 上。
+    ///
+    /// 这条回退按连接关，不是编译期开关，所以每次 `open` 都得关一遍。
+    #[test]
+    fn refuses_double_quoted_strings_so_a_typo_in_a_column_name_is_an_error() {
+        let mut harness = harness(0);
+        run(&mut harness.engine, "CREATE TABLE t (a TEXT)");
+        let error = harness
+            .engine
+            .execute("SELECT \"no_such_column\" FROM t", &[])
+            .unwrap_err();
+        assert!(error.message.contains("no such column"), "{}", error.message);
+        // DDL 侧是另一个开关：`CHECK` 约束里的双引号串以前也会被当字面量收下，
+        // 于是一条本该按列比较的约束变成了「与某个常量比较」，永远为真。
+        let error = harness
+            .engine
+            .execute("CREATE TABLE u (a TEXT CHECK (a <> \"x\"))", &[])
+            .unwrap_err();
+        assert!(error.message.contains("no such column"), "{}", error.message);
+        // 单引号仍然是字符串字面量，双引号当标识符也照常可用。
+        let result = run(&mut harness.engine, "SELECT 'literal' AS \"a b\"");
+        assert_eq!(
+            result.results.unwrap().rows,
+            vec![vec![SqlValue::Text("literal".into())]]
+        );
     }
 
     #[test]
@@ -1184,6 +1266,28 @@ mod tests {
         assert!(harness.events.try_recv().is_err(), "unwatched tables must stay silent");
     }
 
+    /// TEMP 触发器与主库共用同一次事务：`CREATE TABLE` 与随之装上的触发器会被同一条
+    /// `ROLLBACK` 一起抹掉，而记着「这张表已经装过」的内存集合不跟着回滚。集合一旦与
+    /// temp schema 的真相脱节，`ensure_notify_triggers` 就永远跳过这张表——它此后的每一次
+    /// 写入都不再产生事件，响应式查询停在原地，且没有任何一处报错。
+    ///
+    /// 可达：`RxDBAdapterSqliteBase` 的建表脚本跑在 `BEGIN IMMEDIATE` / `COMMIT` 之间，
+    /// COMMIT 因磁盘满或 IO 错误失败、同一条会话重试，就是这条路径。
+    #[test]
+    fn reinstalls_notify_triggers_that_a_rollback_took_away() {
+        let mut harness = harness(0);
+        run(&mut harness.engine, "BEGIN IMMEDIATE");
+        run(&mut harness.engine, "CREATE TABLE \"rxdb$rxdb_change\" (a INTEGER)");
+        run(&mut harness.engine, "ROLLBACK");
+
+        run(&mut harness.engine, "CREATE TABLE \"rxdb$rxdb_change\" (a INTEGER)");
+        run(&mut harness.engine, "INSERT INTO \"rxdb$rxdb_change\" VALUES (1)");
+
+        let event = harness.events.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(event.table_name, "rxdb$rxdb_change");
+        assert_eq!(event.row_ids, [1]);
+    }
+
     /// 事件在语句**跑完之后**才派发；`execute()` 返回时批次还没发出去。
     #[test]
     fn does_not_dispatch_while_a_statement_is_still_running() {
@@ -1195,6 +1299,44 @@ mod tests {
         harness.engine.close().unwrap();
         let event = harness.events.recv_timeout(Duration::from_secs(5)).unwrap();
         assert_eq!(event.row_ids, [1]);
+    }
+
+    /// 一条语句的行变更必须整批出现，不能被截止时间从中间切开。
+    ///
+    /// 批次的截止时间由**上一次** `execute()` 设定，而 flusher 是独立线程：下一条语句
+    /// 跑到一半时它照样会醒来取走批次，把这条语句已经录下的那部分先发出去，剩下的留给下一批。
+    /// 事件不会丢，但订阅者看到的是一条语句的一半——而此刻这条语句可能正要失败并回滚，
+    /// 于是那半批通告的是一批从未存在过的行。模块文档「差异 2」与 `execute()` 里
+    /// 「语句已经跑完，事务状态已经落定」都以「不发生这种切分」为前提。
+    #[test]
+    fn never_splits_one_statement_across_two_batches() {
+        let mut harness = harness(50);
+        run(&mut harness.engine, "CREATE TABLE \"rxdb$rxdb_change\" (a INTEGER)");
+        // 先落一行并设下截止时间，让下一次 `execute()` 在「批次已到期」的状态下开跑。
+        // 截止时间只在语句之间设，因此这是唯一能让 flusher 在语句执行中途醒来的前提。
+        run(&mut harness.engine, "INSERT INTO \"rxdb$rxdb_change\" VALUES (0)");
+
+        // 两次写入之间隔着一段纯计算，整条脚本远长于 debounce 与硬上限（两者都 <= 100ms）。
+        let started_at = Instant::now();
+        run(
+            &mut harness.engine,
+            "INSERT INTO \"rxdb$rxdb_change\" VALUES (1); \
+             SELECT count(*) FROM (WITH RECURSIVE spin(n) AS \
+               (SELECT 1 UNION ALL SELECT n + 1 FROM spin WHERE n < 3000000) SELECT n FROM spin); \
+             INSERT INTO \"rxdb$rxdb_change\" VALUES (2);",
+        );
+        assert!(
+            started_at.elapsed() > Duration::from_millis(MAX_BATCH_WAIT_MS),
+            "the test needs a statement that outlives the batch deadlines, took {:?}",
+            started_at.elapsed()
+        );
+
+        let event = harness.events.recv_timeout(Duration::from_secs(30)).unwrap();
+        assert_eq!(
+            event.row_ids,
+            [1, 2, 3],
+            "the first batch must carry the whole execute, not the rows it had recorded by the deadline"
+        );
     }
 
     /// 持续写入下 debounce 会被无限重置，硬上限保证批次仍然发得出去。

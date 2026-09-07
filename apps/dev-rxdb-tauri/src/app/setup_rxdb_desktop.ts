@@ -26,6 +26,7 @@ import {
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { createTauriConnectorTransport } from '../devtools/tauri-connector-transport';
 import { DESKTOP_DEMO_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
@@ -210,6 +211,11 @@ export default () => {
   const transport = createTauriHostTransport({
     invoke,
     listen,
+    // 定向投递的收件侧。Rust 那头已经 `emit_to(owner)` 了，但 tauri 的监听者 target 为
+    // `Any` 时无条件匹配，而 `listen()` 的默认正是 `Any`——不带 target 注册，任何窗口
+    // 都会收到所有窗口的 sessionId、库名与表名。这个 label 与 Rust 侧记账用的
+    // `window.label()` 同源，两处凑齐才真的定向。
+    target: getCurrentWebviewWindow().label,
     // 事件通道注册失败意味着响应式查询永远不刷新，在 UI 上表现为「数据没变」
     // ——所有故障形态里最难查的一种。默认行为是抛到全局，这里补一条明确的日志。
     onListenError: error => console.error('rxdb desktop change channel failed to register', error)

@@ -59,7 +59,12 @@
     "build-test-host": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": ["{projectRoot}/rust/**/*.rs", "{projectRoot}/rust/Cargo.toml", "{projectRoot}/rust/Cargo.lock"],
+      "inputs": [
+        "{projectRoot}/rust/**/*.rs",
+        "{projectRoot}/rust/Cargo.toml",
+        "{projectRoot}/rust/Cargo.lock",
+        { "runtime": "node -p process.platform+process.arch" }
+      ],
       "outputs": [
         "{projectRoot}/rust/target/debug/rxdb_host_stdio",
         "{projectRoot}/rust/target/debug/rxdb_host_stdio.exe"
@@ -84,6 +89,7 @@
         "{projectRoot}/rust/**/*.rs",
         "{projectRoot}/rust/Cargo.toml",
         "{projectRoot}/rust/Cargo.lock",
+        { "runtime": "node -p process.platform+process.arch" },
         "^production"
       ],
       "options": {
