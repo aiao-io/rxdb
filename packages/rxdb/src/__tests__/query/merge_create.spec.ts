@@ -657,66 +657,45 @@ describe('query_merge_create_cache', () => {
     });
 
     it('分页查询（offset>0）创建新实体时应触发 SQL 刷新而非本地污染当前页缓存', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'find',
-          options: {
-            where: { combinator: 'and', rules: [] },
-            limit: 2,
-            offset: 2,
-            orderBy: [{ field: 'priority', sort: 'desc' }]
-          },
-          // 当前为第二页：priority 10、9 在第一页（offset 截掉），这里返回第二页的 8、7
-          runner: () =>
-            of([
-              { id: '3', title: 'Task 3', priority: 8 },
-              { id: '4', title: 'Task 4', priority: 7 }
-            ])
-        });
-
-        const expectedResult = [
-          { id: '3', title: 'Task 3', priority: 8 },
-          { id: '4', title: 'Task 4', priority: 7 }
-        ];
-        let emitCount = 0;
-
-        const refreshSpy = vi.spyOn(task, 'refresh');
-        const nextSpy = vi.spyOn(task, 'next');
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              emitCount++;
-              if (emitCount === 1) {
-                // 初始页内容
-                expect(d).toEqual(expectedResult);
-
-                // 创建一条高优先级实体（priority=100），它属于第一页，绝不应被插入当前第二页缓存
-                const entity = createMockEntityEvent({ id: '0', title: 'Task 0', priority: 100 });
-                query_merge_create_cache(task, [entity]);
-
-                setTimeout(() => {
-                  try {
-                    // 必须触发 SQL 刷新（refresh）
-                    expect(refreshSpy).toHaveBeenCalled();
-                    // 绝不应通过 JS 增量把新记录插入当前页缓存
-                    const polluted = nextSpy.mock.calls.some(
-                      ([result]) => Array.isArray(result) && result.some(entity => entity.id === '0')
-                    );
-                    expect(polluted).toBe(false);
-                    done();
-                  } catch (error) {
-                    reject(error);
-                  }
-                }, 50);
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
+      const task = createMockQueryTask({
+        type: 'find',
+        options: {
+          where: { combinator: 'and', rules: [] },
+          limit: 2,
+          offset: 2,
+          orderBy: [{ field: 'priority', sort: 'desc' }]
+        },
+        // 当前为第二页：priority 10、9 在第一页（offset 截掉），这里返回第二页的 8、7
+        runner: () =>
+          of([
+            { id: '3', title: 'Task 3', priority: 8 },
+            { id: '4', title: 'Task 4', priority: 7 }
+          ])
       });
+
+      const expectedResult = [
+        { id: '3', title: 'Task 3', priority: 8 },
+        { id: '4', title: 'Task 4', priority: 7 }
+      ];
+
+      // 两个替身都要在首次订阅之前装好：`run()` 会同步跑出第一页结果
+      const refreshSpy = vi.spyOn(task, 'refresh');
+      const nextSpy = vi.spyOn(task, 'next');
+
+      const emissions = collectEmissions(task);
+      expect(emissions).toEqual([expectedResult]);
+
+      // 创建一条高优先级实体（priority=100），它属于第一页，绝不应被插入当前第二页缓存
+      const entity = createMockEntityEvent({ id: '0', title: 'Task 0', priority: 100 });
+      query_merge_create_cache(task, [entity]);
+
+      // 必须触发 SQL 刷新（refresh）
+      expect(refreshSpy).toHaveBeenCalled();
+      // 绝不应通过 JS 增量把新记录插入当前页缓存
+      const polluted = nextSpy.mock.calls.some(
+        ([result]) => Array.isArray(result) && result.some(entity => entity.id === '0')
+      );
+      expect(polluted).toBe(false);
     });
 
     it('无分页查询（offset 未设置或为 0）创建新实体时仍走本地 JS 增量插入', () => {
@@ -1062,57 +1041,35 @@ describe('query_merge_create_cache', () => {
     });
 
     it('不应该添加不符合 where 条件的实体', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'findByCursor',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'status', operator: '=', value: 'active' }]
-            },
-            orderBy: [{ field: 'id', sort: 'asc' }],
-            limit: 3
+      const task = createMockQueryTask({
+        type: 'findByCursor',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'status', operator: '=', value: 'active' }]
           },
-          runner: () =>
-            of([
-              { id: '1', title: 'Task 1', status: 'active' },
-              { id: '2', title: 'Task 2', status: 'active' }
-            ])
-        });
-
-        const expectedResult = [
-          { id: '1', title: 'Task 1', status: 'active' },
-          { id: '2', title: 'Task 2', status: 'active' }
-        ];
-        let emitCount = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              emitCount++;
-              expect(d).toEqual(expectedResult);
-
-              if (emitCount === 1) {
-                // 创建不符合条件的实体后应该不会触发更新
-                const entity = createMockEntityEvent({ id: '1.5', title: 'Task 1.5', status: 'inactive' });
-                query_merge_create_cache(task, [entity]);
-
-                setTimeout(() => {
-                  try {
-                    expect(emitCount).toBe(1); // 只有初始值，没有更新
-                    done();
-                  } catch (error) {
-                    reject(error);
-                  }
-                }, 100);
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
+          orderBy: [{ field: 'id', sort: 'asc' }],
+          limit: 3
+        },
+        runner: () =>
+          of([
+            { id: '1', title: 'Task 1', status: 'active' },
+            { id: '2', title: 'Task 2', status: 'active' }
+          ])
       });
+
+      const expectedResult = [
+        { id: '1', title: 'Task 1', status: 'active' },
+        { id: '2', title: 'Task 2', status: 'active' }
+      ];
+
+      const emissions = collectEmissions(task);
+
+      // 创建不符合条件的实体后应该不会触发更新
+      const entity = createMockEntityEvent({ id: '1.5', title: 'Task 1.5', status: 'inactive' });
+      query_merge_create_cache(task, [entity]);
+
+      expect(emissions).toEqual([expectedResult]);
     });
   });
 
@@ -1782,7 +1739,9 @@ describe('query_merge_create_cache', () => {
         originalRefresh.call(task);
       };
 
-      const emissions = collectEmissions(task);
+      // 订阅即建管道：`QueryTask.run()` 要等首个订阅者到达才装配 refresh$，
+      // 没有订阅者就无从谈起「刷没刷新」。本例只断言 refresh，发射序列丢弃。
+      collectEmissions(task);
 
       // 创建关系实体事件 (IdCard)，ownerId 指向结果集中的 user1
       const idCardEntity: RxDBEntityLocalCreatedEventData<typeof UserEntity> = {
@@ -1931,7 +1890,9 @@ describe('query_merge_create_cache', () => {
         originalRefresh.call(task);
       };
 
-      const emissions = collectEmissions(task);
+      // 订阅即建管道：`QueryTask.run()` 要等首个订阅者到达才装配 refresh$，
+      // 没有订阅者就无从谈起「刷没刷新」。本例只断言 refresh，发射序列丢弃。
+      collectEmissions(task);
 
       // 创建一个子菜单（关系实体）
       const childMenu = Object.assign(new MenuChild(), {

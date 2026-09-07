@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RxDBChange } from '../../system/change.js';
-import { Conflict, ConflictResolution, ConflictResolver } from '../../version/conflict.js';
+import { Conflict } from '../../version/conflict.js';
 import { LWWConflictResolver } from '../../version/LWWConflictResolver.js';
 
 /**
@@ -180,69 +180,5 @@ describe('LWWConflictResolver', () => {
       expect(resultPromise).toBeInstanceOf(Promise);
       await expect(resultPromise).resolves.toHaveProperty('type');
     });
-  });
-});
-
-describe('ConflictResolver interface', () => {
-  it('should allow custom implementation', async () => {
-    // 始终保留远程值的自定义解析器。
-    const customResolver: ConflictResolver = {
-      async resolve(): Promise<ConflictResolution> {
-        return { type: 'KEEP_REMOTE' };
-      }
-    };
-
-    const conflict: Conflict = {
-      entityKey: 'test',
-      local: {} as RxDBChange,
-      remote: {} as RxDBChange
-    };
-
-    const result = await customResolver.resolve(conflict);
-    expect(result.type).toBe('KEEP_REMOTE');
-  });
-
-  it('should support MERGE resolution type', async () => {
-    const mergingResolver: ConflictResolver = {
-      async resolve(conflict: Conflict): Promise<ConflictResolution> {
-        return {
-          type: 'MERGE',
-          merged: {
-            ...(conflict.local.patch || {}),
-            ...(conflict.remote.patch || {})
-          }
-        };
-      }
-    };
-
-    const conflict: Conflict = {
-      entityKey: 'test',
-      local: { patch: { name: 'Local' } } as unknown as RxDBChange,
-      remote: { patch: { age: 30 } } as unknown as RxDBChange
-    };
-
-    const result = await mergingResolver.resolve(conflict);
-    expect(result.type).toBe('MERGE');
-    expect((result as { type: 'MERGE'; merged: Record<string, unknown> }).merged).toEqual({
-      name: 'Local',
-      age: 30
-    });
-  });
-
-  it('should support DEFER resolution type', async () => {
-    const deferringResolver: ConflictResolver = {
-      async resolve(): Promise<ConflictResolution> {
-        return { type: 'DEFER' };
-      }
-    };
-
-    const conflict: Conflict = {
-      entityKey: 'test',
-      local: {} as RxDBChange,
-      remote: {} as RxDBChange
-    };
-
-    const result = await deferringResolver.resolve(conflict);
-    expect(result.type).toBe('DEFER');
   });
 });

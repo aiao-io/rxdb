@@ -308,7 +308,9 @@ describe('query_merge_remove_cache', () => {
 
       const refreshSpy = vi.spyOn(task, 'refresh');
 
-      const emissions = collectEmissions(task);
+      // 订阅即建管道：`QueryTask.run()` 要等首个订阅者到达才装配 refresh$，
+      // 没有订阅者就无从谈起「刷没刷新」。本例只断言 refresh，发射序列丢弃。
+      collectEmissions(task);
 
       // 删除结果集中的实体
       const removeEvent = createMockRemoveEvent({ id: '2', title: 'Task 2' });
@@ -337,7 +339,9 @@ describe('query_merge_remove_cache', () => {
 
       const refreshSpy = vi.spyOn(task, 'refresh');
 
-      const emissions = collectEmissions(task);
+      // 订阅即建管道：`QueryTask.run()` 要等首个订阅者到达才装配 refresh$，
+      // 没有订阅者就无从谈起「刷没刷新」。本例只断言 refresh，发射序列丢弃。
+      collectEmissions(task);
 
       // 删除不在结果集中的实体
       const removeEvent = createMockRemoveEvent({ id: '999', title: 'Task 999' });
@@ -450,7 +454,9 @@ describe('query_merge_remove_cache', () => {
 
       const refreshSpy = vi.spyOn(task, 'refresh');
 
-      const emissions = collectEmissions(task);
+      // 订阅即建管道：`QueryTask.run()` 要等首个订阅者到达才装配 refresh$，
+      // 没有订阅者就无从谈起「刷没刷新」。本例只断言 refresh，发射序列丢弃。
+      collectEmissions(task);
 
       // 删除当前结果
       const removeEvent = createMockRemoveEvent({ id: '1', title: 'Task 1', status: 'active' });
@@ -923,7 +929,9 @@ describe('query_merge_remove_cache', () => {
         originalRefresh.call(task);
       };
 
-      const emissions = collectEmissions(task);
+      // 订阅即建管道：`QueryTask.run()` 要等首个订阅者到达才装配 refresh$，
+      // 没有订阅者就无从谈起「刷没刷新」。本例只断言 refresh，发射序列丢弃。
+      collectEmissions(task);
 
       // 删除一个子菜单（关系实体）
       const childMenu = Object.assign(new MenuChild(), {
@@ -1000,7 +1008,9 @@ describe('query_merge_remove_cache', () => {
         originalRefresh.call(task);
       };
 
-      const emissions = collectEmissions(task);
+      // 订阅即建管道：`QueryTask.run()` 要等首个订阅者到达才装配 refresh$，
+      // 没有订阅者就无从谈起「刷没刷新」。本例只断言 refresh，发射序列丢弃。
+      collectEmissions(task);
 
       const removedUser = {
         type: 'DELETE',
@@ -1027,51 +1037,28 @@ describe('query_merge_remove_cache', () => {
 
   describe('乱序删除保护（RXD-018）', () => {
     it('缓存中的实体比 DELETE 事件新时，不应该用旧删除清掉较新的缓存', () => {
-      return new Promise<void>((resolve, reject) => {
-        const NEWER = { id: '1', title: 'Task 1', updatedAt: new Date('2026-07-30T00:00:02.000Z') };
-        // 缓存里已有比即将到来的 DELETE 更新的实体
-        const task = createMockQueryTask(
-          {
-            type: 'findAll',
-            options: { where: { combinator: 'and', rules: [] } }
-          },
-          () => of([NEWER]),
-          { '1': NEWER }
-        );
+      const NEWER = { id: '1', title: 'Task 1', updatedAt: new Date('2026-07-30T00:00:02.000Z') };
+      // 缓存里已有比即将到来的 DELETE 更新的实体
+      const task = createMockQueryTask(
+        {
+          type: 'findAll',
+          options: { where: { combinator: 'and', rules: [] } }
+        },
+        () => of([NEWER]),
+        { '1': NEWER }
+      );
 
-        let nextCount = 0;
-        task.result$.subscribe({
-          next: d => {
-            nextCount++;
-            if (nextCount !== 1) return;
+      const emissions = collectEmissions(task);
 
-            try {
-              expect(d).toEqual([NEWER]);
-            } catch (error) {
-              reject(error);
-              return;
-            }
-
-            const staleRemoveEvent = createMockRemoveEvent({
-              id: '1',
-              title: 'Task 1',
-              updatedAt: new Date('2026-07-30T00:00:01.000Z')
-            });
-            query_merge_remove_cache(task, [staleRemoveEvent]);
-
-            // 陈旧删除必须被过滤掉：不应该有第二次 emit（实体没有被从结果集里移除）
-            setTimeout(() => {
-              try {
-                expect(nextCount).toBe(1);
-                resolve();
-              } catch (error) {
-                reject(error);
-              }
-            }, 10);
-          },
-          error: reject
-        });
+      const staleRemoveEvent = createMockRemoveEvent({
+        id: '1',
+        title: 'Task 1',
+        updatedAt: new Date('2026-07-30T00:00:01.000Z')
       });
+      query_merge_remove_cache(task, [staleRemoveEvent]);
+
+      // 陈旧删除必须被过滤掉：不应该有第二次 emit（实体没有被从结果集里移除）
+      expect(emissions).toEqual([[NEWER]]);
     });
   });
 

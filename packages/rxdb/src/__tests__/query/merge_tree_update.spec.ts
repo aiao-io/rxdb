@@ -780,92 +780,72 @@ describe('query_merge_tree_update_cache - UPDATE 事件的树形查询', () => {
     });
 
     it('BUG修复: patch 中 parentId 为 undefined 和明确改变 parentId 的区别', () => {
-      return new Promise<void>((done, reject) => {
-        // RXD-022：第三次更新重新进入 scope，本地缓存无法证明该节点没有自己的
-        // 子孙，必须刷新——用动态 runner，在触发前把 databaseResult 更新为刷新
-        // 后应返回的正确状态。第一、二次更新（本地字段更新 / 本地移除）不受影响。
-        let databaseResult: TestEntityData[] = [
+      // RXD-022：第三次更新重新进入 scope，本地缓存无法证明该节点没有自己的
+      // 子孙，必须刷新——用动态 runner，在触发前把 databaseResult 更新为刷新
+      // 后应返回的正确状态。第一、二次更新（本地字段更新 / 本地移除）不受影响。
+      let databaseResult: TestEntityData[] = [
+        { id: '1', name: 'root', parentId: null },
+        { id: '2', name: 'child1', parentId: '1' }
+      ];
+
+      const task = createMockQueryTask({
+        type: 'findDescendants',
+        options: {
+          entityId: '1',
+          where: { combinator: 'and', rules: [] }
+        },
+        runner: () => of(databaseResult)
+      });
+
+      const emissions = collectEmissions(task);
+
+      // 第一次：只更新 name，parentId 未定义
+      query_merge_update_cache(task, [
+        createMockUpdateEvent(
+          { id: '2', name: 'updated child1' }, // parentId undefined
+          { id: '2', name: 'child1' }
+        )
+      ]);
+
+      // 第二次：明确改变 parentId 到 10（移除）
+      query_merge_update_cache(task, [
+        createMockUpdateEvent(
+          { id: '2', name: 'updated child1', parentId: '10' }, // 明确指定新 parentId
+          { id: '2', name: 'updated child1', parentId: '1' }
+        )
+      ]);
+
+      // 第三次：再次明确改变 parentId 回来——重新进入 scope 触发 refresh，
+      // 提前把 databaseResult 更新为刷新后应返回的正确状态
+      databaseResult = [
+        { id: '1', name: 'root', parentId: null },
+        { id: '2', name: 'updated child1', parentId: '1' }
+      ];
+      query_merge_update_cache(task, [
+        createMockUpdateEvent(
+          { id: '2', name: 'updated child1', parentId: '1' }, // 明确指定新 parentId
+          { id: '2', name: 'updated child1', parentId: '10' }
+        )
+      ]);
+
+      expect(emissions).toEqual([
+        [
           { id: '1', name: 'root', parentId: null },
           { id: '2', name: 'child1', parentId: '1' }
-        ];
-
-        const task = createMockQueryTask({
-          type: 'findDescendants',
-          options: {
-            entityId: '1',
-            where: { combinator: 'and', rules: [] }
-          },
-          runner: () => of(databaseResult)
-        });
-
-        const results = [
-          [
-            { id: '1', name: 'root', parentId: null },
-            { id: '2', name: 'child1', parentId: '1' }
-          ],
-          // 第一次更新：只改 name（parentId undefined）
-          [
-            { id: '1', name: 'root', parentId: null },
-            { id: '2', name: 'updated child1', parentId: '1' }
-          ],
-          // 第二次更新：明确改变 parentId 到 10（移除）
-          [{ id: '1', name: 'root', parentId: null }],
-          // 第三次更新：明确改变 parentId 回到 1（添加）
-          [
-            { id: '1', name: 'root', parentId: null },
-            { id: '2', name: 'updated child1', parentId: '1' }
-          ]
-        ];
-        let resultIndex = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              expect(d).toEqual(results[resultIndex]);
-              resultIndex++;
-              if (resultIndex === 4) {
-                done();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        // 第一次：只更新 name，parentId 未定义
-        query_merge_update_cache(task, [
-          createMockUpdateEvent(
-            { id: '2', name: 'updated child1' }, // parentId undefined
-            { id: '2', name: 'child1' }
-          )
-        ]);
-
-        // 第二次：明确改变 parentId
-        setTimeout(() => {
-          query_merge_update_cache(task, [
-            createMockUpdateEvent(
-              { id: '2', name: 'updated child1', parentId: '10' }, // 明确指定新 parentId
-              { id: '2', name: 'updated child1', parentId: '1' }
-            )
-          ]);
-        }, 50);
-
-        // 第三次：再次明确改变 parentId 回来——重新进入 scope 触发 refresh，
-        // 提前把 databaseResult 更新为刷新后应返回的正确状态
-        setTimeout(() => {
-          databaseResult = [
-            { id: '1', name: 'root', parentId: null },
-            { id: '2', name: 'updated child1', parentId: '1' }
-          ];
-          query_merge_update_cache(task, [
-            createMockUpdateEvent(
-              { id: '2', name: 'updated child1', parentId: '1' }, // 明确指定新 parentId
-              { id: '2', name: 'updated child1', parentId: '10' }
-            )
-          ]);
-        }, 100);
-      });
+        ],
+        // 第一次更新：只改 name（parentId undefined）
+        [
+          { id: '1', name: 'root', parentId: null },
+          { id: '2', name: 'updated child1', parentId: '1' }
+        ],
+        // 第二次更新：明确改变 parentId 到 10（移除）
+        [{ id: '1', name: 'root', parentId: null }],
+        // 第三次更新：明确改变 parentId 回到 1（添加）
+        [
+          { id: '1', name: 'root', parentId: null },
+          { id: '2', name: 'updated child1', parentId: '1' }
+        ]
+      ]);
     });
 
     it('应该支持 level 参数：实体在不同层级间移动', () => {

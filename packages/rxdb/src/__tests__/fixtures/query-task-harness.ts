@@ -121,7 +121,21 @@ const createHarnessRxDB = (
   }) as unknown as RxDB;
 
 /**
- * 订阅任务并按序收集每一次发射。
+ * 对一次发射做结构快照：数组逐元素浅拷贝，标量原样返回。
+ *
+ * 浅拷贝就够了 —— 别名只发生在实体这一层（`createEntityRef` 按 id 就地
+ * `Object.assign` 进同一个实例），拷贝自有属性即可把它当刻的样子钉住，
+ * 同时 `Date` 之类的值对象仍按引用保留，不会像 JSON 往返那样退化成字符串。
+ */
+const snapshotEmission = <RT>(value: RT): RT => {
+  if (Array.isArray(value)) {
+    return value.map(item => (item && typeof item === 'object' ? { ...item } : item)) as RT;
+  }
+  return value && typeof value === 'object' ? ({ ...value } as RT) : value;
+};
+
+/**
+ * 订阅任务，按序收集每一次发射**在发射当刻的快照**。
  *
  * 合并路径**全程同步**：`of()` 运行器 + `BehaviorSubject` 驱动的 `refresh$`，
  * `QueryTask.run()` 的管道里没有任何调度器，`#next()` 直接 `observers.forEach(o => o.next())`。
@@ -130,6 +144,12 @@ const createHarnessRxDB = (
  * 这取代了原先「`setTimeout(..., 100)` 后再看 `emitCount`」的写法，两处都是净收益：
  * 不吃墙钟（六份 spec 合计 5.1 s），也不再留一个让迟到的第二次发射蒙混过关的窗口。
  * 哪天合并路径真的引入了异步，这些用例会立刻变红 —— 那正是该被看见的行为变更。
+ *
+ * **为什么要快照**：实体引用是活的，同一个 id 在多次合并里始终是同一个实例。
+ * 原来的写法在 `next` 回调里当场断言，比的是那一刻的值；改成事后比整个序列，
+ * 若直接存引用，第三次合并会把第一次发射里的那个对象一起改掉，断言比的就成了终态。
+ * 快照记录的正是「订阅者当时看到的是什么」—— 这也正是渲染层真正消费的东西。
+ * 代价是拿不到引用同一性，`merge_*` 用例没有这种断言。
  *
  * @param task - 目标查询任务
  * @returns 发射序列，随订阅持续追加；同步触发结束后即可断言
@@ -140,7 +160,7 @@ const createHarnessRxDB = (
  */
 export const collectEmissions = <T extends EntityType, RT>(task: QueryTask<T, RT>): RT[] => {
   const emissions: RT[] = [];
-  task.result$.subscribe({ next: value => emissions.push(value) });
+  task.result$.subscribe({ next: value => emissions.push(snapshotEmission(value)) });
   return emissions;
 };
 

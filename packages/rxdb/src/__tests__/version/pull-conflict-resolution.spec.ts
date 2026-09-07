@@ -312,6 +312,37 @@ describe('pull conflict resolution', () => {
     expect(pendingEvent.conflicts).toHaveLength(1);
   });
 
+  // MERGE 在 pull-conflict-utils.ts 里没有独立分支，它落进 KEEP_LOCAL/KEEP_REMOTE
+  // 之后的兜底 `deferredConflicts.push()`，和 DEFER 同路整轮回滚 —— `merged` 载荷被直接丢弃。
+  // 这是刻意的（见 conflict.ts:50「运行时不自动应用」），但危险在于它长得像被支持了：
+  // 用户返回 MERGE 期待合并生效，真实结果是本轮拉取全部回滚。所以要钉死两件事——
+  // 抛的是同一条「只有 KEEP_* 能自动应用」的错，以及 merged 绝不会落到 mergeChanges。
+  // 哪天真去实现 MERGE，这条用例会红，那正是该被看见的行为变更。
+  it('pullRepository should reject MERGE like DEFER and discard the merged payload', async () => {
+    const localChange = createLocalChange(entityId, '2026-01-01T10:00:00.000Z');
+    const remoteChange = createRemoteChange(entityId, '2026-01-01T10:01:00.000Z', 105);
+    const { vm, syncRecords, mergeChanges, dispatchEvent } = createVersionManager([remoteChange], [localChange]);
+
+    const mergedPayload = { name: 'merged-by-user' };
+    const customResolver: ConflictResolver = {
+      resolve: vi.fn(async () => ({ type: 'MERGE' as const, merged: mergedPayload }))
+    };
+
+    await expect(
+      pullRepository(vm, 'public', 'PullConflictUser', {
+        includeRelated: false,
+        conflictResolver: customResolver
+      })
+    ).rejects.toThrow('Only KEEP_LOCAL and KEEP_REMOTE can be applied automatically at runtime');
+
+    expect(syncRecords[0]?.lastPullRemoteChangeId ?? null).toBeNull();
+    expect(mergeChanges).not.toHaveBeenCalled();
+
+    const pendingEvent = dispatchEvent.mock.calls.find(call => call[0] instanceof ConflictPendingEvent)?.[0];
+    expect(pendingEvent).toBeInstanceOf(ConflictPendingEvent);
+    expect(pendingEvent.conflicts).toHaveLength(1);
+  });
+
   it('pullBatch should apply the default LWW resolver', async () => {
     const localChange = createLocalChange(entityId, '2026-01-01T10:00:00.000Z');
     const remoteChange = createRemoteChange(entityId, '2026-01-01T10:01:00.000Z', 104);

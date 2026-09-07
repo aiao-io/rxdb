@@ -35,15 +35,15 @@
 
 按下方「建议的修复顺序」推进。每条修复都先写红测试，再改实现，并用变异（把实现改回旧行为）确认测试真的能打红。
 
-| 步骤 | 内容                                       | 状态                                                                                     |
-| ---- | ------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| 1    | 🔴 #1 / #7 / #8 活查询与本地编辑的静默丢失 | ✅ 已修                                                                                  |
-| 2    | 🔴 #3 / #4 / #5 同步分叉三件套             | ✅ 已修                                                                                  |
-| 3    | 🔴 #2 / #6 各一行修复                      | ✅ 已修                                                                                  |
-| 4    | 测试基建                                   | 🟡 进行中（mock adapter / query-task-harness / cleanup / coverage 命名已清，sleep 未动） |
-| 5    | 协议一致性                                 | ✅ 已修（本节 17 条：15 条已修 / 1 条撤销 / 1 条待规格决策）                             |
-| 6    | 兜底清理与 API 面收敛                      | 🟡 进行中（「无兜底」与「资源与生命周期」两节已清空，API 面收敛未开始）                  |
-| 7    | 拆长函数                                   | ⬜ 未开始                                                                                |
+| 步骤 | 内容                                       | 状态                                                                                        |
+| ---- | ------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| 1    | 🔴 #1 / #7 / #8 活查询与本地编辑的静默丢失 | ✅ 已修                                                                                     |
+| 2    | 🔴 #3 / #4 / #5 同步分叉三件套             | ✅ 已修                                                                                     |
+| 3    | 🔴 #2 / #6 各一行修复                      | ✅ 已修                                                                                     |
+| 4    | 测试基建                                   | 🟡 进行中（评审列的五项已全部完成；剩空断言 / 私有态绑定 / 无 spec 的 ~2k 行 / 覆盖率缺口） |
+| 5    | 协议一致性                                 | ✅ 已修（本节 17 条：15 条已修 / 1 条撤销 / 1 条待规格决策）                                |
+| 6    | 兜底清理与 API 面收敛                      | 🟡 进行中（「无兜底」与「资源与生命周期」两节已清空，API 面收敛未开始）                     |
+| 7    | 拆长函数                                   | ⬜ 未开始                                                                                   |
 
 ### 已落地的关键改动
 
@@ -199,8 +199,15 @@
 - 🔴 `__tests__/fixtures/test-db-setup.ts:47-119` `createMockAdapter()` 实现了 `IRxDBAdapter` 根本没有的 `create/update/remove/findOne/findMany/count`，缺 `name/version/saveMany/removeMany/mutations` 与 `RxDBAdapterLocalBase` 全部抽象方法，`:119` 用 `as unknown as IRxDBAdapter` 关掉 tsc；11 个 spec 直接依赖，`createTestDB` 再传导 7 个。这是「对真实适配器不存在的行为全绿」的根源。
 - ✅ 9 个 `.coverage.spec.ts` 按行数写：`VersionManager.coverage.spec.ts:66-165` 用 19 个 `vi.mock` 把 `HistoryManager` 与 17 个协作模块全换掉后再「覆盖」`VersionManager.ts`。**已修**：九份全部按行为主题改名（如 `RxDB.connect-lifecycle` / `VersionManager.orchestration` / `HistoryManager.scopes-and-undo`），describe 标题同步；`dependency-graph` 与 `topological-sort` 两个纯函数模块的替身删除，改断言真实依赖图与拉取顺序。其余 15 个替身经逐一核对全是真 I/O 边界（每个都有 await + 仓库/适配器访问），保留。
 - ✅ 7 份 merge_* spec 各自复制 90 行 `createMockQueryTask`，手写 `result$` 管道自管 `observerCount/run/clean`。**已修**：抽出 `fixtures/query-task-harness.ts`（151 行），全部经 `QueryManager.createTask()` 拿任务，`result$` / `serialize` / `onClean` / 依赖计数全部来自生产代码；另清掉散在尾部的 5 处手写 `new QueryTask`。顺带发现并修：`QueryManager` 第三个构造参数 `repository` 是死代码（连带删掉三处 `as unknown as Repository` 假 stub）；merge_create 两个事件负载缺 `type` 字段，旧的手写 serialize 把它盖住了；merge_remove 的 `cachedById` 文档声称支持但从未接通，RXD-018 乱序删除分支实为零覆盖。
-- 50 处固定 `setTimeout(100)` 做否定断言（累计 ≥ 5 s 墙钟，高负载下迟到的第二次发射静默通过）；`sync-undo.spec.ts:112-118` 200×5ms 轮询。
-- 自证测试：`contracts/filter-sync.spec.ts:110-135, 193-237`（自己声明接口断言自己，从未 import `cleanup-expired.ts`）、`version/filter-sync.spec.ts:63-80`、`conflict.spec.ts:187-249`。
+- ✅ 50 处固定 `setTimeout(100)` 做否定断言（累计 ≥ 5 s 墙钟，高负载下迟到的第二次发射静默通过）；`sync-undo.spec.ts:112-118` 200×5ms 轮询。**已修**：实测共 55 处（50×100ms + 2×50ms + 3×10ms = 5.13 s）。先证明合并路径全程同步 —— 运行器一律 `of()`，`refresh$` 由 `BehaviorSubject` 驱动，`QueryTask.run()` 的管道里没有任何调度器，`#next()` 直接 `observers.forEach(o => o.next())` —— 所以这些 sleep 等的是不存在的异步，换 fake timers 只是把假象搬了个家。改为 `collectEmissions(task)` 收集发射序列，触发后直接 `expect(emissions).toEqual([...])`：50 个用例连 `new Promise((done, reject))` 外壳一并去掉，窗口从 100ms 收敛到 0。变异验证：让被删节点真的落在结果集里，断言当场变红（`[…, …(1)] to deeply equal [ … ]`），旧写法要靠第二次发射赶在 100ms 内到达才抓得到。`sync-undo` 的手写轮询换成 `vi.waitFor`（那处是真异步，`switchMap` 里要 await 活跃分支与水位线），超时预算不变但失败信息由断言给出。
+  - 顺带发现：`collectEmissions` 必须对每次发射做浅快照。实体引用是活的（`createEntityRef` 按 id 就地 `Object.assign` 进同一实例），事后比整个序列时，第三次合并会把第一次发射里的那个对象一起改掉 —— 原先在 `next` 回调里当场断言把这一点掩住了。
+  - 15 个「该不该触发 SQL 刷新」的用例只断言 `refresh` 替身，发射序列丢弃：它们从来没有对发射作过声明，不顺手加。
+- ✅ 自证测试：`contracts/filter-sync.spec.ts:110-135, 193-237`（自己声明接口断言自己，从未 import `cleanup-expired.ts`）、`version/filter-sync.spec.ts:63-80`、`conflict.spec.ts:187-249`。
+  **已修**：删掉两份 filter-sync spec（449 行 / 22 用例）与 `conflict.spec.ts` 的 `ConflictResolver interface` 块（3 用例）；净 −23 用例、+2 真用例。逐条盘过——
+  - 两份 filter-sync 里只有 5 个用例碰生产（`getSyncType` / `needsPull` / `needsPush`），与 `sync-type-utils.spec.ts:47,172,246` 逐字重复；其余 17 个在测 JavaScript 本身：自己声明字面量断言字面量、自己抛错断言抛错，`T025` 甚至**重新声明**了一遍 `CleanupExpiredOptions` / `CleanupExpiredResult`，把生产类型整个删掉都不会红。它们指向的 `002-filter-sync` 规格文档已不在仓内，是孤儿脚手架。
+  - 假测试压着的真路径大多早已有真覆盖：filter 抛错 / 非法 RuleGroup 见 `contracts/pull-repository.spec.ts:374-460`（含级联 fail-closed），`cleanupExpired` 见 `cleanup-expired.spec.ts`（18 用例）。
+  - 只有两条主张确实没人测，改成对着生产写：① **pull 每次重新求值 filter**（滚动时间窗口的前提，cleanup 侧有对称覆盖而 pull 侧没有）→ `contracts/pull-repository.spec.ts`「每次 pull 都重新执行元数据 filter，滚动窗口随之推进」；② **`MERGE` 与 `DEFER` 同路整轮回滚且 `merged` 载荷被丢弃**（`pull-conflict-utils.ts:254` 的兜底分支）→ `pull-conflict-resolution.spec.ts`「pullRepository should reject MERGE like DEFER and discard the merged payload」。原来那个叫「should support MERGE resolution type」的假测试尤其有害：它测的是对象展开，标题却宣称 MERGE 被支持，正好遮住「运行时不自动应用」这条真行为。
+  - 两条新断言都做过变异验证：把 filter 改成按实体记忆化 → `toHaveBeenCalledTimes(2)` 红；把 `MERGE` 提前 `continue` 当作已解决 → `rejects.toThrow` 红。
 - 空断言：`HistoryManager.spec.ts:928-933` `expect(true).toBe(true)`；`bulk-sync.spec.ts:135-150` 「默认并发数应该是 3」只 `toBeDefined()`；`entity-status.spec.ts:232-247,496-510` 标题说 clear 但只 `toBeDefined()`。
 - 绑私有状态：`HistoryManager.spec.ts:297-298` cast 后直写 `isUndoRedoInProgress`；`entity-status.spec.ts:83-85`、`relation-helper.spec.ts:495` `Reflect.set` 私有字段。
 - 拆卸：`test-db-setup.ts:174-179` `cleanup` 从不 `rxdb.disconnectAll()`，18 个文件 `new RxDB(` 零 after-hook，今天不炸只因 browser mode `isolate:true`。

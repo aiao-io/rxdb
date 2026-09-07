@@ -109,14 +109,14 @@ const createHarness = (): Harness => {
 
 /**
  * `undoHistories$` 的 `switchMap` 是异步的（要查活跃分支和 repo 水位线），
- * 一次同步调用可能要跨好几个 microtask 才落到订阅者身上。轮询等下一发。
+ * 一次同步调用可能要跨好几个 microtask 才落到订阅者身上。
+ *
+ * 交给 `vi.waitFor` 重试，而不是手写 200×5ms 轮询：超时预算一样是 1s，但失败信息
+ * 由断言本身给出（差在第几发、当时收到几发），也不必自己维护重试次数与间隔常量。
  */
 const nextEmission = async (emissions: HistoryItem[][], since: number): Promise<HistoryItem[]> => {
-  for (let attempt = 0; attempt < 200; attempt++) {
-    if (emissions.length > since) return emissions[emissions.length - 1];
-    await new Promise(resolve => setTimeout(resolve, 5));
-  }
-  throw new Error(`undoHistories$ 在超时前没有发出第 ${since + 1} 次值`);
+  await vi.waitFor(() => expect(emissions.length).toBeGreaterThan(since));
+  return emissions[emissions.length - 1];
 };
 
 afterEach(() => {
