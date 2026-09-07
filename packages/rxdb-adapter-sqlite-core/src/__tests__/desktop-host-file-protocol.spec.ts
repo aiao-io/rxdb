@@ -4,7 +4,9 @@ import {
   DESKTOP_HOST_MAX_FILE_CHUNK_BYTES,
   DESKTOP_HOST_MAX_PATH_LENGTH,
   DESKTOP_HOST_MAX_PATH_SEGMENT_BYTES,
+  DESKTOP_HOST_TEMPORARY_SUFFIX,
   isDesktopHostFileRequestKind,
+  isDesktopHostTemporaryName,
   parseDesktopHostFileRequest,
   parseDesktopHostRequest
 } from '../desktop/desktop-host-protocol.js';
@@ -208,5 +210,28 @@ describe('DESKTOP_HOST_MAX_FILE_CHUNK_BYTES', () => {
   it('is a positive integer', () => {
     expect(Number.isInteger(DESKTOP_HOST_MAX_FILE_CHUNK_BYTES)).toBe(true);
     expect(DESKTOP_HOST_MAX_FILE_CHUNK_BYTES).toBeGreaterThan(0);
+  });
+});
+
+// 判据必须**窄**：放宽一点点，一个真实的用户文件就会从诊断快照里凭空消失，而快照的用途
+// 恰恰是回答「有文件没有元数据吗」——被滤掉的文件会让那个答案安静地变成「没有」。
+describe('isDesktopHostTemporaryName', () => {
+  it.each([
+    ['Rust host 的临时名', `.${writeId}${DESKTOP_HOST_TEMPORARY_SUFFIX}`],
+    ['另一个 writeId', `.${lockId}${DESKTOP_HOST_TEMPORARY_SUFFIX}`]
+  ])('认得 %s', (_label, name) => {
+    expect(isDesktopHostTemporaryName(name)).toBe(true);
+  });
+
+  it.each([
+    ['用户自己叫这个后缀的文件', `report${DESKTOP_HOST_TEMPORARY_SUFFIX}`],
+    ['前导点但不是 UUID', `.draft${DESKTOP_HOST_TEMPORARY_SUFFIX}`],
+    ['UUID 但没有前导点', `${writeId}${DESKTOP_HOST_TEMPORARY_SUFFIX}`],
+    ['后缀之后还有东西', `.${writeId}${DESKTOP_HOST_TEMPORARY_SUFFIX}.bak`],
+    ['大写 UUID（两个宿主都只产小写）', `.${writeId.toUpperCase()}${DESKTOP_HOST_TEMPORARY_SUFFIX}`],
+    ['只有后缀', DESKTOP_HOST_TEMPORARY_SUFFIX],
+    ['空名', '']
+  ])('不认 %s', (_label, name) => {
+    expect(isDesktopHostTemporaryName(name)).toBe(false);
   });
 });

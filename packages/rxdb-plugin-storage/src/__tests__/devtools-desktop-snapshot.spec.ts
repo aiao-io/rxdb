@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { type DesktopHostTransport } from '@aiao/rxdb-adapter-electron';
 import { createElectronFileHost, type ElectronFileHost } from '@aiao/rxdb-adapter-electron/host';
+import { DESKTOP_HOST_TEMPORARY_SUFFIX, isDesktopHostTemporaryName } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import type { DevToolsNativeFilesystem } from '@aiao/rxdb-devtools';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -70,6 +71,38 @@ describe('createDevToolsStorageSnapshotPorts — 已提交文件', () => {
       size: 3,
       contentVersion: null
     });
+  });
+
+  // AC#11：在途上传的临时产物一旦进了快照，面板会报出一条「有文件无元数据」的假缺失，
+  // 而它下一秒就自己消失了——这类只在特定时刻复现的误报最难被承认是误报。
+  it('在途上传留在盘上的临时产物不算已提交文件', async () => {
+    await write(filesystem, ['committed.txt'], 'ok');
+    const inflight = await filesystem.openWrite(['pending.txt']);
+    await inflight.write(bytes('half'));
+
+    // 先证明它**确实**在盘上：否则下面那条断言在「host 根本没建临时文件」时也会绿，
+    // 而那样的绿什么都没验到。同一个 `list` 也是浏览路径看到的东西（AC#10 的取消
+    // 用例正靠它数临时产物），所以这里同时钉住了「浏览看得见、快照看不见」这条分工。
+    const onDisk = await filesystem.list([]);
+    const temporary = onDisk.filter(entry => isDesktopHostTemporaryName(entry.name));
+    expect(temporary).toHaveLength(1);
+
+    const ports = createDevToolsStorageSnapshotPorts({ storage: mockStorage(), filesystem });
+    const files = await ports.readCommittedFiles(new AbortController().signal);
+
+    expect(files.map(entry => entry.logicalPath)).toEqual(['committed.txt']);
+    await inflight.discard();
+  });
+
+  // 反向的负例：判据错宽的话，一个真实的用户文件会从快照里凭空消失，
+  // 而快照恰恰是用来回答「有文件没有元数据吗」的。
+  it('用户自己以该后缀命名的文件照常出现在快照里', async () => {
+    await write(filesystem, [`report${DESKTOP_HOST_TEMPORARY_SUFFIX}`], 'mine');
+
+    const ports = createDevToolsStorageSnapshotPorts({ storage: mockStorage(), filesystem });
+    const files = await ports.readCommittedFiles(new AbortController().signal);
+
+    expect(files.map(entry => entry.logicalPath)).toEqual([`report${DESKTOP_HOST_TEMPORARY_SUFFIX}`]);
   });
 
   it('signal 已中止时不触碰文件系统', async () => {

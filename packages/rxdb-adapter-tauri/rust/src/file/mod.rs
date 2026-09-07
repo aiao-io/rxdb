@@ -801,6 +801,46 @@ mod tests {
         assert!(harness.temporary_files().is_empty(), "the temp file is gone");
     }
 
+    /// 临时产物的形状：前导点 + 小写 UUID v4 + `.rxdb-tmp`。
+    ///
+    /// 与 TS 侧 `isDesktopHostTemporaryName` 的正则逐字段等价。手写而不引 `regex`：
+    /// 要钉的就是判据本身，多绕一个依赖去表达它，反而让两侧更难逐字对照。
+    fn matches_snapshot_filter(name: &str) -> bool {
+        let Some(rest) = name.strip_prefix('.') else {
+            return false;
+        };
+        let Some(uuid) = rest.strip_suffix(".rxdb-tmp") else {
+            return false;
+        };
+        let groups: Vec<&str> = uuid.split('-').collect();
+        groups.iter().map(|group| group.len()).eq([8, 4, 4, 4, 12])
+            && groups
+                .iter()
+                .all(|group| group.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()))
+    }
+
+    /// 诊断快照靠这个形状把在途上传滤出去（US-905 AC#11）。两个宿主各自生成临时名，
+    /// TS 侧的快照用例只钉得住 Electron 那一半；这边的名字一旦漂移（大写 UUID、换后缀、
+    /// 少了前导点），快照就会把一条正在写、下一秒自己消失的临时产物报成「有文件无元数据」，
+    /// 而这类只在特定时刻复现的误报最难被承认是误报。
+    #[test]
+    fn names_in_flight_temporaries_in_the_shape_the_snapshot_filter_expects() {
+        let harness = Harness::new();
+        let begin = harness.call(json!({ "kind": "file.writeBegin", "path": "pending.txt" }));
+        assert_eq!(begin["kind"], "file.writeBegin", "writeBegin failed: {begin}");
+
+        // 枚举根下**全部**条目，而不是复用 `temporary_files()`：后者按 `.rxdb-tmp` 结尾筛，
+        // 用它挑出待验的名字再去验这个名字的形状就成了自证。此刻目标尚未提交，根下只该有临时产物。
+        let names: Vec<String> = fs::read_dir(&harness.root)
+            .expect("the storage root exists")
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(names.len(), 1, "only the in-flight temporary is on disk: {names:?}");
+        assert!(matches_snapshot_filter(&names[0]), "unexpected temporary name: {}", names[0]);
+    }
+
     #[test]
     fn abandons_a_write_without_touching_the_target() {
         let harness = Harness::new();

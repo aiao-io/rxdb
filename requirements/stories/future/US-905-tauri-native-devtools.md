@@ -772,6 +772,48 @@ requestId** 上。可那个 requestId 早在 `files.upload` 的 RESPONSE 到达�
 `#beginDownload` 在 TSDoc 里写明了为什么）。收集器因此必须在**发出请求之前**就登记好，
 等 RESPONSE 回来再登记的话 START 来时无处可挂，整段字节被丢掉。
 
+### PR-C4 第五片：诊断快照的存储侧口径（2026-09-07）
+
+AC#11 要「1001 条以上 metadata/files、两类缺失和在途上传」都能被一次完整的诊断 snapshot 如实
+读出来，其中「不误报临时状态」这一截**不需要真实窗口就能证伪**——它是存储侧端口的口径问题。
+于是把 AC#11 拆成两片：本片只修口径并把它单测钉死，1001 条与两类缺失的 wire 驱动留给第六片
+（要 Rust 侧播种 + 主窗口 fixture + 报告 schema v9 → v10，重得多）。
+
+**AC#11 仍是 ⬜**：本片一条 AC 都没关，它只是把第六片会踩到的一颗雷提前拆了——那颗雷如果留到
+wire 上才炸，表征会是「快照多出一条不该有的记录」，而在 1001 条里定位一条时有时无的多余记录，
+比现在这条单测贵一个数量级。
+
+### 发现 20：在途上传的临时产物会被快照当成「有文件无元数据」（**已修**）
+
+`native-snapshot-source.ts` 的头注写明「在途上传不算文件」，端口也**刻意**叫
+`readCommittedFiles` 而不是 `readFiles`。但 `devtools-desktop-snapshot.ts` 的 `collectFiles`
+把 `filesystem.list()` 交回来的东西照单全收，而这条链路上没有任何一处会滤掉临时产物：Rust 的
+`list_path` 不过滤点开头的名字，`decodePhysicalName` 对这类名字是恒等映射（同[第四片](#pr-c4-第四片字节面2026-09-07)
+里数 `.rxdb-tmp` 所依赖的那两条性质，方向相反）。
+
+于是一次正在进行的上传会在快照里多出一条 `.{uuid}.rxdb-tmp`——它没有元数据，面板据此报出一条
+「有文件无元数据」的缺失，而那条缺失下一秒就自己消失了。这正是 AC#11 判据里「不误报临时状态」
+禁的东西，也是最难被承认成误报的一类：只在特定时刻复现，重跑一次就没了。
+
+修法是在 `collectFiles` 里按物理名滤掉临时产物，判据落在共享的
+`isDesktopHostTemporaryName()`（`desktop-host-protocol.ts`，与 `DESKTOP_HOST_TEMPORARY_SUFFIX`
+一并成为 `./desktop-host` 的新导出，已进 API baseline）。三处取舍写在这里而不是留给读者推断：
+
+- **滤在快照，不滤在 `list()`**。浏览路径要如实反映盘上有什么——AC#10 的取消用例正是靠数
+  `.rxdb-tmp` 判断「临时文件出现过、取消之后又没了」。两处口径不同是各自用途决定的，不是疏漏。
+- **判据窄到 `.` + 小写 UUID v4 + `.rxdb-tmp`，而不是 `endsWith('.rxdb-tmp')`**。放宽一点，
+  一个真实的用户文件就会从快照里凭空消失，而快照恰恰是用来回答「有文件没有元数据吗」的——
+  被滤掉的文件让那个答案安静地变成「没有」，且没有任何一处会报错。代价是「点 + UUID + 该后缀」
+  这一小块命名空间归宿主保留，写在 TSDoc 里。
+- **两个宿主各钉一遍**。临时名由两端**各自**生成（`electron-file-host.ts` 的 `randomUUID()`、
+  `file/mod.rs` 的 `Uuid::new_v4()`），共享的只有形状。TS 侧那条快照用例跑的是真的
+  `createElectronFileHost`，钉住 Electron 那一半；Rust 侧新增
+  `names_in_flight_temporaries_in_the_shape_the_snapshot_filter_expects` 钉另一半——它枚举存储根下
+  **全部**条目而不是复用测试里那个按后缀筛的辅助函数，否则就是拿待验的判据去挑待验的样本。
+
+两条用例都验过是**真红**：去掉 `collectFiles` 里那行过滤，TS 侧报 `expected [ …(2) ] to deeply
+equal [ 'committed.txt' ]`；把 Rust 的临时名去掉前导点，那条 Rust 断言当场失败。
+
 ## 技术约束
 
 - **两阶段必须是独立的 PR / commit 序列**：阶段 1 的证据只用共享 fake provider，不得夹带真实 host 接线。
