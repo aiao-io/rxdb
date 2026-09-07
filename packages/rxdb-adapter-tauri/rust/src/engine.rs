@@ -935,6 +935,120 @@ mod tests {
         assert!(!copy.exists());
     }
 
+    /// RV-002：文件名是**绑定参数**的 `ATTACH` 同样要拒。
+    ///
+    /// SQLite 的 `codeAttach` 只在文件名是 `TK_STRING` 字面量时才把它交给授权器，
+    /// 其余表达式一律传 NULL，于是 rusqlite 落成 `AuthAction::Unknown` 而不是 `Attach`。
+    /// 按变体匹配的授权器会把这一路放行——renderer 只要把路径挪进 `bindings` 就绕过了整道边界。
+    #[test]
+    fn denies_attach_whose_filename_comes_from_a_binding() {
+        let mut harness = harness(0);
+        let outside = temp_directory();
+        let escaped = outside.0.join("bound.sqlite");
+
+        let error = harness
+            .engine
+            .execute(
+                "ATTACH DATABASE ? AS bound",
+                &[SqlValue::Text(escaped.display().to_string())],
+            )
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::PermissionDenied);
+        assert!(!escaped.exists());
+        assert!(harness
+            .engine
+            .execute("CREATE TABLE bound.proof (value TEXT)", &[])
+            .is_err());
+        assert!(!escaped.exists());
+    }
+
+    /// RV-002：拼接表达式算出来的文件名同样不是字面量，走的是同一条 NULL 路径。
+    #[test]
+    fn denies_attach_whose_filename_is_a_concatenation() {
+        let mut harness = harness(0);
+        let outside = temp_directory();
+        let escaped = outside.0.join("joined.sqlite");
+        let full = escaped.display().to_string();
+        let (prefix, suffix) = full.split_at(3);
+
+        let error = harness
+            .engine
+            .execute(
+                &format!(
+                    "ATTACH DATABASE ({} || {}) AS joined",
+                    quote_literal(prefix),
+                    quote_literal(suffix)
+                ),
+                &[],
+            )
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::PermissionDenied);
+        assert!(!escaped.exists());
+    }
+
+    /// RV-002：子查询产出的文件名——最迂回的一种，仍然只是「非字面量」。
+    #[test]
+    fn denies_attach_whose_filename_comes_from_a_subquery() {
+        let mut harness = harness(0);
+        let outside = temp_directory();
+        let escaped = outside.0.join("selected.sqlite");
+
+        let error = harness
+            .engine
+            .execute(
+                &format!(
+                    "ATTACH DATABASE (SELECT {}) AS selected",
+                    quote_literal(&escaped.display().to_string())
+                ),
+                &[],
+            )
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::PermissionDenied);
+        assert!(!escaped.exists());
+    }
+
+    /// 库内的 `DETACH` 也按原始 opcode 拒，别让「先 ATTACH 不成、再 DETACH 试探」有别的答案。
+    #[test]
+    fn denies_detach() {
+        let mut harness = harness(0);
+        let error = harness.engine.execute("DETACH DATABASE nope", &[]).unwrap_err();
+        assert_eq!(error.code, ErrorCode::PermissionDenied);
+    }
+
+    /// SQLite 从不校验 TEXT 的编码：导入的库、别的程序写的库、`CAST(X'FF' AS TEXT)`
+    /// 都能造出不是合法 UTF-8 的文本值。读到它绝不能 panic——`Host::handle` 的契约是
+    /// 「永不 panic」，而一次 panic 会毒化会话的 `Mutex<Engine>`，让这条会话连 `close()`
+    /// 都做不到。按 `from_utf8_lossy` 报出去，与 Electron 侧 `node:sqlite` 的有损解码一致。
+    #[test]
+    fn reads_invalid_utf8_text_lossily_and_keeps_the_session_usable() {
+        let mut harness = harness(0);
+
+        let casted = run(&mut harness.engine, "SELECT CAST(X'FF' AS TEXT) AS v");
+        assert_eq!(
+            casted.results.unwrap().rows,
+            vec![vec![SqlValue::Text("\u{fffd}".into())]]
+        );
+
+        // 存进表里再读出来，走的是同一条 `read_row`——这才是导入的坏数据的实际形状。
+        run(&mut harness.engine, "CREATE TABLE t (v TEXT)");
+        run(&mut harness.engine, "INSERT INTO t VALUES (CAST(X'6100FF62' AS TEXT))");
+        let stored = run(&mut harness.engine, "SELECT v FROM t");
+        assert_eq!(
+            stored.results.unwrap().rows,
+            vec![vec![SqlValue::Text("a\u{0}\u{fffd}b".into())]]
+        );
+
+        // 会话仍然可用、仍然可关；毒化的锁两条都做不到。
+        assert_eq!(
+            run(&mut harness.engine, "SELECT 1 AS v").results.unwrap().rows,
+            vec![vec![SqlValue::Integer(1)]]
+        );
+        harness.engine.close().unwrap();
+    }
+
     /// 授权器不能误伤库内能力：`rawQuery()` 的正常用途必须原样可用。
     #[test]
     fn still_allows_in_database_ddl_dml_transactions_and_pragma() {
