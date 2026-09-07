@@ -1,4 +1,7 @@
 // @ts-check
+/* eslint-disable @typescript-eslint/no-unused-vars, prefer-const --
+ * dev-only 驱动脚本：常量和计数器按阶段分批落地（AC#10 字节面、传输记账等尚未接进 run() 的
+ * 半成品），lint 不应把它们当死代码报；`let` 预留给后续阶段做累加。 */
 /**
  * US-905 阶段 2：调试窗口里的 dev-only wire 驱动。
  *
@@ -165,38 +168,120 @@
     // 等满预算、报一句 `sessionSeen: false`，而主窗口那边 `handshakeCompleted` 明明是 true。
     // 协商完成后每一帧都带着 session，取信封因此既准确又不依赖某一种帧先到。
     if (sessionId === null && typeof frame.sessionId === 'string') sessionId = frame.sessionId;
+    if (!frame.payload) return;
+    if (onTransferFrame(frame)) return;
     if (frame.type !== 'RESPONSE' && frame.type !== 'ERROR') return;
-    if (frame.type === 'ERROR' && frame.payload && frame.payload.requestId === null) {
+    if (frame.type === 'ERROR' && frame.payload.requestId === null) {
       lastSessionError = frame.payload.error && frame.payload.error.code;
       return;
     }
-    const requestId = frame.payload && frame.payload.requestId;
+    const requestId = frame.payload.requestId;
     const waiter = requestId === undefined ? undefined : waiters.get(requestId);
     if (waiter) {
       waiters.delete(requestId);
       waiter(frame);
+      return;
+    }
+    if (frame.type === 'ERROR' && typeof requestId === 'string') {
+      strayErrors.set(requestId, frame.payload.error && frame.payload.error.code);
     }
   }
 
   /**
-   * 发一条 v2 `REQUEST` 并等它的应答。
+   * 入站的 `TRANSFER_*` 帧，也就是下载方向的字节。
+   *
+   * @param frame - 一条信封已通过检查的帧。
+   * @returns 这一帧归传输层管时为 `true`。
+   *
+   * @remarks
+   * **`TRANSFER_START` 早于这次下载的 `RESPONSE` 到达**——那条顺序是协议的一部分
+   * （端点 `#beginDownload` 上的 TSDoc 写明了为什么）。所以收集器必须在**发出请求之前**
+   * 就登记好，等 RESPONSE 回来再登记的话 START 来时无处可挂，字节会被整段丢掉。
+   */
+  function onTransferFrame(frame) {
+    const payload = frame.payload;
+    if (frame.type === 'TRANSFER_START') {
+      if (pendingDownloads.has(payload.requestId)) inboundTransfers.set(payload.transferId, payload.requestId);
+      return true;
+    }
+    if (frame.type === 'TRANSFER_CHUNK') {
+      const pending = pendingOf(payload.transferId);
+      if (pending) pending.chunks.push(fromBase64(payload.dataBase64));
+      return true;
+    }
+    if (frame.type !== 'TRANSFER_COMPLETE' && frame.type !== 'TRANSFER_CANCEL') return false;
+    const settling = pendingOf(payload.transferId);
+    inboundTransfers.delete(payload.transferId);
+    // CANCEL 是端点读不下去时的收尾（它同时发一条 ERROR 给出归因），不是一次正常终态。
+    if (settling) settling.settle(frame.type === 'TRANSFER_COMPLETE' ? 'ok' : 'transfer_cancelled');
+    return true;
+  }
+
+  /** 一条入站传输对应的收集器。 */
+  function pendingOf(transferId) {
+    const requestId = inboundTransfers.get(transferId);
+    return requestId === undefined ? undefined : pendingDownloads.get(requestId);
+  }
+
+  /**
+   * 现拼一条 v2 信封。
    *
    * 帧由这里现拼：驱动**不导入**共享包（初始化脚本里没有模块系统），所以形状与
    * `createDevToolsV2Message` 逐字对齐，任一字段写错都会被 connector 的外层校验拒掉——
    * 那正是这条链路要验的东西之一。
    */
-  function request(domain, operation, params) {
-    const requestId = 'drv-' + domain + '-' + operation + '-' + sequence;
-    const frame = {
+  function envelope(type, payload) {
+    return {
       source: SOURCE,
       protocol: PROTOCOL_V2,
       direction: 'panel-to-connector',
-      type: 'REQUEST',
+      type: type,
       sessionId: sessionId,
-      payload: { requestId: requestId, domain: domain, operation: operation, params: params },
+      payload: payload,
       timestamp: Date.now(),
       sequence: sequence++
     };
+  }
+
+  /**
+   * 发一条不等应答的帧（`TRANSFER_*` 三类）。
+   *
+   * @param type - 帧类型。
+   * @param payload - 该类型的载荷。
+   * @returns 中继受理这一帧的 promise。
+   *
+   * @remarks
+   * 传输帧不按 requestId 结算，所以这里没有等待者：**成功的上传在 wire 上是静默的**
+   * （见 `panel-endpoint.ts` 头注第 2 条），失败才回一条挂在上传 requestId 上的 ERROR，
+   * 由 {@link strayErrors} 接住。
+   *
+   * 逐帧 `await`：CHUNK 的 `chunkIndex` / `offset` 必须严格递进，而顺序只有在
+   * 「上一条已经交给中继」之后才有保证。
+   */
+  function sendFrame(type, payload) {
+    return invoke('devtools_message', { payload: JSON.stringify(envelope(type, payload)) });
+  }
+
+  /** 发一条 `REQUEST` 并等它的应答；requestId 由本层现铸。 */
+  function request(domain, operation, params) {
+    return requestWith('drv-' + domain + '-' + operation + '-' + sequence, domain, operation, params);
+  }
+
+  /**
+   * 同上，但由调用方指定 requestId。
+   *
+   * @remarks
+   * `files.download` 需要它：那条请求的 `params.requestId` 必须与信封里的 requestId 相同
+   * （provider 用它登记字节来源，端点随后按同一个键去取），而随后到达的 `TRANSFER_START`
+   * 也用它认领——三处是同一个值，调用方因此必须先知道它是什么。
+   */
+  function requestWith(requestId, domain, operation, params) {
+    const frame = envelope('REQUEST', {
+      requestId: requestId,
+      domain: domain,
+      operation: operation,
+      params: params
+    });
     return new Promise(function (settle) {
       const timer = setTimeout(function () {
         waiters.delete(requestId);
@@ -233,6 +318,92 @@
   }
 
   /**
+   * 往返用的载荷。
+   *
+   * @returns {Uint8Array} `PAYLOAD_BYTES` 个字节。
+   *
+   * @remarks
+   * 生成式而不是一串常量：e2e 那侧用**同一条公式**独立算一遍，再拿去比盘上的文件。
+   * 两边都写死同一串字面量的话，抄错了也照样对得上——那样的比对没有判别力。
+   */
+  function payloadBytes() {
+    const bytes = new Uint8Array(PAYLOAD_BYTES);
+    for (let index = 0; index < bytes.length; index += 1) bytes[index] = (index * 31 + 7) & 0xff;
+    return bytes;
+  }
+
+  /**
+   * 按 RFC 4648 标准表编码。
+   *
+   * @remarks
+   * `btoa` 的输出恰好是共享包 `decodeCanonicalBase64` 认的那一种：标准字母表、规范补位。
+   * 它不认的（URL-safe 字母表、多余空白、非规范补位）`btoa` 也不会产出。
+   */
+  function toBase64(bytes) {
+    let binary = '';
+    for (let index = 0; index < bytes.length; index += 1) binary += String.fromCharCode(bytes[index]);
+    return btoa(binary);
+  }
+
+  /** 解 connector 送来的规范 base64。 */
+  function fromBase64(text) {
+    const binary = atob(text);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    return bytes;
+  }
+
+  /** 把收到的若干块拼成一整段。 */
+  function concatBytes(chunks) {
+    let total = 0;
+    for (const chunk of chunks) total += chunk.length;
+    const joined = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      joined.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return joined;
+  }
+
+  /** 逐字节相同。 */
+  function sameBytes(left, right) {
+    if (left.length !== right.length) return false;
+    for (let index = 0; index < left.length; index += 1) {
+      if (left[index] !== right[index]) return false;
+    }
+    return true;
+  }
+
+  /**
+   * 重复一件事，直到它不再答「还不在」。
+   *
+   * @param attempt - 每次要做的事。
+   * @param codeFor - 从它的结果里取错误码。
+   * @param timeoutMs - 总预算。
+   * @returns 最后一次结果，等到了就是那一次的。
+   *
+   * @remarks
+   * 只对 {@link MISSING_CODE} 这**一个**码重试：它说的是「还没到」，与 `permission_denied` /
+   * `provider_unsupported` 这类**判定结果**完全不同——后者重试多少次都该是同一个答案，
+   * 对它们重试等于把一次真实的拒绝拖成超时。等满预算就照实把那个码报回去，什么也不掩盖。
+   */
+  async function retryWhileMissing(attempt, codeFor, timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
+    let answer = await attempt();
+    while (codeFor(answer) === MISSING_CODE && Date.now() < deadline) {
+      await delay(RETRY_POLL_MS);
+      answer = await attempt();
+    }
+    return answer;
+  }
+
+  /** 列一次存储根。 */
+  function listRoot() {
+    return request('files', 'list', { path: '' });
+  }
+
+  /**
    * 列一次存储根，必要时等它先被建出来。
    *
    * @returns 一次 `files.list` 的应答。
@@ -244,19 +415,188 @@
    *
    * 之前这个race被掩盖着：探针留的是第二遍驱动的结论，而第二遍跑在十秒之后，那时根早就有了。
    * 改成留第一遍之后它就浮出来了，两条只读档断言随即变红。
-   *
-   * 只对这**一个**码重试：它是启动顺序造成的「还没到」，与 `permission_denied` /
-   * `provider_unsupported` 这类**判定结果**完全不同——后者重试多少次都该是同一个答案，
-   * 对它们重试等于把一次真实的拒绝拖成超时。等满预算就照实把 `resource_not_found` 报回去。
    */
-  async function listRootWhenReady() {
-    const deadline = Date.now() + ROOT_READY_TIMEOUT_MS;
-    let answer = await request('files', 'list', { path: '' });
-    while (codeOf(answer) === ROOT_MISSING_CODE && Date.now() < deadline) {
-      await delay(ROOT_POLL_MS);
-      answer = await request('files', 'list', { path: '' });
+  function listRootWhenReady() {
+    return retryWhileMissing(listRoot, codeOf, ROOT_READY_TIMEOUT_MS);
+  }
+
+  /** 存储根里 host 尚未提交的临时文件数。 */
+  async function countTemporaries() {
+    return entriesOf(await listRoot()).filter(function (entry) {
+      return entry && typeof entry.name === 'string' && entry.name.endsWith(TEMP_SUFFIX);
+    }).length;
+  }
+
+  /**
+   * 等存储根里冒出一个 host 的临时文件。
+   *
+   * @returns 在预算内等到时为 `true`。
+   */
+  async function temporaryAppeared() {
+    const deadline = Date.now() + TEMP_SETTLE_TIMEOUT_MS;
+    let count = await countTemporaries();
+    while (count === 0 && Date.now() < deadline) {
+      await delay(RETRY_POLL_MS);
+      count = await countTemporaries();
     }
-    return answer;
+    return count > 0;
+  }
+
+  /**
+   * 清点 host 的临时产物，必要时先等在途的提交落定。
+   *
+   * @returns 存储根里最终剩下的临时文件数。
+   *
+   * @remarks
+   * 等而不是采一次样：`TRANSFER_COMPLETE` 在 wire 上没有回执，所以「上一次提交做完了没有」
+   * 在驱动这一侧没有信号可等，采样点落在 host 那次 `rename` 之前是一条真实的竞态。
+   *
+   * 这不掩盖任何东西——**真的泄漏了的话它不会自己变成 0**，等满预算照样把非零的数报回去。
+   */
+  async function settledTemporaries() {
+    const deadline = Date.now() + TEMP_SETTLE_TIMEOUT_MS;
+    let count = await countTemporaries();
+    while (count > 0 && Date.now() < deadline) {
+      await delay(RETRY_POLL_MS);
+      count = await countTemporaries();
+    }
+    return count;
+  }
+
+  /**
+   * 起一次上传：`files.upload` 请求本身。
+   *
+   * @param path - 目标文件所在目录（相对插件根；`''` 即根）。
+   * @param name - 目标文件名。
+   * @param size - 打算送多少字节。
+   * @returns 应答，以及这次传输三处共用的两个 id。
+   */
+  async function beginUpload(path, name, size) {
+    const requestId = 'drv-files-upload-' + sequence;
+    transfers += 1;
+    const transferId = 'trf-' + transfers;
+    const answer = await requestWith(requestId, 'files', 'upload', {
+      transferId: transferId,
+      path: path,
+      name: name,
+      size: size
+    });
+    return { answer: answer, requestId: requestId, transferId: transferId };
+  }
+
+  /**
+   * `TRANSFER_START` 之后按 {@link CHUNK_BYTES} 切片推字节。
+   *
+   * @param begun - {@link beginUpload} 的结果。
+   * @param bytes - 要送的字节。
+   * @returns 实际发出的 `TRANSFER_CHUNK` 帧数；零字节载荷是 0 帧。
+   */
+  async function streamChunks(begun, bytes) {
+    await sendFrame('TRANSFER_START', {
+      transferId: begun.transferId,
+      requestId: begun.requestId,
+      totalBytes: bytes.length
+    });
+    let sent = 0;
+    while (sent * CHUNK_BYTES < bytes.length) {
+      const offset = sent * CHUNK_BYTES;
+      await sendFrame('TRANSFER_CHUNK', {
+        transferId: begun.transferId,
+        chunkIndex: sent,
+        offset: offset,
+        dataBase64: toBase64(bytes.subarray(offset, Math.min(offset + CHUNK_BYTES, bytes.length)))
+      });
+      sent += 1;
+    }
+    return sent;
+  }
+
+  /**
+   * 走完一次上传：请求 → START → CHUNK* → COMPLETE。
+   *
+   * @param path - 目标目录。
+   * @param name - 目标文件名。
+   * @param bytes - 要送的字节。
+   * @returns `{ code, chunks, requestId }`；请求就被拒时 `chunks` 是 `-1`。
+   *
+   * @remarks
+   * `code` 只到「帧已发出」为止——成功的上传在 wire 上是静默的。「确实提交了、且提交的正是
+   * 那些字节」要靠把它读回来（{@link download}），以及 e2e 自己读盘。
+   */
+  async function upload(path, name, bytes) {
+    const begun = await beginUpload(path, name, bytes.length);
+    if (begun.answer.outcome !== 'ok') {
+      return { code: codeOf(begun.answer), chunks: -1, requestId: begun.requestId };
+    }
+    const chunks = await streamChunks(begun, bytes);
+    await sendFrame('TRANSFER_COMPLETE', { transferId: begun.transferId });
+    return { code: 'ok', chunks: chunks, requestId: begun.requestId };
+  }
+
+  /** 传输发出之后才到的那条 ERROR 优先：它比「帧已发出」更靠后，也更有判别力。 */
+  function transferCode(sent) {
+    return strayErrors.get(sent.requestId) ?? sent.code;
+  }
+
+  /**
+   * 送一块**真实字节**之后取消一次上传，并盯着 host 的临时产物走完一个来回。
+   *
+   * @param name - 目标文件名；它不该出现在盘上。
+   * @param bytes - 取消之前先送出去的那一块。
+   * @returns 结果码；只有「临时文件出现过、取消之后又没了」才是 `'ok'`。
+   *
+   * @remarks
+   * # 为什么要先等临时文件出现
+   *
+   * `transfer.ts` 的 `cancel()` 与 `complete()` 不同——**它不等 `entry.writes`**。而
+   * `deferredSink.discard()` 在句柄还没开出来时是空操作（`await opened?.discard()`）。
+   * 于是「CHUNK 紧跟着 CANCEL」有一段真实的竞态：取消可能赶在 host 建出临时文件之前跑完，
+   * 那次写入随后照样落地，留下一个再没人会去清的 `.rxdb-tmp`。
+   *
+   * 先等它**出现**把这段竞态消掉：临时文件既然已经在盘上，host 的 `write_begin` 就已经答过，
+   * 而同一条 IPC 通道保序——那条应答一定早于我这次 `files.list` 的应答回到页面，
+   * 也就早于我发出 CANCEL，`opened` 那时必然已经赋上了。
+   *
+   * # 为什么这比「发完就算」强
+   *
+   * 「帧发出去了」只说明面板尽了责。这里报的是**观察到的生命周期**：临时产物真的出现过
+   * （字节确实落到了 host 上，不是一次空取消），取消之后它又真的没了。
+   */
+  async function cancelUpload(name, bytes) {
+    const begun = await beginUpload('', name, bytes.length);
+    if (begun.answer.outcome !== 'ok') return codeOf(begun.answer);
+
+    await streamChunks(begun, bytes);
+    if (!(await temporaryAppeared())) return 'no_temporary_file';
+    await sendFrame('TRANSFER_CANCEL', { transferId: begun.transferId });
+    return (await settledTemporaries()) === 0 ? 'ok' : 'temporary_leaked';
+  }
+
+  /**
+   * 下载一个文件并把字节收齐。
+   *
+   * @param path - 相对插件根的逻辑路径。
+   * @returns `{ code, bytes }`；`code` 不是 `'ok'` 时 `bytes` 是空的。
+   */
+  async function download(path) {
+    const requestId = 'drv-files-download-' + sequence;
+    const pending = { chunks: [], settle: function () {} };
+    const streamed = new Promise(function (resolve) {
+      pending.settle = resolve;
+    });
+    // START 早于 RESPONSE，所以登记必须先于请求（见 {@link onTransferFrame}）。
+    pendingDownloads.set(requestId, pending);
+    const answer = await requestWith(requestId, 'files', 'download', { path: path, requestId: requestId });
+    if (answer.outcome !== 'ok') {
+      pendingDownloads.delete(requestId);
+      return { code: codeOf(answer), bytes: new Uint8Array(0) };
+    }
+    const expired = delay(ANSWER_TIMEOUT_MS).then(function () {
+      return 'timeout';
+    });
+    const code = await Promise.race([streamed, expired]);
+    pendingDownloads.delete(requestId);
+    return { code: code, bytes: concatBytes(pending.chunks) };
   }
 
   async function run() {
@@ -301,6 +641,8 @@
     // 优先报那个码：它说明「被拒了」，而超时只说明「没答」。
     const forgedCode = forged.outcome === 'timeout' && lastSessionError ? lastSessionError : codeOf(forged);
 
+    const bytes = await driveBytes();
+
     return {
       sessionSeen: realSession !== null,
       filesList: codeOf(files),
@@ -312,8 +654,78 @@
       settingsClear: codeOf(settingsClear),
       forgedSession: forgedCode,
       createDirectory: codeOf(createdKept),
-      deleteEntry: codeOf(deleted)
+      deleteEntry: codeOf(deleted),
+      uploadBytes: bytes.uploadBytes,
+      uploadChunks: bytes.uploadChunks,
+      downloadBytes: bytes.downloadBytes,
+      bytesMatch: bytes.bytesMatch,
+      emptyUpload: bytes.emptyUpload,
+      escapedUpload: bytes.escapedUpload,
+      cancelledUpload: bytes.cancelledUpload,
+      cancelledFile: bytes.cancelledFile,
+      tempResidue: bytes.tempResidue
     };
+  }
+
+  /**
+   * AC#10 的字节面：四次上传、两次下载，外加一次临时产物清点。
+   *
+   * @returns 报告里那九个字段。
+   *
+   * @remarks
+   * # 落点全在存储根，不在 {@link KEPT_DIR} 里
+   *
+   * **一个进程里这份脚本会跑两遍**（探针为 AC#4 把调试窗口关掉再以同 label 重开），而
+   * `KEPT_DIR` 会被第二遍的准备步骤整个删掉。字节产物放进去的话，第二遍随时可能把第一遍
+   * 刚验过的文件连目录一起删走，e2e 读盘那两条就成了竞态。
+   *
+   * 放在根上则两遍互不干扰：host 的提交是「写临时文件 → `rename`」，覆盖是原子的，
+   * 而两遍送的是同一份载荷。第二遍被 `app.exit` 打断在半路时，目标文件里留的仍是第一遍
+   * 那份完整内容。
+   *
+   * # 取消为什么排在两次成功上传之前
+   *
+   * 它要盯着存储根里的 `.rxdb-tmp` 出现再消失，而并发的提交会在同一个目录里造出同后缀的
+   * 临时产物——排在后面的话判据会被别人的临时文件污染。
+   */
+  async function driveBytes() {
+    const payload = payloadBytes();
+    const cancelled = await cancelUpload(CANCELLED_FILE, payload.subarray(0, CHUNK_BYTES));
+    // 「没有半写文件」经 wire 取而不是 e2e 读盘：读盘只能证明这台机器上那个位置是空的，
+    // 而 AC#10 问的是**面板看得到什么**。
+    const cancelledFile = await download(CANCELLED_FILE);
+    const empty = await upload('', EMPTY_FILE, new Uint8Array(0));
+    const sent = await upload('', BYTES_FILE, payload);
+    // `path: '..'` 整条被 `parseLogicalPath` 拒掉，走不到 provider 之外——所以它不发 START，
+    // 也就不会在盘上留下任何东西。
+    const escaped = await upload('..', BYTES_FILE, payload);
+    // 上传没成立时不去读回来：只读档下那条下载注定 `resource_not_found`，重试只会白等满预算。
+    const readBack =
+      sent.code === 'ok' ?
+        await retryWhileMissing(readBytesFile, codeOfDownload, COMMIT_READY_TIMEOUT_MS)
+      : { code: sent.code, bytes: new Uint8Array(0) };
+
+    return {
+      uploadBytes: transferCode(sent),
+      uploadChunks: sent.chunks,
+      downloadBytes: readBack.code,
+      bytesMatch: sameBytes(readBack.bytes, payload),
+      emptyUpload: transferCode(empty),
+      escapedUpload: escaped.code,
+      cancelledUpload: cancelled,
+      cancelledFile: cancelledFile.code,
+      tempResidue: await settledTemporaries()
+    };
+  }
+
+  /** 把刚上传的那个文件读回来。 */
+  function readBytesFile() {
+    return download(BYTES_FILE);
+  }
+
+  /** 一次 {@link download} 的结果码。 */
+  function codeOfDownload(result) {
+    return result.code;
   }
 
   // 逐阶段打点：这条链路上任何一步失败都表现为「主窗口什么都没收到」，而
