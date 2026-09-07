@@ -5,9 +5,9 @@
 //! Rust 侧的等待发生在 [`super::FileHost`] 的 `Condvar` 上，本模块只负责回答「谁该拿到锁」。
 //! 分开的好处是这套仲裁逻辑可以同步地单元测试——多线程测试里 FIFO 的顺序断言本身就不稳。
 //!
-//! 与 TS 侧的两处有意分歧，都写在各自的函数注释里：
-//! 1. [`LockTable::drop_session`] 先拒排队、后放持有（TS 侧相反）；
-//! 2. 会话关闭时把**尚未被取走**的授予结果改判为 `session_closed`。
+//! 与 TS 侧的一处有意分歧，写在 [`LockTable::drop_session`] 的注释里：会话关闭时把**尚未
+//! 被取走**的授予结果改判为 `session_closed`。TS 侧没有这个中间态——那里的等待是一个
+//! promise，授予即兑现，不存在「已授予但还没人来取」的一刻。
 
 use std::collections::{HashMap, VecDeque};
 
@@ -126,6 +126,14 @@ impl LockTable {
         self.queues.get(name).map_or(0, |queue| queue.waiting.len())
     }
 
+    /// 全表正在排队的申请数，不含已经拿到锁的持有者。
+    ///
+    /// 每一条在 Rust 侧都对应一条停在条件变量上的阻塞线程，因此它同时是一份线程占用账本——
+    /// 上限与理由见 `super` 的 `MAX_BLOCKED_LOCK_WAITERS`。
+    pub fn waiting_count(&self) -> usize {
+        self.queues.values().map(|queue| queue.waiting.len()).sum()
+    }
+
     /// 释放一把锁。
     ///
     /// 会话归属由**本表**判定：renderer 递来的 `lock_id` 只是一个字符串，
@@ -149,9 +157,10 @@ impl LockTable {
 
     /// 会话消失时回收它的全部锁。
     ///
-    /// **先拒排队、后放持有**，与 TS 侧的顺序相反。TS 侧先放持有的锁，那一步的 `pump`
-    /// 有可能把锁授给这个正在关闭的会话自己还排着的申请——那把锁随后不会有人释放，
-    /// 同名的后续申请就永远排在它后面。先把队列里属于本会话的申请拒干净，这条路径不存在。
+    /// **先拒排队、后放持有**。反过来的话，放持有那一步的 `pump` 有可能把锁授给这个正在
+    /// 关闭的会话自己还排着的申请——那把锁随后不会有人释放，同名的后续申请就永远排在它
+    /// 后面。先把队列里属于本会话的申请拒干净，这条路径不存在。
+    /// Electron 的 `closeSession` 用的是同一个顺序，两端必须一致。
     pub fn drop_session(&mut self, session_id: &str) {
         let mut touched = self.deny_waiters(session_id);
         touched.extend(self.release_held(session_id));

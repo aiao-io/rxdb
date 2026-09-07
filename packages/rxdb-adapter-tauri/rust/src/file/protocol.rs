@@ -576,6 +576,23 @@ mod tests {
         }
     }
 
+    /// 上限拦的是宿主的内存：分片整块进堆再落盘，不设线就等于让 renderer 决定分配多大。
+    /// 上限那一档也一起钉住——只测超限的话，把判据收紧成 `>=` 会悄悄砍掉一半合法分片，
+    /// 而那种改动看起来只是「更严格了」。
+    #[test]
+    fn caps_write_chunk_bytes() {
+        let request = |size: usize| {
+            json!({
+                "kind": "file.writeChunk", "sessionId": SESSION, "writeId": WRITE,
+                "chunk": crate::value::encode_bytes(&vec![0u8; size])
+            })
+        };
+
+        assert!(parse(request(MAX_FILE_CHUNK_BYTES)).is_ok());
+
+        assert_eq!(code_of(request(MAX_FILE_CHUNK_BYTES + 1)), ErrorCode::ProtocolViolation);
+    }
+
     /// `chunk` 只有 `$u8` 一种合法写法：放行字符串会让一段文本被静默写进用户的文件。
     #[test]
     fn parses_write_chunks_only_from_the_tagged_byte_shape() {

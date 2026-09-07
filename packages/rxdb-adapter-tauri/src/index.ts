@@ -35,6 +35,17 @@ export {
 
 export { RxDBAdapterDesktopError, type RxDBAdapterDesktopErrorCode } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 
+/**
+ * 转出只为与 `@aiao/rxdb-adapter-electron` 的导出面对称。
+ *
+ * @remarks
+ * 在 Tauri 上 `resolveDesktopHostTransport` 必然抛 `host_unavailable`：它读的是 preload 用
+ * `contextBridge.exposeInMainWorld` 注入到 `globalThis` 上的传输对象，而 Tauri 没有 preload
+ * 这一层，那个全局永远不存在。本包的传输由 {@link createTauriHostTransport}（`invoke` +
+ * `listen`）建出来，显式传给 `DesktopSqliteClient`。
+ *
+ * 这两个名字留着，是给同时面向两种宿主的通用代码做类型与常量引用用的。
+ */
 export {
   DESKTOP_HOST_TRANSPORT_KEY,
   DesktopSqliteClient,

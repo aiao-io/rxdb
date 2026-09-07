@@ -88,7 +88,9 @@ tauri::Builder::default()
 任何一扇窗口（调试窗口、将来某个忘了排除的窗口）都能自行打开应用作用域的库。
 未列入白名单的窗口发来的请求会得到一条普通应答 `{ kind: "error", code: "permission_denied" }`。
 
-做成普通 crate 而不是插件是刻意的：`generate_handler!` 注册的应用自定义命令**不受 capability 门禁约束**（只有 `core:` / `plugin:` 前缀的命令才是），于是接上桌面数据库**不需要**给应用授予 `sql` / `fs` / `shell` 任何插件权限，`capabilities/` 一个字都不用改。做成插件的话命令会带上 `plugin:` 前缀，恰好落进门禁——省下的只是上面这段样板，换掉的却是一条结构性的安全性质。
+做成普通 crate 而不是插件是刻意的：`generate_handler!` 注册的应用自定义命令**不受 capability 门禁约束**（只有 `core:` / `plugin:` 前缀的命令才是），于是接上桌面数据库**不需要**给应用授予 `sql` / `fs` / `shell` 任何插件权限。做成插件的话命令会带上 `plugin:` 前缀，恰好落进门禁——省下的只是上面这段样板，换掉的却是一条结构性的安全性质。
+
+不受门禁的只有 `rxdb_desktop_request` 这一条命令。**变更事件那一半仍然要过门禁**：`listen` 是 `core:event:listen`，用它的窗口需要 `core:event:default`（`core:default` 已经含了它，脚手架生成的 `default.json` 因此开箱可用）。真正会踩到的是自己裁过权限的窗口——那时症状很难看：`invoke` 通、库开得起来、查询也读得到数据，只是再也收不到变更事件，界面停在第一次查询的结果上，不报任何错。给那扇窗口的 capability 加上 `core:event:default` 即可。
 
 命令名与事件名由本包的两个常量钉住（`TAURI_DESKTOP_REQUEST_COMMAND` / `TAURI_DESKTOP_CHANGE_EVENT`），改名两边就对不上。变更事件按 `sessionId` 回送，事件名为 `rxdb-desktop-change`。
 

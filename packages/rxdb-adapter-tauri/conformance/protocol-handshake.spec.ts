@@ -24,6 +24,7 @@ import {
   DESKTOP_HOST_PROTOCOL_VERSION,
   DesktopSqliteClient,
   RxDBAdapterDesktopError,
+  TAURI_DESKTOP_REQUEST_COMMAND,
   type DesktopHostTransport
 } from '../src/index.js';
 import { createRustHostTransport } from './rust-host-transport.js';
@@ -43,6 +44,19 @@ const RUST_PROTOCOL_SOURCE = join(import.meta.dirname, '..', 'rust', 'src', 'pro
  */
 const RUST_PROTOCOL_VERSION_PATTERN = /pub const PROTOCOL_VERSION: i64 = (\d+);/;
 
+/** 命令名的 Rust 侧所在文件。 */
+const RUST_COMMANDS_SOURCE = join(import.meta.dirname, '..', 'rust', 'src', 'commands.rs');
+
+/**
+ * 抓 `#[tauri::command]` 那个函数的名字。
+ *
+ * @remarks
+ * Tauri 的命令名就是函数名，没有第二处声明可对；renderer 那边是
+ * {@link TAURI_DESKTOP_REQUEST_COMMAND} 这个字符串。两者之间没有任何机械联系，
+ * 任一侧改名，编译与单测都不会红——只有真正 `invoke` 时才 reject，而那已经在用户机器上了。
+ */
+const RUST_COMMAND_PATTERN = /#\[tauri::command\]\s*pub async fn (\w+)/;
+
 const withHost = async (
   run: (host: ReturnType<typeof createRustHostTransport>, workspace: string) => Promise<void>,
   env?: Readonly<Record<string, string>>
@@ -58,19 +72,23 @@ const withHost = async (
 };
 
 /**
- * 列出宿主数据目录里的东西；目录压根不存在时算作空。
+ * 递归列出宿主 app data 根目录下的一切；根不存在时算作空。
  *
  * @remarks
- * 「连目录都没建」比「建了目录但里面是空的」更强，两者都该算通过：`resolve_database_path`
- * 在校验通过后才 `create_dir_all`，握手挡在它前面时 `rxdb-data/` 根本不会出现，直接
- * `readdir` 会 ENOENT。把它当失败报出来的话，这条用例就变成在盯一个与「有没有留痕」无关的实现细节。
+ * 看的是**整个根**而不是 `rxdb-data/`：只盯那一个子目录的话，一个把库建到别处、或者在
+ * 启动时就往根里写点什么的宿主，会一路全绿地通过「一点痕迹都不留」。留痕就是留痕，
+ * 落在哪个子目录不改变结论。
+ *
+ * 根压根不存在也算通过，而且比「建了但为空」更强：`resolve_database_path` 校验通过后才
+ * `create_dir_all`，握手挡在它前面时目录根本不会出现，`readdir` 会 ENOENT。把 ENOENT
+ * 报成失败，这条用例就变成在盯一个与「有没有留痕」无关的实现细节。
  *
  * @param workspace - 宿主进程的 app data 根目录
- * @returns 目录里的条目名；目录不存在时为空数组
+ * @returns 根下的全部条目（相对路径）；根不存在时为空数组
  */
-const listDataDirectory = async (workspace: string): Promise<readonly string[]> => {
+const listWorkspace = async (workspace: string): Promise<readonly string[]> => {
   try {
-    return await readdir(join(workspace, 'rxdb-data'));
+    return await readdir(workspace, { recursive: true });
   } catch (error) {
     if ((error as { code?: unknown }).code !== 'ENOENT') throw error;
     return [];
@@ -85,7 +103,7 @@ describe('Rust 宿主的协议握手', () => {
       const answered = assertDesktopHostResponse('handshake', await host.transport.request({ kind: 'handshake' }));
       expect(answered.result.protocolVersion).toBe(DESKTOP_HOST_PROTOCOL_VERSION);
       // 无副作用：只握过手的宿主不该在磁盘上建出任何东西。
-      expect(await listDataDirectory(workspace)).toEqual([]);
+      expect(await listWorkspace(workspace)).toEqual([]);
     });
   });
 
@@ -114,6 +132,17 @@ describe('Rust 宿主的协议握手', () => {
     const matched = RUST_PROTOCOL_VERSION_PATTERN.exec(source);
     expect(matched, `在 ${RUST_PROTOCOL_SOURCE} 里找不到 ${String(RUST_PROTOCOL_VERSION_PATTERN)}`).not.toBeNull();
     expect(Number(matched?.[1])).toBe(DESKTOP_HOST_PROTOCOL_VERSION);
+  });
+
+  // 命令名同样是手抄的两份，而且比版本号更难发现：Tauri 的命令名就是那个函数名，
+  // 改掉它编译照过、Rust 测试照绿、TS 单测拿的是 mock 过的 `invoke` 也照绿——
+  // 唯一的症状是用户点开应用后每一条请求都被 reject。stdio 测试宿主走的是 `router`，
+  // 绕开了 `#[tauri::command]` 那一层，所以连一致性套件都盯不住它。
+  it('Rust 的 tauri 命令名等于 renderer invoke 的那个名字', async () => {
+    const source = await readFile(RUST_COMMANDS_SOURCE, 'utf8');
+    const matched = RUST_COMMAND_PATTERN.exec(source);
+    expect(matched, `在 ${RUST_COMMANDS_SOURCE} 里找不到 ${String(RUST_COMMAND_PATTERN)}`).not.toBeNull();
+    expect(matched?.[1]).toBe(TAURI_DESKTOP_REQUEST_COMMAND);
   });
 });
 
@@ -195,7 +224,7 @@ describe('两端协议版本不一致', () => {
   it('磁盘上一点痕迹都不留', async () => {
     await withHost(async (host, workspace) => {
       await connectAgainstMismatchedHost(host);
-      expect(await listDataDirectory(workspace)).toEqual([]);
+      expect(await listWorkspace(workspace)).toEqual([]);
     }, mismatchedEnv);
   });
 });

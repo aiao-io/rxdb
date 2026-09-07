@@ -26,12 +26,14 @@ import { createTauriHostTransport, type DesktopHostTransport } from '../src/inde
  * @remarks
  * Windows 上 cargo 产出的是 `.exe`。少了后缀，套件在那儿只会报「二进制不存在，去跑
  * build-test-host」——而那条命令刚刚才成功跑完，提示指向的是一个不存在的问题。
+ *
+ * `CARGO_TARGET_DIR` 同理：设了它，`build-test-host` 的产物就不在 `rust/target/` 下，
+ * 写死那条路径会得到同一句指向不存在问题的提示。相对值按 cwd 解析，与 cargo 自己一致。
  */
 const HOST_BINARY = resolve(
-  import.meta.dirname,
-  '..',
-  'rust',
-  'target',
+  processEnv.CARGO_TARGET_DIR !== undefined && processEnv.CARGO_TARGET_DIR !== '' ?
+    processEnv.CARGO_TARGET_DIR
+  : resolve(import.meta.dirname, '..', 'rust', 'target'),
   'debug',
   `rxdb_host_stdio${platform === 'win32' ? '.exe' : ''}`
 );

@@ -4,18 +4,19 @@
 //! 存在的理由见 US-505：文件内容此前写在 WebView 的 OPFS 里，与 US-210 的桌面 SQLite
 //! 不在同一个备份域——拷走应用数据目录只带走 metadata，恢复后 meta 指向不存在的文件。
 //!
-//! 三条不变式与 TS 侧逐条对齐：
+//! 四条不变式与 TS 侧逐条对齐：
 //! - **原子提交**：写入先落临时文件，`sync_all` 后 `rename` 覆盖目标。进程在任何一刻被杀，
 //!   目标要么是旧内容要么是新内容，不会是半写。
 //! - **会话归属**：未提交的写入与已持有的锁都挂在会话上，窗口销毁即整体回收。
 //! - **永不 panic、永不把错误吞成别的形状**：[`FileHost::handle`] 一律返回协议应答，
 //!   失败走 `{ kind:'error', code, message }`。
+//! - **错误消息只带相对路径**：物理根不跨 IPC，US-210 有一条测试专门断言根不出现在应答里。
+//!   这条曾经是本侧独有的收紧，Electron 现在同样只报逻辑路径。
 //!
-//! 与 TS 侧的三处有意分歧：
-//! 1. 错误消息里带的是**相对路径**，不是物理绝对路径（TS 侧的 writeChunk / commitWrite
-//!    会把物理根泄露给 renderer，US-210 有一条测试专门断言根不出现在应答里）；
-//! 2. 读帧用 `read_exact` 而不是可能短读的 `read`——并发截断要当场报错，不能悄悄补零；
-//! 3. 锁的两处顺序调整，见 [`locks::LockTable::drop_session`]。
+//! 与 TS 侧的两处有意分歧：
+//! 1. 读帧用 `read_exact` 而不是可能短读的 `read`——并发截断要当场报错，不能悄悄补零；
+//! 2. 会话关闭时把尚未被取走的授予结果改判为 `session_closed`，
+//!    见 [`locks::LockTable::drop_session`]。
 
 pub mod locks;
 pub mod protocol;
@@ -37,6 +38,47 @@ use self::locks::{LockOutcome, LockTable};
 use self::protocol::{
     parse_file_request, FileRequest, LockMode, MAX_PENDING_WRITES_PER_SESSION, MAX_QUEUED_LOCKS_PER_NAME,
 };
+
+/// 全部锁名加起来，同时**阻塞等待**的申请数上限。
+///
+/// 只在 Rust 侧存在，协议里没有对应常量，因为它防的是 Rust 独有的成本：一个等待中的
+/// `file.lockAcquire` 在 TS 宿主那里只是一个挂起的 promise，在这里却是一整条 tokio
+/// 阻塞线程——`rxdb_desktop_request` 一请求一 `spawn_blocking`，等待者停在
+/// [`FileHost::ready`] 上直到被授予，线程一直算它头上。
+///
+/// [`MAX_QUEUED_LOCKS_PER_NAME`] 拦不住这件事：会话数没有上限，锁名由 renderer 自己起，
+/// 把等待摊到几十个名字上，每名上限一条都碰不到，池子照样能填满。池满之后失守的不止是锁：
+/// SQL 请求也走同一个池，宿主会整个停摆。
+///
+/// 取 64 是因为 tokio 默认的阻塞池是 512 条线程，留下的余量足够 SQL 继续跑；同时它远高于
+/// 真实并发——正常用法下等待者是个位数，撞到这条线的只会是失控的调用方。
+///
+/// 上限按**排队中**的申请数算，因此已经满员时，连那些本来能当场授予、根本不会阻塞的申请
+/// 也一并挡掉。这是有意的：到了 64 条线程停在锁上的地步宿主已经不正常了，此刻先保住 SQL
+/// 通路，比多放行一次锁申请重要。
+///
+/// 它比 [`MAX_QUEUED_LOCKS_PER_NAME`] 严格得多——单名排到 256 之前全局早就满了，所以经由
+/// 本模块申请时那条每名上限实际触发不到。仍然保留：它是协议里的常量，与 TS 宿主逐条对齐，
+/// 报出的也是「违反了哪条协议规则」，而本常量报的是宿主自己的资源边界。
+const MAX_BLOCKED_LOCK_WAITERS: usize = 64;
+
+/// 全宿主同时挂着的未完成写入数上限。
+///
+/// 与 [`MAX_BLOCKED_LOCK_WAITERS`] 同源的一个洞：`MAX_PENDING_WRITES_PER_SESSION` 是**每会话**
+/// 的，而会话数没有上限，renderer 想开几个开几个。每一次未完成写入都攥着一个打开的临时文件
+/// 句柄，于是句柄总数由调用方说了算，每会话那条一次都不必碰到。
+///
+/// 句柄耗尽比锁等待更难看：它不落在文件协议上，而是让**进程里任何一处**下一次 `open` 失败——
+/// SQLite 开库、WAL、`-shm`，随便哪一个先撞上，报出来的错与真正的原因毫无关系。
+///
+/// 取值就等于每会话那条，于是本常量恰好堵住**放大**：整个宿主攥着的句柄，不会超过协议允许
+/// 单个会话攥着的量。这个数本身谈不上宽裕——macOS 默认的句柄软限制就是 256——但那是协议常量
+/// 自带的性质，两端共用，不该由其中一侧的实现单方面收紧。要调得往
+/// `DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION` 上调，两端一起。
+///
+/// 与 [`MAX_BLOCKED_LOCK_WAITERS`] 不同，本条**不会**让每会话那条失效：两者取值相同，而每会话
+/// 先判，因此单会话写满时报出的仍是「这个会话已满」，与 TS 宿主逐字一致。
+const MAX_PENDING_WRITES_PER_HOST: usize = MAX_PENDING_WRITES_PER_SESSION;
 
 /// 一次尚未提交的写入。
 ///
@@ -60,6 +102,16 @@ struct FileSession {
 struct FileState {
     sessions: HashMap<String, FileSession>,
     locks: LockTable,
+}
+
+impl FileState {
+    /// 全表未完成的写入数，跨所有会话。
+    ///
+    /// 每一条都对应一个打开着的临时文件句柄，因此它同时是一份句柄占用账本——
+    /// 上限与理由见 [`MAX_PENDING_WRITES_PER_HOST`]。
+    fn pending_write_count(&self) -> usize {
+        self.sessions.values().map(|session| session.writes.len()).sum()
+    }
 }
 
 /// 未提交写入留在盘上的临时产物后缀，对齐 TS 侧的 `DESKTOP_HOST_TEMPORARY_SUFFIX`。
@@ -320,9 +372,11 @@ fn discard_write(pending: &PendingWrite) {
 /// `rename` 的原子性只覆盖「要么旧要么新」，不覆盖「已经落盘」：目录项还在页缓存里时掉电，
 /// 重启后看到的可能仍是改名前的状态——内容已 `sync_all` 也救不回来，因为指向它的那条目录项没落。
 ///
-/// Windows 上 `File::open` 打不开目录（拿不到 `FILE_FLAG_BACKUP_SEMANTICS`），那里的 rename
-/// 由文件系统日志保证；只吞「打不开目录」这一类错误，其余照常上报，否则「提交成功」就成了
-/// 没有依据的断言。
+/// 吞掉的是「这套文件系统压根不做目录 fsync」这一类信号，`open` 与 `sync_all` 两步都算数：
+/// Windows 上 `File::open` 打不开目录（拿不到 `FILE_FLAG_BACKUP_SEMANTICS`），而另一些文件
+/// 系统目录能打开、`fsync` 却回 `EINVAL`。两种形状不同，含义是同一个，处理也该是同一个——
+/// 那里的 rename 由文件系统日志保证持久性。除这两个错误类别之外一律照常上报，否则
+/// 「提交成功」就成了没有依据的断言。
 fn sync_directory(directory: &Path) -> io::Result<()> {
     match File::open(directory).and_then(|handle| handle.sync_all()) {
         Err(error) if matches!(error.kind(), io::ErrorKind::PermissionDenied | io::ErrorKind::InvalidInput) => Ok(()),
@@ -638,6 +692,14 @@ impl FileHost {
                 format!("session already has {MAX_PENDING_WRITES_PER_SESSION} pending writes"),
             ));
         }
+        // 全局那条要数遍所有会话，所以放在每会话之后：能被前一条挡下的就不必数了。
+        if state.pending_write_count() >= MAX_PENDING_WRITES_PER_HOST {
+            return Err(HostError::new(
+                ErrorCode::ProtocolViolation,
+                format!("{MAX_PENDING_WRITES_PER_HOST} writes are already pending on this host"),
+            ));
+        }
+        let session = state.sessions.get_mut(session_id).ok_or_else(|| session_closed(session_id))?;
         session.writes.insert(write_id.to_string(), pending);
         Ok(())
     }
@@ -709,6 +771,12 @@ impl FileHost {
             return Err(HostError::new(
                 ErrorCode::ProtocolViolation,
                 format!("lock {name} already has {MAX_QUEUED_LOCKS_PER_NAME} queued waiters"),
+            ));
+        }
+        if state.locks.waiting_count() >= MAX_BLOCKED_LOCK_WAITERS {
+            return Err(HostError::new(
+                ErrorCode::ProtocolViolation,
+                format!("{MAX_BLOCKED_LOCK_WAITERS} lock waiters are already blocked on this host"),
             ));
         }
         let lock_id = state.locks.enqueue(name, session_id, mode);
@@ -995,6 +1063,42 @@ mod tests {
 
     /// 每个挂起的写入都占着一个 fd。不设上限，一个只 begin 不 commit 的 renderer
     /// 就能把宿主的 fd 耗光——那时连数据库都打不开，一个 renderer 的 bug 升级成整个应用不可用。
+    /// 每会话上限拦不住句柄耗尽：会话数没有上限，把写入摊到足够多的会话上，每会话上限一条
+    /// 都碰不到，进程的句柄却已经见底——那时失败的会是别处的 `open`，报出来的错与真因无关。
+    #[test]
+    fn caps_pending_writes_across_all_sessions() {
+        let harness = Harness::new();
+        {
+            let mut state = harness.host.lock_state();
+            for index in 0..MAX_PENDING_WRITES_PER_HOST {
+                // 每个会话只挂一条，稳稳落在 `MAX_PENDING_WRITES_PER_SESSION` 之下，
+                // 拦下溢出的只能是全局上限。句柄位置留空：这条用例数的是账，不是真的去开文件。
+                let mut session = FileSession::default();
+                session.writes.insert(
+                    format!("write-{index}"),
+                    Arc::new(PendingWrite {
+                        target: harness.root.join(format!("{index}.bin")),
+                        temporary: harness.root.join(format!("{index}.bin{TEMPORARY_SUFFIX}")),
+                        relative_path: format!("{index}.bin"),
+                        file: Mutex::new(None)
+                    })
+                );
+                state.sessions.insert(format!("session-{index}"), session);
+            }
+        }
+
+        // 发起方自己一条未完成写入都没有，因此绝不可能是每会话那条拦下它的。
+        let overflow = harness.call(json!({ "kind": "file.writeBegin", "path": "overflow.bin" }));
+
+        assert_eq!(overflow["kind"], "error");
+        assert_eq!(overflow["code"], "protocol_violation");
+        assert!(
+            overflow["message"].as_str().is_some_and(|message| message.contains("on this host")),
+            "报的应该是全宿主上限，实际是 {}",
+            overflow["message"]
+        );
+    }
+
     #[test]
     fn caps_pending_writes_per_session() {
         let harness = Harness::new();
@@ -1004,6 +1108,30 @@ mod tests {
         }
 
         let overflow = harness.call(json!({ "kind": "file.writeBegin", "path": "bulk/overflow.txt" }));
+
+        assert_eq!(overflow["kind"], "error");
+        assert_eq!(overflow["code"], "protocol_violation");
+    }
+
+    /// 每个阻塞中的等待者都占着一条 tokio 阻塞线程，而锁名由 renderer 自己起：
+    /// 摊到足够多的名字上，每名上限一条都碰不到，池子却已经满了——那时 SQL 也一起停摆。
+    #[test]
+    fn caps_blocked_lock_waiters_across_all_names() {
+        let harness = Harness::new();
+        {
+            let mut state = harness.host.lock_state();
+            for index in 0..MAX_BLOCKED_LOCK_WAITERS {
+                let session = format!("queued-{index}");
+                state.sessions.insert(session.clone(), FileSession::default());
+                // 每个名字各来两次：第一次当场授予，第二次才排上队。每名只压一个等待者，
+                // 稳稳落在 `MAX_QUEUED_LOCKS_PER_NAME` 之下，拦下溢出的只能是全局上限。
+                let name = format!("files:/{index}");
+                state.locks.enqueue(&name, &session, LockMode::Exclusive);
+                state.locks.enqueue(&name, &session, LockMode::Exclusive);
+            }
+        }
+
+        let overflow = harness.call(json!({ "kind": "file.lockAcquire", "name": "files:/fresh", "mode": "exclusive" }));
 
         assert_eq!(overflow["kind"], "error");
         assert_eq!(overflow["code"], "protocol_violation");
@@ -1062,6 +1190,16 @@ mod tests {
         let harness = Harness::new();
         let original = fs::metadata(&harness.root).expect("the storage root exists").permissions();
         fs::set_permissions(&harness.root, fs::Permissions::from_mode(0o555)).expect("the temp root is ours to seal");
+
+        // root 无视写权限位，某些挂载（如 FAT）也不认它。那时下面的 `writeBegin` 会成功，
+        // 断言会红在一个与被测代码无关的理由上。先自己探一下封没封住，没封住就放过——
+        // 恒绿的用例不好，因为环境而恒红的用例更糟。
+        let sealed = fs::File::create(harness.root.join(".probe")).is_err();
+        if !sealed {
+            fs::set_permissions(&harness.root, original).expect("the temp root is ours to unseal");
+            let _ = fs::remove_file(harness.root.join(".probe"));
+            return;
+        }
 
         let response = harness.call(json!({ "kind": "file.writeBegin", "path": "a.txt" }));
 
@@ -1149,12 +1287,11 @@ mod tests {
         let error = resolve_within_root(&root, "a/../../escape").unwrap_err();
         assert_eq!(error.code, ErrorCode::InvalidFilePath);
 
-        // 同前缀的兄弟目录不在根内：`starts_with` 按路径分量比较，不是按字符串前缀。
-        let sibling = root.with_file_name(format!(
-            "{}-evil",
-            root.file_name().unwrap().to_string_lossy()
-        ));
-        assert!(!normalize(&sibling).starts_with(normalize(&root)));
+        // 同前缀的兄弟目录不在根内。走真的 `resolve_within_root`：这条路径归一化之后与根
+        // 只差一个后缀，包含判据若是按字符串前缀比而不是按路径分量比，它就会被当成根内。
+        let sibling = format!("../{}-evil/x", root.file_name().unwrap().to_string_lossy());
+        let error = resolve_within_root(&root, &sibling).unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidFilePath);
 
         assert_eq!(resolve_within_root(&root, "").unwrap(), normalize(&root));
         assert_eq!(resolve_within_root(&root, "a/b").unwrap(), normalize(&root).join("a/b"));

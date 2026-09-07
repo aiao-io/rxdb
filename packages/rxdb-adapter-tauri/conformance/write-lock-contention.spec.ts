@@ -110,6 +110,15 @@ describe('两个会话争同一个库的写锁', () => {
       await waiter.execute('COMMIT;');
       const rows = (await holder.execute('SELECT id FROM contended ORDER BY id')).results[0]?.rows;
       expect(rows).toEqual([[1], [2]]);
+
+      // 「撞锁时悄悄改道到另一个物理文件」会让上面每一条断言都照旧通过——两个会话各写各的
+      // 库，各自都成功，读回来的行也对得上。只有清点磁盘才抓得到。断言放在这条用例里，是因为
+      // 它是**唯一确定发生过撞锁**的地方：上面的 `isSettled()` 已经证明 waiter 真的等过锁，
+      // 而改道路径只有在撞上锁时才有机会跑。放在一条不撞锁的用例里，等于什么都没测。
+      // `-wal` / `-shm` 不以 `.sqlite3` 结尾，因此这里数出来的就是库文件本身。
+      const files = await readdir(join(workspace, 'rxdb-data'));
+      expect(files.filter(name => name.endsWith('.sqlite3'))).toEqual([DATABASE_NAME]);
+
       await holder.execute('DELETE FROM contended');
     });
   });
@@ -137,21 +146,19 @@ describe('两个会话争同一个库的写锁', () => {
     BUSY_TIMEOUT_MS * 4
   );
 
-  it('撞锁不会让宿主改道到另一个物理文件', async () => {
+  // 不制造撞锁，因此不叫「撞锁不会改道」——那条断言归上面那条真的等过锁的用例。
+  // 这里只钉一件事：同名的两个会话开出来的是同一个库，而不是各自一份。
+  it('同名的两个会话看到的是同一份数据', async () => {
     await withTwoSessions(async (holder, waiter) => {
-      // 逻辑位置相同是必要条件，但它只是宿主拼出来的字符串；真正的判据是下面的文件清点。
+      // 逻辑位置相同是必要条件，但它只是宿主拼出来的字符串；真正的判据是下面读得到对方的行。
       expect(waiter.resolvedLocation).toBe(holder.resolvedLocation);
 
       await holder.execute(holder.beginTransactionSql());
       await holder.execute('INSERT INTO contended (id) VALUES (7)');
       await holder.execute('COMMIT;');
+
       const rows = (await waiter.execute('SELECT id FROM contended')).results[0]?.rows;
       expect(rows, '第二个会话读不到第一个刚提交的行，说明它连的不是同一个库').toEqual([[7]]);
-
-      // 「撞锁时悄悄换一个文件」会让上面每一条断言都照旧通过，只有清点物理文件才抓得到：
-      // `-wal` / `-shm` 不以 `.sqlite3` 结尾，因此这里数出来的就是库文件本身。
-      const files = await readdir(join(workspace, 'rxdb-data'));
-      expect(files.filter(name => name.endsWith('.sqlite3'))).toEqual([DATABASE_NAME]);
 
       await holder.execute('DELETE FROM contended');
     });

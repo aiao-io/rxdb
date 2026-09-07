@@ -4,7 +4,12 @@
 - **范围**：`packages/rxdb-adapter-tauri` 全部三半：npm 包 `src/`（6 个源文件 601 行 + 2 个 spec 409 行）、Rust 宿主 `rust/`（crate `aiao-rxdb-tauri`，14 个文件 6,307 行含内联单测）、跨进程一致性套件 `conformance/`（14 个文件 1,662 行）。对照物：`@aiao/rxdb-adapter-sqlite-core/desktop-host` 共享层、`@aiao/rxdb-adapter-electron` 与 `apps/dev-rxdb-electron` 的对侧实现、`apps/dev-rxdb-tauri` 的接线
 - **日期**：2026-09-07
 - **结论**：🟡 凑合偏下。门禁全绿、注释与结构质量高、happy path 与 Electron 逐行等价；但 **两条 🔴 由真实宿主进程实测复现**（authorizer 对绑定参数形式的 `ATTACH` 失效、非 UTF-8 文本 panic 后毒化会话锁），第三条 🔴 是文档写明的安全性质（变更事件定向投递）在 Tauri 事件系统的实际语义下并不成立。一致性套件绕过了恰好是 Tauri 特有的那一层（窗口归属 / `emit_to` / 异步 `listen`），因此上述回归都不会让套件变红
-- **修复状态**：进行中（2026-09-08）。已修：🔴 #1、🔴 #2、🔴 #3、🟡 #4、🟡 #5、🟡 #7、🟡 #8、🟡 #11、🟡 #13、🟡 #14。待修：🟡 #6、🟡 #9、🟡 #10、🟡 #12、🟢 全部
+- **修复状态**：🔴 与 🟡 全部修完（2026-09-08）。🔴 #1–#3、🟡 #4–#14 十四条已修，🟢 一档已处理绝大部分，余下几条见文末「未采纳」。
+- **验证**：Rust 150 测试通过、clippy `-D warnings` 干净；一致性套件 610 测试 / 12 文件通过；`lint` `test` `typecheck` 全绿。
+- **三处与评审建议不同的判断**（理由写在对应代码注释里）：
+  1. **#6 修在宿主侧，不是 demo 的 `spawn_blocking`。** 评审建议调 tokio 阻塞池配置；改成在 `file/mod.rs` 加全局上限 `MAX_BLOCKED_LOCK_WAITERS = 64`。理由：池子大小是应用的自由，宿主不该假定；真正要守的是「等待者数量有界」这条宿主自己的不变式。
+  2. **#9 的 Electron 孪生缺陷未修。** `node-sqlite-engine.ts` 有同一处 `#watchedTables` 陈旧问题，但 `node:sqlite` 不暴露 rollback hook，Rust 那套修法搬不过去，且不在本次评审范围内。**仍然存在，需另开一条。**
+  3. **分片上限的检查顺序保留原样。** 评审指出 `read_chunk` 在 `decode_bytes` 之后才查上限。实测下来 base64 文本在 JSON 解析时已整体入内存，解码只多花约 3/4，没有放大效应；调整顺序反而要把 `$u8` 的编码知识推进 `read_chunk`。改为补上缺失的上限测试。
 
 ## 评审方法
 
@@ -160,6 +165,24 @@
 4. 🟡 #4 / #5 / #11：三条与 Electron 的行为分叉。
 5. 🟡 #6 / #9 / #10 / #12：调度与资源类，各自需要一条能打红的并发测试。
 6. 🟢 注释漂移与测试质量一并清。
+
+## 未采纳 / 仍然打开
+
+四条本轮没动，理由各不相同，都不是「忘了」。
+
+1. **文件协议的若干错误码与 Electron 是否一致，仍然没有任何测试盯着。** 共享的
+   `storageBackendParitySuite`（`@aiao/rxdb-plugin-storage`，18 条）两端都跑，但它只钉了
+   `removeDirectory('/')` 一条路径类错误；评审点名的四种——对普通文件 `rmdir`、对目录
+   `remove`、符号链接成环、Windows 上读目录——一条都没覆盖。也就是说两套宿主此刻**可能已经
+   不一致**，而不会有任何东西变红。修在这里没用：正确的位置是那个共享套件，一加就同时作用于
+   Electron，而 Electron 侧若真的不一致，本轮范围内修不了它，仓库会留红。**需另开一条**，
+   连同下面第 2 条一起做。
+2. **`node-sqlite-engine.ts` 里 #9 的孪生缺陷。** `#watchedTables` 同样会在回滚后留下陈旧表名。
+   `node:sqlite` 不暴露 rollback hook，Rust 那套修法搬不过去，需要另想办法。**仍然存在。**
+3. **`PRAGMA temp_store_directory` 的透传没有评估。** 它能把临时文件引到存储根之外，与
+   `resolve_within_root` 的收紧意图相冲突；但判断它该不该拦、拦在授权器还是别处，
+   要先确认 RxDB 自身与各存储后端是否用得到这条 pragma，本轮没有做这件事。
+4. **分片上限的检查顺序**，理由见文首第 3 条。
 
 ## 附：本次复现用法
 

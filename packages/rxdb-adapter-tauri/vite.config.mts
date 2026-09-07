@@ -50,7 +50,7 @@ export default defineConfig(() => ({
       checks: { pluginTimings: false },
       // 本包**只有** renderer 一侧，没有 `node:` 内建可外置：`/^node:/` 若哪天需要出现在这里，
       // 就说明有 Node 代码混进了要打进 WebView 的 bundle，那是缺陷而不是配置项（US-210 T3）。
-      external: ['@aiao/rxdb', '@aiao/rxdb-adapter-sqlite-core', '@aiao/rxdb-adapter-sqlite-core/desktop-host', 'rxjs']
+      external: ['@aiao/rxdb', '@aiao/rxdb-adapter-sqlite-core', '@aiao/rxdb-adapter-sqlite-core/desktop-host']
     }
   },
   test: {

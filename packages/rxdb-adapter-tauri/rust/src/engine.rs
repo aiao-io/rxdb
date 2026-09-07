@@ -13,8 +13,10 @@
 //!    于是 SQLite 自己的忙等就是对的工具，不需要在上层再写一套异步退避。
 //! 2. **批处理调度**：Node 版在触发器体内就 `setTimeout`，因为 JS 的定时器无论如何都得等
 //!    当前同步执行跑完才可能触发。Rust 的 flusher 是真线程，同样的写法会让事件在语句还没跑完、
-//!    事务还没提交时就派发出去。因此截止时间统一在 `execute()` **返回前**设置，
-//!    效果与 JS 的宏任务时序一致。
+//!    事务还没提交时就派发出去。因此截止时间统一在 `execute()` **返回前**设置——但只做这一半
+//!    还不够：上一次 `execute()` 设下的截止时间照样会在下一次跑到一半时到期。所以
+//!    `execute()` 全程另外挡住派发（[`Engine::hold_flush`]）。两条合起来才等价于 JS 的
+//!    宏任务时序：批次只在两次 `execute()` 之间发得出去。
 //! 3. **语句切分与只读判定**：见 [`super::script`]。
 
 use std::collections::HashSet;
@@ -61,6 +63,10 @@ pub const DEFAULT_BATCH_TIMEOUT_MS: u64 = 16;
 ///
 /// 纯 debounce 在持续写入下会被无限重置，事件在整个导入/迁移期间都不会派发。
 /// 这个上限保证自批次首个事件起最多 100ms 必定发一次。
+///
+/// 「最多 100ms」以两次 `execute()` 之间为准：上限到期时若有 `execute()` 在跑，派发要等它
+/// 结束（[`PendingState::due_in`]）。一条跑 1s 的语句因此把这一批推到 1s 后——代价换的是
+/// 订阅者永远不会收到半条语句，见 [`Engine::hold_flush`]。
 pub const MAX_BATCH_WAIT_MS: u64 = 100;
 
 /// 默认 SQLite 页缓存大小（KB），50 MB。
@@ -69,6 +75,9 @@ pub const DEFAULT_CACHE_SIZE_KB: u64 = 50 * 1024;
 const WAL_AUTOCHECKPOINT_PAGES: u64 = 1000;
 
 /// 撞锁时 SQLite 自己退让重试的时长。
+///
+/// 关连接时的 checkpoint 是唯一的例外，那里会先把它撤掉——
+/// 理由见 [`Engine::checkpoint_without_waiting`]。
 const BUSY_TIMEOUT_MS: u32 = 5_000;
 
 /// 变更事件里的 schema 名。
@@ -154,6 +163,8 @@ struct PendingState {
     deadline: Option<Instant>,
     /// 硬上限截止时间，一个批次只设一次，后续事件不重置。
     hard_deadline: Option<Instant>,
+    /// 这条连接上是否有一次 `execute()` 正在跑。见 [`PendingState::due_in`]。
+    execute_in_flight: bool,
     closed: bool,
 }
 
@@ -184,7 +195,17 @@ impl PendingState {
     }
 
     /// 距离本批次应当派发还有多久；`None` 表示当前无事可做。
+    ///
+    /// 有 `execute()` 在跑时一律 `None`，哪怕截止时间早就到了。截止时间是**上一次**
+    /// `execute()` 设下的，而 flusher 是独立线程：不挡这一下，它会在下一条语句跑到一半时
+    /// 醒来取走批次，把该次 `execute()` 已经录下的那部分先发出去，剩下的留给下一批——
+    /// 订阅者于是看到半条语句，而此刻这条语句可能正要失败并回滚，那半批通告的是
+    /// 一批从未存在过的行。`execute()` 结尾的 [`Engine::arm_flush`] 会清掉这个标志并唤醒
+    /// flusher，因此这里只推迟派发，不会把批次拖住。
     fn due_in(&self) -> Option<Duration> {
+        if self.execute_in_flight {
+            return None;
+        }
         let deadline = self.deadline?;
         let target = self.hard_deadline.map_or(deadline, |hard| deadline.min(hard));
         Some(target.saturating_duration_since(Instant::now()))
@@ -344,6 +365,9 @@ impl Engine {
             )));
         }
 
+        // 从这里到 `arm_flush()` 之间不许派发批次，理由见 [`PendingState::due_in`]。
+        // 多语句脚本整条算一次：脚本中途的事务状态同样还没落定。
+        self.hold_flush();
         // 前一次是为别的连接刚建好的系统表补装触发器，后一次是为本条语句自己建的表补装。
         let outcome = self
             .ensure_notify_triggers()
@@ -379,7 +403,8 @@ impl Engine {
     ///
     /// 关闭前回滚尚未提交的事务并做一次 TRUNCATE checkpoint（AC#8）：前者避免把半截状态
     /// 留给下次启动，后者把 WAL 内容并回主库文件，使调用方随后可以直接重命名/备份这个
-    /// `.sqlite3`，而不必额外搬运 `-wal` / `-shm` 旁文件。
+    /// `.sqlite3`，而不必额外搬运 `-wal` / `-shm` 旁文件。checkpoint 不为别的连接等待，
+    /// 理由见 [`Engine::checkpoint_without_waiting`]。
     ///
     /// 还攒在批次里的变更事件在这里**同步**发掉：flusher 线程随连接一起结束，
     /// 不发就等于把最后一批写入的通知悄悄吞掉。
@@ -392,10 +417,7 @@ impl Engine {
         self.stop_flusher();
         self.flush_now();
         let rollback = self.rollback_open_transaction();
-        let checkpoint = self
-            .db()
-            .execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")
-            .map_err(|error| self.statement_error("PRAGMA wal_checkpoint(TRUNCATE)", &error));
+        let checkpoint = self.checkpoint_without_waiting();
         // 前两步无论成败都要把句柄交还：一次 checkpoint 失败若连带留住连接，
         // 文件就被永久占住，而这正是本方法要避免的。
         let released = self.release_connection();
@@ -410,6 +432,29 @@ impl Engine {
         self.connection
             .as_ref()
             .expect("the connection outlives every path guarded by assert_open")
+    }
+
+    /// 尽力做一次 TRUNCATE checkpoint，但**不为任何人等待**。
+    ///
+    /// TRUNCATE 要拿独占锁，因此会被别的连接的读事务挡住，而这条连接上挂着 5 秒的
+    /// `busy_timeout`（[`BUSY_TIMEOUT_MS`]）——不先撤掉它，关一个会话就会在忙等里坐满 5 秒。
+    /// 这条路径同步跑在调用方线程上，demo 的 `on_window_event` 又在主线程调它：
+    /// 于是另一扇窗口开着事务时，关窗口把整个界面冻住数秒。
+    ///
+    /// 等下去也换不来 AC#8：还有别的连接在读，就说明此刻这个库本来就不能被搬走。
+    /// AC#8 真正依赖的是「最后一条连接关闭时 SQLite 自己 checkpoint 并删掉 `-wal` / `-shm`」，
+    /// 那条路径由 [`Engine::release_connection`] 走完，不受这里的取舍影响。
+    ///
+    /// 被挡住时 SQLite 不报错，而是让 `PRAGMA` 在返回行的第一列写 1；`execute_batch` 丢弃
+    /// 结果行，所以这里读不到它。这是有意的：多窗口下「没能截断」是常态而不是故障，
+    /// 报成错误会让每一次正常的多窗口关闭都在协议上变成一次失败。
+    fn checkpoint_without_waiting(&self) -> HostResult<()> {
+        self.db()
+            .busy_timeout(Duration::ZERO)
+            .map_err(|error| self.statement_error("PRAGMA busy_timeout = 0", &error))?;
+        self.db()
+            .execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")
+            .map_err(|error| self.statement_error("PRAGMA wal_checkpoint(TRUNCATE)", &error))
     }
 
     /// 把文件句柄交还给操作系统，SQLite 借此删掉 `-wal` / `-shm` 旁文件。
@@ -554,8 +599,23 @@ impl Engine {
         }
     }
 
+    /// 在 `execute()` 期间挡住派发，理由见 [`PendingState::due_in`]。
+    ///
+    /// 不必唤醒 flusher：这个标志只会让它等得更久，而它下一次醒来时必须先拿到同一把锁，
+    /// 于是一定看得到。反过来，flusher 判定「到期」与取走批次在同一个临界区里，
+    /// 所以也不存在「刚放行就被抢在前面」的窗口。
+    fn hold_flush(&self) {
+        let mut pending = self.state.0.lock().expect("pending state mutex poisoned");
+        pending.execute_in_flight = true;
+    }
+
+    /// 语句跑完：放行派发并把截止时间往后顺延一个 debounce。
+    ///
+    /// 放行与 `arm` 必须在同一个临界区里做完，中间放开锁就等于给 flusher 留了一个
+    /// 「按旧截止时间立刻派发」的窗口——那正是 [`Engine::hold_flush`] 要挡的那一下。
     fn arm_flush(&self) {
         let mut pending = self.state.0.lock().expect("pending state mutex poisoned");
+        pending.execute_in_flight = false;
         pending.arm(self.batch_timeout);
         drop(pending);
         self.state.1.notify_all();
@@ -839,12 +899,26 @@ mod tests {
         engine.execute(sql, &[]).unwrap()
     }
 
+    /// WAL 的意义是「进程没了，已提交的数据还在」。只读一句 `PRAGMA journal_mode` 证不了
+    /// 这件事：除了模式设错以外的任何一种落盘缺陷——事务没提交、WAL 没 checkpoint、
+    /// 句柄没关干净——都能让那句话照样答 `wal`。所以这里真的关掉再开一次。
     #[test]
     fn opens_in_wal_mode_so_the_file_survives_a_restart() {
-        let mut harness = harness(0);
-        let result = run(&mut harness.engine, "PRAGMA journal_mode");
-        let results = result.results.unwrap();
-        assert_eq!(results.rows, vec![vec![SqlValue::Text("wal".into())]]);
+        let directory = temp_directory();
+        let file_path = directory.0.join("app.sqlite3");
+
+        let mut first = open_engine(&file_path);
+        let mode = run(&mut first, "PRAGMA journal_mode").results.unwrap();
+        assert_eq!(mode.rows, vec![vec![SqlValue::Text("wal".into())]]);
+        run(&mut first, "CREATE TABLE t (a TEXT)");
+        run(&mut first, "INSERT INTO t VALUES ('kept')");
+        first.close().unwrap();
+
+        let mut restarted = open_engine(&file_path);
+        let rows = run(&mut restarted, "SELECT a FROM t").results.unwrap().rows;
+        restarted.close().unwrap();
+
+        assert_eq!(rows, vec![vec![SqlValue::Text("kept".into())]]);
     }
 
     /// 双引号在 SQL 标准里是**标识符**。SQLite 出于兼容留了一条回退：双引号串解析不成
@@ -1362,6 +1436,46 @@ mod tests {
             ErrorCode::SessionClosed
         );
         assert_eq!(harness.engine.version().unwrap_err().code, ErrorCode::SessionClosed);
+    }
+
+    /// 同一个库上再开一条连接，用于验证跨连接的关闭行为。
+    fn open_engine(file_path: &std::path::Path) -> Engine {
+        Engine::open(EngineOptions {
+            file_path: file_path.to_path_buf(),
+            db_name: "app.sqlite3".into(),
+            batch_timeout_ms: 0,
+            sink: Arc::new(|_| {}),
+        })
+        .unwrap()
+    }
+
+    /// TRUNCATE checkpoint 要等所有读者让开，而这条连接上挂着 5 秒的 `busy_timeout`：
+    /// 另一扇窗口正开着读事务时，`close()` 会在忙等里坐满 5 秒。demo 的 `on_window_event`
+    /// 在主线程上调它，用户看到的就是关一扇窗口把整个界面冻住数秒。
+    ///
+    /// 关闭路径上等下去也换不来什么：还有别的连接在读，就说明这个库此刻本来就不能被搬走，
+    /// 而 AC#8 真正依赖的是「最后一条连接关闭时 SQLite 自己删掉 `-wal`」——那条路径不受影响，
+    /// 由 [`releases_the_file_handle_so_it_can_be_renamed`] 守着。
+    #[test]
+    fn does_not_wait_out_the_busy_timeout_when_another_connection_is_reading() {
+        let directory = temp_directory();
+        let file_path = directory.0.join("app.sqlite3");
+        let mut closing = open_engine(&file_path);
+        let mut reader = open_engine(&file_path);
+        run(&mut closing, "CREATE TABLE t (a INTEGER)");
+        run(&mut closing, "INSERT INTO t VALUES (1)");
+        // 开着的读事务让 TRUNCATE checkpoint 拿不到独占锁。
+        run(&mut reader, "BEGIN");
+        run(&mut reader, "SELECT count(*) FROM t");
+
+        let started_at = Instant::now();
+        closing.close().unwrap();
+        let elapsed = started_at.elapsed();
+        reader.close().unwrap();
+        assert!(
+            elapsed < Duration::from_millis(u64::from(BUSY_TIMEOUT_MS) / 5),
+            "close() blocked on the busy handler for {elapsed:?}"
+        );
     }
 
     /// AC#8：关闭后 WAL 已 checkpoint、句柄已释放，文件可以直接重命名。
