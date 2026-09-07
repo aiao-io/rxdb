@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-08-21
-updated: 2026-08-24
+updated: 2026-09-06
 tags: [adapter, http, remote, querycache]
 ---
 
@@ -74,13 +74,13 @@ Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另�
 
 - HTTP 内部拥有 / 创建 sqlite（产品 A，已否决）
 - 在本包内实现 `upsertMany()` / `deleteByIds()` —— 那是 LocalBase 的面，实现它等于把本包变成第三种存储
-- 实现 `rawQuery`（AC#25）—— 一旦实现，本包落进 [adapter-contract §4.6](../../../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决) 的 bypass 门禁，[roadmap 约束 11](../../roadmap.md#排期约束) 用「结构隔离」换掉 epic-006 排期前置的论证随之作废
+- 实现 `rawQuery`（AC#25）—— 一旦实现，本包落进 [epic-006 bypass 门禁判定](../../epics/epic-006-working-tree-commits.md#raw-sql--adapter-直写的-bypass-门禁判定) 的 bypass 门禁，[roadmap 约束 11](../../roadmap.md#排期约束) 用「结构隔离」换掉 epic-006 排期前置的论证随之作废
 - 实现 `pushBranches` / `branchExists` / `pullBranches`（AC#26）—— v1 无 Full-sync，分支语义无处落地
 - 把传输失败包进**本包自定义** Error 类（会让 `isNetworkError` 认不出，静默打死 `offlineFallback`）；也不走「原样上抛 `TypeError`」那条路——node/undici 的 `fetch failed` 不命中 core 正则
 - 改 core 的 `FETCH_FAILURE_MESSAGE` 正则或让它读 `error.cause`（放宽后 message 含 `load failed` 的业务错误会被误判成离线；本包自己分类即可）
 - v1 Full changelog 同步
 - Evolu XOR / CRDT
-- ~~乐观离线写（US-020 D5：cache 模式离线只读）~~ —— D5 已被 [US-020 D5-R](../core/US-020-querycache-repository.md) 反转：
+- 乐观离线写 —— 语义由 [US-020 D5-R](../core/US-020-querycache-repository.md) 定义：
   QueryCache 离线可写、联网后按 REST 动词重放。**落点仍不在本包**：排队与重放在 core
   （`query-cache-outbox.ts`），本包只多做一件事——把每次远端调用的结果报给
   `rxdb.reachability`，好让 core 分得清「网断了」和「远端拒绝了」
@@ -348,7 +348,7 @@ QueryCache 的写入口是 `create` / `update` / `delete` 三个 optional duck�
 | 22  | 对照实体仍是 `SyncType.Full` + supabase 或 sqlite      | 跑既有套件                                                                                                                                             | 用户可见行为不变；本包不改 Full/Filter 写本地                                                                                                                                                                                                                                                                                                                                                                          | ✅   |
 | 23  | 结果集跨 N 页（N ≥ 2）                                 | 订阅 `fetchMetadata` 返回的 Observable                                                                                                                 | **恰好发射 1 次**（值为 N 页拼接后的全量）并 `complete`。断言发射计数 === 1，不是「最后一次的内容对」——每页一发也能让后者过（见[发射契约](#fetchmetadata对-core-的发射契约)）                                                                                                                                                                                                                                          | ✅   |
 | 24  | 适配器实例                                             | `connect` / `disconnect` / `version` / `isTableExisted`                                                                                                | 四个成员按[生命周期语义表](#生命周期成员的-http-语义)实现，**每个成员至少一条独立用例**：`connect` 完成 AC#15 扫描且不发探测请求；`disconnect` 取消进行中的翻页并使后续 duck 调用抛错；`version` 无 `onVersion` 时抛 unsupported、**不得**回落到包版本号；`isTableExisted` 的 2xx→`true` / 404→`false` / 其余→抛错三分支各一条，**不得**恒 `true` 蒙混                                                                 | ✅   |
-| 25  | 本包源码                                               | 契约测试断言 `rawQuery` 未实现                                                                                                                         | 本包 **MUST NOT** 实现 `rawQuery`。实现它会让本包落进 [adapter-contract §4.6](../../../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决) 的 bypass 门禁，[roadmap 约束 11](../../roadmap.md#排期约束) 整套「结构隔离取代 epic-006 前置」的论证随之失效                                                                                                        | ✅   |
+| 25  | 本包源码                                               | 契约测试断言 `rawQuery` 未实现                                                                                                                         | 本包 **MUST NOT** 实现 `rawQuery`。实现它会让本包落进 [epic-006 bypass 门禁判定](../../epics/epic-006-working-tree-commits.md#raw-sql--adapter-直写的-bypass-门禁判定) 的 bypass 门禁，[roadmap 约束 11](../../roadmap.md#排期约束) 整套「结构隔离取代 epic-006 前置」的论证随之失效                                                                                                                                   | ✅   |
 | 26  | 同上                                                   | 检查 `pushBranches` / `branchExists` / `pullBranches`                                                                                                  | 三个 optional 分支成员**不实现**（v1 无 Full-sync，分支语义无处落地）；若实现则必须 throw `HttpChangelogUnsupportedError`，**不得**返回空数组 / `false`                                                                                                                                                                                                                                                                | ✅   |
 | 31  | 构造适配器时传入退化配置                               | `new RxDBAdapterHttp(db, { pageSize, maxPages, idChunkSize, maxEmptyPages, requestTimeoutMs })`                                                        | 构造期抛 `HttpConfigError`，错误信息含字段名与实际值。判据是 **finite 正整数**不是 `> 0`：`1.5` / `Infinity` / `NaN` / `0`（`maxEmptyPages` 除外）/ 负数各一条用例，**五个字段都要覆盖**。见[可配置项](#可配置项与默认值)                                                                                                                                                                                              | ✅   |
 | 32  | 适配器实例（v1，无 Full-sync）                         | `getRepository` / `saveMany` / `removeMany` / `mutations`                                                                                              | 四个 `IRxDBAdapter` 必选成员各一条用例：一律抛 `HttpUnsupportedOperationError`（类名判别），**不得**返回空数组 / `undefined` / 假成功。同时断言 QueryCache 路径不受影响——`create`/`update`/`delete` 三个 duck 照常工作（AC#3），批量写走 core 的 `#mutations_query_cache` 而非 `adapter.mutations`。见[生命周期语义表](#生命周期成员的-http-语义)                                                                      | ✅   |
@@ -530,9 +530,9 @@ v1 不实现 Full-sync。`pullChanges` / `mergeChanges` / `getChangeCount` 若�
 
 本包不构成对 [US-306](../collaboration/US-306-working-tree-commits.md) 的排期前置，也不被它前置。理由（2026-08-23 修正引用口径）：
 
-**该引的是** [epic-006 写入口语义矩阵](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)中 `upsertMany()` / `deleteByIds()` 那一行，及其紧随的注——那里把政策方向定死了（版本化实体表即拒绝、QueryCache 实体表即放行），并明说 US-306 阶段 A 补的是**覆盖面**，「不影响 §4.6 的裁决结论」。
+**该引的是** [epic-006 写入口语义矩阵](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)中 `upsertMany()` / `deleteByIds()` 那一行，及其紧随的注——那里把政策方向定死了（版本化实体表即拒绝、QueryCache 实体表即放行），并明说 US-306 阶段 A 补的是**覆盖面**，「不影响 bypass 门禁的裁决结论」。
 
-**不要单引** [adapter-contract §4.6](../../../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决) 第 5 步。§4.6 的五步判定只覆盖 `rawQuery`，而这两个方法**不经 `rawQuery`**——[FR-046](../collaboration/US-306-working-tree-commits.md) 与 epic-006 的注都写明「§4.6 的五步判定**够不到**」，所以它们今天落在门禁的结构性缺口里，要靠 US-306 阶段 A（US2-AC23）显式挂载。结论没错，但只引第 5 步会让复查者以为门禁已经生效。
+**不要单引** [epic-006 bypass 门禁判定](../../epics/epic-006-working-tree-commits.md#raw-sql--adapter-直写的-bypass-门禁判定) 第 5 步。该判定的五步只覆盖 `rawQuery`，而这两个方法**不经 `rawQuery`**——[FR-046](../collaboration/US-306-working-tree-commits.md) 与 epic-006 的注都写明「五步判定**够不到**」，所以它们今天落在门禁的结构性缺口里，要靠 US-306 阶段 A（US2-AC23）显式挂载。结论没错，但只引第 5 步会让复查者以为门禁已经生效。
 
 结论不受影响：政策方向已定，本包又完全不碰这两个方法（AC#19），US-306 阶段 A 落地时对本包是 no-op，没有 breaking change 可言。US-306 阶段 A 的 SC-004 漂移扫描仍应把本包纳入扫描范围（[roadmap 约束 11](../../roadmap.md#排期约束)）。
 

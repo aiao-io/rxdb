@@ -194,5 +194,5 @@ AC#9 的门禁：`lint typecheck test build` 全绿，`Tests 1067 passed (47 fil
 ## References
 
 - [US-020 将 QueryCache 接入统一 Repository](./US-020-querycache-repository.md) — 落地路径的来历
-- [US-214 HTTP 适配器浏览器端到端 demo](../adapter/US-214-http-browser-demo.md) — 本条在该 demo 开发中被踩中，见其「落地偏差」
+- [US-214 HTTP 适配器浏览器端到端 demo](../adapter/US-214-http-browser-demo.md) — 本条在该 demo 开发中被踩中，见其产物缺陷记录
 - [US-021 QueryCache 远端适配器缺席时配置期 fail-fast](./US-021-querycache-adapter-fail-fast.md) — 同一批出自 US-214 的核心侧诊断缺口

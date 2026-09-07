@@ -58,6 +58,32 @@ export interface ElectronAPI {
   runDemo(request: DemoRequest): Promise<DemoResult>;
 }
 
+/**
+ * 渲染进程侧的 DevTools 运行配置挂载点（US-904 阶段 D）。
+ *
+ * @remarks
+ * 只在显式开启开发态 DevTools 的那次运行里存在。production 下 preload **不挂**这个键，
+ * 页内因此拿到 `undefined` 并沿用 `@aiao/rxdb-devtools` 的库默认档
+ * —— 而不是拿到一份「看起来是配置、其实是默认值」的对象。
+ */
+export const DEVTOOLS_RUNTIME_CONFIG_KEY = '__aiaoRxdbDevToolsConfig__';
+
+/**
+ * 本次运行的 DevTools 授权配置，由主进程经启动参数带进来。
+ *
+ * @remarks
+ * 这两项此前**只在主进程里校验完就丢掉了**：`resolveDevToolsDevConfig()` 解析出
+ * `capability` / `mutationPolicy`，但没有任何一条路把它们送到页内 connector，于是
+ * `DEV_RXDB_DEVTOOLS_CAPABILITY` / `_MUTATION` 对授权毫无影响，connector 恒为库默认的
+ * `full` + `omit`——「显式允许写入」在桌面端根本表达不出来。本接口补的就是这一段。
+ */
+export interface DevToolsRuntimeConfig {
+  /** 本次运行的能力档。 */
+  readonly capability: 'none' | 'readonly' | 'full';
+  /** 本次运行的写入开关；`omit` 即只读。 */
+  readonly mutationPolicy: 'allow' | 'omit';
+}
+
 /** `demo:run` 的入参。`data` 长度限制见 {@link parseDemoRequest}。 */
 export interface DemoRequest {
   readonly data: string;

@@ -58,10 +58,16 @@ function createSyncResult(
   };
 }
 
-function createHarness(adapter?: string) {
+/**
+ * @param adapter - 远端适配器名，省略即"未配置远端"
+ * @param entities - 注册的实体类。`entities` 在 `RxDBConfig` 里是必填项
+ * （`rxdb.interface.ts`：dbName + entities 是初始化前置条件），`pull()` 会遍历它
+ * 去找 `syncType === 'filter'` 的仓库补拉，所以桩里不能缺。
+ */
+function createHarness(adapter?: string, entities: unknown[] = []) {
   const dispatchEvent = vi.fn();
   const rxdb = {
-    config: { sync: { remote: { adapter } } },
+    config: { entities, sync: { remote: { adapter } } },
     dispatchEvent
   } as unknown as RxDB;
   const bulkSync = vi.fn();
@@ -80,10 +86,10 @@ function createBulkResult(results: BulkSyncResult['results']): BulkSyncResult {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(pushBranch).mockResolvedValue({ synced: 0, skipped: [] });
+  vi.mocked(pushBranch).mockResolvedValue({ synced: 0, skipped: [], forkPointPending: false });
 });
 
-describe('sync entrypoints coverage', () => {
+describe('pull / push 入口的聚合与事件派发', () => {
   it('rejects pull and push before dispatch when no remote adapter is configured', async () => {
     const { dispatchEvent, vm } = createHarness();
 
@@ -170,10 +176,9 @@ describe('sync entrypoints coverage', () => {
 
   it('aggregates push results, applies batch size, and counts failed repositories', async () => {
     const { bulkSync, dispatchEvent, vm } = createHarness('remote');
-    const sparseResult = {
-      pullResult: createPullResult(),
-      pushResult: { repository }
-    } as unknown as SyncRepositoryResult;
+    // 「本轮没推任何东西」的真实形状是 emptyPushResult（各计数为 0），
+    // 不是一个缺字段的对象 —— PushRepositoryResult 的计数字段都是必填。
+    const sparseResult: SyncRepositoryResult = createSyncResult();
     bulkSync.mockResolvedValue(
       createBulkResult([
         {
@@ -190,11 +195,14 @@ describe('sync entrypoints coverage', () => {
       ])
     );
 
+    // failed 的单位是**变更条数**，不是仓库数：把失败仓库折算成 failed += 1 会让
+    // `originalCount = pushed + failed + compacted` 这条恒等式失真。失败改为结构化保留。
     await expect(push(vm, { batchSize: 50 })).resolves.toEqual({
       pushed: 7,
-      failed: 4,
+      failed: 2,
       compacted: 3,
-      originalCount: 12
+      originalCount: 12,
+      failures: [{ repository, error: expect.any(Error) }]
     });
     expect(pushBranch).toHaveBeenCalledWith(vm);
     expect(bulkSync).toHaveBeenCalledWith({ operation: 'push', repositories: undefined, push: { batchSize: 50 } });

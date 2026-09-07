@@ -4,11 +4,21 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
 import { defineConfig, type PluginOption } from 'vite';
 import zip from 'vite-plugin-zip-pack';
-import manifest from './manifest.config.js';
+import manifest, { DESKTOP_DEV_MODE } from './manifest.config.js';
 // JSON 模块只提供 default 导出：具名导入在 Vite 的 native config loader 下会直接报错。
 import pkg from './package.json' with { type: 'json' };
 
-export default defineConfig(({ command }) => ({
+/**
+ * dev 变体的产物目录（US-906 AC#1）。
+ *
+ * @remarks
+ * **必须与默认产物分目录**。同目录意味着跑一次 `build-desktop-dev` 就把 `dist/` 换成了带
+ * `host_permissions` 的那份，之后任何「加载已解压的扩展程序 → dist/」都会静默多带一条权限，
+ * 而 manifest 的负契约是在源码上断言的、看不见产物被换掉。
+ */
+const DESKTOP_DEV_OUT_DIR = 'dist-desktop-dev';
+
+export default defineConfig(({ command, mode }) => ({
   base: './',
   resolve: {
     tsconfigPaths: true,
@@ -40,7 +50,11 @@ export default defineConfig(({ command }) => ({
       }
     }),
     tailwindcss(),
-    zip({ outDir: 'release', outFileName: `crx-${pkg.name}-${pkg.version}.zip` }) as PluginOption
+    // dev 变体**不打 zip**：zip 是分发形态，而这份产物带着一条只对本机 localhost 成立的
+    // 静态权限。让它落进 `release/` 只会造出一个长得像可分发物、却不该分发的东西。
+    ...(mode === DESKTOP_DEV_MODE ?
+      []
+    : [zip({ outDir: 'release', outFileName: `crx-${pkg.name}-${pkg.version}.zip` }) as PluginOption])
   ],
   publicDir: 'public',
   server: {
@@ -51,6 +65,7 @@ export default defineConfig(({ command }) => ({
     hmr: command === 'serve'
   },
   build: {
+    ...(mode === DESKTOP_DEV_MODE ? { outDir: DESKTOP_DEV_OUT_DIR } : {}),
     emptyOutDir: true,
     // Panel entry intentionally bundles Angular runtime + @aiao/rxdb-devtools +
     // shell UI in a single chunk because Chrome MV3 enforces sandbox isolation

@@ -58,13 +58,28 @@ export interface FindBranchPathOptions {
  *  3, 需要计算出路径内每个节点需要变更过程，也就是 fromChangeId -> toChangeId
  *  4, 由于 changeId 在不同分支的变化都是是递增的, 所以如果逆向还原数据那么 fromChangeId 会大于 toChangeId, 正向应用数据则相反
  */
+/**
+ * 读取分支的分叉点变更 id。
+ *
+ * `fromChangeId === null` 的含义是**分叉于根**（这条分支不是从某条变更上长出来的）。
+ * 变更 id 从 1 开始递增，所以用 0 表示「根」既不会和任何真实变更撞上，又能让它
+ * 直接参与后面的区间运算。
+ *
+ * 抽成具名函数是为了让这个约定只存在一处：从前它以 `branch.fromChangeId ?? 0` 的形式
+ * 在本文件出现十余次，读的人无法判断哪一处是「表达根」、哪一处只是随手兜底。
+ *
+ * @param branch - 分支行
+ * @returns 分叉点变更 id，分叉于根时为 0
+ */
+const forkPointOf = (branch: RxDBBranch): number => branch.fromChangeId ?? 0;
+
 export const find_switch_branch_step = (options: FindBranchPathOptions): SwitchBranchStep[] => {
   const { branches, currentBranch, nextBranch } = options;
 
   // 如果分支没有自己的变更记录，使用 fromChangeId 作为当前状态
   // 否则使用该分支的最大 changeId
-  const currentChangeId = options.currentChangeId ?? currentBranch.fromChangeId ?? 0;
-  const nextChangeId = options.nextChangeId ?? nextBranch.fromChangeId ?? 0;
+  const currentChangeId = options.currentChangeId ?? forkPointOf(currentBranch);
+  const nextChangeId = options.nextChangeId ?? forkPointOf(nextBranch);
 
   // 任意分支只要变更 id 相同，都无需切换数据
   if (currentChangeId === nextChangeId) {
@@ -141,8 +156,8 @@ export const find_switch_branch_step = (options: FindBranchPathOptions): SwitchB
     // 从当前分支回退到共同祖先
     for (let i = 0; i < commonAncestorIndex; i++) {
       const branch = currentPath[i];
-      const fromId = i === 0 ? currentChangeId : (currentPath[i - 1].fromChangeId ?? 0);
-      const toId = branch.fromChangeId ?? 0;
+      const fromId = i === 0 ? currentChangeId : forkPointOf(currentPath[i - 1]);
+      const toId = forkPointOf(branch);
 
       // 只有当需要实际变更时才添加步骤
       if (fromId !== toId) {
@@ -160,7 +175,7 @@ export const find_switch_branch_step = (options: FindBranchPathOptions): SwitchB
     if (ancestorIndexInNext === 0) {
       // 共同祖先就是目标分支，需要移动到目标 changeId
       const ancestorFromId =
-        commonAncestorIndex === 0 ? currentChangeId : (currentPath[commonAncestorIndex - 1].fromChangeId ?? 0);
+        commonAncestorIndex === 0 ? currentChangeId : forkPointOf(currentPath[commonAncestorIndex - 1]);
       const ancestorToId = nextChangeId;
 
       if (ancestorFromId !== ancestorToId) {
@@ -173,8 +188,8 @@ export const find_switch_branch_step = (options: FindBranchPathOptions): SwitchB
     } else if (ancestorIndexInNext > 0) {
       // 需要从当前位置移动到目标分支的 fromChangeId
       const ancestorFromId =
-        commonAncestorIndex === 0 ? currentChangeId : (currentPath[commonAncestorIndex - 1].fromChangeId ?? 0);
-      const ancestorToId = nextPath[ancestorIndexInNext - 1].fromChangeId ?? 0;
+        commonAncestorIndex === 0 ? currentChangeId : forkPointOf(currentPath[commonAncestorIndex - 1]);
+      const ancestorToId = forkPointOf(nextPath[ancestorIndexInNext - 1]);
 
       if (ancestorFromId !== ancestorToId) {
         steps.push({
@@ -190,8 +205,8 @@ export const find_switch_branch_step = (options: FindBranchPathOptions): SwitchB
 
     for (let i = 0; i < forwardPath.length; i++) {
       const branch = forwardPath[i];
-      const fromId = branch.fromChangeId ?? 0;
-      const toId = i === forwardPath.length - 1 ? (nextChangeId ?? 0) : (forwardPath[i + 1].fromChangeId ?? 0);
+      const fromId = forkPointOf(branch);
+      const toId = i === forwardPath.length - 1 ? nextChangeId : forkPointOf(forwardPath[i + 1]);
 
       // 只有当需要实际变更时才添加步骤
       if (fromId !== toId) {
@@ -207,8 +222,8 @@ export const find_switch_branch_step = (options: FindBranchPathOptions): SwitchB
     // 1. 回退当前分支的所有节点到根
     for (let i = 0; i < currentPath.length; i++) {
       const branch = currentPath[i];
-      const fromId = i === 0 ? currentChangeId : (currentPath[i - 1].fromChangeId ?? 0);
-      const toId = branch.fromChangeId ?? 0;
+      const fromId = i === 0 ? currentChangeId : forkPointOf(currentPath[i - 1]);
+      const toId = forkPointOf(branch);
 
       if (fromId !== toId) {
         steps.push({
@@ -221,7 +236,7 @@ export const find_switch_branch_step = (options: FindBranchPathOptions): SwitchB
 
     // 2. 将当前树的根节点回退到 0
     const currentRoot = currentPath[currentPath.length - 1];
-    const currentRootFromId = currentRoot.fromChangeId ?? 0;
+    const currentRootFromId = forkPointOf(currentRoot);
 
     if (currentRootFromId !== 0) {
       steps.push({
@@ -233,8 +248,7 @@ export const find_switch_branch_step = (options: FindBranchPathOptions): SwitchB
 
     // 3. 从目标树的根节点开始前进到目标分支
     const nextRoot = nextPath[nextPath.length - 1];
-    const nextRootTargetId =
-      nextPath.length > 1 ? (nextPath[nextPath.length - 2].fromChangeId ?? 0) : (nextChangeId ?? 0);
+    const nextRootTargetId = nextPath.length > 1 ? forkPointOf(nextPath[nextPath.length - 2]) : nextChangeId;
 
     if (nextRootTargetId !== 0) {
       steps.push({
@@ -248,8 +262,8 @@ export const find_switch_branch_step = (options: FindBranchPathOptions): SwitchB
     const forwardPath = nextPath.slice(0, nextPath.length - 1).reverse();
     for (let i = 0; i < forwardPath.length; i++) {
       const branch = forwardPath[i];
-      const fromId = branch.fromChangeId ?? 0;
-      const toId = i === forwardPath.length - 1 ? (nextChangeId ?? 0) : (forwardPath[i + 1].fromChangeId ?? 0);
+      const fromId = forkPointOf(branch);
+      const toId = i === forwardPath.length - 1 ? nextChangeId : forkPointOf(forwardPath[i + 1]);
 
       if (fromId !== toId) {
         steps.push({

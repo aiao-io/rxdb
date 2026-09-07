@@ -2,7 +2,6 @@ import { firstValueFrom, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncType } from '../../entity/metadata-options.interface.js';
 import { QueryManager, type MergeQueryTaskCreateFn } from '../../repository/QueryManager.js';
-import type { Repository } from '../../repository/Repository.js';
 import { ENTITY_LOCAL_CREATE_EVENT, ENTITY_LOCAL_REMOVE_EVENT, ENTITY_LOCAL_UPDATE_EVENT } from '../../rxdb-events.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
 import type { RxDB } from '../../RxDB.js';
@@ -71,13 +70,7 @@ const createMockRxDB = (eventListeners: Map<string, CapturedEventListener>) => (
   options: {}
 });
 
-const createMockRepository = () => ({
-  find: vi.fn(() => of([])),
-  count: vi.fn(() => of(0))
-});
-
 type MockRxDB = ReturnType<typeof createMockRxDB>;
-type MockRepository = ReturnType<typeof createMockRepository>;
 
 // 创建有效查询选项的辅助函数。
 const createFindOptions = (overrides = {}) => ({
@@ -95,7 +88,6 @@ const createFindOptions = (overrides = {}) => ({
 
 describe('QueryManager', () => {
   let mockRxDB: MockRxDB;
-  let mockRepository: MockRepository;
   let queryManager: QueryManager<typeof TestEntity>;
   let eventListeners: Map<string, CapturedEventListener>;
 
@@ -103,13 +95,8 @@ describe('QueryManager', () => {
     eventListeners = new Map();
 
     mockRxDB = createMockRxDB(eventListeners);
-    mockRepository = createMockRepository();
 
-    queryManager = new QueryManager(
-      mockRxDB as unknown as RxDB,
-      TestEntity,
-      mockRepository as unknown as Repository<typeof TestEntity>
-    );
+    queryManager = new QueryManager(mockRxDB as unknown as RxDB, TestEntity);
   });
 
   describe('构造函数', () => {

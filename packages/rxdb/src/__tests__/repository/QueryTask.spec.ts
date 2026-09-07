@@ -5,9 +5,10 @@
  * - 实体依赖计数的生命周期：run() 时按 relationEntityTypes 累加计数，clean() 时递减
  *   计数，归零后删除 key（QueryManager 的事件过滤只用 has() 判断）
  * - 过滤早于本地增量结果的运行器旧结果（stale runner emission guard）
+ * - 运行器抛错只终结这一轮，不终结整个任务
  */
 
-import { of, Subject, type Observer } from 'rxjs';
+import { of, Subject, throwError, type Observer } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import type { EntityType } from '../../entity/entity.interface.js';
 import { SyncType } from '../../entity/metadata-options.interface.js';
@@ -198,5 +199,69 @@ describe('QueryTask', () => {
     runner$.next([]);
 
     expect(results).toEqual([[{ id: 'new-1', name: 'New Entity' }]]);
+  });
+});
+
+describe('QueryTask - 运行器失败', () => {
+  /** 造一个「第一轮抛错、之后正常」的任务，并把观察者收到的东西记下来 */
+  const createFailingTask = () => {
+    let runnerCalls = 0;
+    const values: unknown[] = [];
+    const errors: unknown[] = [];
+    const onClean = vi.fn();
+
+    const task = new QueryTask<EntityType>({
+      options: { type: 'find', options: { where: { combinator: 'and', rules: [] } } },
+      runner: () => {
+        runnerCalls++;
+        return runnerCalls === 1 ? throwError(() => new Error('运行器炸了')) : of([{ id: 'a' }]);
+      },
+      cacheKey: 'failing',
+      entityType: TestEntityType,
+      rxdb: {} as RxDB,
+      depEntityTypeMap: new Map(),
+      serialize: (v: unknown) => v,
+      onClean,
+      getFingerprint: () => []
+    } as unknown as QueryTaskOptions<EntityType, unknown>);
+
+    task.observers.add({
+      next: (v: unknown) => values.push(v),
+      error: (e: unknown) => errors.push(e),
+      complete: () => undefined
+    } as Observer<unknown>);
+
+    return { task, values, errors, onClean, runnerCalls: () => runnerCalls };
+  };
+
+  it('运行器抛错照常送达观察者', () => {
+    const { task, errors } = createFailingTask();
+
+    task.run();
+
+    expect(errors).toHaveLength(1);
+    expect((errors[0] as Error).message).toBe('运行器炸了');
+  });
+
+  it('运行器抛错后 refresh() 仍能重新执行查询', () => {
+    const { task, runnerCalls } = createFailingTask();
+
+    task.run();
+    expect(runnerCalls()).toBe(1);
+
+    task.refresh();
+
+    // 关键断言：错误顺着 switchMap 冒到外层会终结整条 refresh$ 管道，
+    // 此后 refresh() 静默空转 —— 运行器调用数会停在 1，查询永久冻结。
+    expect(runnerCalls()).toBe(2);
+  });
+
+  it('失败一轮后的下一轮结果照常写进 result', () => {
+    const { task } = createFailingTask();
+
+    task.run();
+    task.refresh();
+
+    expect(task.result).toEqual([{ id: 'a' }]);
   });
 });

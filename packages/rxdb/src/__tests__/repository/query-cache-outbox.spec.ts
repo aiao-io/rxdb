@@ -529,6 +529,129 @@ describe('flushQueryCacheOutbox', () => {
       expect(result.failures).toHaveLength(1);
     });
 
+    // 水位线整批不动的话，下一轮会把**已经推上去**的行重新判定一次 —— 那时远端的
+    // `updatedAt` 是我们自己刚写进去的时刻，比本地变更还新，LWW 一比就判本地输：
+    // 一次成功的推送被报成冲突，本地缓存还要被「修复」回远端行。
+    it('失败轮次把水位线推到最早一条未结算变更之前', async () => {
+      const changes = [
+        change({ type: 'UPDATE', entityId: 'r1', patch: { title: 'a' } }),
+        change({ type: 'UPDATE', entityId: 'r2', patch: { title: 'b' } })
+      ];
+      const ctx = setup({
+        changes,
+        sync: { lastPushedChangeId: null },
+        remoteMetadata: [
+          { id: 'r1', updatedAt: '2026-03-01T09:00:00Z' },
+          { id: 'r2', updatedAt: '2026-03-01T09:00:00Z' }
+        ]
+      });
+      // 假件按水位线过滤，第二轮才是真实的「重新取待推行」
+      ctx.changeRepo.find.mockImplementation(async (query: unknown) => {
+        const rule = rulesOf(query).find(item => item.field === 'id' && item.operator === '>');
+        const floor = typeof rule?.value === 'number' ? rule.value : 0;
+        return changes.filter(row => row.id > floor);
+      });
+      ctx.remoteAdapter.update.mockImplementationOnce((_e: string, id: string, patch: Record<string, unknown>) =>
+        of({ id, ...patch })
+      );
+      ctx.remoteAdapter.update.mockImplementationOnce(() =>
+        throwError(() => Object.assign(new Error('Unprocessable'), { status: 422 }))
+      );
+
+      const first = await flush(ctx);
+
+      expect(first.replayed).toBe(1);
+      expect(first.failures).toHaveLength(1);
+      // r1（id=1）结算了，r2（id=2）没有 —— 水位线只能推到 1
+      expect(first.watermark).toBe(1);
+      // 本轮没推完，`lastPushedAt` 是展示字段，不该记成一次完整的推送
+      expect(ctx.syncRepo.update).toHaveBeenCalledWith(
+        ctx.syncRow,
+        expect.not.objectContaining({ lastPushedAt: expect.anything() })
+      );
+
+      // 第二轮：r1 已在远端，服务端写入时刻比本地变更新
+      ctx.remoteAdapter.fetchMetadata.mockReturnValue(
+        of([
+          { id: 'r1', updatedAt: '2026-03-01T11:00:00Z' },
+          { id: 'r2', updatedAt: '2026-03-01T09:00:00Z' }
+        ])
+      );
+      ctx.remoteAdapter.update.mockImplementation((_e: string, id: string, patch: Record<string, unknown>) =>
+        of({ id, ...patch })
+      );
+
+      const second = await flush(ctx);
+
+      // 关键断言：r1 一个字都不该再出现。整批不推水位线时它会是 conflicts: ['r1']
+      expect(second.conflicts).toEqual([]);
+      expect(second.originalCount).toBe(1);
+      expect(second.replayed).toBe(1);
+      expect(second.watermark).toBe(2);
+    });
+
+    // 一条都没结算时水位线原地不动：推过去就等于把没送出去的写扔掉
+    it('第一条就失败时水位线一步都不挪', async () => {
+      const ctx = setup({
+        changes: [
+          change({ type: 'UPDATE', entityId: 'r1', patch: { title: 'a' } }),
+          change({ type: 'UPDATE', entityId: 'r2', patch: { title: 'b' } })
+        ],
+        sync: { lastPushedChangeId: null },
+        remoteMetadata: [
+          { id: 'r1', updatedAt: '2026-03-01T09:00:00Z' },
+          { id: 'r2', updatedAt: '2026-03-01T09:00:00Z' }
+        ]
+      });
+      ctx.remoteAdapter.update.mockReturnValueOnce(
+        throwError(() => Object.assign(new Error('Unprocessable'), { status: 422 }))
+      );
+
+      const result = await flush(ctx);
+
+      expect(result.watermark).toBeNull();
+      expect(ctx.syncRepo.update).not.toHaveBeenCalled();
+    });
+
+    // 离线攒下的待推行没有上限。一次几千个 id 塞进 `id in (...)` 会把请求撑到网关 413
+    // 或 URL 长度上限之外 —— 适配器侧 `fetchMetadata` 分的是**响应**的页，请求里那串 id
+    // 原样透传，切分只能由调用方来做。
+    it('元数据探测按 100 个 id 一块切开，串行发', async () => {
+      const changes = Array.from({ length: 250 }, (_, index) =>
+        change({ type: 'UPDATE', entityId: `r${index}`, patch: { title: 't' } })
+      );
+      const ctx = setup({ changes, sync: { lastPushedChangeId: null } });
+
+      await flush(ctx);
+
+      expect(ctx.remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(3);
+      // 假件的 `fetchMetadata` 没声明形参，实参类型得自己还原
+      const sizes = ctx.remoteAdapter.fetchMetadata.mock.calls.map(call => {
+        const [, query] = call as unknown as [string, { rules: [{ value: string[] }] }];
+        return query.rules[0].value.length;
+      });
+      expect(sizes).toEqual([100, 100, 50]);
+    });
+
+    // 半张元数据表比没有更危险：缺席的 id 会被判成「远端没有这一行」，
+    // UPDATE 于是降级成 INSERT，DELETE 直接丢弃
+    it('某一块探测失败即整轮跳过，后面几块不再打', async () => {
+      const changes = Array.from({ length: 250 }, (_, index) =>
+        change({ type: 'UPDATE', entityId: `r${index}`, patch: { title: 't' } })
+      );
+      const ctx = setup({ changes, sync: { lastPushedChangeId: null } });
+      ctx.remoteAdapter.fetchMetadata.mockReturnValueOnce(of([]));
+      ctx.remoteAdapter.fetchMetadata.mockReturnValueOnce(throwError(() => new TypeError('Failed to fetch')));
+
+      const result = await flush(ctx);
+
+      expect(ctx.remoteAdapter.fetchMetadata).toHaveBeenCalledTimes(2);
+      expect(ctx.remoteAdapter.update).not.toHaveBeenCalled();
+      expect(ctx.remoteAdapter.create).not.toHaveBeenCalled();
+      expect(result.failures).toHaveLength(1);
+      expect(ctx.reachability.online).toBe(false);
+    });
+
     it('远端不可达时立刻停手，剩下的动作不再白跑', async () => {
       const ctx = setup({
         changes: [

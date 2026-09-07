@@ -14,11 +14,20 @@ import { provideClientHydration } from '@angular/platform-browser';
 import { provideRouter, withComponentInputBinding, withInMemoryScrolling, withViewTransitions } from '@angular/router';
 import { provideLoadingBarInterceptor } from '@ngx-loading-bar/http-client';
 import { provideLoadingBarRouter } from '@ngx-loading-bar/router';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { appRoutes } from './app.routes';
+import { mergeDevToolsProbeRounds, watchDevToolsHandshake, type DevToolsProbeResult } from './devtools-probe';
 import { RxDBConnectionState } from './rxdb-connection-state';
 import { startLocalDatabase } from './rxdb-initializer';
 import { DesktopLaunchService } from './services/desktop-launch.service';
-import { readProbeBaseUrl, reportSelfCheck } from './services/selfcheck-reporter';
+import {
+  probeImpostorWindow,
+  readDevToolsProbeEnabled,
+  readProbeBaseUrl,
+  recycleDevToolsWindow,
+  reportSelfCheck
+} from './services/selfcheck-reporter';
+import { isTauriRuntime } from './services/tauri-environment';
 import { localDatabase, resolveLocalBackend } from './setup_rxdb';
 import { probeStorage } from './storage-probe';
 import { probeWebview, readWebviewGlobals, type WebviewFetchSurface, type WebviewProbeResult } from './webview-probe';
@@ -38,6 +47,112 @@ const resolveLocaleId = (): string => (Intl.DateTimeFormat().resolvedOptions().l
  */
 const probeWebviewCapabilities = async (storage: WebviewFetchSurface): Promise<WebviewProbeResult | null> =>
   probeWebview({ globals: readWebviewGlobals(), storage, baseUrl: await readProbeBaseUrl(globalThis) });
+
+/**
+ * DevTools 帧观察者：**模块求值时就开始收帧**（US-905 阶段 1 AC#2）。
+ *
+ * @remarks
+ * 订阅时机是承重的。调试窗口由 Rust 在 `setup()` 里与主窗口一起建，它的面板什么时候完成
+ * 协商与主窗口建库多快无关——**实测**把订阅放在启动链末尾时，握手早已结束，而 Tauri 的事件
+ * 不重放，报告里于是是一个空的 `panelFrameTypes`，与「调试窗口根本没建起来」同形。
+ * 所以订阅在这里（最早处），等待放在启动链末尾的 `probeDevToolsWindow`。
+ *
+ * 事件订阅面在这里注入，`devtools-probe.ts` 因此不直接依赖 `@tauri-apps/api/event`，
+ * 单测不必起一个真实 Tauri 运行时——与下面 webview 探针「DOM 事实一次读齐」同一手法。
+ *
+ * 非 Tauri 运行时（`nx serve` 的浏览器预览）不订阅：那里没有 `listen` 可调，也没有调试窗口。
+ */
+const devToolsWatcher =
+  isTauriRuntime(globalThis) ?
+    watchDevToolsHandshake({
+      // 与两条 transport 同一个理由：全局 `listen` 的 target 是 `Any`，会无视定向过滤收到
+      // **所有**帧（含主窗口自己发出的）。探针要观察的是「投递到 main 的帧」，
+      // 所以必须绑到本窗口——否则它会把主窗口自己的出站帧也算成「调试窗口发来的」。
+      // 泛型透传：帧通道的 payload 是 JSON 字符串，驱动汇报通道的是一个对象。
+      // 在这里钉死成 `string` 的话，第二条通道的结论会被当成字符串塞进去。
+      listen: <T>(event: string, handler: (message: { payload: T }) => void) =>
+        getCurrentWebviewWindow().listen<T>(event, message => handler({ payload: message.payload }))
+    })
+  : null;
+
+/**
+ * 等 DevTools 握手结果：先问 Rust 侧开没开，再决定要不要等（US-905 阶段 1 AC#2）。
+ *
+ * @returns 探针结果；没开这条探针（正常启动与 release 产物）时为 `null`
+ *
+ * @remarks
+ * 开关在 Rust 侧，理由见 `selfcheck.rs` 的 `DEVTOOLS_PROBE_ENV`：release 产物里没有调试窗口，
+ * 默认开启只会让每次 smoke 白等一个预算。
+ */
+/**
+ * 跨主窗口刷新携带前半程证据的键（US-905 阶段 1 AC#5）。
+ *
+ * @remarks
+ * 报告只在**最后一次**加载时写出（`selfcheck.rs` 的 `reported` 只结算一次），而 AC#5 的
+ * 判据横跨一次刷新。`sessionStorage` 随源存活、随刷新保留、随进程退出消失，正好是这段证据
+ * 该有的寿命——用 `localStorage` 会把上一次运行的残留带进下一次。
+ */
+const PROBE_CARRY_KEY = 'rxdb-devtools-probe-carry';
+
+/**
+ * 等 DevTools 握手结果：先问 Rust 侧开没开，再决定要不要等（US-905 阶段 1 AC#2/#4/#5）。
+ *
+ * @returns 探针结果；没开这条探针（正常启动与 release 产物）时为 `null`
+ *
+ * @remarks
+ * 一次运行覆盖四条判据，顺序是承重的：
+ *
+ * 1. **首次协商**（AC#2）——调试窗口起来之后的第一轮握手；
+ * 2. **面板驱动跑完**（阶段 2 AC#9/#15）——驱动在调试窗口里经真实 wire 问一轮。它必须排在
+ *    回收**之前**：驱动的观察只有第一遍有判别力（那时本进程还没碰过存储），回收会把第一遍
+ *    杀在半路，报告里就只剩被第一遍改过的世界；
+ * 3. **同 label 重开**（AC#4）——回收调试窗口，等第二轮；新一轮必须是**另一个** session；
+ * 4. **主窗口刷新**（AC#5）——把前几轮的证据存进 `sessionStorage` 后 `location.reload()`，
+ *    刷新之后再等一轮。connector 随页面重建，而调试窗口**一直活着**：这一轮握上手，
+ *    才说明面板那侧也认得出「对端换了」。
+ *
+ * 刷新那一次**不上报**（返回一个永不 settle 的 promise）：报告只结算一次，上报了这一次
+ * 就轮不到刷新后的那次。真的没刷成的话，60s 看门狗会给出一份 `timedOut`——
+ * 比一个少了第三轮、看起来像「面板没重连」的 `ok` 诚实得多。
+ */
+const probeDevToolsWindow = async (): Promise<DevToolsProbeResult | null> => {
+  if (devToolsWatcher === null) return null;
+  if (!(await readDevToolsProbeEnabled(globalThis))) return null;
+
+  const carried = sessionStorage.getItem(PROBE_CARRY_KEY);
+  if (carried === null) {
+    // 第一轮：调试窗口起来之后的首次协商。
+    const first = await devToolsWatcher.waitForHandshake();
+    // 第一轮都没握上就整段跳过——那时回收只会把「本来就没握上」变成一次与它无关的命令失败。
+    if (first > 0) {
+      // 阶段 2 AC#15：**先等驱动跑完，再回收那扇窗**，顺序是承重的。
+      //
+      // 回收排在前面时（本轮实测），第一遍驱动会被销毁在半路——它跑到伪造 session 那条
+      // 请求上还要等满 4s 超时，而回收紧跟着第一轮握手就到了。于是报告里留下的是**第二遍**
+      // 的观察，而第二遍看到的世界已经被第一遍改过：全新的数据目录上 `keptDirSeen` 也是
+      // `true`，跨重启比对因此完全没有判别力。
+      //
+      // 证据是第一跑的 `filesEntryCount: 2` + `keptDirSeen: true`：那正是「第一遍已经把
+      // 目录建出来了」之后的世界，而不是一个刚建好的空存储根。
+      await devToolsWatcher.waitForNative();
+      // AC#4：同 label 关掉再建一次，等第二轮。重开的那扇窗会再跑一遍驱动，
+      // 但观察者只留第一条结论（见 `waitForNative`），所以第二遍的观察不进报告。
+      await recycleDevToolsWindow(globalThis);
+      await devToolsWatcher.waitForHandshake();
+    }
+    // AC#3：刷新之前把冒名窗口那一趟跑掉——它自己会把窗口收掉，不污染 AC#1 的窗口集合。
+    const relayRejected = first > 0 ? await probeImpostorWindow(globalThis) : 0;
+    sessionStorage.setItem(PROBE_CARRY_KEY, JSON.stringify({ ...devToolsWatcher.settle(), relayRejected }));
+    location.reload();
+    // 刷新在即：这条链不能继续走到上报那一步。
+    return new Promise<never>(() => undefined);
+  }
+
+  // 刷新之后：connector 是新的，调试窗口是旧的那一个。
+  const before = JSON.parse(carried) as DevToolsProbeResult;
+  await devToolsWatcher.waitForHandshake();
+  return mergeDevToolsProbeRounds(before, devToolsWatcher.settle());
+};
 
 /** 非默认 locale 需要先加载数据；返回的 Promise 由 initializer 等待。 */
 const registerLocaleIfNeeded = async (localeId: string): Promise<void> => {
@@ -113,6 +228,7 @@ export const appConfig: ApplicationConfig = {
         launches: inject(DesktopLaunchService),
         probe: probeStorage,
         probeWebview: probeWebviewCapabilities,
+        probeDevTools: probeDevToolsWindow,
         adapterName: resolveLocalBackend(globalThis).adapter,
         report: outcome => reportSelfCheck(outcome, globalThis)
       })

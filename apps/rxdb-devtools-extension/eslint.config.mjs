@@ -6,7 +6,7 @@ export default [
   ...nx.configs['flat/angular'],
   ...nx.configs['flat/angular-template'],
   {
-    ignores: ['dist/**', 'dist-debug/**', 'release/**']
+    ignores: ['dist/**', 'dist-debug/**', 'dist-desktop-dev/**', 'release/**']
   },
   {
     files: ['**/*.ts'],

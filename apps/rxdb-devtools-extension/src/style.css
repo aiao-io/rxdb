@@ -1,2 +1,18 @@
 @import 'tailwindcss';
+
+/*
+ * 共享面板的模板必须显式登记为 Tailwind 来源。
+ *
+ * Tailwind v4 取消了 `content` 配置，改成从**这份 CSS 所在的项目**自动探测来源；
+ * 而面板是 `modules/rxdb-devtools-panel/` 下的另一个项目，落在探测范围之外。
+ * 后果不是「少了几个类」而是**整个面板没有样式**：实测构建出的 CSS 里
+ * `h-screen` / `flex-1` / `overflow-hidden` / `badge-ghost` 一个都不存在，
+ * 于是高度链整条断掉——Files 页只有内容高、Events 页的虚拟滚动视口 clientHeight 为 0
+ * （只渲染三五条）、Database 页直接溢出抽屉而不是内部滚动。
+ *
+ * 失败形态极具误导性：面板**渲染得出来**、文字读得到、e2e 断言也过，只是版面全错，
+ * 所以此前一直没被发现。
+ */
+@source '../../../modules/rxdb-devtools-panel/src';
+
 @plugin 'daisyui';

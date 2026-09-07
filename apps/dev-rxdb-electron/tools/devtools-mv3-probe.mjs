@@ -561,9 +561,15 @@ app.whenReady().then(async () => {
     );
 
     // ---------- AC#4c：销毁窗口 + service worker 空闲自停 ----------
+    // 销毁与取样之间**不留任何等待**。原先这里是 `await sleep(2000)`，那 2 秒是这一半唯一的
+    // flaky 来源：面板的 Port 一直把 worker 撑着，直到窗口销毁才开始走空闲计时；机器有负载时
+    // 这句 sleep 的真实墙钟远超 2s（整套连跑实测 13.2m，平时 1.9m），一旦漂过约 30s 的空闲窗口，
+    // worker 已自停，`serviceWorkersRightAfterDestroy` 变空 —— 与被测行为无关的假红。
+    //
+    // 成因已实测确认：把这句 sleep 改成 35s，本条稳定红在 `Received: 0`；零等待则绿。
+    // 「worker 不随页面走」这条判据本来就只需要销毁与取样的先后，不需要任何时间量。
     foreignWin.destroy();
     win.destroy();
-    await sleep(2000);
     const serviceWorkersRightAfterDestroy = runningWorkers(ses);
     // MV3 service worker 空闲约 30 秒自停；轮询到停为止，别把上限当成实际耗时。
     await waitFor(() => runningWorkers(ses).length === 0, 60000, 2000);

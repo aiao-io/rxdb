@@ -2,15 +2,12 @@ import { firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SyncType } from '../entity/metadata-options.interface.js';
 import { RxDBTabsGateway } from '../gateway/RxDBTabsGateway.js';
-import type { IRxDBAdapter, RxDBAdapterLocalBase } from '../rxdb-adapter.js';
 import { ENTITY_LOCAL_CREATE_EVENT, EntityLocalCreatedEvent, type RxDBEvent } from '../rxdb-events.js';
 import type { Plugin } from '../rxdb-plugin.js';
 import type { RxDBOptions } from '../rxdb.interface.js';
 import { RxDB } from '../RxDB.js';
 import { RxDBMigration } from '../system/migration.js';
 import { createMockAdapter } from './fixtures/test-db-setup.js';
-
-type LocalAdapterMock = IRxDBAdapter & Pick<RxDBAdapterLocalBase, 'createTables' | 'transaction'>;
 
 type DatabaseOverrides = {
   context?: RxDBOptions['context'];
@@ -21,12 +18,10 @@ type DatabaseOverrides = {
 const databases = new Set<RxDB>();
 let databaseSequence = 0;
 
-const createLocalAdapter = (): LocalAdapterMock => createMockAdapter() as LocalAdapterMock;
-
 const createDatabase = (overrides: DatabaseOverrides = {}): RxDB => {
   databaseSequence += 1;
   const database = new RxDB({
-    dbName: `rxdb-coverage-${databaseSequence}`,
+    dbName: `rxdb-connect-lifecycle-${databaseSequence}`,
     entities: [],
     sync: overrides.sync ?? {
       local: { adapter: 'local' },
@@ -35,7 +30,7 @@ const createDatabase = (overrides: DatabaseOverrides = {}): RxDB => {
     context: overrides.context,
     migrations: overrides.migrations
   });
-  database.adapter('local', () => createLocalAdapter());
+  database.adapter('local', db => createMockAdapter(db));
   databases.add(database);
   return database;
 };
@@ -56,7 +51,7 @@ afterEach(async () => {
   }
 });
 
-describe('RxDB coverage', () => {
+describe('RxDB 连接、迁移与插件生命周期', () => {
   it('registers and retrieves repository configuration', () => {
     const database = createDatabase();
     const repositoryConfig = database.getRepositoryConfig('Repository');
@@ -71,19 +66,19 @@ describe('RxDB coverage', () => {
 
   it('initializes a remote-only adapter stream without replacing a supplied client id', async () => {
     const database = createDatabase({
-      context: { clientId: 'coverage-client' },
+      context: { clientId: 'lifecycle-client' },
       sync: {
         remote: { adapter: 'remote' },
         type: SyncType.None
       }
     });
-    const remoteAdapter = createLocalAdapter();
+    const remoteAdapter = createMockAdapter(database);
     database.adapter('remote', () => remoteAdapter);
 
     database.init();
 
     await expect(firstValueFrom(database.remoteAdapter$)).resolves.toBe(remoteAdapter);
-    expect(database.context.clientId).toBe('coverage-client');
+    expect(database.context.clientId).toBe('lifecycle-client');
   });
 
   it('routes gateway callbacks through the event API and exposes firstConnectedAt', async () => {
@@ -125,7 +120,7 @@ describe('RxDB coverage', () => {
       multiInstance: false,
       sync: { local: { adapter: 'local' }, type: SyncType.None }
     });
-    database.adapter('local', () => createLocalAdapter());
+    database.adapter('local', db => createMockAdapter(db));
     databases.add(database);
 
     expect(() => database.init()).not.toThrow();
@@ -143,7 +138,7 @@ describe('RxDB coverage', () => {
         { name: 'a-applied', up: alreadyApplied, down: vi.fn<() => Promise<void>>(async () => undefined) }
       ]
     });
-    const adapter = createLocalAdapter();
+    const adapter = createMockAdapter(database);
     const adapterFactory = vi.fn(() => adapter);
     vi.mocked(adapter.isTableExisted).mockResolvedValue(true);
     database.adapter('local', adapterFactory);
@@ -166,9 +161,9 @@ describe('RxDB coverage', () => {
     };
     // 只替换 RxDBMigration 的仓库：getRepository 是通用入口，全量替换会让无关实体
     // （RxDBSync / RxDBBranch 等）也命中这个桩，find 的调用次数断言随之失真
-    const defaultGetRepository = vi.mocked(adapter.getRepository).getMockImplementation();
-    vi.mocked(adapter.getRepository).mockImplementation((EntityType: unknown) =>
-      EntityType === RxDBMigration ? (repository as never) : (defaultGetRepository?.(EntityType as never) as never)
+    const defaultGetRepository = adapter.getRepository.getMockImplementation();
+    adapter.getRepository.mockImplementation(EntityType =>
+      EntityType === RxDBMigration ? (repository as never) : (defaultGetRepository?.(EntityType) as never)
     );
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
@@ -214,7 +209,7 @@ describe('RxDB coverage', () => {
         }
       ]
     });
-    const adapter = Object.assign(createLocalAdapter(), { migrateSystemSchema });
+    const adapter = Object.assign(createMockAdapter(database), { migrateSystemSchema });
     vi.mocked(adapter.isTableExisted).mockResolvedValue(true);
     database.adapter('local', () => adapter);
     database.init();
@@ -239,19 +234,19 @@ describe('RxDB coverage', () => {
         }
       ]
     });
-    const adapter = createLocalAdapter();
+    const adapter = createMockAdapter(database);
     vi.mocked(adapter.isTableExisted).mockResolvedValue(true);
     database.adapter('local', () => adapter);
     database.init();
     // C2 起迁移仓库由 executor.getRepository() 提供；取不到仓库时的错误由适配器抛出，
     // 契约是**不得被吞掉**——connect() 必须带着原因失败，而不是静默跳过迁移
     const repositoryFailure = new Error('Repository for RxDBMigration is not registered');
-    const defaultGetRepository = vi.mocked(adapter.getRepository).getMockImplementation();
+    const defaultGetRepository = adapter.getRepository.getMockImplementation();
     // 只对 RxDBMigration 抛：getRepository 是通用入口，全局抛会让无关代码路径产生
     // 未捕获拒绝并污染同文件的其他用例
-    vi.mocked(adapter.getRepository).mockImplementation((EntityType: unknown) => {
+    adapter.getRepository.mockImplementation(EntityType => {
       if (EntityType === RxDBMigration) throw repositoryFailure;
-      return defaultGetRepository?.(EntityType as never) as never;
+      return defaultGetRepository?.(EntityType) as never;
     });
 
     await expect(database.connect('local')).rejects.toBe(repositoryFailure);
@@ -259,8 +254,8 @@ describe('RxDB coverage', () => {
 
   it('keeps global resources alive until the final adapter disconnects', async () => {
     const database = createDatabase();
-    const localAdapter = createLocalAdapter();
-    const auxiliaryAdapter = createLocalAdapter();
+    const localAdapter = createMockAdapter(database);
+    const auxiliaryAdapter = createMockAdapter(database);
     const plugin = {
       name: 'lifecycle' as const,
       install: vi.fn(),
@@ -303,8 +298,8 @@ describe('RxDB coverage', () => {
   // 插件 / gateway / versionManager 永远留在活着的状态。
   it('tears down global resources when the last connected adapter disconnects, ignoring merely instantiated ones', async () => {
     const database = createDatabase();
-    const localAdapter = createLocalAdapter();
-    const auxiliaryAdapter = createLocalAdapter();
+    const localAdapter = createMockAdapter(database);
+    const auxiliaryAdapter = createMockAdapter(database);
     const plugin = {
       name: 'lifecycle-connected' as const,
       install: vi.fn(),

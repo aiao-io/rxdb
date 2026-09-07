@@ -214,6 +214,12 @@ jobs:
       - name: Third-party action pin gate
         run: pnpm audit:action-pins
 
+      # requirements/ 的派生视图（status-overview 计数与索引、epic status、README 的 N/M、
+      # 相对链接与 #L 行号锚点）必须等于 story YAML 推导值。此前全靠手改，README 写 50/61 时
+      # YAML 已是 54/63；数字类漂移本地跑 `pnpm audit:requirements:update` 即可回写。
+      - name: Requirements consistency gate
+        run: pnpm audit:requirements
+
       # 校验 **PR 标题**而不是分支上的中间提交：本仓库走 squash merge，
       # 落到 main 的只有 GitHub 用 PR 标题生成的那一条（`main` 上的
       # `feat(...): ... (#7)` 就是这么来的）。理由详见 scripts/commit-lint.mjs 头注释。

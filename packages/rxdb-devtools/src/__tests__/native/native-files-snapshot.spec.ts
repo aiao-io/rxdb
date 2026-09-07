@@ -66,6 +66,7 @@ function setupWithSnapshot(source: DevToolsSnapshotSource): {
   const provider = createDevToolsNativeFilesProvider({
     filesystem,
     maxTransferBytes: 64,
+    runtime: 'electron',
     snapshot: { clock, source }
   });
   return { clock, provider };
@@ -139,7 +140,8 @@ describe('native files provider — snapshot mode (AC#48)', () => {
   it('MUST answer provider_unsupported when no snapshot port was wired', async () => {
     const provider = createDevToolsNativeFilesProvider({
       filesystem: createFakeNativeFilesystem(),
-      maxTransferBytes: 64
+      maxTransferBytes: 64,
+      runtime: 'electron'
     });
 
     expect(await provider.invoke('list', { snapshot: {} })).toEqual({
@@ -166,6 +168,7 @@ describe('native files provider — snapshot mode (AC#48)', () => {
     const provider = createDevToolsNativeFilesProvider({
       filesystem,
       maxTransferBytes: 64,
+      runtime: 'electron',
       snapshot: { clock: createFakeClock(), source: captured(makeRecords(1)) }
     });
 

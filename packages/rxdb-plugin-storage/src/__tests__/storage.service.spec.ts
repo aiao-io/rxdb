@@ -72,6 +72,33 @@ describe('RxdbFileStorage', () => {
     expect(service.changeEpoch).toBe(2);
   });
 
+  it('runExclusive 把 signal 穿到独占锁：等锁期间中止即拒绝，任务不执行', async () => {
+    const { service } = createService();
+    const controller = new AbortController();
+    let ran = false;
+    let releaseHolder!: () => void;
+    const holder = service.runExclusive(
+      () =>
+        new Promise<void>(resolve => {
+          releaseHolder = resolve;
+        })
+    );
+
+    const waiter = service.runExclusive(async () => {
+      ran = true;
+    }, controller.signal);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    controller.abort();
+
+    await expect(waiter).rejects.toMatchObject({ name: 'AbortError' });
+    releaseHolder();
+    await holder;
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(ran).toBe(false);
+    // 被 abort 的 waiter 不得把闸门留在关闭态
+    await expect(service.upload(new File(['x'], 'a.txt', { type: 'text/plain' }))).resolves.toBeDefined();
+  });
+
   it('should upload, read and delete files with metadata', async () => {
     const { service } = createService({}, new ObjectUrlRegistry((blob: Blob) => `blob:${blob.size}`, vi.fn()));
 

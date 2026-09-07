@@ -9,6 +9,7 @@
 import { getEntityMetadata } from '../rxdb-utils.js';
 import type { RxDB } from '../RxDB.js';
 import { RxDBSync } from '../system/sync.js';
+import { getAncestorBranchIds } from './branch-utils.js';
 import { needsPull } from './sync-type-utils.js';
 // `RepositoryIdentifier` 此前在 4 个文件里各写了一份同形状定义，
 // 统一收敛到 `VersionManager.interface.ts`（那份才是 `index.ts` 真正导出的）。
@@ -120,12 +121,19 @@ export async function checkRepositoryUpdates(
   }
 
   const sinceId = localLastPullRemoteChangeId ?? 0;
+  // 计数范围必须和 pull 的拉取范围一致，否则这个函数就是在回答另一个问题：
+  // `getChangeCount` 的 branchId 是精确匹配，只传当前分支时父分支上的新变更一条都不计入，
+  // 于是 `hasUpdates` 报 false、界面显示「已全部同步」，而 pull 其实还有东西要拉。
   // 此前只传裸实体名，同名实体跨 namespace 存在时会解析歧义
-  const { count, latestChangeId } = await remoteAdapter.getChangeCount(
-    sinceId,
-    [`${namespace}:${metadata.name}`],
-    branchId
+  const branchIds = await getAncestorBranchIds(rxdb.versionManager, branchId);
+  const perBranch = await Promise.all(
+    branchIds.map(ancestorBranchId =>
+      remoteAdapter.getChangeCount(sinceId, [`${namespace}:${metadata.name}`], ancestorBranchId)
+    )
   );
+  // 条数跨分支相加；`latestChangeId` 是同一个远端序列上的最大值，取 max 而非相加
+  const count = perBranch.reduce((sum, item) => sum + item.count, 0);
+  const latestChangeId = perBranch.reduce((max, item) => (item.latestChangeId > max ? item.latestChangeId : max), 0);
   // 4. 构造返回结果
   return {
     repository,

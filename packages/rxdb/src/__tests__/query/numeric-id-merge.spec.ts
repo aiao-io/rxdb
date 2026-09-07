@@ -11,22 +11,19 @@
  * `0` 会被 `??` 之外的任何真值判断吃掉，是数值主键最容易出错的地方。
  */
 
-import { emptyFunction } from '@aiao/utils';
-import { Observable, of } from 'rxjs';
-import { describe, expect, it, vi } from 'vitest';
+import { of } from 'rxjs';
+import { describe, expect, it } from 'vitest';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import query_merge_create_cache_impl from '../../query/merge_create.js';
 import query_merge_remove_cache_impl from '../../query/merge_remove.js';
 import query_merge_update_cache_impl from '../../query/merge_update.js';
-import { getFingerprintPrimitive, type Fingerprint } from '../../repository/fingerprint.utils.js';
-import { QueryOptions } from '../../repository/QueryManager.interface.js';
 import { QueryTask } from '../../repository/QueryTask.js';
 import type {
   RxDBEntityLocalCreatedEventData,
   RxDBEntityLocalRemovedEventData,
   RxDBEntityLocalUpdatedEventData
 } from '../../rxdb-events.js';
-import { RxDB } from '../../RxDB.js';
+import { createHarnessQueryTask, type HarnessTaskOptions } from '../fixtures/query-task-harness.js';
 
 describe('数值主键实体的查询缓存合并（RXD-069）', () => {
   /**
@@ -45,73 +42,10 @@ describe('数值主键实体的查询缓存合并（RXD-069）', () => {
   type UpdatedEvent = RxDBEntityLocalUpdatedEventData<NumericEntityType>;
   type RemovedEvent = RxDBEntityLocalRemovedEventData<NumericEntityType>;
 
-  const createMockRxDB = (cachedById: Record<number, unknown> = {}): RxDB =>
-    ({
-      schemaManager: {
-        getFieldRelations: vi.fn(() => ({ relations: [], isForeignKey: false, property: {}, propertyName: '' })),
-        getEntityType: vi.fn(),
-        getEntityMetadata: vi.fn()
-      },
-      addEventListener: vi.fn(),
-      entityManager: {
-        createEntityRef: vi.fn((_entityType: NumericEntityType, entity: NumericEntityData) => entity),
-        getEntityRef: vi.fn((_entityType: unknown, id: number) => cachedById[id])
-      }
-    }) as unknown as RxDB;
-
-  const getFingerprintByPrimitive = (value: unknown): Fingerprint[] =>
-    getFingerprintPrimitive(value as Fingerprint | Fingerprint[]);
-  const getFingerprintByMockEntity = (entity: unknown): Fingerprint[] => [JSON.stringify({ ...(entity as object) })];
-  const getFingerprintByMockEntities = (entities: unknown): Fingerprint[] =>
-    Array.isArray(entities) ? entities.map(e => JSON.stringify({ ...(e as object) })) : [];
-
+  /** 经真正的 `QueryManager` 造查询任务，`result$` 与 `serialize` 全部来自生产代码。 */
   const createMockQueryTask = <RT>(
-    taskOptions: QueryOptions<NumericEntityType> & {
-      runner: () => Observable<RT>;
-      cachedById?: Record<number, unknown>;
-    }
-  ): QueryTask<NumericEntityType, RT> => {
-    const deps = new Map<NumericEntityType, number>();
-    deps.set(NumericEntity, 1);
-    const { runner, cachedById, ...queryOptions } = taskOptions;
-    const pickFingerprint = () => {
-      switch (queryOptions.type) {
-        case 'count':
-        case 'countDescendants':
-        case 'countAncestors':
-          return getFingerprintByPrimitive;
-        case 'findOne':
-        case 'findOneOrFail':
-        case 'get':
-          return getFingerprintByMockEntity;
-        default:
-          return getFingerprintByMockEntities;
-      }
-    };
-    const task = new QueryTask<NumericEntityType, RT>({
-      cacheKey: 'cacheKey',
-      options: queryOptions,
-      runner,
-      entityType: NumericEntity,
-      rxdb: createMockRxDB(cachedById),
-      depEntityTypeMap: deps,
-      serialize: data => data.patch as NumericEntityData,
-      onClean: emptyFunction,
-      getFingerprint: pickFingerprint()
-    });
-    task.result$ = new Observable<RT>(observer => {
-      task.observerCount++;
-      if (task.result !== undefined) observer.next(task.result);
-      task.observers.add(observer);
-      task.run();
-      return (): void => {
-        task.observerCount--;
-        task.observers.delete(observer);
-        if (task.observerCount <= 0) task.clean();
-      };
-    });
-    return task;
-  };
+    taskOptions: HarnessTaskOptions<NumericEntityType, RT>
+  ): QueryTask<NumericEntityType, RT> => createHarnessQueryTask(NumericEntity, taskOptions);
 
   const createEvent = (entity: NumericEntityData): CreatedEvent => ({
     type: 'INSERT',

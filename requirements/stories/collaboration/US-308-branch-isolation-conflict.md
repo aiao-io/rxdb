@@ -5,8 +5,21 @@ status: Backlog
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-08-22
+updated: 2026-09-06
 tags: [collaboration, branch, concurrency, conflict]
+inherited_acs:
+  - from: US-306
+    ac: US1-AC4
+    note: 切出/切回端到端往返半边，由本故事 US1-AC5 收口
+  - from: US-306
+    ac: US4-AC2
+    note: 冷重放断言之外的切出/切回往返半边，由本故事 US1-AC5 收口
+  - from: US-306
+    ac: US2-AC17
+    note: remote_sync 单元在切出/切回后仍一致的半边，由本故事 US1-AC12 收口
+  - from: US-306
+    ac: US4-AC7
+    note: 真实双 Tab stale_active_branch fixture 半边，由本故事 US2-AC5 收口
 ---
 
 <!--
@@ -46,21 +59,22 @@ INVEST 检查清单:
 
 ### 从 US-306 阶段 A 顺延过来的验收责任
 
-US-306 阶段 A 用持久层重放断言覆盖数据契约，把「必须真的切一次分支才能观察」的行为全部留给本故事。以下两条是明确的顺延点，
+US-306 阶段 A 用持久层重放断言覆盖数据契约，把「必须真的切一次分支才能观察」的行为全部留给本故事。以下三条是明确的顺延点，
 本故事的对应场景即是它们的最终收口，不得再次下推：
 
-| 顺延来源                                                     | 本故事收口场景 |
-| ------------------------------------------------------------ | -------------- |
-| US-306 阶段 A AC2 的切出/切回端到端往返                      | US1-AC5        |
-| US-306 阶段 A AC7 的真实双 Tab `stale_active_branch` fixture | US2-AC5        |
+| 顺延来源                                                  | 本故事收口场景 |
+| --------------------------------------------------------- | -------------- |
+| US-306 US1-AC4 / US4-AC2 的切出/切回端到端往返            | US1-AC5        |
+| US-306 US2-AC17 的 `remote_sync` 单元切出/切回后仍一致    | US1-AC12       |
+| US-306 US4-AC7 的真实双 Tab `stale_active_branch` fixture | US2-AC5        |
 
 ## 既有 `switchBranch()` 的兼容处置
 
-原 US-305 的 FR-017 写「切换分支前**默认**要求工作区 clean」。这与同一份文档的 FR-018「已有 API 的行为不能因为 commit 功能而改变」直接冲突，而且是会打破用户代码的那种冲突：
+[US-305 FR-018](./US-305-commit-graph-head.md) 要求「已有 API 的行为不能因为 commit 功能而改变」。把 `switchBranch()` 的默认行为改成「要求工作树 clean」会直接违反它，而且是会打破用户代码的那种违反：
 
 - [VersionManager.ts](../../../packages/rxdb/src/version/VersionManager.ts) 的 `switchBranch(branchId: string)` 当前**无条件**切换，没有 dirty 检查，也没有 options 参数。
 - [website/docs/collaboration/branch.md](../../../website/docs/collaboration/branch.md) 里所有示例都是直接 `await rxdb.versionManager.switchBranch('feature-1')`。
-- [apps/dev-rxdb-supabase/src/app/branch-manager.ts:203](../../../apps/dev-rxdb-supabase/src/app/branch-manager.ts#L203) 从一个下拉框直接调用它，没有任何 dirty 处理路径。
+- [branch-manager.ts](../../../apps/dev-rxdb-supabase/src/app/branch-manager.ts#L203) 的 `switchBranch(branch)` 方法从一个下拉框直接 `await this.#rxdb.versionManager.switchBranch(branch)`，没有任何 dirty 处理路径。
 - `VersionManager` 类方法签名不受只记录导出名的 api-baseline 完整保护；现有 `SwitchBranchOptions` 还是
   适配器层 `{ branchId, actions }` 契约，不能拿来表示用户侧 `{ requireClean }`。所以本故事必须补
   `public-type-compatibility` 方法签名测试，不能只更新导出名基线。
@@ -136,7 +150,7 @@ commit、discard 或刷新/重新选择建议，不能只检查业务表 diff。
 
 ## 功能需求
 
-- **FR-017**（已改口径）：系统 MUST 与现有分支操作集成。`createBranch(branchId)` 保留从当前物化状态创建的行为，复制独立 working-tree snapshot 并共享当前 HEAD；`createBranch(branchId, fromChangeId)` 保留历史 change 状态并以 `kind=branch_baseline` 锚定。分支不得共享可变 HEAD / 工作树。切换恢复目标分支状态；clean 检查以 `WorkingTreeSwitchBranchOptions.requireClean` 显式提供，不带选项仍无条件切换。
+- **FR-017**：系统 MUST 与现有分支操作集成。`createBranch(branchId)` 保留从当前物化状态创建的行为，复制独立 working-tree snapshot 并共享当前 HEAD；`createBranch(branchId, fromChangeId)` 保留历史 change 状态并以 `kind=branch_baseline` 锚定。分支不得共享可变 HEAD / 工作树。切换恢复目标分支状态；clean 检查以 `WorkingTreeSwitchBranchOptions.requireClean` 显式提供，不带选项仍无条件切换。
 - **FR-020**：系统 MUST 使用持久化 activation/head/working-tree revision CAS 阻止跨标签页静默覆盖。普通 CRUD MUST 校验实体/realm 捕获的 active branch token；不得在事务中重新读取新 active branch 后把旧实体归到新分支，也不得只依赖 `BroadcastChannel` 或内存状态。
 - **FR-035**：`CommitConflict` MUST 从失败操作、对象 ID、expected/actual activation/head/working-tree revision 与建议动作派生，不得建立第二张可与真实 revision 漂移的冲突状态表。普通命令 CAS 失败只返回诊断值，不建立 durable conflict；`status().conflicted` 与 `requireClean` 只读取仍存在的 `WorkingTreeRestoreSession` 等 durable domain session。**该类型本身由首个使用者 [US-306 阶段 B](./US-306-working-tree-commits.md) 定义、补 TSDoc 并登记 api-baseline**；本故事只把 activation 维度（activation expected/actual 与切换建议动作）扩展进去，不重新定义类型、不新建并行诊断类型。
 - **FR-044**：`removeBranch()` MUST 原子删除该分支全部可变状态和 materialization attempt，但保留不可变 commit；同名重建 MUST 使用新 branch generation。`syncBranches()` 只同步 metadata 时不得提前伪造 baseline/ref；承接 US-305 FR-049，没有 `CommitBranchRef` 的 metadata-only 远端分支不是空 HEAD。其首次 switch MUST 使用独立 durable staging 冻结目标分支、终止水位和完整配置 sync scope，逐页持久化 payload/fingerprint 且不触碰当前投影；最终把“复核 active token、目标身份、水位/scope/fingerprint、完整物化、创建 `kind=branch_baseline`、创建 ref、切换 active、递增 activation revision、删除 staging”放进同一提交屏障。物化依据不足则以 `branch_not_materialized` 全量回滚，来源分支保持 active；分页崩溃可恢复，staging 可按 attempt 清理。旧签名、旧拒绝条件与 remote commit 非目标保持不变。
@@ -153,7 +167,7 @@ commit、discard 或刷新/重新选择建议，不能只检查业务表 diff。
 
 ## 测试要求
 
-- 必须有跨标签页 / 跨 realm 并发测试，覆盖 activation/HEAD/working-tree CAS、重复 commit、过期 revision 提交，以及 US3-AC3 的「status 后被另一 Tab 抢写 → `CommitConflict` → refresh 后合并提交」全链路。
+- 必须有跨标签页 / 跨 realm 并发测试，覆盖 activation/HEAD/working-tree CAS、重复 commit、过期 revision 提交，以及 US2-AC3 的「status 后被另一 Tab 抢写 → `CommitConflict` → refresh 后合并提交」全链路。
 - 必须有“Tab A 读 A → Tab B 切 B → Tab A 保存旧实体”的真实双 realm fixture，断言稳定 `stale_active_branch` 且两分支零污染。
 - 必须有 A dirty → B dirty → A → B 往返测试，断言每个分支的数据与 revision 均恢复。
 - 必须有一条回归用例专门断言**不带选项**的 `switchBranch(branchId)` 行为未变（AC User Story 1 场景 3）。

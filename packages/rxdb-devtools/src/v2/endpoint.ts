@@ -277,6 +277,11 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
    * session 不符结构化拒绝（这是**已识别**的错帧）、档位不足再次静默。
    */
   #route(message: DevToolsV2Message): void {
+    // 协商三帧归协商机独有，数据面一概不碰——与下面 `#rejectMalformed` 的第一行同一条规则。
+    // 少了这道闸的后果不是「多回一条错」而是**协商被挡死**：session 开着时，重开的面板发来的
+    // `PROTOCOL_HELLO`（`sessionId` 必为 `null`）会撞在下面那道 `session.accepts` 上被回
+    // `session_invalid`，而它本该由协商机自己处置。实测表征是面板静默退回 v1 车道。
+    if (NEGOTIATION_OWNED_TYPES.has(message.type)) return;
     const session = this.#session;
     if (session === null || session.state !== 'open') return;
     if (!session.accepts(message.sessionId)) {

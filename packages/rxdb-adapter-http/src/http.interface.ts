@@ -521,6 +521,9 @@ export interface HttpAdapterOptions extends Partial<HttpNumericConfig> {
    *   changeFeed: { url: 'changes', onUnavailable: report => myLogger.warn(report.message, report) }
    * });
    * ```
+   *
+   * @experimental 不在 1.0 兼容承诺内：协议目前只有参考后端一个实现，wire 形态可能随第二个实现调整。
+   * 层级口径见 `requirements/versioning-policy.md`「实验性层级」。
    */
   changeFeed?: HttpChangeFeedOptions;
 }

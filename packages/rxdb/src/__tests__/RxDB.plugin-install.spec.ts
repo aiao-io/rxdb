@@ -24,8 +24,8 @@ function createDatabase(): RxDB {
     entities: [],
     sync: { local: { adapter: 'sqlite' }, remote: { adapter: 'remote' }, type: SyncType.Full }
   });
-  database.adapter('sqlite', () => createMockAdapter());
-  database.adapter('remote', () => createMockAdapter());
+  database.adapter('sqlite', db => createMockAdapter(db));
+  database.adapter('remote', db => createMockAdapter(db));
   databases.add(database);
   return database;
 }
@@ -102,6 +102,27 @@ describe('RxDB 适配器连接信号与插件安装', () => {
     expect(await firstValueFrom(database.adapterConnected$('remote'))).toBe(false);
     expect(await firstValueFrom(database.adapterConnected$('sqlite'))).toBe(true);
     expect(aggregated).toEqual([true]);
+  });
+
+  // `use()` 是同步的、返回 `this`，它自己没有报错的出口；文档因此把出口指给了「后续
+  // `connect()`」。但已连接的适配器再 `connect()` 只会命中 `#connect_promise_map` 里那条
+  // **早就 resolve 掉的**旧 Promise —— 插件安装那一段根本不会重跑，失败于是只剩一行
+  // console.error。用户看到的是「connect() 成功了」，而插件其实没装上。
+  it('连上之后 use() 的插件安装失败，由后续 connect() 传播', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const database = createDatabase();
+    await database.connect('sqlite');
+
+    const install = vi.fn(async () => {
+      throw new Error('late install boom');
+    });
+    database.use((): IRxDBPlugin => ({ name: 'lateFailing', install, destroy: async () => undefined }));
+
+    await expect(database.connect('sqlite')).rejects.toThrow('late install boom');
+    expect(install).toHaveBeenCalledTimes(1);
+    // 同一个错误反复报，而不是重跑一遍安装：`install()` 没有幂等契约
+    await expect(database.connect('sqlite')).rejects.toThrow('late install boom');
+    expect(install).toHaveBeenCalledTimes(1);
   });
 
   it('安装失败的插件不会被重跑，且该适配器回滚为未连接', async () => {

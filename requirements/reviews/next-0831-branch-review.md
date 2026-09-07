@@ -3,6 +3,16 @@
 - **分支**：`next-0831`（相对 `main`，merge-base 即 `main` HEAD `8280d21`）
 - **范围**：432 个文件，约 29,531 行新增 / 4,815 行删除，74 个提交
 - **结论**：24 条确认为真（1 critical / 4 high / 9 medium / 10 low），3 条经复核推翻
+- **修复状态**（按源码复核，判据是缺陷不再可复现，不是「提过 PR」）：
+
+  | 编号        | 状态    | 证据                                                                                                                                                                                                                                                             |
+  | ----------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | #1 critical | ✅ 已修 | `pg-runtime.ts` 改用 `tableRefOf()` 的 schema 限定名，`sqlTableName` 只留作迁移账本键                                                                                                                                                                            |
+  | #2–#4 high  | ✅ 已修 | `electron-pglite-host.ts` 的 `end()` 检查 `commitError`；`panel-endpoint.ts` `#onError` 查 `#transferOf()`；`endpoint.ts` `#createSink` 包 try/catch 回 ERROR                                                                                                    |
+  | #5 high     | ✅ 部分 | 四个 adapter 的 `lib.entry` 已补 `testing`；`files` 排除 `__tests__` 与 `import.meta.glob` 冲突**未修**，`@aiao/source` 条件对消费者仍失效                                                                                                                       |
+  | #6–#9       | ✅ 已修 | `#onMessage` 包 `reportOutOfBand`；`discard()` 改用 `cleaned` 位；健康检查按 `table_schema` 过滤；集成测试驱动真实 `RxDBAdapterPGlite`                                                                                                                           |
+  | #10–#14     | ✅ 已修 | `withExclusive(fn, signal?)` 穿到 `PathLockManager`；`closeAll` 以 `DESKTOP_PGLITE_CLOSE_ALL_TIMEOUT_MS` race 后无条件 `terminate()`；`assertWhereDepth` 32 层上限回 400；`notifyNavigation()` 推进 `connectionEpoch`；`OpfsService.load()` 代际计数丢弃迟到响应 |
+  | 低危        | 未复核  | 按需排期                                                                                                                                                                                                                                                         |
 
 ## 评审方法
 

@@ -7,8 +7,12 @@
   "sourceRoot": "apps/dev-rxdb-electron-e2e/src",
   "targets": {
     "e2e": {
-      "// dependsOn": "ELEC-10：必须依赖真实产物（electron-builder --dir），而不是 build —— 只有打包后才能验 file: 协议下的 CSP、路由与 WASM。US-904 阶段 A：可行性门禁加载扩展的真实构建产物，缺产物必须红而不是 skip，所以把它也钉进依赖。",
-      "dependsOn": ["dev-rxdb-electron:electron-package-dir", "rxdb-devtools-extension:build"]
+      "// dependsOn": "ELEC-10：必须依赖真实产物（electron-builder --dir），而不是 build —— 只有打包后才能验 file: 协议下的 CSP、路由与 WASM。US-904 阶段 A：可行性门禁加载扩展的真实构建产物，缺产物必须红而不是 skip，所以把它也钉进依赖。US-906 AC#3：桌面端注入要静态 host permission，只有 build-desktop-dev 那份产物有；两份都要，因为 devtools-extension-loading 验的是发布产物的加载隔离。",
+      "dependsOn": [
+        "dev-rxdb-electron:electron-package-dir",
+        "rxdb-devtools-extension:build",
+        "rxdb-devtools-extension:build-desktop-dev"
+      ]
     }
   }
 }

@@ -20,7 +20,7 @@
 
 个别 story 因 INVEST「Small」不成立而体量偏大。这类 story **仍是一个文件、一条状态**，
 在正文里用 `## 交付阶段` 表把交付切成 A / B / C…，AC 表按阶段分段编号，实现文件表加「阶段」列。
-现有十二条：[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-020](stories/core/US-020-querycache-repository.md)、[US-023](stories/core/US-023-querycache-remote-invalidation.md)、[US-207](stories/adapter/US-207-desktop-local-database.md)、[US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)、[US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)、[US-212](stories/adapter/US-212-http-adapter.md)、[US-214](stories/adapter/US-214-http-browser-demo.md)、[US-216](stories/adapter/US-216-server-side-rxdb.md)、[US-306](stories/collaboration/US-306-working-tree-commits.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)。
+现有十三条：[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-305](stories/collaboration/US-305-commit-graph-head.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-020](stories/core/US-020-querycache-repository.md)、[US-023](stories/core/US-023-querycache-remote-invalidation.md)、[US-207](stories/adapter/US-207-desktop-local-database.md)、[US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)、[US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)、[US-212](stories/adapter/US-212-http-adapter.md)、[US-214](stories/adapter/US-214-http-browser-demo.md)、[US-216](stories/adapter/US-216-server-side-rxdb.md)、[US-306](stories/collaboration/US-306-working-tree-commits.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)。
 
 > 判据是**正文里有阶段表**，不是 `status`——列表里多数已 `Done`。核对方式：`grep -rl "交付阶段" requirements/stories/`
 > （US-012 的阶段表写在引用块里，用 `## 交付阶段` 精确匹配会漏掉它）。

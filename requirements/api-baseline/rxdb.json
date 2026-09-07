@@ -914,6 +914,10 @@
         "kind": "type"
       },
       {
+        "name": "QueryCachePendingWriteIds",
+        "kind": "type"
+      },
+      {
         "name": "QueryCacheRemoteAdapter",
         "kind": "type"
       },
@@ -1035,10 +1039,6 @@
       },
       {
         "name": "RemoteMergeResult",
-        "kind": "type"
-      },
-      {
-        "name": "RemoteSyncOptions",
         "kind": "type"
       },
       {

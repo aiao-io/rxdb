@@ -8,6 +8,7 @@ import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
 import { RxDBError } from '../RxDBError.js';
 import { getFingerprintByEntities, getFingerprintByEntity, getFingerprintPrimitive } from './fingerprint.utils.js';
+import { pendingQueryCacheWriteIds } from './query-cache-outbox.js';
 
 import {
   createQueryCachePrimary,
@@ -144,6 +145,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
       // 记忆归 `Repository` 持有：主仓储随适配器流每次发射重建，放在它身上等于没有记忆
       this.#syncMemo = new QueryCacheSyncMemo(this.sync.local.syncStaleTime);
       this.primary$ = this.#createQueryCachePrimary(
+        metadata.namespace,
         metadata.name,
         this.sync.local.localCacheFirst === true,
         this.#syncMemo
@@ -154,7 +156,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
           (this.remote$ as Observable<RT>)
         : (this.local$ as Observable<RT>);
     }
-    this.queryManager = new QueryManager<T>(rxdb, EntityType, this);
+    this.queryManager = new QueryManager<T>(rxdb, EntityType);
     // 只有 QueryCache 仓储挂这个监听器（US-023 D15）：版本化路径靠 changelog 拉取，
     // 没有「远端权威、本地只是投影」这层假设，重跑对它既无意义也无入口。
     // 把「不做事」做成结构性的 —— 不注册就不可能被触发，胜过在处理器里再判一次同步类型。
@@ -163,10 +165,21 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     }
   }
 
+  /**
+   * 销毁本仓储：摘掉事件监听、清空同步记忆、关掉查询管理器。
+   *
+   * @remarks
+   * `#syncMemo.clear()` 不是顺手做的清理，而是**释放资源**：记忆表的每一条都挂着一个
+   * `setTimeout`，窗口由 `syncStaleTime` 决定（可配成分钟级）。不清的话，断连时销毁的
+   * 仓储连同它的记忆闭包会被这些计时器钉在事件循环上直到窗口自己走完 —— Node / Electron
+   * 里这还会拖住进程退出。`clear()` 同时递增代次，销毁瞬间还在飞的同步回来时不会把
+   * 记忆写回一个已经死掉的仓储。
+   */
   destroy() {
     this.#destroyed = true;
     if (this.#syncMemo !== undefined) {
       this.rxdb.removeEventListener(REMOTE_ENTITY_INVALIDATED_EVENT, this.#onRemoteEntityInvalidated);
+      this.#syncMemo.clear();
     }
     this.queryManager.destroy();
   }
@@ -487,6 +500,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * 换了（断连重连，AC#22）即清空，没换则继续沿用。
    */
   #createQueryCachePrimary(
+    namespace: string,
     entityName: string,
     localCacheFirst: boolean,
     syncMemo: QueryCacheSyncMemo
@@ -502,7 +516,9 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
           localCacheFirst,
           syncMemo,
           this.rxdb.reachability,
-          this.rxdb.syncState
+          this.rxdb.syncState,
+          // 每轮同步现问一次，不缓存：缓存一份快照就等于给「问完之后排进来的写」开了个删除口子
+          () => pendingQueryCacheWriteIds(this.rxdb.versionManager, namespace, entityName)
         );
         // 记下「此刻的那一个」：失效上报要同步作废它的在飞查询（US-023 D13）
         this.#queryCachePrimary = primary;

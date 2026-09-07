@@ -1,12 +1,24 @@
 import type { IRepository } from '../repository/repository.interface.js';
 import { RxDBError } from '../RxDBError.js';
 import { RxDBBranch } from '../system/branch.js';
+import { RxDBChange } from '../system/change.js';
+import { toLocalFromChangeId } from './branch-change-id.js';
 import type { VersionManager } from './VersionManager.js';
 
 export interface SyncBranchesResult {
   created: number;
   updated: number;
   total: number;
+
+  /**
+   * 因分叉点变更尚未拉到本地而**本轮未创建**的分支 id。
+   *
+   * 远端分支行上的 `fromChangeId` 是远端 change id，落到本地必须翻译成本地 id
+   * （见 {@link toLocalFromChangeId}）。翻译不出来时既不能写远端 id（本地会当自己的 id 消费，
+   * 分叉点变成一个无关变更），也不能写 `null`（`find-switch-branch-step` 会当「分叉于根」，
+   * 切换分支时从第一条变更起算）。唯一无损的选择是本轮跳过，等分叉点变更拉到本地后再建。
+   */
+  skipped: string[];
 }
 
 /** `pullBranches()` 交回来的形状里，本函数只依赖这三个字段。 */
@@ -89,18 +101,19 @@ export async function syncBranches(vm: VersionManager): Promise<SyncBranchesResu
   const { adapter: remoteAdapter } = await vm.getRemoteRepositories();
 
   if (!remoteAdapter.pullBranches) {
-    return { created: 0, updated: 0, total: 0 };
+    return { created: 0, updated: 0, total: 0, skipped: [] };
   }
 
   const remoteBranches = await remoteAdapter.pullBranches();
   if (remoteBranches.length === 0) {
-    return { created: 0, updated: 0, total: 0 };
+    return { created: 0, updated: 0, total: 0, skipped: [] };
   }
 
   const { adapter } = await vm.getLocalRepositories();
 
   return adapter.transaction(async executor => {
     const branchRepository = executor.getRepository(RxDBBranch) as unknown as IRepository<typeof RxDBBranch>;
+    const changeRepository = executor.getRepository(RxDBChange) as unknown as IRepository<typeof RxDBChange>;
 
     const localBranches = await branchRepository.find({
       where: { combinator: 'and', rules: [] }
@@ -109,25 +122,38 @@ export async function syncBranches(vm: VersionManager): Promise<SyncBranchesResu
 
     let created = 0;
     let updated = 0;
+    const skipped: string[] = [];
 
     for (const remote of sortBranchesParentFirst(remoteBranches, new Set(localMap.keys()))) {
       const local = localMap.get(remote.id);
-      if (!local) {
-        await branchRepository.create({
-          id: remote.id,
-          activated: false,
-          local: false,
-          remote: true,
-          fromChangeId: remote.fromChangeId ?? null,
-          parentId: remote.parentId ?? null
-        } as InstanceType<typeof RxDBBranch>);
-        created++;
-      } else if (!local.remote) {
-        await branchRepository.update(local, { remote: true, updatedAt: new Date() });
-        updated++;
+      if (local) {
+        if (!local.remote) {
+          await branchRepository.update(local, { remote: true, updatedAt: new Date() });
+          updated++;
+        }
+        continue;
       }
+
+      // 远端 change id 必须翻译成本地 id 才能写进本地分支行
+      const remoteFromChangeId = remote.fromChangeId ?? null;
+      const fromChangeId =
+        remoteFromChangeId === null ? null : await toLocalFromChangeId(changeRepository, remoteFromChangeId);
+      if (remoteFromChangeId !== null && fromChangeId === null) {
+        skipped.push(remote.id);
+        continue;
+      }
+
+      await branchRepository.create({
+        id: remote.id,
+        activated: false,
+        local: false,
+        remote: true,
+        fromChangeId,
+        parentId: remote.parentId ?? null
+      } as InstanceType<typeof RxDBBranch>);
+      created++;
     }
 
-    return { created, updated, total: remoteBranches.length };
+    return { created, updated, total: remoteBranches.length, skipped };
   });
 }

@@ -6,6 +6,7 @@ import { PropertyType, SyncType } from '../../entity/metadata-options.interface.
 import { RxDBMissingPrimaryAdapterError, RxDBMixedPrimaryAdapterError } from '../../entity/primary-adapter.js';
 import { Repository } from '../../repository/Repository.js';
 import type { IRxDBAdapter, RxDBMutationsMap } from '../../rxdb-adapter.js';
+import { ENTITY_LOCAL_NEW_EVENT } from '../../rxdb-events.js';
 import { getEntityStatus, uuid } from '../../rxdb-utils.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBError } from '../../RxDBError.js';
@@ -123,6 +124,43 @@ describe('EntityManager', () => {
     // 注册模拟适配器。
     rxdb.adapter('sqlite', () => mockAdapter as unknown as IRxDBAdapter);
     rxdb.init();
+  });
+
+  it('同一 tick 内 new 出来的实体立刻可被 createEntityRef 命中（不产生第二个实例）', () => {
+    const id = uuid();
+    const created = rxdb.entityManager.instantiate(Todo, { id, title: 'first' });
+
+    // 关键在「不 await」：从前 PROXY 工厂把 addEntityCache 塞进 nextMicroTask，
+    // 于是这一行在缓存里什么都读不到，转而造出**第二个** Todo 并把它写进缓存 ——
+    // 调用方手上那个 `created` 从此成了孤儿，两个对象各自持有同一 id 的不同状态，
+    // 对其中一个的编辑另一个永远看不见。
+    const referenced = rxdb.entityManager.createEntityRef(Todo, { id, title: 'second' });
+
+    expect(referenced).toBe(created);
+    expect(rxdb.entityManager.getEntityRef(Todo, id)).toBe(created);
+
+    rxdb.entityManager.removeEntityCache(created);
+  });
+
+  it('实体创建事件仍然延后到微任务，不在构造函数里同步派发', async () => {
+    const seen: string[] = [];
+    const listener = () => seen.push('event');
+    rxdb.addEventListener(ENTITY_LOCAL_NEW_EVENT, listener);
+
+    const id = uuid();
+    rxdb.entityManager.instantiate(Todo, { id, title: 'deferred' });
+
+    // 缓存是同步进去的，事件不是：监听器若在构造过程中就被叫醒，
+    // 拿到的是一个还没完成初始化的实例
+    expect(rxdb.entityManager.getEntityRef(Todo, id)).toBeDefined();
+    expect(seen).toEqual([]);
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(seen).toEqual(['event']);
+
+    rxdb.removeEventListener(ENTITY_LOCAL_NEW_EVENT, listener);
+    rxdb.entityManager.removeEntityCache(rxdb.entityManager.getEntityRef(Todo, id)!);
   });
 
   it('操作实体缓存', async () => {

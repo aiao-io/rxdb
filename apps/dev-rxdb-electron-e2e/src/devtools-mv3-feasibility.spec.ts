@@ -297,6 +297,11 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
     expect(detail.remainingContents).toEqual([]);
     // 销毁窗口的瞬间 worker 还在（MV3 的 worker 不随页面走），空闲约 30 秒后才自停。
     // 两个时刻都断言，才能区分「清理生效」与「本来就没起来」。
+    //
+    // 这一条曾在**整套连跑**下假红：探针原本 destroy 后 `sleep(2000)` 才取样，而面板的 Port
+    // 会把 worker 一直撑到窗口销毁，空闲计时从销毁那一刻才起算 —— 机器有负载时那句 sleep 的
+    // 真实墙钟漂过 30s，worker 已自停，这一半落空。探针现在**零等待取样**（见
+    // `devtools-mv3-probe.mjs` 的 AC#4c 段），判据只依赖销毁与取样的先后。
     expect(detail.serviceWorkersRightAfterDestroy.length).toBeGreaterThan(0);
     expect(detail.serviceWorkersAfterIdle).toEqual([]);
   });

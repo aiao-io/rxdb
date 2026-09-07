@@ -33,8 +33,11 @@ export class LWWConflictResolver implements ConflictResolver {
    * @returns 冲突解决结果
    */
   async resolve(conflict: Conflict): Promise<ConflictResolution> {
-    const localTime = conflict.local.createdAt?.getTime() ?? 0;
-    const remoteTime = conflict.remote.createdAt?.getTime() ?? 0;
+    // `createdAt` 在 IRxDBChange 上是必填，故直接解引用：从前的 `?.getTime() ?? 0`
+    // 一旦真的兜到，两侧会同时塌成 epoch 0 变成平局，胜负改由 clientId 字典序决定 ——
+    // 时间戳缺失这件事被吞掉，赢家却已经换人。缺字段就该当场炸。
+    const localTime = conflict.local.createdAt.getTime();
+    const remoteTime = conflict.remote.createdAt.getTime();
 
     if (localTime !== remoteTime) {
       return localTime > remoteTime ? { type: 'KEEP_LOCAL' } : { type: 'KEEP_REMOTE' };

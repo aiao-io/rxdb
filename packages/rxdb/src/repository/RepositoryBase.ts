@@ -90,18 +90,11 @@ export abstract class RepositoryBase<T extends EntityType> {
    * @param update - 待写入的字段；主键 `id` 也会被赋值（用于 hydrate 场景）
    *
    * @remarks
-   * 优先调用 {@link EntityStatus.replace}（若状态机支持），保证 dirty tracking
-   * 与 patch 生成走的是同一条路径；否则降级为 `Object.assign` + 把 `origin`
-   * 备份成 `update` 的浅拷贝，留给后续 {@link computeDiff} 反推旧值。
+   * 走 {@link EntityStatus.applyExternal}，保证 dirty tracking 与 patch 生成走的是同一条路径，
+   * 且实体有未保存编辑时逐字段避让而不是整行覆盖 —— 活查询整批回填会命中已被用户改过的实体，
+   * 无条件 `replace` 会静默吃掉那些编辑。
    */
   updateEntity(entity: InstanceType<T>, update: InstanceType<T>) {
-    const state = getEntityStatus(entity);
-    if (typeof state.replace === 'function') {
-      state.replace(update);
-      return;
-    }
-
-    state.origin = { ...update };
-    Object.assign(entity, update);
+    getEntityStatus(entity).applyExternal(update);
   }
 }

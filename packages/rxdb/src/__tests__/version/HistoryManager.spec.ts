@@ -14,6 +14,7 @@ import {
   HistoryManager
 } from '../../version/HistoryManager.js';
 import { HistoryItem, HistoryScope } from '../../version/VersionManager.interface.js';
+import { emptyPushInFlight } from '../fixtures/push-inflight.js';
 
 describe('HistoryManager - Pure Functions', () => {
   describe('getScopeKey', () => {
@@ -362,7 +363,8 @@ describe('HistoryManager - Class Methods', () => {
             switchBranch: mockSwitchBranch
           }
         }),
-        getCurrentBranch: vi.fn().mockResolvedValue({ id: 'main' })
+        getCurrentBranch: vi.fn().mockResolvedValue({ id: 'main' }),
+        pushInFlight: emptyPushInFlight()
       },
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),

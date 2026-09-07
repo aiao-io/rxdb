@@ -1,10 +1,15 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  DEVTOOLS_CAPABILITY_ARG,
   DEVTOOLS_CAPABILITY_ENV,
   DEVTOOLS_ENABLE_ENV,
   DEVTOOLS_EXTENSION_PATH_ENV,
+  DEVTOOLS_MUTATION_ARG,
   DEVTOOLS_MUTATION_ENV,
+  devToolsLaunchArguments,
   isDevToolsEnabled,
   loadDevToolsExtension,
   resolveDevToolsDevConfig,
@@ -105,5 +110,46 @@ describe('devtools-extension 开发态加载闸门（US-904 阶段 D AC#45）', 
         loadDevToolsExtension(loader, { extensionPath: '/x', capability: 'readonly', mutationPolicy: 'omit' })
       ).rejects.toThrow();
     });
+  });
+});
+
+describe('devToolsLaunchArguments（US-904 阶段 D：把授权配置带进渲染进程）', () => {
+  it('把档位与写入开关编码成两条启动参数', () => {
+    expect(devToolsLaunchArguments({ extensionPath: '/abs/ext', capability: 'full', mutationPolicy: 'allow' })).toEqual(
+      ['--rxdb-devtools-capability=full', '--rxdb-devtools-mutation=allow']
+    );
+  });
+
+  it('省略写入开关时如实带出 omit，而不是省掉这条参数', () => {
+    // preload 侧「两条同时在且合法才挂」是有意的：半份配置比没有配置更难排查。
+    // 少带一条会让 preload 整体不挂，档位随之失效——那才是静默降级。
+    expect(
+      devToolsLaunchArguments({ extensionPath: '/abs/ext', capability: 'readonly', mutationPolicy: 'omit' })
+    ).toEqual(['--rxdb-devtools-capability=readonly', '--rxdb-devtools-mutation=omit']);
+  });
+
+  it('没开开发态 DevTools 时一条参数都不带', () => {
+    // production 的渲染进程里不该出现任何调试配置的痕迹。
+    expect(devToolsLaunchArguments(undefined)).toEqual([]);
+  });
+});
+
+describe('三处字面量必须逐字一致', () => {
+  // preload 在 `sandbox: true` 下是未 bundle 的逐文件 tsc 产物，不能值导入同目录文件；
+  // 渲染进程又与主进程分属两个 tsconfig。于是同一组字面量落在三个文件里，只能靠这条用例钉住。
+  // 任何一处漂移的表征都是「配置静默不生效」——connector 悄悄退回库默认档，没有任何报错。
+  const read = (path: string): string => readFileSync(join(__dirname, path), 'utf8');
+
+  it('挂载键在 ipc-contract / preload / 渲染进程三处一致', () => {
+    const key = "'__aiaoRxdbDevToolsConfig__'";
+    expect(read('ipc-contract.ts')).toContain(`DEVTOOLS_RUNTIME_CONFIG_KEY = ${key}`);
+    expect(read('preload.ts')).toContain(`DEVTOOLS_RUNTIME_CONFIG_KEY = ${key}`);
+    expect(read('../src/app/setup_rxdb_desktop.ts')).toContain(`DEVTOOLS_RUNTIME_CONFIG_KEY = ${key}`);
+  });
+
+  it('两条启动参数前缀在 devtools-extension / preload 两处一致', () => {
+    const preload = read('preload.ts');
+    expect(preload).toContain(`DEVTOOLS_CAPABILITY_ARG = '${DEVTOOLS_CAPABILITY_ARG}'`);
+    expect(preload).toContain(`DEVTOOLS_MUTATION_ARG = '${DEVTOOLS_MUTATION_ARG}'`);
   });
 });

@@ -415,14 +415,40 @@ export class RxDB {
     this.#freeze_config();
   }
 
+  /**
+   * 初始化实例：装配插件、拉起 Schema / Entity / Version 管理器、开网关与事件系统。
+   *
+   * 幂等：已初始化时直接返回。`connect()` 会在同步段自行调用它，通常无需手动调用。
+   *
+   * @throws 实例正处于 `#shutdown()` 的拆卸窗口内时抛出。
+   *
+   * @remarks
+   * 任一管理器初始化抛错都会把初始化标志、插件登记与连接作用域一并回滚，
+   * 调用方修好问题后重新 `init()` 能真正重跑剩余步骤，而不是被半套状态挡住。
+   */
   init() {
+    // 拆卸窗口内不能重新初始化：此刻 #rxdb_initialized 仍为 true，早退会让调用方拿到一个
+    // 「已初始化」的承诺，而 #shutdown() 随后会把插件、网关、versionManager 逐个销毁，
+    // 留下一个空壳。抛错让调用方等拆卸结束后重来。
+    if (this.#shutting_down) {
+      throw new Error('[RxDB] init() rejected: instance is shutting down');
+    }
     if (this.#rxdb_initialized) return;
     this.#rxdb_initialized = true;
     if (!this.#context.clientId) {
       this.#context.clientId = uuid();
     }
     // 初始化本地和远程适配器名称
-    const { local, remote } = this.#config.sync || {};
+    //
+    // `sync` 在 RxDBOptions 上是必填，且 `rxdb.private.ts` 的 isLocalAdapter 直接
+    // 解引用 `options.sync.local`。从前这里写 `|| {}`，同一个字段两套契约：JS 调用方
+    // 或反序列化出来的旧配置漏了 sync 时，这里静默当成空对象放行，随后要么在
+    // isLocalAdapter 里炸一个看不懂的 TypeError，要么造出一个没有任何适配器的空实例。
+    // 在入口点破，错误信息指向真正该改的地方。
+    if (!this.#config.sync) {
+      throw new Error('[RxDB] init() 失败：配置缺少库级 sync，无法确定 local / remote 适配器');
+    }
+    const { local, remote } = this.#config.sync;
     if (local) this.#local_adapter_sub.next(local.adapter);
     if (remote) this.#remote_adapter_sub.next(remote.adapter);
     // 安装插件并初始化各个管理器
@@ -521,7 +547,9 @@ export class RxDB {
    * 见 {@link RxDB.#shutting_down}。
    *
    * 同步 `install()` 失败只 `console.error`，`use()` / `init()` 本身不抛。
-   * 异步或同步失败都会记入安装 Promise，由后续 `connect()` 传播。
+   * 异步或同步失败都会记入安装 Promise，由后续 `connect()` 传播 —— 包括**同一个适配器的
+   * 重复 `connect()`**：命中缓存那一路也会补跑一趟安装等待，否则连上之后 `use()` 的插件
+   * 失败就永远出不来（`use()` 同步返回 `this`，自己没有报错的出口）。
    *
    * @param plugin - 插件构造函数
    * @param options - 插件选项
@@ -594,7 +622,20 @@ export class RxDB {
     // 防重入：如果已经在连接中，直接返回缓存的 Promise
     const pending = this.#connect_promise_map.get(adapterName);
     if (pending) {
-      return pending;
+      // 还在引导中的那条链**原样**返回：`install()` 里同步回调 `connect()` 必须命中同一条
+      // Promise，派生一条出去会绕开 `connectPromise.catch()` 那份兜底。
+      if (!this.#connected_adapters.has(adapterName)) return pending;
+      // 已经引导完的适配器再 `connect()`：缓存里那条 Promise 早就 resolve 了，插件安装那一段
+      // 一步都不会重跑。连上之后 `use()` 进来的插件正是落在这个缝里 —— 它的安装失败此前只剩
+      // 一行 console.error，而 `use()` 是同步的、返回 `this`，自己没有报错的出口。这里补上
+      // 那一趟，`use()` 文档承诺的「由后续 connect() 传播」才是真的。
+      //
+      // 不回滚 `#connected_adapters`：与引导期失败不同，本适配器的引导已经**整个走完**，
+      // 拆掉一条健康的连接来惩罚一个后来者插件是错的。
+      return pending.then(async adapter => {
+        await this.#await_plugin_installs();
+        return adapter;
+      });
     }
 
     // 引导链全程是 await，断连可以插进任何一个缝里。纪元在同步段取快照，之后每个 await
@@ -944,6 +985,11 @@ export class RxDB {
    * 不复位则重连后每个实体事件都会被塞进 `#need_dispatch_events` 永不派发）。
    */
   async #shutdown(): Promise<void> {
+    // 与 disconnectAll 同口径，且必须在这里再做一次：#shutdown() 也可能从 disconnect()
+    // 单点进来（断的是最后一个已连接适配器），那条路径只作废了自己那一个适配器，
+    // 其余仍在引导中的 connect() 会在拆卸完成后醒来，把刚清空的已连接集合重新填上。
+    // 作废是同步的、不等它们落地（理由见 #invalidate_connect）。
+    for (const adapterName of this.#connect_promise_map.keys()) this.#invalidate_connect(adapterName);
     // 先于任何 await 置位：拆卸期间进来的 use() 只登记不安装（见 #shutting_down）。
     this.#shutting_down = true;
     await this.#destroy_plugin();

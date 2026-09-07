@@ -300,6 +300,48 @@ describe('createBackgroundController —— v2 帧穿透（C2/AC#36）', () => {
     expect(sendToTab).not.toHaveBeenCalled();
   });
 
+  /**
+   * US-904 AC#51：面板 port 一死，页面必须收到讣告，否则 connector 手上的 session 永远不关。
+   *
+   * 判据取**三件事同时成立**，少一件都能被一个错误实现蒙混过去：
+   * 帧是 v2 `DISCONNECT`、带的是这个 tab 真实协商出的 session、方向是 `panel-to-connector`
+   * （写成 `connector-to-panel` 的话中继自己那道方向闸会把它挡回来，页面永远收不到）。
+   */
+  it('面板 port 断开时，用该 tab 真实的 session 发一条 DISCONNECT 给页面', async () => {
+    const { instance, panel, sendToTab } = await connected();
+    const handshake = createDevToolsV2Message(
+      'HANDSHAKE',
+      { protocolVersion: 2, sessionId: SESSION_ID, capabilities: { capability: 'readonly', descriptors: [] } },
+      { sessionId: SESSION_ID, sequence: 1, timestamp: 1 }
+    );
+    instance.receiveContent(handshake, 7);
+    sendToTab.mockClear();
+
+    panel.disconnect();
+    await Promise.resolve();
+
+    expect(sendToTab).toHaveBeenCalledTimes(1);
+    expect(sendToTab).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({ type: 'DISCONNECT', sessionId: SESSION_ID, direction: 'panel-to-connector' })
+    );
+  });
+
+  /**
+   * 从没协商成功过 v2 的 tab 上，断开**不该**发任何东西。
+   *
+   * 没有这一条，一个「断开就无脑发一帧」的实现同样能让上面那条绿——而它会往每个只跑 v1 的
+   * 页面投一条带着编造 session 的帧，connector 只能回 `session_invalid`，白白多一轮噪声。
+   */
+  it('没协商过 v2 的 tab 断开时不发讣告', async () => {
+    const { panel, sendToTab } = await connected();
+
+    panel.disconnect();
+    await Promise.resolve();
+
+    expect(sendToTab).not.toHaveBeenCalled();
+  });
+
   it('丢弃方向与链路相反的帧', async () => {
     const { instance, panel, sendToTab } = await connected();
 

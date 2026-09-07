@@ -1,14 +1,17 @@
 import { emptyFunction } from '@aiao/utils';
-import { firstValueFrom, map, Observable, of, switchMap, throwError, timer } from 'rxjs';
+import { firstValueFrom, map, of, switchMap, throwError, timer } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES, type EntityType } from '../../entity/entity.interface.js';
 import query_merge_create_cache_impl from '../../query/merge_create.js';
-import { getFingerprintPrimitive, type Fingerprint } from '../../repository/fingerprint.utils.js';
-import { QueryOptions } from '../../repository/QueryManager.interface.js';
 import { QueryTask } from '../../repository/QueryTask.js';
 import type { RxDBEntityLocalCreatedEventData } from '../../rxdb-events.js';
-import { RxDB } from '../../RxDB.js';
 import { METADATA } from '../../rxdb.private.js';
+import {
+  collectEmissions,
+  createHarnessQueryTask,
+  type HarnessSchemaOverrides,
+  type HarnessTaskOptions
+} from '../fixtures/query-task-harness.js';
 
 describe('query_merge_create_cache', () => {
   class TestEntity {
@@ -21,82 +24,10 @@ describe('query_merge_create_cache', () => {
   type TestEntityData = InstanceType<TestEntityType>;
   type CreatedEvent = RxDBEntityLocalCreatedEventData<TestEntityType>;
 
-  /**
-   * 创建模拟的 RxDB 实例
-   *
-   * `entityManager.getEntityRef` 是必需依赖：merge_create 要靠它比对事件与实体缓存的
-   * `updatedAt`，识别「创建后又被改过」的迟到 CREATE 事件（P0-004）。默认返回
-   * `undefined`（缓存未命中 = 事件即唯一信息源），需要模拟陈旧事件的用例传入 `cachedById`。
-   */
-  const createMockRxDB = (cachedById: Record<string, unknown> = {}): RxDB => {
-    return {
-      schemaManager: {
-        getFieldRelations: vi.fn(() => ({ relations: [], isForeignKey: false, property: {}, propertyName: '' })),
-        getEntityType: vi.fn(),
-        getEntityMetadata: vi.fn()
-      },
-      entityManager: {
-        getEntityRef: vi.fn((_entityType: unknown, id: string) => cachedById[id])
-      }
-    } as unknown as RxDB;
-  };
-
-  const getFingerprintByPrimitive = (value: unknown): Fingerprint[] =>
-    getFingerprintPrimitive(value as Fingerprint | Fingerprint[]);
-  const getFingerprintByMockEntity = (entity: unknown): Fingerprint[] => [JSON.stringify({ ...(entity as object) })];
-  const getFingerprintByMockEntities = (entities: unknown): Fingerprint[] =>
-    Array.isArray(entities) ? entities.map(e => JSON.stringify({ ...(e as object) })) : [];
-
-  /**
-   * 创建模拟的查询任务
-   */
+  /** 经真正的 `QueryManager` 造查询任务，`result$` 与 `serialize` 全部来自生产代码。 */
   const createMockQueryTask = <RT>(
-    taskOptions: QueryOptions<TestEntityType> & { runner: () => Observable<RT> },
-    cachedById: Record<string, unknown> = {}
-  ): QueryTask<TestEntityType, RT> => {
-    const deps = new Map<TestEntityType, number>();
-    deps.set(TestEntity, 1);
-    const cacheKey = 'cacheKey';
-    const mockRxDB = createMockRxDB(cachedById);
-    const { runner, ...queryOptions } = taskOptions;
-    const pickFingerprint = () => {
-      switch (queryOptions.type) {
-        case 'count':
-        case 'countDescendants':
-        case 'countAncestors':
-          return getFingerprintByPrimitive;
-        case 'findOne':
-        case 'findOneOrFail':
-        case 'get':
-          return getFingerprintByMockEntity;
-        default:
-          return getFingerprintByMockEntities;
-      }
-    };
-    const task = new QueryTask<TestEntityType, RT>({
-      cacheKey,
-      options: queryOptions,
-      runner,
-      entityType: TestEntity,
-      rxdb: mockRxDB,
-      depEntityTypeMap: deps,
-      serialize: data => data.patch as TestEntityData,
-      onClean: emptyFunction,
-      getFingerprint: pickFingerprint()
-    });
-    task.result$ = new Observable<RT>(observer => {
-      task.observerCount++;
-      if (task.result !== undefined) observer.next(task.result);
-      task.observers.add(observer);
-      task.run();
-      return (): void => {
-        task.observerCount--;
-        task.observers.delete(observer);
-        if (task.observerCount <= 0) task.clean();
-      };
-    });
-    return task;
-  };
+    taskOptions: HarnessTaskOptions<TestEntityType, RT>
+  ): QueryTask<TestEntityType, RT> => createHarnessQueryTask(TestEntity, taskOptions);
 
   const query_merge_create_cache = <T extends EntityType, RT>(
     task: QueryTask<T, RT>,
@@ -251,47 +182,26 @@ describe('query_merge_create_cache', () => {
     });
 
     it('不应该添加不匹配条件的新实体', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'findAll',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'completed', operator: '=', value: false }]
-            }
-          },
-          runner: () => of([{ id: '1', title: 'Task 1', completed: false }])
-        });
-
-        let emitCount = 0;
-        const expectedResult = [{ id: '1', title: 'Task 1', completed: false }];
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              emitCount++;
-              expect(d).toEqual(expectedResult);
-
-              // 只应该收到初始结果，不应该有第二次更新
-              if (emitCount === 1) {
-                setTimeout(() => {
-                  expect(emitCount).toBe(1);
-                  done();
-                }, 100);
-              } else {
-                reject(new Error('不应该触发第二次更新'));
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        // 创建一个不符合条件的实体（completed: true）
-        const entity = createMockEntityEvent({ id: '2', title: 'Task 2', completed: true });
-        query_merge_create_cache(task, [entity]);
+      const task = createMockQueryTask({
+        type: 'findAll',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'completed', operator: '=', value: false }]
+          }
+        },
+        runner: () => of([{ id: '1', title: 'Task 1', completed: false }])
       });
+
+      const expectedResult = [{ id: '1', title: 'Task 1', completed: false }];
+
+      const emissions = collectEmissions(task);
+
+      // 创建一个不符合条件的实体（completed: true）
+      const entity = createMockEntityEvent({ id: '2', title: 'Task 2', completed: true });
+      query_merge_create_cache(task, [entity]);
+
+      expect(emissions).toEqual([expectedResult]);
     });
 
     it('应该按照 orderBy 规则正确排序新添加的实体', () => {
@@ -723,47 +633,27 @@ describe('query_merge_create_cache', () => {
     });
 
     it('应该过滤不匹配 where 条件的实体', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'find',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'status', operator: '=', value: 'active' }]
-            },
-            limit: 3
+      const task = createMockQueryTask({
+        type: 'find',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'status', operator: '=', value: 'active' }]
           },
-          runner: () => of([{ id: '1', title: 'Task 1', status: 'active' }])
-        });
-
-        const expectedResult = [{ id: '1', title: 'Task 1', status: 'active' }];
-        let emitCount = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              emitCount++;
-              expect(d).toEqual(expectedResult);
-
-              if (emitCount === 1) {
-                setTimeout(() => {
-                  expect(emitCount).toBe(1);
-                  done();
-                }, 100);
-              } else {
-                reject(new Error('不应该触发第二次更新'));
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        // 创建一个不匹配条件的实体
-        const entity = createMockEntityEvent({ id: '2', title: 'Task 2', status: 'completed' });
-        query_merge_create_cache(task, [entity]);
+          limit: 3
+        },
+        runner: () => of([{ id: '1', title: 'Task 1', status: 'active' }])
       });
+
+      const expectedResult = [{ id: '1', title: 'Task 1', status: 'active' }];
+
+      const emissions = collectEmissions(task);
+
+      // 创建一个不匹配条件的实体
+      const entity = createMockEntityEvent({ id: '2', title: 'Task 2', status: 'completed' });
+      query_merge_create_cache(task, [entity]);
+
+      expect(emissions).toEqual([expectedResult]);
     });
 
     it('分页查询（offset>0）创建新实体时应触发 SQL 刷新而非本地污染当前页缓存', () => {
@@ -1267,48 +1157,28 @@ describe('query_merge_create_cache', () => {
     });
 
     it('应该在有结果且无排序时不更新（保持第一个结果）', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'findOne',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'status', operator: '=', value: 'active' }]
-            }
-            // 没有 orderBy
-          },
-          runner: () => of({ id: '1', title: 'Task 1', status: 'active' })
-        });
-
-        const expectedResult = { id: '1', title: 'Task 1', status: 'active' };
-        let emitCount = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              emitCount++;
-              expect(d).toEqual(expectedResult);
-
-              if (emitCount === 1) {
-                setTimeout(() => {
-                  // 应该只有初始结果，不应该有第二次更新
-                  expect(emitCount).toBe(1);
-                  done();
-                }, 100);
-              } else {
-                reject(new Error('不应该触发第二次更新'));
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        // 创建新实体，但因为已有结果且无排序，不应该更新
-        const entity = createMockEntityEvent({ id: '2', title: 'Task 2', status: 'active' });
-        query_merge_create_cache(task, [entity]);
+      const task = createMockQueryTask({
+        type: 'findOne',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'status', operator: '=', value: 'active' }]
+          }
+          // 没有 orderBy
+        },
+        runner: () => of({ id: '1', title: 'Task 1', status: 'active' })
       });
+
+      const expectedResult = { id: '1', title: 'Task 1', status: 'active' };
+
+      const emissions = collectEmissions(task);
+
+      // 创建新实体，但因为已有结果且无排序，不应该更新
+      const entity = createMockEntityEvent({ id: '2', title: 'Task 2', status: 'active' });
+      query_merge_create_cache(task, [entity]);
+
+      expect(emissions).toEqual([expectedResult]);
+      // 应该只有初始结果，不应该有第二次更新
     });
 
     it('应该在有排序时用更优的实体替换当前结果', () => {
@@ -1358,53 +1228,33 @@ describe('query_merge_create_cache', () => {
     });
 
     it('应该在有排序时不替换更优的当前结果', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'findOne',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'date', operator: '=', value: '2025-10-20' }]
-            },
-            orderBy: [{ field: 'createdAt', sort: 'asc' }]
+      const task = createMockQueryTask({
+        type: 'findOne',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'date', operator: '=', value: '2025-10-20' }]
           },
-          runner: () => of({ id: '1', title: 'Task 1', date: '2025-10-20', createdAt: '07:00' })
-        });
-
-        const expectedResult = { id: '1', title: 'Task 1', date: '2025-10-20', createdAt: '07:00' };
-        let emitCount = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              emitCount++;
-              expect(d).toEqual(expectedResult);
-
-              if (emitCount === 1) {
-                setTimeout(() => {
-                  // 应该只有初始结果，不应该更新
-                  expect(emitCount).toBe(1);
-                  done();
-                }, 100);
-              } else {
-                reject(new Error('不应该触发第二次更新'));
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        // 创建一个更晚的实体（09:00 > 07:00），不应该替换
-        const entity = createMockEntityEvent({
-          id: '2',
-          title: 'Task 2',
-          date: '2025-10-20',
-          createdAt: '09:00'
-        });
-        query_merge_create_cache(task, [entity]);
+          orderBy: [{ field: 'createdAt', sort: 'asc' }]
+        },
+        runner: () => of({ id: '1', title: 'Task 1', date: '2025-10-20', createdAt: '07:00' })
       });
+
+      const expectedResult = { id: '1', title: 'Task 1', date: '2025-10-20', createdAt: '07:00' };
+
+      const emissions = collectEmissions(task);
+
+      // 创建一个更晚的实体（09:00 > 07:00），不应该替换
+      const entity = createMockEntityEvent({
+        id: '2',
+        title: 'Task 2',
+        date: '2025-10-20',
+        createdAt: '09:00'
+      });
+      query_merge_create_cache(task, [entity]);
+
+      expect(emissions).toEqual([expectedResult]);
+      // 应该只有初始结果，不应该更新
     });
 
     it('应该在批量创建时返回排序后的第一个', () => {
@@ -1449,44 +1299,23 @@ describe('query_merge_create_cache', () => {
     });
 
     it('不应该添加不匹配 where 条件的实体', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'findOne',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'status', operator: '=', value: 'active' }]
-            }
-          },
-          runner: () => of(null)
-        });
-
-        let emitCount = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              emitCount++;
-              expect(d).toEqual(null);
-
-              if (emitCount === 1) {
-                setTimeout(() => {
-                  expect(emitCount).toBe(1);
-                  done();
-                }, 100);
-              } else {
-                reject(new Error('不应该触发第二次更新'));
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        const entity = createMockEntityEvent({ id: '1', title: 'Task 1', status: 'completed' });
-        query_merge_create_cache(task, [entity]);
+      const task = createMockQueryTask({
+        type: 'findOne',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'status', operator: '=', value: 'active' }]
+          }
+        },
+        runner: () => of(null)
       });
+
+      const emissions = collectEmissions(task);
+
+      const entity = createMockEntityEvent({ id: '1', title: 'Task 1', status: 'completed' });
+      query_merge_create_cache(task, [entity]);
+
+      expect(emissions).toEqual([null]);
     });
   });
 
@@ -1565,44 +1394,23 @@ describe('query_merge_create_cache', () => {
     });
 
     it('不应该计数不匹配 where 条件的实体', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'count',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'status', operator: '=', value: 'active' }]
-            }
-          },
-          runner: () => of(8)
-        });
-
-        let emitCount = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              emitCount++;
-              expect(d).toEqual(8);
-
-              if (emitCount === 1) {
-                setTimeout(() => {
-                  expect(emitCount).toBe(1);
-                  done();
-                }, 100);
-              } else {
-                reject(new Error('不应该触发第二次更新'));
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        const entity = createMockEntityEvent({ id: '1', title: 'Task 1', status: 'completed' });
-        query_merge_create_cache(task, [entity]);
+      const task = createMockQueryTask({
+        type: 'count',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'status', operator: '=', value: 'active' }]
+          }
+        },
+        runner: () => of(8)
       });
+
+      const emissions = collectEmissions(task);
+
+      const entity = createMockEntityEvent({ id: '1', title: 'Task 1', status: 'completed' });
+      query_merge_create_cache(task, [entity]);
+
+      expect(emissions).toEqual([8]);
     });
 
     it('应该处理从 0 开始计数', () => {
@@ -1699,14 +1507,12 @@ describe('query_merge_create_cache', () => {
     const NEWER = new Date('2026-07-28T10:00:02.000Z');
 
     it('负载旧于实体缓存时应交回 SQL 重算，而不是本地 JS 增量', () => {
-      const task = createMockQueryTask(
-        {
-          type: 'findAll',
-          options: { where: { combinator: 'and', rules: [] } },
-          runner: () => of([])
-        },
-        { 'stale-1': { id: 'stale-1', updatedAt: NEWER } }
-      );
+      const task = createMockQueryTask({
+        type: 'findAll',
+        options: { where: { combinator: 'and', rules: [] } },
+        runner: () => of([]),
+        cachedById: { 'stale-1': { id: 'stale-1', updatedAt: NEWER } }
+      });
       const refresh = vi.spyOn(task, 'refresh').mockImplementation(emptyFunction);
       const next = vi.spyOn(task, 'next');
 
@@ -1721,14 +1527,12 @@ describe('query_merge_create_cache', () => {
     });
 
     it('负载与实体缓存同版本时仍走本地 JS 增量', () => {
-      const task = createMockQueryTask(
-        {
-          type: 'findAll',
-          options: { where: { combinator: 'and', rules: [] } },
-          runner: () => of([])
-        },
-        { 'fresh-1': { id: 'fresh-1', updatedAt: NEWER } }
-      );
+      const task = createMockQueryTask({
+        type: 'findAll',
+        options: { where: { combinator: 'and', rules: [] } },
+        runner: () => of([]),
+        cachedById: { 'fresh-1': { id: 'fresh-1', updatedAt: NEWER } }
+      });
       const refresh = vi.spyOn(task, 'refresh').mockImplementation(emptyFunction);
       const next = vi.spyOn(task, 'next');
 
@@ -1785,34 +1589,17 @@ describe('query_merge_create_cache', () => {
 
   describe('边界情况', () => {
     it('应该处理空的实体数组', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'findAll',
-          options: { where: { combinator: 'and', rules: [] } },
-          runner: () => of([{ id: '1', title: 'Task 1' }])
-        });
-
-        let emitCount = 0;
-
-        task.result$.subscribe({
-          next: () => {
-            emitCount++;
-            if (emitCount === 1) {
-              setTimeout(() => {
-                try {
-                  expect(emitCount).toBe(1);
-                  done();
-                } catch (error) {
-                  reject(error);
-                }
-              }, 100);
-            }
-          },
-          error: reject
-        });
-
-        query_merge_create_cache(task, []);
+      const task = createMockQueryTask({
+        type: 'findAll',
+        options: { where: { combinator: 'and', rules: [] } },
+        runner: () => of([{ id: '1', title: 'Task 1' }])
       });
+
+      const emissions = collectEmissions(task);
+
+      query_merge_create_cache(task, []);
+
+      expect(emissions).toHaveLength(1);
     });
 
     it('应该处理没有 orderBy 的查询', () => {
@@ -1890,67 +1677,60 @@ describe('query_merge_create_cache', () => {
   });
 
   describe('关系实体变更处理', () => {
-    /**
-     * 创建带关系实体支持的模拟 RxDB
-     */
-    const createMockRxDBWithRelations = (): RxDB => {
-      return {
-        schemaManager: {
-          getFieldRelations: vi.fn(() => ({ relations: [], isForeignKey: false, property: {}, propertyName: '' })),
-          getEntityType: vi.fn(),
-          getEntityMetadata: vi.fn((name: string, namespace: string) => {
-            if (name === 'IdCard' && namespace === 'test') {
-              return {
-                name: 'IdCard',
-                namespace: 'test',
-                relations: [
-                  {
-                    kind: 'm:1', // MANY_TO_ONE
-                    name: 'owner',
-                    mappedEntity: 'User',
-                    mappedNamespace: 'test',
-                    mappedProperty: 'idCard'
-                  }
-                ]
-              };
+    /** 关系元数据的 schema 替身：User 1:1 IdCard，供依赖抽取解析 `idCard.code` 这类跨实体字段。 */
+    const mockRelationSchemaManager = (): HarnessSchemaOverrides => ({
+      getFieldRelations: vi.fn(() => ({ relations: [], isForeignKey: false, property: {}, propertyName: '' })),
+      getEntityType: vi.fn(),
+      getEntityMetadata: vi.fn((name: string, namespace: string) => {
+        if (name === 'IdCard' && namespace === 'test') {
+          return {
+            name: 'IdCard',
+            namespace: 'test',
+            relations: [
+              {
+                kind: 'm:1', // MANY_TO_ONE
+                name: 'owner',
+                mappedEntity: 'User',
+                mappedNamespace: 'test',
+                mappedProperty: 'idCard'
+              }
+            ]
+          };
+        }
+        if (name === 'User' && namespace === 'test') {
+          return {
+            name: 'User',
+            namespace: 'test',
+            relations: [
+              {
+                kind: '1:1', // ONE_TO_ONE
+                name: 'idCard',
+                mappedEntity: 'IdCard',
+                mappedNamespace: 'test',
+                mappedProperty: 'owner'
+              }
+            ]
+          };
+        }
+        return { name, namespace, relations: [] };
+      }),
+      findMappedRelation: vi.fn((_metadata: unknown, relation: { name: string }) => {
+        // 模拟 User.idCard -> IdCard.owner 的映射
+        if (relation.name === 'idCard') {
+          return {
+            metadata: { name: 'IdCard', namespace: 'test' },
+            relation: {
+              kind: 'm:1',
+              name: 'owner',
+              mappedEntity: 'User',
+              mappedNamespace: 'test',
+              mappedProperty: 'idCard'
             }
-            if (name === 'User' && namespace === 'test') {
-              return {
-                name: 'User',
-                namespace: 'test',
-                relations: [
-                  {
-                    kind: '1:1', // ONE_TO_ONE
-                    name: 'idCard',
-                    mappedEntity: 'IdCard',
-                    mappedNamespace: 'test',
-                    mappedProperty: 'owner'
-                  }
-                ]
-              };
-            }
-            return { name, namespace, relations: [] };
-          }),
-          findMappedRelation: vi.fn((_metadata: unknown, relation: { name: string }) => {
-            // 模拟 User.idCard -> IdCard.owner 的映射
-            if (relation.name === 'idCard') {
-              return {
-                metadata: { name: 'IdCard', namespace: 'test' },
-                relation: {
-                  kind: 'm:1',
-                  name: 'owner',
-                  mappedEntity: 'User',
-                  mappedNamespace: 'test',
-                  mappedProperty: 'idCard'
-                }
-              };
-            }
-            return undefined;
-          })
-        },
-        entityManager: { getEntityRef: vi.fn(() => undefined) }
-      } as unknown as RxDB;
-    };
+          };
+        }
+        return undefined;
+      })
+    });
 
     /**
      * 创建带元数据的实体类(用于关系测试)
@@ -1977,91 +1757,53 @@ describe('query_merge_create_cache', () => {
     };
 
     it('当关系实体变更且与结果集相关时应该刷新查询', () => {
-      return new Promise<void>((done, reject) => {
-        const mockRxDB = createMockRxDBWithRelations();
-        const UserEntity = createUserEntityClass();
-        let refreshCount = 0;
+      const UserEntity = createUserEntityClass();
+      let refreshCount = 0;
 
-        const deps = new Map<typeof UserEntity, number>();
-        deps.set(UserEntity, 1);
-
-        const task = new QueryTask<typeof UserEntity, number>({
-          cacheKey: 'cacheKey',
-          options: {
-            type: 'count',
-            options: {
-              where: {
-                combinator: 'and',
-                rules: [{ field: 'idCard.code', operator: '=', value: '111' }]
-              }
-            }
-          } as unknown as QueryOptions<typeof UserEntity>,
-          runner: () => of(1),
-          entityType: UserEntity,
-          rxdb: mockRxDB,
-          depEntityTypeMap: deps,
-          serialize: data => data.patch as unknown as InstanceType<typeof UserEntity>,
-          onClean: emptyFunction,
-          getFingerprint: getFingerprintPrimitive
-        });
-
-        task.result$ = new Observable<number>(observer => {
-          task.observerCount++;
-          if (task.result !== undefined) {
-            observer.next(task.result);
+      const task = createHarnessQueryTask<typeof UserEntity, number>(UserEntity, {
+        type: 'count',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'idCard.code', operator: '=', value: '111' }]
           }
-          task.observers.add(observer);
-          task.run();
-          return (): void => {
-            task.observerCount--;
-            task.observers.delete(observer);
-            if (task.observerCount <= 0) {
-              task.clean();
-            }
-          };
-        });
+        },
+        runner: () => of(1),
+        schemaManager: mockRelationSchemaManager()
+      } as unknown as HarnessTaskOptions<typeof UserEntity, number>);
 
-        // 设置初始结果集 ID
-        task.resultEntityIds.add('user1');
+      // 设置初始结果集 ID
+      task.resultEntityIds.add('user1');
 
-        // 监听 refresh 调用
-        const originalRefresh = task.refresh;
-        task.refresh = () => {
-          refreshCount++;
-          originalRefresh.call(task);
-        };
+      // 监听 refresh 调用
+      const originalRefresh = task.refresh;
+      task.refresh = () => {
+        refreshCount++;
+        originalRefresh.call(task);
+      };
 
-        task.result$.subscribe({
-          next: () => {
-            // 等待一段时间确保处理完成
-            setTimeout(() => {
-              try {
-                // 应该调用了 refresh，因为关系实体与结果集相关
-                expect(refreshCount).toBeGreaterThan(0);
-                done();
-              } catch (error) {
-                reject(error);
-              }
-            }, 100);
-          },
-          error: reject
-        });
+      const emissions = collectEmissions(task);
 
-        // 创建关系实体事件 (IdCard)，ownerId 指向结果集中的 user1
-        const idCardEntity = {
-          namespace: 'test',
-          entity: 'IdCard',
-          id: 'idcard1',
-          patch: { id: 'idcard1', code: '111', ownerId: 'user1' }
-        } as unknown as RxDBEntityLocalCreatedEventData<typeof UserEntity>;
+      // 创建关系实体事件 (IdCard)，ownerId 指向结果集中的 user1
+      const idCardEntity: RxDBEntityLocalCreatedEventData<typeof UserEntity> = {
+        type: 'INSERT',
+        namespace: 'test',
+        entity: 'IdCard',
+        id: 'idcard1',
+        entityType: UserEntity,
+        recordAt: new Date(0),
+        patch: { id: 'idcard1', code: '111', ownerId: 'user1' } as InstanceType<typeof UserEntity>,
+        inversePatch: null
+      };
 
-        query_merge_create_cache(task, [idCardEntity]);
-      });
+      query_merge_create_cache(task, [idCardEntity]);
+
+      // 应该调用了 refresh，因为关系实体与结果集相关
+      expect(refreshCount).toBeGreaterThan(0);
     });
 
     it('当只有当前实体变更且无关系实体时应该使用 JS 增量计算', () => {
       return new Promise<void>((done, reject) => {
-        const mockRxDB = createMockRxDBWithRelations();
         let refreshCount = 0;
 
         const task = createMockQueryTask({
@@ -2072,10 +1814,9 @@ describe('query_merge_create_cache', () => {
               rules: [{ field: 'name', operator: '=', value: 'John' }]
             }
           },
-          runner: () => of([])
+          runner: () => of([]),
+          schemaManager: mockRelationSchemaManager()
         });
-
-        Object.assign(task, { rxdb: mockRxDB });
 
         const originalRefresh = task.refresh;
         task.refresh = () => {
@@ -2104,12 +1845,16 @@ describe('query_merge_create_cache', () => {
         });
 
         // 只创建当前实体的变更
-        const userEntity = {
+        const userEntity: CreatedEvent = {
+          type: 'INSERT',
           namespace: 'test',
           entity: 'User',
           id: 'user1',
-          patch: { id: 'user1', name: 'John' }
-        } as unknown as CreatedEvent;
+          entityType: TestEntity,
+          recordAt: new Date(0),
+          patch: { id: 'user1', name: 'John' },
+          inversePatch: null
+        };
 
         query_merge_create_cache(task, [userEntity]);
       });
@@ -2119,136 +1864,95 @@ describe('query_merge_create_cache', () => {
   // ✨ EXISTS 查询的增量更新测试
   describe('EXISTS operator integration', () => {
     it('should refresh when related entity is created (EXISTS dependency)', () => {
-      return new Promise<void>((resolve, reject) => {
-        let refreshCount = 0;
+      let refreshCount = 0;
 
-        // 模拟带关系的元数据。
-        interface MenuRelation {
-          active: boolean;
-        }
-        class Menu {
-          static [ENTITY_STATIC_TYPES] = { idType: '' as string };
-          children: MenuRelation[] = [];
-        }
-        class MenuChild extends Menu implements MenuRelation {
-          id = '';
-          parentId: string | null = null;
-          active = false;
-        }
-        const menuMetadata = {
-          name: 'Menu',
-          namespace: 'test',
-          target: Menu,
-          properties: [],
-          primary: { name: 'id', type: 'string' },
-          relations: [
-            {
-              name: 'children',
-              propertyName: 'children',
-              kind: 'ONE_TO_MANY',
-              mappedEntity: 'Menu',
-              mappedNamespace: 'test',
-              mappedProperty: 'parent'
-            }
-          ],
-          relationMap: new Map(),
-          propertyMap: new Map(),
-          indexes: []
-        };
-        Object.assign(Menu, { [METADATA]: menuMetadata });
+      // 模拟带关系的元数据。
+      interface MenuRelation {
+        active: boolean;
+      }
+      class Menu {
+        static [ENTITY_STATIC_TYPES] = { idType: '' as string };
+        children: MenuRelation[] = [];
+      }
+      class MenuChild extends Menu implements MenuRelation {
+        id = '';
+        parentId: string | null = null;
+        active = false;
+      }
+      const menuMetadata = {
+        name: 'Menu',
+        namespace: 'test',
+        target: Menu,
+        properties: [],
+        primary: { name: 'id', type: 'string' },
+        relations: [
+          {
+            name: 'children',
+            propertyName: 'children',
+            kind: 'ONE_TO_MANY',
+            mappedEntity: 'Menu',
+            mappedNamespace: 'test',
+            mappedProperty: 'parent'
+          }
+        ],
+        relationMap: new Map(),
+        propertyMap: new Map(),
+        indexes: []
+      };
+      Object.assign(Menu, { [METADATA]: menuMetadata });
 
-        const mockRxDB = {
-          schemaManager: {
-            getFieldRelations: vi.fn(() => ({ relations: [], isForeignKey: false, property: {}, propertyName: '' })),
-            getEntityType: vi.fn(() => Menu),
-            getEntityMetadata: vi.fn((entity: string, namespace: string) => {
-              if (entity === 'Menu' && namespace === 'test') {
-                return menuMetadata;
+      const task = createHarnessQueryTask<typeof Menu, Menu[]>(Menu, {
+        type: 'findAll',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [
+              {
+                field: 'children',
+                operator: 'exists',
+                where: {
+                  combinator: 'and',
+                  rules: [{ field: 'active', operator: '=', value: true }]
+                }
               }
-              return undefined;
-            })
-          },
-          entityManager: { getEntityRef: vi.fn(() => undefined) }
-        } as unknown as RxDB;
-        const deps = new Map<typeof Menu, number>([[Menu, 1]]);
-
-        const task = new QueryTask<typeof Menu, Menu[]>({
-          cacheKey: 'cacheKey',
-          options: {
-            type: 'findAll',
-            options: {
-              where: {
-                combinator: 'and',
-                rules: [
-                  {
-                    field: 'children',
-                    operator: 'exists',
-                    where: {
-                      combinator: 'and',
-                      rules: [{ field: 'active', operator: '=', value: true }]
-                    }
-                  }
-                ]
-              }
-            }
-          },
-          runner: () => of([]),
-          entityType: Menu,
-          rxdb: mockRxDB,
-          depEntityTypeMap: deps,
-          serialize: data => Object.assign(new Menu(), data.patch ?? {}),
-          onClean: emptyFunction,
-          getFingerprint: getFingerprintByMockEntities
-        });
-        task.result$ = new Observable<Menu[]>(observer => {
-          task.observerCount++;
-          if (task.result !== undefined) observer.next(task.result);
-          task.observers.add(observer);
-          task.run();
-          return (): void => {
-            task.observerCount--;
-            task.observers.delete(observer);
-            if (task.observerCount <= 0) task.clean();
-          };
-        });
-
-        const originalRefresh = task.refresh;
-        task.refresh = () => {
-          refreshCount++;
-          originalRefresh.call(task);
-        };
-
-        task.result$.subscribe({
-          next: () => {
-            // EXISTS 查询应该在关联实体创建时触发刷新
-            // 因为新的子菜单可能满足 EXISTS 条件
-            setTimeout(() => {
-              expect(refreshCount).toBeGreaterThan(0);
-              resolve();
-            }, 10);
-          },
-          error: reject
-        });
-
-        // 创建一个子菜单（关系实体）
-        const childMenu = Object.assign(new MenuChild(), {
-          id: 'menu-child-1',
-          parentId: 'menu-parent-1',
-          active: true
-        });
-        const childMenuEntity: RxDBEntityLocalCreatedEventData<typeof Menu> = {
-          type: 'INSERT',
-          namespace: 'test',
-          entity: 'Menu',
-          id: childMenu.id,
-          entityType: Menu,
-          recordAt: new Date(0),
-          patch: childMenu,
-          inversePatch: null
-        };
-
-        query_merge_create_cache(task, [childMenuEntity]);
+            ]
+          }
+        },
+        runner: () => of([]),
+        schemaManager: {
+          getEntityMetadata: (entity: string, namespace: string) =>
+            entity === 'Menu' && namespace === 'test' ? menuMetadata : undefined
+        }
       });
+
+      const originalRefresh = task.refresh;
+      task.refresh = () => {
+        refreshCount++;
+        originalRefresh.call(task);
+      };
+
+      const emissions = collectEmissions(task);
+
+      // 创建一个子菜单（关系实体）
+      const childMenu = Object.assign(new MenuChild(), {
+        id: 'menu-child-1',
+        parentId: 'menu-parent-1',
+        active: true
+      });
+      const childMenuEntity: RxDBEntityLocalCreatedEventData<typeof Menu> = {
+        type: 'INSERT',
+        namespace: 'test',
+        entity: 'Menu',
+        id: childMenu.id,
+        entityType: Menu,
+        recordAt: new Date(0),
+        patch: childMenu,
+        inversePatch: null
+      };
+
+      query_merge_create_cache(task, [childMenuEntity]);
+
+      expect(refreshCount).toBeGreaterThan(0);
     });
   });
 
@@ -2262,36 +1966,13 @@ describe('query_merge_create_cache', () => {
       type: 'findNeighbors' | 'countNeighbors' | 'findPaths',
       runnerResult: RT
     ): QueryTask<TestEntityType, RT> => {
-      const mockRxDB = createMockRxDB();
-      const deps = new Map<TestEntityType, number>([[TestEntity, 1]]);
-
-      const task = new QueryTask<TestEntityType, RT>({
-        cacheKey: 'cacheKey',
+      const task = createHarnessQueryTask<TestEntityType, RT>(TestEntity, {
+        type,
         options: {
-          type,
-          options: {
-            where: { combinator: 'and', rules: [{ field: 'name', operator: '=', value: 'Alice' }] }
-          }
-        } as unknown as QueryOptions<TestEntityType>,
-        runner: () => of(runnerResult),
-        entityType: TestEntity,
-        rxdb: mockRxDB,
-        depEntityTypeMap: deps,
-        serialize: data => data.patch as TestEntityData,
-        onClean: emptyFunction,
-        getFingerprint: type === 'countNeighbors' ? getFingerprintByPrimitive : getFingerprintByMockEntities
-      });
-      task.result$ = new Observable<RT>(observer => {
-        task.observerCount++;
-        if (task.result !== undefined) observer.next(task.result);
-        task.observers.add(observer);
-        task.run();
-        return (): void => {
-          task.observerCount--;
-          task.observers.delete(observer);
-          if (task.observerCount <= 0) task.clean();
-        };
-      });
+          where: { combinator: 'and', rules: [{ field: 'name', operator: '=', value: 'Alice' }] }
+        },
+        runner: () => of(runnerResult)
+      } as unknown as HarnessTaskOptions<TestEntityType, RT>);
       return task;
     };
 

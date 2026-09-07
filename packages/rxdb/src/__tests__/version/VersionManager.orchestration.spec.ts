@@ -46,7 +46,6 @@ const doubles = vi.hoisted(() => ({
     checkRepositoryUpdates: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     cleanupExpired: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     createBranch: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-    buildDependencyGraph: vi.fn<(entities: unknown[]) => unknown>(),
     getAllRepositorySyncStatus: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     getRepositorySyncStatus: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     mergeBranch: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
@@ -58,8 +57,7 @@ const doubles = vi.hoisted(() => ({
     getSwitchVersionActions: vi.fn<(...args: unknown[]) => unknown>(),
     switchBranchActions: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     syncBranches: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-    syncRepository: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-    topologicalSort: vi.fn<(...args: unknown[]) => unknown>()
+    syncRepository: vi.fn<(...args: unknown[]) => Promise<unknown>>()
   }
 }));
 
@@ -143,7 +141,6 @@ vi.mock('../../version/check-repository-updates.js', () => ({
 }));
 vi.mock('../../version/cleanup-expired.js', () => ({ cleanupExpired: doubles.delegates.cleanupExpired }));
 vi.mock('../../version/create-branch.js', () => ({ create_branch: doubles.delegates.createBranch }));
-vi.mock('../../version/dependency-graph.js', () => ({ buildDependencyGraph: doubles.delegates.buildDependencyGraph }));
 vi.mock('../../version/get-all-repository-sync-status.js', () => ({
   getAllRepositorySyncStatus: doubles.delegates.getAllRepositorySyncStatus
 }));
@@ -162,7 +159,6 @@ vi.mock('../../version/switch-branch-actions.js', () => ({
 }));
 vi.mock('../../version/sync-branches.js', () => ({ syncBranches: doubles.delegates.syncBranches }));
 vi.mock('../../version/sync-repository.js', () => ({ syncRepository: doubles.delegates.syncRepository }));
-vi.mock('../../version/topological-sort.js', () => ({ topologicalSort: doubles.delegates.topologicalSort }));
 
 type RepositoryStub = {
   find: ReturnType<typeof vi.fn>;
@@ -300,7 +296,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('VersionManager real orchestration coverage', () => {
+describe('VersionManager 对协作模块的编排契约', () => {
   it('initializes listeners and releases every lifecycle resource on destroy', () => {
     const harness = createHarness();
     const removeCreate = vi.fn();
@@ -681,19 +677,15 @@ describe('VersionManager real orchestration coverage', () => {
     expect(doubles.history.clearUndoHistory).not.toHaveBeenCalled();
   });
 
-  it('builds a real metadata list before delegating graph construction and sorting', () => {
+  // 依赖图与拓扑排序是纯函数，替身只会把「真的排出这个顺序了吗」换成「真的调了这个函数吗」。
+  // 这里跑真实现，断言排出来的图与顺序本身。
+  it('从已注册实体算出真实依赖图与拉取顺序', () => {
     const { manager } = createHarness([RxDBBranch]);
-    const graph = new Map([['rxdb:RxDBBranch', { dependsOn: new Set(), requiredBy: new Set() }]]);
-    const order = [{ namespace: 'rxdb', entity: 'RxDBBranch' }];
-    doubles.delegates.buildDependencyGraph.mockReturnValue(graph);
-    doubles.delegates.topologicalSort.mockReturnValue(order);
 
-    expect(manager.getRepositoryDependencyGraph()).toBe(graph);
-    expect(doubles.delegates.buildDependencyGraph).toHaveBeenCalledWith([
-      expect.objectContaining({ namespace: 'rxdb', name: 'RxDBBranch' })
-    ]);
-    expect(manager.getRepositorySyncOrder('pull')).toBe(order);
-    expect(doubles.delegates.topologicalSort).toHaveBeenCalledWith(graph, 'pull');
+    const graph = manager.getRepositoryDependencyGraph();
+    expect(graph.has('rxdb:RxDBBranch')).toBe(true);
+
+    expect(manager.getRepositorySyncOrder('pull')).toEqual([{ namespace: 'rxdb', entity: 'RxDBBranch' }]);
   });
 
   it('returns local and remote system repositories from their adapter streams', async () => {

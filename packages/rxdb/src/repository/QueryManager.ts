@@ -22,7 +22,6 @@ import type { RxDB } from '../RxDB.js';
 import { Fingerprint } from './fingerprint.utils.js';
 import { QueryOptions } from './QueryManager.interface.js';
 import { QueryTask } from './QueryTask.js';
-import type { Repository } from './Repository.js';
 
 /**
  * 判断一份增量负载相对缓存实体是否改动了**可见值**。
@@ -106,12 +105,10 @@ export class QueryManager<T extends EntityType> {
    *
    * @param rxdb RxDB 实例，用于访问数据库和事件系统
    * @param EntityType 实体类型，用于标识当前管理的实体
-   * @param repository 仓库实例，用于执行实际的查询操作
    */
   constructor(
     protected readonly rxdb: RxDB,
-    protected readonly EntityType: T,
-    protected readonly repository: Repository<T>
+    protected readonly EntityType: T
   ) {
     // 初始化数据库变更监听
     this.#init_db_changes();
@@ -339,6 +336,49 @@ export class QueryManager<T extends EntityType> {
   }
 
   /**
+   * 把一次实体变更事件按类型合并进单个查询任务的缓存。
+   *
+   * @param task - 目标查询任务
+   * @param event - 本次实体变更事件
+   * @param entities - 已过滤到与该事件相关的实体负载
+   *
+   * @remarks
+   * **错误在这里收口**，每个任务独立兜底：合并策略（含插件注册的自定义策略）抛错时，
+   * 该任务退回一次整查 `refresh()`，其余任务不受影响。
+   *
+   * 用 `refresh()` 而不是就地吞掉：增量合并失败意味着这个任务的缓存**已经和库不一致**，
+   * 静默返回会把脏数据一直留在订阅者手里；重跑一次查询是唯一能保证正确的收尾。
+   */
+  #merge_event_into_task(
+    task: QueryTask<T>,
+    event: EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent,
+    entities: RxDBEntityLocalEventData[]
+  ): void {
+    try {
+      switch (event.type) {
+        case ENTITY_LOCAL_CREATE_EVENT: {
+          const merge_create_fn = this.#query_task_merge_create_map.get(task.type) || merge_create;
+          merge_create_fn(task, entities as RxDBEntityLocalCreatedEventData<T>[]);
+          return;
+        }
+        case ENTITY_LOCAL_UPDATE_EVENT: {
+          const merge_update_fn = this.#query_task_merge_update_map.get(task.type) || merge_update;
+          merge_update_fn(task, entities as RxDBEntityLocalUpdatedEventData<T>[]);
+          return;
+        }
+        case ENTITY_LOCAL_REMOVE_EVENT: {
+          const merge_remove_fn = this.#query_task_merge_remove_map.get(task.type) || merge_remove;
+          merge_remove_fn(task, entities as RxDBEntityLocalRemovedEventData<T>[]);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('[QueryManager] 查询缓存合并失败，退回整查', error);
+      task.refresh();
+    }
+  }
+
+  /**
    * 初始化数据库变更监听
    *
    * 该方法监听实体的增删改事件，并使用增量更新策略优化查询缓存：
@@ -381,34 +421,16 @@ export class QueryManager<T extends EntityType> {
         }
         // 使用分块处理，避免一次性处理大量任务导致性能问题。
         //
-        // UTL-003：`performChunk` 现在返回 `{ cancel, done }`，`done` 会在 consumer 抛错时 reject。
-        // 这里必须显式接住 —— 合并策略抛错是**缓存合并失败**，
-        // 以前它会逃逸成一条无人接管的全局错误，现在至少落在这里且带上下文。
-        // 不向上抛：这是事件监听器，抛出去只会变成另一条无人接管的错误。
-        void performChunk(Array.from(this.#query_task_map.values()), task => {
-          // 根据事件类型调用相应的缓存合并策略
-          switch (event.type) {
-            case ENTITY_LOCAL_CREATE_EVENT:
-              {
-                const merge_create_fn = this.#query_task_merge_create_map.get(task.type) || merge_create;
-                merge_create_fn(task, need_entities as RxDBEntityLocalCreatedEventData<T>[]);
-              }
-              break;
-            case ENTITY_LOCAL_UPDATE_EVENT:
-              {
-                const merge_update_fn = this.#query_task_merge_update_map.get(task.type) || merge_update;
-                merge_update_fn(task, need_entities as RxDBEntityLocalUpdatedEventData<T>[]);
-              }
-              break;
-            case ENTITY_LOCAL_REMOVE_EVENT:
-              {
-                const merge_remove_fn = this.#query_task_merge_remove_map.get(task.type) || merge_remove;
-                merge_remove_fn(task, need_entities as RxDBEntityLocalRemovedEventData<T>[]);
-              }
-              break;
-          }
-        }).done.catch((error: unknown) => {
-          console.error('[QueryManager] 查询缓存合并失败', error);
+        // 每个 task 各自 try/catch（见 #merge_event_into_task）：consumer 一旦把错误抛给
+        // performChunk，它会 reject `done` 并**停止排后续分片** —— 同一批里排在后面的
+        // 查询任务一条都不会再合并，缓存停在事件之前的样子，且没有任何人去纠正它。
+        // 一个查询的合并策略出问题不该让另一个查询显示脏数据。
+        void performChunk(Array.from(this.#query_task_map.values()), task =>
+          this.#merge_event_into_task(task, event, need_entities)
+        ).done.catch((error: unknown) => {
+          // 走到这里说明是分片调度自身出错（consumer 已不会抛）。不向上抛：
+          // 这是事件监听器，抛出去只会变成另一条无人接管的错误。
+          console.error('[QueryManager] 查询缓存分片调度失败', error);
         });
       }
     };

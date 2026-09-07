@@ -1,3 +1,4 @@
+import { RxDBError } from '../RxDBError.js';
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
 import { ENTITY_MANAGER } from '../rxdb.private.js';
 import { EntityData, EntityType, RxDBEntityId } from './entity.interface.js';
@@ -27,6 +28,47 @@ const findInSet = <V>(set: Set<V>, predicate: (value: V) => boolean): V | undefi
 
 const getRelationValue = (entity: object, property: string): unknown => Reflect.get(entity, property) as unknown;
 
+/**
+ * 把一个实体类解析成**当前实例的 schema 里注册的那一个**。
+ *
+ * 多个 RxDB 实例可以各自注册同名实体（不同库、测试并行、HMR 重载），
+ * 类对象因此不是全局唯一的身份。中间表读写必须落到本实例注册的那个类上。
+ *
+ * @param entity - 提供归属实例的实体
+ * @param EntityType - 待解析的实体类，通常来自关系元数据
+ * @returns 本实例 schema 中注册的同名实体类
+ *
+ * @throws RxDBError 实体没有归属的 EntityManager，或该类未在本实例注册时抛出。
+ *
+ * @remarks
+ * 两处都不再回退到传入的 `EntityType`：回退看着无害，实际是拿另一个库的类去读写
+ * 本库的中间表 —— 元数据（表名、列名、id 类型）可能完全不同，写坏了也不报错。
+ * 未注册就是配置漏了实体，当场炸比事后查数据便宜得多。
+ */
+/**
+ * 取出 `MANY_TO_MANY` 关系的中间表实体类。
+ *
+ * @param relation - 多对多关系元数据
+ * @returns 中间表实体类
+ *
+ * @throws RxDBError `junctionEntityType` 未生成时抛出。
+ *
+ * @remarks
+ * 此前两处写 `relation.junctionEntityType!`，元数据没生成中间表时会把 `undefined`
+ * 一路带进 `getEntityMetadata`，抛一条读不出实体名的裸错。这里点名是哪个实体的哪条关系。
+ *
+ * 形参写成结构类型而不是 `EntityRelationManyToManyMetadata`（那里 `SetRequired` 把
+ * `junctionEntityType` 标成必填）：必填只是元数据装配环节应当维持的**断言**，
+ * 不是编译期证明，运行时仍要核一遍。
+ */
+const junctionTypeOf = (relation: { name: string; junctionEntityType?: EntityType }): EntityType => {
+  const { junctionEntityType } = relation;
+  if (!junctionEntityType) {
+    throw new RxDBError(`多对多关系 '${relation.name}' 没有生成中间表实体（junctionEntityType 缺失）`);
+  }
+  return junctionEntityType;
+};
+
 const getScopedEntityType = (entity: InstanceType<EntityType>, EntityType: EntityType): EntityType => {
   const manager = (
     entity as unknown as {
@@ -35,9 +77,15 @@ const getScopedEntityType = (entity: InstanceType<EntityType>, EntityType: Entit
       };
     }
   )[ENTITY_MANAGER];
-  if (!manager) return EntityType;
   const metadata = getEntityMetadata(EntityType);
-  return manager.rxdb.schemaManager.getEntityType(metadata.name, metadata.namespace) ?? EntityType;
+  if (!manager) {
+    throw new RxDBError(`关系缓存无法解析 ${metadata.namespace}:${metadata.name}：实体未绑定 EntityManager`);
+  }
+  const scoped = manager.rxdb.schemaManager.getEntityType(metadata.name, metadata.namespace);
+  if (!scoped) {
+    throw new RxDBError(`关系缓存无法解析 ${metadata.namespace}:${metadata.name}：该实体未注册到本 RxDB 实例`);
+  }
+  return scoped;
 };
 
 /**
@@ -117,7 +165,7 @@ export class EntityRelationCache {
     const cache = this.get(relation);
 
     if (relation.kind === RelationKind.MANY_TO_MANY) {
-      const JunctionEntityType = getScopedEntityType(this.getTarget(), relation.junctionEntityType!);
+      const JunctionEntityType = getScopedEntityType(this.getTarget(), junctionTypeOf(relation));
       const foreignKeyA = relation.name + 'Id';
       const foreignKeyB = relation.mappedProperty + 'Id';
       const target = this.getTarget();
@@ -196,7 +244,7 @@ export class EntityRelationCache {
     const cache = this.get(relation);
 
     if (relation.kind === RelationKind.MANY_TO_MANY) {
-      const JunctionEntityType = getScopedEntityType(this.getTarget(), relation.junctionEntityType!);
+      const JunctionEntityType = getScopedEntityType(this.getTarget(), junctionTypeOf(relation));
       const foreignKeyA = relation.name + 'Id';
       const foreignKeyB = relation.mappedProperty + 'Id';
       const target = this.getTarget();

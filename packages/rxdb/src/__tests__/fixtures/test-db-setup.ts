@@ -1,11 +1,11 @@
 /**
- * @fileoverview 测试数据库配置（unit 层模拟适配器）
+ * @fileoverview 测试数据库配置（unit 层假适配器）
  *
  * ## 测试分层说明（重要 — 避免误判重构）
  *
  * RxDB 项目采用两层测试架构：
  *
- * 1. **Unit 层（本包内 `__tests__/`）**：使用 `createMockAdapter()` —— Map-backed 内存假适配器
+ * 1. **Unit 层（本包内 `__tests__/`）**：使用 {@link createMockAdapter} —— 只有形状、没有存储的假适配器
  *    - 跑得快、零外部依赖、覆盖**纯逻辑**：query merging / scope filter / entity status / patch 计算 等
  *    - 不验证真实存储行为（SQL/事务/并发/序列）
  *
@@ -19,106 +19,173 @@
  * mock 是为了快速验证纯逻辑，真行为在 adapter 包里已充分覆盖。
  */
 
-import { vi } from 'vitest';
+import { type Observable, of } from 'rxjs';
+import { type Mock, vi } from 'vitest';
 import type { EntityType } from '../../entity/entity.interface.js';
 import { SyncType } from '../../entity/metadata-options.interface.js';
-import type { IRxDBAdapter } from '../../rxdb-adapter.js';
-import { getEntityStatus } from '../../rxdb-utils.js';
+import type { IRepository } from '../../repository/repository.interface.js';
+import {
+  type IRxDBAdapter,
+  RxDBAdapterLocalBase,
+  type RxDBMutationsMap,
+  type SwitchBranchOptions,
+  type TransactionFun
+} from '../../rxdb-adapter.js';
 import type { RxDBOptions } from '../../rxdb.interface.js';
 import { RxDB } from '../../RxDB.js';
+import type { RxDBChange } from '../../system/change.js';
+import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
+import type { SwitchVersionActions } from '../../version/VersionManager.interface.js';
 import { TEST_ENTITIES } from './test-entities.js';
 
 /**
- * 创建 Mock 适配器
- * 用于不需要真实数据库的单元测试
+ * 假适配器交给 `getRepository()` 的仓库桩。
+ *
+ * @remarks
+ * 类型是**真的** {@link IRepository}，不是 `as never` 糊出来的：该接口只有五个成员，
+ * 全部实现的成本几乎为零，而换来的是「仓库接口一旦加成员，这里立刻编译失败」。
  */
-type MockEntity = InstanceType<EntityType> & { id: string; constructor: { name: string } };
-
-export function createMockAdapter(): IRxDBAdapter {
-  const storage = new Map<string, Map<string, unknown>>();
-
-  const getTable = (name: string) => {
-    if (!storage.has(name)) {
-      storage.set(name, new Map());
-    }
-    return storage.get(name)!;
-  };
-
-  const adapter: IRxDBAdapter = {
-    connect: vi.fn().mockResolvedValue(undefined),
-    disconnect: vi.fn().mockResolvedValue(undefined),
-    isTableExisted: vi.fn().mockResolvedValue(false),
-    createTables: vi.fn().mockResolvedValue(undefined),
-
-    create: vi.fn(async (entity: MockEntity) => {
-      const table = getTable(entity.constructor.name);
-      table.set(entity.id, { ...entity });
-      const status = getEntityStatus(entity);
-      status.local = true;
-      status.modified = false;
-      return entity;
-    }),
-
-    update: vi.fn(async (entity: MockEntity) => {
-      const table = getTable(entity.constructor.name);
-      table.set(entity.id, { ...entity });
-      const status = getEntityStatus(entity);
-      status.modified = false;
-      return entity;
-    }),
-
-    remove: vi.fn(async (entity: MockEntity) => {
-      const table = getTable(entity.constructor.name);
-      table.delete(entity.id);
-      const status = getEntityStatus(entity);
-      status.removed = true;
-      status.local = false;
-      return entity;
-    }),
-
-    findOne: vi.fn(async (entityType: string, id: string) => {
-      const table = getTable(entityType);
-      return table.get(id) ?? null;
-    }),
-
-    findMany: vi.fn(async () => []),
+function createStubRepository(): IRepository<EntityType> {
+  return {
+    find: vi.fn(async () => []),
     count: vi.fn(async () => 0),
+    create: vi.fn(async entity => entity),
+    update: vi.fn(async entity => entity),
+    remove: vi.fn(async entity => entity)
+  };
+}
 
-    // 事务回调收到的是 TransactionExecutor（C2）。这里给一个最小替身：
-    // 它的 getRepository 直接转发到适配器自身的 getRepository，因此既有那些
-    // 「打桩 adapter.getRepository 再断言事务内读写」的用例语义保持不变。
-    transaction: vi.fn(async function (this: unknown, fn: (executor: unknown) => Promise<unknown>) {
-      const executor = {
-        id: 'mock-executor',
-        state: 'active' as const,
-        query: vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] })),
-        mutations: vi.fn(async () => []),
-        mergeChanges: vi.fn(async () => undefined),
-        getRepository: (EntityType: unknown) => adapter.getRepository(EntityType as never),
-        run: (inner: (executor: unknown) => Promise<unknown>) => inner(executor)
-      };
-      return fn(executor);
-    }),
+/**
+ * unit 层用的本地适配器替身。
+ *
+ * @remarks
+ * **它是 {@link RxDBAdapterLocalBase} 的真子类，而不是一个被 `as unknown as IRxDBAdapter`
+ * 强行认领的对象字面量。** 这一条是本文件唯一重要的设计决定：
+ *
+ * - 强转版本长期实现着 `create` / `update` / `remove` / `findOne` / `findMany` / `count`
+ *   —— 真适配器接口里**根本没有这六个方法**，任何依赖它们的用例验证的都是替身自己；
+ *   同时缺着 `name` / `version` / `saveMany` / `removeMany` / `mutations` 和本地基类的
+ *   全部抽象成员，而 tsc 被那句强转堵住了嘴。
+ * - 现在基类往接口里加一个抽象成员，**编译在这里就断**，而不是等到某个用例在运行时
+ *   撞见 `undefined is not a function`。
+ * - `bootstrapTransaction()` / `migrateSystemSchema()` / `completeBootstrap()` 直接**继承**
+ *   基类的真实现。从前是手抄一份并注释「与基类同口径」—— 口径是否真的一致，没有任何东西在保证。
+ *
+ * 只保留形状，不保留存储：这里没有 Map 后备表。真正的读写语义由 PGlite / wa-sqlite 等
+ * adapter 包的集成层验证，unit 层复制一份内存实现只会多出一个谁都不信的第三方版本。
+ *
+ * 不实现可选的 `rawQuery` —— 它在接口里就是可选的，而 `Repository.rawQuery()` 在适配器
+ * 没有它时抛「not supported」。补一个假的等于把那条路径永久遮住。
+ */
+export class MockLocalAdapter extends RxDBAdapterLocalBase implements IRxDBAdapter {
+  /**
+   * 所有 `getRepository()` 调用共享同一个仓库桩。
+   *
+   * @remarks
+   * 稳定的对象标识是用例依赖的：多处用例先取一次默认仓库，再用
+   * `mockImplementation` 只替换某个实体的仓库、其余原样返回。每次新建会让这种
+   * 「只替换一个」的写法退化成「每次都换」。
+   */
+  readonly #repository = createStubRepository();
 
-    // 与 RxDBAdapterLocalBase 的默认实现同口径：没有就绪门的适配器直接委托 transaction()
-    bootstrapTransaction: vi.fn(async function (this: unknown, fn: (executor: unknown) => Promise<unknown>) {
-      return (adapter as unknown as { transaction: (f: unknown) => Promise<unknown> }).transaction(fn);
-    }),
+  name = 'mock';
 
-    getRepository: vi.fn().mockReturnValue({
-      find: vi.fn().mockResolvedValue([]),
-      count: vi.fn().mockResolvedValue(0),
-      create: vi.fn(),
-      update: vi.fn(),
-      remove: vi.fn()
-    }),
+  connect: Mock<() => Promise<IRxDBAdapter>> = vi.fn(async () => this);
 
-    // 内部存储访问（测试用）
-    _storage: storage,
-    _getTable: getTable
-  } as unknown as IRxDBAdapter;
+  disconnect = vi.fn<() => Promise<void>>(async () => undefined);
 
-  return adapter;
+  version = vi.fn<() => Promise<string>>(async () => 'mock');
+
+  isTableExisted = vi.fn<(EntityType: EntityType) => Promise<boolean>>(async () => false);
+
+  createTables = vi.fn<(EntityTypes: EntityType[], entities?: InstanceType<EntityType>[]) => Promise<boolean>>(
+    async () => true
+  );
+
+  switchBranch = vi.fn<(options: SwitchBranchOptions) => Promise<void>>(async () => undefined);
+
+  getRxDBChangeSequence = vi.fn<() => Promise<number>>(async () => 0);
+
+  mergeChanges = vi.fn<
+    (
+      actions: SwitchVersionActions,
+      localChanges?: Omit<RxDBChange, 'id'>[],
+      disableTriggers?: boolean
+    ) => Promise<number | void>
+  >(async () => undefined);
+
+  getMetadataByIds = vi.fn<(entityName: string, ids: string[]) => Observable<Map<string, string>>>(() => of(new Map()));
+
+  upsertMany = vi.fn<(entityName: string, data: unknown[]) => Observable<void>>(() => of(undefined));
+
+  deleteByIds = vi.fn<(entityName: string, ids: string[]) => Observable<void>>(() => of(undefined));
+
+  saveMany = vi.fn<(entities: InstanceType<EntityType>[]) => Promise<InstanceType<EntityType>[]>>(
+    async entities => entities
+  );
+
+  removeMany = vi.fn<(entities: InstanceType<EntityType>[]) => Promise<InstanceType<EntityType>[]>>(
+    async entities => entities
+  );
+
+  mutations = vi.fn<(options: RxDBMutationsMap<EntityType>) => Promise<InstanceType<EntityType>[]>>(async options =>
+    [...options.create.values(), ...options.update.values(), ...options.remove.values()].flatMap(set => [...set])
+  );
+
+  /**
+   * 全包唯一一处「窄转」，理由在类型系统本身，不在这个替身。
+   *
+   * @remarks
+   * 真签名的返回值是**调用方**挑的类型参数（`getRepository<T, RT>(…): RT`），而 vitest 的
+   * `Mock<T>` 把调用签名重写成 `(...args: MockParameters<T>) => MockReturnType<T>` ——
+   * 泛型在这一步就被抹平了，任何 `Mock<…>` 都不可能满足一个返回 `RT` 的成员。
+   *
+   * 所以这里把两半拼起来：调用签名取**真接口上的那一个**（`IRxDBAdapter['getRepository']`，
+   * 接口一改这里就崩），mock 那套方法取 `Mock<…>`。转换发生在两个描述同一个值的类型之间，
+   * 不是拿它盖住某个缺失的成员 —— 与被删掉的 `as unknown as IRxDBAdapter` 完全是两回事。
+   */
+  getRepository: IRxDBAdapter['getRepository'] & Mock<(EntityType: EntityType) => IRepository<EntityType>> = vi.fn(
+    () => this.#repository
+  ) as IRxDBAdapter['getRepository'] & Mock<(EntityType: EntityType) => IRepository<EntityType>>;
+
+  /**
+   * 事务替身：把回调放进一个最小 {@link TransactionExecutor} 里同步跑掉，不做任何隔离。
+   *
+   * @remarks
+   * executor 的 `getRepository` / `saveMany` / `removeMany` / `mutations` 一律转发回适配器
+   * 自身，因此「打桩 `adapter.getRepository` 再断言事务内读写」的既有用例语义不变。
+   */
+  transaction = vi.fn<(fun: TransactionFun, transactionLog?: boolean) => Promise<unknown>>(async fun => {
+    const executor: TransactionExecutor = {
+      id: 'mock-executor',
+      state: 'active',
+      query: vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] })),
+      mutations: options => this.mutations(options as RxDBMutationsMap<EntityType>),
+      getRepository: EntityType => this.getRepository(EntityType),
+      saveMany: entities => this.saveMany(entities),
+      removeMany: entities => this.removeMany(entities),
+      mergeChanges: async (actions, localChanges, disableTriggers) => {
+        await this.mergeChanges(actions, localChanges, disableTriggers);
+      },
+      run: fn => fn(executor)
+    };
+    return fun(executor);
+  });
+}
+
+/**
+ * 创建假适配器。
+ *
+ * @param rxdb - 该适配器所属的数据库实例
+ *
+ * @remarks
+ * `rxdb` 是**必填**的，因为 {@link RxDBAdapterLocalBase} 的构造函数就要它，而真适配器
+ * 一律经 `AdapterFactory`（`rxdb.adapter(name, db => new XxxAdapter(db))`）拿到同一个实例。
+ * 替身自己造一个占位数据库会让 `adapter.rxdb` 指向一个谁都没在用的对象 —— 那比 `undefined`
+ * 更难查。注册时照真适配器的写法传工厂参数即可：`db => createMockAdapter(db)`。
+ */
+export function createMockAdapter(rxdb: RxDB): MockLocalAdapter {
+  return new MockLocalAdapter(rxdb);
 }
 
 /**
@@ -129,8 +196,6 @@ export interface TestDBOptions {
   dbName?: string;
   /** 要注册的实体类（默认使用 TEST_ENTITIES） */
   entities?: EntityType[];
-  /** 是否使用 Mock 适配器（默认 true） */
-  useMock?: boolean;
 }
 
 /**
@@ -145,14 +210,10 @@ export interface TestDBOptions {
  */
 export async function createTestDB(options: TestDBOptions = {}): Promise<{
   rxdb: RxDB;
-  adapter: IRxDBAdapter;
+  adapter: MockLocalAdapter;
   cleanup: () => Promise<void>;
 }> {
-  const {
-    dbName = `test-db-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    entities = TEST_ENTITIES,
-    useMock = true
-  } = options;
+  const { dbName = `test-db-${Date.now()}-${Math.random().toString(36).slice(2)}`, entities = TEST_ENTITIES } = options;
 
   const rxdbOptions: RxDBOptions = {
     dbName,
@@ -166,16 +227,16 @@ export async function createTestDB(options: TestDBOptions = {}): Promise<{
   };
 
   const rxdb = new RxDB(rxdbOptions);
-  const adapter = useMock ? createMockAdapter() : ({} as IRxDBAdapter);
+  const adapter = createMockAdapter(rxdb);
 
   rxdb.adapter('sqlite', () => adapter);
   rxdb.init();
 
+  // 经 `rxdb.disconnectAll()` 拆，而不是直接叫 `adapter.disconnect()`：
+  // 后者只关了连接，插件销毁、gateway、versionManager、全局监听器全部留在原地，
+  // 泄漏会跨用例累积到下一个 spec 里去。
   const cleanup = async (): Promise<void> => {
-    // 清理资源
-    if (adapter.disconnect) {
-      await adapter.disconnect();
-    }
+    await rxdb.disconnectAll();
   };
 
   return { rxdb, adapter, cleanup };
@@ -186,8 +247,8 @@ export async function createTestDB(options: TestDBOptions = {}): Promise<{
  */
 export async function createTestDBWithRemote(options: TestDBOptions = {}): Promise<{
   rxdb: RxDB;
-  localAdapter: IRxDBAdapter;
-  remoteAdapter: IRxDBAdapter;
+  localAdapter: MockLocalAdapter;
+  remoteAdapter: MockLocalAdapter;
   cleanup: () => Promise<void>;
 }> {
   const { dbName = `test-db-${Date.now()}-${Math.random().toString(36).slice(2)}`, entities = TEST_ENTITIES } = options;
@@ -207,15 +268,15 @@ export async function createTestDBWithRemote(options: TestDBOptions = {}): Promi
   };
 
   const rxdb = new RxDB(rxdbOptions);
-  const localAdapter = createMockAdapter();
-  const remoteAdapter = createMockAdapter();
+  const localAdapter = createMockAdapter(rxdb);
+  const remoteAdapter = createMockAdapter(rxdb);
 
   rxdb.adapter('sqlite', () => localAdapter);
   rxdb.adapter('remote', () => remoteAdapter);
   rxdb.init();
 
   const cleanup = async (): Promise<void> => {
-    await Promise.all([localAdapter.disconnect?.(), remoteAdapter.disconnect?.()]);
+    await rxdb.disconnectAll();
   };
 
   return { rxdb, localAdapter, remoteAdapter, cleanup };

@@ -8,7 +8,7 @@ import { RxDBBranch } from '../system/branch.js';
 import { RxDBChange } from '../system/change.js';
 import { RxDBSync } from '../system/sync.js';
 import type { RxDBChangeRuleGroup, RxDBSyncOrderByField, RxDBSyncRuleGroup } from '../system/types.js';
-import { getRepositoryKey } from './history-filters.js';
+import { buildLastPushedMap } from './history-filters.js';
 import { convertChangesToHistories } from './history-item-builder.js';
 import type { ActiveUndoSession, UndoBoundary } from './history-undo-session.types.js';
 import { buildPushableRepositoryRules } from './pushable-repository-rules.js';
@@ -73,12 +73,8 @@ export async function fetchLatestHistories(
     }
   });
 
-  const lastPushedMap = new Map<string, number>();
-  for (const rs of repoSyncs) {
-    if (rs.lastPushedChangeId !== null) {
-      lastPushedMap.set(getRepositoryKey(rs), rs.lastPushedChangeId);
-    }
-  }
+  // 带上在飞认领：远端往返途中的变更视同已推，否则这段窗口里的 undo 会造成永久分叉
+  const lastPushedMap = buildLastPushedMap(repoSyncs, host.rxdb.versionManager.pushInFlight.snapshot());
 
   const rules: RxDBChangeRuleGroup['rules'] = [
     {

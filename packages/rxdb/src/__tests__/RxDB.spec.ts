@@ -18,44 +18,10 @@ import { RxDBOptions } from '../rxdb.interface.js';
 import { RxDB } from '../RxDB.js';
 import { RxDBMigration } from '../system/migration.js';
 import { RXDB_DB_NAME_SUFFIX } from '../version.js';
-
-type MockAdapter = IRxDBAdapter & {
-  isTableExisted: ReturnType<typeof vi.fn>;
-  createTables: ReturnType<typeof vi.fn>;
-  transaction: ReturnType<typeof vi.fn>;
-  getRepository: ReturnType<typeof vi.fn>;
-};
+import { createMockAdapter } from './fixtures/test-db-setup.js';
 
 const REBIND_USER_ID = '00000000-0000-0000-0000-000000000101';
 const REBIND_PARENT_ID = '00000000-0000-0000-0000-000000000102';
-
-// 用于测试的模拟适配器。
-const createMockAdapter = (): MockAdapter =>
-  ({
-    name: 'mock-adapter',
-    connect: vi.fn().mockResolvedValue(undefined),
-    disconnect: vi.fn().mockResolvedValue(undefined),
-    version: vi.fn().mockResolvedValue('1.0.0'),
-    isTableExisted: vi.fn().mockResolvedValue(false),
-    createTables: vi.fn().mockResolvedValue(undefined),
-    create: vi.fn().mockResolvedValue({}),
-    update: vi.fn().mockResolvedValue({}),
-    remove: vi.fn().mockResolvedValue({}),
-    saveMany: vi.fn().mockResolvedValue([]),
-    removeMany: vi.fn().mockResolvedValue([]),
-    mutations: vi.fn().mockResolvedValue([]),
-    findOne: vi.fn().mockResolvedValue(null),
-    findMany: vi.fn().mockResolvedValue([]),
-    count: vi.fn().mockResolvedValue(0),
-    transaction: vi.fn(),
-    getRepository: vi.fn().mockReturnValue({
-      find: vi.fn().mockResolvedValue([]),
-      count: vi.fn().mockResolvedValue(0),
-      create: vi.fn(),
-      update: vi.fn(),
-      remove: vi.fn()
-    })
-  }) as MockAdapter;
 
 const createEntityCreatedEvent = (id: string) =>
   new EntityLocalCreatedEvent([
@@ -273,15 +239,6 @@ describe('RxDB', () => {
 
     it('同一实体类绑定多个数据库后，已有实例仍路由到原数据库且歧义入口 fail-fast（RXD-046）', async () => {
       const createInstance = (dbName: string) => {
-        const adapter = createMockAdapter();
-        const repository = {
-          find: vi.fn().mockResolvedValue([]),
-          count: vi.fn().mockResolvedValue(0),
-          create: vi.fn(async <T>(entity: T) => entity),
-          update: vi.fn(async <T>(entity: T) => entity),
-          remove: vi.fn(async <T>(entity: T) => entity)
-        };
-        adapter.getRepository.mockReturnValue(repository);
         const instance = new RxDB({
           dbName,
           entities: [RebindUser] as EntityType[],
@@ -292,6 +249,15 @@ describe('RxDB', () => {
             type: SyncType.None
           }
         });
+        const adapter = createMockAdapter(instance);
+        const repository = {
+          find: vi.fn().mockResolvedValue([]),
+          count: vi.fn().mockResolvedValue(0),
+          create: vi.fn(async <T>(entity: T) => entity),
+          update: vi.fn(async <T>(entity: T) => entity),
+          remove: vi.fn(async <T>(entity: T) => entity)
+        };
+        adapter.getRepository.mockReturnValue(repository as never);
         instance.adapter('sqlite', () => adapter);
         return { instance, repository };
       };
@@ -324,15 +290,6 @@ describe('RxDB', () => {
 
     it('同一实体类绑定多个数据库后，已有实体的关系 getter 仍路由到原数据库（RXD-046）', async () => {
       const createInstance = (dbName: string) => {
-        const adapter = createMockAdapter();
-        const repository = {
-          find: vi.fn().mockResolvedValue([]),
-          count: vi.fn().mockResolvedValue(0),
-          create: vi.fn(async <T>(entity: T) => entity),
-          update: vi.fn(async <T>(entity: T) => entity),
-          remove: vi.fn(async <T>(entity: T) => entity)
-        };
-        adapter.getRepository.mockReturnValue(repository);
         const instance = new RxDB({
           dbName,
           entities: [RebindParent, RebindChild] as EntityType[],
@@ -343,6 +300,15 @@ describe('RxDB', () => {
             type: SyncType.None
           }
         });
+        const adapter = createMockAdapter(instance);
+        const repository = {
+          find: vi.fn().mockResolvedValue([]),
+          count: vi.fn().mockResolvedValue(0),
+          create: vi.fn(async <T>(entity: T) => entity),
+          update: vi.fn(async <T>(entity: T) => entity),
+          remove: vi.fn(async <T>(entity: T) => entity)
+        };
+        adapter.getRepository.mockReturnValue(repository as never);
         instance.adapter('sqlite', () => adapter);
         return { instance, repository };
       };
@@ -375,7 +341,7 @@ describe('RxDB', () => {
 
   describe('适配器管理', () => {
     it('应该注册适配器', () => {
-      const mockFactory: AdapterFactory = vi.fn().mockReturnValue(createMockAdapter());
+      const mockFactory: AdapterFactory = vi.fn().mockReturnValue(createMockAdapter(rxdb));
       rxdb.adapter('test-adapter', mockFactory);
 
       // 适配器已注册，不会抛出错误
@@ -383,7 +349,7 @@ describe('RxDB', () => {
     });
 
     it('应该获取已注册的适配器', async () => {
-      const mockAdapterInstance = createMockAdapter();
+      const mockAdapterInstance = createMockAdapter(rxdb);
       const mockFactory: AdapterFactory = vi.fn().mockReturnValue(mockAdapterInstance);
       rxdb.adapter('get-test', mockFactory);
 
@@ -394,7 +360,7 @@ describe('RxDB', () => {
     });
 
     it('应该缓存适配器实例', async () => {
-      const mockAdapterInstance = createMockAdapter();
+      const mockAdapterInstance = createMockAdapter(rxdb);
       const mockFactory: AdapterFactory = vi.fn().mockReturnValue(mockAdapterInstance);
       rxdb.adapter('cache-test', mockFactory);
 
@@ -412,7 +378,7 @@ describe('RxDB', () => {
     });
 
     it('应该支持异步适配器工厂', async () => {
-      const mockAdapterInstance = createMockAdapter();
+      const mockAdapterInstance = createMockAdapter(rxdb);
       const mockFactory: AdapterFactory = vi.fn().mockResolvedValue(mockAdapterInstance);
       rxdb.adapter('async-test', mockFactory);
 
@@ -422,7 +388,7 @@ describe('RxDB', () => {
     });
 
     it('异步适配器工厂失败后应该允许重试', async () => {
-      const adapter = createMockAdapter();
+      const adapter = createMockAdapter(rxdb);
       const factory = vi
         .fn<AdapterFactory>()
         .mockRejectedValueOnce(new Error('temporary failure'))
@@ -437,7 +403,7 @@ describe('RxDB', () => {
 
   describe('连接和断开', () => {
     it('应该连接适配器', async () => {
-      const mockAdapterInstance = createMockAdapter();
+      const mockAdapterInstance = createMockAdapter(rxdb);
       const mockFactory: AdapterFactory = vi.fn().mockReturnValue(mockAdapterInstance);
       rxdb.adapter('connect-test', mockFactory);
 
@@ -452,7 +418,7 @@ describe('RxDB', () => {
         entities: [ConnectInitUser] as EntityType[],
         sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
       });
-      const mockAdapterInstance = createMockAdapter();
+      const mockAdapterInstance = createMockAdapter(localRxdb);
       localRxdb.adapter('sqlite', () => mockAdapterInstance);
 
       const connecting = localRxdb.connect('sqlite');
@@ -470,7 +436,7 @@ describe('RxDB', () => {
         entities: [ConnectInitUser] as EntityType[],
         sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
       });
-      const mockAdapterInstance = createMockAdapter();
+      const mockAdapterInstance = createMockAdapter(localRxdb);
       localRxdb.adapter('sqlite', () => mockAdapterInstance);
 
       const seen: Promise<IRxDBAdapter>[] = [];
@@ -494,7 +460,7 @@ describe('RxDB', () => {
         entities: [ConnectInitBrokenEntity] as EntityType[],
         sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
       });
-      const mockAdapterInstance = createMockAdapter();
+      const mockAdapterInstance = createMockAdapter(localRxdb);
       localRxdb.adapter('sqlite', () => mockAdapterInstance);
 
       await expect(localRxdb.connect('sqlite')).rejects.toThrow(
@@ -516,7 +482,6 @@ describe('RxDB', () => {
         name!: string;
       }
 
-      const adapter = createMockAdapter();
       const localRxdb = new RxDB({
         dbName: 'connect-sync-init',
         entities: [ConnectSyncUser] as EntityType[],
@@ -525,6 +490,7 @@ describe('RxDB', () => {
           type: SyncType.None
         }
       });
+      const adapter = createMockAdapter(localRxdb);
       localRxdb.adapter('sqlite', () => adapter);
 
       const reentered: Promise<IRxDBAdapter>[] = [];
@@ -567,8 +533,8 @@ describe('RxDB', () => {
     });
 
     it('应该在连接时跳过表创建（已存在数据库）', async () => {
-      const mockAdapterInstance = createMockAdapter();
-      mockAdapterInstance.isTableExisted = vi.fn().mockResolvedValue(true);
+      const mockAdapterInstance = createMockAdapter(rxdb);
+      mockAdapterInstance.isTableExisted.mockResolvedValue(true);
       const mockFactory: AdapterFactory = vi.fn().mockReturnValue(mockAdapterInstance);
       rxdb.adapter('existing-db-test', mockFactory);
 
@@ -588,8 +554,8 @@ describe('RxDB', () => {
           type: SyncType.None
         }
       });
-      const mockAdapterInstance = createMockAdapter();
-      mockAdapterInstance.isTableExisted = vi.fn(async (EntityType: EntityType) => EntityType === RxDBMigration);
+      const mockAdapterInstance = createMockAdapter(localRxdb);
+      mockAdapterInstance.isTableExisted.mockImplementation(async EntityType => EntityType === RxDBMigration);
       localRxdb.adapter('sqlite', () => mockAdapterInstance);
       localRxdb.init();
 
@@ -601,7 +567,7 @@ describe('RxDB', () => {
     });
 
     it('应该断开单个适配器', async () => {
-      const mockAdapterInstance = createMockAdapter();
+      const mockAdapterInstance = createMockAdapter(rxdb);
       const mockFactory: AdapterFactory = vi.fn().mockReturnValue(mockAdapterInstance);
       rxdb.adapter('disconnect-test', mockFactory);
       await rxdb.connect('disconnect-test');
@@ -612,8 +578,8 @@ describe('RxDB', () => {
     });
 
     it('应该断开所有适配器', async () => {
-      const mockAdapter1 = createMockAdapter();
-      const mockAdapter2 = createMockAdapter();
+      const mockAdapter1 = createMockAdapter(rxdb);
+      const mockAdapter2 = createMockAdapter(rxdb);
       rxdb.adapter('disconnect-all-1', () => mockAdapter1);
       rxdb.adapter('disconnect-all-2', () => mockAdapter2);
       await rxdb.getAdapter('disconnect-all-1');
@@ -627,11 +593,6 @@ describe('RxDB', () => {
 
     it('应在断开适配器前先销毁插件', async () => {
       const callOrder: string[] = [];
-      const disconnectAdapter = createMockAdapter();
-      disconnectAdapter.disconnect = vi.fn(async () => {
-        callOrder.push('adapter-disconnect');
-      });
-
       const localRxdb = new RxDB({
         dbName: 'disconnect-plugin-order',
         entities: [TestUser] as EntityType[],
@@ -641,6 +602,10 @@ describe('RxDB', () => {
           },
           type: SyncType.None
         }
+      });
+      const disconnectAdapter = createMockAdapter(localRxdb);
+      disconnectAdapter.disconnect.mockImplementation(async () => {
+        callOrder.push('adapter-disconnect');
       });
 
       const orderPlugin = vi.fn(() => ({
@@ -664,11 +629,6 @@ describe('RxDB', () => {
     it('应等待异步插件销毁完成后再断开适配器', async () => {
       const callOrder: string[] = [];
       let resolveDestroy!: () => void;
-      const disconnectAdapter = createMockAdapter();
-      disconnectAdapter.disconnect = vi.fn(async () => {
-        callOrder.push('adapter-disconnect');
-      });
-
       const localRxdb = new RxDB({
         dbName: 'disconnect-plugin-await-order',
         entities: [TestUser] as EntityType[],
@@ -678,6 +638,10 @@ describe('RxDB', () => {
           },
           type: SyncType.None
         }
+      });
+      const disconnectAdapter = createMockAdapter(localRxdb);
+      disconnectAdapter.disconnect.mockImplementation(async () => {
+        callOrder.push('adapter-disconnect');
       });
 
       const orderPlugin = vi.fn(() => ({
@@ -714,8 +678,8 @@ describe('RxDB', () => {
     });
 
     it('disconnect 后再次 getAdapter 应工厂重建（而不是返回已死实例）', async () => {
-      const firstInstance = createMockAdapter();
-      const secondInstance = createMockAdapter();
+      const firstInstance = createMockAdapter(rxdb);
+      const secondInstance = createMockAdapter(rxdb);
       let callCount = 0;
       const factory: AdapterFactory = vi.fn(() => {
         callCount += 1;
@@ -735,19 +699,18 @@ describe('RxDB', () => {
     });
 
     it('disconnect 时 adapter.disconnect() 抛错，不应残留死实例——重试应工厂重建而不是复用失败的旧实例（RXD-003）', async () => {
-      const firstInstance = createMockAdapter();
-      firstInstance.disconnect = vi.fn().mockRejectedValueOnce(new Error('disconnect failed'));
-      const secondInstance = createMockAdapter();
-      let callCount = 0;
-      const factory: AdapterFactory = vi.fn(() => {
-        callCount += 1;
-        return callCount === 1 ? firstInstance : secondInstance;
-      });
-
       const localRxdb = new RxDB({
         dbName: 'disconnect-reject-reconnect',
         entities: [TestUser] as EntityType[],
         sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
+      });
+      const firstInstance = createMockAdapter(localRxdb);
+      const secondInstance = createMockAdapter(localRxdb);
+      firstInstance.disconnect.mockRejectedValueOnce(new Error('disconnect failed'));
+      let callCount = 0;
+      const factory: AdapterFactory = vi.fn(() => {
+        callCount += 1;
+        return callCount === 1 ? firstInstance : secondInstance;
       });
       localRxdb.adapter('sqlite', factory);
       localRxdb.init();
@@ -762,18 +725,17 @@ describe('RxDB', () => {
     });
 
     it('disconnectAll 后再次 getAdapter 应工厂重建（清空 adapter 缓存）', async () => {
-      const firstInstance = createMockAdapter();
-      const secondInstance = createMockAdapter();
-      let callCount = 0;
-      const factory: AdapterFactory = vi.fn(() => {
-        callCount += 1;
-        return callCount === 1 ? firstInstance : secondInstance;
-      });
-
       const localRxdb = new RxDB({
         dbName: 'disconnect-all-reconnect',
         entities: [TestUser] as EntityType[],
         sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
+      });
+      const firstInstance = createMockAdapter(localRxdb);
+      const secondInstance = createMockAdapter(localRxdb);
+      let callCount = 0;
+      const factory: AdapterFactory = vi.fn(() => {
+        callCount += 1;
+        return callCount === 1 ? firstInstance : secondInstance;
       });
       localRxdb.adapter('sqlite', factory);
       localRxdb.init();

@@ -55,22 +55,8 @@ export const applyExternalEntityUpdate = <T extends EntityType>(
     return;
   }
 
-  // 实体脏时不能走 replace。replace 会把本地编辑写进 origin 并把 _modified 归零，
-  // patch 随之清空 —— UI 看似没变，下一次 save() 静默 no-op，用户的编辑永久丢失。
-  // 改走逐字段合并：origin 基线照常前移，但用户改过的键保留本地值。
-  if (status.modified && typeof status.mergeExternal === 'function') {
-    status.mergeExternal(patch);
-    return;
-  }
-
-  if (typeof status.replace === 'function') {
-    status.replace(patch);
-    return;
-  }
-
-  Object.assign(entity, patch);
-  status.modified = false;
-  status.origin = structuredClone({ ...entity });
+  // 脏净分流（脏则逐字段避让本地编辑，净则整行回填）统一由 EntityStatus.applyExternal 决定。
+  status.applyExternal(patch);
 };
 
 /**

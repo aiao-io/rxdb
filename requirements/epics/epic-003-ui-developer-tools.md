@@ -1,6 +1,6 @@
 ---
 id: epic-003-ui-developer-tools
-status: Backlog
+status: In Progress
 startDate: 2025-07-01
 targetDate: 2026-12-01
 owner: jimmy
@@ -16,7 +16,7 @@ owner: jimmy
 
 - [x] 代码编辑器组件（跨 3 端）
 - [x] 浏览器 DevTools 面板（连接器 + Chrome 扩展）
-- [ ] Electron 原生本地存储 DevTools 调试
+- [x] Electron 原生本地存储 DevTools 调试
 - [ ] Tauri 原生本地存储 DevTools 调试
 
 ## 故事
@@ -31,3 +31,5 @@ owner: jimmy
   - 阶段 C DevTools 共享面板与 Chrome v2 迁移 — C1 可与阶段 B 并行
   - 阶段 D Electron 原生存储 DevTools 集成 — 仅阶段 A supported 时开工
 - [US-905 Tauri DevTools 调试窗口与原生存储集成](../stories/future/US-905-tauri-native-devtools.md) (Medium) — 不等待 US-904 阶段 D
+- [US-907 DevTools 面板迁移后的人工浏览器回归](../stories/future/US-907-devtools-manual-browser-regression.md) (Low) — 从 US-904 拆出的四条人工 AC，不改代码
+- [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](../stories/future/US-906-electron-devtools-developer-path.md) (Medium) — 承接 US-904 阶段 D 的实测结论，给桌面开发者一份可用的 dev 扩展产物与流程

@@ -10,6 +10,8 @@ use std::sync::{Arc, Weak};
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, State};
 
+use super::error::{ErrorCode, HostError};
+use super::protocol::error_response;
 use super::router::DesktopRouter;
 use super::session::HostOptions;
 
@@ -25,7 +27,17 @@ pub const CHANGE_EVENT: &str = "rxdb-desktop-change";
 /// 整个应用一个实例：会话表要跨窗口、跨命令调用存活，而 `State` 是唯一能横跨
 /// 所有 `invoke` 的持有点。SQL 与文件两套协议共用这一个 state——renderer 侧
 /// `DesktopHostTransport` 只有一个 `request()`，分流因此只能发生在 host 侧。
-pub struct DesktopHost(Arc<DesktopRouter>);
+pub struct DesktopHost(Arc<HostState>);
+
+/// host 与「谁有资格敲它」这两件事的共同持有点。
+///
+/// 分出这一层只为一个理由：[`rxdb_desktop_request`] 要把它整个搬进 `spawn_blocking`，
+/// 而窗口白名单必须跟着一起搬——留在外面就意味着阻塞闭包里还有一条不过闸的路径。
+struct HostState {
+    router: DesktopRouter,
+    /// 允许发起请求的窗口 label。
+    windows: Vec<String>,
+}
 
 impl DesktopHost {
     /// 在给定的根目录上建 host，变更事件按会话归属定向投递。
@@ -52,20 +64,34 @@ impl DesktopHost {
     /// 投递闭包要反查会话归属，而归属表在路由器里，路由器又要拿这个闭包才能构造。
     /// 用 `Weak` 打破这个环：闭包只在路由器还活着时投递，路由器没了也就没有会话可通知。
     /// 强引用会让路由器永远不被释放——它自己的 host 持有那个闭包。
-    pub fn new(app: &AppHandle, app_data_dir: PathBuf) -> Self {
+    ///
+    /// # 为什么窗口白名单是必填参数
+    ///
+    /// Tauri 的 capability 只管**插件**命令；应用自有命令（`generate_handler!` 里的这些）
+    /// 对每一个 webview 开放，谁都调得到。会话归属（[`DesktopRouter::handle_owned`]）挡的是
+    /// 「用别人的 sessionId」，挡不住「自己开一个新会话」——所以在这道闸出现之前，任何一扇
+    /// 窗口（调试窗口、将来某个忘了排除的窗口）都能自行打开插件根与应用作用域的库。
+    ///
+    /// 参数不给默认值、也不做成可选：「未配置即全放行」是一条兜底，而这里恰恰是不能兜底的
+    /// 地方。宿主必须显式点名哪些窗口是 RxDB 的 owner。
+    pub fn new(app: &AppHandle, app_data_dir: PathBuf, allowed_windows: &[&str]) -> Self {
         let emitter = app.clone();
-        Self(Arc::new_cyclic(|router: &Weak<DesktopRouter>| {
-            let router = router.clone();
-            DesktopRouter::new(HostOptions {
-                app_data_dir,
-                deliver: Arc::new(move |message| deliver_change(&emitter, &router, &message)),
-            })
+        let windows = allowed_windows.iter().map(|label| (*label).to_string()).collect();
+        Self(Arc::new_cyclic(|state: &Weak<HostState>| {
+            let state = state.clone();
+            HostState {
+                router: DesktopRouter::new(HostOptions {
+                    app_data_dir,
+                    deliver: Arc::new(move |message| deliver_change(&emitter, &state, &message)),
+                }),
+                windows,
+            }
         }))
     }
 
     /// host 实际建库所在的根目录，见 [`DesktopRouter::app_data_dir`]。
     pub fn app_data_dir(&self) -> &Path {
-        self.0.app_data_dir()
+        self.0.router.app_data_dir()
     }
 
     /// 关闭两套宿主的全部会话，退出路径上调用。
@@ -75,7 +101,7 @@ impl DesktopHost {
     /// 文件侧则是把未提交的写入连同临时文件一起丢弃：留下 `.rxdb-tmp` 不会破坏目标文件
     /// （原子替换只发生在 commit），但会在用户的备份域里堆垃圾。
     pub fn close_all(&self) {
-        self.0.close_all();
+        self.0.router.close_all();
     }
 
     /// 回收一个窗口的全部会话，窗口销毁时调用。
@@ -85,7 +111,27 @@ impl DesktopHost {
     /// `file.lockAcquire` 是条件变量上的无限等待，另一个窗口从此再也拿不到那把锁，
     /// 而它看到的现象与死锁不可区分。
     pub fn close_window(&self, label: &str) {
-        self.0.close_owner(label);
+        self.0.router.close_owner(label);
+    }
+}
+
+impl HostState {
+    /// 按发起窗口处理一次请求：**先验窗口，再碰 host**。
+    ///
+    /// 闸放在这里而不是命令体里，是为了让它成为 host 的唯一入口——命令层若自己拼一条
+    /// `router.handle_owned(...)`，那条路径就绕过了白名单，而这种绕过不会有任何编译期信号。
+    ///
+    /// 拒绝是**普通应答**（`{ kind: "error", code: "permission_denied" }`）而不是 `Err`：
+    /// 理由与 [`rxdb_desktop_request`] 的返回类型一节相同。应答里不回显 label——
+    /// 发起方自己就是那个 label，回显它只是把一个可被日志采集的字符串多送一遍。
+    fn handle_from_window(&self, request: &Value, owner: &str) -> Value {
+        if !self.windows.iter().any(|label| label == owner) {
+            return error_response(&HostError::new(
+                ErrorCode::PermissionDenied,
+                "this window is not allowed to reach the desktop host",
+            ));
+        }
+        self.router.handle_owned(request, owner)
     }
 }
 
@@ -96,10 +142,11 @@ impl DesktopHost {
 ///
 /// 事件发不出去意味着响应式查询永远不刷新，在 UI 上表现为「数据没变」——所有故障形态里
 /// 最难查的一种。这里没有可以回报错误的调用方，至少要在日志里留下痕迹，不能静默吞掉。
-fn deliver_change(emitter: &AppHandle, router: &Weak<DesktopRouter>, message: &Value) {
-    let Some(router) = router.upgrade() else {
+fn deliver_change(emitter: &AppHandle, state: &Weak<HostState>, message: &Value) {
+    let Some(state) = state.upgrade() else {
         return;
     };
+    let router = &state.router;
     let Some(session_id) = message["sessionId"].as_str() else {
         eprintln!("[rxdb-desktop] dropped a {CHANGE_EVENT} without a session id");
         return;
@@ -140,15 +187,18 @@ fn deliver_change(emitter: &AppHandle, router: &Weak<DesktopRouter>, message: &V
 ///
 /// 注入的是 `Window` 而不是 `Webview`：回收挂在 `WindowEvent::Destroyed` 上，那个事件
 /// 按**窗口** label 分发。两处用的 label 必须同源，否则回收永远匹配不上任何一条记录。
+///
+/// 同一个 label 还是授权判据：应用自有命令不过 capability 门禁，所以「谁在敲门」只能在
+/// 这里认——见 [`DesktopHost::new`] 的窗口白名单，闸本身在 [`HostState::handle_from_window`]。
 #[tauri::command]
 pub async fn rxdb_desktop_request(
     payload: Value,
     window: tauri::Window,
     host: State<'_, DesktopHost>,
 ) -> Result<Value, String> {
-    let host = Arc::clone(&host.0);
+    let state = Arc::clone(&host.0);
     let owner = window.label().to_string();
-    tauri::async_runtime::spawn_blocking(move || host.handle_owned(&payload, &owner))
+    tauri::async_runtime::spawn_blocking(move || state.handle_from_window(&payload, &owner))
         .await
         .map_err(|error| format!("rxdb desktop host panicked: {error}"))
 }
@@ -159,12 +209,17 @@ mod tests {
     use serde_json::json;
 
     fn test_host() -> (DesktopHost, PathBuf) {
+        test_host_for(&["main"])
+    }
+
+    fn test_host_for(allowed_windows: &[&str]) -> (DesktopHost, PathBuf) {
         let root = std::env::temp_dir().join(format!("rxdb-commands-{}", uuid::Uuid::new_v4()));
         let router = DesktopRouter::new(HostOptions {
             app_data_dir: root.clone(),
             deliver: Arc::new(|_| {}),
         });
-        (DesktopHost(Arc::new(router)), root)
+        let windows = allowed_windows.iter().map(|label| (*label).to_string()).collect();
+        (DesktopHost(Arc::new(HostState { router, windows })), root)
     }
 
     /// 事件名是跨语言契约的一半，另一半在 `tauri-host-transport.ts` 里。
@@ -187,7 +242,7 @@ mod tests {
     #[test]
     fn state_dispatches_requests_to_the_host_unchanged() {
         let (host, root) = test_host();
-        let response = host.0.handle(&json!({
+        let response = host.0.router.handle(&json!({
             "kind": "open",
             "storage": { "engine": "sqlite", "databaseName": "app.sqlite3" }
         }));
@@ -201,13 +256,13 @@ mod tests {
     #[test]
     fn close_all_drains_the_session_table() {
         let (host, root) = test_host();
-        host.0.handle(&json!({
+        host.0.router.handle(&json!({
             "kind": "open",
             "storage": { "engine": "sqlite", "databaseName": "app.sqlite3" }
         }));
-        assert_eq!(host.0.sqlite().open_session_count(), 1);
+        assert_eq!(host.0.router.sqlite().open_session_count(), 1);
         host.close_all();
-        assert_eq!(host.0.sqlite().open_session_count(), 0);
+        assert_eq!(host.0.router.sqlite().open_session_count(), 0);
         std::fs::remove_dir_all(&root).unwrap();
     }
 
@@ -216,12 +271,12 @@ mod tests {
     #[test]
     fn state_routes_file_requests_to_the_file_host() {
         let (host, root) = test_host();
-        let response = host.0.handle(&json!({ "kind": "file.open" }));
+        let response = host.0.router.handle(&json!({ "kind": "file.open" }));
         assert_eq!(response["kind"], "file.open");
-        assert_eq!(host.0.files().open_session_count(), 1);
-        assert_eq!(host.0.sqlite().open_session_count(), 0);
+        assert_eq!(host.0.router.files().open_session_count(), 1);
+        assert_eq!(host.0.router.sqlite().open_session_count(), 0);
         host.close_all();
-        assert_eq!(host.0.files().open_session_count(), 0);
+        assert_eq!(host.0.router.files().open_session_count(), 0);
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -232,13 +287,59 @@ mod tests {
     #[test]
     fn close_window_reclaims_only_that_windows_sessions() {
         let (host, root) = test_host();
-        host.0.handle_owned(&json!({ "kind": "file.open" }), "main");
-        host.0.handle_owned(&json!({ "kind": "file.open" }), "second");
-        assert_eq!(host.0.files().open_session_count(), 2);
+        host.0.router.handle_owned(&json!({ "kind": "file.open" }), "main");
+        host.0.router.handle_owned(&json!({ "kind": "file.open" }), "second");
+        assert_eq!(host.0.router.files().open_session_count(), 2);
 
         host.close_window("main");
-        assert_eq!(host.0.files().open_session_count(), 1);
-        assert_eq!(host.0.owned_session_count("second"), 1);
+        assert_eq!(host.0.router.files().open_session_count(), 1);
+        assert_eq!(host.0.router.owned_session_count("second"), 1);
+
+        host.close_all();
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// 白名单里的窗口照常开会话——闸不能把生产路径一起挡掉。
+    #[test]
+    fn an_allowed_window_reaches_the_host() {
+        let (host, root) = test_host_for(&["main"]);
+
+        let response = host.0.handle_from_window(&json!({ "kind": "file.open" }), "main");
+
+        assert_eq!(response["kind"], "file.open");
+        assert_eq!(host.0.router.files().open_session_count(), 1);
+        host.close_all();
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// 不在白名单里的窗口连一个会话都开不出来。
+    ///
+    /// 判据取**会话计数不变**而不是「返回了 permission_denied」：后者在「先开了再报错」
+    /// 的实现下同样成立，而那时句柄已经开出去了。这里要的是「host 根本没被碰到」。
+    ///
+    /// 空 label 单列一格：它是「拿不到 label」的形态，不能因为「谁都不等于它」而碰巧通过。
+    #[test]
+    fn a_window_outside_the_allow_list_never_touches_the_host() {
+        let (host, root) = test_host_for(&["main"]);
+
+        for label in ["rxdb-devtools", "rxdb-devtools-impostor", ""] {
+            let response = host.0.handle_from_window(&json!({ "kind": "file.open" }), label);
+
+            assert_eq!(response["kind"], "error", "{label}");
+            assert_eq!(response["code"], "permission_denied", "{label}");
+            // 应答不回显 label：发起方自己就是那个 label，回显只是多送一遍。
+            assert!(!response["message"].as_str().unwrap_or_default().contains(label) || label.is_empty());
+            assert_eq!(host.0.router.files().open_session_count(), 0, "{label}");
+            assert_eq!(host.0.router.sqlite().open_session_count(), 0, "{label}");
+        }
+
+        // SQL 侧走同一道闸——两套协议共用一个入口，不该只有文件那半边被守住。
+        let response = host.0.handle_from_window(
+            &json!({ "kind": "open", "storage": { "engine": "sqlite", "databaseName": "app.sqlite3" } }),
+            "rxdb-devtools",
+        );
+        assert_eq!(response["code"], "permission_denied");
+        assert_eq!(host.0.router.sqlite().open_session_count(), 0);
 
         host.close_all();
         let _ = std::fs::remove_dir_all(&root);

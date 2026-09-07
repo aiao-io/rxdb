@@ -22,7 +22,9 @@ import type { PullResult } from './VersionManager.interface.js';
 import type { VersionManager } from './VersionManager.js';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { compactChanges } from './compact-changes.js';
+import type { ConflictResolver } from './conflict.js';
 import { buildDependencyGraph } from './dependency-graph.js';
+import { pullAncestorBranchChanges } from './pull-ancestor-changes.js';
 import {
   countActions,
   createConflictActionEntries,
@@ -61,9 +63,9 @@ const MAX_FETCH_ALL_ROUNDS = 1000;
  */
 export async function pullBatch(
   vm: VersionManager,
-  options?: { limit?: number; fetchAll?: boolean }
+  options?: { limit?: number; fetchAll?: boolean; conflictResolver?: ConflictResolver }
 ): Promise<PullResult> {
-  if (options?.fetchAll !== true) return await pullBatchOnce(vm, options?.limit);
+  if (options?.fetchAll !== true) return await pullBatchOnce(vm, options?.limit, options?.conflictResolver);
 
   const total: PullResult = {
     pulled: 0,
@@ -92,7 +94,7 @@ export async function pullBatch(
   for (let round = 0; round < MAX_FETCH_ALL_ROUNDS; round++) {
     let result: PullResult;
     try {
-      result = await pullBatchOnce(vm, options.limit);
+      result = await pullBatchOnce(vm, options.limit, options.conflictResolver);
     } catch (error) {
       // 前几轮已经落库且水位线已推进，裸抛原始错误会让调用方以为什么都没发生。
       // 把已完成部分的统计连同原始错误一起交出去；本轮内部的部分进度由
@@ -136,7 +138,11 @@ function toPartialSyncError(error: unknown, accumulated: PullResult): unknown {
 /**
  * 批量拉取所有实体的变更（单次 HTTP 请求）
  */
-async function pullBatchOnce(vm: VersionManager, limitOption?: number): Promise<PullResult> {
+async function pullBatchOnce(
+  vm: VersionManager,
+  limitOption?: number,
+  conflictResolverOption?: ConflictResolver
+): Promise<PullResult> {
   const rxdb = vm.rxdb;
   const limit = limitOption ?? 1000;
 
@@ -230,34 +236,18 @@ async function pullBatchOnce(vm: VersionManager, limitOption?: number): Promise<
     allRemoteChanges = await remoteAdapter.pullChangesBatch(batchRequests, totalLimit, branchIds);
   } else {
     // 降级方案：逐实体拉取，避免 MIN(sinceId) 导致水位线差异时的巨量冗余数据。
-    // pullChanges 只接受单个 branchId，需逐祖先分支拉取，否则会漏掉父分支的变更。
-    // 此前只传裸实体名，同名实体跨 namespace 存在时会解析歧义
-    const pullPromises = orderedRepos.flatMap(repo =>
-      branchIds.map(ancestorBranchId =>
-        remoteAdapter.pullChanges(
-          repo.lastPullRemoteChangeId,
-          limit,
-          [`${repo.namespace}:${repo.entity}`],
-          undefined,
-          ancestorBranchId
+    // 「逐祖先分支拉 + 按仓库全局排序后截断」的口径与单仓路径共用同一份实现，
+    // 见 pullAncestorBranchChanges 的 @remarks
+    const perRepo = await Promise.all(
+      orderedRepos.map(repo =>
+        pullAncestorBranchChanges(
+          remoteAdapter,
+          { namespace: repo.namespace, entity: repo.entity, sinceId: repo.lastPullRemoteChangeId, limit },
+          branchIds
         )
       )
     );
-    const results = await Promise.all(pullPromises);
-    // 每个「仓库 × 祖先分支」各自取了 limit 条，直接 flat 会让某个分支的高 id 把水位推过
-    // 另一个分支尚未消费的低 id —— 那些变更之后都不满足 `c.id > lastPullRemoteChangeId`，
-    // 被永久跳过。按仓库做全局 id 排序后只消费前 limit 条，其余留给下一轮
-    // （`filteredChanges.length >= limit` 会把 hasMore 置真，循环继续）
-    const changesByRepo = new Map<string, RemoteChange[]>();
-    for (const change of results.flat()) {
-      const key = `${change.namespace}:${change.entity}`;
-      const bucket = changesByRepo.get(key);
-      if (bucket) bucket.push(change);
-      else changesByRepo.set(key, [change]);
-    }
-    allRemoteChanges = Array.from(changesByRepo.values()).flatMap(bucket =>
-      bucket.sort((left, right) => left.id - right.id).slice(0, limit)
-    );
+    allRemoteChanges = perRepo.flat();
   }
 
   // 4. 按实体分组
@@ -273,12 +263,15 @@ async function pullBatchOnce(vm: VersionManager, limitOption?: number): Promise<
   let totalCompacted = 0;
   let totalApplied = 0;
   let totalConflictsResolved = 0;
-  // DEFER 当前在 resolveConflictsAndBuildActions 中直接抛 RxDBError，
-  // 不会走到累加路径；保留 0 与 pullWithBulkSync 路径返回结构对齐。
+  // 恒 0：MERGE / DEFER 在 resolveConflictsAndBuildActions 里整轮抛错回滚，
+  // 走不到累加路径（见 conflict.ts 对运行时可应用范围的说明）。
+  // 保留这个字段是为了与 pullWithBulkSync 路径的返回结构对齐。
   const totalConflictsDeferred = 0;
   let hasMore = false;
   const clientId = rxdb.context.clientId;
-  const conflictResolver = new LWWConflictResolver();
+  // 调用方给了就用调用方的：此前这里写死 LWW，同一个自定义策略走 pullRepository 生效、
+  // 走 pull() 默认的批量路径静默失效，两条路径对同一份冲突给出不同结果。
+  const conflictResolver = conflictResolverOption === undefined ? new LWWConflictResolver() : conflictResolverOption;
 
   // 整批仓库的应用与水位线推进必须在**一个**事务里。
   //

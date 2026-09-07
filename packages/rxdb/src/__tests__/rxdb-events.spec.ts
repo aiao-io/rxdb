@@ -528,7 +528,7 @@ describe('rxdb-events', () => {
     });
 
     it('应创建同步完成事件 (push)', () => {
-      const pushResult = { pushed: 5, failed: 0, compacted: 0, originalCount: 5 };
+      const pushResult = { pushed: 5, failed: 0, compacted: 0, originalCount: 5, failures: [] };
       const event = new SyncCompleteEvent('push', pushResult);
 
       expect(event.type).toBe(SYNC_COMPLETE_EVENT);
