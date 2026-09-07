@@ -23,9 +23,10 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use rusqlite::ffi;
 use rusqlite::functions::FunctionFlags;
 use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
-use rusqlite::types::Value as SqlValue;
+use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{Connection, OpenFlags};
 
 use super::error::{ErrorCode, HostError, HostResult};
@@ -450,13 +451,16 @@ impl Engine {
     /// 而不是正则扫 SQL 的原因。
     ///
     /// 只封文件级 opcode，DDL/DML/事务/PRAGMA/TEMP 触发器全部照旧放行，库内能力不受影响。
-    /// 与 Electron 侧 `NodeSqliteEngine.#initialize` 的授权器同规则。
+    /// 与 Electron 侧 `NodeSqliteEngine.#initialize` 的授权器同规则——它直接对 `actionCode` 判，
+    /// 这里也必须还原回 opcode 再判，理由见 [`escapes_the_file_scope`]。
     fn install_authorizer(&self) {
-        self.db()
-            .authorizer(Some(|context: AuthContext<'_>| match context.action {
-                AuthAction::Attach { .. } | AuthAction::Detach { .. } => Authorization::Deny,
-                _ => Authorization::Allow,
-            }));
+        self.db().authorizer(Some(|context: AuthContext<'_>| {
+            if escapes_the_file_scope(&context.action) {
+                Authorization::Deny
+            } else {
+                Authorization::Allow
+            }
+        }));
     }
 
     /// 注册触发器体内调用的标量函数。
@@ -686,8 +690,47 @@ impl Engine {
     }
 }
 
+/// 这条授权动作会不会让 SQLite 自己再打开一个数据库文件。
+///
+/// **必须按原始 opcode 判，不能按 rusqlite 的枚举变体判。** SQLite 的 `codeAttach` 只在
+/// 文件名是 `TK_STRING` 字面量时才把它交给授权器，绑定参数、拼接表达式、子查询算出来的
+/// 文件名一律传 NULL；而 rusqlite 的 `AuthAction::from` 要求 `(SQLITE_ATTACH, Some(filename))`
+/// 才落成 `Attach`，NULL 于是落进 `Unknown`。只匹配 `Attach { .. }` 等于放行
+/// `ATTACH DATABASE ? AS x`——renderer 把路径挪进 `bindings` 就绕过了整道文件边界（RV-002）。
+///
+/// `Attach` / `Detach` 两个变体仍然显式列出：`Unknown` 是 rusqlite 的兜底分支，它今天怎么分类
+/// 是实现细节，两边都判才不依赖那份细节。
+fn escapes_the_file_scope(action: &AuthAction<'_>) -> bool {
+    match action {
+        AuthAction::Attach { .. } | AuthAction::Detach { .. } => true,
+        AuthAction::Unknown { code, .. } => *code == ffi::SQLITE_ATTACH || *code == ffi::SQLITE_DETACH,
+        _ => false,
+    }
+}
+
 fn read_row(row: &rusqlite::Row<'_>, column_count: usize) -> Result<Vec<SqlValue>, rusqlite::Error> {
-    (0..column_count).map(|index| row.get::<_, SqlValue>(index)).collect()
+    (0..column_count).map(|index| read_value(row, index)).collect()
+}
+
+/// 读一列的值。
+///
+/// **不能走 `row.get::<_, SqlValue>()`**：rusqlite 的 `From<ValueRef> for Value` 对 TEXT 是
+/// `str::from_utf8(..).expect("invalid UTF-8")`，而 SQLite **从不校验** TEXT 的编码——导入的库、
+/// 别的程序写的库、一句 `CAST(X'FF' AS TEXT)` 都能造出非法字节。那一下 panic 会毒化会话的
+/// `Mutex<Engine>`，从此这条会话连 `close()` 都做不到，同时也推翻了 [`super::session`]
+/// 「`Host::handle` 永不 panic」的契约。
+///
+/// 坏字节按 `from_utf8_lossy` 换成 U+FFFD 报出去，与 Electron 侧 `node:sqlite` 的有损解码
+/// 同口径：读得出来的那部分数据照常送达，不因为一个坏字节丢掉整行。
+fn read_value(row: &rusqlite::Row<'_>, index: usize) -> Result<SqlValue, rusqlite::Error> {
+    let value = match row.get_ref(index)? {
+        ValueRef::Null => SqlValue::Null,
+        ValueRef::Integer(integer) => SqlValue::Integer(integer),
+        ValueRef::Real(real) => SqlValue::Real(real),
+        ValueRef::Text(bytes) => SqlValue::Text(String::from_utf8_lossy(bytes).into_owned()),
+        ValueRef::Blob(bytes) => SqlValue::Blob(bytes.to_vec()),
+    };
+    Ok(value)
 }
 
 impl Drop for Engine {
