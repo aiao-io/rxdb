@@ -119,12 +119,16 @@ describe('buildRuleGroup', () => {
     expect(buildRuleGroup({ combinator: 'and' } as RuleGroup)).toBe('');
   });
 
-  it('全部规则为空时应返回空字符串', () => {
+  // 取不出边界的 between **不是**「规则不存在」，而是「匹配空集」。此前它返回 ''，
+  // 而 buildRuleGroup 的 `.filter(Boolean)` 会把空串连同整条谓词一起删掉 ——
+  // 于是只填了一端的日期筛选静默换到整张表，且与 JS 增量匹配那侧（compareRuleValues 对空
+  // 边界返回 false）结论相反，首屏 SQL 与后续增量更新自行漂移（SQLC-007）。
+  it('边界取不出的规则翻成恒假常量，不被 filter 掉', () => {
     const ruleGroup: RuleGroup = {
       combinator: 'and',
       rules: [{ field: 'age', operator: 'between', value: [] }]
     };
-    expect(buildRuleGroup(ruleGroup)).toBe('');
+    expect(buildRuleGroup(ruleGroup)).toBe('1 = 0');
   });
 
   it('单条规则不应包裹括号', () => {

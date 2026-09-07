@@ -28,10 +28,15 @@ export const generate_entity_inserts_sql = async <T extends EntityType>(
 ): Promise<{ sql: string; params: SQLiteCompatibleType[] }> => {
   const tableName = get_table_name_by_metadata(metadata);
   if (entities.length === 0) return { sql: '', params: [] };
-  const createdBy = context?.userId && metadata.propertyMap.has('createdBy');
-  const updatedBy = context?.userId && metadata.propertyMap.has('updatedBy');
-  const hasCreatedAt = metadata.propertyMap.has('createdAt');
-  const hasUpdatedAt = metadata.propertyMap.has('updatedAt');
+  // 审计字段一律按**物理列名**读写：normalizeCreateEntity 的产物以列名为键，按 JS 属性名写
+  // 会在列名被重命名时多出第二个键，二者在 transformEntityValueToSql 里落到同一物理列、后写的赢。
+  // 后果在下面那个 defaultProperties 循环上最刺眼：它已经用对了 property.columnName，
+  // 而按 JS 属性名写的时间戳赋值会把它刚解析出来的 default 再盖掉一次（详见 insert_sql.ts 同款说明）。
+  const userId = context?.userId;
+  const createdByColumn = userId ? metadata.propertyMap.get('createdBy')?.columnName : undefined;
+  const updatedByColumn = userId ? metadata.propertyMap.get('updatedBy')?.columnName : undefined;
+  const createdAtColumn = metadata.propertyMap.get('createdAt')?.columnName;
+  const updatedAtColumn = metadata.propertyMap.get('updatedAt')?.columnName;
   const now = new Date();
   const setColumns = [
     ...Array.from(metadata.propertyMap.values()).map(p => p.columnName),
@@ -47,18 +52,18 @@ export const generate_entity_inserts_sql = async <T extends EntityType>(
   for (let i = 0; i < entities.length; i++) {
     const entity = entities[i];
     const entityData: Partial<IEntity> = normalizeCreateEntity(metadata, entity);
+    const columns = entityData as Record<string, unknown>;
     for (const property of defaultProperties) {
-      if ((entityData as Record<string, unknown>)[property.columnName] === undefined) {
+      if (columns[property.columnName] === undefined) {
         const resolvedDefault = typeof property.default === 'function' ? property.default() : property.default;
         // 'CURRENT_TIMESTAMP' 是数据库端默认值的哨兵值，批量 insert 绕过了 DB DEFAULT，需在此转成真实时间戳
-        (entityData as Record<string, unknown>)[property.columnName] =
-          resolvedDefault === 'CURRENT_TIMESTAMP' ? now : resolvedDefault;
+        columns[property.columnName] = resolvedDefault === 'CURRENT_TIMESTAMP' ? now : resolvedDefault;
       }
     }
-    if (createdBy) entityData.createdBy = context.userId;
-    if (updatedBy) entityData.updatedBy = context.userId;
-    if (hasCreatedAt && entityData.createdAt === undefined) entityData.createdAt = now;
-    if (hasUpdatedAt && entityData.updatedAt === undefined) entityData.updatedAt = now;
+    if (createdByColumn !== undefined) columns[createdByColumn] = userId;
+    if (updatedByColumn !== undefined) columns[updatedByColumn] = userId;
+    if (createdAtColumn !== undefined && columns[createdAtColumn] === undefined) columns[createdAtColumn] = now;
+    if (updatedAtColumn !== undefined && columns[updatedAtColumn] === undefined) columns[updatedAtColumn] = now;
     const needSaveData = await transformEntityValueToSql(metadata, entityData, encryption);
     for (let j = 0; j < columnCount; j++) {
       params.push(needSaveData[setColumns[j]] ?? null);

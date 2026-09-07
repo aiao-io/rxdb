@@ -1,4 +1,9 @@
-import { assertLoadOptionsTransferable, wrapWithComlink, type SqliteClientLike } from '@aiao/rxdb-adapter-sqlite-core';
+import {
+  assertLoadOptionsTransferable,
+  releaseComlinkProxy,
+  wrapWithComlink,
+  type SqliteClientLike
+} from '@aiao/rxdb-adapter-sqlite-core';
 import { SqliteaiOptions, type SqliteaiLoadOptions } from './sqliteai.interface.js';
 import { SqliteaiClient } from './SqliteaiClient.js';
 
@@ -33,6 +38,13 @@ export async function createSqliteClient(dbName: string, options: SqliteaiOption
   assertLoadOptionsTransferable(loadOptions, options);
 
   const client = wrapWithComlink(new SqliteaiClient(), options);
-  await client.init(dbName, loadOptions);
-  return client;
+  try {
+    await client.init(dbName, loadOptions);
+    return client;
+  } catch (error) {
+    // 同 rxdb-adapter-sqlite / rxdb-adapter-sqlite-wasm：init 失败要释放 Comlink 代理，
+    // 否则 worker 模式下每次失败的重连都会多留一个 MessagePort 和一个 worker 侧客户端。
+    releaseComlinkProxy(client);
+    throw error;
+  }
 }

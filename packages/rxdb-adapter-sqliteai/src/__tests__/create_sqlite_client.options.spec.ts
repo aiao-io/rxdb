@@ -4,12 +4,17 @@ import type { SqliteaiOptions } from '../sqliteai.interface.js';
 const mockState = vi.hoisted(() => ({
   directInit: vi.fn(),
   wrappedInit: vi.fn(),
-  wrapWithComlink: vi.fn()
+  wrapWithComlink: vi.fn(),
+  releaseComlinkProxy: vi.fn()
 }));
 
 vi.mock('@aiao/rxdb-adapter-sqlite-core', async importOriginal => {
   const original = await importOriginal<typeof import('@aiao/rxdb-adapter-sqlite-core')>();
-  return { ...original, wrapWithComlink: mockState.wrapWithComlink };
+  return {
+    ...original,
+    wrapWithComlink: mockState.wrapWithComlink,
+    releaseComlinkProxy: mockState.releaseComlinkProxy
+  };
 });
 
 vi.mock('../SqliteaiClient.js', () => ({
@@ -76,5 +81,32 @@ describe('createSqliteClient options', () => {
 
     await expect(createSqliteClient('worker-db', options)).rejects.toThrow('locateFile, printErr');
     expect(mockState.wrappedInit).not.toHaveBeenCalled();
+  });
+
+  // 代理在 worker / sharedWorker 模式下持有一个 MessageChannel。init 失败后不释放，
+  // 断线重连循环里端口只增不减，worker 侧那个 init 失败的客户端也一直可达、永不回收。
+  it('init 失败时释放 Comlink 代理，并把原始错误原样抛出', async () => {
+    const wrappedClient = { init: mockState.wrappedInit };
+    mockState.wrapWithComlink.mockReturnValue(wrappedClient);
+    const failure = new Error('init failed');
+    mockState.wrappedInit.mockRejectedValue(failure);
+
+    const { createSqliteClient } = await import('../create_sqlite_client.js');
+
+    await expect(
+      createSqliteClient('fail-db', { worker: true, workerInstance: Object.create(null) as Worker })
+    ).rejects.toBe(failure);
+    expect(mockState.releaseComlinkProxy).toHaveBeenCalledWith(wrappedClient);
+  });
+
+  it('init 成功时不释放代理', async () => {
+    const wrappedClient = { init: mockState.wrappedInit };
+    mockState.wrapWithComlink.mockReturnValue(wrappedClient);
+    mockState.wrappedInit.mockResolvedValue(undefined);
+
+    const { createSqliteClient } = await import('../create_sqlite_client.js');
+    await createSqliteClient('ok-db', { worker: true, workerInstance: Object.create(null) as Worker });
+
+    expect(mockState.releaseComlinkProxy).not.toHaveBeenCalled();
   });
 });

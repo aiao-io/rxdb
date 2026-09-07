@@ -161,11 +161,12 @@ const create_table_column_sql = (adapter: RxDBAdapterSqliteBase, metadata: Entit
       if (relation.kind === RelationKind.MANY_TO_ONE) {
         const relDefault = (relation as { default?: unknown }).default;
         if (relDefault !== undefined && !isFunction(relDefault)) {
-          const resolved = relDefault;
-          columnSQL +=
-            fkColumnType === 'INTEGER' || fkColumnType === 'REAL' ?
-              ` DEFAULT ${String(get_sql_value(resolved))}`
-            : ` DEFAULT ${String(get_sql_value(resolved))}`;
+          // 不按 fkColumnType 分数值/文本两支：外键默认值就是被引用表主键的标量形态，
+          // 而 get_sql_value 对数字**返回数字本身**、只给字符串加引号，两支本就是同一个表达式
+          // （此前真写成了两个逐字节相同的分支，看着像在做区分，其实是死代码）。
+          // 上面属性列那条路径确实要分支，因为它先过 transformValueJsToSqlite 再只对文本加引号 ——
+          // 同步两处时别照搬，那里的分支不是这里缺的东西。
+          columnSQL += ` DEFAULT ${String(get_sql_value(relDefault))}`;
         }
       }
 

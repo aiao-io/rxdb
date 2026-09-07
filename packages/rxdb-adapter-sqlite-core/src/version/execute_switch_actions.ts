@@ -83,7 +83,21 @@ export async function execute_switch_actions(
     });
   }, false);
 
-  // 2. 提交成功后再发送事件通知 UI 更新
+  // 2. 发事件通知 UI 更新。
+  //
+  //    这里**不能**读成「已经提交了，随便做副作用」：上面用的是 runInTransaction，
+  //    嵌套场景（merge_branch 的 normal 策略把多次 mergeChanges 包在一个外层事务里）下它映射成
+  //    `executor.run()`，回调一返回就 resolve，外层事务的 COMMIT 还没发出。
+  //
+  //    事件本身是安全的 —— 它们经 `rxdb.dispatchEvent`，而 RxDB 在事务打开期间会把非事务事件
+  //    压进当前事务上下文的队列，COMMIT 时才真正 emit、ROLLBACK 时丢弃
+  //    （见 packages/rxdb/src/rxdb.transaction.ts）。所以顺序上不需要在这里等提交。
+  //
+  //    但 dispatch_switch_events 里还有**不走事件、立即生效**的两笔身份缓存写：
+  //    remove_entity_ids_from_cache 与 transaction_sqlite_result 的 hydrate。它们不受那个队列
+  //    保护，外层事务事后回滚不会撤销。这与 rxdb_adapter_mutations 在事务内直接改缓存
+  //    是同一套既定姿态（缓存急切更新、回滚不回退），不是本函数特有的问题；
+  //    要改得整条写入路径一起改。**新增副作用前先确认它属于哪一类。**
   await dispatch_switch_events(adapter, switchAction);
 }
 

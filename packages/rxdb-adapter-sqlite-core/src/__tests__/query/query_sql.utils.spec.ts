@@ -221,12 +221,23 @@ describe('query_sql.utils', () => {
       expect(handle_flatmap_contains(metadata, 'data', rule)).toBe(null);
     });
 
-    it('值对象为空（所有属性为 null）应返回空字符串', () => {
+    // 与上面几条 `null`（=「这条规则不归我管，交给通用路径」）区分开：条件集为空是**归我管**
+    // 且求值为空集代数 —— contains 是 OR 的空集（恒假）。返回 '' 会被 buildRuleGroup
+    // 的 `.filter(Boolean)` 删掉整条谓词，把筛选静默换成整张表。
+    it('值对象为空（所有属性为 null）按 OR 的空集求值为恒假', () => {
       const metadata = {
         propertyMap: new Map([['data', { type: PropertyType.keyValue, columnName: 'data' } as EntityPropertyMetadata]])
       } as EntityMetadata;
       const rule = { field: 'data', operator: 'contains', value: { key1: null, key2: null } };
-      expect(handle_flatmap_contains(metadata, 'data', rule)).toBe('');
+      expect(handle_flatmap_contains(metadata, 'data', rule)).toBe('1 = 0');
+    });
+
+    it('值对象为空的 notContains 按 AND 的空集求值为恒真', () => {
+      const metadata = {
+        propertyMap: new Map([['data', { type: PropertyType.keyValue, columnName: 'data' } as EntityPropertyMetadata]])
+      } as EntityMetadata;
+      const rule = { field: 'data', operator: 'notContains', value: { key1: null, key2: null } };
+      expect(handle_flatmap_contains(metadata, 'data', rule)).toBe('1 = 1');
     });
 
     it('应该为 contains 操作生成 OR 条件', () => {
@@ -509,9 +520,22 @@ describe('query_sql.utils', () => {
       expect(build_rule(rule, fieldAliasMap)).toBe('_."age" between 18 and 65');
     });
 
-    it('between 操作符空值应返回空字符串', () => {
+    // 边界取不出时按 JS 增量匹配那侧的结论翻成常量：`compareRuleValues` 对空边界返回 false
+    // （SQL 三值逻辑下 UNKNOWN），所以 between → 恒假、notBetween → 恒真。返回 '' 会被
+    // buildRuleGroup 删掉整条谓词，让 SQL 首屏与后续增量更新结论相反（SQLC-007）。
+    it('between 边界取不出时求值为恒假', () => {
       const rule = { field: 'age', operator: 'between', value: [] };
-      expect(build_rule(rule, fieldAliasMap)).toBe('');
+      expect(build_rule(rule, fieldAliasMap)).toBe('1 = 0');
+    });
+
+    it('notBetween 边界取不出时求值为恒真', () => {
+      const rule = { field: 'age', operator: 'notBetween', value: [18] };
+      expect(build_rule(rule, fieldAliasMap)).toBe('1 = 1');
+    });
+
+    it('只填了一端的 between 不会静默换成整张表', () => {
+      const rule = { field: 'age', operator: 'between', value: [null, 65] };
+      expect(build_rule(rule, fieldAliasMap)).toBe('1 = 0');
     });
 
     it('应该构建 contains 条件', () => {
