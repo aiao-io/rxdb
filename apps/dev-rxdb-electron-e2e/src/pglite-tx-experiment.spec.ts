@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -48,6 +48,8 @@ interface RunReport {
 
 let findings: Map<string, Finding>;
 let outputDir: string;
+/** 在跑的探针进程；`afterAll` 必须收掉它，理由见那里的注释。 */
+let probeProcess: ChildProcess | null = null;
 
 /**
  * 取一条 finding，缺失即失败。
@@ -80,6 +82,13 @@ test.describe('PGlite 事务 host 两案对照（US-208 线 G）', () => {
   test.describe.configure({ timeout: 300000 });
 
   test.beforeAll(async () => {
+    // 上面那句 `describe.configure({ timeout })` **管不到 hook** —— 它只改组内每个 test 的超时，
+    // beforeAll / afterAll 拿的是 `playwright.config.ts` 里的全局 `timeout`（120s）。
+    // 而本探针要跑两案各三个事务体 + 两次渲染进程崩溃回收 + 一次重开 dataDir，CI 上超 120s 是常态。
+    // 超时的后果远不止一条红：Playwright 只放弃 hook，**不会动 spawn 出去的探针进程**，
+    // 于是重试时新旧两个 Electron 并存，抢同一份 PGlite 落盘目录，整组变成假红。
+    test.setTimeout(300000);
+
     expect(existsSync(PROBE), `找不到实验探针：${PROBE}`).toBe(true);
 
     outputDir = mkdtempSync(join(tmpdir(), 'us208-line-g-'));
@@ -95,10 +104,12 @@ test.describe('PGlite 事务 host 两案对照（US-208 线 G）', () => {
         env: launchEnv(),
         stdio: ['ignore', 'pipe', 'pipe']
       });
+      probeProcess = child;
       const stderr: string[] = [];
       child.stderr.on('data', chunk => stderr.push(String(chunk)));
       child.on('error', reject);
       child.on('exit', code => {
+        probeProcess = null;
         if (code !== 0 && !existsSync(outputPath)) {
           reject(new Error(`探针以 ${code} 退出且未产出结果：\n${stderr.join('')}`));
           return;
@@ -113,6 +124,11 @@ test.describe('PGlite 事务 host 两案对照（US-208 线 G）', () => {
   });
 
   test.afterAll(() => {
+    // hook 超时 / 断言抛错时 Playwright 只结束 hook，spawn 出去的探针会**继续跑到自己结束**。
+    // 留着它就是下一次重试的污染源（两个 Electron 抢同一份落盘目录），
+    // 而 afterAll 在 beforeAll 失败后照样执行 —— 这里是唯一能收掉它的地方。
+    probeProcess?.kill('SIGKILL');
+    probeProcess = null;
     if (outputDir) rmSync(outputDir, { force: true, recursive: true });
   });
 

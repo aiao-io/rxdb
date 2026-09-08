@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -60,6 +60,8 @@ function requireCapabilities(value: PanelCapabilities | null): PanelCapabilities
 
 let findings: Map<string, Finding>;
 let outputDir: string;
+/** 在跑的探针进程；`afterAll` 必须收掉它，理由见那里的注释。 */
+let probeProcess: ChildProcess | null = null;
 
 /**
  * 取一条 finding，缺失即失败。
@@ -86,6 +88,16 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
   test.describe.configure({ timeout: 300000 });
 
   test.beforeAll(async () => {
+    // 上面那句 `describe.configure({ timeout })` **管不到 hook** —— 它只改组内每个 test 的超时，
+    // beforeAll / afterAll 拿的是 `playwright.config.ts` 里的全局 `timeout`（120s）。
+    // 而本探针本身就要一分钟以上（本机实测 60s：两轮四段中继 + 等 MV3 worker 空闲自停约 30s），
+    // CI 上跑满 120s 是常态。超时的后果远不止这一条红：Playwright 只放弃 hook，
+    // **不会动 spawn 出去的探针进程**，重试时新旧两个 Electron 并存，
+    // 后者的 MV3 service worker 就注册不上（见探针文件头坑 7），
+    // AC#1/#2/#3/#4 一起变成「Electron 不支持 MV3 背景页」的假红。
+    // 所以这里显式给 hook 一个与 describe 同量级的上限。
+    test.setTimeout(300000);
+
     // 缺产物必须是红：skip 会让门禁"报绿但什么都没验"。
     expect(
       existsSync(EXTENSION_DIST),
@@ -94,6 +106,10 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
 
     outputDir = mkdtempSync(join(tmpdir(), 'us904-phase-a-'));
     const outputPath = join(outputDir, 'result.json');
+    // 探针必须独占 profile：MV3 的 service worker 注册表落在 userData 的 LevelDB 里，
+    // 与别的 Electron 进程共用时后启动的那个静默注册不上（探针文件头坑 7）。
+    // 目录挂在 outputDir 下面，生命周期跟着下面的 afterAll 一起收。
+    const userDataDir = join(outputDir, 'user-data');
 
     // electron 包的默认导出就是可执行文件的绝对路径（以纯 Node 加载时）。
     const executable = require('electron') as unknown as string;
@@ -102,14 +118,16 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
     const exitCode = await new Promise<number>((resolve, reject) => {
       // launchEnv() 会剥掉 ELECTRON_RUN_AS_NODE：任何 Electron 宿主（VS Code 集成终端最常见）
       // 都会给子进程设这个变量，带着它启动会让二进制退化成纯 Node，连 app 对象都没有。
-      const child = spawn(executable, [PROBE, EXTENSION_DIST, outputPath], {
+      const child = spawn(executable, [PROBE, EXTENSION_DIST, outputPath, userDataDir], {
         env: launchEnv(),
         stdio: ['ignore', 'pipe', 'pipe']
       });
+      probeProcess = child;
       const stderr: string[] = [];
       child.stderr.on('data', chunk => stderr.push(String(chunk)));
       child.on('error', reject);
       child.on('exit', code => {
+        probeProcess = null;
         if (code !== 0 && !existsSync(outputPath)) {
           reject(new Error(`探针以 ${code} 退出且未产出结果：\n${stderr.join('')}`));
           return;
@@ -124,6 +142,11 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
   });
 
   test.afterAll(() => {
+    // hook 超时 / 断言抛错时 Playwright 只结束 hook，spawn 出去的探针会**继续跑到自己结束**。
+    // 留着它就是下一次重试的污染源（两个 Electron 抢同一份 profile，见探针文件头坑 7），
+    // 而 afterAll 在 beforeAll 失败后照样执行 —— 这里是唯一能收掉它的地方。
+    probeProcess?.kill('SIGKILL');
+    probeProcess = null;
     if (outputDir) rmSync(outputDir, { force: true, recursive: true });
   });
 
