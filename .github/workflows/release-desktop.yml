@@ -80,14 +80,24 @@ jobs:
       - uses: ./.github/actions/xvfb
         if: runner.os == 'Linux'
 
-      # US-904 阶段 A 的 MV3 门禁与 `pglite-tx-experiment` 的探针不走 Playwright 的
-      # `_electron.launch()`（那会被强制加 --no-sandbox），而是直接 spawn
-      # `require('electron')` 的二进制 —— Linux 上必须走 Chromium 真沙箱：
-      # `chrome-sandbox` 要配成 setuid root，否则探针进程直接 FATAL、一条 finding
-      # 都不产出。而 pnpm 解包置不了 setuid 位（只有 root 能置），落地是 0755。
-      # 详见 apps/dev-rxdb-electron-e2e/src/devtools-mv3-feasibility.spec.ts 里
-      # assertSandboxUsable 的 @remarks。与 ci-template.yml 的 e2e job 里同源步骤一致；
+      # Linux 上有两组用例必须走 Chromium 真沙箱，各自要一份配好的 `chrome-sandbox`：
+      #  - US-904 阶段 A 的 MV3 门禁与 `pglite-tx-experiment` 的探针直接 spawn
+      #    `require('electron')` 的二进制（不走 `_electron.launch()`，那会被强制加 --no-sandbox）；
+      #  - US-904 阶段 D / US-906 的 7 个 devtools 面板用例走 `_electron.launch()`，但经
+      #    `realSandbox()` 传了 `chromiumSandbox: true`，用的是**打包产物**里的那一份。
+      # 带 --no-sandbox 时扩展 devtools_page 的渲染进程初始化会失败，面板永不进 tab 条，
+      # 12 条用例全红在「DevTools 里始终没有出现扩展面板 tab」。
+      # 而 pnpm 解包置不了 setuid 位（只有 root 能置），落地是 0755，Chromium 见到
+      # 「文件在但没配好」不降级、直接 FATAL。详见 packaged-app.ts 里 assertSandboxUsable
+      # 的 @remarks。与 ci-template.yml 的 e2e job 里同源步骤一致；
       # macOS / Windows 没有 SUID 沙箱概念，spec 里的自查在非 Linux 上直接放行。
+      #
+      # 打包显式跑在前面：产物本来是下面 `Run Electron packaging smoke` 里由 nx dependsOn
+      # 触发的，这一步跑的时候 release/ 还不存在。后面那条命令直接命中 Nx 缓存。
+      - name: Package Electron app (SUID helper needs the real artifact)
+        if: runner.os == 'Linux'
+        run: pnpm exec nx run dev-rxdb-electron:electron-package-dir --output-style=stream
+
       - name: Configure Electron SUID sandbox
         if: runner.os == 'Linux'
         run: |
@@ -96,12 +106,15 @@ jobs:
           # 下载进度会打进 stdout（"Downloading Electron binary..."）。先空跑一次
           # 触发下载并丢弃输出，下一行拿到的才是干净的可执行文件路径，不会污染命令替换。
           node -e 'require("electron")' >/dev/null
-          helper="$(dirname "$(node -p 'require("electron")')")/chrome-sandbox"
-          sudo chown root:root "$helper"
-          sudo chmod 4755 "$helper"
-          ls -l "$helper"
+          for helper in \
+            "$(dirname "$(node -p 'require("electron")')")/chrome-sandbox" \
+            "dist/apps/dev-rxdb-electron/release/linux-unpacked/chrome-sandbox"; do
+            sudo chown root:root "$helper"
+            sudo chmod 4755 "$helper"
+            ls -l "$helper"
+          done
 
-      # 刻意**不**装 Playwright 浏览器：另外三套用例全程走 `_electron.launch()`，用的是
+      # 刻意**不**装 Playwright 浏览器：除探针外的用例全程走 `_electron.launch()`，用的是
       # 产物自带的 Chromium；`playwright.config.ts` 里既没有 `projects` 也没有用到
       # `page` / `browser` fixture，装 chromium 是三个平台上白交的下载时间。
       # （顺带：`.github/actions/playwright-chromium` 的缓存路径写死了 Linux 的

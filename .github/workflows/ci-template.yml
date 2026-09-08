@@ -736,8 +736,21 @@ jobs:
       # 而 pnpm 解包置不了 setuid 位（只有 root 能置），chrome-sandbox 落地是 0755，Chromium
       # 见到「文件在但没配好」不降级、直接 FATAL。ubuntu-24.04 的 AppArmor 又默认禁掉非特权
       # user namespace，命名空间沙箱这条路也走不通 —— 只剩把 SUID 助手配对这一种办法。
-      # 同 job 的另外三套 Electron 用例不受影响：它们走 Playwright 的 _electron.launch()，
-      # 在 Linux 上被强制加 --no-sandbox，配好的助手对它们只是闲置。
+      #
+      # ⚠️ 这里曾写着「同 job 的另外三套 Electron 用例不受影响 —— 它们走 _electron.launch()，
+      # 在 Linux 上被强制加 --no-sandbox，配好的助手对它们只是闲置」。那句在写下时成立，
+      # 但 US-904 阶段 D / US-906 之后新增的 7 个 devtools spec **恰恰全靠扩展渲染进程**：
+      # 它们经 `realSandbox()` 传 `chromiumSandbox: true`，Playwright 因此不再插 --no-sandbox，
+      # 于是**打包产物那份** chrome-sandbox 也必须配好。漏了它的表征是 12 条用例全红在
+      # 「DevTools 里始终没有出现扩展面板 tab」，而本地 macOS 全绿（那边 Playwright 不插这个参数）。
+      #
+      # 打包必须显式跑在前面：产物是 `Run E2E` 里由 nx dependsOn 触发的，
+      # 这一步跑的时候 release/ 还不存在，chmod 会找不到文件。
+      # 后面 `Run E2E` 的同名 target 直接命中 Nx 缓存，不会重复打包。
+      - name: Package Electron app (SUID helper needs the real artifact)
+        if: matrix.project == 'dev-rxdb-electron-e2e'
+        run: pnpm exec nx run dev-rxdb-electron:electron-package-dir --output-style=stream
+
       - name: Configure Electron SUID sandbox
         if: matrix.project == 'dev-rxdb-electron-e2e'
         run: |
@@ -746,10 +759,15 @@ jobs:
           # 且下载进度会打进 stdout（"Downloading Electron binary..."）。先空跑一次
           # 触发下载并丢弃输出，下一行拿到的才是干净的可执行文件路径，不会污染命令替换。
           node -e 'require("electron")' >/dev/null
-          helper="$(dirname "$(node -p 'require("electron")')")/chrome-sandbox"
-          sudo chown root:root "$helper"
-          sudo chmod 4755 "$helper"
-          ls -l "$helper"
+          # 两份各管一段：前者是 MV3 门禁 spawn 的开发二进制，后者是面板用例经
+          # _electron.launch() 拉起的打包产物。缺任一份都会让对应那组用例红。
+          for helper in \
+            "$(dirname "$(node -p 'require("electron")')")/chrome-sandbox" \
+            "dist/apps/dev-rxdb-electron/release/linux-unpacked/chrome-sandbox"; do
+            sudo chown root:root "$helper"
+            sudo chmod 4755 "$helper"
+            ls -l "$helper"
+          done
 
       - uses: ./.github/actions/supabase
         if: matrix.supabase

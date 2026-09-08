@@ -6,7 +6,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { attachPanel, PANEL_BUDGET_MS, panelEvaluate, readPanel } from './devtools-panel-driver';
 import { awaitAnswer, installWireTap, postToConnector, requestFrame, waitForSessionId } from './devtools-wire-tap';
-import { launchEnv, resolveDesktopDevExtension, resolveExecutable, serveRendererDist } from './packaged-app';
+import {
+  launchEnv,
+  realSandbox,
+  resolveDesktopDevExtension,
+  resolveExecutable,
+  serveRendererDist
+} from './packaged-app';
 
 /**
  * US-904 阶段 D AC#47：面板对原生文件后端的写操作，逐字节落在插件专用根里。
@@ -64,6 +70,8 @@ const MAX_TRANSFER_BYTES = 1_073_741_824;
 function launchApp(userDataDir: string, port: number, mutation?: string): Promise<ElectronApplication> {
   return electron.launch({
     executablePath: resolveExecutable(),
+    // 必须真沙箱：--no-sandbox 会让扩展 devtools_page 一行不执行，面板永不进 tab 条。
+    ...realSandbox(),
     args: [`--user-data-dir=${userDataDir}`, '--serve', `--port=${String(port)}`],
     env: {
       ...launchEnv(),

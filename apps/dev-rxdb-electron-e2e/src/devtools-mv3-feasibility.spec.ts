@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { launchEnv } from './packaged-app';
+import { join } from 'node:path';
+import { assertSandboxUsable, launchEnv } from './packaged-app';
 
 /**
  * US-904 阶段 A：Electron 43 MV3 扩展可行性门禁（AC#1～#4）。
@@ -28,51 +28,6 @@ const PROBE = join(__dirname, '../../dev-rxdb-electron/tools/devtools-mv3-probe.
 
 /** 扩展构建产物目录，与 `apps/rxdb-devtools-extension/vite.config.ts` 的 `outDir` 一致。 */
 const EXTENSION_DIST = join(__dirname, '../../rxdb-devtools-extension/dist');
-
-/**
- * Linux 上的沙箱前置检查：确认 `chrome-sandbox` 已配成 setuid root，否则带修复命令直接红。
- *
- * @remarks
- * **这道门禁不能带 `--no-sandbox` 跑，那个开关会让被测能力本身失效。** Electron 44 上，
- * 非沙箱渲染进程走 `renderer_init`，它同步向主进程要 preload 列表；扩展的 `devtools_page`
- * 拿回的是 `null`，于是整个 bundle 在
- *   Electron renderer.bundle.js script failed to run
- *   TypeError: object null is not iterable (cannot read property Symbol(Symbol.iterator))
- * 处中断 —— 页面自己的脚本一行都没执行，`chrome.devtools.panels.create` 从未被调用，
- * RxDB 面板压根不会进 tab 条。表征极具误导性：`chrome.devtools` / `panels.create` 在那个帧里
- * 探起来一切正常，只有 `devtoolsPageState.readyState` 停在 `loading`、`document.scripts` 为空
- * 露了馅。macOS 上加 `--no-sandbox` 能一比一复现同一组红（AC#2/#3 注入/#4 全灭），
- * 去掉就全绿 —— 与平台无关，就是这个开关。
- *
- * 而 npm/pnpm 解包置不了 setuid 位（只有 root 能置），`dist/chrome-sandbox` 落地是 0755。
- * Chromium 见到「文件在但没配好」不会降级，直接 FATAL 中止：
- *   FATAL:sandbox/linux/suid/client/setuid_sandbox_host.cc:166] The SUID sandbox helper
- *   binary was found, but is not configured correctly.
- * 那条只在 stderr，探针会以 `null` 退出、一条 finding 都不产出，看上去像扩展加载失败。
- * 所以在这里先自查：缺就带着修复命令红，**不退回 `--no-sandbox`** —— 那正是能力失效的原因，
- * 兜过去只会让门禁报绿而什么都没验（AGENTS.md：无 fallback 兜底）。
- *
- * 本目录另外三套用例不受影响：它们走 `_electron.launch()`，Playwright 在 Linux 上会默认插
- * `--no-sandbox`，而它们测的是打包产物的窗口行为，不涉及扩展渲染进程。
- *
- * @param executable - `require('electron')` 返回的可执行文件绝对路径
- */
-function assertSandboxUsable(executable: string): void {
-  if (process.platform !== 'linux') return;
-
-  const helper = join(dirname(executable), 'chrome-sandbox');
-  const stats = existsSync(helper) ? statSync(helper) : null;
-  // setuid 位 + root 属主，两者缺一不可：只 chmod 不 chown 一样过不了 Chromium 的检查。
-  const usable = stats !== null && stats.uid === 0 && (stats.mode & 0o4000) !== 0;
-
-  expect(
-    usable,
-    `Electron 的 SUID 沙箱助手未配置好：${helper}\n` +
-      `请先执行：sudo chown root:root ${helper} && sudo chmod 4755 ${helper}\n` +
-      '（本门禁必须在真沙箱下跑：--no-sandbox 会让扩展 devtools_page 渲染进程初始化失败，' +
-      '面板永远不会注册。详见本函数的 @remarks。）'
-  ).toBe(true);
-}
 
 /** 单条 finding 的形状，与探针的 `record()` 一致。 */
 interface Finding {

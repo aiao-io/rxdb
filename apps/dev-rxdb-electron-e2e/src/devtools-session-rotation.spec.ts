@@ -12,7 +12,13 @@ import {
   waitForFrame,
   waitForSessionId
 } from './devtools-wire-tap';
-import { launchEnv, resolveDesktopDevExtension, resolveExecutable, serveRendererDist } from './packaged-app';
+import {
+  launchEnv,
+  realSandbox,
+  resolveDesktopDevExtension,
+  resolveExecutable,
+  serveRendererDist
+} from './packaged-app';
 
 /**
  * US-904 阶段 D AC#51：session A 结束后资源释放，session B 拒绝 A 的身份。
@@ -75,6 +81,8 @@ const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f
 function launchApp(userDataDir: string, port: number): Promise<ElectronApplication> {
   return electron.launch({
     executablePath: resolveExecutable(),
+    // 必须真沙箱：--no-sandbox 会让扩展 devtools_page 一行不执行，面板永不进 tab 条。
+    ...realSandbox(),
     args: [`--user-data-dir=${userDataDir}`, '--serve', `--port=${String(port)}`],
     env: {
       ...launchEnv(),

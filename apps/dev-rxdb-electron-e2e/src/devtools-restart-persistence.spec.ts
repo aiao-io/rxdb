@@ -5,7 +5,13 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { attachPanel, PANEL_BUDGET_MS, readPanel } from './devtools-panel-driver';
-import { launchEnv, resolveDesktopDevExtension, resolveExecutable, serveRendererDist } from './packaged-app';
+import {
+  launchEnv,
+  realSandbox,
+  resolveDesktopDevExtension,
+  resolveExecutable,
+  serveRendererDist
+} from './packaged-app';
 
 /**
  * US-904 阶段 D AC#52：真实 userData 重启后，DevTools 面板读回同一实体与同一文件。
@@ -80,6 +86,8 @@ const INSPECTED = 'http://localhost' as const;
 function launchApp(userDataDir: string, extensionDist: string, port: number): Promise<ElectronApplication> {
   return electron.launch({
     executablePath: resolveExecutable(),
+    // 必须真沙箱：--no-sandbox 会让扩展 devtools_page 一行不执行，面板永不进 tab 条。
+    ...realSandbox(),
     args: [`--user-data-dir=${userDataDir}`, '--serve', `--port=${String(port)}`],
     env: {
       ...launchEnv(),

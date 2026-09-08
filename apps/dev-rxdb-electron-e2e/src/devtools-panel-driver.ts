@@ -8,12 +8,18 @@
  * 因此与 DevTools 自己的调试通道不冲突。US-904 阶段 D AC#52 的真机跑通就是走的这条路，
  * 「Playwright 打不开 DevTools 宿主」这条推论只对**浏览器**成立。
  *
- * 两个必踩的坑（均为实测，改这个文件前先读）：
+ * 三个必踩的坑（均为实测，改这个文件前先读）：
  * 1. DevTools 的 `TabbedPane` 会把**放不下的 tab 移出 DOM**，只挂在「»」下拉里。应用窗口默认
  *    900px，bottom 模式下主 tab 条只显示前 9 个内置 tab，扩展面板一律读不到——那会被误读成
  *    「面板没登记」，而它其实一直都登记着。所以 {@link attachPanel} 先 `setSize(1600, 1000)`。
  * 2. `chrome.scripting` 在**隔离世界**执行。用主世界的 `window.__AIAO_RXDB_DEVTOOLS_BRIDGE__`
  *    判断「桥有没有注进去」永远是 false，那个观测口径是错的。要判断连没连上，读面板正文。
+ * 3. **`--no-sandbox` 会让扩展 `devtools_page` 一行脚本都不执行**，`panels.create` 从未被调用，
+ *    面板因此永不进 tab 条 —— 表征就是本文件 {@link attachPanel} 末尾那句「始终没有出现扩展
+ *    面板 tab」，看上去像面板没登记，与真因（一个命令行开关）毫无关系。而 Playwright 的
+ *    `electron.launch()` 在 **Linux** 上默认就插这个参数，macOS/Windows 上不插 —— 于是同一份
+ *    代码本地全绿、CI 全红。所以每个驱动面板的 spec 都必须摊开 `realSandbox()`
+ *    （`packaged-app.ts`），细节见那里的 @remarks。
  *
  * @module devtools-panel-driver
  */

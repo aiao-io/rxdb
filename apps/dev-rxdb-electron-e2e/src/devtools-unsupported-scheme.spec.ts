@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PANEL_BUDGET_MS, attachPanel, readPanel } from './devtools-panel-driver';
-import { launchEnv, resolveDesktopDevExtension, resolveExecutable } from './packaged-app';
+import { launchEnv, realSandbox, resolveDesktopDevExtension, resolveExecutable } from './packaged-app';
 
 /**
  * US-906 AC#4：打包产物（`app://` 入口）下，面板给的是**原因**而不只是结论。
@@ -35,6 +35,8 @@ const INSPECTED = 'app://' as const;
 function launchApp(userDataDir: string, extensionDist: string): Promise<ElectronApplication> {
   return electron.launch({
     executablePath: resolveExecutable(),
+    // 必须真沙箱：--no-sandbox 会让扩展 devtools_page 一行不执行，面板永不进 tab 条。
+    ...realSandbox(),
     args: [`--user-data-dir=${userDataDir}`],
     env: {
       ...launchEnv(),

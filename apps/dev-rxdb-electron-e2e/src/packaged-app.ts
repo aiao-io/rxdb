@@ -1,5 +1,6 @@
+import { expect } from '@playwright/test';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 /**
  * `electron-builder --dir` 的产物根目录。
@@ -93,6 +94,73 @@ export function resolveExecutable(): string {
       '（该命令需要下载 Electron 发行包；离线或网络受限时会以 ETIMEDOUT 失败。）'
     ].join('\n')
   );
+}
+
+/**
+ * Linux 上的沙箱前置检查：确认 `chrome-sandbox` 已配成 setuid root，否则带修复命令直接红。
+ *
+ * @param executable - Electron 可执行文件的绝对路径（`require('electron')` 那份，或打包产物那份）
+ *
+ * @remarks
+ * **凡是要跑扩展 `devtools_page` 的用例都不能带 `--no-sandbox`，那个开关会让被测能力本身失效。**
+ * Electron 44 上，非沙箱渲染进程走 `renderer_init`，它同步向主进程要 preload 列表；扩展的
+ * `devtools_page` 拿回的是 `null`，于是整个 bundle 在
+ *   Electron renderer.bundle.js script failed to run
+ *   TypeError: object null is not iterable (cannot read property Symbol(Symbol.iterator))
+ * 处中断 —— 页面自己的脚本一行都没执行，`chrome.devtools.panels.create` 从未被调用，
+ * RxDB 面板压根不会进 tab 条。表征极具误导性：`chrome.devtools` / `panels.create` 在那个帧里
+ * 探起来一切正常，只有 `devtoolsPageState.readyState` 停在 `loading`、`document.scripts` 为空
+ * 露了馅。macOS 上加 `--no-sandbox` 能一比一复现同一组红，去掉就全绿 —— 与平台无关，就是这个开关。
+ *
+ * 而 npm/pnpm 解包置不了 setuid 位（只有 root 能置），`chrome-sandbox` 落地是 0755。
+ * Chromium 见到「文件在但没配好」不会降级，直接 FATAL 中止：
+ *   FATAL:sandbox/linux/suid/client/setuid_sandbox_host.cc:166] The SUID sandbox helper
+ *   binary was found, but is not configured correctly.
+ * 那条只在 stderr，调用方看到的往往是一句无关的启动失败。所以这里先自查：缺就带着修复命令红，
+ * **不退回 `--no-sandbox`** —— 那正是能力失效的原因，兜过去只会让用例报绿而什么都没验
+ * （AGENTS.md：无 fallback 兜底）。
+ *
+ * ubuntu-24.04 默认禁掉非特权 user namespace，命名空间沙箱那条路也走不通，只剩 SUID 助手这一种。
+ */
+export function assertSandboxUsable(executable: string): void {
+  if (process.platform !== 'linux') return;
+
+  const helper = join(dirname(executable), 'chrome-sandbox');
+  const stats = existsSync(helper) ? statSync(helper) : null;
+  // setuid 位 + root 属主，两者缺一不可：只 chmod 不 chown 一样过不了 Chromium 的检查。
+  const usable = stats !== null && stats.uid === 0 && (stats.mode & 0o4000) !== 0;
+
+  expect(
+    usable,
+    `Electron 的 SUID 沙箱助手未配置好：${helper}\n` +
+      `请先执行：sudo chown root:root ${helper} && sudo chmod 4755 ${helper}\n` +
+      '（扩展 devtools_page 必须在真沙箱下跑：--no-sandbox 会让它的渲染进程初始化失败，' +
+      '面板永远不会注册。详见 assertSandboxUsable 的 @remarks。）'
+  ).toBe(true);
+}
+
+/**
+ * 驱动 DevTools 扩展面板的用例必须在 Chromium **真沙箱**下启动打包产物。
+ *
+ * @returns 摊进 `electron.launch()` 的沙箱选项
+ * @throws Linux 上 `chrome-sandbox` 未配成 setuid root 时，带修复命令直接红
+ *
+ * @remarks
+ * Playwright 的 `electron.launch()` 在 Linux 上**默认插 `--no-sandbox`**
+ * （`chromiumSandbox` 默认 `false`），而那个开关会让扩展 `devtools_page` 一行脚本都不执行，
+ * 面板因此永远不进 tab 条 —— 见 {@link assertSandboxUsable} 的 @remarks。
+ * macOS / Windows 上 Playwright 不插这个参数，`chromiumSandbox` 在那里是空操作，
+ * 所以这条差异**只在 CI 上显形**：本地全绿、Linux 全红，且红在
+ * `devtools-panel-driver.ts` 的「DevTools 里始终没有出现扩展面板 tab」，
+ * 看上去像面板没登记，与真因（一个命令行开关）毫无关系。
+ *
+ * 不给 `electron-smoke` / `storage-persistence` / `desktop-persistence*` /
+ * `devtools-extension-loading` 用：它们不跑扩展渲染进程
+ * （最后一个只读 `session.getAllExtensions()`），加上只会平白多一条对 SUID 助手的依赖。
+ */
+export function realSandbox(): { chromiumSandbox: true } {
+  assertSandboxUsable(resolveExecutable());
+  return { chromiumSandbox: true };
 }
 
 /** renderer 构建产物目录，与 `apps/dev-rxdb-electron` 的 build outputPath 一致。 */

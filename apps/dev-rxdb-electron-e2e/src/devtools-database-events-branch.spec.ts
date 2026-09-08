@@ -5,7 +5,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { attachPanel, PANEL_BUDGET_MS, panelEvaluate, readPanel } from './devtools-panel-driver';
 import { clearWireTap, installWireTap, readWireTap } from './devtools-wire-tap';
-import { launchEnv, resolveDesktopDevExtension, resolveExecutable, serveRendererDist } from './packaged-app';
+import {
+  launchEnv,
+  realSandbox,
+  resolveDesktopDevExtension,
+  resolveExecutable,
+  serveRendererDist
+} from './packaged-app';
 
 /**
  * US-904 阶段 D AC#46：面板读到的数据、全部事件类型与 branch 都与应用一致，且无 OPFS/IDB fallback。
@@ -84,6 +90,8 @@ const EXPECTED_EVENT_TYPES = [
 function launchApp(userDataDir: string, port: number): Promise<ElectronApplication> {
   return electron.launch({
     executablePath: resolveExecutable(),
+    // 必须真沙箱：--no-sandbox 会让扩展 devtools_page 一行不执行，面板永不进 tab 条。
+    ...realSandbox(),
     args: [`--user-data-dir=${userDataDir}`, '--serve', `--port=${String(port)}`],
     env: {
       ...launchEnv(),
