@@ -266,8 +266,9 @@ export interface DevToolsNativeProbe {
    * 全部动作跑完时，存储根里还剩几个 host 的未提交临时文件（`.rxdb-tmp`）。
    *
    * @remarks
-   * 必须由驱动在**进程还活着的时候**数：自检一上报 Rust 就 `app.exit`，而驱动在一个进程里
-   * 跑两代，第二代随时可能被那次退出打断——它留下的临时文件与「取消没清干净」在盘上同形。
+   * 经 wire 数而不是 e2e 事后读盘，理由与 {@link DevToolsNativeProbe.cancelledFile} 同源：
+   * AC#10 问的是**面板看得到什么**。而这一数必须发生在**进程还活着的时候**——自检一上报
+   * Rust 就 `app.exit`，报告写出之后再没有任何一条通往 provider 的路。
    */
   readonly tempResidue?: number;
   /** 驱动自身失败时的原因；正常跑完为 `null`。 */

@@ -1,4 +1,11 @@
-import { EntityType, RxDB, SyncType } from '@aiao/rxdb';
+import {
+  ENTITY_LOCAL_UPDATE_EVENT,
+  EntityLocalUpdatedEvent,
+  EntityType,
+  RxDB,
+  RxDBEntityLocalUpdatedEventData,
+  SyncType
+} from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { ENTITIES } from '@aiao/rxdb-test/shop';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -54,6 +61,37 @@ describe('testing cleanup_db integration & cloneEntityClasses metadata', () => {
 
     // 第二次调用验证重建的触发器语句。
     await expect(cleanup_db(adapter)).resolves.toBeUndefined();
+  });
+
+  // cleanup_db 曾经复用 `generateSwitchBranchSql`，把里面那条「激活目标分支」的
+  // `UPDATE ... RETURNING *` 一并执行。TRUNCATE + 重新 INSERT main(activated=TRUE) 之后
+  // 这条语句在取值上是空操作，却照样触发行级 NOTIFY：通知经 16ms 去抖后异步派发，
+  // 落进**下一个**用例的监听窗口，变成一条 `inversePatch:{}` 的裸 RxDBBranch UPDATE 事件。
+  // switch_branch.spec.ts 里 `branchEvents.find(e => e.id === 'main')` 于是拿到它而不是
+  // switch 自己发的那条，断言 `patch.activated` 随机翻车（CI 上偶发 expected true to be false）。
+  it('cleanup_db 不得残留 RxDBBranch 的 UPDATE 事件到下一个用例', async () => {
+    const adapter = await connect();
+    const repo = adapter.getRepository(Todo);
+    const todo = new Todo();
+    todo.title = 'noise-source';
+    await repo.create(todo);
+
+    const leaked: RxDBEntityLocalUpdatedEventData[] = [];
+    const listener = (event: EntityLocalUpdatedEvent) => {
+      for (const entity of event.entities) {
+        if (entity.entity === 'RxDBBranch') leaked.push(entity);
+      }
+    };
+    rxdb!.addEventListener(ENTITY_LOCAL_UPDATE_EVENT, listener);
+    try {
+      await cleanup_db(adapter);
+      // 通知批处理是 16ms 尾部去抖，必须等过窗口才能确认「确实没有」而不是「还没到」。
+      await new Promise(resolve => setTimeout(resolve, 300));
+    } finally {
+      rxdb!.removeEventListener(ENTITY_LOCAL_UPDATE_EVENT, listener);
+    }
+
+    expect(leaked).toEqual([]);
   });
 
   it('cloneEntityClasses copies ɵMetadata and non-special statics', () => {

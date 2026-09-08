@@ -234,9 +234,20 @@ async fn rxdb_devtools_recycle_window(app: tauri::AppHandle) -> Result<(), Strin
         return Err(format!("{label} was still registered after destroy()"));
     }
 
-    // 重开时同样带上驱动：这条命令只在探针开着时才放行（上面那道闸），所以到这里
-    // `drive` 恒为真——写成常量而不是再问一次，免得两处判定有机会分叉。
-    open_devtools_window(&app, true).map_err(|error| error.to_string())
+    // 重开的那扇窗**不带驱动**。这不是省事，是拆掉一条真实的竞态：
+    //
+    // 驱动的准备步骤是「先删 `drv-kept` 再建」（幂等所需），而回收之后主窗口紧接着就要
+    // `location.reload()`（AC#5）。刷新把 connector 连同它铸的 session 一起换掉，而驱动的
+    // session 只在第一帧上取一次、此后不再更新——于是刷新（或上报之后那次 `app.exit`）
+    // 一旦落在「删掉了、还没建回来」那一格里，第二代的 create 会被按 session 拒掉，
+    // 那个目录就永远停在被删除的状态。表征是报告里 `createDirectory: 'ok'`（那是**第一代**
+    // 的结论）配上一个没有该目录的磁盘，2026-09-08 在 CI 上真的红过一次。`drv-temp`
+    // 那一半同形：建了却来不及删，盘上于是多出一个不该在的目录。
+    //
+    // 而第二代本来就没有观察价值：观察者只留**第一条**结论（见 `devtools-probe.ts` 的
+    // `waitForNative`），因为第二代看到的世界已经被第一代改过。AC#4 要的「同 label 重开
+    // 拿到新 session」是**面板**的性质——这扇窗照样加载面板、照样协商，那条判据一分不少。
+    open_devtools_window(&app, false).map_err(|error| error.to_string())
 }
 
 /// 被中继按 label 拒掉的帧数（US-905 阶段 1 AC#3）。

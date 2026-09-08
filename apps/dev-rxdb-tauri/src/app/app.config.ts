@@ -135,8 +135,9 @@ const probeDevToolsWindow = async (): Promise<DevToolsProbeResult | null> => {
       // 证据是第一跑的 `filesEntryCount: 2` + `keptDirSeen: true`：那正是「第一遍已经把
       // 目录建出来了」之后的世界，而不是一个刚建好的空存储根。
       await devToolsWatcher.waitForNative();
-      // AC#4：同 label 关掉再建一次，等第二轮。重开的那扇窗会再跑一遍驱动，
-      // 但观察者只留第一条结论（见 `waitForNative`），所以第二遍的观察不进报告。
+      // AC#4：同 label 关掉再建一次，等第二轮。重开的那扇窗**不带驱动**（见 `lib.rs` 的
+      // `rxdb_devtools_recycle_window`）：它只需要加载面板、协商出一个新 session，
+      // 而再跑一代驱动会在这之后把 e2e 要核对的目录删在半路。
       await recycleDevToolsWindow(globalThis);
       await devToolsWatcher.waitForHandshake();
     }

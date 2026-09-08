@@ -621,12 +621,16 @@
     // 顺带把 delete 也走一遍。只读档下两条都会被拒，而拒绝码与「操作没声明」相同——
     // 判别力因此落在磁盘上，不在码上。
     //
-    // 先删一次再建：**一个进程里这段脚本会跑不止一遍**——探针为了 AC#4 会把调试窗口
-    // 关掉再以同 label 重开，而重开的那扇窗又带着这份驱动。第二遍撞上自己第一遍留下的
-    // 目录，`create-directory` 会答 `resource_conflict`（实测）。
+    // 先删一次再建：跨重启的第二跑（AC#15）起步时，盘上已经有上一跑留下的那个目录，
+    // `create-directory` 会答 `resource_conflict`（实测）。
     //
     // 修法取「让准备步骤幂等」而不是「把 conflict 也算通过」：后者会让一次**真实的**
     // 冲突缺陷从这条用例底下溜过去。删除的结果刻意不看——只读档下它本来就会被拒。
+    //
+    // 这一步在**同一个进程里**不会再撞上自己：回收之后重开的调试窗口不再带驱动
+    // （见 `lib.rs` 的 `rxdb_devtools_recycle_window`），一个进程因此只跑一代，而这一代
+    // 整个跑在 `waitForNative()` 的等待里——回收、刷新、退出都插不进删与建之间。
+    // 那条缝曾经是真的：它让盘上没有目录而报告里写着 `createDirectory: 'ok'`。
     await request('files', 'delete', { path: KEPT_DIR });
     const createdKept = await request('files', 'create-directory', { path: KEPT_DIR });
     const createdTemp = await request('files', 'create-directory', { path: TEMP_DIR });
@@ -675,13 +679,11 @@
    * @remarks
    * # 落点全在存储根，不在 {@link KEPT_DIR} 里
    *
-   * **一个进程里这份脚本会跑两遍**（探针为 AC#4 把调试窗口关掉再以同 label 重开），而
-   * `KEPT_DIR` 会被第二遍的准备步骤整个删掉。字节产物放进去的话，第二遍随时可能把第一遍
-   * 刚验过的文件连目录一起删走，e2e 读盘那两条就成了竞态。
-   *
-   * 放在根上则两遍互不干扰：host 的提交是「写临时文件 → `rename`」，覆盖是原子的，
-   * 而两遍送的是同一份载荷。第二遍被 `app.exit` 打断在半路时，目标文件里留的仍是第一遍
-   * 那份完整内容。
+   * 起初这是为了躲开第二代驱动：它的准备步骤会把 `KEPT_DIR` 整个删掉，字节产物放进去的话
+   * 随时可能被连目录一起删走。那条竞态现在从源头没了（重开的调试窗口不再带驱动，见
+   * `lib.rs` 的 `rxdb_devtools_recycle_window`），但落点仍留在根上：`KEPT_DIR` **存在与否**
+   * 本身就是 AC#15 的判据，往它里面写东西等于给那条判据缠上「而且里面有什么」这层
+   * 与它无关的耦合。
    *
    * # 取消为什么排在两次成功上传之前
    *

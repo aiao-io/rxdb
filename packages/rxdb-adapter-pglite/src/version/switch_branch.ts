@@ -30,17 +30,22 @@ function convertResultsToPGliteExecuteResult<T>(results: Results<T>): PGliteExec
 }
 
 /**
- * 生成切换分支的 SQL 语句数组
+ * 生成「把变更日志触发器重挂到指定分支」的 SQL 语句
  *
- * 此函数负责生成切换数据库分支时所需的所有 SQL 语句，包括：
- * 1. 为所有启用了日志功能的实体重新生成触发器（使用新的分支 ID）
- * 2. 更新分支表，激活目标分支并停用其他所有分支
+ * 只重建触发器，**不动 `rxdb_branch` 表**。
  *
  * @param adapter - RxDB PGlite 适配器实例
- * @param branchId - 要切换到的目标分支 ID
- * @returns SQL 语句字符串，用 ---STATEMENT_SEPARATOR--- 分隔
+ * @param branchId - 触发器要写入的目标分支 ID
+ * @returns SQL 语句字符串，用 ---STATEMENT_SEPARATOR--- 分隔；无可挂载实体时为空串
+ *
+ * @remarks
+ * 与 {@link generateSwitchBranchSql} 分开导出，是因为「重挂触发器」和「切换激活分支」
+ * 的调用方并不总是同一批。测试清库（`cleanup_db`）在 TRUNCATE 并重新写入
+ * `main(activated=TRUE)` 之后只需要前者：此时那条 UPDATE 在取值上已是空操作，
+ * 却仍会触发行级 NOTIFY，异步派发成一条 `inversePatch:{}` 的裸 RxDBBranch UPDATE 事件，
+ * 污染下一个用例的事件监听窗口。
  */
-export const generateSwitchBranchSql = (adapter: RxDBAdapterPGlite, branchId: string): string => {
+export const generateBranchTriggerSql = (adapter: RxDBAdapterPGlite, branchId: string): string => {
   const sqlParts: string[] = [];
 
   // 遍历所有实体，为启用了日志功能的实体重新生成触发器
@@ -58,6 +63,23 @@ export const generateSwitchBranchSql = (adapter: RxDBAdapterPGlite, branchId: st
       }
     }
   });
+
+  return sqlParts.join('\n---STATEMENT_SEPARATOR---\n');
+};
+
+/**
+ * 生成切换分支的 SQL 语句数组
+ *
+ * 此函数负责生成切换数据库分支时所需的所有 SQL 语句，包括：
+ * 1. 为所有启用了日志功能的实体重新生成触发器（使用新的分支 ID）
+ * 2. 更新分支表，激活目标分支并停用其他所有分支
+ *
+ * @param adapter - RxDB PGlite 适配器实例
+ * @param branchId - 要切换到的目标分支 ID
+ * @returns SQL 语句字符串，用 ---STATEMENT_SEPARATOR--- 分隔
+ */
+export const generateSwitchBranchSql = (adapter: RxDBAdapterPGlite, branchId: string): string => {
+  const triggerSql = generateBranchTriggerSql(adapter, branchId);
 
   // 获取分支表的元数据和表名
   const metadata = getEntityMetadata(RxDBBranch);
@@ -82,9 +104,7 @@ export const generateSwitchBranchSql = (adapter: RxDBAdapterPGlite, branchId: st
     WHERE id = '${escapedBranchId}' OR activated = TRUE
     RETURNING *`;
 
-  sqlParts.push(branchUpdateSql);
-
-  return sqlParts.join('\n---STATEMENT_SEPARATOR---\n');
+  return triggerSql ? `${triggerSql}\n---STATEMENT_SEPARATOR---\n${branchUpdateSql}` : branchUpdateSql;
 };
 
 /**

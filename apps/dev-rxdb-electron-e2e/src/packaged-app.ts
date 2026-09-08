@@ -121,6 +121,14 @@ export function resolveExecutable(): string {
  * （AGENTS.md：无 fallback 兜底）。
  *
  * ubuntu-24.04 默认禁掉非特权 user namespace，命名空间沙箱那条路也走不通，只剩 SUID 助手这一种。
+ *
+ * **配好之后不能再打包。** `electron-package-dir` 不是缓存目标（project.json 里没有
+ * `cache: true`，nx.json 的 targetDefaults 里也没有它的条目），Nx 每次都会重跑它，
+ * electron-builder 随之把整个 `linux-unpacked/` 重新解包 —— 配好的助手被一份普通用户属主、
+ * 0755 的新拷贝覆盖。所以「chown/chmod 完直接 `nx e2e`」永远过不了这道自查：nx 会先重打包，
+ * 再跑用例。打包产物那份的正确顺序是 打包 → 配置 → `--excludeTaskDependencies` 跑用例，
+ * 下面的报错文案会按助手所在位置把这一条提出来。CI 侧同一顺序，见 ci-template.yml 的
+ * `Build E2E dependencies` 步骤。
  */
 export function assertSandboxUsable(executable: string): void {
   if (process.platform !== 'linux') return;
@@ -130,10 +138,21 @@ export function assertSandboxUsable(executable: string): void {
   // setuid 位 + root 属主，两者缺一不可：只 chmod 不 chown 一样过不了 Chromium 的检查。
   const usable = stats !== null && stats.uid === 0 && (stats.mode & 0o4000) !== 0;
 
+  // 只对打包产物那份提「别再打包」：node_modules/electron 下的那份（MV3 门禁用）不会被
+  // electron-package-dir 重写，对它说这句只会误导。
+  const rewrittenByPackaging =
+    helper.startsWith(RELEASE_DIR) ?
+      '配好后必须带 --excludeTaskDependencies 跑：\n' +
+      '  pnpm nx run dev-rxdb-electron-e2e:e2e --excludeTaskDependencies\n' +
+      '不带这个开关时 nx 会先重跑 electron-package-dir，把整个 linux-unpacked/ 连同' +
+      '刚配好的助手一起覆盖掉 —— 配了也白配，报错和现在一模一样。\n'
+    : '';
+
   expect(
     usable,
     `Electron 的 SUID 沙箱助手未配置好：${helper}\n` +
       `请先执行：sudo chown root:root ${helper} && sudo chmod 4755 ${helper}\n` +
+      rewrittenByPackaging +
       '（扩展 devtools_page 必须在真沙箱下跑：--no-sandbox 会让它的渲染进程初始化失败，' +
       '面板永远不会注册。详见 assertSandboxUsable 的 @remarks。）'
   ).toBe(true);

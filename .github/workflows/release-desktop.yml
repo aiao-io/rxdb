@@ -93,10 +93,27 @@ jobs:
       # macOS / Windows 没有 SUID 沙箱概念，spec 里的自查在非 Linux 上直接放行。
       #
       # 打包显式跑在前面：产物本来是下面 `Run Electron packaging smoke` 里由 nx dependsOn
-      # 触发的，这一步跑的时候 release/ 还不存在。后面那条命令直接命中 Nx 缓存。
-      - name: Package Electron app (SUID helper needs the real artifact)
-        if: runner.os == 'Linux'
-        run: pnpm exec nx run dev-rxdb-electron:electron-package-dir --output-style=stream
+      # 触发的，这一步跑的时候 release/ 还不存在。
+      #
+      # ⚠️ 这里曾写着「后面那条命令直接命中 Nx 缓存」——那句是错的。`electron-package-dir`
+      # 不是缓存目标（自身没有 `cache: true`，nx.json 的 targetDefaults 里也没有它的条目），
+      # Nx 每次都会重跑它。于是 smoke 那条命令会在 chmod **之后**重新解包 linux-unpacked/，
+      # 刚配好的 chrome-sandbox 被 runner 属主、0755 的新拷贝覆盖，面板用例全红在
+      # assertSandboxUsable，而上一步的 `ls -l` 还打印着 `-rwsr-xr-x root root`。
+      #
+      # 所以：先建完依赖 → 再配 SUID 助手 → 最后带 `--excludeTaskDependencies` 跑，
+      # 配置之后不允许再有任何一步重写产物。这两条命令的任务闭包等于 e2e 的全部依赖
+      # （dependsOn 三项，见 apps/dev-rxdb-electron-e2e/project.json）。
+      # 三平台一律显式建：总工作量和让 nx 自己解依赖时一样，但省掉一条「Linux 走这边、
+      # 其它平台走那边」的分叉。
+      # shell: bash 是必需的 —— windows-latest 的默认 shell 是 pwsh，`set -e` 在那里会被
+      # 当成 `Set-Variable -e` 直接报错。Windows runner 自带 Git Bash，指定即可。
+      - name: Build E2E dependencies (nothing may rewrite the artifact after the chmod)
+        shell: bash
+        run: |
+          set -e
+          pnpm exec nx run-many -t build build-desktop-dev -p rxdb-devtools-extension --output-style=stream
+          pnpm exec nx run dev-rxdb-electron:electron-package-dir --output-style=stream
 
       - name: Configure Electron SUID sandbox
         if: runner.os == 'Linux'
@@ -123,8 +140,10 @@ jobs:
       # ELECTRON_MIRROR / ELECTRON_BUILDER_BINARIES_MIRROR 是 electron-builder 唯一
       # 认的两个镜像变量（`.npmrc` 里的 `electron_mirror` 它**不读**）—— 这里刻意不设，
       # 写下来是为了让排查下载失败的人不必再查一遍。
+      # --excludeTaskDependencies：依赖已在上面建完，重跑 electron-package-dir 会抹掉
+      # 刚配好的 SUID 助手（见 Build E2E dependencies 的注释）。
       - name: Run Electron packaging smoke
-        run: pnpm exec nx run dev-rxdb-electron-e2e:e2e --output-style=stream
+        run: pnpm exec nx run dev-rxdb-electron-e2e:e2e --output-style=stream --excludeTaskDependencies
 
       # 失败复盘用：`trace: 'on-first-retry'` 开着，重试产生的 trace.zip 落在
       # test-output/playwright/output/ 下，`pnpm exec playwright show-trace <zip>` 打开。

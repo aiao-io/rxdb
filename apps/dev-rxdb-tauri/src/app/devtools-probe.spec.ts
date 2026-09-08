@@ -176,16 +176,18 @@ describe('watchDevToolsHandshake — 驱动汇报通道（US-905 阶段 2）', (
   });
 
   /**
-   * US-905 阶段 2 AC#15：一个进程里驱动会跑**不止一遍**，快照必须留第一遍那份。
+   * US-905 阶段 2 AC#15：收到不止一条结论时，快照必须留**第一条**。
    *
    * @remarks
-   * 探针为了 AC#4 会把调试窗口关掉再以同 label 重开，而重开的那扇窗又带着同一份注入脚本。
-   * 第二遍看到的世界**已经被第一遍改过**——它的观察因此不是独立证据：
-   * 「重启之后那个目录还在」与「本进程第一遍刚把它建出来」在第二遍眼里完全同形。
+   * 后到的那条观察的是一个**已经被前一条改过**的世界，因此不是独立证据：
+   * 「重启之后那个目录还在」与「本进程刚把它建出来」在它眼里完全同形。只有第一条的
+   * 前置条件是已知的（这个进程还没碰过存储），所以跨重启比对只能读它。
    *
-   * 只有第一遍的前置条件是已知的（这个进程还没碰过存储），所以跨重启比对只能读它。
+   * 现实里现在只会有一条：一个进程只跑一代驱动（回收之后重开的调试窗口不再带注入脚本，
+   * 见 `lib.rs` 的 `rxdb_devtools_recycle_window`）。这条用例钉的是**规则**而不是那个
+   * 现状——规则一旦松掉，下一个往回收路径上加注入的人不会收到任何提醒。
    */
-  it('驱动在一个进程里跑了两遍时，快照留的是第一遍的结论', async () => {
+  it('收到两条结论时，快照留的是第一条', async () => {
     const { surface, emitNative } = surfaceOf();
     const watcher = watchDevToolsHandshake(surface);
     const pending = watcher.waitForNative(80);
@@ -194,7 +196,7 @@ describe('watchDevToolsHandshake — 驱动汇报通道（US-905 阶段 2）', (
     emitNative({ sessionSeen: true, keptDirSeen: false, filesEntryCount: 3 });
     await expect(pending).resolves.toMatchObject({ keptDirSeen: false });
 
-    // 第二扇窗口的驱动跑完，报的是被第一遍改过之后的世界。
+    // 第二条结论报的是被第一条改过之后的世界。
     emitNative({ sessionSeen: true, keptDirSeen: true, filesEntryCount: 4 });
 
     expect(watcher.settle().native).toMatchObject({ keptDirSeen: false, filesEntryCount: 3 });
