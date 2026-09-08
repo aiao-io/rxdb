@@ -559,8 +559,22 @@ const AUTHORIZED_ENV: Readonly<Record<string, string>> = Object.freeze({
   DEV_RXDB_DEVTOOLS_MUTATION: 'allow'
 });
 
-/** 把整份 wire 结论带进断言消息：单看一个 `undefined` 分不出「没跑」还是「跑了没通」。 */
-const wire = (run: SelfCheckRun): string => `native=${JSON.stringify(run.report.devtools?.native)}\n${because(run)}`;
+/**
+ * 把整份 DevTools 探针结果带进断言消息：单看一个 `undefined` 分不出「没跑」还是「跑了没通」。
+ *
+ * @remarks
+ * **`native` 一个人不够。** `sessionSeen: false` 只说明驱动没等到 session，而它没等到的原因
+ * 全在另外三格里，且三种真因的签名互不相同：
+ *
+ * - `panelFrameTypes: []` —— 调试窗口一帧都没发出来（没建起来 / 面板没 bootstrap / 404）；
+ * - `['PROTOCOL_HELLO', 'HANDSHAKE_ACK']` + `sessionIds: []` —— 面板发了 HELLO 却没等到 v2
+ *   要约，1,000 ms 决策窗口到期退回 v1 facade（那条 `HANDSHAKE_ACK` 是 legacy 的，不带 session）；
+ * - `sessionIds: ['…']` 却仍 `sessionSeen: false` —— 协商成立了，断在驱动自己那一段。
+ *
+ * 少了这三格，CI 上的一条红只剩「expected null to be true」，与真因隔着一整轮本地复现——
+ * 而这条用例本身在开发机上不复现（真因是竞态）。2026-09-09 的那条 CI 红就卡在这里。
+ */
+const wire = (run: SelfCheckRun): string => `devtools=${JSON.stringify(run.report.devtools)}\n${because(run)}`;
 
 /** 读出 wire 结论并当场钉死它存在——后面每条断言都建立在它上面。 */
 const nativeOf = (run: SelfCheckRun): DevToolsNativeProbe => {

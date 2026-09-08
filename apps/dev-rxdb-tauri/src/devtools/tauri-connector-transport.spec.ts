@@ -25,13 +25,62 @@ describe('createTauriConnectorTransport', () => {
    * connector 侧与面板侧走同一条 Rust 中继（`devtools_message` 命令），只是方向相反。
    * 命令名与参数形状必须与 Rust 侧逐字一致。
    */
-  it('send 把消息序列化成 JSON 字符串交给 devtools_message 命令', () => {
+  it('send 把消息序列化成 JSON 字符串交给 devtools_message 命令', async () => {
     const transport = createTauriConnectorTransport();
     // transport 只做 JSON 序列化、不解释 payload，这里给一帧最小 v2 信封即可。
     const message = { protocol: 2, type: 'PROTOCOL_HELLO', payload: { supportedVersions: [2] } };
 
     transport.send(message as unknown as DevToolsConnectorNegotiationMessage);
-    expect(invokeMock).toHaveBeenCalledWith('devtools_message', { payload: JSON.stringify(message) });
+    // 没 `subscribe` 过时闸门是一个已 settle 的 promise，出站只差一个微任务。
+    await vi.waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('devtools_message', { payload: JSON.stringify(message) })
+    );
+  });
+
+  /**
+   * # 出站不得早于入站登记（2026-09-09 的 devtools-smoke 红）
+   *
+   * `listen()` 是一条 IPC 往返；登记落定前 Rust 侧 `emit_to("main", …)` 找不到监听者，
+   * 那一帧就地丢掉（事件不重放）。而 connector 的第一条出站帧是 eager legacy `HANDSHAKE`，
+   * 面板收到它就补发 `PROTOCOL_HELLO` 并开 1,000 ms 决策窗口——空窗里丢掉那条 HELLO，
+   * connector 就永远不发 v2 要约，面板落进**终态** `v1-facade`，v2 数据面整条不可用。
+   *
+   * 空窗宽度由**对端**的往返决定，本端无从预判，所以判据只能是「登记之前一帧都没出门」，
+   * 而不是某个时长。
+   */
+  it('入站监听登记落定之前，一帧都不出门', async () => {
+    const resolvers = new Map<string, (fn: () => void) => void>();
+    listenMock.mockImplementation((event: string) => new Promise<() => void>(resolve => resolvers.set(event, resolve)));
+
+    const transport = createTauriConnectorTransport();
+    transport.subscribe(() => undefined);
+    const handshake = { protocol: 1, type: 'HANDSHAKE', payload: null };
+    transport.send(handshake as unknown as DevToolsConnectorNegotiationMessage);
+
+    // 微任务排干：闸门没放行的话，这里 invoke 必须仍是零次。
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(invokeMock, 'eager 握手抢在入站监听登记之前出门了').not.toHaveBeenCalled();
+
+    resolvers.get('devtools:message')?.(() => undefined);
+    resolvers.get('devtools:peer-gone')?.(() => undefined);
+    await vi.waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('devtools_message', { payload: JSON.stringify(handshake) })
+    );
+  });
+
+  /** 登记失败时闸门照样放行：发不出去只是把「监听挂了」变成第二种沉默。 */
+  it('监听登记失败时仍然放行出站', async () => {
+    listenMock.mockRejectedValue(new Error('listen failed'));
+
+    const transport = createTauriConnectorTransport();
+    transport.subscribe(() => undefined);
+    const message = { protocol: 2, type: 'PROTOCOL_HELLO', payload: { supportedVersions: [2] } };
+    transport.send(message as unknown as DevToolsConnectorNegotiationMessage);
+
+    await vi.waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('devtools_message', { payload: JSON.stringify(message) })
+    );
   });
 
   /**
