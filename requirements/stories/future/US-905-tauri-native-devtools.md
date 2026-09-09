@@ -5,7 +5,7 @@ status: In Progress
 priority: Medium
 epic: epic-003-ui-developer-tools
 created: 2026-08-15
-updated: 2026-09-05
+updated: 2026-09-09
 tags: [tooling, devtools, desktop, tauri, transport, sqlite, filesystem, security]
 ---
 

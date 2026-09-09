@@ -324,7 +324,7 @@ barrel 成为实际的打包边界。
 > 顺带记一笔：`rxdb-adapter-sqlite-core` / `rxdb-plugin-storage` / `utils` 三个包的
 > `sideEffects` 声明**已补上**（`"sideEffects": false`，逐包确认过没有导入期副作用）。
 > 本条没有依赖它（字面量方案与该声明无关），它是同一类问题的另一半，
-> 收口记录见 [status-overview.md](../../status-overview.md) 与 [roadmap.md 零散收尾项](../../roadmap.md)。
+> 收口记录就是那三个 `package.json` 本身。
 
 ## 技术笔记
 
