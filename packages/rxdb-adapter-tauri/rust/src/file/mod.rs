@@ -149,6 +149,18 @@ fn write_aborted(write_id: &str) -> HostError {
 ///
 /// 认不出的归 [`ErrorCode::HostInternalError`] 而不是猜一个近似码：猜错会让调用方
 /// 按错误的语义去补偿，比明确的「host 出了意料之外的问题」更糟。
+///
+/// # 已知的一条不对齐：`ELOOP`
+///
+/// TS 侧把它归给 `invalid_file_path`，这边归到 `host_internal_error`。对齐要么用
+/// `io::ErrorKind::FilesystemLoop`（截至 rustc 1.97 仍在 `io_error_more` 门后，
+/// 稳定通道编不过），要么为了一个 errno 引入 `libc` 直接依赖并硬编码平台常量
+/// （macOS 62 / Linux 40）。两者都比这条分叉本身贵：符号链接环只可能由本应用之外的东西
+/// 在存储根里造出来，且两个码都是不可重试的失败，调用方的补救路径完全相同。
+/// 真要对齐，等 `FilesystemLoop` 稳定后在此加一条 arm 即可。
+///
+/// **不要**把「类型不符」也算进这类分叉：那条已经由 [`require_entry_kind`] 在 io 错误
+/// 发生之前判掉了，跨后端一致，用例见 `storage-backend-parity.suite.ts`。
 fn error_code_for(kind: io::ErrorKind) -> ErrorCode {
     match kind {
         io::ErrorKind::NotFound => ErrorCode::FileNotFound,
@@ -278,6 +290,35 @@ fn entry_kind(is_directory: bool) -> &'static str {
     } else {
         "file"
     }
+}
+
+/// 目标存在但类型与本次操作不符时报 [`ErrorCode::InvalidFilePath`]。
+///
+/// 显式判类型而不是让 io 错误兜底：`remove_dir_all` 撞上文件、`remove_file` 撞上目录、
+/// `File::open` 撞上目录，三件事在 macOS 与 Linux 上给出不同的 [`io::ErrorKind`]
+/// （`PermissionDenied` / `IsADirectory` / `NotADirectory`），而 macOS 上开一个目录甚至
+/// 会先成功。调用方在协议这一层已经知道类型（服务层的 `clear()` 按 `entry.kind` 分派），
+/// 撞上类型不符只说明它的模型与盘上真实情况漂移了——那要出声，且不能顺手动掉另一种条目。
+/// 跨后端判据见 `rxdb-plugin-storage` 的 `storage-backend-parity.suite.ts`。
+///
+/// 目标不存在时静默放行，把定性权交回调用点：删除据此保持幂等，读则照常走到 `File::open`
+/// 报 `file_not_found`。
+///
+/// 用 [`fs::metadata`] 而不是 [`fs::symlink_metadata`]：判的是这次操作真正会碰到的那个条目。
+/// 根内链接是合法布局，逃出根的那些在更早的 [`resolve_within_root`] 已被拦下。
+fn require_entry_kind(target: &Path, relative_path: &str, expected: &str) -> HostResult<()> {
+    let metadata = match fs::metadata(target) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(filesystem_error(&error, relative_path)),
+    };
+    if entry_kind(metadata.is_dir()) == expected {
+        return Ok(());
+    }
+    Err(HostError::new(
+        ErrorCode::InvalidFilePath,
+        format!("path is not a {expected}: {relative_path}"),
+    ))
 }
 
 /// 与 Node 的 `stats.mtimeMs` 同义：Unix epoch 起的毫秒数，保留亚毫秒精度。
@@ -598,6 +639,7 @@ impl FileHost {
     /// 删除的语义是「事后它不在那儿」，本来就不在也满足。
     fn remove_directory(&self, session_id: &str, relative_path: &str) -> HostResult<Value> {
         let target = self.target_of(session_id, relative_path)?;
+        require_entry_kind(&target, relative_path, "directory")?;
         match fs::remove_dir_all(&target) {
             Ok(()) => Ok(json!({ "kind": "file.rmdir" })),
             Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(json!({ "kind": "file.rmdir" })),
@@ -607,6 +649,7 @@ impl FileHost {
 
     fn remove_file(&self, session_id: &str, relative_path: &str) -> HostResult<Value> {
         let target = self.target_of(session_id, relative_path)?;
+        require_entry_kind(&target, relative_path, "file")?;
         match fs::remove_file(&target) {
             Ok(()) => Ok(json!({ "kind": "file.remove" })),
             Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(json!({ "kind": "file.remove" })),
@@ -625,6 +668,10 @@ impl FileHost {
 
     fn read_frame(&self, session_id: &str, relative_path: &str, offset: u64, length: usize) -> HostResult<Value> {
         let target = self.target_of(session_id, relative_path)?;
+        // 判在 open 之前：macOS 上开一个目录会成功，要等到 `read_exact` 才炸，而 `offset`
+        // 越过目录 metadata 的 `len()` 时连 `read_exact` 都不会调用——那条路会安静地返回
+        // 一个空帧加 eof。一次 metadata 换四兆一帧，可以忽略。
+        require_entry_kind(&target, relative_path, "file")?;
         let mut file = File::open(&target).map_err(|error| filesystem_error(&error, relative_path))?;
         let size = file
             .metadata()
@@ -1261,6 +1308,50 @@ mod tests {
         harness.write("box/a.txt", b"a");
         assert_eq!(harness.call(json!({ "kind": "file.rmdir", "path": "box" }))["kind"], "file.rmdir");
         assert_eq!(harness.call(json!({ "kind": "file.stat", "path": "box" }))["result"], Value::Null);
+    }
+
+    /// 「删掉的不是我要删的那种东西」是数据损失，不是一次可以顺手完成的删除。调用方在协议
+    /// 这一层已经知道类型（服务层的 `clear()` 按 `entry.kind` 分派），撞上类型不符只说明它的
+    /// 模型与盘上真实情况漂移了——要出声，且什么都不能动。
+    ///
+    /// 同时这条把平台分叉钉住：裸 `remove_file` 删目录在 macOS 是 `PermissionDenied`、
+    /// Linux 是 `IsADirectory`，两个码经 `error_code_for` 会翻成两种协议码。
+    #[test]
+    fn refuses_to_remove_an_entry_of_the_other_kind() {
+        let harness = Harness::new();
+        harness.write("plain.txt", b"x");
+        harness.call(json!({ "kind": "file.mkdir", "path": "box" }));
+
+        assert_eq!(harness.call(json!({ "kind": "file.rmdir", "path": "plain.txt" }))["code"], "invalid_file_path");
+        assert_eq!(harness.call(json!({ "kind": "file.remove", "path": "box" }))["code"], "invalid_file_path");
+
+        // 两个目标都还在：否则「已拒绝」可能发生在删除**之后**，上面的断言就成了摆设
+        assert!(harness.root.join("plain.txt").is_file());
+        assert!(harness.root.join("box").is_dir());
+    }
+
+    /// 读一个目录同样要给出确定答案：`File::open` 一个目录在 Linux 是 `IsADirectory`，
+    /// 在 macOS 却能开成功、要等到 `read_exact` 才炸，而 `offset` 越过目录 metadata 的
+    /// `len()` 时连 `read_exact` 都不会调用——那条路会安静地返回一个空帧加 eof。
+    #[test]
+    fn refuses_to_read_a_directory_as_a_file() {
+        let harness = Harness::new();
+        harness.call(json!({ "kind": "file.mkdir", "path": "box" }));
+
+        assert_eq!(harness.read("box", 0, 8)["code"], "invalid_file_path");
+        assert_eq!(harness.read("box", 4096, 8)["code"], "invalid_file_path");
+    }
+
+    /// 钉住 `ELOOP` 当前的归属，理由写在 [`error_code_for`] 的文档里：对齐要付的代价
+    /// （不稳定 feature 或硬编码 errno）比这条分叉本身贵。这条用例的作用是让它别在暗处漂——
+    /// 哪天 `FilesystemLoop` 稳定了、有人加上那条 arm，这里会立刻变红并指向那份文档。
+    #[cfg(unix)]
+    #[test]
+    fn still_reports_a_symlink_loop_as_a_host_internal_error() {
+        let harness = Harness::new();
+        std::os::unix::fs::symlink("loop", harness.root.join("loop")).expect("symlink is creatable");
+
+        assert_eq!(harness.call(json!({ "kind": "file.stat", "path": "loop" }))["code"], "host_internal_error");
     }
 
     #[test]

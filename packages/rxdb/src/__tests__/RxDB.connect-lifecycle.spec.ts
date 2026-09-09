@@ -6,6 +6,7 @@ import { ENTITY_LOCAL_CREATE_EVENT, EntityLocalCreatedEvent, type RxDBEvent } fr
 import type { Plugin } from '../rxdb-plugin.js';
 import type { RxDBOptions } from '../rxdb.interface.js';
 import { RxDB } from '../RxDB.js';
+import { SyncStateHub } from '../sync-state.js';
 import { RxDBMigration } from '../system/migration.js';
 import { createMockAdapter } from './fixtures/test-db-setup.js';
 
@@ -290,6 +291,110 @@ describe('RxDB 连接、迁移与插件生命周期', () => {
     const database = createDatabase();
 
     await expect(database.disconnect('missing')).resolves.toBeUndefined();
+  });
+
+  // `reachability` 在字段初始化里 new，直接挂一对 online / offline 到 globalThis 上。
+  // 它跟随**实例**而不是连接纪元（见 RxDB.ts 该字段的 @remarks），所以 disconnectAll()
+  // 故意不摘；那就必须另有一个终态出口来摘，否则每个 new RxDB() 都往全局上净增一对监听，
+  // 多实例 / HMR / 测试按实例数线性累积。
+  describe('终态 destroy()', () => {
+    /** 只看 online / offline 这两类，globalThis 上还有别人的监听 */
+    const networkListenerCalls = (calls: readonly unknown[][]) =>
+      calls.filter(([type]) => type === 'online' || type === 'offline');
+
+    it('摘掉挂在全局上的 online/offline 监听，而 disconnectAll() 不摘', async () => {
+      const addSpy = vi.spyOn(globalThis, 'addEventListener');
+      const removeSpy = vi.spyOn(globalThis, 'removeEventListener');
+
+      const database = createDatabase();
+      await database.connect('local');
+      // 注册确实发生了——不然下面的「已摘干净」会因为压根没挂而假绿
+      expect(networkListenerCalls(addSpy.mock.calls)).toHaveLength(2);
+
+      // 断连不摘：面板要在断连期间继续显示「离线、待推 N 条」，那正是它最该出声的时候
+      await database.disconnectAll();
+      expect(networkListenerCalls(removeSpy.mock.calls)).toHaveLength(0);
+
+      databases.delete(database);
+      await database.destroy();
+
+      // 逐对配平：`removeEventListener` 只有拿到与注册时同一个函数引用才真的摘得掉，
+      // 所以断言 (type, listener) 二元组集合相等，而不是只数个数
+      expect(networkListenerCalls(removeSpy.mock.calls)).toEqual(networkListenerCalls(addSpy.mock.calls));
+    });
+
+    it('不依赖先 disconnectAll()，自己把适配器断干净', async () => {
+      const addSpy = vi.spyOn(globalThis, 'addEventListener');
+      const removeSpy = vi.spyOn(globalThis, 'removeEventListener');
+
+      const database = createDatabase();
+      const localAdapter = createMockAdapter(database);
+      database.adapter('local', () => localAdapter);
+      await database.connect('local');
+      databases.delete(database);
+
+      await database.destroy();
+
+      expect(vi.mocked(localAdapter.disconnect)).toHaveBeenCalledTimes(1);
+      expect(networkListenerCalls(removeSpy.mock.calls)).toEqual(networkListenerCalls(addSpy.mock.calls));
+    });
+
+    it('重复调用只拆一轮', async () => {
+      const database = createDatabase();
+      const localAdapter = createMockAdapter(database);
+      const plugin = { name: 'destroy-idempotent' as const, install: vi.fn(), destroy: vi.fn() };
+      database.adapter('local', () => localAdapter).use(() => plugin);
+      await database.connect('local');
+      databases.delete(database);
+
+      // 并发的两次：终态标志必须在第一个 await 之前置位，否则第二次会跟第一次
+      // 并排跑一遍 #shutdown()，把插件销毁、versionManager 拆卸各重入一次
+      await Promise.all([database.destroy(), database.destroy()]);
+      await database.destroy();
+
+      expect(plugin.destroy).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(localAdapter.disconnect)).toHaveBeenCalledTimes(1);
+    });
+
+    it('销毁后 connect() / init() 拒绝，而不是交出一个空壳实例', async () => {
+      const database = createDatabase();
+      databases.delete(database);
+      await database.destroy();
+
+      // 复用一个 reachability 已销毁、syncState 上游已断的实例，症状是「面板永远停在
+      // 销毁那一刻」——静默且极难排查，所以在入口处就拒绝
+      expect(() => database.init()).toThrow(/destroyed/);
+      await expect(database.connect('local')).rejects.toThrow(/destroyed/);
+    });
+
+    it('拆卸进行中进来的 connect() 也被拒，不会把实例复活', async () => {
+      const database = createDatabase();
+      await database.connect('local');
+      databases.delete(database);
+
+      // 不 await：`destroy()` 里 disconnectAll() 的每个 await 都是一次让路，
+      // 终态标志若排在它后面，这条 connect() 会在拆完之后醒来把已连接集合重新填上
+      const destroying = database.destroy();
+      await expect(database.connect('local')).rejects.toThrow(/destroyed/);
+      await destroying;
+
+      expect(await firstValueFrom(database.connected$)).toBe(false);
+    });
+
+    it('断开 syncState 的上游订阅', async () => {
+      // 「断开之后上游再发值也不再更新」由 sync-state.spec.ts 在单元层面盯着；
+      // 这里只钉组合点——RxDB 得真的调它。放在 RxDB 侧观察不了：syncState 的两路上游
+      // 一路是 reachability.online$（销毁时一并 complete，看不出是谁停的），
+      // 一路是 connected$ 派生的 pushableCount$（销毁后没有公开入口再推它）
+      const destroySpy = vi.spyOn(SyncStateHub.prototype, 'destroy');
+
+      const database = createDatabase();
+      await database.connect('local');
+      databases.delete(database);
+      await database.destroy();
+
+      expect(destroySpy).toHaveBeenCalledTimes(1);
+    });
   });
 
   // RXD-003 残留：最后一个适配器的判定必须按「已连接」而非「已实例化」。

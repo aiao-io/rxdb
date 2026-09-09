@@ -56,6 +56,15 @@ pnpm nx run rxdb-adapter-tauri:test-conformance   # 跨进程一致性套件（V
 `test-conformance` 的 `dependsOn` 会先编出 `build-test-host`，也就是 `src/bin/rxdb_host_stdio.rs`——
 一个在 stdin/stdout 上跑同一套宿主的测试专用二进制（**不进任何产品包**）。
 
+### 手工驱动 stdio 宿主
+
+排查宿主侧问题时不必起 Tauri：`pnpm nx run rxdb-adapter-tauri:build-test-host` 编出
+`rust/target/debug/rxdb_host_stdio <临时根目录>`，按行喂 `{"id":N,"payload":<协议请求>}`、
+按 `id` 对应答即可。
+
+**注意它走的是 `router.handle()` 而不是生产的 `handle_owned()`**：窗口归属那一层在这里测不到，
+这条路上的绿不能替 `commands.rs` 的授权判定作证。
+
 ## 不建 cargo workspace
 
 本 crate 与 `apps/dev-rxdb-tauri/src-tauri` 是两个独立的 cargo 包，靠 path 依赖相连，**刻意不并成一个

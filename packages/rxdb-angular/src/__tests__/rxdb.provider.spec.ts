@@ -18,7 +18,7 @@ const createMockRxDB = () =>
     entityManager: {
       getRepository: vi.fn()
     },
-    disconnectAll: vi.fn().mockResolvedValue(undefined),
+    destroy: vi.fn().mockResolvedValue(undefined),
     init: vi.fn(),
     close: vi.fn()
   }) as unknown as RxDB;
@@ -125,7 +125,7 @@ describe('rxdb.provider', () => {
       injector.get(RxDB);
 
       injector.destroy();
-      await vi.waitFor(() => expect(mockRxDB.disconnectAll).toHaveBeenCalledOnce());
+      await vi.waitFor(() => expect(mockRxDB.destroy).toHaveBeenCalledOnce());
     });
 
     it('should support async initialization in factory', async () => {
@@ -254,7 +254,7 @@ describe('rxdb.provider', () => {
       injector.destroy();
       await new Promise(resolve => setTimeout(resolve, 0));
 
-      expect(mockRxDB.disconnectAll).not.toHaveBeenCalled();
+      expect(mockRxDB.destroy).not.toHaveBeenCalled();
     });
 
     it('disconnects an async source that settles after the injector is destroyed', async () => {
@@ -268,7 +268,7 @@ describe('rxdb.provider', () => {
       injector.destroy();
       settle(mockRxDB);
 
-      await vi.waitFor(() => expect(mockRxDB.disconnectAll).toHaveBeenCalledOnce());
+      await vi.waitFor(() => expect(mockRxDB.destroy).toHaveBeenCalledOnce());
     });
   });
 

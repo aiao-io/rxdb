@@ -57,7 +57,11 @@ export const createRxdbRecipeStore = async (dataDir: string): Promise<RxdbRecipe
   return {
     repo: rxdb.entityManager.getRepository(ServerRecipe),
     rxdb,
-    destroy: () => rxdb.disconnectAll()
+    // 终态出口而非 `disconnectAll()`：实例是这里 new 的，出去只有 `store.destroy()` 一个口子，
+    // 之后要么关服、要么 reset（destroy → 删 dataDir → 重新建一个），没有复用同一实例重连的路径。
+    // 走 `destroy()` 才会一并摘掉 reachability 挂在 globalThis 上的 online/offline 监听——
+    // 测试里 reset 一轮建一个实例，用 `disconnectAll()` 会按 reset 次数线性累积。
+    destroy: () => rxdb.destroy()
   };
 };
 

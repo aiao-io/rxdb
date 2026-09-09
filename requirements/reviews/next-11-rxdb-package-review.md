@@ -2,34 +2,23 @@
 
 - **原评审**：2026-09-06，`packages/rxdb`（`@aiao/rxdb` 0.0.25），源码 35,416 行 / 213 文件，测试 60,948 行 / 144 spec
 - **本次复核**：2026-09-09，逐条对照 HEAD 源码 + 实跑 `nx test rxdb --coverage`
-- **结论**：8 条 🔴 全部已修；🟡 的「无兜底」「资源与生命周期」「协议与语义不一致」三节除下方点名者外均已修完。**剩下四块工作 + 一条规格决策。**
+- **修复**：2026-09-09，第 1 块的「空断言」与「绑私有状态」两节已清空。九条用例改成钉行为：`bulk-sync.spec.ts` 的并发组量 `syncRepository` 的在飞峰值，`HistoryManager.spec.ts` 的跳过分支断言「没开 `switchBranch` 事务 + redo 栈原样保留」，`entity-status.spec.ts` 先证缓存在、再证 `modified` 清了它；`setProxyTarget` 改走生产同一个 `setSafeObjectKey`。每条都用变异测试反证过（改实现必红）
+- **修复**：2026-09-09，第 4 块的 `reachability` 泄漏已清空。补了终态 `RxDB.destroy()`（断全部适配器 → `syncState.destroy()` → `reachability.destroy()`），与可逆的 `disconnectAll()` 分成两个出口；`init()` 与 `connect()` 各加终态判据（`connect()` 那道必须排在重入缓存**之前**，否则拆卸窗口内会交出一个正要被断开的适配器）。三绑定与 `dev-rxdb-http-server` 的自有实例拆卸改调 `destroy()`。六个变异各自被对应用例咬红
+- **结论**：8 条 🔴 全部已修；🟡 的「无兜底」「资源与生命周期」「协议与语义不一致」三节除下方点名者外均已修完。**剩下四块工作 + 一条规格决策**（第 4 块是修第 1 块时新发现的）。
 
-已修的条目连同其修法说明一并删除 —— 那些判据现在都写在代码注释与 TSDoc 里，报告再留一份副本只会随代码漂移。同时删掉一条已撤销的误报（`rxdb.transaction.ts:68-69` 的裸 `forEach` 是**有意的** fail-fast 契约，`RxDB.spec.ts` 正面守着它，判据已写进 `emitEvent` 的 TSDoc）。
+已修的条目连同其修法说明一并删除 —— 那些判据现在都写在代码注释与 TSDoc 里，报告再留一份副本只会随代码漂移。同时删掉两条误报：`rxdb.transaction.ts:68-69` 的裸 `forEach` 是**有意的** fail-fast 契约（`RxDB.spec.ts` 正面守着它，判据已写进 `emitEvent` 的 TSDoc）；`relation-helper.spec.ts:495` 的 `Reflect.set` 不是「改私有字段」，`children$` 是 `relationHelper` 装上去的**公开访问器**，那行 `Reflect.set` 正是被测对象本身——用例要读它的布尔返回值，写成 `owner.children$ = x` 反而是类型错误。
 
-| 剩余块                | 状态                                        |
-| --------------------- | ------------------------------------------- |
-| 1 测试基建残留        | 🟡 进行中（评审列的五项已完成，下方是余量） |
-| 2 公共 API 面收敛     | ⬜ 未开始                                   |
-| 3 拆长函数            | ⬜ 未开始                                   |
-| 4 `reachability` 泄漏 | ⬜ 未开始                                   |
-| 5 依赖调度器误报      | 🔒 待规格决策，不改代码                     |
+| 剩余块                    | 状态                                        |
+| ------------------------- | ------------------------------------------- |
+| 1 测试基建残留            | 🟡 进行中（评审列的七项已完成，下方是余量） |
+| 2 公共 API 面收敛         | ⬜ 未开始                                   |
+| 3 拆长函数                | ⬜ 未开始                                   |
+| 4 够不到的 undo/redo 守卫 | ⬜ 未开始（新增，需决策）                   |
+| 5 依赖调度器误报          | 🔒 待规格决策，不改代码                     |
 
 ---
 
 ## 1. 测试基建残留
-
-### 空断言（标题声称的行为一条都没测）
-
-- `HistoryManager.spec.ts:928-933` 「should skip if redo stack is empty」→ `expect(true).toBe(true)`
-- `bulk-sync.spec.ts:135-150` 「默认并发数应该是 3」→ 只 `expect(result).toBeDefined()`，并发数根本没读
-- `entity-status.spec.ts:232-247, 496-510` 标题说 clear，断言只有 `toBeDefined()`
-
-### 绑私有状态
-
-- `HistoryManager.spec.ts:870, 897` cast 后直写 `isUndoRedoInProgress`
-- `entity-status.spec.ts:83-85`、`relation-helper.spec.ts:495` 用 `Reflect.set` 改私有字段
-
-这类测试钉的是实现细节，重构必红、行为回归未必红。
 
 ### 无专属 spec 的活代码（约 2,000 行）
 
@@ -92,11 +81,13 @@
 
 ---
 
-## 4. `ReachabilityMonitor` 按实例累积全局监听器
+## 4. `invalidateRedoStack` 开头那道守卫从任何公开入口都够不到
 
-- **文件**：`packages/rxdb/src/network/reachability.ts:151-153, 182-187`；`packages/rxdb/src/RxDB.ts:314, 406-412`
-- **现象**：`ReachabilityMonitor` 自己有正确的 `destroy()`，但 `RxDB.ts:314` 的 `public readonly reachability = new ReachabilityMonitor()` 从不调用它（`:309-312` 的注释写明是有意的），而 `RxDB` 本身没有终态 destroy —— 每个 `new RxDB()` 在 `globalThis` 上挂一对 `online` / `offline` 监听并订阅 `SyncStateHub`，多实例 / HMR / 测试按实例数线性累积。
-- **修法**：要么给 `RxDB` 补终态 destroy 并在其中调 `reachability.destroy()`，要么把监听器改成进程内共享的单例（引用计数）。前者更符合现有的 `disconnectAll` 生命周期。
+- **文件**：`packages/rxdb/src/version/HistoryManager.ts:486-487`
+- **现象**：`invalidateRedoStack()` 开头查 `isUndoRedoInProgress || isInvalidatingRedo` 就返回。但这两个标志只由 `applyUndoRedoHistories` / `invalidateRedoStack` 自己在**同一个序列化任务内部**置起再复位，而三个入口（`history-scope-api.ts:157,176` 的 undo/redo、`HistoryManager.ts:486` 的 invalidateRedoStack）全都排进 `#runSerialized`，任务之间不重叠 —— 于是这条分支永远走不到。「持着 undo 不放再去 invalidate」也不成立：后者只会排在 undo 后面，轮到它时标志已复位。
+- **判据**：真正生效的那道守卫在调用方 `VersionManager.ts:174` 的 `if (!this.historyManager.isExecutingUndoRedo())`，它连 `syncDepth` 一起看，已由 `HistoryManager.scopes-and-undo.spec.ts:574-590, 725-780` 经公开的 `syncing()` 与真实 undo 覆盖。
+- **为什么本轮没动**：够不到的防御分支按铁律算「无兜底」违反，该删；但删生产代码是行为变更，超出「测试基建残留」这条的范围，得单独定。本轮的处理是**让它至少有断言盯着**——`HistoryManager.spec.ts` 的两条用例注入标志进到这条分支，断言的是行为（不开 `switchBranch` 事务、redo 栈原样保留），推导过程写在那个注入 helper 的 TSDoc 里。
+- **两条出路**：① 删掉这道守卫与随之而来的两条注入用例，只留 `VersionManager` 那道；② 判定它是「将来放开序列化时的保险」而保留，那就把这个理由写进 `HistoryManager.ts` 的注释，别让下一个人再推一遍。
 
 ---
 

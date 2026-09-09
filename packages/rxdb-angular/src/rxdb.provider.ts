@@ -49,7 +49,7 @@ const RXDB_HOLDER = new InjectionToken<RxDBHolder>('RXDB_HOLDER');
  *
  * @remarks
  * **所有权规则：provider 只销毁自己造的东西。** 传进来的是工厂或 Promise，实例就是
- * 本 provider 造/等来的，注入器销毁时负责 `disconnectAll()`；传进来的是一个已就绪实例，
+ * 本 provider 造/等来的，注入器销毁时负责 `destroy()`；传进来的是一个已就绪实例，
  * 它归调用方所有，本 provider 不碰 —— 否则一个模块级单例会被某个子注入器的销毁顺手断掉。
  * 这条规则三端逐字相同。
  */
@@ -86,7 +86,7 @@ const createHolder = (source: RxDBSource, destroyRef: DestroyRef): RxDBHolder =>
   if (owned) {
     destroyRef.onDestroy(() => {
       // 销毁可能早于 resolve：挂在 ready 之后才不会漏掉「还在建库时就被销毁」这一路。
-      void ready.then(() => instance?.disconnectAll()).catch(error => console.error('RxDB shutdown failed', error));
+      void ready.then(() => instance?.destroy()).catch(error => console.error('RxDB shutdown failed', error));
     });
   }
 

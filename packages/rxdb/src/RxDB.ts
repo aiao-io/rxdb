@@ -84,6 +84,17 @@ export class RxDB {
    */
   #shutting_down = false;
 
+  /**
+   * 终态标记：{@link RxDB.destroy} 置位，**不复位**。
+   *
+   * @remarks
+   * 与 `#shutting_down` 是两回事。停机窗口是可逆的——`#shutdown()` 把实例复位成
+   * 「可重新 `init()`」，重连拿到的是一个新纪元。而 `destroy()` 释放的是**跟随实例**的
+   * 那部分资源（{@link RxDB.reachability} 挂在 `globalThis` 上的监听、
+   * {@link RxDB.syncState} 的上游订阅），它们没有第二次装配的入口，复位就等于交出空壳。
+   */
+  #destroyed = false;
+
   #repository_config_map = new Map<string, IRepositoryConfig>();
 
   #plugin_map = new Map<Plugin, IRxDBPlugin>();
@@ -433,6 +444,12 @@ export class RxDB {
     if (this.#shutting_down) {
       throw new Error('[RxDB] init() rejected: instance is shutting down');
     }
+    // 终态不可逆，与停机窗口分开判：destroy() 之后 reachability / syncState 已经释放，
+    // 放行只会交出一个「面板永远停在销毁那一刻」的空壳，而那种故障静默且极难排查。
+    // connect() 会把这个同步抛出转成 reject（见其尾部对 init() 的 try/catch）。
+    if (this.#destroyed) {
+      throw new Error('[RxDB] init() rejected: instance is destroyed');
+    }
     if (this.#rxdb_initialized) return;
     this.#rxdb_initialized = true;
     if (!this.#context.clientId) {
@@ -619,6 +636,13 @@ export class RxDB {
   connect<K extends keyof RxDBAdapters>(adapterName: K): Promise<RxDBAdapters[K]>;
   connect(adapterName: RxDBAdapterName): Promise<IRxDBAdapter>;
   connect(adapterName: string): Promise<IRxDBAdapter> {
+    // 终态判在重入缓存**之前**：已经引导完的适配器在 #connect_promise_map 里留着一条
+    // resolved 的 Promise，下面命中它就直接返回了，`init()` 的终态守卫在这条路径上走不到。
+    // 于是 destroy() 的拆卸窗口内（disconnectAll 尚未清空该 map）连一个正要被断开的
+    // 适配器会被交出去，而这个实例已经没有第二次 init() 了。
+    if (this.#destroyed) {
+      return Promise.reject(new Error('[RxDB] connect() rejected: instance is destroyed'));
+    }
     // 防重入：如果已经在连接中，直接返回缓存的 Promise
     const pending = this.#connect_promise_map.get(adapterName);
     if (pending) {
@@ -817,6 +841,39 @@ export class RxDB {
       this.#connect_promise_map.clear();
       this.#clear_adapter_connected();
     }
+  }
+
+  /**
+   * 终态销毁：断开全部适配器，再释放**跟随实例**而不是连接纪元的那部分资源。
+   *
+   * @remarks
+   * 与 {@link RxDB.disconnectAll} 分成两个出口，因为两者的复位语义相反。`disconnectAll()`
+   * 走 `#shutdown()`，把实例复位成「可重新 `init()`」；而 {@link RxDB.reachability} 与
+   * {@link RxDB.syncState} 按设计**不跟随连接纪元**——网络不会因为某个适配器断开而重置，
+   * 面板也要在断连期间继续显示「离线、待推 N 条」。于是它们只能在这里释放：
+   * `reachability` 在字段初始化时就往 `globalThis` 挂了一对 `online` / `offline`，
+   * 没有终态出口的话，每个 `new RxDB()` 都往全局上净增一对，多实例 / HMR / 测试
+   * 按实例数线性累积。
+   *
+   * 幂等；不必先调 `disconnectAll()`，它自己会断干净。销毁后 `init()` 抛错、
+   * `connect()` reject（见 {@link RxDB.init}），实例不可复用。
+   *
+   * @example
+   * ```typescript
+   * // 组件卸载 / 进程退出时
+   * await rxdb.destroy();
+   * ```
+   */
+  async destroy(): Promise<void> {
+    if (this.#destroyed) return;
+    // 先于 await 置位：拆卸期间进来的 connect() 直接被 init() 的终态判据挡掉，
+    // 否则它会在 disconnectAll() 之后醒来，把刚清空的已连接集合重新填上。
+    this.#destroyed = true;
+    await this.disconnectAll();
+    // 顺序：syncState 订阅着 reachability.online$，先断下游再销毁上游，
+    // 中间那一下 complete 才不会被当成一帧状态推给面板。
+    this.syncState.destroy();
+    this.reachability.destroy();
   }
 
   /**

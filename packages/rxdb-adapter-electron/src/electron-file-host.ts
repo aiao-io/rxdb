@@ -261,6 +261,44 @@ const canonicalize = async (absolute: string): Promise<string> => {
 const toEntryKind = (isDirectory: boolean): DesktopHostFileEntry['kind'] => (isDirectory ? 'directory' : 'file');
 
 /**
+ * 目标存在但类型与本次操作不符时抛 `invalid_file_path`。
+ *
+ * @remarks
+ * 显式判类型而不是让 errno 兜底：`rm(recursive: true)` 撞上文件会把**文件**删掉且一声不吭，
+ * `rm` 撞上目录、`read` 撞上目录则按平台给出不同 errno（Linux EISDIR / Windows EPERM、EACCES），
+ * 同一份代码在三个平台上是三种结果。调用方在协议这一层已经知道类型（服务层的 `clear()`
+ * 按 `entry.kind` 分派），撞上类型不符只说明它的模型与盘上真实情况漂移了 —— 那要出声，
+ * 且不能顺手动掉另一种条目。跨后端判据见 `rxdb-plugin-storage` 的 `storage-backend-parity.suite.ts`。
+ *
+ * 目标不存在时静默返回，把定性权交回调用点：删除据此保持幂等，读则照常走到 `open` 报
+ * `file_not_found`。
+ *
+ * 用 `stat` 而不是 `lstat`：判的是这次操作真正会碰到的那个条目。根内链接是合法布局
+ * （见「still serves a symlink that resolves back inside the root」），逃出根的那些
+ * 在更早的 `containedPath` 就已经被拦下。
+ *
+ * @param target - 已通过根内校验的绝对路径
+ * @param relativePath - 调用方传进来的原始路径，只用于错误消息
+ * @param expected - 本次操作要求的条目类型
+ */
+const requireEntryKind = async (
+  target: string,
+  relativePath: string,
+  expected: DesktopHostFileEntry['kind']
+): Promise<void> => {
+  let isDirectory: boolean;
+  try {
+    isDirectory = (await stat(target)).isDirectory();
+  } catch (error) {
+    if (readErrno(error) === 'ENOENT') return;
+    throw toFilesystemError(error, relativePath);
+  }
+  if (toEntryKind(isDirectory) !== expected) {
+    throw new RxDBAdapterDesktopError('invalid_file_path', `path is not a ${expected}: ${relativePath}`);
+  }
+};
+
+/**
  * 创建一个桌面文件 host。
  *
  * @param options - host 配置
@@ -499,6 +537,10 @@ export function createElectronFileHost(options: ElectronFileHostOptions): Electr
     // 于是这里读到的帧到了应答位置反而装不进协议。
   ): Promise<DesktopHostFileReadResult> => {
     const target = await containedPath(relativePath);
+    // 判在 open 之前：Windows 上 `open` 一个目录自己就先失败（EACCES/EPERM），拿不到句柄再判；
+    // 而 POSIX 上 open 成功、要等到 `read` 才炸，偏偏 `offset` 越过目录 stat 的 size 时
+    // 连 `read` 都不会调用 —— 那条路会安静地返回一个空帧加 eof。一次 stat 换四兆一帧，可以忽略。
+    await requireEntryKind(target, relativePath, 'file');
     let handle: FileHandle | undefined;
     try {
       handle = await open(target, 'r');
@@ -661,9 +703,11 @@ export function createElectronFileHost(options: ElectronFileHostOptions): Electr
       return { kind: 'file.mkdir' };
     }
     if (request.kind === 'file.rmdir') {
+      await requireEntryKind(target, request.path, 'directory');
       await runPathOperation(() => rm(target, { force: true, recursive: true }), request.path);
       return { kind: 'file.rmdir' };
     }
+    await requireEntryKind(target, request.path, 'file');
     await runPathOperation(() => rm(target, { force: true }), request.path);
     return { kind: 'file.remove' };
   };

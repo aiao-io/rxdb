@@ -5,6 +5,7 @@ import { EntityPatch, IEntityStatus } from '../../entity/entity-status.interface
 import { EntityStatus } from '../../entity/entity-status.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import type { EntityType } from '../../entity/entity.interface.js';
+import { setSafeObjectKey } from '../../entity/entity.utils.js';
 import {
   EntityRelationMetadata,
   PropertyType,
@@ -80,8 +81,19 @@ describe('EntityStatus', () => {
     meta!: Record<string, unknown>;
   }
 
+  /**
+   * 回填 `proxyTarget`——生产里由 `entity-manager` 建完代理后做同一件事
+   * （`#init_entity` 里的 `setSafeObjectKey(newStatus, 'proxyTarget', proxyEntity)`）。
+   *
+   * @remarks
+   * 走 `setSafeObjectKey` 而不是 `Reflect.set`：属性描述符要和生产一致（不可枚举、不可写、
+   * 不可重定义），否则这里装出来的 status 比真的宽松，`patch` 之类按 own key 遍历的逻辑
+   * 就可能在测试里表现得跟线上不一样。字段本身是 `IEntityStatus` 的公开只读属性，
+   * 不是私有状态；这些用例只是不经代理直接指到实体自己（`patch` 比较的是
+   * proxyTarget 与 origin，指同一对象即可算出差异）。
+   */
   const setProxyTarget = <T extends EntityType>(status: EntityStatus<T>, target: Partial<InstanceType<T>>) => {
-    Reflect.set(status, 'proxyTarget', target);
+    setSafeObjectKey(status, 'proxyTarget', target);
   };
 
   let rxdb: RxDB;

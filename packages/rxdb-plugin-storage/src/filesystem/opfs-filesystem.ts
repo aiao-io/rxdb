@@ -9,7 +9,7 @@
  * @module rxdb-plugin-storage/filesystem/opfs-filesystem
  */
 
-import { StorageUnavailableError } from '../errors.js';
+import { StorageInvalidPathError, StorageUnavailableError } from '../errors.js';
 import {
   getDirectoryPathFromOpfsPath,
   getFileNameFromOpfsPath,
@@ -67,13 +67,25 @@ const isMovableFileSystemHandle = (handle: FileSystemHandle): handle is MovableF
  *
  * 只认这两个具名错误：其余失败（权限、配额、句柄失效）仍旧原样抛出。
  */
-const isMissingOrWrongKind = (error: unknown): boolean => {
-  if (isStorageNotFoundError(error)) {
-    return true;
-  }
+const isMissingOrWrongKind = (error: unknown): boolean => isStorageNotFoundError(error) || isWrongKind(error);
 
-  return typeof error === 'object' && error !== null && (error as { name?: string }).name === 'TypeMismatchError';
-};
+/** 单判「名字被另一种条目占用」：OPFS 在 `getFileHandle` / `getDirectoryHandle` 上报这个名字。 */
+const isWrongKind = (error: unknown): boolean =>
+  typeof error === 'object' && error !== null && (error as { name?: string }).name === 'TypeMismatchError';
+
+/**
+ * 路径上是另一种条目时的统一失败。
+ *
+ * @remarks
+ * 归一成 {@link StorageInvalidPathError} 而不是把 OPFS 的 `TypeMismatchError` 原样抛出：
+ * 桌面后端那边收到的是 host 协议码 `invalid_file_path`，两个后端各抛各的，调用方就得按
+ * 后端分支，「换后端不改行为」随即落空。判据与用例在 `storage-backend-parity.suite.ts`。
+ *
+ * @param path - 调用方传进来的原始路径（未编码），错误里只提它。
+ * @param expected - 该操作要求的条目类型。
+ */
+const wrongKind = (path: string, expected: 'directory' | 'file'): StorageInvalidPathError =>
+  new StorageInvalidPathError(path, `Storage path is not a ${expected}: ${path}`);
 
 /**
  * 取目录条目迭代器。
@@ -169,9 +181,16 @@ export class OpfsStorageFilesystem implements StorageFilesystem {
     const relativePath = normalizeRemovableDirectoryPath(directoryPath);
 
     try {
+      // 先按目录解析目标本身：`removeEntry` 不挑类型，路径上摆着文件时它会把**文件**删掉。
+      // 调用点全都已知类型（服务层的 `clear()` 按 `entry.kind` 分派），撞上类型不符只说明
+      // 服务层的模型与盘上漂移了 —— 那要出声，不能顺手删掉一个不该删的东西。
+      await this.getDirectoryHandle(relativePath);
       const parentHandle = await this.getDirectoryHandle(getDirectoryPathFromOpfsPath(relativePath));
       await parentHandle.removeEntry(getFileNameFromOpfsPath(relativePath), { recursive: true });
     } catch (error) {
+      if (isWrongKind(error)) {
+        throw wrongKind(directoryPath, 'directory');
+      }
       if (!isStorageNotFoundError(error)) {
         throw error;
       }
@@ -203,8 +222,16 @@ export class OpfsStorageFilesystem implements StorageFilesystem {
 
   /** {@inheritDoc StorageFilesystem.readBlob} */
   async readBlob(filePath: string): Promise<Blob> {
-    const fileHandle = await this.getFileHandle(filePath);
-    return fileHandle.getFile();
+    try {
+      return await (await this.getFileHandle(filePath)).getFile();
+    } catch (error) {
+      // 路径上是目录时 OPFS 报 `TypeMismatchError`，而 host 侧靠 errno 判会随平台变
+      // （Linux EISDIR / Windows EACCES）。两边都归到同一个错误，调用方才不必按后端与平台分支。
+      if (isWrongKind(error)) {
+        throw wrongKind(filePath, 'file');
+      }
+      throw error;
+    }
   }
 
   /** {@inheritDoc StorageFilesystem.openRead} */
@@ -222,9 +249,14 @@ export class OpfsStorageFilesystem implements StorageFilesystem {
   /** {@inheritDoc StorageFilesystem.removeFile} */
   async removeFile(filePath: string): Promise<void> {
     try {
+      // 与 removeDirectory 同源：不先按文件解析，`removeEntry` 撞上空目录会把**目录**删掉。
+      await this.getFileHandle(filePath);
       const directoryHandle = await this.getDirectoryHandle(getDirectoryPathFromOpfsPath(filePath));
       await directoryHandle.removeEntry(getFileNameFromOpfsPath(filePath));
     } catch (error) {
+      if (isWrongKind(error)) {
+        throw wrongKind(filePath, 'file');
+      }
       if (!isStorageNotFoundError(error)) {
         throw error;
       }

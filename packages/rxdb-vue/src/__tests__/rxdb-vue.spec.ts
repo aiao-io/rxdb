@@ -9,10 +9,10 @@ import { createSetupHarness } from './setup-harness';
 
 const createRxDB = (name: string): RxDB => ({ name }) as unknown as RxDB;
 
-/** 带可观测 `disconnectAll` 的假库，用来断言所有权规则。 */
+/** 带可观测 `destroy` 的假库，用来断言所有权规则。 */
 const createOwnableRxDB = (name: string) => {
-  const disconnectAll = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
-  return { database: { name, disconnectAll } as unknown as RxDB, disconnectAll };
+  const destroy = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+  return { database: { name, destroy } as unknown as RxDB, destroy };
 };
 
 const mountWithProvider = <T>(source: RxDBVue.RxDBInput<RxDB>, consume: () => T) => {
@@ -256,7 +256,7 @@ describe('异步 source', () => {
 // 否则一个模块级单例会随某个子组件卸载而失效，且没有人会去重连。
 describe('生命周期所有权', () => {
   it('disconnects a database it created itself', async () => {
-    const { database, disconnectAll } = createOwnableRxDB('owned');
+    const { database, destroy } = createOwnableRxDB('owned');
     const mounted = mountWithProvider(
       () => database,
       () => RxDBVue.injectRxDBRef()
@@ -266,29 +266,29 @@ describe('生命周期所有权', () => {
     expect(mounted.result?.value).toBe(database);
 
     mounted.wrapper.unmount();
-    expect(disconnectAll).toHaveBeenCalledTimes(1);
+    expect(destroy).toHaveBeenCalledTimes(1);
   });
 
   it('leaves a caller-supplied instance alone', () => {
-    const { database, disconnectAll } = createOwnableRxDB('caller-owned');
+    const { database, destroy } = createOwnableRxDB('caller-owned');
     const mounted = mountWithProvider(database, () => RxDBVue.injectRxDB());
 
     mounted.wrapper.unmount();
 
-    expect(disconnectAll).not.toHaveBeenCalled();
+    expect(destroy).not.toHaveBeenCalled();
   });
 
   it('leaves a caller-supplied ref alone', () => {
-    const { database, disconnectAll } = createOwnableRxDB('caller-ref');
+    const { database, destroy } = createOwnableRxDB('caller-ref');
     const mounted = mountWithProvider(shallowRef<RxDB | undefined>(database), () => RxDBVue.injectRxDB());
 
     mounted.wrapper.unmount();
 
-    expect(disconnectAll).not.toHaveBeenCalled();
+    expect(destroy).not.toHaveBeenCalled();
   });
 
   it('disconnects a database that settles after unmount', async () => {
-    const { database, disconnectAll } = createOwnableRxDB('late');
+    const { database, destroy } = createOwnableRxDB('late');
     let settle: (value: RxDB) => void = () => undefined;
     const pending = new Promise<RxDB>(resolve => (settle = resolve));
     const mounted = mountWithProvider(
@@ -300,6 +300,6 @@ describe('生命周期所有权', () => {
     settle(database);
     await flushPromises();
 
-    expect(disconnectAll).toHaveBeenCalledTimes(1);
+    expect(destroy).toHaveBeenCalledTimes(1);
   });
 });

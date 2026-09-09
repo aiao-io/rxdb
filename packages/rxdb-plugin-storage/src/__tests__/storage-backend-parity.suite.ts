@@ -342,6 +342,66 @@ export function storageBackendParitySuite(backend: ParityBackend): void {
       }
     });
 
+    it('删除撞上另一种条目时拒绝，且不把它删掉', async () => {
+      // 三个后端此前各干各的：OPFS 的 `removeEntry` 不挑类型，rmdir 一个文件会把**文件**删掉；
+      // Electron 的 `rm(recursive: true)` 同样删掉；Rust 宿主按平台报 NotADirectory / EPERM。
+      // 「删掉的不是我要删的那种东西」是数据损失。而所有调用点都已知类型（`clear()` 按
+      // `entry.kind` 分派，ops 层删的是自己刚写的临时文件与备份），撞上类型不符只说明
+      // 服务层的模型与盘上真实情况漂移了 —— 那要出声，既不能顺手删掉，也不能静默当成
+      // 「本来就没有」放过去。
+      const filesystem = backend.createRawFilesystem();
+      try {
+        await filesystem.ensureRoot();
+        await filesystem.ensureDirectory('/box');
+        const writer = await filesystem.openWrite('plain.txt');
+        await writer.write(new TextEncoder().encode('x'));
+        await writer.close();
+
+        await expect(filesystem.removeDirectory('/plain.txt')).rejects.toMatchObject({
+          name: 'StorageInvalidPathError'
+        });
+        await expect(filesystem.removeFile('box')).rejects.toMatchObject({ name: 'StorageInvalidPathError' });
+
+        // 两个目标都还在：否则上面的「已拒绝」可能发生在删除**之后**，断言就成了摆设
+        await expect(filesystem.fileExists('plain.txt')).resolves.toBe(true);
+        await expect(filesystem.directoryExists('/box')).resolves.toBe(true);
+      } finally {
+        filesystem.dispose();
+      }
+    });
+
+    it('删除不存在的目标仍静默成功，不被类型判据带成抛错', async () => {
+      // 与上一条同源，方向相反：类型判据只该挑出「那里是另一种东西」，
+      // 不能顺手把「那里什么都没有」也判成非法 —— 服务层的回滚会对已经删掉的路径
+      // 再删一次（`storage.ops.ts` 的补偿分支），那条路径必须保持幂等。
+      const filesystem = backend.createRawFilesystem();
+      try {
+        await filesystem.ensureRoot();
+
+        await expect(filesystem.removeDirectory('/nowhere')).resolves.toBeUndefined();
+        await expect(filesystem.removeFile('nowhere.txt')).resolves.toBeUndefined();
+      } finally {
+        filesystem.dispose();
+      }
+    });
+
+    it('读文件撞上目录时拒绝，而不是各平台各报各的', async () => {
+      // 评审点名的 Windows 分叉就在这里：靠 errno 判类型，`file.read` 一个目录在
+      // Linux 是 EISDIR、在 Windows 是 EACCES，同一份代码给出两个码。改成先判类型，
+      // 三个后端 × 三个平台才收敛到同一个答案。
+      const filesystem = backend.createRawFilesystem();
+      try {
+        await filesystem.ensureRoot();
+        await filesystem.ensureDirectory('/box');
+
+        await expect(filesystem.readBlob('box')).rejects.toMatchObject({ name: 'StorageInvalidPathError' });
+        // `openRead` 也要在**取流之前**就拒绝，而不是等调用方开始读才炸
+        await expect(filesystem.openRead('box')).rejects.toMatchObject({ name: 'StorageInvalidPathError' });
+      } finally {
+        filesystem.dispose();
+      }
+    });
+
     it('含空格、非 ASCII 与保留字符的名字往返一致', async () => {
       const { service } = makeService();
       // 桌面后端要把这些字符编码成原生文件系统接受的物理名再解码回来；
