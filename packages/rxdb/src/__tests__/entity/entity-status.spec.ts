@@ -235,16 +235,17 @@ describe('EntityStatus', () => {
 
       // 模拟 proxyTarget。
       setProxyTarget(status, entity);
+      status.markChanged('title');
 
-      // 访问 patch 以创建缓存。
-      const firstPatch = status.patch;
-      expect(firstPatch).toBeDefined();
+      // origin 是构造时的深拷贝快照，此刻与 proxyTarget 逐字段相等 → 空 patch，并落缓存
+      expect(status.patch).toEqual({});
 
-      // 设置 modified 应清除缓存。
+      entity.title = 'Changed';
+      // 缓存还在，这次改动照不进来——先钉住「确实有缓存」，否则下一步的断言证明不了是它被清了
+      expect(status.patch).toEqual({});
+
       status.modified = true;
-
-      const secondPatch = status.patch;
-      expect(secondPatch).toBeDefined();
+      expect(status.patch).toEqual({ title: 'Changed' });
     });
   });
 
@@ -494,18 +495,20 @@ describe('EntityStatus', () => {
     });
 
     it('should clear fingerprint when modified is set', () => {
-      const entity = new TestEntity({ id: uuid(), title: 'Test', updatedAt: new Date() });
+      const entity = new TestEntity({ id: uuid(), title: 'Test', updatedAt: new Date(1000) });
       const status = new EntityStatus(rxdb, { target: entity });
 
       // 访问 fingerprint 以生成并缓存它。
       const fp1 = status.fingerprint;
-      expect(fp1).toBeDefined();
+      expect(fp1).toContain('@1000@');
+
+      // updatedAt 声明成 readonly（生产里由适配器保存后回填），这里照着回填那一下改值
+      Object.assign(entity, { updatedAt: new Date(2000) });
+      // 缓存还在，新的 updatedAt 照不进来——先钉住「确实有缓存」
+      expect(status.fingerprint).toBe(fp1);
 
       status.modified = true;
-      const fp2 = status.fingerprint;
-
-      // 应重新生成（值可能相同，但缓存已清除）
-      expect(fp2).toBeDefined();
+      expect(status.fingerprint).toContain('@2000@');
     });
 
     // RXD-052：指纹只由 `${id}@${updatedAt}` 构成时，任何**不改 updatedAt 的业务字段变化**

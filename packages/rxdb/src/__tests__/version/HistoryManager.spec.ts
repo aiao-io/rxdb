@@ -295,6 +295,24 @@ interface MutableHistoryManagerState {
   isInvalidatingRedo: boolean;
 }
 
+/**
+ * 直接写 `HistoryManager` 的两个执行中标志。**只给下面两条防御分支用例用**，别扩散。
+ *
+ * @remarks
+ * 这两个标志正常只由 `applyUndoRedoHistories` / `invalidateRedoStack` 自己在**同一个
+ * 序列化任务内部**置起再复位，而 `undo` / `redo` / `invalidateRedoStack` 三个入口全都
+ * 走 `#runSerialized` 排队（`history-scope-api.ts` 的 undo/redo、`HistoryManager.ts` 的
+ * invalidateRedoStack），任务之间不重叠——所以 `invalidateRedoStack` 开头那道
+ * `isUndoRedoInProgress || isInvalidatingRedo` 检查，从任何公开入口都到不了。
+ * 「持着 undo 不放再去 invalidate」也不行：后者只会排在 undo 后面，等它跑到时标志已复位。
+ *
+ * 真正生效、也真正被测的那道守卫在调用方 `VersionManager.ts` 的
+ * `if (!this.historyManager.isExecutingUndoRedo())`，它连 `syncDepth` 一起看，
+ * 由 `HistoryManager.scopes-and-undo.spec.ts` 经公开的 `syncing()` 与真实 undo 覆盖。
+ *
+ * 这里注入，是为了让那道**够不到的兜底分支**也有断言盯着；断言钉的是行为
+ * （不调 `switchBranch`、redo 栈原样保留），不是标志本身。
+ */
 const getMutableHistoryManagerState = (manager: HistoryManager): MutableHistoryManagerState =>
   manager as unknown as MutableHistoryManagerState;
 
@@ -889,10 +907,9 @@ describe('HistoryManager - Class Methods', () => {
 
       await historyManager.invalidateRedoStack();
 
-      // redo 栈不应该被清空
-      historyManager.redoHistories$.subscribe(histories => {
-        expect(histories).toHaveLength(1);
-      });
+      // 跳过 = 一个字都没往库里写，redo 栈原样留着
+      expect(mockSwitchBranch).not.toHaveBeenCalled();
+      expect(await firstValueFrom(historyManager.redoHistories$)).toHaveLength(1);
 
       getMutableHistoryManagerState(historyManager).isUndoRedoInProgress = false;
     });
@@ -920,18 +937,21 @@ describe('HistoryManager - Class Methods', () => {
 
       await historyManager.invalidateRedoStack();
 
-      historyManager.redoHistories$.subscribe(histories => {
-        expect(histories).toHaveLength(1);
-      });
+      expect(mockSwitchBranch).not.toHaveBeenCalled();
+      expect(await firstValueFrom(historyManager.redoHistories$)).toHaveLength(1);
 
       getMutableHistoryManagerState(historyManager).isInvalidatingRedo = false;
     });
 
+    // 空栈是**唯一一条公开可达**的跳过路径（另两条要注入标志才够得到）：没东西可失效时
+    // 不该为此开一次 switchBranch —— 那是一次真实的写事务，白跑一趟还会推进变更序列号
     it('should skip if redo stack is empty', async () => {
+      expect(await firstValueFrom(historyManager.redoHistories$)).toHaveLength(0);
+
       await historyManager.invalidateRedoStack();
 
-      // 不应该抛出错误
-      expect(true).toBe(true);
+      expect(mockSwitchBranch).not.toHaveBeenCalled();
+      expect(await firstValueFrom(historyManager.redoHistories$)).toHaveLength(0);
     });
 
     it('should handle errors gracefully', async () => {
@@ -974,8 +994,14 @@ describe('HistoryManager - Class Methods', () => {
 
       await expect(historyManager.invalidateRedoStack()).rejects.toThrow('Switch failed');
 
-      // 确保标志被重置
-      expect(getMutableHistoryManagerState(historyManager).isInvalidatingRedo).toBe(false);
+      // 标志必须复位——否则此后每次 invalidateRedoStack 都被自己的守卫挡掉，redo 栈
+      // 再也失效不了。读公开的 isExecutingUndoRedo() 而不是私有字段：它就是对外的那个答案
+      expect(historyManager.isExecutingUndoRedo()).toBe(false);
+      // 复位了还得真能再跑：这次换成能成功的 switchBranch，栈应当被清空
+      mockAdapter.switchBranch.mockResolvedValue(undefined);
+      await historyManager.invalidateRedoStack();
+      expect(mockAdapter.switchBranch).toHaveBeenCalledTimes(2);
+      expect(await firstValueFrom(historyManager.redoHistories$)).toHaveLength(0);
     });
   });
 
