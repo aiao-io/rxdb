@@ -1,4 +1,9 @@
-import { MAX_BATCH_WAIT_MS, SQLiteChangeType, type SqliteChangeEvent } from '@aiao/rxdb-adapter-sqlite-core';
+import {
+  MAX_BATCH_WAIT_MS,
+  SQLiteChangeType,
+  WATCH_TABLES,
+  type SqliteChangeEvent
+} from '@aiao/rxdb-adapter-sqlite-core';
 import { RxDBAdapterDesktopError } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -15,6 +20,9 @@ let events: SqliteChangeEvent[];
 
 /** SQL 字面量里统一用正斜杠，Windows 路径直接内嵌会被当成转义序列。 */
 const sqlPath = (value: string): string => value.replace(/\\/g, '/');
+
+/** 引擎只为这几张核心系统表装通知触发器；用真集合而非硬编码，核心加表时用例跟着走。 */
+const WATCHED_TABLES = [...WATCH_TABLES];
 
 const openEngine = (fileName = 'app.sqlite3', batchTimeout?: number): NodeSqliteEngine => {
   const engine = NodeSqliteEngine.open({
@@ -145,6 +153,35 @@ describe('NodeSqliteEngine file scope', () => {
     expectDenied(engine, `VACUUM INTO '${sqlPath(copy)}'`);
 
     expect(existsSync(copy)).toBe(false);
+  });
+
+  /**
+   * `temp_store_directory` 把 SQLite 的临时文件引到宿主根之外，`data_store_directory` 对
+   * 相对路径的库文件同理——两条都绕开了宿主那次路径解析，正是 ATTACH 被拦的同一个理由。
+   *
+   * 更糟的是它们改的是 `sqlite3_temp_directory` / `sqlite3_data_directory` 这两个**进程级全局**：
+   * 一个会话设了，同进程里其余会话（别的窗口、别的库）全都跟着改，而且 SQLite 官方标注
+   * 二者都已废弃且非线程安全。所以另开一条连接验证全局没被动过——只断言语句被拒，
+   * 挡漏了也照样绿。
+   *
+   * 大小写与引号变体一并覆盖：SQLite 的 pragma 名不区分大小写，但交给授权器的是
+   * **用户写的那个拼法**（`PRAGMA TEMP_STORE_DIRECTORY` 传过去就是全大写）。
+   * 按原样全等匹配的话，renderer 改一下大小写就绕过去了。
+   */
+  it('denies the pragmas that repoint SQLite process wide directories', () => {
+    const engine = openEngine();
+    for (const pragma of ['temp_store_directory', 'data_store_directory']) {
+      for (const spelling of [pragma, pragma.toUpperCase(), `"${pragma.toUpperCase()}"`]) {
+        expectDenied(engine, `PRAGMA ${spelling} = '${sqlPath(outside)}'`);
+        // 读也拒：回给 renderer 的是一个宿主绝对路径
+        expectDenied(engine, `PRAGMA ${spelling}`);
+      }
+    }
+
+    const probe = new DatabaseSync(join(workspace, 'probe.sqlite3'));
+    const temporary = probe.prepare('PRAGMA temp_store_directory').all();
+    probe.close();
+    expect(temporary).toEqual([]);
   });
 
   // 授权器不能误伤库内能力：rawQuery() 的正常用途必须原样可用
@@ -418,6 +455,79 @@ describe('NodeSqliteEngine change notification', () => {
     engine.execute('SELECT 1');
     createChangeTable(engine);
     engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
+    await flushed();
+    expect(events).toHaveLength(1);
+  });
+
+  /**
+   * TEMP 触发器与主库共用同一个事务：装它的事务一回滚，它就跟着消失。
+   * 引擎若把「已装」记成了永久事实，惰性安装此后会一直跳过这张表，该表的变更事件静默丢失——
+   * 而适配器的建表脚本正是跑在 `BEGIN IMMEDIATE` / `COMMIT` 之间，COMMIT 失败后同一会话会重试。
+   */
+  it('reinstalls the notify triggers when the transaction that created the table rolls back', async () => {
+    const engine = openEngine();
+    engine.execute('BEGIN IMMEDIATE');
+    createChangeTable(engine);
+    engine.execute('ROLLBACK');
+
+    createChangeTable(engine);
+    engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
+    await flushed();
+    expect(events).toHaveLength(1);
+  });
+
+  // 三张表全建在同一个事务里时，「已装」的记录会撑满 WATCH_TABLES 触发提前返回，
+  // 回滚之后连 sqlite_master 都不再查——比单表漏装更彻底，必须单独钉住
+  it('reinstalls the triggers of every watched table after the transaction that created them all rolls back', async () => {
+    const engine = openEngine();
+    const createAll = (): void => {
+      for (const table of WATCHED_TABLES) {
+        engine.execute(`CREATE TABLE IF NOT EXISTS "${table}" (id INTEGER PRIMARY KEY, payload TEXT)`);
+      }
+    };
+    engine.execute('BEGIN IMMEDIATE');
+    createAll();
+    engine.execute('ROLLBACK');
+
+    createAll();
+    for (const table of WATCHED_TABLES) {
+      engine.execute(`INSERT INTO "${table}" (payload) VALUES (?)`, ['x']);
+    }
+    await flushed(WATCHED_TABLES.length);
+    expect(events.map(event => event.tableName).sort()).toEqual([...WATCHED_TABLES].sort());
+  });
+
+  /**
+   * 回滚不只来自调用方发的 `ROLLBACK`：`ON CONFLICT ROLLBACK` 在语句内部就把事务掀了，
+   * 谁也没发过那条语句。Rust 侧为此专门挂了 SQLite 的 rollback hook；`node:sqlite` 不暴露它，
+   * 所以这里改成不认「回滚发生了没有」，只认「触发器是不是装在事务里的」——两条路径一并覆盖。
+   */
+  it('reinstalls the notify triggers after an ON CONFLICT ROLLBACK tore down the transaction', async () => {
+    const engine = openEngine();
+    engine.execute('BEGIN IMMEDIATE');
+    engine.execute(
+      'CREATE TABLE "rxdb$rxdb_change" (id INTEGER PRIMARY KEY, payload TEXT UNIQUE ON CONFLICT ROLLBACK)'
+    );
+    engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['dup']);
+    expect(() => engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['dup'])).toThrow();
+    // 先把回滚前那次写入攒下的事件放出来再清账：不排空的话，它稍后落进 events 会被
+    // 后面的断言错认成「触发器还在工作」，用例就变成了永远绿
+    await new Promise(resolve => setTimeout(resolve, MAX_BATCH_WAIT_MS * 2));
+    events.length = 0;
+
+    createChangeTable(engine);
+    engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
+    await flushed();
+    expect(events).toHaveLength(1);
+  });
+
+  // 事务内的写入本身也要能被观察到：修法不能退化成「事务里干脆不装触发器」
+  it('emits for a write made inside the same transaction that created the table', async () => {
+    const engine = openEngine();
+    engine.execute('BEGIN IMMEDIATE');
+    createChangeTable(engine);
+    engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['x']);
+    engine.execute('COMMIT');
     await flushed();
     expect(events).toHaveLength(1);
   });

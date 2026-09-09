@@ -11,15 +11,14 @@
 
 评审报告只留**尚未处理**的条目。复核确认已修、或判定不值得做的条目直接删除——修法与判据都写在代码注释里，报告再留一份副本只会与代码漂移。整份报告清空即删文件。
 
-| 文件                                   | 说明                                            | 剩余项                                                     |
-| -------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------- |
-| `README.md`                            | 本说明与状态约定                                | —                                                          |
-| `review.template.md`                   | 新建 review 记录的模板                          | —                                                          |
-| `next-0831-branch-review.md`           | next-0831 分支评审                              | 3（http-server 错误码、`recipe-query` 无 spec、tauri dev） |
-| `next-11-rxdb-package-review.md`       | next-11 分支 `packages/rxdb` 包评审             | 4 块 + 1 条规格决策                                        |
-| `next-11-rxdb-adapter-tauri-review.md` | next-11 分支 `packages/rxdb-adapter-tauri` 评审 | 3（均需另开工作项）                                        |
+| 文件                                   | 说明                                            | 剩余项              |
+| -------------------------------------- | ----------------------------------------------- | ------------------- |
+| `README.md`                            | 本说明与状态约定                                | —                   |
+| `review.template.md`                   | 新建 review 记录的模板                          | —                   |
+| `next-11-rxdb-package-review.md`       | next-11 分支 `packages/rxdb` 包评审             | 4 块 + 1 条规格决策 |
+| `next-11-rxdb-adapter-tauri-review.md` | next-11 分支 `packages/rxdb-adapter-tauri` 评审 | 1（需另开工作项）   |
 
-> 最近一次全量复核：2026-09-09（`next-1123-branch-review.md` 全部处理完毕，已删除）。
+> 最近一次全量复核：2026-09-09（`next-1123-branch-review.md` 与 `next-0831-branch-review.md` 全部处理完毕，已删除）。
 
 ## 状态约定
 

@@ -237,14 +237,21 @@ v1 `HANDSHAKE`。已改为 `app.emit_to(target_label, …)`。
 nx 缓存，恢复产物时整个父目录被换掉，**连带删掉 `devtools/`**；而 `build-devtools` 同时也命中
 缓存被跳过，没人再写回去。调试窗口于是 404，面板不 bootstrap，一帧不发。
 
-**修法**：把依赖**反过来**——`build-devtools` dependsOn `build`（原先是 `build` dependsOn
-`build-devtools`），并给它声明 `outputs` + `cache: true`，面板产物因此总是**最后**落盘；
-缓存命中时 nx 也知道要把 `devtools/` 恢复回来。`tauri.conf.json` 的 `beforeBuildCommand`
-随之改成 `nx run dev-rxdb-tauri:build-devtools`（它会带上 `build`，配置仍走 `build` 的
-`defaultConfiguration: production`），release 打包因此也拿到完整前端产物。
+**修法（2026-09-04）**：把依赖**反过来**——`build-devtools` dependsOn `build`（原先是 `build`
+dependsOn `build-devtools`），并给它声明 `outputs` + `cache: true`，面板产物因此总是**最后**
+落盘；缓存命中时 nx 也知道要把 `devtools/` 恢复回来。`tauri.conf.json` 的 `beforeBuildCommand`
+随之改成 `nx run dev-rxdb-tauri:build-devtools`（它会带上 `build`）。
 
 判别力实测：清空 `dist/` 后重跑，拿到 **20/20 全缓存命中**，而 `devtools/` 与 `index.html`
 同时在位——那正是以前必然翻车的那一格。
+
+**换成拆掉共用（2026-09-09）**：上面那一版只按住了**顺序**，两个 target 仍写同一棵树。现在
+`build-devtools` 落 `dist/devtools/dev-rxdb-tauri`（刻意不叫 `dist/apps/dev-rxdb-tauri-devtools`：
+那与 `build` 的 outputPath 互为字符串前缀），再由 `build` 的 `assets` 拷进 `browser/devtools/`；
+依赖方向回到 `build` dependsOn `build-devtools`，`beforeBuildCommand` 回到 `nx build dev-rxdb-tauri`。
+只有 `build` 写 `dist/apps/dev-rxdb-tauri`，缓存恢复的是它自己的完整产物，这条竞态不再有形态。
+
+改动的直接动机是 `tauri dev` 下**调试窗口一直是坏的**（见发现 21），拆共用是顺带的收益。
 
 **AC#1 关闭**：`devtools-window-transport.spec.ts` 三条全绿（原先两条 `it.fails` 已翻成真断言）。
 dev 产物的窗口集合恰为 `["main", "rxdb-devtools"]`；主窗口收到调试窗口经真实 Rust 中继送达的
@@ -813,6 +820,29 @@ wire 上才炸，表征会是「快照多出一条不该有的记录」，而在
 
 两条用例都验过是**真红**：去掉 `collectFiles` 里那行过滤，TS 侧报 `expected [ …(2) ] to deeply
 equal [ 'committed.txt' ]`；把 Rust 的临时名去掉前导点，那条 Rust 断言当场失败。
+
+### 发现 21：`tauri dev` 下的调试窗口从来没打开过面板（**已修**，2026-09-09）
+
+`open_devtools_window` 用 `WebviewUrl::App("devtools/devtools.html")`，而「App(...)」解析到哪儿
+取决于跑法：`tauri build` 走 `frontendDist`（磁盘产物，面板在），`tauri dev` 走 `devUrl` —— 即
+`nx serve` 起的 Angular dev server。dev server **只**服务 build target 的产物与 assets，不服务
+`outputPath` 目录：面板产物就算已经躺在 `dist/apps/dev-rxdb-tauri/browser/devtools/` 里，
+它也一个字节都不会给。而 `serve` 与 `build-devtools` 之间当时没有任何依赖关系。
+
+失败形态不是 404，这是它藏了这么久的原因：dev server 的 **SPA 回退**把主应用的 `index.html`
+回了过去（实测 `curl http://localhost:1420/devtools/devtools.html` → `HTTP 200`，
+`<title>RxDB Demo - Tauri</title>`）。调试窗口于是静默启动**第二份主应用**——窗口开着、
+有内容、不报错，只是永远不是面板。`devtools-window-transport.spec.ts` 也照不到这条路：
+它跑的是 `tauri-package-dev` 的产物并**自己**在 1420 上服务 `dist/.../browser`，那份里面板在。
+
+**修法**：面板产物移出 `build` 的产物树（落 `dist/devtools/dev-rxdb-tauri`），经 `build` 的
+`assets` 拷进 `browser/devtools/`；`build` dependsOn `build-devtools`，`serve` 另外自己点一次名
+（dev-server executor 在进程内跑 buildTarget，不会执行 `build` 的 `dependsOn`）。两条取前端的
+路径从此共用同一份拷贝。
+
+判据落在 `apps/dev-rxdb-tauri/src/app/build-config.spec.ts`（四条接线断言，先红后绿），
+外加一次实测：修后 `curl .../devtools/devtools.html` → `<title>RxDB DevTools</title>`，
+面板 JS / CSS 各 200，主应用不受影响。
 
 ## 技术约束
 

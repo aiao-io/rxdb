@@ -255,7 +255,8 @@ jobs:
       # 用的是**另一份产物**：`devtools-smoke` 依赖 `tauri-package-dev`（裸 `cargo build`，
       # 不带 `custom-protocol` feature，`cfg(dev)` 成立），调试窗口与 `devtools_message`
       # 只存在于那一份里 —— 上一步的 release 产物按定义验不到它们（那正是 AC#1 的隔离判据）。
-      # 前端产物由 Nx 经 `build-devtools → build` 顺带建出，套件自己在 1420 上服务它。
+      # 前端产物由 Nx 经 `build-devtools → build` 顺带建出（面板经 build 的 assets 进
+      # `browser/devtools/`），套件自己在 1420 上服务它。
       #
       # 加**步**而不是加 job：新 job 必须同步改 `gate` 的 `needs` 与断言列表（本文件开头的
       # ⚠️），漏改就是一条形同虚设的门禁；而这一步要的 Rust 工具链、WebKitGTK 开发库、

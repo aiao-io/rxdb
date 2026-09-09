@@ -47,7 +47,15 @@ export interface RecipeRowLike {
   readonly updatedAt: Date;
 }
 
-const toIso = (value: Date): string => (value instanceof Date ? value.toISOString() : new Date(value).toISOString());
+/**
+ * 时间戳 → ISO 串。
+ *
+ * @remarks
+ * 这里**不做** `instanceof Date` 判断再 `new Date(value)` 兜底：入参已定型为 `Date`，而唯一的
+ * 运行时来源——PGlite 适配器的 `transformValuePGliteToJs`——对 `date` 属性恒还 `Date`。
+ * 兜底只会把「实体读出来的形状不对」这种真 bug 悄悄抹平成一个看似正常的时间戳。
+ */
+const toIso = (value: Date): string => value.toISOString();
 
 /** 实体 → wire 完整行（时间戳定型成 ISO 串，`createdBy` / `updatedBy` 不出现）。 */
 export const toRecipeWireRow = (row: RecipeRowLike): RecipeWireRow => ({

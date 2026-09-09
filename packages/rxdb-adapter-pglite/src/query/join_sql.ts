@@ -9,7 +9,12 @@ import {
   RelationKind
 } from '@aiao/rxdb';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
-import { getTableNameByMetadata, quoteIdentifier, RxdbAdapterPGliteError } from '../pglite.utils.js';
+import {
+  getTableNameByMetadata,
+  INVALID_QUERY_ERROR_CODE,
+  quoteIdentifier,
+  RxdbAdapterPGliteError
+} from '../pglite.utils.js';
 import { type FieldAlias, jsonAccessor } from './json_accessor.js';
 
 export const MAIN_TABLE_ALIAS = '_' as const;
@@ -48,7 +53,7 @@ const visit_query_fields = (value: unknown, visit: (field: string) => void): voi
 
 const assert_safe_json_path = (parts: string[]): void => {
   if (parts.some(part => !SAFE_JSON_PATH_SEGMENT.test(part))) {
-    throw new RxdbAdapterPGliteError(`Invalid JSON path: ${parts.join('.')}`);
+    throw new RxdbAdapterPGliteError(`Invalid JSON path: ${parts.join('.')}`, INVALID_QUERY_ERROR_CODE);
   }
 };
 

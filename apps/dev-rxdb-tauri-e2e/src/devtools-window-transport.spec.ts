@@ -40,15 +40,17 @@ import { runSelfCheck, type DevToolsNativeProbe, type SelfCheckRun } from './pac
  * # 握手曾经握不上，卡在一条构建配置缺陷上（2026-09-04 修复）
  *
  * 这三条断言第一次写出来时只有第一条绿。真因不在协议也不在 transport，而在构建图：
- * `build-devtools`（vite 打面板，产出 `dist/apps/dev-rxdb-tauri/browser/devtools/`）原先**跑在
- * `build` 之前**，而它的产物是 `build` 的 outputs（`dist/apps/dev-rxdb-tauri`）的**子目录**，
- * 自己又没有声明 `outputs`。于是 `build` 一命中 nx 缓存，恢复产物时整个父目录被换掉、
- * `devtools/` 连带消失，而 `build-devtools` 也命中缓存被跳过、没人再写回去。
- * 调试窗口于是 404，面板根本不 bootstrap，一帧都不发——而构建全程报绿。
+ * `build-devtools`（vite 打面板）原先直接写进 `dist/apps/dev-rxdb-tauri/browser/devtools/`，
+ * 即 `build` 的 outputs（`dist/apps/dev-rxdb-tauri`）的**子目录**，自己又没有声明 `outputs`。
+ * 两个 target 共用一棵树：`build` 一命中 nx 缓存，恢复产物时整个父目录被换掉、`devtools/`
+ * 连带消失，而 `build-devtools` 也命中缓存被跳过、没人再写回去。调试窗口于是 404，
+ * 面板根本不 bootstrap，一帧都不发——而构建全程报绿。
  *
- * 修法是把依赖**反过来**（`build-devtools` dependsOn `build`）并给它声明 `outputs` + `cache`，
- * 面板产物因此总是最后落盘。实测判据：清空 `dist/` 后跑一次拿到 20/20 全缓存命中，
- * `devtools/` 与 `index.html` 同时在位——那正是以前必然翻车的那一格。
+ * 当时的修法是把依赖反过来（`build-devtools` dependsOn `build`）+ 声明 `outputs`，让面板产物
+ * 总是最后落盘；实测判据是清空 `dist/` 后跑一次拿到全缓存命中且 `devtools/` 与 `index.html`
+ * 同时在位。2026-09-09 换成拆掉共用：面板落 `dist/devtools/dev-rxdb-tauri`，由 `build` 的
+ * `assets` 拷进 `browser/devtools/`，于是只有 `build` 写那棵树，竞态从根上没有了
+ * （顺带修好 `tauri dev`，见 `apps/dev-rxdb-tauri/src/app/build-config.spec.ts`）。
  *
  * ⚠️ 依赖 dev 产物。跑之前：
  *   pnpm nx run dev-rxdb-tauri:tauri-package-dev

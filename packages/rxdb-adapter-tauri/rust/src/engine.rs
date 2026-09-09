@@ -543,12 +543,13 @@ impl Engine {
     /// 但 SQLite 同样走 `SQLITE_ATTACH` 授权码，所以一并被这条规则挡住——这正是必须用授权器
     /// 而不是正则扫 SQL 的原因。
     ///
-    /// 只封文件级 opcode，DDL/DML/事务/PRAGMA/TEMP 触发器全部照旧放行，库内能力不受影响。
+    /// 只封文件级 opcode，DDL/DML/事务/TEMP 触发器全部照旧放行，库内能力不受影响。
+    /// PRAGMA 整体也放行，只按名字挑掉 [`repoints_a_process_wide_directory`] 那两条。
     /// 与 Electron 侧 `NodeSqliteEngine.#initialize` 的授权器同规则——它直接对 `actionCode` 判，
     /// 这里也必须还原回 opcode 再判，理由见 [`escapes_the_file_scope`]。
     fn install_authorizer(&self) {
         self.db().authorizer(Some(|context: AuthContext<'_>| {
-            if escapes_the_file_scope(&context.action) {
+            if escapes_the_file_scope(&context.action) || repoints_a_process_wide_directory(&context.action) {
                 Authorization::Deny
             } else {
                 Authorization::Allow
@@ -819,6 +820,32 @@ fn escapes_the_file_scope(action: &AuthAction<'_>) -> bool {
         AuthAction::Unknown { code, .. } => *code == ffi::SQLITE_ATTACH || *code == ffi::SQLITE_DETACH,
         _ => false,
     }
+}
+
+/// 会把 SQLite 的文件落点挪出存储根的 pragma 名，**全小写**。
+///
+/// `temp_store_directory` 决定临时文件写在哪，`data_store_directory` 决定相对路径的库文件
+/// 开在哪。两条都绕开了 `resolve_within_root`，与 [`escapes_the_file_scope`] 拦 `ATTACH` 同因。
+const DENIED_PRAGMAS: [&str; 2] = ["temp_store_directory", "data_store_directory"];
+
+/// 这条授权动作会不会改掉 SQLite 的进程级全局目录。
+///
+/// 这两条 pragma 改的是 `sqlite3_temp_directory` / `sqlite3_data_directory` 两个**进程级全局
+/// 变量**，不是连接级设置：一个会话设了，同进程里其余会话（别的窗口、别的库）全都跟着改。
+/// SQLite 官方把二者都标为已废弃且非线程安全。读也一并拒——回给 renderer 的是宿主绝对路径。
+///
+/// **名字必须先折成小写再比。** pragma 名在 SQL 里不区分大小写，但 SQLite 交给授权器的是用户
+/// 写的那个拼法：`PRAGMA TEMP_STORE_DIRECTORY` 传过来就是全大写，按原样比对等于没拦。
+///
+/// `Unknown` 也一并判，理由与 [`escapes_the_file_scope`] 同：rusqlite 今天把哪些参数组合
+/// 归进哪个变体是它的实现细节，两边都判才不依赖那份细节。
+fn repoints_a_process_wide_directory(action: &AuthAction<'_>) -> bool {
+    let pragma_name = match action {
+        AuthAction::Pragma { pragma_name, .. } => Some(*pragma_name),
+        AuthAction::Unknown { code, arg1, .. } if *code == ffi::SQLITE_PRAGMA => *arg1,
+        _ => None,
+    };
+    pragma_name.is_some_and(|name| DENIED_PRAGMAS.contains(&name.to_ascii_lowercase().as_str()))
 }
 
 fn read_row(row: &rusqlite::Row<'_>, column_count: usize) -> Result<Vec<SqlValue>, rusqlite::Error> {
@@ -1215,6 +1242,45 @@ mod tests {
         let mut harness = harness(0);
         let error = harness.engine.execute("DETACH DATABASE nope", &[]).unwrap_err();
         assert_eq!(error.code, ErrorCode::PermissionDenied);
+    }
+
+    /// `temp_store_directory` 把临时文件引到存储根之外，`data_store_directory` 对相对路径的
+    /// 库文件同理——两条都绕开了 `resolve_within_root`，与 `ATTACH` 被拦是同一个理由。
+    ///
+    /// 它们改的是进程级全局变量，一个会话设了同进程全体跟着改，所以另开一条裸连接验证全局
+    /// 没被动过：只断言语句被拒，挡漏了也照样绿。
+    ///
+    /// 大小写与引号变体一并覆盖：交给授权器的是用户写的那个拼法，按原样全等匹配的话
+    /// renderer 改一下大小写就绕过去了。
+    #[test]
+    fn denies_the_pragmas_that_repoint_sqlite_process_wide_directories() {
+        let mut harness = harness(0);
+        let outside = temp_directory();
+
+        for pragma in DENIED_PRAGMAS {
+            let upper = pragma.to_ascii_uppercase();
+            for spelling in [pragma.to_owned(), upper.clone(), format!("\"{upper}\"")] {
+                let write = format!("PRAGMA {spelling} = '{}'", outside.0.display());
+                assert_eq!(
+                    harness.engine.execute(&write, &[]).unwrap_err().code,
+                    ErrorCode::PermissionDenied,
+                    "{write} was not denied"
+                );
+                // 读也拒：回给 renderer 的是一个宿主绝对路径
+                let read = format!("PRAGMA {spelling}");
+                assert_eq!(
+                    harness.engine.execute(&read, &[]).unwrap_err().code,
+                    ErrorCode::PermissionDenied,
+                    "{read} was not denied"
+                );
+            }
+        }
+
+        let probe = Connection::open_in_memory().unwrap();
+        let temporary: String = probe
+            .query_row("PRAGMA temp_store_directory", [], |row| row.get(0))
+            .unwrap_or_default();
+        assert!(temporary.is_empty(), "process wide temp directory was repointed to {temporary}");
     }
 
     /// SQLite 从不校验 TEXT 的编码：导入的库、别的程序写的库、`CAST(X'FF' AS TEXT)`

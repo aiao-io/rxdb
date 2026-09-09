@@ -30,9 +30,17 @@ export default defineConfig({
   publicDir: false,
   build: {
     emptyOutDir: true,
-    // 直接打进主 app 的 frontendDist 的 `devtools/` 子目录：`rxdb-devtools` 窗口据此
-    // 用 `WebviewUrl::App("devtools/devtools.html")` 加载，且不跟主 app 的 `assets/` 抢目录。
-    outDir: path.resolve(import.meta.dirname, '../../dist/apps/dev-rxdb-tauri/browser/devtools'),
+    // 打在主 app 产物**之外**，再由 `build` 的 assets 拷进 `browser/devtools/`——`rxdb-devtools`
+    // 窗口据此用 `WebviewUrl::App("devtools/devtools.html")` 加载，且不跟主 app 的 `assets/` 抢目录。
+    //
+    // 为什么不直接写进 `dist/apps/dev-rxdb-tauri/browser/devtools`（原先的做法）：那让本产物成为
+    // `build` outputs 的**子目录**，两个 target 抢同一棵树；而且 `tauri dev` 取前端走的是
+    // `nx serve` 的 dev server，它只服务 build 的产物与 assets，磁盘上的 `dist/` 一个字节都不给——
+    // 面板必须经 assets 进 build，两条取前端的路径才共用同一份拷贝。见 `build-config.spec.ts`。
+    //
+    // 路径也刻意不叫 `dist/apps/dev-rxdb-tauri-devtools`：那与 build 的 `dist/apps/dev-rxdb-tauri`
+    // 互为字符串前缀，任何按前缀判目录归属的地方都会踩空。
+    outDir: path.resolve(import.meta.dirname, '../../dist/devtools/dev-rxdb-tauri'),
     chunkSizeWarningLimit: 1024,
     rolldownOptions: {
       input: {
