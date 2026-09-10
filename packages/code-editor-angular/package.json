@@ -30,13 +30,13 @@
   },
   "peerDependencies": {
     "@aiao/code-editor": ">=0.0.25",
-    "@angular/common": "22.1.4",
-    "@angular/core": "22.1.4",
-    "@angular/forms": "22.1.4",
-    "@angular/platform-browser": "22.1.4"
+    "@angular/common": "22.1.6",
+    "@angular/core": "22.1.6",
+    "@angular/forms": "22.1.6",
+    "@angular/platform-browser": "22.1.6"
   },
   "devDependencies": {
-    "@angular/compiler": "22.1.4",
+    "@angular/compiler": "22.1.6",
     "vitest": "4.1.11"
   },
   "publishConfig": {
