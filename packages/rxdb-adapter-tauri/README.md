@@ -60,7 +60,8 @@ tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![rxdb_desktop_request])
     .setup(|app| {
         let dir = app.path().app_data_dir()?;
-        app.manage(DesktopHost::new(app.handle(), dir));
+        // 第三个参数是**窗口白名单**：只有这些 label 的窗口调得动 `rxdb_desktop_request`。
+        app.manage(DesktopHost::new(app.handle(), dir, &["main"]));
         Ok(())
     })
     // 窗口没了就回收它的会话，不等整个应用退出：挂 `Destroyed` 而不是 `CloseRequested`，
@@ -82,7 +83,14 @@ tauri::Builder::default()
     });
 ```
 
-做成普通 crate 而不是插件是刻意的：`generate_handler!` 注册的应用自定义命令**不受 capability 门禁约束**（只有 `core:` / `plugin:` 前缀的命令才是），于是接上桌面数据库**不需要**给应用授予 `sql` / `fs` / `shell` 任何插件权限，`capabilities/` 一个字都不用改。做成插件的话命令会带上 `plugin:` 前缀，恰好落进门禁——省下的只是上面这段样板，换掉的却是一条结构性的安全性质。
+白名单没有默认值、也不可省略。应用自有命令对**每一个** webview 开放（下一段说明为什么），
+会话归属只挡得住「用别人的 sessionId」，挡不住「自己开一个新会话」——不点名 owner，
+任何一扇窗口（调试窗口、将来某个忘了排除的窗口）都能自行打开应用作用域的库。
+未列入白名单的窗口发来的请求会得到一条普通应答 `{ kind: "error", code: "permission_denied" }`。
+
+做成普通 crate 而不是插件是刻意的：`generate_handler!` 注册的应用自定义命令**不受 capability 门禁约束**（只有 `core:` / `plugin:` 前缀的命令才是），于是接上桌面数据库**不需要**给应用授予 `sql` / `fs` / `shell` 任何插件权限。做成插件的话命令会带上 `plugin:` 前缀，恰好落进门禁——省下的只是上面这段样板，换掉的却是一条结构性的安全性质。
+
+不受门禁的只有 `rxdb_desktop_request` 这一条命令。**变更事件那一半仍然要过门禁**：`listen` 是 `core:event:listen`，用它的窗口需要 `core:event:default`（`core:default` 已经含了它，脚手架生成的 `default.json` 因此开箱可用）。真正会踩到的是自己裁过权限的窗口——那时症状很难看：`invoke` 通、库开得起来、查询也读得到数据，只是再也收不到变更事件，界面停在第一次查询的结果上，不报任何错。给那扇窗口的 capability 加上 `core:event:default` 即可。
 
 命令名与事件名由本包的两个常量钉住（`TAURI_DESKTOP_REQUEST_COMMAND` / `TAURI_DESKTOP_CHANGE_EVENT`），改名两边就对不上。变更事件按 `sessionId` 回送，事件名为 `rxdb-desktop-change`。
 
@@ -93,8 +101,9 @@ import { RxDB, SyncType } from '@aiao/rxdb';
 import { createTauriHostTransport, RxDBAdapterTauri, TAURI_ADAPTER_NAME } from '@aiao/rxdb-adapter-tauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 
-const transport = createTauriHostTransport({ invoke, listen });
+const transport = createTauriHostTransport({ invoke, listen, target: getCurrentWebviewWindow().label });
 
 const rxdb = new RxDB({
   dbName: 'demo',
@@ -111,6 +120,8 @@ await rxdb.disconnectAll();
 ```
 
 `invoke` / `listen` 由调用方注入而不是本包直接 import `@tauri-apps/api`：那样会把一个只在 Tauri 里存在的运行时依赖钉进包的依赖图，本包在浏览器测试环境里就再也加载不起来。
+
+`target` 是**必填**的，它是定向投递的另一半。宿主用 `emit_to(owner)` 只把变更事件发给开出该会话的窗口，但 tauri 在监听者的 target 为 `Any` 时无条件匹配，而 `listen()` 的默认恰恰是 `Any`——收件侧不带 target 注册，任何能调 `listen` 的 webview 都会收到所有窗口的 sessionId、库名与表名。注入 `getCurrentWebviewWindow().listen` 也可以，那份 `listen` 自带窗口 target，会忽略本字段。
 
 ## 逻辑库名不是路径
 
@@ -131,23 +142,44 @@ SQLite 的值经 JSON 往返，`encodeDesktopJsonPayload` / `decodeDesktopJsonPa
 
 两端的编码由本包 `conformance/` 下的一致性套件按真进程往返验证，`rust/src/value.rs` 是它的 Rust 对侧。
 
+### 非有限数：与 Electron 的一处已知差异
+
+JSON 写不出 `Infinity` / `-Infinity` / `NaN`，`JSON.stringify` 把它们变成 `null`。悄悄照做的话，
+一条绑了 `Infinity` 的 `INSERT` 会在库里落成 NULL —— 写进去的不是你给的值，而且全程没有报错。
+因此本适配器在**两个方向上都拒绝**这三个值，抛 `protocol_violation`：
+
+- **写入**：绑定参数里出现非有限数，请求在 WebView 侧就被拒，不会发给宿主（`encodeDesktopJsonPayload`）；
+- **读取**：某列的值是非有限 REAL（例如 `SELECT 1e400` 溢出成 `Infinity`），宿主拒绝编码这条应答（`rust/src/value.rs` 的 `encode_real`）。
+
+Electron 那侧的 IPC 是结构化克隆，搬得动非有限数，因此同样两件事在那里分别是写入成功、读回
+`Infinity`。这是两端目前已知的一处取值差异：**跨后端可移植的代码不要往 SQLite 里存非有限数**
+（存 `NULL` 或哨兵值，或改存字符串）。
+
 ## 错误码
 
 程序分支请读 `error.code`，不要匹配消息文本（消息以 `[code]` 加一个空格作前缀，仅便于日志检索）。错误码与 Electron 侧**完全共用同一套**，定义在 `@aiao/rxdb-adapter-sqlite-core/desktop-host` 的 `RxDBAdapterDesktopErrorCode`：
 
-| code                         | 含义                                                       |
-| ---------------------------- | ---------------------------------------------------------- |
-| `unsupported_runtime_engine` | 存储 `engine` 不在能力矩阵内（例如 PGlite data directory） |
-| `invalid_database_name`      | 逻辑库名非法，或试图越出应用作用域                         |
-| `host_unavailable`           | WebView 拿不到宿主（命令未注册 / 插件未装）                |
-| `session_closed`             | 会话已断开后继续使用                                       |
-| `protocol_violation`         | 请求或响应不符合协议形状                                   |
-| `open_failed`                | 打开数据库失败，`cause` 保留原始原因                       |
-| `permission_denied`          | 路径无权限，或语句被授权器拒绝                             |
-| `database_corrupted`         | 目标文件不是可用的 SQLite 数据库                           |
-| `statement_failed`           | SQL 本身执行失败（语法、约束等）                           |
-| `host_internal_error`        | 宿主自身出错，属于缺陷而非调用方问题                       |
-| `database_busy`              | 另一个连接正持有冲突的锁，重试即可，数据无损               |
+| code                         | 含义                                                            |
+| ---------------------------- | --------------------------------------------------------------- |
+| `unsupported_runtime_engine` | 存储 `engine` 不在能力矩阵内（例如 PGlite data directory）      |
+| `invalid_database_name`      | 逻辑库名非法，或试图越出应用作用域                              |
+| `host_unavailable`           | 请求没递到宿主（命令未注册 / capability 不许 / 参数序列化失败） |
+| `session_closed`             | 会话已断开后继续使用                                            |
+| `protocol_violation`         | 请求或响应不符合协议形状                                        |
+| `open_failed`                | 打开数据库失败，`cause` 保留原始原因                            |
+| `permission_denied`          | 路径无权限，或语句被授权器拒绝                                  |
+| `database_corrupted`         | 目标文件不是可用的 SQLite 数据库                                |
+| `statement_failed`           | SQL 本身执行失败（语法、约束等）                                |
+| `host_internal_error`        | 宿主自身出错，属于缺陷而非调用方问题                            |
+| `database_busy`              | 另一个连接正持有冲突的锁，重试即可，数据无损                    |
+| `file_not_found`             | 目标文件或目录不存在                                            |
+| `invalid_file_path`          | 路径逃出存储根，或指向的类型与操作不符                          |
+| `disk_full`                  | 磁盘空间或配额耗尽                                              |
+| `write_aborted`              | 写入令牌已失效，目标保持写入前的内容                            |
+| `transaction_not_found`      | 事务 ID 不存在、已结束，或不属于本会话；一条语句都没执行        |
+| `transaction_unavailable`    | 等待开启事务超时，另一个事务正占着连接；库无损，重试即可        |
+
+后六个只出现在文件存储（`@aiao/rxdb-plugin-storage` 的桌面后端）与事务这两条路径上。
 
 错误码是**契约的一部分**：新增只能追加，不得复用或改写既有含义。
 

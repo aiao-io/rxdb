@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DevToolsConnector } from '../connector.js';
-import { createDevToolsElectronSettingsProvider } from '../native/settings-provider.js';
+import { createDevToolsDesktopSettingsProvider } from '../native/settings-provider.js';
 import { createMessage, RXDB_DEVTOOLS_MESSAGE } from '../types.js';
 import { DEVTOOLS_PROTOCOL_VERSION_V2 } from '../v2/constants.js';
 import type { DevToolsV2Envelope, DevToolsV2MessageType } from '../v2/wire.js';
@@ -431,7 +431,7 @@ describe('DevToolsConnector v2 negotiation', () => {
       capabilities: 'readonly',
       providers: {
         nativeFiles: { filesystem: createFakeNativeFilesystem(), maxTransferBytes: 64 },
-        settings: createDevToolsElectronSettingsProvider(),
+        settings: createDevToolsDesktopSettingsProvider('electron'),
         runtime: 'electron'
       }
     });

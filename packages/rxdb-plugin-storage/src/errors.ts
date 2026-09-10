@@ -73,7 +73,15 @@ export class StorageMimeTypeMissingError extends Error {
   }
 }
 
-/** 路径含非法分段、分隔符或空白时抛出。 */
+/**
+ * 路径不是本次操作的合法目标时抛出。
+ *
+ * @remarks
+ * 三种来源：路径本身非法（含非法分段、分隔符或空白）、解析后逃出存储根、
+ * 以及**路径上的条目类型与操作不符**（拿 `removeFile` 删目录、拿 `readBlob` 读目录）。
+ * 三者合用一个类是刻意的：调用方能做的补救都一样（换条路径或先查类型），
+ * 而分开之后 OPFS 与桌面后端就得各报各的 —— 前者只有 DOM 异常名，后者只有 host 协议码。
+ */
 export class StorageInvalidPathError extends Error {
   /** 导致校验失败的原始路径。 */
   readonly path: string;
@@ -164,8 +172,6 @@ export type StorageBackendErrorCode =
   | 'backend_unavailable'
   /** 物理名无法编码或解码，落盘布局与逻辑名不再一一对应。 */
   | 'invalid_physical_name'
-  /** 解析后的路径逃出存储根。 */
-  | 'path_escape'
   /** 编码后的单个路径分段超出宿主文件系统的长度上限。 */
   | 'name_too_long'
   /** 宿主拒绝访问（EACCES / EPERM）。 */

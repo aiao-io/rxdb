@@ -16,7 +16,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use serde_json::{json, Value};
 
@@ -94,7 +94,7 @@ impl Host {
 
     /// 当前打开的会话数，用于诊断与关停检查。
     pub fn open_session_count(&self) -> usize {
-        self.sessions.lock().expect("session table mutex poisoned").len()
+        lock_through_poison(&self.sessions).len()
     }
 
     /// 关闭全部会话，通常在应用退出前调用。
@@ -102,11 +102,11 @@ impl Host {
     /// 逐个关闭，单个失败不影响其余——退出路径上「尽量都关掉」比「第一个出错就停手」更有用。
     pub fn close_all(&self) {
         let sessions = {
-            let mut table = self.sessions.lock().expect("session table mutex poisoned");
+            let mut table = lock_through_poison(&self.sessions);
             std::mem::take(&mut *table)
         };
         for engine in sessions.into_values() {
-            let _ = engine.lock().expect("engine mutex poisoned").close();
+            let _ = lock_through_poison(&engine).close();
         }
     }
 
@@ -145,7 +145,7 @@ impl Host {
             batch_timeout_ms: batch_timeout.unwrap_or(DEFAULT_BATCH_TIMEOUT_MS),
             sink: self.change_sink(&session_id),
         })?;
-        let mut table = self.sessions.lock().expect("session table mutex poisoned");
+        let mut table = lock_through_poison(&self.sessions);
         table.insert(session_id.clone(), Arc::new(Mutex::new(engine)));
         Ok(json!({
             "kind": "open",
@@ -161,16 +161,13 @@ impl Host {
 
     fn execute(&self, session_id: &str, sql: &str, bindings: &[rusqlite::types::Value]) -> HostResult<Value> {
         let engine = self.require_session(session_id)?;
-        let result = engine
-            .lock()
-            .expect("engine mutex poisoned")
-            .execute(sql, bindings)?;
+        let result = lock_through_poison(&engine).execute(sql, bindings)?;
         Ok(json!({ "kind": "execute", "result": encode_execute_result(&result)? }))
     }
 
     fn version(&self, session_id: &str) -> HostResult<Value> {
         let engine = self.require_session(session_id)?;
-        let version = engine.lock().expect("engine mutex poisoned").version()?;
+        let version = lock_through_poison(&engine).version()?;
         Ok(json!({ "kind": "version", "result": version }))
     }
 
@@ -185,7 +182,7 @@ impl Host {
     /// [`DesktopRouter::close_owner`]: crate::router::DesktopRouter::close_owner
     pub(crate) fn close(&self, session_id: &str) -> HostResult<Value> {
         let engine = self.take_session(session_id)?;
-        engine.lock().expect("engine mutex poisoned").close()?;
+        lock_through_poison(&engine).close()?;
         Ok(json!({ "kind": "close" }))
     }
 
@@ -196,12 +193,12 @@ impl Host {
     }
 
     fn require_session(&self, session_id: &str) -> HostResult<Arc<Mutex<Engine>>> {
-        let table = self.sessions.lock().expect("session table mutex poisoned");
+        let table = lock_through_poison(&self.sessions);
         table.get(session_id).map(Arc::clone).ok_or_else(|| unknown(session_id))
     }
 
     fn take_session(&self, session_id: &str) -> HostResult<Arc<Mutex<Engine>>> {
-        let mut table = self.sessions.lock().expect("session table mutex poisoned");
+        let mut table = lock_through_poison(&self.sessions);
         table.remove(session_id).ok_or_else(|| unknown(session_id))
     }
 }
@@ -211,6 +208,20 @@ impl Drop for Host {
     fn drop(&mut self) {
         self.close_all();
     }
+}
+
+/// 取锁，锁毒化了也照常取。
+///
+/// 毒化只说明**上一个**持锁者在临界区里 panic 了，并不说明数据不可用：会话表是一张
+/// `HashMap`，引擎是一条 SQLite 连接，两者都不会因为别处的 panic 变成半截状态。
+/// 而 `expect()` 会把一次 panic 放大成整条会话的死刑——`execute` panic 之后，同一会话的
+/// `close()` 连锁都拿不到，文件句柄于是泄漏到进程退出；`close_all()` 还会在**主进程主线程**上
+/// 二次 panic，把整个应用的退出路径一起赔进去。宁可带着毒化的锁继续把句柄收回来。
+///
+/// 这不是「兜底放行」：panic 本身仍然是缺陷（见 [`super::engine::read_value`] 那条注释里的
+/// 非法 UTF-8），这里只保证它的影响不扩散到别的请求和退出路径上。
+fn lock_through_poison<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 fn unknown(session_id: &str) -> HostError {

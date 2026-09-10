@@ -173,6 +173,10 @@ export const handleCountUpdate = <T extends EntityType>(task: QueryTask<T>, clas
   // 只有计数真正变化时才更新
   if (addedCount > 0 || removedCount > 0) {
     const newCount = Math.max(0, currentCount + addedCount - removedCount);
-    task.next(newCount);
+    // autoCache 必须传 false：`QueryTask#next` 在 autoCache=true 时无条件清空
+    // `resultEntityIds`（清空逻辑在类型分支之外），而 count 结果是个 number，
+    // 不会重新填充它。沿用默认值会把跨批次去重集合抹掉，同一实体被重复计数。
+    // 与 merge_create.ts / merge_remove.ts 的 count 分支同口径。
+    task.next(newCount, false);
   }
 };

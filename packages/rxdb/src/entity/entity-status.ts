@@ -427,6 +427,32 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
   }
 
   /**
+   * 应用一份外部数据，并按实体当前是否有未保存编辑自动选择合并策略。
+   *
+   * @param data 外部数据（整行回填或增量 patch 均可）
+   *
+   * @remarks
+   * 这是「外部数据落到已缓存实体」的**唯一**策略入口：
+   *
+   * - `modified === false`：走 {@link replace}，整行覆盖并重设基线；
+   * - `modified === true`：走 {@link mergeExternal}，基线前移但逐字段避让本地编辑。
+   *
+   * 拆出这个方法而不是让各调用点自己判，是因为漏判的后果是静默的：直接 `replace` 一个脏实体
+   * 会把用户尚未保存的编辑写进 `_origin` 并把 `_modified` 归零，`patch` 随之清空 —— UI 看起来
+   * 没变，下一次 `save()` 却是 no-op，编辑永久丢失且全程无报错。查询结果回填、跨 tab 事件、
+   * 远端活查询整批回填三条路径都会命中缓存实体，任一处漏判都会复现同一个 bug。
+   *
+   * 本方法**不做时效性判断**。调用方若可能收到迟到的事件，需先用 `isStaleEventPayload` 拦截。
+   */
+  applyExternal(data: Partial<InstanceType<T>>) {
+    if (this.modified) {
+      this.mergeExternal(data);
+      return;
+    }
+    this.replace(data);
+  }
+
+  /**
    * 记录实体变更
    *
    * 机制：

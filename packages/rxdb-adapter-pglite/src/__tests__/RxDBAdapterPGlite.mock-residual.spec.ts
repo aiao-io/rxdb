@@ -78,6 +78,7 @@ vi.mock('../version/create_branch.js', () => ({
 
 vi.mock('../version/switch_branch.js', () => ({
   switch_branch: state.switchBranch,
+  generateBranchTriggerSql: () => '',
   generateSwitchBranchSql: () => ''
 }));
 

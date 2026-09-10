@@ -202,7 +202,7 @@ AC#9 的门禁：`lint test build` 全绿，`tsc -p tsconfig.lib.json --noEmit` 
 | [packages/rxdb-adapter-http/src/pagination.ts](../../../packages/rxdb-adapter-http/src/pagination.ts)                       | `fetchMetadata` 传 `entityName`                                   |
 | [packages/rxdb-adapter-http/src/chunking.ts](../../../packages/rxdb-adapter-http/src/chunking.ts)                           | `findByIds` 传 `entityName`                                       |
 | [requirements/api-baseline/rxdb-adapter-http.json](../../api-baseline/rxdb-adapter-http.json)                               | AC#9：两个新导出进基线                                            |
-| [apps/dev-rxdb-http/src/app/etag-diagnostics.ts](../../../apps/dev-rxdb-http/src/app/etag-diagnostics.ts)                   | 新增：demo 侧诊断收集器（见「落地偏差」）                         |
+| [apps/dev-rxdb-http/src/app/etag-diagnostics.ts](../../../apps/dev-rxdb-http/src/app/etag-diagnostics.ts)                   | 新增：demo 侧诊断收集器（见 US-214 的产物缺陷记录）               |
 | [apps/dev-rxdb-http/src/app/demo-config.ts](../../../apps/dev-rxdb-http/src/app/demo-config.ts)                             | `resolveDiagnosticsEnabled`：`?diagnostics=1`                     |
 | [apps/dev-rxdb-http/src/app/setup_rxdb_http.ts](../../../apps/dev-rxdb-http/src/app/setup_rxdb_http.ts)                     | 按开关装 `onEtagUnreadable`                                       |
 | [apps/dev-rxdb-http/src/app/app.ts](../../../apps/dev-rxdb-http/src/app/app.ts)                                             | 诊断信号 + 清空联动                                               |
@@ -212,5 +212,5 @@ AC#9 的门禁：`lint test build` 全绿，`tsc -p tsconfig.lib.json --noEmit` 
 ## References
 
 - [US-212 HTTP 适配器](./US-212-http-adapter.md) — `conditionalRequests` 的来历（AC#28）
-- [US-214 HTTP 适配器浏览器端到端 demo](./US-214-http-browser-demo.md) — AC#10 冻结了本症状，AC#12 补齐了文档一半；见其「落地偏差」
+- [US-214 HTTP 适配器浏览器端到端 demo](./US-214-http-browser-demo.md) — AC#10 冻结了本症状，AC#12 补齐了文档一半；见其产物缺陷记录
 - [http-protocol.md](../../../website/docs/adapters/http-protocol.md) — 「跨源（CORS）」第 3 小节

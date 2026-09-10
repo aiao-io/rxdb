@@ -582,10 +582,10 @@ export type {
   DevToolsSnapshotLockResult
 } from './native/native-snapshot-source.js';
 export {
-  /** Electron settings provider 的 descriptor。 */
-  DEVTOOLS_ELECTRON_SETTINGS_DESCRIPTOR,
-  /** 建 Electron `settings` provider（`export` 恒回 `export_unsupported`）。 */
-  createDevToolsElectronSettingsProvider
+  /** 建桌面 settings provider 的 descriptor（runtime 只用于显示）。 */
+  createDevToolsDesktopSettingsDescriptor,
+  /** 建桌面 `settings` provider（`export` 恒回 `export_unsupported`）。 */
+  createDevToolsDesktopSettingsProvider
 } from './native/settings-provider.js';
 export {
   /** 用给定 descriptor 建一个只读 `settings` provider（`export` 恒回 `export_unsupported`）。 */

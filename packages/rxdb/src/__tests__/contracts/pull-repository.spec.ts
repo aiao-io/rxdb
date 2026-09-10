@@ -149,6 +149,31 @@ class PullContractCascadeInvalidChild extends EntityBase {
   value!: string;
 }
 
+/**
+ * 滚动时间窗口：filter 闭包读外部游标，测试推进游标来模拟「换了一天再拉一次」。
+ *
+ * 不用 fake timers 换 `Date.now()`：这条用例要验的是**生产每次 pull 都重新调用 filter**，
+ * 值从哪来无关紧要，而 `pullRepository` 全程 async，接管定时器只会给它添乱。
+ */
+let rollingWindowStart = new Date('2026-01-10T00:00:00.000Z');
+const rollingWindowFilter = vi.fn((): RuleGroup => ({
+  combinator: 'and',
+  rules: [{ field: 'updatedAt', operator: '>=', value: rollingWindowStart }]
+}));
+
+@Entity({
+  name: 'PullContractRollingFilter',
+  sync: {
+    type: SyncType.Filter,
+    local: { adapter: 'sqlite' },
+    remote: { adapter: 'remote', filter: rollingWindowFilter }
+  },
+  properties: [{ name: 'value', type: PropertyType.string }]
+})
+class PullContractRollingFilter extends EntityBase {
+  value!: string;
+}
+
 interface HarnessOptions {
   entities?: EntityType[];
   sync?: SyncOptions;
@@ -459,5 +484,30 @@ describe('pullRepository contract', () => {
 
     expect(invalidMetadataFilter).toHaveBeenCalledTimes(1);
     expect(harness.pullChanges).not.toHaveBeenCalled();
+  });
+
+  // filter 的典型用法是滚动时间窗口（「只同步最近 30 天」），它成立的前提是
+  // 每次 pull 都重新求值 —— 一旦谁按实体把 effectiveFilter 缓存起来，窗口就被钉死在
+  // 首次拉取那一刻，此后新数据永远落在窗口外，表现为「同步悄悄停了」而不报错。
+  // 断言两次远端请求收到的是两个不同的 RuleGroup，正是这条性质。
+  // 对称覆盖见 cleanup-expired.spec.ts「没有显式 filter 时，每次从实体 metadata 执行 filter callback」。
+  it('每次 pull 都重新执行元数据 filter，滚动窗口随之推进', async () => {
+    rollingWindowFilter.mockClear();
+    rollingWindowStart = new Date('2026-01-10T00:00:00.000Z');
+    const harness = createHarness({ entities: [PullContractRollingFilter] });
+
+    await pullRepository(harness.vm, 'public', 'PullContractRollingFilter', { includeRelated: false });
+    const nextDay = new Date('2026-01-11T00:00:00.000Z');
+    rollingWindowStart = nextDay;
+    await pullRepository(harness.vm, 'public', 'PullContractRollingFilter', { includeRelated: false });
+
+    expect(rollingWindowFilter).toHaveBeenCalledTimes(2);
+    expect(harness.pullChanges.mock.calls.map(call => call[3])).toEqual([
+      {
+        combinator: 'and',
+        rules: [{ field: 'updatedAt', operator: '>=', value: new Date('2026-01-10T00:00:00.000Z') }]
+      },
+      { combinator: 'and', rules: [{ field: 'updatedAt', operator: '>=', value: nextDay }] }
+    ]);
   });
 });

@@ -8,7 +8,8 @@ import {
   type ExtensionMessageType
 } from '@modules/rxdb-devtools-panel/wire';
 import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import type { UnlistenFn } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 /**
  * {@link DevToolsTransport} 的 Tauri 实现：面板 WebView ↔ 主 WebView 的定向中继。
@@ -83,7 +84,9 @@ export class TauriTransportService implements DevToolsTransport, OnDestroy {
 
   private async connect(): Promise<void> {
     try {
-      this.unlisten = await listen<string>('devtools:message', event => {
+      // 与 connector 侧同一个理由：全局 `listen` 的 target 是 `Any`，会无视 Rust 侧的
+      // 定向过滤收到所有帧（含本窗口自己发出的）。绑到本窗口才是真正的定向接收。
+      this.unlisten = await getCurrentWebviewWindow().listen<string>('devtools:message', event => {
         const frame = JSON.parse(event.payload) as unknown;
         this.notifyFrameListeners(frame);
         if (isDevToolsMessage(frame)) this.notifyListeners(frame);

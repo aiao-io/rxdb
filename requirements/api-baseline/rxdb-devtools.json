@@ -58,7 +58,11 @@
         "kind": "value"
       },
       {
-        "name": "createDevToolsElectronSettingsProvider",
+        "name": "createDevToolsDesktopSettingsDescriptor",
+        "kind": "value"
+      },
+      {
+        "name": "createDevToolsDesktopSettingsProvider",
         "kind": "value"
       },
       {
@@ -159,10 +163,6 @@
       },
       {
         "name": "DEVTOOLS_DEFAULT_PAGE_SIZE",
-        "kind": "value"
-      },
-      {
-        "name": "DEVTOOLS_ELECTRON_SETTINGS_DESCRIPTOR",
         "kind": "value"
       },
       {

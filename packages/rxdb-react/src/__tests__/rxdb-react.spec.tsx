@@ -8,10 +8,10 @@ import { makeRxDBProvider, RxDBProvider, useRxDB, useRxDBOptional, type RxDBSour
 const contextDatabase = { name: 'context-database' } as unknown as RxDB;
 const directDatabase = { name: 'direct-database' } as unknown as RxDB;
 
-/** 带可观测 `disconnectAll` 的假库，用来断言所有权规则。 */
+/** 带可观测 `destroy` 的假库，用来断言所有权规则。 */
 const makeFakeDatabase = (name: string) => {
-  const disconnectAll = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
-  return { database: { name, disconnectAll } as unknown as RxDB, disconnectAll };
+  const destroy = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+  return { database: { name, destroy } as unknown as RxDB, destroy };
 };
 
 const wrap =
@@ -156,26 +156,26 @@ describe('生命周期所有权', () => {
   // 断开在卸载后**推迟一个微任务**才发生，因此这里必须 await：卸载与重新挂载在
   // `StrictMode` 下是同一批同步提交，只有等过那一拍才知道还有没有人来接手（见 `closeLease`）。
   it('disconnects a database it created itself', async () => {
-    const { database, disconnectAll } = makeFakeDatabase('owned');
+    const { database, destroy } = makeFakeDatabase('owned');
     const { result, unmount } = renderHook(() => useRxDBOptional(), { wrapper: wrap(() => database) });
 
     await waitFor(() => expect(result.current).toBe(database));
     unmount();
 
-    await waitFor(() => expect(disconnectAll).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(destroy).toHaveBeenCalledTimes(1));
   });
 
   it('leaves a caller-supplied instance alone', () => {
-    const { database, disconnectAll } = makeFakeDatabase('caller-owned');
+    const { database, destroy } = makeFakeDatabase('caller-owned');
     const { unmount } = renderHook(() => useRxDBOptional(), { wrapper: wrap(database) });
 
     unmount();
 
-    expect(disconnectAll).not.toHaveBeenCalled();
+    expect(destroy).not.toHaveBeenCalled();
   });
 
   it('disconnects a database that settles after unmount', async () => {
-    const { database, disconnectAll } = makeFakeDatabase('late');
+    const { database, destroy } = makeFakeDatabase('late');
     let settle: (value: RxDB) => void = () => undefined;
     const pending = new Promise<RxDB>(resolve => (settle = resolve));
     const { unmount } = renderHook(() => useRxDBOptional(), { wrapper: wrap(() => pending) });
@@ -183,7 +183,7 @@ describe('生命周期所有权', () => {
     unmount();
     settle(database);
 
-    await waitFor(() => expect(disconnectAll).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(destroy).toHaveBeenCalledTimes(1));
   });
 });
 
@@ -200,12 +200,12 @@ describe('StrictMode 双挂载', () => {
   useRootStrictMode();
 
   it('keeps the instance alive across the remount', async () => {
-    const { database, disconnectAll } = makeFakeDatabase('shared');
+    const { database, destroy } = makeFakeDatabase('shared');
     const { result } = renderHook(() => useRxDBOptional(), { wrapper: wrap(() => database) });
 
     await waitFor(() => expect(result.current).toBe(database));
 
-    expect(disconnectAll).not.toHaveBeenCalled();
+    expect(destroy).not.toHaveBeenCalled();
   });
 
   // 被丢弃的那次生命周期也不该留下第二个实例：工厂真造库时双挂载会建两次库（连带建表、
@@ -222,13 +222,13 @@ describe('StrictMode 双挂载', () => {
 
   // 双挂载不改变所有权：真正卸载时，工厂造出来的库仍然由 provider 负责断开。
   it('still disconnects what it created once the tree really unmounts', async () => {
-    const { database, disconnectAll } = makeFakeDatabase('strict-owned');
+    const { database, destroy } = makeFakeDatabase('strict-owned');
     const { result, unmount } = renderHook(() => useRxDBOptional(), { wrapper: wrap(() => database) });
 
     await waitFor(() => expect(result.current).toBe(database));
     unmount();
 
-    await waitFor(() => expect(disconnectAll).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(destroy).toHaveBeenCalledTimes(1));
   });
 });
 

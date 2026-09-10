@@ -16,6 +16,7 @@ import { deterministicStringify } from '../../rxdb-utils.js';
 import type { RxDB } from '../../RxDB.js';
 import { METADATA, STATUS } from '../../rxdb.private.js';
 import { RxDBQueryCacheCapabilityError } from '../../RxDBError.js';
+import { emptyOutboxVersionManager } from '../fixtures/pending-writes.js';
 import { detachedReachability } from '../fixtures/reachability.js';
 
 class CachedEntity {
@@ -183,6 +184,7 @@ const setup = (
     config: { sync: undefined },
     addEventListener: vi.fn(),
     reachability: detachedReachability(),
+    versionManager: emptyOutboxVersionManager(),
     entityManager: { createEntityRef: vi.fn((_type: unknown, entity: CachedEntity) => entity) }
   } as unknown as RxDB;
 

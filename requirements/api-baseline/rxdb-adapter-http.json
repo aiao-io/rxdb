@@ -150,6 +150,10 @@
         "kind": "both"
       },
       {
+        "name": "HttpResponseType",
+        "kind": "type"
+      },
+      {
         "name": "HttpUnsupportedOperationError",
         "kind": "both"
       },

@@ -265,4 +265,24 @@ describe('merge-update-basic', () => {
     expect(unchanged.result).toBe(5);
     expect(unchangedNext).not.toHaveBeenCalled();
   });
+
+  /**
+   * count 模式下 `resultEntityIds` 是**跨批次的去重集合**，不是结果集镜像。
+   *
+   * `QueryTask#next` 在 `autoCache=true` 时无条件 `resultEntityIds.clear()`，而 count 的
+   * 结果是个 number，清空后不会被重新填充。`merge_create` / `merge_remove` 的 count 分支
+   * 为此都显式传了 `false`；update 分支漏传，于是一次计数更新就把去重记录抹干净，
+   * 同一个实体的后续 CREATE 会被重复计入。
+   */
+  it('count 更新不清空跨批次去重集合', () => {
+    const task = createTask({ type: 'count', options: { where: activeWhere } });
+    task.next(2, false);
+    task.resultEntityIds.add('a');
+    task.resultEntityIds.add('b');
+
+    handleCountUpdate(task, createClassification({ newlyMatchedIds: new Set(['c']) }));
+
+    expect(task.result).toBe(3);
+    expect([...task.resultEntityIds]).toEqual(['a', 'b']);
+  });
 });

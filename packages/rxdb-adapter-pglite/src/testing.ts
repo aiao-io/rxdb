@@ -10,7 +10,7 @@
 import type { EntityType } from '@aiao/rxdb';
 import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
 import remove_all_triggers_sql from './table/remove_trigger_sql.js';
-import { generateSwitchBranchSql } from './version/switch_branch.js';
+import { generateBranchTriggerSql } from './version/switch_branch.js';
 
 /**
  * 生成唯一的测试数据库名称（带时间戳与随机后缀）。
@@ -177,7 +177,10 @@ export const cleanup_db = async (adapter: RxDBAdapterPGlite): Promise<void> => {
     `INSERT INTO "rxdb"."rxdb_branch" (id,activated,"fromChangeId",local,remote) VALUES ('main',TRUE,NULL,TRUE,FALSE)`
   );
 
-  const sql = generateSwitchBranchSql(adapter, 'main');
+  // 只重挂触发器，不再顺带跑 switch 的那条分支激活 UPDATE：上一行的 INSERT 已经把
+  // main 置为 activated=TRUE，那条 UPDATE 在取值上是空操作，却会触发行级 NOTIFY，
+  // 异步派发成裸 RxDBBranch UPDATE 事件污染下一个用例的监听窗口。
+  const sql = generateBranchTriggerSql(adapter, 'main');
   const triggerStatements = sql.split('---STATEMENT_SEPARATOR---').filter((s: string) => s.trim());
   for (const stmt of triggerStatements) {
     await adapter.query(stmt.trim());

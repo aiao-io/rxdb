@@ -1,20 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SyncType } from '../entity/metadata-options.interface.js';
-import type { IRxDBAdapter, RxDBAdapterLocalBase } from '../rxdb-adapter.js';
 import type { RxDBOptions } from '../rxdb.interface.js';
 import { RxDB } from '../RxDB.js';
 import { RxDBMigration } from '../system/migration.js';
-import { createMockAdapter } from './fixtures/test-db-setup.js';
-
-type LocalAdapter = IRxDBAdapter & Pick<RxDBAdapterLocalBase, 'createTables' | 'transaction'>;
-type IndexReconcileAdapter = LocalAdapter & {
-  reconcileEntityIndexes(EntityTypes: Parameters<RxDBAdapterLocalBase['createTables']>[0]): Promise<void>;
-};
+import { createMockAdapter, type MockLocalAdapter } from './fixtures/test-db-setup.js';
 
 const databases = new Set<RxDB>();
 let databaseSequence = 0;
 
-const createDatabase = (migrations: RxDBOptions['migrations'], adapter: LocalAdapter): RxDB => {
+/** 先建库、再由库造适配器，和真实 `AdapterFactory` 拿到数据库实例的顺序一致。 */
+const createDatabase = (migrations: RxDBOptions['migrations']): { database: RxDB; adapter: MockLocalAdapter } => {
   databaseSequence += 1;
   const database = new RxDB({
     dbName: `rxdb-watermark-${databaseSequence}`,
@@ -22,9 +17,10 @@ const createDatabase = (migrations: RxDBOptions['migrations'], adapter: LocalAda
     sync: { local: { adapter: 'local' }, type: SyncType.None },
     migrations
   });
+  const adapter = createMockAdapter(database);
   database.adapter('local', () => adapter);
   databases.add(database);
-  return database;
+  return { database, adapter };
 };
 
 afterEach(async () => {
@@ -51,14 +47,13 @@ describe('迁移水位线', () => {
     const migrations: RxDBOptions['migrations'] = [
       { name: 'init-schema', up, down: vi.fn<() => Promise<void>>(async () => undefined) }
     ];
-    const adapter = createMockAdapter() as LocalAdapter;
+    const { database: first, adapter } = createDatabase(migrations);
 
     // 首装：RxDBMigration 表不存在 → 直接建表，迁移不该被执行
-    vi.mocked(adapter.isTableExisted).mockResolvedValue(false);
-    const first = createDatabase(migrations, adapter);
+    adapter.isTableExisted.mockResolvedValue(false);
     first.init();
     const created: RxDBMigration[] = [];
-    vi.mocked(adapter.createTables).mockImplementation(async (_entityTypes, entities = []) => {
+    adapter.createTables.mockImplementation(async (_entityTypes, entities = []) => {
       created.push(...entities.filter((entity): entity is RxDBMigration => entity instanceof RxDBMigration));
       return true;
     });
@@ -72,20 +67,21 @@ describe('迁移水位线', () => {
       update: vi.fn(),
       remove: vi.fn()
     };
-    vi.mocked(adapter.getRepository).mockReturnValue(migrationRepository as never);
+    adapter.getRepository.mockReturnValue(migrationRepository as never);
 
     await first.connect('local');
 
-    expect(vi.mocked(adapter.createTables)).toHaveBeenCalledTimes(1);
+    expect(adapter.createTables).toHaveBeenCalledTimes(1);
     expect(up).not.toHaveBeenCalled();
     expect(created.map(record => record.name)).toEqual(['init-schema']);
 
     await first.disconnectAll();
 
-    // 下次启动（新页面、同一个库）：表已存在 → 走迁移流程，水位线必须挡住重跑。
-    // 复用同一个 migrationRepository，它的 find() 会回放首装写下的水位线。
-    vi.mocked(adapter.isTableExisted).mockResolvedValue(true);
-    const second = createDatabase(migrations, adapter);
+    // 下次启动（新页面、同一个库）：新的 RxDB、新的适配器实例，表已存在 → 走迁移流程。
+    // 存储是同一份，所以复用 migrationRepository —— 它的 find() 会回放首装写下的水位线。
+    const { database: second, adapter: secondAdapter } = createDatabase(migrations);
+    secondAdapter.isTableExisted.mockResolvedValue(true);
+    secondAdapter.getRepository.mockReturnValue(migrationRepository as never);
     second.init();
 
     await second.connect('local');
@@ -106,13 +102,13 @@ describe('实体索引收敛时序', () => {
         down: vi.fn(async () => undefined)
       }
     ];
-    const adapter = createMockAdapter() as IndexReconcileAdapter;
+    const { database, adapter } = createDatabase(migrations);
     adapter.reconcileEntityIndexes = vi.fn(async () => {
       order.push('reconcile');
     });
-    vi.mocked(adapter.isTableExisted).mockResolvedValue(true);
+    adapter.isTableExisted.mockResolvedValue(true);
     const defaultRepository = adapter.getRepository(RxDBMigration as never);
-    vi.mocked(adapter.getRepository).mockImplementation((EntityType: unknown) =>
+    adapter.getRepository.mockImplementation((EntityType: unknown) =>
       EntityType === RxDBMigration ?
         ({
           find: vi.fn(async () => []),
@@ -123,7 +119,6 @@ describe('实体索引收敛时序', () => {
         } as never)
       : defaultRepository
     );
-    const database = createDatabase(migrations, adapter);
     database.init();
 
     await database.connect('local');
@@ -139,19 +134,17 @@ describe('首装原子提交（RXD-051）', () => {
     const migrations: RxDBOptions['migrations'] = [
       { name: 'init-schema', up, down: vi.fn<() => Promise<void>>(async () => undefined) }
     ];
-    const adapter = createMockAdapter() as LocalAdapter;
-    vi.mocked(adapter.isTableExisted).mockResolvedValue(false);
-
-    const first = createDatabase(migrations, adapter);
+    const { database: first, adapter } = createDatabase(migrations);
+    adapter.isTableExisted.mockResolvedValue(false);
     first.init();
     const saveFailure = new Error('watermark write failed');
     let tablesPersisted = false;
-    vi.mocked(adapter.createTables).mockImplementation(async (_entityTypes, entities = []) => {
+    adapter.createTables.mockImplementation(async (_entityTypes, entities = []) => {
       if (entities.some(entity => entity instanceof RxDBMigration)) throw saveFailure;
       tablesPersisted = true;
       return true;
     });
-    vi.mocked(adapter.getRepository).mockReturnValue({
+    adapter.getRepository.mockReturnValue({
       find: vi.fn(async () => []),
       count: vi.fn(async () => 0),
       create: vi.fn(async () => {
@@ -164,27 +157,25 @@ describe('首装原子提交（RXD-051）', () => {
     await expect(first.connect('local')).rejects.toThrow('watermark write failed');
 
     expect(tablesPersisted).toBe(false);
-    expect(vi.mocked(adapter.createTables)).toHaveBeenCalledTimes(1);
+    expect(adapter.createTables).toHaveBeenCalledTimes(1);
   });
 
   it('把分支初始数据与 migration 水位线交给同一次建表', async () => {
     const migrations: RxDBOptions['migrations'] = [
       { name: 'init-schema', up: vi.fn(async () => undefined), down: vi.fn(async () => undefined) }
     ];
-    const adapter = createMockAdapter() as LocalAdapter;
-    vi.mocked(adapter.isTableExisted).mockResolvedValue(false);
-
-    const db = createDatabase(migrations, adapter);
+    const { database: db, adapter } = createDatabase(migrations);
+    adapter.isTableExisted.mockResolvedValue(false);
     db.init();
 
     await db.connect('local');
 
-    const initialEntities = vi.mocked(adapter.createTables).mock.calls[0]?.[1] ?? [];
+    const initialEntities = adapter.createTables.mock.calls[0]?.[1] ?? [];
     expect(initialEntities[0]).toEqual(expect.objectContaining({ id: 'main', activated: true }));
     expect(initialEntities.slice(1)).toEqual([
       expect.objectContaining({ name: 'init-schema', executedAt: expect.any(Date) })
     ]);
-    expect(vi.mocked(adapter.transaction)).not.toHaveBeenCalled();
+    expect(adapter.transaction).not.toHaveBeenCalled();
   });
 });
 
@@ -204,8 +195,8 @@ describe('迁移占坑与唯一约束（RXD-036）', () => {
     migrations: NonNullable<RxDBOptions['migrations']>,
     repository: Partial<Record<'find' | 'create', unknown>>
   ) => {
-    const adapter = createMockAdapter() as LocalAdapter;
-    vi.mocked(adapter.isTableExisted).mockResolvedValue(true);
+    const { database, adapter } = createDatabase(migrations);
+    adapter.isTableExisted.mockResolvedValue(true);
     const migrationRepository = {
       count: vi.fn(async () => 0),
       update: vi.fn(),
@@ -215,10 +206,9 @@ describe('迁移占坑与唯一约束（RXD-036）', () => {
     // 只替换 RxDBMigration 的仓库。全量替换会让引导期的其它读（RxDBSync / RxDBBranch）
     // 也消耗 find 的 mockResolvedValueOnce 序列，执行权竞争的重放脚本会错位。
     const defaultRepository = adapter.getRepository(RxDBMigration as never);
-    vi.mocked(adapter.getRepository).mockImplementation((EntityType: unknown) =>
+    adapter.getRepository.mockImplementation((EntityType: unknown) =>
       EntityType === RxDBMigration ? (migrationRepository as never) : (defaultRepository as never)
     );
-    const database = createDatabase(migrations, adapter);
     database.init();
     return { database, adapter };
   };

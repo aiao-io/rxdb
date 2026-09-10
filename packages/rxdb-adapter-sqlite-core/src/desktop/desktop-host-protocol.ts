@@ -61,6 +61,43 @@ export const DESKTOP_HOST_PROTOCOL_VERSION = 1;
  */
 export const DESKTOP_HOST_MAX_FILE_CHUNK_BYTES = 4 * 1024 * 1024;
 
+/**
+ * 宿主未提交写入留在盘上的临时产物后缀。
+ *
+ * @remarks
+ * 两个宿主各自实现 `file.writeBegin`，却都取 `.{writeId}.rxdb-tmp` 这一个形状
+ * （Electron：`electron-file-host.ts` 的 `temporaryPath`；Tauri：Rust 侧
+ * `file/mod.rs` 的 `write_begin`）——它属于线协议的可观测面，而不是某一端的实现细节：
+ * 未提交的写入**会被列目录看见**，于是「盘上多出来的这个名字是什么」必须有一个两端共同的答案。
+ */
+export const DESKTOP_HOST_TEMPORARY_SUFFIX = '.rxdb-tmp';
+
+/**
+ * 临时产物的完整形状：前导点 + 小写 UUID v4 + {@link DESKTOP_HOST_TEMPORARY_SUFFIX}。
+ *
+ * @remarks
+ * 只比后缀写得**窄得多**是刻意的：判据每放宽一点，一个真实的用户文件就可能被当成临时产物
+ * 滤掉，而滤掉它的地方（诊断快照）正是用来回答「有文件没有元数据吗」的——被滤掉的文件
+ * 会让那个答案安静地变成「没有」，且没有任何一处会报错。两个宿主的 writeId 都来自
+ * `randomUUID()` / `Uuid::new_v4()`，因此小写十六进制与连字符位置都是确定的。
+ */
+const DESKTOP_HOST_TEMPORARY_NAME = /^\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.rxdb-tmp$/;
+
+/**
+ * 判断一个**物理**文件名是不是宿主未提交写入的临时产物。
+ *
+ * @param name - 单个物理名（列目录给出的那一段，不含路径）。
+ * @returns 是临时产物时为 `true`。
+ *
+ * @remarks
+ * 入参是物理名而不是逻辑名：临时产物由宿主直接命名，从来没经过 `encodePhysicalName`。
+ * 反过来，用户的逻辑名不会以「点 + UUID」开头——即便真有，它编码后也是同一串字符，
+ * 于是这一小块命名空间归宿主保留。这是本判据唯一放弃的东西，写在这里而不是留给读者推断。
+ */
+export function isDesktopHostTemporaryName(name: string): boolean {
+  return DESKTOP_HOST_TEMPORARY_NAME.test(name);
+}
+
 /** 相对存储根的路径整体长度上限（字符）。 */
 export const DESKTOP_HOST_MAX_PATH_LENGTH = 1024;
 

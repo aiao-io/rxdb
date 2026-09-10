@@ -728,6 +728,10 @@
         "kind": "value"
       },
       {
+        "name": "DESKTOP_HOST_TEMPORARY_SUFFIX",
+        "kind": "value"
+      },
+      {
         "name": "DESKTOP_HOST_TRANSPORT_KEY",
         "kind": "value"
       },
@@ -953,6 +957,10 @@
       },
       {
         "name": "isDesktopHostFileRequestKind",
+        "kind": "value"
+      },
+      {
+        "name": "isDesktopHostTemporaryName",
         "kind": "value"
       },
       {

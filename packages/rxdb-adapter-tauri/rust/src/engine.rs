@@ -13,8 +13,10 @@
 //!    于是 SQLite 自己的忙等就是对的工具，不需要在上层再写一套异步退避。
 //! 2. **批处理调度**：Node 版在触发器体内就 `setTimeout`，因为 JS 的定时器无论如何都得等
 //!    当前同步执行跑完才可能触发。Rust 的 flusher 是真线程，同样的写法会让事件在语句还没跑完、
-//!    事务还没提交时就派发出去。因此截止时间统一在 `execute()` **返回前**设置，
-//!    效果与 JS 的宏任务时序一致。
+//!    事务还没提交时就派发出去。因此截止时间统一在 `execute()` **返回前**设置——但只做这一半
+//!    还不够：上一次 `execute()` 设下的截止时间照样会在下一次跑到一半时到期。所以
+//!    `execute()` 全程另外挡住派发（[`Engine::hold_flush`]）。两条合起来才等价于 JS 的
+//!    宏任务时序：批次只在两次 `execute()` 之间发得出去。
 //! 3. **语句切分与只读判定**：见 [`super::script`]。
 
 use std::collections::HashSet;
@@ -23,9 +25,11 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use rusqlite::config::DbConfig;
+use rusqlite::ffi;
 use rusqlite::functions::FunctionFlags;
 use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
-use rusqlite::types::Value as SqlValue;
+use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{Connection, OpenFlags};
 
 use super::error::{ErrorCode, HostError, HostResult};
@@ -59,6 +63,10 @@ pub const DEFAULT_BATCH_TIMEOUT_MS: u64 = 16;
 ///
 /// 纯 debounce 在持续写入下会被无限重置，事件在整个导入/迁移期间都不会派发。
 /// 这个上限保证自批次首个事件起最多 100ms 必定发一次。
+///
+/// 「最多 100ms」以两次 `execute()` 之间为准：上限到期时若有 `execute()` 在跑，派发要等它
+/// 结束（[`PendingState::due_in`]）。一条跑 1s 的语句因此把这一批推到 1s 后——代价换的是
+/// 订阅者永远不会收到半条语句，见 [`Engine::hold_flush`]。
 pub const MAX_BATCH_WAIT_MS: u64 = 100;
 
 /// 默认 SQLite 页缓存大小（KB），50 MB。
@@ -67,6 +75,9 @@ pub const DEFAULT_CACHE_SIZE_KB: u64 = 50 * 1024;
 const WAL_AUTOCHECKPOINT_PAGES: u64 = 1000;
 
 /// 撞锁时 SQLite 自己退让重试的时长。
+///
+/// 关连接时的 checkpoint 是唯一的例外，那里会先把它撤掉——
+/// 理由见 [`Engine::checkpoint_without_waiting`]。
 const BUSY_TIMEOUT_MS: u32 = 5_000;
 
 /// 变更事件里的 schema 名。
@@ -152,6 +163,8 @@ struct PendingState {
     deadline: Option<Instant>,
     /// 硬上限截止时间，一个批次只设一次，后续事件不重置。
     hard_deadline: Option<Instant>,
+    /// 这条连接上是否有一次 `execute()` 正在跑。见 [`PendingState::due_in`]。
+    execute_in_flight: bool,
     closed: bool,
 }
 
@@ -182,7 +195,17 @@ impl PendingState {
     }
 
     /// 距离本批次应当派发还有多久；`None` 表示当前无事可做。
+    ///
+    /// 有 `execute()` 在跑时一律 `None`，哪怕截止时间早就到了。截止时间是**上一次**
+    /// `execute()` 设下的，而 flusher 是独立线程：不挡这一下，它会在下一条语句跑到一半时
+    /// 醒来取走批次，把该次 `execute()` 已经录下的那部分先发出去，剩下的留给下一批——
+    /// 订阅者于是看到半条语句，而此刻这条语句可能正要失败并回滚，那半批通告的是
+    /// 一批从未存在过的行。`execute()` 结尾的 [`Engine::arm_flush`] 会清掉这个标志并唤醒
+    /// flusher，因此这里只推迟派发，不会把批次拖住。
     fn due_in(&self) -> Option<Duration> {
+        if self.execute_in_flight {
+            return None;
+        }
         let deadline = self.deadline?;
         let target = self.hard_deadline.map_or(deadline, |hard| deadline.min(hard));
         Some(target.saturating_duration_since(Instant::now()))
@@ -284,6 +307,9 @@ pub struct Engine {
     sink: ChangeSink,
     flusher: Option<JoinHandle<()>>,
     watched_tables: HashSet<String>,
+    /// 由回滚钩子置位，表示 [`Engine::watched_tables`] 可能已经与 temp schema 脱节。
+    /// 见 [`Engine::install_rollback_hook`]。
+    triggers_may_be_stale: Arc<AtomicBool>,
     closed: Arc<AtomicBool>,
 }
 
@@ -313,6 +339,7 @@ impl Engine {
             sink: options.sink,
             flusher: None,
             watched_tables: HashSet::new(),
+            triggers_may_be_stale: Arc::new(AtomicBool::new(false)),
             closed: Arc::new(AtomicBool::new(false)),
         };
         engine.initialize()?;
@@ -338,6 +365,9 @@ impl Engine {
             )));
         }
 
+        // 从这里到 `arm_flush()` 之间不许派发批次，理由见 [`PendingState::due_in`]。
+        // 多语句脚本整条算一次：脚本中途的事务状态同样还没落定。
+        self.hold_flush();
         // 前一次是为别的连接刚建好的系统表补装触发器，后一次是为本条语句自己建的表补装。
         let outcome = self
             .ensure_notify_triggers()
@@ -373,7 +403,8 @@ impl Engine {
     ///
     /// 关闭前回滚尚未提交的事务并做一次 TRUNCATE checkpoint（AC#8）：前者避免把半截状态
     /// 留给下次启动，后者把 WAL 内容并回主库文件，使调用方随后可以直接重命名/备份这个
-    /// `.sqlite3`，而不必额外搬运 `-wal` / `-shm` 旁文件。
+    /// `.sqlite3`，而不必额外搬运 `-wal` / `-shm` 旁文件。checkpoint 不为别的连接等待，
+    /// 理由见 [`Engine::checkpoint_without_waiting`]。
     ///
     /// 还攒在批次里的变更事件在这里**同步**发掉：flusher 线程随连接一起结束，
     /// 不发就等于把最后一批写入的通知悄悄吞掉。
@@ -386,10 +417,7 @@ impl Engine {
         self.stop_flusher();
         self.flush_now();
         let rollback = self.rollback_open_transaction();
-        let checkpoint = self
-            .db()
-            .execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")
-            .map_err(|error| self.statement_error("PRAGMA wal_checkpoint(TRUNCATE)", &error));
+        let checkpoint = self.checkpoint_without_waiting();
         // 前两步无论成败都要把句柄交还：一次 checkpoint 失败若连带留住连接，
         // 文件就被永久占住，而这正是本方法要避免的。
         let released = self.release_connection();
@@ -404,6 +432,29 @@ impl Engine {
         self.connection
             .as_ref()
             .expect("the connection outlives every path guarded by assert_open")
+    }
+
+    /// 尽力做一次 TRUNCATE checkpoint，但**不为任何人等待**。
+    ///
+    /// TRUNCATE 要拿独占锁，因此会被别的连接的读事务挡住，而这条连接上挂着 5 秒的
+    /// `busy_timeout`（[`BUSY_TIMEOUT_MS`]）——不先撤掉它，关一个会话就会在忙等里坐满 5 秒。
+    /// 这条路径同步跑在调用方线程上，demo 的 `on_window_event` 又在主线程调它：
+    /// 于是另一扇窗口开着事务时，关窗口把整个界面冻住数秒。
+    ///
+    /// 等下去也换不来 AC#8：还有别的连接在读，就说明此刻这个库本来就不能被搬走。
+    /// AC#8 真正依赖的是「最后一条连接关闭时 SQLite 自己 checkpoint 并删掉 `-wal` / `-shm`」，
+    /// 那条路径由 [`Engine::release_connection`] 走完，不受这里的取舍影响。
+    ///
+    /// 被挡住时 SQLite 不报错，而是让 `PRAGMA` 在返回行的第一列写 1；`execute_batch` 丢弃
+    /// 结果行，所以这里读不到它。这是有意的：多窗口下「没能截断」是常态而不是故障，
+    /// 报成错误会让每一次正常的多窗口关闭都在协议上变成一次失败。
+    fn checkpoint_without_waiting(&self) -> HostResult<()> {
+        self.db()
+            .busy_timeout(Duration::ZERO)
+            .map_err(|error| self.statement_error("PRAGMA busy_timeout = 0", &error))?;
+        self.db()
+            .execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")
+            .map_err(|error| self.statement_error("PRAGMA wal_checkpoint(TRUNCATE)", &error))
     }
 
     /// 把文件句柄交还给操作系统，SQLite 借此删掉 `-wal` / `-shm` 旁文件。
@@ -422,6 +473,8 @@ impl Engine {
     /// 装好变更通知函数并跑一遍初始化 pragma。
     fn initialize(&mut self) -> HostResult<()> {
         self.install_authorizer();
+        self.install_rollback_hook();
+        self.disable_double_quoted_strings()?;
         self.register_notify_function()?;
         let init_sql = format!(
             "PRAGMA temp_store = memory;\n\
@@ -441,6 +494,47 @@ impl Engine {
         self.ensure_notify_triggers()
     }
 
+    /// 关掉「双引号串解析不成标识符就退当字符串字面量」这条兼容回退。
+    ///
+    /// 双引号在 SQL 标准里是**标识符**。SQLite 为了兼容早年写坏的应用留了这条退路，
+    /// 于是一个手滑的列名 `SELECT "no_such_colum" FROM t` 不报错，而是安静地返回一列
+    /// 内容恰好等于那串拼写的文本——查询错了，却一路绿到 UI 上，等到有人发现数据不对时
+    /// 现场早就没了。DDL 与 DML 是两个独立开关，覆盖各自作名字解析的地方（前者如 `CHECK`
+    /// 约束与部分索引的 `WHERE`，后者是普通语句里的表达式），所以两个都要关。
+    ///
+    /// 这是**按连接**的设置而不是编译期开关，因此每次 `open` 都得关一遍；放在
+    /// [`Engine::initialize`] 的最前面，好让初始化自己跑的那几条 SQL 也在同一口径下。
+    /// 关掉的只有「退当字面量」这一步：双引号作标识符照常可用，`create_notify_triggers`
+    /// 里的 `quote_identifier` 因此不受影响。
+    fn disable_double_quoted_strings(&self) -> HostResult<()> {
+        for config in [DbConfig::SQLITE_DBCONFIG_DQS_DDL, DbConfig::SQLITE_DBCONFIG_DQS_DML] {
+            self.db()
+                .set_db_config(config, false)
+                .map_err(|error| self.open_error("disable double-quoted string literals on", &error))?;
+        }
+        Ok(())
+    }
+
+    /// 事务一回滚就把「哪些表已经装过通知触发器」的记账作废。
+    ///
+    /// TEMP 触发器住在 temp schema 里，而 SQLite 的事务是跨 schema 的：`BEGIN` 之后建表、
+    /// 由语句后钩子补装上的触发器，会和那张表一起被 `ROLLBACK` 抹掉。
+    /// [`Engine::watched_tables`] 是这件事的内存缓存，它**不**跟着回滚——于是集合说
+    /// 「装过了」、盘上却什么都没有，[`Engine::ensure_notify_triggers`] 从此永远跳过这张表：
+    /// 该表之后的每一次写入都不再产生变更事件，而没有任何一处报错。
+    ///
+    /// 用 SQLite 的回滚钩子而不是在自己发 `ROLLBACK` 的地方清：回滚也可能由 renderer 透传的
+    /// SQL、或语句自身的 `ON CONFLICT ROLLBACK` 触发，只认自己那条路径等于漏掉其余两条。
+    /// 钩子在执行回滚的那次 `step` 里被同步调用，与本引擎的语句执行同线程。
+    ///
+    /// 整个集合一起清空，不去区分哪张表的触发器真的没了：钩子拿不到这个信息，而重装是
+    /// 幂等的（`CREATE TEMP TRIGGER IF NOT EXISTS`），代价只是回滚之后多一次
+    /// `sqlite_master` 查询。
+    fn install_rollback_hook(&self) {
+        let stale = Arc::clone(&self.triggers_may_be_stale);
+        self.db().rollback_hook(Some(move || stale.store(true, Ordering::SeqCst)));
+    }
+
     /// 拒绝会让 SQLite 自己再打开一个数据库文件的 opcode。
     ///
     /// 宿主只解析 `open` 请求里的逻辑库名，物理路径不受 renderer 控制；但 SQL 本身是透传的
@@ -449,14 +543,18 @@ impl Engine {
     /// 但 SQLite 同样走 `SQLITE_ATTACH` 授权码，所以一并被这条规则挡住——这正是必须用授权器
     /// 而不是正则扫 SQL 的原因。
     ///
-    /// 只封文件级 opcode，DDL/DML/事务/PRAGMA/TEMP 触发器全部照旧放行，库内能力不受影响。
-    /// 与 Electron 侧 `NodeSqliteEngine.#initialize` 的授权器同规则。
+    /// 只封文件级 opcode，DDL/DML/事务/TEMP 触发器全部照旧放行，库内能力不受影响。
+    /// PRAGMA 整体也放行，只按名字挑掉 [`repoints_a_process_wide_directory`] 那两条。
+    /// 与 Electron 侧 `NodeSqliteEngine.#initialize` 的授权器同规则——它直接对 `actionCode` 判，
+    /// 这里也必须还原回 opcode 再判，理由见 [`escapes_the_file_scope`]。
     fn install_authorizer(&self) {
-        self.db()
-            .authorizer(Some(|context: AuthContext<'_>| match context.action {
-                AuthAction::Attach { .. } | AuthAction::Detach { .. } => Authorization::Deny,
-                _ => Authorization::Allow,
-            }));
+        self.db().authorizer(Some(|context: AuthContext<'_>| {
+            if escapes_the_file_scope(&context.action) || repoints_a_process_wide_directory(&context.action) {
+                Authorization::Deny
+            } else {
+                Authorization::Allow
+            }
+        }));
     }
 
     /// 注册触发器体内调用的标量函数。
@@ -502,8 +600,23 @@ impl Engine {
         }
     }
 
+    /// 在 `execute()` 期间挡住派发，理由见 [`PendingState::due_in`]。
+    ///
+    /// 不必唤醒 flusher：这个标志只会让它等得更久，而它下一次醒来时必须先拿到同一把锁，
+    /// 于是一定看得到。反过来，flusher 判定「到期」与取走批次在同一个临界区里，
+    /// 所以也不存在「刚放行就被抢在前面」的窗口。
+    fn hold_flush(&self) {
+        let mut pending = self.state.0.lock().expect("pending state mutex poisoned");
+        pending.execute_in_flight = true;
+    }
+
+    /// 语句跑完：放行派发并把截止时间往后顺延一个 debounce。
+    ///
+    /// 放行与 `arm` 必须在同一个临界区里做完，中间放开锁就等于给 flusher 留了一个
+    /// 「按旧截止时间立刻派发」的窗口——那正是 [`Engine::hold_flush`] 要挡的那一下。
     fn arm_flush(&self) {
         let mut pending = self.state.0.lock().expect("pending state mutex poisoned");
+        pending.execute_in_flight = false;
         pending.arm(self.batch_timeout);
         drop(pending);
         self.state.1.notify_all();
@@ -618,11 +731,16 @@ impl Engine {
     /// 会话打开时这些表往往还不存在——它们由适配器初始化过程现建，所以触发器只能**惰性**安装。
     /// 建表方可能是本连接，也可能是另一个窗口的连接，因此每条语句前后各检查一次：
     /// 只在语句后检查会漏掉本连接开启前、由别的连接建好的表上的第一次写入。
-    /// 三张表全部装好后本方法直接返回，稳态下不再查 `sqlite_master`。
+    /// 三张表全部装好后本方法直接返回，稳态下不再查 `sqlite_master`——这份记账由
+    /// [`Engine::install_rollback_hook`] 在事务回滚时作废，否则它会记住一批已经不存在的触发器。
     ///
     /// 用 TEMP 触发器而非普通触发器：TEMP 对象只活在本连接的 temp schema 里，永远不会写进
     /// 用户的库文件，因此不会污染他自己的 schema（AC#7），也不会被别的程序看见。
     fn ensure_notify_triggers(&mut self) -> HostResult<()> {
+        // 读与复位一步做完：清空之后到重装之间再有回滚，标志必须留给下一轮，不能被覆盖掉。
+        if self.triggers_may_be_stale.swap(false, Ordering::SeqCst) {
+            self.watched_tables.clear();
+        }
         if self.watched_tables.len() == WATCH_TABLES.len() {
             return Ok(());
         }
@@ -686,8 +804,73 @@ impl Engine {
     }
 }
 
+/// 这条授权动作会不会让 SQLite 自己再打开一个数据库文件。
+///
+/// **必须按原始 opcode 判，不能按 rusqlite 的枚举变体判。** SQLite 的 `codeAttach` 只在
+/// 文件名是 `TK_STRING` 字面量时才把它交给授权器，绑定参数、拼接表达式、子查询算出来的
+/// 文件名一律传 NULL；而 rusqlite 的 `AuthAction::from` 要求 `(SQLITE_ATTACH, Some(filename))`
+/// 才落成 `Attach`，NULL 于是落进 `Unknown`。只匹配 `Attach { .. }` 等于放行
+/// `ATTACH DATABASE ? AS x`——renderer 把路径挪进 `bindings` 就绕过了整道文件边界（RV-002）。
+///
+/// `Attach` / `Detach` 两个变体仍然显式列出：`Unknown` 是 rusqlite 的兜底分支，它今天怎么分类
+/// 是实现细节，两边都判才不依赖那份细节。
+fn escapes_the_file_scope(action: &AuthAction<'_>) -> bool {
+    match action {
+        AuthAction::Attach { .. } | AuthAction::Detach { .. } => true,
+        AuthAction::Unknown { code, .. } => *code == ffi::SQLITE_ATTACH || *code == ffi::SQLITE_DETACH,
+        _ => false,
+    }
+}
+
+/// 会把 SQLite 的文件落点挪出存储根的 pragma 名，**全小写**。
+///
+/// `temp_store_directory` 决定临时文件写在哪，`data_store_directory` 决定相对路径的库文件
+/// 开在哪。两条都绕开了 `resolve_within_root`，与 [`escapes_the_file_scope`] 拦 `ATTACH` 同因。
+const DENIED_PRAGMAS: [&str; 2] = ["temp_store_directory", "data_store_directory"];
+
+/// 这条授权动作会不会改掉 SQLite 的进程级全局目录。
+///
+/// 这两条 pragma 改的是 `sqlite3_temp_directory` / `sqlite3_data_directory` 两个**进程级全局
+/// 变量**，不是连接级设置：一个会话设了，同进程里其余会话（别的窗口、别的库）全都跟着改。
+/// SQLite 官方把二者都标为已废弃且非线程安全。读也一并拒——回给 renderer 的是宿主绝对路径。
+///
+/// **名字必须先折成小写再比。** pragma 名在 SQL 里不区分大小写，但 SQLite 交给授权器的是用户
+/// 写的那个拼法：`PRAGMA TEMP_STORE_DIRECTORY` 传过来就是全大写，按原样比对等于没拦。
+///
+/// `Unknown` 也一并判，理由与 [`escapes_the_file_scope`] 同：rusqlite 今天把哪些参数组合
+/// 归进哪个变体是它的实现细节，两边都判才不依赖那份细节。
+fn repoints_a_process_wide_directory(action: &AuthAction<'_>) -> bool {
+    let pragma_name = match action {
+        AuthAction::Pragma { pragma_name, .. } => Some(*pragma_name),
+        AuthAction::Unknown { code, arg1, .. } if *code == ffi::SQLITE_PRAGMA => *arg1,
+        _ => None,
+    };
+    pragma_name.is_some_and(|name| DENIED_PRAGMAS.contains(&name.to_ascii_lowercase().as_str()))
+}
+
 fn read_row(row: &rusqlite::Row<'_>, column_count: usize) -> Result<Vec<SqlValue>, rusqlite::Error> {
-    (0..column_count).map(|index| row.get::<_, SqlValue>(index)).collect()
+    (0..column_count).map(|index| read_value(row, index)).collect()
+}
+
+/// 读一列的值。
+///
+/// **不能走 `row.get::<_, SqlValue>()`**：rusqlite 的 `From<ValueRef> for Value` 对 TEXT 是
+/// `str::from_utf8(..).expect("invalid UTF-8")`，而 SQLite **从不校验** TEXT 的编码——导入的库、
+/// 别的程序写的库、一句 `CAST(X'FF' AS TEXT)` 都能造出非法字节。那一下 panic 会毒化会话的
+/// `Mutex<Engine>`，从此这条会话连 `close()` 都做不到，同时也推翻了 [`super::session`]
+/// 「`Host::handle` 永不 panic」的契约。
+///
+/// 坏字节按 `from_utf8_lossy` 换成 U+FFFD 报出去，与 Electron 侧 `node:sqlite` 的有损解码
+/// 同口径：读得出来的那部分数据照常送达，不因为一个坏字节丢掉整行。
+fn read_value(row: &rusqlite::Row<'_>, index: usize) -> Result<SqlValue, rusqlite::Error> {
+    let value = match row.get_ref(index)? {
+        ValueRef::Null => SqlValue::Null,
+        ValueRef::Integer(integer) => SqlValue::Integer(integer),
+        ValueRef::Real(real) => SqlValue::Real(real),
+        ValueRef::Text(bytes) => SqlValue::Text(String::from_utf8_lossy(bytes).into_owned()),
+        ValueRef::Blob(bytes) => SqlValue::Blob(bytes.to_vec()),
+    };
+    Ok(value)
 }
 
 impl Drop for Engine {
@@ -743,12 +926,55 @@ mod tests {
         engine.execute(sql, &[]).unwrap()
     }
 
+    /// WAL 的意义是「进程没了，已提交的数据还在」。只读一句 `PRAGMA journal_mode` 证不了
+    /// 这件事：除了模式设错以外的任何一种落盘缺陷——事务没提交、WAL 没 checkpoint、
+    /// 句柄没关干净——都能让那句话照样答 `wal`。所以这里真的关掉再开一次。
     #[test]
     fn opens_in_wal_mode_so_the_file_survives_a_restart() {
+        let directory = temp_directory();
+        let file_path = directory.0.join("app.sqlite3");
+
+        let mut first = open_engine(&file_path);
+        let mode = run(&mut first, "PRAGMA journal_mode").results.unwrap();
+        assert_eq!(mode.rows, vec![vec![SqlValue::Text("wal".into())]]);
+        run(&mut first, "CREATE TABLE t (a TEXT)");
+        run(&mut first, "INSERT INTO t VALUES ('kept')");
+        first.close().unwrap();
+
+        let mut restarted = open_engine(&file_path);
+        let rows = run(&mut restarted, "SELECT a FROM t").results.unwrap().rows;
+        restarted.close().unwrap();
+
+        assert_eq!(rows, vec![vec![SqlValue::Text("kept".into())]]);
+    }
+
+    /// 双引号在 SQL 标准里是**标识符**。SQLite 出于兼容留了一条回退：双引号串解析不成
+    /// 已知列名时，就退而当作字符串字面量。于是一个写错的列名 `SELECT "no_such_colum"`
+    /// 不报错，而是安静地返回一列内容为该拼写的字符串——查询错了，却一路全绿到 UI 上。
+    ///
+    /// 这条回退按连接关，不是编译期开关，所以每次 `open` 都得关一遍。
+    #[test]
+    fn refuses_double_quoted_strings_so_a_typo_in_a_column_name_is_an_error() {
         let mut harness = harness(0);
-        let result = run(&mut harness.engine, "PRAGMA journal_mode");
-        let results = result.results.unwrap();
-        assert_eq!(results.rows, vec![vec![SqlValue::Text("wal".into())]]);
+        run(&mut harness.engine, "CREATE TABLE t (a TEXT)");
+        let error = harness
+            .engine
+            .execute("SELECT \"no_such_column\" FROM t", &[])
+            .unwrap_err();
+        assert!(error.message.contains("no such column"), "{}", error.message);
+        // DDL 侧是另一个开关：`CHECK` 约束里的双引号串以前也会被当字面量收下，
+        // 于是一条本该按列比较的约束变成了「与某个常量比较」，永远为真。
+        let error = harness
+            .engine
+            .execute("CREATE TABLE u (a TEXT CHECK (a <> \"x\"))", &[])
+            .unwrap_err();
+        assert!(error.message.contains("no such column"), "{}", error.message);
+        // 单引号仍然是字符串字面量，双引号当标识符也照常可用。
+        let result = run(&mut harness.engine, "SELECT 'literal' AS \"a b\"");
+        assert_eq!(
+            result.results.unwrap().rows,
+            vec![vec![SqlValue::Text("literal".into())]]
+        );
     }
 
     #[test]
@@ -935,6 +1161,159 @@ mod tests {
         assert!(!copy.exists());
     }
 
+    /// RV-002：文件名是**绑定参数**的 `ATTACH` 同样要拒。
+    ///
+    /// SQLite 的 `codeAttach` 只在文件名是 `TK_STRING` 字面量时才把它交给授权器，
+    /// 其余表达式一律传 NULL，于是 rusqlite 落成 `AuthAction::Unknown` 而不是 `Attach`。
+    /// 按变体匹配的授权器会把这一路放行——renderer 只要把路径挪进 `bindings` 就绕过了整道边界。
+    #[test]
+    fn denies_attach_whose_filename_comes_from_a_binding() {
+        let mut harness = harness(0);
+        let outside = temp_directory();
+        let escaped = outside.0.join("bound.sqlite");
+
+        let error = harness
+            .engine
+            .execute(
+                "ATTACH DATABASE ? AS bound",
+                &[SqlValue::Text(escaped.display().to_string())],
+            )
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::PermissionDenied);
+        assert!(!escaped.exists());
+        assert!(harness
+            .engine
+            .execute("CREATE TABLE bound.proof (value TEXT)", &[])
+            .is_err());
+        assert!(!escaped.exists());
+    }
+
+    /// RV-002：拼接表达式算出来的文件名同样不是字面量，走的是同一条 NULL 路径。
+    #[test]
+    fn denies_attach_whose_filename_is_a_concatenation() {
+        let mut harness = harness(0);
+        let outside = temp_directory();
+        let escaped = outside.0.join("joined.sqlite");
+        let full = escaped.display().to_string();
+        let (prefix, suffix) = full.split_at(3);
+
+        let error = harness
+            .engine
+            .execute(
+                &format!(
+                    "ATTACH DATABASE ({} || {}) AS joined",
+                    quote_literal(prefix),
+                    quote_literal(suffix)
+                ),
+                &[],
+            )
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::PermissionDenied);
+        assert!(!escaped.exists());
+    }
+
+    /// RV-002：子查询产出的文件名——最迂回的一种，仍然只是「非字面量」。
+    #[test]
+    fn denies_attach_whose_filename_comes_from_a_subquery() {
+        let mut harness = harness(0);
+        let outside = temp_directory();
+        let escaped = outside.0.join("selected.sqlite");
+
+        let error = harness
+            .engine
+            .execute(
+                &format!(
+                    "ATTACH DATABASE (SELECT {}) AS selected",
+                    quote_literal(&escaped.display().to_string())
+                ),
+                &[],
+            )
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::PermissionDenied);
+        assert!(!escaped.exists());
+    }
+
+    /// 库内的 `DETACH` 也按原始 opcode 拒，别让「先 ATTACH 不成、再 DETACH 试探」有别的答案。
+    #[test]
+    fn denies_detach() {
+        let mut harness = harness(0);
+        let error = harness.engine.execute("DETACH DATABASE nope", &[]).unwrap_err();
+        assert_eq!(error.code, ErrorCode::PermissionDenied);
+    }
+
+    /// `temp_store_directory` 把临时文件引到存储根之外，`data_store_directory` 对相对路径的
+    /// 库文件同理——两条都绕开了 `resolve_within_root`，与 `ATTACH` 被拦是同一个理由。
+    ///
+    /// 它们改的是进程级全局变量，一个会话设了同进程全体跟着改，所以另开一条裸连接验证全局
+    /// 没被动过：只断言语句被拒，挡漏了也照样绿。
+    ///
+    /// 大小写与引号变体一并覆盖：交给授权器的是用户写的那个拼法，按原样全等匹配的话
+    /// renderer 改一下大小写就绕过去了。
+    #[test]
+    fn denies_the_pragmas_that_repoint_sqlite_process_wide_directories() {
+        let mut harness = harness(0);
+        let outside = temp_directory();
+
+        for pragma in DENIED_PRAGMAS {
+            let upper = pragma.to_ascii_uppercase();
+            for spelling in [pragma.to_owned(), upper.clone(), format!("\"{upper}\"")] {
+                let write = format!("PRAGMA {spelling} = '{}'", outside.0.display());
+                assert_eq!(
+                    harness.engine.execute(&write, &[]).unwrap_err().code,
+                    ErrorCode::PermissionDenied,
+                    "{write} was not denied"
+                );
+                // 读也拒：回给 renderer 的是一个宿主绝对路径
+                let read = format!("PRAGMA {spelling}");
+                assert_eq!(
+                    harness.engine.execute(&read, &[]).unwrap_err().code,
+                    ErrorCode::PermissionDenied,
+                    "{read} was not denied"
+                );
+            }
+        }
+
+        let probe = Connection::open_in_memory().unwrap();
+        let temporary: String = probe
+            .query_row("PRAGMA temp_store_directory", [], |row| row.get(0))
+            .unwrap_or_default();
+        assert!(temporary.is_empty(), "process wide temp directory was repointed to {temporary}");
+    }
+
+    /// SQLite 从不校验 TEXT 的编码：导入的库、别的程序写的库、`CAST(X'FF' AS TEXT)`
+    /// 都能造出不是合法 UTF-8 的文本值。读到它绝不能 panic——`Host::handle` 的契约是
+    /// 「永不 panic」，而一次 panic 会毒化会话的 `Mutex<Engine>`，让这条会话连 `close()`
+    /// 都做不到。按 `from_utf8_lossy` 报出去，与 Electron 侧 `node:sqlite` 的有损解码一致。
+    #[test]
+    fn reads_invalid_utf8_text_lossily_and_keeps_the_session_usable() {
+        let mut harness = harness(0);
+
+        let casted = run(&mut harness.engine, "SELECT CAST(X'FF' AS TEXT) AS v");
+        assert_eq!(
+            casted.results.unwrap().rows,
+            vec![vec![SqlValue::Text("\u{fffd}".into())]]
+        );
+
+        // 存进表里再读出来，走的是同一条 `read_row`——这才是导入的坏数据的实际形状。
+        run(&mut harness.engine, "CREATE TABLE t (v TEXT)");
+        run(&mut harness.engine, "INSERT INTO t VALUES (CAST(X'6100FF62' AS TEXT))");
+        let stored = run(&mut harness.engine, "SELECT v FROM t");
+        assert_eq!(
+            stored.results.unwrap().rows,
+            vec![vec![SqlValue::Text("a\u{0}\u{fffd}b".into())]]
+        );
+
+        // 会话仍然可用、仍然可关；毒化的锁两条都做不到。
+        assert_eq!(
+            run(&mut harness.engine, "SELECT 1 AS v").results.unwrap().rows,
+            vec![vec![SqlValue::Integer(1)]]
+        );
+        harness.engine.close().unwrap();
+    }
+
     /// 授权器不能误伤库内能力：`rawQuery()` 的正常用途必须原样可用。
     #[test]
     fn still_allows_in_database_ddl_dml_transactions_and_pragma() {
@@ -1027,6 +1406,28 @@ mod tests {
         assert!(harness.events.try_recv().is_err(), "unwatched tables must stay silent");
     }
 
+    /// TEMP 触发器与主库共用同一次事务：`CREATE TABLE` 与随之装上的触发器会被同一条
+    /// `ROLLBACK` 一起抹掉，而记着「这张表已经装过」的内存集合不跟着回滚。集合一旦与
+    /// temp schema 的真相脱节，`ensure_notify_triggers` 就永远跳过这张表——它此后的每一次
+    /// 写入都不再产生事件，响应式查询停在原地，且没有任何一处报错。
+    ///
+    /// 可达：`RxDBAdapterSqliteBase` 的建表脚本跑在 `BEGIN IMMEDIATE` / `COMMIT` 之间，
+    /// COMMIT 因磁盘满或 IO 错误失败、同一条会话重试，就是这条路径。
+    #[test]
+    fn reinstalls_notify_triggers_that_a_rollback_took_away() {
+        let mut harness = harness(0);
+        run(&mut harness.engine, "BEGIN IMMEDIATE");
+        run(&mut harness.engine, "CREATE TABLE \"rxdb$rxdb_change\" (a INTEGER)");
+        run(&mut harness.engine, "ROLLBACK");
+
+        run(&mut harness.engine, "CREATE TABLE \"rxdb$rxdb_change\" (a INTEGER)");
+        run(&mut harness.engine, "INSERT INTO \"rxdb$rxdb_change\" VALUES (1)");
+
+        let event = harness.events.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(event.table_name, "rxdb$rxdb_change");
+        assert_eq!(event.row_ids, [1]);
+    }
+
     /// 事件在语句**跑完之后**才派发；`execute()` 返回时批次还没发出去。
     #[test]
     fn does_not_dispatch_while_a_statement_is_still_running() {
@@ -1038,6 +1439,44 @@ mod tests {
         harness.engine.close().unwrap();
         let event = harness.events.recv_timeout(Duration::from_secs(5)).unwrap();
         assert_eq!(event.row_ids, [1]);
+    }
+
+    /// 一条语句的行变更必须整批出现，不能被截止时间从中间切开。
+    ///
+    /// 批次的截止时间由**上一次** `execute()` 设定，而 flusher 是独立线程：下一条语句
+    /// 跑到一半时它照样会醒来取走批次，把这条语句已经录下的那部分先发出去，剩下的留给下一批。
+    /// 事件不会丢，但订阅者看到的是一条语句的一半——而此刻这条语句可能正要失败并回滚，
+    /// 于是那半批通告的是一批从未存在过的行。模块文档「差异 2」与 `execute()` 里
+    /// 「语句已经跑完，事务状态已经落定」都以「不发生这种切分」为前提。
+    #[test]
+    fn never_splits_one_statement_across_two_batches() {
+        let mut harness = harness(50);
+        run(&mut harness.engine, "CREATE TABLE \"rxdb$rxdb_change\" (a INTEGER)");
+        // 先落一行并设下截止时间，让下一次 `execute()` 在「批次已到期」的状态下开跑。
+        // 截止时间只在语句之间设，因此这是唯一能让 flusher 在语句执行中途醒来的前提。
+        run(&mut harness.engine, "INSERT INTO \"rxdb$rxdb_change\" VALUES (0)");
+
+        // 两次写入之间隔着一段纯计算，整条脚本远长于 debounce 与硬上限（两者都 <= 100ms）。
+        let started_at = Instant::now();
+        run(
+            &mut harness.engine,
+            "INSERT INTO \"rxdb$rxdb_change\" VALUES (1); \
+             SELECT count(*) FROM (WITH RECURSIVE spin(n) AS \
+               (SELECT 1 UNION ALL SELECT n + 1 FROM spin WHERE n < 3000000) SELECT n FROM spin); \
+             INSERT INTO \"rxdb$rxdb_change\" VALUES (2);",
+        );
+        assert!(
+            started_at.elapsed() > Duration::from_millis(MAX_BATCH_WAIT_MS),
+            "the test needs a statement that outlives the batch deadlines, took {:?}",
+            started_at.elapsed()
+        );
+
+        let event = harness.events.recv_timeout(Duration::from_secs(30)).unwrap();
+        assert_eq!(
+            event.row_ids,
+            [1, 2, 3],
+            "the first batch must carry the whole execute, not the rows it had recorded by the deadline"
+        );
     }
 
     /// 持续写入下 debounce 会被无限重置，硬上限保证批次仍然发得出去。
@@ -1063,6 +1502,46 @@ mod tests {
             ErrorCode::SessionClosed
         );
         assert_eq!(harness.engine.version().unwrap_err().code, ErrorCode::SessionClosed);
+    }
+
+    /// 同一个库上再开一条连接，用于验证跨连接的关闭行为。
+    fn open_engine(file_path: &std::path::Path) -> Engine {
+        Engine::open(EngineOptions {
+            file_path: file_path.to_path_buf(),
+            db_name: "app.sqlite3".into(),
+            batch_timeout_ms: 0,
+            sink: Arc::new(|_| {}),
+        })
+        .unwrap()
+    }
+
+    /// TRUNCATE checkpoint 要等所有读者让开，而这条连接上挂着 5 秒的 `busy_timeout`：
+    /// 另一扇窗口正开着读事务时，`close()` 会在忙等里坐满 5 秒。demo 的 `on_window_event`
+    /// 在主线程上调它，用户看到的就是关一扇窗口把整个界面冻住数秒。
+    ///
+    /// 关闭路径上等下去也换不来什么：还有别的连接在读，就说明这个库此刻本来就不能被搬走，
+    /// 而 AC#8 真正依赖的是「最后一条连接关闭时 SQLite 自己删掉 `-wal`」——那条路径不受影响，
+    /// 由 [`releases_the_file_handle_so_it_can_be_renamed`] 守着。
+    #[test]
+    fn does_not_wait_out_the_busy_timeout_when_another_connection_is_reading() {
+        let directory = temp_directory();
+        let file_path = directory.0.join("app.sqlite3");
+        let mut closing = open_engine(&file_path);
+        let mut reader = open_engine(&file_path);
+        run(&mut closing, "CREATE TABLE t (a INTEGER)");
+        run(&mut closing, "INSERT INTO t VALUES (1)");
+        // 开着的读事务让 TRUNCATE checkpoint 拿不到独占锁。
+        run(&mut reader, "BEGIN");
+        run(&mut reader, "SELECT count(*) FROM t");
+
+        let started_at = Instant::now();
+        closing.close().unwrap();
+        let elapsed = started_at.elapsed();
+        reader.close().unwrap();
+        assert!(
+            elapsed < Duration::from_millis(u64::from(BUSY_TIMEOUT_MS) / 5),
+            "close() blocked on the busy handler for {elapsed:?}"
+        );
     }
 
     /// AC#8：关闭后 WAL 已 checkpoint、句柄已释放，文件可以直接重命名。

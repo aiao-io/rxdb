@@ -1,9 +1,9 @@
 /**
  * @fileoverview bulk-sync 模块测试
  *
- * 测试批量同步功能的公共行为
- * 注意：由于 ESM 限制，无法直接 mock syncRepository，
- * 因此测试聚焦于可观察的输入输出行为
+ * 测试批量同步功能的公共行为。并发语义没有别的观察点——`results` 的顺序在两种模式下
+ * 都跟入参一致，`durationMs` 又只是墙钟——所以「并发控制」那组把 `syncRepository`
+ * 换成可控实现来量并发窗口，其余各组仍走真实实现。
  */
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -14,10 +14,18 @@ import { getEntityMetadata } from '../../rxdb-utils.js';
 import type { RxDB } from '../../RxDB.js';
 import { RxDBSync } from '../../system/sync.js';
 import { bulkSync, getRepositoriesToSync, type BulkSyncOptions } from '../../version/bulk-sync.js';
+import type { RepositoryIdentifier } from '../../version/dependency-graph.js';
 import { HistoryManager } from '../../version/HistoryManager.js';
+import { syncRepository, type SyncRepositoryResult } from '../../version/sync-repository.js';
 import { getSyncType } from '../../version/sync-type-utils.js';
 import { createTestDB } from '../fixtures/test-db-setup.js';
 import { User } from '../fixtures/test-entities.js';
+
+// 默认转发到真实实现，只有「并发控制」那组临时改写它；`mockReset()` 会退回这里的 impl
+vi.mock('../../version/sync-repository.js', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../version/sync-repository.js')>();
+  return { ...actual, syncRepository: vi.fn(actual.syncRepository) };
+});
 
 describe('bulkSync', () => {
   let rxdb: RxDB;
@@ -132,21 +140,90 @@ describe('bulkSync', () => {
   });
 
   describe('并发控制', () => {
+    /**
+     * 7 个假仓库：`concurrency=3` 下切成 3/3/1 三批，既量得出批内并发，也钉得住跨批不重叠
+     * （真重叠的话峰值会是 7 而不是 3）。走 `repositories` 显式入口，`getRepositoriesToSync`
+     * 原样透传，不碰真实元数据。
+     */
+    const probeRepositories: RepositoryIdentifier[] = Array.from({ length: 7 }, (_, index) => ({
+      namespace: 'probe',
+      entity: `Probe${index}`
+    }));
+
+    /** 返回值与本组用例无关，给个字段合法的空结果即可 */
+    const emptySyncResult = (namespace: string, entity: string): SyncRepositoryResult => {
+      const repository = { namespace, entity };
+      return {
+        persistedProgress: false,
+        historyInvalidated: false,
+        pullResult: {
+          repository,
+          pulled: 0,
+          compacted: 0,
+          applied: 0,
+          hasMore: false,
+          conflictsResolved: 0,
+          conflictsDeferred: 0,
+          persistedProgress: false,
+          historyInvalidated: false,
+          failures: []
+        },
+        pushResult: {
+          repository,
+          pushed: 0,
+          failed: 0,
+          compacted: 0,
+          originalCount: 0,
+          failures: []
+        }
+      };
+    };
+
+    /**
+     * 跑一次 `bulkSync`，量出 `syncRepository` 的并发窗口峰值。
+     *
+     * 每次调用先自增在飞计数，让出一个宏任务再自减：顺序执行时窗口恒为 1，并发执行时
+     * 同一批的调用会叠在一起，峰值即批大小。这是并发语义唯一的可观察量——`results`
+     * 的顺序两种模式下都等于入参顺序，分不出模式。
+     */
+    const peakInFlight = async (options: BulkSyncOptions): Promise<number> => {
+      let inFlight = 0;
+      let peak = 0;
+      vi.mocked(syncRepository).mockImplementation(async (_versionManager, namespace, entity) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        try {
+          await new Promise<void>(resolve => setTimeout(resolve, 5));
+          return emptySyncResult(namespace, entity);
+        } finally {
+          inFlight -= 1;
+        }
+      });
+
+      const result = await bulkSync(rxdb, { ...options, repositories: probeRepositories });
+      // 峰值只有在「每个仓库都真的被派发过」时才说明问题
+      expect(result.succeeded).toBe(probeRepositories.length);
+      return peak;
+    };
+
+    afterEach(() => {
+      vi.mocked(syncRepository).mockReset();
+    });
+
     it('默认应该是顺序执行 (concurrent=false)', async () => {
-      // 默认选项
-      const result = await bulkSync(rxdb);
-      expect(result).toBeDefined();
+      expect(await peakInFlight({})).toBe(1);
     });
 
     it('concurrent=true 应该启用并发执行', async () => {
-      const result = await bulkSync(rxdb, { concurrent: true });
-      expect(result).toBeDefined();
+      expect(await peakInFlight({ concurrent: true })).toBeGreaterThan(1);
     });
 
     it('默认并发数应该是 3', async () => {
-      // 不指定 concurrency，应该使用默认值 3
-      const result = await bulkSync(rxdb, { concurrent: true });
-      expect(result).toBeDefined();
+      expect(await peakInFlight({ concurrent: true })).toBe(3);
+    });
+
+    it('显式 concurrency 覆盖默认值', async () => {
+      expect(await peakInFlight({ concurrent: true, concurrency: 5 })).toBe(5);
     });
 
     // RXD-035：`i += concurrency` 在 concurrency 非正时永不前进，公开 Promise 永久 pending。

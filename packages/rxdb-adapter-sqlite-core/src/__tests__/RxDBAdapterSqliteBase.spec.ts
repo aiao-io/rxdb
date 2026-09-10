@@ -1218,6 +1218,27 @@ describe('RxDBAdapterSqliteBase', () => {
       return rxdb;
     };
 
+    /**
+     * 主键列被 `columnName` 重命名的实体。
+     *
+     * QueryCache 的三个入口都要按它断言：`client.execute` 是 mock，没有真 SQLite 解析 SQL，
+     * 于是「WHERE 里写死字面量 id」这种在真机上必然 `no such column: id` 的语句，
+     * 在只用默认主键的用例里可以一路报绿（SQLC-014 曾经就是这么漏过去的）。
+     */
+    const createCustomPkRxdb = () => {
+      const rxdb = createRxdbMock();
+      vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue({
+        name: 'Todo',
+        namespace: 'public',
+        tableName: 'todos',
+        propertyMap: new Map([
+          ['id', { name: 'id', columnName: 'todo_id' }],
+          ['updatedAt', { name: 'updatedAt', columnName: 'updated_at' }]
+        ])
+      } as never);
+      return rxdb;
+    };
+
     it('getMetadataByIds 用 namespace$tableName 与映射后的列名', async () => {
       const client = createClient({
         execute: vi.fn().mockResolvedValue(okResult('SELECT', [{ columns: ['id', 'updated_at'], rows: [] }]))
@@ -1227,8 +1248,23 @@ describe('RxDBAdapterSqliteBase', () => {
       await firstValueFrom(adapter.getMetadataByIds('Todo', ['id-1']));
 
       expect(vi.mocked(client.execute).mock.calls[0][0]).toContain(
-        'SELECT id, "updated_at" FROM "public$todos" WHERE id IN'
+        'SELECT "id", "updated_at" FROM "public$todos" WHERE "id" IN'
       );
+    });
+
+    it('getMetadataByIds 用自定义物理主键列，不写死字面量 id', async () => {
+      const client = createClient({
+        execute: vi.fn().mockResolvedValue(okResult('SELECT', [{ columns: ['todo_id', 'updated_at'], rows: [] }]))
+      });
+      const adapter = new TestAdapter(createCustomPkRxdb(), () => client);
+
+      await firstValueFrom(adapter.getMetadataByIds('Todo', ['id-1']));
+
+      const sql = String(vi.mocked(client.execute).mock.calls[0][0]);
+      expect(sql).toContain('SELECT "todo_id", "updated_at" FROM "public$todos" WHERE "todo_id" IN');
+      // 逐字钉住回归形态：真机上这两段都是 `no such column: id`
+      expect(sql).not.toContain('SELECT id,');
+      expect(sql).not.toContain('WHERE id ');
     });
 
     it('upsertMany 用 namespace$tableName', async () => {
@@ -1245,17 +1281,7 @@ describe('RxDBAdapterSqliteBase', () => {
 
     it('upsertMany 使用自定义物理主键列作为冲突目标', async () => {
       const client = createClient();
-      const rxdb = createRxdbMock();
-      vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue({
-        name: 'Todo',
-        namespace: 'public',
-        tableName: 'todos',
-        propertyMap: new Map([
-          ['id', { name: 'id', columnName: 'todo_id' }],
-          ['updatedAt', { name: 'updatedAt', columnName: 'updated_at' }]
-        ])
-      } as never);
-      const adapter = new TestAdapter(rxdb, () => client);
+      const adapter = new TestAdapter(createCustomPkRxdb(), () => client);
 
       await firstValueFrom(adapter.upsertMany('Todo', [{ id: 'a', updatedAt: 'x' }]));
 
@@ -1275,7 +1301,41 @@ describe('RxDBAdapterSqliteBase', () => {
 
       const deleteCalls = vi.mocked(client.execute).mock.calls.filter(([sql]) => String(sql).startsWith('DELETE FROM'));
       expect(deleteCalls).toHaveLength(1);
-      expect(deleteCalls[0][0]).toContain('DELETE FROM "public$todos" WHERE id IN');
+      expect(deleteCalls[0][0]).toContain('DELETE FROM "public$todos" WHERE "id" IN');
+    });
+
+    it('deleteByIds 用自定义物理主键列，不写死字面量 id', async () => {
+      const client = createClient();
+      const adapter = new TestAdapter(createCustomPkRxdb(), () => client);
+
+      await firstValueFrom(adapter.deleteByIds('Todo', ['id-1']));
+
+      const deleteSql = vi
+        .mocked(client.execute)
+        .mock.calls.map(([sql]) => String(sql))
+        .find(sql => sql.startsWith('DELETE FROM'));
+      expect(deleteSql).toContain('DELETE FROM "public$todos" WHERE "todo_id" IN');
+      expect(deleteSql).not.toContain('WHERE id ');
+    });
+
+    it('upsertMany 接受以物理列名为键的远端行', async () => {
+      const client = createClient();
+      const adapter = new TestAdapter(createCustomPkRxdb(), () => client);
+
+      // 契约放行「行以物理列名为键」，此时 id 只能从 todo_id 上取；
+      // 取错拿到的是字符串 "undefined"，两次回读全落空 → 写进去了但一个事件都不发。
+      await firstValueFrom(adapter.upsertMany('Todo', [{ todo_id: 'a', updated_at: 'x' } as never]));
+
+      const sqls = vi.mocked(client.execute).mock.calls.map(([sql]) => String(sql));
+      expect(sqls.find(sql => sql.startsWith('INSERT INTO'))).toContain('("todo_id", "updated_at")');
+      const selects = sqls.filter(sql => sql.includes('FROM "public$todos"') && sql.startsWith('SELECT'));
+      expect(selects.length).toBeGreaterThan(0);
+      const idBindings = vi
+        .mocked(client.execute)
+        .mock.calls.filter(([sql]) => String(sql).startsWith('SELECT'))
+        .flatMap(([, bindings]) => (bindings ?? []) as unknown[]);
+      expect(idBindings).toContain('a');
+      expect(idBindings).not.toContain('undefined');
     });
 
     it('metadata 缺失时回退到原名，不静默拼出错误的 namespace 前缀', async () => {
@@ -1288,7 +1348,7 @@ describe('RxDBAdapterSqliteBase', () => {
 
       const deleteCalls = vi.mocked(client.execute).mock.calls.filter(([sql]) => String(sql).startsWith('DELETE FROM'));
       expect(deleteCalls).toHaveLength(1);
-      expect(deleteCalls[0][0]).toContain('DELETE FROM "unknown_table" WHERE id IN');
+      expect(deleteCalls[0][0]).toContain('DELETE FROM "unknown_table" WHERE "id" IN');
     });
   });
 
@@ -1696,7 +1756,9 @@ describe('RxDBAdapterSqliteBase', () => {
 
       expect(client.execute).toHaveBeenCalledTimes(2);
       // 该用例的 mock 不返回 metadata，按契约回退到原名
-      expect(vi.mocked(client.execute).mock.calls[0][0]).toContain('SELECT id, "updatedAt" FROM "todos" WHERE id IN');
+      expect(vi.mocked(client.execute).mock.calls[0][0]).toContain(
+        'SELECT "id", "updatedAt" FROM "todos" WHERE "id" IN'
+      );
       expect(vi.mocked(client.execute).mock.calls[0][1]).toHaveLength(999);
       expect(vi.mocked(client.execute).mock.calls[1][1]).toHaveLength(1);
       expect(map.size).toBe(2);
@@ -1749,7 +1811,7 @@ describe('RxDBAdapterSqliteBase', () => {
 
       const deleteCalls = vi.mocked(client.execute).mock.calls.filter(([sql]) => String(sql).startsWith('DELETE FROM'));
       expect(deleteCalls).toHaveLength(2);
-      expect(deleteCalls[0][0]).toContain('DELETE FROM "todos" WHERE id IN');
+      expect(deleteCalls[0][0]).toContain('DELETE FROM "todos" WHERE "id" IN');
       expect(deleteCalls[0][1]).toHaveLength(999);
       expect(deleteCalls[1][1]).toHaveLength(1);
     });

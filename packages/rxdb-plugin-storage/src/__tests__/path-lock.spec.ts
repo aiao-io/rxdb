@@ -232,6 +232,91 @@ describe('PathLockManager', () => {
     expect(log.sort()).toEqual(['fresh', 'reused']);
   });
 
+  // 快照锁的契约（`DevToolsSnapshotLock.run`）：等锁必须响应 signal。等待中的独占操作被 abort
+  // 之后要立刻拒绝、永不进入临界区，也不得留下一个日后仍会拿到锁的悬空 waiter。
+  it('rejects an exclusive waiter on abort and never runs it', async () => {
+    const locks = new PathLockManager();
+    const log: string[] = [];
+    const holder = deferredTask(log, 'holder');
+    const controller = new AbortController();
+
+    const holderPromise = locks.withPaths(['a.txt'], holder.run);
+    const waiter = locks.withExclusive(async () => {
+      log.push('waiter:ran');
+      return 'never';
+    }, controller.signal);
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+    controller.abort();
+    await expect(waiter).rejects.toMatchObject({ name: 'AbortError' });
+
+    holder.release();
+    await holderPromise;
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(log).toEqual(['holder:start', 'holder:end']);
+  });
+
+  it('reopens the gate after an aborted exclusive waiter', async () => {
+    const locks = new PathLockManager();
+    const log: string[] = [];
+    const holder = deferredTask(log, 'holder');
+    const controller = new AbortController();
+
+    const holderPromise = locks.withPaths(['a.txt'], holder.run);
+    const waiter = locks.withExclusive(() => Promise.resolve('never'), controller.signal);
+    // 独占登记之后才来的路径操作被闸门挡住；独占被 abort 后闸门必须重新打开。
+    const later = locks.withPaths(['z.txt'], async () => {
+      log.push('later');
+    });
+
+    controller.abort();
+    await expect(waiter).rejects.toMatchObject({ name: 'AbortError' });
+
+    // 闸门已重开：与 holder 路径不相交的 later 不必等 holder 释放，更不必等那个已放弃的独占。
+    await later;
+    expect(log).toEqual(['holder:start', 'later']);
+
+    holder.release();
+    await holderPromise;
+  });
+
+  it('rejects immediately when the signal is already aborted', async () => {
+    const locks = new PathLockManager();
+    const controller = new AbortController();
+    controller.abort();
+    let ran = false;
+
+    await expect(
+      locks.withExclusive(async () => {
+        ran = true;
+      }, controller.signal)
+    ).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(ran).toBe(false);
+    await expect(locks.withPaths(['a.txt'], () => Promise.resolve('ok'))).resolves.toBe('ok');
+  });
+
+  it('runs a non-aborted exclusive waiter once the holder releases', async () => {
+    const locks = new PathLockManager();
+    const log: string[] = [];
+    const holder = deferredTask(log, 'holder');
+    const controller = new AbortController();
+
+    const holderPromise = locks.withPaths(['a.txt'], holder.run);
+    const waiter = locks.withExclusive(async () => {
+      log.push('waiter');
+      return 'held';
+    }, controller.signal);
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(log).toEqual(['holder:start']);
+
+    holder.release();
+    await expect(waiter).resolves.toBe('held');
+    await holderPromise;
+    expect(log).toEqual(['holder:start', 'holder:end', 'waiter']);
+  });
+
   it('serializes the same path across manager instances through Web Locks', async () => {
     const webLocks = new TestWebLocks();
     const firstManager = createCrossContextLocks('storage:test', webLocks);

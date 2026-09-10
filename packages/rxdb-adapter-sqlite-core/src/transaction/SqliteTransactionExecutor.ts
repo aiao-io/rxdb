@@ -35,7 +35,7 @@ const createExecutorAdapterFacade = (
   executor: SqliteTransactionExecutor
 ): RxDBAdapterSqliteBase =>
   new Proxy(adapter, {
-    get(target, property, receiver) {
+    get(target, property) {
       if (property === 'query') {
         return (sql: string, bindings?: SQLiteCompatibleType[]): Promise<SqliteResult> =>
           executor.execute(sql, bindings);
@@ -57,7 +57,13 @@ const createExecutorAdapterFacade = (
         const mergeChanges = Reflect.get(target, property, target) as (...args: unknown[]) => unknown;
         return (...args: unknown[]): unknown => mergeChanges.apply(executor.adapter, args);
       }
-      const value: unknown = Reflect.get(target, property, receiver === undefined ? target : target);
+      // receiver 一律**丢弃**，取值与绑定都用真实适配器：getter 里访问 `#private` 字段不走
+      // Proxy，传门面进去就是 `TypeError: Cannot read private member`（见上面的绑定规则）。
+      // 此前写成 `receiver === undefined ? target : target` —— 两支相同，却把这行读成
+      // 「按 receiver 分派」。真正被特判的只有上面那四个成员名，其余一概直达真实适配器；
+      // 尤其 `runInTransaction` 有特判而 `transaction` 没有（后者必须重新入队），
+      // 误以为这里还有一层分派的人会算错哪些调用会撞上并发度为 1 的队列。
+      const value: unknown = Reflect.get(target, property, target);
       return typeof value === 'function' ? (value as (...args: unknown[]) => unknown).bind(target) : value;
     }
   });

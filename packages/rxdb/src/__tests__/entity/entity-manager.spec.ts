@@ -6,6 +6,7 @@ import { PropertyType, SyncType } from '../../entity/metadata-options.interface.
 import { RxDBMissingPrimaryAdapterError, RxDBMixedPrimaryAdapterError } from '../../entity/primary-adapter.js';
 import { Repository } from '../../repository/Repository.js';
 import type { IRxDBAdapter, RxDBMutationsMap } from '../../rxdb-adapter.js';
+import { ENTITY_LOCAL_NEW_EVENT } from '../../rxdb-events.js';
 import { getEntityStatus, uuid } from '../../rxdb-utils.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBError } from '../../RxDBError.js';
@@ -107,11 +108,26 @@ describe('EntityManager', () => {
     completed!: boolean;
   }
 
+  // 主键由调用方指定、没有默认值的实体（与 RxDBBranch 同形）。
+  // Todo 继承 EntityBase，id 在构造期就有 uuid 默认值，盖不住「构造后才有身份」这条路径。
+  @Entity({
+    name: 'Tag',
+    properties: [
+      { name: 'id', type: PropertyType.string, primary: true },
+      { name: 'label', type: PropertyType.string }
+    ]
+  })
+  class Tag {
+    static [ENTITY_STATIC_TYPES]: { idType: string };
+    id!: string;
+    label!: string;
+  }
+
   let rxdb: RxDB;
   beforeAll(async () => {
     rxdb = new RxDB({
       dbName: 'Todo',
-      entities: [Todo],
+      entities: [Todo, Tag],
       sync: {
         local: {
           adapter: 'sqlite'
@@ -123,6 +139,77 @@ describe('EntityManager', () => {
     // 注册模拟适配器。
     rxdb.adapter('sqlite', () => mockAdapter as unknown as IRxDBAdapter);
     rxdb.init();
+  });
+
+  it('同一 tick 内 new 出来的实体立刻可被 createEntityRef 命中（不产生第二个实例）', () => {
+    const id = uuid();
+    const created = rxdb.entityManager.instantiate(Todo, { id, title: 'first' });
+
+    // 关键在「不 await」：从前 PROXY 工厂把 addEntityCache 塞进 nextMicroTask，
+    // 于是这一行在缓存里什么都读不到，转而造出**第二个** Todo 并把它写进缓存 ——
+    // 调用方手上那个 `created` 从此成了孤儿，两个对象各自持有同一 id 的不同状态，
+    // 对其中一个的编辑另一个永远看不见。
+    const referenced = rxdb.entityManager.createEntityRef(Todo, { id, title: 'second' });
+
+    expect(referenced).toBe(created);
+    expect(rxdb.entityManager.getEntityRef(Todo, id)).toBe(created);
+
+    rxdb.entityManager.removeEntityCache(created);
+  });
+
+  // 主键无默认值时，构造那一刻实体还没有身份。从前 PROXY 工厂照样按 `entity.id` 登记，
+  // 于是它落进 `undefined` 这个所有无主键实体共用的槽，之后 `branch.id = 'main'` 也不会补登记 ——
+  // 缓存里永远查不到它。`create_branch` / `resolve_current_branch` 正是这个写法：
+  // 调用方拿到的引用从此是孤儿，后续 hydrate 只会另造一个实例去更新，
+  // 于是 `switchBranch()` 之后调用方手上那个 branch 的 `activated` 永远停在 false（RXD-070）。
+  it('构造后才赋主键的实体，赋值时补登记身份缓存', () => {
+    const tag = rxdb.entityManager.instantiate(Tag);
+
+    // 没有身份就不该占槽：`undefined` 槽被占住时，任何 id 缺失的稀疏水合都会命中一个随机实体
+    expect(rxdb.entityManager.getEntityRef(Tag, undefined as unknown as string)).toBeUndefined();
+
+    tag.id = 'tag_01';
+
+    expect(rxdb.entityManager.getEntityRef(Tag, 'tag_01')).toBe(tag);
+    // 水合走的就是这条路：命中同一个引用，而不是另造一个实例
+    expect(rxdb.entityManager.createEntityRef(Tag, { id: 'tag_01', label: 'hydrated' })).toBe(tag);
+    expect(tag.label).toBe('hydrated');
+
+    rxdb.entityManager.removeEntityCache(tag);
+  });
+
+  it('主键改名后身份缓存跟着搬家，旧槽不留下指向新 id 的引用', () => {
+    const tag = rxdb.entityManager.instantiate(Tag, { id: 'tag_before' });
+    expect(rxdb.entityManager.getEntityRef(Tag, 'tag_before')).toBe(tag);
+
+    tag.id = 'tag_after';
+
+    expect(rxdb.entityManager.getEntityRef(Tag, 'tag_after')).toBe(tag);
+    // 不清旧槽的话，`tag_before` 会查出一个 id 已经是 `tag_after` 的实体
+    expect(rxdb.entityManager.getEntityRef(Tag, 'tag_before')).toBeUndefined();
+
+    rxdb.entityManager.removeEntityCache(tag);
+  });
+
+  it('实体创建事件仍然延后到微任务，不在构造函数里同步派发', async () => {
+    const seen: string[] = [];
+    const listener = () => seen.push('event');
+    rxdb.addEventListener(ENTITY_LOCAL_NEW_EVENT, listener);
+
+    const id = uuid();
+    rxdb.entityManager.instantiate(Todo, { id, title: 'deferred' });
+
+    // 缓存是同步进去的，事件不是：监听器若在构造过程中就被叫醒，
+    // 拿到的是一个还没完成初始化的实例
+    expect(rxdb.entityManager.getEntityRef(Todo, id)).toBeDefined();
+    expect(seen).toEqual([]);
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(seen).toEqual(['event']);
+
+    rxdb.removeEventListener(ENTITY_LOCAL_NEW_EVENT, listener);
+    rxdb.entityManager.removeEntityCache(rxdb.entityManager.getEntityRef(Todo, id)!);
   });
 
   it('操作实体缓存', async () => {

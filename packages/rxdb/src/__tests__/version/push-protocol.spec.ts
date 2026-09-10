@@ -9,6 +9,7 @@ import type { TransactionExecutor, TransactionExecutorFun } from '../../transact
 import { pushRepository } from '../../version/push-repository.js';
 import type { SwitchVersionActions } from '../../version/VersionManager.interface.js';
 import type { VersionManager } from '../../version/VersionManager.js';
+import { emptyPushInFlight } from '../fixtures/push-inflight.js';
 import { User } from '../fixtures/test-entities.js';
 
 type QueryRule = { field: string; operator: string; value: unknown };
@@ -124,7 +125,8 @@ function createVersionManager(localChanges: RxDBChange[], remoteAdapter: RemoteA
     },
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
-    getCurrentBranch: vi.fn(async () => ({ id: 'main' }))
+    getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
+    pushInFlight: emptyPushInFlight()
   } as unknown as VersionManager;
 
   return { vm, saveMany, syncRecord };

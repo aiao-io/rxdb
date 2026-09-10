@@ -66,12 +66,27 @@ const DEVTOOLS_ENABLE_ENV = 'DEV_RXDB_DEVTOOLS';
 async function loadDevToolsExtensionInDevMode(): Promise<void> {
   if (process.env[DEVTOOLS_ENABLE_ENV] !== '1') return;
 
-  const { resolveDevToolsDevConfig, loadDevToolsExtension } = await import('./devtools-extension.bundle.js');
+  // 保持单行：`desktop-sqlite-bridge.spec.ts` 逐字断言这条动态 import，换行会让它红。
+  const devtoolsModule = await import('./devtools-extension.bundle.js');
+  const { resolveDevToolsDevConfig, loadDevToolsExtension, devToolsLaunchArguments } = devtoolsModule;
   const config = resolveDevToolsDevConfig(process.env, path.isAbsolute);
   if (config === undefined) return;
 
+  // 档位与写入开关此前解析完就丢了，页内 connector 拿不到，`DEV_RXDB_DEVTOOLS_CAPABILITY`
+  // / `_MUTATION` 对授权毫无影响。这里把它们编码成渲染进程启动参数，由 preload 同步读出。
+  // 必须在 createWindow **之前**赋值：additionalArguments 是建窗时定死的。
+  devToolsLaunchArgs = devToolsLaunchArguments(config);
+
   await loadDevToolsExtension(session.defaultSession.extensions, config);
 }
+
+/**
+ * 传给渲染进程的 DevTools 启动参数。
+ *
+ * @remarks
+ * 默认空数组 —— production 路径永远不会走到上面那次赋值，窗口因此拿不到任何调试配置。
+ */
+let devToolsLaunchArgs: string[] = [];
 
 /** 生产产物根目录：electron-builder 把 `browser/` 放进 Resources。 */
 const rendererRoot = (): string => path.join(process.resourcesPath, 'browser');
@@ -149,6 +164,8 @@ function createWindow(): BrowserWindow {
       // 每一次 click() 都只会等到超时，报出来的样子却像是应用挂了。
       // 置 false 后 Electron 让该窗口始终按「可见」对待，帧照常绘制与交换。
       backgroundThrottling: !hideWindow,
+      // 只有显式开启开发态 DevTools 的那次运行才非空；见 loadDevToolsExtensionInDevMode。
+      additionalArguments: devToolsLaunchArgs,
       preload: path.join(__dirname, 'preload.js')
     }
   });

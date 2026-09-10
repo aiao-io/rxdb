@@ -261,7 +261,17 @@ export function setupVersionSyncListeners(
     // 退避节拍、用户手动重试），并发起两轮回推会把同一批变更重放两次 ——
     // 第二轮读到的还是第一轮尚未推进的水位线。
     const sub = createResumeTrigger(vm)
-      .pipe(exhaustMap(() => resumeSync(vm)))
+      .pipe(
+        exhaustMap(() =>
+          // 一轮回推失败只终结这一轮。`resumeSync` 里 `runQuietly` 兜住的只有逐仓库 flush，
+          // 枚举仓库与面板上报都在兜底之外；它们抛错顺着 `exhaustMap` 冒到订阅上就会终结整条
+          // 触发流 —— 此后 online 事件、退避节拍、重新连接一律无效，自动回推永久停摆，
+          // 而离线恢复本就是最容易出错的场景。吞掉不等于藏起来：错误进面板，用户看得见。
+          resumeSync(vm).catch((error: unknown) => {
+            vm.rxdb.syncState.reportError(error);
+          })
+        )
+      )
       .subscribe();
     subscriptions.push(sub);
   }

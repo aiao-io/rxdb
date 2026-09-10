@@ -40,7 +40,7 @@ INVEST 检查清单:
 ## 问题现状
 
 改造前的 `transitionMetadata()` 先做 JSON 往返再渲染（现状直接 `omit()` 派生键后交给
-`renderMetadataValue()`，[RxDBClientGenerator.utils.ts:460-474](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.utils.ts#L460-L474)）：
+`renderMetadataValue()`，[RxDBClientGenerator.utils.ts:361](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.utils.ts#L361)）：
 
 ```ts
 const serialized = JSON.stringify(metadataOptions);

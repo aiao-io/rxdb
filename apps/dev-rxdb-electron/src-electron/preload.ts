@@ -119,3 +119,30 @@ const desktopHostBridge: DesktopHostBridge = {
 
 contextBridge.exposeInMainWorld('electron', electronAPI);
 contextBridge.exposeInMainWorld(DESKTOP_HOST_BRIDGE_KEY, desktopHostBridge);
+
+/**
+ * DevTools 运行配置的挂载键与两条启动参数前缀，与 `ipc-contract.ts` /
+ * `devtools-extension.ts` 逐字一致。见 ELEC-15：preload 在 `sandbox: true` 下是未 bundle 的
+ * 逐文件 tsc 产物，不能值导入同目录文件；`devtools-extension.ts` 更是被 electron-builder
+ * 从生产包里整个排除掉的，import 它会让生产包启动即 `Cannot find module`。
+ * 三处字面量由 `devtools-extension.spec.ts` 的一条用例钉住。
+ */
+const DEVTOOLS_RUNTIME_CONFIG_KEY = '__aiaoRxdbDevToolsConfig__';
+const DEVTOOLS_CAPABILITY_ARG = '--rxdb-devtools-capability=';
+const DEVTOOLS_MUTATION_ARG = '--rxdb-devtools-mutation=';
+
+/** 从启动参数里取一项的值；没有该参数时返回 `undefined`。 */
+const launchArgument = (prefix: string): string | undefined =>
+  process.argv.find(argument => argument.startsWith(prefix))?.slice(prefix.length);
+
+// 只有主进程**显式**带上这两条参数时才挂。production 下一条都没有，页内因此拿到
+// `undefined` 并沿用库默认档 —— 而不是拿到一份长得像配置的默认值。
+// 两条必须同时在且取值合法，缺一即整体不挂：半份配置比没有配置更难排查。
+const capability = launchArgument(DEVTOOLS_CAPABILITY_ARG);
+const mutationPolicy = launchArgument(DEVTOOLS_MUTATION_ARG);
+if (
+  (capability === 'none' || capability === 'readonly' || capability === 'full') &&
+  (mutationPolicy === 'allow' || mutationPolicy === 'omit')
+) {
+  contextBridge.exposeInMainWorld(DEVTOOLS_RUNTIME_CONFIG_KEY, { capability, mutationPolicy });
+}

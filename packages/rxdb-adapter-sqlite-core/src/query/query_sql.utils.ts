@@ -331,6 +331,13 @@ const format_in_values = (value: unknown): string => {
 
 /**
  * 格式化 BETWEEN/NOT BETWEEN 操作符的值
+ *
+ * @returns 可拼进 SQL 的 `a and b`；边界缺失或为空时返回 `''`，由 {@link build_rule} 翻成恒真/恒假常量
+ *
+ * @remarks
+ * 空串是**「本规则匹配空集」**的哨兵，不是「本规则不存在」。区别是致命的：调用链上
+ * `buildRuleGroup` 会 `.filter(Boolean)` 掉空串，只剩这一条规则时连 WHERE 子句都不再生成 ——
+ * 用户填了半截的日期区间于是换到整张表。翻译工作统一在 {@link build_rule} 做，见那里的注释。
  */
 const format_between_values = (value: unknown): string => {
   if (!Array.isArray(value) || value.length < 2) return '';
@@ -417,6 +424,11 @@ export const build_substring_condition = (fieldSql: string, operator: string, va
  * **已知限制**：当前实现假定点号仅用于嵌套路径分隔。
  * 如果 keyValue 对象内部的键本身包含点号，此方法将无法正确工作。
  * 详见 query_sql.ts 中 `_try_process_top_level_flatmap` 的文档说明。
+ *
+ * 返回 `null` 表示「这条规则不归本函数管」（交回通用子串路径），与「匹配空集」是两回事 ——
+ * 后者必须返回恒真/恒假常量。曾经在条目全为空时返回 `''`：`build_substring_rule` 只把 `null`
+ * 当作「不归我管」，于是空串被原样带出，再被 `buildRuleGroup` 的 `.filter(Boolean)` 删掉，
+ * 一条本该收窄结果的 `contains` 过滤器换到了整张表。
  */
 export const handle_flatmap_contains = (
   entityMetadata: EntityMetadata,
@@ -428,7 +440,9 @@ export const handle_flatmap_contains = (
   if (typeof rule.value !== 'object' || Array.isArray(rule.value)) return null;
 
   const entries = Object.entries(rule.value as Record<string, unknown>).filter(([, v]) => v != null);
-  if (!entries.length) return '';
+  // 空条件集按下面 combinator 的空集代数求值：contains 是 OR 的空集（恒假），
+  // notContains 是 AND 的空集（恒真）。与「空数组 in/notIn」同一口径。
+  if (!entries.length) return rule.operator === 'contains' ? '1 = 0' : '1 = 1';
 
   const combinator = rule.operator === 'contains' ? ' OR ' : ' AND ';
 
@@ -595,7 +609,15 @@ export const build_rule = (
     : isBoundType ? bind_typed_rule_value(rule, property, params)
     : get_rule_value(rule);
 
-  if (!value && ['in', 'notIn', 'between', 'notBetween'].includes(rule.operator)) return '';
+  // 区间取不出边界（非数组、长度不足、任一端为 null/undefined）。此前这里 `return ''`，
+  // 而空串会被 buildRuleGroup 的 `.filter(Boolean)` 连同整条谓词删掉 —— 只填了结束日期的
+  // 日期筛选于是换到**整张表**。更糟的是响应式查询：JS 增量匹配那侧照样按原 rule 求值，
+  // `compareRuleValues` 对空边界返回 false（SQL 三值逻辑，见 query-matching.utils.ts），
+  // 于是首屏 SQL 结果与后续增量更新结论相反，查询自行漂移。
+  // 这里按 JS 侧的结论翻成恒假/恒真常量，与上面「空数组 in/notIn」同一口径。
+  if (!value && ['in', 'notIn', 'between', 'notBetween'].includes(rule.operator)) {
+    return rule.operator === 'in' || rule.operator === 'between' ? '1 = 0' : '1 = 1';
+  }
 
   const aliasField = fieldAliasMap.get(originalField);
 

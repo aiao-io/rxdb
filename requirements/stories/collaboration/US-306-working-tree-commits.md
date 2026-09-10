@@ -5,7 +5,7 @@ status: Backlog
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-08-22
+updated: 2026-09-06
 tags: [collaboration, working-tree, diff, persistence, concurrency, angular, react, vue, accessibility, benchmark]
 ---
 
@@ -57,7 +57,7 @@ INVEST 检查清单:
 
 业务实体表只是当前激活分支的物化投影。每次普通 CRUD 必须在同一事务内写入或合并该分支的
 `WorkingTreeEntry` 并递增 `workingTreeRevision`；离开分支后，目标状态只能由 HEAD 与这些条目重建。
-实现可以复用 `RxDBChange`，但不能只存计数、内存 dirty set 或最后一次切换时的业务表内容。
+条目是独立表并完整复制 patch / inverse patch，不复用 `RxDBChange` 行（理由见 Epic「状态归属」）；也不能只存计数、内存 dirty set 或最后一次切换时的业务表内容。
 
 ### 状态关系
 
@@ -79,7 +79,7 @@ INVEST 检查清单:
 | 阶段 | 交付闭环                             | 主要内容                                                                                                             | 承接的 FR                                              | 承接的 AC                                                                                                                                   |
 | ---- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | A    | CRUD / sync 写入 → 刷新 → 工作树重建 | 写入口矩阵、active token、working-tree revision、受信意图登记、加密与后端 conformance                                | FR-039、FR-046、FR-045                                 | US1-AC1（工作树半边）、US1-AC3（工作树半边）、US1-AC4（持久层半边）、US2-AC14、US2-AC17（刷新重放半边）、US2-AC18～19、US2-AC23、US4-AC1～7 |
-| B    | 改 → 刷新 → commit → status/diff     | 提交状态机、CAS、commit 后工作树清空、discard 与冲突状态口径，含 `WorkingTreeRestoreSession` 建表与 `CommitConflict` | FR-004、FR-005、FR-011、FR-016、FR-031、FR-032、FR-041 | US1-AC1（diff 半边）、US1-AC2、US2-AC1～AC16、US2-AC20～22、US3-AC1～AC3                                                                    |
+| B    | 改 → 刷新 → commit → status/diff     | 提交状态机、CAS、commit 后工作树清空、discard 与冲突状态口径，含 `WorkingTreeRestoreSession` 建表与 `CommitConflict` | FR-004、FR-005、FR-011、FR-016、FR-031、FR-032、FR-041 | US1-AC1（diff 半边）、US1-AC2、US2-AC1～AC9、US2-AC12～AC13、US2-AC20～22、US3-AC1～AC3                                                     |
 | C    | 三端操作 → 刷新 → 同语义读回         | Angular/React/Vue 公开 API、异步状态、a11y、E2E、benchmark 与公开文档                                                | FR-023、FR-026                                         | US5-AC1～AC8                                                                                                                                |
 
 阶段 B 依赖阶段 A 的持久工作树；阶段 C 只从 `@aiao/rxdb` 透传阶段 B 冻结的共享类型，不自带业务分支逻辑，
@@ -129,7 +129,7 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 - `discardWorkingTree()`：回到当前 HEAD
 - **受信路径的意图登记**：与 raw/未知 bypass 拒绝门禁同批交付，登记以**调用方意图**为键、不以传输层函数为键
 - **adapter 公开批量写方法 `upsertMany()` / `deleteByIds()` 的门禁挂载**（阶段 A）：这两个方法不经 `rawQuery`，
-  §4.6 的判定结构上够不到；按目标实体 `sync.type` 判定，复用同一份版本化实体表清单
+  五步判定结构上够不到；按目标实体 `sync.type` 判定，复用同一份版本化实体表清单
 - `WorkingTreeRestoreSession` 的**建表与 schema 迁移**，以及「从已存在 session 派生 conflicted」的读路径
 - 共享 DTO（`WorkingTreeStatus`、`WorkingTreeDiff`、`WorkingTreeCommandError`、`CommitConflict`）的定义、
   TSDoc 与 api-baseline 登记；`CommitConflict` 由本故事首个使用者落地，
@@ -167,7 +167,7 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 
 **独立测试**：对两个实体做不同修改并提交，检查 HEAD、日志与提交后的工作树状态。
 
-> AC 编号在 2026-08-22 裁掉暂存区后**保持不变**：已作废的条目留空占位，不重排、不复用，
+> 已作废的 AC 编号留空占位，不重排、不复用，
 > 避免既有交叉引用（US2-AC14 / AC17 / AC18～19 / AC20～23）整体漂移。
 
 **验收场景**：
@@ -194,7 +194,7 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 20. **Given** commit 响应丢失，**When** 以相同 operation ID 与相同 payload 重试，**Then** 返回原 commit；payload 不同返回 `idempotency_key_reused`。
 21. **Given** 存在 active restore session 且其 expected revision 与当前值分叉（表由本故事阶段 B 建立，fixture **直接写入 session 行**构造分叉，不经 [US-307](./US-307-restore-session.md) 的 `restore()` 入口——与阶段 A 直接推进 `activationRevision` 同源），**When** 调用 `status()`，**Then** 返回 durable conflicted；session 解决或删除后该状态消失。
 22. **Given** 普通 commit 的 CAS 失败，**When** 刷新后调用 `status()`，**Then** 状态按最新持久数据重建，不因历史失败永久显示 conflicted。
-23. **Given** 调用方对一个**版本化实体**（`sync.type !== QueryCache`）调用 adapter 公开批量写方法 `upsertMany()` 或 `deleteByIds()`，**When** 写入到达业务表前，**Then** 以 `commit_capability_mismatch` 拒绝且业务表与工作树零变化；对 QueryCache 实体调用同样两个方法则正常放行且不产生工作树单元。判定 MUST 复用 [adapter-contract §4.6](../../../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决) 的同一份版本化实体表清单，不得为这两个方法另建第二份；漂移扫描（SC-004）MUST 把「新增的、目标实体不是 QueryCache 的 `upsertMany`/`deleteByIds` 调用点」报为未登记调用点。这两个方法**不经 `rawQuery`**，§4.6 的五步判定结构上够不到它们，因此必须在阶段 A 显式挂载，见 [epic-006 写入口语义矩阵](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)。
+23. **Given** 调用方对一个**版本化实体**（`sync.type !== QueryCache`）调用 adapter 公开批量写方法 `upsertMany()` 或 `deleteByIds()`，**When** 写入到达业务表前，**Then** 以 `commit_capability_mismatch` 拒绝且业务表与工作树零变化；对 QueryCache 实体调用同样两个方法则正常放行且不产生工作树单元。判定 MUST 复用 [epic-006 bypass 门禁判定](../../epics/epic-006-working-tree-commits.md#raw-sql--adapter-直写的-bypass-门禁判定) 的同一份版本化实体表清单，不得为这两个方法另建第二份；漂移扫描（SC-004）MUST 把「新增的、目标实体不是 QueryCache 的 `upsertMany`/`deleteByIds` 调用点」报为未登记调用点。这两个方法**不经 `rawQuery`**，五步判定结构上够不到它们，因此必须在阶段 A 显式挂载，见 [epic-006 写入口语义矩阵](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)。
 
 ### User Story 3 - 丢弃未提交变更（Priority: P2）
 
@@ -244,14 +244,14 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 - **FR-011**：系统 MUST 在 commit 成功后清除**全部**已提交的工作树单元，使工作树回到 clean 并以新 commit 为基线；不存在提交后的残量与 rebase。
 - **FR-016**：系统 MUST 支持 `discardWorkingTree()`，范围是把当前分支工作树整体回到当前 HEAD；工作树已 clean 时是 no-op。
 - **FR-023**：系统 MUST 为异步命令提供 loading、success、error，为查询额外提供 empty；错误必须说明操作、对象和恢复建议。
-- **FR-026**（已改口径）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit、当前工作树 100 个未提交单元的固定 fixture 下，以 5 次 warmup、50 次采样测完整 status、完整 diff 和一次提交 100 个单元的 commit 并输出 p50/p95、runner profile 与 JSON。普通 CI 以归一化 ratio 不超过已签入 reference median 的 110% 为硬门禁；绝对 p95 只在 `runnerProfileHash` 匹配 reference 的固定性能 runner 上作为发布硬门禁，其中 status / diff 为 100 ms，commit 的阈值由首个绿色实现的 reference 中位数冻结（不沿用原 stage 的 100 ms，量级不同）。浏览器 OPFS / IDB 不承诺相同绝对数字。
+- **FR-026**：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit、当前工作树 100 个未提交单元的固定 fixture 下，以 5 次 warmup、50 次采样测完整 status、完整 diff 和一次提交 100 个单元的 commit 并输出 p50/p95、runner profile 与 JSON。普通 CI 以归一化 ratio 不超过已签入 reference median 的 110% 为硬门禁；绝对 p95 只在 `runnerProfileHash` 匹配 reference 的固定性能 runner 上作为发布硬门禁，其中 status / diff 为 100 ms，commit 的阈值由首个绿色实现的 reference 中位数冻结（不套用 status / diff 的 100 ms，量级不同）。浏览器 OPFS / IDB 不承诺相同绝对数字。
 - **FR-031**：所有操作 MUST 遵守 Epic revision 矩阵：commit 校验 active branch token、expected head 与 expected working-tree revision，三者任一不匹配即全量回滚并返回 `CommitConflict`。`workingTreeRevision` 采用**调用方捕获型** CAS：调用方读到 status 之后、commit 落盘之前的任何一次工作树写入都 MUST 让本次 commit 失败，**不得**为了提高成功率而放宽为只校验 head——那等于提交调用方没有看过的变更。discard 同样校验 active token 与 expected working-tree revision。
 - **FR-032**：工作树中的实体编辑不按 writer 身份分叉处理；无论来自当前 realm 还是其他 realm，都 MUST 平等地成为同一份工作树的未提交变更。writer 身份不得成为提交正确性的必要条件；并发保护只由 FR-031 的 revision CAS 提供。
 - **FR-039**：每次普通 CRUD MUST 在同一事务内校验 active branch token、写入业务实体、写入或合并完整 `WorkingTreeEntry` 并递增 `workingTreeRevision`。任一步失败全部回滚；禁止只靠内存 dirty set 重建。
 - **FR-040**：_（已裁撤，编号不得复用。）_ 原条目定义 stage/re-stage 的 CAS 与事务扩展规则，随暂存区一并作废；commit 的 CAS 见 FR-031。
 - **FR-041**：普通提交 MUST 接收 trim 后非空 message 与必填 `CommitOptions.authorId`、`CommitOptions.operationId`；调用方 metadata 只能放扩展审计字段，不得覆盖 parent、时间、作者、operation ID、schema/codec manifest 或变更数量。**`commit()` 不接受变更选择参数**——它没有 selection 入参，提交范围恒为当前分支工作树的全部未提交单元。
 - **FR-045**：WorkingTreeEntry MUST 延续字段加密 at-rest 契约；读取可在解锁后返回明文业务值，但任何持久化 dump、错误和摘要不得出现加密字段明文。
-- **FR-046**：所有业务实体写入口 MUST 遵守 Epic 写入口矩阵。full/filter 远端实体应用即使关闭 `RxDBChange` trigger，也 MUST 在同一事务写入 `origin=remote_sync` 的工作树单元且不得形成 push echo；纯同步元数据更新不改变工作树。QueryCache 实体 MUST 完整排除；callback transaction 在任意时点检测到 QueryCache/版本化实体混用时 MUST 抛 `mixed_versioned_cache_transaction` 并回滚整个事务，不能要求事务系统预知回调未来操作。raw/未知绕过路径 MUST fail-fast，且门禁 MUST 覆盖 adapter 的公开批量写方法 `upsertMany()` / `deleteByIds()`——它们不经 `rawQuery`，[adapter-contract §4.6](../../../specs/001-working-tree-commits/contracts/adapter-contract.md#46-raw-sql--adapter-直写的-bypass-门禁已裁决) 的五步判定够不到，必须在阶段 A 显式挂载（US2-AC23）。
+- **FR-046**：所有业务实体写入口 MUST 遵守 Epic 写入口矩阵。full/filter 远端实体应用即使关闭 `RxDBChange` trigger，也 MUST 在同一事务写入 `origin=remote_sync` 的工作树单元且不得形成 push echo；纯同步元数据更新不改变工作树。QueryCache 实体 MUST 完整排除；callback transaction 在任意时点检测到 QueryCache/版本化实体混用时 MUST 抛 `mixed_versioned_cache_transaction` 并回滚整个事务，不能要求事务系统预知回调未来操作。raw/未知绕过路径 MUST fail-fast，且门禁 MUST 覆盖 adapter 的公开批量写方法 `upsertMany()` / `deleteByIds()`——它们不经 `rawQuery`，[epic-006 bypass 门禁判定](../../epics/epic-006-working-tree-commits.md#raw-sql--adapter-直写的-bypass-门禁判定) 的五步判定够不到，必须在阶段 A 显式挂载（US2-AC23）。
   **混批闸门的分工（避免两套错误码）**：批量入口在**调用前已知全部目标实体**时（如 [US-020 AC#6](../core/US-020-querycache-repository.md) 的 `EntityManager.mutations`、[US-212 AC#11](../adapter/US-212-http-adapter.md)）MUST 做入口预检并**复用 `mixed_versioned_cache_transaction` 这一个 code**，不得另起名字；本 FR 的事务内检测只负责 callback transaction 这种运行时才知道内容的场景。两者是同一条规则的两个触发时机，不是两条规则。
 - **FR-047**：_（已裁撤，编号不得复用。）_ 原条目要求 index 自包含可重放及其依赖闭包与 `index_dependency_cycle`。
   **无子集选择即无闭包**：commit 取整棵工作树，天然自包含。「工作树可仅凭 HEAD 与自身条目重放」这一条不变量
@@ -269,7 +269,7 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 - 受信路径登记 MUST 与 bypass 拒绝门禁同批交付：既有 switch / baseline 物化在门禁启用后 MUST 继续可用，
   且 MUST NOT 产生工作树单元或递增 `workingTreeRevision`。未登记的批量重写 MUST 仍被拒绝。
 - 登记的键 MUST 是调用方意图，不是底层函数。每个关 trigger 的写路径 MUST 在事务上下文中携带一个显式意图枚举
-  （枚举名在 plan 阶段冻结），由调用点一直传到事务体；同一函数的不同意图 MUST 得到不同处置。登记表以
+  （`RxDBWriteIntent`，内部契约），由调用点一直传到事务体；同一函数的不同意图 MUST 得到不同处置。登记表以
   [epic-006 调用点登记表](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)为准，新增
   `disableTriggers` 调用点 MUST 先登记再实现，未登记即拒绝。
 - 新增公开类型（`WorkingTreeState`、`WorkingTreeEntry` 及全部共享 DTO 与错误码）
@@ -398,9 +398,11 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
   必须显式覆盖「同一函数、受信意图零副作用 vs 非受信意图必须产生工作树单元」的成对断言，防止按函数放行把
   restore / undo/redo / merge / pull 静默吞掉。
 
+- **SC-004（本故事定义的成功判据）**：覆盖全部写入口（普通 CRUD、merge、undo/redo、四类同步入口、`cleanupExpired()`
+  过期删除、QueryCache 排除、raw / `upsertMany` / `deleteByIds` 绕过拒绝）的一致性用例通过率 100%；上述漂移扫描报出的
+  未登记批量重写调用点数量为 0。[roadmap 约束 11](../../roadmap.md) 要求把 HTTP 包纳入该扫描的核对范围。
 - QueryCache fixture 必须证明 cache 刷新/淘汰不污染 status，混合事务在持久化前失败。
-- 支持字段加密的后端必须扫描 `WorkingTreeEntry` 原始 dump，断言明文哨兵零命中（FR-045 / US2-AC14；
-  该 FR 原先在阶段 A/B 各承接一半，`IndexEntry` 半边随暂存区裁撤后整条归阶段 A）。
+- 支持字段加密的后端必须扫描 `WorkingTreeEntry` 原始 dump，断言明文哨兵零命中（FR-045 / US2-AC14，整条归阶段 A）。
 
 ### 阶段 B — 提交状态机
 
@@ -432,21 +434,21 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 
 ## 实现文件（计划阶段待确认）
 
-| 路径                                       | 阶段 | 用途                                                                       |
-| ------------------------------------------ | ---- | -------------------------------------------------------------------------- |
-| `packages/rxdb/src/version/`               | A    | 工作树单元与写入口编排、受信路径登记                                       |
-| `packages/rxdb/src/version/`               | B    | status/diff/commit 状态机                                                  |
-| `packages/rxdb/src/system/`                | A    | `WorkingTreeState` / `WorkingTreeEntry`                                    |
-| `packages/rxdb/src/system/`                | B    | `WorkingTreeRestoreSession`（仅建表与迁移）                                |
-| `packages/rxdb/src/__tests__/version/`     | B    | CAS、幂等与 commit 后工作树清空                                            |
-| `packages/rxdb-test/`                      | A/B  | `workingTreeCaptureConformanceSuite` / `workingTreeCommitConformanceSuite` |
-| 各 v1 本地 adapter                         | A    | 事务内 trigger/capability 接入                                             |
-| `packages/rxdb-{angular,react,vue}/`       | C    | `useWorkingTree()` 与共享类型透传                                          |
-| `apps/dev-rxdb-{angular,react,vue}/`       | C    | 对称演示与 E2E                                                             |
-| `benchmarks/working-tree.bench.ts`（新增） | C    | FR-026 的判定依据                                                          |
-| `benchmarks/reports/`                      | C    | 冻结 reference 报告                                                        |
-| `website/docs/collaboration/`（新增）      | C    | 发布门禁 9 的公开文档（US5-AC8）                                           |
-| `requirements/api-baseline/rxdb.json`      | A/B  | 新增公开类型登记                                                           |
+| 路径                                                | 阶段 | 用途                                                                       |
+| --------------------------------------------------- | ---- | -------------------------------------------------------------------------- |
+| `packages/rxdb/src/version/`                        | A    | 工作树单元与写入口编排、受信路径登记                                       |
+| `packages/rxdb/src/version/`                        | B    | status/diff/commit 状态机                                                  |
+| `packages/rxdb/src/system/`                         | A    | `WorkingTreeState` / `WorkingTreeEntry`                                    |
+| `packages/rxdb/src/system/`                         | B    | `WorkingTreeRestoreSession`（仅建表与迁移）                                |
+| `packages/rxdb/src/__tests__/version/`              | B    | CAS、幂等与 commit 后工作树清空                                            |
+| `packages/rxdb-test/`                               | A/B  | `workingTreeCaptureConformanceSuite` / `workingTreeCommitConformanceSuite` |
+| 各 v1 本地 adapter                                  | A    | 事务内 trigger/capability 接入                                             |
+| `packages/rxdb-{angular,react,vue}/`                | C    | `useWorkingTree()` 与共享类型透传                                          |
+| `apps/dev-rxdb-{angular,react,vue}/`                | C    | 对称演示与 E2E                                                             |
+| `benchmarks/working-tree.bench.ts`（新增）          | C    | FR-026 的判定依据                                                          |
+| `benchmarks/reports/`                               | C    | 冻结 reference 报告                                                        |
+| `website/docs/collaboration/`（既有目录，新增页面） | C    | 发布门禁 9 的公开文档（US5-AC8）                                           |
+| `requirements/api-baseline/rxdb.json`               | A/B  | 新增公开类型登记                                                           |
 
 ## 依赖与参考
 

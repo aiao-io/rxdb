@@ -34,7 +34,14 @@ export interface HttpRequestSpec {
   method: HttpMethod;
   /** 适配器负责 JSON 序列化 */
   body?: unknown;
-  /** 附加 header；与 auth hook 冲突时 **auth hook 优先** */
+  /**
+   * 附加 header；与 auth hook 冲突时 **auth hook 优先**。
+   *
+   * @remarks
+   * 开了 {@link HttpAdapterOptions.conditionalRequests} 时，这一组**参与请求指纹**：
+   * 在同一条 URL 上按租户 / 语言分投影是安全的，两个投影各占各的缓存条目。
+   * 三组 header 里只有它进指纹，另外两组的取舍见 `conditionalRequests`。
+   */
   headers?: Record<string, string>;
 }
 
@@ -247,6 +254,19 @@ export interface HttpHandlers {
 export type HttpAuthHook = () => Record<string, string> | Promise<Record<string, string>>;
 
 /**
+ * `Response.type` 的取值集合。
+ *
+ * @remarks
+ * 与 DOM 的 `ResponseType` 逐字同义，但**自己声明一份**：DOM 的那个是全局名，只在
+ * `lib` 含 `dom` 时存在。写进公开接口后，纯 Node 消费方（`lib: ["es2025"]`）编我们的
+ * `.d.ts` 会以 `TS2304: Cannot find name 'ResponseType'` 失败——而本仓库的 base tsconfig
+ * 带着 `dom`，这个红我们自己永远看不见。守卫在 `__tests__/public-types.spec.ts`。
+ *
+ * 不从 `undici-types` 引：那是 Node 侧的**模块**导出，浏览器消费方没有它。
+ */
+export type HttpResponseType = 'basic' | 'cors' | 'default' | 'error' | 'opaque' | 'opaqueredirect';
+
+/**
  * 「条件请求开着，却读不到 `ETag`」这一刻的**事实**（US-215）。
  *
  * @remarks
@@ -275,7 +295,7 @@ export interface HttpEtagUnreadableReport {
    * 浏览器里跨源响应是 `'cors'`、同源是 `'basic'`，可作线索。Node（undici）下手工构造的
    * `Response` 恒为 `'default'`，所以这是**线索而非判据**——判断留给拿得到部署拓扑的调用方。
    */
-  responseType: ResponseType;
+  responseType: HttpResponseType;
   /** 现成的说明文案：两种成因都点到，且不选边 */
   message: string;
 }
@@ -457,8 +477,13 @@ export interface HttpAdapterOptions extends Partial<HttpNumericConfig> {
    * 落盘，本包按 AC#19 不碰。缓存按适配器实例存活、有界（{@link HttpNumericConfig.conditionalCacheSize}）、
    * `disconnect()` 时清空。
    *
-   * **换用户必须走 `disconnect()` / `connect()`**：auth header 不进请求指纹（否则每次
-   * token 轮换都全量失效，等于没有缓存），所以同一实例上直接换 token 会读到上一个身份的响应。
+   * 三组 header 只有一组进请求指纹。{@link HttpRequestSpec.headers}（handler 逐请求给的）
+   * **进**——它是唯一会在同一条 URL 上区分投影的一组，不进就是两个租户共用一个条目。
+   * {@link HttpAdapterOptions.headers}（本实例恒定）与 auth hook 产出的**不进**：
+   * 前者进去只是给每条键加同一段前缀，后者进去会让每次 token 轮换都全量失效。
+   *
+   * **换用户必须走 `disconnect()` / `connect()`**：这是 auth header 不进指纹的代价——
+   * 同一实例上直接换 token 会读到上一个身份的响应。
    */
   conditionalRequests?: boolean;
   /**
@@ -521,6 +546,9 @@ export interface HttpAdapterOptions extends Partial<HttpNumericConfig> {
    *   changeFeed: { url: 'changes', onUnavailable: report => myLogger.warn(report.message, report) }
    * });
    * ```
+   *
+   * @experimental 不在 1.0 兼容承诺内：协议目前只有参考后端一个实现，wire 形态可能随第二个实现调整。
+   * 层级口径见 `requirements/versioning-policy.md`「实验性层级」。
    */
   changeFeed?: HttpChangeFeedOptions;
 }

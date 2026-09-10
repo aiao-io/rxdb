@@ -24,6 +24,7 @@ import { PropertyType, SyncType } from '../../entity/metadata-options.interface.
 import { createQueryCachePrimary } from '../../repository/query-cache-primary.js';
 import { QueryCacheSyncMemo } from '../../repository/query-cache-sync-memo.js';
 import { SyncStateHub } from '../../sync-state.js';
+import { noPendingWrites } from '../fixtures/pending-writes.js';
 import { detachedReachability } from '../fixtures/reachability.js';
 
 @Entity({
@@ -88,7 +89,8 @@ const setup = () => {
     false,
     new QueryCacheSyncMemo(0),
     reachability,
-    new SyncStateHub({ online$: reachability.online$, pushableCount$: of(0) })
+    new SyncStateHub({ online$: reachability.online$, pushableCount$: of(0) }),
+    noPendingWrites
   );
   return { primary, remoteAdapter };
 };

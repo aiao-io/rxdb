@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { spawn, type ChildProcess } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { launchEnv } from './packaged-app';
+import { join } from 'node:path';
+import { assertSandboxUsable, launchEnv } from './packaged-app';
 
 /**
  * US-904 阶段 A：Electron 43 MV3 扩展可行性门禁（AC#1～#4）。
@@ -28,51 +28,6 @@ const PROBE = join(__dirname, '../../dev-rxdb-electron/tools/devtools-mv3-probe.
 
 /** 扩展构建产物目录，与 `apps/rxdb-devtools-extension/vite.config.ts` 的 `outDir` 一致。 */
 const EXTENSION_DIST = join(__dirname, '../../rxdb-devtools-extension/dist');
-
-/**
- * Linux 上的沙箱前置检查：确认 `chrome-sandbox` 已配成 setuid root，否则带修复命令直接红。
- *
- * @remarks
- * **这道门禁不能带 `--no-sandbox` 跑，那个开关会让被测能力本身失效。** Electron 44 上，
- * 非沙箱渲染进程走 `renderer_init`，它同步向主进程要 preload 列表；扩展的 `devtools_page`
- * 拿回的是 `null`，于是整个 bundle 在
- *   Electron renderer.bundle.js script failed to run
- *   TypeError: object null is not iterable (cannot read property Symbol(Symbol.iterator))
- * 处中断 —— 页面自己的脚本一行都没执行，`chrome.devtools.panels.create` 从未被调用，
- * RxDB 面板压根不会进 tab 条。表征极具误导性：`chrome.devtools` / `panels.create` 在那个帧里
- * 探起来一切正常，只有 `devtoolsPageState.readyState` 停在 `loading`、`document.scripts` 为空
- * 露了馅。macOS 上加 `--no-sandbox` 能一比一复现同一组红（AC#2/#3 注入/#4 全灭），
- * 去掉就全绿 —— 与平台无关，就是这个开关。
- *
- * 而 npm/pnpm 解包置不了 setuid 位（只有 root 能置），`dist/chrome-sandbox` 落地是 0755。
- * Chromium 见到「文件在但没配好」不会降级，直接 FATAL 中止：
- *   FATAL:sandbox/linux/suid/client/setuid_sandbox_host.cc:166] The SUID sandbox helper
- *   binary was found, but is not configured correctly.
- * 那条只在 stderr，探针会以 `null` 退出、一条 finding 都不产出，看上去像扩展加载失败。
- * 所以在这里先自查：缺就带着修复命令红，**不退回 `--no-sandbox`** —— 那正是能力失效的原因，
- * 兜过去只会让门禁报绿而什么都没验（AGENTS.md：无 fallback 兜底）。
- *
- * 本目录另外三套用例不受影响：它们走 `_electron.launch()`，Playwright 在 Linux 上会默认插
- * `--no-sandbox`，而它们测的是打包产物的窗口行为，不涉及扩展渲染进程。
- *
- * @param executable - `require('electron')` 返回的可执行文件绝对路径
- */
-function assertSandboxUsable(executable: string): void {
-  if (process.platform !== 'linux') return;
-
-  const helper = join(dirname(executable), 'chrome-sandbox');
-  const stats = existsSync(helper) ? statSync(helper) : null;
-  // setuid 位 + root 属主，两者缺一不可：只 chmod 不 chown 一样过不了 Chromium 的检查。
-  const usable = stats !== null && stats.uid === 0 && (stats.mode & 0o4000) !== 0;
-
-  expect(
-    usable,
-    `Electron 的 SUID 沙箱助手未配置好：${helper}\n` +
-      `请先执行：sudo chown root:root ${helper} && sudo chmod 4755 ${helper}\n` +
-      '（本门禁必须在真沙箱下跑：--no-sandbox 会让扩展 devtools_page 渲染进程初始化失败，' +
-      '面板永远不会注册。详见本函数的 @remarks。）'
-  ).toBe(true);
-}
 
 /** 单条 finding 的形状，与探针的 `record()` 一致。 */
 interface Finding {
@@ -105,6 +60,8 @@ function requireCapabilities(value: PanelCapabilities | null): PanelCapabilities
 
 let findings: Map<string, Finding>;
 let outputDir: string;
+/** 在跑的探针进程；`afterAll` 必须收掉它，理由见那里的注释。 */
+let probeProcess: ChildProcess | null = null;
 
 /**
  * 取一条 finding，缺失即失败。
@@ -131,6 +88,16 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
   test.describe.configure({ timeout: 300000 });
 
   test.beforeAll(async () => {
+    // 上面那句 `describe.configure({ timeout })` **管不到 hook** —— 它只改组内每个 test 的超时，
+    // beforeAll / afterAll 拿的是 `playwright.config.ts` 里的全局 `timeout`（120s）。
+    // 而本探针本身就要一分钟以上（本机实测 60s：两轮四段中继 + 等 MV3 worker 空闲自停约 30s），
+    // CI 上跑满 120s 是常态。超时的后果远不止这一条红：Playwright 只放弃 hook，
+    // **不会动 spawn 出去的探针进程**，重试时新旧两个 Electron 并存，
+    // 后者的 MV3 service worker 就注册不上（见探针文件头坑 7），
+    // AC#1/#2/#3/#4 一起变成「Electron 不支持 MV3 背景页」的假红。
+    // 所以这里显式给 hook 一个与 describe 同量级的上限。
+    test.setTimeout(300000);
+
     // 缺产物必须是红：skip 会让门禁"报绿但什么都没验"。
     expect(
       existsSync(EXTENSION_DIST),
@@ -139,6 +106,10 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
 
     outputDir = mkdtempSync(join(tmpdir(), 'us904-phase-a-'));
     const outputPath = join(outputDir, 'result.json');
+    // 探针必须独占 profile：MV3 的 service worker 注册表落在 userData 的 LevelDB 里，
+    // 与别的 Electron 进程共用时后启动的那个静默注册不上（探针文件头坑 7）。
+    // 目录挂在 outputDir 下面，生命周期跟着下面的 afterAll 一起收。
+    const userDataDir = join(outputDir, 'user-data');
 
     // electron 包的默认导出就是可执行文件的绝对路径（以纯 Node 加载时）。
     const executable = require('electron') as unknown as string;
@@ -147,14 +118,16 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
     const exitCode = await new Promise<number>((resolve, reject) => {
       // launchEnv() 会剥掉 ELECTRON_RUN_AS_NODE：任何 Electron 宿主（VS Code 集成终端最常见）
       // 都会给子进程设这个变量，带着它启动会让二进制退化成纯 Node，连 app 对象都没有。
-      const child = spawn(executable, [PROBE, EXTENSION_DIST, outputPath], {
+      const child = spawn(executable, [PROBE, EXTENSION_DIST, outputPath, userDataDir], {
         env: launchEnv(),
         stdio: ['ignore', 'pipe', 'pipe']
       });
+      probeProcess = child;
       const stderr: string[] = [];
       child.stderr.on('data', chunk => stderr.push(String(chunk)));
       child.on('error', reject);
       child.on('exit', code => {
+        probeProcess = null;
         if (code !== 0 && !existsSync(outputPath)) {
           reject(new Error(`探针以 ${code} 退出且未产出结果：\n${stderr.join('')}`));
           return;
@@ -169,6 +142,11 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
   });
 
   test.afterAll(() => {
+    // hook 超时 / 断言抛错时 Playwright 只结束 hook，spawn 出去的探针会**继续跑到自己结束**。
+    // 留着它就是下一次重试的污染源（两个 Electron 抢同一份 profile，见探针文件头坑 7），
+    // 而 afterAll 在 beforeAll 失败后照样执行 —— 这里是唯一能收掉它的地方。
+    probeProcess?.kill('SIGKILL');
+    probeProcess = null;
     if (outputDir) rmSync(outputDir, { force: true, recursive: true });
   });
 
@@ -297,6 +275,11 @@ test.describe('Electron 43 MV3 扩展可行性（US-904 阶段 A）', () => {
     expect(detail.remainingContents).toEqual([]);
     // 销毁窗口的瞬间 worker 还在（MV3 的 worker 不随页面走），空闲约 30 秒后才自停。
     // 两个时刻都断言，才能区分「清理生效」与「本来就没起来」。
+    //
+    // 这一条曾在**整套连跑**下假红：探针原本 destroy 后 `sleep(2000)` 才取样，而面板的 Port
+    // 会把 worker 一直撑到窗口销毁，空闲计时从销毁那一刻才起算 —— 机器有负载时那句 sleep 的
+    // 真实墙钟漂过 30s，worker 已自停，这一半落空。探针现在**零等待取样**（见
+    // `devtools-mv3-probe.mjs` 的 AC#4c 段），判据只依赖销毁与取样的先后。
     expect(detail.serviceWorkersRightAfterDestroy.length).toBeGreaterThan(0);
     expect(detail.serviceWorkersAfterIdle).toEqual([]);
   });

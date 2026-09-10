@@ -44,7 +44,7 @@ import {
   type QueryCacheRowImage,
   type QueryCacheRowImages
 } from './query-cache-events.js';
-import { assertQueryCacheRowContract } from './query-cache-row-contract.js';
+import { assertQueryCacheRowContract, readQueryCacheRowId } from './query-cache-row-contract.js';
 import { generate_sql } from './query/query_sql.js';
 import { SqliteRepository } from './repository/SqliteRepository.js';
 import { SqliteTreeRepository } from './repository/SqliteTreeRepository.js';
@@ -702,11 +702,14 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       return from(
         (async () => {
           const metadataMap = new Map<string, string>();
-          const { tableName, updatedAtColumn } = this.#resolveQueryCacheTarget(entityName);
+          const { tableName, idColumn, updatedAtColumn } = this.#resolveQueryCacheTarget(entityName);
+          // 主键列名与 updatedAt 同样要经 propertyMap 解析：`@Property({ columnName: 'todo_id' }) id`
+          // 的实体上，写死的字面量 `id` 换到的是一条 `no such column: id`，该实体从此拉不动（SQLC-014）。
+          const idColumnSql = quote_sql_identifier(idColumn);
 
           for (const idsChunk of chunkBySqliteBindLimit(ids)) {
             const placeholders = idsChunk.map(() => '?').join(', ');
-            const sql = `SELECT id, ${quote_sql_identifier(updatedAtColumn)} FROM ${quote_sql_identifier(tableName)} WHERE id IN (${placeholders})`;
+            const sql = `SELECT ${idColumnSql}, ${quote_sql_identifier(updatedAtColumn)} FROM ${quote_sql_identifier(tableName)} WHERE ${idColumnSql} IN (${placeholders})`;
             const result = await this.query(sql, idsChunk);
             if (result.results?.[0]?.rows) {
               for (const row of result.results[0].rows) {
@@ -730,7 +733,10 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       // 而这一批本来一行都不该被尝试写入。判据只需要元数据与行的键集，是同步的。
       const target = this.#resolveQueryCacheTarget(entityName);
       assertQueryCacheRowContract(entityName, data as object[], target.metadata);
-      const ids = data.map(item => String((item as Record<string, unknown>)['id']));
+      // 契约显式放行「行以物理列名为键」（`#writeQueryCacheRows` 的 columnNames 映射正为此存在），
+      // 所以取 id 不能只认 JS 属性名：认错了拿到的是字符串 "undefined"，两次回读全落空，
+      // 于是**写进去了但一个事件都不发** —— 库是新值、界面停在旧值，正是下面那段注释要防的静默写。
+      const ids = data.map(item => String(readQueryCacheRowId(item as object, target.idColumn)));
       return from(
         this.transaction(async executor => {
           // 两次回读都必须与写同事务：前一次晚了就拿到新值、倒推不出 inversePatch，
@@ -761,7 +767,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       return from(
         this.transaction(async executor => {
           const preImages = await this.#readQueryCacheRowImages(executor, target, ids);
-          await withTriggersDisabled(this, executor, () => this.#deleteQueryCacheRows(executor, target.tableName, ids));
+          await withTriggersDisabled(this, executor, () => this.#deleteQueryCacheRows(executor, target, ids));
           return preImages;
         }, false).then(preImages => {
           // 行没了，缓存里那个实例还标着 local=true。不标 removed 的话，
@@ -829,13 +835,24 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * 从缓存表删除一批 id（按 SQLite 绑定上限分块）。
    *
    * @param executor - 当前事务的执行器
-   * @param tableName - 已解析的物理表名
+   * @param target - `#resolveQueryCacheTarget` 解析出的表名/列名视图
    * @param ids - 要删除的主键
+   *
+   * @remarks
+   * 收整个 `target` 而不是单收 `tableName`：曾经窄化成 `tableName: string`，把调用点已经解析好的
+   * `idColumn` 丢在门外，于是 WHERE 里只能写死字面量 `id` —— 自定义主键列的实体一删就
+   * `no such column: id`，整个事务回滚，缓存行永远清不掉（SQLC-014）。参数收窄即失去守卫。
    */
-  async #deleteQueryCacheRows(executor: SqliteTransactionExecutor, tableName: string, ids: string[]): Promise<void> {
+  async #deleteQueryCacheRows(
+    executor: SqliteTransactionExecutor,
+    target: QueryCacheTarget,
+    ids: string[]
+  ): Promise<void> {
+    const { tableName, idColumn } = target;
+    const idColumnSql = quote_sql_identifier(idColumn);
     for (const idsChunk of chunkBySqliteBindLimit(ids)) {
       const placeholders = idsChunk.map(() => '?').join(', ');
-      const sql = `DELETE FROM ${quote_sql_identifier(tableName)} WHERE id IN (${placeholders})`;
+      const sql = `DELETE FROM ${quote_sql_identifier(tableName)} WHERE ${idColumnSql} IN (${placeholders})`;
       await executor.query(sql, idsChunk);
     }
   }

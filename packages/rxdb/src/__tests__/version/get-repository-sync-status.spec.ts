@@ -5,6 +5,7 @@ import type { EntityMetadata } from '../../entity/metadata.interface.js';
 import type { IRepository } from '../../repository/repository.interface.js';
 import type { RxDB } from '../../RxDB.js';
 import { METADATA } from '../../rxdb.private.js';
+import { RxDBBranch } from '../../system/branch.js';
 import { RxDBChange } from '../../system/change.js';
 import { RxDBSync } from '../../system/sync.js';
 import { getRepositorySyncStatus } from '../../version/get-repository-sync-status.js';
@@ -113,13 +114,23 @@ function createStatusHarness(options: StatusHarnessOptions) {
   const changeFind = vi.fn<ChangeFind>(async () => options.changes ?? []);
   const syncRepository = { find: syncFind } as unknown as IRepository<typeof RxDBSync>;
   const changeRepository = { find: changeFind } as unknown as IRepository<typeof RxDBChange>;
+  // 远端计数覆盖整条祖先链，`getAncestorBranchIds` 会沿 parentId 上溯；
+  // 这里的分支都直接挂在 main 下
+  const branchFind = vi.fn(async (): Promise<RxDBBranch[]> => [{ id: branchId, parentId: 'main' } as RxDBBranch]);
+  const branchRepository = { find: branchFind } as unknown as IRepository<typeof RxDBBranch>;
   const getRepository = vi.fn((EntityClass: unknown) => {
     if (EntityClass === RxDBSync) return syncRepository;
     if (EntityClass === RxDBChange) return changeRepository;
+    if (EntityClass === RxDBBranch) return branchRepository;
     throw new Error('Unexpected repository request');
   });
   const localAdapter = { getRepository };
-  const getChangeCount = vi.fn<GetChangeCount>(async () => options.remoteResult ?? { count: 0, latestChangeId: 0 });
+  // `remoteResult` 描述的是**当前分支**上的远端变更；祖先分支上没有，返回零。
+  // 计数跨祖先链相加，用同一个值应答所有分支会让每条祖先都凭空翻一倍。
+  const getChangeCount = vi.fn<GetChangeCount>(async (_sinceId, _repositoryFilter, queriedBranchId) => {
+    if (queriedBranchId !== branchId) return { count: 0, latestChangeId: 0 };
+    return options.remoteResult ?? { count: 0, latestChangeId: 0 };
+  });
   const remoteAdapter = options.remoteConfigured === false ? undefined : { getChangeCount };
   const getCurrentBranch = vi.fn(async () => ({ id: branchId }));
   const getLocalRepositories = vi.fn(async () => ({ adapter: localAdapter }));

@@ -15,7 +15,7 @@ import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Entity } from '../../entity/entity.decorator.js';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
-import { PropertyType } from '../../entity/metadata-options.interface.js';
+import { PropertyType, type QueryCacheEntityMetadata } from '../../entity/metadata-options.interface.js';
 import type { ReachabilityMonitor } from '../../network/reachability.js';
 import { createQueryCachePrimary } from '../../repository/query-cache-primary.js';
 import { QueryCacheSyncMemo } from '../../repository/query-cache-sync-memo.js';
@@ -72,7 +72,7 @@ const createLocalAdapter = (localRepo: ReturnType<typeof createLocalRepo>) => ({
 });
 
 const createRemoteAdapter = () => ({
-  fetchMetadata: vi.fn(() => of([])),
+  fetchMetadata: vi.fn(() => of([] as QueryCacheEntityMetadata[])),
   findByIds: vi.fn(() => of([] as CachedEntity[])),
   create: vi.fn((_entityName: string, data: CachedEntity) => of(data)),
   update: vi.fn((_entityName: string, id: string, patch: Partial<CachedEntity>) =>
@@ -88,6 +88,8 @@ const setup = () => {
   const reachability = detachedReachability();
   const syncState = new SyncStateHub({ online$: reachability.online$, pushableCount$: of(0) });
   const syncMemo = new QueryCacheSyncMemo(0);
+  /* 出站队列此刻占着哪些 id；生产路径读 `rxdb_change`，这里直接摆结果 */
+  const pendingWriteIds = vi.fn(async (): Promise<ReadonlySet<string>> => new Set<string>());
   const primary = createQueryCachePrimary<CachedEntityCtor>(
     'CachedEntity',
     CachedEntity,
@@ -96,10 +98,17 @@ const setup = () => {
     false,
     syncMemo,
     reachability,
-    syncState
+    syncState,
+    pendingWriteIds
   );
-  return { primary, localRepo, localAdapter, remoteAdapter, reachability, syncMemo, syncState };
+  return { primary, localRepo, localAdapter, remoteAdapter, reachability, syncMemo, syncState, pendingWriteIds };
 };
+
+/** 本次 `where` 的全集查询 */
+const ALL = { combinator: 'and' as const, rules: [] };
+
+/** 远端元数据一行 */
+const meta = (id: string, updatedAt: string): QueryCacheEntityMetadata => ({ id, updatedAt });
 
 /** 把监视器推到「已知离线」：`report` 认定网络故障后 `online` 立刻翻 false */
 const goOffline = (reachability: ReachabilityMonitor): void => {
@@ -323,6 +332,85 @@ describe('QueryCache 离线可写（推翻 US-020 D5）', () => {
       await expect(ctx.primary.create(row('a', '2026-01-01T00:00:00Z', 1))).rejects.toThrow('disk full');
 
       expect(ctx.syncState.snapshot.pendingCount).toBe(0);
+    });
+  });
+
+  /*
+   * 同步流程按「远端权威」判定本地缓存：远端没返回的行是孤儿，删；远端更新的行是陈旧，
+   * 拉回来盖。这套判据对**远端投影**是对的，对**还在出站队列里的行**是错的 —— 那些行
+   * 远端还没见过，它的沉默不是权威答复，只是没收到。
+   *
+   * 三条支路都要拦，因为三种离线写各落一条：
+   * 新建 → 孤儿删；删除 → 缺失拉回来复活；修改 → 陈旧被远端旧值盖掉。
+   */
+  describe('出站队列占着的行，同步一步都不许动', () => {
+    /** 恢复联网：`report(null)` 是「已恢复」的唯一证据 */
+    const goOnline = () => {
+      ctx.reachability.report(null);
+      expect(ctx.reachability.online).toBe(true);
+    };
+
+    it('离线新建的行不被当成孤儿删掉', async () => {
+      goOffline(ctx.reachability);
+      await ctx.primary.create(row('a', '2026-01-01T00:00:00Z', 1));
+
+      // 远端还没收到这一行（出站队列还没推），但本地投影里有
+      goOnline();
+      ctx.localRepo.find.mockResolvedValue([row('a', '2026-01-01T00:00:00Z', 1)]);
+      ctx.remoteAdapter.fetchMetadata.mockReturnValue(of([]));
+      ctx.pendingWriteIds.mockResolvedValue(new Set(['a']));
+
+      await ctx.primary.find({ where: ALL } as never);
+
+      expect(ctx.localAdapter.deleteByIds).not.toHaveBeenCalled();
+    });
+
+    it('离线删除的行不被远端拉回来复活', async () => {
+      // 本地已经删掉了（投影为空），远端还留着 —— DELETE 还压在出站队列里
+      ctx.localRepo.find.mockResolvedValue([]);
+      ctx.remoteAdapter.fetchMetadata.mockReturnValue(of([meta('a', '2026-01-01T00:00:00Z')]));
+      ctx.pendingWriteIds.mockResolvedValue(new Set(['a']));
+
+      await ctx.primary.find({ where: ALL } as never);
+
+      expect(ctx.remoteAdapter.findByIds).not.toHaveBeenCalled();
+      expect(ctx.localAdapter.upsertMany).not.toHaveBeenCalled();
+    });
+
+    it('离线改过的行不被更新的远端行盖掉', async () => {
+      // 远端 updatedAt 更新 → diff 判 stale。但本地这一版还没推出去，
+      // 拉回来盖掉等于绕过用户配的 conflictResolver 直接判本地输。
+      ctx.localRepo.find.mockResolvedValue([row('a', '2026-01-01T00:00:00Z', 1)]);
+      ctx.remoteAdapter.fetchMetadata.mockReturnValue(of([meta('a', '2026-03-01T00:00:00Z')]));
+      ctx.pendingWriteIds.mockResolvedValue(new Set(['a']));
+
+      await ctx.primary.find({ where: ALL } as never);
+
+      expect(ctx.remoteAdapter.findByIds).not.toHaveBeenCalled();
+      expect(ctx.localAdapter.upsertMany).not.toHaveBeenCalled();
+    });
+
+    it('队列里没有的行照常按远端权威处置', async () => {
+      ctx.localRepo.find.mockResolvedValue([row('a', '2026-01-01T00:00:00Z', 1)]);
+      ctx.remoteAdapter.fetchMetadata.mockReturnValue(of([meta('b', '2026-03-01T00:00:00Z')]));
+      ctx.remoteAdapter.findByIds.mockReturnValue(of([row('b', '2026-03-01T00:00:00Z', 2)]));
+      ctx.pendingWriteIds.mockResolvedValue(new Set<string>());
+
+      await ctx.primary.find({ where: ALL } as never);
+
+      expect(ctx.localAdapter.deleteByIds).toHaveBeenCalledWith('CachedEntity', ['a']);
+      expect(ctx.remoteAdapter.findByIds).toHaveBeenCalledWith('CachedEntity', ['b']);
+    });
+
+    // 读不出队列就不知道哪些行归它管，此时任何一次删/盖都是赌。上抛，不猜。
+    it('读不出出站队列时整轮同步失败，不写一个字节', async () => {
+      ctx.localRepo.find.mockResolvedValue([row('a', '2026-01-01T00:00:00Z', 1)]);
+      ctx.remoteAdapter.fetchMetadata.mockReturnValue(of([]));
+      ctx.pendingWriteIds.mockRejectedValue(new Error('change log unreadable'));
+
+      await expect(ctx.primary.find({ where: ALL } as never)).rejects.toThrow('change log unreadable');
+
+      expect(ctx.localAdapter.deleteByIds).not.toHaveBeenCalled();
     });
   });
 });

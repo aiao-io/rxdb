@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { DevToolsProbeResult } from './devtools-probe';
 import { connectRxDB, startLocalDatabase, type LocalDatabaseStartup } from './rxdb-initializer';
 import type { SelfCheckOutcome } from './services/selfcheck-reporter';
 import type { StorageProbeResult } from './storage-probe';
@@ -61,6 +62,7 @@ describe('startLocalDatabase', () => {
       record?: () => Promise<number>;
       probe?: () => Promise<StorageProbeResult>;
       webview?: () => Promise<WebviewProbeResult | null>;
+      devtools?: () => Promise<DevToolsProbeResult | null>;
     } = {}
   ): {
     startup: LocalDatabaseStartup;
@@ -105,6 +107,10 @@ describe('startLocalDatabase', () => {
           order.push('webview');
           return (overrides.webview ?? (() => Promise.resolve(webviewResult)))();
         },
+        probeDevTools: async () => {
+          order.push('devtools');
+          return (overrides.devtools ?? (() => Promise.resolve(null)))();
+        },
         adapterName: 'desktop',
         report: async outcome => {
           order.push('report');
@@ -125,20 +131,27 @@ describe('startLocalDatabase', () => {
    *
    * webview 探针又排在存储探针之后：它自己也要往存储里写三份缓存，与
    * `existedBefore` 并发同样会互相干扰。
+   *
+   * DevTools 探针（US-905 阶段 1）排在最末：它等的是调试窗口的握手，与建库快慢无关，
+   * 放前面只会把那段等待叠进建库路径。
    */
   it('先建库、再连接、再记一次启动、再过一遍存储与 webview，最后带着全部结果上报', async () => {
     const context = startup({ record: () => Promise.resolve(7) });
     await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
-    expect(context.order).toEqual(['open', 'connect', 'record', 'probe', 'webview', 'report']);
-    expect(context.reports).toEqual([{ status: 'ok', launchCount: 7, storage: probeResult, webview: webviewResult }]);
+    expect(context.order).toEqual(['open', 'connect', 'record', 'probe', 'webview', 'devtools', 'report']);
+    expect(context.reports).toEqual([
+      { status: 'ok', launchCount: 7, storage: probeResult, webview: webviewResult, devtools: null }
+    ]);
     expect(context.markFailed).not.toHaveBeenCalled();
   });
 
-  /** 正常启动（没开 webview 探针）时照样是一份 `ok`，`webview` 为 null。 */
+  /** 正常启动（两条可选探针都没开）时照样是一份 `ok`，两个字段都是 null。 */
   it('没开 webview 探针时仍然正常上报', async () => {
     const context = startup({ webview: () => Promise.resolve(null) });
     await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
-    expect(context.reports).toEqual([{ status: 'ok', launchCount: 1, storage: probeResult, webview: null }]);
+    expect(context.reports).toEqual([
+      { status: 'ok', launchCount: 1, storage: probeResult, webview: null, devtools: null }
+    ]);
   });
 
   /**

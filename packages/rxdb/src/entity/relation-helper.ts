@@ -267,12 +267,27 @@ export default (relation: EntityRelationMetadata, EntityType: EntityType, manage
   });
 };
 
+/**
+ * 取出解析这条关系所需的 EntityManager 与对端实体类。
+ *
+ * @param entity - 关系访问器的 `this`
+ * @param relation - 关系元数据
+ * @param installer - 在原型上装这批访问器的那个 EntityManager
+ * @returns 归属的 EntityManager 与对端实体类
+ *
+ * @throws RxDBError 对端实体未在该实例注册时抛出。
+ *
+ * @remarks
+ * `?? installer` **不是兜底**：这是两个都正确的来源二选一。实例自带的
+ * `ENTITY_MANAGER` 最精确；没有它说明这个实例从没被任何 manager 初始化过，
+ * 此时装了这批访问器的 manager 就是唯一有意义的归属。故不改成抛错。
+ */
 const getRelationContext = (
   entity: InstanceType<EntityType>,
   relation: EntityRelationMetadata,
-  fallback: EntityManager
+  installer: EntityManager
 ) => {
-  const em = (entity as unknown as { [ENTITY_MANAGER]?: EntityManager })[ENTITY_MANAGER] ?? fallback;
+  const em = (entity as unknown as { [ENTITY_MANAGER]?: EntityManager })[ENTITY_MANAGER] ?? installer;
   const MappedRelationEntityType = em.rxdb.schemaManager.getEntityType(relation.mappedEntity, relation.mappedNamespace);
   if (!MappedRelationEntityType) throw new RxDBError(`mapped entity not found: ${relation.mappedEntity}`);
   return { em, MappedRelationEntityType };

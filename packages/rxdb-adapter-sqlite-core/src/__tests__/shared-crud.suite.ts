@@ -2953,11 +2953,16 @@ export function crudIntegrationSuite(factory: AdapterFactory) {
 
       expect(todo.id).toBe(newId);
 
+      // 改名会把实例搬到新 id 的身份缓存槽（不变式：`cache.get(id).id === id`），
+      // 于是按旧 id 查不再被内存里那个已改名的引用遮住 —— 读到的是数据库里真实的旧行。
+      // 从前这里断言的是 `after-id-change`：那个值从未写进过任何一行，纯粹是旧槽里
+      // 那个 id 已经变成 newId 的引用在冒充查询结果，正好把「UPDATE 无效」这件事盖住了。
       const foundByOld = await firstValueFrom(
         Todo.findOne({ where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: savedId }] } })
       );
-      expect(foundByOld?.title).toBe('after-id-change');
-      expect(foundByOld?.id).toBe(newId);
+      expect(foundByOld?.id).toBe(savedId);
+      expect(foundByOld?.title).toBe('before-id-change');
+      expect(foundByOld).not.toBe(todo);
 
       const foundByNew = await firstValueFrom(
         Todo.findOne({ where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: newId }] } })

@@ -39,9 +39,21 @@ describe('permissionPatternForUrl', () => {
     expect(permissionPatternForUrl(url)).toBe(expected);
   });
 
-  it.each(['chrome://extensions', 'about:blank', 'not a url'])('rejects unsupported inspected URLs: %s', url => {
-    expect(permissionPatternForUrl(url)).toBeNull();
-  });
+  // `app:` 曾被放行过一版，理由是「Electron 桌面应用的 renderer 走这个 scheme」。US-904
+  // 阶段 D 的实测把它推翻了：自定义 scheme 不在 Chromium 扩展 match pattern 的合法 scheme
+  // 集里，`host_permissions` 怎么写都授不出去，`chrome.scripting` 一律拒绝注入
+  //（三种写法的对照见 manifest.config.spec.ts）。
+  //
+  // 放行它的净效果是**把失败挪到看不见的地方**：状态变成 `granted`、面板不再显示
+  // 「当前页面不支持扩展注入」，改成永远停在「Waiting for RxDB connection...」——
+  // 用户看到的是一个像在连接的界面，而链路其实一步都走不了。这正是本仓库禁止的兜底。
+  // 桌面端要跑通，得让 inspected page 本身是 http（应用的 `--serve` 路径）。
+  it.each(['chrome://extensions', 'about:blank', 'not a url', 'app://-/index.html#/home'])(
+    'rejects unsupported inspected URLs: %s',
+    url => {
+      expect(permissionPatternForUrl(url)).toBeNull();
+    }
+  );
 });
 
 describe('InspectedPageAccessService', () => {

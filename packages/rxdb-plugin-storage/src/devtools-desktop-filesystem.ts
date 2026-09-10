@@ -64,8 +64,12 @@ export interface DevToolsDesktopFilesystemOptions {
    * 与 host 通信的传输层；省略时读 preload 注入的全局桥接。
    *
    * @remarks
-   * 显式传入只用于测试：生产路径必须走 preload 暴露的那一个对象，否则 renderer 自带一条
-   * 不受 `contextBridge` 约束的通道。
+   * 两个桌面宿主的口径不同，与 `createDesktopStorageOptions`（`./desktop`）一致：
+   *
+   * - **Electron**：省略。生产路径必须走 preload 暴露的那一个对象，显式传入等于让 renderer
+   *   自带一条不受 `contextBridge` 约束的通道；显式传入只用于测试。
+   * - **Tauri**：必须显式传 `createTauriHostTransport(...)` 的实例。Tauri 没有 preload，
+   *   全局桥接键根本不存在，省略只会得到 `host_unavailable`——那里显式传入是**唯一**的生产路径。
    */
   readonly transport?: DesktopHostTransport;
 }

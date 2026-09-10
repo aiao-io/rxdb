@@ -28,6 +28,7 @@ import {
   SyncStats
 } from '../../repository/QueryCacheRepository.js';
 import { NetworkOfflineError } from '../../RxDBError.js';
+import { noPendingWrites } from '../fixtures/pending-writes.js';
 
 /**
  * 用于测试的模拟类型。
@@ -91,7 +92,8 @@ const buildRepo = (
     'Product',
     remoteAdapter,
     localAdapter,
-    localReader as unknown as QueryCacheLocalReader<MockProduct>
+    localReader as unknown as QueryCacheLocalReader<MockProduct>,
+    noPendingWrites
   );
 
 describe('QueryCacheRepository', () => {

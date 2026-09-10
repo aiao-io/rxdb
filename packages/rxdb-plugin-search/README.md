@@ -1,8 +1,10 @@
 # @aiao/rxdb-plugin-search
 
-`@aiao/rxdb` 的全局搜索插件。基于 SQLite FTS5，为标注 `searchable: true` 字段的 collection 提供响应式全文检索。
+`@aiao/rxdb` 的全局搜索插件。为标注 `searchable: true` 字段的 collection 提供响应式全文检索，SQLite 走 FTS5，PGlite 走 `tsvector` / GIN。
 
-> **仅兼容 [`@aiao/rxdb-adapter-sqlite-wasm`](../rxdb-adapter-sqlite-wasm) 适配器**；其他适配器将在数据库创建阶段 fail-fast。
+> **适配器支持面**由 `backend-registry.ts` 登记表决定：`sqlite-wasm` / `sqlite` / `sqliteai` / `pglite` 为 `supported`；
+> `wa-sqlite` 与小程序为 `unverified`（**实验性**，npm 预编译 wasm 未编入 FTS5），与未登记的适配器一样在
+> `createRxDatabase` 阶段抛 `SearchUnsupportedAdapterError`，不降级。
 
 ## 安装
 

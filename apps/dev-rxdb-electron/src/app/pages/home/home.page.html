@@ -27,6 +27,8 @@
         <dd class="font-mono" data-testid="rxdb-backend">{{ backend }}</dd>
         <dt class="font-medium">库名</dt>
         <dd class="font-mono" data-testid="rxdb-db-name">{{ dbName }}</dd>
+        <dt class="font-medium">当前分支</dt>
+        <dd class="font-mono" data-testid="rxdb-current-branch">{{ currentBranch() ?? '—' }}</dd>
       </dl>
       @switch (rxdbStatus()) {
         @case ('connected') {
@@ -36,6 +38,21 @@
             <span class="font-mono font-bold" data-testid="rxdb-launch-count">{{ rxdbLaunchCount() }}</span>
           </p>
           <p class="text-xs opacity-50">关闭应用再打开，这个数字应当 +1 —— 数据存活于渲染进程之外。</p>
+          <!--
+            US-904 阶段 D AC#46：把 `RXDB_EVENT_TYPES` 全集送上真实链路的入口。
+            本 demo 没有远端，SYNC_* / CONFLICT_* / REPOSITORY_SYNC_* 这几类
+            靠真实操作永远不会发生，只能显式逐类派发。
+          -->
+          <div class="card-actions mt-2">
+            <button class="btn btn-outline btn-xs" (click)="dispatchAllEvents()" data-testid="rxdb-dispatch-events">
+              逐类派发全部事件
+            </button>
+            @if (dispatchedEventTypes(); as dispatched) {
+              <span class="self-center font-mono text-xs opacity-70" data-testid="rxdb-dispatched-count">
+                {{ dispatched }}
+              </span>
+            }
+          </div>
         }
         @case ('failed') {
           <div class="badge badge-error gap-2" data-testid="rxdb-status">❌ 连接失败</div>

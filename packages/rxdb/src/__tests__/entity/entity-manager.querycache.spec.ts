@@ -278,9 +278,9 @@ describe('US-020 阶段 A：批量入口的 QueryCache 去向', () => {
  * 「实体写对了、库级配漏了」这条从配置到查询的链路，只测纯函数证不了它接在生产入口上。
  */
 describe('US-021：QueryCache 缺库级适配器在 init() fail-fast', () => {
-  // `sync` 在 `RxDBOptions` 上是必填的，这里却允许省略：`RxDB.init()` 写的是
-  // `this.#config.sync || {}`，说明「整个 sync 缺席」是它认的一种输入——JS 调用方、
-  // 或从旧配置反序列化出来的对象都能走到。断言这一支就必须绕过类型，故显式 cast。
+  // `sync` 在 `RxDBOptions` 上必填。允许这里省略是为了断言「整个 sync 缺席」这一支：
+  // JS 调用方或从旧配置反序列化出来的对象都能走到，`init()` 会当场拒绝（见最后一条用例）。
+  // 断言这一支必须绕过类型，故显式 cast。
   const initWith = (dbName: string, sync?: SyncOptions) => {
     const rxdb = new RxDB({ dbName, entities: [CachedProduct], sync: sync as SyncOptions });
     rxdb.adapter('sqlite', () => createLocalAdapter() as unknown as IRxDBAdapter);
@@ -306,9 +306,16 @@ describe('US-021：QueryCache 缺库级适配器在 init() fail-fast', () => {
     );
   });
 
-  // D3：不写这句，读者会回去反复确认他已经写对了的实体装饰器
+  // D3：不写这句，读者会回去反复确认他已经写对了的实体装饰器。
+  // 这里给的是「sync 在、但两侧都没配」——实体级 adapter 名齐全也不顶用。
   it('AC#3 消息点破实体级 adapter 名不参与注册', () => {
-    expect(initWith('QueryCacheNoSync')).toThrow(/RxDB\.init\(\)[\s\S]*库级/);
+    expect(initWith('QueryCacheNoSides', { type: SyncType.None })).toThrow(/RxDB\.init\(\)[\s\S]*库级/);
+  });
+
+  // 整个 sync 缺席不再被静默当成 `{}`：那样要么在 isLocalAdapter 里炸个看不懂的
+  // TypeError，要么造出一个没有任何适配器的空实例。
+  it('AC#6 整个 sync 缺席时 init() 直接拒绝并点名 sync', () => {
+    expect(initWith('QueryCacheNoSync')).toThrow(/配置缺少库级 sync/);
   });
 
   it('AC#4 库级两侧齐全时 init() 正常通过', () => {

@@ -229,6 +229,24 @@ export class PluginDependencyScheduler {
   }
 
   /**
+   * 本纪元内是否**发起过**该插件的安装。
+   *
+   * @param plugin - 插件实例
+   * @returns 发起过返回 `true`；从未开工、或未登记，返回 `false`
+   *
+   * @remarks
+   * 判据是「发起过」而不是「装成了」：`install()` 抛在半路的插件同样可能已经建起一半状态，
+   * 它的拆卸照样要跑。宿主用它给 legacy 插件的 `destroy()` 配对 —— 依赖始终没就绪、
+   * 从未 `install()` 过的插件不该在停机时挨一次无配对的 `destroy()`。
+   *
+   * 装过之后又因依赖失效退回等待的插件仍然算数：作用域虽已释放，legacy 插件的
+   * `destroy()` 只在停机时调用一次，这里返回 `false` 会让它整个丢掉。
+   */
+  everInstalled(plugin: IRxDBPlugin): boolean {
+    return this.#activations.get(plugin)?.everInstalled === true;
+  }
+
+  /**
    * 对本纪元内始终没能开工的插件各告警一次（INV-5 / AC#11）。
    *
    * @remarks

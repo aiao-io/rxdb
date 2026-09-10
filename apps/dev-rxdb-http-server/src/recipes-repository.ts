@@ -13,7 +13,7 @@
 
 import type { Repository, RuleGroup } from '@aiao/rxdb';
 import { RxDBError } from '@aiao/rxdb';
-import { RxdbAdapterPGliteError } from '@aiao/rxdb-adapter-pglite';
+import { INVALID_QUERY_ERROR_CODE } from '@aiao/rxdb-adapter-pglite';
 import type { RecipeMetadataRow, RecipeWireRow } from '@modules/recipes-domain';
 import {
   RECIPE_ORDER_BY,
@@ -44,22 +44,61 @@ type TypedWhere = RuleGroup<ServerRecipe>;
 /** 无过滤的空 where（引擎的 `find` 要求 `where` 非空）。 */
 const EMPTY_WHERE: RuleGroup = { combinator: 'and', rules: [] };
 
-/** 把客户端 `where` 归一成默认 RuleGroup；缺省 / `null` 视为无过滤。 */
-const normalizeWhere = (where: unknown): RuleGroup =>
-  (where === undefined || where === null ? EMPTY_WHERE : where) as RuleGroup;
+/**
+ * `where` 的嵌套深度上限（最外层组算第 1 层，只数组、不数叶子规则）。
+ *
+ * @remarks
+ * 与被替换掉的手写 SQL 编译器同值：查询构造器 UI 堆到十几层已经无人能读懂，而 32 层离
+ * 栈溢出还差着两个数量级。引擎的 `buildRuleGroupPG` 无深度限制地递归，几千层嵌套
+ * （约 150KB，远小于 1 MiB 体上限）就能把调用栈打满——`RangeError` 走不到 400 那一支，
+ * 落进兜底变成 500。「请求写得太深」是调用方的错，要按 4xx 说出来。
+ */
+const MAX_WHERE_DEPTH = 32;
+
+/** 递归校验组的嵌套深度；超限抛 400。叶子规则的形状交给引擎校验（它答的也是 400）。 */
+const assertWhereDepth = (node: unknown, depth: number): void => {
+  if (typeof node !== 'object' || node === null) return;
+  const rules = (node as { rules?: unknown }).rules;
+  if (!Array.isArray(rules)) return;
+  if (depth > MAX_WHERE_DEPTH) {
+    throw new HttpError(400, `Filter nesting exceeds the maximum depth of ${MAX_WHERE_DEPTH}`);
+  }
+  for (const rule of rules) assertWhereDepth(rule, depth + 1);
+};
+
+/** 把客户端 `where` 归一成默认 RuleGroup；缺省 / `null` 视为无过滤。超过 {@link MAX_WHERE_DEPTH} → 400。 */
+const normalizeWhere = (where: unknown): RuleGroup => {
+  if (where === undefined || where === null) return EMPTY_WHERE;
+  assertWhereDepth(where, 1);
+  return where as RuleGroup;
+};
 
 /**
  * 把引擎抛出的错误映射成 wire 语义：
+ *
  * - PG 唯一约束冲突（重复 id）→ 409；
- * - 查询层错误（未知字段 / 非法算子 / 非法规则）→ 400；
- * - 其余原样上抛（兜底 500）。
+ * - 查询编译失败（{@link INVALID_QUERY_ERROR_CODE}：未知字段 / 非法算子 / 非法规则）→ 400；
+ * - 其余一律 500。
+ *
+ * @param error - 引擎抛出的任意值
+ * @param fallbackMessage - `error` 不是 `Error` 时对外的说明
+ * @returns 已定型的 {@link HttpError}；`error` 本就是 `HttpError` 时原样返回
+ *
+ * @remarks
+ * 判据是**错误码**，不是错误类。`RxdbAdapterPGliteError` 同时承载查询编译失败与适配器
+ * 内部失败（`Unsupported repository type`、`DURABILITY_LOST`、重连态），按类判会把服务端
+ * bug 以 400 回给客户端——客户端据此改参数，怎么改都不会好，而监控上服务端错误率恒为 0。
+ *
+ * 未知成因一律落 500 而不是 400：把服务端故障说成客户端故障是有害的误导，反过来只是保守。
+ * 因此查询值转换失败（bigint / binary 抛的是 `TypeError`，见 `pglite.utils.ts`）也走 500——
+ * 它其实是客户端输入问题，但那条路不属于本次收敛的错误码体系，宁可保守。
  */
-const mapEngineError = (error: unknown, fallbackMessage: string): HttpError => {
+export const mapEngineError = (error: unknown, fallbackMessage: string): HttpError => {
   if (error instanceof HttpError) return error;
   const code = (error as { code?: unknown }).code;
   const message = error instanceof Error ? error.message : fallbackMessage;
   if (code === '23505') return new HttpError(409, message);
-  if (error instanceof RxdbAdapterPGliteError) return new HttpError(400, message);
+  if (code === INVALID_QUERY_ERROR_CODE) return new HttpError(400, message);
   return new HttpError(500, message);
 };
 

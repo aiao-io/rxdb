@@ -59,7 +59,12 @@
     "build-test-host": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": ["{projectRoot}/rust/**/*.rs", "{projectRoot}/rust/Cargo.toml", "{projectRoot}/rust/Cargo.lock"],
+      "inputs": [
+        "{projectRoot}/rust/**/*.rs",
+        "{projectRoot}/rust/Cargo.toml",
+        "{projectRoot}/rust/Cargo.lock",
+        { "runtime": "node -p process.platform+process.arch" }
+      ],
       "outputs": [
         "{projectRoot}/rust/target/debug/rxdb_host_stdio",
         "{projectRoot}/rust/target/debug/rxdb_host_stdio.exe"
@@ -84,6 +89,7 @@
         "{projectRoot}/rust/**/*.rs",
         "{projectRoot}/rust/Cargo.toml",
         "{projectRoot}/rust/Cargo.lock",
+        { "runtime": "node -p process.platform+process.arch" },
         "^production"
       ],
       "options": {
@@ -92,7 +98,7 @@
         "parallel": false
       },
       "metadata": {
-        "description": "US-210 AC#2/#3/#5/#7 + US-505 AC#2/#5/#8：Rust 引擎跑 21 个共享套件 + 5 个加密套件，Rust 文件宿主跑 storage 后端一致性套件、52 MiB 流式量级与内存曲线（AC#5）、真实小容量卷的磁盘满（AC#8，Windows 平台跳过）"
+        "description": "US-210 AC#2/#3/#5/#7 + US-505 AC#2/#5/#8：Rust 引擎跑 20 个共享套件 + 5 个加密套件，Rust 文件宿主跑 storage 后端一致性套件、52 MiB 流式量级与内存曲线（AC#5）、真实小容量卷的磁盘满（AC#8，Windows 平台跳过）"
       }
     }
   }

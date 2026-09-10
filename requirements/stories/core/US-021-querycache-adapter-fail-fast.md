@@ -191,5 +191,5 @@ AC#8 的后半句已按实测改写：`MetadataValidationRule` 是导出联合�
 ## References
 
 - [US-020 将 QueryCache 接入统一 Repository](./US-020-querycache-repository.md) — D12 定的 fail-fast 时机划分；AC#8 是同一条校验通路的先例
-- [US-214 HTTP 适配器浏览器端到端 demo](../adapter/US-214-http-browser-demo.md) — 本条在该 demo 开发中被踩中，见其「落地偏差」
+- [US-214 HTTP 适配器浏览器端到端 demo](../adapter/US-214-http-browser-demo.md) — 本条在该 demo 开发中被踩中，见其产物缺陷记录
 - [epic-004](../../epics/epic-004-future-features.md) — 归入理由同 US-020：epic-002 已 `Done`，不得持有未完成故事

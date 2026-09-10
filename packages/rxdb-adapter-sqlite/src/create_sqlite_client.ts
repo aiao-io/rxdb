@@ -1,4 +1,9 @@
-import { assertLoadOptionsTransferable, type SqliteClientLike, wrapWithComlink } from '@aiao/rxdb-adapter-sqlite-core';
+import {
+  assertLoadOptionsTransferable,
+  releaseComlinkProxy,
+  type SqliteClientLike,
+  wrapWithComlink
+} from '@aiao/rxdb-adapter-sqlite-core';
 import type { SqliteLoadOptions, SqliteOptions } from './sqlite-official.interface.js';
 import { SqliteClient } from './SqliteOfficialClient.js';
 
@@ -31,6 +36,15 @@ export async function createSqliteClient(dbName: string, options: SqliteOptions)
   assertLoadOptionsTransferable(loadOptions, options);
 
   const client = wrapWithComlink(new SqliteClient(), options);
-  await client.init(dbName, loadOptions);
-  return client;
+  try {
+    await client.init(dbName, loadOptions);
+    return client;
+  } catch (error) {
+    // init 失败必须释放代理：worker / sharedWorker 模式下它持有一个 MessageChannel，
+    // 不释放则断开/重连循环里端口只增不减，worker 侧那个 init 失败的客户端也一直可达、
+    // 永远不会被回收（见 releaseComlinkProxy 的说明）。wasm 适配器一直是这么写的，
+    // 这里与它对齐 —— 同一条清理契约上三端不对称等于两个包在漏。
+    releaseComlinkProxy(client);
+    throw error;
+  }
 }

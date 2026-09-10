@@ -1,13 +1,10 @@
-import { emptyFunction } from '@aiao/utils';
-import { firstValueFrom, map, Observable, of, timer } from 'rxjs';
+import { firstValueFrom, map, of, timer } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import query_merge_update_cache_impl from '../../query/merge_update.js';
-import { getFingerprintPrimitive, type Fingerprint } from '../../repository/fingerprint.utils.js';
-import { QueryOptions } from '../../repository/QueryManager.interface.js';
 import { QueryTask } from '../../repository/QueryTask.js';
-import type { RxDBEntityLocalEventData, RxDBEntityLocalUpdatedEventData } from '../../rxdb-events.js';
-import { RxDB } from '../../RxDB.js';
+import type { RxDBEntityLocalUpdatedEventData } from '../../rxdb-events.js';
+import { collectEmissions, createHarnessQueryTask, type HarnessTaskOptions } from '../fixtures/query-task-harness.js';
 
 describe('query_merge_update_cache', () => {
   class TestEntity {
@@ -20,84 +17,10 @@ describe('query_merge_update_cache', () => {
   type TestEntityData = InstanceType<TestEntityType>;
   type UpdateEvent = RxDBEntityLocalUpdatedEventData<TestEntityType>;
 
-  /**
-   * 创建模拟的 RxDB 实例
-   */
-  const createMockRxDB = (): RxDB => {
-    return {
-      schemaManager: {
-        getFieldRelations: vi.fn(() => ({ relations: [], isForeignKey: false, property: {}, propertyName: '' })),
-        getEntityType: vi.fn(),
-        getEntityMetadata: vi.fn()
-      }
-    } as unknown as RxDB;
-  };
-
-  const getFingerprintByPrimitive = (value: unknown): Fingerprint[] =>
-    getFingerprintPrimitive(value as Fingerprint | Fingerprint[]);
-  const getFingerprintByMockEntity = (entity: unknown): Fingerprint[] => [JSON.stringify({ ...(entity as object) })];
-  const getFingerprintByMockEntities = (entities: unknown): Fingerprint[] =>
-    Array.isArray(entities) ? entities.map(e => JSON.stringify({ ...(e as object) })) : [];
-
-  /**
-   * 创建模拟的查询任务
-   */
+  /** 经真正的 `QueryManager` 造查询任务，`result$` 与 `serialize` 全部来自生产代码。 */
   const createMockQueryTask = <RT>(
-    taskOptions: QueryOptions<TestEntityType> & {
-      runner: () => Observable<RT>;
-      // 默认原样返回 patch(等价于"整个实体当 patch"的旧约定)。真实的增量 patch 场景
-      // (只含被改字段)需要调用方传入模拟实体缓存合并的 serialize,复现生产环境
-      // QueryManager#serialize 借助 entityManager 缓存把偏差 patch 补全成完整实体的行为。
-      serialize?: (data: RxDBEntityLocalEventData<TestEntityType>) => TestEntityData;
-    }
-  ): QueryTask<TestEntityType, RT> => {
-    const deps = new Map<TestEntityType, number>();
-    deps.set(TestEntity, 1);
-    const cacheKey = 'cacheKey';
-    const mockRxDB = createMockRxDB();
-    const { runner, serialize, ...queryOptions } = taskOptions;
-    const pickFingerprint = () => {
-      switch (queryOptions.type) {
-        case 'count':
-        case 'countDescendants':
-        case 'countAncestors':
-          return getFingerprintByPrimitive;
-        case 'findOne':
-        case 'findOneOrFail':
-        case 'get':
-          return getFingerprintByMockEntity;
-        default:
-          return getFingerprintByMockEntities;
-      }
-    };
-    const task = new QueryTask<TestEntityType, RT>({
-      cacheKey,
-      options: queryOptions,
-      runner,
-      entityType: TestEntity,
-      rxdb: mockRxDB,
-      depEntityTypeMap: deps,
-      serialize: serialize ?? (data => data.patch as TestEntityData),
-      onClean: emptyFunction,
-      getFingerprint: pickFingerprint()
-    });
-    task.result$ = new Observable<RT>(observer => {
-      task.observerCount++;
-      if (task.result !== undefined) {
-        observer.next(task.result);
-      }
-      task.observers.add(observer);
-      task.run();
-      return (): void => {
-        task.observerCount--;
-        task.observers.delete(observer);
-        if (task.observerCount <= 0) {
-          task.clean();
-        }
-      };
-    });
-    return task;
-  };
+    taskOptions: HarnessTaskOptions<TestEntityType, RT>
+  ): QueryTask<TestEntityType, RT> => createHarnessQueryTask(TestEntity, taskOptions);
 
   const query_merge_update_cache = <RT>(task: QueryTask<TestEntityType, RT>, events: UpdateEvent[]): void => {
     query_merge_update_cache_impl(task as unknown as QueryTask<TestEntityType>, events);
@@ -427,262 +350,197 @@ describe('query_merge_update_cache', () => {
 
   describe('find - 分页查询', () => {
     it('应该在结果集受影响时触发 SQL 刷新', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'find',
-          options: {
-            where: { combinator: 'and', rules: [] },
-            limit: 3,
-            orderBy: [{ field: 'priority', sort: 'desc' }]
-          },
-          runner: () =>
-            of([
-              { id: '1', title: 'Task 1', priority: 10 },
-              { id: '2', title: 'Task 2', priority: 5 },
-              { id: '3', title: 'Task 3', priority: 3 }
-            ])
-        });
-
-        const refreshSpy = vi.spyOn(task, 'refresh');
-
-        task.result$.subscribe({
-          next: () => {
-            // 等待更新事件处理完成
-            setTimeout(() => {
-              try {
-                // 应该触发刷新
-                expect(refreshSpy).toHaveBeenCalledTimes(1);
-                done();
-              } catch (error) {
-                reject(error);
-              }
-            }, 100);
-          },
-          error: reject
-        });
-
-        // Task 2 优先级变化,影响当前结果集
-        const updateEvent = createMockUpdateEvent(
-          { id: '2', title: 'Task 2', priority: 15 },
-          { id: '2', title: 'Task 2', priority: 5 }
-        );
-        query_merge_update_cache(task, [updateEvent]);
+      const task = createMockQueryTask({
+        type: 'find',
+        options: {
+          where: { combinator: 'and', rules: [] },
+          limit: 3,
+          orderBy: [{ field: 'priority', sort: 'desc' }]
+        },
+        runner: () =>
+          of([
+            { id: '1', title: 'Task 1', priority: 10 },
+            { id: '2', title: 'Task 2', priority: 5 },
+            { id: '3', title: 'Task 3', priority: 3 }
+          ])
       });
+
+      const refreshSpy = vi.spyOn(task, 'refresh');
+
+      // 订阅即建管道：`QueryTask.run()` 要等首个订阅者到达才装配 refresh$，
+      // 没有订阅者就无从谈起「刷没刷新」。本例只断言 refresh，发射序列丢弃。
+      collectEmissions(task);
+
+      // Task 2 优先级变化,影响当前结果集
+      const updateEvent = createMockUpdateEvent(
+        { id: '2', title: 'Task 2', priority: 15 },
+        { id: '2', title: 'Task 2', priority: 5 }
+      );
+      query_merge_update_cache(task, [updateEvent]);
+
+      // 应该触发刷新
+      expect(refreshSpy).toHaveBeenCalledTimes(1);
     });
 
     it('应该在有新匹配实体时触发 SQL 刷新', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'find',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'status', operator: '=', value: 'active' }]
-            },
-            limit: 3
+      const task = createMockQueryTask({
+        type: 'find',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'status', operator: '=', value: 'active' }]
           },
-          runner: () =>
-            of([
-              { id: '1', title: 'Task 1', status: 'active' },
-              { id: '2', title: 'Task 2', status: 'active' }
-            ])
-        });
-
-        const refreshSpy = vi.spyOn(task, 'refresh');
-
-        task.result$.subscribe({
-          next: () => {
-            setTimeout(() => {
-              try {
-                // 应该触发刷新
-                expect(refreshSpy).toHaveBeenCalledTimes(1);
-                done();
-              } catch (error) {
-                reject(error);
-              }
-            }, 100);
-          },
-          error: reject
-        });
-
-        // Task 3 从 inactive 变为 active
-        const updateEvent = createMockUpdateEvent(
-          { id: '3', title: 'Task 3', status: 'active' },
-          { id: '3', title: 'Task 3', status: 'inactive' }
-        );
-        query_merge_update_cache(task, [updateEvent]);
+          limit: 3
+        },
+        runner: () =>
+          of([
+            { id: '1', title: 'Task 1', status: 'active' },
+            { id: '2', title: 'Task 2', status: 'active' }
+          ])
       });
+
+      const refreshSpy = vi.spyOn(task, 'refresh');
+
+      // 订阅即建管道：`QueryTask.run()` 要等首个订阅者到达才装配 refresh$，
+      // 没有订阅者就无从谈起「刷没刷新」。本例只断言 refresh，发射序列丢弃。
+      collectEmissions(task);
+
+      // Task 3 从 inactive 变为 active
+      const updateEvent = createMockUpdateEvent(
+        { id: '3', title: 'Task 3', status: 'active' },
+        { id: '3', title: 'Task 3', status: 'inactive' }
+      );
+      query_merge_update_cache(task, [updateEvent]);
+
+      // 应该触发刷新
+      expect(refreshSpy).toHaveBeenCalledTimes(1);
     });
 
     it('不应该在不影响结果集时触发刷新', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'find',
-          options: {
-            where: { combinator: 'and', rules: [] },
-            limit: 3
-          },
-          runner: () =>
-            of([
-              { id: '1', title: 'Task 1', priority: 10 },
-              { id: '2', title: 'Task 2', priority: 5 },
-              { id: '3', title: 'Task 3', priority: 3 }
-            ])
-        });
-
-        const refreshSpy = vi.spyOn(task, 'refresh');
-
-        let emitCount = 0;
-        task.result$.subscribe({
-          next: () => {
-            emitCount++;
-            if (emitCount === 1) {
-              setTimeout(() => {
-                try {
-                  // 不应该触发刷新
-                  expect(refreshSpy).not.toHaveBeenCalled();
-                  done();
-                } catch (error) {
-                  reject(error);
-                }
-              }, 100);
-            }
-          },
-          error: reject
-        });
-
-        // Task 4 不在结果集中,更新不影响
-        const updateEvent = createMockUpdateEvent(
-          { id: '4', title: 'Task 4', priority: 8 },
-          { id: '4', title: 'Task 4', priority: 1 }
-        );
-        query_merge_update_cache(task, [updateEvent]);
+      const task = createMockQueryTask({
+        type: 'find',
+        options: {
+          where: { combinator: 'and', rules: [] },
+          limit: 3
+        },
+        runner: () =>
+          of([
+            { id: '1', title: 'Task 1', priority: 10 },
+            { id: '2', title: 'Task 2', priority: 5 },
+            { id: '3', title: 'Task 3', priority: 3 }
+          ])
       });
+
+      const refreshSpy = vi.spyOn(task, 'refresh');
+
+      // 订阅即建管道：`QueryTask.run()` 要等首个订阅者到达才装配 refresh$，
+      // 没有订阅者就无从谈起「刷没刷新」。本例只断言 refresh，发射序列丢弃。
+      collectEmissions(task);
+
+      // Task 4 不在结果集中,更新不影响
+      const updateEvent = createMockUpdateEvent(
+        { id: '4', title: 'Task 4', priority: 8 },
+        { id: '4', title: 'Task 4', priority: 1 }
+      );
+      query_merge_update_cache(task, [updateEvent]);
+
+      // 不应该触发刷新
+      expect(refreshSpy).not.toHaveBeenCalled();
     });
   });
 
   describe('findByCursor - 游标分页查询', () => {
     it('应该在结果集受影响时触发 SQL 刷新', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'findByCursor',
-          options: {
-            where: { combinator: 'and', rules: [] },
-            orderBy: [{ field: 'id', sort: 'asc' }],
-            limit: 3
-          },
-          runner: () =>
-            of([
-              { id: '1', title: 'Task 1' },
-              { id: '2', title: 'Task 2' },
-              { id: '3', title: 'Task 3' }
-            ])
-        });
-
-        const refreshSpy = vi.spyOn(task, 'refresh');
-
-        task.result$.subscribe({
-          next: () => {
-            setTimeout(() => {
-              try {
-                expect(refreshSpy).toHaveBeenCalledTimes(1);
-                done();
-              } catch (error) {
-                reject(error);
-              }
-            }, 100);
-          },
-          error: reject
-        });
-
-        // Task 2 被更新,可能影响排序
-        const updateEvent = createMockUpdateEvent({ id: '2', title: 'Task 2 Updated' }, { id: '2', title: 'Task 2' });
-        query_merge_update_cache(task, [updateEvent]);
+      const task = createMockQueryTask({
+        type: 'findByCursor',
+        options: {
+          where: { combinator: 'and', rules: [] },
+          orderBy: [{ field: 'id', sort: 'asc' }],
+          limit: 3
+        },
+        runner: () =>
+          of([
+            { id: '1', title: 'Task 1' },
+            { id: '2', title: 'Task 2' },
+            { id: '3', title: 'Task 3' }
+          ])
       });
+
+      const refreshSpy = vi.spyOn(task, 'refresh');
+
+      // 订阅即建管道：`QueryTask.run()` 要等首个订阅者到达才装配 refresh$，
+      // 没有订阅者就无从谈起「刷没刷新」。本例只断言 refresh，发射序列丢弃。
+      collectEmissions(task);
+
+      // Task 2 被更新,可能影响排序
+      const updateEvent = createMockUpdateEvent({ id: '2', title: 'Task 2 Updated' }, { id: '2', title: 'Task 2' });
+      query_merge_update_cache(task, [updateEvent]);
+
+      expect(refreshSpy).toHaveBeenCalledTimes(1);
     });
 
     it('应该在有新匹配实体时触发 SQL 刷新', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'findByCursor',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'visible', operator: '=', value: true }]
-            },
-            orderBy: [{ field: 'id', sort: 'asc' }],
-            limit: 3
+      const task = createMockQueryTask({
+        type: 'findByCursor',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'visible', operator: '=', value: true }]
           },
-          runner: () =>
-            of([
-              { id: '1', title: 'Task 1', visible: true },
-              { id: '2', title: 'Task 2', visible: true }
-            ])
-        });
-
-        const refreshSpy = vi.spyOn(task, 'refresh');
-
-        task.result$.subscribe({
-          next: () => {
-            setTimeout(() => {
-              try {
-                expect(refreshSpy).toHaveBeenCalledTimes(1);
-                done();
-              } catch (error) {
-                reject(error);
-              }
-            }, 100);
-          },
-          error: reject
-        });
-
-        // Task 3 从 false 变为 true
-        const updateEvent = createMockUpdateEvent(
-          { id: '3', title: 'Task 3', visible: true },
-          { id: '3', title: 'Task 3', visible: false }
-        );
-        query_merge_update_cache(task, [updateEvent]);
+          orderBy: [{ field: 'id', sort: 'asc' }],
+          limit: 3
+        },
+        runner: () =>
+          of([
+            { id: '1', title: 'Task 1', visible: true },
+            { id: '2', title: 'Task 2', visible: true }
+          ])
       });
+
+      const refreshSpy = vi.spyOn(task, 'refresh');
+
+      // 订阅即建管道：`QueryTask.run()` 要等首个订阅者到达才装配 refresh$，
+      // 没有订阅者就无从谈起「刷没刷新」。本例只断言 refresh，发射序列丢弃。
+      collectEmissions(task);
+
+      // Task 3 从 false 变为 true
+      const updateEvent = createMockUpdateEvent(
+        { id: '3', title: 'Task 3', visible: true },
+        { id: '3', title: 'Task 3', visible: false }
+      );
+      query_merge_update_cache(task, [updateEvent]);
+
+      expect(refreshSpy).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('findOne - 单条查询', () => {
     it('应该在当前结果不再匹配时触发 SQL 刷新', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'findOne',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'status', operator: '=', value: 'active' }]
-            }
-          },
-          runner: () => of({ id: '1', title: 'Task 1', status: 'active' })
-        });
-
-        const refreshSpy = vi.spyOn(task, 'refresh');
-
-        task.result$.subscribe({
-          next: () => {
-            setTimeout(() => {
-              try {
-                expect(refreshSpy).toHaveBeenCalledTimes(1);
-                done();
-              } catch (error) {
-                reject(error);
-              }
-            }, 100);
-          },
-          error: reject
-        });
-
-        // Task 1 状态变为 completed,不再匹配
-        const updateEvent = createMockUpdateEvent(
-          { id: '1', title: 'Task 1', status: 'completed' },
-          { id: '1', title: 'Task 1', status: 'active' }
-        );
-        query_merge_update_cache(task, [updateEvent]);
+      const task = createMockQueryTask({
+        type: 'findOne',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'status', operator: '=', value: 'active' }]
+          }
+        },
+        runner: () => of({ id: '1', title: 'Task 1', status: 'active' })
       });
+
+      const refreshSpy = vi.spyOn(task, 'refresh');
+
+      // 订阅即建管道：`QueryTask.run()` 要等首个订阅者到达才装配 refresh$，
+      // 没有订阅者就无从谈起「刷没刷新」。本例只断言 refresh，发射序列丢弃。
+      collectEmissions(task);
+
+      // Task 1 状态变为 completed,不再匹配
+      const updateEvent = createMockUpdateEvent(
+        { id: '1', title: 'Task 1', status: 'completed' },
+        { id: '1', title: 'Task 1', status: 'active' }
+      );
+      query_merge_update_cache(task, [updateEvent]);
+
+      expect(refreshSpy).toHaveBeenCalledTimes(1);
     });
 
     it('应该在无排序时 JS 更新当前结果字段值', () => {
@@ -730,77 +588,57 @@ describe('query_merge_update_cache', () => {
     });
 
     it('应该在有排序时触发 SQL 刷新', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'findOne',
-          options: {
-            where: { combinator: 'and', rules: [] },
-            orderBy: [{ field: 'priority', sort: 'desc' }]
-          },
-          runner: () => of({ id: '1', title: 'Task 1', priority: 10 })
-        });
-
-        const refreshSpy = vi.spyOn(task, 'refresh');
-
-        task.result$.subscribe({
-          next: () => {
-            setTimeout(() => {
-              try {
-                expect(refreshSpy).toHaveBeenCalledTimes(1);
-                done();
-              } catch (error) {
-                reject(error);
-              }
-            }, 100);
-          },
-          error: reject
-        });
-
-        // Task 1 优先级变化,可能不再是第一个
-        const updateEvent = createMockUpdateEvent(
-          { id: '1', title: 'Task 1', priority: 5 },
-          { id: '1', title: 'Task 1', priority: 10 }
-        );
-        query_merge_update_cache(task, [updateEvent]);
+      const task = createMockQueryTask({
+        type: 'findOne',
+        options: {
+          where: { combinator: 'and', rules: [] },
+          orderBy: [{ field: 'priority', sort: 'desc' }]
+        },
+        runner: () => of({ id: '1', title: 'Task 1', priority: 10 })
       });
+
+      const refreshSpy = vi.spyOn(task, 'refresh');
+
+      // 订阅即建管道：`QueryTask.run()` 要等首个订阅者到达才装配 refresh$，
+      // 没有订阅者就无从谈起「刷没刷新」。本例只断言 refresh，发射序列丢弃。
+      collectEmissions(task);
+
+      // Task 1 优先级变化,可能不再是第一个
+      const updateEvent = createMockUpdateEvent(
+        { id: '1', title: 'Task 1', priority: 5 },
+        { id: '1', title: 'Task 1', priority: 10 }
+      );
+      query_merge_update_cache(task, [updateEvent]);
+
+      expect(refreshSpy).toHaveBeenCalledTimes(1);
     });
 
     it('应该在当前无结果且有新匹配时触发 SQL 刷新', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'findOne',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'status', operator: '=', value: 'active' }]
-            }
-          },
-          runner: () => of(null)
-        });
-
-        const refreshSpy = vi.spyOn(task, 'refresh');
-
-        task.result$.subscribe({
-          next: () => {
-            setTimeout(() => {
-              try {
-                expect(refreshSpy).toHaveBeenCalledTimes(1);
-                done();
-              } catch (error) {
-                reject(error);
-              }
-            }, 100);
-          },
-          error: reject
-        });
-
-        // Task 1 从 inactive 变为 active
-        const updateEvent = createMockUpdateEvent(
-          { id: '1', title: 'Task 1', status: 'active' },
-          { id: '1', title: 'Task 1', status: 'inactive' }
-        );
-        query_merge_update_cache(task, [updateEvent]);
+      const task = createMockQueryTask({
+        type: 'findOne',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'status', operator: '=', value: 'active' }]
+          }
+        },
+        runner: () => of(null)
       });
+
+      const refreshSpy = vi.spyOn(task, 'refresh');
+
+      // 订阅即建管道：`QueryTask.run()` 要等首个订阅者到达才装配 refresh$，
+      // 没有订阅者就无从谈起「刷没刷新」。本例只断言 refresh，发射序列丢弃。
+      collectEmissions(task);
+
+      // Task 1 从 inactive 变为 active
+      const updateEvent = createMockUpdateEvent(
+        { id: '1', title: 'Task 1', status: 'active' },
+        { id: '1', title: 'Task 1', status: 'inactive' }
+      );
+      query_merge_update_cache(task, [updateEvent]);
+
+      expect(refreshSpy).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -846,81 +684,45 @@ describe('query_merge_update_cache', () => {
     });
 
     it('复合 where 下真实的增量 patch(只含被改字段)应该识别新匹配实体(RXD-017)', () => {
-      return new Promise<void>((done, reject) => {
-        // 模拟生产环境的实体缓存:更新前,id='1' 的完整实体已缓存为
-        // { status: 'inactive', priority: 5 }。serialize 把增量 patch 合并进
-        // 缓存实体后返回完整实体 —— 这是 QueryManager#serialize 借助
-        // entityManager 缓存做的事,朴素的 `data => data.patch` 无法复现。
-        const entityCache = new Map<string, TestEntityData>([
-          ['1', { id: '1', status: 'inactive', priority: 5 } as TestEntityData]
-        ]);
-        const task = createMockQueryTask({
-          type: 'count',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [
-                { field: 'status', operator: '=', value: 'active' },
-                { field: 'priority', operator: '=', value: 5 }
-              ]
-            }
-          },
-          runner: () => of(5),
-          serialize: data => {
-            const id = data.id as string;
-            const prev = entityCache.get(id) ?? ({ id } as TestEntityData);
-            const merged = { ...prev, ...(data.patch as object) } as TestEntityData;
-            entityCache.set(id, merged);
-            return merged;
+      // 模拟生产环境的实体缓存:更新前,id='1' 的完整实体已缓存为
+      // { status: 'inactive', priority: 5 }。生产 QueryManager#serialize 会把增量
+      // patch 经 entityManager 合并进这个缓存实体,补全成完整实体后再交给合并算法。
+      const task = createMockQueryTask({
+        type: 'count',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [
+              { field: 'status', operator: '=', value: 'active' },
+              { field: 'priority', operator: '=', value: 5 }
+            ]
           }
-        });
-
-        let emitCount = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              emitCount++;
-              if (emitCount === 1) {
-                expect(d).toEqual(5);
-              } else {
-                expect(d).toEqual(6);
-                done();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        // Task 1 的 priority 此前一直是 5(未变),本次更新只有 status 从
-        // inactive 变为 active。真实的增量 patch 只含被改字段,不含未变的
-        // priority —— 这是本用例要复现的关键条件,不同于 createMockUpdateEvent
-        // 把整个实体当 patch 的简化写法。
-        const updateEvent: UpdateEvent = {
-          type: 'UPDATE',
-          namespace: 'test',
-          entity: 'TestEntity',
-          id: '1',
-          entityType: TestEntity,
-          recordAt: new Date(0),
-          patch: { status: 'active' },
-          inversePatch: { status: 'inactive' }
-        };
-        query_merge_update_cache(task, [updateEvent]);
-
-        setTimeout(() => {
-          if (emitCount === 1) {
-            reject(
-              new Error(
-                '复合 where 未识别新匹配实体:count 应从 5 变为 6,但始终停留在 5' +
-                  '(gating 层用裸 patch 判定复合 where,缺失字段恒判 false,漏发 recalculate/refresh)'
-              )
-            );
-          }
-        }, 100);
+        },
+        runner: () => of(5),
+        cachedById: { '1': { id: '1', status: 'inactive', priority: 5 } }
       });
+
+      const emissions = collectEmissions(task);
+
+      // Task 1 的 priority 此前一直是 5(未变),本次更新只有 status 从
+      // inactive 变为 active。真实的增量 patch 只含被改字段,不含未变的
+      // priority —— 这是本用例要复现的关键条件,不同于 createMockUpdateEvent
+      // 把整个实体当 patch 的简化写法。
+      const updateEvent: UpdateEvent = {
+        type: 'UPDATE',
+        namespace: 'test',
+        entity: 'TestEntity',
+        id: '1',
+        entityType: TestEntity,
+        recordAt: new Date(0),
+        patch: { status: 'active' },
+        inversePatch: { status: 'inactive' }
+      };
+      query_merge_update_cache(task, [updateEvent]);
+
+      // 停在 [5] 就是回归:gating 层拿裸 patch 判定复合 where 时,缺失字段恒判 false,
+      // 于是既不 recalculate 也不 refresh,count 永远不会走到 6。
+      expect(emissions).toEqual([5, 6]);
     });
 
     it('应该减少不再匹配实体的计数', () => {
@@ -1016,113 +818,68 @@ describe('query_merge_update_cache', () => {
     });
 
     it('inversePatch 为空(更新前态未知)时必须 SQL 刷新,不能当作"没变化"', () => {
-      return new Promise<void>((done, reject) => {
-        // sqlite 的 UPDATE 钩子拿不到旧值,适配器对系统表(RxDBChange/RxDBSync/...)
-        // 只能发出「patch = 整行新值 + inversePatch = {}」的事件。
-        // 此时 getSerializedBefore 还原出来的"更新前态"与更新后完全相同,
-        // 于是 match_where 与 match_where_before 恒同为 false ——
-        // 一条从"匹配"变成"不匹配"的行(remoteId: null → 30348)在增量合并里彻底隐形。
-        let runCount = 0;
-        const task = createMockQueryTask({
-          type: 'count',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'remoteId', operator: '=', value: null }]
-            }
-          },
-          runner: () => {
-            runCount++;
-            return of(runCount === 1 ? 1 : 0);
+      // sqlite 的 UPDATE 钩子拿不到旧值,适配器对系统表(RxDBChange/RxDBSync/...)
+      // 只能发出「patch = 整行新值 + inversePatch = {}」的事件。
+      // 此时 getSerializedBefore 还原出来的"更新前态"与更新后完全相同,
+      // 于是 match_where 与 match_where_before 恒同为 false ——
+      // 一条从"匹配"变成"不匹配"的行(remoteId: null → 30348)在增量合并里彻底隐形。
+      let runCount = 0;
+      const task = createMockQueryTask({
+        type: 'count',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'remoteId', operator: '=', value: null }]
           }
-        });
-
-        const results = [1, 0];
-        let resultIndex = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              expect(d).toEqual(results[resultIndex]);
-              resultIndex++;
-              if (resultIndex === results.length) {
-                done();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        query_merge_update_cache(task, [
-          {
-            type: 'UPDATE',
-            namespace: 'test',
-            entity: 'TestEntity',
-            id: '1',
-            entityType: TestEntity,
-            recordAt: new Date(0),
-            patch: { id: '1', remoteId: 30348, branchId: 'main' },
-            inversePatch: {}
-          }
-        ]);
-
-        setTimeout(() => {
-          if (resultIndex < results.length) {
-            reject(
-              new Error(
-                'count 停在 1 没有刷新:更新前态未知时既没 refresh 也没 recalculate,' + '活查询会永久停留在过期结果上'
-              )
-            );
-          }
-        }, 100);
+        },
+        runner: () => {
+          runCount++;
+          return of(runCount === 1 ? 1 : 0);
+        }
       });
+
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, [
+        {
+          type: 'UPDATE',
+          namespace: 'test',
+          entity: 'TestEntity',
+          id: '1',
+          entityType: TestEntity,
+          recordAt: new Date(0),
+          patch: { id: '1', remoteId: 30348, branchId: 'main' },
+          inversePatch: {}
+        }
+      ]);
+
+      // 停在 [1] 就是回归:更新前态未知时既没 refresh 也没 recalculate,
+      // 活查询会永久停留在过期结果上。
+      expect(emissions).toEqual([1, 0]);
     });
 
     it('不应该改变仍然匹配实体的计数', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'count',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'status', operator: '=', value: 'active' }]
-            }
-          },
-          runner: () => of(8)
-        });
-
-        let emitCount = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              emitCount++;
-              expect(d).toEqual(8);
-
-              if (emitCount === 1) {
-                setTimeout(() => {
-                  expect(emitCount).toBe(1);
-                  done();
-                }, 100);
-              } else {
-                reject(new Error('不应该触发第二次更新'));
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        // Task 1 更新前后都是 active,不影响计数
-        const updateEvent = createMockUpdateEvent(
-          { id: '1', title: 'Task 1 Updated', status: 'active' },
-          { id: '1', title: 'Task 1', status: 'active' }
-        );
-        query_merge_update_cache(task, [updateEvent]);
+      const task = createMockQueryTask({
+        type: 'count',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'status', operator: '=', value: 'active' }]
+          }
+        },
+        runner: () => of(8)
       });
+
+      const emissions = collectEmissions(task);
+
+      // Task 1 更新前后都是 active,不影响计数
+      const updateEvent = createMockUpdateEvent(
+        { id: '1', title: 'Task 1 Updated', status: 'active' },
+        { id: '1', title: 'Task 1', status: 'active' }
+      );
+      query_merge_update_cache(task, [updateEvent]);
+
+      expect(emissions).toEqual([8]);
     });
 
     it('应该确保计数不小于 0', () => {
@@ -1203,34 +960,17 @@ describe('query_merge_update_cache', () => {
 
   describe('边界情况', () => {
     it('应该处理空的更新事件数组', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'findAll',
-          options: { where: { combinator: 'and', rules: [] } },
-          runner: () => of([{ id: '1', title: 'Task 1' }])
-        });
-
-        let emitCount = 0;
-
-        task.result$.subscribe({
-          next: () => {
-            emitCount++;
-            if (emitCount === 1) {
-              setTimeout(() => {
-                try {
-                  expect(emitCount).toBe(1);
-                  done();
-                } catch (error) {
-                  reject(error);
-                }
-              }, 100);
-            }
-          },
-          error: reject
-        });
-
-        query_merge_update_cache(task, []);
+      const task = createMockQueryTask({
+        type: 'findAll',
+        options: { where: { combinator: 'and', rules: [] } },
+        runner: () => of([{ id: '1', title: 'Task 1' }])
       });
+
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, []);
+
+      expect(emissions).toHaveLength(1);
     });
 
     it('应该处理批量更新多个实体', () => {

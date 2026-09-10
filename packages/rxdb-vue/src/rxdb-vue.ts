@@ -84,7 +84,7 @@ const isDeferred = <T extends RxDB>(db: RxDBInput<T>): db is Promise<T> | (() =>
   typeof db === 'function' || isThenable(db);
 
 const shutdown = (database: RxDB): void => {
-  void database.disconnectAll().catch(error => console.error('RxDB shutdown failed', error));
+  void database.destroy().catch(error => console.error('RxDB shutdown failed', error));
 };
 
 /**
@@ -107,7 +107,7 @@ const createDatabaseRef = <T extends RxDB>(initial: T | undefined): Ref<T | unde
  *
  * @remarks
  * **所有权规则：provider 只销毁自己造的东西。** 传进来的是工厂或 Promise，实例就是本
- * provider 造/等来的，作用域销毁时负责 `disconnectAll()`；传进来的是已就绪实例或调用方
+ * provider 造/等来的，作用域销毁时负责 `destroy()`；传进来的是已就绪实例或调用方
  * 自己的 `Ref`，它归调用方所有，本 provider 不碰 —— 否则一个模块级单例会被某个子组件的
  * 卸载顺手断掉，而没有人会去重连。这条规则三端逐字相同。
  */

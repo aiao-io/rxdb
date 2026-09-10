@@ -21,6 +21,7 @@ import type {
   RuleGroup
 } from '../../index.js';
 import { QueryCacheRepository } from '../../index.js';
+import { noPendingWrites } from '../fixtures/pending-writes.js';
 
 class Product {
   id!: string;
@@ -76,7 +77,7 @@ const buildRepository = (
   localAdapter: QueryCacheLocalAdapter,
   localReader: QueryCacheLocalReader<Product> = createLocalReader().reader
 ): QueryCacheRepository<ProductEntityType> =>
-  new QueryCacheRepository<ProductEntityType>(ENTITY_NAME, remoteAdapter, localAdapter, localReader);
+  new QueryCacheRepository<ProductEntityType>(ENTITY_NAME, remoteAdapter, localAdapter, localReader, noPendingWrites);
 
 describe('QueryCacheRemoteAdapter 公开契约', () => {
   describe('签名（由 tsconfig.spec.json --noEmit 强制，vitest 运行时是 no-op）', () => {

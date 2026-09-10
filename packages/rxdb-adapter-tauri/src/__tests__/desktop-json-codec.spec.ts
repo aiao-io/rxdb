@@ -86,6 +86,29 @@ describe('desktop json codec', () => {
     expect(encodeDesktopJsonPayload([1, undefined])).toEqual([1, null]);
   });
 
+  /**
+   * `Infinity` / `NaN` 在 JSON 里没有写法，`JSON.stringify` 把它们变成 `null`。
+   * 于是一条 `INSERT ... VALUES (?)` 绑了 `Infinity` 会在 SQLite 里落成 NULL——
+   * 写进去的值不是调用方给的那个，而且全程没有任何报错。
+   *
+   * Rust 侧的 `encode_real` 早就在应答方向拒了这类值（`value.rs`）；这里补的是请求方向，
+   * 让同一条不可搬运的性质在两个方向上同口径。
+   */
+  it('refuses non-finite numbers instead of letting JSON turn them into null', () => {
+    for (const value of [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NaN]) {
+      expect(() => encodeDesktopJsonPayload(value)).toThrow(RxDBAdapterDesktopError);
+      expect(() => encodeDesktopJsonPayload(value)).toThrow(/cannot be carried over JSON/);
+      // 真正的出现位置：绑定数组里、请求对象的字段上。
+      expect(() => encodeDesktopJsonPayload({ kind: 'execute', bindings: [1, value] })).toThrow(
+        RxDBAdapterDesktopError
+      );
+    }
+    expect(() => encodeDesktopJsonPayload(Number.NaN)).toThrow(expect.objectContaining({ code: 'protocol_violation' }));
+    // 边界值仍然过得去：只有非有限值被拦。
+    expect(encodeDesktopJsonPayload(Number.MAX_VALUE)).toBe(Number.MAX_VALUE);
+    expect(encodeDesktopJsonPayload(-0)).toBe(-0);
+  });
+
   it('rejects malformed tags instead of guessing', () => {
     expect(() => decodeDesktopJsonPayload({ $bigint: 5 })).toThrow(RxDBAdapterDesktopError);
     expect(() => decodeDesktopJsonPayload({ $bigint: 'not a number' })).toThrow(RxDBAdapterDesktopError);

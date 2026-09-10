@@ -26,15 +26,27 @@ import { createTauriHostTransport, type DesktopHostTransport } from '../src/inde
  * @remarks
  * Windows 上 cargo 产出的是 `.exe`。少了后缀，套件在那儿只会报「二进制不存在，去跑
  * build-test-host」——而那条命令刚刚才成功跑完，提示指向的是一个不存在的问题。
+ *
+ * `CARGO_TARGET_DIR` 同理：设了它，`build-test-host` 的产物就不在 `rust/target/` 下，
+ * 写死那条路径会得到同一句指向不存在问题的提示。相对值按 cwd 解析，与 cargo 自己一致。
  */
 const HOST_BINARY = resolve(
-  import.meta.dirname,
-  '..',
-  'rust',
-  'target',
+  processEnv.CARGO_TARGET_DIR !== undefined && processEnv.CARGO_TARGET_DIR !== '' ?
+    processEnv.CARGO_TARGET_DIR
+  : resolve(import.meta.dirname, '..', 'rust', 'target'),
   'debug',
   `rxdb_host_stdio${platform === 'win32' ? '.exe' : ''}`
 );
+
+/**
+ * 宿主进程记账用的窗口 label，经 `--owner` 传给二进制。
+ *
+ * @remarks
+ * 生产路径上这个值来自 `window.label()`：会话按它记账，变更事件按它 `emit_to`。
+ * stdio 路径上没有真窗口，但这条链路必须照走——`handle_owned` 与 `session_owner`
+ * 就是 Tauri 特有的那一层，不走它，`track` / 无主丢弃 / 定向投递任一回归都不会让套件变红。
+ */
+export const RUST_HOST_WINDOW_LABEL = 'main';
 
 interface PendingRequest {
   readonly resolve: (payload: unknown) => void;
@@ -45,8 +57,18 @@ interface PendingRequest {
 export interface RustHostProcess {
   /** Tauri `invoke` 的替身，把请求写进子进程的 stdin。 */
   readonly invoke: (command: string, args: Record<string, unknown>) => Promise<unknown>;
-  /** Tauri `listen` 的替身，把子进程推来的变更事件转成 `{ payload }`。 */
-  readonly listen: (event: string, handler: (event: { payload: unknown }) => void) => Promise<() => void>;
+  /**
+   * Tauri `listen` 的替身，把子进程推来的变更事件转成 `{ payload }`。
+   *
+   * @remarks
+   * 与真 `listen` 一样**异步落定**，且按 `options.target` 过滤——两条性质都是生产语义，
+   * 见 {@link startRustHostProcess}。
+   */
+  readonly listen: (
+    event: string,
+    handler: (event: { payload: unknown }) => void,
+    options?: { readonly target?: string }
+  ) => Promise<() => void>;
   /** 子进程写到 stderr 的全部内容；正常情况下应为空。 */
   readonly stderr: () => string;
   /** 关掉子进程并让所有在途请求失败。 */
@@ -71,12 +93,12 @@ const requireBinary = (): string => {
  * @returns 进程句柄与两个 Tauri API 替身
  */
 export function startRustHostProcess(root: string, env?: Readonly<Record<string, string>>): RustHostProcess {
-  const child: ChildProcessWithoutNullStreams = spawn(requireBinary(), [root], {
+  const child: ChildProcessWithoutNullStreams = spawn(requireBinary(), [root, '--owner', RUST_HOST_WINDOW_LABEL], {
     stdio: 'pipe',
     env: env ? { ...processEnv, ...env } : processEnv
   });
   const pending = new Map<number, PendingRequest>();
-  const eventHandlers = new Set<(event: { payload: unknown }) => void>();
+  const eventHandlers = new Set<{ readonly handler: (event: { payload: unknown }) => void; readonly target: string }>();
   let nextId = 1;
   let buffer = '';
   let stderr = '';
@@ -89,9 +111,14 @@ export function startRustHostProcess(root: string, env?: Readonly<Record<string,
   };
 
   const dispatch = (line: string): void => {
-    const message = JSON.parse(line) as { id?: number; payload?: unknown; event?: unknown };
+    const message = JSON.parse(line) as { id?: number; payload?: unknown; event?: unknown; target?: string };
     if (message.event !== undefined) {
-      for (const handler of eventHandlers) handler({ payload: message.event });
+      // 按 target 收件，与 tauri 的 `filter_target` 同规则：`emit_to(owner)` 只落到
+      // 带同一个 label 的监听者身上。不过滤的话，宿主把事件投给谁就都收得到，
+      // 而定向投递恰恰是这条路径上最容易悄悄退化的性质。
+      for (const entry of eventHandlers) {
+        if (entry.target === message.target) entry.handler({ payload: message.event });
+      }
       return;
     }
     const request = typeof message.id === 'number' ? pending.get(message.id) : undefined;
@@ -148,10 +175,20 @@ export function startRustHostProcess(root: string, env?: Readonly<Record<string,
         child.stdin.write(`${JSON.stringify({ id, command, payload: args.payload })}\n`);
       }),
 
-    listen: (_event, handler) => {
-      eventHandlers.add(handler);
-      return Promise.resolve(() => {
-        eventHandlers.delete(handler);
+    // 真 `listen` 要跨一次 IPC 才落定，而 `DesktopSqliteClient` 正是靠
+    // `await client.#awaitSubscription()` 才能保证「open 之后的第一条写入不会漏掉事件」。
+    // 同步注册会让那道 await 变成可以随手删掉的死代码——删了套件照样全绿。
+    listen: (_event, handler, listenOptions) => {
+      const target = listenOptions?.target;
+      if (target === undefined) throw new Error('the conformance host listen requires a target');
+      const entry = { handler, target };
+      return new Promise(resolveListen => {
+        setImmediate(() => {
+          eventHandlers.add(entry);
+          resolveListen(() => {
+            eventHandlers.delete(entry);
+          });
+        });
       });
     },
 
@@ -188,6 +225,9 @@ export function createRustHostTransport(
     transport: createTauriHostTransport({
       invoke: host.invoke,
       listen: host.listen,
+      // stdio 宿主没有窗口，`host.listen` 因此忽略这个字段；填的是生产路径上主窗口的
+      // label，好让这条传输层的构造形状与真实接入完全一致。
+      target: RUST_HOST_WINDOW_LABEL,
       // 记下来而不是抛出去：这个回调是从 Tauri（这里是 stdin 数据回调）里同步调的，
       // 抛出去只会变成一句与故障无关的 worker 崩溃。攒成数组由 afterAll 断言，
       // 与 Electron 工厂的 `electronHostDeliveryErrors()` 是同一个旁路信号。

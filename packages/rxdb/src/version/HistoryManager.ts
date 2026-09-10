@@ -20,7 +20,7 @@ import { isAdapterShutdownError } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
 import { RxDBBranch } from '../system/branch.js';
 import { RxDBChange } from '../system/change.js';
-import { filterUndoableHistories, getRepositoryKey } from './history-filters.js';
+import { buildLastPushedMap, filterUndoableHistories } from './history-filters.js';
 import { convertChangesToHistories } from './history-item-builder.js';
 import { createHistoryScopeApi, type HistoryScopeApiHost } from './history-scope-api.js';
 import {
@@ -159,7 +159,7 @@ export class HistoryManager {
     this.#subscriptions.push(
       current_branch$.pipe(takeUntil(this.#destroy$)).subscribe({
         next: branch => this.#switchUndoSessionBranch(branch?.id ?? null),
-        error: error => this.#reportBranchStreamError('undo session 分支跟随', error)
+        error: error => this.#reportStreamError('undo session 分支跟随的活跃分支流已中断', error)
       })
     );
 
@@ -237,12 +237,9 @@ export class HistoryManager {
             }
           });
 
-          const lastPushedMap = new Map<string, number>();
-          for (const rs of repoSyncs) {
-            if (rs.lastPushedChangeId !== null) {
-              lastPushedMap.set(getRepositoryKey(rs), rs.lastPushedChangeId);
-            }
-          }
+          // 与 `fetchLatestHistories` 同源：反应式的可撤销列表必须和真正执行撤销时
+          // 的判定逐字一致，否则 UI 上还亮着的那一项点下去要么无效、要么撤掉一条在飞的变更
+          const lastPushedMap = buildLastPushedMap(repoSyncs, this.rxdb.versionManager.pushInFlight.snapshot());
 
           return filterUndoableHistories(
             histories,
@@ -289,14 +286,23 @@ export class HistoryManager {
             .count({
               where: { combinator: 'and', rules: baseRules }
             })
-            .pipe(catchError(() => EMPTY));
+            .pipe(
+              // 降级而不终结：一次计数查询失败不该让整条 pushableCount 流停摆，
+              // 所以这里仍然返回 EMPTY。但**必须报出去** —— 从前是裸的
+              // `catchError(() => EMPTY)`，外层 subscribe 的 error 回调永远等不到，
+              // 计数悄悄停在旧值，UI 上「有 N 条待推送」再也不动，没有任何人知道。
+              catchError((error: unknown) => {
+                this.#reportStreamError('pushableCount 的变更计数查询', error);
+                return EMPTY;
+              })
+            );
         })
       )
       .subscribe({
         next: () => {
           this.#updatePushableCount();
         },
-        error: error => this.#reportBranchStreamError('pushableCount 重算', error)
+        error: error => this.#reportStreamError('pushableCount 重算的活跃分支流已中断', error)
       });
     this.#subscriptions.push(pushableCountSub);
 
@@ -550,10 +556,19 @@ export class HistoryManager {
     this.#undoSession$.next(session);
   }
 
-  /** 活跃分支流中断时落日志并推 errors$，不升级成 RxJS 未捕获异常 */
-  #reportBranchStreamError(source: string, error: unknown): void {
+  /**
+   * 落日志并推 `errors$`，不升级成 RxJS 未捕获异常。
+   *
+   * @remarks
+   * 销毁后与适配器停机错误一律静默：那两种情况下的报错是拆卸噪声，不是故障。
+   *
+   * 措辞由调用方给全（`source` 直接拼进日志），因为两类调用方的后果不同：
+   * 订阅上的 `error` 回调意味着那条流**已经终结**，而 `catchError` 里的降级
+   * 只是丢掉一次结果、流还活着。用一句写死的「已中断」会把后者说成前者。
+   */
+  #reportStreamError(source: string, error: unknown): void {
     if (this.#destroyed || isAdapterShutdownError(error)) return;
-    console.error(`[HistoryManager] ${source} 的活跃分支流已中断:`, error);
+    console.error(`[HistoryManager] ${source}:`, error);
     this.errors$.next(error instanceof Error ? error : new Error(String(error)));
   }
 

@@ -462,7 +462,11 @@ export const handleCountDescendantsUpdate = <T extends EntityType>(
   } else if (countChange !== 0) {
     // 如果计数有变化，更新结果
     const newCount = Math.max(0, currentCount + countChange);
-    task.next(newCount);
+    // autoCache 必须传 false：`QueryTask#next` 在 autoCache=true 时无条件清空
+    // `resultEntityIds`（清空逻辑在类型分支之外），而 count 结果是个 number，
+    // 不会重新填充它。沿用默认值会把跨批次去重集合抹掉，同一实体被重复计数。
+    // 与 merge_create.ts / merge_remove.ts 的 count 分支同口径。
+    task.next(newCount, false);
   }
   // 否则: 计数没有变化，不需要通知
 };
@@ -623,7 +627,11 @@ export const handleCountAncestorsUpdate = <T extends EntityType>(
   } else if (countChange !== 0) {
     // 如果计数有变化，更新结果
     const newCount = Math.max(0, currentCount + countChange);
-    task.next(newCount);
+    // autoCache 必须传 false：`QueryTask#next` 在 autoCache=true 时无条件清空
+    // `resultEntityIds`（清空逻辑在类型分支之外），而 count 结果是个 number，
+    // 不会重新填充它。沿用默认值会把跨批次去重集合抹掉，同一实体被重复计数。
+    // 与 merge_create.ts / merge_remove.ts 的 count 分支同口径。
+    task.next(newCount, false);
   }
   // 否则: 计数没有变化，不需要通知
 };

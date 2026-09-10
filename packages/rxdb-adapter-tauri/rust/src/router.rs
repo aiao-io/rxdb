@@ -33,8 +33,29 @@ struct OwnedSessions {
     sqlite: HashSet<String>,
 }
 
-/// 会话归属表：window label → 它开出的会话。
-type Ownership = HashMap<String, OwnedSessions>;
+/// 会话归属表，外加一份每个 label 的回收代数。
+#[derive(Default)]
+struct Ownership {
+    sessions: HashMap<String, OwnedSessions>,
+    /// 每个 window label 被 [`DesktopRouter::close_owner`] 回收过的次数。
+    ///
+    /// 存在的理由是一个真实存在的竞态：`handle_owned` 先派发、后记账，而窗口销毁事件跑在
+    /// 另一条线程上。`open` 已经在宿主里建出了会话、`remember` 还没把 id 写进表，此刻
+    /// `close_owner` 插进来——它扫到的表里没有这条，扫完就走；随后 `remember` 把 id 记到一个
+    /// 已经死掉的 label 名下，从此再没有任何一条路径会去关它。那正是 [`Self::close_owner`]
+    /// 注释里点名的最坏结果：一把没放掉的独占锁，让另一个窗口的 `lockAcquire` 永远等下去。
+    ///
+    /// 用代数而不是「已关闭 label 集合」，是因为 Tauri 允许销毁后用同一个 label 再开一扇窗口。
+    /// 永久拉黑会让重开的窗口一个会话都记不上，泄漏就换了个方向。
+    reclaimed: HashMap<String, u64>,
+}
+
+impl Ownership {
+    /// 当前代数；从未回收过的 label 记作 0。
+    fn generation(&self, owner: &str) -> u64 {
+        self.reclaimed.get(owner).copied().unwrap_or(0)
+    }
+}
 
 /// 同时持有两套宿主，并把请求送到对的那一套。
 ///
@@ -57,7 +78,7 @@ impl DesktopRouter {
         Self {
             sqlite: Arc::new(Host::new(options)),
             files: Arc::new(FileHost::new(root)),
-            owners: Mutex::new(Ownership::new()),
+            owners: Mutex::new(Ownership::default()),
         }
     }
 
@@ -85,11 +106,13 @@ impl DesktopRouter {
         if let Some(denial) = self.reject_foreign_session(request, owner, files) {
             return denial;
         }
+        // 派发前读代数，派发后比对：这中间窗口若被销毁，`open` 开出的会话就无人认领了。
+        let generation = self.owners().generation(owner);
         let response = match files {
             true => self.files.handle(request),
             false => self.sqlite.handle(request),
         };
-        self.track(owner, request, &response, files);
+        self.track(owner, request, &response, files, generation);
         response
     }
 
@@ -100,6 +123,7 @@ impl DesktopRouter {
     /// （由 [`Self::handle`] 开出，或已经关掉）。
     pub fn session_owner(&self, session_id: &str) -> Option<String> {
         self.owners()
+            .sessions
             .iter()
             .find(|(_, owned)| owned.files.contains(session_id) || owned.sqlite.contains(session_id))
             .map(|(label, _)| label.clone())
@@ -111,7 +135,14 @@ impl DesktopRouter {
     /// 特别是文件侧——一把没放掉的独占锁会让另一个窗口的 `lockAcquire` 永远等下去，
     /// 而那条等待没有任何超时能解开。
     pub fn close_owner(&self, owner: &str) {
-        let Some(owned) = self.owners().remove(owner) else {
+        let owned = {
+            let mut owners = self.owners();
+            // 先升代数，再取走会话，两步在同一次持锁里完成。此刻正在飞行中的 `open` 之后
+            // 会拿它开始时读到的旧代数来记账，对不上，那条会话会被 [`Self::remember`] 就地关掉。
+            *owners.reclaimed.entry(owner.to_string()).or_default() += 1;
+            owners.sessions.remove(owner)
+        };
+        let Some(owned) = owned else {
             return;
         };
         for session_id in &owned.files {
@@ -124,7 +155,13 @@ impl DesktopRouter {
 
     /// 关闭两套宿主的全部会话。
     pub fn close_all(&self) {
-        self.owners().clear();
+        {
+            let mut owners = self.owners();
+            for label in owners.sessions.keys().cloned().collect::<Vec<_>>() {
+                *owners.reclaimed.entry(label).or_default() += 1;
+            }
+            owners.sessions.clear();
+        }
         self.files.close_all();
         self.sqlite.close_all();
     }
@@ -132,6 +169,7 @@ impl DesktopRouter {
     /// 某个窗口名下还记着的会话数，用于诊断与测试。
     pub fn owned_session_count(&self, owner: &str) -> usize {
         self.owners()
+            .sessions
             .get(owner)
             .map_or(0, |owned| owned.files.len() + owned.sqlite.len())
     }
@@ -161,7 +199,7 @@ impl DesktopRouter {
     fn reject_foreign_session(&self, request: &Value, owner: &str, files: bool) -> Option<Value> {
         let session_id = request["sessionId"].as_str()?;
         let owners = self.owners();
-        let holder = owners.iter().find(|(_, owned)| match files {
+        let holder = owners.sessions.iter().find(|(_, owned)| match files {
             true => owned.files.contains(session_id),
             false => owned.sqlite.contains(session_id),
         })?;
@@ -179,35 +217,53 @@ impl DesktopRouter {
     ///
     /// 判据取应答而不是请求：只有宿主真的接下了才算开出一个会话，一条被拒的 `open`
     /// 不该在表里留下任何东西，否则窗口销毁时会拿着一个从不存在的 id 去关。
-    fn track(&self, owner: &str, request: &Value, response: &Value, files: bool) {
+    fn track(&self, owner: &str, request: &Value, response: &Value, files: bool, generation: u64) {
         match response["kind"].as_str() {
-            Some("file.open" | "open") => self.remember(owner, files, response["result"]["sessionId"].as_str()),
+            Some("file.open" | "open") => {
+                self.remember(owner, files, response["result"]["sessionId"].as_str(), generation);
+            }
             Some("file.close" | "close") => self.forget(files, request["sessionId"].as_str()),
             _ => (),
         }
     }
 
-    fn remember(&self, owner: &str, files: bool, session_id: Option<&str>) {
+    /// 记下一条新会话——除非它的窗口在派发途中已经被回收掉了。
+    ///
+    /// 代数对不上就说明 [`Self::close_owner`] 在这条 `open` 飞行期间跑过。那一趟扫表时这条
+    /// 会话还不在表里，扫不到；记进去又不会再有第二次回收。所以此处**就地关掉**它，
+    /// 这是它唯一的回收时机。关闭放在锁外：文件侧的 `close_session` 会去放锁，
+    /// 而放锁要唤醒等待者，持着归属表的锁做这件事是在自找死锁。
+    fn remember(&self, owner: &str, files: bool, session_id: Option<&str>, generation: u64) {
         let Some(session_id) = session_id else {
             return;
         };
-        let mut owners = self.owners();
-        let owned = owners.entry(owner.to_string()).or_default();
+        {
+            let mut owners = self.owners();
+            if owners.generation(owner) == generation {
+                let owned = owners.sessions.entry(owner.to_string()).or_default();
+                match files {
+                    true => owned.files.insert(session_id.to_string()),
+                    false => owned.sqlite.insert(session_id.to_string()),
+                };
+                return;
+            }
+        }
         match files {
-            true => owned.files.insert(session_id.to_string()),
-            false => owned.sqlite.insert(session_id.to_string()),
-        };
+            true => drop(self.files.close_session(session_id)),
+            false => drop(self.sqlite.close(session_id)),
+        }
     }
 
     /// 从**所有**窗口名下抹掉一个会话 id。
     ///
-    /// 不限定在发起关闭的那个窗口：会话 id 只是 renderer 递来的字符串，宿主并不校验
-    /// 是谁在关。只从发起方名下删的话，一次跨窗口的关闭会在原窗口留下一条永不消失的记录。
+    /// 实际只会命中发起方自己的那一条：属于别的窗口的会话在派发前就被
+    /// [`Self::reject_foreign_session`] 拒掉，走不到这里。仍然按全表扫——归属表是这套
+    /// 回收机制的唯一真相，多看几个 label 是常数代价，漏删一条却是一条泄漏到进程退出的记录。
     fn forget(&self, files: bool, session_id: Option<&str>) {
         let Some(session_id) = session_id else {
             return;
         };
-        for owned in self.owners().values_mut() {
+        for owned in self.owners().sessions.values_mut() {
             match files {
                 true => owned.files.remove(session_id),
                 false => owned.sqlite.remove(session_id),
@@ -267,6 +323,33 @@ mod tests {
     /// 一条独占锁申请。
     fn acquire(session_id: &str, name: &str) -> Value {
         json!({ "kind": "file.lockAcquire", "sessionId": session_id, "name": name, "mode": "exclusive" })
+    }
+
+    /// 窗口在一条 `open` 派发途中被销毁：会话已经在宿主里建出来了，但还没记进归属表，
+    /// 那一趟回收因此扫不到它。不处理的话它会一直开到进程退出——文件侧还会连着一把
+    /// 独占锁，让别的窗口 `lockAcquire` 永远等下去。
+    ///
+    /// 这里直接按 `handle_owned` 的三步（读代数 → 派发 → 记账）手工展开，把销毁插在中间。
+    /// 用线程去撞这个窗口是撞不稳的，而这条缝本来就窄。
+    #[test]
+    fn closes_a_session_whose_window_died_while_the_open_was_in_flight() {
+        let root = std::env::temp_dir().join(format!("rxdb-router-{}", uuid::Uuid::new_v4()));
+        let router = router(&root);
+        let request = json!({ "kind": "file.open" });
+
+        let generation = router.owners().generation("main");
+        let response = router.handle(&request);
+        router.close_owner("main");
+        router.track("main", &request, &response, true, generation);
+
+        let session_id = response["result"]["sessionId"].as_str().expect("file.open returns a session id");
+        // 光是「表里没有」不够：那正是不修的时候也成立的状态，会话照样开着。
+        // 判据必须落在宿主上——它得真的不认识这个 id 了。
+        assert_eq!(router.owned_session_count("main"), 0);
+        assert_eq!(router.files().open_session_count(), 0);
+        let after = router.handle(&acquire(session_id, "files:/x"));
+        assert_eq!(after["kind"], "error");
+        assert_eq!(after["code"], "session_closed");
     }
 
     /// 分流错了不会「报个错」，而是把一条文件请求送进 SQLite——所以两个方向都要断言。

@@ -303,10 +303,19 @@ export const transitionMetadata = (
   setSafeObjectKeyLazyInitOnce(metadata, 'foreignKeyNames', () => metadata.foreignKeyRelations.map(d => `${d.name}Id`));
 
   // 设置外键列名列表（数据库列名）
+  //
+  // 与 `foreignKeyNames` **按下标一一对应**，所以这里只能 1:1 map，不能 filter：
+  // 过滤掉任何一项都会让两个数组错位，`normalizeUpdateEntity` 就会把 A 的值写进 B 的列，
+  // 无声写错数据。上面 `has_column_name_relation` 分支已保证 MANY_TO_ONE / ONE_TO_ONE
+  // 一定有 columnName，真缺失就是元数据处理有 bug —— 抛错，别用过滤掩盖。
   setSafeObjectKeyLazyInitOnce(metadata, 'foreignKeyColumnNames', () =>
-    metadata.foreignKeyRelations
-      .filter(d => !!(d as EntityRelationManyToOneMetadata).columnName)
-      .map(d => (d as EntityRelationManyToOneMetadata).columnName)
+    metadata.foreignKeyRelations.map(d => {
+      const { columnName } = d as EntityRelationManyToOneMetadata;
+      if (!columnName) {
+        throw new Error(`[RxDB] ${metadata.namespace}:${metadata.name} 的外键关系 '${d.name}' 缺少 columnName`);
+      }
+      return columnName;
+    })
   );
 
   /**

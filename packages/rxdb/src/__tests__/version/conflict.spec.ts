@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RxDBChange } from '../../system/change.js';
-import { Conflict, ConflictResolution, ConflictResolver } from '../../version/conflict.js';
+import { Conflict } from '../../version/conflict.js';
 import { LWWConflictResolver } from '../../version/LWWConflictResolver.js';
 
 /**
@@ -154,11 +154,13 @@ describe('LWWConflictResolver', () => {
   });
 
   describe('edge cases', () => {
-    it('should handle null createdAt gracefully', async () => {
+    // createdAt 在 IRxDBChange 上必填。从前它缺失会被折成 epoch 0：两侧同时塌成 0 就成平局，
+    // 胜负转由 clientId 字典序决定 —— 时间戳丢了这件事被吞掉，赢家却已经换人。
+    // LWW 的全部依据就是这个时间戳，拿不到就没有「合理的默认」，只能拒绝裁决。
+    it('createdAt 缺失时拒绝裁决而不是折成 epoch 0', async () => {
       const localChange = createChange(new Date('2025-01-01T10:00:00Z'));
       const remoteChange = createChange(new Date('2025-01-01T10:01:00Z'));
 
-      // 将 createdAt 设为 null（边界场景）。
       (localChange as { createdAt: Date | null }).createdAt = null;
 
       const conflict: Conflict = {
@@ -167,10 +169,7 @@ describe('LWWConflictResolver', () => {
         remote: remoteChange
       };
 
-      // 不应抛错，并应平稳处理。
-      const result = await resolver.resolve(conflict);
-      // null 时间按 0（epoch）处理，因此应以远程值为准。
-      expect(result.type).toBe('KEEP_REMOTE');
+      await expect(resolver.resolve(conflict)).rejects.toThrow();
     });
 
     it('should be async to support future async implementations', async () => {
@@ -181,69 +180,5 @@ describe('LWWConflictResolver', () => {
       expect(resultPromise).toBeInstanceOf(Promise);
       await expect(resultPromise).resolves.toHaveProperty('type');
     });
-  });
-});
-
-describe('ConflictResolver interface', () => {
-  it('should allow custom implementation', async () => {
-    // 始终保留远程值的自定义解析器。
-    const customResolver: ConflictResolver = {
-      async resolve(): Promise<ConflictResolution> {
-        return { type: 'KEEP_REMOTE' };
-      }
-    };
-
-    const conflict: Conflict = {
-      entityKey: 'test',
-      local: {} as RxDBChange,
-      remote: {} as RxDBChange
-    };
-
-    const result = await customResolver.resolve(conflict);
-    expect(result.type).toBe('KEEP_REMOTE');
-  });
-
-  it('should support MERGE resolution type', async () => {
-    const mergingResolver: ConflictResolver = {
-      async resolve(conflict: Conflict): Promise<ConflictResolution> {
-        return {
-          type: 'MERGE',
-          merged: {
-            ...(conflict.local.patch || {}),
-            ...(conflict.remote.patch || {})
-          }
-        };
-      }
-    };
-
-    const conflict: Conflict = {
-      entityKey: 'test',
-      local: { patch: { name: 'Local' } } as unknown as RxDBChange,
-      remote: { patch: { age: 30 } } as unknown as RxDBChange
-    };
-
-    const result = await mergingResolver.resolve(conflict);
-    expect(result.type).toBe('MERGE');
-    expect((result as { type: 'MERGE'; merged: Record<string, unknown> }).merged).toEqual({
-      name: 'Local',
-      age: 30
-    });
-  });
-
-  it('should support DEFER resolution type', async () => {
-    const deferringResolver: ConflictResolver = {
-      async resolve(): Promise<ConflictResolution> {
-        return { type: 'DEFER' };
-      }
-    };
-
-    const conflict: Conflict = {
-      entityKey: 'test',
-      local: {} as RxDBChange,
-      remote: {} as RxDBChange
-    };
-
-    const result = await deferringResolver.resolve(conflict);
-    expect(result.type).toBe('DEFER');
   });
 });

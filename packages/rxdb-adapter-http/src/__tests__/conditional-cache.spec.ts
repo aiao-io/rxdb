@@ -29,6 +29,42 @@ describe('requestFingerprint', () => {
       requestFingerprint('GET', 'https://api.example.com/items', '')
     );
   });
+
+  it('handler 给的 header 参与定键：只有它不同也是两个指纹', () => {
+    // 同一条 URL 上按租户 / 语言分投影是 REST 的常规做法，而 method + url + body
+    // 三者对它们完全相同。少了这一维，两个租户共用一个条目——A 的 ETag 被拿去问 B，
+    // 服务端若不按该 header 变更 ETag 就回 304，B 于是收到 A 的行
+    const base = requestFingerprint('GET', 'https://api.example.com/items', undefined, { 'x-tenant': 'acme' });
+    expect(requestFingerprint('GET', 'https://api.example.com/items', undefined, { 'x-tenant': 'globex' })).not.toBe(
+      base
+    );
+    expect(requestFingerprint('GET', 'https://api.example.com/items', undefined, { 'x-tenant': 'acme' })).toBe(base);
+  });
+
+  it('无 header 与空 header 同键，不白白劈开缓存', () => {
+    // handler 有条件地拼 header 时，`{}` 与不传是同一个请求。判成两个键不会答错，
+    // 但会让本该命中的一半请求全部落空——把一次修正变成一次性能回归
+    expect(requestFingerprint('GET', 'https://api.example.com/items', undefined, {})).toBe(
+      requestFingerprint('GET', 'https://api.example.com/items', undefined, undefined)
+    );
+  });
+
+  it('header 的书写顺序不改变指纹', () => {
+    // `JSON.stringify` 照对象的插入序编码，而 header 之间没有顺序可言。不排序的话，
+    // handler 换个字面书写顺序就等于清空缓存，且没有任何迹象。
+    // 大小写归一**不在这里**：折叠规则归 transport 的 `mergeHeaders` 一家所有，
+    // 本函数拿到的已经是归一过的名字。端到端的那条断言在 `transport.spec.ts`
+    const base = requestFingerprint('GET', 'https://api.example.com/items', undefined, {
+      'x-tenant': 'acme',
+      'accept-language': 'zh'
+    });
+    expect(
+      requestFingerprint('GET', 'https://api.example.com/items', undefined, {
+        'accept-language': 'zh',
+        'x-tenant': 'acme'
+      })
+    ).toBe(base);
+  });
 });
 
 describe('ConditionalRequestCache', () => {

@@ -5,7 +5,7 @@
  *
  * ```
  * ELECTRON_RUN_AS_NODE= <electron> apps/dev-rxdb-electron/tools/devtools-mv3-probe.mjs \
- *   <扩展 dist 目录> <结果 JSON 输出路径>
+ *   <扩展 dist 目录> <结果 JSON 输出路径> <独占 userData 目录>
  * ```
  *
  * 断言在 `apps/dev-rxdb-electron-e2e/src/devtools-mv3-feasibility.spec.ts` —— 本文件只负责
@@ -45,6 +45,19 @@
  *    `readyState: 'loading'` + `scripts: []` 露馅。Linux 上要跑就先把 `dist/chrome-sandbox`
  *    配成 root:root 4755（见 spec 的 `assertSandboxUsable()`）。
  *
+ * 7. **必须独占 userData 目录**：MV3 的 service worker 注册表落在 profile 里的 LevelDB。
+ *    两个 Electron 进程共用同一份 userData（不传第三个参数时就是默认的
+ *    `~/Library/Application Support/Electron`）时，后启动的那个打不开注册表，
+ *    `background.service_worker` **静默不注册** —— 而其余一切照常：`loadExtension` 返回
+ *    有效扩展、`devtools_page` 跑完、`panels.create` 生效、RxDB tab 正常选中、`panel.html`
+ *    挂载完成。唯一的表征是 `AC1` 的 `serviceWorkers: []` 与随后整条中继全空
+ *    （`inspectedPage.seen: []`），看上去像「Electron 不支持 MV3 背景页」，
+ *    实际上只是**另一个 Electron 进程还活着**。
+ *    这条在 CI 上真实发生过：`beforeAll` 撞到 Playwright 的 hook 超时后，spec spawn 出去的
+ *    探针进程**不会被回收**，重试时的新探针与它并存，于是 AC#1/#2/#3/#4 全红而
+ *    `AC3.injectForeignOriginRejected` 反倒「绿」（页面本来就该什么都收不到）。
+ *    所以 userData 目录由调用方传入且必须唯一，见 spec 的 `beforeAll`。
+ *
  * ## 唯一的可容忍差异
  *
  * Electron 43 **没有 `chrome.permissions` 命名空间**（见 `finding.chromePermissionsMissing`）。
@@ -59,7 +72,7 @@
  * origin 的 tab 发起 INIT，证注入被拒。
  */
 
-import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -74,11 +87,20 @@ const { app, BrowserWindow, session, webContents } = createRequire(import.meta.u
 const positional = process.argv.slice(1).filter(arg => !arg.startsWith('--'));
 const EXTENSION_DIST = positional[1];
 const OUTPUT_PATH = positional[2];
+const USER_DATA_DIR = positional[3];
 
-if (!EXTENSION_DIST || !OUTPUT_PATH) {
-  process.stderr.write('用法：<electron> devtools-mv3-probe.mjs <扩展 dist 目录> <结果 JSON 路径>\n');
+if (!EXTENSION_DIST || !OUTPUT_PATH || !USER_DATA_DIR) {
+  process.stderr.write(
+    '用法：<electron> devtools-mv3-probe.mjs <扩展 dist 目录> <结果 JSON 路径> <独占 userData 目录>\n'
+  );
   process.exit(2);
 }
+
+// 独占 profile，理由见文件头坑 7：共用 userData 时 MV3 service worker 静默不注册，
+// 而表征是「Electron 不支持 MV3 背景页」——差得越远越难查，所以这里不给默认值兜底。
+// 必须在 app ready **之前**设置：ready 之后 profile 已经按旧路径打开了。
+mkdirSync(USER_DATA_DIR, { recursive: true });
+app.setPath('userData', USER_DATA_DIR);
 
 /** 已授权 origin 的 host permission。Chrome match pattern 不接受端口，所以只能写主机名。 */
 const AUTHORIZED_PATTERN = 'http://127.0.0.1/*';
@@ -561,9 +583,15 @@ app.whenReady().then(async () => {
     );
 
     // ---------- AC#4c：销毁窗口 + service worker 空闲自停 ----------
+    // 销毁与取样之间**不留任何等待**。原先这里是 `await sleep(2000)`，那 2 秒是这一半唯一的
+    // flaky 来源：面板的 Port 一直把 worker 撑着，直到窗口销毁才开始走空闲计时；机器有负载时
+    // 这句 sleep 的真实墙钟远超 2s（整套连跑实测 13.2m，平时 1.9m），一旦漂过约 30s 的空闲窗口，
+    // worker 已自停，`serviceWorkersRightAfterDestroy` 变空 —— 与被测行为无关的假红。
+    //
+    // 成因已实测确认：把这句 sleep 改成 35s，本条稳定红在 `Received: 0`；零等待则绿。
+    // 「worker 不随页面走」这条判据本来就只需要销毁与取样的先后，不需要任何时间量。
     foreignWin.destroy();
     win.destroy();
-    await sleep(2000);
     const serviceWorkersRightAfterDestroy = runningWorkers(ses);
     // MV3 service worker 空闲约 30 秒自停；轮询到停为止，别把上限当成实际耗时。
     await waitFor(() => runningWorkers(ses).length === 0, 60000, 2000);

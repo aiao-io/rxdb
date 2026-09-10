@@ -138,7 +138,6 @@ class StorageBackendError extends Error {
 type StorageBackendErrorCode =
   | 'backend_unavailable'
   | 'invalid_physical_name'
-  | 'path_escape'
   | 'name_too_long'
   | 'permission_denied'
   | 'disk_full'

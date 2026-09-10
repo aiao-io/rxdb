@@ -17,7 +17,7 @@ export default [
             // vitest 塞进本包 dependencies（那会让每个装本包的用户都拖一份测试框架）。
             '{projectRoot}/vitest.conformance.{js,ts,mjs,mts}'
           ],
-          ignoredDependencies: ['@aiao/rxdb-test', 'rxjs']
+          ignoredDependencies: ['@aiao/rxdb-test']
         }
       ]
     },

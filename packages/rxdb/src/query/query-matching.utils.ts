@@ -57,25 +57,80 @@ export const isExistsRule = (
 ): rule is RuntimeRule & { operator: 'exists' | 'notExists'; where?: RuntimeRuleGroup } =>
   rule.operator === 'exists' || rule.operator === 'notExists';
 
+/**
+ * 把一个值归一成毫秒时间戳。
+ *
+ * @param field - 规则字段名，只用于报错时定位
+ * @param value - 待归一的值
+ * @returns 毫秒时间戳
+ * @throws RxDBError 值无法解释成一个时间点时
+ *
+ * @remarks
+ * 日期在这套系统里有**三种在途形态**，它们会在同一次比较的两端相遇：
+ *
+ * - `Date`：规则值（`DateRules` 强制如此）与走过实体反序列化的缓存实体；
+ * - ISO 字符串：sqlite-core 触发器用 `json_object(NEW.col)` 产出的 patch，
+ *   `handle_rxdb_change` 原样透传，没有经过实体解码；
+ * - 毫秒数：部分适配器与外部数据源直接存时间戳。
+ *
+ * 不归一就用 JS 原生比较的话，`Date > '2024-01-01T00:00:00Z'` 会因关系比较把两边
+ * 一起 `ToNumber`（字符串得 `NaN`）而**恒为 false** —— 带日期区间 `where` 的活查询
+ * 对新行既不重算也不刷新，且不留任何日志。
+ *
+ * 解析不出来时**抛错而不是返回 false**：那是真正的类型错配（拿布尔/对象/非日期字符串
+ * 去比日期），静默返回 false 就是把 bug 变成「查不到数据」。抛出的错误由
+ * `QueryManager` 按任务兜住并退回一次整查，不会波及同批其他查询。
+ */
+const toEpochMs = (field: string, value: unknown): number => {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  throw new RxDBError(`'${field}' 的日期比较拿到无法解析成时间点的值: ${String(value)} (${typeof value})`);
+};
+
+/** 两侧任一为 `Date` 即按时间点比较（另一侧可能是 ISO 字符串或毫秒数，见 {@link toEpochMs}）。 */
+const isDateComparison = (left: unknown, right: unknown): boolean => left instanceof Date || right instanceof Date;
+
 const compareOrderValues = (left: unknown, right: unknown): number => {
   if (left == null && right == null) return 0;
   if (left == null) return -1;
   if (right == null) return 1;
-  if ((left as string) < (right as string)) return -1;
-  if ((left as string) > (right as string)) return 1;
+  // 排序同样要归一：两端形态不同时字符串比较会把同一时刻的两条记录排成任意顺序。
+  const [a, b] =
+    isDateComparison(left, right) ?
+      ([toEpochMs('orderBy', left), toEpochMs('orderBy', right)] as const)
+    : ([left, right] as const);
+  if ((a as string) < (b as string)) return -1;
+  if ((a as string) > (b as string)) return 1;
   return 0;
 };
 
-const compareRuleValues = (left: unknown, right: unknown, operator: '>' | '>=' | '<' | '<='): boolean => {
+const compareRuleValues = (
+  field: string,
+  left: unknown,
+  right: unknown,
+  operator: '>' | '>=' | '<' | '<='
+): boolean => {
+  // 规则侧为空：SQL 三值逻辑下比较结果是 UNKNOWN，WHERE 不保留该行。
+  // （实体侧为空已由 NULL_EXCLUDED_OPERATORS 提前短路，理由见那里。）
+  if (right === null || right === undefined) return false;
+  const pair =
+    isDateComparison(left, right) ?
+      ([toEpochMs(field, left), toEpochMs(field, right)] as const)
+    : ([left, right] as const);
+  const [a, b] = pair as readonly [string, string];
   switch (operator) {
     case '>':
-      return (left as string) > (right as string);
+      return a > b;
     case '>=':
-      return (left as string) >= (right as string);
+      return a >= b;
     case '<':
-      return (left as string) < (right as string);
+      return a < b;
     case '<=':
-      return (left as string) <= (right as string);
+      return a <= b;
   }
 };
 
@@ -141,7 +196,9 @@ const get_entity_match_rule = (rule: RuntimeRule, entity: object): boolean => {
     case 'between':
     case 'notBetween': {
       const value = rule.value as readonly [unknown, unknown];
-      const inRange = compareRuleValues(entityValue, value[0], '>=') && compareRuleValues(entityValue, value[1], '<=');
+      const inRange =
+        compareRuleValues(rule.field, entityValue, value[0], '>=') &&
+        compareRuleValues(rule.field, entityValue, value[1], '<=');
       return operator === 'between' ? inRange : !inRange;
     }
     case 'contains':
@@ -165,14 +222,19 @@ const get_entity_match_rule = (rule: RuntimeRule, entity: object): boolean => {
     case '=':
     case '!=': {
       const { value } = rule;
-      const equal = isEqual(value, entityValue);
+      // 两侧都非空且任一为 Date 时按时间点比：`isEqual(Date, '2024-01-01T00:00:00Z')` 恒为 false，
+      // 触发器透传的 ISO 字符串 patch 会因此永远匹配不上日期等值规则。
+      // 有一侧为空时保留 isEqual —— `=` 不在 NULL_EXCLUDED_OPERATORS 里，靠它实现 IS NULL 语义。
+      const comparable = value !== null && value !== undefined && isDateComparison(value, entityValue);
+      const equal =
+        comparable ? toEpochMs(rule.field, value) === toEpochMs(rule.field, entityValue) : isEqual(value, entityValue);
       return operator === '=' ? equal : !equal;
     }
     case '>':
     case '>=':
     case '<':
     case '<=': {
-      return compareRuleValues(entityValue, rule.value, operator);
+      return compareRuleValues(rule.field, entityValue, rule.value, operator);
     }
     case 'exists':
     case 'notExists': {

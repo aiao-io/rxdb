@@ -24,6 +24,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DESKTOP_STORAGE_DIRECTORY } from './desktop-file-bridge';
 import {
   createDesktopPgliteBridge,
+  DESKTOP_PGLITE_CLOSE_ALL_TIMEOUT_MS,
   DESKTOP_PGLITE_DIRECTORY,
   resolvePgliteDataRoot,
   type DesktopPgliteBridge,
@@ -376,5 +377,35 @@ describe('createDesktopPgliteBridge', () => {
     const inflight = bridge.handle(target, { kind: 'pg.handshake' });
     fail(new RxDBAdapterDesktopError('host_internal_error', 'boom'));
     await expect(inflight).resolves.toMatchObject({ kind: 'error', code: 'host_unavailable' });
+  });
+
+  // worker 阻塞在同步 WASM 查询里时根本收不到 closeAll 指令，ACK 永远不来。关停路径若等 ACK
+  // 才 terminate，进程就挂在一条永不结束的 worker 上——正是这条路径声称要防的事。
+  it('worker 卡死不回 closeAll 的 ACK 时，超时后仍强制 terminate 且 closeAll 正常结束', async () => {
+    vi.useFakeTimers();
+    try {
+      const terminate = vi.fn(async () => undefined);
+      const bridge = createDesktopPgliteBridge({
+        createChannel: () => ({
+          postMessage: () => undefined,
+          on: () => undefined,
+          once: () => undefined,
+          terminate
+        })
+      });
+      // 先发一条请求把 worker 拉起来；它永远不会被答复——这正是「卡死」本身，不是模拟出来的。
+      void bridge.handle(createTarget(71), { kind: 'pg.handshake' });
+
+      const closing = bridge.closeAll();
+      // 上限之内要给 worker 正常收尾的机会：不能一上来就杀。
+      await vi.advanceTimersByTimeAsync(DESKTOP_PGLITE_CLOSE_ALL_TIMEOUT_MS - 1);
+      expect(terminate).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(closing).resolves.toBeUndefined();
+      expect(terminate).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

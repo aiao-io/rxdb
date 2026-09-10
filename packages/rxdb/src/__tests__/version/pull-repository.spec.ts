@@ -7,6 +7,7 @@ import type { RuleGroup } from '../../repository/query.interface.js';
 import { RepositorySyncErrorEvent, type RxDBEvent } from '../../rxdb-events.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
 import { RxDBPartialSyncError } from '../../RxDBError.js';
+import { RxDBBranch } from '../../system/branch.js';
 import { encodeRxDBChangeEntityId } from '../../system/change-codec.js';
 import { RxDBChange } from '../../system/change.js';
 import { RxDBSync } from '../../system/sync.js';
@@ -142,6 +143,12 @@ interface HarnessOptions {
   pullChanges?: PullChangesImplementation;
   mergeChanges?: MergeChangesImplementation;
   clientId?: string;
+
+  /** 当前激活分支，默认 `main` */
+  currentBranchId?: string;
+
+  /** 分支 id → 父分支 id，`getAncestorBranchIds` 沿它向上走 */
+  branchParents?: Readonly<Record<string, string | null>>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -160,12 +167,13 @@ function readRuleValue(options: unknown, field: string): unknown {
   return undefined;
 }
 
-function createSyncRecord(entity: string, lastPullRemoteChangeId: number | null = null): RxDBSync {
+// 同步记录按分支存：id 是 `${ns}:${entity}:${branchId}`，切分支就是换一条记录
+function createSyncRecord(entity: string, lastPullRemoteChangeId: number | null = null, branchId = 'main'): RxDBSync {
   const record = Object.create(RxDBSync.prototype) as RxDBSync;
-  record.id = `public:${entity}:main`;
+  record.id = `public:${entity}:${branchId}`;
   record.namespace = 'public';
   record.entity = entity;
-  record.branchId = 'main';
+  record.branchId = branchId;
   record.syncType = 'full';
   record.lastPushedChangeId = null;
   record.lastPushedAt = null;
@@ -268,9 +276,19 @@ function createHarness(options: HarnessOptions = {}) {
   const transaction = vi.fn(async (fn: (executor: never) => Promise<unknown>) =>
     fn(createTransactionExecutorStub({ getRepository, mergeChanges }) as never)
   );
+  // `getAncestorBranchIds` 沿 parentId 逐级向上查，非 main 分支才会走到这里
+  const branchParents = options.branchParents ?? {};
+  const branchFind = vi.fn(async (query: unknown): Promise<RxDBBranch[]> => {
+    const id = readRuleValue(query, 'id');
+    if (typeof id !== 'string') return [];
+    return [{ id, parentId: branchParents[id] ?? null } as RxDBBranch];
+  });
+  const branchRepository = { find: branchFind };
+
   const getRepository = vi.fn((EntityClass: unknown) => {
     if (EntityClass === RxDBSync) return syncRepository;
     if (EntityClass === RxDBChange) return changeRepository;
+    if (EntityClass === RxDBBranch) return branchRepository;
     throw new Error('Unexpected local repository request');
   });
   const localAdapter = {
@@ -311,7 +329,7 @@ function createHarness(options: HarnessOptions = {}) {
     },
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
-    getCurrentBranch: vi.fn(async () => ({ id: 'main' }))
+    getCurrentBranch: vi.fn(async () => ({ id: options.currentBranchId ?? 'main' }))
   } as unknown as VersionManager;
 
   return {
@@ -806,5 +824,78 @@ describe('pullRepository 尊重 RxDBSync.enabled（RXD-029）', () => {
 
     expect(result.pulled).toBe(1);
     expect(harness.pullChanges).toHaveBeenCalled();
+  });
+});
+
+/**
+ * 单仓拉取的分支范围必须覆盖整条祖先链，与 `pullBatch` / `pushRepository` 同口径。
+ *
+ * 分支是 patch 模型：建分支只写 `parentId` + `fromChangeId`，一条变更都不复制，
+ * 父分支上的记录**物理上仍归属父分支**。`pullChanges` 的 `branchId` 是精确匹配，
+ * 只传当前分支时，别人推到 main 的变更在 feature 分支上永远拉不到，
+ * 而且不会自愈 —— 切回 main 时水位线换成另一条记录，那段区间从此被跳过。
+ */
+describe('pullRepository 的分支范围覆盖祖先链', () => {
+  const featureHarness = (remoteChanges: RemoteChange[]) =>
+    createHarness({
+      currentBranchId: 'feature',
+      branchParents: { feature: 'main', main: null },
+      syncRecords: [createSyncRecord('PullSliceItem', null, 'feature')],
+      remoteChanges
+    });
+
+  const onBranch = (id: number, branchId: string): RemoteChange => {
+    const change = createRemoteChange(id);
+    change.branchId = branchId;
+    return change;
+  };
+
+  it('父分支上的变更也要拉下来，而不是只看当前分支', async () => {
+    const harness = featureHarness([onBranch(1, 'main'), onBranch(2, 'feature')]);
+
+    const result = await pullRepository(harness.vm, 'public', 'PullSliceItem', { includeRelated: false });
+
+    expect(harness.pullChanges.mock.calls.map(call => call[4])).toEqual(['feature', 'main']);
+    expect(result.pulled).toBe(2);
+    expect(result.applied).toBe(2);
+  });
+
+  it('在 main 上时只发一次请求（守卫：不能给每个仓都多发一轮）', async () => {
+    const harness = createHarness({ remoteChanges: [createRemoteChange(1)] });
+
+    await pullRepository(harness.vm, 'public', 'PullSliceItem', { includeRelated: false });
+
+    expect(harness.pullChanges.mock.calls.map(call => call[4])).toEqual(['main']);
+  });
+
+  /**
+   * 每条分支各自取满 `limit` 条后直接拼接，是三种错法叠在一起：
+   *
+   * - 不排序、只截断 → 水位线被高 id 推过另一分支尚未消费的低 id，那些变更此后
+   *   永远不满足 `id > lastPullRemoteChangeId`，静默丢失；
+   * - 不截断 → 单轮实际消费 `limit × 分支数` 条，`limit` 形同虚设；
+   * - 不排序、不截断 → 水位线取末元素，取决于分支返回顺序，已应用的变更下轮重放。
+   *
+   * 正确做法只有一个：合并后按 id 全局排序，再截断到 `limit`。
+   */
+  it('跨分支合并后按 id 全局排序再截断，水位线不会跨过未消费的低 id', async () => {
+    // 低 id 在父分支、高 id 在当前分支：三种错法都会在这个布局上露馅
+    const harness = featureHarness([
+      onBranch(1, 'main'),
+      onBranch(2, 'main'),
+      onBranch(3, 'feature'),
+      onBranch(4, 'feature')
+    ]);
+
+    const result = await pullRepository(harness.vm, 'public', 'PullSliceItem', {
+      includeRelated: false,
+      limit: 2
+    });
+
+    // 本轮只消费 id 1、2；水位线停在 2，id 3、4 留给下一轮
+    expect(result.pulled).toBe(2);
+    expect(result.applied).toBe(2);
+    expect(result.hasMore).toBe(true);
+    expect(harness.syncRecords[0].lastPullRemoteChangeId).toBe(2);
   });
 });

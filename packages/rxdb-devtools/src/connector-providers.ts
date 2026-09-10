@@ -95,25 +95,28 @@ export interface ConnectorProviderPorts {
   saveToDisk?: (file: File, name: string) => Promise<void>;
   /** RxDB 接入口；省略即不宣告 `database` 领域。 */
   database?: ConnectorDatabasePorts;
-  /** 原生文件后端端口；给定时 `files` 走 `native-files` 而不是 OPFS。 */
-  nativeFiles?: DevToolsNativeFilesProviderPorts;
+  /**
+   * 原生文件后端端口；给定时 `files` 走 `native-files` 而不是 OPFS。
+   *
+   * @remarks
+   * 不含 `runtime`：它由本层的 {@link ConnectorProviderPorts.runtime} 统一喂给每个 descriptor，
+   * 在这里再收一次就等于给「files 与 database 报不同宿主」留了一个入口。
+   */
+  nativeFiles?: Omit<DevToolsNativeFilesProviderPorts, 'runtime'>;
   /** `settings` 领域 provider；缺省为浏览器 settings（`kind: opfs`）。 */
   settings?: DevToolsProvider;
   /**
    * descriptor 显示用 runtime；缺省 `browser`。
    *
    * @remarks
-   * 进本层构造的每个 descriptor（`database` 与 OPFS `files`）。另两个领域不在此列，
-   * 但原因不同：
+   * 进本层构造的**每个** descriptor：`database`、OPFS `files` 与原生 `files` 共用这一个值，
+   * 所以「files 报 electron、database 报 tauri」在结构上不可能发生（US-905 AC#10）。
    *
-   * - `settings` 整份由宿主注入，runtime 跟着注入的 descriptor 走；
-   * - `native-files` 的 runtime 在 provider 里**写死为 `'electron'`**
-   *   （见 `native/native-files-provider.ts`），且 `DevToolsNativeFilesProviderPorts`
-   *   没有覆盖入口。注意不是「kind 绑死了宿主」——`kind: 'native-files'` 本身是宿主
-   *   无关的，Electron 与 Tauri 用的是同一个 kind。
+   * 唯一不在此列的是 `settings`——它整份由宿主注入，runtime 跟着注入的 descriptor 走
+   * （桌面端见 `createDevToolsDesktopSettingsProvider(runtime)`）。
    *
-   * 后一条意味着接了原生文件后端的宿主，`files` 会与 `database` 报出不同的 runtime。
-   * US-905 AC#10 要求 Tauri 上两者都显示 `tauri`，届时需要给该 provider 补一个 runtime 端口。
+   * 注意 runtime 不绑定 kind：`kind: 'native-files'` 本身是宿主无关的，Electron 与 Tauri
+   * 用的是同一个 kind、同一套操作与限额，runtime 只说明「这份数据来自哪个宿主」。
    */
   runtime?: DevToolsProviderRuntime;
 }
@@ -166,7 +169,7 @@ export function createConnectorProviders(ports: ConnectorProviderPorts = {}): Co
   const runtime = ports.runtime ?? 'browser';
 
   const nativeFilesProvider: DevToolsNativeFilesProvider | undefined =
-    ports.nativeFiles === undefined ? undefined : createDevToolsNativeFilesProvider(ports.nativeFiles);
+    ports.nativeFiles === undefined ? undefined : createDevToolsNativeFilesProvider({ ...ports.nativeFiles, runtime });
 
   const files: DevToolsOpfsFilesProvider | DevToolsNativeFilesProvider | undefined =
     nativeFilesProvider ??

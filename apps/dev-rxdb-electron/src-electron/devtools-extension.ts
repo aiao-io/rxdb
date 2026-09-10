@@ -36,6 +36,35 @@ export const DEVTOOLS_CAPABILITY_ENV = 'DEV_RXDB_DEVTOOLS_CAPABILITY';
 /** 写入开关；只有逐字 `'allow'` 才开写，省略即只读。 */
 export const DEVTOOLS_MUTATION_ENV = 'DEV_RXDB_DEVTOOLS_MUTATION';
 
+/**
+ * 把能力档带进渲染进程的启动参数前缀。
+ *
+ * @remarks
+ * 用 `additionalArguments` 而不是 IPC，是因为**时序**：页内 connector 在应用 bootstrap 时
+ * 就要拿到档位（`getDevToolsConnector()` 是一次性的全局单例），异步 IPC 到不了那么早，
+ * 会退化成「先按默认档建好、再想办法改」——那等于让授权有一段可用的空窗。
+ * 启动参数在 preload 执行前就已在 `process.argv` 里，读它是同步的。
+ */
+export const DEVTOOLS_CAPABILITY_ARG = '--rxdb-devtools-capability=';
+
+/** 把写入开关带进渲染进程的启动参数前缀；语义同 {@link DEVTOOLS_CAPABILITY_ARG}。 */
+export const DEVTOOLS_MUTATION_ARG = '--rxdb-devtools-mutation=';
+
+/**
+ * 把已校验的开发态配置编码成渲染进程启动参数。
+ *
+ * @param config - 已校验的开发态配置；`undefined` 表示本次运行没开 DevTools。
+ * @returns 传给 `webPreferences.additionalArguments` 的数组；未开启时为空数组。
+ *
+ * @remarks
+ * **未开启时必须是空数组**，而不是「带着默认值的两条参数」：production 的渲染进程里
+ * 不该出现任何调试配置的痕迹，`parseDevToolsLaunchArguments` 也据此返回 `undefined`。
+ */
+export function devToolsLaunchArguments(config: DevToolsDevConfig | undefined): string[] {
+  if (config === undefined) return [];
+  return [`${DEVTOOLS_CAPABILITY_ARG}${config.capability}`, `${DEVTOOLS_MUTATION_ARG}${config.mutationPolicy}`];
+}
+
 /** 一次开发态 DevTools 运行的完整配置。 */
 export interface DevToolsDevConfig {
   /** unpacked 扩展目录的绝对路径。 */

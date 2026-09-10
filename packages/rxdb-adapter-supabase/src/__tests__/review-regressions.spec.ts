@@ -1126,7 +1126,8 @@ describe('supabase review regressions', () => {
           ['parentId', property('parentId', PropertyType.string)],
           ['createdAt', property('createdAt', PropertyType.date)],
           ['updatedAt', property('updatedAt', PropertyType.date)]
-        ])
+        ]),
+        foreignKeyRelationMap: new Map()
       }
     });
     const entity = { id: 'node-transform', title: 'x', parentId: null } as unknown as FakeTreeEntity;

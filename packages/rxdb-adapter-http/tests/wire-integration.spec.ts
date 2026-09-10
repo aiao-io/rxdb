@@ -802,7 +802,7 @@ describe('AC#8 走 core 全栈：findByIds 按 idChunkSize 分块发真请求', 
    * QueryCache 挂在实体上而不是库上——库级 QueryCache 会把 core 的系统树实体
    * `RxDBBranch` 一起罩进去，`init()` 当场拒绝。
    */
-  const createDatabase = (): { rxdb: RxDB; local: ReturnType<typeof createLocalAdapter> } => {
+  const createDatabase = async (): Promise<{ rxdb: RxDB; local: ReturnType<typeof createLocalAdapter> }> => {
     databaseSequence += 1;
     const local = createLocalAdapter();
     const rxdb = new RxDB({
@@ -818,6 +818,8 @@ describe('AC#8 走 core 全栈：findByIds 按 idChunkSize 分块发真请求', 
     rxdb.adapter('sqlite', () => local.adapter as unknown as IRxDBAdapter);
     rxdb.adapter('http', () => http);
     rxdb.init();
+    // remote 槽位由应用显式连接，与 demo 应用同一条口径；core 的 `getAdapter()` 不代劳
+    await http.connect();
     local.attach(
       data => rxdb.entityManager.createEntityRef(WireChunkRecipe, data as never, { local: true }) as unknown as LocalRow
     );
@@ -844,7 +846,7 @@ describe('AC#8 走 core 全栈：findByIds 按 idChunkSize 分块发真请求', 
 
   it('250 个 id / idChunkSize 100 → 3 个真请求，块与块之间不重不漏', async () => {
     server.seed(RESOURCE, chunkRows(250));
-    const { rxdb, local } = createDatabase();
+    const { rxdb, local } = await createDatabase();
     await runQuery(rxdb);
 
     const chunks = byIdsRequests().map(request => JSON.parse(request.rawBody ?? 'null')['ids'] as string[]);
@@ -859,7 +861,7 @@ describe('AC#8 走 core 全栈：findByIds 按 idChunkSize 分块发真请求', 
     server.seed(RESOURCE, chunkRows(120));
     // 远端在 fetchMetadata 与 findByIds 之间删了两行：真实竞态，不是后端违约
     server.faults.vanishAfterMetadata = [uuidAt(0), uuidAt(1)];
-    const { rxdb, local } = createDatabase();
+    const { rxdb, local } = await createDatabase();
     await runQuery(rxdb);
 
     expect(byIdsRequests()).toHaveLength(2);

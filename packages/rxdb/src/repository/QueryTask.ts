@@ -1,6 +1,8 @@
 import {
   BehaviorSubject,
+  catchError,
   distinctUntilChanged,
+  EMPTY,
   Observable,
   Observer,
   ReplaySubject,
@@ -317,10 +319,24 @@ export class QueryTask<T extends EntityType, RT = unknown> {
         tap(() => this.refreshCount++),
         switchMap(() => {
           const startedAtVersion = this.#local_result_version;
-          return this.runner().pipe(tap(data => this.#next_from_runner(data, startedAtVersion)));
+          return this.runner().pipe(
+            tap(data => this.#next_from_runner(data, startedAtVersion)),
+            // 一轮查询失败只终结这一轮。错误照常送达观察者（RxJS 契约要求，
+            // 观察者由此关闭并触发退订清理），但**不能**顺着 switchMap 冒到外层：
+            // 冒上去整条 `refresh$` 管道就被终结，此后 `refresh()` 静默空转 ——
+            // 实体变更事件、手动刷新一律无效，而任务仍留在 QueryManager 的缓存表里，
+            // 后来的订阅者热启动拿到冻结的陈旧结果、且永远等不到下一次更新。
+            // 适配器抖动、远端超时这类瞬时失败不该让一个活查询永久死掉。
+            catchError(error => {
+              this.error(error);
+              return EMPTY;
+            })
+          );
         })
       )
       .subscribe({
+        // catchError 之后这里只剩上游操作符自身的异常。留着是因为没有 error 处理器时
+        // RxJS 会把它抛成全局未处理错误，而不是因为它还兜着运行器的失败。
         error: error => {
           this.error(error);
         }

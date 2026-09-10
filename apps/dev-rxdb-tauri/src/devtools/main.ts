@@ -12,6 +12,8 @@ import {
   routes
 } from '@modules/rxdb-devtools-panel';
 import { configureLogger } from '@modules/rxdb-devtools-panel/wire';
+// 样式入口：面板的版面全靠它，缺了这一行整个窗口无样式。
+import './devtools.css';
 // 面板版本取自 Tauri 应用**自己的**版本源。不走 `@tauri-apps/api` 的 `getVersion()`：
 // 那要多一条 `core:app:default` 能力，而发布隔离规范把本窗口的能力集钉死在
 // `['core:event:default']`；何况版本是构建期常量，没有理由换成一次运行期 IPC。

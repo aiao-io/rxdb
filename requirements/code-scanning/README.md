@@ -2,9 +2,10 @@
 
 > 数据源：GitHub CodeQL（[aiao-io/rxdb → Security → Code scanning](https://github.com/aiao-io/rxdb/security/code-scanning)）。
 >
-> 分析配置：CodeQL `2.26.3`，语言 `javascript-typescript`，`build-mode: none`，默认分支 `main`。
+> 分析配置：CodeQL `2.26.4`，语言 `javascript-typescript`，`build-mode: none`，默认分支 `main`。
 >
-> 最近分析：`5667f43`（2026-08-28），**0 条 open 告警**。
+> 最近分析：`main` 上是 `780c1ab`（2026-09-07）；全仓最新一次是 PR #52 的 `d270baa`（2026-09-08）。
+> **0 条 open 告警**（含 PR merge ref）。
 
 ## 生命周期（2026-08-28 定）
 
@@ -110,6 +111,30 @@
   但那是改掉库的行为换告警变绿，等于把问题推给调用方。
 - **踩过的坑**：`/\/+$/` 的恶意输入必须让 `/` 串处在**中间**。串在末尾时首次尝试就命中 `$`，
   根本不回溯，第一版用例因此 0ms 通过、看上去像「本来就没问题」。已写进 `urlJoin.ts` 的注释里。
+
+### 第二批（2026-08-30 ~ 09-04 报出，09-09 全部关闭，4 条）
+
+| 编号   | 规则                      | 位置                                                                        | 处置      | 备注                                         |
+| :----- | :------------------------ | :-------------------------------------------------------------------------- | :-------- | :------------------------------------------- |
+| CS-031 | `js/file-system-race`     | `apps/dev-rxdb-electron-e2e/src/devtools-native-files-mutation.spec.ts:310` | Dismissed | 同 CS-029，见下方处置要点                    |
+| CS-030 | `js/file-system-race`     | `apps/dev-rxdb-electron-e2e/src/devtools-restart-persistence.spec.ts:288`   | Dismissed | 同 CS-029                                    |
+| CS-029 | `js/file-system-race`     | `apps/dev-rxdb-electron-e2e/src/devtools-native-files-mutation.spec.ts:291` | Dismissed | 写方 rename 原子提交，检查与读之间无竞争窗口 |
+| CS-028 | `js/missing-origin-check` | `apps/rxdb-devtools-extension-e2e/src/relay.spec.ts:39`                     | Dismissed | 中继用例自建的 postMessage 桩，非产品代码    |
+
+### 第二批处置要点
+
+**CS-029 / CS-030 / CS-031 三条 `js/file-system-race` 全是误报**，dismiss reason 取 `used in tests`：
+
+- 报点形态一致：`existsSync` / `waitForPath` / `statSync` 检查在前，`readFileSync` 在后，
+  CodeQL 判「检查之后文件可能已变」。
+- **写方是原子的**。被测桌面 host 的 `commitWrite` 顺序是
+  `sync → close → rename(临时路径, 目标路径) → 目录 sync`（`packages/rxdb-adapter-electron/src/electron-file-host.ts`）——
+  目标路径由 `rename` 一次性出现，`existsSync` 为真就意味着字节已完整，**读不到半写状态**。
+- 目录是用例自己 `mkdtempSync` 出来的临时目录，测试进程单线程，除被测应用外没有第二个写方。
+- 与第一批的 CS-018 / CS-019 同规则、同性质（构建期/测试期串行，无并发写入方），处置保持一致。
+
+**没有改代码**。按判定规则，测试夹具侧的告警只在「同时消掉一个真缺陷」时才动手；
+这三处不存在真缺陷，为过检查把 `exists → read` 改写成单次读只会削弱失败时的诊断信息。
 
 ## 当前工作集
 

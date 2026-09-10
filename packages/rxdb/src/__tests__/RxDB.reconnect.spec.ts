@@ -21,8 +21,8 @@ const createDatabase = (created: IRxDBAdapter[] = []): RxDB => {
     entities: [],
     sync: { local: { adapter: 'local' }, type: SyncType.None }
   });
-  database.adapter('local', () => {
-    const adapter = createMockAdapter();
+  database.adapter('local', db => {
+    const adapter = createMockAdapter(db);
     created.push(adapter);
     return adapter;
   });

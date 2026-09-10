@@ -1,8 +1,8 @@
 ---
 id: epic-005-type-system-evolution
-status: In Progress
+status: Done
 startDate: 2026-07-30
-targetDate: TBD
+targetDate: 2026-09-05
 owner: jimmy
 ---
 
@@ -64,6 +64,14 @@ US-018（生成器 `default` 序列化）是第三条轨道，修的是当前就
 6. 公开文档说明类型值域、binary 可变性、adapter 矩阵、单向迁移和 Supabase 限制
 
 任一条件未满足时，Epic 保持未完成；禁止只发布枚举或依赖未知类型的 TEXT/JSON fallback。
+
+六条门禁的留证（Epic 据此置 `Done`）：
+
+| #    | 证据                                                                                                                                                                                                                                                                                                                                      |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | 五条故事 YAML 均 `Done`（[status-overview](../status-overview.md)）                                                                                                                                                                                                                                                                       |
+| 2～5 | `main` @ `780c1ab` 的 [Main CI run 33705764019](https://github.com/aiao-io/rxdb/actions/runs/33705764019) 全绿：含四个 SQLite adapter 与 PGlite 的共享 conformance、迁移 fixture、`public-type-compatibility.spec.ts` / `bigint-binary.spec.ts` 契约、`generator_bigint_binary.spec.ts`、API surface gate、encrypted 与 devtools 包的回归 |
+| 6    | [properties.md](../../website/docs/model-definition/properties.md) 的类型值域与 `bigint` / `binary` 一节、[adapters/README.md](../../website/docs/adapters/README.md) 的适配器矩阵与 Supabase 限制、[migration/README.md](../../website/docs/migration/README.md) 的单向迁移说明                                                          |
 
 ## 故事
 

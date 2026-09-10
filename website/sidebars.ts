@@ -10,7 +10,7 @@ const sidebars: SidebarsConfig = {
         type: 'doc',
         id: 'getting-started/README'
       },
-      items: ['getting-started/install']
+      items: ['getting-started/install', 'getting-started/compare']
     },
     {
       type: 'category',

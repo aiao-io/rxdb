@@ -84,13 +84,26 @@ export const getSwitchUpdatedAt = (known: readonly unknown[]): Date => {
 };
 
 /**
+ * 查询编译失败的错误码：`where` / `orderBy` 无法被翻译成 SQL。
+ *
+ * @remarks
+ * 成因**只在调用方给的查询本身**——未知字段、非法算子、值形状不对、非法排序方向等。
+ * 上层（如把适配器架在 HTTP 后面的服务端）据此把这一类判成 4xx，其余
+ * {@link RxdbAdapterPGliteError} 一律按服务端故障处理：没有这个码，内部失败
+ * （`Unsupported repository type`、`DURABILITY_LOST` 等）会被整类误判成客户端错误。
+ *
+ * 不覆盖 bigint / binary 的查询值转换——那条路抛的是 `TypeError`，不是本类。
+ */
+export const INVALID_QUERY_ERROR_CODE = 'INVALID_QUERY' as const;
+
+/**
  * PGlite 适配器错误类
  *
  * 扩展标准 Error，添加错误码和原始错误引用
  */
 export class RxdbAdapterPGliteError extends Error {
   /**
-   * 错误代码（例如：DUPLICATE_ENTITY, INVALID_SQL）
+   * 错误代码（例如：{@link INVALID_QUERY_ERROR_CODE}、DUPLICATE_ENTITY、INVALID_SQL）
    */
   public readonly code?: string;
 

@@ -195,6 +195,33 @@ describe('createElectronFileHost', () => {
     await expect(readdir(storageRoot)).resolves.toEqual([]);
   });
 
+  // 「删掉的不是我要删的那种东西」是数据损失，而不是一次可以顺手完成的删除：
+  // `rm(recursive: true)` 撞上文件会把**文件**删掉且不报错，`rm` 撞上目录则按平台
+  // 报不同的 errno。调用方在协议这一层已经知道类型（服务层的 `clear()` 按 `entry.kind`
+  // 分派），撞上类型不符只说明它的模型与盘上真实情况漂移了 —— 要出声，且什么都不能动。
+  it('refuses to remove an entry of the other kind and leaves it in place', async () => {
+    await writeThrough('plain.txt', 'x');
+    await mkdir(join(storageRoot, 'box'), { recursive: true });
+
+    expectError(await host.handle({ kind: 'file.rmdir', sessionId, path: 'plain.txt' }), 'invalid_file_path');
+    expectError(await host.handle({ kind: 'file.remove', sessionId, path: 'box' }), 'invalid_file_path');
+
+    // 两个目标都还在：否则「已拒绝」可能发生在删除**之后**，上面的断言就成了摆设
+    await expect(readdir(storageRoot)).resolves.toEqual(['box', 'plain.txt']);
+  });
+
+  // 与上一条同源，方向相反：类型判据只挑「那里是另一种东西」，
+  // 不能顺手把「那里什么都没有」也判成非法，否则回滚补偿的幂等前提就没了。
+  it('reports invalid_file_path when reading a directory as a file', async () => {
+    await mkdir(join(storageRoot, 'box'), { recursive: true });
+
+    // 靠 errno 判会随平台变（Linux EISDIR / Windows EACCES），显式判类型才三平台一致
+    expectError(
+      await host.handle({ kind: 'file.read', sessionId, path: 'box', offset: 0, length: 8 }),
+      'invalid_file_path'
+    );
+  });
+
   it('moves a file and creates the target parent directory', async () => {
     await writeThrough('a.txt', 'content');
 

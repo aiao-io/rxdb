@@ -15,7 +15,7 @@ beforeAll(() => {
     entities: [],
     sync: { local: { adapter: 'local' }, type: SyncType.None }
   });
-  database.adapter('local', () => createMockAdapter());
+  database.adapter('local', db => createMockAdapter(db));
   database.init();
 });
 
@@ -95,7 +95,7 @@ describe('getOrCreateSyncRecord', () => {
       entities: [],
       sync: { local: { adapter: 'local' }, type: SyncType.None }
     });
-    second.adapter('local', () => createMockAdapter());
+    second.adapter('local', db => createMockAdapter(db));
     second.init();
 
     const { repo } = createRacingRepo(0);

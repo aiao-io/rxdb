@@ -26,7 +26,7 @@ import {
   type DesktopHostTransport,
   type RxDBAdapterDesktopErrorCode
 } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
-import { StorageBackendError, type StorageBackendErrorCode } from './errors.js';
+import { StorageBackendError, StorageInvalidPathError, type StorageBackendErrorCode } from './errors.js';
 import { decodePhysicalName, encodePhysicalName } from './filesystem/physical-name.js';
 import type {
   StorageFilesystem,
@@ -49,9 +49,16 @@ export interface DesktopStorageFilesystemOptions {
   readonly transport?: DesktopHostTransport;
 }
 
-/** host 错误码到后端错误码的映射；`file_not_found` 不在表内，另走 NotFound 语义。 */
+/**
+ * host 错误码到后端错误码的映射。
+ *
+ * @remarks
+ * 两个码不在表内，各自另有归宿：`file_not_found` 走 NotFound 语义（见 {@link notFound}），
+ * `invalid_file_path` 走 {@link StorageInvalidPathError} —— 后者要与 OPFS 后端对齐，
+ * 那边路径非法与类型不符抛的都是这个类，落到 `StorageBackendError` 上会让调用方按后端分支。
+ */
 const BACKEND_ERROR_CODES: Readonly<
-  Record<Exclude<RxDBAdapterDesktopErrorCode, 'file_not_found'>, StorageBackendErrorCode>
+  Record<Exclude<RxDBAdapterDesktopErrorCode, 'file_not_found' | 'invalid_file_path'>, StorageBackendErrorCode>
 > = {
   unsupported_runtime_engine: 'backend_unavailable',
   invalid_database_name: 'backend_internal_error',
@@ -64,7 +71,6 @@ const BACKEND_ERROR_CODES: Readonly<
   statement_failed: 'backend_internal_error',
   host_internal_error: 'backend_internal_error',
   database_busy: 'backend_internal_error',
-  invalid_file_path: 'path_escape',
   disk_full: 'disk_full',
   write_aborted: 'write_aborted',
   // 两条 PGlite 事务错误码（US-208）：文件族根本发不出会撞上它们的请求，
@@ -95,15 +101,26 @@ const asRecord = (value: unknown): Record<string, unknown> => {
   return value as Record<string, unknown>;
 };
 
-/** 把 host 的错误应答翻成本地错误；不存在走 NotFound，其余带稳定 code。 */
-const toBackendError = (record: Record<string, unknown>): Error => {
+/**
+ * 把 host 的错误应答翻成本地错误；不存在走 NotFound，路径非法走 {@link StorageInvalidPathError}，
+ * 其余带稳定 code。
+ *
+ * @param record - host 的错误应答
+ * @param path - 触发本次请求的物理路径，仅用于 {@link StorageInvalidPathError.path} 的诊断字段；
+ *   请求不带路径（会话、写入令牌、锁）时为 `undefined`，此时退回 host 消息本身。
+ */
+const toBackendError = (record: Record<string, unknown>, path: string | undefined): Error => {
   const code = record['code'];
   const message = typeof record['message'] === 'string' ? record['message'] : 'desktop host reported a failure';
   if (code === 'file_not_found') {
     return notFound(message);
   }
+  if (code === 'invalid_file_path') {
+    return new StorageInvalidPathError(path ?? message, message);
+  }
 
-  const mapped = BACKEND_ERROR_CODES[code as Exclude<RxDBAdapterDesktopErrorCode, 'file_not_found'>];
+  const mapped =
+    BACKEND_ERROR_CODES[code as Exclude<RxDBAdapterDesktopErrorCode, 'file_not_found' | 'invalid_file_path'>];
   if (!mapped) {
     return new StorageBackendError(
       'backend_internal_error',
@@ -132,11 +149,12 @@ const RESULT_BEARING_KINDS: ReadonlySet<string> = new Set([
  */
 function assertResponseKind<K extends DesktopHostFileResponse['kind']>(
   value: unknown,
-  kind: K
+  kind: K,
+  path: string | undefined
 ): asserts value is FileResponseOf<K> {
   const record = asRecord(value);
   if (record['kind'] === 'error') {
-    throw toBackendError(record);
+    throw toBackendError(record, path);
   }
   if (record['kind'] !== kind) {
     throw new StorageBackendError(
@@ -410,7 +428,7 @@ class DesktopStorageFilesystem implements StorageFilesystem {
   /** 绑定 `this` 的发送函数，交给写入句柄与锁实现复用。 */
   private readonly send: SendRequest = async payload => {
     const response = await this.transport.request(payload);
-    assertResponseKind(response, payload.kind);
+    assertResponseKind(response, payload.kind, 'path' in payload ? payload.path : undefined);
     return response;
   };
 

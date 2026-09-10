@@ -1,13 +1,10 @@
-import { emptyFunction } from '@aiao/utils';
-import { Observable, of } from 'rxjs';
-import { describe, expect, it, vi } from 'vitest';
+import { of } from 'rxjs';
+import { describe, expect, it } from 'vitest';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import query_merge_create_cache_impl from '../../query/merge_create.js';
-import { getFingerprintPrimitive, type Fingerprint } from '../../repository/fingerprint.utils.js';
-import { QueryOptions } from '../../repository/QueryManager.interface.js';
 import { QueryTask } from '../../repository/QueryTask.js';
 import type { RxDBEntityLocalCreatedEventData } from '../../rxdb-events.js';
-import { RxDB } from '../../RxDB.js';
+import { collectEmissions, createHarnessQueryTask, type HarnessTaskOptions } from '../fixtures/query-task-harness.js';
 
 describe('query_merge_tree_create_cache - CREATE 事件的树形查询', () => {
   class TestEntity {
@@ -20,79 +17,10 @@ describe('query_merge_tree_create_cache - CREATE 事件的树形查询', () => {
   type TestEntityData = InstanceType<TestEntityType>;
   type CreatedEvent = RxDBEntityLocalCreatedEventData<TestEntityType>;
 
-  /**
-   * 创建模拟的 RxDB 实例
-   *
-   * `entityManager.getEntityRef` 是必需依赖：merge_create 要靠它比对事件与实体缓存的
-   * `updatedAt`，识别「创建后又被改过」的迟到 CREATE 事件（P0-004）。这里的用例都模拟
-   * 新建实体，缓存必然未命中，固定返回 `undefined`。
-   */
-  const createMockRxDB = (): RxDB => {
-    return {
-      schemaManager: {
-        getFieldRelations: vi.fn(() => ({ relations: [], isForeignKey: false, property: {}, propertyName: '' })),
-        getEntityType: vi.fn(),
-        getEntityMetadata: vi.fn()
-      },
-      entityManager: { getEntityRef: vi.fn(() => undefined) }
-    } as unknown as RxDB;
-  };
-
-  const getFingerprintByPrimitive = (value: unknown): Fingerprint[] =>
-    getFingerprintPrimitive(value as Fingerprint | Fingerprint[]);
-  const getFingerprintByMockEntity = (entity: unknown): Fingerprint[] => [JSON.stringify({ ...(entity as object) })];
-  const getFingerprintByMockEntities = (entities: unknown): Fingerprint[] =>
-    Array.isArray(entities) ? entities.map(e => JSON.stringify({ ...(e as object) })) : [];
-
-  /**
-   * 创建模拟的查询任务
-   */
+  /** 经真正的 `QueryManager` 造查询任务，`result$` 与 `serialize` 全部来自生产代码。 */
   const createMockQueryTask = <RT>(
-    taskOptions: QueryOptions<TestEntityType> & { runner: () => Observable<RT> }
-  ): QueryTask<TestEntityType, RT> => {
-    const deps = new Map<TestEntityType, number>();
-    deps.set(TestEntity, 1);
-    const cacheKey = 'cacheKey';
-    const mockRxDB = createMockRxDB();
-    const { runner, ...queryOptions } = taskOptions;
-    const pickFingerprint = () => {
-      switch (queryOptions.type) {
-        case 'count':
-        case 'countDescendants':
-        case 'countAncestors':
-          return getFingerprintByPrimitive;
-        case 'findOne':
-        case 'findOneOrFail':
-        case 'get':
-          return getFingerprintByMockEntity;
-        default:
-          return getFingerprintByMockEntities;
-      }
-    };
-    const task = new QueryTask<TestEntityType, RT>({
-      cacheKey,
-      options: queryOptions,
-      runner,
-      entityType: TestEntity,
-      rxdb: mockRxDB,
-      depEntityTypeMap: deps,
-      serialize: data => data.patch as TestEntityData,
-      onClean: emptyFunction,
-      getFingerprint: pickFingerprint()
-    });
-    task.result$ = new Observable<RT>(observer => {
-      task.observerCount++;
-      if (task.result !== undefined) observer.next(task.result);
-      task.observers.add(observer);
-      task.run();
-      return (): void => {
-        task.observerCount--;
-        task.observers.delete(observer);
-        if (task.observerCount <= 0) task.clean();
-      };
-    });
-    return task;
-  };
+    taskOptions: HarnessTaskOptions<TestEntityType, RT>
+  ): QueryTask<TestEntityType, RT> => createHarnessQueryTask(TestEntity, taskOptions);
 
   const query_merge_create_cache = <RT>(task: QueryTask<TestEntityType, RT>, events: CreatedEvent[]): void => {
     query_merge_create_cache_impl(task as unknown as QueryTask<TestEntityType>, events);
@@ -227,52 +155,32 @@ describe('query_merge_tree_create_cache - CREATE 事件的树形查询', () => {
     });
 
     it('不传 entityId 且 level=0 时不应该添加非根节点', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'findDescendants',
-          options: {
-            entityId: null,
-            level: 0,
-            where: { combinator: 'and', rules: [] }
-          },
-          runner: () =>
-            of([
-              { id: '1', name: 'root1', parentId: null },
-              { id: '10', name: 'root2', parentId: null }
-            ])
-        });
-
-        const expectedResult = [
-          { id: '1', name: 'root1', parentId: null },
-          { id: '10', name: 'root2', parentId: null }
-        ];
-        let emitCount = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              emitCount++;
-              expect(d).toEqual(expectedResult);
-
-              if (emitCount === 1) {
-                setTimeout(() => {
-                  expect(emitCount).toBe(1);
-                  done();
-                }, 100);
-              } else {
-                reject(new Error('不应该触发第二次更新'));
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        // 尝试创建一个子节点 (不是根节点，不应该被添加)
-        const childNode = createMockEntityEvent({ id: '2', name: 'child1', parentId: '1' });
-        query_merge_create_cache(task, [childNode]);
+      const task = createMockQueryTask({
+        type: 'findDescendants',
+        options: {
+          entityId: null,
+          level: 0,
+          where: { combinator: 'and', rules: [] }
+        },
+        runner: () =>
+          of([
+            { id: '1', name: 'root1', parentId: null },
+            { id: '10', name: 'root2', parentId: null }
+          ])
       });
+
+      const expectedResult = [
+        { id: '1', name: 'root1', parentId: null },
+        { id: '10', name: 'root2', parentId: null }
+      ];
+
+      const emissions = collectEmissions(task);
+
+      // 尝试创建一个子节点 (不是根节点，不应该被添加)
+      const childNode = createMockEntityEvent({ id: '2', name: 'child1', parentId: '1' });
+      query_merge_create_cache(task, [childNode]);
+
+      expect(emissions).toEqual([expectedResult]);
     });
 
     it('不传 entityId 且 level=1 时应该添加直接子节点', () => {
@@ -409,51 +317,31 @@ describe('query_merge_tree_create_cache - CREATE 事件的树形查询', () => {
     });
 
     it('不应该添加不是后代的实体', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'findDescendants',
-          options: {
-            entityId: '1',
-            where: { combinator: 'and', rules: [] }
-          },
-          runner: () =>
-            of([
-              { id: '1', name: 'root', parentId: null }, // 包含根节点本身
-              { id: '2', name: 'child1', parentId: '1' }
-            ])
-        });
-
-        const expectedResult = [
-          { id: '1', name: 'root', parentId: null },
-          { id: '2', name: 'child1', parentId: '1' }
-        ];
-        let emitCount = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              emitCount++;
-              expect(d).toEqual(expectedResult);
-
-              if (emitCount === 1) {
-                setTimeout(() => {
-                  expect(emitCount).toBe(1);
-                  done();
-                }, 100);
-              } else {
-                reject(new Error('不应该触发第二次更新'));
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        // 创建一个不相关的节点 (不是 root 的后代)
-        const otherNode = createMockEntityEvent({ id: '10', name: 'other', parentId: '99' });
-        query_merge_create_cache(task, [otherNode]);
+      const task = createMockQueryTask({
+        type: 'findDescendants',
+        options: {
+          entityId: '1',
+          where: { combinator: 'and', rules: [] }
+        },
+        runner: () =>
+          of([
+            { id: '1', name: 'root', parentId: null }, // 包含根节点本身
+            { id: '2', name: 'child1', parentId: '1' }
+          ])
       });
+
+      const expectedResult = [
+        { id: '1', name: 'root', parentId: null },
+        { id: '2', name: 'child1', parentId: '1' }
+      ];
+
+      const emissions = collectEmissions(task);
+
+      // 创建一个不相关的节点 (不是 root 的后代)
+      const otherNode = createMockEntityEvent({ id: '10', name: 'other', parentId: '99' });
+      query_merge_create_cache(task, [otherNode]);
+
+      expect(emissions).toEqual([expectedResult]);
     });
 
     it('应该支持批量添加多个后代', () => {
@@ -671,52 +559,32 @@ describe('query_merge_tree_create_cache - CREATE 事件的树形查询', () => {
       });
 
       it('level=1 时不应该添加孙子节点', () => {
-        return new Promise<void>((done, reject) => {
-          const task = createMockQueryTask({
-            type: 'findDescendants',
-            options: {
-              entityId: '1',
-              level: 1, // 只查询直接子节点
-              where: { combinator: 'and', rules: [] }
-            },
-            runner: () =>
-              of([
-                { id: '2', name: 'child1', parentId: '1' },
-                { id: '3', name: 'child2', parentId: '1' }
-              ])
-          });
-
-          const expectedResult = [
-            { id: '2', name: 'child1', parentId: '1' },
-            { id: '3', name: 'child2', parentId: '1' }
-          ];
-          let emitCount = 0;
-
-          task.result$.subscribe({
-            next: d => {
-              try {
-                emitCount++;
-                expect(d).toEqual(expectedResult);
-
-                if (emitCount === 1) {
-                  setTimeout(() => {
-                    expect(emitCount).toBe(1);
-                    done();
-                  }, 100);
-                } else {
-                  reject(new Error('不应该触发第二次更新'));
-                }
-              } catch (error) {
-                reject(error);
-              }
-            },
-            error: reject
-          });
-
-          // 尝试添加孙子节点 (level 2，不应该被添加)
-          const grandchild = createMockEntityEvent({ id: '4', name: 'grandchild1', parentId: '2' });
-          query_merge_create_cache(task, [grandchild]);
+        const task = createMockQueryTask({
+          type: 'findDescendants',
+          options: {
+            entityId: '1',
+            level: 1, // 只查询直接子节点
+            where: { combinator: 'and', rules: [] }
+          },
+          runner: () =>
+            of([
+              { id: '2', name: 'child1', parentId: '1' },
+              { id: '3', name: 'child2', parentId: '1' }
+            ])
         });
+
+        const expectedResult = [
+          { id: '2', name: 'child1', parentId: '1' },
+          { id: '3', name: 'child2', parentId: '1' }
+        ];
+
+        const emissions = collectEmissions(task);
+
+        // 尝试添加孙子节点 (level 2，不应该被添加)
+        const grandchild = createMockEntityEvent({ id: '4', name: 'grandchild1', parentId: '2' });
+        query_merge_create_cache(task, [grandchild]);
+
+        expect(emissions).toEqual([expectedResult]);
       });
 
       it('应该支持 level=2 查询到孙子节点', () => {
@@ -775,52 +643,32 @@ describe('query_merge_tree_create_cache - CREATE 事件的树形查询', () => {
       });
 
       it('level=2 时不应该添加曾孙节点', () => {
-        return new Promise<void>((done, reject) => {
-          const task = createMockQueryTask({
-            type: 'findDescendants',
-            options: {
-              entityId: '1',
-              level: 2, // 只查询到孙子节点
-              where: { combinator: 'and', rules: [] }
-            },
-            runner: () =>
-              of([
-                { id: '2', name: 'child1', parentId: '1' },
-                { id: '3', name: 'grandchild1', parentId: '2' }
-              ])
-          });
-
-          const expectedResult = [
-            { id: '2', name: 'child1', parentId: '1' },
-            { id: '3', name: 'grandchild1', parentId: '2' }
-          ];
-          let emitCount = 0;
-
-          task.result$.subscribe({
-            next: d => {
-              try {
-                emitCount++;
-                expect(d).toEqual(expectedResult);
-
-                if (emitCount === 1) {
-                  setTimeout(() => {
-                    expect(emitCount).toBe(1);
-                    done();
-                  }, 100);
-                } else {
-                  reject(new Error('不应该触发第二次更新'));
-                }
-              } catch (error) {
-                reject(error);
-              }
-            },
-            error: reject
-          });
-
-          // 尝试添加曾孙节点 (level 3，不应该被添加)
-          const greatGrandchild = createMockEntityEvent({ id: '5', name: 'great-grandchild', parentId: '3' });
-          query_merge_create_cache(task, [greatGrandchild]);
+        const task = createMockQueryTask({
+          type: 'findDescendants',
+          options: {
+            entityId: '1',
+            level: 2, // 只查询到孙子节点
+            where: { combinator: 'and', rules: [] }
+          },
+          runner: () =>
+            of([
+              { id: '2', name: 'child1', parentId: '1' },
+              { id: '3', name: 'grandchild1', parentId: '2' }
+            ])
         });
+
+        const expectedResult = [
+          { id: '2', name: 'child1', parentId: '1' },
+          { id: '3', name: 'grandchild1', parentId: '2' }
+        ];
+
+        const emissions = collectEmissions(task);
+
+        // 尝试添加曾孙节点 (level 3，不应该被添加)
+        const greatGrandchild = createMockEntityEvent({ id: '5', name: 'great-grandchild', parentId: '3' });
+        query_merge_create_cache(task, [greatGrandchild]);
+
+        expect(emissions).toEqual([expectedResult]);
       });
 
       it('level=0 时不应该添加子节点', () => {
@@ -949,99 +797,59 @@ describe('query_merge_tree_create_cache - CREATE 事件的树形查询', () => {
       });
 
       it('不应该添加不满足 where 条件的后代', () => {
-        return new Promise<void>((done, reject) => {
-          const task = createMockQueryTask({
-            type: 'findDescendants',
-            options: {
-              entityId: '1',
-              where: {
-                combinator: 'and',
-                rules: [{ field: 'status', operator: '=', value: 'active' }]
-              }
-            },
-            runner: () =>
-              of([
-                { id: '2', name: 'child1', parentId: '1', status: 'active' },
-                { id: '3', name: 'child2', parentId: '1', status: 'active' }
-              ])
-          });
-
-          const expectedResult = [
-            { id: '2', name: 'child1', parentId: '1', status: 'active' },
-            { id: '3', name: 'child2', parentId: '1', status: 'active' }
-          ];
-          let emitCount = 0;
-
-          task.result$.subscribe({
-            next: d => {
-              try {
-                emitCount++;
-                expect(d).toEqual(expectedResult);
-
-                if (emitCount === 1) {
-                  setTimeout(() => {
-                    expect(emitCount).toBe(1);
-                    done();
-                  }, 100);
-                } else {
-                  reject(new Error('不应该触发第二次更新'));
-                }
-              } catch (error) {
-                reject(error);
-              }
-            },
-            error: reject
-          });
-
-          // 创建不满足条件的后代 (status='inactive')
-          const inactiveChild = createMockEntityEvent({ id: '4', name: 'child3', parentId: '1', status: 'inactive' });
-          query_merge_create_cache(task, [inactiveChild]);
+        const task = createMockQueryTask({
+          type: 'findDescendants',
+          options: {
+            entityId: '1',
+            where: {
+              combinator: 'and',
+              rules: [{ field: 'status', operator: '=', value: 'active' }]
+            }
+          },
+          runner: () =>
+            of([
+              { id: '2', name: 'child1', parentId: '1', status: 'active' },
+              { id: '3', name: 'child2', parentId: '1', status: 'active' }
+            ])
         });
+
+        const expectedResult = [
+          { id: '2', name: 'child1', parentId: '1', status: 'active' },
+          { id: '3', name: 'child2', parentId: '1', status: 'active' }
+        ];
+
+        const emissions = collectEmissions(task);
+
+        // 创建不满足条件的后代 (status='inactive')
+        const inactiveChild = createMockEntityEvent({ id: '4', name: 'child3', parentId: '1', status: 'inactive' });
+        query_merge_create_cache(task, [inactiveChild]);
+
+        expect(emissions).toEqual([expectedResult]);
       });
 
       it('where 条件和 level 参数应该同时生效', () => {
-        return new Promise<void>((done, reject) => {
-          const task = createMockQueryTask({
-            type: 'findDescendants',
-            options: {
-              entityId: '1',
-              level: 1, // 只查询直接子节点
-              where: {
-                combinator: 'and',
-                rules: [{ field: 'status', operator: '=', value: 'active' }]
-              }
-            },
-            runner: () => of([{ id: '2', name: 'child1', parentId: '1', status: 'active' }])
-          });
-
-          const expectedResult = [{ id: '2', name: 'child1', parentId: '1', status: 'active' }];
-          let emitCount = 0;
-
-          task.result$.subscribe({
-            next: d => {
-              try {
-                emitCount++;
-                expect(d).toEqual(expectedResult);
-
-                if (emitCount === 1) {
-                  setTimeout(() => {
-                    expect(emitCount).toBe(1);
-                    done();
-                  }, 100);
-                } else {
-                  reject(new Error('不应该触发第二次更新'));
-                }
-              } catch (error) {
-                reject(error);
-              }
-            },
-            error: reject
-          });
-
-          // 创建孙子节点 (虽然满足 where 条件，但是 level=1 不应该添加)
-          const grandchild = createMockEntityEvent({ id: '3', name: 'grandchild1', parentId: '2', status: 'active' });
-          query_merge_create_cache(task, [grandchild]);
+        const task = createMockQueryTask({
+          type: 'findDescendants',
+          options: {
+            entityId: '1',
+            level: 1, // 只查询直接子节点
+            where: {
+              combinator: 'and',
+              rules: [{ field: 'status', operator: '=', value: 'active' }]
+            }
+          },
+          runner: () => of([{ id: '2', name: 'child1', parentId: '1', status: 'active' }])
         });
+
+        const expectedResult = [{ id: '2', name: 'child1', parentId: '1', status: 'active' }];
+
+        const emissions = collectEmissions(task);
+
+        // 创建孙子节点 (虽然满足 where 条件，但是 level=1 不应该添加)
+        const grandchild = createMockEntityEvent({ id: '3', name: 'grandchild1', parentId: '2', status: 'active' });
+        query_merge_create_cache(task, [grandchild]);
+
+        expect(emissions).toEqual([expectedResult]);
       });
     });
 
@@ -1327,102 +1135,62 @@ describe('query_merge_tree_create_cache - CREATE 事件的树形查询', () => {
       });
 
       it('应该支持 where 条件过滤创建的目标实体', () => {
-        return new Promise<void>((done, reject) => {
-          const task = createMockQueryTask({
-            type: 'findAncestors',
-            options: {
-              entityId: '3',
-              where: {
-                combinator: 'and',
-                rules: [{ field: 'isActive', operator: '=', value: true }]
-              }
-            },
-            runner: () => of([])
-          });
-
-          const expectedResult: TestEntityData[] = [];
-          let emitCount = 0;
-
-          task.result$.subscribe({
-            next: d => {
-              try {
-                emitCount++;
-                expect(d).toEqual(expectedResult);
-
-                if (emitCount === 1) {
-                  setTimeout(() => {
-                    expect(emitCount).toBe(1);
-                    done();
-                  }, 100);
-                } else {
-                  reject(new Error('不应该触发第二次更新'));
-                }
-              } catch (error) {
-                reject(error);
-              }
-            },
-            error: reject
-          });
-
-          // 创建不满足 where 条件的目标实体
-          const targetNode = createMockEntityEvent({ id: '3', name: 'target', parentId: '2', isActive: false });
-          query_merge_create_cache(task, [targetNode]);
+        const task = createMockQueryTask({
+          type: 'findAncestors',
+          options: {
+            entityId: '3',
+            where: {
+              combinator: 'and',
+              rules: [{ field: 'isActive', operator: '=', value: true }]
+            }
+          },
+          runner: () => of([])
         });
+
+        const expectedResult: TestEntityData[] = [];
+
+        const emissions = collectEmissions(task);
+
+        // 创建不满足 where 条件的目标实体
+        const targetNode = createMockEntityEvent({ id: '3', name: 'target', parentId: '2', isActive: false });
+        query_merge_create_cache(task, [targetNode]);
+
+        expect(emissions).toEqual([expectedResult]);
       });
     });
 
     describe('其他场景', () => {
       it('不应该添加不是祖先的实体', () => {
-        return new Promise<void>((done, reject) => {
-          // 场景：目标实体 id='3'，已有祖先链 root (1) -> parent (2)
-          // 创建一个不相关的节点
+        // 场景：目标实体 id='3'，已有祖先链 root (1) -> parent (2)
+        // 创建一个不相关的节点
 
-          const task = createMockQueryTask({
-            type: 'findAncestors',
-            options: {
-              entityId: '3',
-              where: { combinator: 'and', rules: [] }
-            },
-            runner: () =>
-              of([
-                { id: '1', name: 'root', parentId: null },
-                { id: '2', name: 'parent', parentId: '1' },
-                { id: '3', name: 'target', parentId: '2' }
-              ])
-          });
-
-          const expectedResult = [
-            { id: '1', name: 'root', parentId: null },
-            { id: '2', name: 'parent', parentId: '1' },
-            { id: '3', name: 'target', parentId: '2' }
-          ];
-          let emitCount = 0;
-
-          task.result$.subscribe({
-            next: d => {
-              try {
-                emitCount++;
-                expect(d).toEqual(expectedResult);
-
-                if (emitCount === 1) {
-                  setTimeout(() => {
-                    expect(emitCount).toBe(1);
-                    done();
-                  }, 100);
-                } else {
-                  reject(new Error('不应该触发第二次更新'));
-                }
-              } catch (error) {
-                reject(error);
-              }
-            },
-            error: reject
-          });
-
-          // 创建一个不相关的节点（不是祖先）
-          const otherNode = createMockEntityEvent({ id: '10', name: 'other', parentId: '99' });
-          query_merge_create_cache(task, [otherNode]);
+        const task = createMockQueryTask({
+          type: 'findAncestors',
+          options: {
+            entityId: '3',
+            where: { combinator: 'and', rules: [] }
+          },
+          runner: () =>
+            of([
+              { id: '1', name: 'root', parentId: null },
+              { id: '2', name: 'parent', parentId: '1' },
+              { id: '3', name: 'target', parentId: '2' }
+            ])
         });
+
+        const expectedResult = [
+          { id: '1', name: 'root', parentId: null },
+          { id: '2', name: 'parent', parentId: '1' },
+          { id: '3', name: 'target', parentId: '2' }
+        ];
+
+        const emissions = collectEmissions(task);
+
+        // 创建一个不相关的节点（不是祖先）
+        const otherNode = createMockEntityEvent({ id: '10', name: 'other', parentId: '99' });
+        query_merge_create_cache(task, [otherNode]);
+
+        expect(emissions).toEqual([expectedResult]);
       });
 
       // 数值 0 作为 entityId 的边界回归已迁至 `numeric-id-merge.spec.ts`（RXD-069）：
@@ -1562,54 +1330,34 @@ describe('query_merge_tree_create_cache - CREATE 事件的树形查询', () => {
       });
 
       it('应该支持 where 条件过滤新祖先', () => {
-        return new Promise<void>((done, reject) => {
-          // 场景：创建祖先但不满足 where 条件
+        // 场景：创建祖先但不满足 where 条件
 
-          const task = createMockQueryTask({
-            type: 'findAncestors',
-            options: {
-              entityId: '3',
-              where: {
-                combinator: 'and',
-                rules: [{ field: 'status', operator: '=', value: 'active' }]
-              }
-            },
-            runner: () => of([{ id: '3', name: 'target', parentId: '2', status: 'active' }])
-          });
-
-          const expectedResult = [{ id: '3', name: 'target', parentId: '2', status: 'active' }];
-          let emitCount = 0;
-
-          task.result$.subscribe({
-            next: d => {
-              try {
-                emitCount++;
-                expect(d).toEqual(expectedResult);
-
-                if (emitCount === 1) {
-                  setTimeout(() => {
-                    expect(emitCount).toBe(1);
-                    done();
-                  }, 100);
-                } else {
-                  reject(new Error('不应该触发第二次更新'));
-                }
-              } catch (error) {
-                reject(error);
-              }
-            },
-            error: reject
-          });
-
-          // 创建祖先但不满足 where 条件（status='inactive'）
-          const inactiveAncestor = createMockEntityEvent({
-            id: '2',
-            name: 'parent',
-            parentId: '1',
-            status: 'inactive'
-          });
-          query_merge_create_cache(task, [inactiveAncestor]);
+        const task = createMockQueryTask({
+          type: 'findAncestors',
+          options: {
+            entityId: '3',
+            where: {
+              combinator: 'and',
+              rules: [{ field: 'status', operator: '=', value: 'active' }]
+            }
+          },
+          runner: () => of([{ id: '3', name: 'target', parentId: '2', status: 'active' }])
         });
+
+        const expectedResult = [{ id: '3', name: 'target', parentId: '2', status: 'active' }];
+
+        const emissions = collectEmissions(task);
+
+        // 创建祖先但不满足 where 条件（status='inactive'）
+        const inactiveAncestor = createMockEntityEvent({
+          id: '2',
+          name: 'parent',
+          parentId: '1',
+          status: 'inactive'
+        });
+        query_merge_create_cache(task, [inactiveAncestor]);
+
+        expect(emissions).toEqual([expectedResult]);
       });
 
       it('应该处理批量创建部分是祖先部分不是', () => {

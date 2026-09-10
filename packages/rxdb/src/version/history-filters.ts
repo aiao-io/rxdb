@@ -3,6 +3,7 @@
  *
  * 这些函数不持有任何状态，供 {@link HistoryManager} 与单元测试共用：
  * - {@link filterHistoriesByScope}：按作用域裁切历史
+ * - {@link buildLastPushedMap}：合成每个仓库的「视同已推」水位线
  * - {@link filterUndoableHistories}：过滤可撤销的历史
  * - {@link getScopeKey}：生成作用域缓存键
  *
@@ -23,6 +24,42 @@ import type { HistoryItem, HistoryScope } from './VersionManager.interface.js';
  */
 export const getRepositoryKey = (repository: { namespace: string; entity: string }): string =>
   `${repository.namespace}:${repository.entity}`;
+
+/**
+ * 合成「每个仓库推到哪了」的水位线映射：已提交的 `RxDBSync` 水位线与正在飞的认领取较大者。
+ *
+ * @param repoSyncs - 当前分支下的 `RxDBSync` 行
+ * @param inFlight - `PushInFlightRegistry.snapshot()`，`namespace:entity` -> 正在飞的最大 change id
+ * @returns `namespace:entity` -> 该仓库「视同已推」的最大 change id
+ *
+ * @remarks
+ * `undoHistories$` 与 `fetchLatestHistories` 两条路径都要这份映射，此前各写一份循环。
+ * 两份必须逐字一致：一边认在飞、另一边不认，反应式的「可撤销」列表就会和真正执行撤销时
+ * 的判定分家 —— UI 上还亮着的那一项点下去什么也不会发生，或者更糟，真的撤销了一条
+ * 已经在飞的变更。
+ *
+ * 取最大值而不是「有在飞就用在飞」：上一轮推到 30、这一轮只在飞到 20 时，
+ * 水位线不许倒退。
+ *
+ * 在飞认领先进 map，因此**没有** `RxDBSync` 行的仓库也报得出来：`RxDBSync` 行由
+ * `planRepositoryPush` 现建，行还没落到本次查询的结果集里时，认领仍然必须生效。
+ */
+export function buildLastPushedMap(
+  repoSyncs: readonly { namespace: string; entity: string; lastPushedChangeId: number | null }[],
+  inFlight: ReadonlyMap<string, number>
+): Map<string, number> {
+  const lastPushedMap = new Map(inFlight);
+
+  for (const repoSync of repoSyncs) {
+    if (repoSync.lastPushedChangeId === null) continue;
+    const key = getRepositoryKey(repoSync);
+    const claimed = lastPushedMap.get(key);
+    if (claimed !== undefined && claimed >= repoSync.lastPushedChangeId) continue;
+    lastPushedMap.set(key, repoSync.lastPushedChangeId);
+  }
+
+  return lastPushedMap;
+}
 
 /**
  * 按作用域过滤历史记录（纯函数）

@@ -98,17 +98,22 @@ const CONDITIONAL_OPERATIONS: ReadonlySet<string> = new Set(['fetchMetadata', 'f
  * 写死其中一种在另一半情况下就是一句假话，会把人送去改一个本来就对的服务端。
  * 所以文案给的是**两条待查线索加一个可观测量**，判断留给拿得到部署拓扑的人。
  *
+ * **文案是英文**，与本包其余运行期消息一致：诊断串会进日志聚合与 issue，
+ * 混一句中文就让检索按语言分成两半。文档注释不在此列，它们不出现在运行期。
+ *
  * @param report - 除 `message` 外的全部事实
  */
 const describeEtagUnreadable = (report: Omit<HttpEtagUnreadableReport, 'message'>): string => {
-  const subject = report.entityName === undefined ? report.operation : `${report.entityName} 的 ${report.operation}`;
+  const subject = report.entityName === undefined ? report.operation : `${report.entityName} ${report.operation}`;
   return (
-    `${subject}：conditionalRequests 已开启，但这次 200 响应里读不到 ETag` +
-    `（${report.url}，Response.type=${report.responseType}），本次与后续同一请求都不会带 If-None-Match。` +
-    `两种可能，客户端分不清：① 远端没有发送 ETag；` +
-    `② 远端发了，但跨源响应没有把它列进 Access-Control-Expose-Headers。` +
-    `跨源响应在浏览器里 Response.type 为 'cors'，可作线索；` +
-    `若服务端日志里看得见 ETag 而这里读不到，请先查 ②。`
+    `${subject}: conditionalRequests is enabled, but no ETag is readable on this 200 response ` +
+    `(${report.url}, Response.type=${report.responseType}); ` +
+    `neither this request nor later ones with the same fingerprint will send If-None-Match. ` +
+    `Two possibilities, indistinguishable from the client: ` +
+    `(1) the server did not send an ETag; ` +
+    `(2) the server sent one, but a cross-origin response did not list it in Access-Control-Expose-Headers. ` +
+    `A cross-origin response reports Response.type 'cors' in the browser, which is a clue; ` +
+    `if your server logs show an ETag that is unreadable here, check (2) first.`
   );
 };
 
@@ -220,6 +225,55 @@ const serializeBody = (body: unknown, operation: string): string | undefined => 
 };
 
 /**
+ * 按 fetch 规范不得携带请求体的方法。
+ *
+ * @remarks
+ * 判据取自 `Request` 构造器本身，不是 RFC 的语义建议：这两个方法带 body 时
+ * `fetch` **同步抛** `TypeError('Request with GET/HEAD method cannot have body.')`。
+ * 其余方法（`DELETE` 含在内）fetch 一律放行，本包不替接入方否决。
+ */
+const BODYLESS_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD']);
+
+/**
+ * 方法与请求体必须相容。
+ *
+ * @remarks
+ * 不拦的话，`fetch` 抛的是一个裸 `TypeError`——与传输失败**完全同型**。它落进
+ * {@link HttpTransport.classify} 会被包成 `NetworkOfflineError`，于是一次
+ * 「模板配错了方法」被报成「远端够不着」，`offlineFallback` 静默换上陈旧缓存，
+ * 同时 `reportResult` 把可达性面板翻成离线。这正是 {@link HttpRequestBuildError}
+ * 要从传输失败里摘出来的那一类。
+ *
+ * 大小写归一后再判：`spec.method` 的类型是 `HttpMethod`，但 handler 是接入方的代码，
+ * 运行时给一个 `'get'` 不会有任何东西拦住它，而 `fetch` 会把它规范化成 `GET` 再抛。
+ */
+const assertMethodAllowsBody = (method: string, body: string | undefined, operation: string): void => {
+  if (body === undefined || !BODYLESS_METHODS.has(method.toUpperCase())) {
+    return;
+  }
+  throw new HttpRequestBuildError('method', operation, `${method.toUpperCase()} requests cannot carry a body`);
+};
+
+/**
+ * 拼出来的地址必须解析得了。
+ *
+ * @remarks
+ * 与上面同一条理由，只是入口不同：`baseUrl: 'api'` 拼出 `api/items`，`fetch` 抛
+ * `TypeError('Failed to parse URL from api/items')`，一样被读成离线。构造期的
+ * `assertBaseUrl` 只查非空——它拦不住这条，因为**浏览器里相对 `baseUrl` 是合法的**，
+ * 一刀切会砍掉同源部署这种最常见的用法。
+ *
+ * 所以判在这里，且以 `location` 为基准兜第二次：有 `location` 的宿主（浏览器）里
+ * `/api/items` 解析得了，没有的宿主（node）里解析不了——两边的答案各自都正确。
+ */
+const assertResolvableUrl = (url: string, operation: string): void => {
+  if (URL.canParse(url) || (globalThis.location !== undefined && URL.canParse(url, globalThis.location.href))) {
+    return;
+  }
+  throw new HttpRequestBuildError('url', operation, `"${url}" is not a parsable URL`);
+};
+
+/**
  * 按 HTTP 语义（大小写不敏感）把一层 header 叠到目标上，后来者覆盖。
  *
  * @remarks
@@ -277,6 +331,17 @@ interface PreparedRequest {
   method: string;
   /** 已过 `Headers` 解析器校验的 header */
   headers: Record<string, string>;
+  /**
+   * handler 给的那一组 header，名字已折成小写。
+   *
+   * @remarks
+   * 与 {@link PreparedRequest.headers} **分开留一份**，因为条件请求的指纹只认这一组：
+   * 另外两组（适配器级静态配置、auth hook）一个恒定、一个每次轮换，进指纹分别是
+   * 白加前缀和全量失效。分组理由见 `conditional-cache.ts` 的模块头。
+   *
+   * 合完之后再想拆回来是拆不出的——三组叠加后同名键只剩一个值。
+   */
+  variant: Record<string, string>;
   /** 已序列化的请求体；无 body 时为 `undefined` */
   body?: string;
 }
@@ -324,7 +389,7 @@ export class HttpTransport {
       return this.#sendJsonDirect(prepared, operation);
     }
     // 指纹读的就是要发出去的那份字节，不再单独 stringify 一次
-    const key = requestFingerprint(prepared.method, prepared.url, prepared.body);
+    const key = requestFingerprint(prepared.method, prepared.url, prepared.body, prepared.variant);
     return cache.singleFlight(key, () => this.#sendJsonConditional(cache, key, prepared, { operation, entityName }));
   }
 
@@ -452,7 +517,7 @@ export class HttpTransport {
   }
 
   /**
-   * 构造请求：拼 URL、跑 auth hook、校验 header、序列化 body。
+   * 构造请求：拼 URL、跑 auth hook、校验 header、序列化 body、判方法与 URL 是否可用。
    *
    * @remarks
    * 整段刻意留在超时窗口**之外**，因为它一个字节都不上网——这里的失败全是本地问题
@@ -468,11 +533,18 @@ export class HttpTransport {
     // auth 在 fetch 之前：hook 抛错则请求不发出，且错误原样上抛不被包装——
     // 包成 NetworkOfflineError 会让 token 过期被 offlineFallback 吞成缓存命中
     const headers = await this.buildHeaders(spec);
+    const url = joinUrl(this.options.baseUrl, spec.url);
+    const body = serializeBody(spec.body, operation);
+    assertResolvableUrl(url, operation);
+    assertMethodAllowsBody(spec.method, body, operation);
     return {
-      url: joinUrl(this.options.baseUrl, spec.url),
+      url,
       method: spec.method,
       headers: validateHeaders(headers, operation),
-      body: serializeBody(spec.body, operation)
+      // 走 `mergeHeaders` 而不是直接收下 `spec.headers`：大小写折叠只能有一个实现，
+      // 否则 `X-Tenant` 与 `x-tenant` 发出去是同一个 header 却落在两个键上
+      variant: mergeHeaders({}, spec.headers),
+      body
     };
   }
 

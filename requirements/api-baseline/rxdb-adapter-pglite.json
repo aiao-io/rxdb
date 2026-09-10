@@ -130,6 +130,10 @@
         "kind": "value"
       },
       {
+        "name": "INVALID_QUERY_ERROR_CODE",
+        "kind": "value"
+      },
+      {
         "name": "IPGliteClient",
         "kind": "type"
       },

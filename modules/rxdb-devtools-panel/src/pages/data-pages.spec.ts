@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DatabaseStateService } from '../services/database-state.service';
+import { DevToolsEndpointService } from '../services/devtools-endpoint.service';
 import { OpfsService } from '../services/opfs.service';
 import { FakeDevToolsHostAccess } from '../testing';
 import { DEVTOOLS_HOST_ACCESS } from '../transport';
@@ -231,10 +232,46 @@ describe('StoragePage', () => {
   });
 });
 
+/**
+ * 只提供页面用到的那一块协商状态。
+ *
+ * @remarks
+ * 页面读的是 `state()?.descriptors`，所以桩只需要一个能被写值的同名信号；
+ * 把整个 `DevToolsEndpointService` 搬进单测会顺带把 transport 也拖进来，
+ * 而这条断言与传输层无关。
+ */
+class EndpointStub {
+  /** 协商状态信号；页面只拿它当「有变化」的信号用，不读里面的字段。 */
+  readonly state = signal<string | null>(null);
+
+  /** descriptors 挂在端点实例上，与真实实现同形（`endpoint.descriptors`）。 */
+  descriptors: { domain: string; runtime?: string }[] = [];
+
+  resolve(): { descriptors: { domain: string; runtime?: string }[] } | null {
+    return { descriptors: this.descriptors };
+  }
+
+  #ticks = 0;
+
+  /**
+   * 改一次 descriptors 并推进状态，模拟一次协商推进。
+   *
+   * @remarks
+   * 状态值必须**每次都不同**：信号值没变就不会触发重算，页面读到的还是上一轮的
+   * descriptors——那会让这条用例在实现正确时也误报。
+   */
+  publish(descriptors: { domain: string; runtime?: string }[]): void {
+    this.descriptors = descriptors;
+    this.#ticks += 1;
+    this.state.set(`tick-${String(this.#ticks)}`);
+  }
+}
+
 describe('OpfsPage', () => {
   let opfs: OpfsStub;
   let page: OpfsPage;
   let hostAccess: FakeDevToolsHostAccess;
+  let endpoint: EndpointStub;
 
   const directory: OPFSFile = { name: 'docs', path: '/docs', type: 'directory' };
   const file: OPFSFile = { name: 'readme.md', path: '/readme.md', type: 'file', size: 2048, lastModified: 1 };
@@ -242,17 +279,43 @@ describe('OpfsPage', () => {
   beforeEach(() => {
     opfs = new OpfsStub();
     hostAccess = new FakeDevToolsHostAccess();
+    endpoint = new EndpointStub();
     TestBed.configureTestingModule({
       providers: [
         OpfsPage,
         { provide: OpfsService, useValue: opfs },
-        { provide: DEVTOOLS_HOST_ACCESS, useValue: hostAccess }
+        { provide: DEVTOOLS_HOST_ACCESS, useValue: hostAccess },
+        { provide: DevToolsEndpointService, useValue: endpoint }
       ]
     });
     page = TestBed.inject(OpfsPage);
   });
 
   afterEach(() => TestBed.resetTestingModule());
+
+  /**
+   * US-904 阶段 D AC#47 / US-905 AC#6：`runtime` 只用于显示，不参与任何行为判定。
+   *
+   * @remarks
+   * 与 `apps/dev-rxdb-tauri/src/devtools/tauri-vfs-providers.spec.ts` 那条同口径，只是落在 UI 侧：
+   * 换掉 `runtime` 之后，页面**除了这一个显示值以外**读出来的东西必须逐项不变。
+   * 光断言「显示对了」挡不住有人日后拿 runtime 去分叉逻辑。
+   */
+  it('exposes the files runtime for display only', () => {
+    expect(page.filesRuntime()).toBeNull();
+
+    endpoint.publish([{ domain: 'files', runtime: 'electron' }]);
+    expect(page.filesRuntime()).toBe('electron');
+
+    const before = { viewMode: page.viewMode(), path: page.pathSegments(), loading: page.loading() };
+    endpoint.publish([{ domain: 'files', runtime: 'tauri' }]);
+    expect(page.filesRuntime()).toBe('tauri');
+    expect({ viewMode: page.viewMode(), path: page.pathSegments(), loading: page.loading() }).toEqual(before);
+
+    // 领域对不上就不显示——不能拿 `database` 或 `settings` 的 runtime 冒充文件来源。
+    endpoint.publish([{ domain: 'settings', runtime: 'electron' }]);
+    expect(page.filesRuntime()).toBeNull();
+  });
 
   it('refreshes, navigates, counts files and derives breadcrumbs', async () => {
     page.ngOnInit();

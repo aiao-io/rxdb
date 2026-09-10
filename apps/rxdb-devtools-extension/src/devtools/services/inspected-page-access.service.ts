@@ -15,6 +15,13 @@ export type InspectedPageAccessState = 'checking' | 'required' | 'requesting' | 
  * 把 inspected page URL 转为 Chrome host permission pattern。
  *
  * @returns 可请求的当前 host pattern；不支持的协议或非法 URL 返回 `null`
+ *
+ * @remarks
+ * 只放行 Chromium 扩展 match pattern 认得的 scheme。Electron 桌面应用生产入口用的自定义
+ * `app:` scheme **不在**其中：US-904 阶段 D 实测三种 `host_permissions` 写法
+ *（`app://-/*`、`<all_urls>`、两者并列）全部无法让 `chrome.scripting` 注入成功。
+ * 因此这里返回 `null`、状态落到 `unsupported`、面板明说「当前页面不支持扩展注入」，
+ * 而不是伪装成 `granted` 后永远停在「Waiting for RxDB connection...」。
  */
 export function permissionPatternForUrl(value: string): string | null {
   try {

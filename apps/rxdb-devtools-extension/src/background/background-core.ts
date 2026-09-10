@@ -1,3 +1,4 @@
+import { createDevToolsV2Message } from '@aiao/rxdb-devtools';
 import {
   isDevToolsMessage,
   isRelayFrameTowards,
@@ -26,11 +27,14 @@ interface BackgroundDependencies {
 }
 
 /**
- * background **唯一**能自己造出来的消息：注入完成后的存活探针。
+ * 注入完成后的存活探针。
  *
  * @remarks
  * AC#36：这里刻意不收类型参数。background 是纯中继，握手语义（尤其是 `HANDSHAKE_ACK`）
  * 归面板独有；把可造类型钉死成 `PING`，代发 ACK 就不再是「少写一行」能退回去的事。
+ *
+ * background 能自己造的消息**一共只有两条**，另一条是 {@link disconnectFrame}；
+ * 那里写清了为什么它可以代发而 ACK 不可以。这个清单不该再长。
  */
 function pingMessage(): DevToolsMessage {
   return {
@@ -41,6 +45,54 @@ function pingMessage(): DevToolsMessage {
     timestamp: Date.now(),
     sequence: 0
   };
+}
+
+/**
+ * background 能自己造出来的**第二**条、也是最后一条消息：面板 port 死了的讣告。
+ *
+ * @remarks
+ * # 为什么这条可以代发，而 `HANDSHAKE_ACK` 不可以
+ *
+ * 两者的性质完全不同，别把这里当成「代发禁令松动了」：
+ *
+ * - `HANDSHAKE_ACK` 是一个**协议决定**（哪一版赢下协商），决定权归面板。中继代发的 ACK 在格式上
+ *   完全合法，只有「ACK 归面板独有」这条所有权规则能挡住它——所以那条禁令一步都不能退。
+ * - `DISCONNECT` 是一个**传输事实**（面板的 port 没了）。而这件事**只有 background 观察得到**：
+ *   页面看不见扩展 port，面板此刻已经不存在、不可能自己发出讣告。`direction: 'both'` 也说明
+ *   协议本来就允许两侧发它。
+ *
+ * # 不发它的后果（实测）
+ *
+ * 关掉 DevTools 再重开、中间不刷新页面时：connector 手上的 session A 一直是 `open`，
+ * 于是订阅、计时器与在途传输全部继续活着；而重开的面板拿不到新 session——它的
+ * `PROTOCOL_HELLO` 会被协商机当成「session 已建立时的迟到帧」拒掉。面板于是静默退回 v1 车道，
+ * 连接守卫照样显示「已连接」，但 v2 数据面已经不属于它了。
+ *
+ * @param sessionId - 该 tab 上最后一次协商出的 session；没有它这帧会被 connector 判为身份不符。
+ */
+function disconnectFrame(sessionId: string): DevToolsRelayFrame {
+  return createDevToolsV2Message('DISCONNECT', null, {
+    sessionId,
+    sequence: 0,
+    timestamp: Date.now(),
+    direction: 'panel-to-connector'
+  });
+}
+
+/**
+ * 从一帧下行帧里认出 v2 握手带来的 session id。
+ *
+ * @returns 该帧是 v2 `HANDSHAKE` 且带合法 `sessionId` 时返回它，否则 `null`。
+ *
+ * @remarks
+ * background 只从**经过它的帧**上读这一个字段，不做任何 payload 校验——严校验在两个端点上。
+ * 读它的唯一用途是将来能把讣告发对身份；读错了的后果是讣告被 connector 拒掉，
+ * 与「没发」等价，不会造成越权。
+ */
+function sessionIdOf(frame: DevToolsRelayFrame): string | null {
+  if (frame.type !== 'HANDSHAKE') return null;
+  const payload = (frame as { payload?: { sessionId?: unknown } }).payload;
+  return typeof payload?.sessionId === 'string' ? payload.sessionId : null;
 }
 
 /**
@@ -67,6 +119,8 @@ function isInitMessage(message: DevToolsMessage): message is InitMessage {
 export function createBackgroundController(dependencies: BackgroundDependencies) {
   const ports = new Map<number, BackgroundPort>();
   const activations = new Map<number, Promise<void>>();
+  // 每个 tab 上最后一次协商出的 session：面板 port 死掉时用它把讣告发对身份。
+  const sessions = new Map<number, string>();
   const sendPing = (tabId: number) => {
     void dependencies.sendToTab(tabId, pingMessage()).catch(error => dependencies.onError?.('PING', error));
   };
@@ -121,7 +175,17 @@ export function createBackgroundController(dependencies: BackgroundDependencies)
         forward();
       });
       port.onDisconnect.addListener(() => {
-        if (connectedTabId !== null && ports.get(connectedTabId) === port) ports.delete(connectedTabId);
+        if (connectedTabId === null || ports.get(connectedTabId) !== port) return;
+        const tabId = connectedTabId;
+        ports.delete(tabId);
+        // 讣告在删掉 port 之后发：它走的是 content script 那条路，与已经死掉的 port 无关。
+        // 没有 session 就什么都不发——那说明这个 tab 上从来没协商成功过 v2，没有要关的东西。
+        const sessionId = sessions.get(tabId);
+        if (sessionId === undefined) return;
+        sessions.delete(tabId);
+        void dependencies
+          .sendToTab(tabId, disconnectFrame(sessionId))
+          .catch(error => dependencies.onError?.('DISCONNECT', error));
       });
     },
 
@@ -136,6 +200,9 @@ export function createBackgroundController(dependencies: BackgroundDependencies)
      */
     receiveContent(message: unknown, tabId: number | undefined): void {
       if (tabId === undefined || !isRelayFrameTowards(message, 'to-panel')) return;
+      // 顺路记下 session：`HANDSHAKE` 本来就要经过这里，不必为此新增任何通道或校验。
+      const sessionId = sessionIdOf(message);
+      if (sessionId !== null) sessions.set(tabId, sessionId);
       ports.get(tabId)?.postMessage(message);
     }
   };

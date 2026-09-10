@@ -63,6 +63,12 @@
   "release": {
     "projects": ["packages/*"],
     "releaseTag": { "pattern": "v{version}" },
+    "conventionalCommits": {
+      "types": {
+        "cleanup": { "semverBump": "none", "changelog": { "title": "🧹 Cleanup" } },
+        "__INVALID__": { "semverBump": "none", "changelog": { "title": "Uncategorized changes" } }
+      }
+    },
     "version": {
       "conventionalCommits": true,
       "preVersionCommand": "npx nx run-many -t build --projects='packages/*'",

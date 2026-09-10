@@ -87,9 +87,41 @@ const SQLITE_ERROR_CODES = new Map<number, RxDBAdapterDesktopErrorCode>([
  * 但 SQLite 同样走 {@link constants.SQLITE_ATTACH} 授权码，所以一并被这条规则挡住——
  * 这正是必须用授权器而不是正则扫 SQL 的原因。
  *
- * 只封文件级 opcode，DDL/DML/事务/PRAGMA/TEMP 触发器全部照旧放行，库内能力不受影响。
+ * 只封文件级 opcode，DDL/DML/事务/TEMP 触发器全部照旧放行，库内能力不受影响。
+ * PRAGMA 整体也放行，只按名字挑掉 {@link DENIED_PRAGMAS} 里那两条。
  */
 const DENIED_ACTION_CODES = new Set<number>([constants.SQLITE_ATTACH, constants.SQLITE_DETACH]);
+
+/**
+ * 授权器拒绝的 pragma：会把 SQLite 的文件落点挪出宿主根的那两条。
+ *
+ * @remarks
+ * `temp_store_directory` 决定临时文件写在哪，`data_store_directory` 决定相对路径的库文件开在哪。
+ * 两条都绕开了 host 那次路径解析——与 {@link DENIED_ACTION_CODES} 拦 `ATTACH` 是同一个理由。
+ *
+ * 而且它们改的是 `sqlite3_temp_directory` / `sqlite3_data_directory` 这两个**进程级全局变量**，
+ * 不是连接级设置：一个会话设了，同进程里其余会话（别的窗口、别的库）全都跟着改。
+ * SQLite 官方把二者都标为已废弃且非线程安全。
+ *
+ * 读也一并拒掉：`PRAGMA temp_store_directory` 回给 renderer 的是一个宿主绝对路径。
+ *
+ * 名字**先转小写再**全等匹配。pragma 名在 SQL 里不区分大小写，但 SQLite 交给授权器的是
+ * 用户写的那个拼法：`PRAGMA TEMP_STORE_DIRECTORY` 传过来就是全大写，按原样比对等于没拦。
+ * 不做前缀判断：`temp_store`（初始化 SQL 自己要用）必须原样放行。
+ */
+const DENIED_PRAGMAS = new Set<string>(['temp_store_directory', 'data_store_directory']);
+
+/**
+ * 这次授权请求该不该拒。
+ *
+ * @param actionCode - SQLite 的授权动作码
+ * @param arg1 - 该动作码的第一个参数；`SQLITE_PRAGMA` 下是 pragma 名，其余动作码这里用不到
+ * @returns 拒绝为 `true`
+ */
+const isDenied = (actionCode: number, arg1: string | null): boolean => {
+  if (DENIED_ACTION_CODES.has(actionCode)) return true;
+  return actionCode === constants.SQLITE_PRAGMA && arg1 !== null && DENIED_PRAGMAS.has(arg1.toLowerCase());
+};
 
 const readErrcode = (error: unknown): number | undefined => {
   const errcode = (error as { errcode?: unknown }).errcode;
@@ -184,6 +216,7 @@ export class NodeSqliteEngine {
   readonly #dbName: string;
   readonly #onChange: (event: SqliteChangeEvent) => void;
   readonly #batchTimeout: number;
+  /** 已装好通知触发器、无需再查的系统表；写入口只有 {@link NodeSqliteEngine.#rememberWatched}。 */
   readonly #watchedTables = new Set<string>();
   /** 当前批次累积的行变更，按「变更类型 + 表」分组。 */
   readonly #pendingChanges = new Map<string, { type: SQLiteChangeType; tableName: string; rowIds: bigint[] }>();
@@ -323,8 +356,8 @@ export class NodeSqliteEngine {
    */
   #initialize(cacheSizeKb: number): void {
     // 先装授权器再跑任何 SQL：初始化本身也走同一条边界，不给「初始化期间不设防」留窗口。
-    this.#db.setAuthorizer(actionCode =>
-      DENIED_ACTION_CODES.has(actionCode) ? constants.SQLITE_DENY : constants.SQLITE_OK
+    this.#db.setAuthorizer((actionCode, arg1) =>
+      isDenied(actionCode, arg1) ? constants.SQLITE_DENY : constants.SQLITE_OK
     );
     this.#db.function(
       NOTIFY_FUNCTION_NAME,
@@ -525,8 +558,31 @@ export class NodeSqliteEngine {
     for (const [tableName] of existing) {
       if (this.#watchedTables.has(tableName)) continue;
       this.#createNotifyTriggers(tableName);
-      this.#watchedTables.add(tableName);
+      this.#rememberWatched(tableName);
     }
+  }
+
+  /**
+   * 把「这张表的触发器已装好」记成不必再查的事实。
+   *
+   * @remarks
+   * 只在**事务外**才记：temp schema 与主库共用同一个事务，事务内装的 TEMP 触发器会随回滚一起
+   * 消失，而集合里的名字不会——`#ensureNotifyTriggers` 此后一路 `continue` 跳过这张表，
+   * 它的变更事件从此静默丢失。适配器的建表脚本正跑在 `BEGIN IMMEDIATE` / `COMMIT` 之间，
+   * COMMIT 失败（磁盘满 / IO）后同一会话会重试，这条路径是可达的。
+   *
+   * 代价是事务期间每条语句都重发一次 `CREATE TEMP TRIGGER IF NOT EXISTS`：幂等、且只在
+   * 「表已建好但还没定型」这段窗口里发生——也就是建表的那个事务内部。事务一结束，
+   * 下一次 `#ensureNotifyTriggers` 就把它定型，稳态重新回到提前返回。
+   *
+   * 不改用 rollback hook 校对：`node:sqlite` 不暴露它。也不每次查 `sqlite_temp_master` 对账：
+   * 那会把稳态下的零查询变成每条语句一次查询，而这里要挡的只是一个窗口。
+   *
+   * 已知边界：`DROP TABLE` 同样会带走表上的 TEMP 触发器，本方法不覆盖这种情况——
+   * 系统表建了就不再删，代码里没有任何一处 drop 它们。
+   */
+  #rememberWatched(tableName: string): void {
+    if (!this.#db.isTransaction) this.#watchedTables.add(tableName);
   }
 
   #createNotifyTriggers(tableName: string): void {

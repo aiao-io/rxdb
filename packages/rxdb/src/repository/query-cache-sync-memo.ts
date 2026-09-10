@@ -128,10 +128,12 @@ export class QueryCacheSyncMemo {
       return;
     }
     this.#forget(fingerprint);
-    this.#timers.set(
-      fingerprint,
-      setTimeout(() => this.#forget(fingerprint), this.#staleTime)
-    );
+    const timer = setTimeout(() => this.#forget(fingerprint), this.#staleTime);
+    // 纯缓存记账不该把宿主钉在事件循环上：窗口可以配到分钟级，Node / Electron 里
+    // 一个没到期的定时器足以让本该结束的脚本继续挂着。浏览器的 `setTimeout` 返回
+    // 数字、没有 `unref` —— 这不是给缺失值兜底，是两个运行时各自正确的 API。
+    (timer as { unref?: () => void }).unref?.();
+    this.#timers.set(fingerprint, timer);
   }
 
   /**

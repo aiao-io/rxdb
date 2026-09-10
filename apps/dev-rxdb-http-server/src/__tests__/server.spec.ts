@@ -325,6 +325,29 @@ describe('错误与开关', () => {
     expect(rows).toHaveLength(1);
   });
 
+  /** 把一条恒真的叶子规则套进 `depth` 层 `and` 组里（最外层算第 1 层）。 */
+  const nestWhere = (depth: number): unknown => {
+    let where: unknown = { combinator: 'and', rules: [{ field: 'price', operator: '>=', value: 0 }] };
+    for (let level = 1; level < depth; level++) where = { combinator: 'and', rules: [where] };
+    return where;
+  };
+
+  // 被替换掉的手写 SQL 编译器带 MAX_DEPTH=32 → 400；引擎的翻译器没有这条上限，几千层嵌套
+  // （150KB，远小于 1 MiB 体上限）会把调用栈打满，RangeError 落进兜底变成 500。
+  // 「请求写得太深」是调用方的错，要按 4xx 说出来。
+  it('where 嵌套 33 层回 400，而不是让引擎递归到栈溢出变成 500', async () => {
+    const response = await post('recipes/metadata', { where: nestWhere(33), offset: 0, limit: 10 });
+    expect(response.status).toBe(400);
+
+    const byToken = await post('recipes/metadata?pageMode=token', { where: nestWhere(33), limit: 10 });
+    expect(byToken.status).toBe(400);
+  });
+
+  it('where 嵌套 32 层仍在上限之内，照常查询', async () => {
+    const rows = await postJson<MetadataRow[]>('recipes/metadata', { where: nestWhere(32), offset: 0, limit: 10 });
+    expect(rows).toHaveLength(10);
+  });
+
   it('带了 Authorization 但形状不对时回 401，完全不带则放行（AC#2 的五条 curl 里四条不带）', async () => {
     const malformed = await post('recipes/metadata', { offset: 0, limit: 1 }, { headers: { authorization: 'nope' } });
     expect(malformed.status).toBe(401);

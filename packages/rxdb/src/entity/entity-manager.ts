@@ -15,7 +15,7 @@ import { RxDBError } from '../RxDBError.js';
 import { EntityIdentityCache } from './entity-identity-cache.js';
 import { EntityStatusOptions } from './entity-status.interface.js';
 import { EntityStatus } from './entity-status.js';
-import { EntityStaticType, EntityType, EntityUpdateData } from './entity.interface.js';
+import { EntityStaticType, EntityType, EntityUpdateData, RxDBEntityId } from './entity.interface.js';
 import {
   getEntityMutations,
   getNeedRemoveEntities,
@@ -173,10 +173,16 @@ export class EntityManager {
     setSafeObjectKey(this, PROXY, (entity: InstanceType<EntityType>) => {
       // 初始化实体，设置为已修改但未保存到本地或远程
       const proxyEntity = this.#init_entity(entity, { local: false, remote: false, modified: true });
-      // 添加到实体缓存
+
+      // 入缓存必须**同步**：`createEntityRef` 是同步读缓存的，从前这一步也压在下面那个
+      // 微任务里，于是同一 tick 内 `new Todo({ id })` 之后紧接着的 `createEntityRef(Todo, { id })`
+      // 读不到任何东西，转而造出第二个实例并占掉缓存槽 —— 调用方手上那个成了孤儿，
+      // 同一 id 从此有两个对象各持一份状态，对其中一个的编辑另一个永远看不见。
+      this.addEntityCache(proxyEntity);
+
+      // 事件派发**仍然**延后：监听器若在构造过程中被叫醒，拿到的是一个还没走完
+      // 初始化的实例。这才是当初用微任务的理由，与入缓存无关。
       nextMicroTask(() => {
-        this.addEntityCache(proxyEntity);
-        // 分发实体创建事件
         const meta = getEntityMetadata(entity);
         const entity_new_event = new EntityLocalNewEvent([
           {
@@ -244,7 +250,9 @@ export class EntityManager {
     const cache = this.#get_entity_cache_map(EntityType);
     let entity = cache.get(data.id);
     if (entity) {
-      getEntityStatus(entity).replace(data);
+      // 命中缓存不能无条件 replace：脏实体的本地编辑会被写进基线后清空，save() 随即静默 no-op。
+      // 策略判定统一收在 EntityStatus.applyExternal 里（见其 remarks）。
+      getEntityStatus(entity).applyExternal(data);
       return entity;
     } else {
       entity = Object.create(EntityType.prototype);
@@ -265,7 +273,7 @@ export class EntityManager {
    * @returns 实体实例，如果不存在则返回 undefined
    */
   getEntityRef<T extends EntityType>(EntityType: T, id: EntityStaticType<T, 'idType'>): InstanceType<T> | undefined {
-    return this.#get_entity_cache_map(EntityType)?.get(id);
+    return this.#get_entity_cache_map(EntityType).get(id);
   }
 
   /**
@@ -278,7 +286,7 @@ export class EntityManager {
    * @returns 如果实体在缓存中存在则返回 true
    */
   hasEntityRef<T extends EntityType>(EntityType: T, id: EntityStaticType<T, 'idType'>): boolean {
-    return this.#get_entity_cache_map(EntityType)?.has(id) === true;
+    return this.#get_entity_cache_map(EntityType).has(id);
   }
 
   /**
@@ -287,9 +295,41 @@ export class EntityManager {
    *
    * @template T 实体类型
    * @param entity - 要缓存的实体实例
+   *
+   * @remarks
+   * 主键还没有值的实体**不入缓存**：身份缓存是按 id 索引的，此刻它没有身份可索引。
+   * 从前照写不误，结果所有 id 缺失的实体共用 `undefined` 这一个槽，
+   * `getEntityRef(T, undefined)` 会返回其中随机一个 —— 稀疏水合据此更新，改的是另一条记录。
+   * 主键随后被赋值时由 {@link reindexEntityCache} 补登记（Proxy set 拦截触发），不会漏。
    */
   addEntityCache<T extends EntityType>(entity: InstanceType<T>) {
-    this.#get_entity_cache_map(entity.constructor)?.set(entity.id, entity);
+    if (entity.id === undefined || entity.id === null) return;
+    this.#get_entity_cache_map(entity.constructor).set(entity.id, entity);
+  }
+
+  /**
+   * 主键写入后重建身份缓存索引
+   *
+   * @template T 实体类型
+   * @param entity - 主键已经是新值的实体实例（须为代理实例，与缓存里存的是同一个引用）
+   * @param previousId - 写入前的主键值；构造后首次赋值时为 `undefined`
+   *
+   * @remarks
+   * 由 `createEntityProxy` 的 `set` 拦截调用，覆盖两种情形：
+   * - **构造后才有身份**（主键无默认值，如 `RxDBBranch.id`）：此时旧槽不存在，只需登记新槽。
+   *   不补这一步，调用方手上的实例永远进不了身份缓存，后续 hydrate 会另造一个实例去更新，
+   *   两个对象各持一份状态（RXD-070）。
+   * - **主键改名**：旧槽必须清掉，否则按旧 id 查出来的实体 `id` 已经是新值，
+   *   身份缓存「`cache.get(id).id === id`」的不变式当场破掉。
+   *
+   * 旧槽只在确实存着**这一个**实例时才删：同 id 的其他引用不该被本次改名波及。
+   */
+  reindexEntityCache<T extends EntityType>(entity: InstanceType<T>, previousId: RxDBEntityId | undefined) {
+    const cache = this.#get_entity_cache_map(entity.constructor);
+    if (previousId !== undefined && previousId !== null && cache.get(previousId) === entity) {
+      cache.delete(previousId);
+    }
+    this.addEntityCache(entity);
   }
 
   /**
@@ -300,7 +340,7 @@ export class EntityManager {
    * @param entity - 要移除的实体实例
    */
   removeEntityCache<T extends EntityType>(entity: InstanceType<T>) {
-    this.#get_entity_cache_map(entity.constructor)?.delete(entity.id);
+    this.#get_entity_cache_map(entity.constructor).delete(entity.id);
   }
 
   /**

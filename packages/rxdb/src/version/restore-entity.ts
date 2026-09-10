@@ -72,7 +72,13 @@ export async function restore_entity<T extends EntityType>(
   }
 
   const actions = get_switch_version_actions([change], false);
-  await adapter.switchBranch({ branchId: currentBranch.id, actions });
+  // 不能走 switchBranch：各适配器的 switch_branch 第一步就是 remove_all_triggers_sql
+  // （见 sqlite-core / pglite 的 version/switch_branch.ts），恢复出来的行不会产生任何 change 行——
+  // 本函数的 TSDoc 说「恢复操作本身会生成新的 RxDBChange 记录（可被 push 到远程）」直接落空，
+  // 远端永远停在「已删除」，本地与远端静默分叉。
+  // 改走 mergeChanges(actions, undefined, false)：与 merge_branch 的 squash 出口同路，
+  // disableTriggers=false 让数据库触发器照常记账。
+  await adapter.mergeChanges(actions, undefined, false);
 
   const repo = adapter.getRepository(EntityType);
   const restored = await repo.find({

@@ -29,6 +29,8 @@
     "audit:wa-sqlite": "node scripts/audit/wa-sqlite-integrity.mjs",
     "audit:action-pins": "node scripts/audit/workflow-action-pins.mjs",
     "audit:lazy-backend": "node scripts/audit/desktop-lazy-backend.mjs",
+    "audit:requirements": "node scripts/audit/requirements-consistency.mjs --check",
+    "audit:requirements:update": "node scripts/audit/requirements-consistency.mjs --update",
     "check-migration-release-gate": "node scripts/check-migration-release-gate.mjs --check",
     "test-scripts": "node --test \"scripts/**/*.spec.mjs\"",
     "coverage:serve": "node ./scripts/coverage-serve.mjs",

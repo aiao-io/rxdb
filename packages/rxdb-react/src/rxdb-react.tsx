@@ -111,7 +111,7 @@ const isDeferred = <T extends RxDB>(source: RxDBSource<T>): boolean =>
 const UNRESOLVED = { db: undefined, failure: undefined } as const;
 
 const shutdown = (database: RxDB): void => {
-  void database.disconnectAll().catch(error => console.error('RxDB shutdown failed', error));
+  void database.destroy().catch(error => console.error('RxDB shutdown failed', error));
 };
 
 /**
@@ -178,7 +178,7 @@ const closeLease = <T extends RxDB>(lease: RxDBLease<T>): void => {
  *
  * @remarks
  * **所有权规则：provider 只销毁自己造的东西。** 传进来的是工厂或 Promise，实例就是本
- * Provider 造/等来的，卸载时负责 `disconnectAll()`；传进来的是一个已就绪实例，它归调用方
+ * Provider 造/等来的，卸载时负责 `destroy()`；传进来的是一个已就绪实例，它归调用方
  * 所有，本 Provider 不碰。
  *
  * 后半条不是洁癖，是 `StrictMode` 下的正确性：开发期的双挂载会跑一次「挂载 → 卸载 → 挂载」，

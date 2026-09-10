@@ -29,7 +29,7 @@ import { DESKTOP_HOST_MAX_FILE_CHUNK_BYTES } from '@aiao/rxdb-adapter-sqlite-cor
 import { StorageBackendError, type StorageFilesystem } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { platform } from 'node:process';
@@ -126,7 +126,29 @@ const mountTmpfs = (): SmallVolume => {
   };
 };
 
-const CAN_MOUNT = platform === 'darwin' || (platform === 'linux' && hasPasswordlessSudo());
+/**
+ * Linux 分支能不能真的挂上 tmpfs。
+ *
+ * @remarks
+ * 只看 `sudo -n` 不够：容器里 sudo 常常是通的，而 `mount` 缺 `CAP_SYS_ADMIN` 照样失败。
+ * 那时整个套件会硬红在一个与被测代码无关的理由上——而这条门的用途本来就是「本机造不出
+ * 小卷就跳过」。所以直接挂一块 1 MiB 的试试，随即拆掉：探针失败就是这道门的答案。
+ */
+const canMountTmpfs = (): boolean => {
+  if (!hasPasswordlessSudo()) return false;
+  const probe = mkdtempSync(join(tmpdir(), 'rxdb-tauri-probe-'));
+  try {
+    run('sudo', ['-n', 'mount', '-t', 'tmpfs', '-o', 'size=1m', 'tmpfs', probe]);
+  } catch {
+    rmSync(probe, { recursive: true, force: true });
+    return false;
+  }
+  run('sudo', ['-n', 'umount', probe]);
+  rmSync(probe, { recursive: true, force: true });
+  return true;
+};
+
+const CAN_MOUNT = platform === 'darwin' || (platform === 'linux' && canMountTmpfs());
 
 /** 目录下所有以 `.rxdb-tmp` 结尾的残留；正常路径上应为空。 */
 const temporaryFiles = (directory: string): string[] =>
@@ -154,9 +176,23 @@ beforeAll(async () => {
 
 afterAll(() => {
   if (!CAN_MOUNT) return;
-  filesystem.dispose();
-  stopHost();
-  volume.release();
+  // `beforeAll` 可能在中途失败，那时后面几个变量还是 undefined，直接调用会抛在第一步上，
+  // 排在最后的 `volume.release()` 就永远跑不到——泄漏的 RAM disk 要手动 `diskutil` 才收得回。
+  // 因此逐个判、逐个记，最后一定走到卸载；记下的失败在末尾重抛，不吞掉。
+  const failures: unknown[] = [];
+  const attempt = (step: () => void): void => {
+    try {
+      step();
+    } catch (error) {
+      failures.push(error);
+    }
+  };
+
+  if (filesystem !== undefined) attempt(() => filesystem.dispose());
+  if (stopHost !== undefined) attempt(stopHost);
+  if (volume !== undefined) attempt(() => volume.release());
+
+  if (failures.length > 0) throw failures[0];
 });
 
 describe.skipIf(!CAN_MOUNT)(`Rust 文件宿主在 ${String(VOLUME_MIB)} MiB 小卷上写满时`, () => {

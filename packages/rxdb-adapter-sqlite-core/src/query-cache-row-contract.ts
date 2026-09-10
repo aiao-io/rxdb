@@ -80,6 +80,27 @@ export const requiredQueryCacheColumns = (metadata: EntityMetadata): ReadonlyMap
   return required;
 };
 
+/**
+ * 按契约读出一行的主键值。
+ *
+ * @remarks
+ * 契约对**每一个**必填列都放行两种键（见 {@link assertQueryCacheRowContract} 里
+ * `!keys.has(name) && !keys.has(column)` 那一行）：远端既可能发 JS 属性名 `id`，
+ * 也可能发物理列名 `todo_id`。因此凡是要从远端行上取值的地方都必须走这里，
+ * 只认 `row['id']` 的写法在自定义主键列下静默拿到 `undefined`。
+ *
+ * 不做「两个都没有就抛错」：调用方已经先过了 {@link assertQueryCacheRowContract}，
+ * 在这里再判一次等于把同一条判据写两遍，且两处措辞迟早会漂。
+ *
+ * @param row - 远端行
+ * @param idColumn - 主键的物理列名（`#resolveQueryCacheTarget` 解析）
+ * @returns 行上的主键值；两种键都没有时为 `undefined`
+ */
+export const readQueryCacheRowId = (row: object, idColumn: string): unknown => {
+  const record = row as Record<string, unknown>;
+  return record['id'] ?? record[idColumn];
+};
+
 /** 错误消息里最多逐行列举几行；超出部分只报数量，不静默丢弃。 */
 const MAX_LISTED_ROWS = 5;
 
@@ -127,6 +148,7 @@ export const assertQueryCacheRowContract = (
   if (rows.length === 0) return;
 
   const required = metadata ? requiredQueryCacheColumns(metadata) : new Map<string, string>();
+  const idColumn = metadata?.propertyMap?.get('id')?.columnName ?? 'id';
   const rowKeys = rows.map(row => new Set(Object.keys(row)));
   const batchKeys = new Set<string>(rowKeys.flatMap(keys => [...keys]));
 
@@ -140,7 +162,9 @@ export const assertQueryCacheRowContract = (
       key => !keys.has(key) && !missingRequired.some(name => name === key || required.get(name) === key)
     );
     if (missingRequired.length === 0 && missingBatch.length === 0) return;
-    violations.push({ index, id: (rows[index] as Record<string, unknown>)['id'], missingRequired, missingBatch });
+    // 走 readQueryCacheRowId：只认 `row['id']` 的话，自定义主键列的行在错误消息里一律报「无 id」，
+    // 而这条消息的全部用处就是让人拿 id 去远端日志里对号入座
+    violations.push({ index, id: readQueryCacheRowId(rows[index], idColumn), missingRequired, missingBatch });
   });
 
   if (violations.length === 0) return;

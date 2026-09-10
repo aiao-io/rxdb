@@ -18,13 +18,30 @@
 //! - stdin：每行一个 JSON 请求，形如 `{ "id": 7, "payload": <协议请求> }`
 //! - stdout：每行一个 JSON 消息
 //!   - 应答：`{ "id": 7, "payload": <协议应答> }`
-//!   - 变更事件：`{ "event": <change 消息> }`
+//!   - 变更事件：`{ "event": <change 消息>, "target": "<窗口 label>" }`
 //!
 //! 请求带 `id` 是因为 stdout 上应答与事件是交错的，调用方需要把应答对回自己的 promise。
-//! 事件没有 `id`——它不属于任何一次请求。
+//! 事件没有 `id`——它不属于任何一次请求，但它带 `target`，理由见下一节。
 //!
 //! 数据库根目录由 `argv[1]` 给出（测试临时目录）。缺参数就退出：默认到某个「合理」的位置
 //! 只会让测试悄悄写进真实的用户数据目录。
+//!
+//! # 窗口归属（`--owner <label>`）
+//!
+//! 生产路径走的是 [`DesktopRouter::handle_owned`]：会话按发起窗口记账，别的窗口拿着
+//! 它的 sessionId 会被 `permission_denied` 挡回去；变更事件也只投给开出该会话的窗口
+//! （`commands.rs` 的 `deliver_change` + `emit_to`，无主即丢）。
+//!
+//! 这里必须照做，而且 `--owner` **必填**。此前本文件调的是 `DesktopRouter::handle`、
+//! 事件无条件写 stdout，于是恰好是 Tauri 特有的那一层——归属登记、无主丢弃、定向投递——
+//! 整个不在一致性套件的覆盖里：`track` / `session_owner` / `reject_foreign_session`
+//! 任一回归，生产里所有变更事件被丢、响应式查询停摆，而套件全绿。
+//!
+//! 让它可选、缺省时退回 `handle` 就是把这个盲区留在原地——一个「未配置即不验」的兜底。
+//!
+//! 事件行带上 `target` 也是同一个理由：`emit_to` 只是定向投递的一半，收件侧不带 target
+//! 注册就人人收得到。把收件人写进行里，测试侧的 `listen` 才能像真 WebView 那样按
+//! target 过滤，这条性质才第一次被真的验到。
 //!
 //! # 协议版本改写（US-210 AC#10）
 //!
@@ -88,20 +105,39 @@ fn write_line(out: &Out, message: &Value) {
     let _ = handle.flush();
 }
 
-fn main() {
+/// 解析 `<root> --owner <label>`。
+///
+/// 两个参数都必填，缺任何一个都退出：根目录见模块头；`--owner` 的理由是
+/// 「缺省即退回不验归属的老路」正是这次要消灭的盲区。
+fn parse_arguments() -> (String, String) {
+    const USAGE: &str = "usage: rxdb_host_stdio <database-root-directory> --owner <window-label>";
     let mut arguments = std::env::args().skip(1);
     let Some(root) = arguments.next() else {
-        eprintln!("usage: rxdb_host_stdio <database-root-directory>");
+        eprintln!("{USAGE}");
         std::process::exit(2);
     };
+    let (Some("--owner"), Some(owner)) = (arguments.next().as_deref(), arguments.next()) else {
+        eprintln!("{USAGE}");
+        std::process::exit(2);
+    };
+    (root, owner)
+}
 
+fn main() {
+    let (root, owner) = parse_arguments();
     let version_override = protocol_version_override();
     let out: Out = Arc::new(Mutex::new(std::io::stdout()));
     let events = Arc::clone(&out);
-    let host = Arc::new(DesktopRouter::new(HostOptions {
-        app_data_dir: std::path::PathBuf::from(root),
-        deliver: Arc::new(move |message| write_line(&events, &json!({ "event": message }))),
-    }));
+    // 投递闭包要反查会话归属，而归属表在路由器里，路由器又要拿这个闭包才能构造。
+    // 与 `commands.rs` 同样用 `Weak` 打破这个环。
+    let host: Arc<DesktopRouter> = Arc::new_cyclic(|router: &std::sync::Weak<DesktopRouter>| {
+        let router = router.clone();
+        DesktopRouter::new(HostOptions {
+            app_data_dir: std::path::PathBuf::from(root),
+            deliver: Arc::new(move |message| deliver_change(&events, &router, &message)),
+        })
+    });
+    let owner = Arc::new(owner);
 
     let mut workers: Vec<JoinHandle<()>> = Vec::new();
     for line in std::io::stdin().lock().lines() {
@@ -111,9 +147,9 @@ fn main() {
         }
         // 已经跑完的句柄清掉，否则一轮套件下来会攒出几万个 JoinHandle。
         workers.retain(|worker| !worker.is_finished());
-        let (host, out) = (Arc::clone(&host), Arc::clone(&out));
+        let (host, out, owner) = (Arc::clone(&host), Arc::clone(&out), Arc::clone(&owner));
         workers.push(std::thread::spawn(move || {
-            write_line(&out, &handle_line(&host, &line, version_override));
+            write_line(&out, &handle_line(&host, &line, &owner, version_override));
         }));
     }
     for worker in workers {
@@ -128,14 +164,14 @@ fn main() {
 ///
 /// 解析失败也要**回一条应答**：调用方那边挂着一个 promise，静默丢弃只会让测试挂到超时，
 /// 而超时的报错信息完全指不出问题在哪。
-fn handle_line(host: &DesktopRouter, line: &str, version_override: Option<i64>) -> Value {
+fn handle_line(host: &DesktopRouter, line: &str, owner: &str, version_override: Option<i64>) -> Value {
     let Ok(request) = serde_json::from_str::<Value>(line) else {
         return json!({
             "id": Value::Null,
             "payload": { "kind": "error", "code": "protocol_violation", "message": "stdin line is not valid JSON" }
         });
     };
-    let mut payload = host.handle(request.get("payload").unwrap_or(&Value::Null));
+    let mut payload = host.handle_owned(request.get("payload").unwrap_or(&Value::Null), owner);
     if let Some(version) = version_override {
         // 按 JSON 指针改而不是按 `kind` 分支：`open` 与 `file.open` 两族应答都带这个字段，
         // 照 `kind` 枚举的话，将来多一族握手就会悄悄漏掉。字段不存在时什么也不做。
@@ -144,4 +180,24 @@ fn handle_line(host: &DesktopRouter, line: &str, version_override: Option<i64>) 
         }
     }
     json!({ "id": request.get("id").cloned().unwrap_or(Value::Null), "payload": payload })
+}
+
+/// 把一条变更事件写到 stdout，规则与生产的 `commands.rs::deliver_change` 一致。
+///
+/// 查不到收件人时**不发**：会话已经关掉、或归属登记出了问题，两种情况下都没有该收的人。
+/// 生产那边这一支是静默丢弃 + 一行日志，这里同样只写 stderr——而一致性套件断言 stderr
+/// 为空，于是「事件被丢」在这里是一条会让套件变红的信号，而不是一次沉默的行为退化。
+fn deliver_change(out: &Out, router: &std::sync::Weak<DesktopRouter>, message: &Value) {
+    let Some(router) = router.upgrade() else {
+        return;
+    };
+    let Some(session_id) = message["sessionId"].as_str() else {
+        eprintln!("[rxdb-desktop] dropped a change event without a session id");
+        return;
+    };
+    let Some(owner) = router.session_owner(session_id) else {
+        eprintln!("[rxdb-desktop] dropped a change event for unowned session {session_id}");
+        return;
+    };
+    write_line(out, &json!({ "event": message, "target": owner }));
 }

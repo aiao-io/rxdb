@@ -78,8 +78,12 @@ fn identifier_end(sql: &str, from: usize) -> usize {
 /// 读出 `index` 处的记号，返回 `(记号, 该记号之后的字节下标)`。
 ///
 /// 引号不做转义处理，与 `complete.c` 一致：`'a''b'` 会被读成两个相邻的字符串记号，
-/// 落到状态机上与读成一个完全等价。未闭合的引号 / 注释 / 方括号一路吃到串尾，
-/// 让 SQLite 在 prepare 时报语法错。
+/// 落到状态机上与读成一个完全等价。
+///
+/// 未闭合的记号一律吃到串尾，但后果分两种，SQLite 自己也是这么分的：未闭合的引号与方括号
+/// 在 prepare 时报语法错；未闭合的 `/*` 与 `--` 则是合法的空白，`SELECT 1 /* x` 照常执行。
+/// 本函数把这两种注释读成 `TOKEN_WS` 正是为了对齐后一条——当成错误记号会让一条能跑的脚本
+/// 在切分阶段就变形。
 fn read_token(sql: &str, index: usize) -> (usize, usize) {
     let rest = &sql[index..];
     let character = rest.chars().next().expect("caller keeps index inside the script");
@@ -144,13 +148,14 @@ pub fn split_sqlite_script(sql: &str) -> Vec<&str> {
     statements
 }
 
-/// 去掉首尾空白与末尾的分号，等价于 TS 侧的 `sql.trim().replace(/;+\s*$/u, '').trimEnd()`。
+/// 去掉首尾空白与末尾的分号，等价于 TS 侧的 `normalizeSingleStatementSql`
+/// （`packages/rxdb-adapter-sqlite-core/src/execute-sql.utils.ts`）。
 fn normalize_single_statement_sql(sql: &str) -> &str {
     let trimmed = sql.trim();
     if !trimmed.ends_with(';') {
         return trimmed;
     }
-    // 正则是最左匹配：`"SELECT 1; ;"` 只会掉最后那个分号，中间那个连着后面的空格躲过一劫。
+    // 只剥**末尾连续**的那串分号：`"SELECT 1; ;"` 里中间那个分号后面隔着空格，两侧都留着它。
     trimmed.trim_end_matches(';').trim_end()
 }
 

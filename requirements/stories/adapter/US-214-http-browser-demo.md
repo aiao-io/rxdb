@@ -57,7 +57,7 @@ INVEST 检查清单:
   （[CONVENTIONS 价值待证](../../CONVENTIONS.md#价值待证)）
 - **真实身份认证**。auth hook 返回一个固定的假 token，后端只校验它存在；接 IdP 是另一件事
 - **Full / Filter 同步**。v1 的 HTTP 适配器只支持 `QueryCache`
-  - ~~离线写队列、冲突解决~~ —— 已随 [US-020 D5-R](../core/US-020-querycache-repository.md) 落地：
+  - 离线写队列与冲突解决 —— 归 [US-020 D5-R](../core/US-020-querycache-repository.md)：
     QueryCache 离线可写、联网后按 REST 动词重放，冲突走 `LWWConflictResolver`。demo 因此多了一块
     同步状态面板与 `local-first-writes.spec.ts`，后端 `create` 也改为**采纳**客户端给的 `id`
 - **React / Vue 双端 demo**。「三框架对称」铁律约束的是 `packages/` 下的公开 API，不是 `apps/` 下的

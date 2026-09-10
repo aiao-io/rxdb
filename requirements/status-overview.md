@@ -8,37 +8,30 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 54   |
+| ✅ Done        | 55   |
 | 🚧 In Progress | 2    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 5    |
+| 📝 Backlog     | 7    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 62   |
+| **合计**       | 65   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
-> 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数（63 个文件 − 1 个 [US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md)，那是证据留档不是故事）。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
+> 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数（66 个文件 − 1 个 [US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md)，那是证据留档不是故事）。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
 ## 进行中（2 条）
 
-| Story                                                                                         | 还剩什么                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) | 阶段 A ✅、阶段 B ✅；阶段 C 主体已交付（C1 面板抽取 AC#31/32/33/35 ✅、C2 四段 relay v2 迁移 AC#36/37/41/43 ✅，AC#40/#44 ⚠️ 部分，AC#34/#38/#39/#42 ⬜ 待人工浏览器回归与跨版本实证）；阶段 D 已开工并基本落地——AC#48/#50/#53 ✅，AC#45/46/47/49/51 ⚠️（provider/单测侧已关）。**只剩 AC#52（真实全链路 E2E）** ⬜，需联网 electron-builder + 真沙箱 + dock 模式 + CDP 驱动真实 DevTools                                                                                                                                            |
-| [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md)              | 阶段 1（AC#1～#8）已基本落地：2 条 ✅（#7 conformance 80 断言、#8 e2e project 归属）、6 条 ⚠️。⚠️ 的判据都含「真实 Tauri 窗口 / 真实构建产物」那一半——本机能出真产物（tauri-cli 2.11.4，`tauri-package-release` 热跑 20s），缺的是驱动两个真实 WebView 的 harness。阶段 1 的代码侧收尾已做完（2026-09-01）：VFS 映射已接进运行时、面板版本取自 `tauri.conf.json`、`desktop-smoke` metadata 补记 release 隔离 spec。阶段 2（AC#9～#17）未开工——US-505 已于 2026-09-01 关闭，前置故事已齐，剩下的是阶段 1 那 6 条所需的 WebView harness |
+| Story                                                                                                             | 还剩什么                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md)                                  | **阶段 1 剩 AC#2 #6 #7**：#2 差「用共享 fake providers 把五类操作在两个真实窗口间跑一遍」（把 80 条断言整套搬过去**明确不做**）；#6 需阶段 2 的真实 provider 或一个 dev-only 后端强制开关；#7 需把已有判据在真实 `invoke` 的跨窗口投递上复跑。#2 / #6 另压着一次 owner 边界决定：往产品 demo 里放多少 dev-only 脚手架。**阶段 2 已开工但一条 AC 未关**（C1～C3 + C4 五片已落地，AC#9/#10/#12/#13/#14/#15/#17 为 ⚠️、#11/#16 为 ⬜）——缺面板 DOM 驱动、1001 条 snapshot 的 wire 驱动、三平台实测的另两列。另有一条**已知未修**缺陷：`TRANSFER_CANCEL` 不等在途写入会漏下临时产物，修法归 US-904 的传输状态机 |
+| [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](stories/future/US-906-electron-devtools-developer-path.md) | 只剩 AC#2 的**人工半边**：按 README 跑一次 `nx dev` 流程并打开面板看一眼。机器半边已由 US-904 AC#52 那条 e2e 覆盖                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 ## 待评审（1 条）
 
 | Story                                                                            | 收尾条件                                                                                                                                                                                  |
 | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) | 阶段 A 已交付；阶段 B 已移出承诺范围，**解锁条件 = 出现第一个 `plugin:*` 依赖声明**。其余未关闭故事没有一条会产生 `plugin:*` 消费方，故 `In Review` 是稳态而非过渡态，未解锁前不置 `Done` |
-
-## 已取消
-
-**跨 realm writer lease 与迁移 fencing（原 US-304）已取消**，故事与实现代码一并删除。
-系统迁移的排他性由后端排他锁（`BEGIN EXCLUSIVE` / 表锁）与单事务提交承担，见
-[US-303](stories/collaboration/US-303-bigint-binary-change-codec.md) 的 AC13 说明；跨 realm 的旧客户端
-拦截由发布门禁（[release-plan.md](release-plan.md)）承担。这不解除 US-305 的前置——它仍需一次真实迁移发布，见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 
 ## 按 Epic 索引
 
@@ -78,14 +71,10 @@
 
 - ✅ [US-402 代码编辑器](stories/ui/US-402-code-editor.md)
 - ✅ [US-902 DevTools 面板](stories/future/US-902-devtools-panel.md)
-- 🚧 [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)
-  - ✅ 阶段 A Electron 43 MV3 可行性门禁（`decision: supported`）
-  - ✅ 阶段 B v2 协议（控制面 + provider 数据面）
-  - 🚧 阶段 C 共享面板 library 与 Chrome v2 迁移
-    - ✅ C1 行为中性抽取 → `modules/rxdb-devtools-panel/`（AC#31/32/33/35；AC#34 待人工浏览器回归）
-    - 🚧 C2 四段 relay 与 v2 切换（AC#36/37/41/43 ✅；AC#40/#44 ⚠️ 部分；AC#38/#39/#42 ⬜ 需跨版本产物与真实 service worker）
-  - 🚧 阶段 D Electron 原生存储集成（AC#48/#50/#53 ✅；AC#45/46/47/49/51 ⚠️ provider/单测侧已关；AC#52 ⬜ 真实全链路 E2E）
-- 🚧 [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1（AC#1～#8）已落地且代码侧收尾已做完：AC#7/#8 ✅，其余 6 条 ⚠️ 只差「真实 Tauri 窗口/产物」那一半；阶段 2（AC#9～#17）未开工，前置 US-210 + US-505 均已 Done
+- ✅ [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) — 阶段 A～D 全部关闭；AC#34/#38/#39/#42 的人工浏览器回归拆到 US-907
+- ⬜ [US-907 DevTools 面板迁移后的人工浏览器回归](stories/future/US-907-devtools-manual-browser-regression.md) — 承接 US-904 四条只能人工做的 AC，不改代码
+- 🚧 [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1（AC#1～#8）**5 ✅ / 3 ⚠️**，⚠️ 的 #2 #6 #7 差的不是 harness，而是一次 owner 边界决定（往产品 demo 里放多少 dev-only 测试脚手架）或阶段 2 的真实 provider；阶段 2（AC#9～#17）**已开工但一条 AC 未关**。前置 US-210 + US-505 均已 Done
+- 🚧 [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](stories/future/US-906-electron-devtools-developer-path.md) — **5 ✅ / 1 ⚠️**，只差 AC#2 的人工半边（跑一次 `nx dev` 流程）
 
 > US-401 / US-701 查询构建器系列不在本仓库范围内。
 
@@ -108,6 +97,7 @@
 - ✅ [US-022 QueryCache 远端行的列契约与缺列诊断](stories/core/US-022-querycache-remote-row-contract.md)
 - ✅ [US-023 QueryCache 远端变更的失效上报口与实时同步](stories/core/US-023-querycache-remote-invalidation.md)
 - ✅ [US-215 条件请求被静默停用时给出可观测信号](stories/adapter/US-215-conditional-request-silence.md)
+- ⬜ [US-024 PGlite 侧 QueryCache 远端行的列契约](stories/core/US-024-pglite-querycache-row-contract.md) — US-022 的 PGlite 半边，出自 capability-matrix 登记的覆盖缺口
 - ✅ [US-216 参考后端以 RxDB 引擎实现](stories/adapter/US-216-server-side-rxdb.md) — 后端初始化 RxDB（pglite），协议端点改由 Repository/EntityManager 实现，前后端共享 schema 模块；单类收敛依赖另立的 core sync 覆盖故事
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
@@ -145,7 +135,7 @@
 
 - ✅ [US-013 LifecycleScope 生命周期作用域原语](stories/core/US-013-lifecycle-scope-primitive.md) — `@aiao/utils` 侧的原语；只交付原语，不迁移任何调用方
 - ✅ [US-014 插件作用域契约](stories/core/US-014-plugin-scope-contract.md) — `install(scope)`，四个插件包已迁移
-- [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) — 阶段 A 已交付，故事置 `In Review`
+- 👀 [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) — 阶段 A 已交付，阶段 B 已移出承诺范围
   - ✅ 阶段 A 适配器依赖纪元 — `inject: ['adapter:local']` + 纪元调度器
   - ⬜ 阶段 B 插件间依赖图 — 已移出承诺范围：全仓库零 `plugin:*` 声明
 
@@ -153,15 +143,10 @@
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 
-以下故事的 YAML `status` 都不是 `Blocked`，但开工前有硬前置：
+以下故事的 YAML `status` 都不是 `Blocked`，但开工前有硬前置。系统迁移的排他性由后端排他锁与单事务提交承担
+（[US-303](stories/collaboration/US-303-bigint-binary-change-codec.md) AC13），不存在跨 realm writer lease 或迁移 epoch，故下表没有这一类前置。
 
-> **已解除**：US-505 AC#6/#7 与 US-208 AC#10 曾同挂在「一次跑绿的 `release-desktop.yml` 三 OS 矩阵」上，
-> 已由 2026-09-01 的 [run 33476341615](https://github.com/aiao-io/rxdb/actions/runs/33476341615)
-> （8/8 job `success`、零 `skipped`）解除，两条故事均转 `Done`，本表不再列。
-
-| 被挡住的                                                                                         | 硬前置                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。不随代码进度自动解除，需单独排期                                                                                                                                                                                                                                                                                                                                    |
-| [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 B                                 | 出现第一个 `plugin:*` 依赖声明。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`。不随代码进度自动解除，`In Review` 是稳态                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| [US-904](stories/future/US-904-devtools-native-storage-contract.md) 阶段 D                       | ✅ **已解除且已开工**：阶段 A 判 `decision: supported`，阶段 C 主体已交付。阶段 D 剩下的 AC#52 卡的不再是前置故事，而是**环境**：联网 electron-builder + 真沙箱 + dock 模式 + CDP 驱动真实 DevTools。两条约束仍生效：Electron 43 缺整个 `chrome.permissions` 命名空间（需显式能力探测，禁静默 fallback）、扩展面板只在 dock 模式 DevTools 中注册                                                                                                                                                                                                                                                                                         |
-| [US-905](stories/future/US-905-tauri-native-devtools.md) 阶段 2                                  | 阶段 1 + [US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)（已 Done）+ [US-505](stories/plugin/US-505-tauri-local-file-storage.md)（**2026-09-01 已 Done**）。**两条前置故事都已关闭**，阶段 2 不再等任何故事；剩下的卡点全在阶段 1 自身的 6 条 ⚠️ 上。它们卡的**不是构建环境**（本机 cargo 1.97.1 + tauri-cli 2.11.4 齐全，`tauri-package-release` 热跑 20s 就出真 release 二进制，2026-09-01 实测），而是**没有能驱动两个真实 WebView 的 harness**：`desktop-smoke` 按 US-210 AC#9 刻意走进程级驱动、不上 WebDriver，验得了「进程重启后数据还在」，验不了双 WebView 握手、以同 label 重开拒旧身份、退出时的 session 释放 |
+| 被挡住的                                                                                         | 硬前置                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。不随代码进度自动解除，需单独排期 |
+| [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 B                                 | 出现第一个 `plugin:*` 依赖声明。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`。不随代码进度自动解除，`In Review` 是稳态                                                                                                                                                                      |

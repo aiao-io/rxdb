@@ -2,7 +2,7 @@ import { ElectronApplication, _electron as electron, expect, test } from '@playw
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { launchEnv, resolveExecutable } from './packaged-app';
+import { EXTENSION_DIST, launchEnv, resolveExecutable } from './packaged-app';
 
 /**
  * US-904 阶段 D AC#45：开发态加载扩展的开发/生产隔离。
@@ -21,9 +21,6 @@ import { launchEnv, resolveExecutable } from './packaged-app';
  *   pnpm nx build rxdb-devtools-extension
  *   pnpm nx run dev-rxdb-electron:electron-package-dir
  */
-
-/** 扩展构建产物目录，与 `apps/rxdb-devtools-extension/vite.config.ts` 的 `outDir` 一致。 */
-const EXTENSION_DIST = join(__dirname, '../../rxdb-devtools-extension/dist');
 
 /** dev 模式必须显式给全的四个变量，与 `devtools-extension.ts` 一一对应。 */
 const DEV_ENV = {

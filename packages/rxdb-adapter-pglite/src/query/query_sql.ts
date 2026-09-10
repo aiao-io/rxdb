@@ -10,6 +10,7 @@ import {
 } from '@aiao/rxdb';
 import {
   getTableNameByMetadata,
+  INVALID_QUERY_ERROR_CODE,
   quoteIdentifier,
   RxdbAdapterPGliteError,
   transformValueJsToPGlite
@@ -85,14 +86,14 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const readRuleGroup = (value: unknown): RuntimeRuleGroup => {
   if (!isRecord(value) || typeof value['combinator'] !== 'string' || !Array.isArray(value['rules'])) {
-    throw new RxdbAdapterPGliteError('Invalid query rule group');
+    throw new RxdbAdapterPGliteError('Invalid query rule group', INVALID_QUERY_ERROR_CODE);
   }
   return { combinator: value['combinator'], rules: value['rules'] };
 };
 
 const readRule = (value: unknown): RuntimeRule => {
   if (!isRecord(value) || typeof value['field'] !== 'string' || typeof value['operator'] !== 'string') {
-    throw new RxdbAdapterPGliteError('Invalid query rule');
+    throw new RxdbAdapterPGliteError('Invalid query rule', INVALID_QUERY_ERROR_CODE);
   }
   return { field: value['field'], operator: value['operator'], value: value['value'] };
 };
@@ -101,19 +102,19 @@ const isRuleGroup = (value: unknown): boolean => isRecord(value) && Array.isArra
 
 const assertSafeIdentifier = (value: string, label: string): void => {
   if (!SAFE_IDENTIFIER.test(value)) {
-    throw new RxdbAdapterPGliteError(`Invalid ${label}: ${value}`);
+    throw new RxdbAdapterPGliteError(`Invalid ${label}: ${value}`, INVALID_QUERY_ERROR_CODE);
   }
 };
 
 const assertSafeJsonPath = (parts: string[]): void => {
   if (parts.some(part => !SAFE_JSON_PATH_SEGMENT.test(part))) {
-    throw new RxdbAdapterPGliteError(`Invalid JSON path: ${parts.join('.')}`);
+    throw new RxdbAdapterPGliteError(`Invalid JSON path: ${parts.join('.')}`, INVALID_QUERY_ERROR_CODE);
   }
 };
 
 const resolve_column_name = (fieldName: string, entityMetadata?: EntityMetadata): string => {
   if (fieldName.includes('.')) {
-    throw new RxdbAdapterPGliteError(`Invalid direct query field: ${fieldName}`);
+    throw new RxdbAdapterPGliteError(`Invalid direct query field: ${fieldName}`, INVALID_QUERY_ERROR_CODE);
   }
   if (!entityMetadata) {
     assertSafeIdentifier(fieldName, 'query field');
@@ -128,7 +129,7 @@ const resolve_column_name = (fieldName: string, entityMetadata?: EntityMetadata)
   const fkIndex = foreignKeyNames.indexOf(fieldName);
   if (fkIndex >= 0) return foreignKeyColumnNames[fkIndex];
 
-  throw new RxdbAdapterPGliteError(`Unknown query field: ${fieldName}`);
+  throw new RxdbAdapterPGliteError(`Unknown query field: ${fieldName}`, INVALID_QUERY_ERROR_CODE);
 };
 
 const formatColumn = (columnName: string): string => quoteIdentifier(columnName);
@@ -139,11 +140,14 @@ const build_order_by = (orderBy?: OrderBy[], metadata?: EntityMetadata): string 
     .map(item => {
       const sort = String(item.sort).toLowerCase();
       if (sort !== 'asc' && sort !== 'desc') {
-        throw new RxdbAdapterPGliteError(`Invalid sort direction: ${String(item.sort)}`);
+        throw new RxdbAdapterPGliteError(`Invalid sort direction: ${String(item.sort)}`, INVALID_QUERY_ERROR_CODE);
       }
       const property = metadata?.propertyMap.get(item.field);
       if (property?.type === PropertyType.binary) {
-        throw new RxdbAdapterPGliteError(`Binary property "${item.field}" does not support sorting`);
+        throw new RxdbAdapterPGliteError(
+          `Binary property "${item.field}" does not support sorting`,
+          INVALID_QUERY_ERROR_CODE
+        );
       }
       const columnName = resolve_column_name(item.field, metadata);
       return `${MAIN_TABLE_ALIAS}.${quoteIdentifier(columnName)} ${sort.toUpperCase()}`;
@@ -176,7 +180,7 @@ const get_field_sql = (
   }
 
   if (entityMetadata) {
-    throw new RxdbAdapterPGliteError(`Unknown relation query field: ${originalField}`);
+    throw new RxdbAdapterPGliteError(`Unknown relation query field: ${originalField}`, INVALID_QUERY_ERROR_CODE);
   }
 
   parts.forEach(part => assertSafeIdentifier(part, 'query field'));
@@ -191,16 +195,22 @@ const getProperty = (field: string, metadata?: EntityMetadata) => {
 
 const assertOperator = (operator: string): void => {
   if (!SUPPORTED_OPERATORS.has(operator)) {
-    throw new RxdbAdapterPGliteError(`Unsupported query operator: ${operator}`);
+    throw new RxdbAdapterPGliteError(`Unsupported query operator: ${operator}`, INVALID_QUERY_ERROR_CODE);
   }
 };
 
 const assertPropertyOperator = (property: ReturnType<typeof getProperty>, operator: string): void => {
   if (property?.type === PropertyType.binary && !BINARY_OPERATORS.has(operator)) {
-    throw new RxdbAdapterPGliteError(`Binary property "${property.name}" does not support operator ${operator}`);
+    throw new RxdbAdapterPGliteError(
+      `Binary property "${property.name}" does not support operator ${operator}`,
+      INVALID_QUERY_ERROR_CODE
+    );
   }
   if (property?.type === PropertyType.bigint && PATTERN_OPERATORS.has(operator)) {
-    throw new RxdbAdapterPGliteError(`Bigint property "${property.name}" does not support operator ${operator}`);
+    throw new RxdbAdapterPGliteError(
+      `Bigint property "${property.name}" does not support operator ${operator}`,
+      INVALID_QUERY_ERROR_CODE
+    );
   }
 };
 
@@ -232,16 +242,19 @@ const build_rule_pg = (
   if (value === null) {
     if (operator === '=') return `${fieldSql} IS NULL`;
     if (operator === '!=') return `${fieldSql} IS NOT NULL`;
-    throw new RxdbAdapterPGliteError(`Operator ${operator} does not accept null`);
+    throw new RxdbAdapterPGliteError(`Operator ${operator} does not accept null`, INVALID_QUERY_ERROR_CODE);
   }
   if (value === undefined) {
-    throw new RxdbAdapterPGliteError(`Operator ${operator} requires a value`);
+    throw new RxdbAdapterPGliteError(`Operator ${operator} requires a value`, INVALID_QUERY_ERROR_CODE);
   }
 
   if (prop && (prop.type === PropertyType.json || prop.type === PropertyType.keyValue)) {
     if (operator === 'contains' || operator === 'notContains') {
       if (!isRecord(value)) {
-        throw new RxdbAdapterPGliteError(`JSON operator ${operator} requires an object value`);
+        throw new RxdbAdapterPGliteError(
+          `JSON operator ${operator} requires an object value`,
+          INVALID_QUERY_ERROR_CODE
+        );
       }
       params.push(JSON.stringify(value));
       const containsSql = `${fieldSql} @> $${params.length}::jsonb`;
@@ -265,7 +278,7 @@ const build_rule_pg = (
   if (prop && (prop.type === PropertyType.stringArray || prop.type === PropertyType.numberArray)) {
     if (operator === 'in' || operator === 'notIn') {
       if (!Array.isArray(value)) {
-        throw new RxdbAdapterPGliteError(`Operator ${operator} requires an array value`);
+        throw new RxdbAdapterPGliteError(`Operator ${operator} requires an array value`, INVALID_QUERY_ERROR_CODE);
       }
       const castType = prop.type === PropertyType.stringArray ? 'text[]' : 'numeric[]';
       params.push(value);
@@ -276,7 +289,7 @@ const build_rule_pg = (
 
   if (operator === 'in' || operator === 'notIn') {
     if (!Array.isArray(value)) {
-      throw new RxdbAdapterPGliteError(`Operator ${operator} requires an array value`);
+      throw new RxdbAdapterPGliteError(`Operator ${operator} requires an array value`, INVALID_QUERY_ERROR_CODE);
     }
     if (value.length === 0) return operator === 'in' ? '1=0' : '1=1';
     params.push(value.map(item => transformQueryValue(item, prop)));
@@ -285,7 +298,7 @@ const build_rule_pg = (
 
   if (operator === 'between' || operator === 'notBetween') {
     if (!Array.isArray(value) || value.length !== 2) {
-      throw new RxdbAdapterPGliteError(`Operator ${operator} requires a two-value array`);
+      throw new RxdbAdapterPGliteError(`Operator ${operator} requires a two-value array`, INVALID_QUERY_ERROR_CODE);
     }
     params.push(transformQueryValue(value[0], prop), transformQueryValue(value[1], prop));
     const sqlOperator = operator === 'between' ? 'BETWEEN' : 'NOT BETWEEN';
@@ -294,7 +307,7 @@ const build_rule_pg = (
 
   if (PATTERN_OPERATORS.has(operator)) {
     if (typeof value !== 'string') {
-      throw new RxdbAdapterPGliteError(`Operator ${operator} requires a string value`);
+      throw new RxdbAdapterPGliteError(`Operator ${operator} requires a string value`, INVALID_QUERY_ERROR_CODE);
     }
     const literal = escapeLikePattern(value);
     const pattern =
@@ -306,7 +319,7 @@ const build_rule_pg = (
   }
 
   if (!COMPARISON_OPERATORS.has(operator)) {
-    throw new RxdbAdapterPGliteError(`Unsupported query operator: ${operator}`);
+    throw new RxdbAdapterPGliteError(`Unsupported query operator: ${operator}`, INVALID_QUERY_ERROR_CODE);
   }
   params.push(transformQueryValue(value, prop));
   if (prop?.type === PropertyType.uuid) {
@@ -325,7 +338,7 @@ export const buildRuleGroupPG = <RG extends RuleGroup<EntityData> = RuleGroup<En
   const runtimeGroup = readRuleGroup(ruleGroup);
   const combinator = runtimeGroup.combinator.toLowerCase();
   if (combinator !== 'and' && combinator !== 'or') {
-    throw new RxdbAdapterPGliteError(`Invalid query combinator: ${runtimeGroup.combinator}`);
+    throw new RxdbAdapterPGliteError(`Invalid query combinator: ${runtimeGroup.combinator}`, INVALID_QUERY_ERROR_CODE);
   }
 
   const processedRules = runtimeGroup.rules
@@ -402,7 +415,7 @@ export const generate_count_sql = (
   options: CountOptions
 ): GenerateSqlResult => {
   if (options.groupBy) {
-    throw new RxdbAdapterPGliteError('groupBy not supported in count queries');
+    throw new RxdbAdapterPGliteError('groupBy not supported in count queries', INVALID_QUERY_ERROR_CODE);
   }
   validateEncryptedQuery(metadata, { where: options.where }, (name, namespace) =>
     adapter.rxdb.schemaManager.getEntityMetadata(name, namespace ?? metadata.namespace)

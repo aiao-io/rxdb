@@ -23,7 +23,7 @@
  * @module @aiao/rxdb-devtools/native/native-files-provider
  */
 
-import type { DevToolsProviderDescriptor } from '../provider/descriptor.js';
+import type { DevToolsProviderDescriptor, DevToolsProviderRuntime } from '../provider/descriptor.js';
 import { isValidPathSegment, joinLogicalPath, parseLogicalPath, splitLogicalPath } from '../provider/logical-path.js';
 import type { DevToolsSnapshotPorts, DevToolsSnapshotResult, DevToolsSnapshotStore } from '../provider/snapshot.js';
 import { createDevToolsSnapshotStore } from '../provider/snapshot.js';
@@ -90,6 +90,17 @@ export interface DevToolsNativeFilesProviderPorts {
   readonly filesystem: DevToolsNativeFilesystem;
   /** descriptor 声明的单次传输上限；必须是 host 的**真实**上限。 */
   readonly maxTransferBytes: number;
+  /**
+   * descriptor 显示用的宿主来源。
+   *
+   * @remarks
+   * **必填、无默认值**：`kind: 'native-files'` 是宿主无关的（Electron 与 Tauri 用同一个 kind、
+   * 同一套操作与状态机），能区分两端的只有这一个显示字段。给它一个默认值就等于让某一端在
+   * 忘记声明时静默自称成另一端——那是一条 fallback，而不是缺省。
+   *
+   * 只进 descriptor，不参与任何行为分支：同一个 kind 在不同 runtime 下的操作与限额必须相同。
+   */
+  readonly runtime: DevToolsProviderRuntime;
   /**
    * 诊断快照端口；给定时 provider 额外提供 snapshot 物化与分页（AC#48）。
    *
@@ -197,7 +208,7 @@ export function createDevToolsNativeFilesProvider(
     version: 1,
     kind: 'native-files',
     operations: ['list', 'download', 'upload', 'create-directory', 'delete'],
-    runtime: 'electron',
+    runtime: ports.runtime,
     limits: { maxTransferBytes: ports.maxTransferBytes }
   };
 

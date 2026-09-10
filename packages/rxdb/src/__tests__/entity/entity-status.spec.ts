@@ -5,6 +5,7 @@ import { EntityPatch, IEntityStatus } from '../../entity/entity-status.interface
 import { EntityStatus } from '../../entity/entity-status.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import type { EntityType } from '../../entity/entity.interface.js';
+import { setSafeObjectKey } from '../../entity/entity.utils.js';
 import {
   EntityRelationMetadata,
   PropertyType,
@@ -80,8 +81,19 @@ describe('EntityStatus', () => {
     meta!: Record<string, unknown>;
   }
 
+  /**
+   * 回填 `proxyTarget`——生产里由 `entity-manager` 建完代理后做同一件事
+   * （`#init_entity` 里的 `setSafeObjectKey(newStatus, 'proxyTarget', proxyEntity)`）。
+   *
+   * @remarks
+   * 走 `setSafeObjectKey` 而不是 `Reflect.set`：属性描述符要和生产一致（不可枚举、不可写、
+   * 不可重定义），否则这里装出来的 status 比真的宽松，`patch` 之类按 own key 遍历的逻辑
+   * 就可能在测试里表现得跟线上不一样。字段本身是 `IEntityStatus` 的公开只读属性，
+   * 不是私有状态；这些用例只是不经代理直接指到实体自己（`patch` 比较的是
+   * proxyTarget 与 origin，指同一对象即可算出差异）。
+   */
   const setProxyTarget = <T extends EntityType>(status: EntityStatus<T>, target: Partial<InstanceType<T>>) => {
-    Reflect.set(status, 'proxyTarget', target);
+    setSafeObjectKey(status, 'proxyTarget', target);
   };
 
   let rxdb: RxDB;
@@ -235,16 +247,17 @@ describe('EntityStatus', () => {
 
       // 模拟 proxyTarget。
       setProxyTarget(status, entity);
+      status.markChanged('title');
 
-      // 访问 patch 以创建缓存。
-      const firstPatch = status.patch;
-      expect(firstPatch).toBeDefined();
+      // origin 是构造时的深拷贝快照，此刻与 proxyTarget 逐字段相等 → 空 patch，并落缓存
+      expect(status.patch).toEqual({});
 
-      // 设置 modified 应清除缓存。
+      entity.title = 'Changed';
+      // 缓存还在，这次改动照不进来——先钉住「确实有缓存」，否则下一步的断言证明不了是它被清了
+      expect(status.patch).toEqual({});
+
       status.modified = true;
-
-      const secondPatch = status.patch;
-      expect(secondPatch).toBeDefined();
+      expect(status.patch).toEqual({ title: 'Changed' });
     });
   });
 
@@ -494,18 +507,20 @@ describe('EntityStatus', () => {
     });
 
     it('should clear fingerprint when modified is set', () => {
-      const entity = new TestEntity({ id: uuid(), title: 'Test', updatedAt: new Date() });
+      const entity = new TestEntity({ id: uuid(), title: 'Test', updatedAt: new Date(1000) });
       const status = new EntityStatus(rxdb, { target: entity });
 
       // 访问 fingerprint 以生成并缓存它。
       const fp1 = status.fingerprint;
-      expect(fp1).toBeDefined();
+      expect(fp1).toContain('@1000@');
+
+      // updatedAt 声明成 readonly（生产里由适配器保存后回填），这里照着回填那一下改值
+      Object.assign(entity, { updatedAt: new Date(2000) });
+      // 缓存还在，新的 updatedAt 照不进来——先钉住「确实有缓存」
+      expect(status.fingerprint).toBe(fp1);
 
       status.modified = true;
-      const fp2 = status.fingerprint;
-
-      // 应重新生成（值可能相同，但缓存已清除）
-      expect(fp2).toBeDefined();
+      expect(status.fingerprint).toContain('@2000@');
     });
 
     // RXD-052：指纹只由 `${id}@${updatedAt}` 构成时，任何**不改 updatedAt 的业务字段变化**

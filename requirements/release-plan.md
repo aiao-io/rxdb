@@ -59,23 +59,23 @@
      这也意味着算出来的版本号反映的是**提交信息的形态，不是改动的份量**——0.0.25 就是一个全新可发布包
      以 patch 发出去的例子，changelog 上看不出来。
    - 若要指定版本号，需显式传参覆盖推算结果。无论取哪个，**清单、tag、`packages/rxdb/package.json` 三处必须同为那个实际值**。
-   - **当前状态实测（2026-09-01 重测，HEAD `2cfd4f9`）**：`v0.0.25` 已脱离主线，
-     `git describe --tags --abbrev=0` 解析到的基准 tag 因此**回退成 `v0.0.24`**，
-     而 `v0.0.24..HEAD` 区间已从 8-29 那次实测的 30 条涨到 **104 条提交**，其中
-     **28 条 `feat` + 4 条 `fix`**，另有 **58 条非规范提交**（`123` / `234` 这类，nx 一律记 `none`）。
-     三个后果必须在动手前确认：
-     ① 桥接版本会算成 **minor bump（`0.1.0`）而不是 `0.0.26`**——区间越长这一条越确定，不会自己变回 patch；
+   - **当前状态实测（在 `main` 上量，HEAD `780c1ab`）**：`v0.0.25` 已脱离主线，
+     `git describe --tags --abbrev=0` 解析到的基准 tag 因此**回退成 `v0.0.24`**。
+     **区间必须在 `main` 上量，不能在 feature 分支上量**：tag 只打在 `main`，`nx release` 的输入是 `main`
+     的提交；feature 分支上的 `123` 这类中间提交经 squash 后不进 `main`，PR 标题才是留下的那一条。
+     `v0.0.24..main` 共 34 条提交：**18 条 `feat` + 3 条 `fix`**，4 条 `cleanup(...)` 是非标准类型、nx 记 `none`，
+     其余为 `chore` / `docs`。三个后果必须在动手前确认：
+     ① 桥接版本会算成 **minor bump（`0.1.0`）而不是 `0.0.26`**——只要区间里有一条 `feat` 就成立，不会自己变回 patch；
      ② 该区间**包含已随 0.0.25 发布过的提交**（`feat(rxdb): 完善桌面端访问本地 sqlite 的能力`、
-     `feat(rxdb): 优化字段语义与前端通信契约` 等），**changelog 会把 0.0.25 已发的内容再写一遍**，
-     且随区间变长，需要裁剪的量只增不减；
-     ③ 58 条非规范提交里**藏着真实改动**（US-505 / US-904 / US-905 的多轮落地都在其中），
-     它们对版本号贡献为零，changelog 也不会记——**changelog 会显著少于实际改动**，发布前须人工补写 release note。
+     `feat(rxdb): 优化字段语义与前端通信契约` 等），**changelog 会把 0.0.25 已发的内容再写一遍**，需人工裁剪；
+     ③ `cleanup(...)` 已加进 `nx.json` 的 `release.conventionalCommits.types`：`semverBump: none`、changelog 单列一节，
+     这 4 条对版本号仍贡献为零但不再从 changelog 消失；`__INVALID__`（非规范标题）同样只进 changelog 不 bump。
      先跑 `pnpm nx release version --dry-run` 看真实输出再决定，
-     见 [roadmap 零散收尾项第 3 条](roadmap.md#零散收尾项不成故事随手可带)。
+     见 [roadmap 零散收尾项第 1 条](roadmap.md#零散收尾项不成故事随手可带)。
 
 ### 执行顺序
 
-0. ~~**补齐门禁的 git 钩子面**~~ **已完成**（不依赖发布，已随本轮落地）：`migration-release-gate`
+0. **门禁的 git 钩子面已挂进 PR CI**（不依赖发布）：`migration-release-gate`
    已挂进 PR CI 的 `setup` job（`ci-template.yml` 的 “Migration release manifest gate”），**不带**
    `--release-tag`，用真实 git 执行 `bridgeTagExists` / `bridgeTagIsAncestor` /
    `bridgeTagSupportsProtocol`——单测里这三条被 `passingHooks` 桩掉，此前只在打 tag 时跑过。

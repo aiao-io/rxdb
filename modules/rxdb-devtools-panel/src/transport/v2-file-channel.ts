@@ -1,4 +1,9 @@
-import { createDevToolsError, type DevToolsPanelEndpoint, type DevToolsPanelRequestResult } from '@aiao/rxdb-devtools';
+import {
+  createDevToolsError,
+  type DevToolsChunkSink,
+  type DevToolsPanelEndpoint,
+  type DevToolsPanelRequestResult
+} from '@aiao/rxdb-devtools';
 import type {
   DevToolsFileChannel,
   DevToolsFileEntry,
@@ -76,6 +81,78 @@ function sourceOf(file: File): { totalBytes: number; read(offset: number, length
 }
 
 /**
+ * 攒齐字节再交给浏览器保存的 sink。
+ *
+ * @remarks
+ * # 为什么这一条**没有**做到流式
+ *
+ * `DevToolsChunkSink` 的形状（`write` 逐块 + 背压）是为「整文件绝不驻留内存」设计的，
+ * 而面板这一端做不到：真正的流式落盘只有 `showSaveFilePicker` + `FileSystemWritableFileStream`
+ * 一条路，它在这里拿不到——
+ *
+ * - WebKit（macOS / Linux 的 Tauri webview）根本没有 `showSaveFilePicker`，这条事实已被
+ *   `apps/dev-rxdb-tauri-e2e/src/desktop-webview-capability.spec.ts` 的能力表冻结；
+ * - 面板在 DevTools 里是一个**跨源 iframe**，File System Access 需要的权限策略在那里给不到。
+ *
+ * 所以这里如实写成「先攒后存」，并把代价标出来，而不是加一个几乎永远走不到的 picker 分支
+ * 假装自己是流式的——那种分支既没人执行，也会让读的人以为内存问题已经解决了。
+ *
+ * # 代价的边界
+ *
+ * 峰值内存 ≈ 文件大小，且面板与被检查页共享同一个渲染进程。真正的上界由协商出的
+ * `maxTransferBytes` 决定（三方最小值），provider 声明多大这里就可能占多大。
+ * 要把它降下来，该动的是 provider 的限额声明，不是这里再加一层缓冲。
+ */
+function createDownloadSink(fileName: string): DevToolsChunkSink {
+  // 元素类型钉成 `Uint8Array<ArrayBuffer>`：`Blob` 的构造签名不收 `SharedArrayBuffer` 背书的视图，
+  // 而 sink 契约给的是宽的 `Uint8Array`。下面 `write` 里那次拷贝正是把它收窄到这个类型。
+  const chunks: Uint8Array<ArrayBuffer>[] = [];
+  return {
+    write: async data => {
+      // 拷一份而不是存引用：契约只说「调用方不再持有它」，没承诺底层 buffer 不会被复用；
+      // 顺带把类型从宽的 `Uint8Array` 收窄成 `Blob` 收得下的那一种。
+      chunks.push(new Uint8Array(data));
+      return Promise.resolve();
+    },
+    commit: async () => {
+      // 只有走完整条 TRANSFER 状态机才会到这里；任何中途终态走的都是 discard。
+      saveBytesThroughAnchor(chunks, fileName);
+      chunks.length = 0;
+      return Promise.resolve();
+    },
+    discard: async () => {
+      // 幂等：取消、两道超时、写失败与 dispose 都可能触发它。
+      chunks.length = 0;
+      return Promise.resolve();
+    }
+  };
+}
+
+/**
+ * 用一次性 object URL + `<a download>` 把字节交给用户。
+ *
+ * @remarks
+ * `revokeObjectURL` 必须发生在 `click()` **之后**：撤销早于浏览器真正开始读取，
+ * 下载会静默变成一个 0 字节文件。放进 `setTimeout(0)` 是让点击先出栈。
+ */
+function saveBytesThroughAnchor(chunks: readonly Uint8Array<ArrayBuffer>[], fileName: string): void {
+  // 复制成可变数组而不是断言：`Blob` 的构造签名要 `BlobPart[]`，而 `Uint8Array` 本身就是合法
+  // 的 BlobPart，唯一的不匹配只是 readonly。用 `as` 绕过去会顺带把真正的类型错误一起放行。
+  const url = URL.createObjectURL(new Blob([...chunks], { type: 'application/octet-stream' }));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/** 从逻辑路径取末段作为保存文件名；根目录没有末段时用一个确定的占位名。 */
+function fileNameOf(path: string): string {
+  const segments = path.split('/').filter(segment => segment.length > 0);
+  return segments.at(-1) ?? 'download.bin';
+}
+
+/**
  * 解析当前可用的 v2 端点；宿主尚未连上或已断开时返回 `null`。
  *
  * @remarks
@@ -116,8 +193,21 @@ export function createDevToolsV2FileChannel(resolveEndpoint: DevToolsEndpointRes
     },
 
     async download(path) {
-      const result = await call('download', { path });
-      return result === null ? offline() : mapVoid(result);
+      const endpoint = resolveEndpoint();
+      if (endpoint === null) return offline();
+      const sink = createDownloadSink(fileNameOf(path));
+      // 走端点的 download（带 sink）而不是普通 `request`：只有前者会驱动 `TRANSFER_*` 状态机
+      // 把字节收回来。此前这里是 `call('download', …)`，于是面板只拿到一条成功应答、
+      // 一个字节都没收到——用户点了「下载」而什么都没发生，且没有任何报错。
+      // `requestId` **必须**穿进 params：provider 的 `download` 用它登记这次传输
+      // （`native-files-provider.ts` 的 `downloads.set(requestId, …)`），
+      // 之后端点取字节源时只带得了这一个 ID。漏掉它的表征是 provider 回 `invalid_path`，
+      // 与「路径真的不对」无法区分——与上面 upload 传 `transferId` 是同一条理由。
+      const result = await endpoint.download({ params: requestId => ({ requestId, path }), sink });
+      if (result.outcome === 'failed') return { outcome: 'failed', error: result.error };
+      // `delivered-at-source` 是成功但**字节没过 wire**（浏览器 OPFS 由页面自己保存）。
+      // 并进 `received` 会让这里去保存一个空 sink，正是端点把两者分开的理由。
+      return { outcome: 'ok', value: undefined };
     },
 
     async remove(path) {

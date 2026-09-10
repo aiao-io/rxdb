@@ -30,10 +30,11 @@ import { EntityBaseType, EntityStaticType } from '../entity/entity.interface.js'
 import type { QueryCacheEntityMetadata } from '../entity/metadata-options.interface.js';
 import { deterministicStringify } from '../rxdb-utils.js';
 import { NetworkOfflineError } from '../RxDBError.js';
-import { diffMetadata } from './diff-metadata.js';
+import { diffMetadata, type DiffResult } from './diff-metadata.js';
 import { isNetworkError } from './network-error.js';
 import { queryCacheFingerprint } from './query-cache-sync-memo.js';
 import type { RuleGroup } from './query.interface.js';
+import { isRemoteNewer } from './updated-at.utils.js';
 
 /**
  * QueryCache 实体约束接口
@@ -124,6 +125,16 @@ export interface QueryCacheFindOptions<T extends EntityBaseType> {
   /** 同步完成回调，用于获取性能统计信息 */
   onSyncStats?: (stats: SyncStats) => void;
   /**
+   * SWR 模式下**被吞掉的**远端校验失败的上报口。
+   *
+   * @remarks
+   * 缓存已经发射后，远端错误会被吞成 `EMPTY`（消费者已经拿到数据，再终结它的订阅没有意义）。
+   * 但「远端这次没校验成功」是内部记账必须知道的事实：不知道它，
+   * 「刚同步过」的记忆就会把一次失败的校验记成成功，整个窗口内不再重试。
+   * 本回调只上报，不改变流的行为。
+   */
+  onRemoteError?: (error: Error) => void;
+  /**
    * 本地缓存优先模式 (Stale-While-Revalidate)
    *
    * 当设置为 true 时：
@@ -158,8 +169,16 @@ export interface SyncStats {
   staleCount: number;
   /** 新鲜数量（无需同步） */
   freshCount: number;
-  /** 孤儿数量（本地有远程无） */
+  /** 孤儿数量（本地有远程无），已扣掉被出站队列占着、本轮没删的那些 */
   orphanCount: number;
+  /**
+   * 因为还压在出站队列里而被本轮跳过的行数。
+   *
+   * @remarks
+   * 与 `missingCount` / `staleCount` / `orphanCount` 不重叠：那三个报的是**真的执行了**的
+   * 动作数，被跳过的行只算进这里。持续不归零说明出站队列推不动 —— 那才是要看的问题。
+   */
+  heldCount: number;
   /** 实际拉取数量 */
   pulledCount: number;
   /** 耗时（毫秒） */
@@ -182,9 +201,9 @@ const rowId = (entity: unknown): string => (entity as QueryCacheEntity).id;
  * @remarks
  * 必须归一，因为本地出口换成 `IRepository` 之后（US-020 D8）读回来的是**实体实例**，
  * 而 `updatedAt` 在实体上是 `Date`（`PropertyType.date` 存 TEXT、读成 `Date`）。
- * {@link diffMetadata} 按 ISO 字典序比较，`'2026-08-09T…' > new Date(…)` 会先把两边
- * 按 number 提示取原始值 —— 字符串那侧转成 `NaN`，比较**恒为 false**，于是所有行都判 fresh、
- * 远端的更新永远拉不下来。这是静默的：查询照常返回，只是内容停在第一次同步的那一刻。
+ * {@link diffMetadata} 收的是时间**字符串**。直接把 `Date` 传进去，比较会先按 number 提示
+ * 取原始值 —— 字符串那侧转成 `NaN`，结果恒为 false，于是所有行都判新鲜、远端更新永远拉不下来。
+ * 这是静默的：查询照常返回，只是内容停在第一次同步的那一刻。故此处统一归一成 ISO 字符串。
  */
 const rowUpdatedAt = (entity: unknown): string => {
   const updatedAt = (entity as { updatedAt: unknown }).updatedAt;
@@ -205,13 +224,64 @@ const toOfflineError = (error: unknown): NetworkOfflineError =>
   error instanceof NetworkOfflineError ? error : new NetworkOfflineError(error as Error);
 
 /**
+ * 查询出站队列此刻占着哪些实体 id。
+ *
+ * @returns 还没推回远端的那些实体 id
+ *
+ * @remarks
+ * 生产实现是 `pendingQueryCacheWriteIds`；它读的是 `rxdb_change`，与出站队列重放的
+ * 取行条件同源。本类只认这个函数，不认版本管理器 —— 缓存仓储不该反向依赖同步子系统。
+ */
+export type QueryCachePendingWriteIds = () => Promise<ReadonlySet<string>>;
+
+/** 一轮 reconcile 摘掉出站队列占用之后，真正要执行的动作 */
+interface ReconcilePlan<R> {
+  /** 本轮真的要删的孤儿 */
+  orphanIds: string[];
+  /** 本轮真的要拉的 missing + stale */
+  pullIds: string[];
+  /** 结果里保留的本地行：新鲜行 + 被队列占着而没动的行 */
+  keptRows: R[];
+  /** 因为队列占着而被跳过的动作数 */
+  heldCount: number;
+}
+
+/**
+ * 把 diff 结果按「出站队列占着的行一步都不许动」摘一遍。
+ *
+ * @param diff - {@link diffMetadata} 的分类结果
+ * @param localRows - 本次 `where` 的本地投影
+ * @param pending - 出站队列占着的实体 id
+ * @returns 摘完之后的执行计划
+ *
+ * @remarks
+ * 三条支路一起摘，因为三种离线写各落一条：新建落 `orphanIds`（远端还没这一行），
+ * 删除落 `missingIds`（远端还留着，拉回来就是复活），修改落 `staleIds`
+ * （远端那一版更新，盖回来等于绕过 `conflictResolver` 直接判本地输）。
+ *
+ * 被占的行照旧留在返回结果里：它是本地真相，只是远端还没见过。删除那一支本来就不在
+ * 本地投影里，`filter` 自然取不到，不必单独判。
+ */
+function planReconcile<R>(diff: DiffResult, localRows: R[], pending: ReadonlySet<string>): ReconcilePlan<R> {
+  const held = new Set([...diff.orphanIds, ...diff.missingIds, ...diff.staleIds].filter(id => pending.has(id)));
+  const keepIds = new Set([...diff.freshIds, ...held]);
+
+  return {
+    orphanIds: diff.orphanIds.filter(id => !held.has(id)),
+    pullIds: [...diff.missingIds, ...diff.staleIds].filter(id => !held.has(id)),
+    keptRows: localRows.filter(row => keepIds.has(rowId(row))),
+    heldCount: held.size
+  };
+}
+
+/**
  * QueryCache 同步策略仓库
  *
  * @typeParam T - 实体类型
  *
  * @example
  * ```typescript
- * const repo = new QueryCacheRepository('Product', remoteAdapter, localAdapter);
+ * const repo = new QueryCacheRepository('Product', remoteAdapter, localAdapter, localReader, pendingWriteIds);
  *
  * // 查询 - 自动增量同步
  * const products = await firstValueFrom(repo.find({ where: { combinator: 'and', rules: [] } }));
@@ -227,6 +297,9 @@ const toOfflineError = (error: unknown): NetworkOfflineError =>
  * 远端对 `where` 的答复是权威的：本次 `where` 的本地投影里、远端没有返回的行一律是孤儿，
  * 同步时删除（US-020 AC#11）。删除范围严格限定在该投影内 —— 不匹配 `where` 的本地行
  * 不在本次问题域里，不能因为「远端没提」就被清掉。
+ *
+ * @experimental 直接 `new` 本类不在 1.0 兼容承诺内；稳定面是 `SyncType.QueryCache` 经
+ * {@link Repository} 的间接路径。层级口径见 `requirements/versioning-policy.md`「实验性层级」。
  */
 export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
   /** 并发查询去重缓存 - 使用查询指纹作为 key */
@@ -251,12 +324,14 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
    * @param remoteAdapter - 远端适配器
    * @param localAdapter - 本地适配器，负责写侧（upsert / delete）与单实体元数据
    * @param localReader - 本地行读取出口，通常是该实体的本地 `IRepository`（US-020 D8）
+   * @param pendingWriteIds - 出站队列此刻占着哪些 id；每轮同步在写之前问一次
    */
   constructor(
     entityName: string,
     private readonly remoteAdapter: QueryCacheRemoteAdapter,
     private readonly localAdapter: QueryCacheLocalAdapter,
-    private readonly localReader: QueryCacheLocalReader<InstanceType<T>>
+    private readonly localReader: QueryCacheLocalReader<InstanceType<T>>,
+    private readonly pendingWriteIds: QueryCachePendingWriteIds
   ) {
     this.entityName = entityName;
   }
@@ -380,12 +455,19 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
       rules: [{ field: 'id', operator: '=', value: id }]
     };
 
-    // Step 1: 同时获取远程和本地元数据
+    // Step 1: 同时获取远程元数据、本地元数据、出站队列占用
     return forkJoin({
       remoteMetadata: this.remoteAdapter.fetchMetadata(this.entityName, idFilter),
-      localMetadata: this.localAdapter.getMetadataByIds(this.entityName, [id])
+      localMetadata: this.localAdapter.getMetadataByIds(this.entityName, [id]),
+      pending: defer(() => this.pendingWriteIds())
     }).pipe(
-      switchMap(({ remoteMetadata, localMetadata }) => {
+      switchMap(({ remoteMetadata, localMetadata, pending }) => {
+        // 队列占着这一行时，本地那一版是权威：远端的答复还没见过它。
+        // 读不到本地行（离线删除那一支）就是 null —— 那正是用户看到的状态。
+        if (pending.has(String(id))) {
+          return this.#readLocalByIds([String(id)]).pipe(map(data => data[0] ?? null));
+        }
+
         // 远程没有该实体
         if (remoteMetadata.length === 0) {
           return of(null);
@@ -395,7 +477,8 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
         const localUpdatedAt = localMetadata.get(id);
 
         // 本地有且是新鲜的
-        if (localUpdatedAt && localUpdatedAt >= remoteUpdatedAt) {
+        // 比时间点不比字符串：两侧格式来自不同后端，字典序会把同一时刻判成过期（见 isRemoteNewer）
+        if (localUpdatedAt && !isRemoteNewer(remoteUpdatedAt, localUpdatedAt, `QueryCache: 实体 '${id}' 的`)) {
           return this.#readLocalByIds([id]).pipe(map(data => data[0] ?? null));
         }
 
@@ -541,7 +624,13 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
         const newFingerprint = this.#computeDataFingerprint(data);
         return newFingerprint !== cachedFingerprint;
       }),
-      catchError((error: unknown) => (cacheEmitted ? EMPTY : throwError(() => error)))
+      catchError((error: unknown) => {
+        if (!cacheEmitted) return throwError(() => error);
+        // 吞掉是对消费者流的决定；但必须上报，否则调用方无从区分
+        // 「远端校验成功」和「远端失败被吞了」（见 onRemoteError）
+        options.onRemoteError?.(error instanceof Error ? error : new Error(String(error)));
+        return EMPTY;
+      })
     );
 
     // 使用 concat：先发射缓存，再发射远程结果
@@ -690,6 +779,19 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
    * @param localRows - 本次 `where` 的本地投影
    * @param startTime - 同步起始时刻，用于 `durationMs`
    * @param generation - 同步开始前的作废代次，两个写动作各自据此判是否还该落地
+   *
+   * @remarks
+   * 「远端权威」这条判据只对**远端投影**成立。还压在出站队列里的行远端根本没见过，
+   * 它的沉默不是权威答复，只是没收到 —— 所以先问一次队列，把它占着的行整个摘出去
+   * （{@link planReconcile}）。摘不出来就上抛，一个字节都不写：读不到队列时任何一次
+   * 删或盖都是赌，赌输了是用户数据。
+   *
+   * 队列在写之前问、不在 `fetchMetadata` 之前问：远端往返这段时间正是离线写最可能落进来
+   * 的窗口，早问等于没问。判据与 {@link QueryCacheRepository.#isCurrent} 同理。
+   *
+   * 残余竞态：问完队列到 `deleteByIds` 落地之间仍有一段异步窗口，那期间新排进队列的写
+   * 会被本轮当成孤儿。收窄它需要把「读队列 + 写缓存」放进同一个本地事务，那是本地适配器
+   * 层的能力，不在本类的问题域内。
    */
   #reconcile(
     options: QueryCacheFindOptions<T>,
@@ -700,22 +802,55 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
   ): Observable<InstanceType<T>[]> {
     const localMetadata = new Map(localRows.map(entity => [rowId(entity), rowUpdatedAt(entity)]));
     const diff = diffMetadata(remoteMetadata, localMetadata);
-    const freshIds = new Set(diff.freshIds);
-    const freshRows = localRows.filter(entity => freshIds.has(rowId(entity)));
 
-    return this.#evictOrphans(diff.orphanIds, generation).pipe(
-      switchMap(() => this.#pull([...diff.missingIds, ...diff.staleIds], generation)),
+    return defer(() => this.pendingWriteIds()).pipe(
+      switchMap(pending => {
+        const plan = planReconcile(diff, localRows, pending);
+        return this.#applyPlan(options, plan, diff, remoteMetadata.length, startTime, generation);
+      })
+    );
+  }
+
+  /**
+   * 执行一份 reconcile 计划：删孤儿 → 拉缺失/陈旧 → 合并结果并报统计。
+   *
+   * @param options - 原始查询选项，取 `onSyncStats`
+   * @param plan - {@link planReconcile} 摘完出站队列占用之后的动作
+   * @param diff - 原始 diff，只用来取 `freshCount`
+   * @param remoteCount - 远端元数据条数
+   * @param startTime - 同步起始时刻，用于 `durationMs`
+   * @param generation - 同步开始前的作废代次
+   *
+   * @remarks
+   * `missingCount` / `staleCount` / `orphanCount` 报的是**真的执行了**的动作数，
+   * 不是 diff 的原始分类：报原始分类会让 `pulledCount` 对不上，用户读成「拉丢了几行」。
+   * 被跳过的那些单独进 `heldCount`。
+   */
+  #applyPlan(
+    options: QueryCacheFindOptions<T>,
+    plan: ReconcilePlan<InstanceType<T>>,
+    diff: DiffResult,
+    remoteCount: number,
+    startTime: number,
+    generation: number
+  ): Observable<InstanceType<T>[]> {
+    const missing = new Set(diff.missingIds);
+    const missingCount = plan.pullIds.filter(id => missing.has(id)).length;
+
+    return this.#evictOrphans(plan.orphanIds, generation).pipe(
+      switchMap(() => this.#pull(plan.pullIds, generation)),
       map(pulledRows => {
         this.#reportSyncStats(options.onSyncStats, {
-          remoteCount: remoteMetadata.length,
-          missingCount: diff.missingIds.length,
-          staleCount: diff.staleIds.length,
+          remoteCount,
+          missingCount,
+          staleCount: plan.pullIds.length - missingCount,
           freshCount: diff.freshIds.length,
-          orphanCount: diff.orphanIds.length,
+          orphanCount: plan.orphanIds.length,
+          heldCount: plan.heldCount,
           pulledCount: pulledRows.length,
           durationMs: Date.now() - startTime
         });
-        return [...freshRows, ...pulledRows];
+        return [...plan.keptRows, ...pulledRows];
       })
     );
   }

@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastService } from '../components/toast.component';
 import { FakeDevToolsFileChannel } from '../testing';
-import { DEVTOOLS_FILE_CHANNEL, type DevToolsFileEntry } from '../transport';
+import { DEVTOOLS_FILE_CHANNEL, type DevToolsFileEntry, type DevToolsFileResult } from '../transport';
 import type { OPFSFile } from '../types/devtools.types';
 import { OpfsService } from './opfs.service';
 
@@ -181,5 +181,93 @@ describe('OpfsService', () => {
     await expect(service.createDirectory('docs')).resolves.toBe(false);
     expect(toast.error).toHaveBeenLastCalledWith('创建失败: 同名条目已存在');
     expect(fileChannel.calls).toHaveLength(3);
+  });
+
+  describe('out-of-order listings', () => {
+    type Listing = DevToolsFileResult<readonly DevToolsFileEntry[]>;
+    /** 按路径挂起的 `list()`，由测试决定谁先回来——传输层并发 32、允许乱序，这不是假设出来的场景。 */
+    let pending: Map<string, (listing: Listing) => void>;
+
+    const settle = (path: string, entries: readonly DevToolsFileEntry[]): void => {
+      const resolve = pending.get(path);
+      if (resolve === undefined) throw new Error(`no pending list() for ${path}`);
+      resolve({ outcome: 'ok', value: entries });
+    };
+
+    beforeEach(() => {
+      pending = new Map();
+      vi.spyOn(fileChannel, 'list').mockImplementation(
+        path =>
+          new Promise<Listing>(resolve => {
+            pending.set(path, resolve);
+          })
+      );
+    });
+
+    it('discards a late listing for a path the user has already left', async () => {
+      service.currentPath.set('/a');
+      const first = service.refresh();
+      service.currentPath.set('/b');
+      const second = service.refresh();
+
+      settle('/b', [{ name: 'b.txt', kind: 'file', path: 'b/b.txt' }]);
+      await second;
+      settle('/a', [{ name: 'a.txt', kind: 'file', path: 'a/a.txt' }]);
+      await first;
+
+      // 用户此刻站在 /b：files() 若持有 /a 的内容，接下来的删除/下载就会打在已经离开的目录上。
+      expect(service.currentPath()).toBe('/b');
+      expect(service.files()).toEqual([{ name: 'b.txt', path: '/b/b.txt', type: 'file' }]);
+      expect(service.loading()).toBe(false);
+    });
+
+    it('keeps loading while the newest listing is still in flight, even after an older one settles', async () => {
+      service.currentPath.set('/a');
+      const first = service.refresh();
+      service.currentPath.set('/b');
+      const second = service.refresh();
+
+      settle('/a', [{ name: 'a.txt', kind: 'file', path: 'a/a.txt' }]);
+      await first;
+      expect(service.files()).toEqual([]);
+      expect(service.loading()).toBe(true);
+
+      settle('/b', [{ name: 'b.txt', kind: 'file', path: 'b/b.txt' }]);
+      await second;
+      expect(service.files()).toEqual([{ name: 'b.txt', path: '/b/b.txt', type: 'file' }]);
+      expect(service.loading()).toBe(false);
+    });
+  });
+
+  it('confirms an upload against the directory it was sent to, not the directory the user is looking at now', async () => {
+    fileChannel.seed('/docs', []);
+    service.currentPath.set('/docs');
+    let release!: () => void;
+    const send = fileChannel.upload.bind(fileChannel);
+    // 调用记录在发起时就落下（与真信道一致），落盘则等到 release() 之后才可观测。
+    vi.spyOn(fileChannel, 'upload').mockImplementation(async (path, file) => {
+      const result = send(path, file);
+      await new Promise<void>(resolve => {
+        release = resolve;
+      });
+      return result;
+    });
+
+    const uploading = service.upload(new File(['x'], 'data.bin'));
+    // 字节还在传输时用户回到了根目录。
+    service.navigateTo('/');
+    await vi.waitFor(() => expect(service.loading()).toBe(false));
+    release();
+
+    await expect(uploading).resolves.toBe(true);
+    expect(toast.success).toHaveBeenCalledWith('上传成功: data.bin');
+    // 确认看的是 /docs 的清单；根目录的视图不能被 /docs 的内容顶掉。
+    expect(fileChannel.calls).toEqual([
+      { op: 'upload', path: '/docs', name: 'data.bin' },
+      { op: 'list', path: '/' },
+      { op: 'list', path: '/docs' }
+    ]);
+    expect(service.currentPath()).toBe('/');
+    expect(service.files().map(entry => entry.name)).toEqual(['alpha', 'beta', 'a.txt', 'z.txt']);
   });
 });

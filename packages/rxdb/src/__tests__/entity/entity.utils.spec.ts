@@ -370,17 +370,19 @@ describe('entity.utils', () => {
       ).toEqual({ title: 'updated', count: 5 });
     });
 
+    // 列名从关系对象上取，不再按下标去 foreignKeyColumnNames 里配对 ——
+    // 那两个平行数组长度一旦不等就会把值写进相邻的列，且完全无声。
     it('使用物理列名并过滤 readonly 外键', () => {
       const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
         propertyMap: new Map([
           ['displayName', { columnName: 'display_name', readonly: false }],
           ['immutable', { columnName: 'immutable', readonly: true }]
         ]),
-        foreignKeyNames: ['ownerId', 'reviewerId'],
-        foreignKeyColumnNames: ['owner_id', 'reviewer_id'],
         foreignKeyRelationMap: new Map([
-          ['ownerId', {}],
-          ['reviewerId', { readonly: true }]
+          ['ownerId', { columnName: 'owner_id' }],
+          ['reviewerId', { columnName: 'reviewer_id', readonly: true }]
         ])
       } as unknown as EntityMetadata;
 
@@ -394,16 +396,31 @@ describe('entity.utils', () => {
       ).toEqual({ display_name: 'updated', owner_id: 'owner-1' });
     });
 
-    it('外键列名缺失时回退到属性名并忽略未知关系', () => {
+    it('未出现在更新数据里的外键不写入结果', () => {
       const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
         propertyMap: new Map(),
-        foreignKeyNames: ['ownerId', 'unknownId', 'absentId'],
-        foreignKeyRelationMap: new Map([['ownerId', { readonly: false }]])
+        foreignKeyRelationMap: new Map([
+          ['ownerId', { columnName: 'owner_id' }],
+          ['absentId', { columnName: 'absent_id' }]
+        ])
       } as unknown as EntityMetadata;
 
-      expect(normalizeUpdateEntity(metadata, { ownerId: 'owner-1', unknownId: 'unknown-1' })).toEqual({
-        ownerId: 'owner-1'
-      });
+      expect(normalizeUpdateEntity(metadata, { ownerId: 'owner-1' })).toEqual({ owner_id: 'owner-1' });
+    });
+
+    // 从前缺 columnName 会退回属性名，把值写进一个通常并不存在的列；建表阶段不报错，
+    // 写入阶段才炸，且错误信息与真正的原因（元数据没装好）无关。
+    it('外键关系缺少 columnName 时抛错并点名该关系', () => {
+      const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
+        propertyMap: new Map(),
+        foreignKeyRelationMap: new Map([['ownerId', {}]])
+      } as unknown as EntityMetadata;
+
+      expect(() => normalizeUpdateEntity(metadata, { ownerId: 'owner-1' })).toThrow(/ownerId.*columnName/);
     });
   });
 

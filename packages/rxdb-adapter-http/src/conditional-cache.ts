@@ -11,9 +11,16 @@
  * 持有的 ETag 一致；一旦变了它会回 200 带新 body。缓存的正确性由 HTTP 协议本身担保，
  * 不依赖任何人来通知失效——这正是 AC#28 能归本包、而 AC#29 / #30 拿不到 owner 的分界。
  *
- * **缓存按适配器实例存活，且不进指纹的是 header。** auth hook 产出的 token 不参与键控，
- * 所以同一实例上**换用户**必须走 `disconnect()` / `connect()`：那会清空并重建缓存。
- * 把 header 塞进指纹会让每次 token 轮换都全量失效，等于没有缓存。
+ * **缓存按适配器实例存活，三组 header 只有一组进指纹。** 请求发出前有三处叠加 header：
+ * 适配器级静态配置、handler 在 `HttpRequestSpec.headers` 上给的、auth hook 产出的。
+ *
+ * - **auth hook 不进指纹。** token 每轮换一次就全量失效，等于没有缓存。代价必须写明：
+ *   同一实例上**换用户**必须走 `disconnect()` / `connect()`，那会清空并重建缓存。
+ * - **适配器级静态配置不进指纹。** 它对本实例的每个请求都一样，而缓存正是按实例存活的，
+ *   进去只是给每条键加同一段前缀。
+ * - **handler 给的进指纹。** 它是唯一逐请求变化的一组：同一条 URL 上按租户 / 语言分投影时，
+ *   method + url + body 三者完全相同。少了这一维就是两条不同的请求共用一个条目——
+ *   而共用的后果不是未命中，是答错，见 {@link requestFingerprint}。
  */
 
 /** 写入缓存的一条已校验过的响应 */
@@ -49,25 +56,56 @@ export interface ConditionalCacheHit {
 const cloneValue = (value: unknown): unknown => structuredClone(value);
 
 /**
+ * 把 handler 给的 header 编码成与书写顺序无关的形式。
+ *
+ * @remarks
+ * 必须排序：`JSON.stringify` 照对象的插入序编码，而 header 之间没有顺序可言——
+ * 不排的话 handler 换个字面书写顺序就等于换了个键，缓存静默全失效。
+ *
+ * **不折叠大小写。** 名字的归一由 transport 的 `mergeHeaders` 一家负责，本函数拿到的
+ * 已经是归一过的；在这里再折一次就是同一条规则有两个实现，迟早分叉。
+ *
+ * 比较器不写 `0` 分支：对象的键天然互不相同，那一支永远走不到。
+ */
+const encodeVariant = (variant?: Record<string, string>): [string, string][] => {
+  const entries = Object.entries(variant ?? {});
+  entries.sort(([left], [right]) => (left < right ? -1 : 1));
+  return entries;
+};
+
+/**
  * 计算请求指纹。
  *
  * @remarks
- * 三元组取 method + **已拼接的绝对 URL** + **序列化后的 body 字符串**，与真正发出去的
+ * 前三段取 method + **已拼接的绝对 URL** + **序列化后的 body 字符串**，与真正发出去的
  * 字节一一对应。不自己再规范化一次 body：transport 发出的就是这个字符串，两处各算一遍
  * 迟早分叉，而分叉的表现是「换了个键」——那是缓存未命中，不是错误结果。
  *
- * headers 不进指纹，理由见模块头。
+ * 第四段是 handler 给的 header，三组 header 里只有它进指纹，分组理由见模块头。它治的是
+ * **答错**而不是未命中：同一条 URL 上按租户分投影时，两个租户的 method / url / body 全同，
+ * 共用条目会让 A 的 ETag 被拿去问 B。服务端若不按该 header 变更 ETag 就回 304，
+ * B 于是收到 A 的行；并发时更硬——`singleFlight` 直接把 B 合流进 A，一个字节都不上网。
  *
- * 用 `JSON.stringify` 拼三元组而不是模板串：分隔符方案要额外论证「三段里都不含分隔符」，
+ * 反向的偏差都只是未命中，可以接受：`spec.headers` 的值未经 `Headers` 规范化
+ * （`' a '` 与 `'a'` 在这里是两个键，发到线上却是同一个），被 auth hook 覆盖掉的
+ * `spec.headers` 也照样计入。
+ *
+ * 用 `JSON.stringify` 拼数组而不是模板串：分隔符方案要额外论证「每段里都不含分隔符」，
  * 而论证失败的代价是**指纹碰撞**——拿 A 请求的缓存回答 B 请求，比缓存未命中严重得多。
  * 数组编码天然无歧义，顺带把 `undefined`（无 body）与 `''`（空 body）分成两个键。
  *
  * @param method - HTTP 方法
  * @param url - 已拼接的绝对 URL
  * @param body - 序列化后的请求体；无 body 时为 `undefined`
+ * @param variant - handler 给的 header，**名字须已折成小写**；无则不传。
+ *   不传与传 `{}` 同键——handler 有条件地拼 header 时那是同一个请求
  */
-export const requestFingerprint = (method: string, url: string, body?: string): string =>
-  JSON.stringify([method, url, body ?? null]);
+export const requestFingerprint = (
+  method: string,
+  url: string,
+  body?: string,
+  variant?: Record<string, string>
+): string => JSON.stringify([method, url, body ?? null, encodeVariant(variant)]);
 
 /**
  * 有界 LRU 响应缓存 + 按指纹的 single-flight 去重。

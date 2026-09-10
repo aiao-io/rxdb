@@ -53,8 +53,8 @@ INVEST 检查清单:
 ## 设计原则、设计决策与字段语义契约
 
 设计原则（核心不变式）、设计决策 **D1～D13**、Teable 字段映射与字段语义契约（format / 注册期校验规则 /
-通信 DTO / 值校验扩展）全文见
-[specs/003-field-semantic-metadata/spec.md](../../../specs/003-field-semantic-metadata/spec.md)。
+通信 DTO / 值校验扩展）全文见已随实现归档的 spec（目录已删除，用
+`git show 780c1ab:specs/003-field-semantic-metadata/spec.md` 读取）。
 验收标准里的 `D#` 引用指向该文件的对应小节。
 
 ## 范围边界

@@ -47,6 +47,7 @@ type ChangeRepositoryMock = {
 
 type AdapterMock = {
   switchBranch: ReturnType<typeof vi.fn>;
+  mergeChanges: ReturnType<typeof vi.fn>;
   getRxDBChangeSequence: ReturnType<typeof vi.fn>;
   getRepository: ReturnType<typeof vi.fn>;
   transaction: ReturnType<typeof createTransactionStub>;
@@ -156,6 +157,7 @@ describe('VersionManager', () => {
     });
     mockAdapter = {
       switchBranch: vi.fn().mockResolvedValue(undefined),
+      mergeChanges: vi.fn().mockResolvedValue(undefined),
       getRxDBChangeSequence: vi.fn().mockResolvedValue(100),
       getRepository,
       // `getCurrentBranch` 的冷路径（查不到激活分支）现在开事务；事务内的仓库转发回同一组 mock。
@@ -633,13 +635,14 @@ describe('VersionManager', () => {
       const result = await versionManager.restoreEntity<typeof RestoreTestEntity>(entity, { changeId: '42' });
 
       expect(result).toEqual({ id: 'entity-1', name: 'restored' });
-      expect(mockAdapter.switchBranch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          branchId: 'main',
-          actions: expect.objectContaining({
-            inserts: expect.any(Map)
-          })
-        })
+      // 必须走 mergeChanges 而不是 switchBranch：各适配器的 switch_branch 第一步就是
+      // remove_all_triggers_sql，恢复出来的行不会产生任何 change 行，这条恢复无法被推送
+      // 也无法被撤销。第三个参数 disableTriggers=false 正是"让触发器照常记账"。
+      expect(mockAdapter.switchBranch).not.toHaveBeenCalled();
+      expect(mockAdapter.mergeChanges).toHaveBeenCalledWith(
+        expect.objectContaining({ inserts: expect.any(Map) }),
+        undefined,
+        false
       );
     });
 
@@ -690,6 +693,7 @@ describe('VersionManager', () => {
 
       // 身份不符时不得触碰数据
       expect(mockAdapter.switchBranch).not.toHaveBeenCalled();
+      expect(mockAdapter.mergeChanges).not.toHaveBeenCalled();
     });
 
     it('should throw when the restore produced no row instead of returning undefined', async () => {

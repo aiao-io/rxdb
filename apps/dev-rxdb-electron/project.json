@@ -110,7 +110,7 @@
     },
     "electron-build": {
       "//": "ELEC-23：tsc 之后必须再跑一次 esbuild，配置见 tools/bundle-desktop-host.mjs（三个调用点共用的唯一定义）。见 desktop-sqlite-bridge.spec.ts。",
-      "//electronDist": "同 electron-package-dir：electron-builder 读 electronDist 前先触发 Electron 42+ 的懒下载。",
+      "//electronDist": "同 electron-package-dir：electron-builder 读 electronDist 前先触发 Electron 42+ 的懒下载。必须按相对路径 require，与 electron-builder.json 的 electronDist 指同一份拷贝。",
       "dependsOn": ["build"],
       "executor": "nx:run-commands",
       "options": {
@@ -132,7 +132,7 @@
             "forwardAllArgs": false
           },
           {
-            "command": "node -e \"require('electron')\"",
+            "command": "node -e \"require('../../node_modules/electron')\"",
             "forwardAllArgs": false
           },
           {
@@ -146,7 +146,7 @@
     },
     "electron-package-dir": {
       "//": "ELEC-10：只解包不做安装器（--dir），给 e2e 一个可直接启动的真实产物。使用 electron-builder.dir.json 禁用签名（--dir 无需签名）。electron-builder 自带下载缓存，无需手动管理。",
-      "//electronDist": "Electron 42+ 的二进制没有 postinstall，首次 require 才懒下载到 node_modules/electron/dist；electron-builder 读 electronDist 之前必须先触发一次，否则 CI 新 runner / 新 clone 上 dist 不存在，直接报 electronDist does not exist。",
+      "//electronDist": "Electron 42+ 的二进制没有 postinstall，首次 require 才懒下载到 node_modules/electron/dist；electron-builder 读 electronDist 之前必须先触发一次，否则 CI 新 runner / 新 clone 上 dist 不存在，直接报 electronDist does not exist。注意必须写成 ../../node_modules/electron 而非裸 'electron'：cwd 是 apps/dev-rxdb-electron，裸 require 会解析到 app 级软链，一旦它与根级软链指向不同版本（升级后 app 级链未刷新），懒下载会落到另一份拷贝，electron-builder 读到的 electronDist 仍然为空。",
       "dependsOn": ["build"],
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/dist/apps/dev-rxdb-electron/release"],
@@ -169,7 +169,7 @@
             "forwardAllArgs": false
           },
           {
-            "command": "node -e \"require('electron')\"",
+            "command": "node -e \"require('../../node_modules/electron')\"",
             "forwardAllArgs": false
           },
           {

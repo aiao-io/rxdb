@@ -20,6 +20,7 @@ import {
   HttpChangelogUnsupportedError,
   HttpConfigError,
   HttpDisconnectedError,
+  HttpHandlerContractError,
   HttpResponseError,
   HttpUnsupportedOperationError,
   HttpUnsupportedWireTypeError
@@ -113,7 +114,8 @@ const writeHandlers: Pick<HttpHandlers, 'onCreate' | 'onUpdate' | 'onDelete'> = 
 const createRxdb = (entities: EntityType[] = [], sync: SyncOptions = LOCAL_ONLY): RxDB =>
   new RxDB({ dbName: 'rxdb-adapter-http-spec', entities, sync });
 
-const createAdapter = (
+/** 只构造、不连接。验构造期行为、`connect()` 本身、以及「从未连接」语义的用例用它 */
+const buildAdapter = (
   options: Partial<HttpAdapterOptions> = {},
   entities: EntityType[] = [],
   sync: SyncOptions = LOCAL_ONLY
@@ -123,6 +125,26 @@ const createAdapter = (
     handlers: minimalHandlers,
     ...options
   });
+
+/**
+ * 构造并连接。
+ *
+ * @remarks
+ * 读写 duck 一律要求 `connect()` 成功走完过一遍——那是 bigint / binary 线格式扫描的
+ * 唯一触发点。demo 应用也是这条口径（`rxdb.connect('wa-sqlite')` 与 `rxdb.connect('http')`
+ * 各连一次），因为 core 的 `getAdapter()` 明说不代劳。碰 duck 的用例都得走这里；
+ * `disconnect` 那组尤其不能省：省了的话「断开后抛错」会因为「从未连接也抛错」
+ * 而无条件成立，断言就空了。
+ */
+const createAdapter = async (
+  options: Partial<HttpAdapterOptions> = {},
+  entities: EntityType[] = [],
+  sync: SyncOptions = LOCAL_ONLY
+): Promise<RxDBAdapterHttp> => {
+  const adapter = buildAdapter(options, entities, sync);
+  await adapter.connect();
+  return adapter;
+};
 
 /** 依次返回排好队的响应；`Error` 表示这次 fetch 直接 reject */
 const queueResponses = (items: (Response | Error)[]): ReturnType<typeof vi.fn> => {
@@ -147,7 +169,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe('RxDBAdapterHttp 注册与身份（AC#1）', () => {
   it('ADAPTER_NAME 与实例 name 都是 http', () => {
     expect(ADAPTER_NAME).toBe('http');
-    expect(createAdapter().name).toBe('http');
+    expect(buildAdapter().name).toBe('http');
   });
 
   it('注册后可由 rxdb.getAdapter 解析为同一实例', async () => {
@@ -172,29 +194,29 @@ describe('构造期配置校验（AC#31）', () => {
     ['requestTimeoutMs', Number.POSITIVE_INFINITY],
     ['maxEmptyPages', -1]
   ])('%s = %p 在构造期即抛 HttpConfigError', (field, value) => {
-    expect(() => createAdapter({ [field]: value })).toThrow(HttpConfigError);
+    expect(() => buildAdapter({ [field]: value })).toThrow(HttpConfigError);
   });
 
   it('错误信息带字段名与实际值', () => {
     // 构造期报错没有调用栈上下文，不带这两样等于让接入方猜
-    expect(() => createAdapter({ pageSize: 0 })).toThrow(/pageSize.*0/);
+    expect(() => buildAdapter({ pageSize: 0 })).toThrow(/pageSize.*0/);
   });
 
   it.each([
     ['baseUrl 为空串', { baseUrl: '' }],
     ['baseUrl 只有空白', { baseUrl: '   ' }]
   ])('%s 时抛 HttpConfigError', (_label, options) => {
-    expect(() => createAdapter(options)).toThrow(HttpConfigError);
+    expect(() => buildAdapter(options)).toThrow(HttpConfigError);
   });
 
   it('缺 onFetchMetadata 或 onFindByIds 时构造期即抛', () => {
     // 这两个是 RemoteBase 的 abstract 对应物，缺了整个 QueryCache 读路径都不成立，
     // 拖到首次查询才报等于让一个「连得上」的库带着注定失败的实体跑到运行期
-    expect(() => createAdapter({ handlers: { onFindByIds: minimalHandlers.onFindByIds } as HttpHandlers })).toThrow(
+    expect(() => buildAdapter({ handlers: { onFindByIds: minimalHandlers.onFindByIds } as HttpHandlers })).toThrow(
       HttpConfigError
     );
     expect(() =>
-      createAdapter({ handlers: { onFetchMetadata: minimalHandlers.onFetchMetadata } as HttpHandlers })
+      buildAdapter({ handlers: { onFetchMetadata: minimalHandlers.onFetchMetadata } as HttpHandlers })
     ).toThrow(HttpConfigError);
   });
 });
@@ -202,7 +224,7 @@ describe('构造期配置校验（AC#31）', () => {
 describe('connect（AC#15、AC#24）', () => {
   it('返回适配器自身且不发任何探测请求', async () => {
     const fetchMock = queueResponses([]);
-    const adapter = createAdapter({}, [HttpRecipe], HTTP_REMOTE);
+    const adapter = buildAdapter({}, [HttpRecipe], HTTP_REMOTE);
     await expect(adapter.connect()).resolves.toBe(adapter);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -211,7 +233,7 @@ describe('connect（AC#15、AC#24）', () => {
     [HttpBigIntRecord, 'amount', PropertyType.bigint],
     [HttpBinaryRecord, 'payload', PropertyType.binary]
   ])('扫到 %#（bigint / binary）即抛 HttpUnsupportedWireTypeError', async (EntityType, property, propertyType) => {
-    const adapter = createAdapter({}, [EntityType], HTTP_REMOTE);
+    const adapter = buildAdapter({}, [EntityType], HTTP_REMOTE);
     await expect(adapter.connect()).rejects.toMatchObject({
       name: 'HttpUnsupportedWireTypeError',
       entity: getEntityMetadata(EntityType).name,
@@ -221,13 +243,13 @@ describe('connect（AC#15、AC#24）', () => {
   });
 
   it('扫描发生在 connect 而非首次查询', async () => {
-    const adapter = createAdapter({}, [HttpBigIntRecord], HTTP_REMOTE);
+    const adapter = buildAdapter({}, [HttpBigIntRecord], HTTP_REMOTE);
     await expect(adapter.connect()).rejects.toBeInstanceOf(HttpUnsupportedWireTypeError);
   });
 
   it('不走 http remote 槽位的实体不参与扫描', async () => {
     // bigint 只有在**要过 HTTP 线**时才是问题；本地实体带 bigint 与本包无关
-    const adapter = createAdapter({}, [HttpBigIntRecord], LOCAL_ONLY);
+    const adapter = buildAdapter({}, [HttpBigIntRecord], LOCAL_ONLY);
     await expect(adapter.connect()).resolves.toBe(adapter);
   });
 
@@ -235,7 +257,7 @@ describe('connect（AC#15、AC#24）', () => {
     // 只扫 propertyMap 会放行 HttpComment —— 它自己只有一个 string。而 `authorId`
     // 一样要过这条线，类型是目标实体 id 的 bigint。放行的代价不是「多传一列」，
     // 是首次写入时 JSON.stringify 抛 TypeError，再被当成离线降级到陈旧缓存
-    const adapter = createAdapter({}, [HttpComment, HttpBigIntAuthor], HTTP_REMOTE);
+    const adapter = buildAdapter({}, [HttpComment, HttpBigIntAuthor], HTTP_REMOTE);
     await expect(adapter.connect()).rejects.toMatchObject({
       name: 'HttpUnsupportedWireTypeError',
       entity: 'HttpComment',
@@ -247,7 +269,7 @@ describe('connect（AC#15、AC#24）', () => {
   it('外键指向的实体不在配置清单里时不误报', async () => {
     // 查不到目标实体就查不到它 id 的类型，此时唯一诚实的答案是「不知道」。
     // 猜一个 bigint 会把一大批正常配置拦在 connect 上，且错误信息指向一个查不到的实体
-    const adapter = createAdapter({}, [HttpComment], HTTP_REMOTE);
+    const adapter = buildAdapter({}, [HttpComment], HTTP_REMOTE);
     await expect(adapter.connect()).resolves.toBe(adapter);
   });
 
@@ -268,7 +290,7 @@ describe('connect（AC#15、AC#24）', () => {
           })
       )
     );
-    const adapter = createAdapter();
+    const adapter = buildAdapter();
     await adapter.connect();
     const pending = firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL)).catch((e: unknown) => e);
     await adapter.connect();
@@ -297,14 +319,14 @@ describe('disconnect（AC#24、AC#34）', () => {
           })
       )
     );
-    const adapter = createAdapter();
+    const adapter = await createAdapter();
     const pending = firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
     await adapter.disconnect();
     await expect(pending).rejects.toBeInstanceOf(HttpDisconnectedError);
   });
 
   it('断开后再调 duck 抛错，不静默返回空', async () => {
-    const adapter = createAdapter();
+    const adapter = await createAdapter();
     await adapter.disconnect();
     await expect(firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL))).rejects.toBeInstanceOf(
       HttpDisconnectedError
@@ -315,20 +337,20 @@ describe('disconnect（AC#24、AC#34）', () => {
   it('断开后 findByIds 传空 id 列表同样抛错', async () => {
     // 空列表本来会走「不发请求直接返回 []」的近路，正好绕过 transport 的断开检查——
     // 于是「断开」在这一条路径上退化成「远端没有这些行」
-    const adapter = createAdapter();
+    const adapter = await createAdapter();
     await adapter.disconnect();
     await expect(firstValueFrom(adapter.findByIds('HttpRecipe', []))).rejects.toBeInstanceOf(HttpDisconnectedError);
   });
 
   it('主动断开的错误与超时可区分：isNetworkError 判 false，不得降级到缓存', async () => {
-    const adapter = createAdapter();
+    const adapter = await createAdapter();
     await adapter.disconnect();
     const error = await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL)).catch((e: unknown) => e);
     expect(isNetworkError(error)).toBe(false);
   });
 
   it('重复 disconnect 幂等', async () => {
-    const adapter = createAdapter();
+    const adapter = await createAdapter();
     await adapter.disconnect();
     await expect(adapter.disconnect()).resolves.toBeUndefined();
   });
@@ -366,7 +388,7 @@ describe('conditionalRequests 开关接线（AC#28）', () => {
 
   it('开启后第二次 fetchMetadata 带 if-none-match，且 304 还原成上次结果', async () => {
     const mock = stubEtagThen304([meta('a'), meta('b')]);
-    const adapter = createAdapter({ conditionalRequests: true });
+    const adapter = await createAdapter({ conditionalRequests: true });
     const first = await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
     const second = await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
     expect(ifNoneMatch(mock, 0)).toBeUndefined();
@@ -378,7 +400,7 @@ describe('conditionalRequests 开关接线（AC#28）', () => {
 
   it('findByIds 同样参与条件缓存', async () => {
     const mock = stubEtagThen304([{ id: 'a' }]);
-    const adapter = createAdapter({ conditionalRequests: true });
+    const adapter = await createAdapter({ conditionalRequests: true });
     await firstValueFrom(adapter.findByIds('HttpRecipe', ['a']));
     await expect(firstValueFrom(adapter.findByIds('HttpRecipe', ['a']))).resolves.toEqual([{ id: 'a' }]);
     expect(ifNoneMatch(mock, 1)).toBe(ETAG);
@@ -386,7 +408,7 @@ describe('conditionalRequests 开关接线（AC#28）', () => {
 
   it('默认不开启：同一查询发两遍也不带条件头，行为与阶段 A 逐字相同', async () => {
     const mock = stubEtagThen304([meta('a')]);
-    const adapter = createAdapter();
+    const adapter = await createAdapter();
     await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
     await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
     expect(ifNoneMatch(mock, 1)).toBeUndefined();
@@ -394,7 +416,7 @@ describe('conditionalRequests 开关接线（AC#28）', () => {
 
   it('缓存不跨断开复用：reconnect 后第一个请求不带 if-none-match', async () => {
     const mock = stubEtagThen304([meta('a')]);
-    const adapter = createAdapter({ conditionalRequests: true });
+    const adapter = await createAdapter({ conditionalRequests: true });
     await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
     await adapter.disconnect();
     await adapter.connect();
@@ -424,7 +446,7 @@ describe('ETag 诊断回调接线（US-215）', () => {
   it('开着条件请求时，读不到 ETag 触发一次回调，载荷点名实体', async () => {
     stubNoEtag([meta('a')]);
     const onEtagUnreadable = vi.fn();
-    const adapter = createAdapter({ conditionalRequests: true, onEtagUnreadable });
+    const adapter = await createAdapter({ conditionalRequests: true, onEtagUnreadable });
 
     await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
 
@@ -439,7 +461,7 @@ describe('ETag 诊断回调接线（US-215）', () => {
   it('AC#4 关着条件请求时配了回调也不触发 —— 关着的开关不该产生噪音', async () => {
     stubNoEtag([meta('a')]);
     const onEtagUnreadable = vi.fn();
-    const adapter = createAdapter({ conditionalRequests: false, onEtagUnreadable });
+    const adapter = await createAdapter({ conditionalRequests: false, onEtagUnreadable });
 
     await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
     await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
@@ -451,7 +473,7 @@ describe('ETag 诊断回调接线（US-215）', () => {
     stubNoEtag([meta('a')]);
     const onEtagUnreadable = vi.fn();
 
-    await firstValueFrom(createAdapter({ onEtagUnreadable }).fetchMetadata('HttpRecipe', ALL));
+    await firstValueFrom((await createAdapter({ onEtagUnreadable })).fetchMetadata('HttpRecipe', ALL));
 
     expect(onEtagUnreadable).not.toHaveBeenCalled();
   });
@@ -459,7 +481,7 @@ describe('ETag 诊断回调接线（US-215）', () => {
   it('reconnect 后同一查询重新报一次：换了后端配置才有得知的机会', async () => {
     stubNoEtag([meta('a')]);
     const onEtagUnreadable = vi.fn();
-    const adapter = createAdapter({ conditionalRequests: true, onEtagUnreadable });
+    const adapter = await createAdapter({ conditionalRequests: true, onEtagUnreadable });
 
     await firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
     await adapter.disconnect();
@@ -470,19 +492,61 @@ describe('ETag 诊断回调接线（US-215）', () => {
   });
 });
 
+describe('未 connect 的适配器不服务任何 duck（AC#15、AC#24）', () => {
+  /**
+   * `connect()` 是 `#assertConfiguredEntitiesSupported()` 唯一的触发点，而那一遍扫描
+   * 正是 bigint / binary 线格式的门禁。放行「从未 connect」的调用等于给这道门开一个
+   * 后门：`new` 完直接 `create()`，扫描一次都没跑过。
+   *
+   * {@link RxDBAdapterHttp.startChangeFeed} 早就是这个口径（它的 TSDoc 明写「两种情况
+   * 都还没有一次成功的 connect()」），读写 duck 却不是——这里把两边拉齐。
+   */
+  it.each([
+    ['fetchMetadata', (a: RxDBAdapterHttp) => a.fetchMetadata('HttpRecipe', ALL)],
+    ['findByIds', (a: RxDBAdapterHttp) => a.findByIds('HttpRecipe', ['a'])],
+    ['create', (a: RxDBAdapterHttp) => a.create!('HttpRecipe', {})],
+    ['update', (a: RxDBAdapterHttp) => a.update!('HttpRecipe', 'a', {})],
+    ['delete', (a: RxDBAdapterHttp) => a.delete!('HttpRecipe', ['a'])]
+  ])('从未 connect 时 %s 抛 HttpDisconnectedError，且不发请求', async (_name, call) => {
+    const fetchMock = queueResponses([]);
+    const adapter = buildAdapter({ handlers: { ...minimalHandlers, ...writeHandlers } });
+    await expect(firstValueFrom(call(adapter))).rejects.toBeInstanceOf(HttpDisconnectedError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('从未 connect 时 version 与 isTableExisted 同样抛，不去问远端', async () => {
+    const fetchMock = queueResponses([]);
+    const adapter = buildAdapter({
+      handlers: {
+        ...minimalHandlers,
+        onVersion: { request: () => ({ url: 'version', method: 'GET' }), parse: () => '1.0.0' },
+        onIsTableExisted: { request: () => ({ url: 'rows', method: 'HEAD' }) }
+      }
+    });
+    await expect(adapter.version()).rejects.toBeInstanceOf(HttpDisconnectedError);
+    await expect(adapter.isTableExisted(HttpRecipe)).rejects.toBeInstanceOf(HttpDisconnectedError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('connect 之后照常服务', async () => {
+    queueResponses([json([])]);
+    const adapter = buildAdapter({}, [HttpRecipe], HTTP_REMOTE);
+    await adapter.connect();
+    await expect(firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL))).resolves.toEqual([]);
+  });
+});
+
 describe('version（AC#24）', () => {
   it('未配 onVersion 时抛 unsupported，不回落到包版本号', async () => {
     // 回落等于拿适配器版本冒充后端版本，与 sqlite / pglite / supabase 三家口径全部不一致
-    const error = await createAdapter()
-      .version()
-      .catch((e: unknown) => e);
+    const error = await (await createAdapter()).version().catch((e: unknown) => e);
     expect(error).toBeInstanceOf(HttpUnsupportedOperationError);
     expect((error as Error).message).not.toMatch(/\d+\.\d+\.\d+/);
   });
 
   it('配了 onVersion 时返回远端版本串', async () => {
     queueResponses([json({ version: 'my-api/2.1.0' })]);
-    const adapter = createAdapter({
+    const adapter = await createAdapter({
       handlers: {
         ...minimalHandlers,
         onVersion: {
@@ -498,14 +562,44 @@ describe('version（AC#24）', () => {
     // 两个都成立时该说哪个：配置问题下次连上仍在，生命周期问题是当下这一次调用的实情。
     // 反过来（先判 handler）还会让 version() 里的 #assertConnected 在缺 handler 的路径上
     // 永远走不到——「断开后所有 duck 一律抛 HttpDisconnectedError」在这条路径上失守
-    const adapter = createAdapter();
+    const adapter = await createAdapter();
     await adapter.disconnect();
     await expect(adapter.version()).rejects.toBeInstanceOf(HttpDisconnectedError);
+  });
+
+  it.each([
+    ['数字', 42],
+    ['对象', { version: 'v1' }],
+    ['null', null],
+    ['undefined', undefined]
+  ])('onVersion.parse 回 %s → HttpHandlerContractError，不把非串当版本号交出去', async (_label, value) => {
+    // 返回类型 `string` 只是**声明**：handler 是接入方的代码，编译期约束到不了运行期。
+    // 放行的后果是版本比较（`>=`、`startsWith`）在一个非串上得出安静的错答案
+    queueResponses([json({ any: 'shape' })]);
+    const adapter = await createAdapter({
+      handlers: {
+        ...minimalHandlers,
+        onVersion: { request: () => ({ url: 'version', method: 'GET' }), parse: () => value as unknown as string }
+      }
+    });
+    await expect(adapter.version()).rejects.toBeInstanceOf(HttpHandlerContractError);
+  });
+
+  it('onVersion.parse 回空串 → 同样拒绝', async () => {
+    // 空串是 `typeof === 'string'` 的合法值，但作为版本号它只能是「没解析出来」
+    queueResponses([json({ version: '' })]);
+    const adapter = await createAdapter({
+      handlers: {
+        ...minimalHandlers,
+        onVersion: { request: () => ({ url: 'version', method: 'GET' }), parse: () => '   ' }
+      }
+    });
+    await expect(adapter.version()).rejects.toBeInstanceOf(HttpHandlerContractError);
   });
 });
 
 describe('isTableExisted（AC#24）', () => {
-  const probeAdapter = (): RxDBAdapterHttp =>
+  const probeAdapter = (): Promise<RxDBAdapterHttp> =>
     createAdapter({
       handlers: {
         ...minimalHandlers,
@@ -515,35 +609,35 @@ describe('isTableExisted（AC#24）', () => {
 
   it('2xx → true', async () => {
     queueResponses([new Response(null, { status: 200 })]);
-    await expect(probeAdapter().isTableExisted(HttpRecipe)).resolves.toBe(true);
+    await expect((await probeAdapter()).isTableExisted(HttpRecipe)).resolves.toBe(true);
   });
 
   it('404 → false', async () => {
     queueResponses([new Response(null, { status: 404 })]);
-    await expect(probeAdapter().isTableExisted(HttpRecipe)).resolves.toBe(false);
+    await expect((await probeAdapter()).isTableExisted(HttpRecipe)).resolves.toBe(false);
   });
 
   it('其余状态码 → 抛错，不返回 false', async () => {
     // 「不知道」和「不存在」必须区分：500 退化成 false 会让调用方以为远端确实没这张表
     queueResponses([new Response(null, { status: 500 })]);
-    await expect(probeAdapter().isTableExisted(HttpRecipe)).rejects.toBeInstanceOf(HttpResponseError);
+    await expect((await probeAdapter()).isTableExisted(HttpRecipe)).rejects.toBeInstanceOf(HttpResponseError);
   });
 
   it('传输失败 → 抛 NetworkOfflineError，不返回 false', async () => {
     queueResponses([new TypeError('fetch failed')]);
-    await expect(probeAdapter().isTableExisted(HttpRecipe)).rejects.toBeInstanceOf(NetworkOfflineError);
+    await expect((await probeAdapter()).isTableExisted(HttpRecipe)).rejects.toBeInstanceOf(NetworkOfflineError);
   });
 
   it('未配 onIsTableExisted 时复用 onFetchMetadata 的 limit: 1 探测', async () => {
     const fetchMock = queueResponses([json([])]);
-    await expect(createAdapter().isTableExisted(HttpRecipe)).resolves.toBe(true);
+    await expect((await createAdapter()).isTableExisted(HttpRecipe)).resolves.toBe(true);
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(JSON.parse(init.body as string)).toMatchObject({ limit: 1 });
   });
 
   it('不得恒 true 蒙混', async () => {
     queueResponses([new Response(null, { status: 404 })]);
-    await expect(probeAdapter().isTableExisted(HttpRecipe)).resolves.toBe(false);
+    await expect((await probeAdapter()).isTableExisted(HttpRecipe)).resolves.toBe(false);
   });
 
   it.each([
@@ -554,7 +648,7 @@ describe('isTableExisted（AC#24）', () => {
     // 挂到 GC 才归还，探测频繁时表现为连接池耗尽，而不是任何一处报错
     const response = new Response(JSON.stringify({ ignored: true }), { status });
     queueResponses([response]);
-    await probeAdapter().isTableExisted(HttpRecipe);
+    await (await probeAdapter()).isTableExisted(HttpRecipe);
     expect(response.bodyUsed).toBe(true);
   });
 
@@ -565,7 +659,7 @@ describe('isTableExisted（AC#24）', () => {
       value: { cancel: () => Promise.reject(new Error('socket gone')) }
     });
     queueResponses([response]);
-    await expect(probeAdapter().isTableExisted(HttpRecipe)).resolves.toBe(true);
+    await expect((await probeAdapter()).isTableExisted(HttpRecipe)).resolves.toBe(true);
   });
 });
 
@@ -573,7 +667,7 @@ describe('v1 无实现的必选成员（AC#32）', () => {
   it.each(['getRepository', 'saveMany', 'removeMany', 'mutations'])(
     '%s 抛 HttpUnsupportedOperationError',
     async name => {
-      const adapter = createAdapter() as unknown as Record<string, (...args: unknown[]) => unknown>;
+      const adapter = (await createAdapter()) as unknown as Record<string, (...args: unknown[]) => unknown>;
       // 同步 throw 与 rejected promise 都算通过，但**不得**返回空数组 / undefined / 假成功
       const result = await Promise.resolve()
         .then(() => adapter[name](HttpRecipe))
@@ -581,6 +675,18 @@ describe('v1 无实现的必选成员（AC#32）', () => {
       expect(result).toBeInstanceOf(HttpUnsupportedOperationError);
     }
   );
+
+  it.each(['saveMany', 'removeMany', 'mutations'])('%s 以 rejected promise 报错，不同步 throw', async name => {
+    // 签名声明的是 `Promise`，同步 throw 与它不符：`adapter.saveMany(x).catch(h)` 里的
+    // `.catch` 根本没机会挂上，错误从调用处直接炸出去。`getRepository` 不在此列——
+    // 它返回的就是 `RT`，同步抛是对的
+    const adapter = (await createAdapter()) as unknown as Record<string, (...args: unknown[]) => unknown>;
+    let returned: Promise<unknown> | undefined;
+    expect(() => {
+      returned = adapter[name](HttpRecipe) as Promise<unknown>;
+    }).not.toThrow();
+    await expect(returned).rejects.toBeInstanceOf(HttpUnsupportedOperationError);
+  });
 });
 
 describe('changelog 与分支成员（AC#10、#11、#26）', () => {
@@ -589,17 +695,32 @@ describe('changelog 与分支成员（AC#10、#11、#26）', () => {
     ['getChangeCount', [0]],
     ['mergeChanges', [new Map()]]
   ])('%s 抛 HttpChangelogUnsupportedError，不返回空数组 / 0', async (name, args) => {
-    const adapter = createAdapter() as unknown as Record<string, (...args: unknown[]) => unknown>;
+    const adapter = (await createAdapter()) as unknown as Record<string, (...args: unknown[]) => unknown>;
     const result = await Promise.resolve()
       .then(() => adapter[name](...args))
       .catch((e: unknown) => e);
     expect(result).toBeInstanceOf(HttpChangelogUnsupportedError);
   });
 
+  it.each([
+    ['pullChanges', [0]],
+    ['getChangeCount', [0]],
+    ['mergeChanges', [new Map()]]
+  ])('%s 以 rejected promise 报错，不同步 throw', async (name, args) => {
+    // 同 saveMany 那一条：声明了 `Promise` 就得用 rejection 报错，否则调用侧的
+    // `.catch` / `await` 之外还要再包一层 try
+    const adapter = (await createAdapter()) as unknown as Record<string, (...args: unknown[]) => unknown>;
+    let returned: Promise<unknown> | undefined;
+    expect(() => {
+      returned = adapter[name](...args) as Promise<unknown>;
+    }).not.toThrow();
+    await expect(returned).rejects.toBeInstanceOf(HttpChangelogUnsupportedError);
+  });
+
   it.each(['pullChangesBatch', 'pushBranches', 'branchExists', 'pullBranches'])('%s 不实现（留给特性探测）', name => {
     // 调用点做特性探测后回落到同样 throw 的 pullChanges；实现一个返回 [] 的版本
     // 会让 Full-sync 以为远端没变更——这正是 AC#11 / #26 要防的
-    expect(createAdapter()[name as keyof RxDBAdapterHttp]).toBeUndefined();
+    expect(buildAdapter()[name as keyof RxDBAdapterHttp]).toBeUndefined();
   });
 });
 
@@ -607,14 +728,14 @@ describe('写入口按 handler 存在与否特性探测（AC#4）', () => {
   it('未配 onCreate / onUpdate / onDelete 时三个 duck 不存在', () => {
     // QueryCacheRepository 用 `if (!this.remoteAdapter.create)` 探测。定义成永远存在
     // 但内部 throw 的方法会让探测判 true，错误从「不支持 create」变成运行期意外
-    const adapter = createAdapter();
+    const adapter = buildAdapter();
     expect(adapter.create).toBeUndefined();
     expect(adapter.update).toBeUndefined();
     expect(adapter.delete).toBeUndefined();
   });
 
   it('配了 handler 的 duck 才出现，且方法名不带 on 前缀', () => {
-    const adapter = createAdapter({
+    const adapter = buildAdapter({
       handlers: {
         ...minimalHandlers,
         onCreate: { request: ctx => ({ url: 'rows', method: 'POST', body: ctx.data }), parse: body => body },
@@ -630,7 +751,7 @@ describe('写入口按 handler 存在与否特性探测（AC#4）', () => {
   it('delete 把 core 的 string | string[] 归一成数组交给 handler', async () => {
     const seen: string[][] = [];
     queueResponses([new Response(null, { status: 204 })]);
-    const adapter = createAdapter({
+    const adapter = await createAdapter({
       handlers: {
         ...minimalHandlers,
         onDelete: {
@@ -647,11 +768,29 @@ describe('写入口按 handler 存在与否特性探测（AC#4）', () => {
     expect(seen).toEqual([['only-one']]);
   });
 
+  it('delete 收到空 id 列表 → 一个请求都不发，照常发一次 complete', async () => {
+    // `POST :entity/delete {"ids":[]}` 在「空过滤 = 无过滤」的后端上是一次整表清空。
+    // 与 `findByIds([])` 对齐：空列表本地即答，不给远端解释的机会
+    const fetchMock = queueResponses([]);
+    const adapter = await createAdapter({
+      handlers: {
+        ...minimalHandlers,
+        onDelete: { request: ctx => ({ url: 'rows', method: 'DELETE', body: { ids: ctx.ids } }) }
+      }
+    });
+    const remove = adapter.delete;
+    if (!remove) throw new Error('配了 onDelete 却没有 delete duck');
+    // 仍是单次发射：调用方 `firstValueFrom` 拿不到值会抛 EmptyError，那不是「删成功」
+    const emissions = await lastValueFrom(remove.call(adapter, 'HttpRecipe', []).pipe(toArray()));
+    expect(emissions).toEqual([undefined]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('create 把远端回执交给 handler.parse，不原样返回入参', async () => {
     // core 拿这个返回值当「服务端最终形态」用（id / 时间戳都由远端决定）。
     // 回显入参会让本地看到一条永远不存在于远端的行
     queueResponses([json({ id: 'server-id', title: 'from-server' })]);
-    const adapter = createAdapter({ handlers: { ...minimalHandlers, ...writeHandlers } });
+    const adapter = await createAdapter({ handlers: { ...minimalHandlers, ...writeHandlers } });
     const create = adapter.create;
     if (!create) throw new Error('配了 onCreate 却没有 create duck');
     await expect(firstValueFrom(create.call(adapter, 'HttpRecipe', { title: 'local' }))).resolves.toEqual({
@@ -663,7 +802,7 @@ describe('写入口按 handler 存在与否特性探测（AC#4）', () => {
   it('update 同理，并把 id 交给 handler 拼路径', async () => {
     const seen: string[] = [];
     queueResponses([json({ id: 'a', title: 'patched' })]);
-    const adapter = createAdapter({
+    const adapter = await createAdapter({
       handlers: {
         ...minimalHandlers,
         onUpdate: {
@@ -684,9 +823,64 @@ describe('写入口按 handler 存在与否特性探测（AC#4）', () => {
     expect(seen).toEqual(['a']);
   });
 
+  it.each([
+    ['null', null],
+    ['数组', [{ id: 'a' }]],
+    ['空数组', []],
+    ['字符串', 'ok'],
+    ['undefined', undefined]
+  ])('create 的 parse 回 %s → HttpHandlerContractError，不把非行交给 core', async (_label, value) => {
+    // 这个返回值被 core 当「服务端最终形态」直接写进本地缓存。收下 `null` 或
+    // `[row]` 会在本地留一条形状与远端毫无关系的行，而写操作本身报的是成功
+    queueResponses([json({ id: 'server-id' })]);
+    const adapter = await createAdapter({
+      handlers: {
+        ...minimalHandlers,
+        onCreate: { request: ctx => ({ url: 'rows', method: 'POST', body: ctx.data }), parse: () => value }
+      }
+    });
+    const create = adapter.create;
+    if (!create) throw new Error('配了 onCreate 却没有 create duck');
+    await expect(firstValueFrom(create.call(adapter, 'HttpRecipe', {}))).rejects.toBeInstanceOf(
+      HttpHandlerContractError
+    );
+  });
+
+  it.each([
+    ['null', null],
+    ['数组', [{ id: 'a' }]],
+    ['字符串', 'ok']
+  ])('update 的 parse 回 %s → 同样拒绝', async (_label, value) => {
+    queueResponses([json({ id: 'a' })]);
+    const adapter = await createAdapter({
+      handlers: {
+        ...minimalHandlers,
+        onUpdate: { request: ctx => ({ url: `rows/${ctx.id}`, method: 'PATCH', body: ctx.data }), parse: () => value }
+      }
+    });
+    const update = adapter.update;
+    if (!update) throw new Error('配了 onUpdate 却没有 update duck');
+    await expect(firstValueFrom(update.call(adapter, 'HttpRecipe', 'a', {}))).rejects.toBeInstanceOf(
+      HttpHandlerContractError
+    );
+  });
+
+  it('错误里带得出操作名与实体名，接入方才知道去改哪个 handler', async () => {
+    queueResponses([json({ id: 'server-id' })]);
+    const adapter = await createAdapter({
+      handlers: {
+        ...minimalHandlers,
+        onCreate: { request: ctx => ({ url: 'rows', method: 'POST', body: ctx.data }), parse: () => null }
+      }
+    });
+    const error = await firstValueFrom(adapter.create!.call(adapter, 'HttpRecipe', {})).catch((e: unknown) => e);
+    expect((error as Error).message).toMatch(/create/);
+    expect((error as Error).message).toMatch(/HttpRecipe/);
+  });
+
   it.each(['create', 'update', 'delete'] as const)('断开后 %s 抛错，不静默成功', async duck => {
     // 写操作静默「成功」比读静默返回空更糟：调用方会以为远端已落库
-    const adapter = createAdapter({ handlers: { ...minimalHandlers, ...writeHandlers } });
+    const adapter = await createAdapter({ handlers: { ...minimalHandlers, ...writeHandlers } });
     await adapter.disconnect();
     const call = {
       create: () => adapter.create?.('HttpRecipe', {}),
@@ -697,12 +891,22 @@ describe('写入口按 handler 存在与否特性探测（AC#4）', () => {
     if (!observable) throw new Error(`配了 handler 却没有 ${duck} duck`);
     await expect(firstValueFrom(observable)).rejects.toBeInstanceOf(HttpDisconnectedError);
   });
+
+  it('断开后 delete 传空 id 列表同样抛错', async () => {
+    // 与 `findByIds([])` 同一个坑：空列表走「不发请求」的近路，正好绕过断开检查——
+    // 「已断开」于是在这一条路径上退化成「删掉了零行，成功」
+    const adapter = await createAdapter({ handlers: { ...minimalHandlers, ...writeHandlers } });
+    await adapter.disconnect();
+    const remove = adapter.delete;
+    if (!remove) throw new Error('配了 onDelete 却没有 delete duck');
+    await expect(firstValueFrom(remove.call(adapter, 'HttpRecipe', []))).rejects.toBeInstanceOf(HttpDisconnectedError);
+  });
 });
 
 describe('发射契约（AC#23、AC#33）', () => {
   it('fetchMetadata 跨 N 页只发射一次并 complete', async () => {
     queueResponses([json([meta('a'), meta('b')]), json([meta('c'), meta('d')]), json([meta('e')])]);
-    const adapter = createAdapter({ pageSize: 2 });
+    const adapter = await createAdapter({ pageSize: 2 });
     // 断发射计数 === 1，不是「最后一次的内容对」——每页一发也能让后者过
     const emissions = await lastValueFrom(adapter.fetchMetadata('HttpRecipe', ALL).pipe(toArray()));
     expect(emissions).toHaveLength(1);
@@ -711,7 +915,7 @@ describe('发射契约（AC#23、AC#33）', () => {
 
   it('findByIds 跨 N 块只发射一次并 complete', async () => {
     queueResponses([json([{ id: 'a' }, { id: 'b' }]), json([{ id: 'c' }])]);
-    const adapter = createAdapter({ idChunkSize: 2 });
+    const adapter = await createAdapter({ idChunkSize: 2 });
     const emissions = await lastValueFrom(adapter.findByIds('HttpRecipe', ['a', 'b', 'c']).pipe(toArray()));
     expect(emissions).toHaveLength(1);
     expect(emissions[0]).toEqual([{ id: 'a' }, { id: 'b' }, { id: 'c' }]);
@@ -719,7 +923,7 @@ describe('发射契约（AC#23、AC#33）', () => {
 
   it('订阅前不发请求（cold）', () => {
     const fetchMock = queueResponses([json([])]);
-    createAdapter().fetchMetadata('HttpRecipe', ALL);
+    buildAdapter().fetchMetadata('HttpRecipe', ALL);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
@@ -729,7 +933,7 @@ describe('结构隔离（AC#19、AC#25）', () => {
   const FORBIDDEN = ['upsertMany', 'deleteByIds', 'getMetadataByIds', 'rawQuery'];
 
   it.each([...FORBIDDEN, 'transaction'])('实例上没有 %s', name => {
-    expect((createAdapter() as unknown as Record<string, unknown>)[name]).toBeUndefined();
+    expect((buildAdapter() as unknown as Record<string, unknown>)[name]).toBeUndefined();
   });
 
   it('本包源码（剔除注释后）不出现这些标识符', () => {
@@ -753,7 +957,7 @@ describe('结构隔离（AC#19、AC#25）', () => {
   });
 
   it('构造函数不持有任何本地存储句柄', () => {
-    const values = Object.values(createAdapter() as unknown as Record<string, unknown>);
+    const values = Object.values(buildAdapter() as unknown as Record<string, unknown>);
     const holdsLocalWriter = values.some(
       value => typeof value === 'object' && value !== null && FORBIDDEN.some(name => name in value)
     );

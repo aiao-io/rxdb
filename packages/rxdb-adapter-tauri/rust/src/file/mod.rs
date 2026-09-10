@@ -4,18 +4,19 @@
 //! 存在的理由见 US-505：文件内容此前写在 WebView 的 OPFS 里，与 US-210 的桌面 SQLite
 //! 不在同一个备份域——拷走应用数据目录只带走 metadata，恢复后 meta 指向不存在的文件。
 //!
-//! 三条不变式与 TS 侧逐条对齐：
+//! 四条不变式与 TS 侧逐条对齐：
 //! - **原子提交**：写入先落临时文件，`sync_all` 后 `rename` 覆盖目标。进程在任何一刻被杀，
 //!   目标要么是旧内容要么是新内容，不会是半写。
 //! - **会话归属**：未提交的写入与已持有的锁都挂在会话上，窗口销毁即整体回收。
 //! - **永不 panic、永不把错误吞成别的形状**：[`FileHost::handle`] 一律返回协议应答，
 //!   失败走 `{ kind:'error', code, message }`。
+//! - **错误消息只带相对路径**：物理根不跨 IPC，US-210 有一条测试专门断言根不出现在应答里。
+//!   这条曾经是本侧独有的收紧，Electron 现在同样只报逻辑路径。
 //!
-//! 与 TS 侧的三处有意分歧：
-//! 1. 错误消息里带的是**相对路径**，不是物理绝对路径（TS 侧的 writeChunk / commitWrite
-//!    会把物理根泄露给 renderer，US-210 有一条测试专门断言根不出现在应答里）；
-//! 2. 读帧用 `read_exact` 而不是可能短读的 `read`——并发截断要当场报错，不能悄悄补零；
-//! 3. 锁的两处顺序调整，见 [`locks::LockTable::drop_session`]。
+//! 与 TS 侧的两处有意分歧：
+//! 1. 读帧用 `read_exact` 而不是可能短读的 `read`——并发截断要当场报错，不能悄悄补零；
+//! 2. 会话关闭时把尚未被取走的授予结果改判为 `session_closed`，
+//!    见 [`locks::LockTable::drop_session`]。
 
 pub mod locks;
 pub mod protocol;
@@ -37,6 +38,47 @@ use self::locks::{LockOutcome, LockTable};
 use self::protocol::{
     parse_file_request, FileRequest, LockMode, MAX_PENDING_WRITES_PER_SESSION, MAX_QUEUED_LOCKS_PER_NAME,
 };
+
+/// 全部锁名加起来，同时**阻塞等待**的申请数上限。
+///
+/// 只在 Rust 侧存在，协议里没有对应常量，因为它防的是 Rust 独有的成本：一个等待中的
+/// `file.lockAcquire` 在 TS 宿主那里只是一个挂起的 promise，在这里却是一整条 tokio
+/// 阻塞线程——`rxdb_desktop_request` 一请求一 `spawn_blocking`，等待者停在
+/// [`FileHost::ready`] 上直到被授予，线程一直算它头上。
+///
+/// [`MAX_QUEUED_LOCKS_PER_NAME`] 拦不住这件事：会话数没有上限，锁名由 renderer 自己起，
+/// 把等待摊到几十个名字上，每名上限一条都碰不到，池子照样能填满。池满之后失守的不止是锁：
+/// SQL 请求也走同一个池，宿主会整个停摆。
+///
+/// 取 64 是因为 tokio 默认的阻塞池是 512 条线程，留下的余量足够 SQL 继续跑；同时它远高于
+/// 真实并发——正常用法下等待者是个位数，撞到这条线的只会是失控的调用方。
+///
+/// 上限按**排队中**的申请数算，因此已经满员时，连那些本来能当场授予、根本不会阻塞的申请
+/// 也一并挡掉。这是有意的：到了 64 条线程停在锁上的地步宿主已经不正常了，此刻先保住 SQL
+/// 通路，比多放行一次锁申请重要。
+///
+/// 它比 [`MAX_QUEUED_LOCKS_PER_NAME`] 严格得多——单名排到 256 之前全局早就满了，所以经由
+/// 本模块申请时那条每名上限实际触发不到。仍然保留：它是协议里的常量，与 TS 宿主逐条对齐，
+/// 报出的也是「违反了哪条协议规则」，而本常量报的是宿主自己的资源边界。
+const MAX_BLOCKED_LOCK_WAITERS: usize = 64;
+
+/// 全宿主同时挂着的未完成写入数上限。
+///
+/// 与 [`MAX_BLOCKED_LOCK_WAITERS`] 同源的一个洞：`MAX_PENDING_WRITES_PER_SESSION` 是**每会话**
+/// 的，而会话数没有上限，renderer 想开几个开几个。每一次未完成写入都攥着一个打开的临时文件
+/// 句柄，于是句柄总数由调用方说了算，每会话那条一次都不必碰到。
+///
+/// 句柄耗尽比锁等待更难看：它不落在文件协议上，而是让**进程里任何一处**下一次 `open` 失败——
+/// SQLite 开库、WAL、`-shm`，随便哪一个先撞上，报出来的错与真正的原因毫无关系。
+///
+/// 取值就等于每会话那条，于是本常量恰好堵住**放大**：整个宿主攥着的句柄，不会超过协议允许
+/// 单个会话攥着的量。这个数本身谈不上宽裕——macOS 默认的句柄软限制就是 256——但那是协议常量
+/// 自带的性质，两端共用，不该由其中一侧的实现单方面收紧。要调得往
+/// `DESKTOP_HOST_MAX_PENDING_WRITES_PER_SESSION` 上调，两端一起。
+///
+/// 与 [`MAX_BLOCKED_LOCK_WAITERS`] 不同，本条**不会**让每会话那条失效：两者取值相同，而每会话
+/// 先判，因此单会话写满时报出的仍是「这个会话已满」，与 TS 宿主逐字一致。
+const MAX_PENDING_WRITES_PER_HOST: usize = MAX_PENDING_WRITES_PER_SESSION;
 
 /// 一次尚未提交的写入。
 ///
@@ -61,6 +103,22 @@ struct FileState {
     sessions: HashMap<String, FileSession>,
     locks: LockTable,
 }
+
+impl FileState {
+    /// 全表未完成的写入数，跨所有会话。
+    ///
+    /// 每一条都对应一个打开着的临时文件句柄，因此它同时是一份句柄占用账本——
+    /// 上限与理由见 [`MAX_PENDING_WRITES_PER_HOST`]。
+    fn pending_write_count(&self) -> usize {
+        self.sessions.values().map(|session| session.writes.len()).sum()
+    }
+}
+
+/// 未提交写入留在盘上的临时产物后缀，对齐 TS 侧的 `DESKTOP_HOST_TEMPORARY_SUFFIX`。
+///
+/// 它属于线协议的可观测面：未提交的写入**会被列目录看见**，所以「盘上多出来的这个名字
+/// 是什么」必须有一个两端共同的答案。
+const TEMPORARY_SUFFIX: &str = ".rxdb-tmp";
 
 /// 文件宿主：一个存储根 + 一张会话表 + 一张锁表。
 ///
@@ -91,6 +149,18 @@ fn write_aborted(write_id: &str) -> HostError {
 ///
 /// 认不出的归 [`ErrorCode::HostInternalError`] 而不是猜一个近似码：猜错会让调用方
 /// 按错误的语义去补偿，比明确的「host 出了意料之外的问题」更糟。
+///
+/// # 已知的一条不对齐：`ELOOP`
+///
+/// TS 侧把它归给 `invalid_file_path`，这边归到 `host_internal_error`。对齐要么用
+/// `io::ErrorKind::FilesystemLoop`（截至 rustc 1.97 仍在 `io_error_more` 门后，
+/// 稳定通道编不过），要么为了一个 errno 引入 `libc` 直接依赖并硬编码平台常量
+/// （macOS 62 / Linux 40）。两者都比这条分叉本身贵：符号链接环只可能由本应用之外的东西
+/// 在存储根里造出来，且两个码都是不可重试的失败，调用方的补救路径完全相同。
+/// 真要对齐，等 `FilesystemLoop` 稳定后在此加一条 arm 即可。
+///
+/// **不要**把「类型不符」也算进这类分叉：那条已经由 [`require_entry_kind`] 在 io 错误
+/// 发生之前判掉了，跨后端一致，用例见 `storage-backend-parity.suite.ts`。
 fn error_code_for(kind: io::ErrorKind) -> ErrorCode {
     match kind {
         io::ErrorKind::NotFound => ErrorCode::FileNotFound,
@@ -222,11 +292,110 @@ fn entry_kind(is_directory: bool) -> &'static str {
     }
 }
 
+/// 目标存在但类型与本次操作不符时报 [`ErrorCode::InvalidFilePath`]。
+///
+/// 显式判类型而不是让 io 错误兜底：`remove_dir_all` 撞上文件、`remove_file` 撞上目录、
+/// `File::open` 撞上目录，三件事在 macOS 与 Linux 上给出不同的 [`io::ErrorKind`]
+/// （`PermissionDenied` / `IsADirectory` / `NotADirectory`），而 macOS 上开一个目录甚至
+/// 会先成功。调用方在协议这一层已经知道类型（服务层的 `clear()` 按 `entry.kind` 分派），
+/// 撞上类型不符只说明它的模型与盘上真实情况漂移了——那要出声，且不能顺手动掉另一种条目。
+/// 跨后端判据见 `rxdb-plugin-storage` 的 `storage-backend-parity.suite.ts`。
+///
+/// 目标不存在时静默放行，把定性权交回调用点：删除据此保持幂等，读则照常走到 `File::open`
+/// 报 `file_not_found`。
+///
+/// 用 [`fs::metadata`] 而不是 [`fs::symlink_metadata`]：判的是这次操作真正会碰到的那个条目。
+/// 根内链接是合法布局，逃出根的那些在更早的 [`resolve_within_root`] 已被拦下。
+fn require_entry_kind(target: &Path, relative_path: &str, expected: &str) -> HostResult<()> {
+    let metadata = match fs::metadata(target) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(filesystem_error(&error, relative_path)),
+    };
+    if entry_kind(metadata.is_dir()) == expected {
+        return Ok(());
+    }
+    Err(HostError::new(
+        ErrorCode::InvalidFilePath,
+        format!("path is not a {expected}: {relative_path}"),
+    ))
+}
+
 /// 与 Node 的 `stats.mtimeMs` 同义：Unix epoch 起的毫秒数，保留亚毫秒精度。
 fn to_epoch_millis(time: SystemTime) -> f64 {
     match time.duration_since(SystemTime::UNIX_EPOCH) {
         Ok(duration) => duration.as_secs_f64() * 1000.0,
         Err(error) => -(error.duration().as_secs_f64() * 1000.0),
+    }
+}
+
+/// 判断一个**物理**文件名是不是宿主未提交写入留下的临时产物。
+///
+/// 与 TS 侧 `isDesktopHostTemporaryName` 的正则逐字段等价：前导点 + 小写 UUID v4 +
+/// [`TEMPORARY_SUFFIX`]。手写而不引 `regex`：要钉的就是判据本身，多绕一个依赖去表达它，
+/// 反而让两侧更难逐字对照；`recognizes_exactly_the_temporary_names_the_protocol_defines`
+/// 照抄了 TS 用例的取值表。
+///
+/// 判据**不是**「以该后缀结尾」。用户完全可以有一个自己叫 `report.rxdb-tmp` 的文件，
+/// 而这个判据的下游是 [`sweep_temporary_files`] 里的 `remove_file`——宽一格就是删别人的数据。
+fn is_temporary_name(name: &str) -> bool {
+    let Some(rest) = name.strip_prefix('.') else {
+        return false;
+    };
+    let Some(uuid) = rest.strip_suffix(TEMPORARY_SUFFIX) else {
+        return false;
+    };
+    let groups: Vec<&str> = uuid.split('-').collect();
+    groups.iter().map(|group| group.len()).eq([8, 4, 4, 4, 12])
+        && groups
+            .iter()
+            .all(|group| group.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()))
+}
+
+/// 递归清扫存储根下上一轮遗留的临时产物。
+///
+/// # 为什么回收点在启动
+///
+/// 会话回收（`discard_write`）只覆盖体面退出。进程被 SIGKILL、掉电、或 WebView 把宿主
+/// 一起拖崩时没有任何收尾代码跑得到，临时文件就永久留在用户的备份域里——一次崩溃一份，
+/// 只增不减，而且 `file.list` 会把它当成一个普通文件报出来。构造宿主的这一刻还没有
+/// 任何会话，根下符合临时形状的文件因此必然是上一轮的遗留。
+///
+/// 前提是本应用独占这个根。这在 Tauri 下成立（根在 `app_data_dir` 之下）。万一有第二个
+/// 实例正在写，被删掉的临时文件会让它的 commit 以 `file_not_found` 失败——一个**报出来的**
+/// 错误，而不是静默的坏数据。
+///
+/// # 失败怎么办
+///
+/// 清扫是一次垃圾回收，不是功能路径，因此失败不向上传播：让一个读不动的残留文件把
+/// `FileHost` 的构造带崩，等于应用再也打不开自己的数据。根不存在是**首次启动的正常形态**
+/// （目录只由 renderer 的 `file.mkdir` 建），静默略过；其余失败写一行 stderr，
+/// 与 `commands.rs` 里丢弃无主事件同一手法。
+///
+/// 用显式栈而不是递归：目录深度来自用户的数据，递归会把它变成栈深度。
+fn sweep_temporary_files(root: &Path) {
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        let entries = match fs::read_dir(&directory) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
+            Err(error) => {
+                eprintln!("[rxdb-desktop] cannot sweep {}: {error}", directory.display());
+                continue;
+            }
+        };
+        for entry in entries.filter_map(Result::ok) {
+            // `file_type()` 不跟随符号链接：指向根外的链接因此既不会被递归进去，
+            // 也不会被当成文件删掉——它的 `is_file()` 是 false。
+            let Ok(kind) = entry.file_type() else { continue };
+            if kind.is_dir() {
+                pending.push(entry.path());
+            } else if kind.is_file() && is_temporary_name(&entry.file_name().to_string_lossy()) {
+                if let Err(error) = fs::remove_file(entry.path()) {
+                    eprintln!("[rxdb-desktop] cannot remove the stale temporary {}: {error}", entry.path().display());
+                }
+            }
+        }
     }
 }
 
@@ -244,9 +413,11 @@ fn discard_write(pending: &PendingWrite) {
 /// `rename` 的原子性只覆盖「要么旧要么新」，不覆盖「已经落盘」：目录项还在页缓存里时掉电，
 /// 重启后看到的可能仍是改名前的状态——内容已 `sync_all` 也救不回来，因为指向它的那条目录项没落。
 ///
-/// Windows 上 `File::open` 打不开目录（拿不到 `FILE_FLAG_BACKUP_SEMANTICS`），那里的 rename
-/// 由文件系统日志保证；只吞「打不开目录」这一类错误，其余照常上报，否则「提交成功」就成了
-/// 没有依据的断言。
+/// 吞掉的是「这套文件系统压根不做目录 fsync」这一类信号，`open` 与 `sync_all` 两步都算数：
+/// Windows 上 `File::open` 打不开目录（拿不到 `FILE_FLAG_BACKUP_SEMANTICS`），而另一些文件
+/// 系统目录能打开、`fsync` 却回 `EINVAL`。两种形状不同，含义是同一个，处理也该是同一个——
+/// 那里的 rename 由文件系统日志保证持久性。除这两个错误类别之外一律照常上报，否则
+/// 「提交成功」就成了没有依据的断言。
 fn sync_directory(directory: &Path) -> io::Result<()> {
     match File::open(directory).and_then(|handle| handle.sync_all()) {
         Err(error) if matches!(error.kind(), io::ErrorKind::PermissionDenied | io::ErrorKind::InvalidInput) => Ok(()),
@@ -279,7 +450,10 @@ fn finish_write(pending: &PendingWrite) -> HostResult<()> {
 impl FileHost {
     /// 用一个物理存储根构造宿主。目录本身不在这里创建：renderer 的 `ensureRoot`
     /// 会发一条根路径的 `file.mkdir`，让「什么时候建目录」保持在一条通路上。
+    ///
+    /// 构造时清扫上一轮崩溃遗留的临时产物，理由见 [`sweep_temporary_files`]。
     pub fn new(root: PathBuf) -> Self {
+        sweep_temporary_files(&root);
         Self {
             root,
             state: Mutex::new(FileState::default()),
@@ -465,6 +639,7 @@ impl FileHost {
     /// 删除的语义是「事后它不在那儿」，本来就不在也满足。
     fn remove_directory(&self, session_id: &str, relative_path: &str) -> HostResult<Value> {
         let target = self.target_of(session_id, relative_path)?;
+        require_entry_kind(&target, relative_path, "directory")?;
         match fs::remove_dir_all(&target) {
             Ok(()) => Ok(json!({ "kind": "file.rmdir" })),
             Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(json!({ "kind": "file.rmdir" })),
@@ -474,6 +649,7 @@ impl FileHost {
 
     fn remove_file(&self, session_id: &str, relative_path: &str) -> HostResult<Value> {
         let target = self.target_of(session_id, relative_path)?;
+        require_entry_kind(&target, relative_path, "file")?;
         match fs::remove_file(&target) {
             Ok(()) => Ok(json!({ "kind": "file.remove" })),
             Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(json!({ "kind": "file.remove" })),
@@ -492,6 +668,10 @@ impl FileHost {
 
     fn read_frame(&self, session_id: &str, relative_path: &str, offset: u64, length: usize) -> HostResult<Value> {
         let target = self.target_of(session_id, relative_path)?;
+        // 判在 open 之前：macOS 上开一个目录会成功，要等到 `read_exact` 才炸，而 `offset`
+        // 越过目录 metadata 的 `len()` 时连 `read_exact` 都不会调用——那条路会安静地返回
+        // 一个空帧加 eof。一次 metadata 换四兆一帧，可以忽略。
+        require_entry_kind(&target, relative_path, "file")?;
         let mut file = File::open(&target).map_err(|error| filesystem_error(&error, relative_path))?;
         let size = file
             .metadata()
@@ -520,7 +700,7 @@ impl FileHost {
         let target = self.target_of(session_id, relative_path)?;
         let write_id = uuid::Uuid::new_v4().to_string();
         let parent = parent_of(&target, relative_path)?;
-        let temporary = parent.join(format!(".{write_id}.rxdb-tmp"));
+        let temporary = parent.join(format!(".{write_id}{TEMPORARY_SUFFIX}"));
         fs::create_dir_all(parent).map_err(|error| filesystem_error(&error, relative_path))?;
         // `create_new` 等价于 TS 侧的 `'wx'`：临时名带 UUID，撞名只可能是那个名字已被
         // 别处占用，静默覆盖会丢掉它的内容。
@@ -559,6 +739,14 @@ impl FileHost {
                 format!("session already has {MAX_PENDING_WRITES_PER_SESSION} pending writes"),
             ));
         }
+        // 全局那条要数遍所有会话，所以放在每会话之后：能被前一条挡下的就不必数了。
+        if state.pending_write_count() >= MAX_PENDING_WRITES_PER_HOST {
+            return Err(HostError::new(
+                ErrorCode::ProtocolViolation,
+                format!("{MAX_PENDING_WRITES_PER_HOST} writes are already pending on this host"),
+            ));
+        }
+        let session = state.sessions.get_mut(session_id).ok_or_else(|| session_closed(session_id))?;
         session.writes.insert(write_id.to_string(), pending);
         Ok(())
     }
@@ -632,6 +820,12 @@ impl FileHost {
                 format!("lock {name} already has {MAX_QUEUED_LOCKS_PER_NAME} queued waiters"),
             ));
         }
+        if state.locks.waiting_count() >= MAX_BLOCKED_LOCK_WAITERS {
+            return Err(HostError::new(
+                ErrorCode::ProtocolViolation,
+                format!("{MAX_BLOCKED_LOCK_WAITERS} lock waiters are already blocked on this host"),
+            ));
+        }
         let lock_id = state.locks.enqueue(name, session_id, mode);
         let outcome = loop {
             if let Some(outcome) = state.locks.take_outcome(&lock_id) {
@@ -687,7 +881,11 @@ mod tests {
 
     impl Harness {
         fn new() -> Self {
-            let root = std::env::temp_dir().join(format!("rxdb-files-{}", uuid::Uuid::new_v4()));
+            Self::at(std::env::temp_dir().join(format!("rxdb-files-{}", uuid::Uuid::new_v4())))
+        }
+
+        /// 用一个指定的根构造，供启动清扫的用例预先在盘上布置上一轮的残留。
+        fn at(root: PathBuf) -> Self {
             let host = FileHost::new(root.clone());
             let session = host.handle(&json!({ "kind": "file.open" }))["result"]["sessionId"]
                 .as_str()
@@ -801,6 +999,99 @@ mod tests {
         assert!(harness.temporary_files().is_empty(), "the temp file is gone");
     }
 
+    /// 上一轮进程被 SIGKILL / 掉电时没有任何收尾代码跑得到，未提交写入的临时产物就留在盘上。
+    /// 它在用户的备份域里只增不减，而且 `file.list` 会把它当成一个普通文件报出来。
+    ///
+    /// 回收点放在构造宿主的那一刻：此刻还没有任何会话，根下符合临时形状的文件必然是遗留。
+    #[test]
+    fn sweeps_temporaries_left_behind_by_a_previous_run() {
+        let root = std::env::temp_dir().join(format!("rxdb-files-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(root.join("notes/drafts")).expect("the temp root is ours to create");
+        let stale = [
+            root.join(".2f1c8a3e-4b5d-4e6f-8a9b-0c1d2e3f4a5b.rxdb-tmp"),
+            root.join("notes/.7e6d5c4b-3a2f-4e1d-9c8b-7a6f5e4d3c2b.rxdb-tmp"),
+            root.join("notes/drafts/.11112222-3333-4444-5555-666677778888.rxdb-tmp"),
+        ];
+        // 用户自己的文件，名字里也带这个后缀：清扫的判据必须窄到不碰它。
+        let keep = [root.join("notes/report.rxdb-tmp"), root.join("notes/drafts/a.txt")];
+        for path in stale.iter().chain(keep.iter()) {
+            fs::write(path, b"content").expect("the temp root is ours to write");
+        }
+
+        let harness = Harness::at(root);
+
+        for path in &stale {
+            assert!(!path.exists(), "{} survived the sweep", path.display());
+        }
+        for path in &keep {
+            assert!(path.is_file(), "{} was not the sweep's to remove", path.display());
+        }
+        assert!(harness.temporary_files().is_empty());
+    }
+
+    /// 根还不存在时构造宿主：清扫是一次垃圾回收，缺目录不是错误。
+    ///
+    /// `FileHost::new` 刻意不建目录（建目录只走 renderer 的 `file.mkdir` 一条路），
+    /// 因此「根不存在」是首次启动的**正常**形态，清扫在这里报错会让应用直接打不开。
+    #[test]
+    fn tolerates_a_storage_root_that_does_not_exist_yet() {
+        let harness = Harness::new();
+        assert_eq!(harness.write("a.txt", b"hello")["kind"], "file.writeCommit");
+    }
+
+    /// 清扫的判据与 TS 侧 `isDesktopHostTemporaryName` 的正则逐例对齐。
+    ///
+    /// 这张表就是两侧唯一的机械联系，取值直接照抄 `desktop-host-file-protocol.spec.ts`。
+    /// 判据每放宽一点，一个真实的用户文件就会被**删掉**——比诊断快照那边把它滤掉更不可逆，
+    /// 所以这里认的是完整形状（前导点 + 小写 UUID v4 + 后缀），而不是「以后缀结尾」。
+    #[test]
+    fn recognizes_exactly_the_temporary_names_the_protocol_defines() {
+        let write_id = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+        for name in [
+            format!(".{write_id}.rxdb-tmp"),
+            ".9f8e7d6c-5b4a-4392-8180-7f6e5d4c3b2a.rxdb-tmp".to_string(),
+        ] {
+            assert!(is_temporary_name(&name), "should be temporary: {name}");
+        }
+        for name in [
+            "report.rxdb-tmp".to_string(),
+            ".draft.rxdb-tmp".to_string(),
+            format!("{write_id}.rxdb-tmp"),
+            format!(".{write_id}.rxdb-tmp.bak"),
+            format!(".{}.rxdb-tmp", write_id.to_uppercase()),
+            ".rxdb-tmp".to_string(),
+            String::new(),
+        ] {
+            assert!(!is_temporary_name(&name), "should not be temporary: {name}");
+        }
+    }
+
+    /// 诊断快照靠这个形状把在途上传滤出去（US-905 AC#11）。两个宿主各自生成临时名，
+    /// TS 侧的快照用例只钉得住 Electron 那一半；这边的名字一旦漂移（大写 UUID、换后缀、
+    /// 少了前导点），快照就会把一条正在写、下一秒自己消失的临时产物报成「有文件无元数据」，
+    /// 而这类只在特定时刻复现的误报最难被承认是误报。
+    ///
+    /// 判据取生产的 [`is_temporary_name`]，它自己由
+    /// `recognizes_exactly_the_temporary_names_the_protocol_defines` 钉在 TS 的取值表上；
+    /// 这里验的是 `write_begin` 产出的名字落不落在那个形状里，两条断言不重叠。
+    #[test]
+    fn names_in_flight_temporaries_in_the_shape_the_snapshot_filter_expects() {
+        let harness = Harness::new();
+        let begin = harness.call(json!({ "kind": "file.writeBegin", "path": "pending.txt" }));
+        assert_eq!(begin["kind"], "file.writeBegin", "writeBegin failed: {begin}");
+
+        // 枚举根下**全部**条目，而不是复用 `temporary_files()`：后者按 `.rxdb-tmp` 结尾筛，
+        // 用它挑出待验的名字再去验这个名字的形状就成了自证。此刻目标尚未提交，根下只该有临时产物。
+        let names: Vec<String> = fs::read_dir(&harness.root)
+            .expect("the storage root exists")
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(names.len(), 1, "only the in-flight temporary is on disk: {names:?}");
+        assert!(is_temporary_name(&names[0]), "unexpected temporary name: {}", names[0]);
+    }
+
     #[test]
     fn abandons_a_write_without_touching_the_target() {
         let harness = Harness::new();
@@ -819,6 +1110,42 @@ mod tests {
 
     /// 每个挂起的写入都占着一个 fd。不设上限，一个只 begin 不 commit 的 renderer
     /// 就能把宿主的 fd 耗光——那时连数据库都打不开，一个 renderer 的 bug 升级成整个应用不可用。
+    /// 每会话上限拦不住句柄耗尽：会话数没有上限，把写入摊到足够多的会话上，每会话上限一条
+    /// 都碰不到，进程的句柄却已经见底——那时失败的会是别处的 `open`，报出来的错与真因无关。
+    #[test]
+    fn caps_pending_writes_across_all_sessions() {
+        let harness = Harness::new();
+        {
+            let mut state = harness.host.lock_state();
+            for index in 0..MAX_PENDING_WRITES_PER_HOST {
+                // 每个会话只挂一条，稳稳落在 `MAX_PENDING_WRITES_PER_SESSION` 之下，
+                // 拦下溢出的只能是全局上限。句柄位置留空：这条用例数的是账，不是真的去开文件。
+                let mut session = FileSession::default();
+                session.writes.insert(
+                    format!("write-{index}"),
+                    Arc::new(PendingWrite {
+                        target: harness.root.join(format!("{index}.bin")),
+                        temporary: harness.root.join(format!("{index}.bin{TEMPORARY_SUFFIX}")),
+                        relative_path: format!("{index}.bin"),
+                        file: Mutex::new(None)
+                    })
+                );
+                state.sessions.insert(format!("session-{index}"), session);
+            }
+        }
+
+        // 发起方自己一条未完成写入都没有，因此绝不可能是每会话那条拦下它的。
+        let overflow = harness.call(json!({ "kind": "file.writeBegin", "path": "overflow.bin" }));
+
+        assert_eq!(overflow["kind"], "error");
+        assert_eq!(overflow["code"], "protocol_violation");
+        assert!(
+            overflow["message"].as_str().is_some_and(|message| message.contains("on this host")),
+            "报的应该是全宿主上限，实际是 {}",
+            overflow["message"]
+        );
+    }
+
     #[test]
     fn caps_pending_writes_per_session() {
         let harness = Harness::new();
@@ -828,6 +1155,30 @@ mod tests {
         }
 
         let overflow = harness.call(json!({ "kind": "file.writeBegin", "path": "bulk/overflow.txt" }));
+
+        assert_eq!(overflow["kind"], "error");
+        assert_eq!(overflow["code"], "protocol_violation");
+    }
+
+    /// 每个阻塞中的等待者都占着一条 tokio 阻塞线程，而锁名由 renderer 自己起：
+    /// 摊到足够多的名字上，每名上限一条都碰不到，池子却已经满了——那时 SQL 也一起停摆。
+    #[test]
+    fn caps_blocked_lock_waiters_across_all_names() {
+        let harness = Harness::new();
+        {
+            let mut state = harness.host.lock_state();
+            for index in 0..MAX_BLOCKED_LOCK_WAITERS {
+                let session = format!("queued-{index}");
+                state.sessions.insert(session.clone(), FileSession::default());
+                // 每个名字各来两次：第一次当场授予，第二次才排上队。每名只压一个等待者，
+                // 稳稳落在 `MAX_QUEUED_LOCKS_PER_NAME` 之下，拦下溢出的只能是全局上限。
+                let name = format!("files:/{index}");
+                state.locks.enqueue(&name, &session, LockMode::Exclusive);
+                state.locks.enqueue(&name, &session, LockMode::Exclusive);
+            }
+        }
+
+        let overflow = harness.call(json!({ "kind": "file.lockAcquire", "name": "files:/fresh", "mode": "exclusive" }));
 
         assert_eq!(overflow["kind"], "error");
         assert_eq!(overflow["code"], "protocol_violation");
@@ -886,6 +1237,16 @@ mod tests {
         let harness = Harness::new();
         let original = fs::metadata(&harness.root).expect("the storage root exists").permissions();
         fs::set_permissions(&harness.root, fs::Permissions::from_mode(0o555)).expect("the temp root is ours to seal");
+
+        // root 无视写权限位，某些挂载（如 FAT）也不认它。那时下面的 `writeBegin` 会成功，
+        // 断言会红在一个与被测代码无关的理由上。先自己探一下封没封住，没封住就放过——
+        // 恒绿的用例不好，因为环境而恒红的用例更糟。
+        let sealed = fs::File::create(harness.root.join(".probe")).is_err();
+        if !sealed {
+            fs::set_permissions(&harness.root, original).expect("the temp root is ours to unseal");
+            let _ = fs::remove_file(harness.root.join(".probe"));
+            return;
+        }
 
         let response = harness.call(json!({ "kind": "file.writeBegin", "path": "a.txt" }));
 
@@ -949,6 +1310,50 @@ mod tests {
         assert_eq!(harness.call(json!({ "kind": "file.stat", "path": "box" }))["result"], Value::Null);
     }
 
+    /// 「删掉的不是我要删的那种东西」是数据损失，不是一次可以顺手完成的删除。调用方在协议
+    /// 这一层已经知道类型（服务层的 `clear()` 按 `entry.kind` 分派），撞上类型不符只说明它的
+    /// 模型与盘上真实情况漂移了——要出声，且什么都不能动。
+    ///
+    /// 同时这条把平台分叉钉住：裸 `remove_file` 删目录在 macOS 是 `PermissionDenied`、
+    /// Linux 是 `IsADirectory`，两个码经 `error_code_for` 会翻成两种协议码。
+    #[test]
+    fn refuses_to_remove_an_entry_of_the_other_kind() {
+        let harness = Harness::new();
+        harness.write("plain.txt", b"x");
+        harness.call(json!({ "kind": "file.mkdir", "path": "box" }));
+
+        assert_eq!(harness.call(json!({ "kind": "file.rmdir", "path": "plain.txt" }))["code"], "invalid_file_path");
+        assert_eq!(harness.call(json!({ "kind": "file.remove", "path": "box" }))["code"], "invalid_file_path");
+
+        // 两个目标都还在：否则「已拒绝」可能发生在删除**之后**，上面的断言就成了摆设
+        assert!(harness.root.join("plain.txt").is_file());
+        assert!(harness.root.join("box").is_dir());
+    }
+
+    /// 读一个目录同样要给出确定答案：`File::open` 一个目录在 Linux 是 `IsADirectory`，
+    /// 在 macOS 却能开成功、要等到 `read_exact` 才炸，而 `offset` 越过目录 metadata 的
+    /// `len()` 时连 `read_exact` 都不会调用——那条路会安静地返回一个空帧加 eof。
+    #[test]
+    fn refuses_to_read_a_directory_as_a_file() {
+        let harness = Harness::new();
+        harness.call(json!({ "kind": "file.mkdir", "path": "box" }));
+
+        assert_eq!(harness.read("box", 0, 8)["code"], "invalid_file_path");
+        assert_eq!(harness.read("box", 4096, 8)["code"], "invalid_file_path");
+    }
+
+    /// 钉住 `ELOOP` 当前的归属，理由写在 [`error_code_for`] 的文档里：对齐要付的代价
+    /// （不稳定 feature 或硬编码 errno）比这条分叉本身贵。这条用例的作用是让它别在暗处漂——
+    /// 哪天 `FilesystemLoop` 稳定了、有人加上那条 arm，这里会立刻变红并指向那份文档。
+    #[cfg(unix)]
+    #[test]
+    fn still_reports_a_symlink_loop_as_a_host_internal_error() {
+        let harness = Harness::new();
+        std::os::unix::fs::symlink("loop", harness.root.join("loop")).expect("symlink is creatable");
+
+        assert_eq!(harness.call(json!({ "kind": "file.stat", "path": "loop" }))["code"], "host_internal_error");
+    }
+
     #[test]
     fn moves_an_entry_and_creates_the_missing_parent() {
         let harness = Harness::new();
@@ -973,12 +1378,11 @@ mod tests {
         let error = resolve_within_root(&root, "a/../../escape").unwrap_err();
         assert_eq!(error.code, ErrorCode::InvalidFilePath);
 
-        // 同前缀的兄弟目录不在根内：`starts_with` 按路径分量比较，不是按字符串前缀。
-        let sibling = root.with_file_name(format!(
-            "{}-evil",
-            root.file_name().unwrap().to_string_lossy()
-        ));
-        assert!(!normalize(&sibling).starts_with(normalize(&root)));
+        // 同前缀的兄弟目录不在根内。走真的 `resolve_within_root`：这条路径归一化之后与根
+        // 只差一个后缀，包含判据若是按字符串前缀比而不是按路径分量比，它就会被当成根内。
+        let sibling = format!("../{}-evil/x", root.file_name().unwrap().to_string_lossy());
+        let error = resolve_within_root(&root, &sibling).unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidFilePath);
 
         assert_eq!(resolve_within_root(&root, "").unwrap(), normalize(&root));
         assert_eq!(resolve_within_root(&root, "a/b").unwrap(), normalize(&root).join("a/b"));

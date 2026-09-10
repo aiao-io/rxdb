@@ -184,6 +184,38 @@ describe('insert_sql', () => {
     expect(result.params).toContain('2025-06-15T12:30:00.000Z');
   });
 
+  // 审计字段的「只在缺省时才填」探测必须按**物理列名**读写：normalizeCreateEntity 的产物
+  // 以列名为键，按 JS 属性名探测永远探到 undefined，于是 context 传进来的时间戳被本机时钟
+  // 静默盖掉（备份恢复 / 历史导入 / sync-pull 保源时间戳全中招），而默认列名下一切正常。
+  it('列名被重命名时仍使用 context 提供的 createdAt / updatedAt', async () => {
+    const metadata = createMetadata([
+      { name: 'id', type: PropertyType.uuid },
+      { name: 'createdAt', columnName: 'created_at', type: PropertyType.date },
+      { name: 'updatedAt', columnName: 'updated_at', type: PropertyType.date }
+    ]);
+
+    const result = await insert_sql(metadata, new TestEntity(), {
+      createdAt: new Date('2025-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2025-06-15T12:30:00.000Z')
+    });
+
+    expect(result.sql).toContain('("id","created_at","updated_at")');
+    expect(result.params).toEqual(['test-id', '2025-01-01T00:00:00.000Z', '2025-06-15T12:30:00.000Z']);
+  });
+
+  it('列名被重命名时 createdBy / updatedBy 只落到物理列上', async () => {
+    const metadata = createMetadata([
+      { name: 'id', type: PropertyType.uuid },
+      { name: 'createdBy', columnName: 'created_by', type: PropertyType.string },
+      { name: 'updatedBy', columnName: 'updated_by', type: PropertyType.string }
+    ]);
+
+    const result = await insert_sql(metadata, new TestEntity(), { userId: 'user-123' });
+
+    expect(result.sql).toContain('("id","created_by","updated_by")');
+    expect(result.params).toEqual(['test-id', 'user-123', 'user-123']);
+  });
+
   it('当 returning = false 时不应包含 RETURNING 子句', async () => {
     const metadata = createMetadata([
       { name: 'id', type: PropertyType.uuid },

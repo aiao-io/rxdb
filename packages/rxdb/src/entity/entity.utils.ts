@@ -6,6 +6,7 @@
 import { isFunction } from '@aiao/utils';
 import { RxDBMutationsMap } from '../rxdb-adapter.js';
 import { getEntityStatus } from '../rxdb-utils.js';
+import { RxDBError } from '../RxDBError.js';
 import { EntityData, EntityType } from './entity.interface.js';
 import { PropertyType } from './metadata-options.interface.js';
 import { EntityMetadata } from './metadata.interface.js';
@@ -191,16 +192,20 @@ export const normalizeUpdateEntity = (metadata: EntityMetadata, entity: EntityDa
     }
   }
 
-  const foreignKeyNames = metadata.foreignKeyNames ?? [];
-  const foreignKeyColumnNames = metadata.foreignKeyColumnNames ?? foreignKeyNames;
-  for (let index = 0; index < foreignKeyNames.length; index++) {
-    const key = foreignKeyNames[index];
+  // 走 keyed 的 foreignKeyRelationMap，不走 foreignKeyNames / foreignKeyColumnNames
+  // 两个平行数组按下标配对：那种写法一旦两边长度不等就会把值写进相邻的列，且完全无声。
+  // 列名直接从关系上取，配对关系由数据结构本身保证。
+  // 三个字段在 EntityMetadata 上都是必填，故不加 `??` / `?.` —— 真为空是元数据装配的
+  // bug，让它当场炸，别伪装成「这个实体没有外键」。
+  for (const [key, relation] of metadata.foreignKeyRelationMap) {
     if (!(key in entity)) continue;
+    if ('readonly' in relation && relation.readonly === true) continue;
 
-    const relation = metadata.foreignKeyRelationMap?.get(key);
-    if (relation && (!('readonly' in relation) || relation.readonly !== true)) {
-      result[foreignKeyColumnNames[index]] = entity[key];
+    const { columnName } = relation as { columnName?: string };
+    if (!columnName) {
+      throw new RxDBError(`${metadata.namespace}:${metadata.name} 的外键关系 '${key}' 缺少 columnName`);
     }
+    result[columnName] = entity[key];
   }
 
   return result;

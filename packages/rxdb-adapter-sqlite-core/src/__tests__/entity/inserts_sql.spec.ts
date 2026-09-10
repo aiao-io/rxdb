@@ -129,4 +129,52 @@ describe('generate_entity_inserts_sql - 默认值语义', () => {
 
     expect(params).toEqual(['e-1', '2026-01-01T00:00:00.000Z', '2026-02-01T00:00:00.000Z']);
   });
+
+  // 审计字段一律按**物理列名**读写。按 JS 属性名写会多出第二个键，两个键在
+  // transformEntityValueToSql 里落到同一物理列、后写的赢：实体自带的时间戳被本机时钟盖掉。
+  it('列名被重命名时仍保留实体显式提供的审计时间', async () => {
+    const metadata = createMetadata([
+      { name: 'id', type: PropertyType.uuid },
+      { name: 'createdAt', columnName: 'created_at', type: PropertyType.date },
+      { name: 'updatedAt', columnName: 'updated_at', type: PropertyType.date }
+    ]);
+    const entity = Object.assign(new TestEntity('e-1'), {
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-02-01T00:00:00.000Z')
+    });
+
+    const { sql, params } = await generate_entity_inserts_sql(metadata, [entity]);
+
+    expect(sql).toContain('"created_at"');
+    expect(params).toEqual(['e-1', '2026-01-01T00:00:00.000Z', '2026-02-01T00:00:00.000Z']);
+  });
+
+  // 同一个 bug 在这里最刺眼：defaultProperties 循环已经用对了 property.columnName，
+  // 而按 JS 属性名写的时间戳赋值会把它刚解析出来的 default 再盖掉一次。
+  it("列名被重命名时不覆盖 'CURRENT_TIMESTAMP' 哨兵解析出的默认值", async () => {
+    const metadata = createMetadata([
+      { name: 'id', type: PropertyType.uuid },
+      { name: 'createdAt', columnName: 'created_at', type: PropertyType.date, default: 'CURRENT_TIMESTAMP' }
+    ]);
+
+    const { sql, params } = await generate_entity_inserts_sql(metadata, [new TestEntity('e-1')]);
+
+    expect(sql).toContain('"created_at"');
+    expect(params).toHaveLength(2);
+    expect(params[1]).not.toBe('CURRENT_TIMESTAMP');
+    expect(new Date(params[1] as string).toString()).not.toBe('Invalid Date');
+  });
+
+  it('列名被重命名时 createdBy / updatedBy 只落到物理列上', async () => {
+    const metadata = createMetadata([
+      { name: 'id', type: PropertyType.uuid },
+      { name: 'createdBy', columnName: 'created_by', type: PropertyType.uuid },
+      { name: 'updatedBy', columnName: 'updated_by', type: PropertyType.uuid }
+    ]);
+
+    const { sql, params } = await generate_entity_inserts_sql(metadata, [new TestEntity('e-1')], { userId: 'user-1' });
+
+    expect(sql).toContain('"created_by"');
+    expect(params).toEqual(['e-1', 'user-1', 'user-1']);
+  });
 });

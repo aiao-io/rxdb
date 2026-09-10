@@ -1,3 +1,6 @@
+import { provideZonelessChangeDetection } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { DEVTOOLS_TRANSPORT, DevToolsEndpointService } from '@modules/rxdb-devtools-panel';
 import { RXDB_DEVTOOLS_MESSAGE, type DevToolsMessage } from '@modules/rxdb-devtools-panel/wire';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PortService } from './port.service';
@@ -177,6 +180,53 @@ describe('PortService', () => {
       expect.objectContaining({ type: 'DISCONNECT', direction: 'page-to-devtools', payload: null })
     );
     service.ngOnDestroy();
+  });
+
+  // v2 端点只订阅 `connectionEpoch` / `subscribeFrames`，看不到 v1 车道上合成的 DISCONNECT。
+  // 导航不推进 epoch，端点就停在 `'v2'` 终态拒绝新 connector 的握手——文件 tab 静默变旧。
+  it('advances connectionEpoch on navigation so the v2 endpoint re-negotiates', () => {
+    const service = new PortService();
+    const listener = vi.fn();
+    service.subscribe(listener);
+    const before = service.connectionEpoch();
+
+    service.notifyNavigation();
+
+    expect(service.connectionEpoch()).toBe(before + 1);
+    // v1 车道行为不变：DISCONNECT 照发
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({ type: 'DISCONNECT' }));
+    service.ngOnDestroy();
+  });
+
+  it('replaces the v2 endpoint on navigation: old frame subscriber detached, new endpoint re-hellos', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        PortService,
+        { provide: DEVTOOLS_TRANSPORT, useExisting: PortService },
+        DevToolsEndpointService
+      ]
+    });
+    const port = TestBed.inject(PortService);
+    const endpoints = TestBed.inject(DevToolsEndpointService);
+    TestBed.tick();
+    const first = endpoints.resolve();
+    expect(first).not.toBeNull();
+    const subscribeFrames = vi.spyOn(port, 'subscribeFrames');
+    const hellos = (): number =>
+      harnesses[0]?.postMessage.mock.calls.filter(([frame]) => (frame as { type?: string }).type === 'PROTOCOL_HELLO')
+        .length ?? 0;
+    const hellosBefore = hellos();
+
+    port.notifyNavigation();
+    TestBed.tick();
+
+    expect(endpoints.resolve(), '没有换端点——面板会继续对着旧 session 说话').not.toBe(first);
+    expect(subscribeFrames, '新端点必须重新挂到原始帧车道').toHaveBeenCalledOnce();
+    expect(hellos(), '新端点没有重新开口协商').toBe(hellosBefore + 1);
+
+    endpoints.ngOnDestroy();
+    TestBed.resetTestingModule();
   });
 
   it('isolates listener failures', () => {
