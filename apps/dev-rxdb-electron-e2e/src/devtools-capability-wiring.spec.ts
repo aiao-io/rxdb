@@ -51,15 +51,36 @@ function launchApp(
     // 必须真沙箱：--no-sandbox 会让扩展 devtools_page 一行不执行，面板永不进 tab 条。
     ...realSandbox(),
     args: [`--user-data-dir=${userDataDir}`, '--serve', `--port=${String(port)}`],
-    env: {
-      ...launchEnv(),
-      DEV_RXDB_DEVTOOLS: '1',
-      DEV_RXDB_DEVTOOLS_EXTENSION: resolveDesktopDevExtension(),
-      DEV_RXDB_DEVTOOLS_CAPABILITY: capability,
-      // 省略即只读：这正是 `resolveDevToolsDevConfig()` 的语义，别在这里补默认值。
-      ...(mutation === undefined ? {} : { DEV_RXDB_DEVTOOLS_MUTATION: mutation })
-    }
+    env: devToolsEnv(capability, mutation)
   });
+}
+
+/**
+ * 本次运行的子进程环境。
+ *
+ * @param mutation - 写入开关；`undefined` 表示只读档。
+ *
+ * @remarks
+ * **`mutation` 省略时必须把这个键删掉，不能只是「不写入」。** `launchEnv()` 是全量透传
+ * `process.env` 的，宿主 shell 里若 `export DEV_RXDB_DEVTOOLS_MUTATION=allow`（README 教的是
+ * per-command 前缀，但调试时顺手 export 一次很常见），它会顺着 spread 漏进来，把只读用例跑成
+ * 写入档。判别力不会因此失效——下面两条只读用例都逐字断言 `mutationPolicy: 'omit'`，泄漏当场变红
+ * ——但那条红指向的是宿主环境而不是被测代码，查起来很费时间。删键是让用例对宿主环境免疫。
+ *
+ * 删掉之后档位由 `resolveDevToolsDevConfig()` 判「省略即只读」，别在这里补默认值。
+ */
+function devToolsEnv(capability: string, mutation: string | undefined): Record<string, string> {
+  const env: Record<string, string> = {
+    ...launchEnv(),
+    DEV_RXDB_DEVTOOLS: '1',
+    DEV_RXDB_DEVTOOLS_EXTENSION: resolveDesktopDevExtension(),
+    DEV_RXDB_DEVTOOLS_CAPABILITY: capability
+  };
+
+  if (mutation === undefined) delete env['DEV_RXDB_DEVTOOLS_MUTATION'];
+  else env['DEV_RXDB_DEVTOOLS_MUTATION'] = mutation;
+
+  return env;
 }
 
 /** 读渲染进程里那份由 preload 挂上的运行配置。 */

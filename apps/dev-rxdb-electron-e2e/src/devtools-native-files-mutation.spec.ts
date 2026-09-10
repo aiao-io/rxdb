@@ -73,14 +73,35 @@ function launchApp(userDataDir: string, port: number, mutation?: string): Promis
     // 必须真沙箱：--no-sandbox 会让扩展 devtools_page 一行不执行，面板永不进 tab 条。
     ...realSandbox(),
     args: [`--user-data-dir=${userDataDir}`, '--serve', `--port=${String(port)}`],
-    env: {
-      ...launchEnv(),
-      DEV_RXDB_DEVTOOLS: '1',
-      DEV_RXDB_DEVTOOLS_EXTENSION: resolveDesktopDevExtension(),
-      DEV_RXDB_DEVTOOLS_CAPABILITY: 'full',
-      ...(mutation === undefined ? {} : { DEV_RXDB_DEVTOOLS_MUTATION: mutation })
-    }
+    env: devToolsEnv(mutation)
   });
+}
+
+/**
+ * 本次运行的子进程环境。
+ *
+ * @param mutation - 写入开关；`undefined` 表示只读档。
+ *
+ * @remarks
+ * **`mutation` 省略时必须把这个键删掉，不能只是「不写入」。** `launchEnv()` 是全量透传
+ * `process.env` 的，宿主 shell 里若 `export DEV_RXDB_DEVTOOLS_MUTATION=allow`，它会顺着 spread
+ * 漏进来，把末尾那条只读用例跑成写入档：面板真把目录和文件写到盘上，用例随即变红。判别力不会因此
+ * 失效（红了就是红了），但那条红指向的是宿主环境而不是被测代码。删键是让用例对宿主环境免疫。
+ *
+ * 删掉之后档位由 `resolveDevToolsDevConfig()` 判「省略即只读」，别在这里补默认值。
+ */
+function devToolsEnv(mutation: string | undefined): Record<string, string> {
+  const env: Record<string, string> = {
+    ...launchEnv(),
+    DEV_RXDB_DEVTOOLS: '1',
+    DEV_RXDB_DEVTOOLS_EXTENSION: resolveDesktopDevExtension(),
+    DEV_RXDB_DEVTOOLS_CAPABILITY: 'full'
+  };
+
+  if (mutation === undefined) delete env['DEV_RXDB_DEVTOOLS_MUTATION'];
+  else env['DEV_RXDB_DEVTOOLS_MUTATION'] = mutation;
+
+  return env;
 }
 
 /** 确定性内容：第 i 字节为 `i % 251`。质数步长让任何整块错位都改变摘要。 */
