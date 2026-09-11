@@ -59,17 +59,18 @@ const FILE_PATH = 'bulk/large.bin';
 const STREAMING_PEAK_CEILING = FRAME_BYTES * 4;
 
 /**
- * 对照组峰值的下限：整份内容再让出 1 MiB。
+ * 对照组每多攒一帧，采样值至少该涨的量：一帧再让出 1 MiB。
  *
  * @remarks
  * 「对照组确实攒住了整份内容」由 `held` 的字节总和逐字节坐实，这条只负责确认采样器量得到
- * 这份内容。让出的 1 MiB 是留给基线偏高的噪声余量，**不**是留给「基线里混进整整一帧」的——
- * 那件事由 {@link readAndMeasurePeakBytes} 在结构上排掉，不靠放宽阈值兜：本机 7 次实测，
- * 峰值不但没短，还比整份内容高出 12~16 KB（采样点上还压着一份没回收的传输层缓冲）。
+ * 这份内容。量的是**涨幅**而不是「峰值 ≈ 整份内容」：后者要拿本趟的基线作参照，而基线是上
+ * 一趟读完那一刻采的，上一趟残留多少，峰值就短多少 —— 这条在 CI 上两次判红，两次都短了
+ * 整整一帧（先是 4 196 512 B，改成独立函数之后仍有 4 215 448 B），本机却一次都复现不出来。
+ * 涨幅由同一趟内相邻两次采样相减得到，残留同时出现在被减数与减数里，自己抵消掉。
  *
- * 一个没攒住的实现峰值只有一帧量级，离这条线还差十二帧，这 1 MiB 放不过去。
+ * 一个没攒住的实现每帧读完即弃，涨幅是 0 而不是一帧，这 1 MiB 放不过去。
  */
-const ACCUMULATING_PEAK_FLOOR = CONTENT_BYTES - FRAME_BYTES / 4;
+const ACCUMULATING_GROWTH_FLOOR = FRAME_BYTES - FRAME_BYTES / 4;
 
 /**
  * 本文件两条用例的单条超时。
@@ -131,35 +132,65 @@ const sampleBytesHeld = (): number => {
   return jsBytesHeld();
 };
 
+/** 一趟读的内存形态。 */
+interface ReadMeasurement {
+  /** 每收下一帧后的采样绝对值，按到达顺序。 */
+  readonly samples: readonly number[];
+  /** 本趟峰值，已减去本趟自己的基线。 */
+  readonly peakBytes: number;
+}
+
 /**
- * 完整读一遍 {@link FILE_PATH}，量出这一趟的内存峰值。
+ * 完整读一遍 {@link FILE_PATH}，记下这一趟的内存形态。
  *
  * @remarks
- * 两次读共用同一段循环，差别只在 `onChunk` 的去处：比较的两个峰值因此来自同一条读通路，
- * 差异只可能出自调用方持不持有内容 —— 这正是 AC#5 要归因的那一项。
+ * 两次读共用同一段循环，差别只在 `onChunk` 的去处：比较出来的差异因此来自同一条读通路，
+ * 只可能出自调用方持不持有内容 —— 这正是 AC#5 要归因的那一项。
  *
- * 必须是一个独立函数、而不是测试体里的两段循环：`reader` 可达 `openRead` 造出的那条流，
- * 而流的底层源在 `pull` 里用闭包变量 `pending` 存着「下一帧」，读到 eof 时它仍指着最后一帧
- * （见 `rxdb-plugin-storage` 的 `desktop.ts`）。把 `reader` 留在测试体的作用域里，下一趟采基线
- * 就会把这一帧算进基线、再从峰值差里减掉，对照组的峰值于是凭空短掉整整一帧（CI 上实测基线
- * 高出 4 196 512 B，即一帧 + 2 208 B）。函数返回后整条链不可达，`gc()` 收得干净，
- * 基线量到的才是「什么都没持有」。
+ * 交出的是采样序列而不只是峰值：峰值要减基线，而基线是上一趟读完那一刻采的，上一趟
+ * 残留多少峰值就短多少（见 {@link ACCUMULATING_GROWTH_FLOOR}）。残留确实存在——`openRead`
+ * 的流在 `pull` 里用闭包变量 `pending` 存着「下一帧」，加上传输层尚未回收的缓冲，一次
+ * `gc()` 不保证在采基线之前就把它们还回去。序列交给调用方，需要抗残留的断言就改看相邻
+ * 采样的涨幅，只有留着一倍余量的 {@link STREAMING_PEAK_CEILING} 才继续看减了基线的峰值。
  *
  * @param onChunk - 每帧的去处：对照组推进数组，流式组丢弃。调用发生在采样之前，
- *   所以当前帧本身计入峰值。
- * @returns 本趟读的内存峰值，已减去本趟自己的基线
+ *   所以当前帧本身计入采样。
+ * @returns 本趟的采样序列与峰值
  */
-const readAndMeasurePeakBytes = async (onChunk: (chunk: Uint8Array) => void): Promise<number> => {
+const readAndMeasure = async (onChunk: (chunk: Uint8Array) => void): Promise<ReadMeasurement> => {
   const baseline = sampleBytesHeld();
-  let peak = 0;
+  const samples: number[] = [];
   const reader = (await filesystem.openRead(FILE_PATH)).getReader();
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
     onChunk(value);
-    peak = Math.max(peak, sampleBytesHeld() - baseline);
+    samples.push(sampleBytesHeld());
   }
-  return peak;
+  return { samples, peakBytes: Math.max(...samples) - baseline };
+};
+
+/**
+ * 相邻两次采样之间涨幅的中位数。
+ *
+ * @remarks
+ * 取中位数而不是首尾之差：残留被回收时，涨幅会在**某一次**采样上凭空短掉一块，首尾之差
+ * 原样吃下这一块，中位数则不理会这样的单点异常。13 帧给出 12 个涨幅，一次异常动不了中位。
+ *
+ * @param samples - 一趟读的采样序列，至少两项
+ * @returns 涨幅中位数（偶数个涨幅时取靠上的那个）
+ */
+const medianGrowthBytes = (samples: readonly number[]): number => {
+  const steps: number[] = [];
+  let previous: number | undefined;
+  for (const sample of samples) {
+    if (previous !== undefined) steps.push(sample - previous);
+    previous = sample;
+  }
+
+  const middle = steps.sort((left, right) => left - right)[Math.floor(steps.length / 2)];
+  if (middle === undefined) throw new Error('growth needs at least two samples');
+  return middle;
 };
 
 let workspace: string;
@@ -219,26 +250,30 @@ describe('Rust 文件宿主的大文件通路', () => {
    * @remarks
    * 阈值 {@link STREAMING_PEAK_CEILING} 是四帧，本机实测 4.21 MB —— 正好一帧，
    * 余量至少一倍（撞上预取窗口的那次是 8.56 MB，仍在一半以内）。另一半断言比的是同一条
-   * 读通路上的累积读（实测 54.54 MB，整份内容还多出十几 KB）：只卡绝对值的话，一个
+   * 读通路上的累积读（实测每帧涨 4.19 MB、峰值 54.54 MB）：只卡绝对值的话，一个
    * 「其实没流式、但恰好被别的原因压住了内存」的实现也能蒙混过去；两条一起才把它排掉。
    *
-   * 两趟读共用 {@link readAndMeasurePeakBytes}，差别只在每帧的去处，比出来的差异才归得到
+   * 两趟读共用 {@link readAndMeasure}，差别只在每帧的去处，比出来的差异才归得到
    * 「调用方持不持有内容」这一项上。
    */
   it(
     '流式读的内存峰值只有一帧量级，且不到累积读峰值的一半',
     async () => {
-      const streamingPeak = await readAndMeasurePeakBytes(() => undefined);
+      const streaming = await readAndMeasure(() => undefined);
 
       const held: Uint8Array[] = [];
-      const accumulatingPeak = await readAndMeasurePeakBytes(chunk => held.push(chunk));
+      const accumulating = await readAndMeasure(chunk => held.push(chunk));
+
+      // 两趟都得把 13 帧交齐：漏交一帧，峰值自然低，「省内存」就成了漏读的副产品。
+      expect(streaming.samples).toHaveLength(FRAME_COUNT);
+      expect(accumulating.samples).toHaveLength(FRAME_COUNT);
 
       // 先把对照组的前提坐实：它确实把整份内容攒住了，否则下面的比值只是两个小数在比大小。
       expect(held.reduce((total, chunk) => total + chunk.byteLength, 0)).toBe(CONTENT_BYTES);
-      expect(accumulatingPeak).toBeGreaterThan(ACCUMULATING_PEAK_FLOOR);
+      expect(medianGrowthBytes(accumulating.samples)).toBeGreaterThan(ACCUMULATING_GROWTH_FLOOR);
 
-      expect(streamingPeak).toBeLessThan(STREAMING_PEAK_CEILING);
-      expect(streamingPeak).toBeLessThan(accumulatingPeak / 2);
+      expect(streaming.peakBytes).toBeLessThan(STREAMING_PEAK_CEILING);
+      expect(streaming.peakBytes).toBeLessThan(accumulating.peakBytes / 2);
     },
     LARGE_FILE_TIMEOUT_MS
   );
