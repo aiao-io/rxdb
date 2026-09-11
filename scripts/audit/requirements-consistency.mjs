@@ -291,7 +291,43 @@ export function checkEpics(epics, stories) {
 }
 
 /**
- * 相对链接与行号锚点。只看 `](...)` 形式，跳过 http(s) / mailto / 纯 `#` 锚点。
+ * 把围栏代码块与行内代码的**内容**换成等长空格（换行保留）。
+ *
+ * @remarks
+ * Markdown 里代码跨度中的 `](x)` 是字面文本，不是链接。评审文逐字引用坏锚点的形状时
+ * （`requirements/reviews/` 里那句 `` `- [:234](…#L234) …` ``），链接检查会把引文里的
+ * `…` 当成死链报出来——门禁红的是被批评的样例本身，不是仓库里真有断链。
+ * 留等长空格而不是整段删掉，是为了让掩码后的匹配位置仍与原文对得上。
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+export function maskCode(text) {
+  const blank = s => s.replace(/[^\n]/g, ' ');
+  /** @type {string | undefined} */
+  let fence;
+  const lines = text.split('\n').map(line => {
+    const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line);
+    if (fence !== undefined) {
+      if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length) fence = undefined;
+      return blank(line);
+    }
+    if (marker) {
+      fence = marker[1];
+      return blank(line);
+    }
+    // 行内代码：开合反引号串长度必须相等，所以两侧都要断言不是更长串的一截
+    return line.replace(
+      /(?<!`)(`+)(?!`)([^\n]*?)(?<!`)\1(?!`)/g,
+      (_m, ticks, body) => `${ticks}${blank(body)}${ticks}`
+    );
+  });
+  return lines.join('\n');
+}
+
+/**
+ * 相对链接与行号锚点。只看 `](...)` 形式，跳过 http(s) / mailto / 纯 `#` 锚点，
+ * 以及代码块 / 行内代码里的同形文本（见 {@link maskCode}）。
  *
  * @param {string} root
  * @returns {Promise<string[]>}
@@ -308,7 +344,7 @@ export async function checkLinks(root) {
   };
   for (const file of await collectMarkdown(path.join(root, 'requirements'))) {
     if (file.endsWith('.template.md')) continue;
-    const text = await readFile(file, 'utf8');
+    const text = maskCode(await readFile(file, 'utf8'));
     const rel = path.relative(root, file);
     for (const m of text.matchAll(/\]\(([^)\s]+?)(#[^)\s]*)?\)/g)) {
       const target = m[1];

@@ -12,6 +12,7 @@ import {
   collectEpics,
   collectStories,
   countStatuses,
+  maskCode,
   parseFrontmatter,
   run,
   updateReadme,
@@ -176,6 +177,35 @@ test('死链与超出文件行数的 #L 锚点被抓出，合法锚点与 http �
   assert.equal(offenders.length, 2);
   assert.match(offenders.join('\n'), /#L9 超出文件行数 3/);
   assert.match(offenders.join('\n'), /链接目标不存在 → \.\.\/\.\.\/\.\.\/packages\/x\/src\/nope\.ts/);
+});
+
+test('代码块与行内代码里的同形文本不算链接', async () => {
+  await scaffold(dir);
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-001-x.md'),
+    story('US-001', 'Done') +
+      [
+        '引用坏锚点的形状：`- [:234](…#L234) 说明`，以及 ``[x](gone.md)`` 双反引号。',
+        '',
+        '```md',
+        '[fenced](../../../packages/x/src/nope.ts)',
+        '```',
+        '',
+        '真链接仍被检查：[gone](../../../packages/x/src/nope.ts)',
+        ''
+      ].join('\n')
+  );
+  const offenders = await checkLinks(dir);
+  assert.deepEqual(offenders, [
+    'requirements/stories/core/US-001-x.md: 链接目标不存在 → ../../../packages/x/src/nope.ts'
+  ]);
+});
+
+test('maskCode 只清内容，行数与行外文本原样保留', () => {
+  assert.equal(maskCode('a `b c` d'), 'a `   ` d');
+  assert.equal(maskCode('~~~\nx\n~~~\ny'), '   \n \n   \ny');
+  assert.equal(maskCode('`a` 和 `b`'), '` ` 和 ` `');
+  assert.equal(maskCode('单个 ` 不成对'), '单个 ` 不成对');
 });
 
 test('仓库现状：requirements 派生视图与 YAML 一致（回归护栏）', async () => {
