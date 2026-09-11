@@ -26,7 +26,7 @@
     "@crxjs/vite-plugin": "^2.7.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/chrome": "^0.2.8",
-    "daisyui": "^5.7.27",
+    "daisyui": "^5.7.36",
     "tailwindcss": "^4.3.3",
     "vite": "^8.2.2",
     "vite-plugin-zip-pack": "^1.2.4"
