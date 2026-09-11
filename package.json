@@ -242,6 +242,7 @@
       "@angular/core": "22.1.6",
       "@angular/forms": "22.1.6",
       "@angular/platform-browser": "22.1.6",
+      "lodash-es": "^4.18.1",
       "react": "^19.2.8",
       "react-dom": "^19.2.8",
       "vue": "^3.5.42"
