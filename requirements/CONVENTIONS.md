@@ -109,10 +109,9 @@ inherited_acs:
 
 `#install_plugin()` 在 try 外（见 RxDB.ts:283-285）
 
-✅ 符号名 + 原文引用，行号仅作导航：
+✅ 符号名作链接文字 + 原文引用，不带行号：
 
-`RxDB.#install_plugin()` 被放在 `try` 块**之外**
-（[RxDB.ts:432-434](../packages/rxdb/src/RxDB.ts#L432-L434)）：
+[`RxDB.#install_plugin()`](../packages/rxdb/src/RxDB.ts) 被放在 `try` 块**之外**：
 
 ```ts
 this.#install_plugin();
@@ -123,11 +122,16 @@ try {
 
 配套要求：
 
+- **能用符号名唯一定位的就不要写 `#L`。** 优先级 3 的适用面比想象中窄：链接文字写成
+  ``[`symbolName`](path/to/file.ts)`` 时读者一次跳转就能 grep 到，行号只是多一处会烂的断言。
+  本规范上一版自己的 ✅ 示例就带着 `#L432-L434`，而那三行早已挪到别处。
 - **跨文件同类锚点一起改**。行号漂移是系统性的——某个文件插入 8 行，则该文件所有后续锚点同时错 8。
-  修一处而不扫全仓，等于留下更难发现的错误。改完用
-  `grep -rn 'packages/rxdb/src/RxDB.ts#L' requirements/` 自查。
+  修一处而不扫全仓，等于留下更难发现的错误。
 - **锚点失效的真实代价不是"链接坏了"**，是读者停止复验、转而信任叙述。带错误前提的断言只要锚点
   没人点开，就能一路活到实现阶段。
+
+`node scripts/audit/requirements-consistency.mjs` 逐条查这件事：伴随符号在目标文件里**整体不存在**
+的锚点直接阻断（断言已假）；符号还在但行号已漂、或行号根本没有伴随符号的，列为告警。
 
 ### 结论必须写出复验方式
 

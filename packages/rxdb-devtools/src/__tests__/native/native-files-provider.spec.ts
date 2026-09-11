@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { createDevToolsNativeFilesProvider } from '../../native/native-files-provider.js';
 import type { DevToolsProviderRuntime } from '../../provider/descriptor.js';
+import { createFakeClock } from '../../testing/fake-clock.js';
+import { encodeCanonicalBase64 } from '../../v2/base64.js';
 import { DEVTOOLS_MAX_INFLIGHT_REQUESTS } from '../../v2/constants.js';
+import { createDevToolsTransferTable } from '../../v2/transfer.js';
 import { createFakeNativeFilesystem, expectedBytes, type FakeNativeFilesystem } from './fake-native-filesystem.js';
 
 const MAX_TRANSFER_BYTES = 64;
@@ -16,6 +19,20 @@ function setup(seed?: (filesystem: FakeNativeFilesystem) => void, runtime: DevTo
 
 function codeOf(result: { outcome: string; error?: { code: string } }): string {
   return result.outcome === 'failed' ? (result.error?.code ?? '') : 'ok';
+}
+
+/** 跳过一整轮宏任务，让所有已排上的落盘续体跑完。 */
+function macrotask(): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, 0));
+}
+
+/** 一道能被测试按住的闸；用来把一次 `openWrite` 停在半空。 */
+function gate(): { promise: Promise<void>; open: () => void } {
+  let open = (): void => undefined;
+  const promise = new Promise<void>(resolve => {
+    open = (): void => resolve();
+  });
+  return { promise, open };
 }
 
 /** 逐字节读空一个字节源，用来断言「下载的字节与源一致」。 */
@@ -302,6 +319,59 @@ describe('native files provider — upload', () => {
     // AC#47 的「失败/取消/超时无半写文件或孤儿 metadata」就是这两条断言。
     expect(filesystem.contentOf(['db', 'in.bin'])).toBeUndefined();
     expect(filesystem.pendingTemporaries()).toBe(0);
+  });
+
+  it('MUST leave no temporary behind when CANCEL lands on a chunk whose handle is still opening', async () => {
+    // 上一条用例里 `write` 是 await 过的，句柄早已打开，`discard()` 有东西可删。真实时序是
+    // CHUNK 紧跟 CANCEL：字节已经在路上，而 `openWrite` 还没兑现——把它按住才测得到这一拍。
+    const opening = gate();
+    const filesystem = createFakeNativeFilesystem();
+    const provider = createDevToolsNativeFilesProvider({
+      filesystem: {
+        ...filesystem,
+        openWrite: async segments => {
+          await opening.promise;
+          return filesystem.openWrite(segments);
+        }
+      },
+      maxTransferBytes: MAX_TRANSFER_BYTES,
+      runtime: 'electron'
+    });
+    await provider.invoke('upload', { path: 'db', name: 'in.bin', size: 6, transferId: 't-1' });
+    const sink = provider.createChunkSink('t-1');
+
+    // 两条回调与 `endpoint.ts` 的 `#onChunk` / `#onTransferSettled` 同构：字节逐块下沉，
+    // 非 completed 的终态一律 discard。
+    const table = createDevToolsTransferTable({
+      clock: createFakeClock(),
+      negotiatedLimit: MAX_TRANSFER_BYTES,
+      onChunk: async (_transferId, data) => {
+        await sink.write(data);
+      },
+      onSettled: async (_transferId, outcome) => {
+        await (outcome === 'completed' ? sink.commit() : sink.discard());
+      }
+    });
+
+    table.start({ transferId: 't-1', requestId: 'r-1', totalBytes: 6 });
+    const pending = table.chunk({
+      transferId: 't-1',
+      chunkIndex: 0,
+      offset: 0,
+      dataBase64: encodeCanonicalBase64(expectedBytes(6))
+    });
+    // 让队列跑到 `sink.write()` 里面去，停在 `openWrite` 上；此刻取消才是要验的那一拍。
+    await macrotask();
+    const cancellation = table.cancel({ transferId: 't-1' });
+
+    opening.open();
+    const [, settlement] = await Promise.all([pending, cancellation]);
+
+    expect(settlement).toEqual({ outcome: 'settled', reason: 'cancelled' });
+    // 清理必须排在在途写入之后。抢在前面的话 `discard()` 扫到的是个 undefined 句柄、
+    // 静默返回，随后那次 write 把临时文件创建出来——磁盘上多一份没人认领的 .rxdb-tmp。
+    expect(filesystem.pendingTemporaries()).toBe(0);
+    expect(filesystem.contentOf(['db', 'in.bin'])).toBeUndefined();
   });
 
   it('MUST open no write handle when the stream never starts', async () => {

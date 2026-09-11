@@ -128,7 +128,7 @@ US-905「发现 9」记录 `dispose()` 全仓零调用点，标「未修，随 C
 
 [US-906](../stories/future/US-906-electron-devtools-developer-path.md) 是 `In Progress`，5 ✅ / 1 ⚠️，唯一未关的是 AC#2 的**人工半边**：按 README 跑一次 `nx dev` 流程并打开面板看一眼（机器半边已由 US-904 的 e2e 覆盖）。
 
-[US-907](../stories/future/US-907-devtools-manual-browser-regression.md) 的立项理由逐字是：
+[US-907](../stories/future/US-907-devtools-manual-regression.md) 的立项理由逐字是：
 
 > 剩下四条 AC 的判据本身就是「人在真实 Chrome 里看」…把它们留在 US-904 里只会让一条 875 行的故事永远停在 In Progress。
 
@@ -164,18 +164,18 @@ US-906 同类：「`devtools-*` 四份 spec **14 例全绿**」，而 `apps/dev-
 
 ## 逐条判定
 
-| Story                                                                    | 状态        | 判定                                                                                                                                                                      |
-| ------------------------------------------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-024](../stories/core/US-024-pglite-querycache-row-contract.md)       | Backlog     | ✅ **模范**。90 行，前提全部复验通过，capability-matrix 缺口条目对得上；技术笔记里「首选抽到 `@aiao/rxdb`——『同一份』是靠单一实现保证，不是靠两份实现互相对齐」是正确取舍 |
-| [US-907](../stories/future/US-907-devtools-manual-browser-regression.md) | Backlog     | ✅ 干净。四条 `inherited_acs` 与 US-904 AC#34/#38/#39/#42 逐字对应，源侧均有 `↗ US-907` 交接标记。一处提示见下                                                            |
-| [US-211](../stories/adapter/US-211-multi-miniprogram-platforms.md)       | Backlog     | ✅ 五条「今天就能踩到的症状」全部属实，满足 [价值待证](../CONVENTIONS.md#价值待证) 的「病灶数 ≥ 抽象数」                                                                  |
-| [US-305](../stories/collaboration/US-305-commit-graph-head.md)           | Backlog     | ✅ FR-030 阻塞属实（`requirements/migration-release.json` 的 `bridge.tag` 为 `null`）                                                                                     |
-| [US-307](../stories/collaboration/US-307-restore-session.md)             | Backlog     | ✅ 表归属划得清楚（「本故事若需要给该表加列，MUST 走 US-306 阶段 B 的迁移路径，不得另建第二张会话表」），依赖声明精确到阶段                                               |
-| [US-308](../stories/collaboration/US-308-branch-isolation-conflict.md)   | Backlog     | ✅ 前提复验通过：`VersionManager.switchBranch(branchId: string): Promise<void>` 确无 options 参数、无 dirty 检查                                                          |
-| [US-306](../stories/collaboration/US-306-working-tree-commits.md)        | Backlog     | ⚠️ 仅第 7 块                                                                                                                                                              |
-| [US-015](../stories/core/US-015-plugin-inject-dependency.md)             | In Review   | ⚠️ 第 1 块（26 处锚点腐烂）。内容本身准确                                                                                                                                 |
-| [US-906](../stories/future/US-906-electron-devtools-developer-path.md)   | In Progress | ⚠️ 第 6、8 块。六行证据全部复验通过（`createManifest(variant)`、`build-desktop-dev` target、`resolveDesktopDevExtension()`）                                              |
-| [US-905](../stories/future/US-905-tauri-native-devtools.md)              | In Progress | ❌ 第 2、3、4、8 块。886 行需要压到约 230 行                                                                                                                              |
+| Story                                                                  | 状态        | 判定                                                                                                                                                                      |
+| ---------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-024](../stories/core/US-024-pglite-querycache-row-contract.md)     | Backlog     | ✅ **模范**。90 行，前提全部复验通过，capability-matrix 缺口条目对得上；技术笔记里「首选抽到 `@aiao/rxdb`——『同一份』是靠单一实现保证，不是靠两份实现互相对齐」是正确取舍 |
+| [US-907](../stories/future/US-907-devtools-manual-regression.md)       | Backlog     | ✅ 干净。四条 `inherited_acs` 与 US-904 AC#34/#38/#39/#42 逐字对应，源侧均有 `↗ US-907` 交接标记。一处提示见下                                                            |
+| [US-211](../stories/adapter/US-211-multi-miniprogram-platforms.md)     | Backlog     | ✅ 五条「今天就能踩到的症状」全部属实，满足 [价值待证](../CONVENTIONS.md#价值待证) 的「病灶数 ≥ 抽象数」                                                                  |
+| [US-305](../stories/collaboration/US-305-commit-graph-head.md)         | Backlog     | ✅ FR-030 阻塞属实（`requirements/migration-release.json` 的 `bridge.tag` 为 `null`）                                                                                     |
+| [US-307](../stories/collaboration/US-307-restore-session.md)           | Backlog     | ✅ 表归属划得清楚（「本故事若需要给该表加列，MUST 走 US-306 阶段 B 的迁移路径，不得另建第二张会话表」），依赖声明精确到阶段                                               |
+| [US-308](../stories/collaboration/US-308-branch-isolation-conflict.md) | Backlog     | ✅ 前提复验通过：`VersionManager.switchBranch(branchId: string): Promise<void>` 确无 options 参数、无 dirty 检查                                                          |
+| [US-306](../stories/collaboration/US-306-working-tree-commits.md)      | Backlog     | ⚠️ 仅第 7 块                                                                                                                                                              |
+| [US-015](../stories/core/US-015-plugin-inject-dependency.md)           | In Review   | ⚠️ 第 1 块（26 处锚点腐烂）。内容本身准确                                                                                                                                 |
+| [US-906](../stories/future/US-906-electron-devtools-developer-path.md) | In Progress | ⚠️ 第 6、8 块。六行证据全部复验通过（`createManifest(variant)`、`build-desktop-dev` target、`resolveDesktopDevExtension()`）                                              |
+| [US-905](../stories/future/US-905-tauri-native-devtools.md)            | In Progress | ❌ 第 2、3、4、8 块。886 行需要压到约 230 行                                                                                                                              |
 
 US-907 的一处提示：技术笔记用 `git worktree add ../rxdb-old v0.0.25` 建旧版产物，而该 tag **不是 HEAD 的祖先**（`git merge-base --is-ancestor v0.0.25 HEAD` 判否；仓库只有 `v0.0.24` / `v0.0.25` 两个 tag，均非祖先）。执行前需确认它仍代表「`main` 上最近一个已发布 tag」。
 

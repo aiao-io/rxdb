@@ -303,6 +303,24 @@ describe('transfer state machine', () => {
     expect(settled).toEqual([{ transferId: TRANSFER_ID, outcome: 'completed' }]);
   });
 
+  it('MUST NOT settle CANCEL while a chunk write is still in flight', async () => {
+    const slow = gate();
+    const { settled, table } = setup(1_024, () => slow.promise);
+    start(table, 4);
+
+    const pending = chunk(table, 0, 0, encodeCanonicalBase64(bytes(4)));
+    const cancellation = table.cancel({ transferId: TRANSFER_ID });
+    await macrotask();
+    // COMPLETE 的对称面，代价却不同：过早的 cancelled 让清理跑在一个**尚未打开**的句柄上，
+    // 于是它什么都没删，而在途那次 write 随后才把临时文件创建出来——一个没有主人的 .rxdb-tmp。
+    expect(settled).toEqual([]);
+
+    slow.open();
+    expect(await pending).toEqual({ outcome: 'accepted' });
+    expect(await cancellation).toEqual({ outcome: 'settled', reason: 'cancelled' });
+    expect(settled).toEqual([{ transferId: TRANSFER_ID, outcome: 'cancelled' }]);
+  });
+
   it('MUST refresh the idle deadline only on frames that pass every guard', async () => {
     // 被拒帧刷新计时器，等于让攻击者用非法帧无限续命。
     const { clock, settled, table } = setup();

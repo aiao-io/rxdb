@@ -159,6 +159,6 @@ tags: [security, adapter, encryption, local-first, mvp]
 ## 参考
 
 - [Epic: 数据同步与协作](../../epics/epic-002-data-sync.md)
-- [README 路线图 · 阶段 2](../../../README.md#阶段-2-生产可靠性)
+- [README 路线图 · 1.0 之后](../../../README.md#10-之后)
 - OWASP Password Storage Cheat Sheet（PBKDF2 参数）
 - WebCrypto `SubtleCrypto.encrypt({ name: 'AES-GCM', iv })` 规范

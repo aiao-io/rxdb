@@ -205,7 +205,7 @@ seed 路径改用适配器层写入（如 `mergeChanges` / 行契约路径），
 本故事不复活它们——复活的前提是状态化后端 + 鉴权耦合进通知路径，属于协议演进故事，不在本故事范围。
 
 广播接在 `ENTITY_LOCAL_*` 事件上有一个结构收益：core 的 `dispatchEvent` 把事务内的实体事件缓冲到
-`TRANSACTION_COMMIT` 才派发（`open.events.push(event)`，[RxDB.ts:816-825](../../../packages/rxdb/src/RxDB.ts#L816-L825)），
+`TRANSACTION_COMMIT` 才派发（[`dispatchEvent`](../../../packages/rxdb/src/RxDB.ts) 里的 `open.events.push(event)`），
 「写入落库之后广播」这条协议语义由核心机制保证，不靠端点调用点再判一次。
 
 代价照旧且已承认：实体粒度广播会放大重拉流量（一次写入让每个活查询多跑一趟远端），

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { after, before, test } from 'node:test';
 
 import {
+  checkAnchorEvidence,
   checkEpics,
   checkLinks,
   checkReadme,
@@ -12,9 +13,12 @@ import {
   collectEpics,
   collectStories,
   countStatuses,
+  evidenceSymbols,
+  headingSlug,
   maskCode,
   parseFrontmatter,
   run,
+  scanNarrative,
   updateReadme,
   updateStatusOverview
 } from './requirements-consistency.mjs';
@@ -206,6 +210,130 @@ test('maskCode 只清内容，行数与行外文本原样保留', () => {
   assert.equal(maskCode('~~~\nx\n~~~\ny'), '   \n \n   \ny');
   assert.equal(maskCode('`a` 和 `b`'), '` ` 和 ` `');
   assert.equal(maskCode('单个 ` 不成对'), '单个 ` 不成对');
+});
+
+test('headingSlug 按 GitHub 规则算：标点删掉留下空位，连续空位产出连续连字符', () => {
+  // 两条都取自本仓库现有的**正确**锚点，算法必须原样复现它们
+  assert.equal(headingSlug('Raw SQL / adapter 直写的 bypass 门禁判定'), 'raw-sql--adapter-直写的-bypass-门禁判定');
+  assert.equal(
+    headingSlug('发现 7：AC#7 的 ✅ 高估了它的证据（2026-09-04 复核）'),
+    '发现-7ac7-的--高估了它的证据2026-09-04-复核'
+  );
+  // 全角括号同样是标点：删掉后 `域` 与 `tracked` 之间没有空位，`/` 两侧的空格则留成双连字符
+  assert.equal(headingSlug('版本化域（tracked / untracked）'), '版本化域tracked--untracked');
+  assert.equal(
+    headingSlug('`devtools/` 产物会被 nx 缓存恢复抹掉（**已修**）'),
+    'devtools-产物会被-nx-缓存恢复抹掉已修'
+  );
+  assert.equal(headingSlug('指向 [别处](../x.md) 的标题'), '指向-别处-的标题');
+});
+
+test('标题锚点指不到目标标题时阻断，跨文件与文件内同等对待', async () => {
+  await scaffold(dir);
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-002-x.md'),
+    `${story('US-002', 'Done')}\n## 版本化域（tracked / untracked）\n\n### Raw SQL / adapter 直写\n`
+  );
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-001-x.md'),
+    [
+      story('US-001', 'Done'),
+      '## 本文标题',
+      '',
+      '少一个连字符：[坏](./US-002-x.md#版本化域tracked-untracked)',
+      '对的：[好](./US-002-x.md#版本化域tracked--untracked)',
+      '文件内指向已删章节：[没了](#已经删掉的一节)',
+      '文件内对的：[在](#本文标题)',
+      ''
+    ].join('\n')
+  );
+  const offenders = await checkLinks(dir);
+  assert.equal(offenders.length, 2, offenders.join('\n'));
+  assert.match(offenders.join('\n'), /标题锚点 #版本化域tracked-untracked 在 .*US-002-x\.md 里没有对应标题/);
+  assert.match(offenders.join('\n'), /标题锚点 #已经删掉的一节 在本文件里没有对应标题/);
+});
+
+test('evidenceSymbols 只取正文里的符号名，链接文字与 URL 里的文件名不算', () => {
+  // `[:234](…/plugin.ts#L234)` 的链接文字与路径整段丢弃，否则 `plugin` 会让任何指向 plugin.ts 的锚点都"有证据"
+  const symbols = evidenceSymbols(
+    '- [:234](../../../packages/x/src/plugin.ts#L234) 构造期 assertSupportedAdapter() 校验**配置**里的适配器名'
+  );
+  assert.deepEqual([...symbols], ['assertSupportedAdapter']);
+  assert.deepEqual([...evidenceSymbols('（[RxDB.ts:432-434](../x.ts#L432-L434)）：')], []);
+  // 语言关键字与三字以内的短词不作证据：`this` 被剔除，`init` 留着（弱证据只会让判定更保守）
+  assert.deepEqual([...evidenceSymbols('this.schemaManager.init();')], ['schemaManager', 'init']);
+  // 但链接文字**本身就是反引号符号名**时它是 CONVENTIONS 优先级 1 的正体，必须留下
+  assert.deepEqual(
+    [...evidenceSymbols('与 [`runIsolated`](../../../packages/rxdb/src/a.ts#L39) 的首错口径一致')],
+    ['runIsolated']
+  );
+});
+
+test('行号锚点：符号在目标文件里整体不存在则阻断，只是行号漂了则告警', async () => {
+  await scaffold(dir);
+  await writeFile(
+    path.join(dir, 'packages/x/src/a.ts'),
+    ['export class Widget {', '  readonly inject = [];', '', '  start(): void {}', '}', ''].join('\n')
+  );
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-001-x.md'),
+    [
+      story('US-001', 'Done'),
+      '- `Widget.start()` 是入口（[a.ts:4](../../../packages/x/src/a.ts#L4)）',
+      '- `Widget.start()` 行号漂了（[a.ts:2](../../../packages/x/src/a.ts#L2)）',
+      '- `assertSupportedAdapter()` 早已搬走（[a.ts:2](../../../packages/x/src/a.ts#L2)）',
+      '- [:2](../../../packages/x/src/a.ts#L2) 构造期校验适配器名',
+      ''
+    ].join('\n')
+  );
+  const { offenders, warnings } = await checkAnchorEvidence(dir);
+  assert.equal(offenders.length, 1, offenders.join('\n'));
+  assert.match(offenders[0], /#L2 的伴随符号 assertSupportedAdapter 在 .*a\.ts 里不存在/);
+  assert.equal(warnings.length, 2, warnings.join('\n'));
+  assert.match(warnings.join('\n'), /#L2 所引区间不含 Widget \/ start，行号已漂/);
+  assert.match(warnings.join('\n'), /#L2 没有伴随的符号名或代码引用（CONVENTIONS 优先级 3：行号不单用）/);
+});
+
+test('行号锚点的伴随符号可以来自紧随其后的代码块与相邻行', async () => {
+  await scaffold(dir);
+  await writeFile(
+    path.join(dir, 'packages/x/src/a.ts'),
+    ['export class Widget {', '  start(): void {', '    this.schemaManager.init();', '  }', '}', ''].join('\n')
+  );
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-001-x.md'),
+    [
+      story('US-001', 'Done'),
+      '证据在下面的代码块里（[a.ts:3](../../../packages/x/src/a.ts#L3)）：',
+      '',
+      '```ts',
+      'this.schemaManager.init();',
+      '```',
+      ''
+    ].join('\n')
+  );
+  const { offenders, warnings } = await checkAnchorEvidence(dir);
+  assert.deepEqual(offenders, []);
+  assert.deepEqual(warnings, []);
+});
+
+test('叙述词扫描认得「（已修）」「历史快照」与带日期的标题', async () => {
+  await scaffold(dir);
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-001-x.md'),
+    [
+      story('US-001', 'Done'),
+      '### 发现 1：中继一直在广播（已修）',
+      '### 发现 9：dispose() 零调用点（**未修**，随 C3）',
+      '### PR-C4 第一片：授权矩阵（2026-09-05）',
+      '本节以下两段是 2026-08-31 的历史快照，被下一节整节取代。',
+      '`dev-rxdb-tauri` 单测 24 文件 231 条（原 22 / 222）',
+      ''
+    ].join('\n')
+  );
+  const hits = (await scanNarrative(dir)).find(r => r.rel.endsWith('US-001-x.md'));
+  const labels = hits.hits.map(([label]) => label);
+  assert.deepEqual(labels.toSorted(), ['历史快照', '带日期的标题', '已修 / 未修', '裸测试计数'].toSorted());
 });
 
 test('仓库现状：requirements 派生视图与 YAML 一致（回归护栏）', async () => {
