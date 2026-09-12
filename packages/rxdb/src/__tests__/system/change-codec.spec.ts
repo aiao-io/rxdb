@@ -10,7 +10,8 @@ import {
   encodeRxDBEntityIdentity,
   getRxDBChangeEntityIdQueryValues,
   getRxDBEntityIdentityKey,
-  UnsupportedRxDBChangeVersionError
+  UnsupportedRxDBChangeVersionError,
+  UnsupportedRxDBEntityIdentityVersionError
 } from '../../system/change-codec.js';
 
 const metadata = {
@@ -152,5 +153,26 @@ describe('RxDB change codec', () => {
 
     const keys = [getRxDBEntityIdentityKey(1), getRxDBEntityIdentityKey(1n), getRxDBEntityIdentityKey('1')];
     expect(new Set(keys).size).toBe(3);
+  });
+
+  it('reports the identity version axis by name when the identity format is unsupported', () => {
+    // identity 的版本字节与 change codec / schema 是**三条不同的轴**，只是当前都取 1。
+    // 从前这里抛的是 `UnsupportedRxDBChangeVersionError(version, RXDB_CHANGE_SCHEMA_VERSION)`：
+    // 第一个参数叫 codecVersion 却收着 identity 版本，第二个是常量、永远不是失败原因 ——
+    // 排查的人会被引到 schema 上去。断言消息内容而非仅类型，就是为了钉住这一点。
+    // 0xff 0x52 0x58 = IDENTITY_MAGIC；第 4 字节是版本（这里故意写 9）；0x6e = number tag。
+    const futureIdentity = Uint8Array.of(0xff, 0x52, 0x58, 9, 0x6e, ...new TextEncoder().encode('1'));
+
+    expect(() => decodeRxDBEntityIdentity(futureIdentity)).toThrow(UnsupportedRxDBEntityIdentityVersionError);
+    expect(() => decodeRxDBEntityIdentity(futureIdentity)).toThrow(/entity identity version: stored=9, supported=1/);
+    expect(() => decodeRxDBEntityIdentity(futureIdentity)).not.toThrow(UnsupportedRxDBChangeVersionError);
+  });
+
+  it('exposes the identity version error through the package barrel', async () => {
+    // `decodeRxDBEntityIdentity` 是公开导出。它抛的错误类必须同样公开，否则使用者
+    // 写不出 `catch (e) { if (e instanceof ...) }` —— 只能去匹配消息字符串。
+    const barrel = await import('../../index.js');
+
+    expect(barrel.UnsupportedRxDBEntityIdentityVersionError).toBe(UnsupportedRxDBEntityIdentityVersionError);
   });
 });

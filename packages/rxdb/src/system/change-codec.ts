@@ -78,6 +78,26 @@ export class UnsupportedRxDBChangeVersionError extends Error {
 }
 
 /**
+ * `encodeRxDBEntityIdentity` 的字节格式版本对不上当前进程时抛出。
+ *
+ * 与 {@link UnsupportedRxDBChangeVersionError} 是**两条独立的版本轴**：那个管信封结构
+ * `{codecVersion, schemaVersion, type, value}`，这个管 identity 的字节布局
+ * （magic + version + type tag + payload）。两者当前都取 1，纯属巧合，不要合并。
+ *
+ * 消息格式与 `UnsupportedRxDBSystemVersionError` 对齐（`stored=` / `supported=`），
+ * 让三条轴的报错在日志里长得一样、好对比。
+ */
+export class UnsupportedRxDBEntityIdentityVersionError extends Error {
+  override readonly name = 'UnsupportedRxDBEntityIdentityVersionError';
+
+  constructor(actualVersion: unknown, supportedVersion: number) {
+    super(
+      `Unsupported RxDB entity identity version: stored=${String(actualVersion)}, supported=${String(supportedVersion)}`
+    );
+  }
+}
+
+/**
  * 断言某个 envelope 上的版本字段对得上当前进程支持的版本。
  *
  * 一旦对不上立刻抛 {@link UnsupportedRxDBChangeVersionError}，
@@ -267,8 +287,10 @@ export const decodeRxDBChangePatch = (
 };
 
 /**
- * 把 `RxDBEntityId` 包成带有版本号的字符串。字符串 ID 走原始通道；
- * 数值 / bigint ID 会带上前缀与类型 tag，方便反序列化时区分。
+ * 把 `RxDBEntityId` 包成带有版本号的字符串。**所有** id 一律包信封 —— string /
+ * number / bigint 都带前缀、版本号与类型 tag，靠 tag 在反序列化时区分。
+ *
+ * （「字符串走原始通道」是 {@link getRxDBChangeEntityIdQueryValues} 的行为，不是这里的。）
  *
  * 加上前缀 {@link RXDB_CHANGE_ENTITY_ID_PREFIX} 是为了**防止碰撞**：
  * `1` 和 `'1'` 在某些 NoSQL 存储里会合并成同一个 JSON key，
@@ -369,7 +391,7 @@ export const decodeRxDBEntityIdentity = (encoded: Uint8Array): RxDBEntityId => {
   const isTyped = encoded.byteLength >= 5 && IDENTITY_MAGIC.every((byte, index) => encoded[index] === byte);
   if (!isTyped) return new TextDecoder('utf-8', { fatal: true }).decode(encoded);
   const version = encoded[3];
-  if (version !== IDENTITY_VERSION) throw new UnsupportedRxDBChangeVersionError(version, RXDB_CHANGE_SCHEMA_VERSION);
+  if (version !== IDENTITY_VERSION) throw new UnsupportedRxDBEntityIdentityVersionError(version, IDENTITY_VERSION);
   const payload = new TextDecoder('utf-8', { fatal: true }).decode(encoded.subarray(5));
   if (encoded[4] === IDENTITY_BIGINT) return BigInt(payload);
   if (encoded[4] === IDENTITY_NUMBER) {

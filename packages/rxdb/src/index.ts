@@ -77,6 +77,7 @@ export {
   RXDB_CHANGE_SCHEMA_VERSION,
   RXDB_CHANGE_VALUE_ENVELOPE_KEY,
   UnsupportedRxDBChangeVersionError,
+  UnsupportedRxDBEntityIdentityVersionError,
   decodeRxDBChangeEntityId,
   decodeRxDBChangePatch,
   decodeRxDBEntityIdentity,

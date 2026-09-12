@@ -30,6 +30,10 @@ import { Entity } from './entity.decorator.js';
 import { IEntity, RxDBEntityId, UUID } from './entity.interface.js';
 import { EntityMetadataOptions, PropertyType } from './metadata-options.interface.js';
 
+/**
+ * 实体基类装饰器配置
+ * 定义了所有实体共有的基础属性
+ */
 export const ENTITY_BASE_METADATA_OPTIONS: EntityMetadataOptions = {
   name: 'EntityBase',
   abstract: true, // 标记为抽象类，不会直接创建此类的实例
@@ -75,11 +79,6 @@ export const ENTITY_BASE_METADATA_OPTIONS: EntityMetadataOptions = {
 } as const;
 
 /**
- * 实体基类装饰器配置
- * 定义了所有实体共有的基础属性
- */
-@Entity(ENTITY_BASE_METADATA_OPTIONS)
-/**
  * 实体基类
  * 所有需要同步的实体都应该继承此类
  *
@@ -95,6 +94,7 @@ export const ENTITY_BASE_METADATA_OPTIONS: EntityMetadataOptions = {
  *
  * @implements {IEntity} 实现实体接口
  */
+@Entity(ENTITY_BASE_METADATA_OPTIONS)
 export abstract class EntityBase<Id extends RxDBEntityId = UUID> implements IEntity {
   /**
    * 实体唯一标识符

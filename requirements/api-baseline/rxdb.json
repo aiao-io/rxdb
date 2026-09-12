@@ -1714,6 +1714,10 @@
         "kind": "both"
       },
       {
+        "name": "UnsupportedRxDBEntityIdentityVersionError",
+        "kind": "both"
+      },
+      {
         "name": "UnsupportedRxDBSystemVersionError",
         "kind": "both"
       },
