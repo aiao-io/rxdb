@@ -296,7 +296,12 @@ test('没声明升级位就要求版本常量完全相等', () => {
 test('bridge tag 上读不出版本常量即失败', () => {
   const errors = validateManifest(migrationManifest(), { ...passingHooks, bridgeTagVersionConstants: () => null });
 
-  assert.ok(errors.includes('bridge.tag v0.0.26 does not declare the system version constants'));
+  assert.ok(
+    errors.includes(
+      'bridge.tag v0.0.26 does not declare readable system version constants in ' +
+        'packages/rxdb/src/system/migration.ts / packages/rxdb/src/system/change-codec.ts'
+    )
+  );
 });
 
 // 常量声明位置被改名 / 挪走时必须红，不能因为读不到就静默跳过这道检查。
@@ -305,7 +310,8 @@ test('候选发布提交上读不出版本常量即失败', () => {
 
   assert.ok(
     errors.includes(
-      'release does not declare readable system version constants in packages/rxdb/src/system/migration.ts'
+      'release does not declare readable system version constants in ' +
+        'packages/rxdb/src/system/migration.ts / packages/rxdb/src/system/change-codec.ts'
     )
   );
 });

@@ -46,8 +46,11 @@ const NON_MIGRATION_KINDS = new Set(['normal', 'bridge']);
  *
  * `0.0.25` 已脱离发布主线（squash 后不在任何 ancestry 上），而 `0.0.24` 及更早的 tag 虽然是祖先、
  * 也确实含有系统迁移面的四个文件，却**早于工作树/提交图的桥接改造**——把它们填进 `bridge.tag`
- * 能骗过存在性、祖先性和路径探测三道检查，却给出一个空的桥。这个下限是 epic-006 发布门禁 1
- * 「且不是 v0.0.25」的可执行形式：任何真实的新桥接 tag 都必然大于它，因此下限只挡错误、不挡正常发布。
+ * 能骗过全部四条 tag 钩子（存在性 / 祖先性 / 路径探测 / 版本常量吻合），却给出一个空的桥。
+ * 最后一条尤其指望不上：实测 `v0.0.24` 与 `v0.0.25` 的两个常量都是 `{3, 1}`，与今天的 HEAD 完全相同，
+ * 所以在 `systemSchemaUpgrade: false` 的发布里它对空桥恒真。**挡空桥的只有这个下限**，
+ * 它是 epic-006 发布门禁 1「且不是 v0.0.25」的可执行形式：任何真实的新桥接 tag 都必然大于它，
+ * 因此下限只挡错误、不挡正常发布。
  */
 const LAST_INELIGIBLE_BRIDGE_VERSION = '0.0.25';
 
@@ -117,7 +120,11 @@ const compareVersions = (left, right) => {
  * @returns {string[]}
  */
 const collectVersionConstantErrors = (tag, bridgeConstants, releaseConstants, release) => {
-  if (!bridgeConstants) return [`bridge.tag ${tag} does not declare the system version constants`];
+  if (!bridgeConstants) {
+    return [
+      `bridge.tag ${tag} does not declare readable system version constants in ${SYSTEM_SCHEMA_VERSION_SOURCE} / ${CHANGE_CODEC_VERSION_SOURCE}`
+    ];
+  }
   const axes = [
     ['systemSchemaUpgrade', 'systemSchemaVersion', 'system schema'],
     ['changeCodecUpgrade', 'changeCodecVersion', 'change codec']
@@ -218,7 +225,9 @@ export const validateManifest = (manifest, options = {}) => {
       errors.push(
         ...(releaseConstants ?
           collectVersionConstantErrors(bridge.tag, bridgeConstants, releaseConstants, release)
-        : [`release does not declare readable system version constants in ${SYSTEM_SCHEMA_VERSION_SOURCE}`])
+        : [
+            `release does not declare readable system version constants in ${SYSTEM_SCHEMA_VERSION_SOURCE} / ${CHANGE_CODEC_VERSION_SOURCE}`
+          ])
       );
     }
   } else if (release.kind === 'normal' && (bridge.tag !== null || bridge.version !== null)) {

@@ -54,7 +54,9 @@ import { RxDBBranch } from './system/branch.js';
 import { RxDBChange } from './system/change.js';
 import { createMigrationWatermarks, runMigrations } from './system/migration-runner.js';
 import { RxDBMigration } from './system/migration.js';
+import { createSystemMigrations, createWorkingTreeCommitsInitialRows } from './system/migrations/index.js';
 import { RxDBSync } from './system/sync.js';
+import { isSystemEntity, SYSTEM_ENTITIES } from './system/system-entities.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
 import { VersionManager } from './version/VersionManager.js';
 export type { IRepositoryConfig } from './rxdb.types.js';
@@ -697,8 +699,16 @@ export class RxDB {
         const localAdapter = assertLocalAdapterCapabilities(adapterName, adapter);
         // 初始化
         const existed = await adapter.isTableExisted(RxDBMigration);
+        const systemMigrations = createSystemMigrations(this.entityManager);
         if (existed) {
-          // 已存在表结构，执行升级流程
+          // 已存在表结构，执行升级流程。
+          //
+          // 系统表与系统迁移一律排在 migrateSystemSchema() **之前**：水位线一旦写下
+          // `__rxdb_system_schema__:N`，后面任何一步失败都会把库留在「标成 N、内容却没到位」
+          // 的状态——旧客户端被 UnsupportedRxDBSystemVersionError 拒之门外，新能力也没拿到。
+          // 反过来则是可重试的：水位线停在旧值，下次启动重跑整段（data-model.md §8「全有或全无」）。
+          await this.#ensureSystemTables(localAdapter);
+          await runMigrations(systemMigrations, localAdapter, this.entityManager);
           await localAdapter.migrateSystemSchema();
           localAdapter.completeBootstrap();
           await runMigrations(this.#config.migrations, localAdapter, this.entityManager);
@@ -710,7 +720,10 @@ export class RxDB {
           branch.activated = true;
           await localAdapter.createTables(this.#config.entities, [
             branch,
-            ...createMigrationWatermarks(this.#config.migrations, this.entityManager)
+            // 新库不跑系统迁移：初始行随建表一次写入，链里的名字直接写成已执行水位。
+            // 漏掉这批水位线，下次启动会在一张**已经初始化过**的库上重跑 up()，撞主键。
+            ...createWorkingTreeCommitsInitialRows(this.entityManager, [branch.id]),
+            ...createMigrationWatermarks([...systemMigrations, ...(this.#config.migrations ?? [])], this.entityManager)
           ]);
           await localAdapter.migrateSystemSchema();
           localAdapter.completeBootstrap();
@@ -1230,10 +1243,50 @@ export class RxDB {
     return listeners as Set<EventListener<RxDBEventMap[T]>>;
   }
 
+  /**
+   * 在既有库上补建缺失的**系统**表。
+   *
+   * @param adapter - 本地适配器
+   *
+   * @remarks
+   * 与 {@link RxDB.#ensureEntityTables} 分开，不是为了少建几张表，而是为了时机：
+   * 系统迁移要往这些表里写初始行，因此它们必须在系统迁移之前就位；而接入方实体表
+   * 保持原有时机（接入方迁移之后），提前建会改变接入方迁移看到的库状态。
+   *
+   * 建表语句自带 `IF NOT EXISTS`，这里的 `isTableExisted` 只为省掉整批无谓的 DDL。
+   */
+  async #ensureSystemTables(adapter: RxDBAdapterLocalBase): Promise<void> {
+    const missingEntities: EntityType[] = [];
+
+    for (const entityType of SYSTEM_ENTITIES) {
+      const existed = await adapter.isTableExisted(entityType);
+      if (!existed) {
+        missingEntities.push(entityType);
+      }
+    }
+
+    if (missingEntities.length > 0) {
+      await adapter.createTables(missingEntities);
+    }
+  }
+
+  /**
+   * 在既有库上补建缺失的**接入方**实体表。
+   *
+   * @param adapter - 本地适配器
+   *
+   * @remarks
+   * `config.entities` 里混着 {@link SchemaManager.init} 注入的系统表，而它们已在
+   * {@link RxDB.#ensureSystemTables} 建过了。不摘出去不会建错表（DDL 自带
+   * `IF NOT EXISTS`），但会让同一批系统表在一次 connect 里被**两次**送进
+   * `createTables()` —— 适配器无从分辨这是补建还是重复下发，实现里任何按调用次数
+   * 计费的动作（索引重建、日志、迁移钩子）都会跟着跑第二遍。
+   */
   async #ensureEntityTables(adapter: RxDBAdapterLocalBase): Promise<void> {
     const missingEntities: EntityType[] = [];
 
     for (const entityType of this.#config.entities) {
+      if (isSystemEntity(entityType)) continue;
       const existed = await adapter.isTableExisted(entityType);
       if (!existed) {
         missingEntities.push(entityType);

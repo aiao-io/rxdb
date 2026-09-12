@@ -1,83 +1,96 @@
 # Implementation Plan: 本地工作树与提交历史
 
-> [!WARNING]
-> **本文件已过期（2026-08-22）。** 上游 [epic-006](../../requirements/epics/epic-006-working-tree-commits.md) 已裁决
-> **不做暂存区（index / staging area）与任何形式的选择性提交**：没有 `stage` / `unstage` / `clearIndex`，
-> `commit(message)` 只提交当前分支工作树的全部未提交变更，隔离工作线用分支。
-> 本文件仍按「工作树 → 缓存区 → 提交」三层写成，其中所有 `Index*` / `RxDBIndexEntry` / `indexRevision` /
-> `staged` 相关的表、契约、状态迁移、验收项与基准 fixture **均已作废，不得据此实现**。
-> 真相源以 `requirements/` 为准；本目录需要用 `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` 重新生成。
+**Branch**: `next-0912` | **Date**: 2026-09-12 | **Spec**: [spec.md](./spec.md)
 
-**Branch**: `001-working-tree-commits` | **Date**: 2026-08-15 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `specs/001-working-tree-commits/spec.md`
 
-**Input**: Feature specification from `/specs/001-working-tree-commits/spec.md`
+> **本轮是就地重生成**。旧 plan.md 及其全部下游 artifact 按已作废的「工作树 → 缓存区 → 提交」三层模型写成（169 处陈旧命中），整体改写为 v1 的**无暂存区**模型。旧文中关于 index 自包含重放、依赖闭包、环检测（`index_dependency_cycle`）、staged snapshot 冻结、`HEAD ↔ index` 第二条 diff 轴的全部结论**作废**，不在本文件中承接。
 
 ## Summary
 
-把本地数据变更组织成 Git 式三层工作流——**工作树**（未提交的当前状态）→ **缓存区**（本次准备提交的选择）→ **提交**（不可变历史节点），并保证这三层在刷新、崩溃、多标签页并发与分支往返后语义一致。
+把 RxDB 的本地变更组织成 Git 式工作流：提交图与 HEAD 持久化、工作树捕获全部业务写入口、`status` / `diff` / `commit` / `discard`、历史恢复（restore）、分支隔离与跨 realm 冲突检测；刷新、重启与崩溃后语义一致。不引入远程仓库、权限与代码评审。
 
-技术路径：在 `packages/rxdb` 内新增一组 `Commit*` / `WorkingTree*` / `Index*` 系统实体，复用既有 `RxDBBranch.activated` 作为当前分支的唯一真相源（不引入第二份 HEAD 指针），复用既有 `rxdb_migration` 水位机制做数据库级单向启用（跨实例竞争一律由领域版本号条件更新承担，不引入写入方级协调协议）。写入捕获挂在既有 `TransactionExecutor` 边界上，把「关闭本地变更触发器」的批量重写路径从布尔 `disableTriggers` 升级为**显式意图枚举**，使受信登记键成为「文件 + 符号 + 意图」。三框架侧只做透传：`packages/rxdb-{angular,react,vue}` 各导出同名 `useWorkingTree()`，复用既有 `useAction` 命令状态形状。跨后端一致性由 `packages/rxdb-test` 新增两套具名套件覆盖 6 个 v1 后端，性能由 `benchmarks/` 新增一个 Nx target 门禁。
+技术路线（依据见 [research.md](./research.md)）：
+
+1. **捕获挂在适配器写原语层**，不是 Repository 层——唯一能同时覆盖 4 个原语（`transaction` / 本地 `mergeChanges` / `switchBranch` / `upsertMany`·`deleteByIds`）并拿到同事务原子边界的位置（R1）。
+2. **`WorkingTreeEntry` 独立完整复制** patch / inverse patch，不复用也不只引用 `RxDBChange`——后者会被四条既有路径删除或失效（R2）。
+3. **两类 CAS 分开**：commit / restore / discard / switch / merge / undo / redo / create·remove branch 是**调用方捕获型**；普通 CRUD 与 remote entity apply 是**事务内读改写型**。普通 CRUD 用捕获型会直接违反 FR-032（R3）。
+4. **一份 bypass 判定，6 后端共用**，方言差异只在词法归一化层；`upsertMany()` / `deleteByIds()` 因不经 `rawQuery` 必须显式挂载，且因返回 `Observable` 必须在订阅前同步拒绝（R4）。
+5. **损坏守卫单一实现**，commit / restore / switch-to 三入口在各自写事务内调用同一份（R10）。
+
+交付顺序是硬约束：**US-305 → US-306 阶段 A → 阶段 B → 阶段 C →（US-307 ∥ US-308）**。US-307 / US-308 的核心持久层语义可与阶段 C 并行开工，但其三框架入口必须排在阶段 C 之后。
 
 ## Technical Context
 
-**Language/Version**: TypeScript 6.0（`~6.0.3`）strict，ESM only，`packages/*` 无根级副作用导入
+**Language/Version**: TypeScript 6.0+ strict, ESM
 
-**Primary Dependencies**: RxJS 7.8+（响应式查询与事件）、Nx 23.1 + pnpm 10（构建与任务图）、Angular 22+ / React 19+ / Vue 3.5+（三端绑定）、既有内部依赖 `@aiao/rxdb` → `@aiao/rxdb-adapter-*`
+**Primary Dependencies**: Nx 23 + pnpm 10；RxJS 7.8+；Angular 22+ / React 19+ / Vue 3.5+
 
-**Storage**: 主库事务边界内的 SQL 表。v1 承诺 6 个后端：`rxdb-adapter-pglite`（PGlite）、`rxdb-adapter-wa-sqlite`、`rxdb-adapter-sqlite-wasm`、`rxdb-adapter-sqlite`（官方 wasm）、`rxdb-adapter-sqliteai`、`rxdb-adapter-electron`（Electron `node:sqlite` 特权侧；US-207 拆包前叫 `rxdb-adapter-desktop`）。后四者共享 `rxdb-adapter-sqlite-core` 的同一份 SQL 实现。**不承诺**：`rxdb-adapter-tauri`（Rust host，US-210 已知事件时序抖动）、`rxdb-adapter-miniprogram`（实验性，不承诺崩溃恢复）、`rxdb-adapter-supabase`（远端，非本特性一致性边界）
+**Storage**: SQL / PGlite 主库是 commit 与工作树元数据的**唯一一致性边界**。v1 支持矩阵 **6 个后端**：PGlite、wa-sqlite、sqlite-wasm、sqlite、sqliteai、Electron `node:sqlite` host。Workspace 插件的 NEW 草稿留在独立 IndexedDB，不参与系统 schema 事务。
 
-**Testing**: Vitest 4.1（unit / integration，`*.spec.ts` 与源码同目录）+ Playwright（三端 E2E 与 a11y）。跨后端一致性走 `@aiao/rxdb-test` 的具名套件 + 各适配器 `__tests__/*.spec.ts` runner，沿用既有 `runTransactionIsolationSuite` 模式
+**Testing**: Vitest（unit / integration，`*.spec.ts` 与源码同目录）+ Playwright（e2e / a11y）。两套具名 conformance 套件 `workingTreeCaptureConformanceSuite` / `workingTreeCommitConformanceSuite` 跨 6 后端运行（R7）。
 
-**Target Platform**: 浏览器（OPFS / IndexedDB）、Node 26+、Electron 主进程 + 渲染进程
+**Target Platform**: 浏览器（OPFS / IDB）+ Node 26+ + Electron。`rxdb-adapter-tauri`（Rust host）与 `rxdb-adapter-miniprogram` **不入 v1 矩阵**。
 
-**Project Type**: TypeScript monorepo library（核心引擎 + 适配器 + 三框架绑定 + 演示应用）
+**Project Type**: Library monorepo（核心包 + 三框架绑定 + 多存储适配器）
 
-**Performance Goals**: 新增 Nx target `benchmarks:bench-working-tree`。固定 Node + PGlite memory，warmup 5 / samples 50，fixture = 10,000 实体 / 100 提交 / 每提交 100 变更单元 / 100 未暂存 / 50 已暂存。普通 CI 硬门禁 = 归一化 ratio ≤ 冻结 reference median 的 110%；`runnerProfileHash` 匹配的固定 runner 上追加绝对门禁 status / 完整 diff / 批量 stage 50 单元 p95 ≤ 100 ms、restore 100 单元 p95 ≤ 1 s
+**Performance Goals**: 双门禁（R8）。普通 PR CI **唯一**硬门禁 = 归一化 ratio ≤ 冻结 reference median 的 110%。绝对 p95 **仅发布门禁**且仅在 `runnerProfileHash` 匹配的固定性能 runner 上：status / diff ≤ 100 ms、restore ≤ 1 s。**commit 不套用 100 ms**（已批准例外，见 Complexity Tracking）。
 
-**Constraints**: 宪法 IV 默认预算（query < 16 ms、DB op < 100 ms、bundle < 50 KB gz、demo first paint < 1.5 s）全部适用；未启用该能力的数据库零副作用、零新表；已启用后 `packages/rxdb` 的公开 API 无破坏性变更（`switchBranch(branchId: string)` 单参签名继续编译）；所有新增持久化位置在支持字段加密的后端上保持信封落盘
+**Constraints**: 无暂存区；只有一条 diff 轴 `HEAD ↔ 工作树`；`commit()` 无 selection 入参；禁止 `Index*` / `Workspace*` 前缀导出；不得复活 `stagedChange` / `unstageChange` / `stagedCount` / `WorkspaceCacheEntry.staged`；`switchBranch()` 现有默认行为不变；加密 at-rest envelope 不降级；损坏分支 fail-closed。
 
-**Scale/Scope**: 新增 **11 张系统表** + 扩展既有 `rxdb_branch`；核心包 `packages/rxdb` 新增 6 个内部子模块；6 个适配器包需实现新的适配器方法；3 个框架包各新增 1 个入口；3 个演示应用 + 3 个 e2e 项目各新增 1 个页面与场景；`packages/rxdb-test` 新增 2 套具名套件；`benchmarks/` 新增 1 个 target。交付切分为 6 个可独立验收的用户故事，固定顺序 US1 → US2 → US3 → US4 →（US5 ∥ US6）
+**Scale/Scope**: 4 条 story（2×P1 + 2×P2），US-306 分 3 个不可并行阶段；45 条生效 FR + 7 条墓碑编号；17 条 SC；9 行受信调用点登记表；6 后端 × 2 套件。
 
 ## Constitution Check
 
-_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
+_GATE: 依据 [.specify/memory/constitution.md](../../.specify/memory/constitution.md) v2.0.2。Phase 0 前已过，Phase 1 设计后已复检。_
 
-### I. Code Quality — PASS（含 1 项需记录的例外，见 Complexity Tracking）
+### I. Code Quality — ✅ PASS
 
-| 要求                                  | 本特性如何满足                                                                                                                                                                                                                                                                                                                      |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| TS strict / 零 ESLint 警告 / 禁 `any` | 新增类型全部具名导出；跨适配器的动态行数据用 `unknown` + 类型守卫，沿用 `system/migration.ts` 既有的快照校验写法                                                                                                                                                                                                                    |
-| 嵌套 ≤ 3 层                           | 依赖闭包计算、拓扑排序、分页物化三处最深；均按「每层一个具名纯函数」拆分，复用既有 `version/topological-sort.ts` 与 `version/dependency-graph.ts`                                                                                                                                                                                   |
-| 单一职责                              | 6 个新子模块各自单一职责（见 Project Structure），不把状态机塞进 `VersionManager`                                                                                                                                                                                                                                                   |
-| 禁 fallback 兜底                      | 损坏走 fail-closed 只读态（FR-014）、环境不匹配走 `benchmark_environment_mismatch`（FR-041）、未登记意图直接拒绝（FR-022）——全部是显式拒绝而非降级                                                                                                                                                                                  |
-| `packages/*` 导出补齐 TSDoc           | 所有新导出进 `requirements/api-baseline/*.json`，由 `pnpm audit:api-surface` 与 `scripts/audit/package-api-docs.mjs` 双重把关（FR-058）                                                                                                                                                                                             |
-| API 破坏需文档化                      | 有破坏风险的是两处**内部契约**：`TransactionExecutor.mergeChanges` 的 `disableTriggers: boolean` → 意图枚举，以及 `SwitchBranchOptions` 追加必填 `intent`。两者均未出现在 `requirements/api-baseline/rxdb.json` 的公开导出中，按 Complexity Tracking 记录。公开侧只有加法（新增导出 + `EntityIndexMetadataOptions.where` 可选字段） |
+- TS strict 零错误 / 零 ESLint 警告 / 嵌套 ≤ 3 层 / 禁 `any`：常规约束，无本特性专属豁免。
+- **TSDoc 覆盖每个 `packages/*` 导出符号**：本特性新增导出集中在 `packages/rxdb`（核心契约）与三框架包（入口）。`CommitConflict` 的 TSDoc 与 api-baseline 登记归 **US-306 阶段 B**（首个使用者），US-308 只扩展 activation 维度，不重新定义。
+- **无防御性兜底**：与本特性的 fail-closed 立场一致——bypass 判定「解析不确定即拒绝」、损坏分支「不自动回退到较早 commit / 空工作树 / 内存模式」、迁移「任一分支不可物化即整体失败」。这些是**显式拒绝**，不是 fallback。
+- **无无关联 issue 的 TODO**：7 个裁撤 FR 编号以墓碑形式记录在 spec.md，不留 TODO。
 
-### II. Testing Standards — PASS
+### II. Testing Standards — ✅ PASS
 
-- TDD 红→绿：每个用户故事先落 `*.spec.ts` 红测试。US1/US2/US3 的红测试直接写成两套具名套件的成员，先在 PGlite 上红，再逐后端接入。
-- 覆盖率：`packages/rxdb`、6 个适配器包属核心包，门禁 ≥ 90%；`packages/rxdb-{angular,react,vue}`、`packages/rxdb-test` ≥ 80%。基线更新走 `pnpm audit:coverage:update`。
-- 确定性：崩溃恢复用「事务中途抛错 + 重新 connect」的确定性 fixture，**不用** `setTimeout`；并发竞争用同一进程内两个 RxDB 实例对同一物理库的确定性交错，不依赖真实时序。数据库时间统一取数据库时钟（FR-007），测试可注入。
-- 分层：unit（纯函数：闭包、拓扑、版本号校验、报告统计）→ integration（事务原子性、崩溃恢复、并发）→ 跨后端 conformance → E2E（三端）→ benchmark。
+- **TDD 红 → 绿 → 重构强制**。每个阶段先写失败测试：阶段 A 先写「写入口未捕获 → 重放缺项」的红测试，阶段 B 先写「status 后 save 再 commit → 必须 `CommitConflict`」的红测试（SC-008 点名要求这条用例）。
+- **覆盖率单一真相源 = [scripts/audit/coverage-check.mjs](../../scripts/audit/coverage-check.mjs)**：`rxdb` / `rxdb-angular` / `rxdb-react` / `rxdb-vue` 四指标 ≥ 90%，其余包 ≥ 80%。本特性不新增阈值、不改基线口径。
+- **测试确定性**：benchmark 的环境指纹机制（`runnerProfileHash` 不匹配即 `benchmark_environment_mismatch`）正是为避免把环境差异伪装成回归；conformance 套件跨 6 后端跑同一份断言。
+- `*.spec.ts` 与源码同目录；扫描门禁排除 `*.spec.ts` / `*.suite.ts` / `__tests__/` / `dist/` / `out-tsc/`。
 
-### III. User Experience Consistency — PASS
+### III. UX Consistency — ✅ PASS
 
-- `useWorkingTree()` 在 Angular / React / Vue 同名同签名同返回键，共享类型全部从 `@aiao/rxdb` 透传（FR-037）。
-- 新增 `tri-framework-check`（本特性的工具交付项，见 Project Structure），比对三端 `src/index.ts` 导出集合与共享类型透传，缺一端即失败。
-- 三端演示页面输出等价，由 Playwright 跨框架 E2E 用同一份 `@aiao/rxdb-test/cross-framework-fixtures` 种子验证——沿用既有 `search-parity` 的落地形态。
-- loading / empty / error / a11y：命令暴露 loading/success/error，查询额外暴露 empty（FR-038）；WCAG 2.1 AA 由 Playwright a11y 断言把关（FR-039）。
-- 「Never break userspace」：`switchBranch()` 默认行为不变是硬约束（FR-048），既有 demo 与文档示例必须零修改通过。
+- **三框架功能等价强制**：US-306 阶段 C、US-307、US-308 的用户操作面必须三端齐全，单端缺失 = 未完成。US-305 与 US-306 阶段 A/B 是无 UI 核心底座，只要求核心公开类型、TSDoc 与类型契约测试（spec.md 横切约束 1 已按故事界定适用范围）。
+- **公开 API 形状对称**：三端同名同语义；运行时形状按各框架既有约定（R12）。命名门禁对三框架包只适用**负向**规则，`useWorkingTree()` 合规。
+- **loading / empty / error / a11y WCAG 2.1 AA**：横切约束 2、3 + FR-023 + SC 对应项。不给无 empty 语义的命令伪造 empty。
+- **Never break userspace**：`VersionManager.switchBranch(branchId)` 当前**无 options 形参**（`VersionManager.ts:740`），新增**可选**第二形参 `WorkingTreeSwitchBranchOptions`，不带该选项时行为与今天逐字节一致（FR-017、R6）。未启用提交能力的数据库**零行为差异**（FR-046 第 13 条场景）。
 
-### IV. Performance Requirements — PASS
+### IV. Performance Requirements — ⚠️ PASS WITH APPROVED EXCEPTION
 
-- 目标与验证方法已在 spec SC-012 定死，本计划把它落成 `benchmarks:bench-working-tree` target + 签入的 reference 报告。
-- 宪法默认 DB op < 100 ms 与本特性的 status/diff/stage p95 ≤ 100 ms 一致；restore ≤ 1 s 是**经批准的例外**（一次恢复要重放最多 100 个变更单元，属批量操作而非单次 DB op），已在 spec SC-012 与下方 Complexity Tracking 记录。
-- bundle < 50 KB gz：新代码按子模块组织，`packages/rxdb` 入口不新增副作用导入；三框架包只新增薄透传。
-- 未启用该能力时零运行时开销（FR-011）——启用判定在 connect 期一次性完成，热路径上只读一个已缓存的布尔。
+- 默认预算 query < 16 ms、DB op < 100 ms、bundle < 50 KB gz、first paint < 1.5 s。
+- status / diff 采纳 100 ms 绝对上限（SC-001 / SC-002）；restore 采纳 1 s（SC-004，跨多 ChangeSet 重放，宪法未定义该类操作的默认预算）。
+- **`commit` 免除 100 ms DB op 预算**——constitution 第四条允许「plan 记录已批准例外」。完整论证见 Complexity Tracking。
 
-### 结论
+### Delivery Workflow — ✅ PASS
 
-**Phase 0 GATE: PASS**。无未经论证的违规；2 项需记录的例外已进入 Complexity Tracking。
+spec → plan → tasks → implementation 顺序执行中。本轮为 plan 阶段；`tasks.md` 尚不存在，由 `/speckit-tasks` 生成。**重生成完成前 US-305 不得开工**（epic-006 依赖顺序第 2 步）。
+
+### Governance — ✅ PASS
+
+唯一例外已在 Complexity Tracking 按要求四要素记录：违反的原则、为什么需要、被拒绝的更简单方案、批准路径。
+
+### Post-Design Re-Evaluation（Phase 1 完成后复检）
+
+Phase 1 产出 [data-model.md](./data-model.md)、[contracts/](./contracts/) 五份、[quickstart.md](./quickstart.md) 之后重跑上述四条原则：
+
+| 原则                | 复检结论      | 设计阶段新引入的、需要盯住的点                                                                                                                                                         |
+| ------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| I. Code Quality     | ✅ 仍 PASS    | data-model 引入了两个冗余列（`WorkingTreeState.entryCount`、`Commit.firstParentId`）。冗余列是第二份真相的温床，因此各自配了不变量断言（计数 ↔ 行数、首父 ↔ `parentIds[0]`），不靠约定 |
+| II. Testing         | ✅ 仍 PASS    | 新增两条**静态**断言（`relations` 中无 `RxDBChange`、新表 `log === false`）进 capture 套件——它们是存储契约的唯一可执行形式                                                             |
+| III. UX Consistency | ✅ 仍 PASS    | tri-framework 契约按故事界定了适用范围（US-305 与阶段 A/B 无 UI 面），并明确「对称 ≠ 形状全等」，避免把一致做成别扭                                                                    |
+| IV. Performance     | ⚠️ 例外未扩大 | 设计阶段**没有**新增例外。`commit` 仍是唯一免除项；`entryCount` 冗余列正是为了让 `status()` 走常数时间而不申请第二个例外                                                               |
+
+**Gate 结论：通过。** 唯一例外仍是 Complexity Tracking 里那一条，范围未扩大。
 
 ## Project Structure
 
@@ -85,153 +98,68 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 ```text
 specs/001-working-tree-commits/
-├── plan.md              # 本文件
-├── research.md          # Phase 0 输出：技术决策与备选方案
-├── data-model.md        # Phase 1 输出：实体 → 表结构、约束、状态机
-├── quickstart.md        # Phase 1 输出：可运行的验证指南
-├── contracts/           # Phase 1 输出：公开契约
-│   ├── core-api.md              # @aiao/rxdb 新增公开导出
-│   ├── tri-framework-api.md     # useWorkingTree() 三端对称契约
-│   ├── conformance-suites.md    # 两套具名跨后端套件的契约
-│   ├── adapter-contract.md      # 适配器需实现的新方法
-│   └── benchmark-report.md      # bench-working-tree 报告 JSON 结构
+├── plan.md                          # 本文件（Phase 1 输出）
+├── spec.md                          # 已重生成（449 行，v1 无暂存区模型）
+├── research.md                      # Phase 0 输出：R1–R12
+├── data-model.md                    # Phase 1 输出：8 张逻辑状态 + staging 的物理落地
+├── quickstart.md                    # Phase 1 输出：可运行验证场景
 ├── checklists/
-│   └── requirements.md  # 已完成（/speckit-specify 产出）
-└── tasks.md             # Phase 2 输出（/speckit-tasks 生成，不由本命令创建）
+│   └── requirements.md              # 规格质量检查单（已过）
+├── contracts/
+│   ├── core-api.md                  # 核心公开契约
+│   ├── adapter-contract.md          # 适配器义务与 bypass 判定
+│   ├── conformance-suites.md        # 两套具名套件
+│   ├── tri-framework-api.md         # 三端对称契约
+│   └── benchmark-report.md          # benchmark JSON 契约与门禁
+└── tasks.md                         # Phase 2 输出（由 /speckit-tasks 生成，当前不存在）
 ```
 
 ### Source Code (repository root)
 
 ```text
 packages/rxdb/src/
-├── system/                          # 系统实体（既有目录，新增文件）
-│   ├── branch.ts                    # 既有：RxDBBranch.activated 仍是当前分支唯一真相源
-│   ├── change.ts                    # 既有：RxDBChange 保持不变
-│   ├── migration.ts                 # 既有：RXDB_SYSTEM_SCHEMA_VERSION 递增 + 新增 watermark
-│   ├── commit.ts                    # 新增：RxDBCommit
-│   ├── commit-branch-ref.ts         # 新增：RxDBCommitBranchRef
-│   ├── commit-change-set.ts         # 新增：RxDBCommitChangeSet
-│   ├── commit-capability.ts         # 新增：RxDBCommitCapabilityState
-│   ├── working-tree-activation.ts   # 新增：RxDBWorkingTreeActivationState（单行）
-│   ├── working-tree-state.ts        # 新增：RxDBWorkingTreeState
-│   ├── working-tree-entry.ts        # 新增：RxDBWorkingTreeEntry
-│   ├── index-state.ts               # 新增：RxDBIndexState
-│   ├── index-entry.ts               # 新增：RxDBIndexEntry
-│   ├── working-tree-restore-session.ts       # 新增：RxDBWorkingTreeRestoreSession
-│   └── commit-branch-materialization.ts      # 新增：RxDBCommitBranchMaterializationAttempt
-├── commit/                          # 新增子模块：提交图与 HEAD（US1）
-│   ├── CommitManager.ts             # 提交、历史查询、可达性遍历
-│   ├── commit-graph.ts              # 父链遍历、孤立/可达损坏判定
-│   ├── commit-capability.ts         # 启用协商、协议校验、只读降级判定
-│   ├── enable-migration.ts          # 首次启用迁移与基线生成（幂等、可重试）
-│   └── commit-idempotency.ts        # 操作标识唯一约束与重试语义
-├── working-tree/                    # 新增子模块：工作树捕获（US2）
-│   ├── WorkingTreeManager.ts        # status / 冷重放 / 条目枚举
-│   ├── capture.ts                   # 写入口捕获，挂在事务边界内
-│   ├── write-intent.ts              # 意图枚举 + 受信登记表（键 = 文件 + 符号 + 意图）
-│   ├── activation-token.ts          # { branch, activationRevision } 捕获与校验
-│   └── replay.ts                    # HEAD + 条目 → 投影的冷重放
-├── index-stage/                     # 新增子模块：缓存区与提交状态机（US3）
-│   ├── IndexManager.ts              # stage / unstage / clearIndex / discardWorkingTree
-│   ├── dependency-closure.ts        # 正向扩展 / 反向移除 / 环检测（复用 topological-sort）
-│   ├── diff.ts                      # HEAD↔工作树、HEAD↔缓存区两条差异线
-│   ├── residual-rebase.ts           # 提交时的残量 rebase
-│   └── revision-guard.ts            # 版本号校验矩阵（两分类）
-├── restore/                         # 新增子模块：历史恢复会话（US5）
-│   ├── RestoreManager.ts            # restore / 会话生命周期
-│   ├── materialization-path.ts      # 正/逆向重放路径选择
-│   └── schema-compat.ts             # 路径上每个变更集的指纹与编解码版本校验
-├── commit-branch/                   # 新增子模块：分支隔离与物化（US6）
-│   ├── switch-branch-guard.ts       # WorkingTreeSwitchBranchOptions / clean 判据
-│   ├── branch-lifecycle.ts          # create / remove 与提交、工作树、缓存区的集成
-│   └── remote-materialization.ts    # 仅元数据远端分支的可续传分页物化
-├── version/                         # 既有目录，受影响文件
-│   ├── VersionManager.ts            # switchBranch / restoreEntity 增加意图透传
-│   ├── HistoryManager.ts            # undo/redo 与 redo 栈失效增加意图透传
-│   ├── merge-branch.ts              # 逐条与 squash 两条路径分别登记意图
-│   ├── pull-batch.ts                # 意图 = 远端同步
-│   ├── pull-repository.ts           # 意图 = 远端同步
-│   └── cleanup-expired.ts           # 意图 = 远端同步（过期清理）
-├── transaction/
-│   └── transaction-executor.interface.ts   # mergeChanges 第三形参：boolean → 意图枚举
-├── rxdb-adapter.ts                  # 新增适配器抽象方法；SwitchBranchOptions 保持不变
-├── rxdb.interface.ts                # RxDBOptions 新增显式启用配置
-└── index.ts                         # 新增公开导出（全部 Commit* / WorkingTree* / Index*）
+├── rxdb-adapter.ts                  # 改：SwitchBranchOptions(55) 不动；新增 4 个原语的捕获义务
+│                                    #     mergeChanges 本地重载(200) / switchBranch(182)
+│                                    #     upsertMany(239) / deleteByIds(255) 显式挂门禁
+├── version/
+│   ├── VersionManager.ts            # 改：switchBranch(740) 增可选第二形参
+│   ├── switch-branch-actions.ts     # 复用：switch_branch_actions(16) / get_switch_version_actions(122)
+│   ├── find-switch-branch-step.ts   # 复用：find_switch_branch_step(76)
+│   ├── restore-entity.ts            # 登记受信点 #2
+│   ├── HistoryManager.ts            # 登记受信点 #3
+│   ├── undo-redo-apply.ts           # 登记受信点 #4
+│   ├── merge-branch.ts              # 登记受信点 #5、#6（两个策略分支各一行）
+│   ├── pull-batch.ts                # 登记受信点 #7
+│   ├── pull-repository.ts           # 登记受信点 #8
+│   └── cleanup-expired.ts           # 登记受信点 #9
+├── commit/                          # 新：commit 图、HEAD、迁移、损坏守卫（US-305）
+├── working-tree/                    # 新：捕获、status/diff/commit/discard、restore session
+└── index.ts                         # 新导出（Commit* / WorkingTree* 前缀）
 
-packages/rxdb-adapter-pglite/src/
-├── working-tree/                    # 新增：PGlite 侧 SQL 实现
-└── RxDBAdapterPGlite.ts             # 实现新增抽象方法
-
-packages/rxdb-adapter-sqlite-core/src/
-├── working-tree/                    # 新增：SQLite 侧 SQL 实现（4 个后端共享）
-└── RxDBAdapterSqliteBase.ts         # 实现新增抽象方法
+packages/rxdb-adapter-{pglite,wa-sqlite,sqlite-wasm,sqlite,sqliteai,electron}/
+└── src/                             # 各自接入共享 bypass 判定与系统表迁移
 
 packages/rxdb-{angular,react,vue}/src/
-├── use-working-tree.ts              # 新增：三端同名同签名
-└── index.ts                         # 新增导出 + 共享类型透传
+└── ...                              # 新：三端对称入口（阶段 C）
 
-packages/rxdb-test/src/
-├── working-tree/                    # 新增：两套具名跨后端套件
-│   ├── capture.suite.ts             # workingTreeCaptureConformanceSuite（US2 拥有）
-│   ├── commit.suite.ts              # workingTreeCommitConformanceSuite（US3 拥有，含 US1 提交图/迁移断言）
-│   ├── fixtures.ts                  # 共享 fixture 与崩溃注入
-│   └── index.ts                     # 新增 subpath 导出 @aiao/rxdb-test/working-tree
-└── cross-framework-fixtures/
-    └── working-tree-parity.ts       # 新增：三端 E2E 共享种子（沿用 search-parity 形态）
+benchmarks/                          # 已存在（benchmarks/project.json）
+└── src/                             # 新增 bench-working-tree target
 
-apps/dev-rxdb-{angular,react,vue}/src/           # 新增工作树演示页面
-apps/dev-rxdb-{angular,react,vue}-e2e/src/       # 新增 working-tree-parity.spec.ts + a11y 断言
-
-benchmarks/
-├── working-tree.bench.ts            # 新增：bench-working-tree 入口
-├── reports/working-tree-reference.json          # 新增：冻结的 reference（先于候选发布签入）
-└── project.json                     # 新增 target bench-working-tree
-
-scripts/audit/
-├── tri-framework-check.mjs          # 新增：三端导出与共享类型透传对称门禁
-└── write-intent-drift.mjs           # 新增：受信意图登记 vs 代码静态漂移扫描（排除 dist/）
-
-requirements/
-├── api-baseline/*.json              # 更新：新增导出进基线
-└── migration-release.json           # 更新：新的非迁移 bridge tag（US1 交付项）
+scripts/
+├── check-migration-release-gate.mjs # 已实现 + 39/39 单测绿 —— MUST NOT 重写，只复验
+└── audit/
+    ├── api-surface.mjs              # 命名门禁宿主（SC-014）
+    └── coverage-check.mjs           # 覆盖率单一真相源
 ```
 
-**Structure Decision**: 沿用既有 monorepo 分层——核心语义全部落在 `packages/rxdb`，SQL 实现落在两处适配器实现（PGlite 与 sqlite-core，后者被 4 个 SQLite 后端继承），三框架包只做薄透传，跨后端一致性与跨框架 parity 分别由 `packages/rxdb-test` 的具名套件与 `apps/*-e2e` 承载。核心包内按**用户故事边界**切子模块（`commit/` → US1、`working-tree/` → US2、`index-stage/` → US3、`restore/` → US5、`commit-branch/` → US6），使每个故事可独立红→绿→验收，避免把状态机堆进既有的 `VersionManager.ts`（已 900+ 行）。
+**Structure Decision**：沿用既有 monorepo 布局，不新建顶层目录。核心逻辑落在 `packages/rxdb/src/` 下**两个新目录** `commit/`（US-305 的不可变图与迁移）与 `working-tree/`（US-306 起的可变工作树面），与既有 `version/` 并列——`version/` 保持原职责（分支、撤销、同步），本特性只在其中 8 个文件上登记受信调用点，不搬迁。6 个适配器包各自接入**同一份**共享判定，不各写一份（R4）。三框架包只新增入口，不承载核心逻辑。
 
 ## Complexity Tracking
 
-> 仅记录 Constitution Check 中需要论证的例外。
+| Violation                                                                                        | Why Needed                                                                                                                                                                                                                                                                                                                                                                                                                                       | Simpler Alternative Rejected Because                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`commit` 免除 constitution IV 的「DB op < 100 ms」预算**（违反：IV. Performance Requirements） | `commit` 的工作量与宪法预算的假想对象不是同一量级：基准 fixture 下它要在**单个事务内**写入 100 个 ChangeSet 单元、CAS 推进 branch ref、并清空全部 100 个工作树条目（FR-011 要求同事务清空）。100 ms 是为单次实体读写设定的。**替代预算**：由**首个绿色实现的 reference 中位数冻结**，与相对门禁（≤ median ratio 110%）同批签入，因此仍是可验收的硬数字，不是「不设限」。status / diff / restore **不适用**本例外，各自照常受 100 ms / 1 s 约束。 | **①「让 commit 也进 100 ms」**：会逼实现把工作树清空改成异步或延迟，直接违反 FR-011 的同事务语义与 SC-007 的「不出现半清空的工作树」——把性能数字买在正确性头上。**②「缩小 fixture 让数字好看」**：违反 R8 的固定 fixture 口径，门禁自证其绿。**③「commit 不设绝对预算，只看相对门禁」**：会漏掉「所有操作一起变慢」的整体回归，故仍冻结绝对中位数。 |
 
-| Violation                                                                                                                                                                                                                            | Why Needed                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Simpler Alternative Rejected Because                                                                                                                                                                                                              |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **两个**适配器级写入口都要携带意图枚举：`TransactionExecutor.mergeChanges` 第三形参由 `disableTriggers: boolean` 改为 `RxDBWriteIntent`，且既有内部类型 `SwitchBranchOptions` 追加必填 `intent` 字段（均为内部契约变更，非公开导出） | FR-022 要求受信登记键为「文件 + 符号 + 意图」。**Phase 1 实测**：undo/redo 与切换分支物化走的都是 `adapter.switchBranch`（`HistoryManager.ts:1472` / `VersionManager.ts:769`），二者对工作树的语义正好相反，而 `SwitchBranchOptions` 当前连一个可区分的形参都没有；`mergeChanges` 侧的布尔参数同样区分不开（合并的逐条与 squash 路径都传 `false`，过期清理与 pull 都传 `true`）。全集共 11 个受信调用点，按**函数**或按**布尔**放行都会把某一类静默吞掉——这正是 FR-019 要防的缺陷 | 「保留 boolean，另加旁路事件表补记」被否：先改业务数据再补记事件无法保证同一事务原子性（FR-018），且崩溃窗口内会产生 spec Edge Cases 明令禁止的半状态。「按调用栈自动推断意图」被否：不可静态校验，无法支撑 SC-004 的「未登记调用点数量为 0」扫描 |
-| 既有 `EntityIndexMetadataOptions` 新增可选谓词字段 `where?: { property; equals }`（公开类型的向后兼容扩展）                                                                                                                          | FR-012 要求「至多一个激活分支」是**数据库约束**而非代码纪律，落成 `CREATE UNIQUE INDEX ... ON rxdb_branch (activated) WHERE activated = TRUE`；现有索引元数据只支持 `properties` / `normalized` / `unique`，无法表达部分索引                                                                                                                                                                                                                                                      | 「常量表达式索引 `((TRUE))`」被否：SQLite 不支持，跨 6 后端直接破。「可空 `activationSlot` 列 + 普通 UNIQUE」被否：`activated ⟺ activationSlot` 的双向一致性无 CHECK 约束可表达，退化为会漂移的第二份状态                                         |
-| restore p95 ≤ 1 s 超出宪法 IV 的「DB operation < 100 ms」默认预算                                                                                                                                                                    | 一次恢复需要在单个事务内重放最多 100 个变更单元并整体物化，属批量操作而非单次 DB 操作；按单次预算切分会迫使跨事务分批，直接违反 FR-045 的原子性与 spec Edge Cases 的「不留部分物化中间态」                                                                                                                                                                                                                                                                                        | 「分批提交 + 中间态可见」被否：与 FR-045 冲突。「限制恢复规模到 10 单元内以塞进 100 ms」被否：使能力对真实历史无用，且 fixture 规模（每提交 100 单元）由 epic 冻结                                                                                |
+**批准路径**：本例外由 epic-006「性能预算的口径」一节授权（「commit 不套用 100ms，其绝对预算由首个绿色实现的 reference 中位数冻结」），并已在 spec.md SC-003 固化为可验收判据。实施时随首个绿色实现的 reference JSON 一并提交 review；若 review 不接受该中位数，需回到本表更新例外或改设计，不得在失败后重算基线。
 
-## 交付顺序与依赖
-
-固定顺序 **US1 → US2 → US3 → US4 →（US5 ∥ US6）**：
-
-| 阶段 | 故事                                                                      | 阻塞原因                                                                                                                     |
-| ---- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| 0    | 前置：新的非迁移 bridge tag（更新 `requirements/migration-release.json`） | FR-016；`v0.0.25` 经 squash 后已不是候选发布提交的祖先，`pnpm check-migration-release-gate` 会失败，挡住任何系统 schema 迁移 |
-| 1    | US1 提交图与 HEAD                                                         | 后续全部能力需要稳定的版本锚点                                                                                               |
-| 2    | US2 工作树捕获                                                            | 状态机需要真相源；意图枚举改造在此落地                                                                                       |
-| 3    | US3 缓存区与提交状态机                                                    | US5 的冲突状态、US6 的 clean 判据都从这里派生                                                                                |
-| 4    | US4 三框架操作面                                                          | 冻结 `useWorkingTree()` 扩展点协议                                                                                           |
-| 5    | US5 恢复会话 ∥ US6 分支隔离                                               | 两者互相独立；各自的**核心持久层**可与阶段 4 并行开工，但**三端入口与 benchmark 追加**必须排在 US4 之后                      |
-
-## Constitution Re-Check（Phase 1 设计后）
-
-| 原则                  | 结论     | 设计阶段新增/变化                                                                                                                                                                                                                                                                        |
-| --------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| I. Code Quality       | **PASS** | 例外从 1 项增为 **2** 项（新增 `EntityIndexMetadataOptions.where`），均已在 Complexity Tracking 论证。两项都是**加法**：新增可选字段、新增枚举形参，既有声明与调用点行为不变。`packages/rxdb` 的每个新公开导出在 [contracts/core-api.md](./contracts/core-api.md) 中逐个列出并要求 TSDoc |
-| II. Testing Standards | **PASS** | [contracts/conformance-suites.md](./contracts/conformance-suites.md) 把 **13 条不变式**落成 2 套具名套件共 **60 组**断言（C 10 / G 17 / S 16 / R 9 / B 8），6 个后端逐一执行。确定性手法已冻结（无 `setTimeout`、崩溃用注入错误 + 重连、并发用同进程双实例同库）。覆盖率阈值未放宽       |
-| III. UX Consistency   | **PASS** | [contracts/tri-framework-api.md](./contracts/tri-framework-api.md) 冻结 v1 基线键集 + 扩展点协议 + 静态对称门禁（缺失导出数 = 0）。"Never break userspace" 由「未启用 = 零新表零行为差异」保证                                                                                           |
-| IV. Performance       | **PASS** | [contracts/benchmark-report.md](./contracts/benchmark-report.md) 冻结 fixture、报告结构、`runnerProfileHash` 与三态门禁。restore ≤ 1 s 仍是**唯一**性能例外；包体积 < 50 KB gz 需在 US4 收尾实测                                                                                         |
-
-**Phase 1 GATE: PASS**。设计过程未引入任何未经论证的违规；唯一的实质变化是把写入意图的覆盖面从 `mergeChanges` 一处扩到 `mergeChanges` + `switchBranch` 两处——这是**修正一个会导致 FR-019 失效的漏洞**，不是范围膨胀。
-
-## 下一步
-
-`/speckit-tasks` 依据本计划与 Phase 1 契约生成 `tasks.md`。
+**其余无例外**：本特性未引入新架构分层、未新增顶层项目、未偏离既有 monorepo 约定。

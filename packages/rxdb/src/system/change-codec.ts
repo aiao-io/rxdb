@@ -193,7 +193,23 @@ const copyBinary = (value: unknown): Uint8Array => {
 
 type ChangeSpecialPropertyType = typeof PropertyType.bigint | typeof PropertyType.binary;
 
-type RxDBChangeEntityMetadataResolver = (entity: string, namespace: string) => EntityMetadata | undefined;
+/**
+ * 反查**对端实体**元数据的回调。
+ *
+ * @param entity - 对端实体名
+ * @param namespace - 对端实体所在命名空间
+ * @returns 找到则返回元数据，未在本进程注册时返回 `undefined`
+ *
+ * @remarks
+ * 只在一种情况下被用到：patch 里的 key 是外键列，而本实体的 `propertyMap` 里
+ * 没有它（多对多中间表只声明本侧外键是典型场景）。这时列的真实类型写在**对端**
+ * 的 `id` 上，不反查就会把一个 `bigint` 外键当普通值直接落 JSON。
+ *
+ * 具名导出是为了让 `working-tree/working-tree-patch-codec.ts` 与各适配器的
+ * `encryptionContext.resolveEntityMetadata` 引用**同一个**类型，而不是各自声明一份
+ * 结构相同的匿名签名——结构相同的类型改起来不会互相报错，改漂了也没人知道。
+ */
+export type RxDBChangeEntityMetadataResolver = (entity: string, namespace: string) => EntityMetadata | undefined;
 
 const isChangeSpecialPropertyType = (type: unknown): type is ChangeSpecialPropertyType =>
   type === PropertyType.bigint || type === PropertyType.binary;

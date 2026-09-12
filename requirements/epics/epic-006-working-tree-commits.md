@@ -522,19 +522,28 @@ patch / inverse patch 换成新的完整快照、`type` 按 baseline 与新值�
 
 ## 依赖顺序
 
+下面是**发布顺序**。只有第 2 步是 US-305 的**开工**前置；第 1 步是**发布**前置，由 owner 手动控制时点，
+开工不必等它（逐条说明见各步）。
+
 1. 当前发布主线先产生新的非迁移 bridge tag；历史 `v0.0.25` 不在当前 ancestry，不能供下一步引用。
    [migration-release.json](../migration-release.json) 的 `bridge.tag` / `bridge.version` 仍为 `null`，
    而 `release.version` 仍写着已脱链的 `0.0.25`。
 
-   **这一步是排在 US-305 之前的独立发布事项，不是 US-305 的交付物**（见
+   **这一步是排在 US-305 的「迁移发布」之前的独立发布事项，不是 US-305 的交付物**（见
    [release-plan](../release-plan.md) 的执行顺序）。理由是发布门禁本身：bridge 版本**不得抬升系统版本常量**，
    而 US-305 的范围含「已有数据库的一次性初始化」，必然是 `kind=migration`；把 bridge 塞进 US-305
    会让 migration 依赖一个尚不存在的 bridge tag，形成自我死锁。桥接锚点必须由一条**不动
    `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 的纯功能/适配器路径**先行落成并打 tag。
 
    US-305 在此只承接**门禁侧**（FR-030 + AC US2-14）：读取 manifest、校验 `bridge.tag` 是候选发布提交的
-   真实祖先 tag、不满足时以门禁失败挡住迁移发布。manifest 的回填只能发生在真实 tag 产生之后，
-   US-305 不得在「bridge 将会存在」的假设上开工
+   真实祖先 tag、不满足时以门禁失败挡住迁移发布。manifest 的回填只能发生在真实 tag 产生之后。
+
+   **桥接发布由 owner 手动发起、手动决定时点**：不进 CI、不由任何自动化触发，也**不是 US-305 的开工前置**。
+   它挡的是 US-305 的**迁移发布**——`bridge.tag` 为 `null` 时，`kind=migration` 的门禁必然红——
+   但不挡 US-305 的开工与合入：代码先写、测试先绿都允许，`migration-release.json` 的 `bridge.*`
+   在真实 tag 出现前保持 `null`，任何 `kind=migration` 的发布尝试都会被门禁拦下。
+   唯一的硬约束是**不得把某个具体 tag 名或版本号写死进实现**：FR-030 读的是 manifest，
+   只依赖「manifest 里写了什么」，不依赖「tag 此刻存不存在」
 
 2. 重生成 `specs/001-working-tree-commits/`（`/speckit-specify` → `/speckit-plan` → `/speckit-tasks`），并按「非目标」
    核对：spec / plan / data-model / contracts 中无暂存区、无 `Index*` 前缀、无 `index_dependency_cycle`，受信调用点
@@ -600,14 +609,19 @@ patch / inverse patch 换成新的完整快照、`type` 按 baseline 与新值�
 
 1. [migration-release.json](../migration-release.json) 的 `bridge.tag` 指向一个满足
    `git merge-base --is-ancestor <bridge-tag> <release-commit>` 的真实 tag。**「不是 `v0.0.25`」不够**：
-   `v0.0.24` 及更早的 tag 同样是祖先、同样含有系统迁移面的四个文件，能过完存在性 / 祖先性 / 路径探测三道检查，
-   却早于本 Epic 的桥接改造——那是个空桥。因此门禁另加两条**可执行**判据：
-   - `bridge.version` 严格新于 `LAST_INELIGIBLE_BRIDGE_VERSION`（当前 `0.0.25`）。真实的新桥接 tag 必然大于它，
-     这条下限只挡伪造、不挡正常发布
+   `v0.0.24` 及更早的 tag 同样是祖先、同样含有系统迁移面的四个文件，能过完全部四条 tag 钩子
+   （存在性 / 祖先性 / 路径探测 / 版本常量吻合），却早于本 Epic 的桥接改造——那是个空桥。
+   因此门禁另加一条**专门针对空桥**的判据，外加一条覆盖另一个失败面的判据；两条各管各的，不互为冗余：
+   - **挡空桥的只有这一条**：`bridge.version` 严格新于 `LAST_INELIGIBLE_BRIDGE_VERSION`（当前 `0.0.25`）。
+     真实的新桥接 tag 必然大于它，这条下限只挡伪造、不挡正常发布
    - bridge tag 上的 `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 与候选发布提交上的取值
      必须与 `systemSchemaUpgrade` / `changeCodecUpgrade` 吻合：声明升级则 bridge 必须严格更旧，
-     未声明升级则必须完全相等。后半条同时挡住「悄悄抬了 schema 却把升级位写成 `false`」——
-     那会让发布整体绕开 `oldBundlePolicy` 分支
+     未声明升级则必须完全相等。它挡的是「悄悄抬了 schema 却把升级位写成 `false`」——那会让发布整体绕开
+     `oldBundlePolicy` 分支。
+     ⚠️ **它挡不住 `v0.0.24`**：实测 `v0.0.24` 与 `v0.0.25` 的常量都是 `{systemSchemaVersion: 3, changeCodecVersion: 1}`，
+     与今天的 HEAD 完全相同，所以在 `systemSchemaUpgrade: false` 的发布里这条判据对空桥恒真
+     两条判据（以及四条 tag 钩子）**只在 `release.kind === "migration"` 分支内执行**；桥接发布自己
+     （`kind=bridge`）走不到它们，别把它们当成桥接发布当下的防线，见 [release-plan 硬前提 1](../release-plan.md)
 2. US-305 / US-306（阶段 A / B / C 全部关闭）/ US-307 / US-308 全部 Done；US-306 的
    [交付阶段与边界表](../stories/collaboration/US-306-working-tree-commits.md#交付阶段与边界) 逐条有归属，跨故事的半边以收口故事的场景为准，
    US-306 阶段 C / US-307 / US-308 的三框架对称与 a11y 条件满足

@@ -62,16 +62,22 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 
 ## 交付阶段与边界
 
-| 阶段 | 交付                                                                                                                          | 直接前置                                                                                                                                                                          | 验收区段                | 状态 |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ---- |
-| A    | commit 图与 HEAD 底座：存储布局、`CommitBranchRef` / `headRevision` CAS、幂等 `operationId`、log/show 查询                    | ① 桥接发布（FR-030 的 bridge tag 已在 `main` 祖先链上）；② `specs/001-working-tree-commits/` 已按 [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md) 第 2 步重生成 | User Story 1 场景 1～14 | ⬜   |
-| B    | 已有数据库首次启用：baseline / `branch_baseline`、迁移幂等与失败重试、损坏隔离、`WorkingTreeActivationState`、bridge 血统门禁 | 阶段 A                                                                                                                                                                            | User Story 2 场景 1～16 | ⬜   |
+| 阶段 | 交付                                                                                                                          | 直接前置                                                                                                               | 验收区段                | 状态 |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------- | ---- |
+| A    | commit 图与 HEAD 底座：存储布局、`CommitBranchRef` / `headRevision` CAS、幂等 `operationId`、log/show 查询                    | `specs/001-working-tree-commits/` 已按 [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md) 第 2 步重生成 | User Story 1 场景 1～14 | ⬜   |
+| B    | 已有数据库首次启用：baseline / `branch_baseline`、迁移幂等与失败重试、损坏隔离、`WorkingTreeActivationState`、bridge 血统门禁 | 阶段 A                                                                                                                 | User Story 2 场景 1～16 | ⬜   |
 
 - 阶段 A 对应 FR-001 / 002 / 003 / 008 / 009 / 010 / 012 / 018 / 019 / 027 / 029 / 036 / 038；阶段 B 对应
   FR-021 / 022 / 030 / 037 / 048 / 049 / 051 / 052。两段都是无 UI 的核心底座，只要求公开类型、TSDoc 与类型契约测试。
-- 前置 ② 目前**未满足**：`specs/001-working-tree-commits/data-model.md` 仍登记 `RxDBIndexState` / `RxDBIndexEntry`，
+- 上述前置目前**未满足**：`specs/001-working-tree-commits/data-model.md` 仍登记 `RxDBIndexState` / `RxDBIndexEntry`，
   `quickstart.md` 仍含 `index_dependency_cycle`，都是本 epic 已废弃的暂存区概念。规格重生成完成前不得开工，
-  否则实现会照着已作废的数据模型落地。
+  否则实现会照着已作废的数据模型落地。**这是本故事唯一的开工前置。**
+- **桥接发布不是开工前置，是发布前置**：它由 owner 手动发起、手动决定时点（见
+  [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md#依赖顺序) 第 1 步与
+  [release-plan](../../release-plan.md)）。`migration-release.json` 的 `bridge.tag` 为 `null` 时，
+  只有 `kind=migration` 的**发布**会被门禁挡住；阶段 A / 阶段 B 的编码、测试与合入都不等它。
+  阶段 B 的 FR-030 实现只读 manifest，**不得把任何具体 tag 名或版本号写死进代码**，
+  因此「tag 此刻还不存在」对实现与测试都不构成阻塞（用 fixture manifest 覆盖各分支即可）。
 - 阶段 A 可以在**空数据库**上独立验收（写 commit → 刷新 → 读回 log/show），不依赖迁移；阶段 B 才碰既有数据。
 - 阶段 B 的 conformance 断言并入 `workingTreeCommitConformanceSuite`（归 US-306 阶段 B 收口），本故事只落 commit 图部分的用例。
 

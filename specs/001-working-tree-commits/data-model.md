@@ -1,424 +1,258 @@
-# Phase 1 Data Model: 本地工作树与提交历史
-
-> [!WARNING]
-> **本文件已过期（2026-08-22）。** 上游 [epic-006](../../requirements/epics/epic-006-working-tree-commits.md) 已裁决
-> **不做暂存区（index / staging area）与任何形式的选择性提交**：没有 `stage` / `unstage` / `clearIndex`，
-> `commit(message)` 只提交当前分支工作树的全部未提交变更，隔离工作线用分支。
-> 本文件仍按「工作树 → 缓存区 → 提交」三层写成，其中所有 `Index*` / `RxDBIndexEntry` / `indexRevision` /
-> `staged` 相关的表、契约、状态迁移、验收项与基准 fixture **均已作废，不得据此实现**。
-> 真相源以 `requirements/` 为准；本目录需要用 `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` 重新生成。
-
-**Feature**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Research**: [research.md](./research.md) | **Date**: 2026-08-15
-
-本文件把 spec.md 的 13 个 Key Entities 落成具体的系统表、字段、关系、约束与状态迁移。全部实体位于 `namespace: 'rxdb'`，`log: false`（系统表自身不进变更日志），随 `RXDB_SYSTEM_SCHEMA_VERSION = 4` 建立，且**仅在数据库启用提交能力时存在**（[R-004](./research.md#r-004-系统-schema-版本与启用迁移)）。
-
----
-
-## 1. 实体总览
-
-| #   | 实体                                     | 表名                                         | 基数                 | 归属故事                               |
-| --- | ---------------------------------------- | -------------------------------------------- | -------------------- | -------------------------------------- |
-| 1   | `RxDBCommit`                             | `rxdb_commit`                                | 每提交一行           | US1                                    |
-| 2   | `RxDBCommitChangeSet`                    | `rxdb_commit_change_set`                     | 每变更单元一行       | US1                                    |
-| 3   | `RxDBCommitBranchRef`                    | `rxdb_commit_branch_ref`                     | **每已物化分支**一行 | US1 / US6                              |
-| 4   | `RxDBCommitCapabilityState`              | `rxdb_commit_capability_state`               | **全库单行**         | US1                                    |
-| 5   | `RxDBWorkingTreeActivationState`         | `rxdb_working_tree_activation_state`         | **全库单行**         | US1                                    |
-| 6   | `RxDBWorkingTreeEntry`                   | `rxdb_working_tree_entry`                    | 每未提交单元一行     | US2                                    |
-| 7   | `RxDBWorkingTreeState`                   | `rxdb_working_tree_state`                    | 每分支一行           | US2                                    |
-| 8   | `RxDBIndexState`                         | `rxdb_index_state`                           | 每分支一行           | US3                                    |
-| 9   | `RxDBIndexEntry`                         | `rxdb_index_entry`                           | 每已暂存单元一行     | US3                                    |
-| 10  | `RxDBWorkingTreeRestoreSession`          | `rxdb_working_tree_restore_session`          | 每恢复会话一行       | **建表与迁移 US3**；创建与生命周期 US5 |
-| 11  | `RxDBCommitBranchMaterializationAttempt` | `rxdb_commit_branch_materialization_attempt` | 每次首物化尝试一行   | US6                                    |
-| 12  | `RxDBBranch`（既有，扩展）               | `rxdb_branch`                                | —                    | US1 / US6                              |
-
-共 **11 张新表**。派生型（不落表，运行时计算）：`WorkingTreeStatus`、`WorkingTreeDiff`、`WorkingTreeSelection`、`WorkingTreeStageResult`、`CommitCapability`、`CommitConflict`。契约见 [contracts/core-api.md](./contracts/core-api.md)。
-
-**归属纪律**：第 10 项的**建表与 schema 迁移随 US3（US-306 阶段 B）交付**——持久冲突状态（FR-033、FR-036）在 US3 就必须成立，其读路径要能从已存在的会话派生冲突；US5 只拥有会话的创建与生命周期语义。把建表推迟到 US5 会让 US3 的 `conflicted` 状态无处附着。
-
----
-
-## 2. 提交图（US1）
-
-### 2.1 `RxDBCommit` → `rxdb_commit`
-
-| 字段                     | 类型           | 约束                            | 说明                                                                                                    |
-| ------------------------ | -------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `id`                     | uuid           | PK                              | `normal` 用 UUID v7；两类系统根节点用**确定性派生 id**（[R-008](./research.md#r-008-提交标识与幂等键)） |
-| `parentId`               | uuid \| null   | FK → `rxdb_commit.id`，index    | `null` 仅出现在 `baseline` / `branch_baseline`                                                          |
-| `kind`                   | enum           | not null                        | `baseline` \| `branch_baseline` \| `normal`                                                             |
-| `originBranchId`         | uuid           | FK → `rxdb_branch.id`，index    | **仅审计**：提交被创建时所在的分支                                                                      |
-| `originBranchGeneration` | number         | not null                        | 创建时的分支代次，参与幂等键                                                                            |
-| `authorId`               | string \| null | not null when `kind = 'normal'` | 调用方提供，禁止从空值/设备名/写入方标识伪造（FR-004）                                                  |
-| `message`                | string         | not null                        | `normal` 要求 trim 后非空；两类根节点为固定系统文案                                                     |
-| `unitCount`              | number         | not null                        | 变更单元数，供列表页免 join 计数                                                                        |
-| `changeCodecVersion`     | number         | not null                        | 变更编解码版本，US5 兼容性预检读它（FR-044）                                                            |
-| `schemaFingerprints`     | json           | not null                        | `{ "<namespace>.<entity>": "<fingerprint>" }`，覆盖本提交涉及的全部实体                                 |
-| `operationId`            | string \| null | 见 §2.5                         | 幂等键；`normal` 必填                                                                                   |
-| `createdAt`              | number         | not null，index                 | **取数据库时钟**，不信任 realm 本地时钟（spec Assumptions）                                             |
-| `updatedAt`              | number         | not null                        |                                                                                                         |
-
-**规则**:
-
-- FR-002 / INV-2：每个已启用数据库的每个**已物化**分支恰好有一条 `parentId IS NULL` 的根提交（迁移产生 `baseline`，`createBranch(branchId, fromChangeId)` 与远端分支首物化产生 `branch_baseline`）。
-- FR-004：`parentId` 构成有向无环图；写入前校验祖先可达，不可达则 `commit_graph_corrupted`。
-- FR-004：`normal` 提交在**任何持久状态变化前**校验三件事——`message.trim()` 非空、`authorId` 非空、`operationId` 非空；任一不满足即拒绝且 HEAD 不变。
-- FR-005：空提交被拒绝——`unitCount = 0` 的 `normal` 提交不允许写入。零实体的**本地分支** `baseline` 是仅有的例外（US2-AC8）；仅有元数据的远端分支**不得**据此建立空基线（FR-013）。
-- FR-007：`originBranchId` **MUST NOT** 用于历史查询过滤。`log({ branchId })` 只能从 `rxdb_commit_branch_ref.headCommitId` 沿 `parentId` 遍历可达父链；按 `originBranchId = branchId` 过滤会截断继承来的历史，是本表最容易被误用的字段。
-
-### 2.2 `RxDBCommitChangeSet` → `rxdb_commit_change_set`
-
-| 字段              | 类型           | 约束                                      | 说明                                      |
-| ----------------- | -------------- | ----------------------------------------- | ----------------------------------------- |
-| `id`              | uuid           | PK                                        |                                           |
-| `commitId`        | uuid           | FK → `rxdb_commit.id`，index              |                                           |
-| `transactionId`   | uuid           | index                                     | 原始事务分组，供依赖闭包回溯              |
-| `sequence`        | number         | not null                                  | 提交内稳定顺序（拓扑序结果）              |
-| `type`            | enum           | not null                                  | `insert` \| `update` \| `delete`          |
-| `namespace`       | string         | not null                                  |                                           |
-| `entity`          | string         | not null，复合 index `(entity, entityId)` |                                           |
-| `entityId`        | string         | not null                                  |                                           |
-| `baselineVersion` | string \| null |                                           | 变更前的版本指纹（FR-003）                |
-| `currentVersion`  | string         | not null                                  | 变更后的版本指纹（FR-003）                |
-| `patch`           | json           | not null，**经信封**                      | [R-009](./research.md#r-009-加密信封复用) |
-| `inversePatch`    | json           | not null，**经信封**                      | 支撑 US5 恢复的逆向重放                   |
-| `createdAt`       | number         | not null                                  |                                           |
-
-**规则**:
-
-- FR-003：内容整体复制，不引用 `rxdb_change`；压缩/删分支/回滚标记不得影响本表。每条保留实体身份、操作类型、基线版本与当前版本指纹。
-- FR-003：同一 `transactionId` 的全部单元 **MUST NOT** 被拆进不同提交。
-- FR-007：按实体查历史走 `(entity, entityId)` 复合索引；排序主键为提交拓扑序，次级为 `createdAt`，再次级为 `sequence`。
-- FR-044：US5 的兼容性预检在选定物化路径后逐个读取路径上每个 change set 的 `currentVersion` 与所属提交的 `schemaFingerprints` / `changeCodecVersion`，**不解码** `patch`。
-
-### 2.3 `RxDBCommitBranchRef` → `rxdb_commit_branch_ref`
-
-| 字段               | 类型   | 约束                              | 说明                                                                           |
-| ------------------ | ------ | --------------------------------- | ------------------------------------------------------------------------------ |
-| `id`               | uuid   | PK                                |                                                                                |
-| `branchId`         | uuid   | FK → `rxdb_branch.id`，**unique** | 一分支一行                                                                     |
-| `generation`       | number | not null                          | 不可变代次，参与幂等键                                                         |
-| `headCommitId`     | uuid   | FK → `rxdb_commit.id`，not null   | **HEAD 的唯一真相源**（FR-001）                                                |
-| `baselineCommitId` | uuid   | FK → `rxdb_commit.id`，immutable  | 根提交                                                                         |
-| `headRevision`     | number | not null                          | HEAD 推进的 CAS 版本（[R-005](./research.md#r-005-revision-的实现与两类校验)） |
-| `origin`           | enum   | not null                          | `migration` \| `createBranch` \| `remoteMaterialization`                       |
-| `updatedAt`        | number | not null                          |                                                                                |
-
-**规则**:
-
-- FR-001 / FR-015：**不**存「当前分支 id」。当前分支恒由 `RxDBBranch.activated` 表达。
-- FR-013 / FR-052：**行的存在 ⟺ 分支已物化**。仅有元数据、本地没有提交图的远端分支**不建行**；`headCommitId` **MUST NOT** 可空，也 **MUST NOT** 引入 `materialized: boolean` 之类的第二种引用状态——那正是 FR-013 所说的「被解释为空 HEAD」。查询无行的分支返回 `branch_not_materialized`。
-- FR-005：HEAD 只能推进到自身子孙提交；否则 `commit_graph_corrupted`。
-- FR-014：可达父链上检出损坏时**该行保持原样**，损坏态记在 §2.4 的能力状态之外、按分支派生（见 §7 INV-3 与 [adapter-contract §7](./contracts/adapter-contract.md#7-损坏检测与降级)）——不自动改指针、不删记录。
-
-### 2.4 `RxDBCommitCapabilityState` → `rxdb_commit_capability_state`
-
-**全库单行**，由首次启用迁移在同一事务内建立（FR-011）。
-
-| 字段                    | 类型    | 约束                       | 说明                                     |
-| ----------------------- | ------- | -------------------------- | ---------------------------------------- |
-| `id`                    | string  | PK，固定常量 `'singleton'` | 基数由主键保证                           |
-| `enabled`               | boolean | not null                   | 单向：一旦 `true` 不可回退               |
-| `commitProtocolVersion` | number  | not null                   | 写入方连接时协商的协议版本               |
-| `systemSchemaVersion`   | number  | not null                   | 落库时的 `RXDB_SYSTEM_SCHEMA_VERSION`    |
-| `changeCodecVersion`    | number  | not null                   | 变更编解码版本                           |
-| `enableMigrationId`     | string  | not null                   | 启用迁移的标识，参与确定性根提交 id 派生 |
-| `enabledAt`             | number  | not null                   | 数据库时钟                               |
-
-**规则**:
-
-- FR-011：未启用的数据库**不创建本行、不创建本表**（INV-10）。已启用库被未声明能力或协议不匹配的写入方打开时，在**首笔业务写入前** `commit_capability_mismatch` 或进入调用方明确请求的只读模式，MUST NOT 继续裸写业务表。
-
-### 2.5 幂等约束
-
-唯一索引 `rxdb_commit_idempotency`：`UNIQUE (originBranchId, originBranchGeneration, operationId) WHERE operationId IS NOT NULL`。
-
-- 命中且内容一致 → 返回原提交，HEAD 不推进（FR-009）。
-- 命中且内容不一致 → `idempotency_key_reused`，原记录不被覆盖。
-- 同名分支重建后 `generation` 递增，旧键不再碰撞。
-
----
-
-## 3. 分支激活（US1 / US6）
-
-### 3.1 `RxDBBranch` 索引扩展
-
-对既有 [`RxDBBranch`](../../packages/rxdb/src/system/branch.ts) 追加一条部分唯一索引（[R-003](./research.md#r-003-head-的唯一真相源与激活分支基数约束)）：
-
-```text
-{ name: 'rxdb_branch_single_activated', properties: ['activated'], unique: true,
-  where: { property: 'activated', equals: true } }
-```
-
-生成 `CREATE UNIQUE INDEX rxdb_branch_single_activated ON rxdb_branch (activated) WHERE activated = TRUE`，在 PGlite 与四个 SQLite 后端语义一致。
-
-**规则**:
-
-- FR-012：迁移建索引前若存在多行 `activated = TRUE`，整个迁移失败并返回 `ambiguous_active_branch`，**不**按查询顺序任选。
-- FR-012：迁移前**零**激活分支时，沿用既有 [`resolve_current_branch`](../../packages/rxdb/src/version/) 语义——优先激活 `main`，没有 `main` 时创建它——再建立基线，而不是失败。
-- FR-012：数据库约束保证**至多一个**；每次连接额外验证**至少一个**，零激活时按上一条恢复。
-
-### 3.2 `RxDBWorkingTreeActivationState` → `rxdb_working_tree_activation_state`
-
-**全库单行**，由首次启用迁移在同一事务内建立，`activationRevision` 初始化为 `0`（FR-015）。
-
-| 字段                 | 类型   | 约束                       | 说明                                         |
-| -------------------- | ------ | -------------------------- | -------------------------------------------- |
-| `id`                 | string | PK，固定常量 `'singleton'` | 基数由主键保证                               |
-| `activationRevision` | number | not null，初始 `0`         | 调用方捕获型；不匹配 → `stale_active_branch` |
-| `updatedAt`          | number | not null                   |                                              |
-
-**规则**:
-
-- FR-015：本表 **MUST NOT** 复制第二份激活分支标识——只有 revision，没有 branchId。当前分支恒由 `RxDBBranch.activated` 表达。
-- FR-015：未启用的数据库 **MUST NOT** 创建本行。
-- FR-025 / FR-053：所有调用方捕获型写操作（stage / unstage / commit / restore / discard / switchBranch）一律校验 `activationRevision`。
-- FR-049：分支切换只递增 `activationRevision`；物化目标分支投影**不得平白递增** `workingTreeRevision`。
-
----
-
-## 4. 工作树（US2）
-
-### 4.1 `RxDBWorkingTreeEntry` → `rxdb_working_tree_entry`
-
-| 字段                                | 类型         | 约束                                                   | 说明                                                            |
-| ----------------------------------- | ------------ | ------------------------------------------------------ | --------------------------------------------------------------- |
-| `id`                                | uuid         | PK                                                     |                                                                 |
-| `branchId`                          | uuid         | FK → `rxdb_branch.id`，复合 index `(branchId, staged)` | 按分支隔离                                                      |
-| `transactionId`                     | uuid         | index                                                  | 与业务写同一事务内落库                                          |
-| `sequence`                          | number       | not null                                               | 分支内单调序，决定重放顺序                                      |
-| `origin`                            | enum         | not null                                               | `local` \| `remote_sync` \| `merge` \| `undo_redo` \| `restore` |
-| `sourceChangeId`                    | uuid \| null |                                                        | 来源变更标识，**仅审计**（本表不依赖它重放）                    |
-| `type`                              | enum         | not null                                               | `insert` \| `update` \| `delete`                                |
-| `namespace` / `entity` / `entityId` | string       | 复合 index `(entity, entityId)`                        |                                                                 |
-| `currentVersion`                    | string       | not null                                               | 当前指纹                                                        |
-| `patch` / `inversePatch`            | json         | **经信封**                                             | 完整快照，不引用 `rxdb_change`                                  |
-| `staged`                            | boolean      | not null，default `false`                              | `true` ⇒ `rxdb_index_entry` 存在对应行                          |
-| `createdAt`                         | number       | not null                                               |                                                                 |
-
-**规则**:
-
-- **`origin` 不是 `RxDBWriteIntent`**：前者是**持久化的来源分类**（5 个值，用户可见、进 diff 与状态），后者是**写路径上的调用方意图枚举**（9 个值，仅内部契约，见 [R-006](./research.md#r-006-写入意图枚举与受信登记)）。映射是多对一且不满射：`expiredCleanup → remote_sync`；`branchMaterialization` / `baselineMaterialization` / `metadataOnly` **不产生条目**因而不落任何 `origin`。两者 MUST NOT 合并成一列。
-- FR-018：条目与业务数据写入**同一事务**；事务回滚 ⇒ 两者同时不存在（半状态率 0，SC-002）。
-- FR-020：只更新远端 ID / 同步水位 / 审计时间的写入不产生条目，也不递增 `workingTreeRevision`。
-- FR-021：`sync.type === SyncType.QueryCache` 的实体完全不产生条目（[R-010](./research.md#r-010-查询缓存实体的排除判定)）。
-- FR-023：任意时刻「HEAD 提交链 + 本表按 `sequence` 重放」= 当前业务数据（冷重放不变式）。
-- FR-024：草稿缓存的 NEW 草稿不进本表、不递增 `workingTreeRevision`；`save()` 之后才作为一次普通 `insert` 进入。
-
-### 4.2 `RxDBWorkingTreeState` → `rxdb_working_tree_state`
-
-| 字段                  | 类型    | 约束                              | 说明                                                |
-| --------------------- | ------- | --------------------------------- | --------------------------------------------------- |
-| `id`                  | uuid    | PK                                |                                                     |
-| `branchId`            | uuid    | FK → `rxdb_branch.id`，**unique** |                                                     |
-| `baseHeadCommitId`    | uuid    | FK → `rxdb_commit.id`，not null   | 本工作树基于哪个 HEAD（FR-023、残量 rebase 的基准） |
-| `workingTreeRevision` | number  | not null                          | **事务内读改写型**（并发不失败）                    |
-| `restoring`           | boolean | not null，default `false`         | 是否处于恢复会话中                                  |
-| `unstagedCount`       | number  | not null                          | 未提交单元计数                                      |
-| `updatedAt`           | number  | not null                          |                                                     |
-
-**规则**:
-
-- FR-032：`workingTreeRevision` **MUST NOT** 采用调用方捕获型校验——普通 CRUD 会因此在多标签页下随机失败。
-- FR-035 / SC-007：语义无操作（stage 空集、unstage 不存在项、discard 已 clean、内容相同的恢复）**不**递增任何 revision。
-- FR-031：提交后未暂存残量按新 HEAD 重新基线化，`baseHeadCommitId` 随之推进；提交 **MUST NOT** 仅因暂存后发生普通编辑而失败，也 MUST NOT 用已暂存快照覆盖该编辑。
-- `phase`（`clean` / `modified` / `staged` / `restoring` / `conflicted`）是**派生值**，不落列：由本表的 `unstagedCount` / `restoring`、`rxdb_index_state.entryCount` 与恢复会话的 `status` 共同计算（§4.3）。避免第二份会漂移的状态。
-
-### 4.3 状态迁移（派生，非持久列）
-
-```text
-                 ┌──────────── discard ────────────┐
-                 v                                  │
-  clean ──write──> modified ──stage──> staged ──commit──> clean
-    ^                 ^                   │
-    │                 └──── unstage ──────┘
-    │
-    └── restore 提交/丢弃 ── restoring ←── restore 开始（仅自 clean）
-                            │
-                            └── 会话 expected 与当前分叉 ──> conflicted ──解决/删除会话──> modified
-```
-
-- `restoring` 是持久事实（`rxdb_working_tree_state.restoring` + 存在 `status = 'active'` 的会话），跨重启可见（FR-042）。
-- `conflicted` **只**由「仍存在且 revision 已分叉的恢复会话」派生（FR-033）。一次普通的条件更新失败 **MUST NOT** 形成持久冲突态，刷新后状态按最新持久数据重建（US3-AC8）。
-- FR-043：恢复只能自 **clean** 进入——工作树非空或缓存区非空都拒绝，且「仅已暂存」**MUST NOT** 被误报为 clean。
-
-### 4.4 远端冲突裁决 → 工作树净差重算（已裁决）
-
-`pull()` / `autoSync` / `pullRepository()` 在**同一事务内**先做冲突裁决、再应用实体（[`resolveConflictsAndBuildActions`](../../packages/rxdb/src/version/pull-conflict-utils.ts) → `executor.mergeChanges(actions, undefined, true)`），并把落败的本地 `RxDBChange` 标记 superseded。本节把该事务对 `rxdb_working_tree_entry` 与 `rxdb_index_entry` 的影响写死，否则实现方只能自己发明一套。
-
-两条**已冻结项的推论**（不是本节新增的约束）：
-
-- 本表主键粒度是 **database + branch + unit**（epic-006 v1 状态模型表），**一个单元至多一行**。因此「保留落败的本地条目 + 追加一条 `remote_sync` 条目」在物理上不可实现——它需要同一单元两行。
-- 本表 `patch` / `inversePatch` 是**完整快照**、不引用 `rxdb_change`（§4.1）。因此把本地 `RxDBChange` 标记 superseded **不会**顺带改变本表：必须显式重算。
-
-**三条腿**：
-
-| 裁决                                                        | 业务表             | 工作树条目     | `workingTreeRevision` |
-| ----------------------------------------------------------- | ------------------ | -------------- | --------------------- |
-| `KEEP_LOCAL`                                                | 远端 action 不应用 | 零变化         | 不递增                |
-| 无净变化（压缩后无有效 action，或远端值与当前值逐字段相同） | 零变化             | 零变化         | 不递增                |
-| `KEEP_REMOTE`                                               | 应用远端值         | 就地重算，见下 | 递增（有实体净变化）  |
-
-**`KEEP_REMOTE` 的就地重算**（同一事务内、实体应用之后）：对每个被远端覆盖的单元，按**应用后的业务值**相对 `rxdb_working_tree_state.baseHeadCommitId` 重算净差。
-
-| 情形                         | `rxdb_working_tree_entry`                                                                                                                                                                                                                                                       | `rxdb_index_entry` |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| 净差非空                     | **就地 UPDATE** 该单元既有行（无既有行则 INSERT）：`patch` / `inversePatch` 换成新的完整快照、`type` 按 baseline 与新值重判、`origin = 'remote_sync'`、`sourceChangeId` = 远端 change id、`currentVersion` 更新、`sequence` 取该分支**新的最大值**、`staged` **逐字段保持原值** | **不动**           |
-| 净差为空 且 `staged = FALSE` | **删除**该行                                                                                                                                                                                                                                                                    | 无对应行           |
-| 净差为空 且 `staged = TRUE`  | **保留**该行（记为与 baseline 一致的空差态），**MUST NOT** 删除                                                                                                                                                                                                                 | **不动**           |
-
-**三条硬规则**：
-
-1. **`rxdb_index_entry` 在本路径上逐字段不变**（FR-029）。已暂存快照是用户在 `stage()` 那一刻冻结的意图，远端裁决 **MUST NOT** 静默改写它。用户看到的是：staged 半边仍是自己暂存的值，unstaged 半边出现远端覆盖后的净差——与 `git pull` 之后 `git status` 同时显示已暂存与未暂存修改一致。
-2. **净差为空但已暂存时不得删行**：删了会让 INV-6（`rxdb_index_entry.workingTreeEntryId` 一一对应且对应条目 `staged = TRUE`）立即失败。反过来，本表行只在「净差为空 **且** 未暂存」时才删，该条件蕴含无 index 行，所以本路径**不可能**违反 INV-6。
-3. **依赖闭包不重算**（INV-5）。`rxdb_index_entry` 是完整独立副本、`dependencyUnitIds` 指向的也是 index 内条目；本路径不增删任何 index 行，自包含性按定义不受影响。
-
-**冷重放（INV-4）由此成立**：本表按 `sequence` 重放后该单元的终值 = 远端应用后的业务值 = 当前业务数据。`sequence` 取新最大值这一步是必需的——沿用旧 `sequence` 会让该单元在重放序中排到后续本地编辑之前，终值出错。
-
-**与 `origin` 的关系**：重算后 `origin` 一律记 `remote_sync`，即使该行原本是 `local`。`origin` 是「这一行**当前内容**的来源」，不是「这个单元历史上被谁碰过」——后者由 `rxdb_change` 承担。
-
----
-
-## 5. 缓存区（US3）
-
-### 5.1 `RxDBIndexState` → `rxdb_index_state`
-
-| 字段               | 类型   | 约束                              | 说明                             |
-| ------------------ | ------ | --------------------------------- | -------------------------------- |
-| `id`               | uuid   | PK                                |                                  |
-| `branchId`         | uuid   | FK → `rxdb_branch.id`，**unique** |                                  |
-| `indexRevision`    | number | not null                          | **调用方捕获型**（可因并发失败） |
-| `baseHeadCommitId` | uuid   | FK → `rxdb_commit.id`，not null   | 缓存区自包含性所参照的 HEAD      |
-| `entryCount`       | number | not null                          | 已暂存单元计数                   |
-| `updatedAt`        | number | not null                          |                                  |
-
-`indexRevision` 与 `workingTreeRevision` 分表存放：二者的校验类别不同（前者调用方捕获型、后者事务内读改写型），合表会让「clearIndex 只动 `indexRevision`」这条断言（FR-034）失去物理隔离。
-
-### 5.2 `RxDBIndexEntry` → `rxdb_index_entry`
-
-| 字段                                | 类型   | 约束                                          | 说明                                                    |
-| ----------------------------------- | ------ | --------------------------------------------- | ------------------------------------------------------- |
-| `id`                                | uuid   | PK                                            |                                                         |
-| `branchId`                          | uuid   | FK，复合 index `(branchId, sequence)`         |                                                         |
-| `workingTreeEntryId`                | uuid   | FK → `rxdb_working_tree_entry.id`，**unique** | 一对一（仅溯源）                                        |
-| `baselineCommitId`                  | uuid   | FK → `rxdb_commit.id`，not null               | 暂存时的基线提交                                        |
-| `sequence`                          | number | not null                                      | 稳定拓扑序（[R-007](./research.md#r-007-依赖闭包算法)） |
-| `type`                              | enum   | not null                                      | `insert` \| `update` \| `delete`                        |
-| `namespace` / `entity` / `entityId` | string | 复合 index `(entity, entityId)`               |                                                         |
-| `patch` / `inversePatch`            | json   | not null，**经信封**                          | **完整已暂存快照**（见下方规则）                        |
-| `currentVersion`                    | string | not null                                      | 暂存时的版本指纹                                        |
-| `stagedAtWorkingTreeRevision`       | number | not null                                      | 暂存时的工作树 revision                                 |
-| `dependencyUnitIds`                 | json   | not null                                      | 闭包内的依赖单元 id 列表                                |
-| `stagedAt`                          | number | not null                                      | 数据库时钟                                              |
-
-**规则**:
-
-- **完整复制，不只引用**（epic 状态模型、FR-030）：本表 **MUST** 复制不可变的恢复数据，**MUST NOT** 只持有 `workingTreeEntryId` 外键——工作树条目可能被 undo、清理或删分支删除，只引用会让「已暂存快照保持不变」（FR-029）在这些路径下静默失效。`workingTreeEntryId` 只用于溯源与 `staged` 标志的一致性校验。
-- FR-029：暂存后同一实体再被编辑时，本表的快照**保持不变**，后续编辑一律显示为未暂存；再次暂存才**原子替换**快照。工作树未变化时的重复暂存是无操作且不递增 revision。后续编辑 MUST NOT 按写入方身份分叉处理。
-- FR-030（自包含不变式）：缓存区内每一条目的前置依赖要么已在 `baselineCommitId` 可达的 HEAD 链上，要么也在缓存区内。stage 正向扩展闭包、unstage 反向移除依赖者，两者都必须维持该不变式。
-- FR-030：不可拆分的关系环整体纳入为一个原子单元；无法形成合法闭包 → `index_dependency_cycle`，缓存区**零变化**。
-- FR-034：`clearIndex()` **只**删除本表行并递增 `indexRevision`；业务投影、`rxdb_working_tree_entry` 与 `workingTreeRevision` **逐字段不变**。
-- FR-031：提交后本表对应行删除，`rxdb_working_tree_entry` 中已提交行删除，**未暂存的残量按新 HEAD 重新基线化**（residual rebase）而非丢弃。
-
----
-
-## 6. 恢复会话与分支物化暂存
-
-### 6.1 `RxDBWorkingTreeRestoreSession` → `rxdb_working_tree_restore_session`
-
-**建表与 schema 迁移随 US3 交付**（FR-036）；创建与生命周期语义归 US5（FR-042..FR-047）。
-
-| 字段                          | 类型           | 约束                   | 说明                                            |
-| ----------------------------- | -------------- | ---------------------- | ----------------------------------------------- |
-| `id`                          | uuid           | PK                     |                                                 |
-| `branchId`                    | uuid           | FK，index              |                                                 |
-| `targetCommitId`              | uuid           | FK → `rxdb_commit.id`  | 恢复目标                                        |
-| `preRestoreHeadCommitId`      | uuid           | FK → `rxdb_commit.id`  | 恢复前 HEAD                                     |
-| `expectedHeadRevision`        | number         | not null               | 建立会话时捕获                                  |
-| `expectedIndexRevision`       | number         | not null               | 建立会话时捕获                                  |
-| `expectedActivationRevision`  | number         | not null               | 建立会话时捕获                                  |
-| `producedWorkingTreeRevision` | number         | not null               | 恢复产生的工作树 revision                       |
-| `replayDirection`             | enum           | not null               | `forward`（基线→目标）\| `reverse`（HEAD→目标） |
-| `targetManifest`              | json           | not null               | 目标 schema 指纹 + 编解码版本                   |
-| `scope`                       | enum           | not null               | `wholeTree` \| `entitySubset`                   |
-| `scopeKeys`                   | json \| null   |                        | `entitySubset` 时的实体键集合                   |
-| `status`                      | enum           | not null               | `active` \| `conflicted` \| `committed`         |
-| `appliedUnitCount`            | number         | not null               | 断点续做游标                                    |
-| `totalUnitCount`              | number         | not null               |                                                 |
-| `operationId`                 | string \| null | unique（同 §2.5 形态） | 重复触发幂等                                    |
-| `createdAt` / `updatedAt`     | number         | not null               | 数据库时钟                                      |
-
-**规则**:
-
-- **生命周期只有三态**：`active`（恢复结果在工作树中、未提交）、`conflicted`（expected 与当前值已分叉，由读路径派生并持久标记）、`committed`（已生成新提交）。用户**丢弃**时会话行被**删除**而非置为某个终态——留一行「已丢弃」会让 `conflicted` 的派生条件（FR-033「仍存在且已分叉的会话」）失真。
-- FR-042：恢复以**新提交**表达（不改写历史）；`status = 'committed'` 时必然存在一条对应的 `rxdb_commit`，且该转换与新提交**在同一事务内**（FR-042「与会话状态转换原子提交」）。
-- FR-045（CAS 非对称）：**初次恢复**条件更新失败 → 全量回滚且 **MUST NOT 创建会话**；只有**已成功存在**的会话在后续提交/丢弃冲突时才保留会话与工作树并派生 `conflicted`。
-- FR-045：初次恢复要求缓存区为空，成功**只**递增 `workingTreeRevision`，**不**触碰 `indexRevision`；丢弃**仅在**用户后来暂存过恢复结果时才清空缓存区并递增 `indexRevision`。
-- FR-046：完整差异为空 → 类型化无操作，**不创建本行**、不产生工作树/缓存区条目、不递增任何 revision。
-- FR-044：`replayDirection` 与 `targetManifest` 在**任何持久写入前**确定；兼容性预检覆盖该路径上**每个**变更集，拒绝时返回首个不兼容提交 id + 重放方向 + 双方 manifest，且检查期间不解码或写入后续变更集。
-
-### 6.2 `RxDBCommitBranchMaterializationAttempt` → `rxdb_commit_branch_materialization_attempt`
-
-仅元数据远端分支首次切换时的**内部持久暂存**（FR-052，US6）。
-
-| 字段                      | 类型           | 约束                         | 说明                                    |
-| ------------------------- | -------------- | ---------------------------- | --------------------------------------- |
-| `id`                      | uuid           | PK                           | 尝试标识；失败后按此 id 清理            |
-| `targetBranchId`          | uuid           | FK → `rxdb_branch.id`，index |                                         |
-| `targetBranchIdentity`    | json           | not null                     | 冻结的目标身份（远端分支标识 + 代次）   |
-| `frozenTerminalWatermark` | string         | not null                     | 开始时冻结的远端终止水位                |
-| `scopeManifest`           | json           | not null                     | 冻结的同步范围                          |
-| `committedPageWatermark`  | string \| null |                              | **已提交**的分页水位，崩溃后据此续传    |
-| `payloadFingerprint`      | string         | not null                     | 内容指纹，提交屏障处复核                |
-| `status`                  | enum           | not null                     | `staging` \| `converged` \| `abandoned` |
-| `createdAt` / `updatedAt` | number         | not null                     | 数据库时钟                              |
-
-**规则**:
-
-- FR-052：暂存期间**当前业务投影、激活标记、当前分支同步水位、工作树全部不变**；MUST NOT 先激活空分支再等后续同步修补。
-- FR-052：完整收敛后由**单一事务的提交屏障**复核激活令牌、目标身份、终止水位、范围与指纹，一次性物化、建立 `branch_baseline` 与 `rxdb_commit_branch_ref` 行、激活目标、递增 `activationRevision`，并**原子删除本行**（INV-12）。
-- FR-052：分页崩溃后从 `committedPageWatermark` 续传，不重复应用、不跳过；目标身份或同步范围已变化时置 `abandoned` 并从新冻结水位重建。
-- FR-052：依据不足、网络失败、范围漂移、配额不足或不收敛 → `branch_not_materialized`，全量回滚，只留可安全续传或按 `id` 清理的本行。
-- FR-051：`removeBranch()` 在同一事务内一并删除该分支的本表行。
-
----
-
-## 7. 跨实体不变式（可测清单）
-
-| ID     | 不变式                                                                                            | 违反时                                                  |
-| ------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| INV-1  | 至多一行 `rxdb_branch.activated = TRUE`；每次连接至少一行                                         | `ambiguous_active_branch`                               |
-| INV-2  | 每**已物化**分支恰好一条根提交（`baseline` 或 `branch_baseline`）且 `parentId IS NULL`            | `commit_graph_corrupted`                                |
-| INV-3  | `headCommitId` 可达 `baselineCommitId`；损坏按**分支**隔离，其他健康分支照常可用                  | `commit_graph_corrupted` → 该分支 `corrupted_read_only` |
-| INV-4  | HEAD 链 + 工作树条目 = 当前业务数据                                                               | 冷重放断言失败（SC-002）                                |
-| INV-5  | 缓存区自包含（依赖闭包完整）                                                                      | `index_dependency_cycle`                                |
-| INV-6  | `rxdb_index_entry.workingTreeEntryId` 一一对应且对应条目 `staged = TRUE`                          | 一致性断言失败                                          |
-| INV-7  | 幂等键 `(originBranchId, originBranchGeneration, operationId)` 唯一                               | `idempotency_key_reused`                                |
-| INV-8  | 所有 `patch` / `inversePatch` 列在启用加密时无明文哨兵                                            | SC-009 失败                                             |
-| INV-9  | 查询缓存实体在 11 张新表中出现次数为 0                                                            | FR-021 失败                                             |
-| INV-10 | 未启用数据库中上述新表数量为 0                                                                    | SC-008 失败                                             |
-| INV-11 | `rxdb_commit_capability_state` 与 `rxdb_working_tree_activation_state` 各恰好一行（主键常量保证） | 迁移断言失败                                            |
-| INV-12 | 分支物化成功后 `rxdb_commit_branch_materialization_attempt` 无残留行                              | FR-052 失败                                             |
-| INV-13 | `rxdb_commit_branch_ref` 行的存在 ⟺ 分支已物化（不存在 `headCommitId IS NULL` 的行）              | FR-013 失败                                             |
-
-INV-1..INV-13 全部落成两套一致性套件的断言（见 [contracts/conformance-suites.md](./contracts/conformance-suites.md)），在 6 个 v1 后端上逐一执行。
-
----
-
-## 8. 迁移影响
-
-| 变更                                        | 类型                    | 说明                                                          |
-| ------------------------------------------- | ----------------------- | ------------------------------------------------------------- |
-| `RXDB_SYSTEM_SCHEMA_VERSION` 3 → 4          | 破坏性（需 bridge tag） | [R-015](./research.md#r-015-bridge-tag-前置条件) 为前置阻塞项 |
-| 新增 **11** 张表                            | 仅启用时                | 未启用 = 零表零行为差异（INV-10）                             |
-| `rxdb_branch` 增加部分唯一索引              | 就地                    | 迁移前校验 INV-1                                              |
-| `EntityIndexMetadataOptions.where`          | 新增可选字段            | 向后兼容，既有声明不受影响                                    |
-| `TransactionExecutor.mergeChanges` 第三形参 | 内部契约破坏性          | 不在公开 API 基线内                                           |
-| `SwitchBranchOptions` 追加必填 `intent`     | 内部契约破坏性          | 同上；公开侧的 `WorkingTreeSwitchBranchOptions` 是另一回事    |
-
-上述两处内部契约变更合计 **11 个受信调用点**同批改（[R-006](./research.md#r-006-写入意图枚举与受信登记)、[adapter-contract §4](./contracts/adapter-contract.md#4-写入口受信登记)）。
-
-**迁移期的额外判据**:
-
-- 任一**本地分支**无法完整物化 ⇒ **整个迁移失败**、零变化，不留部分启用状态（FR-013）。仅有元数据的远端分支是唯一例外，跳过而不建行。
-- 草稿缓存中的 NEW 草稿既不进基线也不被删除（FR-024）。
-- 既有变更记录、当前激活分支与业务数据零改变；重复启动幂等（FR-010）。
+# Data Model: 本地工作树与提交历史
+
+**Feature**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Date**: 2026-09-12
+
+本文件把 spec.md「Key Entities」的 **9 行逻辑契约**冻结成物理落地。spec.md 只说「必须持久化什么、按什么粒度隔离」；表名、字段、索引、约束、编解码与迁移版本在这里定死。**两者冲突以 spec.md 为准。**
+
+> 旧 data-model.md 的缓存区表、依赖闭包边表、环检测状态、staged snapshot 与 `HEAD ↔ index` 相关结构**全部作废**，不在本文件中承接。
+
+## 0. 既有基线（必须对齐，不是本特性新建的）
+
+| 事实                   | 位置                                                                                    | 对本特性的约束                                                               |
+| ---------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| 系统表用装饰器实体声明 | `packages/rxdb/src/system/{branch,change,sync,migration}.ts`                            | 新表照此写：`namespace: 'rxdb'` + `tableName: 'rxdb_*'` + `log: false`       |
+| 系统表清单只此一份     | `system-entities.ts:19` `SYSTEM_ENTITIES`（注释原文：「清单只此一份」）                 | 新表**必须**追加进去，顺序即建表顺序                                         |
+| `isSystemEntity()`     | `system-entities.ts:53`                                                                 | 漏登记的代价不是编译错误，是新表被按库级 sync 配置送进它们从不参与的同步管道 |
+| 系统表结构版本         | `migration.ts:22` `RXDB_SYSTEM_SCHEMA_VERSION = 3`                                      | 本特性 **bump 到 4**，水位 `__rxdb_system_schema__:4`                        |
+| 版本不匹配即拒绝       | `migration.ts` `UnsupportedRxDBSystemVersionError`                                      | 「所有 writer 连接时协商」已有机制，不另造                                   |
+| 迁移互斥锁             | `migration-runner.ts` + `rxdb_migration.name` 唯一索引 + `RxDBSystemMigrationLockError` | 建表迁移走这条既有路径，不另开锁                                             |
+| change 编解码          | `change-codec.ts:33` `RXDB_CHANGE_CODEC_VERSION = 1`                                    | 新表的 patch 列**复用同一份 codec**，不写第二份                              |
+| 加密列跳过 codec       | `change-codec.ts:17`（`PropertyType.encrypted === true` 不经本编码）                    | 加密 envelope 不被二次包裹 = 不降级                                          |
+
+`log: false` 在每一张新表上都是**强制**的：新表自身的写入若被 change trigger 记录，会与「写工作树条目」互相递归。
+
+## 1. 逻辑 → 物理映射总表
+
+9 行逻辑状态落成 **10 张物理表**（多出的一张是物化 staging 的分页 payload 子表）。
+
+| #   | 逻辑状态（spec.md）          | 类名                              | 表名                                      | 主键粒度          | 建表归属      |
+| --- | ---------------------------- | --------------------------------- | ----------------------------------------- | ----------------- | ------------- |
+| 1   | `CommitCapabilityState`      | `CommitCapabilityState`           | `rxdb_commit_capability`                  | 单行              | US-305        |
+| 2   | `WorkingTreeActivationState` | `WorkingTreeActivationState`      | `rxdb_working_tree_activation`            | 单行              | US-305        |
+| 3   | `Commit`                     | `Commit`                          | `rxdb_commit`                             | commit            | US-305        |
+| 4   | `CommitChangeSet`            | `CommitChangeSet`                 | `rxdb_commit_change_set`                  | commit + unit     | US-305        |
+| 5   | `CommitBranchRef`            | `CommitBranchRef`                 | `rxdb_commit_branch_ref`                  | branch            | US-305        |
+| 6   | `WorkingTreeState`           | `WorkingTreeState`                | `rxdb_working_tree_state`                 | branch            | US-306 阶段 A |
+| 7   | `WorkingTreeEntry`           | `WorkingTreeEntry`                | `rxdb_working_tree_entry`                 | branch + 实体身份 | US-306 阶段 A |
+| 8   | `WorkingTreeRestoreSession`  | `WorkingTreeRestoreSession`       | `rxdb_working_tree_restore_session`       | branch + session  | US-306 阶段 B |
+| 9   | branch materialization stage | `WorkingTreeMaterializationStage` | `rxdb_working_tree_materialization_stage` | attempt           | US-308        |
+| 9   | ↑ 的分页 payload             | `WorkingTreeMaterializationPage`  | `rxdb_working_tree_materialization_page`  | attempt + page    | US-308        |
+
+**类名全部落在 `Commit*` / `WorkingTree*` 前缀内**，满足 SC-014；无 `Index*`、无 `Workspace*`。这些**持久化类不从 `packages/rxdb/src/index.ts` 导出**——它们是实现，公开面是 `Commit*` / `WorkingTree*` 的 DTO 与命令契约（见 [contracts/core-api.md](./contracts/core-api.md)）。即便将来需要导出，前缀已经合规。
+
+`SYSTEM_ENTITIES` 追加顺序 = 上表 1→10（`RxDBBranch` 已在首位，被 5/6/7/8 引用；3 被 4 引用；9 被其分页子表引用）。
+
+## 2. 表定义
+
+### 2.1 `rxdb_commit_capability` — 数据库级能力与版本协商（US-305）
+
+| 字段              | 类型      | 约束                      | 说明                                 |
+| ----------------- | --------- | ------------------------- | ------------------------------------ |
+| `id`              | `string`  | primary, 常量 `'default'` | 单行守卫：主键取常量，第二行插不进来 |
+| `enabled`         | `boolean` | default `false`           | 数据库级显式启用                     |
+| `protocolVersion` | `integer` | not null                  | 提交能力协议版本                     |
+| `schemaVersion`   | `integer` | not null                  | commit 图结构版本                    |
+| `codecVersion`    | `integer` | not null                  | 与 `RXDB_CHANGE_CODEC_VERSION` 对齐  |
+| `enabledAt`       | `date`    | nullable                  | 未启用时为 `null`                    |
+
+- **启用是一次 CAS**：`UPDATE … SET enabled = true … WHERE id = 'default' AND enabled = false`。重复启用命中 0 行 = 幂等，不报错、不重置版本。
+- 启用后三个版本字段**只读**；每个 writer 连接时读本行与进程常量比对，任一不匹配走既有 `UnsupportedRxDBSystemVersionError` 语义 fail-closed。
+- `enabled = false` 时所有捕获与门禁短路，对应 FR-046 的**零行为差异**。
+
+### 2.2 `rxdb_working_tree_activation` — 激活态与分支代际源（US-305）
+
+| 字段                  | 类型      | 约束                      | 说明                                       |
+| --------------------- | --------- | ------------------------- | ------------------------------------------ |
+| `id`                  | `string`  | primary, 常量 `'default'` | 单行                                       |
+| `activationRevision`  | `integer` | not null, default `0`     | switch branch CAS 成功后 +1                |
+| `branchGenerationSeq` | `integer` | not null, default `0`     | 分支代际单调源，create branch 时 +1 并取用 |
+
+- **不复制第二份 active branch ID**：当前分支的唯一真相仍是 `rxdb_branch.activated`（`branch.ts:35`）。本表只存 revision，避免两份真相漂移。
+- `branchGenerationSeq` 放在本表而不是 2.1：create / remove branch **本来就要**校验或递增 activation revision（见 §5），放同一行让分支生命周期只锁一行；放进 2.1 会让只读的能力协商行变成全局写热点。
+
+### 2.3 `rxdb_commit` — 不可变提交节点（US-305）
+
+| 字段                 | 类型      | 约束                                  | 说明                                      |
+| -------------------- | --------- | ------------------------------------- | ----------------------------------------- |
+| `id`                 | `string`  | primary                               | commit id                                 |
+| `parentIds`          | `json`    | not null                              | 父链数组；根 commit 为 `[]`，merge 可多父 |
+| `firstParentId`      | `string`  | nullable, indexed                     | 首父冗余列，供祖先遍历走索引              |
+| `message`            | `string`  | not null                              |                                           |
+| `author`             | `string`  | nullable                              |                                           |
+| `createdAt`          | `date`    | default `CURRENT_TIMESTAMP`, readonly |                                           |
+| `operationId`        | `uuid`    | **unique**, not null                  | 幂等键                                    |
+| `changeSetCount`     | `integer` | not null                              | 与 2.4 实际行数比对，图校验用             |
+| `contentFingerprint` | `string`  | not null                              | FR-022 图校验的节点指纹                   |
+
+- **只追加，永不 UPDATE / DELETE**。
+- 幂等靠 `operationId` 唯一索引 + 既有 `isUniqueConstraintViolation()`（`migration.ts`）判别：撞约束 = 同一次提交重放，读回现有节点返回，**不新建**。该谓词必须**贴在这一条 INSERT 上**，不得在事务外层泛用（`migration.ts` 注释已写明误用代价）。
+- 祖先可达性沿 `parentIds` 向上走，方向与 FR-022 的损坏判定一致，因此**不建 edge 表**。
+- `firstParentId` 是 `parentIds[0]` 的冗余列，只为让祖先遍历走索引。冗余列就是第二份真相的温床，因此配一条不变量断言（`firstParentId === parentIds[0] ?? null`）进 conformance 套件。
+
+### 2.4 `rxdb_commit_change_set` — 提交的不可变恢复数据（US-305）
+
+| 字段            | 类型      | 约束                                  | 说明                                       |
+| --------------- | --------- | ------------------------------------- | ------------------------------------------ |
+| `id`            | `string`  | primary                               |                                            |
+| `commit`        | relation  | MANY_TO_ONE → `Commit`                | 级联随 commit（commit 不删，故实际不触发） |
+| `sequence`      | `integer` | not null, unique `(commit, sequence)` | 冻结的重放顺序                             |
+| `unitId`        | `string`  | not null                              | 与 2.7 的 `unitId` 同源                    |
+| `transactionId` | `uuid`    | nullable                              | 完整事务共享同一值                         |
+| `namespace`     | `string`  | not null, readonly                    |                                            |
+| `entity`        | `string`  | not null, readonly                    |                                            |
+| `entityId`      | `string`  | not null, readonly                    |                                            |
+| `operation`     | `string`  | not null, readonly                    | `insert` / `update` / `delete`             |
+| `patch`         | `json`    | nullable, readonly                    | 完整不可变副本                             |
+| `inversePatch`  | `json`    | nullable, readonly                    | 完整不可变副本                             |
+| `origin`        | `string`  | not null, readonly                    | `local` / `remote_sync`                    |
+
+- **与 2.3 同一事务写入**；只追加。
+- **不存 `rxdb_change.id` 外键**：change 行会被「删分支级联 / 压缩合并 / 回滚标记 / 失效标记」四条既有路径删除或失效，引用等于把 commit 的可恢复性挂在一张会被清理的表上。
+
+### 2.5 `rxdb_commit_branch_ref` — 分支 HEAD 与 CAS（US-305）
+
+| 字段           | 类型      | 约束                       | 说明                                         |
+| -------------- | --------- | -------------------------- | -------------------------------------------- |
+| `id`           | `string`  | primary = branchId         | 一分支一行                                   |
+| `branch`       | relation  | MANY_TO_ONE → `RxDBBranch` |                                              |
+| `generation`   | `integer` | not null, **readonly**     | 建分支时从 2.2 的 `branchGenerationSeq` 取用 |
+| `headCommitId` | `string`  | nullable                   | 空分支为 `null`                              |
+| `headRevision` | `integer` | not null, default `0`      |                                              |
+| `status`       | `string`  | not null, default `'ok'`   | `ok` / `corrupted_read_only`                 |
+| `corruptedAt`  | `date`    | nullable                   | 进入 `corrupted_read_only` 的时刻            |
+
+- **推进 HEAD 的 CAS**：`UPDATE … WHERE id = ? AND generation = ? AND headRevision = ?`，命中 0 行即 `CommitConflict`。
+- `generation` **不可变且不复用**，专治 ABA：删分支后同名重建拿到新代际，持旧 `(branchId, headRevision)` 的调用方不会误中新分支。
+- `status = 'corrupted_read_only'` 由 §6 的**单一守卫**写入；`commit()` / `restore()` / switch-to 三入口各自在自己的写事务内调用同一份守卫。
+
+### 2.6 `rxdb_working_tree_state` — 分支工作树游标（US-306 阶段 A）
+
+| 字段                  | 类型      | 约束                        | 说明                                   |
+| --------------------- | --------- | --------------------------- | -------------------------------------- |
+| `id`                  | `string`  | primary = branchId          |                                        |
+| `branch`              | relation  | MANY_TO_ONE → `RxDBBranch`  |                                        |
+| `baseHeadCommitId`    | `string`  | nullable                    | 工作树所基于的 HEAD                    |
+| `workingTreeRevision` | `integer` | not null, default `0`       | **事务内读改写型**，不接收调用方期望值 |
+| `entryCount`          | `integer` | not null, default `0`       | 2.7 行数的冗余计数                     |
+| `updatedAt`           | `date`    | default `CURRENT_TIMESTAMP` |                                        |
+
+`entryCount` 是冗余列，存在理由是 `status()` 的「有没有未提交变更」要走常数时间而不是 `COUNT(*)`（SC-001 的 100 ms 绝对上限）。它与 2.7 的实际行数**必须在同一事务内一起改**；conformance 套件要有一条「计数与行数一致」的不变量断言，否则冗余列就是第二份真相。
+
+### 2.7 `rxdb_working_tree_entry` — 未提交变更单元（US-306 阶段 A）
+
+| 字段                      | 类型      | 约束                                 | 说明                             |
+| ------------------------- | --------- | ------------------------------------ | -------------------------------- |
+| `id`                      | `string`  | primary                              |                                  |
+| `branch`                  | relation  | MANY_TO_ONE → `RxDBBranch`           | 分支级隔离                       |
+| `unitId`                  | `string`  | not null, indexed `(branch, unitId)` | **完整事务共享同一 unit**        |
+| `transactionId`           | `uuid`    | nullable                             |                                  |
+| `namespace`               | `string`  | not null                             |                                  |
+| `entity`                  | `string`  | not null                             |                                  |
+| `entityId`                | `string`  | not null                             |                                  |
+| `operation`               | `string`  | not null                             | `insert` / `update` / `delete`   |
+| `patch`                   | `json`    | nullable                             | **独立完整副本**                 |
+| `inversePatch`            | `json`    | nullable                             | **独立完整副本**，取首次捕获值   |
+| `fingerprint`             | `string`  | not null                             | 当前指纹                         |
+| `origin`                  | `string`  | not null                             | `local` / `remote_sync`          |
+| `sourceChangeId`          | `integer` | nullable                             | **仅诊断**，不得作为重放数据来源 |
+| `createdAt` / `updatedAt` | `date`    | default `CURRENT_TIMESTAMP`          |                                  |
+
+唯一约束 **`(branch, namespace, entity, entityId)`**：同一分支同一实体至多一个未提交单元。
+
+**合并（折叠）规则**——第二次写入同一实体时：
+
+1. `patch` 取**最新合成值**；`inversePatch` **保持首次捕获值**不变（否则 inverse 只能退回上一次中间态，退不回 HEAD）。
+2. `INSERT` 之后 `DELETE`（该行在 HEAD 不存在）→ **净无变化**：删除条目、`entryCount` 递减、**不**留 `delete` 单元。
+3. `origin` 取**最新**一次写入的来源；`local` 与 `remote_sync` 折叠进同一单元时按最新值记，`status()` / `diff()` 照常展示。
+4. **不做值级归零**（把 UPDATE 改回 HEAD 原值不会自动消解成无单元）。理由：值级归零要读 HEAD 投影，代价与 `diff()` 同阶，摊到每次 `save()` 上会直接顶穿 SC-001 预算。这是**已知取舍**，不是遗漏。
+
+### 2.8 `rxdb_working_tree_restore_session` — 恢复会话（建表 US-306 阶段 B，生命周期 US-307）
+
+| 字段                          | 类型      | 约束                        | 说明                                         |
+| ----------------------------- | --------- | --------------------------- | -------------------------------------------- |
+| `id`                          | `string`  | primary                     |                                              |
+| `branch`                      | relation  | MANY_TO_ONE → `RxDBBranch`  |                                              |
+| `targetCommitId`              | `string`  | not null                    | 恢复来源 commit                              |
+| `expectedHeadRevision`        | `integer` | not null                    | 会话创建时捕获                               |
+| `expectedWorkingTreeRevision` | `integer` | not null                    | 会话创建时捕获                               |
+| `status`                      | `string`  | not null                    | `active` / `conflicted` / `committed`        |
+| `activeKey`                   | `string`  | nullable, **unique**        | 非终态时 = branchId，`committed` 时置 `null` |
+| `createdAt` / `updatedAt`     | `date`    | default `CURRENT_TIMESTAMP` |                                              |
+
+- `activeKey` 的唯一索引实现「一分支至多一个未结束会话」，且在 PostgreSQL 与全部 SQLite 绑定上语义一致（`NULL` 不参与唯一比较），**不需要**各后端写方言化的部分索引。
+- **`status().conflicted` 的唯一来源就是本表**。没有 durable session 就没有 conflicted，`CommitConflict` **不入库**（见 §7）。
+
+### 2.9 `rxdb_working_tree_materialization_stage` / `_page` — 目标分支物化 staging（US-308）
+
+**stage**：`id`（attempt id, primary）、`targetBranchId`、`frozenRemoteWatermark`(json)、`scopeManifest`(json)、`fingerprint`、`status`、`pageCount`、`createdAt`。
+
+**page**：`id`（primary）、`stage`（MANY_TO_ONE → stage，级联删除）、`pageIndex`（unique `(stage, pageIndex)`）、`payload`(json)、`fingerprint`。
+
+- 只落**目标分支**快照，**不写当前业务投影**、不更新当前分支同步状态。
+- switch 成功后连同分页整体删除；失败或中断遗留的 attempt 按 `fingerprint` + `scopeManifest` 判定可否续用，判不了就整体丢弃重来——**不允许**把半份 payload 当成完整快照物化。
+
+## 3. 两条不可让步的存储契约 → 物理落点
+
+| 契约（spec.md）                                                | 物理落点                                                                                            |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `WorkingTreeEntry` 独立完整复制，不复用也不只引用 `RxDBChange` | 2.7 自带 `patch` / `inversePatch` / `fingerprint` 三列；`sourceChangeId` **无外键约束**且只用于诊断 |
+| `CommitChangeSet` 复制完整不可变恢复数据                       | 2.4 自带 `patch` / `inversePatch`，与 2.3 同事务写入，**无**指向 `rxdb_change` 的列                 |
+
+判定这两条是否被违反的可执行门禁：`rxdb_commit_change_set` 与 `rxdb_working_tree_entry` 的 `relations` 数组中**不得出现** `mappedEntity: 'RxDBChange'`。这是一条静态断言，进 conformance 套件。
+
+## 4. 编解码与加密边界
+
+- 2.4 / 2.7 的 `patch` / `inversePatch` **复用** `change-codec.ts` 的同一份 encode / decode，不写第二份编解码器。
+- 因此 `bigint` / `binary` 走既有 envelope；`PropertyType.encrypted === true` 的列**一律跳过** codec（`change-codec.ts:17`），加密包不被二次包裹——这正是「加密 at-rest envelope 不降级」的物理含义。
+- 2.1 的 `codecVersion` 与 `RXDB_CHANGE_CODEC_VERSION` 必须一致；不一致按既有 `UnsupportedRxDBSystemVersionError` 口径拒绝，**不做**降级读取。
+
+## 5. revision 校验矩阵 → 物理 CAS 语句
+
+| 操作                      | 捕获型条件（调用方传入）                                                     | 事务内读改写                                                                                 |
+| ------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 普通 INSERT/UPDATE/DELETE | active branch token                                                          | 2.6 `workingTreeRevision` +1、`entryCount` 同步                                              |
+| remote entity apply       | active branch token、sync 水位                                               | 同上（仅当有实体净变化）                                                                     |
+| merge / undo / redo       | active branch token、expected 2.6 revision + 操作自身 revision               | 有逻辑工作树变化时 +1                                                                        |
+| commit                    | active branch token、2.5 `(generation, headRevision)`、2.6 expected revision | 2.5 head +1、2.6 revision +1、清空 2.7 并置零 `entryCount`（**同一事务**）                   |
+| restore                   | active branch token、2.5 expected head、2.6 expected revision                | 2.6 revision +1                                                                              |
+| discard                   | active branch token、2.5 expected head、2.6 expected revision                | 2.6 revision +1、删条目、`entryCount` 归零                                                   |
+| switch branch             | 2.2 expected `activationRevision`、来源/目标分支状态或 2.9 快照              | 2.2 `activationRevision` +1                                                                  |
+| create branch             | active branch token、来源 2.5 head + 2.6 revision                            | 2.2 `branchGenerationSeq` +1 并写入新 2.5 `generation`；新 2.5/2.6 从 `0` 起；**来源行不变** |
+| remove branch             | 2.2 expected `activationRevision`、目标 2.5/2.6 revision、目标非 active      | 原子删除目标 2.5/2.6/2.7/2.8；`generation` **不复用**                                        |
+
+**语义 no-op 一律不递增 revision**——判定发生在写 2.6 之前，不是写完再回滚。
+
+## 6. 损坏守卫（单一实现）
+
+一份守卫函数，输入 `(branchId)`，在**调用方自己的写事务内**执行：沿 2.5 `headCommitId` → 2.3 `parentIds` 遍历可达祖先，逐节点比对 `contentFingerprint` 与 `changeSetCount` ↔ 2.4 实际行数。
+
+- 命中可达损坏 → 置 2.5 `status = 'corrupted_read_only'` + `corruptedAt`，**拒绝本次操作、保留原 ref、不删任何记录**。
+- 孤立损坏（不在任何分支的可达集里）→ 只隔离记录，不影响任何入口。
+- 不依赖重放的当前投影读取、诊断导出、以及「切离」该分支的 switch **不受影响**。
+- `commit()` / `restore()` / switch-to 三入口调用的是**同一个符号**；conformance 套件断言三入口的拒绝码同为 `commit_graph_corrupted`。
+
+## 7. 明确**不建**的表
+
+| 不建                         | 理由                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| 任何 index / staging area 表 | v1 裁掉暂存区（spec.md 硬裁决 1）                                        |
+| 依赖闭包表 / 环检测状态表    | 随暂存区一并裁掉（硬裁决 2），`index_dependency_cycle` 已裁撤            |
+| staged snapshot 冻结表       | 同上                                                                     |
+| `CommitConflict` 持久表      | 它是**一次失败命令的类型化诊断值**，不是状态；`conflicted` 只由 2.8 派生 |
+| 第二条 diff 轴的物化表       | 只有 `HEAD ↔ 工作树` 一条轴                                              |
+| 指向 `rxdb_change` 的外键列  | 见 §3                                                                    |
+
+## 8. 迁移
+
+单条迁移，走既有 `runMigrations` 路径（互斥靠 `rxdb_migration.name` 唯一索引，不另开锁）：
+
+1. 建 §1 的 10 张表与其索引。
+2. 为**每个已存在分支**写入 2.5 / 2.6 初始行：`generation` 依次取自 2.2 的 `branchGenerationSeq`，`headCommitId = null`、`headRevision = 0`、`workingTreeRevision = 0`、`entryCount = 0`。
+3. 写 2.1 单行（`enabled = false`）与 2.2 单行。
+4. `RXDB_SYSTEM_SCHEMA_VERSION` 3 → **4**，水位写 `__rxdb_system_schema__:4`。
+
+**全有或全无**：任一分支初始化不成功，整条迁移回滚，数据库停在 v3。
+
+**已知影响，不掩饰**：bump 之后旧版本客户端打开该库会按既有 `UnsupportedRxDBSystemVersionError` 拒绝。这不是本特性新增的危险面——2→3 同样如此——但必须写进发布说明。建表本身不改变任何业务行为：`enabled = false` 时全部捕获与门禁短路，满足 FR-046。
+
+**迁移不是发布步骤**。FR-030 的发布门禁由已实现且 39/39 单测绿的 `scripts/check-migration-release-gate.mjs` 承担，本特性**只复验、不重写**；npm release 由维护者手动控制，不进本计划的任务链。

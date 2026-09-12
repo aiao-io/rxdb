@@ -1,8 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CommitBranchRef } from '../commit/commit-branch-ref.entity.js';
+import { CommitCapabilityState } from '../commit/commit-capability-state.entity.js';
 import { SyncType } from '../entity/metadata-options.interface.js';
 import type { RxDBOptions } from '../rxdb.interface.js';
 import { RxDB } from '../RxDB.js';
+import { RxDBBranch } from '../system/branch.js';
 import { RxDBMigration } from '../system/migration.js';
+import { WORKING_TREE_COMMITS_MIGRATION_NAME } from '../system/migrations/0004-working-tree-commits.js';
+import { WorkingTreeActivationState } from '../working-tree/working-tree-activation-state.entity.js';
+import { WorkingTreeState } from '../working-tree/working-tree-state.entity.js';
 import { createMockAdapter, type MockLocalAdapter } from './fixtures/test-db-setup.js';
 
 const databases = new Set<RxDB>();
@@ -73,7 +79,9 @@ describe('迁移水位线', () => {
 
     expect(adapter.createTables).toHaveBeenCalledTimes(1);
     expect(up).not.toHaveBeenCalled();
-    expect(created.map(record => record.name)).toEqual(['init-schema']);
+    // 首装同时写下系统迁移与接入方迁移的水位线。少写系统那条，下次启动会在一张
+    // **已经初始化过**的库上重跑 0004 的 up()，撞主键。
+    expect(created.map(record => record.name)).toEqual([WORKING_TREE_COMMITS_MIGRATION_NAME, 'init-schema']);
 
     await first.disconnectAll();
 
@@ -171,8 +179,33 @@ describe('首装原子提交（RXD-051）', () => {
     await db.connect('local');
 
     const initialEntities = adapter.createTables.mock.calls[0]?.[1] ?? [];
+    // 「同一次建表」是这条用例的全部内容：主分支、epic-006 的四行初始状态、两条水位线
+    // （系统迁移 + 接入方迁移）必须搭在**同一次** createTables 上。拆成第二次写入，
+    // 中间崩一下库就停在「有表无记录」——下次启动重跑全部迁移，打在已是最新形态的库上。
+    // 按 label 而不是 `EntityClass.name` 比对：`@Entity()` 装饰器返回的是匿名子类，
+    // `.name` 一律是空串，全部相等的断言只会永远为真。
+    const initialEntityClasses: readonly [label: string, EntityClass: new () => object][] = [
+      ['RxDBBranch', RxDBBranch],
+      ['CommitBranchRef', CommitBranchRef],
+      ['WorkingTreeState', WorkingTreeState],
+      ['WorkingTreeActivationState', WorkingTreeActivationState],
+      ['CommitCapabilityState', CommitCapabilityState],
+      ['RxDBMigration', RxDBMigration]
+    ];
+    const classNameOf = (entity: object): string | undefined =>
+      initialEntityClasses.find(([, EntityClass]) => entity instanceof EntityClass)?.[0];
+    expect(initialEntities.map(classNameOf)).toEqual([
+      'RxDBBranch',
+      'CommitBranchRef',
+      'WorkingTreeState',
+      'WorkingTreeActivationState',
+      'CommitCapabilityState',
+      'RxDBMigration',
+      'RxDBMigration'
+    ]);
     expect(initialEntities[0]).toEqual(expect.objectContaining({ id: 'main', activated: true }));
-    expect(initialEntities.slice(1)).toEqual([
+    expect(initialEntities.slice(-2)).toEqual([
+      expect.objectContaining({ name: WORKING_TREE_COMMITS_MIGRATION_NAME, executedAt: expect.any(Date) }),
       expect.objectContaining({ name: 'init-schema', executedAt: expect.any(Date) })
     ]);
     expect(adapter.transaction).not.toHaveBeenCalled();
@@ -203,12 +236,34 @@ describe('迁移占坑与唯一约束（RXD-036）', () => {
       remove: vi.fn(),
       ...repository
     };
+    // 系统迁移（0004-working-tree-commits）跑在接入方迁移**之前**，且共用同一个
+    // `RxDBMigration` 仓库。不把它挡开，本组用例编排的 find/create 序列会被系统那一趟
+    // 先消费掉，断言到的就不再是接入方迁移的执行权竞争 —— 表现为「第一次 create 抛的
+    // 唯一约束冲突落在 0004 上」，和用例要证的东西无关。
+    //
+    // 挡法是报「系统迁移已执行」：`runMigrationsOnce` 读到名字在已执行集合里就 continue，
+    // 既不认领也不跑 up()。切换点取 `completeBootstrap()` —— 它正好是系统迁移收尾与
+    // 接入方迁移开跑之间的那道边界（见 RxDB.#connect 的引导链）。
+    const systemMigrationRepository = {
+      find: vi.fn(async () => [{ name: WORKING_TREE_COMMITS_MIGRATION_NAME }]),
+      count: vi.fn(async () => 1),
+      create: vi.fn(async (record: RxDBMigration) => record),
+      update: vi.fn(),
+      remove: vi.fn()
+    };
+    let applicationPhase = false;
+    const completeBootstrap = adapter.completeBootstrap.bind(adapter);
+    vi.spyOn(adapter, 'completeBootstrap').mockImplementation(() => {
+      applicationPhase = true;
+      completeBootstrap();
+    });
     // 只替换 RxDBMigration 的仓库。全量替换会让引导期的其它读（RxDBSync / RxDBBranch）
     // 也消耗 find 的 mockResolvedValueOnce 序列，执行权竞争的重放脚本会错位。
     const defaultRepository = adapter.getRepository(RxDBMigration as never);
-    adapter.getRepository.mockImplementation((EntityType: unknown) =>
-      EntityType === RxDBMigration ? (migrationRepository as never) : (defaultRepository as never)
-    );
+    adapter.getRepository.mockImplementation((EntityType: unknown) => {
+      if (EntityType !== RxDBMigration) return defaultRepository as never;
+      return (applicationPhase ? migrationRepository : systemMigrationRepository) as never;
+    });
     database.init();
     return { database, adapter };
   };

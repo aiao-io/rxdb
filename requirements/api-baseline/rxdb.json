@@ -82,6 +82,14 @@
         "kind": "type"
       },
       {
+        "name": "COMMIT_ERROR_CODES",
+        "kind": "value"
+      },
+      {
+        "name": "CommitErrorCode",
+        "kind": "both"
+      },
+      {
         "name": "compactChanges",
         "kind": "value"
       },
@@ -146,6 +154,10 @@
         "kind": "value"
       },
       {
+        "name": "decodeWorkingTreePatch",
+        "kind": "value"
+      },
+      {
         "name": "DependencyGraph",
         "kind": "type"
       },
@@ -183,6 +195,10 @@
       },
       {
         "name": "encodeRxDBEntityIdentity",
+        "kind": "value"
+      },
+      {
+        "name": "encodeWorkingTreePatch",
         "kind": "value"
       },
       {
@@ -639,6 +655,10 @@
       },
       {
         "name": "isAdapterShutdownError",
+        "kind": "value"
+      },
+      {
+        "name": "isCommitErrorCode",
         "kind": "value"
       },
       {
@@ -1254,6 +1274,10 @@
         "kind": "both"
       },
       {
+        "name": "RxDBChangeEntityMetadataResolver",
+        "kind": "type"
+      },
+      {
         "name": "RxDBChangeInitData",
         "kind": "type"
       },
@@ -1710,6 +1734,10 @@
         "kind": "value"
       },
       {
+        "name": "UnknownWorkingTreePatchEntityError",
+        "kind": "both"
+      },
+      {
         "name": "UnsupportedRxDBChangeVersionError",
         "kind": "both"
       },
@@ -1759,6 +1787,28 @@
       },
       {
         "name": "VersionManager",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreePatchCodecContext",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreePatchTarget",
+        "kind": "type"
+      }
+    ],
+    "./testing": [
+      {
+        "name": "workingTreeCaptureConformanceSuite",
+        "kind": "value"
+      },
+      {
+        "name": "workingTreeCommitConformanceSuite",
+        "kind": "value"
+      },
+      {
+        "name": "WorkingTreeConformanceSuiteContext",
         "kind": "type"
       }
     ]
