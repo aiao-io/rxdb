@@ -1207,14 +1207,23 @@ describe('RxDBAdapterSqliteBase', () => {
   });
 
   describe('QueryCache 表名与列名解析', () => {
+    // 经 `transitionMetadata` 而不是手搓字面量：`EntityMetadata` 上的 `relationMap` /
+    // `foreignKeyNames` / `foreignKeyColumnNames` 都是非可选的，手搓的残缺对象靠 `as never`
+    // 骗过类型，再逼被测代码写一串 `?.` 去伺候一个真实运行时不存在的形状 —— 那些 `?.`
+    // 是桩逼出来的，不是生产需要的。
     const createMetadataRxdb = () => {
       const rxdb = createRxdbMock();
-      vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue({
-        name: 'Todo',
-        namespace: 'public',
-        tableName: 'todos',
-        propertyMap: new Map([['updatedAt', { name: 'updatedAt', columnName: 'updated_at' }]])
-      } as never);
+      vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue(
+        transitionMetadata({
+          name: 'Todo',
+          namespace: 'public',
+          tableName: 'todos',
+          properties: [
+            { name: 'id', type: PropertyType.uuid, primary: true },
+            { name: 'updatedAt', type: PropertyType.date, columnName: 'updated_at' }
+          ]
+        }) as never
+      );
       return rxdb;
     };
 
@@ -1227,15 +1236,17 @@ describe('RxDBAdapterSqliteBase', () => {
      */
     const createCustomPkRxdb = () => {
       const rxdb = createRxdbMock();
-      vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue({
-        name: 'Todo',
-        namespace: 'public',
-        tableName: 'todos',
-        propertyMap: new Map([
-          ['id', { name: 'id', columnName: 'todo_id' }],
-          ['updatedAt', { name: 'updatedAt', columnName: 'updated_at' }]
-        ])
-      } as never);
+      vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue(
+        transitionMetadata({
+          name: 'Todo',
+          namespace: 'public',
+          tableName: 'todos',
+          properties: [
+            { name: 'id', type: PropertyType.uuid, primary: true, columnName: 'todo_id' },
+            { name: 'updatedAt', type: PropertyType.date, columnName: 'updated_at' }
+          ]
+        }) as never
+      );
       return rxdb;
     };
 
@@ -1705,6 +1716,96 @@ describe('RxDBAdapterSqliteBase', () => {
 
       expect(upsertCall(client)?.[0]).toContain('"ownerId"');
       expect(upsertCall(client)?.[1]).toContain('owner-1');
+    });
+
+    // 外键列有三种等价写法，白名单必须与契约（US-024）、与 `transformEntityToSql` 同口径。
+    // 少收哪一种，那种写法的远端行就会被契约放行、再被这里静默滤掉：值不落地、SQL 不报错、
+    // 没有任何一处抛异常 —— 比 `no such column` 难查一个量级。
+    // 关系显式写了 `columnName`，三种写法才互不同形：`owner` / `owner_id` / `ownerId`。
+    it.each(['owner', 'owner_id', 'ownerId'])('外键列的第三种写法也落进物理列：%s', async key => {
+      const client = createClient();
+      const rxdb = createRxdbMock();
+      vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue(
+        transitionMetadata({
+          name: 'QcAliasChild',
+          namespace: 'public',
+          tableName: 'alias_children',
+          properties: [
+            { name: 'id', type: PropertyType.uuid, primary: true },
+            { name: 'updatedAt', type: PropertyType.date }
+          ],
+          relations: [
+            {
+              name: 'owner',
+              kind: RelationKind.MANY_TO_ONE,
+              mappedEntity: 'QcOwner',
+              mappedProperty: 'children',
+              columnName: 'owner_id'
+            }
+          ]
+        }) as never
+      );
+      const adapter = new TestAdapter(rxdb, () => client);
+
+      await firstValueFrom(
+        adapter.upsertMany('QcAliasChild', [
+          { id: 'a', updatedAt: '2026-08-02T00:00:00.000Z', [key]: 'owner-1' } as never
+        ])
+      );
+
+      expect(upsertCall(client)?.[0]).toContain('"owner_id"');
+      expect(upsertCall(client)?.[0]).not.toContain('"ownerId"');
+      expect(upsertCall(client)?.[1]).toContain('owner-1');
+    });
+
+    // 三种写法既然一律放行，同一行里混用两种就必须 fail-fast。
+    // SQLite 对重复列名**不报错**：`INSERT INTO t ("id","owner_id","owner_id") VALUES (?,?,?)`
+    // 照常执行，留下的是第一次出现的那个值，第二个静默丢弃 —— 库里是个「写入成功」的错值，
+    // 从上到下没有任何一层会出声。这比 PGlite 侧的后者覆盖前者更糟：那边至少还能靠归一发现。
+    it.each([
+      ['外键两种写法', { owner_id: 'owner-1', ownerId: 'owner-2' }, 'owner_id'],
+      ['属性名与物理列名', { nickName: '阿花', nick_name: '阿猫' }, 'nick_name']
+    ])('同一个列混用两种写法时 fail-fast，不静默取一个：%s', async (_label, extra, column) => {
+      const client = createClient();
+      const rxdb = createRxdbMock();
+      vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue(
+        transitionMetadata({
+          name: 'QcDupChild',
+          namespace: 'public',
+          tableName: 'dup_children',
+          properties: [
+            { name: 'id', type: PropertyType.uuid, primary: true },
+            { name: 'updatedAt', type: PropertyType.date },
+            { name: 'nickName', type: PropertyType.string, columnName: 'nick_name' }
+          ],
+          relations: [
+            {
+              name: 'owner',
+              kind: RelationKind.MANY_TO_ONE,
+              mappedEntity: 'QcOwner',
+              mappedProperty: 'children',
+              columnName: 'owner_id'
+            }
+          ]
+        }) as never
+      );
+      const adapter = new TestAdapter(rxdb, () => client);
+
+      await expect(
+        firstValueFrom(
+          adapter.upsertMany('QcDupChild', [
+            {
+              id: 'a',
+              updatedAt: '2026-08-02T00:00:00.000Z',
+              nickName: '阿花',
+              owner_id: 'owner-1',
+              ...extra
+            } as never
+          ])
+        )
+      ).rejects.toThrow(new RegExp(`QcDupChild[\\s\\S]*"${column}" twice`));
+      // 判在事务之前：这一批一行都不该被尝试写入
+      expect(upsertCall(client)).toBeUndefined();
     });
 
     it('metadata 查不到时一列都不滤，照旧按远端键集落地', async () => {

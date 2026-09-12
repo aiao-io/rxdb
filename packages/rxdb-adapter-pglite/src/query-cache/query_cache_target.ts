@@ -93,7 +93,7 @@ export const resolveUpdatedAtColumn = (target: QueryCacheTarget): string => {
   const property = target.metadata.propertyMap.get('updatedAt');
   if (!property) {
     throw new RxdbAdapterPGliteError(
-      `QueryCache: entity "${target.metadata.name}" has no "updatedAt" property; cannot compare freshness`
+      `QueryCache: entity "${target.entityName}" has no "updatedAt" property; cannot compare freshness`
     );
   }
   return property.columnName;

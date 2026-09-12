@@ -163,6 +163,36 @@ describe('PGL-012 buildQueryCacheUpsertStatements', () => {
     expect(statements[0].params).toContain('一队');
   });
 
+  // 外键列有三种等价写法，契约（US-024）对三种一律放行，落地路径就必须一律认。
+  // 少认哪一种，那种写法的远端行会被契约放行、再在 `assertKnownKeys` 判成未知键 ——
+  // 拒掉的是一行**原本能一字不差落进 `team_id`** 的数据。
+  it.each(['team', 'teamId', 'team_id'])('外键列三种写法都落进物理列：%s', async key => {
+    const statements = await buildQueryCacheUpsertStatements(targetOf(QcUnitMember), [
+      { ...baseColumns, id: 'm1', nickName: '阿花', [key]: 't1' }
+    ]);
+
+    expect(statements[0].sql).toContain('"team_id"');
+    expect(statements[0].sql).not.toContain('"team"');
+    expect(statements[0].sql).not.toContain('teamId');
+    expect(statements[0].params).toContain('t1');
+  });
+
+  // 同一行里混用两种写法必须 fail-fast。归一之前，两种写法在 `transformEntityValueToSql` 里
+  // 按 `Object.keys` 顺序后者覆盖前者：落地的是哪个值取决于键的枚举顺序，且没有任何信号。
+  // 两个值不同时这是数据错误，不是风格问题（sqlite 侧同款判据在
+  // `RxDBAdapterSqliteBase.ts` 的 `assert_single_spelling_per_column`，那边 SQLite 连重复列名
+  // 都不报，只留第一个）。
+  it.each([
+    ['外键两种写法', { teamId: 't1', team_id: 't2' }, 'team_id'],
+    ['属性名与物理列名', { nickName: '阿花', nick_name: '阿猫' }, 'nick_name']
+  ])('同一个列混用两种写法时 fail-fast，不静默取一个：%s', async (_label, extra, column) => {
+    await expect(
+      buildQueryCacheUpsertStatements(targetOf(QcUnitMember), [
+        { ...baseColumns, id: 'm1', nickName: '阿花', teamId: 't1', ...extra }
+      ])
+    ).rejects.toThrow(new RegExp(`QcUnitMember[\\s\\S]*"${column}" twice`));
+  });
+
   it('物理列名写法也被接受（远端 select(*) 的返回形态）', async () => {
     const statements = await buildQueryCacheUpsertStatements(targetOf(QcUnitMember), [
       // `createdAt` / `updatedAt` 没写 columnName，物理列名与属性名同形

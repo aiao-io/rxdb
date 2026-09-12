@@ -5,7 +5,6 @@ import {
   getEntityMutations,
   getRxDBSystemVersionState,
   isCurrentRxDBSystemVersion,
-  RelationKind,
   RxDB,
   RXDB_CHANGE_CODEC_WATERMARK,
   RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
@@ -44,7 +43,11 @@ import {
   type QueryCacheRowImage,
   type QueryCacheRowImages
 } from './query-cache-events.js';
-import { assertQueryCacheRowContract, readQueryCacheRowId } from './query-cache-row-contract.js';
+import {
+  assertQueryCacheRowContract,
+  queryCacheForeignKeyColumns,
+  readQueryCacheRowId
+} from './query-cache-row-contract.js';
 import { generate_sql } from './query/query_sql.js';
 import { SqliteRepository } from './repository/SqliteRepository.js';
 import { SqliteTreeRepository } from './repository/SqliteTreeRepository.js';
@@ -120,13 +123,19 @@ type QueryCacheTarget = {
 type AdapterLifecycleState = 'bootstrap' | 'ready' | 'closing' | 'closed';
 
 /**
- * 一张表「认得的列」：字段名（逻辑名与物理列名两种口径）→ 物理列名。
+ * 一张表「认得的列」：字段名（关系名 / 物理列名 / 外键别名三种口径）→ 物理列名。
  *
  * @remarks
- * 与 `create_table_sql` 同源：物理列 = `propertyMap` 的全部属性 + `relationMap` 里
- * `ONE_TO_ONE` / `MANY_TO_ONE` 两种有外键列的关系；`ONE_TO_MANY` 等没有本表列，不收。
- * 远端发过来的键既可能是逻辑名（`owner`）也可能是物理列名（`ownerId`），两种都收进来映到
- * 同一个物理列，`upsertMany` 才能既做白名单判定又做列名翻译。
+ * 与 `create_table_sql` 同源：物理列 = `propertyMap` 的全部属性 + 有外键列的关系
+ * （`ONE_TO_ONE` / `MANY_TO_ONE`）；`ONE_TO_MANY` 等没有本表列，不收。
+ *
+ * 外键列的三种写法直接取自 {@link queryCacheForeignKeyColumns} —— 与契约
+ * （`assertQueryCacheRowContract`）判「这一列带没带」用的是同一张表。少收哪一种，
+ * 那种写法的远端行就会被契约放行、再被这里静默滤成「未知列」：值不落地、SQL 不报错、
+ * 没有任何一处抛异常，正是 US-024 要消灭的失败形态。
+ *
+ * 外键三种写法最后写入：与 `transformEntityToSql` 同序（那边先查 `foreignKeyNames`
+ * 再查 `propertyMap`），属性名与外键写法撞车时以外键为准，两条路径不会翻译到不同的列。
  *
  * `id` / `updatedAt` 无条件收：调用方已按它们解析出 `idColumn` / `updatedAtColumn`
  * 并写进 `ON CONFLICT` 子句，白名单再把它们滤掉就自相矛盾了。
@@ -142,18 +151,54 @@ const query_cache_column_names = (
     ['updatedAt', updatedAtColumn],
     [updatedAtColumn, updatedAtColumn]
   ]);
-  for (const [name, property] of metadata.propertyMap?.entries() ?? []) {
+  for (const [name, property] of metadata.propertyMap.entries()) {
     columnNames.set(name, property.columnName);
     columnNames.set(property.columnName, property.columnName);
   }
-  for (const relation of metadata.relationMap?.values() ?? []) {
-    if (relation.kind !== RelationKind.ONE_TO_ONE && relation.kind !== RelationKind.MANY_TO_ONE) {
-      continue;
-    }
-    columnNames.set(relation.name, relation.columnName);
-    columnNames.set(relation.columnName, relation.columnName);
+  for (const [spelling, column] of queryCacheForeignKeyColumns(metadata)) {
+    columnNames.set(spelling, column);
   }
   return columnNames;
+};
+
+/**
+ * 一行里同一个物理列只允许一种写法。
+ *
+ * @remarks
+ * 属性名与物理列名（`nickName` / `nick_name`）、外键的三种写法（`owner` / `ownerId` /
+ * `owner_id`）都映到同一个物理列。一行里同时给两种，`#writeQueryCacheRows` 会把那个列
+ * 在 INSERT 的列清单里排两遍 —— 而 SQLite **不报重复列**，它默默取第一次出现的那个值，
+ * 第二个静默丢弃。库里于是留下一个「写入成功」的错值，没有任何信号（PGlite 侧同款判据在
+ * `upsert_many_sql.ts` 的 `assertSingleSpellingPerColumn`，消息骨架一致）。
+ *
+ * 判据只看 `data[0]` 的键：列清单就是从它来的，且契约的第 2 条（批内列集一致）已保证
+ * 同批每行键集相同 —— 这里再遍历全批等于把上游的判据抄一遍。
+ *
+ * 不做「取其一」的兜底（铁律「无 fallback 兜底」）：挑哪个都是猜，猜错的那次会以
+ * 「写入成功」的形态留在缓存里。
+ *
+ * @param entityName - 实体名，用于诊断消息
+ * @param row - 远端行（取 `data[0]`）
+ * @param columnNames - {@link query_cache_column_names} 的写法 → 物理列名表
+ * @throws {RxDBAdapterSqliteError} 同一个物理列被两种写法同时占用
+ */
+const assert_single_spelling_per_column = (
+  entityName: string,
+  row: object,
+  columnNames: ReadonlyMap<string, string>
+): void => {
+  const claimedBy = new Map<string, string>();
+  for (const key of Object.keys(row)) {
+    // 未知键解析成自己：它由 `#writeQueryCacheRows` 的白名单负责滤掉，这里不抢它的话
+    const column = columnNames.get(key) ?? key;
+    const claimer = claimedBy.get(column);
+    if (claimer !== undefined) {
+      throw new RxDBAdapterSqliteError(
+        `QueryCache: entity "${entityName}" row gives column "${column}" twice, as "${claimer}" and "${key}"; use exactly one spelling per column`
+      );
+    }
+    claimedBy.set(column, key);
+  }
 };
 
 /**
@@ -733,6 +778,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       // 而这一批本来一行都不该被尝试写入。判据只需要元数据与行的键集，是同步的。
       const target = this.#resolveQueryCacheTarget(entityName);
       assertQueryCacheRowContract(entityName, data as object[], target.metadata);
+      assert_single_spelling_per_column(entityName, data[0] as object, target.columnNames);
       // 契约显式放行「行以物理列名为键」（`#writeQueryCacheRows` 的 columnNames 映射正为此存在），
       // 所以取 id 不能只认 JS 属性名：认错了拿到的是字符串 "undefined"，两次回读全落空，
       // 于是**写进去了但一个事件都不发** —— 库是新值、界面停在旧值，正是下面那段注释要防的静默写。

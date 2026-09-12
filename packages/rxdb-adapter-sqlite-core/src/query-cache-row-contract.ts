@@ -51,7 +51,7 @@ export class RxDBQueryCacheRowContractError extends RxDBAdapterSqliteError {
 export const requiredQueryCacheColumns = (metadata: EntityMetadata): ReadonlyMap<string, string> => {
   const required = new Map<string, string>();
 
-  metadata.propertyMap?.forEach(property => {
+  metadata.propertyMap.forEach(property => {
     if (property.nullable) return;
     // 先按 `type` 收窄再读 `primary`：`EntityPropertyMetadata` 是按类型区分的联合，
     // `primary` 只挂在其中几支上，反过来写编译不过（与 create_table_sql.ts 同一写法）。
@@ -62,9 +62,7 @@ export const requiredQueryCacheColumns = (metadata: EntityMetadata): ReadonlyMap
     required.set(property.name, property.columnName);
   });
 
-  // `relationMap?` 与同目录 `#resolveQueryCacheTarget` 的 `propertyMap?` 同口径：
-  // 这条路径也会收到只带部分字段的 metadata 替身。
-  for (const relation of metadata.relationMap?.values() ?? []) {
+  for (const relation of metadata.relationMap.values()) {
     if (relation.kind !== RelationKind.ONE_TO_ONE && relation.kind !== RelationKind.MANY_TO_ONE) continue;
     // SET NULL 的外键列必须可空，DDL 因此不给它 NOT NULL
     if (relation.nullable || relation.onDelete === 'SET NULL' || relation.onUpdate === 'SET NULL') continue;
@@ -81,31 +79,55 @@ export const requiredQueryCacheColumns = (metadata: EntityMetadata): ReadonlyMap
 };
 
 /**
- * 关系名 → 外键别名（`team` → `teamId`）。
+ * 外键列的**每一种**写法 → 该外键的物理列名。
  *
  * @remarks
- * 落地路径对关系列接受**三种**写法：关系名 `team`、物理列名 `team_id`，以及
- * `metadata.foreignKeyNames` 里的 `teamId`（`transformEntityToSql` 认它）。
- * 契约只认前两种的话，一行带 `teamId` 的远端行会被判成「缺 team」—— 而它原本能
- * 一字不差地落进 `team_id`，这是把能落的行拒掉，比不判还糟。
+ * 一个外键列有三种等价写法，远端发哪一种取决于远端适配器
+ * （`RxDBAdapterSupabase.findByIds` 走 `select('*')`，发的是物理列名）：
+ *
+ * | 写法 | 例 | 出处 |
+ * | --- | --- | --- |
+ * | 关系名 | `team` | `relation.name` |
+ * | 外键别名 | `teamId` | `metadata.foreignKeyNames`，`transformEntityToSql` 认的那一种 |
+ * | 物理列名 | `team_id` | `metadata.foreignKeyColumnNames` |
+ *
+ * 这张表是**契约与落地路径唯一的共同口径**：契约用它判「这一列带没带」
+ * （{@link assertQueryCacheRowContract}），落地路径用它把键名翻译成物理列
+ * （`RxDBAdapterSqliteBase` 的 `query_cache_column_names`）。共用一张表而不是各写一份
+ * 判断，两侧才不会分叉 —— 分叉的两种方向都坏：契约窄一格会把**原本能落的行**拒掉，
+ * 落地窄一格会让契约放行的行被静默滤成「未知列」（值不落地、SQL 不报错）。
+ *
+ * 三个数组按下标一一对应，由 `metadata-transition` 保证（缺 `columnName` 在那边就抛了），
+ * 因此这里不再靠字符串拼接把「别名 = 关系名 + Id」这条约定重推一遍 ——
+ * 约定改了只该改 `metadata-transition` 一个地方。
  *
  * US-024 在 PGlite 侧发现这条，两个后端同改：同一行在两个本地后端必须得到同一个结论。
  *
  * @param metadata - 实体元数据
- * @returns 关系名 → 外键别名；无关系时为空表
+ * @returns 写法 → 物理列名；无外键关系时为空表
  */
-const queryCacheRelationAliases = (metadata: EntityMetadata | undefined): ReadonlyMap<string, string> => {
-  const aliases = new Map<string, string>();
-  for (const relation of metadata?.relationMap?.values() ?? []) {
-    aliases.set(relation.name, `${relation.name}Id`);
-  }
-  return aliases;
+export const queryCacheForeignKeyColumns = (metadata: EntityMetadata): ReadonlyMap<string, string> => {
+  const columns = new Map<string, string>();
+  metadata.foreignKeyRelations.forEach((relation, index) => {
+    const column = metadata.foreignKeyColumnNames[index];
+    columns.set(relation.name, column);
+    columns.set(metadata.foreignKeyNames[index], column);
+    columns.set(column, column);
+  });
+  return columns;
 };
 
-/** 行上是否带了该必填列的外键别名写法。 */
-const hasRelationAlias = (keys: ReadonlySet<string>, aliases: ReadonlyMap<string, string>, name: string): boolean => {
-  const alias = aliases.get(name);
-  return alias !== undefined && keys.has(alias);
+/** 一行的键落进了哪些物理外键列。 */
+const foreignKeyColumnsInRow = (
+  keys: Iterable<string>,
+  spellings: ReadonlyMap<string, string>
+): ReadonlySet<string> => {
+  const claimed = new Set<string>();
+  for (const key of keys) {
+    const column = spellings.get(key);
+    if (column !== undefined) claimed.add(column);
+  }
+  return claimed;
 };
 
 /**
@@ -176,15 +198,19 @@ export const assertQueryCacheRowContract = (
   if (rows.length === 0) return;
 
   const required = metadata ? requiredQueryCacheColumns(metadata) : new Map<string, string>();
-  const idColumn = metadata?.propertyMap?.get('id')?.columnName ?? 'id';
-  const aliases = queryCacheRelationAliases(metadata);
+  const idColumn = metadata?.propertyMap.get('id')?.columnName ?? 'id';
+  const spellings = metadata ? queryCacheForeignKeyColumns(metadata) : new Map<string, string>();
   const rowKeys = rows.map(row => new Set(Object.keys(row)));
   const batchKeys = new Set<string>(rowKeys.flatMap(keys => [...keys]));
 
   const violations: RowViolation[] = [];
   rowKeys.forEach((keys, index) => {
+    // 每个必填列都放行 JS 属性名与物理列名两种键；外键列再多认一种别名 `teamId`，
+    // 三种写法共用 {@link queryCacheForeignKeyColumns} 这张表 —— 与落地路径翻译列名时
+    // 用的是同一张。契约窄一格就会拒掉原本能落的行。
+    const claimedColumns = foreignKeyColumnsInRow(keys, spellings);
     const missingRequired = [...required]
-      .filter(([name, column]) => !keys.has(name) && !keys.has(column) && !hasRelationAlias(keys, aliases, name))
+      .filter(([name, column]) => !keys.has(name) && !keys.has(column) && !claimedColumns.has(column))
       .map(([name]) => name);
     // 已经按「缺非空列」报过的，不在异构那一栏里重复出现
     const missingBatch = [...batchKeys].filter(

@@ -132,16 +132,17 @@ export function runQueryCacheRowContractSuite(impl: QueryCacheRowContractImpl): 
         expect(() => assertQueryCacheRowContract('QcContractMapped', rows, mappedMetadata)).not.toThrow();
       });
 
-      it('关系列带外键别名写法（`ownerId`）时算带齐，不误报', () => {
-        // 两侧的落地路径都认 `metadata.foreignKeyNames` 里的 `ownerId`
-        // （`team` / `team_id` / `teamId` 三种写法等价）。契约只认前两种就会把一行
-        // **原本能落进 `owner_id`** 的远端行拒掉 —— 比不判还糟。
+      it.each(['owner', 'ownerId', 'owner_id'])('外键列的三种写法都算带齐，不误报：%s', key => {
+        // 一个外键列有三种等价写法：关系名 `owner`、外键别名 `ownerId`、物理列名 `owner_id`。
+        // 两侧的落地路径都把三种翻译到同一个物理列（共用各自包里的
+        // `queryCacheForeignKeyColumns`），契约少认哪一种，那种写法的远端行就会被判成
+        // 「缺 owner」—— 而它原本能一字不差地落进 `owner_id`。拒掉能落的行，比不判还糟。
         const memberMetadata = getEntityMetadata(QcContractMember);
         const rows = [
           {
             id: 'mb1',
-            nickName: '别名写法',
-            ownerId: 'tm1',
+            nickName: '三种写法',
+            [key]: 'tm1',
             createdAt: '2026-08-01T00:00:00.000Z',
             updatedAt: '2026-08-02T00:00:00.000Z'
           }
@@ -171,27 +172,36 @@ export function runQueryCacheRowContractSuite(impl: QueryCacheRowContractImpl): 
         }
       });
 
-      it('消息骨架两侧同形：点名实体、缺失列、整批未落地、为何不补默认值、文档指路', () => {
+      it('整条消息两侧逐字一致 —— 点名实体、缺失列、整批未落地、为何不补默认值、文档指路', () => {
+        // 钉**整条**而不是挑几个片段：片段断言只能证明「这几句还在」，两侧的措辞、标点、
+        // 换行、缩进各漂一点它都照过 —— 而这条消息的全部价值就是读者不必因为换了个本地行
+        // 缓存后端就重学一套诊断。逐字比对让任何单侧改动直接变红。
+        //
+        // 用「只缺必填列、只有一行」这个形状才能两侧逐字可比：sqlite-core 还多一条
+        // 「批内异构」判据（成因是它的列清单取自 `data[0]`，PGlite 按列集分组，结构上没这个病），
+        // 那一栏只在多行异构时才出现；单行时两侧的 `describeRow` 拼出来的是同一串。
         const row = fullRecipeRow('r1');
         delete row['createdAt'];
 
         let message = '';
         try {
           assertQueryCacheRowContract('QcContractRecipe', [row], metadata);
+          expect.unreachable('应当抛出契约错误');
         } catch (error) {
           message = (error as Error).message;
         }
 
-        expect(message).toContain('QueryCache 落地被拒');
-        expect(message).toContain('"QcContractRecipe"');
-        expect(message).toContain('createdAt');
-        expect(message).toContain('一行都没有落地');
-        expect(message).toContain('本地表把它建成 NOT NULL 且无 SQL 默认值');
-        expect(message).toContain('远端行必须带齐本地表的全部非空列，含 EntityBase 的 createdAt / updatedAt。');
-        expect(message).toContain('实体上的 default 只在仓储写入路径生效');
-        expect(message).toContain('website/docs/collaboration/sync.md');
-        // 让人拿 id 去远端日志里对号入座
-        expect(message).toContain('id="r1"');
+        expect(message).toBe(
+          [
+            'QueryCache 落地被拒：实体 "QcContractRecipe" 的远端行不满足本地表的列契约，' +
+              '本批 1 行中 1 行不合格，**一行都没有落地**。',
+            '  · 第 1 行（id="r1"）缺 createdAt —— 本地表把它建成 NOT NULL 且无 SQL 默认值',
+            '远端行必须带齐本地表的全部非空列，含 EntityBase 的 createdAt / updatedAt。',
+            '实体上的 default 只在仓储写入路径生效，QueryCache 的落地是绕开仓储的裸 SQL，不经过它；' +
+              '这里也不会就地补一个 —— 补出来的是本机拉取的时刻而非记录创建的时刻，跨设备拉同一行会得到不同的值。',
+            '契约与示例见 website/docs/collaboration/sync.md 的 QueryCache 一节。'
+          ].join('\n')
+        );
       });
 
       it('缺多列时一次全部列出，不是报一个改一个', () => {
