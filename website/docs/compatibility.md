@@ -68,15 +68,15 @@
 
 本适配器标记为**实验性**，接入前请确认下列限制可接受：
 
-| 维度     | 支持情况                                                                                       |
-| :------- | :--------------------------------------------------------------------------------------------- |
-| 平台     | **仅微信小程序逻辑层**；不支持支付宝 / 抖音 / 百度 / QQ 等其他小程序平台                       |
-| 并发     | **强制单连接**：同一数据库文件的第二个连接直接抛错，并发安全由 JS 层保证而非 SQLite 锁         |
-| 日志模式 | `journal_mode = DELETE`（rollback journal），**不支持 WAL**、Worker / SharedWorker、多页面并发 |
-| 崩溃恢复 | **无保证**——微信文件 API 缺少可靠的 `fsync`、文件锁与原子 rename                               |
-| 数据量   | 整库缓冲在内存，仅适用于 ~10MB 级的兼容性验证，不适用于大数据量场景                            |
+| 维度     | 支持情况                                                                                                                       |
+| :------- | :----------------------------------------------------------------------------------------------------------------------------- |
+| 平台     | **仅微信小程序逻辑层**；不支持支付宝 / 抖音 / 百度 / QQ 等其他小程序平台                                                       |
+| 并发     | **强制单连接**：同一数据库文件的第二个连接直接抛错，并发安全由 JS 层保证而非 SQLite 锁                                         |
+| 日志模式 | `journal_mode = DELETE`（rollback journal），**不支持 WAL**、Worker / SharedWorker、多页面并发                                 |
+| 崩溃恢复 | **无保证**——微信文件 API 缺少可靠的 `fsync`、文件锁与原子 rename                                                               |
+| 数据量   | 整库缓冲在内存，仅适用于 ~10MB 级的兼容性验证，不适用于大数据量场景                                                            |
 | 随机源   | 由 `wx.getRandomValues` 预取 64 KiB 随机池并在见底前后台补给；补给失败且余量耗尽时抛错，**任何情况下都不降级**到 `Math.random` |
-| 全文搜索 | wasm 已编入 FTS5，可直接写 SQL 虚拟表；但 `@aiao/rxdb-plugin-search` 尚未放行本适配器          |
+| 全文搜索 | wasm 已编入 FTS5，可直接写 SQL 虚拟表；但 `@aiao/rxdb-plugin-search` 尚未放行本适配器                                          |
 
 运行时启动前需调用 `@aiao/rxdb-adapter-miniprogram/runtime` 的 `prepareMiniProgramRuntime(wx)`，
 缺少任一必需能力时 fail-fast 并列出全部缺失项。详见[包 README](https://github.com/aiao-io/rxdb/tree/main/packages/rxdb-adapter-miniprogram)。
