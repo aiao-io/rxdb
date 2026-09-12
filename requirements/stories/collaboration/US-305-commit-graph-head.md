@@ -182,6 +182,12 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
   `v0.0.25` 虽是历史 bridge 发布，但当前主线经 squash 后不再包含其 tagged commit，MUST NOT 作为本故事的迁移锚点；
   不得重打、移动或伪造已发布 tag。若发布主线没有有效 bridge ancestor，必须先从该主线发布新的非迁移 bridge 版本，
   再开始本故事的 system schema 迁移发布。
+  **锚点合法性不止于「是祖先」**：`v0.0.24` 及更早的 tag 也是祖先、也含系统迁移面的四个文件，却早于工作树桥接改造。
+  因此 `bridge.version` MUST 严格新于 `LAST_INELIGIBLE_BRIDGE_VERSION`，且 bridge tag 上的
+  `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` MUST 与本次发布的升级位吻合
+  （声明升级则严格更旧，未声明升级则完全相等）。这两条判据**已在
+  [check-migration-release-gate.mjs](../../../scripts/check-migration-release-gate.mjs) 中实现并有单测**，
+  本故事 MUST NOT 重写该脚本，只负责在真实 tag 与真实清单上复验。
 - **FR-036**：普通 commit MUST 以 database + immutable branch generation + `operationId` 建立唯一幂等约束。相同请求重试返回原 commit；相同 key 的 message、author、parent 或 ChangeSet 指纹不同则返回稳定错误，不得覆盖原记录。删除并同名重建的分支使用新 generation，不与旧幂等键碰撞。
 - **FR-037**：首次启用 MUST 持久化数据库级 capability/protocol 状态。此后所有 writer 在连接时协商；未启用或不兼容 writer 不得继续裸写业务表。
 - **FR-038**：commit、ChangeSet 与 baseline MUST 保持既有字段加密 at-rest 契约；持久化路径不得先解密再把明文写入新系统表，日志、错误与摘要不得包含加密字段值。
@@ -278,9 +284,10 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - 无法物化的本地分支需独立 fixture：分别构造 change 被 `cleanupExpired()` 清理、区间被压缩、链上有 `revertChangeId`
   三种断链，断言迁移整体回滚并返回 `branch_not_materializable` 且指名断链位置（AC US2-15）。
 - 连接握手基数校验需独立 fixture：零 active 拒绝连接、多 active 被 schema 约束拒绝（AC US2-16）。
-- 桥接血统门禁需独立用例（FR-030 / AC US2-14）：`bridge.tag` 为 `null`、为 `v0.0.25`、或不满足
-  `git merge-base --is-ancestor <bridge-tag> <release-commit>` 时门禁均失败；只有真实祖先 tag 才放行。
-  用例读真实 git 仓库状态，不 mock 祖先判定。
+- 桥接血统门禁需独立用例（FR-030 / AC US2-14）：`bridge.tag` 为 `null`、为 `v0.0.25`、为 `v0.0.24`
+  （祖先但早于桥接改造）、或不满足 `git merge-base --is-ancestor <bridge-tag> <release-commit>` 时门禁均失败；
+  另需两条版本常量反例——bridge tag 上的 schema/codec 版本未随声明的升级位推进、以及升级位写成 `false`
+  但版本实际变了。只有真实祖先 tag + 版本常量吻合才放行。用例读真实 git 仓库状态，不 mock 祖先判定。
 - 本故事是无 UI 的核心底座，不适用三框架对称与 UI a11y，但必须满足
   [epic-006 横切约束 1](../../epics/epic-006-working-tree-commits.md#横切约束按故事适用不单独成故事) 的另一半：
   全部新增公开类型与入口带 TSDoc（`Commit*` / `WorkingTree*` 命名、参数、抛错与 revision 语义），

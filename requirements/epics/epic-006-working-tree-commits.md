@@ -599,7 +599,15 @@ patch / inverse patch 换成新的完整快照、`type` 按 baseline 与新值�
 ## 发布门禁
 
 1. [migration-release.json](../migration-release.json) 的 `bridge.tag` 指向一个满足
-   `git merge-base --is-ancestor <bridge-tag> <release-commit>` 的真实 tag，且不是 `v0.0.25`
+   `git merge-base --is-ancestor <bridge-tag> <release-commit>` 的真实 tag。**「不是 `v0.0.25`」不够**：
+   `v0.0.24` 及更早的 tag 同样是祖先、同样含有系统迁移面的四个文件，能过完存在性 / 祖先性 / 路径探测三道检查，
+   却早于本 Epic 的桥接改造——那是个空桥。因此门禁另加两条**可执行**判据：
+   - `bridge.version` 严格新于 `LAST_INELIGIBLE_BRIDGE_VERSION`（当前 `0.0.25`）。真实的新桥接 tag 必然大于它，
+     这条下限只挡伪造、不挡正常发布
+   - bridge tag 上的 `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 与候选发布提交上的取值
+     必须与 `systemSchemaUpgrade` / `changeCodecUpgrade` 吻合：声明升级则 bridge 必须严格更旧，
+     未声明升级则必须完全相等。后半条同时挡住「悄悄抬了 schema 却把升级位写成 `false`」——
+     那会让发布整体绕开 `oldBundlePolicy` 分支
 2. US-305 / US-306（阶段 A / B / C 全部关闭）/ US-307 / US-308 全部 Done；US-306 的
    [交付阶段与边界表](../stories/collaboration/US-306-working-tree-commits.md#交付阶段与边界) 逐条有归属，跨故事的半边以收口故事的场景为准，
    US-306 阶段 C / US-307 / US-308 的三框架对称与 a11y 条件满足
@@ -655,9 +663,11 @@ patch / inverse patch 换成新的完整快照、`type` 按 baseline 与新值�
 
 - **门禁逻辑归 US-305**（FR-030 / AC US2-14），但它**已经存在**：
   [check-migration-release-gate.mjs](../../scripts/check-migration-release-gate.mjs) 已实现
-  `bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` 与真实的
-  `git merge-base --is-ancestor`，并有对应单测。**US-305 MUST NOT 重写这个脚本**；它在本门禁上的交付物是
-  「manifest 从 `kind=bridge` 翻成 `kind=migration` 之后，这三条钩子真实生效」的复验与 fixture
+  `bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol`、真实的
+  `git merge-base --is-ancestor`、锚点版本下限与 `bridgeTagVersionConstants`（从 tag 上读真实的
+  `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 并与升级位比对），并有对应单测。
+  **US-305 MUST NOT 重写这个脚本**；它在本门禁上的交付物是「manifest 从 `kind=bridge` 翻成 `kind=migration`
+  之后，这些判据真实生效」的复验与 fixture
 - **钩子接进 PR CI 归 epic-007，同样已落地**：[epic-007 的该项目标](./epic-007-public-api-gates.md)已勾选，
   未单开故事，落点是 `ci-template.yml` 的 `setup` job（不带 `--release-tag`，配 `fetch-tags: true`
   并按 `GITHUB_REF_TYPE` 解析 tag）。它今天在 `kind=bridge` 下是绿的——**它守的是清单变成 `migration` 的那次 PR**

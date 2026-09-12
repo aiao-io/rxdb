@@ -2,7 +2,13 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
-import { resolveReleaseTag, validateManifest } from './check-migration-release-gate.mjs';
+import {
+  CHANGE_CODEC_VERSION_SOURCE,
+  SYSTEM_SCHEMA_VERSION_SOURCE,
+  parseVersionConstants,
+  resolveReleaseTag,
+  validateManifest
+} from './check-migration-release-gate.mjs';
 
 const bridgeManifest = () => ({
   $schemaVersion: 1,
@@ -32,22 +38,28 @@ const normalManifest = () => ({
 
 const migrationManifest = () => ({
   $schemaVersion: 1,
-  bridge: { tag: 'v0.0.24', version: '0.0.24' },
-  oldBundlePolicy: { strategy: 'force-update', minimumVersion: '0.0.24', enforced: true },
+  bridge: { tag: 'v0.0.26', version: '0.0.26' },
+  oldBundlePolicy: { strategy: 'force-update', minimumVersion: '0.0.26', enforced: true },
   release: {
     kind: 'migration',
-    version: '0.0.25',
+    version: '0.0.27',
     protocolVersion: 1,
     systemSchemaUpgrade: true,
     changeCodecUpgrade: true
   }
 });
 
-// migration 分支默认放行三个 git 钩子，单独的用例再逐个置为 false。
+// bridge tag 与候选发布提交上的系统版本常量：默认构造成「schema 与 codec 都恰好升了一级」。
+const BRIDGE_CONSTANTS = { systemSchemaVersion: 3, changeCodecVersion: 1 };
+const RELEASE_CONSTANTS = { systemSchemaVersion: 4, changeCodecVersion: 2 };
+
+// migration 分支默认放行全部 git 钩子，单独的用例再逐个置为 false / 改成不一致的常量。
 const passingHooks = {
   bridgeTagExists: () => true,
   bridgeTagIsAncestor: () => true,
-  bridgeTagSupportsProtocol: () => true
+  bridgeTagSupportsProtocol: () => true,
+  bridgeTagVersionConstants: () => BRIDGE_CONSTANTS,
+  releaseVersionConstants: RELEASE_CONSTANTS
 };
 
 test('合法的 bridge 清单没有错误', () => {
@@ -209,7 +221,7 @@ test('bridge 发布不要求 bridge tag', () => {
 });
 
 test('bridge.version 必须早于 release.version', () => {
-  for (const version of ['0.0.25', '0.0.26']) {
+  for (const version of ['0.0.27', '0.0.28']) {
     const manifest = migrationManifest();
     manifest.bridge = { tag: `v${version}`, version };
     manifest.oldBundlePolicy.minimumVersion = version;
@@ -223,16 +235,86 @@ test('bridge.version 必须早于 release.version', () => {
 
 test('bridge.tag 必须与 bridge.version 对应', () => {
   const manifest = migrationManifest();
-  manifest.bridge.tag = 'v0.0.23';
+  manifest.bridge.tag = 'v0.0.28';
 
   assert.ok(validateManifest(manifest, passingHooks).includes('bridge.tag must match bridge.version'));
 });
 
+// v0.0.24 是祖先、四个文件也都在，三道 git 钩子全过——但它早于工作树桥接改造，是个空桥。
+// v0.0.25 已脱离发布主线。两者都必须被版本下限挡住，否则「满足依赖顺序第 1 步」可以纯靠改清单伪造。
+test('bridge.version 必须严格新于最后一个不合格锚点', () => {
+  const expected =
+    'bridge.version must be newer than 0.0.25: anchors at or before it predate the working-tree bridging change';
+
+  for (const version of ['0.0.23', '0.0.24', '0.0.25']) {
+    const manifest = migrationManifest();
+    manifest.bridge = { tag: `v${version}`, version };
+    manifest.oldBundlePolicy.minimumVersion = version;
+
+    assert.ok(
+      validateManifest(manifest, passingHooks).includes(expected),
+      `expected bridge ${version} to be rejected as an anchor`
+    );
+  }
+});
+
+test('0.0.26 起的锚点不受版本下限影响', () => {
+  assert.ok(!validateManifest(migrationManifest(), passingHooks).some(error => error.includes('must be newer than')));
+});
+
+test('声明了升级位就要求 bridge tag 上的版本常量严格更旧', () => {
+  const manifest = migrationManifest();
+  const errors = validateManifest(manifest, {
+    ...passingHooks,
+    bridgeTagVersionConstants: () => RELEASE_CONSTANTS
+  });
+
+  assert.ok(
+    errors.includes(
+      'release.systemSchemaUpgrade is true but system schema version did not advance past bridge.tag v0.0.26 (4 -> 4)'
+    )
+  );
+  assert.ok(
+    errors.includes(
+      'release.changeCodecUpgrade is true but change codec version did not advance past bridge.tag v0.0.26 (2 -> 2)'
+    )
+  );
+});
+
+// 悄悄抬了 schema 却把升级位写成 false，会让发布绕开整个 oldBundlePolicy 分支。
+test('没声明升级位就要求版本常量完全相等', () => {
+  const manifest = migrationManifest();
+  manifest.release.changeCodecUpgrade = false;
+
+  assert.ok(
+    validateManifest(manifest, passingHooks).includes(
+      'release.changeCodecUpgrade is false but change codec version changed from 1 (bridge.tag v0.0.26) to 2'
+    )
+  );
+});
+
+test('bridge tag 上读不出版本常量即失败', () => {
+  const errors = validateManifest(migrationManifest(), { ...passingHooks, bridgeTagVersionConstants: () => null });
+
+  assert.ok(errors.includes('bridge.tag v0.0.26 does not declare the system version constants'));
+});
+
+// 常量声明位置被改名 / 挪走时必须红，不能因为读不到就静默跳过这道检查。
+test('候选发布提交上读不出版本常量即失败', () => {
+  const errors = validateManifest(migrationManifest(), { ...passingHooks, releaseVersionConstants: null });
+
+  assert.ok(
+    errors.includes(
+      'release does not declare readable system version constants in packages/rxdb/src/system/migration.ts'
+    )
+  );
+});
+
 test('bridge.tag 必须存在、是祖先提交且包含系统迁移面', () => {
   const cases = [
-    ['bridgeTagExists', 'bridge.tag v0.0.24 does not exist in the repository'],
-    ['bridgeTagIsAncestor', 'bridge.tag v0.0.24 is not an ancestor of the release commit'],
-    ['bridgeTagSupportsProtocol', 'bridge.tag v0.0.24 does not contain the system migration surface']
+    ['bridgeTagExists', 'bridge.tag v0.0.26 does not exist in the repository'],
+    ['bridgeTagIsAncestor', 'bridge.tag v0.0.26 is not an ancestor of the release commit'],
+    ['bridgeTagSupportsProtocol', 'bridge.tag v0.0.26 does not contain the system migration surface']
   ];
 
   for (const [hook, expected] of cases) {
@@ -277,7 +359,7 @@ test('migration 发布必须启用 oldBundlePolicy 并声明最低版本', () =>
 
 test('oldBundlePolicy.minimumVersion 不得低于 bridge.version', () => {
   const manifest = migrationManifest();
-  manifest.oldBundlePolicy.minimumVersion = '0.0.23';
+  manifest.oldBundlePolicy.minimumVersion = '0.0.25';
 
   assert.ok(
     validateManifest(manifest, passingHooks).includes('oldBundlePolicy.minimumVersion must be at least bridge.version')
@@ -305,6 +387,27 @@ test('bridge 与 oldBundlePolicy 必须是对象', () => {
 // --- resolveReleaseTag -------------------------------------------------------
 // 门禁挂进 PR CI 的前提。此前 tag 直接取 `GITHUB_REF_NAME`，在 PR 事件下那是
 // `42/merge`，会让每个 PR 都红在一条与发布无关的假失败上。
+
+test('parseVersionConstants 按真实声明取值，缺任一份即 null', () => {
+  const schema = 'export const RXDB_SYSTEM_SCHEMA_VERSION = 3 as const;';
+  const codec = 'export const RXDB_CHANGE_CODEC_VERSION = 1 as const;';
+
+  assert.deepEqual(parseVersionConstants(schema, codec), { systemSchemaVersion: 3, changeCodecVersion: 1 });
+  assert.equal(parseVersionConstants(schema, null), null);
+  assert.equal(parseVersionConstants(null, codec), null);
+  assert.equal(parseVersionConstants('export const SOMETHING_ELSE = 3;', codec), null);
+});
+
+// 仓库里真实的两份声明必须能被同一个正则读出来——否则 CLI 侧会静默退化。
+test('仓库工作树上的版本常量可被解析', async () => {
+  const constants = parseVersionConstants(
+    await readFile(new URL(`../${SYSTEM_SCHEMA_VERSION_SOURCE}`, import.meta.url), 'utf8'),
+    await readFile(new URL(`../${CHANGE_CODEC_VERSION_SOURCE}`, import.meta.url), 'utf8')
+  );
+
+  assert.ok(Number.isInteger(constants?.systemSchemaVersion));
+  assert.ok(Number.isInteger(constants?.changeCodecVersion));
+});
 
 test('显式 --release-tag 优先于环境变量', () => {
   assert.equal(
