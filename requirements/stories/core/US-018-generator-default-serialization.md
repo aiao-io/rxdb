@@ -142,8 +142,8 @@ G4.2 把 `undefined` 列进了"改写后守卫的实际落点"，这里是对该
 
 #### G4.3 — `enumerable: false` 的保护今天不来自 `JSON.stringify`
 
-`transitionMetadata()`（core 侧）一共挂了 **12 个 `enumerable: false` 的派生成员**
-（[metadata-transition.ts:250-319](../../../packages/rxdb/src/entity/metadata-transition.ts#L250-L319)）：
+[`transitionMetadata()`](../../../packages/rxdb/src/entity/metadata-transition.ts)（core 侧）在尾段的
+`setSafeObjectKey*` 调用里一共挂了 **12 个 `enumerable: false` 的派生成员**：
 
 | 定义方式                                 | 个数 | 成员                                                                                                                                      |
 | ---------------------------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------- |
@@ -151,10 +151,10 @@ G4.2 把 `undefined` 列进了"改写后守卫的实际落点"，这里是对该
 | `setSafeObjectKeyLazyInitOnce`（getter） | 5    | `defaultValueProperties` / `foreignKeyRelations` / `foreignKeyRelationMap` / `foreignKeyNames` / `foreignKeyColumnNames`                  |
 
 真正把它们挡在外面的是 **`omit()` 里的对象展开**
-（[omit.ts:14](../../../packages/utils/src/object/omit.ts#L14) 的 `{ ...obj }` 只拷自有可枚举属性）
+（[`omit()`](../../../packages/utils/src/object/omit.ts) 里的 `{ ...obj }` 只拷自有可枚举属性）
 与 `renderMetadataValue` 里的 `Object.entries`，**不是** `JSON.stringify`
-（`enumerable: false` 见 [entity.utils.ts:40](../../../packages/rxdb/src/entity/entity.utils.ts#L40)、
-[L103](../../../packages/rxdb/src/entity/entity.utils.ts#L103)）。三条推论：
+（`enumerable: false` 由 [`setSafeObjectKey()`](../../../packages/rxdb/src/entity/entity.utils.ts) 与
+[`setSafeObjectKeyLazyInitOnce()`](../../../packages/rxdb/src/entity/entity.utils.ts) 写死）。三条推论：
 
 - `omit(metadata, ['propertyMap', 'relationMap', 'indexMap'])` 的键名清单**今天是空操作**——展开已经把它们连同另外九个一起排除了。
   重写时既不要把它当成载重结构保留，也不要"顺手补全"成 12 个键名；它要么删掉，要么留下并注明是冗余。

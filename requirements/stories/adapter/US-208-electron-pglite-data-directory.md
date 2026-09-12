@@ -104,7 +104,7 @@ AC#4 的落地过程中查出并修掉了一个**产品缺陷**：`transaction_p
 修复把解码抽成 `packages/rxdb-adapter-pglite/src/system/change-row.ts`，两条 hydrate 路径共用，
 回归断言在 `transaction_pglite_result.change-row.spec.ts`。
 
-### AC#10 的关闭过程（2026-09-01 已关）
+### AC#10：打包侧的依赖收集与 asar 解包
 
 它的判据是「**打包后**的 Electron 应用在 macOS / Windows / Linux **CI** 中通过」，
 三个条件本机一个都满足不了：本机只有 macOS，且跑的是源码档位而不是 electron-builder 产物。
@@ -141,7 +141,7 @@ external 依赖改声明进 `dependencies`，并补两条单测把
 
 ## 技术笔记
 
-### 事务 host 方案二选一（已冻结 2026-08-30：**IPC 事务 ID 协议**）
+### 事务 host 方案：已冻结为 **IPC 事务 ID 协议**
 
 AC#2 是本故事最大的未知量，两种候选：
 
@@ -215,7 +215,7 @@ bigint、binary 与 JSONB 跨 `structuredClone` / IPC 序列化的行为必须�
 ### `ADAPTER_NAME` 为 `pglite-electron`
 
 2026-08-17 落定，完整决策与命名依据见
-[US-207「已落定的决策：`ADAPTER_NAME` 分裂」](./US-207-desktop-local-database.md#已落定的决策adapter_name-分裂2026-08-17)。
+[US-207「已落定的决策：`ADAPTER_NAME` 分裂」](./US-207-desktop-local-database.md#已落定的决策adapter_name-分裂)。
 
 本故事拿到独立名字而不是复用 `sqlite-electron`，理由和当初把本故事从 US-207 拆出来的理由是同一个：
 **引擎不同，事务模型不同**。`rxdb.config.sync.local.adapter` 是写进配置、会被诊断日志和错误信息引用的

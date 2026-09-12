@@ -341,3 +341,88 @@ test('仓库现状：requirements 派生视图与 YAML 一致（回归护栏）'
   const { offenders } = await run({ root });
   assert.deepEqual(offenders, []);
 });
+
+test('run() 把叙述词与行号锚点两类告警分开返回，计数不再互相污染', async () => {
+  await scaffold(dir);
+  await writeFile(
+    path.join(dir, 'packages/x/src/a.ts'),
+    ['export class Widget {', '  readonly inject = [];', '', '  start(): void {}', '}', ''].join('\n')
+  );
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-001-x.md'),
+    [story('US-001', 'Done'), '- `Widget.start()` 行号漂了（[a.ts:2](../../../packages/x/src/a.ts#L2)）', ''].join('\n')
+  );
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-002-x.md'),
+    [story('US-002', 'Done'), '### 门禁快照（2026-01-01）', ''].join('\n')
+  );
+  const { warnings } = await run({ root: dir });
+  // 一个文件的叙述词 + 一条锚点漂移。合成一个数组去数，就会打印成「2 个文件含过程叙述」。
+  assert.equal(warnings.narrative.length, 1, JSON.stringify(warnings));
+  assert.equal(warnings.evidence.length, 1, JSON.stringify(warnings));
+  assert.match(warnings.narrative[0], /US-002-x\.md: 带日期的标题×1/);
+  assert.match(warnings.evidence[0], /US-001-x\.md:\d+: .*#L2 所引区间不含/);
+});
+
+test('checkAnchorEvidence 阻断「符号名作链接文字」却在目标文件里查无此名的断言', async () => {
+  await scaffold(dir);
+  await writeFile(
+    path.join(dir, 'packages/x/src/a.ts'),
+    ['export class Widget {', '  start(): void {}', '}', ''].join('\n')
+  );
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-001-x.md'),
+    [
+      story('US-001', 'Done'),
+      // 改了名却留着旧名当证据锚 —— 归属无歧义，就是假断言
+      '- 收尾走 [`Widget.stopEverything()`](../../../packages/x/src/a.ts)',
+      // 仍在的照旧放行
+      '- 启动走 [`Widget.start()`](../../../packages/x/src/a.ts)',
+      // 包名不是符号，不该当断言校验
+      '- 归属 [`@scope/x`](../../../packages/x/src/a.ts)',
+      ''
+    ].join('\n')
+  );
+  const { offenders } = await checkAnchorEvidence(dir);
+  assert.equal(offenders.length, 1, JSON.stringify(offenders));
+  assert.match(offenders[0], /US-001-x\.md:\d+: `Widget\.stopEverything\(\)` 在 .*a\.ts 里不存在/);
+});
+
+test('「历史快照」只在给章节贴标签时才算叙述词，undo/redo 的领域名词不算', async () => {
+  await scaffold(dir);
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-001-x.md'),
+    [
+      story('US-001', 'Done'),
+      '| undo/redo 历史快照 | `HistoryManager.ts` 持有物化视图 |',
+      '- binary patch 和历史快照复制当前视图字节，不持有调用方可变引用',
+      ''
+    ].join('\n')
+  );
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-002-x.md'),
+    [story('US-002', 'Done'), '本节是 2026-01-01 的历史快照。', ''].join('\n')
+  );
+  const hits = await scanNarrative(dir);
+  assert.equal(
+    hits.find(r => r.rel.endsWith('US-001-x.md')),
+    undefined,
+    JSON.stringify(hits)
+  );
+  assert.deepEqual(hits.find(r => r.rel.endsWith('US-002-x.md')).hits, [['历史快照', 1]]);
+});
+
+test('code-scanning 是告警跟踪记录，与 reviews 同样不受叙述词约束', async () => {
+  await scaffold(dir);
+  await mkdir(path.join(dir, 'requirements/code-scanning'), { recursive: true });
+  await writeFile(
+    path.join(dir, 'requirements/code-scanning/README.md'),
+    '# Code Scanning 告警跟踪\n\n## 生命周期（2026-08-28 定）\n\n### 第一批（2026-08-16 报出，21 条）\n'
+  );
+  const hits = await scanNarrative(dir);
+  assert.equal(
+    hits.find(r => r.rel.includes('code-scanning')),
+    undefined,
+    JSON.stringify(hits)
+  );
+});

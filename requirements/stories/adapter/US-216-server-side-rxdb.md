@@ -53,12 +53,12 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
 ### 病灶三：「后端不能初始化 RxDB」这个前提并不存在
 
 核心包 [@aiao/rxdb](../../../packages/rxdb/package.json) 的依赖只有 `rxjs` / `uuid` / `type-fest` / `@aiao/utils`，
-零 DOM 依赖；查询面全部是 Observable——`Repository.find()` 返回 `Observable<InstanceType<T>[]>`
-（[Repository.ts:251](../../../packages/rxdb/src/repository/Repository.ts#L251)），
-`findOne` / `findByCursor` / `count` / `get(id)` 同构。存储侧，`RxDBAdapterPGlite` 自己的 vitest 套件就在 Node
-环境里初始化（[test-menu.spec.ts](../../../packages/rxdb-adapter-pglite/src/__tests__/test-menu.spec.ts)，
-`store: 'memory'`）；`PGliteClient.shouldUsePGliteWorker` 只在 `dataDir` 以 `opfs-ahp://` 开头时才要求 Worker
-（[PGliteClient.ts:74](../../../packages/rxdb-adapter-pglite/src/PGliteClient.ts#L74)），Node 下主线程直跑。
+零 DOM 依赖；查询面全部是 Observable——[`Repository.find()`](../../../packages/rxdb/src/repository/Repository.ts)
+返回 `Observable<InstanceType<T>[]>`，`findOne` / `findByCursor` / `count` / `get(id)` 同构。存储侧，
+`RxDBAdapterPGlite` 自己的 vitest 套件就在 Node 环境里初始化
+（[test-menu.spec.ts](../../../packages/rxdb-adapter-pglite/src/__tests__/test-menu.spec.ts)，`store: 'memory'`）；
+[`shouldUsePGliteWorker()`](../../../packages/rxdb-adapter-pglite/src/PGliteClient.ts) 只在 `dataDir`
+以 `opfs-ahp://` 开头时才要求 Worker，Node 下主线程直跑。
 
 真正挡路的只有一处：**同步策略焊死在实体装饰器上**。`getSyncConfig` 的实现是
 `return metadata.sync || globalSync`（[sync-type-utils.ts:30](../../../packages/rxdb/src/version/sync-type-utils.ts#L30)）——

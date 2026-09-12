@@ -352,7 +352,7 @@ Search 当前已经去掉聚合 `connected$`，等待按名的 `adapterConnected
   作用域原语按定义碰不到，今天没有归属故事
 - **拆卸错误在 `RxDB` 边界的出口**——与 [US-014 D5](./US-014-plugin-scope-contract.md) 保持一致，仍为 `console.error`
 - **workspace 的 `#installPromise` / `#installFailed`**：它等的是 IndexedDB 恢复
-  （[:325-337](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L325-L337)），
+  （[RxDBPluginWorkspace.ts:325-337](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L325-L337)），
   **不是 rxdb 侧的依赖**，`inject` 帮不上忙。两个阶段都不动它
 - **三框架绑定接入**——原归 `US-017`，已移出 epic-008 承诺范围（三端各自的原生作用域
   `DestroyRef` / `useEffect` cleanup / `onScopeDispose` 已在用），解锁条件见 Epic

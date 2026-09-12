@@ -76,13 +76,27 @@ export const NARRATIVE_PATTERNS = [
   ['第 N 轮复核', /第\s*[一二三四五六七八九十\d]+\s*轮复核/g],
   ['后续变更', /后续变更/g],
   ['已修 / 未修', /（\s*\**\s*(?:已修|未修)[^）\n]*）/g],
-  ['历史快照', /历史快照|被[^\n。]{0,20}整节取代/g],
+  [
+    '历史快照',
+    // 只在「给一段内容贴标签」时才算：自指的章节说明、标题、加粗。裸写的「历史快照」是
+    // undo/redo 的领域名词（`HistoryManager` 的物化视图），把它一并报出来，这张告警表就
+    // 永远清不到零——而清不到零的表，读者会整张忽略。
+    /(?:本节|本段|以下|下面|上面|前文|这一?[段节])[^\n。]{0,20}历史快照|^#{1,6}[^\n]*历史快照|\*\*[^*\n]*历史快照[^*\n]*\*\*|被[^\n。]{0,20}整节取代/gm
+  ],
   ['带日期的标题', /^#{2,6} .*\d{4}-\d{2}-\d{2}.*$/gm],
   ['裸测试计数', /\d+\s*文件\s*\d+\s*条|（原\s*\d+\s*\/\s*\d+）/g]
 ];
 
-/** 叙述词扫描不看的路径：约定本身、评审记录（那是记录不是需求）、模板。 */
-const NARRATIVE_EXEMPT = /(^|\/)(CONVENTIONS\.md|reviews\/|.*\.template\.md)/;
+/**
+ * 叙述词扫描不看的路径：约定本身、评审记录与 code scanning 跟踪（那些是**记录**不是需求）、模板。
+ *
+ * @remarks
+ * `code-scanning/` 自述「工作集，不是档案库」：按批次归档、每批带报出与关闭日期，那正是它的
+ * 正文体裁。同 `reviews/`——记录类文档里，日期和批次编号是内容，不是该烧掉的过程叙述。
+ *
+ * 注意这份名单同时被 {@link checkAnchorEvidence} 用来跳过锚点校验。
+ */
+const NARRATIVE_EXEMPT = /(^|\/)(CONVENTIONS\.md|reviews\/|code-scanning\/|.*\.template\.md)/;
 
 /**
  * 解析文件头部的 YAML frontmatter。只认本仓库用到的扁平 `key: value` 与 `key: [a, b]`（含被 prettier 折到下一行的值），
@@ -525,6 +539,30 @@ export function evidenceSymbols(text) {
   return out;
 }
 
+/**
+ * 从「符号名作链接文字」的链接里取出**被断言存在**的那个名字，取不到返回 null。
+ *
+ * @remarks
+ * 这是 CONVENTIONS 优先级 1 的正体 ``[`symbolName`](path/to/file.ts)``：链接文字声称这个符号
+ * 就在这个文件里，归属**无歧义**——不像散在证据单元里的符号，可能分属同段点名的好几个文件。
+ *
+ * 三类不是断言，不校验：`@aiao/rxdb` 这种包名（指向包内某个文件只是导航）、含 `/` 的路径、
+ * 太短的词。带参签名 `mergeChanges(a, b?)` 取函数名；`Class#member` / `Class.method()` 取末段
+ * ——私有名 `#priv` 走子串匹配照样命中。
+ *
+ * @param {string} text 反引号里的链接文字
+ * @returns {string | null}
+ */
+export function symbolClaim(text) {
+  if (text.startsWith('@') || text.includes('/')) return null;
+  const core = text
+    .replace(/\s*\(.*$/, '')
+    .split(/[#.\s]+/)
+    .filter(Boolean)
+    .pop();
+  return core && core.length >= 3 ? core : null;
+}
+
 /** 另起一个「证据单元」的行首：列表项、有序项、标题、表格行。 */
 const EVIDENCE_BOUNDARY = /^\s*(?:[-*+] |\d+[.)] |#{1,6} |\| )/;
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
@@ -579,6 +617,10 @@ function evidenceContext(lines, index) {
  * - **阻断**：伴随符号一个都不在目标文件里 → 断言引用的东西已经不在那儿了，是假断言；
  * - **告警**：符号在文件里但不在所引区间内（纯行号漂移），或压根没有伴随符号（行号单用）。
  *
+ * 另外单查一类：`[`符号`](路径)` 这种「符号名作链接文字」的形式（见 {@link symbolClaim}）。
+ * 它没有 `#L`，从前整个不在覆盖内——而 CONVENTIONS 恰恰把它定为**首选**写法，等于推荐大家
+ * 写门禁看不见的锚点。它的归属无歧义，所以缺席直接判阻断。
+ *
  * 只看指向源码的锚点；`.md` 之间的 `#L` 引用不在此列。
  *
  * @param {string} root
@@ -601,6 +643,21 @@ export async function checkAnchorEvidence(root) {
     const rel = path.relative(root, file);
     const lines = raw.split('\n');
     const masked = maskCode(raw).split('\n');
+    // 这条检查要读链接**文字**，而 maskCode 会把行内代码的内容抹空——只能清围栏，保住反引号里的符号名。
+    for (const [index, line] of maskFences(raw).split('\n').entries()) {
+      for (const m of line.matchAll(/\[\s*`([^`\n]+)`\s*\]\(([^)\s]+?)\)/g)) {
+        const symbol = symbolClaim(m[1]);
+        const target = m[2].split('#')[0];
+        if (!symbol || /^(https?:|mailto:)/.test(target) || target.endsWith('.md')) continue;
+        let source;
+        try {
+          source = await sourceOf(path.resolve(path.dirname(file), decodeURI(target)));
+        } catch {
+          continue; // 目标不存在由 checkLinks 报
+        }
+        if (!source.text.includes(symbol)) offenders.push(`${rel}:${index + 1}: \`${m[1]}\` 在 ${target} 里不存在`);
+      }
+    }
     for (const [index, line] of masked.entries()) {
       for (const m of line.matchAll(/\]\(([^)\s]+?)(#L(\d+)(?:-L(\d+))?)\)/g)) {
         const target = m[1];
@@ -654,7 +711,7 @@ export async function scanNarrative(root) {
 
 /**
  * @param {{root: string, update?: boolean}} options
- * @returns {Promise<{offenders: string[], warnings: string[], counts: Record<string, number>}>}
+ * @returns {Promise<{offenders: string[], warnings: {narrative: string[], evidence: string[]}, counts: Record<string, number>}>}
  */
 export async function run({ root, update = false }) {
   const stories = await collectStories(root);
@@ -677,12 +734,14 @@ export async function run({ root, update = false }) {
     ...(await checkLinks(root)),
     ...evidence.offenders
   ];
-  const warnings = [
-    ...(await scanNarrative(root)).map(
+  // 两类告警**分开**返回：叙述词是「按文件」计的，锚点漂移是「按处」计的，
+  // 合成一个数组就只能挑一个单位去播报，另一类必然被念错。
+  const warnings = {
+    narrative: (await scanNarrative(root)).map(
       ({ rel, hits }) => `${rel}: ${hits.map(([label, n]) => `${label}×${n}`).join('，')}`
     ),
-    ...evidence.warnings
-  ];
+    evidence: evidence.warnings
+  };
   return { offenders, warnings, counts };
 }
 
@@ -691,9 +750,13 @@ const main = async () => {
   const { offenders, warnings, counts } = await run({ root: process.cwd(), update });
   const summary = `${counts.Done} Done / ${counts['In Progress']} In Progress / ${counts['In Review']} In Review / ${counts.Backlog} Backlog / ${counts.Blocked} Blocked，合计 ${counts.total}`;
 
-  if (warnings.length) {
-    console.warn(`⚠️  ${warnings.length} 个文件含 CONVENTIONS 不允许进正文的过程叙述（不阻塞，逐条烧掉）：`);
-    for (const w of warnings) console.warn(`   ${w}`);
+  if (warnings.narrative.length) {
+    console.warn(`⚠️  ${warnings.narrative.length} 个文件含 CONVENTIONS 不允许进正文的过程叙述（不阻塞，逐条烧掉）：`);
+    for (const w of warnings.narrative) console.warn(`   ${w}`);
+  }
+  if (warnings.evidence.length) {
+    console.warn(`⚠️  ${warnings.evidence.length} 处行号锚点已漂或单用（不阻塞，逐条烧掉）：`);
+    for (const w of warnings.evidence) console.warn(`   ${w}`);
   }
   if (offenders.length) {
     console.error(`❌ requirements 派生视图与 YAML 不一致（${offenders.length} 处）：`);

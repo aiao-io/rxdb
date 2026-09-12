@@ -93,7 +93,7 @@ guard 从"硬编码 adapter 名单"改成"按 backend 能力查表"正是 backen
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-### AC#8 的完成记录（2026-08-31）
+### AC#8 的收尾：按 adapter 参数化的共享套件
 
 放行判定与能力探测两层早已落地，本轮的收尾是把「分别装载并跑同一套搜索行为套件」这半句补上：
 
@@ -177,7 +177,7 @@ FTS5 侧沿用同一模型的另一半：两条 migration 记录**只在全部�
 改成安装期 `await import()`。同一条 spec 还扫描 `backend/pg/*.ts` 的源码，
 钉死运行时模块里不得再出现对该包的静态 `import ... from`。
 
-## 交付记录（2026-08-29）
+## 交付内容
 
 - 新增 `packages/rxdb-plugin-search/src/backend/`：`search-backend.ts`（契约与能力声明）、
   `backend-registry.ts`（adapter 名 → 后端的唯一真相表）、`fts5-backend.ts`（现有 FTS5 逻辑的薄壳）、

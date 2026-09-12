@@ -48,6 +48,23 @@ class TestLocalAdapter implements IRxDBAdapter {
     this.#connectErrors = [...connectErrors];
   }
 
+  /**
+   * 它被注册成 `sync.local` 的适配器，因此必须能跑完 `connect()` 的本地引导。
+   *
+   * @remarks
+   * 两个方法都照 {@link RxDBAdapterLocalBase} 的默认实现取 no-op：不持久化系统 schema、
+   * 没有引导窗的适配器就是这个口径。从前 `connect()` 用 `?.()` 调它们，缺着也能跑绿 ——
+   * 那条静默路径已经换成 `assertLocalAdapterCapabilities` 的显式判定。
+   */
+  migrateSystemSchema(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  /** 见 {@link TestLocalAdapter.migrateSystemSchema} */
+  completeBootstrap(): void {
+    // no-op：这个测试替身没有引导窗
+  }
+
   async connect(): Promise<IRxDBAdapter> {
     this.connectCalls += 1;
     const error = this.#connectErrors.shift();

@@ -35,15 +35,15 @@ INVEST 检查清单:
 来源是 [epic-008](../../epics/epic-008-lifecycle-scope.md) 「现状」表的第 3～9 项。本故事把
 `IRxDBPlugin` 的 `install()` / `destroy()` 两半契约收敛成一半，并迁移仓库内全部四个插件包。
 
-### 直接修掉的两处既有缺陷
+### 直接修掉的三处既有缺陷
 
-**其一，graph 插件的撤销无处可写（已修复）。**
+**其一，graph 插件的撤销无处可写。**
 改造前 `destroy()` 是空的、`install()` 通过 `rxdb.repository()` 写进 `#repository_config_map`，
 而该 Map 只有 `.set` 与 `.get`、**没有任何删除路径**——不是插件作者忘写，是宿主没提供撤销入口。
 现在 [`repository()`](../../../packages/rxdb/src/RxDB.ts) 接受 `scope` 并按配置身份登记撤销，
 graph 的 `install(scope)` 把注册挂进作用域（[plugin.ts:22-38](../../../packages/rxdb-plugin-graph/src/plugin.ts#L22-L38)）。
 
-**其二，storage 插件的获取与释放寿命不同（已修复）。**
+**其二，storage 插件的获取与释放寿命不同。**
 改造前 `Object.defineProperty(rxdb, 'storage', …)` 在**构造器**里、`Reflect.deleteProperty` 在
 `destroy()` 里。构造器只在 `use()` 时跑一次（插件实例被 [`#plugin_map`](../../../packages/rxdb/src/RxDB.ts) 缓存），
 `destroy()` 却每次 `#shutdown()` 都跑——
@@ -56,10 +56,10 @@ graph 的 `install(scope)` 把注册挂进作用域（[plugin.ts:22-38](../../..
 > `destroy()` 会 `await this.storage.destroy()`，只搬属性定义会把**同一个已 destroy 的 storage 实例**
 > 重新装回去。判据见 D7：**构造器只创建插件对象本身，一切按纪元存活的资源都在 `install(scope)` 里获取**。
 
-**其三，workspace 的终态标志挡住了重连（已修复）。** 改造前 `#destroyed` 是终态标志、从不复位，
+**其三，workspace 的终态标志挡住了重连。** 改造前 `#destroyed` 是终态标志、从不复位，
 `readonly #indexedDBStore!: WorkspaceStore` 构造器之后**在类型上就无法重新赋值**。
 现在终态标志被作用域状态取代（[RxDBPluginWorkspace.ts:177-183](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L177-L183) 的注释与字段声明），
-`destroy()` 只是 `#scope?.dispose()`、不再是终态（[:400-404](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L400-L404)）。
+`destroy()` 只是 `#scope?.dispose()`、不再是终态（[RxDBPluginWorkspace.ts:400-404](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L400-L404)）。
 
 这三条的共同形状是同一个：**资源的获取点与释放点寿命不同**。它也是本故事的必要性来源——
 迁到 `install(scope)` 之后，获取与释放天然同寿命，上面三处泄漏一起消失。
@@ -91,7 +91,7 @@ graph 的 `install(scope)` 把注册挂进作用域（[plugin.ts:22-38](../../..
   随实例一起回收，不是泄漏），今天没有归属故事
 - **注册期资源的释放**。`use()` 时挂上的实例属性今天**在物理上就不可撤销**：
   [`searchPlugin`](../../../packages/rxdb-plugin-search/src/plugin.ts) 工厂挂的 `rxdb.searchPlugin` 与
-  [workspace:278-283](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L278) 的 `workspace`
+  [`RxDBPluginWorkspace` 构造器](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts) 里 `Object.defineProperty(rxdb, 'workspace', …)` 挂的 `rxdb.workspace`
   都是 `configurable: false`。要覆盖它们需要先有 `RxDB.destroy()` / `unuse()`——本故事不提供，
   也**不宣称**注册期属性已纳入自动释放（D3）
 - **拆卸错误在 `RxDB` 边界的出口**：`#destroy_plugin()`（实现见 [rxdb.plugin-lifecycle.ts:175-191](../../../packages/rxdb/src/rxdb.plugin-lifecycle.ts#L175-L191)）今天把插件拆卸异常 `console.error` 后吞掉，
@@ -161,7 +161,7 @@ graph 的 `install(scope)` 把注册挂进作用域（[plugin.ts:22-38](../../..
 
 ### 今天的契约（对照用）
 
-[`rxdb-plugin.ts:6-10`](../../../packages/rxdb/src/rxdb-plugin.ts#L6-L10)：
+[`IRxDBPlugin`](../../../packages/rxdb/src/rxdb-plugin.ts)：
 
 ```ts
 export interface IRxDBPlugin {
@@ -175,7 +175,7 @@ export interface IRxDBPlugin {
 
 1. `destroy` 由必选变可选，对**实现者**无破坏（AC#6 成立），但对**调用者**有——
    `RxDB.#destroy_plugin()` 今天写的是 `await plugin.destroy?.()`、**带可选链保护**
-   （[rxdb.plugin-lifecycle.ts:186](../../../packages/rxdb/src/rxdb.plugin-lifecycle.ts#L186)）。**没有它**，
+   （见 [`destroyPlugin()`](../../../packages/rxdb/src/rxdb.plugin-lifecycle.ts)）。**没有它**，
    第一个只写 `install(scope)` 的插件会在拆卸路径上抛 `TypeError`（AC#21）。
 2. 这正是 D4 那个门禁盲区的一次真实实例：`destroy` 从必选变可选，
    基线里的 `{"name": "IRxDBPlugin", "kind": "type"}` 一个字都不变。
@@ -274,7 +274,7 @@ public repository<RT extends RepositoryInstance>(
 
 身份守卫（AC#8）是必需的：只有存储的那份就是调用方传入的那份时才删除，否则
 「A 注册 → B 覆盖注册同名 → A 拆卸」会把 B 的注册误删。同一守卫思路已经在
-[closeTransactionContext](../../../packages/rxdb/src/rxdb.transaction.ts#L29)（按身份从栈中摘除，
+[`closeTransactionContext`](../../../packages/rxdb/src/rxdb.transaction.ts)（按身份从栈中摘除，
 而非假定在栈顶）用过，口径一致。撤销本身用私有方法实现，不进公开表面。
 
 #### D3 — 作用域层级与重连语义
@@ -387,11 +387,11 @@ workspace 的 `readonly #indexedDBStore!: WorkspaceStore` 因此要改为可空�
 
 D7 的第二条判据「改写了宿主的都必须移进 `install(scope)`」写得太宽，落到源码上会撞上 D3：
 
-| 源码位置                                                                                                    | 改写的是什么                     | `configurable` | 随纪元变化？                      |
-| ----------------------------------------------------------------------------------------------------------- | -------------------------------- | -------------- | --------------------------------- |
-| [workspace:278-283](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L278-L283)（构造器） | `rxdb.workspace` = **插件实例**  | `false`        | **否**——实例被 `#plugin_map` 缓存 |
-| [`searchPlugin`](../../../packages/rxdb-plugin-search/src/plugin.ts)（工厂函数）                            | `rxdb.searchPlugin` / `search()` | `false`        | **否**——同上                      |
-| [storage:58-63](../../../packages/rxdb-plugin-storage/src/plugin.ts#L58-L63)（已搬进 `install(scope)`）     | `rxdb.storage` = **服务实例**    | `true`         | **是**——每纪元新建、释放时销毁    |
+| 源码位置                                                                                                | 改写的是什么                     | `configurable` | 随纪元变化？                      |
+| ------------------------------------------------------------------------------------------------------- | -------------------------------- | -------------- | --------------------------------- |
+| [`RxDBPluginWorkspace` 构造器](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts)      | `rxdb.workspace` = **插件实例**  | `false`        | **否**——实例被 `#plugin_map` 缓存 |
+| [`searchPlugin`](../../../packages/rxdb-plugin-search/src/plugin.ts)（工厂函数）                        | `rxdb.searchPlugin` / `search()` | `false`        | **否**——同上                      |
+| [storage:58-63](../../../packages/rxdb-plugin-storage/src/plugin.ts#L58-L63)（已搬进 `install(scope)`） | `rxdb.storage` = **服务实例**    | `true`         | **是**——每纪元新建、释放时销毁    |
 
 前两行按 D7 原文都该搬进 `install(scope)`，但它们是 `configurable: false`，作用域释放时
 `Reflect.deleteProperty` 直接失败；而且搬进去之后第二个纪元重装会撞上
@@ -417,8 +417,9 @@ D7 的第二条判据「改写了宿主的都必须移进 `install(scope)`」写
 而是这条判据的直接结果。
 
 **第 3 条的配套要求**（不能只留不管）：跨纪元恒定的实例属性在作用域释放后仍然可达，
-所以插件必须在**方法入口**上回答「现在没装」——`#destroyed` 终态守卫已换成
-「当前无激活作用域 → 抛既有的同一类错误」（现状见 [workspace:299-301](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L299-L301)）。
+所以每个公开方法都必须自己回答「现在没装」——`#destroyed` 终态守卫已换成
+「当前无激活作用域 → 抛既有的同一类错误」（现状见 [`RxDBPluginWorkspace.flush()`](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts) 的安装判据——
+它刻意放在 `await this.ready` **之后**：纪元可能恰在这次 await 期间释放）。
 语义差别是关键：改造前是**永久**死亡，现在是**本纪元未安装**，重连即恢复（AC#11b）。
 
 #### D9 — 跨纪元存活的公开 Observable（`workspace.changes$`）

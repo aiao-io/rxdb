@@ -115,6 +115,11 @@ export const createLocalAdapter = (initial: LocalRow[] = []): LocalAdapterFixtur
     disconnect: vi.fn(() => Promise.resolve()),
     isTableExisted: vi.fn(() => Promise.resolve(false)),
     createTables: vi.fn(() => Promise.resolve()),
+    // 与 `src/__tests__/integration.spec.ts` 的同名替身同一口径：占 `sync.local` 槽位就得能跑完
+    // `connect()` 的本地引导，两个都取 `RxDBAdapterLocalBase` 的默认 no-op。本套件今天不走
+    // `rxdb.connect('sqlite')`，所以缺着也不会红——正因如此才要补上，别让下一个人踩。
+    migrateSystemSchema: vi.fn(() => Promise.resolve()),
+    completeBootstrap: vi.fn(),
     mutations: vi.fn(() => Promise.resolve([])),
     getRepository,
     // 真适配器在这里排队并开事务；替身同步执行，本套件没有并发窗口要验。
