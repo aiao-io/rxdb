@@ -43,10 +43,11 @@
 > 已 Done（2026-09-01，AC#10 随三 OS 矩阵跑绿关闭，存证记在该故事里），
 > [US-908](stories/future/US-908-devtools-transfer-session-defects.md) 已 Done（2026-09-11，两条缺陷各配一条能控制时序的用例后关闭），四条均已移出本表。
 
-| 故事                                                                           | 为什么不排进批次 1 / 当前状态                                                                                                                                                       |
-| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 阶段 A → B → C | 阶段 A 只抽 host + 写可行性矩阵，**不扩大公开支持声明**；B/C 只吃矩阵里 `decision: supported` 的平台（约束 7）。未关闭的阶段不得改支持声明                                          |
-| [US-907](stories/future/US-907-devtools-manual-regression.md)                  | 五条 AC 全是**人工判据**（US-904 四条走 Chrome + US-906 AC#2 的人工半边走 Electron dev 流程），不改代码。不占开发排期：它消费的全是已交付产物，任何时候有人愿意坐下来跑一遍就能做完 |
+| 故事                                                                           | 为什么不排进批次 1 / 当前状态                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 阶段 A → B → C | 阶段 A 只抽 host + 写可行性矩阵，**不扩大公开支持声明**；B/C 只吃矩阵里 `decision: supported` 的平台（约束 7）。未关闭的阶段不得改支持声明                                                                                                                                                                                                                                                                            |
+| [US-907](stories/future/US-907-devtools-manual-regression.md)                  | 五条 AC 全是**人工判据**（US-904 四条走 Chrome + US-906 AC#2 的人工半边走 Electron dev 流程），不改代码。不占开发排期：它消费的全是已交付产物，任何时候有人愿意坐下来跑一遍就能做完                                                                                                                                                                                                                                   |
+| [US-024](stories/core/US-024-pglite-querycache-row-contract.md)                | [US-022](stories/core/US-022-querycache-remote-row-contract.md) 已在 sqlite-core 侧定下契约与缺列诊断，本条只补 PGlite 半边，**契约本身不改**。`Independent`：只动 pglite 的 upsert 构建器，不依赖任何未关闭故事。开工时先定一次落点——判定函数今天导出自 `@aiao/rxdb-adapter-sqlite-core`，而 pglite 包**不应**依赖它：要么抽到两个 adapter 都已依赖的 `@aiao/rxdb`，要么在包内按同一份规则重实现并用共享套件钉死一致 |
 
 ### 批次 4：epic-006 链（整体压后）
 
@@ -68,10 +69,28 @@
 > [US-505](stories/plugin/US-505-tauri-local-file-storage.md) 与
 > [US-208](stories/adapter/US-208-electron-pglite-data-directory.md) 里。
 
-1. **线 A 启动前先跑 `nx release version --dry-run` 看真实版本号**（线 A 已压后到批次 4，启动时执行）：
-   `v0.0.25` 已脱离主线，`git describe` 解析到的基准 tag 回退成 `v0.0.24`，而 `v0.0.24..main` 区间里有
-   18 条 `feat` + 3 条 `fix`（在 `main` 上量，不在 feature 分支上量；快照数字，启动前重新实测）。两个后果要在动手前确认：桥接版本会算成 minor bump（0.1.0）而不是 0.0.26；
-   且该区间包含已随 0.0.25 发布过的提交，changelog 会把 0.0.25 已发的内容再写一遍，需要决定是否手工裁剪。
+1. **线 A 启动前先跑 `nx release version --dry-run` 看真实版本号**（线 A 已压后到批次 4，启动时执行）。
+   **2026-09-12 已实测一次**（HEAD `f4e0778`，nx 23.2.1），结论比原先预计的更糟，三条都要在动手前复测：
+
+   - **默认推算出来的就是 `0.0.25`——正好是线 A 关闭判据 ① 的禁用值，且 npm 上已被占用。**
+     原先这里预计「会算成 minor bump `0.1.0`」是**错的**：specifier 确实解析成 `minor`，但 nx 的
+     `adjustSemverBumpsForZeroMajorVersion` 默认 `true`，major 为 0 时把 `minor` 降级成 `patch`，
+     于是 `0.0.24 → 0.0.25`。**线 A 必须显式指定版本号**，取值是一次人工决定，但不得为 `0.0.25`。
+     机制与命令见 [release-plan.md 硬前提 2](release-plan.md)。
+   - **`preVersionCommand` 红了就跑不到版本计算**，只报一句 `The pre-version command failed`。
+     实测撞到过 `code-editor-angular:build` 因本机 `node_modules` 残留 codemirror 旧副本而红
+     （lockfile 是干净的，属安装态漂移）；`pnpm install --frozen-lockfile` 会跳过，需要加 `--force`。
+     别把这种红误读成「没有可发布的变更」。
+   - 区间（`v0.0.24..main`，36 条：19 `feat` + 3 `fix`）**包含已随 0.0.25 发布过的内容**，
+     changelog 会再写一遍，需要决定是否手工裁剪。判断「发没发过」**不能看 tag 祖先链**——
+     `v0.0.25` 的 tag 树与已发布产物对不上，唯一可信口径是 `npm pack` 拉产物搜，
+     见 [release-plan.md 版本漂移开项第三条](release-plan.md)。
+   - **同一份 changelog 还会漏报**：`f4e0778 chore(aiao): update deps (#53)` 是一次 squash 合并，
+     标题写升级依赖，实际带走的是 [US-908](stories/future/US-908-devtools-transfer-session-defects.md)
+     的**两条缺陷修复**与 [US-906](stories/future/US-906-electron-devtools-developer-path.md) 的交付。
+     标题是 `chore`，这两条 `fix` 既不贡献 bump 也不进 Bug Fixes；区间里被识别出的 3 条 `fix` 全是 8 月的
+     CI 与打包修复。该提交已推送**不得重写**，只能在 changelog 生成后人工补写。
+     **多报和漏报要一起过**，细则见 [release-plan.md 硬前提 2](release-plan.md) 的 ② 与 ④。
 
 ### 明确不排期
 
@@ -138,6 +157,20 @@
 12. **US-018 不得与线 A 的桥接版本同批发。** 一个「不改 schema、只做迁移锚点」的桥接版本带着
     `BREAKING CHANGE` 是错误的对外信号。US-018 排在桥接版本**之后**单独发。**本条不随 US-018 关闭而失效**：
     线 A 发布前必须先确认这批破坏性改动不在同一发布区间内——判据是发布区间的提交范围，不是故事状态。
+
+    **2026-09-12 实测状态：本条今天处于「已触发、待人工决定」，不要当成自动满足。** 两个事实同时成立：
+    ① US-018 的破坏性实现（`unsupportedDefaultFactory`）落在 `a63321c`，**在 `v0.0.24..main` 区间内**，
+    按本条的字面判据（发布区间的提交范围）即为触发；
+    ② 但它**已经随 `0.0.25` 的产物发出去了**——`npm pack @aiao/rxdb-client-generator@0.0.25` 拉下来的包里
+    含该实现。注意 `git merge-base --is-ancestor a63321c v0.0.25^{commit}` 为 **false**，据此会得出
+    「尚未发布」的**错误**结论，原因是 tag 树与已发布产物对不上（见
+    [release-plan.md 版本漂移开项第三条](release-plan.md)）。
+
+    也就是说「桥接版本会把破坏性改动首次推给用户」这个原始担忧**已不成立**（用户手上的 `0.0.25` 早就有了），
+    但 changelog 仍会把它当成新变更宣告一次。**需要 owner 在线 A 启动时三选一并留证**：
+    裁剪 changelog 中的该条目 / 接受重复宣告并在 release note 里说明它实际随 0.0.25 已发 /
+    把该提交移出发布区间。**不得**以「tag 祖先链显示未发布」为由跳过这次决定。
+
 13. **US-213 暴露的协议缺陷不在该故事内修。** 若参考后端按文档逐字实现后暴露出协议本身不自洽，US-213
     MUST NOT 改 `src/`、也 MUST NOT 改参考后端去迁就客户端。处置是：该用例标 `it.fails` 或单列
     `describe.skip`，在故事里记为「协议缺陷 → 另开 US」，由新故事带着自己的 breaking-change 与迁移表走

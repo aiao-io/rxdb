@@ -261,6 +261,50 @@ export function updateReadme(text, counts) {
   return text.replace(README_DELIVERED, `[${counts.Done}/${counts.total} 已交付]`);
 }
 
+const ROADMAP_OPEN_COUNT = /仓库还剩 \*\*(\d+) 条\*\*未关闭故事（(\d+) In Progress \+ (\d+) In Review \+ (\d+) Backlog/;
+
+/**
+ * 校验 `roadmap.md`：未关闭故事的条数与分项，以及**每条未关闭故事都在排期里露过面**。
+ *
+ * 后者是这份审计最容易漏的一类：故事的 frontmatter、status-overview 索引、epic 反链可以全对，
+ * 它却在 roadmap 的批次表与「明确不排期」里一次都没出现——于是谁也不知道它该什么时候做。
+ * US-024 就是这么漏了一个月的。只查「出现过」不查「在哪个批次」：排期归属是人的判断，
+ * 但「压根没提」一定是漏，而漏了可以机器判。
+ *
+ * @param {string} text roadmap.md 全文
+ * @param {Array<{id: string, fm: Record<string, string>}>} stories
+ * @returns {string[]}
+ */
+export function checkRoadmap(text, stories) {
+  const offenders = [];
+  const counts = countStatuses(stories);
+  const open = counts.total - counts.Done;
+  const m = ROADMAP_OPEN_COUNT.exec(text);
+  if (!m) offenders.push('roadmap.md: 找不到「仓库还剩 **N 条**未关闭故事（a In Progress + b In Review + c Backlog」');
+  else {
+    const expected = [open, counts['In Progress'], counts['In Review'], counts.Backlog];
+    const labels = ['未关闭合计', 'In Progress', 'In Review', 'Backlog'];
+    for (const [i, want] of expected.entries()) {
+      if (Number(m[i + 1]) !== want) offenders.push(`roadmap.md: 「${labels[i]}」写 ${m[i + 1]}，YAML 推导为 ${want}`);
+    }
+  }
+  for (const { id, fm } of stories) {
+    if (fm.status === 'Done') continue;
+    if (!new RegExp(`\\b${escapeRegex(id)}\\b`).test(text))
+      offenders.push(`roadmap.md: ${id}（${fm.status}）未关闭，却没有排进任何批次、也不在「明确不排期」里`);
+  }
+  return offenders;
+}
+
+/** @param {string} text @param {Record<string, number>} counts */
+export function updateRoadmap(text, counts) {
+  const open = counts.total - counts.Done;
+  return text.replace(
+    ROADMAP_OPEN_COUNT,
+    `仓库还剩 **${open} 条**未关闭故事（${counts['In Progress']} In Progress + ${counts['In Review']} In Review + ${counts.Backlog} Backlog`
+  );
+}
+
 /**
  * 读取全部 epic：frontmatter `status` 与正文里链接到的 story id。
  *
@@ -719,10 +763,12 @@ export async function run({ root, update = false }) {
   const counts = countStatuses(stories);
   const overviewPath = path.join(root, 'requirements', 'status-overview.md');
   const readmePath = path.join(root, 'README.md');
+  const roadmapPath = path.join(root, 'requirements', 'roadmap.md');
 
   if (update) {
     await writeFile(overviewPath, updateStatusOverview(await readFile(overviewPath, 'utf8'), counts));
     await writeFile(readmePath, updateReadme(await readFile(readmePath, 'utf8'), counts));
+    await writeFile(roadmapPath, updateRoadmap(await readFile(roadmapPath, 'utf8'), counts));
   }
 
   const evidence = await checkAnchorEvidence(root);
@@ -730,6 +776,7 @@ export async function run({ root, update = false }) {
     ...checkFrontmatter(stories, new Set(epics.map(e => e.id))),
     ...checkStatusOverview(await readFile(overviewPath, 'utf8'), stories),
     ...checkReadme(await readFile(readmePath, 'utf8'), counts),
+    ...checkRoadmap(await readFile(roadmapPath, 'utf8'), stories),
     ...checkEpics(epics, stories),
     ...(await checkLinks(root)),
     ...evidence.offenders

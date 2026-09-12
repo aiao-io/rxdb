@@ -9,19 +9,37 @@
   不得移动或重打，也**不能再作为 [US-305](stories/collaboration/US-305-commit-graph-head.md) 的 migration bridge**。
 - 因此下一次 schema migration 之前，**必须先从届时的发布主线重新发布一个 `kind=bridge` 的非迁移版本**。
   实际 tag/version 由 release manifest 冻结，不在需求里预猜。
-- 已发布的 `@aiao/rxdb@0.0.25` 在报假版本号，见下方[版本漂移开项](#开项0025-遗留的两条版本漂移)。
+- 已发布的 `@aiao/rxdb@0.0.25` 在报假版本号，且 `v0.0.25` 的 tag 树与已发布产物**内容对不上**，
+  见下方[版本漂移开项](#开项0025-遗留的三条版本漂移)。
+- **自动生成的 changelog 会同时多报和漏报，必须人工过一遍**：既会把 0.0.25 已发过的内容再写一遍，
+  也会漏掉被 squash 进 `chore(aiao): update deps (#53)` 的 US-908 两条缺陷修复。见硬前提 2 的 ② 与 ④。
 - 按 [roadmap](roadmap.md) 排期，桥接发布已随 epic-006 链**整体压后到批次 4**；本计划在启动线 A 时执行，
   动手前重跑下方「硬前提 2」的当前状态实测。
 
-## 开项：0.0.25 遗留的两条版本漂移
+## 开项：0.0.25 遗留的三条版本漂移
 
-**源码已修，已发布产物无法修。** 两条都源自 0.0.25 的版本 bump 只改了 `package.json`，一度让 `pnpm test-all` 变红：
+前两条**源码已修，已发布产物无法修**，都源自 0.0.25 的版本 bump 只改了 `package.json`，一度让 `pnpm test-all` 变红：
 
 - `packages/rxdb/src/version.ts` 的 `RXDB_VERSION` 停在 `'0.0.24'`——**已发布的 `@aiao/rxdb@0.0.25` 在报假版本**；
 - `packages/code-editor-angular` 的 peer `"@aiao/code-editor": ">=0.0.24"` 下界低于工作区版本。
 
 两条各自都已有断言在守，**断言没坏，是没人跑绿就发了版**。源码已改、两个 project 恢复全绿；
 但 npm 上的 0.0.25 产物改不了，`rxdb.version` 报错版本这件事要写进下一次发布的 release note。
+
+第三条是**判据层面**的，比前两条更容易误导人：
+
+- **`v0.0.25` 这个 tag 指向的树，和 npm 上实际发布的 `0.0.25` 产物对不上**。tag 落在
+  `b31c7e2`（2026-08-14），而发布是从一个**晚得多**的工作树跑的 `pnpm publish`。
+  2026-09-12 实测两组对照：① 已发布的 `@aiao/rxdb-client-generator@0.0.25` 产物里**含**
+  `unsupportedDefaultFactory`（[US-018](stories/core/US-018-generator-default-serialization.md) 的
+  `BREAKING CHANGE` 实现），而 `git show v0.0.25^{commit}:…RxDBClientGenerator.utils.ts` 里**没有**；
+  ② 已发布的 `@aiao/rxdb@0.0.25` 产物 `package.json` 写 `0.0.25`、打包进去的 `RXDB_VERSION` 却是
+  `"0.0.24"`——正是上面第一条漂移的现场。
+- **后果是一条判据纪律：本仓库「某个改动发没发过」不能用 tag 祖先链判断**
+  （`git merge-base --is-ancestor <commit> v0.0.25^{commit}` 会给出错误的否定答案），
+  也不能用提交日期推断。唯一可信的口径是 **`npm pack` 把产物拉下来在里面搜**。
+  这条对裁剪桥接版本 changelog（硬前提 2 的后果 ②）与核对[排期约束 12](roadmap.md#排期约束) 都直接适用。
+- 这条**无法修复、只能记住**：不得为了让 tag 与产物对上而重打或移动 `v0.0.25`。
 
 ## 下一次发布：重新打一个桥接版本
 
@@ -50,8 +68,16 @@
    直接报 `bridge releases cannot upgrade system schema or change codec`。所以随这一版发布的功能
    **不能动** `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION`。若那个功能必须升 schema，
    它得排到桥接版本**之后**单独发——否则就会掉进「migration 需要先有 bridge tag，而 bridge tag 又被这次升级污染」的死锁。
-2. **版本号是算出来的，不是选的**。`conventionalCommits: true` 且 `nx.json` 未自定义类型映射，
-   走 nx 23.1.1 的 `DEFAULT_CONVENTIONAL_COMMITS_CONFIG`：**只有 `feat:` → minor、`fix:` → patch，
+
+   **当前状态实测（2026-09-12，HEAD `f4e0778`）：这条今天是成立的，不必额外动作。**
+   两个常量在 `v0.0.24` 与 `main` 上同为 `RXDB_SYSTEM_SCHEMA_VERSION = 3` / `RXDB_CHANGE_CODEC_VERSION = 1`，
+   `git log v0.0.24..main -S"RXDB_SYSTEM_SCHEMA_VERSION = " -- packages/rxdb/src/system/migration.ts`
+   与 codec 那条的对应命令**均为空**。启动线 A 前按同样两条命令复测一次即可——只要它们仍为空，
+   清单里的 `systemSchemaUpgrade` / `changeCodecUpgrade` 就该保持 `false`。
+
+2. **版本号是算出来的，不是选的**。`conventionalCommits: true`，`nx.json` 只自定义了 `cleanup` /
+   `__INVALID__` 两个类型（均 `semverBump: none`），其余走 nx 23.2.1 的
+   `DEFAULT_CONVENTIONAL_COMMITS_CONFIG`：**只有 `feat:` → minor、`fix:` → patch，
    其余全部 `none`**（`perf` / `refactor` / `docs` / `build` / `types` / `chore` / `examples` / `test` / `style`）。
    两个推论：
 
@@ -59,19 +85,59 @@
      这也意味着算出来的版本号反映的是**提交信息的形态，不是改动的份量**——0.0.25 就是一个全新可发布包
      以 patch 发出去的例子，changelog 上看不出来。
    - 若要指定版本号，需显式传参覆盖推算结果。无论取哪个，**清单、tag、`packages/rxdb/package.json` 三处必须同为那个实际值**。
-   - **当前状态实测（在 `main` 上量，HEAD `780c1ab`）**：`v0.0.25` 已脱离主线，
-     `git describe --tags --abbrev=0` 解析到的基准 tag 因此**回退成 `v0.0.24`**。
+   - **当前状态实测（2026-09-12 跑 `pnpm nx release version --dry-run`，在 `main` 上量，HEAD `f4e0778`，nx 23.2.1）**：
+     `v0.0.25` 已脱离主线，`git describe --tags --abbrev=0` 解析到的基准 tag 因此**回退成 `v0.0.24`**。
      **区间必须在 `main` 上量，不能在 feature 分支上量**：tag 只打在 `main`，`nx release` 的输入是 `main`
      的提交；feature 分支上的 `123` 这类中间提交经 squash 后不进 `main`，PR 标题才是留下的那一条。
-     `v0.0.24..main` 共 34 条提交：**18 条 `feat` + 3 条 `fix`**，4 条 `cleanup(...)` 是非标准类型、nx 记 `none`，
+     `v0.0.24..main` 共 36 条提交：**19 条 `feat` + 3 条 `fix`**，4 条 `cleanup(...)` 记 `none`，
      其余为 `chore` / `docs`。三个后果必须在动手前确认：
-     ① 桥接版本会算成 **minor bump（`0.1.0`）而不是 `0.0.26`**——只要区间里有一条 `feat` 就成立，不会自己变回 patch；
-     ② 该区间**包含已随 0.0.25 发布过的提交**（`feat(rxdb): 完善桌面端访问本地 sqlite 的能力`、
-     `feat(rxdb): 优化字段语义与前端通信契约` 等），**changelog 会把 0.0.25 已发的内容再写一遍**，需人工裁剪；
+
+     ① **默认推算结果是 `0.0.25`，正好是禁用值，且 npm 上已被占用——不能直接用**。
+     dry-run 的原话是「Resolved the specifier as "minor" … Applied semver relative bump "minor" …
+     to get new version **0.0.25**」：specifier 确实是 `minor`，但 nx 的
+     `adjustSemverBumpsForZeroMajorVersion` **默认为 `true`**
+     （`nx/dist/src/command-line/release/config/config.js` 的 `?? true`），major 为 0 时把
+     `minor` 降级成 `patch`、`major` 降级成 `minor`，于是 `0.0.24 --minor--> 0.0.25` 而**不是 `0.1.0`**。
+     两个后果叠在一起：该值撞上[线 A 关闭判据 ①](roadmap.md#批次-4epic-006-链整体压后)的
+     `release.version ≠ 0.0.25`，且 `@aiao/rxdb@0.0.25` **已在 registry 上**（`npm view @aiao/rxdb versions` 实测），
+     `pnpm publish` 会以版本重复被拒。**所以线 A 必须显式指定版本号**（`nx release version <显式版本>`），
+     不能听任推算；取 `0.0.26` 还是 `0.1.0` 是一次人工决定，但**不得**是 `0.0.25`。
+     若改用 `adjustSemverBumpsForZeroMajorVersion: false` 让它算成 `0.1.0`，那是改全仓库版本策略、影响此后每一次发布，
+     属独立决定，不要顺手夹在桥接发布里做。
+
+     ② 该区间**包含已随 0.0.25 发布过的内容**，**changelog 会把 0.0.25 已发的东西再写一遍**，需人工裁剪。
+     注意这里不能按 tag 祖先链判断「发没发过」，原因见上方[版本漂移开项](#开项0025-遗留的三条版本漂移)的第三条。
+
      ③ `cleanup(...)` 已加进 `nx.json` 的 `release.conventionalCommits.types`：`semverBump: none`、changelog 单列一节，
      这 4 条对版本号仍贡献为零但不再从 changelog 消失；`__INVALID__`（非规范标题）同样只进 changelog 不 bump。
-     先跑 `pnpm nx release version --dry-run` 看真实输出再决定，
-     见 [roadmap 零散收尾项第 1 条](roadmap.md#零散收尾项不成故事随手可带)。
+
+     ④ **反过来还有「漏报」：真活被埋在错标题下，changelog 里一个字都不会有**。已推送的
+     `f4e0778 chore(aiao): update deps (#53)` 是一次 squash 合并，标题写的是升级依赖，实际带走的是
+     2026-09-11 夜里（原始提交 `83b5e0d`，标题 `12312323123`，仍可在 `origin/next-0910` 上查到）交付的
+     [US-908](stories/future/US-908-devtools-transfer-session-defects.md) **两条缺陷修复**——
+     `packages/rxdb-devtools/src/v2/transfer.ts` 的 `cancel()` 排空在途写入、`apps/dev-rxdb-electron` 的
+     `pagehide → dispose()`——外加 [US-906](stories/future/US-906-electron-devtools-developer-path.md) 的交付、
+     三份新测试与 `scripts/audit/requirements-consistency.mjs`。因为标题是 `chore`，
+     **这两条 `fix` 既不贡献 bump，也不会出现在 changelog 的 Bug Fixes 里**；实测该区间被识别出的 3 条 `fix`
+     （`2bc4f6a` / `5e129fc` / `5044dad`）全是 8 月的 CI 与打包修复，**与昨夜这两条无关**。
+     `f4e0778` 已在 `origin/main` 上，**不得重写**——只能在 changelog 生成后**人工补写**这两条。
+     ② 是多报、④ 是漏报，定稿前两边都要人工过一遍；判断某条到底发没发过，仍按上方开项第三条只认 `npm pack`。
+
+     ⑤ **非规范标题会以 `__INVALID__` 原样进 changelog，且本仓库在持续产生新的。**
+     2026-09-12 一个下午就产生了 3 条（`2132` / `22` / `21313`，15:39～16:19，均为并发会话把本文件的
+     编辑顺手提交所致），且**每写完一次核对结论就又多一条**。所以这里不列清单——
+     **这不是一次性清理，而是每次推送前必跑的例行检查**——
+     未推送的可以 `git commit --amend` 只改信息、不动树，已推送的（如 `f4e0778`）没有这个机会。
+     推送前跑：
+     `git log --format='%h %s' v0.0.24..main | grep -vE ' (feat|fix|chore|docs|refactor|test|perf|build|ci|style|revert|cleanup)(\(.*\))?!?:'`
+     应当无输出。
+
+   - **`preVersionCommand` 会先跑 `nx run-many -t build --projects='packages/*'`，它红了 dry-run 就跑不到版本计算那一步**，
+     报错只有一句 `The pre-version command failed`。2026-09-12 实测撞到过一次：`code-editor-angular:build` 因
+     `node_modules` 里残留 `@codemirror/state@6.7.2` / `@codemirror/view@6.43.10` 的旧副本而报 TS2322
+     （lockfile 里只有 6.7.4 / 6.43.11，是**本机安装态漂移**，不是仓库缺陷；`chore: update deps` 之后没重装就会这样）。
+     `pnpm install --frozen-lockfile` 会判定「已是最新」直接跳过，**必须 `pnpm install --frozen-lockfile --force`** 才会重建链接。
+     动手前确认 dry-run 真的输出了版本号，别把 pre-version 的红当成「没有可发布的变更」。
 
 ### 执行顺序
 
@@ -102,11 +168,17 @@
    所以必须卡在「版本已定、tag 未打」之间更新：
 
    ```bash
-   pnpm nx release version --git-commit=false --git-tag=false   # 只改 package.json，不提交不打 tag
+   # 先看推算结果；按硬前提 2 的实测，默认会算出 0.0.25——禁用值，且 npm 上已被占用
+   pnpm nx release version --dry-run
+
+   # 因此这一步必须显式传版本号（<新版本> 不得为 0.0.25）
+   pnpm nx release version <新版本> --git-commit=false --git-tag=false   # 只改 package.json，不提交不打 tag
    # 读 packages/rxdb/package.json 的 version，据此更新清单
    ```
 
    `v0.0.24` 就是栽在这一步：包版本停在 `0.0.24`，清单已经写成 `0.0.25`，两者从未对齐。
+   **显式版本号不是可选项**：听任推算会得到 `0.0.25`，第 4 步的门禁拦不住它（`release.version` 与 tag
+   自洽即可通过），真正报错要等到第 5 步之后手工 `pnpm publish` 时被 registry 以版本重复拒掉。
 
 3. **更新清单**：`requirements/migration-release.json` 的 `release.version` 填上一步实际得到的版本号，
    `release.kind` 确认为 `bridge`。`bridge.tag` / `bridge.version` 保持 `null`——
