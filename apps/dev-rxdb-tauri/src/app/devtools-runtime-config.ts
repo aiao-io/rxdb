@@ -22,15 +22,21 @@
  */
 export const DEVTOOLS_RUNTIME_CONFIG_KEY = '__aiaoRxdbDevToolsConfig__';
 
+/** provider 源档位的两个取值，与 Rust `PROVIDER_SOURCES` 逐字一致。 */
+export type DevToolsProviderSource = 'real' | 'fake';
+
+/** snapshot 场景档位的四个取值，与 Rust `SNAPSHOT_SCENARIOS` 逐字一致。 */
+export type DevToolsSnapshotScenario = 'ok' | 'busy' | 'expired' | 'too_large';
+
 /** wa-sqlite 后端/VFS 强制档的三个取值，与 Rust `FORCE_VFS_VALUES` 逐字一致。 */
 export type DevToolsForcedVfs = 'opfs' | 'idb' | 'unavailable';
 
 /** 档位配置的页内形状（serde camelCase 后的 `DevToolsRuntimeConfig`）。 */
 export interface DevToolsTierConfig {
   /** provider 源档位：real 走桌面真实后端，fake 走 `fake-provider-gear.ts` 的假集合。 */
-  readonly providerSource?: 'real' | 'fake';
+  readonly providerSource?: DevToolsProviderSource;
   /** snapshot 场景档位：只配 providerSource=fake 合法（Rust 侧校验）。 */
-  readonly snapshotScenario?: 'ok' | 'busy' | 'expired' | 'too_large';
+  readonly snapshotScenario?: DevToolsSnapshotScenario;
   /** wa-sqlite VFS 强制档：只配 providerSource=real 合法（Rust 侧校验）。 */
   readonly forceVfs?: DevToolsForcedVfs;
 }

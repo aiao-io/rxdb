@@ -61,4 +61,21 @@ describe('DevTools 授权档的页内读取', () => {
 
     delete (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY];
   });
+
+  it('把注入的档位原样带出（providerSource / snapshotScenario / forceVfs）', () => {
+    (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY] = Object.freeze({
+      providerSource: 'fake',
+      snapshotScenario: 'busy',
+      forceVfs: 'idb'
+    });
+
+    // 档位三个键在连接器选项上同名，翻译只发生在授权两个键上。
+    expect(devToolsRuntimeConfig()).toEqual({
+      providerSource: 'fake',
+      snapshotScenario: 'busy',
+      forceVfs: 'idb'
+    });
+
+    delete (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY];
+  });
 });

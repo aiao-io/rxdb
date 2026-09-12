@@ -28,6 +28,7 @@
       "@aiao/rxdb": ["./packages/rxdb/src/index.ts"],
       "@aiao/rxdb-devtools": ["./packages/rxdb-devtools/src/index.ts"],
       "@aiao/rxdb-devtools/testing": ["./packages/rxdb-devtools/src/testing.ts"],
+      "@aiao/rxdb-devtools/testing-providers": ["./packages/rxdb-devtools/src/testing-providers.ts"],
       "@aiao/rxdb-adapter-electron": ["./packages/rxdb-adapter-electron/src/index.ts"],
       "@aiao/rxdb-adapter-electron/host": ["./packages/rxdb-adapter-electron/src/host.ts"],
       "@aiao/rxdb-adapter-tauri": ["./packages/rxdb-adapter-tauri/src/index.ts"],
