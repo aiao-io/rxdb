@@ -44,15 +44,39 @@ class QcUnitMember extends EntityBase {
   teamId!: string;
 }
 
+/**
+ * 只有主键、没有任何其他列的实体。
+ *
+ * @remarks
+ * 专供「无可更新列 → DO NOTHING」那条用例：`EntityBase` 的子类永远带
+ * `createdAt` / `updatedAt`，一行带齐必填列之后必然有可更新列，走不到 DO NOTHING 那一支；
+ * 而故意不带它们的行会先被列契约（US-024）拦下，同样到不了语句生成。
+ * 所以这里不继承 `EntityBase`，自己声明主键。
+ */
+@Entity({
+  name: 'QcUnitIdOnly',
+  tableName: 'qc_unit_id_only',
+  properties: [{ name: 'id', type: PropertyType.uuid, primary: true, readonly: true }]
+})
+class QcUnitIdOnly {
+  id!: string;
+}
+
+/** 远端行必带的 `EntityBase` 非空列（US-024 的列契约）。 */
+const baseColumns = {
+  createdAt: '2026-08-01T00:00:00.000Z',
+  updatedAt: '2026-08-02T00:00:00.000Z'
+};
+
 const targetOf = (EntityClass: EntityType): QueryCacheTarget => {
   const metadata = getEntityMetadata(EntityClass);
-  return { metadata, tableName: getTableNameByMetadata(metadata), idColumn: 'id' };
+  return { entityName: metadata.name, metadata, tableName: getTableNameByMetadata(metadata), idColumn: 'id' };
 };
 
 describe('PGL-012 buildQueryCacheUpsertStatements', () => {
   it('列名走 propertyMap，值全部参数化', async () => {
     const statements = await buildQueryCacheUpsertStatements(targetOf(QcUnitMember), [
-      { id: 'm1', nickName: '阿花', score: 9 }
+      { ...baseColumns, id: 'm1', nickName: '阿花', score: 9, teamId: 't1' }
     ]);
 
     expect(statements).toHaveLength(1);
@@ -70,7 +94,7 @@ describe('PGL-012 buildQueryCacheUpsertStatements', () => {
 
   it('外键列名也走 relation 映射', async () => {
     const statements = await buildQueryCacheUpsertStatements(targetOf(QcUnitMember), [
-      { id: 'm1', nickName: '阿花', teamId: 't1' }
+      { ...baseColumns, id: 'm1', nickName: '阿花', teamId: 't1' }
     ]);
 
     expect(statements[0].sql).toContain('"team_id"');
@@ -80,9 +104,9 @@ describe('PGL-012 buildQueryCacheUpsertStatements', () => {
 
   it('异构行按各自的列集合分组，互不截断', async () => {
     const statements = await buildQueryCacheUpsertStatements(targetOf(QcUnitMember), [
-      { id: 'm1', nickName: '只有名字' },
-      { id: 'm2', nickName: '有分数', score: 5 },
-      { id: 'm3', nickName: '也只有名字' }
+      { ...baseColumns, id: 'm1', nickName: '只有名字', teamId: 't1' },
+      { ...baseColumns, id: 'm2', nickName: '有分数', score: 5, teamId: 't1' },
+      { ...baseColumns, id: 'm3', nickName: '也只有名字', teamId: 't1' }
     ]);
 
     // 两种列集合 → 两条语句；同列集合的两行合并进同一条
@@ -94,7 +118,7 @@ describe('PGL-012 buildQueryCacheUpsertStatements', () => {
   });
 
   it('无可更新列时发 DO NOTHING，绝不生成空的 DO UPDATE SET', async () => {
-    const statements = await buildQueryCacheUpsertStatements(targetOf(QcUnitMember), [{ id: 'm1' }]);
+    const statements = await buildQueryCacheUpsertStatements(targetOf(QcUnitIdOnly), [{ id: 'm1' }]);
 
     expect(statements).toHaveLength(1);
     expect(statements[0].sql).toContain('ON CONFLICT ("id") DO NOTHING');
@@ -102,27 +126,37 @@ describe('PGL-012 buildQueryCacheUpsertStatements', () => {
   });
 
   it('有可更新列时排除主键列，其余走 EXCLUDED', async () => {
-    const statements = await buildQueryCacheUpsertStatements(targetOf(QcUnitMember), [{ id: 'm1', nickName: '阿花' }]);
+    const statements = await buildQueryCacheUpsertStatements(targetOf(QcUnitMember), [
+      { ...baseColumns, id: 'm1', nickName: '阿花', teamId: 't1' }
+    ]);
 
-    expect(statements[0].sql).toContain('ON CONFLICT ("id") DO UPDATE SET "nick_name" = EXCLUDED."nick_name"');
+    expect(statements[0].sql).toContain('ON CONFLICT ("id") DO UPDATE SET ');
+    expect(statements[0].sql).toContain('"nick_name" = EXCLUDED."nick_name"');
     expect(statements[0].sql).not.toContain('"id" = EXCLUDED."id"');
   });
 
   it('未知键 fail-fast，指名实体与该键', async () => {
-    await expect(buildQueryCacheUpsertStatements(targetOf(QcUnitMember), [{ id: 'm1', bogus: 1 }])).rejects.toThrow(
-      /QcUnitMember[\s\S]*bogus|bogus[\s\S]*QcUnitMember/
-    );
+    // 行先带齐必填列：否则列契约（US-024）会在键名白名单之前抛错，这条用例就测不到未知键
+    await expect(
+      buildQueryCacheUpsertStatements(targetOf(QcUnitMember), [
+        { ...baseColumns, id: 'm1', nickName: '阿花', teamId: 't1', bogus: 1 }
+      ])
+    ).rejects.toThrow(/QcUnitMember[\s\S]*bogus|bogus[\s\S]*QcUnitMember/);
   });
 
   it('注入形状的键不会被拼进 SQL', async () => {
     const injected = `x") VALUES ('pwned') --`;
     await expect(
-      buildQueryCacheUpsertStatements(targetOf(QcUnitMember), [{ id: 'm1', [injected]: 1 }])
-    ).rejects.toThrow();
+      buildQueryCacheUpsertStatements(targetOf(QcUnitMember), [
+        { ...baseColumns, id: 'm1', nickName: '阿花', teamId: 't1', [injected]: 1 }
+      ])
+    ).rejects.toThrow(/QcUnitMember/);
   });
 
   it('关系另一端的实体同样按自己的 metadata 生成语句', async () => {
-    const statements = await buildQueryCacheUpsertStatements(targetOf(QcUnitTeam), [{ id: 't1', teamName: '一队' }]);
+    const statements = await buildQueryCacheUpsertStatements(targetOf(QcUnitTeam), [
+      { ...baseColumns, id: 't1', teamName: '一队' }
+    ]);
 
     expect(statements[0].sql).toContain('INSERT INTO "public"."qc_unit_teams"');
     expect(statements[0].sql).toContain('"team_name"');
@@ -131,7 +165,8 @@ describe('PGL-012 buildQueryCacheUpsertStatements', () => {
 
   it('物理列名写法也被接受（远端 select(*) 的返回形态）', async () => {
     const statements = await buildQueryCacheUpsertStatements(targetOf(QcUnitMember), [
-      { id: 'm1', nick_name: '列名写法' }
+      // `createdAt` / `updatedAt` 没写 columnName，物理列名与属性名同形
+      { ...baseColumns, id: 'm1', nick_name: '列名写法', team_id: 't1' }
     ]);
 
     expect(statements[0].sql).toContain('"nick_name"');

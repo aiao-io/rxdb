@@ -9,6 +9,15 @@ import { getTableNameByMetadata, RxdbAdapterPGliteError } from '../pglite.utils.
  * 拿到的只有实体名和远端行，物理表名、schema、主键列名全部要从 metadata 推出来。
  */
 export interface QueryCacheTarget {
+  /**
+   * `QueryCacheRepository` 传入的**原始**实体名，含可能的 `namespace:` 限定前缀。
+   *
+   * @remarks
+   * 诊断消息一律用它而不是 `metadata.name`：读者要拿这个名字回去比对自己的同步配置，
+   * 而 `metadata.name` 已经把限定前缀丢了 —— 同名实体配在多个 namespace 下时，
+   * 报出来的名字会指不回任何一处配置。
+   */
+  entityName: string;
   /** 命中的实体元数据 */
   metadata: EntityMetadata;
   /** 完全限定且已转义的表名，如 `"shop"."qc_shop_items"` */
@@ -60,6 +69,7 @@ export const resolveQueryCacheTarget = (rxdb: RxDB, entityName: string): QueryCa
 
   const metadata = [...matches.values()][0];
   return {
+    entityName,
     metadata,
     tableName: getTableNameByMetadata(metadata),
     idColumn: resolvePrimaryColumn(metadata, entityName)

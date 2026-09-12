@@ -199,24 +199,29 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     });
   }
 
-  /** QueryCache upsert。未知键 fail-fast。 */
+  /**
+   * QueryCache upsert。未知键与缺必填列一律 fail-fast。
+   *
+   * @remarks
+   * 解析与建语句都在 `this.transaction(...)` **之外**完成（US-024）：这两步只读 metadata，
+   * 放进事务里只会为一个注定要回滚的批次开一次事务，而列契约的诊断本就该在
+   * 「有没有开始写」之前给出 —— 读者看到错误时数据库连 `BEGIN` 都没发过，
+   * 「一行都没有落地」这句话才是能自证的。
+   */
   upsertMany<T>(entityName: string, data: T[]): Observable<void> {
     return defer(() => {
       if (data.length === 0) {
         return of(undefined);
       }
+      const target = resolveQueryCacheTarget(this.rxdb, entityName);
       return from(
-        this.transaction(async executor => {
-          const target = resolveQueryCacheTarget(this.rxdb, entityName);
-          const statements = await buildQueryCacheUpsertStatements(
-            target,
-            data as readonly object[],
-            this.encryptionContext
-          );
-          for (const statement of statements) {
-            await executor.query(statement.sql, statement.params);
-          }
-        }, false).then(() => undefined)
+        buildQueryCacheUpsertStatements(target, data as readonly object[], this.encryptionContext).then(statements =>
+          this.transaction(async executor => {
+            for (const statement of statements) {
+              await executor.query(statement.sql, statement.params);
+            }
+          }, false).then(() => undefined)
+        )
       );
     });
   }

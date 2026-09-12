@@ -49,6 +49,14 @@
     "Todo": "function",
     "TypeDemo": "function"
   },
+  "./query-cache-contract": {
+    "QcContractBlob": "function",
+    "QcContractMapped": "function",
+    "QcContractMember": "function",
+    "QcContractRecipe": "function",
+    "QcContractTeam": "function",
+    "runQueryCacheRowContractSuite": "function"
+  },
   "./shop": {
     "Attribute": "function",
     "AttributeValue": "function",

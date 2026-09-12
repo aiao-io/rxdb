@@ -60,6 +60,15 @@ import {
   type TodoStaticTypes
 } from '@aiao/rxdb-test/entities';
 import {
+  QcContractBlob,
+  QcContractMapped,
+  QcContractMember,
+  QcContractRecipe,
+  QcContractTeam,
+  runQueryCacheRowContractSuite,
+  type QueryCacheRowContractImpl
+} from '@aiao/rxdb-test/query-cache-contract';
+import {
   Attribute,
   AttributeValue,
   Category,
@@ -104,6 +113,9 @@ declare const treeUniqueFactory: TreeUniqueSuiteFactory;
 declare const treeUniqueDatabaseOptions: TreeUniqueSuiteDatabaseOptions;
 declare const treeUniqueDatabase: TreeUniqueSuiteDatabase;
 const treeUniqueOptions: TreeSiblingUniqueSuiteOptions = { factory: treeUniqueFactory };
+
+// query-cache-contract 的接入点类型同样要被真实消费，理由同上。
+declare const queryCacheContractImpl: QueryCacheRowContractImpl;
 
 // US-012 字段描述夹具的四个类型导出同样要被真实消费，理由同上。
 declare const fieldExpectation: EntityFieldExpectation;
@@ -181,6 +193,14 @@ void [
   freshDbName,
   TransactionContractFailure,
   new TransactionContractNote(),
+  // query-cache-contract
+  runQueryCacheRowContractSuite,
+  queryCacheContractImpl.name,
+  new QcContractRecipe().title,
+  new QcContractMapped().authorName,
+  new QcContractBlob().payload,
+  new QcContractTeam().teamName,
+  new QcContractMember().nickName,
   // tree-unique
   runTreeSiblingUniqueSuite,
   new TreeFile().name,

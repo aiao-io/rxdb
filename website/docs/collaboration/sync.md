@@ -349,27 +349,48 @@ const rows = await repo.find({
 函数形式的 `default` 一个字都不会进 `CREATE TABLE`，本地表上 `createdAt` 就是 `NOT NULL`。
 QueryCache 的拉取落地不经过仓储，于是远端不带这一列 → INSERT 不含该列 → 被数据库拒绝。
 
-哪些列可以省略：
+哪些列可以省略，**两个本地后端共同成立**的部分：
 
 - 可空列（`nullable: true`）；
 - 写了**字面量** `default` 的列——它进了 DDL 的 `DEFAULT` 子句。**`binary` 除外**：
   建表时明确跳过这一类的默认值，列上仍是光秃秃的 `NOT NULL`；
-- uuid / integer 主键（数据库端能自己生成）。
+- `integer` 主键（sqlite 的 `AUTOINCREMENT` / PostgreSQL 的 `serial` 都能自己生成）。
 
 关系的外键列（`ONE_TO_ONE` / `MANY_TO_ONE`）也是本地表上的物理列，同样要带，但豁免口径与
-普通列**不一样**：可空、或 `onDelete` / `onUpdate` 为 `SET NULL`（这两种 DDL 不给 `NOT NULL`）
-才可省；字面量 `default` **只对 `MANY_TO_ONE` 生效**——DDL 的 `DEFAULT` 子句嵌在
-`kind === MANY_TO_ONE` 分支里，一对一列建出来只有 `NOT NULL`，跟着放行等于让「过了校验的行」
-在 INSERT 时被数据库拒掉。
+普通列**不一样**：可空才可省；字面量 `default` **只对 `MANY_TO_ONE` 生效**——DDL 的
+`DEFAULT` 子句嵌在 `kind === MANY_TO_ONE` 分支里，一对一列建出来只有 `NOT NULL`，
+跟着放行等于让「过了校验的行」在 INSERT 时被数据库拒掉。
 
-其余一律必须自带。校验认两种写法：行里带**属性名 / 关系名**（`owner`）或**物理列名**
-（`ownerId`）都算带齐。
+#### 两处按后端不同
 
-同一批里的行还必须**列集一致**。批内异构（第 1 行带 `tag`、第 2 行不带）会被拒绝：
-落地按批生成一条 INSERT，缺键的行会被绑成 `NULL`，把可空列**静默清空**。
+判据算的是「**本地后端的建表 DDL** 会把哪些列建成 NOT NULL 且拿不到默认值」，
+而两个后端的建表规则在两处确有分歧——**不是实现没对齐，是 DDL 本来就不同**：
 
-不满足时，sqlite 系适配器在落地**之前**抛 `RxDBQueryCacheRowContractError`，点名实体、
-缺失列与成因，且这一批**一行都不会写入**。
+| 情形                                                              | SQLite family（wa-sqlite / sqlite-wasm / sqliteai / desktop） | PGlite                                               |
+| ----------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------- |
+| `uuid`（以及 `string` / `bigint`）主键                            | **可省**：建表发 `DEFAULT (lower(hex(randomblob(16))))`       | **必带**：建表只发 `"id" uuid PRIMARY KEY`，无默认值 |
+| 关系列 `onDelete` / `onUpdate` 为 `SET NULL` 且 `nullable: false` | **可省**：DDL 把这种列降级为可空，不发 `NOT NULL`             | **必带**：DDL 只看 `nullable`，照发 `NOT NULL`       |
+
+换句话说，**给 PGlite 用的远端必须自带主键值**。想写一份两个后端通吃的远端实现，按 PGlite
+这一列来（它是两者中更严的那一侧）。
+
+#### 键名的三种写法
+
+其余一律必须自带。校验认三种写法，与落地路径的识别范围完全同口径：
+
+- **属性名 / 关系名**：`nickName`、`owner`；
+- **物理列名**：`nick_name`、`owner_id`（远端走 `select('*')` 时返回的就是这一种）；
+- 关系列另加**外键别名**：`ownerId`。
+
+#### 批内列集一致：只有 SQLite family 要求
+
+SQLite family 侧同一批里的行还必须**列集一致**。批内异构（第 1 行带 `tag`、第 2 行不带）会被
+拒绝：它按批生成一条 INSERT，缺键的行会被绑成 `NULL`，把可空列**静默清空**。
+PGlite 侧**不作此要求**——它按列集把批分组，每组一条 INSERT，缺的键根本不会出现在列清单里。
+
+不满足时，**两个后端都**在落地**之前**抛 `RxDBQueryCacheRowContractError`（各包一个同名类，
+`name` 与消息骨架逐字一致），点名实体、缺失列与成因，且这一批**一行都不会写入**，
+连事务都不会开。
 
 :::warning 缺列不会就地补默认值
 补一个 `new Date()` 出来的是**本机拉取的时刻**，不是记录创建的时刻：两台设备拉同一行会得到

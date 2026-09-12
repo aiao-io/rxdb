@@ -6,6 +6,7 @@ import {
   transformEntityValueToSql,
   type EncryptionContext
 } from '../pglite.utils.js';
+import { assertQueryCacheRowContract } from './query_cache_row_contract.js';
 import type { QueryCacheTarget } from './query_cache_target.js';
 
 /** 一条参数化语句。 */
@@ -23,15 +24,23 @@ export interface QueryCacheStatement {
  * 未知键直接成为 SQL 标识符（且拼接时没有转义双引号）。
  *
  * 这里改为 metadata 驱动：
- * 1. 先校验键名白名单，未知键 **fail-fast**，不进入 SQL 结构；
- * 2. 每行各自过 `transformEntityValueToSql`（属性名/列名双向识别 + 类型转换 + 加密）；
- * 3. 按**规范化后的列集合**分组，每组一条语句 —— 异构行不再互相截断；
- * 4. 值一律参数化，并按 PG 参数上限分片。
+ * 1. 先整批校验**列契约**：缺了本地表的非空无默认值列就 fail-fast，一条语句都不生成
+ *    （US-024）。放在最前面是因为它是**整批**判据 —— 逐行校验会先把合格行的语句攒出来，
+ *    再在某一行上抛错，读者看到的就是「一部分做了一部分没做」；
+ * 2. 校验键名白名单，未知键 **fail-fast**，不进入 SQL 结构；
+ * 3. 每行各自过 `transformEntityValueToSql`（属性名/列名双向识别 + 类型转换 + 加密）；
+ * 4. 按**规范化后的列集合**分组，每组一条语句 —— 异构行不再互相截断；
+ * 5. 值一律参数化，并按 PG 参数上限分片。
+ *
+ * 第 1 步刻意**不**判「批内异构」（sqlite-core 侧契约的第二条判据）：那条判据的成因是
+ * 它的列清单取自 `data[0]`，而这里的第 4 步按列集分组，结构上没有那个病 —— 跟着判只会把
+ * `groupByColumnSet` 这个已交付的能力改成报错。
  *
  * @param target - 已解析的物理定位信息
  * @param rows - 远端行（键名可以是 JS 属性名，也可以是物理列名）
  * @param encryption - 加密上下文；实体声明了加密列时必须提供已解锁的 keyring
  * @returns 待执行的参数化语句列表；无可写列时返回空数组
+ * @throws {RxDBQueryCacheRowContractError} 存在缺必填列的行
  * @throws {RxdbAdapterPGliteError} 存在不属于该实体的键
  */
 export const buildQueryCacheUpsertStatements = async (
@@ -39,6 +48,8 @@ export const buildQueryCacheUpsertStatements = async (
   rows: readonly object[],
   encryption?: EncryptionContext
 ): Promise<QueryCacheStatement[]> => {
+  assertQueryCacheRowContract(target.entityName, rows, target.metadata);
+
   const normalizedRows: Record<string, unknown>[] = [];
   for (const row of rows) {
     assertKnownKeys(target.metadata, row);

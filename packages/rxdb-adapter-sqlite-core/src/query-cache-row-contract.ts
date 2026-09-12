@@ -81,6 +81,34 @@ export const requiredQueryCacheColumns = (metadata: EntityMetadata): ReadonlyMap
 };
 
 /**
+ * 关系名 → 外键别名（`team` → `teamId`）。
+ *
+ * @remarks
+ * 落地路径对关系列接受**三种**写法：关系名 `team`、物理列名 `team_id`，以及
+ * `metadata.foreignKeyNames` 里的 `teamId`（`transformEntityToSql` 认它）。
+ * 契约只认前两种的话，一行带 `teamId` 的远端行会被判成「缺 team」—— 而它原本能
+ * 一字不差地落进 `team_id`，这是把能落的行拒掉，比不判还糟。
+ *
+ * US-024 在 PGlite 侧发现这条，两个后端同改：同一行在两个本地后端必须得到同一个结论。
+ *
+ * @param metadata - 实体元数据
+ * @returns 关系名 → 外键别名；无关系时为空表
+ */
+const queryCacheRelationAliases = (metadata: EntityMetadata | undefined): ReadonlyMap<string, string> => {
+  const aliases = new Map<string, string>();
+  for (const relation of metadata?.relationMap?.values() ?? []) {
+    aliases.set(relation.name, `${relation.name}Id`);
+  }
+  return aliases;
+};
+
+/** 行上是否带了该必填列的外键别名写法。 */
+const hasRelationAlias = (keys: ReadonlySet<string>, aliases: ReadonlyMap<string, string>, name: string): boolean => {
+  const alias = aliases.get(name);
+  return alias !== undefined && keys.has(alias);
+};
+
+/**
  * 按契约读出一行的主键值。
  *
  * @remarks
@@ -149,13 +177,14 @@ export const assertQueryCacheRowContract = (
 
   const required = metadata ? requiredQueryCacheColumns(metadata) : new Map<string, string>();
   const idColumn = metadata?.propertyMap?.get('id')?.columnName ?? 'id';
+  const aliases = queryCacheRelationAliases(metadata);
   const rowKeys = rows.map(row => new Set(Object.keys(row)));
   const batchKeys = new Set<string>(rowKeys.flatMap(keys => [...keys]));
 
   const violations: RowViolation[] = [];
   rowKeys.forEach((keys, index) => {
     const missingRequired = [...required]
-      .filter(([name, column]) => !keys.has(name) && !keys.has(column))
+      .filter(([name, column]) => !keys.has(name) && !keys.has(column) && !hasRelationAlias(keys, aliases, name))
       .map(([name]) => name);
     // 已经按「缺非空列」报过的，不在异构那一栏里重复出现
     const missingBatch = [...batchKeys].filter(
