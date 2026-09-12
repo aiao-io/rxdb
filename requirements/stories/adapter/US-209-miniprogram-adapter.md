@@ -192,6 +192,37 @@ INVEST 检查清单:
   而真机 iOS 侧是 JavaScriptCore；WASM、文件系统配额、`wx.getRandomValues` 的时延特性都可能不同。
   缺口从「完全没有自动化验证」变成了「模拟器上有一套可随时重跑的验证」，真机那一段仍然空着。
 
+- **2026-09-13：把这套 e2e 跑稳的过程里挖出三个真缺陷，都是修实现而不是让测试绕路。**
+  前两个是应用侧的生命周期竞态，真机上「退出页面 → 立刻重进」同样会撞到，不是测试专属：
+  - `openMiniProgramRxdbDemo()` 不等上一个页面实例放开数据库就去建连接。`useUnload` 只能
+    fire-and-forget（Taro 生命周期不收 Promise），`reLaunch` 也不保证旧页面 `onUnload` 跑完
+    才轮到新页面 `onLoad`，于是撞上「微信文件 VFS 不支持同一数据库的并发连接」。
+    修法：`rxdb-demo.ts` 模块级串起 `activeDemo` / `pendingDispose`，引导前先 `releaseActiveDemo()`。
+  - `dispose()` 撞上在飞的 `verifyReconnect()`。后者中途会 disconnect 再 connect，那次
+    `connect()` 会排在 `disconnectAll()` 之后醒来，把实例重新登记进 `ACTIVE_DATABASES`，
+    下一次引导必红。修法：`pendingReconnect` + `closeAfterPendingWork()`，先等验证收场再断开。
+  - 第三个在 e2e 侧：worker fixture 无条件调 `miniProgram.close()`。它关的是**开发者工具里的
+    小程序实例**而不是 WebSocket——`connect()` 模式下等于替开发者把窗口收了，下一次运行接到
+    一个正在关闭的实例，红成「Connection closed」。修法：`OpenedMiniProgram.owned`，只关自己拉起的。
+
+  另有两处是测试自己的断言不成立，已连同理由写进 TSDoc，免得后人重新推一遍：
+  - 「跨启动持久化」原本删落盘目录来复位。目录在连接活着时由 VFS 缓冲着，此刻删它，
+    `sqlite3_close` 的脏页回写会把整个库原样刷回来，探针「复活」。这是 VFS 的正确行为，
+    错的是测试。改走页面上的「重置数据」，即应用自己的 DELETE（为此给 demo 补了 `resetDemoData()`，
+    Todo 与探针一起删——留着探针这条检查就恒为「通过」，永远验不出下一次启动有没有真读回来）。
+  - 「跨池轮换」原本只留一次 WebSocket 往返给异步补给。池在 25% 水位才预约补给，赌桥接比
+    WebSocket 快；赌输就抛「已耗尽」，而那是铁律「宁可抛错也不降级」下的正确行为，不该记成缺陷。
+    改为批次之间显式让位 `REFILL_GRACE_MS = 250`。
+
+  稳定性证据：裸 playwright 连跑 6 轮均 `16 passed`，`nx run dev-rxdb-miniprogram-e2e:e2e-devtools` 全绿。
+
+- **2026-09-13：`miniprogram-automator` 那 10 条 `npm audit` 用三条定向 `pnpm.overrides` 灭掉**
+  （`@jimp/core>mkdirp: ^0.5.6`、`@jimp/core>phin: ^3.7.1`、`@jimp/jpeg>jpeg-js: ^0.4.4`），
+  因为 GitHub 的 `dependency-review` 是按 lockfile 判的，不看「这条路径可不可达」。
+  作用面已核对：lock 里只有 `mkdirp@0.5.1`（连带 `minimist@0.0.8`）、`phin@2.9.3`、`jpeg-js@0.3.7`
+  这四个 key 被换掉，其余增量全是 `phin` 的可选 peer `debug` 引出的 snapshot 变体分裂，
+  没有任何 @jimp 子树之外的包发生版本变化。
+
 ## 实现文件
 
 - `packages/rxdb-adapter-miniprogram/` — 微信小程序 wa-sqlite 适配器
@@ -208,6 +239,7 @@ INVEST 检查清单:
 - `apps/dev-rxdb-miniprogram/project.json` + `eslint.config.mjs` — AC#12 的 Nx 接入（`build` / `lint` 显式 target）
 - `apps/dev-rxdb-miniprogram-e2e/` — 开发者工具 e2e 套件（`e2e-devtools` target，不进 CI）
 - `nx.json` — `@nx/playwright/plugin` 的 `exclude`，阻止上面这个项目被推断出 `e2e` 而进 Linux 矩阵
+- `package.json` — `pnpm.overrides` 三条定向提升，消掉 `miniprogram-automator` 拖进来的 CVE（`dependency-review` 按 lockfile 判）
 - `examples/README.md` — 本目录「不在 CI 覆盖范围」声明，并记录 Taro demo 已迁出
 
 ## References

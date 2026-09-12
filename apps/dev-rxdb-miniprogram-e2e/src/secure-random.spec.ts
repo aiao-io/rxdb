@@ -13,6 +13,17 @@ const WITHIN_POOL_DRAWS = POOL_SIZE / 2 / BYTES_PER_DRAW;
 const CROSS_POOL_DRAWS_PER_BATCH = POOL_SIZE / 4 / BYTES_PER_DRAW;
 const CROSS_POOL_BATCHES = 8;
 
+/**
+ * 两批之间留给后台补给的时间。
+ *
+ * 池在剩余量跌到 25% 时才预约补给，从预约到备池可用要走一次
+ * `wx.getRandomValues` 的桥接往返。光靠两次 `evaluate` 之间的 WebSocket 往返去覆盖它
+ * 是在赌两条链路谁快——赌输了就抛「已耗尽」，而那是设计内的正确行为（铁律：宁可抛错也不降级），
+ * 不该被记成缺陷。这里给一个明确的窗口，让这条用例验的是「让位之后补给一定到位」，
+ * 而不是「桥接比 WebSocket 快」。
+ */
+const REFILL_GRACE_MS = 250;
+
 /** 一次同步内超出整池容量的取样数，用来验证耗尽路径。 */
 const OVERDRAW_DRAWS = (POOL_SIZE / BYTES_PER_DRAW) * 2;
 
@@ -42,11 +53,11 @@ test.describe('安全随机池', () => {
     const reports: RandomDrawReport[] = [];
     // 分批的意义不在于减小单批体积，而在于**交还事件循环**：
     // 池的补给是异步的，同步路径不让位就永远等不到备池。
-    // 两次 evaluate 之间的 WebSocket 往返正好提供了这个让位时机。
     for (let batch = 0; batch < CROSS_POOL_BATCHES; batch += 1) {
       reports.push(
         await demoPage.evaluate(drawRandomValues, RANDOM_DRAW_REGISTRY_KEY, CROSS_POOL_DRAWS_PER_BATCH, BYTES_PER_DRAW)
       );
+      await new Promise(resolve => setTimeout(resolve, REFILL_GRACE_MS));
     }
 
     const totalDraws = reports.reduce((sum, report) => sum + report.draws, 0);

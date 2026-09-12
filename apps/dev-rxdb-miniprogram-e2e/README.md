@@ -54,13 +54,15 @@ WECHAT_DEVTOOLS_WS_ENDPOINT=ws://localhost:9420 pnpm nx e2e-devtools dev-rxdb-mi
 | `runtime-bootstrap.spec.ts`  | 运行时能力全部就绪；`crypto.getRandomValues` 来源是**微信桥接**而非缺失或降级；CRUD 自检与断开重连通过 |
 | `secure-random.spec.ts`      | 真实 `wx.getRandomValues` 下的随机池：单池同步连发、跨池轮换无重复无全零、超出整池容量时抛错而不降级   |
 | `todo-crud.spec.ts`          | 增 / 改 / 删 / 重进页面后仍在——整条 Taro → RxDB → wa-sqlite → 落盘链路                                 |
-| `launch-persistence.spec.ts` | 清库 → 待重启 → 重启 → 通过的完整状态迁移                                                              |
+| `launch-persistence.spec.ts` | 清探针 → 待重启 → 重启 → 通过的完整状态迁移                                                            |
 
 ### 与单元测试的分工
 
 `packages/rxdb-adapter-miniprogram` 的 Vitest 用例里，`wx` 是我们自己写的桩——它当然满足我们自己的期望。本套件换成开发者工具里的真 `wx`，验的是桩证明不了的那一半：桥接往返的真实时序、WXWebAssembly 的真实行为、`wx.getFileSystemManager` 的真实落盘。
 
-特别地，`secure-random.spec.ts` 是 `random-pool-endurance.spec.ts` 的真机对照：后者用计数器桩证明**调度逻辑**正确，前者证明在真实桥接延迟下**补给来得及**。
+特别地，`secure-random.spec.ts` 是 `random-pool-endurance.spec.ts` 的真机对照：后者用计数器桩证明**调度逻辑**正确，前者证明在真实桥接延迟下、同步路径交还事件循环之后**补给来得及**。注意它必须显式留出让位窗口：池在 25% 水位线才预约补给，不给窗口就是在赌桥接往返比 WebSocket 往返快，赌输了抛「已耗尽」——而那是设计内的正确行为，不是缺陷。
+
+`launch-persistence.spec.ts` 的复位走页面上的「重置数据」，**不能**改成删掉 `wx.env.USER_DATA_PATH` 下的数据库目录：目录在连接活着时由 VFS 缓冲着，此刻删它，连接关闭时的脏页回写会把整个库原样刷回来，探针「复活」，用例红得毫无道理。
 
 ## 已知约束
 

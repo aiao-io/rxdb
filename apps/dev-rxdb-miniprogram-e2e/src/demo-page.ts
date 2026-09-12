@@ -146,6 +146,18 @@ export class DemoPage {
     await this.waitForOperation('Todo 已更新');
   }
 
+  /**
+   * 点「重置数据」并等到清空完成。
+   *
+   * 复位走应用自己的 DELETE，而不是删掉落盘目录：目录在连接活着时由 VFS 缓冲着，
+   * 此刻删它，连接关闭时的脏页回写会把整个库原样刷回来——探针会「复活」，
+   * 「跨启动持久化」那条检查于是读到上一轮的结果，红得毫无道理。
+   */
+  async resetDemoData(): Promise<void> {
+    await this.tap('.reset-button');
+    await this.waitForOperation('演示数据已清空');
+  }
+
   /** 点「重跑验证」并等到验证结束。 */
   async rerunVerification(): Promise<void> {
     await this.tap('.verify-button');

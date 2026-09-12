@@ -2,14 +2,9 @@
  * 在小程序逻辑层求值的探针函数。
  *
  * 这些函数体**不在 Node 里执行**：automator 把它们 `toString()` 之后交给微信开发者工具，
- * 在小程序的 JS 引擎里跑。所以下面这条 `declare` 声明的是「目标运行时的全局」，
- * 而不是本项目的依赖——它是模块级的，不会泄漏到别的文件。
+ * 在小程序的 JS 引擎里跑。所以它们必须自包含：不能引用闭包变量、模块导入
+ * 或任何转译器辅助函数，入参只能走显式形参。
  */
-declare const wx: {
-  readonly env: { readonly USER_DATA_PATH: string };
-  getFileSystemManager(): { rmdirSync(path: string, recursive: boolean): void };
-};
-
 /** 随机源实现上的来源标记，与 `runtime-polyfills.ts` 的 `RUNTIME_SOURCE_MARKER` 对齐。 */
 export const RUNTIME_SOURCE_MARKER = '__aiaoMiniProgramRuntimeSource';
 
@@ -28,17 +23,6 @@ export interface RandomDrawReport {
   readonly error: string;
 }
 
-/** 删掉落盘的数据库目录。 */
-export function clearDatabaseDirectory(directory: string): string {
-  const path = `${wx.env.USER_DATA_PATH}/${directory}`;
-  try {
-    wx.getFileSystemManager().rmdirSync(path, true);
-  } catch {
-    // 目录不存在就已经是干净状态
-  }
-  return path;
-}
-
 /** 读出 `crypto.getRandomValues` 的来源标记（native / polyfill / wechat）。 */
 export function readRandomSource(marker: string): string {
   const impl = globalThis.crypto?.getRandomValues as unknown as Record<string, unknown> | undefined;
@@ -52,7 +36,7 @@ export function readRandomSource(marker: string): string {
  *
  * 去重表必须跨 `evaluate` 存活，否则「跨池轮换有没有发重复字节」根本验不到——
  * 每次调用各自为政的话，两池之间的重复正好落在观察窗口之外。
- * 反过来，**两次 `evaluate` 之间的 WebSocket 往返就是给后台补给的让位时机**：
+ * 反过来，**两次 `evaluate` 之间就是给后台补给的让位时机**：
  * 池的补给是异步的，同步路径不交还事件循环就永远等不到备池。
  */
 export function drawRandomValues(registryKey: string, draws: number, bytesPerDraw: number): RandomDrawReport {
