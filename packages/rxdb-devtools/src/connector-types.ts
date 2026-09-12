@@ -5,6 +5,7 @@ import type { DevToolsProviderRuntime } from './provider/descriptor.js';
 import type { DevToolsProvider } from './provider/types.js';
 import type { DevToolsCapability } from './types.js';
 import type { DevToolsMutationPolicy } from './v2/authorization.js';
+import type { DevToolsProviderRegistry } from './v2/endpoint.js';
 
 /**
  * DevTools 实际使用的 RxDB 能力子集。
@@ -99,6 +100,19 @@ export interface DevToolsProviderOptions {
    * 省略本字段 = 沿用连接器的自动探测；显式给 `undefined` = 不宣告 `files`。
    */
   getRootDirectory?: () => Promise<FileSystemDirectoryHandle>;
+  /**
+   * 整份 provider registry 的注入口：给定时**整体替换**连接器的自动装配。
+   *
+   * @remarks
+   * 与上面各字段的关系不是「同时给出时谁赢」——registry 存在时连接器直接跳过
+   * `createConnectorProviders`，其余字段只被忽略，根本不进比较。这是测试装配
+   * （`@aiao/rxdb-devtools/testing-providers` 的 fake 集合）与未来无法用端口组合描述的
+   * 宿主所需的逃生口；生产宿主请继续用分领域字段，让描述符装配保持显式。
+   *
+   * registry 不需要 `dispose`（{@link DevToolsProviderRegistry} 没有这个成员）：连接器
+   * 断开时只做 no-op。持有订阅或计时器的实现请由注入方自行管理生命周期。
+   */
+  providerRegistry?: DevToolsProviderRegistry;
 }
 
 /** RxDB DevTools 配置选项。 */

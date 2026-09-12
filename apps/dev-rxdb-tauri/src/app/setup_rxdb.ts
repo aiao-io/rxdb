@@ -1,5 +1,6 @@
 import type { RxDB } from '@aiao/rxdb';
 import { DESKTOP_DEMO_DB_NAME, WEB_PREVIEW_DB_NAME } from './db-names';
+import { readForcedVfs, type DevToolsForcedVfs } from './devtools-runtime-config';
 import { selectLocalBackend, type LocalBackendCandidate } from './local-backend';
 import { isTauriRuntime } from './services/tauri-environment';
 
@@ -26,6 +27,7 @@ export const TAURI_ADAPTER_NAME = 'sqlite-tauri';
  * 本 demo 的本地后端候选表（US-207 E8）。**顺序即优先级。**
  *
  * @param runtime - 探针要检测的对象，实际调用时传 `globalThis`
+ * @param forceVfs - US-905 AC#6 的 VFS 强制档；给定时桌面候选让路，wa-sqlite 胜出
  * @returns 交给 {@link selectLocalBackend} 的候选表
  *
  * @remarks
@@ -36,6 +38,11 @@ export const TAURI_ADAPTER_NAME = 'sqlite-tauri';
  * 桌面排在前面**不是风格问题**：Tauri 窗口里 OPFS 一样可用，两条探针会同时为真，
  * 靠顺序才选得中桌面。
  *
+ * 强制档把桌面候选的探针改答 `false`：三态实测（opfs / idb / unavailable）都要让
+ * wa-sqlite 按强制 VFS 建库，而桌面候选在真 Tauri 窗口里恒为真，不给它让路就选不中。
+ * 强制档不碰 wa-sqlite 候选的「恒可用」——`unavailable` 那一态要让建库**诚实失败**，
+ * 而不是在这里把表判成空表。
+ *
  * `create` 走动态 `import()`（US-207 E11）：两个后端的实现因此各自成 chunk，
  * 只有被选中的那个会被下载、求值。库名走 `db-names.ts` 而不是从工厂模块里 import ——
  * 静态 import 常量会把整个模块拖回主 chunk，动态 import 也就白做了。
@@ -44,11 +51,14 @@ export const TAURI_ADAPTER_NAME = 'sqlite-tauri';
  * 二是因为 `__TAURI_INTERNALS__` 由 Tauri 的初始化脚本注入 —— 模块求值期读它
  * 等于赌两段脚本的先后顺序，所以调用点都在惰性工厂里。
  */
-export const localBackends = (runtime: unknown): readonly LocalBackendCandidate<Promise<RxDB>>[] => [
+export const localBackends = (
+  runtime: unknown,
+  forceVfs?: DevToolsForcedVfs
+): readonly LocalBackendCandidate<Promise<RxDB>>[] => [
   {
     adapter: TAURI_ADAPTER_NAME,
     dbName: DESKTOP_DEMO_DB_NAME,
-    isAvailable: () => isTauriRuntime(runtime),
+    isAvailable: () => forceVfs === undefined && isTauriRuntime(runtime),
     create: async () => (await import('./setup_rxdb_desktop')).default()
   },
   {
@@ -78,9 +88,12 @@ let selected: LocalBackendCandidate<Promise<RxDB>> | undefined;
  * `runtime` 只在**第一次**调用时被读取 —— 一个应用实例只有一个运行时，
  * 换一个 runtime 再调用不会重新判定。测试要覆盖两条分支时请直接组合
  * {@link localBackends} 与 `selectLocalBackend`。
+ *
+ * 强制档同样只在第一次被读取：它是同一份注入配置（`readForcedVfs`），
+ * 运行时不会变，读两次只会得到两个「碰巧一致」的答案。
  */
 export const resolveLocalBackend = (runtime: unknown): LocalBackendCandidate<Promise<RxDB>> =>
-  (selected ??= selectLocalBackend(localBackends(runtime)));
+  (selected ??= selectLocalBackend(localBackends(runtime, readForcedVfs())));
 
 let database: Promise<RxDB> | undefined;
 

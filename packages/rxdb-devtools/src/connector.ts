@@ -660,12 +660,19 @@ export class DevToolsConnector {
   #startNegotiation(): void {
     const legacyHandshake = this.#buildLegacyHandshake();
     const remotePort = this.#createSessionPort();
-    const providers = createConnectorProviders({
-      getRootDirectory: resolveBrowserOpfsRoot(),
-      saveToDisk: saveFileThroughPage,
-      ...this.#databasePorts(),
-      ...this.#options.providers
-    });
+    // `providerRegistry` 是整体替换：给定时跳过自动装配，其余 providers 字段一概忽略。
+    // registry 本身没有 dispose（`DevToolsProviderRegistry` 只有四个成员），补一个 no-op
+    // 让 `disconnect()` 的回收路径照常走；持有资源的注入方自行管理生命周期。
+    const registry = this.#options.providers?.providerRegistry;
+    const providers: ConnectorProviderRegistry =
+      registry === undefined ?
+        createConnectorProviders({
+          getRootDirectory: resolveBrowserOpfsRoot(),
+          saveToDisk: saveFileThroughPage,
+          ...this.#databasePorts(),
+          ...this.#options.providers
+        })
+      : { ...registry, dispose: () => undefined };
     const endpoint = createDevToolsConnectorEndpoint({
       send: (message: DevToolsConnectorNegotiationMessage) =>
         message === legacyHandshake ?

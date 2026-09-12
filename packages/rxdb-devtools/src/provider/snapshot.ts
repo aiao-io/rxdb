@@ -35,9 +35,14 @@ import {
 import { createProviderError } from '../v2/error-mapping.js';
 import type { DevToolsErrorPayload } from '../v2/errors.js';
 import { createDevToolsError } from '../v2/errors.js';
-import { isNonNegativeSafeInteger, isPageSize } from '../v2/guards.js';
+import { isNonNegativeSafeInteger, isPageSize, isRecord } from '../v2/guards.js';
 import { createSessionId } from '../v2/ids.js';
-import type { DevToolsSnapshotCaptureResult, DevToolsSnapshotRecord, DevToolsSnapshotSource } from './types.js';
+import type {
+  DevToolsProviderResult,
+  DevToolsSnapshotCaptureResult,
+  DevToolsSnapshotRecord,
+  DevToolsSnapshotSource
+} from './types.js';
 
 /** 分页游标；三个绑定条件（session、snapshot、页边界）里的后两个由它承载。 */
 export interface DevToolsSnapshotCursor {
@@ -346,4 +351,63 @@ class DevToolsSnapshotStoreImpl implements DevToolsSnapshotStore {
  */
 export function createDevToolsSnapshotStore(ports: DevToolsSnapshotPorts): DevToolsSnapshotStore {
   return new DevToolsSnapshotStoreImpl(ports);
+}
+
+/**
+ * 把一次快照仓库的结果翻译成 provider 结果。
+ *
+ * @remarks
+ * `rejected` 直接透传仓库给的结构化错误（`snapshot_busy` / `snapshot_too_large` /
+ * `snapshot_expired` / `invalid_message`）——它们是已冻结的共享码，不在这里改写。
+ * `cancelled` 在 provider 语境下不可达（取消只来自 session 拆除时的 `dispose`，而那时没有
+ * 在途请求），但诚实收敛成 `operation_failed` 而不是假装成功。
+ *
+ * @param result - 仓库给出的结果。
+ * @returns provider 结果。
+ */
+export function toSnapshotProviderResult(result: DevToolsSnapshotResult): DevToolsProviderResult {
+  if (result.outcome === 'page') return { outcome: 'ok', result: result.page };
+  if (result.outcome === 'rejected') return { outcome: 'failed', error: result.error };
+  return { outcome: 'failed', error: createProviderError('operation_failed') };
+}
+
+/**
+ * `files.list` 的快照模式共享分派：把 wire 参数切成 store 认识的两个调用，再翻译成 provider 结果。
+ *
+ * @remarks
+ * native-files 与 testing fake 两个 provider **必须**共用这一份，否则同一形状的请求在
+ * 两处得到不同的错误码，而 conformance 正是拿同一份断言去跑两者的。15 秒 deadline、
+ * epoch 重试、busy/too-large/expired 全部由 {@link DevToolsSnapshotStore} 负责，这里
+ * 形状校验只到「类型」这一层——范围与绑定交给 store 的 guard（已由 snapshot 单测覆盖），
+ * 在这里重复一遍只会让同一错误码有两条路径。
+ *
+ * **包内导出，不进 `index.ts`**：这是 provider 实现之间的共享细节，不是公开 API。
+ *
+ * @param store - session 级快照仓库；未接时为 `undefined`（回 `provider_unsupported`）。
+ * @param spec - `files.list` params 里的 `snapshot` 键。
+ * @returns provider 结果。
+ */
+export async function dispatchSnapshotRequest(
+  store: DevToolsSnapshotStore | undefined,
+  spec: unknown
+): Promise<DevToolsProviderResult> {
+  if (store === undefined) return providerFailure('provider_unsupported');
+  if (!isRecord(spec)) return providerFailure('invalid_path');
+
+  const cursor = spec['cursor'];
+  if (cursor === undefined) {
+    const pageSize = spec['pageSize'];
+    if (pageSize !== undefined && typeof pageSize !== 'number') return providerFailure('invalid_path');
+    return toSnapshotProviderResult(await store.open(pageSize));
+  }
+
+  if (!isRecord(cursor) || typeof cursor['snapshotId'] !== 'string' || typeof cursor['offset'] !== 'number') {
+    return providerFailure('invalid_path');
+  }
+  return toSnapshotProviderResult(store.page({ snapshotId: cursor['snapshotId'], offset: cursor['offset'] }));
+}
+
+/** 快照分派用到的三张共享码；provider 侧的 busy/expired 等由仓库自己经 {@link rejected} 发出。 */
+function providerFailure(code: 'invalid_path' | 'provider_unsupported' | 'operation_failed'): DevToolsProviderResult {
+  return { outcome: 'failed', error: createProviderError(code) };
 }

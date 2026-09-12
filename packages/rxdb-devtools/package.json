@@ -37,6 +37,12 @@
       "types": "./dist/testing.d.ts",
       "import": "./dist/testing.js",
       "default": "./dist/testing.js"
+    },
+    "./testing-providers": {
+      "@aiao/source": "./src/testing-providers.ts",
+      "types": "./dist/testing-providers.d.ts",
+      "import": "./dist/testing-providers.js",
+      "default": "./dist/testing-providers.js"
     }
   },
   "files": [

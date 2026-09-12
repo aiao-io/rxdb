@@ -41,23 +41,25 @@ import { DesktopLaunch } from './desktop-launch.entity';
  */
 export const DESKTOP_STORAGE_ROOT_DIR = 'files';
 
-/**
- * 挂载键，与 Rust 侧 `devtools_config.rs` 的 `CONFIG_GLOBAL_KEY` 逐字一致。
- *
- * @remarks
- * 页面与 Rust 分属两条工具链，这里只能写字面量；由 `devtools-runtime-config.spec.ts`
- * 的一条用例读 Rust 源码把两处钉在一起。Electron 侧同名同值，页内读法因此两端一致。
- */
-export const DEVTOOLS_RUNTIME_CONFIG_KEY = '__aiaoRxdbDevToolsConfig__';
+// 挂载键定义在零依赖的 devtools-runtime-config.ts：主 chunk 的 setup_rxdb.ts 也要读它，
+// 定义在这里会把 devtools 装配拽进 main.js。本模块 import 后用 re-export 保持既有 import 面不变。
+import {
+  DEVTOOLS_RUNTIME_CONFIG_KEY,
+  type DevToolsForcedVfs,
+  type DevToolsProviderSource,
+  type DevToolsSnapshotScenario
+} from './devtools-runtime-config';
+import { createFakeProviderGear } from './fake-provider-gear';
+export { DEVTOOLS_RUNTIME_CONFIG_KEY };
 
 /**
- * 读取本次运行的 DevTools 授权配置。
+ * 读取本次运行的 DevTools 配置（授权档 + 阶段 1 档位）。
  *
  * @returns Rust 侧注入脚本带进来的档位与写入开关；没有（release、或没开开发态 DevTools）时为空对象。
  *
  * @remarks
  * 返回空对象而不是一份默认值，是为了让调用点能用展开语法把「没有配置」表达成
- * **完全不传这两个键**，交给库自己的默认值——而不是在这里复制一份可能与库不同步的默认档。
+ * **完全不传这些键**，交给库自己的默认值——而不是在这里复制一份可能与库不同步的默认档。
  *
  * 值必须在**页面脚本之前**就位：`getDevToolsConnector()` 是一次性全局单例，首次调用即定档。
  * 所以它由 Tauri 插件的 `js_init_script` 注入，而不是一次 `invoke`——异步 IPC 会留下一段
@@ -66,11 +68,56 @@ export const DEVTOOLS_RUNTIME_CONFIG_KEY = '__aiaoRxdbDevToolsConfig__';
 export function devToolsRuntimeConfig(): {
   capabilities?: DevToolsCapability;
   mutationPolicy?: DevToolsMutationPolicy;
+  providerSource?: DevToolsProviderSource;
+  snapshotScenario?: DevToolsSnapshotScenario;
+  forceVfs?: DevToolsForcedVfs;
 } {
   const config = (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY] as
-    { capability: DevToolsCapability; mutationPolicy: DevToolsMutationPolicy } | undefined;
-  return config === undefined ? {} : { capabilities: config.capability, mutationPolicy: config.mutationPolicy };
+    | {
+        capability: DevToolsCapability;
+        mutationPolicy: DevToolsMutationPolicy;
+        providerSource: DevToolsProviderSource;
+        snapshotScenario: DevToolsSnapshotScenario;
+        forceVfs: DevToolsForcedVfs;
+      }
+    | undefined;
+  if (config === undefined) return {};
+  return {
+    capabilities: config.capability,
+    mutationPolicy: config.mutationPolicy,
+    providerSource: config.providerSource,
+    snapshotScenario: config.snapshotScenario,
+    forceVfs: config.forceVfs
+  };
 }
+
+/**
+ * provider 装配分叉：fake 档给整份 fake registry，其余走真实桌面端口（US-905 AC#2）。
+ *
+ * @param providerSource - 注入的源档位；`undefined`（release 形态）走真实
+ * @param snapshotScenario - 注入的快照场景；fake 档下 Rust 侧恒已填好，缺省同 Rust 默认 ok
+ * @param real - 真实桌面端口装配，**延迟调用**：fake 档下它一次都不该跑
+ * @returns 直接交给 `getDevToolsConnector({ providers })` 的选项
+ *
+ * @remarks
+ * 真实端口包在 thunk 里是刻意设计：装配它会建 host 文件会话、挂 pagehide 监听，
+ * fake 档的本意是连 host 都不碰——五类操作全走假集合，驱动在 wire 上观察到的行为
+ * 与真实档一致，但背后没有一次 IPC。
+ */
+export const resolveDevToolsProviders = (
+  providerSource: DevToolsProviderSource | undefined,
+  snapshotScenario: DevToolsSnapshotScenario | undefined,
+  real: () => ReturnType<typeof createDesktopDevToolsProviders>
+):
+  | { readonly providerRegistry: ReturnType<typeof createFakeProviderGear> }
+  | ReturnType<typeof createDesktopDevToolsProviders> => {
+  if (providerSource === 'fake') {
+    // Rust 的 plan_from_env 恒填 snapshotScenario（默认 ok），这里同值兜的是类型上的
+    // undefined —— 不是运行时改道。
+    return { providerRegistry: createFakeProviderGear(snapshotScenario ?? 'ok') };
+  }
+  return real();
+};
 
 /**
  * 桌面文件后端的 storage 插件选项。
@@ -232,13 +279,16 @@ export default () => {
   rxdb.init();
 
   // US-905 阶段 2：把页内 connector 接到 Tauri transport 与**真实**原生后端。
-  // 授权档（capability / mutationPolicy）由 Rust 侧的注入脚本在页面脚本之前放好，
-  // 展开进来即可 —— 缺省时是空对象，交回库默认档。
+  // 授权档与阶段 1 档位由 Rust 侧的注入脚本在页面脚本之前放好，展开进来即可 ——
+  // 缺省时是空对象，交回库默认档。源档 = fake 时 provider 换整份 fake registry（AC#2）。
+  const devtoolsConfig = devToolsRuntimeConfig();
   const devtools = getDevToolsConnector({
-    ...devToolsRuntimeConfig(),
+    ...devtoolsConfig,
     transport: createTauriConnectorTransport(),
     // storage 延迟取：`rxdb.storage` 要等 `connect()` 才挂上，而这里还在 `init()` 之后一步。
-    providers: createDesktopDevToolsProviders({ transport, getStorage: () => rxdb.storage })
+    providers: resolveDevToolsProviders(devtoolsConfig.providerSource, devtoolsConfig.snapshotScenario, () =>
+      createDesktopDevToolsProviders({ transport, getStorage: () => rxdb.storage })
+    )
   });
   devtools.init(rxdb, getEntityMetadata);
 

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DevToolsConnector } from '../connector.js';
 import { createDevToolsDesktopSettingsProvider } from '../native/settings-provider.js';
+import { createFakeProviders } from '../testing/fake-providers.js';
 import { createMessage, RXDB_DEVTOOLS_MESSAGE } from '../types.js';
 import { DEVTOOLS_PROTOCOL_VERSION_V2 } from '../v2/constants.js';
 import type { DevToolsV2Envelope, DevToolsV2MessageType } from '../v2/wire.js';
@@ -352,6 +353,68 @@ describe('DevToolsConnector v2 negotiation', () => {
       // 拆了端点却留着 RxDB 监听，实例就再也回收不掉。
       expect(framesOf('EVENT')).toHaveLength(0);
       expect(listenerCount(rxdb)).toBe(0);
+    });
+  });
+
+  describe('provider registry 整体注入', () => {
+    function initWithRegistry(): ReturnType<typeof createFakeProviders> {
+      const registry = createFakeProviders({
+        runtime: 'tauri',
+        kinds: { database: 'rxdb', files: 'opfs', settings: 'sqlite' }
+      });
+      connector = new DevToolsConnector({
+        capabilities: 'readonly',
+        providers: { providerRegistry: registry }
+      });
+      const addEventSpy = vi.spyOn(window, 'addEventListener');
+      // 不给读取函数：自动装配路径会因此不宣告 `database`，注入路径却照样有——
+      // 恰好证明 descriptors 来自 registry，而不是任何一条装配逻辑。
+      connector.init(createMockRxDB());
+      const registered = addEventSpy.mock.calls.find(call => call[0] === 'message');
+      if (registered === undefined) throw new Error('connector never registered a message listener');
+      handler = registered[1] as (event: MessageEvent) => void;
+      return registry;
+    }
+
+    it('MUST declare exactly the injected descriptors, database included', () => {
+      const registry = initWithRegistry();
+      deliver(
+        createDevToolsV2Message(
+          'PROTOCOL_HELLO',
+          { supportedVersions: [DEVTOOLS_PROTOCOL_VERSION_V2, 1] },
+          { sessionId: null, sequence: 1, timestamp: TIMESTAMP, direction: 'panel-to-connector' }
+        )
+      );
+
+      const descriptors = framesOf('HANDSHAKE')[0]?.payload.capabilities.descriptors;
+      // 原样透传，顺序也不改：端点拿到的就是注入的那份数组。
+      expect(descriptors).toEqual(registry.descriptors);
+    });
+
+    it('MUST answer data-plane requests through the injected registry', async () => {
+      initWithRegistry();
+      connect();
+      deliver(
+        createDevToolsV2Message(
+          'REQUEST',
+          { requestId: 'r1', domain: 'database', operation: 'inspect', params: {} },
+          { sessionId: sessionId(), sequence: 3, timestamp: TIMESTAMP, direction: 'panel-to-connector' }
+        )
+      );
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // fake `database.inspect` 答的是它自己的合成数据——请求走的是注入的 provider。
+      expect(framesOf('RESPONSE')[0]?.payload).toMatchObject({
+        requestId: 'r1',
+        result: { collections: ['todos'], documents: 2 }
+      });
+    });
+
+    it('MUST survive disconnect without a registry dispose', () => {
+      initWithRegistry();
+      connect();
+
+      expect(() => connector.disconnect()).not.toThrow();
     });
   });
 

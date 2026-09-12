@@ -2,8 +2,9 @@ import { TAURI_ADAPTER_NAME as PACKAGE_TAURI_ADAPTER_NAME } from '@aiao/rxdb-ada
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { DESKTOP_DEMO_DB_NAME, WEB_PREVIEW_DB_NAME } from './db-names';
+import { DEVTOOLS_RUNTIME_CONFIG_KEY } from './devtools-runtime-config';
 import { RxDBLocalBackendTableError, selectLocalBackend } from './local-backend';
-import { localBackends, TAURI_ADAPTER_NAME, WA_SQLITE_ADAPTER_NAME } from './setup_rxdb';
+import { localBackends, resolveLocalBackend, TAURI_ADAPTER_NAME, WA_SQLITE_ADAPTER_NAME } from './setup_rxdb';
 
 /** 读同目录下的源文件；下面几条静态门禁都靠它。 */
 const read = (file: string): string => readFileSync(resolve(import.meta.dirname, file), 'utf8');
@@ -62,6 +63,39 @@ describe('localBackends', () => {
 
     expect(new Set(dbNames).size).toBe(dbNames.length);
     expect(() => selectLocalBackend(localBackends({}))).not.toThrow(RxDBLocalBackendTableError);
+  });
+});
+
+/**
+ * US-905 AC#6 的三态实测要跑在打包窗口里，靠的是 `DEV_RXDB_DEVTOOLS_FORCE_VFS` 强制档：
+ * 强制档生效时 wa-sqlite 候选必须在 Tauri 窗口里也胜出，桌面候选让路。
+ *
+ * @remarks
+ * 强制档经 `resolveLocalBackend` 从注入配置读入候选表；候选表本身仍是纯的 ——
+ * 力传参，所以下面能直接组合 `localBackends` 与 `selectLocalBackend` 跑到两条分支。
+ */
+describe('US-905 强制 VFS 档的候选选择', () => {
+  it('forced 档下 Tauri 窗口也选 wa-sqlite（桌面候选让路）', () => {
+    for (const forceVfs of ['opfs', 'idb', 'unavailable'] as const) {
+      const backend = selectLocalBackend(localBackends({ __TAURI_INTERNALS__: {} }, forceVfs));
+      expect(backend.adapter, forceVfs).toBe(WA_SQLITE_ADAPTER_NAME);
+      expect(backend.dbName).toBe(WEB_PREVIEW_DB_NAME);
+    }
+  });
+
+  it('未强制时桌面候选在 Tauri 窗口保持优先', () => {
+    const backend = selectLocalBackend(localBackends({ __TAURI_INTERNALS__: {} }));
+    expect(backend.adapter).toBe(TAURI_ADAPTER_NAME);
+  });
+
+  it('resolveLocalBackend 把注入的强制档接进候选表', () => {
+    (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY] = Object.freeze({ forceVfs: 'idb' });
+    try {
+      // 本文件只有这一条走 resolveLocalBackend：它的模块级记忆没有第二个读者。
+      expect(resolveLocalBackend({ __TAURI_INTERNALS__: {} }).adapter).toBe(WA_SQLITE_ADAPTER_NAME);
+    } finally {
+      delete (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY];
+    }
   });
 });
 

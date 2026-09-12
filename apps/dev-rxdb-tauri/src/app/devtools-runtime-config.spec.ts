@@ -12,6 +12,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { readForcedVfs } from './devtools-runtime-config';
 import { DEVTOOLS_RUNTIME_CONFIG_KEY, devToolsRuntimeConfig } from './setup_rxdb_desktop';
 
 const RUST_SOURCE = readFileSync(resolve(import.meta.dirname, '../../src-tauri/src/devtools_config.rs'), 'utf8');
@@ -29,6 +30,20 @@ describe('DevTools 授权档的页内读取', () => {
     expect(RUST_SOURCE).toContain('pub const MUTATION_ENV: &str = "DEV_RXDB_DEVTOOLS_MUTATION";');
   });
 
+  it('三个档位环境变量在 Rust 侧逐字为这些名字（US-905 阶段 1 收尾）', () => {
+    // 档位名由 e2e 的 env 数组原样喂给进程，页面读的是注入后的 JSON——两处都只写字面量，
+    // 只能像授权档一样在这里把 Rust 源码钉住。
+    expect(RUST_SOURCE).toContain('pub const PROVIDER_SOURCE_ENV: &str = "DEV_RXDB_DEVTOOLS_PROVIDER_SOURCE";');
+    expect(RUST_SOURCE).toContain('pub const SNAPSHOT_SCENARIO_ENV: &str = "DEV_RXDB_DEVTOOLS_SNAPSHOT_SCENARIO";');
+    expect(RUST_SOURCE).toContain('pub const FORCE_VFS_ENV: &str = "DEV_RXDB_DEVTOOLS_FORCE_VFS";');
+  });
+
+  it('驱动档位键与授权键是两把不同的全局键', () => {
+    // 驱动跑在调试窗口、授权跑在主窗口；同名会让驱动把授权档读成自己的档位。
+    expect(RUST_SOURCE).toContain('pub const DRIVER_CONFIG_GLOBAL_KEY: &str = "__aiaoRxdbDevToolsDriverConfig__";');
+    expect(DEVTOOLS_RUNTIME_CONFIG_KEY).not.toBe('__aiaoRxdbDevToolsDriverConfig__');
+  });
+
   it('没有注入配置时返回空对象，而不是一份默认档', () => {
     delete (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY];
 
@@ -44,6 +59,40 @@ describe('DevTools 授权档的页内读取', () => {
 
     // wire 上叫 `capability`，连接器选项里叫 `capabilities`；翻译只发生在这一处。
     expect(devToolsRuntimeConfig()).toEqual({ capabilities: 'readonly', mutationPolicy: 'allow' });
+
+    delete (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY];
+  });
+
+  it('serde 对 None 序列化成 null——forceVfs: null 要按「未设」读回 undefined', () => {
+    // Rust 的 guarded_script 用 serde_json::to_string 整结构序列化，Option::None 在 wire 上
+    // 是 `"forceVfs": null`。候选表的闸门判的是 `forceVfs === undefined`，null 会让桌面候选
+    // 在真实档下被误判为「有强制档」而落选——正是 devtools-smoke 白屏 + 看门狗超时的真因。
+    (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY] = Object.freeze({
+      capability: 'full',
+      mutationPolicy: 'allow',
+      providerSource: 'real',
+      snapshotScenario: 'ok',
+      forceVfs: null
+    });
+
+    expect(readForcedVfs()).toBeUndefined();
+
+    delete (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY];
+  });
+
+  it('把注入的档位原样带出（providerSource / snapshotScenario / forceVfs）', () => {
+    (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY] = Object.freeze({
+      providerSource: 'fake',
+      snapshotScenario: 'busy',
+      forceVfs: 'idb'
+    });
+
+    // 档位三个键在连接器选项上同名，翻译只发生在授权两个键上。
+    expect(devToolsRuntimeConfig()).toEqual({
+      providerSource: 'fake',
+      snapshotScenario: 'busy',
+      forceVfs: 'idb'
+    });
 
     delete (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY];
   });

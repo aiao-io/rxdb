@@ -36,14 +36,39 @@ pub const CAPABILITY_ENV: &str = "DEV_RXDB_DEVTOOLS_CAPABILITY";
 /// 写入开关；只有逐字 `allow` 才开写，省略即只读。
 pub const MUTATION_ENV: &str = "DEV_RXDB_DEVTOOLS_MUTATION";
 
+/// provider 源档位（US-905 阶段 1 收尾）；`real` / `fake`，省略即真实宿主。
+pub const PROVIDER_SOURCE_ENV: &str = "DEV_RXDB_DEVTOOLS_PROVIDER_SOURCE";
+
+/// fake 档的 snapshot 场景；`ok` / `busy` / `expired` / `too_large`，省略即 `ok`。
+pub const SNAPSHOT_SCENARIO_ENV: &str = "DEV_RXDB_DEVTOOLS_SNAPSHOT_SCENARIO";
+
+/// wa-sqlite 后端/VFS 强制开关（AC#6 三态证据）；`opfs` / `idb` / `unavailable`。
+pub const FORCE_VFS_ENV: &str = "DEV_RXDB_DEVTOOLS_FORCE_VFS";
+
 /// 页面上承载这份配置的全局键。
 ///
 /// 与 `setup_rxdb_desktop.ts` 的 `devToolsRuntimeConfig()` 逐字相同，也与 Electron 侧
 /// preload 暴露的那个键同名——两个宿主上页内读法因此完全一致。
 pub const CONFIG_GLOBAL_KEY: &str = "__aiaoRxdbDevToolsConfig__";
 
+/// 调试窗口里承载**驱动档位**的全局键。
+///
+/// 与授权键分开：驱动跑在调试窗口（面板侧），授权跑在主窗口（connector 侧）。同一把键
+/// 在两边语义不同，驱动会把 connector 的授权档读成自己的档位。与 `devtools_driver.js`
+/// 读的键逐字相同。
+pub const DRIVER_CONFIG_GLOBAL_KEY: &str = "__aiaoRxdbDevToolsDriverConfig__";
+
 /// 合法能力档；与 `@aiao/rxdb-devtools` 的 `DEVTOOLS_CAPABILITIES` 同集。
 const CAPABILITIES: [&str; 3] = ["none", "readonly", "full"];
+
+/// 合法 provider 源档位。
+const PROVIDER_SOURCES: [&str; 2] = ["real", "fake"];
+
+/// 合法 snapshot 场景；fake 档专属装配面。
+const SNAPSHOT_SCENARIOS: [&str; 4] = ["ok", "busy", "expired", "too_large"];
+
+/// 合法 VFS 强制档；real 档专属装配面。
+const FORCE_VFS_VALUES: [&str; 3] = ["opfs", "idb", "unavailable"];
 
 /// 配置错误的退出码。
 ///
@@ -59,6 +84,12 @@ pub struct DevToolsRuntimeConfig {
     pub capability: String,
     /// 写入开关；`allow` 或 `omit`。
     pub mutation_policy: String,
+    /// provider 源档位；`real` 或 `fake`。
+    pub provider_source: String,
+    /// fake 档的 snapshot 场景；real 档下恒为 `ok`，不参与行为。
+    pub snapshot_scenario: String,
+    /// wa-sqlite VFS 强制档；未强制时为 `None`。
+    pub force_vfs: Option<String>,
 }
 
 /// 按注入的读取函数解析配置。
@@ -70,6 +101,11 @@ pub struct DevToolsRuntimeConfig {
 ///   而这里的默认值决定的是授权
 /// - [`MUTATION_ENV`] 可选，只接受 `allow`；**省略即只读**——写入开关是 owner 为这一次运行
 ///   打开的，不该由某个默认值代表
+/// - [`PROVIDER_SOURCE_ENV`] 可选，只接受 `real` / `fake`，省略即真实宿主
+/// - [`SNAPSHOT_SCENARIO_ENV`] 可选，只接受四个场景，且**只在 fake 档下合法**——real 档
+///   的显式场景只有一种读法：配错
+/// - [`FORCE_VFS_ENV`] 可选，只接受三个后端，且**只在 real 档下合法**——fake 档下
+///   provider 根本不会去开 wa-sqlite
 ///
 /// @param read - 环境读取函数；注入而不是直接读进程全局，单测才能并行且穷举。
 /// @returns 已校验的配置；未开启时为 `None`。
@@ -87,15 +123,61 @@ where
         return Err(format!("{CAPABILITY_ENV} must be one of none / readonly / full, got {capability:?}"));
     }
     let mutation = read(MUTATION_ENV);
-    match mutation.as_deref() {
-        None => Ok(Some(config(capability, "omit"))),
-        Some("allow") => Ok(Some(config(capability, "allow"))),
-        Some(other) => Err(format!("{MUTATION_ENV} only accepts allow; omit it for read-only, got {other:?}")),
+    let mutation_policy = match mutation.as_deref() {
+        None => "omit",
+        Some("allow") => "allow",
+        Some(other) => {
+            return Err(format!("{MUTATION_ENV} only accepts allow; omit it for read-only, got {other:?}"));
+        }
+    };
+
+    let provider_source = read(PROVIDER_SOURCE_ENV).unwrap_or_else(|| "real".to_string());
+    if !PROVIDER_SOURCES.contains(&provider_source.as_str()) {
+        return Err(format!("{PROVIDER_SOURCE_ENV} must be one of real / fake, got {provider_source:?}"));
+    }
+    let snapshot_scenario = read(SNAPSHOT_SCENARIO_ENV).unwrap_or_else(|| "ok".to_string());
+    if !SNAPSHOT_SCENARIOS.contains(&snapshot_scenario.as_str()) {
+        return Err(format!(
+            "{SNAPSHOT_SCENARIO_ENV} must be one of ok / busy / expired / too_large, got {snapshot_scenario:?}"
+        ));
+    }
+    if read(SNAPSHOT_SCENARIO_ENV).is_some() && provider_source != "fake" {
+        return Err(format!(
+            "{SNAPSHOT_SCENARIO_ENV} only applies to a fake provider source, got source {provider_source:?}"
+        ));
+    }
+    let force_vfs = read(FORCE_VFS_ENV);
+    match force_vfs.as_deref() {
+        None => Ok(Some(DevToolsRuntimeConfig {
+            capability,
+            mutation_policy: mutation_policy.to_string(),
+            provider_source,
+            snapshot_scenario,
+            force_vfs: None,
+        })),
+        Some(vfs) if FORCE_VFS_VALUES.contains(&vfs) && provider_source == "real" => Ok(Some(DevToolsRuntimeConfig {
+            capability,
+            mutation_policy: mutation_policy.to_string(),
+            provider_source,
+            snapshot_scenario,
+            force_vfs: Some(vfs.to_string()),
+        })),
+        Some(other) => Err(format!(
+            "{FORCE_VFS_ENV} must be one of opfs / idb / unavailable and only applies to a real provider source, got {other:?}"
+        )),
     }
 }
 
+/// 单测用的最小构造；生产路径全部走 `plan_from_env`，那里逐字段校验，不用这份默认档。
+#[cfg(test)]
 fn config(capability: String, mutation_policy: &str) -> DevToolsRuntimeConfig {
-    DevToolsRuntimeConfig { capability, mutation_policy: mutation_policy.to_string() }
+    DevToolsRuntimeConfig {
+        capability,
+        mutation_policy: mutation_policy.to_string(),
+        provider_source: "real".to_string(),
+        snapshot_scenario: "ok".to_string(),
+        force_vfs: None,
+    }
 }
 
 /// 读进程环境；配错就地退出。
@@ -123,13 +205,32 @@ pub fn plan_or_exit() -> Option<DevToolsRuntimeConfig> {
 /// @param main_window_label - 唯一该收到这份配置的窗口。
 /// @returns 注入脚本源码。
 pub fn init_script(config: &DevToolsRuntimeConfig, main_window_label: &str) -> String {
-    // 两个值都由 serde 产出：label 同样进的是 JS 源码，同样不能拼。
+    guarded_script(config, main_window_label, CONFIG_GLOBAL_KEY)
+}
+
+/// 生成调试窗口的驱动档位注入脚本（US-905 阶段 1 收尾的 fake/VFS 档）。
+///
+/// 与 [`init_script`] 同一个形状：按窗口 label 自守、值走 serde。挂在**另一把**全局键上——
+/// 驱动档位与页面授权是两份配置，同一把键会让驱动把授权档读成自己的档位。这份脚本不经过
+/// 插件（调试窗口是 `WebviewWindowBuilder` 直接建的），由 `lib.rs` 的
+/// `open_devtools_window` 排在 wire 驱动**之前**挂上同一个 builder 链。
+///
+/// @param config - 已校验的运行档。
+/// @param devtools_label - 唯一该收到这份档位的窗口。
+/// @returns 注入脚本源码。
+pub fn driver_init_script(config: &DevToolsRuntimeConfig, devtools_label: &str) -> String {
+    guarded_script(config, devtools_label, DRIVER_CONFIG_GLOBAL_KEY)
+}
+
+/// 两份注入脚本的共同形状；global key 是唯一区别。
+fn guarded_script(config: &DevToolsRuntimeConfig, target_label: &str, global_key: &str) -> String {
+    // 三个值都由 serde 产出：label 与 key 同样进的是 JS 源码，同样不能拼。
     let payload = serde_json::to_string(config).expect("devtools config is plain data");
-    let label = serde_json::to_string(main_window_label).expect("window label is a string");
+    let label = serde_json::to_string(target_label).expect("window label is a string");
     format!(
         r#"(function () {{
   if (window.__TAURI_INTERNALS__?.metadata?.currentWebview?.label !== {label}) return;
-  Object.defineProperty(window, "{CONFIG_GLOBAL_KEY}", {{ value: Object.freeze({payload}) }});
+  Object.defineProperty(window, "{global_key}", {{ value: Object.freeze({payload}) }});
 }})();"#
     )
 }
@@ -213,8 +314,78 @@ mod tests {
         let script = init_script(&config("readonly".to_string(), "allow"), "main");
 
         assert!(script.contains(r#"currentWebview?.label !== "main""#), "{script}");
-        assert!(script.contains(r#"{"capability":"readonly","mutationPolicy":"allow"}"#), "{script}");
+        assert!(script.contains(r#"{"capability":"readonly","mutationPolicy":"allow""#), "{script}");
         // 键名是跨语言契约的另一半（`setup_rxdb_desktop.ts` 的 `devToolsRuntimeConfig`）。
         assert!(script.contains(CONFIG_GLOBAL_KEY), "{script}");
+    }
+
+    #[test]
+    fn the_new_switches_default_to_real_host_with_an_inert_scenario() {
+        // 省略三个新变量 = 真实宿主、场景不参与、无 VFS 强制。这些默认值是「本档位未开启」
+        // 的声明，不是授权：三个档位都只在显式给出时改变本次运行的行为。
+        let plan = plan_from_env(reader(&[(ENABLE_ENV, "1"), (CAPABILITY_ENV, "full")])).unwrap().unwrap();
+        assert_eq!(plan.provider_source, "real");
+        assert_eq!(plan.snapshot_scenario, "ok");
+        assert_eq!(plan.force_vfs, None);
+    }
+
+    #[test]
+    fn the_provider_source_switch_only_accepts_real_or_fake() {
+        for source in PROVIDER_SOURCES {
+            let plan = plan_from_env(reader(&[(ENABLE_ENV, "1"), (CAPABILITY_ENV, "full"), (PROVIDER_SOURCE_ENV, source)]))
+                .unwrap()
+                .unwrap();
+            assert_eq!(plan.provider_source, source);
+        }
+        for bogus in ["", "Fake", "mock", "0"] {
+            let read = reader(&[(ENABLE_ENV, "1"), (CAPABILITY_ENV, "full"), (PROVIDER_SOURCE_ENV, bogus)]);
+            assert!(plan_from_env(read).is_err(), "{bogus}");
+        }
+    }
+
+    #[test]
+    fn the_snapshot_scenario_only_accepts_the_four_scenarios_and_is_fake_only() {
+        for scenario in SNAPSHOT_SCENARIOS {
+            let read =
+                reader(&[(ENABLE_ENV, "1"), (CAPABILITY_ENV, "full"), (PROVIDER_SOURCE_ENV, "fake"), (SNAPSHOT_SCENARIO_ENV, scenario)]);
+            assert_eq!(plan_from_env(read).unwrap().unwrap().snapshot_scenario, scenario);
+        }
+        for bogus in ["", "OK", "slow", "none"] {
+            let read = reader(&[(ENABLE_ENV, "1"), (CAPABILITY_ENV, "full"), (SNAPSHOT_SCENARIO_ENV, bogus)]);
+            assert!(plan_from_env(read).is_err(), "{bogus}");
+        }
+        // 场景是 fake 档的装配面：real 档下显式给出只有一种读法——配错。
+        let read = reader(&[(ENABLE_ENV, "1"), (CAPABILITY_ENV, "full"), (SNAPSHOT_SCENARIO_ENV, "busy")]);
+        assert!(plan_from_env(read).is_err());
+    }
+
+    #[test]
+    fn the_force_vfs_switch_only_accepts_the_three_backends_and_is_real_only() {
+        for vfs in FORCE_VFS_VALUES {
+            let read = reader(&[(ENABLE_ENV, "1"), (CAPABILITY_ENV, "full"), (FORCE_VFS_ENV, vfs)]);
+            assert_eq!(plan_from_env(read).unwrap().unwrap().force_vfs.as_deref(), Some(vfs));
+        }
+        for bogus in ["", "OPFS", "memory", "0"] {
+            let read = reader(&[(ENABLE_ENV, "1"), (CAPABILITY_ENV, "full"), (FORCE_VFS_ENV, bogus)]);
+            assert!(plan_from_env(read).is_err(), "{bogus}");
+        }
+        // VFS 强制只对真实宿主有意义：fake 档下 provider 根本不会去开 wa-sqlite。
+        let read =
+            reader(&[(ENABLE_ENV, "1"), (CAPABILITY_ENV, "full"), (PROVIDER_SOURCE_ENV, "fake"), (FORCE_VFS_ENV, "opfs")]);
+        assert!(plan_from_env(read).is_err());
+    }
+
+    #[test]
+    fn the_driver_init_script_guards_on_the_devtools_window_and_carries_the_tier() {
+        let mut plan = config("readonly".to_string(), "allow");
+        plan.provider_source = "fake".to_string();
+        plan.snapshot_scenario = "busy".to_string();
+        let script = driver_init_script(&plan, "rxdb-devtools");
+
+        assert!(script.contains(r#"currentWebview?.label !== "rxdb-devtools""#), "{script}");
+        assert!(script.contains(r#""providerSource":"fake","snapshotScenario":"busy""#), "{script}");
+        // 档位键与授权键是两把：驱动在调试窗口里读档位，主窗口读授权，同名会互相污染。
+        assert!(script.contains(DRIVER_CONFIG_GLOBAL_KEY), "{script}");
+        assert!(!script.contains(CONFIG_GLOBAL_KEY), "{script}");
     }
 }

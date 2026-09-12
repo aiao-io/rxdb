@@ -12,8 +12,12 @@
  */
 import { DESKTOP_HOST_PROTOCOL_VERSION, type DesktopHostTransport } from '@aiao/rxdb-adapter-tauri';
 import { createConnectorProviders } from '@aiao/rxdb-devtools';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { createDesktopDevToolsProviders, DESKTOP_STORAGE_ROOT_DIR } from './setup_rxdb_desktop';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createDesktopDevToolsProviders,
+  DESKTOP_STORAGE_ROOT_DIR,
+  resolveDevToolsProviders
+} from './setup_rxdb_desktop';
 
 /** 记录请求种类的假宿主；只答 devtools 文件系统会发的那几种。 */
 const createRecordingTransport = (): { kinds: string[]; transport: DesktopHostTransport } => {
@@ -103,5 +107,48 @@ describe('createDesktopDevToolsProviders', () => {
     await Promise.resolve();
 
     expect(kinds).toContain('file.close');
+  });
+});
+
+/**
+ * US-905 AC#2 的 fake 档装配分叉：provider 源档位决定连接器吃真实桌面端口还是整份 fake
+ * registry。真实端口包在 thunk 里，fake 档下**一次都不该装配** —— 装配它会把 pagehide
+ * 监听与 host 文件会话都建起来，而 fake 档的本意是连 host 都不碰。
+ */
+describe('resolveDevToolsProviders（US-905 AC#2 fake 档装配分叉）', () => {
+  const neverCalled = (): ReturnType<typeof createDesktopDevToolsProviders> => {
+    throw new Error('real providers MUST NOT be assembled under the fake tier');
+  };
+
+  it('fake 档返回整份 gear registry，真实端口不装配', () => {
+    const real = vi.fn(neverCalled);
+    const resolved = resolveDevToolsProviders('fake', 'ok', real);
+
+    expect(real).not.toHaveBeenCalled();
+    expect(resolved).toHaveProperty('providerRegistry');
+    if ('providerRegistry' in resolved) {
+      expect(resolved.providerRegistry.descriptors.map(({ domain, kind }) => [domain, kind])).toEqual([
+        ['database', 'rxdb'],
+        ['files', 'native-files'],
+        ['settings', 'sqlite']
+      ]);
+    }
+  });
+
+  it('fake 档缺场景时按 Rust 侧默认 ok', () => {
+    // Rust 的 plan_from_env 恒填 snapshotScenario（默认 ok），页侧同值兜的是类型上的
+    // undefined —— 不是运行时改道。
+    const resolved = resolveDevToolsProviders('fake', undefined, neverCalled);
+    expect(resolved).toHaveProperty('providerRegistry');
+  });
+
+  it('real 档与未配源档（release 形态）都走真实装配', () => {
+    const { transport } = createRecordingTransport();
+    const ports = createDesktopDevToolsProviders({ transport, getStorage: neverCalledStorage });
+    const real = vi.fn(() => ports);
+
+    expect(resolveDevToolsProviders('real', 'ok', real)).toBe(ports);
+    expect(resolveDevToolsProviders(undefined, undefined, real)).toBe(ports);
+    expect(real).toHaveBeenCalledTimes(2);
   });
 });
