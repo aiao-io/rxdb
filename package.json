@@ -250,6 +250,7 @@
       "smol-toml": "^1.8.0",
       "qs": "^6.16.0",
       "serialize-javascript": "^7.1.1",
+      "swiper": "^12.1.2",
       "sharp": "^0.35.4",
       "js-yaml@4": "^4.3.2",
       "yaml@1": "^1.10.3",
