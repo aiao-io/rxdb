@@ -26,6 +26,8 @@ import type {
   DevToolsProviderRuntime
 } from '../provider/descriptor.js';
 import { DEVTOOLS_PROVIDER_DOMAINS, DEVTOOLS_PROVIDER_OPERATIONS } from '../provider/descriptor.js';
+import type { DevToolsSnapshotPorts, DevToolsSnapshotStore } from '../provider/snapshot.js';
+import { createDevToolsSnapshotStore, dispatchSnapshotRequest } from '../provider/snapshot.js';
 import type {
   DevToolsChunkSink,
   DevToolsChunkSource,
@@ -68,6 +70,15 @@ export interface DevToolsFakeProviderOptions {
    * 播的是长度而不是内容，内容由 {@link readFakeFileBytes} 按偏移合成。
    */
   readonly files?: Readonly<Record<string, number>>;
+  /**
+   * 诊断快照端口；给定时 `files.list` 的快照模式走共享分派，否则回 `provider_unsupported`。
+   *
+   * @remarks
+   * 语义与 {@link DevToolsNativeFilesProviderPorts.snapshot} 完全相同：快照不是独立操作，
+   * 经 `files.list` 的参数切换。给 fake 接上真端口，conformance 的「无端口」与「有端口」
+   * 两个形态才能用同一份断言跑。
+   */
+  readonly snapshot?: DevToolsSnapshotPorts;
 }
 
 /** 一组 fake provider 及其观测面。 */
@@ -143,7 +154,7 @@ interface FakeState {
   openChunkSources: number;
 }
 
-type FakeHandler = (params: unknown) => DevToolsProviderResult;
+type FakeHandler = (params: unknown) => DevToolsProviderResult | Promise<DevToolsProviderResult>;
 
 function createState(files?: Readonly<Record<string, number>>): FakeState {
   return {
@@ -248,14 +259,24 @@ function createDatabaseHandlers(state: FakeState): Readonly<Record<string, FakeH
   };
 }
 
-function createFilesHandlers(state: FakeState): Readonly<Record<string, FakeHandler>> {
+function createFilesHandlers(
+  state: FakeState,
+  snapshotStore: DevToolsSnapshotStore | undefined
+): Readonly<Record<string, FakeHandler>> {
   const read = <TResult>(produce: () => TResult): DevToolsProviderResult => {
     state.hostReads += 1;
     return ok(produce());
   };
 
   return {
-    list: () => read(() => ({ entries: [...state.files].map(([path, size]) => ({ path, size })) })),
+    list: params => {
+      // `snapshot` 键出现即走诊断快照；与 native-files 共用 `provider/snapshot.ts` 的
+      // 同一份分派，同一形状的请求在两个 provider 上才答得出同一个码。
+      if (isRecord(params) && params['snapshot'] !== undefined) {
+        return dispatchSnapshotRequest(snapshotStore, params['snapshot']);
+      }
+      return read(() => ({ entries: [...state.files].map(([path, size]) => ({ path, size })) }));
+    },
     download: params => {
       const path = readString(params, 'path');
       if (path === undefined) return fail('invalid_path');
@@ -308,7 +329,10 @@ const HANDLER_FACTORIES = {
   database: createDatabaseHandlers,
   files: createFilesHandlers,
   settings: createSettingsHandlers
-} as const satisfies Record<DevToolsProviderDomain, (state: FakeState) => Readonly<Record<string, FakeHandler>>>;
+} as const satisfies Record<
+  DevToolsProviderDomain,
+  (state: FakeState, snapshotStore: DevToolsSnapshotStore | undefined) => Readonly<Record<string, FakeHandler>>
+>;
 
 function describeDomain(
   domain: DevToolsProviderDomain,
@@ -341,9 +365,10 @@ function createProvider(
   domain: DevToolsProviderDomain,
   descriptor: DevToolsProviderDescriptor,
   state: FakeState,
-  options: DevToolsFakeProviderOptions
+  options: DevToolsFakeProviderOptions,
+  snapshotStore: DevToolsSnapshotStore | undefined
 ): DevToolsProvider {
-  const handlers = HANDLER_FACTORIES[domain](state);
+  const handlers = HANDLER_FACTORIES[domain](state, snapshotStore);
 
   return {
     descriptor,
@@ -458,12 +483,14 @@ export function createFakeProviders(options: DevToolsFakeProviderOptions = {}): 
   const state = createState(options.files);
   const runtime = options.runtime ?? 'browser';
   const maxTransferBytes = options.maxTransferBytes ?? DEVTOOLS_BROWSER_OPFS_MAX_TRANSFER_BYTES;
+  // 快照仓库按集合创建：一个 fake 集合 = 一个 session 的 registry，仓库因此也是 session 级。
+  const snapshotStore = options.snapshot === undefined ? undefined : createDevToolsSnapshotStore(options.snapshot);
 
   const providers = new Map<DevToolsProviderDomain, DevToolsProvider>();
   for (const domain of DEVTOOLS_PROVIDER_DOMAINS) {
     const kind = options.kinds?.[domain] ?? DEFAULT_KINDS[domain];
     const descriptor = describeDomain(domain, kind, runtime, maxTransferBytes);
-    providers.set(domain, createProvider(domain, descriptor, state, options));
+    providers.set(domain, createProvider(domain, descriptor, state, options, snapshotStore));
   }
 
   return {

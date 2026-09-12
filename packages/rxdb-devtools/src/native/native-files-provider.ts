@@ -25,8 +25,8 @@
 
 import type { DevToolsProviderDescriptor, DevToolsProviderRuntime } from '../provider/descriptor.js';
 import { isValidPathSegment, joinLogicalPath, parseLogicalPath, splitLogicalPath } from '../provider/logical-path.js';
-import type { DevToolsSnapshotPorts, DevToolsSnapshotResult, DevToolsSnapshotStore } from '../provider/snapshot.js';
-import { createDevToolsSnapshotStore } from '../provider/snapshot.js';
+import type { DevToolsSnapshotPorts, DevToolsSnapshotStore } from '../provider/snapshot.js';
+import { createDevToolsSnapshotStore, dispatchSnapshotRequest } from '../provider/snapshot.js';
 import type {
   DevToolsChunkSink,
   DevToolsChunkSource,
@@ -173,21 +173,6 @@ function mapped(error: unknown): DevToolsProviderResult {
 }
 
 /**
- * 把快照仓库的结果翻译成 provider 结果。
- *
- * @remarks
- * `rejected` 直接透传仓库给的结构化错误（`snapshot_busy` / `snapshot_too_large` /
- * `snapshot_expired` / `invalid_message`）——它们是已冻结的共享码，不在这里改写。
- * `cancelled` 在 provider 语境下不可达（取消只来自 session 拆除时的 `dispose`，而那时没有
- * 在途请求），但诚实收敛成 `operation_failed` 而不是假装成功。
- */
-function toSnapshotResult(result: DevToolsSnapshotResult): DevToolsProviderResult {
-  if (result.outcome === 'page') return ok(result.page);
-  if (result.outcome === 'rejected') return { outcome: 'failed', error: result.error };
-  return failure('operation_failed');
-}
-
-/**
  * 建一个原生文件后端的 `files` provider。
  *
  * @param ports - 宿主文件能力、真实传输上限与（可选的）诊断快照端口。
@@ -215,7 +200,9 @@ export function createDevToolsNativeFilesProvider(
   async function list(params: Record<string, unknown>): Promise<DevToolsProviderResult> {
     // `snapshot` 键出现即走诊断快照，否则按既有语义列一层目录。两者共用 `list` 这一操作，
     // 用参数区分而不是新增操作——快照不是协议消息类型，只是 provider 内部物化的翻页方式。
-    if (params['snapshot'] !== undefined) return snapshotList(params['snapshot']);
+    // 分派与翻译走 `provider/snapshot.ts` 的共享助手：fake provider 用同一份，
+    // 同一形状的请求在两处才答得出同一个码。
+    if (params['snapshot'] !== undefined) return dispatchSnapshotRequest(snapshotStore, params['snapshot']);
     const segments = parseLogicalPath(params['path']);
     if (segments === undefined) return failure('invalid_path');
     const base = joinLogicalPath(segments);
@@ -225,32 +212,6 @@ export function createDevToolsNativeFilesProvider(
       // 只有一层，所以 `path` 由本层拼；实现方不参与拼路径，也就无从拼出根外的路径。
       entries: entries.map(entry => ({ ...entry, path: joinLogicalPath([...segments, entry.name]) }))
     });
-  }
-
-  /**
-   * `files.list` 的快照模式：物化第一页（`{ pageSize }`）或翻页（`{ cursor }`）。
-   *
-   * @remarks
-   * 15 秒 deadline、epoch 重试、busy/too-large/expired 全部由 {@link DevToolsSnapshotStore}
-   * 负责，这里只做两件事：把 wire 参数切成 store 认识的两个调用，再把结果翻译成 provider 结果。
-   * 形状校验只到「类型」这一层——范围与绑定交给 store 的 guard（它们已由 snapshot 单测覆盖），
-   * 在这里重复一遍只会让同一错误码有两条路径。
-   */
-  async function snapshotList(spec: unknown): Promise<DevToolsProviderResult> {
-    if (snapshotStore === undefined) return failure('provider_unsupported');
-    if (!isRecord(spec)) return failure('invalid_path');
-
-    const cursor = spec['cursor'];
-    if (cursor === undefined) {
-      const pageSize = spec['pageSize'];
-      if (pageSize !== undefined && typeof pageSize !== 'number') return failure('invalid_path');
-      return toSnapshotResult(await snapshotStore.open(pageSize));
-    }
-
-    if (!isRecord(cursor) || typeof cursor['snapshotId'] !== 'string' || typeof cursor['offset'] !== 'number') {
-      return failure('invalid_path');
-    }
-    return toSnapshotResult(snapshotStore.page({ snapshotId: cursor['snapshotId'], offset: cursor['offset'] }));
   }
 
   async function download(params: Record<string, unknown>): Promise<DevToolsProviderResult> {

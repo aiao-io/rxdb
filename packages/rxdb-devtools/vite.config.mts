@@ -43,10 +43,12 @@ export default defineConfig(() => ({
       transformMixedEsModules: true
     },
     lib: {
-      // 多入口：`./testing` 必须独立成子路径，因为它 import vitest，不能进运行时主入口。
+      // 多入口：`./testing` 必须独立成子路径，因为它 import vitest，不能进运行时主入口；
+      // `./testing-providers` 相反——它**不**含 vitest，独立是为了让宿主测试不背上测试框架。
       entry: {
         index: 'src/index.ts',
-        testing: 'src/testing.ts'
+        testing: 'src/testing.ts',
+        'testing-providers': 'src/testing-providers.ts'
       },
       // 多入口 ES-only 下 `name`（UMD 全局名）无意义，故省略。
       fileName: (_format: string, entryName: string) => `${entryName}.js`,
@@ -85,7 +87,7 @@ export default defineConfig(() => ({
       // `src/testing/` 同理：它是发布给 US-904 阶段 C / D 与 US-905 复跑的 conformance 套件与 fake，
       // 属于测试基础设施而非产品代码。它不能放在 `src/__tests__/` 下（tsconfig.lib.json
       // 整段排除该目录，会让 typecheck 与 dts 找不到源文件），所以只能在这里显式排除。
-      exclude: ['src/**/__tests__/fixtures/**', 'src/testing/**', 'src/testing.ts']
+      exclude: ['src/**/__tests__/fixtures/**', 'src/testing/**', 'src/testing.ts', 'src/testing-providers.ts']
     }
   }
 }));
