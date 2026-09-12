@@ -41,14 +41,10 @@ import { DesktopLaunch } from './desktop-launch.entity';
  */
 export const DESKTOP_STORAGE_ROOT_DIR = 'files';
 
-/**
- * 挂载键，与 Rust 侧 `devtools_config.rs` 的 `CONFIG_GLOBAL_KEY` 逐字一致。
- *
- * @remarks
- * 页面与 Rust 分属两条工具链，这里只能写字面量；由 `devtools-runtime-config.spec.ts`
- * 的一条用例读 Rust 源码把两处钉在一起。Electron 侧同名同值，页内读法因此两端一致。
- */
-export const DEVTOOLS_RUNTIME_CONFIG_KEY = '__aiaoRxdbDevToolsConfig__';
+// 挂载键定义在零依赖的 devtools-runtime-config.ts：主 chunk 的 setup_rxdb.ts 也要读它，
+// 定义在这里会把 devtools 装配拽进 main.js。本模块 import 后用 re-export 保持既有 import 面不变。
+import { DEVTOOLS_RUNTIME_CONFIG_KEY } from './devtools-runtime-config';
+export { DEVTOOLS_RUNTIME_CONFIG_KEY };
 
 /**
  * 读取本次运行的 DevTools 授权配置。

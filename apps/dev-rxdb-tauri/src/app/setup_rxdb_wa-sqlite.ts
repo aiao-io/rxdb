@@ -8,16 +8,23 @@ import { checkOPFSAvailable } from '@aiao/utils';
 import { createWaSqliteDevToolsPorts } from '../devtools/tauri-vfs-providers';
 import { WEB_PREVIEW_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
-import { selectWaSqliteBackend, type WaSqliteBackend } from './wa-sqlite-backend';
+import type { DevToolsForcedVfs } from './devtools-runtime-config';
+import { isTauriRuntime } from './services/tauri-environment';
+import { resolveWaSqliteBackend, type WaSqliteBackend } from './wa-sqlite-backend';
 
 /**
  * 构建本 app 的 RxDB 单例（纯本地 wa-sqlite，无远端同步）。
  *
+ * @param forced - US-905 AC#6 的 VFS 强制档；`undefined` 时按运行时能力探测
  * @returns 已 `init()` 但**尚未 `connect()`** 的 RxDB 实例；连接由 `connectRxDB` 负责
  *
  * @remarks
  * 这条分支只在**非** Tauri 运行时被选中 —— 也就是 `nx serve dev-rxdb-tauri` 直接开浏览器
  * 预览的场景。打包后的 Tauri 窗口一律走 `setup_rxdb_desktop.ts`。
+ *
+ * 唯一的例外是 VFS 强制档（US-905 AC#6 三态实测）：强制档让 wa-sqlite 候选在 Tauri 窗口里
+ * 也胜出（见 `setup_rxdb.ts` 的候选表），本模块因此会带着 `forced` 被建库 —— 后端判定
+ * 直接映射强制档、跳过探测，devtools 挂接则按真实运行时上报。
  *
  * **本模块不调用 `inject()`。** 它经由动态 `import()` 加载（US-207 E11），调用点已经在
  * 至少一个 `await` 之后 —— 注入上下文那时已经离开，`inject()` 会以 NG0203 失败。
@@ -30,15 +37,15 @@ import { selectWaSqliteBackend, type WaSqliteBackend } from './wa-sqlite-backend
  * 模块级单例也一并去掉了：唯一的调用点是 `setup_rxdb.ts` 的 `localDatabase()`，
  * 那里已经把建库 Promise 记住了。两层缓存等于两个「哪个才是本 app 的实例」的答案。
  */
-export default () => {
+export default (forced?: DevToolsForcedVfs) => {
   const wasmBase = new URL('wa-sqlite/', document.baseURI).href;
 
   // 后端判定**只做一次**：适配器工厂开的库和 devtools 宣告的能力必须来自同一个结论。
   // 探针虽是纯函数，但两处各探一次得到的一致性只是碰巧——OPFS 可用性会随存储配额变化。
+  // 强制档下探测根本不被调用：见 resolveWaSqliteBackend。
   let backendOnce: Promise<WaSqliteBackend> | undefined;
   const resolveBackend = (): Promise<WaSqliteBackend> =>
-    (backendOnce ??= (async () =>
-      selectWaSqliteBackend(await checkOPFSAvailable(), typeof SharedWorker === 'function'))());
+    (backendOnce ??= resolveWaSqliteBackend(forced, checkOPFSAvailable, typeof SharedWorker === 'function'));
 
   const rxdb = new RxDB({
     dbName: WEB_PREVIEW_DB_NAME,
@@ -113,9 +120,13 @@ export default () => {
   // 无人认领 rejection。
   void resolveBackend()
     .then(backend => {
-      // 本模块只在**非** Tauri 运行时被选中（见文件头），宿主就是浏览器；runtime 是纯显示
-      // 字段，写死 `'tauri'` 会让预览页谎报来源，而真 Tauri 窗口走的是 setup_rxdb_desktop.ts。
-      const ports = createWaSqliteDevToolsPorts(backend, resolveBrowserOpfsRoot(), 'browser');
+      // runtime 按真实宿主上报：普通预览是浏览器，强制档下的 Tauri 窗口必须是 'tauri' ——
+      // AC#6 的 wire 观察判据（runtime: tauri + settings 按 VFS 宣告）就靠这个字段。
+      const ports = createWaSqliteDevToolsPorts(
+        backend,
+        resolveBrowserOpfsRoot(),
+        isTauriRuntime(globalThis) ? 'tauri' : 'browser'
+      );
       // 后端不可用时本地库根本开不起来，没有可调试的对象，不建 connector。
       if (ports === undefined) return;
       getDevToolsConnector({ providers: ports }).init(rxdb, getEntityMetadata);
