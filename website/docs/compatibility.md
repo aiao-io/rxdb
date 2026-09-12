@@ -76,7 +76,7 @@
 | 崩溃恢复 | **无保证**——微信文件 API 缺少可靠的 `fsync`、文件锁与原子 rename                               |
 | 数据量   | 整库缓冲在内存，仅适用于 ~10MB 级的兼容性验证，不适用于大数据量场景                            |
 | 随机源   | 由 `wx.getRandomValues` 预取随机池；池耗尽时抛错，**任何情况下都不降级**到 `Math.random`       |
-| 全文搜索 | 不支持（`@aiao/rxdb-plugin-search` 只兼容 `@aiao/rxdb-adapter-sqlite-wasm`）                   |
+| 全文搜索 | wasm 已编入 FTS5，可直接写 SQL 虚拟表；但 `@aiao/rxdb-plugin-search` 尚未放行本适配器          |
 
 运行时启动前需调用 `@aiao/rxdb-adapter-miniprogram/runtime` 的 `prepareMiniProgramRuntime(wx)`，
 缺少任一必需能力时 fail-fast 并列出全部缺失项。详见[包 README](https://github.com/aiao-io/rxdb/tree/main/packages/rxdb-adapter-miniprogram)。

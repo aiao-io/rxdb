@@ -1,0 +1,29 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// lint": "Taro 的依赖树被 auto-install-peers 塞进一个 eslint 8.41（@eslint-community/eslint-utils 的 peer），它的 .bin 会盖住根上的 eslint 10，flat config 直接找不到。所以显式走根二进制，而不是 @nx/eslint/plugin 推断出的裸 `eslint .`。",
+  "// targets": "to see all targets run: nx show project dev-rxdb-miniprogram --web",
+  "name": "dev-rxdb-miniprogram",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-miniprogram/src",
+  "tags": ["react-app", "miniprogram-app"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "cwd": "apps/dev-rxdb-miniprogram",
+        "command": "node ./node_modules/@tarojs/cli/bin/taro build --type weapp"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-miniprogram",
+        "command": "node ../../node_modules/eslint/bin/eslint.js ."
+      }
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    }
+  }
+}

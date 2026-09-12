@@ -253,7 +253,18 @@
       "js-yaml@4": "^4.3.2",
       "yaml@1": "^1.10.3",
       "sockjs>uuid": "^11.1.1",
-      "postman-collection>uuid": "^11.1.1"
+      "postman-collection>uuid": "^11.1.1",
+      "dev-rxdb-miniprogram>react": "^18.3.1",
+      "dev-rxdb-miniprogram>react-dom": "^18.3.1"
+    },
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "@tarojs/react>react": "18",
+        "@tarojs/plugin-framework-react>react": "18",
+        "@tarojs/components-react>react": "18",
+        "react-reconciler>react": "18",
+        "react-dom>react": "18"
+      }
     },
     "patchedDependencies": {
       "typescript@6.0.3": "patches/typescript@6.0.3.patch"

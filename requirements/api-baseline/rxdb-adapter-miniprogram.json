@@ -26,6 +26,10 @@
         "kind": "value"
       },
       {
+        "name": "loadSubframeModuleFactory",
+        "kind": "value"
+      },
+      {
         "name": "loadWaSqliteMiniProgramModule",
         "kind": "value"
       },
@@ -60,6 +64,10 @@
       {
         "name": "RxDBAdapterWaSqliteMiniProgram",
         "kind": "both"
+      },
+      {
+        "name": "SUBFRAME_WASM_SUBPATH",
+        "kind": "value"
       },
       {
         "name": "WaSqliteEmscriptenModule",

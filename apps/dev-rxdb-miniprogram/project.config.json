@@ -1,7 +1,7 @@
 {
   "appid": "wx0c6a68673e0872fe",
   "compileType": "miniprogram",
-  "description": "taro-react-todo",
+  "description": "@aiao/rxdb-adapter-miniprogram 的 Taro + React 微信小程序演示",
   "editorSetting": {},
   "miniprogramRoot": "dist/",
   "packOptions": {
@@ -93,7 +93,7 @@
     ],
     "include": []
   },
-  "projectname": "taro-react-todo",
+  "projectname": "dev-rxdb-miniprogram",
   "setting": {
     "urlCheck": true,
     "es6": true,

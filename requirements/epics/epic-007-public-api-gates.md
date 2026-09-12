@@ -29,6 +29,8 @@ owner: jimmy
 
 - [x] `api-surface.mjs` 覆盖 `exports` 子路径入口的导出表面（[US-601](../stories/tooling/US-601-subpath-api-surface-baseline.md)，✅ 2026-08-24）——
       30 个公开包 44 个入口全部进基线；唯一不扫的 2 个资产入口没有导出表面可扫，由 SHA-256 守护。
+      （2026-09-12 更新：那 2 个 `miniprogram/assets/*` 入口随 glue + wasm 改用
+      `@subframe7536/sqlite-wasm` 而撤销，资产白名单现为空，53 个入口全部进基线。）
       **本 Epic 因此转 `In Progress`**：三条目标关了两条，剩一条仍无故事认领
 - [x] 迁移发布门禁的三个 git 钩子（`bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol`）
       进入 PR CI，而不只在打 tag 时跑——已挂进 `ci-template.yml` 的 `setup` job（不带 `--release-tag`，

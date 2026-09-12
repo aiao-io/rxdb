@@ -1,9 +1,8 @@
 import type { EntityType, RxDB } from '@aiao/rxdb';
-import type { RxDBAdapterWaSqliteMiniProgram, WaSqliteModuleFactory } from '@aiao/rxdb-adapter-miniprogram';
+import type { RxDBAdapterWaSqliteMiniProgram } from '@aiao/rxdb-adapter-miniprogram';
 import type { MiniProgramRuntimeReferences, RuntimeCapability } from './runtime-preflight';
 
 type RxdbModule = typeof import('@aiao/rxdb');
-type WaSqliteFactoryModule = typeof import('@aiao/rxdb-adapter-miniprogram/assets/wa-sqlite.cjs');
 
 type CheckStatus = 'passed' | 'pending';
 
@@ -44,10 +43,12 @@ const LAUNCH_PROBE_KEY = 'launch-persistence';
 function firstValue<T>(source: ObservableLike<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     let settled = false;
-    let subscription: SubscriptionLike | undefined;
-    const unsubscribe = () => Promise.resolve().then(() => subscription?.unsubscribe());
+    // 同步 observable 会在 `subscribe()` 返回之前就触发 `next`，那一刻订阅句柄还没交回来，
+    // 所以取消订阅延到微任务，句柄也只能放进可变容器里（先声明后赋值的 `let` 过不了 prefer-const）。
+    const handle: { subscription?: SubscriptionLike } = {};
+    const unsubscribe = () => Promise.resolve().then(() => handle.subscription?.unsubscribe());
 
-    subscription = source.subscribe({
+    handle.subscription = source.subscribe({
       next(value) {
         if (settled) return;
         settled = true;
@@ -105,11 +106,6 @@ function defineEntities(rxdb: RxdbModule) {
 }
 
 type DemoEntities = ReturnType<typeof defineEntities>;
-
-function normalizeModuleFactory(module: WaSqliteFactoryModule): WaSqliteModuleFactory {
-  if (typeof module.default !== 'function') throw new Error('wa-sqlite glue 未导出模块工厂');
-  return module.default;
-}
 
 export class MiniProgramRxdbDemo {
   private readonly rxdb: RxDB;
@@ -237,12 +233,10 @@ export async function openMiniProgramRxdbDemo(runtime: MiniProgramRuntimeReferen
   const runtimePackage = await import('@aiao/rxdb-adapter-miniprogram/runtime');
   await runtimePackage.prepareMiniProgramRuntime(runtime.wechat);
 
-  const [rxdb, adapterPackage, glueModule] = await Promise.all([
-    import('@aiao/rxdb'),
-    import('@aiao/rxdb-adapter-miniprogram'),
-    import('@aiao/rxdb-adapter-miniprogram/assets/wa-sqlite.cjs')
-  ]);
-  const moduleFactory = normalizeModuleFactory(glueModule);
+  const [rxdb, adapterPackage] = await Promise.all([import('@aiao/rxdb'), import('@aiao/rxdb-adapter-miniprogram')]);
+  // glue 与 wasm 都来自 `@subframe7536/sqlite-wasm`（编入 FTS5），adapter 负责定位 glue，
+  // wasm 由 `config/index.ts` 的 copy 规则放到 `DEFAULT_WASM_PATH`。
+  const moduleFactory = await adapterPackage.loadSubframeModuleFactory();
   const capabilities = adapterPackage.checkMiniProgramRuntimeCapabilities({
     moduleFactory,
     wechat: runtime.wechat,
@@ -255,7 +249,7 @@ export async function openMiniProgramRxdbDemo(runtime: MiniProgramRuntimeReferen
 
   const entities = defineEntities(rxdb);
   const database = new rxdb.RxDB({
-    dbName: 'taro-react-todo',
+    dbName: 'dev-rxdb-miniprogram',
     context: { userId: 'mini-program-user' },
     entities: [entities.Todo, entities.RuntimeProbe],
     multiInstance: false,

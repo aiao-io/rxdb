@@ -50,10 +50,11 @@ INVEST 检查清单:
 
 这些不是规划冲动，是仓库里已经写在纸面上的口是心非：
 
-1. [examples/taro-react-todo/package.json](../../../examples/taro-react-todo/package.json) 保留
-   `build:alipay` / `build:tt` / `build:qq` / `build:swan`，但
-   [examples/README.md](../../../examples/README.md) 写死「只有 `build:weapp` 经过验证」。
-   多端命令在，数据层不在。
+1. [apps/dev-rxdb-miniprogram/package.json](../../../apps/dev-rxdb-miniprogram/package.json) 保留
+   `build:alipay` / `build:tt` / `build:qq` / `build:swan`，但只有 `build:weapp` 进 Nx 的 `build`
+   target、也只有它经过验证（见 [examples/README.md](../../../examples/README.md) 的「已迁出」一节）。
+   多端命令在，数据层不在。2026-09-12 把项目迁进 `apps/` 时特意**没删**这些脚本：删掉只是把症状
+   盖住，能力并没有交付。
 2. 公开构造函数仍要求 `wechat: MiniProgramWechatApi` 与 `wasmRuntime: WXWebAssembly`，见
    `WaSqliteMiniProgramOptions`
    （[mini-program.interface.ts](../../../packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts)）。
@@ -110,7 +111,9 @@ INVEST 检查清单:
 - WAL、Worker / SharedWorker、多页面并发、崩溃恢复保证——除非某平台可行性**证明**具备
   可靠 `fsync`、文件锁与原子 rename，且另开故事，不在本文件顺手承诺
 - 小程序侧 FTS5 / `@aiao/rxdb-plugin-search`（缺口仍由能力矩阵记录，不归本故事）
-- 把 `examples/taro-react-todo` 做成 CI 产品示例或 Nx 项目
+- 把 demo 升格成「受支持的产品级示例」
+  （迁入 `apps/dev-rxdb-miniprogram/` 并纳入 Nx 这一半已在 2026-09-12 由 US-209 交付后变更完成，
+  但它仍只验证 weapp 一端，不因此变成多端示例）
 - uni-app / 快应用 / React Native / Harmony 作为一等运行时
 - 改 `ADAPTER_NAME`（保持 `wa-sqlite-miniprogram`）
 - 删除或重命名已发布的微信符号：`RxDBAdapterWaSqliteMiniProgram`、`MiniProgramWechatApi`、
@@ -212,22 +215,22 @@ Taro 与历史 README 都把支付宝放在微信旁边，所以它是**第一�
 
 ## 实现文件
 
-| 阶段 | 路径                                                                        | 职责                                      |
-| ---- | --------------------------------------------------------------------------- | ----------------------------------------- |
-| A    | `packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts`           | `MiniProgramHost` / 平台 id               |
-| A    | `packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts`                  | 通用文件 VFS；微信封装保留                |
-| A    | `packages/rxdb-adapter-miniprogram/src/runtime-capabilities.ts`             | 按 host 预检；微信文案不变                |
-| A    | `packages/rxdb-adapter-miniprogram/src/runtime-polyfills.ts`                | host 随机源；`wx` 路径保留                |
-| A    | `requirements/stories/adapter/miniprogram-platform-feasibility.md`          | 可行性矩阵                                |
-| B/C  | `packages/rxdb-adapter-miniprogram/src/hosts/`                              | 每平台一个 host，禁止共享「像 wx 的全局」 |
-| B/C  | `packages/rxdb-adapter-miniprogram/src/__tests__/`                          | 每平台 fixture，不碰真实微信全局          |
-| B/C  | `website/docs/compatibility.md`、包 README、根 README、`examples/README.md` | 按已关闭阶段改口径                        |
-| B    | `examples/taro-react-todo/`（可选）                                         | 仅当它仍是最便宜的手工入口时扩展；不进 CI |
+| 阶段 | 路径                                                                        | 职责                                                               |
+| ---- | --------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| A    | `packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts`           | `MiniProgramHost` / 平台 id                                        |
+| A    | `packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts`                  | 通用文件 VFS；微信封装保留                                         |
+| A    | `packages/rxdb-adapter-miniprogram/src/runtime-capabilities.ts`             | 按 host 预检；微信文案不变                                         |
+| A    | `packages/rxdb-adapter-miniprogram/src/runtime-polyfills.ts`                | host 随机源；`wx` 路径保留                                         |
+| A    | `requirements/stories/adapter/miniprogram-platform-feasibility.md`          | 可行性矩阵                                                         |
+| B/C  | `packages/rxdb-adapter-miniprogram/src/hosts/`                              | 每平台一个 host，禁止共享「像 wx 的全局」                          |
+| B/C  | `packages/rxdb-adapter-miniprogram/src/__tests__/`                          | 每平台 fixture，不碰真实微信全局                                   |
+| B/C  | `website/docs/compatibility.md`、包 README、根 README、`examples/README.md` | 按已关闭阶段改口径                                                 |
+| B    | `apps/dev-rxdb-miniprogram/`（可选）                                        | 仅当它仍是最便宜的手工入口时扩展；已进 CI，新增平台需同时加 target |
 
 ## References
 
 - [US-209 微信小程序 wa-sqlite 适配器](./US-209-miniprogram-adapter.md) — 本故事的前置与不可回退边界
 - [包 README：能力边界](../../../packages/rxdb-adapter-miniprogram/README.md)
 - [compatibility.md 小程序专节](../../../website/docs/compatibility.md)
-- [examples/README.md](../../../examples/README.md) — Taro 多端命令与「仅 weapp 已验证」
+- [apps/dev-rxdb-miniprogram/](../../../apps/dev-rxdb-miniprogram/) — Taro 多端命令与「仅 weapp 已验证」的落点
 - [US-207 / US-210](./US-207-desktop-local-database.md) — 「先抽 host、再按运行时拆阶段」的同构先例；契约本身不复用
