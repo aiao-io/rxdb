@@ -1,4 +1,4 @@
-import { EntityStaticType, EntityType, EntityUpdateData } from '../entity/entity.interface.js';
+import { EntityInstanceType, EntityStaticType, EntityType, EntityUpdateData } from '../entity/entity.interface.js';
 import { getEntityStatus } from '../rxdb-utils.js';
 import type { RxDB } from '../RxDB.js';
 
@@ -55,7 +55,7 @@ export abstract class RepositoryBase<T extends EntityType> {
    * 走 `rxdb.entityManager.createEntityRef` 是为了复用同一份引用语义，避免
    * 不同调用栈里拿到的是两个状态不同步的克隆。
    */
-  createEntityRef(data: EntityUpdateData<T>) {
+  createEntityRef(data: EntityUpdateData<T>): EntityInstanceType<T> {
     return this.rxdb.entityManager.createEntityRef(this.EntityType, data);
   }
 

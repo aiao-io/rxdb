@@ -50,6 +50,14 @@
         "kind": "type"
       },
       {
+        "name": "BulkSyncOptions",
+        "kind": "type"
+      },
+      {
+        "name": "BulkSyncResult",
+        "kind": "type"
+      },
+      {
         "name": "CheckRepositoryUpdatesResult",
         "kind": "type"
       },
@@ -136,6 +144,10 @@
       {
         "name": "decodeRxDBEntityIdentity",
         "kind": "value"
+      },
+      {
+        "name": "DependencyGraph",
+        "kind": "type"
       },
       {
         "name": "describeEntityFields",
@@ -266,6 +278,10 @@
         "kind": "type"
       },
       {
+        "name": "EntityInstanceType",
+        "kind": "type"
+      },
+      {
         "name": "EntityLocalCreatedEvent",
         "kind": "both"
       },
@@ -366,6 +382,10 @@
         "kind": "type"
       },
       {
+        "name": "EntityStatus",
+        "kind": "type"
+      },
+      {
         "name": "EntityToManyRelationFieldDescriptor",
         "kind": "type"
       },
@@ -387,6 +407,10 @@
       },
       {
         "name": "EnumRules",
+        "kind": "type"
+      },
+      {
+        "name": "EventListener",
         "kind": "type"
       },
       {
@@ -738,6 +762,10 @@
         "kind": "type"
       },
       {
+        "name": "MergeQueryTaskOptions",
+        "kind": "type"
+      },
+      {
         "name": "MergeStrategy",
         "kind": "type"
       },
@@ -926,6 +954,10 @@
         "kind": "both"
       },
       {
+        "name": "QueryManager",
+        "kind": "type"
+      },
+      {
         "name": "queryNeedRefreshCreate",
         "kind": "value"
       },
@@ -1102,6 +1134,10 @@
         "kind": "both"
       },
       {
+        "name": "RepositorySyncStatus",
+        "kind": "type"
+      },
+      {
         "name": "RepositorySyncSwitch",
         "kind": "type"
       },
@@ -1234,6 +1270,10 @@
         "kind": "type"
       },
       {
+        "name": "RxDBConfig",
+        "kind": "type"
+      },
+      {
         "name": "RxDBContext",
         "kind": "type"
       },
@@ -1304,6 +1344,10 @@
       {
         "name": "RxDBEventMap",
         "kind": "type"
+      },
+      {
+        "name": "RxDBLocalAdapterCapabilityError",
+        "kind": "both"
       },
       {
         "name": "RxDBMigration",
@@ -1399,7 +1443,7 @@
       },
       {
         "name": "SchemaManager",
-        "kind": "both"
+        "kind": "type"
       },
       {
         "name": "setRuntimeObjectGetter",
@@ -1708,6 +1752,10 @@
       {
         "name": "validateFieldValue",
         "kind": "value"
+      },
+      {
+        "name": "VersionManager",
+        "kind": "type"
       }
     ]
   }

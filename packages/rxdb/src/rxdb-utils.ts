@@ -90,8 +90,13 @@ export const getEntityType = (metadata: EntityMetadata): EntityType => {
  * （`null` / `undefined` / `0` / `''`），却声明成 `EntityStatus<T>`。
  * 需要「探测」语义的只有 {@link isRxDBEntity}，它现在自己直接读槽位，
  * 所以这里可以老老实实 fail-fast。
+ *
+ * 形参写 `object` 而不是实例类型：`T` 从形参根本推不出来（实例类型是条件类型，
+ * 属于不可推断位），从前的 `InstanceType<T>` 只是看着精确——它恒等于 `any`，
+ * 既没约束住入参、又让每个调用点的返回值继续摊开成 `any`。真正决定 `T` 的一直是
+ * 显式类型实参或默认约束，`object` 把这件事说清楚。
  */
-export const getEntityStatus = <T extends EntityType>(target: InstanceType<T>): EntityStatus<T> => {
+export const getEntityStatus = <T extends EntityType>(target: object): EntityStatus<T> => {
   const status = readSymbolSlot<EntityStatus<T>>(target, STATUS);
   if (!status) throw new RxDBError('Target has no entity status: it is not an attached RxDB entity');
   return status;

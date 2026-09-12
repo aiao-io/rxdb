@@ -5,30 +5,21 @@
  * 更改说明：
  * - 删除了 LocalRxDBMigrationRepository 接口，因为该接口未被使用，属于冗余代码
  * - 清理了相关的 RxDBMigration 导入，以减少不必要的依赖
+ * - 删除了 RxDBSyncRepository：全仓零引用，且 `export declare class` 在运行时模块里
+ *   声明一个没人 emit 的类 —— 本文件未进 index.ts 的桶，够不着才没出事
  */
-import { Observable } from 'rxjs';
-import {
-  CountOptions,
-  FindAllOptions,
-  FindByCursorOptions,
-  FindOneOptions,
-  FindOneOrFailOptions,
-  FindOptions
-} from '../repository/query-options.interface.js';
+import { CountOptions, FindOptions } from '../repository/query-options.interface.js';
 import type { FindTreeOptions } from '../repository/tree-repository.interface.js';
 import type { IRxDBAdapter, RxDBAdapterLocalBase } from '../rxdb-adapter.js';
 import type { RxDBBranch } from './branch.js';
 import type { RxDBChange } from './change.js';
-import { RxDBSync } from './sync.js';
 import type {
   RxDBBranchOrderByField,
   RxDBBranchRuleGroup,
   RxDBBranchTreeRuleGroup,
   RxDBChangeOrderByField,
-  RxDBChangeRuleGroup,
-  RxDBSyncOrderByField
+  RxDBChangeRuleGroup
 } from './types.js';
-import { RxDBSyncRuleGroup } from './types.js';
 
 /**
  * RxDBBranch 本地仓库接口
@@ -143,63 +134,4 @@ export interface LocalRxDBChangeRepository extends RxDBAdapterLocalBase, IRxDBAd
    * @returns 返回删除的实体
    */
   remove(entity: InstanceType<typeof RxDBChange>): Promise<InstanceType<typeof RxDBChange>>;
-}
-export declare class RxDBSyncRepository {
-  /**
-   * 统计实体数量
-   * @param options 查询选项
-   * @example
-   * RxDBSync.count({ where: { combinator: 'and', rules: [] } }).subscribe();
-   */
-  static count(options: CountOptions<typeof RxDBSync, RxDBSyncRuleGroup>): Observable<number>;
-  /**
-   * 查询多个实体
-   * @param options 查询选项
-   * @example
-   * RxDBSync.find({ where: { combinator: 'and', rules: [] } }).subscribe();
-   */
-  static find(options: FindOptions<typeof RxDBSync, RxDBSyncRuleGroup, RxDBSyncOrderByField>): Observable<RxDBSync[]>;
-  /**
-   * 查询所有实体
-   * @param options 查询选项
-   * @example
-   * RxDBSync.findAll({ where: { combinator: 'and', rules: [] } }).subscribe();
-   */
-  static findAll(
-    options: FindAllOptions<typeof RxDBSync, RxDBSyncRuleGroup, RxDBSyncOrderByField>
-  ): Observable<RxDBSync[]>;
-  /**
-   * 游标分页查询
-   * @param options 查询选项
-   * @example
-   * RxDBSync.findByCursor({ where: { combinator: 'and', rules: [] } }).subscribe();
-   */
-  static findByCursor(
-    options: FindByCursorOptions<typeof RxDBSync, RxDBSyncRuleGroup, RxDBSyncOrderByField>
-  ): Observable<RxDBSync[]>;
-  /**
-   * 查询单个实体,未找到时返回 undefined
-   * @param options 查询选项
-   * @example
-   * RxDBSync.findOne({ where: { combinator: 'and', rules: [] } }).subscribe();
-   */
-  static findOne(
-    options: FindOneOptions<typeof RxDBSync, RxDBSyncRuleGroup, RxDBSyncOrderByField>
-  ): Observable<RxDBSync | undefined>;
-  /**
-   * 查询单个实体,未找到时抛出错误
-   * @param options 查询选项
-   * @example
-   * RxDBSync.findOneOrFail({ where: { combinator: 'and', rules: [] } }).subscribe();
-   */
-  static findOneOrFail(
-    options: FindOneOrFailOptions<typeof RxDBSync, RxDBSyncRuleGroup, RxDBSyncOrderByField>
-  ): Observable<RxDBSync>;
-  /**
-   * 根据 ID 获取单个实体
-   * @param options 查询选项
-   * @example
-   * RxDBSync.get('123').subscribe();
-   */
-  static get(options: string): Observable<RxDBSync>;
 }

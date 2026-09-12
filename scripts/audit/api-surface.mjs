@@ -21,6 +21,7 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
 import { auditAssetWhitelistScope, resolveScanEntries } from './subpath-inventory.mjs';
@@ -122,12 +123,35 @@ function listAmbientDeclarations(srcDir) {
 }
 
 /**
+ * 判断某个导出符号是否经**仅类型**的导出/导入语法转出。
+ *
+ * 必要性：`kind` 若只读声明处的 flags，`export { Klass }` 与 `export type { Klass }`
+ * 会得到同一个 `both` —— 而后者抽掉了运行时的值，所有 `new Klass()` / `extends Klass`
+ * 的使用者当场炸。这正是本门禁要拦的破坏性变化，不能对它失明。
+ *
+ * 两种 AST 形状都要认：语句级 `export type { A, B } from '...'`（ExportDeclaration.isTypeOnly）
+ * 与逐 specifier 的 `export { type A, b }`（ExportSpecifier.isTypeOnly）；`import type` 后
+ * 再本地转出同理。
+ * @param {import('typescript').Symbol} symbol 入口模块上的导出符号（别名解析**之前**的那个）
+ */
+function isTypeOnlyExport(symbol) {
+  const declarations = symbol.declarations ?? [];
+  if (declarations.length === 0) return false;
+  // 同名符号有多处声明时，只要有一处是值形式转出，运行时就有这个值。
+  return declarations.every(
+    d =>
+      (ts.isExportSpecifier(d) && (d.isTypeOnly || d.parent.parent.isTypeOnly)) ||
+      (ts.isImportSpecifier(d) && (d.isTypeOnly || d.parent.parent.isTypeOnly))
+  );
+}
+
+/**
  * 用 TypeScript 编译器解析入口文件真实可见的导出，返回 `{ name, kind }[]`。
  * kind: 'type' | 'value' | 'both'
  * @param {string} entryFile 入口路径（如 packages/rxdb-core/src/index.ts）
  * @param {string} srcDir 同包 src/ 目录，用于加载 .d.ts ambient 声明
  */
-function extractExports(entryFile, srcDir) {
+export function extractExports(entryFile, srcDir) {
   const program = ts.createProgram([entryFile, ...listAmbientDeclarations(srcDir)], {
     moduleResolution: ts.ModuleResolutionKind.Bundler,
     module: ts.ModuleKind.ESNext,
@@ -158,7 +182,8 @@ function extractExports(entryFile, srcDir) {
       throw new Error(`导出符号 ${symbol.getName()} 无法解析（re-export 目标缺失或路径未配置）`);
     }
     const isType = Boolean(resolved.flags & (flags.Type | flags.Interface | flags.TypeAlias | flags.TypeParameter));
-    const isValue = Boolean(resolved.flags & flags.Value);
+    // `export type { X }` 只转类型，运行时没有这个值 —— 声明处是不是 class 都一样。
+    const isValue = Boolean(resolved.flags & flags.Value) && !isTypeOnlyExport(symbol);
     const kind =
       isType && isValue ? 'both'
       : isType ? 'type'
@@ -237,140 +262,147 @@ function diffEntries(previous, current) {
   return { removedEntries, addedEntries, perEntry };
 }
 
-const packages = listPublicPackages();
-if (mode === 'update' && !existsSync(baselineDir)) mkdirSync(baselineDir, { recursive: true });
+/** CLI 主流程：枚举包 → 提取表面 → 与基线比对（或重写基线）。 */
+function main() {
+  const packages = listPublicPackages();
+  if (mode === 'update' && !existsSync(baselineDir)) mkdirSync(baselineDir, { recursive: true });
 
-// —— 第一遍：枚举入口并解析源文件位置 ——
-// 入口清单错了，基线内容就是错的，因此两种模式下都先拦住：`--update` 若带着「解析不了的
-// 入口」继续写基线，等于把一个入口静默从快照里删掉。
-const scanPlan = new Map();
-const planProblems = [];
-for (const pkg of packages) {
-  const { entries, skippedAssets, problems } = resolveScanEntries(
-    join(packagesDir, pkg),
-    ASSET_SUBPATHS.get(pkg) ?? []
-  );
-  scanPlan.set(pkg, { entries, skippedAssets });
-  for (const problem of problems) planProblems.push(`${pkg} ${problem}`);
-}
-for (const problem of auditAssetWhitelistScope(packages, ASSET_SUBPATHS)) planProblems.push(problem);
-
-if (planProblems.length > 0) {
-  console.log('❌ `exports` 入口与源入口声明不一致：');
-  for (const problem of planProblems) console.log(`   ${problem}`);
-  console.log('   → 有导出表面的子路径请在 package.json 的 exports 里补 `@aiao/source` 指向 .ts 源文件；');
-  console.log('     无导出表面的资产入口请登记进 api-surface.mjs 的 ASSET_SUBPATHS。');
-  process.exit(1);
-}
-
-let breaking = 0; // 入口移除 / 符号 removed / 种类 changed —— 需迁移说明
-let drift = 0; // 仅新增入口或新增符号 —— 更新基线即可
-let errors = 0; // 解析失败 / 缺基线
-let updated = 0;
-let scannedEntries = 0;
-let skippedAssetEntries = 0;
-
-for (const pkg of packages) {
-  const { entries, skippedAssets } = scanPlan.get(pkg);
-  const srcDir = join(packagesDir, pkg, 'src');
-  skippedAssetEntries += skippedAssets.length;
-  for (const subpath of skippedAssets) {
-    console.log(
-      `⏭️  ${pkg}${subpath.slice(1)}: 资产入口，无导出表面（内容由 wa-sqlite-integrity.mjs 的 SHA-256 守护）`
+  // —— 第一遍：枚举入口并解析源文件位置 ——
+  // 入口清单错了，基线内容就是错的，因此两种模式下都先拦住：`--update` 若带着「解析不了的
+  // 入口」继续写基线，等于把一个入口静默从快照里删掉。
+  const scanPlan = new Map();
+  const planProblems = [];
+  for (const pkg of packages) {
+    const { entries, skippedAssets, problems } = resolveScanEntries(
+      join(packagesDir, pkg),
+      ASSET_SUBPATHS.get(pkg) ?? []
     );
+    scanPlan.set(pkg, { entries, skippedAssets });
+    for (const problem of problems) planProblems.push(`${pkg} ${problem}`);
   }
+  for (const problem of auditAssetWhitelistScope(packages, ASSET_SUBPATHS)) planProblems.push(problem);
 
-  const current = {};
-  let failed = false;
-  for (const { subpath, sourceFile } of entries) {
-    try {
-      current[subpath] = extractExports(sourceFile, srcDir);
-    } catch (error) {
-      console.log(`❌ ${pkg} ${subpath}: 解析失败（${relative(root, sourceFile)}）— ${error.message}`);
-      failed = true;
-      break;
-    }
-  }
-  if (failed) {
-    errors++;
-    continue;
-  }
-  scannedEntries += entries.length;
-  const symbolCount = Object.values(current).reduce((sum, list) => sum + list.length, 0);
-
-  if (mode === 'update') {
-    writeFileSync(baselinePath(pkg), serialize(current));
-    console.log(`📝 ${pkg}: 基线已更新（${entries.length} 个入口 / ${symbolCount} 个导出）`);
-    updated++;
-    continue;
-  }
-
-  let baseline;
-  try {
-    baseline = loadBaseline(pkg);
-  } catch (error) {
-    console.log(`❌ ${pkg}: ${error.message}`);
-    errors++;
-    continue;
-  }
-  if (!baseline) {
-    console.log(`⚠️  ${pkg}: 无基线文件，请先运行 --update`);
-    errors++;
-    continue;
-  }
-
-  const { removedEntries, addedEntries, perEntry } = diffEntries(baseline, current);
-  const hasBreaking = removedEntries.length > 0 || perEntry.some(d => d.removed.length > 0 || d.changed.length > 0);
-  const hasDrift = addedEntries.length > 0 || perEntry.some(d => d.added.length > 0);
-
-  if (!hasBreaking && !hasDrift) {
-    console.log(`✅ ${pkg}: 表面无变化（${entries.length} 个入口 / ${symbolCount} 个导出）`);
-    continue;
-  }
-
-  if (hasBreaking) {
-    breaking++;
-    console.log(`❌ ${pkg}: 破坏性 API 变化`);
-  } else {
-    drift++;
-    console.log(`🟡 ${pkg}: 仅新增入口 / 导出（基线漂移）`);
-  }
-  if (removedEntries.length > 0) console.log(`   入口移除（破坏性）：${removedEntries.join(', ')}`);
-  if (addedEntries.length > 0) console.log(`   入口新增：${addedEntries.join(', ')}`);
-  for (const { subpath, removed, added, changed } of perEntry) {
-    if (removed.length > 0) console.log(`   ${subpath} 移除（破坏性）：${removed.join(', ')}`);
-    if (changed.length > 0) console.log(`   ${subpath} 种类变化（破坏性）：${changed.join(', ')}`);
-    if (added.length > 0) console.log(`   ${subpath} 新增：${added.join(', ')}`);
-  }
-}
-
-if (mode === 'update') {
-  if (errors > 0) {
-    console.log(`\n❌ ${errors} 个包解析失败，基线未完整重写。`);
+  if (planProblems.length > 0) {
+    console.log('❌ `exports` 入口与源入口声明不一致：');
+    for (const problem of planProblems) console.log(`   ${problem}`);
+    console.log('   → 有导出表面的子路径请在 package.json 的 exports 里补 `@aiao/source` 指向 .ts 源文件；');
+    console.log('     无导出表面的资产入口请登记进 api-surface.mjs 的 ASSET_SUBPATHS。');
     process.exit(1);
   }
-  console.log(`\n✅ 已更新 ${updated} 个包的 API 基线（共 ${scannedEntries} 个入口）。`);
-  process.exit(0);
+
+  let breaking = 0; // 入口移除 / 符号 removed / 种类 changed —— 需迁移说明
+  let drift = 0; // 仅新增入口或新增符号 —— 更新基线即可
+  let errors = 0; // 解析失败 / 缺基线
+  let updated = 0;
+  let scannedEntries = 0;
+  let skippedAssetEntries = 0;
+
+  for (const pkg of packages) {
+    const { entries, skippedAssets } = scanPlan.get(pkg);
+    const srcDir = join(packagesDir, pkg, 'src');
+    skippedAssetEntries += skippedAssets.length;
+    for (const subpath of skippedAssets) {
+      console.log(
+        `⏭️  ${pkg}${subpath.slice(1)}: 资产入口，无导出表面（内容由 wa-sqlite-integrity.mjs 的 SHA-256 守护）`
+      );
+    }
+
+    const current = {};
+    let failed = false;
+    for (const { subpath, sourceFile } of entries) {
+      try {
+        current[subpath] = extractExports(sourceFile, srcDir);
+      } catch (error) {
+        console.log(`❌ ${pkg} ${subpath}: 解析失败（${relative(root, sourceFile)}）— ${error.message}`);
+        failed = true;
+        break;
+      }
+    }
+    if (failed) {
+      errors++;
+      continue;
+    }
+    scannedEntries += entries.length;
+    const symbolCount = Object.values(current).reduce((sum, list) => sum + list.length, 0);
+
+    if (mode === 'update') {
+      writeFileSync(baselinePath(pkg), serialize(current));
+      console.log(`📝 ${pkg}: 基线已更新（${entries.length} 个入口 / ${symbolCount} 个导出）`);
+      updated++;
+      continue;
+    }
+
+    let baseline;
+    try {
+      baseline = loadBaseline(pkg);
+    } catch (error) {
+      console.log(`❌ ${pkg}: ${error.message}`);
+      errors++;
+      continue;
+    }
+    if (!baseline) {
+      console.log(`⚠️  ${pkg}: 无基线文件，请先运行 --update`);
+      errors++;
+      continue;
+    }
+
+    const { removedEntries, addedEntries, perEntry } = diffEntries(baseline, current);
+    const hasBreaking = removedEntries.length > 0 || perEntry.some(d => d.removed.length > 0 || d.changed.length > 0);
+    const hasDrift = addedEntries.length > 0 || perEntry.some(d => d.added.length > 0);
+
+    if (!hasBreaking && !hasDrift) {
+      console.log(`✅ ${pkg}: 表面无变化（${entries.length} 个入口 / ${symbolCount} 个导出）`);
+      continue;
+    }
+
+    if (hasBreaking) {
+      breaking++;
+      console.log(`❌ ${pkg}: 破坏性 API 变化`);
+    } else {
+      drift++;
+      console.log(`🟡 ${pkg}: 仅新增入口 / 导出（基线漂移）`);
+    }
+    if (removedEntries.length > 0) console.log(`   入口移除（破坏性）：${removedEntries.join(', ')}`);
+    if (addedEntries.length > 0) console.log(`   入口新增：${addedEntries.join(', ')}`);
+    for (const { subpath, removed, added, changed } of perEntry) {
+      if (removed.length > 0) console.log(`   ${subpath} 移除（破坏性）：${removed.join(', ')}`);
+      if (changed.length > 0) console.log(`   ${subpath} 种类变化（破坏性）：${changed.join(', ')}`);
+      if (added.length > 0) console.log(`   ${subpath} 新增：${added.join(', ')}`);
+    }
+  }
+
+  if (mode === 'update') {
+    if (errors > 0) {
+      console.log(`\n❌ ${errors} 个包解析失败，基线未完整重写。`);
+      process.exit(1);
+    }
+    console.log(`\n✅ 已更新 ${updated} 个包的 API 基线（共 ${scannedEntries} 个入口）。`);
+    process.exit(0);
+  }
+
+  if (breaking + drift + errors > 0) {
+    console.log('');
+    if (errors > 0) console.log(`📋 ${errors} 处解析失败 / 缺少基线文件 / 基线格式过期，请先排查 / 运行 --update。`);
+    if (breaking > 0) {
+      console.log(
+        `📋 ${breaking} 个包存在破坏性变化（入口或符号移除 / 种类变化）：更新基线之外，` +
+          `还需在 PR 中提供迁移说明（breaking note）。`
+      );
+    }
+    if (drift > 0) {
+      console.log(
+        `📋 ${drift} 个包仅新增入口 / 导出：运行 \`node scripts/audit/api-surface.mjs --update\` 同步基线即可。`
+      );
+    }
+    process.exit(1);
+  }
+
+  console.log(
+    `\n✅ 全部 ${packages.length} 个公开包、${scannedEntries} 个公开入口的 API 表面与基线一致` +
+      `（另跳过 ${skippedAssetEntries} 个无导出表面的资产入口）。`
+  );
 }
 
-if (breaking + drift + errors > 0) {
-  console.log('');
-  if (errors > 0) console.log(`📋 ${errors} 处解析失败 / 缺少基线文件 / 基线格式过期，请先排查 / 运行 --update。`);
-  if (breaking > 0) {
-    console.log(
-      `📋 ${breaking} 个包存在破坏性变化（入口或符号移除 / 种类变化）：更新基线之外，` +
-        `还需在 PR 中提供迁移说明（breaking note）。`
-    );
-  }
-  if (drift > 0) {
-    console.log(
-      `📋 ${drift} 个包仅新增入口 / 导出：运行 \`node scripts/audit/api-surface.mjs --update\` 同步基线即可。`
-    );
-  }
-  process.exit(1);
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
 }
-
-console.log(
-  `\n✅ 全部 ${packages.length} 个公开包、${scannedEntries} 个公开入口的 API 表面与基线一致` +
-    `（另跳过 ${skippedAssetEntries} 个无导出表面的资产入口）。`
-);
