@@ -19,6 +19,13 @@
  * 被远程驱动要在这里再开一条控制通道（listen 一个 drive 事件、逐条回结果），
  * 而要验的这几件事是固定的。固定脚本因此只需要两样东西：一个入站帧监听、一次出站汇报。
  *
+ * # 档位分叉（阶段 1 收尾）
+ *
+ * 同一个脚本跑两档：`DEV_RXDB_DEVTOOLS_PROVIDER_SOURCE=fake` 时走 `runFake()`
+ * （五类操作在真实双窗口上、只换掉 connector 背后的 provider 集合走查，AC#2），
+ * 否则走 `runReal()`（真实 host 的既有路线，AC#10 / #15）。档位由 Rust 的
+ * `driver_init_script` 注入到同一扇窗口、排在驱动脚本之前。
+ *
  * AC#15 的跨重启比对也不需要控制通道：两次启动跑的是**同一份**脚本，差别全在盘上——
  * 驱动只要在动手之前先看一眼世界（`keptDirSeen` / `launchRowCount`），比对由 e2e 去做。
  * AC#10 的字节面同样是固定动作（上传 → 读回 → 逐字节比），也不需要。
@@ -77,6 +84,8 @@
   const EMPTY_FILE = 'drv-empty.bin';
   /** 送了一块真实字节之后取消的那次上传的目标名；它**不该**出现在盘上。 */
   const CANCELLED_FILE = 'drv-cancelled.bin';
+  /** 非法 base64 探针的目标名（AC#7）；它同样不该出现在盘上，e2e 独立去盘上核对。 */
+  const INVALID_FILE = 'drv-invalid.bin';
   /**
    * host 未提交写入留在盘上的临时文件后缀。
    *
@@ -95,6 +104,14 @@
    */
   const CHUNK_BYTES = 256;
   /**
+   * 快照翻页的页数上限。
+   *
+   * 真实 store 有 10 万条记录的上限（`snapshot_too_large`），默认页大小下恒小于 2000 页，
+   * 所以这个数是「坏实现会把我钉进循环」的护栏，不是预期会走到的路径；走到即报
+   * `walk_incomplete`，一个码顶替一次无界等待。
+   */
+  const MAX_SNAPSHOT_PAGES = 2000;
+  /**
    * 跨重启比对用的实体名（AC#15），与 `src/app/desktop-launch.entity.ts` 的 `@Entity({ name })` 一致。
    *
    * 每次启动追加一行，所以行数**跨进程**递增——内存实现与空库都无从伪装。
@@ -105,6 +122,13 @@
   if (!internals || !internals.invoke) return;
   const label = internals.metadata && internals.metadata.currentWebview && internals.metadata.currentWebview.label;
   if (label !== DEVTOOLS_LABEL) return;
+
+  // 档位由 Rust 侧的 `driver_init_script` 在驱动之前注入；release 二进制或没开开关时
+  // 键不存在 → 真实档。`providerSource` 之外的字段不由驱动消费：snapshot 场景与 VFS
+  // 强制已经定型在装配好的 provider 集合上，驱动只按「哪一档」选走查路线。
+  const tierConfig = window.__aiaoRxdbDevToolsDriverConfig__;
+  const providerSource =
+    tierConfig && typeof tierConfig.providerSource === 'string' ? tierConfig.providerSource : 'real';
 
   /** @type {string|null} 本次会话；由面板收到的 HANDSHAKE_ACK 给出。 */
   let sessionId = null;
@@ -136,6 +160,20 @@
   const pendingDownloads = new Map();
   /** @type {Map<string, string>} 入站 transferId → 它属于哪条下载。 */
   const inboundTransfers = new Map();
+  /**
+   * 握手帧里的 descriptor kind（域 → kind）；没等到握手时保持 `null`。
+   *
+   * @remarks
+   * 面板看到的能力面（AC#2 / AC#6 的判据）就写在 HANDSHAKE 的 `capabilities.descriptors`
+   * 里——fake 档的镜像与 VFS 强制档的 idb/opfs 都会经它可观察。抓到 `null` 不是「没宣告」，
+   * 是「驱动没等到握手」，e2e 上两者必须是两回事。
+   * @type {Record<string, string>|null}
+   */
+  let descriptorKinds = null;
+  /** @type {Record<string, string>|null} 握手帧里的 descriptor runtime（域 → runtime）。 */
+  let descriptorRuntimes = null;
+  /** 入站 EVENT 帧的计数；判据是订阅有没有真的把事件推上 wire（R2 只钉非负）。 */
+  let eventFrames = 0;
 
   function invoke(command, payload) {
     return internals.invoke(command, payload);
@@ -158,6 +196,9 @@
       return;
     }
     if (!frame || frame.source !== SOURCE || frame.protocol !== PROTOCOL_V2) return;
+    // 能力面随握手帧到达：descriptors 是协商产物，也只会在这一帧出现。
+    // 抓在 session 判定之前——HANDSHAKE 的信封还没有 session，等它设好再抓会抓个空。
+    if (frame.type === 'HANDSHAKE') captureDescriptors(frame.payload && frame.payload.capabilities);
     // session 取**信封**上的 `sessionId`，而不是等某一种帧。
     //
     // 这里踩过一次：原本等的是 `HANDSHAKE_ACK`，但那一帧的方向是 **panel → connector**
@@ -166,6 +207,10 @@
     // 协商完成后每一帧都带着 session，取信封因此既准确又不依赖某一种帧先到。
     if (sessionId === null && typeof frame.sessionId === 'string') sessionId = frame.sessionId;
     if (!frame.payload) return;
+    if (frame.type === 'EVENT') {
+      eventFrames += 1;
+      return;
+    }
     if (onTransferFrame(frame)) return;
     if (frame.type !== 'RESPONSE' && frame.type !== 'ERROR') return;
     if (frame.type === 'ERROR' && frame.payload.requestId === null) {
@@ -182,6 +227,28 @@
     if (frame.type === 'ERROR' && typeof requestId === 'string') {
       strayErrors.set(requestId, frame.payload.error && frame.payload.error.code);
     }
+  }
+
+  /**
+   * 从握手载荷里摘出 descriptor 的 kind 与 runtime 各一张表。
+   *
+   * @param capabilities - HANDSHAKE 载荷里的 `capabilities`；形状对不上时两张表保持 `null`。
+   *
+   * @remarks
+   * 不回显任何其它字段：报告里只放「域 → kind / runtime」两张映射，AC#13 的回显禁令
+   * 对 descriptor 同样生效——版本号、限额、操作表都不进报告。
+   */
+  function captureDescriptors(capabilities) {
+    if (!capabilities || !Array.isArray(capabilities.descriptors)) return;
+    const kinds = {};
+    const runtimes = {};
+    for (const descriptor of capabilities.descriptors) {
+      if (!descriptor || typeof descriptor.domain !== 'string') continue;
+      if (typeof descriptor.kind === 'string') kinds[descriptor.domain] = descriptor.kind;
+      if (typeof descriptor.runtime === 'string') runtimes[descriptor.domain] = descriptor.runtime;
+    }
+    descriptorKinds = kinds;
+    descriptorRuntimes = runtimes;
   }
 
   /**
@@ -599,10 +666,126 @@
     return { code: code, bytes: concatBytes(pending.chunks) };
   }
 
-  async function run() {
-    // AC#9 / AC#10：三个领域的 descriptor 由 connector 在 HANDSHAKE_ACK 之后随
-    // `DESCRIPTORS` 帧给面板；这里不重复读它——runtime 的判据在页内单测与面板 UI 上，
-    // 驱动只验「真实链路上这些操作答什么」。
+  /**
+   * 快照走查：首页 → 按 cursor 翻页到 `complete` → 双开使旧快照过期 → 非法 pageSize。
+   *
+   * @returns 报告里的五个快照字段。
+   *
+   * @remarks
+   * 首页**不传 pageSize**，走 store 的默认页大小；翻页的 offset 由上一页响应里的
+   * `offset + records.length` 推出来（store 要求 offset 落在页边界上）。首页就失败时
+   * 五个字段全报那一个码：一次失败的首页意味着这条链路的快照面整体不可用，再往下
+   * 走的每一步都会是同一个码的复读。
+   *
+   * 双开的判据在 store 的释放语义上：再开一份首页会把上一份快照释放掉，旧 cursor
+   * 于是只可能答 `snapshot_expired`——「换新快照后旧游标必须失效」正是 AC#2 要的
+   * 生命周期证据。非法 pageSize 的拒绝发生在 store 开页之前，与在途快照无关。
+   */
+  async function walkSnapshot() {
+    const first = await request('files', 'list', { snapshot: {} });
+    if (first.outcome !== 'ok') {
+      const code = codeOf(first);
+      return {
+        snapshotFirstPage: code,
+        snapshotComplete: code,
+        snapshotRecords: -1,
+        snapshotExpired: code,
+        snapshotInvalidPageSize: code
+      };
+    }
+
+    const page = first.result;
+    const snapshotId = typeof page.snapshotId === 'string' ? page.snapshotId : undefined;
+    const count = Array.isArray(page.records) ? page.records.length : 0;
+    let total = count;
+    let complete = page.complete === true;
+    let nextOffset = (typeof page.offset === 'number' ? page.offset : 0) + count;
+    let pages = 1;
+    let code = !complete && snapshotId === undefined ? 'walk_incomplete' : 'ok';
+    while (code === 'ok' && !complete) {
+      if (pages >= MAX_SNAPSHOT_PAGES) {
+        code = 'walk_incomplete';
+        break;
+      }
+      const next = await request('files', 'list', {
+        snapshot: { cursor: { snapshotId: snapshotId, offset: nextOffset } }
+      });
+      pages += 1;
+      if (next.outcome !== 'ok') {
+        code = codeOf(next);
+        break;
+      }
+      const nextPage = next.result;
+      const more = Array.isArray(nextPage.records) ? nextPage.records.length : 0;
+      total += more;
+      complete = nextPage.complete === true;
+      nextOffset = (typeof nextPage.offset === 'number' ? nextPage.offset : 0) + more;
+      // 没说完却又不再给 offset：协议形状坏了，报护栏码而不是再发一页 offset 为 NaN 的请求。
+      if (!complete && typeof nextPage.offset !== 'number') code = 'walk_incomplete';
+    }
+
+    let snapshotExpired = code;
+    let snapshotInvalidPageSize = code;
+    if (code === 'ok') {
+      // 双开：这页首页的结果没人用，它的副作用——释放旧快照——才是这一步要的。
+      await request('files', 'list', { snapshot: {} });
+      const stale = await request('files', 'list', {
+        snapshot: { cursor: { snapshotId: snapshotId, offset: 0 } }
+      });
+      snapshotExpired = codeOf(stale);
+      snapshotInvalidPageSize = codeOf(await request('files', 'list', { snapshot: { pageSize: 0 } }));
+    }
+
+    return {
+      snapshotFirstPage: 'ok',
+      snapshotComplete: code,
+      snapshotRecords: total,
+      snapshotExpired: snapshotExpired,
+      snapshotInvalidPageSize: snapshotInvalidPageSize
+    };
+  }
+
+  /**
+   * 非法 base64 chunk 探针（AC#7）：一次「帧已发出」之后被协议层拒掉的传输。
+   *
+   * @returns 那条迟到 ERROR 的码；预算内没等到时为 `timeout`。
+   *
+   * @remarks
+   * 拒的是**块内容**而不是请求：上传的 RESPONSE 早已结算，拒块的那条 ERROR 挂在上传的
+   * requestId 上、落进 {@link strayErrors}。所以这里要轮询而不是 `await` 一个 waiter——
+   * waiter 已经被 RESPONSE 用掉了。等不到 ERROR 同样是一个码（`timeout`），
+   * 与「被按 `payload_encoding_invalid` 拒了」在 e2e 上必须分得开。
+   *
+   * 收尾发一条 CANCEL：拒块不结算传输，表里的记录要靠它清掉。排在本档的 `driveBytes`
+   * 之前，那份末尾的 `settledTemporaries` 于是把这条探针的临时产物也一并数进去。
+   */
+  async function invalidChunkProbe() {
+    const begun = await beginUpload('', INVALID_FILE, CHUNK_BYTES);
+    if (begun.answer.outcome !== 'ok') return codeOf(begun.answer);
+    await sendFrame('TRANSFER_START', {
+      transferId: begun.transferId,
+      requestId: begun.requestId,
+      totalBytes: CHUNK_BYTES
+    });
+    await sendFrame('TRANSFER_CHUNK', {
+      transferId: begun.transferId,
+      chunkIndex: 0,
+      offset: 0,
+      dataBase64: '!!!not-base64!!!'
+    });
+    const deadline = Date.now() + TEMP_SETTLE_TIMEOUT_MS;
+    let code = strayErrors.get(begun.requestId);
+    while (code === undefined && Date.now() < deadline) {
+      await delay(RETRY_POLL_MS);
+      code = strayErrors.get(begun.requestId);
+    }
+    await sendFrame('TRANSFER_CANCEL', { transferId: begun.transferId });
+    return code === undefined ? 'timeout' : code;
+  }
+
+  async function runReal() {
+    // 真实档（阶段 1 收尾前的原路线）：描述符、快照、safe-integer、事件、非法 chunk
+    // 都是新增探针；磁盘与临时产物逻辑仍是这份结论的骨架（AC#10 / #15）。
     //
     // 这条必须是**第一件事**：`keptDirSeen` 的全部意义在于「本进程还没碰过存储时，
     // 盘上就已经有它了」，任何一次写入排在它前面都会把 AC#15 的判别力抹掉。
@@ -613,6 +796,13 @@
     // AC#9 的数据面一半：面板经真实 wire 读同一个库里的实体。只回**行数**不回文档——
     // AC#13 明写响应不得含 SQL 绑定值与加密字段，而行数已经足够跨重启比对。
     const launches = await request('database', 'query', { entityName: LAUNCH_ENTITY });
+    // safe-integer 探针（AC#7）：limit 必须拒 0、超上限（1000）与非整数，三个值同一个码
+    // `invalid_path`——读报告的一方据此区分「形状被拒」与「实体不存在」。
+    const queryLimitZero = codeOf(await request('database', 'query', { entityName: LAUNCH_ENTITY, limit: 0 }));
+    const queryLimitHuge = codeOf(await request('database', 'query', { entityName: LAUNCH_ENTITY, limit: 1001 }));
+    const queryLimitFraction = codeOf(await request('database', 'query', { entityName: LAUNCH_ENTITY, limit: 1.5 }));
+    // 事件面：订阅真实事件源一次；EVENT 帧计数由 onFrame 累着，判据落在订阅码上（R2）。
+    const events = await request('database', 'events', {});
     const settingsExport = await request('settings', 'export', { path: 'db/main.sqlite' });
     // 未声明的能力：descriptor 层就该拒，走不到 provider（AC#12）。
     const settingsClear = await request('settings', 'clear', {});
@@ -645,15 +835,36 @@
     // 优先报那个码：它说明「被拒了」，而超时只说明「没答」。
     const forgedCode = forged.outcome === 'timeout' && lastSessionError ? lastSessionError : codeOf(forged);
 
+    // 快照走查（AC#2 的 snapshot 半边）：首页、翻页、双开过期、非法 pageSize。
+    const snapshot = await walkSnapshot();
+    // 尺寸 2^53 的上传请求必须被限额拒掉，而且一个字节都不发（AC#7）。
+    const huge = await beginUpload('', BYTES_FILE, 9007199254740992);
+    // 非法 base64 chunk 探针排在 `driveBytes` 之前：它的临时产物由那份末尾的
+    // `settledTemporaries` 一并清点，探针自己不必另做一轮。
+    const invalidChunk = await invalidChunkProbe();
     const bytes = await driveBytes();
 
     return {
       sessionSeen: realSession !== null,
+      descriptorKinds: descriptorKinds,
+      descriptorRuntimes: descriptorRuntimes,
       filesList: codeOf(files),
       filesEntryCount: files.outcome === 'ok' ? entriesOf(files).length : -1,
       keptDirSeen: keptDirSeen,
       databaseQuery: codeOf(launches),
       launchRowCount: launches.outcome === 'ok' && launches.result ? (launches.result.documents || []).length : -1,
+      queryLimitZero: queryLimitZero,
+      queryLimitHuge: queryLimitHuge,
+      queryLimitFraction: queryLimitFraction,
+      eventsSubscribe: codeOf(events),
+      eventFrames: eventFrames,
+      snapshotFirstPage: snapshot.snapshotFirstPage,
+      snapshotComplete: snapshot.snapshotComplete,
+      snapshotRecords: snapshot.snapshotRecords,
+      snapshotExpired: snapshot.snapshotExpired,
+      snapshotInvalidPageSize: snapshot.snapshotInvalidPageSize,
+      uploadHugeSize: codeOf(huge.answer),
+      invalidChunk: invalidChunk,
       settingsExport: codeOf(settingsExport),
       settingsClear: codeOf(settingsClear),
       forgedSession: forgedCode,
@@ -668,6 +879,68 @@
       cancelledUpload: bytes.cancelledUpload,
       cancelledFile: bytes.cancelledFile,
       tempResidue: bytes.tempResidue
+    };
+  }
+
+  /**
+   * fake 档（US-905 AC#2）：五类操作在**真实** `invoke` / 中继 / 端点后面走一遍，
+   * 换掉的只是 connector 背后的 provider 集合。
+   *
+   * @returns fake 档的报告字段。
+   *
+   * @remarks
+   * # 与真实档的差别是**故意的**
+   *
+   * 不碰任何磁盘/临时产物逻辑：那是真实 host 的证据，fake 集合上没有对应物。
+   * 上传走 `path: '/drv-bytes.bin'` 整路径——fake 的 upload 只读 `path` 一个键，
+   * 与真实档的「目录 + 名字」不是同一种分法。descriptors、快照走查、伪造 session、
+   * 路径逃逸与真实档是同一套动作，所以同一批断言才在两档上都有判别力。
+   *
+   * # 播种值是判据不是巧合
+   *
+   * 3 个条目与 700 字节由 `fake-provider-gear.ts` 播种，e2e 直接钉这两个数。
+   */
+  async function runFake() {
+    const inspect = await request('database', 'inspect', {});
+    const query = await request('database', 'query', { entityName: LAUNCH_ENTITY });
+    const files = await request('files', 'list', { path: '' });
+    const events = await request('database', 'events', {});
+    const snapshot = await walkSnapshot();
+    const sent = await upload('/drv-bytes.bin', '', payloadBytes());
+    const downloaded = await download('/drv-bytes.bin');
+    const settingsExport = await request('settings', 'export', { path: 'db/main.sqlite' });
+    const settingsClear = await request('settings', 'clear', {});
+    const realSession = sessionId;
+    sessionId = '00000000-0000-4000-8000-000000000000';
+    lastSessionError = null;
+    const forged = await request('files', 'list', { path: '' });
+    sessionId = realSession;
+    const forgedCode = forged.outcome === 'timeout' && lastSessionError ? lastSessionError : codeOf(forged);
+    const escaped = await upload('..', '', payloadBytes());
+
+    return {
+      sessionSeen: realSession !== null,
+      descriptorKinds: descriptorKinds,
+      descriptorRuntimes: descriptorRuntimes,
+      databaseInspect: codeOf(inspect),
+      databaseQuery: codeOf(query),
+      filesList: codeOf(files),
+      filesEntryCount: files.outcome === 'ok' ? entriesOf(files).length : -1,
+      eventsSubscribe: codeOf(events),
+      eventFrames: eventFrames,
+      snapshotFirstPage: snapshot.snapshotFirstPage,
+      snapshotComplete: snapshot.snapshotComplete,
+      snapshotRecords: snapshot.snapshotRecords,
+      snapshotExpired: snapshot.snapshotExpired,
+      snapshotInvalidPageSize: snapshot.snapshotInvalidPageSize,
+      uploadBytes: transferCode(sent),
+      uploadChunks: sent.chunks,
+      downloadBytes: downloaded.code,
+      downloadByteCount: downloaded.code === 'ok' ? downloaded.bytes.length : -1,
+      settingsExport: codeOf(settingsExport),
+      settingsClear: codeOf(settingsClear),
+      forgedSession: forgedCode,
+      escapedUpload: escaped.code
     };
   }
 
@@ -764,7 +1037,8 @@
         }
         clearInterval(tick);
         beacon('session-seen');
-        run().then(emitToMain, function (error) {
+        const report = providerSource === 'fake' ? runFake() : runReal();
+        report.then(emitToMain, function (error) {
           void emitToMain({ sessionSeen: true, failure: String(error) });
         });
       }, 50);

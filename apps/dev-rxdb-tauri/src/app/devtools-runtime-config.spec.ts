@@ -12,6 +12,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { readForcedVfs } from './devtools-runtime-config';
 import { DEVTOOLS_RUNTIME_CONFIG_KEY, devToolsRuntimeConfig } from './setup_rxdb_desktop';
 
 const RUST_SOURCE = readFileSync(resolve(import.meta.dirname, '../../src-tauri/src/devtools_config.rs'), 'utf8');
@@ -58,6 +59,23 @@ describe('DevTools 授权档的页内读取', () => {
 
     // wire 上叫 `capability`，连接器选项里叫 `capabilities`；翻译只发生在这一处。
     expect(devToolsRuntimeConfig()).toEqual({ capabilities: 'readonly', mutationPolicy: 'allow' });
+
+    delete (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY];
+  });
+
+  it('serde 对 None 序列化成 null——forceVfs: null 要按「未设」读回 undefined', () => {
+    // Rust 的 guarded_script 用 serde_json::to_string 整结构序列化，Option::None 在 wire 上
+    // 是 `"forceVfs": null`。候选表的闸门判的是 `forceVfs === undefined`，null 会让桌面候选
+    // 在真实档下被误判为「有强制档」而落选——正是 devtools-smoke 白屏 + 看门狗超时的真因。
+    (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY] = Object.freeze({
+      capability: 'full',
+      mutationPolicy: 'allow',
+      providerSource: 'real',
+      snapshotScenario: 'ok',
+      forceVfs: null
+    });
+
+    expect(readForcedVfs()).toBeUndefined();
 
     delete (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY];
   });

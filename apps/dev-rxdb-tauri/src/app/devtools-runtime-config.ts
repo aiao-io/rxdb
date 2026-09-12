@@ -37,8 +37,15 @@ export interface DevToolsTierConfig {
   readonly providerSource?: DevToolsProviderSource;
   /** snapshot 场景档位：只配 providerSource=fake 合法（Rust 侧校验）。 */
   readonly snapshotScenario?: DevToolsSnapshotScenario;
-  /** wa-sqlite VFS 强制档：只配 providerSource=real 合法（Rust 侧校验）。 */
-  readonly forceVfs?: DevToolsForcedVfs;
+  /**
+   * wa-sqlite VFS 强制档：只配 providerSource=real 合法（Rust 侧校验）。
+   *
+   * @remarks
+   * 类型上允许 `null`：Rust 侧 `Option` 的 `None` 经 serde 序列化成 JSON `null`，
+   * 而这份记录读的是注入脚本的原始 wire 形态——翻译成 `undefined` 是
+   * {@link readForcedVfs} 的事。
+   */
+  readonly forceVfs?: DevToolsForcedVfs | null;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
@@ -61,7 +68,14 @@ export function readDevToolsTierConfig(): DevToolsTierConfig | undefined {
  * 读取 VFS 强制档。
  *
  * @returns 注入的 `forceVfs`；未配置时为 `undefined`，候选表维持原优先级
+ *
+ * @remarks
+ * Rust 的 `guarded_script` 用 `serde_json::to_string` 整结构序列化，`Option::None` 在 wire 上
+ * 是 `"forceVfs": null`——`null` 是「未设」的序列化形态，不是第三个取值。这里翻译成
+ * `undefined`：候选表的闸门判的是 `forceVfs === undefined`，把 null 原样带回会把真实档的
+ * 桌面候选误判成「有强制档」而落选，整个 app 在 bootstrap 就换错后端。
  */
 export function readForcedVfs(): DevToolsForcedVfs | undefined {
-  return readDevToolsTierConfig()?.forceVfs;
+  const forced = readDevToolsTierConfig()?.forceVfs;
+  return forced === null ? undefined : forced;
 }

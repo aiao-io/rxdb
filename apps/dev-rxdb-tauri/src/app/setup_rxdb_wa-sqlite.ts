@@ -92,7 +92,8 @@ export default (forced?: DevToolsForcedVfs) => {
         options = {
           vfs: backend,
           sharedWorker: true,
-          sharedWorkerInstance: new SharedWorker(new URL('./wa-sqlite-shared.worker', import.meta.url), {
+          // 与 dedicated 档同一份入口脚本：入口自己判定上下文角色（见 wa-sqlite.worker.ts 头注）。
+          sharedWorkerInstance: new SharedWorker(new URL('./wa-sqlite.worker', import.meta.url), {
             type: 'module',
             name: 'rxdb-wa-sqlite-shared-worker'
           }),
