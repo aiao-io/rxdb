@@ -36,6 +36,28 @@ jobs:
           # moderate 及以下仍会出现在下面的 PR 摘要里，只是不阻塞。
           fail-on-severity: high
 
+          # 例外：GHSA-mp2f-45pm-3cg9（decompress@4.2.1，critical，解压路径穿越）
+          #
+          # 开这个口子不是因为它不严重，而是因为它**没有依赖侧的修法**：
+          #   - decompress 最高版本就是 4.2.1，上游已无人维护，补丁不会再有；
+          #   - 维护分支 @xhmikosr/decompress 从 v5 起是 ESM-only，而引入它的
+          #     download@7.1.0 是 CJS `require('decompress')`，alias 过去直接炸；
+          #   - download@8.0.0（latest）依然写着 `decompress: ^4.2.1`，升上游无用。
+          #
+          # 引入链，全程 dev-only：
+          #   apps/dev-rxdb-miniprogram（devDependency）
+          #     └─ @tarojs/cli@4.2.1（已是 latest）
+          #        └─ download-git-repo@3.0.2 → download@7.1.0 → decompress@4.2.1
+          #
+          # 唯一加载点是 @tarojs/cli 的 dist/create/fetchTemplate.js，即 `taro new`
+          # 拉脚手架模板时解压 tarball。CI 不跑 `taro new`，`taro build` 不经过这条路，
+          # 它也不进任何 publish 产物 —— 触发前提是开发者本地手动解一个不可信的模板包。
+          #
+          # 复查条件（满足任一就删掉这条例外重跑）：
+          #   - @tarojs/cli 换掉 download-git-repo；
+          #   - decompress 出现 4.2.1 以上的修复版本。
+          allow-ghsas: GHSA-mp2f-45pm-3cg9
+
           # 不开 comment-summary-in-pr：它要 `pull-requests: write`，而这条流水线
           # 其余部分一点写权限都不需要。为一条评论把整个 job 提权不划算 ——
           # 何况 fork 来的 PR 拿到的 GITHUB_TOKEN 本来就是只读的，评论也发不出去。
