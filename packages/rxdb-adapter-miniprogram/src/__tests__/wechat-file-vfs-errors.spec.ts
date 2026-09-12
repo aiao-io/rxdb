@@ -83,17 +83,27 @@ class MemoryFileSystem implements MiniProgramFileSystemManager {
   }
 }
 
-function createModule(names: Map<number, string>): WaSqliteEmscriptenModule {
+/** 测试视角的模块：额外暴露 glue 不导出的 F64/U32 视图，便于断言写出的字节。 */
+interface TestEmscriptenModule extends WaSqliteEmscriptenModule {
+  readonly HEAPF64: Float64Array;
+  readonly HEAPU32: Uint32Array;
+}
+
+function createModule(names: Map<number, string>): TestEmscriptenModule {
   const buffer = new ArrayBuffer(8192);
+  const heapF64 = new Float64Array(buffer);
   return {
     HEAP32: new Int32Array(buffer),
-    HEAPF64: new Float64Array(buffer),
+    HEAPF64: heapF64,
     HEAPU8: new Uint8Array(buffer),
     HEAPU32: new Uint32Array(buffer),
     _sqlite3_next_stmt: () => 0,
     UTF8ToString: pointer => names.get(pointer) ?? '',
     stringToUTF8: (value, pointer) => {
       names.set(pointer, value);
+    },
+    setValue: (pointer, value) => {
+      heapF64[pointer >> 3] = value;
     }
   };
 }
@@ -101,7 +111,7 @@ function createModule(names: Map<number, string>): WaSqliteEmscriptenModule {
 interface Fixture {
   readonly fileSystem: MemoryFileSystem;
   readonly handle: WechatFileVFS;
-  readonly module: WaSqliteEmscriptenModule;
+  readonly module: TestEmscriptenModule;
   readonly names: Map<number, string>;
   readonly vfs: MiniProgramVfs;
 }

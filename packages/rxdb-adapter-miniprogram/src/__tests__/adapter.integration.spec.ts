@@ -9,23 +9,18 @@ import {
   unlinkSync,
   writeFileSync
 } from 'node:fs';
-import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type {
   MiniProgramFileSystemManager,
-  MiniProgramWasmRuntime,
   MiniProgramWechatApi,
-  WaSqliteMiniProgramOptions,
-  WaSqliteModuleFactory
+  WaSqliteMiniProgramOptions
 } from '../mini-program.interface.js';
+import { moduleFactory, wasmRuntime } from './subframe-wasm-factory.js';
 import { ADAPTER_NAME } from '../mini-program.interface.js';
 import { RxDBAdapterWaSqliteMiniProgram } from '../RxDBAdapterWaSqliteMiniProgram.js';
 
-const require = createRequire(import.meta.url);
-const moduleFactory = require('../../assets/wa-sqlite.cjs') as WaSqliteModuleFactory;
-const wasmBytes = Uint8Array.from(readFileSync(new URL('../../assets/wa-sqlite.wasm', import.meta.url)));
 const roots: string[] = [];
 
 class NodeFileSystem implements MiniProgramFileSystemManager {
@@ -49,13 +44,6 @@ class NodeFileSystem implements MiniProgramFileSystemManager {
     writeFileSync(path, new Uint8Array(data));
   }
 }
-
-const wasmRuntime: MiniProgramWasmRuntime = {
-  async instantiate(_path, imports) {
-    const result = await WebAssembly.instantiate(wasmBytes, imports);
-    return { instance: result.instance, module: result.module };
-  }
-};
 
 /** 建一个已连上的小程序 adapter，并把它挂到 RxDB 上。 */
 async function connectAdapter(dbName: string, options: WaSqliteMiniProgramOptions) {

@@ -1,19 +1,14 @@
 import { accessSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createWaSqliteMiniProgramClient } from '../create-client.js';
 import type {
   MiniProgramFileSystemManager,
-  MiniProgramWasmRuntime,
-  MiniProgramWechatApi,
-  WaSqliteModuleFactory
+  MiniProgramWechatApi
 } from '../mini-program.interface.js';
+import { moduleFactory, wasmRuntime } from './subframe-wasm-factory.js';
 
-const require = createRequire(import.meta.url);
-const moduleFactory = require('../../assets/wa-sqlite.cjs') as WaSqliteModuleFactory;
-const wasmBytes = Uint8Array.from(readFileSync(new URL('../../assets/wa-sqlite.wasm', import.meta.url)));
 const roots: string[] = [];
 
 class NodeFileSystem implements MiniProgramFileSystemManager {
@@ -37,13 +32,6 @@ class NodeFileSystem implements MiniProgramFileSystemManager {
     writeFileSync(path, new Uint8Array(data));
   }
 }
-
-const wasmRuntime: MiniProgramWasmRuntime = {
-  async instantiate(_path, imports) {
-    const result = await WebAssembly.instantiate(wasmBytes, imports);
-    return { instance: result.instance, module: result.module };
-  }
-};
 
 function createOptions() {
   const userDataPath = mkdtempSync(join(tmpdir(), 'aiao-miniprogram-fts5-'));
@@ -77,7 +65,9 @@ describe('小程序 wa-sqlite 构建的 FTS5 能力', () => {
   it('编入了 FTS5 模块并注册了 rxdb_fts_bigram', async () => {
     const client = await createWaSqliteMiniProgramClient('fts5-capability', createOptions());
 
-    await client.execute('CREATE VIRTUAL TABLE temp.probe USING fts5(probe);');
+    // 列名不能与表名同名：FTS5 声明 vtab 时会额外加一列与表同名，撞名就是重复列，
+    // 而 FTS5 不写 `*pzErr`，只会报不透明的 `vtable constructor failed: <table>`。
+    await client.execute('CREATE VIRTUAL TABLE temp.probe USING fts5(body);');
     await client.execute('DROP TABLE temp.probe;');
 
     const bigram = await client.execute("SELECT rxdb_fts_bigram('全文搜索');");

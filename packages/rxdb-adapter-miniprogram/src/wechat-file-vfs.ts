@@ -102,8 +102,11 @@ function isMissingFileError(error: unknown): boolean {
 
 function writeInt64(module: WaSqliteEmscriptenModule, address: number, value: number): void {
   const safeValue = Math.max(0, Number(value) || 0);
-  module.HEAPU32[address >> 2] = safeValue >>> 0;
-  module.HEAPU32[(address >> 2) + 1] = Math.floor(safeValue / 0x100000000) >>> 0;
+  const index = address >> 2;
+  // 走 HEAP32 而非 HEAPU32：后者只存在于 glue 闭包内部。Int32Array 赋值经 ToInt32
+  // 只保留低 32 位，写进内存的字节与 HEAPU32 完全一致（wasm 恒为小端）。
+  module.HEAP32[index] = safeValue >>> 0;
+  module.HEAP32[index + 1] = Math.floor(safeValue / 0x100000000) >>> 0;
 }
 
 function copyCString(module: WaSqliteEmscriptenModule, text: string, address: number, length: number): number {
@@ -112,7 +115,8 @@ function copyCString(module: WaSqliteEmscriptenModule, text: string, address: nu
 }
 
 function writeDouble(module: WaSqliteEmscriptenModule, address: number, value: number): void {
-  module.HEAPF64[address >> 3] = value;
+  // HEAPF64 未挂到模块对象上，只能经 glue 导出的 setValue 写入。
+  module.setValue(address, value, 'double');
 }
 
 function basename(name: string): string {

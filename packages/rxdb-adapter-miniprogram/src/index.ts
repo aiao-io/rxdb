@@ -29,5 +29,6 @@ export {
   RxDBAdapterWaSqliteMiniProgram,
   RxDBAdapterWaSqliteMiniProgram as RxDBAdapterWaSqliteMiniprogram
 } from './RxDBAdapterWaSqliteMiniProgram.js';
+export { SUBFRAME_WASM_SUBPATH, loadSubframeModuleFactory } from './subframe-glue.js';
 export { createWechatFileVFS } from './wechat-file-vfs.js';
 export type { WechatFileVFS, WechatFileVFSOptions } from './wechat-file-vfs.js';
