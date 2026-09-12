@@ -7,88 +7,88 @@
   "packOptions": {
     "ignore": [
       {
-        "type": "folder",
-        "value": ".swc"
+        "value": ".swc",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": "node_modules"
+        "value": "node_modules",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": "src"
+        "value": "src",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": "config"
+        "value": "config",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": ".husky"
+        "value": ".husky",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": "types"
+        "value": "types",
+        "type": "folder"
       },
       {
-        "type": "file",
-        "value": ".DS_Store"
+        "value": ".DS_Store",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "pnpm-lock.yaml"
+        "value": "pnpm-lock.yaml",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "pnpm-workspace.yaml"
+        "value": "pnpm-workspace.yaml",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "package.json"
+        "value": "package.json",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "tsconfig.json"
+        "value": "tsconfig.json",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "babel.config.js"
+        "value": "babel.config.js",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "commitlint.config.mjs"
+        "value": "commitlint.config.mjs",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "stylelint.config.mjs"
+        "value": "stylelint.config.mjs",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": ".editorconfig"
+        "value": ".editorconfig",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": ".eslintrc"
+        "value": ".eslintrc",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": ".npmrc"
+        "value": ".npmrc",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": ".env.development"
+        "value": ".env.development",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": ".env.production"
+        "value": ".env.production",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": ".env.test"
+        "value": ".env.test",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": ".gitignore"
+        "value": ".gitignore",
+        "type": "file"
       }
     ],
     "include": []

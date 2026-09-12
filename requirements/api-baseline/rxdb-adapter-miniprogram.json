@@ -108,6 +108,10 @@
     ],
     "./runtime": [
       {
+        "name": "DEFAULT_MINI_PROGRAM_RANDOM_POOL_SIZE",
+        "kind": "value"
+      },
+      {
         "name": "fillMiniProgramRandomValues",
         "kind": "value"
       },

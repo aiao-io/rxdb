@@ -63,6 +63,11 @@ wa-sqlite glue。它会通过 `wx.getRandomValues` 预取同步安全随机池�
 `TextEncoder`、`TextDecoder` 和 `performance.now`。
 缺少可信随机源、随机池耗尽或微信调用失败时会立即报错，不会降级为非加密随机数。
 
+随机池默认 `DEFAULT_MINI_PROGRAM_RANDOM_POOL_SIZE`（64 KiB），剩余量跌到四分之一时会在后台
+自动补给下一池，因此正常使用不会耗尽；`randomPoolSize` 可上调到 `wx.getRandomValues` 的单次
+上限 1 MiB。已发出的字节会立刻从池里擦除。若补给期间微信侧持续失败且余量用尽，抛出的错误会把
+微信的失败原因挂在 `cause` 上。
+
 `wx.getRandomValues` 需要微信基础库 2.15.0 或更高版本。运行时还必须原生提供 `BigInt` 与
 `queueMicrotask`。
 `checkMiniProgramRuntimeCapabilities()` 可在连接前显示完整能力矩阵和能力来源。

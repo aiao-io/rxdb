@@ -54,7 +54,7 @@ INVEST 检查清单:
 | #   | 前置条件                                         | 操作                                                                    | 预期结果                                                                                                                                                | 状态 |
 | --- | ------------------------------------------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | 1   | 小程序运行时缺少 `BigInt` / `WXWebAssembly` 等   | 调用 `assertMiniProgramRuntimeCapabilities()`                           | 抛出列出全部缺失能力名的错误，不进入连接流程                                                                                                            | ✅   |
-| 2   | 运行时无原生 `crypto.getRandomValues`            | 调用 `prepareMiniProgramRuntime(wx)` 后消耗随机数                       | 由 `wx.getRandomValues` 预取的池供给；池耗尽时抛错，**任何情况下都不降级**到 `Math.random`                                                              | ✅   |
+| 2   | 运行时无原生 `crypto.getRandomValues`            | 调用 `prepareMiniProgramRuntime(wx)` 后消耗随机数                       | 由 `wx.getRandomValues` 预取的池供给，见底前后台补给；补给失败且余量耗尽时抛错，**任何情况下都不降级**到 `Math.random`                                                              | ✅   |
 | 3   | 已注册微信文件 VFS                               | 对同一数据库文件发起第二个连接                                          | 抛出「微信文件 VFS 不支持同一数据库的并发连接」，而不是静默共享句柄                                                                                     | ✅   |
 | 4   | 微信 Babel 环境                                  | 注册 `update_hook` / `create_function` 等同步回调                       | 回调经 `getPrototypeOf → null` 的 Proxy 包装，不被误判为 `AsyncFunction`                                                                                | ✅   |
 | 5   | 打包产物含 `wa-sqlite.wasm`                      | 运行 `node scripts/audit/wa-sqlite-integrity.mjs`                       | `.cjs` 与 `.wasm` 的 SHA-256 与固定值一致                                                                                                               | ✅   |
@@ -76,9 +76,11 @@ INVEST 检查清单:
   `wx.getFileSystemManager` / `wx.env.USER_DATA_PATH` / `BigInt` / `crypto.getRandomValues` / `structuredClone` /
   `TextEncoder` / `TextDecoder` / `performance.now` / `queueMicrotask`），缺失即 fail-fast。
 - **随机源**：`runtime-polyfills.ts` 用 `RUNTIME_SOURCE_MARKER` 标记每个 polyfill 的来源
-  （`missing` / `native` / `polyfill` / `wechat`）。原生可用时短路，否则预取上限
-  `MAX_MINI_PROGRAM_RANDOM_POOL_SIZE = 1_048_576` 字节的池。这条「宁可抛错也不降级」的设计
-  是本适配器与普通 polyfill 的核心差异，改动前需重新评审。
+  （`missing` / `native` / `polyfill` / `wechat`）。原生可用时短路，否则预取
+  `DEFAULT_MINI_PROGRAM_RANDOM_POOL_SIZE = 65_536` 字节的池（上限仍是 `wx.getRandomValues`
+  的单次限额 `MAX_MINI_PROGRAM_RANDOM_POOL_SIZE = 1_048_576`），剩余量跌到 25% 时单飞补给下一池，
+  已发出的字节立即擦除。这条「宁可抛错也不降级」的设计是本适配器与普通 polyfill 的核心差异，
+  改动前需重新评审。
 - **文件 VFS**：`wechat-file-vfs.ts` 把整库缓冲在内存，经 `writeFileSync` 落盘。
   `xLock` / `xUnlock` 是 no-op，`xShmMap` / `xShmLock` 返回 `SQLITE_IOERR`——
   并发安全**由模块级 `ACTIVE_DATABASES` 集合在 JS 层强制单连接**来保证，不是由 SQLite 锁保证。
@@ -158,6 +160,16 @@ INVEST 检查清单:
   项目，本 app 没有测试，CI 通过 `nx show projects --withTarget` 动态选型自然捞到它。
   Node 侧到此为止只能覆盖到构建产物（已核对 `dist/wa-sqlite/wa-sqlite.wasm` 为 727646 字节、
   与 `node_modules` 内逐字节一致、`dist/` 里无 `import.meta` 也无 base64 内联），**真机仍未测**。
+
+  接入后补上 `serve`（`continuous: true`，即 `taro build --type weapp --watch`；小程序没有 dev
+  server，热更靠微信开发者工具盯 `dist/`）。这条路径顺手暴露出一个**迁移前就存在、但从没人踩到**的
+  缺陷：`@tarojs/plugin-framework-react` 把 `@babel/plugin-proposal-decorators` 以**字符串**形式
+  塞进 `@vitejs/plugin-react` 的 `babel.plugins`，babel 于是从 app 根解析它，而 pnpm 只链声明过的
+  依赖——包没在 app 的 `devDependencies` 里，watch 构建就在 `src/app.ts` 上炸
+  `Cannot find package '@babel/plugin-proposal-decorators'`。生产构建不挂 `@vitejs/plugin-react`，
+  所以一直是绿的。修法与同目录已有的 `@babel/plugin-transform-class-properties` 一致：显式钉进
+  `devDependencies`（`7.29.7`）。dev 产物同样零 `import.meta`（只有 `vendors.js.map` 里留着，
+  sourcemap 不执行）。
 
 ## 实现文件
 
