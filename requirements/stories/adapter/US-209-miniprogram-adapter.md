@@ -171,6 +171,27 @@ INVEST 检查清单:
   `devDependencies`（`7.29.7`）。dev 产物同样零 `import.meta`（只有 `vendors.js.map` 里留着，
   sourcemap 不执行）。
 
+- **2026-09-12：补上 e2e 自动化，`apps/dev-rxdb-miniprogram-e2e/`（16 条，已在开发者工具上全绿）。**
+  用 `miniprogram-automator@0.12.1` 驱动微信开发者工具，覆盖运行时引导（6）、安全随机池（3）、
+  Todo CRUD（4）、跨启动持久化（3）。选型前先验过这个 2023 年的包还能不能用：`ws@6.2.6` 握手与
+  分帧 JSON 往返正常，`connect()` 里 `SDKVersion >= 2.7.3` 的门槛放得过本项目的 `libVersion 3.17.1`，
+  Node 24 / 26 都通过；`npm audit` 的 10 条（3 critical）全部落在 `jimp → mkdirp → minimist` 与
+  `jpeg-js`，唯一可达的消费者是 `util.decodeQrCode` / `printQrCode`，只被 `MiniProgram.remote()` 用到——
+  不在 `launch()` / `connect()` 这条路径上。**结论：可用。**
+
+  两条与「不写死清单」机制相关的坑，改这套东西之前要先知道：
+  - `@nx/playwright/plugin` 只要看到 `playwright.config.ts` 就会推断出 `e2e` / `e2e-ci`，
+    而 `ci-template.yml` 正是用 `nx show projects --withTarget=e2e` 组矩阵、runner 全是
+    `ubuntu-latest`。GUI 版开发者工具只有 macOS / Windows，被推断进去就等于往 CI 里塞一条必然红的 job。
+    所以 `nx.json` 把本项目从该插件排除，target 显式叫 `e2e-devtools`（两处缺一不可：只改名不排除是无效的）。
+  - 因此它**不进 CI，也不进 `pnpm test-all`**，是一条显式本地门禁：`pnpm nx e2e-devtools dev-rxdb-miniprogram-e2e`。
+    前置条件是在工具 GUI 里打开「设置 → 安全设置 → 服务端口」——这个开关没有终端通路，
+    CLI 的 `y` 确认是弹在工具窗口内的对话框，管道和 pty 都喂不进去。
+
+  **这没有关掉上方的「真机仍未测」。** 开发者工具是模拟器，逻辑层跑在 NW.js 的 V8 上，
+  而真机 iOS 侧是 JavaScriptCore；WASM、文件系统配额、`wx.getRandomValues` 的时延特性都可能不同。
+  缺口从「完全没有自动化验证」变成了「模拟器上有一套可随时重跑的验证」，真机那一段仍然空着。
+
 ## 实现文件
 
 - `packages/rxdb-adapter-miniprogram/` — 微信小程序 wa-sqlite 适配器
@@ -185,6 +206,8 @@ INVEST 检查清单:
 - `website/docs/compatibility.md` — AC#9 能力矩阵与边界专节
 - `README.md` — AC#10 表述修正
 - `apps/dev-rxdb-miniprogram/project.json` + `eslint.config.mjs` — AC#12 的 Nx 接入（`build` / `lint` 显式 target）
+- `apps/dev-rxdb-miniprogram-e2e/` — 开发者工具 e2e 套件（`e2e-devtools` target，不进 CI）
+- `nx.json` — `@nx/playwright/plugin` 的 `exclude`，阻止上面这个项目被推断出 `e2e` 而进 Linux 矩阵
 - `examples/README.md` — 本目录「不在 CI 覆盖范围」声明，并记录 Taro demo 已迁出
 
 ## References

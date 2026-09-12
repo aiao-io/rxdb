@@ -58,7 +58,12 @@
     },
     { "options": { "targetName": "lint" }, "plugin": "@nx/eslint/plugin" },
     { "options": { "testTargetName": "test" }, "plugin": "@nx/vitest" },
-    { "options": { "targetName": "e2e" }, "plugin": "@nx/playwright/plugin" }
+    {
+      "// exclude": "dev-rxdb-miniprogram-e2e 要驱动 GUI 版微信开发者工具，只在 macOS / Windows 上存在。插件一看到 playwright.config.ts 就会推断出 e2e / e2e-ci，而 ci-template.yml 用 `nx show projects --withTarget=e2e` 自动组矩阵、runner 全是 ubuntu-latest —— 推断出来就等于把一条在 Linux 上必然红的用例塞进 CI。这里排掉，由该项目自己显式声明 e2e-devtools。",
+      "exclude": ["apps/dev-rxdb-miniprogram-e2e/**"],
+      "options": { "targetName": "e2e" },
+      "plugin": "@nx/playwright/plugin"
+    }
   ],
   "release": {
     "projects": ["packages/*"],

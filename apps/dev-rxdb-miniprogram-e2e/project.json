@@ -1,0 +1,28 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// dependsOn": "被测对象是 taro build 产出的 dist/（project.config.json 的 miniprogramRoot 指向它），开发者工具打开的就是这份产物。没有产物时必须红在构建上，而不是红在一条看不懂的选择器超时上。",
+  "// e2e-devtools": "target **不能**叫 `e2e`。ci-template.yml 的 plan 步骤用 `nx show projects --withTarget=e2e` 自动发现矩阵（「不写死清单：新增 e2e 应用自动进矩阵」），而全部 runner 都是 ubuntu-latest。本套件要驱动 GUI 版微信开发者工具，只在 macOS / Windows 上存在，叫 `e2e` 就会被拉进 Linux job 并必然红。`pnpm test-all` 的 `-t ... e2e` 同理。改名让它留在「显式本地门禁」这一侧：想跑的人得自己敲 `nx e2e-devtools dev-rxdb-miniprogram-e2e`。",
+  "implicitDependencies": ["dev-rxdb-miniprogram"],
+  "name": "dev-rxdb-miniprogram-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-miniprogram-e2e/src",
+  "tags": ["miniprogram-app"],
+  "targets": {
+    "e2e-devtools": {
+      "// executor": "不能靠 @nx/playwright 插件推断 target：插件只认 `targetName`（本仓是 e2e），推断出来的名字正好是要躲开的那个。nx.json 里已经把本项目从该插件排除，所以命令在这里显式写死。",
+      "dependsOn": ["dev-rxdb-miniprogram:build"],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-miniprogram-e2e",
+        "command": "node ../../node_modules/@playwright/test/cli.js test"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-miniprogram-e2e",
+        "command": "node ../../node_modules/eslint/bin/eslint.js ."
+      }
+    }
+  }
+}

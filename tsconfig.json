@@ -167,6 +167,9 @@
     },
     {
       "path": "./modules/recipes-domain"
+    },
+    {
+      "path": "./apps/dev-rxdb-miniprogram-e2e"
     }
   ]
 }
