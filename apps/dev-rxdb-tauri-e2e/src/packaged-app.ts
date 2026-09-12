@@ -47,7 +47,7 @@ export const PROBE_BASE_URL_ENV = 'DEV_RXDB_TAURI_PROBE_BASE_URL';
 export const DEVTOOLS_PROBE_ENV = 'DEV_RXDB_TAURI_DEVTOOLS_PROBE';
 
 /** 本文件能读懂的报告结构版本，与 `selfcheck.rs` 的 `REPORT_SCHEMA_VERSION` 一致。 */
-export const REPORT_SCHEMA_VERSION = 9;
+export const REPORT_SCHEMA_VERSION = 10;
 
 /**
  * 自检环境变量配错时的退出码，与 `selfcheck.rs` 的 `CONFIG_EXIT_CODE` 一致。
@@ -271,6 +271,48 @@ export interface DevToolsNativeProbe {
    * Rust 就 `app.exit`，报告写出之后再没有任何一条通往 provider 的路。
    */
   readonly tempResidue?: number;
+  /**
+   * HANDSHAKE 帧里按域报的 provider kind（database/files/settings）。
+   *
+   * @remarks
+   * 驱动从协商帧的 `capabilities.descriptors` 里取，不另开通道。真实档是
+   * `rxdb` / `native-files` / `sqlite`；fake 档断言镜像这份能力面；VFS 强制档下
+   * `files` / `settings` 换成 `opfs` 或 `idb`（idb 下 `files` 缺席——不宣告是现状行为）。
+   */
+  readonly descriptorKinds?: Record<string, string> | null;
+  /** 同上，按域报的 runtime；真实档三个域都是 `tauri`。 */
+  readonly descriptorRuntimes?: Record<string, string> | null;
+  /** snapshot 走查首页的结果码；真实档与 fake `ok` 档为 `ok`。 */
+  readonly snapshotFirstPage?: string;
+  /** 翻页到 complete 的结果码。 */
+  readonly snapshotComplete?: string;
+  /** 走查读到的记录总数；`-1` 表示没走到那一步。 */
+  readonly snapshotRecords?: number;
+  /** 双开之后旧 cursor 翻页的结果码；必须被按 `snapshot_expired` 拒掉。 */
+  readonly snapshotExpired?: string;
+  /** 越界 pageSize（0）的结果码；`invalid_message`。 */
+  readonly snapshotInvalidPageSize?: string;
+  /** `database.query` 配 `limit: 0` 的结果码；`invalid_path`。 */
+  readonly queryLimitZero?: string;
+  /** `database.query` 配 `limit: 1001` 的结果码；`invalid_path`。 */
+  readonly queryLimitHuge?: string;
+  /** `database.query` 配非整数 limit 的结果码；`invalid_path`。 */
+  readonly queryLimitFraction?: string;
+  /** 声明尺寸 2^53 的上传在 wire 上的结果码；`transfer_size_exceeded`。 */
+  readonly uploadHugeSize?: string;
+  /** 非法 base64 chunk 的结果码；`payload_encoding_invalid`。 */
+  readonly invalidChunk?: string;
+  /** `events` 订阅的结果码；真实档与 fake 档都是 `ok`。 */
+  readonly eventsSubscribe?: string;
+  /** 订阅期间收到的 `EVENT` 帧数。 */
+  readonly eventFrames?: number;
+  /**
+   * `database.inspect` 的结果码；只有 fake 档有——注入的是 Rust 侧 `NotConnected` 的
+   * 映射码 `provider_unavailable`，证明 fake 集合上的错误也走共享映射。
+   */
+  readonly databaseInspect?: string;
+  /** 下载播种文件读回的字节数；fake 档为 700，真实档由 {@link DevToolsNativeProbe.downloadBytes} 覆盖。 */
+  readonly downloadByteCount?: number;
   /** 驱动自身失败时的原因；正常跑完为 `null`。 */
   readonly failure?: string | null;
 }

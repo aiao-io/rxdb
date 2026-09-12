@@ -23,7 +23,7 @@ export default defineConfig({
     watch: false,
     globals: true,
     environment: 'node',
-    include: ['src/devtools-window-transport.spec.ts'],
+    include: ['src/devtools-window-transport.spec.ts', 'src/devtools-provider-gear.spec.ts'],
     reporters: ['default'],
     fileParallelism: false,
     // 一次冷启动要跑完 Angular bootstrap + 建库 + 等调试窗口握手（探针预算 20s），
