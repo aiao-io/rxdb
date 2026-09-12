@@ -105,13 +105,24 @@ mod devtools_routing {
 /// release 构建里这段代码根本不进产物，`rxdb-devtools` label 的窗口、入口与 command 随之消失，
 /// 满足「release 无入口、bootstrap、专用 command」。
 #[cfg(dev)]
-fn open_devtools_window(app: &tauri::AppHandle, drive: bool) -> tauri::Result<()> {
+fn open_devtools_window(
+    app: &tauri::AppHandle,
+    drive: bool,
+    config: Option<&devtools_config::DevToolsRuntimeConfig>,
+) -> tauri::Result<()> {
     let mut builder = tauri::WebviewWindowBuilder::new(
         app,
         devtools_routing::DEVTOOLS_LABEL,
         tauri::WebviewUrl::App("devtools/devtools.html".into()),
     )
     .title("RxDB DevTools");
+    // US-905 阶段 1 收尾：驱动档位（provider 源 / snapshot 场景 / VFS 强制）**必须**排在
+    // wire 驱动之前挂在**同一个 builder 链**上——`initialization_script` 按注册序执行，
+    // 同链注册才有这个保证，而插件 `js_init_script` 与窗口脚本谁先跑是不可下注的事。
+    if let Some(config) = config {
+        builder = builder
+            .initialization_script(devtools_config::driver_init_script(config, devtools_routing::DEVTOOLS_LABEL));
+    }
     // US-905 阶段 2：只有自检探针开着时才装 wire 驱动。
     //
     // 门禁取**传进来的** plan 而不是 `selfcheck::devtools_probe_armed`：本函数在 `setup` 里
@@ -247,7 +258,7 @@ async fn rxdb_devtools_recycle_window(app: tauri::AppHandle) -> Result<(), Strin
     // 而第二代本来就没有观察价值：观察者只留**第一条**结论（见 `devtools-probe.ts` 的
     // `waitForNative`），因为第二代看到的世界已经被第一代改过。AC#4 要的「同 label 重开
     // 拿到新 session」是**面板**的性质——这扇窗照样加载面板、照样协商，那条判据一分不少。
-    open_devtools_window(&app, false).map_err(|error| error.to_string())
+    open_devtools_window(&app, false, None).map_err(|error| error.to_string())
 }
 
 /// 被中继按 label 拒掉的帧数（US-905 阶段 1 AC#3）。
@@ -350,9 +361,10 @@ pub fn run() {
     let builder = tauri::Builder::default();
     // 没开 DevTools 时插件根本不注册，页面上因此没有那个全局键——页内据此交回库默认档，
     // 而不是读到一份「看起来是配置」的默认值。release 里连这一整段都不存在。
+    // 这里 clone 一份给插件：原值还要随 `setup` 闭包一起走（调试窗口的驱动档位注入）。
     #[cfg(dev)]
-    let builder = match devtools_config {
-        Some(config) => builder.plugin(devtools_config::plugin(config, MAIN_WINDOW_LABEL)),
+    let builder = match &devtools_config {
+        Some(config) => builder.plugin(devtools_config::plugin(config.clone(), MAIN_WINDOW_LABEL)),
         None => builder,
     };
     builder
@@ -392,8 +404,14 @@ pub fn run() {
             // 任何一扇忘了排除的窗口）否则可以自行开出文件与 SQLite 会话。
             app.manage(DesktopHost::new(app.handle(), app_data_dir, &[MAIN_WINDOW_LABEL]));
             // US-905：dev 模式开调试窗口；release 无此入口（#[cfg(dev)] 两侧一起消失）。
+            // 驱动档位跟着 DevTools 运行档走：没开 DevTools 时窗口不带档位，驱动（若被
+            // 自检单独开启）按真实档跑——fake/VFS 档是 DevTools 配置的一部分。
             #[cfg(dev)]
-            open_devtools_window(app.handle(), plan.as_ref().is_some_and(|plan| plan.devtools_probe))?;
+            open_devtools_window(
+                app.handle(),
+                plan.as_ref().is_some_and(|plan| plan.devtools_probe),
+                devtools_config.as_ref(),
+            )?;
             // host 先托管再挂看门狗：看门狗到期时要读 host 的根目录写进报告。
             if let Some(plan) = plan {
                 selfcheck::arm(app.handle(), plan);

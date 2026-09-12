@@ -29,6 +29,20 @@ describe('DevTools 授权档的页内读取', () => {
     expect(RUST_SOURCE).toContain('pub const MUTATION_ENV: &str = "DEV_RXDB_DEVTOOLS_MUTATION";');
   });
 
+  it('三个档位环境变量在 Rust 侧逐字为这些名字（US-905 阶段 1 收尾）', () => {
+    // 档位名由 e2e 的 env 数组原样喂给进程，页面读的是注入后的 JSON——两处都只写字面量，
+    // 只能像授权档一样在这里把 Rust 源码钉住。
+    expect(RUST_SOURCE).toContain('pub const PROVIDER_SOURCE_ENV: &str = "DEV_RXDB_DEVTOOLS_PROVIDER_SOURCE";');
+    expect(RUST_SOURCE).toContain('pub const SNAPSHOT_SCENARIO_ENV: &str = "DEV_RXDB_DEVTOOLS_SNAPSHOT_SCENARIO";');
+    expect(RUST_SOURCE).toContain('pub const FORCE_VFS_ENV: &str = "DEV_RXDB_DEVTOOLS_FORCE_VFS";');
+  });
+
+  it('驱动档位键与授权键是两把不同的全局键', () => {
+    // 驱动跑在调试窗口、授权跑在主窗口；同名会让驱动把授权档读成自己的档位。
+    expect(RUST_SOURCE).toContain('pub const DRIVER_CONFIG_GLOBAL_KEY: &str = "__aiaoRxdbDevToolsDriverConfig__";');
+    expect(DEVTOOLS_RUNTIME_CONFIG_KEY).not.toBe('__aiaoRxdbDevToolsDriverConfig__');
+  });
+
   it('没有注入配置时返回空对象，而不是一份默认档', () => {
     delete (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY];
 
