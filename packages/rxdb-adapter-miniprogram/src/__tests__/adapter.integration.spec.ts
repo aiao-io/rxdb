@@ -17,9 +17,9 @@ import type {
   MiniProgramWechatApi,
   WaSqliteMiniProgramOptions
 } from '../mini-program.interface.js';
-import { moduleFactory, wasmRuntime } from './subframe-wasm-factory.js';
 import { ADAPTER_NAME } from '../mini-program.interface.js';
 import { RxDBAdapterWaSqliteMiniProgram } from '../RxDBAdapterWaSqliteMiniProgram.js';
+import { moduleFactory, wasmRuntime } from './subframe-wasm-factory.js';
 
 const roots: string[] = [];
 

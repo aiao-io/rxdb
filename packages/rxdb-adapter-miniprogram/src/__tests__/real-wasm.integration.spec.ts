@@ -3,10 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createWaSqliteMiniProgramClient } from '../create-client.js';
-import type {
-  MiniProgramFileSystemManager,
-  MiniProgramWechatApi
-} from '../mini-program.interface.js';
+import type { MiniProgramFileSystemManager, MiniProgramWechatApi } from '../mini-program.interface.js';
 import { moduleFactory, wasmRuntime } from './subframe-wasm-factory.js';
 
 const roots: string[] = [];
